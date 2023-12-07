@@ -59,7 +59,7 @@ func (impl ArgoK8sClientImpl) tprintf(tmpl string, data interface{}) (string, er
 }
 
 func (impl ArgoK8sClientImpl) CreateAcdApp(appRequest *AppTemplate, cluster *repository.Cluster) (string, error) {
-	chartYamlContent, err := ioutil.ReadFile(filepath.Clean("./scripts/argo-assets/APPLICATION_TEMPLATE.JSON"))
+	chartYamlContent, err := ioutil.ReadFile(filepath.Clean("./scripts/argo-assets/APPLICATION_TEMPLATE_HELM_APPS.JSON"))
 	if err != nil {
 		impl.logger.Errorw("err in reading template", "err", err)
 		return "", err

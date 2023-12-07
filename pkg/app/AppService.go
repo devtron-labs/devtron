@@ -432,6 +432,10 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsPipelines(app *v1alph
 			impl.logger.Errorw("error in getting latest timeline before update", "err", err, "cdWfrId", cdWfr.Id)
 			return isSucceeded, isTimelineUpdated, pipelineOverride, err
 		}
+		if latestTimelineBeforeThisEvent.Status != pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED {
+			impl.logger.Infow("invalid event, argocd app not synced yet. Skipping timeline update")
+			return isSucceeded, isTimelineUpdated, pipelineOverride, err
+		}
 		err = impl.appStatusService.UpdateStatusWithAppIdEnvId(cdPipeline.AppId, cdPipeline.EnvironmentId, string(app.Status.Health.Status))
 		if err != nil {
 			impl.logger.Errorw("error occurred while updating app status in app_status table", "error", err, "appId", cdPipeline.AppId, "envId", cdPipeline.EnvironmentId)
@@ -691,26 +695,8 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 			impl.logger.Errorw("error in save/update pipeline status fetch detail", "err", err, "cdWfrId", pipelineId)
 		}
 
-		// event received which means that app is synced at argocd
-		timeline := &pipelineConfig.PipelineStatusTimeline{
-			CdWorkflowRunnerId: pipelineId,
-			StatusTime:         statusTime,
-			AuditLog: sql.AuditLog{
-				CreatedBy: 1,
-				CreatedOn: time.Now(),
-				UpdatedBy: 1,
-				UpdatedOn: time.Now(),
-			},
-			Status: pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED,
-		}
-		_, err, isTimelineUpdated = impl.pipelineStatusTimelineService.SavePipelineStatusTimelineIfNotAlreadyPresent(pipelineId, timeline.Status, timeline, false)
-		if err != nil {
-			impl.logger.Errorw("error in saving pipeline status timeline", "err", err)
-			return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, err
-		}
-
 		// creating cd pipeline status timeline
-		timeline = &pipelineConfig.PipelineStatusTimeline{
+		timeline := &pipelineConfig.PipelineStatusTimeline{
 			CdWorkflowRunnerId: pipelineId,
 			StatusTime:         statusTime,
 			AuditLog: sql.AuditLog{
@@ -812,26 +798,8 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 		if err != nil {
 			impl.logger.Errorw("error in save/update pipeline status fetch detail", "err", err, "installedAppVersionHistoryId", pipelineId)
 		}
-		// event received which means that app is synced at argocd
-		timeline := &pipelineConfig.PipelineStatusTimeline{
-			InstalledAppVersionHistoryId: pipelineId,
-			StatusTime:                   statusTime,
-			AuditLog: sql.AuditLog{
-				CreatedBy: 1,
-				CreatedOn: time.Now(),
-				UpdatedBy: 1,
-				UpdatedOn: time.Now(),
-			},
-			Status: pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED,
-		}
-		_, err, isTimelineUpdated = impl.pipelineStatusTimelineService.SavePipelineStatusTimelineIfNotAlreadyPresent(pipelineId, timeline.Status, timeline, true)
-		if err != nil {
-			impl.logger.Errorw("error in saving pipeline status timeline", "err", err)
-			return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, err
-		}
-
 		// creating installedAppVersionHistory status timeline
-		timeline = &pipelineConfig.PipelineStatusTimeline{
+		timeline := &pipelineConfig.PipelineStatusTimeline{
 			InstalledAppVersionHistoryId: pipelineId,
 			StatusTime:                   statusTime,
 			AuditLog: sql.AuditLog{

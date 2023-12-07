@@ -72,7 +72,9 @@ func (impl *GitOpsManifestPushServiceImpl) PushChart(manifestPushTemplate *bean.
 	manifestPushResponse.CommitTime = commitTime
 	timeline := impl.pipelineStatusTimelineService.GetTimelineDbObjectByTimelineStatusAndTimelineDescription(manifestPushTemplate.WorkflowRunnerId, 0, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT, "Git commit done successfully.", manifestPushTemplate.UserId)
 	timelineErr := impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, false)
-	impl.logger.Errorw("Error in saving git commit success timeline", err, timelineErr)
+	if timelineErr != nil {
+		impl.logger.Errorw("Error in saving git commit success timeline", err, timelineErr)
+	}
 
 	return manifestPushResponse
 }
