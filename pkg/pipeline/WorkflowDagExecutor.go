@@ -2094,6 +2094,15 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 	if err != nil {
 		impl.logger.Errorw("error in creating timeline status for deployment initiation", "err", err, "timeline", timeline)
 	}
+
+	// custom gitops repo url validation --> Start
+	err = impl.handleCustomGitOpsRepoValidation(runner, pipeline, triggeredBy)
+	if err != nil {
+		impl.logger.Errorw("custom GitOps repository validation error, TriggerPreStage", "err", err)
+		return err
+	}
+	// custom gitops repo url validation --> Ends
+
 	//checking vulnerability for deploying image
 	isVulnerable := false
 	if len(artifact.ImageDigest) > 0 {
