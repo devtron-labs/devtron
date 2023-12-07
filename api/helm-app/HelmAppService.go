@@ -7,6 +7,7 @@ import (
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/helm-app/models"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
+	"github.com/go-pg/pg"
 	"net/http"
 	"reflect"
 	"strconv"
@@ -52,6 +53,7 @@ type HelmAppService interface {
 	GetValuesYaml(ctx context.Context, app *AppIdentifier) (*ReleaseInfo, error)
 	GetDesiredManifest(ctx context.Context, app *AppIdentifier, resource *openapi.ResourceIdentifier) (*openapi.DesiredManifestResponse, error)
 	DeleteApplication(ctx context.Context, app *AppIdentifier) (*openapi.UninstallReleaseResponse, error)
+	DeleteBaseStackHelmApplication(ctx context.Context, app *AppIdentifier, useId int32) (*openapi.UninstallReleaseResponse, error)
 	UpdateApplication(ctx context.Context, app *AppIdentifier, request *UpdateApplicationRequestDto) (*openapi.UpdateReleaseResponse, error)
 	GetDeploymentDetail(ctx context.Context, app *AppIdentifier, version int32) (*openapi.HelmAppDeploymentManifestDetail, error)
 	InstallRelease(ctx context.Context, clusterId int, installReleaseRequest *InstallReleaseRequest) (*InstallReleaseResponse, error)
@@ -410,6 +412,88 @@ func (impl *HelmAppServiceImpl) GetDesiredManifest(ctx context.Context, app *App
 		Manifest: &desiredManifestResponse.Manifest,
 	}
 	return response, nil
+}
+
+func (impl *HelmAppServiceImpl) DeleteBaseStackHelmApplication(ctx context.Context, app *AppIdentifier, userId int32) (*openapi.UninstallReleaseResponse, error) {
+	dbConnection := impl.appRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		impl.logger.Errorw("error in beginning transaction", "err", err)
+		return nil, err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+
+	// For Helm deployments ReleaseName is App.Name
+	model, err := impl.installedAppRepository.GetInstalledAppByAppName(app.ReleaseName)
+	switch err {
+	case pg.ErrNoRows:
+		return impl.DeleteApplication(ctx, app)
+	case nil:
+		impl.logger.Errorw("error in fetching installed app", "appName", app.ReleaseName, "err", err)
+		return nil, err
+	}
+	// If there are two releases with same name but in different namespace (eg: test -n demo-1 {Hyperion App}, test -n demo-2 {Externally Installed});
+	// And if the request is received for the externally installed app, the below condition will handle
+	if model.Environment.Namespace != app.Namespace {
+		return impl.DeleteApplication(ctx, app)
+	}
+
+	// App Delete --> Start
+	//soft delete app
+	appModel := &model.App
+	appModel.Active = false
+	appModel.UpdatedBy = userId
+	appModel.UpdatedOn = time.Now()
+	err = impl.appRepository.UpdateWithTxn(appModel, tx)
+	if err != nil {
+		impl.logger.Errorw("error in deleting appModel", "app", appModel)
+		return nil, err
+	}
+	// App Delete --> End
+
+	// InstalledApp Delete --> Start
+	// soft delete install app
+	model.Active = false
+	model.UpdatedBy = userId
+	model.UpdatedOn = time.Now()
+	_, err = impl.installedAppRepository.UpdateInstalledApp(model, tx)
+	if err != nil {
+		impl.logger.Errorw("error while deleting install app", "error", err)
+		return nil, err
+	}
+	// InstalledApp Delete --> End
+
+	// InstalledAppVersions Delete --> Start
+	models, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppId(model.Id)
+	if err != nil {
+		impl.logger.Errorw("error while fetching install app versions", "error", err)
+		return nil, err
+	}
+
+	// soft delete install app versions
+	for _, item := range models {
+		item.Active = false
+		item.UpdatedBy = userId
+		item.UpdatedOn = time.Now()
+		_, err = impl.installedAppRepository.UpdateInstalledAppVersion(item, tx)
+		if err != nil {
+			impl.logger.Errorw("error while fetching from db", "error", err)
+			return nil, err
+		}
+	}
+	// InstalledAppVersions Delete --> End
+	res, err := impl.DeleteApplication(ctx, app)
+	if err != nil {
+		impl.logger.Errorw("error in deleting helm application", "error", err, "appIdentifier", app)
+		return nil, err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("error in committing data in db", "err", err)
+	}
+	return res, nil
 }
 
 func (impl *HelmAppServiceImpl) DeleteApplication(ctx context.Context, app *AppIdentifier) (*openapi.UninstallReleaseResponse, error) {
