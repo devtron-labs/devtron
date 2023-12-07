@@ -60,6 +60,9 @@ func BuildQueryForParentTypeCIOrWebhook(listingFilterOpts bean.ArtifactsListFilt
 }
 
 func BuildQueryForArtifactsForCdStage(listingFilterOptions bean.ArtifactsListFilterOptions, isApprovalNode bool) string {
+	if listingFilterOptions.UseCdStageQueryV2 {
+		return buildQueryForArtifactsForCdStageV2(listingFilterOptions, isApprovalNode)
+	}
 
 	//TODO: revisit this condition (cd_workflow.pipeline_id= %v and cd_workflow_runner.workflow_type = '%v' )
 	commonQuery := " from ci_artifact LEFT JOIN cd_workflow ON ci_artifact.id = cd_workflow.ci_artifact_id" +
@@ -83,6 +86,45 @@ func BuildQueryForArtifactsForCdStage(listingFilterOptions bean.ArtifactsListFil
 
 	//finalQuery := selectQuery + commonQuery + GroupByQuery + limitOffSetQuery
 	finalQuery := selectQuery + commonQuery + limitOffSetQuery
+	return finalQuery
+}
+
+func buildQueryForArtifactsForCdStageV2(listingFilterOptions bean.ArtifactsListFilterOptions, isApprovalNode bool) string {
+	withQuery := fmt.Sprintf(" WITH latest_cdwrs AS ("+
+		" SELECT DISTINCT(cd_workflow.ci_artifact_id) as ci_artifact_id "+
+		" FROM cd_workflow_runner"+
+		" INNER JOIN cd_workflow ON cd_workflow.id = cd_workflow_runner.cd_workflow_id "+
+		" AND (cd_workflow.pipeline_id = %d OR cd_workflow.pipeline_id = %d)"+
+		"    WHERE ("+
+		"            (cd_workflow.pipeline_id = %d AND cd_workflow_runner.workflow_type = '%s')"+
+		"            OR"+
+		"            (cd_workflow.pipeline_id = %d"+
+		"                AND cd_workflow_runner.workflow_type = '%s'"+
+		"                AND cd_workflow_runner.status IN ('Healthy','Succeeded')"+
+		"           )"+
+		"      )   ) ", listingFilterOptions.PipelineId, listingFilterOptions.ParentId, listingFilterOptions.PipelineId, listingFilterOptions.StageType, listingFilterOptions.ParentId, listingFilterOptions.ParentStageType)
+
+	selectQuery := " SELECT DISTINCT(ci_artifact.id) , count(*) over() as total_count "
+	joinCondition1 := " ci_artifact.id = latest_cdwrs.ci_artifact_id "
+
+	//CiPipelineId might be 0 if the current pipeline's build pipeline was an external-ci/webhook
+	if listingFilterOptions.CiPipelineId != 0 {
+		joinCondition1 = fmt.Sprintf("(%s AND ci_artifact.pipeline_id = %d)", joinCondition1, listingFilterOptions.CiPipelineId)
+	}
+	joinCondition2 := fmt.Sprintf(" ((ci_artifact.component_id = %d  AND ci_artifact.data_source= '%s' ))", listingFilterOptions.ParentId, listingFilterOptions.PluginStage)
+	fromQuery := " FROM ci_artifact" +
+		" INNER JOIN latest_cdwrs " +
+		" ON (ci_artifact.id = latest_cdwrs.ci_artifact_id AND ci_artifact.pipeline_id = %d) " +
+		" OR " + joinCondition1 + joinCondition2
+
+	whereQuery := fmt.Sprintf(" WHERE ci_artifact.image LIKE '%s' ", listingFilterOptions.SearchString)
+	if isApprovalNode {
+		whereQuery = whereQuery + fmt.Sprintf(" AND ( latest_cdwrs.ci_artifact_id NOT IN (SELECT DISTINCT dar.ci_artifact_id FROM deployment_approval_request dar WHERE dar.pipeline_id = %d AND dar.active=true AND dar.artifact_deployment_triggered = false))", listingFilterOptions.PipelineId)
+	} else if len(listingFilterOptions.ExcludeArtifactIds) > 0 {
+		whereQuery = whereQuery + fmt.Sprintf(" AND ( latest_cdwrs.ci_artifact_id NOT IN (%s))", helper.GetCommaSepratedString(listingFilterOptions.ExcludeArtifactIds))
+	}
+
+	finalQuery := withQuery + selectQuery + fromQuery + whereQuery
 	return finalQuery
 }
 
