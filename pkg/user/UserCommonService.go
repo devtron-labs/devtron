@@ -550,7 +550,7 @@ func (impl UserCommonServiceImpl) CheckRbacForClusterEntity(cluster, namespace, 
 		resourceObj = "*"
 	}
 
-	rbacResource := fmt.Sprintf("%s/%s/%s", cluster, namespaceObj, casbin.ResourceUser)
+	rbacResource := fmt.Sprintf("%s/%s/%s", strings.ToLower(cluster), strings.ToLower(namespaceObj), casbin.ResourceUser)
 	resourcesArray := strings.Split(resourceObj, ",")
 	for _, resourceVal := range resourcesArray {
 		rbacObject := fmt.Sprintf("%s/%s/%s", groupObj, kindObj, resourceVal)
