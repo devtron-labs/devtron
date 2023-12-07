@@ -846,16 +846,7 @@ func (impl *HelmAppServiceImpl) TemplateChart(ctx context.Context, templateChart
 	return response, nil
 }
 func (impl *HelmAppServiceImpl) GetNotes(ctx context.Context, request *InstallReleaseRequest) (string, error) {
-	clusterId := int(request.ReleaseIdentifier.ClusterConfig.ClusterId)
-	config, err := impl.GetClusterConf(clusterId)
 	var notesTxt string
-	if err != nil {
-		impl.logger.Errorw("error in fetching cluster detail", "clusterId", clusterId, "err", err)
-		return notesTxt, err
-	}
-
-	request.ReleaseIdentifier.ClusterConfig = config
-
 	response, err := impl.helmAppClient.GetNotes(ctx, request)
 	if err != nil {
 		impl.logger.Errorw("error in fetching chart", "err", err)
