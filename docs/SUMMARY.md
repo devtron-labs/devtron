@@ -89,6 +89,7 @@
   * [Workflow Editor](user-guide/jobs/workflow-editor-job.md)
   * [Trigger Job](user-guide/jobs/triggering-job.md)
   * [Overview](user-guide/jobs/overview-job.md) 
+* [Application Groups](user-guide/application-groups.md)
 * [Resource Browser](user-guide/resource-browser.md)   
 * [Charts](user-guide/deploy-chart/README.md)
   * [Charts Overview](user-guide/deploy-chart/overview-of-charts.md)
