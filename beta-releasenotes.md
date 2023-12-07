@@ -1,4 +1,5 @@
 ## Bugs
+- fix:Not able to change Authentication Type for Prometheus. (#4284)
 - fix:cve search  (#4347)
 - fix: added missing clusterConfig in releaseIdentifier request (#4359)
 - fix: Inconsistent behaviour on deploying application from application group v/s devtron cli tool after changing deploymentType  (#4353)
