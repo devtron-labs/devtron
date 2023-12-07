@@ -9,7 +9,7 @@ global:
     runAsNonRoot: true
 installer:
   repo: "devtron-labs/devtron"
-  release: "v0.6.25"
+  release: "v0.6.24"
   image: quay.io/devtron/inception
   tag: 44b30917-185-13275
   source: "github" # Available options are github and gitee
@@ -327,7 +327,7 @@ argo-cd:
 security:
   enabled: false
   imageScanner:
-    image: "quay.io/devtron/image-scanner:2c3eb6f6-334-19332"
+    image: "quay.io/devtron/image-scanner:abb1e033-334-19909"
   # Values for trivy
   trivy:
     enabled: false
