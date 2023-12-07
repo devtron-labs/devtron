@@ -51,6 +51,7 @@
 - docs: Added Videos + Fixed Typos and Navigation (#4169)
 - doc: added a Config.md to expose all the env variables use in this microservice (#4173)
 ## Others
+- chore: Integrate Terraform CLI, Ansible, and SonarQube Plugins (#4363)
 - chore: updated schema for resources (#4266)
 - chore: change-ci and app-group fixes (#4332)
 - chore: change CI backend infra  (#4251)
