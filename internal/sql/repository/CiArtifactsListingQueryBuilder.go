@@ -114,8 +114,8 @@ func buildQueryForArtifactsForCdStageV2(listingFilterOptions bean.ArtifactsListF
 	joinCondition2 := fmt.Sprintf(" ((ci_artifact.component_id = %d  AND ci_artifact.data_source= '%s' ))", listingFilterOptions.ParentId, listingFilterOptions.PluginStage)
 	fromQuery := " FROM ci_artifact" +
 		" INNER JOIN latest_cdwrs " +
-		" ON (ci_artifact.id = latest_cdwrs.ci_artifact_id AND ci_artifact.pipeline_id = %d) " +
-		" OR " + joinCondition1 + joinCondition2
+		" ON " + joinCondition1 +
+		" OR " + joinCondition2
 
 	whereQuery := fmt.Sprintf(" WHERE ci_artifact.image LIKE '%s' ", listingFilterOptions.SearchString)
 	if isApprovalNode {
