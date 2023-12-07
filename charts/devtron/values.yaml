@@ -9,7 +9,7 @@ global:
     runAsNonRoot: true
 installer:
   repo: "devtron-labs/devtron"
-  release: "v0.6.25"
+  release: "v0.6.24"
   image: quay.io/devtron/inception
   tag: 44b30917-185-13275
   source: "github" # Available options are github and gitee
@@ -94,7 +94,7 @@ components:
       authenticator: "quay.io/devtron/authenticator:e414faff-393-13273"
 
   kubelink:
-    image: "quay.io/devtron/kubelink:16a32ab1-564-19632"
+    image: "quay.io/devtron/kubelink:59a19eb7-564-19917"
     imagePullPolicy: IfNotPresent
     configs:
       ENABLE_HELM_RELEASE_CACHE: "true"
