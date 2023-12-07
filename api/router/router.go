@@ -133,6 +133,7 @@ type MuxRouter struct {
 	ciTriggerCron                      cron.CiTriggerCron
 	resourceFilterRouter               ResourceFilterRouter
 	devtronResourceRouter              devtronResource.DevtronResourceRouter
+	argoCDAppSyncHandler               cron.ArgocdAppSyncHandler
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -166,7 +167,8 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 	globalPolicyRouter globalPolicy.GlobalPolicyRouter, configDraftRouter drafts.ConfigDraftRouter, resourceProtectionRouter protect.ResourceProtectionRouter,
 	scopedVariableRouter ScopedVariableRouter, ciTriggerCron cron.CiTriggerCron,
 	resourceFilterRouter ResourceFilterRouter,
-	devtronResourceRouter devtronResource.DevtronResourceRouter) *MuxRouter {
+	devtronResourceRouter devtronResource.DevtronResourceRouter,
+	argoCDAppSyncHandler cron.ArgocdAppSyncHandler) *MuxRouter {
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
 		HelmRouter:                         HelmRouter,
@@ -244,6 +246,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 		resourceProtectionRouter:           resourceProtectionRouter,
 		resourceFilterRouter:               resourceFilterRouter,
 		devtronResourceRouter:              devtronResourceRouter,
+		argoCDAppSyncHandler:               argoCDAppSyncHandler,
 	}
 	return r
 }

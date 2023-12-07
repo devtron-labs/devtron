@@ -10,6 +10,7 @@ import (
 
 type ArgoClientWrapperService interface {
 	GetArgoAppWithNormalRefresh(context context.Context, argoAppName string) error
+	SyncArgoCDApplication(context context.Context, argoAppName string) error
 }
 
 type ArgoClientWrapperServiceImpl struct {
@@ -30,6 +31,17 @@ func (impl *ArgoClientWrapperServiceImpl) GetArgoAppWithNormalRefresh(context co
 	refreshType := bean.RefreshTypeNormal
 	impl.logger.Debugw("trying to normal refresh application through get ", "argoAppName", argoAppName)
 	_, err := impl.acdClient.Get(context, &application2.ApplicationQuery{Name: &argoAppName, Refresh: &refreshType})
+	if err != nil {
+		impl.logger.Errorw("cannot get application with refresh", "app", argoAppName)
+		return err
+	}
+	impl.logger.Debugw("done getting the application with refresh with no error", "argoAppName", argoAppName)
+	return nil
+}
+
+func (impl *ArgoClientWrapperServiceImpl) SyncArgoCDApplication(context context.Context, argoAppName string) error {
+	impl.logger.Info("argocd manual sync for app started", "argoAppName", argoAppName)
+	_, err := impl.acdClient.Sync(context, &application2.ApplicationSyncRequest{Name: &argoAppName})
 	if err != nil {
 		impl.logger.Errorw("cannot get application with refresh", "app", argoAppName)
 		return err

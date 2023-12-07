@@ -44,14 +44,14 @@ func (impl *HelmRepoPushServiceImpl) PushChart(manifestPushTemplate *bean.Manife
 		if ociHelmRepoPushRequest.RegistryCredential != nil {
 			repoURL := path.Join(ociHelmRepoPushRequest.RegistryCredential.RegistryUrl, ociHelmRepoPushRequest.RegistryCredential.RepoName)
 			manifestPushResponse.Error = fmt.Errorf("Could not push helm package to \"%v\"", repoURL)
-			timeline := getTimelineObject(manifestPushTemplate, pipelineConfig.TIMELINE_STATUS_MANIFEST_PUSHED_TO_HELM_REPO_FAILED, fmt.Sprintf("Could not push helm package to \"%v\"", repoURL))
+			timeline := impl.pipelineStatusTimelineService.GetTimelineDbObjectByTimelineStatusAndTimelineDescription(manifestPushTemplate.WorkflowRunnerId, 0, pipelineConfig.TIMELINE_STATUS_MANIFEST_PUSHED_TO_HELM_REPO_FAILED, fmt.Sprintf("Could not push helm package to \"%v\"", repoURL), manifestPushTemplate.UserId)
 			timelineErr := impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, false)
 			if timelineErr != nil {
 				impl.logger.Errorw("error in creating timeline status for git commit", "err", timelineErr, "timeline", timeline)
 			}
 		} else {
 			manifestPushResponse.Error = err
-			timeline := getTimelineObject(manifestPushTemplate, pipelineConfig.TIMELINE_STATUS_MANIFEST_PUSHED_TO_HELM_REPO_FAILED, err.Error())
+			timeline := impl.pipelineStatusTimelineService.GetTimelineDbObjectByTimelineStatusAndTimelineDescription(manifestPushTemplate.WorkflowRunnerId, 0, pipelineConfig.TIMELINE_STATUS_MANIFEST_PUSHED_TO_HELM_REPO_FAILED, err.Error(), manifestPushTemplate.UserId)
 			timelineErr := impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, false)
 			if timelineErr != nil {
 				impl.logger.Errorw("error in creating timeline status for git commit", "err", timelineErr, "timeline", timeline)
@@ -61,8 +61,7 @@ func (impl *HelmRepoPushServiceImpl) PushChart(manifestPushTemplate *bean.Manife
 	}
 	manifestPushResponse.CommitHash = helmManifestResponse.PushResult.Digest
 	manifestPushResponse.CommitTime = time.Now()
-
-	timeline := getTimelineObject(manifestPushTemplate, pipelineConfig.TIMELINE_STATUS_MANIFEST_PUSHED_TO_HELM_REPO, "helm packaged successfully pushed to helm repo")
+	timeline := impl.pipelineStatusTimelineService.GetTimelineDbObjectByTimelineStatusAndTimelineDescription(manifestPushTemplate.WorkflowRunnerId, 0, pipelineConfig.TIMELINE_STATUS_MANIFEST_PUSHED_TO_HELM_REPO, "helm packaged successfully pushed to helm repo", manifestPushTemplate.UserId)
 	timelineErr := impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, false)
 	if timelineErr != nil {
 		impl.logger.Errorw("error in creating timeline status for git commit", "err", timelineErr, "timeline", timeline)

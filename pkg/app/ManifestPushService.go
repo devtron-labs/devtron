@@ -11,7 +11,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app/bean"
 	status2 "github.com/devtron-labs/devtron/pkg/app/status"
 	chartService "github.com/devtron-labs/devtron/pkg/chart"
-	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
@@ -71,8 +70,7 @@ func (impl *GitOpsManifestPushServiceImpl) PushChart(manifestPushTemplate *bean.
 	}
 	manifestPushResponse.CommitHash = commitHash
 	manifestPushResponse.CommitTime = commitTime
-
-	timeline := getTimelineObject(manifestPushTemplate, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT, "Git commit done successfully.")
+	timeline := impl.pipelineStatusTimelineService.GetTimelineDbObjectByTimelineStatusAndTimelineDescription(manifestPushTemplate.WorkflowRunnerId, 0, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT, "Git commit done successfully.", manifestPushTemplate.UserId)
 	timelineErr := impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, false)
 	impl.logger.Errorw("Error in saving git commit success timeline", err, timelineErr)
 
@@ -145,24 +143,9 @@ func (impl *GitOpsManifestPushServiceImpl) CommitValuesToGit(manifestPushTemplat
 }
 
 func (impl *GitOpsManifestPushServiceImpl) SaveTimelineForError(manifestPushTemplate *bean.ManifestPushTemplate, gitCommitErr error) {
-	timeline := getTimelineObject(manifestPushTemplate, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED, fmt.Sprintf("Git commit failed - %v", gitCommitErr))
+	timeline := impl.pipelineStatusTimelineService.GetTimelineDbObjectByTimelineStatusAndTimelineDescription(manifestPushTemplate.WorkflowRunnerId, 0, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED, fmt.Sprintf("Git commit failed - %v", gitCommitErr), manifestPushTemplate.UserId)
 	timelineErr := impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, false)
 	if timelineErr != nil {
 		impl.logger.Errorw("error in creating timeline status for git commit", "err", timelineErr, "timeline", timeline)
-	}
-}
-
-func getTimelineObject(manifestPushTemplate *bean.ManifestPushTemplate, status string, statusDetail string) *pipelineConfig.PipelineStatusTimeline {
-	return &pipelineConfig.PipelineStatusTimeline{
-		CdWorkflowRunnerId: manifestPushTemplate.WorkflowRunnerId,
-		Status:             status,
-		StatusDetail:       statusDetail,
-		StatusTime:         time.Now(),
-		AuditLog: sql.AuditLog{
-			CreatedBy: manifestPushTemplate.UserId,
-			CreatedOn: time.Now(),
-			UpdatedBy: manifestPushTemplate.UserId,
-			UpdatedOn: time.Now(),
-		},
 	}
 }

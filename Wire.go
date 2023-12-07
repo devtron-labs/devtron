@@ -1002,6 +1002,9 @@ func InitializeApp() (*App, error) {
 
 		pipeline.NewPipelineConfigListenerServiceImpl,
 		wire.Bind(new(pipeline.PipelineConfigListenerService), new(*pipeline.PipelineConfigListenerServiceImpl)),
+
+		cron.NewArgocdAppSyncCron,
+		wire.Bind(new(cron.ArgocdAppSyncHandler), new(*cron.ArgocdAppSyncCron)),
 	)
 	return &App{}, nil
 }

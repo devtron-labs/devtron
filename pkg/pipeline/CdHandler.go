@@ -29,6 +29,7 @@ import (
 	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
+	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	client2 "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
@@ -91,6 +92,7 @@ type CdHandler interface {
 	FetchAppDeploymentStatusForEnvironments(request resourceGroup2.ResourceGroupingRequest) ([]*pipelineConfig.AppDeploymentStatus, error)
 	PerformDeploymentApprovalAction(userId int32, approvalActionRequest bean3.UserApprovalActionRequest) error
 	DeactivateImageReservationPathsOnFailure(imagePathReservationIds []int) error
+	SyncArgoCdApps(deployedBeforeMinutes int) error
 }
 
 type CdHandlerImpl struct {
@@ -133,13 +135,15 @@ type CdHandlerImpl struct {
 	clusterService                         cluster.ClusterService
 	blobConfigStorageService               BlobStorageConfigService
 	customTagService                       CustomTagService
+	argocdClientWrapperService             argocdServer.ArgoClientWrapperService
 }
 
 func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService, cdWorkflowRepository pipelineConfig.CdWorkflowRepository, ciLogService CiLogService, ciArtifactRepository repository.CiArtifactRepository, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, pipelineRepository pipelineConfig.PipelineRepository, envRepository repository2.EnvironmentRepository, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, helmAppService client.HelmAppService, pipelineOverrideRepository chartConfig.PipelineOverrideRepository, workflowDagExecutor WorkflowDagExecutor, appListingService app.AppListingService, appListingRepository repository.AppListingRepository, pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository, application application.ServiceClient, argoUserService argo.ArgoUserService, deploymentEventHandler app.DeploymentEventHandler, eventClient client2.EventClient, pipelineStatusTimelineResourcesService status.PipelineStatusTimelineResourcesService, pipelineStatusSyncDetailService status.PipelineStatusSyncDetailService, pipelineStatusTimelineService status.PipelineStatusTimelineService, appService app.AppService, appStatusService app_status.AppStatusService, enforcerUtil rbac.EnforcerUtil, installedAppRepository repository3.InstalledAppRepository, installedAppVersionHistoryRepository repository3.InstalledAppVersionHistoryRepository, appRepository app2.AppRepository, resourceGroupService resourceGroup2.ResourceGroupService, imageTaggingService ImageTaggingService, k8sUtil *k8s.K8sUtil, workflowService WorkflowService, clusterService cluster.ClusterService, blobConfigStorageService BlobStorageConfigService,
 	deploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository,
 	eventFactory client2.EventFactory,
 	resourceFilterService resourceFilter.ResourceFilterService,
-	customTagService CustomTagService) *CdHandlerImpl {
+	customTagService CustomTagService,
+	argocdClientWrapperService argocdServer.ArgoClientWrapperService) *CdHandlerImpl {
 	cdh := &CdHandlerImpl{
 		Logger:                                 Logger,
 		userService:                            userService,
@@ -179,6 +183,7 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService, c
 		blobConfigStorageService:               blobConfigStorageService,
 		resourceFilterService:                  resourceFilterService,
 		customTagService:                       customTagService,
+		argocdClientWrapperService:             argocdClientWrapperService,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -1821,4 +1826,41 @@ func (impl *CdHandlerImpl) performNotificationApprovalAction(approvalActionReque
 
 func (impl *CdHandlerImpl) DeactivateImageReservationPathsOnFailure(imagePathReservationIds []int) error {
 	return impl.customTagService.DeactivateImagePathReservationByImageIds(imagePathReservationIds)
+}
+
+func (impl *CdHandlerImpl) SyncArgoCdApps(deployedBeforeMinutes int) error {
+	err := impl.syncACDDevtronApps(deployedBeforeMinutes)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (impl *CdHandlerImpl) syncACDDevtronApps(deployedBeforeMinutes int) error {
+	pipelines, err := impl.pipelineRepository.GetArgoPipelineStuckInGitCommitState(deployedBeforeMinutes)
+	if err != nil && err != pg.ErrNoRows {
+		impl.Logger.Errorw("err in GetArgoPipelinesHavingTriggersStuckInLastPossibleNonTerminalTimelines", "err", err)
+		return err
+	}
+	impl.Logger.Debugw("received argo cd pipelines stuck at git commit stage", "pipelines", pipelines)
+	for _, pipeline := range pipelines {
+		cdWfr, err := impl.cdWorkflowRepository.FindLastStatusByPipelineIdAndRunnerType(pipeline.Id, bean.CD_WORKFLOW_TYPE_DEPLOY)
+		if err != nil {
+			impl.Logger.Errorw("error in getting latest cdWfr by cdPipelineId", "err", err, "pipelineId", pipeline.Id)
+			continue
+		}
+		if util3.IsTerminalStatus(cdWfr.Status) {
+			continue
+		}
+		syncErr := impl.argocdClientWrapperService.SyncArgoCDApplication(context.Background(), pipeline.DeploymentAppName)
+		impl.Logger.Errorw("error in syncing argoCD app", "err", err)
+		if syncErr != nil {
+			timelineObject := impl.pipelineStatusTimelineService.GetTimelineDbObjectByTimelineStatusAndTimelineDescription(cdWfr.Id, 0, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_FAILED, fmt.Sprintf("error occuered in syncing argocd application. err: %s", err.Error()), 1)
+			_ = impl.pipelineStatusTimelineService.SaveTimeline(timelineObject, nil, false)
+			continue
+		}
+		timelineObject := impl.pipelineStatusTimelineService.GetTimelineDbObjectByTimelineStatusAndTimelineDescription(cdWfr.Id, 0, pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED, "argocd sync completed", 1)
+		_ = impl.pipelineStatusTimelineService.SaveTimeline(timelineObject, nil, false)
+	}
+	return err
 }
