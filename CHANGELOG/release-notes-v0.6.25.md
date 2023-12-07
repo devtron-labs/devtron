@@ -1,3 +1,7 @@
+## v0.6.25
+
+
+
 ## Bugs
 - fix:Not able to change Authentication Type for Prometheus. (#4284)
 - fix:cve search  (#4347)
