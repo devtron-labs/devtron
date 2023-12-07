@@ -432,10 +432,6 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsPipelines(app *v1alph
 			impl.logger.Errorw("error in getting latest timeline before update", "err", err, "cdWfrId", cdWfr.Id)
 			return isSucceeded, isTimelineUpdated, pipelineOverride, err
 		}
-		if latestTimelineBeforeThisEvent.Status != pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED {
-			impl.logger.Infow("invalid event, argocd app not synced yet. Skipping timeline update")
-			return isSucceeded, isTimelineUpdated, pipelineOverride, err
-		}
 		err = impl.appStatusService.UpdateStatusWithAppIdEnvId(cdPipeline.AppId, cdPipeline.EnvironmentId, string(app.Status.Health.Status))
 		if err != nil {
 			impl.logger.Errorw("error occurred while updating app status in app_status table", "error", err, "appId", cdPipeline.AppId, "envId", cdPipeline.EnvironmentId)
@@ -637,6 +633,14 @@ func (impl *AppServiceImpl) CheckIfPipelineUpdateEventIsValid(argoAppName, gitHa
 	}
 	if util2.IsTerminalStatus(cdWfr.Status) {
 		//drop event
+		return isValid, pipeline, cdWfr, pipelineOverride, nil
+	}
+	timeline, err := impl.pipelineStatusTimelineRepository.FetchTimelineByWfrIdAndStatus(cdWfr.Id, pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED)
+	if err != nil {
+		impl.logger.Errorw("error in fetching argocd sync status", "err", err)
+		return isValid, pipeline, cdWfr, pipelineOverride, nil
+	}
+	if timeline != nil && timeline.Id == 0 {
 		return isValid, pipeline, cdWfr, pipelineOverride, nil
 	}
 	isValid = true
