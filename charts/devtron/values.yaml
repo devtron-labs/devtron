@@ -9,7 +9,7 @@ global:
     runAsNonRoot: true
 installer:
   repo: "devtron-labs/devtron"
-  release: "v0.6.25"
+  release: "v0.6.26-rc.0"
   image: quay.io/devtron/inception
   tag: 44b30917-185-13275
   source: "github" # Available options are github and gitee
@@ -60,7 +60,7 @@ components:
     imagePullPolicy: IfNotPresent
 
   devtron:
-    image: "quay.io/devtron/hyperion:95146ae5-280-19913"
+    image: "quay.io/devtron/hyperion:502d33e6-280-19918"
     cicdImage: "quay.io/devtron/devtron:95146ae5-434-19914"
     imagePullPolicy: IfNotPresent
     customOverrides:
