@@ -60,6 +60,9 @@ func BuildQueryForParentTypeCIOrWebhook(listingFilterOpts bean.ArtifactsListFilt
 }
 
 func BuildQueryForArtifactsForCdStage(listingFilterOptions bean.ArtifactsListFilterOptions, isApprovalNode bool) string {
+	if listingFilterOptions.UseCdStageQueryV2 {
+		return buildQueryForArtifactsForCdStageV2(listingFilterOptions, isApprovalNode)
+	}
 
 	//TODO: revisit this condition (cd_workflow.pipeline_id= %v and cd_workflow_runner.workflow_type = '%v' )
 	commonQuery := " from ci_artifact LEFT JOIN cd_workflow ON ci_artifact.id = cd_workflow.ci_artifact_id" +
@@ -83,6 +86,38 @@ func BuildQueryForArtifactsForCdStage(listingFilterOptions bean.ArtifactsListFil
 
 	//finalQuery := selectQuery + commonQuery + GroupByQuery + limitOffSetQuery
 	finalQuery := selectQuery + commonQuery + limitOffSetQuery
+	return finalQuery
+}
+
+func buildQueryForArtifactsForCdStageV2(listingFilterOptions bean.ArtifactsListFilterOptions, isApprovalNode bool) string {
+	whereCondition := fmt.Sprintf(" WHERE (id IN ("+
+		" SELECT DISTINCT(cd_workflow.ci_artifact_id) as ci_artifact_id "+
+		" FROM cd_workflow_runner"+
+		" INNER JOIN cd_workflow ON cd_workflow.id = cd_workflow_runner.cd_workflow_id "+
+		" AND (cd_workflow.pipeline_id = %d OR cd_workflow.pipeline_id = %d)"+
+		"    WHERE ("+
+		"            (cd_workflow.pipeline_id = %d AND cd_workflow_runner.workflow_type = '%s')"+
+		"            OR"+
+		"            (cd_workflow.pipeline_id = %d"+
+		"                AND cd_workflow_runner.workflow_type = '%s'"+
+		"                AND cd_workflow_runner.status IN ('Healthy','Succeeded')"+
+		"           )"+
+		"      )   ) ", listingFilterOptions.PipelineId, listingFilterOptions.ParentId, listingFilterOptions.PipelineId, listingFilterOptions.StageType, listingFilterOptions.ParentId, listingFilterOptions.ParentStageType)
+
+	whereCondition = fmt.Sprintf(" %s OR (ci_artifact.component_id = %d  AND ci_artifact.data_source= '%s' ))", whereCondition, listingFilterOptions.ParentId, listingFilterOptions.PluginStage)
+	if listingFilterOptions.SearchString != EmptyLikeRegex {
+		whereCondition = whereCondition + fmt.Sprintf(" AND ci_artifact.image LIKE '%s' ", listingFilterOptions.SearchString)
+	}
+	if isApprovalNode {
+		whereCondition = whereCondition + fmt.Sprintf(" AND ( ci_artifact.id NOT IN (SELECT DISTINCT dar.ci_artifact_id FROM deployment_approval_request dar WHERE dar.pipeline_id = %d AND dar.active=true AND dar.artifact_deployment_triggered = false))", listingFilterOptions.PipelineId)
+	} else if len(listingFilterOptions.ExcludeArtifactIds) > 0 {
+		whereCondition = whereCondition + fmt.Sprintf(" AND ( ci_artifact.id NOT IN (%s))", helper.GetCommaSepratedString(listingFilterOptions.ExcludeArtifactIds))
+	}
+
+	selectQuery := fmt.Sprintf(" SELECT ci_artifact.* ,COUNT(id) OVER() AS total_count " +
+		" FROM ci_artifact")
+	ordeyByAndPaginated := fmt.Sprintf(" ORDER BY id DESC LIMIT %d OFFSET %d ", listingFilterOptions.Limit, listingFilterOptions.Offset)
+	finalQuery := selectQuery + whereCondition + ordeyByAndPaginated
 	return finalQuery
 }
 
