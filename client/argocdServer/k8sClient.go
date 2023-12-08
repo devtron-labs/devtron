@@ -12,7 +12,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/rest"
-	"path/filepath"
 	"text/template"
 	"time"
 )
@@ -31,7 +30,7 @@ type AppTemplate struct {
 const TimeoutSlow = 30 * time.Second
 
 type ArgoK8sClient interface {
-	CreateAcdApp(appRequest *AppTemplate, cluster *repository.Cluster) (string, error)
+	CreateAcdApp(appRequest *AppTemplate, cluster *repository.Cluster, applicationTemplatePath string) (string, error)
 	GetArgoApplication(namespace string, appName string, cluster *repository.Cluster) (map[string]interface{}, error)
 }
 type ArgoK8sClientImpl struct {
@@ -58,8 +57,8 @@ func (impl ArgoK8sClientImpl) tprintf(tmpl string, data interface{}) (string, er
 	return buf.String(), nil
 }
 
-func (impl ArgoK8sClientImpl) CreateAcdApp(appRequest *AppTemplate, cluster *repository.Cluster) (string, error) {
-	chartYamlContent, err := ioutil.ReadFile(filepath.Clean("./scripts/argo-assets/APPLICATION_TEMPLATE_HELM_APPS.JSON"))
+func (impl ArgoK8sClientImpl) CreateAcdApp(appRequest *AppTemplate, cluster *repository.Cluster, applicationTemplatePath string) (string, error) {
+	chartYamlContent, err := ioutil.ReadFile(applicationTemplatePath)
 	if err != nil {
 		impl.logger.Errorw("err in reading template", "err", err)
 		return "", err
