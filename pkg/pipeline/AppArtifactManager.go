@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -56,6 +57,7 @@ type AppArtifactManagerImpl struct {
 	ciArtifactRepository    repository.CiArtifactRepository
 	ciWorkflowRepository    pipelineConfig.CiWorkflowRepository
 	pipelineStageService    PipelineStageService
+	config                  *types.CdConfig
 	cdPipelineConfigService CdPipelineConfigService
 	dockerArtifactRegistry  dockerArtifactStoreRegistry.DockerArtifactStoreRepository
 	CiPipelineRepository    pipelineConfig.CiPipelineRepository
@@ -74,7 +76,10 @@ func NewAppArtifactManagerImpl(
 	dockerArtifactRegistry dockerArtifactStoreRegistry.DockerArtifactStoreRepository,
 	CiPipelineRepository pipelineConfig.CiPipelineRepository,
 	ciTemplateService CiTemplateService) *AppArtifactManagerImpl {
-
+	cdConfig, err := types.GetCdConfig()
+	if err != nil {
+		return nil
+	}
 	return &AppArtifactManagerImpl{
 		logger:                  logger,
 		cdWorkflowRepository:    cdWorkflowRepository,
@@ -84,6 +89,7 @@ func NewAppArtifactManagerImpl(
 		ciWorkflowRepository:    ciWorkflowRepository,
 		cdPipelineConfigService: cdPipelineConfigService,
 		pipelineStageService:    pipelineStageService,
+		config:                  cdConfig,
 		dockerArtifactRegistry:  dockerArtifactRegistry,
 		CiPipelineRepository:    CiPipelineRepository,
 		ciTemplateService:       ciTemplateService,
@@ -606,11 +612,14 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pi
 	ciArtifactsResponse := &bean2.CiArtifactResponse{}
 
 	artifactListingFilterOpts.PipelineId = pipeline.Id
+	// this will be 0 for external-ci cases, note: do not refer this for external-ci cases
+	artifactListingFilterOpts.CiPipelineId = pipeline.CiPipelineId
 	artifactListingFilterOpts.ParentId = parentId
 	artifactListingFilterOpts.ParentCdId = parentCdId
 	artifactListingFilterOpts.ParentStageType = parentType
 	artifactListingFilterOpts.StageType = stage
 	artifactListingFilterOpts.SearchString = "%" + artifactListingFilterOpts.SearchString + "%"
+	artifactListingFilterOpts.UseCdStageQueryV2 = impl.config.UseArtifactListingQueryV2
 	ciArtifactsRefs, latestWfArtifactId, latestWfArtifactStatus, totalCount, err := impl.BuildArtifactsList(artifactListingFilterOpts)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting artifacts for child cd stage", "err", err, "stage", stage)
