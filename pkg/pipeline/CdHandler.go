@@ -358,6 +358,10 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveApplicationFetch
 			//drop event
 			return nil, isTimelineUpdated
 		}
+		isArgoAppSynced := impl.pipelineStatusTimelineService.GetArgoAppSyncStatus(cdWfr.Id)
+		if !isArgoAppSynced {
+			return nil, isTimelineUpdated
+		}
 		//this should only be called when we have git-ops configured
 		//try fetching status from argo cd
 		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()

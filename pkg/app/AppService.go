@@ -635,12 +635,8 @@ func (impl *AppServiceImpl) CheckIfPipelineUpdateEventIsValid(argoAppName, gitHa
 		//drop event
 		return isValid, pipeline, cdWfr, pipelineOverride, nil
 	}
-	timeline, err := impl.pipelineStatusTimelineRepository.FetchTimelineByWfrIdAndStatus(cdWfr.Id, pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED)
-	if err != nil {
-		impl.logger.Errorw("error in fetching argocd sync status", "err", err)
-		return isValid, pipeline, cdWfr, pipelineOverride, nil
-	}
-	if timeline != nil && timeline.Id == 0 {
+	isArgoAppSynced := impl.pipelineStatusTimelineService.GetArgoAppSyncStatus(cdWfr.Id)
+	if !isArgoAppSynced {
 		return isValid, pipeline, cdWfr, pipelineOverride, nil
 	}
 	isValid = true
