@@ -124,6 +124,7 @@ type CiCdConfig struct {
 	ExtBlobStorageCmName           string                       `env:"EXTERNAL_BLOB_STORAGE_CM_NAME" envDefault:"blob-storage-cm"`
 	ExtBlobStorageSecretName       string                       `env:"EXTERNAL_BLOB_STORAGE_SECRET_NAME" envDefault:"blob-storage-secret"`
 	CanApproverDeploy              bool                         `env:"CAN_APPROVER_DEPLOY" envDefault:"false"`
+	UseArtifactListingQueryV2      bool                         `env:"USE_ARTIFACT_LISTING_QUERY_V2" envDefault:"true"`
 }
 
 type CiConfig struct {
