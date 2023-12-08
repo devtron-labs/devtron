@@ -1,5 +1,5 @@
 INSERT INTO plugin_metadata (id,name,description,type,icon,deleted,created_on,created_by,updated_on,updated_by)
-VALUES (nextval('id_seq_plugin_metadata'),'Ansible Runner v1.0.0','Ansible Runner allows running the Ansible Playbooks using the ansible-runner tool.','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/ansible-runner.jpg',false,'now()',1,'now()',1);
+VALUES (nextval('id_seq_plugin_metadata'),'Ansible Runner v1.0.0','Ansible Runner allows running the Ansible Playbooks using the ansible-runner tool.','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/ansible-runner.svg',false,'now()',1,'now()',1);
 
 INSERT INTO plugin_stage_mapping (id,plugin_id,stage_type,created_on,created_by,updated_on,updated_by)
 VALUES (nextval('id_seq_plugin_stage_mapping'),(SELECT id from plugin_metadata where name='Ansible Runner v1.0.0'), 0,'now()',1,'now()',1);
