@@ -747,8 +747,9 @@ func (impl InstalledAppRepositoryImpl) GetACDInstalledAppByAppId(appId int) (Ins
 func (impl InstalledAppRepositoryImpl) GetInstalledAppByAppName(appName string) (*InstalledApps, error) {
 	model := &InstalledApps{}
 	err := impl.dbConnection.Model(model).
-		Column("installed_app_versions.*", "InstalledApp", "InstalledApp.App", "InstalledApp.Environment", "InstalledApp.Environment.Cluster", "AppStoreApplicationVersion", "InstalledApp.App.Team").
-		Where("app.app_name = ?", appName).Where("installed_app.active = true").
+		Column("installed_apps.*", "App", "Environment").
+		Where("app.app_name = ?", appName).
+		Where("installed_apps.active = true").
 		Limit(1).
 		Select()
 	return model, err

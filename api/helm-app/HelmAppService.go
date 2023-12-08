@@ -430,9 +430,15 @@ func (impl *HelmAppServiceImpl) DeleteBaseStackHelmApplication(ctx context.Conte
 	case pg.ErrNoRows:
 		return impl.DeleteApplication(ctx, app)
 	case nil:
+		goto HandleBaseStackAppDeletion
+	default:
 		impl.logger.Errorw("error in fetching installed app", "appName", app.ReleaseName, "err", err)
 		return nil, err
 	}
+
+	// label for deleting Helm Apps created in Hyperion Mode
+HandleBaseStackAppDeletion:
+
 	// If there are two releases with same name but in different namespace (eg: test -n demo-1 {Hyperion App}, test -n demo-2 {Externally Installed});
 	// And if the request is received for the externally installed app, the below condition will handle
 	if model.Environment.Namespace != app.Namespace {
@@ -523,7 +529,7 @@ func (impl *HelmAppServiceImpl) DeleteApplication(ctx context.Context, app *AppI
 	deleteApplicationResponse, err := impl.helmAppClient.DeleteApplication(ctx, req)
 	if err != nil {
 		impl.logger.Errorw("error in deleting helm application", "err", err)
-		return nil, err
+		return nil, errors.New(util.GetGRPCErrorDetailedMessage(err))
 	}
 
 	response := &openapi.UninstallReleaseResponse{
