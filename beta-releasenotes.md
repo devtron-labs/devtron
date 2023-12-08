@@ -3,3 +3,4 @@
 ## Enhancements
 ## Documentation
 ## Others
+- chore: added migration script for dependency (#4279)
