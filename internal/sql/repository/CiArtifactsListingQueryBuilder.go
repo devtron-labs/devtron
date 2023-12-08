@@ -114,10 +114,8 @@ func buildQueryForArtifactsForCdStageV2(listingFilterOptions bean.ArtifactsListF
 		whereCondition = whereCondition + fmt.Sprintf(" AND ( ci_artifact.id NOT IN (%s))", helper.GetCommaSepratedString(listingFilterOptions.ExcludeArtifactIds))
 	}
 
-	countQuery := " SELECT count(DISTINCT id) " +
-		" FROM ci_artifact" + whereCondition
-	selectQuery := fmt.Sprintf(" SELECT DISTINCT(id) ,(%s) as total_count "+
-		" FROM ci_artifact", countQuery)
+	selectQuery := fmt.Sprintf(" SELECT ci_artifact.* ,COUNT(id) OVER() AS total_count " +
+		" FROM ci_artifact")
 	ordeyByAndPaginated := fmt.Sprintf(" ORDER BY id DESC LIMIT %d OFFSET %d ", listingFilterOptions.Limit, listingFilterOptions.Offset)
 	finalQuery := selectQuery + whereCondition + ordeyByAndPaginated
 	return finalQuery
