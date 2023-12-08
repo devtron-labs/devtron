@@ -92,7 +92,6 @@ type CdHandler interface {
 	FetchAppDeploymentStatusForEnvironments(request resourceGroup2.ResourceGroupingRequest) ([]*pipelineConfig.AppDeploymentStatus, error)
 	PerformDeploymentApprovalAction(userId int32, approvalActionRequest bean3.UserApprovalActionRequest) error
 	DeactivateImageReservationPathsOnFailure(imagePathReservationIds []int) error
-	SyncArgoCdApps(deployedBeforeMinutes int) error
 }
 
 type CdHandlerImpl struct {
@@ -1871,7 +1870,7 @@ func (impl *CdHandlerImpl) syncACDDevtronApps(deployedBeforeMinutes int) error {
 		}
 		ctx := context.Background()
 		ctx = context.WithValue(ctx, "token", acdToken)
-		syncErr := impl.argocdClientWrapperService.SyncArgoCDApplication(ctx, pipeline.DeploymentAppName)
+		syncErr := impl.argocdClientWrapperService.SyncArgoCDApplicationWithRefresh(ctx, pipeline.DeploymentAppName)
 		impl.Logger.Errorw("error in syncing argoCD app", "err", syncErr)
 		if syncErr != nil {
 			timelineObject := impl.pipelineStatusTimelineService.GetTimelineDbObjectByTimelineStatusAndTimelineDescription(cdWfr.Id, 0, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_FAILED, fmt.Sprintf("error occured in syncing argocd application. err: %s", syncErr.Error()), 1)

@@ -10,7 +10,7 @@ import (
 
 type ArgoClientWrapperService interface {
 	GetArgoAppWithNormalRefresh(context context.Context, argoAppName string) error
-	SyncArgoCDApplication(context context.Context, argoAppName string) error
+	SyncArgoCDApplicationWithRefresh(context context.Context, argoAppName string) error
 }
 
 type ArgoClientWrapperServiceImpl struct {
@@ -39,14 +39,18 @@ func (impl *ArgoClientWrapperServiceImpl) GetArgoAppWithNormalRefresh(context co
 	return nil
 }
 
-func (impl *ArgoClientWrapperServiceImpl) SyncArgoCDApplication(context context.Context, argoAppName string) error {
+func (impl *ArgoClientWrapperServiceImpl) SyncArgoCDApplicationWithRefresh(context context.Context, argoAppName string) error {
 	impl.logger.Info("argocd manual sync for app started", "argoAppName", argoAppName)
 	revision := "master"
-	_, err := impl.acdClient.Sync(context, &application2.ApplicationSyncRequest{Name: &argoAppName, Revision: &revision})
-	if err != nil {
+	_, syncErr := impl.acdClient.Sync(context, &application2.ApplicationSyncRequest{Name: &argoAppName, Revision: &revision})
+	if syncErr != nil {
 		impl.logger.Errorw("cannot get application with refresh", "app", argoAppName)
-		return err
+		return syncErr
 	}
-	impl.logger.Debugw("done getting the application with refresh with no error", "argoAppName", argoAppName)
+	refreshErr := impl.GetArgoAppWithNormalRefresh(context, argoAppName)
+	if refreshErr != nil {
+		impl.logger.Errorw("error in refreshing argo app", "err", refreshErr)
+	}
+	impl.logger.Debugw("argo app sync completed", "argoAppName", argoAppName)
 	return nil
 }

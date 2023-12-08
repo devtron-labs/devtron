@@ -2514,9 +2514,8 @@ func (impl *WorkflowDagExecutorImpl) updatePreviousDeploymentStatus(releaseErr e
 		err := impl.MarkCurrentDeploymentFailed(currentRunner, releaseErr, triggeredBy)
 		if err != nil {
 			impl.logger.Errorw("error while updating current runner status to failed, updatePreviousDeploymentStatus", "cdWfr", currentRunner.Id, "err", err)
-			return releaseErr
 		}
-		return nil
+		return releaseErr
 	}
 	// Initiating DB transaction
 	dbConnection := impl.cdWorkflowRepository.GetConnection()
@@ -5123,8 +5122,9 @@ func (impl *WorkflowDagExecutorImpl) updateArgoPipeline(pipeline *pipelineConfig
 		//	}
 		//	impl.logger.Debugw("pipeline update req ", "res", patchReq)
 		//}
-		// manual sync argocd app
-		err2 := impl.argoClientWrapperService.SyncArgoCDApplication(ctx, argoAppName)
+
+		//manual sync argocd app
+		err2 := impl.argoClientWrapperService.SyncArgoCDApplicationWithRefresh(ctx, argoAppName)
 		if err2 != nil {
 			impl.logger.Errorw("error in getting argo application with normal refresh", "argoAppName", argoAppName, "pipelineName", pipeline.Name)
 			return true, fmt.Errorf("%s. err: %s", ARGOCD_SYNC_ERROR, err2.Error())
