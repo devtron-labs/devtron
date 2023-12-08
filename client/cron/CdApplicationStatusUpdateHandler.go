@@ -243,7 +243,7 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) ManualSyncPipelineStatus(appId
 	var err error
 
 	if envId == 0 {
-		installedApp, err = impl.installedAppVersionRepository.GetInstalledAppByAppId(appId)
+		installedApp, err = impl.installedAppVersionRepository.GetAcdInstalledAppByAppId(appId)
 		if err != nil {
 			impl.logger.Errorw("error in getting installed app by appId", "err", err, "appid", appId)
 			return nil

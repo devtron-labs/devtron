@@ -41,6 +41,8 @@ import (
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/devtronResource"
+	bean5 "github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
@@ -79,6 +81,8 @@ type CdPipelineConfigService interface {
 	GetTriggerViewCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error)
 	//GetCdPipelinesForApp : Retrieve cdPipeline for given appId
 	GetCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error)
+	//GetAllCdPipelinesAndEnvDataLite : get data of all cd pipelines in an app and the environment associated with it. Light api created for listing pipelines but to show env on UI
+	GetAllCdPipelinesAndEnvDataLite(appId int) ([]*bean.CdPipelineEnvDataResponseDto, error)
 	//GetCdPipelinesForAppAndEnv : Retrieve cdPipeline for given appId and envId
 	GetCdPipelinesForAppAndEnv(appId int, envId int) (cdPipelines *bean.CdPipelines, err error)
 	/*	CreateCdPipelines(cdPipelines bean.CdPipelines) (*bean.CdPipelines, error)*/
@@ -149,6 +153,8 @@ type CdPipelineConfigServiceImpl struct {
 	customTagService           CustomTagService
 	ciPipelineConfigService    CiPipelineConfigService
 	buildPipelineSwitchService BuildPipelineSwitchService
+
+	devtronResourceService devtronResource.DevtronResourceService
 }
 
 func NewCdPipelineConfigServiceImpl(
@@ -185,7 +191,8 @@ func NewCdPipelineConfigServiceImpl(
 	customTagService CustomTagService,
 	devtronAppCMCSService DevtronAppCMCSService,
 	ciPipelineConfigService CiPipelineConfigService,
-	buildPipelineSwitchService BuildPipelineSwitchService) *CdPipelineConfigServiceImpl {
+	buildPipelineSwitchService BuildPipelineSwitchService,
+	devtronResourceService devtronResource.DevtronResourceService) *CdPipelineConfigServiceImpl {
 	return &CdPipelineConfigServiceImpl{
 		logger:                           logger,
 		pipelineRepository:               pipelineRepository,
@@ -221,6 +228,7 @@ func NewCdPipelineConfigServiceImpl(
 		ciPipelineConfigService:          ciPipelineConfigService,
 		customTagService:                 customTagService,
 		buildPipelineSwitchService:       buildPipelineSwitchService,
+		devtronResourceService:           devtronResourceService,
 	}
 }
 
@@ -931,6 +939,13 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 	}
 	deleteResponse.DeleteInitiated = true
 	impl.pipelineConfigListenerService.HandleCdPipelineDelete(pipeline.Id, userId)
+
+	go func() {
+		errInResourceDelete := impl.devtronResourceService.DeleteObjectAndItsDependency(pipeline.Id, bean5.DevtronResourceCdPipeline, "", bean5.DevtronResourceVersion1, userId)
+		if errInResourceDelete != nil {
+			impl.logger.Errorw("error in deleting cd pipeline resource and dependency data", "err", err, "pipelineId", pipeline.Id)
+		}
+	}()
 	return deleteResponse, nil
 }
 
@@ -1129,6 +1144,25 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesForApp(appId int) (cdPipe
 	}
 	cdPipelines.Pipelines = pipelines
 	return cdPipelines, err
+}
+
+func (impl *CdPipelineConfigServiceImpl) GetAllCdPipelinesAndEnvDataLite(appId int) ([]*bean.CdPipelineEnvDataResponseDto, error) {
+	cdPipelines, err := impl.pipelineRepository.FindActiveByAppIds([]int{appId})
+	if err != nil {
+		impl.logger.Errorw("error in fetching cdPipelines by appId", "err", err, "appId", appId)
+		return nil, err
+	}
+	resp := make([]*bean.CdPipelineEnvDataResponseDto, 0, len(cdPipelines))
+	for _, cdPipeline := range cdPipelines {
+		resp = append(resp, &bean.CdPipelineEnvDataResponseDto{
+			PipelineId:      cdPipeline.Id,
+			PipelineName:    cdPipeline.Name,
+			EnvironmentId:   cdPipeline.EnvironmentId,
+			EnvironmentName: cdPipeline.Environment.Name,
+		})
+	}
+
+	return resp, nil
 }
 
 func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesForAppAndEnv(appId int, envId int) (cdPipelines *bean.CdPipelines, err error) {
