@@ -6,6 +6,7 @@ const (
 	PROJECT_TYPE                                = "team"
 	ENV_TYPE                                    = "environment"
 	APP_TYPE                                    = "app"
+	WorkflowType                                = "workflow"
 	CHART_GROUP_TYPE                            = "chart-group"
 	MANAGER_TYPE                       RoleType = "manager"
 	ADMIN_TYPE                         RoleType = "admin"
@@ -28,8 +29,10 @@ const (
 	CLUSTER                                     = "cluster"
 	GLOBAL_ENTITY                               = "globalEntity"
 	ENTITY_APPS                                 = "apps"
+	ENTITY_JOBS                                 = "jobs"
 	EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER          = "NONE"
 	RoleNotFoundStatusPrefix                    = "role not fount for any given filter: "
+	EntityJobs                                  = "jobs"
 )
 
 const (
@@ -57,7 +60,7 @@ type RbacRoleDto struct {
 }
 
 type RbacPolicyEntityGroupDto struct {
-	Entity             string                `json:"entity" validate:"oneof=apps cluster chart-group"`
+	Entity             string                `json:"entity" validate:"oneof=apps cluster chart-group jobs"`
 	AccessType         string                `json:"accessType,omitempty"`
 	ResourceDetailList []*RbacPolicyResource `json:"policyResourceList,omitempty" validate:"required,min=1"`
 }

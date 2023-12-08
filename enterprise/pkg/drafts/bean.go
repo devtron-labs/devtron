@@ -1,6 +1,9 @@
 package drafts
 
-import "time"
+import (
+	client "github.com/devtron-labs/devtron/client/events"
+	"time"
+)
 
 const (
 	LastVersionOutdated         = "last-version-outdated"
@@ -19,6 +22,18 @@ const (
 	CSDraftResource            DraftResourceType = 2
 	DeploymentTemplateResource DraftResourceType = 3
 )
+
+func (draftType DraftResourceType) GetDraftResourceType() client.ResourceType {
+	switch draftType {
+	case CMDraftResource:
+		return client.CM
+	case CSDraftResource:
+		return client.CS
+	case DeploymentTemplateResource:
+		return client.DeploymentTemplate
+	}
+	return ""
+}
 
 type ResourceAction uint8
 
@@ -46,17 +61,36 @@ func GetNonTerminalDraftStates() []int {
 }
 
 type ConfigDraftRequest struct {
-	AppId          int               `json:"appId" validate:"number,required"`
-	EnvId          int               `json:"envId"`
-	Resource       DraftResourceType `json:"resource"`
-	ResourceName   string            `json:"resourceName"`
-	Action         ResourceAction    `json:"action"`
-	Data           string            `json:"data" validate:"min=1"`
-	UserComment    string            `json:"userComment"`
-	ChangeProposed bool              `json:"changeProposed"`
-	UserId         int32             `json:"-"`
+	AppId                     int                       `json:"appId" validate:"number,required"`
+	EnvId                     int                       `json:"envId"`
+	Resource                  DraftResourceType         `json:"resource"`
+	ResourceName              string                    `json:"resourceName"`
+	Action                    ResourceAction            `json:"action"`
+	Data                      string                    `json:"data" validate:"min=1"`
+	UserComment               string                    `json:"userComment"`
+	ChangeProposed            bool                      `json:"changeProposed"`
+	UserId                    int32                     `json:"-"`
+	ProtectNotificationConfig ProtectNotificationConfig `json:"protectNotificationConfig"`
+}
+type ProtectNotificationConfig struct {
+	EmailIds []string `json:"emailIds"`
 }
 
+func (request ConfigDraftRequest) TransformDraftRequestForNotification() client.ConfigDataForNotification {
+	return client.ConfigDataForNotification{
+		AppId:        request.AppId,
+		EnvId:        request.EnvId,
+		Resource:     request.Resource.GetDraftResourceType(),
+		ResourceName: request.ResourceName,
+		UserComment:  request.UserComment,
+		UserId:       request.UserId,
+		EmailIds:     request.ProtectNotificationConfig.GetEmailIdsForProtectConfig(),
+	}
+}
+
+func (protectNotificationConfig ProtectNotificationConfig) GetEmailIdsForProtectConfig() []string {
+	return protectNotificationConfig.EmailIds
+}
 func (request ConfigDraftRequest) GetDraftDto() *DraftDto {
 	draftState := InitDraftState
 	if proposed := request.ChangeProposed; proposed {
@@ -120,13 +154,14 @@ type DraftCountResponse struct {
 }
 
 type ConfigDraftVersionRequest struct {
-	DraftId            int            `json:"draftId" validate:"number,required"`
-	LastDraftVersionId int            `json:"lastDraftVersionId" validate:"number,required"`
-	Action             ResourceAction `json:"action"`
-	Data               string         `json:"data"`
-	UserComment        string         `json:"userComment"`
-	ChangeProposed     bool           `json:"changeProposed"`
-	UserId             int32          `json:"-"`
+	DraftId                   int                       `json:"draftId" validate:"number,required"`
+	LastDraftVersionId        int                       `json:"lastDraftVersionId" validate:"number,required"`
+	Action                    ResourceAction            `json:"action"`
+	Data                      string                    `json:"data"`
+	UserComment               string                    `json:"userComment"`
+	ChangeProposed            bool                      `json:"changeProposed"`
+	UserId                    int32                     `json:"-"`
+	ProtectNotificationConfig ProtectNotificationConfig `json:"protectNotificationConfig"`
 }
 
 func (request ConfigDraftVersionRequest) GetDraftVersionDto(currentTime time.Time) *DraftVersion {

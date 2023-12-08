@@ -614,7 +614,7 @@ func (impl *RbacRoleServiceImpl) UpdateExistingUserOrGroupPolicies(oldPolicyDeta
 	deletedPoliciesTotal := make([]casbin.Policy, 0, rolesLen*deletedPoliciesLen)
 	for _, roleModel := range roles {
 		pValUpdateMap := impl.userCommonService.GetPValUpdateMap(roleModel.Team, roleModel.EntityName,
-			roleModel.Environment, roleModel.Entity, roleModel.Cluster, roleModel.Namespace, roleModel.Group, roleModel.Kind, roleModel.Resource, roleModel.Approver)
+			roleModel.Environment, roleModel.Entity, roleModel.Cluster, roleModel.Namespace, roleModel.Group, roleModel.Kind, roleModel.Resource, roleModel.Approver, roleModel.Workflow)
 		if addedPoliciesLen > 0 {
 			addedPoliciesObjCopy := addedPoliciesObj
 			renderedAddedPolicies := impl.userCommonService.GetRenderedPolicy(addedPoliciesObjCopy, pValUpdateMap)

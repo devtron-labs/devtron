@@ -161,9 +161,12 @@ func (handler *GlobalPluginRestHandlerImpl) GetAllGlobalVariables(w http.Respons
 	ok1 := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceName)
 	noEnvObject := handler.enforcerUtil.GetTeamNoEnvRBACNameByAppName(app.AppName)
 	ok2 := handler.enforcer.Enforce(token, casbin.ResourceCiPipelineSourceValue, casbin.ActionUpdate, noEnvObject)
+	ok3 := handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionCreate, resourceName)
 	if !ok1 && !ok2 {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-		return
+		if !ok3 {
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+			return
+		}
 	}
 	globalVariables, err := handler.globalPluginService.GetAllGlobalVariables()
 	if err != nil {
@@ -203,9 +206,12 @@ func (handler *GlobalPluginRestHandlerImpl) ListAllPlugins(w http.ResponseWriter
 		ok1 := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceName)
 		noEnvObject := handler.enforcerUtil.GetTeamNoEnvRBACNameByAppName(app.AppName)
 		ok2 := handler.enforcer.Enforce(token, casbin.ResourceCiPipelineSourceValue, casbin.ActionUpdate, noEnvObject)
+		ok3 := handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionCreate, resourceName)
 		if !ok1 && !ok2 {
-			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-			return
+			if !ok3 {
+				common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+				return
+			}
 		}
 	} else { //check for super-admin, to be used in global policy
 		userId, err := handler.userService.GetLoggedInUser(r)
@@ -256,9 +262,12 @@ func (handler *GlobalPluginRestHandlerImpl) GetPluginDetailById(w http.ResponseW
 	ok1 := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceName)
 	noEnvObject := handler.enforcerUtil.GetTeamNoEnvRBACNameByAppName(app.AppName)
 	ok2 := handler.enforcer.Enforce(token, casbin.ResourceCiPipelineSourceValue, casbin.ActionUpdate, noEnvObject)
+	ok3 := handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionCreate, resourceName)
 	if !ok1 && !ok2 {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-		return
+		if !ok3 {
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+			return
+		}
 	}
 	vars := mux.Vars(r)
 	pluginId, err := strconv.Atoi(vars["pluginId"])

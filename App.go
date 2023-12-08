@@ -21,6 +21,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/arl/statsviz"
 	"github.com/casbin/casbin"
 	casbinv2 "github.com/casbin/casbin/v2"
 	"github.com/devtron-labs/devtron/api/util"
@@ -91,6 +92,9 @@ func NewApp(router *router.MuxRouter,
 }
 
 func (app *App) Start() {
+
+	app.checkAndSetupStatsviz()
+
 	port := 8080 //TODO: extract from environment variable
 	app.Logger.Debugw("starting server")
 	app.Logger.Infow("starting server on ", "port", port)
@@ -128,6 +132,22 @@ func (app *App) Start() {
 	if err != nil {
 		app.Logger.Errorw("error in startup", "err", err)
 		os.Exit(2)
+	}
+}
+
+func (app *App) checkAndSetupStatsviz() {
+	statsvizPort, present := os.LookupEnv("STATSVIZ_PORT")
+	if present && len(statsvizPort) > 0 {
+		mux := http.NewServeMux()
+		statsviz.Register(mux)
+		go func() {
+			app.Logger.Infow("statsviz server starting", "port", statsvizPort)
+			err := http.ListenAndServe(fmt.Sprintf(":%s", statsvizPort), mux)
+			if err != nil {
+				app.Logger.Errorw("error occurred while starting statsviz server", "err", err)
+			}
+
+		}()
 	}
 }
 

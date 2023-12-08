@@ -70,6 +70,7 @@ type GenericNoteResponseBean struct {
 type JobContainer struct {
 	JobId          int                     `json:"jobId"`
 	JobName        string                  `json:"jobName""`
+	JobActualName  string                  `json:"appName""`
 	Description    GenericNoteResponseBean `json:"description"`
 	JobCiPipelines []JobCIPipeline         `json:"ciPipelines"'`
 }
@@ -88,6 +89,7 @@ type JobCIPipeline struct {
 type JobListingContainer struct {
 	JobId                        int       `sql:"job_id" json:"jobId"`
 	JobName                      string    `sql:"job_name" json:"jobName"`
+	JobActualName                string    `sql:"app_name" json:"appName"`
 	Description                  string    `sql:"description" json:"description"`
 	CiPipelineID                 int       `sql:"ci_pipeline_id" json:"ciPipelineID"`
 	CiPipelineName               string    `sql:"ci_pipeline_name" json:"ciPipelineName"`
@@ -119,6 +121,8 @@ type AppEnvironmentContainer struct {
 	PreStageStatus              *string                   `json:"preStageStatus"`
 	PostStageStatus             *string                   `json:"postStageStatus"`
 	LastDeployedTime            string                    `json:"lastDeployedTime,omitempty"`
+	LastDeployedImage           string                    `json:"lastDeployedImage,omitempty"`
+	LastDeployedBy              string                    `json:"lastDeployedBy,omitempty"`
 	LastSuccessDeploymentDetail DeploymentDetailContainer `json:"-"`
 	Default                     bool                      `json:"default"`
 	Deleted                     bool                      `json:"deleted"`
@@ -161,6 +165,7 @@ type DeploymentDetailContainer struct {
 	Deprecated                    bool            `json:"deprecated"`
 	K8sVersion                    string          `json:"k8sVersion"`
 	CiArtifactId                  int             `json:"ciArtifactId"`
+	ParentArtifactId              int             `json:"parentArtifactId"`
 	ClusterId                     int             `json:"clusterId"`
 	DeploymentAppType             string          `json:"deploymentAppType"`
 	CiPipelineId                  int             `json:"-"`

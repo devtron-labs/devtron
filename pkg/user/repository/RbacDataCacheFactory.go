@@ -43,6 +43,7 @@ type RoleCacheDetailObj struct {
 	Kind        PValDetailObj `json:"kind"`
 	Resource    PValDetailObj `json:"resource"`
 	Approver    PValDetailObj `json:"approver"`
+	Workflow    PValDetailObj `json:"workflow"`
 }
 
 type ResActObj struct {
