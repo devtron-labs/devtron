@@ -97,6 +97,11 @@ type BulkApplicationForEnvironmentResponse struct {
 	Response map[string]map[string]bool `json:"response"`
 }
 
+type BulkApplicationHibernateUnhibernateForEnvironmentResponse struct {
+	BulkApplicationForEnvironmentPayload
+	Response []map[string]any `json:"response"`
+}
+
 type CdBulkAction int
 
 const (
