@@ -2156,7 +2156,7 @@ func (impl *WorkflowDagExecutorImpl) updatePreviousDeploymentStatus(releaseErr e
 			impl.logger.Errorw("error while updating current runner status to failed, updatePreviousDeploymentStatus", "cdWfr", currentRunner.Id, "err", err)
 			return releaseErr
 		}
-		return nil
+		return releaseErr
 	}
 	// Initiating DB transaction
 	dbConnection := impl.cdWorkflowRepository.GetConnection()
