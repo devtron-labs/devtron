@@ -23,6 +23,7 @@ import (
 	"fmt"
 	pubsub "github.com/devtron-labs/common-lib-private/pubsub-lib"
 	"path"
+	"path/filepath"
 	"regexp"
 	"time"
 
@@ -381,7 +382,8 @@ func (impl AppStoreDeploymentFullModeServiceImpl) createInArgo(chartGitAttribute
 		RepoPath:        chartGitAttribute.ChartLocation,
 		RepoUrl:         chartGitAttribute.RepoUrl,
 	}
-	_, err := impl.ArgoK8sClient.CreateAcdApp(appreq, envModel.Cluster)
+	applicationTemplatePath := filepath.Clean("./scripts/argo-assets/APPLICATION_TEMPLATE_HELM_APPS.JSON")
+	_, err := impl.ArgoK8sClient.CreateAcdApp(appreq, envModel.Cluster, applicationTemplatePath)
 
 	//create
 	if err != nil {
