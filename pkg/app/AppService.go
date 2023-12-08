@@ -90,7 +90,7 @@ type AppServiceConfig struct {
 	ExposeCDMetrics                            bool   `env:"EXPOSE_CD_METRICS" envDefault:"false"`
 	EnableAsyncInstallDevtronChart             bool   `env:"ENABLE_ASYNC_INSTALL_DEVTRON_CHART" envDefault:"false"`
 	DevtronChartInstallRequestTimeout          int    `env:"DEVTRON_CHART_INSTALL_REQUEST_TIMEOUT" envDefault:"6"`
-	ArgocdManualSyncCronPipelineDeployedBefore int    `env:"ARGO_APP_MANUAL_SYNC_TIME" envDefault:"2"` //in minutes
+	ArgocdManualSyncCronPipelineDeployedBefore int    `env:"ARGO_APP_MANUAL_SYNC_TIME" envDefault:"3"` //in minutes
 }
 
 func GetAppServiceConfig() (*AppServiceConfig, error) {
