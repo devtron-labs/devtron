@@ -277,6 +277,11 @@ func (handler *HelmAppRestHandlerImpl) GetDesiredManifest(w http.ResponseWriter,
 }
 
 func (handler *HelmAppRestHandlerImpl) DeleteApplication(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
 	vars := mux.Vars(r)
 	appId := vars["appId"]
 	appIdentifier, err := handler.helmAppService.DecodeAppId(appId)
@@ -304,7 +309,7 @@ func (handler *HelmAppRestHandlerImpl) DeleteApplication(w http.ResponseWriter, 
 		return
 	}
 
-	res, err := handler.helmAppService.DeleteApplication(r.Context(), appIdentifier)
+	res, err := handler.helmAppService.DeleteBaseStackHelmApplication(r.Context(), appIdentifier, userId)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
