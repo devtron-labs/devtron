@@ -22,7 +22,7 @@ COPY --from=build-env  /go/src/github.com/devtron-labs/devtron/scripts/devtron-r
 COPY --from=build-env  /go/src/github.com/devtron-labs/devtron/scripts/sql scripts/sql
 COPY --from=build-env  /go/src/github.com/devtron-labs/devtron/scripts/casbin scripts/casbin
 COPY --from=build-env  /go/src/github.com/devtron-labs/devtron/scripts/argo-assets/APPLICATION_TEMPLATE.JSON scripts/argo-assets/APPLICATION_TEMPLATE.JSON
-COPY --from=build-env  /go/src/github.com/devtron-labs/devtron/scripts/argo-assets/APPLICATION_TEMPLATE.JSON scripts/argo-assets/HELM_APP_APPLICATION_TEMPLATE.JSON
+COPY --from=build-env  /go/src/github.com/devtron-labs/devtron/scripts/argo-assets/HELM_APP_APPLICATION_TEMPLATE.JSON scripts/argo-assets/HELM_APP_APPLICATION_TEMPLATE.JSON
 COPY --from=build-env /go/src/github.com/devtron-labs/devtron/scripts/sql scripts/sql
 COPY --from=build-env /go/src/github.com/devtron-labs/devtron/scripts/casbin scripts/casbin
 
