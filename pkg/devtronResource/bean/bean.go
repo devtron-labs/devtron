@@ -10,10 +10,9 @@ type DevtronResourceObjectDescriptorBean struct {
 
 type DevtronResourceObjectBean struct {
 	*DevtronResourceObjectDescriptorBean
-	Schema            string `json:"schema,omitempty"`
-	ObjectData        string `json:"objectData"`
-	ReferencedObjects string `json:"referencedObjects"`
-	UserId            int32  `json:"-"`
+	Schema     string `json:"schema,omitempty"`
+	ObjectData string `json:"objectData"`
+	UserId     int32  `json:"-"`
 }
 
 type DevtronResourceSearchableKeyName string
@@ -87,9 +86,23 @@ func (v ValueType) ToString() string {
 }
 
 const (
-	RefType     string = "refType"
-	RefKind     string = "kind"
-	RefValues   string = "values"
-	RefUserId   string = "id"
-	RefUserName string = "name"
+	KindKey          = "kind"
+	VersionKey       = "version"
+	RefValues        = "values"
+	TypeKey          = "type"
+	RefKey           = "$ref"
+	RefTypeKey       = "refType"
+	ReferencesPrefix = "#/references"
+	ReferencesKey    = "references"
+	IdKey            = "id"
+	NameKey          = "name"
+	IconKey          = "icon"
+	EnumKey          = "enum"
+	EnumNamesKey     = "enumNames"
+
+	ResourceSchemaMetadataPath = "properties.overview.properties.metadata"
+	ResourceObjectMetadataPath = "overview.metadata"
+	ResourceObjectIdPath       = "overview.id"
+
+	SchemaValidationFailedErrorUserMessage = "Something went wrong. Please check internalMessage in console for more details."
 )

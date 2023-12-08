@@ -104,6 +104,8 @@ type CiPipelineRepository interface {
 	FindByAppId(appId int) (pipelines []*CiPipeline, err error)
 	FindCiPipelineByAppIdAndEnvIds(appId int, envIds []int) ([]*CiPipeline, error)
 	FindByAppIds(appIds []int) (pipelines []*CiPipeline, err error)
+	//find any pipeline by id, includes soft deleted as well
+	FindByIdIncludingInActive(id int) (pipeline *CiPipeline, err error)
 	//find non deleted pipeline
 	FindById(id int) (pipeline *CiPipeline, err error)
 	FindCiEnvMappingByCiPipelineId(ciPipelineId int) (*CiEnvMapping, error)
@@ -306,6 +308,19 @@ func (impl CiPipelineRepositoryImpl) FindCiScriptsByCiPipelineIds(ciPipelineIds 
 func (impl CiPipelineRepositoryImpl) SaveCiPipelineScript(ciPipelineScript *CiPipelineScript, tx *pg.Tx) error {
 	ciPipelineScript.Active = true
 	return tx.Insert(ciPipelineScript)
+}
+
+func (impl CiPipelineRepositoryImpl) FindByIdIncludingInActive(id int) (pipeline *CiPipeline, err error) {
+	pipeline = &CiPipeline{Id: id}
+	err = impl.dbConnection.Model(pipeline).
+		Column("ci_pipeline.*", "App", "CiPipelineMaterials", "CiTemplate", "CiTemplate.DockerRegistry", "CiPipelineMaterials.GitMaterial").
+		Relation("CiPipelineMaterials", func(q *orm.Query) (query *orm.Query, err error) {
+			return q.Where("(ci_pipeline_material.active=true)"), nil
+		}).
+		Where("ci_pipeline.id= ?", id).
+		Select()
+
+	return pipeline, err
 }
 
 func (impl CiPipelineRepositoryImpl) FindById(id int) (pipeline *CiPipeline, err error) {
@@ -558,7 +573,7 @@ func (impl CiPipelineRepositoryImpl) GetCiPipelineByArtifactId(artifactId int) (
 	err := impl.dbConnection.Model(ciPipeline).
 		Column("ci_pipeline.*").
 		Join("INNER JOIN ci_artifact cia on cia.pipeline_id = ci_pipeline.id").
-		Where("ci_pipeline.deleted=?", false).
+		//Where("ci_pipeline.deleted=?", false).
 		Where("cia.id = ?", artifactId).
 		Select()
 	return ciPipeline, err

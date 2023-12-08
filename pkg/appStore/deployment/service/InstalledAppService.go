@@ -23,9 +23,9 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	util4 "github.com/devtron-labs/common-lib-private/utils/k8s"
 	k8sCommonBean "github.com/devtron-labs/common-lib-private/utils/k8s/commonBean"
+	k8sObjectUtils "github.com/devtron-labs/common-lib-private/utils/k8sObjectsUtil"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
-	bean3 "github.com/devtron-labs/devtron/api/restHandler/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/middleware"
@@ -1027,6 +1027,14 @@ func (impl *InstalledAppServiceImpl) FindNotesForNonHelmApplication(installedApp
 			},
 		}
 
+		clusterId := installedAppVerison.InstalledApp.Environment.ClusterId
+		config, err := impl.helmAppService.GetClusterConf(clusterId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching cluster detail", "clusterId", clusterId, "err", err)
+			return "", appName, err
+		}
+		installReleaseRequest.ReleaseIdentifier.ClusterConfig = config
+
 		notes, err = impl.helmAppService.GetNotes(context.Background(), installReleaseRequest)
 		if err != nil {
 			impl.logger.Errorw("error in fetching notes", "err", err)
@@ -1498,7 +1506,7 @@ func (impl InstalledAppServiceImpl) fetchResourceTreeForACD(rctx context.Context
 		impl.logger.Errorw("error in getting pods by label", "err", err, "clusterId", clusterId, "namespace", namespace, "label", label)
 		return resourceTree, err
 	}
-	ephemeralContainersMap := bean3.ExtractEphemeralContainers(pods)
+	ephemeralContainersMap := k8sObjectUtils.ExtractEphemeralContainers(pods)
 	for _, metaData := range resp.PodMetadata {
 		metaData.EphemeralContainers = ephemeralContainersMap[metaData.Name]
 	}

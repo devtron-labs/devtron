@@ -43,7 +43,7 @@ type UserAuthRepository interface {
 	GetRolesByGroupId(userId int32) ([]*RoleModel, error)
 	GetAllRole() ([]RoleModel, error)
 	GetRolesByActionAndAccessType(action string, accessType string) ([]RoleModel, error)
-	GetRoleByFilterForAllTypes(entity, team, app, env, act string, approver bool, accessType, cluster, namespace, group, kind, resource, action string, oldValues bool) (RoleModel, error)
+	GetRoleByFilterForAllTypes(entity, team, app, env, act string, approver bool, accessType, cluster, namespace, group, kind, resource, action string, oldValues bool, workflow string) (RoleModel, error)
 	CreateUserRoleMapping(userRoleModel *UserRoleModel, tx *pg.Tx) (*UserRoleModel, error)
 	GetUserRoleMappingByUserId(userId int32) ([]*UserRoleModel, error)
 	DeleteUserRoleMapping(userRoleModel *UserRoleModel, tx *pg.Tx) (bool, error)
@@ -61,7 +61,8 @@ type UserAuthRepository interface {
 	CreateRolesWithAccessTypeAndEntity(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, UserId int32, role string) (bool, error)
 	GetRolesByEntityAccessTypeAndAction(entity, accessType, action string) ([]*RoleModel, error)
 	GetApprovalUsersByEnv(appName, envName string) ([]string, []string, error)
-	GetConfigApprovalUsersByEnv(appName, envName string) ([]string, []string, error)
+	GetConfigApprovalUsersByEnv(appName, envName, team string) ([]string, []string, error)
+	GetRolesForWorkflow(workflow, entityName string) ([]*RoleModel, error)
 }
 
 type UserAuthRepositoryImpl struct {
@@ -98,6 +99,7 @@ type RoleModel struct {
 	Group       string   `sql:"group"`
 	Kind        string   `sql:"kind"`
 	Resource    string   `sql:"resource"`
+	Workflow    string   `sql:"workflow"`
 	sql.AuditLog
 }
 
@@ -247,7 +249,7 @@ func (impl UserAuthRepositoryImpl) GetRolesByActionAndAccessType(action string, 
 	return models, nil
 }
 
-func (impl UserAuthRepositoryImpl) GetRoleByFilterForAllTypes(entity, team, app, env, act string, approver bool, accessType, cluster, namespace, group, kind, resource, action string, oldValues bool) (RoleModel, error) {
+func (impl UserAuthRepositoryImpl) GetRoleByFilterForAllTypes(entity, team, app, env, act string, approver bool, accessType, cluster, namespace, group, kind, resource, action string, oldValues bool, workflow string) (RoleModel, error) {
 	var model RoleModel
 	if entity == bean2.CLUSTER {
 
@@ -315,6 +317,28 @@ func (impl UserAuthRepositoryImpl) GetRoleByFilterForAllTypes(entity, team, app,
 			query += " and role.access_type='" + accessType + "'"
 		}
 		_, err = impl.dbConnection.Query(&model, query, entity, act)
+	} else if entity == bean2.EntityJobs {
+		if len(team) > 0 && len(act) > 0 {
+			query := "SELECT role.* FROM roles role WHERE role.team = ? AND role.action=? AND role.entity=? "
+			if len(env) == 0 {
+				query = query + " AND role.environment is NULL"
+			} else {
+				query += "AND role.environment='" + env + "'"
+			}
+			if len(app) == 0 {
+				query = query + " AND role.entity_name is NULL"
+			} else {
+				query += " AND role.entity_name='" + app + "'"
+			}
+			if len(workflow) == 0 {
+				query = query + " AND role.workflow is NULL;"
+			} else {
+				query += " AND role.workflow='" + workflow + "';"
+			}
+			_, err = impl.dbConnection.Query(&model, query, team, act, entity)
+		} else {
+			return model, nil
+		}
 	} else {
 
 		if len(team) > 0 && len(app) > 0 && len(env) > 0 && len(act) > 0 {
@@ -580,7 +604,7 @@ func (impl UserAuthRepositoryImpl) GetApprovalUsersByEnv(appName, envName string
 	return emailIds, roleGroups, nil
 }
 
-func (impl UserAuthRepositoryImpl) GetConfigApprovalUsersByEnv(appName, envName string) ([]string, []string, error) {
+func (impl UserAuthRepositoryImpl) GetConfigApprovalUsersByEnv(appName, envName, team string) ([]string, []string, error) {
 	var emailIds []string
 	var roleGroups []string
 
@@ -592,9 +616,15 @@ func (impl UserAuthRepositoryImpl) GetConfigApprovalUsersByEnv(appName, envName 
 		return emailIds, roleGroups, err
 	}
 
-	roleGroupQuery := "select rg.casbin_name from role_group rg inner join role_group_role_mapping rgrm on rg.id = rgrm.role_group_id " +
-		"inner join roles r on rgrm.role_id = r.id where r.action = ?  and r.environment=? and r.entity_name=?;"
-	_, err = impl.dbConnection.Query(&roleGroups, roleGroupQuery, "configApprover", envName, appName)
+	roleGroupQuery := "SELECT rg.casbin_name " +
+		"FROM role_group rg " +
+		"INNER JOIN role_group_role_mapping rgrm ON rg.id = rgrm.role_group_id " +
+		"INNER JOIN roles r ON rgrm.role_id = r.id " +
+		"WHERE (r.action = 'configApprover') " +
+		"AND (r.environment IS NULL OR r.environment = ?) " +
+		"AND (r.entity_name IS NULL OR r.entity_name = ?) AND r.team = ? ;"
+
+	_, err = impl.dbConnection.Query(&roleGroups, roleGroupQuery, envName, appName, team)
 	if err != nil && err != pg.ErrNoRows {
 		return emailIds, roleGroups, err
 	}
@@ -631,7 +661,7 @@ func (impl UserAuthRepositoryImpl) CreateRoleForSuperAdminIfNotExists(tx *pg.Tx,
 	}
 
 	//Creating ROLES
-	roleModel, err := impl.GetRoleByFilterForAllTypes("", "", "", "", bean2.SUPER_ADMIN, false, "", "", "", "", "", "", "", false)
+	roleModel, err := impl.GetRoleByFilterForAllTypes("", "", "", "", bean2.SUPER_ADMIN, false, "", "", "", "", "", "", "", false, "")
 	if err != nil && err != pg.ErrNoRows {
 		return false, err
 	}
@@ -791,8 +821,10 @@ func (impl UserAuthRepositoryImpl) GetRolesForProject(teamName string) ([]*RoleM
 
 func (impl UserAuthRepositoryImpl) GetRolesForApp(appName string) ([]*RoleModel, error) {
 	var roles []*RoleModel
-	err := impl.dbConnection.Model(&roles).Where("entity is NULL").
-		Where("entity_name = ?", appName).Select()
+	err := impl.dbConnection.Model(&roles).
+		Where("(entity is NULL) OR (entity = ? AND access_type = ?) OR (entity = ?)", bean2.ENTITY_APPS, bean2.DEVTRON_APP, bean2.EntityJobs).
+		Where("entity_name = ?", appName).
+		Select()
 	if err != nil {
 		impl.Logger.Errorw("error in getting roles for app", "err", err, "appName", appName)
 		return nil, err
@@ -851,4 +883,16 @@ func (impl UserAuthRepositoryImpl) GetRolesByEntityAccessTypeAndAction(entity, a
 		return models, err
 	}
 	return models, nil
+}
+
+func (impl UserAuthRepositoryImpl) GetRolesForWorkflow(workflow, entityName string) ([]*RoleModel, error) {
+	var roles []*RoleModel
+	err := impl.dbConnection.Model(&roles).Where("workflow = ?", workflow).
+		Where("entity_name = ?", entityName).
+		Select()
+	if err != nil {
+		impl.Logger.Errorw("error in getting roles for team", "err", err, "workflow", workflow)
+		return nil, err
+	}
+	return roles, nil
 }

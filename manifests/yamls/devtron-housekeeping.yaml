@@ -115,6 +115,10 @@ data:
     kubectl annotate clusterrole devtron-grafana-clusterrole "meta.helm.sh/release-name=$RELEASE_NAME" "meta.helm.sh/release-namespace=devtroncd" --overwrite
     kubectl label clusterrolebinding devtron-grafana-clusterrolebinding "app.kubernetes.io/managed-by=Helm" --overwrite
     kubectl annotate clusterrolebinding devtron-grafana-clusterrolebinding "meta.helm.sh/release-name=$RELEASE_NAME" "meta.helm.sh/release-namespace=devtroncd" --overwrite
+    kubectl label clusterrole kubewatch "app.kubernetes.io/managed-by=Helm" --overwrite
+    kubectl annotate clusterrole kubewatch "meta.helm.sh/release-name=$RELEASE_NAME" "meta.helm.sh/release-namespace=devtroncd" --overwrite
+    kubectl label clusterrolebinding kubewatch "app.kubernetes.io/managed-by=Helm" --overwrite
+    kubectl annotate clusterrolebinding kubewatch "meta.helm.sh/release-name=$RELEASE_NAME" "meta.helm.sh/release-namespace=devtroncd" --overwrite
 ---
 apiVersion: batch/v1
 kind: Job

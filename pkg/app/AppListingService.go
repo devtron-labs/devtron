@@ -318,6 +318,7 @@ func (impl AppListingServiceImpl) FetchJobs(fetchJobListingRequest FetchAppListi
 		Size:          fetchJobListingRequest.Size,
 		AppStatuses:   fetchJobListingRequest.AppStatuses,
 		Environments:  fetchJobListingRequest.Environments,
+		AppIds:        fetchJobListingRequest.AppIds,
 	}
 	appIds, err := impl.appRepository.FetchAppIdsWithFilter(jobListingFilter)
 	if err != nil {
@@ -583,6 +584,7 @@ func BuildJobListingResponse(jobContainers []*bean.JobListingContainer, JobsLast
 			val = bean.JobContainer{}
 			val.JobId = jobContainer.JobId
 			val.JobName = jobContainer.JobName
+			val.JobActualName = jobContainer.JobActualName
 		}
 
 		if len(val.JobCiPipelines) == 0 {

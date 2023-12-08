@@ -2318,7 +2318,9 @@ func (impl *WorkflowDagExecutorImpl) saveArtifactsForLinkedCDPipelines(linkedCiP
 
 	ciIdToExistingArtifact := make(map[int]repository.CiArtifact)
 	for _, artifact := range existingArtifacts {
-		if ciArtifact.ImageDigest == artifact.ImageDigest {
+		// need to compare image for idempotency
+		// Skopeo images will have same digest but different images
+		if ciArtifact.Image == artifact.Image {
 			ciIdToExistingArtifact[artifact.PipelineId] = artifact
 		}
 	}
@@ -3935,6 +3937,7 @@ func (impl *WorkflowDagExecutorImpl) WriteCDTriggerEvent(overrideRequest *bean.V
 		TriggerTime:        time.Now(),
 		CiArtifactId:       overrideRequest.CiArtifactId,
 	}
+
 	ciPipelineMaterials, err := impl.ciPipelineMaterialRepository.GetByPipelineId(artifact.PipelineId)
 	if err != nil {
 		impl.logger.Errorw("error in ")

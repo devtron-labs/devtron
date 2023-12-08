@@ -148,7 +148,7 @@ func (impl *ReleaseMetricsRestHandlerImpl) ResetDataForAllAppEnvironment(w http.
 	}
 }
 
-//err := decoder.Decode(&employeeStruct, r.URL.Query())
+// err := decoder.Decode(&employeeStruct, r.URL.Query())
 var decoder = schema.NewDecoder()
 
 func (impl *ReleaseMetricsRestHandlerImpl) GetDeploymentMetrics(w http.ResponseWriter, r *http.Request) {
