@@ -887,13 +887,15 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pi
 	ciArtifactsResponse := &bean2.CiArtifactResponse{}
 
 	artifactListingFilterOpts.PipelineId = pipeline.Id
+	// this will be 0 for external-ci cases, note: do not refer this for external-ci cases
+	artifactListingFilterOpts.CiPipelineId = pipeline.CiPipelineId
 	artifactListingFilterOpts.ParentId = parentId
 	artifactListingFilterOpts.ParentCdId = parentCdId
 	artifactListingFilterOpts.ParentStageType = parentType
 	artifactListingFilterOpts.StageType = stage
 	artifactListingFilterOpts.ApprovalNodeConfigured = pipeline.ApprovalNodeConfigured()
 	artifactListingFilterOpts.SearchString = "%" + artifactListingFilterOpts.SearchString + "%"
-
+	artifactListingFilterOpts.UseCdStageQueryV2 = impl.config.UseArtifactListingQueryV2
 	if artifactListingFilterOpts.ApprovalNodeConfigured {
 		approvalConfig, err := pipeline.GetApprovalConfig()
 		if err != nil {
