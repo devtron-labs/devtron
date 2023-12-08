@@ -36,3 +36,10 @@ type EnvironmentPropertiesResponse struct {
 	Schema            json.RawMessage       `json:"schema"`
 	Readme            string                `json:"readme"`
 }
+
+type EnvironmentUpdateResponse struct {
+	EnvironmentProperties
+	AllowedOverride   json.RawMessage `json:"allowedOverride"`
+	LockedOverride    json.RawMessage `json:"lockedOverride"`
+	IsLockConfigError bool            `json:"isLockConfigError"`
+}

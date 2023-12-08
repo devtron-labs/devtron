@@ -17,6 +17,13 @@ type ReservedChartList struct {
 	Name           string
 }
 
+type TemplateResponse struct {
+	TemplateRequest
+	AllowedOverride   json.RawMessage `json:"allowedOverride"`
+	LockedOverride    json.RawMessage `json:"lockedOverride"`
+	IsLockConfigError bool            `json:"isLockConfigError"`
+}
+
 type TemplateRequest struct {
 	Id                      int                         `json:"id"  validate:"number"`
 	AppId                   int                         `json:"appId,omitempty"  validate:"number,required"`
