@@ -90,7 +90,7 @@ func BuildQueryForArtifactsForCdStage(listingFilterOptions bean.ArtifactsListFil
 }
 
 func buildQueryForArtifactsForCdStageV2(listingFilterOptions bean.ArtifactsListFilterOptions, isApprovalNode bool) string {
-	withQuery := fmt.Sprintf(" WITH latest_cdwrs AS ("+
+	whereCondition := fmt.Sprintf(" WHERE (id IN ("+
 		" SELECT DISTINCT(cd_workflow.ci_artifact_id) as ci_artifact_id "+
 		" FROM cd_workflow_runner"+
 		" INNER JOIN cd_workflow ON cd_workflow.id = cd_workflow_runner.cd_workflow_id "+
@@ -104,29 +104,22 @@ func buildQueryForArtifactsForCdStageV2(listingFilterOptions bean.ArtifactsListF
 		"           )"+
 		"      )   ) ", listingFilterOptions.PipelineId, listingFilterOptions.ParentId, listingFilterOptions.PipelineId, listingFilterOptions.StageType, listingFilterOptions.ParentId, listingFilterOptions.ParentStageType)
 
-	joinCondition1 := " ci_artifact.id = latest_cdwrs.ci_artifact_id "
-
-	//CiPipelineId might be 0 if the current pipeline's build pipeline was an external-ci/webhook
-	//if listingFilterOptions.CiPipelineId != 0 {
-	//	joinCondition1 = fmt.Sprintf("(%s AND ci_artifact.pipeline_id = %d)", joinCondition1, listingFilterOptions.CiPipelineId)
-	//}
-	joinCondition2 := fmt.Sprintf(" ((ci_artifact.component_id = %d  AND ci_artifact.data_source= '%s' ))", listingFilterOptions.ParentId, listingFilterOptions.PluginStage)
-	fromQuery := " FROM ci_artifact" +
-		" INNER JOIN latest_cdwrs " +
-		" ON " + joinCondition1 +
-		" OR " + joinCondition2
-
-	whereQuery := fmt.Sprintf(" WHERE ci_artifact.image LIKE '%s' ", listingFilterOptions.SearchString)
+	whereCondition = fmt.Sprintf(" %s OR (ci_artifact.component_id = %d  AND ci_artifact.data_source= '%s' ))", whereCondition, listingFilterOptions.ParentId, listingFilterOptions.PluginStage)
+	if listingFilterOptions.SearchString != EmptyLikeRegex {
+		whereCondition = whereCondition + fmt.Sprintf(" AND ci_artifact.image LIKE '%s' ", listingFilterOptions.SearchString)
+	}
 	if isApprovalNode {
-		whereQuery = whereQuery + fmt.Sprintf(" AND ( ci_artifact.id NOT IN (SELECT DISTINCT dar.ci_artifact_id FROM deployment_approval_request dar WHERE dar.pipeline_id = %d AND dar.active=true AND dar.artifact_deployment_triggered = false))", listingFilterOptions.PipelineId)
+		whereCondition = whereCondition + fmt.Sprintf(" AND ( ci_artifact.id NOT IN (SELECT DISTINCT dar.ci_artifact_id FROM deployment_approval_request dar WHERE dar.pipeline_id = %d AND dar.active=true AND dar.artifact_deployment_triggered = false))", listingFilterOptions.PipelineId)
 	} else if len(listingFilterOptions.ExcludeArtifactIds) > 0 {
-		whereQuery = whereQuery + fmt.Sprintf(" AND ( ci_artifact.id NOT IN (%s))", helper.GetCommaSepratedString(listingFilterOptions.ExcludeArtifactIds))
+		whereCondition = whereCondition + fmt.Sprintf(" AND ( ci_artifact.id NOT IN (%s))", helper.GetCommaSepratedString(listingFilterOptions.ExcludeArtifactIds))
 	}
 
-	countQuery := " SELECT count(DISTINCT ci_artifact.id) " + fromQuery + whereQuery
-	selectQuery := fmt.Sprintf(" SELECT DISTINCT(ci_artifact.id) ,(%s) as total_count ", countQuery)
-	ordeyByAndPaginated := fmt.Sprintf(" ORDER BY ci_artifact.id DESC LIMIT %d OFFSET %d ", listingFilterOptions.Limit, listingFilterOptions.Offset)
-	finalQuery := withQuery + selectQuery + fromQuery + whereQuery + ordeyByAndPaginated
+	countQuery := " SELECT count(DISTINCT id) " +
+		" FROM ci_artifact" + whereCondition
+	selectQuery := fmt.Sprintf(" SELECT DISTINCT(id) ,(%s) as total_count "+
+		" FROM ci_artifact", countQuery)
+	ordeyByAndPaginated := fmt.Sprintf(" ORDER BY id DESC LIMIT %d OFFSET %d ", listingFilterOptions.Limit, listingFilterOptions.Offset)
+	finalQuery := selectQuery + whereCondition + ordeyByAndPaginated
 	return finalQuery
 }
 
