@@ -297,7 +297,7 @@ func (impl GitServiceImpl) Clone(url, targetDir string) (clonedDir string, err e
 	}()
 	impl.logger.Debugw("git checkout ", "url", url, "dir", targetDir)
 	clonedDir = filepath.Join(impl.config.GitWorkingDir, targetDir)
-	_, errorMsg, err := impl.gitCliUtil.Clone(clonedDir, url, impl.Auth.Username, impl.Auth.Password)
+	_, errorMsg, err := impl.gitCliUtil.Clone(clonedDir, url, impl.Auth.Username, impl.Auth.Password, impl.config.AllowInsecureTLS)
 	if err != nil {
 		impl.logger.Errorw("error in git checkout", "url", url, "targetDir", targetDir, "err", err)
 		return "", err

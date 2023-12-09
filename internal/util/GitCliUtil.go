@@ -25,26 +25,26 @@ func NewGitCliUtil(logger *zap.SugaredLogger) *GitCliUtil {
 const GIT_ASK_PASS = "/git-ask-pass.sh"
 const Branch_Master = "master"
 
-func (impl *GitCliUtil) Fetch(rootDir string, username string, password string) (response, errMsg string, err error) {
+func (impl *GitCliUtil) Fetch(rootDir string, username string, password string, allowInsecureTLS bool) (response, errMsg string, err error) {
 	start := time.Now()
 	defer func() {
 		util.TriggerGitOpsMetrics("Fetch", "GitCli", start, err)
 	}()
 	impl.logger.Debugw("git fetch ", "location", rootDir)
 	cmd := exec.Command("git", "-C", rootDir, "fetch", "origin", "--tags", "--force")
-	output, errMsg, err := impl.runCommandWithCred(cmd, username, password)
+	output, errMsg, err := impl.runCommandWithCred(cmd, username, password, allowInsecureTLS)
 	impl.logger.Debugw("fetch output", "root", rootDir, "opt", output, "errMsg", errMsg, "error", err)
 	return output, errMsg, err
 }
 
-func (impl *GitCliUtil) Pull(rootDir string, username string, password string, branch string) (response, errMsg string, err error) {
+func (impl *GitCliUtil) Pull(rootDir string, username string, password string, branch string, allowInsecureTLS bool) (response, errMsg string, err error) {
 	start := time.Now()
 	defer func() {
 		util.TriggerGitOpsMetrics("Pull", "GitCli", start, err)
 	}()
 	impl.logger.Debugw("git pull ", "location", rootDir)
 	cmd := exec.Command("git", "-C", rootDir, "pull", "origin", branch, "--force")
-	output, errMsg, err := impl.runCommandWithCred(cmd, username, password)
+	output, errMsg, err := impl.runCommandWithCred(cmd, username, password, allowInsecureTLS)
 	impl.logger.Debugw("pull output", "root", rootDir, "opt", output, "errMsg", errMsg, "error", err)
 	return output, errMsg, err
 }
@@ -61,24 +61,27 @@ func (impl *GitCliUtil) Checkout(rootDir string, branch string) (response, errMs
 	return output, errMsg, err
 }
 
-func (impl *GitCliUtil) ListBranch(rootDir string, username string, password string) (response, errMsg string, err error) {
+func (impl *GitCliUtil) ListBranch(rootDir string, username string, password string, allowInsecureTLS bool) (response, errMsg string, err error) {
 	start := time.Now()
 	defer func() {
 		util.TriggerGitOpsMetrics("ListBranch", "GitCli", start, err)
 	}()
 	impl.logger.Debugw("git branch ", "location", rootDir)
 	cmd := exec.Command("git", "-C", rootDir, "branch", "-r")
-	output, errMsg, err := impl.runCommandWithCred(cmd, username, password)
+	output, errMsg, err := impl.runCommandWithCred(cmd, username, password, allowInsecureTLS)
 	impl.logger.Debugw("branch output", "root", rootDir, "opt", output, "errMsg", errMsg, "error", err)
 	return output, errMsg, err
 }
 
-func (impl *GitCliUtil) runCommandWithCred(cmd *exec.Cmd, userName, password string) (response, errMsg string, err error) {
+func (impl *GitCliUtil) runCommandWithCred(cmd *exec.Cmd, userName, password string, allowInsecureTLS bool) (response, errMsg string, err error) {
 	cmd.Env = append(os.Environ(),
 		fmt.Sprintf("GIT_ASKPASS=%s", GIT_ASK_PASS),
 		fmt.Sprintf("GIT_USERNAME=%s", userName),
 		fmt.Sprintf("GIT_PASSWORD=%s", password),
 	)
+	if allowInsecureTLS {
+		cmd.Env = append(cmd.Env, "GIT_SSL_NO_VERIFY=true")
+	}
 	return impl.runCommand(cmd)
 }
 
@@ -125,7 +128,7 @@ func (impl *GitCliUtil) Init(rootDir string, remoteUrl string, isBare bool) erro
 	return err
 }
 
-func (impl *GitCliUtil) Clone(rootDir string, remoteUrl string, username string, password string) (response, errMsg string, err error) {
+func (impl *GitCliUtil) Clone(rootDir string, remoteUrl string, username string, password string, allowInsecureTLS bool) (response, errMsg string, err error) {
 	start := time.Now()
 	defer func() {
 		util.TriggerGitOpsMetrics("Clone", "GitCli", start, err)
@@ -135,10 +138,10 @@ func (impl *GitCliUtil) Clone(rootDir string, remoteUrl string, username string,
 	if err != nil {
 		return "", "", err
 	}
-	response, errMsg, err = impl.Fetch(rootDir, username, password)
+	response, errMsg, err = impl.Fetch(rootDir, username, password, allowInsecureTLS)
 	if err == nil && errMsg == "" {
 		impl.logger.Warn("git fetch completed, pulling master branch data from remote origin")
-		response, errMsg, err = impl.ListBranch(rootDir, username, password)
+		response, errMsg, err = impl.ListBranch(rootDir, username, password, allowInsecureTLS)
 		if err != nil {
 			impl.logger.Errorw("error on git pull", "response", response, "errMsg", errMsg, "err", err)
 			return response, errMsg, err
@@ -159,7 +162,7 @@ func (impl *GitCliUtil) Clone(rootDir string, remoteUrl string, username string,
 			impl.logger.Warnw("no branch found in git repo", "remoteUrl", remoteUrl, "response", response)
 			return response, "", nil
 		}
-		response, errMsg, err = impl.Pull(rootDir, username, password, branch)
+		response, errMsg, err = impl.Pull(rootDir, username, password, branch, allowInsecureTLS)
 		if err != nil {
 			impl.logger.Errorw("error on git pull", "branch", branch, "err", err)
 			return response, errMsg, err

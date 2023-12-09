@@ -9,7 +9,6 @@ import (
 	"go.uber.org/zap"
 	"net/http"
 	"net/url"
-	"path"
 	"path/filepath"
 	"strconv"
 	"time"
@@ -182,9 +181,8 @@ func (impl GitLabClient) createProject(name, description string) (url string, er
 		impl.logger.Errorw("err in creating gitlab app", "req", p, "name", name, "err", err)
 		return "", err
 	}
-	projectUrl := path.Join(impl.client.BaseURL().String(), namespace, name)
 	impl.logger.Infow("gitlab app created", "name", name, "url", project.HTTPURLToRepo)
-	return projectUrl, nil
+	return project.HTTPURLToRepo, nil
 }
 
 func (impl GitLabClient) ensureProjectAvailability(projectName string) (bool, error) {
