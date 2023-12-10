@@ -85,6 +85,38 @@ func (impl *GitCliUtil) runCommandWithCred(cmd *exec.Cmd, userName, password str
 	return impl.runCommand(cmd)
 }
 
+func (impl *GitCliUtil) CommitAndPush(rootDir, commitMsg, name, emailId, username, password string, allowInsecureTLS bool) (commitHash string, errMsg string, err error) {
+	start := time.Now()
+	defer func() {
+		util.TriggerGitOpsMetrics("CommitAndPush", "GitCli", start, err)
+	}()
+	impl.logger.Debugw("git commit and push", "location", rootDir)
+
+	// Stage changes
+	stageCmd := exec.Command("git", "-C", rootDir, "add", ".")
+	_, stageErrMsg, stageErr := impl.runCommandWithCred(stageCmd, username, password, allowInsecureTLS)
+	if stageErr != nil {
+		return "", stageErrMsg, stageErr
+	}
+
+	// Commit changes
+	commitCmd := exec.Command("git", "-C", rootDir, "commit", "-m", commitMsg, "--author", fmt.Sprintf("%s <%s>", name, emailId))
+	commitOutput, commitErrMsg, commitErr := impl.runCommandWithCred(commitCmd, username, password, allowInsecureTLS)
+	if commitErr != nil {
+		return "", commitErrMsg, commitErr
+	}
+
+	// Push changes
+	pushCmd := exec.Command("git", "-C", rootDir, "push", "origin", "master", "--force")
+	pushOutput, pushErrMsg, pushErr := impl.runCommandWithCred(pushCmd, username, password, allowInsecureTLS)
+	if pushErr != nil {
+		return "", pushErrMsg, pushErr
+	}
+
+	impl.logger.Debugw("commit and push output", "root", rootDir, "commitOutput", commitOutput, "pushOutput", pushOutput)
+	return commitOutput, "", nil
+}
+
 func (impl *GitCliUtil) runCommand(cmd *exec.Cmd) (response, errMsg string, err error) {
 	cmd.Env = append(cmd.Env, "HOME=/dev/null")
 	outBytes, err := cmd.CombinedOutput()

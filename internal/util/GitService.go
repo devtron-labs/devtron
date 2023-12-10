@@ -309,6 +309,10 @@ func (impl GitServiceImpl) Clone(url, targetDir string) (clonedDir string, err e
 }
 
 func (impl GitServiceImpl) CommitAndPushAllChanges(repoRoot, commitMsg, name, emailId string) (commitHash string, err error) {
+	if impl.config.AllowInsecureTLS {
+		commitHash, _, err = impl.gitCliUtil.CommitAndPush(repoRoot, commitMsg, name, emailId, impl.Auth.Username, impl.Auth.Password, impl.config.AllowInsecureTLS)
+		return commitHash, err
+	}
 	start := time.Now()
 	defer func() {
 		util.TriggerGitOpsMetrics("CommitAndPushAllChanges", "GitService", start, err)
