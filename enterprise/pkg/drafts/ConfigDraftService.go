@@ -440,7 +440,7 @@ func (impl *ConfigDraftServiceImpl) handleBaseDeploymentTemplate(appId int, envI
 	if action == AddResourceAction {
 		_, err = impl.chartService.Create(templateRequest, ctx)
 	} else {
-		_, err = impl.chartService.UpdateAppOverride(ctx, &templateRequest)
+		_, err = impl.chartService.UpdateAppOverride(ctx, &templateRequest, true)
 	}
 	return err
 }
@@ -477,7 +477,7 @@ func (impl *ConfigDraftServiceImpl) handleEnvLevelTemplate(appId int, envId int,
 			//TODO code duplicated, needs refactoring
 			err = impl.createEnvLevelDeploymentTemplate(ctx, appId, envId, envConfigProperties, userId)
 		} else {
-			_, err = impl.propertiesConfigService.UpdateEnvironmentProperties(appId, envConfigProperties, userId)
+			_, err = impl.propertiesConfigService.UpdateEnvironmentProperties(appId, envConfigProperties, userId, true)
 		}
 		if err != nil {
 			impl.logger.Errorw("service err, EnvConfigOverrideUpdate", "appId", appId, "envId", envId, "err", err, "payload", envConfigProperties)

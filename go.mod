@@ -45,7 +45,9 @@ require (
 	github.com/juju/errors v0.0.0-20200330140219-3fe23663418f
 	github.com/ktrysmt/go-bitbucket v0.9.40
 	github.com/lib/pq v1.10.4
+	github.com/mattbaird/jsonpatch v0.0.0-20230413205102-771768614e91
 	github.com/microsoft/azure-devops-go-api/azuredevops v1.0.0-b5
+	github.com/ohler55/ojg v1.20.3
 	github.com/otiai10/copy v1.0.2
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pkg/errors v0.9.1

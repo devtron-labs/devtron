@@ -1,6 +1,9 @@
 package bean
 
-import "github.com/devtron-labs/devtron/pkg/sql"
+import (
+	"encoding/json"
+	"github.com/devtron-labs/devtron/pkg/sql"
+)
 
 type LockConfigRequest struct {
 	Allowed bool     `json:"allowed, notnull"`
@@ -16,24 +19,55 @@ type LockConfigResponse struct {
 type LockConfiguration struct {
 	tableName struct{} `sql:"lock_configuration"`
 	Id        int      `sql:"id,pk"`
-	Allowed   bool     `sql:"allowed, notnull"`
-	Config    []string `sql:"config" pg:" ,array"`
+	Config    string   `sql:"config"`
 	Active    bool     `sql:"active"`
 	sql.AuditLog
 }
 
+type LockConfig struct {
+	Path    string
+	Allowed bool
+}
+
 func (impl *LockConfiguration) ConvertDBDtoToResponse() *LockConfigResponse {
+	config, allowed := getConfigAndStatus(impl.Config)
 	return &LockConfigResponse{
 		Id:      impl.Id,
-		Allowed: impl.Allowed,
-		Config:  impl.Config,
+		Config:  config,
+		Allowed: allowed,
 	}
 }
 
 func (impl *LockConfigRequest) ConvertRequestToDBDto() *LockConfiguration {
+	configByte := impl.getLockConfig()
 	return &LockConfiguration{
-		Config:  impl.Config,
-		Allowed: impl.Allowed,
-		Active:  true,
+		Config: string(configByte),
+		Active: true,
 	}
+}
+
+func getConfigAndStatus(config string) ([]string, bool) {
+	var configs []string
+	allowed := true
+	var lockConfigs []LockConfig
+	_ = json.Unmarshal([]byte(config), &lockConfigs)
+	for _, lockConfig := range lockConfigs {
+		configs = append(configs, lockConfig.Path)
+		allowed = allowed && lockConfig.Allowed
+	}
+	return configs, allowed
+
+}
+
+func (impl *LockConfigRequest) getLockConfig() []byte {
+	var lockConfigs []LockConfig
+	for _, config := range impl.Config {
+		lockConfig := LockConfig{
+			Path:    config,
+			Allowed: impl.Allowed,
+		}
+		lockConfigs = append(lockConfigs, lockConfig)
+	}
+	marsh, _ := json.Marshal(lockConfigs)
+	return marsh
 }

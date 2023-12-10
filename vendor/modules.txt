@@ -789,6 +789,9 @@ github.com/liggitt/tabwriter
 github.com/mailru/easyjson/buffer
 github.com/mailru/easyjson/jlexer
 github.com/mailru/easyjson/jwriter
+# github.com/mattbaird/jsonpatch v0.0.0-20230413205102-771768614e91
+## explicit
+github.com/mattbaird/jsonpatch
 # github.com/mattn/go-ieproxy v0.0.1
 ## explicit; go 1.14
 github.com/mattn/go-ieproxy
@@ -857,6 +860,13 @@ github.com/nats-io/nkeys
 # github.com/nats-io/nuid v1.0.1
 ## explicit
 github.com/nats-io/nuid
+# github.com/ohler55/ojg v1.20.3
+## explicit; go 1.20
+github.com/ohler55/ojg
+github.com/ohler55/ojg/alt
+github.com/ohler55/ojg/gen
+github.com/ohler55/ojg/jp
+github.com/ohler55/ojg/oj
 # github.com/oliveagle/jsonpath v0.0.0-20180606110733-2e52cf6e6852
 ## explicit
 github.com/oliveagle/jsonpath

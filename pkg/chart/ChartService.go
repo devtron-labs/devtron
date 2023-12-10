@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/enterprise/pkg/lockConfiguration"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
@@ -74,7 +75,7 @@ type ChartService interface {
 	FindLatestChartForAppByAppId(appId int) (chartTemplate *TemplateRequest, err error)
 	GetByAppIdAndChartRefId(appId int, chartRefId int) (chartTemplate *TemplateRequest, err error)
 	GetAppOverrideForDefaultTemplate(chartRefId int) (map[string]interface{}, string, error)
-	UpdateAppOverride(ctx context.Context, templateRequest *TemplateRequest) (*TemplateRequest, error)
+	UpdateAppOverride(ctx context.Context, templateRequest *TemplateRequest, isSuperAdmin bool) (*TemplateResponse, error)
 	IsReadyToTrigger(appId int, envId int, pipelineId int) (IsReady, error)
 	ChartRefAutocomplete() ([]ChartRef, error)
 	ChartRefAutocompleteForAppOrEnv(appId int, envId int) (*ChartRefResponse, error)
@@ -123,6 +124,7 @@ type ChartServiceImpl struct {
 	client                           *http.Client
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
 	scopedVariableManager            variables.ScopedVariableManager
+	lockedConfigService              lockConfiguration.LockConfigurationService
 }
 
 func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
@@ -145,6 +147,7 @@ func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
 	client *http.Client,
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
 	scopedVariableManager variables.ScopedVariableManager,
+	lockedConfigService lockConfiguration.LockConfigurationService,
 ) *ChartServiceImpl {
 
 	// cache devtron reference charts list
@@ -172,6 +175,7 @@ func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
 		client:                           client,
 		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
 		scopedVariableManager:            scopedVariableManager,
+		lockedConfigService:              lockedConfigService,
 	}
 }
 
@@ -786,7 +790,7 @@ func (impl ChartServiceImpl) GetByAppIdAndChartRefId(appId int, chartRefId int) 
 	return chartTemplate, err
 }
 
-func (impl ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateRequest *TemplateRequest) (*TemplateRequest, error) {
+func (impl ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateRequest *TemplateRequest, isSuperAdmin bool) (*TemplateResponse, error) {
 
 	_, span := otel.Tracer("orchestrator").Start(ctx, "chartRepository.FindById")
 	template, err := impl.chartRepository.FindById(templateRequest.Id)
@@ -855,6 +859,22 @@ func (impl ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateRequ
 	if err != nil {
 		return nil, err
 	}
+	// Handle Lock Configuration
+	isLockConfigError, lockedOverride, err := impl.lockedConfigService.HandleLockConfiguration(string(values), template.Values)
+	if err != nil {
+		return nil, err
+	}
+	if isLockConfigError && !isSuperAdmin {
+		var jsonVal json.RawMessage
+		_ = json.Unmarshal([]byte(lockedOverride), &jsonVal)
+		return &TemplateResponse{
+			TemplateRequest:   templateRequest,
+			AllowedOverride:   nil,
+			LockedOverride:    jsonVal,
+			IsLockConfigError: true,
+		}, nil
+	}
+
 	template.Values = string(values)
 	template.UpdatedOn = time.Now()
 	template.UpdatedBy = templateRequest.UserId
@@ -908,7 +928,12 @@ func (impl ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateRequ
 	if err != nil {
 		return nil, err
 	}
-	return templateRequest, nil
+	return &TemplateResponse{
+		TemplateRequest:   templateRequest,
+		AllowedOverride:   nil,
+		LockedOverride:    nil,
+		IsLockConfigError: false,
+	}, nil
 }
 
 func (impl ChartServiceImpl) handleChartTypeChange(currentLatestChart *chartRepoRepository.Chart, templateRequest *TemplateRequest) (json.RawMessage, error) {

@@ -605,7 +605,7 @@ func (handler PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWrite
 	envConfigPropertiesOld, err := handler.propertiesConfigService.FetchEnvProperties(request.AppId, request.EnvId, request.TargetChartRefId)
 	if err == nil {
 		envConfigProperties.Id = envConfigPropertiesOld.Id
-		createResp, err := handler.propertiesConfigService.UpdateEnvironmentProperties(request.AppId, envConfigProperties, userId)
+		createResp, err := handler.propertiesConfigService.UpdateEnvironmentProperties(request.AppId, envConfigProperties, userId, true)
 		if err != nil {
 			handler.Logger.Errorw("service err, EnvConfigOverrideUpdate", "err", err, "payload", envConfigProperties)
 			common.WriteJsonResp(w, err, createResp, http.StatusInternalServerError)
@@ -847,7 +847,14 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideUpdate(w http.Resp
 		return
 	}
 
-	createResp, err := handler.propertiesConfigService.UpdateEnvironmentProperties(appId, &envConfigProperties, userId)
+	isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
+	if err != nil {
+		handler.Logger.Errorw("request err, CheckSuperAdmin", "err", err, "isSuperAdmin", isSuperAdmin)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusBadRequest)
+		return
+	}
+
+	createResp, err := handler.propertiesConfigService.UpdateEnvironmentProperties(appId, &envConfigProperties, userId, isSuperAdmin)
 	if err != nil {
 		handler.Logger.Errorw("service err, EnvConfigOverrideUpdate", "err", err, "payload", envConfigProperties)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -1547,7 +1554,13 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 	}
 
 	_, span = otel.Tracer("orchestrator").Start(ctx, "chartService.UpdateAppOverride")
-	createResp, err := handler.chartService.UpdateAppOverride(ctx, &templateRequest)
+	isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
+	if err != nil {
+		handler.Logger.Errorw("request err, CheckSuperAdmin", "err", err, "isSuperAdmin", isSuperAdmin)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusBadRequest)
+		return
+	}
+	createResp, err := handler.chartService.UpdateAppOverride(ctx, &templateRequest, isSuperAdmin)
 	span.End()
 	if err != nil {
 		handler.Logger.Errorw("service err, UpdateAppOverride", "err", err, "payload", templateRequest)

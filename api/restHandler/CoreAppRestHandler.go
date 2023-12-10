@@ -1884,7 +1884,7 @@ func (handler CoreAppRestHandlerImpl) createEnvDeploymentTemplate(appId int, use
 	//updating env template override
 	envConfigProperties.Id = env.EnvironmentConfig.Id
 	envConfigProperties.Namespace = env.Namespace
-	_, err = handler.propertiesConfigService.UpdateEnvironmentProperties(appId, envConfigProperties, userId)
+	_, err = handler.propertiesConfigService.UpdateEnvironmentProperties(appId, envConfigProperties, userId, true)
 	if err != nil {
 		handler.logger.Errorw("service err, EnvConfigOverrideUpdate", "err", err, "appId", appId, "envId", envId)
 		return err
