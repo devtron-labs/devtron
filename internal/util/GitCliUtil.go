@@ -94,8 +94,9 @@ func (impl *GitCliUtil) CommitAndPush(rootDir, commitMsg, name, emailId, usernam
 
 	// Stage changes
 	stageCmd := exec.Command("git", "-C", rootDir, "add", ".")
-	_, stageErrMsg, stageErr := impl.runCommandWithCred(stageCmd, username, password, allowInsecureTLS)
+	stageOutput, stageErrMsg, stageErr := impl.runCommandWithCred(stageCmd, username, password, allowInsecureTLS)
 	if stageErr != nil {
+		impl.logger.Errorw("error in adding files to stage", "err", stageErr, "stageErrMsg", stageErrMsg, "stageOutput", stageOutput)
 		return "", stageErrMsg, stageErr
 	}
 
@@ -103,6 +104,7 @@ func (impl *GitCliUtil) CommitAndPush(rootDir, commitMsg, name, emailId, usernam
 	commitCmd := exec.Command("git", "-C", rootDir, "commit", "-m", commitMsg, "--author", fmt.Sprintf("%s <%s>", name, emailId))
 	commitOutput, commitErrMsg, commitErr := impl.runCommandWithCred(commitCmd, username, password, allowInsecureTLS)
 	if commitErr != nil {
+		impl.logger.Errorw("error in committing files", "err", commitErr, "commitOutput", commitOutput, "commitErrMsg", commitErrMsg)
 		return "", commitErrMsg, commitErr
 	}
 
@@ -110,6 +112,7 @@ func (impl *GitCliUtil) CommitAndPush(rootDir, commitMsg, name, emailId, usernam
 	pushCmd := exec.Command("git", "-C", rootDir, "push", "origin", "master", "--force")
 	pushOutput, pushErrMsg, pushErr := impl.runCommandWithCred(pushCmd, username, password, allowInsecureTLS)
 	if pushErr != nil {
+		impl.logger.Errorw("error in pushing files", "err", pushErr, "pushOutput", pushOutput, "pushErrMsg", pushErrMsg)
 		return "", pushErrMsg, pushErr
 	}
 
