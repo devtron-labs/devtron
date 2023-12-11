@@ -43,6 +43,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/devtronResource"
+	bean6 "github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
@@ -106,6 +108,7 @@ type AppStoreDeploymentServiceImpl struct {
 	gitOpsRepository                     repository2.GitOpsConfigRepository
 	deploymentTypeConfig                 *DeploymentServiceTypeConfig
 	ChartTemplateService                 util.ChartTemplateService
+	devtronResourceService               devtronResource.DevtronResourceService
 }
 
 func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRepository repository.InstalledAppRepository,
@@ -116,7 +119,8 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRep
 	clusterService cluster.ClusterService, helmAppService client.HelmAppService, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
 	globalEnvVariables *util2.GlobalEnvVariables,
 	installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository, gitOpsRepository repository2.GitOpsConfigRepository, attributesService attributes.AttributesService,
-	deploymentTypeConfig *DeploymentServiceTypeConfig, ChartTemplateService util.ChartTemplateService) *AppStoreDeploymentServiceImpl {
+	deploymentTypeConfig *DeploymentServiceTypeConfig, ChartTemplateService util.ChartTemplateService,
+	devtronResourceService devtronResource.DevtronResourceService) *AppStoreDeploymentServiceImpl {
 
 	appStoreDeploymentServiceImpl := &AppStoreDeploymentServiceImpl{
 		logger:                               logger,
@@ -137,6 +141,7 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRep
 		gitOpsRepository:                     gitOpsRepository,
 		deploymentTypeConfig:                 deploymentTypeConfig,
 		ChartTemplateService:                 ChartTemplateService,
+		devtronResourceService:               devtronResourceService,
 	}
 	return appStoreDeploymentServiceImpl
 }
@@ -752,6 +757,14 @@ func (impl AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Context
 			impl.logger.Errorw("error in update entity ", "entity", app)
 			return nil, err
 		}
+
+		go func() {
+			errInResourceDelete := impl.devtronResourceService.DeleteObjectAndItsDependency(app.Id, bean6.DevtronResourceApplication,
+				bean6.DevtronResourceHelmApplication, bean6.DevtronResourceVersion1, installAppVersionRequest.UserId)
+			if errInResourceDelete != nil {
+				impl.logger.Errorw("error in deleting helm application resource and dependency data", "err", err, "appId", app.Id)
+			}
+		}()
 
 		// soft delete install app
 		model.Active = false

@@ -50,6 +50,7 @@ type AppListingRepository interface {
 	//Not in used
 	PrometheusApiByEnvId(id int) (*string, error)
 
+	FetchDependencyMetadataByPipelineIds(pipelineIds []int) ([]*bean.EnvironmentForDependency, error)
 	FetchOtherEnvironment(appId int) ([]*bean.Environment, error)
 	FetchMinDetailOtherEnvironment(appId int) ([]*bean.Environment, error)
 	DeploymentDetailByArtifactId(ciArtifactId int, envId int) (bean.DeploymentDetailContainer, error)
@@ -660,6 +661,33 @@ func (impl AppListingRepositoryImpl) makeAppStageStatus(stage int, stageName str
 		}(),
 		Required: true,
 	}
+}
+
+func (impl AppListingRepositoryImpl) FetchDependencyMetadataByPipelineIds(pipelineIds []int) ([]*bean.EnvironmentForDependency, error) {
+	// other environment tab
+	var otherEnvironments []*bean.EnvironmentForDependency
+	query := `select pcwr.pipeline_id, pcwr.pipeline_name, pcwr.last_deployed, pcwr.latest_cd_workflow_runner_id, pcwr.environment_id, pcwr.deployment_app_delete_request,   
+       			e.cluster_id, e.environment_name, e.default as prod, e.description, e.is_virtual_environment, ca.image as last_deployed_image, 
+      			u.email_id as last_deployed_by, ap.status as app_status, a.id as app_id, a.app_name 
+    			from (select * 
+      				from (select p.id as pipeline_id, p.pipeline_name, p.app_id, cwr.started_on as last_deployed, cwr.triggered_by, cwr.id as latest_cd_workflow_runner_id,  
+                  	 	cw.ci_artifact_id, p.environment_id, p.deployment_app_delete_request, 
+                  		row_number() over (partition by p.id order by cwr.started_on desc) as max_started_on_rank  
+            			from (select * from pipeline where id in (?) and deleted=?) as p 
+                     	left join cd_workflow cw on cw.pipeline_id = p.id 
+                     	left join cd_workflow_runner cwr on cwr.cd_workflow_id = cw.id and (cwr.workflow_type = ? or cwr.workflow_type is null)) pcwrraw  
+      				where max_started_on_rank = 1) pcwr 
+    			INNER JOIN app a on a.id=pcwr.app_id 
+         		INNER JOIN environment e on e.id = pcwr.environment_id 
+         		LEFT JOIN ci_artifact ca on ca.id = pcwr.ci_artifact_id 
+         		LEFT JOIN users u on u.id = pcwr.triggered_by 
+        		LEFT JOIN app_status ap ON pcwr.environment_id = ap.env_id and pcwr.app_id=ap.app_id;`
+	_, err := impl.dbConnection.Query(&otherEnvironments, query, pg.In(pipelineIds), false, "DEPLOY")
+	if err != nil {
+		impl.Logger.Error("error, FetchDependencyMetadataByPipelineIds", "error", err, "pipelineIds", pipelineIds)
+		return nil, err
+	}
+	return otherEnvironments, nil
 }
 
 func (impl AppListingRepositoryImpl) FetchOtherEnvironment(appId int) ([]*bean.Environment, error) {

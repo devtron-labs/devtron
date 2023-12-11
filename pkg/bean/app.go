@@ -288,9 +288,8 @@ type CiPatchRequest struct {
 	IsJob         bool        `json:"-"`
 	IsCloneJob    bool        `json:"isCloneJob,omitempty"`
 
-	ParentCDPipeline int `json:"parentCDPipeline"`
-	DeployEnvId      int `json:"deployEnvId"`
-
+	ParentCDPipeline               int          `json:"parentCDPipeline"`
+	DeployEnvId                    int          `json:"deployEnvId"`
 	SwitchFromCiPipelineId         int          `json:"switchFromCiPipelineId"`
 	SwitchFromExternalCiPipelineId int          `json:"switchFromExternalCiPipelineId"`
 	SwitchFromCiPipelineType       PipelineType `json:"-"`
@@ -908,6 +907,13 @@ type CdBulkActionResponseDto struct {
 	AppName         string `json:"appName"`
 	EnvironmentName string `json:"environmentName"`
 	DeletionResult  string `json:"deletionResult,omitempty"`
+}
+
+type CdPipelineEnvDataResponseDto struct {
+	PipelineName    string `json:"pipelineName"`
+	PipelineId      int    `json:"pipelineId"`
+	EnvironmentId   int    `json:"environmentId"`
+	EnvironmentName string `json:"environmentName"`
 }
 
 type SchemaObject struct {

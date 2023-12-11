@@ -15,6 +15,7 @@ import (
 	"github.com/devtron-labs/devtron/api/cluster"
 	"github.com/devtron-labs/devtron/api/connector"
 	"github.com/devtron-labs/devtron/api/dashboardEvent"
+	"github.com/devtron-labs/devtron/api/devtronResource"
 	"github.com/devtron-labs/devtron/api/externalLink"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/k8s"
@@ -34,6 +35,7 @@ import (
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	security2 "github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -93,7 +95,10 @@ func InitializeApp() (*App, error) {
 		util2.GetACDAuthConfig,
 		telemetry.NewPosthogClient,
 		delete2.NewDeleteServiceImpl,
-
+		devtronResource.DevtronResourceWireSetEA,
+		helper.NewAppListingRepositoryQueryBuilder,
+		repository.NewAppListingRepositoryImpl,
+		wire.Bind(new(repository.AppListingRepository), new(*repository.AppListingRepositoryImpl)),
 		pipelineConfig.NewMaterialRepositoryImpl,
 		wire.Bind(new(pipelineConfig.MaterialRepository), new(*pipelineConfig.MaterialRepositoryImpl)),
 		//appStatus

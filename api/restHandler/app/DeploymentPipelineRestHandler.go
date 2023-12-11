@@ -8,7 +8,6 @@ import (
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
@@ -35,10 +34,10 @@ import (
 const DefaultMinArtifactCount = 10
 
 type DeploymentHistoryResp struct {
-	CdWorkflows                []pipelineConfig.CdWorkflowWithArtifact `json:"cdWorkflows"`
-	TagsEdiatable              bool                                    `json:"tagsEditable"`
-	AppReleaseTagNames         []string                                `json:"appReleaseTagNames"` //unique list of tags exists in the app
-	HideImageTaggingHardDelete bool                                    `json:"hideImageTaggingHardDelete"`
+	CdWorkflows                []bean3.CdWorkflowWithArtifact `json:"cdWorkflows"`
+	TagsEdiatable              bool                           `json:"tagsEditable"`
+	AppReleaseTagNames         []string                       `json:"appReleaseTagNames"` //unique list of tags exists in the app
+	HideImageTaggingHardDelete bool                           `json:"hideImageTaggingHardDelete"`
 }
 type DevtronAppDeploymentRestHandler interface {
 	CreateCdPipeline(w http.ResponseWriter, r *http.Request)
@@ -48,6 +47,7 @@ type DevtronAppDeploymentRestHandler interface {
 	HandleChangeDeploymentTypeRequest(w http.ResponseWriter, r *http.Request)
 	HandleTriggerDeploymentAfterTypeChange(w http.ResponseWriter, r *http.Request)
 	GetCdPipelines(w http.ResponseWriter, r *http.Request)
+	GetAllCdPipelinesAndEnvDataLite(w http.ResponseWriter, r *http.Request)
 	GetCdPipelinesForAppAndEnv(w http.ResponseWriter, r *http.Request)
 
 	GetArtifactsByCDPipeline(w http.ResponseWriter, r *http.Request)
@@ -1142,6 +1142,27 @@ func (handler PipelineConfigRestHandlerImpl) GetCdPipelines(w http.ResponseWrite
 	}
 
 	common.WriteJsonResp(w, err, ciConf, http.StatusOK)
+}
+
+func (handler PipelineConfigRestHandlerImpl) GetAllCdPipelinesAndEnvDataLite(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	appId, err := strconv.Atoi(vars["appId"])
+	if err != nil {
+		handler.Logger.Errorw("request err, GetAllCdPipelinesAndEnvDataLite", "err", err, "appId", appId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	handler.Logger.Infow("request payload, GetAllCdPipelinesAndEnvDataLite", "appId", appId)
+	//not checking RBAC here because this api is meant to give pipeline list irrespective of the access of user
+	//this api is currently used for dependency feature on UI
+	resp, err := handler.pipelineBuilder.GetAllCdPipelinesAndEnvDataLite(appId)
+	if err != nil {
+		handler.Logger.Errorw("service err, GetAllCdPipelinesAndEnvDataLite", "err", err, "appId", appId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
 
 func (handler PipelineConfigRestHandlerImpl) GetCdPipelinesForAppAndEnv(w http.ResponseWriter, r *http.Request) {
