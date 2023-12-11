@@ -3,4 +3,5 @@
 ## Enhancements
 ## Documentation
 ## Others
+- chore: made devtron namespace configurable in authenticator (#4271)
 - chore: added migration script for dependency (#4279)
