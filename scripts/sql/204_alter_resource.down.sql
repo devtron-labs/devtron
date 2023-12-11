@@ -3,3 +3,6 @@ alter table devtron_resource
 
 alter table devtron_resource
     drop column description;
+
+alter table devtron_resource_schema
+    drop column sample_schema;
