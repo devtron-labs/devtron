@@ -625,7 +625,7 @@ Wait for given period of time before scaling down the container.
 
 If you want to see application metrics like different HTTP status codes metrics, application throughput, latency, response time. Enable the Application metrics from below the deployment template Save button. After enabling it, you should be able to see all metrics on App detail page. By default it remains disabled.
 
-![](../../../.gitbook/assets/deployment_application_metrics%20%282%29.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/deployment-template/deployment_application_metrics.jpg)
 
 Once all the Deployment template configurations are done, click on `Save` to save your deployment configuration. Now you are ready to create [Workflow](workflow/) to do CI/CD.
 
