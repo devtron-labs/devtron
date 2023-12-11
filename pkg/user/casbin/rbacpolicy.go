@@ -37,6 +37,11 @@ const (
 	ResourceAutocomplete = "autocomplete"
 	ResourceChartGroup   = "chart-group"
 
+	// ResourceJobs ,ResourceJobsEnv ,ResourceWorkflow these three resources are being used in jobs for rbac.
+	ResourceJobs     = "jobs"
+	ResourceJobsEnv  = "jobenv"
+	ResourceWorkflow = "workflow"
+
 	ResourceTeam    = "team"
 	ResourceAdmin   = "admin"
 	ResourceGlobal  = "global-resource"
