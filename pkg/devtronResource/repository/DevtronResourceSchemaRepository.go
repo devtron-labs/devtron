@@ -12,6 +12,7 @@ type DevtronResourceSchemaRepository interface {
 	Update(model *DevtronResourceSchema) error
 	FindByResourceId(id int) (*DevtronResourceSchema, error)
 	FindSchemaByKindSubKindAndVersion(kind string, subKind string, version string) (*DevtronResourceSchema, error)
+	GetAll() ([]*DevtronResourceSchema, error)
 }
 
 type DevtronResourceSchemaRepositoryImpl struct {
@@ -34,6 +35,7 @@ type DevtronResourceSchema struct {
 	Schema            string   `sql:"schema"`
 	Latest            bool     `sql:"latest,notnull"`
 	sql.AuditLog
+	DevtronResource DevtronResource
 }
 
 func (impl DevtronResourceSchemaRepositoryImpl) Save(model *DevtronResourceSchema) error {
@@ -56,13 +58,10 @@ func (impl DevtronResourceSchemaRepositoryImpl) FindByResourceId(id int) (*Devtr
 
 func (impl DevtronResourceSchemaRepositoryImpl) FindSchemaByKindSubKindAndVersion(kind string, subKind string, version string) (*DevtronResourceSchema, error) {
 	devtronResourceSchema := &DevtronResourceSchema{}
-	query := `select devtron_resource_schema.* ` +
-		` from devtron_resource dr1` +
-		` left join devtron_resource dr2` +
-		` on dr1.parent_kind_id = dr2.id` +
-		` left join devtron_resource_schema` +
-		` on dr1.id = devtron_resource_schema.devtron_resource_id` +
-		` where devtron_resource_schema.version = ? and devtron_resource_schema.latest = ? and `
+	query := `select devtron_resource_schema.* from devtron_resource dr1 
+    			left join devtron_resource dr2 on dr1.parent_kind_id = dr2.id 
+		 		left join devtron_resource_schema on dr1.id = devtron_resource_schema.devtron_resource_id 
+		 		where devtron_resource_schema.version = ? and devtron_resource_schema.latest = ? and `
 	if len(subKind) > 0 {
 		query += fmt.Sprintf(" dr1.kind = '%s' and", subKind)
 		query += fmt.Sprintf(" dr2.kind = '%s';", kind)
@@ -71,4 +70,16 @@ func (impl DevtronResourceSchemaRepositoryImpl) FindSchemaByKindSubKindAndVersio
 	}
 	_, err := impl.dbConnection.Query(devtronResourceSchema, query, version, true)
 	return devtronResourceSchema, err
+}
+
+func (repo *DevtronResourceSchemaRepositoryImpl) GetAll() ([]*DevtronResourceSchema, error) {
+	var models []*DevtronResourceSchema
+	err := repo.dbConnection.Model(&models).
+		Column("devtron_resource_schema.*", "DevtronResource").
+		Where("latest = ?", true).Select()
+	if err != nil {
+		repo.logger.Errorw("error in getting all devtron resources schema", "err", err)
+		return nil, err
+	}
+	return models, nil
 }

@@ -75,11 +75,11 @@ const (
 type CdHandler interface {
 	HandleCdStageReTrigger(runner *pipelineConfig.CdWorkflowRunner) error
 	UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus) (int, string, error)
-	GetCdBuildHistory(appId int, environmentId int, pipelineId int, offset int, size int) ([]pipelineConfig.CdWorkflowWithArtifact, error)
+	GetCdBuildHistory(appId int, environmentId int, pipelineId int, offset int, size int) ([]bean2.CdWorkflowWithArtifact, error)
 	GetRunningWorkflowLogs(environmentId int, pipelineId int, workflowId int) (*bufio.Reader, func() error, error)
 	FetchCdWorkflowDetails(appId int, environmentId int, pipelineId int, buildId int, showAppliedFilters bool) (types.WorkflowResponse, error)
 	DownloadCdWorkflowArtifacts(pipelineId int, buildId int) (*os.File, error)
-	FetchCdPrePostStageStatus(pipelineId int) ([]pipelineConfig.CdWorkflowWithArtifact, error)
+	FetchCdPrePostStageStatus(pipelineId int) ([]bean2.CdWorkflowWithArtifact, error)
 	CancelStage(workflowRunnerId int, userId int32) (int, error)
 	FetchAppWorkflowStatusForTriggerView(appId int) ([]*pipelineConfig.CdWorkflowStatus, error)
 	CheckHelmAppStatusPeriodicallyAndUpdateInDb(helmPipelineStatusCheckEligibleTime int, getPipelineDeployedWithinHours int) error
@@ -744,7 +744,7 @@ func (impl *CdHandlerImpl) stateChanged(status string, podStatus string, msg str
 	return savedWorkflow.Status != status || savedWorkflow.PodStatus != podStatus || savedWorkflow.Message != msg || savedWorkflow.FinishedOn != finishedAt
 }
 
-func (impl *CdHandlerImpl) fillAppliedFiltersData(cdWorkflowArtifacts []pipelineConfig.CdWorkflowWithArtifact) []pipelineConfig.CdWorkflowWithArtifact {
+func (impl *CdHandlerImpl) fillAppliedFiltersData(cdWorkflowArtifacts []bean2.CdWorkflowWithArtifact) []bean2.CdWorkflowWithArtifact {
 	artifactIds := make([]int, len(cdWorkflowArtifacts))
 	workflowRunnerIds := make([]int, len(cdWorkflowArtifacts))
 	for i, cdWorkflowArtifact := range cdWorkflowArtifacts {
@@ -767,9 +767,9 @@ func (impl *CdHandlerImpl) fillAppliedFiltersData(cdWorkflowArtifacts []pipeline
 	return cdWorkflowArtifacts
 }
 
-func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipelineId int, offset int, size int) ([]pipelineConfig.CdWorkflowWithArtifact, error) {
+func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipelineId int, offset int, size int) ([]bean2.CdWorkflowWithArtifact, error) {
 
-	var cdWorkflowArtifact []pipelineConfig.CdWorkflowWithArtifact
+	var cdWorkflowArtifact []bean2.CdWorkflowWithArtifact
 	//this map contains artifactId -> array of tags of that artifact
 	imageTagsDataMap, err := impl.imageTaggingService.GetTagsDataMapByAppId(appId)
 	if err != nil {
@@ -851,7 +851,7 @@ func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipel
 			}
 			ciMaterialsArr = append(ciMaterialsArr, res)
 		}
-		var newCdWorkflowArtifact []pipelineConfig.CdWorkflowWithArtifact
+		var newCdWorkflowArtifact []bean2.CdWorkflowWithArtifact
 		for _, cdWfA := range cdWorkflowArtifact {
 
 			gitTriggers := make(map[int]pipelineConfig.GitCommit)
@@ -1246,8 +1246,8 @@ func (impl *CdHandlerImpl) DownloadCdWorkflowArtifacts(pipelineId int, buildId i
 	return file, nil
 }
 
-func (impl *CdHandlerImpl) converterWFR(wfr pipelineConfig.CdWorkflowRunner) pipelineConfig.CdWorkflowWithArtifact {
-	workflow := pipelineConfig.CdWorkflowWithArtifact{}
+func (impl *CdHandlerImpl) converterWFR(wfr pipelineConfig.CdWorkflowRunner) bean2.CdWorkflowWithArtifact {
+	workflow := bean2.CdWorkflowWithArtifact{}
 	if wfr.Id > 0 {
 		workflow.Name = wfr.Name
 		workflow.Id = wfr.Id
@@ -1272,9 +1272,9 @@ func (impl *CdHandlerImpl) converterWFR(wfr pipelineConfig.CdWorkflowRunner) pip
 	return workflow
 }
 
-func (impl *CdHandlerImpl) converterWFRList(wfrList []pipelineConfig.CdWorkflowRunner) []pipelineConfig.CdWorkflowWithArtifact {
-	var workflowList []pipelineConfig.CdWorkflowWithArtifact
-	var results []pipelineConfig.CdWorkflowWithArtifact
+func (impl *CdHandlerImpl) converterWFRList(wfrList []pipelineConfig.CdWorkflowRunner) []bean2.CdWorkflowWithArtifact {
+	var workflowList []bean2.CdWorkflowWithArtifact
+	var results []bean2.CdWorkflowWithArtifact
 	var ids []int32
 	for _, item := range wfrList {
 		ids = append(ids, item.TriggeredBy)
@@ -1295,8 +1295,8 @@ func (impl *CdHandlerImpl) converterWFRList(wfrList []pipelineConfig.CdWorkflowR
 	return results
 }
 
-func (impl *CdHandlerImpl) FetchCdPrePostStageStatus(pipelineId int) ([]pipelineConfig.CdWorkflowWithArtifact, error) {
-	var results []pipelineConfig.CdWorkflowWithArtifact
+func (impl *CdHandlerImpl) FetchCdPrePostStageStatus(pipelineId int) ([]bean2.CdWorkflowWithArtifact, error) {
+	var results []bean2.CdWorkflowWithArtifact
 	wfrPre, err := impl.cdWorkflowRepository.FindLastStatusByPipelineIdAndRunnerType(pipelineId, bean.CD_WORKFLOW_TYPE_PRE)
 	if err != nil && err != pg.ErrNoRows {
 		return results, err
@@ -1305,7 +1305,7 @@ func (impl *CdHandlerImpl) FetchCdPrePostStageStatus(pipelineId int) ([]pipeline
 		workflowPre := impl.converterWFR(wfrPre)
 		results = append(results, workflowPre)
 	} else {
-		workflowPre := pipelineConfig.CdWorkflowWithArtifact{Status: "Notbuilt", WorkflowType: string(bean.CD_WORKFLOW_TYPE_PRE), PipelineId: pipelineId}
+		workflowPre := bean2.CdWorkflowWithArtifact{Status: "Notbuilt", WorkflowType: string(bean.CD_WORKFLOW_TYPE_PRE), PipelineId: pipelineId}
 		results = append(results, workflowPre)
 	}
 
@@ -1317,7 +1317,7 @@ func (impl *CdHandlerImpl) FetchCdPrePostStageStatus(pipelineId int) ([]pipeline
 		workflowPost := impl.converterWFR(wfrPost)
 		results = append(results, workflowPost)
 	} else {
-		workflowPost := pipelineConfig.CdWorkflowWithArtifact{Status: "Notbuilt", WorkflowType: string(bean.CD_WORKFLOW_TYPE_POST), PipelineId: pipelineId}
+		workflowPost := bean2.CdWorkflowWithArtifact{Status: "Notbuilt", WorkflowType: string(bean.CD_WORKFLOW_TYPE_POST), PipelineId: pipelineId}
 		results = append(results, workflowPost)
 	}
 	return results, nil

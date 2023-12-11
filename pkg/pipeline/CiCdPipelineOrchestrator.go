@@ -35,6 +35,8 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	bean4 "github.com/devtron-labs/devtron/pkg/app/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/devtronResource"
+	bean6 "github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/genericNotes"
 	repository3 "github.com/devtron-labs/devtron/pkg/genericNotes/repository"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
@@ -125,6 +127,7 @@ type CiCdPipelineOrchestratorImpl struct {
 	configMapService              ConfigMapService
 	genericNoteService            genericNotes.GenericNoteService
 	customTagService              CustomTagService
+	devtronResourceService        devtronResource.DevtronResourceService
 }
 
 func NewCiCdPipelineOrchestrator(
@@ -154,7 +157,8 @@ func NewCiCdPipelineOrchestrator(
 	manifestPushConfigRepository repository5.ManifestPushConfigRepository,
 	configMapService ConfigMapService,
 	customTagService CustomTagService,
-	genericNoteService genericNotes.GenericNoteService) *CiCdPipelineOrchestratorImpl {
+	genericNoteService genericNotes.GenericNoteService,
+	devtronResourceService devtronResource.DevtronResourceService) *CiCdPipelineOrchestratorImpl {
 	return &CiCdPipelineOrchestratorImpl{
 		appRepository:                 pipelineGroupRepository,
 		logger:                        logger,
@@ -184,6 +188,7 @@ func NewCiCdPipelineOrchestrator(
 		configMapService:              configMapService,
 		genericNoteService:            genericNoteService,
 		customTagService:              customTagService,
+		devtronResourceService:        devtronResourceService,
 	}
 }
 
@@ -1245,6 +1250,22 @@ func (impl CiCdPipelineOrchestratorImpl) DeleteApp(appId int, userId int32) erro
 	if err != nil {
 		return err
 	}
+	go func() {
+		var kind, subKind bean6.DevtronResourceKind
+		switch app.AppType {
+		case helper.CustomApp:
+			kind = bean6.DevtronResourceApplication
+			subKind = bean6.DevtronResourceDevtronApplication
+		case helper.Job:
+			kind = bean6.DevtronResourceJob
+			//here not doing for helm app because it is deleted in different method (through installed app)
+		}
+		errInResourceDelete := impl.devtronResourceService.DeleteObjectAndItsDependency(app.Id, kind,
+			subKind, bean6.DevtronResourceVersion1, userId)
+		if errInResourceDelete != nil {
+			impl.logger.Errorw("error in deleting app resource and dependency data", "err", err, "appId", app.Id)
+		}
+	}()
 	return nil
 }
 
