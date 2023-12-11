@@ -73,7 +73,7 @@ spec:
         runAsUser: 1000
       containers:
         - name: image-scanner
-          image: "quay.io/devtron/image-scanner:ea03b0af-334-15158"
+          image: "quay.io/devtron/image-scanner:abb1e033-334-19909"
           imagePullPolicy: IfNotPresent
           securityContext:
             allowPrivilegeEscalation: false
