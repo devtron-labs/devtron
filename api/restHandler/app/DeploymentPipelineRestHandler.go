@@ -1557,7 +1557,7 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 	isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
 	if err != nil {
 		handler.Logger.Errorw("request err, CheckSuperAdmin", "err", err, "isSuperAdmin", isSuperAdmin)
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusBadRequest)
+		common.WriteJsonResp(w, err, "", http.StatusBadRequest)
 		return
 	}
 	createResp, err := handler.chartService.UpdateAppOverride(ctx, &templateRequest, isSuperAdmin)

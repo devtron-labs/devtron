@@ -19,4 +19,6 @@ func (router *LockConfigurationRouterImpl) InitLockConfigurationRouter(lockConfi
 		Methods("POST")
 	lockConfiguration.Path("").HandlerFunc(router.lockConfigRestHandler.GetLockConfig).
 		Methods("GET")
+	lockConfiguration.Path("").HandlerFunc(router.lockConfigRestHandler.DeleteLockConfig).
+		Methods("DELETE")
 }

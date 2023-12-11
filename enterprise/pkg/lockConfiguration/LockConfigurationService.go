@@ -18,6 +18,7 @@ import (
 type LockConfigurationService interface {
 	GetLockConfiguration() (*bean.LockConfigResponse, error)
 	SaveLockConfiguration(*bean.LockConfigRequest, int32) error
+	DeleteActiveLockConfiguration(userId int32) error
 	HandleLockConfiguration(currentConfig, savedConfig string) (bool, string, error)
 }
 
@@ -49,7 +50,7 @@ func (impl LockConfigurationServiceImpl) GetLockConfiguration() (*bean.LockConfi
 }
 
 func (impl LockConfigurationServiceImpl) SaveLockConfiguration(lockConfig *bean.LockConfigRequest, createdBy int32) error {
-	lockConfigDto, err := impl.lockConfigurationRepository.GetActiveLockConfig()
+	err := impl.DeleteActiveLockConfiguration(createdBy)
 	if err != nil && err != pg.ErrNoRows {
 		return err
 	}
@@ -60,16 +61,6 @@ func (impl LockConfigurationServiceImpl) SaveLockConfiguration(lockConfig *bean.
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
-
-	if lockConfigDto != nil {
-		lockConfigDto.Active = false
-		lockConfigDto.UpdatedOn = time.Now()
-		lockConfigDto.UpdatedBy = createdBy
-		err := impl.lockConfigurationRepository.Update(lockConfigDto, tx)
-		if err != nil {
-			return err
-		}
-	}
 
 	newLockConfigDto := lockConfig.ConvertRequestToDBDto()
 	newLockConfigDto.AuditLog = sql.NewDefaultAuditLog(createdBy)
@@ -86,6 +77,29 @@ func (impl LockConfigurationServiceImpl) SaveLockConfiguration(lockConfig *bean.
 		return err
 	}
 	return err
+}
+
+func (impl LockConfigurationServiceImpl) DeleteActiveLockConfiguration(userId int32) error {
+	lockConfigDto, err := impl.lockConfigurationRepository.GetActiveLockConfig()
+	if err != nil {
+		return err
+	}
+	dbConnection := impl.lockConfigurationRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+
+	lockConfigDto.Active = false
+	lockConfigDto.UpdatedOn = time.Now()
+	lockConfigDto.UpdatedBy = userId
+	err = impl.lockConfigurationRepository.Update(lockConfigDto, tx)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (impl LockConfigurationServiceImpl) HandleLockConfiguration(currentConfig, savedConfig string) (bool, string, error) {

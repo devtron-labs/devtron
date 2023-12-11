@@ -1,6 +1,9 @@
 package drafts
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 const (
 	LastVersionOutdated         = "last-version-outdated"
@@ -187,4 +190,11 @@ type AppConfigDraft struct {
 	Resource     DraftResourceType `json:"resourceType"`
 	ResourceName string            `json:"resourceName"`
 	DraftState   DraftState        `json:"draftState"`
+}
+
+type DraftVersionResponse struct {
+	DraftVersionId    int             `json:"draftVersionId"`
+	AllowedOverride   json.RawMessage `json:"allowedOverride"`   // json of allowed keys
+	LockedOverride    json.RawMessage `json:"lockedOverride"`    // json of locked keys
+	IsLockConfigError bool            `json:"isLockConfigError"` // check if got error of lock config
 }

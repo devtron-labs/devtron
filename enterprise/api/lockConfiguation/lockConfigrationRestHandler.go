@@ -82,7 +82,7 @@ func (impl LockConfigRestHandlerImpl) CreateLockConfig(w http.ResponseWriter, r 
 	var request *bean.LockConfigRequest
 	err = decoder.Decode(&request)
 	if err != nil {
-		impl.logger.Errorw("err in decoding request in CreateTags", "err", err)
+		impl.logger.Errorw("err in decoding request in LockConfigRequest", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -90,7 +90,7 @@ func (impl LockConfigRestHandlerImpl) CreateLockConfig(w http.ResponseWriter, r 
 	// validate request
 	err = impl.validator.Struct(request)
 	if err != nil {
-		impl.logger.Errorw("validation err in CreateTags", "err", err, "request", request)
+		impl.logger.Errorw("validation err in LockConfigRequest", "err", err, "request", request)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -98,7 +98,7 @@ func (impl LockConfigRestHandlerImpl) CreateLockConfig(w http.ResponseWriter, r 
 	// service call
 	err = impl.lockConfigurationService.SaveLockConfiguration(request, userId)
 	if err != nil {
-		impl.logger.Errorw("service err, CreateTags", "err", err, "payload", request)
+		impl.logger.Errorw("service err, SaveLockConfiguration", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -106,7 +106,25 @@ func (impl LockConfigRestHandlerImpl) CreateLockConfig(w http.ResponseWriter, r 
 }
 
 func (impl LockConfigRestHandlerImpl) DeleteLockConfig(w http.ResponseWriter, r *http.Request) {
-
+	userId, err := impl.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	// handle super-admin RBAC
+	token := r.Header.Get("token")
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	// service call
+	err = impl.lockConfigurationService.DeleteActiveLockConfiguration(userId)
+	if err != nil {
+		impl.logger.Errorw("service err, DeleteActiveLockConfiguration", "err", err, "userId", userId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, nil, http.StatusOK)
 }
 
 type Payload struct {
