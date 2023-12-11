@@ -68,6 +68,7 @@ type InstalledAppRepository interface {
 	GetInstalledAppByGitHash(gitHash string) (InstallAppDeleteRequest, error)
 	GetAcdInstalledAppByAppId(appId int) (InstalledApps, error)
 	GetInstalledAppByAppName(appName string) (*InstalledApps, error)
+	GetACDInstalledAppByAppId(appId int) (InstalledApps, error)
 	GetInstalledAppByInstalledAppVersionId(installedAppVersionId int) (InstalledApps, error)
 	GetAllGitOpsDeploymentAppName() ([]string, error)
 	GetAllGitOpsAppNameAndInstalledAppMapping() ([]*GitOpsAppDetails, error)
