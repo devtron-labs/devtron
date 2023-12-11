@@ -27,5 +27,5 @@ const (
 )
 
 const (
-	EMPTY = ""
+	EMPTY_PLACEHOLDER_FOR_QUERY = ""
 )
