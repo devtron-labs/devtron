@@ -66,7 +66,7 @@ type InstalledAppRepository interface {
 	GetGitOpsInstalledAppsWhereArgoAppDeletedIsTrue(installedAppId int, envId int) (InstalledApps, error)
 	GetInstalledAppByGitHash(gitHash string) (InstallAppDeleteRequest, error)
 	GetInstalledAppByAppName(appName string) (*InstalledApps, error)
-	GetACDInstalledAppByAppId(appId int) (InstalledApps, error)
+	GetAcdInstalledAppByAppId(appId int) (InstalledApps, error)
 	GetInstalledAppByInstalledAppVersionId(installedAppVersionId int) (InstalledApps, error)
 	GetAllGitOpsDeploymentAppName() ([]string, error)
 	GetAllGitOpsAppNameAndInstalledAppMapping() ([]*GitOpsAppDetails, error)
@@ -732,7 +732,7 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppByGitHash(gitHash string) 
 	return model, nil
 }
 
-func (impl InstalledAppRepositoryImpl) GetACDInstalledAppByAppId(appId int) (InstalledApps, error) {
+func (impl InstalledAppRepositoryImpl) GetAcdInstalledAppByAppId(appId int) (InstalledApps, error) {
 	var installedApps InstalledApps
 	queryString := `select * from installed_apps where active=? and app_id=? and deployment_app_type=?;`
 	_, err := impl.dbConnection.Query(&installedApps, queryString, true, appId, util2.PIPELINE_DEPLOYMENT_TYPE_ACD)
