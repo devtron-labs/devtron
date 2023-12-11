@@ -500,7 +500,7 @@ func (impl UserAuthServiceImpl) DeleteRoles(entityType string, entityName string
 
 	if len(roleModels) > 0 {
 		// deleting policies in casbin and roles
-		roleIds, roles, casbinDeleteFailed, err := impl.deleteAllUserMappingsForRoleModels(roleModels)
+		roleIds, roles, casbinDeleteFailed := impl.deleteAllUserMappingsForRoleModels(roleModels)
 
 		// removing all policies for the role
 		success := casbin2.RemovePoliciesByAllRoles(roles)
@@ -532,7 +532,7 @@ func (impl UserAuthServiceImpl) DeleteRoles(entityType string, entityName string
 	return nil
 }
 
-func (impl UserAuthServiceImpl) deleteAllUserMappingsForRoleModels(roleModels []*repository2.RoleModel) ([]int, []string, []bool, error) {
+func (impl UserAuthServiceImpl) deleteAllUserMappingsForRoleModels(roleModels []*repository2.RoleModel) ([]int, []string, []bool) {
 	var casbinDeleteFailed []bool
 	var roleIds []int
 	var roles []string
@@ -553,5 +553,5 @@ func (impl UserAuthServiceImpl) deleteAllUserMappingsForRoleModels(roleModels []
 			}
 		}
 	}
-	return roleIds, roles, casbinDeleteFailed, nil
+	return roleIds, roles, casbinDeleteFailed
 }
