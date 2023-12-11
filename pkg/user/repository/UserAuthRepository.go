@@ -1023,7 +1023,7 @@ func (impl UserAuthRepositoryImpl) GetRoleForOtherEntity(team, app, env, act, ac
 		} else {
 			query += " and role.access_type='" + accessType + "'"
 		}
-		_, err = impl.dbConnection.Query(&model, query, team, EMPTY, env, act)
+		_, err = impl.dbConnection.Query(&model, query, team, EMPTY_PLACEHOLDER_FOR_QUERY, env, act)
 	} else if len(team) > 0 && len(app) > 0 && env == "" && len(act) > 0 {
 		//this is applicable for all environment of a team
 		query := "SELECT role.* FROM roles role WHERE role.team = ? AND role.entity_name=? AND coalesce(role.environment,'')=? AND role.action=?"
@@ -1033,7 +1033,7 @@ func (impl UserAuthRepositoryImpl) GetRoleForOtherEntity(team, app, env, act, ac
 			query += " and role.access_type='" + accessType + "'"
 		}
 
-		_, err = impl.dbConnection.Query(&model, query, team, app, EMPTY, act)
+		_, err = impl.dbConnection.Query(&model, query, team, app, EMPTY_PLACEHOLDER_FOR_QUERY, act)
 	} else if len(team) > 0 && app == "" && env == "" && len(act) > 0 {
 		//this is applicable for all environment of a team
 		query := "SELECT role.* FROM roles role WHERE role.team = ? AND coalesce(role.entity_name,'')=? AND coalesce(role.environment,'')=? AND role.action=?"
@@ -1043,7 +1043,7 @@ func (impl UserAuthRepositoryImpl) GetRoleForOtherEntity(team, app, env, act, ac
 			query += " and role.access_type='" + accessType + "'"
 		}
 
-		_, err = impl.dbConnection.Query(&model, query, team, EMPTY, EMPTY, act)
+		_, err = impl.dbConnection.Query(&model, query, team, EMPTY_PLACEHOLDER_FOR_QUERY, EMPTY_PLACEHOLDER_FOR_QUERY, act)
 	} else if team == "" && app == "" && env == "" && len(act) > 0 {
 		//this is applicable for super admin, all env, all team, all app
 		query := "SELECT role.* FROM roles role WHERE coalesce(role.team,'') = ? AND coalesce(role.entity_name,'')=? AND coalesce(role.environment,'')=? AND role.action=?"
@@ -1052,7 +1052,7 @@ func (impl UserAuthRepositoryImpl) GetRoleForOtherEntity(team, app, env, act, ac
 		} else {
 			query += " and role.access_type='" + accessType + "'"
 		}
-		_, err = impl.dbConnection.Query(&model, query, EMPTY, EMPTY, EMPTY, act)
+		_, err = impl.dbConnection.Query(&model, query, EMPTY_PLACEHOLDER_FOR_QUERY, EMPTY_PLACEHOLDER_FOR_QUERY, EMPTY_PLACEHOLDER_FOR_QUERY, act)
 	} else if team == "" && app == "" && env == "" && act == "" {
 		return model, nil
 	} else {
