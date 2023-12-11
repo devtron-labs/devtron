@@ -745,6 +745,7 @@ func (impl CiArtifactRepositoryImpl) FindArtifactByListFilter(listingFilterOptio
 	if err == pg.ErrNoRows {
 		return ciArtifacts, totalCount, nil
 	}
+	ciArtifacts, err = impl.setDeployedDataInArtifacts(listingFilterOptions.PipelineId, ciArtifacts)
 	return ciArtifacts, totalCount, err
 }
 
