@@ -3,5 +3,6 @@
 ## Enhancements
 ## Documentation
 ## Others
+- chore: Update pager-duty Issue template (#4381)
 - chore: made devtron namespace configurable in authenticator (#4271)
 - chore: added migration script for dependency (#4279)
