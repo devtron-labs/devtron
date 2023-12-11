@@ -719,13 +719,22 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByParentCiWorkflowId(parentCiWo
 func (impl CiArtifactRepositoryImpl) FindArtifactByListFilter(listingFilterOptions *bean.ArtifactsListFilterOptions, isApprovalNode bool) ([]CiArtifact, int, error) {
 
 	var ciArtifactsResp []CiArtifactWithExtraData
-	var ciArtifacts []CiArtifact
+	ciArtifacts := make([]CiArtifact, 0)
 	totalCount := 0
 	finalQuery := BuildQueryForArtifactsForCdStage(*listingFilterOptions, isApprovalNode)
 	_, err := impl.dbConnection.Query(&ciArtifactsResp, finalQuery)
 	if err == pg.ErrNoRows || len(ciArtifactsResp) == 0 {
 		return ciArtifacts, totalCount, nil
 	}
+
+	if listingFilterOptions.UseCdStageQueryV2 {
+		for _, cia := range ciArtifactsResp {
+			totalCount = cia.TotalCount
+			ciArtifacts = append(ciArtifacts, cia.CiArtifact)
+		}
+		return ciArtifacts, totalCount, err
+	}
+
 	artifactIds := make([]int, len(ciArtifactsResp))
 	for i, af := range ciArtifactsResp {
 		artifactIds[i] = af.Id

@@ -12,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/rest"
+	"path/filepath"
 	"text/template"
 	"time"
 )
@@ -58,7 +59,7 @@ func (impl ArgoK8sClientImpl) tprintf(tmpl string, data interface{}) (string, er
 }
 
 func (impl ArgoK8sClientImpl) CreateAcdApp(appRequest *AppTemplate, cluster *repository.Cluster, applicationTemplatePath string) (string, error) {
-	chartYamlContent, err := ioutil.ReadFile(applicationTemplatePath)
+	chartYamlContent, err := ioutil.ReadFile(filepath.Clean(applicationTemplatePath))
 	if err != nil {
 		impl.logger.Errorw("err in reading template", "err", err)
 		return "", err

@@ -4260,7 +4260,7 @@ func (impl *WorkflowDagExecutorImpl) createArgoApplicationIfRequired(appId int, 
 			RepoPath:        chart.ChartLocation,
 			RepoUrl:         chart.GitRepoUrl,
 		}
-		applicationTemplatePath := filepath.Clean("./scripts/argo-assets/APPLICATION_TEMPLATE.JSON")
+		applicationTemplatePath := "./scripts/argo-assets/APPLICATION_TEMPLATE.JSON"
 		argoAppName, err := impl.argoK8sClient.CreateAcdApp(appRequest, envModel.Cluster, applicationTemplatePath)
 		if err != nil {
 			return "", err
