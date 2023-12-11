@@ -102,7 +102,7 @@ type CiArtifactRepository interface {
 	GetArtifactByCdWorkflowId(cdWorkflowId int) (artifact *CiArtifact, err error)
 	GetArtifactsByParentCiWorkflowId(parentCiWorkflowId int) ([]string, error)
 	FetchArtifactsByCdPipelineIdV2(listingFilterOptions bean.ArtifactsListFilterOptions) ([]CiArtifactWithExtraData, int, error)
-	FindArtifactByListFilter(listingFilterOptions *bean.ArtifactsListFilterOptions) ([]CiArtifact, int, error)
+	FindArtifactByListFilter(listingFilterOptions *bean.ArtifactsListFilterOptions) ([]*CiArtifact, int, error)
 	GetArtifactsByDataSourceAndComponentId(dataSource string, componentId int) ([]CiArtifact, error)
 	FindCiArtifactByImagePaths(images []string) ([]CiArtifact, error)
 
@@ -325,12 +325,10 @@ func (impl CiArtifactRepositoryImpl) setDeployedDataInArtifacts(pipelineId int, 
 
 	//(this will fetch all the artifacts that were deployed on the given pipeline atleast once in new->old deployed order)
 	artifactsDeployed := make([]*CiArtifact, 0, len(artifactsIds))
-	query := " SELECT cia.id,pco.created_on AS created_on " +
-		" FROM ci_artifact cia" +
-		" INNER JOIN pipeline_config_override pco ON pco.ci_artifact_id=cia.id" +
+	query := "SELECT pco.ci_artifact_id AS id,pco.created_on AS created_on " +
+		" FROM pipeline_config_override pco " +
 		" WHERE pco.pipeline_id = ? " +
-		" AND cia.id IN (?) " +
-		" ORDER BY pco.id desc;"
+		" AND pco.ci_artifact_id IN (?) "
 
 	_, err := impl.dbConnection.Query(&artifactsDeployed, query, pipelineId, pg.In(artifactsIds))
 	if err != nil {
@@ -710,10 +708,10 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByParentCiWorkflowId(parentCiWo
 	return artifacts, err
 }
 
-func (impl CiArtifactRepositoryImpl) FindArtifactByListFilter(listingFilterOptions *bean.ArtifactsListFilterOptions) ([]CiArtifact, int, error) {
+func (impl CiArtifactRepositoryImpl) FindArtifactByListFilter(listingFilterOptions *bean.ArtifactsListFilterOptions) ([]*CiArtifact, int, error) {
 
 	var ciArtifactsResp []CiArtifactWithExtraData
-	ciArtifacts := make([]CiArtifact, 0)
+	ciArtifacts := make([]*CiArtifact, 0)
 	totalCount := 0
 	finalQuery := BuildQueryForArtifactsForCdStage(*listingFilterOptions)
 	_, err := impl.dbConnection.Query(&ciArtifactsResp, finalQuery)
@@ -722,10 +720,14 @@ func (impl CiArtifactRepositoryImpl) FindArtifactByListFilter(listingFilterOptio
 	}
 
 	if listingFilterOptions.UseCdStageQueryV2 {
-		for _, cia := range ciArtifactsResp {
+		artifactIds := make([]int, len(ciArtifactsResp))
+		for i, _ := range ciArtifactsResp {
+			cia := ciArtifactsResp[i]
 			totalCount = cia.TotalCount
-			ciArtifacts = append(ciArtifacts, cia.CiArtifact)
+			ciArtifacts = append(ciArtifacts, &cia.CiArtifact)
+			artifactIds[i] = cia.Id
 		}
+		ciArtifacts, err = impl.setDeployedDataInArtifacts(listingFilterOptions.PipelineId, ciArtifacts)
 		return ciArtifacts, totalCount, err
 	}
 

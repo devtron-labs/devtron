@@ -893,6 +893,8 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsForCdStageV2(listingFilterOpts
 			CiPipelineId:           artifact.PipelineId,
 			CredentialsSourceType:  artifact.CredentialsSourceType,
 			CredentialsSourceValue: artifact.CredentialSourceValue,
+			Deployed:               artifact.Deployed,
+			DeployedTime:           formatDate(artifact.DeployedTime, bean2.LayoutRFC3339),
 		}
 		if artifact.WorkflowId != nil {
 			ciArtifact.CiWorkflowId = *artifact.WorkflowId
