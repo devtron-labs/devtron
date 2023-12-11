@@ -43,8 +43,8 @@ import (
 )
 
 type PropertiesConfigService interface {
-	CreateEnvironmentProperties(appId int, propertiesRequest *bean.EnvironmentProperties) (*bean.EnvironmentProperties, error)
-	UpdateEnvironmentProperties(appId int, propertiesRequest *bean.EnvironmentProperties, userId int32, isSuperAdmin bool) (*bean.EnvironmentUpdateResponse, error)
+	CreateEnvironmentProperties(appId int, propertiesRequest *bean.EnvironmentProperties) (*bean.EnvironmentUpdateResponse, error)
+	UpdateEnvironmentProperties(appId int, propertiesRequest *bean.EnvironmentProperties, userId int32) (*bean.EnvironmentUpdateResponse, error)
 	//create environment entry for each new environment
 	CreateIfRequired(chart *chartRepoRepository.Chart, environmentId int, userId int32, manualReviewed bool, chartStatus models.ChartStatus, isOverride, isAppMetricsEnabled bool, namespace string, IsBasicViewLocked bool, CurrentViewEditor models.ChartsViewEditorType, tx *pg.Tx) (*chartConfig.EnvConfigOverride, error)
 	GetEnvironmentProperties(appId, environmentId int, chartRefId int) (environmentPropertiesResponse *bean.EnvironmentPropertiesResponse, err error)
@@ -223,7 +223,7 @@ func (impl PropertiesConfigServiceImpl) FetchEnvProperties(appId, envId, chartRe
 	return impl.envConfigRepo.GetByAppIdEnvIdAndChartRefId(appId, envId, chartRefId)
 }
 
-func (impl PropertiesConfigServiceImpl) CreateEnvironmentProperties(appId int, environmentProperties *bean.EnvironmentProperties) (*bean.EnvironmentProperties, error) {
+func (impl PropertiesConfigServiceImpl) CreateEnvironmentProperties(appId int, environmentProperties *bean.EnvironmentProperties) (*bean.EnvironmentUpdateResponse, error) {
 	chart, err := impl.chartRepo.FindChartByAppIdAndRefId(appId, environmentProperties.ChartRefId)
 	if err != nil && pg.ErrNoRows != err {
 		return nil, err
@@ -290,10 +290,15 @@ func (impl PropertiesConfigServiceImpl) CreateEnvironmentProperties(appId int, e
 		}
 	}
 
-	return environmentProperties, nil
+	return &bean.EnvironmentUpdateResponse{
+		EnvironmentProperties: environmentProperties,
+		AllowedOverride:       nil,
+		LockedOverride:        nil,
+		IsLockConfigError:     false,
+	}, nil
 }
 
-func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, propertiesRequest *bean.EnvironmentProperties, userId int32, isSuperAdmin bool) (*bean.EnvironmentUpdateResponse, error) {
+func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, propertiesRequest *bean.EnvironmentProperties, userId int32) (*bean.EnvironmentUpdateResponse, error) {
 	//check if exists
 	oldEnvOverride, err := impl.envConfigRepo.Get(propertiesRequest.Id)
 	if err != nil {
@@ -331,11 +336,11 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, p
 		}
 	}
 	// Handle Lock Configuration
-	isLockConfigError, lockedOverride, err := impl.lockedConfigService.HandleLockConfiguration(string(overrideByte), envOverrideValue)
+	isLockConfigError, lockedOverride, err := impl.lockedConfigService.HandleLockConfiguration(string(overrideByte), envOverrideValue, int(propertiesRequest.UserId))
 	if err != nil {
 		return nil, err
 	}
-	if isLockConfigError && !isSuperAdmin {
+	if isLockConfigError {
 		var jsonVal json.RawMessage
 		_ = json.Unmarshal([]byte(lockedOverride), &jsonVal)
 		return &bean.EnvironmentUpdateResponse{

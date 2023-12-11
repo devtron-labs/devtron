@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/enterprise/pkg/lockConfiguration/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/pkg/user"
 	jsonpatch1 "github.com/evanphx/json-patch"
 	"github.com/go-pg/pg"
 	"github.com/mattbaird/jsonpatch"
@@ -19,19 +20,22 @@ type LockConfigurationService interface {
 	GetLockConfiguration() (*bean.LockConfigResponse, error)
 	SaveLockConfiguration(*bean.LockConfigRequest, int32) error
 	DeleteActiveLockConfiguration(userId int32) error
-	HandleLockConfiguration(currentConfig, savedConfig string) (bool, string, error)
+	HandleLockConfiguration(currentConfig, savedConfig string, userId int) (bool, string, error)
 }
 
 type LockConfigurationServiceImpl struct {
 	logger                      *zap.SugaredLogger
 	lockConfigurationRepository LockConfigurationRepository
+	userService                 user.UserService
 }
 
 func NewLockConfigurationServiceImpl(logger *zap.SugaredLogger,
-	lockConfigurationRepository LockConfigurationRepository) *LockConfigurationServiceImpl {
+	lockConfigurationRepository LockConfigurationRepository,
+	userService user.UserService) *LockConfigurationServiceImpl {
 	return &LockConfigurationServiceImpl{
 		logger:                      logger,
 		lockConfigurationRepository: lockConfigurationRepository,
+		userService:                 userService,
 	}
 }
 
@@ -102,7 +106,13 @@ func (impl LockConfigurationServiceImpl) DeleteActiveLockConfiguration(userId in
 	return nil
 }
 
-func (impl LockConfigurationServiceImpl) HandleLockConfiguration(currentConfig, savedConfig string) (bool, string, error) {
+func (impl LockConfigurationServiceImpl) HandleLockConfiguration(currentConfig, savedConfig string, userId int) (bool, string, error) {
+
+	isSuperAdmin, err := impl.userService.IsSuperAdmin(userId)
+	if err != nil || isSuperAdmin {
+		return false, "", err
+	}
+
 	emptyJson := `{
     }`
 	patch, err := jsonpatch.CreatePatch([]byte(savedConfig), []byte(currentConfig))
@@ -112,7 +122,7 @@ func (impl LockConfigurationServiceImpl) HandleLockConfiguration(currentConfig, 
 	}
 	patch1, err := jsonpatch.CreatePatch([]byte(currentConfig), []byte(emptyJson))
 	if err != nil {
-		fmt.Printf("Error creating JSON patch:%v", err)
+		fmt.Printf("Error creating JSON patch: %v", err)
 		return false, "", err
 	}
 	paths := make(map[string]bool)
@@ -130,15 +140,15 @@ func (impl LockConfigurationServiceImpl) HandleLockConfiguration(currentConfig, 
 	marsh, _ := json.Marshal(patch1)
 	patche, err := jsonpatch1.DecodePatch(marsh)
 	if err != nil {
-		panic(err)
+		return false, "", err
 	}
 	modified, err := patche.Apply([]byte(currentConfig))
 	if err != nil {
-		panic(err)
+		return false, "", err
 	}
 	obj, err := oj.ParseString(string(modified))
 	if err != nil {
-		panic(err)
+		return false, "", err
 	}
 	lockConfig, err := impl.GetLockConfiguration()
 	isLockConfigError := false

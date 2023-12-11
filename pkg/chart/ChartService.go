@@ -70,12 +70,12 @@ import (
 )
 
 type ChartService interface {
-	Create(templateRequest TemplateRequest, ctx context.Context) (chart *TemplateRequest, err error)
+	Create(templateRequest TemplateRequest, ctx context.Context) (chart *TemplateResponse, err error)
 	CreateChartFromEnvOverride(templateRequest TemplateRequest, ctx context.Context) (chart *TemplateRequest, err error)
 	FindLatestChartForAppByAppId(appId int) (chartTemplate *TemplateRequest, err error)
 	GetByAppIdAndChartRefId(appId int, chartRefId int) (chartTemplate *TemplateRequest, err error)
 	GetAppOverrideForDefaultTemplate(chartRefId int) (map[string]interface{}, string, error)
-	UpdateAppOverride(ctx context.Context, templateRequest *TemplateRequest, isSuperAdmin bool) (*TemplateResponse, error)
+	UpdateAppOverride(ctx context.Context, templateRequest *TemplateRequest) (*TemplateResponse, error)
 	IsReadyToTrigger(appId int, envId int, pipelineId int) (IsReady, error)
 	ChartRefAutocomplete() ([]ChartRef, error)
 	ChartRefAutocompleteForAppOrEnv(appId int, envId int) (*ChartRefResponse, error)
@@ -303,7 +303,7 @@ type AppMetricsEnabled struct {
 	AppMetrics bool `json:"app-metrics"`
 }
 
-func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context.Context) (*TemplateRequest, error) {
+func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context.Context) (*TemplateResponse, error) {
 	err := impl.CheckChartExists(templateRequest.ChartRefId)
 	if err != nil {
 		impl.logger.Errorw("error in getting missing chart for chartRefId", "err", err, "chartRefId")
@@ -394,6 +394,23 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 	if err != nil {
 		return nil, err
 	}
+
+	// Handle Lock Configuration
+	isLockConfigError, lockedOverride, err := impl.lockedConfigService.HandleLockConfiguration(string(templateRequest.ValuesOverride), chartValues.Values, int(templateRequest.UserId))
+	if err != nil {
+		return nil, err
+	}
+	if isLockConfigError {
+		var jsonVal json.RawMessage
+		_ = json.Unmarshal([]byte(lockedOverride), &jsonVal)
+		return &TemplateResponse{
+			TemplateRequest:   &templateRequest,
+			AllowedOverride:   nil,
+			LockedOverride:    jsonVal,
+			IsLockConfigError: true,
+		}, nil
+	}
+
 	merged, err := impl.mergeUtil.JsonPatch(valuesJson, []byte(templateRequest.ValuesOverride))
 	if err != nil {
 		return nil, err
@@ -472,7 +489,12 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 	}
 
 	chartVal, err := impl.chartAdaptor(chart, appLevelMetrics)
-	return chartVal, err
+	return &TemplateResponse{
+		TemplateRequest:   chartVal,
+		AllowedOverride:   nil,
+		LockedOverride:    nil,
+		IsLockConfigError: false,
+	}, err
 }
 
 func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest TemplateRequest, ctx context.Context) (*TemplateRequest, error) {
@@ -790,7 +812,7 @@ func (impl ChartServiceImpl) GetByAppIdAndChartRefId(appId int, chartRefId int) 
 	return chartTemplate, err
 }
 
-func (impl ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateRequest *TemplateRequest, isSuperAdmin bool) (*TemplateResponse, error) {
+func (impl ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateRequest *TemplateRequest) (*TemplateResponse, error) {
 
 	_, span := otel.Tracer("orchestrator").Start(ctx, "chartRepository.FindById")
 	template, err := impl.chartRepository.FindById(templateRequest.Id)
@@ -860,11 +882,11 @@ func (impl ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateRequ
 		return nil, err
 	}
 	// Handle Lock Configuration
-	isLockConfigError, lockedOverride, err := impl.lockedConfigService.HandleLockConfiguration(string(values), template.Values)
+	isLockConfigError, lockedOverride, err := impl.lockedConfigService.HandleLockConfiguration(string(values), template.Values, int(templateRequest.UserId))
 	if err != nil {
 		return nil, err
 	}
-	if isLockConfigError && !isSuperAdmin {
+	if isLockConfigError {
 		var jsonVal json.RawMessage
 		_ = json.Unmarshal([]byte(lockedOverride), &jsonVal)
 		return &TemplateResponse{
