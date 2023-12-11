@@ -82,6 +82,7 @@ func (impl *GitCliUtil) runCommandWithCred(cmd *exec.Cmd, userName, password str
 	if allowInsecureTLS {
 		cmd.Env = append(cmd.Env, "GIT_SSL_NO_VERIFY=true")
 	}
+	impl.logger.Infow("runCommandWithCred", "cmd", cmd)
 	return impl.runCommand(cmd)
 }
 
@@ -124,6 +125,7 @@ func (impl *GitCliUtil) runCommand(cmd *exec.Cmd) (response, errMsg string, err 
 	cmd.Env = append(cmd.Env, "HOME=/dev/null")
 	outBytes, err := cmd.CombinedOutput()
 	if err != nil {
+		impl.logger.Errorw("runCommand error","cmd",cmd,"err",,err,"output",outBytes)
 		exErr, ok := err.(*exec.ExitError)
 		if !ok {
 			return "", "", err
