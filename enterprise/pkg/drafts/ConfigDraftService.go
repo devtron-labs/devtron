@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/enterprise/pkg/protect"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -28,7 +29,7 @@ type ConfigDraftService interface {
 	GetDrafts(appId int, envId int, resourceType DraftResourceType, userId int32) ([]AppConfigDraft, error)
 	GetDraftById(draftId int, userId int32) (*ConfigDraftResponse, error) //  need to send ** in case of view only user for Secret data
 	GetDraftByName(appId, envId int, resourceName string, resourceType DraftResourceType, userId int32) (*ConfigDraftResponse, error)
-	ApproveDraft(draftId int, draftVersionId int, userId int32) error
+	ApproveDraft(draftId int, draftVersionId int, userId int32) (*DraftVersionResponse, error)
 	DeleteComment(draftId int, draftCommentId int, userId int32) error
 	GetDraftsCount(appId int, envIds []int) ([]*DraftCountResponse, error)
 	EncryptCSData(draftCsData string) string
@@ -105,6 +106,7 @@ func (impl *ConfigDraftServiceImpl) AddDraftVersion(request ConfigDraftVersionRe
 
 	currentTime := time.Now()
 	if len(request.Data) > 0 {
+
 		err := impl.validateDraftData(draftDto.AppId, draftDto.EnvId, draftDto.Resource, request.Action, request.Data)
 		if err != nil {
 			return 0, err
@@ -303,26 +305,28 @@ func (impl ConfigDraftServiceImpl) DeleteComment(draftId int, draftCommentId int
 	return nil
 }
 
-func (impl *ConfigDraftServiceImpl) ApproveDraft(draftId int, draftVersionId int, userId int32) error {
+func (impl *ConfigDraftServiceImpl) ApproveDraft(draftId int, draftVersionId int, userId int32) (*DraftVersionResponse, error) {
 	impl.logger.Infow("approving draft", "draftId", draftId, "draftVersionId", draftVersionId, "userId", userId)
 	toUpdateDraftState := PublishedDraftState
 	draftVersion, err := impl.validateDraftAction(draftId, draftVersionId, toUpdateDraftState, userId)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	draftData := draftVersion.Data
 	draftsDto := draftVersion.Draft
 	draftResourceType := draftsDto.Resource
+	var draftVersionResponse *DraftVersionResponse
 	if draftResourceType == CMDraftResource || draftResourceType == CSDraftResource {
 		err = impl.handleCmCsData(draftResourceType, draftsDto, draftData, draftVersion.UserId, draftVersion.Action)
 	} else {
 		err = impl.handleDeploymentTemplate(draftsDto.AppId, draftsDto.EnvId, draftData, draftVersion.UserId, draftVersion.Action)
 	}
+	draftVersionResponse.DraftVersionId = draftVersionId
 	if err != nil {
-		return err
+		return nil, err
 	}
 	err = impl.configDraftRepository.UpdateDraftState(draftId, toUpdateDraftState, userId)
-	return err
+	return draftVersionResponse, err
 }
 
 func (impl *ConfigDraftServiceImpl) handleCmCsData(draftResource DraftResourceType, draftDto *DraftDto, draftData string, userId int32, action ResourceAction) error {
@@ -437,11 +441,13 @@ func (impl *ConfigDraftServiceImpl) handleBaseDeploymentTemplate(appId int, envI
 		return errors.New(TemplateOutdated)
 	}
 	templateRequest.UserId = userId
+	var createResp *chart.TemplateResponse
 	if action == AddResourceAction {
 		_, err = impl.chartService.Create(templateRequest, ctx)
 	} else {
-		_, err = impl.chartService.UpdateAppOverride(ctx, &templateRequest, true)
+		createResp, err = impl.chartService.UpdateAppOverride(ctx, &templateRequest)
 	}
+	fmt.Println(createResp)
 	return err
 }
 
@@ -475,9 +481,9 @@ func (impl *ConfigDraftServiceImpl) handleEnvLevelTemplate(appId int, envId int,
 		}
 		if action == AddResourceAction {
 			//TODO code duplicated, needs refactoring
-			err = impl.createEnvLevelDeploymentTemplate(ctx, appId, envId, envConfigProperties, userId)
+			_, err = impl.createEnvLevelDeploymentTemplate(ctx, appId, envId, envConfigProperties, userId)
 		} else {
-			_, err = impl.propertiesConfigService.UpdateEnvironmentProperties(appId, envConfigProperties, userId, true)
+			_, err = impl.propertiesConfigService.UpdateEnvironmentProperties(appId, envConfigProperties, userId)
 		}
 		if err != nil {
 			impl.logger.Errorw("service err, EnvConfigOverrideUpdate", "appId", appId, "envId", envId, "err", err, "payload", envConfigProperties)
@@ -492,17 +498,17 @@ func (impl *ConfigDraftServiceImpl) handleEnvLevelTemplate(appId int, envId int,
 	return err
 }
 
-func (impl *ConfigDraftServiceImpl) createEnvLevelDeploymentTemplate(ctx context.Context, appId int, envId int, envConfigProperties *bean.EnvironmentProperties, userId int32) error {
-	_, err := impl.propertiesConfigService.CreateEnvironmentProperties(appId, envConfigProperties)
+func (impl *ConfigDraftServiceImpl) createEnvLevelDeploymentTemplate(ctx context.Context, appId int, envId int, envConfigProperties *bean.EnvironmentProperties, userId int32) (*bean.EnvironmentUpdateResponse, error) {
+	createResp, err := impl.propertiesConfigService.CreateEnvironmentProperties(appId, envConfigProperties)
 	if err != nil {
 		if err.Error() == bean2.NOCHARTEXIST {
 			err = impl.createMissingChart(ctx, appId, envId, envConfigProperties, userId)
 			if err == nil {
-				_, err = impl.propertiesConfigService.CreateEnvironmentProperties(appId, envConfigProperties)
+				createResp, err = impl.propertiesConfigService.CreateEnvironmentProperties(appId, envConfigProperties)
 			}
 		}
 	}
-	return err
+	return createResp, err
 }
 
 func (impl *ConfigDraftServiceImpl) createMissingChart(ctx context.Context, appId int, envId int, envConfigProperties *bean.EnvironmentProperties, userId int32) error {

@@ -392,12 +392,12 @@ func (impl *ConfigDraftRestHandlerImpl) ApproveDraft(w http.ResponseWriter, r *h
 	if notAnApprover := impl.checkForApproverAccess(w, envId, appId, token, true); notAnApprover {
 		return
 	}
-	err = impl.configDraftService.ApproveDraft(draftId, draftVersionId, userId)
+	createResp, err := impl.configDraftService.ApproveDraft(draftId, draftVersionId, userId)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	common.WriteJsonResp(w, err, nil, http.StatusOK)
+	common.WriteJsonResp(w, err, createResp, http.StatusOK)
 }
 
 func (impl *ConfigDraftRestHandlerImpl) DeleteUserComment(w http.ResponseWriter, r *http.Request) {
