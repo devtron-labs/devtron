@@ -338,6 +338,15 @@ func (impl *CiHandlerImpl) FetchMaterialsByPipelineIdAndGitMaterialId(pipelineId
 	if err != nil {
 		impl.Logger.Errorw("ciMaterials fetch failed", "err", err)
 	}
+	ciPipelineMaterialResponses, err := impl.BuildPipelineMaterialsFromCiMaterials(pipelineId, ciMaterials, showAll)
+	if err != nil {
+		impl.Logger.Errorw("error in building ci pipeline material from ci materials", "pipelineId", pipelineId, "err", err)
+		return nil, err
+	}
+	return ciPipelineMaterialResponses, nil
+}
+
+func (impl *CiHandlerImpl) BuildPipelineMaterialsFromCiMaterials(pipelineId int, ciMaterials []*pipelineConfig.CiPipelineMaterial, showAll bool) ([]pipelineConfig.CiPipelineMaterialResponse, error) {
 	var ciPipelineMaterialResponses []pipelineConfig.CiPipelineMaterialResponse
 	var responseMap = make(map[int]bool)
 
@@ -355,7 +364,7 @@ func (impl *CiHandlerImpl) FetchMaterialsByPipelineIdAndGitMaterialId(pipelineId
 		impl.Logger.Debugw("commits for material ", "m", m, "commits: ", changesResp)
 		if apiErr != nil {
 			impl.Logger.Warnw("git sensor FetchChanges failed for material", "id", m.Id)
-			return []pipelineConfig.CiPipelineMaterialResponse{}, apiErr
+			return nil, apiErr
 		}
 		ciMaterialHistoryMap[m] = changesResp
 	}
@@ -388,7 +397,7 @@ func (impl *CiHandlerImpl) FetchMaterialsByPipelineIdAndGitMaterialId(pipelineId
 	regexMaterials, err := impl.ciPipelineMaterialRepository.GetRegexByPipelineId(pipelineId)
 	if err != nil {
 		impl.Logger.Errorw("regex ciMaterials fetch failed", "err", err)
-		return []pipelineConfig.CiPipelineMaterialResponse{}, err
+		return nil, err
 	}
 	for _, k := range regexMaterials {
 		r := pipelineConfig.CiPipelineMaterialResponse{
@@ -419,78 +428,10 @@ func (impl *CiHandlerImpl) FetchMaterialsByPipelineId(pipelineId int, showAll bo
 	if err != nil {
 		impl.Logger.Errorw("ciMaterials fetch failed", "err", err)
 	}
-	var ciPipelineMaterialResponses []pipelineConfig.CiPipelineMaterialResponse
-	var responseMap = make(map[int]bool)
-
-	ciMaterialHistoryMap := make(map[*pipelineConfig.CiPipelineMaterial]*gitSensor.MaterialChangeResp)
-	for _, m := range ciMaterials {
-		// git material should be active in this case
-		if m == nil || m.GitMaterial == nil || !m.GitMaterial.Active {
-			continue
-		}
-		changesRequest := &gitSensor.FetchScmChangesRequest{
-			PipelineMaterialId: m.Id,
-			ShowAll:            showAll,
-		}
-		changesResp, apiErr := impl.gitSensorClient.FetchChanges(context.Background(), changesRequest)
-		impl.Logger.Debugw("commits for material ", "m", m, "commits: ", changesResp)
-		if apiErr != nil {
-			impl.Logger.Warnw("git sensor FetchChanges failed for material", "id", m.Id)
-			return []pipelineConfig.CiPipelineMaterialResponse{}, apiErr
-		}
-		ciMaterialHistoryMap[m] = changesResp
-	}
-
-	for k, v := range ciMaterialHistoryMap {
-		r := pipelineConfig.CiPipelineMaterialResponse{
-			Id:              k.Id,
-			GitMaterialId:   k.GitMaterialId,
-			GitMaterialName: k.GitMaterial.Name[strings.Index(k.GitMaterial.Name, "-")+1:],
-			Type:            string(k.Type),
-			Value:           k.Value,
-			Active:          k.Active,
-			GitMaterialUrl:  k.GitMaterial.Url,
-			History: util3.Transform(v.Commits, func(commit *gitSensor.GitCommit) *pipelineConfig.GitCommit {
-				return &pipelineConfig.GitCommit{
-					GitCommit: *commit,
-				}
-			}),
-			LastFetchTime:  v.LastFetchTime,
-			IsRepoError:    v.IsRepoError,
-			RepoErrorMsg:   v.RepoErrorMsg,
-			IsBranchError:  v.IsBranchError,
-			BranchErrorMsg: v.BranchErrorMsg,
-			Regex:          k.Regex,
-		}
-		responseMap[k.GitMaterialId] = true
-		ciPipelineMaterialResponses = append(ciPipelineMaterialResponses, r)
-	}
-
-	regexMaterials, err := impl.ciPipelineMaterialRepository.GetRegexByPipelineId(pipelineId)
+	ciPipelineMaterialResponses, err := impl.BuildPipelineMaterialsFromCiMaterials(pipelineId, ciMaterials, showAll)
 	if err != nil {
-		impl.Logger.Errorw("regex ciMaterials fetch failed", "err", err)
-		return []pipelineConfig.CiPipelineMaterialResponse{}, err
-	}
-	for _, k := range regexMaterials {
-		r := pipelineConfig.CiPipelineMaterialResponse{
-			Id:              k.Id,
-			GitMaterialId:   k.GitMaterialId,
-			GitMaterialName: k.GitMaterial.Name[strings.Index(k.GitMaterial.Name, "-")+1:],
-			Type:            string(k.Type),
-			Value:           k.Value,
-			Active:          k.Active,
-			GitMaterialUrl:  k.GitMaterial.Url,
-			History:         nil,
-			IsRepoError:     false,
-			RepoErrorMsg:    "",
-			IsBranchError:   false,
-			BranchErrorMsg:  "",
-			Regex:           k.Regex,
-		}
-		_, exists := responseMap[k.GitMaterialId]
-		if !exists {
-			ciPipelineMaterialResponses = append(ciPipelineMaterialResponses, r)
-		}
+		impl.Logger.Errorw("error in building ci pipeline material from ci materials", "pipelineId", pipelineId, "err", err)
+		return nil, err
 	}
 
 	return ciPipelineMaterialResponses, nil
