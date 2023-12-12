@@ -19,6 +19,7 @@ package pipelineConfig
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -121,12 +122,7 @@ type WorkflowWithArtifact struct {
 }
 
 type GitCommit struct {
-	Commit                 string //git hash
-	Author                 string
-	Date                   time.Time
-	Message                string
-	Changes                []string
-	WebhookData            WebhookData
+	gitSensor.GitCommit
 	CiConfigureSourceValue string
 	GitRepoUrl             string
 	GitRepoName            string

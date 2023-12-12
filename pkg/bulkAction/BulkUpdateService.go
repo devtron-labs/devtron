@@ -12,6 +12,7 @@ import (
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/argocdServer/repository"
+	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -1525,8 +1526,12 @@ func (impl BulkUpdateServiceImpl) BulkBuildTrigger(request *BulkApplicationForEn
 			}
 			var ciMaterials []bean2.CiPipelineMaterial
 			ciMaterials = append(ciMaterials, bean2.CiPipelineMaterial{
-				Id:        materialId,
-				GitCommit: pipelineConfig.GitCommit{Commit: commitHash},
+				Id: materialId,
+				GitCommit: pipelineConfig.GitCommit{
+					GitCommit: gitSensor.GitCommit{
+						Commit: commitHash,
+					},
+				},
 			})
 			ciTriggerRequest := bean2.CiTriggerRequest{
 				PipelineId:         ciPipelineId,

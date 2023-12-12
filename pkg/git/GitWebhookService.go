@@ -52,21 +52,13 @@ func (impl *GitWebhookServiceImpl) HandleGitWebhook(gitWebhookRequest gitSensor.
 		Value:         gitWebhookRequest.Value,
 		Active:        gitWebhookRequest.Active,
 		GitCommit: pipelineConfig.GitCommit{
-			Commit:  gitWebhookRequest.GitCommit.Commit,
-			Author:  gitWebhookRequest.GitCommit.Author,
-			Date:    gitWebhookRequest.GitCommit.Date,
-			Message: gitWebhookRequest.GitCommit.Message,
-			Changes: gitWebhookRequest.GitCommit.Changes,
+			GitCommit: gitWebhookRequest.GitCommit,
 		},
 	}
 
 	if string(gitWebhookRequest.Type) == string(pipelineConfig.SOURCE_TYPE_WEBHOOK) {
 		webhookData := gitWebhookRequest.GitCommit.WebhookData
-		ciPipelineMaterial.GitCommit.WebhookData = pipelineConfig.WebhookData{
-			Id:              webhookData.Id,
-			EventActionType: webhookData.EventActionType,
-			Data:            webhookData.Data,
-		}
+		ciPipelineMaterial.GitCommit.WebhookData = webhookData
 	}
 
 	resp, err := impl.ciHandler.HandleCIWebhook(bean.GitCiTriggerRequest{

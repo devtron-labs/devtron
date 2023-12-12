@@ -36,6 +36,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	resourceGroup "github.com/devtron-labs/devtron/pkg/resourceGroup"
+	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"io/ioutil"
 	errors2 "k8s.io/apimachinery/pkg/api/errors"
@@ -368,13 +369,17 @@ func (impl *CiHandlerImpl) FetchMaterialsByPipelineIdAndGitMaterialId(pipelineId
 			Value:           k.Value,
 			Active:          k.Active,
 			GitMaterialUrl:  k.GitMaterial.Url,
-			History:         v.Commits,
-			LastFetchTime:   v.LastFetchTime,
-			IsRepoError:     v.IsRepoError,
-			RepoErrorMsg:    v.RepoErrorMsg,
-			IsBranchError:   v.IsBranchError,
-			BranchErrorMsg:  v.BranchErrorMsg,
-			Regex:           k.Regex,
+			History: util3.Transform(v.Commits, func(commit *gitSensor.GitCommit) *pipelineConfig.GitCommit {
+				return &pipelineConfig.GitCommit{
+					GitCommit: *commit,
+				}
+			}),
+			LastFetchTime:  v.LastFetchTime,
+			IsRepoError:    v.IsRepoError,
+			RepoErrorMsg:   v.RepoErrorMsg,
+			IsBranchError:  v.IsBranchError,
+			BranchErrorMsg: v.BranchErrorMsg,
+			Regex:          k.Regex,
 		}
 		responseMap[k.GitMaterialId] = true
 		ciPipelineMaterialResponses = append(ciPipelineMaterialResponses, r)
@@ -445,13 +450,17 @@ func (impl *CiHandlerImpl) FetchMaterialsByPipelineId(pipelineId int, showAll bo
 			Value:           k.Value,
 			Active:          k.Active,
 			GitMaterialUrl:  k.GitMaterial.Url,
-			History:         v.Commits,
-			LastFetchTime:   v.LastFetchTime,
-			IsRepoError:     v.IsRepoError,
-			RepoErrorMsg:    v.RepoErrorMsg,
-			IsBranchError:   v.IsBranchError,
-			BranchErrorMsg:  v.BranchErrorMsg,
-			Regex:           k.Regex,
+			History: util3.Transform(v.Commits, func(commit *gitSensor.GitCommit) *pipelineConfig.GitCommit {
+				return &pipelineConfig.GitCommit{
+					GitCommit: *commit,
+				}
+			}),
+			LastFetchTime:  v.LastFetchTime,
+			IsRepoError:    v.IsRepoError,
+			RepoErrorMsg:   v.RepoErrorMsg,
+			IsBranchError:  v.IsBranchError,
+			BranchErrorMsg: v.BranchErrorMsg,
+			Regex:          k.Regex,
 		}
 		responseMap[k.GitMaterialId] = true
 		ciPipelineMaterialResponses = append(ciPipelineMaterialResponses, r)
@@ -1305,11 +1314,7 @@ func (impl *CiHandlerImpl) BuildManualTriggerCommitHashesForSourceTypeBranchFix(
 	}
 
 	gitCommit := pipelineConfig.GitCommit{
-		Commit:                 gitCommitResponse.Commit,
-		Author:                 gitCommitResponse.Author,
-		Date:                   gitCommitResponse.Date,
-		Message:                gitCommitResponse.Message,
-		Changes:                gitCommitResponse.Changes,
+		GitCommit:              *gitCommitResponse,
 		GitRepoName:            pipeLineMaterialFromDb.GitMaterial.Name[strings.Index(pipeLineMaterialFromDb.GitMaterial.Name, "-")+1:],
 		GitRepoUrl:             pipeLineMaterialFromDb.GitMaterial.Url,
 		CiConfigureSourceValue: pipeLineMaterialFromDb.Value,
@@ -1369,12 +1374,8 @@ func (impl *CiHandlerImpl) BuildManualTriggerCommitHashesForSourceTypeWebhook(ci
 		GitRepoUrl:             pipeLineMaterialFromDb.GitMaterial.Url,
 		CiConfigureSourceValue: pipeLineMaterialFromDb.Value,
 		CiConfigureSourceType:  pipeLineMaterialFromDb.Type,
-		WebhookData: pipelineConfig.WebhookData{
-			Id:              int(webhookData.Id),
-			EventActionType: webhookData.EventActionType,
-			Data:            webhookData.Data,
-		},
 	}
+	gitCommit.WebhookData = webhookData
 
 	return gitCommit, webhookAndCiData.ExtraEnvironmentVariables, nil
 }
@@ -1393,11 +1394,7 @@ func (impl *CiHandlerImpl) getLastSeenCommit(ciMaterialId int) (pipelineConfig.G
 		return pipelineConfig.GitCommit{}, errors.New("received empty response")
 	}
 	gitCommit := pipelineConfig.GitCommit{
-		Commit:  res[0].GitCommit.Commit,
-		Author:  res[0].GitCommit.Author,
-		Date:    res[0].GitCommit.Date,
-		Message: res[0].GitCommit.Message,
-		Changes: res[0].GitCommit.Changes,
+		GitCommit: res[0].GitCommit,
 	}
 	return gitCommit, nil
 }
@@ -1497,33 +1494,33 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int, envId
 		}
 
 		for _, m := range ciMaterials {
-			var history []*gitSensor.GitCommit
+			var history []*pipelineConfig.GitCommit
 			_gitTrigger := workflow.GitTriggers[m.Id]
 
-			// ignore git trigger which have commit and webhook both data nil
-			if len(_gitTrigger.Commit) == 0 && _gitTrigger.WebhookData.Id == 0 {
-				continue
-			}
-
-			_gitCommit := &gitSensor.GitCommit{
-				Message: _gitTrigger.Message,
-				Author:  _gitTrigger.Author,
-				Date:    _gitTrigger.Date,
-				Changes: _gitTrigger.Changes,
-				Commit:  _gitTrigger.Commit,
-			}
-
-			// set webhook data
-			_webhookData := _gitTrigger.WebhookData
-			if _webhookData.Id > 0 {
-				_gitCommit.WebhookData = &gitSensor.WebhookData{
-					Id:              _webhookData.Id,
-					EventActionType: _webhookData.EventActionType,
-					Data:            _webhookData.Data,
-				}
-			}
-
-			history = append(history, _gitCommit)
+			//// ignore git trigger which have commit and webhook both data nil
+			//if len(_gitTrigger.Commit) == 0 && _gitTrigger.WebhookData.Id == 0 {
+			//	continue
+			//}
+			//
+			//_gitCommit := &gitSensor.GitCommit{
+			//	Message: _gitTrigger.Message,
+			//	Author:  _gitTrigger.Author,
+			//	Date:    _gitTrigger.Date,
+			//	Changes: _gitTrigger.Changes,
+			//	Commit:  _gitTrigger.Commit,
+			//}
+			//
+			//// set webhook data
+			//_webhookData := _gitTrigger.WebhookData
+			//if _webhookData.Id > 0 {
+			//	_gitCommit.WebhookData = &gitSensor.WebhookData{
+			//		Id:              _webhookData.Id,
+			//		EventActionType: _webhookData.EventActionType,
+			//		Data:            _webhookData.Data,
+			//	}
+			//}
+			//
+			history = append(history, &_gitTrigger)
 
 			res := pipelineConfig.CiPipelineMaterialResponse{
 				Id:              m.Id,
