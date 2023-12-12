@@ -16,7 +16,7 @@ values.
 
 Labels are optionals and can be entered `key:values` format. multiple labels can be added without repeating `key` name.
 
-![](../.gitbook/assets/app-labels-1.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/app-labels/app-labels-1.jpg)
 
 ### 2. Application meta info
 
@@ -25,13 +25,13 @@ left button next to application name `?`.
 
 This will open show you the applications meta details like project, labels associated with it.
 
-![](../.gitbook/assets/app-labels-2.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/app-labels/app-labels-2.jpg)
 
 ### 3. Edit Labels to existing apps
 
 We also add or remove labels for app from here.
 
-![](../.gitbook/assets/app-labels-2.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/app-labels/app-labels-2.jpg)
 
 ### 3. Label Payload
 
