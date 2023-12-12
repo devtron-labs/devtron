@@ -103,6 +103,11 @@ func (impl LockConfigurationServiceImpl) DeleteActiveLockConfiguration(userId in
 	if err != nil {
 		return err
 	}
+	// commit TX
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
