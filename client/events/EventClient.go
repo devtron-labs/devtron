@@ -96,6 +96,10 @@ type Payload struct {
 	ImageTagNames         []string             `json:"imageTagNames"`
 	ImageComment          string               `json:"imageComment"`
 	ImageApprovalLink     string               `json:"imageApprovalLink"`
+	ProtectConfigFileType string               `json:"protectConfigFileType"`
+	ProtectConfigFileName string               `json:"protectConfigFileName"`
+	ProtectConfigComment  string               `json:"protectConfigComment"`
+	ProtectConfigLink     string               `json:"protectConfigLink"`
 }
 
 type CiPipelineMaterialResponse struct {

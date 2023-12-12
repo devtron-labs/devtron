@@ -105,6 +105,7 @@ type PipelineRepository interface {
 	FindAppAndEnvDetailsByPipelineId(id int) (pipeline *Pipeline, err error)
 	FindActiveByEnvIdAndDeploymentType(environmentId int, deploymentAppType string, exclusionList []int, includeApps []int) ([]*Pipeline, error)
 	FindByIdsIn(ids []int) ([]*Pipeline, error)
+	FindByIdsNotInAndAppId(ids []int, appId int) ([]*Pipeline, error)
 	FindByCiPipelineIdsIn(ciPipelineIds []int) ([]*Pipeline, error)
 	FindAutomaticByCiPipelineId(ciPipelineId int) (pipelines []*Pipeline, err error)
 	GetByEnvOverrideId(envOverrideId int) ([]Pipeline, error)
@@ -120,6 +121,7 @@ type PipelineRepository interface {
 	GetConnection() *pg.DB
 	FindAllPipelineInLast24Hour() (pipelines []*Pipeline, err error)
 	FindActiveByEnvId(envId int) (pipelines []*Pipeline, err error)
+	FindActivePipelineByEnvId(envId int) (pipelines []*Pipeline, err error)
 	FindActiveByEnvIds(envId []int) (pipelines []*Pipeline, err error)
 	FindActiveByInFilter(envId int, appIdIncludes []int) (pipelines []*Pipeline, err error)
 	FindActiveByNotFilter(envId int, appIdExcludes []int) (pipelines []*Pipeline, err error)
@@ -187,6 +189,18 @@ func (impl PipelineRepositoryImpl) FindByIdsIn(ids []int) ([]*Pipeline, error) {
 		impl.logger.Errorw("error on fetching pipelines", "ids", ids)
 	}
 	return pipelines, err
+}
+
+func (impl PipelineRepositoryImpl) FindByIdsNotInAndAppId(ids []int, appId int) ([]*Pipeline, error) {
+	var pipelines []*Pipeline
+	err := impl.dbConnection.Model(&pipelines).Where("id not in (?)", pg.In(ids)).
+		Where("app_id = ?", appId).Where("deleted = ?", false).
+		Select()
+	if err != nil {
+		impl.logger.Errorw("error on fetching pipelines by ids not in", "err", err, "ids", ids, "appId", appId)
+		return nil, err
+	}
+	return pipelines, nil
 }
 
 func (impl PipelineRepositoryImpl) FindByIdsInAndEnvironment(ids []int, environmentId int) ([]*Pipeline, error) {
@@ -475,6 +489,15 @@ func (impl PipelineRepositoryImpl) FindActiveByEnvId(envId int) (pipelines []*Pi
 	err = impl.dbConnection.Model(&pipelines).Column("pipeline.*", "App", "Environment").
 		Where("environment_id = ?", envId).
 		Where("deleted = ?", false).
+		Select()
+	return pipelines, err
+}
+
+func (impl PipelineRepositoryImpl) FindActivePipelineByEnvId(envId int) (pipelines []*Pipeline, err error) {
+	err = impl.dbConnection.Model(&pipelines).Column("pipeline.*", "App", "Environment").
+		Where("environment_id = ?", envId).
+		Where("deleted = ?", false).
+		Where("deployment_app_delete_request = ?", false).
 		Select()
 	return pipelines, err
 }

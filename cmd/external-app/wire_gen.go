@@ -39,6 +39,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
 	repository5 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -62,6 +63,8 @@ import (
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/clusterTerminalAccess"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
+	"github.com/devtron-labs/devtron/pkg/devtronResource"
+	repository8 "github.com/devtron-labs/devtron/pkg/devtronResource/repository"
 	casbin2 "github.com/devtron-labs/devtron/pkg/enterprise/user/casbin"
 	"github.com/devtron-labs/devtron/pkg/externalLink"
 	"github.com/devtron-labs/devtron/pkg/genericNotes"
@@ -299,7 +302,17 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	appStoreDeploymentServiceImpl := service3.NewAppStoreDeploymentServiceImpl(sugaredLogger, installedAppRepositoryImpl, chartGroupDeploymentRepositoryImpl, appStoreApplicationVersionRepositoryImpl, environmentRepositoryImpl, clusterInstalledAppsRepositoryImpl, appRepositoryImpl, appStoreDeploymentHelmServiceImpl, appStoreDeploymentHelmServiceImpl, environmentServiceImpl, clusterServiceImpl, helmAppServiceImpl, appStoreDeploymentCommonServiceImpl, globalEnvVariables, installedAppVersionHistoryRepositoryImpl, gitOpsConfigRepositoryImpl, attributesServiceImpl, deploymentServiceTypeConfig, chartTemplateServiceImpl)
+	devtronResourceRepositoryImpl := repository8.NewDevtronResourceRepositoryImpl(db, sugaredLogger)
+	devtronResourceSchemaRepositoryImpl := repository8.NewDevtronResourceSchemaRepositoryImpl(db, sugaredLogger)
+	devtronResourceObjectRepositoryImpl := repository8.NewDevtronResourceObjectRepositoryImpl(sugaredLogger, db)
+	devtronResourceObjectAuditRepositoryImpl := repository8.NewDevtronResourceObjectAuditRepositoryImpl(sugaredLogger, db)
+	appListingRepositoryQueryBuilder := helper.NewAppListingRepositoryQueryBuilder(sugaredLogger)
+	appListingRepositoryImpl := repository3.NewAppListingRepositoryImpl(sugaredLogger, db, appListingRepositoryQueryBuilder, environmentRepositoryImpl)
+	devtronResourceServiceImpl, err := devtronResource.NewDevtronResourceServiceImpl(sugaredLogger, devtronResourceRepositoryImpl, devtronResourceSchemaRepositoryImpl, devtronResourceObjectRepositoryImpl, devtronResourceObjectAuditRepositoryImpl, appRepositoryImpl, pipelineRepositoryImpl, appListingRepositoryImpl, userRepositoryImpl)
+	if err != nil {
+		return nil, err
+	}
+	appStoreDeploymentServiceImpl := service3.NewAppStoreDeploymentServiceImpl(sugaredLogger, installedAppRepositoryImpl, chartGroupDeploymentRepositoryImpl, appStoreApplicationVersionRepositoryImpl, environmentRepositoryImpl, clusterInstalledAppsRepositoryImpl, appRepositoryImpl, appStoreDeploymentHelmServiceImpl, appStoreDeploymentHelmServiceImpl, environmentServiceImpl, clusterServiceImpl, helmAppServiceImpl, appStoreDeploymentCommonServiceImpl, globalEnvVariables, installedAppVersionHistoryRepositoryImpl, gitOpsConfigRepositoryImpl, attributesServiceImpl, deploymentServiceTypeConfig, chartTemplateServiceImpl, devtronResourceServiceImpl)
 	appStoreDeploymentRestHandlerImpl := appStoreDeployment.NewAppStoreDeploymentRestHandlerImpl(sugaredLogger, userServiceImpl, enterpriseEnforcerImpl, enforcerUtilImpl, enforcerUtilHelmImpl, appStoreDeploymentServiceImpl, validate, helmAppServiceImpl, appStoreDeploymentCommonServiceImpl, helmUserServiceImpl, attributesServiceImpl)
 	appStoreDeploymentRouterImpl := appStoreDeployment.NewAppStoreDeploymentRouterImpl(appStoreDeploymentRestHandlerImpl)
 	chartProviderServiceImpl := chartProvider.NewChartProviderServiceImpl(sugaredLogger, chartRepoRepositoryImpl, chartRepositoryServiceImpl, dockerArtifactStoreRepositoryImpl, ociRegistryConfigRepositoryImpl)
