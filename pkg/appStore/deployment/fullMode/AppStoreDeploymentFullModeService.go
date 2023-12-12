@@ -333,7 +333,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationACD(ins
 	//impl.SyncACD(installAppVersionRequest.ACDAppName, ctx)
 
 	//STEP 7: normal refresh ACD - update for step 6 to avoid delay
-	err = impl.argoClientWrapperService.GetArgoAppWithNormalRefresh(ctx, installAppVersionRequest.ACDAppName)
+	_, err = impl.argoClientWrapperService.GetArgoAppWithNormalRefresh(ctx, installAppVersionRequest.ACDAppName)
 	if err != nil {
 		impl.logger.Errorw("error in getting the argo application with normal refresh", "err", err)
 	}
@@ -381,7 +381,8 @@ func (impl AppStoreDeploymentFullModeServiceImpl) createInArgo(chartGitAttribute
 		RepoPath:        chartGitAttribute.ChartLocation,
 		RepoUrl:         chartGitAttribute.RepoUrl,
 	}
-	_, err := impl.ArgoK8sClient.CreateAcdApp(appreq, envModel.Cluster)
+	applicationTemplatePath := "./scripts/argo-assets/APPLICATION_TEMPLATE_AUTO_SYNC.JSON"
+	_, err := impl.ArgoK8sClient.CreateAcdApp(appreq, envModel.Cluster, applicationTemplatePath)
 
 	//create
 	if err != nil {

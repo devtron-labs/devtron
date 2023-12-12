@@ -115,6 +115,7 @@ type PipelineRepository interface {
 	FilterDeploymentDeleteRequestedPipelineIds(cdPipelineIds []int) (map[int]bool, error)
 	FindDeploymentTypeByPipelineIds(cdPipelineIds []int) (map[int]DeploymentObject, error)
 	UpdateOldCiPipelineIdToNewCiPipelineId(tx *pg.Tx, oldCiPipelineId, newCiPipelineId int) error
+	GetArgoPipelineStuckInGitCommitState(deployedBeforeMinutes int) ([]*Pipeline, error)
 }
 
 type CiArtifactDTO struct {
@@ -723,4 +724,23 @@ func (impl PipelineRepositoryImpl) UpdateOldCiPipelineIdToNewCiPipelineId(tx *pg
 		Where("ci_pipeline_id = ? ", oldCiPipelineId).
 		Where("deleted = ?", false).Update()
 	return err
+}
+
+func (impl PipelineRepositoryImpl) GetArgoPipelineStuckInGitCommitState(deployedBeforeMinutes int) ([]*Pipeline, error) {
+	var pipelines []*Pipeline
+	queryString := `select p.* from pipeline p inner join cd_workflow cw on cw.pipeline_id = p.id  
+    inner join cd_workflow_runner cwr on cwr.cd_workflow_id=cw.id  
+    where cwr.id in (select cd_workflow_runner_id from pipeline_status_timeline  
+					where id in  
+						(select DISTINCT ON (cd_workflow_runner_id) max(id) as id from pipeline_status_timeline 
+							group by cd_workflow_runner_id, id order by cd_workflow_runner_id,id desc)  
+					and status in (?))  
+    and cwr.started_on < NOW() - INTERVAL '? minutes' and p.deployment_app_type=? and p.deleted=?;`
+	_, err := impl.dbConnection.Query(&pipelines, queryString,
+		pg.In([]TimelineStatus{TIMELINE_STATUS_GIT_COMMIT}), deployedBeforeMinutes, util.PIPELINE_DEPLOYMENT_TYPE_ACD, false)
+	if err != nil {
+		impl.logger.Errorw("error in GetArgoPipelinesHavingTriggersStuckInLastPossibleNonTerminalTimelines", "err", err)
+		return nil, err
+	}
+	return pipelines, nil
 }

@@ -122,7 +122,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) RefreshAndUpdateACDApp(installAp
 		}
 	}
 	// Doing this to refresh normally by getting app to avoid sync delay argo cd
-	err := impl.argoClientWrapperService.GetArgoAppWithNormalRefresh(ctx, installAppVersionRequest.ACDAppName)
+	_, err := impl.argoClientWrapperService.GetArgoAppWithNormalRefresh(ctx, installAppVersionRequest.ACDAppName)
 	if err != nil {
 		impl.Logger.Errorw("error in getting argocd application with normal refresh", "err", err, "argoAppName", installAppVersionRequest.ACDAppName)
 	}
