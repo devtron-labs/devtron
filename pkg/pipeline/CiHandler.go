@@ -163,6 +163,7 @@ const Running = "Running"
 const Starting = "Starting"
 const POD_DELETED_MESSAGE = "pod deleted"
 const TERMINATE_MESSAGE = "workflow shutdown with strategy: Terminate"
+const ABORT_MESSAGE_AFTER_STARTING_STAGE = "workflow shutdown with strategy: Abort"
 
 func (impl *CiHandlerImpl) CheckAndReTriggerCI(workflowStatus v1alpha1.WorkflowStatus) error {
 
@@ -587,8 +588,7 @@ func (impl *CiHandlerImpl) CancelBuild(workflowId int) (int, error) {
 		return 0, err
 	}
 	if !(string(v1alpha1.NodePending) == workflow.Status || string(v1alpha1.NodeRunning) == workflow.Status) {
-		impl.Logger.Warn("cannot cancel build, build not in progress")
-		return 0, errors.New("cannot cancel build, build not in progress")
+		return impl.cancelBuildAfterStartWorkflowStage(workflow)
 	}
 	isExt := workflow.Namespace != DefaultCiWorkflowNamespace
 	var env *repository3.Environment
@@ -630,6 +630,18 @@ func (impl *CiHandlerImpl) CancelBuild(workflowId int) (int, error) {
 			impl.Logger.Errorw("error in marking image tag unreserved", "err", err)
 			return 0, err
 		}
+	}
+	return workflow.Id, nil
+}
+
+func (impl *CiHandlerImpl) cancelBuildAfterStartWorkflowStage(workflow *pipelineConfig.CiWorkflow) (int, error) {
+	workflow.Status = executors.WorkflowCancel
+	workflow.PodStatus = string(bean.Failed)
+	workflow.Message = ABORT_MESSAGE_AFTER_STARTING_STAGE
+	err := impl.ciWorkflowRepository.UpdateWorkFlow(workflow)
+	if err != nil {
+		impl.Logger.Errorw("error in updating workflow status", "err", err)
+		return 0, err
 	}
 	return workflow.Id, nil
 }
