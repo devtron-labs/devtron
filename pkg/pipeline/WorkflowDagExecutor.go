@@ -62,11 +62,11 @@ import (
 	"google.golang.org/grpc/codes"
 	status2 "google.golang.org/grpc/status"
 	"io/ioutil"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/helm/pkg/proto/hapi/chart"
 	"k8s.io/utils/strings/slices"
 	"path"
-	"path/filepath"
 	"sigs.k8s.io/yaml"
 	"strconv"
 	"strings"
@@ -4260,7 +4260,12 @@ func (impl *WorkflowDagExecutorImpl) createArgoApplicationIfRequired(appId int, 
 			RepoPath:        chart.ChartLocation,
 			RepoUrl:         chart.GitRepoUrl,
 		}
-		applicationTemplatePath := "./scripts/argo-assets/APPLICATION_TEMPLATE.JSON"
+		var applicationTemplatePath string
+		if impl.appServiceConfig.CreateArgoCDAppInAutoSyncMode {
+			applicationTemplatePath = "./scripts/argo-assets/APPLICATION_TEMPLATE_AUTO_SYNC.JSON"
+		} else {
+			applicationTemplatePath = "./scripts/argo-assets/APPLICATION_TEMPLATE.JSON"
+		}
 		argoAppName, err := impl.argoK8sClient.CreateAcdApp(appRequest, envModel.Cluster, applicationTemplatePath)
 		if err != nil {
 			return "", err
@@ -5234,29 +5239,62 @@ func (impl *WorkflowDagExecutorImpl) updateArgoPipeline(pipeline *pipelineConfig
 		} else {
 			impl.logger.Debug("pipeline no need to update ")
 		}
-		//if argoApplication.Spec.SyncPolicy.Automated != nil {
-		//	patchReq := v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{SyncPolicy: v1alpha1.SyncPolicy{
-		//		Automated:   nil,
-		//	}}}
-		//	reqbyte, err := json.Marshal(patchReq)
-		//	if err != nil {
-		//		impl.logger.Errorw("error in creating patch", "err", err)
-		//	}
-		//	reqString := string(reqbyte)
-		//	patchType := "merge"
-		//	_, err = impl.acdClient.Patch(ctx, &application3.ApplicationPatchRequest{Patch: &reqString, Name: &argoAppName, PatchType: &patchType})
-		//	if err != nil {
-		//		impl.logger.Errorw("error in creating argo pipeline ", "name", pipeline.Name, "patch", string(reqbyte), "err", err)
-		//		return false, err
-		//	}
-		//	impl.logger.Debugw("pipeline update req ", "res", patchReq)
-		//}
-
+		if !impl.appServiceConfig.CreateArgoCDAppInAutoSyncMode {
+			// if manual sync is enabled,  argoApplication.Spec.SyncPolicy.Automated should be nil
+			if argoApplication.Spec.SyncPolicy.Automated != nil {
+				updateReq := &v1alpha1.Application{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      argoAppName,
+						Namespace: argocdServer.DevtronInstalationNs,
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Destination: argoApplication.Spec.Destination,
+						Source:      v1alpha1.ApplicationSource{Path: envOverride.Chart.ChartLocation, RepoURL: envOverride.Chart.GitRepoUrl, TargetRevision: "master"},
+						SyncPolicy: &v1alpha1.SyncPolicy{
+							Automated:   nil,
+							SyncOptions: argoApplication.Spec.SyncPolicy.SyncOptions,
+							Retry:       argoApplication.Spec.SyncPolicy.Retry,
+						}}}
+				validate := false
+				_, err = impl.acdClient.Update(ctx, &application3.ApplicationUpdateRequest{Application: updateReq, Validate: &validate})
+				if err != nil {
+					impl.logger.Errorw("error in creating argo pipeline ", "name", pipeline.Name, "err", err)
+					return false, err
+				}
+				//impl.logger.Debugw("pipeline update req ", "res", patchReq)
+			}
+		} else {
+			if argoApplication.Spec.SyncPolicy.Automated == nil {
+				patchReq := v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{
+					Source: v1alpha1.ApplicationSource{Path: envOverride.Chart.ChartLocation, RepoURL: envOverride.Chart.GitRepoUrl, TargetRevision: "master"},
+					SyncPolicy: &v1alpha1.SyncPolicy{
+						Automated: &v1alpha1.SyncPolicyAutomated{
+							Prune: true,
+						},
+						SyncOptions: argoApplication.Spec.SyncPolicy.SyncOptions,
+						Retry:       argoApplication.Spec.SyncPolicy.Retry,
+					}}}
+				reqbyte, err := json.Marshal(patchReq)
+				if err != nil {
+					impl.logger.Errorw("error in creating patch", "err", err)
+				}
+				reqString := string(reqbyte)
+				patchType := "merge"
+				_, err = impl.acdClient.Patch(ctx, &application3.ApplicationPatchRequest{Patch: &reqString, Name: &argoAppName, PatchType: &patchType})
+				if err != nil {
+					impl.logger.Errorw("error in creating argo pipeline ", "name", pipeline.Name, "patch", string(reqbyte), "err", err)
+					return false, err
+				}
+				impl.logger.Debugw("pipeline update req ", "res", patchReq)
+			}
+		}
 		//manual sync argocd app
-		err2 := impl.argoClientWrapperService.SyncArgoCDApplicationWithRefresh(ctx, argoAppName)
-		if err2 != nil {
-			impl.logger.Errorw("error in getting argo application with normal refresh", "argoAppName", argoAppName, "pipelineName", pipeline.Name)
-			return true, fmt.Errorf("%s. err: %s", ARGOCD_SYNC_ERROR, err2.Error())
+		if !impl.appServiceConfig.CreateArgoCDAppInAutoSyncMode {
+			err2 := impl.argoClientWrapperService.SyncArgoCDApplicationWithRefresh(ctx, argoAppName)
+			if err2 != nil {
+				impl.logger.Errorw("error in getting argo application with normal refresh", "argoAppName", argoAppName, "pipelineName", pipeline.Name)
+				return true, fmt.Errorf("%s. err: %s", ARGOCD_SYNC_ERROR, err2.Error())
+			}
 		}
 		return true, nil
 	} else if appStatus.Code() == codes.NotFound {
@@ -5266,6 +5304,13 @@ func (impl *WorkflowDagExecutorImpl) updateArgoPipeline(pipeline *pipelineConfig
 		impl.logger.Errorw("err in checking application on argoCD", "err", err, "pipeline", pipeline.Name)
 		return false, err
 	}
+}
+
+func (impl *WorkflowDagExecutorImpl) IsArgoAppSyncModeMigrationNeeded(argoApplication v1alpha1.ApplicationSpec) bool {
+	if !impl.appServiceConfig.CreateArgoCDAppInAutoSyncMode && argoApplication.Spec.SyncPolicy.Automated != nil {
+
+	}
+	return false
 }
 
 func (impl *WorkflowDagExecutorImpl) getValuesFileForEnv(environmentId int) string {

@@ -91,6 +91,7 @@ type AppServiceConfig struct {
 	EnableAsyncInstallDevtronChart             bool   `env:"ENABLE_ASYNC_INSTALL_DEVTRON_CHART" envDefault:"false"`
 	DevtronChartInstallRequestTimeout          int    `env:"DEVTRON_CHART_INSTALL_REQUEST_TIMEOUT" envDefault:"6"`
 	ArgocdManualSyncCronPipelineDeployedBefore int    `env:"ARGO_APP_MANUAL_SYNC_TIME" envDefault:"3"` //in minutes
+	CreateArgoCDAppInAutoSyncMode              bool   `env:"CREATE_ARGOCD_APP_IN_AUTO_SYNC_MODE" envDefault:"true"`
 }
 
 func GetAppServiceConfig() (*AppServiceConfig, error) {
