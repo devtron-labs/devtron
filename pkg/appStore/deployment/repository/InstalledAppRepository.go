@@ -40,6 +40,7 @@ type InstalledAppRepository interface {
 	UpdateInstalledApp(model *InstalledApps, tx *pg.Tx) (*InstalledApps, error)
 	UpdateInstalledAppVersion(model *InstalledAppVersions, tx *pg.Tx) (*InstalledAppVersions, error)
 	GetInstalledApp(id int) (*InstalledApps, error)
+	GetInstalledAppsByAppId(appId int) (InstalledApps, error)
 	GetInstalledAppVersion(id int) (*InstalledAppVersions, error)
 	GetInstalledAppVersionAny(id int) (*InstalledAppVersions, error)
 	GetAllInstalledApps(filter *appStoreBean.AppStoreFilter) ([]InstalledAppsWithChartDetails, error)
@@ -65,7 +66,8 @@ type InstalledAppRepository interface {
 	GetDeploymentSuccessfulStatusCountForTelemetry() (int, error)
 	GetGitOpsInstalledAppsWhereArgoAppDeletedIsTrue(installedAppId int, envId int) (InstalledApps, error)
 	GetInstalledAppByGitHash(gitHash string) (InstallAppDeleteRequest, error)
-	GetInstalledAppByAppId(appId int) (InstalledApps, error)
+	GetInstalledAppByAppName(appName string) (*InstalledApps, error)
+	GetInstalledAppByAppIdAndDeploymentType(appId int, deploymentAppType string) (InstalledApps, error)
 	GetInstalledAppByInstalledAppVersionId(installedAppVersionId int) (InstalledApps, error)
 	GetAllGitOpsDeploymentAppName() ([]string, error)
 	GetAllGitOpsAppNameAndInstalledAppMapping() ([]*GitOpsAppDetails, error)
@@ -222,6 +224,14 @@ func (impl InstalledAppRepositoryImpl) GetInstalledApp(id int) (*InstalledApps, 
 	err := impl.dbConnection.Model(model).
 		Column("installed_apps.*", "App", "Environment", "App.Team", "Environment.Cluster").
 		Where("installed_apps.id = ?", id).Where("installed_apps.active = true").Select()
+	return model, err
+}
+
+func (impl InstalledAppRepositoryImpl) GetInstalledAppsByAppId(appId int) (InstalledApps, error) {
+	var model InstalledApps
+	err := impl.dbConnection.Model(&model).
+		Column("installed_apps.*", "App", "Environment", "App.Team", "Environment.Cluster").
+		Where("installed_apps.app_id = ?", appId).Where("installed_apps.active = true").Select()
 	return model, err
 }
 
@@ -732,16 +742,27 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppByGitHash(gitHash string) 
 	return model, nil
 }
 
-func (impl InstalledAppRepositoryImpl) GetInstalledAppByAppId(appId int) (InstalledApps, error) {
+func (impl InstalledAppRepositoryImpl) GetInstalledAppByAppIdAndDeploymentType(appId int, deploymentAppType string) (InstalledApps, error) {
 	var installedApps InstalledApps
 	queryString := `select * from installed_apps where active=? and app_id=? and deployment_app_type=?;`
-	_, err := impl.dbConnection.Query(&installedApps, queryString, true, appId, util2.PIPELINE_DEPLOYMENT_TYPE_ACD)
+	_, err := impl.dbConnection.Query(&installedApps, queryString, true, appId, deploymentAppType)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching InstalledApp", "err", err)
 		return installedApps, err
 	}
 
 	return installedApps, nil
+}
+
+func (impl InstalledAppRepositoryImpl) GetInstalledAppByAppName(appName string) (*InstalledApps, error) {
+	model := &InstalledApps{}
+	err := impl.dbConnection.Model(model).
+		Column("installed_apps.*", "App", "Environment").
+		Where("app.app_name = ?", appName).
+		Where("installed_apps.active = true").
+		Limit(1).
+		Select()
+	return model, err
 }
 
 func (impl InstalledAppRepositoryImpl) GetInstalledAppByInstalledAppVersionId(installedAppVersionId int) (InstalledApps, error) {

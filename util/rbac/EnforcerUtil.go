@@ -74,6 +74,7 @@ type EnforcerUtil interface {
 	GetTeamEnvAppRbacObjectByAppIdEnvIdOrName(appId, envId int, envName string) string
 	GetAllWorkflowRBACObjectsByAppId(appId int, workflowNames []string, workflowIds []int) map[int]string
 	GetEnvRBACArrayByAppIdForJobs(appId int) []string
+	GetClusterNameRBACObjByClusterId(clusterId int) string
 	CheckAppRbacForAppOrJob(token, resourceName, action string) bool
 	CheckAppRbacForAppOrJobInBulk(email, action string, rbacObjects []string, appType helper2.AppType) map[string]bool
 }
@@ -718,6 +719,16 @@ func (impl EnforcerUtilImpl) GetEnvRBACArrayByAppIdForJobs(appId int) []string {
 	}
 
 	return rbacObjects
+}
+
+func (impl EnforcerUtilImpl) GetClusterNameRBACObjByClusterId(clusterId int) string {
+	clusterObj := ""
+	cluster, err := impl.clusterRepository.FindById(clusterId)
+	if err != nil {
+		return clusterObj
+	}
+	clusterObj = strings.ToLower(cluster.ClusterName)
+	return clusterObj
 }
 
 func (impl EnforcerUtilImpl) CheckAppRbacForAppOrJob(token, resourceName, action string) bool {

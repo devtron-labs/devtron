@@ -53,7 +53,7 @@ data:
   CD_NODE_TAINTS_VALUE: "ci"
   CD_ARTIFACT_LOCATION_FORMAT: "%d/%d.zip"
   DEFAULT_CD_NAMESPACE: "devtron-cd"
-  DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:ad3af321-138-18662"
+  DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:560e6867-138-19679"
   DEFAULT_CD_TIMEOUT: "3600"
   WF_CONTROLLER_INSTANCE_ID: "devtron-runner"
   CI_LOGS_KEY_PREFIX: "ci-artifacts"
@@ -89,7 +89,7 @@ data:
   ENFORCER_CACHE: "true"
   ENFORCER_CACHE_EXPIRATION_IN_SEC: "345600"
   ENFORCER_MAX_BATCH_SIZE: "1"
-  APP_SYNC_IMAGE: "quay.io/devtron/chart-sync:0e8c785e-373-16172"
+  APP_SYNC_IMAGE: "quay.io/devtron/chart-sync:98957687-150-19133"
   DEVTRON_SECRET_NAME: "devtron-secret"
   GIT_SENSOR_PROTOCOL: GRPC
   GIT_SENSOR_URL: git-sensor-service.devtroncd:90
@@ -169,7 +169,7 @@ spec:
         runAsUser: 1000
       containers:
         - name: devtron
-          image: "quay.io/devtron/devtron:6822926b-434-19035"
+          image: "quay.io/devtron/devtron:95146ae5-434-19914"
           securityContext:
             allowPrivilegeEscalation: false
             runAsUser: 1000

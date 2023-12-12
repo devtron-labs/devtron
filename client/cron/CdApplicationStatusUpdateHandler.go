@@ -9,6 +9,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
@@ -243,7 +244,7 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) ManualSyncPipelineStatus(appId
 	var err error
 
 	if envId == 0 {
-		installedApp, err = impl.installedAppVersionRepository.GetInstalledAppByAppId(appId)
+		installedApp, err = impl.installedAppVersionRepository.GetInstalledAppByAppIdAndDeploymentType(appId, util2.PIPELINE_DEPLOYMENT_TYPE_ACD)
 		if err != nil {
 			impl.logger.Errorw("error in getting installed app by appId", "err", err, "appid", appId)
 			return nil

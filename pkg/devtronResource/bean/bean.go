@@ -1,18 +1,58 @@
 package bean
 
+type DevtronResourceBean struct {
+	DevtronResourceId    int                          `json:"devtronResourceId"`
+	Kind                 string                       `json:"kind,omitempty"`
+	VersionSchemaDetails []*DevtronResourceSchemaBean `json:"versionSchemaDetails,omitempty"`
+}
+
+type DevtronResourceSchemaBean struct {
+	DevtronResourceSchemaId int    `json:"devtronResourceSchemaId"`
+	Version                 string `json:"version,omitempty"`
+}
+
 type DevtronResourceObjectDescriptorBean struct {
 	Kind        string `json:"kind,omitempty"`
 	SubKind     string `json:"subKind,omitempty"`
 	Version     string `json:"version,omitempty"`
 	OldObjectId int    `json:"id,omitempty"` //here at FE we are still calling this id since id is used everywhere w.r.t resource's own tables
 	Name        string `json:"name,omitempty"`
+	SchemaId    int    `json:"schemaId"`
 }
 
 type DevtronResourceObjectBean struct {
 	*DevtronResourceObjectDescriptorBean
-	Schema     string `json:"schema,omitempty"`
-	ObjectData string `json:"objectData"`
-	UserId     int32  `json:"-"`
+	Schema            string                           `json:"schema,omitempty"`
+	ObjectData        string                           `json:"objectData"`
+	Dependencies      []*DevtronResourceDependencyBean `json:"dependencies"`
+	ChildDependencies []*DevtronResourceDependencyBean `json:"childDependencies"`
+	UserId            int32                            `json:"-"`
+}
+
+type DevtronResourceDependencyBean struct {
+	Name                    string                           `json:"name"`
+	OldObjectId             int                              `json:"id"`
+	DevtronResourceId       int                              `json:"devtronResourceId"`
+	DevtronResourceSchemaId int                              `json:"devtronResourceSchemaId"`
+	DependentOnIndex        int                              `json:"dependentOnIndex"`
+	DependentOnParentIndex  int                              `json:"dependentOnParentIndex"`
+	TypeOfDependency        DevtronResourceDependencyType    `json:"typeOfDependency"`
+	Index                   int                              `json:"index"`
+	Dependencies            []*DevtronResourceDependencyBean `json:"dependencies,omitempty"`
+	Metadata                interface{}                      `json:"metadata,omitempty"`
+}
+
+type DevtronResourceDependencyType string
+
+const (
+	DevtronResourceDependencyTypeParent     DevtronResourceDependencyType = "parent"
+	DevtronResourceDependencyTypeChild      DevtronResourceDependencyType = "child"
+	DevtronResourceDependencyTypeUpstream   DevtronResourceDependencyType = "upstream"
+	DevtronResourceDependencyTypeDownStream DevtronResourceDependencyType = "downstream"
+)
+
+func (n DevtronResourceDependencyType) ToString() string {
+	return string(n)
 }
 
 type DevtronResourceSearchableKeyName string
@@ -36,15 +76,26 @@ func (n DevtronResourceSearchableKeyName) ToString() string {
 type DevtronResourceKind string
 
 const (
-	DEVTRON_RESOURCE_APPLICATION         DevtronResourceKind = "application"
-	DEVTRON_RESOURCE_DEVTRON_APPLICATION DevtronResourceKind = "devtron-application"
-	DEVTRON_RESOURCE_HELM_APPLICATION    DevtronResourceKind = "helm-application"
-	DEVTRON_RESOURCE_CLUSTER             DevtronResourceKind = "cluster"
-	DEVTRON_RESOURCE_JOB                 DevtronResourceKind = "job"
-	DEVTRON_RESOURCE_USER                DevtronResourceKind = "users"
+	DevtronResourceApplication        DevtronResourceKind = "application"
+	DevtronResourceDevtronApplication DevtronResourceKind = "devtron-application"
+	DevtronResourceHelmApplication    DevtronResourceKind = "helm-application"
+	DevtronResourceCluster            DevtronResourceKind = "cluster"
+	DevtronResourceJob                DevtronResourceKind = "job"
+	DevtronResourceUser               DevtronResourceKind = "users"
+	DevtronResourceCdPipeline         DevtronResourceKind = "cd-pipeline"
 )
 
 func (n DevtronResourceKind) ToString() string {
+	return string(n)
+}
+
+type DevtronResourceVersion string
+
+const (
+	DevtronResourceVersion1 DevtronResourceVersion = "v1"
+)
+
+func (n DevtronResourceVersion) ToString() string {
 	return string(n)
 }
 
@@ -86,23 +137,36 @@ func (v ValueType) ToString() string {
 }
 
 const (
-	KindKey          = "kind"
-	VersionKey       = "version"
-	RefValues        = "values"
-	TypeKey          = "type"
-	RefKey           = "$ref"
-	RefTypeKey       = "refType"
-	ReferencesPrefix = "#/references"
-	ReferencesKey    = "references"
-	IdKey            = "id"
-	NameKey          = "name"
-	IconKey          = "icon"
-	EnumKey          = "enum"
-	EnumNamesKey     = "enumNames"
+	KindKey                    = "kind"
+	VersionKey                 = "version"
+	RefValues                  = "values"
+	TypeKey                    = "type"
+	RefKey                     = "$ref"
+	RefTypeKey                 = "refType"
+	ReferencesPrefix           = "#/references"
+	ReferencesKey              = "references"
+	IdKey                      = "id"
+	NameKey                    = "name"
+	TypeOfDependencyKey        = "typeOfDependency"
+	DevtronResourceIdKey       = "devtronResourceId"
+	DevtronResourceSchemaIdKey = "devtronResourceSchemaId"
+	DependentOnIndexKey        = "dependentOnIndex"
+	DependentOnParentIndexKey  = "dependentOnParentIndex"
+	IconKey                    = "icon"
+	EnumKey                    = "enum"
+	EnumNamesKey               = "enumNames"
+	IndexKey                   = "index"
 
-	ResourceSchemaMetadataPath = "properties.overview.properties.metadata"
-	ResourceObjectMetadataPath = "overview.metadata"
-	ResourceObjectIdPath       = "overview.id"
+	OldObjectIdDbColumnKey = "old_object_id"
+	NameDbColumnKey        = "name"
 
-	SchemaValidationFailedErrorUserMessage = "Something went wrong. Please check internalMessage in console for more details."
+	ResourceSchemaMetadataPath     = "properties.overview.properties.metadata"
+	ResourceObjectMetadataPath     = "overview.metadata"
+	ResourceObjectDependenciesPath = "dependencies"
+	ResourceObjectIdPath           = "overview.id"
+
+	SchemaValidationFailedErrorUserMessage = "Something went wrong. Please check internal message in console for more details."
+	BadRequestDependenciesErrorMessage     = "Invalid request. Please check internal message in console for more details."
+
+	EmptyJsonObject = "{}"
 )
