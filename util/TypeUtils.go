@@ -60,8 +60,8 @@ func GetMapValuesPtr[T any](valueMap map[string]*T) []*T {
 func Transform[T any, K any](input []T, transform func(inp T) K) []K {
 
 	res := make([]K, len(input))
-	for i, inp := range input {
-		res[i] = transform(inp)
+	for i, _ := range input {
+		res[i] = transform(input[i])
 	}
 	return res
 
