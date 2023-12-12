@@ -708,8 +708,8 @@ func (impl PipelineRepositoryImpl) GetArgoPipelineStuckInGitCommitState(deployed
 					where id in  
 						(select DISTINCT ON (cd_workflow_runner_id) max(id) as id from pipeline_status_timeline 
 							group by cd_workflow_runner_id, id order by cd_workflow_runner_id,id desc)  
-					and status in (?))  
-    and cwr.started_on > NOW() - INTERVAL '? minutes' and p.deployment_app_type=? and p.deleted=?;`
+					and status in (?) )  
+    and cwr.started_on < NOW() - INTERVAL '? minutes' and p.deployment_app_type=? and p.deleted=?;`
 	_, err := impl.dbConnection.Query(&pipelines, queryString,
 		pg.In([]TimelineStatus{TIMELINE_STATUS_GIT_COMMIT}), deployedBeforeMinutes, util.PIPELINE_DEPLOYMENT_TYPE_ACD, false)
 	if err != nil {
