@@ -53,7 +53,7 @@ type HelmAppService interface {
 	GetValuesYaml(ctx context.Context, app *AppIdentifier) (*ReleaseInfo, error)
 	GetDesiredManifest(ctx context.Context, app *AppIdentifier, resource *openapi.ResourceIdentifier) (*openapi.DesiredManifestResponse, error)
 	DeleteApplication(ctx context.Context, app *AppIdentifier) (*openapi.UninstallReleaseResponse, error)
-	DeleteBaseStackHelmApplication(ctx context.Context, app *AppIdentifier, useId int32) (*openapi.UninstallReleaseResponse, error)
+	DeleteDBLinkedHelmApplication(ctx context.Context, app *AppIdentifier, useId int32) (*openapi.UninstallReleaseResponse, error)
 	UpdateApplication(ctx context.Context, app *AppIdentifier, request *UpdateApplicationRequestDto) (*openapi.UpdateReleaseResponse, error)
 	GetDeploymentDetail(ctx context.Context, app *AppIdentifier, version int32) (*openapi.HelmAppDeploymentManifestDetail, error)
 	InstallRelease(ctx context.Context, clusterId int, installReleaseRequest *InstallReleaseRequest) (*InstallReleaseResponse, error)
@@ -441,7 +441,7 @@ func (impl *HelmAppServiceImpl) GetDesiredManifest(ctx context.Context, app *App
 	return response, nil
 }
 
-func (impl *HelmAppServiceImpl) DeleteBaseStackHelmApplication(ctx context.Context, app *AppIdentifier, userId int32) (*openapi.UninstallReleaseResponse, error) {
+func (impl *HelmAppServiceImpl) DeleteDBLinkedHelmApplication(ctx context.Context, app *AppIdentifier, userId int32) (*openapi.UninstallReleaseResponse, error) {
 	dbConnection := impl.appRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -453,23 +453,15 @@ func (impl *HelmAppServiceImpl) DeleteBaseStackHelmApplication(ctx context.Conte
 
 	// For Helm deployments ReleaseName is App.Name
 	model, err := impl.installedAppRepository.GetInstalledAppByAppName(app.ReleaseName)
-	switch err {
-	case pg.ErrNoRows:
-		return impl.DeleteApplication(ctx, app)
-	case nil:
-		goto HandleBaseStackAppDeletion
-	default:
+	if err != nil {
 		impl.logger.Errorw("error in fetching installed app", "appName", app.ReleaseName, "err", err)
 		return nil, err
 	}
 
-	// label for deleting Helm Apps created in Hyperion Mode
-HandleBaseStackAppDeletion:
-
 	// If there are two releases with same name but in different namespace (eg: test -n demo-1 {Hyperion App}, test -n demo-2 {Externally Installed});
 	// And if the request is received for the externally installed app, the below condition will handle
 	if model.Environment.Namespace != app.Namespace {
-		return impl.DeleteApplication(ctx, app)
+		return nil, pg.ErrNoRows
 	}
 
 	// App Delete --> Start

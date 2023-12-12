@@ -8,6 +8,7 @@ import (
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/attributes"
@@ -309,7 +310,10 @@ func (handler *HelmAppRestHandlerImpl) DeleteApplication(w http.ResponseWriter, 
 		return
 	}
 
-	res, err := handler.helmAppService.DeleteBaseStackHelmApplication(r.Context(), appIdentifier, userId)
+	res, err := handler.helmAppService.DeleteDBLinkedHelmApplication(r.Context(), appIdentifier, userId)
+	if util.IsErrNoRows(err) {
+		res, err = handler.helmAppService.DeleteApplication(r.Context(), appIdentifier)
+	}
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
