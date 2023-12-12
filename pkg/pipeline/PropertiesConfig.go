@@ -232,6 +232,13 @@ func (impl PropertiesConfigServiceImpl) CreateEnvironmentProperties(appId int, e
 		impl.logger.Errorw("create new chart set latest=false", "a", "b")
 		return nil, fmt.Errorf("NOCHARTEXIST")
 	}
+	if environmentProperties.SaveEligibleChanges {
+		eligible, err := impl.mergeUtil.JsonPatch([]byte(chart.GlobalOverride), environmentProperties.EnvOverrideValues)
+		if err != nil {
+			return nil, err
+		}
+		environmentProperties.EnvOverrideValues = eligible
+	}
 	isLockConfigError, lockedOverride, err := impl.lockedConfigService.HandleLockConfiguration(string(environmentProperties.EnvOverrideValues), chart.GlobalOverride, int(environmentProperties.UserId))
 	if err != nil {
 		return nil, err
@@ -350,6 +357,15 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, p
 			envOverrideValue = envOverrideExisting.EnvOverrideValues
 		}
 	}
+
+	if propertiesRequest.SaveEligibleChanges {
+		eligible, err := impl.mergeUtil.JsonPatch([]byte(envOverrideValue), overrideByte)
+		if err != nil {
+			return nil, err
+		}
+		overrideByte = eligible
+	}
+
 	// Handle Lock Configuration
 	isLockConfigError, lockedOverride, err := impl.lockedConfigService.HandleLockConfiguration(string(overrideByte), envOverrideValue, int(propertiesRequest.UserId))
 	if err != nil {

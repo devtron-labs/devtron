@@ -395,6 +395,14 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 		return nil, err
 	}
 
+	if templateRequest.SaveEligibleChanges {
+		eligible, err := impl.mergeUtil.JsonPatch([]byte(chartValues.AppOverrides), templateRequest.ValuesOverride)
+		if err != nil {
+			return nil, err
+		}
+		templateRequest.ValuesOverride = eligible
+	}
+
 	// Handle Lock Configuration
 	isLockConfigError, lockedOverride, err := impl.lockedConfigService.HandleLockConfiguration(string(templateRequest.ValuesOverride), chartValues.AppOverrides, int(templateRequest.UserId))
 	if err != nil {
@@ -881,6 +889,15 @@ func (impl ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateRequ
 	if err != nil {
 		return nil, err
 	}
+
+	if templateRequest.SaveEligibleChanges {
+		eligible, err := impl.mergeUtil.JsonPatch([]byte(template.GlobalOverride), templateRequest.ValuesOverride)
+		if err != nil {
+			return nil, err
+		}
+		templateRequest.ValuesOverride = eligible
+	}
+
 	// Handle Lock Configuration
 	isLockConfigError, lockedOverride, err := impl.lockedConfigService.HandleLockConfiguration(string(templateRequest.ValuesOverride), template.GlobalOverride, int(templateRequest.UserId))
 	if err != nil {

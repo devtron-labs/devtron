@@ -39,6 +39,7 @@ type TemplateRequest struct {
 	Readme                  string                      `json:"readme"`
 	IsBasicViewLocked       bool                        `json:"isBasicViewLocked"`
 	CurrentViewEditor       models.ChartsViewEditorType `json:"currentViewEditor"` //default "UNDEFINED" in db
+	SaveEligibleChanges     bool                        `json:"saveEligibleChanges"`
 	UserId                  int32                       `json:"-"`
 }
 

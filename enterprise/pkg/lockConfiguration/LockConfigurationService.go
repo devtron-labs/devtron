@@ -160,7 +160,7 @@ func (impl LockConfigurationServiceImpl) HandleLockConfiguration(currentConfig, 
 	for _, config := range lockConfig.Config {
 		x, err := jp.ParseString(config)
 		if err != nil {
-			panic(err)
+			return false, "", err
 		}
 		ys := x.Get(obj)
 		if len(ys) != 0 {
