@@ -92,7 +92,7 @@ func (impl *ConfigDraftServiceImpl) CreateDraft(request ConfigDraftRequest) (*Co
 	if !protectionEnabled {
 		return nil, errors.New(ConfigProtectionDisabled)
 	}
-	validateResp, err := impl.validateDraftData(request.AppId, envId, resourceType, resourceAction, request.Data)
+	validateResp, err := impl.validateDraftData(request.AppId, envId, resourceType, resourceAction, request.Data, request.UserId)
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +121,7 @@ func (impl *ConfigDraftServiceImpl) AddDraftVersion(request ConfigDraftVersionRe
 	currentTime := time.Now()
 	if len(request.Data) > 0 {
 
-		lockConfig, err := impl.validateDraftData(draftDto.AppId, draftDto.EnvId, draftDto.Resource, request.Action, request.Data)
+		lockConfig, err := impl.validateDraftData(draftDto.AppId, draftDto.EnvId, draftDto.Resource, request.Action, request.Data, request.UserId)
 		if err != nil {
 			return nil, err
 		}
@@ -656,11 +656,11 @@ func (impl *ConfigDraftServiceImpl) GetDraftsCount(appId int, envIds []int) ([]*
 	return draftCountResponse, nil
 }
 
-func (impl *ConfigDraftServiceImpl) validateDraftData(appId int, envId int, resourceType DraftResourceType, action ResourceAction, draftData string) (*LockValidateResponse, error) {
+func (impl *ConfigDraftServiceImpl) validateDraftData(appId int, envId int, resourceType DraftResourceType, action ResourceAction, draftData string, userId int32) (*LockValidateResponse, error) {
 	if resourceType == CMDraftResource || resourceType == CSDraftResource {
 		return nil, impl.validateCmCs(action, draftData)
 	}
-	return impl.validateDeploymentTemplate(appId, envId, action, draftData)
+	return impl.validateDeploymentTemplate(appId, envId, action, draftData, userId)
 }
 
 func (impl *ConfigDraftServiceImpl) validateCmCs(resourceAction ResourceAction, draftData string) error {
@@ -683,7 +683,7 @@ func (impl *ConfigDraftServiceImpl) validateCmCs(resourceAction ResourceAction, 
 	return err
 }
 
-func (impl *ConfigDraftServiceImpl) validateDeploymentTemplate(appId int, envId int, resourceAction ResourceAction, draftData string) (*LockValidateResponse, error) {
+func (impl *ConfigDraftServiceImpl) validateDeploymentTemplate(appId int, envId int, resourceAction ResourceAction, draftData string, userId int32) (*LockValidateResponse, error) {
 	if envId == protect.BASE_CONFIG_ENV_ID {
 		templateRequest := chart.TemplateRequest{}
 		var templateValidated bool
@@ -696,7 +696,7 @@ func (impl *ConfigDraftServiceImpl) validateDeploymentTemplate(appId int, envId 
 		if err != nil {
 			return nil, err
 		}
-		isLockConfigError, lockedOverride, err := impl.lockedConfigService.HandleLockConfiguration(string(templateRequest.ValuesOverride), currentLatestChart.GlobalOverride, int(templateRequest.UserId))
+		isLockConfigError, lockedOverride, err := impl.lockedConfigService.HandleLockConfiguration(string(templateRequest.ValuesOverride), currentLatestChart.GlobalOverride, int(userId))
 		if err != nil {
 			return nil, err
 		}
