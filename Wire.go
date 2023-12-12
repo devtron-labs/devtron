@@ -230,6 +230,8 @@ func InitializeApp() (*App, error) {
 
 		pipeline.NewPipelineBuilderImpl,
 		wire.Bind(new(pipeline.PipelineBuilder), new(*pipeline.PipelineBuilderImpl)),
+		pipeline.NewBuildPipelineSwitchServiceImpl,
+		wire.Bind(new(pipeline.BuildPipelineSwitchService), new(*pipeline.BuildPipelineSwitchServiceImpl)),
 		pipeline.NewCiPipelineConfigServiceImpl,
 		wire.Bind(new(pipeline.CiPipelineConfigService), new(*pipeline.CiPipelineConfigServiceImpl)),
 		pipeline.NewCiMaterialConfigServiceImpl,
@@ -962,10 +964,16 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(repository9.DevtronResourceSearchableKeyRepository), new(*repository9.DevtronResourceSearchableKeyRepositoryImpl)),
 
 		devtronResource.NewDevtronResourceSearchableKeyServiceImpl,
-		wire.Bind(new(devtronResource.DevtronResourceService), new(*devtronResource.DevtronResourceSearchableKeyServiceImpl)),
+		wire.Bind(new(devtronResource.DevtronResourceSearchableKeyService), new(*devtronResource.DevtronResourceSearchableKeyServiceImpl)),
 
 		argocdServer.NewArgoClientWrapperServiceImpl,
 		wire.Bind(new(argocdServer.ArgoClientWrapperService), new(*argocdServer.ArgoClientWrapperServiceImpl)),
+
+		pipeline.NewPluginInputVariableParserImpl,
+		wire.Bind(new(pipeline.PluginInputVariableParser), new(*pipeline.PluginInputVariableParserImpl)),
+
+		pipeline.NewPipelineConfigListenerServiceImpl,
+		wire.Bind(new(pipeline.PipelineConfigListenerService), new(*pipeline.PipelineConfigListenerServiceImpl)),
 	)
 	return &App{}, nil
 }

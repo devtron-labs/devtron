@@ -20,11 +20,14 @@ package bean
 import (
 	"encoding/json"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
+	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"time"
 )
 
@@ -123,6 +126,7 @@ type CiPipeline struct {
 	LastTriggeredEnvId       int                    `json:"lastTriggeredEnvId"`
 	CustomTagObject          *CustomTagData         `json:"customTag,omitempty"`
 	DefaultTag               []string               `json:"defaultTag,omitempty"`
+	EnableCustomTag          bool                   `json:"enableCustomTag"`
 }
 
 type DockerConfigOverride struct {
@@ -245,6 +249,7 @@ type CiMaterialPatchRequest struct {
 type CustomTagData struct {
 	TagPattern string `json:"tagPattern"`
 	CounterX   int    `json:"counterX"`
+	Enabled    bool   `json:"enabled"`
 }
 
 type CiMaterialValuePatchRequest struct {
@@ -276,6 +281,17 @@ type CiPatchRequest struct {
 	UserId        int32       `json:"-"`
 	IsJob         bool        `json:"-"`
 	IsCloneJob    bool        `json:"isCloneJob,omitempty"`
+
+	ParentCDPipeline               int          `json:"parentCDPipeline"`
+	DeployEnvId                    int          `json:"deployEnvId"`
+	SwitchFromCiPipelineId         int          `json:"switchFromCiPipelineId"`
+	SwitchFromExternalCiPipelineId int          `json:"switchFromExternalCiPipelineId"`
+	SwitchFromCiPipelineType       PipelineType `json:"-"`
+	SwitchToCiPipelineType         PipelineType `json:"-"`
+}
+
+func (ciPatchRequest CiPatchRequest) IsSwitchCiPipelineRequest() bool {
+	return (ciPatchRequest.SwitchFromCiPipelineId != 0 || ciPatchRequest.SwitchFromExternalCiPipelineId != 0)
 }
 
 type CiRegexPatchRequest struct {
@@ -330,29 +346,31 @@ type TriggerViewCiConfig struct {
 }
 
 type CiConfigRequest struct {
-	Id                int                     `json:"id,omitempty" validate:"number"` //ciTemplateId
-	AppId             int                     `json:"appId,omitempty" validate:"required,number"`
-	DockerRegistry    string                  `json:"dockerRegistry,omitempty" `  //repo id example ecr mapped one-one with gocd registry entry
-	DockerRepository  string                  `json:"dockerRepository,omitempty"` // example test-app-1 which is inside ecr
-	CiBuildConfig     *bean.CiBuildConfigBean `json:"ciBuildConfig"`
-	CiPipelines       []*CiPipeline           `json:"ciPipelines,omitempty" validate:"dive"` //a pipeline will be built for each ciMaterial
-	AppName           string                  `json:"appName,omitempty"`
-	Version           string                  `json:"version,omitempty"` //gocd etag used for edit purpose
-	DockerRegistryUrl string                  `json:"-"`
-	CiTemplateName    string                  `json:"-"`
-	UserId            int32                   `json:"-"`
-	Materials         []Material              `json:"materials"`
-	AppWorkflowId     int                     `json:"appWorkflowId,omitempty"`
-	BeforeDockerBuild []*Task                 `json:"beforeDockerBuild,omitempty" validate:"dive"`
-	AfterDockerBuild  []*Task                 `json:"afterDockerBuild,omitempty" validate:"dive"`
-	ScanEnabled       bool                    `json:"scanEnabled,notnull"`
-	CreatedOn         time.Time               `sql:"created_on,type:timestamptz"`
-	CreatedBy         int32                   `sql:"created_by,type:integer"`
-	UpdatedOn         time.Time               `sql:"updated_on,type:timestamptz"`
-	UpdatedBy         int32                   `sql:"updated_by,type:integer"`
-	IsJob             bool                    `json:"-"`
-	CiGitMaterialId   int                     `json:"ciGitConfiguredId"`
-	IsCloneJob        bool                    `json:"isCloneJob,omitempty"`
+	Id                 int                             `json:"id,omitempty" validate:"number"` //ciTemplateId
+	AppId              int                             `json:"appId,omitempty" validate:"required,number"`
+	DockerRegistry     string                          `json:"dockerRegistry,omitempty" `  //repo id example ecr mapped one-one with gocd registry entry
+	DockerRepository   string                          `json:"dockerRepository,omitempty"` // example test-app-1 which is inside ecr
+	CiBuildConfig      *bean.CiBuildConfigBean         `json:"ciBuildConfig"`
+	CiPipelines        []*CiPipeline                   `json:"ciPipelines,omitempty" validate:"dive"` //a pipeline will be built for each ciMaterial
+	AppName            string                          `json:"appName,omitempty"`
+	Version            string                          `json:"version,omitempty"` //gocd etag used for edit purpose
+	DockerRegistryUrl  string                          `json:"-"`
+	CiTemplateName     string                          `json:"-"`
+	UserId             int32                           `json:"-"`
+	Materials          []Material                      `json:"materials"`
+	AppWorkflowId      int                             `json:"appWorkflowId,omitempty"`
+	BeforeDockerBuild  []*Task                         `json:"beforeDockerBuild,omitempty" validate:"dive"`
+	AfterDockerBuild   []*Task                         `json:"afterDockerBuild,omitempty" validate:"dive"`
+	ScanEnabled        bool                            `json:"scanEnabled,notnull"`
+	CreatedOn          time.Time                       `sql:"created_on,type:timestamptz"`
+	CreatedBy          int32                           `sql:"created_by,type:integer"`
+	UpdatedOn          time.Time                       `sql:"updated_on,type:timestamptz"`
+	UpdatedBy          int32                           `sql:"updated_by,type:integer"`
+	IsJob              bool                            `json:"-"`
+	CiGitMaterialId    int                             `json:"ciGitConfiguredId"`
+	IsCloneJob         bool                            `json:"isCloneJob,omitempty"`
+	AppWorkflowMapping *appWorkflow.AppWorkflowMapping `json:"-"`
+	Artifact           *repository3.CiArtifact         `json:"-"`
 }
 
 type CiPipelineMinResponse struct {
@@ -565,6 +583,14 @@ type CDPipelineConfigObject struct {
 	SourceToNewPipelineId         map[int]int                            `json:"sourceToNewPipelineId,omitempty"`
 	RefPipelineId                 int                                    `json:"refPipelineId,omitempty"`
 	ExternalCiPipelineId          int                                    `json:"externalCiPipelineId,omitempty"`
+	CustomTagObject               *CustomTagData                         `json:"customTag"`
+	CustomTagStage                *repository.PipelineStageType          `json:"customTagStage"`
+	EnableCustomTag               bool                                   `json:"enableCustomTag"`
+	SwitchFromCiPipelineId        int                                    `json:"switchFromCiPipelineId"`
+}
+
+func (cdpipelineConfig *CDPipelineConfigObject) IsSwitchCiPipelineRequest() bool {
+	return cdpipelineConfig.SwitchFromCiPipelineId > 0 && cdpipelineConfig.AppWorkflowId > 0
 }
 
 type PreStageConfigMapSecretNames struct {
@@ -731,6 +757,15 @@ type CiArtifactBean struct {
 	CiConfigureSourceValue        string                    `json:"ciConfigureSourceValue"`
 	ImageReleaseTags              []*repository2.ImageTag   `json:"imageReleaseTags"`
 	ImageComment                  *repository2.ImageComment `json:"imageComment"`
+	CreatedTime                   string                    `json:"createdTime"`
+	ExternalCiPipelineId          int                       `json:"-"`
+	ParentCiArtifact              int                       `json:"-"`
+	CiWorkflowId                  int                       `json:"-"`
+	RegistryType                  string                    `json:"registryType"`
+	RegistryName                  string                    `json:"registryName"`
+	CiPipelineId                  int                       `json:"-"`
+	CredentialsSourceType         string                    `json:"-"`
+	CredentialsSourceValue        string                    `json:"-"`
 }
 
 type CiArtifactResponse struct {
@@ -742,6 +777,7 @@ type CiArtifactResponse struct {
 	TagsEditable               bool             `json:"tagsEditable"`
 	AppReleaseTagNames         []string         `json:"appReleaseTagNames"` //unique list of tags exists in the app
 	HideImageTaggingHardDelete bool             `json:"hideImageTaggingHardDelete"`
+	TotalCount                 int              `json:"totalCount"`
 }
 
 type AppLabelsDto struct {

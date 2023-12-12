@@ -87,7 +87,7 @@ You can establish security policies for their vulnerabilities through the `Secur
 
 Policies are implemented in a hierarchical order, with the following sequence: Global, Cluster, Environment, and Application. Higher-level policies take precedence over lower-level policies, ensuring a systematic and structured enforcement of security measures.
 
-![](../.gitbook/assets/security-feature-global-security-policies.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/security-features/new/security-feature-global-security-policies.jpg)
 
 **Some examples of how policies can be defined**
 

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/argoproj/argo-workflows/v3/errors"
 	"github.com/caarlos0/env"
-	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/variables/cache"
@@ -33,7 +32,6 @@ type ScopedVariableServiceImpl struct {
 	logger                   *zap.SugaredLogger
 	scopedVariableRepository repository2.ScopedVariableRepository
 	qualifierMappingService  resourceQualifiers.QualifierMappingService
-	devtronResourceService   devtronResource.DevtronResourceService
 	VariableNameConfig       *VariableConfig
 	VariableCache            *cache.VariableCacheObj
 }
@@ -524,6 +522,9 @@ func (impl *ScopedVariableServiceImpl) deduceVariables(scopedVariableDataList []
 	}
 
 	for _, data := range scopedVariableDataList {
+		for _, variable := range systemVariables {
+			varNameToData[variable.VariableName] = variable
+		}
 		value := data.VariableValue.Value
 		if utils.IsStringType(value) {
 			resolvedValue, err := resolveExpressionWithVariableValues(value.(string), varNameToData)

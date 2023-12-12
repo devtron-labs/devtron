@@ -89,6 +89,8 @@ type AppServiceConfig struct {
 	GetPipelineDeployedWithinHours      int    `env:"DEPLOY_STATUS_CRON_GET_PIPELINE_DEPLOYED_WITHIN_HOURS" envDefault:"12"` //in hours
 	HelmPipelineStatusCheckEligibleTime string `env:"HELM_PIPELINE_STATUS_CHECK_ELIGIBLE_TIME" envDefault:"120"`             //in seconds
 	ExposeCDMetrics                     bool   `env:"EXPOSE_CD_METRICS" envDefault:"false"`
+	EnableAsyncInstallDevtronChart      bool   `env:"ENABLE_ASYNC_INSTALL_DEVTRON_CHART" envDefault:"false"`
+	DevtronChartInstallRequestTimeout   int    `env:"DEVTRON_CHART_INSTALL_REQUEST_TIMEOUT" envDefault:"6"` //in minutes
 }
 
 func GetAppServiceConfig() (*AppServiceConfig, error) {
@@ -167,7 +169,8 @@ type AppServiceImpl struct {
 }
 
 type AppService interface {
-	//TriggerRelease(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, deployedBy int32) (releaseNo int, manifest []byte, err error)
+	//HandleCDTriggerRelease(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, deployedBy int32) (releaseNo int, manifest []byte, err error)
+	//TriggerRelease(overrideRequest *bean.ValuesOverrideRequest, valuesOverrideResponse *ValuesOverrideResponse, builtChartPath string, ctx context.Context, triggeredAt time.Time, deployedBy int32) (releaseNo int, manifest []byte, err error)
 	UpdateReleaseStatus(request *bean.ReleaseStatusUpdateRequest) (bool, error)
 	UpdateDeploymentStatusAndCheckIsSucceeded(app *v1alpha1.Application, statusTime time.Time, isAppStore bool) (bool, *chartConfig.PipelineOverride, error)
 	//TriggerCD(artifact *repository.CiArtifact, cdWorkflowId, wfrId int, pipeline *pipelineConfig.Pipeline, triggeredAt time.Time) error
@@ -187,6 +190,7 @@ type AppService interface {
 	//SetPipelineFieldsInOverrideRequest(overrideRequest *bean.ValuesOverrideRequest, pipeline *pipelineConfig.Pipeline)
 	BuildChartAndGetPath(appName string, envOverride *chartConfig.EnvConfigOverride, ctx context.Context) (string, error)
 	UploadKustomizeData(appId int, envId int, unzipDir string) error
+	IsDevtronAsyncInstallModeEnabled(deploymentAppType string) bool
 }
 
 func NewAppService(
@@ -1498,4 +1502,9 @@ func (impl *AppServiceImpl) updatePipeline(pipeline *pipelineConfig.Pipeline, us
 		return false, err
 	}
 	return true, nil
+}
+
+func (impl *AppServiceImpl) IsDevtronAsyncInstallModeEnabled(deploymentAppType string) bool {
+	return impl.appStatusConfig.EnableAsyncInstallDevtronChart &&
+		deploymentAppType == bean2.Helm
 }

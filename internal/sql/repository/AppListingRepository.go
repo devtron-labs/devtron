@@ -56,6 +56,7 @@ type AppListingRepository interface {
 	FindAppCount(isProd bool) (int, error)
 	FetchAppsByEnvironmentV2(appListingFilter helper.AppListingFilter) ([]*bean.AppEnvironmentContainer, int, error)
 	FetchOverviewAppsByEnvironment(envId, limit, offset int) ([]*bean.AppEnvironmentContainer, error)
+	FetchLastDeployedImage(appId, envId int) (*LastDeployed, error)
 }
 
 // below table is deprecated, not being used anywhere
@@ -75,7 +76,13 @@ type AppNameTypeIdContainerDBResponse struct {
 	AppId   int    `sql:"id"`
 }
 
+type LastDeployed struct {
+	LastDeployedBy    string `sql:"last_deployed_by"`
+	LastDeployedImage string `sql:"last_deployed_image"`
+}
+
 const NewDeployment string = "Deployment Initiated"
+const Hibernating string = "HIBERNATING"
 
 type AppListingRepositoryImpl struct {
 	dbConnection                     *pg.DB
@@ -136,6 +143,27 @@ func (impl AppListingRepositoryImpl) FetchOverviewAppsByEnvironment(envId, limit
 	var envContainers []*bean.AppEnvironmentContainer
 	_, err := impl.dbConnection.Query(&envContainers, query, envId, envId)
 	return envContainers, err
+}
+
+func (impl AppListingRepositoryImpl) FetchLastDeployedImage(appId, envId int) (*LastDeployed, error) {
+	var lastDeployed []*LastDeployed
+	// we are adding a case in the query to concatenate the string "(inactive)" to the users' email id when user is inactive
+	query := `select ca.image as last_deployed_image, 
+			    case
+					when u.active = false then u.email_id || ' (inactive)'
+					else u.email_id
+				end as last_deployed_by 
+				from pipeline p
+                join cd_workflow cw on cw.pipeline_id = p.id
+			  	join cd_workflow_runner cwr on cwr.cd_workflow_id = cw.id
+				join ci_artifact ca on ca.id = cw.ci_artifact_id
+				join users u on u.id = cwr.triggered_by
+				where p.app_id = ? and p.environment_id = ? and p.deleted = false order by cwr.created_on desc;`
+	_, err := impl.dbConnection.Query(&lastDeployed, query, appId, envId)
+	if len(lastDeployed) > 0 {
+		return lastDeployed[0], err
+	}
+	return nil, err
 }
 
 func (impl AppListingRepositoryImpl) FetchJobsLastSucceededOn(CiPipelineIDs []int) ([]*bean.CiPipelineLastSucceededTime, error) {
@@ -373,6 +401,7 @@ func (impl AppListingRepositoryImpl) deploymentDetailsByAppIdAndEnvId(ctx contex
 		" p.deployment_app_delete_request," +
 		" cia.data_source," +
 		" cia.id as ci_artifact_id," +
+		" cia.parent_ci_artifact as parent_artifact_id," +
 		" cl.k8s_version," +
 		" env.cluster_id," +
 		" env.is_virtual_environment," +

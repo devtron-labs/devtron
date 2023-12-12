@@ -6,6 +6,7 @@ type CustomTag struct {
 	TagPattern           string `json:"tagPattern"`
 	AutoIncreasingNumber int    `json:"counterX"`
 	Metadata             string `json:"metadata"`
+	Enabled              bool   `json:"enabled"`
 }
 
 type CustomTagErrorResponse struct {

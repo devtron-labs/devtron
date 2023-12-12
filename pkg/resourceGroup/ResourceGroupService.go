@@ -19,6 +19,7 @@ package resourceGroup
 
 import (
 	"context"
+	appStatusRepo "github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
 	"github.com/devtron-labs/devtron/internal/sql/repository/resourceGroup"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
@@ -32,6 +33,11 @@ import (
 	"time"
 )
 
+const (
+	HibernatingApplicationsResourceGroupName   = "Hibernating Applications"
+	UnhibernatingApplicationsResourceGroupName = "Unhibernating Applications"
+)
+
 type ResourceGroupService interface {
 	GetActiveResourceGroupList(emailId string, checkAuthBatch func(emailId string, appObject []string, action string) map[string]bool, envId int, groupType ResourceGroupType) ([]*ResourceGroupDto, error)
 	//GetApplicationsForResourceGroup(appGroupId int) ([]*ApplicationDto, error)
@@ -42,23 +48,25 @@ type ResourceGroupService interface {
 	DeleteResourceGroup(resourceGroupId int, groupType ResourceGroupType, emailId string, checkAuthBatch func(emailId string, appObject []string, action string) map[string]bool) (bool, error)
 }
 type ResourceGroupServiceImpl struct {
-	logger                         *zap.SugaredLogger
-	resourceGroupRepository        resourceGroup.ResourceGroupRepository
-	resourceGroupMappingRepository resourceGroup.ResourceGroupMappingRepository
-	enforcerUtil                   rbac.EnforcerUtil
-	devtronResourceService         devtronResource.DevtronResourceService
+	logger                              *zap.SugaredLogger
+	resourceGroupRepository             resourceGroup.ResourceGroupRepository
+	resourceGroupMappingRepository      resourceGroup.ResourceGroupMappingRepository
+	enforcerUtil                        rbac.EnforcerUtil
+	devtronResourceSearchableKeyService devtronResource.DevtronResourceSearchableKeyService
+	appStatusRepository                 appStatusRepo.AppStatusRepository
 }
 
 func NewResourceGroupServiceImpl(logger *zap.SugaredLogger, resourceGroupRepository resourceGroup.ResourceGroupRepository,
 	resourceGroupMappingRepository resourceGroup.ResourceGroupMappingRepository, enforcerUtil rbac.EnforcerUtil,
-	devtronResourceService devtronResource.DevtronResourceService,
-) *ResourceGroupServiceImpl {
+	devtronResourceSearchableKeyService devtronResource.DevtronResourceSearchableKeyService,
+	appStatusRepository appStatusRepo.AppStatusRepository) *ResourceGroupServiceImpl {
 	return &ResourceGroupServiceImpl{
-		logger:                         logger,
-		resourceGroupRepository:        resourceGroupRepository,
-		resourceGroupMappingRepository: resourceGroupMappingRepository,
-		enforcerUtil:                   enforcerUtil,
-		devtronResourceService:         devtronResourceService,
+		logger:                              logger,
+		resourceGroupRepository:             resourceGroupRepository,
+		resourceGroupMappingRepository:      resourceGroupMappingRepository,
+		enforcerUtil:                        enforcerUtil,
+		devtronResourceSearchableKeyService: devtronResourceSearchableKeyService,
+		appStatusRepository:                 appStatusRepository,
 	}
 }
 
@@ -129,7 +137,7 @@ type ResourceGroupDto struct {
 
 func (impl *ResourceGroupServiceImpl) CreateResourceGroup(request *ResourceGroupDto) (*ResourceGroupDto, error) {
 
-	resourceKeyToId := impl.devtronResourceService.GetAllSearchableKeyNameIdMap()
+	resourceKeyToId := impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap()
 	err := impl.checkAuthForResourceGroup(request, casbin.ActionCreate)
 	if err != nil {
 		return nil, err
@@ -195,7 +203,7 @@ func (impl *ResourceGroupServiceImpl) CreateResourceGroup(request *ResourceGroup
 
 func (impl *ResourceGroupServiceImpl) UpdateResourceGroup(request *ResourceGroupDto) (*ResourceGroupDto, error) {
 
-	resourceKeyToId := impl.devtronResourceService.GetAllSearchableKeyNameIdMap()
+	resourceKeyToId := impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap()
 
 	// fetching existing resourceIds in resource group
 	mappings, err := impl.resourceGroupMappingRepository.FindByResourceGroupId(request.Id)
@@ -282,12 +290,12 @@ func (impl *ResourceGroupServiceImpl) UpdateResourceGroup(request *ResourceGroup
 	return request, nil
 }
 
-func (impl *ResourceGroupServiceImpl) GetActiveResourceGroupList(emailId string, checkAuthBatch func(emailId string, appObject []string, action string) map[string]bool, parentResourceId int, groupType ResourceGroupType) ([]*ResourceGroupDto, error) {
-	resourceKeyToId := impl.devtronResourceService.GetAllSearchableKeyNameIdMap()
+func (impl *ResourceGroupServiceImpl) GetActiveResourceGroupList(emailId string, checkAuthBatch func(emailId string, appObject []string, action string) map[string]bool,
+	parentResourceId int, groupType ResourceGroupType) ([]*ResourceGroupDto, error) {
+	resourceKeyToId := impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap()
 	resourceGroupDtos := make([]*ResourceGroupDto, 0)
 	var resourceGroupIds []int
 	resourceGroups, err := impl.resourceGroupRepository.FindActiveListByParentResource(parentResourceId, groupType.getResourceKey(resourceKeyToId))
-
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting resource group", "error", err, "id", parentResourceId)
 		return nil, err
@@ -295,6 +303,43 @@ func (impl *ResourceGroupServiceImpl) GetActiveResourceGroupList(emailId string,
 	for _, resourceGroup := range resourceGroups {
 		resourceGroupIds = append(resourceGroupIds, resourceGroup.Id)
 	}
+	// TODO: uncomment below code, once the app status starts getting updated without needing to visit app details page
+	/*if groupType == APP_GROUP {
+		appStatuses, err := impl.appStatusRepository.GetByEnvId(parentResourceId)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in getting appStatuses by envId", "err", err, "envId", parentResourceId)
+			return nil, err
+		}
+		hibernatedAppIds := make([]int, 0, len(appStatuses))
+		unhibernatedAppIds := make([]int, 0, len(appStatuses))
+		for _, appStatus := range appStatuses {
+			if appStatus.Status == appStatus2.HealthStatusHibernatingFilter {
+				hibernatedAppIds = append(hibernatedAppIds, appStatus.AppId)
+			} else {
+				unhibernatedAppIds = append(unhibernatedAppIds, appStatus.AppId)
+			}
+		}
+		if len(hibernatedAppIds) > 0 {
+			resourceGroupDtos = append(resourceGroupDtos, &ResourceGroupDto{
+				Name:             HibernatingApplicationsResourceGroupName,
+				ResourceIds:      hibernatedAppIds,
+				GroupType:        groupType,
+				ParentResourceId: parentResourceId,
+				AppIds:           hibernatedAppIds,
+				EnvironmentId:    parentResourceId,
+			})
+		}
+		if len(unhibernatedAppIds) > 0 {
+			resourceGroupDtos = append(resourceGroupDtos, &ResourceGroupDto{
+				Name:             UnhibernatingApplicationsResourceGroupName,
+				ResourceIds:      unhibernatedAppIds,
+				GroupType:        groupType,
+				ParentResourceId: parentResourceId,
+				AppIds:           unhibernatedAppIds,
+				EnvironmentId:    parentResourceId,
+			})
+		}
+	}*/
 	if len(resourceGroupIds) == 0 {
 		return resourceGroupDtos, nil
 	}

@@ -15,20 +15,17 @@ Bulk edit is currently supported for:
 
 ## Steps:
 
-1.  Click on the `Bulk Edit` option in the main navigation. This is where you can write and execute scripts to perform bulk updates in Devtron objects.
+1. Click on the `Bulk Edit` option in the main navigation. This is where you can write and execute scripts to perform bulk updates in Devtron objects.
  
-![](../.gitbook/assets/bulk-update-empty.png)
-<br>
+  ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/bulk-edit/bulk-update-empty.jpg)
 
-2.  To help you get started, a script template is provided under the `See Samples` section.
+2. To help you get started, a script template is provided under the `See Samples` section.
 
-![](../.gitbook/assets/bulk-update-readme.png)
-<br>
+  ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/bulk-edit/bulk-update-readme.jpg)
 
-3.  Copy and Paste the `Sample Script` in the code editor and make desired changes. Refer `Payload Configuration` in the Readme to understand the parameters.
+3. Copy and Paste the `Sample Script` in the code editor and make desired changes. Refer `Payload Configuration` in the Readme to understand the parameters.
 
-
-![](../.gitbook/assets/bulk-update-script.png)
+  ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/bulk-edit/bulk-update-script.jpg)
 
 ### Example
 Example below will select all applications having `abc and xyz` present in their name and out of those will exclude applications having `abcd and xyza` in their name. Since global flag is false and envId 23 is provided, it will make changes in envId 23 and not in global deployment template for this application.
@@ -90,23 +87,15 @@ The following tables list the configurable parameters of the Payload component i
 | `secret.spec.names`      | Names of all Secrets to be updated. | `secret1`,`secret2`|
 | `configMap.spec.patchJson` / `secret.spec.patchJson`       | String having the update operation for ConfigMaps/Secrets(you can apply more than one changes at a time). It supports [JSON patch ](http://jsonpatch.com/) specifications for update. | `'[{ "op": "add", "path": "/{key}", "value": "{value}" },{"op": "replace","path":"/{key}","value": "{value}"}]'`(Replace the `{key}` part to the key you want to perform operation on & the `{value}`is the key's corresponding value |
 
-
-
 <br>
 
+4. Once you have modified the script, you can click on the `Show Impacted Objects` button to see the names of all applications that will be modified when the script is `Run`.
 
-4.  Once you have modified the script, you can click on the `Show Impacted Objects` button to see the names of all applications that will be modified when the script is `Run`.
+  ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/bulk-edit/bulk-update-impactobj.jpg)
 
+5. Click on the `Run` button to execute the script. Status/Output of the script execution will be shown in the `Output` section of the bottom drawer.
 
-![](../.gitbook/assets/bulk-update-impactobj.png)
-
-<br>
-
-5.  Click on the `Run` button to execute the script. Status/Output of the script execution will be shown in the `Output` section of the bottom drawer.
-
-
-![](../.gitbook/assets/bulk-update-run.png)
-<br>
+  ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/bulk-edit/bulk-update-run.jpg)
 
 
 

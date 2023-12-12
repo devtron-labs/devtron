@@ -8,6 +8,8 @@ import (
 	"github.com/caarlos0/env/v6"
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
+	k8sObjectUtils "github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
+
 	yamlUtil "github.com/devtron-labs/common-lib/utils/yaml"
 	"github.com/devtron-labs/devtron/api/connector"
 	client "github.com/devtron-labs/devtron/api/helm-app"
@@ -863,8 +865,8 @@ func (impl *K8sApplicationServiceImpl) generateDebugContainer(pod *corev1.Pod, r
 		}
 	}
 	ephemeralContainer.Name = ephemeralContainer.Name + "-" + util2.Generate(5)
-	scriptCreateCommand := fmt.Sprintf("echo 'while true; do sleep 600; done;' > %s-devtron.sh", ephemeralContainer.Name)
-	scriptRunCommand := fmt.Sprintf("sh %s-devtron.sh", ephemeralContainer.Name)
+	scriptCreateCommand := fmt.Sprintf("echo 'while true; do sleep 600; done;' > "+k8sObjectUtils.EphemeralContainerStartingShellScriptFileName, ephemeralContainer.Name)
+	scriptRunCommand := fmt.Sprintf("sh "+k8sObjectUtils.EphemeralContainerStartingShellScriptFileName, ephemeralContainer.Name)
 	ephemeralContainer.Command = []string{"sh", "-c", scriptCreateCommand + " && " + scriptRunCommand}
 	copied.Spec.EphemeralContainers = append(copied.Spec.EphemeralContainers, *ephemeralContainer)
 	ephemeralContainer = &copied.Spec.EphemeralContainers[len(copied.Spec.EphemeralContainers)-1]
@@ -887,7 +889,7 @@ func (impl *K8sApplicationServiceImpl) TerminatePodEphemeralContainer(req cluste
 	if container == nil {
 		return false, errors.New("externally created ephemeral containers cannot be removed")
 	}
-	containerKillCommand := fmt.Sprintf("kill -16 $(pgrep -f '%s-devtron' -o)", terminalReq.ContainerName)
+	containerKillCommand := fmt.Sprintf("kill -16 $(pgrep -f '%s' -o)", fmt.Sprintf(k8sObjectUtils.EphemeralContainerStartingShellScriptFileName, terminalReq.ContainerName))
 	cmds := []string{"sh", "-c", containerKillCommand}
 	_, errBuf, err := impl.terminalSession.RunCmdInRemotePod(terminalReq, cmds)
 	if err != nil {

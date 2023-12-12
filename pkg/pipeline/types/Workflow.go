@@ -29,6 +29,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/plugin"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -103,29 +104,33 @@ type WorkflowRequest struct {
 	ImageRetryCount            int                               `json:"imageRetryCount"`
 	ImageRetryInterval         int                               `json:"imageRetryInterval"`
 	// Data from CD Workflow service
-	WorkflowRunnerId         int                                 `json:"workflowRunnerId"`
-	CdPipelineId             int                                 `json:"cdPipelineId"`
-	StageYaml                string                              `json:"stageYaml"`
-	ArtifactLocation         string                              `json:"artifactLocation"`
-	CiArtifactDTO            CiArtifactDTO                       `json:"ciArtifactDTO"`
-	CdImage                  string                              `json:"cdImage"`
-	StageType                string                              `json:"stageType"`
-	CdCacheLocation          string                              `json:"cdCacheLocation"`
-	CdCacheRegion            string                              `json:"cdCacheRegion"`
-	WorkflowPrefixForLog     string                              `json:"workflowPrefixForLog"`
-	DeploymentTriggeredBy    string                              `json:"deploymentTriggeredBy,omitempty"`
-	DeploymentTriggerTime    time.Time                           `json:"deploymentTriggerTime,omitempty"`
-	DeploymentReleaseCounter int                                 `json:"deploymentReleaseCounter,omitempty"`
-	WorkflowExecutor         pipelineConfig.WorkflowExecutorType `json:"workflowExecutor"`
-	PrePostDeploySteps       []*bean.StepObject                  `json:"prePostDeploySteps"`
-	CiArtifactLastFetch      time.Time                           `json:"ciArtifactLastFetch"`
-	CiPipelineType           string                              `json:"ciPipelineType"`
-	UseExternalClusterBlob   bool                                `json:"useExternalClusterBlob"`
-	Type                     bean.WorkflowPipelineType
-	Pipeline                 *pipelineConfig.Pipeline
-	Env                      *repository.Environment
-	AppLabels                map[string]string
-	Scope                    resourceQualifiers.Scope
+	WorkflowRunnerId            int                                   `json:"workflowRunnerId"`
+	CdPipelineId                int                                   `json:"cdPipelineId"`
+	StageYaml                   string                                `json:"stageYaml"`
+	ArtifactLocation            string                                `json:"artifactLocation"`
+	CiArtifactDTO               CiArtifactDTO                         `json:"ciArtifactDTO"`
+	CdImage                     string                                `json:"cdImage"`
+	StageType                   string                                `json:"stageType"`
+	CdCacheLocation             string                                `json:"cdCacheLocation"`
+	CdCacheRegion               string                                `json:"cdCacheRegion"`
+	WorkflowPrefixForLog        string                                `json:"workflowPrefixForLog"`
+	DeploymentTriggeredBy       string                                `json:"deploymentTriggeredBy,omitempty"`
+	DeploymentTriggerTime       time.Time                             `json:"deploymentTriggerTime,omitempty"`
+	DeploymentReleaseCounter    int                                   `json:"deploymentReleaseCounter,omitempty"`
+	WorkflowExecutor            pipelineConfig.WorkflowExecutorType   `json:"workflowExecutor"`
+	PrePostDeploySteps          []*bean.StepObject                    `json:"prePostDeploySteps"`
+	CiArtifactLastFetch         time.Time                             `json:"ciArtifactLastFetch"`
+	CiPipelineType              string                                `json:"ciPipelineType"`
+	UseExternalClusterBlob      bool                                  `json:"useExternalClusterBlob"`
+	RegistryDestinationImageMap map[string][]string                   `json:"registryDestinationImageMap"`
+	RegistryCredentialMap       map[string]plugin.RegistryCredentials `json:"registryCredentialMap"`
+	PluginArtifactStage         string                                `json:"pluginArtifactStage"`
+	PushImageBeforePostCI       bool                                  `json:"pushImageBeforePostCI"`
+	Type                        bean.WorkflowPipelineType
+	Pipeline                    *pipelineConfig.Pipeline
+	Env                         *repository.Environment
+	AppLabels                   map[string]string
+	Scope                       resourceQualifiers.Scope
 }
 
 func (workflowRequest *WorkflowRequest) updateExternalRunMetadata() {
@@ -384,7 +389,7 @@ func (workflowRequest *WorkflowRequest) GetNodeConstraints(config *CiCdConfig) *
 			TaintKey:         config.CiTaintKey,
 			TaintValue:       config.CiTaintValue,
 			NodeLabel:        nodeLabel,
-			SkipNodeSelector: false,
+			SkipNodeSelector: workflowRequest.IsExtRun,
 		}
 	case bean.CD_WORKFLOW_PIPELINE_TYPE:
 		return &bean.NodeConstraints{
@@ -454,7 +459,6 @@ func (workflowRequest *WorkflowRequest) GetWorkflowMainContainer(config *CiCdCon
 		Resources: workflowRequest.GetLimitReqCpuMem(config),
 	}
 	if workflowRequest.Type == bean.CI_WORKFLOW_PIPELINE_TYPE || workflowRequest.Type == bean.JOB_WORKFLOW_PIPELINE_TYPE {
-		workflowMainContainer.Name = ""
 		workflowMainContainer.Ports = []v1.ContainerPort{{
 			//exposed for user specific data from ci container
 			Name:          "app-data",
@@ -623,4 +627,8 @@ type ConfigMapSecretDto struct {
 	Name     string
 	Data     map[string]string
 	OwnerRef v12.OwnerReference
+}
+
+type WorkflowStatus struct {
+	WorkflowName, Status, PodStatus, Message, LogLocation, PodName string
 }

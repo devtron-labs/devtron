@@ -1117,7 +1117,7 @@ func (impl K8sUtil) ListEvents(restConfig *rest.Config, namespace string, groupV
 		impl.logger.Errorw("error in getting dynamic interface for resource", "err", err, "resource", name)
 		return nil, err
 	}
-	groupVersionKind.Kind = "List"
+
 	if !namespaced {
 		namespace = "default"
 	}
@@ -1133,10 +1133,10 @@ func (impl K8sUtil) ListEvents(restConfig *rest.Config, namespace string, groupV
 	}
 	eventsIf := eventsClient.Events(namespace)
 	eventsExp := eventsIf.(v12.EventExpansion)
-	fieldSelector := eventsExp.GetFieldSelector(pointer.StringPtr(name), pointer.StringPtr(namespace), nil, nil)
+	fieldSelector := eventsExp.GetFieldSelector(pointer.StringPtr(name), pointer.StringPtr(namespace), pointer.StringPtr(groupVersionKind.Kind), nil)
 	listOptions := metav1.ListOptions{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       groupVersionKind.Kind,
+			Kind:       "List",
 			APIVersion: groupVersionKind.GroupVersion().String(),
 		},
 		FieldSelector: fieldSelector.String(),
@@ -1274,7 +1274,7 @@ func (impl K8sUtil) PatchResourceRequest(ctx context.Context, restConfig *rest.C
 		impl.logger.Errorw("error in applying resource", "err", err, "resource", name, "namespace", namespace)
 		return nil, err
 	}
-	return &ManifestResponse{*resp}, nil
+	return &ManifestResponse{Manifest: *resp}, nil
 }
 
 // if verb is supplied empty, that means - return all
@@ -1368,7 +1368,7 @@ func (impl *K8sUtil) CreateResources(ctx context.Context, restConfig *rest.Confi
 		impl.logger.Errorw("error in creating resource", "err", err, "namespace", namespace)
 		return nil, err
 	}
-	return &ManifestResponse{*resp}, nil
+	return &ManifestResponse{Manifest: *resp}, nil
 }
 func (impl *K8sUtil) GetResource(ctx context.Context, namespace string, name string, gvk schema.GroupVersionKind, restConfig *rest.Config) (*ManifestResponse, error) {
 	resourceIf, namespaced, err := impl.GetResourceIf(restConfig, gvk)
@@ -1386,7 +1386,7 @@ func (impl *K8sUtil) GetResource(ctx context.Context, namespace string, name str
 		impl.logger.Errorw("error in getting resource", "err", err, "resource", name, "namespace", namespace)
 		return nil, err
 	}
-	return &ManifestResponse{*resp}, nil
+	return &ManifestResponse{Manifest: *resp}, nil
 }
 func (impl *K8sUtil) UpdateResource(ctx context.Context, restConfig *rest.Config, gvk schema.GroupVersionKind, namespace string, k8sRequestPatch string) (*ManifestResponse, error) {
 
@@ -1411,7 +1411,7 @@ func (impl *K8sUtil) UpdateResource(ctx context.Context, restConfig *rest.Config
 		impl.logger.Errorw("error in updating resource", "err", err, "namespace", namespace)
 		return nil, err
 	}
-	return &ManifestResponse{*resp}, nil
+	return &ManifestResponse{Manifest: *resp}, nil
 }
 
 func (impl *K8sUtil) DeleteResource(ctx context.Context, restConfig *rest.Config, gvk schema.GroupVersionKind, namespace string, name string, forceDelete bool) (*ManifestResponse, error) {
@@ -1444,7 +1444,7 @@ func (impl *K8sUtil) DeleteResource(ctx context.Context, restConfig *rest.Config
 		impl.logger.Errorw("error in deleting resource", "err", err, "resource", name, "namespace", namespace)
 		return nil, err
 	}
-	return &ManifestResponse{*obj}, nil
+	return &ManifestResponse{Manifest: *obj}, nil
 }
 
 func (impl *K8sUtil) DecodeGroupKindversion(data string) (*schema.GroupVersionKind, error) {

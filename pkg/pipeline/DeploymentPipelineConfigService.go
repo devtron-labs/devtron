@@ -56,6 +56,7 @@ import (
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -108,7 +109,6 @@ type CdPipelineConfigService interface {
 	GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, offset int, size int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool), ctx context.Context) (*cluster.ResourceGroupingResponse, error)
 	IsGitopsConfigured() (bool, error)
 	RegisterInACD(gitOpsRepoName string, chartGitAttr *util.ChartGitAttribute, userId int32, ctx context.Context) error
-	CreateExternalCiAndAppWorkflowMapping(appId, appWorkflowId int, userId int32, tx *pg.Tx) (int, error)
 }
 
 type CdPipelineConfigServiceImpl struct {
@@ -140,8 +140,11 @@ type CdPipelineConfigServiceImpl struct {
 	scopedVariableManager            variables.ScopedVariableManager
 	deploymentConfig                 *DeploymentServiceTypeConfig
 	application                      application.ServiceClient
-
-	devtronAppCMCSService DevtronAppCMCSService
+	customTagService                 CustomTagService
+	pipelineConfigListenerService    PipelineConfigListenerService
+	devtronAppCMCSService            DevtronAppCMCSService
+	ciPipelineConfigService          CiPipelineConfigService
+	buildPipelineSwitchService       BuildPipelineSwitchService
 }
 
 func NewCdPipelineConfigServiceImpl(
@@ -173,8 +176,11 @@ func NewCdPipelineConfigServiceImpl(
 	scopedVariableManager variables.ScopedVariableManager,
 	deploymentConfig *DeploymentServiceTypeConfig,
 	application application.ServiceClient,
-
-	devtronAppCMCSService DevtronAppCMCSService) *CdPipelineConfigServiceImpl {
+	customTagService CustomTagService,
+	pipelineConfigListenerService PipelineConfigListenerService,
+	devtronAppCMCSService DevtronAppCMCSService,
+	ciPipelineConfigService CiPipelineConfigService,
+	buildPipelineSwitchService BuildPipelineSwitchService) *CdPipelineConfigServiceImpl {
 	return &CdPipelineConfigServiceImpl{
 		logger:                           logger,
 		pipelineRepository:               pipelineRepository,
@@ -204,7 +210,11 @@ func NewCdPipelineConfigServiceImpl(
 		scopedVariableManager:            scopedVariableManager,
 		deploymentConfig:                 deploymentConfig,
 		application:                      application,
+		pipelineConfigListenerService:    pipelineConfigListenerService,
 		devtronAppCMCSService:            devtronAppCMCSService,
+		customTagService:                 customTagService,
+		ciPipelineConfigService:          ciPipelineConfigService,
+		buildPipelineSwitchService:       buildPipelineSwitchService,
 	}
 }
 
@@ -261,6 +271,7 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelineById(pipelineId int) (cdPi
 			return nil, err
 		}
 	}
+
 	if dbPipeline.PostStageConfigMapSecretNames != "" {
 		err = json.Unmarshal([]byte(dbPipeline.PostStageConfigMapSecretNames), &postStageConfigmapSecrets)
 		if err != nil {
@@ -272,6 +283,36 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelineById(pipelineId int) (cdPi
 	if err != nil {
 		return nil, err
 	}
+
+	var customTag *bean.CustomTagData
+	var customTagStage repository5.PipelineStageType
+	var customTagEnabled bool
+	customTagPreCD, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(bean3.EntityTypePreCD, strconv.Itoa(pipelineId))
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching custom Tag precd")
+		return nil, err
+	}
+	customTagPostCD, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(bean3.EntityTypePostCD, strconv.Itoa(pipelineId))
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching custom Tag precd")
+		return nil, err
+	}
+	if customTagPreCD != nil && customTagPreCD.Id > 0 {
+		customTag = &bean.CustomTagData{TagPattern: customTagPreCD.TagPattern,
+			CounterX: customTagPreCD.AutoIncreasingNumber,
+			Enabled:  customTagPreCD.Enabled,
+		}
+		customTagStage = repository5.PIPELINE_STAGE_TYPE_PRE_CD
+		customTagEnabled = customTagPreCD.Enabled
+	} else if customTagPostCD != nil && customTagPostCD.Id > 0 {
+		customTag = &bean.CustomTagData{TagPattern: customTagPostCD.TagPattern,
+			CounterX: customTagPostCD.AutoIncreasingNumber,
+			Enabled:  customTagPostCD.Enabled,
+		}
+		customTagStage = repository5.PIPELINE_STAGE_TYPE_POST_CD
+		customTagEnabled = customTagPostCD.Enabled
+	}
+
 	cdPipeline = &bean.CDPipelineConfigObject{
 		Id:                            dbPipeline.Id,
 		Name:                          dbPipeline.Name,
@@ -293,6 +334,10 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelineById(pipelineId int) (cdPi
 		DeploymentAppType:             dbPipeline.DeploymentAppType,
 		DeploymentAppCreated:          dbPipeline.DeploymentAppCreated,
 		IsVirtualEnvironment:          dbPipeline.Environment.IsVirtualEnvironment,
+		CustomTagObject:               customTag,
+		CustomTagStage:                &customTagStage,
+		EnableCustomTag:               customTagEnabled,
+		AppId:                         dbPipeline.AppId,
 	}
 	var preDeployStage *bean3.PipelineStageDto
 	var postDeployStage *bean3.PipelineStageDto
@@ -313,6 +358,10 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 	isGitOpsConfigured, err := impl.IsGitopsConfigured()
 
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
+		// skip creation of pipeline if envId is not set
+		if pipeline.EnvironmentId <= 0 {
+			continue
+		}
 		// if no deployment app type sent from user then we'll not validate
 		deploymentConfig, err := impl.devtronAppCMCSService.GetDeploymentConfigMap(pipeline.EnvironmentId)
 		if err != nil {
@@ -366,26 +415,159 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 			return nil, err
 		}
 		pipeline.Id = id
-
-		//creating pipeline_stage entry here after tx commit due to FK issue
-		if pipeline.PreDeployStage != nil && len(pipeline.PreDeployStage.Steps) > 0 {
-			err = impl.pipelineStageService.CreatePipelineStage(pipeline.PreDeployStage, repository5.PIPELINE_STAGE_TYPE_PRE_CD, id, pipelineCreateRequest.UserId)
-			if err != nil {
-				impl.logger.Errorw("error in creating pre-cd stage", "err", err, "preCdStage", pipeline.PreDeployStage, "pipelineId", id)
-				return nil, err
+		//go for stage creation if pipeline is created above
+		if pipeline.Id > 0 {
+			//creating pipeline_stage entry here after tx commit due to FK issue
+			if pipeline.PreDeployStage != nil && len(pipeline.PreDeployStage.Steps) > 0 {
+				err = impl.pipelineStageService.CreatePipelineStage(pipeline.PreDeployStage, repository5.PIPELINE_STAGE_TYPE_PRE_CD, id, pipelineCreateRequest.UserId)
+				if err != nil {
+					impl.logger.Errorw("error in creating pre-cd stage", "err", err, "preCdStage", pipeline.PreDeployStage, "pipelineId", id)
+					return nil, err
+				}
+			}
+			if pipeline.PostDeployStage != nil && len(pipeline.PostDeployStage.Steps) > 0 {
+				err = impl.pipelineStageService.CreatePipelineStage(pipeline.PostDeployStage, repository5.PIPELINE_STAGE_TYPE_POST_CD, id, pipelineCreateRequest.UserId)
+				if err != nil {
+					impl.logger.Errorw("error in creating post-cd stage", "err", err, "postCdStage", pipeline.PostDeployStage, "pipelineId", id)
+					return nil, err
+				}
 			}
 		}
-		if pipeline.PostDeployStage != nil && len(pipeline.PostDeployStage.Steps) > 0 {
-			err = impl.pipelineStageService.CreatePipelineStage(pipeline.PostDeployStage, repository5.PIPELINE_STAGE_TYPE_POST_CD, id, pipelineCreateRequest.UserId)
-			if err != nil {
-				impl.logger.Errorw("error in creating post-cd stage", "err", err, "postCdStage", pipeline.PostDeployStage, "pipelineId", id)
-				return nil, err
-			}
-		}
-
 	}
-
 	return pipelineCreateRequest, nil
+}
+
+func (impl *CdPipelineConfigServiceImpl) CDPipelineCustomTagDBOperations(pipeline *bean.CDPipelineConfigObject) error {
+
+	if pipeline.EnableCustomTag && (pipeline.CustomTagObject != nil && len(pipeline.CustomTagObject.TagPattern) == 0) {
+		return fmt.Errorf("please provide custom tag data if tag is enabled")
+	}
+	if pipeline.CustomTagObject != nil && pipeline.CustomTagObject.CounterX < 0 {
+		return fmt.Errorf("value of {x} cannot be negative")
+	}
+	if !pipeline.EnableCustomTag {
+		// disable custom tag if exist
+		err := impl.DisableCustomTag(pipeline)
+		if err != nil {
+			return err
+		}
+		return nil
+	} else {
+		err := impl.SaveOrUpdateCustomTagForCDPipeline(pipeline)
+		if err != nil {
+			impl.logger.Errorw("error in creating custom tag for pipeline stage", "err", err)
+			return err
+		}
+	}
+	if *pipeline.CustomTagStage == repository5.PIPELINE_STAGE_TYPE_POST_CD {
+		// delete entry for post stage if any
+		preCDStageName := repository5.PIPELINE_STAGE_TYPE_PRE_CD
+		err := impl.DeleteCustomTagByPipelineStageType(&preCDStageName, pipeline.Id)
+		if err != nil {
+			return err
+		}
+	} else if *pipeline.CustomTagStage == repository5.PIPELINE_STAGE_TYPE_PRE_CD {
+		postCdStageName := repository5.PIPELINE_STAGE_TYPE_POST_CD
+		err := impl.DeleteCustomTagByPipelineStageType(&postCdStageName, pipeline.Id)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (impl *CdPipelineConfigServiceImpl) DeleteCustomTag(pipeline *bean.CDPipelineConfigObject) error {
+	preStage := repository5.PIPELINE_STAGE_TYPE_PRE_CD
+	postStage := repository5.PIPELINE_STAGE_TYPE_POST_CD
+	err := impl.DeleteCustomTagByPipelineStageType(&preStage, pipeline.Id)
+	if err != nil {
+		return err
+	}
+	err = impl.DeleteCustomTagByPipelineStageType(&postStage, pipeline.Id)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (impl *CdPipelineConfigServiceImpl) DisableCustomTag(pipeline *bean.CDPipelineConfigObject) error {
+	preStage := repository5.PIPELINE_STAGE_TYPE_PRE_CD
+	postStage := repository5.PIPELINE_STAGE_TYPE_POST_CD
+	err := impl.DisableCustomTagByPipelineStageType(&preStage, pipeline.Id)
+	if err != nil {
+		return err
+	}
+	err = impl.DisableCustomTagByPipelineStageType(&postStage, pipeline.Id)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (impl *CdPipelineConfigServiceImpl) DeleteCustomTagByPipelineStageType(pipelineStageType *repository5.PipelineStageType, pipelineId int) error {
+	err := impl.customTagService.DeleteCustomTagIfExists(
+		bean2.CustomTag{EntityKey: getEntityTypeByPipelineStageType(*pipelineStageType),
+			EntityValue: fmt.Sprintf("%d", pipelineId),
+		})
+	if err != nil {
+		impl.logger.Errorw("error in deleting custom tag for pre stage", "err", err, "pipeline-id", pipelineId)
+		return err
+	}
+	return nil
+}
+
+func (impl *CdPipelineConfigServiceImpl) DisableCustomTagByPipelineStageType(pipelineStageType *repository5.PipelineStageType, pipelineId int) error {
+	err := impl.customTagService.DisableCustomTagIfExist(
+		bean2.CustomTag{EntityKey: getEntityTypeByPipelineStageType(*pipelineStageType),
+			EntityValue: fmt.Sprintf("%d", pipelineId),
+		})
+	if err != nil {
+		impl.logger.Errorw("error in deleting custom tag for pre stage", "err", err, "pipeline-id", pipelineId)
+		return err
+	}
+	return nil
+}
+
+func (impl *CdPipelineConfigServiceImpl) SaveOrUpdateCustomTagForCDPipeline(pipeline *bean.CDPipelineConfigObject) error {
+	customTag, err := impl.ParseCustomTagPatchRequest(pipeline)
+	if err != nil {
+		impl.logger.Errorw("err", err)
+		return err
+	}
+	err = impl.customTagService.CreateOrUpdateCustomTag(customTag)
+	if err != nil {
+		impl.logger.Errorw("error in creating custom tag", "err", err)
+		return err
+	}
+	return nil
+}
+
+func (impl *CdPipelineConfigServiceImpl) ParseCustomTagPatchRequest(pipelineRequest *bean.CDPipelineConfigObject) (*bean2.CustomTag, error) {
+	entityType := getEntityTypeByPipelineStageType(*pipelineRequest.CustomTagStage)
+	if entityType == 0 {
+		return nil, fmt.Errorf("invalid stage for cd pipeline custom tag; pipelineStageType: %s ", string(*pipelineRequest.CustomTagStage))
+	}
+	customTag := &bean2.CustomTag{
+		EntityKey:            entityType,
+		EntityValue:          fmt.Sprintf("%d", pipelineRequest.Id),
+		TagPattern:           pipelineRequest.CustomTagObject.TagPattern,
+		AutoIncreasingNumber: pipelineRequest.CustomTagObject.CounterX,
+		Metadata:             "",
+		Enabled:              pipelineRequest.EnableCustomTag,
+	}
+	return customTag, nil
+}
+
+func getEntityTypeByPipelineStageType(pipelineStageType repository5.PipelineStageType) (customTagEntityType int) {
+	switch pipelineStageType {
+	case repository5.PIPELINE_STAGE_TYPE_PRE_CD:
+		customTagEntityType = bean3.EntityTypePreCD
+	case repository5.PIPELINE_STAGE_TYPE_POST_CD:
+		customTagEntityType = bean3.EntityTypePostCD
+	default:
+		customTagEntityType = bean3.EntityNull
+	}
+	return customTagEntityType
 }
 
 func (impl *CdPipelineConfigServiceImpl) PatchCdPipelines(cdPipelines *bean.CDPatchRequest, ctx context.Context) (*bean.CdPipelines, error) {
@@ -451,6 +633,7 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 	if len(clusterBean.ErrorInConnecting) > 0 {
 		deleteResponse.ClusterReachable = false
 	}
+
 	//getting children CD pipeline details
 	childNodes, err := impl.appWorkflowRepository.FindWFCDMappingByParentCDPipelineId(pipeline.Id)
 	if err != nil && err != pg.ErrNoRows {
@@ -578,6 +761,26 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 			return deleteResponse, err
 		}
 	}
+	if cdPipelinePluginDeleteReq.PreDeployStage != nil {
+		tag := bean2.CustomTag{
+			EntityKey:   bean3.EntityTypePreCD,
+			EntityValue: strconv.Itoa(pipeline.Id),
+		}
+		err = impl.customTagService.DeleteCustomTagIfExists(tag)
+		if err != nil {
+			impl.logger.Errorw("error in deleting custom tag for pre-cd stage", "Err", err, "cd-pipeline-id", pipeline.Id)
+		}
+	}
+	if cdPipelinePluginDeleteReq.PostDeployStage != nil {
+		tag := bean2.CustomTag{
+			EntityKey:   bean3.EntityTypePostCD,
+			EntityValue: strconv.Itoa(pipeline.Id),
+		}
+		err = impl.customTagService.DeleteCustomTagIfExists(tag)
+		if err != nil {
+			impl.logger.Errorw("error in deleting custom tag for pre-cd stage", "Err", err, "cd-pipeline-id", pipeline.Id)
+		}
+	}
 	//delete app from argo cd, if created
 	if pipeline.DeploymentAppCreated == true {
 		deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
@@ -643,6 +846,7 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 		return deleteResponse, err
 	}
 	deleteResponse.DeleteInitiated = true
+	impl.pipelineConfigListenerService.HandleCdPipelineDelete(pipeline.Id, userId)
 	return deleteResponse, nil
 }
 
@@ -778,6 +982,34 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesForApp(appId int) (cdPipe
 				deploymentTemplate = item.Strategy
 			}
 		}
+		var customTag *bean.CustomTagData
+		var customTagStage repository5.PipelineStageType
+		var customTagEnabled bool
+		customTagPreCD, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(bean3.EntityTypePreCD, strconv.Itoa(dbPipeline.Id))
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in fetching custom Tag precd")
+			return nil, err
+		}
+		customTagPostCD, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(bean3.EntityTypePostCD, strconv.Itoa(dbPipeline.Id))
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in fetching custom Tag precd")
+			return nil, err
+		}
+		if customTagPreCD != nil && customTagPreCD.Id > 0 {
+			customTag = &bean.CustomTagData{TagPattern: customTagPreCD.TagPattern,
+				CounterX: customTagPreCD.AutoIncreasingNumber,
+				Enabled:  customTagPreCD.Enabled,
+			}
+			customTagStage = repository5.PIPELINE_STAGE_TYPE_PRE_CD
+			customTagEnabled = customTagPreCD.Enabled
+		} else if customTagPostCD != nil && customTagPostCD.Id > 0 {
+			customTag = &bean.CustomTagData{TagPattern: customTagPostCD.TagPattern,
+				CounterX: customTagPostCD.AutoIncreasingNumber,
+				Enabled:  customTagPostCD.Enabled,
+			}
+			customTagStage = repository5.PIPELINE_STAGE_TYPE_POST_CD
+			customTagEnabled = customTagPostCD.Enabled
+		}
 		pipeline := &bean.CDPipelineConfigObject{
 			Id:                            dbPipeline.Id,
 			Name:                          dbPipeline.Name,
@@ -801,6 +1033,9 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesForApp(appId int) (cdPipe
 			IsVirtualEnvironment:          dbPipeline.IsVirtualEnvironment,
 			PreDeployStage:                dbPipeline.PreDeployStage,
 			PostDeployStage:               dbPipeline.PostDeployStage,
+			CustomTagObject:               customTag,
+			CustomTagStage:                &customTagStage,
+			EnableCustomTag:               customTagEnabled,
 		}
 		pipelines = append(pipelines, pipeline)
 	}
@@ -890,6 +1125,29 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesByEnvironment(request res
 	}
 
 	for _, dbPipeline := range authorizedPipelines {
+		var customTag *bean.CustomTagData
+		var customTagStage repository5.PipelineStageType
+		customTagPreCD, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(bean3.EntityTypePreCD, strconv.Itoa(dbPipeline.Id))
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in fetching custom Tag precd")
+			return nil, err
+		}
+		customTagPostCD, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(bean3.EntityTypePostCD, strconv.Itoa(dbPipeline.Id))
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in fetching custom Tag precd")
+			return nil, err
+		}
+		if customTagPreCD != nil && customTagPreCD.Id > 0 {
+			customTag = &bean.CustomTagData{TagPattern: customTagPreCD.TagPattern,
+				CounterX: customTagPreCD.AutoIncreasingNumber,
+			}
+			customTagStage = repository5.PIPELINE_STAGE_TYPE_PRE_CD
+		} else if customTagPostCD != nil && customTagPostCD.Id > 0 {
+			customTag = &bean.CustomTagData{TagPattern: customTagPostCD.TagPattern,
+				CounterX: customTagPostCD.AutoIncreasingNumber,
+			}
+			customTagStage = repository5.PIPELINE_STAGE_TYPE_POST_CD
+		}
 		pipeline := &bean.CDPipelineConfigObject{
 			Id:                            dbPipeline.Id,
 			Name:                          dbPipeline.Name,
@@ -912,6 +1170,8 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesByEnvironment(request res
 			IsVirtualEnvironment:          dbPipeline.IsVirtualEnvironment,
 			PreDeployStage:                dbPipeline.PreDeployStage,
 			PostDeployStage:               dbPipeline.PostDeployStage,
+			CustomTagObject:               customTag,
+			CustomTagStage:                &customTagStage,
 		}
 		pipelines = append(pipelines, pipeline)
 	}
@@ -1089,7 +1349,7 @@ func (impl *CdPipelineConfigServiceImpl) IsGitOpsRequiredForCD(pipelineCreateReq
 
 	haveAtLeastOneGitOps := false
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
-		if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
+		if pipeline.EnvironmentId > 0 && pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
 			haveAtLeastOneGitOps = true
 		}
 	}
@@ -1382,130 +1642,147 @@ func (impl *CdPipelineConfigServiceImpl) createCdPipeline(ctx context.Context, a
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
-	if pipeline.AppWorkflowId == 0 && pipeline.ParentPipelineType == "WEBHOOK" {
-		wf := &appWorkflow.AppWorkflow{
-			Name:     fmt.Sprintf("wf-%d-%s", app.Id, util2.Generate(4)),
-			AppId:    app.Id,
-			Active:   true,
-			AuditLog: sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
+	if (pipeline.AppWorkflowId == 0 || pipeline.IsSwitchCiPipelineRequest()) && pipeline.ParentPipelineType == "WEBHOOK" {
+		if pipeline.AppWorkflowId == 0 {
+			wf := &appWorkflow.AppWorkflow{
+				Name:     fmt.Sprintf("wf-%d-%s", app.Id, util2.Generate(4)),
+				AppId:    app.Id,
+				Active:   true,
+				AuditLog: sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
+			}
+			savedAppWf, err := impl.appWorkflowRepository.SaveAppWorkflowWithTx(wf, tx)
+			if err != nil {
+				impl.logger.Errorw("error in saving app workflow", "appId", app.Id, "err", err)
+				return 0, err
+			}
+			pipeline.AppWorkflowId = savedAppWf.Id
 		}
-		savedAppWf, err := impl.appWorkflowRepository.SaveAppWorkflowWithTx(wf, tx)
-		if err != nil {
-			impl.logger.Errorw("error in saving app workflow", "appId", app.Id, "err", err)
-			return 0, err
-		}
-		externalCiPipelineId, err := impl.CreateExternalCiAndAppWorkflowMapping(app.Id, savedAppWf.Id, userId, tx)
+		externalCiPipelineId, appWorkflowMapping, err := impl.ciPipelineConfigService.CreateExternalCiAndAppWorkflowMapping(app.Id, pipeline.AppWorkflowId, userId, tx)
 		if err != nil {
 			impl.logger.Errorw("error in creating new external ci pipeline and new app workflow mapping", "appId", app.Id, "err", err)
 			return 0, err
 		}
+		if pipeline.IsSwitchCiPipelineRequest() {
+			err = impl.buildPipelineSwitchService.SwitchToExternalCi(tx, appWorkflowMapping, pipeline.SwitchFromCiPipelineId, userId)
+			if err != nil {
+				impl.logger.Errorw("error in switching external ci", "appId", app.Id, "switchFromExternalCiPipelineId", pipeline.SwitchFromCiPipelineId, "userId", userId, "err", err)
+				return 0, err
+			}
+		}
 		pipeline.ParentPipelineId = externalCiPipelineId
-		pipeline.AppWorkflowId = savedAppWf.Id
 	}
 
-	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(app.Id)
-	if err != nil {
-		return 0, err
-	}
-	envOverride, err := impl.propertiesConfigService.CreateIfRequired(chart, pipeline.EnvironmentId, userId, false, models.CHARTSTATUS_NEW, false, false, pipeline.Namespace, chart.IsBasicViewLocked, chart.CurrentViewEditor, tx)
-	if err != nil {
-		return 0, err
-	}
-
-	// Get pipeline override based on Deployment strategy
-	//TODO: mark as created in our db
-	pipelineId, err := impl.ciCdPipelineOrchestrator.CreateCDPipelines(pipeline, app.Id, userId, tx, app.AppName)
-	if err != nil {
-		impl.logger.Errorw("error in creating cd pipeline", "appId", app.Id, "pipeline", pipeline)
-		return 0, err
-	}
-	if pipeline.RefPipelineId > 0 {
-		pipeline.SourceToNewPipelineId[pipeline.RefPipelineId] = pipelineId
-	}
-
-	//adding pipeline to workflow
-	_, err = impl.appWorkflowRepository.FindByIdAndAppId(pipeline.AppWorkflowId, app.Id)
-	if err != nil && err != pg.ErrNoRows {
-		return 0, err
-	}
-	if pipeline.AppWorkflowId > 0 {
-		var parentPipelineId int
-		var parentPipelineType string
-
-		if pipeline.ParentPipelineId == 0 {
-			parentPipelineId = pipeline.CiPipelineId
-			parentPipelineType = "CI_PIPELINE"
-		} else {
-			parentPipelineId = pipeline.ParentPipelineId
-			parentPipelineType = pipeline.ParentPipelineType
-			if pipeline.ParentPipelineType != appWorkflow.WEBHOOK && pipeline.RefPipelineId > 0 && len(pipeline.SourceToNewPipelineId) > 0 {
-				parentPipelineId = pipeline.SourceToNewPipelineId[pipeline.ParentPipelineId]
-			}
-		}
-		appWorkflowMap := &appWorkflow.AppWorkflowMapping{
-			AppWorkflowId: pipeline.AppWorkflowId,
-			ParentId:      parentPipelineId,
-			ParentType:    parentPipelineType,
-			ComponentId:   pipelineId,
-			Type:          "CD_PIPELINE",
-			Active:        true,
-			AuditLog:      sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
-		}
-		_, err = impl.appWorkflowRepository.SaveAppWorkflowMapping(appWorkflowMap, tx)
+	// do not create the pipeline if environment is not set
+	pipelineId := 0
+	if pipeline.EnvironmentId > 0 {
+		chart, err := impl.chartRepository.FindLatestChartForAppByAppId(app.Id)
 		if err != nil {
 			return 0, err
 		}
-	}
-	//getting global app metrics for cd pipeline create because env level metrics is not created yet
-	appLevelAppMetricsEnabled := false
-	appLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(app.Id)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in getting app level metrics app level", "error", err)
-	} else if err == nil {
-		appLevelAppMetricsEnabled = appLevelMetrics.AppMetrics
-	}
-	err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(envOverride, tx, appLevelAppMetricsEnabled, pipelineId)
-	if err != nil {
-		impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", envOverride)
-		return 0, err
-	}
-	//VARIABLE_MAPPING_UPDATE
-	err = impl.scopedVariableManager.ExtractAndMapVariables(envOverride.EnvOverrideValues, envOverride.Id, repository3.EntityTypeDeploymentTemplateEnvLevel, envOverride.UpdatedBy, tx)
-	if err != nil {
-		return 0, err
-	}
-	// strategies for pipeline ids, there is only one is default
-	defaultCount := 0
-	for _, item := range pipeline.Strategies {
-		if item.Default {
-			defaultCount = defaultCount + 1
-			if defaultCount > 1 {
-				impl.logger.Warnw("already have one strategy is default in this pipeline", "strategy", item.DeploymentTemplate)
-				item.Default = false
-			}
-		}
-		strategy := &chartConfig.PipelineStrategy{
-			PipelineId: pipelineId,
-			Strategy:   item.DeploymentTemplate,
-			Config:     string(item.Config),
-			Default:    item.Default,
-			Deleted:    false,
-			AuditLog:   sql.AuditLog{UpdatedBy: userId, CreatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
-		}
-		err = impl.pipelineConfigRepository.Save(strategy, tx)
+		envOverride, err := impl.propertiesConfigService.CreateIfRequired(chart, pipeline.EnvironmentId, userId, false, models.CHARTSTATUS_NEW, false, false, pipeline.Namespace, chart.IsBasicViewLocked, chart.CurrentViewEditor, tx)
 		if err != nil {
-			impl.logger.Errorw("error in saving strategy", "strategy", item.DeploymentTemplate)
-			return pipelineId, fmt.Errorf("pipeline created but failed to add strategy")
-		}
-		//creating history entry for strategy
-		_, err = impl.pipelineStrategyHistoryService.CreatePipelineStrategyHistory(strategy, pipeline.TriggerType, tx)
-		if err != nil {
-			impl.logger.Errorw("error in creating strategy history entry", "err", err)
 			return 0, err
 		}
 
-	}
+		// Get pipeline override based on Deployment strategy
+		//TODO: mark as created in our db
+		pipelineId, err = impl.ciCdPipelineOrchestrator.CreateCDPipelines(pipeline, app.Id, userId, tx, app.AppName)
+		if err != nil {
+			impl.logger.Errorw("error in creating cd pipeline", "appId", app.Id, "pipeline", pipeline)
+			return 0, err
+		}
+		if pipeline.RefPipelineId > 0 {
+			pipeline.SourceToNewPipelineId[pipeline.RefPipelineId] = pipelineId
+		}
 
+		//adding pipeline to workflow
+		_, err = impl.appWorkflowRepository.FindByIdAndAppId(pipeline.AppWorkflowId, app.Id)
+		if err != nil && err != pg.ErrNoRows {
+			return 0, err
+		}
+		if pipeline.AppWorkflowId > 0 {
+			var parentPipelineId int
+			var parentPipelineType string
+
+			if pipeline.ParentPipelineId == 0 {
+				parentPipelineId = pipeline.CiPipelineId
+				parentPipelineType = "CI_PIPELINE"
+			} else {
+				parentPipelineId = pipeline.ParentPipelineId
+				parentPipelineType = pipeline.ParentPipelineType
+				if pipeline.ParentPipelineType != appWorkflow.WEBHOOK && pipeline.RefPipelineId > 0 && len(pipeline.SourceToNewPipelineId) > 0 {
+					parentPipelineId = pipeline.SourceToNewPipelineId[pipeline.ParentPipelineId]
+				}
+			}
+			appWorkflowMap := &appWorkflow.AppWorkflowMapping{
+				AppWorkflowId: pipeline.AppWorkflowId,
+				ParentId:      parentPipelineId,
+				ParentType:    parentPipelineType,
+				ComponentId:   pipelineId,
+				Type:          "CD_PIPELINE",
+				Active:        true,
+				AuditLog:      sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
+			}
+			_, err = impl.appWorkflowRepository.SaveAppWorkflowMapping(appWorkflowMap, tx)
+			if err != nil {
+				return 0, err
+			}
+		}
+		//getting global app metrics for cd pipeline create because env level metrics is not created yet
+		appLevelAppMetricsEnabled := false
+		appLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(app.Id)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in getting app level metrics app level", "error", err)
+		} else if err == nil {
+			appLevelAppMetricsEnabled = appLevelMetrics.AppMetrics
+		}
+		err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(envOverride, tx, appLevelAppMetricsEnabled, pipelineId)
+		if err != nil {
+			impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", envOverride)
+			return 0, err
+		}
+		//VARIABLE_MAPPING_UPDATE
+		err = impl.scopedVariableManager.ExtractAndMapVariables(envOverride.EnvOverrideValues, envOverride.Id, repository3.EntityTypeDeploymentTemplateEnvLevel, envOverride.UpdatedBy, tx)
+		if err != nil {
+			return 0, err
+		}
+		// strategies for pipeline ids, there is only one is default
+		defaultCount := 0
+		for _, item := range pipeline.Strategies {
+			if item.Default {
+				defaultCount = defaultCount + 1
+				if defaultCount > 1 {
+					impl.logger.Warnw("already have one strategy is default in this pipeline", "strategy", item.DeploymentTemplate)
+					item.Default = false
+				}
+			}
+			strategy := &chartConfig.PipelineStrategy{
+				PipelineId: pipelineId,
+				Strategy:   item.DeploymentTemplate,
+				Config:     string(item.Config),
+				Default:    item.Default,
+				Deleted:    false,
+				AuditLog:   sql.AuditLog{UpdatedBy: userId, CreatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
+			}
+			err = impl.pipelineConfigRepository.Save(strategy, tx)
+			if err != nil {
+				impl.logger.Errorw("error in saving strategy", "strategy", item.DeploymentTemplate)
+				return pipelineId, fmt.Errorf("pipeline created but failed to add strategy")
+			}
+			//creating history entry for strategy
+			_, err = impl.pipelineStrategyHistoryService.CreatePipelineStrategyHistory(strategy, pipeline.TriggerType, tx)
+			if err != nil {
+				impl.logger.Errorw("error in creating strategy history entry", "err", err)
+				return 0, err
+			}
+
+		}
+	}
+	// save custom tag data
+	err = impl.CDPipelineCustomTagDBOperations(pipeline)
+	if err != nil {
+		return pipelineId, err
+	}
 	err = tx.Commit()
 	if err != nil {
 		return 0, err
@@ -1540,7 +1817,7 @@ func (impl *CdPipelineConfigServiceImpl) updateCdPipeline(ctx context.Context, p
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
-	err = impl.ciCdPipelineOrchestrator.UpdateCDPipeline(pipeline, userID, tx)
+	dbPipelineObj, err := impl.ciCdPipelineOrchestrator.UpdateCDPipeline(pipeline, userID, tx)
 	if err != nil {
 		impl.logger.Errorw("error in updating pipeline")
 		return err
@@ -1621,6 +1898,13 @@ func (impl *CdPipelineConfigServiceImpl) updateCdPipeline(ctx context.Context, p
 				return err
 			}
 		}
+	}
+	// update custom tag data
+	pipeline.Id = dbPipelineObj.Id // pipeline object is request received from FE
+	err = impl.CDPipelineCustomTagDBOperations(pipeline)
+	if err != nil {
+		impl.logger.Errorw("error in updating custom tag data for pipeline", "err", err)
+		return err
 	}
 	err = tx.Commit()
 	if err != nil {
@@ -1793,31 +2077,4 @@ func (impl *CdPipelineConfigServiceImpl) BulkDeleteCdPipelines(impactedPipelines
 	}
 	return respDtos
 
-}
-
-func (impl *CdPipelineConfigServiceImpl) CreateExternalCiAndAppWorkflowMapping(appId, appWorkflowId int, userId int32, tx *pg.Tx) (int, error) {
-	externalCiPipeline := &pipelineConfig.ExternalCiPipeline{
-		AppId:       appId,
-		AccessToken: "",
-		Active:      true,
-		AuditLog:    sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
-	}
-	externalCiPipeline, err := impl.ciPipelineRepository.SaveExternalCi(externalCiPipeline, tx)
-	if err != nil {
-		impl.logger.Errorw("error in saving external ci", "appId", appId, "err", err)
-		return 0, err
-	}
-	appWorkflowMap := &appWorkflow.AppWorkflowMapping{
-		AppWorkflowId: appWorkflowId,
-		ComponentId:   externalCiPipeline.Id,
-		Type:          "WEBHOOK",
-		Active:        true,
-		AuditLog:      sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
-	}
-	appWorkflowMap, err = impl.appWorkflowRepository.SaveAppWorkflowMapping(appWorkflowMap, tx)
-	if err != nil {
-		impl.logger.Errorw("error in saving app workflow mapping for external ci", "appId", appId, "appWorkflowId", appWorkflowId, "externalCiPipelineId", externalCiPipeline.Id, "err", err)
-		return 0, err
-	}
-	return externalCiPipeline.Id, nil
 }

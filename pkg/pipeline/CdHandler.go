@@ -55,6 +55,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"k8s.io/client-go/rest"
+	"k8s.io/utils/strings/slices"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -85,6 +86,7 @@ type CdHandler interface {
 	CheckAndSendArgoPipelineStatusSyncEventIfNeeded(pipelineId int, userId int32, isAppStoreApplication bool)
 	FetchAppWorkflowStatusForTriggerViewForEnvironment(request resourceGroup2.ResourceGroupingRequest) ([]*pipelineConfig.CdWorkflowStatus, error)
 	FetchAppDeploymentStatusForEnvironments(request resourceGroup2.ResourceGroupingRequest) ([]*pipelineConfig.AppDeploymentStatus, error)
+	DeactivateImageReservationPathsOnFailure(imagePathReservationIds []int) error
 }
 
 type CdHandlerImpl struct {
@@ -123,9 +125,10 @@ type CdHandlerImpl struct {
 	config                                 *types.CdConfig
 	clusterService                         cluster.ClusterService
 	blobConfigStorageService               BlobStorageConfigService
+	customTagService                       CustomTagService
 }
 
-func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService, cdWorkflowRepository pipelineConfig.CdWorkflowRepository, ciLogService CiLogService, ciArtifactRepository repository.CiArtifactRepository, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, pipelineRepository pipelineConfig.PipelineRepository, envRepository repository2.EnvironmentRepository, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, helmAppService client.HelmAppService, pipelineOverrideRepository chartConfig.PipelineOverrideRepository, workflowDagExecutor WorkflowDagExecutor, appListingService app.AppListingService, appListingRepository repository.AppListingRepository, pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository, application application.ServiceClient, argoUserService argo.ArgoUserService, deploymentEventHandler app.DeploymentEventHandler, eventClient client2.EventClient, pipelineStatusTimelineResourcesService status.PipelineStatusTimelineResourcesService, pipelineStatusSyncDetailService status.PipelineStatusSyncDetailService, pipelineStatusTimelineService status.PipelineStatusTimelineService, appService app.AppService, appStatusService app_status.AppStatusService, enforcerUtil rbac.EnforcerUtil, installedAppRepository repository3.InstalledAppRepository, installedAppVersionHistoryRepository repository3.InstalledAppVersionHistoryRepository, appRepository app2.AppRepository, resourceGroupService resourceGroup2.ResourceGroupService, imageTaggingService ImageTaggingService, k8sUtil *k8s.K8sUtil, workflowService WorkflowService, clusterService cluster.ClusterService, blobConfigStorageService BlobStorageConfigService) *CdHandlerImpl {
+func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService, cdWorkflowRepository pipelineConfig.CdWorkflowRepository, ciLogService CiLogService, ciArtifactRepository repository.CiArtifactRepository, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, pipelineRepository pipelineConfig.PipelineRepository, envRepository repository2.EnvironmentRepository, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, helmAppService client.HelmAppService, pipelineOverrideRepository chartConfig.PipelineOverrideRepository, workflowDagExecutor WorkflowDagExecutor, appListingService app.AppListingService, appListingRepository repository.AppListingRepository, pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository, application application.ServiceClient, argoUserService argo.ArgoUserService, deploymentEventHandler app.DeploymentEventHandler, eventClient client2.EventClient, pipelineStatusTimelineResourcesService status.PipelineStatusTimelineResourcesService, pipelineStatusSyncDetailService status.PipelineStatusSyncDetailService, pipelineStatusTimelineService status.PipelineStatusTimelineService, appService app.AppService, appStatusService app_status.AppStatusService, enforcerUtil rbac.EnforcerUtil, installedAppRepository repository3.InstalledAppRepository, installedAppVersionHistoryRepository repository3.InstalledAppVersionHistoryRepository, appRepository app2.AppRepository, resourceGroupService resourceGroup2.ResourceGroupService, imageTaggingService ImageTaggingService, k8sUtil *k8s.K8sUtil, workflowService WorkflowService, clusterService cluster.ClusterService, blobConfigStorageService BlobStorageConfigService, customTagService CustomTagService) *CdHandlerImpl {
 	cdh := &CdHandlerImpl{
 		Logger:                                 Logger,
 		userService:                            userService,
@@ -161,6 +164,7 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService, c
 		workflowService:                        workflowService,
 		clusterService:                         clusterService,
 		blobConfigStorageService:               blobConfigStorageService,
+		customTagService:                       customTagService,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -505,7 +509,7 @@ func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb(helmPipel
 	}
 	impl.Logger.Debugw("checking helm app status for non terminal deployment triggers", "wfrList", wfrList, "number of wfr", len(wfrList))
 	for _, wfr := range wfrList {
-		if time.Now().Sub(wfr.UpdatedOn) <= time.Duration(helmPipelineStatusCheckEligibleTime)*time.Second {
+		if time.Now().Sub(wfr.StartedOn) <= time.Duration(helmPipelineStatusCheckEligibleTime)*time.Second {
 			//if wfr is updated within configured time then do not include for this cron cycle
 			continue
 		}
@@ -514,46 +518,29 @@ func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb(helmPipel
 			Namespace:   wfr.CdWorkflow.Pipeline.Environment.Namespace,
 			ReleaseName: wfr.CdWorkflow.Pipeline.DeploymentAppName,
 		}
-		helmAppStatus, err := impl.helmAppService.GetApplicationStatus(context.Background(), appIdentifier)
-		if err != nil {
-			impl.Logger.Errorw("error in getting helm app release status ", "appIdentifier", appIdentifier, "err", err)
-			//return err
-			//skip this error and continue for next workflow status
-			impl.Logger.Warnw("found error, skipping helm apps status update for this trigger", "appIdentifier", appIdentifier, "err", err)
-
-			// Handle release not found errors
-			if !strings.Contains(err.Error(), "release: not found") {
-				continue
-			}
-		}
-		if helmAppStatus == application.Healthy {
-			wfr.Status = pipelineConfig.WorkflowSucceeded
-			wfr.FinishedOn = time.Now()
-
-		} else if err != nil && strings.Contains(err.Error(), "release: not found") {
-			// If release not found, mark the deployment as failure
-			wfr.Status = pipelineConfig.WorkflowFailed
-
-		} else {
-			wfr.Status = pipelineConfig.WorkflowInProgress
+		if isWfrUpdated := impl.workflowDagExecutor.UpdateWorkflowRunnerStatusForDeployment(appIdentifier, wfr, true); !isWfrUpdated {
+			continue
 		}
 		wfr.UpdatedBy = 1
 		wfr.UpdatedOn = time.Now()
+		if wfr.Status == pipelineConfig.WorkflowFailed {
+			err = impl.workflowDagExecutor.MarkPipelineStatusTimelineFailed(wfr, errors.New(pipelineConfig.NEW_DEPLOYMENT_INITIATED))
+			if err != nil {
+				impl.Logger.Errorw("error updating CdPipelineStatusTimeline", "err", err)
+				return err
+			}
+		}
 		err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(wfr)
 		if err != nil {
 			impl.Logger.Errorw("error on update cd workflow runner", "wfr", wfr, "err", err)
 			return err
 		}
-		cdMetrics := util3.CDMetrics{
-			AppName:         wfr.CdWorkflow.Pipeline.DeploymentAppName,
-			Status:          wfr.Status,
-			DeploymentType:  wfr.CdWorkflow.Pipeline.DeploymentAppType,
-			EnvironmentName: wfr.CdWorkflow.Pipeline.Environment.Name,
-			Time:            time.Since(wfr.StartedOn).Seconds() - time.Since(wfr.FinishedOn).Seconds(),
+		if slices.Contains(pipelineConfig.WfrTerminalStatusList, wfr.Status) {
+			impl.workflowDagExecutor.UpdateTriggerCDMetricsOnFinish(wfr)
 		}
-		util3.TriggerCDMetrics(cdMetrics, impl.config.ExposeCDMetrics)
+
 		impl.Logger.Infow("updated workflow runner status for helm app", "wfr", wfr)
-		if helmAppStatus == application.Healthy {
+		if wfr.Status == pipelineConfig.WorkflowSucceeded {
 			pipelineOverride, err := impl.pipelineOverrideRepository.FindLatestByCdWorkflowId(wfr.CdWorkflowId)
 			if err != nil {
 				impl.Logger.Errorw("error in getting latest pipeline override by cdWorkflowId", "err", err, "cdWorkflowId", wfr.CdWorkflowId)
@@ -621,7 +608,13 @@ func (impl *CdHandlerImpl) CancelStage(workflowRunnerId int, userId int32) (int,
 		impl.Logger.Error("cannot terminate wf runner", "err", err)
 		return 0, err
 	}
-
+	if len(workflowRunner.ImagePathReservationIds) > 0 {
+		err := impl.customTagService.DeactivateImagePathReservationByImageIds(workflowRunner.ImagePathReservationIds)
+		if err != nil {
+			impl.Logger.Errorw("error in deactivating image path reservation ids", "err", err)
+			return 0, err
+		}
+	}
 	workflowRunner.Status = executors.WorkflowCancel
 	workflowRunner.UpdatedOn = time.Now()
 	workflowRunner.UpdatedBy = userId
@@ -696,7 +689,7 @@ func (impl *CdHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 	return savedWorkflow.Id, savedWorkflow.Status, nil
 }
 
-func (impl *CdHandlerImpl) extractWorkfowStatus(workflowStatus v1alpha1.WorkflowStatus) *WorkflowStatus {
+func (impl *CdHandlerImpl) extractWorkfowStatus(workflowStatus v1alpha1.WorkflowStatus) *types.WorkflowStatus {
 	workflowName := ""
 	status := string(workflowStatus.Phase)
 	podStatus := "Pending"
@@ -724,7 +717,7 @@ func (impl *CdHandlerImpl) extractWorkfowStatus(workflowStatus v1alpha1.Workflow
 			break
 		}
 	}
-	workflowStatusRes := &WorkflowStatus{
+	workflowStatusRes := &types.WorkflowStatus{
 		WorkflowName: workflowName,
 		Status:       status,
 		PodStatus:    podStatus,
@@ -733,10 +726,6 @@ func (impl *CdHandlerImpl) extractWorkfowStatus(workflowStatus v1alpha1.Workflow
 		PodName:      podName,
 	}
 	return workflowStatusRes
-}
-
-type WorkflowStatus struct {
-	WorkflowName, Status, PodStatus, Message, LogLocation, PodName string
 }
 
 func (impl *CdHandlerImpl) stateChanged(status string, podStatus string, msg string,
@@ -782,6 +771,7 @@ func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipel
 		var newCiArtifactIds []int
 		for _, ciArtifact := range ciArtifacts {
 			if ciArtifact.ParentCiArtifact > 0 && ciArtifact.WorkflowId == nil {
+				// parent ci artifact ID can be greater than zero when pipeline is linked or when image is copied at plugin level from some other image
 				isLinked = true
 				newCiArtifactIds = append(newCiArtifactIds, ciArtifact.ParentCiArtifact)
 				parentCiArtifact[ciArtifact.Id] = ciArtifact.ParentCiArtifact
@@ -1613,4 +1603,8 @@ func (impl *CdHandlerImpl) FetchAppDeploymentStatusForEnvironments(request resou
 	}
 
 	return deploymentStatuses, err
+}
+
+func (impl *CdHandlerImpl) DeactivateImageReservationPathsOnFailure(imagePathReservationIds []int) error {
+	return impl.customTagService.DeactivateImagePathReservationByImageIds(imagePathReservationIds)
 }
