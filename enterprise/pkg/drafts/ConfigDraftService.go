@@ -4,11 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/enterprise/pkg/lockConfiguration"
 	"github.com/devtron-labs/devtron/enterprise/pkg/protect"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/pkg/chart"
+	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
@@ -22,7 +24,7 @@ import (
 type ConfigDraftService interface {
 	protect.ResourceProtectionUpdateListener
 	CreateDraft(request ConfigDraftRequest) (*ConfigDraftResponse, error)
-	AddDraftVersion(request ConfigDraftVersionRequest) (int, error)
+	AddDraftVersion(request ConfigDraftVersionRequest) (*ConfigDraftResponse, error)
 	UpdateDraftState(draftId int, draftVersionId int, toUpdateDraftState DraftState, userId int32) (*DraftVersion, error)
 	GetDraftVersionMetadata(draftId int) (*DraftVersionMetadataResponse, error) // would return version timestamp and user email id
 	GetDraftComments(draftId int) (*DraftVersionCommentResponse, error)
@@ -45,11 +47,17 @@ type ConfigDraftServiceImpl struct {
 	userService               user.UserService
 	appRepo                   app.AppRepository
 	envRepository             repository2.EnvironmentRepository
+	chartRepository           chartRepoRepository.ChartRepository
+	lockedConfigService       lockConfiguration.LockConfigurationService
+	envConfigRepo             chartConfig.EnvConfigOverrideRepository
 }
 
 func NewConfigDraftServiceImpl(logger *zap.SugaredLogger, configDraftRepository ConfigDraftRepository, configMapService pipeline.ConfigMapService, chartService chart.ChartService,
 	propertiesConfigService pipeline.PropertiesConfigService, resourceProtectionService protect.ResourceProtectionService,
-	userService user.UserService, appRepo app.AppRepository, envRepository repository2.EnvironmentRepository) *ConfigDraftServiceImpl {
+	userService user.UserService, appRepo app.AppRepository, envRepository repository2.EnvironmentRepository,
+	chartRepository chartRepoRepository.ChartRepository,
+	lockedConfigService lockConfiguration.LockConfigurationService,
+	envConfigRepo chartConfig.EnvConfigOverrideRepository) *ConfigDraftServiceImpl {
 	draftServiceImpl := &ConfigDraftServiceImpl{
 		logger:                    logger,
 		configDraftRepository:     configDraftRepository,
@@ -60,6 +68,9 @@ func NewConfigDraftServiceImpl(logger *zap.SugaredLogger, configDraftRepository 
 		userService:               userService,
 		appRepo:                   appRepo,
 		envRepository:             envRepository,
+		chartRepository:           chartRepository,
+		lockedConfigService:       lockedConfigService,
+		envConfigRepo:             envConfigRepo,
 	}
 	resourceProtectionService.RegisterListener(draftServiceImpl)
 	return draftServiceImpl
@@ -81,40 +92,46 @@ func (impl *ConfigDraftServiceImpl) CreateDraft(request ConfigDraftRequest) (*Co
 	if !protectionEnabled {
 		return nil, errors.New(ConfigProtectionDisabled)
 	}
-	err := impl.validateDraftData(request.AppId, envId, resourceType, resourceAction, request.Data)
+	validateResp, err := impl.validateDraftData(request.AppId, envId, resourceType, resourceAction, request.Data)
 	if err != nil {
 		return nil, err
+	}
+	if validateResp != nil {
+		return &ConfigDraftResponse{LockValidateResponse: validateResp}, nil
 	}
 	return impl.configDraftRepository.CreateConfigDraft(request)
 }
 
-func (impl *ConfigDraftServiceImpl) AddDraftVersion(request ConfigDraftVersionRequest) (int, error) {
+func (impl *ConfigDraftServiceImpl) AddDraftVersion(request ConfigDraftVersionRequest) (*ConfigDraftResponse, error) {
 	draftId := request.DraftId
 	latestDraftVersion, err := impl.configDraftRepository.GetLatestDraftVersion(draftId)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	draftDto := latestDraftVersion.Draft
 	protectionEnabled := impl.resourceProtectionService.ResourceProtectionEnabled(draftDto.AppId, draftDto.EnvId)
 	if !protectionEnabled {
-		return 0, errors.New(ConfigProtectionDisabled)
+		return nil, errors.New(ConfigProtectionDisabled)
 	}
 	lastDraftVersionId := request.LastDraftVersionId
 	if latestDraftVersion.Id > lastDraftVersionId {
-		return 0, errors.New(LastVersionOutdated)
+		return nil, errors.New(LastVersionOutdated)
 	}
 
 	currentTime := time.Now()
 	if len(request.Data) > 0 {
 
-		err := impl.validateDraftData(draftDto.AppId, draftDto.EnvId, draftDto.Resource, request.Action, request.Data)
+		lockConfig, err := impl.validateDraftData(draftDto.AppId, draftDto.EnvId, draftDto.Resource, request.Action, request.Data)
 		if err != nil {
-			return 0, err
+			return nil, err
+		}
+		if lockConfig != nil {
+			return &ConfigDraftResponse{DraftVersionId: lastDraftVersionId, LockValidateResponse: lockConfig}, nil
 		}
 		draftVersionDto := request.GetDraftVersionDto(currentTime)
 		draftVersionId, err := impl.configDraftRepository.SaveDraftVersion(draftVersionDto)
 		if err != nil {
-			return 0, err
+			return nil, err
 		}
 		lastDraftVersionId = draftVersionId
 	}
@@ -123,16 +140,16 @@ func (impl *ConfigDraftServiceImpl) AddDraftVersion(request ConfigDraftVersionRe
 		draftVersionCommentDto := request.GetDraftVersionComment(lastDraftVersionId, currentTime)
 		err = impl.configDraftRepository.SaveDraftVersionComment(draftVersionCommentDto)
 		if err != nil {
-			return 0, err
+			return nil, err
 		}
 	}
 	if proposed := request.ChangeProposed; proposed {
 		err = impl.configDraftRepository.UpdateDraftState(draftId, AwaitApprovalDraftState, request.UserId)
 		if err != nil {
-			return 0, err
+			return nil, err
 		}
 	}
-	return lastDraftVersionId, nil
+	return &ConfigDraftResponse{DraftVersionId: lastDraftVersionId}, nil
 }
 
 func (impl *ConfigDraftServiceImpl) UpdateDraftState(draftId int, draftVersionId int, toUpdateDraftState DraftState, userId int32) (*DraftVersion, error) {
@@ -319,7 +336,15 @@ func (impl *ConfigDraftServiceImpl) ApproveDraft(draftId int, draftVersionId int
 	if draftResourceType == CMDraftResource || draftResourceType == CSDraftResource {
 		err = impl.handleCmCsData(draftResourceType, draftsDto, draftData, draftVersion.UserId, draftVersion.Action)
 	} else {
-		err = impl.handleDeploymentTemplate(draftsDto.AppId, draftsDto.EnvId, draftData, draftVersion.UserId, draftVersion.Action)
+		lockValidateResponse, err := impl.handleDeploymentTemplate(draftsDto.AppId, draftsDto.EnvId, draftData, draftVersion.UserId, draftVersion.Action)
+		if err != nil {
+			return nil, err
+		}
+		if lockValidateResponse != nil {
+			draftVersionResponse.AllowedOverride = lockValidateResponse.AllowedOverride
+			draftVersionResponse.LockedOverride = lockValidateResponse.LockedOverride
+			draftVersionResponse.IsLockConfigError = lockValidateResponse.IsLockConfigError
+		}
 	}
 	draftVersionResponse.DraftVersionId = draftVersionId
 	if err != nil {
@@ -398,31 +423,32 @@ func (impl *ConfigDraftServiceImpl) EncryptCSData(draftCsData string) string {
 	return string(encryptedCSData)
 }
 
-func (impl *ConfigDraftServiceImpl) handleDeploymentTemplate(appId int, envId int, draftData string, userId int32, action ResourceAction) error {
+func (impl *ConfigDraftServiceImpl) handleDeploymentTemplate(appId int, envId int, draftData string, userId int32, action ResourceAction) (*LockValidateResponse, error) {
 
 	ctx := context.Background()
 	var err error
+	var lockValidateResp *LockValidateResponse
 	if envId == protect.BASE_CONFIG_ENV_ID {
-		err = impl.handleBaseDeploymentTemplate(appId, envId, draftData, userId, action, ctx)
+		lockValidateResp, err = impl.handleBaseDeploymentTemplate(appId, envId, draftData, userId, action, ctx)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	} else {
-		err = impl.handleEnvLevelTemplate(appId, envId, draftData, userId, action, ctx)
+		lockValidateResp, err = impl.handleEnvLevelTemplate(appId, envId, draftData, userId, action, ctx)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
-	return nil
+	return lockValidateResp, nil
 }
 
-func (impl *ConfigDraftServiceImpl) handleBaseDeploymentTemplate(appId int, envId int, draftData string, userId int32, action ResourceAction, ctx context.Context) error {
+func (impl *ConfigDraftServiceImpl) handleBaseDeploymentTemplate(appId int, envId int, draftData string, userId int32, action ResourceAction, ctx context.Context) (*LockValidateResponse, error) {
 	templateRequest := chart.TemplateRequest{}
 	var templateValidated bool
 	err := json.Unmarshal([]byte(draftData), &templateRequest)
 	if err != nil {
 		impl.logger.Errorw("error occurred while unmarshalling draftData of deployment template", "appId", appId, "envId", envId, "err", err)
-		return err
+		return nil, err
 	}
 
 	env, _ := impl.envRepository.FindById(envId)
@@ -435,29 +461,38 @@ func (impl *ConfigDraftServiceImpl) handleBaseDeploymentTemplate(appId int, envI
 
 	templateValidated, err = impl.chartService.DeploymentTemplateValidate(ctx, templateRequest.ValuesOverride, templateRequest.ChartRefId, scope)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if !templateValidated {
-		return errors.New(TemplateOutdated)
+		return nil, errors.New(TemplateOutdated)
 	}
 	templateRequest.UserId = userId
 	var createResp *chart.TemplateResponse
+	var lockValidateResp *LockValidateResponse
 	if action == AddResourceAction {
-		_, err = impl.chartService.Create(templateRequest, ctx)
+		createResp, err = impl.chartService.Create(templateRequest, ctx)
 	} else {
 		createResp, err = impl.chartService.UpdateAppOverride(ctx, &templateRequest)
 	}
-	fmt.Println(createResp)
-	return err
+	if createResp != nil {
+		lockValidateResp = &LockValidateResponse{
+			AllowedOverride:   createResp.AllowedOverride,
+			LockedOverride:    createResp.LockedOverride,
+			IsLockConfigError: createResp.IsLockConfigError,
+		}
+	}
+	return lockValidateResp, err
 }
 
-func (impl *ConfigDraftServiceImpl) handleEnvLevelTemplate(appId int, envId int, draftData string, userId int32, action ResourceAction, ctx context.Context) error {
+func (impl *ConfigDraftServiceImpl) handleEnvLevelTemplate(appId int, envId int, draftData string, userId int32, action ResourceAction, ctx context.Context) (*LockValidateResponse, error) {
 	envConfigProperties := &bean.EnvironmentProperties{}
 	err := json.Unmarshal([]byte(draftData), envConfigProperties)
 	if err != nil {
 		impl.logger.Errorw("error occurred while unmarshalling draftData of env deployment template", "appId", appId, "envId", envId, "err", err)
-		return err
+		return nil, err
 	}
+	var updateResp *bean.EnvironmentUpdateResponse
+	var lockValidateResp *LockValidateResponse
 	if action == AddResourceAction || action == UpdateResourceAction {
 		var templateValidated bool
 		envConfigProperties.UserId = userId
@@ -474,19 +509,26 @@ func (impl *ConfigDraftServiceImpl) handleEnvLevelTemplate(appId int, envId int,
 
 		templateValidated, err = impl.chartService.DeploymentTemplateValidate(ctx, envConfigProperties.EnvOverrideValues, chartRefId, scope)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if !templateValidated {
-			return errors.New(TemplateOutdated)
+			return nil, errors.New(TemplateOutdated)
 		}
 		if action == AddResourceAction {
 			//TODO code duplicated, needs refactoring
-			_, err = impl.createEnvLevelDeploymentTemplate(ctx, appId, envId, envConfigProperties, userId)
+			updateResp, err = impl.createEnvLevelDeploymentTemplate(ctx, appId, envId, envConfigProperties, userId)
 		} else {
-			_, err = impl.propertiesConfigService.UpdateEnvironmentProperties(appId, envConfigProperties, userId)
+			updateResp, err = impl.propertiesConfigService.UpdateEnvironmentProperties(appId, envConfigProperties, userId)
 		}
 		if err != nil {
 			impl.logger.Errorw("service err, EnvConfigOverrideUpdate", "appId", appId, "envId", envId, "err", err, "payload", envConfigProperties)
+		}
+		if updateResp != nil {
+			lockValidateResp = &LockValidateResponse{
+				AllowedOverride:   updateResp.AllowedOverride,
+				LockedOverride:    updateResp.LockedOverride,
+				IsLockConfigError: updateResp.IsLockConfigError,
+			}
 		}
 	} else {
 		id := envConfigProperties.Id
@@ -495,7 +537,7 @@ func (impl *ConfigDraftServiceImpl) handleEnvLevelTemplate(appId int, envId int,
 			impl.logger.Errorw("error occurred while deleting env level Deployment template", "id", id, "err", err)
 		}
 	}
-	return err
+	return lockValidateResp, err
 }
 
 func (impl *ConfigDraftServiceImpl) createEnvLevelDeploymentTemplate(ctx context.Context, appId int, envId int, envConfigProperties *bean.EnvironmentProperties, userId int32) (*bean.EnvironmentUpdateResponse, error) {
@@ -614,9 +656,9 @@ func (impl *ConfigDraftServiceImpl) GetDraftsCount(appId int, envIds []int) ([]*
 	return draftCountResponse, nil
 }
 
-func (impl *ConfigDraftServiceImpl) validateDraftData(appId int, envId int, resourceType DraftResourceType, action ResourceAction, draftData string) error {
+func (impl *ConfigDraftServiceImpl) validateDraftData(appId int, envId int, resourceType DraftResourceType, action ResourceAction, draftData string) (*LockValidateResponse, error) {
 	if resourceType == CMDraftResource || resourceType == CSDraftResource {
-		return impl.validateCmCs(action, draftData)
+		return nil, impl.validateCmCs(action, draftData)
 	}
 	return impl.validateDeploymentTemplate(appId, envId, action, draftData)
 }
@@ -641,16 +683,32 @@ func (impl *ConfigDraftServiceImpl) validateCmCs(resourceAction ResourceAction, 
 	return err
 }
 
-func (impl *ConfigDraftServiceImpl) validateDeploymentTemplate(appId int, envId int, resourceAction ResourceAction, draftData string) error {
+func (impl *ConfigDraftServiceImpl) validateDeploymentTemplate(appId int, envId int, resourceAction ResourceAction, draftData string) (*LockValidateResponse, error) {
 	if envId == protect.BASE_CONFIG_ENV_ID {
 		templateRequest := chart.TemplateRequest{}
 		var templateValidated bool
 		err := json.Unmarshal([]byte(draftData), &templateRequest)
 		if err != nil {
 			impl.logger.Errorw("error occurred while unmarshalling draftData of deployment template", "envId", envId, "err", err)
-			return err
+			return nil, err
 		}
-
+		currentLatestChart, err := impl.chartRepository.FindLatestChartForAppByAppId(templateRequest.AppId)
+		if err != nil {
+			return nil, err
+		}
+		isLockConfigError, lockedOverride, err := impl.lockedConfigService.HandleLockConfiguration(string(templateRequest.ValuesOverride), currentLatestChart.GlobalOverride, int(templateRequest.UserId))
+		if err != nil {
+			return nil, err
+		}
+		if isLockConfigError {
+			var jsonVal json.RawMessage
+			_ = json.Unmarshal([]byte(lockedOverride), &jsonVal)
+			return &LockValidateResponse{
+				AllowedOverride:   nil,
+				LockedOverride:    jsonVal,
+				IsLockConfigError: true,
+			}, nil
+		}
 		//VARIABLE_RESOLVE
 		env, _ := impl.envRepository.FindById(envId)
 		scope := resourceQualifiers.Scope{
@@ -660,20 +718,36 @@ func (impl *ConfigDraftServiceImpl) validateDeploymentTemplate(appId int, envId 
 		}
 		templateValidated, err = impl.chartService.DeploymentTemplateValidate(context.Background(), templateRequest.ValuesOverride, templateRequest.ChartRefId, scope)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if !templateValidated {
-			return errors.New(TemplateOutdated)
+			return nil, errors.New(TemplateOutdated)
 		}
 	} else {
 		envConfigProperties := &bean.EnvironmentProperties{}
 		err := json.Unmarshal([]byte(draftData), envConfigProperties)
 		if err != nil {
 			impl.logger.Errorw("error occurred while unmarshalling draftData of env deployment template", "envId", envId, "err", err)
-			return err
+			return nil, err
 		}
 		if resourceAction == AddResourceAction || resourceAction == UpdateResourceAction {
-
+			currentLatestChart, err := impl.envConfigRepo.FindLatestChartForAppByAppIdAndEnvId(appId, envId)
+			if err != nil {
+				return nil, err
+			}
+			isLockConfigError, lockedOverride, err := impl.lockedConfigService.HandleLockConfiguration(string(envConfigProperties.EnvOverrideValues), currentLatestChart.EnvOverrideValues, int(envConfigProperties.UserId))
+			if err != nil {
+				return nil, err
+			}
+			if isLockConfigError {
+				var jsonVal json.RawMessage
+				_ = json.Unmarshal([]byte(lockedOverride), &jsonVal)
+				return &LockValidateResponse{
+					AllowedOverride:   nil,
+					LockedOverride:    jsonVal,
+					IsLockConfigError: true,
+				}, nil
+			}
 			//VARIABLE_RESOLVE
 			env, _ := impl.envRepository.FindById(envId)
 			scope := resourceQualifiers.Scope{
@@ -685,10 +759,10 @@ func (impl *ConfigDraftServiceImpl) validateDeploymentTemplate(appId int, envId 
 			chartRefId := envConfigProperties.ChartRefId
 			templateValidated, err := impl.chartService.DeploymentTemplateValidate(context.Background(), envConfigProperties.EnvOverrideValues, chartRefId, scope)
 			if err != nil {
-				return err
+				return nil, err
 			}
 			if !templateValidated {
-				return errors.New(TemplateOutdated)
+				return nil, errors.New(TemplateOutdated)
 			}
 		} else {
 			id := envConfigProperties.Id
@@ -698,5 +772,5 @@ func (impl *ConfigDraftServiceImpl) validateDeploymentTemplate(appId int, envId 
 			}
 		}
 	}
-	return nil
+	return nil, nil
 }

@@ -106,6 +106,7 @@ func (request ConfigDraftRequest) GetDraftVersionComment(draftMetadataId, draftV
 
 type ConfigDraftResponse struct {
 	ConfigDraftRequest
+	*LockValidateResponse
 	DraftId        int        `json:"draftId"`
 	DraftVersionId int        `json:"draftVersionId"`
 	DraftState     DraftState `json:"draftState"`
@@ -114,6 +115,12 @@ type ConfigDraftResponse struct {
 	CommentsCount  int        `json:"commentsCount"`
 	DataEncrypted  bool       `json:"dataEncrypted"`
 	IsAppAdmin     bool       `json:"isAppAdmin"`
+}
+
+type LockValidateResponse struct {
+	AllowedOverride   json.RawMessage `json:"allowedOverride"`
+	LockedOverride    json.RawMessage `json:"lockedOverride"`
+	IsLockConfigError bool            `json:"isLockConfigError"`
 }
 
 type DraftCountResponse struct {

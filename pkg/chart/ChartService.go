@@ -396,7 +396,7 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 	}
 
 	// Handle Lock Configuration
-	isLockConfigError, lockedOverride, err := impl.lockedConfigService.HandleLockConfiguration(string(templateRequest.ValuesOverride), chartValues.Values, int(templateRequest.UserId))
+	isLockConfigError, lockedOverride, err := impl.lockedConfigService.HandleLockConfiguration(string(templateRequest.ValuesOverride), chartValues.AppOverrides, int(templateRequest.UserId))
 	if err != nil {
 		return nil, err
 	}
@@ -882,7 +882,7 @@ func (impl ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateRequ
 		return nil, err
 	}
 	// Handle Lock Configuration
-	isLockConfigError, lockedOverride, err := impl.lockedConfigService.HandleLockConfiguration(string(values), template.Values, int(templateRequest.UserId))
+	isLockConfigError, lockedOverride, err := impl.lockedConfigService.HandleLockConfiguration(string(templateRequest.ValuesOverride), template.GlobalOverride, int(templateRequest.UserId))
 	if err != nil {
 		return nil, err
 	}

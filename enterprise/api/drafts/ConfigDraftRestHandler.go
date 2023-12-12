@@ -11,7 +11,6 @@ import (
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
-	"strconv"
 )
 
 type ConfigDraftRestHandler interface {
@@ -128,16 +127,16 @@ func (impl *ConfigDraftRestHandlerImpl) AddDraftVersion(w http.ResponseWriter, r
 	}
 
 	request.UserId = userId
-	draftVersionId, err := impl.configDraftService.AddDraftVersion(request)
+	draftVersionResp, err := impl.configDraftService.AddDraftVersion(request)
 	if err != nil {
 		impl.logger.Errorw("error occurred while adding draft version", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-
-	response := make(map[string]string, 1)
-	response["draftVersionId"] = strconv.Itoa(draftVersionId)
-	common.WriteJsonResp(w, err, response, http.StatusOK)
+	//
+	//response := make(map[string]string, 1)
+	//response["draftVersionId"] = strconv.Itoa(draftVersionId)
+	common.WriteJsonResp(w, err, draftVersionResp, http.StatusOK)
 }
 
 func (impl *ConfigDraftRestHandlerImpl) GetDraftVersionMetadata(w http.ResponseWriter, r *http.Request) {

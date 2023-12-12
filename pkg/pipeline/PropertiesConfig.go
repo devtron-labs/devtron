@@ -232,6 +232,21 @@ func (impl PropertiesConfigServiceImpl) CreateEnvironmentProperties(appId int, e
 		impl.logger.Errorw("create new chart set latest=false", "a", "b")
 		return nil, fmt.Errorf("NOCHARTEXIST")
 	}
+	isLockConfigError, lockedOverride, err := impl.lockedConfigService.HandleLockConfiguration(string(environmentProperties.EnvOverrideValues), chart.GlobalOverride, int(environmentProperties.UserId))
+	if err != nil {
+		return nil, err
+	}
+	if isLockConfigError {
+		var jsonVal json.RawMessage
+		_ = json.Unmarshal([]byte(lockedOverride), &jsonVal)
+		return &bean.EnvironmentUpdateResponse{
+			EnvironmentProperties: environmentProperties,
+			AllowedOverride:       nil,
+			LockedOverride:        jsonVal,
+			IsLockConfigError:     true,
+		}, nil
+	}
+
 	chart.GlobalOverride = string(environmentProperties.EnvOverrideValues)
 	appMetrics := false
 	if environmentProperties.AppMetrics != nil {
