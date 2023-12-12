@@ -3424,26 +3424,24 @@ func (impl *WorkflowDagExecutorImpl) DeployArgocdApp(overrideRequest *bean.Value
 		return err
 	}
 
-	var argoApplication *v1alpha1.Application
 	if impl.appServiceConfig.ArgoCDAutoSyncEnabled {
 		// auto sync
-		argoApplication, err = impl.argoClientWrapperService.GetArgoAppWithNormalRefresh(ctx, valuesOverrideResponse.Pipeline.DeploymentAppName)
+		_, err = impl.argoClientWrapperService.GetArgoAppWithNormalRefresh(ctx, valuesOverrideResponse.Pipeline.DeploymentAppName)
 		if err != nil {
 			impl.logger.Errorw("error in refreshing argocd app in case of auto", "err", err)
 			// intentionally not returning error because there is error in refresh in auto sync mode
 		}
 	} else {
 		// manual sync
-		argoApplication, err = impl.argoClientWrapperService.SyncArgoCDApplicationWithRefresh(ctx, valuesOverrideResponse.Pipeline.DeploymentAppName)
+		_, err = impl.argoClientWrapperService.SyncArgoCDApplicationWithRefresh(ctx, valuesOverrideResponse.Pipeline.DeploymentAppName)
 		if err != nil {
 			impl.logger.Errorw("error in getting argo application with normal refresh", "argoAppName", valuesOverrideResponse.Pipeline.DeploymentAppName)
 			return fmt.Errorf("%s. err: %s", ARGOCD_SYNC_ERROR, err.Error())
 		}
 	}
-	revisionHistory := argoApplication.Status.History.LastRevisionHistory()
 	timeline := &pipelineConfig.PipelineStatusTimeline{
 		CdWorkflowRunnerId: overrideRequest.WfrId,
-		StatusTime:         revisionHistory.DeployedAt.UTC(),
+		StatusTime:         time.Now(),
 		AuditLog: sql.AuditLog{
 			CreatedBy: 1,
 			CreatedOn: time.Now(),

@@ -1660,7 +1660,7 @@ func (impl *CdHandlerImpl) syncACDDevtronApps(deployedBeforeMinutes int, pipelin
 		}
 		ctx := context.Background()
 		ctx = context.WithValue(ctx, "token", acdToken)
-		latestArgoCDApplication, syncErr := impl.argocdClientWrapperService.SyncArgoCDApplicationWithRefresh(ctx, cdWfr.CdWorkflow.Pipeline.DeploymentAppName)
+		_, syncErr := impl.argocdClientWrapperService.SyncArgoCDApplicationWithRefresh(ctx, cdWfr.CdWorkflow.Pipeline.DeploymentAppName)
 		if syncErr != nil {
 			impl.Logger.Errorw("error in syncing argoCD app", "err", syncErr)
 			timelineObject := impl.pipelineStatusTimelineService.GetTimelineDbObjectByTimelineStatusAndTimelineDescription(cdWfr.Id, 0, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_FAILED, fmt.Sprintf("error occured in syncing argocd application. err: %s", syncErr.Error()), 1)
@@ -1675,10 +1675,9 @@ func (impl *CdHandlerImpl) syncACDDevtronApps(deployedBeforeMinutes int, pipelin
 			}
 			return nil
 		}
-		revisionHistory := latestArgoCDApplication.Status.History.LastRevisionHistory()
 		timeline := &pipelineConfig.PipelineStatusTimeline{
 			CdWorkflowRunnerId: cdWfr.Id,
-			StatusTime:         revisionHistory.DeployedAt.UTC(),
+			StatusTime:         time.Now(),
 			Status:             pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED,
 			StatusDetail:       "argocd sync completed",
 			AuditLog: sql.AuditLog{
