@@ -3,6 +3,7 @@
 ## Enhancements
 - feat: Support for OCI charts pull & deploy in EA mode (#4309)
 ## Documentation
+- doc: Indentation fix in Scoped Variable Doc (#4367)
 - docs: Gitbook assets moved to AWS S3 (#4380)
 ## Others
 - chore: Remove the annotation hook from devtron-nats-test-request-reply pod (#4387)
