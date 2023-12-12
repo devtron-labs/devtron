@@ -735,7 +735,7 @@ func (impl *ConfigDraftServiceImpl) validateDeploymentTemplate(appId int, envId 
 			if err != nil {
 				return nil, err
 			}
-			isLockConfigError, lockedOverride, err := impl.lockedConfigService.HandleLockConfiguration(string(envConfigProperties.EnvOverrideValues), currentLatestChart.EnvOverrideValues, int(envConfigProperties.UserId))
+			isLockConfigError, lockedOverride, err := impl.lockedConfigService.HandleLockConfiguration(string(envConfigProperties.EnvOverrideValues), currentLatestChart.EnvOverrideValues, int(userId))
 			if err != nil {
 				return nil, err
 			}
