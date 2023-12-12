@@ -5105,24 +5105,6 @@ func (impl *WorkflowDagExecutorImpl) updateArgoPipeline(pipeline *pipelineConfig
 		} else {
 			impl.logger.Debug("pipeline no need to update ")
 		}
-		//if argoApplication.Spec.SyncPolicy.Automated != nil {
-		//	patchReq := v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{SyncPolicy: v1alpha1.SyncPolicy{
-		//		Automated:   nil,
-		//	}}}
-		//	reqbyte, err := json.Marshal(patchReq)
-		//	if err != nil {
-		//		impl.logger.Errorw("error in creating patch", "err", err)
-		//	}
-		//	reqString := string(reqbyte)
-		//	patchType := "merge"
-		//	_, err = impl.acdClient.Patch(ctx, &application3.ApplicationPatchRequest{Patch: &reqString, Name: &argoAppName, PatchType: &patchType})
-		//	if err != nil {
-		//		impl.logger.Errorw("error in creating argo pipeline ", "name", pipeline.Name, "patch", string(reqbyte), "err", err)
-		//		return false, err
-		//	}
-		//	impl.logger.Debugw("pipeline update req ", "res", patchReq)
-		//}
-
 		//manual sync argocd app
 		err2 := impl.argoClientWrapperService.SyncArgoCDApplicationWithRefresh(ctx, argoAppName)
 		if err2 != nil {

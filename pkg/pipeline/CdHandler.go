@@ -1865,7 +1865,7 @@ func (impl *CdHandlerImpl) syncACDDevtronApps(deployedBeforeMinutes int, pipelin
 		impl.Logger.Errorw("error in fetching latest pipeline status by cdWfrId", "err", err)
 		return err
 	}
-	if pipelineStatusTimeline.Status == pipelineConfig.TIMELINE_STATUS_GIT_COMMIT && time.Since(pipelineStatusTimeline.StatusTime) >= time.Minute*time.Duration(deployedBeforeMinutes) {
+	if pipelineStatusTimeline.Status == pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED && time.Since(pipelineStatusTimeline.StatusTime) >= time.Minute*time.Duration(deployedBeforeMinutes) {
 		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
 		if err != nil {
 			impl.Logger.Errorw("error in getting acd token", "err", err)

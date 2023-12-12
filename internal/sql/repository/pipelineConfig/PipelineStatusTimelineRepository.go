@@ -13,6 +13,7 @@ const (
 	TIMELINE_STATUS_DEPLOYMENT_INITIATED                TimelineStatus = "DEPLOYMENT_INITIATED"
 	TIMELINE_STATUS_GIT_COMMIT                          TimelineStatus = "GIT_COMMIT"
 	TIMELINE_STATUS_GIT_COMMIT_FAILED                   TimelineStatus = "GIT_COMMIT_FAILED"
+	TIMELINE_STATUS_ARGOCD_SYNC_INITIATED               TimelineStatus = "ARGOCD_SYNC_INITIATED"
 	TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED               TimelineStatus = "ARGOCD_SYNC_COMPLETED"
 	TIMELINE_STATUS_KUBECTL_APPLY_STARTED               TimelineStatus = "KUBECTL_APPLY_STARTED"
 	TIMELINE_STATUS_KUBECTL_APPLY_SYNCED                TimelineStatus = "KUBECTL_APPLY_SYNCED"
@@ -52,6 +53,7 @@ type PipelineStatusTimelineRepository interface {
 	DeleteByCdWfrIdAndTimelineStatusesWithTxn(cdWfrId int, status []TimelineStatus, tx *pg.Tx) error
 	FetchTimelinesByInstalledAppVersionHistoryId(installedAppVersionHistoryId int) ([]*PipelineStatusTimeline, error)
 	FetchLatestTimelinesByInstalledAppVersionHistoryId(installedAppVersionHistoryId int) (*PipelineStatusTimeline, error)
+	GetConnection() *pg.DB
 }
 
 type PipelineStatusTimelineRepositoryImpl struct {
@@ -127,9 +129,10 @@ func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelinesByPipelineId(pip
 }
 
 func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelinesByWfrId(wfrId int) ([]*PipelineStatusTimeline, error) {
+	//ignoring 'ARGOCD_SYNC_INITIATED' in sql query as it is not handled at FE
 	var timelines []*PipelineStatusTimeline
 	err := impl.dbConnection.Model(&timelines).
-		Where("cd_workflow_runner_id = ?", wfrId).
+		Where("cd_workflow_runner_id = ? and status !='ARGOCD_SYNC_INITIATED' ", wfrId).
 		Order("status_time ASC").Select()
 	if err != nil {
 		impl.logger.Errorw("error in getting timelines by wfrId", "err", err, "wfrId", wfrId)
@@ -294,4 +297,8 @@ func (impl *PipelineStatusTimelineRepositoryImpl) FetchLatestTimelinesByInstalle
 		return nil, err
 	}
 	return timeline, nil
+}
+
+func (impl *PipelineStatusTimelineRepositoryImpl) GetConnection() *pg.DB {
+	return impl.dbConnection
 }
