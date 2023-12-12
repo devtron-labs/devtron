@@ -8,6 +8,10 @@ Devtron's CI pipeline includes an option called [**Scan for vulnerabilities**](c
 
 ![Figure 1: Scan for vulnerabilities](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/security-features/new/enable-image-scan.jpg)
 
+{% hint style="info" %}
+Users need to have Admin permission or above (along with access to the environment and application) to enable the **Scan for vulnerabilities** option.
+{% endhint %}
+
 By enabling this option, the system automatically scans the container image after the image build stage. It then generates a report that highlights all the vulnerabilities present within the image. To access the scan report of all builds with vulnerability scans enabled, simply navigate to the 'Security' tab on the dashboard. There you can conveniently view the build history and all the vulnerabilities detected in the build image.
 
 ![Figure 2: Security tab](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/security-features/new/scan-report-on-build-history.jpg)
@@ -27,6 +31,10 @@ Devtron's security scans provide comprehensive scan reports for all applications
 
 These comprehensive scan reports provide valuable insights, including information about identified vulnerabilities, their severity levels, and any corresponding Common Vulnerabilities and Exposures (CVE) entries.
 
+{% hint style="info" %}
+Users need to have super-admin permission to view the `Security Scans` page.
+{% endhint %}
+
 ---
 
 ## Security Policies
@@ -34,6 +42,10 @@ These comprehensive scan reports provide valuable insights, including informatio
 Devtron's Security Policies feature allows users to define policies based on the severity levels of vulnerabilities, which include `Critical`, `Moderate`, and `Low`. Users have the flexibility to set policies that either block the deployment of container images with vulnerabilities or allow their deployment.
 
 With this feature, users can specify their desired actions for each severity level. For example, they can choose to block any container image with `Critical` vulnerabilities, while allowing container images with `Moderate` or `Low` vulnerabilities to be deployed.
+
+{% hint style="info" %}
+Users need to have super-admin permission to define or modify security policies. 
+{% endhint %}
 
 ### Checking Comprehensive Vulnerability Scan Report
 
@@ -192,4 +204,25 @@ A window will appear where you can enter the CVE ID and select whether to allow 
 ![Figure 14: Allowing/Blocking a CVE ID](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/security-features/new/cve-popup.jpg)
 
 This action will determine whether image deployment is allowed or blocked based on the presence of vulnerabilities matching that particular CVE ID. Any other deployment decisions will be made according to the policies set previously.
+
+---
+
+## Check CVE Policy
+
+Since Devtron provides you with the CVE IDs of all the vulnerabilities identified during image scan, you can use the `Check CVE Policy` option to know more about each vulnerability. This helps you check the exposure of your system for a given CVE-ID, for future deployments.
+
+1. Go to **Security Policies** (tab) → **Check CVE Policy**.
+
+    ![Figure 15: Check CVE Policy](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/security-features/check-cve-1.jpg)
+
+2. Enter the CVE ID in the search-box (e.g., CVE-2023-1194) and click **Search**.
+
+    ![Figure 16: Entering CVE ID](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/security-features/check-cve-2.jpg)
+
+   You may click the link provided in the search result to view the vulnerability in detail. 
+
+{% hint style="info" %}
+All users can use the **Check CVE Policy** feature.
+{% endhint %}
+
 
