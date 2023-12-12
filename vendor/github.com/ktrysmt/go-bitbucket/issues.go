@@ -37,7 +37,7 @@ func (p *Issues) Gets(io *IssuesOptions) (interface{}, error) {
 		url.RawQuery = query.Encode()
 	}
 
-	return p.c.execute("GET", url.String(), "")
+	return p.c.executePaginated("GET", url.String(), "")
 }
 
 func (p *Issues) Get(io *IssuesOptions) (interface{}, error) {

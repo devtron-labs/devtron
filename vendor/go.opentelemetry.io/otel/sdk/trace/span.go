@@ -30,7 +30,7 @@ import (
 	"go.opentelemetry.io/otel/sdk/instrumentation"
 	"go.opentelemetry.io/otel/sdk/internal"
 	"go.opentelemetry.io/otel/sdk/resource"
-	semconv "go.opentelemetry.io/otel/semconv/v1.12.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -302,7 +302,7 @@ func (s *recordingSpan) addOverCapAttrs(limit int, attrs []attribute.KeyValue) {
 // most a length of limit. Each string slice value is truncated in this fashion
 // (the slice length itself is unaffected).
 //
-// No truncation is perfromed for a negative limit.
+// No truncation is performed for a negative limit.
 func truncateAttr(limit int, attr attribute.KeyValue) attribute.KeyValue {
 	if limit < 0 {
 		return attr
@@ -383,14 +383,14 @@ func (s *recordingSpan) End(options ...trace.SpanEndOption) {
 		defer panic(recovered)
 		opts := []trace.EventOption{
 			trace.WithAttributes(
-				semconv.ExceptionTypeKey.String(typeStr(recovered)),
-				semconv.ExceptionMessageKey.String(fmt.Sprint(recovered)),
+				semconv.ExceptionType(typeStr(recovered)),
+				semconv.ExceptionMessage(fmt.Sprint(recovered)),
 			),
 		}
 
 		if config.StackTrace() {
 			opts = append(opts, trace.WithAttributes(
-				semconv.ExceptionStacktraceKey.String(recordStackTrace()),
+				semconv.ExceptionStacktrace(recordStackTrace()),
 			))
 		}
 
@@ -410,7 +410,7 @@ func (s *recordingSpan) End(options ...trace.SpanEndOption) {
 	}
 	s.mu.Unlock()
 
-	sps := s.tracer.provider.spanProcessors.Load().(spanProcessorStates)
+	sps := s.tracer.provider.getSpanProcessors()
 	if len(sps) == 0 {
 		return
 	}
@@ -430,14 +430,14 @@ func (s *recordingSpan) RecordError(err error, opts ...trace.EventOption) {
 	}
 
 	opts = append(opts, trace.WithAttributes(
-		semconv.ExceptionTypeKey.String(typeStr(err)),
-		semconv.ExceptionMessageKey.String(err.Error()),
+		semconv.ExceptionType(typeStr(err)),
+		semconv.ExceptionMessage(err.Error()),
 	))
 
 	c := trace.NewEventConfig(opts...)
 	if c.StackTrace() {
 		opts = append(opts, trace.WithAttributes(
-			semconv.ExceptionStacktraceKey.String(recordStackTrace()),
+			semconv.ExceptionStacktrace(recordStackTrace()),
 		))
 	}
 
