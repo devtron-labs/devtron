@@ -143,7 +143,7 @@ func (impl *CiEventHandlerImpl) Subscribe() error {
 			}
 
 		} else {
-			util.TriggerCIMetrics(ciCompleteEvent.Metrics, impl.ciEventConfig.ExposeCiMetrics, ciCompleteEvent.PipelineName, ciCompleteEvent.AppName)
+			util.TriggerCIMetrics(ciCompleteEvent.Metrics, impl.ciEventConfig.ExposeCiMetrics, ciCompleteEvent.PipelineName, ciCompleteEvent.AppName, ciCompleteEvent.PipelineId)
 			resp, err := impl.webhookService.HandleCiSuccessEvent(ciCompleteEvent.PipelineId, req, &time.Time{})
 			if err != nil {
 				impl.logger.Error("Error while sending event for CI success for pipelineID: ",
