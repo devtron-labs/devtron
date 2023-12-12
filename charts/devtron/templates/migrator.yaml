@@ -338,7 +338,7 @@ kind: Job
 metadata:
   name: postgresql-miscellaneous
 spec:
-  ttlSecondsAfterFinished: 1000
+  ttlSecondsAfterFinished: 1800
   template:
     spec:
       securityContext:
@@ -373,6 +373,6 @@ spec:
             name: postgresql-postgresql-init-scripts
       restartPolicy: OnFailure
   backoffLimit: 20
-  activeDeadlineSeconds: 1500
+  activeDeadlineSeconds: 1800
 {{- end }}
 {{- end }}
