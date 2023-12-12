@@ -1673,7 +1673,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			})
 
 			// CODE-BLOCK starts - store extra environment variables if webhook
-			if gitTrigger.CiConfigureSourceType == pipelineConfig.SOURCE_TYPE_WEBHOOK {
+			if gitTrigger.CiConfigureSourceType == pipelineConfig.SOURCE_TYPE_WEBHOOK && gitTrigger.WebhookData != nil {
 				webhookDataId := gitTrigger.WebhookData.Id
 				if webhookDataId > 0 {
 					webhookDataRequest := &gitSensorClient.WebhookDataRequest{

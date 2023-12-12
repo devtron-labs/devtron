@@ -421,10 +421,12 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 
 		if ciMaterial.Type == pipelineConfig.SOURCE_TYPE_WEBHOOK {
 			webhookData := commitHashForPipelineId.WebhookData
-			ciProjectDetail.WebhookData = pipelineConfig.WebhookData{
-				Id:              webhookData.Id,
-				EventActionType: webhookData.EventActionType,
-				Data:            webhookData.Data,
+			if webhookData != nil {
+				ciProjectDetail.WebhookData = pipelineConfig.WebhookData{
+					Id:              webhookData.Id,
+					EventActionType: webhookData.EventActionType,
+					Data:            webhookData.Data,
+				}
 			}
 		}
 
@@ -846,7 +848,7 @@ func (impl *CiServiceImpl) buildImageTag(commitHashes map[int]pipelineConfig.Git
 	dockerImageTag := ""
 	for _, v := range commitHashes {
 		_truncatedCommit := ""
-		if v.WebhookData.Id == 0 {
+		if v.WebhookData != nil || v.WebhookData.Id == 0 {
 			if v.Commit == "" {
 				continue
 			}
