@@ -19,6 +19,7 @@ type PipelineStatusTimelineService interface {
 	GetTimelineDbObjectByTimelineStatusAndTimelineDescription(cdWorkflowRunnerId int, installedAppVersionHistoryId int, timelineStatus pipelineConfig.TimelineStatus, timelineDescription string, userId int32) *pipelineConfig.PipelineStatusTimeline
 	SavePipelineStatusTimelineIfNotAlreadyPresent(pipelineId int, timelineStatus pipelineConfig.TimelineStatus, timeline *pipelineConfig.PipelineStatusTimeline, isAppStore bool) (latestTimeline *pipelineConfig.PipelineStatusTimeline, err error, isTimelineUpdated bool)
 	GetArgoAppSyncStatus(cdWfrId int) bool
+	SaveTimelines(timeline []*pipelineConfig.PipelineStatusTimeline, tx *pg.Tx) error
 }
 
 type PipelineStatusTimelineServiceImpl struct {
@@ -195,6 +196,7 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelines(appId, envId, wfrI
 	var statusLastFetchedAt time.Time
 	var statusFetchCount int
 	if util.IsAcdApp(deploymentAppType) && showTimeline {
+		// ignoring 'ARGOCD_SYNC_INITIATED' in sql query as it is not handled at FE
 		timelines, err := impl.pipelineStatusTimelineRepository.FetchTimelinesByWfrId(wfrId)
 		if err != nil {
 			impl.logger.Errorw("error in getting timelines by wfrId", "err", err, "wfrId", wfrId)
@@ -412,4 +414,12 @@ func (impl *PipelineStatusTimelineServiceImpl) GetArgoAppSyncStatus(cdWfrId int)
 		return false
 	}
 	return true
+}
+
+func (impl *PipelineStatusTimelineServiceImpl) SaveTimelines(timeline []*pipelineConfig.PipelineStatusTimeline, tx *pg.Tx) error {
+	_, err := tx.Model(&timeline).Insert()
+	if err != nil {
+		return err
+	}
+	return err
 }

@@ -321,7 +321,7 @@ func (impl *CdHandlerImpl) CheckAndSendArgoPipelineStatusSyncEventIfNeeded(pipel
 	//TODO: remove hard coding
 
 	// sync argocd app
-	err = impl.SyncArgoCdApps(impl.AppConfig.ArgocdManualSyncCronPipelineDeployedBefore)
+	err = impl.SyncArgoCdApps(impl.AppConfig.ArgocdManualSyncCronPipelineDeployedBefore, pipelineId)
 	if err != nil {
 		impl.Logger.Errorw("error in syncing argocd app")
 		return
@@ -1836,31 +1836,30 @@ func (impl *CdHandlerImpl) DeactivateImageReservationPathsOnFailure(imagePathRes
 	return impl.customTagService.DeactivateImagePathReservationByImageIds(imagePathReservationIds)
 }
 
-func (impl *CdHandlerImpl) SyncArgoCdApps(deployedBeforeMinutes int) error {
-	err := impl.syncACDDevtronApps(deployedBeforeMinutes)
+func (impl *CdHandlerImpl) SyncArgoCdApps(deployedBeforeMinutes int, pipelineId int) error {
+	err := impl.syncACDDevtronApps(deployedBeforeMinutes, pipelineId)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (impl *CdHandlerImpl) syncACDDevtronApps(deployedBeforeMinutes int) error {
-	pipelines, err := impl.pipelineRepository.GetArgoPipelineStuckInGitCommitState(deployedBeforeMinutes)
-	if err != nil && err != pg.ErrNoRows {
-		impl.Logger.Errorw("err in GetArgoPipelinesHavingTriggersStuckInLastPossibleNonTerminalTimelines", "err", err)
+func (impl *CdHandlerImpl) syncACDDevtronApps(deployedBeforeMinutes int, pipelineId int) error {
+
+	cdWfr, err := impl.cdWorkflowRepository.FindLastStatusByPipelineIdAndRunnerType(pipelineId, bean.CD_WORKFLOW_TYPE_DEPLOY)
+	if err != nil {
+		impl.Logger.Errorw("error in getting latest cdWfr by cdPipelineId", "err", err, "pipelineId", pipelineId)
 		return err
 	}
-	impl.Logger.Debugw("received argo cd pipelines stuck at git commit stage", "pipelines", pipelines)
-	for _, pipeline := range pipelines {
-
-		cdWfr, err := impl.cdWorkflowRepository.FindLastStatusByPipelineIdAndRunnerType(pipeline.Id, bean.CD_WORKFLOW_TYPE_DEPLOY)
-		if err != nil {
-			impl.Logger.Errorw("error in getting latest cdWfr by cdPipelineId", "err", err, "pipelineId", pipeline.Id)
-			continue
-		}
-		if util3.IsTerminalStatus(cdWfr.Status) {
-			continue
-		}
+	if util3.IsTerminalStatus(cdWfr.Status) {
+		return nil
+	}
+	pipelineStatusTimeline, err := impl.pipelineStatusTimelineRepository.FetchLatestTimelineByWfrId(cdWfr.Id)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching latest pipeline status by cdWfrId", "err", err)
+		return err
+	}
+	if pipelineStatusTimeline.Status == pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED && time.Since(pipelineStatusTimeline.StatusTime) >= time.Minute*time.Duration(deployedBeforeMinutes) {
 		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
 		if err != nil {
 			impl.Logger.Errorw("error in getting acd token", "err", err)
@@ -1868,9 +1867,9 @@ func (impl *CdHandlerImpl) syncACDDevtronApps(deployedBeforeMinutes int) error {
 		}
 		ctx := context.Background()
 		ctx = context.WithValue(ctx, "token", acdToken)
-		syncErr := impl.argocdClientWrapperService.SyncArgoCDApplicationWithRefresh(ctx, pipeline.DeploymentAppName)
-		impl.Logger.Errorw("error in syncing argoCD app", "err", syncErr)
+		syncErr := impl.argocdClientWrapperService.SyncArgoCDApplicationWithRefresh(ctx, cdWfr.CdWorkflow.Pipeline.DeploymentAppName)
 		if syncErr != nil {
+			impl.Logger.Errorw("error in syncing argoCD app", "err", syncErr)
 			timelineObject := impl.pipelineStatusTimelineService.GetTimelineDbObjectByTimelineStatusAndTimelineDescription(cdWfr.Id, 0, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_FAILED, fmt.Sprintf("error occured in syncing argocd application. err: %s", syncErr.Error()), 1)
 			_ = impl.pipelineStatusTimelineService.SaveTimeline(timelineObject, nil, false)
 			cdWfr.Status = pipelineConfig.WorkflowFailed
@@ -1879,8 +1878,9 @@ func (impl *CdHandlerImpl) syncACDDevtronApps(deployedBeforeMinutes int) error {
 			cdWfrUpdateErr := impl.cdWorkflowRepository.UpdateWorkFlowRunner(&cdWfr)
 			if cdWfrUpdateErr != nil {
 				impl.Logger.Errorw("error in updating cd workflow runner as failed in argocd app sync cron", "err", err)
+				return err
 			}
-			continue
+			return nil
 		}
 		timeline := &pipelineConfig.PipelineStatusTimeline{
 			CdWorkflowRunnerId: cdWfr.Id,
@@ -1896,5 +1896,5 @@ func (impl *CdHandlerImpl) syncACDDevtronApps(deployedBeforeMinutes int) error {
 		}
 		_, err, _ = impl.pipelineStatusTimelineService.SavePipelineStatusTimelineIfNotAlreadyPresent(timeline.CdWorkflowRunnerId, timeline.Status, timeline, false)
 	}
-	return err
+	return nil
 }
