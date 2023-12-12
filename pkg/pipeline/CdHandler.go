@@ -1875,8 +1875,8 @@ func (impl *CdHandlerImpl) syncACDDevtronApps(deployedBeforeMinutes int) error {
 		ctx := context.Background()
 		ctx = context.WithValue(ctx, "token", acdToken)
 		syncErr := impl.argocdClientWrapperService.SyncArgoCDApplicationWithRefresh(ctx, pipeline.DeploymentAppName)
-		impl.Logger.Errorw("error in syncing argoCD app", "err", syncErr)
 		if syncErr != nil {
+			impl.Logger.Errorw("error in syncing argoCD app", "err", syncErr)
 			timelineObject := impl.pipelineStatusTimelineService.GetTimelineDbObjectByTimelineStatusAndTimelineDescription(cdWfr.Id, 0, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_FAILED, fmt.Sprintf("error occured in syncing argocd application. err: %s", syncErr.Error()), 1)
 			_ = impl.pipelineStatusTimelineService.SaveTimeline(timelineObject, nil, false)
 			cdWfr.Status = pipelineConfig.WorkflowFailed
