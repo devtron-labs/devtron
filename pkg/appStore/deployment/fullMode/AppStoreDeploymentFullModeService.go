@@ -333,7 +333,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationACD(ins
 	//impl.SyncACD(installAppVersionRequest.ACDAppName, ctx)
 
 	//STEP 7: normal refresh ACD - update for step 6 to avoid delay
-	err = impl.argoClientWrapperService.GetArgoAppWithNormalRefresh(ctx, installAppVersionRequest.ACDAppName)
+	_, err = impl.argoClientWrapperService.GetArgoAppWithNormalRefresh(ctx, installAppVersionRequest.ACDAppName)
 	if err != nil {
 		impl.logger.Errorw("error in getting the argo application with normal refresh", "err", err)
 	}
