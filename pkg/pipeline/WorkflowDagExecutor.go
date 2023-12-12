@@ -4460,14 +4460,14 @@ func (impl *WorkflowDagExecutorImpl) autoscalingCheckBeforeTrigger(ctx context.C
 // CheckIfMonoRepoMigrationRequired checks if gitOps repo name is changed
 func (impl *WorkflowDagExecutorImpl) CheckIfMonoRepoMigrationRequired(manifestPushTemplate *bean4.ManifestPushTemplate) bool {
 	monoRepoMigrationRequired := false
-	if manifestPushTemplate.IsCustomGitRepository {
+	if ChartsUtil.IsGitOpsRepoNotConfigured(manifestPushTemplate.RepoUrl) || manifestPushTemplate.IsCustomGitRepository {
 		return false
 	}
 	var err error
 	gitOpsRepoName := util.GetGitRepoNameFromGitRepoUrl(manifestPushTemplate.RepoUrl)
 	if len(gitOpsRepoName) == 0 {
 		gitOpsRepoName, err = impl.GetGitOpsRepoName(manifestPushTemplate.AppName, manifestPushTemplate.EnvironmentName)
-		if err != nil {
+		if err != nil || gitOpsRepoName == "" {
 			return false
 		}
 	}

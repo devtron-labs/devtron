@@ -47,6 +47,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/gitops"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/ChartsUtil"
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
@@ -1366,14 +1367,14 @@ func (impl *AppStoreDeploymentServiceImpl) CreateInstalledAppVersion(installAppV
 // CheckIfMonoRepoMigrationRequired checks if gitOps repo name is changed
 func (impl *AppStoreDeploymentServiceImpl) CheckIfMonoRepoMigrationRequired(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApp *repository.InstalledApps) bool {
 	monoRepoMigrationRequired := false
-	if installedApp.IsCustomRepository || !util.IsAcdApp(installAppVersionRequest.DeploymentAppType) {
+	if !util.IsAcdApp(installAppVersionRequest.DeploymentAppType) || ChartsUtil.IsGitOpsRepoNotConfigured(installedApp.GitOpsRepoUrl) || installedApp.IsCustomRepository {
 		return false
 	}
 	var err error
 	gitOpsRepoName := util.GetGitRepoNameFromGitRepoUrl(installedApp.GitOpsRepoUrl)
 	if len(gitOpsRepoName) == 0 {
 		gitOpsRepoName, err = impl.appStoreDeploymentArgoCdService.GetGitOpsRepoName(installAppVersionRequest.AppName, installAppVersionRequest.EnvironmentName)
-		if err != nil {
+		if err != nil || gitOpsRepoName == "" {
 			return false
 		}
 	}
