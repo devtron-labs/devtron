@@ -1846,6 +1846,11 @@ func (impl *CdHandlerImpl) SyncArgoCdApps(deployedBeforeMinutes int, pipelineId 
 
 func (impl *CdHandlerImpl) syncACDDevtronApps(deployedBeforeMinutes int, pipelineId int) error {
 
+	if impl.AppConfig.ArgoCDAutoSyncEnabled {
+		// don't check for apps if auto sync is enabled
+		return nil
+	}
+
 	cdWfr, err := impl.cdWorkflowRepository.FindLastStatusByPipelineIdAndRunnerType(pipelineId, bean.CD_WORKFLOW_TYPE_DEPLOY)
 	if err != nil {
 		impl.Logger.Errorw("error in getting latest cdWfr by cdPipelineId", "err", err, "pipelineId", pipelineId)

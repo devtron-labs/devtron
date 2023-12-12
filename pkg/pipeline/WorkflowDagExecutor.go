@@ -232,6 +232,7 @@ const (
 	CHILD_CD_COUNT               = "CHILD_CD_COUNT"
 	DEVTRON_SYSTEM_USER_ID       = 1
 	ARGOCD_SYNC_ERROR            = "error in syncing argoCD app"
+	ARGOCD_REFRESH_ERROR         = "Error in refreshing argocd app"
 )
 
 type DevtronAppReleaseContextType struct {
@@ -4261,7 +4262,7 @@ func (impl *WorkflowDagExecutorImpl) createArgoApplicationIfRequired(appId int, 
 			RepoUrl:         chart.GitRepoUrl,
 		}
 		var applicationTemplatePath string
-		if impl.appServiceConfig.CreateArgoCDAppInAutoSyncMode {
+		if impl.appServiceConfig.ArgoCDAutoSyncEnabled {
 			applicationTemplatePath = "./scripts/argo-assets/APPLICATION_TEMPLATE_AUTO_SYNC.JSON"
 		} else {
 			applicationTemplatePath = "./scripts/argo-assets/APPLICATION_TEMPLATE.JSON"
@@ -5239,61 +5240,29 @@ func (impl *WorkflowDagExecutorImpl) updateArgoPipeline(pipeline *pipelineConfig
 		} else {
 			impl.logger.Debug("pipeline no need to update ")
 		}
-		if !impl.appServiceConfig.CreateArgoCDAppInAutoSyncMode {
-			// if manual sync is enabled,  argoApplication.Spec.SyncPolicy.Automated should be nil
-			if argoApplication.Spec.SyncPolicy.Automated != nil {
-				updateReq := &v1alpha1.Application{
-					ObjectMeta: v1.ObjectMeta{
-						Name:      argoAppName,
-						Namespace: argocdServer.DevtronInstalationNs,
-					},
-					Spec: v1alpha1.ApplicationSpec{
-						Destination: argoApplication.Spec.Destination,
-						Source:      v1alpha1.ApplicationSource{Path: envOverride.Chart.ChartLocation, RepoURL: envOverride.Chart.GitRepoUrl, TargetRevision: "master"},
-						SyncPolicy: &v1alpha1.SyncPolicy{
-							Automated:   nil,
-							SyncOptions: argoApplication.Spec.SyncPolicy.SyncOptions,
-							Retry:       argoApplication.Spec.SyncPolicy.Retry,
-						}}}
-				validate := false
-				_, err = impl.acdClient.Update(ctx, &application3.ApplicationUpdateRequest{Application: updateReq, Validate: &validate})
-				if err != nil {
-					impl.logger.Errorw("error in creating argo pipeline ", "name", pipeline.Name, "err", err)
-					return false, err
-				}
-				//impl.logger.Debugw("pipeline update req ", "res", patchReq)
-			}
-		} else {
-			if argoApplication.Spec.SyncPolicy.Automated == nil {
-				patchReq := v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{
-					Source: v1alpha1.ApplicationSource{Path: envOverride.Chart.ChartLocation, RepoURL: envOverride.Chart.GitRepoUrl, TargetRevision: "master"},
-					SyncPolicy: &v1alpha1.SyncPolicy{
-						Automated: &v1alpha1.SyncPolicyAutomated{
-							Prune: true,
-						},
-						SyncOptions: argoApplication.Spec.SyncPolicy.SyncOptions,
-						Retry:       argoApplication.Spec.SyncPolicy.Retry,
-					}}}
-				reqbyte, err := json.Marshal(patchReq)
-				if err != nil {
-					impl.logger.Errorw("error in creating patch", "err", err)
-				}
-				reqString := string(reqbyte)
-				patchType := "merge"
-				_, err = impl.acdClient.Patch(ctx, &application3.ApplicationPatchRequest{Patch: &reqString, Name: &argoAppName, PatchType: &patchType})
-				if err != nil {
-					impl.logger.Errorw("error in creating argo pipeline ", "name", pipeline.Name, "patch", string(reqbyte), "err", err)
-					return false, err
-				}
-				impl.logger.Debugw("pipeline update req ", "res", patchReq)
+
+		if impl.IsArgoAppSyncModeMigrationNeeded(argoApplication) {
+			syncModeUpdateRequest := impl.GetArgocdAppSyncModeUpdateRequest(argoApplication)
+			validate := false
+			_, err = impl.acdClient.Update(ctx, &application3.ApplicationUpdateRequest{Application: syncModeUpdateRequest, Validate: &validate})
+			if err != nil {
+				impl.logger.Errorw("error in creating argo pipeline ", "name", pipeline.Name, "err", err)
+				return false, err
 			}
 		}
-		//manual sync argocd app
-		if !impl.appServiceConfig.CreateArgoCDAppInAutoSyncMode {
+		if impl.appServiceConfig.ArgoCDAutoSyncEnabled {
+			// auto sync
+			err2 := impl.argoClientWrapperService.GetArgoAppWithNormalRefresh(ctx, argoAppName)
+			if err2 != nil {
+				impl.logger.Errorw("error in refreshing argocd app in case of auto", "err", err)
+				return false, fmt.Errorf("%s. err: %s", ARGOCD_REFRESH_ERROR, err2.Error())
+			}
+		} else {
+			// manual sync
 			err2 := impl.argoClientWrapperService.SyncArgoCDApplicationWithRefresh(ctx, argoAppName)
 			if err2 != nil {
 				impl.logger.Errorw("error in getting argo application with normal refresh", "argoAppName", argoAppName, "pipelineName", pipeline.Name)
-				return true, fmt.Errorf("%s. err: %s", ARGOCD_SYNC_ERROR, err2.Error())
+				return false, fmt.Errorf("%s. err: %s", ARGOCD_SYNC_ERROR, err2.Error())
 			}
 		}
 		return true, nil
@@ -5306,11 +5275,37 @@ func (impl *WorkflowDagExecutorImpl) updateArgoPipeline(pipeline *pipelineConfig
 	}
 }
 
-func (impl *WorkflowDagExecutorImpl) IsArgoAppSyncModeMigrationNeeded(argoApplication v1alpha1.ApplicationSpec) bool {
-	if !impl.appServiceConfig.CreateArgoCDAppInAutoSyncMode && argoApplication.Spec.SyncPolicy.Automated != nil {
-
+func (impl *WorkflowDagExecutorImpl) IsArgoAppSyncModeMigrationNeeded(argoApplication *v1alpha1.Application) bool {
+	if !impl.appServiceConfig.ArgoCDAutoSyncEnabled && argoApplication.Spec.SyncPolicy.Automated != nil {
+		return true
+	}
+	if impl.appServiceConfig.ArgoCDAutoSyncEnabled && argoApplication.Spec.SyncPolicy.Automated == nil {
+		return true
 	}
 	return false
+}
+
+func (impl *WorkflowDagExecutorImpl) GetArgocdAppSyncModeUpdateRequest(argoApplication *v1alpha1.Application) *v1alpha1.Application {
+	// set automated field in update request
+	var automated *v1alpha1.SyncPolicyAutomated
+	if impl.appServiceConfig.ArgoCDAutoSyncEnabled {
+		automated = &v1alpha1.SyncPolicyAutomated{
+			Prune: true,
+		}
+	}
+	return &v1alpha1.Application{
+		ObjectMeta: v1.ObjectMeta{
+			Name:      argoApplication.Name,
+			Namespace: argocdServer.DevtronInstalationNs,
+		},
+		Spec: v1alpha1.ApplicationSpec{
+			Destination: argoApplication.Spec.Destination,
+			Source:      argoApplication.Spec.Source,
+			SyncPolicy: &v1alpha1.SyncPolicy{
+				Automated:   automated,
+				SyncOptions: argoApplication.Spec.SyncPolicy.SyncOptions,
+				Retry:       argoApplication.Spec.SyncPolicy.Retry,
+			}}}
 }
 
 func (impl *WorkflowDagExecutorImpl) getValuesFileForEnv(environmentId int) string {
