@@ -49,11 +49,11 @@ func (impl LockConfigRestHandlerImpl) GetLockConfig(w http.ResponseWriter, r *ht
 		return
 	}
 
-	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
-	}
+	//token := r.Header.Get("token")
+	//if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
+	//	common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+	//	return
+	//}
 
 	resp, err := impl.lockConfigurationService.GetLockConfiguration()
 	if err != nil {
