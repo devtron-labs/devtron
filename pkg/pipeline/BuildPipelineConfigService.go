@@ -24,6 +24,7 @@ import (
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/attributes"
@@ -1321,6 +1322,7 @@ func (impl *CiPipelineConfigServiceImpl) CreateCiPipeline(createRequest *bean.Ci
 	}
 	//--ecr config
 	createRequest.AppName = app.AppName
+	createRequest.IsJob = app.AppType == helper.Job
 	if !createRequest.IsJob {
 		store, err := impl.getDefaultArtifactStore(createRequest.DockerRegistry)
 		if err != nil {
