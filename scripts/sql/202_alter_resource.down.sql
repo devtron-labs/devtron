@@ -6,3 +6,5 @@ alter table devtron_resource
 
 alter table devtron_resource_schema
     drop column sample_schema;
+
+DROP TABLE "public"."devtron_resource_schema_audit";
