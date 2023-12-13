@@ -22,8 +22,18 @@
       "repoURL": "{{.RepoUrl}}",
       "targetRevision": "master"
     },
-    "syncPolicy": "{{.SyncPolicy}}"
+    "syncPolicy": {
+      {{if .AutoSyncEnabled }}"automated": {
+        "prune": true
+      }, {{end}}
+      "retry": {
+        "backoff": {
+          "duration": "5s",
+          "factor": 2,
+          "maxDuration": "5s"
+        },
+        "limit": 1
+      }
+    }
   }
 }
-
-
