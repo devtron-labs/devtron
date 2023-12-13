@@ -360,7 +360,7 @@ func (impl DockerRegRestHandlerImpl) GetDockerArtifactStore(w http.ResponseWrite
 	token := r.Header.Get("token")
 	var result []types.DockerArtifactStoreBean
 	for _, item := range res {
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceDocker, casbin.ActionGet, strings.ToLower(item.Id)); ok {
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceDocker, casbin.ActionGet, item.Id); ok {
 			result = append(result, item)
 		}
 	}
@@ -381,7 +381,7 @@ func (impl DockerRegRestHandlerImpl) FetchAllDockerAccounts(w http.ResponseWrite
 	token := r.Header.Get("token")
 	var result []types.DockerArtifactStoreBean
 	for _, item := range res {
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceDocker, casbin.ActionGet, strings.ToLower(item.Id)); ok {
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceDocker, casbin.ActionGet, item.Id); ok {
 			item.DisabledFields = make([]types.DisabledFields, 0)
 			if !item.IsPublic {
 				if isEditable := impl.deleteService.CanDeleteChartRegistryPullConfig(item.Id); !(isEditable || item.IsPublic) {
@@ -407,7 +407,7 @@ func (impl DockerRegRestHandlerExtendedImpl) FetchAllDockerAccounts(w http.Respo
 	token := r.Header.Get("token")
 	var result []types.DockerArtifactStoreBean
 	for _, item := range res {
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceDocker, casbin.ActionGet, strings.ToLower(item.Id)); ok {
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceDocker, casbin.ActionGet, item.Id); ok {
 			item.DisabledFields = make([]types.DisabledFields, 0)
 			if !item.IsPublic {
 				if isContainerEditable := impl.deleteServiceFullMode.CanDeleteContainerRegistryConfig(item.Id); !(isContainerEditable || item.IsPublic) {
@@ -442,7 +442,7 @@ func (impl DockerRegRestHandlerImpl) FetchOneDockerAccounts(w http.ResponseWrite
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceDocker, casbin.ActionGet, strings.ToLower(res.Id)); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceDocker, casbin.ActionGet, res.Id); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -472,7 +472,7 @@ func (impl DockerRegRestHandlerExtendedImpl) FetchOneDockerAccounts(w http.Respo
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceDocker, casbin.ActionGet, strings.ToLower(res.Id)); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceDocker, casbin.ActionGet, res.Id); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -514,7 +514,7 @@ func (impl DockerRegRestHandlerImpl) UpdateDockerRegistryConfig(w http.ResponseW
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceDocker, casbin.ActionUpdate, strings.ToLower(bean.Id)); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceDocker, casbin.ActionUpdate, bean.Id); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -615,7 +615,7 @@ func (impl DockerRegRestHandlerImpl) DeleteDockerRegistryConfig(w http.ResponseW
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceDocker, casbin.ActionCreate, strings.ToLower(bean.Id)); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceDocker, casbin.ActionCreate, bean.Id); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -654,7 +654,7 @@ func (impl DockerRegRestHandlerExtendedImpl) DeleteDockerRegistryConfig(w http.R
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceDocker, casbin.ActionCreate, strings.ToLower(bean.Id)); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceDocker, casbin.ActionCreate, bean.Id); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
