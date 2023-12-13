@@ -381,14 +381,12 @@ func (impl AppStoreDeploymentFullModeServiceImpl) createInArgo(chartGitAttribute
 		RepoPath:        chartGitAttribute.ChartLocation,
 		RepoUrl:         chartGitAttribute.RepoUrl,
 	}
-	applicationTemplatePath := "./scripts/argo-assets/APPLICATION_TEMPLATE_AUTO_SYNC.JSON"
-	_, err := impl.ArgoK8sClient.CreateAcdApp(appreq, envModel.Cluster, applicationTemplatePath)
+	_, err := impl.ArgoK8sClient.CreateAcdApp(appreq, envModel.Cluster, argocdServer.ARGOCD_AUTO_SYNC_APPLICATION_TEMPLATE)
 	//create
 	if err != nil {
 		impl.logger.Errorw("error in creating argo cd app ", "err", err)
 		return err
 	}
-
 	return nil
 }
 
