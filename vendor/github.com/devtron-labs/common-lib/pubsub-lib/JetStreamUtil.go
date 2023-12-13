@@ -89,6 +89,9 @@ const (
 	DEVTRON_CHART_INSTALL_TOPIC         string = "DEVTRON-CHART-INSTALL-TOPIC"
 	DEVTRON_CHART_INSTALL_GROUP         string = "DEVTRON-CHART-INSTALL-GROUP"
 	DEVTRON_CHART_INSTALL_DURABLE       string = "DEVTRON-CHART-INSTALL-DURABLE"
+	PANIC_ON_PROCESSING_TOPIC           string = "PANIC-ON-PROCESSING-TOPIC"
+	PANIC_ON_PROCESSING_GROUP           string = "PANIC-ON-PROCESSING-GROUP"
+	PANIC_ON_PROCESSING_DURABLE         string = "PANIC-ON-PROCESSING-DURABLE"
 )
 
 type NatsTopic struct {
@@ -127,6 +130,7 @@ var natsTopicMapping = map[string]NatsTopic{
 	ARGO_PIPELINE_STATUS_UPDATE_TOPIC: {topicName: ARGO_PIPELINE_STATUS_UPDATE_TOPIC, streamName: ORCHESTRATOR_STREAM, queueName: ARGO_PIPELINE_STATUS_UPDATE_GROUP, consumerName: ARGO_PIPELINE_STATUS_UPDATE_DURABLE},
 	HELM_CHART_INSTALL_STATUS_TOPIC:   {topicName: HELM_CHART_INSTALL_STATUS_TOPIC, streamName: ORCHESTRATOR_STREAM, queueName: HELM_CHART_INSTALL_STATUS_GROUP, consumerName: HELM_CHART_INSTALL_STATUS_DURABLE},
 	DEVTRON_CHART_INSTALL_TOPIC:       {topicName: DEVTRON_CHART_INSTALL_TOPIC, streamName: ORCHESTRATOR_STREAM, queueName: DEVTRON_CHART_INSTALL_GROUP, consumerName: DEVTRON_CHART_INSTALL_DURABLE},
+	PANIC_ON_PROCESSING_TOPIC:         {topicName: PANIC_ON_PROCESSING_TOPIC, streamName: ORCHESTRATOR_STREAM, queueName: PANIC_ON_PROCESSING_GROUP, consumerName: PANIC_ON_PROCESSING_DURABLE},
 }
 
 var NatsStreamWiseConfigMapping = map[string]NatsStreamConfig{
@@ -156,6 +160,7 @@ var NatsConsumerWiseConfigMapping = map[string]NatsConsumerConfig{
 	CD_BULK_DEPLOY_TRIGGER_DURABLE:      {},
 	HELM_CHART_INSTALL_STATUS_DURABLE:   {},
 	DEVTRON_CHART_INSTALL_DURABLE:       {},
+	PANIC_ON_PROCESSING_DURABLE:         {},
 }
 
 func getConsumerConfigMap(jsonString string) map[string]NatsConsumerConfig {
@@ -274,23 +279,23 @@ func AddStream(js nats.JetStreamContext, streamConfig *nats.StreamConfig, stream
 	for _, streamName := range streamNames {
 		streamInfo, err := js.StreamInfo(streamName)
 		if err == nats.ErrStreamNotFound || streamInfo == nil {
-			log.Print("No stream was created already. Need to create one.", "Stream name", streamName)
+			log.Print("No stream was created already. Need to create one. ", "Stream name: ", streamName)
 			//Stream doesn't already exist. Create a new stream from jetStreamContext
 			cfgToSet := getNewConfig(streamName, streamConfig)
 			_, err = js.AddStream(cfgToSet)
 			if err != nil {
-				log.Fatal("Error while creating stream", "stream name", streamName, "error", err)
+				log.Fatal("Error while creating stream. ", "stream name: ", streamName, "error: ", err)
 				return err
 			}
 		} else if err != nil {
-			log.Fatal("Error while getting stream info", "stream name", streamName, "error", err)
+			log.Fatal("Error while getting stream info. ", "stream name: ", streamName, "error: ", err)
 		} else {
 			config := streamInfo.Config
 			streamConfig.Name = streamName
 			if checkConfigChangeReqd(&config, streamConfig) {
 				_, err1 := js.UpdateStream(&config)
 				if err1 != nil {
-					log.Println("error occurred while updating stream config", "streamName", streamName, "streamConfig", config, "error", err1)
+					log.Println("error occurred while updating stream config. ", "streamName: ", streamName, "streamConfig: ", config, "error: ", err1)
 				}
 			}
 		}
