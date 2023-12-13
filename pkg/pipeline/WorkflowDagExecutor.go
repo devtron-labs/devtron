@@ -2795,9 +2795,9 @@ func (impl *WorkflowDagExecutorImpl) TriggerHelmAsyncRelease(overrideRequest *be
 	}
 
 	event := &bean.AsyncCdDeployEvent{
-		//ValuesOverrideRequest: overrideRequest,
-		TriggeredAt: triggeredAt,
-		TriggeredBy: triggeredBy,
+		ValuesOverrideRequest: overrideRequest,
+		TriggeredAt:           triggeredAt,
+		TriggeredBy:           triggeredBy,
 	}
 	payload, err := json.Marshal(event)
 	if err != nil {
