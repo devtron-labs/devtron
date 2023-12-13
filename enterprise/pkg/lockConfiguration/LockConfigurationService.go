@@ -1,18 +1,13 @@
 package lockConfiguration
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/enterprise/pkg/lockConfiguration/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
-	jsonpatch1 "github.com/evanphx/json-patch"
 	"github.com/go-pg/pg"
 	"github.com/mattbaird/jsonpatch"
-	"github.com/ohler55/ojg/jp"
-	"github.com/ohler55/ojg/oj"
 	"go.uber.org/zap"
-	"strings"
 	"time"
 )
 
@@ -118,8 +113,6 @@ func (impl LockConfigurationServiceImpl) DeleteActiveLockConfiguration(userId in
 	return nil
 }
 
-//TODO refactoring
-
 func (impl LockConfigurationServiceImpl) HandleLockConfiguration(currentConfig, savedConfig string, userId int) (bool, string, error) {
 
 	isSuperAdmin, err := impl.userService.IsSuperAdmin(userId)
@@ -127,57 +120,33 @@ func (impl LockConfigurationServiceImpl) HandleLockConfiguration(currentConfig, 
 		return false, "", err
 	}
 
-	emptyJson := `{
-    }`
 	patch, err := jsonpatch.CreatePatch([]byte(savedConfig), []byte(currentConfig))
 	if err != nil {
 		fmt.Printf("Error creating JSON patch:%v", err)
 		return false, "", err
 	}
-	patch1, err := jsonpatch.CreatePatch([]byte(currentConfig), []byte(emptyJson))
-	if err != nil {
-		fmt.Printf("Error creating JSON patch: %v", err)
-		return false, "", err
-	}
-	paths := make(map[string]bool)
-	for _, path := range patch {
-		// ADD
-		res := strings.Split(path.Path, "/")
-		paths["/"+res[1]] = true
-	}
-	for index, path := range patch1 {
-		if paths[path.Path] {
-			patch1 = append(patch1[:index], patch1[index+1:]...)
-		}
-	}
-	marsh, _ := json.Marshal(patch1)
-	patche, err := jsonpatch1.DecodePatch(marsh)
+
+	emptyPatch, err := bean.CreateConfigEmptyJsonPatch(currentConfig)
 	if err != nil {
 		return false, "", err
 	}
-	modified, err := patche.Apply([]byte(currentConfig))
-	if err != nil {
-		return false, "", err
-	}
-	obj, err := oj.ParseString(string(modified))
+
+	paths := bean.GetJsonParentPathMap(patch)
+
+	emptyPatch = bean.ModifyEmptyPatchBasedOnChanges(emptyPatch, paths)
+
+	modified, err := bean.ApplyJsonPatch(emptyPatch, currentConfig)
+
 	if err != nil {
 		return false, "", err
 	}
 	lockConfig, err := impl.GetLockConfiguration()
-	isLockConfigError := false
-	for _, config := range lockConfig.Config {
-		x, err := jp.ParseString(config)
-		if err != nil {
-			return false, "", err
-		}
-		ys := x.Get(obj)
-		if len(ys) != 0 {
-			isLockConfigError = true
-		}
+	if err != nil {
+		return false, "", err
 	}
+	isLockConfigError := bean.CheckForLockedKeyInModifiedJson(lockConfig, modified)
 	if isLockConfigError {
-		return true, string(modified), nil
+		return true, modified, nil
 	}
-
 	return false, "", nil
 }

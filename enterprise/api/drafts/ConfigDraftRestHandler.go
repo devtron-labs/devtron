@@ -133,9 +133,7 @@ func (impl *ConfigDraftRestHandlerImpl) AddDraftVersion(w http.ResponseWriter, r
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	//
-	//response := make(map[string]string, 1)
-	//response["draftVersionId"] = strconv.Itoa(draftVersionId)
+
 	common.WriteJsonResp(w, err, draftVersionResp, http.StatusOK)
 }
 
