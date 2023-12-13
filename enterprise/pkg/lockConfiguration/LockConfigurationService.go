@@ -19,7 +19,7 @@ import (
 type LockConfigurationService interface {
 	GetLockConfiguration() (*bean.LockConfigResponse, error)
 	SaveLockConfiguration(*bean.LockConfigRequest, int32) error
-	DeleteActiveLockConfiguration(userId int32) error
+	DeleteActiveLockConfiguration(userId int32, tx *pg.Tx) error
 	HandleLockConfiguration(currentConfig, savedConfig string, userId int) (bool, string, error)
 }
 
@@ -54,10 +54,7 @@ func (impl LockConfigurationServiceImpl) GetLockConfiguration() (*bean.LockConfi
 }
 
 func (impl LockConfigurationServiceImpl) SaveLockConfiguration(lockConfig *bean.LockConfigRequest, createdBy int32) error {
-	err := impl.DeleteActiveLockConfiguration(createdBy)
-	if err != nil && err != pg.ErrNoRows {
-		return err
-	}
+	// pass tx
 	dbConnection := impl.lockConfigurationRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -66,16 +63,23 @@ func (impl LockConfigurationServiceImpl) SaveLockConfiguration(lockConfig *bean.
 	// Rollback tx on error.
 	defer tx.Rollback()
 
+	// Delete Active configuration
+	err = impl.DeleteActiveLockConfiguration(createdBy, tx)
+	if err != nil && err != pg.ErrNoRows {
+		return err
+	}
+
 	newLockConfigDto := lockConfig.ConvertRequestToDBDto()
 	newLockConfigDto.AuditLog = sql.NewDefaultAuditLog(createdBy)
 
 	err = impl.lockConfigurationRepository.Create(newLockConfigDto, tx)
 	if err != nil {
-		impl.logger.Errorw("error while saving global tags", "error", err)
+		impl.logger.Errorw("error while saving lockConfiguration", "error", err)
 		return err
 	}
 
 	// commit TX
+	// TODO log
 	err = tx.Commit()
 	if err != nil {
 		return err
@@ -83,16 +87,19 @@ func (impl LockConfigurationServiceImpl) SaveLockConfiguration(lockConfig *bean.
 	return err
 }
 
-func (impl LockConfigurationServiceImpl) DeleteActiveLockConfiguration(userId int32) error {
+func (impl LockConfigurationServiceImpl) DeleteActiveLockConfiguration(userId int32, tx *pg.Tx) error {
 	lockConfigDto, err := impl.lockConfigurationRepository.GetActiveLockConfig()
 	if err != nil {
 		return err
 	}
 	dbConnection := impl.lockConfigurationRepository.GetConnection()
-	tx, err := dbConnection.Begin()
-	if err != nil {
-		return err
+	if tx == nil {
+		tx, err = dbConnection.Begin()
+		if err != nil {
+			return err
+		}
 	}
+
 	// Rollback tx on error.
 	defer tx.Rollback()
 
@@ -110,6 +117,8 @@ func (impl LockConfigurationServiceImpl) DeleteActiveLockConfiguration(userId in
 	}
 	return nil
 }
+
+//TODO refactoring
 
 func (impl LockConfigurationServiceImpl) HandleLockConfiguration(currentConfig, savedConfig string, userId int) (bool, string, error) {
 
@@ -132,13 +141,12 @@ func (impl LockConfigurationServiceImpl) HandleLockConfiguration(currentConfig, 
 	}
 	paths := make(map[string]bool)
 	for _, path := range patch {
+		// ADD
 		res := strings.Split(path.Path, "/")
-		fmt.Println(res[1])
 		paths["/"+res[1]] = true
 	}
 	for index, path := range patch1 {
 		if paths[path.Path] {
-			fmt.Println(path)
 			patch1 = append(patch1[:index], patch1[index+1:]...)
 		}
 	}
