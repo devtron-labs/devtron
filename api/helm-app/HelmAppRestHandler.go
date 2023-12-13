@@ -385,7 +385,7 @@ func (handler *HelmAppRestHandlerImpl) TemplateChart(w http.ResponseWriter, r *h
 }
 
 func (handler *HelmAppRestHandlerImpl) checkHelmAuth(token string, object string) bool {
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, strings.ToLower(object)); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object); !ok {
 		return false
 	}
 	return true

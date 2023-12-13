@@ -215,6 +215,7 @@ func RemovePoliciesByRole(role string) bool {
 	return policyResponse
 }
 
+// In v2 casbin, we first delete from adapter(database) and delete from model(cache) so it deletes from db but when deleting from cache it maintains a Policy Map whose key is combination of all v0,v1,v2 etc and we only have role, so it returns no error but false as output, but this is not blocking can be handled through Loading.
 func RemovePoliciesByRoles(roles []string) (bool, error) {
 	policyResponse, err := casbinService.RemovePoliciesByRoles(roles)
 	enforcerImplRef.InvalidateCompleteCache()
