@@ -120,8 +120,3 @@ func (impl LockConfigRestHandlerImpl) DeleteLockConfig(w http.ResponseWriter, r 
 	}
 	common.WriteJsonResp(w, err, nil, http.StatusOK)
 }
-
-type Payload struct {
-	Allowed bool     `json:"allowed"`
-	Config  []string `json:"config"`
-}

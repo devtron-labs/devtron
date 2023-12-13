@@ -25,6 +25,7 @@ type ConfigDraftRestHandler interface {
 	DeleteUserComment(w http.ResponseWriter, r *http.Request)
 	UpdateDraftState(w http.ResponseWriter, r *http.Request)
 	GetDraftsCount(w http.ResponseWriter, r *http.Request)
+	ValidateLockDraft(w http.ResponseWriter, r *http.Request)
 }
 
 type ConfigDraftRestHandlerImpl struct {
@@ -460,4 +461,43 @@ func (impl *ConfigDraftRestHandlerImpl) UpdateDraftState(w http.ResponseWriter, 
 		return
 	}
 	common.WriteJsonResp(w, err, draftVersion, http.StatusOK)
+}
+
+func (impl *ConfigDraftRestHandlerImpl) ValidateLockDraft(w http.ResponseWriter, r *http.Request) {
+	userId, err := impl.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	var request drafts.ConfigDraftRequest
+	decoder := json.NewDecoder(r.Body)
+	err = decoder.Decode(&request)
+	if err != nil {
+		impl.logger.Errorw("err in decoding request in CreateDraft", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	// validate request
+	err = impl.validator.Struct(request)
+	if err != nil {
+		impl.logger.Errorw("validation err in CreateDraft", "err", err, "request", request)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	token := r.Header.Get("token")
+	enforced := impl.enforceForAppAndEnv(request.AppId, request.EnvId, token, casbin.ActionCreate)
+	if !enforced {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	request.UserId = userId
+	validateLockResp, err := impl.configDraftService.ValidateLockDraft(request)
+	if err != nil {
+		impl.logger.Errorw("error occurred while validating draft", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, validateLockResp, http.StatusOK)
 }

@@ -50,4 +50,7 @@ func (router *ConfigDraftRouterImpl) InitConfigDraftRouter(configRouter *mux.Rou
 		Queries("draftId", "{draftId}").
 		Queries("draftCommentId", "{draftCommentId}").
 		Methods("DELETE")
+	configRouter.Path("/config/lock/validate").
+		HandlerFunc(router.configDraftRestHandler.ValidateLockDraft).
+		Methods("POST")
 }

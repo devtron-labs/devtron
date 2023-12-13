@@ -39,6 +39,7 @@ type ConfigDraftService interface {
 	DeleteComment(draftId int, draftCommentId int, userId int32) error
 	GetDraftsCount(appId int, envIds []int) ([]*DraftCountResponse, error)
 	EncryptCSData(draftCsData string) string
+	ValidateLockDraft(request ConfigDraftRequest) (*ConfigDraftResponse, error)
 }
 
 type ConfigDraftServiceImpl struct {
@@ -860,4 +861,77 @@ func (impl *ConfigDraftServiceImpl) validateDeploymentTemplate(appId int, envId 
 		}
 	}
 	return nil, draftData, nil
+}
+
+func (impl *ConfigDraftServiceImpl) checkLockConfiguration(appId int, envId int, resourceAction ResourceAction, draftData string, userId int32) (*LockValidateResponse, error) {
+	if envId == protect.BASE_CONFIG_ENV_ID {
+		templateRequest := chart.TemplateRequest{}
+		err := json.Unmarshal([]byte(draftData), &templateRequest)
+		if err != nil {
+			impl.logger.Errorw("error occurred while unmarshalling draftData of deployment template", "envId", envId, "err", err)
+			return nil, err
+		}
+		// TODO add a cache to check lock
+		savedLatestChart, err := impl.chartRepository.FindLatestChartForAppByAppId(templateRequest.AppId)
+		if err != nil {
+			return nil, err
+		}
+
+		isLockConfigError, lockedOverride, err := impl.lockedConfigService.HandleLockConfiguration(string(templateRequest.ValuesOverride), savedLatestChart.GlobalOverride, int(userId))
+		if err != nil {
+			return nil, err
+		}
+		if isLockConfigError {
+			var jsonVal json.RawMessage
+			_ = json.Unmarshal([]byte(lockedOverride), &jsonVal)
+			return &LockValidateResponse{
+				AllowedOverride:   nil,
+				LockedOverride:    jsonVal,
+				IsLockConfigError: true,
+			}, nil
+		}
+	} else {
+		envConfigProperties := &bean.EnvironmentProperties{}
+		err := json.Unmarshal([]byte(draftData), envConfigProperties)
+		if err != nil {
+			impl.logger.Errorw("error occurred while unmarshalling draftData of env deployment template", "envId", envId, "err", err)
+			return nil, err
+		}
+		if resourceAction == AddResourceAction || resourceAction == UpdateResourceAction {
+			currentLatestChart, err := impl.envConfigRepo.FindLatestChartForAppByAppIdAndEnvId(appId, envId)
+			if err != nil {
+				return nil, err
+			}
+			isLockConfigError, lockedOverride, err := impl.lockedConfigService.HandleLockConfiguration(string(envConfigProperties.EnvOverrideValues), currentLatestChart.EnvOverrideValues, int(userId))
+			if err != nil {
+				return nil, err
+			}
+			if isLockConfigError {
+				var jsonVal json.RawMessage
+				_ = json.Unmarshal([]byte(lockedOverride), &jsonVal)
+				return &LockValidateResponse{
+					AllowedOverride:   nil,
+					LockedOverride:    jsonVal,
+					IsLockConfigError: true,
+				}, nil
+			}
+		}
+
+	}
+	return &LockValidateResponse{
+		AllowedOverride:   nil,
+		LockedOverride:    nil,
+		IsLockConfigError: false,
+	}, nil
+}
+
+func (impl *ConfigDraftServiceImpl) ValidateLockDraft(request ConfigDraftRequest) (*LockValidateResponse, error) {
+	resourceAction := request.Action
+	envId := request.EnvId
+	appId := request.AppId
+	protectionEnabled := impl.resourceProtectionService.ResourceProtectionEnabled(appId, envId)
+	if !protectionEnabled {
+		return nil, errors.New(ConfigProtectionDisabled)
+	}
+	return impl.checkLockConfiguration(request.AppId, envId, resourceAction, request.Data, request.UserId)
 }
