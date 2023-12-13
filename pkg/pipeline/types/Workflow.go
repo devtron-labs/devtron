@@ -228,7 +228,7 @@ func (workflowRequest *WorkflowRequest) GetWorkflowTypeForWorkflowRequest() stri
 }
 
 func (workflowRequest *WorkflowRequest) getContainerEnvVariables(config *CiCdConfig, workflowJson []byte) (containerEnvVariables []v1.EnvVar) {
-	containerEnvVariables = []v1.EnvVar{{Name: bean.IMAGE_SCANNER_ENDPOINT, Value: config.ImageScannerEndpoint}}
+	containerEnvVariables = []v1.EnvVar{{Name: bean.IMAGE_SCANNER_ENDPOINT, Value: config.ImageScannerEndpoint}, {Name: "NATS_SERVER_HOST", Value: config.NatsServerHost}}
 	eventEnv := v1.EnvVar{Name: "CI_CD_EVENT", Value: string(workflowJson)}
 	inAppLoggingEnv := v1.EnvVar{Name: "IN_APP_LOGGING", Value: strconv.FormatBool(workflowRequest.InAppLoggingEnabled)}
 	containerEnvVariables = append(containerEnvVariables, eventEnv, inAppLoggingEnv)

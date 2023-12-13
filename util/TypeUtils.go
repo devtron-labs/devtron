@@ -57,6 +57,8 @@ func GetMapValuesPtr[T any](valueMap map[string]*T) []*T {
 	return values
 }
 
+// Transform will iterate through elements of input slice and apply transform function on each object
+// and returns the transformed slice
 func Transform[T any, K any](input []T, transform func(inp T) K) []K {
 
 	res := make([]K, len(input))
