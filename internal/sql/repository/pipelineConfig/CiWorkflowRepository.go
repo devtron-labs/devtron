@@ -129,12 +129,6 @@ type GitCommit struct {
 	CiConfigureSourceType  SourceType
 }
 
-type WebhookData struct {
-	Id              int               `json:"id"`
-	EventActionType string            `json:"eventActionType"`
-	Data            map[string]string `json:"data"`
-}
-
 type CiWorkflowConfig struct {
 	tableName                struct{} `sql:"ci_workflow_config" pg:",discard_unknown_columns"`
 	Id                       int      `sql:"id,pk"`

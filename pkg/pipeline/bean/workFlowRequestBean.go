@@ -1,6 +1,7 @@
 package bean
 
 import (
+	"github.com/devtron-labs/devtron/client/gitSensor"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 )
@@ -108,7 +109,7 @@ type CiProjectDetails struct {
 	GitOptions  GitOptions                `json:"gitOptions"`
 	SourceType  pipelineConfig.SourceType `json:"sourceType"`
 	SourceValue string                    `json:"sourceValue"`
-	WebhookData pipelineConfig.WebhookData
+	WebhookData gitSensor.WebhookData
 }
 type GitOptions struct {
 	UserName      string               `json:"userName"`
