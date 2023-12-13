@@ -1,5 +1,5 @@
 INSERT INTO "plugin_metadata" ("id", "name", "description","type","icon","deleted", "created_on", "created_by", "updated_on", "updated_by")
-VALUES (nextval('id_seq_plugin_metadata'), 'GCS Create Bucket','','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/gcs-bucket.svg','f', 'now()', 1, 'now()', 1);
+VALUES (nextval('id_seq_plugin_metadata'), 'GCS Create Bucket','Plugin to create GCS bucket','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/gcs-bucket.svg','f', 'now()', 1, 'now()', 1);
 
 INSERT INTO "plugin_tag" ("id", "name", "deleted", "created_on", "created_by", "updated_on", "updated_by")
 VALUES (nextval('id_seq_plugin_tag'), 'cloud','f', 'now()',1, 'now()', 1);
