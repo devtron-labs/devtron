@@ -856,7 +856,11 @@ func (impl *CiServiceImpl) buildImageTag(commitHashes map[int]pipelineConfig.Git
 			if _targetCheckout == "" {
 				continue
 			}
-			_truncatedCommit = _getTruncatedImageTag(_targetCheckout)
+			if !impl.ciConfig.UseImageTagFromGitProviderForTagBasedBuild {
+				_truncatedCommit = _getTruncatedImageTag(_targetCheckout)
+			} else {
+				_truncatedCommit = _targetCheckout
+			}
 			if v.WebhookData.EventActionType == bean.WEBHOOK_EVENT_MERGED_ACTION_TYPE {
 				_sourceCheckout := v.WebhookData.Data[bean.WEBHOOK_SELECTOR_SOURCE_CHECKOUT_NAME]
 				if len(_sourceCheckout) > 0 {
@@ -871,7 +875,7 @@ func (impl *CiServiceImpl) buildImageTag(commitHashes map[int]pipelineConfig.Git
 			dockerImageTag = dockerImageTag + "-" + _truncatedCommit
 		}
 	}
-	if dockerImageTag != "" {
+	if dockerImageTag != "" && !impl.ciConfig.UseImageTagFromGitProviderForTagBasedBuild {
 		dockerImageTag = dockerImageTag + "-" + strconv.Itoa(id) + "-" + strconv.Itoa(wfId)
 	}
 
