@@ -105,7 +105,7 @@ func (impl GitOpsConfigRestHandlerImpl) CreateGitOpsConfig(w http.ResponseWriter
 		return
 	}
 	common.WriteJsonResp(w, nil, detailedErrorGitOpsConfigResponse, http.StatusOK)
-
+	return
 }
 
 func (impl GitOpsConfigRestHandlerImpl) UpdateGitOpsConfig(w http.ResponseWriter, r *http.Request) {
@@ -150,9 +150,10 @@ func (impl GitOpsConfigRestHandlerImpl) UpdateGitOpsConfig(w http.ResponseWriter
 	if err != nil {
 		impl.logger.Errorw("service err, UpdateGitOpsConfig", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
 	}
 	common.WriteJsonResp(w, nil, detailedErrorGitOpsConfigResponse, http.StatusOK)
-
+	return
 }
 
 func (impl GitOpsConfigRestHandlerImpl) GetGitOpsConfigById(w http.ResponseWriter, r *http.Request) {
