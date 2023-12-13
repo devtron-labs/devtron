@@ -64,7 +64,7 @@ type CiCdConfig struct {
 	CIAutoTriggerBatchSize           int                                 `env:"CI_SUCCESS_AUTO_TRIGGER_BATCH_SIZE" envDefault:"1"`
 	SkipCreatingEcrRepo              bool                                `env:"SKIP_CREATING_ECR_REPO" envDefault:"false"`
 	MaxCiWorkflowRetries             int                                 `env:"MAX_CI_WORKFLOW_RETRIES" envDefault:"0"`
-
+        NatsServerHost                   string                              `env:"NATS_SERVER_HOST" envDefault:"nats://devtron-nats.devtroncd:4222"`
 	//from CdConfig
 	CdLimitCpu                       string                              `env:"CD_LIMIT_CI_CPU" envDefault:"0.5"`
 	CdLimitMem                       string                              `env:"CD_LIMIT_CI_MEM" envDefault:"3G"`
