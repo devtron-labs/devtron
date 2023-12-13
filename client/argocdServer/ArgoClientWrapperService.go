@@ -15,7 +15,7 @@ type ACDConfig struct {
 	ArgoCDAutoSyncEnabled bool `env:"ARGO_AUTO_SYNC_ENABLED" envDefault:"true"` //will gradually switch this flag to false in enterprise
 }
 
-func GetACDConfig() (*ACDConfig, error) {
+func GetACDDeploymentConfig() (*ACDConfig, error) {
 	cfg := &ACDConfig{}
 	err := env.Parse(cfg)
 	if err != nil {
@@ -39,12 +39,12 @@ type ArgoClientWrapperService interface {
 type ArgoClientWrapperServiceImpl struct {
 	logger    *zap.SugaredLogger
 	acdClient application.ServiceClient
-	ACDConfig ACDConfig
+	ACDConfig *ACDConfig
 }
 
 func NewArgoClientWrapperServiceImpl(logger *zap.SugaredLogger,
 	acdClient application.ServiceClient,
-	ACDConfig ACDConfig,
+	ACDConfig *ACDConfig,
 ) *ArgoClientWrapperServiceImpl {
 	return &ArgoClientWrapperServiceImpl{
 		logger:    logger,

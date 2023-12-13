@@ -91,7 +91,7 @@ type AppStoreDeploymentFullModeServiceImpl struct {
 	argoClientWrapperService             argocdServer.ArgoClientWrapperService
 	pubSubClient                         *pubsub_lib.PubSubClientServiceImpl
 	installedAppRepositoryHistory        repository4.InstalledAppVersionHistoryRepository
-	ACDConfig                            argocdServer.ACDConfig
+	ACDConfig                            *argocdServer.ACDConfig
 }
 
 func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
@@ -110,7 +110,7 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
 	pubSubClient *pubsub_lib.PubSubClientServiceImpl,
 	installedAppRepositoryHistory repository4.InstalledAppVersionHistoryRepository,
-	ACDConfig argocdServer.ACDConfig,
+	ACDConfig *argocdServer.ACDConfig,
 ) *AppStoreDeploymentFullModeServiceImpl {
 	appStoreDeploymentFullModeServiceImpl := &AppStoreDeploymentFullModeServiceImpl{
 		logger:                               logger,

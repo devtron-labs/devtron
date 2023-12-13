@@ -196,7 +196,7 @@ type WorkflowDagExecutorImpl struct {
 	argoClientWrapperService            argocdServer.ArgoClientWrapperService
 	pipelineConfigListenerService       PipelineConfigListenerService
 	customTagService                    CustomTagService
-	ACDConfig                           argocdServer.ACDConfig
+	ACDConfig                           *argocdServer.ACDConfig
 }
 
 const kedaAutoscaling = "kedaAutoscaling"
@@ -304,7 +304,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
 	pipelineConfigListenerService PipelineConfigListenerService,
 	customTagService CustomTagService,
-	ACDConfig argocdServer.ACDConfig,
+	ACDConfig *argocdServer.ACDConfig,
 ) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
