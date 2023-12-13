@@ -285,7 +285,8 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 			installedAppModel.GitOpsRepoUrl = installAppVersionRequest.GitOpsRepoURL
 			installedAppModel.IsCustomRepository = true
 		} else {
-			gitopsRepoURL, isNew, err := impl.appStoreDeploymentCommonService.CreateGitOpsRepo(installAppVersionRequest)
+			installAppVersionRequest.GitOpsRepoURL = bean2.GIT_REPO_DEFAULT
+			gitopsRepoURL, isNew, err := impl.appStoreDeploymentCommonService.CreateGitOpsRepo(installAppVersionRequest.GitOpsRepoURL, installAppVersionRequest.AppName, installAppVersionRequest.UserId)
 			if err != nil {
 				impl.logger.Errorw("Error in creating gitops repo for ", "appName", installAppVersionRequest.AppName, "err", err)
 				return nil, err
@@ -1546,7 +1547,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 
 		if monoRepoMigrationRequired {
 			//here will set new git repo name if required to migrate
-			gitopsRepoURL, isNew, err := impl.appStoreDeploymentCommonService.CreateGitOpsRepo(installAppVersionRequest)
+			gitopsRepoURL, isNew, err := impl.appStoreDeploymentCommonService.CreateGitOpsRepo(installAppVersionRequest.GitOpsRepoURL, installAppVersionRequest.AppName, installAppVersionRequest.UserId)
 			if err != nil {
 				impl.logger.Errorw("Error in creating gitops repo for ", "appName", installAppVersionRequest.AppName, "err", err)
 				return nil, err
