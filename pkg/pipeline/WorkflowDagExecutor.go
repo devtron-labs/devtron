@@ -4206,7 +4206,7 @@ func (impl *WorkflowDagExecutorImpl) DeployArgocdApp(overrideRequest *bean.Value
 		impl.logger.Errorw("error in updating argocd app ", "err", err)
 		return err
 	}
-
+	syncTime := time.Now()
 	if impl.appServiceConfig.ArgoCDAutoSyncEnabled {
 		// auto sync
 		_, err = impl.argoClientWrapperService.GetArgoAppWithNormalRefresh(ctx, valuesOverrideResponse.Pipeline.DeploymentAppName)
@@ -4216,7 +4216,7 @@ func (impl *WorkflowDagExecutorImpl) DeployArgocdApp(overrideRequest *bean.Value
 		}
 	} else {
 		// manual sync
-		_, err := impl.argoClientWrapperService.SyncArgoCDApplicationWithRefresh(ctx, valuesOverrideResponse.Pipeline.DeploymentAppName)
+		_, err = impl.argoClientWrapperService.SyncArgoCDApplicationWithRefresh(ctx, valuesOverrideResponse.Pipeline.DeploymentAppName)
 		if err != nil {
 			impl.logger.Errorw("error in getting argo application with normal refresh", "argoAppName", valuesOverrideResponse.Pipeline.DeploymentAppName)
 			return fmt.Errorf("%s. err: %s", ARGOCD_SYNC_ERROR, err.Error())
@@ -4224,7 +4224,7 @@ func (impl *WorkflowDagExecutorImpl) DeployArgocdApp(overrideRequest *bean.Value
 	}
 	timeline := &pipelineConfig.PipelineStatusTimeline{
 		CdWorkflowRunnerId: overrideRequest.WfrId,
-		StatusTime:         time.Now(),
+		StatusTime:         syncTime,
 		AuditLog: sql.AuditLog{
 			CreatedBy: 1,
 			CreatedOn: time.Now(),
