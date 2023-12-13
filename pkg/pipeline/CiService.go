@@ -856,7 +856,7 @@ func (impl *CiServiceImpl) buildImageTag(commitHashes map[int]pipelineConfig.Git
 			if _targetCheckout == "" {
 				continue
 			}
-			if !impl.ciConfig.UseImageTagFromGitProviderForTagBasedBuild {
+			if !impl.config.CiCdConfig.UseImageTagFromGitProviderForTagBasedBuild {
 				_truncatedCommit = _getTruncatedImageTag(_targetCheckout)
 			} else {
 				_truncatedCommit = _targetCheckout
@@ -875,7 +875,7 @@ func (impl *CiServiceImpl) buildImageTag(commitHashes map[int]pipelineConfig.Git
 			dockerImageTag = dockerImageTag + "-" + _truncatedCommit
 		}
 	}
-	if dockerImageTag != "" && !impl.ciConfig.UseImageTagFromGitProviderForTagBasedBuild {
+	if dockerImageTag != "" && !impl.config.CiCdConfig.UseImageTagFromGitProviderForTagBasedBuild {
 		dockerImageTag = dockerImageTag + "-" + strconv.Itoa(id) + "-" + strconv.Itoa(wfId)
 	}
 
