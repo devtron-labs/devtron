@@ -79,7 +79,6 @@ type InstalledAppRestHandlerImpl struct {
 	acdServiceClient                 application.ServiceClient
 	appStoreDeploymentService        service.AppStoreDeploymentService
 	helmAppClient                    client.HelmAppClient
-	helmAppService                   client.HelmAppService
 	argoUserService                  argo.ArgoUserService
 	cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler
 	installedAppRepository           repository.InstalledAppRepository
@@ -90,7 +89,7 @@ type InstalledAppRestHandlerImpl struct {
 func NewInstalledAppRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService,
 	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, enforcerUtilHelm rbac.EnforcerUtilHelm, installedAppService service.InstalledAppService,
 	validator *validator.Validate, clusterService cluster.ClusterService, acdServiceClient application.ServiceClient,
-	appStoreDeploymentService service.AppStoreDeploymentService, helmAppClient client.HelmAppClient, helmAppService client.HelmAppService,
+	appStoreDeploymentService service.AppStoreDeploymentService, helmAppClient client.HelmAppClient,
 	argoUserService argo.ArgoUserService,
 	cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler,
 	installedAppRepository repository.InstalledAppRepository,
@@ -106,7 +105,6 @@ func NewInstalledAppRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService u
 		clusterService:                   clusterService,
 		acdServiceClient:                 acdServiceClient,
 		appStoreDeploymentService:        appStoreDeploymentService,
-		helmAppService:                   helmAppService,
 		helmAppClient:                    helmAppClient,
 		argoUserService:                  argoUserService,
 		cdApplicationStatusUpdateHandler: cdApplicationStatusUpdateHandler,
