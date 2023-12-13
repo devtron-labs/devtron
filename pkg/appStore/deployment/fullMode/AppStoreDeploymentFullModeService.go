@@ -389,12 +389,6 @@ func (impl AppStoreDeploymentFullModeServiceImpl) createInArgo(chartGitAttribute
 	if appNamespace == "" {
 		appNamespace = "default"
 	}
-	var syncPolicy string
-	if impl.ACDConfig.ArgoCDAutoSyncEnabled {
-		syncPolicy = argocdServer.SYNC_POLICY_AUTO
-	} else {
-		syncPolicy = argocdServer.SYNC_POLICY_MANUAL
-	}
 	appreq := &argocdServer.AppTemplate{
 		ApplicationName: argocdAppName,
 		Namespace:       impl.aCDAuthConfig.ACDConfigMapNamespace,
@@ -404,7 +398,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) createInArgo(chartGitAttribute
 		ValuesFile:      fmt.Sprintf("values.yaml"),
 		RepoPath:        chartGitAttribute.ChartLocation,
 		RepoUrl:         chartGitAttribute.RepoUrl,
-		SyncPolicy:      syncPolicy,
+		AutoSyncEnabled: impl.ACDConfig.ArgoCDAutoSyncEnabled,
 	}
 	_, err := impl.ArgoK8sClient.CreateAcdApp(appreq, envModel.Cluster, argocdServer.ARGOCD_APPLICATION_TEMPLATE)
 	//create

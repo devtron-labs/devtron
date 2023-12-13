@@ -3477,13 +3477,6 @@ func (impl *WorkflowDagExecutorImpl) createArgoApplicationIfRequired(appId int, 
 		}
 		namespace := argocdServer.DevtronInstalationNs
 
-		var syncPolicy string
-		if impl.ACDConfig.ArgoCDAutoSyncEnabled {
-			syncPolicy = argocdServer.SYNC_POLICY_AUTO
-		} else {
-			syncPolicy = argocdServer.SYNC_POLICY_MANUAL
-		}
-
 		appRequest := &argocdServer.AppTemplate{
 			ApplicationName: argoAppName,
 			Namespace:       namespace,
@@ -3493,7 +3486,7 @@ func (impl *WorkflowDagExecutorImpl) createArgoApplicationIfRequired(appId int, 
 			ValuesFile:      impl.getValuesFileForEnv(envModel.Id),
 			RepoPath:        chart.ChartLocation,
 			RepoUrl:         chart.GitRepoUrl,
-			SyncPolicy:      syncPolicy,
+			AutoSyncEnabled: impl.ACDConfig.ArgoCDAutoSyncEnabled,
 		}
 		argoAppName, err := impl.argoK8sClient.CreateAcdApp(appRequest, envModel.Cluster, argocdServer.ARGOCD_APPLICATION_TEMPLATE)
 		if err != nil {
