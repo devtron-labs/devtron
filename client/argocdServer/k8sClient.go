@@ -28,7 +28,11 @@ type AppTemplate struct {
 	RepoUrl         string
 }
 
-const TimeoutSlow = 30 * time.Second
+const (
+	TimeoutSlow                             = 30 * time.Second
+	ARGOCD_MANUAL_SYNC_APPLICATION_TEMPLATE = "./scripts/argo-assets/APPLICATION_TEMPLATE.JSON"
+	ARGOCD_AUTO_SYNC_APPLICATION_TEMPLATE   = "./scripts/argo-assets/APPLICATION_TEMPLATE_AUTO_SYNC.JSON"
+)
 
 type ArgoK8sClient interface {
 	CreateAcdApp(appRequest *AppTemplate, cluster *repository.Cluster, applicationTemplatePath string) (string, error)

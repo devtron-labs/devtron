@@ -3496,9 +3496,9 @@ func (impl *WorkflowDagExecutorImpl) createArgoApplicationIfRequired(appId int, 
 		}
 		var applicationTemplatePath string
 		if impl.appServiceConfig.ArgoCDAutoSyncEnabled {
-			applicationTemplatePath = "./scripts/argo-assets/APPLICATION_TEMPLATE_AUTO_SYNC.JSON"
+			applicationTemplatePath = argocdServer.ARGOCD_AUTO_SYNC_APPLICATION_TEMPLATE
 		} else {
-			applicationTemplatePath = "./scripts/argo-assets/APPLICATION_TEMPLATE.JSON"
+			applicationTemplatePath = argocdServer.ARGOCD_MANUAL_SYNC_APPLICATION_TEMPLATE
 		}
 		argoAppName, err := impl.argoK8sClient.CreateAcdApp(appRequest, envModel.Cluster, applicationTemplatePath)
 		if err != nil {
