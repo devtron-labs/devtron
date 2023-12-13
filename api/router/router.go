@@ -464,7 +464,7 @@ func (r MuxRouter) Init() {
 	r.globalTagRouter.InitGlobalTagRouter(globalTagSubRouter)
 
 	// lock configuration
-	lockConfigurationRouter := r.Router.PathPrefix("/orchestrator/lock-config").Subrouter()
+	lockConfigurationRouter := r.Router.PathPrefix("/orchestrator/config/lock").Subrouter()
 	r.lockConfigurationRouter.InitLockConfigurationRouter(lockConfigurationRouter)
 
 	rbacRoleRouter := r.Router.PathPrefix("/orchestrator/rbac/role").Subrouter()

@@ -49,12 +49,6 @@ func (impl LockConfigRestHandlerImpl) GetLockConfig(w http.ResponseWriter, r *ht
 		return
 	}
 
-	//token := r.Header.Get("token")
-	//if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
-	//	common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-	//	return
-	//}
-
 	resp, err := impl.lockConfigurationService.GetLockConfiguration()
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -82,7 +76,7 @@ func (impl LockConfigRestHandlerImpl) CreateLockConfig(w http.ResponseWriter, r 
 	var request *bean.LockConfigRequest
 	err = decoder.Decode(&request)
 	if err != nil {
-		impl.logger.Errorw("err in decoding request in LockConfigRequest", "err", err)
+		impl.logger.Errorw("err in decoding request in LockConfigRequest", "err", err, "body", r.Body)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}

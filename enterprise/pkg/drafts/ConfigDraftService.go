@@ -700,13 +700,14 @@ func (impl *ConfigDraftServiceImpl) validateDeploymentTemplate(appId int, envId 
 			impl.logger.Errorw("error occurred while unmarshalling draftData of deployment template", "envId", envId, "err", err)
 			return nil, draftData, err
 		}
-		currentLatestChart, err := impl.chartRepository.FindLatestChartForAppByAppId(templateRequest.AppId)
+		// TODO add a cache to check lock
+		savedLatestChart, err := impl.chartRepository.FindLatestChartForAppByAppId(templateRequest.AppId)
 		if err != nil {
 			return nil, draftData, err
 		}
 
 		if templateRequest.SaveEligibleChanges {
-			eligible, err := impl.mergeUtil.JsonPatch([]byte(currentLatestChart.GlobalOverride), templateRequest.ValuesOverride)
+			eligible, err := impl.mergeUtil.JsonPatch([]byte(savedLatestChart.GlobalOverride), templateRequest.ValuesOverride)
 			if err != nil {
 				return nil, draftData, err
 			}
@@ -718,7 +719,7 @@ func (impl *ConfigDraftServiceImpl) validateDeploymentTemplate(appId int, envId 
 			draftData = string(templateByte)
 		}
 
-		isLockConfigError, lockedOverride, err := impl.lockedConfigService.HandleLockConfiguration(string(templateRequest.ValuesOverride), currentLatestChart.GlobalOverride, int(userId))
+		isLockConfigError, lockedOverride, err := impl.lockedConfigService.HandleLockConfiguration(string(templateRequest.ValuesOverride), savedLatestChart.GlobalOverride, int(userId))
 		if err != nil {
 			return nil, draftData, err
 		}

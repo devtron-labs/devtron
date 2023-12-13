@@ -39,9 +39,9 @@ func (impl *LockConfiguration) ConvertDBDtoToResponse() *LockConfigResponse {
 }
 
 func (impl *LockConfigRequest) ConvertRequestToDBDto() *LockConfiguration {
-	configByte := impl.getLockConfig()
+	config := impl.getLockConfig()
 	return &LockConfiguration{
-		Config: string(configByte),
+		Config: config,
 		Active: true,
 	}
 }
@@ -59,7 +59,7 @@ func getConfigAndStatus(config string) ([]string, bool) {
 
 }
 
-func (impl *LockConfigRequest) getLockConfig() []byte {
+func (impl *LockConfigRequest) getLockConfig() string {
 	var lockConfigs []LockConfig
 	for _, config := range impl.Config {
 		lockConfig := LockConfig{
@@ -68,6 +68,6 @@ func (impl *LockConfigRequest) getLockConfig() []byte {
 		}
 		lockConfigs = append(lockConfigs, lockConfig)
 	}
-	marsh, _ := json.Marshal(lockConfigs)
-	return marsh
+	byteConfig, _ := json.Marshal(lockConfigs)
+	return string(byteConfig)
 }
