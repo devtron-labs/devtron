@@ -640,11 +640,7 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 		impl.logger.Errorw("error in getting children cd details", "err", err)
 		return deleteResponse, err
 	}
-	//Not needed anymore
-	//else if len(childNodes) > 0 {
-	//	impl.logger.Debugw("cannot delete cd pipeline, contains children cd")
-	//	return deleteResponse, fmt.Errorf("Please delete children CD pipelines before deleting this pipeline.")
-	//}
+
 	//getting deployment group for this pipeline
 	deploymentGroupNames, err := impl.deploymentGroupRepository.GetNamesByAppIdAndEnvId(pipeline.EnvironmentId, pipeline.AppId)
 	if err != nil && err != pg.ErrNoRows {
@@ -729,7 +725,7 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 	}
 
 	if len(childNodes) > 0 {
-		err = impl.appWorkflowRepository.UpdateParentComponentDetails(tx, appWorkflowMapping.Id, appWorkflowMapping.Type, appWorkflowMapping.ParentId, appWorkflowMapping.ParentType, nil)
+		err = impl.appWorkflowRepository.UpdateParentComponentDetails(tx, appWorkflowMapping.ComponentId, appWorkflowMapping.Type, appWorkflowMapping.ParentId, appWorkflowMapping.ParentType, nil)
 		if err != nil {
 			impl.logger.Errorw("error updating wfm for children pipelines of pipeline", "err", err, "id", appWorkflowMapping.Id)
 			return deleteResponse, err
@@ -1724,6 +1720,18 @@ func (impl *CdPipelineConfigServiceImpl) createCdPipeline(ctx context.Context, a
 					parentPipelineId = pipeline.SourceToNewPipelineId[pipeline.ParentPipelineId]
 				}
 			}
+
+			if pipeline.CDPipelineAddType == bean.SEQUENTIAL {
+				childPipelineIds := make([]int, 0)
+				if pipeline.ChildPipelineId > 0 {
+					childPipelineIds = append(childPipelineIds, pipeline.ChildPipelineId)
+				}
+				err = impl.appWorkflowRepository.UpdateParentComponentDetails(tx, parentPipelineId, parentPipelineType, pipelineId, "CD_PIPELINE", childPipelineIds)
+				if err != nil {
+					return 0, err
+				}
+			}
+
 			appWorkflowMap := &appWorkflow.AppWorkflowMapping{
 				AppWorkflowId: pipeline.AppWorkflowId,
 				ParentId:      parentPipelineId,
@@ -1736,12 +1744,6 @@ func (impl *CdPipelineConfigServiceImpl) createCdPipeline(ctx context.Context, a
 			_, err = impl.appWorkflowRepository.SaveAppWorkflowMapping(appWorkflowMap, tx)
 			if err != nil {
 				return 0, err
-			}
-			if pipeline.CDPipelineAddType == bean.SEQUENTIAL {
-				err = impl.appWorkflowRepository.UpdateParentComponentDetails(tx, parentPipelineId, parentPipelineType, appWorkflowMap.ComponentId, appWorkflowMap.Type, []int{pipeline.ChildPipelineId})
-				if err != nil {
-					return 0, err
-				}
 			}
 		}
 		//getting global app metrics for cd pipeline create because env level metrics is not created yet
@@ -1972,14 +1974,15 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipelinePartial(pipeline *pipel
 		deleteResponse.ClusterReachable = false
 	}
 	//getting children CD pipeline details
-	childNodes, err := impl.appWorkflowRepository.FindWFCDMappingByParentCDPipelineId(pipeline.Id)
+	//childNodes, err := impl.appWorkflowRepository.FindWFCDMappingByParentCDPipelineId(pipeline.Id)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting children cd details", "err", err)
 		return deleteResponse, err
-	} else if len(childNodes) > 0 {
-		impl.logger.Debugw("cannot delete cd pipeline, contains children cd")
-		return deleteResponse, fmt.Errorf("Please delete children CD pipelines before deleting this pipeline.")
 	}
+	//else if len(childNodes) > 0 {
+	//	impl.logger.Debugw("cannot delete cd pipeline, contains children cd")
+	//	return deleteResponse, fmt.Errorf("Please delete children CD pipelines before deleting this pipeline.")
+	//}
 	//getting deployment group for this pipeline
 	deploymentGroupNames, err := impl.deploymentGroupRepository.GetNamesByAppIdAndEnvId(pipeline.EnvironmentId, pipeline.AppId)
 	if err != nil && err != pg.ErrNoRows {
