@@ -125,6 +125,7 @@ type CiCdConfig struct {
 	ExtBlobStorageSecretName       string                       `env:"EXTERNAL_BLOB_STORAGE_SECRET_NAME" envDefault:"blob-storage-secret"`
 	CanApproverDeploy              bool                         `env:"CAN_APPROVER_DEPLOY" envDefault:"false"`
 	UseArtifactListingQueryV2      bool                         `env:"USE_ARTIFACT_LISTING_QUERY_V2" envDefault:"true"`
+	UseImageTagFromGitProviderForTagBasedBuild bool                         `env:"USE_IMAGE_TAG_FROM_GIT_PROVIDER_FOR_TAG_BASED_BUILD" envDefault:"false"` // this is being done for https://github.com/devtron-labs/devtron/issues/4263
 }
 
 type CiConfig struct {
