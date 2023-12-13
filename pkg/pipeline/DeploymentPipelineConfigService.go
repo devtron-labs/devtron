@@ -639,10 +639,12 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting children cd details", "err", err)
 		return deleteResponse, err
-	} else if len(childNodes) > 0 {
-		impl.logger.Debugw("cannot delete cd pipeline, contains children cd")
-		return deleteResponse, fmt.Errorf("Please delete children CD pipelines before deleting this pipeline.")
 	}
+	//Not needed anymore
+	//else if len(childNodes) > 0 {
+	//	impl.logger.Debugw("cannot delete cd pipeline, contains children cd")
+	//	return deleteResponse, fmt.Errorf("Please delete children CD pipelines before deleting this pipeline.")
+	//}
 	//getting deployment group for this pipeline
 	deploymentGroupNames, err := impl.deploymentGroupRepository.GetNamesByAppIdAndEnvId(pipeline.EnvironmentId, pipeline.AppId)
 	if err != nil && err != pg.ErrNoRows {
@@ -679,7 +681,7 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 		impl.logger.Errorw("error in deleting workflow mapping", "err", err)
 		return deleteResponse, err
 	}
-	if appWorkflowMapping.ParentType == appWorkflow.WEBHOOK {
+	if appWorkflowMapping.ParentType == appWorkflow.WEBHOOK && len(childNodes) == 0 {
 		childNodes, err := impl.appWorkflowRepository.FindWFCDMappingByExternalCiId(appWorkflowMapping.ParentId)
 		if err != nil && !util.IsErrNoRows(err) {
 			impl.logger.Errorw("error in fetching external ci", "err", err)
@@ -724,6 +726,14 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 	if err != nil {
 		impl.logger.Errorw("error in deleting workflow mapping", "err", err)
 		return deleteResponse, err
+	}
+
+	if len(childNodes) > 0 {
+		err = impl.appWorkflowRepository.UpdateParentComponentDetails(tx, appWorkflowMapping.Id, appWorkflowMapping.Type, appWorkflowMapping.ParentId, appWorkflowMapping.ParentType, nil)
+		if err != nil {
+			impl.logger.Errorw("error updating wfm for children pipelines of pipeline", "err", err, "id", appWorkflowMapping.Id)
+			return deleteResponse, err
+		}
 	}
 
 	if pipeline.PreStageConfig != "" {
@@ -1726,6 +1736,12 @@ func (impl *CdPipelineConfigServiceImpl) createCdPipeline(ctx context.Context, a
 			_, err = impl.appWorkflowRepository.SaveAppWorkflowMapping(appWorkflowMap, tx)
 			if err != nil {
 				return 0, err
+			}
+			if pipeline.CDPipelineAddType == bean.SEQUENTIAL {
+				err = impl.appWorkflowRepository.UpdateParentComponentDetails(tx, parentPipelineId, parentPipelineType, appWorkflowMap.ComponentId, appWorkflowMap.Type, []int{pipeline.ChildPipelineId})
+				if err != nil {
+					return 0, err
+				}
 			}
 		}
 		//getting global app metrics for cd pipeline create because env level metrics is not created yet
