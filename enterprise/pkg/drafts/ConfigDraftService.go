@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
+	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/enterprise/pkg/lockConfiguration"
 	"github.com/devtron-labs/devtron/enterprise/pkg/protect"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -17,6 +18,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/user"
+	util2 "github.com/devtron-labs/devtron/util/event"
+	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"k8s.io/utils/pointer"
 	"time"
@@ -52,6 +55,8 @@ type ConfigDraftServiceImpl struct {
 	lockedConfigService       lockConfiguration.LockConfigurationService
 	envConfigRepo             chartConfig.EnvConfigOverrideRepository
 	mergeUtil                 util.MergeUtil
+	eventFactory              client.EventFactory
+	eventClient               client.EventClient
 }
 
 func NewConfigDraftServiceImpl(logger *zap.SugaredLogger, configDraftRepository ConfigDraftRepository, configMapService pipeline.ConfigMapService, chartService chart.ChartService,
@@ -60,7 +65,8 @@ func NewConfigDraftServiceImpl(logger *zap.SugaredLogger, configDraftRepository 
 	chartRepository chartRepoRepository.ChartRepository,
 	lockedConfigService lockConfiguration.LockConfigurationService,
 	envConfigRepo chartConfig.EnvConfigOverrideRepository,
-	mergeUtil util.MergeUtil) *ConfigDraftServiceImpl {
+	mergeUtil util.MergeUtil,
+	eventFactory client.EventFactory, eventClient client.EventClient) *ConfigDraftServiceImpl {
 	draftServiceImpl := &ConfigDraftServiceImpl{
 		logger:                    logger,
 		configDraftRepository:     configDraftRepository,
@@ -71,6 +77,8 @@ func NewConfigDraftServiceImpl(logger *zap.SugaredLogger, configDraftRepository 
 		userService:               userService,
 		appRepo:                   appRepo,
 		envRepository:             envRepository,
+		eventFactory:              eventFactory,
+		eventClient:               eventClient,
 		chartRepository:           chartRepository,
 		lockedConfigService:       lockedConfigService,
 		envConfigRepo:             envConfigRepo,
@@ -105,9 +113,28 @@ func (impl *ConfigDraftServiceImpl) CreateDraft(request ConfigDraftRequest) (*Co
 	}
 	//assign latest data
 	request.Data = draftData
-	return impl.configDraftRepository.CreateConfigDraft(request)
+	draft, err := impl.configDraftRepository.CreateConfigDraft(request)
+	if err != nil {
+		return nil, err
+	}
+	go impl.performNotificationConfigAction(request)
+	return draft, err
+
 }
 
+func (impl *ConfigDraftServiceImpl) performNotificationConfigAction(request ConfigDraftRequest) {
+	if len(request.ProtectNotificationConfig.EmailIds) == 0 {
+		return
+	}
+	eventType := util2.ConfigApproval
+	event := impl.eventFactory.Build(eventType, nil, request.AppId, &request.EnvId, "")
+	draftRequest := request.TransformDraftRequestForNotification()
+	event = impl.eventFactory.BuildExtraProtectConfigData(event, draftRequest)
+	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
+	if evtErr != nil {
+		impl.logger.Errorw("unable to send notification for protect config approval", "error", evtErr)
+	}
+}
 func (impl *ConfigDraftServiceImpl) AddDraftVersion(request ConfigDraftVersionRequest) (*ConfigDraftResponse, error) {
 	draftId := request.DraftId
 	latestDraftVersion, err := impl.configDraftRepository.GetLatestDraftVersion(draftId)
@@ -157,7 +184,27 @@ func (impl *ConfigDraftServiceImpl) AddDraftVersion(request ConfigDraftVersionRe
 			return nil, err
 		}
 	}
+	impl.performNotificationConfigActionForVersion(request, draftId)
 	return &ConfigDraftResponse{DraftVersionId: lastDraftVersionId}, nil
+}
+
+func (impl *ConfigDraftServiceImpl) performNotificationConfigActionForVersion(request ConfigDraftVersionRequest, draftId int) {
+	draftData, err := impl.configDraftRepository.GetDraftMetadataById(draftId)
+	if err != nil {
+		impl.logger.Errorw("error in performing notification event for config draft version ", "err", err)
+		return
+	}
+	config := ConfigDraftRequest{
+		AppId:                     draftData.AppId,
+		EnvId:                     draftData.EnvId,
+		Resource:                  draftData.Resource,
+		ResourceName:              draftData.ResourceName,
+		UserComment:               request.UserComment,
+		UserId:                    request.UserId,
+		ProtectNotificationConfig: request.ProtectNotificationConfig,
+	}
+	go impl.performNotificationConfigAction(config)
+
 }
 
 func (impl *ConfigDraftServiceImpl) UpdateDraftState(draftId int, draftVersionId int, toUpdateDraftState DraftState, userId int32) (*DraftVersion, error) {
@@ -280,10 +327,15 @@ func (impl *ConfigDraftServiceImpl) GetDrafts(appId int, envId int, resourceType
 
 func (impl *ConfigDraftServiceImpl) GetDraftByName(appId, envId int, resourceName string, resourceType DraftResourceType, userId int32) (*ConfigDraftResponse, error) {
 	draftVersion, err := impl.configDraftRepository.GetLatestConfigDraftByName(appId, envId, resourceName, resourceType)
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		return nil, err
 	}
-	draftResponse := draftVersion.ConvertToConfigDraft()
+	draftResponse := &ConfigDraftResponse{}
+	if draftVersion == nil {
+		draftResponse.Approvers = impl.getApproversData(appId, envId)
+		return draftResponse, nil
+	}
+	draftResponse = draftVersion.ConvertToConfigDraft()
 	err = impl.updateDraftResponse(draftResponse.DraftId, userId, draftResponse)
 	if err != nil {
 		return nil, err

@@ -115,6 +115,9 @@ type ArtifactsListFilterOptions struct {
 	PipelineId int
 	StageType  WorkflowType
 
+	// CiPipelineId is id of ci-pipeline present in the same app-workflow of PipelineId
+	CiPipelineId int
+
 	//parent satge data
 	ParentCdId      int
 	ParentId        int
@@ -132,4 +135,7 @@ type ArtifactsListFilterOptions struct {
 
 	//pluginStage
 	PluginStage string
+
+	// UseCdStageQueryV2 is to set query version
+	UseCdStageQueryV2 bool
 }
