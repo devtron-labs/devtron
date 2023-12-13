@@ -39,7 +39,7 @@ type ConfigDraftService interface {
 	DeleteComment(draftId int, draftCommentId int, userId int32) error
 	GetDraftsCount(appId int, envIds []int) ([]*DraftCountResponse, error)
 	EncryptCSData(draftCsData string) string
-	ValidateLockDraft(request ConfigDraftRequest) (*ConfigDraftResponse, error)
+	ValidateLockDraft(request ConfigDraftRequest) (*LockValidateResponse, error)
 }
 
 type ConfigDraftServiceImpl struct {
