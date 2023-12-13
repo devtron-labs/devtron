@@ -36,7 +36,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
-	appWorkflow2 "github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster"
@@ -1727,7 +1726,7 @@ func (impl *CdPipelineConfigServiceImpl) createCdPipeline(ctx context.Context, a
 				if pipeline.ChildPipelineId > 0 {
 					childPipelineIds = append(childPipelineIds, pipeline.ChildPipelineId)
 				}
-				err = impl.appWorkflowRepository.UpdateParentComponentDetails(tx, parentPipelineId, parentPipelineType, pipelineId, appWorkflow2.CD_PIPELINE_TYPE, childPipelineIds)
+				err = impl.appWorkflowRepository.UpdateParentComponentDetails(tx, parentPipelineId, parentPipelineType, pipelineId, "CD_PIPELINE", childPipelineIds)
 				if err != nil {
 					return 0, err
 				}
@@ -1738,7 +1737,7 @@ func (impl *CdPipelineConfigServiceImpl) createCdPipeline(ctx context.Context, a
 				ParentId:      parentPipelineId,
 				ParentType:    parentPipelineType,
 				ComponentId:   pipelineId,
-				Type:          appWorkflow2.CD_PIPELINE_TYPE,
+				Type:          "CD_PIPELINE",
 				Active:        true,
 				AuditLog:      sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
 			}
