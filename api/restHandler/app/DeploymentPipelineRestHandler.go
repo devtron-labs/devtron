@@ -846,6 +846,7 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideUpdate(w http.Resp
 		common.WriteJsonResp(w, err2, nil, http.StatusBadRequest)
 		return
 	}
+
 	createResp, err := handler.propertiesConfigService.UpdateEnvironmentProperties(appId, &envConfigProperties, userId)
 	if err != nil {
 		handler.Logger.Errorw("service err, EnvConfigOverrideUpdate", "err", err, "payload", envConfigProperties)
