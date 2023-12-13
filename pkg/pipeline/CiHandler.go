@@ -1438,40 +1438,20 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int, envId
 			var history []*pipelineConfig.GitCommit
 			_gitTrigger := workflow.GitTriggers[m.Id]
 
-			//// ignore git trigger which have commit and webhook both data nil
-			//if len(_gitTrigger.Commit) == 0 && _gitTrigger.WebhookData.Id == 0 {
-			//	continue
-			//}
-			//
-			//_gitCommit := &gitSensor.GitCommit{
-			//	Message: _gitTrigger.Message,
-			//	Author:  _gitTrigger.Author,
-			//	Date:    _gitTrigger.Date,
-			//	Changes: _gitTrigger.Changes,
-			//	Commit:  _gitTrigger.Commit,
-			//}
-			//
-			//// set webhook data
-			//_webhookData := _gitTrigger.WebhookData
-			//if _webhookData.Id > 0 {
-			//	_gitCommit.WebhookData = &gitSensor.WebhookData{
-			//		Id:              _webhookData.Id,
-			//		EventActionType: _webhookData.EventActionType,
-			//		Data:            _webhookData.Data,
-			//	}
-			//}
-			//
+			// ignore git trigger which have commit and webhook both data nil
+			if len(_gitTrigger.Commit) == 0 && _gitTrigger.WebhookData == nil {
+				continue
+			}
 			history = append(history, &_gitTrigger)
-
 			res := pipelineConfig.CiPipelineMaterialResponse{
 				Id:              m.Id,
 				GitMaterialId:   m.GitMaterialId,
 				GitMaterialName: m.GitMaterial.Name[strings.Index(m.GitMaterial.Name, "-")+1:],
-				Type:            string(m.Type),
-				Value:           m.Value,
-				Active:          m.Active,
-				Url:             m.GitMaterial.Url,
+				Type:            string(_gitTrigger.CiConfigureSourceType),
+				Value:           _gitTrigger.CiConfigureSourceValue,
+				Url:             _gitTrigger.GitRepoUrl,
 				History:         history,
+				Active:          m.Active,
 			}
 			ciMaterialsArr = append(ciMaterialsArr, res)
 		}
