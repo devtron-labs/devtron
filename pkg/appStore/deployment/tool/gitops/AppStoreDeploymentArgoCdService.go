@@ -56,7 +56,7 @@ type AppStoreDeploymentArgoCdService interface {
 	UpdateInstalledAppAndPipelineStatusForFailedDeploymentStatus(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, triggeredAt time.Time, err error) error
 	SaveTimelineForACDHelmApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, status string, statusDetail string, tx *pg.Tx) error
 	UpdateChartInfo(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *util.ChartGitAttribute, installedAppVersionHistoryId int, ctx context.Context) error
-	RefreshAndUpdateACDApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *util.ChartGitAttribute, isMonoRepoMigrationRequired bool, ctx context.Context) error
+	UpdateAndSyncACDApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *util.ChartGitAttribute, isMonoRepoMigrationRequired bool, ctx context.Context) error
 }
 
 type AppStoreDeploymentArgoCdServiceImpl struct {
@@ -111,8 +111,8 @@ func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreD
 	}
 }
 
-// RefreshAndUpdateACDApp this will update chart info in acd app if required in case of mono repo migration and will refresh argo app
-func (impl AppStoreDeploymentArgoCdServiceImpl) RefreshAndUpdateACDApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *util.ChartGitAttribute, isMonoRepoMigrationRequired bool, ctx context.Context) error {
+// UpdateAndSyncACDApps this will update chart info in acd app if required in case of mono repo migration and will refresh argo app
+func (impl AppStoreDeploymentArgoCdServiceImpl) UpdateAndSyncACDApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *util.ChartGitAttribute, isMonoRepoMigrationRequired bool, ctx context.Context) error {
 	if isMonoRepoMigrationRequired {
 		// update repo details on ArgoCD as repo is changed
 		err := impl.UpdateChartInfo(installAppVersionRequest, ChartGitAttribute, 0, ctx)
@@ -121,10 +121,28 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) RefreshAndUpdateACDApp(installAp
 			return err
 		}
 	}
-	// Doing this to refresh normally by getting app to avoid sync delay argo cd
-	_, err := impl.argoClientWrapperService.GetArgoAppWithNormalRefresh(ctx, installAppVersionRequest.ACDAppName)
+	acdAppName := installAppVersionRequest.ACDAppName
+	argoApplication, err := impl.acdClient.Get(ctx, &application.ApplicationQuery{Name: &acdAppName})
+	if err != nil {
+		impl.Logger.Errorw("Service err:UpdateAndSyncACDApps - error in acd app by name", "acdAppName", acdAppName, "err", err)
+		return err
+	}
+
+	err = impl.argoClientWrapperService.UpdateArgoCDSyncModeIfNeeded(ctx, argoApplication)
+	if err != nil {
+		impl.Logger.Errorw("error in updating argocd sync mode", "err", err)
+		return err
+	}
+
+	err = impl.argoClientWrapperService.SyncArgoCDApplicationIfNeededAndRefresh(ctx, acdAppName)
 	if err != nil {
 		impl.Logger.Errorw("error in getting argocd application with normal refresh", "err", err, "argoAppName", installAppVersionRequest.ACDAppName)
+		return err
+	}
+	err = impl.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED, "argocd sync completed", nil)
+	if err != nil {
+		impl.Logger.Errorw("error in saving timeline for acd helm apps", "err", err)
+		return err
 	}
 	return nil
 }

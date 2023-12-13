@@ -22,16 +22,7 @@
       "repoURL": "{{.RepoUrl}}",
       "targetRevision": "master"
     },
-    "syncPolicy": {
-      "retry": {
-        "backoff": {
-          "duration": "5s",
-          "factor": 2,
-          "maxDuration": "5s"
-        },
-        "limit": 1
-      }
-    }
+    "syncPolicy": "{{.SyncPolicy}}"
   }
 }
 

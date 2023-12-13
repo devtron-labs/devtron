@@ -26,12 +26,35 @@ type AppTemplate struct {
 	ValuesFile      string
 	RepoPath        string
 	RepoUrl         string
+	SyncPolicy      string
 }
 
 const (
-	TimeoutSlow                             = 30 * time.Second
-	ARGOCD_MANUAL_SYNC_APPLICATION_TEMPLATE = "./scripts/argo-assets/APPLICATION_TEMPLATE.JSON"
-	ARGOCD_AUTO_SYNC_APPLICATION_TEMPLATE   = "./scripts/argo-assets/APPLICATION_TEMPLATE_AUTO_SYNC.JSON"
+	TimeoutSlow                 = 30 * time.Second
+	ARGOCD_APPLICATION_TEMPLATE = "./scripts/argo-assets/APPLICATION_TEMPLATE.JSON"
+	SYNC_POLICY_AUTO            = `{
+      "automated": {
+        "prune": true
+      },
+      "retry": {
+        "backoff": {
+          "duration": "5s",
+          "factor": 2,
+          "maxDuration": "5s"
+        },
+        "limit": 1
+      }
+    }`
+	SYNC_POLICY_MANUAL = `{
+      "retry": {
+        "backoff": {
+          "duration": "5s",
+          "factor": 2,
+          "maxDuration": "5s"
+        },
+        "limit": 1
+      }
+    }`
 )
 
 type ArgoK8sClient interface {

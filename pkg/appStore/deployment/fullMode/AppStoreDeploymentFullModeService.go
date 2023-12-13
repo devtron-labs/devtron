@@ -91,6 +91,7 @@ type AppStoreDeploymentFullModeServiceImpl struct {
 	argoClientWrapperService             argocdServer.ArgoClientWrapperService
 	pubSubClient                         *pubsub_lib.PubSubClientServiceImpl
 	installedAppRepositoryHistory        repository4.InstalledAppVersionHistoryRepository
+	ACDConfig                            argocdServer.ACDConfig
 }
 
 func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
@@ -109,6 +110,7 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
 	pubSubClient *pubsub_lib.PubSubClientServiceImpl,
 	installedAppRepositoryHistory repository4.InstalledAppVersionHistoryRepository,
+	ACDConfig argocdServer.ACDConfig,
 ) *AppStoreDeploymentFullModeServiceImpl {
 	appStoreDeploymentFullModeServiceImpl := &AppStoreDeploymentFullModeServiceImpl{
 		logger:                               logger,
@@ -131,6 +133,7 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 		argoClientWrapperService:             argoClientWrapperService,
 		pubSubClient:                         pubSubClient,
 		installedAppRepositoryHistory:        installedAppRepositoryHistory,
+		ACDConfig:                            ACDConfig,
 	}
 	err := appStoreDeploymentFullModeServiceImpl.SubscribeHelmInstallStatus()
 	if err != nil {
@@ -333,9 +336,25 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationACD(ins
 	//impl.SyncACD(installAppVersionRequest.ACDAppName, ctx)
 
 	//STEP 7: normal refresh ACD - update for step 6 to avoid delay
-	_, err = impl.argoClientWrapperService.GetArgoAppWithNormalRefresh(ctx, installAppVersionRequest.ACDAppName)
+	err = impl.argoClientWrapperService.SyncArgoCDApplicationIfNeededAndRefresh(ctx, installAppVersionRequest.ACDAppName)
 	if err != nil {
 		impl.logger.Errorw("error in getting the argo application with normal refresh", "err", err)
+	}
+	timeline := &pipelineConfig.PipelineStatusTimeline{
+		InstalledAppVersionHistoryId: installAppVersionRequest.InstalledAppVersionHistoryId,
+		Status:                       pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED,
+		StatusDetail:                 "argocd sync completed.",
+		StatusTime:                   time.Now(),
+		AuditLog: sql.AuditLog{
+			CreatedBy: installAppVersionRequest.UserId,
+			CreatedOn: time.Now(),
+			UpdatedBy: installAppVersionRequest.UserId,
+			UpdatedOn: time.Now(),
+		},
+	}
+	err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, true)
+	if err != nil {
+		impl.logger.Errorw("error in creating timeline status for git commit", "err", err, "timeline", timeline)
 	}
 
 	return installAppVersionRequest, nil
@@ -370,7 +389,12 @@ func (impl AppStoreDeploymentFullModeServiceImpl) createInArgo(chartGitAttribute
 	if appNamespace == "" {
 		appNamespace = "default"
 	}
-
+	var syncPolicy string
+	if impl.ACDConfig.ArgoCDAutoSyncEnabled {
+		syncPolicy = argocdServer.SYNC_POLICY_AUTO
+	} else {
+		syncPolicy = argocdServer.SYNC_POLICY_MANUAL
+	}
 	appreq := &argocdServer.AppTemplate{
 		ApplicationName: argocdAppName,
 		Namespace:       impl.aCDAuthConfig.ACDConfigMapNamespace,
@@ -380,8 +404,9 @@ func (impl AppStoreDeploymentFullModeServiceImpl) createInArgo(chartGitAttribute
 		ValuesFile:      fmt.Sprintf("values.yaml"),
 		RepoPath:        chartGitAttribute.ChartLocation,
 		RepoUrl:         chartGitAttribute.RepoUrl,
+		SyncPolicy:      syncPolicy,
 	}
-	_, err := impl.ArgoK8sClient.CreateAcdApp(appreq, envModel.Cluster, argocdServer.ARGOCD_AUTO_SYNC_APPLICATION_TEMPLATE)
+	_, err := impl.ArgoK8sClient.CreateAcdApp(appreq, envModel.Cluster, argocdServer.ARGOCD_APPLICATION_TEMPLATE)
 	//create
 	if err != nil {
 		impl.logger.Errorw("error in creating argo cd app ", "err", err)
