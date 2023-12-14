@@ -2,7 +2,7 @@ name: 🚀 Feature
 description: "Submit a proposal for a new feature"
 title: "Feature: "
 labels: ["enhancement"]
-assignees: ["prakarsh-dt","nishant-d"]
+assignees: ["prakarsh-dt","nishant-d","abhibhaw"]
 body:
   - type: markdown
     attributes:
@@ -21,17 +21,9 @@ body:
     validations:
       required: true
     attributes:
-      label: "🎤 Pitch"
+      label: "🎤 Pitch / Usecases"
       description: "Please explain why this feature should be implemented and how it would be used. Add examples, if applicable."
       placeholder: "In my use-case, ..."
-  - type: textarea
-    id: solution
-    validations:
-      required: true
-    attributes:
-      label: "✌️ Solution"
-      description: "A clear and concise description of what you want to happen."
-      placeholder: "I want this feature to, ..."
   - type: textarea
     id: alternative
     validations:

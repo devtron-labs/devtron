@@ -691,7 +691,7 @@ func (impl AppWorkflowServiceImpl) FindAllWorkflowsForApps(request WorkflowNames
 	if len(request.AppNames) == 0 {
 		return &WorkflowNamesResponse{}, nil
 	}
-	appIdNameMapping, appIds, err := impl.appRepository.FetchAppIdsByDisplaynames(request.AppNames)
+	appIdNameMapping, appIds, err := impl.appRepository.FetchAppIdsByDisplayNamesForJobs(request.AppNames)
 	if err != nil {
 		impl.Logger.Errorw("error in getting apps by appNames", "err", err, "appNames", request.AppNames)
 		return nil, err

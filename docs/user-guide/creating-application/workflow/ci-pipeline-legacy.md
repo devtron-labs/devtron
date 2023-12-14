@@ -30,7 +30,7 @@ You can select the method you want to execute the pipeline. By default the value
 ### III. Source Type
 In source type, we can observe that we have three types of mechanisms which can be used for building your CI Pipeline. In the drop-down you can observe we have Branch Fixed, Pull Request and Tag Creation. 
 
-![](../../../.gitbook/assets/ci-pipeline-2.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-ci-pipeline/ci-pipeline-2.jpg)
 
 #### i) Branch Fixed
 If you select the Branch Fixed as your source type for building CI Pipeline, then you need to provide the corresponding Branch Name.
@@ -42,7 +42,7 @@ Branch Name is the name of the corresponding branch (eg. main or master, or any 
 
 If you select the Pull Request option, you can configure the CI Pipeline using the generated PR. For this mechanism you need to configure a webhook for the repository added in the Git Material.
 
-![](../../../.gitbook/assets/ci-pipeline-3.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-ci-pipeline/ci-pipeline-3.jpg)
 
 ##### Prerequisites for Pull Request
 **If using GitHub -**
@@ -54,7 +54,7 @@ To use this mechanism, as stated above you need to create a webhook for the corr
 4. Change content type to - application/json
 5. Copy paste the Secret as well from the Dashboard when you select the source type as Pull Request
 
-![](../../../.gitbook/assets/ci-pipeline-4.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-ci-pipeline/ci-pipeline-4.jpg)
 
 Now,  scroll down and select the custom events for which you want to trigger the webhook to build CI Pipeline -
 
@@ -63,7 +63,7 @@ Now,  scroll down and select the custom events for which you want to trigger the
 
 [Note] If you select **Branch or Tag Creation**, it will work for the **Tag Creation** mechanism as well.
 
-![](../../../.gitbook/assets/ci-pipeline-5.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-ci-pipeline/ci-pipeline-5.jpg)
 
 After selecting the respective options, click on the generate the webhook button to create a webhook for your respective repository.
 
@@ -73,19 +73,19 @@ If you are using Bitbucket cloud as your git provider, you need to create a webh
 1. Go to Repository Settings on left sidebar of repository window
 2. Click on Webhooks and then click on Add webhook as shown in the image.
 
-![](../../../.gitbook/assets/ci-pipeline-6.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-ci-pipeline/ci-pipeline-6.jpg)
 
 3. Give any appropriate title as per your choice and then copy-paste the url which you can get from Devtron Dashboard when you select Pull Request as source type in case of Bitbucket Cloud as Git Host.
 4. Check the Pull Request events for which you want to trigger the webhook and then save the configurations.
 
-![](../../../.gitbook/assets/ci-pipeline-7.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-ci-pipeline/ci-pipeline-7.jpg)
 
 ##### Filters
 Now, coming back to the Pull Request mechanism, you can observe we have the option to add filters. In a single repository we have multiple PRs generated, so to have the exact PR for which you want to build the CI Pipeline, we have this feature of filters.
 
 You can add a few filters which can be seen in the dropdown to sort the exact PR which you want to use for building the pipeline. 
 
-![](../../../.gitbook/assets/ci-pipeline-8.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-ci-pipeline/ci-pipeline-8.jpg)
 
 Below are the details of different filters which you can use as per your requirement. Please select any of the filters and pass the value in regex format as one has already given for example and then click on **Create Pipeline**.
 
@@ -111,7 +111,7 @@ In this process as well you can find the option to filter the specific tags with
 
 Select the appropriate filter and pass the value in the form of regex and then click on **Create Pipeline**.
 
-![](../../../.gitbook/assets/ci-pipeline-9.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-ci-pipeline/ci-pipeline-9.jpg)
 
 ### Advanced Options
 When you click on the advanced options button which can be seen at the bottom-left of the screen, you can see some more configuration options which includes pipeline execution, stages and scan for vulnerabilities. 
@@ -129,7 +129,7 @@ This section is used for those steps which you want to execute before building t
 
 You can add one or more than one stage in a CI Pipeline.
 
-![](../../../.gitbook/assets/pre_build.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-ci-pipeline/pre_build.jpg)
 
 **\(b\) Docker build**
 
@@ -141,7 +141,7 @@ The post-build stage is similar to the pre-build stage. The difference between t
 
 Adding a post-build stage is similar to adding a pre-build stage. Click on `Add Stage` and provide a name to your post-stage. Here you can write your script as per your requirement, which will run in sequence after the docker image is built. You can also provide the path of the directory in which the output of the script will be stored in the `Remote Directory` column. And this is optional to fill because many times you run scripts that do not provide any output.
 
-![](../../../.gitbook/assets/post_build%20%282%29.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-ci-pipeline/post_build.jpg)
 
 **NOTE:**
 
@@ -164,7 +164,7 @@ You can also update any configuration of an already created CI Pipeline, except 
 
 Click on your CI pipeline, to update your CI Pipeline. A window will be popped up with all the details of the current pipeline.
 
-![](../../../.gitbook/assets/ca-workflow-update.png)
+![]()
 
 Make your changes and click on `Update Pipeline` at the bottom to update your Pipeline.
 
@@ -182,7 +182,7 @@ Users can run the test case using the Devtron dashboard or by including the test
 
 The test cases given in the script will run before the test cases given in the devtron.ci.yaml
 
-![](../../../.gitbook/assets/yaml%20%283%29.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-ci-pipeline/yaml.jpg)
 
 | Field | Description |
 | :--- | :--- |
@@ -199,7 +199,7 @@ The test cases given in the script will run before the test cases given in the d
 
 If one code is shared across multiple applications, `Linked CI Pipeline` can be used, and only one image will be built for multiple applications because if there is only one build, it is not advisable to create multiple CI Pipelines.
 
-![](../../../.gitbook/assets/ca-workflow-linked.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-ci-pipeline/ca-workflow-linked.jpg)
 
 To create a `Linked CI Pipeline`, please follow the steps mentioned below :
 
@@ -222,13 +222,13 @@ To create a `Linked CI Pipeline`, please follow the steps mentioned below :
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-ci-pipeline/linked-ci-pipeline-3.png)
 
 After creating a linked CI pipeline, you can create a CD pipeline. 
-You cannot trigger build from linked CI  pipeline, it can be triggered only from source CI pipeline. Initially you will not see any images to deploy in CD pipeline created from `linked CI pipeline`. Trigger build in source CI pipeline to see the images in CD pipeline of linked CI pipeline. After this, whenever you trigger buld in source CI pipeline, the build images will be listed in CD pipeline of `linked CI pipeline` too.
+You cannot trigger build from linked CI  pipeline, it can be triggered only from source CI pipeline. Initially you will not see any images to deploy in CD pipeline created from `linked CI pipeline`. Trigger build in source CI pipeline to see the images in CD pipeline of linked CI pipeline. After this, whenever you trigger build in source CI pipeline, the build images will be listed in CD pipeline of `linked CI pipeline` too.
 
 ## C. Incoming Webhook
 
 You can use Devtron for deployments on Kubernetes while using your own CI tool such as Jenkins. External CI features can be used for cases where the CI tool is hosted outside the Devtron platform.
 
-![](../../../.gitbook/assets/ca-workflow-external.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-ci-pipeline/ca-workflow-external.jpg)
 
 You can send the ‘Payload script’ to your CI tools such as Jenkins and Devtron will receive the build image every time the CI Service is triggered or you can use the Webhook URL which will build an image every time CI Service is triggered using Devtron Dashboard.
 
