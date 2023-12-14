@@ -338,7 +338,6 @@ kind: Job
 metadata:
   name: postgresql-miscellaneous
 spec:
-  ttlSecondsAfterFinished: 1800
   template:
     spec:
       securityContext:
