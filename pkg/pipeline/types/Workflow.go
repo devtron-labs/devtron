@@ -603,7 +603,7 @@ type WorkflowResponse struct {
 	Namespace            string                                      `json:"namespace"`
 	LogLocation          string                                      `json:"logLocation"`
 	BlobStorageEnabled   bool                                        `json:"blobStorageEnabled"`
-	GitTriggers          map[int]pipelineConfig.GitCommit            `json:"gitTriggers"`
+	GitTriggers          map[int]pipelineConfig.GitCommitDetails     `json:"gitTriggers"`
 	CiMaterials          []pipelineConfig.CiPipelineMaterialResponse `json:"ciMaterials"`
 	TriggeredBy          int32                                       `json:"triggeredBy"`
 	Artifact             string                                      `json:"artifact"`

@@ -51,7 +51,7 @@ func (impl *GitWebhookServiceImpl) HandleGitWebhook(gitWebhookRequest gitSensor.
 		Type:          string(gitWebhookRequest.Type),
 		Value:         gitWebhookRequest.Value,
 		Active:        gitWebhookRequest.Active,
-		GitCommit: pipelineConfig.GitCommit{
+		GitCommit: pipelineConfig.GitCommitDetails{
 			GitCommit: gitWebhookRequest.GitCommit,
 		},
 	}

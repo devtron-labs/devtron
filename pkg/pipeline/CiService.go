@@ -331,7 +331,7 @@ func (impl *CiServiceImpl) BuildPayload(trigger types.Trigger, pipeline *pipelin
 }
 
 func (impl *CiServiceImpl) saveNewWorkflow(pipeline *pipelineConfig.CiPipeline, wfConfig *pipelineConfig.CiWorkflowConfig,
-	commitHashes map[int]pipelineConfig.GitCommit, userId int32, EnvironmentId int, isJob bool, refCiWorkflowId int) (wf *pipelineConfig.CiWorkflow, error error) {
+	commitHashes map[int]pipelineConfig.GitCommitDetails, userId int32, EnvironmentId int, isJob bool, refCiWorkflowId int) (wf *pipelineConfig.CiWorkflow, error error) {
 
 	ciWorkflow := &pipelineConfig.CiWorkflow{
 		Name:                  pipeline.Name + "-" + strconv.Itoa(pipeline.Id),
@@ -840,7 +840,7 @@ func buildCiStepsDataFromDockerBuildScripts(dockerBuildScripts []*bean.CiScript)
 	return ciSteps
 }
 
-func (impl *CiServiceImpl) buildImageTag(commitHashes map[int]pipelineConfig.GitCommit, id int, wfId int) string {
+func (impl *CiServiceImpl) buildImageTag(commitHashes map[int]pipelineConfig.GitCommitDetails, id int, wfId int) string {
 	dockerImageTag := ""
 	for _, v := range commitHashes {
 		_truncatedCommit := ""

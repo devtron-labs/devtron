@@ -792,7 +792,7 @@ func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipel
 			return cdWorkflowArtifact, nil
 		}
 
-		wfGitTriggers := make(map[int]map[int]pipelineConfig.GitCommit)
+		wfGitTriggers := make(map[int]map[int]pipelineConfig.GitCommitDetails)
 		var ciPipelineId int
 		for _, ciWf := range ciWfs {
 			ciPipelineId = ciWf.CiPipelineId
@@ -820,7 +820,7 @@ func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipel
 		var newCdWorkflowArtifact []pipelineConfig.CdWorkflowWithArtifact
 		for _, cdWfA := range cdWorkflowArtifact {
 
-			gitTriggers := make(map[int]pipelineConfig.GitCommit)
+			gitTriggers := make(map[int]pipelineConfig.GitCommitDetails)
 			if isLinked {
 				if gitTriggerVal, ok := wfGitTriggers[parentCiArtifact[cdWfA.CiArtifactId]]; ok {
 					gitTriggers = gitTriggerVal
@@ -1042,7 +1042,7 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 		}
 		ciMaterialsArr = append(ciMaterialsArr, res)
 	}
-	gitTriggers := make(map[int]pipelineConfig.GitCommit)
+	gitTriggers := make(map[int]pipelineConfig.GitCommitDetails)
 	if ciWf.GitTriggers != nil {
 		gitTriggers = ciWf.GitTriggers
 	}
