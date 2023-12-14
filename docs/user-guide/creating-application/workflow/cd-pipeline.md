@@ -176,7 +176,7 @@ kubectl delete pod -l app=devtron -n devtroncd
 
 7. Deploy the chart in any environment within the Devtron cluster. 
 
-Now you should be able to enable `Execute in application environmet` option for an environment of target cluster.
+Now you should be able to enable `Execute in application environment` option for an environment of target cluster.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/enabled-incluster.jpg)
 
