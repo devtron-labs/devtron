@@ -37,5 +37,5 @@ We also add or remove labels for app from here.
 
 * `id` : integer unique label id
 * `appId` : integer application id
-* `key` : string key is tha part of label stores individually in db.
-* `value` : string value is tha part of label stores individually in db.
+* `key` : string key is the part of label stored individually in db.
+* `value` : string value is the part of label stored individually in db.
