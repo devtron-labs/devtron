@@ -11,6 +11,7 @@
 - doc: Indentation fix in Scoped Variable Doc (#4367)
 - docs: Gitbook assets moved to AWS S3 (#4380)
 ## Others
+- chore: Updated migration number for gcs create bucket (#4412)
 - chore:  enhancements in User Service and User common service (#4293)
 - chore: Remove the annotation hook from devtron-nats-test-request-reply pod (#4387)
 - chore: Update pager-duty Issue template (#4381)
