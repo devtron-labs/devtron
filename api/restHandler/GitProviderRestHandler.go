@@ -30,7 +30,6 @@ import (
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
-	"strings"
 )
 
 const GIT_ACCOUNT_DELETE_SUCCESS_RESP = "Git account deleted successfully."
@@ -100,7 +99,7 @@ func (impl GitProviderRestHandlerImpl) SaveGitRepoConfig(w http.ResponseWriter, 
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceGit, casbin.ActionCreate, strings.ToLower(bean.Name)); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceGit, casbin.ActionCreate, bean.Name); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -138,7 +137,7 @@ func (impl GitProviderRestHandlerImpl) FetchAllGitProviders(w http.ResponseWrite
 	token := r.Header.Get("token")
 	result := make([]types.GitRegistry, 0)
 	for _, item := range res {
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceGit, casbin.ActionGet, strings.ToLower(item.Name)); ok {
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceGit, casbin.ActionGet, item.Name); ok {
 			result = append(result, item)
 		}
 	}
@@ -159,7 +158,7 @@ func (impl GitProviderRestHandlerImpl) FetchOneGitProviders(w http.ResponseWrite
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceGit, casbin.ActionGet, strings.ToLower(res.Name)); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceGit, casbin.ActionGet, res.Name); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -192,7 +191,7 @@ func (impl GitProviderRestHandlerImpl) UpdateGitRepoConfig(w http.ResponseWriter
 	}
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceGit, casbin.ActionUpdate, strings.ToLower(bean.Name)); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceGit, casbin.ActionUpdate, bean.Name); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -231,7 +230,7 @@ func (impl GitProviderRestHandlerImpl) DeleteGitRepoConfig(w http.ResponseWriter
 	}
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceGit, casbin.ActionCreate, strings.ToLower(bean.Name)); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceGit, casbin.ActionCreate, bean.Name); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
