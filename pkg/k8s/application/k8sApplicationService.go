@@ -227,7 +227,9 @@ func (impl *K8sApplicationServiceImpl) ValidateTerminalRequestQuery(r *http.Requ
 	request.Namespace = vars["namespace"]
 	request.PodName = vars["pod"]
 	request.Shell = vars["shell"]
+	isArgoApplication, _ := strconv.ParseBool(v.Get("isArgo"))
 	resourceRequestBean := &k8s.ResourceRequestBean{}
+	resourceRequestBean.IsArgoApplication = isArgoApplication
 	identifier := vars["identifier"]
 	if strings.Contains(identifier, "|") {
 		// Validate App Type

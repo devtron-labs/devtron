@@ -989,6 +989,8 @@ func (handler *K8sApplicationRestHandlerImpl) handleEphemeralRBAC(podName, names
 	}
 	vars := r.URL.Query()
 	appTypeStr := vars.Get("appType")
+	isArgoApplication, _ := strconv.ParseBool(vars.Get("isArgo"))
+	resourceRequestBean.IsArgoApplication = isArgoApplication
 	appType, _ := strconv.Atoi(appTypeStr) //ignore error as this var is not expected for devtron apps/helm apps/resource bowser. appType var is needed in case of Argo Apps
 	if resourceRequestBean.AppIdentifier != nil {
 		// RBAC enforcer applying For Helm App
