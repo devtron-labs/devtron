@@ -19,6 +19,7 @@ package pubsub
 
 import (
 	"encoding/json"
+	"github.com/devtron-labs/common-lib-private/pubsub-lib/model"
 
 	pubsub "github.com/devtron-labs/common-lib-private/pubsub-lib"
 	"github.com/devtron-labs/devtron/client/gitSensor"
@@ -52,7 +53,7 @@ func NewGitWebhookHandler(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSub
 }
 
 func (impl *GitWebhookHandlerImpl) Subscribe() error {
-	callback := func(msg *pubsub.PubSubMsg) {
+	callback := func(msg *model.PubSubMsg) {
 		//defer msg.Ack()
 		ciPipelineMaterial := gitSensor.CiPipelineMaterial{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &ciPipelineMaterial)
