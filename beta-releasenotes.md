@@ -1,6 +1,7 @@
 ## Bugs
 - fix: optimised the artifacts listing query and added query versioned support (#4375)
 ## Enhancements
+- feat: CS create bucket plugin (#4411)
 - feat: Integrate GKE provisioning into Devtron Plugin (#4406)
 - feat: Integrate Cloudanix Image Scanner Plugin for Advanced Image Scanning (#4396)
 - feat: Support for OCI charts pull & deploy in EA mode (#4309)
