@@ -914,7 +914,7 @@ func (impl *CiServiceImpl) buildImageTag(commitHashes map[int]pipelineConfig.Git
 				continue
 			}
 			onlyTagBasedTargetCheckout = true
-			if !impl.config.CiCdConfig.UseImageTagFromGitProviderForTagBasedBuild {
+			if !impl.config.CiCdConfig.UseImageTagFromGitProviderForTagBasedBuild || v.WebhookData.EventActionType == bean.WEBHOOK_EVENT_MERGED_ACTION_TYPE {
 				_truncatedCommit = _getTruncatedImageTag(_targetCheckout)
 			} else {
 				_truncatedCommit = _targetCheckout
