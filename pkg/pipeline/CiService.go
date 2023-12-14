@@ -914,7 +914,6 @@ func (impl *CiServiceImpl) buildImageTag(commitHashes map[int]pipelineConfig.Git
 			}
 			// if not PR based then meaning tag based
 			isPRBasedEvent := v.WebhookData.EventActionType == bean.WEBHOOK_EVENT_MERGED_ACTION_TYPE
-			toAppendDevtronParamInTag = !isPRBasedEvent && !impl.config.CiCdConfig.UseImageTagFromGitProviderForTagBasedBuild
 			if !isPRBasedEvent && impl.config.CiCdConfig.UseImageTagFromGitProviderForTagBasedBuild {
 				dockerImageTag = getUpdatedDockerImageTagWithCommitOrCheckOutData(dockerImageTag, _targetCheckout)
 			} else {
@@ -923,6 +922,8 @@ func (impl *CiServiceImpl) buildImageTag(commitHashes map[int]pipelineConfig.Git
 			if isPRBasedEvent {
 				_sourceCheckout := v.WebhookData.Data[bean.WEBHOOK_SELECTOR_SOURCE_CHECKOUT_NAME]
 				dockerImageTag = getUpdatedDockerImageTagWithCommitOrCheckOutData(dockerImageTag, _getTruncatedImageTag(_sourceCheckout))
+			} else {
+				toAppendDevtronParamInTag = !impl.config.CiCdConfig.UseImageTagFromGitProviderForTagBasedBuild
 			}
 		}
 	}
