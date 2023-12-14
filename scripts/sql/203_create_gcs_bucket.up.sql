@@ -31,7 +31,7 @@ echo "GOOGLE_APPLICATION_CREDENTIALS is set, activating Service Account..."
 gcloud auth activate-service-account --key-file=${GOOGLE_APPLICATION_CREDENTIALS}
 fi
 
-if [[ "$LocationType" == "region" || "$LocationType" == "multi-region" ]]
+if [[ "$LocationType" != "dual-region" ]]
 then 
     if [[ "$Location" != "" ]]
     then
@@ -63,7 +63,7 @@ fi
 
 if [[ "$EnableBucketPrefix" == true ]]
 then
-    export BucketName="$BucketName-$(date +%d-%m-%H-%M)"
+    export BucketName="$BucketName-$(date +%d-%m-%Y-%H-%M)"
 else
     export BucketName="$BucketName"
 fi
