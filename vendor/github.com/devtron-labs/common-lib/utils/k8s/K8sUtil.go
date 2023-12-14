@@ -1408,7 +1408,6 @@ func (impl *K8sUtil) UpdateResource(ctx context.Context, restConfig *rest.Config
 		resp, err = resourceIf.Update(ctx, &unstructured.Unstructured{Object: updateObj}, metav1.UpdateOptions{})
 	}
 	if err != nil {
-		err = &utils.ApiError{HttpStatusCode: 422, UserMessage: err.Error()}
 		impl.logger.Errorw("error in updating resource", "err", err, "namespace", namespace)
 		return nil, err
 	}

@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/hashicorp/go-multierror"
-	"github.com/juju/errors"
+	. "github.com/juju/errors"
 	"gopkg.in/go-playground/validator.v9"
 	errors2 "k8s.io/apimachinery/pkg/api/errors"
 	"net/http"
@@ -55,7 +55,7 @@ func WriteJsonResp(w http.ResponseWriter, err error, respBody interface{}, statu
 		status = http.StatusNotFound
 		apiErr := &util.ApiError{}
 		apiErr.Code = "000" // 000=unknown
-		apiErr.InternalMessage = errors.Details(err)
+		apiErr.InternalMessage = Details(err)
 		if respBody != nil {
 			apiErr.UserMessage = respBody
 		} else {
@@ -86,7 +86,7 @@ func WriteJsonResp(w http.ResponseWriter, err error, respBody interface{}, statu
 	} else {
 		apiErr := &util.ApiError{}
 		apiErr.Code = "000" // 000=unknown
-		apiErr.InternalMessage = errors.Details(err)
+		apiErr.InternalMessage = Details(err)
 		if respBody != nil {
 			apiErr.UserMessage = respBody
 		} else {
@@ -105,7 +105,7 @@ func WriteJsonResp(w http.ResponseWriter, err error, respBody interface{}, statu
 		response := Response{}
 		apiErr := &util.ApiError{}
 		apiErr.Code = "0000" // 000=unknown
-		apiErr.InternalMessage = errors.Details(err)
+		apiErr.InternalMessage = Details(err)
 		apiErr.UserMessage = "response marshaling error"
 		response.Errors = []*util.ApiError{apiErr}
 		b, err = json.Marshal(response)
