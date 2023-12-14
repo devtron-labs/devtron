@@ -22,13 +22,13 @@ spec:
         - env:
           - name: DB_TYPE
             value: postgres
-          - name: DB_USER_NAME
+          - name: PG_USER
             value: postgres
-          - name: DB_HOST
+          - name: PG_ADDR
             value: postgresql-postgresql.devtroncd
           - name: DB_PORT
             value: "5432"
-          - name: DB_NAME
+          - name: PG_DATABASE
             value: orchestrator
           envFrom:
             - secretRef:
