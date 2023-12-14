@@ -587,8 +587,12 @@ func (impl *CiHandlerImpl) CancelBuild(workflowId int, forceAbort bool) (int, er
 		impl.Logger.Errorw("err", "err", err)
 		return 0, err
 	}
-	if !(string(v1alpha1.NodePending) == workflow.Status || string(v1alpha1.NodeRunning) == workflow.Status) && forceAbort {
-		return impl.cancelBuildAfterStartWorkflowStage(workflow)
+	if !(string(v1alpha1.NodePending) == workflow.Status || string(v1alpha1.NodeRunning) == workflow.Status) {
+		if forceAbort {
+			return impl.cancelBuildAfterStartWorkflowStage(workflow)
+		} else {
+			return 0, &util.ApiError{Code: "200", HttpStatusCode: 200, UserMessage: "cannot cancel build, build not in progress"}
+		}
 	}
 	isExt := workflow.Namespace != DefaultCiWorkflowNamespace
 	var env *repository3.Environment
