@@ -7,7 +7,7 @@ Within the same application, you can override a `container registry`, `container
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-ci-pipeline/build-allow-override.jpg)
 
-To override a container registry, container image or target paltform:
+To override a container registry, container image or target platform:
 
 * Go to **Applications** and select your application from the **Devtron Apps** tabs.
 * On the **App Configuration** tab, select **Workflow Editor**.
@@ -19,7 +19,7 @@ To override a container registry, container image or target paltform:
 
 * Click **Update Pipeline**.
 
-The overriden container registry/container image location/target platform will be reflected on the [Build Configuration](docker-build-configuration.md) page. You can also see the number of build pipelines for which the container registry/container image location/target platform is overriden.
+The overridden container registry/container image location/target platform will be reflected on the [Build Configuration](docker-build-configuration.md) page. You can also see the number of build pipelines for which the container registry/container image location/target platform is overridden.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-ci-pipeline/build-configuration-overridden.jpg)
 
