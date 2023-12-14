@@ -591,7 +591,7 @@ func (impl *CiHandlerImpl) CancelBuild(workflowId int, forceAbort bool) (int, er
 		if forceAbort {
 			return impl.cancelBuildAfterStartWorkflowStage(workflow)
 		} else {
-			return 0, &util.ApiError{Code: "200", HttpStatusCode: 200, UserMessage: "cannot cancel build, build not in progress"}
+			return 0, &util.ApiError{Code: "200", HttpStatusCode: 400, UserMessage: "cannot cancel build, build not in progress"}
 		}
 	}
 	isExt := workflow.Namespace != DefaultCiWorkflowNamespace
