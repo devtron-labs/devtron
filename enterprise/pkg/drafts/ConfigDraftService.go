@@ -393,7 +393,7 @@ func (impl *ConfigDraftServiceImpl) ApproveDraft(draftId int, draftVersionId int
 	draftData := draftVersion.Data
 	draftsDto := draftVersion.Draft
 	draftResourceType := draftsDto.Resource
-	var draftVersionResponse *DraftVersionResponse
+	draftVersionResponse := &DraftVersionResponse{}
 	if draftResourceType == CMDraftResource || draftResourceType == CSDraftResource {
 		err = impl.handleCmCsData(draftResourceType, draftsDto, draftData, draftVersion.UserId, draftVersion.Action)
 	} else {
