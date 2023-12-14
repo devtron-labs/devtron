@@ -499,7 +499,7 @@ type GitTriggerInfoResponse struct {
 
 type Trigger struct {
 	PipelineId                int
-	CommitHashes              map[int]pipelineConfig.GitCommit
+	CommitHashes              map[int]pipelineConfig.GitCommitDetails
 	CiMaterials               []*pipelineConfig.CiPipelineMaterial
 	TriggeredBy               int32
 	InvalidateCache           bool
