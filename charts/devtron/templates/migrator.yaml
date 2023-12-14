@@ -19,6 +19,26 @@ spec:
 {{- toYaml $.Values.global.podSecurityContext | nindent 8 }}
       {{- end }}
       initContainers:
+        - env:
+          - name: DB_TYPE
+            value: postgres
+          - name: DB_USER_NAME
+            value: postgres
+          - name: DB_HOST
+            value: postgresql-postgresql.devtroncd
+          - name: DB_PORT
+            value: "5432"
+          - name: DB_NAME
+            value: orchestrator
+          envFrom:
+            - secretRef:
+                name: postgresql-migrator
+          image: quay.io/devtron/devtron-utils:dup-chart-repo-v1.1.0
+          {{- if and $.Values.global $.Values.global.containerSecurityContext }}
+          securityContext:
+{{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
+          {{- end }}
+          name: clean-duplicate-chart
         - command:
             - /bin/sh
             - -c
