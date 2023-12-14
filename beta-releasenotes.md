@@ -3,6 +3,7 @@
 ## Enhancements
 - feat: Support for OCI charts pull & deploy in EA mode (#4309)
 ## Documentation
+- docs: Typos fixed in multiple docs (Phase 1) (#4402)
 - doc: Redirection added for OCI doc (#4394)
 - doc: Indentation fix in Scoped Variable Doc (#4367)
 - docs: Gitbook assets moved to AWS S3 (#4380)
