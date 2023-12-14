@@ -1,4 +1,5 @@
 ## Bugs
+- fix: chart sync duplicate charts (#4321)
 - fix: optimised the artifacts listing query and added query versioned support (#4375)
 ## Enhancements
 - feat: CS create bucket plugin (#4411)
