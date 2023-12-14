@@ -86,16 +86,23 @@ Make sure your cluster has `devtron-agent` installed if you check the `Execute i
 
 ### 4. Manual approval for deployment
 
-When `Manual approval for deployment` is enabled, only approved images are available for deployment through the respective deployment pipeline.
-Users can specify the number of approvals required for each deployment, where the permissible limit ranges from one approval (minimum) to six approval (maximum).
+If you want only approved images to be eligible for deployment, enable the `Manual approval for deployment` option in the respective deployment pipeline. By doing so, unapproved images would be barred from deployment for that deployment pipeline.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/deployment-approval.jpg)
+{% hint style="info" %}
+Currently, only super-admins can enable this option.
+{% endhint %}
+
+Users can also specify the number of approvals required for each deployment, where the permissible limit ranges from one approval (minimum) to six approval (maximum). In other words, if the image doesn't get the specified number of approvals, it won't be eligible for deployment.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/deployment-approval-new.jpg)
 
 To enable manual approval for deployment, follow these steps:
 
 1. Click the deployment pipeline for which you want to enable manual approval.
 2. Turn on the ‘Manual approval for deployment’ toggle button.
 3. Select the number of approvals required for each deployment.
+
+To know more about the approval process, refer [Triggering CD](../../deploying-application/triggering-cd.md#manual-approval-for-deployment). 
 
 ### 5. Deployment stage
 
@@ -176,7 +183,7 @@ kubectl delete pod -l app=devtron -n devtroncd
 
 7. Deploy the chart in any environment within the Devtron cluster. 
 
-Now you should be able to enable `Execute in application environmet` option for an environment of target cluster.
+Now you should be able to enable `Execute in application environment` option for an environment of target cluster.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/enabled-incluster.jpg)
 
