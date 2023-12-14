@@ -136,7 +136,7 @@ func (impl ClusterRepositoryImpl) FindAllActiveExceptVirtual() ([]Cluster, error
 	err := impl.dbConnection.
 		Model(&clusters).
 		Where("active=?", true).
-		Where("is_virtual_cluster=?", false).
+		Where("is_virtual_cluster=? OR is_virtual_cluster IS NULL", false).
 		Select()
 	return clusters, err
 }
