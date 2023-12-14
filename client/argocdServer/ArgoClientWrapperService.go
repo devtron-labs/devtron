@@ -67,7 +67,7 @@ func (impl *ArgoClientWrapperServiceImpl) GetArgoAppWithNormalRefresh(context co
 
 func (impl *ArgoClientWrapperServiceImpl) SyncArgoCDApplicationIfNeededAndRefresh(context context.Context, argoAppName string) error {
 	impl.logger.Info("argocd manual sync for app started", "argoAppName", argoAppName)
-	if impl.ACDConfig.ArgoCDAutoSyncEnabled {
+	if !impl.ACDConfig.ArgoCDAutoSyncEnabled {
 		revision := "master"
 		pruneResources := true
 		_, syncErr := impl.acdClient.Sync(context, &application2.ApplicationSyncRequest{Name: &argoAppName, Revision: &revision, Prune: &pruneResources})

@@ -424,7 +424,7 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveApplicationFetch
 			//drop event
 			return nil, isTimelineUpdated
 		}
-		isArgoAppSynced := impl.pipelineStatusTimelineService.GetArgoAppSyncStatus(installedAppVersionHistory.Id)
+		isArgoAppSynced := impl.pipelineStatusTimelineService.GetArgoAppSyncStatusForAppStore(installedAppVersionHistory.Id)
 		if !isArgoAppSynced {
 			return nil, isTimelineUpdated
 		}

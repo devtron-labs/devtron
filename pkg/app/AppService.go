@@ -353,7 +353,6 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusAndCheckIsSucceeded(app *v1alp
 				impl.logger.Errorw("error occurred while updating app status in app_status table", "error", err, "appId", installAppDeleteRequest.AppId, "envId", installAppDeleteRequest.EnvironmentId)
 			}
 			impl.logger.Debugw("skipping application status update as this app is chart", "appId", installAppDeleteRequest.AppId, "envId", installAppDeleteRequest.EnvironmentId)
-			return isSucceeded, pipelineOverride, nil
 		}
 	} else {
 		repoUrl := app.Spec.Source.RepoURL
@@ -378,7 +377,6 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusAndCheckIsSucceeded(app *v1alp
 				impl.logger.Errorw("error occurred while updating app status in app_status table", "error", err, "appId", chart.AppId, "envId", envId)
 			}
 			impl.logger.Debugw("skipping application status update as this app is chart", "appId", chart.AppId, "envId", envId)
-			return isSucceeded, pipelineOverride, nil
 		}
 	}
 
@@ -583,7 +581,7 @@ func (impl *AppServiceImpl) CheckIfPipelineUpdateEventIsValidForAppStore(gitOpsA
 		//drop event
 		return isValid, installedAppVersionHistory, appId, envId, nil
 	}
-	isArgoAppSynced := impl.pipelineStatusTimelineService.GetArgoAppSyncForAppStore(installedAppVersionHistory.Id)
+	isArgoAppSynced := impl.pipelineStatusTimelineService.GetArgoAppSyncStatusForAppStore(installedAppVersionHistory.Id)
 	if !isArgoAppSynced {
 		return isValid, installedAppVersionHistory, appId, envId, nil
 	}
