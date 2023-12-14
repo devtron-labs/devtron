@@ -150,7 +150,6 @@ func (impl PubSubClientServiceImpl) processMsg(msg *nats.Msg, callback func(msg 
 }
 
 func (impl PubSubClientServiceImpl) publishPanicError(msg *nats.Msg, panicErr error) (err error) {
-	impl.Logger.Warnw("found panic error", "subject", msg.Subject, "payload", string(msg.Data))
 	publishPanicEvent := model.PublishPanicEvent{
 		Topic: PANIC_ON_PROCESSING_TOPIC,
 		Payload: model.PanicEventIdentifier{
@@ -172,17 +171,28 @@ func (impl PubSubClientServiceImpl) publishPanicError(msg *nats.Msg, panicErr er
 	return nil
 }
 
+// TryCatchCallBack is a fail-safe method to use callback function
 func (impl PubSubClientServiceImpl) TryCatchCallBack(msg *nats.Msg, callback func(msg *model.PubSubMsg)) {
 	subMsg := &model.PubSubMsg{Data: string(msg.Data)}
 	defer func() {
-		msg.Ack()
-		// panic recovery
+		// Acknowledge the message delivery
+		err := msg.Ack()
+		if err != nil {
+			impl.Logger.Errorw("nats: unable to acknowledge the message", "subject", msg.Subject, "msg", string(msg.Data))
+		}
+		// Panic recovery handling
 		if panicInfo := recover(); panicInfo != nil {
-			err := fmt.Errorf("%v\nPanic Logs:\n%s", panicInfo, string(debug.Stack()))
-			impl.publishPanicError(msg, err)
+			impl.Logger.Warnw("nats: found panic error", "subject", msg.Subject, "payload", string(msg.Data), "logs", string(debug.Stack()))
+			err = fmt.Errorf("%v\nPanic Logs:\n%s", panicInfo, string(debug.Stack()))
+			// Publish the panic info to PANIC_ON_PROCESSING_TOPIC
+			publishErr := impl.publishPanicError(msg, err)
+			if publishErr != nil {
+				impl.Logger.Errorw("error in publishing Panic Event topic", "err", publishErr)
+			}
 			return
 		}
 	}()
+	// Process the event message
 	callback(subMsg)
 }
 
