@@ -45,6 +45,7 @@ const AddPromDatasource = "/api/datasources"
 const DeletePromDatasource = "/api/datasources/%d"
 const UpdatePromDatasource = "/api/datasources/%d"
 const GetPromDatasource = "/api/datasources/%d"
+const GrafanaPath = "/grafana"
 
 func GetGrafanaClientConfig() (*GrafanaClientConfig, error) {
 	cfg := &GrafanaClientConfig{}
@@ -365,6 +366,7 @@ func (impl *GrafanaClientImpl) CreateDatasource(createDatasourceRequest CreateDa
 		}
 		if hostUrl != nil {
 			impl.config.DestinationURL = strings.ReplaceAll(hostUrl.Value, "//", "//%s:%s@")
+			impl.config.DestinationURL += GrafanaPath
 		}
 	}
 
