@@ -531,7 +531,7 @@ func (impl InstalledAppServiceImpl) performDeployStageOnAcd(installedAppVersion 
 		installedAppVersion.Status == appStoreBean.GIT_SUCCESS ||
 		installedAppVersion.Status == appStoreBean.ACD_ERROR {
 		//step 3 acd operation register, sync
-		_, err := impl.appStoreDeploymentFullModeService.AppStoreDeployOperationACD(installedAppVersion, chartGitAttr, ctx)
+		_, err := impl.appStoreDeploymentFullModeService.AppStoreDeployOperationACD(installedAppVersion, chartGitAttr, ctx, nil)
 		if err != nil {
 			impl.logger.Errorw("error", "chartGitAttr", chartGitAttr, "err", err)
 			_, err = impl.appStoreDeploymentService.AppStoreDeployOperationStatusUpdate(installedAppVersion.InstalledAppId, appStoreBean.ACD_ERROR)
