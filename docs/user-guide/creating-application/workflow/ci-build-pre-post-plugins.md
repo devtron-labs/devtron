@@ -67,13 +67,13 @@ Lets take `Codacy` as an example and configure it in the Pre-Build stage in the 
 | RepoName | String | Your Repository name |
 | Branch | String | Your branch name |
 
-* In `Trigger/Skip Condition`, set the trigger conditions to execute a task or `Set skip conditions`. As an exmple: CodacyEndpoint equal to https://app.codacy.com.<br>`Note`: You can set more than one condition.
+* In `Trigger/Skip Condition`, set the trigger conditions to execute a task or `Set skip conditions`. As an example: CodacyEndpoint equal to https://app.codacy.com.<br>`Note`: You can set more than one condition.
 
 * In `Pass/Failure Condition` set the conditions to execute pass or fail of your build. As an example: Pass if number of issues equal to zero. <br>`Note`: You can set more than one condition.
 
 * Click **Update Pipeline**.
 
-* Go to the **Build & Deploy**, click the build pipiline and start your build.
+* Go to the **Build & Deploy**, click the build pipeline and start your build.
 
 * Click `Details` on the build pipeline and you can view the details on the `Logs`.
 
@@ -304,7 +304,7 @@ The task type of the custom script may be a [Shell](#custom-script---shell) or a
 
 * Select the **Task type** as **Shell**.
 
-Consider an example that creates a Shell task to stop the build if the database name is not "mysql". The script takes 2 input variables, one is a global variable (`DOCKER_IAMGE`), and the other is a custom variable (`DB_NAME`) with a value "mysql".
+Consider an example that creates a Shell task to stop the build if the database name is not "mysql". The script takes 2 input variables, one is a global variable (`DOCKER_IMAGE`), and the other is a custom variable (`DB_NAME`) with a value "mysql".
 The task triggers only if the database name matches "mysql".
 If the trigger condition fails, this Pre-build task will be skipped and the build process will start.
 The variable `DB_NAME` is declared as an output variable that will be available as an input variable for the next task.

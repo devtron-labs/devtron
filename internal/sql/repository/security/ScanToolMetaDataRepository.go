@@ -62,7 +62,7 @@ func (repo *ScanToolMetadataRepositoryImpl) FindActiveToolByScanTarget(scanTarge
 
 func (repo *ScanToolMetadataRepositoryImpl) FindByNameAndVersion(name, version string) (*ScanToolMetadata, error) {
 	model := &ScanToolMetadata{}
-	err := repo.dbConnection.Model(&model).Where("active = ?", true).
+	err := repo.dbConnection.Model(model).Where("active = ?", true).
 		Where("name = ?", name).Where("version = ?", version).
 		Where("deleted = ?", false).Select()
 	if err != nil {

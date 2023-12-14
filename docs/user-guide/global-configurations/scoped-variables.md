@@ -63,33 +63,36 @@ The `spec.values` array further contains the following elements:
 
 Here's a truncated template containing the specification of two variables for your understanding:
 
-    apiVersion: devtron.ai/v1beta1
-    kind: Variable
-    spec:
+```yaml
+apiVersion: devtron.ai/v1beta1
+kind: Variable
+spec:
 
-    # First example of a variable
-    - name: DB_URL 
+# First example of a variable
+  - name: DB_URL
     shortDescription: My application's customers are stored
-    notes: The DB is a MySQL DB running version 7.0. The DB contains confidential information.
-    isSensitive: true 
-    values: 
-        - category: Global 
-        value: mysql.example.com 
+    notes: The DB is a MySQL DB running version 7.0. The DB contains confidential
+      information.
+    isSensitive: true
+    values:
+      - category: Global
+        value: mysql.example.com
 
-    # Second example of a variable
-    - name: DB_Name
+# Second example of a variable
+  - name: DB_Name
     shortDescription: My database name to recognize the DB
     notes: NA
-    isSensitive: false 
-    values: 
-        - category: Global 
-        value: Devtron 
-        - category: ApplicationEnv 
+    isSensitive: false
+    values:
+      - category: Global
+        value: Devtron
+      - category: ApplicationEnv
         value: app1-p
         selectors:
-            attributeSelectors:
+          attributeSelectors:
             ApplicationName: MyFirstApplication
             EnvName: prod
+```
 
 ### Upload the Template
 

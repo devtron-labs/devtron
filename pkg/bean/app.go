@@ -187,10 +187,10 @@ const (
 )
 
 const (
-	NORMAL    PipelineType = "NORMAL"
-	LINKED    PipelineType = "LINKED"
-	EXTERNAL  PipelineType = "EXTERNAL"
-	CI_JOB    PipelineType = "CI_JOB"
+	NORMAL   PipelineType = "NORMAL"
+	LINKED   PipelineType = "LINKED"
+	EXTERNAL PipelineType = "EXTERNAL"
+	CI_JOB   PipelineType = "CI_JOB"
 )
 
 const (
@@ -272,16 +272,16 @@ type CiMaterialPatchResponse struct {
 }
 
 type CiPatchRequest struct {
-	CiPipeline                     *CiPipeline  `json:"ciPipeline"`
-	AppId                          int          `json:"appId,omitempty"`
-	Action                         PatchAction  `json:"action"`
-	AppWorkflowId                  int          `json:"appWorkflowId,omitempty"`
-	UserId                         int32        `json:"-"`
-	IsJob                          bool         `json:"-"`
-	IsCloneJob                     bool         `json:"isCloneJob,omitempty"`
+	CiPipeline    *CiPipeline `json:"ciPipeline"`
+	AppId         int         `json:"appId,omitempty"`
+	Action        PatchAction `json:"action"`
+	AppWorkflowId int         `json:"appWorkflowId,omitempty"`
+	UserId        int32       `json:"-"`
+	IsJob         bool        `json:"-"`
+	IsCloneJob    bool        `json:"isCloneJob,omitempty"`
 
-	ParentCDPipeline int `json:"parentCDPipeline"`
-	DeployEnvId      int `json:"deployEnvId"`
+	ParentCDPipeline               int          `json:"parentCDPipeline"`
+	DeployEnvId                    int          `json:"deployEnvId"`
 	SwitchFromCiPipelineId         int          `json:"switchFromCiPipelineId"`
 	SwitchFromExternalCiPipelineId int          `json:"switchFromExternalCiPipelineId"`
 	SwitchFromCiPipelineType       PipelineType `json:"-"`
@@ -368,7 +368,7 @@ type CiConfigRequest struct {
 	CiGitMaterialId    int                             `json:"ciGitConfiguredId"`
 	IsCloneJob         bool                            `json:"isCloneJob,omitempty"`
 	AppWorkflowMapping *appWorkflow.AppWorkflowMapping `json:"-"`
-	Artifact          *repository3.CiArtifact `json:"-"`
+	Artifact           *repository3.CiArtifact         `json:"-"`
 }
 
 type CiPipelineMinResponse struct {

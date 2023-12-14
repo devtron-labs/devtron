@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -56,6 +57,7 @@ type AppArtifactManagerImpl struct {
 	ciArtifactRepository    repository.CiArtifactRepository
 	ciWorkflowRepository    pipelineConfig.CiWorkflowRepository
 	pipelineStageService    PipelineStageService
+	config                  *types.CdConfig
 	cdPipelineConfigService CdPipelineConfigService
 	dockerArtifactRegistry  dockerArtifactStoreRegistry.DockerArtifactStoreRepository
 	CiPipelineRepository    pipelineConfig.CiPipelineRepository
@@ -74,7 +76,10 @@ func NewAppArtifactManagerImpl(
 	dockerArtifactRegistry dockerArtifactStoreRegistry.DockerArtifactStoreRepository,
 	CiPipelineRepository pipelineConfig.CiPipelineRepository,
 	ciTemplateService CiTemplateService) *AppArtifactManagerImpl {
-
+	cdConfig, err := types.GetCdConfig()
+	if err != nil {
+		return nil
+	}
 	return &AppArtifactManagerImpl{
 		logger:                  logger,
 		cdWorkflowRepository:    cdWorkflowRepository,
@@ -84,6 +89,7 @@ func NewAppArtifactManagerImpl(
 		ciWorkflowRepository:    ciWorkflowRepository,
 		cdPipelineConfigService: cdPipelineConfigService,
 		pipelineStageService:    pipelineStageService,
+		config:                  cdConfig,
 		dockerArtifactRegistry:  dockerArtifactRegistry,
 		CiPipelineRepository:    CiPipelineRepository,
 		ciTemplateService:       ciTemplateService,
@@ -321,8 +327,8 @@ func (impl *AppArtifactManagerImpl) FetchArtifactForRollbackV2(cdPipelineId, app
 			if deployedCiArtifacts[i].CredentialsSourceType == repository.GLOBAL_CONTAINER_REGISTRY {
 				dockerRegistryId = deployedCiArtifacts[i].CredentialsSourceValue
 			}
-		} else {
-			ciPipeline, err := impl.CiPipelineRepository.FindById(deployedCiArtifacts[i].CiPipelineId)
+		} else if deployedCiArtifacts[i].DataSource == repository.CI_RUNNER {
+			ciPipeline, err := impl.CiPipelineRepository.FindByIdIncludingInActive(deployedCiArtifacts[i].CiPipelineId)
 			if err != nil {
 				impl.logger.Errorw("error in fetching ciPipeline", "ciPipelineId", ciPipeline.Id, "error", err)
 				return deployedCiArtifactsResponse, err
@@ -511,7 +517,7 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipeline(pipeline *pipe
 		}
 		var dockerRegistryId string
 		if artifact.PipelineId != 0 {
-			ciPipeline, err := impl.CiPipelineRepository.FindById(artifact.PipelineId)
+			ciPipeline, err := impl.CiPipelineRepository.FindByIdIncludingInActive(artifact.PipelineId)
 			if err != nil {
 				impl.logger.Errorw("error in fetching ciPipeline", "ciPipelineId", ciPipeline.Id, "error", err)
 				return nil, err
@@ -606,11 +612,14 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pi
 	ciArtifactsResponse := &bean2.CiArtifactResponse{}
 
 	artifactListingFilterOpts.PipelineId = pipeline.Id
+	// this will be 0 for external-ci cases, note: do not refer this for external-ci cases
+	artifactListingFilterOpts.CiPipelineId = pipeline.CiPipelineId
 	artifactListingFilterOpts.ParentId = parentId
 	artifactListingFilterOpts.ParentCdId = parentCdId
 	artifactListingFilterOpts.ParentStageType = parentType
 	artifactListingFilterOpts.StageType = stage
 	artifactListingFilterOpts.SearchString = "%" + artifactListingFilterOpts.SearchString + "%"
+	artifactListingFilterOpts.UseCdStageQueryV2 = impl.config.UseArtifactListingQueryV2
 	ciArtifactsRefs, latestWfArtifactId, latestWfArtifactStatus, totalCount, err := impl.BuildArtifactsList(artifactListingFilterOpts)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting artifacts for child cd stage", "err", err, "stage", stage)
@@ -677,9 +686,10 @@ func (impl *AppArtifactManagerImpl) setAdditionalDataInArtifacts(ciArtifacts []b
 				dockerRegistryId = ciArtifacts[i].CredentialsSourceValue
 			}
 		} else if ciArtifacts[i].DataSource == repository.CI_RUNNER {
-			ciPipeline, err := impl.CiPipelineRepository.FindById(ciArtifacts[i].CiPipelineId)
+			//need this if the artifact's ciPipeline gets switched, then the previous ci-pipeline will be in deleted state
+			ciPipeline, err := impl.CiPipelineRepository.FindByIdIncludingInActive(ciArtifacts[i].CiPipelineId)
 			if err != nil {
-				impl.logger.Errorw("error in fetching ciPipeline", "ciPipelineId", ciPipeline.Id, "error", err)
+				impl.logger.Errorw("error in fetching ciPipeline", "ciPipelineId", ciArtifacts[i].CiPipelineId, "error", err)
 				return nil, err
 			}
 			if !ciPipeline.IsExternal && ciPipeline.IsDockerConfigOverridden {
