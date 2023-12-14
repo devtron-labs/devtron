@@ -54,15 +54,23 @@ else
     STORAGECLASS="-c standard"
 fi
 
-if [[ "$UniformAccess" == "true" ]] 
+if [[ "$UniformAccess" == "true" ]]
 then
     ACCESSCONTROL="-b on"
 else
     ACCESSCONTROL="-b off"
 fi
 
+if [[ "$EnableBucketPrefix" == true ]]
+then
+    export BucketName="$BucketName-$(date +%d-%m-%H-%M)"
+else
+    export BucketName="$BucketName"
+fi
+
 echo "Creating $BucketName in $Project Project"
 
+echo "gsutil mb -p $Project $ACCESSCONTROL $LOCATION $STORAGECLASS gs://$BucketName"
 gsutil mb -p $Project $ACCESSCONTROL $LOCATION $STORAGECLASS gs://$BucketName
 
 if [[ $? == 0 ]]
@@ -73,8 +81,6 @@ else
 fi
 EOF
 
-export BucketName="$BucketName"
-
 docker run -e ServiceAccountCred=$ServiceAccountCred \\
     -e LocationType=$LocationType \\
     -e Location=$Location \\
@@ -83,6 +89,7 @@ docker run -e ServiceAccountCred=$ServiceAccountCred \\
     -e UniformAccess=$UniformAccess \\
     -e Project=$Project \\
     -e BucketName=$BucketName \\
+    -e EnableBucketPrefix=$EnableBucketPrefix \\
     -v /devtroncd:/mnt google/cloud-sdk bash -c "bash /mnt/create-gs-bucket.sh"
 ','f','now()',1,'now()',1);
 
@@ -90,10 +97,10 @@ INSERT INTO "plugin_step" ("id", "plugin_id","name","description","index","step_
 VALUES (nextval('id_seq_plugin_step'), (SELECT id FROM plugin_metadata WHERE name='GCS Create Bucket'),'Step 1','GCS Create Bucket','1','INLINE',(SELECT last_value FROM id_seq_plugin_pipeline_script),'f','now()', 1, 'now()', 1);
 
 INSERT INTO "plugin_step_variable" ("id", "plugin_step_id", "name", "format", "description", "is_exposed", "allow_empty_value", "variable_type", "value_type", "variable_step_index", "deleted", "created_on", "created_by", "updated_on", "updated_by")
-VALUES (nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='GCS Create Bucket' and ps."index"=1 and ps.deleted=false), 'ServiceAccountCred','STRING','base64 encoded credentials of service account key file.',true,true,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1);
+VALUES (nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='GCS Create Bucket' and ps."index"=1 and ps.deleted=false), 'ServiceAccountCred','STRING','base64 encoded credentials of service account key file.',true,false,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1);
 
 INSERT INTO "plugin_step_variable" ("id", "plugin_step_id", "name", "format", "description", "is_exposed", "allow_empty_value", "variable_type", "value_type", "variable_step_index", "deleted", "created_on", "created_by", "updated_on", "updated_by")
-VALUES (nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='GCS Create Bucket' and ps."index"=1 and ps.deleted=false), 'Project','STRING','The project with which your bucket will be associated.',true,true,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1);
+VALUES (nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='GCS Create Bucket' and ps."index"=1 and ps.deleted=false), 'Project','STRING','The project with which your bucket will be associated.',true,false,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1);
 
 INSERT INTO "plugin_step_variable" ("id", "plugin_step_id", "name", "format", "description", "is_exposed", "allow_empty_value","default_value", "variable_type", "value_type", "variable_step_index", "deleted", "created_on", "created_by", "updated_on", "updated_by")
 VALUES (nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='GCS Create Bucket' and ps."index"=1 and ps.deleted=false), 'LocationType','STRING','Defines the geographic placement of your data(Possible values:-region,multi-region,dual-region. default multi-region). Cannot be changed later..',true,true,'multi-region','INPUT','NEW',1 ,'f','now()', 1, 'now()', 1);
@@ -105,7 +112,10 @@ INSERT INTO "plugin_step_variable" ("id", "plugin_step_id", "name", "format", "d
 VALUES (nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='GCS Create Bucket' and ps."index"=1 and ps.deleted=false), 'EnableAutoClass','BOOL','If enabled automatically transitions each object to Standard or Nearline class based on object-level activity, to optimize for cost and latency. default disabled',true,true,'false','INPUT','NEW',1 ,'f','now()', 1, 'now()', 1);
 
 INSERT INTO "plugin_step_variable" ("id", "plugin_step_id", "name", "format", "description", "is_exposed", "allow_empty_value", "variable_type", "value_type", "variable_step_index", "deleted", "created_on", "created_by", "updated_on", "updated_by")
-VALUES (nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='GCS Create Bucket' and ps."index"=1 and ps.deleted=false), 'BucketName','STRING','The name of the bucket to create.',true,true,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1);
+VALUES (nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='GCS Create Bucket' and ps."index"=1 and ps.deleted=false), 'EnableBucketPrefix','STRING','If enabled bucket name will be used as prefix.',true,true,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1);
+
+INSERT INTO "plugin_step_variable" ("id", "plugin_step_id", "name", "format", "description", "is_exposed", "allow_empty_value", "variable_type", "value_type", "variable_step_index", "deleted", "created_on", "created_by", "updated_on", "updated_by")
+VALUES (nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='GCS Create Bucket' and ps."index"=1 and ps.deleted=false), 'BucketName','STRING','The bucket name to be created. If EnableBucketPrefix is enabled, a random string will be suffixed to the name.',true,false,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1);
 
 INSERT INTO "plugin_step_variable" ("id", "plugin_step_id", "name", "format", "description", "is_exposed", "allow_empty_value", "variable_type", "value_type", "variable_step_index", "deleted", "created_on", "created_by", "updated_on", "updated_by")
 VALUES (nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='GCS Create Bucket' and ps."index"=1 and ps.deleted=false), 'StorageClass','STRING','The storage class for the new bucket. standard, nearline, coldline, or archive.',true,true,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1);
