@@ -1,3 +1,5 @@
+## v0.6.26
+
 ## Bugs
 - fix: chart sync duplicate charts (#4321)
 - fix: optimised the artifacts listing query and added query versioned support (#4375)
@@ -18,3 +20,5 @@
 - chore: Update pager-duty Issue template (#4381)
 - chore: made devtron namespace configurable in authenticator (#4271)
 - chore: added migration script for dependency (#4279)
+
+
