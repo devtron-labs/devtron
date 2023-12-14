@@ -69,7 +69,7 @@ type CiHandler interface {
 	FetchWorkflowDetails(appId int, pipelineId int, buildId int) (types.WorkflowResponse, error)
 	FetchArtifactsForCiJob(buildId int) (*types.ArtifactsForCiJob, error)
 	//FetchBuildById(appId int, pipelineId int) (WorkflowResponse, error)
-	CancelBuild(workflowId int) (int, error)
+	CancelBuild(workflowId int, forceAbort bool) (int, error)
 
 	GetRunningWorkflowLogs(pipelineId int, workflowId int) (*bufio.Reader, func() error, error)
 	GetHistoricBuildLogs(pipelineId int, workflowId int, ciWorkflow *pipelineConfig.CiWorkflow) (map[string]string, error)
@@ -163,7 +163,7 @@ const Running = "Running"
 const Starting = "Starting"
 const POD_DELETED_MESSAGE = "pod deleted"
 const TERMINATE_MESSAGE = "workflow shutdown with strategy: Terminate"
-const ABORT_MESSAGE_AFTER_STARTING_STAGE = "workflow shutdown with strategy: Abort"
+const ABORT_MESSAGE_AFTER_STARTING_STAGE = "workflow shutdown with strategy: Force Abort"
 
 func (impl *CiHandlerImpl) CheckAndReTriggerCI(workflowStatus v1alpha1.WorkflowStatus) error {
 
@@ -581,13 +581,13 @@ func (impl *CiHandlerImpl) GetBuildHistory(pipelineId int, appId int, offset int
 	return ciWorkLowResponses, nil
 }
 
-func (impl *CiHandlerImpl) CancelBuild(workflowId int) (int, error) {
+func (impl *CiHandlerImpl) CancelBuild(workflowId int, forceAbort bool) (int, error) {
 	workflow, err := impl.ciWorkflowRepository.FindById(workflowId)
 	if err != nil {
 		impl.Logger.Errorw("err", "err", err)
 		return 0, err
 	}
-	if !(string(v1alpha1.NodePending) == workflow.Status || string(v1alpha1.NodeRunning) == workflow.Status) {
+	if !(string(v1alpha1.NodePending) == workflow.Status || string(v1alpha1.NodeRunning) == workflow.Status) && forceAbort {
 		return impl.cancelBuildAfterStartWorkflowStage(workflow)
 	}
 	isExt := workflow.Namespace != DefaultCiWorkflowNamespace
