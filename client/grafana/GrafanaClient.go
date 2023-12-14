@@ -364,7 +364,7 @@ func (impl *GrafanaClientImpl) CreateDatasource(createDatasourceRequest CreateDa
 			return nil, err
 		}
 		if hostUrl != nil {
-			impl.config.DestinationURL = strings.ReplaceAll(hostUrl.Value, "//", "//%s:%s")
+			impl.config.DestinationURL = strings.ReplaceAll(hostUrl.Value, "//", "//%s:%s@")
 		}
 	}
 
@@ -377,11 +377,12 @@ func (impl *GrafanaClientImpl) CreateDatasource(createDatasourceRequest CreateDa
 	url := impl.config.DestinationURL + AddPromDatasource
 	url = fmt.Sprintf(url, impl.config.GrafanaUsername, impl.config.GrafanaPassword)
 	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(reqBody))
-	req.Header.Set("X-Grafana-Org-Id", strconv.Itoa(impl.config.GrafanaOrgId))
 	if err != nil {
-		impl.logger.Errorw("error while adding datasource", "err", err)
+		// do not log url or req body as they contains sensitive data
+		impl.logger.Errorw("error while creating http request", "destinationURL", impl.config.DestinationURL, "err", err)
 		return nil, err
 	}
+	req.Header.Set("X-Grafana-Org-Id", strconv.Itoa(impl.config.GrafanaOrgId))
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := impl.client.Do(req)
 	if err != nil {
