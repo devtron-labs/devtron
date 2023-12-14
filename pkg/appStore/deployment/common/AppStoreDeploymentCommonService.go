@@ -28,7 +28,6 @@ import (
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	util2 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"github.com/devtron-labs/devtron/util/ChartsUtil"
 	"github.com/go-pg/pg"
 	"github.com/google/go-github/github"
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
@@ -417,11 +416,8 @@ func (impl AppStoreDeploymentCommonServiceImpl) GenerateManifest(installAppVersi
 
 // CreateGitOpsRepo creates a gitOps repo with readme
 func (impl AppStoreDeploymentCommonServiceImpl) CreateGitOpsRepo(gitOpsRepoURL, appName string, userId int32) (string, bool, error) {
-	gitOpsRepoName := util.GetGitRepoNameFromGitRepoUrl(gitOpsRepoURL)
-	if ChartsUtil.IsGitOpsRepoNotConfigured(gitOpsRepoURL) {
-		//here gitops repo will be the app name, to breaking the mono repo structure
-		gitOpsRepoName = impl.chartTemplateService.GetGitOpsRepoName(appName)
-	}
+	//here gitops repo will be the app name, to breaking the mono repo structure
+	gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(appName)
 	gitOpsConfigBitbucket, err := impl.gitOpsConfigRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
 	if err != nil {
 		if err == pg.ErrNoRows {
