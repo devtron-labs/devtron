@@ -339,7 +339,7 @@ security:
 notifier:
   enabled: false
   imagePullPolicy: IfNotPresent
-  image: "quay.io/devtron/notifier:d71bcbcd-372-18717"
+  image: "quay.io/devtron/notifier:1db5450e-372-20077"
   configs:
     CD_ENVIRONMENT: PROD
     DB: orchestrator
