@@ -900,6 +900,7 @@ func buildCiStepsDataFromDockerBuildScripts(dockerBuildScripts []*bean.CiScript)
 
 func (impl *CiServiceImpl) buildImageTag(commitHashes map[int]pipelineConfig.GitCommit, id int, wfId int) string {
 	dockerImageTag := ""
+	onlyTagBasedTargetCheckout := false
 	for _, v := range commitHashes {
 		_truncatedCommit := ""
 		if v.WebhookData.Id == 0 {
@@ -912,12 +913,14 @@ func (impl *CiServiceImpl) buildImageTag(commitHashes map[int]pipelineConfig.Git
 			if _targetCheckout == "" {
 				continue
 			}
+			onlyTagBasedTargetCheckout = true
 			if !impl.config.CiCdConfig.UseImageTagFromGitProviderForTagBasedBuild {
 				_truncatedCommit = _getTruncatedImageTag(_targetCheckout)
 			} else {
 				_truncatedCommit = _targetCheckout
 			}
 			if v.WebhookData.EventActionType == bean.WEBHOOK_EVENT_MERGED_ACTION_TYPE {
+				onlyTagBasedTargetCheckout = false
 				_sourceCheckout := v.WebhookData.Data[bean.WEBHOOK_SELECTOR_SOURCE_CHECKOUT_NAME]
 				if len(_sourceCheckout) > 0 {
 					_truncatedCommit = _truncatedCommit + "-" + _getTruncatedImageTag(_sourceCheckout)
@@ -931,7 +934,7 @@ func (impl *CiServiceImpl) buildImageTag(commitHashes map[int]pipelineConfig.Git
 			dockerImageTag = dockerImageTag + "-" + _truncatedCommit
 		}
 	}
-	if dockerImageTag != "" && !impl.config.CiCdConfig.UseImageTagFromGitProviderForTagBasedBuild {
+	if dockerImageTag != "" && !impl.config.CiCdConfig.UseImageTagFromGitProviderForTagBasedBuild && !onlyTagBasedTargetCheckout {
 		dockerImageTag = dockerImageTag + "-" + strconv.Itoa(id) + "-" + strconv.Itoa(wfId)
 	}
 
