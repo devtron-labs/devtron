@@ -32,7 +32,7 @@ spec:
             value: orchestrator
           envFrom:
             - secretRef:
-                name: postgresql-migrator
+                name: devtron-secret
           image: quay.io/devtron/devtron-utils:dup-chart-repo-v1.1.0
           {{- if and $.Values.global $.Values.global.containerSecurityContext }}
           securityContext:
