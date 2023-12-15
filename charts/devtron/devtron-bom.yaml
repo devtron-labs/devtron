@@ -26,7 +26,7 @@ components:
         ENABLE_CI_JOB: "true"
   devtron:
     image: "quay.io/devtron/hyperion:aea0e1bb-280-20093"
-    cicdImage: "quay.io/devtron/devtron:f8621a58-434-20090"
+    cicdImage: "quay.io/devtron/devtron:aea0e1bb-434-20094"
     customOverrides:
       DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:560e6867-138-19679"
   argocdDexServer:
