@@ -73,7 +73,7 @@ We also release beta versions of devtron every few days before the stable releas
 
 This chart is currently not available on the official helm repository therefore you need to download it to install it.
 
-1. Clone Devtron Repositry 
+1. Clone Devtron Repository 
 2. Upgrade Helm Dependency
 3. Install Devtron
 

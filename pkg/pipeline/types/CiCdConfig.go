@@ -97,32 +97,33 @@ type CiCdConfig struct {
 	MaxCdWorkflowRunnerRetries       int                                 `env:"MAX_CD_WORKFLOW_RUNNER_RETRIES" envDefault:"0"`
 
 	//common in both ciconfig and cd config
-	Type                           string
-	Mode                           string `env:"MODE" envDefault:"DEV"`
-	OrchestratorHost               string `env:"ORCH_HOST" envDefault:"http://devtroncd-orchestrator-service-prod.devtroncd/webhook/msg/nats"`
-	OrchestratorToken              string `env:"ORCH_TOKEN" envDefault:""`
-	ClusterConfig                  *rest.Config
-	CloudProvider                  blob_storage.BlobStorageType `env:"BLOB_STORAGE_PROVIDER" envDefault:"S3"`
-	BlobStorageEnabled             bool                         `env:"BLOB_STORAGE_ENABLED" envDefault:"false"`
-	BlobStorageS3AccessKey         string                       `env:"BLOB_STORAGE_S3_ACCESS_KEY"`
-	BlobStorageS3SecretKey         string                       `env:"BLOB_STORAGE_S3_SECRET_KEY"`
-	BlobStorageS3Endpoint          string                       `env:"BLOB_STORAGE_S3_ENDPOINT"`
-	BlobStorageS3EndpointInsecure  bool                         `env:"BLOB_STORAGE_S3_ENDPOINT_INSECURE" envDefault:"false"`
-	BlobStorageS3BucketVersioned   bool                         `env:"BLOB_STORAGE_S3_BUCKET_VERSIONED" envDefault:"true"`
-	BlobStorageGcpCredentialJson   string                       `env:"BLOB_STORAGE_GCP_CREDENTIALS_JSON"`
-	AzureAccountName               string                       `env:"AZURE_ACCOUNT_NAME"`
-	AzureGatewayUrl                string                       `env:"AZURE_GATEWAY_URL" envDefault:"http://devtron-minio.devtroncd:9000"`
-	AzureGatewayConnectionInsecure bool                         `env:"AZURE_GATEWAY_CONNECTION_INSECURE" envDefault:"true"`
-	AzureBlobContainerCiLog        string                       `env:"AZURE_BLOB_CONTAINER_CI_LOG"`
-	AzureBlobContainerCiCache      string                       `env:"AZURE_BLOB_CONTAINER_CI_CACHE"`
-	AzureAccountKey                string                       `env:"AZURE_ACCOUNT_KEY"`
-	BuildLogTTLValue               int                          `env:"BUILD_LOG_TTL_VALUE_IN_SECS" envDefault:"3600"`
-	BaseLogLocationPath            string                       `env:"BASE_LOG_LOCATION_PATH" envDefault:"/home/devtron/"`
-	InAppLoggingEnabled            bool                         `env:"IN_APP_LOGGING_ENABLED" envDefault:"false"`
-	BuildxProvenanceMode           string                       `env:"BUILDX_PROVENANCE_MODE" envDefault:""` //provenance is set to false if this flag is not set
-	ExtBlobStorageCmName           string                       `env:"EXTERNAL_BLOB_STORAGE_CM_NAME" envDefault:"blob-storage-cm"`
-	ExtBlobStorageSecretName       string                       `env:"EXTERNAL_BLOB_STORAGE_SECRET_NAME" envDefault:"blob-storage-secret"`
-	UseArtifactListingQueryV2      bool                         `env:"USE_ARTIFACT_LISTING_QUERY_V2" envDefault:"true"`
+	Type                                       string
+	Mode                                       string `env:"MODE" envDefault:"DEV"`
+	OrchestratorHost                           string `env:"ORCH_HOST" envDefault:"http://devtroncd-orchestrator-service-prod.devtroncd/webhook/msg/nats"`
+	OrchestratorToken                          string `env:"ORCH_TOKEN" envDefault:""`
+	ClusterConfig                              *rest.Config
+	CloudProvider                              blob_storage.BlobStorageType `env:"BLOB_STORAGE_PROVIDER" envDefault:"S3"`
+	BlobStorageEnabled                         bool                         `env:"BLOB_STORAGE_ENABLED" envDefault:"false"`
+	BlobStorageS3AccessKey                     string                       `env:"BLOB_STORAGE_S3_ACCESS_KEY"`
+	BlobStorageS3SecretKey                     string                       `env:"BLOB_STORAGE_S3_SECRET_KEY"`
+	BlobStorageS3Endpoint                      string                       `env:"BLOB_STORAGE_S3_ENDPOINT"`
+	BlobStorageS3EndpointInsecure              bool                         `env:"BLOB_STORAGE_S3_ENDPOINT_INSECURE" envDefault:"false"`
+	BlobStorageS3BucketVersioned               bool                         `env:"BLOB_STORAGE_S3_BUCKET_VERSIONED" envDefault:"true"`
+	BlobStorageGcpCredentialJson               string                       `env:"BLOB_STORAGE_GCP_CREDENTIALS_JSON"`
+	AzureAccountName                           string                       `env:"AZURE_ACCOUNT_NAME"`
+	AzureGatewayUrl                            string                       `env:"AZURE_GATEWAY_URL" envDefault:"http://devtron-minio.devtroncd:9000"`
+	AzureGatewayConnectionInsecure             bool                         `env:"AZURE_GATEWAY_CONNECTION_INSECURE" envDefault:"true"`
+	AzureBlobContainerCiLog                    string                       `env:"AZURE_BLOB_CONTAINER_CI_LOG"`
+	AzureBlobContainerCiCache                  string                       `env:"AZURE_BLOB_CONTAINER_CI_CACHE"`
+	AzureAccountKey                            string                       `env:"AZURE_ACCOUNT_KEY"`
+	BuildLogTTLValue                           int                          `env:"BUILD_LOG_TTL_VALUE_IN_SECS" envDefault:"3600"`
+	BaseLogLocationPath                        string                       `env:"BASE_LOG_LOCATION_PATH" envDefault:"/home/devtron/"`
+	InAppLoggingEnabled                        bool                         `env:"IN_APP_LOGGING_ENABLED" envDefault:"false"`
+	BuildxProvenanceMode                       string                       `env:"BUILDX_PROVENANCE_MODE" envDefault:""` //provenance is set to false if this flag is not set
+	ExtBlobStorageCmName                       string                       `env:"EXTERNAL_BLOB_STORAGE_CM_NAME" envDefault:"blob-storage-cm"`
+	ExtBlobStorageSecretName                   string                       `env:"EXTERNAL_BLOB_STORAGE_SECRET_NAME" envDefault:"blob-storage-secret"`
+	UseArtifactListingQueryV2                  bool                         `env:"USE_ARTIFACT_LISTING_QUERY_V2" envDefault:"true"`
+	UseImageTagFromGitProviderForTagBasedBuild bool                         `env:"USE_IMAGE_TAG_FROM_GIT_PROVIDER_FOR_TAG_BASED_BUILD" envDefault:"false"` // this is being done for https://github.com/devtron-labs/devtron/issues/4263
 }
 
 type CiConfig struct {
