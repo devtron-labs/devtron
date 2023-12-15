@@ -100,6 +100,7 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 		logger.Errorw("error in starting heartbeat event", "err", err)
 		return nil, err
 	}
+	fmt.Println("hihihihih")
 	return watcher, err
 }
 
@@ -458,8 +459,20 @@ func (impl *TelemetryEventClientImpl) SendTelemetryInstallEventEA() (*TelemetryE
 		return nil, err
 	}
 
+	discoveryClient, err := impl.K8sUtil.GetK8sDiscoveryClientInCluster()
+	if err != nil {
+		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+		return nil, err
+	}
+	k8sServerVersion, err := discoveryClient.ServerVersion()
+	if err != nil {
+		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+		return nil, err
+	}
+
 	payload := &TelemetryEventEA{UCID: ucid, Timestamp: time.Now(), EventType: InstallationSuccess, DevtronVersion: "v1"}
 	payload.DevtronMode = util.GetDevtronVersion().ServerMode
+	payload.ServerVersion = k8sServerVersion.String()
 
 	reqBody, err := json.Marshal(payload)
 	if err != nil {
@@ -506,8 +519,20 @@ func (impl *TelemetryEventClientImpl) SendTelemetryDashboardAccessEvent() error 
 		return err
 	}
 
+	discoveryClient, err := impl.K8sUtil.GetK8sDiscoveryClientInCluster()
+	if err != nil {
+		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+		return err
+	}
+	k8sServerVersion, err := discoveryClient.ServerVersion()
+	if err != nil {
+		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+		return err
+	}
+
 	payload := &TelemetryEventEA{UCID: ucid, Timestamp: time.Now(), EventType: DashboardAccessed, DevtronVersion: "v1"}
 	payload.DevtronMode = util.GetDevtronVersion().ServerMode
+	payload.ServerVersion = k8sServerVersion.String()
 
 	reqBody, err := json.Marshal(payload)
 	if err != nil {
@@ -554,8 +579,20 @@ func (impl *TelemetryEventClientImpl) SendTelemetryDashboardLoggedInEvent() erro
 		return err
 	}
 
+	discoveryClient, err := impl.K8sUtil.GetK8sDiscoveryClientInCluster()
+	if err != nil {
+		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+		return err
+	}
+	k8sServerVersion, err := discoveryClient.ServerVersion()
+	if err != nil {
+		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+		return err
+	}
+
 	payload := &TelemetryEventEA{UCID: ucid, Timestamp: time.Now(), EventType: DashboardLoggedIn, DevtronVersion: "v1"}
 	payload.DevtronMode = util.GetDevtronVersion().ServerMode
+	payload.ServerVersion = k8sServerVersion.String()
 
 	reqBody, err := json.Marshal(payload)
 	if err != nil {
