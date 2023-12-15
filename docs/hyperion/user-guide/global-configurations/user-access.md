@@ -54,7 +54,7 @@ Click on `Add User`, to add one or multiple users.
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/hyperion/user-guide/global-configurations/user-access/hyperion-gc-add-user.jpg)
 
 ### 2. Search the existing User
-Click on `Seach Box`, and type your user's email
+Click on `Search Box`, and type your user's email
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/hyperion/user-guide/global-configurations/user-access/hyperion-gc-search-user.jpg)
 

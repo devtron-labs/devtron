@@ -30,7 +30,6 @@ import (
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
 	"strconv"
-	"strings"
 )
 
 type ExternalCiRestHandler interface {
@@ -110,10 +109,10 @@ func (impl ExternalCiRestHandlerImpl) HandleExternalCiWebhook(w http.ResponseWri
 }
 
 func (impl ExternalCiRestHandlerImpl) checkExternalCiDeploymentAuth(email string, projectObject string, envObject string) bool {
-	if ok := impl.enforcer.EnforceByEmail(strings.ToLower(email), casbin.ResourceApplications, casbin.ActionTrigger, strings.ToLower(projectObject)); !ok {
+	if ok := impl.enforcer.EnforceByEmail(email, casbin.ResourceApplications, casbin.ActionTrigger, projectObject); !ok {
 		return false
 	}
-	if ok := impl.enforcer.EnforceByEmail(strings.ToLower(email), casbin.ResourceEnvironment, casbin.ActionTrigger, strings.ToLower(envObject)); !ok {
+	if ok := impl.enforcer.EnforceByEmail(email, casbin.ResourceEnvironment, casbin.ActionTrigger, envObject); !ok {
 		return false
 	}
 	return true
