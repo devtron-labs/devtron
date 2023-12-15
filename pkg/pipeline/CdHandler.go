@@ -183,6 +183,7 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService, c
 
 type ArgoPipelineStatusSyncEvent struct {
 	PipelineId            int   `json:"pipelineId"`
+	InstalledAppVersionId int   `json:"installedAppVersionId"`
 	UserId                int32 `json:"userId"`
 	IsAppStoreApplication bool  `json:"isAppStoreApplication"`
 }
@@ -316,6 +317,7 @@ func (impl *CdHandlerImpl) CheckAndSendArgoPipelineStatusSyncEventIfNeeded(pipel
 	if lastSyncTime.IsZero() || (!lastSyncTime.IsZero() && time.Since(lastSyncTime) > 5*time.Second) { //create new nats event
 		statusUpdateEvent := ArgoPipelineStatusSyncEvent{
 			PipelineId:            pipelineId,
+			InstalledAppVersionId: installedAppVersionId,
 			UserId:                userId,
 			IsAppStoreApplication: isAppStoreApplication,
 		}
@@ -433,7 +435,6 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveApplicationFetch
 			impl.Logger.Errorw("error in getting appDetails from appId", "err", err)
 			return nil, isTimelineUpdated
 		}
-
 		//TODO if Environment object in installedApp is nil then fetch envDetails also from envRepository
 		envDetail, err := impl.envRepository.FindById(installedApp.EnvironmentId)
 		if err != nil {
@@ -1633,11 +1634,18 @@ func (impl *CdHandlerImpl) DeactivateImageReservationPathsOnFailure(imagePathRes
 }
 
 func (impl *CdHandlerImpl) SyncArgoCdApps(deployedBeforeMinutes int, pipelineId int, installedAppVersionId int) error {
-	err := impl.syncACDDevtronApps(deployedBeforeMinutes, pipelineId)
-	if err != nil {
-		return err
+	if pipelineId != 0 {
+		err := impl.syncACDDevtronApps(deployedBeforeMinutes, pipelineId)
+		if err != nil {
+			return err
+		}
 	}
-	err = impl.SyncACDHelmApps(deployedBeforeMinutes, installedAppVersionId)
+	if installedAppVersionId == 0 {
+		err := impl.SyncACDHelmApps(deployedBeforeMinutes, installedAppVersionId)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -1719,22 +1727,22 @@ func (impl *CdHandlerImpl) SyncACDHelmApps(deployedBeforeMinutes int, installedA
 		impl.Logger.Errorw("error in fetching latest pipeline status by cdWfrId", "err", err)
 		return err
 	}
-	installedApp, err := impl.installedAppRepository.GetInstalledAppByInstalledAppVersionId(installedAppVersionHistory.InstalledAppVersionId)
-	if err != nil {
-		impl.Logger.Errorw("error in fetching installed_app by installedAppVersionId", "err", err)
-		return err
-	}
-	appDetails, err := impl.appRepository.FindActiveById(installedApp.AppId)
-	if err != nil {
-		impl.Logger.Errorw("error in getting appDetails from appId", "err", err)
-		return err
-	}
-	envDetails, err := impl.envRepository.FindById(installedApp.EnvironmentId)
-	if err != nil {
-		impl.Logger.Errorw("error in fetching environment by envId", "err", err)
-	}
-	argoAppName := fmt.Sprintf("%s-%s", appDetails.AppName, envDetails.Name)
 	if pipelineStatusTimeline.Status == pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED && time.Since(pipelineStatusTimeline.StatusTime) >= time.Minute*time.Duration(deployedBeforeMinutes) {
+		installedApp, err := impl.installedAppRepository.GetInstalledAppByInstalledAppVersionId(installedAppVersionHistory.InstalledAppVersionId)
+		if err != nil {
+			impl.Logger.Errorw("error in fetching installed_app by installedAppVersionId", "err", err)
+			return err
+		}
+		appDetails, err := impl.appRepository.FindActiveById(installedApp.AppId)
+		if err != nil {
+			impl.Logger.Errorw("error in getting appDetails from appId", "err", err)
+			return err
+		}
+		envDetails, err := impl.envRepository.FindById(installedApp.EnvironmentId)
+		if err != nil {
+			impl.Logger.Errorw("error in fetching environment by envId", "err", err)
+		}
+		argoAppName := fmt.Sprintf("%s-%s", appDetails.AppName, envDetails.Name)
 		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
 		if err != nil {
 			impl.Logger.Errorw("error in getting acd token", "err", err)
