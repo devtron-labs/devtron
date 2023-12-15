@@ -3,5 +3,6 @@
 ## Enhancements
 - feat: flag driven tag based build propogate same tag for CI Build  (#4404)
 ## Documentation
+- doc: Update Install-devtron-on-Minikube-Microk8s-K3s-Kind.md (#4133)
 - doc: fixed broken link and improved documentation in usecases (#4097)
 ## Others
