@@ -9,7 +9,7 @@ global:
     runAsNonRoot: true
 installer:
   repo: "devtron-labs/devtron"
-  release: "v0.6.25"
+  release: "v0.6.26"
   image: quay.io/devtron/inception
   tag: 44b30917-185-13275
   source: "github" # Available options are github and gitee
@@ -56,12 +56,12 @@ components:
         HIDE_EXCLUDE_INCLUDE_GIT_COMMITS: "false"
         ENABLE_SCOPED_VARIABLES: "true"
         ENABLE_CI_JOB: "true"
-    image: "quay.io/devtron/dashboard:b880ad10-325-19906"
+    image: "quay.io/devtron/dashboard:0988ee6d-325-20037"
     imagePullPolicy: IfNotPresent
 
   devtron:
-    image: "quay.io/devtron/hyperion:95146ae5-280-19913"
-    cicdImage: "quay.io/devtron/devtron:95146ae5-434-19914"
+    image: "quay.io/devtron/hyperion:24f51942-280-20082"
+    cicdImage: "quay.io/devtron/devtron:24f51942-434-20080"
     imagePullPolicy: IfNotPresent
     customOverrides:
       DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:560e6867-138-19679"
@@ -94,7 +94,7 @@ components:
       authenticator: "quay.io/devtron/authenticator:e414faff-393-13273"
 
   kubelink:
-    image: "quay.io/devtron/kubelink:59a19eb7-564-19917"
+    image: "quay.io/devtron/kubelink:d19ec7b6-564-20012"
     imagePullPolicy: IfNotPresent
     configs:
       ENABLE_HELM_RELEASE_CACHE: "true"
@@ -133,7 +133,7 @@ components:
       secretName: postgresql-postgresql
       keyName: postgresql-password
   lens: 
-    image: "quay.io/devtron/lens:8803028b-333-16178"
+    image: "quay.io/devtron/lens:a0628f4f-333-19937"
     imagePullPolicy: IfNotPresent
     configs:
       GIT_SENSOR_PROTOCOL: GRPC
@@ -339,7 +339,7 @@ security:
 notifier:
   enabled: false
   imagePullPolicy: IfNotPresent
-  image: "quay.io/devtron/notifier:d71bcbcd-372-18717"
+  image: "quay.io/devtron/notifier:1db5450e-372-20077"
   configs:
     CD_ENVIRONMENT: PROD
     DB: orchestrator
