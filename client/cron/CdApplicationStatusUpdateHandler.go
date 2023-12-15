@@ -130,7 +130,7 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) Subscribe() error {
 		impl.logger.Debugw("ARGO_PIPELINE_STATUS_UPDATE_REQ", "stage", "subscribeDataUnmarshal", "data", statusUpdateEvent)
 
 		if statusUpdateEvent.IsAppStoreApplication {
-			installedApp, err = impl.installedAppVersionRepository.GetInstalledAppByInstalledAppVersionId(statusUpdateEvent.PipelineId)
+			installedApp, err = impl.installedAppVersionRepository.GetInstalledAppByInstalledAppVersionId(statusUpdateEvent.InstalledAppVersionId)
 			if err != nil {
 				impl.logger.Errorw("error in getting installedAppVersion by id", "err", err, "id", statusUpdateEvent.PipelineId)
 				return
