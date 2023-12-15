@@ -1391,7 +1391,8 @@ func (handler PipelineConfigRestHandlerImpl) CancelWorkflow(w http.ResponseWrite
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	forceAbort, err := strconv.ParseBool(queryVars.Get("forceAbort"))
+	var forceAbort bool
+	forceAbort, err = strconv.ParseBool(queryVars.Get("forceAbort"))
 	if err != nil {
 		handler.Logger.Errorw("request err, CancelWorkflow", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
