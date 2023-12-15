@@ -7,3 +7,4 @@
 - doc: Update Install-devtron-on-Minikube-Microk8s-K3s-Kind.md (#4133)
 - doc: fixed broken link and improved documentation in usecases (#4097)
 ## Others
+- chore: migration for global resource schema (#4374)
