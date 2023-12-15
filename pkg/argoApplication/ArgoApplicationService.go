@@ -208,6 +208,9 @@ func (impl *ArgoApplicationServiceImpl) getResourceTreeForExternalCluster(cluste
 			ApiServerUrl:          destinationServer,
 			Token:                 configOfClusterWhereAppIsDeployed.BearerToken,
 			InsecureSkipTLSVerify: configOfClusterWhereAppIsDeployed.TlsClientConfig.Insecure,
+			KeyData:               configOfClusterWhereAppIsDeployed.TlsClientConfig.KeyData,
+			CaData:                configOfClusterWhereAppIsDeployed.TlsClientConfig.CaData,
+			CertData:              configOfClusterWhereAppIsDeployed.TlsClientConfig.CertData,
 		}
 	}
 	resourceTreeResp, err := impl.helmAppService.GetResourceTreeForExternalResources(context.Background(), clusterId, clusterConfigOfClusterWhereAppIsDeployed, resources)
@@ -372,7 +375,12 @@ func (impl *ArgoApplicationServiceImpl) GetServerConfigIfClusterIsNotAddedOnDevt
 
 		if configOfClusterWhereAppIsDeployed != nil {
 			restConfig.Host = destinationServer
-			restConfig.TLSClientConfig.Insecure = configOfClusterWhereAppIsDeployed.TlsClientConfig.Insecure
+			restConfig.TLSClientConfig = rest.TLSClientConfig{
+				Insecure: configOfClusterWhereAppIsDeployed.TlsClientConfig.Insecure,
+				KeyFile:  configOfClusterWhereAppIsDeployed.TlsClientConfig.KeyData,
+				CAFile:   configOfClusterWhereAppIsDeployed.TlsClientConfig.CaData,
+				CertFile: configOfClusterWhereAppIsDeployed.TlsClientConfig.CertData,
+			}
 			restConfig.BearerToken = configOfClusterWhereAppIsDeployed.BearerToken
 		}
 	}

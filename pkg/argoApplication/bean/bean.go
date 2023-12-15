@@ -58,6 +58,9 @@ type ArgoManagedResource struct {
 type ArgoClusterConfigObj struct {
 	BearerToken     string `json:"bearerToken"`
 	TlsClientConfig struct {
-		Insecure bool `json:"insecure"`
+		Insecure bool   `json:"insecure"`
+		KeyData  string `json:"keyData,omitempty"`
+		CertData string `json:"certData,omitempty"`
+		CaData   string `json:"caData,omitempty"`
 	} `json:"tlsClientConfig"`
 }
