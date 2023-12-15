@@ -197,7 +197,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 	}
 
 	gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(installAppVersionRequest.AppName)
-	//getting user name & emailId for commit author data
+	//getting username & emailId for commit author data
 	userEmailId, userName := impl.chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit(installAppVersionRequest.UserId)
 	gitOpsConfigBitbucket, err := impl.gitOpsConfigRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
 	if err != nil {
@@ -340,6 +340,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationACD(ins
 	err = impl.argoClientWrapperService.SyncArgoCDApplicationIfNeededAndRefresh(ctx, installAppVersionRequest.ACDAppName)
 	if err != nil {
 		impl.logger.Errorw("error in getting the argo application with normal refresh", "err", err)
+		return nil, err
 	}
 	timeline := &pipelineConfig.PipelineStatusTimeline{
 		InstalledAppVersionHistoryId: installAppVersionRequest.InstalledAppVersionHistoryId,

@@ -427,6 +427,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) RollbackRelease(ctx context.Cont
 	err = impl.argoClientWrapperService.SyncArgoCDApplicationIfNeededAndRefresh(ctx, installedApp.ACDAppName)
 	if err != nil {
 		impl.Logger.Errorw("error in getting the argo application with normal refresh", "err", err)
+		return installedApp, true, nil
 	}
 
 	ArgocdSyncCompletedTimeline := impl.pipelineStatusTimelineService.
