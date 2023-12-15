@@ -13,7 +13,7 @@ The following details are provided on the **Overview** page:
 | **App Name**  | Displays the name of the application. |
 | **Created on** | Displays the day, date and time the application was created. |
 | **Created by**  | Displays the email address of a user who created the application. |
-| **Project**   | Displays the currect project of the application. You can change the project by selecting a different project from the drop-down list. |
+| **Project**   | Displays the current project of the application. You can change the project by selecting a different project from the drop-down list. |
 
 
 ## Change Project of your Application
@@ -101,7 +101,7 @@ In order to configure PVC:
 
   ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/overview/pvc-edit-tags-1.jpg)
 
-* For app level PVC mounting, enter the following:<ul><li>key:`devtron.ai/ci-pvc-all`</li><li>value: metadata name (e.g., `cache-pvc)` which you define on the [PVC template](#create-pvc-file).</li></ul>`Note`: This PVC mounting will impact all the build pipilines of the application.
+* For app level PVC mounting, enter the following:<ul><li>key:`devtron.ai/ci-pvc-all`</li><li>value: metadata name (e.g., `cache-pvc)` which you define on the [PVC template](#create-pvc-file).</li></ul>`Note`: This PVC mounting will impact all the build pipelines of the application.
 
   ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/overview/manage-tags-pvc-1.jpg)
 

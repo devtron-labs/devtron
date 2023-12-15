@@ -282,7 +282,7 @@ The other way is to get the password in the encoded form using the cmd
 Error: UPGRADE FAILED: cannot patch "postgresql-postgresql" with kind StatefulSet: StatefulSet.apps "postgresql-postgresql" is invalid: spec: Forbidden: updates to statefulset spec for fields other than 'replicas', 'template', 'updateStrategy' and 'minReadySeconds' are forbidden
 ```
 `Solution:`
-Verify if annotations & lables are set to all k8s resources in `devtroncd` namespace and add `--set components.postgres.persistence.volumeSize=20Gi` parameter in Devtron upgrade command.
+Verify if annotations & labels are set to all k8s resources in `devtroncd` namespace and add `--set components.postgres.persistence.volumeSize=20Gi` parameter in Devtron upgrade command.
 ```bash
 helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
 -f https://raw.githubusercontent.com/devtron-labs/devtron/main/charts/devtron/devtron-bom.yaml \
