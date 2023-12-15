@@ -25,13 +25,16 @@ import (
 )
 
 type DevtronResourceService interface {
-	GetDevtronResourceList() ([]*bean.DevtronResourceBean, error)
+	GetDevtronResourceList(onlyIsExposed bool) ([]*bean.DevtronResourceBean, error)
 	GetResourceObject(req *bean.DevtronResourceObjectDescriptorBean) (*bean.DevtronResourceObjectBean, error)
 	CreateOrUpdateResourceObject(reqBean *bean.DevtronResourceObjectBean) error
 	GetResourceDependencies(req *bean.DevtronResourceObjectDescriptorBean) (*bean.DevtronResourceObjectBean, error)
 	CreateOrUpdateResourceDependencies(req *bean.DevtronResourceObjectBean) error
+	GetSchema(req *bean.DevtronResourceBean) (*bean.DevtronResourceBean, error)
+	UpdateSchema(req *bean.DevtronResourceSchemaRequestBean, dryRun bool) (*bean.UpdateSchemaResponseBean, error)
 	DeleteObjectAndItsDependency(oldObjectId int, kind, subKind bean.DevtronResourceKind,
 		version bean.DevtronResourceVersion, updatedBy int32) error
+	FindNumberOfApplicationsWithDependenciesMapped() (int, error)
 }
 
 type DevtronResourceServiceImpl struct {
@@ -39,6 +42,7 @@ type DevtronResourceServiceImpl struct {
 	devtronResourceRepository            repository.DevtronResourceRepository
 	devtronResourceSchemaRepository      repository.DevtronResourceSchemaRepository
 	devtronResourceObjectRepository      repository.DevtronResourceObjectRepository
+	devtronResourceSchemaAuditRepository repository.DevtronResourceSchemaAuditRepository
 	devtronResourceObjectAuditRepository repository.DevtronResourceObjectAuditRepository
 	appRepository                        appRepository.AppRepository
 	pipelineRepository                   pipelineConfig.PipelineRepository
@@ -53,15 +57,36 @@ func NewDevtronResourceServiceImpl(logger *zap.SugaredLogger,
 	devtronResourceRepository repository.DevtronResourceRepository,
 	devtronResourceSchemaRepository repository.DevtronResourceSchemaRepository,
 	devtronResourceObjectRepository repository.DevtronResourceObjectRepository,
+	devtronResourceSchemaAuditRepository repository.DevtronResourceSchemaAuditRepository,
 	devtronResourceObjectAuditRepository repository.DevtronResourceObjectAuditRepository,
 	appRepository appRepository.AppRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	appListingRepository repository3.AppListingRepository,
 	userRepository repository2.UserRepository) (*DevtronResourceServiceImpl, error) {
-	devtronResources, err := devtronResourceRepository.GetAll()
+	impl := &DevtronResourceServiceImpl{
+		logger:                               logger,
+		devtronResourceRepository:            devtronResourceRepository,
+		devtronResourceSchemaRepository:      devtronResourceSchemaRepository,
+		devtronResourceObjectRepository:      devtronResourceObjectRepository,
+		devtronResourceSchemaAuditRepository: devtronResourceSchemaAuditRepository,
+		devtronResourceObjectAuditRepository: devtronResourceObjectAuditRepository,
+		appRepository:                        appRepository,
+		pipelineRepository:                   pipelineRepository,
+		userRepository:                       userRepository,
+		appListingRepository:                 appListingRepository,
+	}
+	err := impl.SetDevtronResourcesAndSchemaMap()
 	if err != nil {
-		logger.Errorw("error in getting devtron resources, NewDevtronResourceServiceImpl", "err", err)
 		return nil, err
+	}
+	return impl, nil
+}
+
+func (impl *DevtronResourceServiceImpl) SetDevtronResourcesAndSchemaMap() error {
+	devtronResources, err := impl.devtronResourceRepository.GetAll()
+	if err != nil {
+		impl.logger.Errorw("error in getting devtron resources, NewDevtronResourceServiceImpl", "err", err)
+		return err
 	}
 	devtronResourcesMap := make(map[int]*repository.DevtronResource)
 	devtronResourcesMapByKind := make(map[string]*repository.DevtronResource)
@@ -69,32 +94,22 @@ func NewDevtronResourceServiceImpl(logger *zap.SugaredLogger,
 		devtronResourcesMap[devtronResource.Id] = devtronResource
 		devtronResourcesMapByKind[devtronResource.Kind] = devtronResource
 	}
-	devtronResourceSchemas, err := devtronResourceSchemaRepository.GetAll()
+	devtronResourceSchemas, err := impl.devtronResourceSchemaRepository.GetAll()
 	if err != nil {
-		logger.Errorw("error in getting devtron resource schemas, NewDevtronResourceServiceImpl", "err", err)
-		return nil, err
+		impl.logger.Errorw("error in getting devtron resource schemas, NewDevtronResourceServiceImpl", "err", err)
+		return err
 	}
 	devtronResourceSchemasMap := make(map[int]*repository.DevtronResourceSchema)
 	for _, devtronResourceSchema := range devtronResourceSchemas {
 		devtronResourceSchemasMap[devtronResourceSchema.Id] = devtronResourceSchema
 	}
-	return &DevtronResourceServiceImpl{
-		logger:                               logger,
-		devtronResourceRepository:            devtronResourceRepository,
-		devtronResourceSchemaRepository:      devtronResourceSchemaRepository,
-		devtronResourceObjectRepository:      devtronResourceObjectRepository,
-		devtronResourceObjectAuditRepository: devtronResourceObjectAuditRepository,
-		appRepository:                        appRepository,
-		pipelineRepository:                   pipelineRepository,
-		userRepository:                       userRepository,
-		appListingRepository:                 appListingRepository,
-		devtronResourcesMapById:              devtronResourcesMap,
-		devtronResourcesMapByKind:            devtronResourcesMapByKind,
-		devtronResourcesSchemaMapById:        devtronResourceSchemasMap,
-	}, nil
+	impl.devtronResourcesMapById = devtronResourcesMap
+	impl.devtronResourcesMapByKind = devtronResourcesMapByKind
+	impl.devtronResourcesSchemaMapById = devtronResourceSchemasMap
+	return nil
 }
 
-func (impl *DevtronResourceServiceImpl) GetDevtronResourceList() ([]*bean.DevtronResourceBean, error) {
+func (impl *DevtronResourceServiceImpl) GetDevtronResourceList(onlyIsExposed bool) ([]*bean.DevtronResourceBean, error) {
 	//getting all resource details from cache only as resource crud is not available as of now
 	devtronResourceSchemas := impl.devtronResourcesSchemaMapById
 	devtronResources := impl.devtronResourcesMapById
@@ -102,9 +117,15 @@ func (impl *DevtronResourceServiceImpl) GetDevtronResourceList() ([]*bean.Devtro
 	resourceIdAndObjectIndexMap := make(map[int]int, len(devtronResources))
 	i := 0
 	for _, devtronResource := range devtronResources {
+		if onlyIsExposed && !devtronResource.IsExposed {
+			continue
+		}
 		response = append(response, &bean.DevtronResourceBean{
 			DevtronResourceId: devtronResource.Id,
 			Kind:              devtronResource.Kind,
+			DisplayName:       devtronResource.DisplayName,
+			Description:       devtronResource.Description,
+			LastUpdatedOn:     devtronResource.UpdatedOn,
 		})
 		resourceIdAndObjectIndexMap[devtronResource.Id] = i
 		i++
@@ -152,7 +173,7 @@ func (impl *DevtronResourceServiceImpl) GetResourceObject(req *bean.DevtronResou
 	if existingResourceObject != nil && existingResourceObject.Id > 0 {
 		//getting metadata out of this object
 		metadataObject := gjson.Get(existingResourceObject.ObjectData, bean.ResourceObjectMetadataPath)
-		resourceObject.ObjectData = metadataObject.String()
+		resourceObject.ObjectData = metadataObject.Raw
 	}
 	return resourceObject, nil
 }
@@ -319,6 +340,31 @@ func (impl *DevtronResourceServiceImpl) DeleteObjectAndItsDependency(oldObjectId
 	return nil
 }
 
+func (impl *DevtronResourceServiceImpl) FindNumberOfApplicationsWithDependenciesMapped() (int, error) {
+	resourceObjects, err := impl.devtronResourceObjectRepository.FindAllObjects()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching all resource objects", "err", err)
+		return 0, err
+	}
+	if err == pg.ErrNoRows {
+		return 0, &util.ApiError{
+			HttpStatusCode:  404,
+			Code:            "404",
+			UserMessage:     "no resource objects found",
+			InternalMessage: err.Error(),
+		}
+	}
+	countOfApplicationsWithDependenciesMapped := 0
+	for _, object := range resourceObjects {
+		objectData := object.ObjectData
+		dependencies := getDependenciesInObjectDataFromJsonString(objectData)
+		if len(dependencies) > 0 {
+			countOfApplicationsWithDependenciesMapped += 1
+		}
+	}
+	return countOfApplicationsWithDependenciesMapped, nil
+}
+
 func (impl *DevtronResourceServiceImpl) createOrUpdateDevtronResourceObject(reqBean *bean.DevtronResourceObjectBean,
 	devtronResourceSchema *repository.DevtronResourceSchema, devtronResourceObject *repository.DevtronResourceObject,
 	objectDataPath string, skipJsonSchemaValidation bool) (err error) {
@@ -337,13 +383,12 @@ func (impl *DevtronResourceServiceImpl) createOrUpdateDevtronResourceObject(reqB
 		impl.logger.Errorw("error in setting version in schema", "err", err, "request", reqBean)
 		return err
 	}
-	if !devtronResourceObjectPresentAlready {
-		objectDataGeneral, err = impl.setDevtronManagedFieldsInObjectData(objectDataGeneral, reqBean.DevtronResourceObjectDescriptorBean)
-		if err != nil {
-			impl.logger.Errorw("error, setDevtronManagedFieldsInObjectData", "err", err, "req", reqBean)
-			return err
-		}
+	objectDataGeneral, err = impl.setDevtronManagedFieldsInObjectData(objectDataGeneral, reqBean.DevtronResourceObjectDescriptorBean)
+	if err != nil {
+		impl.logger.Errorw("error, setDevtronManagedFieldsInObjectData", "err", err, "req", reqBean)
+		return err
 	}
+
 	// below check is added because it might be possible that user might not have added catalog data and only updating dependencies.
 	// In this case, the validation for catalog data will fail.
 	if !skipJsonSchemaValidation {

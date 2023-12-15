@@ -4,13 +4,16 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"time"
 )
 
 type DevtronResourceRepository interface {
 	Save(model *DevtronResource) error
 	Update(model *DevtronResource) error
+	UpdateNameAndDescription(tx *pg.Tx, model *DevtronResource, userId int) error
 	FindByKind(kind string) (*DevtronResource, error)
 	GetAll() ([]*DevtronResource, error)
+	GetById(id int) (*DevtronResource, error)
 }
 
 type DevtronResourceRepositoryImpl struct {
@@ -30,6 +33,8 @@ type DevtronResource struct {
 	Id           int      `sql:"id,pk"`
 	Kind         string   `sql:"kind"`
 	DisplayName  string   `sql:"display_name"`
+	Description  string   `sql:"description"`
+	IsExposed    bool     `sql:"is_exposed,notnull"`
 	Icon         string   `sql:"icon"`
 	ParentKindId int      `sql:"parent_kind_id"`
 	Deleted      bool     `sql:"deleted,notnull"`
@@ -42,6 +47,17 @@ func (repo *DevtronResourceRepositoryImpl) Save(model *DevtronResource) error {
 
 func (repo *DevtronResourceRepositoryImpl) Update(model *DevtronResource) error {
 	return repo.dbConnection.Update(model)
+}
+
+func (repo *DevtronResourceRepositoryImpl) UpdateNameAndDescription(tx *pg.Tx, model *DevtronResource, userId int) error {
+	_, err := tx.Model(model).
+		Set("display_name = ?", model.DisplayName).
+		Set("description = ?", model.Description).
+		Set("updated_on = ?", time.Now()).
+		Set("updated_by = ?", userId).
+		Where("id = ?", model.Id).
+		Update()
+	return err
 }
 
 func (repo *DevtronResourceRepositoryImpl) FindByKind(kind string) (*DevtronResource, error) {
@@ -61,4 +77,17 @@ func (repo *DevtronResourceRepositoryImpl) GetAll() ([]*DevtronResource, error) 
 		return nil, err
 	}
 	return models, nil
+}
+
+func (repo *DevtronResourceRepositoryImpl) GetById(id int) (*DevtronResource, error) {
+	model := &DevtronResource{}
+	err := repo.dbConnection.Model(model).
+		Where("id = ?", id).
+		Where("deleted = ?", false).
+		Select()
+	if err != nil {
+		repo.logger.Errorw("error in getting devtron resource", "err", err, "id", id)
+		return nil, err
+	}
+	return model, nil
 }
