@@ -411,9 +411,9 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 	if isLockConfigError {
 		var jsonVal json.RawMessage
 		_ = json.Unmarshal([]byte(lockedOverride), &jsonVal)
+
 		return &TemplateResponse{
 			TemplateRequest:   &templateRequest,
-			AllowedOverride:   nil,
 			LockedOverride:    jsonVal,
 			IsLockConfigError: true,
 		}, nil
@@ -499,7 +499,6 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 	chartVal, err := impl.chartAdaptor(chart, appLevelMetrics)
 	return &TemplateResponse{
 		TemplateRequest:   chartVal,
-		AllowedOverride:   nil,
 		LockedOverride:    nil,
 		IsLockConfigError: false,
 	}, err
@@ -906,9 +905,9 @@ func (impl ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateRequ
 	if isLockConfigError {
 		var jsonVal json.RawMessage
 		_ = json.Unmarshal([]byte(lockedOverride), &jsonVal)
+
 		return &TemplateResponse{
 			TemplateRequest:   templateRequest,
-			AllowedOverride:   nil,
 			LockedOverride:    jsonVal,
 			IsLockConfigError: true,
 		}, nil
@@ -969,7 +968,6 @@ func (impl ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateRequ
 	}
 	return &TemplateResponse{
 		TemplateRequest:   templateRequest,
-		AllowedOverride:   nil,
 		LockedOverride:    nil,
 		IsLockConfigError: false,
 	}, nil

@@ -99,6 +99,8 @@ func GetJsonParentPathMap(patch []jsonpatch.JsonPatchOperation) map[string]bool 
 	return paths
 }
 
+//Remove data
+
 func ModifyEmptyPatchBasedOnChanges(patch []jsonpatch.JsonPatchOperation, paths map[string]bool) []jsonpatch.JsonPatchOperation {
 	for index, path := range patch {
 		if paths[path.Path] {

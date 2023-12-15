@@ -47,6 +47,7 @@ require (
 	github.com/ktrysmt/go-bitbucket v0.9.40
 	github.com/lib/pq v1.10.4
 	github.com/mattbaird/jsonpatch v0.0.0-20230413205102-771768614e91
+	github.com/mdaverde/jsonpath v0.2.1
 	github.com/microsoft/azure-devops-go-api/azuredevops v1.0.0-b5
 	github.com/ohler55/ojg v1.20.3
 	github.com/otiai10/copy v1.0.2

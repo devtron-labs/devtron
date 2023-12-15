@@ -402,7 +402,6 @@ func (impl *ConfigDraftServiceImpl) ApproveDraft(draftId int, draftVersionId int
 			return nil, err
 		}
 		if lockValidateResponse != nil {
-			draftVersionResponse.AllowedOverride = lockValidateResponse.AllowedOverride
 			draftVersionResponse.LockedOverride = lockValidateResponse.LockedOverride
 			draftVersionResponse.IsLockConfigError = lockValidateResponse.IsLockConfigError
 		}
@@ -537,7 +536,6 @@ func (impl *ConfigDraftServiceImpl) handleBaseDeploymentTemplate(appId int, envI
 	}
 	if createResp != nil {
 		lockValidateResp = &LockValidateResponse{
-			AllowedOverride:   createResp.AllowedOverride,
 			LockedOverride:    createResp.LockedOverride,
 			IsLockConfigError: createResp.IsLockConfigError,
 		}
@@ -586,7 +584,6 @@ func (impl *ConfigDraftServiceImpl) handleEnvLevelTemplate(appId int, envId int,
 		}
 		if updateResp != nil {
 			lockValidateResp = &LockValidateResponse{
-				AllowedOverride:   updateResp.AllowedOverride,
 				LockedOverride:    updateResp.LockedOverride,
 				IsLockConfigError: updateResp.IsLockConfigError,
 			}
@@ -779,8 +776,8 @@ func (impl *ConfigDraftServiceImpl) validateDeploymentTemplate(appId int, envId 
 		if isLockConfigError {
 			var jsonVal json.RawMessage
 			_ = json.Unmarshal([]byte(lockedOverride), &jsonVal)
+
 			return &LockValidateResponse{
-				AllowedOverride:   nil,
 				LockedOverride:    jsonVal,
 				IsLockConfigError: true,
 			}, draftData, nil
@@ -831,7 +828,6 @@ func (impl *ConfigDraftServiceImpl) validateDeploymentTemplate(appId int, envId 
 				var jsonVal json.RawMessage
 				_ = json.Unmarshal([]byte(lockedOverride), &jsonVal)
 				return &LockValidateResponse{
-					AllowedOverride:   nil,
 					LockedOverride:    jsonVal,
 					IsLockConfigError: true,
 				}, draftData, nil
@@ -885,7 +881,6 @@ func (impl *ConfigDraftServiceImpl) checkLockConfiguration(appId int, envId int,
 			var jsonVal json.RawMessage
 			_ = json.Unmarshal([]byte(lockedOverride), &jsonVal)
 			return &LockValidateResponse{
-				AllowedOverride:   nil,
 				LockedOverride:    jsonVal,
 				IsLockConfigError: true,
 			}, nil
@@ -910,7 +905,6 @@ func (impl *ConfigDraftServiceImpl) checkLockConfiguration(appId int, envId int,
 				var jsonVal json.RawMessage
 				_ = json.Unmarshal([]byte(lockedOverride), &jsonVal)
 				return &LockValidateResponse{
-					AllowedOverride:   nil,
 					LockedOverride:    jsonVal,
 					IsLockConfigError: true,
 				}, nil
@@ -919,7 +913,6 @@ func (impl *ConfigDraftServiceImpl) checkLockConfiguration(appId int, envId int,
 
 	}
 	return &LockValidateResponse{
-		AllowedOverride:   nil,
 		LockedOverride:    nil,
 		IsLockConfigError: false,
 	}, nil

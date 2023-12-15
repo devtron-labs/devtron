@@ -246,9 +246,9 @@ func (impl PropertiesConfigServiceImpl) CreateEnvironmentProperties(appId int, e
 	if isLockConfigError {
 		var jsonVal json.RawMessage
 		_ = json.Unmarshal([]byte(lockedOverride), &jsonVal)
+
 		return &bean.EnvironmentUpdateResponse{
 			EnvironmentProperties: environmentProperties,
-			AllowedOverride:       nil,
 			LockedOverride:        jsonVal,
 			IsLockConfigError:     true,
 		}, nil
@@ -314,7 +314,6 @@ func (impl PropertiesConfigServiceImpl) CreateEnvironmentProperties(appId int, e
 
 	return &bean.EnvironmentUpdateResponse{
 		EnvironmentProperties: environmentProperties,
-		AllowedOverride:       nil,
 		LockedOverride:        nil,
 		IsLockConfigError:     false,
 	}, nil
@@ -376,7 +375,6 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, p
 		_ = json.Unmarshal([]byte(lockedOverride), &jsonVal)
 		return &bean.EnvironmentUpdateResponse{
 			EnvironmentProperties: propertiesRequest,
-			AllowedOverride:       nil,
 			LockedOverride:        jsonVal,
 			IsLockConfigError:     true,
 		}, nil
@@ -449,7 +447,6 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, p
 
 	return &bean.EnvironmentUpdateResponse{
 		EnvironmentProperties: propertiesRequest,
-		AllowedOverride:       nil,
 		LockedOverride:        nil,
 		IsLockConfigError:     false,
 	}, err
