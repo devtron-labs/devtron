@@ -5,7 +5,7 @@ ALTER TABLE public.gitops_config
     DROP COLUMN IF EXISTS allow_custom_repository;
 
 -- installed_apps modifications
--- Step 2: Create a new columns for is_custom_repository
+-- Step 2: Drop the new columns for is_custom_repository
 ALTER TABLE public.installed_apps
     DROP COLUMN IF EXISTS is_custom_repository bool;
 
@@ -15,7 +15,7 @@ UPDATE installed_apps set git_ops_repo_name = REPLACE(REVERSE(SPLIT_PART(REVERSE
 
 
 -- charts modifications
--- Step 3: Create a new columns for is_custom_repository
+-- Step 3: Drop the new columns for is_custom_repository
 ALTER TABLE public.charts
     DROP COLUMN IF EXISTS is_custom_repository bool;
 
