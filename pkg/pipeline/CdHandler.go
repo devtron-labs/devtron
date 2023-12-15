@@ -1851,7 +1851,7 @@ func (impl *CdHandlerImpl) SyncArgoCdApps(deployedBeforeMinutes int, pipelineId 
 			return err
 		}
 	}
-	if installedAppVersionId == 0 {
+	if installedAppVersionId != 0 {
 		err := impl.SyncACDHelmApps(deployedBeforeMinutes, installedAppVersionId)
 		if err != nil {
 			return err
