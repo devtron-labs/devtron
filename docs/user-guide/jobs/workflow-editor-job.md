@@ -22,7 +22,7 @@ In the `Workflow Editor` section, you can configure a job pipeline to be execute
 
 * To trigger job pipeline, go to the [Trigger Job](triggering-job.md) section. 
 
-`Note`: You can create more than one job pipeline by clicking **+ Job Pipeine**.
+`Note`: You can create more than one job pipeline by clicking **+ Job Pipeline**.
 
 
 ### Source type: Branch Fixed

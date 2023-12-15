@@ -21,7 +21,7 @@ data:
   APP_SYNC_IMAGE: "quay.io/devtron/chart-sync:98957687-150-19133"
 {{- if $.Values.installer.modules }}
 {{- if has "cicd" $.Values.installer.modules }}
-  USE_ARTIFACT_LISTING_API_V2: "false"
+  USE_ARTIFACT_LISTING_API_V2: "true"
   RUN_HELM_INSTALL_IN_ASYNC_MODE_HELM_APPS: "true"
   ENABLE_ASYNC_INSTALL_DEVTRON_CHART: "true"
   DEVTRON_CHART_INSTALL_REQUEST_TIMEOUT: "6"
