@@ -23,6 +23,8 @@ type DevtronResourceRestHandler interface {
 	CreateOrUpdateResourceObject(w http.ResponseWriter, r *http.Request)
 	GetResourceDependencies(w http.ResponseWriter, r *http.Request)
 	CreateOrUpdateResourceDependencies(w http.ResponseWriter, r *http.Request)
+	GetSchema(w http.ResponseWriter, r *http.Request)
+	UpdateSchema(w http.ResponseWriter, r *http.Request)
 }
 
 type DevtronResourceRestHandlerImpl struct {
@@ -52,6 +54,7 @@ func NewDevtronResourceRestHandlerImpl(logger *zap.SugaredLogger, userService us
 const (
 	PathParamKind                    = "kind"
 	PathParamVersion                 = "version"
+	QueryParamIsExposed              = "onlyIsExposed"
 	QueryParamId                     = "id"
 	QueryParamName                   = "name"
 	ResourceUpdateSuccessMessage     = "Resource object updated successfully."
@@ -59,7 +62,18 @@ const (
 )
 
 func (handler *DevtronResourceRestHandlerImpl) GetResourceList(w http.ResponseWriter, r *http.Request) {
-	resp, err := handler.devtronResourceService.GetDevtronResourceList()
+	v := r.URL.Query()
+	onlyIsExposed := false
+	var err error
+	onlyIsExposedStr := v.Get(QueryParamIsExposed)
+	if len(onlyIsExposedStr) > 0 {
+		onlyIsExposed, err = strconv.ParseBool(onlyIsExposedStr)
+		if err != nil {
+			common.WriteJsonResp(w, fmt.Errorf("invalid parameter: onlyIsExposed"), nil, http.StatusBadRequest)
+			return
+		}
+	}
+	resp, err := handler.devtronResourceService.GetDevtronResourceList(onlyIsExposed)
 	if err != nil {
 		handler.logger.Errorw("service error, GetResourceList", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -235,6 +249,90 @@ func (handler *DevtronResourceRestHandlerImpl) CreateOrUpdateResourceDependencie
 		return
 	}
 	common.WriteJsonResp(w, err, DependenciesUpdateSuccessMessage, http.StatusOK)
+	return
+}
+
+func (handler *DevtronResourceRestHandlerImpl) GetSchema(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	//RBAC block starts from here
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	//RBAC block ends here
+
+	vars := r.URL.Query()
+	resourceIdString := vars.Get("resourceId")
+	resourceId, err := strconv.Atoi(resourceIdString)
+	if err != nil {
+		handler.logger.Errorw("error in converting string to integer", "err", err, "resourceIdString", resourceIdString)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	reqBean := &bean.DevtronResourceBean{DevtronResourceId: resourceId}
+
+	resp, err := handler.devtronResourceService.GetSchema(reqBean)
+	if err != nil {
+		handler.logger.Errorw("service error, GetSchema", "err", err, "request", reqBean)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, resp, http.StatusOK)
+	return
+}
+
+func (handler *DevtronResourceRestHandlerImpl) UpdateSchema(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	//RBAC block starts from here
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	//RBAC block ends here
+
+	vars := r.URL.Query()
+	dryRunString := vars.Get("dryRun")
+	dryRun, err := strconv.ParseBool(dryRunString)
+
+	decoder := json.NewDecoder(r.Body)
+	var reqBean bean.DevtronResourceSchemaRequestBean
+	err = decoder.Decode(&reqBean)
+	if err != nil {
+		handler.logger.Errorw("error in decoding request body", "err", err, "requestBody", r.Body)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	reqBean.UserId = int(userId)
+
+	err = handler.validator.Struct(reqBean)
+	if err != nil {
+		handler.logger.Errorw("validate err, CreateChartGroup", "err", err, "payload", reqBean)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	//resp := &bean.UpdateSchemaResponseBean{}
+	resp, err := handler.devtronResourceService.UpdateSchema(&reqBean, dryRun)
+	if err != nil {
+		handler.logger.Errorw("service error, GetSchema", "err", err, "request", reqBean)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 	return
 }
 
