@@ -1889,8 +1889,8 @@ k8s.io/kubectl/pkg/util/storage
 k8s.io/kubectl/pkg/util/templates
 k8s.io/kubectl/pkg/util/term
 k8s.io/kubectl/pkg/validation
-# k8s.io/kubernetes v1.24.2
-## explicit; go 1.16
+# k8s.io/kubernetes v1.24.17
+## explicit; go 1.19
 k8s.io/kubernetes/pkg/api/legacyscheme
 k8s.io/kubernetes/pkg/apis/admission
 k8s.io/kubernetes/pkg/apis/admission/install
