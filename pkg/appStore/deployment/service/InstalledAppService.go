@@ -415,6 +415,7 @@ func (impl InstalledAppServiceImpl) performDeployStageOnAcd(installedAppVersion 
 			_ = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, true)
 			return nil, err
 		}
+
 		timeline := &pipelineConfig.PipelineStatusTimeline{
 			InstalledAppVersionHistoryId: installedAppVersion.InstalledAppVersionHistoryId,
 			Status:                       pipelineConfig.TIMELINE_STATUS_GIT_COMMIT,
@@ -432,6 +433,41 @@ func (impl InstalledAppServiceImpl) performDeployStageOnAcd(installedAppVersion 
 		_, err = impl.appStoreDeploymentService.AppStoreDeployOperationStatusUpdate(installedAppVersion.InstalledAppId, appStoreBean.GIT_SUCCESS)
 		if err != nil {
 			impl.logger.Errorw(" error", "err", err)
+			return nil, err
+		}
+
+		GitCommitSuccessTimeline := impl.pipelineStatusTimelineService.
+			GetTimelineDbObjectByTimelineStatusAndTimelineDescription(
+				0,
+				installedAppVersion.InstalledAppVersionHistoryId,
+				pipelineConfig.TIMELINE_STATUS_GIT_COMMIT,
+				"Git commit done successfully.",
+				installedAppVersion.UserId)
+
+		ArgocdSyncInitiatedTimeline := impl.pipelineStatusTimelineService.
+			GetTimelineDbObjectByTimelineStatusAndTimelineDescription(
+				0,
+				installedAppVersion.InstalledAppVersionHistoryId,
+				pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED,
+				"ArgoCD sync initiated.",
+				installedAppVersion.UserId)
+
+		dbConnection := impl.installedAppRepository.GetConnection()
+		tx, err := dbConnection.Begin()
+		if err != nil {
+			impl.logger.Errorw("error in getting db connection for saving timelines", "err", err)
+			return nil, err
+		}
+		err = impl.pipelineStatusTimelineService.SaveTimelines(
+			[]*pipelineConfig.PipelineStatusTimeline{GitCommitSuccessTimeline, ArgocdSyncInitiatedTimeline}, tx)
+		if err != nil {
+			impl.logger.Errorw("error in creating timeline status for deployment initiation for update of installedAppVersionHistoryId", "err", err, "installedAppVersionHistoryId", installedApp.InstalledAppVersionHistoryId)
+		}
+		tx.Commit()
+		// update build history for chart for argo_cd apps
+		err = impl.appStoreDeploymentService.UpdateInstalledAppVersionHistoryWithGitHash(installedAppVersion, nil)
+		if err != nil {
+			impl.logger.Errorw("error on updating history for chart deployment", "error", err, "installedAppVersion", installedAppVersion)
 			return nil, err
 		}
 		installedAppVersion.GitHash = appStoreGitOpsResponse.GitHash
@@ -552,15 +588,6 @@ func (impl InstalledAppServiceImpl) performDeployStage(installedAppVersionId int
 	if err != nil {
 		impl.logger.Errorw("error", "err", err)
 		return nil, err
-	}
-
-	if util.IsAcdApp(installedAppVersion.DeploymentAppType) {
-		// update build history for chart for argo_cd apps
-		err = impl.appStoreDeploymentService.UpdateInstalledAppVersionHistoryWithGitHash(installedAppVersion)
-		if err != nil {
-			impl.logger.Errorw("error on updating history for chart deployment", "error", err, "installedAppVersion", installedAppVersion)
-			return nil, err
-		}
 	}
 
 	return installedAppVersion, nil
