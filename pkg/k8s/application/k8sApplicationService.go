@@ -878,10 +878,11 @@ func (impl *K8sApplicationServiceImpl) generateDebugContainer(pod *corev1.Pod, r
 
 func (impl *K8sApplicationServiceImpl) TerminatePodEphemeralContainer(req cluster.EphemeralContainerRequest) (bool, error) {
 	terminalReq := &terminal.TerminalSessionRequest{
-		PodName:       req.PodName,
-		ClusterId:     req.ClusterId,
-		Namespace:     req.Namespace,
-		ContainerName: req.BasicData.ContainerName,
+		PodName:           req.PodName,
+		ClusterId:         req.ClusterId,
+		Namespace:         req.Namespace,
+		ContainerName:     req.BasicData.ContainerName,
+		IsArgoApplication: req.IsArgoApplication,
 	}
 	container, err := impl.ephemeralContainerRepository.FindContainerByName(terminalReq.ClusterId, terminalReq.Namespace, terminalReq.PodName, terminalReq.ContainerName)
 	if err != nil {
@@ -889,7 +890,7 @@ func (impl *K8sApplicationServiceImpl) TerminatePodEphemeralContainer(req cluste
 		return false, err
 	}
 	if container == nil {
-		return false, errors.New("externally created ephemeral containers cannot be removed")
+		//return false, errors.New("externally created ephemeral containers cannot be removed")
 	}
 	containerKillCommand := fmt.Sprintf("kill -16 $(pgrep -f '%s' -o)", fmt.Sprintf(k8sObjectUtils.EphemeralContainerStartingShellScriptFileName, terminalReq.ContainerName))
 	cmds := []string{"sh", "-c", containerKillCommand}

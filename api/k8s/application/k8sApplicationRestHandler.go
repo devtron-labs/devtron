@@ -969,6 +969,9 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteEphemeralContainer(w http.Re
 		return
 	}
 	request.UserId = userId
+	vars := r.URL.Query()
+	isArgoApplication, _ := strconv.ParseBool(vars.Get("isArgo"))
+	request.IsArgoApplication = isArgoApplication
 	_, err = handler.k8sApplicationService.TerminatePodEphemeralContainer(request)
 	if err != nil {
 		handler.logger.Errorw("error occurred in terminating ephemeral container", "err", err, "requestPayload", request)
