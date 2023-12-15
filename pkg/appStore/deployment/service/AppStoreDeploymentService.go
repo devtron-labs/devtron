@@ -69,7 +69,7 @@ type AppStoreDeploymentService interface {
 	GetDeploymentHistory(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO) (*client.DeploymentHistoryAndInstalledAppInfo, error)
 	GetDeploymentHistoryInfo(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, installedAppVersionHistoryId int) (*openapi.HelmAppDeploymentManifestDetail, error)
 	UpdateInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error)
-	UpdateInstalledAppVersionHistoryWithGitHash(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error
+	UpdateInstalledAppVersionHistoryWithGitHash(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx) error
 	GetInstalledAppVersion(id int, userId int32) (*appStoreBean.InstallAppVersionDTO, error)
 	InstallAppByHelm(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error)
 	UpdateProjectHelmApp(updateAppRequest *appStoreBean.UpdateProjectHelmAppDTO) error
@@ -457,6 +457,13 @@ func (impl AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *a
 			_ = impl.appStoreDeploymentArgoCdService.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED, "argocd sync initiated.", tx)
 		}
 		installAppVersionRequest.GitHash = gitOpsResponse.GitHash
+		if len(installAppVersionRequest.GitHash) > 0 {
+			err = impl.UpdateInstalledAppVersionHistoryWithGitHash(installAppVersionRequest, tx)
+			if err != nil {
+				impl.logger.Errorw("error in installAppPostDbOperation", "err", err)
+				return nil, err
+			}
+		}
 	}
 
 	if util2.IsBaseStack() || util2.IsHelmApp(installAppVersionRequest.AppOfferingMode) || util.IsHelmApp(installAppVersionRequest.DeploymentAppType) {
@@ -534,27 +541,14 @@ func (impl AppStoreDeploymentServiceImpl) UpdateInstallAppVersionHistory(install
 	}
 	return installedAppVersionHistory, nil
 }
-func (impl AppStoreDeploymentServiceImpl) UpdateInstalledAppVersionHistoryWithGitHash(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error {
-	dbConnection := impl.installedAppRepository.GetConnection()
-	tx, err := dbConnection.Begin()
-	if err != nil {
-		return err
-	}
-	// Rollback tx on error.
-	defer tx.Rollback()
+func (impl AppStoreDeploymentServiceImpl) UpdateInstalledAppVersionHistoryWithGitHash(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx) error {
 	savedInstalledAppVersionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(installAppVersionRequest.InstalledAppVersionHistoryId)
 	savedInstalledAppVersionHistory.GitHash = installAppVersionRequest.GitHash
 	savedInstalledAppVersionHistory.UpdatedOn = time.Now()
 	savedInstalledAppVersionHistory.UpdatedBy = installAppVersionRequest.UserId
-
 	_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(savedInstalledAppVersionHistory, tx)
 	if err != nil {
 		impl.logger.Errorw("error while fetching from db", "error", err)
-		return err
-	}
-	err = tx.Commit()
-	if err != nil {
-		impl.logger.Errorw("error while committing transaction to db", "error", err)
 		return err
 	}
 	return nil
@@ -972,14 +966,6 @@ func (impl AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Contex
 		return false, err
 	}
 
-	if installedApp.AppOfferingMode == util2.SERVER_MODE_FULL {
-		// create build history for version upgrade, chart upgrade or simple update
-		err = impl.UpdateInstalledAppVersionHistoryWithGitHash(installedApp)
-		if err != nil {
-			impl.logger.Errorw("error on creating history for chart deployment", "error", err)
-			return false, err
-		}
-	}
 	err1 := impl.UpdatePreviousDeploymentStatusForAppStore(installedApp, triggeredAt, err)
 	if err1 != nil {
 		impl.logger.Errorw("error while update previous installed app version history", "err", err, "installAppVersionRequest", installedApp)
@@ -1069,13 +1055,6 @@ func (impl AppStoreDeploymentServiceImpl) installAppPostDbOperation(installAppVe
 	}
 
 	//step 5 create build history first entry for install app version for argocd or helm type deployments
-	if len(installAppVersionRequest.GitHash) > 0 {
-		err = impl.UpdateInstalledAppVersionHistoryWithGitHash(installAppVersionRequest)
-		if err != nil {
-			impl.logger.Errorw("error in installAppPostDbOperation", "err", err)
-			return err
-		}
-	}
 	if !impl.deploymentTypeConfig.HelmInstallASyncMode {
 		err = impl.updateInstalledAppVersionHistoryWithSync(installAppVersionRequest)
 		if err != nil {
@@ -1562,12 +1541,16 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 		installAppVersionRequest.GitHash = gitHash
 		_ = impl.appStoreDeploymentArgoCdService.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT, "Git commit done successfully.", tx)
 		_ = impl.appStoreDeploymentArgoCdService.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED, "Argocd sync initiated", tx)
-
+		err = impl.UpdateInstalledAppVersionHistoryWithGitHash(installAppVersionRequest, tx)
+		if err != nil {
+			impl.logger.Errorw("error on updating history for chart deployment", "error", err, "installedAppVersion", installedAppVersion)
+			return nil, err
+		}
 	}
 
 	if installAppVersionRequest.PerformACDDeployment {
 		// refresh update repo details on ArgoCD if repo is changed
-		err = impl.appStoreDeploymentArgoCdService.UpdateAndSyncACDApps(installAppVersionRequest, gitOpsResponse.ChartGitAttribute, monoRepoMigrationRequired, ctx)
+		err = impl.appStoreDeploymentArgoCdService.UpdateAndSyncACDApps(installAppVersionRequest, gitOpsResponse.ChartGitAttribute, monoRepoMigrationRequired, ctx, tx)
 		if err != nil {
 			impl.logger.Errorw("error in acd patch request", "err", err)
 			return nil, err
@@ -1596,13 +1579,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 		return nil, err
 	}
 
-	if util.IsAcdApp(installAppVersionRequest.DeploymentAppType) {
-		err = impl.UpdateInstalledAppVersionHistoryWithGitHash(installAppVersionRequest)
-		if err != nil {
-			impl.logger.Errorw("error on updating history for chart deployment", "error", err, "installedAppVersion", installedAppVersion)
-			return nil, err
-		}
-	} else if util.IsManifestDownload(installAppVersionRequest.DeploymentAppType) {
+	if util.IsManifestDownload(installAppVersionRequest.DeploymentAppType) {
 		err = impl.UpdateInstalledAppVersionHistoryStatus(installAppVersionRequest, pipelineConfig.WorkflowSucceeded)
 		if err != nil {
 			impl.logger.Errorw("error on creating history for chart deployment", "error", err)

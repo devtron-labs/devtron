@@ -20,6 +20,7 @@ package appStoreDeploymentFullMode
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	pubsub "github.com/devtron-labs/common-lib-private/pubsub-lib"
 	"path"
@@ -447,50 +448,10 @@ func (impl AppStoreDeploymentFullModeServiceImpl) UpdateValuesYaml(installAppVer
 
 	commitHash, err := impl.appStoreDeploymentCommonService.CommitConfigToGit(valuesGitConfig)
 	if err != nil {
-		impl.logger.Errorw("error in values commit", "err", err)
-	}
-
-	isAppStore := true
-	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
-		//update timeline status for git commit failed state
-		gitCommitStatus := pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED
-		gitCommitStatusDetail := fmt.Sprintf("Git commit failed - %v", err)
-		timeline := &pipelineConfig.PipelineStatusTimeline{
-			InstalledAppVersionHistoryId: installAppVersionRequest.InstalledAppVersionHistoryId,
-			Status:                       gitCommitStatus,
-			StatusDetail:                 gitCommitStatusDetail,
-			StatusTime:                   time.Now(),
-			AuditLog: sql.AuditLog{
-				CreatedBy: installAppVersionRequest.UserId,
-				CreatedOn: time.Now(),
-				UpdatedBy: installAppVersionRequest.UserId,
-				UpdatedOn: time.Now(),
-			},
-		}
-		timelineErr := impl.pipelineStatusTimelineService.SaveTimeline(timeline, tx, isAppStore)
-		if timelineErr != nil {
-			impl.logger.Errorw("error in creating timeline status for git commit", "err", timelineErr, "timeline", timeline)
-		}
-		return installAppVersionRequest, err
+		return installAppVersionRequest, errors.New(pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED)
 	}
 	//update timeline status for git commit state
-	timeline := &pipelineConfig.PipelineStatusTimeline{
-		InstalledAppVersionHistoryId: installAppVersionRequest.InstalledAppVersionHistoryId,
-		Status:                       pipelineConfig.TIMELINE_STATUS_GIT_COMMIT,
-		StatusDetail:                 "Git commit done successfully.",
-		StatusTime:                   time.Now(),
-		AuditLog: sql.AuditLog{
-			CreatedBy: installAppVersionRequest.UserId,
-			CreatedOn: time.Now(),
-			UpdatedBy: installAppVersionRequest.UserId,
-			UpdatedOn: time.Now(),
-		},
-	}
-	err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, tx, isAppStore)
-	if err != nil {
-		impl.logger.Errorw("error in creating timeline status for deployment initiation for update of installedAppVersionHistoryId", "err", err, "installedAppVersionHistoryId", installAppVersionRequest.InstalledAppVersionHistoryId)
-	}
 	installAppVersionRequest.GitHash = commitHash
 	return installAppVersionRequest, nil
 }
@@ -512,7 +473,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) UpdateRequirementYaml(installA
 	_, err = impl.appStoreDeploymentCommonService.CommitConfigToGit(requirementsGitConfig)
 	if err != nil {
 		impl.logger.Errorw("error in values commit", "err", err)
-		return err
+		return errors.New(pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED)
 	}
 
 	return nil
