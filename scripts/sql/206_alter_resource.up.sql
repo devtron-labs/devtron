@@ -12,9 +12,10 @@ update devtron_resource
 set is_exposed= false
 where kind = 'cd-pipeline';
 
-
 alter table devtron_resource_schema
     add column sample_schema json;
+
+update devtron_resource_schema set sample_schema=schema;
 
 CREATE SEQUENCE IF NOT EXISTS id_seq_devtron_resource_schema_audit;
 
