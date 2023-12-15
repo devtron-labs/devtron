@@ -9,13 +9,13 @@ global:
     runAsNonRoot: true
 
 installer:
-  release: "v0.6.25"
+  release: "v0.6.26"
   image: "quay.io/devtron/inception"
   tag: "44b30917-185-13275"
   
 components:
   dashboard:
-    image: "quay.io/devtron/dashboard:b880ad10-325-19906"
+    image: "quay.io/devtron/dashboard:0988ee6d-325-20037"
     config:
       extraConfigs:
         USE_V2: "true"
@@ -25,8 +25,8 @@ components:
         ENABLE_SCOPED_VARIABLES: "true"
         ENABLE_CI_JOB: "true"
   devtron:
-    image: "quay.io/devtron/hyperion:95146ae5-280-19913"
-    cicdImage: "quay.io/devtron/devtron:95146ae5-434-19914"
+    image: "quay.io/devtron/hyperion:24f51942-280-20082"
+    cicdImage: "quay.io/devtron/devtron:24f51942-434-20080"
     customOverrides:
       DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:560e6867-138-19679"
   argocdDexServer:
@@ -34,7 +34,7 @@ components:
     initContainer:
       authenticator: "quay.io/devtron/authenticator:e414faff-393-13273"
   kubelink:
-    image: "quay.io/devtron/kubelink:59a19eb7-564-19917"
+    image: "quay.io/devtron/kubelink:d19ec7b6-564-20012"
     configs:
       ENABLE_HELM_RELEASE_CACHE: "true"
       MANIFEST_FETCH_BATCH_SIZE: "2"
@@ -68,7 +68,7 @@ components:
       secretName: postgresql-postgresql
       keyName: postgresql-password
   lens: 
-    image: "quay.io/devtron/lens:8803028b-333-16178"
+    image: "quay.io/devtron/lens:a0628f4f-333-19937"
     imagePullPolicy: IfNotPresent
     configs:
       GIT_SENSOR_PROTOCOL: GRPC
@@ -122,4 +122,4 @@ security:
     image: "quay.io/devtron/image-scanner:abb1e033-334-19909"
 
 notifier:
-  image: "quay.io/devtron/notifier:d71bcbcd-372-18717"
+  image: "quay.io/devtron/notifier:1db5450e-372-20077"

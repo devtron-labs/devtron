@@ -1,5 +1,5 @@
 name: "🚩 Pager duty Bug"
-description: "Submit a bug that is impacting/blocking/limiting a Devtron functionality."
+description: "Submit a bug that is impacting/blocking/limiting a Devtron functionality for an Enterprise."
 title: "Bug: "
 labels: ["bug","pager-duty"]
 assignees: ["prakarsh-dt","vikramdevtron","kripanshdevtron","vivek-devtron"]
@@ -16,12 +16,30 @@ body:
       label: "📜 Description"
       description: "A clear and concise description of what the bug is."
       placeholder: "It bugs out when ..."
+  - type: dropdown
+    id: criticality
+    attributes:
+      label: "Criticality"
+      description: "How critical is the issue? Please include the impact in the  "
+      options:
+        - P0 - Critical/Blocking
+        - P1 - High
+        - P2 - Medium
+        - P3 - Low
   - type: textarea
-    id: steps-to-reproduce
+    id: impact
     validations:
       required: true
     attributes:
-      label: "👟 Reproduction steps"
+      label: "Impact on Enterprise"
+      description: "Describe the kind of Impact this bug/issue has on an Enterprise."
+      placeholder: "1. The users are unable to ..."
+  - type: textarea
+    id: steps-to-replicate
+    validations:
+      required: true
+    attributes:
+      label: "👟 Steps to replicate the Issue"
       description: "How do you trigger this bug? Please walk us through it step by step."
       placeholder: "1. When I ..."
   - type: textarea

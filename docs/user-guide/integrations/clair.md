@@ -4,7 +4,7 @@
 
 Clair integration enables you to scan the vulnerabilities of the images during the time of image build only.
 
-While building the container images, it is important to know how secure the application is, before it is deployed. In the source code , the third party libraries and outdated libraries might be used that can add vulnerabilities to the images we deploy. Devtron provides **Clair** integration for scanning vulnerabilites of the images.
+While building the container images, it is important to know how secure the application is, before it is deployed. In the source code , the third party libraries and outdated libraries might be used that can add vulnerabilities to the images we deploy. Devtron provides **Clair** integration for scanning vulnerabilities of the images.
 
 **Features:**
 
