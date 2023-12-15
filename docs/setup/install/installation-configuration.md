@@ -161,22 +161,6 @@ helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
 --set configs.DEFAULT_CD_LOGS_BUCKET_REGION=us-east-1
 ```
 
-*  **Configure using access-key and secret-key for aws S3 authentication:**
-
-```bash
-helm repo update
-
-helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
---set installer.modules={cicd} \
---set configs.BLOB_STORAGE_PROVIDER=S3 \
---set configs.DEFAULT_CACHE_BUCKET=demo-s3-bucket \
---set configs.DEFAULT_CACHE_BUCKET_REGION=us-east-1 \
---set configs.DEFAULT_BUILD_LOGS_BUCKET=demo-s3-bucket \
---set configs.DEFAULT_CD_LOGS_BUCKET_REGION=us-east-1 \
---set secrets.BLOB_STORAGE_S3_ACCESS_KEY=<access-key> \
---set secrets.BLOB_STORAGE_S3_SECRET_KEY=<secret-key>
-```
-
 *  **Configure using S3 compatible storages:**
 
 ```bash
@@ -192,6 +176,22 @@ helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
 --set secrets.BLOB_STORAGE_S3_ACCESS_KEY=<access-key> \
 --set secrets.BLOB_STORAGE_S3_SECRET_KEY=<secret-key> \
 --set configs.BLOB_STORAGE_S3_ENDPOINT=<endpoint>
+```
+
+*  **Configure using access-key and secret-key for aws S3 authentication (Deprecated):**
+
+```bash
+helm repo update
+
+helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
+--set installer.modules={cicd} \
+--set configs.BLOB_STORAGE_PROVIDER=S3 \
+--set configs.DEFAULT_CACHE_BUCKET=demo-s3-bucket \
+--set configs.DEFAULT_CACHE_BUCKET_REGION=us-east-1 \
+--set configs.DEFAULT_BUILD_LOGS_BUCKET=demo-s3-bucket \
+--set configs.DEFAULT_CD_LOGS_BUCKET_REGION=us-east-1 \
+--set secrets.BLOB_STORAGE_S3_ACCESS_KEY=<access-key> \
+--set secrets.BLOB_STORAGE_S3_SECRET_KEY=<secret-key>
 ```
 
 {% endtab %}

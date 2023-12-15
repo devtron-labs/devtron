@@ -87,24 +87,6 @@ helm install devtron devtron/devtron-operator \
 --set argo-cd.enabled=true
 ```
 
-*  Install using access-key and secret-key for AWS S3 authentication:
-
-```bash
-helm repo add devtron https://helm.devtron.ai
-
-helm install devtron devtron/devtron-operator \
---create-namespace --namespace devtroncd \
---set installer.modules={cicd} \
---set configs.BLOB_STORAGE_PROVIDER=S3 \
---set configs.DEFAULT_CACHE_BUCKET=demo-s3-bucket \
---set configs.DEFAULT_CACHE_BUCKET_REGION=us-east-1 \
---set configs.DEFAULT_BUILD_LOGS_BUCKET=demo-s3-bucket \
---set configs.DEFAULT_CD_LOGS_BUCKET_REGION=us-east-1 \
---set secrets.BLOB_STORAGE_S3_ACCESS_KEY=<access-key> \
---set secrets.BLOB_STORAGE_S3_SECRET_KEY=<secret-key> \
---set argo-cd.enabled=true
-```
-
 *  Install using S3 compatible storages: 
 
 ```bash
@@ -121,6 +103,24 @@ helm install devtron devtron/devtron-operator \
 --set secrets.BLOB_STORAGE_S3_ACCESS_KEY=<access-key> \
 --set secrets.BLOB_STORAGE_S3_SECRET_KEY=<secret-key> \
 --set configs.BLOB_STORAGE_S3_ENDPOINT=<endpoint> \
+--set argo-cd.enabled=true
+```
+
+*  Install using access-key and secret-key for AWS S3 authentication (Deprecated):
+
+```bash
+helm repo add devtron https://helm.devtron.ai
+
+helm install devtron devtron/devtron-operator \
+--create-namespace --namespace devtroncd \
+--set installer.modules={cicd} \
+--set configs.BLOB_STORAGE_PROVIDER=S3 \
+--set configs.DEFAULT_CACHE_BUCKET=demo-s3-bucket \
+--set configs.DEFAULT_CACHE_BUCKET_REGION=us-east-1 \
+--set configs.DEFAULT_BUILD_LOGS_BUCKET=demo-s3-bucket \
+--set configs.DEFAULT_CD_LOGS_BUCKET_REGION=us-east-1 \
+--set secrets.BLOB_STORAGE_S3_ACCESS_KEY=<access-key> \
+--set secrets.BLOB_STORAGE_S3_SECRET_KEY=<secret-key> \
 --set argo-cd.enabled=true
 ```
 
