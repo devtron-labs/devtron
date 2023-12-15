@@ -8,7 +8,7 @@ update devtron_resource
 set is_exposed= false
 where kind = 'application';
 
-update devtron_resource_schema
+update devtron_resource
 set is_exposed= false
 where kind = 'cd-pipeline';
 
