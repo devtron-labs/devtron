@@ -36,6 +36,19 @@ func decodeWebhook(response interface{}) (*Webhook, error) {
 	return webhook, nil
 }
 
+func decodeWebhooks(response interface{}) ([]Webhook, error) {
+	webhooks := make([]Webhook, 0)
+	resMap := response.(map[string]interface{})
+	for _, v := range resMap["values"].([]interface{}) {
+		wh, err := decodeWebhook(v)
+		if err != nil {
+			return nil, err
+		}
+		webhooks = append(webhooks, *wh)
+	}
+	return webhooks, nil
+}
+
 func (r *Webhooks) buildWebhooksBody(ro *WebhooksOptions) (string, error) {
 	body := map[string]interface{}{}
 
@@ -59,9 +72,19 @@ func (r *Webhooks) buildWebhooksBody(ro *WebhooksOptions) (string, error) {
 	return string(data), nil
 }
 
+func (r *Webhooks) List(ro *WebhooksOptions) ([]Webhook, error) {
+	urlStr := r.c.requestUrl("/repositories/%s/%s/hooks/", ro.Owner, ro.RepoSlug)
+	res, err := r.c.executePaginated("GET", urlStr, "")
+	if err != nil {
+		return nil, err
+	}
+	return decodeWebhooks(res)
+}
+
+// Deprecate Gets for List call
 func (r *Webhooks) Gets(ro *WebhooksOptions) (interface{}, error) {
 	urlStr := r.c.requestUrl("/repositories/%s/%s/hooks/", ro.Owner, ro.RepoSlug)
-	return r.c.execute("GET", urlStr, "")
+	return r.c.executePaginated("GET", urlStr, "")
 }
 
 func (r *Webhooks) Create(ro *WebhooksOptions) (*Webhook, error) {
