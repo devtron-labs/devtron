@@ -900,40 +900,50 @@ func buildCiStepsDataFromDockerBuildScripts(dockerBuildScripts []*bean.CiScript)
 
 func (impl *CiServiceImpl) buildImageTag(commitHashes map[int]pipelineConfig.GitCommit, id int, wfId int) string {
 	dockerImageTag := ""
+	toAppendDevtronParamInTag := true
 	for _, v := range commitHashes {
-		_truncatedCommit := ""
 		if v.WebhookData.Id == 0 {
 			if v.Commit == "" {
 				continue
 			}
-			_truncatedCommit = _getTruncatedImageTag(v.Commit)
+			dockerImageTag = getUpdatedDockerImageTagWithCommitOrCheckOutData(dockerImageTag, _getTruncatedImageTag(v.Commit))
 		} else {
 			_targetCheckout := v.WebhookData.Data[bean.WEBHOOK_SELECTOR_TARGET_CHECKOUT_NAME]
 			if _targetCheckout == "" {
 				continue
 			}
-			_truncatedCommit = _getTruncatedImageTag(_targetCheckout)
-			if v.WebhookData.EventActionType == bean.WEBHOOK_EVENT_MERGED_ACTION_TYPE {
+			// if not PR based then meaning tag based
+			isPRBasedEvent := v.WebhookData.EventActionType == bean.WEBHOOK_EVENT_MERGED_ACTION_TYPE
+			if !isPRBasedEvent && impl.config.CiCdConfig.UseImageTagFromGitProviderForTagBasedBuild {
+				dockerImageTag = getUpdatedDockerImageTagWithCommitOrCheckOutData(dockerImageTag, _targetCheckout)
+			} else {
+				dockerImageTag = getUpdatedDockerImageTagWithCommitOrCheckOutData(dockerImageTag, _getTruncatedImageTag(_targetCheckout))
+			}
+			if isPRBasedEvent {
 				_sourceCheckout := v.WebhookData.Data[bean.WEBHOOK_SELECTOR_SOURCE_CHECKOUT_NAME]
-				if len(_sourceCheckout) > 0 {
-					_truncatedCommit = _truncatedCommit + "-" + _getTruncatedImageTag(_sourceCheckout)
-				}
+				dockerImageTag = getUpdatedDockerImageTagWithCommitOrCheckOutData(dockerImageTag, _getTruncatedImageTag(_sourceCheckout))
+			} else {
+				toAppendDevtronParamInTag = !impl.config.CiCdConfig.UseImageTagFromGitProviderForTagBasedBuild
 			}
 		}
-
-		if dockerImageTag == "" {
-			dockerImageTag = _truncatedCommit
-		} else {
-			dockerImageTag = dockerImageTag + "-" + _truncatedCommit
-		}
 	}
-	if dockerImageTag != "" {
-		dockerImageTag = dockerImageTag + "-" + strconv.Itoa(id) + "-" + strconv.Itoa(wfId)
+	toAppendDevtronParamInTag = toAppendDevtronParamInTag && dockerImageTag != ""
+	if toAppendDevtronParamInTag {
+		dockerImageTag = fmt.Sprintf("%s-%d-%d", dockerImageTag, id, wfId)
 	}
-
 	// replace / with underscore, as docker image tag doesn't support slash. it gives error
 	dockerImageTag = strings.ReplaceAll(dockerImageTag, "/", "_")
+	return dockerImageTag
+}
 
+func getUpdatedDockerImageTagWithCommitOrCheckOutData(dockerImageTag, commitOrCheckOutData string) string {
+	if dockerImageTag == "" {
+		dockerImageTag = commitOrCheckOutData
+	} else {
+		if commitOrCheckOutData != "" {
+			dockerImageTag = fmt.Sprintf("%s-%s", dockerImageTag, commitOrCheckOutData)
+		}
+	}
 	return dockerImageTag
 }
 

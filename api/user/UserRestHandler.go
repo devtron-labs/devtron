@@ -119,7 +119,7 @@ func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Req
 				return
 			}
 			if len(filter.Team) > 0 {
-				if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionCreate, strings.ToLower(filter.Team)); !ok {
+				if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionCreate, filter.Team); !ok {
 					response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
 					return
 				}
@@ -154,7 +154,7 @@ func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Req
 					return
 				}
 				if len(groupRole.Team) > 0 {
-					if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionCreate, strings.ToLower(groupRole.Team)); !ok {
+					if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionCreate, groupRole.Team); !ok {
 						response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
 						return
 					}
@@ -282,7 +282,7 @@ func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Reques
 		for _, filter := range res.RoleFilters {
 			authPass := true
 			if len(filter.Team) > 0 {
-				if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionGet, strings.ToLower(filter.Team)); !ok {
+				if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionGet, filter.Team); !ok {
 					authPass = false
 				}
 			}
@@ -352,7 +352,7 @@ func (handler UserRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Request
 		if len(roleFilters) > 0 {
 			for _, filter := range roleFilters {
 				if len(filter.Team) > 0 {
-					if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionGet, strings.ToLower(filter.Team)); ok {
+					if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionGet, filter.Team); ok {
 						isAuthorised = true
 						break
 					}
@@ -440,7 +440,7 @@ func (handler UserRestHandlerImpl) DeleteUser(w http.ResponseWriter, r *http.Req
 				return
 			}
 			if len(filter.Team) > 0 {
-				if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionDelete, strings.ToLower(filter.Team)); !ok {
+				if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionDelete, filter.Team); !ok {
 					common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 					return
 				}
@@ -494,7 +494,7 @@ func (handler UserRestHandlerImpl) FetchRoleGroupById(w http.ResponseWriter, r *
 		for _, filter := range res.RoleFilters {
 			authPass := true
 			if len(filter.Team) > 0 {
-				if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionGet, strings.ToLower(filter.Team)); !ok {
+				if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionGet, filter.Team); !ok {
 					authPass = false
 				}
 			}
@@ -553,7 +553,7 @@ func (handler UserRestHandlerImpl) CreateRoleGroup(w http.ResponseWriter, r *htt
 				return
 			}
 			if len(filter.Team) > 0 {
-				if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionCreate, strings.ToLower(filter.Team)); !ok {
+				if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionCreate, filter.Team); !ok {
 					common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 					return
 				}
@@ -670,7 +670,7 @@ func (handler UserRestHandlerImpl) FetchRoleGroups(w http.ResponseWriter, r *htt
 		if len(roleFilters) > 0 {
 			for _, filter := range roleFilters {
 				if len(filter.Team) > 0 {
-					if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionGet, strings.ToLower(filter.Team)); ok {
+					if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionGet, filter.Team); ok {
 						isAuthorised = true
 						break
 					}
@@ -775,7 +775,7 @@ func (handler UserRestHandlerImpl) DeleteRoleGroup(w http.ResponseWriter, r *htt
 				return
 			}
 			if len(filter.Team) > 0 {
-				if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionDelete, strings.ToLower(filter.Team)); !ok {
+				if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionDelete, filter.Team); !ok {
 					common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 					return
 				}
@@ -955,7 +955,7 @@ func (handler UserRestHandlerImpl) InvalidateRoleCache(w http.ResponseWriter, r 
 }
 
 func (handler UserRestHandlerImpl) CheckManagerAuth(resource, token string, object string) bool {
-	if ok := handler.enforcer.Enforce(token, resource, casbin.ActionUpdate, strings.ToLower(object)); !ok {
+	if ok := handler.enforcer.Enforce(token, resource, casbin.ActionUpdate, object); !ok {
 		return false
 	}
 	return true

@@ -48,6 +48,7 @@ type UserAuthRepository interface {
 	GetUserRoleMappingByUserId(userId int32) ([]*UserRoleModel, error)
 	DeleteUserRoleMapping(userRoleModel *UserRoleModel, tx *pg.Tx) (bool, error)
 	DeleteUserRoleByRoleId(roleId int, tx *pg.Tx) error
+	DeleteUserRoleByRoleIds(roleIds []int, tx *pg.Tx) error
 	CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, approver bool, UserId int32) (bool, error, []casbin2.Policy)
 	CreateRoleForSuperAdminIfNotExists(tx *pg.Tx, UserId int32) (bool, error)
 	SyncOrchestratorToCasbin(team string, entityName string, env string, tx *pg.Tx) (bool, error)
@@ -56,6 +57,7 @@ type UserAuthRepository interface {
 	GetRolesForApp(appName string) ([]*RoleModel, error)
 	GetRolesForChartGroup(chartGroupName string) ([]*RoleModel, error)
 	DeleteRole(role *RoleModel, tx *pg.Tx) error
+	DeleteRolesByIds(roleIds []int, tx *pg.Tx) error
 	//GetRoleByFilterForClusterEntity(cluster, namespace, group, kind, resource, action string) (RoleModel, error)
 	GetRolesByUserIdAndEntityType(userId int32, entityType string) ([]*RoleModel, error)
 	CreateRolesWithAccessTypeAndEntity(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, UserId int32, role string) (bool, error)
@@ -63,6 +65,10 @@ type UserAuthRepository interface {
 	GetApprovalUsersByEnv(appName, envName string) ([]string, []string, error)
 	GetConfigApprovalUsersByEnv(appName, envName, team string) ([]string, []string, error)
 	GetRolesForWorkflow(workflow, entityName string) ([]*RoleModel, error)
+	GetRoleForClusterEntity(cluster, namespace, group, kind, resource, action string) (RoleModel, error)
+	GetRoleForJobsEntity(entity, team, app, env, act string, workflow string) (RoleModel, error)
+	GetRoleForOtherEntity(team, app, env, act, accessType string, oldValues, approver bool) (RoleModel, error)
+	GetRoleForChartGroupEntity(entity, app, act, accessType string) (RoleModel, error)
 }
 
 type UserAuthRepositoryImpl struct {
@@ -250,181 +256,25 @@ func (impl UserAuthRepositoryImpl) GetRolesByActionAndAccessType(action string, 
 }
 
 func (impl UserAuthRepositoryImpl) GetRoleByFilterForAllTypes(entity, team, app, env, act string, approver bool, accessType, cluster, namespace, group, kind, resource, action string, oldValues bool, workflow string) (RoleModel, error) {
-	var model RoleModel
-	if entity == bean2.CLUSTER {
-
-		query := "SELECT * FROM roles  WHERE entity = ? "
-		var err error
-
-		if len(cluster) > 0 {
-			query += " and cluster='" + cluster + "' "
-		} else {
-			query += " and cluster IS NULL "
+	switch entity {
+	case bean2.CLUSTER:
+		{
+			return impl.GetRoleForClusterEntity(cluster, namespace, group, kind, resource, action)
 		}
-		if len(namespace) > 0 {
-			query += " and namespace='" + namespace + "' "
-		} else {
-			query += " and namespace IS NULL "
+	case bean.CHART_GROUP_ENTITY:
+		{
+			return impl.GetRoleForChartGroupEntity(entity, app, act, accessType)
 		}
-		if len(group) > 0 {
-			query += " and \"group\"='" + group + "' "
-		} else {
-			query += " and \"group\" IS NULL "
+	case bean2.EntityJobs:
+		{
+			return impl.GetRoleForJobsEntity(entity, team, app, env, act, workflow)
 		}
-		if len(kind) > 0 {
-			query += " and kind='" + kind + "' "
-		} else {
-			query += " and kind IS NULL "
-		}
-		if len(resource) > 0 {
-			query += " and resource='" + resource + "' "
-		} else {
-			query += " and resource IS NULL "
-		}
-		if len(action) > 0 {
-			query += " and action='" + action + "' ;"
-		} else {
-			query += " and action IS NULL ;"
-		}
-		_, err = impl.dbConnection.Query(&model, query, bean.CLUSTER_ENTITIY)
-		if err != nil {
-			impl.Logger.Errorw("error in getting roles for clusterEntity", "err", err,
-				bean2.CLUSTER, cluster, "namespace", namespace, "kind", kind, "group", group, "resource", resource)
-			return model, err
-		}
-		return model, nil
-	}
-
-	EMPTY := ""
-	/*if act == "admin" {
-		act = "*"
-	}*/
-
-	var err error
-	if entity == bean2.CHART_GROUP_TYPE && len(app) > 0 && act == "update" {
-		query := "SELECT role.* FROM roles role WHERE role.entity = ? AND role.entity_name=? AND role.action=?"
-		if len(accessType) == 0 {
-			query = query + " and role.access_type is NULL"
-		} else {
-			query += " and role.access_type='" + accessType + "'"
-		}
-		_, err = impl.dbConnection.Query(&model, query, entity, app, act)
-	} else if entity == bean2.CHART_GROUP_TYPE && app == "" {
-		query := "SELECT role.* FROM roles role WHERE role.entity = ? AND role.action=?"
-		if len(accessType) == 0 {
-			query = query + " and role.access_type is NULL"
-		} else {
-			query += " and role.access_type='" + accessType + "'"
-		}
-		_, err = impl.dbConnection.Query(&model, query, entity, act)
-	} else if entity == bean2.EntityJobs {
-		if len(team) > 0 && len(act) > 0 {
-			query := "SELECT role.* FROM roles role WHERE role.team = ? AND role.action=? AND role.entity=? "
-			if len(env) == 0 {
-				query = query + " AND role.environment is NULL"
-			} else {
-				query += "AND role.environment='" + env + "'"
-			}
-			if len(app) == 0 {
-				query = query + " AND role.entity_name is NULL"
-			} else {
-				query += " AND role.entity_name='" + app + "'"
-			}
-			if len(workflow) == 0 {
-				query = query + " AND role.workflow is NULL;"
-			} else {
-				query += " AND role.workflow='" + workflow + "';"
-			}
-			_, err = impl.dbConnection.Query(&model, query, team, act, entity)
-		} else {
-			return model, nil
-		}
-	} else {
-
-		if len(team) > 0 && len(app) > 0 && len(env) > 0 && len(act) > 0 {
-			query := "SELECT role.* FROM roles role WHERE role.team = ? AND role.entity_name=? AND role.environment=? AND role.action=?"
-			if oldValues {
-				query = query + " and role.access_type is NULL"
-			} else {
-				query += " and role.access_type='" + accessType + "'"
-			}
-			if approver {
-				query += " and role.approver = true"
-			} else {
-				query += " and ( role.approver = false OR role.approver is null)"
-			}
-
-			_, err = impl.dbConnection.Query(&model, query, team, app, env, act)
-		} else if len(team) > 0 && app == "" && len(env) > 0 && len(act) > 0 {
-
-			query := "SELECT role.* FROM roles role WHERE role.team=? AND coalesce(role.entity_name,'')=? AND role.environment=? AND role.action=?"
-			if oldValues {
-				query = query + " and role.access_type is NULL"
-			} else {
-				query += " and role.access_type='" + accessType + "'"
-			}
-			if approver {
-				query += " and role.approver = true"
-			} else {
-				query += " and ( role.approver = false OR role.approver is null)"
-			}
-			_, err = impl.dbConnection.Query(&model, query, team, EMPTY, env, act)
-		} else if len(team) > 0 && len(app) > 0 && env == "" && len(act) > 0 {
-			//this is applicable for all environment of a team
-			query := "SELECT role.* FROM roles role WHERE role.team = ? AND role.entity_name=? AND coalesce(role.environment,'')=? AND role.action=?"
-			if oldValues {
-				query = query + " and role.access_type is NULL"
-			} else {
-				query += " and role.access_type='" + accessType + "'"
-			}
-			if approver {
-				query += " and role.approver = true"
-			} else {
-				query += " and ( role.approver = false OR role.approver is null)"
-			}
-
-			_, err = impl.dbConnection.Query(&model, query, team, app, EMPTY, act)
-		} else if len(team) > 0 && app == "" && env == "" && len(act) > 0 {
-			//this is applicable for all environment of a team
-			query := "SELECT role.* FROM roles role WHERE role.team = ? AND coalesce(role.entity_name,'')=? AND coalesce(role.environment,'')=? AND role.action=?"
-			if oldValues {
-				query = query + " and role.access_type is NULL"
-			} else {
-				query += " and role.access_type='" + accessType + "'"
-			}
-			if approver {
-				query += " and role.approver = true"
-			} else {
-				query += " and ( role.approver = false OR role.approver is null)"
-			}
-
-			_, err = impl.dbConnection.Query(&model, query, team, EMPTY, EMPTY, act)
-		} else if team == "" && app == "" && env == "" && len(act) > 0 {
-			//this is applicable for super admin, all env, all team, all app
-			query := "SELECT role.* FROM roles role WHERE coalesce(role.team,'') = ? AND coalesce(role.entity_name,'')=? AND coalesce(role.environment,'')=? AND role.action=?"
-			if len(accessType) == 0 {
-				query = query + " and role.access_type is NULL"
-			} else {
-				query += " and role.access_type='" + accessType + "'"
-			}
-			if approver {
-				query += " and role.approver = true"
-			} else {
-				query += " and ( role.approver = false OR role.approver is null)"
-			}
-			_, err = impl.dbConnection.Query(&model, query, EMPTY, EMPTY, EMPTY, act)
-		} else if team == "" && app == "" && env == "" && act == "" {
-			return model, nil
-		} else {
-			return model, nil
+	default:
+		{
+			return impl.GetRoleForOtherEntity(team, app, env, act, accessType, oldValues, approver)
 		}
 	}
-
-	if err != nil {
-		impl.Logger.Errorw("exception while fetching roles", "err", err)
-		return model, err
-	}
-	return model, nil
+	return RoleModel{}, nil
 }
 
 func (impl UserAuthRepositoryImpl) CreateUserRoleMapping(userRoleModel *UserRoleModel, tx *pg.Tx) (*UserRoleModel, error) {
@@ -460,6 +310,16 @@ func (impl UserAuthRepositoryImpl) DeleteUserRoleByRoleId(roleId int, tx *pg.Tx)
 		Where("role_id = ?", roleId).Delete()
 	if err != nil {
 		impl.Logger.Error("err in deleting user role by role id", "err", err, "roleId", roleId)
+		return err
+	}
+	return nil
+}
+func (impl UserAuthRepositoryImpl) DeleteUserRoleByRoleIds(roleIds []int, tx *pg.Tx) error {
+	var userRoleModel *UserRoleModel
+	_, err := tx.Model(userRoleModel).
+		Where("role_id in (?)", pg.In(roleIds)).Delete()
+	if err != nil {
+		impl.Logger.Error("err in deleting user role by role id", "err", err, "roleIds", roleIds)
 		return err
 	}
 	return nil
@@ -852,6 +712,16 @@ func (impl UserAuthRepositoryImpl) DeleteRole(role *RoleModel, tx *pg.Tx) error 
 	return nil
 }
 
+func (impl UserAuthRepositoryImpl) DeleteRolesByIds(roleIds []int, tx *pg.Tx) error {
+	var models []RoleModel
+	_, err := tx.Model(&models).Where("id in (?)", pg.In(roleIds)).Delete()
+	if err != nil {
+		impl.Logger.Errorw("error in deleting roles by roleIds", "err", err, "roles", roleIds)
+		return err
+	}
+	return nil
+}
+
 func (impl UserAuthRepositoryImpl) GetRolesByUserIdAndEntityType(userId int32, entityType string) ([]*RoleModel, error) {
 	var models []*RoleModel
 	err := impl.dbConnection.Model(&models).
@@ -895,4 +765,184 @@ func (impl UserAuthRepositoryImpl) GetRolesForWorkflow(workflow, entityName stri
 		return nil, err
 	}
 	return roles, nil
+}
+
+func (impl UserAuthRepositoryImpl) GetRoleForClusterEntity(cluster, namespace, group, kind, resource, action string) (RoleModel, error) {
+	var model RoleModel
+	query := "SELECT * FROM roles  WHERE entity = ? "
+	var err error
+
+	if len(cluster) > 0 {
+		query += " and cluster='" + cluster + "' "
+	} else {
+		query += " and cluster IS NULL "
+	}
+	if len(namespace) > 0 {
+		query += " and namespace='" + namespace + "' "
+	} else {
+		query += " and namespace IS NULL "
+	}
+	if len(group) > 0 {
+		query += " and \"group\"='" + group + "' "
+	} else {
+		query += " and \"group\" IS NULL "
+	}
+	if len(kind) > 0 {
+		query += " and kind='" + kind + "' "
+	} else {
+		query += " and kind IS NULL "
+	}
+	if len(resource) > 0 {
+		query += " and resource='" + resource + "' "
+	} else {
+		query += " and resource IS NULL "
+	}
+	if len(action) > 0 {
+		query += " and action='" + action + "' ;"
+	} else {
+		query += " and action IS NULL ;"
+	}
+	_, err = impl.dbConnection.Query(&model, query, bean.CLUSTER_ENTITIY)
+	if err != nil {
+		impl.Logger.Errorw("error in getting roles for clusterEntity", "err", err,
+			bean2.CLUSTER, cluster, "namespace", namespace, "kind", kind, "group", group, "resource", resource)
+		return model, err
+	}
+	return model, nil
+
+}
+func (impl UserAuthRepositoryImpl) GetRoleForJobsEntity(entity, team, app, env, act string, workflow string) (RoleModel, error) {
+	var model RoleModel
+	var err error
+	if len(team) > 0 && len(act) > 0 {
+		query := "SELECT role.* FROM roles role WHERE role.team = ? AND role.action=? AND role.entity=? "
+		if len(env) == 0 {
+			query = query + " AND role.environment is NULL"
+		} else {
+			query += "AND role.environment='" + env + "'"
+		}
+		if len(app) == 0 {
+			query = query + " AND role.entity_name is NULL"
+		} else {
+			query += " AND role.entity_name='" + app + "'"
+		}
+		if len(workflow) == 0 {
+			query = query + " AND role.workflow is NULL;"
+		} else {
+			query += " AND role.workflow='" + workflow + "';"
+		}
+		_, err = impl.dbConnection.Query(&model, query, team, act, entity)
+	} else {
+		return model, nil
+	}
+	return model, err
+}
+
+func (impl UserAuthRepositoryImpl) GetRoleForChartGroupEntity(entity, app, act, accessType string) (RoleModel, error) {
+	var model RoleModel
+	var err error
+	if len(app) > 0 && act == "update" {
+		query := "SELECT role.* FROM roles role WHERE role.entity = ? AND role.entity_name=? AND role.action=?"
+		if len(accessType) == 0 {
+			query = query + " and role.access_type is NULL"
+		} else {
+			query += " and role.access_type='" + accessType + "'"
+		}
+		_, err = impl.dbConnection.Query(&model, query, entity, app, act)
+	} else if app == "" {
+		query := "SELECT role.* FROM roles role WHERE role.entity = ? AND role.action=?"
+		if len(accessType) == 0 {
+			query = query + " and role.access_type is NULL"
+		} else {
+			query += " and role.access_type='" + accessType + "'"
+		}
+		_, err = impl.dbConnection.Query(&model, query, entity, act)
+	}
+	if err != nil {
+		impl.Logger.Errorw("error in getting role for chart group entity", "err", err, "entity", entity, "app", app, "act", act, "accessType", accessType)
+	}
+	return model, err
+}
+
+func (impl UserAuthRepositoryImpl) GetRoleForOtherEntity(team, app, env, act, accessType string, oldValues, approver bool) (RoleModel, error) {
+	var model RoleModel
+	var err error
+	if len(team) > 0 && len(app) > 0 && len(env) > 0 && len(act) > 0 {
+		query := "SELECT role.* FROM roles role WHERE role.team = ? AND role.entity_name=? AND role.environment=? AND role.action=?"
+		if oldValues {
+			query = query + " and role.access_type is NULL"
+		} else {
+			query += " and role.access_type='" + accessType + "'"
+		}
+		if approver {
+			query += " and role.approver = true"
+		} else {
+			query += " and ( role.approver = false OR role.approver is null)"
+		}
+
+		_, err = impl.dbConnection.Query(&model, query, team, app, env, act)
+	} else if len(team) > 0 && app == "" && len(env) > 0 && len(act) > 0 {
+
+		query := "SELECT role.* FROM roles role WHERE role.team=? AND coalesce(role.entity_name,'')=? AND role.environment=? AND role.action=?"
+		if oldValues {
+			query = query + " and role.access_type is NULL"
+		} else {
+			query += " and role.access_type='" + accessType + "'"
+		}
+		if approver {
+			query += " and role.approver = true"
+		} else {
+			query += " and ( role.approver = false OR role.approver is null)"
+		}
+		_, err = impl.dbConnection.Query(&model, query, team, EMPTY_PLACEHOLDER_FOR_QUERY, env, act)
+	} else if len(team) > 0 && len(app) > 0 && env == "" && len(act) > 0 {
+		//this is applicable for all environment of a team
+		query := "SELECT role.* FROM roles role WHERE role.team = ? AND role.entity_name=? AND coalesce(role.environment,'')=? AND role.action=?"
+		if oldValues {
+			query = query + " and role.access_type is NULL"
+		} else {
+			query += " and role.access_type='" + accessType + "'"
+		}
+		if approver {
+			query += " and role.approver = true"
+		} else {
+			query += " and ( role.approver = false OR role.approver is null)"
+		}
+
+		_, err = impl.dbConnection.Query(&model, query, team, app, EMPTY_PLACEHOLDER_FOR_QUERY, act)
+	} else if len(team) > 0 && app == "" && env == "" && len(act) > 0 {
+		//this is applicable for all environment of a team
+		query := "SELECT role.* FROM roles role WHERE role.team = ? AND coalesce(role.entity_name,'')=? AND coalesce(role.environment,'')=? AND role.action=?"
+		if oldValues {
+			query = query + " and role.access_type is NULL"
+		} else {
+			query += " and role.access_type='" + accessType + "'"
+		}
+		if approver {
+			query += " and role.approver = true"
+		} else {
+			query += " and ( role.approver = false OR role.approver is null)"
+		}
+
+		_, err = impl.dbConnection.Query(&model, query, team, EMPTY_PLACEHOLDER_FOR_QUERY, EMPTY_PLACEHOLDER_FOR_QUERY, act)
+	} else if team == "" && app == "" && env == "" && len(act) > 0 {
+		//this is applicable for super admin, all env, all team, all app
+		query := "SELECT role.* FROM roles role WHERE coalesce(role.team,'') = ? AND coalesce(role.entity_name,'')=? AND coalesce(role.environment,'')=? AND role.action=?"
+		if len(accessType) == 0 {
+			query = query + " and role.access_type is NULL"
+		} else {
+			query += " and role.access_type='" + accessType + "'"
+		}
+		if approver {
+			query += " and role.approver = true"
+		} else {
+			query += " and ( role.approver = false OR role.approver is null)"
+		}
+		_, err = impl.dbConnection.Query(&model, query, EMPTY_PLACEHOLDER_FOR_QUERY, EMPTY_PLACEHOLDER_FOR_QUERY, EMPTY_PLACEHOLDER_FOR_QUERY, act)
+	} else if team == "" && app == "" && env == "" && act == "" {
+		return model, nil
+	} else {
+		return model, nil
+	}
+	return model, err
 }

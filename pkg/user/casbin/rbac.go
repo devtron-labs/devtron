@@ -120,7 +120,7 @@ func (e *EnforcerImpl) Enforce(token string, resource string, action string, res
 }
 
 func (e *EnforcerImpl) EnforceByEmail(emailId string, resource string, action string, resourceItem string) bool {
-	return e.enforceByEmail(emailId, resource, action, strings.ToLower(resourceItem))
+	return e.enforceByEmail(strings.ToLower(emailId), resource, action, strings.ToLower(resourceItem))
 }
 
 func (e *EnforcerImpl) ReloadPolicy() (bool, error) {
@@ -377,7 +377,7 @@ func (e *EnforcerImpl) enforce(token string, resource string, action string, res
 	if invalid {
 		return false
 	}
-	return e.EnforceByEmail(strings.ToLower(email), resource, action, resourceItem)
+	return e.EnforceByEmail(email, resource, action, resourceItem)
 }
 
 func (e *EnforcerImpl) enforceAndUpdateCache(email string, resource string, action string, resourceItem string) bool {

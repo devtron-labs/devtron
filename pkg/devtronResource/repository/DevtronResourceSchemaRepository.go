@@ -5,14 +5,19 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"time"
 )
 
 type DevtronResourceSchemaRepository interface {
+	GetConnection() *pg.DB
 	Save(model *DevtronResourceSchema) error
 	Update(model *DevtronResourceSchema) error
+	UpdateSchema(tx *pg.Tx, model *DevtronResourceSchema, userId int) error
+	FindById(id int) (*DevtronResourceSchema, error)
 	FindByResourceId(id int) (*DevtronResourceSchema, error)
 	FindSchemaByKindSubKindAndVersion(kind string, subKind string, version string) (*DevtronResourceSchema, error)
 	GetAll() ([]*DevtronResourceSchema, error)
+	FindAllByResourceId(id int) ([]*DevtronResourceSchema, error)
 }
 
 type DevtronResourceSchemaRepositoryImpl struct {
@@ -33,9 +38,14 @@ type DevtronResourceSchema struct {
 	DevtronResourceId int      `sql:"devtron_resource_id"`
 	Version           string   `sql:"version"`
 	Schema            string   `sql:"schema"`
+	SampleSchema      string   `sql:"sample_schema"`
 	Latest            bool     `sql:"latest,notnull"`
 	sql.AuditLog
 	DevtronResource DevtronResource
+}
+
+func (impl DevtronResourceSchemaRepositoryImpl) GetConnection() *pg.DB {
+	return impl.dbConnection
 }
 
 func (impl DevtronResourceSchemaRepositoryImpl) Save(model *DevtronResourceSchema) error {
@@ -46,6 +56,25 @@ func (impl DevtronResourceSchemaRepositoryImpl) Update(model *DevtronResourceSch
 	return impl.dbConnection.Update(model)
 }
 
+func (impl DevtronResourceSchemaRepositoryImpl) UpdateSchema(tx *pg.Tx, model *DevtronResourceSchema, userId int) error {
+	_, err := tx.Model(model).
+		Set("schema = ?", model.Schema).
+		Set("updated_on = ?", time.Now()).
+		Set("updated_by = ?", userId).
+		Where("id = ?", model.Id).
+		Update()
+	return err
+}
+
+func (impl DevtronResourceSchemaRepositoryImpl) FindById(id int) (*DevtronResourceSchema, error) {
+	devtronResourceSchema := &DevtronResourceSchema{}
+	err := impl.dbConnection.
+		Model(devtronResourceSchema).
+		Where("id =?", id).
+		Select()
+	return devtronResourceSchema, err
+}
+
 func (impl DevtronResourceSchemaRepositoryImpl) FindByResourceId(id int) (*DevtronResourceSchema, error) {
 	devtronResourceSchema := &DevtronResourceSchema{}
 	err := impl.dbConnection.
@@ -54,6 +83,15 @@ func (impl DevtronResourceSchemaRepositoryImpl) FindByResourceId(id int) (*Devtr
 		Limit(1).
 		Select()
 	return devtronResourceSchema, err
+}
+
+func (impl DevtronResourceSchemaRepositoryImpl) FindAllByResourceId(id int) ([]*DevtronResourceSchema, error) {
+	var models []*DevtronResourceSchema
+	err := impl.dbConnection.
+		Model(&models).
+		Where("devtron_resource_id =?", id).
+		Select()
+	return models, err
 }
 
 func (impl DevtronResourceSchemaRepositoryImpl) FindSchemaByKindSubKindAndVersion(kind string, subKind string, version string) (*DevtronResourceSchema, error) {
