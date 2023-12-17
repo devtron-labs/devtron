@@ -434,9 +434,9 @@ func (impl AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *a
 		}
 		installAppVersionRequest.GitHash = gitOpsResponse.GitHash
 		if len(installAppVersionRequest.GitHash) > 0 {
-			err = impl.UpdateInstalledAppVersionHistoryWithGitHash(installAppVersionRequest, tx)
+			err = impl.installedAppRepositoryHistory.UpdateGitHash(installAppVersionRequest.InstalledAppVersionHistoryId, gitOpsResponse.GitHash, tx)
 			if err != nil {
-				impl.logger.Errorw("error in installAppPostDbOperation", "err", err)
+				impl.logger.Errorw("error in updating git hash ", "err", err)
 				return nil, err
 			}
 		}
@@ -1499,7 +1499,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 		installAppVersionRequest.GitHash = gitHash
 		_ = impl.appStoreDeploymentArgoCdService.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT, "Git commit done successfully.", tx)
 		_ = impl.appStoreDeploymentArgoCdService.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED, "Argocd sync initiated", tx)
-		err = impl.UpdateInstalledAppVersionHistoryWithGitHash(installAppVersionRequest, tx)
+		err = impl.installedAppRepositoryHistory.UpdateGitHash(installAppVersionRequest.InstalledAppVersionHistoryId, gitOpsResponse.GitHash, tx)
 		if err != nil {
 			impl.logger.Errorw("error on updating history for chart deployment", "error", err, "installedAppVersion", installedAppVersion)
 			return nil, err
