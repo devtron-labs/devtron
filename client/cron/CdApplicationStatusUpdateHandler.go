@@ -233,7 +233,7 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) SyncPipelineStatusForAppStoreF
 		return nil
 	}
 	if !util.IsTerminalStatus(installedAppVersionHistory.Status) {
-		impl.CdHandler.CheckAndSendArgoPipelineStatusSyncEventIfNeeded(0, installedAppVersionHistory.Id, 1, true)
+		impl.CdHandler.CheckAndSendArgoPipelineStatusSyncEventIfNeeded(0, installedAppVersion.Id, 1, true)
 	}
 	return nil
 }
