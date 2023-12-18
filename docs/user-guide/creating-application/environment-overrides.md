@@ -50,5 +50,5 @@ Click on `Update ConfigMap` to update Configmaps.
 
 Click on `Update Secrets` to update Secrets.
 
-![](../../.gitbook/assets/arora4%20%282%29.gif)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/arora4.gif)
 

@@ -20,6 +20,8 @@ package bean
 import (
 	"encoding/json"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
+	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -185,10 +187,11 @@ const (
 )
 
 const (
-	NORMAL   PipelineType = "NORMAL"
-	LINKED   PipelineType = "LINKED"
-	EXTERNAL PipelineType = "EXTERNAL"
-	CI_JOB   PipelineType = "CI_JOB"
+	NORMAL    PipelineType = "NORMAL"
+	LINKED    PipelineType = "LINKED"
+	EXTERNAL  PipelineType = "EXTERNAL"
+	CI_JOB    PipelineType = "CI_JOB"
+	LINKED_CD PipelineType = "LINKED_CD"
 )
 
 const (
@@ -218,6 +221,7 @@ const (
 	CI_PATCH_SUCCESS        CiPatchStatus = "Succeeded"
 	CI_PATCH_FAILED         CiPatchStatus = "Failed"
 	CI_PATCH_NOT_AUTHORIZED CiPatchStatus = "Not authorised"
+	CI_PATCH_SKIP           CiPatchStatus = "Skipped"
 )
 
 type CiPatchMessage string
@@ -227,6 +231,7 @@ const (
 	CI_PATCH_MULTI_GIT_ERROR        CiPatchMessage = "Build pipeline is connected to multiple git repositories"
 	CI_PATCH_REGEX_ERROR            CiPatchMessage = "Provided branch does not match regex "
 	CI_BRANCH_TYPE_ERROR            CiPatchMessage = "Branch cannot be changed for pipeline as source type is “Pull request or Tag”"
+	CI_PATCH_SKIP_MESSAGE           CiPatchMessage = "Skipped for pipeline as source type is "
 )
 
 func (a PatchAction) String() string {
@@ -264,9 +269,9 @@ type CiMaterialBulkPatchResponse struct {
 }
 
 type CiMaterialPatchResponse struct {
-	AppId   int            `json:"appId"`
-	Status  CiPatchStatus  `json:"status"`
-	Message CiPatchMessage `json:"message"`
+	AppId   int           `json:"appId"`
+	Status  CiPatchStatus `json:"status"`
+	Message string        `json:"message"`
 }
 
 type CiPatchRequest struct {
@@ -277,6 +282,17 @@ type CiPatchRequest struct {
 	UserId        int32       `json:"-"`
 	IsJob         bool        `json:"-"`
 	IsCloneJob    bool        `json:"isCloneJob,omitempty"`
+
+	ParentCDPipeline               int          `json:"parentCDPipeline"`
+	DeployEnvId                    int          `json:"deployEnvId"`
+	SwitchFromCiPipelineId         int          `json:"switchFromCiPipelineId"`
+	SwitchFromExternalCiPipelineId int          `json:"switchFromExternalCiPipelineId"`
+	SwitchFromCiPipelineType       PipelineType `json:"-"`
+	SwitchToCiPipelineType         PipelineType `json:"-"`
+}
+
+func (ciPatchRequest CiPatchRequest) IsSwitchCiPipelineRequest() bool {
+	return (ciPatchRequest.SwitchFromCiPipelineId != 0 || ciPatchRequest.SwitchFromExternalCiPipelineId != 0)
 }
 
 type CiRegexPatchRequest struct {
@@ -331,29 +347,31 @@ type TriggerViewCiConfig struct {
 }
 
 type CiConfigRequest struct {
-	Id                int                     `json:"id,omitempty" validate:"number"` //ciTemplateId
-	AppId             int                     `json:"appId,omitempty" validate:"required,number"`
-	DockerRegistry    string                  `json:"dockerRegistry,omitempty" `  //repo id example ecr mapped one-one with gocd registry entry
-	DockerRepository  string                  `json:"dockerRepository,omitempty"` // example test-app-1 which is inside ecr
-	CiBuildConfig     *bean.CiBuildConfigBean `json:"ciBuildConfig"`
-	CiPipelines       []*CiPipeline           `json:"ciPipelines,omitempty" validate:"dive"` //a pipeline will be built for each ciMaterial
-	AppName           string                  `json:"appName,omitempty"`
-	Version           string                  `json:"version,omitempty"` //gocd etag used for edit purpose
-	DockerRegistryUrl string                  `json:"-"`
-	CiTemplateName    string                  `json:"-"`
-	UserId            int32                   `json:"-"`
-	Materials         []Material              `json:"materials"`
-	AppWorkflowId     int                     `json:"appWorkflowId,omitempty"`
-	BeforeDockerBuild []*Task                 `json:"beforeDockerBuild,omitempty" validate:"dive"`
-	AfterDockerBuild  []*Task                 `json:"afterDockerBuild,omitempty" validate:"dive"`
-	ScanEnabled       bool                    `json:"scanEnabled,notnull"`
-	CreatedOn         time.Time               `sql:"created_on,type:timestamptz"`
-	CreatedBy         int32                   `sql:"created_by,type:integer"`
-	UpdatedOn         time.Time               `sql:"updated_on,type:timestamptz"`
-	UpdatedBy         int32                   `sql:"updated_by,type:integer"`
-	IsJob             bool                    `json:"-"`
-	CiGitMaterialId   int                     `json:"ciGitConfiguredId"`
-	IsCloneJob        bool                    `json:"isCloneJob,omitempty"`
+	Id                 int                             `json:"id,omitempty" validate:"number"` //ciTemplateId
+	AppId              int                             `json:"appId,omitempty" validate:"required,number"`
+	DockerRegistry     string                          `json:"dockerRegistry,omitempty" `  //repo id example ecr mapped one-one with gocd registry entry
+	DockerRepository   string                          `json:"dockerRepository,omitempty"` // example test-app-1 which is inside ecr
+	CiBuildConfig      *bean.CiBuildConfigBean         `json:"ciBuildConfig"`
+	CiPipelines        []*CiPipeline                   `json:"ciPipelines,omitempty" validate:"dive"` //a pipeline will be built for each ciMaterial
+	AppName            string                          `json:"appName,omitempty"`
+	Version            string                          `json:"version,omitempty"` //gocd etag used for edit purpose
+	DockerRegistryUrl  string                          `json:"-"`
+	CiTemplateName     string                          `json:"-"`
+	UserId             int32                           `json:"-"`
+	Materials          []Material                      `json:"materials"`
+	AppWorkflowId      int                             `json:"appWorkflowId,omitempty"`
+	BeforeDockerBuild  []*Task                         `json:"beforeDockerBuild,omitempty" validate:"dive"`
+	AfterDockerBuild   []*Task                         `json:"afterDockerBuild,omitempty" validate:"dive"`
+	ScanEnabled        bool                            `json:"scanEnabled,notnull"`
+	CreatedOn          time.Time                       `sql:"created_on,type:timestamptz"`
+	CreatedBy          int32                           `sql:"created_by,type:integer"`
+	UpdatedOn          time.Time                       `sql:"updated_on,type:timestamptz"`
+	UpdatedBy          int32                           `sql:"updated_by,type:integer"`
+	IsJob              bool                            `json:"-"`
+	CiGitMaterialId    int                             `json:"ciGitConfiguredId"`
+	IsCloneJob         bool                            `json:"isCloneJob,omitempty"`
+	AppWorkflowMapping *appWorkflow.AppWorkflowMapping `json:"-"`
+	Artifact           *repository3.CiArtifact         `json:"-"`
 }
 
 type CiPipelineMinResponse struct {
@@ -569,6 +587,11 @@ type CDPipelineConfigObject struct {
 	CustomTagObject               *CustomTagData                         `json:"customTag"`
 	CustomTagStage                *repository.PipelineStageType          `json:"customTagStage"`
 	EnableCustomTag               bool                                   `json:"enableCustomTag"`
+	SwitchFromCiPipelineId        int                                    `json:"switchFromCiPipelineId"`
+}
+
+func (cdpipelineConfig *CDPipelineConfigObject) IsSwitchCiPipelineRequest() bool {
+	return cdpipelineConfig.SwitchFromCiPipelineId > 0 && cdpipelineConfig.AppWorkflowId > 0
 }
 
 type PreStageConfigMapSecretNames struct {

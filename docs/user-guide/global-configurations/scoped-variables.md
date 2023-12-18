@@ -7,7 +7,7 @@ In any piece of software or code, variables are used for holding data such as nu
 Devtron offers super-admins the capability to define scoped variables (key-value pairs). It means, while the key remains the same, its value may change depending on the following context: 
 
 * **Global**: Variable value will be universally same throughout Devtron.
-* **Cluster**: Variable value might differ for each Kubernetes cluster. [![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg)](https://devtron.ai/pricing)
+* **Cluster**: Variable value might differ for each Kubernetes cluster. <a href="https://devtron.ai/pricing" target="_blank"> <img src="https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg"></a>
 * **Environment**: Variable value might differ for each environment within a cluster, e.g., staging, dev, prod. [![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg)](https://devtron.ai/pricing)
 * **Application**: Variable value might differ for each application. [![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg)](https://devtron.ai/pricing)
 * **Environment + Application**: Variable value might differ for each application on a specific environment. [![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg)](https://devtron.ai/pricing)
@@ -63,33 +63,36 @@ The `spec.values` array further contains the following elements:
 
 Here's a truncated template containing the specification of two variables for your understanding:
 
-    apiVersion: devtron.ai/v1beta1
-    kind: Variable
-    spec:
+```yaml
+apiVersion: devtron.ai/v1beta1
+kind: Variable
+spec:
 
-    # First example of a variable
-    - name: DB_URL 
+# First example of a variable
+  - name: DB_URL
     shortDescription: My application's customers are stored
-    notes: The DB is a MySQL DB running version 7.0. The DB contains confidential information.
-    isSensitive: true 
-    values: 
-        - category: Global 
-        value: mysql.example.com 
+    notes: The DB is a MySQL DB running version 7.0. The DB contains confidential
+      information.
+    isSensitive: true
+    values:
+      - category: Global
+        value: mysql.example.com
 
-    # Second example of a variable
-    - name: DB_Name
+# Second example of a variable
+  - name: DB_Name
     shortDescription: My database name to recognize the DB
     notes: NA
-    isSensitive: false 
-    values: 
-        - category: Global 
-        value: Devtron 
-        - category: ApplicationEnv 
+    isSensitive: false
+    values:
+      - category: Global
+        value: Devtron
+      - category: ApplicationEnv
         value: app1-p
         selectors:
-            attributeSelectors:
+          attributeSelectors:
             ApplicationName: MyFirstApplication
             EnvName: prod
+```
 
 ### Upload the Template
 

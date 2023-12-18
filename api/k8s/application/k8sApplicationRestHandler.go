@@ -201,6 +201,14 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 		common.WriteJsonResp(w, err, resource, http.StatusInternalServerError)
 		return
 	}
+	if resource != nil {
+		err = resource.SetRunningEphemeralContainers()
+		if err != nil {
+			handler.logger.Errorw("error in setting running ephemeral containers and setting them in resource response", "err", err)
+			common.WriteJsonResp(w, err, resource, http.StatusInternalServerError)
+			return
+		}
+	}
 
 	canUpdate := false
 	// Obfuscate secret if user does not have edit access
@@ -860,7 +868,7 @@ func (handler *K8sApplicationRestHandlerImpl) getRbacCallbackForResource(token s
 
 func (handler *K8sApplicationRestHandlerImpl) verifyRbacForResource(token string, clusterName string, resourceIdentifier util3.ResourceIdentifier, casbinAction string) bool {
 	resourceName, objectName := handler.enforcerUtil.GetRBACNameForClusterEntity(clusterName, resourceIdentifier)
-	return handler.enforcer.Enforce(token, strings.ToLower(resourceName), casbinAction, strings.ToLower(objectName))
+	return handler.enforcer.Enforce(token, strings.ToLower(resourceName), casbinAction, objectName)
 }
 
 func (handler *K8sApplicationRestHandlerImpl) verifyRbacForCluster(token string, clusterName string, request k8s.ResourceRequestBean, casbinAction string) bool {

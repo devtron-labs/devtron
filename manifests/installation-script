@@ -1,4 +1,4 @@
-LTAG="v0.6.24";
+LTAG="v0.6.26";
 REPO_RAW_URL="https://raw.githubusercontent.com/devtron-labs/devtron/";
 
 operatorSecret = kubectl get secret -n devtroncd devtron-operator-secret;
@@ -61,7 +61,6 @@ if !defaultCacheBucket {
 argocdResource_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/argocd-resource.json";
 devtronHousekeeping_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/devtron-housekeeping.yaml";
 kubewatch_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/kubewatch.yaml";
-natsServer_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/nats-server.yaml";
 devtron_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/devtron.yaml";
 devtronIngress_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/devtron-ingress.yaml";
 if enableLegacyApi=="true" {
@@ -75,7 +74,6 @@ namespace_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/namespace.yaml";
 argocdResource = download(argocdResource_raw);
 devtronHousekeeping = download(devtronHousekeeping_raw);
 kubewatch = download(kubewatch_raw);
-natsServer = download(natsServer_raw);
 devtron = download(devtron_raw);
 devtronIngress = download(devtronIngress_raw);
 serviceAccount = download(serviceAccount_raw);
@@ -85,14 +83,12 @@ namespace = download(namespace_raw);
 
 devtronHousekeepingOverride = kubectl get cm -n devtroncd devtron-housekeeping-override-cm;
 kubewatchOverride = kubectl get cm -n devtroncd kubewatch-override-cm;
-natsServerOverride = kubectl get cm -n devtroncd nats-server-override-cm;
 devtronOverride = kubectl get cm -n devtroncd devtron-override-cm;
 devtronIngressOverride = kubectl get cm -n devtroncd devtron-ingress-override-cm;
 serviceAccountOverride = kubectl get cm -n devtroncd devtron-service-account-override-cm;
 namespaceOverride = kubectl get cm -n devtroncd namespace-override-cm;
 
 kubewatchOverride = jsonSelect(kubewatchOverride, "data.override");
-natsServerOverride = jsonSelect(natsServerOverride, "data.override");
 devtronOverride = jsonSelect(devtronOverride, "data.override");
 devtronIngressOverride = jsonSelect(devtronIngressOverride, "data.override");
 serviceAccountOverride = jsonSelect(serviceAccountOverride, "data.override");
@@ -117,16 +113,8 @@ hasNatsServerPVC = kubectl get -n devtroncd pvc data-devtron-nats-0;
 if hasNatsServerPod && !hasNatsServerPVC {
   log("Nats Server PVC not found");
   natsStsDelete = kubectl delete -n devtroncd sts devtron-nats;
-  ignore = shellScript sleep50;
-  natsServerWithPVC = kubectl apply -n devtroncd natsServer -u natsServerOverride;
-  log("Nats PVC created and statefulset re-created");
+  log("Deleted nats server statefulset");
 }
-else {
-ignore = shellScript sleep50;
-natsServer = kubectl apply -n devtroncd natsServer -u natsServerOverride;
-}
-log(hasNatsServerPod);
-log("executed nats server setup");
 hasNatsStreaming = kubectl get statefulset -n devtroncd devtron-stan;
 if hasNatsStreaming {
   natsStreamingDelete = kubectl delete -n devtroncd sts devtron-stan;

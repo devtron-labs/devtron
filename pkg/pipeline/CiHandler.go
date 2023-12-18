@@ -1142,6 +1142,10 @@ func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 		}
 		savedWorkflow.PodStatus = podStatus
 		savedWorkflow.Message = message
+		// NOTE: we are doing this for a quick fix where ci pending message become larger than 250 and in db we had set the charter limit to 250
+		if len(message) > 250 {
+			savedWorkflow.Message = message[:250]
+		}
 		if savedWorkflow.ExecutorType == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM && savedWorkflow.Status == executors.WorkflowCancel {
 			savedWorkflow.PodStatus = "Failed"
 			savedWorkflow.Message = TERMINATE_MESSAGE
@@ -1449,7 +1453,7 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int, envId
 		return &types.GitTriggerInfoResponse{}, err
 	}
 
-	ciPipeline, err := impl.ciPipelineRepository.FindById(ciArtifact.PipelineId)
+	ciPipeline, err := impl.ciPipelineRepository.FindByIdIncludingInActive(ciArtifact.PipelineId)
 	if err != nil {
 		impl.Logger.Errorw("err", "ciArtifactId", ciArtifactId, "err", err)
 		return &types.GitTriggerInfoResponse{}, err
@@ -1640,11 +1644,16 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 	for _, ciWorkflow := range ciWorkflows {
 		var isExt bool
 		var env *repository3.Environment
+		var restConfig *rest.Config
 		if ciWorkflow.Namespace != DefaultCiWorkflowNamespace {
 			isExt = true
 			env, err = impl.envRepository.FindById(ciWorkflow.EnvironmentId)
 			if err != nil {
 				impl.Logger.Errorw("could not fetch stage env", "err", err)
+				return err
+			}
+			restConfig, err = impl.getRestConfig(ciWorkflow)
+			if err != nil {
 				return err
 			}
 		}
@@ -1653,10 +1662,6 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 		isPodDeleted := false
 		if time.Since(ciWorkflow.StartedOn) > (time.Minute * time.Duration(timeoutForFailureCiBuild)) {
 
-			restConfig, err := impl.getRestConfig(ciWorkflow)
-			if err != nil {
-				return err
-			}
 			//check weather pod is exists or not, if exits check its status
 			wf, err := impl.workflowService.GetWorkflowStatus(ciWorkflow.ExecutorType, ciWorkflow.Name, ciWorkflow.Namespace, restConfig)
 			if err != nil {
