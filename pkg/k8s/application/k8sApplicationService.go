@@ -227,9 +227,8 @@ func (impl *K8sApplicationServiceImpl) ValidateTerminalRequestQuery(r *http.Requ
 	request.Namespace = vars["namespace"]
 	request.PodName = vars["pod"]
 	request.Shell = vars["shell"]
-	isArgoApplication, _ := strconv.ParseBool(v.Get("isArgo"))
 	resourceRequestBean := &k8s.ResourceRequestBean{}
-	resourceRequestBean.IsArgoApplication = isArgoApplication
+	resourceRequestBean.ExternalArgoApplicationName = v.Get("externalArgoApplicationName")
 	identifier := vars["identifier"]
 	if strings.Contains(identifier, "|") {
 		// Validate App Type
@@ -315,7 +314,7 @@ func (impl *K8sApplicationServiceImpl) GetPodLogs(ctx context.Context, request *
 	resourceIdentifier := request.K8sRequest.ResourceIdentifier
 	podLogsRequest := request.K8sRequest.PodLogsRequest
 	var restConfigFinal *rest.Config
-	if request.IsArgoApplication {
+	if len(request.ExternalArgoApplicationName) > 0 {
 		restConfig, err := impl.argoApplicationService.GetRestConfigForExternalArgo(ctx, clusterId, request.ExternalArgoApplicationName)
 		if err != nil {
 			impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", clusterId, "externalArgoApplicationName", request.ExternalArgoApplicationName)
@@ -714,7 +713,7 @@ func (impl *K8sApplicationServiceImpl) CreatePodEphemeralContainers(req *cluster
 	var clientSet *kubernetes.Clientset
 	var v1Client *v1.CoreV1Client
 	var err error
-	if req.IsArgoApplication {
+	if len(req.ExternalArgoApplicationName) > 0 {
 		clientSet, v1Client, err = impl.k8sCommonService.GetCoreClientByClusterIdForExternalArgoApps(req)
 		if err != nil {
 			impl.logger.Errorw("error in getting coreV1 client by clusterId", "err", err, "req", req)
@@ -860,11 +859,11 @@ func (impl *K8sApplicationServiceImpl) generateDebugContainer(pod *corev1.Pod, r
 
 func (impl *K8sApplicationServiceImpl) TerminatePodEphemeralContainer(req cluster.EphemeralContainerRequest) (bool, error) {
 	terminalReq := &terminal.TerminalSessionRequest{
-		PodName:           req.PodName,
-		ClusterId:         req.ClusterId,
-		Namespace:         req.Namespace,
-		ContainerName:     req.BasicData.ContainerName,
-		IsArgoApplication: req.IsArgoApplication,
+		PodName:                     req.PodName,
+		ClusterId:                   req.ClusterId,
+		Namespace:                   req.Namespace,
+		ContainerName:               req.BasicData.ContainerName,
+		ExternalArgoApplicationName: req.ExternalArgoApplicationName,
 	}
 
 	containerKillCommand := fmt.Sprintf("kill -16 $(pgrep -f '%s' -o)", fmt.Sprintf(k8sObjectUtils.EphemeralContainerStartingShellScriptFileName, terminalReq.ContainerName))

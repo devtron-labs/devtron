@@ -74,7 +74,7 @@ func (impl *K8sCommonServiceImpl) GetResource(ctx context.Context, request *Reso
 	//getting rest config by clusterId
 	resourceIdentifier := request.K8sRequest.ResourceIdentifier
 	var restConfigFinal *rest.Config
-	if request.IsArgoApplication {
+	if len(request.ExternalArgoApplicationName) > 0 {
 		restConfig, err := impl.argoApplicationService.GetRestConfigForExternalArgo(ctx, clusterId, request.ExternalArgoApplicationName)
 		if err != nil {
 			impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", clusterId, "externalArgoApplicationName", request.ExternalArgoApplicationName)
@@ -135,7 +135,7 @@ func (impl *K8sCommonServiceImpl) ListEvents(ctx context.Context, request *Resou
 	clusterId := request.ClusterId
 	resourceIdentifier := request.K8sRequest.ResourceIdentifier
 	var restConfigFinal *rest.Config
-	if request.IsArgoApplication {
+	if len(request.ExternalArgoApplicationName) > 0 {
 		restConfig, err := impl.argoApplicationService.GetRestConfigForExternalArgo(ctx, clusterId, request.ExternalArgoApplicationName)
 		if err != nil {
 			impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", clusterId, "externalArgoApplicationName", request.ExternalArgoApplicationName)

@@ -14,7 +14,6 @@ type ResourceRequestBean struct {
 	K8sRequest                  *k8s.K8sRequestBean        `json:"k8sRequest"`
 	DevtronAppIdentifier        *bean.DevtronAppIdentifier `json:"-"`         // For Devtron App Resources
 	ClusterId                   int                        `json:"clusterId"` // clusterId is used when request is for direct cluster (not for helm release)
-	IsArgoApplication           bool                       `json:"-"`
 	ExternalArgoApplicationName string                     `json:"externalArgoApplicationName,omitempty"`
 }
 

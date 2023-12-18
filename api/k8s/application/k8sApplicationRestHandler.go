@@ -5,6 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"strconv"
+	"strings"
+
 	util3 "github.com/devtron-labs/common-lib/utils/k8s"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
@@ -28,9 +32,6 @@ import (
 	"gopkg.in/go-playground/validator.v9"
 	errors3 "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"net/http"
-	"strconv"
-	"strings"
 )
 
 type K8sApplicationRestHandler interface {
@@ -134,8 +135,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 		return
 	}
 	vars := r.URL.Query()
-	isArgoApplication, _ := strconv.ParseBool(vars.Get("isArgo"))
-	request.IsArgoApplication = isArgoApplication
+	request.ExternalArgoApplicationName = vars.Get("externalArgoApplicationName")
 	rbacObject := ""
 	rbacObject2 := ""
 	envObject := ""
@@ -532,8 +532,7 @@ func (handler *K8sApplicationRestHandlerImpl) ListEvents(w http.ResponseWriter, 
 		return
 	}
 	vars := r.URL.Query()
-	isArgoApplication, _ := strconv.ParseBool(vars.Get("isArgo"))
-	request.IsArgoApplication = isArgoApplication
+	request.ExternalArgoApplicationName = vars.Get("externalArgoApplicationName")
 	if request.AppId != "" && request.AppType == bean2.HelmAppType {
 		// For Helm app resource
 		appIdentifier, err := handler.helmAppService.DecodeAppId(request.AppId)
@@ -614,8 +613,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 		return
 	}
 	vars := r.URL.Query()
-	isArgoApplication, _ := strconv.ParseBool(vars.Get("isArgo"))
-	request.IsArgoApplication = isArgoApplication
+	request.ExternalArgoApplicationName = vars.Get("externalArgoApplicationName")
 	appTypeStr := vars.Get("appType")
 	appType, _ := strconv.Atoi(appTypeStr) //ignore error as this var is not expected for devtron apps/helm apps/resource bowser. appType var is needed in case of Argo Apps
 	if request.AppIdentifier != nil {
@@ -707,7 +705,6 @@ func (handler *K8sApplicationRestHandlerImpl) GetTerminalSession(w http.Response
 		return
 	}
 	vars := r.URL.Query()
-	isArgoApplication, _ := strconv.ParseBool(vars.Get("isArgo"))
 	appTypeStr := vars.Get("appType")
 	appType, _ := strconv.Atoi(appTypeStr) //ignore error as this var is not expected for devtron apps/helm apps/resource bowser. appType var is needed in case of Argo Apps
 	request, resourceRequestBean, err := handler.k8sApplicationService.ValidateTerminalRequestQuery(r)
@@ -715,7 +712,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetTerminalSession(w http.Response
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	request.IsArgoApplication = isArgoApplication
+	request.ExternalArgoApplicationName = vars.Get("externalArgoApplicationName")
 	if resourceRequestBean.AppIdentifier != nil {
 		// RBAC enforcer applying For Helm App
 		rbacObject, rbacObject2 := handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(resourceRequestBean.AppIdentifier.ClusterId, resourceRequestBean.AppIdentifier.Namespace, resourceRequestBean.AppIdentifier.ReleaseName)
@@ -925,8 +922,7 @@ func (handler *K8sApplicationRestHandlerImpl) CreateEphemeralContainer(w http.Re
 	}
 	request.UserId = userId
 	vars := r.URL.Query()
-	isArgoApplication, _ := strconv.ParseBool(vars.Get("isArgo"))
-	request.IsArgoApplication = isArgoApplication
+	request.ExternalArgoApplicationName = vars.Get("externalArgoApplicationName")
 	err = handler.k8sApplicationService.CreatePodEphemeralContainers(&request)
 	if err != nil {
 		handler.logger.Errorw("error occurred in creating ephemeral container", "err", err, "requestPayload", request)
@@ -970,8 +966,7 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteEphemeralContainer(w http.Re
 	}
 	request.UserId = userId
 	vars := r.URL.Query()
-	isArgoApplication, _ := strconv.ParseBool(vars.Get("isArgo"))
-	request.IsArgoApplication = isArgoApplication
+	request.ExternalArgoApplicationName = vars.Get("externalArgoApplicationName")
 	_, err = handler.k8sApplicationService.TerminatePodEphemeralContainer(request)
 	if err != nil {
 		handler.logger.Errorw("error occurred in terminating ephemeral container", "err", err, "requestPayload", request)
@@ -992,8 +987,7 @@ func (handler *K8sApplicationRestHandlerImpl) handleEphemeralRBAC(podName, names
 	}
 	vars := r.URL.Query()
 	appTypeStr := vars.Get("appType")
-	isArgoApplication, _ := strconv.ParseBool(vars.Get("isArgo"))
-	resourceRequestBean.IsArgoApplication = isArgoApplication
+	resourceRequestBean.ExternalArgoApplicationName = vars.Get("externalArgoApplicationName")
 	appType, _ := strconv.Atoi(appTypeStr) //ignore error as this var is not expected for devtron apps/helm apps/resource bowser. appType var is needed in case of Argo Apps
 	if resourceRequestBean.AppIdentifier != nil {
 		// RBAC enforcer applying For Helm App

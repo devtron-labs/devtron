@@ -316,7 +316,6 @@ type TerminalSessionRequest struct {
 	//ClusterId is optional
 	ClusterId                   int
 	UserId                      int32
-	IsArgoApplication           bool
 	ExternalArgoApplicationName string
 }
 
@@ -443,7 +442,7 @@ func (impl *TerminalSessionHandlerImpl) getClientConfig(req *TerminalSessionRequ
 	var clusterBean *cluster.ClusterBean
 	var clusterConfig *k8s.ClusterConfig
 	var err error
-	if req.IsArgoApplication {
+	if len(req.ExternalArgoApplicationName) > 0 {
 		restConfig, err := impl.argoApplicationService.GetRestConfigForExternalArgo(context.Background(), req.ClusterId, req.ExternalArgoApplicationName)
 		if err != nil {
 			impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", req.ClusterId, "externalArgoApplicationName", req.ExternalArgoApplicationName)
@@ -555,7 +554,7 @@ func (impl *TerminalSessionHandlerImpl) RunCmdInRemotePod(req *TerminalSessionRe
 
 func (impl *TerminalSessionHandlerImpl) saveEphemeralContainerTerminalAccessAudit(req *TerminalSessionRequest) error {
 	var clusterConfig *k8s.ClusterConfig
-	if req.IsArgoApplication {
+	if len(req.ExternalArgoApplicationName) > 0 {
 		restConfig, err := impl.argoApplicationService.GetRestConfigForExternalArgo(context.Background(), req.ClusterId, req.ExternalArgoApplicationName)
 		if err != nil {
 			impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", req.ClusterId, "externalArgoApplicationName", req.ExternalArgoApplicationName)

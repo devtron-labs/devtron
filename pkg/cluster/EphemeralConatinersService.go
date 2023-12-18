@@ -15,7 +15,6 @@ type EphemeralContainerRequest struct {
 	ClusterId                   int                             `json:"clusterId" validate:"gt=0"`
 	PodName                     string                          `json:"podName"   validate:"required"`
 	UserId                      int32                           `json:"-"`
-	IsArgoApplication           bool                            `json:"-"`
 	ExternalArgoApplicationName string                          `json:"externalArgoApplicationName,omitempty"`
 }
 
