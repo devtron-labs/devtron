@@ -963,7 +963,7 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, c
 	for deploymentType, allowed := range DeploymentAppConfigForEnvironment {
 		AllowedDeploymentAppTypes[deploymentType] = allowed
 	}
-	isGitopsConfigured, err := impl.pipelineBuilder.IsGitopsConfigured()
+	isGitopsConfigured, _, err := impl.pipelineBuilder.IsGitopsConfigured()
 	if err != nil {
 		impl.logger.Errorw("error in checking if gitOps configured", "err", err)
 		return nil, err

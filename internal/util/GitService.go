@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/util"
 	"io/ioutil"
-	"net/url"
 	"path/filepath"
 	"time"
 
@@ -111,23 +110,7 @@ func (factory *GitFactory) GetGitLabGroupPath(gitOpsConfig *bean2.GitOpsConfigDt
 	defer func() {
 		util.TriggerGitOpsMetrics("GetGitLabGroupPath", "GitService", start, err)
 	}()
-	if len(gitOpsConfig.Host) > 0 {
-		_, err = url.ParseRequestURI(gitOpsConfig.Host)
-		if err != nil {
-			return "", err
-		}
-		gitLabClient, err = gitlab.NewClient(gitOpsConfig.Token, gitlab.WithBaseURL(gitOpsConfig.Host))
-		if err != nil {
-			factory.logger.Errorw("error in getting new gitlab client", "err", err)
-			return "", err
-		}
-	} else {
-		gitLabClient, err = gitlab.NewClient(gitOpsConfig.Token)
-		if err != nil {
-			factory.logger.Errorw("error in getting new gitlab client", "err", err)
-			return "", err
-		}
-	}
+	gitLabClient, err = CreateGitlabClient(gitOpsConfig.Host, gitOpsConfig.Token, gitOpsConfig.AllowInsecureTLS)
 	group, _, err := gitLabClient.Groups.GetGroup(gitOpsConfig.GitLabGroupId, &gitlab.GetGroupOptions{})
 	if err != nil {
 		factory.logger.Errorw("error in fetching gitlab group name", "err", err, "gitLab groupID", gitOpsConfig.GitLabGroupId)
@@ -158,6 +141,7 @@ func (factory *GitFactory) NewClientForValidation(gitOpsConfig *bean2.GitOpsConf
 		AzureProject:         gitOpsConfig.AzureProjectName,
 		BitbucketWorkspaceId: gitOpsConfig.BitBucketWorkspaceId,
 		BitbucketProjectKey:  gitOpsConfig.BitBucketProjectKey,
+		AllowInsecureTLS:     gitOpsConfig.AllowInsecureTLS,
 	}
 	gitService := NewGitServiceImpl(cfg, logger, factory.gitCliUtil)
 	//factory.GitService = GitService
@@ -204,6 +188,7 @@ type GitConfig struct {
 	AzureProject         string
 	BitbucketWorkspaceId string
 	BitbucketProjectKey  string
+	AllowInsecureTLS     bool
 }
 
 func GetGitConfig(gitOpsRepository repository.GitOpsConfigRepository) (*GitConfig, error) {
@@ -233,6 +218,7 @@ func GetGitConfig(gitOpsRepository repository.GitOpsConfigRepository) (*GitConfi
 		AzureProject:         gitOpsConfig.AzureProject,
 		BitbucketWorkspaceId: gitOpsConfig.BitBucketWorkspaceId,
 		BitbucketProjectKey:  gitOpsConfig.BitBucketProjectKey,
+		AllowInsecureTLS:     gitOpsConfig.AllowInsecureTLS,
 	}
 	return cfg, err
 }
@@ -311,7 +297,7 @@ func (impl GitServiceImpl) Clone(url, targetDir string) (clonedDir string, err e
 	}()
 	impl.logger.Debugw("git checkout ", "url", url, "dir", targetDir)
 	clonedDir = filepath.Join(impl.config.GitWorkingDir, targetDir)
-	_, errorMsg, err := impl.gitCliUtil.Clone(clonedDir, url, impl.Auth.Username, impl.Auth.Password)
+	_, errorMsg, err := impl.gitCliUtil.Clone(clonedDir, url, impl.Auth.Username, impl.Auth.Password, impl.config.AllowInsecureTLS)
 	if err != nil {
 		impl.logger.Errorw("error in git checkout", "url", url, "targetDir", targetDir, "err", err)
 		return "", err
@@ -323,6 +309,10 @@ func (impl GitServiceImpl) Clone(url, targetDir string) (clonedDir string, err e
 }
 
 func (impl GitServiceImpl) CommitAndPushAllChanges(repoRoot, commitMsg, name, emailId string) (commitHash string, err error) {
+	if impl.config.AllowInsecureTLS {
+		commitHash, _, err = impl.gitCliUtil.CommitAndPush(repoRoot, commitMsg, name, emailId, impl.Auth.Username, impl.Auth.Password, impl.config.AllowInsecureTLS)
+		return commitHash, err
+	}
 	start := time.Now()
 	defer func() {
 		util.TriggerGitOpsMetrics("CommitAndPushAllChanges", "GitService", start, err)

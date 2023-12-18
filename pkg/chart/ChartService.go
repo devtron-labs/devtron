@@ -91,7 +91,7 @@ type ChartService interface {
 	FormatChartName(chartName string) string
 	ValidateUploadedFileFormat(fileName string) error
 	ReadChartMetaDataForLocation(chartDir string, fileName string) (*ChartYamlStruct, error)
-	RegisterInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context) error
+	RegisterInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context, gitOpsAllowInsecureTLS bool) error
 	FetchCustomChartsInfo() ([]*ChartDto, error)
 	CheckCustomChartByAppId(id int) (bool, error)
 	CheckCustomChartByChartId(id int) (bool, error)
@@ -587,9 +587,10 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 	return chartVal, err
 }
 
-func (impl ChartServiceImpl) RegisterInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context) error {
+func (impl ChartServiceImpl) RegisterInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context, gitOpsAllowInsecureTLS bool) error {
 	repo := &v1alpha1.Repository{
-		Repo: chartGitAttribute.RepoUrl,
+		Repo:     chartGitAttribute.RepoUrl,
+		Insecure: gitOpsAllowInsecureTLS,
 	}
 	repo, err := impl.repositoryService.Create(ctx, &repository2.RepoCreateRequest{Repo: repo, Upsert: true})
 	if err != nil {

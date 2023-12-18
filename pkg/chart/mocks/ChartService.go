@@ -681,7 +681,7 @@ func (_m *ChartService) ReadChartMetaDataForLocation(chartDir string, fileName s
 }
 
 // RegisterInArgo provides a mock function with given fields: chartGitAttribute, ctx
-func (_m *ChartService) RegisterInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context) error {
+func (_m *ChartService) RegisterInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context, gitOpsAllowInsecureTLS bool) error {
 	ret := _m.Called(chartGitAttribute, ctx)
 
 	var r0 error

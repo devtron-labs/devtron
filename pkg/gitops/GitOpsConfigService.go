@@ -208,6 +208,7 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(ctx context.Context, req
 		AzureProject:         request.AzureProjectName,
 		BitBucketWorkspaceId: request.BitBucketWorkspaceId,
 		BitBucketProjectKey:  request.BitBucketProjectKey,
+		AllowInsecureTLS:     request.AllowInsecureTLS,
 		AuditLog:             sql.AuditLog{CreatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: request.UserId},
 	}
 	model, err = impl.gitOpsRepository.CreateGitOpsConfig(model, tx)
@@ -409,6 +410,7 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *bean2.GitOpsCon
 	model.AzureProject = request.AzureProjectName
 	model.BitBucketWorkspaceId = request.BitBucketWorkspaceId
 	model.BitBucketProjectKey = request.BitBucketProjectKey
+	model.AllowInsecureTLS = request.AllowInsecureTLS
 	err = impl.gitOpsRepository.UpdateGitOpsConfig(model, tx)
 	if err != nil {
 		impl.logger.Errorw("error in updating team", "data", model, "err", err)
@@ -720,7 +722,7 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsCo
 		return detailedErrorGitOpsConfigResponse
 	}
 	appName := DryrunRepoName + util2.Generate(6)
-	//getting user name & emailId for commit author data
+	//getting username & emailId for commit author data
 	userEmailId, userName := impl.chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit(config.UserId)
 	config.UserEmailId = userEmailId
 	config.GitRepoName = appName
@@ -769,15 +771,15 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsCo
 		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CommitOnRestStage, PushStage)
 	}
 
-	err = client.DeleteRepository(config)
-	if err != nil {
-		impl.logger.Errorw("error in deleting repo", "err", err)
-		//here below the assignment of delete is removed for making this stage optional, and it's failure not preventing it from saving/updating gitOps config
-		//detailedErrorGitOpsConfigActions.StageErrorMap[DeleteRepoStage] = impl.extractErrorMessageByProvider(err, config.Provider)
-		detailedErrorGitOpsConfigActions.DeleteRepoFailed = true
-	} else {
-		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, DeleteRepoStage)
-	}
+	//err = client.DeleteRepository(config)
+	//if err != nil {
+	//	impl.logger.Errorw("error in deleting repo", "err", err)
+	//	//here below the assignment of delete is removed for making this stage optional, and it's failure not preventing it from saving/updating gitOps config
+	//	//detailedErrorGitOpsConfigActions.StageErrorMap[DeleteRepoStage] = impl.extractErrorMessageByProvider(err, config.Provider)
+	//	detailedErrorGitOpsConfigActions.DeleteRepoFailed = true
+	//} else {
+	//	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, DeleteRepoStage)
+	//}
 	detailedErrorGitOpsConfigActions.ValidatedOn = time.Now()
 	defer impl.cleanDir(clonedDir)
 	detailedErrorGitOpsConfigResponse := impl.convertDetailedErrorToResponse(detailedErrorGitOpsConfigActions)

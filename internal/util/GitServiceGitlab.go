@@ -1,10 +1,13 @@
 package util
 
 import (
+	"crypto/tls"
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
+	"github.com/hashicorp/go-retryablehttp"
 	"github.com/xanzy/go-gitlab"
 	"go.uber.org/zap"
+	"net/http"
 	"net/url"
 	"path/filepath"
 	"strconv"
@@ -19,24 +22,7 @@ type GitLabClient struct {
 }
 
 func NewGitLabClient(config *GitConfig, logger *zap.SugaredLogger, gitService GitService) (GitClient, error) {
-	var gitLabClient *gitlab.Client
-	var err error
-	if len(config.GitHost) > 0 {
-		_, err = url.ParseRequestURI(config.GitHost)
-		if err != nil {
-			return nil, err
-		}
-		gitLabClient, err = gitlab.NewClient(config.GitToken, gitlab.WithBaseURL(config.GitHost))
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		gitLabClient, err = gitlab.NewClient(config.GitToken)
-		if err != nil {
-			return nil, err
-		}
-	}
-
+	gitLabClient, err := CreateGitlabClient(config.GitHost, config.GitToken, config.AllowInsecureTLS)
 	gitlabGroupId := ""
 	if len(config.GitlabGroupId) > 0 {
 		if _, err := strconv.Atoi(config.GitlabGroupId); err == nil {
@@ -80,6 +66,32 @@ func NewGitLabClient(config *GitConfig, logger *zap.SugaredLogger, gitService Gi
 		logger:     logger,
 		gitService: gitService,
 	}, nil
+}
+
+func CreateGitlabClient(host, token string, allowInsecureTLS bool) (*gitlab.Client, error) {
+	var gitLabClient *gitlab.Client
+	var err error
+	httpTransport := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: allowInsecureTLS},
+	}
+	retryClient := retryablehttp.NewClient()
+	retryClient.HTTPClient.Transport = httpTransport
+	if len(host) > 0 {
+		_, err = url.ParseRequestURI(host)
+		if err != nil {
+			return nil, err
+		}
+		gitLabClient, err = gitlab.NewClient(token, gitlab.WithBaseURL(host), gitlab.WithHTTPClient(retryClient.HTTPClient))
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		gitLabClient, err = gitlab.NewClient(token, gitlab.WithHTTPClient(retryClient.HTTPClient))
+		if err != nil {
+			return nil, err
+		}
+	}
+	return gitLabClient, err
 }
 
 func (impl GitLabClient) DeleteRepository(config *bean2.GitOpsConfigDto) error {

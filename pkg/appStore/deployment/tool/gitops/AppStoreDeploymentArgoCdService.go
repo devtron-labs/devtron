@@ -67,6 +67,7 @@ type AppStoreDeploymentArgoCdServiceImpl struct {
 	installedAppRepository               repository.InstalledAppRepository
 	installedAppRepositoryHistory        repository.InstalledAppVersionHistoryRepository
 	chartTemplateService                 util.ChartTemplateService
+	chartDeploymentService               util.ChartDeploymentService
 	gitFactory                           *util.GitFactory
 	argoUserService                      argo.ArgoUserService
 	appStoreDeploymentCommonService      appStoreDeploymentCommon.AppStoreDeploymentCommonService
@@ -88,7 +89,7 @@ func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreD
 	pipelineStatusTimelineService status.PipelineStatusTimelineService, userService user.UserService,
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository,
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
-	argoClientWrapperService argocdServer.ArgoClientWrapperService) *AppStoreDeploymentArgoCdServiceImpl {
+	argoClientWrapperService argocdServer.ArgoClientWrapperService, chartDeploymentService util.ChartDeploymentService) *AppStoreDeploymentArgoCdServiceImpl {
 	return &AppStoreDeploymentArgoCdServiceImpl{
 		Logger:                               logger,
 		appStoreDeploymentFullModeService:    appStoreDeploymentFullModeService,
@@ -108,6 +109,7 @@ func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreD
 		pipelineStatusTimelineRepository:     pipelineStatusTimelineRepository,
 		appStoreApplicationVersionRepository: appStoreApplicationVersionRepository,
 		argoClientWrapperService:             argoClientWrapperService,
+		chartDeploymentService:               chartDeploymentService,
 	}
 }
 
@@ -599,8 +601,17 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) UpdateInstalledApp(ctx context.C
 func (impl AppStoreDeploymentArgoCdServiceImpl) patchAcdApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, chartGitAttr *util.ChartGitAttribute) (*appStoreBean.InstallAppVersionDTO, error) {
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Minute)
 	defer cancel()
+	gitOpsConfig, err := impl.gitOpsConfigRepository.GetGitOpsConfigActive()
+	if err != nil {
+		impl.Logger.Errorw("error in getting active gitOps config", "err", err)
+		return nil, err
+	}
+	gitOpsAllowInsecureTLS := false
+	if gitOpsConfig != nil {
+		gitOpsAllowInsecureTLS = gitOpsConfig.AllowInsecureTLS
+	}
 	//registerInArgo
-	err := impl.appStoreDeploymentFullModeService.RegisterInArgo(chartGitAttr, ctx)
+	err = impl.chartDeploymentService.RegisterInArgo(chartGitAttr, ctx, gitOpsAllowInsecureTLS)
 	if err != nil {
 		impl.Logger.Errorw("error in argo registry", "err", err)
 		return nil, err

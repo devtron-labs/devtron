@@ -9,7 +9,7 @@ import (
 )
 
 type ChartDeploymentService interface {
-	RegisterInArgo(chartGitAttribute *ChartGitAttribute, ctx context.Context) error
+	RegisterInArgo(chartGitAttribute *ChartGitAttribute, ctx context.Context, gitOpsAllowInsecureTLS bool) error
 }
 
 type ChartDeploymentServiceImpl struct {
@@ -24,9 +24,10 @@ func NewChartDeploymentServiceImpl(logger *zap.SugaredLogger, repositoryService 
 	}
 }
 
-func (impl *ChartDeploymentServiceImpl) RegisterInArgo(chartGitAttribute *ChartGitAttribute, ctx context.Context) error {
+func (impl *ChartDeploymentServiceImpl) RegisterInArgo(chartGitAttribute *ChartGitAttribute, ctx context.Context, gitOpsAllowInsecureTLS bool) error {
 	repo := &v1alpha1.Repository{
-		Repo: chartGitAttribute.RepoUrl,
+		Repo:     chartGitAttribute.RepoUrl,
+		Insecure: gitOpsAllowInsecureTLS,
 	}
 	repo, err := impl.repositoryService.Create(ctx, &repository3.RepoCreateRequest{Repo: repo, Upsert: true})
 	if err != nil {

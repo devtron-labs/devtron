@@ -107,8 +107,8 @@ type CdPipelineConfigService interface {
 	MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDeleted(appId int, envId int, acdToken string, pipeline *pipelineConfig.Pipeline) (bool, error)
 	//GetEnvironmentListForAutocompleteFilter : lists environment for given configuration
 	GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, offset int, size int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool), ctx context.Context) (*cluster.ResourceGroupingResponse, error)
-	IsGitopsConfigured() (bool, error)
-	RegisterInACD(gitOpsRepoName string, chartGitAttr *util.ChartGitAttribute, userId int32, ctx context.Context) error
+	IsGitopsConfigured() (bool, *repository.GitOpsConfig, error)
+	RegisterInACD(gitOpsRepoName string, chartGitAttr *util.ChartGitAttribute, gitOpsAllowInsecureTLS bool, userId int32, ctx context.Context) error
 }
 
 type CdPipelineConfigServiceImpl struct {
@@ -355,7 +355,7 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelineById(pipelineId int) (cdPi
 func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest *bean.CdPipelines, ctx context.Context) (*bean.CdPipelines, error) {
 
 	//Validation for checking deployment App type
-	isGitOpsConfigured, err := impl.IsGitopsConfigured()
+	isGitOpsConfigured, gitOpsConfig, err := impl.IsGitopsConfigured()
 
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
 		// skip creation of pipeline if envId is not set
@@ -394,7 +394,11 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 			return nil, err
 		}
 
-		err = impl.RegisterInACD(gitopsRepoName, chartGitAttr, pipelineCreateRequest.UserId, ctx)
+		gitOpsAllowInsecureTLS := false
+		if gitOpsConfig != nil {
+			gitOpsAllowInsecureTLS = gitOpsConfig.AllowInsecureTLS
+		}
+		err = impl.RegisterInACD(gitopsRepoName, chartGitAttr, gitOpsAllowInsecureTLS, pipelineCreateRequest.UserId, ctx)
 		if err != nil {
 			impl.logger.Errorw("error in registering app in acd", "err", err)
 			return nil, err
@@ -1507,20 +1511,20 @@ func (impl *CdPipelineConfigServiceImpl) GetEnvironmentListForAutocompleteFilter
 	return result, nil
 }
 
-func (impl *CdPipelineConfigServiceImpl) IsGitopsConfigured() (bool, error) {
+func (impl *CdPipelineConfigServiceImpl) IsGitopsConfigured() (bool, *repository.GitOpsConfig, error) {
 
 	isGitOpsConfigured := false
 	gitOpsConfig, err := impl.gitOpsRepository.GetGitOpsConfigActive()
 
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("GetGitOpsConfigActive, error while getting", "err", err)
-		return false, err
+		return false, nil, err
 	}
 	if gitOpsConfig != nil && gitOpsConfig.Id > 0 {
 		isGitOpsConfigured = true
 	}
 
-	return isGitOpsConfigured, nil
+	return isGitOpsConfigured, gitOpsConfig, nil
 
 }
 
@@ -1607,9 +1611,9 @@ func (impl *CdPipelineConfigServiceImpl) ValidateCDPipelineRequest(pipelineCreat
 
 }
 
-func (impl *CdPipelineConfigServiceImpl) RegisterInACD(gitOpsRepoName string, chartGitAttr *util.ChartGitAttribute, userId int32, ctx context.Context) error {
+func (impl *CdPipelineConfigServiceImpl) RegisterInACD(gitOpsRepoName string, chartGitAttr *util.ChartGitAttribute, gitOpsAllowInsecureTLS bool, userId int32, ctx context.Context) error {
 
-	err := impl.chartDeploymentService.RegisterInArgo(chartGitAttr, ctx)
+	err := impl.chartDeploymentService.RegisterInArgo(chartGitAttr, ctx, gitOpsAllowInsecureTLS)
 	if err != nil {
 		impl.logger.Errorw("error while register git repo in argo", "err", err)
 		emptyRepoErrorMessage := []string{"failed to get index: 404 Not Found", "remote repository is empty"}
@@ -1621,7 +1625,7 @@ func (impl *CdPipelineConfigServiceImpl) RegisterInACD(gitOpsRepoName string, ch
 				return err
 			}
 			// - retry register in argo
-			err = impl.chartDeploymentService.RegisterInArgo(chartGitAttr, ctx)
+			err = impl.chartDeploymentService.RegisterInArgo(chartGitAttr, ctx, gitOpsAllowInsecureTLS)
 			if err != nil {
 				impl.logger.Errorw("error in re-try register in argo", "err", err)
 				return err

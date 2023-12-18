@@ -397,7 +397,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentApps(ctx context
 	successfulPipelines := make([]*bean.DeploymentChangeStatus, 0)
 	failedPipelines := make([]*bean.DeploymentChangeStatus, 0)
 
-	isGitOpsConfigured, gitOpsConfigErr := impl.cdPipelineConfigService.IsGitopsConfigured()
+	isGitOpsConfigured, gitOpsConfig, gitOpsConfigErr := impl.cdPipelineConfigService.IsGitopsConfigured()
 
 	// Iterate over all the pipelines in the environment for given deployment app type
 	for _, pipeline := range pipelines {
@@ -437,10 +437,11 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentApps(ctx context
 					impl.logger.Errorw("error increating git repo", "err", err)
 				}
 				if createGitRepoErr == nil {
-					AcdRegisterErr = impl.cdPipelineConfigService.RegisterInACD(gitopsRepoName,
-						chartGitAttr,
-						userId,
-						ctx)
+					gitOpsAllowInsecureTLS := false
+					if gitOpsConfig != nil {
+						gitOpsAllowInsecureTLS = gitOpsConfig.AllowInsecureTLS
+					}
+					AcdRegisterErr = impl.cdPipelineConfigService.RegisterInACD(gitopsRepoName, chartGitAttr, gitOpsAllowInsecureTLS, userId, ctx)
 					if AcdRegisterErr != nil {
 						impl.logger.Errorw("error in registering acd app", "err", err)
 					}
