@@ -275,9 +275,10 @@ func (impl *PipelineStatusTimelineRepositoryImpl) DeleteByCdWfrIdAndTimelineStat
 }
 
 func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelinesByInstalledAppVersionHistoryId(installedAppVersionHistoryId int) ([]*PipelineStatusTimeline, error) {
+	//ignoring 'ARGOCD_SYNC_INITIATED' in sql query as it is not handled at FE
 	var timelines []*PipelineStatusTimeline
 	err := impl.dbConnection.Model(&timelines).
-		Where("installed_app_version_history_id = ?", installedAppVersionHistoryId).
+		Where("installed_app_version_history_id = ? and status !='ARGOCD_SYNC_INITIATED'", installedAppVersionHistoryId).
 		Order("status_time ASC").Select()
 	if err != nil {
 		impl.logger.Errorw("error in getting timelines by installAppVersionHistoryId", "err", err, "wfrId", installedAppVersionHistoryId)
