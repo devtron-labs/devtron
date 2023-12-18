@@ -3,6 +3,7 @@ package lockConfiguration
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/enterprise/pkg/lockConfiguration/bean"
+	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/go-pg/pg"
@@ -19,22 +20,25 @@ type LockConfigurationService interface {
 	GetLockConfiguration() (*bean.LockConfigResponse, error)
 	SaveLockConfiguration(*bean.LockConfigRequest, int32) error
 	DeleteActiveLockConfiguration(userId int32, tx *pg.Tx) error
-	HandleLockConfiguration(currentConfig, savedConfig string, userId int) (bool, string, string, string, error)
+	HandleLockConfiguration(currentConfig, savedConfig string, userId int) (bool, string, string, string, string, error)
 }
 
 type LockConfigurationServiceImpl struct {
 	logger                      *zap.SugaredLogger
 	lockConfigurationRepository LockConfigurationRepository
 	userService                 user.UserService
+	mergeUtil                   util.MergeUtil
 }
 
 func NewLockConfigurationServiceImpl(logger *zap.SugaredLogger,
 	lockConfigurationRepository LockConfigurationRepository,
-	userService user.UserService) *LockConfigurationServiceImpl {
+	userService user.UserService,
+	mergeUtil util.MergeUtil) *LockConfigurationServiceImpl {
 	return &LockConfigurationServiceImpl{
 		logger:                      logger,
 		lockConfigurationRepository: lockConfigurationRepository,
 		userService:                 userService,
+		mergeUtil:                   mergeUtil,
 	}
 }
 
@@ -117,11 +121,12 @@ func (impl LockConfigurationServiceImpl) DeleteActiveLockConfiguration(userId in
 	return nil
 }
 
-func (impl LockConfigurationServiceImpl) HandleLockConfiguration(currentConfig, savedConfig string, userId int) (bool, string, string, string, error) {
+func (impl LockConfigurationServiceImpl) HandleLockConfiguration(currentConfig, savedConfig string, userId int) (bool, string, string, string, string, error) {
 
 	isSuperAdmin, err := impl.userService.IsSuperAdmin(userId)
+
 	if err != nil || isSuperAdmin {
-		return false, "", "", "", err
+		return false, "", "", "", "", err
 	}
 
 	var mp map[string]interface{}
@@ -129,7 +134,7 @@ func (impl LockConfigurationServiceImpl) HandleLockConfiguration(currentConfig, 
 
 	lockConfig, err := impl.GetLockConfiguration()
 	if err != nil {
-		return false, "", "", "", err
+		return false, "", "", "", "", err
 	}
 
 	json.Unmarshal([]byte(savedConfig), &mp)
@@ -145,10 +150,19 @@ func (impl LockConfigurationServiceImpl) HandleLockConfiguration(currentConfig, 
 		isLockConfigError = checkLockedChanges(currentConfig, savedConfig, lockConfig.Config)
 	}
 	if isLockConfigError {
-		changesByte, _ := json.Marshal(changes)
-		return true, string(changesByte), string(deletedByte), string(addedByte), nil
+		modifiedByte, _ := json.Marshal(changes)
+		changesByte, err := impl.mergeUtil.JsonPatch(modifiedByte, deletedByte)
+		if err != nil {
+			return false, "", "", "", "", err
+		}
+		changesByte, err = impl.mergeUtil.JsonPatch(changesByte, addedByte)
+		if err != nil {
+			return false, "", "", "", "", err
+		}
+
+		return true, string(changesByte), string(modifiedByte), string(deletedByte), string(addedByte), nil
 	}
-	return false, "", "", "", nil
+	return false, "", "", "", "", nil
 }
 
 func checkAllowedChanges(diffJson map[string]interface{}, configs []string) bool {

@@ -19,7 +19,8 @@ type ReservedChartList struct {
 
 type TemplateResponse struct {
 	*TemplateRequest
-	ChangesOverride   json.RawMessage `json:"lockedOverride"`
+	LockedOverride    json.RawMessage `json:"lockedOverride"`
+	ModifiedOverride  json.RawMessage `json:"modifiedOverride"`
 	AddedOverride     json.RawMessage `json:"addedOverride"`
 	DeletedOverride   json.RawMessage `json:"deletedOverride"`
 	IsLockConfigError bool            `json:"isLockConfigError"`
