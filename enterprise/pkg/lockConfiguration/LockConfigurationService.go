@@ -330,7 +330,9 @@ func getChanges(mp1, mp2 map[string]interface{}) (map[string]interface{}, map[st
 				lockedMap[key] = mp2[key]
 			}
 		}
-		delete(mp2, key)
+		if mp2[key] == nil {
+			delete(mp2, key)
+		}
 	}
 	return lockedMap, deletedMap
 }
