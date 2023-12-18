@@ -22,7 +22,7 @@ In the `Workflow Editor` section, you can configure a job pipeline to be execute
 
 * To trigger job pipeline, go to the [Trigger Job](triggering-job.md) section. 
 
-`Note`: You can create more than one job pipeline by clicking **+ Job Pipeine**.
+`Note`: You can create more than one job pipeline by clicking **+ Job Pipeline**.
 
 
 ### Source type: Branch Fixed
@@ -43,7 +43,7 @@ For example if the user sets the Branch Regex as `feature-*`, then users can tri
 
 The **Source type** - "Pull Request" allows you to configure the CI Pipeline using the PR raised in your repository.
 
-> Before you begin, [configure the webhook](#configuring-webhook) for either GitHub or Bitbucket.
+> Before you begin, [configure the webhook](../creating-application/workflow/ci-pipeline.md#configuring-webhook) for either GitHub or Bitbucket.
 
 > The "Pull Request" source type feature only works for the host GitHub or Bitbucket cloud for now. To request support for a different Git host, please create a github issue [here](https://github.com/devtron-labs/devtron/issues).
 
@@ -66,7 +66,7 @@ Select the appropriate filter and pass the matching condition as a regular expre
 
 The **Source type** - "Tag Creation" allows you to build the CI pipeline from a tag.
 
-> Before you begin, [configure the webhook](#configuring-webhook) for either GitHub or Bitbucket.
+> Before you begin, [configure the webhook](../creating-application/workflow/ci-pipeline.md#configuring-webhook) for either GitHub or Bitbucket.
 
 To trigger the build from specific tags, you can filter the tags based on the `author` and/or the `tag name`.
 

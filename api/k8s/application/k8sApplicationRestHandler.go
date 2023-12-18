@@ -884,7 +884,7 @@ func (handler *K8sApplicationRestHandlerImpl) getRbacCallbackForResource(token s
 
 func (handler *K8sApplicationRestHandlerImpl) verifyRbacForResource(token string, clusterName string, resourceIdentifier util3.ResourceIdentifier, casbinAction string) bool {
 	resourceName, objectName := handler.enforcerUtil.GetRBACNameForClusterEntity(clusterName, resourceIdentifier)
-	return handler.enforcer.Enforce(token, strings.ToLower(resourceName), casbinAction, strings.ToLower(objectName))
+	return handler.enforcer.Enforce(token, strings.ToLower(resourceName), casbinAction, objectName)
 }
 
 func (handler *K8sApplicationRestHandlerImpl) verifyRbacForCluster(token string, clusterName string, request k8s.ResourceRequestBean, casbinAction string) bool {

@@ -263,8 +263,6 @@ metadata:
     app.kubernetes.io/name: nats
     app.kubernetes.io/instance: devtron-nats
     app.kubernetes.io/managed-by: Helm
-  annotations:
-    "helm.sh/hook": test
 spec:
   containers:
     - name: nats-box

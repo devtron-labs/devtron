@@ -94,7 +94,7 @@ In the `Email address` box, you have to provide the mail ID of the user to whom 
 
 ### Assign super admin permissions
 
-If you check the option `Assign super admin permissions`, the user will get full access to your system and the rest of the options will disappear. Please check [above](#access-levels) to see permission levels. Only users with super admin permissions can assign super admin permissions to a user.
+If you check the option `Assign super admin permissions`, the user will get full access to your system and the rest of the options will disappear. Please check [above](#role-based-access-levels) to see permission levels. Only users with super admin permissions can assign super admin permissions to a user.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/user-access/add-user-2.jpg)
 
@@ -134,7 +134,7 @@ Similarly, you can select `Applications` from the drop-down corresponding to you
 
   Inside the `Role`, you actually choose which type of permissions you want to give to the users.
 
-There are four different view access levels/Role available for both User and Group as described [above](#access-levels):
+There are four different view access levels/Role available for both User and Group as described [above](#role-based-access-levels):
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/user-access/user-access-permission_1.JPG)
 
@@ -166,7 +166,7 @@ Similarly, you can select `Applications` from the drop-down corresponding to you
 
   Inside the `Role`, you actually choose which type of permissions you want to give to the users.
 
-There are four different view access levels/Role available for both User and Group as described [above](#access-levels):
+There are four different view access levels/Role available for both User and Group as described [above](#role-based-access-levels):
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/user-access/user-access-permission_helm+app_2.JPG)
 

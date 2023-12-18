@@ -76,7 +76,7 @@ type AppRepository interface {
 	FetchAppIdsWithFilter(jobListingFilter helper.AppListingFilter) ([]int, error)
 	FindAllActiveAppsWithTeamByAppNameMatch(appNameMatch string, appType helper.AppType) ([]*App, error)
 	FindAppAndProjectByIdsIn(ids []int) ([]*App, error)
-	FetchAppIdsByDisplaynames(names []string) (map[int]string, []int, error)
+	FetchAppIdsByDisplayNamesForJobs(names []string) (map[int]string, []int, error)
 }
 
 const DevtronApp = "DevtronApp"
@@ -446,13 +446,13 @@ func (repo AppRepositoryImpl) FindAppAndProjectByIdsIn(ids []int) ([]*App, error
 	err := repo.dbConnection.Model(&apps).Column("app.*", "Team").Where("app.active = ?", true).Where("app.id in (?)", pg.In(ids)).Select()
 	return apps, err
 }
-func (repo AppRepositoryImpl) FetchAppIdsByDisplaynames(names []string) (map[int]string, []int, error) {
+func (repo AppRepositoryImpl) FetchAppIdsByDisplayNamesForJobs(names []string) (map[int]string, []int, error) {
 	type App struct {
 		Id          int    `json:"id"`
 		DisplayName string `json:"display_name"`
 	}
 	var jobIdName []App
-	whereCondition := " where active = true and app_type = 2 "
+	whereCondition := fmt.Sprintf(" where active = true and app_type = %v ", helper.Job)
 	whereCondition += " and display_name in (" + helper.GetCommaSepratedStringWithComma(names) + ");"
 	query := "select id, display_name from app " + whereCondition
 	_, err := repo.dbConnection.Query(&jobIdName, query)
