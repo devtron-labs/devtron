@@ -5,6 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"strconv"
+	"strings"
+
 	"github.com/caarlos0/env/v6"
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
@@ -15,7 +20,6 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/pkg/argoApplication"
-	"github.com/devtron-labs/devtron/pkg/argoApplication/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/k8s"
@@ -27,7 +31,6 @@ import (
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
-	"io"
 	corev1 "k8s.io/api/core/v1"
 	errors2 "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,9 +42,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
-	"net/http"
-	"strconv"
-	"strings"
 )
 
 type K8sApplicationService interface {
@@ -316,27 +316,9 @@ func (impl *K8sApplicationServiceImpl) GetPodLogs(ctx context.Context, request *
 	podLogsRequest := request.K8sRequest.PodLogsRequest
 	var restConfigFinal *rest.Config
 	if request.IsArgoApplication {
-		clusterConfig, clusterWithApplicationObject, clusterServerUrlIdMap, err := impl.argoApplicationService.GetClusterConfigFromAllClusters(clusterId)
+		restConfig, err := impl.argoApplicationService.GetRestConfigForExternalArgo(ctx, clusterId, request.ExternalArgoApplicationName)
 		if err != nil {
-			impl.logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterId)
-			return nil, err
-		}
-		restConfig, err := impl.K8sUtil.GetRestConfigByCluster(clusterConfig)
-		if err != nil {
-			impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", clusterId)
-			return nil, err
-		}
-		podNameSplit := strings.Split(resourceIdentifier.Name, "-")
-		resourceName := strings.Join(podNameSplit[:len(podNameSplit)-2], "-")
-		resourceResp, err := impl.K8sUtil.GetResource(ctx, bean.DevtronCDNamespae, resourceName, bean.GvkForArgoApplication, restConfig)
-		if err != nil {
-			impl.logger.Errorw("not on external cluster", "err", err, "resourceName", resourceName)
-			return nil, err
-		}
-		restConfig, err = impl.argoApplicationService.GetServerConfigIfClusterIsNotAddedOnDevtron(resourceResp, restConfig, clusterWithApplicationObject, clusterServerUrlIdMap)
-		if err != nil {
-			impl.logger.Errorw("error in getting server config", "err", err, "cluster with application object", clusterWithApplicationObject)
-			return nil, err
+			impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", clusterId, "externalArgoApplicationName", request.ExternalArgoApplicationName)
 		}
 		restConfigFinal = restConfig
 	} else {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
@@ -24,6 +25,7 @@ type ArgoApplicationService interface {
 	GetServerConfigIfClusterIsNotAddedOnDevtron(resourceResp *k8s.ManifestResponse, restConfig *rest.Config,
 		clusterWithApplicationObject clusterRepository.Cluster, clusterServerUrlIdMap map[string]int) (*rest.Config, error)
 	GetClusterConfigFromAllClusters(clusterId int) (*k8s.ClusterConfig, clusterRepository.Cluster, map[string]int, error)
+	GetRestConfigForExternalArgo(ctx context.Context, clusterId int, externalArgoApplicationName string) (*rest.Config, error)
 }
 
 type ArgoApplicationServiceImpl struct {
@@ -407,4 +409,28 @@ func (impl *ArgoApplicationServiceImpl) GetClusterConfigFromAllClusters(clusterI
 	clusterBean := cluster2.GetClusterBean(clusterWithApplicationObject)
 	clusterConfig, err := clusterBean.GetClusterConfig()
 	return clusterConfig, clusterWithApplicationObject, clusterServerUrlIdMap, err
+}
+
+func (impl *ArgoApplicationServiceImpl) GetRestConfigForExternalArgo(ctx context.Context, clusterId int, externalArgoApplicationName string) (*rest.Config, error) {
+	clusterConfig, clusterWithApplicationObject, clusterServerUrlIdMap, err := impl.GetClusterConfigFromAllClusters(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterId)
+		return nil, err
+	}
+	restConfig, err := impl.k8sUtil.GetRestConfigByCluster(clusterConfig)
+	if err != nil {
+		impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", clusterId)
+		return nil, err
+	}
+	resourceResp, err := impl.k8sUtil.GetResource(ctx, bean.DevtronCDNamespae, externalArgoApplicationName, bean.GvkForArgoApplication, restConfig)
+	if err != nil {
+		impl.logger.Errorw("not on external cluster", "err", err, "externalArgoApplicationName", externalArgoApplicationName)
+		return nil, err
+	}
+	restConfig, err = impl.GetServerConfigIfClusterIsNotAddedOnDevtron(resourceResp, restConfig, clusterWithApplicationObject, clusterServerUrlIdMap)
+	if err != nil {
+		impl.logger.Errorw("error in getting server config", "err", err, "cluster with application object", clusterWithApplicationObject)
+		return nil, err
+	}
+	return restConfig, nil
 }

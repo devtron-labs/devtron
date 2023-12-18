@@ -20,19 +20,19 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/common-lib/utils/k8s"
-	"github.com/devtron-labs/devtron/pkg/argoApplication"
-	"github.com/devtron-labs/devtron/pkg/argoApplication/bean"
-	"github.com/devtron-labs/devtron/pkg/cluster"
-	"github.com/devtron-labs/devtron/pkg/cluster/repository"
-	errors1 "github.com/juju/errors"
-	"go.uber.org/zap"
 	"io"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"log"
 	"net/http"
 	"strings"
 	"sync"
+
+	"github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/devtron/pkg/argoApplication"
+	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	errors1 "github.com/juju/errors"
+	"go.uber.org/zap"
+	"k8s.io/apimachinery/pkg/api/errors"
 
 	"gopkg.in/igm/sockjs-go.v3/sockjs"
 	v1 "k8s.io/api/core/v1"
@@ -314,9 +314,10 @@ type TerminalSessionRequest struct {
 	EnvironmentId int
 	AppId         int
 	//ClusterId is optional
-	ClusterId         int
-	UserId            int32
-	IsArgoApplication bool
+	ClusterId                   int
+	UserId                      int32
+	IsArgoApplication           bool
+	ExternalArgoApplicationName string
 }
 
 const CommandExecutionFailed = "Failed to Execute Command"
@@ -443,33 +444,19 @@ func (impl *TerminalSessionHandlerImpl) getClientConfig(req *TerminalSessionRequ
 	var clusterConfig *k8s.ClusterConfig
 	var err error
 	if req.IsArgoApplication {
-		config, clusterWithApplicationObject, clusterServerUrlIdMap, err := impl.argoApplicationService.GetClusterConfigFromAllClusters(req.ClusterId)
+		restConfig, err := impl.argoApplicationService.GetRestConfigForExternalArgo(context.Background(), req.ClusterId, req.ExternalArgoApplicationName)
 		if err != nil {
-			impl.logger.Errorw("error in getting cluster config", "err", err, "clusterId", req.ClusterId)
-			return nil, nil, err
+			impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", req.ClusterId, "externalArgoApplicationName", req.ExternalArgoApplicationName)
 		}
-		restConfig, err := impl.k8sUtil.GetRestConfigByCluster(config)
-		if err != nil {
-			impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", req.ClusterId)
-			return nil, nil, err
-		}
-		podNameSplit := strings.Split(req.PodName, "-")
-		resourceName := strings.Join(podNameSplit[:len(podNameSplit)-2], "-")
-		resourceResp, err := impl.k8sUtil.GetResource(context.Background(), bean.DevtronCDNamespae, resourceName, bean.GvkForArgoApplication, restConfig)
-		if err != nil {
-			impl.logger.Errorw("not on external cluster", "err", err, "resourceName", resourceName)
-			return nil, nil, err
-		}
-		restConfig, err = impl.argoApplicationService.GetServerConfigIfClusterIsNotAddedOnDevtron(resourceResp, restConfig, clusterWithApplicationObject, clusterServerUrlIdMap)
-		if err != nil {
-			impl.logger.Errorw("error in getting server config", "err", err, "clusterWithApplicationObject", clusterWithApplicationObject)
-			return nil, nil, err
-		}
-		config.Host = restConfig.Host
-		config.InsecureSkipTLSVerify = restConfig.TLSClientConfig.Insecure
-		config.BearerToken = restConfig.BearerToken
 
-		clusterConfig = config
+		clusterConfig = &k8s.ClusterConfig{
+			Host:                  restConfig.Host,
+			InsecureSkipTLSVerify: restConfig.TLSClientConfig.Insecure,
+			BearerToken:           restConfig.BearerToken,
+			KeyData:               restConfig.TLSClientConfig.KeyFile,
+			CertData:              restConfig.TLSClientConfig.CertFile,
+			CAData:                restConfig.TLSClientConfig.CAFile,
+		}
 	} else {
 		if req.ClusterId != 0 {
 			clusterBean, err = impl.clusterService.FindById(req.ClusterId)
@@ -569,34 +556,19 @@ func (impl *TerminalSessionHandlerImpl) RunCmdInRemotePod(req *TerminalSessionRe
 func (impl *TerminalSessionHandlerImpl) saveEphemeralContainerTerminalAccessAudit(req *TerminalSessionRequest) error {
 	var clusterConfig *k8s.ClusterConfig
 	if req.IsArgoApplication {
-		config, clusterWithApplicationObject, clusterServerUrlIdMap, err := impl.argoApplicationService.GetClusterConfigFromAllClusters(req.ClusterId)
+		restConfig, err := impl.argoApplicationService.GetRestConfigForExternalArgo(context.Background(), req.ClusterId, req.ExternalArgoApplicationName)
 		if err != nil {
-			impl.logger.Errorw("error in fetching cluster config", "err", err, "cluster id", req.ClusterId)
-			return err
-		}
-		restConfig, err := impl.k8sUtil.GetRestConfigByCluster(config)
-		if err != nil {
-			impl.logger.Errorw("error in fetching rest config", "err", err, "cluster config", config)
-			return err
+			impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", req.ClusterId, "externalArgoApplicationName", req.ExternalArgoApplicationName)
 		}
 
-		podNameSplit := strings.Split(req.PodName, "-")
-		resourceName := strings.Join(podNameSplit[:len(podNameSplit)-2], "-")
-		resourceResp, err := impl.k8sUtil.GetResource(context.Background(), bean.DevtronCDNamespae, resourceName, bean.GvkForArgoApplication, restConfig)
-		if err != nil {
-			impl.logger.Errorw("not on external cluster", "err", err)
-			return err
+		clusterConfig = &k8s.ClusterConfig{
+			Host:                  restConfig.Host,
+			InsecureSkipTLSVerify: restConfig.TLSClientConfig.Insecure,
+			BearerToken:           restConfig.BearerToken,
+			KeyData:               restConfig.TLSClientConfig.KeyFile,
+			CertData:              restConfig.TLSClientConfig.CertFile,
+			CAData:                restConfig.TLSClientConfig.CAFile,
 		}
-		restConfig, err = impl.argoApplicationService.GetServerConfigIfClusterIsNotAddedOnDevtron(resourceResp, restConfig, clusterWithApplicationObject, clusterServerUrlIdMap)
-		if err != nil {
-			impl.logger.Errorw("error in fetching server config", "err", err, "cluster with application object", clusterWithApplicationObject, "rest config", restConfig)
-			return err
-		}
-		config.Host = restConfig.Host
-		config.InsecureSkipTLSVerify = restConfig.TLSClientConfig.Insecure
-		config.BearerToken = restConfig.BearerToken
-
-		clusterConfig = config
 	} else {
 		clusterBean, err := impl.clusterService.FindById(req.ClusterId)
 		if err != nil {
