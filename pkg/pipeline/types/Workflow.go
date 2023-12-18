@@ -250,7 +250,7 @@ func (workflowRequest *WorkflowRequest) getPVCForWorkflowRequest() string {
 			workflowRequest.IgnoreDockerCachePull = true
 		}
 	} else {
-		//pvc not supported for other then ci and job currently
+		// pvc not supported for other then ci and job currently
 	}
 	return pvc
 }
@@ -460,7 +460,7 @@ func (workflowRequest *WorkflowRequest) GetWorkflowMainContainer(config *CiCdCon
 	}
 	if workflowRequest.Type == bean.CI_WORKFLOW_PIPELINE_TYPE || workflowRequest.Type == bean.JOB_WORKFLOW_PIPELINE_TYPE {
 		workflowMainContainer.Ports = []v1.ContainerPort{{
-			//exposed for user specific data from ci container
+			// exposed for user specific data from ci container
 			Name:          "app-data",
 			ContainerPort: 9102,
 		}}
@@ -561,10 +561,10 @@ const CI_NODE_PVC_PIPELINE_PREFIX = "devtron.ai/ci-pvc"
 
 type CiArtifactDTO struct {
 	Id                   int    `json:"id"`
-	PipelineId           int    `json:"pipelineId"` //id of the ci pipeline from which this webhook was triggered
+	PipelineId           int    `json:"pipelineId"` // id of the ci pipeline from which this webhook was triggered
 	Image                string `json:"image"`
 	ImageDigest          string `json:"imageDigest"`
-	MaterialInfo         string `json:"materialInfo"` //git material metadata json array string
+	MaterialInfo         string `json:"materialInfo"` // git material metadata json array string
 	DataSource           string `json:"dataSource"`
 	WorkflowId           *int   `json:"workflowId"`
 	ciArtifactRepository repository2.CiArtifactRepository
