@@ -8,4 +8,5 @@
 - doc: Update Install-devtron-on-Minikube-Microk8s-K3s-Kind.md (#4133)
 - doc: fixed broken link and improved documentation in usecases (#4097)
 ## Others
+- chore: share same nats url used by orchestrator (#4422)
 - chore: migration for global resource schema (#4374)
