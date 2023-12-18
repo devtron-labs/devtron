@@ -50,9 +50,11 @@ Kubernetes objects used to store configuration data as key-value pairs. They all
 
 You can use different ConfigMaps for respective environments too. [Read More...](https://docs.devtron.ai/usage/applications/creating-application/config-maps)
 
-### Container Registry
+### Container/OCI Registry
 
-It is a collection of repositories that store container images. It allows developers to store, share, and manage images used to deploy containers. In Devtron, you can add a container registry by going to Global Configurations → Container / OCI Registry. Your CI images are pushed to the container registry you configure. [Read More...](https://docs.devtron.ai/global-configurations/docker-registries)
+It is a collection of repositories that store container images. It allows developers to store, share, and manage images used to deploy containers. In Devtron, you can add a container registry by going to Global Configurations → Container / OCI Registry. Your CI images are pushed to the container registry you configure. [Read More...](https://docs.devtron.ai/global-configurations/container-registries). 
+
+An OCI-compliant registry can also store artifacts (such as helm charts). Here, OCI stands for Open Container Initiative. It is an open industry standard for container formats and registries.
 
 ### Cordoning
 
@@ -140,7 +142,7 @@ If you are a super-admin in Devtron, you can view Jobs in the sidebar.
 
 Distributes incoming network traffic across multiple instances or nodes to ensure efficient resource utilization and improved performance. In Kubernetes, Load Balancer is a service type. Behind the scenes, the managed Kubernetes service connects to the load balancer service of the respective cloud service provider and creates a load balancer, mapping it to the Kubernetes service. 
 
-GKE and AKE provide the public IP of the Load Balancer as the service endpoint, while in the case of EKS, it provides a non-customizable DNS name.
+GKE and AKS provide the public IP of the Load Balancer as the service endpoint, while in the case of EKS, it provides a non-customizable DNS name.
 
 ### Manifest
 

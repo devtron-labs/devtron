@@ -1,6 +1,9 @@
 package parsers
 
-import "github.com/devtron-labs/devtron/pkg/variables/models"
+import (
+	"github.com/devtron-labs/devtron/pkg/variables/models"
+	"golang.org/x/exp/slices"
+)
 
 const InvalidTemplate = "invalid-template"
 const VariableParsingFailed = "variable-parsing-failed"
@@ -24,6 +27,22 @@ type VariableParserRequest struct {
 	IgnoreUnknownVariables bool
 }
 
+func (request VariableParserRequest) GetEmptyResponse() VariableParserResponse {
+	return VariableParserResponse{
+		Request:          request,
+		ResolvedTemplate: request.Template,
+	}
+}
+
+func CreateParserRequest(template string, templateType VariableTemplateType, variables []*models.ScopedVariableData, ignoreUnknownVariables bool) VariableParserRequest {
+	return VariableParserRequest{
+		TemplateType:           templateType,
+		Template:               template,
+		Variables:              variables,
+		IgnoreUnknownVariables: ignoreUnknownVariables,
+	}
+}
+
 type VariableParserResponse struct {
 	Request          VariableParserRequest
 	ResolvedTemplate string
@@ -40,10 +59,33 @@ func (request VariableParserRequest) GetValuesMap() map[string]string {
 	return variablesMap
 }
 
-func GetScopedVarData(varData map[string]string) []*models.ScopedVariableData {
+func (request VariableParserRequest) GetOriginalValuesMap() map[string]interface{} {
+	var variableToValue = make(map[string]interface{}, 0)
+	for _, variable := range request.Variables {
+		variableToValue[variable.VariableName] = variable.VariableValue.Value
+	}
+	return variableToValue
+}
+
+func GetScopedVarData(varData map[string]string, nameToIsSensitive map[string]bool, isSuperAdmin bool) []*models.ScopedVariableData {
 	scopedVarData := make([]*models.ScopedVariableData, 0)
 	for key, value := range varData {
-		scopedVarData = append(scopedVarData, &models.ScopedVariableData{VariableName: key, VariableValue: &models.VariableValue{Value: value}})
+
+		finalValue := value
+		if !isSuperAdmin && nameToIsSensitive[key] {
+			finalValue = models.HiddenValue
+		}
+		scopedVarData = append(scopedVarData, &models.ScopedVariableData{VariableName: key, VariableValue: &models.VariableValue{Value: models.GetInterfacedValue(finalValue)}})
 	}
 	return scopedVarData
+}
+
+func GetVariableMapForUsedVariables(scopedVariables []*models.ScopedVariableData, usedVars []string) map[string]string {
+	variableMap := make(map[string]string)
+	for _, variable := range scopedVariables {
+		if slices.Contains(usedVars, variable.VariableName) {
+			variableMap[variable.VariableName] = variable.VariableValue.StringValue()
+		}
+	}
+	return variableMap
 }

@@ -206,6 +206,6 @@ kubectl describe pod <podname>
 Here, you can see configuration information about the container(s) and Pod (labels, resource requirements, etc.), as well as status information about the container(s) and Pod (state, readiness, restart count, events, etc.).
 
 
- **Note**: A container can have no or multiple shells running in it. If you are not able to create a successfull connection, try changing the shell, as the container may not have that shell running.
+ **Note**: A container can have no or multiple shells running in it. If you are not able to create a successful connection, try changing the shell, as the container may not have that shell running.
 
 

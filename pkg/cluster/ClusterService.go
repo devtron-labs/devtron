@@ -66,11 +66,13 @@ type PrometheusAuth struct {
 	Password      string `json:"password,omitempty"`
 	TlsClientCert string `json:"tlsClientCert,omitempty"`
 	TlsClientKey  string `json:"tlsClientKey,omitempty"`
+	IsAnonymous   bool   `json:"isAnonymous"`
 }
 
 type ClusterBean struct {
 	Id                      int                        `json:"id" validate:"number"`
 	ClusterName             string                     `json:"cluster_name,omitempty" validate:"required"`
+	Description             string                     `json:"description"`
 	ServerUrl               string                     `json:"server_url,omitempty" validate:"url,required"`
 	PrometheusUrl           string                     `json:"prometheus_url,omitempty" validate:"validate-non-empty-url"`
 	Active                  bool                       `json:"active"`
@@ -93,6 +95,7 @@ func GetClusterBean(model repository.Cluster) ClusterBean {
 	bean := ClusterBean{}
 	bean.Id = model.Id
 	bean.ClusterName = model.ClusterName
+	//bean.Note = model.Note
 	bean.ServerUrl = model.ServerUrl
 	bean.PrometheusUrl = model.PrometheusEndpoint
 	bean.AgentInstallationStage = model.AgentInstallationStage
@@ -155,10 +158,12 @@ type DefaultClusterComponent struct {
 
 type ClusterService interface {
 	Save(parent context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error)
+	UpdateClusterDescription(bean *ClusterBean, userId int32) error
 	ValidateKubeconfig(kubeConfig string) (map[string]*ValidateClusterBean, error)
 	FindOne(clusterName string) (*ClusterBean, error)
 	FindOneActive(clusterName string) (*ClusterBean, error)
 	FindAll() ([]*ClusterBean, error)
+	FindAllExceptVirtual() ([]*ClusterBean, error)
 	FindAllWithoutConfig() ([]*ClusterBean, error)
 	FindAllActive() ([]ClusterBean, error)
 	DeleteFromDb(bean *ClusterBean, userId int32) error
@@ -179,6 +184,8 @@ type ClusterService interface {
 	ConnectClustersInBatch(clusters []*ClusterBean, clusterExistInDb bool)
 	ConvertClusterBeanToCluster(clusterBean *ClusterBean, userId int32) *repository.Cluster
 	ConvertClusterBeanObjectToCluster(bean *ClusterBean) *v1alpha1.Cluster
+
+	GetClusterConfigByClusterId(clusterId int) (*k8s.ClusterConfig, error)
 }
 
 type ClusterServiceImpl struct {
@@ -217,6 +224,7 @@ func (impl *ClusterServiceImpl) ConvertClusterBeanToCluster(clusterBean *Cluster
 	model := &repository.Cluster{}
 
 	model.ClusterName = clusterBean.ClusterName
+	//model.Note = clusterBean.Note
 	model.Active = true
 	model.ServerUrl = clusterBean.ServerUrl
 	model.Config = clusterBean.Config
@@ -313,6 +321,18 @@ func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, 
 	return bean, err
 }
 
+// UpdateClusterDescription is new api service logic to only update description, this should be done in cluster update operation only
+// but not supported currently as per product
+func (impl *ClusterServiceImpl) UpdateClusterDescription(bean *ClusterBean, userId int32) error {
+	//updating description as other fields are not supported yet
+	err := impl.clusterRepository.SetDescription(bean.Id, bean.Description, userId)
+	if err != nil {
+		impl.logger.Errorw("error in setting cluster description", "err", err, "clusterId", bean.Id)
+		return err
+	}
+	return nil
+}
+
 func (impl *ClusterServiceImpl) FindOne(clusterName string) (*ClusterBean, error) {
 	model, err := impl.clusterRepository.FindOne(clusterName)
 	if err != nil {
@@ -345,6 +365,19 @@ func (impl *ClusterServiceImpl) FindAllWithoutConfig() ([]*ClusterBean, error) {
 
 func (impl *ClusterServiceImpl) FindAll() ([]*ClusterBean, error) {
 	models, err := impl.clusterRepository.FindAllActive()
+	if err != nil {
+		return nil, err
+	}
+	var beans []*ClusterBean
+	for _, model := range models {
+		bean := GetClusterBean(model)
+		beans = append(beans, &bean)
+	}
+	return beans, nil
+}
+
+func (impl *ClusterServiceImpl) FindAllExceptVirtual() ([]*ClusterBean, error) {
+	models, err := impl.clusterRepository.FindAllActiveExceptVirtual()
 	if err != nil {
 		return nil, err
 	}
@@ -461,10 +494,10 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 	model.PrometheusEndpoint = bean.PrometheusUrl
 
 	if bean.PrometheusAuth != nil {
-		if bean.PrometheusAuth.UserName != "" {
+		if bean.PrometheusAuth.UserName != "" || bean.PrometheusAuth.IsAnonymous {
 			model.PUserName = bean.PrometheusAuth.UserName
 		}
-		if bean.PrometheusAuth.Password != "" {
+		if bean.PrometheusAuth.Password != "" || bean.PrometheusAuth.IsAnonymous {
 			model.PPassword = bean.PrometheusAuth.Password
 		}
 		if bean.PrometheusAuth.TlsClientCert != "" {
@@ -1080,4 +1113,19 @@ func (impl ClusterServiceImpl) ConvertClusterBeanObjectToCluster(bean *ClusterBe
 		Config: cdClusterConfig,
 	}
 	return cl
+}
+
+func (impl ClusterServiceImpl) GetClusterConfigByClusterId(clusterId int) (*k8s.ClusterConfig, error) {
+	clusterBean, err := impl.FindById(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting clusterBean by cluster id", "err", err, "clusterId", clusterId)
+		return nil, err
+	}
+	rq := *clusterBean
+	clusterConfig, err := rq.GetClusterConfig()
+	if err != nil {
+		impl.logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterBean.Id)
+		return nil, err
+	}
+	return clusterConfig, nil
 }

@@ -24,7 +24,7 @@ Each method has different use-cases that can be tailored according the needs of 
 4. Select **Build and deploy from source code**.
 5. Enter the following fields on the **Create build pipeline** screen:
 
-![](../../../.gitbook/assets/ci-pipeline-2.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-ci-pipeline/ci-pipeline-2.jpg)
 
 | Field Name | Required/Optional | Description |
 | :--- | :--- | :--- |
@@ -97,7 +97,7 @@ For example if the user sets the Branch Regex as `feature-*`, then users can tri
 4. Change the Content-type to `application/json`.
 5. In the **Secret** field, enter the secret from Devtron the dashboard when you select the source type as "Pull Request" or "Tag Creation".
 
-![](../../../.gitbook/assets/ci-pipeline-4.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-ci-pipeline/ci-pipeline-4.jpg)
 
 6. Under **Which events would you like to trigger this webhook?**, select **Let me select individual events.** to trigger the webhook to build CI Pipeline.
 7. Select **Branch or tag creation** and **Pull Requests**.
@@ -108,14 +108,14 @@ For example if the user sets the Branch Regex as `feature-*`, then users can tri
 1. Go to the **Repository settings** page of your Bitbucket repository.
 2. Select **Webhooks** and then select **Add webhook**.
 
-![](../../../.gitbook/assets/ci-pipeline-6.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-ci-pipeline/ci-pipeline-6.jpg)
 
 3. Enter a **Title** for the webhook.
 4. In the **URL** field, enter the Webhook URL that you get on selecting the source type as "Pull Request" or "Tag Creation" in the Devtron dashboard.
 5. Select the event triggers for which you want to trigger the webhook.
 6. Select **Save** to save your configurations.
 
-![](../../../.gitbook/assets/ci-pipeline-7.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-ci-pipeline/ci-pipeline-7.jpg)
 
 ### Source type: Pull Request
 
@@ -125,7 +125,7 @@ The **Source type** - "Pull Request" allows you to configure the CI Pipeline usi
 
 > The "Pull Request" source type feature only works for the host GitHub or Bitbucket cloud for now. To request support for a different Git host, please create a github issue [here](https://github.com/devtron-labs/devtron/issues).
 
-![](../../../.gitbook/assets/ci-pipeline-3.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-ci-pipeline/ci-pipeline-3.jpg)
 
 To trigger the build from specific PRs, you can filter the PRs based on the following keys:
 
@@ -137,7 +137,7 @@ To trigger the build from specific PRs, you can filter the PRs based on the foll
 | `Title` | Title of the Pull Request |
 | `State` | State of the PR. Default is "open" and cannot be changed |
 
-![](../../../.gitbook/assets/ci-pipeline-8.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-ci-pipeline/ci-pipeline-8.jpg)
 
 Select the appropriate filter and pass the matching condition as a regular expression (`regex`).
 
@@ -151,7 +151,7 @@ The **Source type** - "Tag Creation" allows you to build the CI pipeline from a 
 
 > Before you begin, [configure the webhook](#configuring-webhook) for either GitHub or Bitbucket.
 
-![](../../../.gitbook/assets/ci-pipeline-9.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-ci-pipeline/ci-pipeline-9.jpg)
 
 To trigger the build from specific tags, you can filter the tags based on the `author` and/or the `tag name`.
 
@@ -183,7 +183,7 @@ If one code is shared across multiple applications, `Linked Build Pipeline` can 
 4. Select **Linked Build Pipeline**.
 5. Enter the following fields on the **Create linked build pipeline** screen:
 
-![](../../../.gitbook/assets/ca-workflow-linked.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-ci-pipeline/ca-workflow-linked.jpg)
 
 * Select the application in which the source CI pipeline is present.
 * Select the source CI pipeline from the application that you selected above.

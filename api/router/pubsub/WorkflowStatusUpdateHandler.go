@@ -25,6 +25,7 @@ import (
 	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	util "github.com/devtron-labs/devtron/util/event"
 	"go.uber.org/zap"
 )
@@ -124,6 +125,14 @@ func (impl *WorkflowStatusUpdateHandlerImpl) SubscribeCD() error {
 			impl.logger.Errorw("could not get wf runner", "err", err)
 			return
 		}
+		if wfrStatus == string(v1alpha1.NodeFailed) || wfrStatus == string(v1alpha1.NodeError) {
+			if len(wfr.ImagePathReservationIds) > 0 {
+				err := impl.cdHandler.DeactivateImageReservationPathsOnFailure(wfr.ImagePathReservationIds)
+				if err != nil {
+					impl.logger.Errorw("error in removing image path reservation ")
+				}
+			}
+		}
 		if wfrStatus == string(v1alpha1.NodeSucceeded) || wfrStatus == string(v1alpha1.NodeFailed) || wfrStatus == string(v1alpha1.NodeError) {
 			eventType := util.EventType(0)
 			if wfrStatus == string(v1alpha1.NodeSucceeded) {
@@ -132,7 +141,7 @@ func (impl *WorkflowStatusUpdateHandlerImpl) SubscribeCD() error {
 				eventType = util.Fail
 			}
 
-			if wfr != nil && pipeline.CheckIfReTriggerRequired(wfrStatus, wfStatus.Message, wfr.Status) {
+			if wfr != nil && executors.CheckIfReTriggerRequired(wfrStatus, wfStatus.Message, wfr.Status) {
 				err = impl.cdHandler.HandleCdStageReTrigger(wfr)
 				if err != nil {
 					//check if this log required or not

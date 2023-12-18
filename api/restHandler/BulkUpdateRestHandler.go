@@ -7,6 +7,7 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/gitSensor"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/pkg/appClone"
@@ -228,7 +229,7 @@ func (handler BulkUpdateRestHandlerImpl) BulkUpdate(w http.ResponseWriter, r *ht
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	rbacObjects := handler.enforcerUtil.GetRbacObjectsForAllApps()
+	rbacObjects := handler.enforcerUtil.GetRbacObjectsForAllApps(helper.CustomApp)
 	for _, deploymentTemplateImpactedApp := range impactedApps.DeploymentTemplate {
 		ok := handler.CheckAuthForBulkUpdate(deploymentTemplateImpactedApp.AppId, deploymentTemplateImpactedApp.EnvId, deploymentTemplateImpactedApp.AppName, rbacObjects, token)
 		if !ok {
@@ -281,7 +282,7 @@ func (handler BulkUpdateRestHandlerImpl) BulkHibernate(w http.ResponseWriter, r 
 	}
 	ctx := context.WithValue(r.Context(), "token", acdToken)
 	token := r.Header.Get("token")
-	response, err := handler.bulkUpdateService.BulkHibernate(&request, ctx, w, token, handler.checkAuthForBulkActions)
+	response, err := handler.bulkUpdateService.BulkHibernate(&request, ctx, w, token, handler.checkAuthForBulkHibernateAndUnhibernate)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -318,7 +319,7 @@ func (handler BulkUpdateRestHandlerImpl) BulkUnHibernate(w http.ResponseWriter, 
 	}
 	ctx := context.WithValue(r.Context(), "token", acdToken)
 	token := r.Header.Get("token")
-	response, err := handler.bulkUpdateService.BulkUnHibernate(&request, ctx, w, token, handler.checkAuthForBulkActions)
+	response, err := handler.bulkUpdateService.BulkUnHibernate(&request, ctx, w, token, handler.checkAuthForBulkHibernateAndUnhibernate)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -397,10 +398,20 @@ func (handler BulkUpdateRestHandlerImpl) BulkBuildTrigger(w http.ResponseWriter,
 }
 
 func (handler BulkUpdateRestHandlerImpl) checkAuthForBulkActions(token string, appObject string, envObject string) bool {
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, strings.ToLower(appObject)); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, appObject); !ok {
 		return false
 	}
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, strings.ToLower(envObject)); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, envObject); !ok {
+		return false
+	}
+	return true
+}
+
+func (handler BulkUpdateRestHandlerImpl) checkAuthForBulkHibernateAndUnhibernate(token string, appObject string, envObject string) bool {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, strings.ToLower(appObject)); !ok {
+		return false
+	}
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionTrigger, strings.ToLower(envObject)); !ok {
 		return false
 	}
 	return true

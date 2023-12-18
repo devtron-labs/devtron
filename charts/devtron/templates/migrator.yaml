@@ -19,6 +19,26 @@ spec:
 {{- toYaml $.Values.global.podSecurityContext | nindent 8 }}
       {{- end }}
       initContainers:
+        - env:
+          - name: DB_TYPE
+            value: postgres
+          - name: PG_USER
+            value: postgres
+          - name: PG_ADDR
+            value: postgresql-postgresql.devtroncd
+          - name: DB_PORT
+            value: "5432"
+          - name: PG_DATABASE
+            value: orchestrator
+          envFrom:
+            - secretRef:
+                name: devtron-secret
+          image: quay.io/devtron/devtron-utils:dup-chart-repo-v1.1.0
+          {{- if and $.Values.global $.Values.global.containerSecurityContext }}
+          securityContext:
+{{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
+          {{- end }}
+          name: clean-duplicate-chart
         - command:
             - /bin/sh
             - -c
@@ -270,7 +290,7 @@ spec:
             - /bin/sh
             - -c
             - cp -r sql /shared/
-          image: {{ $.Values.lens.image }}
+          image: {{ $.Values.components.lens.image }}
           name: init-lens
           {{- if and $.Values.global $.Values.global.containerSecurityContext }}
           securityContext:
@@ -338,7 +358,6 @@ kind: Job
 metadata:
   name: postgresql-miscellaneous
 spec:
-  ttlSecondsAfterFinished: 1000
   template:
     spec:
       securityContext:
@@ -373,6 +392,6 @@ spec:
             name: postgresql-postgresql-init-scripts
       restartPolicy: OnFailure
   backoffLimit: 20
-  activeDeadlineSeconds: 1500
+  activeDeadlineSeconds: 1800
 {{- end }}
 {{- end }}

@@ -23,6 +23,7 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/gorilla/mux"
@@ -30,7 +31,6 @@ import (
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
 	"strconv"
-	"strings"
 )
 
 type GitHostRestHandler interface {
@@ -84,9 +84,9 @@ func (impl GitHostRestHandlerImpl) GetGitHosts(w http.ResponseWriter, r *http.Re
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	result := make([]pipeline.GitHostRequest, 0)
+	result := make([]types.GitHostRequest, 0)
 	for _, item := range res {
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceGit, casbin.ActionGet, strings.ToLower(item.Name)); ok {
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceGit, casbin.ActionGet, item.Name); ok {
 			result = append(result, item)
 		}
 	}
@@ -136,7 +136,7 @@ func (impl GitHostRestHandlerImpl) CreateGitHost(w http.ResponseWriter, r *http.
 
 	decoder := json.NewDecoder(r.Body)
 
-	var bean pipeline.GitHostRequest
+	var bean types.GitHostRequest
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, CreateGitHost", "err", err, "payload", bean)
@@ -155,7 +155,7 @@ func (impl GitHostRestHandlerImpl) CreateGitHost(w http.ResponseWriter, r *http.
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceGit, casbin.ActionCreate, strings.ToLower(bean.Name)); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceGit, casbin.ActionCreate, bean.Name); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -291,6 +291,6 @@ func (impl GitHostRestHandlerImpl) GetWebhookDataMetaConfig(w http.ResponseWrite
 
 type WebhookDataMetaConfigResponse struct {
 	GitHostId     int                             `json:"gitHostId"`
-	GitHost       *pipeline.GitHostRequest        `json:"gitHost"`
+	GitHost       *types.GitHostRequest           `json:"gitHost"`
 	WebhookEvents []*gitSensor.WebhookEventConfig `json:"webhookEvents"`
 }

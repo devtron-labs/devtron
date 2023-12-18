@@ -100,7 +100,6 @@ type ChartService interface {
 	FlaggerCanaryEnabled(values json.RawMessage) (bool, error)
 	GetCustomChartInBytes(chatRefId int) ([]byte, error)
 	GetRefChart(templateRequest TemplateRequest) (string, string, error, string, string)
-	ExtractVariablesAndResolveTemplate(scope resourceQualifiers.Scope, template string, templateType parsers.VariableTemplateType) (string, error)
 }
 
 type ChartServiceImpl struct {
@@ -123,9 +122,7 @@ type ChartServiceImpl struct {
 	envLevelAppMetricsRepository     repository3.EnvLevelAppMetricsRepository
 	client                           *http.Client
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
-	variableEntityMappingService     variables.VariableEntityMappingService
-	variableTemplateParser           parsers.VariableTemplateParser
-	scopedVariableService            variables.ScopedVariableService
+	scopedVariableManager            variables.ScopedVariableManager
 }
 
 func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
@@ -147,9 +144,8 @@ func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
 	envLevelAppMetricsRepository repository3.EnvLevelAppMetricsRepository,
 	client *http.Client,
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
-	variableEntityMappingService variables.VariableEntityMappingService,
-	variableTemplateParser parsers.VariableTemplateParser,
-	scopedVariableService variables.ScopedVariableService) *ChartServiceImpl {
+	scopedVariableManager variables.ScopedVariableManager,
+) *ChartServiceImpl {
 
 	// cache devtron reference charts list
 	devtronChartList, _ := chartRefRepository.FetchAllChartInfoByUploadFlag(false)
@@ -175,9 +171,7 @@ func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
 		envLevelAppMetricsRepository:     envLevelAppMetricsRepository,
 		client:                           client,
 		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
-		variableEntityMappingService:     variableEntityMappingService,
-		variableTemplateParser:           variableTemplateParser,
-		scopedVariableService:            scopedVariableService,
+		scopedVariableManager:            scopedVariableManager,
 	}
 }
 
@@ -447,7 +441,7 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 	}
 
 	//VARIABLE_MAPPING_UPDATE
-	err = impl.extractAndMapVariables(chart.GlobalOverride, chart.Id, repository5.EntityTypeDeploymentTemplateAppLevel, chart.CreatedBy)
+	err = impl.scopedVariableManager.ExtractAndMapVariables(chart.GlobalOverride, chart.Id, repository5.EntityTypeDeploymentTemplateAppLevel, chart.CreatedBy, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -475,21 +469,6 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 
 	chartVal, err := impl.chartAdaptor(chart, appLevelMetrics)
 	return chartVal, err
-}
-
-func (impl ChartServiceImpl) extractAndMapVariables(template string, entityId int, entityType repository5.EntityType, userId int32) error {
-	usedVariables, err := impl.variableTemplateParser.ExtractVariables(template, parsers.JsonVariableTemplate)
-	if err != nil {
-		return err
-	}
-	err = impl.variableEntityMappingService.UpdateVariablesForEntity(usedVariables, repository5.Entity{
-		EntityType: entityType,
-		EntityId:   entityId,
-	}, userId, nil)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest TemplateRequest, ctx context.Context) (*TemplateRequest, error) {
@@ -599,7 +578,7 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 		return nil, err
 	}
 	//VARIABLE_MAPPING_UPDATE
-	err = impl.extractAndMapVariables(chart.GlobalOverride, chart.Id, repository5.EntityTypeDeploymentTemplateAppLevel, chart.CreatedBy)
+	err = impl.scopedVariableManager.ExtractAndMapVariables(chart.GlobalOverride, chart.Id, repository5.EntityTypeDeploymentTemplateAppLevel, chart.CreatedBy, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -925,7 +904,7 @@ func (impl ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateRequ
 	}
 
 	//VARIABLE_MAPPING_UPDATE
-	err = impl.extractAndMapVariables(template.GlobalOverride, template.Id, repository5.EntityTypeDeploymentTemplateAppLevel, template.CreatedBy)
+	err = impl.scopedVariableManager.ExtractAndMapVariables(template.GlobalOverride, template.Id, repository5.EntityTypeDeploymentTemplateAppLevel, template.CreatedBy, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -1259,7 +1238,7 @@ func (impl ChartServiceImpl) UpgradeForApp(appId int, chartRefId int, newAppOver
 			return false, err
 		}
 		//VARIABLE_MAPPING_UPDATE
-		err = impl.extractAndMapVariables(envOverrideNew.EnvOverrideValues, envOverrideNew.Id, repository5.EntityTypeDeploymentTemplateEnvLevel, envOverrideNew.CreatedBy)
+		err = impl.scopedVariableManager.ExtractAndMapVariables(envOverrideNew.EnvOverrideValues, envOverrideNew.Id, repository5.EntityTypeDeploymentTemplateEnvLevel, envOverrideNew.CreatedBy, nil)
 		if err != nil {
 			return false, err
 		}
@@ -1332,32 +1311,6 @@ const cpuPattern = `"50m" or "0.05"`
 const cpu = "cpu"
 const memory = "memory"
 
-func (impl ChartServiceImpl) ExtractVariablesAndResolveTemplate(scope resourceQualifiers.Scope, template string, templateType parsers.VariableTemplateType) (string, error) {
-
-	usedVariables, err := impl.variableTemplateParser.ExtractVariables(template, templateType)
-	if err != nil {
-		return "", err
-	}
-
-	if len(usedVariables) == 0 {
-		return template, nil
-	}
-
-	scopedVariables, err := impl.scopedVariableService.GetScopedVariables(scope, usedVariables, true)
-	if err != nil {
-		return "", err
-	}
-
-	parserRequest := parsers.VariableParserRequest{Template: template, Variables: scopedVariables, TemplateType: templateType, IgnoreUnknownVariables: true}
-	parserResponse := impl.variableTemplateParser.ParseTemplate(parserRequest)
-	err = parserResponse.Error
-	if err != nil {
-		return "", err
-	}
-	resolvedTemplate := parserResponse.ResolvedTemplate
-	return resolvedTemplate, nil
-}
-
 func (impl ChartServiceImpl) DeploymentTemplateValidate(ctx context.Context, template interface{}, chartRefId int, scope resourceQualifiers.Scope) (bool, error) {
 	_, span := otel.Tracer("orchestrator").Start(ctx, "JsonSchemaExtractFromFile")
 	schemajson, version, err := impl.JsonSchemaExtractFromFile(chartRefId)
@@ -1375,7 +1328,7 @@ func (impl ChartServiceImpl) DeploymentTemplateValidate(ctx context.Context, tem
 	//}
 
 	templateBytes := template.(json.RawMessage)
-	templatejsonstring, err := impl.ExtractVariablesAndResolveTemplate(scope, string(templateBytes), parsers.JsonVariableTemplate)
+	templatejsonstring, _, err := impl.scopedVariableManager.ExtractVariablesAndResolveTemplate(scope, string(templateBytes), parsers.JsonVariableTemplate, true, false)
 	if err != nil {
 		return false, err
 	}

@@ -23,6 +23,8 @@ type ScopedVariableRepository interface {
 
 	// Delete
 	DeleteVariables(auditLog sql.AuditLog, tx *pg.Tx) error
+
+	GetVariableTypeForVariableNames(variableNames []string) ([]*VariableDefinition, error)
 }
 
 type ScopedVariableRepositoryImpl struct {
@@ -66,6 +68,20 @@ func (impl *ScopedVariableRepositoryImpl) GetAllVariableMetadata() ([]*VariableD
 		dbConnection.Model(&variableDefinition).
 		Column("id", "name", "data_type", "var_type", "short_description").
 		Where("active = ?", true).
+		Select()
+	if err == pg.ErrNoRows {
+		err = nil
+	}
+	return variableDefinition, err
+}
+
+func (impl *ScopedVariableRepositoryImpl) GetVariableTypeForVariableNames(variableNames []string) ([]*VariableDefinition, error) {
+	variableDefinition := make([]*VariableDefinition, 0)
+	err := impl.
+		dbConnection.Model(&variableDefinition).
+		Column("name", "var_type").
+		Where("active = ?", true).
+		Where("name in (?)", pg.In(variableNames)).
 		Select()
 	if err == pg.ErrNoRows {
 		err = nil

@@ -3,7 +3,6 @@ package pipeline
 import (
 	"encoding/json"
 	"errors"
-	mapset "github.com/deckarep/golang-set"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
@@ -11,9 +10,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/variables"
-	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	repository3 "github.com/devtron-labs/devtron/pkg/variables/repository"
-	"github.com/devtron-labs/devtron/pkg/variables/utils"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
@@ -39,29 +36,24 @@ func NewPipelineStageService(logger *zap.SugaredLogger,
 	pipelineStageRepository repository.PipelineStageRepository,
 	globalPluginRepository repository2.GlobalPluginRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
-	scopedVariableService variables.ScopedVariableService,
-	variableEntityMappingService variables.VariableEntityMappingService,
-	variableTemplateParser parsers.VariableTemplateParser,
+	scopedVariableManager variables.ScopedVariableManager,
+
 ) *PipelineStageServiceImpl {
 	return &PipelineStageServiceImpl{
-		logger:                       logger,
-		pipelineStageRepository:      pipelineStageRepository,
-		globalPluginRepository:       globalPluginRepository,
-		pipelineRepository:           pipelineRepository,
-		scopedVariableService:        scopedVariableService,
-		variableEntityMappingService: variableEntityMappingService,
-		variableTemplateParser:       variableTemplateParser,
+		logger:                  logger,
+		pipelineStageRepository: pipelineStageRepository,
+		globalPluginRepository:  globalPluginRepository,
+		pipelineRepository:      pipelineRepository,
+		scopedVariableManager:   scopedVariableManager,
 	}
 }
 
 type PipelineStageServiceImpl struct {
-	logger                       *zap.SugaredLogger
-	pipelineStageRepository      repository.PipelineStageRepository
-	globalPluginRepository       repository2.GlobalPluginRepository
-	pipelineRepository           pipelineConfig.PipelineRepository
-	scopedVariableService        variables.ScopedVariableService
-	variableEntityMappingService variables.VariableEntityMappingService
-	variableTemplateParser       parsers.VariableTemplateParser
+	logger                  *zap.SugaredLogger
+	pipelineStageRepository repository.PipelineStageRepository
+	globalPluginRepository  repository2.GlobalPluginRepository
+	pipelineRepository      pipelineConfig.PipelineRepository
+	scopedVariableManager   variables.ScopedVariableManager
 }
 
 func (impl *PipelineStageServiceImpl) GetCiPipelineStageDataDeepCopy(ciPipelineId int) (*bean.PipelineStageDto, *bean.PipelineStageDto, error) {
@@ -964,10 +956,12 @@ func (impl *PipelineStageServiceImpl) UpdatePipelineStage(stageReq *bean.Pipelin
 	if err == pg.ErrNoRows || createNewPipStage {
 		//no stage found, creating new stage
 		stageReq.Id = 0
-		err = impl.CreatePipelineStage(stageReq, stageType, pipelineId, userId)
-		if err != nil {
-			impl.logger.Errorw("error in creating new pipeline stage", "err", err, "pipelineStageReq", stageReq)
-			return err
+		if len(stageReq.Steps) > 0 {
+			err = impl.CreatePipelineStage(stageReq, stageType, pipelineId, userId)
+			if err != nil {
+				impl.logger.Errorw("error in creating new pipeline stage", "err", err, "pipelineStageReq", stageReq)
+				return err
+			}
 		}
 	} else {
 		//stageId found, to handle as an update request
@@ -983,7 +977,7 @@ func (impl *PipelineStageServiceImpl) UpdatePipelineStage(stageReq *bean.Pipelin
 			return err
 		}
 		// filtering(if steps/variables/conditions are updated or newly added) and performing relevant actions on update request
-		err = impl.FilterAndActOnStepsInPipelineStageUpdateRequest(stageReq, userId)
+		err = impl.FilterAndActOnStepsInPipelineStageUpdateRequest(stageReq, stageType, pipelineId, userId)
 		if err != nil {
 			impl.logger.Errorw("error in filtering and performing actions on steps in pipelineStage update request", "err", err, "stageReq", stageReq)
 			return err
@@ -1039,7 +1033,7 @@ func (impl *PipelineStageServiceImpl) deletePipelineStageWithTx(stageReq *bean.P
 	return err
 }
 
-func (impl *PipelineStageServiceImpl) FilterAndActOnStepsInPipelineStageUpdateRequest(stageReq *bean.PipelineStageDto, userId int32) error {
+func (impl *PipelineStageServiceImpl) FilterAndActOnStepsInPipelineStageUpdateRequest(stageReq *bean.PipelineStageDto, stageType repository.PipelineStageType, pipelineId int, userId int32) error {
 	//getting all stepIds for current active (steps not deleted) steps
 	activeStepIds, err := impl.pipelineStageRepository.GetStepIdsByStageId(stageReq.Id)
 	if err != nil {
@@ -1074,6 +1068,7 @@ func (impl *PipelineStageServiceImpl) FilterAndActOnStepsInPipelineStageUpdateRe
 			stepsToBeCreated = append(stepsToBeCreated, step)
 		}
 	}
+	stageDeleted := false
 	if len(activeStepIdsPresentInReq) > 0 {
 		// deleting all steps which are currently active but not present in update request
 		err = impl.pipelineStageRepository.MarkStepsDeletedExcludingActiveStepsInUpdateReq(activeStepIdsPresentInReq, stageReq.Id)
@@ -1088,8 +1083,19 @@ func (impl *PipelineStageServiceImpl) FilterAndActOnStepsInPipelineStageUpdateRe
 			impl.logger.Errorw("error in marking all steps deleted by stageId", "err", err, "stageId", stageReq.Id)
 			return err
 		}
+		stageDeleted = true
 	}
 	if len(stepsToBeCreated) > 0 {
+		if stageDeleted {
+			//create new stage and set stageReq.Id to newly created stage
+			stageReq.Id = 0
+			stageReq.Steps = nil
+			err = impl.CreatePipelineStage(stageReq, stageType, pipelineId, userId)
+			if err != nil {
+				impl.logger.Errorw("error in creating new pipeline stage", "err", err, "pipelineStageReq", stageReq)
+				return err
+			}
+		}
 		//creating new steps
 		err = impl.CreateStageSteps(stepsToBeCreated, stageReq.Id, userId, indexNameString, nil)
 		if err != nil {
@@ -1608,14 +1614,10 @@ func (impl *PipelineStageServiceImpl) DeletePipelineStage(stageReq *bean.Pipelin
 		}
 	}
 
-	err = impl.variableEntityMappingService.DeleteMappingsForEntities([]repository3.Entity{{
-		EntityType: repository3.EntityTypePipelineStage,
-		EntityId:   stageReq.Id,
-	}}, userId, tx)
+	err = impl.scopedVariableManager.RemoveMappedVariables(stageReq.Id, repository3.EntityTypePipelineStage, userId, tx)
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 
@@ -2103,57 +2105,21 @@ func (impl *PipelineStageServiceImpl) fetchScopedVariablesAndResolveTemplate(unr
 			EntityId:   stageId,
 		})
 	}
-	mappingsForEntities, err := impl.variableEntityMappingService.GetAllMappingsForEntities(entities)
-	if err != nil {
-		impl.logger.Errorw("Error in fetching mapped variables in stage request", "error", err)
-		return nil, err
-	}
-
-	//early exit if no variables found
-	if len(mappingsForEntities) == 0 {
-		return unresolvedResponse, nil
-	}
-
-	// collecting all unique variable names in a stage
-	varNamesSet := mapset.NewSet()
-	for _, variableNames := range mappingsForEntities {
-		for _, variableName := range variableNames {
-			varNamesSet.Add(variableName)
-		}
-	}
-	varNames := utils.ToStringArray(varNamesSet.ToSlice())
-
-	scopedVariables, err := impl.scopedVariableService.GetScopedVariables(scope, varNames, true)
-	if err != nil {
-		return nil, err
-	}
-
-	variableSnapshot := make(map[string]string)
-	for _, variable := range scopedVariables {
-		variableSnapshot[variable.VariableName] = variable.VariableValue.StringValue()
-	}
 
 	responseJson, err := json.Marshal(unresolvedResponse)
 	if err != nil {
 		impl.logger.Errorw("Error in marshaling stage", "error", err, "unresolvedResponse", unresolvedResponse)
 		return nil, err
 	}
-	parserResponse := impl.variableTemplateParser.ParseTemplate(parsers.VariableParserRequest{
-		TemplateType:           parsers.JsonVariableTemplate,
-		Template:               string(responseJson),
-		Variables:              scopedVariables,
-		IgnoreUnknownVariables: true,
-	})
-	err = parserResponse.Error
+
+	resolvedTemplate, variableSnapshot, err := impl.scopedVariableManager.GetMappedVariablesAndResolveTemplateBatch(string(responseJson), scope, entities)
 	if err != nil {
-		impl.logger.Errorw("Error in parsing stage", "error", err, "template", responseJson, "vars", scopedVariables)
 		return nil, err
 	}
 	resolvedResponse := &bean.PrePostAndRefPluginStepsResponse{}
-	err = json.Unmarshal([]byte(parserResponse.ResolvedTemplate), resolvedResponse)
+	err = json.Unmarshal([]byte(resolvedTemplate), resolvedResponse)
 	if err != nil {
 		impl.logger.Errorw("Error in unmarshalling stage", "error", err)
-
 		return nil, err
 	}
 	resolvedResponse.VariableSnapshot = variableSnapshot
@@ -2166,23 +2132,7 @@ func (impl *PipelineStageServiceImpl) extractAndMapScopedVariables(stageReq *bea
 		impl.logger.Errorw("Error in marshalling stage request", "error", err)
 		return err
 	}
-	scopedVariables, err := impl.variableTemplateParser.ExtractVariables(string(requestJson), parsers.JsonVariableTemplate)
-	if err != nil {
-		impl.logger.Errorw("Error in parsing variable in stage request", "error", err)
-		return err
-	}
 
-	if len(scopedVariables) == 0 {
-		return nil
-	}
+	return impl.scopedVariableManager.ExtractAndMapVariables(string(requestJson), stageReq.Id, repository3.EntityTypePipelineStage, userId, tx)
 
-	err = impl.variableEntityMappingService.UpdateVariablesForEntity(scopedVariables, repository3.Entity{
-		EntityType: repository3.EntityTypePipelineStage,
-		EntityId:   stageReq.Id,
-	}, userId, tx)
-	if err != nil {
-		impl.logger.Errorw("Error in updating variables for stage request", "error", err)
-		return err
-	}
-	return nil
 }

@@ -21,12 +21,14 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"time"
 )
 
 type Cluster struct {
 	tableName              struct{}          `sql:"cluster" pg:",discard_unknown_columns"`
 	Id                     int               `sql:"id,pk"`
 	ClusterName            string            `sql:"cluster_name"`
+	Description            string            `sql:"description"`
 	ServerUrl              string            `sql:"server_url"`
 	PrometheusEndpoint     string            `sql:"prometheus_endpoint"`
 	Active                 bool              `sql:"active,notnull"`
@@ -50,9 +52,11 @@ type ClusterRepository interface {
 	FindOneActive(clusterName string) (*Cluster, error)
 	FindAll() ([]Cluster, error)
 	FindAllActive() ([]Cluster, error)
+	FindAllActiveExceptVirtual() ([]Cluster, error)
 	FindById(id int) (*Cluster, error)
 	FindByIds(id []int) ([]Cluster, error)
 	Update(model *Cluster) error
+	SetDescription(id int, description string, userId int32) error
 	Delete(model *Cluster) error
 	MarkClusterDeleted(model *Cluster) error
 	UpdateClusterConnectionStatus(clusterId int, errorInConnecting string) error
@@ -127,6 +131,16 @@ func (impl ClusterRepositoryImpl) FindAllActive() ([]Cluster, error) {
 	return clusters, err
 }
 
+func (impl ClusterRepositoryImpl) FindAllActiveExceptVirtual() ([]Cluster, error) {
+	var clusters []Cluster
+	err := impl.dbConnection.
+		Model(&clusters).
+		Where("active=?", true).
+		Where("is_virtual_cluster=? OR is_virtual_cluster IS NULL", false).
+		Select()
+	return clusters, err
+}
+
 func (impl ClusterRepositoryImpl) FindById(id int) (*Cluster, error) {
 	cluster := &Cluster{}
 	err := impl.dbConnection.
@@ -159,6 +173,13 @@ func (impl ClusterRepositoryImpl) FindByIds(id []int) ([]Cluster, error) {
 
 func (impl ClusterRepositoryImpl) Update(model *Cluster) error {
 	return impl.dbConnection.Update(model)
+}
+
+func (impl ClusterRepositoryImpl) SetDescription(id int, description string, userId int32) error {
+	_, err := impl.dbConnection.Model((*Cluster)(nil)).
+		Set("description = ?", description).Set("updated_by = ?", userId).Set("updated_on = ?", time.Now()).
+		Where("id = ?", id).Update()
+	return err
 }
 
 func (impl ClusterRepositoryImpl) Delete(model *Cluster) error {

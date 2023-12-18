@@ -18,9 +18,14 @@ data:
   PG_DATABASE: orchestrator
   DEX_HOST: http://argocd-dex-server.devtroncd
   DEX_PORT: "5556"
-  APP_SYNC_IMAGE: "quay.io/devtron/chart-sync:0e8c785e-373-16172"
+  APP_SYNC_IMAGE: "quay.io/devtron/chart-sync:98957687-150-19133"
 {{- if $.Values.installer.modules }}
 {{- if has "cicd" $.Values.installer.modules }}
+  USE_ARTIFACT_LISTING_API_V2: "true"
+  RUN_HELM_INSTALL_IN_ASYNC_MODE_HELM_APPS: "true"
+  ENABLE_ASYNC_INSTALL_DEVTRON_CHART: "true"
+  DEVTRON_CHART_INSTALL_REQUEST_TIMEOUT: "6"
+  CONSUMER_CONFIG_JSON: '{"DEVTRON-CHART-INSTALL-DURABLE":{"natsMsgProcessingBatchSize":1}}'
 {{- if $.Values.configs }}
 {{- if or ($.Values.minio.enabled) ($.Values.configs.BLOB_STORAGE_PROVIDER) }}
   BLOB_STORAGE_ENABLED: "true"

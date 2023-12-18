@@ -14,16 +14,16 @@ type QualifierMappingService interface {
 }
 
 type QualifierMappingServiceImpl struct {
-	logger                     *zap.SugaredLogger
-	qualifierMappingRepository QualifiersMappingRepository
-	devtronResourceService     devtronResource.DevtronResourceService
+	logger                              *zap.SugaredLogger
+	qualifierMappingRepository          QualifiersMappingRepository
+	devtronResourceSearchableKeyService devtronResource.DevtronResourceSearchableKeyService
 }
 
-func NewQualifierMappingServiceImpl(logger *zap.SugaredLogger, qualifierMappingRepository QualifiersMappingRepository, devtronResourceService devtronResource.DevtronResourceService) (*QualifierMappingServiceImpl, error) {
+func NewQualifierMappingServiceImpl(logger *zap.SugaredLogger, qualifierMappingRepository QualifiersMappingRepository, devtronResourceSearchableKeyService devtronResource.DevtronResourceSearchableKeyService) (*QualifierMappingServiceImpl, error) {
 	return &QualifierMappingServiceImpl{
-		logger:                     logger,
-		qualifierMappingRepository: qualifierMappingRepository,
-		devtronResourceService:     devtronResourceService,
+		logger:                              logger,
+		qualifierMappingRepository:          qualifierMappingRepository,
+		devtronResourceSearchableKeyService: devtronResourceSearchableKeyService,
 	}, nil
 }
 
@@ -32,7 +32,7 @@ func (impl QualifierMappingServiceImpl) CreateQualifierMappings(qualifierMapping
 }
 
 func (impl QualifierMappingServiceImpl) GetQualifierMappings(resourceType ResourceType, scope *Scope, resourceIds []int) ([]*QualifierMapping, error) {
-	searchableKeyNameIdMap := impl.devtronResourceService.GetAllSearchableKeyNameIdMap()
+	searchableKeyNameIdMap := impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap()
 	return impl.qualifierMappingRepository.GetQualifierMappings(resourceType, scope, searchableKeyNameIdMap, resourceIds)
 }
 

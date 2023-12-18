@@ -20,6 +20,7 @@ package repository
 import (
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg/orm"
 	"net/url"
 
@@ -114,6 +115,10 @@ func (impl DockerArtifactStoreRepositoryImpl) GetConnection() *pg.DB {
 }
 
 func (impl DockerArtifactStoreRepositoryImpl) Save(artifactStore *DockerArtifactStore, tx *pg.Tx) error {
+	if util.IsBaseStack() {
+		return tx.Insert(artifactStore)
+	}
+
 	//TODO check for unique default
 	//there can be only one default
 	model, err := impl.FindActiveDefaultStore()

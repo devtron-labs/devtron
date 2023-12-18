@@ -30,16 +30,22 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
+)
+
+const (
+	ZERO_INSTALLED_APP_ID = 0
+	ZERO_ENVIRONMENT_ID   = 0
 )
 
 type AppCrudOperationService interface {
 	Create(request *bean.AppLabelDto, tx *pg.Tx) (*bean.AppLabelDto, error)
 	FindById(id int) (*bean.AppLabelDto, error)
 	FindAll() ([]*bean.AppLabelDto, error)
-	GetAppMetaInfo(appId int) (*bean.AppMetaInfoDto, error)
+	GetAppMetaInfo(appId int, installedAppId int, envId int) (*bean.AppMetaInfoDto, error)
 	GetHelmAppMetaInfo(appId string) (*bean.AppMetaInfoDto, error)
 	GetLabelsByAppIdForDeployment(appId int) ([]byte, error)
 	GetLabelsByAppId(appId int) (map[string]string, error)
@@ -48,6 +54,7 @@ type AppCrudOperationService interface {
 	GetAppMetaInfoByAppName(appName string) (*bean.AppMetaInfoDto, error)
 	GetAppListByTeamIds(teamIds []int, appType string) ([]*TeamAppBean, error)
 }
+
 type AppCrudOperationServiceImpl struct {
 	logger                 *zap.SugaredLogger
 	appLabelRepository     pipelineConfig.AppLabelRepository
@@ -55,12 +62,14 @@ type AppCrudOperationServiceImpl struct {
 	userRepository         repository.UserRepository
 	installedAppRepository repository2.InstalledAppRepository
 	genericNoteService     genericNotes.GenericNoteService
+	gitMaterialRepository  pipelineConfig.MaterialRepository
 }
 
 func NewAppCrudOperationServiceImpl(appLabelRepository pipelineConfig.AppLabelRepository,
 	logger *zap.SugaredLogger, appRepository appRepository.AppRepository, userRepository repository.UserRepository,
 	installedAppRepository repository2.InstalledAppRepository,
-	genericNoteService genericNotes.GenericNoteService) *AppCrudOperationServiceImpl {
+	genericNoteService genericNotes.GenericNoteService,
+	gitMaterialRepository pipelineConfig.MaterialRepository) *AppCrudOperationServiceImpl {
 	return &AppCrudOperationServiceImpl{
 		appLabelRepository:     appLabelRepository,
 		logger:                 logger,
@@ -68,6 +77,7 @@ func NewAppCrudOperationServiceImpl(appLabelRepository pipelineConfig.AppLabelRe
 		userRepository:         userRepository,
 		installedAppRepository: installedAppRepository,
 		genericNoteService:     genericNoteService,
+		gitMaterialRepository:  gitMaterialRepository,
 	}
 }
 
@@ -122,6 +132,13 @@ func (impl AppCrudOperationServiceImpl) UpdateApp(request *bean.CreateAppDTO) (*
 	_, err = impl.UpdateLabelsInApp(request, tx)
 	if err != nil {
 		impl.logger.Errorw("error in updating app labels", "error", err)
+		return nil, err
+	}
+
+	//updating description
+	err = impl.appRepository.SetDescription(app.Id, request.Description, request.UserId)
+	if err != nil {
+		impl.logger.Errorw("error in setting app description", "err", err, "appId", app.Id)
 		return nil, err
 	}
 
@@ -206,7 +223,7 @@ func (impl AppCrudOperationServiceImpl) UpdateLabelsInApp(request *bean.CreateAp
 			appLabelMap[uniqueLabelExists] = appLabel
 		}
 	}
-
+	appLabelDeleteMap := make(map[string]bool, 0)
 	for _, label := range request.AppLabels {
 		uniqueLabelRequest := fmt.Sprintf("%s:%s:%t", label.Key, label.Value, label.Propagate)
 		if _, ok := appLabelMap[uniqueLabelRequest]; !ok {
@@ -227,9 +244,12 @@ func (impl AppCrudOperationServiceImpl) UpdateLabelsInApp(request *bean.CreateAp
 				return nil, err
 			}
 		} else {
-			// delete from map so that item remain live, all other item will be delete from this app
-			delete(appLabelMap, uniqueLabelRequest)
+			// storing this unique so that item remain live, all other item will be delete from this app
+			appLabelDeleteMap[uniqueLabelRequest] = true
 		}
+	}
+	for labelReq, _ := range appLabelDeleteMap {
+		delete(appLabelMap, labelReq)
 	}
 	for _, appLabel := range appLabelMap {
 		err = impl.appLabelRepository.Delete(appLabel, tx)
@@ -281,7 +301,8 @@ func (impl AppCrudOperationServiceImpl) FindAll() ([]*bean.AppLabelDto, error) {
 	return results, nil
 }
 
-func (impl AppCrudOperationServiceImpl) GetAppMetaInfo(appId int) (*bean.AppMetaInfoDto, error) {
+// GetAppMetaInfo here envId is for installedApp
+func (impl AppCrudOperationServiceImpl) GetAppMetaInfo(appId int, installedAppId int, envId int) (*bean.AppMetaInfoDto, error) {
 	app, err := impl.appRepository.FindAppAndProjectByAppId(appId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching GetAppMetaInfo", "error", err)
@@ -323,23 +344,83 @@ func (impl AppCrudOperationServiceImpl) GetAppMetaInfo(appId int) (*bean.AppMeta
 	if app.AppType == helper.Job {
 		appName = app.DisplayName
 	}
-	descriptionResp, err := impl.genericNoteService.GetGenericNotesForAppIds([]int{app.Id})
+	noteResp, err := impl.genericNoteService.GetGenericNotesForAppIds([]int{app.Id})
 	if err != nil {
 		impl.logger.Errorw("error in fetching description", "err", err, "appId", app.Id)
 		return nil, err
 	}
+
 	info := &bean.AppMetaInfoDto{
 		AppId:       app.Id,
 		AppName:     appName,
+		Description: app.Description,
 		ProjectId:   app.TeamId,
 		ProjectName: app.Team.Name,
 		CreatedBy:   userEmailId,
 		CreatedOn:   app.CreatedOn,
 		Labels:      labels,
 		Active:      app.Active,
-		Description: descriptionResp[app.Id],
+		Note:        noteResp[app.Id],
+	}
+	if installedAppId > 0 {
+		installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppIdAndEnvId(installedAppId, envId)
+		if err != nil {
+			impl.logger.Error(err)
+			return nil, err
+		}
+		var chartName string
+		if installedAppVersion != nil {
+			info.ChartUsed = &bean.ChartUsedDto{
+				AppStoreAppName:    installedAppVersion.AppStoreApplicationVersion.Name,
+				AppStoreAppVersion: installedAppVersion.AppStoreApplicationVersion.Version,
+				ChartAvatar:        installedAppVersion.AppStoreApplicationVersion.Icon,
+			}
+			if installedAppVersion.AppStoreApplicationVersion.AppStore != nil {
+				appStore := installedAppVersion.AppStoreApplicationVersion.AppStore
+				if appStore.ChartRepoId != 0 && appStore.ChartRepo != nil {
+					chartName = appStore.ChartRepo.Name
+				} else if appStore.DockerArtifactStore != nil {
+					chartName = appStore.DockerArtifactStore.Id
+				}
+
+				info.ChartUsed.AppStoreChartId = appStore.Id
+				info.ChartUsed.AppStoreChartName = chartName
+			}
+		}
+	} else {
+		//app type not helm type, getting gitMaterials
+		gitMaterials, err := impl.gitMaterialRepository.FindByAppId(appId)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in getting gitMaterials by appId", "err", err, "appId", appId)
+			return nil, err
+		}
+		gitMaterialMetaDtos := make([]*bean.GitMaterialMetaDto, 0, len(gitMaterials))
+		for _, gitMaterial := range gitMaterials {
+			gitMaterialMetaDtos = append(gitMaterialMetaDtos, &bean.GitMaterialMetaDto{
+				DisplayName:    gitMaterial.Name[strings.Index(gitMaterial.Name, "-")+1:],
+				OriginalUrl:    gitMaterial.Url,
+				RedirectionUrl: convertUrlToHttpsIfSshType(gitMaterial.Url),
+			})
+		}
+		info.GitMaterials = gitMaterialMetaDtos
 	}
 	return info, nil
+}
+
+func convertUrlToHttpsIfSshType(url string) string {
+	// Regular expression to match SSH URL patterns
+	sshPattern := `^(git@|ssh:\/\/)([^:]+):(.+)$`
+
+	// Compile the regular expression
+	re := regexp.MustCompile(sshPattern)
+
+	// Check if the input URL matches the SSH pattern, if not already a https one
+	if !re.MatchString(url) {
+		return url
+	}
+	// Replace the SSH parts with HTTPS parts
+	httpsURL := re.ReplaceAllString(url, "https://$2/$3")
+	return httpsURL
 }
 
 func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string) (*bean.AppMetaInfoDto, error) {

@@ -325,6 +325,36 @@ imagePullSecrets:
 ```
 regcred is the secret that contains the docker credentials that are used for accessing a registry. Devtron will not create this secret automatically, you'll have to create this secret using dt-secrets helm chart in the App store or create one using kubectl. You can follow this documentation Pull an Image from a Private Registry [https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/) .
 
+### serviceAccount
+
+```yaml
+serviceAccount:
+  create: false
+  name: ""
+  annotations: {}
+```
+
+| Key | Description |
+| :--- | :--- |
+| `enabled` | Determines whether to create a ServiceAccount for pods or not. If set to `true`, a ServiceAccount will be created. |
+| `name`  | Specifies the name of the ServiceAccount to use. |
+| `annotations` |  Specify annotations for the ServiceAccount. |
+
+### HostAliases
+
+ the hostAliases field is used in a Pod specification to associate additional hostnames with the Pod's IP address. This can be helpful in scenarios where you need to resolve specific hostnames to the Pod's IP within the Pod itself.
+
+```yaml
+  hostAliases:
+  - ip: "192.168.1.10"
+    hostnames:
+    - "hostname1.example.com"
+    - "hostname2.example.com"
+  - ip: "192.168.1.11"
+    hostnames:
+    - "hostname3.example.com"
+```
+
 ### Ingress
 
 This allows public access to the url, please ensure you are using right nginx annotation for nginx class, its default value is nginx
@@ -421,60 +451,6 @@ initContainers:
     args: ["-g", "daemon off;"]
 ```
 Specialized containers that run before app containers in a Pod. Init containers can contain utilities or setup scripts not present in an app image. One can use base image inside initContainer by setting the reuseContainerImage flag to `true`.
-
-### Istio
-
-Istio is a service mesh which simplifies observability, traffic management, security and much more with it's virtual services and gateways.
-
-```yaml
-istio:
-  enable: true
-  gateway:
-    annotations: {}
-    enabled: false
-    host: example.com
-    labels: {}
-    tls:
-      enabled: false
-      secretName: example-tls-secret
-  virtualService:
-    annotations: {}
-    enabled: false
-    gateways: []
-    hosts: []
-    http:
-      - corsPolicy:
-          allowCredentials: false
-          allowHeaders:
-            - x-some-header
-          allowMethods:
-            - GET
-          allowOrigin:
-            - example.com
-          maxAge: 24h
-        headers:
-          request:
-            add:
-              x-some-header: value
-        match:
-          - uri:
-              prefix: /v1
-          - uri:
-              prefix: /v2
-        retries:
-          attempts: 2
-          perTryTimeout: 3s
-        rewriteUri: /
-        route:
-          - destination:
-              host: service1
-              port: 80
-        timeout: 12s
-      - route:
-          - destination:
-              host: service2
-    labels: {}
-```
 
 ### Pause For Seconds Before Switch Active
 ```yaml
@@ -753,6 +729,147 @@ dbMigrationConfig:
 
 It is used to configure database migration.
 
+### Istio
+
+These Istio configurations collectively provide a comprehensive set of tools for controlling access, authenticating requests, enforcing security policies, and configuring traffic behavior within a microservices architecture. The specific settings you choose would depend on your security and traffic management requirements.
+
+```yaml
+istio:
+  enable: true
+
+  gateway:
+    enabled: true
+    labels:
+      app: my-gateway
+    annotations:
+      description: "Istio Gateway for external traffic"
+    host: "example.com"
+    tls:
+      enabled: true
+      secretName: my-tls-secret
+
+  virtualService:
+    enabled: true
+    labels:
+      app: my-service
+    annotations:
+      description: "Istio VirtualService for routing"
+    gateways:
+      - my-gateway
+    hosts:
+      - "example.com"
+    http:
+      - match:
+          - uri:
+              prefix: /v1
+        route:
+          - destination:
+              host: my-service-v1
+              subset: version-1
+      - match:
+          - uri:
+              prefix: /v2
+        route:
+          - destination:
+              host: my-service-v2
+              subset: version-2
+
+  destinationRule:
+    enabled: true
+    labels:
+      app: my-service
+    annotations:
+      description: "Istio DestinationRule for traffic policies"
+    subsets:
+      - name: version-1
+        labels:
+          version: "v1"
+      - name: version-2
+        labels:
+          version: "v2"
+    trafficPolicy:
+      connectionPool:
+        tcp:
+          maxConnections: 100
+      outlierDetection:
+        consecutiveErrors: 5
+        interval: 30s
+        baseEjectionTime: 60s
+
+  peerAuthentication:
+    enabled: true
+    labels:
+      app: my-service
+    annotations:
+      description: "Istio PeerAuthentication for mutual TLS"
+    selector:
+      matchLabels:
+        version: "v1"
+    mtls:
+      mode: STRICT
+    portLevelMtls:
+      8080:
+        mode: DISABLE
+
+  requestAuthentication:
+    enabled: true
+    labels:
+      app: my-service
+    annotations:
+      description: "Istio RequestAuthentication for JWT validation"
+    selector:
+      matchLabels:
+        version: "v1"
+    jwtRules:
+      - issuer: "issuer-1"
+        jwksUri: "https://issuer-1/.well-known/jwks.json"
+
+  authorizationPolicy:
+    enabled: true
+    labels:
+      app: my-service
+    annotations:
+      description: "Istio AuthorizationPolicy for access control"
+    action: ALLOW
+    provider:
+      name: jwt
+      kind: Authorization
+    rules:
+      - from:
+          - source:
+              requestPrincipals: ["*"]
+        to:
+          - operation:
+              methods: ["GET"]
+```
+
+| Key | Description |
+| :--- | :--- |
+| `istio`  | Istio enablement. When `istio.enable` set to true, Istio would be enabled for the specified configurations  |
+| `authorizationPolicy`  | It allows you to define access control policies for service-to-service communication.  | 
+| `action`  |  Determines whether to ALLOW or DENY the request based on the defined rules. |
+| `provider`  | Authorization providers are external systems or mechanisms used to make access control decisions.  | 
+|  `rules` | List of rules defining the authorization policy. Each rule can specify conditions and requirements for allowing or denying access.  |
+| `destinationRule`  | It allows for the fine-tuning of traffic policies and load balancing for specific services. You can define subsets of a service and apply different traffic policies to each subset. | 
+| `subsets`  | Specifies subsets within the service for routing and load balancing.  |
+| `trafficPolicy`  | Policies related to connection pool size, outlier detection, and load balancing.  | 
+| `gateway`  | Allowing external traffic to enter the service mesh through the specified configurations. |
+| `host`  | The external domain through which traffic will be routed into the service mesh.  |
+| `tls`  | Traffic to and from the gateway should be encrypted using TLS.  |
+| `secretName`  |  Specifies the name of the Kubernetes secret that contains the TLS certificate and private key. The TLS certificate is used for securing the communication between clients and the Istio gateway. |
+| `peerAuthentication`  | It allows you to enforce mutual TLS and control the authentication between services.  |
+| `mtls`  | Mutual TLS. Mutual TLS is a security protocol that requires both client and server, to authenticate each other using digital certificates for secure communication.  | 
+| `mode`  | Mutual TLS mode, specifying how mutual TLS should be applied. Modes include STRICT, PERMISSIVE, and DISABLE.  |
+| `portLevelMtls`  | Configures port-specific mTLS settings. Allows for fine-grained control over the application of mutual TLS on specific ports.  | 
+| `selector`  | Configuration for selecting workloads to apply PeerAuthentication.  | 
+| `requestAuthentication`  |  Defines rules for authenticating incoming requests. | 
+| `jwtRules`  | Rules for validating JWTs (JSON Web Tokens). It defines how incoming JWTs should be validated for authentication purposes.  |
+| `selector`  | Specifies the conditions under which the RequestAuthentication rules should be applied.  | 
+|  `virtualService` | Enables the definition of rules for how traffic should be routed to different services within the service mesh.  |
+| `gateways`   |  Specifies the gateways to which the rules defined in the VirtualService apply. | 
+| `hosts`  | List of hosts (domains) to which this VirtualService is applied.  | 
+| `http`  |  Configuration for HTTP routes within the VirtualService. It define routing rules based on HTTP attributes such as URI prefixes, headers, timeouts, and retry policies. | 
+
 
 ### KEDA Autoscaling
 [KEDA](https://keda.sh) is a Kubernetes-based Event Driven Autoscaler. With KEDA, you can drive the scaling of any container in Kubernetes based on the number of events needing to be processed. KEDA can be installed into any Kubernetes cluster and can work alongside standard Kubernetes components like the Horizontal Pod Autoscaler(HPA).
@@ -819,6 +936,56 @@ kedaAutoscaling:
   authenticationRef: 
     name: keda-trigger-auth-kafka-credential
 ```
+
+### NetworkPolicy
+
+Kubernetes NetworkPolicies control pod communication by defining rules for incoming and outgoing traffic.
+
+```yaml
+networkPolicy:
+  enabled: false
+  annotations: {}
+  labels: {}
+  podSelector:
+    matchLabels:
+      role: db
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - ipBlock:
+            cidr: 172.17.0.0/16
+            except:
+              - 172.17.1.0/24
+        - namespaceSelector:
+            matchLabels:
+              project: myproject
+        - podSelector:
+            matchLabels:
+              role: frontend
+      ports:
+        - protocol: TCP
+          port: 6379
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 10.0.0.0/24
+      ports:
+        - protocol: TCP
+          port: 5978
+```
+
+| Key | Description |
+| :--- | :--- |
+| `enabled` | Enable or disable NetworkPolicy. |
+| `annotations` | Additional metadata or information associated with the NetworkPolicy.  |
+| `labels`  | Labels to apply to the NetworkPolicy. 
+| `podSelector`  |  Each NetworkPolicy includes a podSelector which selects the grouping of pods to which the policy applies. The example policy selects pods with the label "role=db". An empty podSelector selects all pods in the namespace.|
+| `policyTypes`  | Each NetworkPolicy includes a policyTypes list which may include either Ingress, Egress, or both. |
+| `Ingress` | Controls incoming traffic to pods. |
+| `Egress`  | Controls outgoing traffic from pods. |
+
 ### Winter-Soldier
 Winter Soldier can be used to
 - cleans up (delete) Kubernetes resources
@@ -838,7 +1005,7 @@ winterSoldier:
   targetReplicas: []
   fieldSelector: []
 ```
-Here, 
+
 | Key | values | Description |
 | :--- | :--- | :--- |
 | `enabled` | `false`,`true` | decide the enabling factor  |
@@ -930,7 +1097,7 @@ It gives the realtime metrics of the deployed applications
 ## 2. Show application metrics
 
 If you want to see application metrics like different HTTP status codes metrics, application throughput, latency, response time. Enable the Application metrics from below the deployment template Save button. After enabling it, you should be able to see all metrics on App detail page. By default it remains disabled.
-![](../../../.gitbook/assets/deployment_application_metrics%20%282%29.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/deployment-template/deployment_application_metrics.jpg)
 
 Once all the Deployment template configurations are done, click on `Save` to save your deployment configuration. Now you are ready to create [Workflow](workflow/) to do CI/CD.
 

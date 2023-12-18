@@ -17,11 +17,11 @@ Click `Configurations` to add notification configuration in one of the following
 
 You can manage the `SES configuration` to receive e-mails by entering the valid credentials. Make sure your e-mail is verified by SES.
 
-![](../../.gitbook/assets/gc-noitfication-condfiguration-add.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/manage-notification/gc-notification-configuration-add.jpg)
 
 Click `Add` and configure SES.
 
-![](../../.gitbook/assets/gc-noitfication-condfiguration-ses-confige%20%283%29.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/manage-notification/gc-notification-configuration-ses-config.jpg)
 
 | Key | Description |
 | :--- | :--- |
@@ -60,11 +60,11 @@ Click `Save` to save your SMTP configuration or e-mail ID
 
 You can manage the `Slack configurations` to receive notifications on your preferred Slack channel.
 
-![](../../.gitbook/assets/gc-noitfication-condfiguration-add-slack.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/manage-notification/gc-notification-configuration-add-slack.jpg)
 
 Click `Add` to add new Slack Channel.
 
-![](../../.gitbook/assets/gc-noitfication-condfiguration-configure-slack.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/manage-notification/gc-notification-configuration-configure-slack.jpg)
 
 | Key | Description |
 | :--- | :--- |
@@ -94,7 +94,7 @@ _**Select Pipelines**_
   * Choose a filter type\(`environment`, `project` or `application`\)
   * You will see a list of pipelines corresponding to your selected filter type, you can select any number of pipelines. For each pipeline, there are 3 types of events `Trigger`, `Success`, and `Failure`. Click on the checkboxes for the events, on which you want to receive notifications.
 
-![](../../.gitbook/assets/gc-noitfication-add-notification-configuration-select-event.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/manage-notification/gc-notification-configuration-select-event.jpg)
 
 Click `Save` when you are done with your Slack notification configuration.
 

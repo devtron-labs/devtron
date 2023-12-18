@@ -22,14 +22,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/devtron-labs/devtron/api/restHandler/bean"
+	k8sObjectUtils "github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
+	"github.com/devtron-labs/devtron/client/argocdServer/connection"
 	"strings"
 	"time"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/util"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -99,12 +99,15 @@ type ResourceTreeResponse struct {
 }
 
 type PodMetadata struct {
-	Name                string                         `json:"name"`
-	UID                 string                         `json:"uid"`
-	Containers          []*string                      `json:"containers"`
-	InitContainers      []*string                      `json:"initContainers"`
-	IsNew               bool                           `json:"isNew"`
-	EphemeralContainers []*bean.EphemeralContainerData `json:"ephemeralContainers"`
+	Name           string    `json:"name"`
+	UID            string    `json:"uid"`
+	Containers     []*string `json:"containers"`
+	InitContainers []*string `json:"initContainers"`
+	IsNew          bool      `json:"isNew"`
+	// EphemeralContainers are set for Pod kind manifest response only
+	// will always contain running ephemeral containers
+	// +optional
+	EphemeralContainers []*k8sObjectUtils.EphemeralContainerData `json:"ephemeralContainers"`
 }
 
 type Manifests struct {
@@ -116,11 +119,11 @@ type Manifests struct {
 
 type ServiceClientImpl struct {
 	logger                  *zap.SugaredLogger
-	argoCDConnectionManager argocdServer.ArgoCDConnectionManager
+	argoCDConnectionManager connection.ArgoCDConnectionManager
 }
 
 func NewApplicationClientImpl(
-	logger *zap.SugaredLogger, argoCDConnectionManager argocdServer.ArgoCDConnectionManager,
+	logger *zap.SugaredLogger, argoCDConnectionManager connection.ArgoCDConnectionManager,
 ) *ServiceClientImpl {
 	return &ServiceClientImpl{
 		logger:                  logger,

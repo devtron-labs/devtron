@@ -25,6 +25,7 @@ import (
 	util3 "github.com/devtron-labs/common-lib/utils/k8s"
 	"io"
 	"io/ioutil"
+	v1 "k8s.io/api/batch/v1"
 	"net/http"
 	"net/url"
 	"strings"
@@ -434,7 +435,7 @@ func (impl *ChartRepositoryServiceImpl) DeleteChartRepo(request *ChartRepoDto) e
 	}
 	updateSuccess := false
 	retryCount := 0
-	//request.Url = ""
+	//request.RedirectionUrl = ""
 
 	for !updateSuccess && retryCount < 3 {
 		retryCount = retryCount + 1
@@ -712,9 +713,16 @@ func (impl *ChartRepositoryServiceImpl) TriggerChartSyncManual(chartProviderConf
 
 	manualAppSyncJobByteArr := manualAppSyncJobByteArr(impl.serverEnvConfig.AppSyncImage, impl.serverEnvConfig.AppSyncJobResourcesObj, chartProviderConfig)
 
-	err = impl.K8sUtil.DeleteAndCreateJob(manualAppSyncJobByteArr, impl.aCDAuthConfig.ACDConfigMapNamespace, defaultClusterConfig)
+	var job v1.Job
+	err = yaml.Unmarshal(manualAppSyncJobByteArr, &job)
 	if err != nil {
-		impl.logger.Errorw("DeleteAndCreateJob err, TriggerChartSyncManual", "err", err)
+		impl.logger.Errorw("Unmarshal err, CreateJobSafely", "err", err)
+		return err
+	}
+
+	err = impl.K8sUtil.CreateJob(impl.aCDAuthConfig.ACDConfigMapNamespace, job.Name, defaultClusterConfig, &job)
+	if err != nil {
+		impl.logger.Errorw("CreateJob err, CreateJobSafely", "err", err)
 		return err
 	}
 

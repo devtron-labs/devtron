@@ -27,7 +27,7 @@ The following fields are provided on the **Store Container Image** section:
 
 **If you are using docker hub account, you need to enter the repository name along with your username. For example - If my username is *kartik579* and repo name is *devtron-trial*, then enter kartik579/devtron-trial instead of only devtron-trial.**
 
-![](../../.gitbook/assets/docker-configuration-docker-hub.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/docker-build-configuration/docker-configuration-docker-hub.jpg)
 
 
 ## Build the Container Image

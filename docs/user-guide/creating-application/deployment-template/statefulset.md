@@ -72,17 +72,17 @@ EnvVariablesFromSecretKeys:
     keyName: SECRET_KEY
 
 ```
- It is use to get the name of Environment Variable name, Secret name and the Key name from which we are using the value in that corresponding Environment Variable.
+ It is used to get the name of Environment Variable name, Secret name and the Key name from which we are using the value in that corresponding Environment Variable.
 
- ### EnvVariablesFromCongigMapKeys
+ ### EnvVariablesFromConfigMapKeys
 ```yaml
-EnvVariablesFromCongigMapKeys: 
+EnvVariablesFromConfigMapKeys: 
   - name: ENV_NAME
     configMapName: CONFIG_MAP_NAME
     keyName: CONFIG_MAP_KEY
 
 ```
- It is use to get the name of Environment Variable name, Config Map name and the Key name from which we are using the value in that corresponding Environment Variable.
+ It is used to get the name of Environment Variable name, Config Map name and the Key name from which we are using the value in that corresponding Environment Variable.
 
 To set environment variables for the containers that run in the Pod.
 ### StatefulSetConfig
@@ -525,6 +525,28 @@ istio:
     labels: {}
 ```
 
+| Key | Description |
+| :--- | :--- |
+| `istio`  | Istio enablement. When `istio.enable` set to true, Istio would be enabled for the specified configurations  |
+| `gateway`  | Allowing external traffic to enter the service mesh through the specified configurations.  |
+| `host`  | The external domain through which traffic will be routed into the service mesh.  |
+| `tls`  | Traffic to and from the gateway should be encrypted using TLS.  |
+| `secretName`  |  Specifies the name of the Kubernetes secret that contains the TLS certificate and private key. The TLS certificate is used for securing the communication between clients and the Istio gateway. |
+| `virtualService`  | Enables the definition of rules for how traffic should be routed to different services within the service mesh.  |
+| `gateways`  | Specifies the gateways to which the rules defined in the VirtualService apply.  |
+| `hosts`  | List of hosts (domains) to which this VirtualService is applied.  |
+| `http` | Configuration for HTTP routes within the VirtualService. It define routing rules based on HTTP attributes such as URI prefixes, headers, timeouts, and retry policies.  |
+| `corsPolicy`  | Cross-Origin Resource Sharing (CORS) policy configuration.  |
+| `headers`  | Additional headers to be added to the HTTP request.  |
+| `match`  | Conditions that need to be satisfied for this route to be used.  |
+| `uri`  | This specifies a match condition based on the URI of the incoming request.  |
+| `prefix`  | It specifies that the URI should have the specified prefix.  |
+| `retries`  | Retry configuration for failed requests.  |
+| `attempts`  | It specifies the number of retry attempts for failed requests.  |
+| `perTryTimeout`  | sets the timeout for each individual retry attempt.  |
+| `rewriteUri`  | Rewrites the URI of the incoming request.  |
+| `route`  |  List of destination rules for routing traffic. |
+
 ### Pause For Seconds Before Switch Active
 ```yaml
 pauseForSecondsBeforeSwitchActive: 30
@@ -946,7 +968,7 @@ It gives the realtime metrics of the deployed applications
 ## 2. Show application metrics
 
 If you want to see application metrics like different HTTP status codes metrics, application throughput, latency, response time. Enable the Application metrics from below the deployment template Save button. After enabling it, you should be able to see all metrics on App detail page. By default it remains disabled.
-![](../../../.gitbook/assets/deployment_application_metrics%20%282%29.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/deployment-template/deployment_application_metrics.jpg)
 
 Once all the Deployment template configurations are done, click on `Save` to save your deployment configuration. Now you are ready to create [Workflow](workflow/) to do CI/CD.
 

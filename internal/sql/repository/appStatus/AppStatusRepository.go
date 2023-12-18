@@ -32,6 +32,7 @@ type AppStatusRepository interface {
 	DeleteWithEnvId(tx *pg.Tx, envId int) error
 	Get(appId, envId int) (AppStatusContainer, error)
 	GetConnection() *pg.DB
+	GetByEnvId(envId int) ([]*AppStatusDto, error)
 
 	//GetAllDevtronAppStatuses(appIds []int) ([]AppStatusContainer, error)
 	//GetAllInstalledAppStatuses(installedAppIds []int) ([]AppStatusContainer, error)
@@ -106,4 +107,12 @@ func (repo *AppStatusRepositoryImpl) Get(appId, envId int) (AppStatusContainer, 
 		UpdatedOn: model.UpdatedOn,
 	}
 	return container, err
+}
+
+func (repo *AppStatusRepositoryImpl) GetByEnvId(envId int) ([]*AppStatusDto, error) {
+	var models []*AppStatusDto
+	err := repo.dbConnection.Model(&models).
+		Where("env_id = ?", envId).
+		Select()
+	return models, err
 }

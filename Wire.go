@@ -55,6 +55,7 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	cluster2 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
+	"github.com/devtron-labs/devtron/client/argocdServer/connection"
 	repository2 "github.com/devtron-labs/devtron/client/argocdServer/repository"
 	session2 "github.com/devtron-labs/devtron/client/argocdServer/session"
 	"github.com/devtron-labs/devtron/client/cron"
@@ -108,9 +109,11 @@ import (
 	repository7 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
 	"github.com/devtron-labs/devtron/pkg/notifier"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	history3 "github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	repository5 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/plugin"
 	repository6 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/projectManagementService/jira"
@@ -171,10 +174,10 @@ func InitializeApp() (*App, error) {
 		wire.Value(appStoreBean.RefChartProxyDir("scripts/devtron-reference-helm-charts")),
 		wire.Value(chart.DefaultChart("reference-app-rolling")),
 		wire.Value(util.ChartWorkingDir("/tmp/charts/")),
-		argocdServer.SettingsManager,
+		connection.SettingsManager,
 		//auth.GetConfig,
 
-		argocdServer.GetConfig,
+		connection.GetConfig,
 		wire.Bind(new(session2.ServiceClient), new(*middleware.LoginService)),
 
 		sse.NewSSE,
@@ -222,10 +225,29 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(app2.AppRepository), new(*app2.AppRepositoryImpl)),
 
 		pipeline.GetDeploymentServiceTypeConfig,
+
 		pipeline.NewPipelineBuilderImpl,
 		wire.Bind(new(pipeline.PipelineBuilder), new(*pipeline.PipelineBuilderImpl)),
+		pipeline.NewBuildPipelineSwitchServiceImpl,
+		wire.Bind(new(pipeline.BuildPipelineSwitchService), new(*pipeline.BuildPipelineSwitchServiceImpl)),
 		pipeline.NewCiPipelineConfigServiceImpl,
 		wire.Bind(new(pipeline.CiPipelineConfigService), new(*pipeline.CiPipelineConfigServiceImpl)),
+		pipeline.NewCiMaterialConfigServiceImpl,
+		wire.Bind(new(pipeline.CiMaterialConfigService), new(*pipeline.CiMaterialConfigServiceImpl)),
+
+		pipeline.NewAppArtifactManagerImpl,
+		wire.Bind(new(pipeline.AppArtifactManager), new(*pipeline.AppArtifactManagerImpl)),
+		pipeline.NewDevtronAppCMCSServiceImpl,
+		wire.Bind(new(pipeline.DevtronAppCMCSService), new(*pipeline.DevtronAppCMCSServiceImpl)),
+		pipeline.NewDevtronAppStrategyServiceImpl,
+		wire.Bind(new(pipeline.DevtronAppStrategyService), new(*pipeline.DevtronAppStrategyServiceImpl)),
+		pipeline.NewAppDeploymentTypeChangeManagerImpl,
+		wire.Bind(new(pipeline.AppDeploymentTypeChangeManager), new(*pipeline.AppDeploymentTypeChangeManagerImpl)),
+		pipeline.NewCdPipelineConfigServiceImpl,
+		wire.Bind(new(pipeline.CdPipelineConfigService), new(*pipeline.CdPipelineConfigServiceImpl)),
+		pipeline.NewDevtronAppConfigServiceImpl,
+		wire.Bind(new(pipeline.DevtronAppConfigService), new(*pipeline.DevtronAppConfigServiceImpl)),
+
 		util5.NewLoggingMiddlewareImpl,
 		wire.Bind(new(util5.LoggingMiddleware), new(*util5.LoggingMiddlewareImpl)),
 		pipeline2.NewPipelineRestHandlerImpl,
@@ -261,12 +283,24 @@ func InitializeApp() (*App, error) {
 		variables.NewVariableSnapshotHistoryServiceImpl,
 		wire.Bind(new(variables.VariableSnapshotHistoryService), new(*variables.VariableSnapshotHistoryServiceImpl)),
 
+		variables.NewScopedVariableManagerImpl,
+		wire.Bind(new(variables.ScopedVariableManager), new(*variables.ScopedVariableManagerImpl)),
+
+		variables.NewScopedVariableCMCSManagerImpl,
+		wire.Bind(new(variables.ScopedVariableCMCSManager), new(*variables.ScopedVariableCMCSManagerImpl)),
+
 		//end
 
 		chart.NewChartServiceImpl,
 		wire.Bind(new(chart.ChartService), new(*chart.ChartServiceImpl)),
 		bulkAction.NewBulkUpdateServiceImpl,
 		wire.Bind(new(bulkAction.BulkUpdateService), new(*bulkAction.BulkUpdateServiceImpl)),
+
+		repository.NewImageTagRepository,
+		wire.Bind(new(repository.ImageTagRepository), new(*repository.ImageTagRepositoryImpl)),
+
+		pipeline.NewCustomTagService,
+		wire.Bind(new(pipeline.CustomTagService), new(*pipeline.CustomTagServiceImpl)),
 
 		repository.NewGitProviderRepositoryImpl,
 		wire.Bind(new(repository.GitProviderRepository), new(*repository.GitProviderRepositoryImpl)),
@@ -417,7 +451,7 @@ func InitializeApp() (*App, error) {
 		repository.NewNotificationSettingsRepositoryImpl,
 		wire.Bind(new(repository.NotificationSettingsRepository), new(*repository.NotificationSettingsRepositoryImpl)),
 		util.IntValidator,
-		pipeline.GetCiCdConfig,
+		types.GetCiCdConfig,
 
 		pipeline.NewWorkflowServiceImpl,
 		wire.Bind(new(pipeline.WorkflowService), new(*pipeline.WorkflowServiceImpl)),
@@ -546,6 +580,9 @@ func InitializeApp() (*App, error) {
 
 		pipeline.NewCdHandlerImpl,
 		wire.Bind(new(pipeline.CdHandler), new(*pipeline.CdHandlerImpl)),
+
+		pipeline.NewBlobStorageConfigServiceImpl,
+		wire.Bind(new(pipeline.BlobStorageConfigService), new(*pipeline.BlobStorageConfigServiceImpl)),
 
 		pipeline.NewWorkflowDagExecutorImpl,
 		wire.Bind(new(pipeline.WorkflowDagExecutor), new(*pipeline.WorkflowDagExecutorImpl)),
@@ -797,8 +834,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipeline.PipelineStageService), new(*pipeline.PipelineStageServiceImpl)),
 		//plugin ends
 
-		argocdServer.NewArgoCDConnectionManagerImpl,
-		wire.Bind(new(argocdServer.ArgoCDConnectionManager), new(*argocdServer.ArgoCDConnectionManagerImpl)),
+		connection.NewArgoCDConnectionManagerImpl,
+		wire.Bind(new(connection.ArgoCDConnectionManager), new(*connection.ArgoCDConnectionManagerImpl)),
 		argo.NewArgoUserServiceImpl,
 		wire.Bind(new(argo.ArgoUserService), new(*argo.ArgoUserServiceImpl)),
 		util2.GetDevtronSecretName,
@@ -857,8 +894,8 @@ func InitializeApp() (*App, error) {
 		repository.NewGlobalCMCSRepositoryImpl,
 		wire.Bind(new(repository.GlobalCMCSRepository), new(*repository.GlobalCMCSRepositoryImpl)),
 
-		chartRepoRepository.NewGlobalStrategyMetadataRepositoryImpl,
-		wire.Bind(new(chartRepoRepository.GlobalStrategyMetadataRepository), new(*chartRepoRepository.GlobalStrategyMetadataRepositoryImpl)),
+		//chartRepoRepository.NewGlobalStrategyMetadataRepositoryImpl,
+		//wire.Bind(new(chartRepoRepository.GlobalStrategyMetadataRepository), new(*chartRepoRepository.GlobalStrategyMetadataRepositoryImpl)),
 		chartRepoRepository.NewGlobalStrategyMetadataChartRefMappingRepositoryImpl,
 		wire.Bind(new(chartRepoRepository.GlobalStrategyMetadataChartRefMappingRepository), new(*chartRepoRepository.GlobalStrategyMetadataChartRefMappingRepositoryImpl)),
 
@@ -888,10 +925,10 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(resourceGroup.ResourceGroupRepository), new(*resourceGroup.ResourceGroupRepositoryImpl)),
 		resourceGroup.NewResourceGroupMappingRepositoryImpl,
 		wire.Bind(new(resourceGroup.ResourceGroupMappingRepository), new(*resourceGroup.ResourceGroupMappingRepositoryImpl)),
-		pipeline.NewArgoWorkflowExecutorImpl,
-		wire.Bind(new(pipeline.ArgoWorkflowExecutor), new(*pipeline.ArgoWorkflowExecutorImpl)),
-		pipeline.NewSystemWorkflowExecutorImpl,
-		wire.Bind(new(pipeline.SystemWorkflowExecutor), new(*pipeline.SystemWorkflowExecutorImpl)),
+		executors.NewArgoWorkflowExecutorImpl,
+		wire.Bind(new(executors.ArgoWorkflowExecutor), new(*executors.ArgoWorkflowExecutorImpl)),
+		executors.NewSystemWorkflowExecutorImpl,
+		wire.Bind(new(executors.SystemWorkflowExecutor), new(*executors.SystemWorkflowExecutorImpl)),
 		repository5.NewManifestPushConfigRepository,
 		wire.Bind(new(repository5.ManifestPushConfigRepository), new(*repository5.ManifestPushConfigRepositoryImpl)),
 		app.NewGitOpsManifestPushServiceImpl,
@@ -925,7 +962,16 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(repository9.DevtronResourceSearchableKeyRepository), new(*repository9.DevtronResourceSearchableKeyRepositoryImpl)),
 
 		devtronResource.NewDevtronResourceSearchableKeyServiceImpl,
-		wire.Bind(new(devtronResource.DevtronResourceService), new(*devtronResource.DevtronResourceSearchableKeyServiceImpl)),
+		wire.Bind(new(devtronResource.DevtronResourceSearchableKeyService), new(*devtronResource.DevtronResourceSearchableKeyServiceImpl)),
+
+		argocdServer.NewArgoClientWrapperServiceImpl,
+		wire.Bind(new(argocdServer.ArgoClientWrapperService), new(*argocdServer.ArgoClientWrapperServiceImpl)),
+
+		pipeline.NewPluginInputVariableParserImpl,
+		wire.Bind(new(pipeline.PluginInputVariableParser), new(*pipeline.PluginInputVariableParserImpl)),
+
+		pipeline.NewPipelineConfigListenerServiceImpl,
+		wire.Bind(new(pipeline.PipelineConfigListenerService), new(*pipeline.PipelineConfigListenerServiceImpl)),
 	)
 	return &App{}, nil
 }

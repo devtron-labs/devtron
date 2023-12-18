@@ -31,6 +31,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	util2 "github.com/devtron-labs/devtron/internal/util"
+	app2 "github.com/devtron-labs/devtron/pkg/app"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
@@ -53,6 +54,7 @@ import (
 )
 
 type InstalledAppRestHandler interface {
+	FetchAppOverview(w http.ResponseWriter, r *http.Request)
 	GetAllInstalledApp(w http.ResponseWriter, r *http.Request)
 	DeployBulk(w http.ResponseWriter, r *http.Request)
 	CheckAppExists(w http.ResponseWriter, r *http.Request)
@@ -77,21 +79,21 @@ type InstalledAppRestHandlerImpl struct {
 	acdServiceClient                 application.ServiceClient
 	appStoreDeploymentService        service.AppStoreDeploymentService
 	helmAppClient                    client.HelmAppClient
-	helmAppService                   client.HelmAppService
 	argoUserService                  argo.ArgoUserService
 	cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler
 	installedAppRepository           repository.InstalledAppRepository
 	K8sApplicationService            application2.K8sApplicationService
+	appCrudOperationService          app2.AppCrudOperationService
 }
 
 func NewInstalledAppRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService,
 	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, enforcerUtilHelm rbac.EnforcerUtilHelm, installedAppService service.InstalledAppService,
 	validator *validator.Validate, clusterService cluster.ClusterService, acdServiceClient application.ServiceClient,
-	appStoreDeploymentService service.AppStoreDeploymentService, helmAppClient client.HelmAppClient, helmAppService client.HelmAppService,
+	appStoreDeploymentService service.AppStoreDeploymentService, helmAppClient client.HelmAppClient,
 	argoUserService argo.ArgoUserService,
 	cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler,
 	installedAppRepository repository.InstalledAppRepository,
-) *InstalledAppRestHandlerImpl {
+	appCrudOperationService app2.AppCrudOperationService) *InstalledAppRestHandlerImpl {
 	return &InstalledAppRestHandlerImpl{
 		Logger:                           Logger,
 		userAuthService:                  userAuthService,
@@ -103,12 +105,50 @@ func NewInstalledAppRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService u
 		clusterService:                   clusterService,
 		acdServiceClient:                 acdServiceClient,
 		appStoreDeploymentService:        appStoreDeploymentService,
-		helmAppService:                   helmAppService,
 		helmAppClient:                    helmAppClient,
 		argoUserService:                  argoUserService,
 		cdApplicationStatusUpdateHandler: cdApplicationStatusUpdateHandler,
 		installedAppRepository:           installedAppRepository,
+		appCrudOperationService:          appCrudOperationService,
 	}
+}
+func (handler *InstalledAppRestHandlerImpl) FetchAppOverview(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
+		return
+	}
+
+	vars := mux.Vars(r)
+	installedAppId, err := strconv.Atoi(vars["installedAppId"])
+	if err != nil {
+		handler.Logger.Errorw("request err, FetchAppOverview", "err", err, "installedAppId", installedAppId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	token := r.Header.Get("token")
+	handler.Logger.Infow("request payload, FindAppOverview", "installedAppId", installedAppId)
+	installedApp, err := handler.installedAppService.CheckAppExistsByInstalledAppId(installedAppId)
+	appOverview, err := handler.appCrudOperationService.GetAppMetaInfo(installedApp.AppId, installedAppId, installedApp.EnvironmentId)
+	if err != nil {
+		handler.Logger.Errorw("service err, FetchAppOverview", "err", err, "appId", installedApp.AppId, "installedAppId", installedAppId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	//rbac block starts from here
+	object, object2 := handler.enforcerUtil.GetHelmObject(appOverview.AppId, installedApp.EnvironmentId)
+	var ok bool
+	if object2 == "" {
+		ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object)
+	} else {
+		ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object2)
+	}
+	if !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+		return
+	}
+	common.WriteJsonResp(w, nil, appOverview, http.StatusOK)
 }
 
 func (handler InstalledAppRestHandlerImpl) GetAllInstalledApp(w http.ResponseWriter, r *http.Request) {
@@ -392,7 +432,7 @@ func (impl *InstalledAppRestHandlerImpl) DefaultComponentInstallation(w http.Res
 	}
 
 	// RBAC enforcer applying
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceCluster, casbin.ActionUpdate, strings.ToLower(cluster.ClusterName)); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceCluster, casbin.ActionUpdate, cluster.ClusterName); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}

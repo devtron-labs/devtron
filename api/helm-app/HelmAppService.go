@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/devtron/api/helm-app/models"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
+	"github.com/go-pg/pg"
 	"net/http"
 	"reflect"
 	"strconv"
@@ -41,7 +43,7 @@ import (
 type HelmAppService interface {
 	ListHelmApplications(ctx context.Context, clusterIds []int, w http.ResponseWriter, token string, helmAuth func(token string, object string) bool)
 	GetApplicationDetail(ctx context.Context, app *AppIdentifier) (*AppDetail, error)
-	GetApplicationStatus(ctx context.Context, app *AppIdentifier) (string, error)
+	GetApplicationAndReleaseStatus(ctx context.Context, app *AppIdentifier) (*AppStatus, error)
 	GetApplicationDetailWithFilter(ctx context.Context, app *AppIdentifier, resourceTreeFilter *ResourceTreeFilter) (*AppDetail, error)
 	HibernateApplication(ctx context.Context, app *AppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
 	UnHibernateApplication(ctx context.Context, app *AppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
@@ -51,6 +53,7 @@ type HelmAppService interface {
 	GetValuesYaml(ctx context.Context, app *AppIdentifier) (*ReleaseInfo, error)
 	GetDesiredManifest(ctx context.Context, app *AppIdentifier, resource *openapi.ResourceIdentifier) (*openapi.DesiredManifestResponse, error)
 	DeleteApplication(ctx context.Context, app *AppIdentifier) (*openapi.UninstallReleaseResponse, error)
+	DeleteDBLinkedHelmApplication(ctx context.Context, app *AppIdentifier, useId int32) (*openapi.UninstallReleaseResponse, error)
 	UpdateApplication(ctx context.Context, app *AppIdentifier, request *UpdateApplicationRequestDto) (*openapi.UpdateReleaseResponse, error)
 	GetDeploymentDetail(ctx context.Context, app *AppIdentifier, version int32) (*openapi.HelmAppDeploymentManifestDetail, error)
 	InstallRelease(ctx context.Context, clusterId int, installReleaseRequest *InstallReleaseRequest) (*InstallReleaseResponse, error)
@@ -286,8 +289,8 @@ func (impl *HelmAppServiceImpl) GetApplicationDetail(ctx context.Context, app *A
 	return impl.getApplicationDetail(ctx, app, nil)
 }
 
-func (impl *HelmAppServiceImpl) GetApplicationStatus(ctx context.Context, app *AppIdentifier) (string, error) {
-	return impl.getApplicationStatus(ctx, app)
+func (impl *HelmAppServiceImpl) GetApplicationAndReleaseStatus(ctx context.Context, app *AppIdentifier) (*AppStatus, error) {
+	return impl.getApplicationAndReleaseStatus(ctx, app)
 }
 
 func (impl *HelmAppServiceImpl) GetApplicationDetailWithFilter(ctx context.Context, app *AppIdentifier, resourceTreeFilter *ResourceTreeFilter) (*AppDetail, error) {
@@ -330,12 +333,11 @@ func (impl *HelmAppServiceImpl) getApplicationDetail(ctx context.Context, app *A
 	return appdetail, err
 }
 
-func (impl *HelmAppServiceImpl) getApplicationStatus(ctx context.Context, app *AppIdentifier) (string, error) {
-	applicationStatus := ""
+func (impl *HelmAppServiceImpl) getApplicationAndReleaseStatus(ctx context.Context, app *AppIdentifier) (*AppStatus, error) {
 	config, err := impl.GetClusterConf(app.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cluster detail", "err", err)
-		return applicationStatus, err
+		return nil, err
 	}
 	req := &AppDetailRequest{
 		ClusterConfig: config,
@@ -345,10 +347,9 @@ func (impl *HelmAppServiceImpl) getApplicationStatus(ctx context.Context, app *A
 	appStatus, err := impl.helmAppClient.GetAppStatus(ctx, req)
 	if err != nil {
 		impl.logger.Errorw("error in fetching app status", "err", err)
-		return applicationStatus, err
+		return nil, err
 	}
-	applicationStatus = appStatus.ApplicationStatus
-	return applicationStatus, err
+	return appStatus, err
 }
 
 func (impl *HelmAppServiceImpl) GetDeploymentHistory(ctx context.Context, app *AppIdentifier) (*HelmAppDeploymentHistory, error) {
@@ -413,11 +414,102 @@ func (impl *HelmAppServiceImpl) GetDesiredManifest(ctx context.Context, app *App
 	return response, nil
 }
 
+func (impl *HelmAppServiceImpl) DeleteDBLinkedHelmApplication(ctx context.Context, app *AppIdentifier, userId int32) (*openapi.UninstallReleaseResponse, error) {
+	dbConnection := impl.appRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		impl.logger.Errorw("error in beginning transaction", "err", err)
+		return nil, err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+
+	// For Helm deployments ReleaseName is App.Name
+	model, err := impl.installedAppRepository.GetInstalledAppByAppName(app.ReleaseName)
+	if err != nil {
+		impl.logger.Errorw("error in fetching installed app", "appName", app.ReleaseName, "err", err)
+		return nil, err
+	}
+
+	// If there are two releases with same name but in different namespace (eg: test -n demo-1 {Hyperion App}, test -n demo-2 {Externally Installed});
+	// And if the request is received for the externally installed app, the below condition will handle
+	if model.Environment.Namespace != app.Namespace {
+		return nil, pg.ErrNoRows
+	}
+
+	// App Delete --> Start
+	//soft delete app
+	appModel := &model.App
+	appModel.Active = false
+	appModel.UpdatedBy = userId
+	appModel.UpdatedOn = time.Now()
+	err = impl.appRepository.UpdateWithTxn(appModel, tx)
+	if err != nil {
+		impl.logger.Errorw("error in deleting appModel", "app", appModel)
+		return nil, err
+	}
+	// App Delete --> End
+
+	// InstalledApp Delete --> Start
+	// soft delete install app
+	model.Active = false
+	model.UpdatedBy = userId
+	model.UpdatedOn = time.Now()
+	_, err = impl.installedAppRepository.UpdateInstalledApp(model, tx)
+	if err != nil {
+		impl.logger.Errorw("error while deleting install app", "error", err)
+		return nil, err
+	}
+	// InstalledApp Delete --> End
+
+	// InstalledAppVersions Delete --> Start
+	models, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppId(model.Id)
+	if err != nil {
+		impl.logger.Errorw("error while fetching install app versions", "error", err)
+		return nil, err
+	}
+
+	// soft delete install app versions
+	for _, item := range models {
+		item.Active = false
+		item.UpdatedBy = userId
+		item.UpdatedOn = time.Now()
+		_, err = impl.installedAppRepository.UpdateInstalledAppVersion(item, tx)
+		if err != nil {
+			impl.logger.Errorw("error while fetching from db", "error", err)
+			return nil, err
+		}
+	}
+	// InstalledAppVersions Delete --> End
+	res, err := impl.DeleteApplication(ctx, app)
+	if err != nil {
+		impl.logger.Errorw("error in deleting helm application", "error", err, "appIdentifier", app)
+		return nil, err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("error in committing data in db", "err", err)
+	}
+	return res, nil
+}
+
 func (impl *HelmAppServiceImpl) DeleteApplication(ctx context.Context, app *AppIdentifier) (*openapi.UninstallReleaseResponse, error) {
 	config, err := impl.GetClusterConf(app.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cluster detail", "clusterId", app.ClusterId, "err", err)
 		return nil, err
+	}
+	//handles the case when a user deletes namespace using kubectl but created it using devtron dashboard in
+	//that case DeleteApplication returned with grpc error and the user was not able to delete the
+	//cd-pipeline after helm app is created in that namespace.
+	exists, err := impl.checkIfNsExists(app)
+	if err != nil {
+		impl.logger.Errorw("error in checking if namespace exists or not", "err", err, "clusterId", app.ClusterId)
+		return nil, err
+	}
+	if !exists {
+		return nil, models.NamespaceNotExistError{Err: fmt.Errorf("namespace %s does not exist", app.Namespace)}
 	}
 
 	req := &ReleaseIdentifier{
@@ -429,13 +521,38 @@ func (impl *HelmAppServiceImpl) DeleteApplication(ctx context.Context, app *AppI
 	deleteApplicationResponse, err := impl.helmAppClient.DeleteApplication(ctx, req)
 	if err != nil {
 		impl.logger.Errorw("error in deleting helm application", "err", err)
-		return nil, err
+		return nil, errors.New(util.GetGRPCErrorDetailedMessage(err))
 	}
 
 	response := &openapi.UninstallReleaseResponse{
 		Success: &deleteApplicationResponse.Success,
 	}
 	return response, nil
+}
+
+func (impl *HelmAppServiceImpl) checkIfNsExists(app *AppIdentifier) (bool, error) {
+	clusterBean, err := impl.clusterService.FindById(app.ClusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting cluster bean", "error", err, "clusterId", app.ClusterId)
+		return false, err
+	}
+	config, err := clusterBean.GetClusterConfig()
+	if err != nil {
+		impl.logger.Errorw("error in getting cluster config", "error", err, "clusterId", app.ClusterId)
+		return false, err
+	}
+	v12Client, err := impl.K8sUtil.GetCoreV1Client(config)
+	if err != nil {
+		impl.logger.Errorw("error in getting k8s client", "err", err, "clusterHost", config.Host)
+		return false, err
+	}
+	exists, err := impl.K8sUtil.CheckIfNsExists(app.Namespace, v12Client)
+	if err != nil {
+		impl.logger.Errorw("error in checking if namespace exists or not", "error", err, "clusterConfig", config)
+		return false, err
+	}
+
+	return exists, nil
 }
 
 func (impl *HelmAppServiceImpl) UpdateApplication(ctx context.Context, app *AppIdentifier, request *UpdateApplicationRequestDto) (*openapi.UpdateReleaseResponse, error) {
@@ -811,16 +928,7 @@ func (impl *HelmAppServiceImpl) TemplateChart(ctx context.Context, templateChart
 	return response, nil
 }
 func (impl *HelmAppServiceImpl) GetNotes(ctx context.Context, request *InstallReleaseRequest) (string, error) {
-	clusterId := int(request.ReleaseIdentifier.ClusterConfig.ClusterId)
-	config, err := impl.GetClusterConf(clusterId)
 	var notesTxt string
-	if err != nil {
-		impl.logger.Errorw("error in fetching cluster detail", "clusterId", clusterId, "err", err)
-		return notesTxt, err
-	}
-
-	request.ReleaseIdentifier.ClusterConfig = config
-
 	response, err := impl.helmAppClient.GetNotes(ctx, request)
 	if err != nil {
 		impl.logger.Errorw("error in fetching chart", "err", err)

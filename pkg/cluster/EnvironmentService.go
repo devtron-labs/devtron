@@ -141,7 +141,7 @@ func (impl EnvironmentServiceImpl) Create(mappings *EnvironmentBean, userId int3
 
 	identifier := clusterBean.ClusterName + "__" + mappings.Namespace
 
-	model, err := impl.environmentRepository.FindByNameOrIdentifier(mappings.Environment, identifier)
+	model, err := impl.environmentRepository.FindByEnvNameOrIdentifierOrNamespace(mappings.ClusterId, mappings.Environment, identifier, mappings.Namespace)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in finding environment for update", "err", err)
 		return mappings, err
@@ -745,7 +745,7 @@ func (impl EnvironmentServiceImpl) Delete(deleteReq *EnvironmentBean, userId int
 		return err
 	}
 	//deleting auth roles entries for this environment
-	err = impl.userAuthService.DeleteRoles(bean.ENV_TYPE, deleteRequest.Name, tx, existingEnv.EnvironmentIdentifier)
+	err = impl.userAuthService.DeleteRoles(bean.ENV_TYPE, deleteRequest.Name, tx, existingEnv.EnvironmentIdentifier, "")
 	if err != nil {
 		impl.logger.Errorw("error in deleting auth roles", "err", err)
 		return err

@@ -10,7 +10,9 @@ import (
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
+	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/argocdServer/repository"
+	"github.com/devtron-labs/devtron/internal/sql/models"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
@@ -28,7 +30,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/variables"
-	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -39,6 +40,7 @@ import (
 	"go.uber.org/zap"
 	"net/http"
 	"sort"
+	"strings"
 )
 
 type BulkUpdateService interface {
@@ -50,8 +52,8 @@ type BulkUpdateService interface {
 	BulkUpdateSecret(bulkUpdatePayload *BulkUpdatePayload) *CmAndSecretBulkUpdateResponse
 	BulkUpdate(bulkUpdateRequest *BulkUpdatePayload) (bulkUpdateResponse *BulkUpdateResponse)
 
-	BulkHibernate(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationForEnvironmentResponse, error)
-	BulkUnHibernate(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationForEnvironmentResponse, error)
+	BulkHibernate(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationHibernateUnhibernateForEnvironmentResponse, error)
+	BulkUnHibernate(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationHibernateUnhibernateForEnvironmentResponse, error)
 	BulkDeploy(request *BulkApplicationForEnvironmentPayload, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) (*BulkApplicationForEnvironmentResponse, error)
 	BulkBuildTrigger(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationForEnvironmentResponse, error)
 
@@ -92,8 +94,7 @@ type BulkUpdateServiceImpl struct {
 	appWorkflowService               appWorkflow2.AppWorkflowService
 	pubsubClient                     *pubsub.PubSubClientServiceImpl
 	argoUserService                  argo.ArgoUserService
-	variableEntityMappingService     variables.VariableEntityMappingService
-	variableTemplateParser           parsers.VariableTemplateParser
+	scopedVariableManager            variables.ScopedVariableManager
 }
 
 func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateRepository,
@@ -124,8 +125,8 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 	appWorkflowService appWorkflow2.AppWorkflowService,
 	pubsubClient *pubsub.PubSubClientServiceImpl,
 	argoUserService argo.ArgoUserService,
-	variableEntityMappingService variables.VariableEntityMappingService,
-	variableTemplateParser parsers.VariableTemplateParser) (*BulkUpdateServiceImpl, error) {
+	scopedVariableManager variables.ScopedVariableManager,
+) (*BulkUpdateServiceImpl, error) {
 	impl := &BulkUpdateServiceImpl{
 		bulkUpdateRepository:             bulkUpdateRepository,
 		chartRepository:                  chartRepository,
@@ -159,13 +160,18 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 		appWorkflowService:               appWorkflowService,
 		pubsubClient:                     pubsubClient,
 		argoUserService:                  argoUserService,
-		variableTemplateParser:           variableTemplateParser,
-		variableEntityMappingService:     variableEntityMappingService,
+		scopedVariableManager:            scopedVariableManager,
 	}
 
 	err := impl.SubscribeToCdBulkTriggerTopic()
 	return impl, err
 }
+
+const (
+	AuthorizationError = "authError"
+	Error              = "error"
+	Skipped            = "skipped"
+)
 
 func (impl BulkUpdateServiceImpl) FindBulkUpdateReadme(operation string) (*BulkUpdateSeeExampleResponse, error) {
 	bulkUpdateReadme, err := impl.bulkUpdateRepository.FindBulkUpdateReadme(operation)
@@ -465,7 +471,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 							}
 							//VARIABLE_MAPPING_UPDATE
 							//NOTE: this flow is doesn't have the user info, therefore updated by is being set to the last updated by
-							err = impl.extractAndMapVariables(chart.GlobalOverride, chart.Id, repository5.EntityTypeDeploymentTemplateAppLevel, chart.UpdatedBy)
+							err = impl.scopedVariableManager.ExtractAndMapVariables(chart.GlobalOverride, chart.Id, repository5.EntityTypeDeploymentTemplateAppLevel, chart.UpdatedBy, nil)
 							if err != nil {
 								return nil
 							}
@@ -538,7 +544,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 								impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", chartEnv)
 							}
 							//VARIABLE_MAPPING_UPDATE
-							err = impl.extractAndMapVariables(chartEnv.EnvOverrideValues, chartEnv.Id, repository5.EntityTypeDeploymentTemplateEnvLevel, chartEnv.UpdatedBy)
+							err = impl.scopedVariableManager.ExtractAndMapVariables(chartEnv.EnvOverrideValues, chartEnv.Id, repository5.EntityTypeDeploymentTemplateEnvLevel, chartEnv.UpdatedBy, nil)
 							if err != nil {
 								return nil
 							}
@@ -552,21 +558,6 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 		deploymentTemplateBulkUpdateResponse.Message = append(deploymentTemplateBulkUpdateResponse.Message, "All matching apps are updated successfully")
 	}
 	return deploymentTemplateBulkUpdateResponse
-}
-
-func (impl BulkUpdateServiceImpl) extractAndMapVariables(template string, entityId int, entityType repository5.EntityType, userId int32) error {
-	usedVariables, err := impl.variableTemplateParser.ExtractVariables(template, parsers.JsonVariableTemplate)
-	if err != nil {
-		return err
-	}
-	err = impl.variableEntityMappingService.UpdateVariablesForEntity(usedVariables, repository5.Entity{
-		EntityType: entityType,
-		EntityId:   entityId,
-	}, userId, nil)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func (impl BulkUpdateServiceImpl) BulkUpdateConfigMap(bulkUpdatePayload *BulkUpdatePayload) *CmAndSecretBulkUpdateResponse {
@@ -1012,7 +1003,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdate(bulkUpdatePayload *BulkUpdatePayloa
 	return bulkUpdateResponse
 }
 
-func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationForEnvironmentResponse, error) {
+func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationHibernateUnhibernateForEnvironmentResponse, error) {
 	var pipelines []*pipelineConfig.Pipeline
 	var err error
 	if len(request.AppIdIncludes) > 0 {
@@ -1026,14 +1017,23 @@ func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvir
 		impl.logger.Errorw("error in fetching pipelines", "envId", request.EnvId, "err", err)
 		return nil, err
 	}
-	response := make(map[string]map[string]bool)
+	response := make(map[string]map[string]any)
+	var cdPipelineIds []int
+
+	for _, pipeline := range pipelines {
+		cdPipelineIds = append(cdPipelineIds, pipeline.Id)
+	}
+	deploymentTypeMap, err := impl.pipelineRepository.FindDeploymentTypeByPipelineIds(cdPipelineIds)
+	if err != nil {
+		impl.logger.Errorw("error in fetching deploymentTypes", "pipelineIds", cdPipelineIds, "err", err)
+		return nil, err
+	}
 	for _, pipeline := range pipelines {
 		appKey := fmt.Sprintf("%d_%s", pipeline.AppId, pipeline.App.AppName)
 		pipelineKey := fmt.Sprintf("%d_%s", pipeline.Id, pipeline.Name)
-		success := true
 		if _, ok := response[appKey]; !ok {
-			pResponse := make(map[string]bool)
-			pResponse[pipelineKey] = false
+			pResponse := make(map[string]any)
+			pResponse[pipelineKey] = true //by default assuming that the operation is successful, if not so then we'll mark it as false
 			response[appKey] = pResponse
 		}
 		appObject := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
@@ -1043,6 +1043,20 @@ func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvir
 			//skip hibernate for the app if user does not have access on that
 			pipelineResponse := response[appKey]
 			pipelineResponse[pipelineKey] = false
+			pipelineResponse[AuthorizationError] = true
+			response[appKey] = pipelineResponse
+			continue
+		}
+		deploymentHistory := deploymentTypeMap[pipeline.Id]
+		if deploymentHistory.DeploymentType == models.DEPLOYMENTTYPE_STOP {
+			impl.logger.Infow("application already hibernated", "app_id", pipeline.AppId)
+			pipelineResponse := response[appKey]
+			pipelineResponse[pipelineKey] = false
+			if deploymentHistory.Status == application.HIBERNATING {
+				pipelineResponse[Skipped] = "Application is already hibernated"
+			} else {
+				pipelineResponse[Skipped] = "Hibernation already in progress"
+			}
 			response[appKey] = pipelineResponse
 			continue
 		}
@@ -1059,16 +1073,35 @@ func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvir
 			impl.logger.Errorw("error in hibernating application", "err", hibernateReqError, "pipeline", pipeline)
 			pipelineResponse := response[appKey]
 			pipelineResponse[pipelineKey] = false
+			pipelineResponse[Error] = hibernateReqError.Error()
 			response[appKey] = pipelineResponse
 			continue
 		}
-		pipelineResponse := response[appKey]
-		pipelineResponse[pipelineKey] = success
-		response[appKey] = pipelineResponse
 	}
-	bulkOperationResponse := &BulkApplicationForEnvironmentResponse{}
+	var responseArray []map[string]interface{}
+	for appKey, pipelineResponse := range response {
+		appMap := make(map[string]interface{})
+		appKeySplit := strings.Split(appKey, "_")
+		appId := appKeySplit[0]
+		appName := strings.Join(appKeySplit[1:], "_")
+		appMap["id"] = appId
+		appMap["appName"] = appName
+		for key, value := range pipelineResponse {
+			if key == AuthorizationError {
+				appMap[AuthorizationError] = value
+			} else if key == Error {
+				appMap[Error] = value
+			} else if key == Skipped {
+				appMap[Skipped] = value
+			} else {
+				appMap["success"] = value
+			}
+		}
+		responseArray = append(responseArray, appMap)
+	}
+	bulkOperationResponse := &BulkApplicationHibernateUnhibernateForEnvironmentResponse{}
 	bulkOperationResponse.BulkApplicationForEnvironmentPayload = *request
-	bulkOperationResponse.Response = response
+	bulkOperationResponse.Response = responseArray
 	return bulkOperationResponse, nil
 }
 
@@ -1126,7 +1159,7 @@ func (impl BulkUpdateServiceImpl) buildHibernateUnHibernateRequestForHelmPipelin
 	}
 	return appIdentifier, hibernateRequest, nil
 }
-func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationForEnvironmentResponse, error) {
+func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationHibernateUnhibernateForEnvironmentResponse, error) {
 	var pipelines []*pipelineConfig.Pipeline
 	var err error
 	if len(request.AppIdIncludes) > 0 {
@@ -1140,14 +1173,22 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 		impl.logger.Errorw("error in fetching pipelines", "envId", request.EnvId, "err", err)
 		return nil, err
 	}
-	response := make(map[string]map[string]bool)
+	var cdPipelineIds []int
+	for _, pipeline := range pipelines {
+		cdPipelineIds = append(cdPipelineIds, pipeline.Id)
+	}
+	deploymentTypeMap, err := impl.pipelineRepository.FindDeploymentTypeByPipelineIds(cdPipelineIds)
+	if err != nil {
+		impl.logger.Errorw("error in fetching deploymentTypes", "pipelineIds", cdPipelineIds, "err", err)
+		return nil, err
+	}
+	response := make(map[string]map[string]any)
 	for _, pipeline := range pipelines {
 		appKey := fmt.Sprintf("%d_%s", pipeline.AppId, pipeline.App.AppName)
 		pipelineKey := fmt.Sprintf("%d_%s", pipeline.Id, pipeline.Name)
-		success := true
 		if _, ok := response[appKey]; !ok {
-			pResponse := make(map[string]bool)
-			pResponse[pipelineKey] = false
+			pResponse := make(map[string]any)
+			pResponse[pipelineKey] = true //by default assuming that the operation is successful, if not so then we'll mark it as false
 			response[appKey] = pResponse
 		}
 		appObject := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
@@ -1157,6 +1198,21 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 			//skip hibernate for the app if user does not have access on that
 			pipelineResponse := response[appKey]
 			pipelineResponse[pipelineKey] = false
+			pipelineResponse[AuthorizationError] = true
+			response[appKey] = pipelineResponse
+			continue
+		}
+		deploymentHistory := deploymentTypeMap[pipeline.Id]
+		if deploymentHistory.DeploymentType == models.DEPLOYMENTTYPE_START ||
+			deploymentHistory.DeploymentType == models.DEPLOYMENTTYPE_DEPLOY {
+			impl.logger.Infow("application already UnHibernated", "app_id", pipeline.AppId)
+			pipelineResponse := response[appKey]
+			pipelineResponse[pipelineKey] = false
+			if deploymentHistory.Status == application.Healthy {
+				pipelineResponse[Skipped] = "Application is already un-hibernated"
+			} else {
+				pipelineResponse[Skipped] = "Un-hibernation already in progress"
+			}
 			response[appKey] = pipelineResponse
 			continue
 		}
@@ -1173,16 +1229,38 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 			impl.logger.Errorw("error in un-hibernating application", "err", hibernateReqError, "pipeline", pipeline)
 			pipelineResponse := response[appKey]
 			pipelineResponse[pipelineKey] = false
+			pipelineResponse[Error] = hibernateReqError.Error()
 			response[appKey] = pipelineResponse
-			//return nil, err
+			continue
 		}
 		pipelineResponse := response[appKey]
-		pipelineResponse[pipelineKey] = success
+		pipelineResponse[pipelineKey] = true
 		response[appKey] = pipelineResponse
 	}
-	bulkOperationResponse := &BulkApplicationForEnvironmentResponse{}
+	var responseArray []map[string]interface{}
+	for appKey, pipelineResponse := range response {
+		appMap := make(map[string]interface{})
+		appKeySplit := strings.Split(appKey, "_")
+		appId := appKeySplit[0]
+		appName := strings.Join(appKeySplit[1:], "_")
+		appMap["id"] = appId
+		appMap["appName"] = appName
+		for key, value := range pipelineResponse {
+			if key == AuthorizationError {
+				appMap[AuthorizationError] = value
+			} else if key == Error {
+				appMap[Error] = value
+			} else if key == Skipped {
+				appMap[Skipped] = value
+			} else {
+				appMap["success"] = value
+			}
+		}
+		responseArray = append(responseArray, appMap)
+	}
+	bulkOperationResponse := &BulkApplicationHibernateUnhibernateForEnvironmentResponse{}
 	bulkOperationResponse.BulkApplicationForEnvironmentPayload = *request
-	bulkOperationResponse.Response = response
+	bulkOperationResponse.Response = responseArray
 	return bulkOperationResponse, nil
 }
 

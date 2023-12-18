@@ -23,7 +23,7 @@ redirects:
     setup/global-configurations/manage-notification: user-guide/global-configurations/manage-notification.md
     setup/global-configurations/sso-login: user-guide/global-configurations/sso-login.md
     setup/global-configurations/git-accounts: user-guide/global-configurations/git-accounts.md
-    setup/global-configurations/docker-registries: user-guide/global-configurations/docker-registries.md
+    setup/global-configurations/docker-registries: user-guide/global-configurations/container-registries.md
     setup/global-configurations/chart-repo: user-guide/global-configurations/chart-repo.md
     setup/global-configurations/cluster-and-environments: user-guide/global-configurations/cluster-and-environments.md
     setup/global-configurations/authorization: user-guide/global-configurations/authorization/README.md
@@ -69,4 +69,4 @@ redirects:
     user-guide/use-cases/connect-expressjs-with-mongodb-database: resources/use-cases/connect-expressjs-with-mongodb-database
     user-guide/use-cases/connect-django-with-mysql-database: resources/use-cases/connect-django-with-mysql-database
     user-guide/telemetry: resources/telemetry
-    user-guide/global-configurations/docker-registries: user-guide/global-configurations/container-registries.md
+    getting-started/global-configurations/container-registries: user-guide/global-configurations/container-registries.md
