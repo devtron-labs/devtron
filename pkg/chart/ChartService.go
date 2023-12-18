@@ -76,6 +76,7 @@ type ChartService interface {
 	GetByAppIdAndChartRefId(appId int, chartRefId int) (chartTemplate *TemplateRequest, err error)
 	GetAppOverrideForDefaultTemplate(chartRefId int) (map[string]interface{}, string, error)
 	UpdateAppOverride(ctx context.Context, templateRequest *TemplateRequest) (*TemplateResponse, error)
+	ValidateAppOverride(templateRequest *TemplateRequest) (*TemplateResponse, error)
 	IsReadyToTrigger(appId int, envId int, pipelineId int) (IsReady, error)
 	ChartRefAutocomplete() ([]ChartRef, error)
 	ChartRefAutocompleteForAppOrEnv(appId int, envId int) (*ChartRefResponse, error)
@@ -404,17 +405,23 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 	}
 
 	// Handle Lock Configuration
-	isLockConfigError, lockedOverride, err := impl.lockedConfigService.HandleLockConfiguration(string(templateRequest.ValuesOverride), chartValues.AppOverrides, int(templateRequest.UserId))
+	isLockConfigError, lockedOverride, deletedOverride, addedOverride, err := impl.lockedConfigService.HandleLockConfiguration(string(templateRequest.ValuesOverride), chartValues.AppOverrides, int(templateRequest.UserId))
 	if err != nil {
 		return nil, err
 	}
 	if isLockConfigError {
-		var jsonVal json.RawMessage
-		_ = json.Unmarshal([]byte(lockedOverride), &jsonVal)
+		var lockedJsonVal json.RawMessage
+		_ = json.Unmarshal([]byte(lockedOverride), &lockedJsonVal)
+		var addedJsonVal json.RawMessage
+		_ = json.Unmarshal([]byte(addedOverride), &addedJsonVal)
+		var deletedJsonVal json.RawMessage
+		_ = json.Unmarshal([]byte(deletedOverride), &deletedJsonVal)
 
 		return &TemplateResponse{
 			TemplateRequest:   &templateRequest,
-			LockedOverride:    jsonVal,
+			ChangesOverride:   lockedJsonVal,
+			DeletedOverride:   deletedJsonVal,
+			AddedOverride:     addedJsonVal,
 			IsLockConfigError: true,
 		}, nil
 	}
@@ -499,7 +506,9 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 	chartVal, err := impl.chartAdaptor(chart, appLevelMetrics)
 	return &TemplateResponse{
 		TemplateRequest:   chartVal,
-		LockedOverride:    nil,
+		ChangesOverride:   nil,
+		DeletedOverride:   nil,
+		AddedOverride:     nil,
 		IsLockConfigError: false,
 	}, err
 }
@@ -898,17 +907,23 @@ func (impl ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateRequ
 	}
 
 	// Handle Lock Configuration
-	isLockConfigError, lockedOverride, err := impl.lockedConfigService.HandleLockConfiguration(string(templateRequest.ValuesOverride), template.GlobalOverride, int(templateRequest.UserId))
+	isLockConfigError, lockedOverride, deletedOverride, addedOverride, err := impl.lockedConfigService.HandleLockConfiguration(string(templateRequest.ValuesOverride), template.GlobalOverride, int(templateRequest.UserId))
 	if err != nil {
 		return nil, err
 	}
 	if isLockConfigError {
-		var jsonVal json.RawMessage
-		_ = json.Unmarshal([]byte(lockedOverride), &jsonVal)
+		var lockedJsonVal json.RawMessage
+		_ = json.Unmarshal([]byte(lockedOverride), &lockedJsonVal)
+		var addedJsonVal json.RawMessage
+		_ = json.Unmarshal([]byte(addedOverride), &addedJsonVal)
+		var deletedJsonVal json.RawMessage
+		_ = json.Unmarshal([]byte(deletedOverride), &deletedJsonVal)
 
 		return &TemplateResponse{
 			TemplateRequest:   templateRequest,
-			LockedOverride:    jsonVal,
+			ChangesOverride:   lockedJsonVal,
+			DeletedOverride:   deletedJsonVal,
+			AddedOverride:     addedJsonVal,
 			IsLockConfigError: true,
 		}, nil
 	}
@@ -968,9 +983,49 @@ func (impl ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateRequ
 	}
 	return &TemplateResponse{
 		TemplateRequest:   templateRequest,
-		LockedOverride:    nil,
+		ChangesOverride:   nil,
+		DeletedOverride:   nil,
+		AddedOverride:     nil,
 		IsLockConfigError: false,
 	}, nil
+}
+
+func (impl ChartServiceImpl) ValidateAppOverride(templateRequest *TemplateRequest) (*TemplateResponse, error) {
+	template, err := impl.chartRepository.FindById(templateRequest.Id)
+	if err != nil {
+		impl.logger.Errorw("error in fetching chart config", "id", templateRequest.Id, "err", err)
+		return nil, err
+	}
+
+	if err != nil {
+		impl.logger.Errorw("chart version parsing", "err", err)
+		return nil, err
+	}
+	//STARTS
+	impl.logger.Debug("now finally update request chart in db to latest and previous flag = false")
+
+	// Handle Lock Configuration
+	isLockConfigError, lockedOverride, deletedOverride, addedOverride, err := impl.lockedConfigService.HandleLockConfiguration(string(templateRequest.ValuesOverride), template.GlobalOverride, int(templateRequest.UserId))
+	if err != nil {
+		return nil, err
+	}
+	if isLockConfigError {
+		var lockedJsonVal json.RawMessage
+		_ = json.Unmarshal([]byte(lockedOverride), &lockedJsonVal)
+		var addedJsonVal json.RawMessage
+		_ = json.Unmarshal([]byte(addedOverride), &addedJsonVal)
+		var deletedJsonVal json.RawMessage
+		_ = json.Unmarshal([]byte(deletedOverride), &deletedJsonVal)
+
+		return &TemplateResponse{
+			TemplateRequest:   templateRequest,
+			ChangesOverride:   lockedJsonVal,
+			DeletedOverride:   deletedJsonVal,
+			AddedOverride:     addedJsonVal,
+			IsLockConfigError: true,
+		}, nil
+	}
+	return &TemplateResponse{TemplateRequest: templateRequest, IsLockConfigError: false}, nil
 }
 
 func (impl ChartServiceImpl) handleChartTypeChange(currentLatestChart *chartRepoRepository.Chart, templateRequest *TemplateRequest) (json.RawMessage, error) {

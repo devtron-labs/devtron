@@ -40,6 +40,8 @@ type EnvironmentPropertiesResponse struct {
 
 type EnvironmentUpdateResponse struct {
 	*EnvironmentProperties
-	LockedOverride    json.RawMessage `json:"lockedOverride"`
+	ChangesOverride   json.RawMessage `json:"lockedOverride"`
+	AddedOverride     json.RawMessage `json:"addedOverride"`
+	DeletedOverride   json.RawMessage `json:"deletedOverride"`
 	IsLockConfigError bool            `json:"isLockConfigError"`
 }

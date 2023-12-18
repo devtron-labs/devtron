@@ -150,7 +150,9 @@ type ConfigDraftResponse struct {
 }
 
 type LockValidateResponse struct {
-	LockedOverride    json.RawMessage `json:"lockedOverride"`
+	ChangesOverride   json.RawMessage `json:"lockedOverride"`
+	AddedOverride     json.RawMessage `json:"addedOverride"`
+	DeletedOverride   json.RawMessage `json:"deletedOverride"`
 	IsLockConfigError bool            `json:"isLockConfigError"`
 }
 
@@ -243,6 +245,8 @@ type AppConfigDraft struct {
 
 type DraftVersionResponse struct {
 	DraftVersionId    int             `json:"draftVersionId"`
-	LockedOverride    json.RawMessage `json:"lockedOverride"`    // json of locked keys
+	ChangesOverride   json.RawMessage `json:"lockedOverride"`
+	AddedOverride     json.RawMessage `json:"addedOverride"`
+	DeletedOverride   json.RawMessage `json:"deletedOverride"`
 	IsLockConfigError bool            `json:"isLockConfigError"` // check if got error of lock config
 }
