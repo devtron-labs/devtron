@@ -783,6 +783,15 @@ func fetchLeafPipelinesAndPopulateChildrenIdsInWorkflowMapping(appWorkflowMappin
 			appWorkflow.ChildPipelinesIds.Add(appWorkflowMapping.ComponentId)
 		}
 	}
+
+	for _, wfmMap := range identifierToFilteredWorkflowMapping {
+		parentId := wfmMap.getParentPipelineIdentifier()
+		componentId := wfmMap.ComponentId
+		if parentMapping, ok := identifierToFilteredWorkflowMapping[parentId]; ok && !parentMapping.ChildPipelinesIds.Contains(componentId) {
+			parentMapping.ChildPipelinesIds.Add(componentId)
+		}
+	}
+
 	return identifierToFilteredWorkflowMapping, leafPipelines
 }
 
@@ -803,7 +812,9 @@ func filterMappingOnFilteredCdPipelineIds(identifierToFilteredWorkflowMapping ma
 			parent := leafPipelines[i].getParentPipelineIdentifier()
 			identifierToFilteredWorkflowMapping[parent].ChildPipelinesIds.Remove(leafPipelines[i].ComponentId)
 		}
-		if identifierToFilteredWorkflowMapping[leafPipelines[i].getParentPipelineIdentifier()].ChildPipelinesIds.Cardinality() == 0 {
+		parentPipelineIdentifier := leafPipelines[i].getParentPipelineIdentifier()
+		childPipelineIds := identifierToFilteredWorkflowMapping[parentPipelineIdentifier].ChildPipelinesIds
+		if childPipelineIds.Cardinality() == 0 {
 			//this means this pipeline has become leaf, so append this pipelineId in leafPipelines for further processing
 			leafPipelines = append(leafPipelines, identifierToFilteredWorkflowMapping[leafPipelines[i].getParentPipelineIdentifier()])
 			leafPipelineSize += 1
