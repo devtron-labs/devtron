@@ -21,6 +21,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/url"
+	"os"
+	"path"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/caarlos0/env"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
@@ -41,16 +50,8 @@ import (
 	"go.opentelemetry.io/otel"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"io/ioutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	chart2 "k8s.io/helm/pkg/proto/hapi/chart"
-	"net/url"
-	"os"
-	"path"
-	"path/filepath"
-	"strconv"
-	"strings"
-	"time"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/pkg/appStatus"
@@ -383,55 +384,6 @@ func (impl *AppServiceImpl) UploadKustomizeData(appId int, envId int, unzipDir s
 	}
 
 	return nil
-}
-
-func (impl *AppServiceImpl) getValuesFileForEnv(environmentId int) string {
-	return fmt.Sprintf("_%d-values.yaml", environmentId) //-{envId}-values.yaml
-}
-func (impl *AppServiceImpl) createArgoApplicationIfRequired(appId int, envConfigOverride *chartConfig.EnvConfigOverride, pipeline *pipelineConfig.Pipeline, userId int32) (string, error) {
-	//repo has been registered while helm create
-	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
-	if err != nil {
-		impl.logger.Errorw("no chart found ", "app", appId)
-		return "", err
-	}
-	envModel, err := impl.envRepository.FindById(envConfigOverride.TargetEnvironment)
-	if err != nil {
-		return "", err
-	}
-	argoAppName := pipeline.DeploymentAppName
-	if pipeline.DeploymentAppCreated {
-		return argoAppName, nil
-	} else {
-		//create
-		appNamespace := envConfigOverride.Namespace
-		if appNamespace == "" {
-			appNamespace = "default"
-		}
-		namespace := argocdServer.DevtronInstalationNs
-		appRequest := &argocdServer.AppTemplate{
-			ApplicationName: argoAppName,
-			Namespace:       namespace,
-			TargetNamespace: appNamespace,
-			TargetServer:    envModel.Cluster.ServerUrl,
-			Project:         "default",
-			ValuesFile:      impl.getValuesFileForEnv(envModel.Id),
-			RepoPath:        chart.ChartLocation,
-			RepoUrl:         chart.GitRepoUrl,
-		}
-
-		argoAppName, err := impl.ArgoK8sClient.CreateAcdApp(appRequest, envModel.Cluster)
-		if err != nil {
-			return "", err
-		}
-		//update cd pipeline to mark deployment app created
-		_, err = impl.updatePipeline(pipeline, userId)
-		if err != nil {
-			impl.logger.Errorw("error in update cd pipeline for deployment app created or not", "err", err)
-			return "", err
-		}
-		return argoAppName, nil
-	}
 }
 
 func (impl *AppServiceImpl) UpdateReleaseStatus(updateStatusRequest *bean.ReleaseStatusUpdateRequest) (bool, error) {
@@ -1493,15 +1445,6 @@ const replicaCount = "replicaCount"
 
 func (impl *AppServiceImpl) GetGitOpsRepoPrefix() string {
 	return impl.globalEnvVariables.GitOpsRepoPrefix
-}
-
-func (impl *AppServiceImpl) updatePipeline(pipeline *pipelineConfig.Pipeline, userId int32) (bool, error) {
-	err := impl.pipelineRepository.SetDeploymentAppCreatedInPipeline(true, pipeline.Id, userId)
-	if err != nil {
-		impl.logger.Errorw("error on updating cd pipeline for setting deployment app created", "err", err)
-		return false, err
-	}
-	return true, nil
 }
 
 func (impl *AppServiceImpl) IsDevtronAsyncInstallModeEnabled(deploymentAppType string) bool {
