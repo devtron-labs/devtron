@@ -12,6 +12,7 @@ type User struct {
 	Username      string
 	Nickname      string
 	Website       string
+	AccountId     string `mapstructure:"account_id"`
 	AccountStatus string `mapstructure:"account_status"`
 	DisplayName   string `mapstructure:"display_name"`
 	CreatedOn     string `mapstructure:"created_on"`
