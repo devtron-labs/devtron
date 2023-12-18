@@ -142,7 +142,7 @@ If you are a super-admin in Devtron, you can view Jobs in the sidebar.
 
 Distributes incoming network traffic across multiple instances or nodes to ensure efficient resource utilization and improved performance. In Kubernetes, Load Balancer is a service type. Behind the scenes, the managed Kubernetes service connects to the load balancer service of the respective cloud service provider and creates a load balancer, mapping it to the Kubernetes service. 
 
-GKE and AKE provide the public IP of the Load Balancer as the service endpoint, while in the case of EKS, it provides a non-customizable DNS name.
+GKE and AKS provide the public IP of the Load Balancer as the service endpoint, while in the case of EKS, it provides a non-customizable DNS name.
 
 ### Manifest
 

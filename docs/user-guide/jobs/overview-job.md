@@ -13,7 +13,7 @@ The following details are provided on the **Overview** page:
 | **Job Name**  | Displays the name of the job. |
 | **Created on** | Displays the day, date and time the job was created. |
 | **Created by**  | Displays the email address of a user who created the job. |
-| **Project**   | Displays the currect project of the job. You can change the project by selecting a different project from the drop-down list. |
+| **Project**   | Displays the current project of the job. You can change the project by selecting a different project from the drop-down list. |
 
 
 ## Change Project of your Job
