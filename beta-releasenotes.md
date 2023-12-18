@@ -1,5 +1,3 @@
-## v0.6.27-rc.0
-
 ## Bugs
 - fix: error handling and url fix (#4407)
 ## Enhancements
@@ -10,5 +8,3 @@
 - doc: fixed broken link and improved documentation in usecases (#4097)
 ## Others
 - chore: migration for global resource schema (#4374)
-
-
