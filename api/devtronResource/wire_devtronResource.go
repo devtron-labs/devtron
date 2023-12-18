@@ -25,6 +25,8 @@ var DevtronResourceWireSet = wire.NewSet(
 	wire.Bind(new(repository.DevtronResourceSchemaRepository), new(*repository.DevtronResourceSchemaRepositoryImpl)),
 	repository.NewDevtronResourceObjectRepositoryImpl,
 	wire.Bind(new(repository.DevtronResourceObjectRepository), new(*repository.DevtronResourceObjectRepositoryImpl)),
+	repository.NewDevtronResourceSchemaAuditRepositoryImpl,
+	wire.Bind(new(repository.DevtronResourceSchemaAuditRepository), new(*repository.DevtronResourceSchemaAuditRepositoryImpl)),
 	repository.NewDevtronResourceObjectAuditRepositoryImpl,
 	wire.Bind(new(repository.DevtronResourceObjectAuditRepository), new(*repository.DevtronResourceObjectAuditRepositoryImpl)),
 )
@@ -38,6 +40,8 @@ var DevtronResourceWireSetEA = wire.NewSet(
 	wire.Bind(new(repository.DevtronResourceSchemaRepository), new(*repository.DevtronResourceSchemaRepositoryImpl)),
 	repository.NewDevtronResourceObjectRepositoryImpl,
 	wire.Bind(new(repository.DevtronResourceObjectRepository), new(*repository.DevtronResourceObjectRepositoryImpl)),
+	repository.NewDevtronResourceSchemaAuditRepositoryImpl,
+	wire.Bind(new(repository.DevtronResourceSchemaAuditRepository), new(*repository.DevtronResourceSchemaAuditRepositoryImpl)),
 	repository.NewDevtronResourceObjectAuditRepositoryImpl,
 	wire.Bind(new(repository.DevtronResourceObjectAuditRepository), new(*repository.DevtronResourceObjectAuditRepositoryImpl)),
 )

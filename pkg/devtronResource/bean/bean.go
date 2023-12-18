@@ -1,14 +1,29 @@
 package bean
 
+import "time"
+
 type DevtronResourceBean struct {
+	DisplayName          string                       `json:"displayName,omitempty"`
+	Description          string                       `json:"description,omitempty"`
 	DevtronResourceId    int                          `json:"devtronResourceId"`
 	Kind                 string                       `json:"kind,omitempty"`
 	VersionSchemaDetails []*DevtronResourceSchemaBean `json:"versionSchemaDetails,omitempty"`
+	LastUpdatedOn        time.Time                    `json:"lastUpdatedOn,omitempty"`
 }
 
 type DevtronResourceSchemaBean struct {
 	DevtronResourceSchemaId int    `json:"devtronResourceSchemaId"`
 	Version                 string `json:"version,omitempty"`
+	Schema                  string `json:"schema,omitempty"`
+	SampleSchema            string `json:"sampleSchema,omitempty"`
+}
+
+type DevtronResourceSchemaRequestBean struct {
+	DevtronResourceSchemaId int    `json:"devtronResourceSchemaId"`
+	Schema                  string `json:"schema,omitempty"`
+	DisplayName             string `json:"displayName,omitempty"`
+	Description             string `json:"description,omitempty"`
+	UserId                  int    `json:"-"`
 }
 
 type DevtronResourceObjectDescriptorBean struct {
@@ -41,6 +56,24 @@ type DevtronResourceDependencyBean struct {
 	Dependencies            []*DevtronResourceDependencyBean `json:"dependencies,omitempty"`
 	Metadata                interface{}                      `json:"metadata,omitempty"`
 }
+
+type UpdateSchemaResponseBean struct {
+	Message       string   `json:"message"`
+	PathsToRemove []string `json:"pathsToRemove"`
+}
+
+const (
+	SchemaUpdateSuccessMessage = "Schema updated successfully."
+	DryRunSuccessfullMessage   = "Dry run successful"
+)
+
+const (
+	Enum                 = "enum"
+	Required             = "required"
+	Properties           = "properties"
+	Items                = "items"
+	AdditionalProperties = "additionalProperties"
+)
 
 type DevtronResourceDependencyType string
 
@@ -144,6 +177,7 @@ const (
 	RefKey                     = "$ref"
 	RefTypeKey                 = "refType"
 	ReferencesPrefix           = "#/references"
+	RefTypePath                = "#/references/users"
 	ReferencesKey              = "references"
 	IdKey                      = "id"
 	NameKey                    = "name"
