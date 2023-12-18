@@ -135,7 +135,7 @@ func (impl LockConfigurationServiceImpl) HandleLockConfiguration(currentConfig, 
 	json.Unmarshal([]byte(savedConfig), &mp)
 	json.Unmarshal([]byte(currentConfig), &mp2)
 	changes, deleted := getChanges(mp, mp2)
-	allChanges := getAllChanges(mp, mp2)
+	// allChanges := getAllChanges(mp, mp2)
 	deletedByte, _ := json.Marshal(deleted)
 	addedByte, _ := json.Marshal(mp2)
 	var isLockConfigError bool
@@ -145,8 +145,8 @@ func (impl LockConfigurationServiceImpl) HandleLockConfiguration(currentConfig, 
 		isLockConfigError = checkLockedChanges(currentConfig, savedConfig, lockConfig.Config)
 	}
 	if isLockConfigError {
-		allChangesByte, _ := json.Marshal(allChanges)
-		return true, string(allChangesByte), string(deletedByte), string(addedByte), nil
+		changesByte, _ := json.Marshal(changes)
+		return true, string(changesByte), string(deletedByte), string(addedByte), nil
 	}
 	return false, "", "", "", nil
 }
