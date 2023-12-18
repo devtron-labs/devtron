@@ -1890,7 +1890,7 @@ func (impl *CdHandlerImpl) syncACDDevtronApps(deployedBeforeMinutes int, pipelin
 		syncErr := impl.argocdClientWrapperService.SyncArgoCDApplicationIfNeededAndRefresh(ctx, cdWfr.CdWorkflow.Pipeline.DeploymentAppName)
 		if syncErr != nil {
 			impl.Logger.Errorw("error in syncing argoCD app", "err", syncErr)
-			timelineObject := impl.pipelineStatusTimelineService.GetTimelineDbObjectByTimelineStatusAndTimelineDescription(cdWfr.Id, 0, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_FAILED, fmt.Sprintf("error occured in syncing argocd application. err: %s", syncErr.Error()), 1)
+			timelineObject := impl.pipelineStatusTimelineService.GetTimelineDbObjectByTimelineStatusAndTimelineDescription(cdWfr.Id, 0, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_FAILED, fmt.Sprintf("error occured in syncing argocd application. err: %s", syncErr.Error()), 1, time.Now())
 			_ = impl.pipelineStatusTimelineService.SaveTimeline(timelineObject, nil, false)
 			cdWfr.Status = pipelineConfig.WorkflowFailed
 			cdWfr.UpdatedBy = 1
@@ -1965,7 +1965,7 @@ func (impl *CdHandlerImpl) SyncACDHelmApps(deployedBeforeMinutes int, installedA
 		syncErr := impl.argocdClientWrapperService.SyncArgoCDApplicationIfNeededAndRefresh(ctx, argoAppName)
 		if syncErr != nil {
 			impl.Logger.Errorw("error in syncing argoCD app", "err", syncErr)
-			timelineObject := impl.pipelineStatusTimelineService.GetTimelineDbObjectByTimelineStatusAndTimelineDescription(0, installedAppVersionHistoryId, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_FAILED, fmt.Sprintf("error occured in syncing argocd application. err: %s", syncErr.Error()), 1)
+			timelineObject := impl.pipelineStatusTimelineService.GetTimelineDbObjectByTimelineStatusAndTimelineDescription(0, installedAppVersionHistoryId, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_FAILED, fmt.Sprintf("error occured in syncing argocd application. err: %s", syncErr.Error()), 1, time.Now())
 			_ = impl.pipelineStatusTimelineService.SaveTimeline(timelineObject, nil, false)
 			installedAppVersionHistory.Status = pipelineConfig.WorkflowFailed
 			installedAppVersionHistory.UpdatedBy = 1

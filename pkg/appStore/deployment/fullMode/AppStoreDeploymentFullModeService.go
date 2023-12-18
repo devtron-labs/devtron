@@ -337,6 +337,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationACD(ins
 	//impl.SyncACD(installAppVersionRequest.ACDAppName, ctx)
 
 	//STEP 7: normal refresh ACD - update for step 6 to avoid delay
+	syncTime := time.Now()
 	err = impl.argoClientWrapperService.SyncArgoCDApplicationIfNeededAndRefresh(ctx, installAppVersionRequest.ACDAppName)
 	if err != nil {
 		impl.logger.Errorw("error in getting the argo application with normal refresh", "err", err)
@@ -346,7 +347,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationACD(ins
 		InstalledAppVersionHistoryId: installAppVersionRequest.InstalledAppVersionHistoryId,
 		Status:                       pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED,
 		StatusDetail:                 "argocd sync completed.",
-		StatusTime:                   time.Now(),
+		StatusTime:                   syncTime,
 		AuditLog: sql.AuditLog{
 			CreatedBy: installAppVersionRequest.UserId,
 			CreatedOn: time.Now(),
