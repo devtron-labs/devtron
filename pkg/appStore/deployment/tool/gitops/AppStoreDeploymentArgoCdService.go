@@ -54,7 +54,7 @@ type AppStoreDeploymentArgoCdService interface {
 	UpdateInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, environment *clusterRepository.Environment, installedAppVersion *repository.InstalledAppVersions, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error)
 	DeleteDeploymentApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error
 	UpdateInstalledAppAndPipelineStatusForFailedDeploymentStatus(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, triggeredAt time.Time, err error) error
-	SaveTimelineForACDHelmApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, status string, statusDetail string, tx *pg.Tx) error
+	SaveTimelineForACDHelmApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, status string, statusDetail string, statusTime time.Time, tx *pg.Tx) error
 	UpdateChartInfo(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *util.ChartGitAttribute, installedAppVersionHistoryId int, ctx context.Context) error
 	UpdateAndSyncACDApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *util.ChartGitAttribute, isMonoRepoMigrationRequired bool, ctx context.Context, tx *pg.Tx) error
 }
@@ -133,13 +133,13 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) UpdateAndSyncACDApps(installAppV
 		impl.Logger.Errorw("error in updating argocd sync mode", "err", err)
 		return err
 	}
-
+	syncTime := time.Now()
 	err = impl.argoClientWrapperService.SyncArgoCDApplicationIfNeededAndRefresh(ctx, acdAppName)
 	if err != nil {
 		impl.Logger.Errorw("error in getting argocd application with normal refresh", "err", err, "argoAppName", installAppVersionRequest.ACDAppName)
 		return err
 	}
-	err = impl.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED, "argocd sync completed", tx)
+	err = impl.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED, "argocd sync completed", syncTime, tx)
 	if err != nil {
 		impl.Logger.Errorw("error in saving timeline for acd helm apps", "err", err)
 		return err
@@ -156,7 +156,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) UpdateChartInfo(installAppVersio
 	return nil
 }
 
-func (impl AppStoreDeploymentArgoCdServiceImpl) SaveTimelineForACDHelmApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, status string, statusDetail string, tx *pg.Tx) error {
+func (impl AppStoreDeploymentArgoCdServiceImpl) SaveTimelineForACDHelmApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, status string, statusDetail string, statusTime time.Time, tx *pg.Tx) error {
 
 	if !util.IsAcdApp(installAppVersionRequest.DeploymentAppType) && !util.IsManifestDownload(installAppVersionRequest.DeploymentAppType) {
 		return nil
@@ -165,7 +165,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) SaveTimelineForACDHelmApps(insta
 		InstalledAppVersionHistoryId: installAppVersionRequest.InstalledAppVersionHistoryId,
 		Status:                       status,
 		StatusDetail:                 statusDetail,
-		StatusTime:                   time.Now(),
+		StatusTime:                   statusTime,
 		AuditLog: sql.AuditLog{
 			CreatedBy: installAppVersionRequest.UserId,
 			CreatedOn: time.Now(),
@@ -338,12 +338,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) RollbackRelease(ctx context.Cont
 
 	//creating deployment started status timeline when mono repo migration is not required
 	deploymentInitiatedTimeline := impl.pipelineStatusTimelineService.
-		GetTimelineDbObjectByTimelineStatusAndTimelineDescription(
-			0,
-			installedApp.InstalledAppVersionHistoryId,
-			pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_INITIATED,
-			"Deployment initiated successfully.",
-			installedApp.UserId)
+		GetTimelineDbObjectByTimelineStatusAndTimelineDescription(0, installedApp.InstalledAppVersionHistoryId, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_INITIATED, "Deployment initiated successfully.", installedApp.UserId, time.Now())
 
 	isAppStore := true
 	err = impl.pipelineStatusTimelineService.SaveTimeline(deploymentInitiatedTimeline, tx, isAppStore)
@@ -357,12 +352,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) RollbackRelease(ctx context.Cont
 			if errors.Is(err, errors.New(pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED)) {
 				impl.Logger.Errorw("error", "err", err)
 				GitCommitFailTimeline := impl.pipelineStatusTimelineService.
-					GetTimelineDbObjectByTimelineStatusAndTimelineDescription(
-						0,
-						installedApp.InstalledAppVersionHistoryId,
-						pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED,
-						"Git commit failed.",
-						installedApp.UserId)
+					GetTimelineDbObjectByTimelineStatusAndTimelineDescription(0, installedApp.InstalledAppVersionHistoryId, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED, "Git commit failed.", installedApp.UserId, time.Now())
 				_ = impl.pipelineStatusTimelineService.SaveTimeline(GitCommitFailTimeline, tx, isAppStore)
 			}
 			return installedApp, false, nil
@@ -380,12 +370,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) RollbackRelease(ctx context.Cont
 		impl.Logger.Errorw("error", "err", err)
 		if errors.Is(err, errors.New(pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED)) {
 			GitCommitFailTimeline := impl.pipelineStatusTimelineService.
-				GetTimelineDbObjectByTimelineStatusAndTimelineDescription(
-					0,
-					installedApp.InstalledAppVersionHistoryId,
-					pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED,
-					"Git commit failed.",
-					installedApp.UserId)
+				GetTimelineDbObjectByTimelineStatusAndTimelineDescription(0, installedApp.InstalledAppVersionHistoryId, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED, "Git commit failed.", installedApp.UserId, time.Now())
 			_ = impl.pipelineStatusTimelineService.SaveTimeline(GitCommitFailTimeline, tx, isAppStore)
 		}
 		return installedApp, false, nil
@@ -398,20 +383,10 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) RollbackRelease(ctx context.Cont
 	}
 
 	GitCommitSuccessTimeline := impl.pipelineStatusTimelineService.
-		GetTimelineDbObjectByTimelineStatusAndTimelineDescription(
-			0,
-			installedApp.InstalledAppVersionHistoryId,
-			pipelineConfig.TIMELINE_STATUS_GIT_COMMIT,
-			"Git commit done successfully.",
-			installedApp.UserId)
+		GetTimelineDbObjectByTimelineStatusAndTimelineDescription(0, installedApp.InstalledAppVersionHistoryId, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT, "Git commit done successfully.", installedApp.UserId, time.Now())
 
 	ArgocdSyncInitiatedTimeline := impl.pipelineStatusTimelineService.
-		GetTimelineDbObjectByTimelineStatusAndTimelineDescription(
-			0,
-			installedApp.InstalledAppVersionHistoryId,
-			pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED,
-			"ArgoCD sync initiated.",
-			installedApp.UserId)
+		GetTimelineDbObjectByTimelineStatusAndTimelineDescription(0, installedApp.InstalledAppVersionHistoryId, pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED, "ArgoCD sync initiated.", installedApp.UserId, time.Now())
 
 	err = impl.pipelineStatusTimelineService.SaveTimelines(
 		[]*pipelineConfig.PipelineStatusTimeline{GitCommitSuccessTimeline, ArgocdSyncInitiatedTimeline}, tx)
@@ -424,14 +399,9 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) RollbackRelease(ctx context.Cont
 		impl.Logger.Errorw("error in getting the argo application with normal refresh", "err", err)
 		return installedApp, true, nil
 	}
-
+	syncTime := time.Now()
 	ArgocdSyncCompletedTimeline := impl.pipelineStatusTimelineService.
-		GetTimelineDbObjectByTimelineStatusAndTimelineDescription(
-			0,
-			installedApp.InstalledAppVersionHistoryId,
-			pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED,
-			"ArgoCD sync completed.",
-			installedApp.UserId)
+		GetTimelineDbObjectByTimelineStatusAndTimelineDescription(0, installedApp.InstalledAppVersionHistoryId, pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED, "ArgoCD sync completed.", installedApp.UserId, syncTime)
 	err = impl.pipelineStatusTimelineService.SaveTimeline(ArgocdSyncCompletedTimeline, tx, isAppStore)
 	if err != nil {
 		impl.Logger.Errorw("error in creating timeline status for deployment initiation for update of installedAppVersionHistoryId", "err", err, "installedAppVersionHistoryId", installedApp.InstalledAppVersionHistoryId)
@@ -599,11 +569,11 @@ func (impl *AppStoreDeploymentArgoCdServiceImpl) OnUpdateRepoInInstalledApp(ctx 
 	appStoreGitOpsResponse, err := impl.appStoreDeploymentCommonService.GenerateManifestAndPerformGitOperations(installAppVersionRequest)
 	if err != nil {
 		impl.Logger.Errorw("error in doing gitops operation", "err", err)
-		_ = impl.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED, fmt.Sprintf("Git commit failed - %v", err), tx)
+		_ = impl.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED, fmt.Sprintf("Git commit failed - %v", err), time.Now(), tx)
 
 	}
 
-	_ = impl.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT, "Git commit done successfully.", tx)
+	_ = impl.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT, "Git commit done successfully.", time.Now(), tx)
 
 	//acd operation register, sync
 	installAppVersionRequest, err = impl.patchAcdApp(ctx, installAppVersionRequest, appStoreGitOpsResponse.ChartGitAttribute)
@@ -722,10 +692,10 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) updateValuesYaml(environment *cl
 	gitHash, err := impl.appStoreDeploymentCommonService.CommitConfigToGit(valuesGitConfig)
 	if err != nil {
 		impl.Logger.Errorw("error in git commit", "err", err)
-		_ = impl.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED, fmt.Sprintf("Git commit failed - %v", err), tx)
+		_ = impl.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED, fmt.Sprintf("Git commit failed - %v", err), time.Now(), tx)
 		return nil, err
 	}
-	_ = impl.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT, "Git commit done successfully.", tx)
+	_ = impl.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT, "Git commit done successfully.", time.Now(), tx)
 	//update timeline status for git commit state
 	installAppVersionRequest.GitHash = gitHash
 	return installAppVersionRequest, nil

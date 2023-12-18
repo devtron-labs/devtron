@@ -437,20 +437,10 @@ func (impl InstalledAppServiceImpl) performDeployStageOnAcd(installedAppVersion 
 		}
 
 		GitCommitSuccessTimeline := impl.pipelineStatusTimelineService.
-			GetTimelineDbObjectByTimelineStatusAndTimelineDescription(
-				0,
-				installedAppVersion.InstalledAppVersionHistoryId,
-				pipelineConfig.TIMELINE_STATUS_GIT_COMMIT,
-				"Git commit done successfully.",
-				installedAppVersion.UserId)
+			GetTimelineDbObjectByTimelineStatusAndTimelineDescription(0, installedAppVersion.InstalledAppVersionHistoryId, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT, "Git commit done successfully.", installedAppVersion.UserId, time.Now())
 
 		ArgocdSyncInitiatedTimeline := impl.pipelineStatusTimelineService.
-			GetTimelineDbObjectByTimelineStatusAndTimelineDescription(
-				0,
-				installedAppVersion.InstalledAppVersionHistoryId,
-				pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED,
-				"ArgoCD sync initiated.",
-				installedAppVersion.UserId)
+			GetTimelineDbObjectByTimelineStatusAndTimelineDescription(0, installedAppVersion.InstalledAppVersionHistoryId, pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED, "ArgoCD sync initiated.", installedAppVersion.UserId, time.Now())
 
 		dbConnection := impl.installedAppRepository.GetConnection()
 		tx, err := dbConnection.Begin()
