@@ -2,6 +2,7 @@
 - fix: error handling and url fix (#4407)
 - feat: skip bulk build source change (#4357)
 ## Enhancements
+- feat: common-lib version update (#4399)
 - feat: flag driven tag based build propogate same tag for CI Build  (#4404)
 ## Documentation
 - doc: Update Helm Installation Command (#4429)
