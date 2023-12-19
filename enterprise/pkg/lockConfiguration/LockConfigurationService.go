@@ -330,7 +330,13 @@ func getChanges(mp1, mp2 map[string]interface{}) (map[string]interface{}, map[st
 				lockedMap[key] = mp2[key]
 			}
 		}
-		if mp2[key] == nil {
+
+		switch reflect.TypeOf(mp2[key]).Kind() {
+		case reflect.Map:
+			if mp2[key] == nil {
+				delete(mp2, key)
+			}
+		default:
 			delete(mp2, key)
 		}
 	}
