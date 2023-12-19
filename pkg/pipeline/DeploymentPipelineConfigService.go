@@ -1975,15 +1975,11 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipelinePartial(pipeline *pipel
 		deleteResponse.ClusterReachable = false
 	}
 	//getting children CD pipeline details
-	//childNodes, err := impl.appWorkflowRepository.FindWFCDMappingByParentCDPipelineId(pipeline.Id)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting children cd details", "err", err)
 		return deleteResponse, err
 	}
-	//else if len(childNodes) > 0 {
-	//	impl.logger.Debugw("cannot delete cd pipeline, contains children cd")
-	//	return deleteResponse, fmt.Errorf("Please delete children CD pipelines before deleting this pipeline.")
-	//}
+
 	//getting deployment group for this pipeline
 	deploymentGroupNames, err := impl.deploymentGroupRepository.GetNamesByAppIdAndEnvId(pipeline.EnvironmentId, pipeline.AppId)
 	if err != nil && err != pg.ErrNoRows {
