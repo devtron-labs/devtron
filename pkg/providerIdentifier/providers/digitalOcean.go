@@ -2,7 +2,7 @@ package providers
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -20,11 +20,11 @@ type IdentifyDigitalOcean struct {
 }
 
 func (impl *IdentifyDigitalOcean) Identify() (string, error) {
-	data, err := os.ReadFile("/sys/class/dmi/id/sys_vendor")
+	data, err := os.ReadFile(bean.DigitalOceanSysFile)
 	if err != nil {
 		return bean.Unknown, err
 	}
-	if strings.Contains(string(data), "DigitalOcean") {
+	if strings.Contains(string(data), bean.DigitalOceanIdentifierString) {
 		return bean.DigitalOcean, nil
 	}
 	return bean.Unknown, nil
@@ -32,7 +32,7 @@ func (impl *IdentifyDigitalOcean) Identify() (string, error) {
 
 func (impl *IdentifyDigitalOcean) IdentifyViaMetadataServer(detected chan<- string) {
 	r := digitalOceanMetadataResponse{}
-	req, err := http.NewRequest("GET", "http://169.254.169.254/metadata/v1.json", nil)
+	req, err := http.NewRequest("GET", bean.DigitalOceanMetadataServer, nil)
 	if err != nil {
 		detected <- bean.Unknown
 		return
@@ -44,7 +44,7 @@ func (impl *IdentifyDigitalOcean) IdentifyViaMetadataServer(detected chan<- stri
 	}
 	if resp.StatusCode == http.StatusOK {
 		defer resp.Body.Close()
-		body, err := ioutil.ReadAll(resp.Body)
+		body, err := io.ReadAll(resp.Body)
 		if err != nil {
 			detected <- bean.Unknown
 			return

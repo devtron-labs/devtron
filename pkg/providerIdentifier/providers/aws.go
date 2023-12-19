@@ -21,11 +21,11 @@ type IdentifyAmazon struct {
 }
 
 func (impl *IdentifyAmazon) Identify() (string, error) {
-	data, err := os.ReadFile("/sys/class/dmi/id/product_version")
+	data, err := os.ReadFile(bean.AmazonSysFile)
 	if err != nil {
 		return bean.Unknown, err
 	}
-	if strings.Contains(string(data), "amazon") {
+	if strings.Contains(string(data), bean.AmazonIdentifierString) {
 		return bean.Amazon, nil
 	}
 	return bean.Unknown, nil
@@ -33,7 +33,7 @@ func (impl *IdentifyAmazon) Identify() (string, error) {
 
 func (impl *IdentifyAmazon) IdentifyViaMetadataServer(detected chan<- string) {
 	r := instanceIdentityResponse{}
-	req, err := http.NewRequest("GET", "http://169.254.169.254/latest/dynamic/instance-identity/document", nil)
+	req, err := http.NewRequest("GET", bean.AmazonMetadataServer, nil)
 	if err != nil {
 		detected <- bean.Unknown
 		return

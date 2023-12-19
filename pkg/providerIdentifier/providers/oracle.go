@@ -20,11 +20,11 @@ type IdentifyOracle struct {
 }
 
 func (impl *IdentifyOracle) Identify() (string, error) {
-	data, err := os.ReadFile("/sys/class/dmi/id/chassis_asset_tag")
+	data, err := os.ReadFile(bean.OracleSysFile)
 	if err != nil {
 		return bean.Unknown, err
 	}
-	if strings.Contains(string(data), "OracleCloud") {
+	if strings.Contains(string(data), bean.OracleIdentifierString) {
 		return bean.Oracle, nil
 	}
 	return bean.Unknown, nil
@@ -32,7 +32,7 @@ func (impl *IdentifyOracle) Identify() (string, error) {
 
 func (impl *IdentifyOracle) IdentifyViaMetadataServer(detected chan<- string) {
 	r := oracleMetadataResponse{}
-	req, err := http.NewRequest("GET", "http://169.254.169.254/opc/v1/instance/metadata/", nil)
+	req, err := http.NewRequest("GET", bean.OracleMetadataServer, nil)
 	if err != nil {
 		detected <- bean.Unknown
 		return

@@ -14,18 +14,18 @@ type IdentifyAzure struct {
 }
 
 func (impl *IdentifyAzure) Identify() (string, error) {
-	data, err := os.ReadFile("/sys/class/dmi/id/sys_vendor")
+	data, err := os.ReadFile(bean.AzureSysFile)
 	if err != nil {
 		return bean.Unknown, err
 	}
-	if strings.Contains(string(data), "Microsoft Corporation") {
+	if strings.Contains(string(data), bean.AzureIdentifierString) {
 		return bean.Azure, nil
 	}
 	return bean.Unknown, nil
 }
 
 func (impl *IdentifyAzure) IdentifyViaMetadataServer(detected chan<- string) {
-	req, err := http.NewRequest("GET", "http://169.254.169.254/metadata/instance?api-version=2017-12-01", nil)
+	req, err := http.NewRequest("GET", bean.AzureMetadataServer, nil)
 	if err != nil {
 		detected <- bean.Unknown
 		return

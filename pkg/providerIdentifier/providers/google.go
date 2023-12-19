@@ -14,18 +14,18 @@ type IdentifyGoogle struct {
 }
 
 func (impl *IdentifyGoogle) Identify() (string, error) {
-	data, err := os.ReadFile("/sys/class/dmi/id/product_name")
+	data, err := os.ReadFile(bean.GoogleSysFile)
 	if err != nil {
 		return bean.Unknown, err
 	}
-	if strings.Contains(string(data), "Google") {
+	if strings.Contains(string(data), bean.GoogleIdentifierString) {
 		return bean.Google, nil
 	}
 	return bean.Unknown, nil
 }
 
 func (impl *IdentifyGoogle) IdentifyViaMetadataServer(detected chan<- string) {
-	req, err := http.NewRequest("GET", "http://metadata.google.internal/computeMetadata/v1/instance/tags", nil)
+	req, err := http.NewRequest("GET", bean.GoogleMetadataServer, nil)
 	if err != nil {
 		detected <- bean.Unknown
 		return

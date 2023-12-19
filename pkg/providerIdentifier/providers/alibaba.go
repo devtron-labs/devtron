@@ -10,29 +10,24 @@ import (
 	"go.uber.org/zap"
 )
 
-//type IdentifyAlibabaInterface interface {
-//	Identify() (string, error)
-//	IdentifyViaMetadataServer(detected chan<- string)
-//}
-
 type IdentifyAlibaba struct {
 	Logger *zap.SugaredLogger
 }
 
 func (impl *IdentifyAlibaba) Identify() (string, error) {
-	data, err := os.ReadFile("/sys/class/dmi/id/product_name")
+	data, err := os.ReadFile(bean.AlibabaSysFile)
 	if err != nil {
 		impl.Logger.Errorw("error while reading file", "error", err)
 		return bean.Unknown, err
 	}
-	if strings.Contains(string(data), "Alibaba Cloud") {
+	if strings.Contains(string(data), bean.AlibabaIdentifierString) {
 		return bean.Alibaba, nil
 	}
 	return bean.Unknown, nil
 }
 
 func (impl *IdentifyAlibaba) IdentifyViaMetadataServer(detected chan<- string) {
-	req, err := http.NewRequest("GET", "http://100.100.100.200/latest/meta-data/instance/instance-type", nil)
+	req, err := http.NewRequest("GET", bean.AlibabaMetadataServer, nil)
 	if err != nil {
 		impl.Logger.Errorw("error while creating new request", "error", err)
 		detected <- bean.Unknown
