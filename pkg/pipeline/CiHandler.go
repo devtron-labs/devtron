@@ -805,7 +805,7 @@ func (impl *CiHandlerImpl) getWorkflowLogs(pipelineId int, ciWorkflow *pipelineC
 			return impl.getLogsFromRepository(pipelineId, ciWorkflow, clusterConfig, isExt)
 		}
 		impl.Logger.Errorw("err", "err", err)
-		return nil, nil, err
+		return nil, nil, &util.ApiError{Code: "200", HttpStatusCode: 400, UserMessage: err.Error()}
 	}
 	logReader := bufio.NewReader(logStream)
 	return logReader, cleanUp, err
