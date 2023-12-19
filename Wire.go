@@ -972,8 +972,6 @@ func InitializeApp() (*App, error) {
 
 		pipeline.NewPipelineConfigListenerServiceImpl,
 		wire.Bind(new(pipeline.PipelineConfigListenerService), new(*pipeline.PipelineConfigListenerServiceImpl)),
-
-		argocdServer.GetACDDeploymentConfig,
 	)
 	return &App{}, nil
 }
