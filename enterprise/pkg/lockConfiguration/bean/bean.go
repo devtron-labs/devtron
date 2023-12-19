@@ -30,6 +30,14 @@ type LockConfiguration struct {
 	sql.AuditLog
 }
 
+type LockConfigErrorResponse struct {
+	LockedOverride    json.RawMessage `json:"lockedOverride"`
+	ModifiedOverride  json.RawMessage `json:"modifiedOverride"`
+	AddedOverride     json.RawMessage `json:"addedOverride"`
+	DeletedOverride   json.RawMessage `json:"deletedOverride"`
+	IsLockConfigError bool            `json:"isLockConfigError"` // check if got error of lock config
+}
+
 type LockConfig struct {
 	Path    string
 	Allowed bool
@@ -143,4 +151,24 @@ func CheckForLockedKeyInModifiedJson(lockConfig *LockConfigResponse, configJson 
 		}
 	}
 	return isLockConfigError
+}
+
+func GetLockConfigErrorResponse(lockedOverride, modifiedOverride, addedOverride, deletedOverride string) *LockConfigErrorResponse {
+	lockedOverrideJson := getJsonValForString(lockedOverride)
+	modifiedOverrideJson := getJsonValForString(modifiedOverride)
+	addedOverrideJson := getJsonValForString(addedOverride)
+	deletedOverrideJson := getJsonValForString(deletedOverride)
+	return &LockConfigErrorResponse{
+		LockedOverride:    lockedOverrideJson,
+		ModifiedOverride:  modifiedOverrideJson,
+		AddedOverride:     addedOverrideJson,
+		DeletedOverride:   deletedOverrideJson,
+		IsLockConfigError: true,
+	}
+}
+
+func getJsonValForString(str string) json.RawMessage {
+	var jsonVal json.RawMessage
+	_ = json.Unmarshal([]byte(str), &jsonVal)
+	return jsonVal
 }

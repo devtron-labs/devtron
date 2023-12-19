@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/enterprise/pkg/lockConfiguration"
+	"github.com/devtron-labs/devtron/enterprise/pkg/lockConfiguration/bean"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
@@ -405,27 +406,15 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 	}
 
 	// Handle Lock Configuration
-	isLockConfigError, lockedOverride, changesOverride, deletedOverride, addedOverride, err := impl.lockedConfigService.HandleLockConfiguration(string(templateRequest.ValuesOverride), chartValues.AppOverrides, int(templateRequest.UserId))
+	isLockConfigError, lockedOverride, modifiedOverride, deletedOverride, addedOverride, err := impl.lockedConfigService.HandleLockConfiguration(string(templateRequest.ValuesOverride), chartValues.AppOverrides, int(templateRequest.UserId))
 	if err != nil {
 		return nil, err
 	}
 	if isLockConfigError {
-		var lockedJsonVal json.RawMessage
-		_ = json.Unmarshal([]byte(lockedOverride), &lockedJsonVal)
-		var changesJsonVal json.RawMessage
-		_ = json.Unmarshal([]byte(changesOverride), &changesJsonVal)
-		var addedJsonVal json.RawMessage
-		_ = json.Unmarshal([]byte(addedOverride), &addedJsonVal)
-		var deletedJsonVal json.RawMessage
-		_ = json.Unmarshal([]byte(deletedOverride), &deletedJsonVal)
-
+		lockConfigErrorResponse := bean.GetLockConfigErrorResponse(lockedOverride, modifiedOverride, addedOverride, deletedOverride)
 		return &TemplateResponse{
-			TemplateRequest:   &templateRequest,
-			LockedOverride:    lockedJsonVal,
-			ModifiedOverride:  changesJsonVal,
-			DeletedOverride:   deletedJsonVal,
-			AddedOverride:     addedJsonVal,
-			IsLockConfigError: true,
+			TemplateRequest:         &templateRequest,
+			LockConfigErrorResponse: lockConfigErrorResponse,
 		}, nil
 	}
 
@@ -508,8 +497,8 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 
 	chartVal, err := impl.chartAdaptor(chart, appLevelMetrics)
 	return &TemplateResponse{
-		TemplateRequest:   chartVal,
-		IsLockConfigError: false,
+		TemplateRequest:         chartVal,
+		LockConfigErrorResponse: nil,
 	}, err
 }
 
@@ -907,27 +896,16 @@ func (impl ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateRequ
 	}
 
 	// Handle Lock Configuration
-	isLockConfigError, lockedOverride, changesOverride, deletedOverride, addedOverride, err := impl.lockedConfigService.HandleLockConfiguration(string(templateRequest.ValuesOverride), template.GlobalOverride, int(templateRequest.UserId))
+	isLockConfigError, lockedOverride, modifiedOverride, deletedOverride, addedOverride, err := impl.lockedConfigService.HandleLockConfiguration(string(templateRequest.ValuesOverride), template.GlobalOverride, int(templateRequest.UserId))
 	if err != nil {
 		return nil, err
 	}
 	if isLockConfigError {
-		var lockedJsonVal json.RawMessage
-		_ = json.Unmarshal([]byte(lockedOverride), &lockedJsonVal)
-		var changesJsonVal json.RawMessage
-		_ = json.Unmarshal([]byte(changesOverride), &changesJsonVal)
-		var addedJsonVal json.RawMessage
-		_ = json.Unmarshal([]byte(addedOverride), &addedJsonVal)
-		var deletedJsonVal json.RawMessage
-		_ = json.Unmarshal([]byte(deletedOverride), &deletedJsonVal)
+		lockConfigErrorResponse := bean.GetLockConfigErrorResponse(lockedOverride, modifiedOverride, addedOverride, deletedOverride)
 
 		return &TemplateResponse{
-			TemplateRequest:   templateRequest,
-			LockedOverride:    lockedJsonVal,
-			ModifiedOverride:  changesJsonVal,
-			DeletedOverride:   deletedJsonVal,
-			AddedOverride:     addedJsonVal,
-			IsLockConfigError: true,
+			TemplateRequest:         templateRequest,
+			LockConfigErrorResponse: lockConfigErrorResponse,
 		}, nil
 	}
 
@@ -985,8 +963,8 @@ func (impl ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateRequ
 		return nil, err
 	}
 	return &TemplateResponse{
-		TemplateRequest:   templateRequest,
-		IsLockConfigError: false,
+		TemplateRequest:         templateRequest,
+		LockConfigErrorResponse: nil,
 	}, nil
 }
 
@@ -1000,30 +978,18 @@ func (impl ChartServiceImpl) ValidateAppOverride(templateRequest *TemplateReques
 	impl.logger.Debug("now finally update request chart in db to latest and previous flag = false")
 
 	// Handle Lock Configuration
-	isLockConfigError, lockedOverride, changesOverride, deletedOverride, addedOverride, err := impl.lockedConfigService.HandleLockConfiguration(string(templateRequest.ValuesOverride), template.GlobalOverride, int(templateRequest.UserId))
+	isLockConfigError, lockedOverride, modifiedOverride, deletedOverride, addedOverride, err := impl.lockedConfigService.HandleLockConfiguration(string(templateRequest.ValuesOverride), template.GlobalOverride, int(templateRequest.UserId))
 	if err != nil {
 		return nil, err
 	}
 	if isLockConfigError {
-		var lockedJsonVal json.RawMessage
-		_ = json.Unmarshal([]byte(lockedOverride), &lockedJsonVal)
-		var changesJsonVal json.RawMessage
-		_ = json.Unmarshal([]byte(changesOverride), &changesJsonVal)
-		var addedJsonVal json.RawMessage
-		_ = json.Unmarshal([]byte(addedOverride), &addedJsonVal)
-		var deletedJsonVal json.RawMessage
-		_ = json.Unmarshal([]byte(deletedOverride), &deletedJsonVal)
-
+		lockConfigErrorResponse := bean.GetLockConfigErrorResponse(lockedOverride, modifiedOverride, addedOverride, deletedOverride)
 		return &TemplateResponse{
-			TemplateRequest:   templateRequest,
-			LockedOverride:    lockedJsonVal,
-			ModifiedOverride:  changesJsonVal,
-			DeletedOverride:   deletedJsonVal,
-			AddedOverride:     addedJsonVal,
-			IsLockConfigError: true,
+			TemplateRequest:         templateRequest,
+			LockConfigErrorResponse: lockConfigErrorResponse,
 		}, nil
 	}
-	return &TemplateResponse{TemplateRequest: templateRequest, IsLockConfigError: false}, nil
+	return &TemplateResponse{TemplateRequest: templateRequest, LockConfigErrorResponse: nil}, nil
 }
 
 func (impl ChartServiceImpl) handleChartTypeChange(currentLatestChart *chartRepoRepository.Chart, templateRequest *TemplateRequest) (json.RawMessage, error) {

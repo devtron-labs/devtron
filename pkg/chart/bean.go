@@ -2,6 +2,7 @@ package chart
 
 import (
 	"encoding/json"
+	"github.com/devtron-labs/devtron/enterprise/pkg/lockConfiguration/bean"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 )
 
@@ -19,11 +20,7 @@ type ReservedChartList struct {
 
 type TemplateResponse struct {
 	*TemplateRequest
-	LockedOverride    json.RawMessage `json:"lockedOverride"`
-	ModifiedOverride  json.RawMessage `json:"modifiedOverride"`
-	AddedOverride     json.RawMessage `json:"addedOverride"`
-	DeletedOverride   json.RawMessage `json:"deletedOverride"`
-	IsLockConfigError bool            `json:"isLockConfigError"`
+	*bean.LockConfigErrorResponse
 }
 
 type TemplateRequest struct {
