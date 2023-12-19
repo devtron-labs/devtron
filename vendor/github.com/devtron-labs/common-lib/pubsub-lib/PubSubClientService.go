@@ -61,6 +61,11 @@ func (impl PubSubClientServiceImpl) Publish(topic string, msg string) error {
 	_ = AddStream(jetStrCtxt, streamConfig, streamName)
 	//Generate random string for passing as Header Id in message
 	randString := "MsgHeaderId-" + utils.Generate(10)
+
+	// track time taken to publish msg to nats server
+	t1 := time.Now()
+	defer natsMetrics.NatsEventPublishTime.WithLabelValues(topic).Observe(float64(time.Since(t1).Milliseconds()))
+
 	_, err := jetStrCtxt.Publish(topic, []byte(msg), nats.MsgId(randString))
 	if err != nil {
 		//TODO need to handle retry specially for timeout cases

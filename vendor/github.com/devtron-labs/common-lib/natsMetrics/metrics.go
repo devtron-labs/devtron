@@ -19,6 +19,10 @@ var NatsEventConsumptionTime = promauto.NewHistogramVec(prometheus.HistogramOpts
 	Name: "nats_event_consumption_time",
 }, []string{"topic"})
 
+var NatsEventPublishTime = promauto.NewHistogramVec(prometheus.HistogramOpts{
+	Name: "nats_event_publish_time",
+}, []string{"topic"})
+
 func IncPublishCount(topic string) {
 	NatsPublishingCount.WithLabelValues(topic).Inc()
 }

@@ -101,7 +101,7 @@ func NewNatsClient(logger *zap.SugaredLogger) (*NatsClient, error) {
 
 	//Create a jetstream context
 	js, err := nc.JetStream()
-	nc.Stats()
+
 	if err != nil {
 		logger.Errorw("Error while creating jetstream context", "error", err)
 	}
