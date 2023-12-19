@@ -105,7 +105,6 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 		logger.Errorw("error in starting heartbeat event", "err", err)
 		return nil, err
 	}
-	fmt.Println("hihihihih")
 	return watcher, err
 }
 
@@ -559,7 +558,6 @@ func (impl *TelemetryEventClientImpl) SendTelemetryDashboardAccessEvent() error 
 		impl.logger.Errorw("exception while getting cluster provider", "error", err)
 		return err
 	}
-	impl.logger.Errorw("cluster provider ===== ", "provider", provider)
 	payload.ClusterProvider = provider
 
 	reqBody, err := json.Marshal(payload)
