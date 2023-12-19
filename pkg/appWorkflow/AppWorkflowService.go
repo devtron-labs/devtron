@@ -768,30 +768,28 @@ func extractOutFilteredWorkflowMappings(appWorkflowMappings []AppWorkflowMapping
 
 // fetchLeafPipelinesAndPopulateChildrenIdsInWorkflowMapping function fetches all the leaf cd pipelines and append
 // the children pipelineIds into ChildPipelinesIds object in AppWorkflowMappingDto and returns both object.
-func fetchLeafPipelinesAndPopulateChildrenIdsInWorkflowMapping(appWorkflowMappings []AppWorkflowMappingDto) (map[PipelineIdentifier]*AppWorkflowMappingDto, []*AppWorkflowMappingDto) {
+func fetchLeafPipelinesAndPopulateChildrenIdsInWorkflowMapping(appWorkflowMappings []AppWorkflowMappingDto) (map[PipelineIdentifier]*AppWorkflowMappingDto, []AppWorkflowMappingDto) {
 	identifierToFilteredWorkflowMapping := make(map[PipelineIdentifier]*AppWorkflowMappingDto)
-	leafPipelines := make([]*AppWorkflowMappingDto, 0)
+	leafPipelines := make([]AppWorkflowMappingDto, 0)
+	//initializing the nodes with empty children and collecting leaf
 	for i, appWorkflowMapping := range appWorkflowMappings {
-		if appWorkflowMapping.IsLast {
-			leafPipelines = append(leafPipelines, &appWorkflowMappings[i])
-		}
+		appWorkflowMappings[i].ChildPipelinesIds = mapset.NewSet()
 		identifierToFilteredWorkflowMapping[appWorkflowMapping.getPipelineIdentifier()] = &appWorkflowMappings[i]
-		if appWorkflowMappings[i].ChildPipelinesIds == nil {
-			appWorkflowMappings[i].ChildPipelinesIds = mapset.NewSet()
-		}
-		if appWorkflow, ok := identifierToFilteredWorkflowMapping[appWorkflowMapping.getParentPipelineIdentifier()]; ok {
-			appWorkflow.ChildPipelinesIds.Add(appWorkflowMapping.ComponentId)
+
+		//collecting leaf pipelines
+		if appWorkflowMapping.IsLast {
+			leafPipelines = append(leafPipelines, appWorkflowMapping)
 		}
 	}
 
-	for _, wfmMap := range identifierToFilteredWorkflowMapping {
-		parentId := wfmMap.getParentPipelineIdentifier()
-		componentId := wfmMap.ComponentId
+	for _, appWorkflowMapping := range identifierToFilteredWorkflowMapping {
+		// populating children in parent nodes
+		parentId := appWorkflowMapping.getParentPipelineIdentifier()
+		componentId := appWorkflowMapping.ComponentId
 		if parentMapping, ok := identifierToFilteredWorkflowMapping[parentId]; ok && !parentMapping.ChildPipelinesIds.Contains(componentId) {
 			parentMapping.ChildPipelinesIds.Add(componentId)
 		}
 	}
-
 	return identifierToFilteredWorkflowMapping, leafPipelines
 }
 
@@ -801,7 +799,7 @@ func fetchLeafPipelinesAndPopulateChildrenIdsInWorkflowMapping(appWorkflowMappin
 // cd-pipeline from componentIdWorkflowMapping's list of AppWorkflowMappingDto and also truncate the child
 // cd-pipeline id present in the parent's ChildPipelinesIds object inside AppWorkflowMappingDto.
 func filterMappingOnFilteredCdPipelineIds(identifierToFilteredWorkflowMapping map[PipelineIdentifier]*AppWorkflowMappingDto,
-	leafPipelines []*AppWorkflowMappingDto, cdPipelineIdsFiltered mapset.Set) map[PipelineIdentifier]*AppWorkflowMappingDto {
+	leafPipelines []AppWorkflowMappingDto, cdPipelineIdsFiltered mapset.Set) map[PipelineIdentifier]*AppWorkflowMappingDto {
 
 	leafPipelineSize := len(leafPipelines)
 	for i := 0; i < leafPipelineSize; i++ {
@@ -816,7 +814,7 @@ func filterMappingOnFilteredCdPipelineIds(identifierToFilteredWorkflowMapping ma
 		childPipelineIds := identifierToFilteredWorkflowMapping[parentPipelineIdentifier].ChildPipelinesIds
 		if childPipelineIds.Cardinality() == 0 {
 			//this means this pipeline has become leaf, so append this pipelineId in leafPipelines for further processing
-			leafPipelines = append(leafPipelines, identifierToFilteredWorkflowMapping[leafPipelines[i].getParentPipelineIdentifier()])
+			leafPipelines = append(leafPipelines, *identifierToFilteredWorkflowMapping[leafPipelines[i].getParentPipelineIdentifier()])
 			leafPipelineSize += 1
 		}
 
@@ -859,4 +857,28 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowByCiPipelineId(ciPipelineId in
 	}
 	return appWorkflowMapping, nil
 
+}
+
+func LevelWiseSort(appWorkflowMappings []AppWorkflowMappingDto) []AppWorkflowMappingDto {
+
+	identifierToNodeMapping, leafNodes := fetchLeafPipelinesAndPopulateChildrenIdsInWorkflowMapping(appWorkflowMappings)
+
+	visitedNodes := make(map[PipelineIdentifier]bool)
+	result := make([]AppWorkflowMappingDto, 0)
+	nodesInCurrentLevel := make([]AppWorkflowMappingDto, 0)
+	nodesInCurrentLevel = append(nodesInCurrentLevel, leafNodes...)
+
+	for len(result) != len(appWorkflowMappings) {
+		result = append(nodesInCurrentLevel, result...)
+		parentsOfCurrentLevel := make([]AppWorkflowMappingDto, 0)
+		for _, node := range nodesInCurrentLevel {
+			parentId := node.getPipelineIdentifier()
+			if parent, ok := identifierToNodeMapping[parentId]; ok && !visitedNodes[parentId] {
+				parentsOfCurrentLevel = append(parentsOfCurrentLevel, *parent)
+				visitedNodes[parentId] = true
+			}
+		}
+		nodesInCurrentLevel = parentsOfCurrentLevel
+	}
+	return result
 }
