@@ -3,7 +3,6 @@ package util
 import (
 	"fmt"
 	"github.com/devtron-labs/devtron/util"
-	"github.com/devtron-labs/devtron/util/cmdUtil"
 	"go.uber.org/zap"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/config"
@@ -32,7 +31,7 @@ func (impl *GitCliUtil) Fetch(rootDir string, username string, password string) 
 		util.TriggerGitOpsMetrics("Fetch", "GitCli", start, err)
 	}()
 	impl.logger.Debugw("git fetch ", "location", rootDir)
-	cmd := exec.Command("git", "-C", cmdUtil.SanitizeCliParam(rootDir), "fetch", "origin", "--tags", "--force")
+	cmd := exec.Command("git", "-C", rootDir, "fetch", "origin", "--tags", "--force")
 	output, errMsg, err := impl.runCommandWithCred(cmd, username, password)
 	impl.logger.Debugw("fetch output", "root", rootDir, "opt", output, "errMsg", errMsg, "error", err)
 	return output, errMsg, err
@@ -44,7 +43,7 @@ func (impl *GitCliUtil) Pull(rootDir string, username string, password string, b
 		util.TriggerGitOpsMetrics("Pull", "GitCli", start, err)
 	}()
 	impl.logger.Debugw("git pull ", "location", rootDir)
-	cmd := exec.Command("git", "-C", cmdUtil.SanitizeCliParam(rootDir), "pull", "origin", cmdUtil.SanitizeCliParam(branch), "--force")
+	cmd := exec.Command("git", "-C", rootDir, "pull", "origin", branch, "--force")
 	output, errMsg, err := impl.runCommandWithCred(cmd, username, password)
 	impl.logger.Debugw("pull output", "root", rootDir, "opt", output, "errMsg", errMsg, "error", err)
 	return output, errMsg, err
@@ -56,7 +55,7 @@ func (impl *GitCliUtil) Checkout(rootDir string, branch string) (response, errMs
 		util.TriggerGitOpsMetrics("Checkout", "GitCli", start, err)
 	}()
 	impl.logger.Debugw("git checkout ", "location", rootDir)
-	cmd := exec.Command("git", "-C", cmdUtil.SanitizeCliParam(rootDir), "checkout", cmdUtil.SanitizeCliParam(branch), "--force")
+	cmd := exec.Command("git", "-C", rootDir, "checkout", branch, "--force")
 	output, errMsg, err := impl.runCommand(cmd)
 	impl.logger.Debugw("checkout output", "root", rootDir, "opt", output, "errMsg", errMsg, "error", err)
 	return output, errMsg, err
@@ -68,7 +67,7 @@ func (impl *GitCliUtil) ListBranch(rootDir string, username string, password str
 		util.TriggerGitOpsMetrics("ListBranch", "GitCli", start, err)
 	}()
 	impl.logger.Debugw("git branch ", "location", rootDir)
-	cmd := exec.Command("git", "-C", cmdUtil.SanitizeCliParam(rootDir), "branch", "-r")
+	cmd := exec.Command("git", "-C", rootDir, "branch", "-r")
 	output, errMsg, err := impl.runCommandWithCred(cmd, username, password)
 	impl.logger.Debugw("branch output", "root", rootDir, "opt", output, "errMsg", errMsg, "error", err)
 	return output, errMsg, err
