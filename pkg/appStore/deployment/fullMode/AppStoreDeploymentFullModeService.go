@@ -343,21 +343,23 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationACD(ins
 		impl.logger.Errorw("error in getting the argo application with normal refresh", "err", err)
 		return nil, err
 	}
-	timeline := &pipelineConfig.PipelineStatusTimeline{
-		InstalledAppVersionHistoryId: installAppVersionRequest.InstalledAppVersionHistoryId,
-		Status:                       pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED,
-		StatusDetail:                 "argocd sync completed.",
-		StatusTime:                   syncTime,
-		AuditLog: sql.AuditLog{
-			CreatedBy: installAppVersionRequest.UserId,
-			CreatedOn: time.Now(),
-			UpdatedBy: installAppVersionRequest.UserId,
-			UpdatedOn: time.Now(),
-		},
-	}
-	err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, tx, true)
-	if err != nil {
-		impl.logger.Errorw("error in creating timeline for argocd sync", "err", err, "timeline", timeline)
+	if !impl.ACDConfig.ArgoCDAutoSyncEnabled {
+		timeline := &pipelineConfig.PipelineStatusTimeline{
+			InstalledAppVersionHistoryId: installAppVersionRequest.InstalledAppVersionHistoryId,
+			Status:                       pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED,
+			StatusDetail:                 "argocd sync completed.",
+			StatusTime:                   syncTime,
+			AuditLog: sql.AuditLog{
+				CreatedBy: installAppVersionRequest.UserId,
+				CreatedOn: time.Now(),
+				UpdatedBy: installAppVersionRequest.UserId,
+				UpdatedOn: time.Now(),
+			},
+		}
+		err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, tx, true)
+		if err != nil {
+			impl.logger.Errorw("error in creating timeline for argocd sync", "err", err, "timeline", timeline)
+		}
 	}
 
 	return installAppVersionRequest, nil

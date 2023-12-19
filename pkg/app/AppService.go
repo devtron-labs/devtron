@@ -165,6 +165,7 @@ type AppServiceImpl struct {
 	GitOpsManifestPushService              GitOpsPushService
 	scopedVariableManager                  variables.ScopedVariableCMCSManager
 	argoClientWrapperService               argocdServer.ArgoClientWrapperService
+	acdConfig                              *argocdServer.ACDConfig
 }
 
 type AppService interface {
@@ -249,6 +250,7 @@ func NewAppService(
 	GitOpsManifestPushService GitOpsPushService,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
 	scopedVariableManager variables.ScopedVariableCMCSManager,
+	acdConfig *argocdServer.ACDConfig,
 ) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:            environmentConfigRepository,
@@ -312,6 +314,7 @@ func NewAppService(
 		GitOpsManifestPushService:              GitOpsManifestPushService,
 		argoClientWrapperService:               argoClientWrapperService,
 		scopedVariableManager:                  scopedVariableManager,
+		acdConfig:                              acdConfig,
 	}
 	return appServiceImpl
 }
@@ -628,9 +631,12 @@ func (impl *AppServiceImpl) CheckIfPipelineUpdateEventIsValid(argoAppName, gitHa
 		//drop event
 		return isValid, pipeline, cdWfr, pipelineOverride, nil
 	}
-	isArgoAppSynced := impl.pipelineStatusTimelineService.GetArgoAppSyncStatus(cdWfr.Id)
-	if !isArgoAppSynced {
-		return isValid, pipeline, cdWfr, pipelineOverride, nil
+	if !impl.acdConfig.ArgoCDAutoSyncEnabled {
+		// if manual sync, proceed only if ARGOCD_SYNC_COMPLETED timeline is created
+		isArgoAppSynced := impl.pipelineStatusTimelineService.GetArgoAppSyncStatus(cdWfr.Id)
+		if !isArgoAppSynced {
+			return isValid, pipeline, cdWfr, pipelineOverride, nil
+		}
 	}
 	isValid = true
 	return isValid, pipeline, cdWfr, pipelineOverride, nil

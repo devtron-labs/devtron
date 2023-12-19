@@ -3431,21 +3431,23 @@ func (impl *WorkflowDagExecutorImpl) DeployArgocdApp(overrideRequest *bean.Value
 		impl.logger.Errorw("error in getting argo application with normal refresh", "argoAppName", valuesOverrideResponse.Pipeline.DeploymentAppName)
 		return fmt.Errorf("%s. err: %s", ARGOCD_SYNC_ERROR, err.Error())
 	}
-	timeline := &pipelineConfig.PipelineStatusTimeline{
-		CdWorkflowRunnerId: overrideRequest.WfrId,
-		StatusTime:         syncTime,
-		AuditLog: sql.AuditLog{
-			CreatedBy: 1,
-			CreatedOn: time.Now(),
-			UpdatedBy: 1,
-			UpdatedOn: time.Now(),
-		},
-		Status:       pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED,
-		StatusDetail: "argocd sync completed",
-	}
-	_, err, _ = impl.pipelineStatusTimelineService.SavePipelineStatusTimelineIfNotAlreadyPresent(overrideRequest.WfrId, timeline.Status, timeline, false)
-	if err != nil {
-		impl.logger.Errorw("error in saving pipeline status timeline", "err", err)
+	if !impl.ACDConfig.ArgoCDAutoSyncEnabled {
+		timeline := &pipelineConfig.PipelineStatusTimeline{
+			CdWorkflowRunnerId: overrideRequest.WfrId,
+			StatusTime:         syncTime,
+			AuditLog: sql.AuditLog{
+				CreatedBy: 1,
+				CreatedOn: time.Now(),
+				UpdatedBy: 1,
+				UpdatedOn: time.Now(),
+			},
+			Status:       pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED,
+			StatusDetail: "argocd sync completed",
+		}
+		_, err, _ = impl.pipelineStatusTimelineService.SavePipelineStatusTimelineIfNotAlreadyPresent(overrideRequest.WfrId, timeline.Status, timeline, false)
+		if err != nil {
+			impl.logger.Errorw("error in saving pipeline status timeline", "err", err)
+		}
 	}
 	if updateAppInArgocd {
 		impl.logger.Debug("argo-cd successfully updated")

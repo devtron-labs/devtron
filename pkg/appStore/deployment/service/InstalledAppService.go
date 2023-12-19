@@ -138,6 +138,7 @@ type InstalledAppServiceImpl struct {
 	appStoreDeploymentCommonService      appStoreDeploymentCommon.AppStoreDeploymentCommonService
 	k8sCommonService                     k8s.K8sCommonService
 	k8sApplicationService                application3.K8sApplicationService
+	acdConfig                            *argocdServer.ACDConfig
 }
 
 func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
@@ -162,7 +163,8 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 	appStatusService appStatus.AppStatusService, K8sUtil *util4.K8sUtil,
 	pipelineStatusTimelineService status.PipelineStatusTimelineService,
 	appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
-	appStoreDeploymentArgoCdService appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdService, k8sCommonService k8s.K8sCommonService, k8sApplicationService application3.K8sApplicationService) (*InstalledAppServiceImpl, error) {
+	appStoreDeploymentArgoCdService appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdService, k8sCommonService k8s.K8sCommonService, k8sApplicationService application3.K8sApplicationService,
+	acdConfig *argocdServer.ACDConfig) (*InstalledAppServiceImpl, error) {
 	impl := &InstalledAppServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -197,6 +199,7 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 		appStoreDeploymentCommonService:      appStoreDeploymentCommonService,
 		k8sCommonService:                     k8sCommonService,
 		k8sApplicationService:                k8sApplicationService,
+		acdConfig:                            acdConfig,
 	}
 	err := impl.Subscribe()
 	if err != nil {
@@ -439,8 +442,13 @@ func (impl InstalledAppServiceImpl) performDeployStageOnAcd(installedAppVersion 
 		GitCommitSuccessTimeline := impl.pipelineStatusTimelineService.
 			GetTimelineDbObjectByTimelineStatusAndTimelineDescription(0, installedAppVersion.InstalledAppVersionHistoryId, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT, "Git commit done successfully.", installedAppVersion.UserId, time.Now())
 
-		ArgocdSyncInitiatedTimeline := impl.pipelineStatusTimelineService.
-			GetTimelineDbObjectByTimelineStatusAndTimelineDescription(0, installedAppVersion.InstalledAppVersionHistoryId, pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED, "ArgoCD sync initiated.", installedAppVersion.UserId, time.Now())
+		timelines := []*pipelineConfig.PipelineStatusTimeline{GitCommitSuccessTimeline}
+		if !impl.acdConfig.ArgoCDAutoSyncEnabled {
+			ArgocdSyncInitiatedTimeline := impl.pipelineStatusTimelineService.
+				GetTimelineDbObjectByTimelineStatusAndTimelineDescription(0, installedAppVersion.InstalledAppVersionHistoryId, pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED, "ArgoCD sync initiated.", installedAppVersion.UserId, time.Now())
+
+			timelines = append(timelines, ArgocdSyncInitiatedTimeline)
+		}
 
 		dbConnection := impl.installedAppRepository.GetConnection()
 		tx, err := dbConnection.Begin()
@@ -448,8 +456,7 @@ func (impl InstalledAppServiceImpl) performDeployStageOnAcd(installedAppVersion 
 			impl.logger.Errorw("error in getting db connection for saving timelines", "err", err)
 			return nil, err
 		}
-		err = impl.pipelineStatusTimelineService.SaveTimelines(
-			[]*pipelineConfig.PipelineStatusTimeline{GitCommitSuccessTimeline, ArgocdSyncInitiatedTimeline}, tx)
+		err = impl.pipelineStatusTimelineService.SaveTimelines(timelines, tx)
 		if err != nil {
 			impl.logger.Errorw("error in creating timeline status for deployment initiation for update of installedAppVersionHistoryId", "err", err, "installedAppVersionHistoryId", installedAppVersion.InstalledAppVersionHistoryId)
 		}
