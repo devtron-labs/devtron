@@ -48,6 +48,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	repository2 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/providerIdentifier"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	util3 "github.com/devtron-labs/devtron/util"
@@ -114,6 +115,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(session.ServiceClient), new(*middleware.LoginService)),
 		connector.NewPumpImpl,
 		wire.Bind(new(connector.Pump), new(*connector.PumpImpl)),
+		providerIdentifier.NewProviderIdentifierServiceImpl,
+		wire.Bind(new(providerIdentifier.ProviderIdentifierService), new(*providerIdentifier.ProviderIdentifierServiceImpl)),
 
 		telemetry.NewTelemetryEventClientImpl,
 		wire.Bind(new(telemetry.TelemetryEventClient), new(*telemetry.TelemetryEventClientImpl)),
