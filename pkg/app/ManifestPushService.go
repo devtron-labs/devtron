@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -33,6 +34,7 @@ type GitOpsManifestPushServiceImpl struct {
 	gitFactory                       *GitFactory
 	pipelineStatusTimelineService    status2.PipelineStatusTimelineService
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository
+	acdConfig                        *argocdServer.ACDConfig
 }
 
 func NewGitOpsManifestPushServiceImpl(
@@ -43,6 +45,7 @@ func NewGitOpsManifestPushServiceImpl(
 	gitFactory *GitFactory,
 	pipelineStatusTimelineService status2.PipelineStatusTimelineService,
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository,
+	acdConfig *argocdServer.ACDConfig,
 ) *GitOpsManifestPushServiceImpl {
 	return &GitOpsManifestPushServiceImpl{
 		logger:                           logger,
@@ -52,6 +55,7 @@ func NewGitOpsManifestPushServiceImpl(
 		gitFactory:                       gitFactory,
 		pipelineStatusTimelineService:    pipelineStatusTimelineService,
 		pipelineStatusTimelineRepository: pipelineStatusTimelineRepository,
+		acdConfig:                        acdConfig,
 	}
 }
 
@@ -81,15 +85,21 @@ func (impl *GitOpsManifestPushServiceImpl) PushChart(manifestPushTemplate *bean.
 		manifestPushResponse.Error = err
 		return manifestPushResponse
 	}
+
 	gitCommitTimeline := impl.pipelineStatusTimelineService.GetTimelineDbObjectByTimelineStatusAndTimelineDescription(manifestPushTemplate.WorkflowRunnerId, 0, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT, "Git commit done successfully.", manifestPushTemplate.UserId, time.Now())
 	argoCDSyncInitiatedTimeline := impl.pipelineStatusTimelineService.GetTimelineDbObjectByTimelineStatusAndTimelineDescription(manifestPushTemplate.WorkflowRunnerId, 0, pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED, "argocd sync initiated.", manifestPushTemplate.UserId, time.Now())
-	timelineErr := impl.pipelineStatusTimelineService.SaveTimelines(
-		[]*pipelineConfig.PipelineStatusTimeline{gitCommitTimeline, argoCDSyncInitiatedTimeline},
-		tx)
+
+	timelines := []*pipelineConfig.PipelineStatusTimeline{gitCommitTimeline}
+	if !impl.acdConfig.ArgoCDAutoSyncEnabled {
+		// if manual sync is enabled, add ARGOCD_SYNC_INITIATED_TIMELINE
+		timelines = append(timelines, argoCDSyncInitiatedTimeline)
+	}
+	timelineErr := impl.pipelineStatusTimelineService.SaveTimelines(timelines, tx)
 	if timelineErr != nil {
 		impl.logger.Errorw("Error in saving git commit success timeline", err, timelineErr)
 	}
 	tx.Commit()
+
 	return manifestPushResponse
 }
 

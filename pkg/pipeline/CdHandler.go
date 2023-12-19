@@ -322,13 +322,21 @@ func (impl *CdHandlerImpl) CheckAndSendArgoPipelineStatusSyncEventIfNeeded(pipel
 		impl.Logger.Errorw("error in getting last sync time by pipelineId", "err", err, "pipelineId", pipelineId, "installedAppVersionHistoryId", installedAppVersionId)
 		return
 	}
-	//TODO: remove hard coding
 
 	// sync argocd app
-	err = impl.SyncArgoCdApps(impl.AppConfig.ArgocdManualSyncCronPipelineDeployedBefore, pipelineId, installedAppVersionId)
-	if err != nil {
-		impl.Logger.Errorw("error in syncing argocd app")
-		return
+	if pipelineId != 0 {
+		err := impl.syncACDDevtronApps(impl.AppConfig.ArgocdManualSyncCronPipelineDeployedBefore, pipelineId)
+		if err != nil {
+			impl.Logger.Errorw("error in syncing devtron apps deployed via argoCD", "err", err)
+			return
+		}
+	}
+	if installedAppVersionId != 0 {
+		err := impl.SyncACDHelmApps(impl.AppConfig.ArgocdManualSyncCronPipelineDeployedBefore, installedAppVersionId)
+		if err != nil {
+			impl.Logger.Errorw("error in syncing Helm apps deployed via argoCD", "err", err)
+			return
+		}
 	}
 
 	//pipelineId can be cdPipelineId or installedAppVersionId, using isAppStoreApplication flag to identify between them
@@ -363,9 +371,13 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveApplicationFetch
 			//drop event
 			return nil, isTimelineUpdated
 		}
-		isArgoAppSynced := impl.pipelineStatusTimelineService.GetArgoAppSyncStatus(cdWfr.Id)
-		if !isArgoAppSynced {
-			return nil, isTimelineUpdated
+
+		if !impl.acdConfig.ArgoCDAutoSyncEnabled {
+			// if manual sync check for application sync status
+			isArgoAppSynced := impl.pipelineStatusTimelineService.GetArgoAppSyncStatus(cdWfr.Id)
+			if !isArgoAppSynced {
+				return nil, isTimelineUpdated
+			}
 		}
 		//this should only be called when we have git-ops configured
 		//try fetching status from argo cd
@@ -444,9 +456,11 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveApplicationFetch
 			//drop event
 			return nil, isTimelineUpdated
 		}
-		isArgoAppSynced := impl.pipelineStatusTimelineService.GetArgoAppSyncStatusForAppStore(installedAppVersionHistory.Id)
-		if !isArgoAppSynced {
-			return nil, isTimelineUpdated
+		if !impl.acdConfig.ArgoCDAutoSyncEnabled {
+			isArgoAppSynced := impl.pipelineStatusTimelineService.GetArgoAppSyncStatusForAppStore(installedAppVersionHistory.Id)
+			if !isArgoAppSynced {
+				return nil, isTimelineUpdated
+			}
 		}
 		appDetails, err := impl.appRepository.FindActiveById(installedApp.AppId)
 		if err != nil {
@@ -1842,22 +1856,6 @@ func (impl *CdHandlerImpl) performNotificationApprovalAction(approvalActionReque
 
 func (impl *CdHandlerImpl) DeactivateImageReservationPathsOnFailure(imagePathReservationIds []int) error {
 	return impl.customTagService.DeactivateImagePathReservationByImageIds(imagePathReservationIds)
-}
-
-func (impl *CdHandlerImpl) SyncArgoCdApps(deployedBeforeMinutes int, pipelineId int, installedAppVersionId int) error {
-	if pipelineId != 0 {
-		err := impl.syncACDDevtronApps(deployedBeforeMinutes, pipelineId)
-		if err != nil {
-			return err
-		}
-	}
-	if installedAppVersionId != 0 {
-		err := impl.SyncACDHelmApps(deployedBeforeMinutes, installedAppVersionId)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func (impl *CdHandlerImpl) syncACDDevtronApps(deployedBeforeMinutes int, pipelineId int) error {

@@ -68,6 +68,7 @@ func (impl *ArgoClientWrapperServiceImpl) GetArgoAppWithNormalRefresh(context co
 func (impl *ArgoClientWrapperServiceImpl) SyncArgoCDApplicationIfNeededAndRefresh(context context.Context, argoAppName string) error {
 	impl.logger.Info("argocd manual sync for app started", "argoAppName", argoAppName)
 	if !impl.ACDConfig.ArgoCDAutoSyncEnabled {
+		impl.logger.Debugw("syncing argocd app as manual sync is enabled", "argoAppName", argoAppName)
 		revision := "master"
 		pruneResources := true
 		_, syncErr := impl.acdClient.Sync(context, &application2.ApplicationSyncRequest{Name: &argoAppName, Revision: &revision, Prune: &pruneResources})
@@ -75,18 +76,18 @@ func (impl *ArgoClientWrapperServiceImpl) SyncArgoCDApplicationIfNeededAndRefres
 			impl.logger.Errorw("cannot get application with refresh", "app", argoAppName)
 			return syncErr
 		}
+		impl.logger.Debugw("argocd sync completed", "argoAppName", argoAppName)
 	}
 	refreshErr := impl.GetArgoAppWithNormalRefresh(context, argoAppName)
 	if refreshErr != nil {
 		impl.logger.Errorw("error in refreshing argo app", "err", refreshErr)
 	}
-	impl.logger.Debugw("argo app sync completed", "argoAppName", argoAppName)
 	return nil
 }
 
 func (impl *ArgoClientWrapperServiceImpl) UpdateArgoCDSyncModeIfNeeded(ctx context.Context, argoApplication *v1alpha1.Application) (err error) {
-	if impl.IsArgoAppSyncModeMigrationNeeded(argoApplication) {
-		syncModeUpdateRequest := impl.GetArgocdAppSyncModeUpdateRequest(argoApplication)
+	if impl.isArgoAppSyncModeMigrationNeeded(argoApplication) {
+		syncModeUpdateRequest := impl.CreateRequestForArgoCDSyncModeUpdateRequest(argoApplication)
 		validate := false
 		_, err = impl.acdClient.Update(ctx, &application2.ApplicationUpdateRequest{Application: syncModeUpdateRequest, Validate: &validate})
 		if err != nil {
@@ -97,7 +98,7 @@ func (impl *ArgoClientWrapperServiceImpl) UpdateArgoCDSyncModeIfNeeded(ctx conte
 	return nil
 }
 
-func (impl *ArgoClientWrapperServiceImpl) IsArgoAppSyncModeMigrationNeeded(argoApplication *v1alpha1.Application) bool {
+func (impl *ArgoClientWrapperServiceImpl) isArgoAppSyncModeMigrationNeeded(argoApplication *v1alpha1.Application) bool {
 	if !impl.ACDConfig.ArgoCDAutoSyncEnabled && argoApplication.Spec.SyncPolicy.Automated != nil {
 		return true
 	}
@@ -107,7 +108,7 @@ func (impl *ArgoClientWrapperServiceImpl) IsArgoAppSyncModeMigrationNeeded(argoA
 	return false
 }
 
-func (impl *ArgoClientWrapperServiceImpl) GetArgocdAppSyncModeUpdateRequest(argoApplication *v1alpha1.Application) *v1alpha1.Application {
+func (impl *ArgoClientWrapperServiceImpl) CreateRequestForArgoCDSyncModeUpdateRequest(argoApplication *v1alpha1.Application) *v1alpha1.Application {
 	// set automated field in update request
 	var automated *v1alpha1.SyncPolicyAutomated
 	if impl.ACDConfig.ArgoCDAutoSyncEnabled {

@@ -33,6 +33,7 @@ import (
 	terminal2 "github.com/devtron-labs/devtron/api/terminal"
 	user2 "github.com/devtron-labs/devtron/api/user"
 	webhookHelm2 "github.com/devtron-labs/devtron/api/webhook/helm"
+	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/dashboard"
 	"github.com/devtron-labs/devtron/client/telemetry"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
@@ -281,7 +282,11 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	appStoreDeploymentServiceImpl := service3.NewAppStoreDeploymentServiceImpl(sugaredLogger, installedAppRepositoryImpl, chartGroupDeploymentRepositoryImpl, appStoreApplicationVersionRepositoryImpl, environmentRepositoryImpl, clusterInstalledAppsRepositoryImpl, appRepositoryImpl, appStoreDeploymentHelmServiceImpl, appStoreDeploymentHelmServiceImpl, environmentServiceImpl, clusterServiceImpl, helmAppServiceImpl, appStoreDeploymentCommonServiceImpl, globalEnvVariables, installedAppVersionHistoryRepositoryImpl, gitOpsConfigRepositoryImpl, attributesServiceImpl, deploymentServiceTypeConfig, chartTemplateServiceImpl)
+	acdConfig, err := argocdServer.GetACDDeploymentConfig()
+	if err != nil {
+		return nil, err
+	}
+	appStoreDeploymentServiceImpl := service3.NewAppStoreDeploymentServiceImpl(sugaredLogger, installedAppRepositoryImpl, chartGroupDeploymentRepositoryImpl, appStoreApplicationVersionRepositoryImpl, environmentRepositoryImpl, clusterInstalledAppsRepositoryImpl, appRepositoryImpl, appStoreDeploymentHelmServiceImpl, appStoreDeploymentHelmServiceImpl, environmentServiceImpl, clusterServiceImpl, helmAppServiceImpl, appStoreDeploymentCommonServiceImpl, globalEnvVariables, installedAppVersionHistoryRepositoryImpl, gitOpsConfigRepositoryImpl, attributesServiceImpl, deploymentServiceTypeConfig, chartTemplateServiceImpl, acdConfig)
 	appStoreDeploymentRestHandlerImpl := appStoreDeployment.NewAppStoreDeploymentRestHandlerImpl(sugaredLogger, userServiceImpl, enforcerImpl, enforcerUtilImpl, enforcerUtilHelmImpl, appStoreDeploymentServiceImpl, validate, helmAppServiceImpl, appStoreDeploymentCommonServiceImpl, helmUserServiceImpl, attributesServiceImpl)
 	appStoreDeploymentRouterImpl := appStoreDeployment.NewAppStoreDeploymentRouterImpl(appStoreDeploymentRestHandlerImpl)
 	chartProviderServiceImpl := chartProvider.NewChartProviderServiceImpl(sugaredLogger, chartRepoRepositoryImpl, chartRepositoryServiceImpl, dockerArtifactStoreRepositoryImpl, ociRegistryConfigRepositoryImpl)
