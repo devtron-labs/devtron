@@ -96,11 +96,7 @@ func (impl *K8sCommonServiceImpl) UpdateResource(ctx context.Context, request *R
 		impl.logger.Errorw("error in updating resource", "err", err, "clusterId", clusterId)
 		statusError, ok := err.(*errors.StatusError)
 		if ok {
-			if statusError.ErrStatus.Code == 409 {
-				err = &util2.ApiError{Code: "409", HttpStatusCode: 200, UserMessage: statusError.Error()}
-			} else {
-				err = &util2.ApiError{Code: "400", HttpStatusCode: int(statusError.ErrStatus.Code), UserMessage: statusError.Error()}
-			}
+			err = &util2.ApiError{Code: "400", HttpStatusCode: int(statusError.ErrStatus.Code), UserMessage: statusError.Error()}
 		}
 		return nil, err
 	}
