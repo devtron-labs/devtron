@@ -473,7 +473,7 @@ func (impl *ConfigDraftRestHandlerImpl) ValidateLockDraft(w http.ResponseWriter,
 	decoder := json.NewDecoder(r.Body)
 	err = decoder.Decode(&request)
 	if err != nil {
-		impl.logger.Errorw("err in decoding request in CreateDraft", "err", err)
+		impl.logger.Errorw("err in decoding request in ValidateLockDraft", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -481,7 +481,7 @@ func (impl *ConfigDraftRestHandlerImpl) ValidateLockDraft(w http.ResponseWriter,
 	// validate request
 	err = impl.validator.Struct(request)
 	if err != nil {
-		impl.logger.Errorw("validation err in CreateDraft", "err", err, "request", request)
+		impl.logger.Errorw("validation err in ValidateLockDraft", "err", err, "request", request)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}

@@ -1591,7 +1591,7 @@ func (handler PipelineConfigRestHandlerImpl) ValidateAppOverride(w http.Response
 	err = decoder.Decode(&templateRequest)
 	templateRequest.UserId = userId
 	if err != nil {
-		handler.Logger.Errorw("request err, ConfigureDeploymentTemplateForApp", "err", err, "payload", templateRequest)
+		handler.Logger.Errorw("request err, ValidateAppOverride", "err", err, "payload", templateRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -1606,10 +1606,10 @@ func (handler PipelineConfigRestHandlerImpl) ValidateAppOverride(w http.Response
 		return
 	}
 
-	handler.Logger.Infow("request payload, ConfigureDeploymentTemplateForApp", "payload", templateRequest)
+	handler.Logger.Infow("request payload, ValidateAppOverride", "payload", templateRequest)
 	err = handler.validator.Struct(templateRequest)
 	if err != nil {
-		handler.Logger.Errorw("validation err, ConfigureDeploymentTemplateForApp", "err", err, "payload", templateRequest)
+		handler.Logger.Errorw("validation err, ValidateAppOverride", "err", err, "payload", templateRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -1644,7 +1644,7 @@ func (handler PipelineConfigRestHandlerImpl) ValidateAppOverride(w http.Response
 	ctx = context.WithValue(r.Context(), "token", acdToken)
 	createResp, err := handler.chartService.ValidateAppOverride(templateRequest)
 	if err != nil {
-		handler.Logger.Errorw("service err, ConfigureDeploymentTemplateForApp", "err", err, "payload", templateRequest)
+		handler.Logger.Errorw("service err, ValidateAppOverride", "err", err, "payload", templateRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
