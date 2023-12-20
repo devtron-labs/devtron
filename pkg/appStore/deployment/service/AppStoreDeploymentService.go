@@ -1425,7 +1425,6 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 	}
 
 	impl.updateDeploymentParametersInRequest(installAppVersionRequest, installedApp.DeploymentAppType)
-	//TODO Asutosh: move to a function
 	// migrate installedApp.GitOpsRepoName to installedApp.GitOpsRepoUrl
 	if util.IsAcdApp(installedApp.DeploymentAppType) &&
 		len(installedApp.GitOpsRepoUrl) != 0 &&
