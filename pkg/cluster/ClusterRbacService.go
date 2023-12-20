@@ -2,10 +2,11 @@ package cluster
 
 import (
 	"errors"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
-	"go.uber.org/zap"
 	"strings"
+
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
+	"go.uber.org/zap"
 )
 
 type ClusterRbacService interface {
@@ -16,8 +17,8 @@ type ClusterRbacServiceImpl struct {
 	logger             *zap.SugaredLogger
 	environmentService EnvironmentService
 	enforcer           casbin.Enforcer
-	clusterService     ClusterService
-	userService        user.UserService
+	clusterService ClusterService
+	userService    user.UserService
 }
 
 func NewClusterRbacServiceImpl(environmentService EnvironmentService,

@@ -1,10 +1,11 @@
 package restHandler
 
 import (
-"github.com/devtron-labs/devtron/api/restHandler/common"
-"github.com/devtron-labs/devtron/pkg/user"
-"net/http"
-"net/http/pprof"
+	"net/http"
+	"net/http/pprof"
+
+	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 )
 
 type PProfRestHandler interface {

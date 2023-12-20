@@ -21,11 +21,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
+
 	repository5 "github.com/devtron-labs/devtron/internal/sql/repository"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/app"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	repository1 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
@@ -34,15 +40,10 @@ import (
 	"github.com/devtron-labs/devtron/pkg/plugin"
 	repository2 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
-	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	repository4 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
-	"path/filepath"
-	"strconv"
-	"strings"
-	"time"
 
 	"github.com/devtron-labs/common-lib/blob-storage"
 	client "github.com/devtron-labs/devtron/client/events"
@@ -70,9 +71,9 @@ type CiServiceImpl struct {
 	mergeUtil                     *util.MergeUtil
 	ciPipelineRepository          pipelineConfig.CiPipelineRepository
 	prePostCiScriptHistoryService history.PrePostCiScriptHistoryService
-	pipelineStageService          PipelineStageService
-	userService                   user.UserService
-	ciTemplateService             CiTemplateService
+	pipelineStageService PipelineStageService
+	userService          user.UserService
+	ciTemplateService    CiTemplateService
 	appCrudOperationService       app.AppCrudOperationService
 	envRepository                 repository1.EnvironmentRepository
 	appRepository                 appRepository.AppRepository

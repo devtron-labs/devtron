@@ -20,19 +20,20 @@ package restHandler
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"strconv"
+
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/team"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
-	"net/http"
-	"strconv"
 )
 
 type ConfigMapRestHandler interface {
@@ -65,9 +66,9 @@ type ConfigMapRestHandler interface {
 type ConfigMapRestHandlerImpl struct {
 	pipelineBuilder    pipeline.PipelineBuilder
 	Logger             *zap.SugaredLogger
-	chartService       chart.ChartService
-	userAuthService    user.UserService
-	teamService        team.TeamService
+	chartService    chart.ChartService
+	userAuthService user.UserService
+	teamService     team.TeamService
 	enforcer           casbin.Enforcer
 	pipelineRepository pipelineConfig.PipelineRepository
 	enforcerUtil       rbac.EnforcerUtil

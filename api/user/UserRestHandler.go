@@ -21,16 +21,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/devtron-labs/devtron/api/restHandler/common"
-	bean2 "github.com/devtron-labs/devtron/pkg/user/bean"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/pkg/user"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	user2 "github.com/devtron-labs/devtron/pkg/auth/user"
+	bean2 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/util/response"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
@@ -65,17 +65,17 @@ type userNamePassword struct {
 }
 
 type UserRestHandlerImpl struct {
-	userService       user.UserService
+	userService       user2.UserService
 	validator         *validator.Validate
 	logger            *zap.SugaredLogger
 	enforcer          casbin.Enforcer
-	roleGroupService  user.RoleGroupService
-	userCommonService user.UserCommonService
+	roleGroupService  user2.RoleGroupService
+	userCommonService user2.UserCommonService
 }
 
-func NewUserRestHandlerImpl(userService user.UserService, validator *validator.Validate,
-	logger *zap.SugaredLogger, enforcer casbin.Enforcer, roleGroupService user.RoleGroupService,
-	userCommonService user.UserCommonService) *UserRestHandlerImpl {
+func NewUserRestHandlerImpl(userService user2.UserService, validator *validator.Validate,
+	logger *zap.SugaredLogger, enforcer casbin.Enforcer, roleGroupService user2.RoleGroupService,
+	userCommonService user2.UserCommonService) *UserRestHandlerImpl {
 	userAuthHandler := &UserRestHandlerImpl{
 		userService:       userService,
 		validator:         validator,

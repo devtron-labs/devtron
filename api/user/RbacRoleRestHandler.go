@@ -2,13 +2,14 @@ package user
 
 import (
 	"errors"
+	"net/http"
+
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	user2 "github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
-	"net/http"
 )
 
 type RbacRoleRestHandler interface {
@@ -18,15 +19,15 @@ type RbacRoleRestHandler interface {
 type RbacRoleRestHandlerImpl struct {
 	logger          *zap.SugaredLogger
 	validator       *validator.Validate
-	rbacRoleService user.RbacRoleService
-	userService     user.UserService
+	rbacRoleService user2.RbacRoleService
+	userService     user2.UserService
 	enforcer        casbin.Enforcer
 	enforcerUtil    rbac.EnforcerUtil
 }
 
 func NewRbacRoleHandlerImpl(logger *zap.SugaredLogger,
-	validator *validator.Validate, rbacRoleService user.RbacRoleService,
-	userService user.UserService, enforcer casbin.Enforcer,
+	validator *validator.Validate, rbacRoleService user2.RbacRoleService,
+	userService user2.UserService, enforcer casbin.Enforcer,
 	enforcerUtil rbac.EnforcerUtil) *RbacRoleRestHandlerImpl {
 	rbacRoleRestHandlerImpl := &RbacRoleRestHandlerImpl{
 		logger:          logger,

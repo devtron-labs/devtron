@@ -3,17 +3,18 @@ package history
 import (
 	"context"
 	"encoding/json"
+	"strings"
+	"time"
+
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"strings"
-	"time"
 )
 
 type ConfigMapHistoryService interface {
@@ -35,9 +36,9 @@ type ConfigMapHistoryServiceImpl struct {
 	logger                     *zap.SugaredLogger
 	configMapHistoryRepository repository.ConfigMapHistoryRepository
 	pipelineRepository         pipelineConfig.PipelineRepository
-	configMapRepository        chartConfig.ConfigMapRepository
-	userService                user.UserService
-	scopedVariableManager      variables.ScopedVariableCMCSManager
+	configMapRepository   chartConfig.ConfigMapRepository
+	userService           user.UserService
+	scopedVariableManager variables.ScopedVariableCMCSManager
 }
 
 func NewConfigMapHistoryServiceImpl(logger *zap.SugaredLogger,

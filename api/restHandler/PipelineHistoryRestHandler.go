@@ -2,16 +2,17 @@ package restHandler
 
 import (
 	"fmt"
+	"net/http"
+	"strconv"
+
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	history2 "github.com/devtron-labs/devtron/pkg/pipeline/history"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
-	"net/http"
-	"strconv"
 )
 
 type PipelineHistoryRestHandler interface {
@@ -23,9 +24,9 @@ type PipelineHistoryRestHandler interface {
 }
 
 type PipelineHistoryRestHandlerImpl struct {
-	logger                              *zap.SugaredLogger
-	userAuthService                     user.UserService
-	enforcer                            casbin.Enforcer
+	logger          *zap.SugaredLogger
+	userAuthService user.UserService
+	enforcer        casbin.Enforcer
 	strategyHistoryService              history2.PipelineStrategyHistoryService
 	deploymentTemplateHistoryService    history2.DeploymentTemplateHistoryService
 	configMapHistoryService             history2.ConfigMapHistoryService

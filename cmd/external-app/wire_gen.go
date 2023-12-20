@@ -55,7 +55,11 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/values/repository"
 	service2 "github.com/devtron-labs/devtron/pkg/appStore/values/service"
 	"github.com/devtron-labs/devtron/pkg/attributes"
-	"github.com/devtron-labs/devtron/pkg/auth"
+	"github.com/devtron-labs/devtron/pkg/auth/authentication"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/sso"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
+	"github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster"
@@ -79,12 +83,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/server/config"
 	"github.com/devtron-labs/devtron/pkg/server/store"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/devtron-labs/devtron/pkg/sso"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/terminal"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
-	"github.com/devtron-labs/devtron/pkg/user/repository"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/devtron-labs/devtron/pkg/webhook/helm"
 	util2 "github.com/devtron-labs/devtron/util"
@@ -151,7 +151,7 @@ func InitializeApp() (*App, error) {
 	}
 	selfRegistrationRolesRepositoryImpl := repository.NewSelfRegistrationRolesRepositoryImpl(db, sugaredLogger)
 	selfRegistrationRolesServiceImpl := user.NewSelfRegistrationRolesServiceImpl(sugaredLogger, selfRegistrationRolesRepositoryImpl, userServiceImpl)
-	userAuthOidcHelperImpl, err := auth.NewUserAuthOidcHelperImpl(sugaredLogger, selfRegistrationRolesServiceImpl, dexConfig, settings, sessionManager)
+	userAuthOidcHelperImpl, err := authentication.NewUserAuthOidcHelperImpl(sugaredLogger, selfRegistrationRolesServiceImpl, dexConfig, settings, sessionManager)
 	if err != nil {
 		return nil, err
 	}

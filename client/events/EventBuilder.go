@@ -20,18 +20,19 @@ package client
 import (
 	"context"
 	"fmt"
+	"strings"
+	"time"
+
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/devtron-labs/devtron/pkg/bean"
-	"github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/devtron-labs/devtron/util/event"
 	"github.com/go-pg/pg"
 	"github.com/satori/go.uuid"
 	"go.uber.org/zap"
-	"strings"
-	"time"
 )
 
 type EventFactory interface {
@@ -48,9 +49,9 @@ type EventSimpleFactoryImpl struct {
 	ciWorkflowRepository         pipelineConfig.CiWorkflowRepository
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository
 	ciPipelineRepository         pipelineConfig.CiPipelineRepository
-	pipelineRepository           pipelineConfig.PipelineRepository
-	userRepository               repository.UserRepository
-	ciArtifactRepository         repository2.CiArtifactRepository
+	pipelineRepository   pipelineConfig.PipelineRepository
+	userRepository       repository.UserRepository
+	ciArtifactRepository repository2.CiArtifactRepository
 }
 
 func NewEventSimpleFactoryImpl(logger *zap.SugaredLogger, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,

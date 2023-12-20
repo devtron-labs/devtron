@@ -22,6 +22,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
@@ -35,10 +40,10 @@ import (
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	application2 "github.com/devtron-labs/devtron/pkg/k8s/application"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -47,10 +52,6 @@ import (
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
-	"net/http"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type InstalledAppRestHandler interface {
@@ -68,9 +69,9 @@ type InstalledAppRestHandler interface {
 }
 
 type InstalledAppRestHandlerImpl struct {
-	Logger                           *zap.SugaredLogger
-	userAuthService                  user.UserService
-	enforcer                         casbin.Enforcer
+	Logger          *zap.SugaredLogger
+	userAuthService user.UserService
+	enforcer        casbin.Enforcer
 	enforcerUtil                     rbac.EnforcerUtil
 	enforcerUtilHelm                 rbac.EnforcerUtilHelm
 	installedAppService              service.InstalledAppService

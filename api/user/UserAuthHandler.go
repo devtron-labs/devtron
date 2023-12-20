@@ -20,16 +20,17 @@ package user
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"strings"
+
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
-	"net/http"
-	"strings"
 )
 
 type UserAuthHandler interface {

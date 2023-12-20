@@ -20,18 +20,19 @@ package restHandler
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"strconv"
+
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/client/grafana"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
-	"io/ioutil"
-	"net/http"
-	"strconv"
 )
 
 type TestSuitRestHandler interface {
@@ -46,9 +47,9 @@ type TestSuitRestHandler interface {
 }
 
 type TestSuitRestHandlerImpl struct {
-	logger       *zap.SugaredLogger
-	userService  user.UserService
-	validator    *validator.Validate
+	logger      *zap.SugaredLogger
+	userService user.UserService
+	validator   *validator.Validate
 	enforcer     casbin.Enforcer
 	enforcerUtil rbac.EnforcerUtil
 	config       *client.EventClientConfig

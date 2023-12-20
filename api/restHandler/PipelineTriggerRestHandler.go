@@ -21,21 +21,21 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"strconv"
+
 	"github.com/devtron-labs/devtron/pkg/app"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/gorilla/mux"
 	"go.opentelemetry.io/otel"
-
-	"net/http"
-	"strconv"
 
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/team"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"go.uber.org/zap"
@@ -52,9 +52,9 @@ type PipelineTriggerRestHandler interface {
 }
 
 type PipelineTriggerRestHandlerImpl struct {
-	appService              app.AppService
-	userAuthService         user.UserService
-	validator               *validator.Validate
+	appService      app.AppService
+	userAuthService user.UserService
+	validator       *validator.Validate
 	enforcer                casbin.Enforcer
 	teamService             team.TeamService
 	logger                  *zap.SugaredLogger

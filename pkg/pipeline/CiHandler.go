@@ -24,22 +24,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
-	"github.com/devtron-labs/common-lib/utils/k8s"
-	bean2 "github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/client/gitSensor"
-	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
-	"github.com/devtron-labs/devtron/pkg/cluster"
-	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
-	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
-	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
-	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
-	"github.com/devtron-labs/devtron/pkg/pipeline/types"
-	resourceGroup "github.com/devtron-labs/devtron/pkg/resourceGroup"
-	"github.com/devtron-labs/devtron/util/rbac"
 	"io/ioutil"
-	errors2 "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/client-go/rest"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -48,13 +33,29 @@ import (
 	"strings"
 	"time"
 
+	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
+	"github.com/devtron-labs/common-lib/utils/k8s"
+	bean2 "github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/client/gitSensor"
+	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
+	"github.com/devtron-labs/devtron/pkg/cluster"
+	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
+	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
+	resourceGroup "github.com/devtron-labs/devtron/pkg/resourceGroup"
+	"github.com/devtron-labs/devtron/util/rbac"
+	errors2 "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/client-go/rest"
+
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
-	"github.com/devtron-labs/devtron/pkg/user"
 	util2 "github.com/devtron-labs/devtron/util/event"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -96,9 +97,9 @@ type CiHandlerImpl struct {
 	ciWorkflowRepository         pipelineConfig.CiWorkflowRepository
 	workflowService              WorkflowService
 	ciLogService                 CiLogService
-	ciArtifactRepository         repository.CiArtifactRepository
-	userService                  user.UserService
-	eventClient                  client.EventClient
+	ciArtifactRepository repository.CiArtifactRepository
+	userService          user.UserService
+	eventClient          client.EventClient
 	eventFactory                 client.EventFactory
 	ciPipelineRepository         pipelineConfig.CiPipelineRepository
 	appListingRepository         repository.AppListingRepository

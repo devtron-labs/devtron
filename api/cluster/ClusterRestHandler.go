@@ -21,17 +21,18 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/devtron-labs/devtron/pkg/genericNotes"
-	"github.com/devtron-labs/devtron/pkg/genericNotes/repository"
 	"net/http"
 	"strconv"
 	"time"
 
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
+	"github.com/devtron-labs/devtron/pkg/genericNotes"
+	"github.com/devtron-labs/devtron/pkg/genericNotes/repository"
+
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/go-pg/pg"
@@ -63,9 +64,9 @@ type ClusterRestHandlerImpl struct {
 	clusterService            cluster.ClusterService
 	clusterNoteService        genericNotes.GenericNoteService
 	clusterDescriptionService cluster.ClusterDescriptionService
-	logger                    *zap.SugaredLogger
-	userService               user.UserService
-	validator                 *validator.Validate
+	logger      *zap.SugaredLogger
+	userService user.UserService
+	validator   *validator.Validate
 	enforcer                  casbin.Enforcer
 	deleteService             delete2.DeleteService
 	argoUserService           argo.ArgoUserService

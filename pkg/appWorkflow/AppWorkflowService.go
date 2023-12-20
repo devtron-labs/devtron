@@ -20,23 +20,24 @@ package appWorkflow
 import (
 	"errors"
 	"fmt"
+	"time"
+
 	mapset "github.com/deckarep/golang-set"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	bean2 "github.com/devtron-labs/devtron/pkg/app/bean"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
+	bean3 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/devtron-labs/devtron/pkg/user"
-	bean3 "github.com/devtron-labs/devtron/pkg/user/bean"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"golang.org/x/exp/slices"
-	"time"
 )
 
 const (
@@ -73,8 +74,8 @@ type AppWorkflowServiceImpl struct {
 	pipelineRepository       pipelineConfig.PipelineRepository
 	resourceGroupService     resourceGroup2.ResourceGroupService
 	appRepository            appRepository.AppRepository
-	enforcerUtil             rbac.EnforcerUtil
-	userAuthService          user.UserAuthService
+	enforcerUtil    rbac.EnforcerUtil
+	userAuthService user.UserAuthService
 }
 
 type AppWorkflowDto struct {

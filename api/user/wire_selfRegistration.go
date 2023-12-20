@@ -1,8 +1,8 @@
 package user
 
 import (
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/repository"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
+	"github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/google/wire"
 )
 

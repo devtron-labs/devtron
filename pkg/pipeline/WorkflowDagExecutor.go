@@ -22,6 +22,12 @@ import (
 	"encoding/json"
 	errors3 "errors"
 	"fmt"
+	"path"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
 	application3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
@@ -37,6 +43,8 @@ import (
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	bean4 "github.com/devtron-labs/devtron/pkg/app/bean"
 	"github.com/devtron-labs/devtron/pkg/app/status"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
 	"github.com/devtron-labs/devtron/pkg/k8s"
@@ -61,18 +69,12 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/helm/pkg/proto/hapi/chart"
 	"k8s.io/utils/strings/slices"
-	"path"
-	"strconv"
-	"strings"
-	"sync"
-	"time"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	history2 "github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
@@ -86,7 +88,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
-	"github.com/devtron-labs/devtron/pkg/user"
 	util2 "github.com/devtron-labs/devtron/util/event"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
@@ -125,9 +126,9 @@ type WorkflowDagExecutorImpl struct {
 	ciPipelineRepository          pipelineConfig.CiPipelineRepository
 	materialRepository            pipelineConfig.MaterialRepository
 	pipelineOverrideRepository    chartConfig.PipelineOverrideRepository
-	ciArtifactRepository          repository.CiArtifactRepository
-	user                          user.UserService
-	enforcer                      casbin.Enforcer
+	ciArtifactRepository repository.CiArtifactRepository
+	user                 user.UserService
+	enforcer             casbin.Enforcer
 	enforcerUtil                  rbac.EnforcerUtil
 	groupRepository               repository.DeploymentGroupRepository
 	tokenCache                    *util3.TokenCache

@@ -19,18 +19,19 @@ package resourceGroup
 
 import (
 	"context"
+	"strings"
+	"time"
+
 	appStatusRepo "github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
 	"github.com/devtron-labs/devtron/internal/sql/repository/resourceGroup"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"strings"
-	"time"
 )
 
 const (

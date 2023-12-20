@@ -20,20 +20,21 @@ package team
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/caarlos0/env/v6"
-	"github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/api/restHandler/common"
-	delete2 "github.com/devtron-labs/devtron/pkg/delete"
-	"github.com/devtron-labs/devtron/pkg/team"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
-	"github.com/gorilla/mux"
-	"go.uber.org/zap"
-	"gopkg.in/go-playground/validator.v9"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/caarlos0/env/v6"
+	"github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	user2 "github.com/devtron-labs/devtron/pkg/auth/user"
+	delete2 "github.com/devtron-labs/devtron/pkg/delete"
+	"github.com/devtron-labs/devtron/pkg/team"
+	"github.com/gorilla/mux"
+	"go.uber.org/zap"
+	"gopkg.in/go-playground/validator.v9"
 )
 
 const PROJECT_DELETE_SUCCESS_RESP = "Project deleted successfully."
@@ -51,19 +52,19 @@ type TeamRestHandler interface {
 type TeamRestHandlerImpl struct {
 	logger          *zap.SugaredLogger
 	teamService     team.TeamService
-	userService     user.UserService
+	userService     user2.UserService
 	validator       *validator.Validate
 	enforcer        casbin.Enforcer
-	userAuthService user.UserAuthService
+	userAuthService user2.UserAuthService
 	deleteService   delete2.DeleteService
 	cfg             *bean.Config
 }
 
 func NewTeamRestHandlerImpl(logger *zap.SugaredLogger,
 	teamService team.TeamService,
-	userService user.UserService,
+	userService user2.UserService,
 	enforcer casbin.Enforcer,
-	validator *validator.Validate, userAuthService user.UserAuthService,
+	validator *validator.Validate, userAuthService user2.UserAuthService,
 	deleteService delete2.DeleteService,
 ) *TeamRestHandlerImpl {
 	cfg := &bean.Config{}

@@ -3,16 +3,17 @@ package restHandler
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"strconv"
+
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/plugin"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
-	"net/http"
-	"strconv"
 )
 
 type GlobalPluginRestHandler interface {
@@ -43,8 +44,8 @@ type GlobalPluginRestHandlerImpl struct {
 	globalPluginService plugin.GlobalPluginService
 	enforcerUtil        rbac.EnforcerUtil
 	enforcer            casbin.Enforcer
-	pipelineBuilder     pipeline.PipelineBuilder
-	userService         user.UserService
+	pipelineBuilder pipeline.PipelineBuilder
+	userService     user.UserService
 }
 
 func (handler *GlobalPluginRestHandlerImpl) PatchPlugin(w http.ResponseWriter, r *http.Request) {

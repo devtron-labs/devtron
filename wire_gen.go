@@ -88,7 +88,11 @@ import (
 	service2 "github.com/devtron-labs/devtron/pkg/appStore/values/service"
 	appWorkflow2 "github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/attributes"
-	"github.com/devtron-labs/devtron/pkg/auth"
+	"github.com/devtron-labs/devtron/pkg/auth/authentication"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/sso"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
+	repository4 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/devtron-labs/devtron/pkg/bulkAction"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/chartRepo"
@@ -135,12 +139,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/server/config"
 	"github.com/devtron-labs/devtron/pkg/server/store"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/devtron-labs/devtron/pkg/sso"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/terminal"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
-	repository4 "github.com/devtron-labs/devtron/pkg/user/repository"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
@@ -585,7 +585,7 @@ func InitializeApp() (*App, error) {
 	userAuthHandlerImpl := user2.NewUserAuthHandlerImpl(userAuthServiceImpl, validate, sugaredLogger, enforcerImpl)
 	selfRegistrationRolesRepositoryImpl := repository4.NewSelfRegistrationRolesRepositoryImpl(db, sugaredLogger)
 	selfRegistrationRolesServiceImpl := user.NewSelfRegistrationRolesServiceImpl(sugaredLogger, selfRegistrationRolesRepositoryImpl, userServiceImpl)
-	userAuthOidcHelperImpl, err := auth.NewUserAuthOidcHelperImpl(sugaredLogger, selfRegistrationRolesServiceImpl, dexConfig, settings, sessionManager)
+	userAuthOidcHelperImpl, err := authentication.NewUserAuthOidcHelperImpl(sugaredLogger, selfRegistrationRolesServiceImpl, dexConfig, settings, sessionManager)
 	if err != nil {
 		return nil, err
 	}

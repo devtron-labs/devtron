@@ -18,10 +18,11 @@
 package user
 
 import (
-	"github.com/devtron-labs/devtron/pkg/auth"
+	"net/http"
+
+	"github.com/devtron-labs/devtron/pkg/auth/authentication"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
-	"net/http"
 )
 
 type UserAuthRouter interface {
@@ -31,10 +32,10 @@ type UserAuthRouter interface {
 type UserAuthRouterImpl struct {
 	logger             *zap.SugaredLogger
 	userAuthHandler    UserAuthHandler
-	userAuthOidcHelper auth.UserAuthOidcHelper
+	userAuthOidcHelper authentication.UserAuthOidcHelper
 }
 
-func NewUserAuthRouterImpl(logger *zap.SugaredLogger, userAuthHandler UserAuthHandler, userAuthOidcHelper auth.UserAuthOidcHelper) *UserAuthRouterImpl {
+func NewUserAuthRouterImpl(logger *zap.SugaredLogger, userAuthHandler UserAuthHandler, userAuthOidcHelper authentication.UserAuthOidcHelper) *UserAuthRouterImpl {
 	router := &UserAuthRouterImpl{
 		logger:             logger,
 		userAuthHandler:    userAuthHandler,

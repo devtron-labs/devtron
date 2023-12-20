@@ -2,20 +2,21 @@ package history
 
 import (
 	"context"
+	"time"
+
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	repository6 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"time"
 )
 
 type DeploymentTemplateHistoryService interface {
@@ -39,9 +40,9 @@ type DeploymentTemplateHistoryServiceImpl struct {
 	chartRepository                     chartRepoRepository.ChartRepository
 	chartRefRepository                  chartRepoRepository.ChartRefRepository
 	envLevelAppMetricsRepository        repository2.EnvLevelAppMetricsRepository
-	appLevelMetricsRepository           repository2.AppLevelMetricsRepository
-	userService                         user.UserService
-	cdWorkflowRepository                pipelineConfig.CdWorkflowRepository
+	appLevelMetricsRepository repository2.AppLevelMetricsRepository
+	userService               user.UserService
+	cdWorkflowRepository      pipelineConfig.CdWorkflowRepository
 	scopedVariableManager               variables.ScopedVariableManager
 }
 

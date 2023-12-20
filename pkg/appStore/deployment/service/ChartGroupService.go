@@ -19,15 +19,16 @@ package service
 
 import (
 	"errors"
+	"time"
+
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	appStoreValuesRepository "github.com/devtron-labs/devtron/pkg/appStore/values/repository"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
+	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/bean"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"time"
 )
 
 type ChartGroupServiceImpl struct {

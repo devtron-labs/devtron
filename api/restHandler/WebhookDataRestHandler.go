@@ -19,17 +19,18 @@ package restHandler
 
 import (
 	"context"
+	"net/http"
+	"strconv"
+
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
-	"net/http"
-	"strconv"
 )
 
 type WebhookDataRestHandler interface {

@@ -4,12 +4,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"strconv"
+
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/devtron-labs/devtron/pkg/variables/models"
 	"github.com/devtron-labs/devtron/pkg/variables/utils"
@@ -17,8 +20,6 @@ import (
 	"github.com/devtron-labs/devtron/util/rbac"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
-	"net/http"
-	"strconv"
 )
 
 type ScopedVariableRestHandler interface {
@@ -28,9 +29,9 @@ type ScopedVariableRestHandler interface {
 }
 
 type ScopedVariableRestHandlerImpl struct {
-	logger                *zap.SugaredLogger
-	userAuthService       user.UserService
-	validator             *validator.Validate
+	logger          *zap.SugaredLogger
+	userAuthService user.UserService
+	validator       *validator.Validate
 	pipelineBuilder       pipeline.PipelineBuilder
 	enforcerUtil          rbac.EnforcerUtil
 	enforcer              casbin.Enforcer

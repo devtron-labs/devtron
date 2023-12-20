@@ -4,6 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"strconv"
+	"strings"
+
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/gitSensor"
@@ -12,22 +16,19 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/pkg/appClone"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/bulkAction"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	request "github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	security2 "github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/pkg/team"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
-	"net/http"
-	"strconv"
-	"strings"
 )
 
 type BulkUpdateRestHandler interface {
@@ -51,9 +52,9 @@ type BulkUpdateRestHandlerImpl struct {
 	chartService            chart.ChartService
 	propertiesConfigService pipeline.PropertiesConfigService
 	dbMigrationService      pipeline.DbMigrationService
-	application             application.ServiceClient
-	userAuthService         user.UserService
-	validator               *validator.Validate
+	application     application.ServiceClient
+	userAuthService user.UserService
+	validator       *validator.Validate
 	teamService             team.TeamService
 	enforcer                casbin.Enforcer
 	gitSensorClient         gitSensor.Client

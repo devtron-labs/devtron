@@ -21,6 +21,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/url"
+	"os"
+	"path"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/caarlos0/env"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
@@ -28,6 +37,8 @@ import (
 	status2 "github.com/devtron-labs/devtron/pkg/app/status"
 	repository4 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
@@ -39,16 +50,8 @@ import (
 	_ "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"github.com/devtron-labs/devtron/util/argo"
 	"go.opentelemetry.io/otel"
-	"io/ioutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	chart2 "k8s.io/helm/pkg/proto/hapi/chart"
-	"net/url"
-	"os"
-	"path"
-	"path/filepath"
-	"strconv"
-	"strings"
-	"time"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/pkg/appStatus"
@@ -56,7 +59,6 @@ import (
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	history2 "github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 
 	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
@@ -71,7 +73,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	. "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/commonService"
-	"github.com/devtron-labs/devtron/pkg/user"
 	util2 "github.com/devtron-labs/devtron/util"
 	util "github.com/devtron-labs/devtron/util/event"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -116,9 +117,9 @@ type AppServiceImpl struct {
 	tokenCache                             *util3.TokenCache
 	acdAuthConfig                          *util3.ACDAuthConfig
 	enforcer                               casbin.Enforcer
-	enforcerUtil                           rbac.EnforcerUtil
-	user                                   user.UserService
-	appListingRepository                   repository.AppListingRepository
+	enforcerUtil         rbac.EnforcerUtil
+	user                 user.UserService
+	appListingRepository repository.AppListingRepository
 	appRepository                          app.AppRepository
 	envRepository                          repository2.EnvironmentRepository
 	pipelineConfigRepository               chartConfig.PipelineConfigRepository

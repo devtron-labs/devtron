@@ -3,16 +3,17 @@ package app
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"strconv"
+
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	repository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/gorilla/mux"
 	"go.opentelemetry.io/otel"
 	"k8s.io/utils/strings/slices"
-	"net/http"
-	"strconv"
 )
 
 type DevtronAppAutoCompleteRestHandler interface {

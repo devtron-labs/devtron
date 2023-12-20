@@ -22,6 +22,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
+
 	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
@@ -40,6 +46,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	app_status "github.com/devtron-labs/devtron/pkg/appStatus"
 	repository3 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
@@ -47,7 +54,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/devtron-labs/devtron/pkg/user"
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -56,11 +62,6 @@ import (
 	"go.uber.org/zap"
 	"k8s.io/client-go/rest"
 	"k8s.io/utils/strings/slices"
-	"os"
-	"path/filepath"
-	"strconv"
-	"strings"
-	"time"
 )
 
 const (
@@ -90,9 +91,9 @@ type CdHandler interface {
 }
 
 type CdHandlerImpl struct {
-	Logger                                 *zap.SugaredLogger
-	userService                            user.UserService
-	ciLogService                           CiLogService
+	Logger       *zap.SugaredLogger
+	userService  user.UserService
+	ciLogService CiLogService
 	ciArtifactRepository                   repository.CiArtifactRepository
 	ciPipelineMaterialRepository           pipelineConfig.CiPipelineMaterialRepository
 	cdWorkflowRepository                   pipelineConfig.CdWorkflowRepository

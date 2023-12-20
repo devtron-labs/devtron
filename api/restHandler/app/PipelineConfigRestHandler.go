@@ -22,22 +22,24 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/caarlos0/env"
-	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"github.com/devtron-labs/devtron/client/gitSensor"
-	"github.com/devtron-labs/devtron/pkg/chart"
-	"github.com/devtron-labs/devtron/pkg/generateManifest"
-	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
-	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
-	"github.com/devtron-labs/devtron/util/argo"
-	"github.com/go-pg/pg"
-	"go.opentelemetry.io/otel"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/caarlos0/env"
+	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/client/gitSensor"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
+	"github.com/devtron-labs/devtron/pkg/chart"
+	"github.com/devtron-labs/devtron/pkg/generateManifest"
+	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
+	"github.com/devtron-labs/devtron/util/argo"
+	"github.com/go-pg/pg"
+	"go.opentelemetry.io/otel"
 
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
@@ -52,7 +54,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	security2 "github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/pkg/team"
-	"github.com/devtron-labs/devtron/pkg/user"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
@@ -108,9 +109,9 @@ type PipelineConfigRestHandlerImpl struct {
 	chartService                 chart.ChartService
 	propertiesConfigService      pipeline.PropertiesConfigService
 	dbMigrationService           pipeline.DbMigrationService
-	application                  application.ServiceClient
-	userAuthService              user.UserService
-	validator                    *validator.Validate
+	application     application.ServiceClient
+	userAuthService user.UserService
+	validator       *validator.Validate
 	teamService                  team.TeamService
 	enforcer                     casbin.Enforcer
 	gitSensorClient              gitSensor.Client

@@ -19,22 +19,23 @@ package restHandler
 
 import (
 	"encoding/json"
+	"net/http"
+	"strconv"
+	"strings"
+
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/app"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/genericNotes"
 	"github.com/devtron-labs/devtron/pkg/genericNotes/repository"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
-	"net/http"
-	"strconv"
-	"strings"
 )
 
 type AppRestHandler interface {
@@ -49,9 +50,9 @@ type AppRestHandler interface {
 
 type AppRestHandlerImpl struct {
 	logger             *zap.SugaredLogger
-	appService         app.AppCrudOperationService
-	userAuthService    user.UserService
-	validator          *validator.Validate
+	appService      app.AppCrudOperationService
+	userAuthService user.UserService
+	validator       *validator.Validate
 	enforcerUtil       rbac.EnforcerUtil
 	enforcer           casbin.Enforcer
 	helmAppService     client.HelmAppService

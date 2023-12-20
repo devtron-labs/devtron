@@ -20,12 +20,15 @@ package cluster
 import (
 	"context"
 	"encoding/json"
-	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
-	"github.com/devtron-labs/devtron/pkg/k8s"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
+	"github.com/devtron-labs/devtron/pkg/k8s"
 
 	"github.com/caarlos0/env/v6"
 	"github.com/devtron-labs/devtron/api/bean"
@@ -33,8 +36,6 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	request "github.com/devtron-labs/devtron/pkg/cluster"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -60,9 +61,9 @@ type EnvironmentRestHandler interface {
 type EnvironmentRestHandlerImpl struct {
 	environmentClusterMappingsService request.EnvironmentService
 	k8sCommonService                  k8s.K8sCommonService
-	logger                            *zap.SugaredLogger
-	userService                       user.UserService
-	validator                         *validator.Validate
+	logger      *zap.SugaredLogger
+	userService user.UserService
+	validator   *validator.Validate
 	enforcer                          casbin.Enforcer
 	deleteService                     delete2.DeleteService
 	k8sUtil                           *k8s2.K8sUtil
