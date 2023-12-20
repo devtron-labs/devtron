@@ -31,4 +31,10 @@ func (router *DevtronResourceRouterImpl) InitDevtronResourceRouter(devtronResour
 	devtronResourceRouter.Path("/{kind:[a-zA-Z0-9/-]+}/{version:[a-zA-Z0-9]+}").
 		HandlerFunc(router.devtronResourceRestHandler.CreateOrUpdateResourceObject).Methods("PUT")
 
+	devtronResourceRouter.Path("/schema").Queries("resourceId", "{resourceId}").
+		HandlerFunc(router.devtronResourceRestHandler.GetSchema).Methods("GET")
+
+	devtronResourceRouter.Path("/schema").
+		HandlerFunc(router.devtronResourceRestHandler.UpdateSchema).Methods("PUT")
+
 }

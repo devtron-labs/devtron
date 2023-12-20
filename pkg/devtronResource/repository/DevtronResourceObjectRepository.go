@@ -14,6 +14,7 @@ type DevtronResourceObjectRepository interface {
 	Save(model *DevtronResourceObject) (*DevtronResourceObject, error)
 	Update(model *DevtronResourceObject) (*DevtronResourceObject, error)
 	FindByOldObjectId(oldObjectId, devtronResourceSchemaId int) (*DevtronResourceObject, error)
+	FindAllObjects() ([]*DevtronResourceObject, error)
 	FindByObjectName(name string, devtronResourceSchemaId int) (*DevtronResourceObject, error)
 	GetChildObjectsByParentArgAndSchemaId(argumentValue interface{}, argumentType string,
 		devtronResourceSchemaId int) ([]*DevtronResourceObject, error)
@@ -24,6 +25,7 @@ type DevtronResourceObjectRepository interface {
 	GetBySchemaIdAndOldObjectIdsMap(mapOfResourceSchemaIdAndDependencyIds map[int][]int) ([]*DevtronResourceObject, error)
 	DeleteObject(tx *pg.Tx, oldObjectId, devtronResourceId int, updatedBy int32) error
 	DeleteDependencyInObjectData(tx *pg.Tx, oldObjectId, devtronResourceId int, updatedBy int32) error
+	DeleteKeysFromObjectData(tx *pg.Tx, pathsToRemove []string, resourceId int, userId int) error
 }
 
 type DevtronResourceObjectRepositoryImpl struct {
@@ -84,6 +86,17 @@ func (repo *DevtronResourceObjectRepositoryImpl) FindByOldObjectId(oldObjectId, 
 		return nil, err
 	}
 	return &devtronResourceObject, nil
+}
+
+func (repo *DevtronResourceObjectRepositoryImpl) FindAllObjects() ([]*DevtronResourceObject, error) {
+	var models []*DevtronResourceObject
+	err := repo.dbConnection.Model(&models).
+		Where("deleted = ?", false).Select()
+	if err != nil {
+		repo.logger.Errorw("error in getting all resource objects", "err", err)
+		return nil, err
+	}
+	return models, nil
 }
 
 func (repo *DevtronResourceObjectRepositoryImpl) FindByObjectName(name string, devtronResourceSchemaId int) (*DevtronResourceObject, error) {
@@ -194,11 +207,11 @@ func (repo *DevtronResourceObjectRepositoryImpl) DeleteDependencyInObjectData(tx
 				SET object_data = jsonb_set(
    				 object_data,
     			'{dependencies}',
-    			(
+    			coalesce((
 					SELECT jsonb_agg(elem)
 					FROM jsonb_array_elements(object_data->'dependencies') elem
 					WHERE (elem->>'id')::int <> '?' OR (elem->>'devtronResourceId')::int <> '?'
-				)::jsonb
+				)::jsonb, '[]')
 			), updated_on = ?, updated_by = ?
 			WHERE deleted = ?;`
 	_, err := tx.Query((*DevtronResourceObject)(nil), query, oldObjectId, devtronResourceId, time.Now(), updatedBy, false)
@@ -219,4 +232,26 @@ func getDownstreamWhereClauseByArgValueTypeAndSchemaId(arg interface{}, argType 
 
 func getObjectWhereClauseByArgValueTypeAndSchemaId(arg interface{}, argType string, schemaId int) string {
 	return fmt.Sprintf(`%s = %v and devtron_resource_schema_id = %d`, argType, arg, schemaId)
+}
+
+func (repo *DevtronResourceObjectRepositoryImpl) DeleteKeysFromObjectData(tx *pg.Tx, pathsToRemove []string, resourceId int, userId int) error {
+	var models []*DevtronResourceObject
+	//using fmt.Sprintf for setting o
+	query := fmt.Sprintf(`UPDATE devtron_resource_object  
+				SET object_data = %s, updated_by = ?, updated_on = ?
+		 			WHERE devtron_resource_id = ? AND deleted = ?;`, getNewObjectDataWithRemovedPaths(pathsToRemove))
+	_, err := tx.Query(models, query, userId, time.Now(), resourceId, false)
+	return err
+}
+
+func getNewObjectDataWithRemovedPaths(pathsToRemove []string) string {
+	jsonQuery := "object_data "
+	if len(pathsToRemove) == 0 || pathsToRemove[0] == "" {
+		jsonQuery = "NULL "
+	} else {
+		for _, path := range pathsToRemove {
+			jsonQuery += fmt.Sprintf("#- '{%s}' ", path)
+		}
+	}
+	return jsonQuery
 }

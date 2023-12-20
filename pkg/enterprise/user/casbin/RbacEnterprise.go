@@ -92,6 +92,7 @@ func (e *EnterpriseEnforcerImpl) EnforceByEmailInBatch(emailId string, resource 
 	return e.EnforcerImpl.EnforceByEmailInBatch(emailId, resource, action, resourceItems)
 }
 func (e *EnterpriseEnforcerImpl) EnforceForSubjectInBatch(subject string, resource string, action string, resourceItems []string) (resultArr []bool) {
+	subject = strings.ToLower(subject)
 	var enforcedModelV1 model.Model
 	if e.Config.UseCustomEnforcer {
 		enforcedModel := CustomEnforcedModel{}
