@@ -2,31 +2,26 @@ package pubsub_lib
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/caarlos0/env"
+	"github.com/devtron-labs/common-lib/pubsub-lib/model"
 	"github.com/devtron-labs/common-lib/utils"
 	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
+	"runtime/debug"
 	"sync"
 	"time"
 )
 
 type PubSubClientService interface {
 	Publish(topic string, msg string) error
-	Subscribe(topic string, callback func(msg *PubSubMsg)) error
-}
-
-type PubSubMsg struct {
-	Data string
-}
-
-type LogsConfig struct {
-	DefaultLogTimeLimit int64 `env:"DEFAULT_LOG_TIME_LIMIT" envDefault:"1"`
+	Subscribe(topic string, callback func(msg *model.PubSubMsg)) error
 }
 
 type PubSubClientServiceImpl struct {
 	Logger     *zap.SugaredLogger
 	NatsClient *NatsClient
-	logsConfig *LogsConfig
+	logsConfig *model.LogsConfig
 }
 
 func NewPubSubClientServiceImpl(logger *zap.SugaredLogger) *PubSubClientServiceImpl {
@@ -34,7 +29,7 @@ func NewPubSubClientServiceImpl(logger *zap.SugaredLogger) *PubSubClientServiceI
 	if err != nil {
 		logger.Fatalw("error occurred while creating nats client stopping now!!")
 	}
-	logsConfig := &LogsConfig{}
+	logsConfig := &model.LogsConfig{}
 	err = env.Parse(logsConfig)
 	if err != nil {
 		logger.Errorw("error occurred while parsing LogsConfig", "err", err)
@@ -68,7 +63,7 @@ func (impl PubSubClientServiceImpl) Publish(topic string, msg string) error {
 	return nil
 }
 
-func (impl PubSubClientServiceImpl) Subscribe(topic string, callback func(msg *PubSubMsg)) error {
+func (impl PubSubClientServiceImpl) Subscribe(topic string, callback func(msg *model.PubSubMsg)) error {
 	impl.Logger.Infow("Subscribed to pubsub client", "topic", topic)
 	natsTopic := GetNatsTopic(topic)
 	streamName := natsTopic.streamName
@@ -128,7 +123,7 @@ func (impl PubSubClientServiceImpl) Subscribe(topic string, callback func(msg *P
 	return nil
 }
 
-func (impl PubSubClientServiceImpl) startListeningForEvents(processingBatchSize int, channel chan *nats.Msg, callback func(msg *PubSubMsg)) {
+func (impl PubSubClientServiceImpl) startListeningForEvents(processingBatchSize int, channel chan *nats.Msg, callback func(msg *model.PubSubMsg)) {
 	wg := new(sync.WaitGroup)
 
 	for index := 0; index < processingBatchSize; index++ {
@@ -139,7 +134,7 @@ func (impl PubSubClientServiceImpl) startListeningForEvents(processingBatchSize 
 	impl.Logger.Warn("msgs received Done from Nats side, going to end listening!!")
 }
 
-func (impl PubSubClientServiceImpl) processMessages(wg *sync.WaitGroup, channel chan *nats.Msg, callback func(msg *PubSubMsg)) {
+func (impl PubSubClientServiceImpl) processMessages(wg *sync.WaitGroup, channel chan *nats.Msg, callback func(msg *model.PubSubMsg)) {
 	defer wg.Done()
 	for msg := range channel {
 		impl.processMsg(msg, callback)
@@ -147,12 +142,57 @@ func (impl PubSubClientServiceImpl) processMessages(wg *sync.WaitGroup, channel 
 }
 
 // TODO need to extend msg ack depending upon response from callback like error scenario
-func (impl PubSubClientServiceImpl) processMsg(msg *nats.Msg, callback func(msg *PubSubMsg)) {
+func (impl PubSubClientServiceImpl) processMsg(msg *nats.Msg, callback func(msg *model.PubSubMsg)) {
 	timeLimitInMillSecs := impl.logsConfig.DefaultLogTimeLimit * 1000
 	t1 := time.Now()
 	defer impl.printTimeDiff(t1, msg, timeLimitInMillSecs)
-	defer msg.Ack()
-	subMsg := &PubSubMsg{Data: string(msg.Data)}
+	impl.TryCatchCallBack(msg, callback)
+}
+
+func (impl PubSubClientServiceImpl) publishPanicError(msg *nats.Msg, panicErr error) (err error) {
+	publishPanicEvent := model.PublishPanicEvent{
+		Topic: PANIC_ON_PROCESSING_TOPIC,
+		Payload: model.PanicEventIdentifier{
+			Topic:     msg.Subject,
+			Data:      string(msg.Data),
+			PanicInfo: panicErr.Error(),
+		},
+	}
+	data, err := json.Marshal(publishPanicEvent.Payload)
+	if err != nil {
+		impl.Logger.Errorw("error in marshalling data! unable to publish panic error", "err", err)
+		return err
+	}
+	err = impl.Publish(publishPanicEvent.Topic, string(data))
+	if err != nil {
+		impl.Logger.Errorw("error in publishing panic error", "err", err)
+		return err
+	}
+	return nil
+}
+
+// TryCatchCallBack is a fail-safe method to use callback function
+func (impl PubSubClientServiceImpl) TryCatchCallBack(msg *nats.Msg, callback func(msg *model.PubSubMsg)) {
+	subMsg := &model.PubSubMsg{Data: string(msg.Data)}
+	defer func() {
+		// Acknowledge the message delivery
+		err := msg.Ack()
+		if err != nil {
+			impl.Logger.Errorw("nats: unable to acknowledge the message", "subject", msg.Subject, "msg", string(msg.Data))
+		}
+		// Panic recovery handling
+		if panicInfo := recover(); panicInfo != nil {
+			impl.Logger.Warnw("nats: found panic error", "subject", msg.Subject, "payload", string(msg.Data), "logs", string(debug.Stack()))
+			err = fmt.Errorf("%v\nPanic Logs:\n%s", panicInfo, string(debug.Stack()))
+			// Publish the panic info to PANIC_ON_PROCESSING_TOPIC
+			publishErr := impl.publishPanicError(msg, err)
+			if publishErr != nil {
+				impl.Logger.Errorw("error in publishing Panic Event topic", "err", publishErr)
+			}
+			return
+		}
+	}()
+	// Process the event message
 	callback(subMsg)
 }
 
