@@ -280,7 +280,6 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 				// Found validation err
 				return installAppVersionRequest, nil
 			}
-			installAppVersionRequest.GitOpsRepoURL = installAppVersionRequest.GitOpsRepoURL
 			installAppVersionRequest.IsNewGitOpsRepo = true
 			installedAppModel.GitOpsRepoUrl = installAppVersionRequest.GitOpsRepoURL
 			installedAppModel.IsCustomRepository = true
