@@ -658,6 +658,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		RegistryDestinationImageMap: registryDestinationImageMap,
 		RegistryCredentialMap:       registryCredentialMap,
 		PluginArtifactStage:         pluginArtifactStage,
+		PullImageUsingDigest:        impl.config.PullImageUsingDigest,
 	}
 
 	if dockerRegistry != nil {

@@ -197,6 +197,7 @@ type WorkflowDagExecutorImpl struct {
 	argoClientWrapperService            argocdServer.ArgoClientWrapperService
 	pipelineConfigListenerService       PipelineConfigListenerService
 	customTagService                    CustomTagService
+	CiCdConfig                          *types.CiCdConfig
 }
 
 const kedaAutoscaling = "kedaAutoscaling"
@@ -302,6 +303,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
 	pipelineConfigListenerService PipelineConfigListenerService,
 	customTagService CustomTagService,
+	CiCdConfig *types.CiCdConfig,
 ) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
@@ -378,6 +380,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		argoClientWrapperService:            argoClientWrapperService,
 		pipelineConfigListenerService:       pipelineConfigListenerService,
 		customTagService:                    customTagService,
+		CiCdConfig:                          CiCdConfig,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -1637,12 +1640,13 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			DataSource:   artifact.DataSource,
 			WorkflowId:   artifact.WorkflowId,
 		},
-		OrchestratorHost:  impl.config.OrchestratorHost,
-		OrchestratorToken: impl.config.OrchestratorToken,
-		CloudProvider:     impl.config.CloudProvider,
-		WorkflowExecutor:  workflowExecutor,
-		RefPlugins:        refPluginsData,
-		Scope:             scope,
+		OrchestratorHost:     impl.config.OrchestratorHost,
+		OrchestratorToken:    impl.config.OrchestratorToken,
+		CloudProvider:        impl.config.CloudProvider,
+		WorkflowExecutor:     workflowExecutor,
+		RefPlugins:           refPluginsData,
+		Scope:                scope,
+		PullImageUsingDigest: impl.config.PullImageUsingDigest,
 	}
 
 	extraEnvVariables := make(map[string]string)
@@ -2958,7 +2962,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPipeline(overrideRequest *bean.Value
 		manifestPushResponse := manifestPushService.PushChart(manifestPushTemplate, ctx)
 		if manifestPushResponse.Error != nil {
 			impl.logger.Errorw("Error in pushing manifest to git", "err", err, "git_repo_url", manifestPushTemplate.RepoUrl)
-			return releaseNo, manifest, err
+			return releaseNo, manifest, manifestPushResponse.Error
 		}
 		pipelineOverrideUpdateRequest := &chartConfig.PipelineOverride{
 			Id:                     valuesOverrideResponse.PipelineOverride.Id,
@@ -4072,6 +4076,11 @@ func (impl *WorkflowDagExecutorImpl) getReleaseOverride(envOverride *chartConfig
 	if strategy != nil {
 		deploymentStrategy = string(strategy.Strategy)
 	}
+
+	if impl.CiCdConfig.PullImageUsingDigest {
+		imageTag[imageTagLen-1] = fmt.Sprintf("%s@%s", imageTag[imageTagLen-1], artifact.ImageDigest)
+	}
+
 	releaseAttribute := app.ReleaseAttributes{
 		Name:           imageName,
 		Tag:            imageTag[imageTagLen-1],
