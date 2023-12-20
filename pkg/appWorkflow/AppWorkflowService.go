@@ -742,7 +742,7 @@ func (impl AppWorkflowServiceImpl) FilterWorkflows(triggerViewConfig *TriggerVie
 			continue
 		}
 
-		identifierToFilteredWorkflowMapping, leafPipelines, _ := fetchLeafPipelinesAndPopulateChildrenIdsInWorkflowMapping(workflow.AppWorkflowMappingDto)
+		identifierToFilteredWorkflowMapping, leafPipelines, _ := processWorkflowMappingTree(workflow.AppWorkflowMappingDto)
 
 		identifierToFilteredWorkflowMapping = filterMappingOnFilteredCdPipelineIds(identifierToFilteredWorkflowMapping, leafPipelines, cdPipelineIdsFiltered)
 
@@ -767,9 +767,9 @@ func extractOutFilteredWorkflowMappings(appWorkflowMappings []AppWorkflowMapping
 	return newAppWorkflowMappingDto
 }
 
-// fetchLeafPipelinesAndPopulateChildrenIdsInWorkflowMapping function fetches all the leaf cd pipelines and append
-// the children pipelineIds into ChildPipelinesIds object in AppWorkflowMappingDto and returns both object.
-func fetchLeafPipelinesAndPopulateChildrenIdsInWorkflowMapping(appWorkflowMappings []AppWorkflowMappingDto) (map[PipelineIdentifier]*AppWorkflowMappingDto, []AppWorkflowMappingDto, *AppWorkflowMappingDto) {
+// processWorkflowMappingTree function processed the wf mapping array into a tree structure
+// returns a map of identifier to mapping, leaf nodes and the root node
+func processWorkflowMappingTree(appWorkflowMappings []AppWorkflowMappingDto) (map[PipelineIdentifier]*AppWorkflowMappingDto, []AppWorkflowMappingDto, *AppWorkflowMappingDto) {
 	identifierToFilteredWorkflowMapping := make(map[PipelineIdentifier]*AppWorkflowMappingDto)
 	leafPipelines := make([]AppWorkflowMappingDto, 0)
 	var rootPipeline *AppWorkflowMappingDto
@@ -864,14 +864,14 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowByCiPipelineId(ciPipelineId in
 }
 
 // LevelWiseSort performs level wise sort for workflow mappings starting from leaves
-// This will break if ever the workflow mappings array break the assumtion of being a DAG with one root node
+// This will break if ever the workflow mappings array break the assumption of being a DAG with one root node
 func LevelWiseSort(appWorkflowMappings []AppWorkflowMappingDto) []AppWorkflowMappingDto {
 
 	if len(appWorkflowMappings) < 2 {
 		return appWorkflowMappings
 	}
 
-	identifierToNodeMapping, _, root := fetchLeafPipelinesAndPopulateChildrenIdsInWorkflowMapping(appWorkflowMappings)
+	identifierToNodeMapping, _, root := processWorkflowMappingTree(appWorkflowMappings)
 
 	result := make([]AppWorkflowMappingDto, 0)
 	nodesInCurrentLevel := append(make([]AppWorkflowMappingDto, 0), *root)
@@ -881,6 +881,7 @@ func LevelWiseSort(appWorkflowMappings []AppWorkflowMappingDto) []AppWorkflowMap
 		for _, node := range nodesInCurrentLevel {
 			childrenOfCurrentLevel = append(childrenOfCurrentLevel, getMappingsFromIds(identifierToNodeMapping, utils.ToIntArray(node.ChildPipelinesIds.ToSlice()))...)
 		}
+		// cloning slice elements
 		nodesInCurrentLevel = append(childrenOfCurrentLevel, []AppWorkflowMappingDto{}...)
 	}
 
