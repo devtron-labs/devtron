@@ -196,14 +196,17 @@ func getPatchStatus(err error) bean.CiPatchStatus {
 		if err.Error() == string(bean.CI_PATCH_NOT_AUTHORIZED_MESSAGE) {
 			return bean.CI_PATCH_NOT_AUTHORIZED
 		}
+		if strings.Contains(err.Error(), string(bean.CI_PATCH_SKIP_MESSAGE)) {
+			return bean.CI_PATCH_SKIP
+		}
 		return bean.CI_PATCH_FAILED
 	}
 	return bean.CI_PATCH_SUCCESS
 }
 
-func getPatchMessage(err error) bean.CiPatchMessage {
+func getPatchMessage(err error) string {
 	if err != nil {
-		return bean.CiPatchMessage(err.Error())
+		return err.Error()
 	}
 	return ""
 }

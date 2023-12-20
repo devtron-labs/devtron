@@ -212,7 +212,16 @@ func (impl CiCdPipelineOrchestratorImpl) PatchCiMaterialSourceValue(patchRequest
 		impl.logger.Errorw("Error in getting UniquePipelineForAppIdAndEnvironmentId", "appId", patchRequest.AppId, "envId", patchRequest.EnvironmentId, "err", err)
 		return nil, err
 	}
-
+	appWorkflowMapping, err := impl.appWorkflowRepository.GetParentDetailsByPipelineId(pipeline.Id)
+	if err != nil {
+		impl.logger.Errorw("failed to get parent component details",
+			"componentId", pipeline.Id,
+			"err", err)
+		return nil, err
+	}
+	if appWorkflowMapping.ParentType == appWorkflow.WEBHOOK {
+		return nil, errors.New(string(bean.CI_PATCH_SKIP_MESSAGE) + "“Webhook”")
+	}
 	ciPipelineMaterial, err := impl.findUniqueCiPipelineMaterial(pipeline.CiPipelineId)
 	if err != nil {
 		impl.logger.Errorw("Error in getting UniqueCiPipelineMaterial", "CiPipelineId", pipeline.CiPipelineId, "err", err)
@@ -247,6 +256,9 @@ func (impl CiCdPipelineOrchestratorImpl) validateCiPipelineMaterial(ciPipelineMa
 		return errors.New(string(bean.CI_BRANCH_TYPE_ERROR))
 	}
 
+	if ciPipelineMaterial.CiPipeline.ParentCiPipeline != 0 {
+		return errors.New(string(bean.CI_PATCH_SKIP_MESSAGE) + impl.getSkipMessage(ciPipelineMaterial.CiPipeline))
+	}
 	if ciPipelineMaterial.Regex != "" {
 		// Checking Trigger Access for Regex branch
 		if ok, err := checkAppSpecificAccess(token, casbin.ActionTrigger, appId); !ok {
@@ -270,6 +282,15 @@ func (impl CiCdPipelineOrchestratorImpl) validateCiPipelineMaterial(ciPipelineMa
 		}
 	}
 	return nil
+}
+
+func (impl CiCdPipelineOrchestratorImpl) getSkipMessage(ciPipeline *pipelineConfig.CiPipeline) string {
+	switch ciPipeline.PipelineType {
+	case string(bean.LINKED_CD):
+		return "“Sync with Environment”"
+	default:
+		return "“Linked Build Pipeline”"
+	}
 }
 
 func (impl CiCdPipelineOrchestratorImpl) findUniquePipelineForAppIdAndEnvironmentId(appId, environmentId int) (*pipelineConfig.Pipeline, error) {
