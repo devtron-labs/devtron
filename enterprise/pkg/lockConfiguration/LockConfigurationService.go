@@ -96,13 +96,13 @@ func (impl LockConfigurationServiceImpl) DeleteActiveLockConfiguration(userId in
 		return err
 	}
 	dbConnection := impl.lockConfigurationRepository.GetConnection()
-	isNewTx := true
+	isNewTx := false
 	if tx == nil {
 		tx, err = dbConnection.Begin()
 		if err != nil {
 			return err
 		}
-		isNewTx = false
+		isNewTx = true
 	}
 
 	// Rollback tx on error.
