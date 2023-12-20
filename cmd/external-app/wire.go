@@ -5,6 +5,7 @@ package main
 
 import (
 	"github.com/devtron-labs/authenticator/middleware"
+	cloudProviderIdentifier "github.com/devtron-labs/common-lib/cloud-provider-identifier"
 	util4 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/apiToken"
 	chartProvider "github.com/devtron-labs/devtron/api/appStore/chartProvider"
@@ -48,7 +49,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	repository2 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	"github.com/devtron-labs/devtron/pkg/providerIdentifier"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	util3 "github.com/devtron-labs/devtron/util"
@@ -115,8 +115,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(session.ServiceClient), new(*middleware.LoginService)),
 		connector.NewPumpImpl,
 		wire.Bind(new(connector.Pump), new(*connector.PumpImpl)),
-		providerIdentifier.NewProviderIdentifierServiceImpl,
-		wire.Bind(new(providerIdentifier.ProviderIdentifierService), new(*providerIdentifier.ProviderIdentifierServiceImpl)),
+		cloudProviderIdentifier.NewProviderIdentifierServiceImpl,
+		wire.Bind(new(cloudProviderIdentifier.ProviderIdentifierService), new(*cloudProviderIdentifier.ProviderIdentifierServiceImpl)),
 
 		telemetry.NewTelemetryEventClientImpl,
 		wire.Bind(new(telemetry.TelemetryEventClient), new(*telemetry.TelemetryEventClientImpl)),

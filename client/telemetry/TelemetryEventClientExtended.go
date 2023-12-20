@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	cloudProviderIdentifier "github.com/devtron-labs/common-lib/cloud-provider-identifier"
 	util2 "github.com/devtron-labs/common-lib/utils/k8s"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -17,7 +18,6 @@ import (
 	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
-	"github.com/devtron-labs/devtron/pkg/providerIdentifier"
 	serverDataStore "github.com/devtron-labs/devtron/pkg/server/store"
 	"github.com/devtron-labs/devtron/pkg/sso"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -61,7 +61,7 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 	chartRepository chartRepoRepository.ChartRepository, userAuditService user.UserAuditService,
 	ciBuildConfigService pipeline.CiBuildConfigService, moduleRepository moduleRepo.ModuleRepository, serverDataStore *serverDataStore.ServerDataStore,
 	helmAppClient client.HelmAppClient, InstalledAppRepository repository2.InstalledAppRepository, userAttributesRepository repository.UserAttributesRepository,
-	providerIdentifierService providerIdentifier.ProviderIdentifierService) (*TelemetryEventClientImplExtended, error) {
+	cloudProviderIdentifierService cloudProviderIdentifier.ProviderIdentifierService) (*TelemetryEventClientImplExtended, error) {
 
 	cron := cron.New(
 		cron.WithChain())
@@ -83,23 +83,23 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 		ciBuildConfigService:          ciBuildConfigService,
 
 		TelemetryEventClientImpl: &TelemetryEventClientImpl{
-			cron:                      cron,
-			logger:                    logger,
-			client:                    client,
-			clusterService:            clusterService,
-			K8sUtil:                   K8sUtil,
-			aCDAuthConfig:             aCDAuthConfig,
-			userService:               userService,
-			attributeRepo:             attributeRepo,
-			ssoLoginService:           ssoLoginService,
-			PosthogClient:             PosthogClient,
-			moduleRepository:          moduleRepository,
-			serverDataStore:           serverDataStore,
-			userAuditService:          userAuditService,
-			helmAppClient:             helmAppClient,
-			InstalledAppRepository:    InstalledAppRepository,
-			userAttributesRepository:  userAttributesRepository,
-			providerIdentifierService: providerIdentifierService,
+			cron:                           cron,
+			logger:                         logger,
+			client:                         client,
+			clusterService:                 clusterService,
+			K8sUtil:                        K8sUtil,
+			aCDAuthConfig:                  aCDAuthConfig,
+			userService:                    userService,
+			attributeRepo:                  attributeRepo,
+			ssoLoginService:                ssoLoginService,
+			PosthogClient:                  PosthogClient,
+			moduleRepository:               moduleRepository,
+			serverDataStore:                serverDataStore,
+			userAuditService:               userAuditService,
+			helmAppClient:                  helmAppClient,
+			InstalledAppRepository:         InstalledAppRepository,
+			userAttributesRepository:       userAttributesRepository,
+			cloudProviderIdentifierService: cloudProviderIdentifierService,
 		},
 	}
 
@@ -326,7 +326,7 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 	payload.HelmChartSuccessfulDeploymentCount = HelmChartSuccessfulDeploymentCount
 	payload.ExternalHelmAppClusterCount = ExternalHelmAppClusterCount
 
-	provider, err := impl.providerIdentifierService.IdentifyProvider()
+	provider, err := impl.cloudProviderIdentifierService.IdentifyProvider()
 	if err != nil {
 		impl.logger.Errorw("exception while getting cluster provider", "error", err)
 		return err

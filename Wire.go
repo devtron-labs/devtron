@@ -22,6 +22,7 @@ package main
 
 import (
 	"github.com/devtron-labs/authenticator/middleware"
+	cloudProviderIdentifier "github.com/devtron-labs/common-lib/cloud-provider-identifier"
 	pubsub1 "github.com/devtron-labs/common-lib/pubsub-lib"
 	util4 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/apiToken"
@@ -117,7 +118,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/plugin"
 	repository6 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/projectManagementService/jira"
-	"github.com/devtron-labs/devtron/pkg/providerIdentifier"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/security"
@@ -713,8 +713,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(restHandler.TelemetryRestHandler), new(*restHandler.TelemetryRestHandlerImpl)),
 		telemetry.NewPosthogClient,
 
-		providerIdentifier.NewProviderIdentifierServiceImpl,
-		wire.Bind(new(providerIdentifier.ProviderIdentifierService), new(*providerIdentifier.ProviderIdentifierServiceImpl)),
+		cloudProviderIdentifier.NewProviderIdentifierServiceImpl,
+		wire.Bind(new(cloudProviderIdentifier.ProviderIdentifierService), new(*cloudProviderIdentifier.ProviderIdentifierServiceImpl)),
 		telemetry.NewTelemetryEventClientImplExtended,
 		wire.Bind(new(telemetry.TelemetryEventClient), new(*telemetry.TelemetryEventClientImplExtended)),
 
