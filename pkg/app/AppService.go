@@ -593,9 +593,11 @@ func (impl *AppServiceImpl) CheckIfPipelineUpdateEventIsValidForAppStore(gitOpsA
 		//drop event
 		return isValid, installedAppVersionHistory, appId, envId, nil
 	}
-	isArgoAppSynced := impl.pipelineStatusTimelineService.GetArgoAppSyncStatusForAppStore(installedAppVersionHistory.Id)
-	if !isArgoAppSynced {
-		return isValid, installedAppVersionHistory, appId, envId, nil
+	if !impl.acdConfig.ArgoCDAutoSyncEnabled {
+		isArgoAppSynced := impl.pipelineStatusTimelineService.GetArgoAppSyncStatusForAppStore(installedAppVersionHistory.Id)
+		if !isArgoAppSynced {
+			return isValid, installedAppVersionHistory, appId, envId, nil
+		}
 	}
 	isValid = true
 	return isValid, installedAppVersionHistory, appId, envId, err
