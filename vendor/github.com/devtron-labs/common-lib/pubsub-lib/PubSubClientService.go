@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/caarlos0/env"
-	"github.com/devtron-labs/common-lib/natsMetrics"
+	"github.com/devtron-labs/common-lib/pubsub-lib/metrics"
 	"github.com/devtron-labs/common-lib/pubsub-lib/model"
 	"github.com/devtron-labs/common-lib/utils"
 	"github.com/nats-io/nats.go"
@@ -46,7 +46,7 @@ func NewPubSubClientServiceImpl(logger *zap.SugaredLogger) *PubSubClientServiceI
 
 func (impl PubSubClientServiceImpl) Publish(topic string, msg string) error {
 	impl.Logger.Debugw("Published message on pubsub client", "topic", topic, "msg", msg)
-	defer natsMetrics.IncPublishCount(topic)
+	defer metrics.IncPublishCount(topic)
 	natsClient := impl.NatsClient
 	jetStrCtxt := natsClient.JetStrCtxt
 	natsTopic := GetNatsTopic(topic)
@@ -59,11 +59,14 @@ func (impl PubSubClientServiceImpl) Publish(topic string, msg string) error {
 
 	// track time taken to publish msg to nats server
 	t1 := time.Now()
-	defer natsMetrics.NatsEventPublishTime.WithLabelValues(topic).Observe(float64(time.Since(t1).Milliseconds()))
+	defer func() {
+		// wrapping this function in defer as directly calling Observe() will run immediately
+		metrics.NatsEventPublishTime.WithLabelValues(topic).Observe(float64(time.Since(t1).Milliseconds()))
+	}()
 
 	_, err := jetStrCtxt.Publish(topic, []byte(msg), nats.MsgId(randString))
 	if err != nil {
-		natsMetrics.IncPublishErrorCount(topic)
+		metrics.IncPublishErrorCount(topic)
 		// TODO need to handle retry specially for timeout cases
 		impl.Logger.Errorw("error while publishing message", "stream", streamName, "topic", topic, "error", err)
 		return err
@@ -152,9 +155,12 @@ func (impl PubSubClientServiceImpl) processMessages(wg *sync.WaitGroup, channel 
 // TODO need to extend msg ack depending upon response from callback like error scenario
 func (impl PubSubClientServiceImpl) processMsg(msg *nats.Msg, callback func(msg *model.PubSubMsg), topic string) {
 	t1 := time.Now()
-	natsMetrics.IncConsumingCount(topic)
-	defer natsMetrics.IncConsumptionCount(topic)
-	defer natsMetrics.NatsEventConsumptionTime.WithLabelValues(topic).Observe(float64(time.Since(t1).Milliseconds()))
+	metrics.IncConsumingCount(topic)
+	defer metrics.IncConsumptionCount(topic)
+	defer func() {
+		// wrapping this function in defer as directly calling Observe() will run immediately
+		metrics.NatsEventConsumptionTime.WithLabelValues(topic).Observe(float64(time.Since(t1).Milliseconds()))
+	}()
 	impl.TryCatchCallBack(msg, callback)
 }
 
