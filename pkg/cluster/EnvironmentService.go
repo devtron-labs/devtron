@@ -91,7 +91,7 @@ type EnvironmentService interface {
 	FindByIds(ids []*int) ([]*EnvironmentBean, error)
 	FindByNamespaceAndClusterName(namespaces string, clusterName string) (*repository.Environment, error)
 	GetByClusterId(id int) ([]*EnvironmentBean, error)
-	GetCombinedEnvironmentListForDropDown(emailId string, isActionUserSuperAdmin bool, auth func(email string, object []string) map[string]bool) ([]*ClusterEnvDto, error)
+	GetCombinedEnvironmentListForDropDown(token string, isActionUserSuperAdmin bool, auth func(email string, object []string) map[string]bool) ([]*ClusterEnvDto, error)
 	GetCombinedEnvironmentListForDropDownByClusterIds(token string, clusterIds []int, auth func(token string, object string) bool) ([]*ClusterEnvDto, error)
 	HandleErrorInClusterConnections(clusters []*ClusterBean, respMap map[int]error, clusterExistInDb bool)
 }

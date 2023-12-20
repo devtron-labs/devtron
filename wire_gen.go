@@ -745,7 +745,7 @@ func InitializeApp() (*App, error) {
 	helmAppRouterImpl := client3.NewHelmAppRouterImpl(helmAppRestHandlerImpl)
 	k8sApplicationRestHandlerImpl := application3.NewK8sApplicationRestHandlerImpl(sugaredLogger, k8sApplicationServiceImpl, pumpImpl, terminalSessionHandlerImpl, enforcerImpl, enforcerUtilHelmImpl, enforcerUtilImpl, helmAppServiceImpl, userServiceImpl, k8sCommonServiceImpl, validate)
 	k8sApplicationRouterImpl := application3.NewK8sApplicationRouterImpl(k8sApplicationRestHandlerImpl)
-	pProfRestHandlerImpl := restHandler.NewPProfRestHandler(userServiceImpl)
+	pProfRestHandlerImpl := restHandler.NewPProfRestHandler(userServiceImpl, enforcerImpl)
 	pProfRouterImpl := router.NewPProfRouter(sugaredLogger, pProfRestHandlerImpl)
 	deploymentConfigRestHandlerImpl := deployment.NewDeploymentConfigRestHandlerImpl(sugaredLogger, userServiceImpl, enforcerImpl, validate, refChartDir, chartServiceImpl, chartRefRepositoryImpl)
 	deploymentConfigRouterImpl := deployment.NewDeploymentRouterImpl(deploymentConfigRestHandlerImpl)

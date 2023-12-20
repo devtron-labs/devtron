@@ -1297,18 +1297,14 @@ func (handler PipelineConfigRestHandlerImpl) DeleteMaterial(w http.ResponseWrite
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	token := r.Header.Get("token")
 	if app.AppType == helper.Job {
-		isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
-		if !isSuperAdmin || err != nil {
-			if err != nil {
-				handler.Logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
-			}
+		if isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionDelete, "*"); !isSuperAdmin {
 			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 			return
 		}
 	} else {
 		resourceObject := handler.enforcerUtil.GetAppRBACNameByAppId(deleteMaterial.AppId)
-		token := r.Header.Get("token")
 		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceObject); !ok {
 			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 			return
@@ -1824,11 +1820,7 @@ func (handler PipelineConfigRestHandlerImpl) CreateUpdateImageTagging(w http.Res
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(user.Id))
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
+	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
 
 	artifactId, err := strconv.Atoi(vars["artifactId"])
 	if err != nil {

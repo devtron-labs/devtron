@@ -317,14 +317,8 @@ func (handler UserRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Request
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	isAuthorised := false
 	//checking superAdmin access
-	isAuthorised, err = handler.userService.IsSuperAdmin(int(userId))
-	if err != nil {
-		handler.logger.Errorw("error in checking superAdmin access of user", "err", err)
-		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
-		return
-	}
+	isAuthorised := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
 	if !isAuthorised {
 		user, err := handler.userService.GetById(userId)
 		if err != nil {
@@ -635,14 +629,8 @@ func (handler UserRestHandlerImpl) FetchRoleGroups(w http.ResponseWriter, r *htt
 	}
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	isAuthorised := false
 	//checking superAdmin access
-	isAuthorised, err = handler.userService.IsSuperAdmin(int(userId))
-	if err != nil {
-		handler.logger.Errorw("error in checking superAdmin access of user", "err", err)
-		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
-		return
-	}
+	isAuthorised := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
 	if !isAuthorised {
 		user, err := handler.userService.GetById(userId)
 		if err != nil {
@@ -909,20 +897,10 @@ func (handler UserRestHandlerImpl) UpdateTriggerPolicyForTerminalAccess(w http.R
 }
 
 func (handler UserRestHandlerImpl) GetRoleCacheDump(w http.ResponseWriter, r *http.Request) {
-
-	userId, err := handler.userService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		handler.logger.Errorw("unauthorized user, GetRoleCacheDump", "userId", userId)
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+	token := r.Header.Get("token")
+	if isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*"); !isSuperAdmin {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
-	}
-	isSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
-	if err != nil {
-		common.WriteJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
-		return
-	}
-	if !isSuperAdmin {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 	} else {
 		cacheDump := handler.enforcer.GetCacheDump()
 		common.WriteJsonResp(w, nil, cacheDump, http.StatusOK)
@@ -930,25 +908,14 @@ func (handler UserRestHandlerImpl) GetRoleCacheDump(w http.ResponseWriter, r *ht
 }
 
 func (handler UserRestHandlerImpl) InvalidateRoleCache(w http.ResponseWriter, r *http.Request) {
-
-	userId, err := handler.userService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		handler.logger.Errorw("unauthorized user, InvalidateRoleCache", "userId", userId)
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+	token := r.Header.Get("token")
+	if isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*"); !isSuperAdmin {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
-	}
-	isSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
-	if err != nil {
-		common.WriteJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
-		return
-	}
-	if !isSuperAdmin {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 	} else {
 		handler.enforcer.InvalidateCompleteCache()
 		common.WriteJsonResp(w, nil, "Cache Cleaned Successfully", http.StatusOK)
 	}
-
 }
 
 func (handler UserRestHandlerImpl) CheckManagerAuth(resource, token string, object string) bool {

@@ -24,9 +24,9 @@ type PipelineHistoryRestHandler interface {
 }
 
 type PipelineHistoryRestHandlerImpl struct {
-	logger          *zap.SugaredLogger
-	userAuthService user.UserService
-	enforcer        casbin.Enforcer
+	logger                              *zap.SugaredLogger
+	userAuthService                     user.UserService
+	enforcer                            casbin.Enforcer
 	strategyHistoryService              history2.PipelineStrategyHistoryService
 	deploymentTemplateHistoryService    history2.DeploymentTemplateHistoryService
 	configMapHistoryService             history2.ConfigMapHistoryService
@@ -211,7 +211,8 @@ func (handler *PipelineHistoryRestHandlerImpl) FetchDeployedHistoryComponentDeta
 	//RBAC END
 	//checking if user has admin access
 	userHasAdminAccess := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, resourceName)
-	isSuperAdmin, _ := handler.userAuthService.IsSuperAdmin(int(userId))
+
+	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
 
 	ctx := r.Context()
 	ctx = util.SetSuperAdminInContext(ctx, isSuperAdmin)
@@ -255,7 +256,7 @@ func (handler *PipelineHistoryRestHandlerImpl) GetAllDeployedConfigurationHistor
 	//RBAC END
 	//checking if user has admin access
 	userHasAdminAccess := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, resourceName)
-	isSuperAdmin, _ := handler.userAuthService.IsSuperAdmin(int(userId))
+	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
 	ctx := r.Context()
 	ctx = util.SetSuperAdminInContext(ctx, isSuperAdmin)
 	res, err := handler.deployedConfigurationHistoryService.GetAllDeployedConfigurationByPipelineIdAndLatestWfrId(ctx, pipelineId, userHasAdminAccess)
@@ -303,8 +304,7 @@ func (handler *PipelineHistoryRestHandlerImpl) GetAllDeployedConfigurationHistor
 		return
 	}
 	//RBAC END
-
-	isSuperAdmin, _ := handler.userAuthService.IsSuperAdmin(int(userId))
+	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
 	ctx := r.Context()
 	ctx = util.SetSuperAdminInContext(ctx, isSuperAdmin)
 	//checking if user has admin access

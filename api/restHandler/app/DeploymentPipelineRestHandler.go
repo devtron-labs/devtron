@@ -946,8 +946,7 @@ func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplateData(w http.Re
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	isSuperAdmin, _ := handler.userAuthService.IsSuperAdmin(int(userId))
-
+	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
 	//RBAC enforcer Ends
 
 	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)

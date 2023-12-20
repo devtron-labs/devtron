@@ -106,7 +106,7 @@ type CdPipelineConfigService interface {
 	SetPipelineDeploymentAppType(pipelineCreateRequest *bean.CdPipelines, isGitOpsConfigured bool, deploymentTypeValidationConfig map[string]bool)
 	MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDeleted(appId int, envId int, acdToken string, pipeline *pipelineConfig.Pipeline) (bool, error)
 	//GetEnvironmentListForAutocompleteFilter : lists environment for given configuration
-	GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, offset int, size int, token string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool), ctx context.Context) (*cluster.ResourceGroupingResponse, error)
+	GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, offset int, size int, token string, checkAuthBatch func(token string, appObject []string, envObject []string) (map[string]bool, map[string]bool), ctx context.Context) (*cluster.ResourceGroupingResponse, error)
 	IsGitopsConfigured() (bool, error)
 	RegisterInACD(gitOpsRepoName string, chartGitAttr *util.ChartGitAttribute, userId int32, ctx context.Context) error
 }
@@ -1406,7 +1406,7 @@ func (impl *CdPipelineConfigServiceImpl) MarkGitOpsDevtronAppsDeletedWhereArgoAp
 	return acdAppFound, nil
 }
 
-func (impl *CdPipelineConfigServiceImpl) GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, offset int, size int, token string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool), ctx context.Context) (*cluster.ResourceGroupingResponse, error) {
+func (impl *CdPipelineConfigServiceImpl) GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, offset int, size int, token string, checkAuthBatch func(token string, appObject []string, envObject []string) (map[string]bool, map[string]bool), ctx context.Context) (*cluster.ResourceGroupingResponse, error) {
 	result := &cluster.ResourceGroupingResponse{}
 	var models []*repository2.Environment
 	var beans []cluster.EnvironmentBean

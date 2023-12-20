@@ -64,9 +64,9 @@ type ClusterRestHandlerImpl struct {
 	clusterService            cluster.ClusterService
 	clusterNoteService        genericNotes.GenericNoteService
 	clusterDescriptionService cluster.ClusterDescriptionService
-	logger      *zap.SugaredLogger
-	userService user.UserService
-	validator   *validator.Validate
+	logger                    *zap.SugaredLogger
+	userService               user.UserService
+	validator                 *validator.Validate
 	enforcer                  casbin.Enforcer
 	deleteService             delete2.DeleteService
 	argoUserService           argo.ArgoUserService
@@ -119,12 +119,8 @@ func (impl ClusterRestHandlerImpl) SaveClusters(w http.ResponseWriter, r *http.R
 	impl.logger.Infow("request payload received for save clusters")
 
 	// RBAC enforcer applying
-	isSuperAdmin, err := impl.userService.IsSuperAdmin(int(userId))
-	if !isSuperAdmin || err != nil {
-		if err != nil {
-			impl.logger.Errorw("request err, CheckSuperAdmin", "err", err, "isSuperAdmin", isSuperAdmin)
-		}
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized User"), nil, http.StatusForbidden)
 		return
 	}
 	//RBAC enforcer Ends

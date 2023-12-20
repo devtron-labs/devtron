@@ -171,19 +171,12 @@ func (impl EnvironmentRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Req
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	isSuperAdmin, err := impl.userService.IsSuperAdmin(int(userId))
-	if err != nil {
-		impl.logger.Errorw("request err, GetAll", "err", err, "userId", userId)
-		common.WriteJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
-		return
-	}
-	if isSuperAdmin {
+	token := r.Header.Get("token")
+	// RBAC enforcer applying
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); ok {
 		common.WriteJsonResp(w, err, environments, http.StatusOK)
 		return
 	}
-
-	token := r.Header.Get("token")
-
 	grantedEnvironments := make([]*request.EnvironmentBean, 0)
 
 	var envIdentifierList []string
@@ -357,12 +350,9 @@ func (impl EnvironmentRestHandlerImpl) GetCombinedEnvironmentListForDropDown(w h
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	isActionUserSuperAdmin, err := impl.userService.IsSuperAdmin(int(userId))
-	if err != nil {
-		common.WriteJsonResp(w, err, "Failed to check admin check", http.StatusInternalServerError)
-		return
-	}
 	token := r.Header.Get("token")
+	isActionUserSuperAdmin := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
+
 	clusters, err := impl.environmentClusterMappingsService.GetCombinedEnvironmentListForDropDown(token, isActionUserSuperAdmin, impl.CheckAuthorizationByEmailInBatchForGlobalEnvironment)
 	if err != nil {
 		impl.logger.Errorw("service err, GetCombinedEnvironmentListForDropDown", "err", err)

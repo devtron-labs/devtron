@@ -52,9 +52,9 @@ type PipelineTriggerRestHandler interface {
 }
 
 type PipelineTriggerRestHandlerImpl struct {
-	appService      app.AppService
-	userAuthService user.UserService
-	validator       *validator.Validate
+	appService              app.AppService
+	userAuthService         user.UserService
+	validator               *validator.Validate
 	enforcer                casbin.Enforcer
 	teamService             team.TeamService
 	logger                  *zap.SugaredLogger
@@ -353,7 +353,7 @@ func (handler PipelineTriggerRestHandlerImpl) GetAllLatestDeploymentConfiguratio
 		return
 	}
 	//RBAC END
-	isSuperAdmin, _ := handler.userAuthService.IsSuperAdmin(int(userId))
+	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
 	ctx := r.Context()
 	ctx = util.SetSuperAdminInContext(ctx, isSuperAdmin)
 	//checking if user has admin access

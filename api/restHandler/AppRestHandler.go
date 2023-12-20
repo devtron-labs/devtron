@@ -50,9 +50,9 @@ type AppRestHandler interface {
 
 type AppRestHandlerImpl struct {
 	logger             *zap.SugaredLogger
-	appService      app.AppCrudOperationService
-	userAuthService user.UserService
-	validator       *validator.Validate
+	appService         app.AppCrudOperationService
+	userAuthService    user.UserService
+	validator          *validator.Validate
 	enforcerUtil       rbac.EnforcerUtil
 	enforcer           casbin.Enforcer
 	helmAppService     client.HelmAppService
@@ -299,12 +299,8 @@ func (handler AppRestHandlerImpl) GetAppListByTeamIds(w http.ResponseWriter, r *
 		common.WriteJsonResp(w, err, "StatusBadRequest", http.StatusBadRequest)
 		return
 	}
-
-	isActionUserSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
-	if err != nil {
-		common.WriteJsonResp(w, err, "Failed to check admin check", http.StatusInternalServerError)
-		return
-	}
+	token := r.Header.Get("token")
+	isActionUserSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
 
 	appType := v.Get("appType")
 	handler.logger.Infow("request payload, GetAppListByTeamIds", "payload", params)
@@ -325,7 +321,6 @@ func (handler AppRestHandlerImpl) GetAppListByTeamIds(w http.ResponseWriter, r *
 		return
 	}
 
-	token := r.Header.Get("token")
 	// RBAC
 	for _, project := range projectWiseApps {
 		var accessedApps []*app.AppBean

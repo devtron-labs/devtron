@@ -66,9 +66,9 @@ type ConfigMapRestHandler interface {
 type ConfigMapRestHandlerImpl struct {
 	pipelineBuilder    pipeline.PipelineBuilder
 	Logger             *zap.SugaredLogger
-	chartService    chart.ChartService
-	userAuthService user.UserService
-	teamService     team.TeamService
+	chartService       chart.ChartService
+	userAuthService    user.UserService
+	teamService        team.TeamService
 	enforcer           casbin.Enforcer
 	pipelineRepository pipelineConfig.PipelineRepository
 	enforcerUtil       rbac.EnforcerUtil
@@ -784,11 +784,8 @@ func (handler ConfigMapRestHandlerImpl) ConfigSecretBulkPatch(w http.ResponseWri
 	}
 
 	//AUTH - check from casbin db
-	isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
-	if !isSuperAdmin || err != nil {
-		if err != nil {
-			handler.Logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
-		}
+	token := r.Header.Get("token")
+	if isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !isSuperAdmin {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}

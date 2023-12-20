@@ -214,12 +214,7 @@ func (handler AppListingRestHandlerImpl) FetchJobs(w http.ResponseWriter, r *htt
 		return
 	}
 	token := r.Header.Get("token")
-	isSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
-	if err != nil {
-		handler.logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
-		return
-	}
+	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
 	var validAppIds []int
 	//for non super admin users
 	if !isSuperAdmin {
@@ -391,13 +386,8 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 	t1 = t2
 
 	newCtx, span = otel.Tracer("userService").Start(newCtx, "IsSuperAdmin")
-	isActionUserSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
+	isActionUserSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
 	span.End()
-	if err != nil {
-		handler.logger.Errorw("request err, FetchAppsByEnvironment", "err", err, "userId", userId)
-		common.WriteJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
-		return
-	}
 	appEnvContainers := make([]*bean.AppEnvironmentContainer, 0)
 	if isActionUserSuperAdmin {
 		appEnvContainers = append(appEnvContainers, envContainers...)
@@ -576,13 +566,8 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironmentV1(w http.Respons
 	t1 = t2
 
 	newCtx, span = otel.Tracer("userService").Start(newCtx, "IsSuperAdmin")
-	isActionUserSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
+	isActionUserSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
 	span.End()
-	if err != nil {
-		handler.logger.Errorw("request err, FetchAppsByEnvironment", "err", err, "userId", userId)
-		common.WriteJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
-		return
-	}
 	appEnvContainers := make([]*bean.AppEnvironmentContainer, 0)
 	if isActionUserSuperAdmin {
 		appEnvContainers = append(appEnvContainers, envContainers...)
@@ -720,14 +705,8 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironmentV2(w http.Respons
 	newCtx, span = otel.Tracer("userService").Start(newCtx, "GetById")
 	span.End()
 	newCtx, span = otel.Tracer("userService").Start(newCtx, "IsSuperAdmin")
-	isActionUserSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
+	isActionUserSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
 	span.End()
-	if err != nil {
-		handler.logger.Errorw("request err, FetchAppsByEnvironment", "err", err, "userId", userId)
-		common.WriteJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
-		return
-	}
-
 	validAppIds := make([]int, 0)
 	//for non super admin users
 	if !isActionUserSuperAdmin {

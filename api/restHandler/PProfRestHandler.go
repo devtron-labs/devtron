@@ -1,6 +1,8 @@
 package restHandler
 
 import (
+	"errors"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"net/http"
 	"net/http/pprof"
 
@@ -24,10 +26,14 @@ type PProfRestHandler interface {
 
 type PProfRestHandlerImpl struct {
 	userService user.UserService
+	enforcer    casbin.Enforcer
 }
 
-func NewPProfRestHandler(userService user.UserService) *PProfRestHandlerImpl {
-	return &PProfRestHandlerImpl{userService: userService}
+func NewPProfRestHandler(userService user.UserService,
+	enforcer casbin.Enforcer) *PProfRestHandlerImpl {
+	return &PProfRestHandlerImpl{userService: userService,
+		enforcer: enforcer,
+	}
 }
 
 func (p PProfRestHandlerImpl) Index(w http.ResponseWriter, r *http.Request) {
@@ -36,14 +42,13 @@ func (p PProfRestHandlerImpl) Index(w http.ResponseWriter, r *http.Request) {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	isActionUserSuperAdmin, err := p.userService.IsSuperAdmin(int(userId))
-	if err != nil {
-		common.WriteJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
+	token := r.Header.Get("token")
+	if ok := p.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	if isActionUserSuperAdmin {
-		pprof.Index(w, r)
-	}
+
+	pprof.Index(w, r)
 }
 
 func (p PProfRestHandlerImpl) Cmdline(w http.ResponseWriter, r *http.Request) {
@@ -52,14 +57,13 @@ func (p PProfRestHandlerImpl) Cmdline(w http.ResponseWriter, r *http.Request) {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	isActionUserSuperAdmin, err := p.userService.IsSuperAdmin(int(userId))
-	if err != nil {
-		common.WriteJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
+	token := r.Header.Get("token")
+	if ok := p.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	if isActionUserSuperAdmin {
-		pprof.Cmdline(w, r)
-	}
+
+	pprof.Cmdline(w, r)
 }
 
 func (p PProfRestHandlerImpl) Profile(w http.ResponseWriter, r *http.Request) {
@@ -68,14 +72,13 @@ func (p PProfRestHandlerImpl) Profile(w http.ResponseWriter, r *http.Request) {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	isActionUserSuperAdmin, err := p.userService.IsSuperAdmin(int(userId))
-	if err != nil {
-		common.WriteJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
+	token := r.Header.Get("token")
+	if ok := p.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	if isActionUserSuperAdmin {
-		pprof.Profile(w, r)
-	}
+
+	pprof.Profile(w, r)
 }
 
 func (p PProfRestHandlerImpl) Symbol(w http.ResponseWriter, r *http.Request) {
@@ -84,14 +87,13 @@ func (p PProfRestHandlerImpl) Symbol(w http.ResponseWriter, r *http.Request) {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	isActionUserSuperAdmin, err := p.userService.IsSuperAdmin(int(userId))
-	if err != nil {
-		common.WriteJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
+	token := r.Header.Get("token")
+	if ok := p.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	if isActionUserSuperAdmin {
-		pprof.Symbol(w, r)
-	}
+
+	pprof.Symbol(w, r)
 }
 
 func (p PProfRestHandlerImpl) Trace(w http.ResponseWriter, r *http.Request) {
@@ -100,14 +102,13 @@ func (p PProfRestHandlerImpl) Trace(w http.ResponseWriter, r *http.Request) {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	isActionUserSuperAdmin, err := p.userService.IsSuperAdmin(int(userId))
-	if err != nil {
-		common.WriteJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
+	token := r.Header.Get("token")
+	if ok := p.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	if isActionUserSuperAdmin {
-		pprof.Trace(w, r)
-	}
+
+	pprof.Trace(w, r)
 }
 
 func (p PProfRestHandlerImpl) Goroutine(w http.ResponseWriter, r *http.Request) {
@@ -116,14 +117,13 @@ func (p PProfRestHandlerImpl) Goroutine(w http.ResponseWriter, r *http.Request) 
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	isActionUserSuperAdmin, err := p.userService.IsSuperAdmin(int(userId))
-	if err != nil {
-		common.WriteJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
+	token := r.Header.Get("token")
+	if ok := p.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	if isActionUserSuperAdmin {
-		pprof.Handler("goroutine").ServeHTTP(w, r)
-	}
+
+	pprof.Handler("goroutine").ServeHTTP(w, r)
 }
 
 func (p PProfRestHandlerImpl) Threadcreate(w http.ResponseWriter, r *http.Request) {
@@ -132,14 +132,13 @@ func (p PProfRestHandlerImpl) Threadcreate(w http.ResponseWriter, r *http.Reques
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	isActionUserSuperAdmin, err := p.userService.IsSuperAdmin(int(userId))
-	if err != nil {
-		common.WriteJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
+	token := r.Header.Get("token")
+	if ok := p.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	if isActionUserSuperAdmin {
-		pprof.Handler("threadcreate").ServeHTTP(w, r)
-	}
+
+	pprof.Handler("threadcreate").ServeHTTP(w, r)
 }
 
 func (p PProfRestHandlerImpl) Heap(w http.ResponseWriter, r *http.Request) {
@@ -148,14 +147,13 @@ func (p PProfRestHandlerImpl) Heap(w http.ResponseWriter, r *http.Request) {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	isActionUserSuperAdmin, err := p.userService.IsSuperAdmin(int(userId))
-	if err != nil {
-		common.WriteJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
+	token := r.Header.Get("token")
+	if ok := p.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	if isActionUserSuperAdmin {
-		pprof.Handler("heap").ServeHTTP(w, r)
-	}
+
+	pprof.Handler("heap").ServeHTTP(w, r)
 }
 
 func (p PProfRestHandlerImpl) Block(w http.ResponseWriter, r *http.Request) {
@@ -164,14 +162,13 @@ func (p PProfRestHandlerImpl) Block(w http.ResponseWriter, r *http.Request) {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	isActionUserSuperAdmin, err := p.userService.IsSuperAdmin(int(userId))
-	if err != nil {
-		common.WriteJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
+	token := r.Header.Get("token")
+	if ok := p.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	if isActionUserSuperAdmin {
-		pprof.Handler("block").ServeHTTP(w, r)
-	}
+
+	pprof.Handler("block").ServeHTTP(w, r)
 }
 
 func (p PProfRestHandlerImpl) Mutex(w http.ResponseWriter, r *http.Request) {
@@ -180,14 +177,13 @@ func (p PProfRestHandlerImpl) Mutex(w http.ResponseWriter, r *http.Request) {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	isActionUserSuperAdmin, err := p.userService.IsSuperAdmin(int(userId))
-	if err != nil {
-		common.WriteJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
+	token := r.Header.Get("token")
+	if ok := p.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	if isActionUserSuperAdmin {
-		pprof.Handler("mutex").ServeHTTP(w, r)
-	}
+
+	pprof.Handler("mutex").ServeHTTP(w, r)
 }
 
 func (p PProfRestHandlerImpl) Allocs(w http.ResponseWriter, r *http.Request) {
@@ -196,14 +192,11 @@ func (p PProfRestHandlerImpl) Allocs(w http.ResponseWriter, r *http.Request) {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	isActionUserSuperAdmin, err := p.userService.IsSuperAdmin(int(userId))
-	if err != nil {
-		common.WriteJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
+	token := r.Header.Get("token")
+	if ok := p.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	if isActionUserSuperAdmin {
-		pprof.Handler("allocs").ServeHTTP(w, r)
-	}
+
+	pprof.Handler("allocs").ServeHTTP(w, r)
 }
-
-

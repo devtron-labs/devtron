@@ -63,7 +63,7 @@ func NewResourceGroupRestHandlerImpl(logger *zap.SugaredLogger, enforcer casbin.
 
 func (handler ResourceGroupRestHandlerImpl) getGroupTypeAndAuthFunc(groupType string) (resourceGroup.ResourceGroupType, func(token string, appObject []string, action string) map[string]bool, error) {
 	var resourceGroupType resourceGroup.ResourceGroupType
-	var authFunc func(emailId string, appObject []string, action string) map[string]bool
+	var authFunc func(token string, appObject []string, action string) map[string]bool
 	if groupType == "env-group" {
 		resourceGroupType = resourceGroup.ENV_GROUP
 		authFunc = handler.checkEnvAuthBatch

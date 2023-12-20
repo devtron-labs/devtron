@@ -29,9 +29,9 @@ type ScopedVariableRestHandler interface {
 }
 
 type ScopedVariableRestHandlerImpl struct {
-	logger          *zap.SugaredLogger
-	userAuthService user.UserService
-	validator       *validator.Validate
+	logger                *zap.SugaredLogger
+	userAuthService       user.UserService
+	validator             *validator.Validate
 	pipelineBuilder       pipeline.PipelineBuilder
 	enforcerUtil          rbac.EnforcerUtil
 	enforcer              casbin.Enforcer
@@ -84,12 +84,9 @@ func (handler *ScopedVariableRestHandlerImpl) CreateVariables(w http.ResponseWri
 	handler.logger.Infow("request payload received for variables")
 
 	// RBAC enforcer applying
-	isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
-	if !isSuperAdmin || err != nil {
-		if err != nil {
-			handler.logger.Errorw("request err, CheckSuperAdmin", "err", err, "isSuperAdmin", isSuperAdmin)
-		}
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+	token := r.Header.Get("token")
+	if isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*"); !isSuperAdmin {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 	//RBAC enforcer Ends
@@ -105,21 +102,11 @@ func (handler *ScopedVariableRestHandlerImpl) CreateVariables(w http.ResponseWri
 	common.WriteJsonResp(w, nil, nil, http.StatusOK)
 }
 func (handler *ScopedVariableRestHandlerImpl) GetScopedVariables(w http.ResponseWriter, r *http.Request) {
-	userId, err := handler.userAuthService.GetLoggedInUser(r)
-	if err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
-
-	if err != nil {
-		handler.logger.Errorw("request err, CheckSuperAdmin", "err", err, "isSuperAdmin", isSuperAdmin)
-		return
-	}
+	token := r.Header.Get("token")
+	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
 
 	appIdQueryParam := r.URL.Query().Get("appId")
-	var appId int
-	appId, err = strconv.Atoi(appIdQueryParam)
+	appId, err := strconv.Atoi(appIdQueryParam)
 	if err != nil {
 		common.WriteJsonResp(w, err, "invalid appId", http.StatusBadRequest)
 		return
@@ -138,7 +125,6 @@ func (handler *ScopedVariableRestHandlerImpl) GetScopedVariables(w http.Response
 		return
 	}
 
-	token := r.Header.Get("token")
 	var app *bean.CreateAppDTO
 	app, err = handler.pipelineBuilder.GetApp(appId)
 	if err != nil {
@@ -173,14 +159,12 @@ func (handler *ScopedVariableRestHandlerImpl) GetJsonForVariables(w http.Respons
 	handler.logger.Infow("request payload received for variables")
 
 	// RBAC enforcer applying
-	isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
-	if !isSuperAdmin || err != nil {
-		if err != nil {
-			handler.logger.Errorw("request err, CheckSuperAdmin", "err", err, "isSuperAdmin", isSuperAdmin)
-		}
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+	token := r.Header.Get("token")
+	if isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !isSuperAdmin {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
+
 	//RBAC enforcer Ends
 	//var payload *repository.Payload
 

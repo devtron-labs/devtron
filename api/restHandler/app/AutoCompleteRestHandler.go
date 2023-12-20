@@ -30,11 +30,8 @@ func (handler PipelineConfigRestHandlerImpl) GetAppListForAutocomplete(w http.Re
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	isActionUserSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
-	if err != nil {
-		common.WriteJsonResp(w, err, "Failed to check admin check", http.StatusInternalServerError)
-		return
-	}
+	token := r.Header.Get("token")
+	isActionUserSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
 
 	v := r.URL.Query()
 	teamId := v.Get("teamId")
@@ -83,7 +80,6 @@ func (handler PipelineConfigRestHandlerImpl) GetAppListForAutocomplete(w http.Re
 
 	// RBAC
 	_, span := otel.Tracer("autoCompleteAppAPI").Start(context.Background(), "RBACForAutoCompleteAppAPI")
-	token := r.Header.Get("token")
 	accessedApps := make([]*pipeline.AppBean, 0)
 	rbacObjects := make([]string, 0)
 

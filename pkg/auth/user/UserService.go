@@ -60,7 +60,7 @@ type UserService interface {
 	CheckUserRoles(id int32) ([]string, error)
 	SyncOrchestratorToCasbin() (bool, error)
 	GetUserByToken(context context.Context, token string) (int32, string, error)
-	IsSuperAdmin(userId int) (bool, error)
+	//IsSuperAdmin(userId int) (bool, error)
 	GetByIdIncludeDeleted(id int32) (*bean.UserInfo, error)
 	UserExists(emailId string) bool
 	UpdateTriggerPolicyForTerminalAccess() (err error)
