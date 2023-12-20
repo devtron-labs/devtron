@@ -96,15 +96,19 @@ func (impl LockConfigurationServiceImpl) DeleteActiveLockConfiguration(userId in
 		return err
 	}
 	dbConnection := impl.lockConfigurationRepository.GetConnection()
+	isNewTx := true
 	if tx == nil {
 		tx, err = dbConnection.Begin()
 		if err != nil {
 			return err
 		}
+		isNewTx = false
 	}
 
 	// Rollback tx on error.
-	defer tx.Rollback()
+	if isNewTx {
+		defer tx.Rollback()
+	}
 
 	lockConfigDto.Active = false
 	lockConfigDto.UpdatedOn = time.Now()
@@ -114,9 +118,11 @@ func (impl LockConfigurationServiceImpl) DeleteActiveLockConfiguration(userId in
 		return err
 	}
 	// commit TX
-	err = tx.Commit()
-	if err != nil {
-		return err
+	if isNewTx {
+		err = tx.Commit()
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
