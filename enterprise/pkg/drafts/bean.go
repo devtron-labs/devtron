@@ -1,8 +1,8 @@
 package drafts
 
 import (
-	"encoding/json"
 	client "github.com/devtron-labs/devtron/client/events"
+	"github.com/devtron-labs/devtron/enterprise/pkg/lockConfiguration/bean"
 	"time"
 )
 
@@ -138,7 +138,7 @@ func (request ConfigDraftRequest) GetDraftVersionComment(draftMetadataId, draftV
 
 type ConfigDraftResponse struct {
 	ConfigDraftRequest
-	*LockValidateResponse
+	*bean.LockValidateErrorResponse
 	DraftId        int        `json:"draftId"`
 	DraftVersionId int        `json:"draftVersionId"`
 	DraftState     DraftState `json:"draftState"`
@@ -147,14 +147,6 @@ type ConfigDraftResponse struct {
 	CommentsCount  int        `json:"commentsCount"`
 	DataEncrypted  bool       `json:"dataEncrypted"`
 	IsAppAdmin     bool       `json:"isAppAdmin"`
-}
-
-type LockValidateResponse struct {
-	LockedOverride    json.RawMessage `json:"lockedOverride"`
-	ModifiedOverride  json.RawMessage `json:"modifiedOverride"`
-	AddedOverride     json.RawMessage `json:"addedOverride"`
-	DeletedOverride   json.RawMessage `json:"deletedOverride"`
-	IsLockConfigError bool            `json:"isLockConfigError"`
 }
 
 //type LockValidateError struct {
@@ -245,10 +237,6 @@ type AppConfigDraft struct {
 }
 
 type DraftVersionResponse struct {
-	DraftVersionId    int             `json:"draftVersionId"`
-	LockedOverride    json.RawMessage `json:"lockedOverride"`
-	ModifiedOverride  json.RawMessage `json:"modifiedOverride"`
-	AddedOverride     json.RawMessage `json:"addedOverride"`
-	DeletedOverride   json.RawMessage `json:"deletedOverride"`
-	IsLockConfigError bool            `json:"isLockConfigError"` // check if got error of lock config
+	DraftVersionId                  int `json:"draftVersionId"`
+	*bean.LockValidateErrorResponse     // check if got error of lock config
 }

@@ -2,6 +2,7 @@ package bean
 
 import (
 	"encoding/json"
+	"github.com/devtron-labs/devtron/enterprise/pkg/lockConfiguration/bean"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 )
 
@@ -40,9 +41,5 @@ type EnvironmentPropertiesResponse struct {
 
 type EnvironmentUpdateResponse struct {
 	*EnvironmentProperties
-	LockedOverride    json.RawMessage `json:"lockedOverride"`
-	ModifiedOverride  json.RawMessage `json:"modifiedOverride"`
-	AddedOverride     json.RawMessage `json:"addedOverride"`
-	DeletedOverride   json.RawMessage `json:"deletedOverride"`
-	IsLockConfigError bool            `json:"isLockConfigError"`
+	*bean.LockValidateErrorResponse
 }

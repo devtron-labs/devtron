@@ -30,12 +30,13 @@ type LockConfiguration struct {
 	sql.AuditLog
 }
 
-type LockConfigErrorResponse struct {
-	LockedOverride    json.RawMessage `json:"lockedOverride"`
-	ModifiedOverride  json.RawMessage `json:"modifiedOverride"`
-	AddedOverride     json.RawMessage `json:"addedOverride"`
-	DeletedOverride   json.RawMessage `json:"deletedOverride"`
-	IsLockConfigError bool            `json:"isLockConfigError"` // check if got error of lock config
+type LockValidateErrorResponse struct {
+	LockedOverride             json.RawMessage `json:"lockedOverride"`
+	ModifiedOverride           json.RawMessage `json:"modifiedOverride"`
+	AddedOverride              json.RawMessage `json:"addedOverride"`
+	DeletedOverride            json.RawMessage `json:"deletedOverride"`
+	IsLockConfigError          bool            `json:"isLockConfigError"`
+	DisableSaveEligibleChanges bool            `json:"disableSaveEligibleChanges"`
 }
 
 type LockConfig struct {
@@ -153,17 +154,18 @@ func CheckForLockedKeyInModifiedJson(lockConfig *LockConfigResponse, configJson 
 	return isLockConfigError
 }
 
-func GetLockConfigErrorResponse(lockedOverride, modifiedOverride, addedOverride, deletedOverride string) *LockConfigErrorResponse {
+func GetLockConfigErrorResponse(lockedOverride, modifiedOverride, addedOverride, deletedOverride string, disableSaveEligibleChanges bool) *LockValidateErrorResponse {
 	lockedOverrideJson := getJsonValForString(lockedOverride)
 	modifiedOverrideJson := getJsonValForString(modifiedOverride)
 	addedOverrideJson := getJsonValForString(addedOverride)
 	deletedOverrideJson := getJsonValForString(deletedOverride)
-	return &LockConfigErrorResponse{
-		LockedOverride:    lockedOverrideJson,
-		ModifiedOverride:  modifiedOverrideJson,
-		AddedOverride:     addedOverrideJson,
-		DeletedOverride:   deletedOverrideJson,
-		IsLockConfigError: true,
+	return &LockValidateErrorResponse{
+		LockedOverride:             lockedOverrideJson,
+		ModifiedOverride:           modifiedOverrideJson,
+		AddedOverride:              addedOverrideJson,
+		DeletedOverride:            deletedOverrideJson,
+		IsLockConfigError:          true,
+		DisableSaveEligibleChanges: disableSaveEligibleChanges,
 	}
 }
 

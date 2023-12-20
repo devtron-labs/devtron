@@ -23,7 +23,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/enterprise/pkg/lockConfiguration"
-	"github.com/devtron-labs/devtron/enterprise/pkg/lockConfiguration/bean"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
@@ -406,15 +405,14 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 	}
 
 	// Handle Lock Configuration
-	isLockConfigError, lockedOverride, modifiedOverride, deletedOverride, addedOverride, err := impl.lockedConfigService.HandleLockConfiguration(string(templateRequest.ValuesOverride), chartValues.AppOverrides, int(templateRequest.UserId))
+	lockConfigErrorResponse, err := impl.lockedConfigService.HandleLockConfiguration(string(templateRequest.ValuesOverride), chartValues.AppOverrides, int(templateRequest.UserId))
 	if err != nil {
 		return nil, err
 	}
-	if isLockConfigError {
-		lockConfigErrorResponse := bean.GetLockConfigErrorResponse(lockedOverride, modifiedOverride, addedOverride, deletedOverride)
+	if lockConfigErrorResponse != nil {
 		return &TemplateResponse{
-			TemplateRequest:         &templateRequest,
-			LockConfigErrorResponse: lockConfigErrorResponse,
+			TemplateRequest:           &templateRequest,
+			LockValidateErrorResponse: lockConfigErrorResponse,
 		}, nil
 	}
 
@@ -497,8 +495,8 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 
 	chartVal, err := impl.chartAdaptor(chart, appLevelMetrics)
 	return &TemplateResponse{
-		TemplateRequest:         chartVal,
-		LockConfigErrorResponse: nil,
+		TemplateRequest:           chartVal,
+		LockValidateErrorResponse: nil,
 	}, err
 }
 
@@ -896,16 +894,14 @@ func (impl ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateRequ
 	}
 
 	// Handle Lock Configuration
-	isLockConfigError, lockedOverride, modifiedOverride, deletedOverride, addedOverride, err := impl.lockedConfigService.HandleLockConfiguration(string(templateRequest.ValuesOverride), template.GlobalOverride, int(templateRequest.UserId))
+	lockConfigErrorResponse, err := impl.lockedConfigService.HandleLockConfiguration(string(templateRequest.ValuesOverride), template.GlobalOverride, int(templateRequest.UserId))
 	if err != nil {
 		return nil, err
 	}
-	if isLockConfigError {
-		lockConfigErrorResponse := bean.GetLockConfigErrorResponse(lockedOverride, modifiedOverride, addedOverride, deletedOverride)
-
+	if lockConfigErrorResponse != nil {
 		return &TemplateResponse{
-			TemplateRequest:         templateRequest,
-			LockConfigErrorResponse: lockConfigErrorResponse,
+			TemplateRequest:           templateRequest,
+			LockValidateErrorResponse: lockConfigErrorResponse,
 		}, nil
 	}
 
@@ -963,8 +959,8 @@ func (impl ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateRequ
 		return nil, err
 	}
 	return &TemplateResponse{
-		TemplateRequest:         templateRequest,
-		LockConfigErrorResponse: nil,
+		TemplateRequest:           templateRequest,
+		LockValidateErrorResponse: nil,
 	}, nil
 }
 
@@ -978,18 +974,17 @@ func (impl ChartServiceImpl) ValidateAppOverride(templateRequest *TemplateReques
 	impl.logger.Debug("now finally update request chart in db to latest and previous flag = false")
 
 	// Handle Lock Configuration
-	isLockConfigError, lockedOverride, modifiedOverride, deletedOverride, addedOverride, err := impl.lockedConfigService.HandleLockConfiguration(string(templateRequest.ValuesOverride), template.GlobalOverride, int(templateRequest.UserId))
+	lockConfigErrorResponse, err := impl.lockedConfigService.HandleLockConfiguration(string(templateRequest.ValuesOverride), template.GlobalOverride, int(templateRequest.UserId))
 	if err != nil {
 		return nil, err
 	}
-	if isLockConfigError {
-		lockConfigErrorResponse := bean.GetLockConfigErrorResponse(lockedOverride, modifiedOverride, addedOverride, deletedOverride)
+	if lockConfigErrorResponse != nil {
 		return &TemplateResponse{
-			TemplateRequest:         templateRequest,
-			LockConfigErrorResponse: lockConfigErrorResponse,
+			TemplateRequest:           templateRequest,
+			LockValidateErrorResponse: lockConfigErrorResponse,
 		}, nil
 	}
-	return &TemplateResponse{TemplateRequest: templateRequest, LockConfigErrorResponse: nil}, nil
+	return &TemplateResponse{TemplateRequest: templateRequest, LockValidateErrorResponse: nil}, nil
 }
 
 func (impl ChartServiceImpl) handleChartTypeChange(currentLatestChart *chartRepoRepository.Chart, templateRequest *TemplateRequest) (json.RawMessage, error) {

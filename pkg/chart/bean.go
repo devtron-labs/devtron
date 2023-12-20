@@ -20,7 +20,7 @@ type ReservedChartList struct {
 
 type TemplateResponse struct {
 	*TemplateRequest
-	*bean.LockConfigErrorResponse
+	*bean.LockValidateErrorResponse
 }
 
 type TemplateRequest struct {

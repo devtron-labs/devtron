@@ -20,7 +20,7 @@ type LockConfigurationService interface {
 	GetLockConfiguration() (*bean.LockConfigResponse, error)
 	SaveLockConfiguration(*bean.LockConfigRequest, int32) error
 	DeleteActiveLockConfiguration(userId int32, tx *pg.Tx) error
-	HandleLockConfiguration(currentConfig, savedConfig string, userId int) (bool, string, string, string, string, error)
+	HandleLockConfiguration(currentConfig, savedConfig string, userId int) (*bean.LockValidateErrorResponse, error)
 }
 
 type LockConfigurationServiceImpl struct {
@@ -127,12 +127,12 @@ func (impl LockConfigurationServiceImpl) DeleteActiveLockConfiguration(userId in
 	return nil
 }
 
-func (impl LockConfigurationServiceImpl) HandleLockConfiguration(currentConfig, savedConfig string, userId int) (bool, string, string, string, string, error) {
+func (impl LockConfigurationServiceImpl) HandleLockConfiguration(currentConfig, savedConfig string, userId int) (*bean.LockValidateErrorResponse, error) {
 
 	isSuperAdmin, err := impl.userService.IsSuperAdmin(userId)
 
 	if err != nil || isSuperAdmin {
-		return false, "", "", "", "", err
+		return nil, err
 	}
 
 	var mp map[string]interface{}
@@ -140,35 +140,24 @@ func (impl LockConfigurationServiceImpl) HandleLockConfiguration(currentConfig, 
 
 	lockConfig, err := impl.GetLockConfiguration()
 	if err != nil {
-		return false, "", "", "", "", err
+		return nil, err
 	}
 
 	json.Unmarshal([]byte(savedConfig), &mp)
 	json.Unmarshal([]byte(currentConfig), &mp2)
-	changes, deleted := getChanges(mp, mp2)
-	// allChanges := getAllChanges(mp, mp2)
-	deletedByte, _ := json.Marshal(deleted)
-	addedByte, _ := json.Marshal(mp2)
+	allChanges, disableSaveEligibleChanges := getAllChanges(mp, mp2)
 	var isLockConfigError bool
 	if lockConfig.Allowed {
-		isLockConfigError = checkAllowedChanges(changes, lockConfig.Config)
+		// Will add in v2 of this feature
 	} else {
 		isLockConfigError = checkLockedChanges(currentConfig, savedConfig, lockConfig.Config)
 	}
 	if isLockConfigError {
-		modifiedByte, _ := json.Marshal(changes)
-		changesByte, err := impl.mergeUtil.JsonPatch(modifiedByte, deletedByte)
-		if err != nil {
-			return false, "", "", "", "", err
-		}
-		changesByte, err = impl.mergeUtil.JsonPatch(changesByte, addedByte)
-		if err != nil {
-			return false, "", "", "", "", err
-		}
-
-		return true, string(changesByte), string(modifiedByte), string(deletedByte), string(addedByte), nil
+		lockedOverride, _ := json.Marshal(allChanges)
+		lockConfigErrorResponse := bean.GetLockConfigErrorResponse(string(lockedOverride), "", "", "", disableSaveEligibleChanges)
+		return lockConfigErrorResponse, nil
 	}
-	return false, "", "", "", "", nil
+	return nil, nil
 }
 
 func checkAllowedChanges(diffJson map[string]interface{}, configs []string) bool {
@@ -296,7 +285,7 @@ func checkForLockedArray(mp1, mp2 []interface{}) []interface{} {
 		if !reflect.DeepEqual(mp1[key], mp2[key]) {
 			switch reflect.TypeOf(mp1[key]).Kind() {
 			case reflect.Map:
-				locked := getAllChanges(mp1[key].(map[string]interface{}), mp2[key].(map[string]interface{}))
+				locked, _ := getAllChanges(mp1[key].(map[string]interface{}), mp2[key].(map[string]interface{}))
 				if locked != nil && len(locked) != 0 {
 					lockedMap = append(lockedMap, locked)
 				}
@@ -352,31 +341,49 @@ func getChanges(mp1, mp2 map[string]interface{}) (map[string]interface{}, map[st
 	return lockedMap, deletedMap
 }
 
-func getAllChanges(mp1, mp2 map[string]interface{}) map[string]interface{} {
+func getAllChanges(mp1, mp2 map[string]interface{}) (map[string]interface{}, bool) {
 	lockedMap := make(map[string]interface{})
+	disableSaveEligibleChanges := false
 	for key, _ := range mp1 {
 		if _, ok := mp2[key]; !ok {
+			lockedMap[key] = nil
 			continue
 		}
 		if !reflect.DeepEqual(mp1[key], mp2[key]) {
 			switch reflect.TypeOf(mp1[key]).Kind() {
 			case reflect.Map:
-				locked := getAllChanges(mp1[key].(map[string]interface{}), mp2[key].(map[string]interface{}))
+				locked, isSaveEligibleChangesDisabled := getAllChanges(mp1[key].(map[string]interface{}), mp2[key].(map[string]interface{}))
 				if locked != nil && len(locked) != 0 {
 					lockedMap[key] = locked
 				}
+				disableSaveEligibleChanges = isSaveEligibleChangesDisabled
 			case reflect.Array, reflect.Slice:
 				locked := checkForLockedArray(mp1[key].([]interface{}), mp2[key].([]interface{}))
 				if locked != nil && len(locked) != 0 {
 					lockedMap[key] = locked
 				}
+				disableSaveEligibleChanges = true
 			default:
 				lockedMap[key] = mp2[key]
 			}
+		} else {
+			delete(mp2, key)
+			continue
 		}
-
+		switch reflect.TypeOf(mp2[key]).Kind() {
+		case reflect.Map:
+			if mp2[key] == nil || len(mp2[key].(map[string]interface{})) == 0 {
+				delete(mp2, key)
+			}
+		default:
+			delete(mp2, key)
+		}
 	}
-	return lockedMap
+	for key, val := range mp2 {
+		lockedMap[key] = val
+		delete(mp2, key)
+	}
+	return lockedMap, disableSaveEligibleChanges
 }
 
 func setAllJsonValue(mp map[string]interface{}, val string) map[string]interface{} {

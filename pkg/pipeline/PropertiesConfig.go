@@ -239,26 +239,14 @@ func (impl PropertiesConfigServiceImpl) CreateEnvironmentProperties(appId int, e
 		}
 		environmentProperties.EnvOverrideValues = eligible
 	}
-	isLockConfigError, lockedOverride, changesOverride, deletedOverride, addedOverride, err := impl.lockedConfigService.HandleLockConfiguration(string(environmentProperties.EnvOverrideValues), chart.GlobalOverride, int(environmentProperties.UserId))
+	lockConfigErrorResponse, err := impl.lockedConfigService.HandleLockConfiguration(string(environmentProperties.EnvOverrideValues), chart.GlobalOverride, int(environmentProperties.UserId))
 	if err != nil {
 		return nil, err
 	}
-	if isLockConfigError {
-		var lockedJsonVal json.RawMessage
-		_ = json.Unmarshal([]byte(lockedOverride), &lockedJsonVal)
-		var changesJsonVal json.RawMessage
-		_ = json.Unmarshal([]byte(changesOverride), &changesJsonVal)
-		var addedJsonVal json.RawMessage
-		_ = json.Unmarshal([]byte(addedOverride), &addedJsonVal)
-		var deletedJsonVal json.RawMessage
-		_ = json.Unmarshal([]byte(deletedOverride), &deletedJsonVal)
+	if lockConfigErrorResponse != nil {
 		return &bean.EnvironmentUpdateResponse{
-			EnvironmentProperties: environmentProperties,
-			LockedOverride:        lockedJsonVal,
-			ModifiedOverride:      changesJsonVal,
-			DeletedOverride:       deletedJsonVal,
-			AddedOverride:         addedJsonVal,
-			IsLockConfigError:     true,
+			EnvironmentProperties:     environmentProperties,
+			LockValidateErrorResponse: lockConfigErrorResponse,
 		}, nil
 	}
 
@@ -322,10 +310,6 @@ func (impl PropertiesConfigServiceImpl) CreateEnvironmentProperties(appId int, e
 
 	return &bean.EnvironmentUpdateResponse{
 		EnvironmentProperties: environmentProperties,
-		ModifiedOverride:      nil,
-		AddedOverride:         nil,
-		DeletedOverride:       nil,
-		IsLockConfigError:     false,
 	}, nil
 }
 
@@ -376,26 +360,14 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, p
 	}
 
 	// Handle Lock Configuration
-	isLockConfigError, lockedOverride, changesOverride, deletedOverride, addedOverride, err := impl.lockedConfigService.HandleLockConfiguration(string(overrideByte), envOverrideValue, int(propertiesRequest.UserId))
+	lockConfigErrorResponse, err := impl.lockedConfigService.HandleLockConfiguration(string(overrideByte), envOverrideValue, int(propertiesRequest.UserId))
 	if err != nil {
 		return nil, err
 	}
-	if isLockConfigError {
-		var lockedJsonVal json.RawMessage
-		_ = json.Unmarshal([]byte(lockedOverride), &lockedJsonVal)
-		var changesJsonVal json.RawMessage
-		_ = json.Unmarshal([]byte(changesOverride), &changesJsonVal)
-		var addedJsonVal json.RawMessage
-		_ = json.Unmarshal([]byte(addedOverride), &addedJsonVal)
-		var deletedJsonVal json.RawMessage
-		_ = json.Unmarshal([]byte(deletedOverride), &deletedJsonVal)
+	if lockConfigErrorResponse != nil {
 		return &bean.EnvironmentUpdateResponse{
-			EnvironmentProperties: propertiesRequest,
-			LockedOverride:        lockedJsonVal,
-			ModifiedOverride:      changesJsonVal,
-			DeletedOverride:       deletedJsonVal,
-			AddedOverride:         addedJsonVal,
-			IsLockConfigError:     true,
+			EnvironmentProperties:     propertiesRequest,
+			LockValidateErrorResponse: lockConfigErrorResponse,
 		}, nil
 	}
 
@@ -466,7 +438,6 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, p
 
 	return &bean.EnvironmentUpdateResponse{
 		EnvironmentProperties: propertiesRequest,
-		IsLockConfigError:     false,
 	}, err
 }
 
