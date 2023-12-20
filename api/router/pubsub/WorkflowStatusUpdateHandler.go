@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
+	"github.com/devtron-labs/common-lib/pubsub-lib/model"
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -69,7 +70,7 @@ func NewWorkflowStatusUpdateHandlerImpl(logger *zap.SugaredLogger, pubsubClient 
 }
 
 func (impl *WorkflowStatusUpdateHandlerImpl) Subscribe() error {
-	callback := func(msg *pubsub.PubSubMsg) {
+	callback := func(msg *model.PubSubMsg) {
 		impl.logger.Debug("received wf update request")
 		//defer msg.Ack()
 		wfStatus := v1alpha1.WorkflowStatus{}
@@ -102,7 +103,7 @@ func (impl *WorkflowStatusUpdateHandlerImpl) Subscribe() error {
 }
 
 func (impl *WorkflowStatusUpdateHandlerImpl) SubscribeCD() error {
-	callback := func(msg *pubsub.PubSubMsg) {
+	callback := func(msg *model.PubSubMsg) {
 		impl.logger.Debug("received cd wf update request")
 		//defer msg.Ack()
 		wfStatus := v1alpha1.WorkflowStatus{}
