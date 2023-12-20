@@ -2489,17 +2489,12 @@ func (handler PipelineConfigRestHandlerImpl) UpgradeForAllApps(w http.ResponseWr
 
 func (handler PipelineConfigRestHandlerImpl) GetCdPipelinesByEnvironment(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
+	token := r.Header.Get("token")
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	user, err := handler.userAuthService.GetById(userId)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	userEmailId := strings.ToLower(user.EmailId)
 	envId, err := strconv.Atoi(vars["envId"])
 	if err != nil {
 		handler.Logger.Errorw("request err, GetCdPipelines", "err", err, "envId", envId)
@@ -2535,13 +2530,12 @@ func (handler PipelineConfigRestHandlerImpl) GetCdPipelinesByEnvironment(w http.
 		ResourceGroupId:   appGroupId,
 		ResourceGroupType: resourceGroup2.APP_GROUP,
 		ResourceIds:       appIds,
-		EmailId:           userEmailId,
 		CheckAuthBatch:    handler.checkAuthBatch,
 		UserId:            userId,
 		Ctx:               r.Context(),
 	}
 	_, span := otel.Tracer("orchestrator").Start(r.Context(), "cdHandler.FetchCdPipelinesForResourceGrouping")
-	results, err := handler.pipelineBuilder.GetCdPipelinesByEnvironment(request)
+	results, err := handler.pipelineBuilder.GetCdPipelinesByEnvironment(request, token)
 	span.End()
 	if err != nil {
 		handler.Logger.Errorw("service err, GetCdPipelines", "err", err, "envId", envId)
@@ -2558,12 +2552,7 @@ func (handler PipelineConfigRestHandlerImpl) GetCdPipelinesByEnvironmentMin(w ht
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	user, err := handler.userAuthService.GetById(userId)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	userEmailId := strings.ToLower(user.EmailId)
+	token := r.Header.Get("token")
 	envId, err := strconv.Atoi(vars["envId"])
 	if err != nil {
 		handler.Logger.Errorw("request err, GetCdPipelines", "err", err, "envId", envId)
@@ -2599,14 +2588,13 @@ func (handler PipelineConfigRestHandlerImpl) GetCdPipelinesByEnvironmentMin(w ht
 		ResourceGroupId:   appGroupId,
 		ResourceGroupType: resourceGroup2.APP_GROUP,
 		ResourceIds:       appIds,
-		EmailId:           userEmailId,
 		CheckAuthBatch:    handler.checkAuthBatch,
 		UserId:            userId,
 		Ctx:               r.Context(),
 	}
 
 	_, span := otel.Tracer("orchestrator").Start(r.Context(), "cdHandler.FetchCdPipelinesForResourceGrouping")
-	results, err := handler.pipelineBuilder.GetCdPipelinesByEnvironmentMin(request)
+	results, err := handler.pipelineBuilder.GetCdPipelinesByEnvironmentMin(request, token)
 	span.End()
 	if err != nil {
 		handler.Logger.Errorw("service err, GetCdPipelines", "err", err, "envId", envId)
@@ -2616,14 +2604,14 @@ func (handler PipelineConfigRestHandlerImpl) GetCdPipelinesByEnvironmentMin(w ht
 	common.WriteJsonResp(w, err, results, http.StatusOK)
 }
 
-func (handler *PipelineConfigRestHandlerImpl) checkAuthBatch(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool) {
+func (handler *PipelineConfigRestHandlerImpl) checkAuthBatch(token string, appObject []string, envObject []string) (map[string]bool, map[string]bool) {
 	var appResult map[string]bool
 	var envResult map[string]bool
 	if len(appObject) > 0 {
-		appResult = handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceApplications, casbin.ActionGet, appObject)
+		appResult = handler.enforcer.EnforceInBatch(token, casbin.ResourceApplications, casbin.ActionGet, appObject)
 	}
 	if len(envObject) > 0 {
-		envResult = handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceEnvironment, casbin.ActionGet, envObject)
+		envResult = handler.enforcer.EnforceInBatch(token, casbin.ResourceEnvironment, casbin.ActionGet, envObject)
 	}
 	return appResult, envResult
 }

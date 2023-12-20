@@ -263,14 +263,13 @@ func (impl TeamRestHandlerImpl) FetchForAutocomplete(w http.ResponseWriter, r *h
 	start = time.Now()
 	if !impl.cfg.IgnoreAuthCheck {
 		grantedTeams = make([]team.TeamRequest, 0)
-		emailId, _ := impl.userService.GetEmailFromToken(token)
 		// RBAC enforcer applying
 		var teamNameList []string
 		for _, item := range teams {
 			teamNameList = append(teamNameList, strings.ToLower(item.Name))
 		}
 
-		result := impl.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceTeam, casbin.ActionGet, teamNameList)
+		result := impl.enforcer.EnforceInBatch(token, casbin.ResourceTeam, casbin.ActionGet, teamNameList)
 
 		for _, item := range teams {
 			if hasAccess := result[strings.ToLower(item.Name)]; hasAccess {

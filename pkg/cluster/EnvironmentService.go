@@ -545,7 +545,7 @@ func (impl EnvironmentServiceImpl) GetByClusterId(id int) ([]*EnvironmentBean, e
 	return beans, nil
 }
 
-func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(emailId string, isActionUserSuperAdmin bool, auth func(email string, object []string) map[string]bool) ([]*ClusterEnvDto, error) {
+func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(token string, isActionUserSuperAdmin bool, auth func(email string, object []string) map[string]bool) ([]*ClusterEnvDto, error) {
 	var namespaceGroupByClusterResponse []*ClusterEnvDto
 	clusterModels, err := impl.clusterService.FindAllActive()
 	if err != nil {
@@ -566,7 +566,7 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(emailId
 		rbacObject = append(rbacObject, model.EnvironmentIdentifier)
 	}
 	// auth enforcer applied here in batch
-	rbacObjectResult := auth(emailId, rbacObject)
+	rbacObjectResult := auth(token, rbacObject)
 
 	uniqueComboMap := make(map[string]bool)
 	grantedEnvironmentMap := make(map[string][]*EnvDto)
@@ -600,7 +600,7 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(emailId
 		}
 	}
 	// auth enforcer applied here in batch
-	rbacObjectResult2 := auth(emailId, rbacObject)
+	rbacObjectResult2 := auth(token, rbacObject)
 
 	for clusterName, namespaces := range namespaceListGroupByClusters {
 		clusterId := clusterMap[clusterName]

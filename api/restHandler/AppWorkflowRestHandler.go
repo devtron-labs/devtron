@@ -242,12 +242,6 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflow(w http.ResponseWriter, r 
 	workflows["appName"] = app.AppName
 	if len(workflowsList) > 0 && app.AppType == helper.Job {
 		// RBAC
-		userEmailId, err := impl.userAuthService.GetEmailFromToken(token)
-		if err != nil {
-			impl.Logger.Errorw("error in getting user emailId from token", "err", err)
-			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-			return
-		}
 
 		var workflowNames []string
 		var workflowIds []int
@@ -267,7 +261,7 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflow(w http.ResponseWriter, r 
 			itr++
 		}
 
-		enforcedMap := impl.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceWorkflow, casbin.ActionGet, rbacObjects)
+		enforcedMap := impl.enforcer.EnforceInBatch(token, casbin.ResourceWorkflow, casbin.ActionGet, rbacObjects)
 		for obj, passed := range enforcedMap {
 			if passed {
 				updatedWorkflowList = append(updatedWorkflowList, workNameObjectMap[obj])
@@ -348,17 +342,13 @@ func (impl AppWorkflowRestHandlerImpl) FindAllWorkflowsForApps(w http.ResponseWr
 
 func (impl AppWorkflowRestHandlerImpl) FindAppWorkflowByEnvironment(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
+	token := r.Header.Get("token")
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	user, err := impl.userAuthService.GetById(userId)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	userEmailId := strings.ToLower(user.EmailId)
+
 	envId, err := strconv.Atoi(vars["envId"])
 	if err != nil {
 		impl.Logger.Errorw("bad request", "err", err)
@@ -395,14 +385,13 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflowByEnvironment(w http.Respo
 		ResourceGroupId:   appGroupId,
 		ResourceGroupType: resourceGroup2.APP_GROUP,
 		ResourceIds:       appIds,
-		EmailId:           userEmailId,
 		CheckAuthBatch:    impl.checkAuthBatch,
 		UserId:            userId,
 		Ctx:               r.Context(),
 	}
 	workflows := make(map[string]interface{})
 	_, span := otel.Tracer("orchestrator").Start(r.Context(), "ciHandler.FetchAppWorkflowsInAppGrouping")
-	workflowsList, err := impl.appWorkflowService.FindAppWorkflowsByEnvironmentId(request)
+	workflowsList, err := impl.appWorkflowService.FindAppWorkflowsByEnvironmentId(request, token)
 	span.End()
 	if err != nil {
 		impl.Logger.Errorw("error in fetching workflows for app", "err", err)
@@ -514,14 +503,14 @@ func (handler *AppWorkflowRestHandlerImpl) GetWorkflowsViewData(w http.ResponseW
 	common.WriteJsonResp(w, err, response, http.StatusOK)
 }
 
-func (handler *AppWorkflowRestHandlerImpl) checkAuthBatch(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool) {
+func (handler *AppWorkflowRestHandlerImpl) checkAuthBatch(token string, appObject []string, envObject []string) (map[string]bool, map[string]bool) {
 	var appResult map[string]bool
 	var envResult map[string]bool
 	if len(appObject) > 0 {
-		appResult = handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceApplications, casbin.ActionGet, appObject)
+		appResult = handler.enforcer.EnforceInBatch(token, casbin.ResourceApplications, casbin.ActionGet, appObject)
 	}
 	if len(envObject) > 0 {
-		envResult = handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceEnvironment, casbin.ActionGet, envObject)
+		envResult = handler.enforcer.EnforceInBatch(token, casbin.ResourceEnvironment, casbin.ActionGet, envObject)
 	}
 	return appResult, envResult
 }

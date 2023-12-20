@@ -49,12 +49,6 @@ func (handler *RbacRoleRestHandlerImpl) GetAllDefaultRoles(w http.ResponseWriter
 	handler.logger.Debugw("request payload, GetAllDefaultRoles")
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	emailId, err := handler.userService.GetEmailFromToken(token)
-	if err != nil {
-		handler.logger.Errorw("error in getting user emailId from token", "userId", userId, "err", err)
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
 	teamNames, err := handler.enforcerUtil.GetAllActiveTeamNames()
 	if err != nil {
 		handler.logger.Errorw("error in finding all active team names", "err", err)
@@ -62,7 +56,7 @@ func (handler *RbacRoleRestHandlerImpl) GetAllDefaultRoles(w http.ResponseWriter
 		return
 	}
 	if len(teamNames) > 0 {
-		rbacResultMap := handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceUser, casbin.ActionGet, teamNames)
+		rbacResultMap := handler.enforcer.EnforceInBatch(token, casbin.ResourceUser, casbin.ActionGet, teamNames)
 		isAuthorized := false
 		for _, authorizedOnTeam := range rbacResultMap {
 			if authorizedOnTeam {

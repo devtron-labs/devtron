@@ -41,9 +41,9 @@ type ExternalCiRestHandlerImpl struct {
 	logger         *zap.SugaredLogger
 	webhookService pipeline.WebhookService
 	ciEventHandler pubsub.CiEventHandler
-	validator   *validator.Validate
-	userService user.UserService
-	enforcer    casbin.Enforcer
+	validator      *validator.Validate
+	userService    user.UserService
+	enforcer       casbin.Enforcer
 	enforcerUtil   rbac.EnforcerUtil
 }
 
@@ -65,6 +65,7 @@ func NewExternalCiRestHandlerImpl(logger *zap.SugaredLogger, webhookService pipe
 func (impl ExternalCiRestHandlerImpl) HandleExternalCiWebhook(w http.ResponseWriter, r *http.Request) {
 	setupResponse(&w, r)
 	vars := mux.Vars(r)
+	token := r.Header.Get("token")
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized", http.StatusUnauthorized)
@@ -99,7 +100,7 @@ func (impl ExternalCiRestHandlerImpl) HandleExternalCiWebhook(w http.ResponseWri
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	_, err = impl.webhookService.HandleExternalCiWebhook(externalCiId, ciArtifactReq, impl.checkExternalCiDeploymentAuth)
+	_, err = impl.webhookService.HandleExternalCiWebhook(externalCiId, ciArtifactReq, impl.checkExternalCiDeploymentAuth, token)
 	if err != nil {
 		impl.logger.Errorw("service err, HandleExternalCiWebhook", "err", err, "payload", req)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -109,11 +110,11 @@ func (impl ExternalCiRestHandlerImpl) HandleExternalCiWebhook(w http.ResponseWri
 	common.WriteJsonResp(w, err, nil, http.StatusOK)
 }
 
-func (impl ExternalCiRestHandlerImpl) checkExternalCiDeploymentAuth(email string, projectObject string, envObject string) bool {
-	if ok := impl.enforcer.EnforceByEmail(email, casbin.ResourceApplications, casbin.ActionTrigger, projectObject); !ok {
+func (impl ExternalCiRestHandlerImpl) checkExternalCiDeploymentAuth(token string, projectObject string, envObject string) bool {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, projectObject); !ok {
 		return false
 	}
-	if ok := impl.enforcer.EnforceByEmail(email, casbin.ResourceEnvironment, casbin.ActionTrigger, envObject); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionTrigger, envObject); !ok {
 		return false
 	}
 	return true

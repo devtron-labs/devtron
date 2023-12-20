@@ -20,10 +20,6 @@ package restHandler
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
-	"strconv"
-	"strings"
-
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
@@ -31,6 +27,8 @@ import (
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
+	"net/http"
+	"strconv"
 )
 
 type ResourceGroupRestHandler interface {
@@ -63,7 +61,7 @@ func NewResourceGroupRestHandlerImpl(logger *zap.SugaredLogger, enforcer casbin.
 	return userAuthHandler
 }
 
-func (handler ResourceGroupRestHandlerImpl) getGroupTypeAndAuthFunc(groupType string) (resourceGroup.ResourceGroupType, func(emailId string, appObject []string, action string) map[string]bool, error) {
+func (handler ResourceGroupRestHandlerImpl) getGroupTypeAndAuthFunc(groupType string) (resourceGroup.ResourceGroupType, func(token string, appObject []string, action string) map[string]bool, error) {
 	var resourceGroupType resourceGroup.ResourceGroupType
 	var authFunc func(emailId string, appObject []string, action string) map[string]bool
 	if groupType == "env-group" {
@@ -80,17 +78,8 @@ func (handler ResourceGroupRestHandlerImpl) getGroupTypeAndAuthFunc(groupType st
 }
 
 func (handler ResourceGroupRestHandlerImpl) GetActiveResourceGroupList(w http.ResponseWriter, r *http.Request) {
-	userId, err := handler.userService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	user, err := handler.userService.GetById(userId)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	emailId := strings.ToLower(user.EmailId)
+	token := r.Header.Get("token")
+
 	vars := mux.Vars(r)
 	resourceId, err := strconv.Atoi(vars["resourceId"])
 	if err != nil {
@@ -103,7 +92,7 @@ func (handler ResourceGroupRestHandlerImpl) GetActiveResourceGroupList(w http.Re
 		return
 	}
 
-	res, err := handler.resourceGroupService.GetActiveResourceGroupList(emailId, authFunc, resourceId, groupType)
+	res, err := handler.resourceGroupService.GetActiveResourceGroupList(token, authFunc, resourceId, groupType)
 	if err != nil {
 		handler.logger.Errorw("service err, GetActiveResourceGroupList", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -138,6 +127,7 @@ func (handler ResourceGroupRestHandlerImpl) GetActiveResourceGroupList(w http.Re
 //		common.WriteJsonResp(w, nil, res, http.StatusOK)
 //	}
 func (handler ResourceGroupRestHandlerImpl) CreateResourceGroup(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -152,12 +142,6 @@ func (handler ResourceGroupRestHandlerImpl) CreateResourceGroup(w http.ResponseW
 		return
 	}
 	request.UserId = userId
-	user, err := handler.userService.GetById(userId)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	emailId := strings.ToLower(user.EmailId)
 	err = handler.validator.Struct(request)
 	if err != nil {
 		handler.logger.Errorw("validation error", "err", err, "payload", request)
@@ -197,8 +181,7 @@ func (handler ResourceGroupRestHandlerImpl) CreateResourceGroup(w http.ResponseW
 	}
 	handler.logger.Infow("request payload, CreateResourceGroup", "payload", request)
 	request.CheckAuthBatch = authFunc
-	request.EmailId = emailId
-	resp, err := handler.resourceGroupService.CreateResourceGroup(&request)
+	resp, err := handler.resourceGroupService.CreateResourceGroup(&request, token)
 	if err != nil {
 		handler.logger.Errorw("service err, CreateResourceGroup", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -207,6 +190,8 @@ func (handler ResourceGroupRestHandlerImpl) CreateResourceGroup(w http.ResponseW
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
 func (handler ResourceGroupRestHandlerImpl) UpdateResourceGroup(w http.ResponseWriter, r *http.Request) {
+
+	token := r.Header.Get("token")
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -221,12 +206,6 @@ func (handler ResourceGroupRestHandlerImpl) UpdateResourceGroup(w http.ResponseW
 		return
 	}
 	request.UserId = userId
-	user, err := handler.userService.GetById(userId)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	emailId := strings.ToLower(user.EmailId)
 
 	groupType, authFunc, err := handler.getGroupTypeAndAuthFunc(string(request.GroupType))
 	if err != nil {
@@ -254,8 +233,7 @@ func (handler ResourceGroupRestHandlerImpl) UpdateResourceGroup(w http.ResponseW
 
 	handler.logger.Infow("request payload, UpdateResourceGroup", "payload", request)
 	request.CheckAuthBatch = authFunc
-	request.EmailId = emailId
-	resp, err := handler.resourceGroupService.UpdateResourceGroup(&request)
+	resp, err := handler.resourceGroupService.UpdateResourceGroup(&request, token)
 	if err != nil {
 		handler.logger.Errorw("service err, UpdateResourceGroup", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)
@@ -264,28 +242,19 @@ func (handler ResourceGroupRestHandlerImpl) UpdateResourceGroup(w http.ResponseW
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
 func (handler ResourceGroupRestHandlerImpl) DeleteResourceGroup(w http.ResponseWriter, r *http.Request) {
-	userId, err := handler.userService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
+	token := r.Header.Get("token")
+
 	vars := mux.Vars(r)
 	resourceGroupId, err := strconv.Atoi(vars["resourceGroupId"])
 	if err != nil {
 		common.WriteJsonResp(w, err, "", http.StatusBadRequest)
 		return
 	}
-	user, err := handler.userService.GetById(userId)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	emailId := strings.ToLower(user.EmailId)
 
 	groupType, authFunc, err := handler.getGroupTypeAndAuthFunc(vars["groupType"])
 
 	handler.logger.Infow("request payload, DeleteResourceGroup", "resourceGroupId", resourceGroupId)
-	resp, err := handler.resourceGroupService.DeleteResourceGroup(resourceGroupId, groupType, emailId, authFunc)
+	resp, err := handler.resourceGroupService.DeleteResourceGroup(resourceGroupId, groupType, token, authFunc)
 	if err != nil {
 		handler.logger.Errorw("service err, DeleteResourceGroup", "err", err, "resourceGroupId", resourceGroupId, "groupType", groupType)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -294,6 +263,8 @@ func (handler ResourceGroupRestHandlerImpl) DeleteResourceGroup(w http.ResponseW
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
 func (handler ResourceGroupRestHandlerImpl) CheckResourceGroupPermissions(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
+
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -308,12 +279,6 @@ func (handler ResourceGroupRestHandlerImpl) CheckResourceGroupPermissions(w http
 		return
 	}
 	request.UserId = userId
-	user, err := handler.userService.GetById(userId)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	emailId := strings.ToLower(user.EmailId)
 	vars := mux.Vars(r)
 	resourceId, err := strconv.Atoi(vars["resourceId"])
 	if err != nil {
@@ -341,8 +306,7 @@ func (handler ResourceGroupRestHandlerImpl) CheckResourceGroupPermissions(w http
 
 	handler.logger.Infow("request payload, CheckResourceGroupPermissions", "payload", request)
 	request.CheckAuthBatch = authFunc
-	request.EmailId = emailId
-	resp, err := handler.resourceGroupService.CheckResourceGroupPermissions(&request)
+	resp, err := handler.resourceGroupService.CheckResourceGroupPermissions(&request, token)
 	if err != nil {
 		handler.logger.Errorw("service err", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -351,18 +315,18 @@ func (handler ResourceGroupRestHandlerImpl) CheckResourceGroupPermissions(w http
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
 
-func (handler ResourceGroupRestHandlerImpl) checkAppAuthBatch(emailId string, appObject []string, action string) map[string]bool {
+func (handler ResourceGroupRestHandlerImpl) checkAppAuthBatch(token string, appObject []string, action string) map[string]bool {
 	var appResult map[string]bool
 	if len(appObject) > 0 {
-		appResult = handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceApplications, action, appObject)
+		appResult = handler.enforcer.EnforceInBatch(token, casbin.ResourceApplications, action, appObject)
 	}
 	return appResult
 }
 
-func (handler ResourceGroupRestHandlerImpl) checkEnvAuthBatch(emailId string, envObject []string, action string) map[string]bool {
+func (handler ResourceGroupRestHandlerImpl) checkEnvAuthBatch(token string, envObject []string, action string) map[string]bool {
 	var appResult map[string]bool
 	if len(envObject) > 0 {
-		appResult = handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceEnvironment, action, envObject)
+		appResult = handler.enforcer.EnforceInBatch(token, casbin.ResourceEnvironment, action, envObject)
 	}
 	return appResult
 }

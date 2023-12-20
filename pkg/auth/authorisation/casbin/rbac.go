@@ -38,10 +38,11 @@ import (
 )
 
 type Enforcer interface {
-	Enforce(emailId string, resource string, action string, resourceItem string) bool
+	Enforce(token string, resource string, action string, resourceItem string) bool
 	EnforceErr(emailId string, resource string, action string, resourceItem string) error
+	EnforceInBatch(token string, resource string, action string, vals []string) map[string]bool
 	EnforceByEmail(emailId string, resource string, action string, resourceItem string) bool
-	EnforceByEmailInBatch(emailId string, resource string, action string, vals []string) map[string]bool
+	//EnforceByEmailInBatch(emailId string, resource string, action string, vals []string) map[string]bool
 	InvalidateCache(emailId string) bool
 	InvalidateCompleteCache()
 	ReloadPolicy() error
@@ -117,6 +118,10 @@ func (e *EnforcerImpl) Enforce(token string, resource string, action string, res
 
 func (e *EnforcerImpl) EnforceByEmail(emailId string, resource string, action string, resourceItem string) bool {
 	return e.enforceByEmail(strings.ToLower(emailId), resource, action, strings.ToLower(resourceItem))
+}
+
+func (e *EnforcerImpl) EnforceInBatch(token string, resource string, action string, vals []string) map[string]bool {
+	return e.enforceInBatch(token, resource, action, vals)
 }
 
 func (e *EnforcerImpl) ReloadPolicy() error {
@@ -371,6 +376,15 @@ func (e *EnforcerImpl) enforce(token string, resource string, action string, res
 		return false
 	}
 	return e.EnforceByEmail(email, resource, action, resourceItem)
+}
+
+// enforceInBatch is a helper to additionally check a default role and invoke a custom claims enforcement function
+func (e *EnforcerImpl) enforceInBatch(token string, resource string, action string, vals []string) map[string]bool {
+	email, invalid := e.VerifyTokenAndGetEmail(token)
+	if invalid {
+		return make(map[string]bool)
+	}
+	return e.EnforceByEmailInBatch(email, resource, action, vals)
 }
 
 func (e *EnforcerImpl) enforceAndUpdateCache(email string, resource string, action string, resourceItem string) bool {

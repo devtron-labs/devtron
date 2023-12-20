@@ -61,9 +61,9 @@ type EnvironmentRestHandler interface {
 type EnvironmentRestHandlerImpl struct {
 	environmentClusterMappingsService request.EnvironmentService
 	k8sCommonService                  k8s.K8sCommonService
-	logger      *zap.SugaredLogger
-	userService user.UserService
-	validator   *validator.Validate
+	logger                            *zap.SugaredLogger
+	userService                       user.UserService
+	validator                         *validator.Validate
 	enforcer                          casbin.Enforcer
 	deleteService                     delete2.DeleteService
 	k8sUtil                           *k8s2.K8sUtil
@@ -183,12 +183,6 @@ func (impl EnvironmentRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Req
 	}
 
 	token := r.Header.Get("token")
-	emailId, err := impl.userService.GetEmailFromToken(token)
-	if err != nil {
-		impl.logger.Errorw("error in getting emailId from token", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
 
 	grantedEnvironments := make([]*request.EnvironmentBean, 0)
 
@@ -201,7 +195,7 @@ func (impl EnvironmentRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Req
 	}
 
 	// RBAC enforcer applying
-	rbacResultMap := impl.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceGlobalEnvironment, casbin.ActionGet, envIdentifierList)
+	rbacResultMap := impl.enforcer.EnforceInBatch(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, envIdentifierList)
 	for envIdentifier, item := range envIdentifierMap {
 		if rbacResultMap[envIdentifier] {
 			grantedEnvironments = append(grantedEnvironments, item)
@@ -327,14 +321,13 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentListForAutocomplete(w http.
 	start = time.Now()
 	if !impl.cfg.IgnoreAuthCheck {
 		grantedEnvironment = make([]request.EnvironmentBean, 0)
-		emailId, _ := impl.userService.GetEmailFromToken(token)
 		// RBAC enforcer applying
 		var envIdentifierList []string
 		for _, item := range environments {
 			envIdentifierList = append(envIdentifierList, strings.ToLower(item.EnvironmentIdentifier))
 		}
 
-		result := impl.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceGlobalEnvironment, casbin.ActionGet, envIdentifierList)
+		result := impl.enforcer.EnforceInBatch(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, envIdentifierList)
 		for _, item := range environments {
 
 			var hasAccess bool
@@ -370,13 +363,7 @@ func (impl EnvironmentRestHandlerImpl) GetCombinedEnvironmentListForDropDown(w h
 		return
 	}
 	token := r.Header.Get("token")
-	userEmailId, err := impl.userService.GetEmailFromToken(token)
-	if err != nil {
-		impl.logger.Errorw("error in getting user emailId from token", "userId", userId, "err", err)
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	clusters, err := impl.environmentClusterMappingsService.GetCombinedEnvironmentListForDropDown(userEmailId, isActionUserSuperAdmin, impl.CheckAuthorizationByEmailInBatchForGlobalEnvironment)
+	clusters, err := impl.environmentClusterMappingsService.GetCombinedEnvironmentListForDropDown(token, isActionUserSuperAdmin, impl.CheckAuthorizationByEmailInBatchForGlobalEnvironment)
 	if err != nil {
 		impl.logger.Errorw("service err, GetCombinedEnvironmentListForDropDown", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -388,10 +375,10 @@ func (impl EnvironmentRestHandlerImpl) GetCombinedEnvironmentListForDropDown(w h
 	common.WriteJsonResp(w, err, clusters, http.StatusOK)
 }
 
-func (handler EnvironmentRestHandlerImpl) CheckAuthorizationByEmailInBatchForGlobalEnvironment(emailId string, object []string) map[string]bool {
+func (handler EnvironmentRestHandlerImpl) CheckAuthorizationByEmailInBatchForGlobalEnvironment(token string, object []string) map[string]bool {
 	var objectResult map[string]bool
 	if len(object) > 0 {
-		objectResult = handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceGlobalEnvironment, casbin.ActionGet, object)
+		objectResult = handler.enforcer.EnforceInBatch(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, object)
 	}
 	return objectResult
 }

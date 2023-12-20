@@ -17,8 +17,8 @@ type ClusterRbacServiceImpl struct {
 	logger             *zap.SugaredLogger
 	environmentService EnvironmentService
 	enforcer           casbin.Enforcer
-	clusterService ClusterService
-	userService    user.UserService
+	clusterService     ClusterService
+	userService        user.UserService
 }
 
 func NewClusterRbacServiceImpl(environmentService EnvironmentService,
@@ -61,11 +61,6 @@ func (impl *ClusterRbacServiceImpl) CheckAuthorization(clusterName string, clust
 		}
 		return true, nil
 	}
-	emailId, err := impl.userService.GetEmailFromToken(token)
-	if err != nil {
-		impl.logger.Errorw("error in getting emailId from token", "err", err)
-		return false, err
-	}
 
 	var envIdentifierList []string
 	envIdentifierMap := make(map[string]bool)
@@ -78,7 +73,7 @@ func (impl *ClusterRbacServiceImpl) CheckAuthorization(clusterName string, clust
 		return false, errors.New("environment identifier list for rbac batch enforcing contains zero environments")
 	}
 	// RBAC enforcer applying
-	rbacResultMap := impl.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceGlobalEnvironment, casbin.ActionGet, envIdentifierList)
+	rbacResultMap := impl.enforcer.EnforceInBatch(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, envIdentifierList)
 	for envIdentifier, _ := range envIdentifierMap {
 		if rbacResultMap[envIdentifier] {
 			//if user has view permission to even one environment of this cluster, authorise the request

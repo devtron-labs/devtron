@@ -69,9 +69,9 @@ type InstalledAppRestHandler interface {
 }
 
 type InstalledAppRestHandlerImpl struct {
-	Logger          *zap.SugaredLogger
-	userAuthService user.UserService
-	enforcer        casbin.Enforcer
+	Logger                           *zap.SugaredLogger
+	userAuthService                  user.UserService
+	enforcer                         casbin.Enforcer
 	enforcerUtil                     rbac.EnforcerUtil
 	enforcerUtilHelm                 rbac.EnforcerUtilHelm
 	installedAppService              service.InstalledAppService
@@ -160,12 +160,6 @@ func (handler InstalledAppRestHandlerImpl) GetAllInstalledApp(w http.ResponseWri
 	}
 	v := r.URL.Query()
 	token := r.Header.Get("token")
-	userEmailId, err := handler.userAuthService.GetEmailFromToken(token)
-	if err != nil {
-		handler.Logger.Errorw("error in getting user emailId from token", "userId", userId, "err", err)
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
 	var envIds []int
 	envsQueryParam := v.Get("envIds")
 	if envsQueryParam != "" {
@@ -291,8 +285,8 @@ func (handler InstalledAppRestHandlerImpl) GetAllInstalledApp(w http.ResponseWri
 
 	}
 	start := time.Now()
-	resultObjectMap1 := handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceHelmApp, casbin.ActionGet, objectArray1)
-	resultObjectMap2 := handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceHelmApp, casbin.ActionGet, objectArray2)
+	resultObjectMap1 := handler.enforcer.EnforceInBatch(token, casbin.ResourceHelmApp, casbin.ActionGet, objectArray1)
+	resultObjectMap2 := handler.enforcer.EnforceInBatch(token, casbin.ResourceHelmApp, casbin.ActionGet, objectArray2)
 	middleware.AppListingDuration.WithLabelValues("enforceByEmailInBatch", "helm").Observe(time.Since(start).Seconds())
 	authorizedAppIdSet := make(map[string]bool)
 	//O(n) time loop , at max we will only iterate through all the apps

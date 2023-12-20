@@ -84,12 +84,6 @@ func (handler PipelineConfigRestHandlerImpl) GetAppListForAutocomplete(w http.Re
 	// RBAC
 	_, span := otel.Tracer("autoCompleteAppAPI").Start(context.Background(), "RBACForAutoCompleteAppAPI")
 	token := r.Header.Get("token")
-	userEmailId, err := handler.userAuthService.GetEmailFromToken(token)
-	if err != nil {
-		handler.Logger.Errorw("error in getting user emailId from token", "userId", userId, "err", err)
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
 	accessedApps := make([]*pipeline.AppBean, 0)
 	rbacObjects := make([]string, 0)
 
@@ -105,7 +99,7 @@ func (handler PipelineConfigRestHandlerImpl) GetAppListForAutocomplete(w http.Re
 		rbacObjects = append(rbacObjects, object)
 	}
 
-	enforcedMap := handler.enforcerUtil.CheckAppRbacForAppOrJobInBulk(userEmailId, casbin.ActionGet, rbacObjects, helper.AppType(appType))
+	enforcedMap := handler.enforcerUtil.CheckAppRbacForAppOrJobInBulk(token, casbin.ActionGet, rbacObjects, helper.AppType(appType))
 	for _, app := range apps {
 		object := appIdToObjectMap[app.Id]
 		if enforcedMap[object] {
