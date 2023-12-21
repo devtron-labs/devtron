@@ -319,13 +319,6 @@ func (impl WebhookServiceImpl) HandleCiSuccessEvent(ciPipelineId int, request *C
 		ciArtifactArr = append(ciArtifactArr, pluginArtifacts[0])
 	}
 	go impl.WriteCISuccessEvent(request, pipeline, buildArtifact)
-	applyAuth := true
-	if request.UserId == 1 {
-		impl.logger.Debugw("Trigger (auto) by system user", "userId", request.UserId)
-		applyAuth = false
-	} else {
-		impl.logger.Debugw("Trigger (manual) by user", "userId", request.UserId)
-	}
 	async := false
 
 	// execute auto trigger in batch on CI success event
@@ -351,7 +344,7 @@ func (impl WebhookServiceImpl) HandleCiSuccessEvent(ciPipelineId int, request *C
 				defer wg.Done()
 				ciArtifact := ciArtifactArr[index]
 				// handle individual CiArtifact success event
-				err = impl.workflowDagExecutor.HandleCiSuccessEvent(ciArtifact, applyAuth, async, request.UserId)
+				err = impl.workflowDagExecutor.HandleCiSuccessEvent(ciArtifact, async, request.UserId)
 				if err != nil {
 					impl.logger.Errorw("error on handle  ci success event", "ciArtifactId", ciArtifact.Id, "err", err)
 				}
