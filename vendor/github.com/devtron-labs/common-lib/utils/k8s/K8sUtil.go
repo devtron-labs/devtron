@@ -509,16 +509,6 @@ func (impl K8sUtil) CreateJob(namespace string, name string, clusterConfig *Clus
 	time.Sleep(5 * time.Second)
 
 	jobs := clientSet.BatchV1().Jobs(namespace)
-	_, err = jobs.Get(context.Background(), name, metav1.GetOptions{})
-	if err == nil {
-		impl.logger.Errorw("get job err, CreateJob", "err", err)
-		time.Sleep(5 * time.Second)
-		_, err = jobs.Get(context.Background(), name, metav1.GetOptions{})
-		if err == nil {
-			return error2.New("job deletion takes more time than expected, please try after sometime")
-		}
-	}
-
 	_, err = jobs.Create(context.Background(), job, metav1.CreateOptions{})
 	if err != nil {
 		impl.logger.Errorw("create err, CreateJob", "err", err)
