@@ -14,6 +14,11 @@ Install [Helm](https://helm.sh/docs/intro/install/) if you have not installed it
 helm repo add devtron https://helm.devtron.ai
 ```
 
+## Update Helm Repo
+```bash
+helm repo update devtron
+```
+
 ## Install Helm Dashboard by Devtron
 
 **Note**: This installation command will not install CI/CD integration. For CI/CD, refer [install Devtron with CI/CD](https://docs.devtron.ai/install/install-devtron-with-cicd) section.
