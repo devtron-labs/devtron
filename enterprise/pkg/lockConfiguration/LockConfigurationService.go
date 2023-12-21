@@ -278,7 +278,8 @@ func checkLockedChanges(currentConfig, savedConfig string, configs []string) boo
 
 func checkForLockedArray(mp1, mp2 []interface{}) []interface{} {
 	var lockedMap []interface{}
-	for key, _ := range mp1 {
+	var key int
+	for key, _ = range mp1 {
 		if key >= len(mp2) {
 			break
 		}
@@ -299,6 +300,12 @@ func checkForLockedArray(mp1, mp2 []interface{}) []interface{} {
 
 			}
 		}
+	}
+	for key1, _ := range mp2 {
+		if key1 <= key {
+			continue
+		}
+		lockedMap = append(lockedMap, mp2[key1])
 	}
 	return lockedMap
 }
@@ -356,7 +363,9 @@ func getAllChanges(mp1, mp2 map[string]interface{}) (map[string]interface{}, boo
 				if locked != nil && len(locked) != 0 {
 					lockedMap[key] = locked
 				}
-				disableSaveEligibleChanges = isSaveEligibleChangesDisabled
+				if isSaveEligibleChangesDisabled {
+					disableSaveEligibleChanges = true
+				}
 			case reflect.Array, reflect.Slice:
 				locked := checkForLockedArray(mp1[key].([]interface{}), mp2[key].([]interface{}))
 				if locked != nil && len(locked) != 0 {
