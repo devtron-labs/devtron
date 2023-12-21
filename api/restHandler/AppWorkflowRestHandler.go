@@ -163,7 +163,7 @@ func (handler AppWorkflowRestHandlerImpl) DeleteAppWorkflow(w http.ResponseWrite
 	if err != nil {
 		if _, ok := err.(*util.ApiError); ok {
 			handler.Logger.Warnw("error on deleting", "err", err)
-			common.WriteJsonResp(w, err, []byte("Creation Failed"), http.StatusOK)
+			common.WriteJsonResp(w, err, []byte("Deletion Failed"), http.StatusOK)
 			return
 		} else {
 			handler.Logger.Errorw("error on deleting", "err", err)
