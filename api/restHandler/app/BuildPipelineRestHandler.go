@@ -1815,11 +1815,6 @@ func (handler PipelineConfigRestHandlerImpl) CreateUpdateImageTagging(w http.Res
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	user, err := handler.userAuthService.GetById(userId)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
 	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
 
 	artifactId, err := strconv.Atoi(vars["artifactId"])
@@ -1887,7 +1882,7 @@ func (handler PipelineConfigRestHandlerImpl) CreateUpdateImageTagging(w http.Res
 	}
 	req.ExternalCi = externalCi
 	//pass it to service layer
-	resp, err := handler.imageTaggingService.CreateOrUpdateImageTagging(ciPipelineId, appId, artifactId, int(user.Id), req)
+	resp, err := handler.imageTaggingService.CreateOrUpdateImageTagging(ciPipelineId, appId, artifactId, int(userId), req)
 	if err != nil {
 		if err.Error() == pipeline.DuplicateTagsInAppError {
 			appReleaseTags, err1 := handler.imageTaggingService.GetUniqueTagsByAppId(appId)

@@ -54,6 +54,7 @@ type UserService interface {
 	GetAll() ([]bean.UserInfo, error)
 	GetAllDetailedUsers() ([]bean.UserInfo, error)
 	GetEmailFromToken(token string) (string, error)
+	GetEmailById(userId int32) (string, error)
 	GetLoggedInUser(r *http.Request) (int32, error)
 	GetByIds(ids []int32) ([]bean.UserInfo, error)
 	DeleteUser(userInfo *bean.UserInfo) (bool, error)
@@ -1049,6 +1050,20 @@ func (impl *UserServiceImpl) GetUserByEmail(emailId string) (*bean.UserInfo, err
 
 	return response, nil
 }
+
+func (impl *UserServiceImpl) GetEmailById(userId int32) (string, error) {
+	var emailId string
+	model, err := impl.userRepository.GetById(userId)
+	if err != nil {
+		impl.logger.Errorw("error while fetching user from db", "error", err)
+		return emailId, err
+	}
+	if model != nil {
+		emailId = model.EmailId
+	}
+	return emailId, nil
+}
+
 func (impl *UserServiceImpl) GetLoggedInUser(r *http.Request) (int32, error) {
 	_, span := otel.Tracer("userService").Start(r.Context(), "GetLoggedInUser")
 	defer span.End()

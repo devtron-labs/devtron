@@ -36,9 +36,9 @@ type ConfigMapHistoryServiceImpl struct {
 	logger                     *zap.SugaredLogger
 	configMapHistoryRepository repository.ConfigMapHistoryRepository
 	pipelineRepository         pipelineConfig.PipelineRepository
-	configMapRepository   chartConfig.ConfigMapRepository
-	userService           user.UserService
-	scopedVariableManager variables.ScopedVariableCMCSManager
+	configMapRepository        chartConfig.ConfigMapRepository
+	userService                user.UserService
+	scopedVariableManager      variables.ScopedVariableCMCSManager
 }
 
 func NewConfigMapHistoryServiceImpl(logger *zap.SugaredLogger,
@@ -328,9 +328,9 @@ func (impl ConfigMapHistoryServiceImpl) GetDeploymentDetailsForDeployedCMCSHisto
 	}
 	var historiesDto []*ConfigMapAndSecretHistoryDto
 	for _, history := range histories {
-		userInfo, err := impl.userService.GetById(history.DeployedBy)
+		userEmailId, err := impl.userService.GetEmailById(history.DeployedBy)
 		if err != nil {
-			impl.logger.Errorw("unable to find user by id", "err", err, "id", history.Id)
+			impl.logger.Errorw("unable to find user email by id", "err", err, "id", history.DeployedBy)
 			return nil, err
 		}
 		historyDto := &ConfigMapAndSecretHistoryDto{
@@ -340,7 +340,7 @@ func (impl ConfigMapHistoryServiceImpl) GetDeploymentDetailsForDeployedCMCSHisto
 			Deployed:   history.Deployed,
 			DeployedOn: history.DeployedOn,
 			DeployedBy: history.DeployedBy,
-			EmailId:    userInfo.EmailId,
+			EmailId:    userEmailId,
 		}
 		historiesDto = append(historiesDto, historyDto)
 	}

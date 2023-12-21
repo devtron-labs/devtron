@@ -71,9 +71,9 @@ type CiServiceImpl struct {
 	mergeUtil                     *util.MergeUtil
 	ciPipelineRepository          pipelineConfig.CiPipelineRepository
 	prePostCiScriptHistoryService history.PrePostCiScriptHistoryService
-	pipelineStageService PipelineStageService
-	userService          user.UserService
-	ciTemplateService    CiTemplateService
+	pipelineStageService          PipelineStageService
+	userService                   user.UserService
+	ciTemplateService             CiTemplateService
 	appCrudOperationService       app.AppCrudOperationService
 	envRepository                 repository1.EnvironmentRepository
 	appRepository                 appRepository.AppRepository
@@ -483,9 +483,9 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	if pipeline.CiTemplate.DockerBuildOptions == "" {
 		pipeline.CiTemplate.DockerBuildOptions = "{}"
 	}
-	user, err := impl.userService.GetById(trigger.TriggeredBy)
+	userEmailId, err := impl.userService.GetEmailById(trigger.TriggeredBy)
 	if err != nil {
-		impl.Logger.Errorw("unable to find user by id", "err", err, "id", trigger.TriggeredBy)
+		impl.Logger.Errorw("unable to find user email by id", "err", err, "id", trigger.TriggeredBy)
 		return nil, err
 	}
 	var dockerfilePath string
@@ -641,7 +641,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		PostCiSteps:                 postCiSteps,
 		RefPlugins:                  refPluginsData,
 		AppName:                     pipeline.App.AppName,
-		TriggerByAuthor:             user.EmailId,
+		TriggerByAuthor:             userEmailId,
 		CiBuildConfig:               ciBuildConfigBean,
 		CiBuildDockerMtuValue:       impl.config.CiRunnerDockerMTUValue,
 		IgnoreDockerCachePush:       impl.config.IgnoreDockerCacheForCI,

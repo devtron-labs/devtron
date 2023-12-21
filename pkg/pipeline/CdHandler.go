@@ -998,13 +998,13 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 	}
 	workflow := impl.converterWFR(*workflowR)
 
-	triggeredByUser, err := impl.userService.GetById(workflow.TriggeredBy)
+	triggeredByUserEmailId, err := impl.userService.GetEmailById(workflow.TriggeredBy)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.Logger.Errorw("err", "err", err)
 		return types.WorkflowResponse{}, err
 	}
-	if triggeredByUser == nil {
-		triggeredByUser = &bean.UserInfo{EmailId: "anonymous"}
+	if len(triggeredByUserEmailId) == 0 {
+		triggeredByUserEmailId = "anonymous"
 	}
 	ciArtifactId := workflow.CiArtifactId
 	if ciArtifactId > 0 {
@@ -1059,7 +1059,7 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 		Namespace:            workflow.Namespace,
 		CiMaterials:          ciMaterialsArr,
 		TriggeredBy:          workflow.TriggeredBy,
-		TriggeredByEmail:     triggeredByUser.EmailId,
+		TriggeredByEmail:     triggeredByUserEmailId,
 		Artifact:             workflow.Image,
 		Stage:                workflow.WorkflowType,
 		GitTriggers:          gitTriggers,

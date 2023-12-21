@@ -40,9 +40,9 @@ type DeploymentTemplateHistoryServiceImpl struct {
 	chartRepository                     chartRepoRepository.ChartRepository
 	chartRefRepository                  chartRepoRepository.ChartRefRepository
 	envLevelAppMetricsRepository        repository2.EnvLevelAppMetricsRepository
-	appLevelMetricsRepository repository2.AppLevelMetricsRepository
-	userService               user.UserService
-	cdWorkflowRepository      pipelineConfig.CdWorkflowRepository
+	appLevelMetricsRepository           repository2.AppLevelMetricsRepository
+	userService                         user.UserService
+	cdWorkflowRepository                pipelineConfig.CdWorkflowRepository
 	scopedVariableManager               variables.ScopedVariableManager
 }
 
@@ -275,9 +275,9 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetDeploymentDetailsForDeployed
 	var historiesDto []*DeploymentTemplateHistoryDto
 	for _, history := range histories {
 		if wfrIndex, ok := deploymentTimeStatusMap[history.DeployedOn]; ok {
-			user, err := impl.userService.GetById(history.DeployedBy)
+			userEmailId, err := impl.userService.GetEmailById(history.DeployedBy)
 			if err != nil {
-				impl.logger.Errorw("unable to find user by id", "err", err, "id", history.Id)
+				impl.logger.Errorw("unable to find user email by id", "err", err, "id", history.DeployedBy)
 				return nil, err
 			}
 			historyDto := &DeploymentTemplateHistoryDto{
@@ -287,7 +287,7 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetDeploymentDetailsForDeployed
 				Deployed:         history.Deployed,
 				DeployedOn:       history.DeployedOn,
 				DeployedBy:       history.DeployedBy,
-				EmailId:          user.EmailId,
+				EmailId:          userEmailId,
 				DeploymentStatus: wfrList[wfrIndex].Status,
 				WfrId:            wfrList[wfrIndex].Id,
 				WorkflowType:     string(wfrList[wfrIndex].WorkflowType),

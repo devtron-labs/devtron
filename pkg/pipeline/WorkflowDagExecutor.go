@@ -1000,15 +1000,14 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, cdWf *
 
 	//in case of pre stage manual trigger auth is already applied
 	if applyAuth && triggeredBy != 1 {
-		user, err := impl.user.GetById(artifact.UpdatedBy)
+		userEmailId, err := impl.user.GetEmailById(artifact.UpdatedBy)
 		if err != nil {
 			impl.logger.Errorw("error in fetching user for auto pipeline", "UpdatedBy", artifact.UpdatedBy)
 			return nil
 		}
-		token := user.EmailId
 		object := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
 		impl.logger.Debugw("Triggered Request (App Permission Checking):", "object", object)
-		if ok := impl.enforcer.EnforceByEmail(strings.ToLower(token), casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
+		if ok := impl.enforcer.EnforceByEmail(strings.ToLower(userEmailId), casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
 			impl.logger.Warnw("unauthorized for pipeline ", "pipelineId", strconv.Itoa(pipeline.Id))
 			return fmt.Errorf("unauthorized for pipeline " + strconv.Itoa(pipeline.Id))
 		}
@@ -1378,25 +1377,25 @@ func (impl *WorkflowDagExecutorImpl) buildArtifactLocationForS3(cdWorkflowConfig
 	return ArtifactLocation, cdWorkflowConfig.LogsBucket, artifactFileName
 }
 
-func (impl *WorkflowDagExecutorImpl) getDeployStageDetails(pipelineId int) (pipelineConfig.CdWorkflowRunner, *bean.UserInfo, int, error) {
+func (impl *WorkflowDagExecutorImpl) getDeployStageDetails(pipelineId int) (pipelineConfig.CdWorkflowRunner, string, int, error) {
 	deployStageWfr := pipelineConfig.CdWorkflowRunner{}
 	//getting deployment pipeline latest wfr by pipelineId
 	deployStageWfr, err := impl.cdWorkflowRepository.FindLastStatusByPipelineIdAndRunnerType(pipelineId, bean.CD_WORKFLOW_TYPE_DEPLOY)
 	if err != nil {
 		impl.logger.Errorw("error in getting latest status of deploy type wfr by pipelineId", "err", err, "pipelineId", pipelineId)
-		return deployStageWfr, nil, 0, err
+		return deployStageWfr, "", 0, err
 	}
-	deployStageTriggeredByUser, err := impl.user.GetById(deployStageWfr.TriggeredBy)
+	deployStageTriggeredByUserEmail, err := impl.user.GetEmailById(deployStageWfr.TriggeredBy)
 	if err != nil {
-		impl.logger.Errorw("error in getting userDetails by id", "err", err, "userId", deployStageWfr.TriggeredBy)
-		return deployStageWfr, nil, 0, err
+		impl.logger.Errorw("error in getting user email by id", "err", err, "userId", deployStageWfr.TriggeredBy)
+		return deployStageWfr, "", 0, err
 	}
 	pipelineReleaseCounter, err := impl.pipelineOverrideRepository.GetCurrentPipelineReleaseCounter(pipelineId)
 	if err != nil {
 		impl.logger.Errorw("error occurred while fetching latest release counter for pipeline", "pipelineId", pipelineId, "err", err)
-		return deployStageWfr, nil, 0, err
+		return deployStageWfr, "", 0, err
 	}
-	return deployStageWfr, deployStageTriggeredByUser, pipelineReleaseCounter, nil
+	return deployStageWfr, deployStageTriggeredByUserEmail, pipelineReleaseCounter, nil
 }
 
 func isExtraVariableDynamic(variableName string, webhookAndCiData *gitSensorClient.WebhookAndCiData) bool {
@@ -1523,7 +1522,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 	}
 	var stageYaml string
 	var deployStageWfr pipelineConfig.CdWorkflowRunner
-	deployStageTriggeredByUser := &bean.UserInfo{}
+	var deployStageTriggeredByUserEmail string
 	var pipelineReleaseCounter int
 	var preDeploySteps []*bean3.StepObject
 	var postDeploySteps []*bean3.StepObject
@@ -1576,7 +1575,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			postDeploySteps = prePostAndRefPluginResponse.PostStageSteps
 			refPluginsData = prePostAndRefPluginResponse.RefPluginData
 			variableSnapshot = prePostAndRefPluginResponse.VariableSnapshot
-			deployStageWfr, deployStageTriggeredByUser, pipelineReleaseCounter, err = impl.getDeployStageDetails(cdPipeline.Id)
+			deployStageWfr, deployStageTriggeredByUserEmail, pipelineReleaseCounter, err = impl.getDeployStageDetails(cdPipeline.Id)
 			if err != nil {
 				impl.logger.Errorw("error in getting deployStageWfr, deployStageTriggeredByUser and pipelineReleaseCounter wf request", "err", err, "cdPipelineId", cdPipeline.Id)
 				return nil, err
@@ -1600,7 +1599,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			stageYaml = cdPipeline.PreStageConfig
 		} else if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_POST {
 			stageYaml = cdPipeline.PostStageConfig
-			deployStageWfr, deployStageTriggeredByUser, pipelineReleaseCounter, err = impl.getDeployStageDetails(cdPipeline.Id)
+			deployStageWfr, deployStageTriggeredByUserEmail, pipelineReleaseCounter, err = impl.getDeployStageDetails(cdPipeline.Id)
 			if err != nil {
 				impl.logger.Errorw("error in getting deployStageWfr, deployStageTriggeredByUser and pipelineReleaseCounter wf request", "err", err, "cdPipelineId", cdPipeline.Id)
 				return nil, err
@@ -1789,10 +1788,9 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		}
 	}
 	cdStageWorkflowRequest.ExtraEnvironmentVariables = extraEnvVariables
-	if deployStageTriggeredByUser != nil {
-		cdStageWorkflowRequest.DeploymentTriggerTime = deployStageWfr.StartedOn
-		cdStageWorkflowRequest.DeploymentTriggeredBy = deployStageTriggeredByUser.EmailId
-	}
+	cdStageWorkflowRequest.DeploymentTriggerTime = deployStageWfr.StartedOn
+	cdStageWorkflowRequest.DeploymentTriggeredBy = deployStageTriggeredByUserEmail
+
 	if pipelineReleaseCounter > 0 {
 		cdStageWorkflowRequest.DeploymentReleaseCounter = pipelineReleaseCounter
 	}
@@ -1972,15 +1970,14 @@ func (impl *WorkflowDagExecutorImpl) HandlePostStageSuccessEvent(cdWorkflowId in
 func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWorkflow, artifact *repository.CiArtifact, pipeline *pipelineConfig.Pipeline, applyAuth bool, triggeredBy int32) error {
 	//in case of manual ci RBAC need to apply, this method used for auto cd deployment
 	if applyAuth {
-		user, err := impl.user.GetById(triggeredBy)
+		userEmailId, err := impl.user.GetEmailById(triggeredBy)
 		if err != nil {
-			impl.logger.Errorw("error in fetching user for auto pipeline", "UpdatedBy", artifact.UpdatedBy)
+			impl.logger.Errorw("error in fetching user email for auto pipeline", "UpdatedBy", artifact.UpdatedBy)
 			return nil
 		}
-		token := user.EmailId
 		object := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
 		impl.logger.Debugw("Triggered Request (App Permission Checking):", "object", object)
-		if ok := impl.enforcer.EnforceByEmail(strings.ToLower(token), casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
+		if ok := impl.enforcer.EnforceByEmail(strings.ToLower(userEmailId), casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
 			err = &util.ApiError{Code: "401", HttpStatusCode: 401, UserMessage: "unauthorized for pipeline " + strconv.Itoa(pipeline.Id)}
 			return err
 		}

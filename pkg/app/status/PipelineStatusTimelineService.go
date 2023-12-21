@@ -184,9 +184,9 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelines(appId, envId, wfrI
 	triggeredBy = wfr.TriggeredBy
 	wfrStatus = wfr.Status
 	deploymentAppType = wfr.CdWorkflow.Pipeline.DeploymentAppType
-	triggeredByUser, err := impl.userService.GetById(triggeredBy)
+	triggeredByUserEmailId, err := impl.userService.GetEmailById(triggeredBy)
 	if err != nil {
-		impl.logger.Errorw("error in getting user detail by id", "err", err, "userId", triggeredBy)
+		impl.logger.Errorw("error in getting user email by id", "err", err, "userId", triggeredBy)
 		return nil, err
 	}
 	var timelineDtos []*PipelineStatusTimelineDto
@@ -231,7 +231,7 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelines(appId, envId, wfrI
 		}
 	}
 	timelineDetail := &PipelineTimelineDetailDto{
-		TriggeredBy:                triggeredByUser.EmailId,
+		TriggeredBy:                triggeredByUserEmailId,
 		DeploymentStartedOn:        deploymentStartedOn,
 		DeploymentFinishedOn:       deploymentFinishedOn,
 		Timelines:                  timelineDtos,
@@ -280,9 +280,9 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelinesForAppStore(install
 	}
 	installedAppVersionHistoryStatus = installedAppVersionHistory.Status
 	deploymentAppType = installedAppVersion.InstalledApp.DeploymentAppType
-	triggeredByUser, err := impl.userService.GetById(installedAppVersionHistory.CreatedBy)
+	triggeredByUserEmailId, err := impl.userService.GetEmailById(installedAppVersionHistory.CreatedBy)
 	if err != nil {
-		impl.logger.Errorw("error in getting user detail by id", "err", err, "userId", installedAppVersionHistory.CreatedBy)
+		impl.logger.Errorw("error in getting user email by id", "err", err, "userId", installedAppVersionHistory.CreatedBy)
 		return nil, err
 	}
 	var timelineDtos []*PipelineStatusTimelineDto
@@ -319,7 +319,7 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelinesForAppStore(install
 		}
 	}
 	timelineDetail := &PipelineTimelineDetailDto{
-		TriggeredBy:                triggeredByUser.EmailId,
+		TriggeredBy:                triggeredByUserEmailId,
 		DeploymentStartedOn:        deploymentStartedOn,
 		DeploymentFinishedOn:       deploymentFinishedOn,
 		Timelines:                  timelineDtos,

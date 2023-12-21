@@ -851,13 +851,13 @@ func (handler UserRestHandlerImpl) SyncOrchestratorToCasbin(w http.ResponseWrite
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	user, err := handler.userService.GetById(userId)
+	userEmailId, err := handler.userService.GetEmailById(userId)
 	if err != nil {
 		handler.logger.Errorw("service err, SyncOrchestratorToCasbin", "err", err, "userId", userId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	if user.EmailId != "admin" {
+	if userEmailId != "admin" {
 		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
 		return
 	}
