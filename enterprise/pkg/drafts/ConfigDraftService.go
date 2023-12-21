@@ -403,11 +403,7 @@ func (impl *ConfigDraftServiceImpl) ApproveDraft(draftId int, draftVersionId int
 			return nil, err
 		}
 		if lockValidateResponse != nil {
-			draftVersionResponse.LockedOverride = lockValidateResponse.LockedOverride
-			draftVersionResponse.ModifiedOverride = lockValidateResponse.ModifiedOverride
-			draftVersionResponse.DeletedOverride = lockValidateResponse.DeletedOverride
-			draftVersionResponse.AddedOverride = lockValidateResponse.AddedOverride
-			draftVersionResponse.IsLockConfigError = lockValidateResponse.IsLockConfigError
+			draftVersionResponse.LockValidateErrorResponse = lockValidateResponse
 		}
 	}
 	draftVersionResponse.DraftVersionId = draftVersionId
@@ -539,13 +535,7 @@ func (impl *ConfigDraftServiceImpl) handleBaseDeploymentTemplate(appId int, envI
 		createResp, err = impl.chartService.UpdateAppOverride(ctx, &templateRequest)
 	}
 	if createResp != nil {
-		lockValidateResp = &bean3.LockValidateErrorResponse{
-			LockedOverride:    createResp.LockedOverride,
-			ModifiedOverride:  createResp.ModifiedOverride,
-			AddedOverride:     createResp.AddedOverride,
-			DeletedOverride:   createResp.DeletedOverride,
-			IsLockConfigError: createResp.IsLockConfigError,
-		}
+		lockValidateResp = createResp.LockValidateErrorResponse
 	}
 	return lockValidateResp, err
 }
@@ -590,13 +580,7 @@ func (impl *ConfigDraftServiceImpl) handleEnvLevelTemplate(appId int, envId int,
 			impl.logger.Errorw("service err, EnvConfigOverrideUpdate", "appId", appId, "envId", envId, "err", err, "payload", envConfigProperties)
 		}
 		if updateResp != nil {
-			lockValidateResp = &bean3.LockValidateErrorResponse{
-				LockedOverride:    updateResp.LockedOverride,
-				ModifiedOverride:  updateResp.ModifiedOverride,
-				AddedOverride:     updateResp.AddedOverride,
-				DeletedOverride:   updateResp.DeletedOverride,
-				IsLockConfigError: updateResp.IsLockConfigError,
-			}
+			lockValidateResp = updateResp.LockValidateErrorResponse
 		}
 	} else {
 		id := envConfigProperties.Id

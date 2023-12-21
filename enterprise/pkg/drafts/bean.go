@@ -149,16 +149,6 @@ type ConfigDraftResponse struct {
 	IsAppAdmin     bool       `json:"isAppAdmin"`
 }
 
-//type LockValidateError struct {
-//	*ResponseError
-//	LockedOverride json.RawMessage `json:"lockedOverride"`
-//}
-//
-//type ResponseError struct {
-//	ErrorMessage string
-//	ErrorCode    string
-//}
-
 type DraftCountResponse struct {
 	AppId       int `json:"appId"`
 	EnvId       int `json:"envId"`
