@@ -46,23 +46,61 @@ func (impl *IdentifyAmazon) IdentifyViaMetadataServer(detected chan<- string) {
 		detected <- bean.Unknown
 		return
 	}
-	if resp.StatusCode == http.StatusOK {
-		defer resp.Body.Close()
-		body, err := io.ReadAll(resp.Body)
+	if resp.StatusCode == http.StatusUnauthorized {
+		req, err := http.NewRequest("PUT", bean.TokenForAmazonMetadataServerV2, nil)
+		if err != nil {
+			impl.Logger.Errorw("error while creating new request", "error", err)
+			detected <- bean.Unknown
+			return
+		}
+		req.Header.Set("X-aws-ec2-metadata-token-ttl-seconds", "21600")
+		tokenResp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			impl.Logger.Errorw("error while requesting", "error", err, "request", req)
+			detected <- bean.Unknown
+			return
+		}
+		defer tokenResp.Body.Close()
+		token, err := io.ReadAll(tokenResp.Body)
 		if err != nil {
 			impl.Logger.Errorw("error while reading response body", "error", err, "respBody", resp.Body)
 			detected <- bean.Unknown
 			return
 		}
-		err = json.Unmarshal(body, &r)
+		req, err = http.NewRequest("GET", bean.AmazonMetadataServer, nil)
 		if err != nil {
-			impl.Logger.Errorw("error while unmarshaling json", "error", err, "body", body)
+			impl.Logger.Errorw("error while creating new request", "error", err)
 			detected <- bean.Unknown
 			return
 		}
-		if strings.HasPrefix(r.ImageID, "ami-") &&
-			strings.HasPrefix(r.InstanceID, "i-") {
-			detected <- bean.Amazon
+		req.Header.Set("X-aws-ec2-metadata-token", string(token))
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			impl.Logger.Errorw("error while requesting", "error", err, "request", req)
+			detected <- bean.Unknown
+			return
+		}
+		if resp.StatusCode == http.StatusOK {
+			defer resp.Body.Close()
+			body, err := io.ReadAll(resp.Body)
+			if err != nil {
+				impl.Logger.Errorw("error while reading response body", "error", err, "respBody", resp.Body)
+				detected <- bean.Unknown
+				return
+			}
+			err = json.Unmarshal(body, &r)
+			if err != nil {
+				impl.Logger.Errorw("error while unmarshaling json", "error", err, "body", body)
+				detected <- bean.Unknown
+				return
+			}
+			if strings.HasPrefix(r.ImageID, "ami-") &&
+				strings.HasPrefix(r.InstanceID, "i-") {
+				detected <- bean.Amazon
+				return
+			}
+		} else {
+			detected <- bean.Unknown
 			return
 		}
 	} else {

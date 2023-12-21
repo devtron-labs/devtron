@@ -29,10 +29,11 @@ const (
 )
 
 const (
-	AlibabaMetadataServer      = "http://100.100.100.200/latest/meta-data/instance/instance-type"
-	AmazonMetadataServer       = "http://169.254.169.254/latest/dynamic/instance-identity/document"
-	AzureMetadataServer        = "http://169.254.169.254/metadata/instance?api-version=2017-12-01"
-	DigitalOceanMetadataServer = "http://169.254.169.254/metadata/v1.json"
-	GoogleMetadataServer       = "http://metadata.google.internal/computeMetadata/v1/instance/tags"
-	OracleMetadataServer       = "http://169.254.169.254/opc/v1/instance/metadata/"
+	AlibabaMetadataServer          = "http://100.100.100.200/latest/meta-data/instance/instance-type"
+	AmazonMetadataServer           = "http://169.254.169.254/latest/dynamic/instance-identity/document"
+	TokenForAmazonMetadataServerV2 = "http://169.254.169.254/latest/api/token"
+	AzureMetadataServer            = "http://169.254.169.254/metadata/instance?api-version=2017-12-01"
+	DigitalOceanMetadataServer     = "http://169.254.169.254/metadata/v1.json"
+	GoogleMetadataServer           = "http://metadata.google.internal/computeMetadata/v1/instance/tags"
+	OracleMetadataServer           = "http://169.254.169.254/opc/v1/instance/metadata/"
 )
