@@ -1,4 +1,5 @@
 ## Bugs
+- fix: linked ci failing for null pipeline_type (#4441)
 - fix: error handling and url fix (#4407)
 - feat: skip bulk build source change (#4357)
 ## Enhancements
