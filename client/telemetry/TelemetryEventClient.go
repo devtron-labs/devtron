@@ -557,7 +557,6 @@ func (impl *TelemetryEventClientImpl) SendTelemetryDashboardAccessEvent() error 
 		impl.logger.Errorw("exception while getting cluster provider", "error", err)
 		return err
 	}
-	impl.logger.Info("cloud provider ==== ", provider)
 	payload.ClusterProvider = provider
 
 	reqBody, err := json.Marshal(payload)
