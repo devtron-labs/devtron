@@ -512,7 +512,11 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWrit
 	resource, err := handler.k8sApplicationService.DeleteResourceWithAudit(r.Context(), &request, userId)
 	if err != nil {
 		handler.logger.Errorw("error in deleting resource", "err", err)
-		common.WriteJsonResp(w, err, resource, http.StatusInternalServerError)
+		statusCode := http.StatusInternalServerError
+		if err1, ok := err.(*errors3.StatusError); ok {
+			statusCode = int(err1.ErrStatus.Code)
+		}
+		common.WriteJsonResp(w, err, resource, statusCode)
 		return
 	}
 	common.WriteJsonResp(w, nil, resource, http.StatusOK)
