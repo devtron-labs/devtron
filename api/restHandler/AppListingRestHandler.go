@@ -845,6 +845,11 @@ func (handler AppListingRestHandlerImpl) FetchOverviewAppsByEnvironment(w http.R
 		return
 	}
 	resp.AppCount = len(resp.Apps)
+	//return all if user is super admin
+	if isActionUserSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); isActionUserSuperAdmin {
+		common.WriteJsonResp(w, err, resp, http.StatusOK)
+		return
+	}
 
 	//get all the appIds
 	appIds := make([]int, 0)
