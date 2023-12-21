@@ -164,7 +164,7 @@ spec:
         runAsUser: 1000
       containers:
       - name: kubewatch
-        image: "quay.io/devtron/kubewatch:79d44ddc-370-18559"
+        image: "quay.io/devtron/kubewatch:425397b4-419-19821"
         securityContext:
           allowPrivilegeEscalation: false
           runAsUser: 1000

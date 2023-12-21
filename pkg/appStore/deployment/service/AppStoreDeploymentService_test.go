@@ -132,6 +132,7 @@ func initAppStoreDeploymentService(t *testing.T, internalUse bool) *AppStoreDepl
 	db, _ := sql.NewDbConnection(config, sugaredLogger)
 
 	gitOpsRepository := repository.NewGitOpsConfigRepositoryImpl(sugaredLogger, db)
+	chartGroupDeploymentRepository := repository3.NewChartGroupDeploymentRepositoryImpl(db, sugaredLogger)
 
 	appStoreDiscoverRepository := appStoreDiscoverRepository.NewAppStoreApplicationVersionRepositoryImpl(sugaredLogger, db)
 
@@ -154,10 +155,26 @@ func initAppStoreDeploymentService(t *testing.T, internalUse bool) *AppStoreDepl
 	InstalledAppVersionHistoryRepository := repository3.NewInstalledAppVersionHistoryRepositoryImpl(sugaredLogger, db)
 	ClusterInstalledAppsRepository := repository3.NewClusterInstalledAppsRepositoryImpl(db, sugaredLogger)
 
-	AppStoreDeploymentServiceImpl := NewAppStoreDeploymentServiceImpl(sugaredLogger, InstalledAppRepository,
-		appStoreDiscoverRepository, environmentRepository,
-		ClusterInstalledAppsRepository, AppRepository, nil,
-		nil, environmentService, clusterService, nil, nil, nil, InstalledAppVersionHistoryRepository, gitOpsRepository, nil, &DeploymentServiceTypeConfig{IsInternalUse: internalUse}, nil)
+	AppStoreDeploymentServiceImpl := NewAppStoreDeploymentServiceImpl(
+		sugaredLogger,
+		InstalledAppRepository,
+		chartGroupDeploymentRepository,
+		appStoreDiscoverRepository,
+		environmentRepository,
+		ClusterInstalledAppsRepository,
+		AppRepository,
+		nil,
+		nil,
+		environmentService,
+		clusterService,
+		nil,
+		nil,
+		nil,
+		InstalledAppVersionHistoryRepository,
+		gitOpsRepository,
+		nil,
+		&DeploymentServiceTypeConfig{IsInternalUse: internalUse},
+		nil)
 
 	return AppStoreDeploymentServiceImpl
 }

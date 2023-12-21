@@ -26,69 +26,72 @@ import (
 )
 
 const (
-	CI_RUNNER_STREAM                      string = "CI-RUNNER"
-	ORCHESTRATOR_STREAM                   string = "ORCHESTRATOR"
-	KUBEWATCH_STREAM                      string = "KUBEWATCH"
-	GIT_SENSOR_STREAM                     string = "GIT-SENSOR"
-	IMAGE_SCANNER_STREAM                  string = "IMAGE-SCANNER"
-	BULK_APPSTORE_DEPLOY_TOPIC            string = "APP-STORE.BULK-DEPLOY"
-	BULK_APPSTORE_DEPLOY_GROUP            string = "APP-STORE-BULK-DEPLOY-GROUP-1"
-	BULK_APPSTORE_DEPLOY_DURABLE          string = "APP-STORE-BULK-DEPLOY-DURABLE-1"
-	CD_STAGE_COMPLETE_TOPIC               string = "CD-STAGE-COMPLETE"
-	CD_COMPLETE_GROUP                     string = "CD-COMPLETE_GROUP-1"
-	CD_COMPLETE_DURABLE                   string = "CD-COMPLETE_DURABLE-1"
-	BULK_DEPLOY_TOPIC                     string = "CD.BULK"
-	BULK_HIBERNATE_TOPIC                  string = "CD.BULK-HIBERNATE"
-	BULK_DEPLOY_GROUP                     string = "CD.BULK.GROUP-1"
-	BULK_HIBERNATE_GROUP                  string = "CD.BULK-HIBERNATE.GROUP-1"
-	BULK_DEPLOY_DURABLE                   string = "CD-BULK-DURABLE-1"
-	BULK_HIBERNATE_DURABLE                string = "CD-BULK-HIBERNATE-DURABLE-1"
-	CI_COMPLETE_TOPIC                     string = "CI-COMPLETE"
-	CI_COMPLETE_GROUP                     string = "CI-COMPLETE_GROUP-1"
-	CI_COMPLETE_DURABLE                   string = "CI-COMPLETE_DURABLE-1"
-	APPLICATION_STATUS_UPDATE_TOPIC       string = "APPLICATION_STATUS_UPDATE"
-	APPLICATION_STATUS_UPDATE_GROUP       string = "APPLICATION_STATUS_UPDATE_GROUP-1"
-	APPLICATION_STATUS_UPDATE_DURABLE     string = "APPLICATION_STATUS_UPDATE_DURABLE-1"
-	APPLICATION_STATUS_DELETE_TOPIC       string = "APPLICATION_STATUS_DELETE"
-	APPLICATION_STATUS_DELETE_GROUP       string = "APPLICATION_STATUS_DELETE_GROUP-1"
-	APPLICATION_STATUS_DELETE_DURABLE     string = "APPLICATION_STATUS_DELETE_DURABLE-1"
-	CRON_EVENTS                           string = "CRON_EVENTS"
-	CRON_EVENTS_GROUP                     string = "CRON_EVENTS_GROUP-2"
-	CRON_EVENTS_DURABLE                   string = "CRON_EVENTS_DURABLE-2"
-	WORKFLOW_STATUS_UPDATE_TOPIC          string = "WORKFLOW_STATUS_UPDATE"
-	WORKFLOW_STATUS_UPDATE_GROUP          string = "WORKFLOW_STATUS_UPDATE_GROUP-1"
-	WORKFLOW_STATUS_UPDATE_DURABLE        string = "WORKFLOW_STATUS_UPDATE_DURABLE-1"
-	CD_WORKFLOW_STATUS_UPDATE             string = "CD_WORKFLOW_STATUS_UPDATE"
-	CD_WORKFLOW_STATUS_UPDATE_GROUP       string = "CD_WORKFLOW_STATUS_UPDATE_GROUP-1"
-	CD_WORKFLOW_STATUS_UPDATE_DURABLE     string = "CD_WORKFLOW_STATUS_UPDATE_DURABLE-1"
-	NEW_CI_MATERIAL_TOPIC                 string = "NEW-CI-MATERIAL"
-	NEW_CI_MATERIAL_TOPIC_GROUP           string = "NEW-CI-MATERIAL_GROUP-1"
-	NEW_CI_MATERIAL_TOPIC_DURABLE         string = "NEW-CI-MATERIAL_DURABLE-1"
-	CD_SUCCESS                            string = "CD.TRIGGER"
-	CD_TRIGGER_GROUP                      string = "CD.TRIGGER_GRP1"
-	CD_TRIGGER_DURABLE                    string = "CD-TRIGGER-DURABLE1"
-	WEBHOOK_EVENT_TOPIC                   string = "WEBHOOK_EVENT"
-	WEBHOOK_EVENT_GROUP                   string = "WEBHOOK_EVENT_GRP"
-	WEBHOOK_EVENT_DURABLE                 string = "WEBHOOK_EVENT_DURABLE"
-	DEVTRON_TEST_TOPIC                    string = "Test_Topic"
-	DEVTRON_TEST_STREAM                   string = "Devtron_Test_Stream"
-	DEVTRON_TEST_QUEUE                    string = "Test_Topic_Queue"
-	DEVTRON_TEST_CONSUMER                 string = "Test_Topic_Consumer"
-	TOPIC_CI_SCAN                         string = "CI-SCAN"
-	TOPIC_CI_SCAN_GRP                     string = "CI-SCAN-GRP-1"
-	TOPIC_CI_SCAN_DURABLE                 string = "CI-SCAN-DURABLE-1"
-	ARGO_PIPELINE_STATUS_UPDATE_TOPIC     string = "ARGO_PIPELINE_STATUS_UPDATE"
-	ARGO_PIPELINE_STATUS_UPDATE_GROUP     string = "ARGO_PIPELINE_STATUS_UPDATE_GROUP-1"
-	ARGO_PIPELINE_STATUS_UPDATE_DURABLE   string = "ARGO_PIPELINE_STATUS_UPDATE_DURABLE-1"
-	CD_BULK_DEPLOY_TRIGGER_TOPIC          string = "CD-BULK-DEPLOY-TRIGGER"
-	CD_BULK_DEPLOY_TRIGGER_GROUP          string = "CD-BULK-DEPLOY-TRIGGER-GROUP-1"
-	CD_BULK_DEPLOY_TRIGGER_DURABLE        string = "CD-BULK-DEPLOY-TRIGGER-DURABLE-1"
-	HELM_CHART_INSTALL_STATUS_TOPIC       string = "HELM-CHART-INSTALL-STATUS-TOPIC"
-	HELM_CHART_INSTALL_STATUS_GROUP       string = "HELM-CHART-INSTALL-STATUS-GROUP"
-	HELM_CHART_INSTALL_STATUS_DURABLE     string = "HELM-CHART-INSTALL-STATUS-DURABLE"
-	DEVTRON_CHART_INSTALL_TOPIC           string = "DEVTRON-CHART-INSTALL-TOPIC"
-	DEVTRON_CHART_INSTALL_GROUP           string = "DEVTRON-CHART-INSTALL-GROUP"
-	DEVTRON_CHART_INSTALL_DURABLE         string = "DEVTRON-CHART-INSTALL-DURABLE"
+	CI_RUNNER_STREAM                    string = "CI-RUNNER"
+	ORCHESTRATOR_STREAM                 string = "ORCHESTRATOR"
+	KUBEWATCH_STREAM                    string = "KUBEWATCH"
+	GIT_SENSOR_STREAM                   string = "GIT-SENSOR"
+	IMAGE_SCANNER_STREAM                string = "IMAGE-SCANNER"
+	BULK_APPSTORE_DEPLOY_TOPIC          string = "APP-STORE.BULK-DEPLOY"
+	BULK_APPSTORE_DEPLOY_GROUP          string = "APP-STORE-BULK-DEPLOY-GROUP-1"
+	BULK_APPSTORE_DEPLOY_DURABLE        string = "APP-STORE-BULK-DEPLOY-DURABLE-1"
+	CD_STAGE_COMPLETE_TOPIC             string = "CD-STAGE-COMPLETE"
+	CD_COMPLETE_GROUP                   string = "CD-COMPLETE_GROUP-1"
+	CD_COMPLETE_DURABLE                 string = "CD-COMPLETE_DURABLE-1"
+	BULK_DEPLOY_TOPIC                   string = "CD.BULK"
+	BULK_HIBERNATE_TOPIC                string = "CD.BULK-HIBERNATE"
+	BULK_DEPLOY_GROUP                   string = "CD.BULK.GROUP-1"
+	BULK_HIBERNATE_GROUP                string = "CD.BULK-HIBERNATE.GROUP-1"
+	BULK_DEPLOY_DURABLE                 string = "CD-BULK-DURABLE-1"
+	BULK_HIBERNATE_DURABLE              string = "CD-BULK-HIBERNATE-DURABLE-1"
+	CI_COMPLETE_TOPIC                   string = "CI-COMPLETE"
+	CI_COMPLETE_GROUP                   string = "CI-COMPLETE_GROUP-1"
+	CI_COMPLETE_DURABLE                 string = "CI-COMPLETE_DURABLE-1"
+	APPLICATION_STATUS_UPDATE_TOPIC     string = "APPLICATION_STATUS_UPDATE"
+	APPLICATION_STATUS_UPDATE_GROUP     string = "APPLICATION_STATUS_UPDATE_GROUP-1"
+	APPLICATION_STATUS_UPDATE_DURABLE   string = "APPLICATION_STATUS_UPDATE_DURABLE-1"
+	APPLICATION_STATUS_DELETE_TOPIC     string = "APPLICATION_STATUS_DELETE"
+	APPLICATION_STATUS_DELETE_GROUP     string = "APPLICATION_STATUS_DELETE_GROUP-1"
+	APPLICATION_STATUS_DELETE_DURABLE   string = "APPLICATION_STATUS_DELETE_DURABLE-1"
+	CRON_EVENTS                         string = "CRON_EVENTS"
+	CRON_EVENTS_GROUP                   string = "CRON_EVENTS_GROUP-2"
+	CRON_EVENTS_DURABLE                 string = "CRON_EVENTS_DURABLE-2"
+	WORKFLOW_STATUS_UPDATE_TOPIC        string = "WORKFLOW_STATUS_UPDATE"
+	WORKFLOW_STATUS_UPDATE_GROUP        string = "WORKFLOW_STATUS_UPDATE_GROUP-1"
+	WORKFLOW_STATUS_UPDATE_DURABLE      string = "WORKFLOW_STATUS_UPDATE_DURABLE-1"
+	CD_WORKFLOW_STATUS_UPDATE           string = "CD_WORKFLOW_STATUS_UPDATE"
+	CD_WORKFLOW_STATUS_UPDATE_GROUP     string = "CD_WORKFLOW_STATUS_UPDATE_GROUP-1"
+	CD_WORKFLOW_STATUS_UPDATE_DURABLE   string = "CD_WORKFLOW_STATUS_UPDATE_DURABLE-1"
+	NEW_CI_MATERIAL_TOPIC               string = "NEW-CI-MATERIAL"
+	NEW_CI_MATERIAL_TOPIC_GROUP         string = "NEW-CI-MATERIAL_GROUP-1"
+	NEW_CI_MATERIAL_TOPIC_DURABLE       string = "NEW-CI-MATERIAL_DURABLE-1"
+	CD_SUCCESS                          string = "CD.TRIGGER"
+	CD_TRIGGER_GROUP                    string = "CD.TRIGGER_GRP1"
+	CD_TRIGGER_DURABLE                  string = "CD-TRIGGER-DURABLE1"
+	WEBHOOK_EVENT_TOPIC                 string = "WEBHOOK_EVENT"
+	WEBHOOK_EVENT_GROUP                 string = "WEBHOOK_EVENT_GRP"
+	WEBHOOK_EVENT_DURABLE               string = "WEBHOOK_EVENT_DURABLE"
+	DEVTRON_TEST_TOPIC                  string = "Test_Topic"
+	DEVTRON_TEST_STREAM                 string = "Devtron_Test_Stream"
+	DEVTRON_TEST_QUEUE                  string = "Test_Topic_Queue"
+	DEVTRON_TEST_CONSUMER               string = "Test_Topic_Consumer"
+	TOPIC_CI_SCAN                       string = "CI-SCAN"
+	TOPIC_CI_SCAN_GRP                   string = "CI-SCAN-GRP-1"
+	TOPIC_CI_SCAN_DURABLE               string = "CI-SCAN-DURABLE-1"
+	ARGO_PIPELINE_STATUS_UPDATE_TOPIC   string = "ARGO_PIPELINE_STATUS_UPDATE"
+	ARGO_PIPELINE_STATUS_UPDATE_GROUP   string = "ARGO_PIPELINE_STATUS_UPDATE_GROUP-1"
+	ARGO_PIPELINE_STATUS_UPDATE_DURABLE string = "ARGO_PIPELINE_STATUS_UPDATE_DURABLE-1"
+	CD_BULK_DEPLOY_TRIGGER_TOPIC        string = "CD-BULK-DEPLOY-TRIGGER"
+	CD_BULK_DEPLOY_TRIGGER_GROUP        string = "CD-BULK-DEPLOY-TRIGGER-GROUP-1"
+	CD_BULK_DEPLOY_TRIGGER_DURABLE      string = "CD-BULK-DEPLOY-TRIGGER-DURABLE-1"
+	HELM_CHART_INSTALL_STATUS_TOPIC     string = "HELM-CHART-INSTALL-STATUS-TOPIC"
+	HELM_CHART_INSTALL_STATUS_GROUP     string = "HELM-CHART-INSTALL-STATUS-GROUP"
+	HELM_CHART_INSTALL_STATUS_DURABLE   string = "HELM-CHART-INSTALL-STATUS-DURABLE"
+	DEVTRON_CHART_INSTALL_TOPIC         string = "DEVTRON-CHART-INSTALL-TOPIC"
+	DEVTRON_CHART_INSTALL_GROUP         string = "DEVTRON-CHART-INSTALL-GROUP"
+	DEVTRON_CHART_INSTALL_DURABLE       string = "DEVTRON-CHART-INSTALL-DURABLE"
+	PANIC_ON_PROCESSING_TOPIC           string = "PANIC-ON-PROCESSING-TOPIC"
+	PANIC_ON_PROCESSING_GROUP           string = "PANIC-ON-PROCESSING-GROUP"
+	PANIC_ON_PROCESSING_DURABLE         string = "PANIC-ON-PROCESSING-DURABLE"
 	HELM_CHART_INSTALL_STATUS_TOPIC_NEW   string = "HELM-CHART-INSTALL-STATUS-TOPIC-NEW"
 	HELM_CHART_INSTALL_STATUS_GROUP_NEW   string = "HELM-CHART-INSTALL-STATUS-GROUP-NEW"
 	HELM_CHART_INSTALL_STATUS_DURABLE_NEW string = "HELM-CHART-INSTALL-STATUS-DURABLE-NEW"
@@ -125,11 +128,12 @@ var natsTopicMapping = map[string]NatsTopic{
 
 	NEW_CI_MATERIAL_TOPIC: {topicName: NEW_CI_MATERIAL_TOPIC, streamName: GIT_SENSOR_STREAM, queueName: NEW_CI_MATERIAL_TOPIC_GROUP, consumerName: NEW_CI_MATERIAL_TOPIC_DURABLE},
 
-	DEVTRON_TEST_TOPIC:                  {topicName: DEVTRON_TEST_TOPIC, streamName: DEVTRON_TEST_STREAM, queueName: DEVTRON_TEST_QUEUE, consumerName: DEVTRON_TEST_CONSUMER},
-	TOPIC_CI_SCAN:                       {topicName: TOPIC_CI_SCAN, streamName: IMAGE_SCANNER_STREAM, queueName: TOPIC_CI_SCAN_GRP, consumerName: TOPIC_CI_SCAN_DURABLE},
-	ARGO_PIPELINE_STATUS_UPDATE_TOPIC:   {topicName: ARGO_PIPELINE_STATUS_UPDATE_TOPIC, streamName: ORCHESTRATOR_STREAM, queueName: ARGO_PIPELINE_STATUS_UPDATE_GROUP, consumerName: ARGO_PIPELINE_STATUS_UPDATE_DURABLE},
-	HELM_CHART_INSTALL_STATUS_TOPIC:     {topicName: HELM_CHART_INSTALL_STATUS_TOPIC, streamName: ORCHESTRATOR_STREAM, queueName: HELM_CHART_INSTALL_STATUS_GROUP, consumerName: HELM_CHART_INSTALL_STATUS_DURABLE},
-	DEVTRON_CHART_INSTALL_TOPIC:         {topicName: DEVTRON_CHART_INSTALL_TOPIC, streamName: ORCHESTRATOR_STREAM, queueName: DEVTRON_CHART_INSTALL_GROUP, consumerName: DEVTRON_CHART_INSTALL_DURABLE},
+	DEVTRON_TEST_TOPIC:                {topicName: DEVTRON_TEST_TOPIC, streamName: DEVTRON_TEST_STREAM, queueName: DEVTRON_TEST_QUEUE, consumerName: DEVTRON_TEST_CONSUMER},
+	TOPIC_CI_SCAN:                     {topicName: TOPIC_CI_SCAN, streamName: IMAGE_SCANNER_STREAM, queueName: TOPIC_CI_SCAN_GRP, consumerName: TOPIC_CI_SCAN_DURABLE},
+	ARGO_PIPELINE_STATUS_UPDATE_TOPIC: {topicName: ARGO_PIPELINE_STATUS_UPDATE_TOPIC, streamName: ORCHESTRATOR_STREAM, queueName: ARGO_PIPELINE_STATUS_UPDATE_GROUP, consumerName: ARGO_PIPELINE_STATUS_UPDATE_DURABLE},
+	HELM_CHART_INSTALL_STATUS_TOPIC:   {topicName: HELM_CHART_INSTALL_STATUS_TOPIC, streamName: ORCHESTRATOR_STREAM, queueName: HELM_CHART_INSTALL_STATUS_GROUP, consumerName: HELM_CHART_INSTALL_STATUS_DURABLE},
+	DEVTRON_CHART_INSTALL_TOPIC:       {topicName: DEVTRON_CHART_INSTALL_TOPIC, streamName: ORCHESTRATOR_STREAM, queueName: DEVTRON_CHART_INSTALL_GROUP, consumerName: DEVTRON_CHART_INSTALL_DURABLE},
+	PANIC_ON_PROCESSING_TOPIC:         {topicName: PANIC_ON_PROCESSING_TOPIC, streamName: ORCHESTRATOR_STREAM, queueName: PANIC_ON_PROCESSING_GROUP, consumerName: PANIC_ON_PROCESSING_DURABLE},
 	HELM_CHART_INSTALL_STATUS_TOPIC_NEW: {topicName: HELM_CHART_INSTALL_STATUS_TOPIC_NEW, streamName: ORCHESTRATOR_STREAM, queueName: HELM_CHART_INSTALL_STATUS_GROUP_NEW, consumerName: HELM_CHART_INSTALL_STATUS_DURABLE_NEW},
 }
 
@@ -142,24 +146,25 @@ var NatsStreamWiseConfigMapping = map[string]NatsStreamConfig{
 }
 
 var NatsConsumerWiseConfigMapping = map[string]NatsConsumerConfig{
-	ARGO_PIPELINE_STATUS_UPDATE_DURABLE:   {},
-	TOPIC_CI_SCAN_DURABLE:                 {},
-	NEW_CI_MATERIAL_TOPIC_DURABLE:         {},
-	CD_WORKFLOW_STATUS_UPDATE_DURABLE:     {},
-	WORKFLOW_STATUS_UPDATE_DURABLE:        {},
-	CRON_EVENTS_DURABLE:                   {},
-	APPLICATION_STATUS_UPDATE_DURABLE:     {},
-	APPLICATION_STATUS_DELETE_DURABLE:     {},
-	CD_COMPLETE_DURABLE:                   {},
-	CI_COMPLETE_DURABLE:                   {},
-	WEBHOOK_EVENT_DURABLE:                 {},
-	CD_TRIGGER_DURABLE:                    {},
-	BULK_HIBERNATE_DURABLE:                {},
-	BULK_DEPLOY_DURABLE:                   {},
-	BULK_APPSTORE_DEPLOY_DURABLE:          {},
-	CD_BULK_DEPLOY_TRIGGER_DURABLE:        {},
-	HELM_CHART_INSTALL_STATUS_DURABLE:     {},
-	DEVTRON_CHART_INSTALL_DURABLE:         {},
+	ARGO_PIPELINE_STATUS_UPDATE_DURABLE: {},
+	TOPIC_CI_SCAN_DURABLE:               {},
+	NEW_CI_MATERIAL_TOPIC_DURABLE:       {},
+	CD_WORKFLOW_STATUS_UPDATE_DURABLE:   {},
+	WORKFLOW_STATUS_UPDATE_DURABLE:      {},
+	CRON_EVENTS_DURABLE:                 {},
+	APPLICATION_STATUS_UPDATE_DURABLE:   {},
+	APPLICATION_STATUS_DELETE_DURABLE:   {},
+	CD_COMPLETE_DURABLE:                 {},
+	CI_COMPLETE_DURABLE:                 {},
+	WEBHOOK_EVENT_DURABLE:               {},
+	CD_TRIGGER_DURABLE:                  {},
+	BULK_HIBERNATE_DURABLE:              {},
+	BULK_DEPLOY_DURABLE:                 {},
+	BULK_APPSTORE_DEPLOY_DURABLE:        {},
+	CD_BULK_DEPLOY_TRIGGER_DURABLE:      {},
+	HELM_CHART_INSTALL_STATUS_DURABLE:   {},
+	DEVTRON_CHART_INSTALL_DURABLE:       {},
+	PANIC_ON_PROCESSING_DURABLE:         {},
 	HELM_CHART_INSTALL_STATUS_DURABLE_NEW: {},
 }
 
@@ -279,23 +284,23 @@ func AddStream(js nats.JetStreamContext, streamConfig *nats.StreamConfig, stream
 	for _, streamName := range streamNames {
 		streamInfo, err := js.StreamInfo(streamName)
 		if err == nats.ErrStreamNotFound || streamInfo == nil {
-			log.Print("No stream was created already. Need to create one.", "Stream name", streamName)
+			log.Print("No stream was created already. Need to create one. ", "Stream name: ", streamName)
 			//Stream doesn't already exist. Create a new stream from jetStreamContext
 			cfgToSet := getNewConfig(streamName, streamConfig)
 			_, err = js.AddStream(cfgToSet)
 			if err != nil {
-				log.Fatal("Error while creating stream", "stream name", streamName, "error", err)
+				log.Fatal("Error while creating stream. ", "stream name: ", streamName, "error: ", err)
 				return err
 			}
 		} else if err != nil {
-			log.Fatal("Error while getting stream info", "stream name", streamName, "error", err)
+			log.Fatal("Error while getting stream info. ", "stream name: ", streamName, "error: ", err)
 		} else {
 			config := streamInfo.Config
 			streamConfig.Name = streamName
 			if checkConfigChangeReqd(&config, streamConfig) {
 				_, err1 := js.UpdateStream(&config)
 				if err1 != nil {
-					log.Println("error occurred while updating stream config", "streamName", streamName, "streamConfig", config, "error", err1)
+					log.Println("error occurred while updating stream config. ", "streamName: ", streamName, "streamConfig: ", config, "error: ", err1)
 				}
 			}
 		}

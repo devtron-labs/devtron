@@ -9,13 +9,13 @@ global:
     runAsNonRoot: true
 
 installer:
-  release: "v0.6.24"
+  release: "v0.6.26"
   image: "quay.io/devtron/inception"
   tag: "44b30917-185-13275"
   
 components:
   dashboard:
-    image: "quay.io/devtron/dashboard:94cb7168-325-19078"
+    image: "quay.io/devtron/dashboard:0988ee6d-325-20037"
     config:
       extraConfigs:
         USE_V2: "true"
@@ -25,16 +25,16 @@ components:
         ENABLE_SCOPED_VARIABLES: "true"
         ENABLE_CI_JOB: "true"
   devtron:
-    image: "quay.io/devtron/hyperion:6822926b-280-19032"
-    cicdImage: "quay.io/devtron/devtron:6822926b-434-19035"
+    image: "quay.io/devtron/hyperion:24f51942-280-20082"
+    cicdImage: "quay.io/devtron/devtron:24f51942-434-20080"
     customOverrides:
-      DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:ad3af321-138-18662"
+      DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:560e6867-138-19679"
   argocdDexServer:
     image: "ghcr.io/dexidp/dex:v2.30.2"
     initContainer:
       authenticator: "quay.io/devtron/authenticator:e414faff-393-13273"
   kubelink:
-    image: "quay.io/devtron/kubelink:2dbe99a8-564-19001"
+    image: "quay.io/devtron/kubelink:d19ec7b6-564-20012"
     configs:
       ENABLE_HELM_RELEASE_CACHE: "true"
       MANIFEST_FETCH_BATCH_SIZE: "2"
@@ -53,7 +53,7 @@ components:
     image: "quay.io/devtron/postgres:11.9.0-debian-10-r26"
     armImage: "quay.io/devtron/postgres:11.9"
   gitsensor:
-    image: "quay.io/devtron/git-sensor:b6c3ea0e-200-16327"
+    image: "quay.io/devtron/git-sensor:4f3b9a14-200-19136"
     imagePullPolicy: "IfNotPresent"
     serviceMonitor:
       enabled: false
@@ -68,7 +68,7 @@ components:
       secretName: postgresql-postgresql
       keyName: postgresql-password
   lens: 
-    image: "quay.io/devtron/lens:8803028b-333-16178"
+    image: "quay.io/devtron/lens:a0628f4f-333-19937"
     imagePullPolicy: IfNotPresent
     configs:
       GIT_SENSOR_PROTOCOL: GRPC
@@ -81,6 +81,19 @@ components:
     dbconfig:
       secretName: postgresql-postgresql
       keyName: postgresql-password
+  nats:
+    image: nats:2.9.3-alpine
+    imagePullPolicy: IfNotPresent
+    reloader:
+      image: quay.io/devtron/nats-server-config-reloader:0.6.2
+      imagePullPolicy: IfNotPresent
+    metrics:
+      image: quay.io/devtron/prometheus-nats-exporter:0.9.0
+      imagePullPolicy: IfNotPresent
+    serviceMonitor:
+      enabled: false
+    persistence:
+      storage: 5Gi
   migrator:
     image: "quay.io/devtron/migrator:v4.16.2"
     envVars:
@@ -106,7 +119,7 @@ workflowController:
 
 security:
   imageScanner:
-    image: "quay.io/devtron/image-scanner:ea03b0af-334-15158"
+    image: "quay.io/devtron/image-scanner:abb1e033-334-19909"
 
 notifier:
-  image: "quay.io/devtron/notifier:d71bcbcd-372-18717"
+  image: "quay.io/devtron/notifier:1db5450e-372-20077"

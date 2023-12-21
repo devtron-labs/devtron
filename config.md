@@ -45,18 +45,18 @@
 | ACD_TIMEOUT                            | 300                                                      | Argocd timeout. |
 | ACD_SKIP_VERIFY                        | true                                                     | Skip Argocd verification. |
 | GIT_WORKING_DIRECTORY                   | /tmp/gitops/                                             | Git working directory. |
-| CD_LIMIT_CI_CPU                        | 0.5                                                     | CI CPU limit for post-build workflow. |
-| CD_LIMIT_CI_MEM                        | 3G                                                      | CI memory limit for post-build workflow. |
-| CD_REQ_CI_CPU                          | 0.5                                                     | CI CPU request for post-build workflow. |
-| CD_REQ_CI_MEM                          | 1G                                                      | CI memory request for post-build workflow. |
-| CD_NODE_TAINTS_KEY                     | dedicated                                               | CI node taints key. |
-| CD_NODE_LABEL_SELECTOR                 | kubernetes.io/os=linux                                   | CI node label selector. |
-| CD_WORKFLOW_SERVICE_ACCOUNT             | cd-runner                                                | CI workflow service account. |
-| CD_NODE_TAINTS_VALUE                   | ci                                                      | CI node taints value. |
-| DEFAULT_CD_ARTIFACT_KEY_LOCATION       | devtron/cd-artifacts                                      | Default location for CI artifacts. |
-| CD_ARTIFACT_LOCATION_FORMAT            | %d/%d.zip                                                | Format for CI artifact locations. |
-| DEFAULT_CD_NAMESPACE                   | devtron-cd                                               | Default namespace for CI. |
-| DEFAULT_CD_TIMEOUT                     | 3600                                                    | Default timeout for CI. |
+| CD_LIMIT_CI_CPU                        | 0.5                                                     | CD CPU limit for post/pre-deploy workflow. |
+| CD_LIMIT_CI_MEM                        | 3G                                                      | CD memory limit for post/pre-deploy workflow. |
+| CD_REQ_CI_CPU                          | 0.5                                                     | CD CPU request for post/pre-deploy workflow. |
+| CD_REQ_CI_MEM                          | 1G                                                      | CD memory request for post/pre-deploy workflow. |
+| CD_NODE_TAINTS_KEY                     | dedicated                                               | CD node taints key. |
+| CD_NODE_LABEL_SELECTOR                 | kubernetes.io/os=linux                                   | CD node label selector. |
+| CD_WORKFLOW_SERVICE_ACCOUNT             | cd-runner                                                | CD workflow service account. |
+| CD_NODE_TAINTS_VALUE                   | ci                                                      | CD node taints value. |
+| DEFAULT_CD_ARTIFACT_KEY_LOCATION       | devtron/cd-artifacts                                      | Default location for CD artifacts. |
+| CD_ARTIFACT_LOCATION_FORMAT            | %d/%d.zip                                                | Format for CD artifact locations. |
+| DEFAULT_CD_NAMESPACE                   | devtron-cd                                               | Default namespace for CD. |
+| DEFAULT_CD_TIMEOUT                     | 3600                                                    | Default timeout for CD. |
 | ENABLE_BUILD_CONTEXT                   | true                                                    | Enable build context in Devtron. |
 | DEFAULT_CI_IMAGE                       | quay.io/devtron/ci-runner:d8d774c3-138-16238             | Default image for CI pods. |
 | WF_CONTROLLER_INSTANCE_ID               | devtron-runner                                           | Workflow controller instance ID. |

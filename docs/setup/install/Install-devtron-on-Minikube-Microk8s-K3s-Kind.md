@@ -28,9 +28,11 @@ Before we get started and install Devtron, you must set up the cluster in you se
 ```bash
 helm repo add devtron https://helm.devtron.ai
 
+helm repo update devtron
+
 helm install devtron devtron/devtron-operator \
 --create-namespace --namespace devtroncd \
---set components.devtron.service.type=NodePort 
+--set components.devtron.service.type=NodePort --set installer.arch=multi-arch
 
 ```
 {% endtab %}
@@ -42,6 +44,8 @@ To install devtron on ``k3s`` cluster, run the following command:
 kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/master/deploy/local-path-storage.yaml
 
 helm repo add devtron https://helm.devtron.ai
+
+helm repo update devtron
 
 helm install devtron devtron/devtron-operator \
 --create-namespace --namespace devtroncd \
@@ -119,6 +123,8 @@ source .bashrc
 
 ```bash
 helm repo add devtron https://helm.devtron.ai
+
+helm repo update devtron
 
 helm install devtron devtron/devtron-operator \
 --create-namespace --namespace devtroncd \

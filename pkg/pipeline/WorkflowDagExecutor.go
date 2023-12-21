@@ -26,6 +26,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
+	"github.com/devtron-labs/common-lib/pubsub-lib/model"
 	util5 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	client2 "github.com/devtron-labs/devtron/api/helm-app"
@@ -410,7 +411,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 }
 
 func (impl *WorkflowDagExecutorImpl) Subscribe() error {
-	callback := func(msg *pubsub.PubSubMsg) {
+	callback := func(msg *model.PubSubMsg) {
 		impl.logger.Debug("cd stage event received")
 		//defer msg.Ack()
 		cdStageCompleteEvent := CdStageCompleteEvent{}
@@ -449,7 +450,7 @@ func (impl *WorkflowDagExecutorImpl) Subscribe() error {
 	return nil
 }
 
-func (impl *WorkflowDagExecutorImpl) extractOverrideRequestFromCDAsyncInstallEvent(msg *pubsub.PubSubMsg) (*bean.AsyncCdDeployEvent, *client2.AppIdentifier, error) {
+func (impl *WorkflowDagExecutorImpl) extractOverrideRequestFromCDAsyncInstallEvent(msg *model.PubSubMsg) (*bean.AsyncCdDeployEvent, *client2.AppIdentifier, error) {
 	CDAsyncInstallNatsMessage := &bean.AsyncCdDeployEvent{}
 	err := json.Unmarshal([]byte(msg.Data), CDAsyncInstallNatsMessage)
 	if err != nil {
@@ -728,7 +729,7 @@ func (impl *WorkflowDagExecutorImpl) processDevtronAsyncHelmInstallRequest(CDAsy
 }
 
 func (impl *WorkflowDagExecutorImpl) SubscribeDevtronAsyncHelmInstallRequest() error {
-	callback := func(msg *pubsub.PubSubMsg) {
+	callback := func(msg *model.PubSubMsg) {
 		impl.logger.Debug("received Devtron App helm async install request event, SubscribeDevtronAsyncHelmInstallRequest", "data", msg.Data)
 		CDAsyncInstallNatsMessage, appIdentifier, err := impl.extractOverrideRequestFromCDAsyncInstallEvent(msg)
 		if err != nil {
@@ -2094,7 +2095,7 @@ func (impl *WorkflowDagExecutorImpl) updatePreviousDeploymentStatus(releaseErr e
 			impl.logger.Errorw("error while updating current runner status to failed, updatePreviousDeploymentStatus", "cdWfr", currentRunner.Id, "err", err)
 			return releaseErr
 		}
-		return nil
+		return releaseErr
 	}
 	// Initiating DB transaction
 	dbConnection := impl.cdWorkflowRepository.GetConnection()
@@ -2582,7 +2583,7 @@ func (impl *WorkflowDagExecutorImpl) triggerNatsEventForBulkAction(cdWorkflows [
 }
 
 func (impl *WorkflowDagExecutorImpl) subscribeTriggerBulkAction() error {
-	callback := func(msg *pubsub.PubSubMsg) {
+	callback := func(msg *model.PubSubMsg) {
 		impl.logger.Debug("subscribeTriggerBulkAction event received")
 		//defer msg.Ack()
 		cdWorkflow := new(pipelineConfig.CdWorkflow)
@@ -2640,7 +2641,7 @@ func (impl *WorkflowDagExecutorImpl) subscribeTriggerBulkAction() error {
 }
 
 func (impl *WorkflowDagExecutorImpl) subscribeHibernateBulkAction() error {
-	callback := func(msg *pubsub.PubSubMsg) {
+	callback := func(msg *model.PubSubMsg) {
 		impl.logger.Debug("subscribeHibernateBulkAction event received")
 		//defer msg.Ack()
 		deploymentGroupAppWithEnv := new(DeploymentGroupAppWithEnv)

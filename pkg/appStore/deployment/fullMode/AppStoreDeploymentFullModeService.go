@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"github.com/caarlos0/env"
 	pubsub_lib "github.com/devtron-labs/common-lib/pubsub-lib"
+	"github.com/devtron-labs/common-lib/pubsub-lib/model"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"path"
 	"regexp"
@@ -544,7 +545,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) UpdateRequirementYaml(installA
 }
 
 func (impl *AppStoreDeploymentFullModeServiceImpl) SubscribeHelmInstall() error {
-	err := impl.pubSubClient.Subscribe(pubsub_lib.HELM_CHART_INSTALL_STATUS_TOPIC_NEW, func(msg *pubsub_lib.PubSubMsg) {
+	err := impl.pubSubClient.Subscribe(pubsub_lib.HELM_CHART_INSTALL_STATUS_TOPIC_NEW, func(msg *model.PubSubMsg) {
 		impl.logger.Debug("received helm install status event - HELM_CHART_INSTALL_STATUS_TOPIC_NEW")
 		installHelmAsyncRequest := &InstallHelmAsyncRequest{}
 		err := json.Unmarshal([]byte(msg.Data), installHelmAsyncRequest)
