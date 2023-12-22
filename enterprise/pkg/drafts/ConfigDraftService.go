@@ -21,6 +21,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	util2 "github.com/devtron-labs/devtron/util/event"
 	"github.com/go-pg/pg"
+	errors1 "github.com/juju/errors"
 	"go.uber.org/zap"
 	"k8s.io/utils/pointer"
 	"time"
@@ -886,7 +887,7 @@ func (impl *ConfigDraftServiceImpl) checkLockConfiguration(appId int, envId int,
 		if resourceAction == AddResourceAction || resourceAction == UpdateResourceAction {
 			var currentEnvOverrideValues json.RawMessage
 			currentLatestChart, err := impl.envConfigRepo.FindLatestChartForAppByAppIdAndEnvId(appId, envId)
-			if err != nil && err != pg.ErrNoRows {
+			if err != nil && err != errors1.NotFoundf(pg.ErrNoRows.Error()) {
 				return nil, err
 			}
 			if err == pg.ErrNoRows {
