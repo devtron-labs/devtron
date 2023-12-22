@@ -8,28 +8,28 @@ import (
 	"go.uber.org/zap"
 )
 
-type SelfRegistrationRolesService interface {
-	Check() (CheckResponse, error)
+type UserSelfRegistrationService interface {
+	CheckSelfRegistrationRoles() (CheckResponse, error)
 	SelfRegister(emailId string) (*bean.UserInfo, error)
 	CheckAndCreateUserIfConfigured(emailId string) bool
 }
 
-type SelfRegistrationRolesServiceImpl struct {
+type UserSelfRegistrationServiceImpl struct {
 	logger                          *zap.SugaredLogger
 	selfRegistrationRolesRepository repository.SelfRegistrationRolesRepository
 	userService                     UserService
 }
 
-func NewSelfRegistrationRolesServiceImpl(logger *zap.SugaredLogger,
-	selfRegistrationRolesRepository repository.SelfRegistrationRolesRepository, userService UserService) *SelfRegistrationRolesServiceImpl {
-	return &SelfRegistrationRolesServiceImpl{
+func NewUserSelfRegistrationServiceImpl(logger *zap.SugaredLogger,
+	selfRegistrationRolesRepository repository.SelfRegistrationRolesRepository, userService UserService) *UserSelfRegistrationServiceImpl {
+	return &UserSelfRegistrationServiceImpl{
 		logger:                          logger,
 		selfRegistrationRolesRepository: selfRegistrationRolesRepository,
 		userService:                     userService,
 	}
 }
 
-func (impl *SelfRegistrationRolesServiceImpl) GetAll() ([]string, error) {
+func (impl *UserSelfRegistrationServiceImpl) GetAllSelfRegistrationRoles() ([]string, error) {
 	roleEntries, err := impl.selfRegistrationRolesRepository.GetAll()
 	if err != nil {
 		impl.logger.Errorf("error fetching all role %+v", err)
@@ -49,7 +49,7 @@ type CheckResponse struct {
 	Roles   []string `json:"roles"`
 }
 
-func (impl *SelfRegistrationRolesServiceImpl) Check() (CheckResponse, error) {
+func (impl *UserSelfRegistrationServiceImpl) CheckSelfRegistrationRoles() (CheckResponse, error) {
 	roleEntries, err := impl.selfRegistrationRolesRepository.GetAll()
 	var checkResponse CheckResponse
 	if err != nil {
@@ -75,8 +75,9 @@ func (impl *SelfRegistrationRolesServiceImpl) Check() (CheckResponse, error) {
 	checkResponse.Enabled = false
 	return checkResponse, nil
 }
-func (impl *SelfRegistrationRolesServiceImpl) SelfRegister(emailId string) (*bean.UserInfo, error) {
-	roles, err := impl.Check()
+
+func (impl *UserSelfRegistrationServiceImpl) SelfRegister(emailId string) (*bean.UserInfo, error) {
+	roles, err := impl.CheckSelfRegistrationRoles()
 	if err != nil || roles.Enabled == false {
 		return nil, err
 	}
@@ -100,7 +101,7 @@ func (impl *SelfRegistrationRolesServiceImpl) SelfRegister(emailId string) (*bea
 	}
 }
 
-func (impl *SelfRegistrationRolesServiceImpl) CheckAndCreateUserIfConfigured(emailId string) bool {
+func (impl *UserSelfRegistrationServiceImpl) CheckAndCreateUserIfConfigured(emailId string) bool {
 	exists := impl.userService.UserExists(emailId)
 	var id int32
 	if !exists {

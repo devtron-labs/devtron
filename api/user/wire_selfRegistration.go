@@ -13,6 +13,6 @@ var SelfRegistrationWireSet = wire.NewSet(
 	repository.NewSelfRegistrationRolesRepositoryImpl,
 	wire.Bind(new(repository.SelfRegistrationRolesRepository), new(*repository.SelfRegistrationRolesRepositoryImpl)),
 
-	user.NewSelfRegistrationRolesServiceImpl,
-	wire.Bind(new(user.SelfRegistrationRolesService), new(*user.SelfRegistrationRolesServiceImpl)),
+	user.NewUserSelfRegistrationServiceImpl,
+	wire.Bind(new(user.UserSelfRegistrationService), new(*user.UserSelfRegistrationServiceImpl)),
 )

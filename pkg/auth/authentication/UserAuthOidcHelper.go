@@ -37,7 +37,7 @@ type UserAuthOidcHelper interface {
 
 type UserAuthOidcHelperImpl struct {
 	logger                       *zap.SugaredLogger
-	selfRegistrationRolesService user.SelfRegistrationRolesService
+	selfRegistrationRolesService user.UserSelfRegistrationService
 	dexProxy                     func(writer http.ResponseWriter, request *http.Request)
 	clientApp                    *oidc.ClientApp
 	dexConfig                    *client.DexConfig
@@ -45,7 +45,7 @@ type UserAuthOidcHelperImpl struct {
 	sessionManager               *authMiddleware.SessionManager
 }
 
-func NewUserAuthOidcHelperImpl(logger *zap.SugaredLogger, selfRegistrationRolesService user.SelfRegistrationRolesService, dexConfig *client.DexConfig,
+func NewUserAuthOidcHelperImpl(logger *zap.SugaredLogger, selfRegistrationRolesService user.UserSelfRegistrationService, dexConfig *client.DexConfig,
 	settings *oidc.Settings, sessionManager *authMiddleware.SessionManager) (*UserAuthOidcHelperImpl, error) {
 	impl := &UserAuthOidcHelperImpl{
 		logger:                       logger,
