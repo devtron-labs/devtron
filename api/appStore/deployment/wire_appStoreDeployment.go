@@ -12,6 +12,7 @@ var AppStoreDeploymentWireSet = wire.NewSet(
 	service.GetDeploymentServiceTypeConfig,
 	repository.NewClusterInstalledAppsRepositoryImpl,
 	wire.Bind(new(repository.ClusterInstalledAppsRepository), new(*repository.ClusterInstalledAppsRepositoryImpl)),
+	appStoreDeploymentCommon.GetDeploymentCommonServiceTypeConfig,
 	appStoreDeploymentCommon.NewAppStoreDeploymentCommonServiceImpl,
 	wire.Bind(new(appStoreDeploymentCommon.AppStoreDeploymentCommonService), new(*appStoreDeploymentCommon.AppStoreDeploymentCommonServiceImpl)),
 	appStoreDeploymentTool.NewAppStoreDeploymentHelmServiceImpl,

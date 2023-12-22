@@ -21,10 +21,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/common-lib/pubsub-lib"
+	"github.com/caarlos0/env"
+	pubsub_lib "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/common-lib/pubsub-lib/model"
+	client "github.com/devtron-labs/devtron/api/helm-app"
 	"path"
 	"regexp"
+	"sync"
 	"time"
 
 	"github.com/devtron-labs/devtron/api/bean"
@@ -58,6 +61,8 @@ import (
 const (
 	DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT = "devtron"
 	CLUSTER_COMPONENT_DIR_PATH                  = "/cluster/component"
+	HELM_UPGRADE_EVENT                          = "upgrade"
+	HELM_INSTALL_EVENT                          = "install"
 )
 
 type AppStoreDeploymentFullModeService interface {
@@ -68,7 +73,16 @@ type AppStoreDeploymentFullModeService interface {
 	UpdateValuesYaml(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error)
 	UpdateRequirementYaml(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, appStoreAppVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) error
 	GetGitOpsRepoName(appName string, environmentName string) (string, error)
-	SubscribeHelmInstallStatus() error
+}
+
+type FullModeDeploymentServiceConfig struct {
+	HelmInstallContextTime int `env:"HELM_INSTALL_CONTEXT_TIME" envDefault:"5"`
+}
+
+func GetDeploymentServiceTypeConfig() (*FullModeDeploymentServiceConfig, error) {
+	cfg := &FullModeDeploymentServiceConfig{}
+	err := env.Parse(cfg)
+	return cfg, err
 }
 
 type AppStoreDeploymentFullModeServiceImpl struct {
@@ -92,6 +106,26 @@ type AppStoreDeploymentFullModeServiceImpl struct {
 	argoClientWrapperService             argocdServer.ArgoClientWrapperService
 	pubSubClient                         *pubsub_lib.PubSubClientServiceImpl
 	installedAppRepositoryHistory        repository4.InstalledAppVersionHistoryRepository
+	helmAppService                       client.HelmAppService
+	helmAppReleaseContextMap             map[int]HelmAppReleaseContextType
+	helmAppReleaseContextMapLock         *sync.Mutex
+	deploymentFullModeServiceTypeConfig  *FullModeDeploymentServiceConfig
+}
+
+type HelmAppReleaseContextType struct {
+	CancelContext       context.CancelFunc
+	AppVersionHistoryId int
+}
+
+type InstallHelmAsyncRequest struct {
+	InstallReleaseRequest        *client.InstallReleaseRequest `json:"installReleaseRequest"`
+	Type                         string                        `json:"type"`
+	InstalledAppId               int                           `json:"installAppId"`
+	InstalledAppVersionId        int                           `json:"installAppVersionId"`
+	InstalledAppVersionHistoryId int                           `json:"installAppVersionHistoryId"`
+	ClusterId                    int                           `json:"clusterId"`
+	InstalledAppClusterId        int                           `json:"installedAppClusterId"`
+	UserId                       int32                         `json:"userId"`
 }
 
 func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
@@ -110,7 +144,7 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
 	pubSubClient *pubsub_lib.PubSubClientServiceImpl,
 	installedAppRepositoryHistory repository4.InstalledAppVersionHistoryRepository,
-) *AppStoreDeploymentFullModeServiceImpl {
+	helmAppService client.HelmAppService) *AppStoreDeploymentFullModeServiceImpl {
 	appStoreDeploymentFullModeServiceImpl := &AppStoreDeploymentFullModeServiceImpl{
 		logger:                               logger,
 		chartTemplateService:                 chartTemplateService,
@@ -132,8 +166,16 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 		argoClientWrapperService:             argoClientWrapperService,
 		pubSubClient:                         pubSubClient,
 		installedAppRepositoryHistory:        installedAppRepositoryHistory,
+		helmAppService:                       helmAppService,
+		helmAppReleaseContextMap:             make(map[int]HelmAppReleaseContextType),
+		helmAppReleaseContextMapLock:         &sync.Mutex{},
 	}
-	err := appStoreDeploymentFullModeServiceImpl.SubscribeHelmInstallStatus()
+	config, err := GetDeploymentServiceTypeConfig()
+	if err != nil {
+		return nil
+	}
+	appStoreDeploymentFullModeServiceImpl.deploymentFullModeServiceTypeConfig = config
+	err = appStoreDeploymentFullModeServiceImpl.SubscribeHelmInstall()
 	if err != nil {
 		return nil
 	}
@@ -502,40 +544,148 @@ func (impl AppStoreDeploymentFullModeServiceImpl) UpdateRequirementYaml(installA
 	return nil
 }
 
-func (impl AppStoreDeploymentFullModeServiceImpl) SubscribeHelmInstallStatus() error {
-
-	callback := func(msg *model.PubSubMsg) {
-
-		impl.logger.Debug("received helm install status event - HELM_INSTALL_STATUS", "data", msg.Data)
-		helmInstallNatsMessage := &appStoreBean.HelmReleaseStatusConfig{}
-		err := json.Unmarshal([]byte(msg.Data), helmInstallNatsMessage)
+func (impl *AppStoreDeploymentFullModeServiceImpl) SubscribeHelmInstall() error {
+	err := impl.pubSubClient.Subscribe(pubsub_lib.HELM_CHART_INSTALL_STATUS_TOPIC_NEW, func(msg *model.PubSubMsg) {
+		impl.logger.Debug("received helm install status event - HELM_CHART_INSTALL_STATUS_TOPIC_NEW")
+		installHelmAsyncRequest := &InstallHelmAsyncRequest{}
+		err := json.Unmarshal([]byte(msg.Data), installHelmAsyncRequest)
 		if err != nil {
 			impl.logger.Errorw("error in unmarshalling helm install status nats message", "err", err)
 			return
 		}
-
-		installedAppVersionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(helmInstallNatsMessage.InstallAppVersionHistoryId)
-		if err != nil {
-			impl.logger.Errorw("error in fetching installed app by installed app id in subscribe helm status callback", "err", err)
-			return
+		impl.logger.Debugw("parsed helm install status event - HELM_CHART_INSTALL_STATUS_TOPIC_NEW", "InstalledAppId", installHelmAsyncRequest.InstalledAppId, "InstalledAppVersionHistoryId", installHelmAsyncRequest.InstalledAppVersionHistoryId)
+		if installHelmAsyncRequest.Type == HELM_INSTALL_EVENT {
+			impl.CallBackForHelmInstall(installHelmAsyncRequest)
+		} else if installHelmAsyncRequest.Type == HELM_UPGRADE_EVENT {
+			impl.CallBackForHelmUpgrade(installHelmAsyncRequest)
 		}
-		if helmInstallNatsMessage.ErrorInInstallation {
-			installedAppVersionHistory.Status = pipelineConfig.WorkflowFailed
-		} else {
-			installedAppVersionHistory.Status = pipelineConfig.WorkflowSucceeded
-		}
-		installedAppVersionHistory.HelmReleaseStatusConfig = msg.Data
-		_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(installedAppVersionHistory, nil)
-		if err != nil {
-			impl.logger.Errorw("error in updating helm release status data in installedAppVersionHistoryRepository", "err", err)
-			return
-		}
-	}
-
-	err := impl.pubSubClient.Subscribe(pubsub_lib.HELM_CHART_INSTALL_STATUS_TOPIC, callback)
+	})
 	if err != nil {
-		impl.logger.Error(err)
+		impl.logger.Error("error in pub-sub subscribe", "err", err)
 		return err
 	}
 	return nil
+}
+
+func (impl *AppStoreDeploymentFullModeServiceImpl) CallBackForHelmInstall(installHelmAsyncRequest *InstallHelmAsyncRequest) {
+
+	defer impl.cleanUpHelmAppReleaseContextMap(installHelmAsyncRequest.InstalledAppId, installHelmAsyncRequest.InstalledAppVersionHistoryId)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(impl.deploymentFullModeServiceTypeConfig.HelmInstallContextTime)*time.Minute)
+	defer cancel()
+
+	resp, err := impl.installedAppRepositoryHistory.UpdateLatestQueuedVersionHistory(installHelmAsyncRequest.InstalledAppVersionHistoryId, installHelmAsyncRequest.InstalledAppId, installHelmAsyncRequest.UserId)
+	if err != nil {
+		impl.logger.Errorw("Error in updating installed app version history status", "InstalledAppVersionHistoryId", installHelmAsyncRequest.InstalledAppVersionHistoryId, "err", err)
+		return
+	}
+	if resp != 1 {
+		impl.logger.Warnw("Installed app version history not found", "InstalledAppVersionHistoryId", installHelmAsyncRequest.InstalledAppVersionHistoryId, "err", err)
+		return
+	}
+	impl.UpdateReleaseContextForPipeline(installHelmAsyncRequest.InstalledAppId, installHelmAsyncRequest.InstalledAppVersionHistoryId, cancel)
+	_, err = impl.helmAppService.InstallRelease(ctx, installHelmAsyncRequest.ClusterId, installHelmAsyncRequest.InstallReleaseRequest)
+	if err != nil {
+		impl.logger.Errorw("Error in Install Release in callback", "err", err)
+	}
+	// TODO check for message in case of failure
+	installAppVersion := getPostDbOperationPayload(installHelmAsyncRequest)
+	impl.appStoreDeploymentCommonService.InstallAppPostDbOperation(installAppVersion, err)
+}
+
+func (impl *AppStoreDeploymentFullModeServiceImpl) UpdateReleaseContextForPipeline(installAppId, appVersionHistoryId int, cancel context.CancelFunc) {
+	impl.helmAppReleaseContextMapLock.Lock()
+	defer impl.helmAppReleaseContextMapLock.Unlock()
+	if releaseContext, ok := impl.helmAppReleaseContextMap[installAppId]; ok {
+		//Abort previous running release
+		impl.logger.Infow("new deployment has been triggered with a running deployment in progress!", "aborting deployment for pipelineId", appVersionHistoryId)
+		releaseContext.CancelContext()
+	}
+	impl.helmAppReleaseContextMap[installAppId] = HelmAppReleaseContextType{
+		CancelContext:       cancel,
+		AppVersionHistoryId: appVersionHistoryId,
+	}
+}
+
+func (impl *AppStoreDeploymentFullModeServiceImpl) cleanUpHelmAppReleaseContextMap(installedAppId, installedAppVersionHistoryId int) {
+	if impl.isReleaseContextExistsForPipeline(installedAppId, installedAppVersionHistoryId) {
+		impl.helmAppReleaseContextMapLock.Lock()
+		defer impl.helmAppReleaseContextMapLock.Unlock()
+		if _, ok := impl.helmAppReleaseContextMap[installedAppId]; ok {
+			delete(impl.helmAppReleaseContextMap, installedAppId)
+		}
+	}
+}
+
+func (impl *AppStoreDeploymentFullModeServiceImpl) isReleaseContextExistsForPipeline(installedAppId, appVersionHistoryId int) bool {
+	impl.helmAppReleaseContextMapLock.Lock()
+	defer impl.helmAppReleaseContextMapLock.Unlock()
+	if releaseContext, ok := impl.helmAppReleaseContextMap[installedAppId]; ok {
+		return releaseContext.AppVersionHistoryId == appVersionHistoryId
+	}
+	return false
+}
+
+func (impl *AppStoreDeploymentFullModeServiceImpl) handleIfPreviousRunnerTriggerRequest(helmAsyncRequest *InstallHelmAsyncRequest) (bool, error) {
+	exists, err := impl.installedAppRepositoryHistory.IsLatestVersionHistory(helmAsyncRequest.InstalledAppVersionId, helmAsyncRequest.InstalledAppVersionHistoryId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("err on fetching latest cd workflow runner, SubscribeDevtronAsyncHelmInstallRequest", "err", err)
+		return false, err
+	}
+	return exists, nil
+}
+
+func (impl *AppStoreDeploymentFullModeServiceImpl) CallBackForHelmUpgrade(installHelmAsyncRequest *InstallHelmAsyncRequest) {
+	defer impl.cleanUpHelmAppReleaseContextMap(installHelmAsyncRequest.InstalledAppId, installHelmAsyncRequest.InstalledAppVersionHistoryId)
+	impl.logger.Debugw("CallBackForHelmUpgrade", "installHelmAsyncRequest", installHelmAsyncRequest)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(impl.deploymentFullModeServiceTypeConfig.HelmInstallContextTime)*time.Minute)
+	defer cancel()
+
+	resp, err := impl.installedAppRepositoryHistory.UpdateLatestQueuedVersionHistory(installHelmAsyncRequest.InstalledAppVersionHistoryId, installHelmAsyncRequest.InstalledAppId, installHelmAsyncRequest.UserId)
+	if err != nil {
+		impl.logger.Errorw("Error in updating installed app version history status", "InstalledAppVersionHistoryId", installHelmAsyncRequest.InstalledAppVersionHistoryId, "err", err)
+		return
+	}
+	if resp != 1 {
+		impl.logger.Warnw("Installed app version history not found", "InstalledAppVersionHistoryId", installHelmAsyncRequest.InstalledAppVersionHistoryId, "err", err)
+		return
+	}
+	impl.UpdateReleaseContextForPipeline(installHelmAsyncRequest.InstalledAppId, installHelmAsyncRequest.InstalledAppVersionHistoryId, cancel)
+
+	updateApplicationWithChartInfoRequestDto := &client.UpdateApplicationWithChartInfoRequestDto{
+		InstallReleaseRequest: installHelmAsyncRequest.InstallReleaseRequest,
+		SourceAppType:         client.SOURCE_HELM_APP,
+	}
+	_, err = impl.helmAppService.UpdateApplicationWithChartInfo(ctx, installHelmAsyncRequest.InstalledAppClusterId, updateApplicationWithChartInfoRequestDto)
+	if err != nil {
+		impl.logger.Errorw("error in updating helm application", "err", err)
+	}
+	installAppVersion := getPostDbOperationPayload(installHelmAsyncRequest)
+	impl.appStoreDeploymentCommonService.InstallAppPostDbOperation(installAppVersion, err)
+
+}
+
+func getPostDbOperationPayload(installHelmAsyncRequest *InstallHelmAsyncRequest) *appStoreBean.InstallAppVersionDTO {
+	return &appStoreBean.InstallAppVersionDTO{
+		DeploymentAppType:            util.PIPELINE_DEPLOYMENT_TYPE_HELM,
+		InstalledAppVersionHistoryId: installHelmAsyncRequest.InstalledAppVersionHistoryId,
+		InstalledAppId:               installHelmAsyncRequest.InstalledAppId,
+		UserId:                       installHelmAsyncRequest.UserId,
+	}
+}
+
+func GetInstallHelmAsyncRequestPayload(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, isInstallRequest bool, installedAppClusterId int) InstallHelmAsyncRequest {
+	request := InstallHelmAsyncRequest{
+		InstalledAppId:               installAppVersionRequest.InstalledAppId,
+		InstalledAppVersionId:        installAppVersionRequest.InstalledAppVersionId,
+		InstalledAppVersionHistoryId: installAppVersionRequest.InstalledAppVersionHistoryId,
+		ClusterId:                    installAppVersionRequest.ClusterId,
+		UserId:                       installAppVersionRequest.UserId,
+		InstalledAppClusterId:        installedAppClusterId,
+	}
+	if isInstallRequest {
+		request.Type = HELM_INSTALL_EVENT
+	} else {
+		request.Type = HELM_UPGRADE_EVENT
+	}
+	return request
 }

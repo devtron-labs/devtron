@@ -21,6 +21,7 @@ import (
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean"
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
@@ -41,6 +42,7 @@ type InstalledAppRepository interface {
 	UpdateInstalledAppVersion(model *InstalledAppVersions, tx *pg.Tx) (*InstalledAppVersions, error)
 	GetInstalledApp(id int) (*InstalledApps, error)
 	GetInstalledAppVersion(id int) (*InstalledAppVersions, error)
+	GetInactiveInstalledAppVersion(id int) (*InstalledAppVersions, error)
 	GetInstalledAppVersionAny(id int) (*InstalledAppVersions, error)
 	GetAllInstalledApps(filter *appStoreBean.AppStoreFilter) ([]InstalledAppsWithChartDetails, error)
 	GetAllIntalledAppsByAppStoreId(appStoreId int) ([]InstalledAppAndEnvDetails, error)
@@ -326,6 +328,32 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppVersion(id int) (*Installe
 	err := impl.dbConnection.Model(model).
 		Column("installed_app_versions.*", "InstalledApp", "InstalledApp.App", "InstalledApp.Environment", "InstalledApp.Environment.Cluster", "AppStoreApplicationVersion", "InstalledApp.App.Team").
 		Where("installed_app_versions.id = ?", id).Where("installed_app_versions.active = true").Select()
+	if err != nil {
+		return model, err
+	}
+	appStore := &appStoreDiscoverRepository.AppStore{}
+	err = impl.dbConnection.
+		Model(appStore).
+		Column("app_store.*", "ChartRepo", "DockerArtifactStore", "DockerArtifactStore.OCIRegistryConfig").
+		Where("app_store.id = ? ", model.AppStoreApplicationVersion.AppStoreId).
+		Relation("DockerArtifactStore.OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {
+			return q.Where("deleted IS FALSE and " +
+				"repository_type='CHART' and " +
+				"(repository_action='PULL' or repository_action='PULL/PUSH')"), nil
+		}).
+		Select()
+	if err != nil {
+		return model, err
+	}
+	model.AppStoreApplicationVersion.AppStore = appStore
+	return model, err
+}
+
+func (impl InstalledAppRepositoryImpl) GetInactiveInstalledAppVersion(id int) (*InstalledAppVersions, error) {
+	model := &InstalledAppVersions{}
+	err := impl.dbConnection.Model(model).
+		Column("installed_app_versions.*", "InstalledApp", "InstalledApp.App", "InstalledApp.Environment", "InstalledApp.Environment.Cluster", "AppStoreApplicationVersion", "InstalledApp.App.Team").
+		Where("installed_app_versions.id = ?", id).Select()
 	if err != nil {
 		return model, err
 	}
@@ -811,7 +839,7 @@ func (impl InstalledAppRepositoryImpl) GetArgoPipelinesHavingLatestTriggerStuckI
                          group by installed_app_version_id, id order by installed_app_version_id, id desc ) and ia.deployment_app_type=? and iav.active=?;`
 
 	_, err := impl.dbConnection.Query(&installedAppVersions, queryString, getPipelineDeployedBeforeMinutes, getPipelineDeployedWithinHours,
-		pg.In([]string{pipelineConfig.WorkflowAborted, pipelineConfig.WorkflowFailed, pipelineConfig.WorkflowSucceeded, string(health.HealthStatusHealthy), string(health.HealthStatusDegraded)}),
+		pg.In([]string{bean.WorkflowAborted, bean.WorkflowFailed, bean.WorkflowSucceeded, string(health.HealthStatusHealthy), string(health.HealthStatusDegraded)}),
 		util2.PIPELINE_DEPLOYMENT_TYPE_ACD, true)
 	if err != nil {
 		impl.Logger.Errorw("error in GetArgoPipelinesHavingLatestTriggerStuckInNonTerminalStatusesForAppStore", "err", err)

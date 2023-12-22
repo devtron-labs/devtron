@@ -509,7 +509,7 @@ func (handler *InstalledAppRestHandlerImpl) DeleteArgoInstalledAppWithNonCascade
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	if util.IsBaseStack() || util.IsHelmApp(installedApp.AppOfferingMode) || util2.IsHelmApp(installedApp.DeploymentAppType) {
+	if util.IsBaseStack() || util.IsHyperionMode(installedApp.AppOfferingMode) || util2.IsHelmApp(installedApp.DeploymentAppType) {
 		handler.Logger.Errorw("request err, NonCascadeDeleteCdPipeline", "err", fmt.Errorf("nocascade delete is not supported for %s", installedApp.AppName))
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return

@@ -91,7 +91,7 @@ const (
 type InstalledAppService interface {
 	GetAll(filter *appStoreBean.AppStoreFilter) (openapi.AppList, error)
 	DeployBulk(chartGroupInstallRequest *appStoreBean.ChartGroupInstallRequest) (*appStoreBean.ChartGroupInstallAppRes, error)
-	performDeployStage(appId int, installedAppVersionHistoryId int, userId int32) (*appStoreBean.InstallAppVersionDTO, error)
+	performDeployStage(installedAppVersionId int, installedAppVersionHistoryId int, userId int32, isBulkDeploy bool) (*appStoreBean.InstallAppVersionDTO, error)
 	CheckAppExists(appNames []*appStoreBean.AppNames) ([]*appStoreBean.AppNames, error)
 	DeployDefaultChartOnCluster(bean *cluster2.ClusterBean, userId int32) (bool, error)
 	FindAppDetailsForAppstoreApplication(installedAppId, envId int) (bean2.AppDetailContainer, error)
@@ -317,7 +317,7 @@ func (impl InstalledAppServiceImpl) DeployBulk(chartGroupInstallRequest *appStor
 	// Rollback tx on error.
 	defer tx.Rollback()
 	for _, installAppVersionDTO := range installAppVersionDTOList {
-		installAppVersionDTO, err = impl.appStoreDeploymentService.AppStoreDeployOperationDB(installAppVersionDTO, tx, false)
+		installAppVersionDTO, err = impl.appStoreDeploymentService.AppStoreDeployDbOperation(installAppVersionDTO, tx, false)
 		if err != nil {
 			impl.logger.Errorw("DeployBulk, error while app store deploy db operation", "err", err)
 			return nil, err
@@ -498,13 +498,15 @@ func (impl InstalledAppServiceImpl) performDeployStageOnAcd(installedAppVersion 
 	}
 	return installedAppVersion, nil
 }
-func (impl InstalledAppServiceImpl) performDeployStage(installedAppVersionId int, installedAppVersionHistoryId int, userId int32) (*appStoreBean.InstallAppVersionDTO, error) {
+func (impl InstalledAppServiceImpl) performDeployStage(installedAppVersionId int, installedAppVersionHistoryId int, userId int32, isBulkDeploy bool) (*appStoreBean.InstallAppVersionDTO, error) {
 	ctx := context.Background()
 	installedAppVersion, err := impl.appStoreDeploymentService.GetInstalledAppVersion(installedAppVersionId, userId)
 	if err != nil {
 		return nil, err
 	}
 	installedAppVersion.InstalledAppVersionHistoryId = installedAppVersionHistoryId
+	// To skip async mode for bulk deploy helm apps
+	installedAppVersion.IsBulkDeploy = isBulkDeploy
 	if util.IsAcdApp(installedAppVersion.DeploymentAppType) {
 		//this method should only call in case of argo-integration installed and git-ops has configured
 		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
@@ -633,7 +635,7 @@ func (impl *InstalledAppServiceImpl) Subscribe() error {
 		}
 		impl.logger.Debugw("deployPayload:", "deployPayload", deployPayload)
 		//using userId 1 - for system user
-		_, err = impl.performDeployStage(deployPayload.InstalledAppVersionId, deployPayload.InstalledAppVersionHistoryId, 1)
+		_, err = impl.performDeployStage(deployPayload.InstalledAppVersionId, deployPayload.InstalledAppVersionHistoryId, 1, true)
 		if err != nil {
 			impl.logger.Errorw("error in performing deploy stage", "deployPayload", deployPayload, "err", err)
 		}
@@ -789,7 +791,7 @@ func (impl InstalledAppServiceImpl) DeployDefaultComponent(chartGroupInstallRequ
 	// Rollback tx on error.
 	defer tx.Rollback()
 	for _, installAppVersionDTO := range installAppVersionDTOList {
-		installAppVersionDTO, err = impl.appStoreDeploymentService.AppStoreDeployOperationDB(installAppVersionDTO, tx, false)
+		installAppVersionDTO, err = impl.appStoreDeploymentService.AppStoreDeployDbOperation(installAppVersionDTO, tx, false)
 		if err != nil {
 			impl.logger.Errorw("DeployBulk, error while app store deploy db operation", "err", err)
 			return nil, err
@@ -819,7 +821,7 @@ func (impl InstalledAppServiceImpl) DeployDefaultComponent(chartGroupInstallRequ
 	//nats event
 
 	for _, versions := range installAppVersions {
-		_, err := impl.performDeployStage(versions.InstalledAppVersionId, versions.InstalledAppVersionHistoryId, chartGroupInstallRequest.UserId)
+		_, err := impl.performDeployStage(versions.InstalledAppVersionId, versions.InstalledAppVersionHistoryId, chartGroupInstallRequest.UserId, false)
 		if err != nil {
 			impl.logger.Errorw("error in performing deploy stage", "deployPayload", versions, "err", err)
 			_, err = impl.appStoreDeploymentService.AppStoreDeployOperationStatusUpdate(versions.InstalledAppVersionId, appStoreBean.QUE_ERROR)

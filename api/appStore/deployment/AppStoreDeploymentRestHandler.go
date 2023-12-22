@@ -162,7 +162,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) InstallApp(w http.ResponseWrite
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
-	if util2.IsBaseStack() || util2.IsHelmApp(request.AppOfferingMode) {
+	if util2.IsBaseStack() || util2.IsHyperionMode(request.AppOfferingMode) {
 		ctx = context.WithValue(r.Context(), "token", token)
 	} else {
 		acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
@@ -216,7 +216,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) GetInstalledAppsByAppStoreId(w 
 		//rbac block starts from here
 		var rbacObject string
 		var rbacObject2 string
-		if util2.IsHelmApp(app.AppOfferingMode) {
+		if util2.IsHyperionMode(app.AppOfferingMode) {
 			rbacObject, rbacObject2 = handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(app.ClusterId, app.Namespace, app.AppName)
 		} else {
 			rbacObject, rbacObject2 = handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(app.AppName, app.EnvironmentId)
@@ -304,7 +304,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) DeleteInstalledApp(w http.Respo
 	//rbac block starts from here
 	var rbacObject string
 	var rbacObject2 string
-	if util2.IsHelmApp(installedApp.AppOfferingMode) {
+	if util2.IsHyperionMode(installedApp.AppOfferingMode) {
 		rbacObject, rbacObject2 = handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(installedApp.ClusterId, installedApp.Namespace, installedApp.AppName)
 	} else {
 		rbacObject, rbacObject2 = handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(installedApp.AppName, installedApp.EnvironmentId)
@@ -345,7 +345,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) DeleteInstalledApp(w http.Respo
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
-	if util2.IsBaseStack() || util2.IsHelmApp(request.AppOfferingMode) {
+	if util2.IsBaseStack() || util2.IsHyperionMode(request.AppOfferingMode) {
 		ctx = context.WithValue(r.Context(), "token", token)
 	} else {
 		acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
@@ -442,7 +442,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateInstalledApp(w http.Respo
 	//rbac block starts from here
 	var rbacObject string
 	var rbacObject2 string
-	if util2.IsHelmApp(installedApp.AppOfferingMode) {
+	if util2.IsHyperionMode(installedApp.AppOfferingMode) {
 		rbacObject, rbacObject2 = handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(installedApp.ClusterId, installedApp.Namespace, installedApp.AppName)
 	} else {
 		rbacObject, rbacObject2 = handler.enforcerUtil.GetHelmObject(installedApp.AppId, installedApp.EnvironmentId)
@@ -473,7 +473,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateInstalledApp(w http.Respo
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
-	if util2.IsBaseStack() || util2.IsHelmApp(request.AppOfferingMode) {
+	if util2.IsBaseStack() || util2.IsHyperionMode(request.AppOfferingMode) {
 		ctx = context.WithValue(r.Context(), "token", token)
 	} else {
 		acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
@@ -530,7 +530,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) GetInstalledAppVersion(w http.R
 	//rbac block starts from here
 	var rbacObject string
 	var rbacObject2 string
-	if util2.IsHelmApp(dto.AppOfferingMode) {
+	if util2.IsHyperionMode(dto.AppOfferingMode) {
 		rbacObject, rbacObject2 = handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(dto.ClusterId, dto.Namespace, dto.AppName)
 	} else {
 		rbacObject, rbacObject2 = handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(dto.AppName, dto.EnvironmentId)

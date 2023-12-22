@@ -2,6 +2,7 @@ package repository
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -12,6 +13,7 @@ type InstalledAppVersionHistoryRepository interface {
 	CreateInstalledAppVersionHistory(model *InstalledAppVersionHistory, tx *pg.Tx) (*InstalledAppVersionHistory, error)
 	UpdateInstalledAppVersionHistory(model *InstalledAppVersionHistory, tx *pg.Tx) (*InstalledAppVersionHistory, error)
 	GetInstalledAppVersionHistory(id int) (*InstalledAppVersionHistory, error)
+	GetQueuedInstalledAppVersionHistory(id int) (*InstalledAppVersionHistory, error)
 	GetInstalledAppVersionHistoryByVersionId(installAppVersionId int) ([]*InstalledAppVersionHistory, error)
 	GetLatestInstalledAppVersionHistory(installAppVersionId int) (*InstalledAppVersionHistory, error)
 	GetLatestInstalledAppVersionHistoryByGitHash(gitHash string) (*InstalledAppVersionHistory, error)
@@ -20,7 +22,9 @@ type InstalledAppVersionHistoryRepository interface {
 	FindPreviousInstalledAppVersionHistoryByStatus(installedAppVersionId int, installedAppVersionHistoryId int, status []string) ([]*InstalledAppVersionHistory, error)
 	UpdateInstalledAppVersionHistoryWithTxn(models []*InstalledAppVersionHistory, tx *pg.Tx) error
 	GetAppStoreApplicationVersionIdByInstalledAppVersionHistoryId(installedAppVersionHistoryId int) (int, error)
-
+	UpdatePreviousQueuedVersionHistory(installedAppVersionHistoryId int, installedAppId int, triggeredBy int32, tx *pg.Tx) error
+	IsLatestVersionHistory(installedAppVersionId, installedAppVersionHistoryId int) (bool, error)
+	UpdateLatestQueuedVersionHistory(installedAppVersionHistoryId int, installedAppId int, triggeredBy int32) (int, error)
 	GetConnection() *pg.DB
 }
 
@@ -80,6 +84,15 @@ func (impl InstalledAppVersionHistoryRepositoryImpl) GetInstalledAppVersionHisto
 	return model, err
 }
 
+func (impl InstalledAppVersionHistoryRepositoryImpl) GetQueuedInstalledAppVersionHistory(id int) (*InstalledAppVersionHistory, error) {
+	model := &InstalledAppVersionHistory{}
+	err := impl.dbConnection.Model(model).
+		Column("installed_app_version_history.*").
+		Where("installed_app_version_history.id = ?", id).
+		Where("installed_app_version_history.status = ?", bean.WorkflowInQueue).Select()
+	return model, err
+}
+
 func (impl InstalledAppVersionHistoryRepositoryImpl) GetAppStoreApplicationVersionIdByInstalledAppVersionHistoryId(installedAppVersionHistoryId int) (int, error) {
 	appStoreApplicationVersionId := 0
 	query := "SELECT iav.app_store_application_version_id " +
@@ -91,6 +104,71 @@ func (impl InstalledAppVersionHistoryRepositoryImpl) GetAppStoreApplicationVersi
 	query = fmt.Sprintf(query, installedAppVersionHistoryId)
 	_, err := impl.dbConnection.Query(&appStoreApplicationVersionId, query)
 	return appStoreApplicationVersionId, err
+}
+
+func (impl InstalledAppVersionHistoryRepositoryImpl) UpdatePreviousQueuedVersionHistory(installedAppVersionHistoryId int, installedAppId int, triggeredBy int32, tx *pg.Tx) error {
+	var installedAppVersionIds []int
+	query := "SELECT iav.id FROM installed_app_versions iav WHERE iav.installed_app_id = %d;"
+	query = fmt.Sprintf(query, installedAppId)
+	_, err := impl.dbConnection.Query(&installedAppVersionIds, query)
+	if err != nil {
+		return err
+	}
+	if len(installedAppVersionIds) == 0 {
+		return nil
+	}
+	var model []*InstalledAppVersionHistory
+	_, err = tx.Model(&model).
+		Set("status=?", bean.WorkflowFailed).
+		Set("finished_on=?", time.Now()).
+		Set("updated_on=?", time.Now()).
+		Set("updated_by=?", triggeredBy).
+		Where("id < ?", installedAppVersionHistoryId).
+		Where("installed_app_version_id in (?)", pg.In(installedAppVersionIds)).
+		Where("status = ?", bean.WorkflowInQueue).
+		Update()
+	return err
+
+}
+
+func (impl InstalledAppVersionHistoryRepositoryImpl) IsLatestVersionHistory(installedAppId, installedAppVersionHistoryId int) (bool, error) {
+	var installedAppVersionIds []int
+	query := "SELECT iav.id FROM installed_app_versions iav WHERE iav.installed_app_id = %d;"
+	query = fmt.Sprintf(query, installedAppId)
+	_, err := impl.dbConnection.Query(&installedAppVersionIds, query)
+	if err != nil {
+		return true, err
+	}
+	if len(installedAppVersionIds) == 0 {
+		return false, nil
+	}
+	var model *InstalledAppVersionHistory
+	exists, err := impl.dbConnection.Model(model).
+		Column("installed_app_version_history.*").
+		Where("installed_app_version_id in (?)", installedAppVersionIds).
+		Order("installed_app_version_history.id DESC").
+		Where("id > ?", installedAppVersionHistoryId).
+		Exists()
+
+	return exists, err
+}
+
+func (impl InstalledAppVersionHistoryRepositoryImpl) UpdateLatestQueuedVersionHistory(installedAppVersionHistoryId int, installedAppId int, triggeredBy int32) (int, error) {
+
+	query := "UPDATE installed_app_version_history " +
+		"set status=?, " +
+		"updated_on=?, " +
+		"updated_by=? " +
+		"where status=? " +
+		"and id=? " +
+		"and id = (select max(id) from installed_app_version_history " +
+		"where installed_app_version_history.installed_app_version_id = (SELECT max(iav.id) FROM installed_app_versions iav WHERE iav.installed_app_id = ?))"
+	var installedAppVersionHistory *InstalledAppVersionHistory
+	resp, err := impl.dbConnection.Query(installedAppVersionHistory, query, bean.WorkflowInProgress, time.Now(), triggeredBy, bean.WorkflowInQueue, installedAppVersionHistoryId, installedAppId)
+	if err != nil {
+		return 0, err
+	}
+	return resp.RowsAffected(), err
 }
 
 func (impl InstalledAppVersionHistoryRepositoryImpl) GetInstalledAppVersionHistoryByVersionId(installAppVersionId int) ([]*InstalledAppVersionHistory, error) {

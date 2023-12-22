@@ -99,7 +99,10 @@ type InstallAppVersionDTO struct {
 	DeploymentAppType            string                         `json:"deploymentAppType"`
 	AcdPartialDelete             bool                           `json:"acdPartialDelete"`
 	InstalledAppDeleteResponse   *InstalledAppDeleteResponseDTO `json:"deleteResponse,omitempty"`
+	HelmInstallAsyncMode         bool                           `json:"helmInstallAsyncMode"`
+	HelmInstallContextTime       int                            `json:"helmInstallContextTime"`
 	AppStoreApplicationVersionId int
+	IsBulkDeploy                 bool
 	PerformGitOpsForHelmApp      bool `json:"performGitOpsForHelmApp"`
 	PerformGitOps                bool `json:"performGitOps"`
 	PerformACDDeployment         bool `json:"performACDDeployment"`
@@ -379,4 +382,17 @@ type HelmReleaseStatusConfig struct {
 	Message                    string
 	IsReleaseInstalled         bool
 	ErrorInInstallation        bool
+}
+
+func GetAppStatus(isSuccess bool) AppstoreDeploymentStatus {
+	switch isSuccess {
+	case true:
+		return DEPLOY_SUCCESS
+	default:
+		return TRIGGER_ERROR
+	}
+}
+
+func (impl InstallAppVersionDTO) IsAsyncMode() bool {
+	return !impl.IsBulkDeploy && impl.HelmInstallAsyncMode
 }

@@ -16,6 +16,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/constants"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	"github.com/devtron-labs/devtron/pkg/appStatus"
@@ -42,7 +43,7 @@ import (
 
 type AppStoreDeploymentArgoCdService interface {
 	//InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error)
-	InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, chartGitAttr *util.ChartGitAttribute, ctx context.Context, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error)
+	InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, chartGitAttr *util.ChartGitAttribute, ctx context.Context, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error, bool)
 	GetAppStatus(installedAppAndEnvDetails repository.InstalledAppAndEnvDetails, w http.ResponseWriter, r *http.Request, token string) (string, error)
 	DeleteInstalledApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApps *repository.InstalledApps, dbTransaction *pg.Tx) error
 	RollbackRelease(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, deploymentVersion int32, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, bool, error)
@@ -55,7 +56,7 @@ type AppStoreDeploymentArgoCdService interface {
 	DeleteDeploymentApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error
 	UpdateInstalledAppAndPipelineStatusForFailedDeploymentStatus(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, triggeredAt time.Time, err error) error
 	SaveTimelineForACDHelmApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, status string, statusDetail string, tx *pg.Tx) error
-	UpdateChartInfo(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *util.ChartGitAttribute, installedAppVersionHistoryId int, ctx context.Context) error
+	UpdateChartInfo(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *util.ChartGitAttribute, installedAppVersionHistoryId int, ctx context.Context, tx *pg.Tx) error
 	RefreshAndUpdateACDApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *util.ChartGitAttribute, isMonoRepoMigrationRequired bool, ctx context.Context) error
 }
 
@@ -115,7 +116,7 @@ func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreD
 func (impl AppStoreDeploymentArgoCdServiceImpl) RefreshAndUpdateACDApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *util.ChartGitAttribute, isMonoRepoMigrationRequired bool, ctx context.Context) error {
 	if isMonoRepoMigrationRequired {
 		// update repo details on ArgoCD as repo is changed
-		err := impl.UpdateChartInfo(installAppVersionRequest, ChartGitAttribute, 0, ctx)
+		err := impl.UpdateChartInfo(installAppVersionRequest, ChartGitAttribute, 0, ctx, nil)
 		if err != nil {
 			impl.Logger.Errorw("error in acd patch request", "err", err)
 			return err
@@ -130,7 +131,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) RefreshAndUpdateACDApp(installAp
 }
 
 // UpdateChartInfo this will update chart info in acd app, needed when repo for an app is changed
-func (impl AppStoreDeploymentArgoCdServiceImpl) UpdateChartInfo(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *util.ChartGitAttribute, installedAppVersionHistoryId int, ctx context.Context) error {
+func (impl AppStoreDeploymentArgoCdServiceImpl) UpdateChartInfo(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *util.ChartGitAttribute, installedAppVersionHistoryId int, ctx context.Context, tx *pg.Tx) error {
 	installAppVersionRequest, err := impl.patchAcdApp(ctx, installAppVersionRequest, ChartGitAttribute)
 	if err != nil {
 		return err
@@ -162,14 +163,14 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) SaveTimelineForACDHelmApps(insta
 	return timelineErr
 }
 
-func (impl AppStoreDeploymentArgoCdServiceImpl) InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, chartGitAttr *util.ChartGitAttribute, ctx context.Context, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error) {
+func (impl AppStoreDeploymentArgoCdServiceImpl) InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, chartGitAttr *util.ChartGitAttribute, ctx context.Context, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error, bool) {
 
 	installAppVersionRequest, err := impl.appStoreDeploymentFullModeService.AppStoreDeployOperationACD(installAppVersionRequest, chartGitAttr, ctx)
 	if err != nil {
 		impl.Logger.Errorw(" error", "err", err)
-		return installAppVersionRequest, err
+		return installAppVersionRequest, err, false
 	}
-	return installAppVersionRequest, nil
+	return installAppVersionRequest, nil, false
 }
 
 //func (impl AppStoreDeploymentArgoCdServiceImpl) InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error) {
@@ -310,7 +311,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) RollbackRelease(ctx context.Cont
 	installedAppVersionHistory.UpdatedBy = installedApp.UserId
 	installedAppVersionHistory.UpdatedOn = time.Now()
 	installedAppVersionHistory.StartedOn = time.Now()
-	installedAppVersionHistory.Status = pipelineConfig.WorkflowInProgress
+	installedAppVersionHistory.Status = bean.WorkflowInProgress
 	_, err = impl.installedAppRepositoryHistory.CreateInstalledAppVersionHistory(installedAppVersionHistory, tx)
 	if err != nil {
 		impl.Logger.Errorw("error while fetching from db", "error", err)
@@ -713,7 +714,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) UpdateInstalledAppAndPipelineSta
 			impl.Logger.Errorw("error in getting installedAppVersionHistory by installedAppVersionHistoryId", "installedAppVersionHistoryId", installAppVersionRequest.InstalledAppVersionHistoryId, "err", err)
 			return err
 		}
-		installedAppVersionHistory.Status = pipelineConfig.WorkflowFailed
+		installedAppVersionHistory.Status = bean.WorkflowFailed
 		installedAppVersionHistory.FinishedOn = triggeredAt
 		installedAppVersionHistory.UpdatedOn = time.Now()
 		installedAppVersionHistory.UpdatedBy = installAppVersionRequest.UserId
@@ -725,7 +726,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) UpdateInstalledAppAndPipelineSta
 
 	} else {
 		//update [n,n-1] statuses as failed if not terminal
-		terminalStatus := []string{string(health.HealthStatusHealthy), pipelineConfig.WorkflowAborted, pipelineConfig.WorkflowFailed, pipelineConfig.WorkflowSucceeded}
+		terminalStatus := []string{string(health.HealthStatusHealthy), bean.WorkflowAborted, bean.WorkflowFailed, bean.WorkflowSucceeded}
 		previousNonTerminalHistory, err := impl.installedAppRepositoryHistory.FindPreviousInstalledAppVersionHistoryByStatus(installAppVersionRequest.Id, installAppVersionRequest.InstalledAppVersionHistoryId, terminalStatus)
 		if err != nil {
 			impl.Logger.Errorw("error fetching previous installed app version history, updating installed app version history status,", "err", err, "installAppVersionRequest", installAppVersionRequest)
@@ -745,16 +746,16 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) UpdateInstalledAppAndPipelineSta
 		var timelines []*pipelineConfig.PipelineStatusTimeline
 		for _, previousHistory := range previousNonTerminalHistory {
 			if previousHistory.Status == string(health.HealthStatusHealthy) ||
-				previousHistory.Status == pipelineConfig.WorkflowSucceeded ||
-				previousHistory.Status == pipelineConfig.WorkflowAborted ||
-				previousHistory.Status == pipelineConfig.WorkflowFailed {
+				previousHistory.Status == bean.WorkflowSucceeded ||
+				previousHistory.Status == bean.WorkflowAborted ||
+				previousHistory.Status == bean.WorkflowFailed {
 				//terminal status return
 				impl.Logger.Infow("skip updating installedAppVersionHistory status as previous history status is", "status", previousHistory.Status)
 				continue
 			}
 			impl.Logger.Infow("updating installedAppVersionHistory status as previous runner status is", "status", previousHistory.Status)
 			previousHistory.FinishedOn = triggeredAt
-			previousHistory.Status = pipelineConfig.WorkflowFailed
+			previousHistory.Status = bean.WorkflowFailed
 			previousHistory.UpdatedOn = time.Now()
 			previousHistory.UpdatedBy = installAppVersionRequest.UserId
 			timeline := &pipelineConfig.PipelineStatusTimeline{
