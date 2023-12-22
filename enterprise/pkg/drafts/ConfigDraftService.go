@@ -796,11 +796,11 @@ func (impl *ConfigDraftServiceImpl) validateDeploymentTemplate(appId int, envId 
 			var currentEnvOverrideValues json.RawMessage
 			currentLatestChart, err := impl.envConfigRepo.FindLatestChartForAppByAppIdAndEnvId(appId, envId)
 
-			if err != nil && err != pg.ErrNoRows {
+			if err != nil && !errors1.IsNotFound(err) {
 				return nil, draftData, err
 			}
 
-			if err == pg.ErrNoRows {
+			if errors1.IsNotFound(err) {
 				chart, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
 				if err != nil {
 					return nil, draftData, err
@@ -887,10 +887,10 @@ func (impl *ConfigDraftServiceImpl) checkLockConfiguration(appId int, envId int,
 		if resourceAction == AddResourceAction || resourceAction == UpdateResourceAction {
 			var currentEnvOverrideValues json.RawMessage
 			currentLatestChart, err := impl.envConfigRepo.FindLatestChartForAppByAppIdAndEnvId(appId, envId)
-			if err != nil && err != errors1.NotFoundf(pg.ErrNoRows.Error()) {
+			if err != nil && !errors1.IsNotFound(err) {
 				return nil, err
 			}
-			if err == pg.ErrNoRows {
+			if errors1.IsNotFound(err) {
 				chart, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
 				if err != nil {
 					return nil, err
