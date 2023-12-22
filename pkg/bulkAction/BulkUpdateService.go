@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
+	"github.com/devtron-labs/common-lib/pubsub-lib/model"
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
@@ -1421,7 +1422,7 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironm
 
 func (impl BulkUpdateServiceImpl) SubscribeToCdBulkTriggerTopic() error {
 
-	callback := func(msg *pubsub.PubSubMsg) {
+	callback := func(msg *model.PubSubMsg) {
 		impl.logger.Infow("Event received",
 			"topic", pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC,
 			"msg", msg.Data)
