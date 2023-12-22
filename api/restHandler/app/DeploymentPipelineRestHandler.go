@@ -1642,13 +1642,13 @@ func (handler PipelineConfigRestHandlerImpl) ValidateAppOverride(w http.Response
 		return
 	}
 	ctx = context.WithValue(r.Context(), "token", acdToken)
-	createResp, err := handler.chartService.ValidateAppOverride(templateRequest)
+	validateResp, err := handler.chartService.ValidateAppOverride(templateRequest)
 	if err != nil {
 		handler.Logger.Errorw("service err, ValidateAppOverride", "err", err, "payload", templateRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	common.WriteJsonResp(w, err, createResp, http.StatusOK)
+	common.WriteJsonResp(w, err, validateResp, http.StatusOK)
 }
 
 func (handler PipelineConfigRestHandlerImpl) GetArtifactsForRollback(w http.ResponseWriter, r *http.Request) {
