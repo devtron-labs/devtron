@@ -7,12 +7,10 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/go-pg/pg"
-	"github.com/mdaverde/jsonpath"
 	"github.com/ohler55/ojg/jp"
 	"github.com/ohler55/ojg/oj"
 	"go.uber.org/zap"
 	"reflect"
-	"strings"
 	"time"
 )
 
@@ -47,6 +45,7 @@ func (impl LockConfigurationServiceImpl) GetLockConfiguration() (*bean.LockConfi
 
 	lockConfigDto, err := impl.lockConfigurationRepository.GetActiveLockConfig()
 	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("Error in getting active lock config", "err", err)
 		return nil, err
 	}
 	if lockConfigDto == nil {
@@ -69,6 +68,7 @@ func (impl LockConfigurationServiceImpl) SaveLockConfiguration(lockConfig *bean.
 	// Delete Active configuration
 	err = impl.DeleteActiveLockConfiguration(createdBy, tx)
 	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in deleting current active lock config", "err", err)
 		return err
 	}
 
@@ -85,6 +85,7 @@ func (impl LockConfigurationServiceImpl) SaveLockConfiguration(lockConfig *bean.
 	// TODO log
 	err = tx.Commit()
 	if err != nil {
+		impl.logger.Errorw("Error in committing tx", "err", err)
 		return err
 	}
 	return err
@@ -93,6 +94,7 @@ func (impl LockConfigurationServiceImpl) SaveLockConfiguration(lockConfig *bean.
 func (impl LockConfigurationServiceImpl) DeleteActiveLockConfiguration(userId int32, tx *pg.Tx) error {
 	lockConfigDto, err := impl.lockConfigurationRepository.GetActiveLockConfig()
 	if err != nil {
+		impl.logger.Errorw("Error in getting active lock config", "err", err)
 		return err
 	}
 	dbConnection := impl.lockConfigurationRepository.GetConnection()
@@ -115,12 +117,14 @@ func (impl LockConfigurationServiceImpl) DeleteActiveLockConfiguration(userId in
 	lockConfigDto.UpdatedBy = userId
 	err = impl.lockConfigurationRepository.Update(lockConfigDto, tx)
 	if err != nil {
+		impl.logger.Errorw("Error in updating lock config", "lockConfigId", lockConfigDto.Id, "err", err)
 		return err
 	}
 	// commit TX
 	if isNewTx {
 		err = tx.Commit()
 		if err != nil {
+			impl.logger.Errorw("Error in committing tx", "err", err)
 			return err
 		}
 	}
@@ -135,17 +139,26 @@ func (impl LockConfigurationServiceImpl) HandleLockConfiguration(currentConfig, 
 		return nil, err
 	}
 
-	var mp map[string]interface{}
-	var mp2 map[string]interface{}
+	var savedConfigMap map[string]interface{}
+	var currentConfigMap map[string]interface{}
 
 	lockConfig, err := impl.GetLockConfiguration()
 	if err != nil {
+
 		return nil, err
 	}
 
-	json.Unmarshal([]byte(savedConfig), &mp)
-	json.Unmarshal([]byte(currentConfig), &mp2)
-	allChanges, disableSaveEligibleChanges := getAllChanges(mp, mp2)
+	err = json.Unmarshal([]byte(savedConfig), &savedConfigMap)
+	if err != nil {
+		impl.logger.Errorw("Error in umMarshal data", "err", err, "savedConfig", savedConfig)
+		return nil, err
+	}
+	err = json.Unmarshal([]byte(currentConfig), &currentConfigMap)
+	if err != nil {
+		impl.logger.Errorw("Error in umMarshal data", "err", err, "currentConfig", currentConfig)
+		return nil, err
+	}
+	allChanges, disableSaveEligibleChanges := getAllChanges(savedConfigMap, currentConfigMap)
 	var isLockConfigError bool
 	if lockConfig.Allowed {
 		// Will add in v2 of this feature
@@ -158,23 +171,6 @@ func (impl LockConfigurationServiceImpl) HandleLockConfiguration(currentConfig, 
 		return lockConfigErrorResponse, nil
 	}
 	return nil, nil
-}
-
-func checkAllowedChanges(diffJson map[string]interface{}, configs []string) bool {
-	diffJson = setAllJsonValue(diffJson, "%devtron%")
-	for _, config := range configs {
-		path := config
-		if strings.Contains(path, "$.") {
-			path = strings.Split(path, "$.")[1]
-		}
-		err := jsonpath.Set(&diffJson, path, "%devtron2%")
-		if err != nil {
-
-		}
-	}
-	diffJsonByte, _ := json.Marshal(diffJson)
-	diffJsonStr := string(diffJsonByte)
-	return strings.Contains(diffJsonStr, "%devtron%")
 }
 
 func checkLockedChanges(currentConfig, savedConfig string, configs []string) bool {
@@ -200,166 +196,54 @@ func checkLockedChanges(currentConfig, savedConfig string, configs []string) boo
 	return false
 }
 
-//func getLockedAndAllowedArray(mp1, mp2 []interface{}, currentPath string, lockedPath []string) ([]interface{}, []interface{}) {
-//	var lockedMap, allowedMap []interface{}
-//	for key, _ := range mp1 {
-//		if !reflect.DeepEqual(mp1[key], mp2[key]) {
-//			if slices.Contains(lockedPath, currentPath+strconv.Itoa(key)) {
-//				lockedMap[key] = mp2[key]
-//				continue
-//			}
-//			switch reflect.TypeOf(mp1[key]).Kind() {
-//			case reflect.Map:
-//				locked, allowed := getLockedAndAllowed(mp1[key].(map[string]interface{}), mp2[key].(map[string]interface{}), currentPath+strconv.Itoa(key)+"/", lockedPath)
-//				if locked != nil && len(locked) != 0 {
-//					lockedMap = append(lockedMap, locked)
-//				}
-//				if allowed != nil && len(allowed) != 0 {
-//					allowedMap = append(allowedMap, allowed)
-//				}
-//			case reflect.Array:
-//				locked, allowed := getLockedAndAllowedArray(mp1[key].([]interface{}), mp2[key].([]interface{}), currentPath+strconv.Itoa(key)+"/", lockedPath)
-//				if locked != nil && len(locked) != 0 {
-//					lockedMap = append(lockedMap, locked)
-//				}
-//				if allowed != nil && len(allowed) != 0 {
-//					allowedMap = append(allowedMap, allowed)
-//				}
-//			default:
-//				allowedMap = append(allowedMap, mp2[key])
-//			}
-//		} else {
-//			allowedMap = append(allowedMap, mp2[key])
-//		}
-//
-//	}
-//	return lockedMap, allowedMap
-//
-//}
-//
-//func getLockedAndAllowed(mp1, mp2 map[string]interface{}, currentPath string, lockedPath []string) (map[string]interface{}, map[string]interface{}) {
-//	lockedMap := make(map[string]interface{})
-//	allowedMap := make(map[string]interface{})
-//	for key, _ := range mp1 {
-//		if _, ok := mp2[key]; !ok {
-//
-//		}
-//		if !reflect.DeepEqual(mp1[key], mp2[key]) {
-//			if slices.Contains(lockedPath, currentPath+key) {
-//				lockedMap[key] = mp2[key]
-//				continue
-//			}
-//			switch reflect.TypeOf(mp1[key]).Kind() {
-//			case reflect.Map:
-//				locked, allowed := getLockedAndAllowed(mp1[key].(map[string]interface{}), mp2[key].(map[string]interface{}), currentPath+key+"/", lockedPath)
-//				if locked != nil && len(locked) != 0 {
-//					lockedMap[key] = locked
-//				}
-//				if allowed != nil && len(allowed) != 0 {
-//					allowedMap[key] = allowed
-//				}
-//			case reflect.Array, reflect.Slice:
-//				locked, allowed := getLockedAndAllowedArray(mp1[key].([]interface{}), mp2[key].([]interface{}), currentPath+key+"/", lockedPath)
-//				if locked != nil && len(locked) != 0 {
-//					lockedMap[key] = locked
-//				}
-//				if allowed != nil && len(allowed) != 0 {
-//					allowedMap[key] = allowed
-//				}
-//			default:
-//				allowedMap[key] = mp2[key]
-//			}
-//		}
-//
-//	}
-//	return lockedMap, allowedMap
-//
-//}
-
-func checkForLockedArray(mp1, mp2 []interface{}) []interface{} {
+func checkForLockedArray(savedConfigMap, currentConfigMap []interface{}) []interface{} {
 	var lockedMap []interface{}
 	var key int
-	for key, _ = range mp1 {
-		if key >= len(mp2) {
+	for key, _ = range savedConfigMap {
+		if key >= len(currentConfigMap) {
 			break
 		}
-		if !reflect.DeepEqual(mp1[key], mp2[key]) {
-			switch reflect.TypeOf(mp1[key]).Kind() {
+		if !reflect.DeepEqual(savedConfigMap[key], currentConfigMap[key]) {
+			switch reflect.TypeOf(savedConfigMap[key]).Kind() {
 			case reflect.Map:
-				locked, _ := getAllChanges(mp1[key].(map[string]interface{}), mp2[key].(map[string]interface{}))
+				locked, _ := getAllChanges(savedConfigMap[key].(map[string]interface{}), currentConfigMap[key].(map[string]interface{}))
 				if locked != nil && len(locked) != 0 {
 					lockedMap = append(lockedMap, locked)
 				}
 			case reflect.Array, reflect.Slice:
-				locked := checkForLockedArray(mp1[key].([]interface{}), mp2[key].([]interface{}))
+				locked := checkForLockedArray(savedConfigMap[key].([]interface{}), currentConfigMap[key].([]interface{}))
 				if locked != nil && len(locked) != 0 {
 					lockedMap = append(lockedMap, locked)
 				}
 			default:
-				lockedMap = append(lockedMap, mp2[key])
+				lockedMap = append(lockedMap, currentConfigMap[key])
 
 			}
 		}
 	}
-	for key1, _ := range mp2 {
+	for key1, _ := range currentConfigMap {
 		if key1 <= key {
 			continue
 		}
-		lockedMap = append(lockedMap, mp2[key1])
+		lockedMap = append(lockedMap, currentConfigMap[key1])
 	}
 	return lockedMap
 }
 
-func getChanges(mp1, mp2 map[string]interface{}) (map[string]interface{}, map[string]interface{}) {
-	lockedMap := make(map[string]interface{})
-	deletedMap := make(map[string]interface{})
-	for key, _ := range mp1 {
-		if _, ok := mp2[key]; !ok {
-			deletedMap[key] = mp1[key]
-			continue
-		}
-		if !reflect.DeepEqual(mp1[key], mp2[key]) {
-			switch reflect.TypeOf(mp1[key]).Kind() {
-			case reflect.Map:
-				locked, deleted := getChanges(mp1[key].(map[string]interface{}), mp2[key].(map[string]interface{}))
-				if locked != nil && len(locked) != 0 {
-					lockedMap[key] = locked
-				}
-				if deleted != nil && len(deleted) != 0 {
-					deletedMap[key] = deleted
-				}
-			default:
-				lockedMap[key] = mp2[key]
-			}
-		} else {
-			delete(mp2, key)
-			continue
-		}
-
-		switch reflect.TypeOf(mp2[key]).Kind() {
-		case reflect.Map:
-			if mp2[key] == nil {
-				delete(mp2, key)
-			}
-		default:
-			delete(mp2, key)
-		}
-	}
-	return lockedMap, deletedMap
-}
-
-func getAllChanges(mp1, mp2 map[string]interface{}) (map[string]interface{}, bool) {
+func getAllChanges(savedConfigMap, currentConfigMap map[string]interface{}) (map[string]interface{}, bool) {
+	// Store all the changes
 	lockedMap := make(map[string]interface{})
 	disableSaveEligibleChanges := false
-	for key, _ := range mp1 {
-		if _, ok := mp2[key]; !ok {
+	for key, _ := range savedConfigMap {
+		// check for the deleted keys
+		if _, ok := currentConfigMap[key]; !ok {
 			lockedMap[key] = nil
 			continue
 		}
-		if !reflect.DeepEqual(mp1[key], mp2[key]) {
-			switch reflect.TypeOf(mp1[key]).Kind() {
+		if !reflect.DeepEqual(savedConfigMap[key], currentConfigMap[key]) {
+			switch reflect.TypeOf(savedConfigMap[key]).Kind() {
 			case reflect.Map:
-				locked, isSaveEligibleChangesDisabled := getAllChanges(mp1[key].(map[string]interface{}), mp2[key].(map[string]interface{}))
+				locked, isSaveEligibleChangesDisabled := getAllChanges(savedConfigMap[key].(map[string]interface{}), currentConfigMap[key].(map[string]interface{}))
 				if locked != nil && len(locked) != 0 {
 					lockedMap[key] = locked
 				}
@@ -367,62 +251,31 @@ func getAllChanges(mp1, mp2 map[string]interface{}) (map[string]interface{}, boo
 					disableSaveEligibleChanges = true
 				}
 			case reflect.Array, reflect.Slice:
-				locked := checkForLockedArray(mp1[key].([]interface{}), mp2[key].([]interface{}))
+				locked := checkForLockedArray(savedConfigMap[key].([]interface{}), currentConfigMap[key].([]interface{}))
 				if locked != nil && len(locked) != 0 {
 					lockedMap[key] = locked
 				}
 				disableSaveEligibleChanges = true
 			default:
-				lockedMap[key] = mp2[key]
+				lockedMap[key] = currentConfigMap[key]
 			}
 		} else {
-			delete(mp2, key)
+			delete(currentConfigMap, key)
 			continue
 		}
-		switch reflect.TypeOf(mp2[key]).Kind() {
+		switch reflect.TypeOf(currentConfigMap[key]).Kind() {
 		case reflect.Map:
-			if mp2[key] == nil || len(mp2[key].(map[string]interface{})) == 0 {
-				delete(mp2, key)
+			if currentConfigMap[key] == nil || len(currentConfigMap[key].(map[string]interface{})) == 0 {
+				delete(currentConfigMap, key)
 			}
 		default:
-			delete(mp2, key)
+			delete(currentConfigMap, key)
 		}
 	}
-	for key, val := range mp2 {
+	// Append for the new added keys
+	for key, val := range currentConfigMap {
 		lockedMap[key] = val
-		delete(mp2, key)
+		delete(currentConfigMap, key)
 	}
 	return lockedMap, disableSaveEligibleChanges
-}
-
-func setAllJsonValue(mp map[string]interface{}, val string) map[string]interface{} {
-	for key, _ := range mp {
-		switch reflect.TypeOf(mp[key]).Kind() {
-		case reflect.Map:
-			childVal := setAllJsonValue(mp[key].(map[string]interface{}), val)
-			mp[key] = childVal
-		case reflect.Array, reflect.Slice:
-			childVal := setArrayValue(mp[key].([]interface{}), val)
-			mp[key] = childVal
-		default:
-			mp[key] = val
-		}
-	}
-	return mp
-}
-
-func setArrayValue(mp []interface{}, val string) []interface{} {
-	for key, _ := range mp {
-		switch reflect.TypeOf(mp[key]).Kind() {
-		case reflect.Map:
-			childVal := setAllJsonValue(mp[key].(map[string]interface{}), val)
-			mp[key] = childVal
-		case reflect.Array, reflect.Slice:
-			childVal := setArrayValue(mp[key].([]interface{}), val)
-			mp[key] = childVal
-		default:
-			mp[key] = val
-		}
-	}
-	return mp
 }
