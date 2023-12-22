@@ -1217,11 +1217,14 @@ func (impl *AppArtifactManagerImpl) buildArtifactsForCdStageV2(listingFilterOpts
 	artifactRunningOnParentCd := 0
 	if listingFilterOpts.ParentCdId > 0 {
 		parentCdWfrList, err := impl.cdWorkflowRepository.FindArtifactByPipelineIdAndRunnerType(listingFilterOpts.ParentCdId, bean.CD_WORKFLOW_TYPE_DEPLOY, "", 1, []string{application.Healthy, application.SUCCEEDED, application.Progressing})
-		if err != nil || len(parentCdWfrList) == 0 {
+		if err != nil {
 			impl.logger.Errorw("error in getting artifact for parent cd", "parentCdPipelineId", listingFilterOpts.ParentCdId)
 			return ciArtifacts, totalCount, err
 		}
-		artifactRunningOnParentCd = parentCdWfrList[0].CdWorkflow.CiArtifact.Id
+
+		if len(parentCdWfrList) != 0 {
+			artifactRunningOnParentCd = parentCdWfrList[0].CdWorkflow.CiArtifact.Id
+		}
 	}
 
 	for _, artifact := range cdArtifacts {
