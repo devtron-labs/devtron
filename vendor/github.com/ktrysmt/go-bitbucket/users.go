@@ -4,16 +4,13 @@ type Users struct {
 	c *Client
 }
 
-func (u *Users) Get(t string) (interface{}, error) {
-
+func (u *Users) Get(t string) (*User, error) {
 	urlStr := u.c.GetApiBaseURL() + "/users/" + t + "/"
-	return u.c.execute("GET", urlStr, "")
-}
-
-func (c *Client) Get(t string) (interface{}, error) {
-
-	urlStr := c.GetApiBaseURL() + "/users/" + t + "/"
-	return c.execute("GET", urlStr, "")
+	response, err := u.c.execute("GET", urlStr, "")
+	if err != nil {
+		return nil, err
+	}
+	return decodeUser(response)
 }
 
 func (u *Users) Followers(t string) (interface{}, error) {
