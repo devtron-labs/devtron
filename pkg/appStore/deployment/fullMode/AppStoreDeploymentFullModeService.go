@@ -606,8 +606,8 @@ func (impl *AppStoreDeploymentFullModeServiceImpl) UpdateReleaseContextForPipeli
 	}
 }
 
-func (impl *AppStoreDeploymentFullModeServiceImpl) cleanUpHelmAppReleaseContextMap(installedAppId, appVersionHistoryId int) {
-	if impl.isReleaseContextExistsForPipeline(installedAppId, appVersionHistoryId) {
+func (impl *AppStoreDeploymentFullModeServiceImpl) cleanUpHelmAppReleaseContextMap(installedAppId, installedAppVersionHistoryId int) {
+	if impl.isReleaseContextExistsForPipeline(installedAppId, installedAppVersionHistoryId) {
 		impl.helmAppReleaseContextMapLock.Lock()
 		defer impl.helmAppReleaseContextMapLock.Unlock()
 		if _, ok := impl.helmAppReleaseContextMap[installedAppId]; ok {
