@@ -792,12 +792,25 @@ func (impl *ConfigDraftServiceImpl) validateDeploymentTemplate(appId int, envId 
 			return nil, draftData, err
 		}
 		if resourceAction == AddResourceAction || resourceAction == UpdateResourceAction {
+			var currentEnvOverrideValues json.RawMessage
 			currentLatestChart, err := impl.envConfigRepo.FindLatestChartForAppByAppIdAndEnvId(appId, envId)
-			if err != nil {
+
+			if err != nil && err != pg.ErrNoRows {
 				return nil, draftData, err
 			}
+
+			if err == pg.ErrNoRows {
+				chart, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
+				if err != nil {
+					return nil, draftData, err
+				}
+				currentEnvOverrideValues = []byte(chart.GlobalOverride)
+			} else {
+				currentEnvOverrideValues = []byte(currentLatestChart.EnvOverrideValues)
+			}
+
 			if envConfigProperties.SaveEligibleChanges {
-				eligible, err := impl.mergeUtil.JsonPatch([]byte(currentLatestChart.EnvOverrideValues), envConfigProperties.EnvOverrideValues)
+				eligible, err := impl.mergeUtil.JsonPatch(currentEnvOverrideValues, envConfigProperties.EnvOverrideValues)
 				if err != nil {
 					return nil, draftData, err
 				}
@@ -808,7 +821,7 @@ func (impl *ConfigDraftServiceImpl) validateDeploymentTemplate(appId int, envId 
 				}
 				draftData = string(envConfigByte)
 			}
-			lockConfigErrorResponse, err := impl.lockedConfigService.HandleLockConfiguration(string(envConfigProperties.EnvOverrideValues), currentLatestChart.EnvOverrideValues, int(userId))
+			lockConfigErrorResponse, err := impl.lockedConfigService.HandleLockConfiguration(string(envConfigProperties.EnvOverrideValues), string(currentEnvOverrideValues), int(userId))
 			if err != nil {
 				return nil, draftData, err
 			}
@@ -871,11 +884,21 @@ func (impl *ConfigDraftServiceImpl) checkLockConfiguration(appId int, envId int,
 			return nil, err
 		}
 		if resourceAction == AddResourceAction || resourceAction == UpdateResourceAction {
+			var currentEnvOverrideValues json.RawMessage
 			currentLatestChart, err := impl.envConfigRepo.FindLatestChartForAppByAppIdAndEnvId(appId, envId)
-			if err != nil {
+			if err != nil && err != pg.ErrNoRows {
 				return nil, err
 			}
-			lockConfigErrorResponse, err := impl.lockedConfigService.HandleLockConfiguration(string(envConfigProperties.EnvOverrideValues), currentLatestChart.EnvOverrideValues, int(userId))
+			if err == pg.ErrNoRows {
+				chart, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
+				if err != nil {
+					return nil, err
+				}
+				currentEnvOverrideValues = []byte(chart.GlobalOverride)
+			} else {
+				currentEnvOverrideValues = []byte(currentLatestChart.EnvOverrideValues)
+			}
+			lockConfigErrorResponse, err := impl.lockedConfigService.HandleLockConfiguration(string(envConfigProperties.EnvOverrideValues), string(currentEnvOverrideValues), int(userId))
 			if err != nil {
 				return nil, err
 			}

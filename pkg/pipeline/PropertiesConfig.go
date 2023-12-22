@@ -348,6 +348,13 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, p
 				return nil, err
 			}
 			envOverrideValue = envOverrideExisting.EnvOverrideValues
+		} else {
+			chart, err := impl.chartRepo.FindLatestChartForAppByAppId(appId)
+			if err != nil {
+				return nil, err
+			}
+			envOverrideValue = chart.GlobalOverride
+
 		}
 	}
 
