@@ -1,0 +1,38 @@
+# Git related files.
+.github
+.vscode
+.gitignore
+.gitattributes
+.gitbook.yaml
+
+# Markdown/documentation related files.
+**/*.md
+
+# Docker files.
+Dockerfile
+DockerfileEA
+
+# Certificates and license.
+localhost.key
+localhost.crt
+DCO
+LICENSE
+
+# Other files and folders.
+.deepsource.toml
+README.md
+CHANGELOG.md
+CODE_OF_CONDUCT.md
+COMMUNITY_CONTRIBUTIONS.md
+CONTRIBUTING.md
+releasenotes.md
+Troubleshooting.md
+assets/
+CHANGELOG/
+charts/
+contrib-chart/
+developers-guide/
+docs/
+manifests/
+sample-docker-templates/
+specs/
