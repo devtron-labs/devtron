@@ -158,7 +158,8 @@ func (impl LockConfigurationServiceImpl) HandleLockConfiguration(currentConfig, 
 		impl.logger.Errorw("Error in umMarshal data", "err", err, "currentConfig", currentConfig)
 		return nil, err
 	}
-	allChanges, disableSaveEligibleChanges := getAllChanges(savedConfigMap, currentConfigMap)
+	// TODO name for disableSaveEligibleChanges, allChanges
+	allChanges, disableSaveEligibleChanges := getDiffJson(savedConfigMap, currentConfigMap)
 	var isLockConfigError bool
 	if lockConfig.Allowed {
 		// Will add in v2 of this feature
@@ -166,6 +167,7 @@ func (impl LockConfigurationServiceImpl) HandleLockConfiguration(currentConfig, 
 		isLockConfigError = checkLockedChanges(currentConfig, savedConfig, lockConfig.Config)
 	}
 	if isLockConfigError {
+		//  rename lockedOverride Diff json byte array
 		lockedOverride, _ := json.Marshal(allChanges)
 		lockConfigErrorResponse := bean.GetLockConfigErrorResponse(string(lockedOverride), "", "", "", disableSaveEligibleChanges)
 		return lockConfigErrorResponse, nil
@@ -173,7 +175,9 @@ func (impl LockConfigurationServiceImpl) HandleLockConfiguration(currentConfig, 
 	return nil, nil
 }
 
-func checkLockedChanges(currentConfig, savedConfig string, configs []string) bool {
+// TODO add comments
+func checkLockedChanges(currentConfig, savedConfig string, lockedConfigJsonPaths []string) bool {
+	// TODO RENAME obj odj1 x ys ys1
 	obj, err := oj.ParseString(currentConfig)
 	if err != nil {
 		return false
@@ -182,8 +186,8 @@ func checkLockedChanges(currentConfig, savedConfig string, configs []string) boo
 	if err != nil {
 		return false
 	}
-	for _, config := range configs {
-		x, err := jp.ParseString(config)
+	for _, lockedConfigJsonPath := range lockedConfigJsonPaths {
+		x, err := jp.ParseString(lockedConfigJsonPath)
 		if err != nil {
 			return false
 		}
@@ -206,7 +210,7 @@ func checkForLockedArray(savedConfigMap, currentConfigMap []interface{}) []inter
 		if !reflect.DeepEqual(savedConfigMap[key], currentConfigMap[key]) {
 			switch reflect.TypeOf(savedConfigMap[key]).Kind() {
 			case reflect.Map:
-				locked, _ := getAllChanges(savedConfigMap[key].(map[string]interface{}), currentConfigMap[key].(map[string]interface{}))
+				locked, _ := getDiffJson(savedConfigMap[key].(map[string]interface{}), currentConfigMap[key].(map[string]interface{}))
 				if locked != nil && len(locked) != 0 {
 					lockedMap = append(lockedMap, locked)
 				}
@@ -230,7 +234,8 @@ func checkForLockedArray(savedConfigMap, currentConfigMap []interface{}) []inter
 	return lockedMap
 }
 
-func getAllChanges(savedConfigMap, currentConfigMap map[string]interface{}) (map[string]interface{}, bool) {
+// TODO ADD comment for return
+func getDiffJson(savedConfigMap, currentConfigMap map[string]interface{}) (map[string]interface{}, bool) {
 	// Store all the changes
 	lockedMap := make(map[string]interface{})
 	disableSaveEligibleChanges := false
@@ -243,7 +248,7 @@ func getAllChanges(savedConfigMap, currentConfigMap map[string]interface{}) (map
 		if !reflect.DeepEqual(savedConfigMap[key], currentConfigMap[key]) {
 			switch reflect.TypeOf(savedConfigMap[key]).Kind() {
 			case reflect.Map:
-				locked, isSaveEligibleChangesDisabled := getAllChanges(savedConfigMap[key].(map[string]interface{}), currentConfigMap[key].(map[string]interface{}))
+				locked, isSaveEligibleChangesDisabled := getDiffJson(savedConfigMap[key].(map[string]interface{}), currentConfigMap[key].(map[string]interface{}))
 				if locked != nil && len(locked) != 0 {
 					lockedMap[key] = locked
 				}
