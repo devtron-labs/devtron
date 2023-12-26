@@ -3549,8 +3549,8 @@ func (impl *WorkflowDagExecutorImpl) createHelmAppForCdPipeline(overrideRequest 
 					err = &util.ApiError{
 						HttpStatusCode:  400,
 						Code:            "200",
-						InternalMessage: err.Error(),
-						UserMessage:     err.Error(),
+						InternalMessage: grpcErr,
+						UserMessage:     grpcErr,
 					}
 				}
 				return false, err
