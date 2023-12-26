@@ -43,7 +43,7 @@ For example if the user sets the Branch Regex as `feature-*`, then users can tri
 
 The **Source type** - "Pull Request" allows you to configure the CI Pipeline using the PR raised in your repository.
 
-> Before you begin, [configure the webhook](#configuring-webhook) for either GitHub or Bitbucket.
+> Before you begin, [configure the webhook](../creating-application/workflow/ci-pipeline.md#configuring-webhook) for either GitHub or Bitbucket.
 
 > The "Pull Request" source type feature only works for the host GitHub or Bitbucket cloud for now. To request support for a different Git host, please create a github issue [here](https://github.com/devtron-labs/devtron/issues).
 
