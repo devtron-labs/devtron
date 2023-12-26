@@ -46,7 +46,8 @@ func NewPubSubClientServiceImpl(logger *zap.SugaredLogger) *PubSubClientServiceI
 
 func (impl PubSubClientServiceImpl) Publish(topic string, msg string) error {
 	impl.Logger.Debugw("Published message on pubsub client", "topic", topic, "msg", msg)
-	defer metrics.IncPublishCount(topic)
+	status := model.PUBLISH_FAILURE
+	defer metrics.IncPublishCount(topic, status)
 	natsClient := impl.NatsClient
 	jetStrCtxt := natsClient.JetStrCtxt
 	natsTopic := GetNatsTopic(topic)
@@ -66,11 +67,13 @@ func (impl PubSubClientServiceImpl) Publish(topic string, msg string) error {
 
 	_, err := jetStrCtxt.Publish(topic, []byte(msg), nats.MsgId(randString))
 	if err != nil {
-		metrics.IncPublishErrorCount(topic)
 		// TODO need to handle retry specially for timeout cases
 		impl.Logger.Errorw("error while publishing message", "stream", streamName, "topic", topic, "error", err)
 		return err
 	}
+
+	// if reached here, means publish was successful
+	status = model.PUBLISH_SUCCESS
 	return nil
 }
 

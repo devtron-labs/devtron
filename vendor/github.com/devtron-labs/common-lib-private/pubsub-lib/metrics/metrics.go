@@ -7,13 +7,8 @@ import (
 
 var NatsPublishingCount = promauto.NewCounterVec(prometheus.CounterOpts{
 	Name: "nats_publish_count",
-	Help: "count of published events on nats",
-}, []string{"topic"})
-
-var NatsPublishingErrorCount = promauto.NewCounterVec(prometheus.CounterOpts{
-	Name: "nats_publish_error_count",
-	Help: "count of errored published events on nats",
-}, []string{"topic"})
+	Help: "count of successfully published events on nats",
+}, []string{"topic", "status"})
 
 var NatsConsumptionCount = promauto.NewCounterVec(prometheus.CounterOpts{
 	Name: "nats_consumption_count",
@@ -33,8 +28,8 @@ var NatsEventPublishTime = promauto.NewHistogramVec(prometheus.HistogramOpts{
 	Name: "nats_event_publish_time",
 }, []string{"topic"})
 
-func IncPublishCount(topic string) {
-	NatsPublishingCount.WithLabelValues(topic).Inc()
+func IncPublishCount(topic, status string) {
+	NatsPublishingCount.WithLabelValues(topic, status).Inc()
 }
 
 func IncConsumptionCount(topic string) {
@@ -43,8 +38,4 @@ func IncConsumptionCount(topic string) {
 
 func IncConsumingCount(topic string) {
 	NatsConsumingCount.WithLabelValues(topic).Inc()
-}
-
-func IncPublishErrorCount(topic string) {
-	NatsPublishingErrorCount.WithLabelValues(topic).Inc()
 }
