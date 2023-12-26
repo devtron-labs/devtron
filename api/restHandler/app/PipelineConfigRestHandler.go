@@ -21,6 +21,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
@@ -396,6 +397,10 @@ func (handler PipelineConfigRestHandlerImpl) CreateApp(w http.ResponseWriter, r 
 		createResp, err = handler.appCloneService.CloneApp(&createRequest, ctx)
 	}
 	if err != nil {
+		if errors.Is(err, fmt.Errorf(bean3.PIPELINE_NAME_ALREADY_EXISTS_ERROR)) {
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
 		handler.Logger.Errorw("service err, CreateApp", "err", err, "CreateApp", createRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
