@@ -123,10 +123,12 @@ func (handler PipelineConfigRestHandlerImpl) ConfigureDeploymentTemplateForApp(w
 	scope := resourceQualifiers.Scope{
 		AppId: templateRequest.AppId,
 	}
-	validate, err2 := handler.chartService.DeploymentTemplateValidate(r.Context(), templateRequest.ValuesOverride, chartRefId, scope)
-	if !validate {
-		common.WriteJsonResp(w, err2, nil, http.StatusBadRequest)
-		return
+	if !templateRequest.SaveEligibleChanges {
+		validate, err2 := handler.chartService.DeploymentTemplateValidate(r.Context(), templateRequest.ValuesOverride, chartRefId, scope)
+		if !validate {
+			common.WriteJsonResp(w, err2, nil, http.StatusBadRequest)
+			return
+		}
 	}
 
 	handler.Logger.Infow("request payload, ConfigureDeploymentTemplateForApp", "payload", templateRequest)
@@ -726,11 +728,13 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideCreate(w http.Resp
 		EnvId:     environmentId,
 		ClusterId: envConfigProperties.ClusterId,
 	}
-	validate, err2 := handler.chartService.DeploymentTemplateValidate(r.Context(), envConfigProperties.EnvOverrideValues, chartRefId, scope)
-	if !validate {
-		handler.Logger.Errorw("validation err, UpdateAppOverride", "err", err2, "payload", envConfigProperties)
-		common.WriteJsonResp(w, err2, nil, http.StatusBadRequest)
-		return
+	if !envConfigProperties.SaveEligibleChanges {
+		validate, err2 := handler.chartService.DeploymentTemplateValidate(r.Context(), envConfigProperties.EnvOverrideValues, chartRefId, scope)
+		if !validate {
+			handler.Logger.Errorw("validation err, UpdateAppOverride", "err", err2, "payload", envConfigProperties)
+			common.WriteJsonResp(w, err2, nil, http.StatusBadRequest)
+			return
+		}
 	}
 
 	createResp, err := handler.propertiesConfigService.CreateEnvironmentProperties(appId, &envConfigProperties)
@@ -841,11 +845,13 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideUpdate(w http.Resp
 		EnvId:     envId,
 		ClusterId: envConfigProperties.ClusterId,
 	}
-	validate, err2 := handler.chartService.DeploymentTemplateValidate(r.Context(), envConfigProperties.EnvOverrideValues, chartRefId, scope)
-	if !validate {
-		handler.Logger.Errorw("validation err, UpdateAppOverride", "err", err2, "payload", envConfigProperties)
-		common.WriteJsonResp(w, err2, nil, http.StatusBadRequest)
-		return
+	if !envConfigProperties.SaveEligibleChanges {
+		validate, err2 := handler.chartService.DeploymentTemplateValidate(r.Context(), envConfigProperties.EnvOverrideValues, chartRefId, scope)
+		if !validate {
+			handler.Logger.Errorw("validation err, UpdateAppOverride", "err", err2, "payload", envConfigProperties)
+			common.WriteJsonResp(w, err2, nil, http.StatusBadRequest)
+			return
+		}
 	}
 
 	createResp, err := handler.propertiesConfigService.UpdateEnvironmentProperties(appId, &envConfigProperties, userId)
@@ -1553,12 +1559,14 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 		AppId: templateRequest.AppId,
 	}
 	_, span = otel.Tracer("orchestrator").Start(ctx, "chartService.DeploymentTemplateValidate")
-	validate, err2 := handler.chartService.DeploymentTemplateValidate(ctx, templateRequest.ValuesOverride, chartRefId, scope)
-	span.End()
-	if !validate {
-		handler.Logger.Errorw("validation err, UpdateAppOverride", "err", err2, "payload", templateRequest)
-		common.WriteJsonResp(w, err2, nil, http.StatusBadRequest)
-		return
+	if !templateRequest.SaveEligibleChanges {
+		validate, err2 := handler.chartService.DeploymentTemplateValidate(ctx, templateRequest.ValuesOverride, chartRefId, scope)
+		span.End()
+		if !validate {
+			handler.Logger.Errorw("validation err, UpdateAppOverride", "err", err2, "payload", templateRequest)
+			common.WriteJsonResp(w, err2, nil, http.StatusBadRequest)
+			return
+		}
 	}
 
 	protectionEnabled := handler.resourceProtectionService.ResourceProtectionEnabled(templateRequest.AppId, -1)
@@ -1600,10 +1608,12 @@ func (handler PipelineConfigRestHandlerImpl) ValidateAppOverride(w http.Response
 	scope := resourceQualifiers.Scope{
 		AppId: templateRequest.AppId,
 	}
-	validate, err2 := handler.chartService.DeploymentTemplateValidate(r.Context(), templateRequest.ValuesOverride, chartRefId, scope)
-	if !validate {
-		common.WriteJsonResp(w, err2, nil, http.StatusBadRequest)
-		return
+	if !templateRequest.SaveEligibleChanges {
+		validate, err2 := handler.chartService.DeploymentTemplateValidate(r.Context(), templateRequest.ValuesOverride, chartRefId, scope)
+		if !validate {
+			common.WriteJsonResp(w, err2, nil, http.StatusBadRequest)
+			return
+		}
 	}
 
 	handler.Logger.Infow("request payload, ValidateAppOverride", "payload", templateRequest)

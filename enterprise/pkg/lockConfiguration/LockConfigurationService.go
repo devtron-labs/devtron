@@ -161,10 +161,10 @@ func (impl LockConfigurationServiceImpl) HandleLockConfiguration(currentConfig, 
 	// TODO name for disableSaveEligibleChanges, allChanges
 	allChanges, disableSaveEligibleChanges := getDiffJson(savedConfigMap, currentConfigMap)
 	var isLockConfigError bool
-	if lockConfig.Allowed {
+	if lockConfig.ContainAllowedPaths {
 		// Will add in v2 of this feature
 	} else {
-		isLockConfigError = checkLockedChanges(currentConfig, savedConfig, lockConfig.Config)
+		isLockConfigError = checkLockedChanges(currentConfig, savedConfig, lockConfig.Paths)
 	}
 	if isLockConfigError {
 		//  rename lockedOverride Diff json byte array
