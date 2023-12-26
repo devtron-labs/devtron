@@ -794,7 +794,7 @@ func (impl *AppCloneServiceImpl) CreateCiPipeline(req *cloneCiPipelineRequest) (
 	if err != nil {
 		return nil, err
 	}
-	PipelineNamePresent := make(map[string]int, 0)
+	PipelineNamePresent := make(map[string]bool, 0)
 	for id, refCiPipeline := range refCiConfig.CiPipelines {
 		if refCiPipeline.Id == req.refCiPipelineId {
 			pipelineName := refCiPipeline.Name
@@ -802,7 +802,7 @@ func (impl *AppCloneServiceImpl) CreateCiPipeline(req *cloneCiPipelineRequest) (
 				pipelineName = strings.Replace(pipelineName, req.refAppName+"-ci-", "", 1)
 			}
 			if _, ok := PipelineNamePresent[refCiPipeline.Name]; !ok {
-				PipelineNamePresent[refCiPipeline.Name] = 1
+				PipelineNamePresent[refCiPipeline.Name] = true
 			} else {
 				pipelineName = fmt.Sprintf("%s-%d", pipelineName, id) // making pipeline name unique
 			}
