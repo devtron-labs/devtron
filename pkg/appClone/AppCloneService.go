@@ -794,7 +794,7 @@ func (impl *AppCloneServiceImpl) CreateCiPipeline(req *cloneCiPipelineRequest) (
 	if err != nil {
 		return nil, err
 	}
-	PipelineNamePresent := make(map[string]bool, false)
+	PipelineNamePresent := make(map[string]bool, 0)
 	for id, refCiPipeline := range refCiConfig.CiPipelines {
 		if refCiPipeline.Id == req.refCiPipelineId {
 			pipelineName := refCiPipeline.Name
