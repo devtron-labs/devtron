@@ -130,39 +130,46 @@ jobs:
           pr_no: ${{ github.event.pull_request.number }}
           GH_TOKEN: ${{ github.token }}
       run: |
-        echo "GitHub Token: $GH_TOKEN"
-
+        
         # Fetch the latest changes from the main branch
         git fetch origin main
+
         # Get the list of changed files
-        git diff origin/main...HEAD --name-only > mydiff
+        git diff origin/main...HEAD --name-only > diff
 
         echo "Changed files:"
-        cat mydiff
+        cat diff
 
-        echo "Changed SQL files:"
-
+        echo "Changed SQL files-:"
         # Filter SQL files from the list of changed files
-        awk '/scripts\/sql\//' mydiff
+        awk '/scripts\/sql\//' diff
 
-        # Count the number of changed SQL files
-        count=$(awk '/scripts\/sql\//' mydiff | wc -l)
+        # Count the number of changed SQL files in the 'scripts/sql' directory
+        count=$(awk '/scripts\/sql\//' diff | wc -l)
 
+        # Check if no SQL files were changed
         if [[ $count == "0" ]]; then 
-          echo "No SQL files were added. Exiting from this action."
+          echo "No SQL files were added, Exiting from this action."
           exit 0
         fi
 
         # Iterate through each changed SQL file
-        for filename in $(awk '/scripts\/sql\//' mydiff); do
+        for filename in $(awk '/scripts\/sql\//' diff); do
           echo "Checking File: $filename"
           
-          # Check if the SQL file name is in the correct format
+          # Check if the SQL file name is in the correct format (i.e., it ends with either '.up.sql' or '.down.sql')
           if [[ "$filename" =~ \.(up|down)\.sql$ ]]; then
-            echo "File name is in the correct format: $filename"
+
+            # Print a message that the file name is in the correct format
+            echo "File name: $filename is in the correct format"
           else
+            # Print an error message
             echo "Error: The SQL file name is not in the correct format: $filename."
-            gh pr comment $pr_no --body "Error: The SQL file name is not in the correct format: $filename."
+
+            # Post a comment on a GitHub pull request with the error message
+            gh pr comment $pr_no --body "The SQL file name: $filename is not in the correct format."
+
+            # Exit the script with a non-zero status code
             exit 1 
           fi
 
@@ -180,23 +187,20 @@ jobs:
           migration_files_present_of_this_no=$(ls | cut -d "_" -f 1 | grep -w -c "$migration_no")
 
           # Navigate back to the original directory
-          cd -
-
-          echo "Current directory: $(pwd)"
-          echo "Migration Number: $migration_no"
-          echo "Number of files with this migration number: $migration_files_present_of_this_no"
+          cd ../..
           
           # Check the conditions based on the number of files with the same migration number
           if [[ $migration_files_present_of_this_no == "2" ]]; then
             echo "All looks good for this migration number."
           elif [[ $migration_files_present_of_this_no == "1" ]]; then
-            echo "Issue detected: Only $filename is present for this migration number."
-            echo "A single migration file was expected for this No-$migration_no"
+            # Only one file is present for this migration number
+            echo "Only single migration file was present for migration no.: $migration_no. either up or down migration is missing! EXITING"
             gh pr comment $pr_no --body "Error: Only a single migration file was present for this number: $migration_no."
             exit 1
           else 
+            # Migration number is repeated
             echo "Error: Migration number is repeated."
-            gh pr comment $pr_no --body "Error: The SQL file number is duplicated: $migration_no."
+            gh pr comment $pr_no --body "Error: The SQL file number: $migration_no is duplicated"
             exit 1
           fi
         done
