@@ -332,7 +332,7 @@ func (impl CiArtifactRepositoryImpl) setDeployedDataInArtifacts(pipelineId int, 
 
 	_, err := impl.dbConnection.Query(&artifactsDeployed, query, pipelineId, pg.In(artifactsIds))
 	if err != nil {
-		return artifacts, nil
+		return artifacts, err
 	}
 
 	// set deployed time and latest deployed artifact
@@ -740,10 +740,10 @@ func (impl CiArtifactRepositoryImpl) FindArtifactByListFilter(listingFilterOptio
 			Model(&ciArtifacts).
 			Where("id IN (?) ", pg.In(artifactIds)).
 			Select()
-		if err == pg.ErrNoRows {
-			return ciArtifacts, totalCount, nil
-		}
 		if err != nil {
+			if err == pg.ErrNoRows {
+				err = nil
+			}
 			return ciArtifacts, totalCount, err
 		}
 	}
