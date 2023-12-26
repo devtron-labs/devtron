@@ -3542,8 +3542,16 @@ func (impl *WorkflowDagExecutorImpl) createHelmAppForCdPipeline(overrideRequest 
 			updateApplicationResponse, err := impl.helmAppClient.UpdateApplication(ctx, req)
 			if err != nil {
 				impl.logger.Errorw("error in updating helm application for cd pipeline", "err", err)
-				if util.GetGRPCErrorDetailedMessage(err) == context.Canceled.Error() {
+				code, grpcErr := util.GetGRPCDetailedError(err)
+				if grpcErr == context.Canceled.Error() {
 					err = errors.New(pipelineConfig.NEW_DEPLOYMENT_INITIATED)
+				} else if code == codes.Unknown {
+					err = &util.ApiError{
+						HttpStatusCode:  400,
+						Code:            "200",
+						InternalMessage: err.Error(),
+						UserMessage:     err.Error(),
+					}
 				}
 				return false, err
 			} else {
