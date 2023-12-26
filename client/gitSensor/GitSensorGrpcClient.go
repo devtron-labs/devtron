@@ -338,6 +338,9 @@ func (client *GrpcApiClientImpl) GetCommitMetadataForPipelineMaterial(ctx contex
 	if err != nil {
 		return nil, err
 	}
+	if res != nil && res.Commit == "" {
+		return nil, nil
+	}
 	if res == nil {
 		return nil, nil
 	}
