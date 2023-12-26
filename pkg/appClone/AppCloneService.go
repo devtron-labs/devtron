@@ -799,8 +799,8 @@ func (impl *AppCloneServiceImpl) CreateCiPipeline(req *cloneCiPipelineRequest) (
 			pipelineName := refCiPipeline.Name
 			if strings.HasPrefix(pipelineName, req.refAppName) {
 				pipelineName = strings.Replace(pipelineName, req.refAppName+"-ci-", "", 1)
-				pipelineName = fmt.Sprintf("%s-%d", pipelineName, id) // making pipeline name unique
 			}
+			pipelineName = fmt.Sprintf("%s-%d", pipelineName, id) // making pipeline name unique
 			var ciMaterilas []*bean.CiMaterial
 			for _, refCiMaterial := range refCiPipeline.CiMaterial {
 				//FIXME
