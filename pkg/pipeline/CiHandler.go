@@ -805,7 +805,7 @@ func (impl *CiHandlerImpl) getWorkflowLogs(pipelineId int, ciWorkflow *pipelineC
 	logStream, cleanUp, err := impl.ciLogService.FetchRunningWorkflowLogs(ciLogRequest, clusterConfig, isExt)
 	if logStream == nil || err != nil {
 		if !ciWorkflow.BlobStorageEnabled {
-			return nil, nil, errors.New("logs-not-stored-in-repository")
+			return nil, nil, &util.ApiError{Code: "200", HttpStatusCode: 400, UserMessage: "logs-not-stored-in-repository"}
 		} else if string(v1alpha1.NodeSucceeded) == ciWorkflow.Status || string(v1alpha1.NodeError) == ciWorkflow.Status || string(v1alpha1.NodeFailed) == ciWorkflow.Status || ciWorkflow.Status == executors.WorkflowCancel {
 			impl.Logger.Errorw("err", "err", err)
 			return impl.getLogsFromRepository(pipelineId, ciWorkflow, clusterConfig, isExt)
