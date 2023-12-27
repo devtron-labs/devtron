@@ -4,8 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/caarlos0/env"
-	"github.com/devtron-labs/common-lib-private/pubsub-lib/model"
 	"github.com/devtron-labs/common-lib-private/utils"
+	"github.com/devtron-labs/common-lib-private/pubsub-lib/metrics"
+	"github.com/devtron-labs/common-lib-private/pubsub-lib/model"
 	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
 	"runtime/debug"
@@ -45,21 +46,34 @@ func NewPubSubClientServiceImpl(logger *zap.SugaredLogger) *PubSubClientServiceI
 
 func (impl PubSubClientServiceImpl) Publish(topic string, msg string) error {
 	impl.Logger.Debugw("Published message on pubsub client", "topic", topic, "msg", msg)
+	status := model.PUBLISH_FAILURE
+	defer metrics.IncPublishCount(topic, status)
 	natsClient := impl.NatsClient
 	jetStrCtxt := natsClient.JetStrCtxt
 	natsTopic := GetNatsTopic(topic)
 	streamName := natsTopic.streamName
 	streamConfig := impl.getStreamConfig(streamName)
-	//streamConfig := natsClient.streamConfig
+	// streamConfig := natsClient.streamConfig
 	_ = AddStream(jetStrCtxt, streamConfig, streamName)
-	//Generate random string for passing as Header Id in message
+	// Generate random string for passing as Header Id in message
 	randString := "MsgHeaderId-" + utils.Generate(10)
+
+	// track time taken to publish msg to nats server
+	t1 := time.Now()
+	defer func() {
+		// wrapping this function in defer as directly calling Observe() will run immediately
+		metrics.NatsEventPublishTime.WithLabelValues(topic).Observe(float64(time.Since(t1).Milliseconds()))
+	}()
+
 	_, err := jetStrCtxt.Publish(topic, []byte(msg), nats.MsgId(randString))
 	if err != nil {
-		//TODO need to handle retry specially for timeout cases
+		// TODO need to handle retry specially for timeout cases
 		impl.Logger.Errorw("error while publishing message", "stream", streamName, "topic", topic, "error", err)
 		return err
 	}
+
+	// if reached here, means publish was successful
+	status = model.PUBLISH_SUCCESS
 	return nil
 }
 
@@ -71,7 +85,7 @@ func (impl PubSubClientServiceImpl) Subscribe(topic string, callback func(msg *m
 	consumerName := natsTopic.consumerName
 	natsClient := impl.NatsClient
 	streamConfig := impl.getStreamConfig(streamName)
-	//streamConfig := natsClient.streamConfig
+	// streamConfig := natsClient.streamConfig
 	_ = AddStream(natsClient.JetStrCtxt, streamConfig, streamName)
 	deliveryOption := nats.DeliverLast()
 	if streamConfig.Retention == nats.WorkQueuePolicy {
@@ -118,34 +132,38 @@ func (impl PubSubClientServiceImpl) Subscribe(topic string, callback func(msg *m
 		impl.Logger.Fatalw("error while subscribing to nats ", "stream", streamName, "topic", topic, "error", err)
 		return err
 	}
-	go impl.startListeningForEvents(processingBatchSize, channel, callback)
+	go impl.startListeningForEvents(processingBatchSize, channel, callback, topic)
 	impl.Logger.Infow("Successfully subscribed with Nats", "stream", streamName, "topic", topic, "queue", queueName, "consumer", consumerName)
 	return nil
 }
 
-func (impl PubSubClientServiceImpl) startListeningForEvents(processingBatchSize int, channel chan *nats.Msg, callback func(msg *model.PubSubMsg)) {
+func (impl PubSubClientServiceImpl) startListeningForEvents(processingBatchSize int, channel chan *nats.Msg, callback func(msg *model.PubSubMsg), topic string) {
 	wg := new(sync.WaitGroup)
 
 	for index := 0; index < processingBatchSize; index++ {
 		wg.Add(1)
-		go impl.processMessages(wg, channel, callback)
+		go impl.processMessages(wg, channel, callback, topic)
 	}
 	wg.Wait()
 	impl.Logger.Warn("msgs received Done from Nats side, going to end listening!!")
 }
 
-func (impl PubSubClientServiceImpl) processMessages(wg *sync.WaitGroup, channel chan *nats.Msg, callback func(msg *model.PubSubMsg)) {
+func (impl PubSubClientServiceImpl) processMessages(wg *sync.WaitGroup, channel chan *nats.Msg, callback func(msg *model.PubSubMsg), topic string) {
 	defer wg.Done()
 	for msg := range channel {
-		impl.processMsg(msg, callback)
+		impl.processMsg(msg, callback, topic)
 	}
 }
 
 // TODO need to extend msg ack depending upon response from callback like error scenario
-func (impl PubSubClientServiceImpl) processMsg(msg *nats.Msg, callback func(msg *model.PubSubMsg)) {
-	timeLimitInMillSecs := impl.logsConfig.DefaultLogTimeLimit * 1000
+func (impl PubSubClientServiceImpl) processMsg(msg *nats.Msg, callback func(msg *model.PubSubMsg), topic string) {
 	t1 := time.Now()
-	defer impl.printTimeDiff(t1, msg, timeLimitInMillSecs)
+	metrics.IncConsumingCount(topic)
+	defer metrics.IncConsumptionCount(topic)
+	defer func() {
+		// wrapping this function in defer as directly calling Observe() will run immediately
+		metrics.NatsEventConsumptionTime.WithLabelValues(topic).Observe(float64(time.Since(t1).Milliseconds()))
+	}()
 	impl.TryCatchCallBack(msg, callback)
 }
 
