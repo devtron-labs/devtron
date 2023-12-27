@@ -1428,6 +1428,7 @@ func (impl *K8sUtil) DeleteResource(ctx context.Context, restConfig *rest.Config
 	if len(namespace) > 0 && namespaced {
 		obj, err = resourceIf.Namespace(namespace).Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
+			err = &utils.ApiError{Code: "404", HttpStatusCode: 404, UserMessage: "error on getting resource"}
 			impl.logger.Errorw("error in getting resource", "err", err, "resource", name, "namespace", namespace)
 			return nil, err
 		}
@@ -1435,6 +1436,7 @@ func (impl *K8sUtil) DeleteResource(ctx context.Context, restConfig *rest.Config
 	} else {
 		obj, err = resourceIf.Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
+			err = &utils.ApiError{Code: "404", HttpStatusCode: 404, UserMessage: "error on getting resource"}
 			impl.logger.Errorw("error in getting resource", "err", err, "resource", name, "namespace", namespace)
 			return nil, err
 		}
