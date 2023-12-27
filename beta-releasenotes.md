@@ -1,4 +1,5 @@
 ## Bugs
+- fix: empty pod name (#4454)
 - fix: Manual sync job fix (#4449)
 - fix: linked ci failing for null pipeline_type (#4441)
 - fix: error handling and url fix (#4407)
