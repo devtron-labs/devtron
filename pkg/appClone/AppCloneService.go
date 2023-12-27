@@ -794,16 +794,25 @@ func (impl *AppCloneServiceImpl) CreateCiPipeline(req *cloneCiPipelineRequest) (
 	if err != nil {
 		return nil, err
 	}
-	PipelineNamePresent := make(map[string]bool, 0)
+	PipelineNameCount := make(map[string]int, 0)
+	for _, refCiPipeline := range refCiConfig.CiPipelines {
+		pipelineName := refCiPipeline.Name
+		if strings.HasPrefix(pipelineName, req.refAppName) {
+			pipelineName = strings.Replace(pipelineName, req.refAppName+"-ci-", "", 1)
+		}
+		if _, ok := PipelineNameCount[pipelineName]; !ok {
+			PipelineNameCount[pipelineName] = 0
+		} else {
+			PipelineNameCount[pipelineName] = PipelineNameCount[pipelineName] + 1 // making pipeline name unique
+		}
+	}
 	for id, refCiPipeline := range refCiConfig.CiPipelines {
 		if refCiPipeline.Id == req.refCiPipelineId {
 			pipelineName := refCiPipeline.Name
 			if strings.HasPrefix(pipelineName, req.refAppName) {
 				pipelineName = strings.Replace(pipelineName, req.refAppName+"-ci-", "", 1)
 			}
-			if _, ok := PipelineNamePresent[refCiPipeline.Name]; !ok {
-				PipelineNamePresent[refCiPipeline.Name] = true
-			} else {
+			if PipelineNameCount[pipelineName] > 1 {
 				pipelineName = fmt.Sprintf("%s-%d", pipelineName, id) // making pipeline name unique
 			}
 			var ciMaterilas []*bean.CiMaterial
