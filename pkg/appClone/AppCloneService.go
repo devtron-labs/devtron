@@ -801,7 +801,7 @@ func (impl *AppCloneServiceImpl) CreateCiPipeline(req *cloneCiPipelineRequest) (
 			pipelineName = strings.Replace(pipelineName, req.refAppName+"-ci-", "", 1)
 		}
 		if _, ok := PipelineNameCount[pipelineName]; !ok {
-			PipelineNameCount[pipelineName] = 0
+			PipelineNameCount[pipelineName] = 1
 		} else {
 			PipelineNameCount[pipelineName] = PipelineNameCount[pipelineName] + 1 // making pipeline name unique
 		}
