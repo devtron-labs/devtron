@@ -3542,7 +3542,9 @@ func (impl *WorkflowDagExecutorImpl) createHelmAppForCdPipeline(overrideRequest 
 			updateApplicationResponse, err := impl.helmAppClient.UpdateApplication(ctx, req)
 			if err != nil {
 				impl.logger.Errorw("error in updating helm application for cd pipeline", "err", err)
-				err = getGRPCErrorIfAny(err)
+				if util.GetGRPCErrorDetailedMessage(err) == context.Canceled.Error() {
+					err = errors.New(pipelineConfig.NEW_DEPLOYMENT_INITIATED)
+				}
 				return false, err
 			} else {
 				impl.logger.Debugw("updated helm application", "response", updateApplicationResponse, "isSuccess", updateApplicationResponse.Success)
@@ -3557,7 +3559,9 @@ func (impl *WorkflowDagExecutorImpl) createHelmAppForCdPipeline(overrideRequest 
 				impl.logger.Errorw("error in helm install custom chart", "err", err)
 				return false, err
 			}
-			err = getGRPCErrorIfAny(err)
+			if util.GetGRPCErrorDetailedMessage(err) == context.Canceled.Error() {
+				err = errors.New(pipelineConfig.NEW_DEPLOYMENT_INITIATED)
+			}
 
 			// IMP: update cd pipeline to mark deployment app created, even if helm install fails
 			// If the helm install fails, it still creates the app in failed state, so trying to
@@ -3591,20 +3595,6 @@ func (impl *WorkflowDagExecutorImpl) createHelmAppForCdPipeline(overrideRequest 
 	return true, nil
 }
 
-func getGRPCErrorIfAny(err error) error {
-	code, grpcErr := util.GetGRPCDetailedError(err)
-	if grpcErr == context.Canceled.Error() {
-		err = errors.New(pipelineConfig.NEW_DEPLOYMENT_INITIATED)
-	} else if code == codes.Unknown {
-		err = &util.ApiError{
-			HttpStatusCode:  400,
-			Code:            "200",
-			InternalMessage: grpcErr,
-			UserMessage:     grpcErr,
-		}
-	}
-	return err
-}
 func (impl *WorkflowDagExecutorImpl) GetDeploymentStrategyByTriggerType(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (*chartConfig.PipelineStrategy, error) {
 
 	strategy := &chartConfig.PipelineStrategy{}
