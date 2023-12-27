@@ -803,7 +803,7 @@ func (impl *AppCloneServiceImpl) CreateCiPipeline(req *cloneCiPipelineRequest) (
 		if _, ok := PipelineNameCount[pipelineName]; !ok {
 			PipelineNameCount[pipelineName] = 1
 		} else {
-			PipelineNameCount[pipelineName] = PipelineNameCount[pipelineName] + 1 // making pipeline name unique
+			PipelineNameCount[pipelineName] = PipelineNameCount[pipelineName] + 1
 		}
 	}
 	for id, refCiPipeline := range refCiConfig.CiPipelines {
