@@ -2,16 +2,17 @@ package user
 
 import (
 	"fmt"
-
+	jwt2 "github.com/devtron-labs/authenticator/jwt"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository"
+	"github.com/golang-jwt/jwt/v4"
 	"go.uber.org/zap"
 )
 
 type UserSelfRegistrationService interface {
 	CheckSelfRegistrationRoles() (CheckResponse, error)
 	SelfRegister(emailId string) (*bean.UserInfo, error)
-	CheckAndCreateUserIfConfigured(emailId string) bool
+	CheckAndCreateUserIfConfigured(claims jwt.MapClaims) bool
 }
 
 type UserSelfRegistrationServiceImpl struct {
@@ -101,7 +102,12 @@ func (impl *UserSelfRegistrationServiceImpl) SelfRegister(emailId string) (*bean
 	}
 }
 
-func (impl *UserSelfRegistrationServiceImpl) CheckAndCreateUserIfConfigured(emailId string) bool {
+func (impl *UserSelfRegistrationServiceImpl) CheckAndCreateUserIfConfigured(claims jwt.MapClaims) bool {
+	emailId := jwt2.GetField(claims, "email")
+	sub := jwt2.GetField(claims, "sub")
+	if emailId == "" && sub == "admin" {
+		emailId = sub
+	}
 	exists := impl.userService.UserExists(emailId)
 	var id int32
 	if !exists {
