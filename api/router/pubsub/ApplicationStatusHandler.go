@@ -221,6 +221,17 @@ func (impl *ApplicationStatusHandlerImpl) updateArgoAppDeleteStatus(app *v1alpha
 			impl.logger.Errorw("error in fetching installed app by git hash from installed app repository", "err", err)
 			return err
 		}
+
+		// Check to ensure that delete request for app was received
+		installedApp, err := impl.installedAppService.CheckAppExistsByInstalledAppId(model.InstalledAppId)
+		if err == pg.ErrNoRows {
+			impl.logger.Errorw("App not found in database", "installedAppId", model.InstalledAppId, "err", err)
+			return err
+		} else if installedApp.DeploymentAppDeleteRequest == false {
+			impl.logger.Infow("Deployment delete not requested for app, not deleting app from DB", "app", app)
+			return nil
+		}
+
 		deleteRequest := &appStoreBean.InstallAppVersionDTO{}
 		deleteRequest.ForceDelete = false
 		deleteRequest.NonCascadeDelete = false
