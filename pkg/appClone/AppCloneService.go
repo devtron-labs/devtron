@@ -798,7 +798,7 @@ func (impl *AppCloneServiceImpl) CreateCiPipeline(req *cloneCiPipelineRequest) (
 	var refCiPipeline *bean.CiPipeline
 	var uniqueId int
 	for id, reqCiPipeline := range refCiConfig.CiPipelines {
-		if refCiPipeline.Id == req.refCiPipelineId {
+		if reqCiPipeline.Id == req.refCiPipelineId {
 			refCiPipeline = reqCiPipeline
 			uniqueId = id
 			break
