@@ -396,16 +396,25 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 		return nil, err
 	}
 
+	defaultAppOverride, err := impl.mergeUtil.JsonPatch([]byte(chartValues.AppOverrides), []byte(chartValues.EnvOverrides))
+	if err != nil {
+		return nil, err
+	}
 	if templateRequest.SaveEligibleChanges {
-		eligible, err := impl.mergeUtil.JsonPatch([]byte(chartValues.AppOverrides), templateRequest.ValuesOverride)
+		eligible, err := impl.mergeUtil.JsonPatch(defaultAppOverride, templateRequest.ValuesOverride)
 		if err != nil {
 			return nil, err
 		}
 		templateRequest.ValuesOverride = eligible
+		override, err = templateRequest.ValuesOverride.MarshalJSON()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Handle Lock Configuration
-	lockConfigErrorResponse, err := impl.lockedConfigService.HandleLockConfiguration(string(templateRequest.ValuesOverride), chartValues.AppOverrides, int(templateRequest.UserId))
+	// TODO check for superAdmin in restHandler
+	lockConfigErrorResponse, err := impl.lockedConfigService.HandleLockConfiguration(string(templateRequest.ValuesOverride), string(defaultAppOverride), int(templateRequest.UserId))
 	if err != nil {
 		return nil, err
 	}
@@ -884,7 +893,8 @@ func (impl ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateRequ
 	if err != nil {
 		return nil, err
 	}
-
+	// TODO Make a private function
+	// TODO comment for functionality
 	if templateRequest.SaveEligibleChanges {
 		eligible, err := impl.mergeUtil.JsonPatch([]byte(template.GlobalOverride), templateRequest.ValuesOverride)
 		if err != nil {

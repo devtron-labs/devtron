@@ -357,7 +357,7 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, p
 
 		}
 	}
-
+	// TODO look on this at manager level
 	if propertiesRequest.SaveEligibleChanges {
 		eligible, err := impl.mergeUtil.JsonPatch([]byte(envOverrideValue), overrideByte)
 		if err != nil {

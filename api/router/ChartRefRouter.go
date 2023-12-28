@@ -46,7 +46,7 @@ func (router ChartRefRouterImpl) initChartRefRouter(userAuthRouter *mux.Router) 
 		HandlerFunc(router.chartRefRestHandler.ChartRefAutocompleteForApp).Methods("GET")
 
 	userAuthRouter.Path("/autocomplete/chart/{chartRefId}").
-		HandlerFunc(router.chartRefRestHandler.SpecificChartRefAutocomplete).Methods("GET")
+		HandlerFunc(router.chartRefRestHandler.ChartRefAutocompleteByChartId).Methods("GET")
 
 	userAuthRouter.Path("/autocomplete/{appId}/{environmentId}").
 		HandlerFunc(router.chartRefRestHandler.ChartRefAutocompleteForEnv).Methods("GET")

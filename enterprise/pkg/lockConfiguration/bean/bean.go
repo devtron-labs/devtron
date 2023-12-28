@@ -17,9 +17,9 @@ type LockConfigRequest struct {
 }
 
 type LockConfigResponse struct {
-	Id      int      `json:"id,pk"`
-	Allowed bool     `json:"allowed, notnull"`
-	Config  []string `json:"config, notnull"`
+	Id                  int      `json:"id,pk"`
+	ContainAllowedPaths bool     `json:"allowed, notnull"`
+	Paths               []string `json:"config, notnull"`
 }
 
 type LockConfiguration struct {
@@ -47,9 +47,9 @@ type LockConfig struct {
 func (impl *LockConfiguration) ConvertDBDtoToResponse() *LockConfigResponse {
 	config, allowed := getConfigAndStatus(impl.Config)
 	return &LockConfigResponse{
-		Id:      impl.Id,
-		Config:  config,
-		Allowed: allowed,
+		Id:                  impl.Id,
+		Paths:               config,
+		ContainAllowedPaths: allowed,
 	}
 }
 
@@ -141,7 +141,7 @@ func CheckForLockedKeyInModifiedJson(lockConfig *LockConfigResponse, configJson 
 	if err != nil {
 		return false
 	}
-	for _, config := range lockConfig.Config {
+	for _, config := range lockConfig.Paths {
 		x, err := jp.ParseString(config)
 		if err != nil {
 			return false

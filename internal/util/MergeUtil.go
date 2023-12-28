@@ -24,7 +24,6 @@ import (
 	jsonpatch "github.com/evanphx/json-patch"
 	"go.uber.org/zap"
 	"golang.org/x/exp/slices"
-	"reflect"
 )
 
 type MergeUtil struct {
@@ -197,59 +196,4 @@ func (m MergeUtil) processExternalSecrets(secret bean.ConfigSecretMap, chartMajo
 		}
 	}
 	return secret
-}
-
-func (m MergeUtil) MergePatch(target, patch string) {
-	var mp map[string]interface{}
-	var mp2 map[string]interface{}
-
-	json.Unmarshal([]byte(target), &mp)
-	json.Unmarshal([]byte(patch), &mp2)
-
-	doMerge(mp, mp2)
-
-}
-
-func doMerge(mp, mp2 map[string]interface{}) {
-	for key, _ := range mp2 {
-		if _, ok := mp[key]; !ok {
-			mp[key] = mp2[key]
-			continue
-		}
-		switch reflect.TypeOf(mp[key]).Kind() {
-		case reflect.Map:
-			doMerge(mp[key].(map[string]interface{}), mp2[key].(map[string]interface{}))
-		case reflect.Array, reflect.Slice:
-			result := doArrayMerge(mp[key].([]interface{}), mp2[key].([]interface{}))
-			mp[key] = result
-		default:
-			mp[key] = mp2[key]
-		}
-		if mp[key] == nil || len(mp) == 0 {
-			delete(mp, key)
-		}
-	}
-}
-
-func doArrayMerge(mp1, mp2 []interface{}) []interface{} {
-	for key, _ := range mp2 {
-
-		if key >= len(mp1) {
-			mp1 = append(mp1, mp2[key])
-		}
-		if key == (len(mp2)-1) && mp2[key] == nil {
-			mp1 = append(mp1[:key])
-			break
-		}
-		switch reflect.TypeOf(mp1[key]).Kind() {
-		case reflect.Map:
-			doMerge(mp1[key].(map[string]interface{}), mp2[key].(map[string]interface{}))
-		case reflect.Array, reflect.Slice:
-			result := doArrayMerge(mp1[key].([]interface{}), mp2[key].([]interface{}))
-			mp1[key] = result
-		default:
-			mp1[key] = mp2[key]
-		}
-	}
-	return mp2
 }

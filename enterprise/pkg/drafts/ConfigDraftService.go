@@ -21,6 +21,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	util2 "github.com/devtron-labs/devtron/util/event"
 	"github.com/go-pg/pg"
+	errors1 "github.com/juju/errors"
 	"go.uber.org/zap"
 	"k8s.io/utils/pointer"
 	"time"
@@ -519,12 +520,14 @@ func (impl *ConfigDraftServiceImpl) handleBaseDeploymentTemplate(appId int, envI
 		ClusterId: env.ClusterId,
 	}
 
-	templateValidated, err = impl.chartService.DeploymentTemplateValidate(ctx, templateRequest.ValuesOverride, templateRequest.ChartRefId, scope)
-	if err != nil {
-		return nil, err
-	}
-	if !templateValidated {
-		return nil, errors.New(TemplateOutdated)
+	if !templateRequest.SaveEligibleChanges {
+		templateValidated, err = impl.chartService.DeploymentTemplateValidate(ctx, templateRequest.ValuesOverride, templateRequest.ChartRefId, scope)
+		if err != nil {
+			return nil, err
+		}
+		if !templateValidated {
+			return nil, errors.New(TemplateOutdated)
+		}
 	}
 	templateRequest.UserId = userId
 	var createResp *chart.TemplateResponse
@@ -562,13 +565,14 @@ func (impl *ConfigDraftServiceImpl) handleEnvLevelTemplate(appId int, envId int,
 			EnvId:     envId,
 			ClusterId: env.ClusterId,
 		}
-
-		templateValidated, err = impl.chartService.DeploymentTemplateValidate(ctx, envConfigProperties.EnvOverrideValues, chartRefId, scope)
-		if err != nil {
-			return nil, err
-		}
-		if !templateValidated {
-			return nil, errors.New(TemplateOutdated)
+		if !envConfigProperties.SaveEligibleChanges {
+			templateValidated, err = impl.chartService.DeploymentTemplateValidate(ctx, envConfigProperties.EnvOverrideValues, chartRefId, scope)
+			if err != nil {
+				return nil, err
+			}
+			if !templateValidated {
+				return nil, errors.New(TemplateOutdated)
+			}
 		}
 		if action == AddResourceAction {
 			//TODO code duplicated, needs refactoring
@@ -777,13 +781,16 @@ func (impl *ConfigDraftServiceImpl) validateDeploymentTemplate(appId int, envId 
 			EnvId:     envId,
 			ClusterId: env.ClusterId,
 		}
-		templateValidated, err = impl.chartService.DeploymentTemplateValidate(context.Background(), templateRequest.ValuesOverride, templateRequest.ChartRefId, scope)
-		if err != nil {
-			return nil, draftData, err
+		if !templateRequest.SaveEligibleChanges {
+			templateValidated, err = impl.chartService.DeploymentTemplateValidate(context.Background(), templateRequest.ValuesOverride, templateRequest.ChartRefId, scope)
+			if err != nil {
+				return nil, draftData, err
+			}
+			if !templateValidated {
+				return nil, draftData, errors.New(TemplateOutdated)
+			}
 		}
-		if !templateValidated {
-			return nil, draftData, errors.New(TemplateOutdated)
-		}
+
 	} else {
 		envConfigProperties := &bean.EnvironmentProperties{}
 		err := json.Unmarshal([]byte(draftData), envConfigProperties)
@@ -795,11 +802,11 @@ func (impl *ConfigDraftServiceImpl) validateDeploymentTemplate(appId int, envId 
 			var currentEnvOverrideValues json.RawMessage
 			currentLatestChart, err := impl.envConfigRepo.FindLatestChartForAppByAppIdAndEnvId(appId, envId)
 
-			if err != nil && err != pg.ErrNoRows {
+			if err != nil && !errors1.IsNotFound(err) {
 				return nil, draftData, err
 			}
 
-			if err == pg.ErrNoRows {
+			if errors1.IsNotFound(err) {
 				chart, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
 				if err != nil {
 					return nil, draftData, err
@@ -837,13 +844,16 @@ func (impl *ConfigDraftServiceImpl) validateDeploymentTemplate(appId int, envId 
 			}
 
 			chartRefId := envConfigProperties.ChartRefId
-			templateValidated, err := impl.chartService.DeploymentTemplateValidate(context.Background(), envConfigProperties.EnvOverrideValues, chartRefId, scope)
-			if err != nil {
-				return nil, draftData, err
+			if !envConfigProperties.SaveEligibleChanges {
+				templateValidated, err := impl.chartService.DeploymentTemplateValidate(context.Background(), envConfigProperties.EnvOverrideValues, chartRefId, scope)
+				if err != nil {
+					return nil, draftData, err
+				}
+				if !templateValidated {
+					return nil, draftData, errors.New(TemplateOutdated)
+				}
 			}
-			if !templateValidated {
-				return nil, draftData, errors.New(TemplateOutdated)
-			}
+
 		} else {
 			id := envConfigProperties.Id
 			if id == 0 {
@@ -886,10 +896,10 @@ func (impl *ConfigDraftServiceImpl) checkLockConfiguration(appId int, envId int,
 		if resourceAction == AddResourceAction || resourceAction == UpdateResourceAction {
 			var currentEnvOverrideValues json.RawMessage
 			currentLatestChart, err := impl.envConfigRepo.FindLatestChartForAppByAppIdAndEnvId(appId, envId)
-			if err != nil && err != pg.ErrNoRows {
+			if err != nil && !errors1.IsNotFound(err) {
 				return nil, err
 			}
-			if err == pg.ErrNoRows {
+			if errors1.IsNotFound(err) {
 				chart, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
 				if err != nil {
 					return nil, err
