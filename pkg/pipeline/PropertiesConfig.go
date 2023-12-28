@@ -385,7 +385,7 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, p
 		scope := resourceQualifiers.Scope{
 			AppId: appId,
 		}
-		validate, err2 := impl.chartService.DeploymentTemplateValidate(context.Background(), overrideByte, chartRefId, scope)
+		validate, err2 := impl.chartService.DeploymentTemplateValidate(context.Background(), json.RawMessage(overrideByte), chartRefId, scope)
 		if !validate {
 			return nil, err2
 		}
