@@ -1,4 +1,5 @@
 ## Bugs
+- fix: handle argo delete event for charts and added socket config (#4471)
 - fix: app clone breaking if ci pipeline have same name (#4461)
 - fix: empty pod name (#4454)
 - fix: Manual sync job fix (#4449)
