@@ -1,5 +1,8 @@
 package model
 
+const PUBLISH_SUCCESS = "SUCCESS"
+const PUBLISH_FAILURE = "FAILURE"
+
 type PubSubMsg struct {
 	Data string
 }
