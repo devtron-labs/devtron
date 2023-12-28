@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	pubsub "github.com/devtron-labs/common-lib-private/pubsub-lib"
+	"github.com/devtron-labs/common-lib-private/pubsub-lib/model"
 	"path"
 	"regexp"
 	"time"
@@ -485,7 +486,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) UpdateRequirementYaml(installA
 
 func (impl AppStoreDeploymentFullModeServiceImpl) SubscribeHelmInstallStatus() error {
 
-	callback := func(msg *pubsub.PubSubMsg) {
+	callback := func(msg *model.PubSubMsg) {
 
 		impl.logger.Debug("received helm install status event - HELM_INSTALL_STATUS", "data", msg.Data)
 		helmInstallNatsMessage := &appStoreBean.HelmReleaseStatusConfig{}

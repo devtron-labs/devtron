@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"context"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	"github.com/devtron-labs/common-lib-private/pubsub-lib/model"
 	util4 "github.com/devtron-labs/common-lib-private/utils/k8s"
 	k8sCommonBean "github.com/devtron-labs/common-lib-private/utils/k8s/commonBean"
 	k8sObjectUtils "github.com/devtron-labs/common-lib-private/utils/k8sObjectsUtil"
@@ -700,7 +701,7 @@ func (impl *InstalledAppServiceImpl) triggerDeploymentEvent(installAppVersions [
 }
 
 func (impl *InstalledAppServiceImpl) Subscribe() error {
-	callback := func(msg *pubsub.PubSubMsg) {
+	callback := func(msg *model.PubSubMsg) {
 		impl.logger.Debug("cd stage event received")
 		//defer msg.Ack()
 		deployPayload := &appStoreBean.DeployPayload{}

@@ -1852,6 +1852,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int) (cdPipe
 			PreStageConfigMapSecretNames:  preStageConfigmapSecrets,
 			PostStageConfigMapSecretNames: postStageConfigmapSecrets,
 			DeploymentAppType:             dbPipeline.DeploymentAppType,
+			DeploymentAppCreated:          dbPipeline.DeploymentAppCreated,
 			DeploymentAppDeleteRequest:    dbPipeline.DeploymentAppDeleteRequest,
 			UserApprovalConf:              approvalConfig,
 			IsVirtualEnvironment:          dbPipeline.Environment.IsVirtualEnvironment,
