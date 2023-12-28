@@ -227,9 +227,10 @@ func (impl *ApplicationStatusHandlerImpl) updateArgoAppDeleteStatus(app *v1alpha
 		installedApp, err := impl.installedAppService.CheckAppExistsByInstalledAppId(model.InstalledAppId)
 		if err == pg.ErrNoRows {
 			impl.logger.Errorw("App not found in database", "installedAppId", model.InstalledAppId, "err", err)
-			return err
+			return fmt.Errorf("app not found in database %s", err)
 		} else if installedApp.DeploymentAppDeleteRequest == false {
-			impl.logger.Infow("Deployment delete not requested for app, not deleting app from DB", "app", app)
+			//TODO 4465 remove app from log after final RCA
+			impl.logger.Infow("Deployment delete not requested for app, not deleting app from DB", "appName", app.Name, "app", app)
 			return nil
 		}
 
