@@ -594,6 +594,7 @@ func (impl *AppCloneServiceImpl) CreateWf(oldAppId, newAppId int, userId int32, 
 	if err != nil {
 		return nil, err
 	}
+
 	impl.logger.Debugw("workflow found", "wf", refAppWFs)
 
 	createWorkflowMappingDtoResp := CreateWorkflowMappingDto{
@@ -673,6 +674,9 @@ func (impl *AppCloneServiceImpl) createWfInstances(refWfMappings []appWorkflow.A
 	var ciMapping []appWorkflow.AppWorkflowMappingDto
 	var cdMappings []appWorkflow.AppWorkflowMappingDto
 	var webhookMappings []appWorkflow.AppWorkflowMappingDto
+
+	refWfMappings = appWorkflow.LevelWiseSort(refWfMappings)
+
 	for _, appWf := range refWfMappings {
 		if appWf.Type == appWorkflow2.CIPIPELINE {
 			ciMapping = append(ciMapping, appWf)

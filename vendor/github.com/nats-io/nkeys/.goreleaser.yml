@@ -6,15 +6,34 @@ release:
   name_template: '{{.Tag}}'
   draft: true
 builds:
-  - main: ./nk/main.go
+  - id: nk
+    main: ./nk/main.go
     ldflags: "-X main.Version={{.Tag}}_{{.Commit}}"
     binary: nk
     goos:
-      - linux
       - darwin
+      - linux
+      - windows
+      - freebsd
     goarch:
       - amd64
-
+      - arm
+      - arm64
+      - 386
+      - mips64le
+      - s390x
+    goarm:
+      - 6
+      - 7
+    ignore:
+      - goos: darwin
+        goarch: 386
+      - goos: freebsd
+        goarch: arm
+      - goos: freebsd
+        goarch: arm64
+      - goos: freebsd
+        goarch: 386
 
 dist: build
 
@@ -23,6 +42,9 @@ archives:
     }}v{{ .Arm }}{{ end }}'
     wrap_in_directory: true
     format: zip
+    files:
+      - README.md
+      - LICENSE
 
 checksum:
   name_template: '{{ .ProjectName }}-v{{ .Version }}-checksums.txt'
