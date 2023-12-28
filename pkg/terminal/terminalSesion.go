@@ -220,8 +220,8 @@ func handleTerminalSession(session sockjs.Session) {
 }
 
 type SocketConfig struct {
-	SocketHeartbeatSeconds time.Duration `env:"SOCKET_HEARTBEAT_SECONDS" envDefault:"25"`
-	SocketDisconnectDelay  time.Duration `env:"SOCKET_DISCONNECT_DELAY_SECONDS" envDefault:"5"`
+	SocketHeartbeatSeconds int `env:"SOCKET_HEARTBEAT_SECONDS" envDefault:"25"`
+	SocketDisconnectDelay  int `env:"SOCKET_DISCONNECT_DELAY_SECONDS" envDefault:"5"`
 }
 
 var cfg *SocketConfig
@@ -234,8 +234,8 @@ func CreateAttachHandler(path string) http.Handler {
 	}
 
 	opts := sockjs.DefaultOptions
-	opts.HeartbeatDelay = cfg.SocketHeartbeatSeconds * time.Second
-	opts.DisconnectDelay = cfg.SocketDisconnectDelay * time.Second
+	opts.HeartbeatDelay = time.Duration(cfg.SocketHeartbeatSeconds) * time.Second
+	opts.DisconnectDelay = time.Duration(cfg.SocketDisconnectDelay) * time.Second
 	return sockjs.NewHandler(path, opts, handleTerminalSession)
 }
 
