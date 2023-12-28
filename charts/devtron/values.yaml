@@ -9,7 +9,7 @@ global:
     runAsNonRoot: true
 installer:
   repo: "devtron-labs/devtron"
-  release: "v0.6.26"
+  release: "v0.6.27"
   image: quay.io/devtron/inception
   tag: 44b30917-185-13275
   source: "github" # Available options are github and gitee
@@ -338,7 +338,7 @@ security:
 notifier:
   enabled: false
   imagePullPolicy: IfNotPresent
-  image: "quay.io/devtron/notifier:1db5450e-372-20077"
+  image: "quay.io/devtron/notifier:b08cf04a-372-20326"
   configs:
     CD_ENVIRONMENT: PROD
     DB: orchestrator
