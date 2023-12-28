@@ -126,7 +126,6 @@ type ChartServiceImpl struct {
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
 	scopedVariableManager            variables.ScopedVariableManager
 	lockedConfigService              lockConfiguration.LockConfigurationService
-	chartService                     ChartService
 }
 
 func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
@@ -150,7 +149,6 @@ func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
 	scopedVariableManager variables.ScopedVariableManager,
 	lockedConfigService lockConfiguration.LockConfigurationService,
-	chartService ChartService,
 ) *ChartServiceImpl {
 
 	// cache devtron reference charts list
@@ -179,7 +177,6 @@ func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
 		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
 		scopedVariableManager:            scopedVariableManager,
 		lockedConfigService:              lockedConfigService,
-		chartService:                     chartService,
 	}
 }
 
@@ -412,7 +409,7 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 		scope := resourceQualifiers.Scope{
 			AppId: templateRequest.AppId,
 		}
-		validate, err2 := impl.chartService.DeploymentTemplateValidate(ctx, templateRequest.ValuesOverride, chartRefId, scope)
+		validate, err2 := impl.DeploymentTemplateValidate(ctx, templateRequest.ValuesOverride, chartRefId, scope)
 		if !validate {
 			return nil, err2
 		}
@@ -910,7 +907,7 @@ func (impl ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateRequ
 		scope := resourceQualifiers.Scope{
 			AppId: templateRequest.AppId,
 		}
-		validate, err2 := impl.chartService.DeploymentTemplateValidate(ctx, templateRequest.ValuesOverride, chartRefId, scope)
+		validate, err2 := impl.DeploymentTemplateValidate(ctx, templateRequest.ValuesOverride, chartRefId, scope)
 		if !validate {
 			return nil, err2
 		}
