@@ -796,9 +796,11 @@ func (impl *AppCloneServiceImpl) CreateCiPipeline(req *cloneCiPipelineRequest) (
 	}
 
 	var refCiPipeline *bean.CiPipeline
-	var id int
-	for id, refCiPipeline = range refCiConfig.CiPipelines {
+	var uniqueId int
+	for id, reqCiPipeline := range refCiConfig.CiPipelines {
 		if refCiPipeline.Id == req.refCiPipelineId {
+			refCiPipeline = reqCiPipeline
+			uniqueId = id
 			break
 		}
 	}
@@ -815,7 +817,7 @@ func (impl *AppCloneServiceImpl) CreateCiPipeline(req *cloneCiPipelineRequest) (
 		return nil, err
 	}
 	if pipelineExists {
-		pipelineName = fmt.Sprintf("%s-%d", pipelineName, id) // making pipeline name unique
+		pipelineName = fmt.Sprintf("%s-%d", pipelineName, uniqueId) // making pipeline name unique
 	}
 	var ciMaterilas []*bean.CiMaterial
 	for _, refCiMaterial := range refCiPipeline.CiMaterial {
