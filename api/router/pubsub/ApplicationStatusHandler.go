@@ -172,7 +172,6 @@ func (impl *ApplicationStatusHandlerImpl) Subscribe() error {
 
 func (impl *ApplicationStatusHandlerImpl) SubscribeDeleteStatus() error {
 	callback := func(msg *model.PubSubMsg) {
-		impl.logger.Debug("received app delete event")
 
 		impl.logger.Debugw("APP_STATUS_DELETE_REQ", "stage", "raw", "data", msg.Data)
 		applicationDetail := ApplicationDetail{}
@@ -185,9 +184,11 @@ func (impl *ApplicationStatusHandlerImpl) SubscribeDeleteStatus() error {
 		if app == nil {
 			return
 		}
+		impl.logger.Infow("argo delete event received", "appName", app.Name, "namespace", app.Namespace, "deleteTimestamp", app.DeletionTimestamp)
+
 		err = impl.updateArgoAppDeleteStatus(app)
 		if err != nil {
-			impl.logger.Errorw("error in updating pipeline delete status", "err", err)
+			impl.logger.Errorw("error in updating pipeline delete status", "err", err, "appName", app.Name)
 		}
 	}
 	err := impl.pubsubClient.Subscribe(pubsub.APPLICATION_STATUS_DELETE_TOPIC, callback)
