@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
+	"github.com/devtron-labs/common-lib/pubsub-lib/model"
 	"github.com/devtron-labs/devtron/api/bean"
 	client2 "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/internal/middleware"
@@ -116,7 +117,7 @@ func NewCdApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, appServi
 }
 
 func (impl *CdApplicationStatusUpdateHandlerImpl) Subscribe() error {
-	callback := func(msg *pubsub.PubSubMsg) {
+	callback := func(msg *model.PubSubMsg) {
 		statusUpdateEvent := pipeline.ArgoPipelineStatusSyncEvent{}
 		var err error
 		var cdPipeline *pipelineConfig.Pipeline

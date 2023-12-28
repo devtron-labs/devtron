@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/go-github/v41/github"
+	"github.com/google/go-github/v45/github"
 )
 
 const (
@@ -111,14 +111,25 @@ func NewFromAppsTransport(atr *AppsTransport, installationID int64) *Transport {
 
 // RoundTrip implements http.RoundTripper interface.
 func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
+	reqBodyClosed := false
+	if req.Body != nil {
+		defer func() {
+			if !reqBodyClosed {
+				req.Body.Close()
+			}
+		}()
+	}
+	
 	token, err := t.Token(req.Context())
 	if err != nil {
 		return nil, err
 	}
 
-	req.Header.Set("Authorization", "token "+token)
-	req.Header.Add("Accept", acceptHeader) // We add to "Accept" header to avoid overwriting existing req headers.
-	resp, err := t.tr.RoundTrip(req)
+	creq := cloneRequest(req) // per RoundTripper contract
+	creq.Header.Set("Authorization", "token "+token)
+	creq.Header.Add("Accept", acceptHeader) // We add to "Accept" header to avoid overwriting existing req headers.
+	reqBodyClosed = true // req.Body is assumed to be closed by the tr RoundTripper.
+	resp, err := t.tr.RoundTrip(creq)
 	return resp, err
 }
 
@@ -211,4 +222,18 @@ func GetReadWriter(i interface{}) (io.ReadWriter, error) {
 		}
 	}
 	return buf, nil
+}
+
+// cloneRequest returns a clone of the provided *http.Request.
+// The clone is a shallow copy of the struct and its Header map.
+func cloneRequest(r *http.Request) *http.Request {
+	// shallow copy of the struct
+	r2 := new(http.Request)
+	*r2 = *r
+	// deep copy of the Header
+	r2.Header = make(http.Header, len(r.Header))
+	for k, s := range r.Header {
+		r2.Header[k] = append([]string(nil), s...)
+	}
+	return r2
 }
