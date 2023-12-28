@@ -18,10 +18,12 @@
 package pipeline
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/enterprise/pkg/lockConfiguration"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"time"
@@ -73,6 +75,7 @@ type PropertiesConfigServiceImpl struct {
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
 	scopedVariableManager            variables.ScopedVariableManager
 	lockedConfigService              lockConfiguration.LockConfigurationService
+	chartService                     chartService.ChartService
 }
 
 func NewPropertiesConfigServiceImpl(logger *zap.SugaredLogger,
@@ -88,6 +91,7 @@ func NewPropertiesConfigServiceImpl(logger *zap.SugaredLogger,
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
 	scopedVariableManager variables.ScopedVariableManager,
 	lockedConfigService lockConfiguration.LockConfigurationService,
+	chartService chartService.ChartService,
 ) *PropertiesConfigServiceImpl {
 	return &PropertiesConfigServiceImpl{
 		logger:                           logger,
@@ -103,6 +107,7 @@ func NewPropertiesConfigServiceImpl(logger *zap.SugaredLogger,
 		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
 		scopedVariableManager:            scopedVariableManager,
 		lockedConfigService:              lockedConfigService,
+		chartService:                     chartService,
 	}
 
 }
@@ -238,6 +243,16 @@ func (impl PropertiesConfigServiceImpl) CreateEnvironmentProperties(appId int, e
 			return nil, err
 		}
 		environmentProperties.EnvOverrideValues = eligible
+		// validation of deployment template validate
+		chartRefId := environmentProperties.ChartRefId
+		//VARIABLE_RESOLVE
+		scope := resourceQualifiers.Scope{
+			AppId: appId,
+		}
+		validate, err2 := impl.chartService.DeploymentTemplateValidate(context.Background(), environmentProperties.EnvOverrideValues, chartRefId, scope)
+		if !validate {
+			return nil, err2
+		}
 	}
 	lockConfigErrorResponse, err := impl.lockedConfigService.HandleLockConfiguration(string(environmentProperties.EnvOverrideValues), chart.GlobalOverride, int(environmentProperties.UserId))
 	if err != nil {
@@ -364,6 +379,16 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, p
 			return nil, err
 		}
 		overrideByte = eligible
+		// validation of deployment template validate
+		chartRefId := propertiesRequest.ChartRefId
+		//VARIABLE_RESOLVE
+		scope := resourceQualifiers.Scope{
+			AppId: appId,
+		}
+		validate, err2 := impl.chartService.DeploymentTemplateValidate(context.Background(), overrideByte, chartRefId, scope)
+		if !validate {
+			return nil, err2
+		}
 	}
 
 	// Handle Lock Configuration

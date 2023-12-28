@@ -832,6 +832,16 @@ func (impl *ConfigDraftServiceImpl) validateDeploymentTemplate(appId int, envId 
 					return nil, draftData, err
 				}
 				envConfigProperties.EnvOverrideValues = eligible
+				// validation of deployment template validate
+				chartRefId := envConfigProperties.ChartRefId
+				//VARIABLE_RESOLVE
+				scope := resourceQualifiers.Scope{
+					AppId: appId,
+				}
+				validate, err2 := impl.chartService.DeploymentTemplateValidate(context.Background(), envConfigProperties.EnvOverrideValues, chartRefId, scope)
+				if !validate {
+					return nil, draftData, err2
+				}
 				envConfigByte, err := json.Marshal(envConfigProperties)
 				if err != nil {
 					return nil, draftData, err

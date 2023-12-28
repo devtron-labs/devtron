@@ -901,7 +901,6 @@ func (impl ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateRequ
 		templateRequest.ValuesOverride = eligible
 
 		// validation of deployment template validate
-		templateRequest.ValuesOverride = eligible
 		chartRefId := templateRequest.ChartRefId
 		//VARIABLE_RESOLVE
 		scope := resourceQualifiers.Scope{
