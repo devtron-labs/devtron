@@ -1,4 +1,5 @@
 ## Bugs
+- fix: app clone breaking if ci pipeline have same name (#4461)
 - fix: empty pod name (#4454)
 - fix: Manual sync job fix (#4449)
 - fix: linked ci failing for null pipeline_type (#4441)
