@@ -131,7 +131,7 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) Subscribe() error {
 		impl.logger.Debugw("ARGO_PIPELINE_STATUS_UPDATE_REQ", "stage", "subscribeDataUnmarshal", "data", statusUpdateEvent)
 
 		if statusUpdateEvent.IsAppStoreApplication {
-			installedApp, err = impl.installedAppVersionRepository.GetInstalledAppByInstalledAppVersionId(statusUpdateEvent.PipelineId)
+			installedApp, err = impl.installedAppVersionRepository.GetInstalledAppByInstalledAppVersionId(statusUpdateEvent.InstalledAppVersionId)
 			if err != nil {
 				impl.logger.Errorw("error in getting installedAppVersion by id", "err", err, "id", statusUpdateEvent.PipelineId)
 				return
@@ -221,7 +221,7 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) SyncPipelineStatusForResourceT
 		return nil
 	}
 	if !util.IsTerminalStatus(cdWfr.Status) {
-		impl.CdHandler.CheckAndSendArgoPipelineStatusSyncEventIfNeeded(pipeline.Id, 1, false)
+		impl.CdHandler.CheckAndSendArgoPipelineStatusSyncEventIfNeeded(pipeline.Id, 0, 1, false)
 	}
 	return nil
 }
@@ -234,7 +234,7 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) SyncPipelineStatusForAppStoreF
 		return nil
 	}
 	if !util.IsTerminalStatus(installedAppVersionHistory.Status) {
-		impl.CdHandler.CheckAndSendArgoPipelineStatusSyncEventIfNeeded(installedAppVersion.Id, 1, true)
+		impl.CdHandler.CheckAndSendArgoPipelineStatusSyncEventIfNeeded(0, installedAppVersion.Id, 1, true)
 	}
 	return nil
 }
