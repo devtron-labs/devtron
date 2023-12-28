@@ -428,7 +428,7 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 	}
 	createResp, err := handler.pipelineBuilder.PatchCiPipeline(&patchRequest)
 	if err != nil {
-		if errors.Is(err, fmt.Errorf(bean1.PIPELINE_NAME_ALREADY_EXISTS_ERROR)) {
+		if err.Error() == bean1.PIPELINE_NAME_ALREADY_EXISTS_ERROR {
 			handler.Logger.Errorw("service err, pipeline name already exist ", "err", err)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
