@@ -1,3 +1,5 @@
+DROP TABLE "public"."user_groups";
+
 DROP TABLE IF EXISTS public."global_authorisation_config";
 
 ---- DROP sequence
