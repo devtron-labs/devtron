@@ -567,6 +567,9 @@ func (impl RoleGroupServiceImpl) getRoleGroupMetadata(roleGroup *repository.Role
 		}
 	}
 	for _, v := range roleFilterMap {
+		if v.Action == "super-admin" {
+			continue
+		}
 		roleFilters = append(roleFilters, *v)
 	}
 	for index, roleFilter := range roleFilters {
