@@ -389,15 +389,23 @@ func (impl *ConfigDraftRestHandlerImpl) ApproveDraft(w http.ResponseWriter, r *h
 	token := r.Header.Get("token")
 	envId := draftResponse.EnvId
 	appId := draftResponse.AppId
-	if notAnApprover := impl.checkForApproverAccess(w, envId, appId, token, true); notAnApprover {
-		return
+	_, err = impl.CheckAccessAndApproveDraft(w, envId, appId, token, draftId, draftVersionId, userId)
+
+	common.WriteJsonResp(w, err, nil, http.StatusOK)
+}
+
+func (impl *ConfigDraftRestHandlerImpl) CheckAccessAndApproveDraft(w http.ResponseWriter, envId int, appId int, token string, draftId int, draftVersionId int, userId int32) (bool, error) {
+	var notAnApprover bool
+	if notAnApprover = impl.checkForApproverAccess(w, envId, appId, token, true); notAnApprover {
+		return notAnApprover, nil
 	}
-	err = impl.configDraftService.ApproveDraft(draftId, draftVersionId, userId)
+	err := impl.configDraftService.ApproveDraft(draftId, draftVersionId, userId)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
+		return notAnApprover, nil
 	}
-	common.WriteJsonResp(w, err, nil, http.StatusOK)
+
+	return notAnApprover, err
 }
 
 func (impl *ConfigDraftRestHandlerImpl) DeleteUserComment(w http.ResponseWriter, r *http.Request) {

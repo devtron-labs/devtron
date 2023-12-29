@@ -26,6 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/apiToken"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	repository4 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/notifier"
@@ -42,7 +43,7 @@ type EventFactory interface {
 	Build(eventType util.EventType, sourceId *int, appId int, envId *int, pipelineType util.PipelineType) Event
 	BuildExtraCDData(event Event, wfr *pipelineConfig.CdWorkflowRunner, pipelineOverrideId int, stage bean2.WorkflowType) Event
 	BuildExtraApprovalData(event Event, approvalActionRequest bean.UserApprovalActionRequest, pipeline *pipelineConfig.Pipeline, userId int32) Event
-	BuildExtraProtectConfigData(event Event, draftNotificationRequest ConfigDataForNotification) Event
+	BuildExtraProtectConfigData(event Event, draftNotificationRequest ConfigDataForNotification, draftId int, DraftVersionId int) []Event
 	BuildExtraCIData(event Event, material *MaterialTriggerInfo, dockerImage string) Event
 	//BuildFinalData(event Event) *Payload
 }
@@ -63,6 +64,7 @@ type EventSimpleFactoryImpl struct {
 	imageTaggingRepository       repository3.ImageTaggingRepository
 	appRepo                      appRepository.AppRepository
 	envRepository                repository4.EnvironmentRepository
+	apiTokenService              apiToken.ApiTokenService
 }
 
 func NewEventSimpleFactoryImpl(logger *zap.SugaredLogger, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
@@ -71,7 +73,7 @@ func NewEventSimpleFactoryImpl(logger *zap.SugaredLogger, cdWorkflowRepository p
 	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository,
 	userRepository repository.UserRepository, ciArtifactRepository repository2.CiArtifactRepository, DeploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository,
 	sesNotificationRepository repository2.SESNotificationRepository, smtpNotificationRepository repository2.SMTPNotificationRepository, imageTaggingRepository repository3.ImageTaggingRepository,
-	appRepo appRepository.AppRepository, envRepository repository4.EnvironmentRepository) *EventSimpleFactoryImpl {
+	appRepo appRepository.AppRepository, envRepository repository4.EnvironmentRepository, apiTokenService apiToken.ApiTokenService) *EventSimpleFactoryImpl {
 	return &EventSimpleFactoryImpl{
 		logger:                       logger,
 		cdWorkflowRepository:         cdWorkflowRepository,
@@ -88,6 +90,7 @@ func NewEventSimpleFactoryImpl(logger *zap.SugaredLogger, cdWorkflowRepository p
 		imageTaggingRepository:       imageTaggingRepository,
 		appRepo:                      appRepo,
 		envRepository:                envRepository,
+		apiTokenService:              apiTokenService,
 	}
 }
 
@@ -379,42 +382,62 @@ func (impl *EventSimpleFactoryImpl) BuildExtraApprovalData(event Event, approval
 
 	return event
 }
-func (impl *EventSimpleFactoryImpl) BuildExtraProtectConfigData(event Event, request ConfigDataForNotification) Event {
+func (impl *EventSimpleFactoryImpl) BuildExtraProtectConfigData(event Event, request ConfigDataForNotification, draftId int, DraftVersionId int) []Event {
 	defaultSesConfig, defaultSmtpConfig, err := impl.getDefaultSESOrSMTPConfig()
 	if err != nil {
 		impl.logger.Errorw("found error in getting defaultSesConfig or  defaultSmtpConfig data", "err", err)
 	}
+	var events []Event
 	payload := &Payload{}
-	setProviderForNotification(request.EmailIds, defaultSesConfig, defaultSmtpConfig, payload)
 	err = impl.setEventPayload(request, payload)
 	if err != nil {
 		impl.logger.Errorw("error in setting payload", "error", err)
-		return event
+		return events
 	}
 	if request.UserId == 0 {
-		return event
+		return events
 	}
 	user, err := impl.userRepository.GetById(request.UserId)
 	if err != nil {
 		impl.logger.Errorw("found error on getting user data ", "user", user)
 	}
-	payload.TriggeredBy = user.EmailId
-	event.Payload = payload
-	return event
-}
-func setProviderForNotification(emailIds []string, defaultSesConfig *repository2.SESConfig, defaultSmtpConfig *repository2.SMTPConfig, payload *Payload) {
-	for _, emailId := range emailIds {
-		provider := &notifier.Provider{
-			ConfigId:  0,
-			Recipient: emailId,
-		}
-		if defaultSesConfig != nil && defaultSesConfig.Id != 0 {
-			provider.Destination = notifier.SES_CONFIG_TYPE
-		} else if defaultSmtpConfig != nil && defaultSmtpConfig.Id != 0 {
-			provider.Destination = notifier.SMTP_CONFIG_TYPE
-		}
-		payload.Providers = append(payload.Providers, provider)
+	for _, email := range request.EmailIds {
+		setProviderForNotification(email, defaultSesConfig, defaultSmtpConfig, payload)
+		err = impl.createAndSetToken(request, payload, draftId, DraftVersionId, email)
+		payload.TriggeredBy = user.EmailId
 	}
+	event.Payload = payload
+
+	return events
+}
+func (impl *EventSimpleFactoryImpl) createAndSetToken(request ConfigDataForNotification, payload *Payload, draftId int, DraftVersionId int, emailId string) error {
+	user, err := impl.userRepository.FetchActiveUserByEmail(emailId)
+	draftRequest := notifier.DraftApprovalRequest{
+		DraftId:        draftId,
+		DraftVersionId: DraftVersionId,
+		NotificationApprovalRequest: notifier.NotificationApprovalRequest{
+			AppId:   request.AppId,
+			EnvId:   request.EnvId,
+			EmailId: emailId,
+			UserId:  user.UserId,
+		},
+	}
+	token, err := impl.apiTokenService.CreateApiJwtTokenForNotification(draftRequest, nil, 3)
+	payload.ApprovalLink = token
+	return err
+}
+func setProviderForNotification(emailId string, defaultSesConfig *repository2.SESConfig, defaultSmtpConfig *repository2.SMTPConfig, payload *Payload) {
+	provider := &notifier.Provider{
+		ConfigId:  0,
+		Recipient: emailId,
+	}
+	if defaultSesConfig != nil && defaultSesConfig.Id != 0 {
+		provider.Destination = notifier.SES_CONFIG_TYPE
+	} else if defaultSmtpConfig != nil && defaultSmtpConfig.Id != 0 {
+		provider.Destination = notifier.SMTP_CONFIG_TYPE
+	}
+	payload.Providers = append(payload.Providers, provider)
+
 }
 
 func (impl *EventSimpleFactoryImpl) setEventPayload(request ConfigDataForNotification, payload *Payload) error {
@@ -443,6 +466,7 @@ func (impl *EventSimpleFactoryImpl) setEventPayload(request ConfigDataForNotific
 	} else {
 		payload.ProtectConfigFileName = request.ResourceName
 	}
+
 	return nil
 }
 func setProtectConfigLink(request ConfigDataForNotification) string {

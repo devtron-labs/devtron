@@ -25,12 +25,14 @@ import (
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
+
 	"github.com/devtron-labs/devtron/pkg/sql"
 	bean2 "github.com/devtron-labs/devtron/pkg/user/bean"
 	casbin2 "github.com/devtron-labs/devtron/pkg/user/casbin"
 	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
+	jwt2 "github.com/golang-jwt/jwt/v4"
 	"github.com/gorilla/sessions"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
@@ -67,6 +69,7 @@ type UserService interface {
 	GetApprovalUsersByEnv(appName, envName string) ([]string, error)
 	CheckForApproverAccess(appName, envName string, userId int32) bool
 	GetConfigApprovalUsersByEnv(appName, envName, team string) ([]string, error)
+	GetFieldValuesFromToken(token string, fieldNames []string) (map[string]interface{}, error)
 }
 
 type UserServiceImpl struct {
@@ -1171,37 +1174,34 @@ func (impl UserServiceImpl) GetUserByToken(context context.Context, token string
 	}
 	return userInfo.Id, userInfo.UserType, nil
 }
+func (impl UserServiceImpl) GetFieldValuesFromToken(token string, fieldNames []string) (map[string]interface{}, error) {
+	fieldNameToValue := make(map[string]interface{})
+	mapClaims, err := impl.getMapClaims(token)
+	if err != nil {
+		return fieldNameToValue, err
+	}
+	//impl.logger.Infow("mapClaims","map",mapClaims)
+	for _, name := range fieldNames {
+		value := mapClaims[name]
+		impl.logger.Infow("key:val", "key", name, "val", value)
+		fieldNameToValue[name] = value
+	}
+	//email := jwt.GetField(mapClaims, "email")
+	//sub := jwt.GetField(mapClaims, "sub")
+	//appId:=jwt.GetField(mapClaims,"appId")
+	//EnvId:=jwt.GetField(mapClaims,"appId")
+	//ApprovalType:=jwt.GetField(mapClaims,"approvalType")
+	//DraftId:=jwt.GetField(mapClaims,"draftId")
+	//DraftVersionId:=jwt.GetField(mapClaims,"draftVersionId")
+	//ApprovalRequestId:=jwt.GetField(mapClaims,"approvalRequestId")
+	//ArtifactId:=jwt.GetField(mapClaims,"artifactId")
+	//impl.logger.Infow("mapClaims","map",mapClaims)
+	return fieldNameToValue, nil
+}
 
 func (impl UserServiceImpl) GetEmailFromToken(token string) (string, error) {
-	if token == "" {
-		impl.logger.Infow("no token provided")
-		err := &util.ApiError{
-			Code:            constants.UserNoTokenProvided,
-			InternalMessage: "no token provided",
-		}
-		return "", err
-	}
-
-	claims, err := impl.sessionManager2.VerifyToken(token)
-
+	mapClaims, err := impl.getMapClaims(token)
 	if err != nil {
-		impl.logger.Errorw("failed to verify token", "error", err)
-		err := &util.ApiError{
-			Code:            constants.UserNoTokenProvided,
-			InternalMessage: "failed to verify token",
-			UserMessage:     "token verification failed while getting logged in user",
-		}
-		return "", err
-	}
-
-	mapClaims, err := jwt.MapClaims(claims)
-	if err != nil {
-		impl.logger.Errorw("failed to MapClaims", "error", err)
-		err := &util.ApiError{
-			Code:            constants.UserNoTokenProvided,
-			InternalMessage: "token invalid",
-			UserMessage:     "token verification failed while parsing token",
-		}
 		return "", err
 	}
 
@@ -1213,6 +1213,41 @@ func (impl UserServiceImpl) GetEmailFromToken(token string) (string, error) {
 	}
 
 	return email, nil
+}
+
+func (impl UserServiceImpl) getMapClaims(token string) (jwt2.MapClaims, error) {
+	if token == "" {
+		impl.logger.Infow("no token provided")
+		err := &util.ApiError{
+			Code:            constants.UserNoTokenProvided,
+			InternalMessage: "no token provided",
+		}
+		return nil, err
+	}
+
+	claims, err := impl.sessionManager2.VerifyToken(token)
+
+	if err != nil {
+		impl.logger.Errorw("failed to verify token", "error", err)
+		err := &util.ApiError{
+			Code:            constants.UserNoTokenProvided,
+			InternalMessage: "failed to verify token",
+			UserMessage:     "token verification failed while getting logged in user",
+		}
+		return nil, err
+	}
+
+	mapClaims, err := jwt.MapClaims(claims)
+	if err != nil {
+		impl.logger.Errorw("failed to MapClaims", "error", err)
+		err := &util.ApiError{
+			Code:            constants.UserNoTokenProvided,
+			InternalMessage: "token invalid",
+			UserMessage:     "token verification failed while parsing token",
+		}
+		return nil, err
+	}
+	return mapClaims, nil
 }
 
 func (impl UserServiceImpl) GetByIds(ids []int32) ([]bean.UserInfo, error) {

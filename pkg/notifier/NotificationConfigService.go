@@ -42,6 +42,7 @@ type NotificationConfigService interface {
 	IsSesOrSmtpConfigured() (*ConfigCheck, error)
 	UpdateNotificationSettings(notificationSettingsRequest *NotificationUpdateRequest, userId int32) (int, error)
 	FetchNSViewByIds(ids []*int) ([]*NSConfig, error)
+	DraftApprovalNotificationRequest(envId int, appId int, token string, draftId int, draftVersionId int, userId int32) (*DraftApprovalResponse, error)
 }
 
 type NotificationConfigServiceImpl struct {
@@ -70,6 +71,63 @@ type NotificationSettingRequest struct {
 	PipelineType util.PipelineType `json:"pipelineType" validate:"required"`
 	EventTypeIds []int             `json:"eventTypeIds" validate:"required"`
 	Providers    []Provider        `json:"providers" validate:"required"`
+}
+type NotificationApprovalRequest struct {
+	AppId int `json:"appId" validate:"required"`
+	EnvId int `json:"envId"`
+	//ApprovalType string `json:"approvalType"`
+	EmailId string `json:"emailId"`
+	UserId  int32  `json:"userId"`
+}
+type DraftApprovalRequest struct {
+	DraftId                     int                         `json:"draftId"`
+	DraftVersionId              int                         `json:"draftVersionId"`
+	NotificationApprovalRequest NotificationApprovalRequest `json:"notificationApprovalRequest"`
+}
+
+func (dar *DraftApprovalRequest) CreateDraftApprovalRequest(jsonStr []byte) error {
+	err := json.Unmarshal(jsonStr, dar)
+	return err
+}
+
+type ImageApprovalRequest struct {
+	ApprovalRequestId           int                         `json:"approvalRequestId"`
+	ArtifactId                  int                         `json:"artifactId"`
+	NotificationApprovalRequest NotificationApprovalRequest `json:"notificationApprovalRequest"`
+}
+
+func (iar *ImageApprovalRequest) CreateDraftApprovalRequest(jsonStr []byte) error {
+	err := json.Unmarshal(jsonStr, iar)
+	return err
+}
+
+type ApprovalStatus int
+
+const (
+	AlreadyApproved  ApprovalStatus = 1
+	CancelledRequest ApprovalStatus = 0
+)
+
+type NotificationApprovalResponse struct {
+	AppName     string         `json:"appName"`
+	EnvName     string         `json:"envName"`
+	TriggeredBy string         `json:"triggeredBy"`
+	EventTime   string         `json:"eventTime"`
+	Status      ApprovalStatus `json:"status"`
+}
+type DraftApprovalResponse struct {
+	ProtectConfigFileType        string                       `json:"protectConfigFileType"`
+	ProtectConfigFileName        string                       `json:"protectConfigFileName"`
+	ProtectConfigComment         string                       `json:"protectConfigComment"`
+	ProtectConfigLink            string                       `json:"protectConfigLink"`
+	NotificationApprovalResponse NotificationApprovalResponse `json:"notificationApprovalResponse"`
+}
+type ImageApprovalResponse struct {
+	ImageTagNames                []string                     `json:"imageTagNames"`
+	ImageComment                 string                       `json:"imageComment"`
+	ImageApprovalLink            string                       `json:"imageApprovalLink"`
+	DockerImageUrl               string                       `json:"dockerImageUrl"`
+	NotificationApprovalResponse NotificationApprovalResponse `json:"notificationApprovalResponse"`
 }
 
 type Provider struct {
@@ -922,4 +980,8 @@ func (impl *NotificationConfigServiceImpl) IsSesOrSmtpConfigured() (*ConfigCheck
 	}
 
 	return &configCheck, nil
+}
+
+func (impl *NotificationConfigServiceImpl) DraftApprovalNotificationRequest(envId int, appId int, token string, draftId int, draftVersionId int, userId int32) (*DraftApprovalResponse, error) {
+	return nil, nil
 }

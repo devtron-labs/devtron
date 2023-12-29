@@ -100,6 +100,7 @@ type Payload struct {
 	ProtectConfigFileName string               `json:"protectConfigFileName"`
 	ProtectConfigComment  string               `json:"protectConfigComment"`
 	ProtectConfigLink     string               `json:"protectConfigLink"`
+	ApprovalLink          string               `json:"approvalLink"`
 }
 
 type CiPipelineMaterialResponse struct {

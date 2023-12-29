@@ -1717,7 +1717,7 @@ func (impl *CdHandlerImpl) PerformDeploymentApprovalAction(userId int32, approva
 		if err != nil {
 			impl.Logger.Errorw("error occurred while fetching workflow data for artifact", "artifactId", artifactId, "userId", userId, "err", err)
 			return errors.New("failed to fetch workflow for artifact data")
-		}
+		} //todo have to write one querry to check for checking approved state
 		if ciArtifact.CreatedBy == userId {
 			return errors.New("user who triggered the build cannot be an approver")
 		}

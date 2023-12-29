@@ -317,7 +317,13 @@ func InitializeApp() (*App, error) {
 	sesNotificationRepositoryImpl := repository.NewSESNotificationRepositoryImpl(db)
 	smtpNotificationRepositoryImpl := repository.NewSMTPNotificationRepositoryImpl(db)
 	imageTaggingRepositoryImpl := repository5.NewImageTaggingRepositoryImpl(db)
-	eventSimpleFactoryImpl := client.NewEventSimpleFactoryImpl(sugaredLogger, cdWorkflowRepositoryImpl, pipelineOverrideRepositoryImpl, ciWorkflowRepositoryImpl, ciPipelineMaterialRepositoryImpl, ciPipelineRepositoryImpl, pipelineRepositoryImpl, userRepositoryImpl, ciArtifactRepositoryImpl, deploymentApprovalRepositoryImpl, sesNotificationRepositoryImpl, smtpNotificationRepositoryImpl, imageTaggingRepositoryImpl, appRepositoryImpl, environmentRepositoryImpl)
+	apiTokenSecretServiceImpl, err := apiToken.NewApiTokenSecretServiceImpl(sugaredLogger, attributesServiceImpl, apiTokenSecretStore)
+	if err != nil {
+		return nil, err
+	}
+	apiTokenRepositoryImpl := apiToken.NewApiTokenRepositoryImpl(db)
+	apiTokenServiceImpl := apiToken.NewApiTokenServiceImpl(sugaredLogger, apiTokenSecretServiceImpl, userServiceImpl, userAuditServiceImpl, apiTokenRepositoryImpl)
+	eventSimpleFactoryImpl := client.NewEventSimpleFactoryImpl(sugaredLogger, cdWorkflowRepositoryImpl, pipelineOverrideRepositoryImpl, ciWorkflowRepositoryImpl, ciPipelineMaterialRepositoryImpl, ciPipelineRepositoryImpl, pipelineRepositoryImpl, userRepositoryImpl, ciArtifactRepositoryImpl, deploymentApprovalRepositoryImpl, sesNotificationRepositoryImpl, smtpNotificationRepositoryImpl, imageTaggingRepositoryImpl, appRepositoryImpl, environmentRepositoryImpl, apiTokenServiceImpl)
 	applicationServiceClientImpl := application.NewApplicationClientImpl(sugaredLogger, argoCDConnectionManagerImpl)
 	acdAuthConfig, err := util2.GetACDAuthConfig()
 	if err != nil {
@@ -693,7 +699,10 @@ func InitializeApp() (*App, error) {
 	webhookNotificationServiceImpl := notifier.NewWebhookNotificationServiceImpl(sugaredLogger, webhookNotificationRepositoryImpl, teamServiceImpl, userRepositoryImpl, notificationSettingsRepositoryImpl)
 	sesNotificationServiceImpl := notifier.NewSESNotificationServiceImpl(sugaredLogger, sesNotificationRepositoryImpl, teamServiceImpl, notificationSettingsRepositoryImpl)
 	smtpNotificationServiceImpl := notifier.NewSMTPNotificationServiceImpl(sugaredLogger, smtpNotificationRepositoryImpl, teamServiceImpl, notificationSettingsRepositoryImpl)
-	notificationRestHandlerImpl := restHandler.NewNotificationRestHandlerImpl(dockerRegistryConfigImpl, sugaredLogger, gitRegistryConfigImpl, dbConfigServiceImpl, userServiceImpl, validate, notificationConfigServiceImpl, slackNotificationServiceImpl, webhookNotificationServiceImpl, sesNotificationServiceImpl, smtpNotificationServiceImpl, enterpriseEnforcerImpl, teamServiceImpl, environmentServiceImpl, pipelineBuilderImpl, enforcerUtilImpl)
+	configDraftRepositoryImpl := drafts.NewConfigDraftRepositoryImpl(sugaredLogger, db)
+	configDraftServiceImpl := drafts.NewConfigDraftServiceImpl(sugaredLogger, configDraftRepositoryImpl, configMapServiceImpl, chartServiceImpl, propertiesConfigServiceImpl, resourceProtectionServiceImpl, userServiceImpl, appRepositoryImpl, environmentRepositoryImpl, eventSimpleFactoryImpl, eventRESTClientImpl, apiTokenServiceImpl)
+	configDraftRestHandlerImpl := drafts2.NewConfigDraftRestHandlerImpl(sugaredLogger, userServiceImpl, enterpriseEnforcerImpl, enforcerUtilImpl, validate, configDraftServiceImpl)
+	notificationRestHandlerImpl := restHandler.NewNotificationRestHandlerImpl(dockerRegistryConfigImpl, sugaredLogger, gitRegistryConfigImpl, dbConfigServiceImpl, userServiceImpl, validate, notificationConfigServiceImpl, slackNotificationServiceImpl, webhookNotificationServiceImpl, sesNotificationServiceImpl, smtpNotificationServiceImpl, enterpriseEnforcerImpl, teamServiceImpl, environmentServiceImpl, pipelineBuilderImpl, enforcerUtilImpl, sessionManager, configDraftRestHandlerImpl)
 	notificationRouterImpl := router.NewNotificationRouterImpl(notificationRestHandlerImpl)
 	teamRestHandlerImpl := team2.NewTeamRestHandlerImpl(sugaredLogger, teamServiceImpl, userServiceImpl, enterpriseEnforcerImpl, validate, userAuthServiceImpl, deleteServiceExtendedImpl)
 	teamRouterImpl := team2.NewTeamRouterImpl(teamRestHandlerImpl)
@@ -831,12 +840,6 @@ func InitializeApp() (*App, error) {
 	serverServiceImpl := server.NewServerServiceImpl(sugaredLogger, serverActionAuditLogRepositoryImpl, serverDataStoreServerDataStore, serverEnvConfigServerEnvConfig, helmAppServiceImpl, moduleRepositoryImpl)
 	serverRestHandlerImpl := server2.NewServerRestHandlerImpl(sugaredLogger, serverServiceImpl, userServiceImpl, enterpriseEnforcerImpl, validate)
 	serverRouterImpl := server2.NewServerRouterImpl(serverRestHandlerImpl)
-	apiTokenSecretServiceImpl, err := apiToken.NewApiTokenSecretServiceImpl(sugaredLogger, attributesServiceImpl, apiTokenSecretStore)
-	if err != nil {
-		return nil, err
-	}
-	apiTokenRepositoryImpl := apiToken.NewApiTokenRepositoryImpl(db)
-	apiTokenServiceImpl := apiToken.NewApiTokenServiceImpl(sugaredLogger, apiTokenSecretServiceImpl, userServiceImpl, userAuditServiceImpl, apiTokenRepositoryImpl)
 	apiTokenRestHandlerImpl := apiToken2.NewApiTokenRestHandlerImpl(sugaredLogger, apiTokenServiceImpl, userServiceImpl, enterpriseEnforcerImpl, validate)
 	apiTokenRouterImpl := apiToken2.NewApiTokenRouterImpl(apiTokenRestHandlerImpl)
 	clusterCronServiceImpl, err := cluster2.NewClusterCronServiceImpl(sugaredLogger, clusterServiceImplExtended)
@@ -881,9 +884,6 @@ func InitializeApp() (*App, error) {
 	rbacRoleRouterImpl := user2.NewRbacRoleRouterImpl(sugaredLogger, validate, rbacRoleRestHandlerImpl)
 	globalPolicyRestHandlerImpl := globalPolicy2.NewGlobalPolicyRestHandlerImpl(sugaredLogger, globalPolicyServiceImpl, userServiceImpl, enterpriseEnforcerImpl, validate, enforcerUtilImpl)
 	globalPolicyRouterImpl := globalPolicy2.NewGlobalPolicyRouterImpl(sugaredLogger, globalPolicyRestHandlerImpl)
-	configDraftRepositoryImpl := drafts.NewConfigDraftRepositoryImpl(sugaredLogger, db)
-	configDraftServiceImpl := drafts.NewConfigDraftServiceImpl(sugaredLogger, configDraftRepositoryImpl, configMapServiceImpl, chartServiceImpl, propertiesConfigServiceImpl, resourceProtectionServiceImpl, userServiceImpl, appRepositoryImpl, environmentRepositoryImpl, eventSimpleFactoryImpl, eventRESTClientImpl)
-	configDraftRestHandlerImpl := drafts2.NewConfigDraftRestHandlerImpl(sugaredLogger, userServiceImpl, enterpriseEnforcerImpl, enforcerUtilImpl, validate, configDraftServiceImpl)
 	configDraftRouterImpl := drafts2.NewConfigDraftRouterImpl(configDraftRestHandlerImpl)
 	resourceProtectionRestHandlerImpl := protect2.NewResourceProtectionRestHandlerImpl(sugaredLogger, resourceProtectionServiceImpl, userServiceImpl, enterpriseEnforcerImpl, enforcerUtilImpl, validate)
 	resourceProtectionRouterImpl := protect2.NewResourceProtectionRouterImpl(resourceProtectionRestHandlerImpl)

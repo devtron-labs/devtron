@@ -22,7 +22,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/authenticator/middleware"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/enterprise/api/drafts"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"io/ioutil"
 	"net/http"
@@ -69,24 +71,28 @@ type NotificationRestHandler interface {
 	RecipientListingSuggestion(w http.ResponseWriter, r *http.Request)
 	FindAllNotificationConfigAutocomplete(w http.ResponseWriter, r *http.Request)
 	GetOptionsForNotificationSettings(w http.ResponseWriter, r *http.Request)
+	DraftApprovalNotificationRequest(w http.ResponseWriter, r *http.Request)
+	DeploymentApprovalNotificationRequest(w http.ResponseWriter, r *http.Request)
 }
 type NotificationRestHandlerImpl struct {
-	dockerRegistryConfig pipeline.DockerRegistryConfig
-	logger               *zap.SugaredLogger
-	gitRegistryConfig    pipeline.GitRegistryConfig
-	dbConfigService      pipeline.DbConfigService
-	userAuthService      user.UserService
-	validator            *validator.Validate
-	notificationService  notifier.NotificationConfigService
-	slackService         notifier.SlackNotificationService
-	webhookService       notifier.WebhookNotificationService
-	sesService           notifier.SESNotificationService
-	smtpService          notifier.SMTPNotificationService
-	enforcer             casbin.Enforcer
-	teamService          team.TeamService
-	environmentService   cluster.EnvironmentService
-	pipelineBuilder      pipeline.PipelineBuilder
-	enforcerUtil         rbac.EnforcerUtil
+	dockerRegistryConfig       pipeline.DockerRegistryConfig
+	logger                     *zap.SugaredLogger
+	gitRegistryConfig          pipeline.GitRegistryConfig
+	dbConfigService            pipeline.DbConfigService
+	userAuthService            user.UserService
+	validator                  *validator.Validate
+	notificationService        notifier.NotificationConfigService
+	slackService               notifier.SlackNotificationService
+	webhookService             notifier.WebhookNotificationService
+	sesService                 notifier.SESNotificationService
+	smtpService                notifier.SMTPNotificationService
+	enforcer                   casbin.Enforcer
+	teamService                team.TeamService
+	environmentService         cluster.EnvironmentService
+	pipelineBuilder            pipeline.PipelineBuilder
+	enforcerUtil               rbac.EnforcerUtil
+	sessionManager             *middleware.SessionManager
+	configDraftRestHandlerImpl *drafts.ConfigDraftRestHandlerImpl
 }
 
 type ChannelDto struct {
@@ -99,24 +105,26 @@ func NewNotificationRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistry
 	validator *validator.Validate, notificationService notifier.NotificationConfigService,
 	slackService notifier.SlackNotificationService, webhookService notifier.WebhookNotificationService, sesService notifier.SESNotificationService, smtpService notifier.SMTPNotificationService,
 	enforcer casbin.Enforcer, teamService team.TeamService, environmentService cluster.EnvironmentService, pipelineBuilder pipeline.PipelineBuilder,
-	enforcerUtil rbac.EnforcerUtil) *NotificationRestHandlerImpl {
+	enforcerUtil rbac.EnforcerUtil, sessionManager *middleware.SessionManager, configDraftRestHandlerImpl *drafts.ConfigDraftRestHandlerImpl) *NotificationRestHandlerImpl {
 	return &NotificationRestHandlerImpl{
-		dockerRegistryConfig: dockerRegistryConfig,
-		logger:               logger,
-		gitRegistryConfig:    gitRegistryConfig,
-		dbConfigService:      dbConfigService,
-		userAuthService:      userAuthService,
-		validator:            validator,
-		notificationService:  notificationService,
-		slackService:         slackService,
-		webhookService:       webhookService,
-		sesService:           sesService,
-		smtpService:          smtpService,
-		enforcer:             enforcer,
-		teamService:          teamService,
-		environmentService:   environmentService,
-		pipelineBuilder:      pipelineBuilder,
-		enforcerUtil:         enforcerUtil,
+		dockerRegistryConfig:       dockerRegistryConfig,
+		logger:                     logger,
+		gitRegistryConfig:          gitRegistryConfig,
+		dbConfigService:            dbConfigService,
+		userAuthService:            userAuthService,
+		validator:                  validator,
+		notificationService:        notificationService,
+		slackService:               slackService,
+		webhookService:             webhookService,
+		sesService:                 sesService,
+		smtpService:                smtpService,
+		enforcer:                   enforcer,
+		teamService:                teamService,
+		environmentService:         environmentService,
+		pipelineBuilder:            pipelineBuilder,
+		enforcerUtil:               enforcerUtil,
+		sessionManager:             sessionManager,
+		configDraftRestHandlerImpl: configDraftRestHandlerImpl,
 	}
 }
 
@@ -1143,4 +1151,63 @@ func (impl NotificationRestHandlerImpl) DeleteNotificationChannelConfig(w http.R
 	} else {
 		common.WriteJsonResp(w, fmt.Errorf(" The channel you requested is not supported"), nil, http.StatusBadRequest)
 	}
+}
+
+var NotificationTokenFields = []string{"email", "draftId", "draftVersionId", "approvalRequestId", "appId", "envId"}
+
+func (impl NotificationRestHandlerImpl) DraftApprovalNotificationRequest(w http.ResponseWriter, r *http.Request) {
+
+	//token := r.URL.Query().Get("token")
+	//verification is done internally
+	token := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkcmFmdElkIjozLCJkcmFmdFZlcnNpb25JZCI6MywiYXBwcm92YWxSZXF1ZXN0SWQiOjAsImFydGlmYWN0SWQiOjAsImFwcElkIjo2NywiZW52SWQiOi0xLCJhcHByb3ZhbFR5cGUiOiIiLCJlbWFpbCI6ImFkaXR5YS5yYW5qYW5AZGV2dHJvbi5haSIsImlzcyI6ImFwaVRva2VuSXNzdWVyIiwiZXhwIjowfQ.04atq46CUspff6u_8kqwtIcRPk1oUFS83LSw66kF8Do"
+	fieldsMap, err := impl.userAuthService.GetFieldValuesFromToken(token, NotificationTokenFields)
+	draftApprovalRequest := &notifier.DraftApprovalRequest{}
+	draftBytes, err := json.Marshal(fieldsMap)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	err = draftApprovalRequest.CreateDraftApprovalRequest(draftBytes)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
+		return
+	}
+	err = json.NewDecoder(r.Body).Decode(&draftApprovalRequest)
+	if err != nil {
+		impl.logger.Errorw("request err, imageApprovalRequest", "err", err, "payload", draftApprovalRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	envId := draftApprovalRequest.NotificationApprovalRequest.EnvId
+	appId := draftApprovalRequest.NotificationApprovalRequest.AppId
+	draftId := draftApprovalRequest.DraftId
+	draftVersionId := draftApprovalRequest.DraftVersionId
+	userId := draftApprovalRequest.NotificationApprovalRequest.UserId
+	notApprover, err := impl.configDraftRestHandlerImpl.CheckAccessAndApproveDraft(w, envId, appId, token, draftId, draftVersionId, userId)
+	fmt.Println(notApprover)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	resp, err := impl.notificationService.DraftApprovalNotificationRequest(envId, appId, token, draftId, draftVersionId, userId)
+
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
+
+}
+
+//func createDraftApprovalRequest(field []byte) (notifier.DraftApprovalRequest, error) {
+//	draftApprovalRequest := notifier.DraftApprovalRequest{}
+//	err := json.Unmarshal(field, &draftApprovalRequest)
+//	if err != nil {
+//		return draftApprovalRequest, err
+//	}
+//	return draftApprovalRequest, err
+//}
+
+func (impl NotificationRestHandlerImpl) DeploymentApprovalNotificationRequest(w http.ResponseWriter, r *http.Request) {
+
 }
