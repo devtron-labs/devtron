@@ -468,7 +468,8 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroup
 					if _, ok := existingRoles[roleModel.Id]; ok {
 						delete(eliminatedRoles, roleModel.Id)
 					}
-					if _, ok := existingRoles[oldRoleModel.Id]; ok {
+					isChartGroupEntity := roleFilter.Entity == bean.CHART_GROUP_ENTITY
+					if _, ok := existingRoles[oldRoleModel.Id]; ok && !isChartGroupEntity {
 						//delete old role mapping from existing but not from eliminated roles (so that it gets deleted)
 						delete(existingRoles, oldRoleModel.Id)
 					}
