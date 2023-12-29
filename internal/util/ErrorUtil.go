@@ -49,9 +49,18 @@ func IsErrNoRows(err error) bool {
 	return pg.ErrNoRows == err
 }
 
-func GetGRPCErrorDetailedMessage(err error) string {
-	if errStatus, ok := status.FromError(err); ok {
-		return errStatus.Message()
+func GetGRPCErrorDetailedMessage(err error) (errorMsg string) {
+	if err == nil {
+		return errorMsg
 	}
-	return err.Error()
+	if errStatus, ok := status.FromError(err); ok {
+		errorMsg = errStatus.Message()
+	} else {
+		errorMsg = err.Error()
+	}
+	// Handling for invalid error message
+	if errorMsg == "" {
+		errorMsg = "Something went wrong!"
+	}
+	return errorMsg
 }
