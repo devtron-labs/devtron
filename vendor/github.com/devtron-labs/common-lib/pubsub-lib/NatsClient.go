@@ -18,7 +18,6 @@
 package pubsub_lib
 
 import (
-	"encoding/json"
 	"github.com/caarlos0/env"
 	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
@@ -26,28 +25,52 @@ import (
 )
 
 type NatsClient struct {
-	logger                     *zap.SugaredLogger
-	JetStrCtxt                 nats.JetStreamContext
-	streamConfig               *nats.StreamConfig
-	NatsMsgProcessingBatchSize int
-	NatsMsgBufferSize          int
-	Conn                       nats.Conn
+	logger     *zap.SugaredLogger
+	JetStrCtxt nats.JetStreamContext
+	Conn       *nats.Conn
 }
-
-const DefaultMaxAge time.Duration = 86400000000000
 
 type NatsClientConfig struct {
 	NatsServerHost string `env:"NATS_SERVER_HOST" envDefault:"nats://devtron-nats.devtroncd:4222"`
 
-	//consumer wise
+	// consumer wise
+	// NatsMsgProcessingBatchSize is the number of messages that will be processed in one go
 	NatsMsgProcessingBatchSize int `env:"NATS_MSG_PROCESSING_BATCH_SIZE" envDefault:"1"`
-	NatsMsgBufferSize          int `env:"NATS_MSG_BUFFER_SIZE" envDefault:"64"`
 
-	//stream wise
-	NatsStreamConfig string `env:"NATS_STREAM_CONFIG" envDefault:"{\"max_age\":86400000000000}"`
+	// NatsMsgBufferSize is the number of messages that will be buffered in memory (channel size)
+	// it is recommended to set this value equal to NatsMsgProcessingBatchSize as we want to process maximum messages in the buffer in one go.
+	// Note: if NatsMsgBufferSize is less than NatsMsgProcessingBatchSize
+	// then the wait time for the unprocessed messages in the buffer will be high.(total process time = life-time in buffer + processing time)
+	// NatsMsgBufferSize can be configured independently of NatsMsgProcessingBatchSize if needed by setting its value to positive value in env.
+	// if NatsMsgBufferSize set to a non-positive value then it will take the value of NatsMsgProcessingBatchSize.
+	// Note: always get this value by calling GetNatsMsgBufferSize method
+	NatsMsgBufferSize    int `env:"NATS_MSG_BUFFER_SIZE" envDefault:"1"`
+	NatsMsgMaxAge        int `env:"NATS_MSG_MAX_AGE" envDefault:"86400"`
+	NatsMsgAckWaitInSecs int `env:"NATS_MSG_ACK_WAIT_IN_SECS" envDefault:"60"`
+}
 
-	// Consumer config
-	NatsConsumerConfig string `env:"NATS_CONSUMER_CONFIG" envDefault:"{\"ackWaitInSecs\":3600}"`
+func (ncc NatsClientConfig) GetNatsMsgBufferSize() int {
+	// if NatsMsgBufferSize is set to a non-positive value then it will take the value of NatsMsgProcessingBatchSize.
+	if ncc.NatsMsgBufferSize <= 0 {
+		return ncc.NatsMsgProcessingBatchSize
+	}
+	return ncc.NatsMsgBufferSize
+}
+
+func (ncc NatsClientConfig) GetDefaultNatsConsumerConfig() NatsConsumerConfig {
+	return NatsConsumerConfig{
+		NatsMsgProcessingBatchSize: ncc.NatsMsgProcessingBatchSize,
+		NatsMsgBufferSize:          ncc.GetNatsMsgBufferSize(),
+		AckWaitInSecs:              ncc.NatsMsgAckWaitInSecs,
+	}
+}
+
+func (ncc NatsClientConfig) GetDefaultNatsStreamConfig() NatsStreamConfig {
+	return NatsStreamConfig{
+		StreamConfig: StreamConfig{
+			MaxAge: time.Duration(ncc.NatsMsgMaxAge) * time.Second,
+		},
+	}
 }
 
 type StreamConfig struct {
@@ -56,13 +79,32 @@ type StreamConfig struct {
 type NatsStreamConfig struct {
 	StreamConfig StreamConfig `json:"streamConfig"`
 }
+
 type NatsConsumerConfig struct {
+	// NatsMsgProcessingBatchSize is the number of messages that will be processed in one go
 	NatsMsgProcessingBatchSize int `json:"natsMsgProcessingBatchSize"`
-	NatsMsgBufferSize          int `json:"natsMsgBufferSize"`
-	AckWaitInSecs              int `json:"ackWaitInSecs"`
+	// NatsMsgBufferSize is the number of messages that will be buffered in memory (channel size).
+	// Note: always get this value by calling GetNatsMsgBufferSize method
+	NatsMsgBufferSize int `json:"natsMsgBufferSize"`
+	// AckWaitInSecs is the time in seconds for which the message can be in unacknowledged state
+	AckWaitInSecs int `json:"ackWaitInSecs"`
 }
 
-/* #nosec */
+func (consumerConf NatsConsumerConfig) GetNatsMsgBufferSize() int {
+	// if NatsMsgBufferSize is set to a non-positive value then it will take the value of NatsMsgProcessingBatchSize.
+	if consumerConf.NatsMsgBufferSize <= 0 {
+		return consumerConf.NatsMsgProcessingBatchSize
+	}
+	return consumerConf.NatsMsgBufferSize
+}
+
+// func (consumerConf NatsConsumerConfig) GetNatsMsgProcessingBatchSize() int {
+// 	if nbs := consumerConf.GetNatsMsgBufferSize(); nbs < consumerConf.NatsMsgProcessingBatchSize {
+// 		return nbs
+// 	}
+// 	return consumerConf.NatsMsgProcessingBatchSize
+// }
+
 func NewNatsClient(logger *zap.SugaredLogger) (*NatsClient, error) {
 
 	cfg := &NatsClientConfig{}
@@ -72,17 +114,7 @@ func NewNatsClient(logger *zap.SugaredLogger) (*NatsClient, error) {
 		return &NatsClient{}, err
 	}
 
-	configJson := cfg.NatsStreamConfig
-	streamCfg := &nats.StreamConfig{}
-	if configJson != "" {
-		err := json.Unmarshal([]byte(configJson), streamCfg)
-		if err != nil {
-			logger.Errorw("error occurred while parsing streamConfigJson ", "configJson", configJson, "reason", err)
-		}
-	}
-	logger.Debugw("nats config loaded", "NatsMsgProcessingBatchSize", cfg.NatsMsgProcessingBatchSize, "NatsMsgBufferSize", cfg.NatsMsgBufferSize, "config", streamCfg)
-
-	//Connect to NATS
+	// Connect to NATS
 	nc, err := nats.Connect(cfg.NatsServerHost,
 		nats.ReconnectWait(10*time.Second), nats.MaxReconnects(100),
 		nats.DisconnectErrHandler(func(nc *nats.Conn, err error) {
@@ -99,7 +131,7 @@ func NewNatsClient(logger *zap.SugaredLogger) (*NatsClient, error) {
 		return &NatsClient{}, err
 	}
 
-	//Create a jetstream context
+	// Create a jetstream context
 	js, err := nc.JetStream()
 
 	if err != nil {
@@ -107,11 +139,9 @@ func NewNatsClient(logger *zap.SugaredLogger) (*NatsClient, error) {
 	}
 
 	natsClient := &NatsClient{
-		logger:                     logger,
-		JetStrCtxt:                 js,
-		streamConfig:               streamCfg,
-		NatsMsgBufferSize:          cfg.NatsMsgBufferSize,
-		NatsMsgProcessingBatchSize: cfg.NatsMsgProcessingBatchSize,
+		logger:     logger,
+		JetStrCtxt: js,
+		Conn:       nc,
 	}
 	return natsClient, nil
 }
