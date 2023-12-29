@@ -578,7 +578,7 @@ func (impl *ConfigDraftServiceImpl) handleEnvLevelTemplate(appId int, envId int,
 			//TODO code duplicated, needs refactoring
 			updateResp, err = impl.createEnvLevelDeploymentTemplate(ctx, appId, envId, envConfigProperties, userId)
 		} else {
-			updateResp, err = impl.propertiesConfigService.UpdateEnvironmentProperties(appId, envConfigProperties, userId)
+			updateResp, err = impl.propertiesConfigService.UpdateEnvironmentProperties(appId, envId, envConfigProperties, userId)
 		}
 		if err != nil {
 			impl.logger.Errorw("service err, EnvConfigOverrideUpdate", "appId", appId, "envId", envId, "err", err, "payload", envConfigProperties)
@@ -759,18 +759,8 @@ func (impl *ConfigDraftServiceImpl) validateDeploymentTemplate(appId int, envId 
 			if err != nil {
 				return nil, draftData, err
 			}
-
 			// Validate deployment template
 			templateRequest.ValuesOverride = eligible
-			chartRefId := templateRequest.ChartRefId
-			//VARIABLE_RESOLVE
-			scope := resourceQualifiers.Scope{
-				AppId: templateRequest.AppId,
-			}
-			validate, err2 := impl.chartService.DeploymentTemplateValidate(context.Background(), templateRequest.ValuesOverride, chartRefId, scope)
-			if !validate {
-				return nil, draftData, err2
-			}
 			templateByte, err := json.Marshal(templateRequest)
 			if err != nil {
 				return nil, draftData, err
@@ -832,16 +822,6 @@ func (impl *ConfigDraftServiceImpl) validateDeploymentTemplate(appId int, envId 
 					return nil, draftData, err
 				}
 				envConfigProperties.EnvOverrideValues = eligible
-				// validation of deployment template validate
-				chartRefId := envConfigProperties.ChartRefId
-				//VARIABLE_RESOLVE
-				scope := resourceQualifiers.Scope{
-					AppId: appId,
-				}
-				validate, err2 := impl.chartService.DeploymentTemplateValidate(context.Background(), envConfigProperties.EnvOverrideValues, chartRefId, scope)
-				if !validate {
-					return nil, draftData, err2
-				}
 				envConfigByte, err := json.Marshal(envConfigProperties)
 				if err != nil {
 					return nil, draftData, err

@@ -46,7 +46,7 @@ import (
 
 type PropertiesConfigService interface {
 	CreateEnvironmentProperties(appId int, propertiesRequest *bean.EnvironmentProperties) (*bean.EnvironmentUpdateResponse, error)
-	UpdateEnvironmentProperties(appId int, propertiesRequest *bean.EnvironmentProperties, userId int32) (*bean.EnvironmentUpdateResponse, error)
+	UpdateEnvironmentProperties(appId int, envId int, propertiesRequest *bean.EnvironmentProperties, userId int32) (*bean.EnvironmentUpdateResponse, error)
 	//create environment entry for each new environment
 	CreateIfRequired(chart *chartRepoRepository.Chart, environmentId int, userId int32, manualReviewed bool, chartStatus models.ChartStatus, isOverride, isAppMetricsEnabled bool, namespace string, IsBasicViewLocked bool, CurrentViewEditor models.ChartsViewEditorType, tx *pg.Tx) (*chartConfig.EnvConfigOverride, error)
 	GetEnvironmentProperties(appId, environmentId int, chartRefId int) (environmentPropertiesResponse *bean.EnvironmentPropertiesResponse, err error)
@@ -247,7 +247,9 @@ func (impl PropertiesConfigServiceImpl) CreateEnvironmentProperties(appId int, e
 		chartRefId := environmentProperties.ChartRefId
 		//VARIABLE_RESOLVE
 		scope := resourceQualifiers.Scope{
-			AppId: appId,
+			AppId:     appId,
+			EnvId:     environmentProperties.EnvironmentId,
+			ClusterId: environmentProperties.ClusterId,
 		}
 		validate, err2 := impl.chartService.DeploymentTemplateValidate(context.Background(), environmentProperties.EnvOverrideValues, chartRefId, scope)
 		if !validate {
@@ -328,7 +330,7 @@ func (impl PropertiesConfigServiceImpl) CreateEnvironmentProperties(appId int, e
 	}, nil
 }
 
-func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, propertiesRequest *bean.EnvironmentProperties, userId int32) (*bean.EnvironmentUpdateResponse, error) {
+func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, envId int, propertiesRequest *bean.EnvironmentProperties, userId int32) (*bean.EnvironmentUpdateResponse, error) {
 	//check if exists
 	oldEnvOverride, err := impl.envConfigRepo.Get(propertiesRequest.Id)
 	if err != nil {
@@ -384,7 +386,9 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, p
 		chartRefId := propertiesRequest.ChartRefId
 		//VARIABLE_RESOLVE
 		scope := resourceQualifiers.Scope{
-			AppId: appId,
+			AppId:     appId,
+			EnvId:     envId,
+			ClusterId: propertiesRequest.ClusterId,
 		}
 		validate, err2 := impl.chartService.DeploymentTemplateValidate(context.Background(), json.RawMessage(overrideByte), chartRefId, scope)
 		if !validate {
