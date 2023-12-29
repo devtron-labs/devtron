@@ -172,7 +172,6 @@ func (impl *ApplicationStatusHandlerImpl) Subscribe() error {
 
 func (impl *ApplicationStatusHandlerImpl) SubscribeDeleteStatus() error {
 	callback := func(msg *model.PubSubMsg) {
-		impl.logger.Debug("received app delete event")
 
 		impl.logger.Debugw("APP_STATUS_DELETE_REQ", "stage", "raw", "data", msg.Data)
 		applicationDetail := ApplicationDetail{}
@@ -185,9 +184,11 @@ func (impl *ApplicationStatusHandlerImpl) SubscribeDeleteStatus() error {
 		if app == nil {
 			return
 		}
+		impl.logger.Infow("argo delete event received", "appName", app.Name, "namespace", app.Namespace, "deleteTimestamp", app.DeletionTimestamp)
+
 		err = impl.updateArgoAppDeleteStatus(app)
 		if err != nil {
-			impl.logger.Errorw("error in updating pipeline delete status", "err", err)
+			impl.logger.Errorw("error in updating pipeline delete status", "err", err, "appName", app.Name)
 		}
 	}
 	err := impl.pubsubClient.Subscribe(pubsub.APPLICATION_STATUS_DELETE_TOPIC, callback)
@@ -221,6 +222,18 @@ func (impl *ApplicationStatusHandlerImpl) updateArgoAppDeleteStatus(app *v1alpha
 			impl.logger.Errorw("error in fetching installed app by git hash from installed app repository", "err", err)
 			return err
 		}
+
+		// Check to ensure that delete request for app was received
+		installedApp, err := impl.installedAppService.CheckAppExistsByInstalledAppId(model.InstalledAppId)
+		if err == pg.ErrNoRows {
+			impl.logger.Errorw("App not found in database", "installedAppId", model.InstalledAppId, "err", err)
+			return fmt.Errorf("app not found in database %s", err)
+		} else if installedApp.DeploymentAppDeleteRequest == false {
+			//TODO 4465 remove app from log after final RCA
+			impl.logger.Infow("Deployment delete not requested for app, not deleting app from DB", "appName", app.Name, "app", app)
+			return nil
+		}
+
 		deleteRequest := &appStoreBean.InstallAppVersionDTO{}
 		deleteRequest.ForceDelete = false
 		deleteRequest.NonCascadeDelete = false
