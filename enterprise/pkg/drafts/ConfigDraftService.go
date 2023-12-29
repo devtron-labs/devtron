@@ -578,7 +578,7 @@ func (impl *ConfigDraftServiceImpl) handleEnvLevelTemplate(appId int, envId int,
 			//TODO code duplicated, needs refactoring
 			updateResp, err = impl.createEnvLevelDeploymentTemplate(ctx, appId, envId, envConfigProperties, userId)
 		} else {
-			updateResp, err = impl.propertiesConfigService.UpdateEnvironmentProperties(appId, envConfigProperties, userId)
+			updateResp, err = impl.propertiesConfigService.UpdateEnvironmentProperties(appId, envId, envConfigProperties, userId)
 		}
 		if err != nil {
 			impl.logger.Errorw("service err, EnvConfigOverrideUpdate", "appId", appId, "envId", envId, "err", err, "payload", envConfigProperties)
@@ -759,12 +759,14 @@ func (impl *ConfigDraftServiceImpl) validateDeploymentTemplate(appId int, envId 
 			if err != nil {
 				return nil, draftData, err
 			}
+			// Validate deployment template
 			templateRequest.ValuesOverride = eligible
 			templateByte, err := json.Marshal(templateRequest)
 			if err != nil {
 				return nil, draftData, err
 			}
 			draftData = string(templateByte)
+
 		}
 
 		lockConfigErrorResponse, err := impl.lockedConfigService.HandleLockConfiguration(string(templateRequest.ValuesOverride), savedLatestChart.GlobalOverride, int(userId))
@@ -781,14 +783,12 @@ func (impl *ConfigDraftServiceImpl) validateDeploymentTemplate(appId int, envId 
 			EnvId:     envId,
 			ClusterId: env.ClusterId,
 		}
-		if !templateRequest.SaveEligibleChanges {
-			templateValidated, err = impl.chartService.DeploymentTemplateValidate(context.Background(), templateRequest.ValuesOverride, templateRequest.ChartRefId, scope)
-			if err != nil {
-				return nil, draftData, err
-			}
-			if !templateValidated {
-				return nil, draftData, errors.New(TemplateOutdated)
-			}
+		templateValidated, err = impl.chartService.DeploymentTemplateValidate(context.Background(), templateRequest.ValuesOverride, templateRequest.ChartRefId, scope)
+		if err != nil {
+			return nil, draftData, err
+		}
+		if !templateValidated {
+			return nil, draftData, errors.New(TemplateOutdated)
 		}
 
 	} else {
@@ -844,16 +844,13 @@ func (impl *ConfigDraftServiceImpl) validateDeploymentTemplate(appId int, envId 
 			}
 
 			chartRefId := envConfigProperties.ChartRefId
-			if !envConfigProperties.SaveEligibleChanges {
-				templateValidated, err := impl.chartService.DeploymentTemplateValidate(context.Background(), envConfigProperties.EnvOverrideValues, chartRefId, scope)
-				if err != nil {
-					return nil, draftData, err
-				}
-				if !templateValidated {
-					return nil, draftData, errors.New(TemplateOutdated)
-				}
+			templateValidated, err := impl.chartService.DeploymentTemplateValidate(context.Background(), envConfigProperties.EnvOverrideValues, chartRefId, scope)
+			if err != nil {
+				return nil, draftData, err
 			}
-
+			if !templateValidated {
+				return nil, draftData, errors.New(TemplateOutdated)
+			}
 		} else {
 			id := envConfigProperties.Id
 			if id == 0 {
