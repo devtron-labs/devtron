@@ -379,6 +379,7 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, p
 			return nil, err
 		}
 		overrideByte = eligible
+		propertiesRequest.EnvOverrideValues.UnmarshalJSON(eligible)
 		// validation of deployment template validate
 		chartRefId := propertiesRequest.ChartRefId
 		//VARIABLE_RESOLVE
