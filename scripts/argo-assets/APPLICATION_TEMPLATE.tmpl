@@ -23,9 +23,9 @@
       "targetRevision": "master"
     },
     "syncPolicy": {
-      "automated": {
+      {{if .AutoSyncEnabled }}"automated": {
         "prune": true
-      },
+      }, {{end}}
       "retry": {
         "backoff": {
           "duration": "5s",
@@ -37,5 +37,3 @@
     }
   }
 }
-
-
