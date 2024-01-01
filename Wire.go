@@ -612,11 +612,6 @@ func InitializeApp() (*App, error) {
 		commonService.NewCommonServiceImpl,
 		wire.Bind(new(commonService.CommonService), new(*commonService.CommonServiceImpl)),
 
-		router.NewTestSuitRouterImpl,
-		wire.Bind(new(router.TestSuitRouter), new(*router.TestSuitRouterImpl)),
-		restHandler.NewTestSuitRestHandlerImpl,
-		wire.Bind(new(restHandler.TestSuitRestHandler), new(*restHandler.TestSuitRestHandlerImpl)),
-
 		router.NewImageScanRouterImpl,
 		wire.Bind(new(router.ImageScanRouter), new(*router.ImageScanRouterImpl)),
 		restHandler.NewImageScanRestHandlerImpl,
