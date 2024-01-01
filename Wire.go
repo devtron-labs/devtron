@@ -63,7 +63,6 @@ import (
 	eClient "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/client/grafana"
-	jClient "github.com/devtron-labs/devtron/client/jira"
 	"github.com/devtron-labs/devtron/client/lens"
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -104,7 +103,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/generateManifest"
 	"github.com/devtron-labs/devtron/pkg/git"
 	"github.com/devtron-labs/devtron/pkg/gitops"
-	jira2 "github.com/devtron-labs/devtron/pkg/jira"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	repository7 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
 	"github.com/devtron-labs/devtron/pkg/notifier"
@@ -116,7 +114,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/plugin"
 	repository6 "github.com/devtron-labs/devtron/pkg/plugin/repository"
-	"github.com/devtron-labs/devtron/pkg/projectManagementService/jira"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/security"
@@ -329,22 +326,7 @@ func InitializeApp() (*App, error) {
 		pipeline.NewPropertiesConfigServiceImpl,
 		wire.Bind(new(pipeline.PropertiesConfigService), new(*pipeline.PropertiesConfigServiceImpl)),
 
-		router.NewProjectManagementRouterImpl,
-		wire.Bind(new(router.ProjectManagementRouter), new(*router.ProjectManagementRouterImpl)),
-
-		restHandler.NewJiraRestHandlerImpl,
-		wire.Bind(new(restHandler.JiraRestHandler), new(*restHandler.JiraRestHandlerImpl)),
-
-		jira2.NewProjectManagementServiceImpl,
-		wire.Bind(new(jira2.ProjectManagementService), new(*jira2.ProjectManagementServiceImpl)),
-
-		jira.NewAccountServiceImpl,
-		wire.Bind(new(jira.AccountService), new(*jira.AccountServiceImpl)),
-
 		util.NewHttpClient,
-
-		jClient.NewJiraClientImpl,
-		wire.Bind(new(jClient.JiraClient), new(*jClient.JiraClientImpl)),
 
 		eClient.NewEventRESTClientImpl,
 		wire.Bind(new(eClient.EventClient), new(*eClient.EventRESTClientImpl)),
@@ -353,11 +335,6 @@ func InitializeApp() (*App, error) {
 
 		eClient.NewEventSimpleFactoryImpl,
 		wire.Bind(new(eClient.EventFactory), new(*eClient.EventSimpleFactoryImpl)),
-
-		repository.NewJiraAccountRepositoryImpl,
-		wire.Bind(new(repository.JiraAccountRepository), new(*repository.JiraAccountRepositoryImpl)),
-		jira.NewAccountValidatorImpl,
-		wire.Bind(new(jira.AccountValidator), new(*jira.AccountValidatorImpl)),
 
 		repository.NewCiArtifactRepositoryImpl,
 		wire.Bind(new(repository.CiArtifactRepository), new(*repository.CiArtifactRepositoryImpl)),
