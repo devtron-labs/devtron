@@ -2085,7 +2085,6 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 		err := impl.MarkCurrentDeploymentFailed(runner, releaseErr, triggeredBy)
 		if err != nil {
 			impl.logger.Errorw("error while updating current runner status to failed, updatePreviousDeploymentStatus", "cdWfr", runner.Id, "err", err)
-			return releaseErr
 		}
 		return releaseErr
 	}
@@ -2427,7 +2426,6 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			err := impl.MarkCurrentDeploymentFailed(runner, releaseErr, overrideRequest.UserId)
 			if err != nil {
 				impl.logger.Errorw("error while updating current runner status to failed, updatePreviousDeploymentStatus", "cdWfr", runner.Id, "err", err)
-				return 0, releaseErr
 			}
 			return 0, releaseErr
 		}
