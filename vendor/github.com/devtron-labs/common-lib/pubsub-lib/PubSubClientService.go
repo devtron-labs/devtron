@@ -79,6 +79,10 @@ func (impl PubSubClientServiceImpl) Publish(topic string, msg string) error {
 	return nil
 }
 
+// Subscribe method is used to subscribe to the given topic(+required),
+// this creates blocking process to continuously fetch messages from nats server published on this topic.
+// invokes callback(+required) func for each message received.
+// validations(+optional) methods were called before passing the message to the callback func.
 func (impl PubSubClientServiceImpl) Subscribe(topic string, callback func(msg *model.PubSubMsg), validations ...ValidateMsg) error {
 	impl.Logger.Infow("Subscribed to pubsub client", "topic", topic)
 	natsTopic := GetNatsTopic(topic)
