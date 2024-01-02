@@ -32,19 +32,22 @@ import (
 )
 
 type credentialsSource = string
-type artifactsSourceType = string
+type ArtifactsSourceType = string
 
 const (
 	GLOBAL_CONTAINER_REGISTRY credentialsSource = "global_container_registry"
 )
+
+// List of possible DataSource Type for an artifact
 const (
-	CI_RUNNER artifactsSourceType = "CI-RUNNER"
-	WEBHOOK   artifactsSourceType = "EXTERNAL"
-	PRE_CD    artifactsSourceType = "pre_cd"
-	POST_CD   artifactsSourceType = "post_cd"
-	PRE_CI    artifactsSourceType = "pre_ci"
-	POST_CI   artifactsSourceType = "post_ci"
-	GOCD      artifactsSourceType = "GOCD"
+	CI_RUNNER      ArtifactsSourceType = "CI-RUNNER"
+	WEBHOOK        ArtifactsSourceType = "EXTERNAL" // Currently in use instead of DEPRICATED_EXT
+	PRE_CD         ArtifactsSourceType = "pre_cd"
+	POST_CD        ArtifactsSourceType = "post_cd"
+	POST_CI        ArtifactsSourceType = "post_ci"
+	GOCD           ArtifactsSourceType = "GOCD"
+	DEPRICATED_EXT ArtifactsSourceType = "ext" // For backward compatibility
+	// PRE_CI is not a valid DataSource for an artifact
 )
 
 type CiArtifactWithExtraData struct {
@@ -63,7 +66,7 @@ type CiArtifact struct {
 	Image                 string    `sql:"image,notnull"`
 	ImageDigest           string    `sql:"image_digest,notnull"`
 	MaterialInfo          string    `sql:"material_info"`       //git material metadata json array string
-	DataSource            string    `sql:"data_source,notnull"` // possible values -> (CI_RUNNER,ext,post_ci,pre_cd,post_cd) CI_runner is for normal build ci
+	DataSource            string    `sql:"data_source,notnull"` // possible values -> (CI_RUNNER,EXTERNAL,post_ci,pre_cd,post_cd) CI_runner is for normal build ci
 	WorkflowId            *int      `sql:"ci_workflow_id"`
 	ParentCiArtifact      int       `sql:"parent_ci_artifact"`
 	ScanEnabled           bool      `sql:"scan_enabled,notnull"`
@@ -479,7 +482,7 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineAndRunnerType(cdPip
 
 // return map of gitUrl:hash
 func (info *CiArtifact) ParseMaterialInfo() (map[string]string, error) {
-	if info.DataSource != "GOCD" && info.DataSource != "CI-RUNNER" && info.DataSource != "EXTERNAL" {
+	if info.DataSource != GOCD && info.DataSource != CI_RUNNER && info.DataSource != WEBHOOK && info.DataSource != DEPRICATED_EXT {
 		return nil, fmt.Errorf("datasource: %s not supported", info.DataSource)
 	}
 	var ciMaterials []*CiMaterialInfo
@@ -590,7 +593,7 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineV2(cdPipelineId int
 }
 
 func GetCiMaterialInfo(materialInfo string, source string) ([]CiMaterialInfo, error) {
-	if source != "GOCD" && source != "CI-RUNNER" && source != "EXTERNAL" && source != "post_ci" && source != "pre_cd" && source != "post_cd" && source != "ext" {
+	if source != GOCD && source != CI_RUNNER && source != WEBHOOK && source != POST_CI && source != PRE_CD && source != POST_CD && source != DEPRICATED_EXT {
 		return nil, fmt.Errorf("datasource: %s not supported", source)
 	}
 	var ciMaterials []CiMaterialInfo

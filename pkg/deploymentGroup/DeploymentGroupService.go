@@ -610,7 +610,7 @@ func (impl *DeploymentGroupServiceImpl) GetArtifactsByCiPipeline(ciPipelineId in
 }
 
 func (impl *DeploymentGroupServiceImpl) parseMaterialInfo(materialInfo json.RawMessage, source string) (json.RawMessage, error) {
-	if source != "GOCD" && source != "CI-RUNNER" && source != "EXTERNAL" {
+	if source != repository.GOCD && source != repository.CI_RUNNER && source != repository.WEBHOOK && source != repository.DEPRICATED_EXT {
 		return nil, fmt.Errorf("datasource: %s not supported", source)
 	}
 	var ciMaterials []repository.CiMaterialInfo
