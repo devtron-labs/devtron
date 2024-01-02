@@ -7,6 +7,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
+	repository5 "github.com/devtron-labs/devtron/pkg/appStore/chartGroup/repository"
 	repository3 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster"
@@ -132,7 +133,7 @@ func initAppStoreDeploymentService(t *testing.T, internalUse bool) *AppStoreDepl
 	db, _ := sql.NewDbConnection(config, sugaredLogger)
 
 	gitOpsRepository := repository.NewGitOpsConfigRepositoryImpl(sugaredLogger, db)
-	chartGroupDeploymentRepository := repository3.NewChartGroupDeploymentRepositoryImpl(db, sugaredLogger)
+	chartGroupDeploymentRepository := repository5.NewChartGroupDeploymentRepositoryImpl(db, sugaredLogger)
 
 	appStoreDiscoverRepository := appStoreDiscoverRepository.NewAppStoreApplicationVersionRepositoryImpl(sugaredLogger, db)
 

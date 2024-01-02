@@ -35,6 +35,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	"github.com/devtron-labs/devtron/pkg/appStatus"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
+	"github.com/devtron-labs/devtron/pkg/appStore/chartGroup"
+	repository6 "github.com/devtron-labs/devtron/pkg/appStore/chartGroup/repository"
 	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
 	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
@@ -90,7 +92,7 @@ const (
 
 type InstalledAppService interface {
 	GetAll(filter *appStoreBean.AppStoreFilter) (openapi.AppList, error)
-	DeployBulk(chartGroupInstallRequest *appStoreBean.ChartGroupInstallRequest) (*appStoreBean.ChartGroupInstallAppRes, error)
+	DeployBulk(chartGroupInstallRequest *chartGroup.ChartGroupInstallRequest) (*chartGroup.ChartGroupInstallAppRes, error)
 	performDeployStage(appId int, installedAppVersionHistoryId int, userId int32) (*appStoreBean.InstallAppVersionDTO, error)
 	CheckAppExists(appNames []*appStoreBean.AppNames) ([]*appStoreBean.AppNames, error)
 	DeployDefaultChartOnCluster(bean *cluster2.ClusterBean, userId int32) (bool, error)
@@ -119,7 +121,7 @@ type InstalledAppServiceImpl struct {
 	appStoreValuesService                service.AppStoreValuesService
 	pubsubClient                         *pubsub.PubSubClientServiceImpl
 	tokenCache                           *util2.TokenCache
-	chartGroupDeploymentRepository       repository2.ChartGroupDeploymentRepository
+	chartGroupDeploymentRepository       repository6.ChartGroupDeploymentRepository
 	envService                           cluster2.EnvironmentService
 	ArgoK8sClient                        argocdServer.ArgoK8sClient
 	gitFactory                           *util.GitFactory
@@ -153,7 +155,7 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 	appStoreValuesService service.AppStoreValuesService,
 	pubsubClient *pubsub.PubSubClientServiceImpl,
 	tokenCache *util2.TokenCache,
-	chartGroupDeploymentRepository repository2.ChartGroupDeploymentRepository,
+	chartGroupDeploymentRepository repository6.ChartGroupDeploymentRepository,
 	envService cluster2.EnvironmentService, argoK8sClient argocdServer.ArgoK8sClient,
 	gitFactory *util.GitFactory, aCDAuthConfig *util2.ACDAuthConfig, gitOpsRepository repository3.GitOpsConfigRepository, userService user.UserService,
 	appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService,
@@ -297,7 +299,7 @@ func (impl InstalledAppServiceImpl) CheckAppExists(appNames []*appStoreBean.AppN
 	return appNames, nil
 }
 
-func (impl InstalledAppServiceImpl) DeployBulk(chartGroupInstallRequest *appStoreBean.ChartGroupInstallRequest) (*appStoreBean.ChartGroupInstallAppRes, error) {
+func (impl InstalledAppServiceImpl) DeployBulk(chartGroupInstallRequest *chartGroup.ChartGroupInstallRequest) (*chartGroup.ChartGroupInstallAppRes, error) {
 	impl.logger.Debugw("bulk app install request", "req", chartGroupInstallRequest)
 	//save in db
 	// raise nats event
@@ -349,7 +351,7 @@ func (impl InstalledAppServiceImpl) DeployBulk(chartGroupInstallRequest *appStor
 	}
 	//nats event
 	impl.triggerDeploymentEvent(installAppVersions)
-	return &appStoreBean.ChartGroupInstallAppRes{}, nil
+	return &chartGroup.ChartGroupInstallAppRes{}, nil
 }
 
 // generate unique installation ID using APPID
@@ -372,8 +374,8 @@ func (impl InstalledAppServiceImpl) getInstallationId(installAppVersions []*appS
 	return fmt.Sprintf("%x", bs), nil
 }
 
-func (impl InstalledAppServiceImpl) createChartGroupEntryObject(installAppVersionDTO *appStoreBean.InstallAppVersionDTO, chartGroupId int, groupINstallationId string) *repository2.ChartGroupDeployment {
-	return &repository2.ChartGroupDeployment{
+func (impl InstalledAppServiceImpl) createChartGroupEntryObject(installAppVersionDTO *appStoreBean.InstallAppVersionDTO, chartGroupId int, groupINstallationId string) *repository6.ChartGroupDeployment {
+	return &repository6.ChartGroupDeployment{
 		ChartGroupId:        chartGroupId,
 		ChartGroupEntryId:   installAppVersionDTO.ChartGroupEntryId,
 		InstalledAppId:      installAppVersionDTO.InstalledAppId,
@@ -591,7 +593,7 @@ func (impl InstalledAppServiceImpl) performDeployStage(installedAppVersionId int
 	return installedAppVersion, nil
 }
 
-func (impl InstalledAppServiceImpl) requestBuilderForBulkDeployment(installRequest *appStoreBean.ChartGroupInstallChartRequest, projectId int, userId int32) (*appStoreBean.InstallAppVersionDTO, error) {
+func (impl InstalledAppServiceImpl) requestBuilderForBulkDeployment(installRequest *chartGroup.ChartGroupInstallChartRequest, projectId int, userId int32) (*appStoreBean.InstallAppVersionDTO, error) {
 	valYaml := installRequest.ValuesOverrideYaml
 	if valYaml == "" {
 		valVersion, err := impl.appStoreValuesService.FindValuesByIdAndKind(installRequest.ReferenceValueId, installRequest.ReferenceValueKind)
@@ -747,17 +749,17 @@ func (impl *InstalledAppServiceImpl) DeployDefaultChartOnCluster(bean *cluster2.
 			// STEP 4 - prepare a bulk request (unique names need to apply for deploying chart)
 			// STEP 4.1 - fetch chart for required name(actual chart name (app-store)) with default values
 			// STEP 4.2 - update all the required charts, override values.yaml with env variables.
-			chartGroupInstallRequest := &appStoreBean.ChartGroupInstallRequest{}
+			chartGroupInstallRequest := &chartGroup.ChartGroupInstallRequest{}
 			chartGroupInstallRequest.ProjectId = t.Id
 			chartGroupInstallRequest.UserId = userId
-			var chartGroupInstallChartRequests []*appStoreBean.ChartGroupInstallChartRequest
+			var chartGroupInstallChartRequests []*chartGroup.ChartGroupInstallChartRequest
 			for _, item := range charts.ChartComponent {
 				appStore, err := impl.appStoreApplicationVersionRepository.FindByAppStoreName(item.Name)
 				if err != nil {
 					impl.logger.Errorw("DeployDefaultChartOnCluster, error in getting app store", "data", t, "err", err)
 					return false, err
 				}
-				chartGroupInstallChartRequest := &appStoreBean.ChartGroupInstallChartRequest{
+				chartGroupInstallChartRequest := &chartGroup.ChartGroupInstallChartRequest{
 					AppName:                 fmt.Sprintf("%d-%d-%s", bean.Id, env.Id, item.Name),
 					EnvironmentId:           env.Id,
 					ValuesOverrideYaml:      item.Values,
@@ -790,7 +792,7 @@ type ChartComponent struct {
 	Values string `json:"values"`
 }
 
-func (impl InstalledAppServiceImpl) DeployDefaultComponent(chartGroupInstallRequest *appStoreBean.ChartGroupInstallRequest) (*appStoreBean.ChartGroupInstallAppRes, error) {
+func (impl InstalledAppServiceImpl) DeployDefaultComponent(chartGroupInstallRequest *chartGroup.ChartGroupInstallRequest) (*chartGroup.ChartGroupInstallAppRes, error) {
 	impl.logger.Debugw("bulk app install request", "req", chartGroupInstallRequest)
 	//save in db
 	// raise nats event
@@ -853,7 +855,7 @@ func (impl InstalledAppServiceImpl) DeployDefaultComponent(chartGroupInstallRequ
 		}
 	}
 
-	return &appStoreBean.ChartGroupInstallAppRes{}, nil
+	return &chartGroup.ChartGroupInstallAppRes{}, nil
 }
 
 func (impl *InstalledAppServiceImpl) FindAppDetailsForAppstoreApplication(installedAppId, envId int) (bean2.AppDetailContainer, error) {
