@@ -57,7 +57,6 @@ type MuxRouter struct {
 	HelmRouter                         PipelineTriggerRouter
 	PipelineConfigRouter               PipelineConfigRouter
 	JobRouter                          JobRouter
-	MigrateDbRouter                    MigrateDbRouter
 	EnvironmentClusterMappingsRouter   cluster.EnvironmentRouter
 	AppListingRouter                   AppListingRouter
 	ClusterRouter                      cluster.ClusterRouter
@@ -123,7 +122,7 @@ type MuxRouter struct {
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, PipelineConfigRouter PipelineConfigRouter,
-	MigrateDbRouter MigrateDbRouter, AppListingRouter AppListingRouter,
+	AppListingRouter AppListingRouter,
 	EnvironmentClusterMappingsRouter cluster.EnvironmentRouter, ClusterRouter cluster.ClusterRouter,
 	WebHookRouter WebhookRouter, UserAuthRouter user.UserAuthRouter, ApplicationRouter ApplicationRouter,
 	CDRouter CDRouter,
@@ -156,7 +155,6 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 		Router:                             mux.NewRouter(),
 		HelmRouter:                         HelmRouter,
 		PipelineConfigRouter:               PipelineConfigRouter,
-		MigrateDbRouter:                    MigrateDbRouter,
 		EnvironmentClusterMappingsRouter:   EnvironmentClusterMappingsRouter,
 		AppListingRouter:                   AppListingRouter,
 		ClusterRouter:                      ClusterRouter,
@@ -270,9 +268,6 @@ func (r MuxRouter) Init() {
 
 	jobConfigRouter := r.Router.PathPrefix("/orchestrator/job").Subrouter()
 	r.JobRouter.InitJobRouter(jobConfigRouter)
-
-	migrateRouter := r.Router.PathPrefix("/orchestrator/migrate").Subrouter()
-	r.MigrateDbRouter.InitMigrateDbRouter(migrateRouter)
 
 	environmentClusterMappingsRouter := r.Router.PathPrefix("/orchestrator/env").Subrouter()
 	r.EnvironmentClusterMappingsRouter.InitEnvironmentClusterMappingsRouter(environmentClusterMappingsRouter)

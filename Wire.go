@@ -255,10 +255,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipeline.CiCdPipelineOrchestrator), new(*pipeline.CiCdPipelineOrchestratorImpl)),
 		pipelineConfig.NewMaterialRepositoryImpl,
 		wire.Bind(new(pipelineConfig.MaterialRepository), new(*pipelineConfig.MaterialRepositoryImpl)),
-		router.NewMigrateDbRouterImpl,
-		wire.Bind(new(router.MigrateDbRouter), new(*router.MigrateDbRouterImpl)),
-		restHandler.NewMigrateDbRestHandlerImpl,
-		wire.Bind(new(restHandler.MigrateDbRestHandler), new(*restHandler.MigrateDbRestHandlerImpl)),
+
 		util.NewChartTemplateServiceImpl,
 		wire.Bind(new(util.ChartTemplateService), new(*util.ChartTemplateServiceImpl)),
 		util.NewChartDeploymentServiceImpl,
@@ -379,15 +376,6 @@ func InitializeApp() (*App, error) {
 		//ArgoUtil.NewRepositoryService,
 		//wire.Bind(new(ArgoUtil.RepositoryService), new(ArgoUtil.RepositoryServiceImpl)),
 
-		pipelineConfig.NewDbMigrationConfigRepositoryImpl,
-		wire.Bind(new(pipelineConfig.DbMigrationConfigRepository), new(*pipelineConfig.DbMigrationConfigRepositoryImpl)),
-		pipeline.NewDbConfigService,
-		wire.Bind(new(pipeline.DbConfigService), new(*pipeline.DbConfigServiceImpl)),
-
-		repository.NewDbConfigRepositoryImpl,
-		wire.Bind(new(repository.DbConfigRepository), new(*repository.DbConfigRepositoryImpl)),
-		pipeline.NewDbMogrationService,
-		wire.Bind(new(pipeline.DbMigrationService), new(*pipeline.DbMigrationServiceImpl)),
 		//ArgoUtil.NewClusterServiceImpl,
 		//wire.Bind(new(ArgoUtil.ClusterService), new(ArgoUtil.ClusterServiceImpl)),
 		pipeline.GetEcrConfig,
