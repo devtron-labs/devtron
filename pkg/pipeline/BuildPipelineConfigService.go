@@ -1237,7 +1237,7 @@ func (impl *CiPipelineConfigServiceImpl) handlePipelineCreate(request *bean.CiPa
 
 	if pipelineExists {
 		impl.logger.Errorw("pipeline name already exist", "err", err, "patch cipipeline name", request.CiPipeline.Name)
-		return nil, fmt.Errorf("pipeline name already exist")
+		return nil, fmt.Errorf(bean3.PIPELINE_NAME_ALREADY_EXISTS_ERROR)
 	}
 
 	if request.IsSwitchCiPipelineRequest() {
