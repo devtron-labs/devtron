@@ -660,10 +660,8 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting children cd details", "err", err)
 		return deleteResponse, err
-	} else if len(childNodes) > 0 {
-		impl.logger.Debugw("cannot delete cd pipeline, contains children cd")
-		return deleteResponse, fmt.Errorf("Please delete children CD pipelines before deleting this pipeline.")
 	}
+
 	//getting deployment group for this pipeline
 	deploymentGroupNames, err := impl.deploymentGroupRepository.GetNamesByAppIdAndEnvId(pipeline.EnvironmentId, pipeline.AppId)
 	if err != nil && err != pg.ErrNoRows {
@@ -700,7 +698,7 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 		impl.logger.Errorw("error in deleting workflow mapping", "err", err)
 		return deleteResponse, err
 	}
-	if appWorkflowMapping.ParentType == appWorkflow.WEBHOOK {
+	if appWorkflowMapping.ParentType == appWorkflow.WEBHOOK && len(childNodes) == 0 {
 		childNodes, err := impl.appWorkflowRepository.FindWFCDMappingByExternalCiId(appWorkflowMapping.ParentId)
 		if err != nil && !util.IsErrNoRows(err) {
 			impl.logger.Errorw("error in fetching external ci", "err", err)
@@ -745,6 +743,14 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 	if err != nil {
 		impl.logger.Errorw("error in deleting workflow mapping", "err", err)
 		return deleteResponse, err
+	}
+
+	if len(childNodes) > 0 {
+		err = impl.appWorkflowRepository.UpdateParentComponentDetails(tx, appWorkflowMapping.ComponentId, appWorkflowMapping.Type, appWorkflowMapping.ParentId, appWorkflowMapping.ParentType, nil)
+		if err != nil {
+			impl.logger.Errorw("error updating wfm for children pipelines of pipeline", "err", err, "id", appWorkflowMapping.Id)
+			return deleteResponse, err
+		}
 	}
 
 	if pipeline.PreStageConfig != "" {
@@ -1048,6 +1054,7 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesForApp(appId int) (cdPipe
 			RunPreStageInEnv:              dbPipeline.RunPreStageInEnv,
 			RunPostStageInEnv:             dbPipeline.RunPostStageInEnv,
 			DeploymentAppType:             dbPipeline.DeploymentAppType,
+			DeploymentAppCreated:          dbPipeline.DeploymentAppCreated,
 			ParentPipelineType:            appToWorkflowMapping.ParentType,
 			ParentPipelineId:              appToWorkflowMapping.ParentId,
 			DeploymentAppDeleteRequest:    dbPipeline.DeploymentAppDeleteRequest,
@@ -1711,6 +1718,18 @@ func (impl *CdPipelineConfigServiceImpl) createCdPipeline(ctx context.Context, a
 					parentPipelineId = pipeline.SourceToNewPipelineId[pipeline.ParentPipelineId]
 				}
 			}
+
+			if pipeline.CDPipelineAddType == bean.SEQUENTIAL {
+				childPipelineIds := make([]int, 0)
+				if pipeline.ChildPipelineId > 0 {
+					childPipelineIds = append(childPipelineIds, pipeline.ChildPipelineId)
+				}
+				err = impl.appWorkflowRepository.UpdateParentComponentDetails(tx, parentPipelineId, parentPipelineType, pipelineId, "CD_PIPELINE", childPipelineIds)
+				if err != nil {
+					return 0, err
+				}
+			}
+
 			appWorkflowMap := &appWorkflow.AppWorkflowMapping{
 				AppWorkflowId: pipeline.AppWorkflowId,
 				ParentId:      parentPipelineId,
@@ -1933,14 +1952,11 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipelinePartial(pipeline *pipel
 		deleteResponse.ClusterReachable = false
 	}
 	//getting children CD pipeline details
-	childNodes, err := impl.appWorkflowRepository.FindWFCDMappingByParentCDPipelineId(pipeline.Id)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting children cd details", "err", err)
 		return deleteResponse, err
-	} else if len(childNodes) > 0 {
-		impl.logger.Debugw("cannot delete cd pipeline, contains children cd")
-		return deleteResponse, fmt.Errorf("Please delete children CD pipelines before deleting this pipeline.")
 	}
+
 	//getting deployment group for this pipeline
 	deploymentGroupNames, err := impl.deploymentGroupRepository.GetNamesByAppIdAndEnvId(pipeline.EnvironmentId, pipeline.AppId)
 	if err != nil && err != pg.ErrNoRows {
