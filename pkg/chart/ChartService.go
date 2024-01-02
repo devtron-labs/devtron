@@ -101,7 +101,7 @@ type ChartService interface {
 	GetCustomChartInBytes(chatRefId int) ([]byte, error)
 	UpdateGitRepoUrlInCharts(appId int, chartGitAttribute *util.ChartGitAttribute, userId int32) error
 	SaveAppLevelGitOpsConfiguration(appGitOpsRequest AppGitOpsConfigRequest, appName string, ctx context.Context) (detailedErrorGitOpsConfigResponse bean.DetailedErrorGitOpsConfigResponse, err error)
-	GetGitOpsConfigurationOfApp(appId int) (*AppGitOpsConfigResponse, error)
+	GetAppLevelGitOpsConfiguration(appId int) (*AppGitOpsConfigResponse, error)
 	GetRefChart(templateRequest TemplateRequest) (string, string, error, string, string)
 	IsGitRepoUrlPresent(appId int) bool
 	IsGitOpsRepoConfiguredForDevtronApps(appId int) (bool, error)
@@ -1842,7 +1842,7 @@ func (impl ChartServiceImpl) SaveAppLevelGitOpsConfiguration(appGitOpsRequest Ap
 	return detailedErrorGitOpsConfigResponse, nil
 }
 
-func (impl ChartServiceImpl) GetGitOpsConfigurationOfApp(appId int) (*AppGitOpsConfigResponse, error) {
+func (impl ChartServiceImpl) GetAppLevelGitOpsConfiguration(appId int) (*AppGitOpsConfigResponse, error) {
 	activeGlobalGitOpsConfig, err := impl.gitOpsConfigService.GetGitOpsConfigActive()
 	if err != nil {
 		impl.logger.Errorw("error in fetching active gitOps config", "err", err)

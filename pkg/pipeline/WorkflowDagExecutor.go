@@ -3180,7 +3180,7 @@ func (impl *WorkflowDagExecutorImpl) BuildManifestPushTemplate(overrideRequest *
 		manifestPushTemplate.ChartLocation = valuesOverrideResponse.EnvOverride.Chart.ChartLocation
 		manifestPushTemplate.RepoUrl = valuesOverrideResponse.EnvOverride.Chart.GitRepoUrl
 		manifestPushTemplate.IsCustomGitRepository = valuesOverrideResponse.EnvOverride.Chart.IsCustomGitRepository
-		manifestPushTemplate.GitOpsRepoMigrationRequired = impl.CheckIfMonoRepoMigrationRequired(manifestPushTemplate)
+		manifestPushTemplate.GitOpsRepoMigrationRequired = impl.CheckIfRepoMigrationRequired(manifestPushTemplate)
 	}
 	return manifestPushTemplate, err
 }
@@ -4488,8 +4488,8 @@ func (impl *WorkflowDagExecutorImpl) autoscalingCheckBeforeTrigger(ctx context.C
 	return merged
 }
 
-// CheckIfMonoRepoMigrationRequired checks if gitOps repo name is changed
-func (impl *WorkflowDagExecutorImpl) CheckIfMonoRepoMigrationRequired(manifestPushTemplate *bean4.ManifestPushTemplate) bool {
+// CheckIfRepoMigrationRequired checks if gitOps repo name is changed
+func (impl *WorkflowDagExecutorImpl) CheckIfRepoMigrationRequired(manifestPushTemplate *bean4.ManifestPushTemplate) bool {
 	monoRepoMigrationRequired := false
 	if ChartsUtil.IsGitOpsRepoNotConfigured(manifestPushTemplate.RepoUrl) || manifestPushTemplate.IsCustomGitRepository {
 		return false

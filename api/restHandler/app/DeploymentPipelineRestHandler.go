@@ -68,8 +68,8 @@ type DevtronAppDeploymentConfigRestHandler interface {
 	GetAppOverrideForDefaultTemplate(w http.ResponseWriter, r *http.Request)
 	GetTemplateComparisonMetadata(w http.ResponseWriter, r *http.Request)
 	GetDeploymentTemplateData(w http.ResponseWriter, r *http.Request)
-	ConfigureGitOpsConfigurationForApp(w http.ResponseWriter, r *http.Request)
-	GetGitOpsConfigurationOfApp(w http.ResponseWriter, r *http.Request)
+	SaveGitOpsConfiguration(w http.ResponseWriter, r *http.Request)
+	GetGitOpsConfiguration(w http.ResponseWriter, r *http.Request)
 
 	EnvConfigOverrideCreate(w http.ResponseWriter, r *http.Request)
 	EnvConfigOverrideUpdate(w http.ResponseWriter, r *http.Request)
@@ -2629,7 +2629,7 @@ func (handler *PipelineConfigRestHandlerImpl) checkAuthBatch(emailId string, app
 	return appResult, envResult
 }
 
-func (handler *PipelineConfigRestHandlerImpl) ConfigureGitOpsConfigurationForApp(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) SaveGitOpsConfiguration(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -2639,13 +2639,13 @@ func (handler *PipelineConfigRestHandlerImpl) ConfigureGitOpsConfigurationForApp
 	var appGitOpsConfigRequest chart.AppGitOpsConfigRequest
 	err = decoder.Decode(&appGitOpsConfigRequest)
 	if err != nil {
-		handler.Logger.Errorw("request err, ConfigureGitOpsConfigurationForApp", "err", err, "payload", appGitOpsConfigRequest)
+		handler.Logger.Errorw("request err, SaveGitOpsConfiguration", "err", err, "payload", appGitOpsConfigRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	appGitOpsConfigRequest.UserId = userId
 
-	handler.Logger.Infow("request payload, ConfigureGitOpsConfigurationForApp", "payload", appGitOpsConfigRequest)
+	handler.Logger.Infow("request payload, SaveGitOpsConfiguration", "payload", appGitOpsConfigRequest)
 	err = handler.validator.Struct(appGitOpsConfigRequest)
 	if err != nil {
 		handler.Logger.Errorw("validation err, ConfigureDeploymentTemplateForApp", "err", err, "payload", appGitOpsConfigRequest)
@@ -2683,7 +2683,7 @@ func (handler *PipelineConfigRestHandlerImpl) ConfigureGitOpsConfigurationForApp
 	common.WriteJsonResp(w, nil, detailedErrorGitOpsConfigResponse, http.StatusOK)
 }
 
-func (handler *PipelineConfigRestHandlerImpl) GetGitOpsConfigurationOfApp(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) GetGitOpsConfiguration(w http.ResponseWriter, r *http.Request) {
 
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -2708,9 +2708,9 @@ func (handler *PipelineConfigRestHandlerImpl) GetGitOpsConfigurationOfApp(w http
 		return
 	}
 
-	appGitOpsConfig, err := handler.chartService.GetGitOpsConfigurationOfApp(appId)
+	appGitOpsConfig, err := handler.chartService.GetAppLevelGitOpsConfiguration(appId)
 	if err != nil {
-		handler.Logger.Errorw("service err, GetGitOpsConfigurationOfApp", "err", err, "appId", appId)
+		handler.Logger.Errorw("service err, GetAppLevelGitOpsConfiguration", "err", err, "appId", appId)
 		common.WriteJsonResp(w, err, err, http.StatusInternalServerError)
 		return
 	}

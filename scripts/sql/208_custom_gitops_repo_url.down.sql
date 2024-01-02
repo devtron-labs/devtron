@@ -1,21 +1,20 @@
 BEGIN;
 -- gitops_config modifications
--- Step 1: Drop the new columns for allow_custom_repository
+-- Step 1: Drop the new columns allow_custom_repository
 ALTER TABLE public.gitops_config
     DROP COLUMN IF EXISTS allow_custom_repository;
 
 -- installed_apps modifications
--- Step 2: Drop the new columns for is_custom_repository
+-- Step 2: Drop the new columns is_custom_repository
 ALTER TABLE public.installed_apps
     DROP COLUMN IF EXISTS is_custom_repository;
 
+-- Step 3: Drop the new columns git_ops_repo_url
 ALTER TABLE public.installed_apps
-    RENAME COLUMN git_ops_repo_url TO git_ops_repo_name;
-UPDATE installed_apps set git_ops_repo_name = REPLACE(REVERSE(SPLIT_PART(REVERSE(git_ops_repo_name), '/', 1)), '.git', '');
-
+    DROP COLUMN IF EXISTS git_ops_repo_url;
 
 -- charts modifications
--- Step 3: Drop the new columns for is_custom_repository
+-- Step 4: Drop the new columns is_custom_repository
 ALTER TABLE public.charts
     DROP COLUMN IF EXISTS is_custom_repository;
 

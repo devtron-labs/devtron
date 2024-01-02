@@ -68,8 +68,8 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/template/list").Queries("appId", "{appId}").Queries("envId", "{envId}").HandlerFunc(router.restHandler.GetTemplateComparisonMetadata).Methods("GET")
 	configRouter.Path("/template/data").HandlerFunc(router.restHandler.GetDeploymentTemplateData).Methods("POST")
 	// Start -- user defined gitops repository
-	configRouter.Path("/template/gitops/config/{appId}").HandlerFunc(router.restHandler.GetGitOpsConfigurationOfApp).Methods("GET")
-	configRouter.Path("/template/gitops/config").HandlerFunc(router.restHandler.ConfigureGitOpsConfigurationForApp).Methods("POST")
+	configRouter.Path("/template/gitops/config/{appId}").HandlerFunc(router.restHandler.GetGitOpsConfiguration).Methods("GET")
+	configRouter.Path("/template/gitops/config").HandlerFunc(router.restHandler.SaveGitOpsConfiguration).Methods("POST")
 	// End --
 	configRouter.Path("/cd-pipeline").HandlerFunc(router.restHandler.CreateCdPipeline).Methods("POST")
 	configRouter.Path("/cd-pipeline/patch").HandlerFunc(router.restHandler.PatchCdPipeline).Methods("POST")

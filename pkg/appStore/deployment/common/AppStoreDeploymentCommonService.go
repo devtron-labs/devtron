@@ -567,6 +567,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) CreateGitOpsRepoAndPushChart(ins
 		// Rollback tx on error.
 		defer tx.Rollback()
 		InstalledApp.GitOpsRepoUrl = gitopsRepoURL
+		InstalledApp.GitOpsRepoName = util.GetGitRepoNameFromGitRepoUrl(gitopsRepoURL) // Handled for backward compatibility
 		InstalledApp.IsCustomRepository = false
 		_, err = impl.installedAppRepository.UpdateInstalledApp(InstalledApp, tx)
 		if err != nil {

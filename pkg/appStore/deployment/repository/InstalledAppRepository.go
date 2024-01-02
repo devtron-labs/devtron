@@ -69,7 +69,7 @@ type InstalledAppRepository interface {
 	GetInstalledAppByAppIdAndDeploymentType(appId int, deploymentAppType string) (InstalledApps, error)
 	GetInstalledAppByInstalledAppVersionId(installedAppVersionId int) (InstalledApps, error)
 	GetAllGitOpsDeploymentAppName() ([]string, error)
-	GetAllGitOpsAppNameAndInstalledAppMapping() ([]*GitOpsAppDetails, error)
+	GetInstalledAppByGitOpsAppName(acdAppName string) (*InstalledApps, error)
 
 	GetArgoPipelinesHavingLatestTriggerStuckInNonTerminalStatusesForAppStore(getPipelineDeployedBeforeMinutes int, getPipelineDeployedWithinHours int) ([]*InstalledAppVersions, error)
 	GetArgoPipelinesHavingTriggersStuckInLastPossibleNonTerminalTimelinesForAppStore(pendingSinceSeconds int, timeForDegradation int) ([]*InstalledAppVersions, error)
@@ -95,13 +95,15 @@ func NewInstalledAppRepositoryImpl(Logger *zap.SugaredLogger, dbConnection *pg.D
 	return &InstalledAppRepositoryImpl{dbConnection: dbConnection, Logger: Logger}
 }
 
+// TODO: remove the deprecated column GitOpsRepoName
 type InstalledApps struct {
 	TableName                  struct{}                              `sql:"installed_apps" pg:",discard_unknown_columns"`
 	Id                         int                                   `sql:"id,pk"`
 	AppId                      int                                   `sql:"app_id,notnull"`
 	EnvironmentId              int                                   `sql:"environment_id,notnull"`
 	Active                     bool                                  `sql:"active, notnull"`
-	GitOpsRepoUrl              string                                `sql:"git_ops_repo_url"` // earlier we used this column as "git_ops_repo_name", where we were storing the GitOpsRepoName only;
+	GitOpsRepoName             string                                `sql:"git_ops_repo_name"` // Deprecated; currently in use for backward compatibility
+	GitOpsRepoUrl              string                                `sql:"git_ops_repo_url"`  // GitOpsRepoName has been migrated to GitOpsRepoUrl; Make sure to migrate from GitOpsRepoName for future flows
 	IsCustomRepository         bool                                  `sql:"is_custom_repository"`
 	DeploymentAppType          string                                `sql:"deployment_app_type"`
 	Status                     appStoreBean.AppstoreDeploymentStatus `sql:"status"`
@@ -124,11 +126,6 @@ type InstalledAppVersions struct {
 	sql.AuditLog
 	InstalledApp               InstalledApps
 	AppStoreApplicationVersion appStoreDiscoverRepository.AppStoreApplicationVersion
-}
-
-type GitOpsAppDetails struct {
-	GitOpsAppName  string `sql:"git_ops_app_name"`
-	InstalledAppId int    `sql:"installed_app_id"`
 }
 
 type InstalledAppsWithChartDetails struct {
@@ -769,36 +766,15 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppByInstalledAppVersionId(in
 	return installedApps, nil
 }
 
-func (impl InstalledAppRepositoryImpl) GetAllGitOpsDeploymentAppName() ([]string, error) {
-	type GitOpsAppName struct {
-		GitOpsAppName string `sql:"git_ops_app_name"`
-	}
-	var gitOpsApplicationName []*GitOpsAppName
-	allGitOpsAppName := make([]string, 0)
-
-	query := `select concat(a.git_ops_repo_name, '-',e.environment_name) as git_ops_app_name from installed_apps a inner join environment e on a.environment_id=e.id;`
-	_, err := impl.dbConnection.Query(&gitOpsApplicationName, query)
-	if err != nil {
-		impl.Logger.Errorw("error in GetAllGitOpsDeploymentAppName", "err", err)
-		return nil, err
-	}
-
-	for _, item := range gitOpsApplicationName {
-		allGitOpsAppName = append(allGitOpsAppName, item.GitOpsAppName)
-	}
-	return allGitOpsAppName, err
-}
-
-func (impl InstalledAppRepositoryImpl) GetAllGitOpsAppNameAndInstalledAppMapping() ([]*GitOpsAppDetails, error) {
-	var model []*GitOpsAppDetails
-
-	query := `select concat(a.git_ops_repo_name, '-',e.environment_name) as git_ops_app_name, a.id as installed_app_id from installed_apps a 
-    			inner join environment e on a.environment_id=e.id where a.active=true and e.active=true;`
-	_, err := impl.dbConnection.Query(&model, query)
-	if err != nil {
-		impl.Logger.Errorw("error in GetAllGitOpsDeploymentAppName", "err", err)
-		return nil, err
-	}
+func (impl InstalledAppRepositoryImpl) GetInstalledAppByGitOpsAppName(acdAppName string) (*InstalledApps, error) {
+	model := &InstalledApps{}
+	err := impl.dbConnection.Model(model).
+		Column("installed_apps.*", "App", "Environment").
+		Where(`CONCAT(app.app_name, "-", environment.environment_name) = ?`, acdAppName).
+		Where("installed_apps.active = true").
+		Where("environment.active = true").
+		Limit(1).
+		Select()
 	return model, err
 }
 

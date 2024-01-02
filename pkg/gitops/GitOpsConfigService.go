@@ -868,6 +868,36 @@ func (impl GitOpsConfigServiceImpl) ExtractErrorsFromGitOpsConfigResponse(respon
 	return fmt.Errorf(errorMessage)
 }
 
+func sanitiseCustomGitRepoURL(activeGitOpsConfig *bean2.GitOpsConfigDto, gitRepoURL string) (sanitisedGitRepoURL string) {
+	sanitisedGitRepoURL = gitRepoURL
+	if activeGitOpsConfig.Provider == BITBUCKET_PROVIDER && strings.Contains(gitRepoURL, fmt.Sprintf("://%s@%s", activeGitOpsConfig.Username, "bitbucket.org/")) {
+		sanitisedGitRepoURL = strings.ReplaceAll(gitRepoURL, fmt.Sprintf("://%s@%s", activeGitOpsConfig.Username, "bitbucket.org/"), "://bitbucket.org/")
+	}
+	if activeGitOpsConfig.Provider == AZURE_DEVOPS_PROVIDER {
+		azureDevopsOrgName := activeGitOpsConfig.Host[strings.LastIndex(activeGitOpsConfig.Host, "/")+1:]
+		invalidBaseUrlFormat := fmt.Sprintf("://%s@%s", azureDevopsOrgName, "dev.azure.com/")
+		if invalidBaseUrlFormat != "" && strings.Contains(gitRepoURL, invalidBaseUrlFormat) {
+			sanitisedGitRepoURL = strings.ReplaceAll(gitRepoURL, invalidBaseUrlFormat, "://dev.azure.com/")
+		}
+	}
+	return sanitisedGitRepoURL
+}
+
+func (impl GitOpsConfigServiceImpl) handleDefaultValidation(activeGitOpsConfig *bean2.GitOpsConfigDto) bean2.DetailedErrorGitOpsConfigResponse {
+	// Validate: Perform Default Validation
+	if !impl.isDefaultAppLevelGitOpsValidated.ValidationSkipped &&
+		len(impl.isDefaultAppLevelGitOpsValidated.StageErrorMap) == 0 {
+		return *impl.isDefaultAppLevelGitOpsValidated //use the cached data as response if exists
+	}
+
+	activeGitOpsConfig.AllowCustomRepository = false //overriding the flag to enforce validation
+	detailedErrorGitOpsConfigResponse := impl.GitOpsValidateDryRun(activeGitOpsConfig)
+	if len(detailedErrorGitOpsConfigResponse.StageErrorMap) == 0 {
+		impl.isDefaultAppLevelGitOpsValidated = &detailedErrorGitOpsConfigResponse
+	}
+	return detailedErrorGitOpsConfigResponse
+}
+
 func (impl GitOpsConfigServiceImpl) ValidateCustomGitRepoURL(request ValidateCustomGitRepoURLRequest) bean2.DetailedErrorGitOpsConfigResponse {
 	detailedErrorGitOpsConfigActions := util.DetailedErrorGitOpsConfigActions{}
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
@@ -884,18 +914,7 @@ func (impl GitOpsConfigServiceImpl) ValidateCustomGitRepoURL(request ValidateCus
 	}
 
 	if request.PerformDefaultValidation {
-		// Validate: Perform Default Validation
-		if !impl.isDefaultAppLevelGitOpsValidated.ValidationSkipped &&
-			len(impl.isDefaultAppLevelGitOpsValidated.StageErrorMap) == 0 {
-			return *impl.isDefaultAppLevelGitOpsValidated //use the cached data as response if exists
-		}
-
-		activeGitOpsConfig.AllowCustomRepository = false //overriding the flag to enforce validation
-		detailedErrorGitOpsConfigResponse := impl.GitOpsValidateDryRun(activeGitOpsConfig)
-		if len(detailedErrorGitOpsConfigResponse.StageErrorMap) == 0 {
-			impl.isDefaultAppLevelGitOpsValidated = &detailedErrorGitOpsConfigResponse
-		}
-		return detailedErrorGitOpsConfigResponse
+		return impl.handleDefaultValidation(activeGitOpsConfig)
 	}
 
 	if !activeGitOpsConfig.AllowCustomRepository {
@@ -904,6 +923,7 @@ func (impl GitOpsConfigServiceImpl) ValidateCustomGitRepoURL(request ValidateCus
 			ValidationSkipped: true,
 		}
 	}
+
 	repoName := util.GetGitRepoNameFromGitRepoUrl(request.GitRepoURL)
 	gitProvider := strings.ToUpper(activeGitOpsConfig.Provider)
 
@@ -927,18 +947,7 @@ func (impl GitOpsConfigServiceImpl) ValidateCustomGitRepoURL(request ValidateCus
 
 	// Validate: Organisational URL starts
 	repoUrl = strings.ReplaceAll(repoUrl, ".git", "")
-	if activeGitOpsConfig.Provider == BITBUCKET_PROVIDER && strings.Contains(request.GitRepoURL, fmt.Sprintf("://%s@%s", activeGitOpsConfig.Username, "bitbucket.org/")) {
-		request.GitRepoURL = strings.ReplaceAll(request.GitRepoURL, fmt.Sprintf("://%s@%s", activeGitOpsConfig.Username, "bitbucket.org/"), "://bitbucket.org/")
-		detailedErrorGitOpsConfigActions.StageErrorMap["Invalid repository URL format"] = fmt.Errorf("Please use '%s' instead.", request.GitRepoURL)
-	}
-	if activeGitOpsConfig.Provider == AZURE_DEVOPS_PROVIDER {
-		azureDevopsOrgName := activeGitOpsConfig.Host[strings.LastIndex(activeGitOpsConfig.Host, "/")+1:]
-		invalidBaseUrlFormat := fmt.Sprintf("://%s@%s", azureDevopsOrgName, "dev.azure.com/")
-		if invalidBaseUrlFormat != "" && strings.Contains(request.GitRepoURL, invalidBaseUrlFormat) {
-			request.GitRepoURL = strings.ReplaceAll(request.GitRepoURL, invalidBaseUrlFormat, "://dev.azure.com/")
-			detailedErrorGitOpsConfigActions.StageErrorMap["Invalid repository URL format"] = fmt.Errorf("Please use '%s' instead.", request.GitRepoURL)
-		}
-	}
+	request.GitRepoURL = sanitiseCustomGitRepoURL(activeGitOpsConfig, request.GitRepoURL)
 	if !strings.Contains(request.GitRepoURL, repoUrl) {
 		errorKey, errorMsg := impl.getValidationErrorForNonOrganisationalURL(activeGitOpsConfig)
 		detailedErrorGitOpsConfigActions.StageErrorMap[errorKey] = errorMsg
@@ -946,6 +955,7 @@ func (impl GitOpsConfigServiceImpl) ValidateCustomGitRepoURL(request ValidateCus
 		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, ValidateOrganisationalURLStage)
 	}
 	// Validate: Organisational URL Ends
+
 	if request.ExtraValidationStage == Validate_Empty_Repo || request.ExtraValidationStage == Create_Readme {
 		// Validate: Empty repository Starts
 		commitCount, err := impl.gitFactory.Client.GetCommitsCount(repoName, activeGitOpsConfig.AzureProjectName)
@@ -1019,5 +1029,6 @@ func (impl *GitOpsConfigServiceImpl) convertDetailedErrorToResponse(detailedErro
 		detailedErrorResponse.StageErrorMap[stage] = err.Error()
 	}
 	detailedErrorResponse.DeleteRepoFailed = detailedErrorGitOpsConfigActions.DeleteRepoFailed
+	detailedErrorResponse.ValidatedOn = detailedErrorGitOpsConfigActions.ValidatedOn
 	return detailedErrorResponse
 }
