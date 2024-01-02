@@ -40,7 +40,6 @@ import (
 	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
 	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
-	appStoreDeploymentGitopsTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool/gitops"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/values/service"
 	repository5 "github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -73,7 +72,6 @@ import (
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
-	"github.com/devtron-labs/devtron/client/argocdServer/repository"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
@@ -93,7 +91,6 @@ const (
 type InstalledAppService interface {
 	GetAll(filter *appStoreBean.AppStoreFilter) (openapi.AppList, error)
 	DeployBulk(chartGroupInstallRequest *chartGroup.ChartGroupInstallRequest) (*chartGroup.ChartGroupInstallAppRes, error)
-	performDeployStage(appId int, installedAppVersionHistoryId int, userId int32) (*appStoreBean.InstallAppVersionDTO, error)
 	CheckAppExists(appNames []*appStoreBean.AppNames) ([]*appStoreBean.AppNames, error)
 	DeployDefaultChartOnCluster(bean *cluster2.ClusterBean, userId int32) (bool, error)
 	FindAppDetailsForAppstoreApplication(installedAppId, envId int) (bean2.AppDetailContainer, error)
@@ -104,15 +101,11 @@ type InstalledAppService interface {
 	FindNotesForArgoApplication(installedAppId, envId int) (string, string, error)
 	FetchChartNotes(installedAppId int, envId int, token string, checkNotesAuth func(token string, appName string, envId int) bool) (string, error)
 	FetchResourceTreeWithHibernateForACD(rctx context.Context, cn http.CloseNotifier, appDetail *bean2.AppDetailContainer) bean2.AppDetailContainer
-	fetchResourceTreeForACD(rctx context.Context, cn http.CloseNotifier, appId int, envId, clusterId int, deploymentAppName, namespace string) (map[string]interface{}, error)
 }
 
 type InstalledAppServiceImpl struct {
 	logger                               *zap.SugaredLogger
 	installedAppRepository               repository2.InstalledAppRepository
-	chartTemplateService                 util.ChartTemplateService
-	refChartDir                          appStoreBean.RefChartProxyDir
-	repositoryService                    repository.ServiceClient
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository
 	environmentRepository                repository5.EnvironmentRepository
 	teamRepository                       repository4.TeamRepository
@@ -120,10 +113,8 @@ type InstalledAppServiceImpl struct {
 	acdClient                            application2.ServiceClient
 	appStoreValuesService                service.AppStoreValuesService
 	pubsubClient                         *pubsub.PubSubClientServiceImpl
-	tokenCache                           *util2.TokenCache
 	chartGroupDeploymentRepository       repository6.ChartGroupDeploymentRepository
 	envService                           cluster2.EnvironmentService
-	ArgoK8sClient                        argocdServer.ArgoK8sClient
 	gitFactory                           *util.GitFactory
 	aCDAuthConfig                        *util2.ACDAuthConfig
 	gitOpsRepository                     repository3.GitOpsConfigRepository
@@ -134,7 +125,6 @@ type InstalledAppServiceImpl struct {
 	argoUserService                      argo.ArgoUserService
 	helmAppClient                        client.HelmAppClient
 	helmAppService                       client.HelmAppService
-	attributesRepository                 repository3.AttributesRepository
 	appStatusService                     appStatus.AppStatusService
 	K8sUtil                              *util4.K8sUtil
 	pipelineStatusTimelineService        status.PipelineStatusTimelineService
@@ -146,34 +136,27 @@ type InstalledAppServiceImpl struct {
 
 func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 	installedAppRepository repository2.InstalledAppRepository,
-	chartTemplateService util.ChartTemplateService, refChartDir appStoreBean.RefChartProxyDir,
-	repositoryService repository.ServiceClient,
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
 	environmentRepository repository5.EnvironmentRepository, teamRepository repository4.TeamRepository,
 	appRepository app.AppRepository,
 	acdClient application2.ServiceClient,
 	appStoreValuesService service.AppStoreValuesService,
 	pubsubClient *pubsub.PubSubClientServiceImpl,
-	tokenCache *util2.TokenCache,
 	chartGroupDeploymentRepository repository6.ChartGroupDeploymentRepository,
-	envService cluster2.EnvironmentService, argoK8sClient argocdServer.ArgoK8sClient,
+	envService cluster2.EnvironmentService,
 	gitFactory *util.GitFactory, aCDAuthConfig *util2.ACDAuthConfig, gitOpsRepository repository3.GitOpsConfigRepository, userService user.UserService,
 	appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService,
 	appStoreDeploymentService AppStoreDeploymentService,
 	installedAppRepositoryHistory repository2.InstalledAppVersionHistoryRepository,
 	argoUserService argo.ArgoUserService, helmAppClient client.HelmAppClient, helmAppService client.HelmAppService,
-	attributesRepository repository3.AttributesRepository,
 	appStatusService appStatus.AppStatusService, K8sUtil *util4.K8sUtil,
 	pipelineStatusTimelineService status.PipelineStatusTimelineService,
 	appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
-	appStoreDeploymentArgoCdService appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdService, k8sCommonService k8s.K8sCommonService, k8sApplicationService application3.K8sApplicationService,
+	k8sCommonService k8s.K8sCommonService, k8sApplicationService application3.K8sApplicationService,
 	acdConfig *argocdServer.ACDConfig) (*InstalledAppServiceImpl, error) {
 	impl := &InstalledAppServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
-		chartTemplateService:                 chartTemplateService,
-		refChartDir:                          refChartDir,
-		repositoryService:                    repositoryService,
 		appStoreApplicationVersionRepository: appStoreApplicationVersionRepository,
 		environmentRepository:                environmentRepository,
 		teamRepository:                       teamRepository,
@@ -181,10 +164,8 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 		acdClient:                            acdClient,
 		appStoreValuesService:                appStoreValuesService,
 		pubsubClient:                         pubsubClient,
-		tokenCache:                           tokenCache,
 		chartGroupDeploymentRepository:       chartGroupDeploymentRepository,
 		envService:                           envService,
-		ArgoK8sClient:                        argoK8sClient,
 		gitFactory:                           gitFactory,
 		aCDAuthConfig:                        aCDAuthConfig,
 		gitOpsRepository:                     gitOpsRepository,
@@ -195,7 +176,6 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 		argoUserService:                      argoUserService,
 		helmAppClient:                        helmAppClient,
 		helmAppService:                       helmAppService,
-		attributesRepository:                 attributesRepository,
 		appStatusService:                     appStatusService,
 		K8sUtil:                              K8sUtil,
 		pipelineStatusTimelineService:        pipelineStatusTimelineService,
