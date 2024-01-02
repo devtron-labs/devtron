@@ -98,7 +98,7 @@ func NewCiEventHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSu
 func (impl *CiEventHandlerImpl) Subscribe() error {
 	callback := func(msg *model.PubSubMsg) {
 		impl.logger.Debugw("ci complete event received")
-		//defer msg.Ack()
+		// defer msg.Ack()
 		ciCompleteEvent := CiCompleteEvent{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &ciCompleteEvent)
 		if err != nil {
@@ -133,7 +133,7 @@ func (impl *CiEventHandlerImpl) Subscribe() error {
 						impl.logger.Error("Error while creating request for pipelineID", "pipelineId", ciCompleteEvent.PipelineId, "err", err)
 						return
 					}
-					resp, err := impl.webhookService.HandleCiSuccessEvent(ciCompleteEvent.PipelineId, request, detail.ImagePushedAt)
+					resp, err := impl.webhookService.HandleCiSuccessEvent(ciCompleteEvent.PipelineId, request, detail.ImagePushedAt, msg.MsgId)
 					if err != nil {
 						impl.logger.Error("Error while sending event for CI success for pipelineID", "pipelineId",
 							ciCompleteEvent.PipelineId, "request", request, "err", err)
@@ -145,7 +145,7 @@ func (impl *CiEventHandlerImpl) Subscribe() error {
 
 		} else {
 			util.TriggerCIMetrics(ciCompleteEvent.Metrics, impl.ciEventConfig.ExposeCiMetrics, ciCompleteEvent.PipelineName, ciCompleteEvent.AppName)
-			resp, err := impl.webhookService.HandleCiSuccessEvent(ciCompleteEvent.PipelineId, req, &time.Time{})
+			resp, err := impl.webhookService.HandleCiSuccessEvent(ciCompleteEvent.PipelineId, req, &time.Time{}, msg.MsgId)
 			if err != nil {
 				impl.logger.Error("Error while sending event for CI success for pipelineID: ",
 					ciCompleteEvent.PipelineId, "request: ", req, "error: ", err)

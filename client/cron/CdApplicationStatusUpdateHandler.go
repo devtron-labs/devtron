@@ -144,7 +144,7 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) Subscribe() error {
 			}
 		}
 
-		err, _ = impl.CdHandler.UpdatePipelineTimelineAndStatusByLiveApplicationFetch(cdPipeline, installedApp, statusUpdateEvent.UserId)
+		err, _ = impl.CdHandler.UpdatePipelineTimelineAndStatusByLiveApplicationFetch(cdPipeline, installedApp, statusUpdateEvent.UserId, msg.MsgId)
 		if err != nil {
 			impl.logger.Errorw("error on argo pipeline status update", "err", err, "msg", string(msg.Data))
 			return
@@ -182,7 +182,7 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) ArgoApplicationStatusUpdate() 
 	defer func() {
 		middleware.DeploymentStatusCronDuration.WithLabelValues(pipeline.DEVTRON_APP_ARGO_PIPELINE_STATUS_UPDATE_CRON).Observe(time.Since(cronProcessStartTime).Seconds())
 	}()
-	//TODO: remove below cron with division of cron for argo pipelines of devtron-apps and helm-apps
+	// TODO: remove below cron with division of cron for argo pipelines of devtron-apps and helm-apps
 	defer func() {
 		middleware.DeploymentStatusCronDuration.WithLabelValues(pipeline.HELM_APP_ARGO_PIPELINE_STATUS_UPDATE_CRON).Observe(time.Since(cronProcessStartTime).Seconds())
 	}()
@@ -227,7 +227,7 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) SyncPipelineStatusForResourceT
 }
 
 func (impl *CdApplicationStatusUpdateHandlerImpl) SyncPipelineStatusForAppStoreForResourceTreeCall(installedAppVersion *repository2.InstalledAppVersions) error {
-	//find installed app version history using parameter obj
+	// find installed app version history using parameter obj
 	installedAppVersionHistory, err := impl.installedAppVersionHistoryRepository.GetLatestInstalledAppVersionHistory(installedAppVersion.Id)
 	if err != nil {
 		impl.logger.Errorw("error in getting latest installedAppVersionHistory by installedAppVersionId", "err", err, "installedAppVersionId", installedAppVersion.Id)
@@ -263,7 +263,7 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) ManualSyncPipelineStatus(appId
 		cdPipeline = cdPipelines[0]
 	}
 
-	err, isTimelineUpdated := impl.CdHandler.UpdatePipelineTimelineAndStatusByLiveApplicationFetch(cdPipeline, installedApp, userId)
+	err, isTimelineUpdated := impl.CdHandler.UpdatePipelineTimelineAndStatusByLiveApplicationFetch(cdPipeline, installedApp, userId, nil)
 	if err != nil {
 		impl.logger.Errorw("error on argo pipeline status update", "err", err)
 		return nil

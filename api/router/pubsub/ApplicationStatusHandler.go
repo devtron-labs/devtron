@@ -74,7 +74,7 @@ func NewApplicationStatusHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pu
 	}
 	err := appStatusUpdateHandlerImpl.Subscribe()
 	if err != nil {
-		//logger.Error("err", err)
+		// logger.Error("err", err)
 		return nil
 	}
 	err = appStatusUpdateHandlerImpl.SubscribeDeleteStatus()
@@ -109,10 +109,10 @@ func (impl *ApplicationStatusHandlerImpl) Subscribe() error {
 		_, err = impl.pipelineRepository.GetArgoPipelineByArgoAppName(app.ObjectMeta.Name)
 		if err != nil && err == pg.ErrNoRows {
 			impl.logger.Infow("this app not found in pipeline table looking in installed_apps table", "appName", app.ObjectMeta.Name)
-			//if not found in pipeline table then search in installed_apps table
+			// if not found in pipeline table then search in installed_apps table
 			gitOpsDeployedAppNames, err := impl.installedAppRepository.GetAllGitOpsDeploymentAppName()
 			if err != nil && err == pg.ErrNoRows {
-				//no installed_apps found
+				// no installed_apps found
 				impl.logger.Errorw("no installed apps found", "err", err)
 				return
 			} else if err != nil {
@@ -127,17 +127,17 @@ func (impl *ApplicationStatusHandlerImpl) Subscribe() error {
 				devtronGitOpsAppName = app.ObjectMeta.Name
 			}
 			if slices.Contains(gitOpsDeployedAppNames, devtronGitOpsAppName) {
-				//app found in installed_apps table hence setting flag to true
+				// app found in installed_apps table hence setting flag to true
 				isAppStoreApplication = true
 			} else {
-				//app neither found in installed_apps nor in pipeline table hence returning
+				// app neither found in installed_apps nor in pipeline table hence returning
 				return
 			}
 		}
 		isSucceeded, pipelineOverride, err := impl.appService.UpdateDeploymentStatusAndCheckIsSucceeded(app, applicationDetail.StatusTime, isAppStoreApplication)
 		if err != nil {
 			impl.logger.Errorw("error on application status update", "err", err, "msg", string(msg.Data))
-			//TODO - check update for charts - fix this call
+			// TODO - check update for charts - fix this call
 			if err == pg.ErrNoRows {
 				// if not found in charts (which is for devtron apps) try to find in installed app (which is for devtron charts)
 				_, err := impl.installedAppService.UpdateInstalledAppVersionStatus(app)
@@ -153,7 +153,7 @@ func (impl *ApplicationStatusHandlerImpl) Subscribe() error {
 		// invoke DagExecutor, for cd success which will trigger post stage if exist.
 		if isSucceeded {
 			impl.logger.Debugw("git hash history", "list", app.Status.History)
-			err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent(pipelineOverride)
+			err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent(pipelineOverride, msg.MsgId)
 			if err != nil {
 				impl.logger.Errorw("deployment success event error", "pipelineOverride", pipelineOverride, "err", err)
 				return
@@ -210,7 +210,7 @@ func (impl *ApplicationStatusHandlerImpl) updateArgoAppDeleteStatus(app *v1alpha
 		return errors.New("invalid nats message, pipeline already deleted")
 	}
 	if err == pg.ErrNoRows {
-		//Helm app deployed using argocd
+		// Helm app deployed using argocd
 		var gitHash string
 		if app.Operation != nil && app.Operation.Sync != nil {
 			gitHash = app.Operation.Sync.Revision
@@ -229,7 +229,7 @@ func (impl *ApplicationStatusHandlerImpl) updateArgoAppDeleteStatus(app *v1alpha
 			impl.logger.Errorw("App not found in database", "installedAppId", model.InstalledAppId, "err", err)
 			return fmt.Errorf("app not found in database %s", err)
 		} else if installedApp.DeploymentAppDeleteRequest == false {
-			//TODO 4465 remove app from log after final RCA
+			// TODO 4465 remove app from log after final RCA
 			impl.logger.Infow("Deployment delete not requested for app, not deleting app from DB", "appName", app.Name, "app", app)
 			return nil
 		}

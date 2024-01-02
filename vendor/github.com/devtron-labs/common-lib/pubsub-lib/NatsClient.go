@@ -46,7 +46,7 @@ type NatsClientConfig struct {
 	// Note: always get this value by calling GetNatsMsgBufferSize method
 	NatsMsgBufferSize    int `env:"NATS_MSG_BUFFER_SIZE" envDefault:"1"`
 	NatsMsgMaxAge        int `env:"NATS_MSG_MAX_AGE" envDefault:"86400"`
-	NatsMsgAckWaitInSecs int `env:"NATS_MSG_ACK_WAIT_IN_SECS" envDefault:"60"`
+	NatsMsgAckWaitInSecs int `env:"NATS_MSG_ACK_WAIT_IN_SECS" envDefault:"300"`
 }
 
 func (ncc NatsClientConfig) GetNatsMsgBufferSize() int {

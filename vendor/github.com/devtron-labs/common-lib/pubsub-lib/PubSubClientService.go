@@ -9,6 +9,7 @@ import (
 	"github.com/devtron-labs/common-lib/utils"
 	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
+	"k8s.io/utils/pointer"
 	"runtime/debug"
 	"sync"
 	"time"
@@ -172,13 +173,19 @@ func (impl PubSubClientServiceImpl) publishPanicError(msg *nats.Msg, panicErr er
 
 // TryCatchCallBack is a fail-safe method to use callback function
 func (impl PubSubClientServiceImpl) TryCatchCallBack(msg *nats.Msg, callback func(msg *model.PubSubMsg)) {
-	subMsg := &model.PubSubMsg{Data: string(msg.Data)}
+	var msgDeliveryCount uint64 = 0
+	if metadata, err := msg.Metadata(); err == nil {
+		msgDeliveryCount = metadata.NumDelivered
+	}
+	natsMsgId := pointer.String(msg.Header.Get(model.NatsMsgId))
+	subMsg := &model.PubSubMsg{Data: string(msg.Data), MsgDeliverCount: msgDeliveryCount, MsgId: natsMsgId}
 	defer func() {
 		// Acknowledge the message delivery
 		err := msg.Ack()
 		if err != nil {
 			impl.Logger.Errorw("nats: unable to acknowledge the message", "subject", msg.Subject, "msg", string(msg.Data))
 		}
+		metrics.NatsEventDeliveryCount.WithLabelValues(msg.Subject, *natsMsgId).Observe(float64(msgDeliveryCount))
 		// Panic recovery handling
 		if panicInfo := recover(); panicInfo != nil {
 			impl.Logger.Warnw("nats: found panic error", "subject", msg.Subject, "payload", string(msg.Data), "logs", string(debug.Stack()))
