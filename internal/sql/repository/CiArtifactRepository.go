@@ -86,6 +86,9 @@ type CiArtifact struct {
 type CiArtifactRepository interface {
 	Save(artifact *CiArtifact) error
 	Delete(artifact *CiArtifact) error
+
+	// Get returns the CiArtifact of the given id.
+	// Note: Use Get along with MigrateToWebHookDataSourceType. For webhook artifacts, migration is required for column DataSource from 'ext' to 'EXTERNAL'
 	Get(id int) (artifact *CiArtifact, err error)
 	GetArtifactParentCiAndWorkflowDetailsByIds(ids []int) ([]*CiArtifact, error)
 	GetByWfId(wfId int) (artifact *CiArtifact, err error)
@@ -109,6 +112,8 @@ type CiArtifactRepository interface {
 	GetArtifactsByDataSourceAndComponentId(dataSource string, componentId int) ([]CiArtifact, error)
 	FindCiArtifactByImagePaths(images []string) ([]CiArtifact, error)
 
+	// MigrateToWebHookDataSourceType is used for backward compatibility. It'll migrate the deprecated DataSource type
+	MigrateToWebHookDataSourceType(id int) error
 	UpdateLatestTimestamp(artifactIds []int) error
 }
 
@@ -133,6 +138,14 @@ func (impl CiArtifactRepositoryImpl) SaveAll(artifacts []*CiArtifact) ([]*CiArti
 		return nil
 	})
 	return artifacts, err
+}
+
+func (impl CiArtifactRepositoryImpl) MigrateToWebHookDataSourceType(id int) error {
+	_, err := impl.dbConnection.Model(&CiArtifact{}).
+		Set("data_source = ?", WEBHOOK).
+		Where("id = ?", id).
+		Update()
+	return err
 }
 
 func (impl CiArtifactRepositoryImpl) UpdateLatestTimestamp(artifactIds []int) error {
