@@ -27,6 +27,7 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
+	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/constants"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -70,7 +71,7 @@ type AppStoreDeploymentService interface {
 	GetDeploymentHistory(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO) (*client.DeploymentHistoryAndInstalledAppInfo, error)
 	GetDeploymentHistoryInfo(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, installedAppVersionHistoryId int) (*openapi.HelmAppDeploymentManifestDetail, error)
 	UpdateInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error)
-	UpdateInstalledAppVersionHistoryWithGitHash(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error
+	UpdateInstalledAppVersionHistoryWithGitHash(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx) error
 	GetInstalledAppVersion(id int, userId int32) (*appStoreBean.InstallAppVersionDTO, error)
 	InstallAppByHelm(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error)
 	UpdateProjectHelmApp(updateAppRequest *appStoreBean.UpdateProjectHelmAppDTO) error
@@ -109,6 +110,7 @@ type AppStoreDeploymentServiceImpl struct {
 	gitOpsRepository                     repository2.GitOpsConfigRepository
 	deploymentTypeConfig                 *DeploymentServiceTypeConfig
 	ChartTemplateService                 util.ChartTemplateService
+	aCDConfig                            *argocdServer.ACDConfig
 }
 
 func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRepository repository.InstalledAppRepository,
@@ -119,7 +121,7 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRep
 	clusterService cluster.ClusterService, helmAppService client.HelmAppService, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
 	globalEnvVariables *util2.GlobalEnvVariables,
 	installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository, gitOpsRepository repository2.GitOpsConfigRepository, attributesService attributes.AttributesService,
-	deploymentTypeConfig *DeploymentServiceTypeConfig, ChartTemplateService util.ChartTemplateService) *AppStoreDeploymentServiceImpl {
+	deploymentTypeConfig *DeploymentServiceTypeConfig, ChartTemplateService util.ChartTemplateService, aCDConfig *argocdServer.ACDConfig) *AppStoreDeploymentServiceImpl {
 
 	appStoreDeploymentServiceImpl := &AppStoreDeploymentServiceImpl{
 		logger:                               logger,
@@ -140,6 +142,7 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRep
 		gitOpsRepository:                     gitOpsRepository,
 		deploymentTypeConfig:                 deploymentTypeConfig,
 		ChartTemplateService:                 ChartTemplateService,
+		aCDConfig:                            aCDConfig,
 	}
 	return appStoreDeploymentServiceImpl
 }
@@ -458,7 +461,7 @@ func (impl AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *a
 	impl.updateDeploymentParametersInRequest(installAppVersionRequest, installAppVersionRequest.DeploymentAppType)
 
 	if util.IsAcdApp(installAppVersionRequest.DeploymentAppType) || util.IsManifestDownload(installAppVersionRequest.DeploymentAppType) {
-		_ = impl.appStoreDeploymentArgoCdService.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_INITIATED, "Deployment initiated successfully.", tx)
+		_ = impl.appStoreDeploymentArgoCdService.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_INITIATED, "Deployment initiated successfully.", time.Now(), tx)
 	}
 
 	manifest, err := impl.appStoreDeploymentCommonService.GenerateManifest(installAppVersionRequest)
@@ -468,7 +471,7 @@ func (impl AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *a
 	}
 
 	if installAppVersionRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD {
-		_ = impl.appStoreDeploymentArgoCdService.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_DESCRIPTION_MANIFEST_GENERATED, "Manifest generated successfully.", tx)
+		_ = impl.appStoreDeploymentArgoCdService.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_DESCRIPTION_MANIFEST_GENERATED, "Manifest generated successfully.", time.Now(), tx)
 	}
 
 	var gitOpsResponse *appStoreDeploymentCommon.AppStoreGitOpsResponse
@@ -477,14 +480,24 @@ func (impl AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *a
 		if err != nil {
 			impl.logger.Errorw("error in doing gitops operation", "err", err)
 			if util.IsAcdApp(installAppVersionRequest.DeploymentAppType) {
-				_ = impl.appStoreDeploymentArgoCdService.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED, fmt.Sprintf("Git commit failed - %v", err), tx)
+				_ = impl.appStoreDeploymentArgoCdService.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED, fmt.Sprintf("Git commit failed - %v", err), time.Now(), tx)
 			}
 			return nil, err
 		}
 		if util.IsAcdApp(installAppVersionRequest.DeploymentAppType) {
-			_ = impl.appStoreDeploymentArgoCdService.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT, "Git commit done successfully.", tx)
+			_ = impl.appStoreDeploymentArgoCdService.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT, "Git commit done successfully.", time.Now(), tx)
+			if !impl.aCDConfig.ArgoCDAutoSyncEnabled {
+				_ = impl.appStoreDeploymentArgoCdService.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED, "argocd sync initiated.", time.Now(), tx)
+			}
 		}
 		installAppVersionRequest.GitHash = gitOpsResponse.GitHash
+		if len(installAppVersionRequest.GitHash) > 0 {
+			err = impl.installedAppRepositoryHistory.UpdateGitHash(installAppVersionRequest.InstalledAppVersionHistoryId, gitOpsResponse.GitHash, tx)
+			if err != nil {
+				impl.logger.Errorw("error in updating git hash ", "err", err)
+				return nil, err
+			}
+		}
 	}
 
 	if util2.IsBaseStack() || util2.IsHelmApp(installAppVersionRequest.AppOfferingMode) || util.IsHelmApp(installAppVersionRequest.DeploymentAppType) {
@@ -562,27 +575,14 @@ func (impl AppStoreDeploymentServiceImpl) UpdateInstallAppVersionHistory(install
 	}
 	return installedAppVersionHistory, nil
 }
-func (impl AppStoreDeploymentServiceImpl) UpdateInstalledAppVersionHistoryWithGitHash(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error {
-	dbConnection := impl.installedAppRepository.GetConnection()
-	tx, err := dbConnection.Begin()
-	if err != nil {
-		return err
-	}
-	// Rollback tx on error.
-	defer tx.Rollback()
+func (impl AppStoreDeploymentServiceImpl) UpdateInstalledAppVersionHistoryWithGitHash(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx) error {
 	savedInstalledAppVersionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(installAppVersionRequest.InstalledAppVersionHistoryId)
 	savedInstalledAppVersionHistory.GitHash = installAppVersionRequest.GitHash
 	savedInstalledAppVersionHistory.UpdatedOn = time.Now()
 	savedInstalledAppVersionHistory.UpdatedBy = installAppVersionRequest.UserId
-
 	_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(savedInstalledAppVersionHistory, tx)
 	if err != nil {
 		impl.logger.Errorw("error while fetching from db", "error", err)
-		return err
-	}
-	err = tx.Commit()
-	if err != nil {
-		impl.logger.Errorw("error while committing transaction to db", "error", err)
 		return err
 	}
 	return nil
@@ -1011,14 +1011,6 @@ func (impl AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Contex
 		return false, err
 	}
 
-	if installedApp.AppOfferingMode == util2.SERVER_MODE_FULL {
-		// create build history for version upgrade, chart upgrade or simple update
-		err = impl.UpdateInstalledAppVersionHistoryWithGitHash(installedApp)
-		if err != nil {
-			impl.logger.Errorw("error on creating history for chart deployment", "error", err)
-			return false, err
-		}
-	}
 	err1 := impl.UpdatePreviousDeploymentStatusForAppStore(installedApp, triggeredAt, err)
 	if err1 != nil {
 		impl.logger.Errorw("error while update previous installed app version history", "err", err, "installAppVersionRequest", installedApp)
@@ -1108,13 +1100,6 @@ func (impl AppStoreDeploymentServiceImpl) installAppPostDbOperation(installAppVe
 	}
 
 	//step 5 create build history first entry for install app version for argocd or helm type deployments
-	if len(installAppVersionRequest.GitHash) > 0 {
-		err = impl.UpdateInstalledAppVersionHistoryWithGitHash(installAppVersionRequest)
-		if err != nil {
-			impl.logger.Errorw("error in installAppPostDbOperation", "err", err)
-			return err
-		}
-	}
 	if !impl.deploymentTypeConfig.HelmInstallASyncMode {
 		err = impl.updateInstalledAppVersionHistoryWithSync(installAppVersionRequest)
 		if err != nil {
@@ -1519,7 +1504,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 		return nil, err
 	}
 	installAppVersionRequest.InstalledAppVersionHistoryId = installedAppVersionHistory.Id
-	_ = impl.appStoreDeploymentArgoCdService.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_INITIATED, "Deployment initiated successfully.", tx)
+	_ = impl.appStoreDeploymentArgoCdService.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_INITIATED, "Deployment initiated successfully.", time.Now(), tx)
 
 	manifest, err := impl.appStoreDeploymentCommonService.GenerateManifest(installAppVersionRequest)
 	if err != nil {
@@ -1528,7 +1513,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 		return nil, err
 	}
 	if installAppVersionRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD {
-		_ = impl.appStoreDeploymentArgoCdService.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_DESCRIPTION_MANIFEST_GENERATED, "Manifest generated successfully.", tx)
+		_ = impl.appStoreDeploymentArgoCdService.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_DESCRIPTION_MANIFEST_GENERATED, "Manifest generated successfully.", time.Now(), tx)
 	}
 	// gitOps operation
 	monoRepoMigrationRequired := false
@@ -1583,18 +1568,26 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 
 		if createRepoErr != nil || requirementsCommitErr != nil || valuesCommitErr != nil {
 			impl.logger.Errorw("error in doing gitops operation", "err", err)
-			_ = impl.appStoreDeploymentArgoCdService.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED, fmt.Sprintf("Git commit failed - %v", err), tx)
+			_ = impl.appStoreDeploymentArgoCdService.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED, fmt.Sprintf("Git commit failed - %v", err), time.Now(), tx)
 			return nil, err
 		}
 
 		installAppVersionRequest.GitHash = gitHash
-		_ = impl.appStoreDeploymentArgoCdService.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT, "Git commit done successfully.", tx)
-
+		_ = impl.appStoreDeploymentArgoCdService.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT, "Git commit done successfully.", time.Now(), tx)
+		if !impl.aCDConfig.ArgoCDAutoSyncEnabled {
+			_ = impl.appStoreDeploymentArgoCdService.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED, "Argocd sync initiated", time.Now(), tx)
+		}
+		installedAppVersionHistory.GitHash = gitHash
+		_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(installedAppVersionHistory, tx)
+		if err != nil {
+			impl.logger.Errorw("error on updating history for chart deployment", "error", err, "installedAppVersion", installedAppVersion)
+			return nil, err
+		}
 	}
 
 	if installAppVersionRequest.PerformACDDeployment {
 		// refresh update repo details on ArgoCD if repo is changed
-		err = impl.appStoreDeploymentArgoCdService.RefreshAndUpdateACDApp(installAppVersionRequest, gitOpsResponse.ChartGitAttribute, monoRepoMigrationRequired, ctx)
+		err = impl.appStoreDeploymentArgoCdService.UpdateAndSyncACDApps(installAppVersionRequest, gitOpsResponse.ChartGitAttribute, monoRepoMigrationRequired, ctx, tx)
 		if err != nil {
 			impl.logger.Errorw("error in acd patch request", "err", err)
 			return nil, err
@@ -1623,13 +1616,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 		return nil, err
 	}
 
-	if util.IsAcdApp(installAppVersionRequest.DeploymentAppType) {
-		err = impl.UpdateInstalledAppVersionHistoryWithGitHash(installAppVersionRequest)
-		if err != nil {
-			impl.logger.Errorw("error on updating history for chart deployment", "error", err, "installedAppVersion", installedAppVersion)
-			return nil, err
-		}
-	} else if util.IsManifestDownload(installAppVersionRequest.DeploymentAppType) {
+	if util.IsManifestDownload(installAppVersionRequest.DeploymentAppType) {
 		err = impl.UpdateInstalledAppVersionHistoryStatus(installAppVersionRequest, pipelineConfig.WorkflowSucceeded)
 		if err != nil {
 			impl.logger.Errorw("error on creating history for chart deployment", "error", err)

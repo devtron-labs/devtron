@@ -589,7 +589,16 @@ type CDPipelineConfigObject struct {
 	EnableCustomTag               bool                                   `json:"enableCustomTag"`
 	IsGitOpsRepoNotConfigured     bool                                   `json:"isGitOpsRepoNotConfigured"`
 	SwitchFromCiPipelineId        int                                    `json:"switchFromCiPipelineId"`
+	CDPipelineAddType             CDPipelineAddType                      `json:"addType"`
+	ChildPipelineId               int                                    `json:"childPipelineId"`
 }
+
+type CDPipelineAddType string
+
+const (
+	SEQUENTIAL CDPipelineAddType = "SEQUENTIAL"
+	PARALLEL   CDPipelineAddType = "PARALLEL"
+)
 
 func (cdpipelineConfig *CDPipelineConfigObject) IsSwitchCiPipelineRequest() bool {
 	return cdpipelineConfig.SwitchFromCiPipelineId > 0 && cdpipelineConfig.AppWorkflowId > 0

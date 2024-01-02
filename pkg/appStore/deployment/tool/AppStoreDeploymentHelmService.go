@@ -37,7 +37,7 @@ type AppStoreDeploymentHelmService interface {
 	UpdateInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, environment *clusterRepository.Environment, installedAppVersion *repository.InstalledAppVersions, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error)
 	DeleteDeploymentApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error
 	UpdateInstalledAppAndPipelineStatusForFailedDeploymentStatus(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, triggeredAt time.Time, err error) error
-	SaveTimelineForACDHelmApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, status string, statusDetail string, tx *pg.Tx) error
+	SaveTimelineForACDHelmApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, status string, statusDetail string, statusTime time.Time, tx *pg.Tx) error
 	UpdateChartInfo(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *util.ChartGitAttribute, installedAppVersionHistoryId int, ctx context.Context) error
 	ValidateCustomGitRepoURL(request gitops.ValidateCustomGitRepoURLRequest) bean.DetailedErrorGitOpsConfigResponse
 	GetGitRepoUrl(gitOpsRepoName string) (string, error)
@@ -477,7 +477,7 @@ func (impl *AppStoreDeploymentHelmServiceImpl) DeleteDeploymentApp(ctx context.C
 	return nil
 }
 
-func (impl *AppStoreDeploymentHelmServiceImpl) SaveTimelineForACDHelmApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, status string, statusDetail string, tx *pg.Tx) error {
+func (impl *AppStoreDeploymentHelmServiceImpl) SaveTimelineForACDHelmApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, status string, statusDetail string, statusTime time.Time, tx *pg.Tx) error {
 	return nil
 }
 
@@ -488,6 +488,6 @@ func (impl *AppStoreDeploymentHelmServiceImpl) UpdateInstalledAppAndPipelineStat
 // TODO: Need to refactor this,refer below reason
 // This is being done as in ea mode wire argocd service is being binded to helmServiceImpl due to which we are restricted to implement this here.
 // RefreshAndUpdateACDApp this will update chart info in acd app if required in case of mono repo migration and will refresh argo app
-func (impl *AppStoreDeploymentHelmServiceImpl) RefreshAndUpdateACDApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *util.ChartGitAttribute, isMonoRepoMigrationRequired bool, ctx context.Context) error {
+func (impl *AppStoreDeploymentHelmServiceImpl) UpdateAndSyncACDApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *util.ChartGitAttribute, isMonoRepoMigrationRequired bool, ctx context.Context, tx *pg.Tx) error {
 	return errors.New("this is not implemented")
 }

@@ -594,6 +594,7 @@ func (impl *AppCloneServiceImpl) CreateWf(oldAppId, newAppId int, userId int32, 
 	if err != nil {
 		return nil, err
 	}
+
 	impl.logger.Debugw("workflow found", "wf", refAppWFs)
 
 	createWorkflowMappingDtoResp := CreateWorkflowMappingDto{
@@ -673,6 +674,9 @@ func (impl *AppCloneServiceImpl) createWfInstances(refWfMappings []appWorkflow.A
 	var ciMapping []appWorkflow.AppWorkflowMappingDto
 	var cdMappings []appWorkflow.AppWorkflowMappingDto
 	var webhookMappings []appWorkflow.AppWorkflowMappingDto
+
+	refWfMappings = appWorkflow.LevelWiseSort(refWfMappings)
+
 	for _, appWf := range refWfMappings {
 		if appWf.Type == appWorkflow2.CIPIPELINE {
 			ciMapping = append(ciMapping, appWf)
@@ -790,133 +794,149 @@ func (impl *AppCloneServiceImpl) CreateCiPipeline(req *cloneCiPipelineRequest) (
 	if err != nil {
 		return nil, err
 	}
-	for _, refCiPipeline := range refCiConfig.CiPipelines {
-		if refCiPipeline.Id == req.refCiPipelineId {
-			pipelineName := refCiPipeline.Name
-			if strings.HasPrefix(pipelineName, req.refAppName) {
-				pipelineName = strings.Replace(pipelineName, req.refAppName+"-ci-", "", 1)
-			}
-			var ciMaterilas []*bean.CiMaterial
-			for _, refCiMaterial := range refCiPipeline.CiMaterial {
-				//FIXME
-				gitMaterialId := req.gitMaterialMapping[refCiMaterial.GitMaterialId]
-				if refCiPipeline.ParentCiPipeline != 0 {
-					gitMaterialId = refCiMaterial.GitMaterialId
-				}
-				ciMaterial := &bean.CiMaterial{
-					GitMaterialId: gitMaterialId,
-					Id:            0,
-					Source: &bean.SourceTypeConfig{
-						Type:  refCiMaterial.Source.Type,
-						Value: refCiMaterial.Source.Value,
-						Regex: refCiMaterial.Source.Regex,
-					},
-				}
-				ciMaterilas = append(ciMaterilas, ciMaterial)
-			}
-			var beforeDockerBuildScripts []*bean.CiScript
-			var afterDockerBuildScripts []*bean.CiScript
 
-			for _, script := range refCiPipeline.BeforeDockerBuildScripts {
-				ciScript := &bean.CiScript{
-					Id:             0,
-					Index:          script.Index,
-					Name:           script.Name,
-					Script:         script.Script,
-					OutputLocation: script.OutputLocation,
-				}
-				beforeDockerBuildScripts = append(beforeDockerBuildScripts, ciScript)
-			}
-			for _, script := range refCiPipeline.AfterDockerBuildScripts {
-				ciScript := &bean.CiScript{
-					Id:             0,
-					Index:          script.Index,
-					Name:           script.Name,
-					Script:         script.Script,
-					OutputLocation: script.OutputLocation,
-				}
-				afterDockerBuildScripts = append(afterDockerBuildScripts, ciScript)
-			}
-
-			//getting pre stage and post stage details
-			preStageDetail, postStageDetail, err := impl.pipelineStageService.GetCiPipelineStageDataDeepCopy(refCiPipeline.Id)
-			if err != nil {
-				impl.logger.Errorw("error in getting pre & post stage detail by ciPipelineId", "err", err, "ciPipelineId", refCiPipeline.Id)
-				return nil, err
-			}
-			ciPatchReq := &bean.CiPatchRequest{
-				CiPipeline: &bean.CiPipeline{
-					IsManual:                 refCiPipeline.IsManual,
-					DockerArgs:               refCiPipeline.DockerArgs,
-					IsExternal:               refCiPipeline.IsExternal,
-					ExternalCiConfig:         bean.ExternalCiConfig{},
-					CiMaterial:               ciMaterilas,
-					Name:                     pipelineName,
-					Id:                       0,
-					Version:                  refCiPipeline.Version,
-					Active:                   refCiPipeline.Active,
-					Deleted:                  refCiPipeline.Deleted,
-					BeforeDockerBuild:        refCiPipeline.BeforeDockerBuild,
-					AfterDockerBuild:         refCiPipeline.AfterDockerBuild,
-					BeforeDockerBuildScripts: beforeDockerBuildScripts,
-					AfterDockerBuildScripts:  afterDockerBuildScripts,
-					ParentCiPipeline:         refCiPipeline.ParentCiPipeline,
-					IsDockerConfigOverridden: refCiPipeline.IsDockerConfigOverridden,
-					PreBuildStage:            preStageDetail,
-					PostBuildStage:           postStageDetail,
-					EnvironmentId:            refCiPipeline.EnvironmentId,
-					ScanEnabled:              refCiPipeline.ScanEnabled,
-					PipelineType:             refCiPipeline.PipelineType,
-				},
-				AppId:         req.appId,
-				Action:        bean.CREATE,
-				AppWorkflowId: req.wfId,
-				UserId:        req.userId,
-				IsCloneJob:    true,
-			}
-			if refCiPipeline.EnvironmentId != 0 {
-				ciPatchReq.IsJob = true
-			}
-			if !refCiPipeline.IsExternal && refCiPipeline.IsDockerConfigOverridden {
-				//get template override
-				templateOverrideBean, err := impl.ciTemplateService.FindTemplateOverrideByCiPipelineId(refCiPipeline.Id)
-				if err != nil {
-					return nil, err
-				}
-				templateOverride := templateOverrideBean.CiTemplateOverride
-				ciBuildConfig := templateOverrideBean.CiBuildConfig
-				//getting new git material for this app
-				//gitMaterial, err := impl.materialRepository.FindByAppIdAndCheckoutPath(req.appId, templateOverride.GitMaterial.CheckoutPath)
-				if len(req.gitMaterialMapping) == 0 {
-					impl.logger.Errorw("no git materials found for the app", "appId", req.appId)
-					return nil, fmt.Errorf("no git materials found for the app, %d", req.appId)
-				}
-				gitMaterialId := req.gitMaterialMapping[ciBuildConfig.GitMaterialId]
-				buildContextGitMaterialId := req.gitMaterialMapping[ciBuildConfig.BuildContextGitMaterialId]
-				if gitMaterialId == 0 {
-					for _, id := range req.gitMaterialMapping {
-						gitMaterialId = id
-						break
-					}
-				}
-				if buildContextGitMaterialId == 0 {
-					buildContextGitMaterialId = gitMaterialId
-				}
-				ciBuildConfig.GitMaterialId = gitMaterialId
-				ciBuildConfig.BuildContextGitMaterialId = buildContextGitMaterialId
-				templateOverride.GitMaterialId = gitMaterialId
-				ciBuildConfig.Id = 0
-				ciPatchReq.CiPipeline.DockerConfigOverride = bean.DockerConfigOverride{
-					DockerRegistry:   templateOverride.DockerRegistryId,
-					DockerRepository: templateOverride.DockerRepository,
-					CiBuildConfig:    ciBuildConfig,
-				}
-			}
-
-			return impl.pipelineBuilder.PatchCiPipeline(ciPatchReq)
+	var refCiPipeline *bean.CiPipeline
+	var uniqueId int
+	for id, reqCiPipeline := range refCiConfig.CiPipelines {
+		if reqCiPipeline.Id == req.refCiPipelineId {
+			refCiPipeline = reqCiPipeline
+			uniqueId = id
+			break
 		}
 	}
-	return nil, fmt.Errorf("ci pipeline not found ")
+	if refCiPipeline == nil {
+		return nil, nil
+	}
+	pipelineName := refCiPipeline.Name
+	if strings.HasPrefix(pipelineName, req.refAppName) {
+		pipelineName = strings.Replace(pipelineName, req.refAppName+"-ci-", "", 1)
+	}
+
+	pipelineExists, err := impl.ciPipelineRepository.CheckIfPipelineExistsByNameAndAppId(pipelineName, req.appId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching pipeline by name, FindByName", "err", err, "patch cipipeline name", pipelineName)
+		return nil, err
+	}
+	if pipelineExists {
+		pipelineName = fmt.Sprintf("%s-%d", pipelineName, uniqueId) // making pipeline name unique
+	}
+	var ciMaterilas []*bean.CiMaterial
+	for _, refCiMaterial := range refCiPipeline.CiMaterial {
+		//FIXME
+		gitMaterialId := req.gitMaterialMapping[refCiMaterial.GitMaterialId]
+		if refCiPipeline.ParentCiPipeline != 0 {
+			gitMaterialId = refCiMaterial.GitMaterialId
+		}
+		ciMaterial := &bean.CiMaterial{
+			GitMaterialId: gitMaterialId,
+			Id:            0,
+			Source: &bean.SourceTypeConfig{
+				Type:  refCiMaterial.Source.Type,
+				Value: refCiMaterial.Source.Value,
+				Regex: refCiMaterial.Source.Regex,
+			},
+		}
+		ciMaterilas = append(ciMaterilas, ciMaterial)
+	}
+	var beforeDockerBuildScripts []*bean.CiScript
+	var afterDockerBuildScripts []*bean.CiScript
+
+	for _, script := range refCiPipeline.BeforeDockerBuildScripts {
+		ciScript := &bean.CiScript{
+			Id:             0,
+			Index:          script.Index,
+			Name:           script.Name,
+			Script:         script.Script,
+			OutputLocation: script.OutputLocation,
+		}
+		beforeDockerBuildScripts = append(beforeDockerBuildScripts, ciScript)
+	}
+	for _, script := range refCiPipeline.AfterDockerBuildScripts {
+		ciScript := &bean.CiScript{
+			Id:             0,
+			Index:          script.Index,
+			Name:           script.Name,
+			Script:         script.Script,
+			OutputLocation: script.OutputLocation,
+		}
+		afterDockerBuildScripts = append(afterDockerBuildScripts, ciScript)
+	}
+
+	//getting pre stage and post stage details
+	preStageDetail, postStageDetail, err := impl.pipelineStageService.GetCiPipelineStageDataDeepCopy(refCiPipeline.Id)
+	if err != nil {
+		impl.logger.Errorw("error in getting pre & post stage detail by ciPipelineId", "err", err, "ciPipelineId", refCiPipeline.Id)
+		return nil, err
+	}
+	ciPatchReq := &bean.CiPatchRequest{
+		CiPipeline: &bean.CiPipeline{
+			IsManual:                 refCiPipeline.IsManual,
+			DockerArgs:               refCiPipeline.DockerArgs,
+			IsExternal:               refCiPipeline.IsExternal,
+			ExternalCiConfig:         bean.ExternalCiConfig{},
+			CiMaterial:               ciMaterilas,
+			Name:                     pipelineName,
+			Id:                       0,
+			Version:                  refCiPipeline.Version,
+			Active:                   refCiPipeline.Active,
+			Deleted:                  refCiPipeline.Deleted,
+			BeforeDockerBuild:        refCiPipeline.BeforeDockerBuild,
+			AfterDockerBuild:         refCiPipeline.AfterDockerBuild,
+			BeforeDockerBuildScripts: beforeDockerBuildScripts,
+			AfterDockerBuildScripts:  afterDockerBuildScripts,
+			ParentCiPipeline:         refCiPipeline.ParentCiPipeline,
+			IsDockerConfigOverridden: refCiPipeline.IsDockerConfigOverridden,
+			PreBuildStage:            preStageDetail,
+			PostBuildStage:           postStageDetail,
+			EnvironmentId:            refCiPipeline.EnvironmentId,
+			ScanEnabled:              refCiPipeline.ScanEnabled,
+			PipelineType:             refCiPipeline.PipelineType,
+		},
+		AppId:         req.appId,
+		Action:        bean.CREATE,
+		AppWorkflowId: req.wfId,
+		UserId:        req.userId,
+		IsCloneJob:    true,
+	}
+	if refCiPipeline.EnvironmentId != 0 {
+		ciPatchReq.IsJob = true
+	}
+	if !refCiPipeline.IsExternal && refCiPipeline.IsDockerConfigOverridden {
+		//get template override
+		templateOverrideBean, err := impl.ciTemplateService.FindTemplateOverrideByCiPipelineId(refCiPipeline.Id)
+		if err != nil {
+			return nil, err
+		}
+		templateOverride := templateOverrideBean.CiTemplateOverride
+		ciBuildConfig := templateOverrideBean.CiBuildConfig
+		//getting new git material for this app
+		//gitMaterial, err := impl.materialRepository.FindByAppIdAndCheckoutPath(req.appId, templateOverride.GitMaterial.CheckoutPath)
+		if len(req.gitMaterialMapping) == 0 {
+			impl.logger.Errorw("no git materials found for the app", "appId", req.appId)
+			return nil, fmt.Errorf("no git materials found for the app, %d", req.appId)
+		}
+		gitMaterialId := req.gitMaterialMapping[ciBuildConfig.GitMaterialId]
+		buildContextGitMaterialId := req.gitMaterialMapping[ciBuildConfig.BuildContextGitMaterialId]
+		if gitMaterialId == 0 {
+			for _, id := range req.gitMaterialMapping {
+				gitMaterialId = id
+				break
+			}
+		}
+		if buildContextGitMaterialId == 0 {
+			buildContextGitMaterialId = gitMaterialId
+		}
+		ciBuildConfig.GitMaterialId = gitMaterialId
+		ciBuildConfig.BuildContextGitMaterialId = buildContextGitMaterialId
+		templateOverride.GitMaterialId = gitMaterialId
+		ciBuildConfig.Id = 0
+		ciPatchReq.CiPipeline.DockerConfigOverride = bean.DockerConfigOverride{
+			DockerRegistry:   templateOverride.DockerRegistryId,
+			DockerRepository: templateOverride.DockerRepository,
+			CiBuildConfig:    ciBuildConfig,
+		}
+	}
+	return impl.pipelineBuilder.PatchCiPipeline(ciPatchReq)
 }
 
 type cloneCdPipelineRequest struct {

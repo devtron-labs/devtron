@@ -198,6 +198,7 @@ type WorkflowDagExecutorImpl struct {
 	argoClientWrapperService            argocdServer.ArgoClientWrapperService
 	pipelineConfigListenerService       PipelineConfigListenerService
 	customTagService                    CustomTagService
+	ACDConfig                           *argocdServer.ACDConfig
 }
 
 const kedaAutoscaling = "kedaAutoscaling"
@@ -219,6 +220,8 @@ const (
 	CHILD_CD_CLUSTER_NAME_PREFIX = "CHILD_CD_CLUSTER_NAME"
 	CHILD_CD_COUNT               = "CHILD_CD_COUNT"
 	DEVTRON_SYSTEM_USER_ID       = 1
+	ARGOCD_SYNC_ERROR            = "error in syncing argoCD app"
+	ARGOCD_REFRESH_ERROR         = "Error in refreshing argocd app"
 )
 
 type DevtronAppReleaseContextType struct {
@@ -303,6 +306,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
 	pipelineConfigListenerService PipelineConfigListenerService,
 	customTagService CustomTagService,
+	ACDConfig *argocdServer.ACDConfig,
 ) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
@@ -379,6 +383,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		argoClientWrapperService:            argoClientWrapperService,
 		pipelineConfigListenerService:       pipelineConfigListenerService,
 		customTagService:                    customTagService,
+		ACDConfig:                           ACDConfig,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -2444,7 +2449,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 		}
 		overrideRequest.CdWorkflowId = cdWorkflowId
 		// creating cd pipeline status timeline for deployment initialisation
-		timeline := impl.pipelineStatusTimelineService.GetTimelineDbObjectByTimelineStatusAndTimelineDescription(savedWfr.Id, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_INITIATED, pipelineConfig.TIMELINE_DESCRIPTION_DEPLOYMENT_INITIATED, overrideRequest.UserId)
+		timeline := impl.pipelineStatusTimelineService.GetTimelineDbObjectByTimelineStatusAndTimelineDescription(savedWfr.Id, 0, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_INITIATED, pipelineConfig.TIMELINE_DESCRIPTION_DEPLOYMENT_INITIATED, overrideRequest.UserId, time.Now())
 		_, span = otel.Tracer("orchestrator").Start(ctx, "cdPipelineStatusTimelineRepo.SaveTimelineForACDHelmApps")
 		err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, false)
 
@@ -3012,6 +3017,12 @@ func (impl *WorkflowDagExecutorImpl) TriggerPipeline(overrideRequest *bean.Value
 	}
 
 	if triggerEvent.PerformChartPush {
+		//update workflow runner status, used in app workflow view
+		err = impl.UpdateCDWorkflowRunnerStatus(ctx, overrideRequest, triggerEvent.TriggerdAt, pipelineConfig.WorkflowInProgress, "")
+		if err != nil {
+			impl.logger.Errorw("error in updating the workflow runner status, createHelmAppForCdPipeline", "err", err)
+			return releaseNo, manifest, err
+		}
 		manifestPushTemplate, err := impl.BuildManifestPushTemplate(overrideRequest, valuesOverrideResponse, builtChartPath, &manifest)
 		if err != nil {
 			impl.logger.Errorw("error in building manifest push template", "err", err)
@@ -3475,22 +3486,40 @@ func (impl *WorkflowDagExecutorImpl) DeployArgocdApp(overrideRequest *bean.Value
 	impl.logger.Debugw("argocd application created", "name", name)
 
 	_, span = otel.Tracer("orchestrator").Start(ctx, "updateArgoPipeline")
-	updateAppInArgocd, err := impl.updateArgoPipeline(overrideRequest.AppId, valuesOverrideResponse.Pipeline.Name, valuesOverrideResponse.EnvOverride, ctx)
+	updateAppInArgocd, err := impl.updateArgoPipeline(valuesOverrideResponse.Pipeline, valuesOverrideResponse.EnvOverride, ctx)
 	span.End()
 	if err != nil {
 		impl.logger.Errorw("error in updating argocd app ", "err", err)
 		return err
 	}
+	syncTime := time.Now()
+	err = impl.argoClientWrapperService.SyncArgoCDApplicationIfNeededAndRefresh(ctx, valuesOverrideResponse.Pipeline.DeploymentAppName)
+	if err != nil {
+		impl.logger.Errorw("error in getting argo application with normal refresh", "argoAppName", valuesOverrideResponse.Pipeline.DeploymentAppName)
+		return fmt.Errorf("%s. err: %s", ARGOCD_SYNC_ERROR, err.Error())
+	}
+	if !impl.ACDConfig.ArgoCDAutoSyncEnabled {
+		timeline := &pipelineConfig.PipelineStatusTimeline{
+			CdWorkflowRunnerId: overrideRequest.WfrId,
+			StatusTime:         syncTime,
+			AuditLog: sql.AuditLog{
+				CreatedBy: 1,
+				CreatedOn: time.Now(),
+				UpdatedBy: 1,
+				UpdatedOn: time.Now(),
+			},
+			Status:       pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED,
+			StatusDetail: "argocd sync completed",
+		}
+		_, err, _ = impl.pipelineStatusTimelineService.SavePipelineStatusTimelineIfNotAlreadyPresent(overrideRequest.WfrId, timeline.Status, timeline, false)
+		if err != nil {
+			impl.logger.Errorw("error in saving pipeline status timeline", "err", err)
+		}
+	}
 	if updateAppInArgocd {
 		impl.logger.Debug("argo-cd successfully updated")
 	} else {
 		impl.logger.Debug("argo-cd failed to update, ignoring it")
-	}
-	//update workflow runner status, used in app workflow view
-	err = impl.UpdateCDWorkflowRunnerStatus(ctx, overrideRequest, triggeredAt, pipelineConfig.WorkflowInProgress, "")
-	if err != nil {
-		impl.logger.Errorw("error in updating the workflow runner status, createHelmAppForCdPipeline", "err", err)
-		return err
 	}
 	return nil
 }
@@ -3516,6 +3545,7 @@ func (impl *WorkflowDagExecutorImpl) createArgoApplicationIfRequired(appId int, 
 			appNamespace = "default"
 		}
 		namespace := argocdServer.DevtronInstalationNs
+
 		appRequest := &argocdServer.AppTemplate{
 			ApplicationName: argoAppName,
 			Namespace:       namespace,
@@ -3525,9 +3555,9 @@ func (impl *WorkflowDagExecutorImpl) createArgoApplicationIfRequired(appId int, 
 			ValuesFile:      impl.getValuesFileForEnv(envModel.Id),
 			RepoPath:        chart.ChartLocation,
 			RepoUrl:         chart.GitRepoUrl, //The custom repository url is handled at build manifest level
+			AutoSyncEnabled: impl.ACDConfig.ArgoCDAutoSyncEnabled,
 		}
-
-		argoAppName, err := impl.argoK8sClient.CreateAcdApp(appRequest, envModel.Cluster)
+		argoAppName, err := impl.argoK8sClient.CreateAcdApp(appRequest, envModel.Cluster, argocdServer.ARGOCD_APPLICATION_TEMPLATE)
 		if err != nil {
 			return "", err
 		}
@@ -4504,35 +4534,25 @@ func (impl *WorkflowDagExecutorImpl) GetGitOpsRepoName(appName string, environme
 	return gitOpsRepoName, nil
 }
 
-func (impl *WorkflowDagExecutorImpl) updateArgoPipeline(appId int, pipelineName string, envOverride *chartConfig.EnvConfigOverride, ctx context.Context) (bool, error) {
-	//repo has been registered while helm create
+// update repoUrl, revision and argo app sync mode (auto/manual) if needed
+func (impl *WorkflowDagExecutorImpl) updateArgoPipeline(pipeline *pipelineConfig.Pipeline, envOverride *chartConfig.EnvConfigOverride, ctx context.Context) (bool, error) {
 	if ctx == nil {
-		impl.logger.Errorw("err in syncing ACD, ctx is NULL", "pipelineName", pipelineName)
+		impl.logger.Errorw("err in syncing ACD, ctx is NULL", "pipelineName", pipeline.Name)
 		return false, nil
 	}
-	app, err := impl.appRepository.FindById(appId)
-	if err != nil {
-		impl.logger.Errorw("no app found ", "err", err)
-		return false, err
-	}
-	envModel, err := impl.envRepository.FindById(envOverride.TargetEnvironment)
-	if err != nil {
-		return false, err
-	}
-	argoAppName := fmt.Sprintf("%s-%s", app.AppName, envModel.Name)
-	impl.logger.Infow("received payload, updateArgoPipeline", "appId", appId, "pipelineName", pipelineName, "envId", envOverride.TargetEnvironment, "argoAppName", argoAppName, "context", ctx)
+	argoAppName := pipeline.DeploymentAppName
+	impl.logger.Infow("received payload, updateArgoPipeline", "appId", pipeline.AppId, "pipelineName", pipeline.Name, "envId", envOverride.TargetEnvironment, "argoAppName", argoAppName, "context", ctx)
 	argoApplication, err := impl.acdClient.Get(ctx, &application3.ApplicationQuery{Name: &argoAppName})
 	if err != nil {
-		impl.logger.Errorw("no argo app exists", "app", argoAppName, "pipeline", pipelineName)
+		impl.logger.Errorw("no argo app exists", "app", argoAppName, "pipeline", pipeline.Name)
 		return false, err
 	}
 	//if status, ok:=status.FromError(err);ok{
 	appStatus, _ := status2.FromError(err)
-
 	if appStatus.Code() == codes.OK {
-		impl.logger.Debugw("argo app exists", "app", argoAppName, "pipeline", pipelineName)
+		impl.logger.Debugw("argo app exists", "app", argoAppName, "pipeline", pipeline.Name)
 		if argoApplication.Spec.Source.Path != envOverride.Chart.ChartLocation || argoApplication.Spec.Source.TargetRevision != "master" {
-			patchReq := v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: v1alpha1.ApplicationSource{Path: envOverride.Chart.ChartLocation, RepoURL: envOverride.Chart.GitRepoUrl, TargetRevision: "master"}}}
+			patchReq := v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{Path: envOverride.Chart.ChartLocation, RepoURL: envOverride.Chart.GitRepoUrl, TargetRevision: "master"}}}
 			reqbyte, err := json.Marshal(patchReq)
 			if err != nil {
 				impl.logger.Errorw("error in creating patch", "err", err)
@@ -4541,24 +4561,24 @@ func (impl *WorkflowDagExecutorImpl) updateArgoPipeline(appId int, pipelineName 
 			patchType := "merge"
 			_, err = impl.acdClient.Patch(ctx, &application3.ApplicationPatchRequest{Patch: &reqString, Name: &argoAppName, PatchType: &patchType})
 			if err != nil {
-				impl.logger.Errorw("error in creating argo pipeline ", "name", pipelineName, "patch", string(reqbyte), "err", err)
+				impl.logger.Errorw("error in creating argo pipeline ", "name", pipeline.Name, "patch", string(reqbyte), "err", err)
 				return false, err
 			}
 			impl.logger.Debugw("pipeline update req ", "res", patchReq)
 		} else {
 			impl.logger.Debug("pipeline no need to update ")
 		}
-		// Doing normal refresh to avoid the sync delay in argo-cd.
-		err2 := impl.argoClientWrapperService.GetArgoAppWithNormalRefresh(ctx, argoAppName)
-		if err2 != nil {
-			impl.logger.Errorw("error in getting argo application with normal refresh", "argoAppName", argoAppName, "pipelineName", pipelineName)
+		err := impl.argoClientWrapperService.UpdateArgoCDSyncModeIfNeeded(ctx, argoApplication)
+		if err != nil {
+			impl.logger.Errorw("error in updating argocd sync mode", "err", err)
+			return false, err
 		}
 		return true, nil
 	} else if appStatus.Code() == codes.NotFound {
-		impl.logger.Errorw("argo app not found", "app", argoAppName, "pipeline", pipelineName)
+		impl.logger.Errorw("argo app not found", "app", argoAppName, "pipeline", pipeline.Name)
 		return false, nil
 	} else {
-		impl.logger.Errorw("err in checking application on gocd", "err", err, "pipeline", pipelineName)
+		impl.logger.Errorw("err in checking application on argoCD", "err", err, "pipeline", pipeline.Name)
 		return false, err
 	}
 }
