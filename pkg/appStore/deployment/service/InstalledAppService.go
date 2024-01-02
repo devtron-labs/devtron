@@ -242,17 +242,6 @@ func (impl InstalledAppServiceImpl) GetAll(filter *appStoreBean.AppStoreFilter) 
 	return installedAppsResponse, nil
 }
 
-// converts db object to bean
-func (impl InstalledAppServiceImpl) chartAdaptor(chart *repository2.InstalledAppVersions) (*appStoreBean.InstallAppVersionDTO, error) {
-
-	return &appStoreBean.InstallAppVersionDTO{
-		InstalledAppId:     chart.InstalledAppId,
-		Id:                 chart.Id,
-		AppStoreVersion:    chart.AppStoreApplicationVersionId,
-		ValuesOverrideYaml: chart.ValuesYaml,
-	}, nil
-}
-
 func (impl InstalledAppServiceImpl) CheckAppExists(appNames []*appStoreBean.AppNames) ([]*appStoreBean.AppNames, error) {
 	if len(appNames) == 0 {
 		return nil, nil
