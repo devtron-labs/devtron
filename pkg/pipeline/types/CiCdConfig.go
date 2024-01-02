@@ -20,7 +20,7 @@ import (
 )
 
 type CiCdConfig struct {
-	//from ciConfig
+	// from ciConfig
 	DefaultCacheBucket               string                              `env:"DEFAULT_CACHE_BUCKET" envDefault:"ci-caching"`
 	DefaultCacheBucketRegion         string                              `env:"DEFAULT_CACHE_BUCKET_REGION" envDefault:"us-east-2"`
 	CiLogsKeyPrefix                  string                              `env:"CI_LOGS_KEY_PREFIX" envDxefault:"my-artifacts"`
@@ -58,14 +58,14 @@ type CiCdConfig struct {
 	UseBuildx                        bool                                `env:"USE_BUILDX" envDefault:"false"`
 	EnableBuildContext               bool                                `env:"ENABLE_BUILD_CONTEXT" envDefault:"false"`
 	ImageRetryCount                  int                                 `env:"IMAGE_RETRY_COUNT" envDefault:"0"`
-	ImageRetryInterval               int                                 `env:"IMAGE_RETRY_INTERVAL" envDefault:"5"` //image retry interval takes value in seconds
+	ImageRetryInterval               int                                 `env:"IMAGE_RETRY_INTERVAL" envDefault:"5"` // image retry interval takes value in seconds
 	CiWorkflowExecutorType           pipelineConfig.WorkflowExecutorType `env:"CI_WORKFLOW_EXECUTOR_TYPE" envDefault:"AWF"`
 	BuildxK8sDriverOptions           string                              `env:"BUILDX_K8S_DRIVER_OPTIONS" envDefault:""`
 	CIAutoTriggerBatchSize           int                                 `env:"CI_SUCCESS_AUTO_TRIGGER_BATCH_SIZE" envDefault:"1"`
 	SkipCreatingEcrRepo              bool                                `env:"SKIP_CREATING_ECR_REPO" envDefault:"false"`
 	MaxCiWorkflowRetries             int                                 `env:"MAX_CI_WORKFLOW_RETRIES" envDefault:"0"`
-
-	//from CdConfig
+	NatsServerHost                   string                              `env:"NATS_SERVER_HOST" envDefault:"nats://devtron-nats.devtroncd:4222"`
+	// from CdConfig
 	CdLimitCpu                       string                              `env:"CD_LIMIT_CI_CPU" envDefault:"0.5"`
 	CdLimitMem                       string                              `env:"CD_LIMIT_CI_MEM" envDefault:"3G"`
 	CdReqCpu                         string                              `env:"CD_REQ_CI_CPU" envDefault:"0.5"`
@@ -95,7 +95,7 @@ type CiCdConfig struct {
 	TerminationGracePeriod           int                                 `env:"TERMINATION_GRACE_PERIOD_SECS" envDefault:"180"`
 	MaxCdWorkflowRunnerRetries       int                                 `env:"MAX_CD_WORKFLOW_RUNNER_RETRIES" envDefault:"0"`
 
-	//common in both ciconfig and cd config
+	// common in both ciconfig and cd config
 	Type                                       string
 	Mode                                       string `env:"MODE" envDefault:"DEV"`
 	OrchestratorHost                           string `env:"ORCH_HOST" envDefault:"http://devtroncd-orchestrator-service-prod.devtroncd/webhook/msg/nats"`
@@ -118,7 +118,7 @@ type CiCdConfig struct {
 	BuildLogTTLValue                           int                          `env:"BUILD_LOG_TTL_VALUE_IN_SECS" envDefault:"3600"`
 	BaseLogLocationPath                        string                       `env:"BASE_LOG_LOCATION_PATH" envDefault:"/home/devtron/"`
 	InAppLoggingEnabled                        bool                         `env:"IN_APP_LOGGING_ENABLED" envDefault:"false"`
-	BuildxProvenanceMode                       string                       `env:"BUILDX_PROVENANCE_MODE" envDefault:""` //provenance is set to false if this flag is not set
+	BuildxProvenanceMode                       string                       `env:"BUILDX_PROVENANCE_MODE" envDefault:""` // provenance is set to false if this flag is not set
 	ExtBlobStorageCmName                       string                       `env:"EXTERNAL_BLOB_STORAGE_CM_NAME" envDefault:"blob-storage-cm"`
 	ExtBlobStorageSecretName                   string                       `env:"EXTERNAL_BLOB_STORAGE_SECRET_NAME" envDefault:"blob-storage-secret"`
 	UseArtifactListingQueryV2                  bool                         `env:"USE_ARTIFACT_LISTING_QUERY_V2" envDefault:"true"`
@@ -189,7 +189,7 @@ func GetCiCdConfig() (*CiCdConfig, error) {
 			return nil, err
 		}
 	}
-	//validation for supported cloudproviders
+	// validation for supported cloudproviders
 	if cfg.BlobStorageEnabled && cfg.CloudProvider != BLOB_STORAGE_S3 && cfg.CloudProvider != BLOB_STORAGE_AZURE &&
 		cfg.CloudProvider != BLOB_STORAGE_GCP && cfg.CloudProvider != BLOB_STORAGE_MINIO {
 		return nil, fmt.Errorf("unsupported blob storage provider: %s", cfg.CloudProvider)
