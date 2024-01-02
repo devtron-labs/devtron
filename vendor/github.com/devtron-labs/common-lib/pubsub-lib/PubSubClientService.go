@@ -15,9 +15,10 @@ import (
 	"time"
 )
 
+type ValidateMsg func(msgId *string) bool
 type PubSubClientService interface {
 	Publish(topic string, msg string) error
-	Subscribe(topic string, callback func(msg *model.PubSubMsg)) error
+	Subscribe(topic string, callback func(msg *model.PubSubMsg), validations ...ValidateMsg) error
 }
 
 type PubSubClientServiceImpl struct {
@@ -78,7 +79,7 @@ func (impl PubSubClientServiceImpl) Publish(topic string, msg string) error {
 	return nil
 }
 
-func (impl PubSubClientServiceImpl) Subscribe(topic string, callback func(msg *model.PubSubMsg)) error {
+func (impl PubSubClientServiceImpl) Subscribe(topic string, callback func(msg *model.PubSubMsg), validations ...ValidateMsg) error {
 	impl.Logger.Infow("Subscribed to pubsub client", "topic", topic)
 	natsTopic := GetNatsTopic(topic)
 	streamName := natsTopic.streamName
@@ -114,31 +115,31 @@ func (impl PubSubClientServiceImpl) Subscribe(topic string, callback func(msg *m
 		impl.Logger.Fatalw("error while subscribing to nats ", "stream", streamName, "topic", topic, "error", err)
 		return err
 	}
-	go impl.startListeningForEvents(processingBatchSize, channel, callback)
+	go impl.startListeningForEvents(processingBatchSize, channel, callback, validations...)
 	impl.Logger.Infow("Successfully subscribed with Nats", "stream", streamName, "topic", topic, "queue", queueName, "consumer", consumerName)
 	return nil
 }
 
-func (impl PubSubClientServiceImpl) startListeningForEvents(processingBatchSize int, channel chan *nats.Msg, callback func(msg *model.PubSubMsg)) {
+func (impl PubSubClientServiceImpl) startListeningForEvents(processingBatchSize int, channel chan *nats.Msg, callback func(msg *model.PubSubMsg), validations ...ValidateMsg) {
 	wg := new(sync.WaitGroup)
 
 	for index := 0; index < processingBatchSize; index++ {
 		wg.Add(1)
-		go impl.processMessages(wg, channel, callback)
+		go impl.processMessages(wg, channel, callback, validations...)
 	}
 	wg.Wait()
 	impl.Logger.Warn("msgs received Done from Nats side, going to end listening!!")
 }
 
-func (impl PubSubClientServiceImpl) processMessages(wg *sync.WaitGroup, channel chan *nats.Msg, callback func(msg *model.PubSubMsg)) {
+func (impl PubSubClientServiceImpl) processMessages(wg *sync.WaitGroup, channel chan *nats.Msg, callback func(msg *model.PubSubMsg), validations ...ValidateMsg) {
 	defer wg.Done()
 	for msg := range channel {
-		impl.processMsg(msg, callback)
+		impl.processMsg(msg, callback, validations...)
 	}
 }
 
 // TODO need to extend msg ack depending upon response from callback like error scenario
-func (impl PubSubClientServiceImpl) processMsg(msg *nats.Msg, callback func(msg *model.PubSubMsg)) {
+func (impl PubSubClientServiceImpl) processMsg(msg *nats.Msg, callback func(msg *model.PubSubMsg), validations ...ValidateMsg) {
 	t1 := time.Now()
 	metrics.IncConsumingCount(msg.Subject)
 	defer metrics.IncConsumptionCount(msg.Subject)
@@ -146,7 +147,7 @@ func (impl PubSubClientServiceImpl) processMsg(msg *nats.Msg, callback func(msg 
 		// wrapping this function in defer as directly calling Observe() will run immediately
 		metrics.NatsEventConsumptionTime.WithLabelValues(msg.Subject).Observe(float64(time.Since(t1).Milliseconds()))
 	}()
-	impl.TryCatchCallBack(msg, callback)
+	impl.TryCatchCallBack(msg, callback, validations...)
 }
 
 func (impl PubSubClientServiceImpl) publishPanicError(msg *nats.Msg, panicErr error) (err error) {
@@ -172,20 +173,31 @@ func (impl PubSubClientServiceImpl) publishPanicError(msg *nats.Msg, panicErr er
 }
 
 // TryCatchCallBack is a fail-safe method to use callback function
-func (impl PubSubClientServiceImpl) TryCatchCallBack(msg *nats.Msg, callback func(msg *model.PubSubMsg)) {
+func (impl PubSubClientServiceImpl) TryCatchCallBack(msg *nats.Msg, callback func(msg *model.PubSubMsg), validations ...ValidateMsg) {
 	var msgDeliveryCount uint64 = 0
 	if metadata, err := msg.Metadata(); err == nil {
 		msgDeliveryCount = metadata.NumDelivered
 	}
-	natsMsgId := pointer.String(msg.Header.Get(model.NatsMsgId))
-	subMsg := &model.PubSubMsg{Data: string(msg.Data), MsgDeliverCount: msgDeliveryCount, MsgId: natsMsgId}
+	natsMsgId := msg.Header.Get(model.NatsMsgId)
+	var natsMsgIdPtr *string = nil
+	if natsMsgId != "" {
+		natsMsgIdPtr = pointer.String(natsMsgId)
+	}
+	// run validations
+	for _, validation := range validations {
+		if !validation(natsMsgIdPtr) {
+			impl.Logger.Warnw("nats: message validation failed, not processing the message...", "subject", msg.Subject, "msg", string(msg.Data))
+			return
+		}
+	}
+	subMsg := &model.PubSubMsg{Data: string(msg.Data), MsgDeliverCount: msgDeliveryCount, MsgId: natsMsgIdPtr}
 	defer func() {
 		// Acknowledge the message delivery
 		err := msg.Ack()
 		if err != nil {
 			impl.Logger.Errorw("nats: unable to acknowledge the message", "subject", msg.Subject, "msg", string(msg.Data))
 		}
-		metrics.NatsEventDeliveryCount.WithLabelValues(msg.Subject, *natsMsgId).Observe(float64(msgDeliveryCount))
+		metrics.NatsEventDeliveryCount.WithLabelValues(msg.Subject, natsMsgId).Observe(float64(msgDeliveryCount))
 		// Panic recovery handling
 		if panicInfo := recover(); panicInfo != nil {
 			impl.Logger.Warnw("nats: found panic error", "subject", msg.Subject, "payload", string(msg.Data), "logs", string(debug.Stack()))

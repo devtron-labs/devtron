@@ -150,7 +150,8 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) Subscribe() error {
 			return
 		}
 	}
-	err := impl.pubsubClient.Subscribe(pubsub.ARGO_PIPELINE_STATUS_UPDATE_TOPIC, callback)
+	validations := impl.workflowDagExecutor.GetTriggerValidateFuncs()
+	err := impl.pubsubClient.Subscribe(pubsub.ARGO_PIPELINE_STATUS_UPDATE_TOPIC, callback, validations...)
 	if err != nil {
 		impl.logger.Errorw("error in subscribing to argo application status update topic", "err", err)
 		return err

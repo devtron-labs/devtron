@@ -114,6 +114,7 @@ type WorkflowDagExecutor interface {
 	OnDeleteCdPipelineEvent(pipelineId int, triggeredBy int32)
 	MarkPipelineStatusTimelineFailed(runner *pipelineConfig.CdWorkflowRunner, releaseErr error) error
 	UpdateTriggerCDMetricsOnFinish(runner *pipelineConfig.CdWorkflowRunner)
+	GetTriggerValidateFuncs() []pubsub.ValidateMsg
 }
 
 type WorkflowDagExecutorImpl struct {
@@ -456,7 +457,8 @@ func (impl *WorkflowDagExecutorImpl) Subscribe() error {
 			}
 		}
 	}
-	err := impl.pubsubClient.Subscribe(pubsub.CD_STAGE_COMPLETE_TOPIC, callback)
+	validations := impl.GetTriggerValidateFuncs()
+	err := impl.pubsubClient.Subscribe(pubsub.CD_STAGE_COMPLETE_TOPIC, callback, validations...)
 	if err != nil {
 		impl.logger.Error("error", "err", err)
 		return err
@@ -1063,7 +1065,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, reques
 
 	natsMsgId := request.NatsMsgId
 	if natsMsgId != nil {
-		if err := impl.initialTrigger(natsMsgId); err != nil {
+		if err := impl.isInitialTrigger(natsMsgId); err != nil {
 			impl.logger.Errorw("error in validating trigger request", "natsMsgId", natsMsgId, "err", err)
 			return err
 		}
@@ -1301,7 +1303,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(ctx context.Context, reque
 	cdWf := request.CdWf
 
 	if natsMsgId != nil {
-		if err := impl.initialTrigger(natsMsgId); err != nil {
+		if err := impl.isInitialTrigger(natsMsgId); err != nil {
 			impl.logger.Errorw("error in validating trigger request", "natsMsgId", natsMsgId, "err", err)
 			return err
 		}
@@ -2076,7 +2078,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(ctx context.Context, requ
 	}
 	natsMsgId := request.NatsMsgId
 	if natsMsgId != nil {
-		if err := impl.initialTrigger(natsMsgId); err != nil {
+		if err := impl.isInitialTrigger(natsMsgId); err != nil {
 			impl.logger.Errorw("error in validating trigger request", "natsMsgId", natsMsgId, "err", err)
 			return err
 		}
@@ -2753,7 +2755,8 @@ func (impl *WorkflowDagExecutorImpl) subscribeTriggerBulkAction() error {
 		}
 		impl.cdWorkflowRepository.UpdateWorkFlow(wf)
 	}
-	err := impl.pubsubClient.Subscribe(pubsub.BULK_DEPLOY_TOPIC, callback)
+	validations := impl.GetTriggerValidateFuncs()
+	err := impl.pubsubClient.Subscribe(pubsub.BULK_DEPLOY_TOPIC, callback, validations...)
 	return err
 }
 
@@ -4879,9 +4882,9 @@ func (impl *WorkflowDagExecutorImpl) UpdateCDWorkflowRunnerStatus(ctx context.Co
 	return nil
 }
 
-// initialTrigger checks if the current trigger request with natsMsgId haven't already initiated the trigger.
+// isInitialTrigger checks if the current trigger request with natsMsgId haven't already initiated the trigger.
 // throws error if the request is already processed.
-func (impl *WorkflowDagExecutorImpl) initialTrigger(natsMsgId *string) error {
+func (impl *WorkflowDagExecutorImpl) isInitialTrigger(natsMsgId *string) error {
 	if natsMsgId == nil {
 		return nil
 	}
@@ -4896,4 +4899,20 @@ func (impl *WorkflowDagExecutorImpl) initialTrigger(natsMsgId *string) error {
 	}
 
 	return nil
+}
+
+// GetTriggerValidateFuncs gets all the required validation funcs
+func (impl *WorkflowDagExecutorImpl) GetTriggerValidateFuncs() []pubsub.ValidateMsg {
+
+	var duplicateTriggerValidateFunc pubsub.ValidateMsg = func(msgId *string) bool {
+		impl.logger.Infow("validating the pub-sub message for duplicate trigger condition", "msgId", msgId)
+		if err := impl.isInitialTrigger(msgId); err != nil {
+			impl.logger.Warnw("duplicate trigger condition, duplicate message", "msgId", msgId, "err", err)
+			return false
+		}
+		return true
+	}
+
+	return []pubsub.ValidateMsg{duplicateTriggerValidateFunc}
+
 }

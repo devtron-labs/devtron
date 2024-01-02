@@ -162,7 +162,8 @@ func (impl *ApplicationStatusHandlerImpl) Subscribe() error {
 		impl.logger.Debugw("application status update completed", "app", app.Name)
 	}
 
-	err := impl.pubsubClient.Subscribe(pubsub.APPLICATION_STATUS_UPDATE_TOPIC, callback)
+	validations := impl.workflowDagExecutor.GetTriggerValidateFuncs()
+	err := impl.pubsubClient.Subscribe(pubsub.APPLICATION_STATUS_UPDATE_TOPIC, callback, validations...)
 	if err != nil {
 		impl.logger.Error(err)
 		return err

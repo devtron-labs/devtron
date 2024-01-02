@@ -50,10 +50,11 @@ type CiEventHandler interface {
 }
 
 type CiEventHandlerImpl struct {
-	logger         *zap.SugaredLogger
-	pubsubClient   *pubsub.PubSubClientServiceImpl
-	webhookService pipeline.WebhookService
-	ciEventConfig  *CiEventConfig
+	logger              *zap.SugaredLogger
+	pubsubClient        *pubsub.PubSubClientServiceImpl
+	webhookService      pipeline.WebhookService
+	workflowDagExecutor pipeline.WorkflowDagExecutor
+	ciEventConfig       *CiEventConfig
 }
 
 type ImageDetailsFromCR struct {
@@ -80,12 +81,13 @@ type CiCompleteEvent struct {
 	PluginArtifactStage           string                   `json:"pluginArtifactStage"`
 }
 
-func NewCiEventHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSubClientServiceImpl, webhookService pipeline.WebhookService, ciEventConfig *CiEventConfig) *CiEventHandlerImpl {
+func NewCiEventHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSubClientServiceImpl, webhookService pipeline.WebhookService, ciEventConfig *CiEventConfig, workflowDagExecutor pipeline.WorkflowDagExecutor) *CiEventHandlerImpl {
 	ciEventHandlerImpl := &CiEventHandlerImpl{
-		logger:         logger,
-		pubsubClient:   pubsubClient,
-		webhookService: webhookService,
-		ciEventConfig:  ciEventConfig,
+		logger:              logger,
+		pubsubClient:        pubsubClient,
+		webhookService:      webhookService,
+		ciEventConfig:       ciEventConfig,
+		workflowDagExecutor: workflowDagExecutor,
 	}
 	err := ciEventHandlerImpl.Subscribe()
 	if err != nil {
@@ -154,7 +156,8 @@ func (impl *CiEventHandlerImpl) Subscribe() error {
 			impl.logger.Debug(resp)
 		}
 	}
-	err := impl.pubsubClient.Subscribe(pubsub.CI_COMPLETE_TOPIC, callback)
+	validations := impl.workflowDagExecutor.GetTriggerValidateFuncs()
+	err := impl.pubsubClient.Subscribe(pubsub.CI_COMPLETE_TOPIC, callback, validations...)
 	if err != nil {
 		impl.logger.Error(err)
 		return err
