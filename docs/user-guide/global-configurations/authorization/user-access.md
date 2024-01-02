@@ -188,6 +188,10 @@ Click `Save`once you have configured all the required permissions for the users.
 
 ### Edit User Permissions
 
+{% hint style="warning" %}
+You cannot edit user permissions if 'auto-assign permission' is enabled in the SSO configuration of either [Microsoft](../authorization/sso/microsoft.md#auto-assign-permissions) or [LDAP](../authorization/sso/ldap.md#auto-assign-permissions).
+{% endhint %}
+
 You can edit the user permissions by clicking on the `downward arrow`.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/user-access/edit+user+permission_dropdown_1.JPG)

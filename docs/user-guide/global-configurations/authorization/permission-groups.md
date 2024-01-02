@@ -16,7 +16,7 @@ Enter the `Group Name` and `Description`.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/permission-group/permission-group-2.png)
 
-Assign the permissions of groups to users to manage access for:
+You can either grant [super-admin](../../global-configurations/authorization/user-access.md#role-based-access-levels) permission to a user group or specific permissions to manage access for:
 
    * [Devtron Apps](#devtron-apps-permissions)
    * [Helm Apps](#helm-apps-permissions)

@@ -1,0 +1,59 @@
+# Microsoft
+
+## Sample Configuration
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/sso-login-service/microsoft.jpg)
+
+---
+
+## Things to fetch from SSO Provider
+
+Devtron provides a sample configuration out of the box. Here are some values you need to fetch from your SSO provider.
+
+* clientID
+* clientSecret
+* tenantID (required only if you want to use Azure AD for auto-assigning permissions)
+
+{% hint style="info" %}
+
+### Reference
+
+[Microsoft - Get your Microsoft API Client ID and Secret](https://learn.microsoft.com/en-us/entra/identity-platform/quickstart-register-app)
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/sso-login-service/secret/ms-id-secret1.jpg)
+
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/sso-login-service/secret/ms-id-secret2.jpg)
+
+{% endhint %}
+
+---
+
+## Auto-assign Permissions [![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg)](https://devtron.ai/pricing)
+
+{% hint style="info" %}
+Only a super-admin can enable this feature. Make sure to add tenantID in the SSO configuration field without fail.
+{% endhint %}
+
+Since Microsoft supports <a href="https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/get-started/virtual-dc/active-directory-domain-services-overview" target="_blank">Active Directory (AD)</a>
+, this feature further simplifies the onboarding process of organizations having a large headcount of users. It also eliminates repetitive permission assignment by automatically mapping your Azure AD groups to Devtron's [Permission Groups](../permission-groups.md) during single sign-on (SSO) login.
+
+![Enabling Permission Auto-assignment](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/sso-login-service/secret/auto-grant.jpg)
+
+In other words, if you have created groups within your active directory representing different roles or access levels, you can use the same group name to create a permission group in Devtron. When users belonging to a specific group on your active directory log in to Devtron for the first time, they will automatically get the pre-decided permissions granted to them. This also means that you cannot change or add separate [permissions for a user](../user-access.md) mapped to a permission group.
+
+{% hint style="warning" %}
+SSO login will fail if there's any mismatch between the name of permission group created in Devtron with the group present in your active directory (or if the group is absent altogether).
+
+Once you save the configuration with this feature enabled, existing user permissions will be cleared and the future permissions will be managed through [Permission Groups](../permission-groups.md) linked to Azure Active Directory (Microsoft Entra ID) groups.
+{% endhint %}
+
+{% hint style="info" %}
+Fetching and updating of permissions occurs during login. Therefore, if you have some permissions at AD that aren't reflecting in Devtron, you may have to sign out and sign in to Devtron again.
+{% endhint %}
+
+
+
+
+
+
