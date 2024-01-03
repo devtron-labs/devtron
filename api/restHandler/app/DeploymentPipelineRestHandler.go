@@ -1253,7 +1253,7 @@ func (handler PipelineConfigRestHandlerImpl) PerformDeploymentApprovalAction(w h
 		//rback block ends here
 	}
 
-	err = handler.cdHandler.PerformDeploymentApprovalAction(userId, approvalActionRequest)
+	_, err = handler.cdHandler.PerformDeploymentApprovalAction(userId, approvalActionRequest)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return

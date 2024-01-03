@@ -25,6 +25,8 @@ import (
 	"github.com/devtron-labs/authenticator/middleware"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/enterprise/api/drafts"
+	"github.com/devtron-labs/devtron/pkg/apiToken"
+	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"io/ioutil"
 	"net/http"
@@ -93,6 +95,7 @@ type NotificationRestHandlerImpl struct {
 	enforcerUtil               rbac.EnforcerUtil
 	sessionManager             *middleware.SessionManager
 	configDraftRestHandlerImpl *drafts.ConfigDraftRestHandlerImpl
+	cdHandler                  pipeline.CdHandler
 }
 
 type ChannelDto struct {
@@ -105,7 +108,7 @@ func NewNotificationRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistry
 	validator *validator.Validate, notificationService notifier.NotificationConfigService,
 	slackService notifier.SlackNotificationService, webhookService notifier.WebhookNotificationService, sesService notifier.SESNotificationService, smtpService notifier.SMTPNotificationService,
 	enforcer casbin.Enforcer, teamService team.TeamService, environmentService cluster.EnvironmentService, pipelineBuilder pipeline.PipelineBuilder,
-	enforcerUtil rbac.EnforcerUtil, sessionManager *middleware.SessionManager, configDraftRestHandlerImpl *drafts.ConfigDraftRestHandlerImpl) *NotificationRestHandlerImpl {
+	enforcerUtil rbac.EnforcerUtil, sessionManager *middleware.SessionManager, configDraftRestHandlerImpl *drafts.ConfigDraftRestHandlerImpl, cdHandler pipeline.CdHandler) *NotificationRestHandlerImpl {
 	return &NotificationRestHandlerImpl{
 		dockerRegistryConfig:       dockerRegistryConfig,
 		logger:                     logger,
@@ -125,6 +128,7 @@ func NewNotificationRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistry
 		enforcerUtil:               enforcerUtil,
 		sessionManager:             sessionManager,
 		configDraftRestHandlerImpl: configDraftRestHandlerImpl,
+		cdHandler:                  cdHandler,
 	}
 }
 
@@ -1157,11 +1161,10 @@ var NotificationTokenFields = []string{"email", "draftId", "draftVersionId", "ap
 
 func (impl NotificationRestHandlerImpl) DraftApprovalNotificationRequest(w http.ResponseWriter, r *http.Request) {
 
-	//token := r.URL.Query().Get("token")
+	token := r.URL.Query().Get("token")
 	//verification is done internally
-	token := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkcmFmdElkIjozLCJkcmFmdFZlcnNpb25JZCI6MywiYXBwcm92YWxSZXF1ZXN0SWQiOjAsImFydGlmYWN0SWQiOjAsImFwcElkIjo2NywiZW52SWQiOi0xLCJhcHByb3ZhbFR5cGUiOiIiLCJlbWFpbCI6ImFkaXR5YS5yYW5qYW5AZGV2dHJvbi5haSIsImlzcyI6ImFwaVRva2VuSXNzdWVyIiwiZXhwIjowfQ.04atq46CUspff6u_8kqwtIcRPk1oUFS83LSw66kF8Do"
 	fieldsMap, err := impl.userAuthService.GetFieldValuesFromToken(token, NotificationTokenFields)
-	draftApprovalRequest := &notifier.DraftApprovalRequest{}
+	draftApprovalRequest := &apiToken.DraftApprovalRequest{}
 	draftBytes, err := json.Marshal(fieldsMap)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -1183,14 +1186,18 @@ func (impl NotificationRestHandlerImpl) DraftApprovalNotificationRequest(w http.
 	draftId := draftApprovalRequest.DraftId
 	draftVersionId := draftApprovalRequest.DraftVersionId
 	userId := draftApprovalRequest.NotificationApprovalRequest.UserId
-	notApprover, err := impl.configDraftRestHandlerImpl.CheckAccessAndApproveDraft(w, envId, appId, token, draftId, draftVersionId, userId)
-	fmt.Println(notApprover)
-	if err != nil {
+	emailId := draftApprovalRequest.NotificationApprovalRequest.EmailId
+	draftState, notApprover, err := impl.configDraftRestHandlerImpl.CheckAccessAndApproveDraft(w, envId, appId, token, draftId, draftVersionId, userId)
+	if err != nil && draftState == 0 {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	resp, err := impl.notificationService.DraftApprovalNotificationRequest(envId, appId, token, draftId, draftVersionId, userId)
-
+	if notApprover {
+		common.WriteJsonResp(w, err, nil, http.StatusForbidden)
+		return
+	}
+	resp, err := impl.notificationService.DraftApprovalNotificationRequest(envId, appId, draftVersionId, userId, emailId)
+	resp.DraftState = uint8(draftState)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
@@ -1199,15 +1206,61 @@ func (impl NotificationRestHandlerImpl) DraftApprovalNotificationRequest(w http.
 
 }
 
-//func createDraftApprovalRequest(field []byte) (notifier.DraftApprovalRequest, error) {
-//	draftApprovalRequest := notifier.DraftApprovalRequest{}
-//	err := json.Unmarshal(field, &draftApprovalRequest)
-//	if err != nil {
-//		return draftApprovalRequest, err
-//	}
-//	return draftApprovalRequest, err
-//}
-
 func (impl NotificationRestHandlerImpl) DeploymentApprovalNotificationRequest(w http.ResponseWriter, r *http.Request) {
+	token := r.URL.Query().Get("token")
+	//verification is done internally
+	//token := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkcmFmdElkIjozLCJkcmFmdFZlcnNpb25JZCI6MywiYXBwcm92YWxSZXF1ZXN0SWQiOjAsImFydGlmYWN0SWQiOjAsImFwcElkIjo2NywiZW52SWQiOi0xLCJhcHByb3ZhbFR5cGUiOiIiLCJlbWFpbCI6ImFkaXR5YS5yYW5qYW5AZGV2dHJvbi5haSIsImlzcyI6ImFwaVRva2VuSXNzdWVyIiwiZXhwIjowfQ.04atq46CUspff6u_8kqwtIcRPk1oUFS83LSw66kF8Do"
+	fieldsMap, err := impl.userAuthService.GetFieldValuesFromToken(token, NotificationTokenFields)
+	deploymentApprovalRequest := &apiToken.DeploymentApprovalRequest{}
+	deploymentBytes, err := json.Marshal(fieldsMap)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	err = deploymentApprovalRequest.CreateDeploymentApprovalRequest(deploymentBytes)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
+		return
+	}
+	err = json.NewDecoder(r.Body).Decode(&deploymentApprovalRequest)
+	if err != nil {
+		impl.logger.Errorw("request err, deploymentApprovalRequest", "err", err, "payload", deploymentApprovalRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	pipelineId := deploymentApprovalRequest.PipelineId
+	userId := deploymentApprovalRequest.NotificationApprovalRequest.UserId
+	envId := deploymentApprovalRequest.NotificationApprovalRequest.EnvId
+	appId := deploymentApprovalRequest.NotificationApprovalRequest.AppId
+	artifactId := deploymentApprovalRequest.ArtifactId
+	actionType := bean.APPROVAL_APPROVE_ACTION
+	approvalRequestId := deploymentApprovalRequest.ApprovalRequestId
+	emailId := deploymentApprovalRequest.NotificationApprovalRequest.EmailId
 
+	approvalActionRequest := bean.UserApprovalActionRequest{
+		AppId:             appId,
+		ActionType:        actionType,
+		ApprovalRequestId: approvalRequestId,
+		PipelineId:        pipelineId,
+		ArtifactId:        artifactId,
+	}
+	pipelineInfo, err := impl.pipelineBuilder.FindPipelineById(pipelineId)
+	if err != nil {
+		impl.logger.Errorw("error occurred while fetching pipeline details", "pipelineId", pipelineId, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	allowed := impl.userAuthService.CheckForApproverAccess(pipelineInfo.App.AppName, pipelineInfo.Environment.EnvironmentIdentifier, userId)
+	if !allowed {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	approvalState, err := impl.cdHandler.PerformDeploymentApprovalAction(userId, approvalActionRequest)
+	if err != nil && approvalState == 0 {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	resp, err := impl.notificationService.DeploymentApprovalNotificationRequest(envId, appId, artifactId, userId, emailId)
+	resp.Status = approvalState
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }

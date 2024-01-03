@@ -19,16 +19,21 @@ package notifier
 
 import (
 	"encoding/json"
+	"github.com/devtron-labs/devtron/client/events"
+	"github.com/devtron-labs/devtron/enterprise/pkg/drafts"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	repository5 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
+	"github.com/devtron-labs/devtron/pkg/bean"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/team"
 	repository4 "github.com/devtron-labs/devtron/pkg/user/repository"
+	util "github.com/devtron-labs/devtron/util/event"
+	"strings"
 	"time"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	util2 "github.com/devtron-labs/devtron/internal/util"
-	util "github.com/devtron-labs/devtron/util/event"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -42,7 +47,8 @@ type NotificationConfigService interface {
 	IsSesOrSmtpConfigured() (*ConfigCheck, error)
 	UpdateNotificationSettings(notificationSettingsRequest *NotificationUpdateRequest, userId int32) (int, error)
 	FetchNSViewByIds(ids []*int) ([]*NSConfig, error)
-	DraftApprovalNotificationRequest(envId int, appId int, token string, draftId int, draftVersionId int, userId int32) (*DraftApprovalResponse, error)
+	DraftApprovalNotificationRequest(envId int, appId int, draftVersionId int, userId int32, emailId string) (*client.DraftApprovalResponse, error)
+	DeploymentApprovalNotificationRequest(envId int, appId int, artifactId int, userId int32, emailId string) (*client.DeploymentApprovalResponse, error)
 }
 
 type NotificationConfigServiceImpl struct {
@@ -60,6 +66,9 @@ type NotificationConfigServiceImpl struct {
 	appRepository                  app.AppRepository
 	userRepository                 repository4.UserRepository
 	ciPipelineMaterialRepository   pipelineConfig.CiPipelineMaterialRepository
+	configDraftRepository          drafts.ConfigDraftRepository
+	imageTaggingRepository         repository5.ImageTaggingRepository
+	ciArtifactRepository           repository.CiArtifactRepository
 }
 
 type NotificationSettingRequest struct {
@@ -70,75 +79,11 @@ type NotificationSettingRequest struct {
 	//Pipelines    []int             `json:"pipelineIds"`
 	PipelineType util.PipelineType `json:"pipelineType" validate:"required"`
 	EventTypeIds []int             `json:"eventTypeIds" validate:"required"`
-	Providers    []Provider        `json:"providers" validate:"required"`
-}
-type NotificationApprovalRequest struct {
-	AppId int `json:"appId" validate:"required"`
-	EnvId int `json:"envId"`
-	//ApprovalType string `json:"approvalType"`
-	EmailId string `json:"emailId"`
-	UserId  int32  `json:"userId"`
-}
-type DraftApprovalRequest struct {
-	DraftId                     int                         `json:"draftId"`
-	DraftVersionId              int                         `json:"draftVersionId"`
-	NotificationApprovalRequest NotificationApprovalRequest `json:"notificationApprovalRequest"`
-}
-
-func (dar *DraftApprovalRequest) CreateDraftApprovalRequest(jsonStr []byte) error {
-	err := json.Unmarshal(jsonStr, dar)
-	return err
-}
-
-type ImageApprovalRequest struct {
-	ApprovalRequestId           int                         `json:"approvalRequestId"`
-	ArtifactId                  int                         `json:"artifactId"`
-	NotificationApprovalRequest NotificationApprovalRequest `json:"notificationApprovalRequest"`
-}
-
-func (iar *ImageApprovalRequest) CreateDraftApprovalRequest(jsonStr []byte) error {
-	err := json.Unmarshal(jsonStr, iar)
-	return err
-}
-
-type ApprovalStatus int
-
-const (
-	AlreadyApproved  ApprovalStatus = 1
-	CancelledRequest ApprovalStatus = 0
-)
-
-type NotificationApprovalResponse struct {
-	AppName     string         `json:"appName"`
-	EnvName     string         `json:"envName"`
-	TriggeredBy string         `json:"triggeredBy"`
-	EventTime   string         `json:"eventTime"`
-	Status      ApprovalStatus `json:"status"`
-}
-type DraftApprovalResponse struct {
-	ProtectConfigFileType        string                       `json:"protectConfigFileType"`
-	ProtectConfigFileName        string                       `json:"protectConfigFileName"`
-	ProtectConfigComment         string                       `json:"protectConfigComment"`
-	ProtectConfigLink            string                       `json:"protectConfigLink"`
-	NotificationApprovalResponse NotificationApprovalResponse `json:"notificationApprovalResponse"`
-}
-type ImageApprovalResponse struct {
-	ImageTagNames                []string                     `json:"imageTagNames"`
-	ImageComment                 string                       `json:"imageComment"`
-	ImageApprovalLink            string                       `json:"imageApprovalLink"`
-	DockerImageUrl               string                       `json:"dockerImageUrl"`
-	NotificationApprovalResponse NotificationApprovalResponse `json:"notificationApprovalResponse"`
-}
-
-type Provider struct {
-	Destination util.Channel `json:"dest"`
-	Rule        string       `json:"rule"`
-	ConfigId    int          `json:"configId"`
-	Recipient   string       `json:"recipient"`
+	Providers    []client.Provider `json:"providers" validate:"required"`
 }
 
 type Providers struct {
-	Providers []Provider `json:"providers"`
+	Providers []client.Provider `json:"providers"`
 }
 
 type NSDeleteRequest struct {
@@ -148,7 +93,7 @@ type NSDeleteRequest struct {
 type NotificationRequest struct {
 	UpdateType                util.UpdateType              `json:"updateType,omitempty"`
 	SesConfigId               int                          `json:"sesConfigId,omitempty"`
-	Providers                 []*Provider                  `json:"providers"`
+	Providers                 []*client.Provider           `json:"providers"`
 	NotificationConfigRequest []*NotificationConfigRequest `json:"notificationConfigRequest" validate:"required"`
 }
 type NotificationUpdateRequest struct {
@@ -156,14 +101,14 @@ type NotificationUpdateRequest struct {
 	NotificationConfigRequest []*NotificationConfigRequest `json:"notificationConfigRequest" validate:"required"`
 }
 type NotificationConfigRequest struct {
-	Id           int               `json:"id"`
-	TeamId       []*int            `json:"teamId"`
-	AppId        []*int            `json:"appId"`
-	EnvId        []*int            `json:"envId"`
-	PipelineId   *int              `json:"pipelineId"`
-	PipelineType util.PipelineType `json:"pipelineType" validate:"required"`
-	EventTypeIds []int             `json:"eventTypeIds" validate:"required"`
-	Providers    []*Provider       `json:"providers"`
+	Id           int                `json:"id"`
+	TeamId       []*int             `json:"teamId"`
+	AppId        []*int             `json:"appId"`
+	EnvId        []*int             `json:"envId"`
+	PipelineId   *int               `json:"pipelineId"`
+	PipelineType util.PipelineType  `json:"pipelineType" validate:"required"`
+	EventTypeIds []int              `json:"eventTypeIds" validate:"required"`
+	Providers    []*client.Provider `json:"providers"`
 }
 
 type NSViewResponse struct {
@@ -232,7 +177,12 @@ func NewNotificationConfigServiceImpl(logger *zap.SugaredLogger, notificationSet
 	sesRepository repository.SESNotificationRepository, smtpRepository repository.SMTPNotificationRepository,
 	teamRepository repository2.TeamRepository,
 	environmentRepository repository3.EnvironmentRepository, appRepository app.AppRepository,
-	userRepository repository4.UserRepository, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository) *NotificationConfigServiceImpl {
+	userRepository repository4.UserRepository, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
+	configDraftRepository drafts.ConfigDraftRepository,
+	imageTaggingRepository repository5.ImageTaggingRepository,
+	ciArtifactRepository repository.CiArtifactRepository,
+
+) *NotificationConfigServiceImpl {
 	return &NotificationConfigServiceImpl{
 		logger:                         logger,
 		notificationSettingsRepository: notificationSettingsRepository,
@@ -248,6 +198,9 @@ func NewNotificationConfigServiceImpl(logger *zap.SugaredLogger, notificationSet
 		appRepository:                  appRepository,
 		userRepository:                 userRepository,
 		ciPipelineMaterialRepository:   ciPipelineMaterialRepository,
+		configDraftRepository:          configDraftRepository,
+		imageTaggingRepository:         imageTaggingRepository,
+		ciArtifactRepository:           ciArtifactRepository,
 	}
 }
 
@@ -311,7 +264,7 @@ type config struct {
 	Pipelines    []int             `json:"pipelineIds"`
 	PipelineType util.PipelineType `json:"pipelineType" validate:"required"`
 	EventTypeIds []int             `json:"eventTypeIds" validate:"required"`
-	Providers    []Provider        `json:"providers" validate:"required"`
+	Providers    []client.Provider `json:"providers" validate:"required"`
 }
 
 func (impl *NotificationConfigServiceImpl) CreateOrUpdateNotificationSettings(notificationSettingsRequest *NotificationRequest, userId int32) (int, error) {
@@ -982,6 +935,77 @@ func (impl *NotificationConfigServiceImpl) IsSesOrSmtpConfigured() (*ConfigCheck
 	return &configCheck, nil
 }
 
-func (impl *NotificationConfigServiceImpl) DraftApprovalNotificationRequest(envId int, appId int, token string, draftId int, draftVersionId int, userId int32) (*DraftApprovalResponse, error) {
-	return nil, nil
+func (impl *NotificationConfigServiceImpl) DraftApprovalNotificationRequest(envId int, appId int, draftVersionId int, userId int32, emailId string) (*client.DraftApprovalResponse, error) {
+	DraftApprovalResp := &client.DraftApprovalResponse{}
+	envName, appName, err := impl.getEnvAndAppName(envId, appId)
+	if err != nil {
+		return nil, err
+	}
+	DraftApprovalResp.NotificationApprovalResponse.EnvName = envName
+	DraftApprovalResp.NotificationApprovalResponse.AppName = appName
+	draft, err := impl.configDraftRepository.GetDraftVersionById(draftVersionId)
+	if err != nil {
+		return nil, err
+	}
+	draftComment, err := impl.configDraftRepository.GetDraftComments(draftVersionId)
+	if err != nil {
+		return nil, err
+	}
+	DraftApprovalResp.ProtectConfigFileType = string(draft.Draft.Resource)
+	if draft.Draft.Resource == drafts.DeploymentTemplateResource {
+		DraftApprovalResp.ProtectConfigFileName = string(client.DeploymentTemplate)
+	} else {
+		DraftApprovalResp.ProtectConfigFileName = draft.Draft.ResourceName
+	}
+	DraftApprovalResp.ProtectConfigComment = draftComment.Comment
+	DraftApprovalResp.ProtectConfigFileName = draft.Draft.ResourceName
+	DraftApprovalResp.NotificationApprovalResponse.EventTime = time.Now().Format(bean.LayoutRFC3339)
+	DraftApprovalResp.NotificationApprovalResponse.ApprovedBy = emailId
+	return DraftApprovalResp, nil
+}
+
+func (impl *NotificationConfigServiceImpl) getEnvAndAppName(envId int, appId int) (string, string, error) {
+	var envName string
+	var appName string
+	env, err := impl.environmentRepository.FindById(envId)
+	if err != nil {
+		return envName, appName, err
+	}
+	envName = env.Name
+	app, err := impl.appRepository.FindById(appId)
+	if err != nil {
+		return envName, appName, err
+	}
+	appName = app.AppName
+	return envName, appName, err
+}
+func (impl *NotificationConfigServiceImpl) DeploymentApprovalNotificationRequest(envId int, appId int, artifactId int, userId int32, emailId string) (*client.DeploymentApprovalResponse, error) {
+	DeploymentApprovalResp := &client.DeploymentApprovalResponse{}
+	envName, appName, err := impl.getEnvAndAppName(envId, appId)
+	if err != nil {
+		return nil, err
+	}
+	ciArtifact, err := impl.ciArtifactRepository.Get(artifactId)
+	if err != nil {
+		impl.logger.Errorw("error fetching ciArtifact", "ciArtifact", ciArtifact, "err", err)
+		return DeploymentApprovalResp, err
+	}
+	imageComment, imageTagNames, err := impl.imageTaggingRepository.GetImageTagsAndComment(artifactId)
+	if err != nil {
+		return nil, err
+	}
+	DeploymentApprovalResp.NotificationApprovalResponse.EnvName = envName
+	DeploymentApprovalResp.NotificationApprovalResponse.AppName = appName
+	DeploymentApprovalResp.NotificationApprovalResponse.EventTime = time.Now().Format(bean.LayoutRFC3339)
+	DeploymentApprovalResp.NotificationApprovalResponse.ApprovedBy = emailId
+	DeploymentApprovalResp.ImageTagNames = imageTagNames
+	DeploymentApprovalResp.ImageComment = imageComment.Comment
+	lastColonIndex := strings.LastIndex(ciArtifact.Image, ":")
+	dockerImageTag := ""
+	if lastColonIndex != -1 && lastColonIndex < len(ciArtifact.Image)-1 {
+		dockerImageTag = ciArtifact.Image[lastColonIndex+1:]
+	}
+	DeploymentApprovalResp.DockerImageTag = dockerImageTag
+
+	return DeploymentApprovalResp, err
 }

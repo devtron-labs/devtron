@@ -23,7 +23,6 @@ import (
 	"github.com/devtron-labs/authenticator/middleware"
 	"github.com/devtron-labs/devtron/api/bean"
 	openapi "github.com/devtron-labs/devtron/api/openapi/openapiClient"
-	"github.com/devtron-labs/devtron/pkg/notifier"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/go-pg/pg"
@@ -41,7 +40,7 @@ type ApiTokenService interface {
 	UpdateApiToken(apiTokenId int, request *openapi.UpdateApiTokenRequest, updatedBy int32) (*openapi.UpdateApiTokenResponse, error)
 	DeleteApiToken(apiTokenId int, deletedBy int32) (*openapi.ActionResponse, error)
 	GetAllApiTokensForWebhook(projectName string, environmentName string, appName string, auth func(token string, projectObject string, envObject string) bool) ([]*openapi.ApiToken, error)
-	CreateApiJwtTokenForNotification(draftApprovalRequest notifier.DraftApprovalRequest, ImageRequest *notifier.ImageApprovalRequest, expireAtInMs int64) (string, error)
+	CreateApiJwtTokenForNotification(draftApprovalRequest *DraftApprovalRequest, DeploymentRequest *DeploymentApprovalRequest, expireAtInMs int64) (string, error)
 }
 
 type ApiTokenServiceImpl struct {
@@ -66,21 +65,6 @@ func NewApiTokenServiceImpl(logger *zap.SugaredLogger, apiTokenSecretService Api
 const API_TOKEN_USER_EMAIL_PREFIX = "API-TOKEN:"
 
 var invalidCharsInApiTokenName = regexp.MustCompile("[,\\s]")
-
-type ApiTokenCustomClaims struct {
-	Email string `json:"email"`
-	jwt.RegisteredClaims
-}
-type TokenCustomClaimsForNotification struct {
-	DraftId           int    `json:"draftId"`
-	DraftVersionId    int    `json:"draftVersionId"`
-	ApprovalRequestId int    `json:"approvalRequestId"`
-	ArtifactId        int    `json:"artifactId"`
-	AppId             int    `json:"appId" validate:"required"`
-	EnvId             int    `json:"envId"`
-	ApprovalType      string `json:"approvalType"`
-	ApiTokenCustomClaims
-}
 
 func (tokenCustomClaimsForNotification TokenCustomClaimsForNotification) generateToken(secretByteArr []byte) (string, error) {
 	unsignedToken := jwt.NewWithClaims(jwt.SigningMethodHS256, tokenCustomClaimsForNotification)
@@ -341,30 +325,46 @@ func (impl ApiTokenServiceImpl) DeleteApiToken(apiTokenId int, deletedBy int32) 
 	}, nil
 
 }
-func (impl ApiTokenServiceImpl) CreateApiJwtTokenForNotification(draftRequest notifier.DraftApprovalRequest, ImageRequest *notifier.ImageApprovalRequest, expireAtInMs int64) (string, error) {
+func (impl ApiTokenServiceImpl) CreateApiJwtTokenForNotification(draftRequest *DraftApprovalRequest, deploymentRequest *DeploymentApprovalRequest, expireAtInMs int64) (string, error) {
 	registeredClaims, secretByteArr, err := impl.setRegisteredClaims(expireAtInMs)
 	if err != nil {
+		impl.logger.Errorw("error in setting registered claims", "err", err)
 		return "", err
 	}
-	claims := &TokenCustomClaimsForNotification{
-		DraftId:        draftRequest.DraftId,
-		DraftVersionId: draftRequest.DraftVersionId,
-		AppId:          draftRequest.NotificationApprovalRequest.AppId,
-		EnvId:          draftRequest.NotificationApprovalRequest.EnvId,
-		ApiTokenCustomClaims: ApiTokenCustomClaims{
-			Email:            draftRequest.NotificationApprovalRequest.EmailId,
-			RegisteredClaims: registeredClaims,
-		},
+	var claims *TokenCustomClaimsForNotification
+	if deploymentRequest != nil {
+		claims = &TokenCustomClaimsForNotification{
+			ApprovalRequestId: deploymentRequest.ApprovalRequestId,
+			ArtifactId:        deploymentRequest.ArtifactId,
+			PipelineId:        deploymentRequest.PipelineId,
+			AppId:             deploymentRequest.NotificationApprovalRequest.AppId,
+			EnvId:             draftRequest.NotificationApprovalRequest.EnvId,
+			ApiTokenCustomClaims: ApiTokenCustomClaims{
+				Email:            draftRequest.NotificationApprovalRequest.EmailId,
+				RegisteredClaims: registeredClaims,
+			},
+		}
+	} else {
+		claims = &TokenCustomClaimsForNotification{
+			DraftId:        draftRequest.DraftId,
+			DraftVersionId: draftRequest.DraftVersionId,
+			AppId:          draftRequest.NotificationApprovalRequest.AppId,
+			EnvId:          draftRequest.NotificationApprovalRequest.EnvId,
+			ApiTokenCustomClaims: ApiTokenCustomClaims{
+				Email:            draftRequest.NotificationApprovalRequest.EmailId,
+				RegisteredClaims: registeredClaims,
+			},
+		}
 	}
+
 	token, err := claims.generateToken(secretByteArr)
 	if err != nil {
-		//todo put log here
-		return "", err
+		impl.logger.Errorw("error in generating token", "err", err)
+		return token, err
 	}
 	return token, nil
 
 }
-
 func (impl ApiTokenServiceImpl) createApiJwtToken(email string, expireAtInMs int64) (string, error) {
 	registeredClaims, secretByteArr, err := impl.setRegisteredClaims(expireAtInMs)
 	if err != nil {

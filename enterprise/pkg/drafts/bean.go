@@ -56,6 +56,13 @@ func (state DraftState) IsTerminal() bool {
 	return state == DiscardedDraftState || state == PublishedDraftState
 }
 
+func (state DraftState) DraftState() bool {
+	switch state {
+
+	}
+	return state == DiscardedDraftState || state == PublishedDraftState
+}
+
 func GetNonTerminalDraftStates() []int {
 	return []int{int(InitDraftState), int(AwaitApprovalDraftState)}
 }

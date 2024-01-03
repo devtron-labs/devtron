@@ -8,14 +8,14 @@ import (
 	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/enterprise/pkg/protect"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
-	"github.com/devtron-labs/devtron/pkg/apiToken"
+	util2 "github.com/devtron-labs/devtron/util/event"
+
 	"github.com/devtron-labs/devtron/pkg/chart"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/user"
-	util2 "github.com/devtron-labs/devtron/util/event"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"k8s.io/utils/pointer"
@@ -32,7 +32,7 @@ type ConfigDraftService interface {
 	GetDrafts(appId int, envId int, resourceType DraftResourceType, userId int32) ([]AppConfigDraft, error)
 	GetDraftById(draftId int, userId int32) (*ConfigDraftResponse, error) //  need to send ** in case of view only user for Secret data
 	GetDraftByName(appId, envId int, resourceName string, resourceType DraftResourceType, userId int32) (*ConfigDraftResponse, error)
-	ApproveDraft(draftId int, draftVersionId int, userId int32) error
+	ApproveDraft(draftId int, draftVersionId int, userId int32) (DraftState, error)
 	DeleteComment(draftId int, draftCommentId int, userId int32) error
 	GetDraftsCount(appId int, envIds []int) ([]*DraftCountResponse, error)
 	EncryptCSData(draftCsData string) string
@@ -50,13 +50,13 @@ type ConfigDraftServiceImpl struct {
 	envRepository             repository2.EnvironmentRepository
 	eventFactory              client.EventFactory
 	eventClient               client.EventClient
-	apiTokenService           apiToken.ApiTokenService
 }
 
 func NewConfigDraftServiceImpl(logger *zap.SugaredLogger, configDraftRepository ConfigDraftRepository, configMapService pipeline.ConfigMapService, chartService chart.ChartService,
 	propertiesConfigService pipeline.PropertiesConfigService, resourceProtectionService protect.ResourceProtectionService,
 	userService user.UserService, appRepo app.AppRepository, envRepository repository2.EnvironmentRepository,
-	eventFactory client.EventFactory, eventClient client.EventClient, apiTokenService apiToken.ApiTokenService) *ConfigDraftServiceImpl {
+	eventFactory client.EventFactory, eventClient client.EventClient,
+) *ConfigDraftServiceImpl {
 	draftServiceImpl := &ConfigDraftServiceImpl{
 		logger:                    logger,
 		configDraftRepository:     configDraftRepository,
@@ -69,7 +69,6 @@ func NewConfigDraftServiceImpl(logger *zap.SugaredLogger, configDraftRepository 
 		envRepository:             envRepository,
 		eventFactory:              eventFactory,
 		eventClient:               eventClient,
-		apiTokenService:           apiTokenService,
 	}
 	resourceProtectionService.RegisterListener(draftServiceImpl)
 	return draftServiceImpl
@@ -121,8 +120,8 @@ func (impl *ConfigDraftServiceImpl) performNotificationConfigAction(request Conf
 			impl.logger.Errorw("unable to send notification for protect config approval", "error", evtErr)
 		}
 	}
-
 }
+
 func (impl *ConfigDraftServiceImpl) AddDraftVersion(request ConfigDraftVersionRequest) (int, error) {
 	draftId := request.DraftId
 	latestDraftVersion, err := impl.configDraftRepository.GetLatestDraftVersion(draftId)
@@ -166,33 +165,34 @@ func (impl *ConfigDraftServiceImpl) AddDraftVersion(request ConfigDraftVersionRe
 			return 0, err
 		}
 	}
-	impl.performNotificationConfigActionForVersion(request, draftId)
+	impl.performNotificationConfigActionForVersion(request, draftId, lastDraftVersionId)
 	return lastDraftVersionId, nil
 }
 
-func (impl *ConfigDraftServiceImpl) performNotificationConfigActionForVersion(request ConfigDraftVersionRequest, draftId int) {
+func (impl *ConfigDraftServiceImpl) performNotificationConfigActionForVersion(request ConfigDraftVersionRequest, draftId int, draftVersionId int) {
 	draftData, err := impl.configDraftRepository.GetDraftMetadataById(draftId)
 	if err != nil {
 		impl.logger.Errorw("error in performing notification event for config draft version ", "err", err, "draftData", draftData)
 		return
 	}
-	//config := ConfigDraftRequest{
-	//	AppId:                     draftData.AppId,
-	//	EnvId:                     draftData.EnvId,
-	//	Resource:                  draftData.Resource,
-	//	ResourceName:              draftData.ResourceName,
-	//	UserComment:               request.UserComment,
-	//	UserId:                    request.UserId,
-	//	ProtectNotificationConfig: request.ProtectNotificationConfig,
-	//}
-	//go impl.performNotificationConfigAction(config)
+
+	config := ConfigDraftRequest{
+		AppId:                     draftData.AppId,
+		EnvId:                     draftData.EnvId,
+		Resource:                  draftData.Resource,
+		ResourceName:              draftData.ResourceName,
+		UserComment:               request.UserComment,
+		UserId:                    request.UserId,
+		ProtectNotificationConfig: request.ProtectNotificationConfig,
+	}
+	go impl.performNotificationConfigAction(config, draftId, draftVersionId)
 
 }
 
 func (impl *ConfigDraftServiceImpl) UpdateDraftState(draftId int, draftVersionId int, toUpdateDraftState DraftState, userId int32) (*DraftVersion, error) {
 	impl.logger.Infow("updating draft state", "draftId", draftId, "toUpdateDraftState", toUpdateDraftState, "userId", userId)
 	// check app config draft is enabled or not ??
-	latestDraftVersion, err := impl.validateDraftAction(draftId, draftVersionId, toUpdateDraftState, userId)
+	latestDraftVersion, _, err := impl.validateDraftAction(draftId, draftVersionId, toUpdateDraftState, userId)
 	if err != nil {
 		return nil, err
 	}
@@ -200,40 +200,40 @@ func (impl *ConfigDraftServiceImpl) UpdateDraftState(draftId int, draftVersionId
 	return latestDraftVersion, err
 }
 
-func (impl *ConfigDraftServiceImpl) validateDraftAction(draftId int, draftVersionId int, toUpdateDraftState DraftState, userId int32) (*DraftVersion, error) {
+func (impl *ConfigDraftServiceImpl) validateDraftAction(draftId int, draftVersionId int, toUpdateDraftState DraftState, userId int32) (*DraftVersion, DraftState, error) {
 	latestDraftVersion, err := impl.configDraftRepository.GetLatestConfigDraft(draftId)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	if latestDraftVersion.Id != draftVersionId { // needed for current scope
-		return nil, errors.New(LastVersionOutdated)
+		return nil, 0, errors.New(LastVersionOutdated)
 	}
 	//have
 	draftMetadataDto, err := impl.configDraftRepository.GetDraftMetadataById(draftId)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	draftCurrentState := draftMetadataDto.DraftState
 	if draftCurrentState.IsTerminal() {
 		impl.logger.Errorw("draft is already in terminal state", "draftId", draftId, "draftCurrentState", draftCurrentState)
-		return nil, errors.New(DraftAlreadyInTerminalState)
+		return nil, draftCurrentState, errors.New(DraftAlreadyInTerminalState)
 	}
 	if toUpdateDraftState == PublishedDraftState {
 		if draftCurrentState != AwaitApprovalDraftState {
 			impl.logger.Errorw("draft is not in await Approval state", "draftId", draftId, "draftCurrentState", draftCurrentState)
-			return nil, errors.New(ApprovalRequestNotRaised)
+			return nil, 0, errors.New(ApprovalRequestNotRaised)
 		} else {
 			contributedToDraft, err := impl.checkUserContributedToDraft(draftId, userId)
 			if err != nil {
-				return nil, err
+				return nil, 0, err
 			}
 			if contributedToDraft {
 				impl.logger.Errorw("user contributed to this draft", "draftId", draftId, "userId", userId)
-				return nil, errors.New(UserContributedToDraft)
+				return nil, 0, errors.New(UserContributedToDraft)
 			}
 		}
 	}
-	return latestDraftVersion, nil
+	return latestDraftVersion, 0, nil
 }
 
 func (impl *ConfigDraftServiceImpl) GetDraftVersionMetadata(draftId int) (*DraftVersionMetadataResponse, error) {
@@ -365,12 +365,12 @@ func (impl ConfigDraftServiceImpl) DeleteComment(draftId int, draftCommentId int
 	return nil
 }
 
-func (impl *ConfigDraftServiceImpl) ApproveDraft(draftId int, draftVersionId int, userId int32) error {
+func (impl *ConfigDraftServiceImpl) ApproveDraft(draftId int, draftVersionId int, userId int32) (DraftState, error) {
 	impl.logger.Infow("approving draft", "draftId", draftId, "draftVersionId", draftVersionId, "userId", userId)
 	toUpdateDraftState := PublishedDraftState
-	draftVersion, err := impl.validateDraftAction(draftId, draftVersionId, toUpdateDraftState, userId)
+	draftVersion, draftState, err := impl.validateDraftAction(draftId, draftVersionId, toUpdateDraftState, userId)
 	if err != nil {
-		return err
+		return draftState, err
 	}
 	draftData := draftVersion.Data
 	draftsDto := draftVersion.Draft
@@ -381,12 +381,11 @@ func (impl *ConfigDraftServiceImpl) ApproveDraft(draftId int, draftVersionId int
 		err = impl.handleDeploymentTemplate(draftsDto.AppId, draftsDto.EnvId, draftData, draftVersion.UserId, draftVersion.Action)
 	}
 	if err != nil {
-		return err
+		return 0, err
 	}
 	err = impl.configDraftRepository.UpdateDraftState(draftId, toUpdateDraftState, userId)
-	return err
+	return 0, err
 }
-
 func (impl *ConfigDraftServiceImpl) handleCmCsData(draftResource DraftResourceType, draftDto *DraftDto, draftData string, userId int32, action ResourceAction) error {
 	// if envId is -1 then it is base Configuration else Env level config
 	appId := draftDto.AppId

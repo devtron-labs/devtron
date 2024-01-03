@@ -24,6 +24,7 @@ type ConfigDraftRepository interface {
 	GetDraftVersionById(draftVersionId int) (*DraftVersion, error)
 	DeleteComment(draftId int, draftCommentId int, userId int32) (int, error)
 	DiscardDrafts(appId int, envId int, userId int32) error
+	GetDraftComments(draftVersionId int) (*DraftVersionComment, error)
 }
 
 type ConfigDraftRepositoryImpl struct {
@@ -155,6 +156,17 @@ func (repo *ConfigDraftRepositoryImpl) GetDraftVersionComments(draftId int) ([]*
 		err = nil //ignoring noRows Error
 	}
 	return draftComments, err
+}
+func (repo *ConfigDraftRepositoryImpl) GetDraftComments(draftVersionId int) (*DraftVersionComment, error) {
+	var draftComment *DraftVersionComment
+	err := repo.dbConnection.Model(&draftComment).
+		Where("draft_version_id = ?", draftVersionId).
+		Where("active = ?", true).Select()
+	if err != nil {
+		repo.logger.Errorw("error occurred while fetching draft comment", "draftVersionId", draftVersionId, "err", err)
+		return nil, err
+	}
+	return draftComment, err
 }
 
 func (repo *ConfigDraftRepositoryImpl) GetDraftVersionCommentsCount(draftId int) (int, error) {

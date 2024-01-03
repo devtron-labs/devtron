@@ -89,7 +89,7 @@ type CdHandler interface {
 	CheckAndSendArgoPipelineStatusSyncEventIfNeeded(pipelineId int, userId int32, isAppStoreApplication bool)
 	FetchAppWorkflowStatusForTriggerViewForEnvironment(request resourceGroup2.ResourceGroupingRequest) ([]*pipelineConfig.CdWorkflowStatus, error)
 	FetchAppDeploymentStatusForEnvironments(request resourceGroup2.ResourceGroupingRequest) ([]*pipelineConfig.AppDeploymentStatus, error)
-	PerformDeploymentApprovalAction(userId int32, approvalActionRequest bean3.UserApprovalActionRequest) error
+	PerformDeploymentApprovalAction(userId int32, approvalActionRequest bean3.UserApprovalActionRequest) (bean3.ApprovalState, error)
 	DeactivateImageReservationPathsOnFailure(imagePathReservationIds []int) error
 }
 
@@ -1693,9 +1693,10 @@ func (impl *CdHandlerImpl) FetchAppDeploymentStatusForEnvironments(request resou
 	}
 
 	return deploymentStatuses, err
+
 }
 
-func (impl *CdHandlerImpl) PerformDeploymentApprovalAction(userId int32, approvalActionRequest bean3.UserApprovalActionRequest) error {
+func (impl *CdHandlerImpl) PerformDeploymentApprovalAction(userId int32, approvalActionRequest bean3.UserApprovalActionRequest) (bean3.ApprovalState, error) {
 	approvalActionType := approvalActionRequest.ActionType
 	artifactId := approvalActionRequest.ArtifactId
 	approvalRequestId := approvalActionRequest.ApprovalRequestId
@@ -1703,23 +1704,22 @@ func (impl *CdHandlerImpl) PerformDeploymentApprovalAction(userId int32, approva
 		//fetch approval request data, same user should not be Approval requester
 		approvalRequest, err := impl.deploymentApprovalRepository.FetchWithPipelineAndArtifactDetails(approvalRequestId)
 		if err != nil {
-			return errors.New("failed to fetch approval request data")
+			return bean3.RequestCancelled, errors.New("failed to fetch approval request data")
 		}
 		if approvalRequest.ArtifactDeploymentTriggered == true {
-			return errors.New("deployment has already been triggered for this request")
+			return bean3.AlreadyApproved, errors.New("deployment has already been triggered for this request")
 		}
 		if approvalRequest.CreatedBy == userId {
-			return errors.New("requester cannot be an approver")
+			return 0, errors.New("requester cannot be an approver")
 		}
-
 		//fetch artifact metadata, who triggered this build
 		ciArtifact, err := impl.ciArtifactRepository.Get(artifactId)
 		if err != nil {
 			impl.Logger.Errorw("error occurred while fetching workflow data for artifact", "artifactId", artifactId, "userId", userId, "err", err)
-			return errors.New("failed to fetch workflow for artifact data")
-		} //todo have to write one querry to check for checking approved state
+			return 0, errors.New("failed to fetch workflow for artifact data")
+		}
 		if ciArtifact.CreatedBy == userId {
-			return errors.New("user who triggered the build cannot be an approver")
+			return 0, errors.New("user who triggered the build cannot be an approver")
 		}
 		deploymentApprovalData := &pipelineConfig.DeploymentApprovalUserData{
 			ApprovalRequestId: approvalRequestId,
@@ -1731,7 +1731,7 @@ func (impl *CdHandlerImpl) PerformDeploymentApprovalAction(userId int32, approva
 		err = impl.deploymentApprovalRepository.SaveDeploymentUserData(deploymentApprovalData)
 		if err != nil {
 			impl.Logger.Errorw("error occurred while saving user approval data", "approvalRequestId", approvalRequestId, "err", err)
-			return err
+			return bean3.AlreadyApproved, err
 		}
 		// trigger deployment if approved and pipeline type is automatic
 		pipeline := approvalRequest.Pipeline
@@ -1740,19 +1740,19 @@ func (impl *CdHandlerImpl) PerformDeploymentApprovalAction(userId int32, approva
 			approvalConfig, err := pipeline.GetApprovalConfig()
 			if err != nil {
 				impl.Logger.Errorw("error occurred while fetching approval config", "pipelineId", pipelineId, "config", pipeline.UserApprovalConfig, "err", err)
-				return nil
+				return 0, nil
 			}
 			approvalDataForArtifacts, err := impl.workflowDagExecutor.FetchApprovalDataForArtifacts([]int{artifactId}, pipelineId, approvalConfig.RequiredCount)
 			if err != nil {
 				impl.Logger.Errorw("error occurred while fetching approval data for artifacts", "artifactId", artifactId, "pipelineId", pipelineId, "config", pipeline.UserApprovalConfig, "err", err)
-				return nil
+				return 0, nil
 			}
 			if approvedData, ok := approvalDataForArtifacts[artifactId]; ok && approvedData.ApprovalRuntimeState == pipelineConfig.ApprovedApprovalState {
 				// trigger deployment
 				err = impl.workflowDagExecutor.TriggerDeployment(nil, approvalRequest.CiArtifact, pipeline, false, 1)
 				if err != nil {
 					impl.Logger.Errorw("error occurred while triggering deployment", "pipelineId", pipelineId, "artifactId", artifactId, "err", err)
-					return errors.New("auto deployment failed, please try manually")
+					return 0, errors.New("auto deployment failed, please try manually")
 				}
 			}
 		}
@@ -1769,7 +1769,7 @@ func (impl *CdHandlerImpl) PerformDeploymentApprovalAction(userId int32, approva
 		err := impl.deploymentApprovalRepository.Save(deploymentApprovalRequest)
 		if err != nil {
 			impl.Logger.Errorw("error occurred while submitting approval request", "pipelineId", pipelineId, "artifactId", artifactId, "err", err)
-			return err
+			return 0, err
 		}
 		go impl.performNotificationApprovalAction(approvalActionRequest, userId)
 
@@ -1777,22 +1777,22 @@ func (impl *CdHandlerImpl) PerformDeploymentApprovalAction(userId int32, approva
 		// fetch if cd wf runner is present then user cannot cancel the request, as deployment has been triggered already
 		approvalRequest, err := impl.deploymentApprovalRepository.FetchById(approvalRequestId)
 		if err != nil {
-			return errors.New("failed to fetch approval request data")
+			return 0, errors.New("failed to fetch approval request data")
 		}
 		if approvalRequest.CreatedBy != userId {
-			return errors.New("request cannot be cancelled as not initiated by the same")
+			return 0, errors.New("request cannot be cancelled as not initiated by the same")
 		}
 		if approvalRequest.ArtifactDeploymentTriggered {
-			return errors.New("request cannot be cancelled as deployment is already been made for this request")
+			return 0, errors.New("request cannot be cancelled as deployment is already been made for this request")
 		}
 		approvalRequest.Active = false
 		err = impl.deploymentApprovalRepository.Update(approvalRequest)
 		if err != nil {
 			impl.Logger.Errorw("error occurred while updating approval request", "pipelineId", approvalRequest.PipelineId, "artifactId", artifactId, "err", err)
-			return err
+			return 0, err
 		}
 	}
-	return nil
+	return 0, nil
 }
 
 func (impl *CdHandlerImpl) performNotificationApprovalAction(approvalActionRequest bean3.UserApprovalActionRequest, userId int32) {
@@ -1800,15 +1800,18 @@ func (impl *CdHandlerImpl) performNotificationApprovalAction(approvalActionReque
 		return
 	}
 	eventType := util2.Approval
+	var events []client2.Event
 	pipeline, err := impl.pipelineRepository.FindById(approvalActionRequest.PipelineId)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while updating approval request", "pipelineId", pipeline, "pipeline", pipeline, "err", err)
 	}
 	event := impl.eventFactory.Build(eventType, &approvalActionRequest.PipelineId, approvalActionRequest.AppId, &pipeline.EnvironmentId, "")
-	event = impl.eventFactory.BuildExtraApprovalData(event, approvalActionRequest, pipeline, userId)
-	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
-	if evtErr != nil {
-		impl.Logger.Errorw("CD stage post fail or success event unable to sent", "error", evtErr)
+	events = impl.eventFactory.BuildExtraApprovalData(event, approvalActionRequest, pipeline, userId)
+	for _, evnt := range events {
+		_, evtErr := impl.eventClient.WriteNotificationEvent(evnt)
+		if evtErr != nil {
+			impl.Logger.Errorw("unable to send approval event", "error", evtErr)
+		}
 	}
 
 }

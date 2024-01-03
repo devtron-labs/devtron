@@ -11,7 +11,6 @@ import (
 	mocks2 "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/mocks"
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
-	"github.com/devtron-labs/devtron/pkg/notifier"
 	repository3 "github.com/devtron-labs/devtron/pkg/user/repository"
 	mocks3 "github.com/devtron-labs/devtron/pkg/user/repository/mocks"
 	"reflect"
@@ -81,7 +80,7 @@ func TestEventSimpleFactoryImpl_BuildExtraApprovalData(t *testing.T) {
 		CorrelationId: "dfsfdsf",
 		Payload: &Payload{
 			DockerImageUrl: "ashexp:435345ds",
-			Providers: []*notifier.Provider{
+			Providers: []*Provider{
 				{
 					Destination: "ses",
 					ConfigId:    0,
@@ -109,7 +108,7 @@ func TestEventSimpleFactoryImpl_BuildExtraApprovalData(t *testing.T) {
 		Payload: &Payload{
 			DockerImageUrl: "ashexp:435345ds",
 			TriggeredBy:    "abc@gmail.com",
-			Providers: []*notifier.Provider{
+			Providers: []*Provider{
 				{
 					Destination: "ses",
 					ConfigId:    0,

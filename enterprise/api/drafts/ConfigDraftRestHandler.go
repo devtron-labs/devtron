@@ -389,23 +389,22 @@ func (impl *ConfigDraftRestHandlerImpl) ApproveDraft(w http.ResponseWriter, r *h
 	token := r.Header.Get("token")
 	envId := draftResponse.EnvId
 	appId := draftResponse.AppId
-	_, err = impl.CheckAccessAndApproveDraft(w, envId, appId, token, draftId, draftVersionId, userId)
+	_, _, err = impl.CheckAccessAndApproveDraft(w, envId, appId, token, draftId, draftVersionId, userId)
 
 	common.WriteJsonResp(w, err, nil, http.StatusOK)
 }
 
-func (impl *ConfigDraftRestHandlerImpl) CheckAccessAndApproveDraft(w http.ResponseWriter, envId int, appId int, token string, draftId int, draftVersionId int, userId int32) (bool, error) {
+func (impl *ConfigDraftRestHandlerImpl) CheckAccessAndApproveDraft(w http.ResponseWriter, envId int, appId int, token string, draftId int, draftVersionId int, userId int32) (drafts.DraftState, bool, error) {
 	var notAnApprover bool
 	if notAnApprover = impl.checkForApproverAccess(w, envId, appId, token, true); notAnApprover {
-		return notAnApprover, nil
+		return 0, notAnApprover, nil
 	}
-	err := impl.configDraftService.ApproveDraft(draftId, draftVersionId, userId)
+	draftState, err := impl.configDraftService.ApproveDraft(draftId, draftVersionId, userId)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return notAnApprover, nil
+		return draftState, notAnApprover, nil
 	}
-
-	return notAnApprover, err
+	return 0, notAnApprover, err
 }
 
 func (impl *ConfigDraftRestHandlerImpl) DeleteUserComment(w http.ResponseWriter, r *http.Request) {
