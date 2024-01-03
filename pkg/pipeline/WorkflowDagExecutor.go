@@ -4907,6 +4907,7 @@ func (impl *WorkflowDagExecutorImpl) isInitialTrigger(natsMsgId *string) error {
 	}
 	cdwr, err := impl.cdWorkflowRepository.GetWorkflowRunnerByMsgId(*natsMsgId)
 	if err != nil {
+		impl.logger.Errorw("error in fetching cd workflow runner using reference_id", "referenceId", natsMsgId, "err", err)
 		return errors.New("error in fetching cd workflow runner")
 	}
 
