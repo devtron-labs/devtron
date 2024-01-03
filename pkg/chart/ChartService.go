@@ -344,38 +344,6 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 		return nil, err
 	}
 	gitRepoUrl := ""
-	impl.logger.Debugw("current latest chart in db", "chartId", currentLatestChart.Id)
-	if currentLatestChart.Id > 0 {
-		impl.logger.Debugw("updating env and pipeline config which are currently latest in db", "chartId", currentLatestChart.Id)
-
-		impl.logger.Debug("updating all other charts which are not latest but may be set previous true, setting previous=false")
-		//step 2
-		noLatestCharts, err := impl.chartRepository.FindNoLatestChartForAppByAppId(templateRequest.AppId)
-		for _, noLatestChart := range noLatestCharts {
-			if noLatestChart.Id != templateRequest.Id {
-
-				noLatestChart.Latest = false // these are already false by d way
-				noLatestChart.Previous = false
-				err = impl.chartRepository.Update(noLatestChart)
-				if err != nil {
-					return nil, err
-				}
-			}
-		}
-
-		impl.logger.Debug("now going to update latest entry in db to false and previous flag = true")
-		// now finally update latest entry in db to false and previous true
-		currentLatestChart.Latest = false // these are already false by d way
-		currentLatestChart.Previous = true
-		err = impl.chartRepository.Update(currentLatestChart)
-		if err != nil {
-			return nil, err
-		}
-		gitRepoUrl = currentLatestChart.GitRepoUrl
-	}
-	// ENDS
-
-	impl.logger.Debug("now finally create new chart and make it latest entry in db and previous flag = true")
 
 	version, err := impl.getNewVersion(chartRepo.Name, chartMeta.Name, refChart)
 	chartMeta.Version = version
@@ -431,6 +399,38 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 		}, nil
 	}
 
+	impl.logger.Debugw("current latest chart in db", "chartId", currentLatestChart.Id)
+	if currentLatestChart.Id > 0 {
+		impl.logger.Debugw("updating env and pipeline config which are currently latest in db", "chartId", currentLatestChart.Id)
+
+		impl.logger.Debug("updating all other charts which are not latest but may be set previous true, setting previous=false")
+		//step 2
+		noLatestCharts, err := impl.chartRepository.FindNoLatestChartForAppByAppId(templateRequest.AppId)
+		for _, noLatestChart := range noLatestCharts {
+			if noLatestChart.Id != templateRequest.Id {
+
+				noLatestChart.Latest = false // these are already false by d way
+				noLatestChart.Previous = false
+				err = impl.chartRepository.Update(noLatestChart)
+				if err != nil {
+					return nil, err
+				}
+			}
+		}
+
+		impl.logger.Debug("now going to update latest entry in db to false and previous flag = true")
+		// now finally update latest entry in db to false and previous true
+		currentLatestChart.Latest = false // these are already false by d way
+		currentLatestChart.Previous = true
+		err = impl.chartRepository.Update(currentLatestChart)
+		if err != nil {
+			return nil, err
+		}
+		gitRepoUrl = currentLatestChart.GitRepoUrl
+	}
+	// ENDS
+
+	impl.logger.Debug("now finally create new chart and make it latest entry in db and previous flag = true")
 	merged, err := impl.mergeUtil.JsonPatch(valuesJson, []byte(templateRequest.ValuesOverride))
 	if err != nil {
 		return nil, err
@@ -852,6 +852,43 @@ func (impl ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateRequ
 	if err != nil {
 		return nil, err
 	}
+	if templateRequest.SaveEligibleChanges {
+		eligible, err := impl.mergeUtil.JsonPatch([]byte(template.GlobalOverride), templateRequest.ValuesOverride)
+		if err != nil {
+			return nil, err
+		}
+		templateRequest.ValuesOverride = eligible
+
+		// validation of deployment template validate
+		chartRefId := templateRequest.ChartRefId
+		//VARIABLE_RESOLVE
+		scope := resourceQualifiers.Scope{
+			AppId: templateRequest.AppId,
+		}
+		validate, err2 := impl.DeploymentTemplateValidate(ctx, templateRequest.ValuesOverride, chartRefId, scope)
+		if !validate {
+			return nil, err2
+		}
+	}
+	impl.logger.Debug("now finally update request chart in db to latest and previous flag = false")
+	values, err := impl.mergeUtil.JsonPatch([]byte(template.Values), templateRequest.ValuesOverride)
+	if err != nil {
+		return nil, err
+	}
+	// TODO Make a private function
+	// TODO comment for functionality
+
+	// Handle Lock Configuration
+	lockConfigErrorResponse, err := impl.lockedConfigService.HandleLockConfiguration(string(templateRequest.ValuesOverride), template.GlobalOverride, int(templateRequest.UserId))
+	if err != nil {
+		return nil, err
+	}
+	if lockConfigErrorResponse != nil {
+		return &TemplateResponse{
+			TemplateRequest:           templateRequest,
+			LockValidateErrorResponse: lockConfigErrorResponse,
+		}, nil
+	}
 	if currentLatestChart.Id > 0 && currentLatestChart.Id == templateRequest.Id {
 
 	} else if currentLatestChart.Id != templateRequest.Id {
@@ -893,43 +930,6 @@ func (impl ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateRequ
 		return nil, nil
 	}
 	//ENDS
-	if templateRequest.SaveEligibleChanges {
-		eligible, err := impl.mergeUtil.JsonPatch([]byte(template.GlobalOverride), templateRequest.ValuesOverride)
-		if err != nil {
-			return nil, err
-		}
-		templateRequest.ValuesOverride = eligible
-
-		// validation of deployment template validate
-		chartRefId := templateRequest.ChartRefId
-		//VARIABLE_RESOLVE
-		scope := resourceQualifiers.Scope{
-			AppId: templateRequest.AppId,
-		}
-		validate, err2 := impl.DeploymentTemplateValidate(ctx, templateRequest.ValuesOverride, chartRefId, scope)
-		if !validate {
-			return nil, err2
-		}
-	}
-	impl.logger.Debug("now finally update request chart in db to latest and previous flag = false")
-	values, err := impl.mergeUtil.JsonPatch([]byte(template.Values), templateRequest.ValuesOverride)
-	if err != nil {
-		return nil, err
-	}
-	// TODO Make a private function
-	// TODO comment for functionality
-
-	// Handle Lock Configuration
-	lockConfigErrorResponse, err := impl.lockedConfigService.HandleLockConfiguration(string(templateRequest.ValuesOverride), template.GlobalOverride, int(templateRequest.UserId))
-	if err != nil {
-		return nil, err
-	}
-	if lockConfigErrorResponse != nil {
-		return &TemplateResponse{
-			TemplateRequest:           templateRequest,
-			LockValidateErrorResponse: lockConfigErrorResponse,
-		}, nil
-	}
 
 	template.Values = string(values)
 	template.UpdatedOn = time.Now()
