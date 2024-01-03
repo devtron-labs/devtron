@@ -31,6 +31,7 @@ func (impl *ChartDeploymentServiceImpl) RegisterInArgo(chartGitAttribute *ChartG
 	repo := &v1alpha1.Repository{
 		Repo: chartGitAttribute.RepoUrl,
 	}
+	// TODO Asutosh
 	repo, err := impl.repositoryService.Create(ctx, &repository3.RepoCreateRequest{Repo: repo, Upsert: true})
 	if err != nil && strings.Contains(err.Error(), "Unable to resolve 'HEAD' to a commit SHA") {
 		// - retry register in argo
