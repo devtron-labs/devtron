@@ -61,6 +61,7 @@ type Pipeline struct {
 	DeploymentAppType             string      `sql:"deployment_app_type,notnull"` //helm, acd
 	DeploymentAppName             string      `sql:"deployment_app_name"`
 	DeploymentAppDeleteRequest    bool        `sql:"deployment_app_delete_request,notnull"`
+	PullImageUsingDigest          bool        `sql:"pull_image_using_digest,notnull"`
 	Environment                   repository.Environment
 	sql.AuditLog
 }

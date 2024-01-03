@@ -1640,13 +1640,12 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			DataSource:   artifact.DataSource,
 			WorkflowId:   artifact.WorkflowId,
 		},
-		OrchestratorHost:     impl.config.OrchestratorHost,
-		OrchestratorToken:    impl.config.OrchestratorToken,
-		CloudProvider:        impl.config.CloudProvider,
-		WorkflowExecutor:     workflowExecutor,
-		RefPlugins:           refPluginsData,
-		Scope:                scope,
-		PullImageUsingDigest: impl.config.PullImageUsingDigest,
+		OrchestratorHost:  impl.config.OrchestratorHost,
+		OrchestratorToken: impl.config.OrchestratorToken,
+		CloudProvider:     impl.config.CloudProvider,
+		WorkflowExecutor:  workflowExecutor,
+		RefPlugins:        refPluginsData,
+		Scope:             scope,
 	}
 
 	extraEnvVariables := make(map[string]string)
@@ -3308,7 +3307,7 @@ func (impl *WorkflowDagExecutorImpl) GetValuesOverrideForTrigger(overrideRequest
 	valuesOverrideResponse.PipelineOverride = pipelineOverride
 
 	//TODO: check status and apply lock
-	releaseOverrideJson, err := impl.getReleaseOverride(envOverride, overrideRequest, artifact, pipelineOverride, strategy, &appMetrics)
+	releaseOverrideJson, err := impl.getReleaseOverride(envOverride, overrideRequest, artifact, pipelineOverride, strategy, &appMetrics, pipeline.PullImageUsingDigest)
 	valuesOverrideResponse.ReleaseOverrideJSON = releaseOverrideJson
 	if err != nil {
 		return valuesOverrideResponse, err
@@ -4052,7 +4051,7 @@ func (impl *WorkflowDagExecutorImpl) savePipelineOverride(overrideRequest *bean.
 	return po, nil
 }
 
-func (impl *WorkflowDagExecutorImpl) getReleaseOverride(envOverride *chartConfig.EnvConfigOverride, overrideRequest *bean.ValuesOverrideRequest, artifact *repository.CiArtifact, pipelineOverride *chartConfig.PipelineOverride, strategy *chartConfig.PipelineStrategy, appMetrics *bool) (releaseOverride string, err error) {
+func (impl *WorkflowDagExecutorImpl) getReleaseOverride(envOverride *chartConfig.EnvConfigOverride, overrideRequest *bean.ValuesOverrideRequest, artifact *repository.CiArtifact, pipelineOverride *chartConfig.PipelineOverride, strategy *chartConfig.PipelineStrategy, appMetrics *bool, useDigestForImagePull bool) (releaseOverride string, err error) {
 
 	artifactImage := artifact.Image
 	imageTag := strings.Split(artifactImage, ":")
@@ -4077,7 +4076,7 @@ func (impl *WorkflowDagExecutorImpl) getReleaseOverride(envOverride *chartConfig
 		deploymentStrategy = string(strategy.Strategy)
 	}
 
-	if impl.CiCdConfig.PullImageUsingDigest {
+	if useDigestForImagePull {
 		imageTag[imageTagLen-1] = fmt.Sprintf("%s@%s", imageTag[imageTagLen-1], artifact.ImageDigest)
 	}
 
@@ -4122,7 +4121,7 @@ func (impl *WorkflowDagExecutorImpl) mergeAndSave(envOverride *chartConfig.EnvCo
 		return 0, 0, "", err
 	}
 	//TODO: check status and apply lock
-	overrideJson, err := impl.getReleaseOverride(envOverride, overrideRequest, artifact, override, strategy, appMetrics)
+	overrideJson, err := impl.getReleaseOverride(envOverride, overrideRequest, artifact, override, strategy, appMetrics, pipeline.PullImageUsingDigest)
 	if err != nil {
 		return 0, 0, "", err
 	}
