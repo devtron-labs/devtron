@@ -720,7 +720,7 @@ func (impl *CdWorkflowRepositoryImpl) GetLatestTriggersOfHelmPipelinesStuckInNon
 func (impl *CdWorkflowRepositoryImpl) GetWorkflowRunnerByMsgId(msgId string) (*CdWorkflowRunner, error) {
 	var wfr *CdWorkflowRunner
 	err := impl.dbConnection.Model(wfr).
-		Where("cd_workflow_runner.msg_id = ?", msgId).
+		Where("cd_workflow_runner.reference_id = ?", msgId).
 		Select()
 	if errors.Is(err, pg.ErrNoRows) {
 		return nil, nil
