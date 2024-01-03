@@ -30,6 +30,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/util"
 	"go.uber.org/zap"
+	"k8s.io/utils/pointer"
 	"time"
 )
 
@@ -113,6 +114,10 @@ func (impl *CiEventHandlerImpl) Subscribe() error {
 			return
 		}
 
+		triggerContext := pipeline.TriggerContext{
+			ReferenceId: pointer.String(msg.MsgId),
+		}
+
 		if ciCompleteEvent.FailureReason != "" {
 			req.FailureReason = ciCompleteEvent.FailureReason
 			err := impl.webhookService.HandleCiStepFailedEvent(ciCompleteEvent.PipelineId, req)
@@ -135,7 +140,7 @@ func (impl *CiEventHandlerImpl) Subscribe() error {
 						impl.logger.Error("Error while creating request for pipelineID", "pipelineId", ciCompleteEvent.PipelineId, "err", err)
 						return
 					}
-					resp, err := impl.webhookService.HandleCiSuccessEvent(ciCompleteEvent.PipelineId, request, detail.ImagePushedAt, msg.MsgId)
+					resp, err := impl.webhookService.HandleCiSuccessEvent(triggerContext, ciCompleteEvent.PipelineId, request, detail.ImagePushedAt)
 					if err != nil {
 						impl.logger.Error("Error while sending event for CI success for pipelineID", "pipelineId",
 							ciCompleteEvent.PipelineId, "request", request, "err", err)
@@ -147,7 +152,7 @@ func (impl *CiEventHandlerImpl) Subscribe() error {
 
 		} else {
 			util.TriggerCIMetrics(ciCompleteEvent.Metrics, impl.ciEventConfig.ExposeCiMetrics, ciCompleteEvent.PipelineName, ciCompleteEvent.AppName)
-			resp, err := impl.webhookService.HandleCiSuccessEvent(ciCompleteEvent.PipelineId, req, &time.Time{}, msg.MsgId)
+			resp, err := impl.webhookService.HandleCiSuccessEvent(triggerContext, ciCompleteEvent.PipelineId, req, &time.Time{})
 			if err != nil {
 				impl.logger.Error("Error while sending event for CI success for pipelineID: ",
 					ciCompleteEvent.PipelineId, "request: ", req, "error: ", err)
@@ -156,8 +161,10 @@ func (impl *CiEventHandlerImpl) Subscribe() error {
 			impl.logger.Debug(resp)
 		}
 	}
-	loggerFunc := func(msg *model.PubSubMsg) {
-		impl.logger.Debugw("CI_COMPLETE_EVENT", "topic", pubsub.CI_COMPLETE_TOPIC, "msgId", msg.MsgId, "data", msg.Data)
+
+	// add required logging here
+	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) bool {
+		return false
 	}
 
 	validations := impl.workflowDagExecutor.GetTriggerValidateFuncs()

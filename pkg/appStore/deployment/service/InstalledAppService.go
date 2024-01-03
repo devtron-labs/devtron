@@ -662,9 +662,12 @@ func (impl *InstalledAppServiceImpl) Subscribe() error {
 			impl.logger.Errorw("error in performing deploy stage", "deployPayload", deployPayload, "err", err)
 		}
 	}
-	loggerFunc := func(msg *model.PubSubMsg) {
-		impl.logger.Debugw("BULK_APPSTORE_DEPLOY_REQ", "topic", pubsub.BULK_APPSTORE_DEPLOY_TOPIC, "msgId", msg.MsgId, "data", msg.Data)
+
+	// add required logging here
+	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) bool {
+		return false
 	}
+
 	err := impl.pubsubClient.Subscribe(pubsub.BULK_APPSTORE_DEPLOY_TOPIC, callback, loggerFunc)
 	if err != nil {
 		impl.logger.Error("err", err)

@@ -44,7 +44,7 @@ type NatsClientConfig struct {
 	// NatsMsgBufferSize can be configured independently of NatsMsgProcessingBatchSize if needed by setting its value to positive value in env.
 	// if NatsMsgBufferSize set to a non-positive value then it will take the value of NatsMsgProcessingBatchSize.
 	// Note: always get this value by calling GetNatsMsgBufferSize method
-	NatsMsgBufferSize    int `env:"NATS_MSG_BUFFER_SIZE" envDefault:"1"`
+	NatsMsgBufferSize    int `env:"NATS_MSG_BUFFER_SIZE" envDefault:"-1"`
 	NatsMsgMaxAge        int `env:"NATS_MSG_MAX_AGE" envDefault:"86400"`
 	NatsMsgAckWaitInSecs int `env:"NATS_MSG_ACK_WAIT_IN_SECS" envDefault:"300"`
 }

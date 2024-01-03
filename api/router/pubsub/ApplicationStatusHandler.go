@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/common-lib/pubsub-lib/model"
 	"github.com/devtron-labs/devtron/pkg/app"
+	"k8s.io/utils/pointer"
 	"time"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -153,7 +154,10 @@ func (impl *ApplicationStatusHandlerImpl) Subscribe() error {
 		// invoke DagExecutor, for cd success which will trigger post stage if exist.
 		if isSucceeded {
 			impl.logger.Debugw("git hash history", "list", app.Status.History)
-			err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent(pipelineOverride, msg.MsgId)
+			triggerContext := pipeline.TriggerContext{
+				ReferenceId: pointer.String(msg.MsgId),
+			}
+			err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent(triggerContext, pipelineOverride)
 			if err != nil {
 				impl.logger.Errorw("deployment success event error", "pipelineOverride", pipelineOverride, "err", err)
 				return
@@ -162,8 +166,9 @@ func (impl *ApplicationStatusHandlerImpl) Subscribe() error {
 		impl.logger.Debugw("application status update completed", "app", app.Name)
 	}
 
-	loggerFunc := func(msg *model.PubSubMsg) {
-		impl.logger.Debugw("APP_STATUS_UPDATE_REQ", "topic", pubsub.APPLICATION_STATUS_UPDATE_TOPIC, "msgId", msg.MsgId, "data", msg.Data)
+	// add required logging here
+	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) bool {
+		return false
 	}
 
 	validations := impl.workflowDagExecutor.GetTriggerValidateFuncs()
@@ -196,8 +201,9 @@ func (impl *ApplicationStatusHandlerImpl) SubscribeDeleteStatus() error {
 			impl.logger.Errorw("error in updating pipeline delete status", "err", err, "appName", app.Name)
 		}
 	}
-	loggerFunc := func(msg *model.PubSubMsg) {
-		impl.logger.Debugw("APP_STATUS_DELETE_REQ", "topic", pubsub.APPLICATION_STATUS_DELETE_TOPIC, "msgId", msg.MsgId, "data", msg.Data)
+	// add required logging here
+	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) bool {
+		return false
 	}
 	err := impl.pubsubClient.Subscribe(pubsub.APPLICATION_STATUS_DELETE_TOPIC, callback, loggerFunc)
 	if err != nil {

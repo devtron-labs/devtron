@@ -36,7 +36,7 @@ import (
 )
 
 type CdWorkflowRepository interface {
-	GetWorkflowRunnerByMsgId(msgId string) (*CdWorkflowRunner, error)
+	CheckWorkflowRunnerByReferenceId(referenceId string) (bool, error)
 	SaveWorkFlow(ctx context.Context, wf *CdWorkflow) error
 	UpdateWorkFlow(wf *CdWorkflow) error
 	FindById(wfId int) (*CdWorkflow, error)
@@ -717,13 +717,12 @@ func (impl *CdWorkflowRepositoryImpl) GetLatestTriggersOfHelmPipelinesStuckInNon
 	return wfrList, err
 }
 
-func (impl *CdWorkflowRepositoryImpl) GetWorkflowRunnerByMsgId(msgId string) (*CdWorkflowRunner, error) {
-	var wfr *CdWorkflowRunner
-	err := impl.dbConnection.Model(wfr).
-		Where("cd_workflow_runner.reference_id = ?", msgId).
-		Select()
+func (impl *CdWorkflowRepositoryImpl) CheckWorkflowRunnerByReferenceId(referenceId string) (bool, error) {
+	exists, err := impl.dbConnection.Model((*CdWorkflowRunner)(nil)).
+		Where("cd_workflow_runner.reference_id = ?", referenceId).
+		Exists()
 	if errors.Is(err, pg.ErrNoRows) {
-		return nil, nil
+		return false, nil
 	}
-	return wfr, err
+	return exists, err
 }

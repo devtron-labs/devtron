@@ -39,6 +39,7 @@ import (
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"go.uber.org/zap"
+	"k8s.io/utils/pointer"
 	"net/http"
 	"sort"
 	"strings"
@@ -1069,7 +1070,7 @@ func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvir
 			UserId:        request.UserId,
 			RequestType:   pipeline1.STOP,
 		}
-		_, hibernateReqError = impl.workflowDagExecutor.StopStartApp(ctx, stopRequest, nil)
+		_, hibernateReqError = impl.workflowDagExecutor.StopStartApp(ctx, pipeline1.TriggerContext{}, stopRequest)
 		if hibernateReqError != nil {
 			impl.logger.Errorw("error in hibernating application", "err", hibernateReqError, "pipeline", pipeline)
 			pipelineResponse := response[appKey]
@@ -1225,7 +1226,7 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 			UserId:        request.UserId,
 			RequestType:   pipeline1.START,
 		}
-		_, hibernateReqError = impl.workflowDagExecutor.StopStartApp(ctx, stopRequest, nil)
+		_, hibernateReqError = impl.workflowDagExecutor.StopStartApp(ctx, pipeline1.TriggerContext{}, stopRequest)
 		if hibernateReqError != nil {
 			impl.logger.Errorw("error in un-hibernating application", "err", hibernateReqError, "pipeline", pipeline)
 			pipelineResponse := response[appKey]
@@ -1446,7 +1447,11 @@ func (impl BulkUpdateServiceImpl) SubscribeToCdBulkTriggerTopic() error {
 			return
 		}
 
-		_, err = impl.workflowDagExecutor.ManualCdTrigger(ctx, event.ValuesOverrideRequest, msg.MsgId)
+		triggerContext := pipeline1.TriggerContext{
+			ReferenceId: pointer.String(msg.MsgId),
+		}
+
+		_, err = impl.workflowDagExecutor.ManualCdTrigger(ctx, triggerContext, event.ValuesOverrideRequest)
 		if err != nil {
 			impl.logger.Errorw("Error triggering CD",
 				"topic", pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC,
@@ -1454,8 +1459,10 @@ func (impl BulkUpdateServiceImpl) SubscribeToCdBulkTriggerTopic() error {
 				"err", err)
 		}
 	}
-	loggerFunc := func(msg *model.PubSubMsg) {
-		impl.logger.Debugw("CD_BULK_DEPLOY_TRIGGER_REQ", "topic", pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC, "msgId", msg.MsgId, "data", msg.Data)
+
+	// add required logging here
+	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) bool {
+		return false
 	}
 
 	validations := impl.workflowDagExecutor.GetTriggerValidateFuncs()

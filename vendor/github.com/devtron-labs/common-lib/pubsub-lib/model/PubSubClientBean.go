@@ -7,7 +7,7 @@ const NatsMsgId = "Nats-Msg-Id"
 type PubSubMsg struct {
 	Data            string
 	MsgDeliverCount uint64
-	MsgId           *string
+	MsgId           string
 }
 
 type LogsConfig struct {

@@ -69,8 +69,9 @@ func (impl *GitWebhookHandlerImpl) Subscribe() error {
 		}
 	}
 
-	loggerFunc := func(msg *model.PubSubMsg) {
-		impl.logger.Debugw("NEW_CI_MATERIAL", "topic", pubsub.NEW_CI_MATERIAL_TOPIC, "msgId", msg.MsgId, "data", msg.Data)
+	// add required logging here
+	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) bool {
+		return false
 	}
 
 	err := impl.pubsubClient.Subscribe(pubsub.NEW_CI_MATERIAL_TOPIC, callback, loggerFunc)

@@ -18,6 +18,7 @@ import (
 	"github.com/devtron-labs/devtron/util"
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
+	"k8s.io/utils/pointer"
 	"strconv"
 	"time"
 )
@@ -144,15 +145,20 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) Subscribe() error {
 			}
 		}
 
-		err, _ = impl.CdHandler.UpdatePipelineTimelineAndStatusByLiveApplicationFetch(cdPipeline, installedApp, statusUpdateEvent.UserId, msg.MsgId)
+		triggerContext := pipeline.TriggerContext{
+			ReferenceId: pointer.String(msg.MsgId),
+		}
+
+		err, _ = impl.CdHandler.UpdatePipelineTimelineAndStatusByLiveApplicationFetch(triggerContext, cdPipeline, installedApp, statusUpdateEvent.UserId)
 		if err != nil {
 			impl.logger.Errorw("error on argo pipeline status update", "err", err, "msg", string(msg.Data))
 			return
 		}
 	}
 
-	loggerFunc := func(msg *model.PubSubMsg) {
-		impl.logger.Debugw("ARGO_PIPELINE_STATUS_UPDATE", "topic", pubsub.ARGO_PIPELINE_STATUS_UPDATE_TOPIC, "msgId", msg.MsgId, "data", msg.Data)
+	// add required logging here
+	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) bool {
+		return false
 	}
 
 	validations := impl.workflowDagExecutor.GetTriggerValidateFuncs()
@@ -269,7 +275,7 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) ManualSyncPipelineStatus(appId
 		cdPipeline = cdPipelines[0]
 	}
 
-	err, isTimelineUpdated := impl.CdHandler.UpdatePipelineTimelineAndStatusByLiveApplicationFetch(cdPipeline, installedApp, userId, nil)
+	err, isTimelineUpdated := impl.CdHandler.UpdatePipelineTimelineAndStatusByLiveApplicationFetch(pipeline.TriggerContext{}, cdPipeline, installedApp, userId)
 	if err != nil {
 		impl.logger.Errorw("error on argo pipeline status update", "err", err)
 		return nil

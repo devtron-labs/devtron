@@ -83,7 +83,7 @@ type CdHandler interface {
 	CheckHelmAppStatusPeriodicallyAndUpdateInDb(helmPipelineStatusCheckEligibleTime int, getPipelineDeployedWithinHours int) error
 	CheckArgoAppStatusPeriodicallyAndUpdateInDb(getPipelineDeployedBeforeMinutes int, getPipelineDeployedWithinHours int) error
 	CheckArgoPipelineTimelineStatusPeriodicallyAndUpdateInDb(pendingSinceSeconds int, timeForDegradation int) error
-	UpdatePipelineTimelineAndStatusByLiveApplicationFetch(pipeline *pipelineConfig.Pipeline, installedApp repository3.InstalledApps, userId int32, msgId *string) (err error, isTimelineUpdated bool)
+	UpdatePipelineTimelineAndStatusByLiveApplicationFetch(triggerContext TriggerContext, pipeline *pipelineConfig.Pipeline, installedApp repository3.InstalledApps, userId int32) (err error, isTimelineUpdated bool)
 	CheckAndSendArgoPipelineStatusSyncEventIfNeeded(pipelineId int, installedAppVersionId int, userId int32, isAppStoreApplication bool)
 	FetchAppWorkflowStatusForTriggerViewForEnvironment(request resourceGroup2.ResourceGroupingRequest) ([]*pipelineConfig.CdWorkflowStatus, error)
 	FetchAppDeploymentStatusForEnvironments(request resourceGroup2.ResourceGroupingRequest) ([]*pipelineConfig.AppDeploymentStatus, error)
@@ -222,14 +222,13 @@ func (impl *CdHandlerImpl) HandleCdStageReTrigger(runner *pipelineConfig.CdWorkf
 		return nil
 	}
 
-	triggerRequest := &TriggerRequest{
+	triggerRequest := TriggerRequest{
 		CdWf:                  runner.CdWorkflow,
 		Pipeline:              runner.CdWorkflow.Pipeline,
 		Artifact:              runner.CdWorkflow.CiArtifact,
 		TriggeredBy:           1,
 		ApplyAuth:             false,
 		RefCdWorkflowRunnerId: runner.Id,
-		NatsMsgId:             nil,
 	}
 
 	if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
@@ -347,7 +346,7 @@ func (impl *CdHandlerImpl) CheckAndSendArgoPipelineStatusSyncEventIfNeeded(pipel
 	}
 }
 
-func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveApplicationFetch(pipeline *pipelineConfig.Pipeline, installedApp repository3.InstalledApps, userId int32, msgId *string) (error, bool) {
+func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveApplicationFetch(triggerContext TriggerContext, pipeline *pipelineConfig.Pipeline, installedApp repository3.InstalledApps, userId int32) (error, bool) {
 	isTimelineUpdated := false
 	isSucceeded := false
 	var pipelineOverride *chartConfig.PipelineOverride
@@ -430,7 +429,7 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveApplicationFetch
 		}
 		if isSucceeded {
 			// handling deployment success event
-			err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent(pipelineOverride, msgId)
+			err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent(triggerContext, pipelineOverride)
 			if err != nil {
 				impl.Logger.Errorw("error in handling deployment success event", "pipelineOverride", pipelineOverride, "err", err)
 				return err, isTimelineUpdated
@@ -595,7 +594,7 @@ func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb(helmPipel
 				return err
 			}
 			go impl.appService.WriteCDSuccessEvent(pipelineOverride.Pipeline.AppId, pipelineOverride.Pipeline.EnvironmentId, pipelineOverride)
-			err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent(pipelineOverride, nil)
+			err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent(TriggerContext{}, pipelineOverride)
 			if err != nil {
 				impl.Logger.Errorw("error on handling deployment success event", "wfr", wfr, "err", err)
 				return err
