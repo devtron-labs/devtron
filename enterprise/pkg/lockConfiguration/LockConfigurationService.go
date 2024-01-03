@@ -201,37 +201,41 @@ func checkLockedChanges(currentConfig, savedConfig string, lockedConfigJsonPaths
 }
 
 func checkForLockedArray(savedConfigMap, currentConfigMap []interface{}) []interface{} {
-	var lockedMap []interface{}
+	var lockedArray []interface{}
 	var key int
 	for key, _ = range savedConfigMap {
 		if key >= len(currentConfigMap) {
-			break
+			lockedArray = append(lockedArray, savedConfigMap[key])
+			continue
 		}
 		if !reflect.DeepEqual(savedConfigMap[key], currentConfigMap[key]) {
 			switch reflect.TypeOf(savedConfigMap[key]).Kind() {
 			case reflect.Map:
 				locked, _ := getDiffJson(savedConfigMap[key].(map[string]interface{}), currentConfigMap[key].(map[string]interface{}))
 				if locked != nil && len(locked) != 0 {
-					lockedMap = append(lockedMap, locked)
+					lockedArray = append(lockedArray, locked)
 				}
 			case reflect.Array, reflect.Slice:
 				locked := checkForLockedArray(savedConfigMap[key].([]interface{}), currentConfigMap[key].([]interface{}))
 				if locked != nil && len(locked) != 0 {
-					lockedMap = append(lockedMap, locked)
+					lockedArray = append(lockedArray, locked)
 				}
 			default:
-				lockedMap = append(lockedMap, currentConfigMap[key])
+				lockedArray = append(lockedArray, currentConfigMap[key])
 
 			}
+		} else {
+			lockedArray = append(lockedArray, nil)
 		}
 	}
 	for key1, _ := range currentConfigMap {
 		if key1 <= key {
 			continue
 		}
-		lockedMap = append(lockedMap, currentConfigMap[key1])
+		lockedArray = append(lockedArray, currentConfigMap[key1])
 	}
-	return lockedMap
+
+	return lockedArray
 }
 
 // TODO ADD comment for return
