@@ -18,6 +18,7 @@
 package security
 
 import (
+	"fmt"
 	repository1 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	repository2 "github.com/devtron-labs/devtron/pkg/team"
@@ -348,6 +349,17 @@ func (impl ImageScanServiceImpl) FetchExecutionDetailResult(request *ImageScanRe
 	var cveStores []*security.CveStore
 	imageDigests := make(map[string]string)
 	if len(scanExecutionIds) > 0 {
+		scanStates, err := impl.scanToolExecutionHistoryMappingRepository.GetAllScanHistoriesByExecutionHistoryIds(scanExecutionIds)
+		if err != nil {
+			impl.Logger.Errorw("error while fetching scan execution history mapping", "err", err)
+			return nil, err
+		}
+		if len(scanStates) > 0 {
+			if scanStates[0].State == -1 {
+				impl.Logger.Errorw("image not scanned properly", "scanStates", scanStates)
+				return nil, fmt.Errorf("some error occured during IMAGE SCAN")
+			}
+		}
 		//var imageScanResultFinal []*security.ImageScanExecutionResult
 		imageScanResult, err := impl.scanResultRepository.FetchByScanExecutionIds(scanExecutionIds)
 		if err != nil {
