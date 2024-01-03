@@ -19,6 +19,7 @@ package user
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/devtron-labs/authenticator/jwt"
 	"github.com/devtron-labs/authenticator/middleware"
@@ -271,6 +272,9 @@ func (impl *UserServiceImpl) CreateUser(userInfo *bean.UserInfo, token string, m
 	var pass []string
 	var userResponse []*bean.UserInfo
 	emailIds := strings.Split(userInfo.EmailId, ",")
+	if len(emailIds) == 0 {
+		return nil, errors.New("no email id provided")
+	}
 	for _, emailId := range emailIds {
 		dbUser, err := impl.userRepository.FetchActiveOrDeletedUserByEmail(emailId)
 		if err != nil && err != pg.ErrNoRows {

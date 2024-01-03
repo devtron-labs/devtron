@@ -180,6 +180,9 @@ func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Req
 		handler.logger.Errorw("service err, CreateUser", "err", err, "payload", userInfo)
 		if _, ok := err.(*util.ApiError); ok {
 			common.WriteJsonResp(w, err, "User Creation Failed", http.StatusOK)
+		} else if err.Error() == "no email id provided" {
+			handler.logger.Errorw("error on creating new user, no email Id provided", "err", err)
+			common.WriteJsonResp(w, err, "", http.StatusBadRequest)
 		} else {
 			handler.logger.Errorw("error on creating new user", "err", err)
 			common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
