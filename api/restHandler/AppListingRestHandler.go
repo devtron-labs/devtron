@@ -42,6 +42,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStatus"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	service1 "github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
+	bean3 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
 	"github.com/devtron-labs/devtron/pkg/generateManifest"
@@ -1632,6 +1633,17 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		}
 		if detail != nil && detail.ReleaseExist {
 			resourceTree = util2.InterfaceToMapAdapter(detail.ResourceTreeResponse)
+			// add "isNew = false" flag in podMetaData - isNew flag will be omitted when the value is false
+			podMetadata := resourceTree[bean3.PodMetaData]
+			if podMetaDataList, ok := podMetadata.([]interface{}); ok {
+				for _, data := range podMetaDataList {
+					if dataMap, ok := data.(map[string]interface{}); ok {
+						if _, ok := dataMap[bean3.IsNew]; !ok {
+							dataMap[bean3.IsNew] = false
+						}
+					}
+				}
+			}
 			releaseStatus := util2.InterfaceToMapAdapter(detail.ReleaseStatus)
 			applicationStatus := detail.ApplicationStatus
 			resourceTree["releaseStatus"] = releaseStatus
