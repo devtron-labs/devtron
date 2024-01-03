@@ -3,6 +3,7 @@ description: "Submit a proposal for a new feature"
 title: "Feature: "
 labels: ["enhancement"]
 assignees: ["prakarsh-dt","nishant-d","abhibhaw"]
+projects: ["Devtron Features Prioritization"]
 body:
   - type: markdown
     attributes:
