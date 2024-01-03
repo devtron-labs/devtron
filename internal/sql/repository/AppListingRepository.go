@@ -429,7 +429,7 @@ func parseMaterialInfo(materialInfo string, source string) (json.RawMessage, err
 			fmt.Printf("PARSEMATERIALINFO_MATERIAL_RECOVER,  materialInfo: %s,  source: %s, err: %s \n", materialInfo, source, r)
 		}
 	}()
-	if source != GOCD && source != CI_RUNNER && source != WEBHOOK && source != DEPRICATED_EXT {
+	if source != GOCD && source != CI_RUNNER && source != WEBHOOK && source != EXT {
 		return nil, fmt.Errorf("datasource: %s not supported", source)
 	}
 	if materialInfo == "" {

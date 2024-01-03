@@ -242,6 +242,7 @@ func (impl *CiEventHandlerImpl) BuildCiArtifactRequest(event CiCompleteEvent) (*
 		PluginRegistryArtifactDetails: event.PluginRegistryArtifactDetails,
 		PluginArtifactStage:           event.PluginArtifactStage,
 	}
+	// if DataSource is empty, repository.WEBHOOK is considered as default
 	if request.DataSource == "" {
 		request.DataSource = repository.WEBHOOK
 	}
@@ -334,6 +335,7 @@ func (impl *CiEventHandlerImpl) BuildCiArtifactRequestForWebhook(event CiComplet
 		WorkflowId:         event.WorkflowId,
 		IsArtifactUploaded: event.IsArtifactUploaded,
 	}
+	// if DataSource is empty, repository.WEBHOOK is considered as default
 	if request.DataSource == "" {
 		request.DataSource = repository.WEBHOOK
 	}

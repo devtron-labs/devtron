@@ -920,7 +920,7 @@ func (impl *WorkflowDagExecutorImpl) HandlePreStageSuccessEvent(cdStageCompleteE
 			return err
 		}
 		// Migration of deprecated DataSource Type
-		if ciArtifact.DataSource == repository.DEPRICATED_EXT {
+		if ciArtifact.DataSource == repository.EXT {
 			migrationErr := impl.ciArtifactRepository.MigrateToWebHookDataSourceType(ciArtifact.Id)
 			if migrationErr != nil {
 				impl.logger.Warnw("unable to migrate deprecated DataSource", "artifactId", ciArtifact.Id)
@@ -1286,7 +1286,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 		}
 	}
 	// Migration of deprecated DataSource Type
-	if cdWf.CiArtifact.DataSource == repository.DEPRICATED_EXT {
+	if cdWf.CiArtifact.DataSource == repository.EXT {
 		migrationErr := impl.ciArtifactRepository.MigrateToWebHookDataSourceType(cdWf.CiArtifact.Id)
 		if migrationErr != nil {
 			impl.logger.Warnw("unable to migrate deprecated DataSource", "artifactId", cdWf.CiArtifact.Id)
@@ -1457,7 +1457,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		return nil, err
 	}
 	// Migration of deprecated DataSource Type
-	if artifact.DataSource == repository.DEPRICATED_EXT {
+	if artifact.DataSource == repository.EXT {
 		migrationErr := impl.ciArtifactRepository.MigrateToWebHookDataSourceType(artifact.Id)
 		if migrationErr != nil {
 			impl.logger.Warnw("unable to migrate deprecated DataSource", "artifactId", artifact.Id)
@@ -2347,7 +2347,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			return 0, err
 		}
 		// Migration of deprecated DataSource Type
-		if artifact.DataSource == repository.DEPRICATED_EXT {
+		if artifact.DataSource == repository.EXT {
 			migrationErr := impl.ciArtifactRepository.MigrateToWebHookDataSourceType(artifact.Id)
 			if migrationErr != nil {
 				impl.logger.Warnw("unable to migrate deprecated DataSource", "artifactId", artifact.Id)
@@ -2426,7 +2426,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			return 0, err
 		}
 		// Migration of deprecated DataSource Type
-		if artifact.DataSource == repository.DEPRICATED_EXT {
+		if artifact.DataSource == repository.EXT {
 			migrationErr := impl.ciArtifactRepository.MigrateToWebHookDataSourceType(artifact.Id)
 			if migrationErr != nil {
 				impl.logger.Warnw("unable to migrate deprecated DataSource", "artifactId", artifact.Id)
@@ -2661,7 +2661,7 @@ func (impl *WorkflowDagExecutorImpl) subscribeTriggerBulkAction() error {
 			return
 		}
 		// Migration of deprecated DataSource Type
-		if artifact.DataSource == repository.DEPRICATED_EXT {
+		if artifact.DataSource == repository.EXT {
 			migrationErr := impl.ciArtifactRepository.MigrateToWebHookDataSourceType(artifact.Id)
 			if migrationErr != nil {
 				impl.logger.Warnw("unable to migrate deprecated DataSource", "artifactId", artifact.Id)

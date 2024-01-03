@@ -40,13 +40,14 @@ const (
 
 // List of possible DataSource Type for an artifact
 const (
-	CI_RUNNER      ArtifactsSourceType = "CI-RUNNER"
-	WEBHOOK        ArtifactsSourceType = "EXTERNAL" // Currently in use instead of DEPRICATED_EXT
-	PRE_CD         ArtifactsSourceType = "pre_cd"
-	POST_CD        ArtifactsSourceType = "post_cd"
-	POST_CI        ArtifactsSourceType = "post_ci"
-	GOCD           ArtifactsSourceType = "GOCD"
-	DEPRICATED_EXT ArtifactsSourceType = "ext" // For backward compatibility
+	CI_RUNNER ArtifactsSourceType = "CI-RUNNER"
+	WEBHOOK   ArtifactsSourceType = "EXTERNAL" // Currently in use instead of EXT
+	PRE_CD    ArtifactsSourceType = "pre_cd"
+	POST_CD   ArtifactsSourceType = "post_cd"
+	POST_CI   ArtifactsSourceType = "post_ci"
+	GOCD      ArtifactsSourceType = "GOCD"
+	// deprecated; Handled for backward compatibility
+	EXT ArtifactsSourceType = "ext"
 	// PRE_CI is not a valid DataSource for an artifact
 )
 
@@ -495,7 +496,7 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineAndRunnerType(cdPip
 
 // return map of gitUrl:hash
 func (info *CiArtifact) ParseMaterialInfo() (map[string]string, error) {
-	if info.DataSource != GOCD && info.DataSource != CI_RUNNER && info.DataSource != WEBHOOK && info.DataSource != DEPRICATED_EXT {
+	if info.DataSource != GOCD && info.DataSource != CI_RUNNER && info.DataSource != WEBHOOK && info.DataSource != EXT {
 		return nil, fmt.Errorf("datasource: %s not supported", info.DataSource)
 	}
 	var ciMaterials []*CiMaterialInfo
@@ -606,7 +607,7 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineV2(cdPipelineId int
 }
 
 func GetCiMaterialInfo(materialInfo string, source string) ([]CiMaterialInfo, error) {
-	if source != GOCD && source != CI_RUNNER && source != WEBHOOK && source != POST_CI && source != PRE_CD && source != POST_CD && source != DEPRICATED_EXT {
+	if source != GOCD && source != CI_RUNNER && source != WEBHOOK && source != POST_CI && source != PRE_CD && source != POST_CD && source != EXT {
 		return nil, fmt.Errorf("datasource: %s not supported", source)
 	}
 	var ciMaterials []CiMaterialInfo
