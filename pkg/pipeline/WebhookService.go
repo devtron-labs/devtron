@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/aws/aws-sdk-go-v2/service/ecr/types"
+	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -63,6 +64,7 @@ type WebhookService interface {
 	HandleExternalCiWebhook(externalCiId int, request *CiArtifactWebhookRequest, auth func(token string, projectObject string, envObject string) bool) (id int, err error)
 	HandleCiStepFailedEvent(ciPipelineId int, request *CiArtifactWebhookRequest) (err error)
 	HandleMultipleImagesFromEvent(imageDetails []types.ImageDetail, ciWorkflowId int) (map[string]*pipelineConfig.CiWorkflow, error)
+	GetTriggerValidateFuncs() []pubsub.ValidateMsg
 }
 
 type WebhookServiceImpl struct {
@@ -514,4 +516,8 @@ func (impl *WebhookServiceImpl) HandleMultipleImagesFromEvent(imageDetails []typ
 
 	}
 	return digestWorkflowMap, nil
+}
+
+func (impl *WebhookServiceImpl) GetTriggerValidateFuncs() []pubsub.ValidateMsg {
+	return impl.workflowDagExecutor.GetTriggerValidateFuncs()
 }
