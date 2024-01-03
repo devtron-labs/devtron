@@ -189,8 +189,7 @@ func (impl PubSubClientServiceImpl) TryCatchCallBack(msg *nats.Msg, callback fun
 
 	// call loggersFunc
 	if logged := loggerFunc(*subMsg); !logged {
-		impl.Logger.Debugw("processing nats message", "topic", msg.Subject, "msg", string(msg.Data))
-		return
+		impl.Logger.Debugw("processing nats message", "topic", msg.Subject, "msgId", subMsg.MsgId, "msg", string(msg.Data))
 	}
 
 	// run validations
