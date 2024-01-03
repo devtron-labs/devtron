@@ -769,7 +769,7 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppByGitOpsAppName(acdAppName
 	model := &InstalledApps{}
 	err := impl.dbConnection.Model(model).
 		Column("installed_apps.*", "App", "Environment").
-		Where(`CONCAT(app.app_name, "-", environment.environment_name) = ?`, acdAppName).
+		Where(`CONCAT(app.app_name, ?, environment.environment_name) = ?`, "-", acdAppName).
 		Where("installed_apps.active = true").
 		Where("environment.active = true").
 		Limit(1).
