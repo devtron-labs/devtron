@@ -1072,13 +1072,6 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, reques
 	}
 
 	natsMsgId := request.NatsMsgId
-	if natsMsgId != nil {
-		if err := impl.isInitialTrigger(natsMsgId); err != nil {
-			impl.logger.Errorw("error in validating trigger request", "natsMsgId", natsMsgId, "err", err)
-			return err
-		}
-	}
-
 	cdWf := request.CdWf
 	var err error
 	if cdWf == nil {
@@ -1309,13 +1302,6 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(ctx context.Context, reque
 	triggeredBy := request.TriggeredBy
 	pipeline := request.Pipeline
 	cdWf := request.CdWf
-
-	if natsMsgId != nil {
-		if err := impl.isInitialTrigger(natsMsgId); err != nil {
-			impl.logger.Errorw("error in validating trigger request", "natsMsgId", natsMsgId, "err", err)
-			return err
-		}
-	}
 
 	runner := &pipelineConfig.CdWorkflowRunner{
 		Name:                  pipeline.Name,
@@ -2085,12 +2071,6 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(ctx context.Context, requ
 		}
 	}
 	natsMsgId := request.NatsMsgId
-	if natsMsgId != nil {
-		if err := impl.isInitialTrigger(natsMsgId); err != nil {
-			impl.logger.Errorw("error in validating trigger request", "natsMsgId", natsMsgId, "err", err)
-			return err
-		}
-	}
 	cdWf := request.CdWf
 	//setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
 	triggeredAt := time.Now()
