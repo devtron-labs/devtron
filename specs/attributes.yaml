@@ -1,0 +1,92 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Devtron Labs
+paths:
+  /orchestrator/attributes/digestConfig :
+    post:
+      description: Save pull image using digest enforcement config for particular or all environments of a cluster
+      requestBody:
+        description: json as request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClusterDetails'
+      responses:
+        '200':
+          description: list response
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    type: array
+                    description: app list
+                    items:
+                      $ref: '#/components/schemas/ClusterDetails'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+# components mentioned below
+components:
+  schemas:
+    EnvironmentDetail:
+      type: object
+      properties:
+        clusterName:
+          type: string
+          description: name of cluster
+        environments:
+          type: array
+          items:
+            type: integer
+          description: array of environment ids
+    ClusterDetails:
+      type: array
+      items:
+        $ref: '#/components/schemas/EnvironmentDetail'
+
+    ErrorResponse:
+      required:
+        - code
+        - status
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error code
+        status:
+          type: string
+          description: Error message
+        errors:
+          type: array
+          description: errors
+          items:
+            $ref: '#/components/schemas/Error'
+
+    Error:
+      required:
+        - code
+        - status
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error internal code
+        internalMessage:
+          type: string
+          description: Error internal message
+        userMessage:
+          type: string
+          description: Error user message
