@@ -292,7 +292,7 @@ func (handler CoreAppRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.R
 		return
 	}
 	// with admin roles, you have to access for all the apps of the project to create new app. (admin or manager with specific app permission can't create app.)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, fmt.Sprintf("%s/%s", strings.ToLower(team.Name), "*")); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, fmt.Sprintf("%s/%s", team.Name, "*")); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -1560,6 +1560,10 @@ func (handler CoreAppRestHandlerImpl) createWorkflows(ctx context.Context, appId
 		//Creating CI pipeline starts
 		ciPipeline, err := handler.createCiPipeline(appId, userId, workflowId, workflow.CiPipeline)
 		if err != nil {
+			if err.Error() == bean2.PIPELINE_NAME_ALREADY_EXISTS_ERROR {
+				handler.logger.Errorw("service err, DeleteAppWorkflow ", "err", err)
+				return err, http.StatusBadRequest
+			}
 			err1 := handler.appWorkflowService.DeleteAppWorkflow(workflowId, userId)
 			if err1 != nil {
 				handler.logger.Errorw("service err, DeleteAppWorkflow ")

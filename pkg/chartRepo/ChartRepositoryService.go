@@ -697,7 +697,6 @@ func (impl *ChartRepositoryServiceImpl) TriggerChartSyncManual(chartProviderConf
 	defaultClusterConfig := defaultClusterBean.GetClusterConfig()
 
 	manualAppSyncJobByteArr := manualAppSyncJobByteArr(impl.serverEnvConfig.AppSyncImage, impl.serverEnvConfig.AppSyncJobResourcesObj, chartProviderConfig)
-
 	err = impl.K8sUtil.DeleteAndCreateJob(manualAppSyncJobByteArr, impl.aCDAuthConfig.ACDConfigMapNamespace, defaultClusterConfig)
 	if err != nil {
 		impl.logger.Errorw("DeleteAndCreateJob err, TriggerChartSyncManual", "err", err)

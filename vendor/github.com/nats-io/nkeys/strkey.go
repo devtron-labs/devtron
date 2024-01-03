@@ -1,4 +1,4 @@
-// Copyright 2018-2022 The NATS Authors
+// Copyright 2018-2023 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -137,22 +137,18 @@ func decode(src []byte) ([]byte, error) {
 	}
 	raw = raw[:n]
 
-	if len(raw) < 4 {
+	if n < 4 {
 		return nil, ErrInvalidEncoding
 	}
 
-	var crc uint16
-	checksum := bytes.NewReader(raw[len(raw)-2:])
-	if err := binary.Read(checksum, binary.LittleEndian, &crc); err != nil {
-		return nil, err
-	}
+	crc := binary.LittleEndian.Uint16(raw[n-2:])
 
 	// ensure checksum is valid
-	if err := validate(raw[0:len(raw)-2], crc); err != nil {
+	if err := validate(raw[0:n-2], crc); err != nil {
 		return nil, err
 	}
 
-	return raw[:len(raw)-2], nil
+	return raw[:n-2], nil
 }
 
 // Decode will decode the base32 string and check crc16 and enforce the prefix is what is expected.

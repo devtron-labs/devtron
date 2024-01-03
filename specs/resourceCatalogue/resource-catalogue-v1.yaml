@@ -3,9 +3,68 @@ info:
   version: 1.0.0
   title: Devtron Labs
 paths:
+  /orchestrator/resource/schema:
+    get:
+      parameters:
+        - name: resourceId
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Returns Schema as response
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                  result:
+                    $ref: '#/components/schemas/SchemaGETDto'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      parameters:
+        - name: dryRun
+          in: query
+          schema:
+            type: boolean
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SchemaRequestDto"
+      responses:
+        '200':
+          description: Returns Schema as response
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                  result:
+                    $ref: '#/components/schemas/SchemaDto'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /orchestrator/resource/list:
     get:
       description: this api will return all the resources present in database.
+      parameters:
+        - name: onlyIsExposed
+          in: query
+          schema:
+            type: boolean
       responses:
         '200':
           description: list response
@@ -118,15 +177,58 @@ paths:
 # components mentioned below
 components:
   schemas:
+    SchemaGETDto:
+      type: object
+      properties:
+        devtronResourceId:
+          type: integer
+        displayName:
+          type: string
+        kind:
+          type: string
+        description:
+          type: string
+        versionSchemaDetails:
+          type: array
+          items:
+            properties:
+              devtronResourceSchemaId:
+                type: integer
+              version:
+                type: string
+              schema:
+                type: string
+              sampleSchema:
+                type: string
+    SchemaDto:
+      type: object
+      properties:
+        message:
+          type: string
+        pathsToRemove:
+          type: array
+          items:
+            type: string
+          description: json object containing the complete schema
+    SchemaRequestDto:
+      type: object
+      properties:
+        devtronResourceSchemaId:
+          type: integer
+        schema:
+          type: string
+        displayName:
+          type: string
+        description:
+          type: string
+          description: json schema containing the complete schema
     DevtronResourceObjectDto:
       type: object
       properties:
         id:
           type: integer
-          required: true
         name:
           type: string
-          required: false
         schema:
           type: object
           description: json object containing the complete schema
@@ -141,20 +243,24 @@ components:
     DevtronResourceDto:
       type: object
       properties:
+        displayName:
+          type: string
+        description:
+          type: string
+        devtronResourceId:
+          type: integer
         kind:
           type: string
-        icon:
+        lastUpdatedOn:
           type: string
-        totalCount:
-          type: integer
-        subKinds:
+        versionSchemaDetails:
           type: array
           items:
             properties:
-              subKind:
-                type: string
-              count:
+              devtronResourceSchemaId:
                 type: integer
+              version:
+                type: string
     ErrorResponse:
       required:
         - code

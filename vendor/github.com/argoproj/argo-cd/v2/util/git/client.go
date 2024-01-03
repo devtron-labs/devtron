@@ -13,8 +13,10 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
+	argoexec "github.com/argoproj/pkg/exec"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -69,6 +71,7 @@ type Client interface {
 	CommitSHA() (string, error)
 	RevisionMetadata(revision string) (*RevisionMetadata, error)
 	VerifyCommitSignature(string) (string, error)
+	IsAnnotatedTag(string) bool
 }
 
 type EventHandlers struct {
@@ -96,6 +99,11 @@ type nativeGitClient struct {
 	loadRefFromCache bool
 	// HTTP/HTTPS proxy used to access repository
 	proxy string
+}
+
+type runOpts struct {
+	SkipErrorLogging bool
+	CaptureStderr    bool
 }
 
 var (
@@ -167,12 +175,12 @@ func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, en
 
 // Returns a HTTP client object suitable for go-git to use using the following
 // pattern:
-// - If insecure is true, always returns a client with certificate verification
-//   turned off.
-// - If one or more custom certificates are stored for the repository, returns
-//   a client with those certificates in the list of root CAs used to verify
-//   the server's certificate.
-// - Otherwise (and on non-fatal errors), a default HTTP client is returned.
+//   - If insecure is true, always returns a client with certificate verification
+//     turned off.
+//   - If one or more custom certificates are stored for the repository, returns
+//     a client with those certificates in the list of root CAs used to verify
+//     the server's certificate.
+//   - Otherwise (and on non-fatal errors), a default HTTP client is returned.
 func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds, proxyURL string) *http.Client {
 	// Default HTTP client
 	var customHTTPClient = &http.Client{
@@ -274,6 +282,18 @@ func newAuth(repoURL string, creds Creds) (transport.AuthMethod, error) {
 			return nil, err
 		}
 		auth := githttp.BasicAuth{Username: "x-access-token", Password: token}
+		return &auth, nil
+	case GoogleCloudCreds:
+		username, err := creds.getUsername()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get username from creds: %w", err)
+		}
+		token, err := creds.getAccessToken()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get access token from creds: %w", err)
+		}
+
+		auth := githttp.BasicAuth{Username: username, Password: token}
 		return &auth, nil
 	}
 	return nil, nil
@@ -603,34 +623,54 @@ func (m *nativeGitClient) VerifyCommitSignature(revision string) (string, error)
 	return out, nil
 }
 
+// IsAnnotatedTag returns true if the revision points to an annotated tag
+func (m *nativeGitClient) IsAnnotatedTag(revision string) bool {
+	cmd := exec.Command("git", "describe", "--exact-match", revision)
+	out, err := m.runCmdOutput(cmd, runOpts{SkipErrorLogging: true})
+	if out != "" && err == nil {
+		return true
+	} else {
+		return false
+	}
+}
+
 // runWrapper runs a custom command with all the semantics of running the Git client
 func (m *nativeGitClient) runGnuPGWrapper(wrapper string, args ...string) (string, error) {
 	cmd := exec.Command(wrapper, args...)
 	cmd.Env = append(cmd.Env, fmt.Sprintf("GNUPGHOME=%s", common.GetGnuPGHomePath()), "LANG=C")
-	return m.runCmdOutput(cmd)
+	return m.runCmdOutput(cmd, runOpts{})
 }
 
 // runCmd is a convenience function to run a command in a given directory and return its output
 func (m *nativeGitClient) runCmd(args ...string) (string, error) {
 	cmd := exec.Command("git", args...)
-	return m.runCmdOutput(cmd)
+	return m.runCmdOutput(cmd, runOpts{})
 }
 
 // runCredentialedCmd is a convenience function to run a git command with username/password credentials
 // nolint:unparam
 func (m *nativeGitClient) runCredentialedCmd(command string, args ...string) error {
-	cmd := exec.Command(command, args...)
 	closer, environ, err := m.creds.Environ()
 	if err != nil {
 		return err
 	}
 	defer func() { _ = closer.Close() }()
+
+	// If a basic auth header is explicitly set, tell Git to send it to the
+	// server to force use of basic auth instead of negotiating the auth scheme
+	for _, e := range environ {
+		if strings.HasPrefix(e, fmt.Sprintf("%s=", forceBasicAuthHeaderEnv)) {
+			args = append([]string{"--config-env", fmt.Sprintf("http.extraHeader=%s", forceBasicAuthHeaderEnv)}, args...)
+		}
+	}
+
+	cmd := exec.Command(command, args...)
 	cmd.Env = append(cmd.Env, environ...)
-	_, err = m.runCmdOutput(cmd)
+	_, err = m.runCmdOutput(cmd, runOpts{})
 	return err
 }
 
-func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd) (string, error) {
+func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, error) {
 	cmd.Dir = m.root
 	cmd.Env = append(os.Environ(), cmd.Env...)
 	// Set $HOME to nowhere, so we can be execute Git regardless of any external
@@ -661,6 +701,13 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd) (string, error) {
 	}
 
 	cmd.Env = proxy.UpsertEnv(cmd, m.proxy)
-
-	return executil.Run(cmd)
+	opts := executil.ExecRunOpts{
+		TimeoutBehavior: argoexec.TimeoutBehavior{
+			Signal:     syscall.SIGTERM,
+			ShouldWait: true,
+		},
+		SkipErrorLogging: ropts.SkipErrorLogging,
+		CaptureStderr:    ropts.CaptureStderr,
+	}
+	return executil.RunWithExecRunOpts(cmd, opts)
 }

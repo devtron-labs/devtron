@@ -228,6 +228,7 @@ const (
 	CI_PATCH_SUCCESS        CiPatchStatus = "Succeeded"
 	CI_PATCH_FAILED         CiPatchStatus = "Failed"
 	CI_PATCH_NOT_AUTHORIZED CiPatchStatus = "Not authorised"
+	CI_PATCH_SKIP           CiPatchStatus = "Skipped"
 )
 
 type CiPatchMessage string
@@ -237,6 +238,7 @@ const (
 	CI_PATCH_MULTI_GIT_ERROR        CiPatchMessage = "Build pipeline is connected to multiple git repositories"
 	CI_PATCH_REGEX_ERROR            CiPatchMessage = "Provided branch does not match regex "
 	CI_BRANCH_TYPE_ERROR            CiPatchMessage = "Branch cannot be changed for pipeline as source type is “Pull request or Tag”"
+	CI_PATCH_SKIP_MESSAGE           CiPatchMessage = "Skipped for pipeline as source type is "
 )
 
 func (a PatchAction) String() string {
@@ -274,9 +276,9 @@ type CiMaterialBulkPatchResponse struct {
 }
 
 type CiMaterialPatchResponse struct {
-	AppId   int            `json:"appId"`
-	Status  CiPatchStatus  `json:"status"`
-	Message CiPatchMessage `json:"message"`
+	AppId   int           `json:"appId"`
+	Status  CiPatchStatus `json:"status"`
+	Message string        `json:"message"`
 }
 
 type CiPatchRequest struct {
@@ -599,7 +601,16 @@ type CDPipelineConfigObject struct {
 	EnableCustomTag               bool                                   `json:"enableCustomTag"`
 	IsProdEnv                     bool                                   `json:"isProdEnv"`
 	SwitchFromCiPipelineId        int                                    `json:"switchFromCiPipelineId"`
+	CDPipelineAddType             CDPipelineAddType                      `json:"addType"`
+	ChildPipelineId               int                                    `json:"childPipelineId"`
 }
+
+type CDPipelineAddType string
+
+const (
+	SEQUENTIAL CDPipelineAddType = "SEQUENTIAL"
+	PARALLEL   CDPipelineAddType = "PARALLEL"
+)
 
 func (cdpipelineConfig *CDPipelineConfigObject) IsSwitchCiPipelineRequest() bool {
 	return cdpipelineConfig.SwitchFromCiPipelineId > 0 && cdpipelineConfig.AppWorkflowId > 0

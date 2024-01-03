@@ -458,6 +458,11 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 	}
 	createResp, err := handler.pipelineBuilder.PatchCiPipeline(&patchRequest)
 	if err != nil {
+		if err.Error() == bean1.PIPELINE_NAME_ALREADY_EXISTS_ERROR {
+			handler.Logger.Errorw("service err, pipeline name already exist ", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
 		handler.Logger.Errorw("service err, PatchCiPipelines", "err", err, "PatchCiPipelines", patchRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -2039,7 +2044,7 @@ func (handler PipelineConfigRestHandlerImpl) CreateUpdateImageTagging(w http.Res
 	//RBAC
 	if !isSuperAdmin {
 		object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-		if ok := handler.enforcer.EnforceByEmail(strings.ToLower(user.EmailId), casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
+		if ok := handler.enforcer.EnforceByEmail(user.EmailId, casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
 			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 			return
 		}

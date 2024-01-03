@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/common-lib-private/utils/k8s"
+	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	errors1 "github.com/juju/errors"
@@ -30,6 +31,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
 	"gopkg.in/igm/sockjs-go.v3/sockjs"
 	v1 "k8s.io/api/core/v1"
@@ -217,9 +219,24 @@ func handleTerminalSession(session sockjs.Session) {
 	terminalSession.bound <- nil
 }
 
+type SocketConfig struct {
+	SocketHeartbeatSeconds int `env:"SOCKET_HEARTBEAT_SECONDS" envDefault:"25"`
+	SocketDisconnectDelay  int `env:"SOCKET_DISCONNECT_DELAY_SECONDS" envDefault:"5"`
+}
+
+var cfg *SocketConfig
+
 // CreateAttachHandler is called from main for /api/sockjs
 func CreateAttachHandler(path string) http.Handler {
-	return sockjs.NewHandler(path, sockjs.DefaultOptions, handleTerminalSession)
+	if cfg == nil {
+		cfg = &SocketConfig{}
+		env.Parse(cfg)
+	}
+
+	opts := sockjs.DefaultOptions
+	opts.HeartbeatDelay = time.Duration(cfg.SocketHeartbeatSeconds) * time.Second
+	opts.DisconnectDelay = time.Duration(cfg.SocketDisconnectDelay) * time.Second
+	return sockjs.NewHandler(path, opts, handleTerminalSession)
 }
 
 // startProcess is called by handleAttach

@@ -53,6 +53,7 @@ func (router UserAuthRouterImpl) InitUserAuthRouter(userAuthRouter *mux.Router) 
 	userAuthRouter.Path("/login").HandlerFunc(router.userAuthOidcHelper.GetClientApp().HandleLogin)
 	userAuthRouter.Path("/auth/login").HandlerFunc(router.userAuthOidcHelper.GetClientApp().HandleLogin)
 	userAuthRouter.Path("/auth/callback").HandlerFunc(router.userAuthOidcHelper.GetClientApp().HandleCallback)
+
 	userAuthRouter.Path("/api/v1/session").HandlerFunc(router.userAuthHandler.LoginHandler)
 	userAuthRouter.Path("/refresh").HandlerFunc(router.userAuthHandler.RefreshTokenHandler)
 	// Policies mapping in orchestrator

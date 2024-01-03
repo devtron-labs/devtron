@@ -496,45 +496,76 @@ func (impl UserAuthServiceImpl) DeleteRoles(entityType string, entityName string
 	}
 
 	// deleting policies in casbin and roles
-	var casbinDeleteFailed []bool
 	casbin2.LoadPolicy()
-	for _, roleModel := range roleModels {
-		success := casbin2.RemovePoliciesByRole(roleModel.Role)
-		if !success {
-			impl.logger.Warnw("error in deleting casbin policy for role", "role", roleModel.Role)
+
+	if len(roleModels) > 0 {
+		// get roles and roleIds from roleModels for bulk db operations
+		roleIds, roles := impl.getRoleIdsAndRolesFromRoleModels(roleModels)
+
+		// deleting policies in casbin and roles
+		casbinDeleteFailed := impl.deleteAllUserMappingsForRoleModels(roles)
+		if len(casbinDeleteFailed) > 0 {
+			impl.logger.Errorw("error in deleting role for user from casbin", "casbinDeleteFailed", casbinDeleteFailed)
+		}
+
+		// removing all policies for the role
+		success, err := casbin2.RemovePoliciesByRoles(roles)
+		if !success || err != nil {
+			impl.logger.Warnw("error in deleting casbin policy for roles", "roles", roles, "err", err)
 			casbinDeleteFailed = append(casbinDeleteFailed, success)
 		}
-		allUsersMappedToRoles, err := casbin2.GetUserByRole(roleModel.Role)
-		if err != nil {
-			impl.logger.Errorw("error in getting all users by roles", "err", err, "role", roleModel.Role)
-			return err
-		}
-		for _, rl := range allUsersMappedToRoles {
-			success = casbin2.DeleteRoleForUser(rl, roleModel.Role)
-			if !success {
-				impl.logger.Warnw("error in deleting casbin policy for role", "role", roleModel.Role)
-				casbinDeleteFailed = append(casbinDeleteFailed, success)
-			}
-		}
+
 		//deleting user_roles for this role_id (foreign key constraint)
-		err = impl.userAuthRepository.DeleteUserRoleByRoleId(roleModel.Id, tx)
+		err = impl.userAuthRepository.DeleteUserRoleByRoleIds(roleIds, tx)
 		if err != nil {
-			impl.logger.Errorw("error in deleting user_roles by role id", "err", err, "roleId", roleModel.Id)
+			impl.logger.Errorw("error in deleting user_roles by role ids", "err", err, "roleIds", roleIds)
 			return err
 		}
 		//deleting role_group_role_mapping for this role_id (foreign key constraint)
-		err = impl.roleGroupRepository.DeleteRoleGroupRoleMappingByRoleId(roleModel.Id, tx)
+		err = impl.roleGroupRepository.DeleteRoleGroupRoleMappingByRoleIds(roleIds, tx)
 		if err != nil {
-			impl.logger.Errorw("error in deleting role_group_role_mapping by role id", "err", err, "roleId", roleModel.Id)
+			impl.logger.Errorw("error in deleting role_group_role_mapping by role ids", "err", err, "roleIds", roleIds)
 			return err
 		}
 		//deleting roles
-		err = impl.userAuthRepository.DeleteRole(roleModel, tx)
+		err = impl.userAuthRepository.DeleteRolesByIds(roleIds, tx)
 		if err != nil {
-			impl.logger.Errorw(fmt.Sprintf("error in deleting role for %s:%s", entityType, entityName), "err", err, "role", roleModel)
+			impl.logger.Errorw(fmt.Sprintf("error in deleting roles "), "err", err, "role", roleModels)
 			return err
 		}
 	}
+
 	casbin2.LoadPolicy()
 	return nil
+}
+
+func (impl UserAuthServiceImpl) deleteAllUserMappingsForRoleModels(roles []string) []bool {
+	var casbinDeleteFailed []bool
+	// deleting all user_role mapping from casbin by getting all users mapped to the role
+	for _, role := range roles {
+		allUsersMappedToRoles, err := casbin2.GetUserByRole(role)
+		if err != nil {
+			impl.logger.Errorw("error in getting all users by roles", "err", err, "role", role)
+			continue
+		}
+		for _, rl := range allUsersMappedToRoles {
+			success := casbin2.DeleteRoleForUser(rl, role)
+			if !success {
+				impl.logger.Warnw("error in deleting casbin policy for role", "role", role)
+				casbinDeleteFailed = append(casbinDeleteFailed, success)
+			}
+		}
+	}
+	return casbinDeleteFailed
+}
+
+func (impl UserAuthServiceImpl) getRoleIdsAndRolesFromRoleModels(roleModels []*repository2.RoleModel) ([]int, []string) {
+	var roleIds []int
+	var roles []string
+	// deleting all user_role mapping from casbin by getting all users mapped to the role
+	for _, roleModel := range roleModels {
+		roleIds = append(roleIds, roleModel.Id)
+		roles = append(roles, roleModel.Role)
+	}
+	return roleIds, roles
 }
