@@ -514,7 +514,11 @@ func (impl AppStoreDeploymentFullModeServiceImpl) SubscribeHelmInstallStatus() e
 		}
 	}
 
-	err := impl.pubSubClient.Subscribe(pubsub_lib.HELM_CHART_INSTALL_STATUS_TOPIC, callback)
+	loggerFunc := func(msg *model.PubSubMsg) {
+		impl.logger.Debugw("HELM_CHART_INSTALL_STATUS", "topic", pubsub_lib.HELM_CHART_INSTALL_STATUS_TOPIC, "msgId", msg.MsgId, "data", msg.Data)
+	}
+
+	err := impl.pubSubClient.Subscribe(pubsub_lib.HELM_CHART_INSTALL_STATUS_TOPIC, callback, loggerFunc)
 	if err != nil {
 		impl.logger.Error(err)
 		return err

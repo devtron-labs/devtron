@@ -93,7 +93,12 @@ func (impl *WorkflowStatusUpdateHandlerImpl) Subscribe() error {
 		}
 
 	}
-	err := impl.pubsubClient.Subscribe(pubsub.WORKFLOW_STATUS_UPDATE_TOPIC, callback)
+
+	loggerFunc := func(msg *model.PubSubMsg) {
+		impl.logger.Debugw("WORKFLOW_STATUS_UPDATE", "topic", pubsub.WORKFLOW_STATUS_UPDATE_TOPIC, "msgId", msg.MsgId, "data", msg.Data)
+	}
+
+	err := impl.pubsubClient.Subscribe(pubsub.WORKFLOW_STATUS_UPDATE_TOPIC, callback, loggerFunc)
 
 	if err != nil {
 		impl.logger.Error("err", err)
@@ -170,7 +175,11 @@ func (impl *WorkflowStatusUpdateHandlerImpl) SubscribeCD() error {
 			}
 		}
 	}
-	err := impl.pubsubClient.Subscribe(pubsub.CD_WORKFLOW_STATUS_UPDATE, callback)
+	loggerFunc := func(msg *model.PubSubMsg) {
+		impl.logger.Debugw("CD_WORKFLOW_STATUS_UPDATE", "topic", pubsub.WORKFLOW_STATUS_UPDATE_TOPIC, "msgId", msg.MsgId, "data", msg.Data)
+	}
+
+	err := impl.pubsubClient.Subscribe(pubsub.CD_WORKFLOW_STATUS_UPDATE, callback, loggerFunc)
 	if err != nil {
 		impl.logger.Error("err", err)
 		return err

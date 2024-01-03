@@ -162,8 +162,12 @@ func (impl *ApplicationStatusHandlerImpl) Subscribe() error {
 		impl.logger.Debugw("application status update completed", "app", app.Name)
 	}
 
+	loggerFunc := func(msg *model.PubSubMsg) {
+		impl.logger.Debugw("APP_STATUS_UPDATE_REQ", "topic", pubsub.APPLICATION_STATUS_UPDATE_TOPIC, "msgId", msg.MsgId, "data", msg.Data)
+	}
+
 	validations := impl.workflowDagExecutor.GetTriggerValidateFuncs()
-	err := impl.pubsubClient.Subscribe(pubsub.APPLICATION_STATUS_UPDATE_TOPIC, callback, validations...)
+	err := impl.pubsubClient.Subscribe(pubsub.APPLICATION_STATUS_UPDATE_TOPIC, callback, loggerFunc, validations...)
 	if err != nil {
 		impl.logger.Error(err)
 		return err
@@ -192,7 +196,10 @@ func (impl *ApplicationStatusHandlerImpl) SubscribeDeleteStatus() error {
 			impl.logger.Errorw("error in updating pipeline delete status", "err", err, "appName", app.Name)
 		}
 	}
-	err := impl.pubsubClient.Subscribe(pubsub.APPLICATION_STATUS_DELETE_TOPIC, callback)
+	loggerFunc := func(msg *model.PubSubMsg) {
+		impl.logger.Debugw("APP_STATUS_DELETE_REQ", "topic", pubsub.APPLICATION_STATUS_DELETE_TOPIC, "msgId", msg.MsgId, "data", msg.Data)
+	}
+	err := impl.pubsubClient.Subscribe(pubsub.APPLICATION_STATUS_DELETE_TOPIC, callback, loggerFunc)
 	if err != nil {
 		impl.logger.Errorw("error in subscribing to argo application status delete topic", "err", err)
 		return err

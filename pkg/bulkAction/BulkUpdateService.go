@@ -1069,7 +1069,7 @@ func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvir
 			UserId:        request.UserId,
 			RequestType:   pipeline1.STOP,
 		}
-		_, hibernateReqError = impl.workflowDagExecutor.StopStartApp(stopRequest, ctx)
+		_, hibernateReqError = impl.workflowDagExecutor.StopStartApp(ctx, stopRequest, nil)
 		if hibernateReqError != nil {
 			impl.logger.Errorw("error in hibernating application", "err", hibernateReqError, "pipeline", pipeline)
 			pipelineResponse := response[appKey]
@@ -1225,7 +1225,7 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 			UserId:        request.UserId,
 			RequestType:   pipeline1.START,
 		}
-		_, hibernateReqError = impl.workflowDagExecutor.StopStartApp(stopRequest, ctx)
+		_, hibernateReqError = impl.workflowDagExecutor.StopStartApp(ctx, stopRequest, nil)
 		if hibernateReqError != nil {
 			impl.logger.Errorw("error in un-hibernating application", "err", hibernateReqError, "pipeline", pipeline)
 			pipelineResponse := response[appKey]
@@ -1446,7 +1446,7 @@ func (impl BulkUpdateServiceImpl) SubscribeToCdBulkTriggerTopic() error {
 			return
 		}
 
-		_, err = impl.workflowDagExecutor.ManualCdTrigger(event.ValuesOverrideRequest, ctx)
+		_, err = impl.workflowDagExecutor.ManualCdTrigger(ctx, event.ValuesOverrideRequest, msg.MsgId)
 		if err != nil {
 			impl.logger.Errorw("Error triggering CD",
 				"topic", pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC,
@@ -1454,7 +1454,12 @@ func (impl BulkUpdateServiceImpl) SubscribeToCdBulkTriggerTopic() error {
 				"err", err)
 		}
 	}
-	err := impl.pubsubClient.Subscribe(pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC, callback)
+	loggerFunc := func(msg *model.PubSubMsg) {
+		impl.logger.Debugw("CD_BULK_DEPLOY_TRIGGER_REQ", "topic", pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC, "msgId", msg.MsgId, "data", msg.Data)
+	}
+
+	validations := impl.workflowDagExecutor.GetTriggerValidateFuncs()
+	err := impl.pubsubClient.Subscribe(pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC, callback, loggerFunc, validations...)
 	if err != nil {
 		impl.logger.Error("failed to subscribe to NATS topic",
 			"topic", pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC,

@@ -129,7 +129,7 @@ func (handler PipelineTriggerRestHandlerImpl) OverrideConfig(w http.ResponseWrit
 	}
 	ctx := context.WithValue(r.Context(), "token", acdToken)
 	_, span := otel.Tracer("orchestrator").Start(ctx, "workflowDagExecutor.ManualCdTrigger")
-	mergeResp, err := handler.workflowDagExecutor.ManualCdTrigger(&overrideRequest, ctx)
+	mergeResp, err := handler.workflowDagExecutor.ManualCdTrigger(ctx, &overrideRequest, nil)
 	span.End()
 	if err != nil {
 		handler.logger.Errorw("request err, OverrideConfig", "err", err, "payload", overrideRequest)
@@ -224,7 +224,7 @@ func (handler PipelineTriggerRestHandlerImpl) StartStopApp(w http.ResponseWriter
 		return
 	}
 	ctx := context.WithValue(r.Context(), "token", acdToken)
-	mergeResp, err := handler.workflowDagExecutor.StopStartApp(&overrideRequest, ctx)
+	mergeResp, err := handler.workflowDagExecutor.StopStartApp(ctx, &overrideRequest, nil)
 	if err != nil {
 		handler.logger.Errorw("service err, StartStopApp", "err", err, "payload", overrideRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

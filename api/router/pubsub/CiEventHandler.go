@@ -156,8 +156,12 @@ func (impl *CiEventHandlerImpl) Subscribe() error {
 			impl.logger.Debug(resp)
 		}
 	}
+	loggerFunc := func(msg *model.PubSubMsg) {
+		impl.logger.Debugw("CI_COMPLETE_EVENT", "topic", pubsub.CI_COMPLETE_TOPIC, "msgId", msg.MsgId, "data", msg.Data)
+	}
+
 	validations := impl.workflowDagExecutor.GetTriggerValidateFuncs()
-	err := impl.pubsubClient.Subscribe(pubsub.CI_COMPLETE_TOPIC, callback, validations...)
+	err := impl.pubsubClient.Subscribe(pubsub.CI_COMPLETE_TOPIC, callback, loggerFunc, validations...)
 	if err != nil {
 		impl.logger.Error(err)
 		return err

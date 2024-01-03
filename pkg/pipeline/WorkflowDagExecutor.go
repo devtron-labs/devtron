@@ -104,9 +104,9 @@ type WorkflowDagExecutor interface {
 	TriggerPostStage(ctx context.Context, request *TriggerRequest) error
 	TriggerPreStage(ctx context.Context, request *TriggerRequest) error
 	TriggerDeployment(ctx context.Context, request *TriggerRequest) error
-	ManualCdTrigger(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (int, error)
+	ManualCdTrigger(ctx context.Context, overrideRequest *bean.ValuesOverrideRequest, msgId *string) (int, error)
 	TriggerBulkDeploymentAsync(requests []*BulkTriggerRequest, UserId int32) (interface{}, error)
-	StopStartApp(stopRequest *StopAppRequest, ctx context.Context) (int, error)
+	StopStartApp(ctx context.Context, stopRequest *StopAppRequest, msgId *string) (int, error)
 	TriggerBulkHibernateAsync(request StopDeploymentGroupRequest, ctx context.Context) (interface{}, error)
 	RotatePods(ctx context.Context, podRotateRequest *PodRotateRequest) (*k8s.RotatePodResponse, error)
 	MarkCurrentDeploymentFailed(runner *pipelineConfig.CdWorkflowRunner, releaseErr error, triggeredBy int32) error
@@ -457,8 +457,14 @@ func (impl *WorkflowDagExecutorImpl) Subscribe() error {
 			}
 		}
 	}
+
+	loggerFunc := func(msg *model.PubSubMsg) {
+		impl.logger.Debugw("CD_STAGE_COMPLETE_REQ", "topic", pubsub.CD_STAGE_COMPLETE_TOPIC, "msgId", msg.MsgId, "msg", string(msg.Data))
+	}
+
 	validations := impl.GetTriggerValidateFuncs()
-	err := impl.pubsubClient.Subscribe(pubsub.CD_STAGE_COMPLETE_TOPIC, callback, validations...)
+
+	err := impl.pubsubClient.Subscribe(pubsub.CD_STAGE_COMPLETE_TOPIC, callback, loggerFunc, validations...)
 	if err != nil {
 		impl.logger.Error("error", "err", err)
 		return err
@@ -760,8 +766,10 @@ func (impl *WorkflowDagExecutorImpl) SubscribeDevtronAsyncHelmInstallRequest() e
 		impl.processDevtronAsyncHelmInstallRequest(CDAsyncInstallNatsMessage, appIdentifier)
 		return
 	}
-
-	err := impl.pubsubClient.Subscribe(pubsub.DEVTRON_CHART_INSTALL_TOPIC, callback)
+	loggerFunc := func(msg *model.PubSubMsg) {
+		impl.logger.Debugw("DEVTRON_CHART_INSTALL_REQ", "topic", pubsub.DEVTRON_CHART_INSTALL_TOPIC, "msgId", msg.MsgId, "msg", string(msg.Data))
+	}
+	err := impl.pubsubClient.Subscribe(pubsub.DEVTRON_CHART_INSTALL_TOPIC, callback, loggerFunc)
 	if err != nil {
 		impl.logger.Error(err)
 		return err
@@ -1098,7 +1106,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, reques
 		LogLocation:           fmt.Sprintf("%s/%s%s-%s/main.log", impl.config.GetDefaultBuildLogsKeyPrefix(), strconv.Itoa(cdWf.Id), string(bean.CD_WORKFLOW_TYPE_PRE), pipeline.Name),
 		AuditLog:              sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: 1, UpdatedOn: triggeredAt, UpdatedBy: 1},
 		RefCdWorkflowRunnerId: request.RefCdWorkflowRunnerId,
-		MsgId:                 natsMsgId,
+		ReferenceId:           natsMsgId,
 	}
 	var env *repository2.Environment
 	if pipeline.RunPreStageInEnv {
@@ -1322,7 +1330,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(ctx context.Context, reque
 		LogLocation:           fmt.Sprintf("%s/%s%s-%s/main.log", impl.config.GetDefaultBuildLogsKeyPrefix(), strconv.Itoa(cdWf.Id), string(bean.CD_WORKFLOW_TYPE_POST), pipeline.Name),
 		AuditLog:              sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: triggeredBy, UpdatedOn: triggeredAt, UpdatedBy: triggeredBy},
 		RefCdWorkflowRunnerId: request.RefCdWorkflowRunnerId,
-		MsgId:                 natsMsgId,
+		ReferenceId:           natsMsgId,
 	}
 	var env *repository2.Environment
 	var err error
@@ -2110,7 +2118,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(ctx context.Context, requ
 		Namespace:    impl.config.GetDefaultNamespace(),
 		CdWorkflowId: cdWf.Id,
 		AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: triggeredBy, UpdatedOn: triggeredAt, UpdatedBy: triggeredBy},
-		MsgId:        natsMsgId,
+		ReferenceId:  natsMsgId,
 	}
 	savedWfr, err := impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
 	if err != nil {
@@ -2315,7 +2323,7 @@ func (impl *WorkflowDagExecutorImpl) RotatePods(ctx context.Context, podRotateRe
 	return response, nil
 }
 
-func (impl *WorkflowDagExecutorImpl) StopStartApp(stopRequest *StopAppRequest, ctx context.Context) (int, error) {
+func (impl *WorkflowDagExecutorImpl) StopStartApp(ctx context.Context, stopRequest *StopAppRequest, msgId *string) (int, error) {
 	pipelines, err := impl.pipelineRepository.FindActiveByAppIdAndEnvironmentId(stopRequest.AppId, stopRequest.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching pipeline", "app", stopRequest.AppId, "env", stopRequest.EnvironmentId, "err", err)
@@ -2354,7 +2362,7 @@ func (impl *WorkflowDagExecutorImpl) StopStartApp(stopRequest *StopAppRequest, c
 	} else {
 		return 0, fmt.Errorf("unsupported operation %s", stopRequest.RequestType)
 	}
-	id, err := impl.ManualCdTrigger(overrideRequest, ctx)
+	id, err := impl.ManualCdTrigger(ctx, overrideRequest, msgId)
 	if err != nil {
 		impl.logger.Errorw("error in stopping app", "err", err, "appId", stopRequest.AppId, "envId", stopRequest.EnvironmentId)
 		return 0, err
@@ -2398,7 +2406,7 @@ func (impl *WorkflowDagExecutorImpl) GetArtifactVulnerabilityStatus(artifact *re
 	return isVulnerable, nil
 }
 
-func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (int, error) {
+func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(ctx context.Context, overrideRequest *bean.ValuesOverrideRequest, msgId *string) (int, error) {
 	//setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
 	triggeredAt := time.Now()
 	releaseId := 0
@@ -2429,7 +2437,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			Pipeline:              cdPipeline,
 			TriggeredBy:           overrideRequest.UserId,
 			ApplyAuth:             false,
-			NatsMsgId:             nil,
+			NatsMsgId:             msgId,
 			RefCdWorkflowRunnerId: 0,
 		}
 		err = impl.TriggerPreStage(ctx, triggerRequest)
@@ -2474,6 +2482,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			Namespace:    impl.config.GetDefaultNamespace(),
 			CdWorkflowId: cdWorkflowId,
 			AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: overrideRequest.UserId, UpdatedOn: triggeredAt, UpdatedBy: overrideRequest.UserId},
+			ReferenceId:  msgId,
 		}
 		savedWfr, err := impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
 		overrideRequest.WfrId = savedWfr.Id
@@ -2589,7 +2598,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			Pipeline:              cdPipeline,
 			TriggeredBy:           overrideRequest.UserId,
 			RefCdWorkflowRunnerId: 0,
-			NatsMsgId:             nil,
+			NatsMsgId:             msgId,
 		}
 		err = impl.TriggerPostStage(ctx, triggerRequest)
 		span.End()
@@ -2755,8 +2764,13 @@ func (impl *WorkflowDagExecutorImpl) subscribeTriggerBulkAction() error {
 		}
 		impl.cdWorkflowRepository.UpdateWorkFlow(wf)
 	}
+
+	loggerFunc := func(msg *model.PubSubMsg) {
+		impl.logger.Debugw("BULK_DEPLOY_REQ", "topic", pubsub.BULK_DEPLOY_TOPIC, "msgId", msg.MsgId, "msg", msg.Data)
+	}
+
 	validations := impl.GetTriggerValidateFuncs()
-	err := impl.pubsubClient.Subscribe(pubsub.BULK_DEPLOY_TOPIC, callback, validations...)
+	err := impl.pubsubClient.Subscribe(pubsub.BULK_DEPLOY_TOPIC, callback, loggerFunc, validations...)
 	return err
 }
 
@@ -2783,13 +2797,16 @@ func (impl *WorkflowDagExecutorImpl) subscribeHibernateBulkAction() error {
 			impl.logger.Errorw("error in creating acd synch context", "err", err)
 			return
 		}
-		_, err = impl.StopStartApp(stopAppRequest, ctx)
+		_, err = impl.StopStartApp(ctx, stopAppRequest, msg.MsgId)
 		if err != nil {
 			impl.logger.Errorw("error in stop app request", "err", err)
 			return
 		}
 	}
-	err := impl.pubsubClient.Subscribe(pubsub.BULK_HIBERNATE_TOPIC, callback)
+	loggerFunc := func(msg *model.PubSubMsg) {
+		impl.logger.Debugw("BULK_HIBERNATE_REQ", "topic", pubsub.BULK_HIBERNATE_TOPIC, "msgId", msg.MsgId, "msg", msg.Data)
+	}
+	err := impl.pubsubClient.Subscribe(pubsub.BULK_HIBERNATE_TOPIC, callback, loggerFunc)
 	return err
 }
 

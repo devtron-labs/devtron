@@ -181,7 +181,7 @@ type CdWorkflowRunner struct {
 	BlobStorageEnabled      bool                 `sql:"blob_storage_enabled,notnull"`
 	RefCdWorkflowRunnerId   int                  `sql:"ref_cd_workflow_runner_id,notnull"`
 	ImagePathReservationIds []int                `sql:"image_path_reservation_ids" pg:",array,notnull"`
-	MsgId                   *string              `sql:"msg_id"`
+	ReferenceId             *string              `sql:"reference_id"`
 	CdWorkflow              *CdWorkflow
 	sql.AuditLog
 }
