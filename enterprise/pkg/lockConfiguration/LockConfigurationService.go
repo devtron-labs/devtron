@@ -224,8 +224,6 @@ func checkForLockedArray(savedConfigMap, currentConfigMap []interface{}) []inter
 				lockedArray = append(lockedArray, currentConfigMap[key])
 
 			}
-		} else {
-			lockedArray = append(lockedArray, nil)
 		}
 	}
 	for key1, _ := range currentConfigMap {
