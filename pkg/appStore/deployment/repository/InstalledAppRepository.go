@@ -68,7 +68,6 @@ type InstalledAppRepository interface {
 	GetInstalledAppByAppName(appName string) (*InstalledApps, error)
 	GetInstalledAppByAppIdAndDeploymentType(appId int, deploymentAppType string) (InstalledApps, error)
 	GetInstalledAppByInstalledAppVersionId(installedAppVersionId int) (InstalledApps, error)
-	GetAllGitOpsDeploymentAppName() ([]string, error)
 	GetInstalledAppByGitOpsAppName(acdAppName string) (*InstalledApps, error)
 
 	GetArgoPipelinesHavingLatestTriggerStuckInNonTerminalStatusesForAppStore(getPipelineDeployedBeforeMinutes int, getPipelineDeployedWithinHours int) ([]*InstalledAppVersions, error)
