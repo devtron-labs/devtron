@@ -41,7 +41,6 @@ func NewDashboardRouterImpl(logger *zap.SugaredLogger, dashboardCfg *Config) *Da
 
 func (router DashboardRouterImpl) InitDashboardRouter(dashboardRouter *mux.Router) {
 	dashboardRouter.PathPrefix("").HandlerFunc(router.dashboardProxy)
-
 }
 
 var DashboardWireSet = wire.NewSet(
