@@ -77,6 +77,7 @@ type EnforcerUtil interface {
 	GetClusterNameRBACObjByClusterId(clusterId int) string
 	CheckAppRbacForAppOrJob(token, resourceName, action string) bool
 	CheckAppRbacForAppOrJobInBulk(email, action string, rbacObjects []string, appType helper2.AppType) map[string]bool
+	GetProjectOrAppAdminRBACNameByAppNameAndTeamName(appName, teamName string) string
 }
 
 type EnforcerUtilImpl struct {
@@ -748,4 +749,11 @@ func (impl EnforcerUtilImpl) CheckAppRbacForAppOrJobInBulk(email, action string,
 	}
 
 	return enforcedMap
+}
+
+func (impl EnforcerUtilImpl) GetProjectOrAppAdminRBACNameByAppNameAndTeamName(appName, teamName string) string {
+	if appName == "" {
+		return fmt.Sprintf("%s/%s", teamName, "*")
+	}
+	return fmt.Sprintf("%s/%s", teamName, appName)
 }
