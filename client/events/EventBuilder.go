@@ -358,6 +358,13 @@ func (impl *EventSimpleFactoryImpl) BuildExtraApprovalData(event Event, approval
 		dockerImageTag = payload.DockerImageUrl[lastColonIndex+1:]
 	}
 	payload.ImageApprovalLink = fmt.Sprintf("/dashboard/app/%d/trigger?approval-node=%d&imageTag=%s", event.AppId, cdPipeline.Id, dockerImageTag)
+	if userId > 0 {
+		user, err := impl.userRepository.GetById(userId)
+		if err != nil {
+			impl.logger.Errorw("found error on getting user data ", "user", user)
+		}
+		event.Payload.TriggeredBy = user.EmailId
+	}
 	for _, emailId := range approvalActionRequest.ApprovalNotificationConfig.EmailIds {
 		provider := &Provider{
 			//Rule:      "",
@@ -370,15 +377,12 @@ func (impl *EventSimpleFactoryImpl) BuildExtraApprovalData(event Event, approval
 			provider.Destination = "smtp"
 		}
 		event.Payload.Providers = append(event.Payload.Providers, provider)
-		err = impl.createAndSetToken(nil, &approvalActionRequest, payload, 0, 0, emailId)
-
-	}
-	if userId > 0 {
-		user, err := impl.userRepository.GetById(userId)
-		if err != nil {
-			impl.logger.Errorw("found error on getting user data ", "user", user)
+		reqData := &ConfigDataForNotification{
+			AppId: cdPipeline.AppId,
+			EnvId: cdPipeline.EnvironmentId,
 		}
-		event.Payload.TriggeredBy = user.EmailId
+		err = impl.createAndSetToken(reqData, &approvalActionRequest, payload, 0, 0, emailId)
+		events = append(events, event)
 	}
 
 	return events

@@ -1175,12 +1175,6 @@ func (impl NotificationRestHandlerImpl) DraftApprovalNotificationRequest(w http.
 		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
 		return
 	}
-	err = json.NewDecoder(r.Body).Decode(&draftApprovalRequest)
-	if err != nil {
-		impl.logger.Errorw("request err, imageApprovalRequest", "err", err, "payload", draftApprovalRequest)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
 	envId := draftApprovalRequest.NotificationApprovalRequest.EnvId
 	appId := draftApprovalRequest.NotificationApprovalRequest.AppId
 	draftId := draftApprovalRequest.DraftId
@@ -1209,7 +1203,6 @@ func (impl NotificationRestHandlerImpl) DraftApprovalNotificationRequest(w http.
 func (impl NotificationRestHandlerImpl) DeploymentApprovalNotificationRequest(w http.ResponseWriter, r *http.Request) {
 	token := r.URL.Query().Get("token")
 	//verification is done internally
-	//token := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkcmFmdElkIjozLCJkcmFmdFZlcnNpb25JZCI6MywiYXBwcm92YWxSZXF1ZXN0SWQiOjAsImFydGlmYWN0SWQiOjAsImFwcElkIjo2NywiZW52SWQiOi0xLCJhcHByb3ZhbFR5cGUiOiIiLCJlbWFpbCI6ImFkaXR5YS5yYW5qYW5AZGV2dHJvbi5haSIsImlzcyI6ImFwaVRva2VuSXNzdWVyIiwiZXhwIjowfQ.04atq46CUspff6u_8kqwtIcRPk1oUFS83LSw66kF8Do"
 	fieldsMap, err := impl.userAuthService.GetFieldValuesFromToken(token, NotificationTokenFields)
 	deploymentApprovalRequest := &apiToken.DeploymentApprovalRequest{}
 	deploymentBytes, err := json.Marshal(fieldsMap)
@@ -1220,12 +1213,6 @@ func (impl NotificationRestHandlerImpl) DeploymentApprovalNotificationRequest(w 
 	err = deploymentApprovalRequest.CreateDeploymentApprovalRequest(deploymentBytes)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
-		return
-	}
-	err = json.NewDecoder(r.Body).Decode(&deploymentApprovalRequest)
-	if err != nil {
-		impl.logger.Errorw("request err, deploymentApprovalRequest", "err", err, "payload", deploymentApprovalRequest)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	pipelineId := deploymentApprovalRequest.PipelineId

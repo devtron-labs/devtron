@@ -338,9 +338,9 @@ func (impl ApiTokenServiceImpl) CreateApiJwtTokenForNotification(draftRequest *D
 			ArtifactId:        deploymentRequest.ArtifactId,
 			PipelineId:        deploymentRequest.PipelineId,
 			AppId:             deploymentRequest.NotificationApprovalRequest.AppId,
-			EnvId:             draftRequest.NotificationApprovalRequest.EnvId,
+			EnvId:             deploymentRequest.NotificationApprovalRequest.EnvId,
 			ApiTokenCustomClaims: ApiTokenCustomClaims{
-				Email:            draftRequest.NotificationApprovalRequest.EmailId,
+				Email:            deploymentRequest.NotificationApprovalRequest.EmailId,
 				RegisteredClaims: registeredClaims,
 			},
 		}
