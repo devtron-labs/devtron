@@ -36,6 +36,7 @@ type UserAuditService interface {
 	GetLatestByUserId(userId int32) (*UserAudit, error)
 	GetLatestUser() (*UserAudit, error)
 	Update(userAudit *UserAudit) error
+	GetAllNonApiTokenUsersDataMap() (map[int32]time.Time, error)
 }
 
 type UserAuditServiceImpl struct {
@@ -121,4 +122,27 @@ func (impl UserAuditServiceImpl) GetLatestUser() (*UserAudit, error) {
 		CreatedOn: userAuditDb.CreatedOn,
 		UpdatedOn: userAuditDb.UpdatedOn,
 	}, nil
+}
+
+func (impl UserAuditServiceImpl) GetAllNonApiTokenUsersDataMap() (map[int32]time.Time, error) {
+	//getting data from repository
+	userAudits, err := impl.userAuditRepository.GetAllNonApiTokenUsersData()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting user audit data for users excluding api token types", "err", err)
+		return nil, err
+	}
+	//map of userId and their latest updated_on time in audit entry
+	userAuditMap := make(map[int32]time.Time, len(userAudits))
+	for _, userAudit := range userAudits {
+		if oldUserAuditTime, ok := userAuditMap[userAudit.UserId]; ok {
+			//entry present already, replacing latest time
+			if oldUserAuditTime.Before(userAudit.UpdatedOn) {
+				userAuditMap[userAudit.UserId] = userAudit.UpdatedOn
+			}
+		} else {
+			//create new entry
+			userAuditMap[userAudit.UserId] = userAudit.UpdatedOn
+		}
+	}
+	return userAuditMap, nil
 }

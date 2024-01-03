@@ -16,11 +16,12 @@
  */
 
 /*
-	@description: user crud
+@description: user crud
 */
 package repository
 
 import (
+	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/go-pg/pg"
 	"time"
 )
@@ -39,6 +40,7 @@ type UserAuditRepository interface {
 	GetLatestByUserId(userId int32) (*UserAudit, error)
 	GetLatestUser() (*UserAudit, error)
 	Update(userAudit *UserAudit) error
+	GetAllNonApiTokenUsersData() ([]*UserAudit, error)
 }
 
 type UserAuditRepositoryImpl struct {
@@ -85,4 +87,14 @@ func (impl UserAuditRepositoryImpl) GetLatestUser() (*UserAudit, error) {
 		Limit(1).
 		Select()
 	return userAudit, err
+}
+
+func (impl UserAuditRepositoryImpl) GetAllNonApiTokenUsersData() ([]*UserAudit, error) {
+	var userAudits []*UserAudit
+	err := impl.dbConnection.Model(&userAudits).
+		Join("inner join users on users.id=user_audit.user_id").
+		Where("users.user_type is NULL or users.user_type != ?", bean.USER_TYPE_API_TOKEN).
+		Where("users.active = ?", true).
+		Select()
+	return userAudits, err
 }
