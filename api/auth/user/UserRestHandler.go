@@ -538,6 +538,12 @@ func (handler UserRestHandlerImpl) CreateRoleGroup(w http.ResponseWriter, r *htt
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); ok {
 		isActionUserSuperAdmin = true
 	}
+
+	if request.SuperAdmin && !isActionUserSuperAdmin {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+
 	if request.RoleFilters != nil && len(request.RoleFilters) > 0 {
 		for _, filter := range request.RoleFilters {
 			if filter.AccessType == bean.APP_ACCESS_TYPE_HELM && !isActionUserSuperAdmin {
@@ -611,6 +617,17 @@ func (handler UserRestHandlerImpl) UpdateRoleGroup(w http.ResponseWriter, r *htt
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+
+	isActionUserSuperAdmin := false
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); ok {
+		isActionUserSuperAdmin = true
+	}
+	//Check if user is not superAdmin and updating to userAdmin
+	if request.SuperAdmin && !isActionUserSuperAdmin {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+
 	res, err := handler.roleGroupService.UpdateRoleGroup(&request, token, handler.CheckManagerAuth)
 	if err != nil {
 		handler.logger.Errorw("service err, UpdateRoleGroup", "err", err, "payload", request)

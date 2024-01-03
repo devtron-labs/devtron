@@ -1297,23 +1297,11 @@ func (handler PipelineConfigRestHandlerImpl) DeleteMaterial(w http.ResponseWrite
 		return
 	}
 	//rbac starts
-	app, err := handler.pipelineBuilder.GetApp(deleteMaterial.AppId)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
+	resourceObject := handler.enforcerUtil.GetAppRBACNameByAppId(deleteMaterial.AppId)
 	token := r.Header.Get("token")
-	if app.AppType == helper.Job {
-		if isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionDelete, "*"); !isSuperAdmin {
-			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
-			return
-		}
-	} else {
-		resourceObject := handler.enforcerUtil.GetAppRBACNameByAppId(deleteMaterial.AppId)
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceObject); !ok {
-			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
-			return
-		}
+	if ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, resourceObject, casbin.ActionCreate); !ok {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
 	}
 	//rbac ends
 	err = handler.pipelineBuilder.DeleteMaterial(&deleteMaterial)

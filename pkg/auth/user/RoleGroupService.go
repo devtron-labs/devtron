@@ -129,29 +129,55 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 
 		capacity, mapping := impl.userCommonService.GetCapacityForRoleFilter(request.RoleFilters)
 		var policies = make([]casbin2.Policy, 0, capacity)
-		for index, roleFilter := range request.RoleFilters {
-			entity := roleFilter.Entity
-			if entity == bean.CLUSTER_ENTITIY {
-				policiesToBeAdded, err := impl.CreateOrUpdateRoleGroupForClusterEntity(roleFilter, request.UserId, model, nil, "", nil, tx, mapping[index])
-				policies = append(policies, policiesToBeAdded...)
-				if err != nil {
-					// making it non-blocking as it is being done for multiple Role filters and does not want this to be blocking.
-					impl.logger.Errorw("error in creating updating role group for cluster entity", "err", err, "roleFilter", roleFilter)
+		if request.SuperAdmin == false {
+			for index, roleFilter := range request.RoleFilters {
+				entity := roleFilter.Entity
+				if entity == bean.CLUSTER_ENTITIY {
+					policiesToBeAdded, err := impl.CreateOrUpdateRoleGroupForClusterEntity(roleFilter, request.UserId, model, nil, "", nil, tx, mapping[index])
+					policies = append(policies, policiesToBeAdded...)
+					if err != nil {
+						// making it non-blocking as it is being done for multiple Role filters and does not want this to be blocking.
+						impl.logger.Errorw("error in creating updating role group for cluster entity", "err", err, "roleFilter", roleFilter)
+					}
+				} else if entity == bean2.EntityJobs {
+					policiesToBeAdded, err := impl.CreateOrUpdateRoleGroupForJobsEntity(roleFilter, request.UserId, model, nil, "", nil, tx, mapping[index])
+					policies = append(policies, policiesToBeAdded...)
+					if err != nil {
+						// making it non-blocking as it is being done for multiple Role filters and does not want this to be blocking.
+						impl.logger.Errorw("error in creating updating role group for jobs entity", "err", err, "roleFilter", roleFilter)
+					}
+				} else {
+					policiesToBeAdded, err := impl.CreateOrUpdateRoleGroupForOtherEntity(roleFilter, request, model, nil, "", nil, tx, mapping[index])
+					policies = append(policies, policiesToBeAdded...)
+					if err != nil {
+						// making it non-blocking as it is being done for multiple Role filters and does not want this to be blocking.
+						impl.logger.Errorw("error in creating updating role group for apps entity", "err", err, "roleFilter", roleFilter)
+					}
 				}
-			} else if entity == bean2.EntityJobs {
-				policiesToBeAdded, err := impl.CreateOrUpdateRoleGroupForJobsEntity(roleFilter, request.UserId, model, nil, "", nil, tx, mapping[index])
-				policies = append(policies, policiesToBeAdded...)
+			}
+		} else if request.SuperAdmin == true {
+			flag, err := impl.userAuthRepository.CreateRoleForSuperAdminIfNotExists(tx, request.UserId)
+			if err != nil || flag == false {
+				impl.logger.Errorw("error in CreateRoleForSuperAdminIfNotExists ", "err", err, "roleGroupName", request.Name)
+				return nil, err
+			}
+			roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes("", "", "", "", bean2.SUPER_ADMIN, "", "", "", "", "", "", "", false, "")
+			if err != nil {
+				impl.logger.Errorw("error in getting role by filter for all Types for superAdmin", "err", err)
+				return nil, err
+			}
+			if roleModel.Id > 0 {
+				roleGroupMappingModel := &repository.RoleGroupRoleMapping{RoleGroupId: model.Id, RoleId: roleModel.Id}
+				roleGroupMappingModel.CreatedBy = request.UserId
+				roleGroupMappingModel.UpdatedBy = request.UserId
+				roleGroupMappingModel.CreatedOn = time.Now()
+				roleGroupMappingModel.UpdatedOn = time.Now()
+				roleGroupMappingModel, err = impl.roleGroupRepository.CreateRoleGroupRoleMapping(roleGroupMappingModel, tx)
 				if err != nil {
-					// making it non-blocking as it is being done for multiple Role filters and does not want this to be blocking.
-					impl.logger.Errorw("error in creating updating role group for jobs entity", "err", err, "roleFilter", roleFilter)
+					impl.logger.Errorw("error in creating role group role mapping", "err", err, "RoleGroupId", model.Id)
+					return nil, err
 				}
-			} else {
-				policiesToBeAdded, err := impl.CreateOrUpdateRoleGroupForOtherEntity(roleFilter, request, model, nil, "", nil, tx, mapping[index])
-				policies = append(policies, policiesToBeAdded...)
-				if err != nil {
-					// making it non-blocking as it is being done for multiple Role filters and does not want this to be blocking.
-					impl.logger.Errorw("error in creating updating role group for apps entity", "err", err, "roleFilter", roleFilter)
-				}
+				policies = append(policies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(model.CasbinName), Obj: casbin2.Object(roleModel.Role)})
 			}
 		}
 
@@ -368,75 +394,101 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 		impl.logger.Errorw("error while fetching user from db", "error", err)
 		return nil, err
 	}
-
-	roleGroupMappingModels, err := impl.roleGroupRepository.GetRoleGroupRoleMappingByRoleGroupId(roleGroup.Id)
-	if err != nil {
-		return nil, err
-	}
-
-	existingRoles := make(map[int]*repository.RoleGroupRoleMapping)
-	eliminatedRoles := make(map[int]*repository.RoleGroupRoleMapping)
-	for _, item := range roleGroupMappingModels {
-		existingRoles[item.RoleId] = item
-		eliminatedRoles[item.RoleId] = item
-	}
-
 	//loading policy for safety
 	casbin2.LoadPolicy()
-
-	// DELETE PROCESS STARTS
+	existingRoles := make(map[int]*repository.RoleGroupRoleMapping)
+	eliminatedRoles := make(map[int]*repository.RoleGroupRoleMapping)
 	var eliminatedPolicies []casbin2.Policy
-	items, err := impl.userCommonService.RemoveRolesAndReturnEliminatedPoliciesForGroups(request, existingRoles, eliminatedRoles, tx, token, managerAuth)
-	if err != nil {
-		return nil, err
+	capacity, mapping := impl.userCommonService.GetCapacityForRoleFilter(request.RoleFilters)
+	var policies = make([]casbin2.Policy, 0, capacity)
+	if request.SuperAdmin == false {
+		roleGroupMappingModels, err := impl.roleGroupRepository.GetRoleGroupRoleMappingByRoleGroupId(roleGroup.Id)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, item := range roleGroupMappingModels {
+			existingRoles[item.RoleId] = item
+			eliminatedRoles[item.RoleId] = item
+		}
+
+		// DELETE PROCESS STARTS
+
+		items, err := impl.userCommonService.RemoveRolesAndReturnEliminatedPoliciesForGroups(request, existingRoles, eliminatedRoles, tx, token, managerAuth)
+		if err != nil {
+			return nil, err
+		}
+		eliminatedPolicies = append(eliminatedPolicies, items...)
+		// DELETE PROCESS ENDS
+
+		//Adding New Policies
+		for index, roleFilter := range request.RoleFilters {
+			if roleFilter.Entity == bean.CLUSTER_ENTITIY {
+				policiesToBeAdded, err := impl.CreateOrUpdateRoleGroupForClusterEntity(roleFilter, request.UserId, roleGroup, existingRoles, token, managerAuth, tx, mapping[index])
+				policies = append(policies, policiesToBeAdded...)
+				if err != nil {
+					impl.logger.Errorw("error in creating updating role group for cluster entity", "err", err, "roleFilter", roleFilter)
+				}
+			} else {
+				if len(roleFilter.Team) > 0 {
+					// check auth only for apps permission, skip for chart group
+					rbacObject := fmt.Sprintf("%s", roleFilter.Team)
+					isValidAuth := managerAuth(casbin2.ResourceUser, token, rbacObject)
+					if !isValidAuth {
+						continue
+					}
+				}
+				switch roleFilter.Entity {
+				case bean2.EntityJobs:
+					{
+						policiesToBeAdded, err := impl.CreateOrUpdateRoleGroupForJobsEntity(roleFilter, request.UserId, roleGroup, existingRoles, token, managerAuth, tx, mapping[index])
+						policies = append(policies, policiesToBeAdded...)
+						if err != nil {
+							impl.logger.Errorw("error in creating updating role group for jobs entity", "err", err, "roleFilter", roleFilter)
+						}
+					}
+				default:
+					{
+						policiesToBeAdded, err := impl.CreateOrUpdateRoleGroupForOtherEntity(roleFilter, request, roleGroup, existingRoles, token, managerAuth, tx, mapping[index])
+						policies = append(policies, policiesToBeAdded...)
+						if err != nil {
+							impl.logger.Errorw("error in creating updating role group for other entity", "err", err, "roleFilter", roleFilter)
+						}
+					}
+				}
+			}
+		}
+	} else if request.SuperAdmin == true {
+		flag, err := impl.userAuthRepository.CreateRoleForSuperAdminIfNotExists(tx, request.UserId)
+		if err != nil || flag == false {
+			impl.logger.Errorw("error in CreateRoleForSuperAdminIfNotExists ", "err", err, "roleGroupName", request.Name)
+			return nil, err
+		}
+		roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes("", "", "", "", bean2.SUPER_ADMIN, "", "", "", "", "", "", "", false, "")
+		if err != nil {
+			impl.logger.Errorw("error in getting role by filter for all Types for superAdmin", "err", err)
+			return nil, err
+		}
+		if roleModel.Id > 0 {
+			roleGroupMappingModel := &repository.RoleGroupRoleMapping{RoleGroupId: roleGroup.Id, RoleId: roleModel.Id}
+			roleGroupMappingModel.CreatedBy = request.UserId
+			roleGroupMappingModel.UpdatedBy = request.UserId
+			roleGroupMappingModel.CreatedOn = time.Now()
+			roleGroupMappingModel.UpdatedOn = time.Now()
+			roleGroupMappingModel, err = impl.roleGroupRepository.CreateRoleGroupRoleMapping(roleGroupMappingModel, tx)
+			if err != nil {
+				impl.logger.Errorw("error in creating role group role mapping", "err", err, "RoleGroupId", roleGroup.Id)
+				return nil, err
+			}
+			policies = append(policies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(roleGroup.CasbinName), Obj: casbin2.Object(roleModel.Role)})
+		}
 	}
-	eliminatedPolicies = append(eliminatedPolicies, items...)
+	//deleting policies from casbin
 	impl.logger.Debugw("eliminated policies", "eliminatedPolicies", eliminatedPolicies)
 	if len(eliminatedPolicies) > 0 {
 		pRes := casbin2.RemovePolicy(eliminatedPolicies)
 		impl.logger.Debugw("pRes : failed policies 1", "pRes", &pRes)
 		println(pRes)
-	}
-	// DELETE PROCESS ENDS
-
-	//Adding New Policies
-	capacity, mapping := impl.userCommonService.GetCapacityForRoleFilter(request.RoleFilters)
-	var policies = make([]casbin2.Policy, 0, capacity)
-	for index, roleFilter := range request.RoleFilters {
-		if roleFilter.Entity == bean.CLUSTER_ENTITIY {
-			policiesToBeAdded, err := impl.CreateOrUpdateRoleGroupForClusterEntity(roleFilter, request.UserId, roleGroup, existingRoles, token, managerAuth, tx, mapping[index])
-			policies = append(policies, policiesToBeAdded...)
-			if err != nil {
-				impl.logger.Errorw("error in creating updating role group for cluster entity", "err", err, "roleFilter", roleFilter)
-			}
-		} else {
-			if len(roleFilter.Team) > 0 {
-				// check auth only for apps permission, skip for chart group
-				rbacObject := fmt.Sprintf("%s", roleFilter.Team)
-				isValidAuth := managerAuth(casbin2.ResourceUser, token, rbacObject)
-				if !isValidAuth {
-					continue
-				}
-			}
-			switch roleFilter.Entity {
-			case bean2.EntityJobs:
-				{
-					policiesToBeAdded, err := impl.CreateOrUpdateRoleGroupForJobsEntity(roleFilter, request.UserId, roleGroup, existingRoles, token, managerAuth, tx, mapping[index])
-					policies = append(policies, policiesToBeAdded...)
-					if err != nil {
-						impl.logger.Errorw("error in creating updating role group for jobs entity", "err", err, "roleFilter", roleFilter)
-					}
-				}
-			default:
-				{
-					policiesToBeAdded, err := impl.CreateOrUpdateRoleGroupForOtherEntity(roleFilter, request, roleGroup, existingRoles, token, managerAuth, tx, mapping[index])
-					policies = append(policies, policiesToBeAdded...)
-					if err != nil {
-						impl.logger.Errorw("error in creating updating role group for other entity", "err", err, "roleFilter", roleFilter)
-					}
-				}
-			}
-		}
 	}
 	//updating in casbin
 	if len(policies) > 0 {
@@ -471,22 +523,24 @@ func (impl RoleGroupServiceImpl) FetchRoleGroupsById(id int32) (*bean.RoleGroup,
 		return nil, err
 	}
 
-	roleFilters := impl.getRoleGroupMetadata(roleGroup)
+	roleFilters, superAdmin := impl.getRoleGroupMetadata(roleGroup)
 	bean := &bean.RoleGroup{
 		Id:          roleGroup.Id,
 		Name:        roleGroup.Name,
 		Description: roleGroup.Description,
 		RoleFilters: roleFilters,
+		SuperAdmin:  superAdmin,
 	}
 	return bean, nil
 }
 
-func (impl RoleGroupServiceImpl) getRoleGroupMetadata(roleGroup *repository.RoleGroup) []bean.RoleFilter {
+func (impl RoleGroupServiceImpl) getRoleGroupMetadata(roleGroup *repository.RoleGroup) ([]bean.RoleFilter, bool) {
 	roles, err := impl.userAuthRepository.GetRolesByGroupId(roleGroup.Id)
 	if err != nil {
 		impl.logger.Errorw("No Roles Found for user", "roleGroupId", roleGroup.Id)
 	}
 	var roleFilters []bean.RoleFilter
+	isSuperAdmin := false
 	roleFilterMap := make(map[string]*bean.RoleFilter)
 	for _, role := range roles {
 		key := impl.userCommonService.GetUniqueKeyForAllEntity(*role)
@@ -508,8 +562,14 @@ func (impl RoleGroupServiceImpl) getRoleGroupMetadata(roleGroup *repository.Role
 				Workflow:    role.Workflow,
 			}
 		}
+		if role.Role == bean.SUPERADMIN {
+			isSuperAdmin = true
+		}
 	}
 	for _, v := range roleFilterMap {
+		if v.Action == "super-admin" {
+			continue
+		}
 		roleFilters = append(roleFilters, *v)
 	}
 	for index, roleFilter := range roleFilters {
@@ -523,7 +583,7 @@ func (impl RoleGroupServiceImpl) getRoleGroupMetadata(roleGroup *repository.Role
 	if len(roleFilters) == 0 {
 		roleFilters = make([]bean.RoleFilter, 0)
 	}
-	return roleFilters
+	return roleFilters, isSuperAdmin
 }
 
 func (impl RoleGroupServiceImpl) FetchDetailedRoleGroups() ([]*bean.RoleGroup, error) {
@@ -534,7 +594,7 @@ func (impl RoleGroupServiceImpl) FetchDetailedRoleGroups() ([]*bean.RoleGroup, e
 	}
 	var list []*bean.RoleGroup
 	for _, roleGroup := range roleGroups {
-		roleFilters := impl.getRoleGroupMetadata(roleGroup)
+		roleFilters, isSuperAdmin := impl.getRoleGroupMetadata(roleGroup)
 		for index, roleFilter := range roleFilters {
 			if roleFilter.Entity == "" {
 				roleFilters[index].Entity = bean2.ENTITY_APPS
@@ -548,6 +608,7 @@ func (impl RoleGroupServiceImpl) FetchDetailedRoleGroups() ([]*bean.RoleGroup, e
 			Name:        roleGroup.Name,
 			Description: roleGroup.Description,
 			RoleFilters: roleFilters,
+			SuperAdmin:  isSuperAdmin,
 		}
 		list = append(list, roleGrp)
 	}
