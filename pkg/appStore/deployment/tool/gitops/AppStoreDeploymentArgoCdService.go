@@ -67,7 +67,6 @@ type AppStoreDeploymentArgoCdServiceImpl struct {
 	chartGroupDeploymentRepository       repository2.ChartGroupDeploymentRepository
 	installedAppRepository               repository.InstalledAppRepository
 	installedAppRepositoryHistory        repository.InstalledAppVersionHistoryRepository
-	chartTemplateService                 util.ChartTemplateService
 	gitFactory                           *util.GitFactory
 	argoUserService                      argo.ArgoUserService
 	appStoreDeploymentCommonService      appStoreDeploymentCommon.AppStoreDeploymentCommonService
@@ -84,7 +83,7 @@ type AppStoreDeploymentArgoCdServiceImpl struct {
 
 func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService,
 	acdClient application2.ServiceClient, chartGroupDeploymentRepository repository2.ChartGroupDeploymentRepository,
-	installedAppRepository repository.InstalledAppRepository, installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository, chartTemplateService util.ChartTemplateService,
+	installedAppRepository repository.InstalledAppRepository, installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository,
 	gitFactory *util.GitFactory, argoUserService argo.ArgoUserService, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
 	helmAppService client.HelmAppService, gitOpsConfigRepository repository3.GitOpsConfigRepository, appStatusService appStatus.AppStatusService,
 	pipelineStatusTimelineService status.PipelineStatusTimelineService, userService user.UserService,
@@ -99,7 +98,6 @@ func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreD
 		chartGroupDeploymentRepository:       chartGroupDeploymentRepository,
 		installedAppRepository:               installedAppRepository,
 		installedAppRepositoryHistory:        installedAppRepositoryHistory,
-		chartTemplateService:                 chartTemplateService,
 		gitFactory:                           gitFactory,
 		argoUserService:                      argoUserService,
 		appStoreDeploymentCommonService:      appStoreDeploymentCommonService,
