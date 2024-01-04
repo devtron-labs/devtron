@@ -71,6 +71,29 @@ func (impl GitBitbucketClient) GetRepoUrl(config *bean2.GitOpsConfigDto) (repoUr
 		return repoUrl, nil
 	}
 }
+
+func (impl GitBitbucketClient) EnsureRepoAvailableOnSsh(config *bean2.GitOpsConfigDto, repoUrl string) (string, error) {
+	workSpaceId := config.BitBucketWorkspaceId
+	projectKey := config.BitBucketProjectKey
+	repoOptions := &bitbucket.RepositoryOptions{
+		Owner:       workSpaceId,
+		RepoSlug:    config.GitRepoName,
+		Scm:         "git",
+		IsPrivate:   "true",
+		Description: config.Description,
+		Project:     projectKey,
+	}
+	validated, err := impl.ensureProjectAvailabilityOnSsh(repoOptions)
+	if err != nil {
+		impl.logger.Errorw("error in ensuring project availability in Bitbucket", "project", config.GitRepoName, "err", err)
+		return CloneSshStage, err
+	}
+	if !validated {
+		return "unable to validate project", fmt.Errorf("%s in given time", config.GitRepoName)
+	}
+	return "", nil
+}
+
 func (impl GitBitbucketClient) CreateRepository(config *bean2.GitOpsConfigDto) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
 
@@ -189,10 +212,10 @@ func (impl GitBitbucketClient) ensureProjectAvailabilityOnSsh(repoOptions *bitbu
 	for count := 0; count < 5; count++ {
 		_, err := impl.gitService.Clone(repoUrl, fmt.Sprintf("/ensure-clone/%s", repoOptions.RepoSlug))
 		if err == nil {
-			impl.logger.Infow("ensureProjectAvailability clone passed bitbucket", "try count", count, "repoUrl", repoUrl)
+			impl.logger.Infow("ensureProjectAvailability clone passed Bitbucket", "try count", count, "repoUrl", repoUrl)
 			return true, nil
 		}
-		impl.logger.Errorw("ensureProjectAvailability clone failed ssh bitbucket", "try count", count, "err", err)
+		impl.logger.Errorw("ensureProjectAvailability clone failed ssh Bitbucket", "try count", count, "err", err)
 		time.Sleep(10 * time.Second)
 	}
 	return false, nil

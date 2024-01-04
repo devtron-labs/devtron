@@ -65,6 +65,19 @@ func (impl GitAzureClient) DeleteRepository(config *bean2.GitOpsConfigDto) error
 	}
 	return err
 }
+
+func (impl GitAzureClient) EnsureRepoAvailableOnSsh(config *bean2.GitOpsConfigDto, repoUrl string) (string, error) {
+	validated, err := impl.ensureProjectAvailabilityOnSsh(impl.project, repoUrl)
+	if err != nil {
+		impl.logger.Errorw("error in ensuring project availability in Azure", "project", config.GitRepoName, "err", err)
+		return CloneSshStage, err
+	}
+	if !validated {
+		return "unable to validate project", fmt.Errorf("%s in given time", config.GitRepoName)
+	}
+	return "", nil
+}
+
 func (impl GitAzureClient) CreateRepository(config *bean2.GitOpsConfigDto) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
 	ctx := context.Background()
@@ -113,7 +126,7 @@ func (impl GitAzureClient) CreateRepository(config *bean2.GitOpsConfigDto) (url 
 	}
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CreateReadmeStage)
 
-	validated, err = impl.ensureProjectAvailabilityOnSsh(impl.project, config.GitRepoName, *operationReference.WebUrl)
+	validated, err = impl.ensureProjectAvailabilityOnSsh(impl.project, *operationReference.WebUrl)
 	if err != nil {
 		impl.logger.Errorw("error in ensuring project availability azure", "project", config.GitRepoName, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CloneSshStage] = err
@@ -286,7 +299,7 @@ func (impl GitAzureClient) ensureProjectAvailabilityOnHttp(repoName string) (boo
 	return false, nil
 }
 
-func (impl GitAzureClient) ensureProjectAvailabilityOnSsh(projectName string, repoName string, repoUrl string) (bool, error) {
+func (impl GitAzureClient) ensureProjectAvailabilityOnSsh(projectName string, repoUrl string) (bool, error) {
 	for count := 0; count < 8; count++ {
 		_, err := impl.gitService.Clone(repoUrl, fmt.Sprintf("/ensure-clone/%s", projectName))
 		if err == nil {

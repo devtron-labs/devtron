@@ -33,17 +33,7 @@ func (impl *ChartDeploymentServiceImpl) RegisterInArgo(chartGitAttribute *ChartG
 	}
 	// TODO Asutosh
 	repo, err := impl.repositoryService.Create(ctx, &repository3.RepoCreateRequest{Repo: repo, Upsert: true})
-	if err != nil && strings.Contains(err.Error(), "Unable to resolve 'HEAD' to a commit SHA") {
-		// - retry register in argo
-		impl.logger.Infow("retrying argocd repo creation", "current err", err)
-		repo, err = impl.repositoryService.Create(ctx, &repository3.RepoCreateRequest{Repo: &v1alpha1.Repository{
-			Repo: chartGitAttribute.RepoUrl,
-		}, Upsert: true})
-		if err != nil {
-			impl.logger.Errorw("retrying argocd repo creation", "current err", err)
-		}
-	}
-	if err != nil && !strings.Contains(err.Error(), "Unable to resolve 'HEAD' to a commit SHA") {
+	if err != nil {
 		impl.logger.Errorw("error in creating argo Repository ", "err", err)
 		if skipRetry {
 			return err

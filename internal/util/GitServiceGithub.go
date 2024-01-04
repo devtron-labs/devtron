@@ -68,6 +68,19 @@ func (impl GitHubClient) DeleteRepository(config *bean2.GitOpsConfigDto) error {
 	}
 	return nil
 }
+
+func (impl GitHubClient) EnsureRepoAvailableOnSsh(config *bean2.GitOpsConfigDto, repoUrl string) (string, error) {
+	validated, err := impl.ensureProjectAvailabilityOnSsh(config.GitRepoName, repoUrl)
+	if err != nil {
+		impl.logger.Errorw("error in ensuring project availability in Github", "project", config.GitRepoName, "err", err)
+		return CloneSshStage, err
+	}
+	if !validated {
+		return "unable to validate project", fmt.Errorf("%s in given time", config.GitRepoName)
+	}
+	return "", nil
+}
+
 func (impl GitHubClient) CreateRepository(config *bean2.GitOpsConfigDto) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
 	ctx := context.Background()

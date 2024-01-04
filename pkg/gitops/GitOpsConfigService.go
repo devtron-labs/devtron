@@ -75,6 +75,7 @@ const (
 	GetRepoUrlStage                = "Get Repo URL"
 	CreateRepoStage                = "Create Repo"
 	CloneHttp                      = "Clone Http"
+	CloneSshStage                  = "Clone Ssh"
 	CreateReadmeStage              = "Create Readme"
 	ValidateOrganisationalURLStage = "Organisational URL Validation"
 	ValidateEmptyRepoStage         = "Empty Repo Validation"
@@ -972,6 +973,14 @@ func (impl GitOpsConfigServiceImpl) ValidateCustomGitRepoURL(request ValidateCus
 		}
 		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, ValidateEmptyRepoStage)
 		// Validate: Empty repository Ends
+		key, sshCloneErr := impl.gitFactory.Client.EnsureRepoAvailableOnSsh(activeGitOpsConfig, repoUrl)
+		if sshCloneErr != nil {
+			impl.logger.Errorw("error in ensuring repository availability on ssh", "repository", repoName)
+			detailedErrorGitOpsConfigActions.ValidatedOn = time.Now()
+			detailedErrorGitOpsConfigActions.StageErrorMap[key] = impl.extractErrorMessageByProvider(sshCloneErr, gitProvider)
+			return impl.convertDetailedErrorToResponse(detailedErrorGitOpsConfigActions)
+		}
+		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CloneSshStage)
 	}
 	if request.ExtraValidationStage == Create_Readme && len(detailedErrorGitOpsConfigActions.StageErrorMap) == 0 {
 		// Validate: Write Access in repository Starts
