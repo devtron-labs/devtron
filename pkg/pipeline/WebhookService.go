@@ -30,6 +30,7 @@ import (
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	types2 "github.com/devtron-labs/devtron/pkg/pipeline/types"
 	repository3 "github.com/devtron-labs/devtron/pkg/plugin/repository"
@@ -175,6 +176,10 @@ func (impl WebhookServiceImpl) HandleCiSuccessEvent(ciPipelineId int, request *C
 		savedWorkflow, err := impl.ciWorkflowRepository.FindById(*request.WorkflowId)
 		if err != nil {
 			impl.logger.Errorw("cannot get saved wf", "err", err)
+			return 0, err
+		}
+		// if workflow already cancelled then return, this state arises when user force aborts a ci
+		if savedWorkflow.Status == executors.WorkflowCancel {
 			return 0, err
 		}
 		savedWorkflow.Status = string(v1alpha1.NodeSucceeded)
