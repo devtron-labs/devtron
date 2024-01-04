@@ -88,7 +88,7 @@ func (impl GitHubClient) EnsureRepoAvailableOnHttp(config *bean2.GitOpsConfigDto
 		return CloneHttpStage, err
 	}
 	if !validated {
-		return "unable to validate project", fmt.Errorf(":%s in given time", config.GitRepoName)
+		return "unable to validate project", fmt.Errorf("%s in given time", config.GitRepoName)
 	}
 	return "", nil
 }

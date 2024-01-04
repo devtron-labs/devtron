@@ -936,6 +936,7 @@ func (impl GitOpsConfigServiceImpl) ValidateCustomGitRepoURL(request ValidateCus
 	// Validate: Organisational URL Ends
 
 	// Validate: Availability of Repo in HTTP Starts
+	activeGitOpsConfig.GitRepoName = util.GetGitRepoNameFromGitRepoUrl(repoUrl)
 	key, httpCloneErr := impl.gitFactory.Client.EnsureRepoAvailableOnHttp(activeGitOpsConfig)
 	if httpCloneErr != nil {
 		impl.logger.Errorw("error in ensuring repository availability on http", "repository", repoName)

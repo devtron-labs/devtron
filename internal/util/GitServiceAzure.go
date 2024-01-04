@@ -85,7 +85,7 @@ func (impl GitAzureClient) EnsureRepoAvailableOnHttp(config *bean2.GitOpsConfigD
 		return CloneHttpStage, err
 	}
 	if !validated {
-		return "unable to validate project", fmt.Errorf(":%s in given time", config.GitRepoName)
+		return "unable to validate project", fmt.Errorf("%s in given time", config.GitRepoName)
 	}
 	return "", nil
 }
