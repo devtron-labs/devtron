@@ -336,7 +336,7 @@ func (client *GrpcApiClientImpl) GetCommitMetadataForPipelineMaterial(ctx contex
 		GitTag:             req.GitTag,
 		BranchName:         req.BranchName,
 	})
-	if err != nil && err.Error() == bean.ErrNoCommitFound {
+	if err != nil && err == bean.ErrNoCommitFound {
 		return nil, nil
 	}
 	if err != nil {
