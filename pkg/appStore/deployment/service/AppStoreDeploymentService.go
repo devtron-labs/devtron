@@ -282,7 +282,6 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 			validateCustomGitRepoURLRequest := gitops.ValidateCustomGitRepoURLRequest{
 				GitRepoURL:               installAppVersionRequest.GitOpsRepoURL,
 				UserId:                   installAppVersionRequest.UserId,
-				ExtraValidationStage:     gitops.Create_Readme,
 				PerformDefaultValidation: installAppVersionRequest.GitOpsRepoURL == bean2.GIT_REPO_DEFAULT,
 			}
 
