@@ -213,7 +213,7 @@ func (impl *CommonServiceImpl) ValidateUniqueGitOpsRepo(repoUrl string) (isValid
 		impl.logger.Errorw("error in fetching chart", "repoUrl", repoUrl, "err", err)
 		return isValid
 	}
-	if chart.Id != 0 {
+	if chart != nil && chart.Id != 0 {
 		impl.logger.Errorw("repository is already in use for devtron app", "repoUrl", repoUrl, "appId", chart.AppId)
 		return isValid
 	}
@@ -223,7 +223,7 @@ func (impl *CommonServiceImpl) ValidateUniqueGitOpsRepo(repoUrl string) (isValid
 		impl.logger.Errorw("error in fetching chart", "repoUrl", repoUrl, "err", err)
 		return isValid
 	}
-	if installedAppModel.Id != 0 {
+	if installedAppModel != nil && installedAppModel.Id != 0 {
 		impl.logger.Errorw("repository is already in use for helm app", "repoUrl", repoUrl, "appId", installedAppModel.AppId)
 		return isValid
 	}

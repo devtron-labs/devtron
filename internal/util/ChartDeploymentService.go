@@ -71,7 +71,7 @@ CreateArgoRepositoryWithRetry:
 			impl.logger.Errorw("error in RegisterInArgo with retry operation", "err", err)
 			return err
 		}
-		impl.logger.Errorw("retrying RegisterInArgo operation", "retry count", retryCount, "err", err)
+		impl.logger.Errorw("retrying RegisterInArgo operation", "retry count", retryCount)
 		time.Sleep(10 * time.Second)
 		goto CreateArgoRepositoryWithRetry
 	}
