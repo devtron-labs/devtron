@@ -97,12 +97,6 @@ func (handler LockConfigRestHandlerImpl) GetLockConfig(w http.ResponseWriter, r 
 						break
 					}
 				}
-				if filter.Entity == bean2.CLUSTER_ENTITIY {
-					if ok := handler.userCommonService.CheckRbacForClusterEntity(filter.Cluster, filter.Namespace, filter.Group, filter.Kind, filter.Resource, token, handler.CheckAdminAuth); ok {
-						isAuthorised = true
-						break
-					}
-				}
 			}
 		}
 	}

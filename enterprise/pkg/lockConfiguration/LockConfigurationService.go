@@ -158,8 +158,7 @@ func (impl LockConfigurationServiceImpl) HandleLockConfiguration(currentConfig, 
 		impl.logger.Errorw("Error in umMarshal data", "err", err, "currentConfig", currentConfig)
 		return nil, err
 	}
-	// TODO name for disableSaveEligibleChanges, allChanges
-	allChanges, deletedMap, addedMap, modifiedMap, disableSaveEligibleChanges := getDiffJson(savedConfigMap, currentConfigMap)
+	allChanges, deletedMap, addedMap, modifiedMap, containChangesInArray := getDiffJson(savedConfigMap, currentConfigMap)
 	var isLockConfigError bool
 	if lockConfig.ContainAllowedPaths {
 		// Will add in v2 of this feature
@@ -172,92 +171,79 @@ func (impl LockConfigurationServiceImpl) HandleLockConfiguration(currentConfig, 
 		deletedOverride, _ := json.Marshal(deletedMap)
 		addedOverride, _ := json.Marshal(addedMap)
 		modifiedOverride, _ := json.Marshal(modifiedMap)
-		lockConfigErrorResponse := bean.GetLockConfigErrorResponse(string(lockedOverride), string(modifiedOverride), string(addedOverride), string(deletedOverride), disableSaveEligibleChanges)
+		lockConfigErrorResponse := bean.GetLockConfigErrorResponse(string(lockedOverride), string(modifiedOverride), string(addedOverride), string(deletedOverride), containChangesInArray)
 		return lockConfigErrorResponse, nil
 	}
 	return nil, nil
 }
 
-// TODO add comments
+// Here we are checking whether the values at lockedPath in currentConfig & savedConfig are same or not
 func checkLockedChanges(currentConfig, savedConfig string, lockedConfigJsonPaths []string) bool {
-	// TODO RENAME obj odj1 x ys ys1
-	obj, err := oj.ParseString(currentConfig)
+	currentConfigParsed, err := oj.ParseString(currentConfig)
 	if err != nil {
 		return false
 	}
-	obj1, err := oj.ParseString(savedConfig)
+	savedConfigParsed, err := oj.ParseString(savedConfig)
 	if err != nil {
 		return false
 	}
 	for _, lockedConfigJsonPath := range lockedConfigJsonPaths {
-		x, err := jp.ParseString(lockedConfigJsonPath)
+		parsedLockedConfigJsonPath, err := jp.ParseString(lockedConfigJsonPath)
 		if err != nil {
 			return false
 		}
-		ys := x.Get(obj)
-		ys1 := x.Get(obj1)
-		if !reflect.DeepEqual(ys, ys1) {
+		currentConfigValue := parsedLockedConfigJsonPath.Get(currentConfigParsed)
+		savedConfigValue := parsedLockedConfigJsonPath.Get(savedConfigParsed)
+		if !reflect.DeepEqual(currentConfigValue, savedConfigValue) {
 			return true
 		}
 	}
 	return false
 }
 
-func checkForLockedArray(savedConfigMap, currentConfigMap []interface{}) ([]interface{}, []interface{}, []interface{}, []interface{}) {
-	var lockedMap, deletedMap, addedMap, modifiedMap []interface{}
+func checkForLockedArray(savedConfigArray, currentConfigArray []interface{}) ([]interface{}, []interface{}, []interface{}, []interface{}) {
+	var lockedArray, deletedArray, addedArray, modifiedArray []interface{}
 	var key int
-	for key, _ = range savedConfigMap {
-		if key >= len(currentConfigMap) {
-			deletedMap = append(deletedMap, savedConfigMap[key])
+	for key, _ = range savedConfigArray {
+		if key >= len(currentConfigArray) {
+			deletedArray = append(deletedArray, savedConfigArray[key])
 			continue
 		}
-		if !reflect.DeepEqual(savedConfigMap[key], currentConfigMap[key]) {
-			switch reflect.TypeOf(savedConfigMap[key]).Kind() {
+		if !reflect.DeepEqual(savedConfigArray[key], currentConfigArray[key]) {
+			switch reflect.TypeOf(savedConfigArray[key]).Kind() {
 			case reflect.Map:
-				locked, deleted, added, modified, _ := getDiffJson(savedConfigMap[key].(map[string]interface{}), currentConfigMap[key].(map[string]interface{}))
-				if locked != nil && len(locked) != 0 {
-					lockedMap = append(lockedMap, locked)
-				}
-				if deleted != nil && len(deleted) != 0 {
-					deletedMap = append(deletedMap, deleted)
-				}
-				if added != nil && len(added) != 0 {
-					addedMap = append(addedMap, added)
-				}
-				if modified != nil && len(modified) != 0 {
-					modifiedMap = append(modifiedMap, modified)
-				}
+				locked, deleted, added, modified, _ := getDiffJson(savedConfigArray[key].(map[string]interface{}), currentConfigArray[key].(map[string]interface{}))
+				appendMapValueToArray(lockedArray, locked)
+				appendMapValueToArray(deletedArray, deleted)
+				appendMapValueToArray(addedArray, added)
+				appendMapValueToArray(modifiedArray, modified)
 			case reflect.Array, reflect.Slice:
-				locked, deleted, added, modified := checkForLockedArray(savedConfigMap[key].([]interface{}), currentConfigMap[key].([]interface{}))
-				if locked != nil && len(locked) != 0 {
-					lockedMap = append(lockedMap, locked)
-				}
-				if deleted != nil && len(deleted) != 0 {
-					deletedMap = append(deletedMap, deleted)
-				}
-				if added != nil && len(added) != 0 {
-					addedMap = append(addedMap, added)
-				}
-				if modified != nil && len(modified) != 0 {
-					modifiedMap = append(modifiedMap, modified)
-				}
+				locked, deleted, added, modified := checkForLockedArray(savedConfigArray[key].([]interface{}), currentConfigArray[key].([]interface{}))
+				appendArrayValueToArray(lockedArray, locked)
+				appendArrayValueToArray(deletedArray, deleted)
+				appendArrayValueToArray(addedArray, added)
+				appendArrayValueToArray(modifiedArray, modified)
 			default:
-				lockedMap = append(lockedMap, currentConfigMap[key])
-				modifiedMap = append(modifiedMap, currentConfigMap[key])
+				lockedArray = append(lockedArray, currentConfigArray[key])
+				modifiedArray = append(modifiedArray, currentConfigArray[key])
 			}
 		}
 	}
-	for key1, _ := range currentConfigMap {
+	for key1, _ := range currentConfigArray {
 		if key1 <= key {
 			continue
 		}
-		lockedMap = append(lockedMap, currentConfigMap[key1])
-		addedMap = append(addedMap, currentConfigMap[key1])
+		lockedArray = append(lockedArray, currentConfigArray[key1])
+		addedArray = append(addedArray, currentConfigArray[key1])
 	}
-	return lockedMap, deletedMap, addedMap, modifiedMap
+	return lockedArray, deletedArray, addedArray, modifiedArray
 }
 
-// TODO ADD comment for return
+// Here we are returning 4 maps
+// The first one contains all the changes
+// The second contains the deleted values
+// The third contains the added values
+// The fourth contains the modified values
 func getDiffJson(savedConfigMap, currentConfigMap map[string]interface{}) (map[string]interface{}, map[string]interface{}, map[string]interface{}, map[string]interface{}, bool) {
 	// Store all the changes
 	lockedMap := make(map[string]interface{})
@@ -275,35 +261,19 @@ func getDiffJson(savedConfigMap, currentConfigMap map[string]interface{}) (map[s
 			switch reflect.TypeOf(savedConfigMap[key]).Kind() {
 			case reflect.Map:
 				locked, deleted, added, modified, isSaveEligibleChangesDisabled := getDiffJson(savedConfigMap[key].(map[string]interface{}), currentConfigMap[key].(map[string]interface{}))
-				if locked != nil && len(locked) != 0 {
-					lockedMap[key] = locked
-				}
-				if deleted != nil && len(deleted) != 0 {
-					deletedMap[key] = deleted
-				}
-				if added != nil && len(added) != 0 {
-					addedMap[key] = added
-				}
-				if modified != nil && len(modified) != 0 {
-					modifiedMap[key] = modified
-				}
+				assignMapValueToMap(lockedMap, locked, key)
+				assignMapValueToMap(deletedMap, deleted, key)
+				assignMapValueToMap(addedMap, added, key)
+				assignMapValueToMap(modifiedMap, modified, key)
 				if isSaveEligibleChangesDisabled {
 					disableSaveEligibleChanges = true
 				}
 			case reflect.Array, reflect.Slice:
 				locked, deleted, added, modified := checkForLockedArray(savedConfigMap[key].([]interface{}), currentConfigMap[key].([]interface{}))
-				if locked != nil && len(locked) != 0 {
-					lockedMap[key] = locked
-				}
-				if deleted != nil && len(deleted) != 0 {
-					deletedMap[key] = deleted
-				}
-				if added != nil && len(added) != 0 {
-					addedMap[key] = added
-				}
-				if modified != nil && len(modified) != 0 {
-					modifiedMap[key] = modified
-				}
+				assignArrayValueToMap(lockedMap, locked, key)
+				assignArrayValueToMap(deletedMap, deleted, key)
+				assignArrayValueToMap(addedMap, added, key)
+				assignArrayValueToMap(modifiedMap, modified, key)
 				disableSaveEligibleChanges = true
 			default:
 				lockedMap[key] = currentConfigMap[key]
@@ -329,4 +299,30 @@ func getDiffJson(savedConfigMap, currentConfigMap map[string]interface{}) (map[s
 		delete(currentConfigMap, key)
 	}
 	return lockedMap, deletedMap, addedMap, modifiedMap, disableSaveEligibleChanges
+}
+
+func appendMapValueToArray(array []interface{}, val map[string]interface{}) []interface{} {
+	if len(val) != 0 {
+		array = append(array, val)
+	}
+	return array
+}
+
+func appendArrayValueToArray(array []interface{}, val []interface{}) []interface{} {
+	if len(val) != 0 {
+		array = append(array, val)
+	}
+	return array
+}
+
+func assignArrayValueToMap(mp map[string]interface{}, val []interface{}, key string) {
+	if len(val) != 0 {
+		mp[key] = val
+	}
+}
+
+func assignMapValueToMap(mp map[string]interface{}, val map[string]interface{}, key string) {
+	if len(val) != 0 {
+		mp[key] = val
+	}
 }
