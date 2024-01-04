@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/pkg/commonService"
 	"github.com/devtron-labs/devtron/pkg/gitops"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/variables"
@@ -130,6 +131,7 @@ type ChartServiceImpl struct {
 	gitOpsConfigService              gitops.GitOpsConfigService
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
 	scopedVariableManager            variables.ScopedVariableManager
+	commonService                    commonService.CommonService
 }
 
 func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
@@ -154,6 +156,7 @@ func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
 	gitOpsConfigService gitops.GitOpsConfigService,
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
 	scopedVariableManager variables.ScopedVariableManager,
+	commonService commonService.CommonService,
 ) *ChartServiceImpl {
 
 	// cache devtron reference charts list
@@ -183,6 +186,7 @@ func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
 		gitOpsConfigService:              gitOpsConfigService,
 		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
 		scopedVariableManager:            scopedVariableManager,
+		commonService:                    commonService,
 	}
 }
 
@@ -1804,14 +1808,14 @@ func (impl ChartServiceImpl) SaveAppLevelGitOpsConfiguration(appGitOpsRequest Ap
 		UserId:                   appGitOpsRequest.UserId,
 		PerformDefaultValidation: appGitOpsRequest.GitOpsRepoURL == bean.GIT_REPO_DEFAULT,
 	}
-
-	detailedErrorGitOpsConfigResponse = impl.gitOpsConfigService.ValidateCustomGitRepoURL(validateCustomGitRepoURLRequest)
+	detailedErrorGitOpsConfigResponse, repoUrl := impl.gitOpsConfigService.ValidateCustomGitRepoURL(validateCustomGitRepoURLRequest)
 	if len(detailedErrorGitOpsConfigResponse.StageErrorMap) != 0 {
 		return detailedErrorGitOpsConfigResponse, nil
 	}
+	// ValidateCustomGitRepoURL returns sanitized repo url after validation
+	appGitOpsRequest.GitOpsRepoURL = repoUrl
 
 	gitRepoUrl := appGitOpsRequest.GitOpsRepoURL
-
 	var chartGitAttr *util.ChartGitAttribute
 	if appGitOpsRequest.GitOpsRepoURL == bean.GIT_REPO_DEFAULT {
 		gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(appName)
@@ -1832,6 +1836,15 @@ func (impl ChartServiceImpl) SaveAppLevelGitOpsConfiguration(appGitOpsRequest Ap
 		impl.logger.Errorw("error while register git repo in argo", "err", err)
 		return detailedErrorGitOpsConfigResponse, err
 	}
+
+	isValid := impl.commonService.ValidateUniqueGitOpsRepo(chartGitAttr.RepoUrl)
+	if !isValid {
+		impl.logger.Errorw("git repo url already exists", "repo url", chartGitAttr.RepoUrl)
+		detailedErrorGitOpsConfigResponse.StageErrorMap = make(map[string]string)
+		detailedErrorGitOpsConfigResponse.StageErrorMap["Invalid git repository"] = fmt.Sprintf("'%s' is already in use by another application! Use a different repository.", chartGitAttr.RepoUrl)
+		return detailedErrorGitOpsConfigResponse, nil
+	}
+
 	for _, chart := range charts {
 		chart.GitRepoUrl = gitRepoUrl
 		chart.UpdatedOn = time.Now()

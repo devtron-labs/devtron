@@ -23,6 +23,8 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	helper2 "github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	"github.com/devtron-labs/devtron/internal/util"
+	repository4 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -34,11 +36,13 @@ import (
 type CommonService interface {
 	FetchLatestChart(appId int, envId int) (*chartRepoRepository.Chart, error)
 	GlobalChecklist() (*GlobalChecklist, error)
+	ValidateUniqueGitOpsRepo(repoUrl string) (isValid bool)
 }
 
 type CommonServiceImpl struct {
 	logger                      *zap.SugaredLogger
 	chartRepository             chartRepoRepository.ChartRepository
+	installedAppRepository      repository4.InstalledAppRepository
 	environmentConfigRepository chartConfig.EnvConfigOverrideRepository
 	gitOpsRepository            repository.GitOpsConfigRepository
 	dockerReg                   dockerRegistryRepository.DockerArtifactStoreRepository
@@ -201,4 +205,28 @@ func (impl *CommonServiceImpl) GlobalChecklist() (*GlobalChecklist, error) {
 		config.IsAppCreated = true
 	}
 	return config, err
+}
+
+func (impl *CommonServiceImpl) ValidateUniqueGitOpsRepo(repoUrl string) (isValid bool) {
+	chart, err := impl.chartRepository.FindChartByGitRepoUrl(repoUrl)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.logger.Errorw("error in fetching chart", "repoUrl", repoUrl, "err", err)
+		return isValid
+	}
+	if chart.Id != 0 {
+		impl.logger.Errorw("repository is already in use for devtron app", "repoUrl", repoUrl, "appId", chart.AppId)
+		return isValid
+	}
+	repoName := util.GetGitRepoNameFromGitRepoUrl(repoUrl)
+	installedAppModel, err := impl.installedAppRepository.GetInstalledAppByGitRepoUrl(repoName, repoUrl)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.logger.Errorw("error in fetching chart", "repoUrl", repoUrl, "err", err)
+		return isValid
+	}
+	if installedAppModel.Id != 0 {
+		impl.logger.Errorw("repository is already in use for helm app", "repoUrl", repoUrl, "appId", installedAppModel.AppId)
+		return isValid
+	}
+	isValid = true
+	return isValid
 }

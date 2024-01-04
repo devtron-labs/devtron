@@ -39,7 +39,7 @@ type AppStoreDeploymentHelmService interface {
 	UpdateInstalledAppAndPipelineStatusForFailedDeploymentStatus(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, triggeredAt time.Time, err error) error
 	SaveTimelineForACDHelmApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, status string, statusDetail string, statusTime time.Time, tx *pg.Tx) error
 	UpdateChartInfo(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *util.ChartGitAttribute, installedAppVersionHistoryId int, ctx context.Context) error
-	ValidateCustomGitRepoURL(request gitops.ValidateCustomGitRepoURLRequest) bean.DetailedErrorGitOpsConfigResponse
+	ValidateCustomGitRepoURL(request gitops.ValidateCustomGitRepoURLRequest) (bean.DetailedErrorGitOpsConfigResponse, string)
 	GetGitRepoUrl(gitOpsRepoName string) (string, error)
 }
 
@@ -77,8 +77,8 @@ func (impl AppStoreDeploymentHelmServiceImpl) UpdateChartInfo(installAppVersionR
 	return nil
 }
 
-func (impl AppStoreDeploymentHelmServiceImpl) ValidateCustomGitRepoURL(request gitops.ValidateCustomGitRepoURLRequest) bean.DetailedErrorGitOpsConfigResponse {
-	return bean.DetailedErrorGitOpsConfigResponse{}
+func (impl AppStoreDeploymentHelmServiceImpl) ValidateCustomGitRepoURL(request gitops.ValidateCustomGitRepoURLRequest) (bean.DetailedErrorGitOpsConfigResponse, string) {
+	return bean.DetailedErrorGitOpsConfigResponse{}, ""
 }
 
 func (impl AppStoreDeploymentHelmServiceImpl) GetGitRepoUrl(gitOpsRepoName string) (string, error) {

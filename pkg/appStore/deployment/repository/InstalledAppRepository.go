@@ -69,6 +69,7 @@ type InstalledAppRepository interface {
 	GetInstalledAppByAppIdAndDeploymentType(appId int, deploymentAppType string) (InstalledApps, error)
 	GetInstalledAppByInstalledAppVersionId(installedAppVersionId int) (InstalledApps, error)
 	GetInstalledAppByGitOpsAppName(acdAppName string) (*InstalledApps, error)
+	GetInstalledAppByGitRepoUrl(repoName, repoUrl string) (*InstalledApps, error)
 
 	GetArgoPipelinesHavingLatestTriggerStuckInNonTerminalStatusesForAppStore(getPipelineDeployedBeforeMinutes int, getPipelineDeployedWithinHours int) ([]*InstalledAppVersions, error)
 	GetArgoPipelinesHavingTriggersStuckInLastPossibleNonTerminalTimelinesForAppStore(pendingSinceSeconds int, timeForDegradation int) ([]*InstalledAppVersions, error)
@@ -769,9 +770,21 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppByGitOpsAppName(acdAppName
 	model := &InstalledApps{}
 	err := impl.dbConnection.Model(model).
 		Column("installed_apps.*", "App", "Environment").
-		Where(`CONCAT(app.app_name, ?, environment.environment_name) = ?`, "-", acdAppName).
+		Where("CONCAT(app.app_name, ?, environment.environment_name) = ?", "-", acdAppName).
 		Where("installed_apps.active = true").
 		Where("environment.active = true").
+		Limit(1).
+		Select()
+	return model, err
+}
+
+func (impl InstalledAppRepositoryImpl) GetInstalledAppByGitRepoUrl(repoName, repoUrl string) (*InstalledApps, error) {
+	model := &InstalledApps{}
+	err := impl.dbConnection.Model(model).
+		Column("installed_apps.*", "App").
+		Where("installed_apps.git_ops_repo_name = ? OR installed_apps.git_ops_repo_url = ?", repoName, repoUrl).
+		Where("installed_apps.active = true").
+		Where("app.active = true").
 		Limit(1).
 		Select()
 	return model, err

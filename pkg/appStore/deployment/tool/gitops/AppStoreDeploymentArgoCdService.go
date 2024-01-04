@@ -26,6 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/commonService"
 	"github.com/devtron-labs/devtron/pkg/gitops"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -59,7 +60,7 @@ type AppStoreDeploymentArgoCdService interface {
 	SaveTimelineForACDHelmApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, status string, statusDetail string, statusTime time.Time, tx *pg.Tx) error
 	UpdateChartInfo(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *util.ChartGitAttribute, installedAppVersionHistoryId int, ctx context.Context) error
 	UpdateAndSyncACDApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *util.ChartGitAttribute, isMonoRepoMigrationRequired bool, ctx context.Context, tx *pg.Tx) error
-	ValidateCustomGitRepoURL(request gitops.ValidateCustomGitRepoURLRequest) bean.DetailedErrorGitOpsConfigResponse
+	ValidateCustomGitRepoURL(request gitops.ValidateCustomGitRepoURLRequest) (bean.DetailedErrorGitOpsConfigResponse, string)
 	GetGitRepoUrl(gitOpsRepoName string) (string, error)
 }
 
@@ -85,6 +86,7 @@ type AppStoreDeploymentArgoCdServiceImpl struct {
 	acdConfig                            *argocdServer.ACDConfig
 	chartDeploymentService               util.ChartDeploymentService
 	gitOpsService                        gitops.GitOpsConfigService
+	commonService                        commonService.CommonService
 }
 
 func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService,
@@ -97,7 +99,8 @@ func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreD
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService, acdConfig *argocdServer.ACDConfig,
 	chartDeploymentService util.ChartDeploymentService,
-	gitOpsService gitops.GitOpsConfigService) *AppStoreDeploymentArgoCdServiceImpl {
+	gitOpsService gitops.GitOpsConfigService,
+	commonService commonService.CommonService) *AppStoreDeploymentArgoCdServiceImpl {
 	return &AppStoreDeploymentArgoCdServiceImpl{
 		Logger:                               logger,
 		appStoreDeploymentFullModeService:    appStoreDeploymentFullModeService,
@@ -120,6 +123,7 @@ func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreD
 		acdConfig:                            acdConfig,
 		chartDeploymentService:               chartDeploymentService,
 		gitOpsService:                        gitOpsService,
+		commonService:                        commonService,
 	}
 }
 
@@ -195,8 +199,16 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) SaveTimelineForACDHelmApps(insta
 	return timelineErr
 }
 
-func (impl AppStoreDeploymentArgoCdServiceImpl) ValidateCustomGitRepoURL(request gitops.ValidateCustomGitRepoURLRequest) bean.DetailedErrorGitOpsConfigResponse {
-	return impl.gitOpsService.ValidateCustomGitRepoURL(request)
+func (impl AppStoreDeploymentArgoCdServiceImpl) ValidateCustomGitRepoURL(request gitops.ValidateCustomGitRepoURLRequest) (bean.DetailedErrorGitOpsConfigResponse, string) {
+	detailedErrorGitOpsConfigResponse, repoUrl := impl.gitOpsService.ValidateCustomGitRepoURL(request)
+	isValid := impl.commonService.ValidateUniqueGitOpsRepo(repoUrl)
+	if !isValid {
+		impl.Logger.Errorw("git repo url already exists", "repo url", repoUrl)
+		detailedErrorGitOpsConfigResponse.StageErrorMap = make(map[string]string)
+		detailedErrorGitOpsConfigResponse.StageErrorMap["Invalid git repository"] = fmt.Sprintf("'%s' is already in use by another application! Use a different repository.", repoUrl)
+		return detailedErrorGitOpsConfigResponse, ""
+	}
+	return detailedErrorGitOpsConfigResponse, repoUrl
 }
 
 func (impl AppStoreDeploymentArgoCdServiceImpl) GetGitRepoUrl(gitOpsRepoName string) (string, error) {

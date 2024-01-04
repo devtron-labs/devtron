@@ -278,19 +278,24 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 			}
 			return nil, err
 		}
-		if gitOpsConfig.AllowCustomRepository && installAppVersionRequest.GitOpsRepoURL != bean2.GIT_REPO_DEFAULT {
+		if gitOpsConfig.AllowCustomRepository {
 			validateCustomGitRepoURLRequest := gitops.ValidateCustomGitRepoURLRequest{
 				GitRepoURL:               installAppVersionRequest.GitOpsRepoURL,
 				UserId:                   installAppVersionRequest.UserId,
 				PerformDefaultValidation: installAppVersionRequest.GitOpsRepoURL == bean2.GIT_REPO_DEFAULT,
 			}
 
-			detailedErrorGitOpsConfigResponse := impl.appStoreDeploymentArgoCdService.ValidateCustomGitRepoURL(validateCustomGitRepoURLRequest)
-			installAppVersionRequest.DetailedErrorGitOpsConfigResponse = &detailedErrorGitOpsConfigResponse
+			detailedErrorGitOpsConfigResponse, repoUrl := impl.appStoreDeploymentArgoCdService.ValidateCustomGitRepoURL(validateCustomGitRepoURLRequest)
 			if len(detailedErrorGitOpsConfigResponse.StageErrorMap) != 0 {
 				// Found validation err
+				installAppVersionRequest.DetailedErrorGitOpsConfigResponse = &detailedErrorGitOpsConfigResponse
 				return installAppVersionRequest, nil
 			}
+			// ValidateCustomGitRepoURL returns sanitized repo url after validation
+			installAppVersionRequest.GitOpsRepoURL = repoUrl
+		}
+
+		if gitOpsConfig.AllowCustomRepository && installAppVersionRequest.GitOpsRepoURL != bean2.GIT_REPO_DEFAULT {
 			installAppVersionRequest.IsNewGitOpsRepo = true
 			installedAppModel.GitOpsRepoUrl = installAppVersionRequest.GitOpsRepoURL
 			installedAppModel.GitOpsRepoName = util.GetGitRepoNameFromGitRepoUrl(installAppVersionRequest.GitOpsRepoURL) // Handled for backward compatibility

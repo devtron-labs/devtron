@@ -884,6 +884,6 @@ func (handler *InstalledAppRestHandlerImpl) ValidateGitOpsConfigForHelmApp(w htt
 		UserId:                   userId,
 		PerformDefaultValidation: gitOpsConfigRequest.GitOpsRepoURL == bean2.GIT_REPO_DEFAULT,
 	}
-	detailedErrorGitOpsConfigResponse := handler.gitOpsService.ValidateCustomGitRepoURL(validateRequest)
+	detailedErrorGitOpsConfigResponse, _ := handler.gitOpsService.ValidateCustomGitRepoURL(validateRequest)
 	common.WriteJsonResp(w, nil, detailedErrorGitOpsConfigResponse, http.StatusOK)
 }

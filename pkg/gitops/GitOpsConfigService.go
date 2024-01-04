@@ -60,7 +60,10 @@ type GitOpsConfigService interface {
 	GetAllGitOpsConfig() ([]*bean2.GitOpsConfigDto, error)
 	GetGitOpsConfigByProvider(provider string) (*bean2.GitOpsConfigDto, error)
 	GetGitOpsConfigActive() (*bean2.GitOpsConfigDto, error)
-	ValidateCustomGitRepoURL(request ValidateCustomGitRepoURLRequest) bean2.DetailedErrorGitOpsConfigResponse
+	// ValidateCustomGitRepoURL performs the following validations:
+	// "Get Repo URL", "Organisational URL Validation", "Clone Http", "Clone Ssh", "Create Readme"
+	// And returns: bean.DetailedErrorGitOpsConfigResponse and Sanitised Repository Url
+	ValidateCustomGitRepoURL(request ValidateCustomGitRepoURLRequest) (bean2.DetailedErrorGitOpsConfigResponse, string)
 	GetGitRepoUrl(gitOpsRepoName string) (string, error)
 }
 
@@ -847,21 +850,6 @@ func (impl GitOpsConfigServiceImpl) getValidationErrorForNonOrganisationalURL(ac
 	return errorMessageKey, errorMessage
 }
 
-func sanitiseCustomGitRepoURL(activeGitOpsConfig *bean2.GitOpsConfigDto, gitRepoURL string) (sanitisedGitRepoURL string) {
-	sanitisedGitRepoURL = gitRepoURL
-	if activeGitOpsConfig.Provider == BITBUCKET_PROVIDER && strings.Contains(gitRepoURL, fmt.Sprintf("://%s@%s", activeGitOpsConfig.Username, "bitbucket.org/")) {
-		sanitisedGitRepoURL = strings.ReplaceAll(gitRepoURL, fmt.Sprintf("://%s@%s", activeGitOpsConfig.Username, "bitbucket.org/"), "://bitbucket.org/")
-	}
-	if activeGitOpsConfig.Provider == AZURE_DEVOPS_PROVIDER {
-		azureDevopsOrgName := activeGitOpsConfig.Host[strings.LastIndex(activeGitOpsConfig.Host, "/")+1:]
-		invalidBaseUrlFormat := fmt.Sprintf("://%s@%s", azureDevopsOrgName, "dev.azure.com/")
-		if invalidBaseUrlFormat != "" && strings.Contains(gitRepoURL, invalidBaseUrlFormat) {
-			sanitisedGitRepoURL = strings.ReplaceAll(gitRepoURL, invalidBaseUrlFormat, "://dev.azure.com/")
-		}
-	}
-	return sanitisedGitRepoURL
-}
-
 func (impl GitOpsConfigServiceImpl) handleDefaultValidation(activeGitOpsConfig *bean2.GitOpsConfigDto) bean2.DetailedErrorGitOpsConfigResponse {
 	// Validate: Perform Default Validation
 	if !impl.isDefaultAppLevelGitOpsValidated.ValidationSkipped &&
@@ -877,7 +865,7 @@ func (impl GitOpsConfigServiceImpl) handleDefaultValidation(activeGitOpsConfig *
 	return detailedErrorGitOpsConfigResponse
 }
 
-func (impl GitOpsConfigServiceImpl) ValidateCustomGitRepoURL(request ValidateCustomGitRepoURLRequest) bean2.DetailedErrorGitOpsConfigResponse {
+func (impl GitOpsConfigServiceImpl) ValidateCustomGitRepoURL(request ValidateCustomGitRepoURLRequest) (bean2.DetailedErrorGitOpsConfigResponse, string) {
 	detailedErrorGitOpsConfigActions := util.DetailedErrorGitOpsConfigActions{}
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
 	activeGitOpsConfig, err := impl.GetGitOpsConfigActive()
@@ -886,21 +874,21 @@ func (impl GitOpsConfigServiceImpl) ValidateCustomGitRepoURL(request ValidateCus
 		detailedErrorGitOpsConfigActions.ValidatedOn = time.Now()
 		if util.IsErrNoRows(err) {
 			detailedErrorGitOpsConfigActions.StageErrorMap[fmt.Sprintf("Error in getting GitOps configuration")] = fmt.Errorf("Gitops integration is not installed/configured. Please install/configure gitops.")
-			return impl.convertDetailedErrorToResponse(detailedErrorGitOpsConfigActions)
+			return impl.convertDetailedErrorToResponse(detailedErrorGitOpsConfigActions), ""
 		}
 		detailedErrorGitOpsConfigActions.StageErrorMap[fmt.Sprintf("Error in getting GitOps configuration")] = err
-		return impl.convertDetailedErrorToResponse(detailedErrorGitOpsConfigActions)
+		return impl.convertDetailedErrorToResponse(detailedErrorGitOpsConfigActions), ""
 	}
 
 	if request.PerformDefaultValidation {
-		return impl.handleDefaultValidation(activeGitOpsConfig)
+		return impl.handleDefaultValidation(activeGitOpsConfig), bean2.GIT_REPO_DEFAULT
 	}
 
 	if !activeGitOpsConfig.AllowCustomRepository {
 		// Validate: Skipped as this function is for App level custom git repo url validation
 		return bean2.DetailedErrorGitOpsConfigResponse{
 			ValidationSkipped: true,
-		}
+		}, ""
 	}
 
 	repoName := util.GetGitRepoNameFromGitRepoUrl(request.GitRepoURL)
@@ -926,7 +914,7 @@ func (impl GitOpsConfigServiceImpl) ValidateCustomGitRepoURL(request ValidateCus
 
 	// Validate: Organisational URL starts
 	repoUrl = strings.ReplaceAll(repoUrl, ".git", "")
-	request.GitRepoURL = sanitiseCustomGitRepoURL(activeGitOpsConfig, request.GitRepoURL)
+	request.GitRepoURL = util.SanitiseCustomGitRepoURL(*activeGitOpsConfig, request.GitRepoURL)
 	if !strings.Contains(request.GitRepoURL, repoUrl) {
 		errorKey, errorMsg := impl.getValidationErrorForNonOrganisationalURL(activeGitOpsConfig)
 		detailedErrorGitOpsConfigActions.StageErrorMap[errorKey] = errorMsg
@@ -942,7 +930,7 @@ func (impl GitOpsConfigServiceImpl) ValidateCustomGitRepoURL(request ValidateCus
 		impl.logger.Errorw("error in ensuring repository availability on http", "repository", repoName)
 		detailedErrorGitOpsConfigActions.ValidatedOn = time.Now()
 		detailedErrorGitOpsConfigActions.StageErrorMap[key] = impl.extractErrorMessageByProvider(httpCloneErr, gitProvider)
-		return impl.convertDetailedErrorToResponse(detailedErrorGitOpsConfigActions)
+		return impl.convertDetailedErrorToResponse(detailedErrorGitOpsConfigActions), ""
 	}
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CloneHttp)
 	// Validate: Availability of Repo in HTTP Ends
@@ -953,7 +941,7 @@ func (impl GitOpsConfigServiceImpl) ValidateCustomGitRepoURL(request ValidateCus
 		impl.logger.Errorw("error in ensuring repository availability on ssh", "repository", repoName)
 		detailedErrorGitOpsConfigActions.ValidatedOn = time.Now()
 		detailedErrorGitOpsConfigActions.StageErrorMap[key] = impl.extractErrorMessageByProvider(sshCloneErr, gitProvider)
-		return impl.convertDetailedErrorToResponse(detailedErrorGitOpsConfigActions)
+		return impl.convertDetailedErrorToResponse(detailedErrorGitOpsConfigActions), ""
 	}
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CloneSSH)
 	// Validate: Availability of Repo in SSH Ends
@@ -964,13 +952,13 @@ func (impl GitOpsConfigServiceImpl) ValidateCustomGitRepoURL(request ValidateCus
 		impl.logger.Errorw("error in creating file in git repo", "err", err)
 		detailedErrorGitOpsConfigActions.ValidatedOn = time.Now()
 		detailedErrorGitOpsConfigActions.StageErrorMap[fmt.Sprintf("Permission required")] = fmt.Errorf("Token used in GitOps Configurations must have read and write permission for this repository.")
-		return impl.convertDetailedErrorToResponse(detailedErrorGitOpsConfigActions)
+		return impl.convertDetailedErrorToResponse(detailedErrorGitOpsConfigActions), ""
 	}
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CreateReadmeStage)
 	// Validate: Write Access in repository Ends
 
 	detailedErrorGitOpsConfigActions.ValidatedOn = time.Now()
-	return impl.convertDetailedErrorToResponse(detailedErrorGitOpsConfigActions)
+	return impl.convertDetailedErrorToResponse(detailedErrorGitOpsConfigActions), repoUrl
 }
 
 func (impl *GitOpsConfigServiceImpl) cleanDir(dir string) {
