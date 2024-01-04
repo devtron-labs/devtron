@@ -90,7 +90,7 @@ func (impl *GitOpsManifestPushServiceImpl) ValidateRepoForGitOperation(manifestP
 			impl.logger.Errorw("error in pushing chart to git ", "gitOpsRepoName", gitOpsRepoName, "err", err)
 			return fmt.Errorf("No repository configured for Gitops! Error while creating git repository: '%s'", gitOpsRepoName)
 		}
-		err = impl.chartDeploymentService.RegisterInArgo(chartGitAttr, manifestPushTemplate.UserId, ctx, false)
+		err = impl.chartDeploymentService.RegisterInArgo(chartGitAttr, manifestPushTemplate.UserId, ctx)
 		if err != nil {
 			impl.logger.Errorw("error in registering app in acd", "err", err)
 			return fmt.Errorf("Error in registering repository '%s' in ArgoCd", gitOpsRepoName)
@@ -102,18 +102,6 @@ func (impl *GitOpsManifestPushServiceImpl) ValidateRepoForGitOperation(manifestP
 			impl.logger.Errorw("error in updating git repo url in charts", "err", err)
 			return fmt.Errorf("No repository configured for Gitops! Error while creating git repository: '%s'", gitOpsRepoName)
 		}
-	}
-
-	// 3. Validate Git Repo URL
-	validateRequest := gitops.ValidateCustomGitRepoURLRequest{
-		GitRepoURL: manifestPushTemplate.RepoUrl,
-	}
-	detailedErrorGitOpsConfigResponse := impl.gitOpsConfigService.ValidateCustomGitRepoURL(validateRequest)
-	if len(detailedErrorGitOpsConfigResponse.StageErrorMap) != 0 {
-		errMsg := impl.gitOpsConfigService.ExtractErrorsFromGitOpsConfigResponse(detailedErrorGitOpsConfigResponse)
-		impl.logger.Errorw("invalid gitOps repo URL", "err", errMsg)
-		//as the pipeline_status_timeline.status_detail is of type TEXT; the length of errMsg won't be an issue
-		return errMsg
 	}
 	return nil
 }

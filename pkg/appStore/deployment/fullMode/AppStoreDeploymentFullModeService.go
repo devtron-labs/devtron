@@ -339,7 +339,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationACD(ins
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Minute)
 	defer cancel()
 	//STEP 4: registerInArgo
-	err := impl.chartDeploymentService.RegisterInArgo(chartGitAttr, installAppVersionRequest.UserId, ctx, false)
+	err := impl.chartDeploymentService.RegisterInArgo(chartGitAttr, installAppVersionRequest.UserId, ctx)
 	if err != nil {
 		impl.logger.Errorw("error in argo registry", "err", err)
 		return nil, err

@@ -61,7 +61,6 @@ type GitOpsConfigService interface {
 	GetGitOpsConfigByProvider(provider string) (*bean2.GitOpsConfigDto, error)
 	GetGitOpsConfigActive() (*bean2.GitOpsConfigDto, error)
 	ValidateCustomGitRepoURL(request ValidateCustomGitRepoURLRequest) bean2.DetailedErrorGitOpsConfigResponse
-	ExtractErrorsFromGitOpsConfigResponse(response bean2.DetailedErrorGitOpsConfigResponse) error
 	GetGitRepoUrl(gitOpsRepoName string) (string, error)
 }
 
@@ -75,7 +74,7 @@ const (
 	GetRepoUrlStage                = "Get Repo URL"
 	CreateRepoStage                = "Create Repo"
 	CloneHttp                      = "Clone Http"
-	CloneSshStage                  = "Clone Ssh"
+	CloneSSH                       = "Clone Ssh"
 	CreateReadmeStage              = "Create Readme"
 	ValidateOrganisationalURLStage = "Organisational URL Validation"
 	ValidateEmptyRepoStage         = "Empty Repo Validation"
@@ -88,16 +87,9 @@ const (
 
 type ExtraValidationStageType int
 
-const (
-	Skip_Extra_Validation ExtraValidationStageType = iota
-	Validate_Empty_Repo
-	Create_Readme
-)
-
 type ValidateCustomGitRepoURLRequest struct {
 	GitRepoURL               string
 	UserId                   int32
-	ExtraValidationStage     ExtraValidationStageType
 	PerformDefaultValidation bool
 }
 
@@ -855,20 +847,6 @@ func (impl GitOpsConfigServiceImpl) getValidationErrorForNonOrganisationalURL(ac
 	return errorMessageKey, errorMessage
 }
 
-func (impl GitOpsConfigServiceImpl) ExtractErrorsFromGitOpsConfigResponse(response bean2.DetailedErrorGitOpsConfigResponse) error {
-	if len(response.StageErrorMap) == 0 {
-		return nil
-	}
-	errorMessage := ""
-	for stage, err := range response.StageErrorMap {
-		if errorMessage != "" {
-			errorMessage += "\n"
-		}
-		errorMessage += fmt.Sprintf("%s: %s", stage, err)
-	}
-	return fmt.Errorf(errorMessage)
-}
-
 func sanitiseCustomGitRepoURL(activeGitOpsConfig *bean2.GitOpsConfigDto, gitRepoURL string) (sanitisedGitRepoURL string) {
 	sanitisedGitRepoURL = gitRepoURL
 	if activeGitOpsConfig.Provider == BITBUCKET_PROVIDER && strings.Contains(gitRepoURL, fmt.Sprintf("://%s@%s", activeGitOpsConfig.Username, "bitbucket.org/")) {
@@ -957,43 +935,38 @@ func (impl GitOpsConfigServiceImpl) ValidateCustomGitRepoURL(request ValidateCus
 	}
 	// Validate: Organisational URL Ends
 
-	if request.ExtraValidationStage == Validate_Empty_Repo || request.ExtraValidationStage == Create_Readme {
-		// Validate: Empty repository Starts
-		commitCount, err := impl.gitFactory.Client.GetCommitsCount(repoName, activeGitOpsConfig.AzureProjectName)
-		if err != nil {
-			impl.logger.Errorw("error in fetching commit count for", "repository", repoName)
-			detailedErrorGitOpsConfigActions.ValidatedOn = time.Now()
-			detailedErrorGitOpsConfigActions.StageErrorMap[fmt.Sprintf("Error in getting commits")] = impl.extractErrorMessageByProvider(err, gitProvider)
-			return impl.convertDetailedErrorToResponse(detailedErrorGitOpsConfigActions)
-		}
-		if commitCount > 0 {
-			detailedErrorGitOpsConfigActions.ValidatedOn = time.Now()
-			detailedErrorGitOpsConfigActions.StageErrorMap[fmt.Sprintf("Repository '%s' is not empty", repoName)] = fmt.Errorf("GitOps repository must be empty.")
-			return impl.convertDetailedErrorToResponse(detailedErrorGitOpsConfigActions)
-		}
-		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, ValidateEmptyRepoStage)
-		// Validate: Empty repository Ends
-		key, sshCloneErr := impl.gitFactory.Client.EnsureRepoAvailableOnSsh(activeGitOpsConfig, repoUrl)
-		if sshCloneErr != nil {
-			impl.logger.Errorw("error in ensuring repository availability on ssh", "repository", repoName)
-			detailedErrorGitOpsConfigActions.ValidatedOn = time.Now()
-			detailedErrorGitOpsConfigActions.StageErrorMap[key] = impl.extractErrorMessageByProvider(sshCloneErr, gitProvider)
-			return impl.convertDetailedErrorToResponse(detailedErrorGitOpsConfigActions)
-		}
-		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CloneSshStage)
+	// Validate: Availability of Repo in HTTP Starts
+	key, httpCloneErr := impl.gitFactory.Client.EnsureRepoAvailableOnHttp(activeGitOpsConfig)
+	if httpCloneErr != nil {
+		impl.logger.Errorw("error in ensuring repository availability on http", "repository", repoName)
+		detailedErrorGitOpsConfigActions.ValidatedOn = time.Now()
+		detailedErrorGitOpsConfigActions.StageErrorMap[key] = impl.extractErrorMessageByProvider(httpCloneErr, gitProvider)
+		return impl.convertDetailedErrorToResponse(detailedErrorGitOpsConfigActions)
 	}
-	if request.ExtraValidationStage == Create_Readme && len(detailedErrorGitOpsConfigActions.StageErrorMap) == 0 {
-		// Validate: Write Access in repository Starts
-		err = impl.chartTemplateService.CreateReadmeInGitRepo(repoName, request.UserId)
-		if err != nil {
-			impl.logger.Errorw("error in creating file in git repo", "err", err)
-			detailedErrorGitOpsConfigActions.ValidatedOn = time.Now()
-			detailedErrorGitOpsConfigActions.StageErrorMap[fmt.Sprintf("Permission required")] = fmt.Errorf("Token used in GitOps Configurations must have read and write permission for this repository.")
-			return impl.convertDetailedErrorToResponse(detailedErrorGitOpsConfigActions)
-		}
-		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CreateReadmeStage)
-		// Validate: Write Access in repository Ends
+	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CloneHttp)
+	// Validate: Availability of Repo in HTTP Ends
+
+	// Validate: Availability of Repo in SSH Starts
+	key, sshCloneErr := impl.gitFactory.Client.EnsureRepoAvailableOnSsh(activeGitOpsConfig, repoUrl)
+	if sshCloneErr != nil {
+		impl.logger.Errorw("error in ensuring repository availability on ssh", "repository", repoName)
+		detailedErrorGitOpsConfigActions.ValidatedOn = time.Now()
+		detailedErrorGitOpsConfigActions.StageErrorMap[key] = impl.extractErrorMessageByProvider(sshCloneErr, gitProvider)
+		return impl.convertDetailedErrorToResponse(detailedErrorGitOpsConfigActions)
 	}
+	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CloneSSH)
+	// Validate: Availability of Repo in SSH Ends
+
+	// Validate: Write Access in repository Starts
+	err = impl.chartTemplateService.CreateReadmeInGitRepo(repoName, request.UserId)
+	if err != nil {
+		impl.logger.Errorw("error in creating file in git repo", "err", err)
+		detailedErrorGitOpsConfigActions.ValidatedOn = time.Now()
+		detailedErrorGitOpsConfigActions.StageErrorMap[fmt.Sprintf("Permission required")] = fmt.Errorf("Token used in GitOps Configurations must have read and write permission for this repository.")
+		return impl.convertDetailedErrorToResponse(detailedErrorGitOpsConfigActions)
+	}
+	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CreateReadmeStage)
+	// Validate: Write Access in repository Ends
 
 	detailedErrorGitOpsConfigActions.ValidatedOn = time.Now()
 	return impl.convertDetailedErrorToResponse(detailedErrorGitOpsConfigActions)

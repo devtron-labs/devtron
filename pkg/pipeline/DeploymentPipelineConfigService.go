@@ -1630,7 +1630,7 @@ func (impl *CdPipelineConfigServiceImpl) ValidateCDPipelineRequest(pipelineCreat
 
 func (impl *CdPipelineConfigServiceImpl) RegisterInACD(chartGitAttr *util.ChartGitAttribute, userId int32, ctx context.Context) error {
 
-	err := impl.chartDeploymentService.RegisterInArgo(chartGitAttr, userId, ctx, false)
+	err := impl.chartDeploymentService.RegisterInArgo(chartGitAttr, userId, ctx)
 	if err != nil {
 		impl.logger.Errorw("error while register git repo in argo", "err", err)
 		return err

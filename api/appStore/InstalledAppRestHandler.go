@@ -882,7 +882,6 @@ func (handler *InstalledAppRestHandlerImpl) ValidateGitOpsConfigForHelmApp(w htt
 	validateRequest := gitops.ValidateCustomGitRepoURLRequest{
 		GitRepoURL:               gitOpsConfigRequest.GitOpsRepoURL,
 		UserId:                   userId,
-		ExtraValidationStage:     gitops.Validate_Empty_Repo,
 		PerformDefaultValidation: gitOpsConfigRequest.GitOpsRepoURL == bean2.GIT_REPO_DEFAULT,
 	}
 	detailedErrorGitOpsConfigResponse := handler.gitOpsService.ValidateCustomGitRepoURL(validateRequest)

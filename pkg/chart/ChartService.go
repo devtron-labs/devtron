@@ -1802,7 +1802,6 @@ func (impl ChartServiceImpl) SaveAppLevelGitOpsConfiguration(appGitOpsRequest Ap
 	validateCustomGitRepoURLRequest := gitops.ValidateCustomGitRepoURLRequest{
 		GitRepoURL:               appGitOpsRequest.GitOpsRepoURL,
 		UserId:                   appGitOpsRequest.UserId,
-		ExtraValidationStage:     gitops.Create_Readme,
 		PerformDefaultValidation: appGitOpsRequest.GitOpsRepoURL == bean.GIT_REPO_DEFAULT,
 	}
 
@@ -1828,7 +1827,7 @@ func (impl ChartServiceImpl) SaveAppLevelGitOpsConfiguration(appGitOpsRequest Ap
 			RepoUrl: gitRepoUrl,
 		}
 	}
-	err = impl.chartDeploymentService.RegisterInArgo(chartGitAttr, appGitOpsRequest.UserId, ctx, false)
+	err = impl.chartDeploymentService.RegisterInArgo(chartGitAttr, appGitOpsRequest.UserId, ctx)
 	if err != nil {
 		impl.logger.Errorw("error while register git repo in argo", "err", err)
 		return detailedErrorGitOpsConfigResponse, err
