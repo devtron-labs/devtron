@@ -96,7 +96,7 @@ func (impl LockConfigRestHandlerImpl) CreateLockConfig(w http.ResponseWriter, r 
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	common.WriteJsonResp(w, err, nil, http.StatusOK)
+	common.WriteJsonResp(w, err, request, http.StatusOK)
 }
 
 func (impl LockConfigRestHandlerImpl) DeleteLockConfig(w http.ResponseWriter, r *http.Request) {
