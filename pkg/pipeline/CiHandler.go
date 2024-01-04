@@ -68,7 +68,7 @@ type CiHandler interface {
 	FetchWorkflowDetails(appId int, pipelineId int, buildId int) (types.WorkflowResponse, error)
 	FetchArtifactsForCiJob(buildId int) (*types.ArtifactsForCiJob, error)
 	//FetchBuildById(appId int, pipelineId int) (WorkflowResponse, error)
-	CancelBuild(workflowId int) (int, error)
+	CancelBuild(workflowId int, forceAbort bool) (int, error)
 
 	GetRunningWorkflowLogs(pipelineId int, workflowId int) (*bufio.Reader, func() error, error)
 	GetHistoricBuildLogs(pipelineId int, workflowId int, ciWorkflow *pipelineConfig.CiWorkflow) (map[string]string, error)
@@ -162,6 +162,7 @@ const Running = "Running"
 const Starting = "Starting"
 const POD_DELETED_MESSAGE = "pod deleted"
 const TERMINATE_MESSAGE = "workflow shutdown with strategy: Terminate"
+const ABORT_MESSAGE_AFTER_STARTING_STAGE = "workflow shutdown with strategy: Force Abort"
 
 func (impl *CiHandlerImpl) CheckAndReTriggerCI(workflowStatus v1alpha1.WorkflowStatus) error {
 
@@ -580,15 +581,22 @@ func (impl *CiHandlerImpl) GetBuildHistory(pipelineId int, appId int, offset int
 	return ciWorkLowResponses, nil
 }
 
-func (impl *CiHandlerImpl) CancelBuild(workflowId int) (int, error) {
+func (impl *CiHandlerImpl) CancelBuild(workflowId int, forceAbort bool) (int, error) {
 	workflow, err := impl.ciWorkflowRepository.FindById(workflowId)
 	if err != nil {
 		impl.Logger.Errorw("err", "err", err)
 		return 0, err
 	}
 	if !(string(v1alpha1.NodePending) == workflow.Status || string(v1alpha1.NodeRunning) == workflow.Status) {
-		impl.Logger.Warn("cannot cancel build, build not in progress")
-		return 0, errors.New("cannot cancel build, build not in progress")
+		if forceAbort {
+			return impl.cancelBuildAfterStartWorkflowStage(workflow)
+		} else {
+			return 0, &util.ApiError{Code: "200", HttpStatusCode: 400, UserMessage: "cannot cancel build, build not in progress"}
+		}
+	}
+	//this arises when someone deletes the workflow in resource browser and wants to force abort a ci
+	if workflow.Status == string(v1alpha1.NodeRunning) && forceAbort {
+		return impl.cancelBuildAfterStartWorkflowStage(workflow)
 	}
 	isExt := workflow.Namespace != DefaultCiWorkflowNamespace
 	var env *repository3.Environment
@@ -602,9 +610,11 @@ func (impl *CiHandlerImpl) CancelBuild(workflowId int) (int, error) {
 
 	// Terminate workflow
 	err = impl.workflowService.TerminateWorkflow(workflow.ExecutorType, workflow.Name, workflow.Namespace, restConfig, isExt, env)
-	if err != nil {
+	if err != nil && !strings.Contains(err.Error(), "cannot find workflow") {
 		impl.Logger.Errorw("cannot terminate wf", "err", err)
 		return 0, err
+	} else if err != nil {
+		return 0, &util.ApiError{Code: "200", HttpStatusCode: 400, UserMessage: err.Error()}
 	}
 
 	workflow.Status = executors.WorkflowCancel
@@ -630,6 +640,18 @@ func (impl *CiHandlerImpl) CancelBuild(workflowId int) (int, error) {
 			impl.Logger.Errorw("error in marking image tag unreserved", "err", err)
 			return 0, err
 		}
+	}
+	return workflow.Id, nil
+}
+
+func (impl *CiHandlerImpl) cancelBuildAfterStartWorkflowStage(workflow *pipelineConfig.CiWorkflow) (int, error) {
+	workflow.Status = executors.WorkflowCancel
+	workflow.PodStatus = string(bean.Failed)
+	workflow.Message = ABORT_MESSAGE_AFTER_STARTING_STAGE
+	err := impl.ciWorkflowRepository.UpdateWorkFlow(workflow)
+	if err != nil {
+		impl.Logger.Errorw("error in updating workflow status", "err", err)
+		return 0, err
 	}
 	return workflow.Id, nil
 }
@@ -776,13 +798,13 @@ func (impl *CiHandlerImpl) getWorkflowLogs(pipelineId int, ciWorkflow *pipelineC
 	logStream, cleanUp, err := impl.ciLogService.FetchRunningWorkflowLogs(ciLogRequest, clusterConfig, isExt)
 	if logStream == nil || err != nil {
 		if !ciWorkflow.BlobStorageEnabled {
-			return nil, nil, errors.New("logs-not-stored-in-repository")
+			return nil, nil, &util.ApiError{Code: "200", HttpStatusCode: 400, UserMessage: "logs-not-stored-in-repository"}
 		} else if string(v1alpha1.NodeSucceeded) == ciWorkflow.Status || string(v1alpha1.NodeError) == ciWorkflow.Status || string(v1alpha1.NodeFailed) == ciWorkflow.Status || ciWorkflow.Status == executors.WorkflowCancel {
 			impl.Logger.Errorw("err", "err", err)
 			return impl.getLogsFromRepository(pipelineId, ciWorkflow, clusterConfig, isExt)
 		}
 		impl.Logger.Errorw("err", "err", err)
-		return nil, nil, err
+		return nil, nil, &util.ApiError{Code: "200", HttpStatusCode: 400, UserMessage: err.Error()}
 	}
 	logReader := bufio.NewReader(logStream)
 	return logReader, cleanUp, err

@@ -1545,6 +1545,7 @@ func (handler PipelineConfigRestHandlerImpl) CancelWorkflow(w http.ResponseWrite
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
+	queryVars := r.URL.Query()
 	vars := mux.Vars(r)
 	workflowId, err := strconv.Atoi(vars["workflowId"])
 	if err != nil {
@@ -1555,6 +1556,13 @@ func (handler PipelineConfigRestHandlerImpl) CancelWorkflow(w http.ResponseWrite
 	pipelineId, err := strconv.Atoi(vars["pipelineId"])
 	if err != nil {
 		handler.Logger.Errorw("request err, CancelWorkflow", "err", err, "pipelineId", pipelineId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	var forceAbort bool
+	forceAbort, err = strconv.ParseBool(queryVars.Get("forceAbort"))
+	if err != nil {
+		handler.Logger.Errorw("request err, CancelWorkflow", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -1597,7 +1605,7 @@ func (handler PipelineConfigRestHandlerImpl) CancelWorkflow(w http.ResponseWrite
 
 	//RBAC
 
-	resp, err := handler.ciHandler.CancelBuild(workflowId)
+	resp, err := handler.ciHandler.CancelBuild(workflowId, forceAbort)
 	if err != nil {
 		handler.Logger.Errorw("service err, CancelWorkflow", "err", err, "workflowId", workflowId, "pipelineId", pipelineId)
 		if util.IsErrNoRows(err) {
