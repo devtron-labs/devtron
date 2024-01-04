@@ -31,9 +31,10 @@ func NewChartDeploymentServiceImpl(logger *zap.SugaredLogger, repositoryService 
 }
 
 func (impl *ChartDeploymentServiceImpl) handleArgoRepoCreationError(retryCount int, repoUrl string, userId int32, argoCdErr error) (int, error) {
-	argoRepoCreationErrorMessage := "Unable to resolve 'HEAD' to a commit SHA"
+	argoRepoCreationErrorMessage := "Unable to resolve 'HEAD' to a commit SHA" // This error occurs inconsistently; ArgoCD requires 80-120s after last commit for create repository operation
 	notArgoRepoCreationErrorMessage := !strings.Contains(argoCdErr.Error(), argoRepoCreationErrorMessage)
-	emptyRepoErrorMessage := []string{"failed to get index: 404 Not Found", "remote repository is empty"}
+
+	emptyRepoErrorMessage := []string{"failed to get index: 404 Not Found", "remote repository is empty"} // ArgoCD can't register empty repo and throws these error message in such cases
 	if retryCount >= impl.RegisterInArgoRetryCount &&
 		notArgoRepoCreationErrorMessage &&
 		!strings.Contains(argoCdErr.Error(), emptyRepoErrorMessage[0]) &&
