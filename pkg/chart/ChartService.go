@@ -339,10 +339,6 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 	}
 
 	// STARTS
-	currentLatestChart, err := impl.chartRepository.FindLatestChartForAppByAppId(templateRequest.AppId)
-	if err != nil && pg.ErrNoRows != err {
-		return nil, err
-	}
 	gitRepoUrl := ""
 
 	version, err := impl.getNewVersion(chartRepo.Name, chartMeta.Name, refChart)
@@ -364,6 +360,16 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 	if err != nil {
 		return nil, err
 	}
+
+	currentLatestChart, err := impl.chartRepository.FindLatestChartForAppByAppId(templateRequest.AppId)
+	if err != nil && pg.ErrNoRows != err {
+		return nil, err
+	}
+	if err == nil {
+		currentOverride, _ := json.Marshal(currentLatestChart.GlobalOverride)
+		defaultAppOverride = currentOverride
+	}
+
 	if templateRequest.SaveEligibleChanges {
 		eligible, err := impl.mergeUtil.JsonPatch(defaultAppOverride, templateRequest.ValuesOverride)
 		if err != nil {
