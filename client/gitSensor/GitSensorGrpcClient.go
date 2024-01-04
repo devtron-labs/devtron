@@ -3,6 +3,7 @@ package gitSensor
 import (
 	"context"
 	"fmt"
+	"github.com/devtron-labs/common-lib/utils/bean"
 	pb "github.com/devtron-labs/protos/gitSensor"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
@@ -335,14 +336,11 @@ func (client *GrpcApiClientImpl) GetCommitMetadataForPipelineMaterial(ctx contex
 		GitTag:             req.GitTag,
 		BranchName:         req.BranchName,
 	})
+	if err != nil && err.Error() == bean.ErrNoCommitFound {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, err
-	}
-	if res != nil && res.Commit == "" {
-		return nil, nil
-	}
-	if res == nil {
-		return nil, nil
 	}
 
 	// mapping res
