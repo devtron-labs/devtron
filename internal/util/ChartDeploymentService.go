@@ -15,22 +15,46 @@ type ChartDeploymentService interface {
 }
 
 type ChartDeploymentServiceImpl struct {
-	logger               *zap.SugaredLogger
-	repositoryService    repository4.ServiceClient
-	chartTemplateService ChartTemplateService
+	logger                   *zap.SugaredLogger
+	repositoryService        repository4.ServiceClient
+	chartTemplateService     ChartTemplateService
+	RegisterInArgoRetryCount int
 }
 
 func NewChartDeploymentServiceImpl(logger *zap.SugaredLogger, repositoryService repository4.ServiceClient, chartTemplateService ChartTemplateService) *ChartDeploymentServiceImpl {
 	return &ChartDeploymentServiceImpl{
-		logger:               logger,
-		repositoryService:    repositoryService,
-		chartTemplateService: chartTemplateService,
+		logger:                   logger,
+		repositoryService:        repositoryService,
+		chartTemplateService:     chartTemplateService,
+		RegisterInArgoRetryCount: 3,
 	}
+}
+
+func (impl *ChartDeploymentServiceImpl) handleArgoRepoCreationError(retryCount int, repoUrl string, userId int32, argoCdErr error) (int, error) {
+	argoRepoCreationErrorMessage := "Unable to resolve 'HEAD' to a commit SHA"
+	notArgoRepoCreationErrorMessage := !strings.Contains(argoCdErr.Error(), argoRepoCreationErrorMessage)
+	emptyRepoErrorMessage := []string{"failed to get index: 404 Not Found", "remote repository is empty"}
+	if retryCount >= impl.RegisterInArgoRetryCount &&
+		notArgoRepoCreationErrorMessage &&
+		!strings.Contains(argoCdErr.Error(), emptyRepoErrorMessage[0]) &&
+		!strings.Contains(argoCdErr.Error(), emptyRepoErrorMessage[1]) {
+		return 0, argoCdErr
+	}
+	if notArgoRepoCreationErrorMessage {
+		// - found empty repository, create some file in repository
+		gitOpsRepoName := GetGitRepoNameFromGitRepoUrl(repoUrl)
+		err := impl.chartTemplateService.CreateReadmeInGitRepo(gitOpsRepoName, userId)
+		if err != nil {
+			impl.logger.Errorw("error in creating file in git repo", "err", err)
+			return 0, err
+		}
+	}
+	return retryCount + 1, nil
 }
 
 func (impl *ChartDeploymentServiceImpl) RegisterInArgo(chartGitAttribute *ChartGitAttribute, userId int32, ctx context.Context) error {
 
-	retryCount := 3
+	retryCount := 0
 	// label to register git repository in ArgoCd
 	// ArgoCd requires approx 80 to 120 sec after the last commit to allow create-repository action
 	// hence this operation needed to be perform with retry
@@ -40,24 +64,13 @@ CreateArgoRepositoryWithRetry:
 	}
 	repo, err := impl.repositoryService.Create(ctx, &repository3.RepoCreateRequest{Repo: repo, Upsert: true})
 	if err != nil {
-		impl.logger.Errorw("error in creating argo Repository ", "retry count", retryCount, "err", err)
-		if strings.Contains(err.Error(), "Unable to resolve 'HEAD' to a commit SHA") {
-			retryCount -= 1
-			time.Sleep(10 * time.Second)
-			goto CreateArgoRepositoryWithRetry
-		}
-		emptyRepoErrorMessage := []string{"failed to get index: 404 Not Found", "remote repository is empty"}
-		if !strings.Contains(err.Error(), emptyRepoErrorMessage[0]) && !strings.Contains(err.Error(), emptyRepoErrorMessage[1]) {
-			return err
-		}
-		// - found empty repository, create some file in repository
-		gitOpsRepoName := GetGitRepoNameFromGitRepoUrl(chartGitAttribute.RepoUrl)
-		err = impl.chartTemplateService.CreateReadmeInGitRepo(gitOpsRepoName, userId)
+		impl.logger.Errorw("error in creating argo Repository ", "err", err)
+		retryCount, err = impl.handleArgoRepoCreationError(retryCount, chartGitAttribute.RepoUrl, userId, err)
 		if err != nil {
-			impl.logger.Errorw("error in creating file in git repo", "err", err)
+			impl.logger.Errorw("error in RegisterInArgo with retry operation", "err", err)
 			return err
 		}
-		retryCount -= 1
+		impl.logger.Errorw("retrying RegisterInArgo operation", "retry count", retryCount, "err", err)
 		time.Sleep(10 * time.Second)
 		goto CreateArgoRepositoryWithRetry
 	}
