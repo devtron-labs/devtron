@@ -69,7 +69,7 @@ Now, the window will have 3 distinct tabs, and you will see the following additi
 Advanced options has an **+ Add Strategy** option that offers you the ability to define a new deployment strategy or edit it.
 {% endhint %}
 
-#### 1. Pre-Deployment stage
+#### 1. Pre-Deployment Stage
 
 Sometimes one has a requirement where certain actions like DB migration are to be executed before deployment, the `Pre-deployment stage` should be used to configure these actions.
 
@@ -91,13 +91,13 @@ Make sure your cluster has `devtron-agent` installed if you check the `Execute i
 
 ![Figure 4: Pre-deployment Stage](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/cd_pre_build_2.jpg)
 
-#### 2. Deployment stage
+#### 2. Deployment Stage
 
 ##### Pipeline Name
 
 Pipeline name will be auto-generated; however, you are free to modify the name as per your requirement.
 
-##### Manual approval for deployment
+##### Manual Approval for Deployment
 
 If you want only approved images to be eligible for deployment, enable the `Manual approval for deployment` option in the respective deployment pipeline. By doing so, unapproved images would be prevented from being deployed for that deployment pipeline.
 
@@ -117,11 +117,37 @@ To enable manual approval for deployment, follow these steps:
 
 To know more about the approval process, refer [Triggering CD](../../deploying-application/triggering-cd.md#manual-approval-for-deployment). 
 
-##### Custom Image tag pattern
+##### Custom Image Tag Pattern
+
+This feature helps you append custom tags (e.g., `v1.0.0`) to readily distinguish container images within your repository. 
+
+{% hint style="warning" %}
+This is slightly different from the [custom tag pattern in CI pipeline](./ci-pipeline.md#custom-image-tag-pattern) because the image tag pattern you define here won't be used in the CI pipeline, nor will it change the existing tag of an image. This tag will be utilized only when an existing container image is copied to another repository when multiple container repositories is used against the same CI. Refer [Copy Container Image Plugin](../workflow/plugins/copy-container-image.md) to know more.
+{% endhint %}
+
+1. Enable the toggle button as shown below.
+
+  ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/cd-image-pattern.jpg)
+
+2. Click the edit icon.
+
+  ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/edit-cd-image-tag.jpg)
+
+3. You can write an alphanumeric pattern for your image tag, e.g., **prod-v1.0.{x}**. Here, 'x' is a mandatory variable whose value will incrementally increase with every pre or post deployment trigger (that option is also available to you). You can also define the value of 'x' for the next trigger in case you want to change it. 
+
+    ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/cd-image-tag.jpg)
+
+    {% hint style="warning" %}
+    Ensure your custom tag do not start or end with a period (.) or comma (,)
+    {% endhint %}
+
+4. Click **Update Pipeline**. 
+
+To know how and where this image tag would appear, refer [Copy Container Image Plugin](../workflow/plugins/copy-container-image.md)
 
 
 
-#### 3. Post-Deployment stage
+#### 3. Post-Deployment Stage
 
 If you need to run any actions for e.g., run actions like closure of Jira ticket or provide secrets after the deployment, you can configure such actions in the post-deployment stages.
 
@@ -225,9 +251,9 @@ blueGreen:
 | Key | Description |
 | :--- | :--- |
 | `autoPromotionSeconds` | It will make the rollout automatically promote the new ReplicaSet to active Service after this time has passed |
-| `scaleDownDelaySeconds` | It is used to delay scaling down the old ReplicaSet after the active Service is switched to the new ReplicaSet. |
+| `scaleDownDelaySeconds` | It is used to delay scaling down the old ReplicaSet after the active Service is switched to the new ReplicaSet |
 | `previewReplicaCount` | It will indicate the number of replicas that the new version of an application should run |
-| `autoPromotionEnabled` | It will make the rollout automatically promote the new ReplicaSet to the active service. |
+| `autoPromotionEnabled` | It will make the rollout automatically promote the new ReplicaSet to the active service |
 
 #### 2. Rolling Strategy
 
@@ -241,8 +267,8 @@ rolling:
 
 | Key | Description |
 | :--- | :--- |
-| `maxSurge` | No. of replicas allowed above the scheduled quantity. |
-| `maxUnavailable` | Maximum number of pods allowed to be unavailable. |
+| `maxSurge` | No. of replicas allowed above the scheduled quantity |
+| `maxUnavailable` | Maximum number of pods allowed to be unavailable |
 
 #### 3. Canary Strategy
 
@@ -269,7 +295,7 @@ canary:
 | `maxSurge` | It defines the maximum number of replicas the rollout can create to move to the correct ratio set by the last setWeight |
 | `maxUnavailable` | The maximum number of pods that can be unavailable during the update |
 | `setWeight` | It is the required percent of pods to move to the next step |
-| `duration` | It is used to set the duration to wait to move to the next step. |
+| `duration` | It is used to set the duration to wait to move to the next step |
 
 #### 4. Recreate
 
