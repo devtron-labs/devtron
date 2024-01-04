@@ -41,7 +41,6 @@ type AttributesService interface {
 const (
 	HostUrlKey                     string = "url"
 	API_SECRET_KEY                 string = "apiTokenSecret"
-	NOTIFICATION_SECRET_KEY        string = "notificationTokenSecret"
 	ENFORCE_DEPLOYMENT_TYPE_CONFIG string = "enforceDeploymentTypeConfig"
 )
 

@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/devtron-labs/authenticator/middleware"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/enterprise/api/drafts"
 	"github.com/devtron-labs/devtron/pkg/apiToken"
@@ -73,8 +72,8 @@ type NotificationRestHandler interface {
 	RecipientListingSuggestion(w http.ResponseWriter, r *http.Request)
 	FindAllNotificationConfigAutocomplete(w http.ResponseWriter, r *http.Request)
 	GetOptionsForNotificationSettings(w http.ResponseWriter, r *http.Request)
-	DraftApprovalNotificationRequest(w http.ResponseWriter, r *http.Request)
-	DeploymentApprovalNotificationRequest(w http.ResponseWriter, r *http.Request)
+	ConsumeDraftApprovalNotification(w http.ResponseWriter, r *http.Request)
+	ConsumeDeploymentApprovalNotification(w http.ResponseWriter, r *http.Request)
 }
 type NotificationRestHandlerImpl struct {
 	dockerRegistryConfig       pipeline.DockerRegistryConfig
@@ -93,7 +92,6 @@ type NotificationRestHandlerImpl struct {
 	environmentService         cluster.EnvironmentService
 	pipelineBuilder            pipeline.PipelineBuilder
 	enforcerUtil               rbac.EnforcerUtil
-	sessionManager             *middleware.SessionManager
 	configDraftRestHandlerImpl *drafts.ConfigDraftRestHandlerImpl
 	cdHandler                  pipeline.CdHandler
 }
@@ -108,7 +106,7 @@ func NewNotificationRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistry
 	validator *validator.Validate, notificationService notifier.NotificationConfigService,
 	slackService notifier.SlackNotificationService, webhookService notifier.WebhookNotificationService, sesService notifier.SESNotificationService, smtpService notifier.SMTPNotificationService,
 	enforcer casbin.Enforcer, teamService team.TeamService, environmentService cluster.EnvironmentService, pipelineBuilder pipeline.PipelineBuilder,
-	enforcerUtil rbac.EnforcerUtil, sessionManager *middleware.SessionManager, configDraftRestHandlerImpl *drafts.ConfigDraftRestHandlerImpl, cdHandler pipeline.CdHandler) *NotificationRestHandlerImpl {
+	enforcerUtil rbac.EnforcerUtil, configDraftRestHandlerImpl *drafts.ConfigDraftRestHandlerImpl, cdHandler pipeline.CdHandler) *NotificationRestHandlerImpl {
 	return &NotificationRestHandlerImpl{
 		dockerRegistryConfig:       dockerRegistryConfig,
 		logger:                     logger,
@@ -126,7 +124,6 @@ func NewNotificationRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistry
 		environmentService:         environmentService,
 		pipelineBuilder:            pipelineBuilder,
 		enforcerUtil:               enforcerUtil,
-		sessionManager:             sessionManager,
 		configDraftRestHandlerImpl: configDraftRestHandlerImpl,
 		cdHandler:                  cdHandler,
 	}
@@ -1157,17 +1154,11 @@ func (impl NotificationRestHandlerImpl) DeleteNotificationChannelConfig(w http.R
 	}
 }
 
-var NotificationTokenFields = []string{"email", "draftId", "draftVersionId", "approvalRequestId", "appId", "envId"}
-
-func (impl NotificationRestHandlerImpl) DraftApprovalNotificationRequest(w http.ResponseWriter, r *http.Request) {
+func (impl NotificationRestHandlerImpl) ConsumeDraftApprovalNotification(w http.ResponseWriter, r *http.Request) {
 
 	token := r.URL.Query().Get("token")
 	//verification is done internally
 	draftRequest, err := impl.createDraftRequest(w, token)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
 	draftState, notApprover, err := impl.configDraftRestHandlerImpl.CheckAccessAndApproveDraft(w, draftRequest.EnvId, draftRequest.AppId, token, draftRequest.DraftId, draftRequest.DraftVersionId, draftRequest.UserId)
 	if err != nil && draftState == 0 {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -1177,7 +1168,7 @@ func (impl NotificationRestHandlerImpl) DraftApprovalNotificationRequest(w http.
 		common.WriteJsonResp(w, err, nil, http.StatusForbidden)
 		return
 	}
-	resp, err := impl.notificationService.DraftApprovalNotificationRequest(draftRequest.EnvId, draftRequest.AppId, draftRequest.DraftVersionId, draftRequest.UserId, draftRequest.EmailId)
+	resp, err := impl.notificationService.DraftApprovalNotificationRequest(draftRequest)
 	resp.DraftState = uint8(draftState)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -1197,13 +1188,13 @@ func (impl NotificationRestHandlerImpl) createDraftRequest(w http.ResponseWriter
 	}
 	err = draftApprovalRequest.CreateDraftApprovalRequest(draftBytes)
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return nil, nil
 	}
 	return draftApprovalRequest, err
 }
 
-func (impl NotificationRestHandlerImpl) DeploymentApprovalNotificationRequest(w http.ResponseWriter, r *http.Request) {
+func (impl NotificationRestHandlerImpl) ConsumeDeploymentApprovalNotification(w http.ResponseWriter, r *http.Request) {
 	token := r.URL.Query().Get("token")
 	//verification is done internally
 	deploymentApprovalRequest, err := impl.createDeploymentApprovalRequest(w, token)
@@ -1228,7 +1219,7 @@ func (impl NotificationRestHandlerImpl) DeploymentApprovalNotificationRequest(w 
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	resp, err := impl.notificationService.DeploymentApprovalNotificationRequest(deploymentApprovalRequest.EnvId, deploymentApprovalRequest.AppId, deploymentApprovalRequest.ArtifactId, deploymentApprovalRequest.UserId, deploymentApprovalRequest.EmailId)
+	resp, err := impl.notificationService.DeploymentApprovalNotificationRequest(deploymentApprovalRequest)
 	resp.Status = approvalState
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
@@ -1254,7 +1245,7 @@ func (impl NotificationRestHandlerImpl) createDeploymentApprovalRequest(w http.R
 	}
 	err = deploymentApprovalRequest.CreateDeploymentApprovalRequest(deploymentBytes)
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return nil, nil
 	}
 	return deploymentApprovalRequest, err

@@ -23,6 +23,7 @@ import (
 	"github.com/devtron-labs/devtron/enterprise/pkg/drafts"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	repository5 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
+	"github.com/devtron-labs/devtron/pkg/apiToken"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/team"
@@ -47,8 +48,8 @@ type NotificationConfigService interface {
 	IsSesOrSmtpConfigured() (*ConfigCheck, error)
 	UpdateNotificationSettings(notificationSettingsRequest *NotificationUpdateRequest, userId int32) (int, error)
 	FetchNSViewByIds(ids []*int) ([]*NSConfig, error)
-	DraftApprovalNotificationRequest(envId int, appId int, draftVersionId int, userId int32, emailId string) (*client.DraftApprovalResponse, error)
-	DeploymentApprovalNotificationRequest(envId int, appId int, artifactId int, userId int32, emailId string) (*client.DeploymentApprovalResponse, error)
+	DraftApprovalNotificationRequest(draftRequest *apiToken.DraftApprovalRequest) (*client.DraftApprovalResponse, error)
+	DeploymentApprovalNotificationRequest(deploymentApprovalRequest *apiToken.DeploymentApprovalRequest) (*client.DeploymentApprovalResponse, error)
 }
 
 type NotificationConfigServiceImpl struct {
@@ -935,19 +936,19 @@ func (impl *NotificationConfigServiceImpl) IsSesOrSmtpConfigured() (*ConfigCheck
 	return &configCheck, nil
 }
 
-func (impl *NotificationConfigServiceImpl) DraftApprovalNotificationRequest(envId int, appId int, draftVersionId int, userId int32, emailId string) (*client.DraftApprovalResponse, error) {
+func (impl *NotificationConfigServiceImpl) DraftApprovalNotificationRequest(draftRequest *apiToken.DraftApprovalRequest) (*client.DraftApprovalResponse, error) {
 	DraftApprovalResp := &client.DraftApprovalResponse{}
-	envName, appName, err := impl.getEnvAndAppName(envId, appId)
+	envName, appName, err := impl.getEnvAndAppName(draftRequest.EnvId, draftRequest.AppId)
 	if err != nil {
 		return nil, err
 	}
 	DraftApprovalResp.NotificationApprovalResponse.EnvName = envName
 	DraftApprovalResp.NotificationApprovalResponse.AppName = appName
-	draft, err := impl.configDraftRepository.GetDraftVersionById(draftVersionId)
+	draft, err := impl.configDraftRepository.GetDraftVersionById(draftRequest.DraftVersionId)
 	if err != nil {
 		return nil, err
 	}
-	draftComment, err := impl.configDraftRepository.GetDraftComments(draftVersionId)
+	draftComment, err := impl.configDraftRepository.GetDraftComments(draftRequest.DraftVersionId)
 	if err != nil {
 		return nil, err
 	}
@@ -960,7 +961,7 @@ func (impl *NotificationConfigServiceImpl) DraftApprovalNotificationRequest(envI
 	DraftApprovalResp.ProtectConfigComment = draftComment.Comment
 	DraftApprovalResp.ProtectConfigFileName = draft.Draft.ResourceName
 	DraftApprovalResp.NotificationApprovalResponse.EventTime = time.Now().Format(bean.LayoutRFC3339)
-	DraftApprovalResp.NotificationApprovalResponse.ApprovedBy = emailId
+	DraftApprovalResp.NotificationApprovalResponse.ApprovedBy = draftRequest.EmailId
 	return DraftApprovalResp, nil
 }
 
@@ -979,25 +980,25 @@ func (impl *NotificationConfigServiceImpl) getEnvAndAppName(envId int, appId int
 	appName = app.AppName
 	return envName, appName, err
 }
-func (impl *NotificationConfigServiceImpl) DeploymentApprovalNotificationRequest(envId int, appId int, artifactId int, userId int32, emailId string) (*client.DeploymentApprovalResponse, error) {
+func (impl *NotificationConfigServiceImpl) DeploymentApprovalNotificationRequest(deploymentApprovalRequest *apiToken.DeploymentApprovalRequest) (*client.DeploymentApprovalResponse, error) {
 	DeploymentApprovalResp := &client.DeploymentApprovalResponse{}
-	envName, appName, err := impl.getEnvAndAppName(envId, appId)
+	envName, appName, err := impl.getEnvAndAppName(deploymentApprovalRequest.EnvId, deploymentApprovalRequest.AppId)
 	if err != nil {
 		return nil, err
 	}
-	ciArtifact, err := impl.ciArtifactRepository.Get(artifactId)
+	ciArtifact, err := impl.ciArtifactRepository.Get(deploymentApprovalRequest.ArtifactId)
 	if err != nil {
 		impl.logger.Errorw("error fetching ciArtifact", "ciArtifact", ciArtifact, "err", err)
 		return DeploymentApprovalResp, err
 	}
-	imageComment, imageTagNames, err := impl.imageTaggingRepository.GetImageTagsAndComment(artifactId)
+	imageComment, imageTagNames, err := impl.imageTaggingRepository.GetImageTagsAndComment(deploymentApprovalRequest.ArtifactId)
 	if err != nil {
 		return nil, err
 	}
 	DeploymentApprovalResp.NotificationApprovalResponse.EnvName = envName
 	DeploymentApprovalResp.NotificationApprovalResponse.AppName = appName
 	DeploymentApprovalResp.NotificationApprovalResponse.EventTime = time.Now().Format(bean.LayoutRFC3339)
-	DeploymentApprovalResp.NotificationApprovalResponse.ApprovedBy = emailId
+	DeploymentApprovalResp.NotificationApprovalResponse.ApprovedBy = deploymentApprovalRequest.EmailId
 	DeploymentApprovalResp.ImageTagNames = imageTagNames
 	DeploymentApprovalResp.ImageComment = imageComment.Comment
 	lastColonIndex := strings.LastIndex(ciArtifact.Image, ":")

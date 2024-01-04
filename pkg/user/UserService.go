@@ -1180,22 +1180,12 @@ func (impl UserServiceImpl) GetFieldValuesFromToken(token string, fieldNames []s
 	if err != nil {
 		return fieldNameToValue, err
 	}
-	//impl.logger.Infow("mapClaims","map",mapClaims)
+	impl.logger.Infow("got map claims", "mapClaims", mapClaims)
 	for _, name := range fieldNames {
-		value := mapClaims[name]
-		impl.logger.Infow("key:val", "key", name, "val", value)
-		fieldNameToValue[name] = value
+		if value, ok := mapClaims[name]; ok {
+			fieldNameToValue[name] = value
+		}
 	}
-	//email := jwt.GetField(mapClaims, "email")
-	//sub := jwt.GetField(mapClaims, "sub")
-	//appId:=jwt.GetField(mapClaims,"appId")
-	//EnvId:=jwt.GetField(mapClaims,"appId")
-	//ApprovalType:=jwt.GetField(mapClaims,"approvalType")
-	//DraftId:=jwt.GetField(mapClaims,"draftId")
-	//DraftVersionId:=jwt.GetField(mapClaims,"draftVersionId")
-	//ApprovalRequestId:=jwt.GetField(mapClaims,"approvalRequestId")
-	//ArtifactId:=jwt.GetField(mapClaims,"artifactId")
-	//impl.logger.Infow("mapClaims","map",mapClaims)
 	return fieldNameToValue, nil
 }
 
@@ -1236,7 +1226,6 @@ func (impl UserServiceImpl) getMapClaims(token string) (jwt2.MapClaims, error) {
 		}
 		return nil, err
 	}
-
 	mapClaims, err := jwt.MapClaims(claims)
 	if err != nil {
 		impl.logger.Errorw("failed to MapClaims", "error", err)

@@ -339,14 +339,14 @@ func (impl *EventSimpleFactoryImpl) BuildExtraApprovalData(event Event, approval
 	if err != nil {
 		impl.logger.Errorw("found error on getting user data ", "user", user)
 	}
-	payload := &Payload{}
-	err = impl.setApprovalEventPayload(event, approvalActionRequest, cdPipeline, payload)
-	if err != nil {
-		impl.logger.Errorw("error in setting payload", "error", err)
-		return events
-	}
-	for _, emailId := range approvalActionRequest.ApprovalNotificationConfig.EmailIds {
 
+	for _, emailId := range approvalActionRequest.ApprovalNotificationConfig.EmailIds {
+		payload := &Payload{}
+		err = impl.setApprovalEventPayload(event, approvalActionRequest, cdPipeline, payload)
+		if err != nil {
+			impl.logger.Errorw("error in setting payload", "error", err)
+			return events
+		}
 		setProviderForNotification(emailId, defaultSesConfig, defaultSmtpConfig, payload)
 		reqData := &ConfigDataForNotification{
 			AppId: cdPipeline.AppId,
