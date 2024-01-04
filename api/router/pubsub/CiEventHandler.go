@@ -98,8 +98,6 @@ func NewCiEventHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSu
 
 func (impl *CiEventHandlerImpl) Subscribe() error {
 	callback := func(msg *model.PubSubMsg) {
-		impl.logger.Debugw("ci complete event received")
-		// defer msg.Ack()
 		ciCompleteEvent := CiCompleteEvent{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &ciCompleteEvent)
 		if err != nil {
@@ -161,8 +159,13 @@ func (impl *CiEventHandlerImpl) Subscribe() error {
 	}
 
 	// add required logging here
-	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) bool {
-		return false
+	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) (string, []interface{}) {
+		ciCompleteEvent := CiCompleteEvent{}
+		err := json.Unmarshal([]byte(string(msg.Data)), &ciCompleteEvent)
+		if err != nil {
+			return "error while unmarshalling json data", []interface{}{"error", err}
+		}
+		return "got message for ci-completion", []interface{}{"ciPipelineId", ciCompleteEvent.PipelineId, "workflowId", ciCompleteEvent.WorkflowId}
 	}
 
 	validations := impl.webhookService.GetTriggerValidateFuncs()

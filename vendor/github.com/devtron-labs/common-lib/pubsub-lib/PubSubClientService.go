@@ -14,8 +14,14 @@ import (
 	"time"
 )
 
+const NATS_MSG_LOG_PREFIX = "NATS_LOG"
+
 type ValidateMsg func(msg model.PubSubMsg) bool
-type LoggerFunc func(msg model.PubSubMsg) bool
+
+// LoggerFunc is used to log the message before passing to callback function.
+// it expects logg message and key value pairs to be returned.
+// if keysAndValues is empty, it will log whole model.PubSubMsg
+type LoggerFunc func(msg model.PubSubMsg) (logMsg string, keysAndValues []interface{})
 
 type PubSubClientService interface {
 	Publish(topic string, msg string) error
@@ -188,9 +194,7 @@ func (impl PubSubClientServiceImpl) TryCatchCallBack(msg *nats.Msg, callback fun
 	subMsg := &model.PubSubMsg{Data: string(msg.Data), MsgDeliverCount: msgDeliveryCount, MsgId: natsMsgId}
 
 	// call loggersFunc
-	if logged := loggerFunc(*subMsg); !logged {
-		impl.Logger.Debugw("processing nats message", "topic", msg.Subject, "msgId", subMsg.MsgId, "msg", string(msg.Data))
-	}
+	impl.Log(loggerFunc, msg.Subject, *subMsg)
 
 	// run validations
 	for _, validation := range validations {
@@ -275,4 +279,14 @@ func (impl PubSubClientServiceImpl) updateConsumer(natsClient *NatsClient, strea
 		}
 	}
 	return
+}
+
+func (impl PubSubClientServiceImpl) Log(loggerFunc LoggerFunc, topic string, subMsg model.PubSubMsg) {
+	logMsg, metaSlice := loggerFunc(subMsg)
+	logMsg = fmt.Sprintf("%s:%s", NATS_MSG_LOG_PREFIX, logMsg)
+	if len(metaSlice) == 0 {
+		metaSlice = []interface{}{"msgId", subMsg.MsgId, "msg", subMsg.Data}
+	}
+	metaSlice = append(metaSlice, "topic", topic)
+	impl.Logger.Infow(logMsg, metaSlice...)
 }

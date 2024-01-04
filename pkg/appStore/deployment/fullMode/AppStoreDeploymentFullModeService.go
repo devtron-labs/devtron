@@ -488,7 +488,6 @@ func (impl AppStoreDeploymentFullModeServiceImpl) SubscribeHelmInstallStatus() e
 
 	callback := func(msg *model.PubSubMsg) {
 
-		impl.logger.Debug("received helm install status event - HELM_INSTALL_STATUS", "data", msg.Data)
 		helmInstallNatsMessage := &appStoreBean.HelmReleaseStatusConfig{}
 		err := json.Unmarshal([]byte(msg.Data), helmInstallNatsMessage)
 		if err != nil {
@@ -515,8 +514,13 @@ func (impl AppStoreDeploymentFullModeServiceImpl) SubscribeHelmInstallStatus() e
 	}
 
 	// add required logging here
-	var loggerFunc pubsub_lib.LoggerFunc = func(msg model.PubSubMsg) bool {
-		return false
+	var loggerFunc pubsub_lib.LoggerFunc = func(msg model.PubSubMsg) (string, []interface{}) {
+		helmInstallNatsMessage := &appStoreBean.HelmReleaseStatusConfig{}
+		err := json.Unmarshal([]byte(msg.Data), helmInstallNatsMessage)
+		if err != nil {
+			return "error in unmarshalling helm install status nats message", []interface{}{"err", err}
+		}
+		return "got nats msg for helm chart install status", []interface{}{"InstallAppVersionHistoryId", helmInstallNatsMessage.InstallAppVersionHistoryId, "ErrorInInstallation", helmInstallNatsMessage.ErrorInInstallation, "IsReleaseInstalled", helmInstallNatsMessage.IsReleaseInstalled}
 	}
 
 	err := impl.pubSubClient.Subscribe(pubsub_lib.HELM_CHART_INSTALL_STATUS_TOPIC, callback, loggerFunc)

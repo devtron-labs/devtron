@@ -1430,9 +1430,6 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironm
 func (impl BulkUpdateServiceImpl) SubscribeToCdBulkTriggerTopic() error {
 
 	callback := func(msg *model.PubSubMsg) {
-		impl.logger.Infow("Event received",
-			"topic", pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC,
-			"msg", msg.Data)
 
 		event := &bean.BulkCdDeployEvent{}
 		err := json.Unmarshal([]byte(msg.Data), event)
@@ -1468,8 +1465,13 @@ func (impl BulkUpdateServiceImpl) SubscribeToCdBulkTriggerTopic() error {
 	}
 
 	// add required logging here
-	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) bool {
-		return false
+	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) (string, []interface{}) {
+		event := &bean.BulkCdDeployEvent{}
+		err := json.Unmarshal([]byte(msg.Data), event)
+		if err != nil {
+			return "error unmarshalling received event", []interface{}{"msg", msg.Data, "err", err}
+		}
+		return "got message for trigger cd in bulk", []interface{}{"pipelineId", event.ValuesOverrideRequest.PipelineId, "appId", event.ValuesOverrideRequest.AppId, "cdWorkflowType", event.ValuesOverrideRequest.CdWorkflowType, "ciArtifactId", event.ValuesOverrideRequest.CiArtifactId}
 	}
 
 	validations := impl.workflowDagExecutor.GetTriggerValidateFuncs()

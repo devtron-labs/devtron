@@ -70,8 +70,13 @@ func (impl *GitWebhookHandlerImpl) Subscribe() error {
 	}
 
 	// add required logging here
-	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) bool {
-		return false
+	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) (string, []interface{}) {
+		ciPipelineMaterial := gitSensor.CiPipelineMaterial{}
+		err := json.Unmarshal([]byte(string(msg.Data)), &ciPipelineMaterial)
+		if err != nil {
+			return "error while unmarshalling json response", []interface{}{"error", err}
+		}
+		return "got message for about new ci material", []interface{}{"ciPipelineMaterialId", ciPipelineMaterial.Id, "gitMaterialId", ciPipelineMaterial.GitMaterialId, "type", ciPipelineMaterial.Type}
 	}
 
 	err := impl.pubsubClient.Subscribe(pubsub.NEW_CI_MATERIAL_TOPIC, callback, loggerFunc)

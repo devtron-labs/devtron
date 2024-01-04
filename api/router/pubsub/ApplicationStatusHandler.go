@@ -92,7 +92,6 @@ type ApplicationDetail struct {
 
 func (impl *ApplicationStatusHandlerImpl) Subscribe() error {
 	callback := func(msg *model.PubSubMsg) {
-		impl.logger.Debugw("APP_STATUS_UPDATE_REQ", "stage", "raw", "data", msg.Data)
 		applicationDetail := ApplicationDetail{}
 		err := json.Unmarshal([]byte(msg.Data), &applicationDetail)
 		if err != nil {
@@ -167,8 +166,8 @@ func (impl *ApplicationStatusHandlerImpl) Subscribe() error {
 	}
 
 	// add required logging here
-	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) bool {
-		return false
+	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) (string, []interface{}) {
+		return "", nil
 	}
 
 	validations := impl.workflowDagExecutor.GetTriggerValidateFuncs()
@@ -183,7 +182,6 @@ func (impl *ApplicationStatusHandlerImpl) Subscribe() error {
 func (impl *ApplicationStatusHandlerImpl) SubscribeDeleteStatus() error {
 	callback := func(msg *model.PubSubMsg) {
 
-		impl.logger.Debugw("APP_STATUS_DELETE_REQ", "stage", "raw", "data", msg.Data)
 		applicationDetail := ApplicationDetail{}
 		err := json.Unmarshal([]byte(msg.Data), &applicationDetail)
 		if err != nil {
@@ -201,10 +199,17 @@ func (impl *ApplicationStatusHandlerImpl) SubscribeDeleteStatus() error {
 			impl.logger.Errorw("error in updating pipeline delete status", "err", err, "appName", app.Name)
 		}
 	}
+
 	// add required logging here
-	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) bool {
-		return false
+	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) (string, []interface{}) {
+		applicationDetail := ApplicationDetail{}
+		err := json.Unmarshal([]byte(msg.Data), &applicationDetail)
+		if err != nil {
+			return "unmarshal error on app delete status", []interface{}{"err", err}
+		}
+		return "got message for application status delete", []interface{}{"appName", applicationDetail.Application.Name, "namespace", applicationDetail.Application.Namespace, "deleteTimestamp", applicationDetail.Application.DeletionTimestamp}
 	}
+
 	err := impl.pubsubClient.Subscribe(pubsub.APPLICATION_STATUS_DELETE_TOPIC, callback, loggerFunc)
 	if err != nil {
 		impl.logger.Errorw("error in subscribing to argo application status delete topic", "err", err)

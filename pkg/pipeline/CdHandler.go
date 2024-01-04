@@ -747,7 +747,7 @@ func (impl *CdHandlerImpl) extractWorkfowStatus(workflowStatus v1alpha1.Workflow
 	logLocation := ""
 	podName := ""
 	for k, v := range workflowStatus.Nodes {
-		impl.Logger.Debugw("extractWorkflowStatus", "workflowName", k, "v", v)
+		impl.Logger.Debugw("ExtractWorkflowStatus", "workflowName", k, "v", v)
 		if v.TemplateName == bean2.CD_WORKFLOW_NAME {
 			if v.BoundaryID == "" {
 				workflowName = k

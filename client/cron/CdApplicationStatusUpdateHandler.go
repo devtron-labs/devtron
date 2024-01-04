@@ -129,7 +129,6 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) Subscribe() error {
 			impl.logger.Errorw("unmarshal error on argo pipeline status update event", "err", err)
 			return
 		}
-		impl.logger.Debugw("ARGO_PIPELINE_STATUS_UPDATE_REQ", "stage", "subscribeDataUnmarshal", "data", statusUpdateEvent)
 
 		if statusUpdateEvent.IsAppStoreApplication {
 			installedApp, err = impl.installedAppVersionRepository.GetInstalledAppByInstalledAppVersionId(statusUpdateEvent.InstalledAppVersionId)
@@ -157,8 +156,13 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) Subscribe() error {
 	}
 
 	// add required logging here
-	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) bool {
-		return false
+	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) (string, []interface{}) {
+		statusUpdateEvent := pipeline.ArgoPipelineStatusSyncEvent{}
+		err := json.Unmarshal([]byte(string(msg.Data)), &statusUpdateEvent)
+		if err != nil {
+			return "unmarshal error on argo pipeline status update event", []interface{}{"err", err}
+		}
+		return "got message for argo pipeline status update", []interface{}{"pipelineId", statusUpdateEvent.PipelineId, "installedAppVersionId", statusUpdateEvent.InstalledAppVersionId, "isAppStoreApplication", statusUpdateEvent.IsAppStoreApplication}
 	}
 
 	validations := impl.workflowDagExecutor.GetTriggerValidateFuncs()

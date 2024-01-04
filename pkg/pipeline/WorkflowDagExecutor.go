@@ -437,15 +437,12 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 
 func (impl *WorkflowDagExecutorImpl) Subscribe() error {
 	callback := func(msg *model.PubSubMsg) {
-		impl.logger.Debug("cd stage event received")
-		// defer msg.Ack()
 		cdStageCompleteEvent := CdStageCompleteEvent{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &cdStageCompleteEvent)
 		if err != nil {
 			impl.logger.Errorw("error while unmarshalling cdStageCompleteEvent object", "err", err, "msg", string(msg.Data))
 			return
 		}
-		impl.logger.Debugw("cd stage event:", "workflowRunnerId", cdStageCompleteEvent.WorkflowRunnerId)
 		wf, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(cdStageCompleteEvent.WorkflowRunnerId)
 		if err != nil {
 			impl.logger.Errorw("could not get wf runner", "err", err)
@@ -472,8 +469,13 @@ func (impl *WorkflowDagExecutorImpl) Subscribe() error {
 	}
 
 	// add required logging here
-	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) bool {
-		return false
+	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) (string, []interface{}) {
+		cdStageCompleteEvent := CdStageCompleteEvent{}
+		err := json.Unmarshal([]byte(string(msg.Data)), &cdStageCompleteEvent)
+		if err != nil {
+			return "error while unmarshalling cdStageCompleteEvent object", []interface{}{"err", err, "msg", string(msg.Data)}
+		}
+		return "got message for cd stage completion", []interface{}{"workflowRunnerId", cdStageCompleteEvent.WorkflowRunnerId, "workflowId", cdStageCompleteEvent.WorkflowId, "cdPipelineId", cdStageCompleteEvent.CdPipelineId}
 	}
 
 	validations := impl.GetTriggerValidateFuncs()
@@ -766,7 +768,6 @@ func (impl *WorkflowDagExecutorImpl) processDevtronAsyncHelmInstallRequest(CDAsy
 
 func (impl *WorkflowDagExecutorImpl) SubscribeDevtronAsyncHelmInstallRequest() error {
 	callback := func(msg *model.PubSubMsg) {
-		impl.logger.Debug("received Devtron App helm async install request event, SubscribeDevtronAsyncHelmInstallRequest", "data", msg.Data)
 		CDAsyncInstallNatsMessage, appIdentifier, err := impl.extractOverrideRequestFromCDAsyncInstallEvent(msg)
 		if err != nil {
 			impl.logger.Errorw("err on extracting override request, SubscribeDevtronAsyncHelmInstallRequest", "err", err)
@@ -782,8 +783,13 @@ func (impl *WorkflowDagExecutorImpl) SubscribeDevtronAsyncHelmInstallRequest() e
 	}
 
 	// add required logging here
-	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) bool {
-		return false
+	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) (string, []interface{}) {
+		CDAsyncInstallNatsMessage := &bean.AsyncCdDeployEvent{}
+		err := json.Unmarshal([]byte(msg.Data), CDAsyncInstallNatsMessage)
+		if err != nil {
+			return "error in unmarshalling CD async install request nats message", []interface{}{"err", err}
+		}
+		return "got message for devtron chart install", []interface{}{"appId", CDAsyncInstallNatsMessage.ValuesOverrideRequest.AppId, "pipelineId", CDAsyncInstallNatsMessage.ValuesOverrideRequest.PipelineId, "artifactId", CDAsyncInstallNatsMessage.ValuesOverrideRequest.CiArtifactId}
 	}
 
 	err := impl.pubsubClient.Subscribe(pubsub.DEVTRON_CHART_INSTALL_TOPIC, callback, loggerFunc)
@@ -2702,15 +2708,12 @@ func (impl *WorkflowDagExecutorImpl) triggerNatsEventForBulkAction(cdWorkflows [
 
 func (impl *WorkflowDagExecutorImpl) subscribeTriggerBulkAction() error {
 	callback := func(msg *model.PubSubMsg) {
-		impl.logger.Debug("subscribeTriggerBulkAction event received")
-		//defer msg.Ack()
 		cdWorkflow := new(pipelineConfig.CdWorkflow)
 		err := json.Unmarshal([]byte(string(msg.Data)), cdWorkflow)
 		if err != nil {
 			impl.logger.Error("Error while unmarshalling cdWorkflow json object", "error", err)
 			return
 		}
-		impl.logger.Debugw("subscribeTriggerBulkAction event:", "cdWorkflow", cdWorkflow)
 		wf := &pipelineConfig.CdWorkflow{
 			Id:           cdWorkflow.Id,
 			CiArtifactId: cdWorkflow.CiArtifactId,
@@ -2769,8 +2772,13 @@ func (impl *WorkflowDagExecutorImpl) subscribeTriggerBulkAction() error {
 	}
 
 	// add required logging here
-	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) bool {
-		return false
+	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) (string, []interface{}) {
+		cdWorkflow := new(pipelineConfig.CdWorkflow)
+		err := json.Unmarshal([]byte(string(msg.Data)), cdWorkflow)
+		if err != nil {
+			return "error while unmarshalling cdWorkflow json object", []interface{}{"error", err}
+		}
+		return "got message for bulk deploy", []interface{}{"cdWorkflowId", cdWorkflow.Id}
 	}
 
 	validations := impl.GetTriggerValidateFuncs()
@@ -2780,15 +2788,12 @@ func (impl *WorkflowDagExecutorImpl) subscribeTriggerBulkAction() error {
 
 func (impl *WorkflowDagExecutorImpl) subscribeHibernateBulkAction() error {
 	callback := func(msg *model.PubSubMsg) {
-		impl.logger.Debug("subscribeHibernateBulkAction event received")
-		//defer msg.Ack()
 		deploymentGroupAppWithEnv := new(DeploymentGroupAppWithEnv)
 		err := json.Unmarshal([]byte(string(msg.Data)), deploymentGroupAppWithEnv)
 		if err != nil {
 			impl.logger.Error("Error while unmarshalling deploymentGroupAppWithEnv json object", err)
 			return
 		}
-		impl.logger.Debugw("subscribeHibernateBulkAction event:", "DeploymentGroupAppWithEnv", deploymentGroupAppWithEnv)
 
 		stopAppRequest := &StopAppRequest{
 			AppId:         deploymentGroupAppWithEnv.AppId,
@@ -2811,9 +2816,15 @@ func (impl *WorkflowDagExecutorImpl) subscribeHibernateBulkAction() error {
 			return
 		}
 	}
+
 	// add required logging here
-	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) bool {
-		return false
+	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) (string, []interface{}) {
+		deploymentGroupAppWithEnv := new(DeploymentGroupAppWithEnv)
+		err := json.Unmarshal([]byte(string(msg.Data)), deploymentGroupAppWithEnv)
+		if err != nil {
+			return "error while unmarshalling deploymentGroupAppWithEnv json object", []interface{}{"err", err}
+		}
+		return "got message for bulk hibernate", []interface{}{"deploymentGroupId", deploymentGroupAppWithEnv.DeploymentGroupId, "appId", deploymentGroupAppWithEnv.AppId, "environmentId", deploymentGroupAppWithEnv.EnvironmentId}
 	}
 
 	err := impl.pubsubClient.Subscribe(pubsub.BULK_HIBERNATE_TOPIC, callback, loggerFunc)

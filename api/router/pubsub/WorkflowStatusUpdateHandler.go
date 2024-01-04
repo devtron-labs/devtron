@@ -71,8 +71,6 @@ func NewWorkflowStatusUpdateHandlerImpl(logger *zap.SugaredLogger, pubsubClient 
 
 func (impl *WorkflowStatusUpdateHandlerImpl) Subscribe() error {
 	callback := func(msg *model.PubSubMsg) {
-		impl.logger.Debug("received wf update request")
-		//defer msg.Ack()
 		wfStatus := v1alpha1.WorkflowStatus{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &wfStatus)
 		if err != nil {
@@ -95,8 +93,15 @@ func (impl *WorkflowStatusUpdateHandlerImpl) Subscribe() error {
 	}
 
 	// add required logging here
-	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) bool {
-		return false
+	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) (string, []interface{}) {
+		wfStatus := v1alpha1.WorkflowStatus{}
+		err := json.Unmarshal([]byte(string(msg.Data)), &wfStatus)
+		if err != nil {
+			return "error while unmarshalling wf status update", []interface{}{"err", err, "msg", string(msg.Data)}
+		}
+
+		workflowName, status, _, message, _, _ := pipeline.ExtractWorkflowStatus(wfStatus)
+		return "got message for ci workflow status update ", []interface{}{"workflowName", workflowName, "status", status, "message", message}
 	}
 
 	err := impl.pubsubClient.Subscribe(pubsub.WORKFLOW_STATUS_UPDATE_TOPIC, callback, loggerFunc)
@@ -110,8 +115,6 @@ func (impl *WorkflowStatusUpdateHandlerImpl) Subscribe() error {
 
 func (impl *WorkflowStatusUpdateHandlerImpl) SubscribeCD() error {
 	callback := func(msg *model.PubSubMsg) {
-		impl.logger.Debug("received cd wf update request")
-		//defer msg.Ack()
 		wfStatus := v1alpha1.WorkflowStatus{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &wfStatus)
 		if err != nil {
@@ -119,7 +122,6 @@ func (impl *WorkflowStatusUpdateHandlerImpl) SubscribeCD() error {
 			return
 		}
 
-		impl.logger.Debugw("received cd wf update request body", "body", wfStatus)
 		wfrId, wfrStatus, err := impl.cdHandler.UpdateWorkflow(wfStatus)
 		impl.logger.Debugw("UpdateWorkflow", "wfrId", wfrId, "wfrStatus", wfrStatus)
 		if err != nil {
@@ -178,8 +180,14 @@ func (impl *WorkflowStatusUpdateHandlerImpl) SubscribeCD() error {
 	}
 
 	// add required logging here
-	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) bool {
-		return false
+	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) (string, []interface{}) {
+		wfStatus := v1alpha1.WorkflowStatus{}
+		err := json.Unmarshal([]byte(string(msg.Data)), &wfStatus)
+		if err != nil {
+			return "error while unmarshalling wfStatus json object", []interface{}{"error", err}
+		}
+		workflowName, status, _, message, _, _ := pipeline.ExtractWorkflowStatus(wfStatus)
+		return "got message for cd workflow status", []interface{}{"workflowName", workflowName, "status", status, "message", message}
 	}
 
 	err := impl.pubsubClient.Subscribe(pubsub.CD_WORKFLOW_STATUS_UPDATE, callback, loggerFunc)
