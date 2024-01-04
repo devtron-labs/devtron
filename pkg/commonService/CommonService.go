@@ -55,6 +55,7 @@ type CommonServiceImpl struct {
 
 func NewCommonServiceImpl(logger *zap.SugaredLogger,
 	chartRepository chartRepoRepository.ChartRepository,
+	installedAppRepository repository4.InstalledAppRepository,
 	environmentConfigRepository chartConfig.EnvConfigOverrideRepository,
 	gitOpsRepository repository.GitOpsConfigRepository,
 	dockerReg dockerRegistryRepository.DockerArtifactStoreRepository,
@@ -65,6 +66,7 @@ func NewCommonServiceImpl(logger *zap.SugaredLogger,
 	serviceImpl := &CommonServiceImpl{
 		logger:                      logger,
 		chartRepository:             chartRepository,
+		installedAppRepository:      installedAppRepository,
 		environmentConfigRepository: environmentConfigRepository,
 		gitOpsRepository:            gitOpsRepository,
 		dockerReg:                   dockerReg,
