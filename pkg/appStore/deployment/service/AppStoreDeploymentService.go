@@ -260,6 +260,15 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 	installedAppModel.UpdatedOn = time.Now()
 	installedAppModel.Active = true
 	if util2.IsFullStack() && util.IsAcdApp(installAppVersionRequest.DeploymentAppType) {
+		if !gitOpsConfig.AllowCustomRepository && (len(installAppVersionRequest.GitOpsRepoURL) != 0 && installAppVersionRequest.GitOpsRepoURL != bean2.GIT_REPO_DEFAULT) {
+			impl.logger.Errorw("invalid installAppVersionRequest", "error", "custom repo url is not valid, as the global configuration is updated")
+			err = &util.ApiError{
+				HttpStatusCode:  http.StatusResetContent,
+				UserMessage:     "Invalid request! Please configure Gitops with 'Allow changing git repository for application'.",
+				InternalMessage: "Invalid request! Custom repository is not valid, as the global configuration is updated",
+			}
+			return nil, err
+		}
 		if gitOpsConfig.AllowCustomRepository && len(installAppVersionRequest.GitOpsRepoURL) == 0 {
 			impl.logger.Errorw("invalid installAppVersionRequest", "error", "gitRepoURL is required")
 			err = &util.ApiError{

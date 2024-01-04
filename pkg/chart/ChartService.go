@@ -1781,7 +1781,12 @@ func (impl ChartServiceImpl) SaveAppLevelGitOpsConfiguration(appGitOpsRequest Ap
 		return detailedErrorGitOpsConfigResponse, err
 	}
 	if !activeGlobalGitOpsConfig.AllowCustomRepository {
-		return detailedErrorGitOpsConfigResponse, fmt.Errorf("Invalid request! Please configure Gitops with 'Allow changing git repository for application'.")
+		apiErr := &util.ApiError{
+			HttpStatusCode:  http.StatusResetContent,
+			UserMessage:     "Invalid request! Please configure Gitops with 'Allow changing git repository for application'.",
+			InternalMessage: "Invalid request! Custom repository is not valid, as the global configuration is updated",
+		}
+		return detailedErrorGitOpsConfigResponse, apiErr
 	}
 
 	if impl.IsGitRepoUrlPresent(appGitOpsRequest.AppId) {
@@ -1852,7 +1857,12 @@ func (impl ChartServiceImpl) GetAppLevelGitOpsConfiguration(appId int) (*AppGitO
 		return nil, err
 	}
 	if !activeGlobalGitOpsConfig.AllowCustomRepository {
-		return nil, fmt.Errorf("Invalid request! Please configure Gitops with 'Allow changing git repository for application'.")
+		apiErr := &util.ApiError{
+			HttpStatusCode:  http.StatusResetContent,
+			UserMessage:     "Invalid request! Please configure Gitops with 'Allow changing git repository for application'.",
+			InternalMessage: "Invalid request! Custom repository is not valid, as the global configuration is updated",
+		}
+		return nil, apiErr
 	}
 	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
 	if err != nil {

@@ -181,6 +181,11 @@ func (handler AppStoreDeploymentRestHandlerImpl) InstallApp(w http.ResponseWrite
 			err = &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "application spec is invalid, please check provided chart values"}
 		}
 		handler.Logger.Errorw("service err, CreateInstalledApp", "err", err, "payload", request)
+		errResponse, ok := err.(*util.ApiError)
+		if ok && errResponse.HttpStatusCode != 0 {
+			common.WriteJsonResp(w, err, err, errResponse.HttpStatusCode)
+			return
+		}
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -491,6 +496,11 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateInstalledApp(w http.Respo
 			err = &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "application spec is invalid, please check provided chart values"}
 		}
 		handler.Logger.Errorw("service err, UpdateInstalledApp", "err", err, "payload", request)
+		errResponse, ok := err.(*util.ApiError)
+		if ok && errResponse.HttpStatusCode != 0 {
+			common.WriteJsonResp(w, err, err, errResponse.HttpStatusCode)
+			return
+		}
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
