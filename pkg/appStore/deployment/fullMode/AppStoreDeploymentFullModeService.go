@@ -27,7 +27,6 @@ import (
 	"time"
 
 	"github.com/devtron-labs/devtron/client/argocdServer"
-	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
@@ -37,7 +36,6 @@ import (
 	repository5 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
-	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/go-pg/pg"
 
@@ -65,40 +63,28 @@ type AppStoreDeploymentFullModeService interface {
 }
 
 type AppStoreDeploymentFullModeServiceImpl struct {
-	logger                               *zap.SugaredLogger
-	chartTemplateService                 util.ChartTemplateService
-	refChartDir                          appStoreBean.RefChartProxyDir
-	repositoryService                    repository.ServiceClient
-	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository
-	environmentRepository                repository5.EnvironmentRepository
-	acdClient                            application2.ServiceClient
-	ArgoK8sClient                        argocdServer.ArgoK8sClient
-	gitFactory                           *util.GitFactory
-	aCDAuthConfig                        *util2.ACDAuthConfig
-	globalEnvVariables                   *util3.GlobalEnvVariables
-	installedAppRepository               repository4.InstalledAppRepository
-	tokenCache                           *util2.TokenCache
-	argoUserService                      argo.ArgoUserService
-	gitOpsConfigRepository               repository3.GitOpsConfigRepository
-	pipelineStatusTimelineService        status.PipelineStatusTimelineService
-	appStoreDeploymentCommonService      appStoreDeploymentCommon.AppStoreDeploymentCommonService
-	argoClientWrapperService             argocdServer.ArgoClientWrapperService
-	pubSubClient                         *pubsub_lib.PubSubClientServiceImpl
-	installedAppRepositoryHistory        repository4.InstalledAppVersionHistoryRepository
-	ACDConfig                            *argocdServer.ACDConfig
+	logger                          *zap.SugaredLogger
+	chartTemplateService            util.ChartTemplateService
+	repositoryService               repository.ServiceClient
+	acdClient                       application2.ServiceClient
+	ArgoK8sClient                   argocdServer.ArgoK8sClient
+	aCDAuthConfig                   *util2.ACDAuthConfig
+	argoUserService                 argo.ArgoUserService
+	pipelineStatusTimelineService   status.PipelineStatusTimelineService
+	appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService
+	argoClientWrapperService        argocdServer.ArgoClientWrapperService
+	pubSubClient                    *pubsub_lib.PubSubClientServiceImpl
+	installedAppRepositoryHistory   repository4.InstalledAppVersionHistoryRepository
+	ACDConfig                       *argocdServer.ACDConfig
 }
 
 func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
-	chartTemplateService util.ChartTemplateService, refChartDir appStoreBean.RefChartProxyDir,
+	chartTemplateService util.ChartTemplateService,
 	repositoryService repository.ServiceClient,
-	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
-	environmentRepository repository5.EnvironmentRepository,
 	acdClient application2.ServiceClient,
 	argoK8sClient argocdServer.ArgoK8sClient,
-	gitFactory *util.GitFactory, aCDAuthConfig *util2.ACDAuthConfig,
-	globalEnvVariables *util3.GlobalEnvVariables,
-	installedAppRepository repository4.InstalledAppRepository, tokenCache *util2.TokenCache,
-	argoUserService argo.ArgoUserService, gitOpsConfigRepository repository3.GitOpsConfigRepository,
+	aCDAuthConfig *util2.ACDAuthConfig,
+	argoUserService argo.ArgoUserService,
 	pipelineStatusTimelineService status.PipelineStatusTimelineService,
 	appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
@@ -107,27 +93,19 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 	ACDConfig *argocdServer.ACDConfig,
 ) *AppStoreDeploymentFullModeServiceImpl {
 	appStoreDeploymentFullModeServiceImpl := &AppStoreDeploymentFullModeServiceImpl{
-		logger:                               logger,
-		chartTemplateService:                 chartTemplateService,
-		refChartDir:                          refChartDir,
-		repositoryService:                    repositoryService,
-		appStoreApplicationVersionRepository: appStoreApplicationVersionRepository,
-		environmentRepository:                environmentRepository,
-		acdClient:                            acdClient,
-		ArgoK8sClient:                        argoK8sClient,
-		gitFactory:                           gitFactory,
-		aCDAuthConfig:                        aCDAuthConfig,
-		globalEnvVariables:                   globalEnvVariables,
-		installedAppRepository:               installedAppRepository,
-		tokenCache:                           tokenCache,
-		argoUserService:                      argoUserService,
-		gitOpsConfigRepository:               gitOpsConfigRepository,
-		pipelineStatusTimelineService:        pipelineStatusTimelineService,
-		appStoreDeploymentCommonService:      appStoreDeploymentCommonService,
-		argoClientWrapperService:             argoClientWrapperService,
-		pubSubClient:                         pubSubClient,
-		installedAppRepositoryHistory:        installedAppRepositoryHistory,
-		ACDConfig:                            ACDConfig,
+		logger:                          logger,
+		chartTemplateService:            chartTemplateService,
+		repositoryService:               repositoryService,
+		acdClient:                       acdClient,
+		ArgoK8sClient:                   argoK8sClient,
+		aCDAuthConfig:                   aCDAuthConfig,
+		argoUserService:                 argoUserService,
+		pipelineStatusTimelineService:   pipelineStatusTimelineService,
+		appStoreDeploymentCommonService: appStoreDeploymentCommonService,
+		argoClientWrapperService:        argoClientWrapperService,
+		pubSubClient:                    pubSubClient,
+		installedAppRepositoryHistory:   installedAppRepositoryHistory,
+		ACDConfig:                       ACDConfig,
 	}
 	err := appStoreDeploymentFullModeServiceImpl.subscribeHelmInstallStatus()
 	if err != nil {
