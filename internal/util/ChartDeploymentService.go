@@ -29,14 +29,15 @@ func NewChartDeploymentServiceImpl(logger *zap.SugaredLogger, repositoryService 
 }
 
 func (impl *ChartDeploymentServiceImpl) RegisterInArgo(chartGitAttribute *ChartGitAttribute, userId int32, ctx context.Context) error {
-	repo := &v1alpha1.Repository{
-		Repo: chartGitAttribute.RepoUrl,
-	}
+
 	retryCount := 3
 	// label to register git repository in ArgoCd
 	// ArgoCd requires approx 80 to 120 sec after the last commit to allow create-repository action
 	// hence this operation needed to be perform with retry
 CreateArgoRepositoryWithRetry:
+	repo := &v1alpha1.Repository{
+		Repo: chartGitAttribute.RepoUrl,
+	}
 	repo, err := impl.repositoryService.Create(ctx, &repository3.RepoCreateRequest{Repo: repo, Upsert: true})
 	if err != nil {
 		impl.logger.Errorw("error in creating argo Repository ", "retry count", retryCount, "err", err)
