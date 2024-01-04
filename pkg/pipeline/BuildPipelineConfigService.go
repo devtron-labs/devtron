@@ -731,14 +731,14 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipeline(appId int) (ciConfig *bea
 				IsRegex:         material.Regex != "",
 				Source:          &bean.SourceTypeConfig{Type: material.Type, Value: material.Value, Regex: material.Regex},
 			}
-			if !isJob {
-				err = impl.setCiPipelineBlockageState(ciPipeline, branchesForCheckingBlockageState, false)
-				if err != nil {
-					impl.logger.Errorw("error in getting blockage state for ci pipeline", "err", err, "ciPipelineId", ciPipeline.Id)
-					return nil, err
-				}
-			}
 			ciPipeline.CiMaterial = append(ciPipeline.CiMaterial, ciMaterial)
+		}
+		if !isJob {
+			err = impl.setCiPipelineBlockageState(ciPipeline, branchesForCheckingBlockageState, false)
+			if err != nil {
+				impl.logger.Errorw("error in getting blockage state for ci pipeline", "err", err, "ciPipelineId", ciPipeline.Id)
+				return nil, err
+			}
 		}
 		linkedCis, err := impl.ciPipelineRepository.FindByParentCiPipelineId(ciPipeline.Id)
 		if err != nil && !util.IsErrNoRows(err) {
