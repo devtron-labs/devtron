@@ -53,6 +53,7 @@ const (
 	CLUSTER_COMPONENT_DIR_PATH                  = "/cluster/component"
 )
 
+// ACD operation and git operation
 type AppStoreDeploymentFullModeService interface {
 	AppStoreDeployOperationACD(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, chartGitAttr *util.ChartGitAttribute, ctx context.Context, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error)
 	//TRACE usages and delete if unused

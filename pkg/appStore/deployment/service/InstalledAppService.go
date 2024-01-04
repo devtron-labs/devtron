@@ -80,6 +80,7 @@ const (
 	HELM_RELEASE_STATUS_UNKNOWN                 = "Unknown"
 )
 
+// DB operation + chart group + nats msg consume(to be removed)
 type InstalledAppService interface {
 	GetAll(filter *appStoreBean.AppStoreFilter) (openapi.AppList, error)
 	DeployBulk(chartGroupInstallRequest *chartGroup.ChartGroupInstallRequest) (*chartGroup.ChartGroupInstallAppRes, error)
