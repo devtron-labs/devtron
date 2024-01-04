@@ -366,8 +366,7 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 		return nil, err
 	}
 	if err == nil {
-		currentOverride, _ := json.Marshal(currentLatestChart.GlobalOverride)
-		defaultAppOverride = currentOverride
+		defaultAppOverride = []byte(currentLatestChart.GlobalOverride)
 	}
 
 	if templateRequest.SaveEligibleChanges {
