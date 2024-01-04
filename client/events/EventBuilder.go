@@ -332,21 +332,45 @@ func (impl *EventSimpleFactoryImpl) BuildExtraApprovalData(event Event, approval
 		impl.logger.Errorw("found error in getting defaultSesConfig or  defaultSmtpConfig data", "err", err)
 	}
 	var events []Event
-	payload := event.Payload
-	if payload == nil {
-		payload = &Payload{}
-		event.Payload = payload
+	if userId == 0 {
+		return events
 	}
+	user, err := impl.userRepository.GetById(userId)
+	if err != nil {
+		impl.logger.Errorw("found error on getting user data ", "user", user)
+	}
+	payload := &Payload{}
+	err = impl.setApprovalEventPayload(event, approvalActionRequest, cdPipeline, payload)
+	if err != nil {
+		impl.logger.Errorw("error in setting payload", "error", err)
+		return events
+	}
+	for _, emailId := range approvalActionRequest.ApprovalNotificationConfig.EmailIds {
+
+		setProviderForNotification(emailId, defaultSesConfig, defaultSmtpConfig, payload)
+		reqData := &ConfigDataForNotification{
+			AppId: cdPipeline.AppId,
+			EnvId: cdPipeline.EnvironmentId,
+		}
+		err = impl.createAndSetToken(reqData, &approvalActionRequest, payload, 0, 0, emailId)
+		event.Payload.TriggeredBy = user.EmailId
+		event.Payload = payload
+		events = append(events, event)
+	}
+
+	return events
+}
+func (impl *EventSimpleFactoryImpl) setApprovalEventPayload(event Event, approvalActionRequest bean.UserApprovalActionRequest, cdPipeline *pipelineConfig.Pipeline, payload *Payload) error {
 	imageComment, imageTagNames, err := impl.imageTagRepository.GetImageTagsAndComment(approvalActionRequest.ArtifactId)
 	if err != nil {
-		return events
+		return err
 	}
 	payload.ImageComment = imageComment.Comment
 	payload.ImageTagNames = imageTagNames
 	ciArtifact, err := impl.ciArtifactRepository.Get(approvalActionRequest.ArtifactId)
 	if err != nil {
 		impl.logger.Errorw("error fetching ciArtifact", "ciArtifact", ciArtifact, "err", err)
-		return events
+		return err
 	}
 	payload.AppName = cdPipeline.App.AppName
 	payload.EnvName = cdPipeline.Environment.Name
@@ -358,35 +382,9 @@ func (impl *EventSimpleFactoryImpl) BuildExtraApprovalData(event Event, approval
 		dockerImageTag = payload.DockerImageUrl[lastColonIndex+1:]
 	}
 	payload.ImageApprovalLink = fmt.Sprintf("/dashboard/app/%d/trigger?approval-node=%d&imageTag=%s", event.AppId, cdPipeline.Id, dockerImageTag)
-	if userId > 0 {
-		user, err := impl.userRepository.GetById(userId)
-		if err != nil {
-			impl.logger.Errorw("found error on getting user data ", "user", user)
-		}
-		event.Payload.TriggeredBy = user.EmailId
-	}
-	for _, emailId := range approvalActionRequest.ApprovalNotificationConfig.EmailIds {
-		provider := &Provider{
-			//Rule:      "",
-			ConfigId:  0,
-			Recipient: emailId,
-		}
-		if defaultSesConfig.Id != 0 {
-			provider.Destination = "ses"
-		} else if defaultSmtpConfig.Id != 0 {
-			provider.Destination = "smtp"
-		}
-		event.Payload.Providers = append(event.Payload.Providers, provider)
-		reqData := &ConfigDataForNotification{
-			AppId: cdPipeline.AppId,
-			EnvId: cdPipeline.EnvironmentId,
-		}
-		err = impl.createAndSetToken(reqData, &approvalActionRequest, payload, 0, 0, emailId)
-		events = append(events, event)
-	}
-
-	return events
+	return nil
 }
+
 func (impl *EventSimpleFactoryImpl) BuildExtraProtectConfigData(event Event, request ConfigDataForNotification, draftId int, DraftVersionId int) []Event {
 	defaultSesConfig, defaultSmtpConfig, err := impl.getDefaultSESOrSMTPConfig()
 	if err != nil {
@@ -431,7 +429,8 @@ func (impl *EventSimpleFactoryImpl) createAndSetToken(request *ConfigDataForNoti
 			impl.logger.Errorw("error in generating token for deployment approval request", "err", err)
 			return err
 		}
-		payload.ApprovalLink = fmt.Sprintf("/dashboard/config/approve?token=%s", token)
+		payload.ApprovalLink = fmt.Sprintf("/dashboard/deployment/approve?token=%s", token)
+
 	} else {
 		draftRequest := setDraftApprovalRequest(request, draftId, DraftVersionId, emailId, user)
 		token, err := impl.apiTokenService.CreateApiJwtTokenForNotification(draftRequest, nil, 3)
@@ -439,7 +438,7 @@ func (impl *EventSimpleFactoryImpl) createAndSetToken(request *ConfigDataForNoti
 			impl.logger.Errorw("error in generating token for draft approval request", "err", err)
 			return err
 		}
-		payload.ApprovalLink = fmt.Sprintf("/dashboard/deployment/approve?token=%s", token)
+		payload.ApprovalLink = fmt.Sprintf("/dashboard/config/approve?token=%s", token)
 
 	}
 	return err

@@ -23,16 +23,16 @@ type TokenCustomClaimsForNotification struct {
 	ApiTokenCustomClaims
 }
 type DraftApprovalRequest struct {
-	DraftId                     int                         `json:"draftId"`
-	DraftVersionId              int                         `json:"draftVersionId"`
-	NotificationApprovalRequest NotificationApprovalRequest `json:"notificationApprovalRequest"`
+	DraftId        int `json:"draftId"`
+	DraftVersionId int `json:"draftVersionId"`
+	NotificationApprovalRequest
 }
 
 type DeploymentApprovalRequest struct {
-	ApprovalRequestId           int                         `json:"approvalRequestId"`
-	ArtifactId                  int                         `json:"artifactId"`
-	PipelineId                  int                         `json:"pipelineId"`
-	NotificationApprovalRequest NotificationApprovalRequest `json:"notificationApprovalRequest"`
+	ApprovalRequestId int `json:"approvalRequestId"`
+	ArtifactId        int `json:"artifactId"`
+	PipelineId        int `json:"pipelineId"`
+	NotificationApprovalRequest
 }
 
 type NotificationApprovalRequest struct {

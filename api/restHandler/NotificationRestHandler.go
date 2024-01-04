@@ -1163,25 +1163,12 @@ func (impl NotificationRestHandlerImpl) DraftApprovalNotificationRequest(w http.
 
 	token := r.URL.Query().Get("token")
 	//verification is done internally
-	fieldsMap, err := impl.userAuthService.GetFieldValuesFromToken(token, NotificationTokenFields)
-	draftApprovalRequest := &apiToken.DraftApprovalRequest{}
-	draftBytes, err := json.Marshal(fieldsMap)
+	draftRequest, err := impl.createDraftRequest(w, token)
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	err = draftApprovalRequest.CreateDraftApprovalRequest(draftBytes)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
-		return
-	}
-	envId := draftApprovalRequest.NotificationApprovalRequest.EnvId
-	appId := draftApprovalRequest.NotificationApprovalRequest.AppId
-	draftId := draftApprovalRequest.DraftId
-	draftVersionId := draftApprovalRequest.DraftVersionId
-	userId := draftApprovalRequest.NotificationApprovalRequest.UserId
-	emailId := draftApprovalRequest.NotificationApprovalRequest.EmailId
-	draftState, notApprover, err := impl.configDraftRestHandlerImpl.CheckAccessAndApproveDraft(w, envId, appId, token, draftId, draftVersionId, userId)
+	draftState, notApprover, err := impl.configDraftRestHandlerImpl.CheckAccessAndApproveDraft(w, draftRequest.EnvId, draftRequest.AppId, token, draftRequest.DraftId, draftRequest.DraftVersionId, draftRequest.UserId)
 	if err != nil && draftState == 0 {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
@@ -1190,7 +1177,7 @@ func (impl NotificationRestHandlerImpl) DraftApprovalNotificationRequest(w http.
 		common.WriteJsonResp(w, err, nil, http.StatusForbidden)
 		return
 	}
-	resp, err := impl.notificationService.DraftApprovalNotificationRequest(envId, appId, draftVersionId, userId, emailId)
+	resp, err := impl.notificationService.DraftApprovalNotificationRequest(draftRequest.EnvId, draftRequest.AppId, draftRequest.DraftVersionId, draftRequest.UserId, draftRequest.EmailId)
 	resp.DraftState = uint8(draftState)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -1200,54 +1187,75 @@ func (impl NotificationRestHandlerImpl) DraftApprovalNotificationRequest(w http.
 
 }
 
+func (impl NotificationRestHandlerImpl) createDraftRequest(w http.ResponseWriter, token string) (*apiToken.DraftApprovalRequest, error) {
+	fieldsMap, err := impl.userAuthService.GetFieldValuesFromToken(token, NotificationTokenFields)
+	draftApprovalRequest := &apiToken.DraftApprovalRequest{}
+	draftBytes, err := json.Marshal(fieldsMap)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return nil, nil
+	}
+	err = draftApprovalRequest.CreateDraftApprovalRequest(draftBytes)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
+		return nil, nil
+	}
+	return draftApprovalRequest, err
+}
+
 func (impl NotificationRestHandlerImpl) DeploymentApprovalNotificationRequest(w http.ResponseWriter, r *http.Request) {
 	token := r.URL.Query().Get("token")
 	//verification is done internally
+	deploymentApprovalRequest, err := impl.createDeploymentApprovalRequest(w, token)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	approvalActionRequest := createApprovalActionRequest(deploymentApprovalRequest)
+	pipelineInfo, err := impl.pipelineBuilder.FindPipelineById(deploymentApprovalRequest.PipelineId)
+	if err != nil {
+		impl.logger.Errorw("error occurred while fetching pipeline details", "pipelineId", deploymentApprovalRequest.PipelineId, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	allowed := impl.userAuthService.CheckForApproverAccess(pipelineInfo.App.AppName, pipelineInfo.Environment.EnvironmentIdentifier, deploymentApprovalRequest.UserId)
+	if !allowed {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	approvalState, err := impl.cdHandler.PerformDeploymentApprovalAction(deploymentApprovalRequest.UserId, approvalActionRequest)
+	if err != nil && approvalState == 0 {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	resp, err := impl.notificationService.DeploymentApprovalNotificationRequest(deploymentApprovalRequest.EnvId, deploymentApprovalRequest.AppId, deploymentApprovalRequest.ArtifactId, deploymentApprovalRequest.UserId, deploymentApprovalRequest.EmailId)
+	resp.Status = approvalState
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
+}
+
+func createApprovalActionRequest(deploymentApprovalRequest *apiToken.DeploymentApprovalRequest) bean.UserApprovalActionRequest {
+	approvalActionRequest := bean.UserApprovalActionRequest{
+		AppId:             deploymentApprovalRequest.AppId,
+		ActionType:        bean.APPROVAL_APPROVE_ACTION,
+		ApprovalRequestId: deploymentApprovalRequest.ApprovalRequestId,
+		PipelineId:        deploymentApprovalRequest.PipelineId,
+		ArtifactId:        deploymentApprovalRequest.ArtifactId,
+	}
+	return approvalActionRequest
+}
+
+func (impl NotificationRestHandlerImpl) createDeploymentApprovalRequest(w http.ResponseWriter, token string) (*apiToken.DeploymentApprovalRequest, error) {
 	fieldsMap, err := impl.userAuthService.GetFieldValuesFromToken(token, NotificationTokenFields)
 	deploymentApprovalRequest := &apiToken.DeploymentApprovalRequest{}
 	deploymentBytes, err := json.Marshal(fieldsMap)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
+		return nil, nil
 	}
 	err = deploymentApprovalRequest.CreateDeploymentApprovalRequest(deploymentBytes)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
-		return
+		return nil, nil
 	}
-	pipelineId := deploymentApprovalRequest.PipelineId
-	userId := deploymentApprovalRequest.NotificationApprovalRequest.UserId
-	envId := deploymentApprovalRequest.NotificationApprovalRequest.EnvId
-	appId := deploymentApprovalRequest.NotificationApprovalRequest.AppId
-	artifactId := deploymentApprovalRequest.ArtifactId
-	actionType := bean.APPROVAL_APPROVE_ACTION
-	approvalRequestId := deploymentApprovalRequest.ApprovalRequestId
-	emailId := deploymentApprovalRequest.NotificationApprovalRequest.EmailId
-
-	approvalActionRequest := bean.UserApprovalActionRequest{
-		AppId:             appId,
-		ActionType:        actionType,
-		ApprovalRequestId: approvalRequestId,
-		PipelineId:        pipelineId,
-		ArtifactId:        artifactId,
-	}
-	pipelineInfo, err := impl.pipelineBuilder.FindPipelineById(pipelineId)
-	if err != nil {
-		impl.logger.Errorw("error occurred while fetching pipeline details", "pipelineId", pipelineId, "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	allowed := impl.userAuthService.CheckForApproverAccess(pipelineInfo.App.AppName, pipelineInfo.Environment.EnvironmentIdentifier, userId)
-	if !allowed {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-		return
-	}
-	approvalState, err := impl.cdHandler.PerformDeploymentApprovalAction(userId, approvalActionRequest)
-	if err != nil && approvalState == 0 {
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	resp, err := impl.notificationService.DeploymentApprovalNotificationRequest(envId, appId, artifactId, userId, emailId)
-	resp.Status = approvalState
-	common.WriteJsonResp(w, nil, resp, http.StatusOK)
+	return deploymentApprovalRequest, err
 }
