@@ -112,7 +112,7 @@ func (impl LockConfigRestHandlerImpl) DeleteLockConfig(w http.ResponseWriter, r 
 		return
 	}
 	// service call
-	err = impl.lockConfigurationService.DeleteActiveLockConfiguration(userId, nil)
+	err = impl.lockConfigurationService.DeleteActiveLockConfiguration(userId)
 	if err != nil {
 		impl.logger.Errorw("service err, DeleteActiveLockConfiguration", "err", err, "userId", userId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
