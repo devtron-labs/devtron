@@ -1,9 +1,9 @@
 package bean
 
+import "errors"
+
 const (
 	YamlSeparator string = "---\n"
 )
 
-const (
-	ErrNoCommitFound = "no commit found"
-)
+var ErrNoCommitFound = errors.New("no commit found")
