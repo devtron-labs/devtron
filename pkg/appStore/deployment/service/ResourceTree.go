@@ -11,11 +11,16 @@ import (
 	"github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/appStatus"
 	"github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	util2 "github.com/devtron-labs/devtron/util"
+	"github.com/tidwall/gjson"
 	"net/http"
 	"strconv"
+	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -174,4 +179,156 @@ func (impl InstalledAppServiceImpl) fetchResourceTreeForACD(rctx context.Context
 	}
 	newResourceTree := impl.k8sCommonService.PortNumberExtraction(response, resourceTree)
 	return newResourceTree, err
+}
+
+func (impl InstalledAppServiceImpl) FetchResourceTreeWithHibernateForACD(rctx context.Context, cn http.CloseNotifier, appDetail *bean.AppDetailContainer) bean.AppDetailContainer {
+	ctx, cancel := context.WithCancel(rctx)
+	if cn != nil {
+		go func(done <-chan struct{}, closed <-chan bool) {
+			select {
+			case <-done:
+			case <-closed:
+				cancel()
+			}
+		}(ctx.Done(), cn.CloseNotify())
+	}
+	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		impl.logger.Errorw("error in getting acd token", "err", err)
+		return *appDetail
+	}
+	ctx = context.WithValue(ctx, "token", acdToken)
+	defer cancel()
+	deploymentAppName := fmt.Sprintf("%s-%s", appDetail.AppName, appDetail.EnvironmentName)
+	resourceTree, err := impl.fetchResourceTreeForACD(rctx, cn, appDetail.InstalledAppId, appDetail.EnvironmentId, appDetail.ClusterId, deploymentAppName, appDetail.Namespace)
+	appDetail.ResourceTree = resourceTree
+	if err != nil {
+		return *appDetail
+	}
+	if appDetail.ResourceTree["nodes"] == nil {
+		return *appDetail
+	}
+	appDetail.ResourceTree, _ = impl.checkHibernate(appDetail.ResourceTree, deploymentAppName, ctx)
+	return *appDetail
+}
+
+func (impl InstalledAppServiceImpl) checkHibernate(resp map[string]interface{}, deploymentAppName string, ctx context.Context) (map[string]interface{}, string) {
+
+	if resp == nil {
+		return resp, ""
+	}
+	responseTree := resp
+	var canBeHibernated uint64 = 0
+	var hibernated uint64 = 0
+	responseTreeNodes, ok := responseTree["nodes"]
+	if !ok {
+		return resp, ""
+	}
+	replicaNodes := impl.filterOutReplicaNodes(responseTreeNodes)
+	batchSize := impl.aCDAuthConfig.ResourceListForReplicasBatchSize
+	requestsLength := len(replicaNodes)
+	for i := 0; i < requestsLength; {
+		//requests left to process
+		remainingBatch := requestsLength - i
+		if remainingBatch < batchSize {
+			batchSize = remainingBatch
+		}
+		var wg sync.WaitGroup
+		for j := 0; j < batchSize; j++ {
+			wg.Add(1)
+			go func(j int) {
+				defer wg.Done()
+				canBeHibernatedFlag, hibernatedFlag := impl.processReplicaNodeForHibernation(replicaNodes[i+j], deploymentAppName, ctx)
+				if canBeHibernatedFlag {
+					atomic.AddUint64(&canBeHibernated, 1)
+				}
+				if hibernatedFlag {
+					atomic.AddUint64(&hibernated, 1)
+				}
+			}(j)
+		}
+		wg.Wait()
+		i += batchSize
+	}
+
+	status := ""
+	if hibernated > 0 && canBeHibernated > 0 {
+		if hibernated == canBeHibernated {
+			status = appStatus.HealthStatusHibernating
+		} else if hibernated < canBeHibernated {
+			status = appStatus.HealthStatusPartiallyHibernated
+		}
+	}
+
+	return responseTree, status
+}
+
+func (impl InstalledAppServiceImpl) processReplicaNodeForHibernation(node interface{}, deploymentAppName string, ctx context.Context) (bool, bool) {
+	currNode := node.(interface{}).(map[string]interface{})
+	resName := util2.InterfaceToString(currNode["name"])
+	resKind := util2.InterfaceToString(currNode["kind"])
+	resGroup := util2.InterfaceToString(currNode["group"])
+	resVersion := util2.InterfaceToString(currNode["version"])
+	resNamespace := util2.InterfaceToString(currNode["namespace"])
+	rQuery := &application.ApplicationResourceRequest{
+		Name:         &deploymentAppName,
+		ResourceName: &resName,
+		Kind:         &resKind,
+		Group:        &resGroup,
+		Version:      &resVersion,
+		Namespace:    &resNamespace,
+	}
+	canBeHibernatedFlag := false
+	alreadyHibernated := false
+
+	if currNode["parentRefs"] == nil {
+		canBeHibernatedFlag, alreadyHibernated = impl.checkForHibernation(ctx, rQuery, currNode)
+	}
+	return canBeHibernatedFlag, alreadyHibernated
+}
+
+func (impl InstalledAppServiceImpl) checkForHibernation(ctx context.Context, rQuery *application.ApplicationResourceRequest, currNode map[string]interface{}) (bool, bool) {
+	t0 := time.Now()
+	canBeHibernated := false
+	alreadyHibernated := false
+	ctx, _ = context.WithTimeout(ctx, 60*time.Second)
+	res, err := impl.acdClient.GetResource(ctx, rQuery)
+	if err != nil {
+		impl.logger.Errorw("error getting response from acdClient", "request", rQuery, "data", res, "timeTaken", time.Since(t0), "err", err)
+		return canBeHibernated, alreadyHibernated
+	}
+	if res.Manifest != nil {
+		manifest, _ := gjson.Parse(*res.Manifest).Value().(map[string]interface{})
+		replicas := util2.InterfaceToMapAdapter(manifest["spec"])["replicas"]
+		if replicas != nil {
+			currNode["canBeHibernated"] = true
+			canBeHibernated = true
+		}
+		annotations := util2.InterfaceToMapAdapter(manifest["metadata"])["annotations"]
+		if annotations != nil {
+			val := util2.InterfaceToMapAdapter(annotations)["hibernator.devtron.ai/replicas"]
+			if val != nil {
+				if util2.InterfaceToString(val) != "0" && util2.InterfaceToFloat(replicas) == 0 {
+					currNode["isHibernated"] = true
+					alreadyHibernated = true
+				}
+			}
+		}
+	}
+	return canBeHibernated, alreadyHibernated
+}
+
+func (impl InstalledAppServiceImpl) filterOutReplicaNodes(responseTreeNodes interface{}) []interface{} {
+	resourceListForReplicas := impl.aCDAuthConfig.ResourceListForReplicas
+	entries := strings.Split(resourceListForReplicas, ",")
+	resourceListMap := util2.ConvertStringSliceToMap(entries)
+	var replicaNodes []interface{}
+	for _, node := range responseTreeNodes.(interface{}).([]interface{}) {
+		currNode := node.(interface{}).(map[string]interface{})
+		resKind := util2.InterfaceToString(currNode["kind"])
+		if _, ok := resourceListMap[resKind]; ok {
+			replicaNodes = append(replicaNodes, node)
+		}
+	}
+	return replicaNodes
 }
