@@ -102,12 +102,12 @@ type WorkflowDagExecutor interface {
 	HandleDeploymentSuccessEvent(triggerContext TriggerContext, pipelineOverride *chartConfig.PipelineOverride) error
 	HandlePostStageSuccessEvent(triggerContext TriggerContext, cdWorkflowId int, cdPipelineId int, triggeredBy int32, pluginRegistryImageDetails map[string][]string) error
 	Subscribe() error
-	TriggerPostStage(ctx context.Context, request TriggerRequest) error
-	TriggerPreStage(ctx context.Context, request TriggerRequest) error
-	TriggerDeployment(ctx context.Context, request TriggerRequest) error
-	ManualCdTrigger(ctx context.Context, triggerContext TriggerContext, overrideRequest *bean.ValuesOverrideRequest) (int, error)
+	TriggerPostStage(request TriggerRequest) error
+	TriggerPreStage(request TriggerRequest) error
+	TriggerDeployment(request TriggerRequest) error
+	ManualCdTrigger(triggerContext TriggerContext, overrideRequest *bean.ValuesOverrideRequest) (int, error)
 	TriggerBulkDeploymentAsync(requests []*BulkTriggerRequest, UserId int32) (interface{}, error)
-	StopStartApp(ctx context.Context, triggerContext TriggerContext, stopRequest *StopAppRequest) (int, error)
+	StopStartApp(triggerContext TriggerContext, stopRequest *StopAppRequest) (int, error)
 	TriggerBulkHibernateAsync(request StopDeploymentGroupRequest, ctx context.Context) (interface{}, error)
 	RotatePods(ctx context.Context, podRotateRequest *PodRotateRequest) (*k8s.RotatePodResponse, error)
 	MarkCurrentDeploymentFailed(runner *pipelineConfig.CdWorkflowRunner, releaseErr error, triggeredBy int32) error
@@ -250,10 +250,15 @@ type TriggerRequest struct {
 	ApplyAuth             bool
 	TriggeredBy           int32
 	RefCdWorkflowRunnerId int
-	TriggerContext        TriggerContext
+	TriggerContext
 }
 
 type TriggerContext struct {
+	// Context is a context object to be passed to the pipeline trigger
+	// +optional
+	Context context.Context
+	// ReferenceId is a unique identifier for the workflow runner
+	// refer pipelineConfig.CdWorkflowRunner
 	ReferenceId *string
 }
 
@@ -906,17 +911,18 @@ func (impl *WorkflowDagExecutorImpl) triggerStage(request TriggerRequest) error 
 		return err
 	}
 
+	request.TriggerContext.Context = context.Background()
 	if len(request.Pipeline.PreStageConfig) > 0 || (preStage != nil && !deleted) {
 		// pre stage exists
 		if request.Pipeline.PreTriggerType == pipelineConfig.TRIGGER_TYPE_AUTOMATIC {
 			impl.logger.Debugw("trigger pre stage for pipeline", "artifactId", request.Artifact.Id, "pipelineId", request.Pipeline.Id)
-			err = impl.TriggerPreStage(context.Background(), request) // TODO handle error here
+			err = impl.TriggerPreStage(request) // TODO handle error here
 			return err
 		}
 	} else if request.Pipeline.TriggerType == pipelineConfig.TRIGGER_TYPE_AUTOMATIC {
 		// trigger deployment
 		impl.logger.Debugw("trigger cd for pipeline", "artifactId", request.Artifact.Id, "pipelineId", request.Pipeline.Id)
-		err = impl.TriggerDeployment(context.Background(), request)
+		err = impl.TriggerDeployment(request)
 		return err
 	}
 	return nil
@@ -945,16 +951,17 @@ func (impl *WorkflowDagExecutorImpl) triggerStageForBulk(triggerRequest TriggerR
 		return err
 	}
 
+	triggerRequest.TriggerContext.Context = context.Background()
 	if len(triggerRequest.Pipeline.PreStageConfig) > 0 || (preStage != nil && !deleted) {
 		//pre stage exists
 		impl.logger.Debugw("trigger pre stage for pipeline", "artifactId", triggerRequest.Artifact.Id, "pipelineId", triggerRequest.Pipeline.Id)
 		triggerRequest.RefCdWorkflowRunnerId = 0
-		err = impl.TriggerPreStage(context.Background(), triggerRequest) // TODO handle error here
+		err = impl.TriggerPreStage(triggerRequest) // TODO handle error here
 		return err
 	} else {
 		// trigger deployment
 		impl.logger.Debugw("trigger cd for pipeline", "artifactId", triggerRequest.Artifact.Id, "pipelineId", triggerRequest.Pipeline.Id)
-		err = impl.TriggerDeployment(context.Background(), triggerRequest)
+		err = impl.TriggerDeployment(triggerRequest)
 		return err
 	}
 }
@@ -999,7 +1006,8 @@ func (impl *WorkflowDagExecutorImpl) HandlePreStageSuccessEvent(triggerContext T
 				TriggeredBy:    cdStageCompleteEvent.TriggeredBy,
 				TriggerContext: triggerContext,
 			}
-			err = impl.TriggerDeployment(context.Background(), triggerRequest)
+			triggerRequest.TriggerContext.Context = context.Background()
+			err = impl.TriggerDeployment(triggerRequest)
 			if err != nil {
 				return err
 			}
@@ -1059,13 +1067,14 @@ func (impl *WorkflowDagExecutorImpl) SavePluginArtifacts(ciArtifact *repository.
 	return CDArtifacts, nil
 }
 
-func (impl *WorkflowDagExecutorImpl) TriggerPreStage(ctx context.Context, request TriggerRequest) error {
+func (impl *WorkflowDagExecutorImpl) TriggerPreStage(request TriggerRequest) error {
 	//setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
 	triggeredAt := time.Now()
 	applyAuth := request.ApplyAuth
 	triggeredBy := request.TriggeredBy
 	artifact := request.Artifact
 	pipeline := request.Pipeline
+	ctx := request.TriggerContext.Context
 	//in case of pre stage manual trigger auth is already applied
 	if applyAuth && triggeredBy != 1 {
 		user, err := impl.user.GetById(artifact.UpdatedBy)
@@ -1305,7 +1314,7 @@ func convert(ts string) (*time.Time, error) {
 	return &t, nil
 }
 
-func (impl *WorkflowDagExecutorImpl) TriggerPostStage(ctx context.Context, request TriggerRequest) error {
+func (impl *WorkflowDagExecutorImpl) TriggerPostStage(request TriggerRequest) error {
 	//setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
 	triggeredAt := time.Now()
 	triggeredBy := request.TriggeredBy
@@ -1985,7 +1994,8 @@ func (impl *WorkflowDagExecutorImpl) HandleDeploymentSuccessEvent(triggerContext
 				TriggerContext:        triggerContext,
 				RefCdWorkflowRunnerId: 0,
 			}
-			err = impl.TriggerPostStage(context.Background(), triggerRequest)
+			triggerRequest.TriggerContext.Context = context.Background()
+			err = impl.TriggerPostStage(triggerRequest)
 			if err != nil {
 				impl.logger.Errorw("error in triggering post stage after successful deployment event", "err", err, "cdWorkflow", cdWorkflow)
 				return err
@@ -2059,7 +2069,7 @@ func (impl *WorkflowDagExecutorImpl) HandlePostStageSuccessEvent(triggerContext 
 }
 
 // Only used for auto trigger
-func (impl *WorkflowDagExecutorImpl) TriggerDeployment(ctx context.Context, request TriggerRequest) error {
+func (impl *WorkflowDagExecutorImpl) TriggerDeployment(request TriggerRequest) error {
 	//in case of manual ci RBAC need to apply, this method used for auto cd deployment
 	applyAuth := request.ApplyAuth
 	triggeredBy := request.TriggeredBy
@@ -2311,7 +2321,7 @@ func (impl *WorkflowDagExecutorImpl) RotatePods(ctx context.Context, podRotateRe
 	return response, nil
 }
 
-func (impl *WorkflowDagExecutorImpl) StopStartApp(ctx context.Context, triggerContext TriggerContext, stopRequest *StopAppRequest) (int, error) {
+func (impl *WorkflowDagExecutorImpl) StopStartApp(triggerContext TriggerContext, stopRequest *StopAppRequest) (int, error) {
 	pipelines, err := impl.pipelineRepository.FindActiveByAppIdAndEnvironmentId(stopRequest.AppId, stopRequest.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching pipeline", "app", stopRequest.AppId, "env", stopRequest.EnvironmentId, "err", err)
@@ -2350,7 +2360,7 @@ func (impl *WorkflowDagExecutorImpl) StopStartApp(ctx context.Context, triggerCo
 	} else {
 		return 0, fmt.Errorf("unsupported operation %s", stopRequest.RequestType)
 	}
-	id, err := impl.ManualCdTrigger(ctx, triggerContext, overrideRequest)
+	id, err := impl.ManualCdTrigger(triggerContext, overrideRequest)
 	if err != nil {
 		impl.logger.Errorw("error in stopping app", "err", err, "appId", stopRequest.AppId, "envId", stopRequest.EnvironmentId)
 		return 0, err
@@ -2394,11 +2404,11 @@ func (impl *WorkflowDagExecutorImpl) GetArtifactVulnerabilityStatus(artifact *re
 	return isVulnerable, nil
 }
 
-func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(ctx context.Context, triggerContext TriggerContext, overrideRequest *bean.ValuesOverrideRequest) (int, error) {
+func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(triggerContext TriggerContext, overrideRequest *bean.ValuesOverrideRequest) (int, error) {
 	//setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
 	triggeredAt := time.Now()
 	releaseId := 0
-
+	ctx := triggerContext.Context
 	var err error
 	_, span := otel.Tracer("orchestrator").Start(ctx, "pipelineRepository.FindById")
 	cdPipeline, err := impl.pipelineRepository.FindById(overrideRequest.PipelineId)
@@ -2428,7 +2438,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(ctx context.Context, trigge
 			TriggerContext:        triggerContext,
 			RefCdWorkflowRunnerId: 0,
 		}
-		err = impl.TriggerPreStage(ctx, triggerRequest)
+		err = impl.TriggerPreStage(triggerRequest)
 		span.End()
 		if err != nil {
 			impl.logger.Errorw("error in TriggerPreStage, ManualCdTrigger", "err", err)
@@ -2588,7 +2598,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(ctx context.Context, trigge
 			RefCdWorkflowRunnerId: 0,
 			TriggerContext:        triggerContext,
 		}
-		err = impl.TriggerPostStage(ctx, triggerRequest)
+		err = impl.TriggerPostStage(triggerRequest)
 		span.End()
 		if err != nil {
 			impl.logger.Errorw("error in TriggerPostStage, ManualCdTrigger", "CdWorkflowId", cdWf.Id, "err", err)
@@ -2793,8 +2803,9 @@ func (impl *WorkflowDagExecutorImpl) subscribeHibernateBulkAction() error {
 		}
 		triggerContext := TriggerContext{
 			ReferenceId: pointer.String(msg.MsgId),
+			Context:     ctx,
 		}
-		_, err = impl.StopStartApp(ctx, triggerContext, stopAppRequest)
+		_, err = impl.StopStartApp(triggerContext, stopAppRequest)
 		if err != nil {
 			impl.logger.Errorw("error in stop app request", "err", err)
 			return
@@ -4898,7 +4909,6 @@ func (impl *WorkflowDagExecutorImpl) UpdateCDWorkflowRunnerStatus(ctx context.Co
 	return nil
 }
 
-// todo: rename the method name
 // canInitiateTrigger checks if the current trigger request with natsMsgId haven't already initiated the trigger.
 // throws error if the request is already processed.
 func (impl *WorkflowDagExecutorImpl) canInitiateTrigger(natsMsgId string) (bool, error) {

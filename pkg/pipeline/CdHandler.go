@@ -229,16 +229,19 @@ func (impl *CdHandlerImpl) HandleCdStageReTrigger(runner *pipelineConfig.CdWorkf
 		TriggeredBy:           1,
 		ApplyAuth:             false,
 		RefCdWorkflowRunnerId: runner.Id,
+		TriggerContext: TriggerContext{
+			Context: context.Background(),
+		},
 	}
 
 	if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
-		err = impl.workflowDagExecutor.TriggerPreStage(context.Background(), triggerRequest)
+		err = impl.workflowDagExecutor.TriggerPreStage(triggerRequest)
 		if err != nil {
 			impl.Logger.Errorw("error in TriggerPreStage ", "err", err, "cdWorkflowRunnerId", runner.Id)
 			return err
 		}
 	} else if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_POST {
-		err = impl.workflowDagExecutor.TriggerPostStage(context.Background(), triggerRequest)
+		err = impl.workflowDagExecutor.TriggerPostStage(triggerRequest)
 		if err != nil {
 			impl.Logger.Errorw("error in TriggerPostStage ", "err", err, "cdWorkflowRunnerId", runner.Id)
 			return err

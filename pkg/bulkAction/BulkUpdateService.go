@@ -1070,7 +1070,10 @@ func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvir
 			UserId:        request.UserId,
 			RequestType:   pipeline1.STOP,
 		}
-		_, hibernateReqError = impl.workflowDagExecutor.StopStartApp(ctx, pipeline1.TriggerContext{}, stopRequest)
+		triggerContext := pipeline1.TriggerContext{
+			Context: ctx,
+		}
+		_, hibernateReqError = impl.workflowDagExecutor.StopStartApp(triggerContext, stopRequest)
 		if hibernateReqError != nil {
 			impl.logger.Errorw("error in hibernating application", "err", hibernateReqError, "pipeline", pipeline)
 			pipelineResponse := response[appKey]
@@ -1226,7 +1229,10 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 			UserId:        request.UserId,
 			RequestType:   pipeline1.START,
 		}
-		_, hibernateReqError = impl.workflowDagExecutor.StopStartApp(ctx, pipeline1.TriggerContext{}, stopRequest)
+		triggerContext := pipeline1.TriggerContext{
+			Context: ctx,
+		}
+		_, hibernateReqError = impl.workflowDagExecutor.StopStartApp(triggerContext, stopRequest)
 		if hibernateReqError != nil {
 			impl.logger.Errorw("error in un-hibernating application", "err", hibernateReqError, "pipeline", pipeline)
 			pipelineResponse := response[appKey]
@@ -1449,9 +1455,10 @@ func (impl BulkUpdateServiceImpl) SubscribeToCdBulkTriggerTopic() error {
 
 		triggerContext := pipeline1.TriggerContext{
 			ReferenceId: pointer.String(msg.MsgId),
+			Context:     ctx,
 		}
 
-		_, err = impl.workflowDagExecutor.ManualCdTrigger(ctx, triggerContext, event.ValuesOverrideRequest)
+		_, err = impl.workflowDagExecutor.ManualCdTrigger(triggerContext, event.ValuesOverrideRequest)
 		if err != nil {
 			impl.logger.Errorw("Error triggering CD",
 				"topic", pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC,
