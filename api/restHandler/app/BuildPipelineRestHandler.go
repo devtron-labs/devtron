@@ -428,6 +428,11 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 	}
 	createResp, err := handler.pipelineBuilder.PatchCiPipeline(&patchRequest)
 	if err != nil {
+		if err.Error() == bean1.PIPELINE_NAME_ALREADY_EXISTS_ERROR {
+			handler.Logger.Errorw("service err, pipeline name already exist ", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
 		handler.Logger.Errorw("service err, PatchCiPipelines", "err", err, "PatchCiPipelines", patchRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -1377,6 +1382,7 @@ func (handler PipelineConfigRestHandlerImpl) CancelWorkflow(w http.ResponseWrite
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
+	queryVars := r.URL.Query()
 	vars := mux.Vars(r)
 	workflowId, err := strconv.Atoi(vars["workflowId"])
 	if err != nil {
@@ -1387,6 +1393,13 @@ func (handler PipelineConfigRestHandlerImpl) CancelWorkflow(w http.ResponseWrite
 	pipelineId, err := strconv.Atoi(vars["pipelineId"])
 	if err != nil {
 		handler.Logger.Errorw("request err, CancelWorkflow", "err", err, "pipelineId", pipelineId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	var forceAbort bool
+	forceAbort, err = strconv.ParseBool(queryVars.Get("forceAbort"))
+	if err != nil {
+		handler.Logger.Errorw("request err, CancelWorkflow", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -1429,7 +1442,7 @@ func (handler PipelineConfigRestHandlerImpl) CancelWorkflow(w http.ResponseWrite
 
 	//RBAC
 
-	resp, err := handler.ciHandler.CancelBuild(workflowId)
+	resp, err := handler.ciHandler.CancelBuild(workflowId, forceAbort)
 	if err != nil {
 		handler.Logger.Errorw("service err, CancelWorkflow", "err", err, "workflowId", workflowId, "pipelineId", pipelineId)
 		if util.IsErrNoRows(err) {
@@ -1876,7 +1889,7 @@ func (handler PipelineConfigRestHandlerImpl) CreateUpdateImageTagging(w http.Res
 	//RBAC
 	if !isSuperAdmin {
 		object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-		if ok := handler.enforcer.EnforceByEmail(strings.ToLower(user.EmailId), casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
+		if ok := handler.enforcer.EnforceByEmail(user.EmailId, casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
 			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 			return
 		}
