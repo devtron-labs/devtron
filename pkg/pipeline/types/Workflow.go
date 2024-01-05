@@ -126,8 +126,8 @@ type WorkflowRequest struct {
 	RegistryCredentialMap       map[string]plugin.RegistryCredentials `json:"registryCredentialMap"`
 	PluginArtifactStage         string                                `json:"pluginArtifactStage"`
 	PushImageBeforePostCI       bool                                  `json:"pushImageBeforePostCI"`
-	MaxRetries                  int                                   `json:"-"`
-	RetryDelay                  int                                   `json:"-"`
+	MaxRetries                  int                                   `json:"maxRetries,omitempty"`
+	RetryDelay                  int                                   `json:"retryDelay,omitempty"`
 	Type                        bean.WorkflowPipelineType
 	Pipeline                    *pipelineConfig.Pipeline
 	Env                         *repository.Environment
