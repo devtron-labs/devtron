@@ -19,6 +19,7 @@ package user
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/authenticator/jwt"
 	"github.com/devtron-labs/authenticator/middleware"
@@ -69,7 +70,7 @@ type UserService interface {
 	GetApprovalUsersByEnv(appName, envName string) ([]string, error)
 	CheckForApproverAccess(appName, envName string, userId int32) bool
 	GetConfigApprovalUsersByEnv(appName, envName, team string) ([]string, error)
-	GetFieldValuesFromToken(token string, fieldNames []string) (map[string]interface{}, error)
+	GetFieldValuesFromToken(token string) ([]byte, error)
 }
 
 type UserServiceImpl struct {
@@ -1174,19 +1175,23 @@ func (impl UserServiceImpl) GetUserByToken(context context.Context, token string
 	}
 	return userInfo.Id, userInfo.UserType, nil
 }
-func (impl UserServiceImpl) GetFieldValuesFromToken(token string, fieldNames []string) (map[string]interface{}, error) {
-	fieldNameToValue := make(map[string]interface{})
+func (impl UserServiceImpl) GetFieldValuesFromToken(token string) ([]byte, error) {
+	var claimBytes []byte
 	mapClaims, err := impl.getMapClaims(token)
 	if err != nil {
-		return fieldNameToValue, err
+		return claimBytes, err
 	}
 	impl.logger.Infow("got map claims", "mapClaims", mapClaims)
-	for _, name := range fieldNames {
-		if value, ok := mapClaims[name]; ok {
-			fieldNameToValue[name] = value
-		}
+	//for _, name := range fieldNames {
+	//	if value, ok := mapClaims[name]; ok {
+	//		fieldNameToValue[name] = value
+	//	}
+	//}
+	claimBytes, err = json.Marshal(mapClaims)
+	if err != nil {
+		return nil, err
 	}
-	return fieldNameToValue, nil
+	return claimBytes, nil
 }
 
 func (impl UserServiceImpl) GetEmailFromToken(token string) (string, error) {

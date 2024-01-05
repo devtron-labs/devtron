@@ -89,9 +89,9 @@ func (impl NotificationRouterImpl) InitNotificationRegRouter(configRouter *mux.R
 		Methods("POST")
 	configRouter.Path("/channel/config/approve").
 		HandlerFunc(impl.notificationRestHandler.ConsumeDraftApprovalNotification).
-		Methods("GET")
+		Methods("POST")
 	configRouter.Path("/channel/deployment/approve").
 		HandlerFunc(impl.notificationRestHandler.ConsumeDeploymentApprovalNotification).
-		Methods("GET")
+		Methods("POST")
 
 }

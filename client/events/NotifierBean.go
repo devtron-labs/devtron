@@ -4,7 +4,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/bean"
 )
 
-type NotificationApprovalResponse struct {
+type NotificationMetaData struct {
 	AppName    string `json:"appName"`
 	EnvName    string `json:"envName"`
 	ApprovedBy string `json:"approvedBy"`
@@ -12,18 +12,17 @@ type NotificationApprovalResponse struct {
 }
 
 type DraftApprovalResponse struct {
-	ProtectConfigFileType        string                       `json:"protectConfigFileType"`
-	ProtectConfigFileName        string                       `json:"protectConfigFileName"`
-	ProtectConfigComment         string                       `json:"protectConfigComment"`
-	ProtectConfigLink            string                       `json:"protectConfigLink"`
-	NotificationApprovalResponse NotificationApprovalResponse `json:"notificationApprovalResponse"`
-	DraftState                   uint8                        `json:"draftState"`
+	ProtectConfigFileType string               `json:"protectConfigFileType"`
+	ProtectConfigFileName string               `json:"protectConfigFileName"`
+	ProtectConfigComment  string               `json:"protectConfigComment"`
+	NotificationMetaData  NotificationMetaData `json:"notificationMetaData"`
+	DraftState            uint8                `json:"draftState"`
 }
 type DeploymentApprovalResponse struct {
-	ImageTagNames                []string                     `json:"imageTagNames"`
-	ImageComment                 string                       `json:"imageComment"`
-	ImageApprovalLink            string                       `json:"imageApprovalLink"`
-	DockerImageTag               string                       `json:"dockerImageUrl"`
-	NotificationApprovalResponse NotificationApprovalResponse `json:"notificationApprovalResponse"`
-	Status                       bean.ApprovalState           `json:"status"`
+	ImageTagNames        []string             `json:"imageTagNames"`
+	ImageComment         string               `json:"imageComment"`
+	ImageApprovalLink    string               `json:"imageApprovalLink"`
+	DockerImageTag       string               `json:"dockerImageUrl"`
+	NotificationMetaData NotificationMetaData `json:"notificationMetaData"`
+	Status               bean.ApprovalState   `json:"status"`
 }

@@ -384,6 +384,7 @@ func WhitelistChecker(url string) bool {
 		"/orchestrator/self-register",
 		"/orchestrator/telemetry/summary",
 		"/orchestrator/notification/channel/config/approve",
+		"/orchestrator/notification/channel/deployment/approve",
 	}
 	for _, a := range urls {
 		if a == url {

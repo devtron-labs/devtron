@@ -46,10 +46,10 @@ const (
 type DraftState uint8
 
 const (
-	InitDraftState          DraftState = 1
-	DiscardedDraftState     DraftState = 2
-	PublishedDraftState     DraftState = 3
-	AwaitApprovalDraftState DraftState = 4
+	InitDraftState DraftState = iota + 1
+	DiscardedDraftState
+	PublishedDraftState
+	AwaitApprovalDraftState
 )
 
 func (state DraftState) IsTerminal() bool {

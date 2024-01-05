@@ -1812,6 +1812,7 @@ func (impl *CdHandlerImpl) PerformDeploymentApprovalAction(userId int32, approva
 			impl.Logger.Errorw("error occurred while submitting approval request", "pipelineId", pipelineId, "artifactId", artifactId, "err", err)
 			return 0, err
 		}
+		approvalActionRequest.ApprovalRequestId = deploymentApprovalRequest.Id
 		go impl.performNotificationApprovalAction(approvalActionRequest, userId)
 
 	} else {

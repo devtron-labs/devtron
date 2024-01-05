@@ -19,7 +19,7 @@ type TokenCustomClaimsForNotification struct {
 	ActionType        bean.UserApprovalActionType `json:"actionType" validate:"required"`
 	AppId             int                         `json:"appId" validate:"required"`
 	EnvId             int                         `json:"envId"`
-	ApprovalType      string                      `json:"approvalType"`
+	UserId            int32                       `json:"userId"`
 	ApiTokenCustomClaims
 }
 type DraftApprovalRequest struct {
@@ -36,10 +36,9 @@ type DeploymentApprovalRequest struct {
 }
 
 type NotificationApprovalRequest struct {
-	AppId int `json:"appId" validate:"required"`
-	EnvId int `json:"envId"`
-	//ApprovalType string `json:"approvalType"`
-	EmailId string `json:"emailId"`
+	AppId   int    `json:"appId" validate:"required"`
+	EnvId   int    `json:"envId"`
+	EmailId string `json:"email"`
 	UserId  int32  `json:"userId"`
 }
 

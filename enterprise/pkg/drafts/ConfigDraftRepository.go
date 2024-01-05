@@ -159,7 +159,7 @@ func (repo *ConfigDraftRepositoryImpl) GetDraftVersionComments(draftId int) ([]*
 }
 func (repo *ConfigDraftRepositoryImpl) GetDraftComments(draftVersionId int) (*DraftVersionComment, error) {
 	var draftComment *DraftVersionComment
-	err := repo.dbConnection.Model(&draftComment).
+	err := repo.dbConnection.Model(draftComment).
 		Where("draft_version_id = ?", draftVersionId).
 		Where("active = ?", true).Select()
 	if err != nil {
@@ -235,14 +235,18 @@ func (repo *ConfigDraftRepositoryImpl) GetDraftMetadata(appId int, envId int, re
 }
 
 func (repo *ConfigDraftRepositoryImpl) GetDraftVersionById(draftVersionId int) (*DraftVersion, error) {
-	var draftVersion *DraftVersion
-	err := repo.dbConnection.Model(draftVersion).Column("draft_version.*", "Draft").Where("id = ?", draftVersionId).
-		Order("id desc").Select()
+	var draftVersion = DraftVersion{}
+	err := repo.dbConnection.Model(&draftVersion).
+		Column("draft_version.*", "Draft").
+		Where("draft_version.id = ?", draftVersionId).
+		Order("draft_version.id desc").Select()
+
 	if err != nil {
 		repo.logger.Errorw("error occurred while fetching draft version", "draftVersionId", draftVersionId, "err", err)
 		return nil, err
 	}
-	return draftVersion, nil
+
+	return &draftVersion, nil
 }
 
 func (repo *ConfigDraftRepositoryImpl) DeleteComment(draftId int, draftCommentId int, userId int32) (int, error) {

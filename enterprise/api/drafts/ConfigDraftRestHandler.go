@@ -401,10 +401,9 @@ func (impl *ConfigDraftRestHandlerImpl) CheckAccessAndApproveDraft(w http.Respon
 	}
 	draftState, err := impl.configDraftService.ApproveDraft(draftId, draftVersionId, userId)
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return draftState, notAnApprover, nil
+		return draftState, notAnApprover, err
 	}
-	return 0, notAnApprover, err
+	return 0, notAnApprover, nil
 }
 
 func (impl *ConfigDraftRestHandlerImpl) DeleteUserComment(w http.ResponseWriter, r *http.Request) {

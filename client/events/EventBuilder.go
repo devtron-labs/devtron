@@ -339,8 +339,8 @@ func (impl *EventSimpleFactoryImpl) BuildExtraApprovalData(event Event, approval
 	if err != nil {
 		impl.logger.Errorw("found error on getting user data ", "user", user)
 	}
-
-	for _, emailId := range approvalActionRequest.ApprovalNotificationConfig.EmailIds {
+	EmailIds := approvalActionRequest.ApprovalNotificationConfig.EmailIds
+	for _, emailId := range EmailIds {
 		payload := &Payload{}
 		err = impl.setApprovalEventPayload(event, approvalActionRequest, cdPipeline, payload)
 		if err != nil {
@@ -353,7 +353,7 @@ func (impl *EventSimpleFactoryImpl) BuildExtraApprovalData(event Event, approval
 			EnvId: cdPipeline.EnvironmentId,
 		}
 		err = impl.createAndSetToken(reqData, &approvalActionRequest, payload, 0, 0, emailId)
-		event.Payload.TriggeredBy = user.EmailId
+		payload.TriggeredBy = user.EmailId
 		event.Payload = payload
 		events = append(events, event)
 	}
@@ -376,10 +376,10 @@ func (impl *EventSimpleFactoryImpl) setApprovalEventPayload(event Event, approva
 	payload.EnvName = cdPipeline.Environment.Name
 	payload.PipelineName = cdPipeline.Name
 	payload.DockerImageUrl = ciArtifact.Image
-	lastColonIndex := strings.LastIndex(payload.DockerImageUrl, ":")
 	dockerImageTag := ""
-	if lastColonIndex != -1 && lastColonIndex < len(payload.DockerImageUrl)-1 {
-		dockerImageTag = payload.DockerImageUrl[lastColonIndex+1:]
+	split := strings.Split(ciArtifact.Image, ":")
+	if len(split) > 1 {
+		dockerImageTag = split[len(split)-1]
 	}
 	payload.ImageApprovalLink = fmt.Sprintf("/dashboard/app/%d/trigger?approval-node=%d&imageTag=%s", event.AppId, cdPipeline.Id, dockerImageTag)
 	return nil
@@ -408,6 +408,9 @@ func (impl *EventSimpleFactoryImpl) BuildExtraProtectConfigData(event Event, req
 		}
 		setProviderForNotification(email, defaultSesConfig, defaultSmtpConfig, payload)
 		err = impl.createAndSetToken(&request, nil, payload, draftId, DraftVersionId, email)
+		if err != nil {
+			return events
+		}
 		payload.TriggeredBy = user.EmailId
 		event.Payload = payload
 		events = append(events, event)
@@ -423,7 +426,8 @@ func (impl *EventSimpleFactoryImpl) createAndSetToken(request *ConfigDataForNoti
 		return err
 	}
 	if approvalActionRequest != nil {
-		deploymentApprovalRequest := setDeploymentApprovalRequest(request, approvalActionRequest, emailId, user)
+		deploymentApprovalRequest := setDeploymentApprovalRequest(request, approvalActionRequest, emailId, user.Id)
+		//todo have to make expire time configurable
 		token, err := impl.apiTokenService.CreateApiJwtTokenForNotification(nil, deploymentApprovalRequest, 3)
 		if err != nil {
 			impl.logger.Errorw("error in generating token for deployment approval request", "err", err)
@@ -432,7 +436,7 @@ func (impl *EventSimpleFactoryImpl) createAndSetToken(request *ConfigDataForNoti
 		payload.ApprovalLink = fmt.Sprintf("/dashboard/deployment/approve?token=%s", token)
 
 	} else {
-		draftRequest := setDraftApprovalRequest(request, draftId, DraftVersionId, emailId, user)
+		draftRequest := setDraftApprovalRequest(request, draftId, DraftVersionId, emailId, user.Id)
 		token, err := impl.apiTokenService.CreateApiJwtTokenForNotification(draftRequest, nil, 3)
 		if err != nil {
 			impl.logger.Errorw("error in generating token for draft approval request", "err", err)
@@ -443,7 +447,7 @@ func (impl *EventSimpleFactoryImpl) createAndSetToken(request *ConfigDataForNoti
 	}
 	return err
 }
-func setDraftApprovalRequest(request *ConfigDataForNotification, draftId int, DraftVersionId int, emailId string, user bean2.UserInfo) *apiToken.DraftApprovalRequest {
+func setDraftApprovalRequest(request *ConfigDataForNotification, draftId int, DraftVersionId int, emailId string, userId int32) *apiToken.DraftApprovalRequest {
 	draftRequest := &apiToken.DraftApprovalRequest{
 		DraftId:        draftId,
 		DraftVersionId: DraftVersionId,
@@ -451,13 +455,13 @@ func setDraftApprovalRequest(request *ConfigDataForNotification, draftId int, Dr
 			AppId:   request.AppId,
 			EnvId:   request.EnvId,
 			EmailId: emailId,
-			UserId:  user.Id,
+			UserId:  userId,
 		},
 	}
 	return draftRequest
 }
 
-func setDeploymentApprovalRequest(request *ConfigDataForNotification, approvalActionRequest *bean.UserApprovalActionRequest, emailId string, user bean2.UserInfo) *apiToken.DeploymentApprovalRequest {
+func setDeploymentApprovalRequest(request *ConfigDataForNotification, approvalActionRequest *bean.UserApprovalActionRequest, emailId string, userId int32) *apiToken.DeploymentApprovalRequest {
 	deploymentApprovalRequest := &apiToken.DeploymentApprovalRequest{
 		ApprovalRequestId: approvalActionRequest.ApprovalRequestId,
 		ArtifactId:        approvalActionRequest.ArtifactId,
@@ -466,7 +470,7 @@ func setDeploymentApprovalRequest(request *ConfigDataForNotification, approvalAc
 			AppId:   request.AppId,
 			EnvId:   request.EnvId,
 			EmailId: emailId,
-			UserId:  user.Id,
+			UserId:  userId,
 		},
 	}
 	return deploymentApprovalRequest
