@@ -137,7 +137,6 @@ func (impl LockConfigurationServiceImpl) HandleLockConfiguration(currentConfig, 
 
 	lockConfig, err := impl.GetLockConfiguration()
 	if err != nil {
-
 		return nil, err
 	}
 
@@ -215,7 +214,6 @@ func checkForLockedArray(savedConfigMap, currentConfigMap []interface{}) []inter
 				}
 			default:
 				lockedArray = append(lockedArray, currentConfigMap[key])
-
 			}
 		}
 	}
@@ -226,6 +224,89 @@ func checkForLockedArray(savedConfigMap, currentConfigMap []interface{}) []inter
 		lockedArray = append(lockedArray, currentConfigMap[key1])
 	}
 
+	return lockedArray
+}
+
+func getMinOperationsToChangeArray(word1 []interface{}, word2 []interface{}, i int, j int) (int, []interface{}, []interface{}, []interface{}) {
+	var added, modified, deleted []interface{}
+	if i < 0 {
+		return j + 1, word2[0 : j+1], modified, deleted
+	}
+	if j < 0 {
+		return i + 1, added, modified, word1[0 : i+1]
+	}
+	if reflect.DeepEqual(word1[i], word2[j]) {
+		val, added, modified, deleted := getMinOperationsToChangeArray(word1, word2, i-1, j-1)
+		return val, added, modified, deleted
+	}
+	const MaxUint = ^uint(0)
+
+	ans := int(MaxUint >> 1)
+	insert, addedI, modifiedI, deletedI := getMinOperationsToChangeArray(word1, word2, i, j-1) // insert
+	if 1+insert < ans {
+		ans = 1 + insert
+	}
+	deletedV, addedD, modifiedD, deletedD := getMinOperationsToChangeArray(word1, word2, i-1, j) //delete
+	if 1+deletedV < ans {
+		ans = 1 + deletedV
+	}
+	modifiedV, addedM, modifiedM, deletedM := getMinOperationsToChangeArray(word1, word2, i-1, j-1) //replace
+	if 1+modifiedV < ans {
+		ans = 1 + modifiedV
+	}
+	if insert < deletedV {
+		if insert < modifiedV {
+			added = append(added, word2[j])
+			added = append(added, addedI...)
+			modified = append(modified, modifiedI...)
+			deleted = append(deleted, deletedI...)
+		} else {
+			val := getModifiedValue(word1, word2, i, j)
+			modified = append(modified, val)
+			added = append(added, addedM...)
+			modified = append(modified, modifiedM...)
+			deleted = append(deleted, deletedM...)
+		}
+	} else {
+		if deletedV < modifiedV {
+			deleted = append(deleted, word1[i])
+			added = append(added, addedD...)
+			modified = append(modified, modifiedD...)
+			deleted = append(deleted, deletedD...)
+		} else {
+			val := getModifiedValue(word1, word2, i, j)
+			modified = append(modified, val)
+			added = append(added, addedM...)
+			modified = append(modified, modifiedM...)
+			deleted = append(deleted, deletedM...)
+		}
+	}
+	return ans, added, modified, deleted
+}
+
+func getModifiedValue(word1 []interface{}, word2 []interface{}, i int, j int) interface{} {
+	switch reflect.TypeOf(word1[i]).Kind() {
+	case reflect.Map:
+		savedConfig := copyMap(word1[i].(map[string]interface{}))
+		currentConfig := copyMap(word2[j].(map[string]interface{}))
+		locked, _ := getDiffJson(savedConfig, currentConfig)
+		return locked
+	case reflect.Array, reflect.Slice:
+		locked := getArrayDiff(word1[i].([]interface{}), word2[j].([]interface{}))
+		return locked
+	default:
+		return word2[j]
+	}
+}
+
+func getArrayDiff(word1 []interface{}, word2 []interface{}) []interface{} {
+	l1 := len(word1)
+	l2 := len(word2)
+	_, added, modified, deleted := getMinOperationsToChangeArray(word1, word2, l1-1, l2-1)
+	var lockedArray []interface{}
+	lockedArray = append(lockedArray, added...)
+	lockedArray = append(lockedArray, modified...)
+	lockedArray = append(lockedArray, deleted...)
 	return lockedArray
 }
 
@@ -251,7 +332,7 @@ func getDiffJson(savedConfigMap, currentConfigMap map[string]interface{}) (map[s
 					disableSaveEligibleChanges = true
 				}
 			case reflect.Array, reflect.Slice:
-				locked := checkForLockedArray(savedConfigMap[key].([]interface{}), currentConfigMap[key].([]interface{}))
+				locked := getArrayDiff(savedConfigMap[key].([]interface{}), currentConfigMap[key].([]interface{}))
 				if locked != nil && len(locked) != 0 {
 					lockedMap[key] = locked
 				}
@@ -278,4 +359,12 @@ func getDiffJson(savedConfigMap, currentConfigMap map[string]interface{}) (map[s
 		delete(currentConfigMap, key)
 	}
 	return lockedMap, disableSaveEligibleChanges
+}
+
+func copyMap(map1 map[string]interface{}) map[string]interface{} {
+	map2 := make(map[string]interface{}, len(map1))
+	for k, v := range map1 {
+		map2[k] = v
+	}
+	return map2
 }
