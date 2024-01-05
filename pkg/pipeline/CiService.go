@@ -244,8 +244,8 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 	} else {
 		workflowRequest.Type = bean2.CI_WORKFLOW_PIPELINE_TYPE
 	}
-	workflowRequest.MaxRetries = impl.ciConfig.CiCdConfig.MaxRetries
-	workflowRequest.RetryDelay = impl.ciConfig.CiCdConfig.RetryDelay
+	workflowRequest.MaxRetries = impl.ciConfig.MaxRetries
+	workflowRequest.RetryDelay = impl.ciConfig.RetryDelay
 	err = impl.executeCiPipeline(workflowRequest)
 	if err != nil {
 		impl.Logger.Errorw("workflow error", "err", err)
