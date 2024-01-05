@@ -33,6 +33,7 @@
     * [API Tokens](user-guide/global-configurations/authorization/api-tokens.md)
   * [Notifications](user-guide/global-configurations/manage-notification.md)
   * [External Links](user-guide/global-configurations/external-links.md)
+  * [Catalog Framework](user-guide/global-configurations/catalog-framework.md)
   * [Scoped Variables](user-guide/global-configurations/scoped-variables.md)
   * [Tags Policy](user-guide/global-configurations/tags-policy.md)
   * [Filter Condition](user-guide/global-configurations/filter-condition.md)
