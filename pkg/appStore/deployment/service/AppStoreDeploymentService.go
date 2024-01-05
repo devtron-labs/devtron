@@ -109,7 +109,7 @@ type AppStoreDeploymentServiceImpl struct {
 	installedAppRepositoryHistory        repository.InstalledAppVersionHistoryRepository
 	gitOpsRepository                     repository2.GitOpsConfigRepository
 	deploymentTypeConfig                 *DeploymentServiceTypeConfig
-	ChartTemplateService                 util.ChartTemplateService
+	chartTemplateService                 util.ChartTemplateService
 	aCDConfig                            *argocdServer.ACDConfig
 }
 
@@ -141,7 +141,7 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRep
 		installedAppRepositoryHistory:        installedAppRepositoryHistory,
 		gitOpsRepository:                     gitOpsRepository,
 		deploymentTypeConfig:                 deploymentTypeConfig,
-		ChartTemplateService:                 ChartTemplateService,
+		chartTemplateService:                 ChartTemplateService,
 		aCDConfig:                            aCDConfig,
 	}
 	return appStoreDeploymentServiceImpl
@@ -260,6 +260,11 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 	installedAppModel.UpdatedOn = time.Now()
 	installedAppModel.Active = true
 	if util2.IsFullStack() && util.IsAcdApp(installAppVersionRequest.DeploymentAppType) {
+		var (
+			isNew         bool
+			gitopsRepoURL string
+			gitRepoErr    error
+		)
 		if !gitOpsConfig.AllowCustomRepository && (len(installAppVersionRequest.GitOpsRepoURL) != 0 && installAppVersionRequest.GitOpsRepoURL != bean2.GIT_REPO_DEFAULT) {
 			impl.logger.Errorw("invalid installAppVersionRequest", "error", "custom repo url is not valid, as the global configuration is updated")
 			err = &util.ApiError{
@@ -278,41 +283,29 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 			}
 			return nil, err
 		}
-		if gitOpsConfig.AllowCustomRepository {
-			validateCustomGitRepoURLRequest := gitops.ValidateCustomGitRepoURLRequest{
-				GitRepoURL:               installAppVersionRequest.GitOpsRepoURL,
-				UserId:                   installAppVersionRequest.UserId,
-				PerformDefaultValidation: installAppVersionRequest.GitOpsRepoURL == bean2.GIT_REPO_DEFAULT,
-			}
 
-			detailedErrorGitOpsConfigResponse, repoUrl := impl.appStoreDeploymentArgoCdService.ValidateCustomGitRepoURL(validateCustomGitRepoURLRequest)
-			if len(detailedErrorGitOpsConfigResponse.StageErrorMap) != 0 {
-				// Found validation err
-				installAppVersionRequest.DetailedErrorGitOpsConfigResponse = &detailedErrorGitOpsConfigResponse
-				return installAppVersionRequest, nil
-			}
-			// ValidateCustomGitRepoURL returns sanitized repo url after validation
-			installAppVersionRequest.GitOpsRepoURL = repoUrl
+		validateCustomGitRepoURLRequest := gitops.ValidateCustomGitRepoURLRequest{
+			GitRepoURL:     installAppVersionRequest.GitOpsRepoURL,
+			AppName:        installAppVersionRequest.AppName,
+			UserId:         installAppVersionRequest.UserId,
+			GitOpsProvider: gitOpsConfig.Provider,
 		}
-
-		if gitOpsConfig.AllowCustomRepository && installAppVersionRequest.GitOpsRepoURL != bean2.GIT_REPO_DEFAULT {
-			installAppVersionRequest.IsNewGitOpsRepo = true
-			installedAppModel.GitOpsRepoUrl = installAppVersionRequest.GitOpsRepoURL
-			installedAppModel.GitOpsRepoName = util.GetGitRepoNameFromGitRepoUrl(installAppVersionRequest.GitOpsRepoURL) // Handled for backward compatibility
+		if installAppVersionRequest.GitOpsRepoURL != bean2.GIT_REPO_DEFAULT {
 			installedAppModel.IsCustomRepository = true
-		} else {
-			installAppVersionRequest.GitOpsRepoURL = bean2.GIT_REPO_DEFAULT
-			gitopsRepoURL, isNew, err := impl.appStoreDeploymentCommonService.CreateGitOpsRepo(installAppVersionRequest.GitOpsRepoURL, installAppVersionRequest.AppName, installAppVersionRequest.UserId)
-			if err != nil {
-				impl.logger.Errorw("Error in creating gitops repo for ", "appName", installAppVersionRequest.AppName, "err", err)
-				return nil, err
-			}
-			installAppVersionRequest.GitOpsRepoURL = gitopsRepoURL
-			installAppVersionRequest.IsNewGitOpsRepo = isNew
-			installedAppModel.GitOpsRepoUrl = gitopsRepoURL
-			installedAppModel.GitOpsRepoName = util.GetGitRepoNameFromGitRepoUrl(gitopsRepoURL) // Handled for backward compatibility
-			installedAppModel.IsCustomRepository = false
 		}
+		gitopsRepoURL, isNew, gitRepoErr = impl.appStoreDeploymentArgoCdService.ValidateCustomGitRepoURL(validateCustomGitRepoURLRequest)
+		installAppVersionRequest.IsNewGitOpsRepo = isNew
+		if gitRepoErr != nil {
+			// Found validation err
+			impl.logger.Errorw("found validation error in custom gitops repo", "repo url", installAppVersionRequest.GitOpsRepoURL, "err", gitRepoErr)
+			return nil, gitRepoErr
+		}
+
+		// ValidateCustomGitRepoURL returns sanitized repo url after validation
+		installAppVersionRequest.GitOpsRepoURL = gitopsRepoURL
+		installAppVersionRequest.IsNewGitOpsRepo = isNew
+		installedAppModel.GitOpsRepoUrl = installAppVersionRequest.GitOpsRepoURL
+		installedAppModel.GitOpsRepoName = util.GetGitRepoNameFromGitRepoUrl(installAppVersionRequest.GitOpsRepoURL) // Handled for backward compatibility
 	}
 	installedApp, err := impl.installedAppRepository.CreateInstalledApp(installedAppModel, tx)
 	if err != nil {
@@ -468,10 +461,6 @@ func (impl AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *a
 	if err != nil {
 		impl.logger.Errorw(" error", "err", err)
 		return nil, err
-	}
-	if installAppVersionRequest.DetailedErrorGitOpsConfigResponse != nil &&
-		len(installAppVersionRequest.DetailedErrorGitOpsConfigResponse.StageErrorMap) != 0 {
-		return installAppVersionRequest, nil
 	}
 	impl.updateDeploymentParametersInRequest(installAppVersionRequest, installAppVersionRequest.DeploymentAppType)
 
@@ -1379,7 +1368,7 @@ func (impl *AppStoreDeploymentServiceImpl) CheckIfMonoRepoMigrationRequired(inst
 		}
 	}
 	//here will set new git repo name if required to migrate
-	newGitOpsRepoName := impl.ChartTemplateService.GetGitOpsRepoName(installedApp.App.AppName)
+	newGitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(installedApp.App.AppName)
 	//checking weather git repo migration needed or not, if existing git repo and new independent git repo is not same than go ahead with migration
 	if newGitOpsRepoName != gitOpsRepoName {
 		monoRepoMigrationRequired = true
@@ -1545,7 +1534,8 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 
 		if monoRepoMigrationRequired {
 			//here will set new git repo name if required to migrate
-			gitopsRepoURL, isNew, err := impl.appStoreDeploymentCommonService.CreateGitOpsRepo(installAppVersionRequest.GitOpsRepoURL, installAppVersionRequest.AppName, installAppVersionRequest.UserId)
+			gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(installAppVersionRequest.AppName)
+			gitopsRepoURL, isNew, err := impl.appStoreDeploymentCommonService.CreateGitOpsRepo(gitOpsRepoName, installAppVersionRequest.UserId)
 			if err != nil {
 				impl.logger.Errorw("Error in creating gitops repo for ", "appName", installAppVersionRequest.AppName, "err", err)
 				return nil, err
@@ -1553,7 +1543,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 			installAppVersionRequest.GitOpsRepoURL = gitopsRepoURL
 			installAppVersionRequest.IsNewGitOpsRepo = isNew
 			installedApp.GitOpsRepoUrl = gitopsRepoURL
-			installedApp.GitOpsRepoName = util.GetGitRepoNameFromGitRepoUrl(gitopsRepoURL) // Handled for backward compatibility
+			installedApp.GitOpsRepoName = gitOpsRepoName // Handled for backward compatibility
 			installedApp.IsCustomRepository = false
 			// create new git repo if repo name changed
 			gitOpsResponse, createRepoErr = impl.appStoreDeploymentCommonService.GitOpsOperations(manifest, installAppVersionRequest)

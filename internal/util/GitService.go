@@ -59,7 +59,6 @@ type GitClient interface {
 	DeleteRepository(config *bean2.GitOpsConfigDto) error
 	CreateReadme(config *bean2.GitOpsConfigDto) (string, error)
 	GetCommits(repoName, projectName string) ([]*GitCommitDto, error)
-	GetCommitsCount(repoName, projectName string) (int, error)
 	EnsureRepoAvailableOnSsh(config *bean2.GitOpsConfigDto, repoUrl string) (string, error)
 	EnsureRepoAvailableOnHttp(config *bean2.GitOpsConfigDto) (string, error)
 }

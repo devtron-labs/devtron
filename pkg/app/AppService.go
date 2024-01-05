@@ -1009,7 +1009,7 @@ func (impl *AppServiceImpl) CreateGitopsRepo(app *app.App, userId int32) (gitops
 		return "", nil, err
 	}
 	gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(app.AppName)
-	chartGitAttr, err = impl.chartTemplateService.CreateGitRepositoryForApp(gitOpsRepoName, userId)
+	chartGitAttr, _, err = impl.chartTemplateService.CreateGitRepositoryForApp(gitOpsRepoName, userId)
 	if err != nil {
 		impl.logger.Errorw("error in pushing chart to git ", "gitOpsRepoName", gitOpsRepoName, "err", err)
 		return "", nil, err

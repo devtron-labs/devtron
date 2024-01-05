@@ -85,7 +85,7 @@ func (impl *GitOpsManifestPushServiceImpl) ValidateRepoForGitOperation(manifestP
 		}
 
 		gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(manifestPushTemplate.AppName)
-		chartGitAttr, err := impl.chartTemplateService.CreateGitRepositoryForApp(gitOpsRepoName, manifestPushTemplate.UserId)
+		chartGitAttr, _, err := impl.chartTemplateService.CreateGitRepositoryForApp(gitOpsRepoName, manifestPushTemplate.UserId)
 		if err != nil {
 			impl.logger.Errorw("error in pushing chart to git ", "gitOpsRepoName", gitOpsRepoName, "err", err)
 			return fmt.Errorf("No repository configured for Gitops! Error while creating git repository: '%s'", gitOpsRepoName)

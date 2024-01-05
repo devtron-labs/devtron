@@ -12,7 +12,6 @@ import (
 	"net/url"
 	"path"
 	"path/filepath"
-	"strings"
 	"time"
 )
 
@@ -288,20 +287,4 @@ func (impl GitHubClient) GetCommits(repoName, projectName string) ([]*GitCommitD
 		gitCommitsDto = append(gitCommitsDto, gitCommitDto)
 	}
 	return gitCommitsDto, nil
-}
-
-func (impl GitHubClient) GetCommitsCount(repoName, projectName string) (int, error) {
-	githubClient := impl.client
-	gitCommits, _, err := githubClient.Repositories.ListCommits(context.Background(), impl.org, repoName, &github.CommitsListOptions{})
-	if err != nil {
-		// found empty repository condition for Github
-		if errorResponse, ok := err.(*github.ErrorResponse); ok &&
-			errorResponse.Response.StatusCode == http2.StatusConflict &&
-			strings.Contains(errorResponse.Message, "Git Repository is empty.") {
-			return 0, nil
-		}
-		impl.logger.Errorw("error in getting commits", "err", err, "repoName", repoName)
-		return 0, err
-	}
-	return len(gitCommits), nil
 }

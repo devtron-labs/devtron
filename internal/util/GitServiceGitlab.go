@@ -320,17 +320,3 @@ func (impl GitLabClient) GetCommits(repoName, projectName string) ([]*GitCommitD
 	}
 	return gitCommitsDto, nil
 }
-
-func (impl GitLabClient) GetCommitsCount(repoName, projectName string) (int, error) {
-	gitlabClient := impl.client
-	branch := "master"
-	listCommitOptions := &gitlab.ListCommitsOptions{
-		RefName: &branch,
-	}
-	gitCommits, _, err := gitlabClient.Commits.ListCommits(fmt.Sprintf("%s/%s", impl.config.GitlabGroupPath, repoName), listCommitOptions)
-	if err != nil {
-		impl.logger.Errorw("error in getting commits", "err", err, "repoName", repoName)
-		return 0, err
-	}
-	return len(gitCommits), nil
-}

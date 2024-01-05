@@ -35,7 +35,6 @@ import (
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
-	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/gitops"
 	application2 "github.com/devtron-labs/devtron/pkg/k8s/application"
@@ -67,7 +66,6 @@ type InstalledAppRestHandler interface {
 	FetchResourceTree(w http.ResponseWriter, r *http.Request)
 	FetchResourceTreeForACDApp(w http.ResponseWriter, r *http.Request)
 	FetchNotesForArgoInstalledApp(w http.ResponseWriter, r *http.Request)
-	ValidateGitOpsConfigForHelmApp(w http.ResponseWriter, r *http.Request)
 }
 
 type InstalledAppRestHandlerImpl struct {
@@ -844,46 +842,4 @@ func (handler *InstalledAppRestHandlerImpl) fetchResourceTreeWithHibernateForACD
 	ctx := r.Context()
 	cn, _ := w.(http.CloseNotifier)
 	handler.installedAppService.FetchResourceTreeWithHibernateForACD(ctx, cn, appDetail)
-}
-
-func (handler *InstalledAppRestHandlerImpl) ValidateGitOpsConfigForHelmApp(w http.ResponseWriter, r *http.Request) {
-	userId, err := handler.userAuthService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-
-	var gitOpsConfigRequest chart.HelmAppGitOpsConfigRequest
-	decoder := json.NewDecoder(r.Body)
-	err = decoder.Decode(&gitOpsConfigRequest)
-	if err != nil {
-		handler.Logger.Errorw("request err, ValidateGitOpsConfigForHelmApp", "error", err, "payload", gitOpsConfigRequest)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	err = handler.validator.Struct(gitOpsConfigRequest)
-	if err != nil {
-		handler.Logger.Errorw("validation err, ValidateGitOpsConfigForHelmApp", "err", err, "payload", gitOpsConfigRequest)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	//rbac block starts from here
-	token := r.Header.Get("token")
-	rbacObject, rbacObject2 := handler.enforcerUtil.GetHelmObjectByProjectIdAndEnvId(gitOpsConfigRequest.TeamId, gitOpsConfigRequest.EnvironmentId)
-
-	ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionCreate, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionCreate, rbacObject2)
-	if !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
-		return
-	}
-	//rbac block ends here
-	validateRequest := gitops.ValidateCustomGitRepoURLRequest{
-		GitRepoURL:               gitOpsConfigRequest.GitOpsRepoURL,
-		UserId:                   userId,
-		PerformDefaultValidation: gitOpsConfigRequest.GitOpsRepoURL == bean2.GIT_REPO_DEFAULT,
-	}
-	detailedErrorGitOpsConfigResponse, _ := handler.gitOpsService.ValidateCustomGitRepoURL(validateRequest)
-	common.WriteJsonResp(w, nil, detailedErrorGitOpsConfigResponse, http.StatusOK)
 }

@@ -325,15 +325,6 @@ func (impl InstalledAppServiceImpl) DeployBulk(chartGroupInstallRequest *appStor
 			impl.logger.Errorw("DeployBulk, error while app store deploy db operation", "err", err)
 			return nil, err
 		}
-
-		if installAppVersionDTO.DetailedErrorGitOpsConfigResponse != nil &&
-			len(installAppVersionDTO.DetailedErrorGitOpsConfigResponse.StageErrorMap) != 0 {
-			errMsg := fmt.Sprintf("GitOps repository validation error for app '%s':", installAppVersionDTO.AppName)
-			for stage, errorMessage := range installAppVersionDTO.DetailedErrorGitOpsConfigResponse.StageErrorMap {
-				errMsg += fmt.Sprintf("\n%s: %s", stage, errorMessage)
-			}
-			return nil, fmt.Errorf(errMsg)
-		}
 		installAppVersions = append(installAppVersions, installAppVersionDTO)
 	}
 	if chartGroupInstallRequest.ChartGroupId > 0 {

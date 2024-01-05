@@ -346,18 +346,3 @@ func (impl GitAzureClient) GetCommits(repoName, projectName string) ([]*GitCommi
 	}
 	return gitCommitsDto, nil
 }
-
-func (impl GitAzureClient) GetCommitsCount(repoName, projectName string) (int, error) {
-	azureClient := *impl.client
-	getCommitsArgs := git.GetCommitsArgs{
-		RepositoryId:   &repoName,
-		Project:        &projectName,
-		SearchCriteria: &git.GitQueryCommitsCriteria{},
-	}
-	gitCommits, err := azureClient.GetCommits(context.Background(), getCommitsArgs)
-	if err != nil {
-		impl.logger.Errorw("error in getting commits", "err", err, "repoName", repoName, "projectName", projectName)
-		return 0, err
-	}
-	return len(*gitCommits), nil
-}

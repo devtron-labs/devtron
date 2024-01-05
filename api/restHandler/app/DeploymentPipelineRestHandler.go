@@ -2673,7 +2673,7 @@ func (handler *PipelineConfigRestHandlerImpl) SaveGitOpsConfiguration(w http.Res
 	ctx := context.WithValue(r.Context(), "token", acdToken)
 
 	_, span := otel.Tracer("orchestrator").Start(ctx, "chartService.SaveAppLevelGitOpsConfiguration")
-	detailedErrorGitOpsConfigResponse, err := handler.chartService.SaveAppLevelGitOpsConfiguration(appGitOpsConfigRequest, app.AppName, ctx)
+	err = handler.chartService.SaveAppLevelGitOpsConfiguration(&appGitOpsConfigRequest, app.AppName, ctx)
 	span.End()
 	if err != nil {
 		handler.Logger.Errorw("service err, SaveAppLevelGitOpsConfiguration", "err", err, "request", appGitOpsConfigRequest)
@@ -2685,7 +2685,7 @@ func (handler *PipelineConfigRestHandlerImpl) SaveGitOpsConfiguration(w http.Res
 		common.WriteJsonResp(w, err, err, http.StatusInternalServerError)
 		return
 	}
-	common.WriteJsonResp(w, nil, detailedErrorGitOpsConfigResponse, http.StatusOK)
+	common.WriteJsonResp(w, nil, appGitOpsConfigRequest, http.StatusOK)
 }
 
 func (handler *PipelineConfigRestHandlerImpl) GetGitOpsConfiguration(w http.ResponseWriter, r *http.Request) {
