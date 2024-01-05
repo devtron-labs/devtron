@@ -2736,6 +2736,29 @@ func TestGetFilteredGlobalPolicyIdsFromSearchableFields(t *testing.T) {
 		{
 			searchableFieldsModels: []*repository.GlobalPolicySearchableField{
 				{
+					SearchableKeyId: 3,
+					GlobalPolicyId:  1,
+					Value:           "default-cluster/*",
+					IsRegex:         true,
+				},
+				{
+					SearchableKeyId: 3,
+					GlobalPolicyId:  1,
+					Value:           "test-cluster/*",
+					IsRegex:         true,
+				},
+			},
+			projectMap: make(map[string]bool),
+			clusterMap: map[string]bool{
+				"test-cluster": true,
+			},
+			branchValues: []string{"main"},
+			wantResult:   []int{1},
+			wantError:    false,
+		},
+		{
+			searchableFieldsModels: []*repository.GlobalPolicySearchableField{
+				{
 					SearchableKeyId: 1,
 					GlobalPolicyId:  1,
 					Value:           "Project1/App1",
