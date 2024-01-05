@@ -29,7 +29,6 @@ import (
 	repository2 "github.com/devtron-labs/devtron/pkg/team"
 	repository4 "github.com/devtron-labs/devtron/pkg/user/repository"
 	util "github.com/devtron-labs/devtron/util/event"
-	"strings"
 	"time"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -940,17 +939,17 @@ func (impl *NotificationConfigServiceImpl) DraftApprovalNotificationRequest(draf
 	DraftApprovalResp := &client.DraftApprovalResponse{}
 	envName, appName, err := impl.getEnvAndAppName(draftRequest.EnvId, draftRequest.AppId)
 	if err != nil {
-		return nil, err
+		return DraftApprovalResp, err
 	}
 	DraftApprovalResp.NotificationMetaData.EnvName = envName
 	DraftApprovalResp.NotificationMetaData.AppName = appName
 	draft, err := impl.configDraftRepository.GetDraftVersionById(draftRequest.DraftVersionId)
 	if err != nil {
-		return nil, err
+		return DraftApprovalResp, err
 	}
 	draftComment, err := impl.configDraftRepository.GetDraftComments(draftRequest.DraftVersionId)
 	if err != nil && err != pg.ErrNoRows {
-		return nil, err
+		return DraftApprovalResp, err
 	}
 	DraftApprovalResp.ProtectConfigFileType = string(draft.Draft.Resource.GetDraftResourceType())
 	if draft.Draft.Resource == drafts.DeploymentTemplateResource {
@@ -973,12 +972,16 @@ func (impl *NotificationConfigServiceImpl) getEnvAndAppName(envId int, appId int
 	if envId > 0 {
 		env, err := impl.environmentRepository.FindById(envId)
 		if err != nil {
+			impl.logger.Errorw("error in fetching  env", "envId", env.Id)
+
 			return envName, appName, err
 		}
 		envName = env.Name
 	}
 	application, err := impl.appRepository.FindById(appId)
 	if err != nil {
+		impl.logger.Errorw("error in fetching application", "appId", application.Id)
+
 		return envName, appName, err
 	}
 	appName = application.AppName
@@ -988,12 +991,13 @@ func (impl *NotificationConfigServiceImpl) DeploymentApprovalNotificationRequest
 	DeploymentApprovalResp := &client.DeploymentApprovalResponse{}
 	ciArtifact, err := impl.ciArtifactRepository.Get(deploymentApprovalRequest.ArtifactId)
 	if err != nil {
-		impl.logger.Errorw("error fetching ciArtifact", "ciArtifact", ciArtifact, "err", err)
+		impl.logger.Errorw("error fetching ciArtifact", "ciArtifactId", ciArtifact.Id, "err", err)
 		return DeploymentApprovalResp, err
 	}
 	imageComment, imageTagNames, err := impl.imageTaggingRepository.GetImageTagsAndComment(deploymentApprovalRequest.ArtifactId)
 	if err != nil {
-		return nil, err
+		impl.logger.Errorw("error fetching image Tags and comments", "ciArtifactId", deploymentApprovalRequest.ArtifactId, "err", err)
+		return DeploymentApprovalResp, err
 	}
 	DeploymentApprovalResp.NotificationMetaData.EnvName = envName
 	DeploymentApprovalResp.NotificationMetaData.AppName = appName
@@ -1001,16 +1005,6 @@ func (impl *NotificationConfigServiceImpl) DeploymentApprovalNotificationRequest
 	DeploymentApprovalResp.NotificationMetaData.ApprovedBy = deploymentApprovalRequest.EmailId
 	DeploymentApprovalResp.ImageTagNames = imageTagNames
 	DeploymentApprovalResp.ImageComment = imageComment.Comment
-	//lastColonIndex := strings.LastIndex(ciArtifact.Image, ":")
-	//dockerImageTag := ""
-	//if lastColonIndex != -1 && lastColonIndex < len(ciArtifact.Image)-1 {
-	//	dockerImageTag = ciArtifact.Image[lastColonIndex+1:]
-	//}
-	split := strings.Split(ciArtifact.Image, ":")
-	if len(split) > 1 {
-		DeploymentApprovalResp.DockerImageTag = split[len(split)-1]
-	}
-	//DeploymentApprovalResp.DockerImageTag = dockerImageTag
-
+	DeploymentApprovalResp.DockerImageUrl = ciArtifact.Image
 	return DeploymentApprovalResp, err
 }

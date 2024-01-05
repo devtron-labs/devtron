@@ -22,7 +22,7 @@ type DeploymentApprovalResponse struct {
 	ImageTagNames        []string             `json:"imageTagNames"`
 	ImageComment         string               `json:"imageComment"`
 	ImageApprovalLink    string               `json:"imageApprovalLink"`
-	DockerImageTag       string               `json:"dockerImageUrl"`
+	DockerImageUrl       string               `json:"dockerImageUrl"`
 	NotificationMetaData NotificationMetaData `json:"notificationMetaData"`
 	Status               bean.ApprovalState   `json:"status"`
 }
