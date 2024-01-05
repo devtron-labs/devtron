@@ -22,10 +22,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/aws/aws-sdk-go/service/sso"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/enterprise/api/drafts"
+	drafts2 "github.com/devtron-labs/devtron/enterprise/pkg/drafts"
 	"github.com/devtron-labs/devtron/pkg/apiToken"
-	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"io/ioutil"
 	"net/http"
@@ -1135,7 +1137,7 @@ func (impl NotificationRestHandlerImpl) DeleteNotificationChannelConfig(w http.R
 		}
 
 		// RBAC enforcer applying
-		token := r.Header.Get("token")
+		token := r.Header.Get(client.TOKEN)
 		if ok := impl.enforcer.Enforce(token, casbin.ResourceNotification, casbin.ActionCreate, "*"); !ok {
 			response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
 			return
@@ -1155,20 +1157,19 @@ func (impl NotificationRestHandlerImpl) DeleteNotificationChannelConfig(w http.R
 }
 
 func (impl NotificationRestHandlerImpl) ConsumeDraftApprovalNotification(w http.ResponseWriter, r *http.Request) {
-	token := r.URL.Query().Get("token")
+	token := r.URL.Query().Get(client.TOKEN)
 	//verification is done internally
 	draftRequest, err := impl.createDraftRequest(w, token)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	draftState, notApprover, err := impl.configDraftRestHandlerImpl.CheckAccessAndApproveDraft(w, draftRequest.EnvId, draftRequest.AppId, token, draftRequest.DraftId, draftRequest.DraftVersionId, draftRequest.UserId)
-	if err != nil && draftState == 0 {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+	draftState, err := impl.configDraftRestHandlerImpl.CheckAccessAndApproveDraft(w, draftRequest.EnvId, draftRequest.AppId, token, draftRequest.DraftId, draftRequest.DraftVersionId, draftRequest.UserId)
+	if errRes := err.(*sso.UnauthorizedException); errRes.StatusCode() == 403 {
 		return
 	}
-	if notApprover {
-		common.WriteJsonResp(w, err, nil, http.StatusForbidden)
+	if err != nil && draftState == drafts2.UndefinedDraftState {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	resp, err := impl.notificationService.DraftApprovalNotificationRequest(draftRequest)
@@ -1204,7 +1205,7 @@ func (impl NotificationRestHandlerImpl) ConsumeDeploymentApprovalNotification(w 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	approvalActionRequest := createApprovalActionRequest(deploymentApprovalRequest)
+	approvalActionRequest := deploymentApprovalRequest.CreateApprovalActionRequest()
 	pipelineInfo, err := impl.pipelineBuilder.FindPipelineById(deploymentApprovalRequest.PipelineId)
 	if err != nil {
 		impl.logger.Errorw("error occurred while fetching pipeline details", "pipelineId", deploymentApprovalRequest.PipelineId, "err", err)
@@ -1225,18 +1226,6 @@ func (impl NotificationRestHandlerImpl) ConsumeDeploymentApprovalNotification(w 
 	resp.Status = approvalState
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
-
-func createApprovalActionRequest(deploymentApprovalRequest *apiToken.DeploymentApprovalRequest) bean.UserApprovalActionRequest {
-	approvalActionRequest := bean.UserApprovalActionRequest{
-		AppId:             deploymentApprovalRequest.AppId,
-		ActionType:        bean.APPROVAL_APPROVE_ACTION,
-		ApprovalRequestId: deploymentApprovalRequest.ApprovalRequestId,
-		PipelineId:        deploymentApprovalRequest.PipelineId,
-		ArtifactId:        deploymentApprovalRequest.ArtifactId,
-	}
-	return approvalActionRequest
-}
-
 func (impl NotificationRestHandlerImpl) createDeploymentApprovalRequest(w http.ResponseWriter, token string) (*apiToken.DeploymentApprovalRequest, error) {
 	claimBytes, err := impl.userAuthService.GetFieldValuesFromToken(token)
 	if err != nil {

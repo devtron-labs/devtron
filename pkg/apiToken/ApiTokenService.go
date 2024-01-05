@@ -40,7 +40,7 @@ type ApiTokenService interface {
 	UpdateApiToken(apiTokenId int, request *openapi.UpdateApiTokenRequest, updatedBy int32) (*openapi.UpdateApiTokenResponse, error)
 	DeleteApiToken(apiTokenId int, deletedBy int32) (*openapi.ActionResponse, error)
 	GetAllApiTokensForWebhook(projectName string, environmentName string, appName string, auth func(token string, projectObject string, envObject string) bool) ([]*openapi.ApiToken, error)
-	CreateApiJwtTokenForNotification(draftApprovalRequest *DraftApprovalRequest, DeploymentRequest *DeploymentApprovalRequest, expireAtInMs int64) (string, error)
+	CreateApiJwtTokenForNotification(claims *TokenCustomClaimsForNotification, expireAtInMs int64) (string, error)
 }
 
 type ApiTokenServiceImpl struct {
@@ -325,19 +325,13 @@ func (impl ApiTokenServiceImpl) DeleteApiToken(apiTokenId int, deletedBy int32) 
 	}, nil
 
 }
-func (impl ApiTokenServiceImpl) CreateApiJwtTokenForNotification(draftRequest *DraftApprovalRequest, deploymentRequest *DeploymentApprovalRequest, expireAtInMs int64) (string, error) {
+func (impl ApiTokenServiceImpl) CreateApiJwtTokenForNotification(claims *TokenCustomClaimsForNotification, expireAtInMs int64) (string, error) {
 	registeredClaims, secretByteArr, err := impl.setRegisteredClaims(expireAtInMs)
 	if err != nil {
 		impl.logger.Errorw("error in setting registered claims", "err", err)
 		return "", err
 	}
-	var claims *TokenCustomClaimsForNotification
-	if deploymentRequest != nil {
-		claims = setClaimsForDeploymentApprovalRequest(deploymentRequest, registeredClaims)
-	} else {
-		claims = setClaimsForDraftApprovalRequest(draftRequest, registeredClaims)
-	}
-
+	claims.setRegisteredClaims(registeredClaims)
 	token, err := claims.generateToken(secretByteArr)
 	if err != nil {
 		impl.logger.Errorw("error in generating token", "err", err)
@@ -346,37 +340,6 @@ func (impl ApiTokenServiceImpl) CreateApiJwtTokenForNotification(draftRequest *D
 
 	return token, nil
 
-}
-
-func setClaimsForDraftApprovalRequest(draftRequest *DraftApprovalRequest, registeredClaims jwt.RegisteredClaims) *TokenCustomClaimsForNotification {
-	claims := &TokenCustomClaimsForNotification{
-		DraftId:        draftRequest.DraftId,
-		DraftVersionId: draftRequest.DraftVersionId,
-		AppId:          draftRequest.NotificationApprovalRequest.AppId,
-		EnvId:          draftRequest.NotificationApprovalRequest.EnvId,
-		UserId:         draftRequest.UserId,
-		ApiTokenCustomClaims: ApiTokenCustomClaims{
-			Email:            draftRequest.NotificationApprovalRequest.EmailId,
-			RegisteredClaims: registeredClaims,
-		},
-	}
-	return claims
-}
-
-func setClaimsForDeploymentApprovalRequest(deploymentRequest *DeploymentApprovalRequest, registeredClaims jwt.RegisteredClaims) *TokenCustomClaimsForNotification {
-	claims := &TokenCustomClaimsForNotification{
-		ApprovalRequestId: deploymentRequest.ApprovalRequestId,
-		ArtifactId:        deploymentRequest.ArtifactId,
-		PipelineId:        deploymentRequest.PipelineId,
-		AppId:             deploymentRequest.NotificationApprovalRequest.AppId,
-		EnvId:             deploymentRequest.NotificationApprovalRequest.EnvId,
-		UserId:            deploymentRequest.UserId,
-		ApiTokenCustomClaims: ApiTokenCustomClaims{
-			Email:            deploymentRequest.NotificationApprovalRequest.EmailId,
-			RegisteredClaims: registeredClaims,
-		},
-	}
-	return claims
 }
 func (impl ApiTokenServiceImpl) createApiJwtToken(email string, expireAtInMs int64) (string, error) {
 	registeredClaims, secretByteArr, err := impl.setRegisteredClaims(expireAtInMs)

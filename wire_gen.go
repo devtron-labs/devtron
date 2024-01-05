@@ -323,7 +323,10 @@ func InitializeApp() (*App, error) {
 	}
 	apiTokenRepositoryImpl := apiToken.NewApiTokenRepositoryImpl(db)
 	apiTokenServiceImpl := apiToken.NewApiTokenServiceImpl(sugaredLogger, apiTokenSecretServiceImpl, userServiceImpl, userAuditServiceImpl, apiTokenRepositoryImpl)
-	eventSimpleFactoryImpl := client.NewEventSimpleFactoryImpl(sugaredLogger, cdWorkflowRepositoryImpl, pipelineOverrideRepositoryImpl, ciWorkflowRepositoryImpl, ciPipelineMaterialRepositoryImpl, ciPipelineRepositoryImpl, pipelineRepositoryImpl, userRepositoryImpl, ciArtifactRepositoryImpl, deploymentApprovalRepositoryImpl, sesNotificationRepositoryImpl, smtpNotificationRepositoryImpl, imageTaggingRepositoryImpl, appRepositoryImpl, environmentRepositoryImpl, apiTokenServiceImpl)
+	eventSimpleFactoryImpl, err := client.NewEventSimpleFactoryImpl(sugaredLogger, cdWorkflowRepositoryImpl, pipelineOverrideRepositoryImpl, ciWorkflowRepositoryImpl, ciPipelineMaterialRepositoryImpl, ciPipelineRepositoryImpl, pipelineRepositoryImpl, userRepositoryImpl, ciArtifactRepositoryImpl, deploymentApprovalRepositoryImpl, sesNotificationRepositoryImpl, smtpNotificationRepositoryImpl, imageTaggingRepositoryImpl, appRepositoryImpl, environmentRepositoryImpl, apiTokenServiceImpl)
+	if err != nil {
+		return nil, err
+	}
 	applicationServiceClientImpl := application.NewApplicationClientImpl(sugaredLogger, argoCDConnectionManagerImpl)
 	acdAuthConfig, err := util2.GetACDAuthConfig()
 	if err != nil {

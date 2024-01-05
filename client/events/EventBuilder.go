@@ -20,6 +20,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"github.com/caarlos0/env"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -64,6 +65,7 @@ type EventSimpleFactoryImpl struct {
 	appRepo                      appRepository.AppRepository
 	envRepository                repository4.EnvironmentRepository
 	apiTokenService              apiToken.ApiTokenService
+	tokenVariableConfig          *TokenVariableConfig
 }
 
 func NewEventSimpleFactoryImpl(logger *zap.SugaredLogger, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
@@ -72,8 +74,8 @@ func NewEventSimpleFactoryImpl(logger *zap.SugaredLogger, cdWorkflowRepository p
 	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository,
 	userRepository repository.UserRepository, ciArtifactRepository repository2.CiArtifactRepository, DeploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository,
 	sesNotificationRepository repository2.SESNotificationRepository, smtpNotificationRepository repository2.SMTPNotificationRepository, imageTagRepository repository3.ImageTaggingRepository,
-	appRepo appRepository.AppRepository, envRepository repository4.EnvironmentRepository, apiTokenService apiToken.ApiTokenService) *EventSimpleFactoryImpl {
-	return &EventSimpleFactoryImpl{
+	appRepo appRepository.AppRepository, envRepository repository4.EnvironmentRepository, apiTokenService apiToken.ApiTokenService) (*EventSimpleFactoryImpl, error) {
+	eventSimpleFactory := &EventSimpleFactoryImpl{
 		logger:                       logger,
 		cdWorkflowRepository:         cdWorkflowRepository,
 		pipelineOverrideRepository:   pipelineOverrideRepository,
@@ -91,6 +93,12 @@ func NewEventSimpleFactoryImpl(logger *zap.SugaredLogger, cdWorkflowRepository p
 		envRepository:                envRepository,
 		apiTokenService:              apiTokenService,
 	}
+	cfg, err := GetTokenConfig()
+	if err != nil {
+		return nil, err
+	}
+	eventSimpleFactory.tokenVariableConfig = cfg
+	return eventSimpleFactory, nil
 }
 
 type ResourceType string
@@ -124,6 +132,15 @@ const (
 	SMTP_CONFIG_TYPE = "smtp"
 )
 
+type TokenVariableConfig struct {
+	ExpireAtInMs int64 `env:"TOKEN_EXPIRY_TIME" envDefault:"43200"`
+}
+
+func GetTokenConfig() (*TokenVariableConfig, error) {
+	cfg := &TokenVariableConfig{}
+	err := env.Parse(cfg)
+	return cfg, err
+}
 func (impl *EventSimpleFactoryImpl) Build(eventType util.EventType, sourceId *int, appId int, envId *int, pipelineType util.PipelineType) Event {
 	correlationId := uuid.NewV4()
 	event := Event{}
@@ -352,6 +369,7 @@ func (impl *EventSimpleFactoryImpl) BuildExtraApprovalData(event Event, approval
 			AppId: cdPipeline.AppId,
 			EnvId: cdPipeline.EnvironmentId,
 		}
+
 		err = impl.createAndSetToken(reqData, &approvalActionRequest, payload, 0, 0, emailId)
 		payload.TriggeredBy = user.EmailId
 		event.Payload = payload
@@ -407,6 +425,7 @@ func (impl *EventSimpleFactoryImpl) BuildExtraProtectConfigData(event Event, req
 			return events
 		}
 		setProviderForNotification(email, defaultSesConfig, defaultSmtpConfig, payload)
+
 		err = impl.createAndSetToken(&request, nil, payload, draftId, DraftVersionId, email)
 		if err != nil {
 			return events
@@ -427,8 +446,7 @@ func (impl *EventSimpleFactoryImpl) createAndSetToken(request *ConfigDataForNoti
 	}
 	if approvalActionRequest != nil {
 		deploymentApprovalRequest := setDeploymentApprovalRequest(request, approvalActionRequest, emailId, user.Id)
-		//todo have to make expire time configurable
-		token, err := impl.apiTokenService.CreateApiJwtTokenForNotification(nil, deploymentApprovalRequest, 3)
+		token, err := impl.apiTokenService.CreateApiJwtTokenForNotification(deploymentApprovalRequest.SetClaimsForDeploymentApprovalRequest(), impl.tokenVariableConfig.ExpireAtInMs)
 		if err != nil {
 			impl.logger.Errorw("error in generating token for deployment approval request", "err", err)
 			return err
@@ -437,7 +455,7 @@ func (impl *EventSimpleFactoryImpl) createAndSetToken(request *ConfigDataForNoti
 
 	} else {
 		draftRequest := setDraftApprovalRequest(request, draftId, DraftVersionId, emailId, user.Id)
-		token, err := impl.apiTokenService.CreateApiJwtTokenForNotification(draftRequest, nil, 3)
+		token, err := impl.apiTokenService.CreateApiJwtTokenForNotification(draftRequest.SetClaimsForDraftApprovalRequest(), impl.tokenVariableConfig.ExpireAtInMs)
 		if err != nil {
 			impl.logger.Errorw("error in generating token for draft approval request", "err", err)
 			return err

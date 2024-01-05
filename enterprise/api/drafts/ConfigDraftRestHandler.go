@@ -8,6 +8,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/rbac"
+	"github.com/juju/errors"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
@@ -389,21 +390,20 @@ func (impl *ConfigDraftRestHandlerImpl) ApproveDraft(w http.ResponseWriter, r *h
 	token := r.Header.Get("token")
 	envId := draftResponse.EnvId
 	appId := draftResponse.AppId
-	_, _, err = impl.CheckAccessAndApproveDraft(w, envId, appId, token, draftId, draftVersionId, userId)
+	_, err = impl.CheckAccessAndApproveDraft(w, envId, appId, token, draftId, draftVersionId, userId)
+	if err != nil {
+		return
+	}
 
 	common.WriteJsonResp(w, err, nil, http.StatusOK)
 }
 
-func (impl *ConfigDraftRestHandlerImpl) CheckAccessAndApproveDraft(w http.ResponseWriter, envId int, appId int, token string, draftId int, draftVersionId int, userId int32) (drafts.DraftState, bool, error) {
-	var notAnApprover bool
-	if notAnApprover = impl.checkForApproverAccess(w, envId, appId, token, true); notAnApprover {
-		return 0, notAnApprover, nil
+func (impl *ConfigDraftRestHandlerImpl) CheckAccessAndApproveDraft(w http.ResponseWriter, envId int, appId int, token string, draftId int, draftVersionId int, userId int32) (drafts.DraftState, error) {
+	var isNotAuthorized bool
+	if isNotAuthorized = impl.checkForApproverAccess(w, envId, appId, token, true); isNotAuthorized {
+		return 0, errors.Unauthorizedf("Unauthorized user", http.StatusForbidden)
 	}
-	draftState, err := impl.configDraftService.ApproveDraft(draftId, draftVersionId, userId)
-	if err != nil {
-		return draftState, notAnApprover, err
-	}
-	return 0, notAnApprover, nil
+	return impl.configDraftService.ApproveDraft(draftId, draftVersionId, userId)
 }
 
 func (impl *ConfigDraftRestHandlerImpl) DeleteUserComment(w http.ResponseWriter, r *http.Request) {

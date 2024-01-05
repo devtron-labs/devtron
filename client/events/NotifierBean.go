@@ -4,6 +4,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/bean"
 )
 
+const TOKEN = "token"
+
 type NotificationMetaData struct {
 	AppName    string `json:"appName"`
 	EnvName    string `json:"envName"`
