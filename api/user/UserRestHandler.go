@@ -878,7 +878,7 @@ func (handler UserRestHandlerImpl) CleanUpPolicies(w http.ResponseWriter, r *htt
 
 	res, err := handler.cleanUpPoliciesService.CleanUpPolicies()
 	if err != nil || !res {
-		handler.logger.Errorw("service err, DeleteRoleGroup", "err", err)
+		handler.logger.Errorw("service err, Clean Up Policies", "err", err)
 		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
 		return
 	}

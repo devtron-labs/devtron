@@ -66,14 +66,14 @@ func (impl *CleanUpPoliciesServiceImpl) cleanUpDuplicateRolesFromOrchestrator(tx
 	impl.logger.Infow("deleting duplicate mappings for all users from orchestrator")
 	err := impl.cleanUpPoliciesRepository.DeleteDuplicateMappingForAllUsers(tx)
 	if err != nil {
-		impl.logger.Errorw("error in  deleting duplicate role mapping for superadmin", "err", err)
+		impl.logger.Errorw("error in  deleting duplicate role mapping for users", "err", err)
 		return err
 	}
 	impl.logger.Infow("deleted duplicate mappings for all users from orchestrator")
 	impl.logger.Infow("deleting duplicate mappings for all groups from orchestrator")
 	err = impl.cleanUpPoliciesRepository.DeleteDuplicateMappingForAllGroups(tx)
 	if err != nil {
-		impl.logger.Errorw("error in  deleting duplicate role mapping for superadmin", "err", err)
+		impl.logger.Errorw("error in  deleting duplicate role mapping for groups", "err", err)
 		return err
 	}
 	impl.logger.Infow("deleted duplicate mappings for all groups from orchestrator")
@@ -91,17 +91,31 @@ func (impl *CleanUpPoliciesServiceImpl) cleanUpDuplicateRolesFromOrchestrator(tx
 		return err
 	}
 	impl.logger.Infow("updated duplicate role mappings for all groups from orchestrator")
+	impl.logger.Infow("deleting user roles mappings for all users from orchestrator")
+	err = impl.cleanUpPoliciesRepository.DeleteRoleGroupRoleMappingforInactiveUsers(tx)
+	if err != nil {
+		impl.logger.Errorw("error in deleting user roles mappings for deleted users", "err", err)
+		return err
+	}
+	impl.logger.Infow("deleted user roles mappings for all users  for inactive users")
+	impl.logger.Infow("deleting role group role mappings for all groups from orchestrator")
+	err = impl.cleanUpPoliciesRepository.DeleteRoleGroupRoleMappingforInactiveGroups(tx)
+	if err != nil {
+		impl.logger.Errorw("error in deleting role group role mappings for deleted rolegroups", "err", err)
+		return err
+	}
+	impl.logger.Infow("deleted role group roleMapping for inactive groups")
 	impl.logger.Infow("Committing transaction")
 	err = tx.Commit()
 	if err != nil {
 		impl.logger.Errorw("error in committing transaction", "err", err)
 		return err
 	}
-	impl.logger.Infow("commited transaction")
+	impl.logger.Infow("committed transaction")
 	return nil
 }
 
-func (impl *CleanUpPoliciesServiceImpl) cleanUpUnusedRolesFromCasbin() bool {
+func (impl *CleanUpPoliciesServiceImpl) cleanUpUnusedRolesFromCasbin() error {
 	impl.logger.Infow("Loading Policies from casbin")
 	casbin2.LoadPolicy()
 	impl.logger.Infow("Loaded Policies from casbin")
@@ -109,7 +123,7 @@ func (impl *CleanUpPoliciesServiceImpl) cleanUpUnusedRolesFromCasbin() bool {
 	rolesToBeDeleted, err := impl.cleanUpPoliciesRepository.GetAllUnusedRolesForCasbinCleanUp()
 	if err != nil {
 		impl.logger.Errorw("error in getting unused roles for casbin clean Up", "err", err)
-		return false
+		return err
 	}
 	impl.logger.Infow("Got all unused roles for casbin clean up")
 	impl.logger.Infow("Now Removing it from casbin through remove policies by roles", "count of policies to be deleted from casbin", len(rolesToBeDeleted))
@@ -118,12 +132,12 @@ func (impl *CleanUpPoliciesServiceImpl) cleanUpUnusedRolesFromCasbin() bool {
 	impl.logger.Infow("removed from casbin")
 	if err != nil {
 		impl.logger.Warnw("error in deleting casbin policy for role", "roles", rolesToBeDeleted)
-		return false
+		return err
 	}
 	impl.logger.Infow("Loading Policies from casbin")
 	casbin2.LoadPolicy()
 	impl.logger.Infow("Loaded Policies from casbin")
-	return true
+	return nil
 }
 func (impl *CleanUpPoliciesServiceImpl) cleanUpUnusedRolesFromOrchestrator() error {
 	impl.logger.Infow("getting all user mapped roles from orchestrator")
@@ -167,6 +181,7 @@ func (impl *CleanUpPoliciesServiceImpl) cleanUpUnusedRolesFromOrchestrator() err
 	err = impl.cleanUpPoliciesRepository.DeleteAllRolesExceptActive(idsToKeep)
 	if err != nil {
 		impl.logger.Errorw("error in deleting all role groups except active")
+		return err
 	}
 	impl.logger.Infow("deleted all roles except active from orchestrator")
 	return nil
@@ -191,8 +206,8 @@ func (impl *CleanUpPoliciesServiceImpl) CleanUpPolicies() (bool, error) {
 	}
 	impl.logger.Infow("Cleaned up duplicate roles from orchestrator")
 	impl.logger.Infow("Starting Cleaning up Unused roles from casbin now")
-	success := impl.cleanUpUnusedRolesFromCasbin()
-	if !success {
+	err = impl.cleanUpUnusedRolesFromCasbin()
+	if err != nil {
 		impl.logger.Errorw("error in deleting unused roles from casbin", "err", err)
 		return false, err
 	}
