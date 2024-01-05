@@ -4,12 +4,10 @@ import (
 	"context"
 	"errors"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
-	"net/http"
 	"time"
 
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
-	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
@@ -24,7 +22,6 @@ import (
 
 type AppStoreDeploymentHelmService interface {
 	InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, chartGitAttr *util.ChartGitAttribute, ctx context.Context, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error)
-	GetAppStatus(installedAppAndEnvDetails repository.InstalledAppAndEnvDetails, w http.ResponseWriter, r *http.Request, token string) (string, error)
 	DeleteInstalledApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApps *repository.InstalledApps, dbTransaction *pg.Tx) error
 	RollbackRelease(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, deploymentVersion int32, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, bool, error)
 	GetDeploymentHistory(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO) (*client.HelmAppDeploymentHistory, error)
@@ -136,38 +133,6 @@ func (impl AppStoreDeploymentHelmServiceImpl) InstallApp(installAppVersionReques
 		return installAppVersionRequest, err
 	}
 	return installAppVersionRequest, nil
-}
-
-func (impl AppStoreDeploymentHelmServiceImpl) GetAppStatus(installedAppAndEnvDetails repository.InstalledAppAndEnvDetails, w http.ResponseWriter, r *http.Request, token string) (string, error) {
-
-	environment, err := impl.environmentRepository.FindById(installedAppAndEnvDetails.EnvironmentId)
-	if err != nil {
-		impl.Logger.Errorw("Error in getting environment", "err", err)
-		return "", err
-	}
-
-	appIdentifier := &client.AppIdentifier{
-		ClusterId:   environment.ClusterId,
-		Namespace:   environment.Namespace,
-		ReleaseName: installedAppAndEnvDetails.AppName,
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	defer cancel()
-
-	appDetail, err := impl.helmAppService.GetApplicationDetail(ctx, appIdentifier)
-	if err != nil {
-		// handling like argocd
-		impl.Logger.Errorw("error fetching helm app resource tree", "error", err, "appIdentifier", appIdentifier)
-		err = &util.ApiError{
-			Code:            constants.AppDetailResourceTreeNotFound,
-			InternalMessage: "Failed to get resource tree from helm",
-			UserMessage:     "Failed to get resource tree from helm",
-		}
-		return "", err
-	}
-
-	return appDetail.ApplicationStatus, nil
 }
 
 func (impl AppStoreDeploymentHelmServiceImpl) DeleteInstalledApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApps *repository.InstalledApps, dbTransaction *pg.Tx) error {

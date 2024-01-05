@@ -38,7 +38,6 @@ import (
 	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	appStoreDeploymentTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool"
-	appStoreDeploymentGitopsTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool/gitops"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/bean"
@@ -98,7 +97,7 @@ type AppStoreDeploymentServiceImpl struct {
 	clusterInstalledAppsRepository       repository.ClusterInstalledAppsRepository
 	appRepository                        app.AppRepository
 	appStoreDeploymentHelmService        appStoreDeploymentTool.AppStoreDeploymentHelmService
-	appStoreDeploymentArgoCdService      appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdService
+	appStoreDeploymentArgoCdService      appStoreDeploymentTool.AppStoreDeploymentArgoCdService
 	environmentService                   cluster.EnvironmentService
 	clusterService                       cluster.ClusterService
 	helmAppService                       client.HelmAppService
@@ -115,7 +114,7 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRep
 	chartGroupDeploymentRepository repository3.ChartGroupDeploymentRepository, appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository, environmentRepository clusterRepository.EnvironmentRepository,
 	clusterInstalledAppsRepository repository.ClusterInstalledAppsRepository, appRepository app.AppRepository,
 	appStoreDeploymentHelmService appStoreDeploymentTool.AppStoreDeploymentHelmService,
-	appStoreDeploymentArgoCdService appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdService, environmentService cluster.EnvironmentService,
+	appStoreDeploymentArgoCdService appStoreDeploymentTool.AppStoreDeploymentArgoCdService, environmentService cluster.EnvironmentService,
 	clusterService cluster.ClusterService, helmAppService client.HelmAppService, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
 	globalEnvVariables *util2.GlobalEnvVariables,
 	installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository, gitOpsRepository repository2.GitOpsConfigRepository, attributesService attributes.AttributesService,

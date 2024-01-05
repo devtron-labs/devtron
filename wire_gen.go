@@ -83,7 +83,6 @@ import (
 	repository3 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/tool"
-	"github.com/devtron-labs/devtron/pkg/appStore/deployment/tool/gitops"
 	"github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	service3 "github.com/devtron-labs/devtron/pkg/appStore/discover/service"
 	"github.com/devtron-labs/devtron/pkg/appStore/values/repository"
@@ -418,8 +417,8 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	argoClientWrapperServiceImpl := argocdServer.NewArgoClientWrapperServiceImpl(sugaredLogger, applicationServiceClientImpl, acdConfig)
-	appStoreDeploymentFullModeServiceImpl := appStoreDeploymentFullMode.NewAppStoreDeploymentFullModeServiceImpl(sugaredLogger, chartTemplateServiceImpl, refChartProxyDir, repositoryServiceClientImpl, appStoreApplicationVersionRepositoryImpl, environmentRepositoryImpl, applicationServiceClientImpl, argoK8sClientImpl, gitFactory, acdAuthConfig, globalEnvVariables, installedAppRepositoryImpl, tokenCache, argoUserServiceImpl, gitOpsConfigRepositoryImpl, pipelineStatusTimelineServiceImpl, appStoreDeploymentCommonServiceImpl, argoClientWrapperServiceImpl, pubSubClientServiceImpl, installedAppVersionHistoryRepositoryImpl, acdConfig)
-	appStoreDeploymentArgoCdServiceImpl := appStoreDeploymentGitopsTool.NewAppStoreDeploymentArgoCdServiceImpl(sugaredLogger, appStoreDeploymentFullModeServiceImpl, applicationServiceClientImpl, chartGroupDeploymentRepositoryImpl, installedAppRepositoryImpl, installedAppVersionHistoryRepositoryImpl, gitFactory, argoUserServiceImpl, appStoreDeploymentCommonServiceImpl, helmAppServiceImpl, gitOpsConfigRepositoryImpl, appStatusServiceImpl, pipelineStatusTimelineServiceImpl, userServiceImpl, pipelineStatusTimelineRepositoryImpl, appStoreApplicationVersionRepositoryImpl, argoClientWrapperServiceImpl, acdConfig)
+	appStoreDeploymentFullModeServiceImpl := appStoreDeploymentFullMode.NewAppStoreDeploymentFullModeServiceImpl(sugaredLogger, chartTemplateServiceImpl, repositoryServiceClientImpl, applicationServiceClientImpl, argoK8sClientImpl, acdAuthConfig, argoUserServiceImpl, pipelineStatusTimelineServiceImpl, appStoreDeploymentCommonServiceImpl, argoClientWrapperServiceImpl, pubSubClientServiceImpl, installedAppVersionHistoryRepositoryImpl, acdConfig)
+	appStoreDeploymentArgoCdServiceImpl := appStoreDeploymentTool.NewAppStoreDeploymentArgoCdServiceImpl(sugaredLogger, appStoreDeploymentFullModeServiceImpl, applicationServiceClientImpl, chartGroupDeploymentRepositoryImpl, installedAppRepositoryImpl, installedAppVersionHistoryRepositoryImpl, gitFactory, argoUserServiceImpl, appStoreDeploymentCommonServiceImpl, helmAppServiceImpl, gitOpsConfigRepositoryImpl, appStatusServiceImpl, pipelineStatusTimelineServiceImpl, userServiceImpl, pipelineStatusTimelineRepositoryImpl, appStoreApplicationVersionRepositoryImpl, argoClientWrapperServiceImpl, acdConfig)
 	deploymentServiceTypeConfig, err := service.GetDeploymentServiceTypeConfig()
 	if err != nil {
 		return nil, err
