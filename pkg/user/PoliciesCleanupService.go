@@ -115,7 +115,7 @@ func (impl *CleanUpPoliciesServiceImpl) cleanUpDuplicateRolesFromOrchestrator(tx
 	return nil
 }
 
-func (impl *CleanUpPoliciesServiceImpl) cleanUpUnusedRolesFromCasbin() bool {
+func (impl *CleanUpPoliciesServiceImpl) cleanUpUnusedRolesFromCasbin() error {
 	impl.logger.Infow("Loading Policies from casbin")
 	casbin2.LoadPolicy()
 	impl.logger.Infow("Loaded Policies from casbin")
@@ -123,7 +123,7 @@ func (impl *CleanUpPoliciesServiceImpl) cleanUpUnusedRolesFromCasbin() bool {
 	rolesToBeDeleted, err := impl.cleanUpPoliciesRepository.GetAllUnusedRolesForCasbinCleanUp()
 	if err != nil {
 		impl.logger.Errorw("error in getting unused roles for casbin clean Up", "err", err)
-		return false
+		return err
 	}
 	impl.logger.Infow("Got all unused roles for casbin clean up")
 	impl.logger.Infow("Now Removing it from casbin through remove policies by roles", "count of policies to be deleted from casbin", len(rolesToBeDeleted))
@@ -132,12 +132,12 @@ func (impl *CleanUpPoliciesServiceImpl) cleanUpUnusedRolesFromCasbin() bool {
 	impl.logger.Infow("removed from casbin")
 	if err != nil {
 		impl.logger.Warnw("error in deleting casbin policy for role", "roles", rolesToBeDeleted)
-		return false
+		return err
 	}
 	impl.logger.Infow("Loading Policies from casbin")
 	casbin2.LoadPolicy()
 	impl.logger.Infow("Loaded Policies from casbin")
-	return true
+	return nil
 }
 func (impl *CleanUpPoliciesServiceImpl) cleanUpUnusedRolesFromOrchestrator() error {
 	impl.logger.Infow("getting all user mapped roles from orchestrator")
@@ -206,8 +206,8 @@ func (impl *CleanUpPoliciesServiceImpl) CleanUpPolicies() (bool, error) {
 	}
 	impl.logger.Infow("Cleaned up duplicate roles from orchestrator")
 	impl.logger.Infow("Starting Cleaning up Unused roles from casbin now")
-	success := impl.cleanUpUnusedRolesFromCasbin()
-	if !success {
+	err = impl.cleanUpUnusedRolesFromCasbin()
+	if err != nil {
 		impl.logger.Errorw("error in deleting unused roles from casbin", "err", err)
 		return false, err
 	}
