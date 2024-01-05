@@ -255,6 +255,7 @@ func getDiffJson(savedConfigMap, currentConfigMap map[string]interface{}) (map[s
 		// check for the deleted keys
 		if _, ok := currentConfigMap[key]; !ok {
 			lockedMap[key] = nil
+			deletedMap[key] = savedConfigMap[key]
 			continue
 		}
 		if !reflect.DeepEqual(savedConfigMap[key], currentConfigMap[key]) {
