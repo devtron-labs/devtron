@@ -1559,6 +1559,10 @@ func (handler CoreAppRestHandlerImpl) createWorkflows(ctx context.Context, appId
 		//Creating CI pipeline starts
 		ciPipeline, err := handler.createCiPipeline(appId, userId, workflowId, workflow.CiPipeline)
 		if err != nil {
+			if err.Error() == bean2.PIPELINE_NAME_ALREADY_EXISTS_ERROR {
+				handler.logger.Errorw("service err, DeleteAppWorkflow ", "err", err)
+				return err, http.StatusBadRequest
+			}
 			err1 := handler.appWorkflowService.DeleteAppWorkflow(workflowId, userId)
 			if err1 != nil {
 				handler.logger.Errorw("service err, DeleteAppWorkflow ")

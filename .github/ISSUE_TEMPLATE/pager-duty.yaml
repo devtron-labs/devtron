@@ -2,6 +2,7 @@ name: "🚩 Pager duty Bug"
 description: "Submit a bug that is impacting/blocking/limiting a Devtron functionality for an Enterprise."
 title: "Bug: "
 labels: ["bug","pager-duty"]
+projects: ["Devtron Features Prioritization"]
 assignees: ["prakarsh-dt","vikramdevtron","kripanshdevtron","vivek-devtron"]
 body:
   - type: markdown
