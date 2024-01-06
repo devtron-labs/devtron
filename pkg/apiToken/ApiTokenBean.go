@@ -33,8 +33,8 @@ type DraftApprovalRequest struct {
 	NotificationApprovalRequest
 }
 
-func (draftReq *DraftApprovalRequest) SetClaimsForDraftApprovalRequest() *TokenCustomClaimsForNotification {
-	claims := &TokenCustomClaimsForNotification{
+func (draftReq *DraftApprovalRequest) GetClaimsForDraftApprovalRequest() *TokenCustomClaimsForNotification {
+	return &TokenCustomClaimsForNotification{
 		DraftId:        draftReq.DraftId,
 		DraftVersionId: draftReq.DraftVersionId,
 		AppId:          draftReq.NotificationApprovalRequest.AppId,
@@ -44,7 +44,6 @@ func (draftReq *DraftApprovalRequest) SetClaimsForDraftApprovalRequest() *TokenC
 			Email: draftReq.NotificationApprovalRequest.EmailId,
 		},
 	}
-	return claims
 }
 
 type DeploymentApprovalRequest struct {
@@ -54,7 +53,7 @@ type DeploymentApprovalRequest struct {
 	NotificationApprovalRequest
 }
 
-func (depReq *DeploymentApprovalRequest) SetClaimsForDeploymentApprovalRequest() *TokenCustomClaimsForNotification {
+func (depReq *DeploymentApprovalRequest) GetClaimsForDeploymentApprovalRequest() *TokenCustomClaimsForNotification {
 	return &TokenCustomClaimsForNotification{
 		ApprovalRequestId: depReq.ApprovalRequestId,
 		ArtifactId:        depReq.ArtifactId,
