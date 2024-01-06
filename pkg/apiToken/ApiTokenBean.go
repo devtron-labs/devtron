@@ -22,15 +22,26 @@ type TokenCustomClaimsForNotification struct {
 	UserId            int32                       `json:"userId"`
 	ApiTokenCustomClaims
 }
-
-func (claims *TokenCustomClaimsForNotification) setRegisteredClaims(registeredClaims jwt.RegisteredClaims) {
-	claims.RegisteredClaims = registeredClaims
-}
-
 type DraftApprovalRequest struct {
 	DraftId        int `json:"draftId"`
 	DraftVersionId int `json:"draftVersionId"`
 	NotificationApprovalRequest
+}
+type DeploymentApprovalRequest struct {
+	ApprovalRequestId int `json:"approvalRequestId"`
+	ArtifactId        int `json:"artifactId"`
+	PipelineId        int `json:"pipelineId"`
+	NotificationApprovalRequest
+}
+type NotificationApprovalRequest struct {
+	AppId   int    `json:"appId" validate:"required"`
+	EnvId   int    `json:"envId"`
+	EmailId string `json:"email"`
+	UserId  int32  `json:"userId"`
+}
+
+func (claims *TokenCustomClaimsForNotification) setRegisteredClaims(registeredClaims jwt.RegisteredClaims) {
+	claims.RegisteredClaims = registeredClaims
 }
 
 func (draftReq *DraftApprovalRequest) GetClaimsForDraftApprovalRequest() *TokenCustomClaimsForNotification {
@@ -44,13 +55,6 @@ func (draftReq *DraftApprovalRequest) GetClaimsForDraftApprovalRequest() *TokenC
 			Email: draftReq.NotificationApprovalRequest.EmailId,
 		},
 	}
-}
-
-type DeploymentApprovalRequest struct {
-	ApprovalRequestId int `json:"approvalRequestId"`
-	ArtifactId        int `json:"artifactId"`
-	PipelineId        int `json:"pipelineId"`
-	NotificationApprovalRequest
 }
 
 func (depReq *DeploymentApprovalRequest) GetClaimsForDeploymentApprovalRequest() *TokenCustomClaimsForNotification {
@@ -77,19 +81,10 @@ func (depReq *DeploymentApprovalRequest) CreateApprovalActionRequest() bean.User
 	}
 }
 
-type NotificationApprovalRequest struct {
-	AppId   int    `json:"appId" validate:"required"`
-	EnvId   int    `json:"envId"`
-	EmailId string `json:"email"`
-	UserId  int32  `json:"userId"`
-}
-
 func (draftReq *DraftApprovalRequest) CreateDraftApprovalRequest(jsonStr []byte) error {
-	err := json.Unmarshal(jsonStr, draftReq)
-	return err
+	return json.Unmarshal(jsonStr, draftReq)
 }
 
 func (depReq *DeploymentApprovalRequest) CreateDeploymentApprovalRequest(jsonStr []byte) error {
-	err := json.Unmarshal(jsonStr, depReq)
-	return err
+	return json.Unmarshal(jsonStr, depReq)
 }
