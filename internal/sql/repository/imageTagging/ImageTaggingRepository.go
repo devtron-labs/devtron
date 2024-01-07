@@ -170,15 +170,13 @@ func (impl *ImageTaggingRepositoryImpl) DeleteReleaseTagInBulk(tx *pg.Tx, imageT
 	return nil
 }
 func (impl *ImageTaggingRepositoryImpl) GetImageTagsAndComment(artifactId int) (ImageComment, []string, error) {
-	var imageComment ImageComment
-	var imageTags []*ImageTag
 	var imageTagNames []string
 	imageComment, err := impl.GetImageComment(artifactId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error fetching imageComment", "imageComment", imageComment, "err", err)
 		return imageComment, imageTagNames, nil
 	}
-	imageTags, err = impl.GetTagsByArtifactId(artifactId)
+	imageTags, err := impl.GetTagsByArtifactId(artifactId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error fetching imageTags", "imageTags", imageTags, "err", err)
 		return imageComment, imageTagNames, nil

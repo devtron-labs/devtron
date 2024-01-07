@@ -1,7 +1,6 @@
 package apiToken
 
 import (
-	"encoding/json"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/golang-jwt/jwt/v4"
 )
@@ -79,12 +78,4 @@ func (depReq *DeploymentApprovalRequest) CreateApprovalActionRequest() bean.User
 		PipelineId:        depReq.PipelineId,
 		ArtifactId:        depReq.ArtifactId,
 	}
-}
-
-func (draftReq *DraftApprovalRequest) CreateDraftApprovalRequest(jsonStr []byte) error {
-	return json.Unmarshal(jsonStr, draftReq)
-}
-
-func (depReq *DeploymentApprovalRequest) CreateDeploymentApprovalRequest(jsonStr []byte) error {
-	return json.Unmarshal(jsonStr, depReq)
 }

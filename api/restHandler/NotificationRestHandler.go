@@ -28,6 +28,7 @@ import (
 	"github.com/devtron-labs/devtron/enterprise/api/drafts"
 	drafts2 "github.com/devtron-labs/devtron/enterprise/pkg/drafts"
 	"github.com/devtron-labs/devtron/pkg/apiToken"
+	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"io/ioutil"
 	"net/http"
@@ -108,7 +109,10 @@ func NewNotificationRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistry
 	validator *validator.Validate, notificationService notifier.NotificationConfigService,
 	slackService notifier.SlackNotificationService, webhookService notifier.WebhookNotificationService, sesService notifier.SESNotificationService, smtpService notifier.SMTPNotificationService,
 	enforcer casbin.Enforcer, teamService team.TeamService, environmentService cluster.EnvironmentService, pipelineBuilder pipeline.PipelineBuilder,
-	enforcerUtil rbac.EnforcerUtil, configDraftRestHandlerImpl *drafts.ConfigDraftRestHandlerImpl, cdHandler pipeline.CdHandler) *NotificationRestHandlerImpl {
+	enforcerUtil rbac.EnforcerUtil,
+	configDraftRestHandlerImpl *drafts.ConfigDraftRestHandlerImpl,
+	cdHandler pipeline.CdHandler,
+) *NotificationRestHandlerImpl {
 	return &NotificationRestHandlerImpl{
 		dockerRegistryConfig:       dockerRegistryConfig,
 		logger:                     logger,
@@ -1159,13 +1163,13 @@ func (impl NotificationRestHandlerImpl) DeleteNotificationChannelConfig(w http.R
 func (impl NotificationRestHandlerImpl) ConsumeDraftApprovalNotification(w http.ResponseWriter, r *http.Request) {
 	token := r.URL.Query().Get(client.TOKEN)
 	//verification is done internally
-	draftRequest, err := impl.createDraftRequest(w, token)
+	draftRequest, err := impl.createDraftRequest(token)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	draftState, err := impl.configDraftRestHandlerImpl.CheckAccessAndApproveDraft(w, draftRequest.EnvId, draftRequest.AppId, token, draftRequest.DraftId, draftRequest.DraftVersionId, draftRequest.UserId)
-	if errRes := err.(*sso.UnauthorizedException); errRes.StatusCode() == 403 {
+	if errRes := err.(*sso.UnauthorizedException); errRes.StatusCode() == http.StatusForbidden {
 		return
 	}
 	if err != nil && draftState == drafts2.UndefinedDraftState {
@@ -1182,25 +1186,22 @@ func (impl NotificationRestHandlerImpl) ConsumeDraftApprovalNotification(w http.
 
 }
 
-func (impl NotificationRestHandlerImpl) createDraftRequest(w http.ResponseWriter, token string) (*apiToken.DraftApprovalRequest, error) {
+func (impl NotificationRestHandlerImpl) createDraftRequest(token string) (*apiToken.DraftApprovalRequest, error) {
 	claimBytes, err := impl.userAuthService.GetFieldValuesFromToken(token)
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return nil, err
 	}
-	draftApprovalRequest := &apiToken.DraftApprovalRequest{}
-	err = draftApprovalRequest.CreateDraftApprovalRequest(claimBytes)
+	draftApprovalRequest := CreateDraftApprovalRequest(claimBytes)
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return nil, err
 	}
 	return draftApprovalRequest, nil
 }
 
 func (impl NotificationRestHandlerImpl) ConsumeDeploymentApprovalNotification(w http.ResponseWriter, r *http.Request) {
-	token := r.URL.Query().Get("token")
+	token := r.URL.Query().Get(client.TOKEN)
 	//verification is done internally
-	deploymentApprovalRequest, err := impl.createDeploymentApprovalRequest(w, token)
+	deploymentApprovalRequest, err := impl.createDeploymentApprovalRequest(token)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
@@ -1218,7 +1219,7 @@ func (impl NotificationRestHandlerImpl) ConsumeDeploymentApprovalNotification(w 
 		return
 	}
 	approvalState, err := impl.cdHandler.PerformDeploymentApprovalAction(deploymentApprovalRequest.UserId, approvalActionRequest)
-	if err != nil && approvalState == 0 {
+	if err != nil && approvalState == bean.UndefinedApprovalState {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -1226,17 +1227,27 @@ func (impl NotificationRestHandlerImpl) ConsumeDeploymentApprovalNotification(w 
 	resp.Status = approvalState
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
-func (impl NotificationRestHandlerImpl) createDeploymentApprovalRequest(w http.ResponseWriter, token string) (*apiToken.DeploymentApprovalRequest, error) {
+func (impl NotificationRestHandlerImpl) createDeploymentApprovalRequest(token string) (*apiToken.DeploymentApprovalRequest, error) {
 	claimBytes, err := impl.userAuthService.GetFieldValuesFromToken(token)
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return nil, err
 	}
-	deploymentApprovalRequest := &apiToken.DeploymentApprovalRequest{}
-	err = deploymentApprovalRequest.CreateDeploymentApprovalRequest(claimBytes)
+
+	deploymentApprovalRequest := CreateDeploymentApprovalRequest(claimBytes)
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return nil, err
 	}
 	return deploymentApprovalRequest, err
+}
+
+func CreateDraftApprovalRequest(jsonStr []byte) *apiToken.DraftApprovalRequest {
+	draftApprovalRequest := &apiToken.DraftApprovalRequest{}
+	json.Unmarshal(jsonStr, draftApprovalRequest)
+	return draftApprovalRequest
+}
+
+func CreateDeploymentApprovalRequest(jsonStr []byte) *apiToken.DeploymentApprovalRequest {
+	deploymentApprovalRequest := &apiToken.DeploymentApprovalRequest{}
+	json.Unmarshal(jsonStr, deploymentApprovalRequest)
+	return deploymentApprovalRequest
 }

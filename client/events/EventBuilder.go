@@ -20,7 +20,6 @@ package client
 import (
 	"context"
 	"fmt"
-	"github.com/caarlos0/env"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -64,8 +63,7 @@ type EventSimpleFactoryImpl struct {
 	imageTagRepository           repository3.ImageTaggingRepository
 	appRepo                      appRepository.AppRepository
 	envRepository                repository4.EnvironmentRepository
-	apiTokenService              apiToken.ApiTokenService
-	tokenVariableConfig          *TokenVariableConfig
+	apiTokenServiceImpl          *apiToken.ApiTokenServiceImpl
 }
 
 func NewEventSimpleFactoryImpl(logger *zap.SugaredLogger, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
@@ -74,8 +72,9 @@ func NewEventSimpleFactoryImpl(logger *zap.SugaredLogger, cdWorkflowRepository p
 	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository,
 	userRepository repository.UserRepository, ciArtifactRepository repository2.CiArtifactRepository, DeploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository,
 	sesNotificationRepository repository2.SESNotificationRepository, smtpNotificationRepository repository2.SMTPNotificationRepository, imageTagRepository repository3.ImageTaggingRepository,
-	appRepo appRepository.AppRepository, envRepository repository4.EnvironmentRepository, apiTokenService apiToken.ApiTokenService) (*EventSimpleFactoryImpl, error) {
-	eventSimpleFactory := &EventSimpleFactoryImpl{
+	appRepo appRepository.AppRepository, envRepository repository4.EnvironmentRepository, apiTokenServiceImpl *apiToken.ApiTokenServiceImpl,
+) *EventSimpleFactoryImpl {
+	return &EventSimpleFactoryImpl{
 		logger:                       logger,
 		cdWorkflowRepository:         cdWorkflowRepository,
 		pipelineOverrideRepository:   pipelineOverrideRepository,
@@ -91,14 +90,9 @@ func NewEventSimpleFactoryImpl(logger *zap.SugaredLogger, cdWorkflowRepository p
 		imageTagRepository:           imageTagRepository,
 		appRepo:                      appRepo,
 		envRepository:                envRepository,
-		apiTokenService:              apiTokenService,
+		apiTokenServiceImpl:          apiTokenServiceImpl,
 	}
-	cfg, err := GetTokenConfig()
-	if err != nil {
-		return nil, err
-	}
-	eventSimpleFactory.tokenVariableConfig = cfg
-	return eventSimpleFactory, nil
+
 }
 
 type ResourceType string
@@ -132,15 +126,6 @@ const (
 	SMTP_CONFIG_TYPE = "smtp"
 )
 
-type TokenVariableConfig struct {
-	ExpireAtInMs int64 `env:"TOKEN_EXPIRY_TIME" envDefault:"43200"`
-}
-
-func GetTokenConfig() (*TokenVariableConfig, error) {
-	cfg := &TokenVariableConfig{}
-	err := env.Parse(cfg)
-	return cfg, err
-}
 func (impl *EventSimpleFactoryImpl) Build(eventType util.EventType, sourceId *int, appId int, envId *int, pipelineType util.PipelineType) Event {
 	correlationId := uuid.NewV4()
 	event := Event{}
@@ -358,8 +343,8 @@ func (impl *EventSimpleFactoryImpl) BuildExtraApprovalData(event Event, approval
 	}
 	EmailIds := approvalActionRequest.ApprovalNotificationConfig.EmailIds
 	for _, emailId := range EmailIds {
-		payload := &Payload{}
-		err = impl.setApprovalEventPayload(event, approvalActionRequest, cdPipeline, payload)
+
+		payload, err := impl.setApprovalEventPayload(event, approvalActionRequest, cdPipeline)
 		if err != nil {
 			impl.logger.Errorw("error in setting payload", "error", err)
 			return events
@@ -378,17 +363,18 @@ func (impl *EventSimpleFactoryImpl) BuildExtraApprovalData(event Event, approval
 
 	return events
 }
-func (impl *EventSimpleFactoryImpl) setApprovalEventPayload(event Event, approvalActionRequest bean.UserApprovalActionRequest, cdPipeline *pipelineConfig.Pipeline, payload *Payload) error {
+func (impl *EventSimpleFactoryImpl) setApprovalEventPayload(event Event, approvalActionRequest bean.UserApprovalActionRequest, cdPipeline *pipelineConfig.Pipeline) (*Payload, error) {
+	payload := &Payload{}
 	imageComment, imageTagNames, err := impl.imageTagRepository.GetImageTagsAndComment(approvalActionRequest.ArtifactId)
 	if err != nil {
-		return err
+		return payload, err
 	}
 	payload.ImageComment = imageComment.Comment
 	payload.ImageTagNames = imageTagNames
 	ciArtifact, err := impl.ciArtifactRepository.Get(approvalActionRequest.ArtifactId)
 	if err != nil {
 		impl.logger.Errorw("error fetching ciArtifact", "ciArtifact", ciArtifact, "err", err)
-		return err
+		return payload, err
 	}
 	payload.AppName = cdPipeline.App.AppName
 	payload.EnvName = cdPipeline.Environment.Name
@@ -400,7 +386,7 @@ func (impl *EventSimpleFactoryImpl) setApprovalEventPayload(event Event, approva
 		dockerImageTag = split[len(split)-1]
 	}
 	payload.ImageApprovalLink = fmt.Sprintf("/dashboard/app/%d/trigger?approval-node=%d&imageTag=%s", event.AppId, cdPipeline.Id, dockerImageTag)
-	return nil
+	return payload, err
 }
 
 func (impl *EventSimpleFactoryImpl) BuildExtraProtectConfigData(event Event, request ConfigDataForNotification, draftId int, DraftVersionId int) []Event {
@@ -418,8 +404,7 @@ func (impl *EventSimpleFactoryImpl) BuildExtraProtectConfigData(event Event, req
 		impl.logger.Errorw("found error on getting user data ", "user", user)
 	}
 	for _, email := range request.EmailIds {
-		payload := &Payload{}
-		err = impl.setEventPayload(request, payload)
+		payload, err := impl.setEventPayload(request)
 		if err != nil {
 			impl.logger.Errorw("error in setting payload", "error", err)
 			return events
@@ -446,7 +431,7 @@ func (impl *EventSimpleFactoryImpl) createAndSetToken(request *ConfigDataForNoti
 	}
 	if approvalActionRequest != nil {
 		deploymentApprovalRequest := setDeploymentApprovalRequest(request, approvalActionRequest, emailId, user.Id)
-		token, err := impl.apiTokenService.CreateApiJwtTokenForNotification(deploymentApprovalRequest.GetClaimsForDeploymentApprovalRequest(), impl.tokenVariableConfig.ExpireAtInMs)
+		token, err := impl.apiTokenServiceImpl.CreateApiJwtTokenForNotification(deploymentApprovalRequest.GetClaimsForDeploymentApprovalRequest(), impl.apiTokenServiceImpl.TokenVariableConfig.ExpireAtInMs)
 		if err != nil {
 			impl.logger.Errorw("error in generating token for deployment approval request", "err", err)
 			return err
@@ -455,7 +440,7 @@ func (impl *EventSimpleFactoryImpl) createAndSetToken(request *ConfigDataForNoti
 
 	} else {
 		draftRequest := setDraftApprovalRequest(request, draftId, DraftVersionId, emailId, user.Id)
-		token, err := impl.apiTokenService.CreateApiJwtTokenForNotification(draftRequest.GetClaimsForDraftApprovalRequest(), impl.tokenVariableConfig.ExpireAtInMs)
+		token, err := impl.apiTokenServiceImpl.CreateApiJwtTokenForNotification(draftRequest.GetClaimsForDraftApprovalRequest(), impl.apiTokenServiceImpl.TokenVariableConfig.ExpireAtInMs)
 		if err != nil {
 			impl.logger.Errorw("error in generating token for draft approval request", "err", err)
 			return err
@@ -507,21 +492,21 @@ func setProviderForNotification(emailId string, defaultSesConfig *repository2.SE
 
 }
 
-func (impl *EventSimpleFactoryImpl) setEventPayload(request ConfigDataForNotification, payload *Payload) error {
-
+func (impl *EventSimpleFactoryImpl) setEventPayload(request ConfigDataForNotification) (*Payload, error) {
+	payload := &Payload{}
 	protectConfigLink := setProtectConfigLink(request)
 	payload.ProtectConfigLink = protectConfigLink
 	application, err := impl.appRepo.FindById(request.AppId)
 	if err != nil {
 		impl.logger.Errorw("error occurred while fetching application", "err", err)
-		return err
+		return payload, err
 	}
 	environment := &repository4.Environment{}
 	if request.EnvId != -1 {
 		environment, err = impl.envRepository.FindById(request.EnvId)
 		if err != nil {
 			impl.logger.Errorw("error occurred while fetching environment", "err", err)
-			return err
+			return payload, err
 		}
 	}
 	payload.AppName = application.AppName
@@ -534,7 +519,7 @@ func (impl *EventSimpleFactoryImpl) setEventPayload(request ConfigDataForNotific
 		payload.ProtectConfigFileName = request.ResourceName
 	}
 
-	return nil
+	return payload, err
 }
 func setProtectConfigLink(request ConfigDataForNotification) string {
 	var ProtectConfigLink string

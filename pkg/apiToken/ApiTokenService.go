@@ -20,6 +20,7 @@ package apiToken
 import (
 	"errors"
 	"fmt"
+	"github.com/caarlos0/env"
 	"github.com/devtron-labs/authenticator/middleware"
 	"github.com/devtron-labs/devtron/api/bean"
 	openapi "github.com/devtron-labs/devtron/api/openapi/openapiClient"
@@ -49,17 +50,45 @@ type ApiTokenServiceImpl struct {
 	userService           user.UserService
 	userAuditService      user.UserAuditService
 	apiTokenRepository    ApiTokenRepository
+	TokenVariableConfig   *TokenVariableConfig
 }
 
 func NewApiTokenServiceImpl(logger *zap.SugaredLogger, apiTokenSecretService ApiTokenSecretService, userService user.UserService, userAuditService user.UserAuditService,
-	apiTokenRepository ApiTokenRepository) *ApiTokenServiceImpl {
-	return &ApiTokenServiceImpl{
+	apiTokenRepository ApiTokenRepository,
+) (*ApiTokenServiceImpl, error) {
+	apiTokenService := &ApiTokenServiceImpl{
 		logger:                logger,
 		apiTokenSecretService: apiTokenSecretService,
 		userService:           userService,
 		userAuditService:      userAuditService,
 		apiTokenRepository:    apiTokenRepository,
 	}
+
+	cfg, err := GetTokenConfig()
+	if err != nil {
+		return nil, err
+	}
+	apiTokenService.TokenVariableConfig = cfg
+
+	return apiTokenService, err
+}
+func GetTokenConfig() (*TokenVariableConfig, error) {
+	cfg := &TokenVariableConfig{}
+	err := env.Parse(cfg)
+	if cfg.ExpireAtInMs == 0 {
+		cfg.ExpireAtInMs = SetExpiryTimeDefault()
+		return cfg, err
+	}
+	return cfg, err
+}
+
+type TokenVariableConfig struct {
+	ExpireAtInMs int64 `env:"TOKEN_EXPIRY_TIME"`
+}
+
+func SetExpiryTimeDefault() int64 {
+	expirationTime := time.Now().Add(30 * 24 * time.Hour)
+	return expirationTime.UnixNano() / int64(time.Millisecond)
 }
 
 const API_TOKEN_USER_EMAIL_PREFIX = "API-TOKEN:"

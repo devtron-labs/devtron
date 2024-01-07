@@ -1182,11 +1182,6 @@ func (impl UserServiceImpl) GetFieldValuesFromToken(token string) ([]byte, error
 		return claimBytes, err
 	}
 	impl.logger.Infow("got map claims", "mapClaims", mapClaims)
-	//for _, name := range fieldNames {
-	//	if value, ok := mapClaims[name]; ok {
-	//		fieldNameToValue[name] = value
-	//	}
-	//}
 	claimBytes, err = json.Marshal(mapClaims)
 	if err != nil {
 		return nil, err
