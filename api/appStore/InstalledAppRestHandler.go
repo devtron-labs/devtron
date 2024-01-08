@@ -36,7 +36,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
 	"github.com/devtron-labs/devtron/pkg/cluster"
-	"github.com/devtron-labs/devtron/pkg/gitops"
 	application2 "github.com/devtron-labs/devtron/pkg/k8s/application"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
@@ -85,7 +84,6 @@ type InstalledAppRestHandlerImpl struct {
 	installedAppRepository           repository.InstalledAppRepository
 	K8sApplicationService            application2.K8sApplicationService
 	appCrudOperationService          app2.AppCrudOperationService
-	gitOpsService                    gitops.GitOpsConfigService
 }
 
 func NewInstalledAppRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService,
@@ -96,7 +94,6 @@ func NewInstalledAppRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService u
 	cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler,
 	installedAppRepository repository.InstalledAppRepository,
 	appCrudOperationService app2.AppCrudOperationService,
-	gitOpsService gitops.GitOpsConfigService,
 ) *InstalledAppRestHandlerImpl {
 	return &InstalledAppRestHandlerImpl{
 		Logger:                           Logger,
@@ -114,7 +111,6 @@ func NewInstalledAppRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService u
 		cdApplicationStatusUpdateHandler: cdApplicationStatusUpdateHandler,
 		installedAppRepository:           installedAppRepository,
 		appCrudOperationService:          appCrudOperationService,
-		gitOpsService:                    gitOpsService,
 	}
 }
 func (handler *InstalledAppRestHandlerImpl) FetchAppOverview(w http.ResponseWriter, r *http.Request) {
