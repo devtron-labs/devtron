@@ -158,7 +158,7 @@ func (repo *ConfigDraftRepositoryImpl) GetDraftVersionComments(draftId int) ([]*
 	return draftComments, err
 }
 func (repo *ConfigDraftRepositoryImpl) GetDraftComments(draftVersionId int) (*DraftVersionComment, error) {
-	var draftComment *DraftVersionComment
+	draftComment := &DraftVersionComment{}
 	err := repo.dbConnection.Model(draftComment).
 		Where("draft_version_id = ?", draftVersionId).
 		Where("active = ?", true).Select()

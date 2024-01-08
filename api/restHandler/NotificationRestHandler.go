@@ -1178,7 +1178,7 @@ func (impl NotificationRestHandlerImpl) ConsumeDraftApprovalNotification(w http.
 		}
 		return
 	}
-	resp, err := impl.notificationService.DraftApprovalNotificationRequest(&draftRequest)
+	resp, err := impl.notificationService.GetMetaDataForDraftNotification(&draftRequest)
 	resp.DraftState = uint8(draftState)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -1225,7 +1225,7 @@ func (impl NotificationRestHandlerImpl) ConsumeDeploymentApprovalNotification(w 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	resp, err := impl.notificationService.DeploymentApprovalNotificationRequest(&deploymentApprovalRequest, pipelineInfo.App.AppName, pipelineInfo.Environment.Name)
+	resp, err := impl.notificationService.GetMetaDataForDeploymentNotification(&deploymentApprovalRequest, pipelineInfo.App.AppName, pipelineInfo.Environment.Name)
 	resp.Status = approvalState
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)

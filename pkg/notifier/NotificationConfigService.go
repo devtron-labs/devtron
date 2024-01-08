@@ -47,8 +47,8 @@ type NotificationConfigService interface {
 	IsSesOrSmtpConfigured() (*ConfigCheck, error)
 	UpdateNotificationSettings(notificationSettingsRequest *NotificationUpdateRequest, userId int32) (int, error)
 	FetchNSViewByIds(ids []*int) ([]*NSConfig, error)
-	DraftApprovalNotificationRequest(draftRequest *apiToken.DraftApprovalRequest) (*client.DraftApprovalResponse, error)
-	DeploymentApprovalNotificationRequest(deploymentApprovalRequest *apiToken.DeploymentApprovalRequest, appName string, envName string) (*client.DeploymentApprovalResponse, error)
+	GetMetaDataForDraftNotification(draftRequest *apiToken.DraftApprovalRequest) (*client.DraftApprovalResponse, error)
+	GetMetaDataForDeploymentNotification(deploymentApprovalRequest *apiToken.DeploymentApprovalRequest, appName string, envName string) (*client.DeploymentApprovalResponse, error)
 }
 
 type NotificationConfigServiceImpl struct {
@@ -935,7 +935,7 @@ func (impl *NotificationConfigServiceImpl) IsSesOrSmtpConfigured() (*ConfigCheck
 	return &configCheck, nil
 }
 
-func (impl *NotificationConfigServiceImpl) DraftApprovalNotificationRequest(draftRequest *apiToken.DraftApprovalRequest) (*client.DraftApprovalResponse, error) {
+func (impl *NotificationConfigServiceImpl) GetMetaDataForDraftNotification(draftRequest *apiToken.DraftApprovalRequest) (*client.DraftApprovalResponse, error) {
 	DraftApprovalResp := &client.DraftApprovalResponse{}
 	envName, appName, err := impl.getEnvAndAppName(draftRequest.EnvId, draftRequest.AppId)
 	if err != nil {
@@ -987,7 +987,7 @@ func (impl *NotificationConfigServiceImpl) getEnvAndAppName(envId int, appId int
 	appName = application.AppName
 	return envName, appName, err
 }
-func (impl *NotificationConfigServiceImpl) DeploymentApprovalNotificationRequest(deploymentApprovalRequest *apiToken.DeploymentApprovalRequest, appName string, envName string) (*client.DeploymentApprovalResponse, error) {
+func (impl *NotificationConfigServiceImpl) GetMetaDataForDeploymentNotification(deploymentApprovalRequest *apiToken.DeploymentApprovalRequest, appName string, envName string) (*client.DeploymentApprovalResponse, error) {
 	DeploymentApprovalResp := &client.DeploymentApprovalResponse{}
 	ciArtifact, err := impl.ciArtifactRepository.Get(deploymentApprovalRequest.ArtifactId)
 	if err != nil {

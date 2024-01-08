@@ -395,7 +395,6 @@ func (impl *EventSimpleFactoryImpl) BuildExtraProtectConfigData(event Event, req
 		impl.logger.Errorw("found error in getting defaultSesConfig or  defaultSmtpConfig data", "err", err)
 	}
 	var events []Event
-
 	if request.UserId == 0 {
 		return events
 	}
