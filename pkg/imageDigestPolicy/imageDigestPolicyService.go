@@ -47,17 +47,22 @@ func (impl ImageDigestQualifierMappingServiceImpl) CreateOrDeletePolicyForPipeli
 		return err
 	}
 
-	if err == pg.ErrNoRows && isImageDigestEnforcedInRequest {
+	if len(qualifierMappings) == 0 && isImageDigestEnforcedInRequest {
 
 		qualifierMapping := &resourceQualifiers.QualifierMapping{
 			ResourceId:            resourceQualifiers.ImageDigestResourceId,
 			ResourceType:          resourceQualifiers.ImageDigest,
-			QualifierId:           int(resourceQualifiers.APP_AND_ENV_QUALIFIER),
+			QualifierId:           int(resourceQualifiers.PIPELINE_QUALIFIER),
 			IdentifierKey:         devtronResourceSearchableKeyMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_PIPELINE_ID],
 			IdentifierValueInt:    pipelineId,
-			Active:                false,
+			Active:                true,
 			IdentifierValueString: fmt.Sprintf("%d", pipelineId),
-			AuditLog:              sql.AuditLog{},
+			AuditLog: sql.AuditLog{
+				CreatedOn: time.Now(),
+				CreatedBy: UserId,
+				UpdatedOn: time.Now(),
+				UpdatedBy: UserId,
+			},
 		}
 
 		dbConnection := impl.qualifierMappingService.GetDbConnection()
@@ -82,6 +87,7 @@ func (impl ImageDigestQualifierMappingServiceImpl) CreateOrDeletePolicyForPipeli
 		err := impl.qualifierMappingService.DeleteAllQualifierMappingsByIdentifierKeyAndValue(devtronResourceSearchableKeyMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_PIPELINE_ID], pipelineId, auditLog, tx)
 		if err != nil {
 			impl.logger.Errorw("error in deleting image digest policy for pipeline", "err", err, "pipeline id", pipelineId)
+			return err
 		}
 		_ = tx.Commit()
 
@@ -108,5 +114,5 @@ func (impl ImageDigestQualifierMappingServiceImpl) getQualifierMappingForPipelin
 	if err != nil && err != pg.ErrNoRows {
 		return qualifierMappings, err
 	}
-	return qualifierMappings, nil
+	return qualifierMappings, err
 }

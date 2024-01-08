@@ -44,8 +44,8 @@ func (repo *QualifiersMappingRepositoryImpl) addScopeWhereClause(query *orm.Quer
 	return query.Where(
 		"( (identifier_key = ? AND identifier_value_int = ?)  AND qualifier_id = ?) "+
 			"OR (qualifier_id = ? ) ",
-		searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_PIPELINE_ID], scope.PipelineId, APP_AND_ENV_QUALIFIER, GLOBAL_QUALIFIER,
-	)
+		searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_PIPELINE_ID], scope.PipelineId, PIPELINE_QUALIFIER,
+		GLOBAL_QUALIFIER)
 }
 
 func (repo *QualifiersMappingRepositoryImpl) GetQualifierMappings(resourceType ResourceType, scope *Scope, searchableIdMap map[bean.DevtronResourceSearchableKeyName]int, resourceIds []int) ([]*QualifierMapping, error) {
@@ -87,7 +87,7 @@ func (repo *QualifiersMappingRepositoryImpl) DeleteAllByIdentifierKeyAndValue(id
 		Set("active = ?", false).
 		Where("active = ?", true).
 		Where("identifier_key = ?", identifierKey).
-		Where("identifier_value = ?", identifierValue).
+		Where("identifier_value_int = ?", identifierValue).
 		Update()
 	return err
 }

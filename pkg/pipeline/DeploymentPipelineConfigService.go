@@ -796,6 +796,11 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 			impl.logger.Errorw("error in deleting custom tag for pre-cd stage", "Err", err, "cd-pipeline-id", pipeline.Id)
 		}
 	}
+	err = impl.imageDigestQualifierMappingService.CreateOrDeletePolicyForPipeline(pipeline.Id, false, userId)
+	if err != nil {
+		impl.logger.Errorw("error in imageDigestPolicy operation", "err", err, "pipelineId", pipeline.Id)
+		return nil, err
+	}
 	//delete app from argo cd, if created
 	if pipeline.DeploymentAppCreated == true {
 		deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
