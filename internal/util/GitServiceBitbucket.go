@@ -71,50 +71,6 @@ func (impl GitBitbucketClient) GetRepoUrl(config *bean2.GitOpsConfigDto) (repoUr
 	}
 }
 
-func (impl GitBitbucketClient) EnsureRepoAvailableOnSsh(config *bean2.GitOpsConfigDto, repoUrl string) (string, error) {
-	workSpaceId := config.BitBucketWorkspaceId
-	projectKey := config.BitBucketProjectKey
-	repoOptions := &bitbucket.RepositoryOptions{
-		Owner:       workSpaceId,
-		RepoSlug:    config.GitRepoName,
-		Scm:         "git",
-		IsPrivate:   "true",
-		Description: config.Description,
-		Project:     projectKey,
-	}
-	validated, err := impl.ensureProjectAvailabilityOnSsh(repoOptions)
-	if err != nil {
-		impl.logger.Errorw("error in ensuring project availability in Bitbucket", "project", config.GitRepoName, "err", err)
-		return CloneSshStage, err
-	}
-	if !validated {
-		return "unable to validate project", fmt.Errorf("%s in given time", config.GitRepoName)
-	}
-	return "", nil
-}
-
-func (impl GitBitbucketClient) EnsureRepoAvailableOnHttp(config *bean2.GitOpsConfigDto) (string, error) {
-	workSpaceId := config.BitBucketWorkspaceId
-	projectKey := config.BitBucketProjectKey
-	repoOptions := &bitbucket.RepositoryOptions{
-		Owner:       workSpaceId,
-		RepoSlug:    config.GitRepoName,
-		Scm:         "git",
-		IsPrivate:   "true",
-		Description: config.Description,
-		Project:     projectKey,
-	}
-	validated, err := impl.ensureProjectAvailabilityOnHttp(repoOptions)
-	if err != nil {
-		impl.logger.Errorw("error in ensuring project availability github", "project", config.GitRepoName, "err", err)
-		return CloneHttpStage, err
-	}
-	if !validated {
-		return "unable to validate project", fmt.Errorf("%s in given time", config.GitRepoName)
-	}
-	return "", nil
-}
-
 func (impl GitBitbucketClient) CreateRepository(config *bean2.GitOpsConfigDto) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
 

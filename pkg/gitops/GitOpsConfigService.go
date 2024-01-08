@@ -62,8 +62,8 @@ type GitOpsConfigService interface {
 	GetGitOpsConfigByProvider(provider string) (*bean2.GitOpsConfigDto, error)
 	GetGitOpsConfigActive() (*bean2.GitOpsConfigDto, error)
 	// ValidateCustomGitRepoURL performs the following validations:
-	// "Get Repo URL", "Organisational URL Validation", "Clone Http", "Clone Ssh", "Create Readme"
-	// And returns: bean.DetailedErrorGitOpsConfigResponse and Sanitised Repository Url
+	// "Get Repo URL", "Create Repo (if doesn't exist)", "Organisational URL Validation", "Unique GitOps Repo"
+	// And returns: RepoUrl and isNew Repository url and error
 	ValidateCustomGitRepoURL(request ValidateCustomGitRepoURLRequest) (string, bool, error)
 	GetGitRepoUrl(gitOpsRepoName string) (string, error)
 	ExtractErrorMessageByProvider(err error, provider string) error
@@ -831,6 +831,33 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsCo
 	return detailedErrorGitOpsConfigResponse
 }
 
+func (impl GitOpsConfigServiceImpl) getValidationErrorForNonOrganisationalURL(provider string) error {
+	activeGitOpsConfig, err := impl.GetGitOpsConfigActive()
+	if err != nil {
+		impl.logger.Errorw("error in fetching active gitOps config", "err", err)
+		return err
+	}
+	var errorMessageKey, errorMessage string
+	switch strings.ToUpper(provider) {
+	case GITHUB_PROVIDER:
+		errorMessageKey = "The repository must belong to GitHub organization"
+		errorMessage = fmt.Sprintf("%s as configured in global configurations > GitOps", activeGitOpsConfig.GitHubOrgId)
+
+	case GITLAB_PROVIDER:
+		errorMessageKey = "The repository must belong to gitLab Group ID"
+		errorMessage = fmt.Sprintf("%s as configured in global configurations > GitOps", activeGitOpsConfig.GitHubOrgId)
+
+	case BITBUCKET_PROVIDER:
+		errorMessageKey = "The repository must belong to BitBucket Workspace"
+		errorMessage = fmt.Sprintf("%s as configured in global configurations > GitOps", activeGitOpsConfig.BitBucketWorkspaceId)
+
+	case AZURE_DEVOPS_PROVIDER:
+		errorMessageKey = "The repository must belong to Azure DevOps Project"
+		errorMessage = fmt.Sprintf("%s as configured in global configurations > GitOps", activeGitOpsConfig.AzureProjectName)
+	}
+	return fmt.Errorf("%s: %s", errorMessageKey, errorMessage)
+}
+
 func (impl GitOpsConfigServiceImpl) ValidateCustomGitRepoURL(request ValidateCustomGitRepoURLRequest) (string, bool, error) {
 	gitOpsRepoName := ""
 	if request.GitRepoURL == bean2.GIT_REPO_DEFAULT {
@@ -851,11 +878,24 @@ func (impl GitOpsConfigServiceImpl) ValidateCustomGitRepoURL(request ValidateCus
 		isNewRepo = true
 	}
 
+	// Validate: Organisational URL starts
+	if !strings.Contains(request.GitRepoURL, chartGitAttribute.RepoUrl) {
+		nonOrgErr := impl.getValidationErrorForNonOrganisationalURL(request.GitOpsProvider)
+		if nonOrgErr != nil {
+			impl.logger.Errorw("non-organisational custom gitops repo validation error", "err", err)
+			return "", false, nonOrgErr
+		}
+	}
+	// Validate: Organisational URL ends
+
+	// Validate: Unique GitOps repository URL starts
 	isValid := impl.commonService.ValidateUniqueGitOpsRepo(chartGitAttribute.RepoUrl)
 	if !isValid {
 		impl.logger.Errorw("git repo url already exists", "repo url", chartGitAttribute.RepoUrl)
 		return "", false, fmt.Errorf("invalid git repository! '%s' is already in use by another application! Use a different repository", chartGitAttribute.RepoUrl)
 	}
+	// Validate: Unique GitOps repository URL ends
+
 	return chartGitAttribute.RepoUrl, isNewRepo, nil
 }
 

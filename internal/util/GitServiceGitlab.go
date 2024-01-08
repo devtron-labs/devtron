@@ -90,30 +90,6 @@ func (impl GitLabClient) DeleteRepository(config *bean2.GitOpsConfigDto) error {
 	return err
 }
 
-func (impl GitLabClient) EnsureRepoAvailableOnSsh(config *bean2.GitOpsConfigDto, repoUrl string) (string, error) {
-	validated, err := impl.ensureProjectAvailabilityOnSsh(config.GitRepoName, repoUrl)
-	if err != nil {
-		impl.logger.Errorw("error in ensuring project availability in Gitlab", "project", config.GitRepoName, "err", err)
-		return CloneSshStage, err
-	}
-	if !validated {
-		return "unable to validate project", fmt.Errorf("%s in given time", config.GitRepoName)
-	}
-	return "", nil
-}
-
-func (impl GitLabClient) EnsureRepoAvailableOnHttp(config *bean2.GitOpsConfigDto) (string, error) {
-	validated, err := impl.ensureProjectAvailability(config.GitRepoName)
-	if err != nil {
-		impl.logger.Errorw("error in ensuring project availability github", "project", config.GitRepoName, "err", err)
-		return CloneHttpStage, err
-	}
-	if !validated {
-		return "unable to validate project", fmt.Errorf("%s in given time", config.GitRepoName)
-	}
-	return "", nil
-}
-
 func (impl GitLabClient) CreateRepository(config *bean2.GitOpsConfigDto) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
 	impl.logger.Debugw("gitlab app create request ", "name", config.GitRepoName, "description", config.Description)

@@ -59,6 +59,7 @@ func NewGithubClient(host string, token string, org string, logger *zap.SugaredL
 		gitOpsConfigRepository: gitOpsConfigRepository,
 	}, err
 }
+
 func (impl GitHubClient) DeleteRepository(config *bean2.GitOpsConfigDto) error {
 	_, err := impl.client.Repositories.Delete(context.Background(), config.GitHubOrgId, config.GitRepoName)
 	if err != nil {
@@ -66,30 +67,6 @@ func (impl GitHubClient) DeleteRepository(config *bean2.GitOpsConfigDto) error {
 		return err
 	}
 	return nil
-}
-
-func (impl GitHubClient) EnsureRepoAvailableOnSsh(config *bean2.GitOpsConfigDto, repoUrl string) (string, error) {
-	validated, err := impl.ensureProjectAvailabilityOnSsh(config.GitRepoName, repoUrl)
-	if err != nil {
-		impl.logger.Errorw("error in ensuring project availability in Github", "project", config.GitRepoName, "err", err)
-		return CloneSshStage, err
-	}
-	if !validated {
-		return "unable to validate project", fmt.Errorf("%s in given time", config.GitRepoName)
-	}
-	return "", nil
-}
-
-func (impl GitHubClient) EnsureRepoAvailableOnHttp(config *bean2.GitOpsConfigDto) (string, error) {
-	validated, err := impl.ensureProjectAvailabilityOnHttp(config)
-	if err != nil {
-		impl.logger.Errorw("error in ensuring project availability github", "project", config.GitRepoName, "err", err)
-		return CloneHttpStage, err
-	}
-	if !validated {
-		return "unable to validate project", fmt.Errorf("%s in given time", config.GitRepoName)
-	}
-	return "", nil
 }
 
 func (impl GitHubClient) CreateRepository(config *bean2.GitOpsConfigDto) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {

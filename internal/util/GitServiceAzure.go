@@ -49,6 +49,7 @@ func NewGitAzureClient(token string, host string, project string, logger *zap.Su
 		gitOpsConfigRepository: gitOpsConfigRepository,
 	}, err
 }
+
 func (impl GitAzureClient) DeleteRepository(config *bean2.GitOpsConfigDto) error {
 	clientAzure := *impl.client
 	gitRepository, err := clientAzure.GetRepository(context.Background(), git.GetRepositoryArgs{
@@ -64,30 +65,6 @@ func (impl GitAzureClient) DeleteRepository(config *bean2.GitOpsConfigDto) error
 		impl.logger.Errorw("error in deleting repo azure", "project", config.GitRepoName, "err", err)
 	}
 	return err
-}
-
-func (impl GitAzureClient) EnsureRepoAvailableOnSsh(config *bean2.GitOpsConfigDto, repoUrl string) (string, error) {
-	validated, err := impl.ensureProjectAvailabilityOnSsh(impl.project, repoUrl)
-	if err != nil {
-		impl.logger.Errorw("error in ensuring project availability in Azure", "project", config.GitRepoName, "err", err)
-		return CloneSshStage, err
-	}
-	if !validated {
-		return "unable to validate project", fmt.Errorf("%s in given time", config.GitRepoName)
-	}
-	return "", nil
-}
-
-func (impl GitAzureClient) EnsureRepoAvailableOnHttp(config *bean2.GitOpsConfigDto) (string, error) {
-	validated, err := impl.ensureProjectAvailabilityOnHttp(config.GitRepoName)
-	if err != nil {
-		impl.logger.Errorw("error in ensuring project availability github", "project", config.GitRepoName, "err", err)
-		return CloneHttpStage, err
-	}
-	if !validated {
-		return "unable to validate project", fmt.Errorf("%s in given time", config.GitRepoName)
-	}
-	return "", nil
 }
 
 func (impl GitAzureClient) CreateRepository(config *bean2.GitOpsConfigDto) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
