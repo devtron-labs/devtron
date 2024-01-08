@@ -6,7 +6,7 @@
 
 ---
 
-## Things to fetch from LDAP
+## Values to fetch from LDAP
 
 Devtron provides a sample configuration out of the box. Here are some values you need to fetch from your LDAP.
 
@@ -14,7 +14,9 @@ Devtron provides a sample configuration out of the box. Here are some values you
 * bindPW
 * baseDN
 
-### Reference
+---
+
+## Reference
 
 [What is LDAP](https://www.okta.com/identity-101/what-is-ldap/)
 

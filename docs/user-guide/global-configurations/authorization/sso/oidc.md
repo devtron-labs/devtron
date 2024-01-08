@@ -6,26 +6,36 @@
 
 ---
 
-## Things to fetch from SSO Provider
+## Values You Would Require at SSO Provider
 
-Devtron provides a sample configuration out of the box. Here are some values you need to fetch from your SSO provider.
+Devtron provides a sample configuration out of the box. There are some values that you need to either get from your SSO provider or give to your SSO provider.
+
+### Values to Fetch
 
 * clientID
+
 * clientSecret
-* tenantID
 
-{% hint style="info" %}
+    ![Fetching Client ID and Secret](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/sso-login-service/secret/oidc-id-secret.jpg)
 
-### Reference
+### Values to Provide
 
-* [OIDC - Get your OIDC API Client ID and Secret](https://developer.okta.com/docs/guides/find-your-app-credentials/main/)
+* redirectURI (provided in SSO Login Services by Devtron)
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/sso-login-service/secret/oidc-id-secret.jpg
-)
+    ![Pasting Redirect URI](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/sso-login-service/redirect/oidc-redirect.jpg)
 
-{% endhint %}
+---
+
+## Reference
+
+* [View Okta Documentation](https://developer.okta.com/docs/guides/find-your-app-credentials/main/)
 
 * [Configure Okta SSO](../../okta.md)
+
+
+
+
+
 
 
 

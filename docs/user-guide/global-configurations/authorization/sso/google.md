@@ -6,22 +6,32 @@
 
 ---
 
-## Things to fetch from SSO Provider
+## Values You Would Require at SSO Provider
 
-Devtron provides a sample configuration out of the box. Here are some values you need to fetch from your SSO provider.
+Devtron provides a sample configuration out of the box. There are some values that you need to either get from your SSO provider or give to your SSO provider.
+
+### Values to Fetch
 
 * clientID
+
 * clientSecret
 
-{% hint style="info" %}
+    ![Fetching Client ID and Secret](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/sso-login-service/secret/google-id-secret.jpg)
 
-### Reference
 
-[Google - Get your Google API Client ID and Secret](https://developers.google.com/identity/gsi/web/guides/get-google-api-clientid)
+### Values to Provide
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/sso-login-service/secret/google-id-secret.jpg)
+* redirectURI (provided in SSO Login Services by Devtron)
 
-{% endhint %}
+    ![Pasting Redirect URI](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/sso-login-service/redirect/google-redirect.jpg)
+
+---
+
+## Reference
+
+[View Google Documentation](https://developers.google.com/identity/gsi/web/guides/get-google-api-clientid)
+
+
 
 
 
