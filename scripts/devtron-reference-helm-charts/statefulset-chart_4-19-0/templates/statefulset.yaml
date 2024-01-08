@@ -398,9 +398,9 @@ spec:
             successThreshold: {{ $.Values.ReadinessProbe.successThreshold  }}
             timeoutSeconds: {{ $.Values.ReadinessProbe.timeoutSeconds  }}
             failureThreshold: {{ $.Values.ReadinessProbe.failureThreshold  }}
-          {{- if $.Values.LivenessProbe.grpc }}
+          {{- if $.Values.ReadinessProbe.grpc }}
             grpc:
-{{ toYaml .Values.LivenessProbe.grpc | indent 14 }}
+{{ toYaml .Values.ReadinessProbe.grpc | indent 14 }}
           {{- end}}
 {{- end }}
           resources:
