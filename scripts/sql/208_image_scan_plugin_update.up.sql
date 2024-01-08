@@ -1,3 +1,7 @@
+INSERT INTO "plugin_step_variable" ("id", "plugin_step_id", "name", "format", "description", "is_exposed", "allow_empty_value","variable_type", "value_type", "variable_step_index",reference_variable_name, "deleted", "created_on", "created_by", "updated_on", "updated_by") VALUES
+        (nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Vulnerability Scanning' and ps."index"=1 and ps.deleted=false), 'MAX_RETRIES','STRING','max retry count',false,true,'INPUT','GLOBAL',1 ,'MAX_RETRIES','f','now()', 1, 'now()', 1),
+        (nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Vulnerability Scanning' and ps."index"=1 and ps.deleted=false), 'RETRY_DELAY','STRING','retry delay (in seconds)',false,true,'INPUT','GLOBAL',1 ,'RETRY_DELAY','f','now()', 1, 'now()', 1);
+
 UPDATE plugin_pipeline_script SET script = '#!/bin/sh
 echo "IMAGE SCAN"
 
