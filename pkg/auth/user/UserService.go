@@ -1225,7 +1225,37 @@ func (impl *UserServiceImpl) CheckUserRoles(id int32) ([]string, error) {
 		impl.logger.Errorw("No Roles Found for user", "id", model.Id)
 		return nil, err
 	}
+	if len(groups) > 0 {
+		// getting unique, handling for duplicate roles
+		grps, err := impl.getUniquesRolesByGroupCasbinNames(groups)
+		if err != nil {
+			impl.logger.Errorw("error in getUniquesRolesByGroupCasbinNames", "err", err)
+			return nil, err
+		}
+		groups = append(groups, grps...)
+	}
 
+	return groups, nil
+}
+
+func (impl UserServiceImpl) getUniquesRolesByGroupCasbinNames(groupCasbinNames []string) ([]string, error) {
+	var groups []string
+	rolesModels, err := impl.roleGroupRepository.GetRolesByGroupCasbinNames(groupCasbinNames)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting roles by group names", "err", err)
+		return nil, err
+	}
+	uniqueRolesFromGroupMap := make(map[string]bool)
+	rolesFromGroup := make([]string, 0, len(rolesModels))
+	for _, roleModel := range rolesModels {
+		uniqueRolesFromGroupMap[roleModel.Role] = true
+	}
+	for role, _ := range uniqueRolesFromGroupMap {
+		rolesFromGroup = append(rolesFromGroup, role)
+	}
+	if len(rolesFromGroup) > 0 {
+		groups = append(groups, rolesFromGroup...)
+	}
 	return groups, nil
 }
 

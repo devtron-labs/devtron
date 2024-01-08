@@ -42,6 +42,7 @@ type RoleGroupRepository interface {
 	GetRoleGroupListByNames(groupNames []string) ([]*RoleGroup, error)
 	GetRoleGroupRoleMappingByRoleGroupIds(roleGroupIds []int32) ([]*RoleModel, error)
 	GetRolesByGroupCasbinName(groupName string) ([]*RoleModel, error)
+	GetRolesByGroupCasbinNames(groupCasbinNames []string) ([]*RoleModel, error)
 	GetRolesByGroupNames(groupNames []string) ([]*RoleModel, error)
 	GetRolesByGroupNamesAndEntity(groupNames []string, entity string) ([]*RoleModel, error)
 	UpdateRoleGroupIdForRoleGroupMappings(roleId int, newRoleId int) (*RoleGroupRoleMapping, error)
@@ -231,6 +232,21 @@ func (impl RoleGroupRepositoryImpl) GetRolesByGroupNames(groupNames []string) ([
 
 	if err != nil {
 		impl.Logger.Errorw("error in getting roles by group names", "err", err, "groupNames", groupNames)
+		return roleModels, err
+	}
+	return roleModels, nil
+}
+
+func (impl RoleGroupRepositoryImpl) GetRolesByGroupCasbinNames(groupCasbinNames []string) ([]*RoleModel, error) {
+	var roleModels []*RoleModel
+	query := "SELECT r.* from roles r" +
+		" INNER JOIN role_group_role_mapping rgm on rgm.role_id=r.id" +
+		" INNER JOIN role_group rg on rg.id=rgm.role_group_id" +
+		" WHERE rg.casbin_name in (?);"
+	_, err := impl.dbConnection.Query(&roleModels, query, pg.In(groupCasbinNames))
+
+	if err != nil {
+		impl.Logger.Errorw("error in getting roles by group names", "err", err, "groupCasbinNames", groupCasbinNames)
 		return roleModels, err
 	}
 	return roleModels, nil
