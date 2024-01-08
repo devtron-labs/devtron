@@ -65,7 +65,7 @@ func NewExternalCiRestHandlerImpl(logger *zap.SugaredLogger, webhookService pipe
 func (impl ExternalCiRestHandlerImpl) HandleExternalCiWebhook(w http.ResponseWriter, r *http.Request) {
 	setupResponse(&w, r)
 	vars := mux.Vars(r)
-	token := r.Header.Get("token")
+	token := r.Header.Get("api-token")
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized", http.StatusUnauthorized)
