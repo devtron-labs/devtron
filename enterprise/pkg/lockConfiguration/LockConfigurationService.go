@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/enterprise/pkg/lockConfiguration/bean"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/go-pg/pg"
 	"github.com/ohler55/ojg/jp"
 	"github.com/ohler55/ojg/oj"
@@ -126,7 +126,7 @@ func (impl LockConfigurationServiceImpl) DeleteActiveLockConfiguration(userId in
 
 func (impl LockConfigurationServiceImpl) HandleLockConfiguration(currentConfig, savedConfig string, userId int) (*bean.LockValidateErrorResponse, error) {
 
-	isSuperAdmin, err := impl.userService.IsSuperAdmin(userId)
+	isSuperAdmin, err := impl.userService.IsSuperAdminForDevtronManaged(userId)
 
 	if err != nil || isSuperAdmin {
 		return nil, err

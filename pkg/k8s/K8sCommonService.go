@@ -8,12 +8,14 @@ import (
 	k8sCommonBean "github.com/devtron-labs/common-lib-private/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/helm-app"
+	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	bean3 "github.com/devtron-labs/devtron/pkg/k8s/application/bean"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	"github.com/devtron-labs/devtron/util"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/version"
@@ -99,6 +101,10 @@ func (impl *K8sCommonServiceImpl) UpdateResource(ctx context.Context, request *R
 	resp, err := impl.K8sUtil.UpdateResource(ctx, restConfig, resourceIdentifier.GroupVersionKind, resourceIdentifier.Namespace, request.K8sRequest.Patch)
 	if err != nil {
 		impl.logger.Errorw("error in updating resource", "err", err, "clusterId", clusterId)
+		statusError, ok := err.(*errors.StatusError)
+		if ok {
+			err = &util2.ApiError{Code: "400", HttpStatusCode: int(statusError.ErrStatus.Code), UserMessage: statusError.Error()}
+		}
 		return nil, err
 	}
 	return resp, nil

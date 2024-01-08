@@ -20,13 +20,14 @@ package restHandler
 import (
 	"encoding/json"
 	"errors"
+	"net/http"
+
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/attributes"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
-	"net/http"
 )
 
 type UserAttributesRestHandler interface {
@@ -69,12 +70,11 @@ func (handler *UserAttributesRestHandlerImpl) AddUserAttributes(w http.ResponseW
 	}
 
 	dto.UserId = userId
-	token := r.Header.Get("token")
 	//if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*"); !ok {
 	//	common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 	//	return
 	//}
-	emailId, err := handler.userService.GetEmailFromToken(token)
+	emailId, err := handler.userService.GetEmailById(userId)
 	if err != nil {
 		handler.logger.Errorw("request err, UpdateUserAttributes", "err", err, "payload", dto)
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
@@ -115,13 +115,12 @@ func (handler *UserAttributesRestHandlerImpl) UpdateUserAttributes(w http.Respon
 	}
 
 	dto.UserId = userId
-	token := r.Header.Get("token")
 	//if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
 	//	common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 	//	return
 	//}
 
-	emailId, err := handler.userService.GetEmailFromToken(token)
+	emailId, err := handler.userService.GetEmailById(userId)
 	if err != nil {
 		handler.logger.Errorw("request err, UpdateUserAttributes", "err", err, "payload", dto)
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
@@ -160,7 +159,6 @@ func (handler *UserAttributesRestHandlerImpl) GetUserAttribute(w http.ResponseWr
 		return
 	}
 
-	token := r.Header.Get("token")
 	//if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
 	//	common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 	//	return
@@ -168,7 +166,7 @@ func (handler *UserAttributesRestHandlerImpl) GetUserAttribute(w http.ResponseWr
 
 	dto := attributes.UserAttributesDto{}
 
-	emailId, err := handler.userService.GetEmailFromToken(token)
+	emailId, err := handler.userService.GetEmailById(userId)
 	if err != nil {
 		handler.logger.Errorw("request err, UpdateUserAttributes", "err", err, "payload", dto)
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)

@@ -2,17 +2,19 @@ package restHandler
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"net/http"
+	"strconv"
+
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/plugin"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
-	"net/http"
-	"strconv"
 )
 
 type GlobalPluginRestHandler interface {
@@ -63,14 +65,12 @@ func (handler *GlobalPluginRestHandlerImpl) PatchPlugin(w http.ResponseWriter, r
 	}
 	handler.logger.Infow("request payload received for patching plugins", pluginDataDto, "userId", userId)
 	// RBAC enforcer applying
-	isSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
-	if !isSuperAdmin || err != nil {
-		if err != nil {
-			handler.logger.Errorw("request err, CheckSuperAdmin", "err", err, "isSuperAdmin", isSuperAdmin)
-		}
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
+
 	//RBAC enforcer Ends
 	pluginData, err := handler.globalPluginService.PatchPlugin(&pluginDataDto, userId)
 	if err != nil {
@@ -95,14 +95,12 @@ func (handler *GlobalPluginRestHandlerImpl) GetDetailedPluginInfoByPluginId(w ht
 		return
 	}
 	// RBAC enforcer applying
-	isSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
-	if !isSuperAdmin || err != nil {
-		if err != nil {
-			handler.logger.Errorw("request err, CheckSuperAdmin", "err", err, "isSuperAdmin", isSuperAdmin)
-		}
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+	token := r.Header.Get("token")
+	if isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !isSuperAdmin {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
+
 	//RBAC enforcer Ends
 	pluginMetaData, err := handler.globalPluginService.GetDetailedPluginInfoByPluginId(pluginId)
 	if err != nil {
@@ -119,12 +117,9 @@ func (handler *GlobalPluginRestHandlerImpl) GetAllDetailedPluginInfo(w http.Resp
 		return
 	}
 	// RBAC enforcer applying
-	isSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
-	if !isSuperAdmin || err != nil {
-		if err != nil {
-			handler.logger.Errorw("request err, CheckSuperAdmin", "err", err, "isSuperAdmin", isSuperAdmin)
-		}
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+	token := r.Header.Get("token")
+	if isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !isSuperAdmin {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 	//RBAC enforcer Ends
@@ -214,18 +209,8 @@ func (handler *GlobalPluginRestHandlerImpl) ListAllPlugins(w http.ResponseWriter
 			}
 		}
 	} else { //check for super-admin, to be used in global policy
-		userId, err := handler.userService.GetLoggedInUser(r)
-		if userId == 0 || err != nil {
-			handler.logger.Errorw("request err, userId", "err", err, "payload", userId)
-			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-			return
-		}
-		isSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
-		if !isSuperAdmin || err != nil {
-			if err != nil {
-				handler.logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
-			}
-			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		if isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !isSuperAdmin {
+			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
 	}

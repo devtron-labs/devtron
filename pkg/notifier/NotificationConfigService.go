@@ -19,11 +19,12 @@ package notifier
 
 import (
 	"encoding/json"
+	"time"
+
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	repository4 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/team"
-	repository4 "github.com/devtron-labs/devtron/pkg/user/repository"
-	"time"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -56,9 +57,9 @@ type NotificationConfigServiceImpl struct {
 	smtpRepository                 repository.SMTPNotificationRepository
 	teamRepository                 repository2.TeamRepository
 	environmentRepository          repository3.EnvironmentRepository
-	appRepository                  app.AppRepository
-	userRepository                 repository4.UserRepository
-	ciPipelineMaterialRepository   pipelineConfig.CiPipelineMaterialRepository
+	appRepository                app.AppRepository
+	userRepository               repository4.UserRepository
+	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository
 }
 
 type NotificationSettingRequest struct {

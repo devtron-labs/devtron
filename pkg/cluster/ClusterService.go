@@ -21,11 +21,20 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	auth "github.com/devtron-labs/devtron/pkg/auth/authorisation/globalConfig"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
+	util3 "github.com/devtron-labs/devtron/pkg/auth/user/util"
+	"log"
+	"net/http"
+	"net/url"
+	"sync"
+	"time"
+
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/common-lib-private/utils/k8s"
+	casbin2 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	repository2 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/devtron-labs/devtron/pkg/k8s/informer"
-	casbin2 "github.com/devtron-labs/devtron/pkg/user/casbin"
-	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
 	errors1 "github.com/juju/errors"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -34,11 +43,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/client-go/tools/clientcmd/api/latest"
-	"log"
-	"net/http"
-	"net/url"
-	"sync"
-	"time"
 
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/constants"
@@ -218,9 +222,9 @@ type ClusterService interface {
 	FindAllForAutoComplete() ([]ClusterBean, error)
 	CreateGrafanaDataSource(clusterBean *ClusterBean, env *repository.Environment) (int, error)
 	GetAllClusterNamespaces() map[string][]string
-	FindAllNamespacesByUserIdAndClusterId(userId int32, clusterId int, isActionUserSuperAdmin bool) ([]string, error)
-	FindAllForClusterByUserId(userId int32, isActionUserSuperAdmin bool) ([]ClusterBean, error)
-	FetchRolesFromGroup(userId int32) ([]*repository2.RoleModel, error)
+	FindAllNamespacesByUserIdAndClusterId(userId int32, clusterId int, isActionUserSuperAdmin bool, token string) ([]string, error)
+	FindAllForClusterByUserId(userId int32, isActionUserSuperAdmin bool, token string) ([]ClusterBean, error)
+	FetchRolesFromGroup(userId int32, token string) ([]*repository2.RoleModel, error)
 	HandleErrorInClusterConnections(clusters []*ClusterBean, respMap map[int]error, clusterExistInDb bool)
 	ConnectClustersInBatch(clusters []*ClusterBean, clusterExistInDb bool)
 	ConvertClusterBeanToCluster(clusterBean *ClusterBean, userId int32) *repository.Cluster
@@ -230,20 +234,23 @@ type ClusterService interface {
 }
 
 type ClusterServiceImpl struct {
-	clusterRepository   repository.ClusterRepository
-	logger              *zap.SugaredLogger
-	K8sUtil             *k8s.K8sUtil
-	K8sInformerFactory  informer.K8sInformerFactory
-	userAuthRepository  repository2.UserAuthRepository
-	userRepository      repository2.UserRepository
-	roleGroupRepository repository2.RoleGroupRepository
+	clusterRepository                repository.ClusterRepository
+	logger                           *zap.SugaredLogger
+	K8sUtil                          *k8s.K8sUtil
+	K8sInformerFactory               informer.K8sInformerFactory
+	userAuthRepository               repository2.UserAuthRepository
+	userRepository                   repository2.UserRepository
+	roleGroupRepository              repository2.RoleGroupRepository
+	globalAuthorisationConfigService auth.GlobalAuthorisationConfigService
 	*ClusterRbacServiceImpl
 }
 
 func NewClusterServiceImpl(repository repository.ClusterRepository, logger *zap.SugaredLogger,
 	K8sUtil *k8s.K8sUtil, K8sInformerFactory informer.K8sInformerFactory,
 	userAuthRepository repository2.UserAuthRepository, userRepository repository2.UserRepository,
-	roleGroupRepository repository2.RoleGroupRepository) *ClusterServiceImpl {
+	roleGroupRepository repository2.RoleGroupRepository,
+	globalAuthorisationConfigService auth.GlobalAuthorisationConfigService,
+	userService user.UserService) *ClusterServiceImpl {
 	clusterService := &ClusterServiceImpl{
 		clusterRepository:   repository,
 		logger:              logger,
@@ -253,8 +260,10 @@ func NewClusterServiceImpl(repository repository.ClusterRepository, logger *zap.
 		userRepository:      userRepository,
 		roleGroupRepository: roleGroupRepository,
 		ClusterRbacServiceImpl: &ClusterRbacServiceImpl{
-			logger: logger,
+			logger:      logger,
+			userService: userService,
 		},
+		globalAuthorisationConfigService: globalAuthorisationConfigService,
 	}
 	go clusterService.buildInformer()
 	return clusterService
@@ -887,7 +896,7 @@ func (impl *ClusterServiceImpl) GetAllClusterNamespaces() map[string][]string {
 	return result
 }
 
-func (impl *ClusterServiceImpl) FindAllNamespacesByUserIdAndClusterId(userId int32, clusterId int, isActionUserSuperAdmin bool) ([]string, error) {
+func (impl *ClusterServiceImpl) FindAllNamespacesByUserIdAndClusterId(userId int32, clusterId int, isActionUserSuperAdmin bool, token string) ([]string, error) {
 	result := make([]string, 0)
 	clusterBean, err := impl.FindById(clusterId)
 	if err != nil {
@@ -904,7 +913,7 @@ func (impl *ClusterServiceImpl) FindAllNamespacesByUserIdAndClusterId(userId int
 			}
 		}
 	} else {
-		roles, err := impl.FetchRolesFromGroup(userId)
+		roles, err := impl.FetchRolesFromGroup(userId, token)
 		if err != nil {
 			impl.logger.Errorw("error on fetching user roles for cluster list", "err", err)
 			return nil, err
@@ -932,12 +941,12 @@ func (impl *ClusterServiceImpl) FindAllNamespacesByUserIdAndClusterId(userId int
 	return result, nil
 }
 
-func (impl *ClusterServiceImpl) FindAllForClusterByUserId(userId int32, isActionUserSuperAdmin bool) ([]ClusterBean, error) {
+func (impl *ClusterServiceImpl) FindAllForClusterByUserId(userId int32, isActionUserSuperAdmin bool, token string) ([]ClusterBean, error) {
 	if isActionUserSuperAdmin {
 		return impl.FindAllForAutoComplete()
 	}
 	allowedClustersMap := make(map[string]bool)
-	roles, err := impl.FetchRolesFromGroup(userId)
+	roles, err := impl.FetchRolesFromGroup(userId, token)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user roles from db", "error", err)
 		return nil, err
@@ -964,30 +973,50 @@ func (impl *ClusterServiceImpl) FindAllForClusterByUserId(userId int32, isAction
 	return beans, nil
 }
 
-func (impl *ClusterServiceImpl) FetchRolesFromGroup(userId int32) ([]*repository2.RoleModel, error) {
+func (impl *ClusterServiceImpl) FetchRolesFromGroup(userId int32, token string) ([]*repository2.RoleModel, error) {
 	user, err := impl.userRepository.GetByIdIncludeDeleted(userId)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
 		return nil, err
 	}
-	groups, err := casbin2.GetRolesForUser(user.EmailId)
-	if err != nil {
-		impl.logger.Errorw("No Roles Found for user", "id", user.Id)
-		return nil, err
+	isGroupClaimsActive := impl.globalAuthorisationConfigService.IsGroupClaimsConfigActive()
+	isDevtronSystemActive := impl.globalAuthorisationConfigService.IsDevtronSystemManagedConfigActive()
+	var groups []string
+	if isDevtronSystemActive || util3.CheckIfAdminOrApiToken(user.EmailId) {
+		groupsCasbin, err := casbin2.GetRolesForUser(user.EmailId)
+		if err != nil {
+			impl.logger.Errorw("No Roles Found for user", "id", user.Id)
+			return nil, err
+		}
+		groups = append(groups, groupsCasbin...)
 	}
+
+	if isGroupClaimsActive {
+		_, groupClaims, err := impl.ClusterRbacServiceImpl.userService.GetEmailAndGroupClaimsFromToken(token)
+		if err != nil {
+			impl.logger.Errorw("error in GetEmailAndGroupClaimsFromToken", "err", err)
+			return nil, err
+		}
+		groupsCasbinNames := util3.GetGroupCasbinName(groupClaims)
+
+		groups = append(groups, groupsCasbinNames...)
+	}
+
 	roleEntity := "cluster"
 	roles, err := impl.userAuthRepository.GetRolesByUserIdAndEntityType(userId, roleEntity)
 	if err != nil {
 		impl.logger.Errorw("error on fetching user roles for cluster list", "err", err)
 		return nil, err
 	}
-	rolesFromGroup, err := impl.roleGroupRepository.GetRolesByGroupNamesAndEntity(groups, roleEntity)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in getting roles by group names", "err", err)
-		return nil, err
-	}
-	if len(rolesFromGroup) > 0 {
-		roles = append(roles, rolesFromGroup...)
+	if len(groups) > 0 {
+		rolesFromGroup, err := impl.roleGroupRepository.GetRolesByGroupNamesAndEntity(groups, roleEntity)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in getting roles by group names", "err", err)
+			return nil, err
+		}
+		if len(rolesFromGroup) > 0 {
+			roles = append(roles, rolesFromGroup...)
+		}
 	}
 	return roles, nil
 }

@@ -100,11 +100,11 @@ type CiPipelineConfigService interface {
 	//PatchRegexCiPipeline : Update CI pipeline materials based on the provided regex patch request
 	PatchRegexCiPipeline(request *bean.CiRegexPatchRequest) (err error)
 	//GetCiPipelineByEnvironment : lists ciPipeline for given environmentId and appIds
-	GetCiPipelineByEnvironment(request resourceGroup2.ResourceGroupingRequest) ([]*bean.CiConfigRequest, error)
+	GetCiPipelineByEnvironment(request resourceGroup2.ResourceGroupingRequest, token string) ([]*bean.CiConfigRequest, error)
 	//GetCiPipelineByEnvironmentMin : lists minimum detail of ciPipelines for given environmentId and appIds
-	GetCiPipelineByEnvironmentMin(request resourceGroup2.ResourceGroupingRequest) ([]*bean.CiPipelineMinResponse, error)
+	GetCiPipelineByEnvironmentMin(request resourceGroup2.ResourceGroupingRequest, token string) ([]*bean.CiPipelineMinResponse, error)
 	//GetExternalCiByEnvironment : lists externalCi for given environmentId and appIds
-	GetExternalCiByEnvironment(request resourceGroup2.ResourceGroupingRequest) (ciConfig []*bean.ExternalCiConfig, err error)
+	GetExternalCiByEnvironment(request resourceGroup2.ResourceGroupingRequest, token string) (ciConfig []*bean.ExternalCiConfig, err error)
 	DeleteCiPipeline(request *bean.CiPatchRequest) (*bean.CiPipeline, error)
 	CreateExternalCiAndAppWorkflowMapping(appId, appWorkflowId int, userId int32, tx *pg.Tx) (int, *appWorkflow.AppWorkflowMapping, error)
 }
@@ -731,14 +731,14 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipeline(appId int) (ciConfig *bea
 				IsRegex:         material.Regex != "",
 				Source:          &bean.SourceTypeConfig{Type: material.Type, Value: material.Value, Regex: material.Regex},
 			}
-			if !isJob {
-				err = impl.setCiPipelineBlockageState(ciPipeline, branchesForCheckingBlockageState, false)
-				if err != nil {
-					impl.logger.Errorw("error in getting blockage state for ci pipeline", "err", err, "ciPipelineId", ciPipeline.Id)
-					return nil, err
-				}
-			}
 			ciPipeline.CiMaterial = append(ciPipeline.CiMaterial, ciMaterial)
+		}
+		if !isJob {
+			err = impl.setCiPipelineBlockageState(ciPipeline, branchesForCheckingBlockageState, false)
+			if err != nil {
+				impl.logger.Errorw("error in getting blockage state for ci pipeline", "err", err, "ciPipelineId", ciPipeline.Id)
+				return nil, err
+			}
 		}
 		linkedCis, err := impl.ciPipelineRepository.FindByParentCiPipelineId(ciPipeline.Id)
 		if err != nil && !util.IsErrNoRows(err) {
@@ -1694,7 +1694,7 @@ func (impl *CiPipelineConfigServiceImpl) PatchRegexCiPipeline(request *bean.CiRe
 	return nil
 }
 
-func (impl *CiPipelineConfigServiceImpl) GetCiPipelineByEnvironment(request resourceGroup2.ResourceGroupingRequest) ([]*bean.CiConfigRequest, error) {
+func (impl *CiPipelineConfigServiceImpl) GetCiPipelineByEnvironment(request resourceGroup2.ResourceGroupingRequest, token string) ([]*bean.CiConfigRequest, error) {
 	ciPipelinesConfigByApps := make([]*bean.CiConfigRequest, 0)
 	_, span := otel.Tracer("orchestrator").Start(request.Ctx, "ciHandler.ResourceGroupingCiPipelinesAuthorization")
 	var cdPipelines []*pipelineConfig.Pipeline
@@ -1731,7 +1731,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineByEnvironment(request reso
 	for _, object := range objects {
 		appObjectArr = append(appObjectArr, object[0])
 	}
-	appResults, _ := request.CheckAuthBatch(request.EmailId, appObjectArr, []string{})
+	appResults, _ := request.CheckAuthBatch(token, appObjectArr, []string{})
 	for _, pipeline := range cdPipelines {
 		appObject := objects[pipeline.Id]
 		if !appResults[appObject[0]] {
@@ -1905,7 +1905,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineByEnvironment(request reso
 	return ciPipelinesConfigByApps, err
 }
 
-func (impl *CiPipelineConfigServiceImpl) GetCiPipelineByEnvironmentMin(request resourceGroup2.ResourceGroupingRequest) ([]*bean.CiPipelineMinResponse, error) {
+func (impl *CiPipelineConfigServiceImpl) GetCiPipelineByEnvironmentMin(request resourceGroup2.ResourceGroupingRequest, token string) ([]*bean.CiPipelineMinResponse, error) {
 	results := make([]*bean.CiPipelineMinResponse, 0)
 	var cdPipelines []*pipelineConfig.Pipeline
 	var err error
@@ -1959,7 +1959,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineByEnvironmentMin(request r
 	for _, object := range objects {
 		appObjectArr = append(appObjectArr, object[0])
 	}
-	appResults, _ := request.CheckAuthBatch(request.EmailId, appObjectArr, []string{})
+	appResults, _ := request.CheckAuthBatch(token, appObjectArr, []string{})
 	authorizedIds := make([]int, 0)
 	for _, pipeline := range cdPipelines {
 		appObject := objects[pipeline.Id]
@@ -1989,7 +1989,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineByEnvironmentMin(request r
 	return results, err
 }
 
-func (impl *CiPipelineConfigServiceImpl) GetExternalCiByEnvironment(request resourceGroup2.ResourceGroupingRequest) (ciConfig []*bean.ExternalCiConfig, err error) {
+func (impl *CiPipelineConfigServiceImpl) GetExternalCiByEnvironment(request resourceGroup2.ResourceGroupingRequest, token string) (ciConfig []*bean.ExternalCiConfig, err error) {
 	_, span := otel.Tracer("orchestrator").Start(request.Ctx, "ciHandler.authorizationExternalCiForResourceGrouping")
 	externalCiConfigs := make([]*bean.ExternalCiConfig, 0)
 	var cdPipelines []*pipelineConfig.Pipeline
@@ -2018,7 +2018,7 @@ func (impl *CiPipelineConfigServiceImpl) GetExternalCiByEnvironment(request reso
 	for _, object := range objects {
 		appObjectArr = append(appObjectArr, object[0])
 	}
-	appResults, _ := request.CheckAuthBatch(request.EmailId, appObjectArr, []string{})
+	appResults, _ := request.CheckAuthBatch(token, appObjectArr, []string{})
 	for _, pipeline := range cdPipelines {
 		appObject := objects[pipeline.Id]
 		if !appResults[appObject[0]] {
