@@ -4,17 +4,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"strconv"
+
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
-	"net/http"
-	"strconv"
 )
 
 const InvalidExpressionsStatusCode = 209
@@ -60,14 +61,10 @@ func NewResourceFilterRestHandlerImpl(logger *zap.SugaredLogger,
 }
 
 func (handler *ResourceFilterRestHandlerImpl) ListFilters(w http.ResponseWriter, r *http.Request) {
-	userId, err := handler.userAuthService.GetLoggedInUser(r)
-	if err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	authorised := handler.applyAuth(userId)
+	token := r.Header.Get("token")
+	authorised := handler.applyAuth(token)
 	if !authorised {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 
@@ -81,17 +78,12 @@ func (handler *ResourceFilterRestHandlerImpl) ListFilters(w http.ResponseWriter,
 }
 
 func (handler *ResourceFilterRestHandlerImpl) GetFilterById(w http.ResponseWriter, r *http.Request) {
-	userId, err := handler.userAuthService.GetLoggedInUser(r)
-	if err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	authorised := handler.applyAuth(userId)
+	token := r.Header.Get("token")
+	authorised := handler.applyAuth(token)
 	if !authorised {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-
 	vars := mux.Vars(r)
 	filterId, err := strconv.Atoi(vars["id"])
 	if err != nil {
@@ -117,9 +109,10 @@ func (handler *ResourceFilterRestHandlerImpl) CreateFilter(w http.ResponseWriter
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	authorised := handler.applyAuth(userId)
+	token := r.Header.Get("token")
+	authorised := handler.applyAuth(token)
 	if !authorised {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 
@@ -159,9 +152,10 @@ func (handler *ResourceFilterRestHandlerImpl) UpdateFilter(w http.ResponseWriter
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	authorised := handler.applyAuth(userId)
+	token := r.Header.Get("token")
+	authorised := handler.applyAuth(token)
 	if !authorised {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 
@@ -211,9 +205,10 @@ func (handler *ResourceFilterRestHandlerImpl) DeleteFilter(w http.ResponseWriter
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	authorised := handler.applyAuth(userId)
+	token := r.Header.Get("token")
+	authorised := handler.applyAuth(token)
 	if !authorised {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 
@@ -236,18 +231,14 @@ func (handler *ResourceFilterRestHandlerImpl) DeleteFilter(w http.ResponseWriter
 
 func (handler *ResourceFilterRestHandlerImpl) ValidateExpression(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
-	userId, err := handler.userAuthService.GetLoggedInUser(r)
-	if err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	authorised := handler.applyAuth(userId)
+	token := r.Header.Get("token")
+	authorised := handler.applyAuth(token)
 	if !authorised {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	var request resourceFilter.ValidateRequestResponse
-	err = decoder.Decode(&request)
+	err := decoder.Decode(&request)
 	if err != nil {
 		handler.logger.Errorw("request err, UpdateRoleGroup", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -258,11 +249,8 @@ func (handler *ResourceFilterRestHandlerImpl) ValidateExpression(w http.Response
 	common.WriteJsonResp(w, err, response, http.StatusOK)
 }
 
-func (handler *ResourceFilterRestHandlerImpl) applyAuth(userId int32) bool {
+func (handler *ResourceFilterRestHandlerImpl) applyAuth(token string) bool {
+	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
 
-	isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
-	if err != nil {
-		handler.logger.Errorw("request err, CheckSuperAdmin", "err", err, "isSuperAdmin", isSuperAdmin)
-	}
 	return isSuperAdmin
 }
