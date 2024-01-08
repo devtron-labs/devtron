@@ -2682,7 +2682,7 @@ func (handler *PipelineConfigRestHandlerImpl) SaveGitOpsConfiguration(w http.Res
 			common.WriteJsonResp(w, err, err, errResponse.HttpStatusCode)
 			return
 		}
-		common.WriteJsonResp(w, err, err, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w, nil, appGitOpsConfigRequest, http.StatusOK)
