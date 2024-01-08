@@ -1169,7 +1169,7 @@ func (impl NotificationRestHandlerImpl) ConsumeDraftApprovalNotification(w http.
 	}
 	var draftState drafts2.DraftState
 	err = impl.configDraftRestHandlerImpl.CheckAccessAndApproveDraft(w, token, draftRequest)
-	if validationErr, ok := err.(drafts2.DraftApprovalValidationError); ok {
+	if validationErr, ok := err.(*drafts2.DraftApprovalValidationError); ok {
 		draftState = validationErr.DraftState
 	}
 	if err != nil && !errors.As(err, &drafts2.DraftApprovalValidationError{}) {
@@ -1218,7 +1218,7 @@ func (impl NotificationRestHandlerImpl) ConsumeDeploymentApprovalNotification(w 
 	}
 	err = impl.cdHandler.PerformDeploymentApprovalAction(deploymentApprovalRequest.UserId, approvalActionRequest)
 	var approvalState bean.ApprovalState
-	if validationErr, ok := err.(bean.DeploymentApprovalValidationError); ok {
+	if validationErr, ok := err.(*bean.DeploymentApprovalValidationError); ok {
 		approvalState = validationErr.ApprovalState
 	}
 	if err != nil && !errors.As(err, &bean.DeploymentApprovalValidationError{}) {
