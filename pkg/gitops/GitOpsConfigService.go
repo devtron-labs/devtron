@@ -831,14 +831,9 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsCo
 	return detailedErrorGitOpsConfigResponse
 }
 
-func (impl GitOpsConfigServiceImpl) getValidationErrorForNonOrganisationalURL(provider string) error {
-	activeGitOpsConfig, err := impl.GetGitOpsConfigActive()
-	if err != nil {
-		impl.logger.Errorw("error in fetching active gitOps config", "err", err)
-		return err
-	}
+func (impl GitOpsConfigServiceImpl) getValidationErrorForNonOrganisationalURL(activeGitOpsConfig bean2.GitOpsConfigDto) error {
 	var errorMessageKey, errorMessage string
-	switch strings.ToUpper(provider) {
+	switch strings.ToUpper(activeGitOpsConfig.Provider) {
 	case GITHUB_PROVIDER:
 		errorMessageKey = "The repository must belong to GitHub organization"
 		errorMessage = fmt.Sprintf("%s as configured in global configurations > GitOps", activeGitOpsConfig.GitHubOrgId)
@@ -879,8 +874,14 @@ func (impl GitOpsConfigServiceImpl) ValidateCustomGitRepoURL(request ValidateCus
 	}
 
 	// Validate: Organisational URL starts
-	if !strings.Contains(request.GitRepoURL, chartGitAttribute.RepoUrl) {
-		nonOrgErr := impl.getValidationErrorForNonOrganisationalURL(request.GitOpsProvider)
+	activeGitOpsConfig, err := impl.GetGitOpsConfigActive()
+	if err != nil {
+		impl.logger.Errorw("error in fetching active gitOps config", "err", err)
+		return "", false, err
+	}
+	repoUrl := strings.ReplaceAll(util.SanitiseCustomGitRepoURL(*activeGitOpsConfig, request.GitRepoURL), ".git", "")
+	if !strings.Contains(chartGitAttribute.RepoUrl, repoUrl) {
+		nonOrgErr := impl.getValidationErrorForNonOrganisationalURL(*activeGitOpsConfig)
 		if nonOrgErr != nil {
 			impl.logger.Errorw("non-organisational custom gitops repo validation error", "err", err)
 			return "", false, nonOrgErr
