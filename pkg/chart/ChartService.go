@@ -1809,7 +1809,7 @@ func (impl ChartServiceImpl) SaveAppLevelGitOpsConfiguration(appGitOpsRequest *A
 	if validationErr != nil {
 		apiErr := &util.ApiError{
 			HttpStatusCode:  http.StatusBadRequest,
-			UserMessage:     validationErr,
+			UserMessage:     validationErr.Error(),
 			InternalMessage: validationErr.Error(),
 		}
 		return apiErr
