@@ -298,7 +298,12 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 		if gitRepoErr != nil {
 			// Found validation err
 			impl.logger.Errorw("found validation error in custom gitops repo", "repo url", installAppVersionRequest.GitOpsRepoURL, "err", gitRepoErr)
-			return nil, gitRepoErr
+			apiErr := &util.ApiError{
+				HttpStatusCode:  http.StatusBadRequest,
+				UserMessage:     gitRepoErr,
+				InternalMessage: gitRepoErr.Error(),
+			}
+			return nil, apiErr
 		}
 
 		// ValidateCustomGitRepoURL returns sanitized repo url after validation

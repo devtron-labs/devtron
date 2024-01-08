@@ -1807,7 +1807,12 @@ func (impl ChartServiceImpl) SaveAppLevelGitOpsConfiguration(appGitOpsRequest *A
 	}
 	repoUrl, _, validationErr := impl.gitOpsConfigService.ValidateCustomGitRepoURL(validateCustomGitRepoURLRequest)
 	if validationErr != nil {
-		return validationErr
+		apiErr := &util.ApiError{
+			HttpStatusCode:  http.StatusBadRequest,
+			UserMessage:     validationErr,
+			InternalMessage: validationErr.Error(),
+		}
+		return apiErr
 	}
 	// ValidateCustomGitRepoURL returns sanitized repo url after validation
 	appGitOpsRequest.GitOpsRepoURL = repoUrl
