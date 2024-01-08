@@ -75,20 +75,15 @@ func NewApiTokenServiceImpl(logger *zap.SugaredLogger, apiTokenSecretService Api
 func GetTokenConfig() (*TokenVariableConfig, error) {
 	cfg := &TokenVariableConfig{}
 	err := env.Parse(cfg)
-	if cfg.ExpireAtInMs == 0 {
-		cfg.ExpireAtInMs = SetExpiryTimeDefault()
-		return cfg, err
-	}
 	return cfg, err
 }
 
 type TokenVariableConfig struct {
-	ExpireAtInMs int64 `env:"TOKEN_EXPIRY_TIME"`
+	ExpireAtInHours int64 `env:"TOKEN_EXPIRY_TIME_HOURS" envDefault:"720"` //30*24
 }
 
-func SetExpiryTimeDefault() int64 {
-	expirationTime := time.Now().Add(30 * 24 * time.Hour)
-	return expirationTime.UnixNano() / int64(time.Millisecond)
+func (config TokenVariableConfig) GetExpiryTimeInMs() int64 {
+	return config.ExpireAtInHours * 3600000
 }
 
 const API_TOKEN_USER_EMAIL_PREFIX = "API-TOKEN:"

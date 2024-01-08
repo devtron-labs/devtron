@@ -437,7 +437,7 @@ func (impl *EventSimpleFactoryImpl) createAndSetToken(draftRequest *apiToken.Dra
 	}
 	if deploymentApprovalRequest != nil {
 		deploymentApprovalRequest.UserId = user.Id
-		token, err := impl.apiTokenServiceImpl.CreateApiJwtTokenForNotification(deploymentApprovalRequest.GetClaimsForDeploymentApprovalRequest(), impl.apiTokenServiceImpl.TokenVariableConfig.ExpireAtInMs)
+		token, err := impl.apiTokenServiceImpl.CreateApiJwtTokenForNotification(deploymentApprovalRequest.GetClaimsForDeploymentApprovalRequest(), impl.apiTokenServiceImpl.TokenVariableConfig.GetExpiryTimeInMs())
 		if err != nil {
 			impl.logger.Errorw("error in generating token for deployment approval request", "err", err)
 			return err
@@ -446,7 +446,7 @@ func (impl *EventSimpleFactoryImpl) createAndSetToken(draftRequest *apiToken.Dra
 
 	} else {
 		draftRequest.UserId = user.Id
-		token, err := impl.apiTokenServiceImpl.CreateApiJwtTokenForNotification(draftRequest.GetClaimsForDraftApprovalRequest(), impl.apiTokenServiceImpl.TokenVariableConfig.ExpireAtInMs)
+		token, err := impl.apiTokenServiceImpl.CreateApiJwtTokenForNotification(draftRequest.GetClaimsForDraftApprovalRequest(), impl.apiTokenServiceImpl.TokenVariableConfig.GetExpiryTimeInMs())
 		if err != nil {
 			impl.logger.Errorw("error in generating token for draft approval request", "err", err)
 			return err
