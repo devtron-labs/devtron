@@ -32,7 +32,7 @@ type ConfigDraftService interface {
 	GetDrafts(appId int, envId int, resourceType DraftResourceType, userId int32) ([]AppConfigDraft, error)
 	GetDraftById(draftId int, userId int32) (*ConfigDraftResponse, error) //  need to send ** in case of view only user for Secret data
 	GetDraftByName(appId, envId int, resourceName string, resourceType DraftResourceType, userId int32) (*ConfigDraftResponse, error)
-	ApproveDraft(draftId int, draftVersionId int, userId int32) (DraftState, error)
+	ApproveDraft(draftId int, draftVersionId int, userId int32) error
 	DeleteComment(draftId int, draftCommentId int, userId int32) error
 	GetDraftsCount(appId int, envIds []int) ([]*DraftCountResponse, error)
 	EncryptCSData(draftCsData string) string
@@ -192,7 +192,7 @@ func (impl *ConfigDraftServiceImpl) performNotificationConfigActionForVersion(re
 func (impl *ConfigDraftServiceImpl) UpdateDraftState(draftId int, draftVersionId int, toUpdateDraftState DraftState, userId int32) (*DraftVersion, error) {
 	impl.logger.Infow("updating draft state", "draftId", draftId, "toUpdateDraftState", toUpdateDraftState, "userId", userId)
 	// check app config draft is enabled or not ??
-	latestDraftVersion, _, err := impl.validateDraftAction(draftId, draftVersionId, toUpdateDraftState, userId)
+	latestDraftVersion, err := impl.validateDraftAction(draftId, draftVersionId, toUpdateDraftState, userId)
 	if err != nil {
 		return nil, err
 	}
@@ -200,40 +200,43 @@ func (impl *ConfigDraftServiceImpl) UpdateDraftState(draftId int, draftVersionId
 	return latestDraftVersion, err
 }
 
-func (impl *ConfigDraftServiceImpl) validateDraftAction(draftId int, draftVersionId int, toUpdateDraftState DraftState, userId int32) (*DraftVersion, DraftState, error) {
+func (impl *ConfigDraftServiceImpl) validateDraftAction(draftId int, draftVersionId int, toUpdateDraftState DraftState, userId int32) (*DraftVersion, error) {
 	latestDraftVersion, err := impl.configDraftRepository.GetLatestConfigDraft(draftId)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 	if latestDraftVersion.Id != draftVersionId { // needed for current scope
-		return nil, 0, errors.New(LastVersionOutdated)
+		return nil, errors.New(LastVersionOutdated)
 	}
 	//have
 	draftMetadataDto, err := impl.configDraftRepository.GetDraftMetadataById(draftId)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 	draftCurrentState := draftMetadataDto.DraftState
 	if draftCurrentState.IsTerminal() {
 		impl.logger.Errorw("draft is already in terminal state", "draftId", draftId, "draftCurrentState", draftCurrentState)
-		return nil, draftCurrentState, errors.New(DraftAlreadyInTerminalState)
+		return nil, DraftApprovalValidationError{
+			Err:        errors.New(DraftAlreadyInTerminalState),
+			DraftState: draftCurrentState,
+		}
 	}
 	if toUpdateDraftState == PublishedDraftState {
 		if draftCurrentState != AwaitApprovalDraftState {
 			impl.logger.Errorw("draft is not in await Approval state", "draftId", draftId, "draftCurrentState", draftCurrentState)
-			return nil, 0, errors.New(ApprovalRequestNotRaised)
+			return nil, errors.New(ApprovalRequestNotRaised)
 		} else {
 			contributedToDraft, err := impl.checkUserContributedToDraft(draftId, userId)
 			if err != nil {
-				return nil, 0, err
+				return nil, err
 			}
 			if contributedToDraft {
 				impl.logger.Errorw("user contributed to this draft", "draftId", draftId, "userId", userId)
-				return nil, 0, errors.New(UserContributedToDraft)
+				return nil, errors.New(UserContributedToDraft)
 			}
 		}
 	}
-	return latestDraftVersion, 0, nil
+	return latestDraftVersion, nil
 }
 
 func (impl *ConfigDraftServiceImpl) GetDraftVersionMetadata(draftId int) (*DraftVersionMetadataResponse, error) {
@@ -365,12 +368,12 @@ func (impl ConfigDraftServiceImpl) DeleteComment(draftId int, draftCommentId int
 	return nil
 }
 
-func (impl *ConfigDraftServiceImpl) ApproveDraft(draftId int, draftVersionId int, userId int32) (DraftState, error) {
+func (impl *ConfigDraftServiceImpl) ApproveDraft(draftId int, draftVersionId int, userId int32) error {
 	impl.logger.Infow("approving draft", "draftId", draftId, "draftVersionId", draftVersionId, "userId", userId)
 	toUpdateDraftState := PublishedDraftState
-	draftVersion, draftState, err := impl.validateDraftAction(draftId, draftVersionId, toUpdateDraftState, userId)
+	draftVersion, err := impl.validateDraftAction(draftId, draftVersionId, toUpdateDraftState, userId)
 	if err != nil {
-		return draftState, err
+		return err
 	}
 	draftData := draftVersion.Data
 	draftsDto := draftVersion.Draft
@@ -381,10 +384,10 @@ func (impl *ConfigDraftServiceImpl) ApproveDraft(draftId int, draftVersionId int
 		err = impl.handleDeploymentTemplate(draftsDto.AppId, draftsDto.EnvId, draftData, draftVersion.UserId, draftVersion.Action)
 	}
 	if err != nil {
-		return 0, err
+		return err
 	}
 	err = impl.configDraftRepository.UpdateDraftState(draftId, toUpdateDraftState, userId)
-	return 0, err
+	return err
 }
 func (impl *ConfigDraftServiceImpl) handleCmCsData(draftResource DraftResourceType, draftDto *DraftDto, draftData string, userId int32, action ResourceAction) error {
 	// if envId is -1 then it is base Configuration else Env level config

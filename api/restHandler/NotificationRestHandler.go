@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/aws/aws-sdk-go/service/sso"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/enterprise/api/drafts"
@@ -1168,12 +1167,15 @@ func (impl NotificationRestHandlerImpl) ConsumeDraftApprovalNotification(w http.
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	draftState, err := impl.configDraftRestHandlerImpl.CheckAccessAndApproveDraft(w, draftRequest.EnvId, draftRequest.AppId, token, draftRequest.DraftId, draftRequest.DraftVersionId, draftRequest.UserId)
-	if errRes := err.(*sso.UnauthorizedException); errRes.StatusCode() == http.StatusForbidden {
-		return
+	var draftState drafts2.DraftState
+	err = impl.configDraftRestHandlerImpl.CheckAccessAndApproveDraft(w, token, draftRequest)
+	if validationErr, ok := err.(drafts2.DraftApprovalValidationError); ok {
+		draftState = validationErr.DraftState
 	}
-	if err != nil && draftState == drafts2.UndefinedDraftState {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+	if err != nil && !errors.As(err, &drafts2.DraftApprovalValidationError{}) {
+		if err.Error() != "unauthorized user" {
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		}
 		return
 	}
 	resp, err := impl.notificationService.DraftApprovalNotificationRequest(&draftRequest)
@@ -1214,13 +1216,21 @@ func (impl NotificationRestHandlerImpl) ConsumeDeploymentApprovalNotification(w 
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	approvalState, err := impl.cdHandler.PerformDeploymentApprovalAction(deploymentApprovalRequest.UserId, approvalActionRequest)
-	if err != nil && approvalState == bean.UndefinedApprovalState {
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+	err = impl.cdHandler.PerformDeploymentApprovalAction(deploymentApprovalRequest.UserId, approvalActionRequest)
+	var approvalState bean.ApprovalState
+	if validationErr, ok := err.(bean.DeploymentApprovalValidationError); ok {
+		approvalState = validationErr.ApprovalState
+	}
+	if err != nil && !errors.As(err, &bean.DeploymentApprovalValidationError{}) {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	resp, err := impl.notificationService.DeploymentApprovalNotificationRequest(&deploymentApprovalRequest, pipelineInfo.App.AppName, pipelineInfo.Environment.Name)
 	resp.Status = approvalState
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
 func (impl NotificationRestHandlerImpl) createDeploymentApprovalRequest(token string) (apiToken.DeploymentApprovalRequest, error) {

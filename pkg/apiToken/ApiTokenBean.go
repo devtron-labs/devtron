@@ -39,6 +39,18 @@ type NotificationApprovalRequest struct {
 	UserId  int32  `json:"userId"`
 }
 
+func GetDraftApprovalRequest(envId int, appId int, draftId int, draftVersionId int, userId int32) DraftApprovalRequest {
+	return DraftApprovalRequest{
+		DraftId:        draftId,
+		DraftVersionId: draftVersionId,
+		NotificationApprovalRequest: NotificationApprovalRequest{
+			AppId:  appId,
+			EnvId:  envId,
+			UserId: userId,
+		},
+	}
+}
+
 func (claims *TokenCustomClaimsForNotification) setRegisteredClaims(registeredClaims jwt.RegisteredClaims) {
 	claims.RegisteredClaims = registeredClaims
 }

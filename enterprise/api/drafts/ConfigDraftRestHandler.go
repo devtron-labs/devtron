@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/enterprise/pkg/drafts"
+	"github.com/devtron-labs/devtron/pkg/apiToken"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -390,7 +391,7 @@ func (impl *ConfigDraftRestHandlerImpl) ApproveDraft(w http.ResponseWriter, r *h
 	token := r.Header.Get("token")
 	envId := draftResponse.EnvId
 	appId := draftResponse.AppId
-	_, err = impl.CheckAccessAndApproveDraft(w, envId, appId, token, draftId, draftVersionId, userId)
+	err = impl.CheckAccessAndApproveDraft(w, token, apiToken.GetDraftApprovalRequest(envId, appId, draftId, draftVersionId, userId))
 	if err != nil {
 		return
 	}
@@ -398,12 +399,12 @@ func (impl *ConfigDraftRestHandlerImpl) ApproveDraft(w http.ResponseWriter, r *h
 	common.WriteJsonResp(w, err, nil, http.StatusOK)
 }
 
-func (impl *ConfigDraftRestHandlerImpl) CheckAccessAndApproveDraft(w http.ResponseWriter, envId int, appId int, token string, draftId int, draftVersionId int, userId int32) (drafts.DraftState, error) {
+func (impl *ConfigDraftRestHandlerImpl) CheckAccessAndApproveDraft(w http.ResponseWriter, token string, draftRequest apiToken.DraftApprovalRequest) error {
 	var isNotAuthorized bool
-	if isNotAuthorized = impl.checkForApproverAccess(w, envId, appId, token, true); isNotAuthorized {
-		return 0, errors.Unauthorizedf("Unauthorized user", http.StatusForbidden)
+	if isNotAuthorized = impl.checkForApproverAccess(w, draftRequest.EnvId, draftRequest.AppId, token, true); isNotAuthorized {
+		return errors.New("unauthorized user")
 	}
-	return impl.configDraftService.ApproveDraft(draftId, draftVersionId, userId)
+	return impl.configDraftService.ApproveDraft(draftRequest.DraftId, draftRequest.DraftVersionId, draftRequest.UserId)
 }
 
 func (impl *ConfigDraftRestHandlerImpl) DeleteUserComment(w http.ResponseWriter, r *http.Request) {

@@ -683,8 +683,7 @@ const (
 type ApprovalState int
 
 const (
-	UndefinedApprovalState ApprovalState = iota
-	AlreadyApproved
+	AlreadyApproved ApprovalState = iota + 1
 	RequestCancelled
 )
 
