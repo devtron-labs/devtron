@@ -108,6 +108,7 @@ import (
 	repository10 "github.com/devtron-labs/devtron/pkg/genericNotes/repository"
 	"github.com/devtron-labs/devtron/pkg/git"
 	"github.com/devtron-labs/devtron/pkg/gitops"
+	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
 	jira2 "github.com/devtron-labs/devtron/pkg/jira"
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	application2 "github.com/devtron-labs/devtron/pkg/k8s/application"
@@ -506,7 +507,8 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	devtronAppCMCSServiceImpl := pipeline.NewDevtronAppCMCSServiceImpl(sugaredLogger, appServiceImpl, attributesRepositoryImpl)
-	cdPipelineConfigServiceImpl := pipeline.NewCdPipelineConfigServiceImpl(sugaredLogger, pipelineRepositoryImpl, environmentRepositoryImpl, pipelineConfigRepositoryImpl, appWorkflowRepositoryImpl, pipelineStageServiceImpl, appRepositoryImpl, appServiceImpl, deploymentGroupRepositoryImpl, ciCdPipelineOrchestratorImpl, appStatusRepositoryImpl, ciPipelineRepositoryImpl, prePostCdScriptHistoryServiceImpl, clusterRepositoryImpl, helmAppServiceImpl, enforcerUtilImpl, gitOpsConfigRepositoryImpl, pipelineStrategyHistoryServiceImpl, chartRepositoryImpl, resourceGroupServiceImpl, chartDeploymentServiceImpl, chartTemplateServiceImpl, propertiesConfigServiceImpl, appLevelMetricsRepositoryImpl, deploymentTemplateHistoryServiceImpl, scopedVariableManagerImpl, pipelineDeploymentServiceTypeConfig, applicationServiceClientImpl, customTagServiceImpl, pipelineConfigListenerServiceImpl, devtronAppCMCSServiceImpl, ciPipelineConfigServiceImpl, buildPipelineSwitchServiceImpl)
+	imageDigestQualifierMappingServiceImpl := imageDigestPolicy.NewImageDigestQualifierMappingServiceImpl(sugaredLogger, qualifierMappingServiceImpl, devtronResourceSearchableKeyServiceImpl)
+	cdPipelineConfigServiceImpl := pipeline.NewCdPipelineConfigServiceImpl(sugaredLogger, pipelineRepositoryImpl, environmentRepositoryImpl, pipelineConfigRepositoryImpl, appWorkflowRepositoryImpl, pipelineStageServiceImpl, appRepositoryImpl, appServiceImpl, deploymentGroupRepositoryImpl, ciCdPipelineOrchestratorImpl, appStatusRepositoryImpl, ciPipelineRepositoryImpl, prePostCdScriptHistoryServiceImpl, clusterRepositoryImpl, helmAppServiceImpl, enforcerUtilImpl, gitOpsConfigRepositoryImpl, pipelineStrategyHistoryServiceImpl, chartRepositoryImpl, resourceGroupServiceImpl, chartDeploymentServiceImpl, chartTemplateServiceImpl, propertiesConfigServiceImpl, appLevelMetricsRepositoryImpl, deploymentTemplateHistoryServiceImpl, scopedVariableManagerImpl, pipelineDeploymentServiceTypeConfig, applicationServiceClientImpl, customTagServiceImpl, pipelineConfigListenerServiceImpl, devtronAppCMCSServiceImpl, ciPipelineConfigServiceImpl, buildPipelineSwitchServiceImpl, imageDigestQualifierMappingServiceImpl)
 	appArtifactManagerImpl := pipeline.NewAppArtifactManagerImpl(sugaredLogger, cdWorkflowRepositoryImpl, userServiceImpl, imageTaggingServiceImpl, ciArtifactRepositoryImpl, ciWorkflowRepositoryImpl, pipelineStageServiceImpl, cdPipelineConfigServiceImpl, dockerArtifactStoreRepositoryImpl, ciPipelineRepositoryImpl, ciTemplateServiceImpl)
 	globalStrategyMetadataChartRefMappingRepositoryImpl := chartRepoRepository.NewGlobalStrategyMetadataChartRefMappingRepositoryImpl(db, sugaredLogger)
 	devtronAppStrategyServiceImpl := pipeline.NewDevtronAppStrategyServiceImpl(sugaredLogger, chartRepositoryImpl, globalStrategyMetadataChartRefMappingRepositoryImpl, ciCdPipelineOrchestratorImpl, cdPipelineConfigServiceImpl)

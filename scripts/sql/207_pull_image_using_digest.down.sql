@@ -1,1 +1,1 @@
-ALTER TABLE "pipeline" DROP COLUMN "pull_image_using_digest";
+delete from devtron_resource_searchable_key where name='PIPELINE_ID';

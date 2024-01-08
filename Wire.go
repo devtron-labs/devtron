@@ -104,6 +104,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/generateManifest"
 	"github.com/devtron-labs/devtron/pkg/git"
 	"github.com/devtron-labs/devtron/pkg/gitops"
+	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
 	jira2 "github.com/devtron-labs/devtron/pkg/jira"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	repository7 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
@@ -972,6 +973,9 @@ func InitializeApp() (*App, error) {
 
 		pipeline.NewPipelineConfigListenerServiceImpl,
 		wire.Bind(new(pipeline.PipelineConfigListenerService), new(*pipeline.PipelineConfigListenerServiceImpl)),
+
+		imageDigestPolicy.NewImageDigestQualifierMappingServiceImpl,
+		wire.Bind(new(imageDigestPolicy.ImageDigestQualifierMappingService), new(*imageDigestPolicy.ImageDigestQualifierMappingServiceImpl)),
 	)
 	return &App{}, nil
 }

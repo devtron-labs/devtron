@@ -52,6 +52,7 @@ type EnvironmentBean struct {
 	AppCount               int      `json:"appCount"`
 	IsVirtualEnvironment   bool     `json:"isVirtualEnvironment"`
 	AllowedDeploymentTypes []string `json:"allowedDeploymentTypes"`
+	IsDigestEnforcedForEnv bool     `json:is`
 }
 
 type EnvDto struct {

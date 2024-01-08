@@ -40,6 +40,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
+	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
@@ -198,6 +199,7 @@ type WorkflowDagExecutorImpl struct {
 	pipelineConfigListenerService       PipelineConfigListenerService
 	customTagService                    CustomTagService
 	ACDConfig                           *argocdServer.ACDConfig
+	imageDigestQualifierMappingService  imageDigestPolicy.ImageDigestQualifierMappingService
 }
 
 const kedaAutoscaling = "kedaAutoscaling"
@@ -306,6 +308,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	pipelineConfigListenerService PipelineConfigListenerService,
 	customTagService CustomTagService,
 	ACDConfig *argocdServer.ACDConfig,
+	imageDigestQualifierMappingService imageDigestPolicy.ImageDigestQualifierMappingService,
 ) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
@@ -383,6 +386,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		pipelineConfigListenerService:       pipelineConfigListenerService,
 		customTagService:                    customTagService,
 		ACDConfig:                           ACDConfig,
+		imageDigestQualifierMappingService:  imageDigestQualifierMappingService,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -3315,7 +3319,7 @@ func (impl *WorkflowDagExecutorImpl) GetValuesOverrideForTrigger(overrideRequest
 	valuesOverrideResponse.PipelineOverride = pipelineOverride
 
 	//TODO: check status and apply lock
-	releaseOverrideJson, err := impl.getReleaseOverride(envOverride, overrideRequest, artifact, pipelineOverride, strategy, &appMetrics, pipeline.PullImageUsingDigest)
+	releaseOverrideJson, err := impl.getReleaseOverride(envOverride, overrideRequest, artifact, pipelineOverride, strategy, &appMetrics)
 	valuesOverrideResponse.ReleaseOverrideJSON = releaseOverrideJson
 	if err != nil {
 		return valuesOverrideResponse, err
@@ -4078,7 +4082,7 @@ func (impl *WorkflowDagExecutorImpl) savePipelineOverride(overrideRequest *bean.
 	return po, nil
 }
 
-func (impl *WorkflowDagExecutorImpl) getReleaseOverride(envOverride *chartConfig.EnvConfigOverride, overrideRequest *bean.ValuesOverrideRequest, artifact *repository.CiArtifact, pipelineOverride *chartConfig.PipelineOverride, strategy *chartConfig.PipelineStrategy, appMetrics *bool, useDigestForImagePull bool) (releaseOverride string, err error) {
+func (impl *WorkflowDagExecutorImpl) getReleaseOverride(envOverride *chartConfig.EnvConfigOverride, overrideRequest *bean.ValuesOverrideRequest, artifact *repository.CiArtifact, pipelineOverride *chartConfig.PipelineOverride, strategy *chartConfig.PipelineStrategy, appMetrics *bool) (releaseOverride string, err error) {
 
 	artifactImage := artifact.Image
 	imageTag := strings.Split(artifactImage, ":")
@@ -4103,7 +4107,13 @@ func (impl *WorkflowDagExecutorImpl) getReleaseOverride(envOverride *chartConfig
 		deploymentStrategy = string(strategy.Strategy)
 	}
 
-	if useDigestForImagePull {
+	isDigestPolicyConfiguredForPipeline, err := impl.imageDigestQualifierMappingService.IsPolicyConfiguredForPipeline(overrideRequest.PipelineId)
+	if err != nil {
+		impl.logger.Errorw("Error in checking if isDigestPolicyConfiguredForPipeline", "err", err)
+		return "", nil
+	}
+
+	if isDigestPolicyConfiguredForPipeline {
 		imageTag[imageTagLen-1] = fmt.Sprintf("%s@%s", imageTag[imageTagLen-1], artifact.ImageDigest)
 	}
 
@@ -4148,7 +4158,7 @@ func (impl *WorkflowDagExecutorImpl) mergeAndSave(envOverride *chartConfig.EnvCo
 		return 0, 0, "", err
 	}
 	//TODO: check status and apply lock
-	overrideJson, err := impl.getReleaseOverride(envOverride, overrideRequest, artifact, override, strategy, appMetrics, pipeline.PullImageUsingDigest)
+	overrideJson, err := impl.getReleaseOverride(envOverride, overrideRequest, artifact, override, strategy, appMetrics)
 	if err != nil {
 		return 0, 0, "", err
 	}
