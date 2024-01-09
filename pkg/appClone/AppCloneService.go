@@ -327,7 +327,7 @@ func (impl *AppCloneServiceImpl) CreateCiTemplate(oldAppId, newAppId int, userId
 	return res, err
 }
 
-func (impl *AppCloneServiceImpl) CreateDeploymentTemplate(oldAppId, newAppId int, userId int32, context context.Context) (*chart.TemplateRequest, error) {
+func (impl *AppCloneServiceImpl) CreateDeploymentTemplate(oldAppId, newAppId int, userId int32, context context.Context) (*chart.TemplateResponse, error) {
 	refTemplate, err := impl.chartService.FindLatestChartForAppByAppId(oldAppId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching ref app chart ", "app", oldAppId, "err", err)

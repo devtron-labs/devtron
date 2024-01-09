@@ -2,6 +2,7 @@ package drafts
 
 import (
 	client "github.com/devtron-labs/devtron/client/events"
+	"github.com/devtron-labs/devtron/enterprise/pkg/lockConfiguration/bean"
 	"time"
 )
 
@@ -137,6 +138,7 @@ func (request ConfigDraftRequest) GetDraftVersionComment(draftMetadataId, draftV
 
 type ConfigDraftResponse struct {
 	ConfigDraftRequest
+	*bean.LockValidateErrorResponse
 	DraftId        int        `json:"draftId"`
 	DraftVersionId int        `json:"draftVersionId"`
 	DraftState     DraftState `json:"draftState"`
@@ -222,4 +224,9 @@ type AppConfigDraft struct {
 	Resource     DraftResourceType `json:"resourceType"`
 	ResourceName string            `json:"resourceName"`
 	DraftState   DraftState        `json:"draftState"`
+}
+
+type DraftVersionResponse struct {
+	DraftVersionId                  int `json:"draftVersionId"`
+	*bean.LockValidateErrorResponse     // check if got error of lock config
 }

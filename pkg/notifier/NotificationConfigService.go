@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/enterprise/pkg/drafts"
-
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	repository5 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/pkg/apiToken"

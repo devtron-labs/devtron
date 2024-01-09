@@ -1167,7 +1167,7 @@ func (impl NotificationRestHandlerImpl) ConsumeDraftApprovalNotification(w http.
 		return
 	}
 	var draftState drafts2.DraftState
-	err = impl.configDraftRestHandlerImpl.CheckAccessAndApproveDraft(w, token, draftRequest)
+	_, err = impl.configDraftRestHandlerImpl.CheckAccessAndApproveDraft(w, token, draftRequest)
 	if err != nil {
 		validationErr, ok := err.(*drafts2.DraftApprovalValidationError)
 		if ok {

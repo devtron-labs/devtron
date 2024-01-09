@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strconv"
 
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/enterprise/pkg/drafts"
@@ -29,6 +28,7 @@ type ConfigDraftRestHandler interface {
 	DeleteUserComment(w http.ResponseWriter, r *http.Request)
 	UpdateDraftState(w http.ResponseWriter, r *http.Request)
 	GetDraftsCount(w http.ResponseWriter, r *http.Request)
+	ValidateLockDraft(w http.ResponseWriter, r *http.Request)
 }
 
 type ConfigDraftRestHandlerImpl struct {
@@ -131,16 +131,14 @@ func (impl *ConfigDraftRestHandlerImpl) AddDraftVersion(w http.ResponseWriter, r
 	}
 
 	request.UserId = userId
-	draftVersionId, err := impl.configDraftService.AddDraftVersion(request)
+	draftVersionResp, err := impl.configDraftService.AddDraftVersion(request)
 	if err != nil {
 		impl.logger.Errorw("error occurred while adding draft version", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
-	response := make(map[string]string, 1)
-	response["draftVersionId"] = strconv.Itoa(draftVersionId)
-	common.WriteJsonResp(w, err, response, http.StatusOK)
+	common.WriteJsonResp(w, err, draftVersionResp, http.StatusOK)
 }
 
 func (impl *ConfigDraftRestHandlerImpl) GetDraftVersionMetadata(w http.ResponseWriter, r *http.Request) {
@@ -392,18 +390,18 @@ func (impl *ConfigDraftRestHandlerImpl) ApproveDraft(w http.ResponseWriter, r *h
 	token := r.Header.Get("token")
 	envId := draftResponse.EnvId
 	appId := draftResponse.AppId
-	err = impl.CheckAccessAndApproveDraft(w, token, apiToken.GetDraftApprovalRequest(envId, appId, draftId, draftVersionId, userId))
+	createResp, err := impl.CheckAccessAndApproveDraft(w, token, apiToken.GetDraftApprovalRequest(envId, appId, draftId, draftVersionId, userId))
 	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-
-	common.WriteJsonResp(w, err, nil, http.StatusOK)
+	common.WriteJsonResp(w, err, createResp, http.StatusOK)
 }
 
-func (impl *ConfigDraftRestHandlerImpl) CheckAccessAndApproveDraft(w http.ResponseWriter, token string, draftRequest apiToken.DraftApprovalRequest) error {
+func (impl *ConfigDraftRestHandlerImpl) CheckAccessAndApproveDraft(w http.ResponseWriter, token string, draftRequest apiToken.DraftApprovalRequest) (*drafts.DraftVersionResponse, error) {
 	var isNotAuthorized bool
 	if isNotAuthorized = impl.checkForApproverAccess(w, draftRequest.EnvId, draftRequest.AppId, token, true); isNotAuthorized {
-		return errors.New("unauthorized user")
+		return nil, errors.New("unauthorized user")
 	}
 	return impl.configDraftService.ApproveDraft(draftRequest.DraftId, draftRequest.DraftVersionId, draftRequest.UserId)
 }
@@ -471,4 +469,43 @@ func (impl *ConfigDraftRestHandlerImpl) UpdateDraftState(w http.ResponseWriter, 
 		return
 	}
 	common.WriteJsonResp(w, err, draftVersion, http.StatusOK)
+}
+
+func (impl *ConfigDraftRestHandlerImpl) ValidateLockDraft(w http.ResponseWriter, r *http.Request) {
+	userId, err := impl.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	var request drafts.ConfigDraftRequest
+	decoder := json.NewDecoder(r.Body)
+	err = decoder.Decode(&request)
+	if err != nil {
+		impl.logger.Errorw("err in decoding request in ValidateLockDraft", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	// validate request
+	err = impl.validator.Struct(request)
+	if err != nil {
+		impl.logger.Errorw("validation err in ValidateLockDraft", "err", err, "request", request)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	token := r.Header.Get("token")
+	enforced := impl.enforceForAppAndEnv(request.AppId, request.EnvId, token, casbin.ActionCreate)
+	if !enforced {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	request.UserId = userId
+	validateLockResp, err := impl.configDraftService.ValidateLockDraft(request)
+	if err != nil {
+		impl.logger.Errorw("error occurred while validating draft", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, validateLockResp, http.StatusOK)
 }
