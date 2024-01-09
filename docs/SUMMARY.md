@@ -6,7 +6,7 @@
   * [Install Devtron with CI/CD](setup/install/install-devtron-with-cicd.md)
   * [Install Devtron with CI/CD and GitOps (Argo CD)](setup/install/install-devtron-with-cicd-with-gitops.md)
   * [Install Devtron without Integrations](setup/install/install-devtron.md)
-  * [Install Devtron on Minikube, Microk8s, K3s, Kind](setup/install/Install-devtron-on-Minikube-Microk8s-K3s-Kind.md)
+  * [Install Devtron on Minikube, Microk8s, K3s, Kind, Cloud VMs](setup/install/Install-devtron-on-Minikube-Microk8s-K3s-Kind.md)
   * [Demo on Popular Cloud Providers](setup/install/demo-tutorials.md)
   * [Backup for Disaster Recovery](setup/install/devtron-backup.md)
   * [Uninstall Devtron](setup/install/uninstall-devtron.md)

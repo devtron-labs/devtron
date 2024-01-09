@@ -18,6 +18,8 @@ const (
 const Main = "main"
 const UniquePlaceHolderForAppName = "$etron"
 
+const PIPELINE_NAME_ALREADY_EXISTS_ERROR = "pipeline name already exist"
+
 type CiBuildConfigBean struct {
 	Id                        int                `json:"id"`
 	GitMaterialId             int                `json:"gitMaterialId,omitempty" validate:"required"`
