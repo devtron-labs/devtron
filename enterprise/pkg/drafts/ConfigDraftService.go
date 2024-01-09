@@ -216,7 +216,7 @@ func (impl *ConfigDraftServiceImpl) validateDraftAction(draftId int, draftVersio
 	draftCurrentState := draftMetadataDto.DraftState
 	if draftCurrentState.IsTerminal() {
 		impl.logger.Errorw("draft is already in terminal state", "draftId", draftId, "draftCurrentState", draftCurrentState)
-		return nil, DraftApprovalValidationError{
+		return nil, &DraftApprovalValidationError{
 			Err:        errors.New(DraftAlreadyInTerminalState),
 			DraftState: draftCurrentState,
 		}

@@ -1169,15 +1169,19 @@ func (impl NotificationRestHandlerImpl) ConsumeDraftApprovalNotification(w http.
 	}
 	var draftState drafts2.DraftState
 	err = impl.configDraftRestHandlerImpl.CheckAccessAndApproveDraft(w, token, draftRequest)
-	if validationErr, ok := err.(*drafts2.DraftApprovalValidationError); ok {
-		draftState = validationErr.DraftState
-	}
-	if err != nil && !errors.As(err, &drafts2.DraftApprovalValidationError{}) {
-		if err.Error() != "unauthorized user" {
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+	if err != nil {
+		validationErr, ok := err.(*drafts2.DraftApprovalValidationError)
+		if ok {
+			draftState = validationErr.DraftState
 		}
-		return
+		if !ok {
+			if err.Error() != "unauthorized user" {
+				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			}
+			return
+		}
 	}
+
 	resp, err := impl.notificationService.GetMetaDataForDraftNotification(&draftRequest)
 	resp.DraftState = uint8(draftState)
 	if err != nil {
@@ -1218,13 +1222,17 @@ func (impl NotificationRestHandlerImpl) ConsumeDeploymentApprovalNotification(w 
 	}
 	err = impl.cdHandler.PerformDeploymentApprovalAction(deploymentApprovalRequest.UserId, approvalActionRequest)
 	var approvalState bean.ApprovalState
-	if validationErr, ok := err.(*bean.DeploymentApprovalValidationError); ok {
-		approvalState = validationErr.ApprovalState
+	if err != nil {
+		validationErr, ok := err.(*bean.DeploymentApprovalValidationError)
+		if ok {
+			approvalState = validationErr.ApprovalState
+		}
+		if !ok {
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
 	}
-	if err != nil && !errors.As(err, &bean.DeploymentApprovalValidationError{}) {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
+
 	resp, err := impl.notificationService.GetMetaDataForDeploymentNotification(&deploymentApprovalRequest, pipelineInfo.App.AppName, pipelineInfo.Environment.Name)
 	resp.Status = approvalState
 	if err != nil {

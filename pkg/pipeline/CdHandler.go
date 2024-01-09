@@ -1745,14 +1745,14 @@ func (impl *CdHandlerImpl) PerformDeploymentApprovalAction(userId int32, approva
 		//fetch approval request data, same user should not be Approval requester
 		approvalRequest, err := impl.deploymentApprovalRepository.FetchWithPipelineAndArtifactDetails(approvalRequestId)
 		if err != nil {
-			return bean3.DeploymentApprovalValidationError{
+			return &bean3.DeploymentApprovalValidationError{
 				Err:           errors.New("failed to fetch approval request data"),
 				ApprovalState: bean3.RequestCancelled,
 			}
 
 		}
 		if approvalRequest.ArtifactDeploymentTriggered == true {
-			return bean3.DeploymentApprovalValidationError{
+			return &bean3.DeploymentApprovalValidationError{
 				Err:           errors.New("deployment has already been triggered for this request"),
 				ApprovalState: bean3.AlreadyApproved,
 			}
@@ -1779,7 +1779,7 @@ func (impl *CdHandlerImpl) PerformDeploymentApprovalAction(userId int32, approva
 		err = impl.deploymentApprovalRepository.SaveDeploymentUserData(deploymentApprovalData)
 		if err != nil {
 			impl.Logger.Errorw("error occurred while saving user approval data", "approvalRequestId", approvalRequestId, "err", err)
-			return bean3.DeploymentApprovalValidationError{
+			return &bean3.DeploymentApprovalValidationError{
 				Err:           err,
 				ApprovalState: bean3.AlreadyApproved,
 			}
