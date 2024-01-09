@@ -47,8 +47,7 @@ const (
 type DraftState uint8
 
 const (
-	UndefinedDraftState DraftState = iota
-	InitDraftState
+	InitDraftState DraftState = iota + 1
 	DiscardedDraftState
 	PublishedDraftState
 	AwaitApprovalDraftState
