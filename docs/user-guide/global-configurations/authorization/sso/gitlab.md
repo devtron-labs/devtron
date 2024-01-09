@@ -21,6 +21,8 @@ Devtron provides a sample configuration out of the box. There are some values th
 
 * redirectURI (provided in SSO Login Services by Devtron)
 
+    ![Copying Redirect URI from Devtron](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/sso-login-service/redirect/gitlab-redurl.jpg)
+
     ![Pasting Redirect URI](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/sso-login-service/redirect/gitlab-redirect-v2.jpg)
 
 ---
