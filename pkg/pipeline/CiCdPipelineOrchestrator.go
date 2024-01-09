@@ -969,7 +969,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 		}
 
 		ciTemplateBean := &bean2.CiTemplateBean{}
-		if !ciPipeline.IsExternal && ciPipeline.IsDockerConfigOverridden { //pipeline is not [linked, webhook] and overridden, then create template override
+		if ciPipeline.IsDockerConfigOverridden {
 			//creating template override
 			templateOverride := &pipelineConfig.CiTemplateOverride{
 				CiPipelineId:     ciPipeline.Id,
@@ -991,14 +991,16 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 				CiBuildConfig:      ciPipeline.DockerConfigOverride.CiBuildConfig,
 				UserId:             createRequest.UserId,
 			}
-			err = impl.createDockerRepoIfNeeded(ciPipeline.DockerConfigOverride.DockerRegistry, ciPipeline.DockerConfigOverride.DockerRepository)
-			if err != nil {
-				impl.logger.Errorw("error, createDockerRepoIfNeeded", "err", err, "dockerRegistryId", ciPipeline.DockerConfigOverride.DockerRegistry, "dockerRegistry", ciPipeline.DockerConfigOverride.DockerRepository)
-				return nil, err
-			}
-			err := impl.ciTemplateService.Save(ciTemplateBean)
-			if err != nil {
-				return nil, err
+			if !ciPipeline.IsExternal { //pipeline is not [linked, webhook] and overridden, then create template override
+				err = impl.createDockerRepoIfNeeded(ciPipeline.DockerConfigOverride.DockerRegistry, ciPipeline.DockerConfigOverride.DockerRepository)
+				if err != nil {
+					impl.logger.Errorw("error, createDockerRepoIfNeeded", "err", err, "dockerRegistryId", ciPipeline.DockerConfigOverride.DockerRegistry, "dockerRegistry", ciPipeline.DockerConfigOverride.DockerRepository)
+					return nil, err
+				}
+				err := impl.ciTemplateService.Save(ciTemplateBean)
+				if err != nil {
+					return nil, err
+				}
 			}
 		}
 		err = impl.ciPipelineHistoryService.SaveHistory(ciPipelineObject, pipelineMaterials, ciTemplateBean, repository4.TRIGGER_ADD)
