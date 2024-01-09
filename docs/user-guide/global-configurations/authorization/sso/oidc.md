@@ -34,6 +34,8 @@ Devtron provides a sample configuration out of the box. There are some values th
 
 * [Configure Okta SSO](../../okta.md)
 
+* [View Dex IdP Documentation](https://dexidp.io/docs/connectors/oidc/)
+
 
 
 

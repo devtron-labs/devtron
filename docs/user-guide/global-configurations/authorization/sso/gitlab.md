@@ -29,5 +29,7 @@ Devtron provides a sample configuration out of the box. There are some values th
 
 ## Reference
 
-[View GitLab Documentation](https://docs.gitlab.com/ee/integration/oauth_provider.html)
+* [View GitLab Documentation](https://docs.gitlab.com/ee/integration/oauth_provider.html)
+
+* [View Dex IdP Documentation](https://dexidp.io/docs/connectors/gitlab/)
 

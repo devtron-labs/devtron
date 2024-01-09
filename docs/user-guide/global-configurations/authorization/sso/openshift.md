@@ -32,7 +32,9 @@ Devtron provides a sample configuration out of the box. There are some values th
 
 ## Reference
 
-[View Openshift Documentation](https://docs.openshift.com/container-platform/4.14/authentication/configuring-oauth-clients.html)
+* [View Openshift Documentation](https://docs.openshift.com/container-platform/4.14/authentication/configuring-oauth-clients.html)
+
+* [View Dex IdP Documentation](https://dexidp.io/docs/connectors/openshift/)
 
 
 

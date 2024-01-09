@@ -30,5 +30,8 @@ Devtron provides a sample configuration out of the box. There are some values th
 
 ## Reference
 
-[View GitHub Documentation](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/creating-an-oauth-app)
+* [View GitHub Documentation](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/creating-an-oauth-app)
+
+* [View Dex IdP Documentation](https://dexidp.io/docs/connectors/github/)
+
 

@@ -31,10 +31,9 @@ Devtron provides a sample configuration out of the box. There are some values th
 
 ## Reference
 
-[View Google Documentation](https://developers.google.com/identity/gsi/web/guides/get-google-api-clientid)
+* [View Google Documentation](https://developers.google.com/identity/gsi/web/guides/get-google-api-clientid)
 
-
-
+* [View Dex IdP Documentation](https://dexidp.io/docs/connectors/google/)
 
 
 
