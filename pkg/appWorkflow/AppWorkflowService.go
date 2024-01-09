@@ -20,25 +20,26 @@ package appWorkflow
 import (
 	"errors"
 	"fmt"
+	"time"
+
 	mapset "github.com/deckarep/golang-set"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	bean2 "github.com/devtron-labs/devtron/pkg/app/bean"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
+	bean3 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/devtron-labs/devtron/pkg/user"
-	bean3 "github.com/devtron-labs/devtron/pkg/user/bean"
 	"github.com/devtron-labs/devtron/pkg/variables/utils"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"golang.org/x/exp/slices"
-	"time"
 )
 
 const (
@@ -60,7 +61,7 @@ type AppWorkflowService interface {
 	FindAppWorkflowByName(name string, appId int) (AppWorkflowDto, error)
 
 	FindAllWorkflowsComponentDetails(appId int) (*AllAppWorkflowComponentDetails, error)
-	FindAppWorkflowsByEnvironmentId(request resourceGroup2.ResourceGroupingRequest) ([]*AppWorkflowDto, error)
+	FindAppWorkflowsByEnvironmentId(request resourceGroup2.ResourceGroupingRequest, token string) ([]*AppWorkflowDto, error)
 	FindAllWorkflowsForApps(request WorkflowNamesRequest) (*WorkflowNamesResponse, error)
 	FilterWorkflows(triggerViewConfig *TriggerViewWorkflowConfig, envIds []int) (*TriggerViewWorkflowConfig, error)
 	FindCdPipelinesByAppId(appId int) (*bean.CdPipelines, error)
@@ -606,7 +607,7 @@ func (impl AppWorkflowServiceImpl) FindAllWorkflowsComponentDetails(appId int) (
 	return resp, nil
 }
 
-func (impl AppWorkflowServiceImpl) FindAppWorkflowsByEnvironmentId(request resourceGroup2.ResourceGroupingRequest) ([]*AppWorkflowDto, error) {
+func (impl AppWorkflowServiceImpl) FindAppWorkflowsByEnvironmentId(request resourceGroup2.ResourceGroupingRequest, token string) ([]*AppWorkflowDto, error) {
 	workflows := make([]*AppWorkflowDto, 0)
 	if request.ResourceGroupId > 0 {
 		appIds, err := impl.resourceGroupService.GetResourceIdsByResourceGroupId(request.ResourceGroupId)
@@ -648,7 +649,7 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowsByEnvironmentId(request resou
 		appObjectArr = append(appObjectArr, object[0])
 		envObjectArr = append(envObjectArr, object[1])
 	}
-	appResults, envResults := request.CheckAuthBatch(request.EmailId, appObjectArr, envObjectArr)
+	appResults, envResults := request.CheckAuthBatch(token, appObjectArr, envObjectArr)
 	for _, pipeline := range pipelines {
 		appObject := objects[pipeline.Id][0]
 		envObject := objects[pipeline.Id][1]
@@ -663,7 +664,7 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowsByEnvironmentId(request resou
 	//authorization block ends here
 
 	if len(appIds) == 0 {
-		impl.Logger.Warnw("there is no app id found for fetching app workflows", "envId", request.EmailId)
+		impl.Logger.Warnw("there is no app id found for fetching app workflows", "req", request)
 		return workflows, nil
 	}
 	appWorkflows, err := impl.FindAppWorkflowMappingForEnv(appIds)

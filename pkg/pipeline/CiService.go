@@ -21,11 +21,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
+
 	repository5 "github.com/devtron-labs/devtron/internal/sql/repository"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/app"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	repository1 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
@@ -34,15 +40,10 @@ import (
 	"github.com/devtron-labs/devtron/pkg/plugin"
 	repository2 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
-	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	repository4 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
-	"path/filepath"
-	"strconv"
-	"strings"
-	"time"
 
 	"github.com/devtron-labs/common-lib/blob-storage"
 	client "github.com/devtron-labs/devtron/client/events"
@@ -482,9 +483,9 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	if pipeline.CiTemplate.DockerBuildOptions == "" {
 		pipeline.CiTemplate.DockerBuildOptions = "{}"
 	}
-	user, err := impl.userService.GetById(trigger.TriggeredBy)
+	userEmailId, err := impl.userService.GetEmailById(trigger.TriggeredBy)
 	if err != nil {
-		impl.Logger.Errorw("unable to find user by id", "err", err, "id", trigger.TriggeredBy)
+		impl.Logger.Errorw("unable to find user email by id", "err", err, "id", trigger.TriggeredBy)
 		return nil, err
 	}
 	var dockerfilePath string
@@ -640,7 +641,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		PostCiSteps:                 postCiSteps,
 		RefPlugins:                  refPluginsData,
 		AppName:                     pipeline.App.AppName,
-		TriggerByAuthor:             user.EmailId,
+		TriggerByAuthor:             userEmailId,
 		CiBuildConfig:               ciBuildConfigBean,
 		CiBuildDockerMtuValue:       impl.config.CiRunnerDockerMTUValue,
 		IgnoreDockerCachePush:       impl.config.IgnoreDockerCacheForCI,

@@ -21,7 +21,6 @@ import (
 	"compress/gzip"
 	"context"
 	"fmt"
-	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"io/ioutil"
 	"math/rand"
 	"net/http"
@@ -32,11 +31,13 @@ import (
 	"strings"
 	"time"
 
+	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
+	repository2 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
+
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
-	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	dirCopy "github.com/otiai10/copy"

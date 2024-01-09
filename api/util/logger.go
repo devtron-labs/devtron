@@ -2,12 +2,13 @@ package util
 
 import (
 	"bytes"
-	"github.com/devtron-labs/devtron/internal/middleware"
-	"github.com/devtron-labs/devtron/pkg/user"
 	"io"
 	"log"
 	"net/http"
 	"time"
+
+	"github.com/devtron-labs/devtron/internal/middleware"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 )
 
 type AuditLoggerDTO struct {
