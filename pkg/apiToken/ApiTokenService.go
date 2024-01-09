@@ -21,18 +21,19 @@ import (
 	"errors"
 	"fmt"
 	"github.com/caarlos0/env"
-	"github.com/devtron-labs/authenticator/middleware"
-	"github.com/devtron-labs/devtron/api/bean"
-	openapi "github.com/devtron-labs/devtron/api/openapi/openapiClient"
-	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/go-pg/pg"
-	"github.com/golang-jwt/jwt/v4"
-	"go.uber.org/zap"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/devtron-labs/authenticator/middleware"
+	"github.com/devtron-labs/devtron/api/bean"
+	openapi "github.com/devtron-labs/devtron/api/openapi/openapiClient"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
+	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/go-pg/pg"
+	"github.com/golang-jwt/jwt/v4"
+	"go.uber.org/zap"
 )
 
 type ApiTokenService interface {

@@ -21,13 +21,15 @@ import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/enterprise/pkg/drafts"
+
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	repository5 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/pkg/apiToken"
+	repository4 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/team"
-	repository4 "github.com/devtron-labs/devtron/pkg/user/repository"
+
 	util "github.com/devtron-labs/devtron/util/event"
 	"time"
 

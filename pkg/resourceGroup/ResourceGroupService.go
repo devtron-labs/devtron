@@ -19,18 +19,19 @@ package resourceGroup
 
 import (
 	"context"
+	"strings"
+	"time"
+
 	appStatusRepo "github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
 	"github.com/devtron-labs/devtron/internal/sql/repository/resourceGroup"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"strings"
-	"time"
 )
 
 const (
@@ -39,13 +40,13 @@ const (
 )
 
 type ResourceGroupService interface {
-	GetActiveResourceGroupList(emailId string, checkAuthBatch func(emailId string, appObject []string, action string) map[string]bool, envId int, groupType ResourceGroupType) ([]*ResourceGroupDto, error)
+	GetActiveResourceGroupList(token string, checkAuthBatch func(token string, appObject []string, action string) map[string]bool, envId int, groupType ResourceGroupType) ([]*ResourceGroupDto, error)
 	//GetApplicationsForResourceGroup(appGroupId int) ([]*ApplicationDto, error)
 	GetResourceIdsByResourceGroupId(resourceGroupId int) ([]int, error)
-	CreateResourceGroup(request *ResourceGroupDto) (*ResourceGroupDto, error)
-	UpdateResourceGroup(request *ResourceGroupDto) (*ResourceGroupDto, error)
-	CheckResourceGroupPermissions(request *ResourceGroupDto) (bool, error)
-	DeleteResourceGroup(resourceGroupId int, groupType ResourceGroupType, emailId string, checkAuthBatch func(emailId string, appObject []string, action string) map[string]bool) (bool, error)
+	CreateResourceGroup(request *ResourceGroupDto, token string) (*ResourceGroupDto, error)
+	UpdateResourceGroup(request *ResourceGroupDto, token string) (*ResourceGroupDto, error)
+	CheckResourceGroupPermissions(request *ResourceGroupDto, token string) (bool, error)
+	DeleteResourceGroup(resourceGroupId int, groupType ResourceGroupType, token string, checkAuthBatch func(token string, appObject []string, action string) map[string]bool) (bool, error)
 }
 type ResourceGroupServiceImpl struct {
 	logger                              *zap.SugaredLogger
@@ -74,11 +75,10 @@ type ResourceGroupingRequest struct {
 	ResourceGroupId   int
 	ParentResourceId  int
 	ResourceGroupType ResourceGroupType
-	ResourceIds       []int                                                                                           `json:"appIds,omitempty"`
-	EmailId           string                                                                                          `json:"emailId,omitempty"`
-	CheckAuthBatch    func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool) `json:"-"`
-	Ctx               context.Context                                                                                 `json:"-"`
-	UserId            int32                                                                                           `json:"-"`
+	ResourceIds       []int                                                                                         `json:"appIds,omitempty"`
+	CheckAuthBatch    func(token string, appObject []string, envObject []string) (map[string]bool, map[string]bool) `json:"-"`
+	Ctx               context.Context                                                                               `json:"-"`
+	UserId            int32                                                                                         `json:"-"`
 }
 
 type ResourceGroupType string
@@ -119,26 +119,25 @@ func (groupType ResourceGroupType) getResourceFromRbacObject(object string, envO
 }
 
 type ResourceGroupDto struct {
-	Id               int                                                                     `json:"id,omitempty"`
-	Name             string                                                                  `json:"name,omitempty" validate:"required,max=30,name-component"`
-	Description      string                                                                  `json:"description,omitempty" validate:"max=50"`
-	ResourceIds      []int                                                                   `json:"resourceIds"`
-	Active           bool                                                                    `json:"active,omitempty"`
-	ParentResourceId int                                                                     `json:"parentResourceId"`
-	GroupType        ResourceGroupType                                                       `json:"groupType,omitempty"`
-	UserId           int32                                                                   `json:"-"`
-	EmailId          string                                                                  `json:"-"`
-	CheckAuthBatch   func(emailId string, appObject []string, action string) map[string]bool `json:"-"`
+	Id               int                                                                   `json:"id,omitempty"`
+	Name             string                                                                `json:"name,omitempty" validate:"required,max=30,name-component"`
+	Description      string                                                                `json:"description,omitempty" validate:"max=50"`
+	ResourceIds      []int                                                                 `json:"resourceIds"`
+	Active           bool                                                                  `json:"active,omitempty"`
+	ParentResourceId int                                                                   `json:"parentResourceId"`
+	GroupType        ResourceGroupType                                                     `json:"groupType,omitempty"`
+	UserId           int32                                                                 `json:"-"`
+	CheckAuthBatch   func(token string, appObject []string, action string) map[string]bool `json:"-"`
 
 	//for backward compatibility
 	AppIds        []int `json:"appIds,omitempty"`
 	EnvironmentId int   `json:"environmentId,omitempty"`
 }
 
-func (impl *ResourceGroupServiceImpl) CreateResourceGroup(request *ResourceGroupDto) (*ResourceGroupDto, error) {
+func (impl *ResourceGroupServiceImpl) CreateResourceGroup(request *ResourceGroupDto, token string) (*ResourceGroupDto, error) {
 
 	resourceKeyToId := impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap()
-	err := impl.checkAuthForResourceGroup(request, casbin.ActionCreate)
+	err := impl.checkAuthForResourceGroup(request, casbin.ActionCreate, token)
 	if err != nil {
 		return nil, err
 	}
@@ -201,7 +200,7 @@ func (impl *ResourceGroupServiceImpl) CreateResourceGroup(request *ResourceGroup
 	return request, nil
 }
 
-func (impl *ResourceGroupServiceImpl) UpdateResourceGroup(request *ResourceGroupDto) (*ResourceGroupDto, error) {
+func (impl *ResourceGroupServiceImpl) UpdateResourceGroup(request *ResourceGroupDto, token string) (*ResourceGroupDto, error) {
 
 	resourceKeyToId := impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap()
 
@@ -225,7 +224,7 @@ func (impl *ResourceGroupServiceImpl) UpdateResourceGroup(request *ResourceGroup
 		return nil, err
 	}
 	request.ParentResourceId = existingModel.ResourceId
-	err = impl.checkAuthForResourceGroup(request, casbin.ActionUpdate)
+	err = impl.checkAuthForResourceGroup(request, casbin.ActionUpdate, token)
 	if err != nil {
 		return nil, err
 	}
@@ -290,7 +289,7 @@ func (impl *ResourceGroupServiceImpl) UpdateResourceGroup(request *ResourceGroup
 	return request, nil
 }
 
-func (impl *ResourceGroupServiceImpl) GetActiveResourceGroupList(emailId string, checkAuthBatch func(emailId string, appObject []string, action string) map[string]bool,
+func (impl *ResourceGroupServiceImpl) GetActiveResourceGroupList(token string, checkAuthBatch func(token string, appObject []string, action string) map[string]bool,
 	parentResourceId int, groupType ResourceGroupType) ([]*ResourceGroupDto, error) {
 	resourceKeyToId := impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap()
 	resourceGroupDtos := make([]*ResourceGroupDto, 0)
@@ -407,7 +406,7 @@ func (impl *ResourceGroupServiceImpl) GetResourceIdsByResourceGroupId(resourceGr
 	return resourceIds, nil
 }
 
-func (impl *ResourceGroupServiceImpl) DeleteResourceGroup(resourceGroupId int, groupType ResourceGroupType, emailId string, checkAuthBatch func(emailId string, appObject []string, action string) map[string]bool) (bool, error) {
+func (impl *ResourceGroupServiceImpl) DeleteResourceGroup(resourceGroupId int, groupType ResourceGroupType, token string, checkAuthBatch func(token string, appObject []string, action string) map[string]bool) (bool, error) {
 	dbConnection := impl.resourceGroupRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -432,7 +431,7 @@ func (impl *ResourceGroupServiceImpl) DeleteResourceGroup(resourceGroupId int, g
 	for _, mapping := range mappings {
 		resourceIdsForAuthorization[mapping.ResourceId] = mapping.ResourceId
 	}
-	unauthorizedResources, err := impl.checkAuthForResources(resourceIdsForAuthorization, emailId, checkAuthBatch, casbin.ActionDelete, groupType, savedResourceGroup.ResourceId)
+	unauthorizedResources, err := impl.checkAuthForResources(resourceIdsForAuthorization, token, checkAuthBatch, casbin.ActionDelete, groupType, savedResourceGroup.ResourceId)
 	if err != nil {
 		return false, err
 	}
@@ -460,8 +459,8 @@ func (impl *ResourceGroupServiceImpl) DeleteResourceGroup(resourceGroupId int, g
 	return true, nil
 }
 
-func (impl *ResourceGroupServiceImpl) checkAuthForResources(resourceIdsForAuthorization map[int]int, emailId string,
-	checkAuthBatch func(emailId string, appObject []string, action string) map[string]bool, action string, groupType ResourceGroupType, parentResourceId int) ([]string, error) {
+func (impl *ResourceGroupServiceImpl) checkAuthForResources(resourceIdsForAuthorization map[int]int, token string,
+	checkAuthBatch func(token string, appObject []string, action string) map[string]bool, action string, groupType ResourceGroupType, parentResourceId int) ([]string, error) {
 	//authorization block starts here
 	unauthorizedResources := make([]string, 0)
 	var rbacObjectArr []string
@@ -483,7 +482,7 @@ func (impl *ResourceGroupServiceImpl) checkAuthForResources(resourceIdsForAuthor
 		rbacObjectArr = append(rbacObjectArr, object)
 	}
 
-	results := checkAuthBatch(emailId, rbacObjectArr, action)
+	results := checkAuthBatch(token, rbacObjectArr, action)
 	for _, resourceId := range resourceIds {
 		resourceObject := objects[resourceId]
 		if !results[resourceObject] {
@@ -495,12 +494,12 @@ func (impl *ResourceGroupServiceImpl) checkAuthForResources(resourceIdsForAuthor
 	return unauthorizedResources, nil
 }
 
-func (impl *ResourceGroupServiceImpl) checkAuthForResourceGroup(request *ResourceGroupDto, action string) error {
+func (impl *ResourceGroupServiceImpl) checkAuthForResourceGroup(request *ResourceGroupDto, action string, token string) error {
 	resourceIdsForAuthorization := make(map[int]int)
 	for _, resourceId := range request.ResourceIds {
 		resourceIdsForAuthorization[resourceId] = resourceId
 	}
-	unauthorizedResources, err := impl.checkAuthForResources(resourceIdsForAuthorization, request.EmailId, request.CheckAuthBatch, action, request.GroupType, request.ParentResourceId)
+	unauthorizedResources, err := impl.checkAuthForResources(resourceIdsForAuthorization, token, request.CheckAuthBatch, action, request.GroupType, request.ParentResourceId)
 	if err != nil {
 		return err
 	}
@@ -515,8 +514,8 @@ func (impl *ResourceGroupServiceImpl) checkAuthForResourceGroup(request *Resourc
 	return nil
 }
 
-func (impl *ResourceGroupServiceImpl) CheckResourceGroupPermissions(request *ResourceGroupDto) (bool, error) {
-	err := impl.checkAuthForResourceGroup(request, casbin.ActionCreate)
+func (impl *ResourceGroupServiceImpl) CheckResourceGroupPermissions(request *ResourceGroupDto, token string) (bool, error) {
+	err := impl.checkAuthForResourceGroup(request, casbin.ActionCreate, token)
 	if err != nil {
 		return false, err
 	}

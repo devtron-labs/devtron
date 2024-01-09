@@ -23,7 +23,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	jwt2 "github.com/devtron-labs/authenticator/jwt"
 	"github.com/golang-jwt/jwt/v4"
 	"html"
 	"html/template"
@@ -131,7 +130,7 @@ func (a *ClientApp) UpdateConfig(c *ClientApp) {
 }
 
 type RedirectUrlSanitiser func(url string) string
-type UserVerifier func(email string) bool
+type UserVerifier func(claims jwt.MapClaims) bool
 
 func GetScopesOrDefault(scopes []string) []string {
 	if len(scopes) == 0 {
@@ -449,12 +448,7 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	returnUrl := appState.ReturnURL
 	// verify user in system
-	email := jwt2.GetField(claims, "email")
-	sub := jwt2.GetField(claims, "sub")
-	if email == "" && sub == "admin" {
-		email = sub
-	}
-	valid := a.userVerifier(email)
+	valid := a.userVerifier(claims)
 	//  end verify user in system
 	if !valid {
 		w.Header().Add("Set-Cookie", "")

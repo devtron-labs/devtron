@@ -21,6 +21,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
 	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/caarlos0/env/v6"
@@ -41,6 +46,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStatus"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	service1 "github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
 	"github.com/devtron-labs/devtron/pkg/generateManifest"
@@ -49,8 +56,6 @@ import (
 	application3 "github.com/devtron-labs/devtron/pkg/k8s/application"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/team"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -58,10 +63,6 @@ import (
 	"github.com/gorilla/mux"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
-	"net/http"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type AppListingRestHandler interface {
@@ -212,21 +213,11 @@ func (handler AppListingRestHandlerImpl) FetchJobs(w http.ResponseWriter, r *htt
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	user, err := handler.userService.GetById(userId)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	isSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
-	if err != nil {
-		handler.logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
-		return
-	}
+	token := r.Header.Get("token")
+	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
 	var validAppIds []int
 	//for non super admin users
 	if !isSuperAdmin {
-		userEmailId := strings.ToLower(user.EmailId)
 		rbacObjectsForAllAppsMap := handler.enforcerUtil.GetRbacObjectsForAllApps(helper.Job)
 		rbacObjectToAppIdMap := make(map[string]int)
 		rbacObjects := make([]string, len(rbacObjectsForAllAppsMap))
@@ -237,7 +228,7 @@ func (handler AppListingRestHandlerImpl) FetchJobs(w http.ResponseWriter, r *htt
 			itr++
 		}
 
-		result := handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceJobs, casbin.ActionGet, rbacObjects)
+		result := handler.enforcer.EnforceInBatch(token, casbin.ResourceJobs, casbin.ActionGet, rbacObjects)
 		//O(n) loop, n = len(rbacObjectsForAllAppsMap)
 		for object, ok := range result {
 			if ok {
@@ -352,13 +343,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 		return
 	}
 	newCtx, span = otel.Tracer("userService").Start(newCtx, "GetById")
-	user, err := handler.userService.GetById(userId)
 	span.End()
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	userEmailId := strings.ToLower(user.EmailId)
 	var fetchAppListingRequest app.FetchAppListingRequest
 	decoder := json.NewDecoder(r.Body)
 	err = decoder.Decode(&fetchAppListingRequest)
@@ -401,13 +386,8 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 	t1 = t2
 
 	newCtx, span = otel.Tracer("userService").Start(newCtx, "IsSuperAdmin")
-	isActionUserSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
+	isActionUserSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
 	span.End()
-	if err != nil {
-		handler.logger.Errorw("request err, FetchAppsByEnvironment", "err", err, "userId", userId)
-		common.WriteJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
-		return
-	}
 	appEnvContainers := make([]*bean.AppEnvironmentContainer, 0)
 	if isActionUserSuperAdmin {
 		appEnvContainers = append(appEnvContainers, envContainers...)
@@ -428,7 +408,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 
 		newCtx, span = otel.Tracer("enforcer").Start(newCtx, "EnforceByEmailInBatchForTeams")
 		start = time.Now()
-		resultMap := handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceTeam, casbin.ActionGet, objectArray)
+		resultMap := handler.enforcer.EnforceInBatch(token, casbin.ResourceTeam, casbin.ActionGet, objectArray)
 		middleware.AppListingDuration.WithLabelValues("enforceByEmailInBatchResourceTeam", "devtron").Observe(time.Since(start).Seconds())
 		span.End()
 		for teamId, teamName := range uniqueTeams {
@@ -459,7 +439,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 
 		newCtx, span = otel.Tracer("enforcer").Start(newCtx, "EnforceByEmailInBatchForApps")
 		start = time.Now()
-		resultMap = handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceApplications, casbin.ActionGet, objectArray)
+		resultMap = handler.enforcer.EnforceInBatch(token, casbin.ResourceApplications, casbin.ActionGet, objectArray)
 		middleware.AppListingDuration.WithLabelValues("enforceByEmailInBatchResourceApplication", "devtron").Observe(time.Since(start).Seconds())
 		span.End()
 		for _, filteredAppEnvContainer := range filteredAppEnvContainers {
@@ -543,13 +523,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironmentV1(w http.Respons
 		return
 	}
 	newCtx, span = otel.Tracer("userService").Start(newCtx, "GetById")
-	user, err := handler.userService.GetById(userId)
 	span.End()
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	userEmailId := strings.ToLower(user.EmailId)
 	var fetchAppListingRequest app.FetchAppListingRequest
 	decoder := json.NewDecoder(r.Body)
 	err = decoder.Decode(&fetchAppListingRequest)
@@ -592,13 +566,8 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironmentV1(w http.Respons
 	t1 = t2
 
 	newCtx, span = otel.Tracer("userService").Start(newCtx, "IsSuperAdmin")
-	isActionUserSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
+	isActionUserSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
 	span.End()
-	if err != nil {
-		handler.logger.Errorw("request err, FetchAppsByEnvironment", "err", err, "userId", userId)
-		common.WriteJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
-		return
-	}
 	appEnvContainers := make([]*bean.AppEnvironmentContainer, 0)
 	if isActionUserSuperAdmin {
 		appEnvContainers = append(appEnvContainers, envContainers...)
@@ -619,7 +588,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironmentV1(w http.Respons
 
 		newCtx, span = otel.Tracer("enforcer").Start(newCtx, "EnforceByEmailInBatchForTeams")
 		start = time.Now()
-		resultMap := handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceTeam, casbin.ActionGet, objectArray)
+		resultMap := handler.enforcer.EnforceInBatch(token, casbin.ResourceTeam, casbin.ActionGet, objectArray)
 		middleware.AppListingDuration.WithLabelValues("enforceByEmailInBatchResourceTeam", "devtron").Observe(time.Since(start).Seconds())
 		span.End()
 		for teamId, teamName := range uniqueTeams {
@@ -650,7 +619,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironmentV1(w http.Respons
 
 		newCtx, span = otel.Tracer("enforcer").Start(newCtx, "EnforceByEmailInBatchForApps")
 		start = time.Now()
-		resultMap = handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceApplications, casbin.ActionGet, objectArray)
+		resultMap = handler.enforcer.EnforceInBatch(token, casbin.ResourceApplications, casbin.ActionGet, objectArray)
 		middleware.AppListingDuration.WithLabelValues("enforceByEmailInBatchResourceApplication", "devtron").Observe(time.Since(start).Seconds())
 		span.End()
 		for _, filteredAppEnvContainer := range filteredAppEnvContainers {
@@ -735,25 +704,13 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironmentV2(w http.Respons
 		return
 	}
 	newCtx, span = otel.Tracer("userService").Start(newCtx, "GetById")
-	user, err := handler.userService.GetById(userId)
 	span.End()
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
 	newCtx, span = otel.Tracer("userService").Start(newCtx, "IsSuperAdmin")
-	isActionUserSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
+	isActionUserSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
 	span.End()
-	if err != nil {
-		handler.logger.Errorw("request err, FetchAppsByEnvironment", "err", err, "userId", userId)
-		common.WriteJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
-		return
-	}
-
 	validAppIds := make([]int, 0)
 	//for non super admin users
 	if !isActionUserSuperAdmin {
-		userEmailId := strings.ToLower(user.EmailId)
 		rbacObjectsForAllAppsMap := handler.enforcerUtil.GetRbacObjectsForAllApps(helper.CustomApp)
 		rbacObjectToAppIdMap := make(map[string]int)
 		rbacObjects := make([]string, len(rbacObjectsForAllAppsMap))
@@ -764,7 +721,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironmentV2(w http.Respons
 			itr++
 		}
 
-		result := handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceApplications, casbin.ActionGet, rbacObjects)
+		result := handler.enforcer.EnforceInBatch(token, casbin.ResourceApplications, casbin.ActionGet, rbacObjects)
 		//O(n) loop, n = len(rbacObjectsForAllAppsMap)
 		for object, ok := range result {
 			if ok {
@@ -867,11 +824,7 @@ func (handler AppListingRestHandlerImpl) FetchOverviewAppsByEnvironment(w http.R
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	user, err := handler.userService.GetById(userId)
-	if user == nil || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
+	token := r.Header.Get("token")
 	envId, err := strconv.Atoi(vars["env-id"])
 	if err != nil || envId == 0 {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -894,21 +847,12 @@ func (handler AppListingRestHandlerImpl) FetchOverviewAppsByEnvironment(w http.R
 		return
 	}
 	resp.AppCount = len(resp.Apps)
-	isActionUserSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
-	if err != nil {
-		handler.logger.Errorw("request err, FetchOverviewAppsByEnvironment", "err", err, "userId", userId)
-		common.WriteJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
-		return
-	}
-
-	//return if user is super admin
-	if isActionUserSuperAdmin {
+	//return all if user is super admin
+	if isActionUserSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); isActionUserSuperAdmin {
 		common.WriteJsonResp(w, err, resp, http.StatusOK)
 		return
 	}
 
-	//apply rbac
-	userEmailId := strings.ToLower(user.EmailId)
 	//get all the appIds
 	appIds := make([]int, 0)
 	appContainers := resp.Apps
@@ -925,7 +869,7 @@ func (handler AppListingRestHandlerImpl) FetchOverviewAppsByEnvironment(w http.R
 		itr++
 	}
 	//enforce rbac in batch
-	rbacResult := handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceApplications, casbin.ActionGet, rbacObjects)
+	rbacResult := handler.enforcer.EnforceInBatch(token, casbin.ResourceApplications, casbin.ActionGet, rbacObjects)
 	//filter out rbac passed apps
 	resp.Apps = make([]*bean.AppEnvironmentContainer, 0)
 	for _, appBean := range appContainers {
@@ -1788,7 +1732,6 @@ func (handler AppListingRestHandlerImpl) GetClusterTeamAndEnvListForAutocomplete
 	println(dbElapsedTime, grantedEnvironment)
 	if !handler.cfg.IgnoreAuthCheck {
 		grantedEnvironment = make([]cluster.EnvironmentBean, 0)
-		emailId, _ := handler.userService.GetEmailFromToken(token)
 		// RBAC enforcer applying
 		var envIdentifierList []string
 		for index, item := range environments {
@@ -1800,7 +1743,7 @@ func (handler AppListingRestHandlerImpl) GetClusterTeamAndEnvListForAutocomplete
 			envIdentifierList = append(envIdentifierList, strings.ToLower(item.EnvironmentIdentifier))
 		}
 
-		result := handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceGlobalEnvironment, casbin.ActionGet, envIdentifierList)
+		result := handler.enforcer.EnforceInBatch(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, envIdentifierList)
 		for _, item := range environments {
 
 			var hasAccess bool
@@ -1834,14 +1777,13 @@ func (handler AppListingRestHandlerImpl) GetClusterTeamAndEnvListForAutocomplete
 	start = time.Now()
 	if !handler.cfg.IgnoreAuthCheck {
 		grantedTeams = make([]team.TeamRequest, 0)
-		emailId, _ := handler.userService.GetEmailFromToken(token)
 		// RBAC enforcer applying
 		var teamNameList []string
 		for _, item := range teams {
 			teamNameList = append(teamNameList, strings.ToLower(item.Name))
 		}
 
-		result := handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceTeam, casbin.ActionGet, teamNameList)
+		result := handler.enforcer.EnforceInBatch(token, casbin.ResourceTeam, casbin.ActionGet, teamNameList)
 
 		for _, item := range teams {
 			if hasAccess := result[strings.ToLower(item.Name)]; hasAccess {

@@ -4,22 +4,24 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"time"
+
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/enterprise/pkg/protect"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
-	util2 "github.com/devtron-labs/devtron/util/event"
 
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
-	"github.com/devtron-labs/devtron/pkg/user"
+
+	util2 "github.com/devtron-labs/devtron/util/event"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"k8s.io/utils/pointer"
-	"time"
 )
 
 type ConfigDraftService interface {
@@ -208,7 +210,6 @@ func (impl *ConfigDraftServiceImpl) validateDraftAction(draftId int, draftVersio
 	if latestDraftVersion.Id != draftVersionId { // needed for current scope
 		return nil, errors.New(LastVersionOutdated)
 	}
-	//have
 	draftMetadataDto, err := impl.configDraftRepository.GetDraftMetadataById(draftId)
 	if err != nil {
 		return nil, err
@@ -389,6 +390,7 @@ func (impl *ConfigDraftServiceImpl) ApproveDraft(draftId int, draftVersionId int
 	err = impl.configDraftRepository.UpdateDraftState(draftId, toUpdateDraftState, userId)
 	return err
 }
+
 func (impl *ConfigDraftServiceImpl) handleCmCsData(draftResource DraftResourceType, draftDto *DraftDto, draftData string, userId int32, action ResourceAction) error {
 	// if envId is -1 then it is base Configuration else Env level config
 	appId := draftDto.AppId

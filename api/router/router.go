@@ -23,6 +23,9 @@ import (
 	"github.com/devtron-labs/devtron/api/apiToken"
 	"github.com/devtron-labs/devtron/api/appStore"
 	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
+	"github.com/devtron-labs/devtron/api/auth/authorisation/globalConfig"
+	"github.com/devtron-labs/devtron/api/auth/sso"
+	"github.com/devtron-labs/devtron/api/auth/user"
 	"github.com/devtron-labs/devtron/api/chartRepo"
 	"github.com/devtron-labs/devtron/api/cluster"
 	"github.com/devtron-labs/devtron/api/dashboardEvent"
@@ -37,10 +40,8 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/api/router/pubsub"
 	"github.com/devtron-labs/devtron/api/server"
-	"github.com/devtron-labs/devtron/api/sso"
 	"github.com/devtron-labs/devtron/api/team"
 	terminal2 "github.com/devtron-labs/devtron/api/terminal"
-	"github.com/devtron-labs/devtron/api/user"
 	webhookHelm "github.com/devtron-labs/devtron/api/webhook/helm"
 	"github.com/devtron-labs/devtron/client/cron"
 	"github.com/devtron-labs/devtron/client/dashboard"
@@ -133,6 +134,7 @@ type MuxRouter struct {
 	ciTriggerCron                      cron.CiTriggerCron
 	resourceFilterRouter               ResourceFilterRouter
 	devtronResourceRouter              devtronResource.DevtronResourceRouter
+	globalAuthorisationConfigRouter    globalConfig.AuthorisationConfigRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -166,7 +168,8 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 	globalPolicyRouter globalPolicy.GlobalPolicyRouter, configDraftRouter drafts.ConfigDraftRouter, resourceProtectionRouter protect.ResourceProtectionRouter,
 	scopedVariableRouter ScopedVariableRouter, ciTriggerCron cron.CiTriggerCron,
 	resourceFilterRouter ResourceFilterRouter,
-	devtronResourceRouter devtronResource.DevtronResourceRouter) *MuxRouter {
+	devtronResourceRouter devtronResource.DevtronResourceRouter,
+	globalAuthorisationConfigRouter globalConfig.AuthorisationConfigRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
 		HelmRouter:                         HelmRouter,
@@ -244,6 +247,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 		resourceProtectionRouter:           resourceProtectionRouter,
 		resourceFilterRouter:               resourceFilterRouter,
 		devtronResourceRouter:              devtronResourceRouter,
+		globalAuthorisationConfigRouter:    globalAuthorisationConfigRouter,
 	}
 	return r
 }
@@ -473,4 +477,7 @@ func (r MuxRouter) Init() {
 
 	devtronResourceRouter := r.Router.PathPrefix("/orchestrator/resource").Subrouter()
 	r.devtronResourceRouter.InitDevtronResourceRouter(devtronResourceRouter)
+
+	globalAuthorisationConfigRouter := r.Router.PathPrefix("/orchestrator/authorisation").Subrouter()
+	r.globalAuthorisationConfigRouter.InitAuthorisationConfigRouter(globalAuthorisationConfigRouter)
 }
