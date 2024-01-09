@@ -13,6 +13,7 @@ import (
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
+	"strings"
 )
 
 type LockConfigRestHandler interface {
@@ -91,11 +92,17 @@ func (handler LockConfigRestHandlerImpl) GetLockConfig(w http.ResponseWriter, r 
 		if len(roleFilters) > 0 {
 			for _, filter := range roleFilters {
 				if len(filter.Team) > 0 {
-					resourceName := handler.enforcerUtil.GetProjectOrAppAdminRBACNameByAppNameAndTeamName(filter.EntityName, filter.Team)
-					if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceName); ok {
-						isAuthorised = true
-						break
+					entityNames := strings.Split(filter.EntityName, ",")
+					if len(entityNames) > 0 {
+						for _, val := range entityNames {
+							resourceName := handler.enforcerUtil.GetProjectOrAppAdminRBACNameByAppNameAndTeamName(val, filter.Team)
+							if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceName); ok {
+								isAuthorised = true
+								break
+							}
+						}
 					}
+
 				}
 			}
 		}
