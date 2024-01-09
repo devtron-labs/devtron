@@ -1027,6 +1027,7 @@ func (handler AppListingRestHandlerImpl) FetchResourceTree(w http.ResponseWriter
 	if err != nil {
 		handler.logger.Errorw("error in fetching resource tree", "err", err, "appId", appId, "envId", envId)
 		handler.handleResourceTreeErrAndDeletePipelineIfNeeded(w, err, appId, envId, acdToken, cdPipeline)
+		return
 	}
 	common.WriteJsonResp(w, err, resourceTree, http.StatusOK)
 }
