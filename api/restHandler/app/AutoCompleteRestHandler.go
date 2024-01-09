@@ -3,16 +3,17 @@ package app
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"strconv"
+
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	repository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/gorilla/mux"
 	"go.opentelemetry.io/otel"
 	"k8s.io/utils/strings/slices"
-	"net/http"
-	"strconv"
 )
 
 type DevtronAppAutoCompleteRestHandler interface {
@@ -29,11 +30,8 @@ func (handler PipelineConfigRestHandlerImpl) GetAppListForAutocomplete(w http.Re
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	isActionUserSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
-	if err != nil {
-		common.WriteJsonResp(w, err, "Failed to check admin check", http.StatusInternalServerError)
-		return
-	}
+	token := r.Header.Get("token")
+	isActionUserSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
 
 	v := r.URL.Query()
 	teamId := v.Get("teamId")
@@ -82,13 +80,6 @@ func (handler PipelineConfigRestHandlerImpl) GetAppListForAutocomplete(w http.Re
 
 	// RBAC
 	_, span := otel.Tracer("autoCompleteAppAPI").Start(context.Background(), "RBACForAutoCompleteAppAPI")
-	token := r.Header.Get("token")
-	userEmailId, err := handler.userAuthService.GetEmailFromToken(token)
-	if err != nil {
-		handler.Logger.Errorw("error in getting user emailId from token", "userId", userId, "err", err)
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
 	accessedApps := make([]*pipeline.AppBean, 0)
 	rbacObjects := make([]string, 0)
 
@@ -104,7 +95,7 @@ func (handler PipelineConfigRestHandlerImpl) GetAppListForAutocomplete(w http.Re
 		rbacObjects = append(rbacObjects, object)
 	}
 
-	enforcedMap := handler.enforcerUtil.CheckAppRbacForAppOrJobInBulk(userEmailId, casbin.ActionGet, rbacObjects, helper.AppType(appType))
+	enforcedMap := handler.enforcerUtil.CheckAppRbacForAppOrJobInBulk(token, casbin.ActionGet, rbacObjects, helper.AppType(appType))
 	for _, app := range apps {
 		object := appIdToObjectMap[app.Id]
 		if enforcedMap[object] {

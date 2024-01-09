@@ -19,14 +19,15 @@ package team
 
 import (
 	"errors"
-	"github.com/devtron-labs/devtron/internal/constants"
-	"github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/bean"
-	"go.uber.org/zap"
 	"strings"
 	"time"
+
+	"github.com/devtron-labs/devtron/internal/constants"
+	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
+	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
+	"github.com/devtron-labs/devtron/pkg/sql"
+	"go.uber.org/zap"
 )
 
 type TeamService interface {
