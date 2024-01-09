@@ -26,11 +26,14 @@ import (
 	errors2 "github.com/juju/errors"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
+	"io"
 	errors3 "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type K8sApplicationRestHandler interface {
@@ -671,6 +674,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 		request.K8sRequest.PodLogsRequest.SinceTime = &t
 		isReconnect = true
 	}
+	fmt.Println(isReconnect)
 	stream, err := handler.k8sApplicationService.GetPodLogs(r.Context(), request)
 	//err is handled inside StartK8sStreamWithHeartBeat method
 	ctx, cancel := context.WithCancel(r.Context())
@@ -685,6 +689,58 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 	}
 	defer cancel()
 	defer util.Close(stream, handler.logger)
+
+	tmpFile, err := os.CreateTemp("", "podlogs-*.txt")
+	fmt.Println(tmpFile)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	defer tmpFile.Close()
+
+	done := make(chan struct{})
+
+	go func() {
+		// Copy the pod logs stream to the temporary file
+		_, err := io.Copy(tmpFile, stream)
+		if err != nil {
+			fmt.Println("Error copying pod logs:", err)
+		}
+
+		// Signal that the copy is done
+		close(done)
+	}()
+
+	// Wait for the copy to finish or timeout (adjust timeout as needed)
+	select {
+	case <-done:
+		// Copy completed
+	case <-time.After(120 * time.Second):
+		// Timeout, handle as needed
+		//http.Error(w, "Timeout copying pod logs", http.StatusInternalServerError)
+		common.WriteJsonResp(w, errors.New("timeout copying pod logs"), nil, http.StatusInternalServerError)
+		return
+	}
+
+	//fmt.Println("stream before copy = ", stream)
+
+	//done := make(chan struct{})
+	//go func() {
+	//_, err = io.Copy(tmpFile, stream)
+	//if err != nil {
+	//	fmt.Println("err = ", err)
+	//}
+
+	//	close(done)
+	//}()
+
+	//noOfBytesCopied, err := io.Copy(tmpFile, stream)
+	//fmt.Println("stream after copy = ", stream)
+	//fmt.Println("copy result", err)
+	//if err != nil {
+	//	common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+	//	return
+	//}
 	handler.pump.StartK8sStreamWithHeartBeat(w, isReconnect, stream, err)
 }
 
