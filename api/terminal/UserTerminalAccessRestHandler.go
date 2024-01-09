@@ -39,9 +39,9 @@ type validShellResponse struct {
 type UserTerminalAccessRestHandlerImpl struct {
 	Logger                    *zap.SugaredLogger
 	UserTerminalAccessService clusterTerminalAccess.UserTerminalAccessService
-	Enforcer    casbin.Enforcer
-	UserService user.UserService
-	validator   *validator.Validate
+	Enforcer                  casbin.Enforcer
+	UserService               user.UserService
+	validator                 *validator.Validate
 }
 
 func NewUserTerminalAccessRestHandlerImpl(logger *zap.SugaredLogger, userTerminalAccessService clusterTerminalAccess.UserTerminalAccessService, Enforcer casbin.Enforcer,

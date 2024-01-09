@@ -128,9 +128,9 @@ type InstalledAppServiceImpl struct {
 	ArgoK8sClient                        argocdServer.ArgoK8sClient
 	gitFactory                           *util.GitFactory
 	aCDAuthConfig                        *util2.ACDAuthConfig
-	gitOpsRepository          repository3.GitOpsConfigRepository
-	userService               user.UserService
-	appStoreDeploymentService AppStoreDeploymentService
+	gitOpsRepository                     repository3.GitOpsConfigRepository
+	userService                          user.UserService
+	appStoreDeploymentService            AppStoreDeploymentService
 	appStoreDeploymentFullModeService    appStoreDeploymentFullMode.AppStoreDeploymentFullModeService
 	installedAppRepositoryHistory        repository2.InstalledAppVersionHistoryRepository
 	argoUserService                      argo.ArgoUserService
