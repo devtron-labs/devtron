@@ -132,8 +132,6 @@ type WorkflowDagExecutorImpl struct {
 	enforcer                      casbin.Enforcer
 	enforcerUtil                  rbac.EnforcerUtil
 	groupRepository               repository.DeploymentGroupRepository
-	tokenCache                    *util3.TokenCache
-	acdAuthConfig                 *util3.ACDAuthConfig
 	envRepository                 repository2.EnvironmentRepository
 	eventFactory                  client.EventFactory
 	eventClient                   client.EventClient
@@ -155,9 +153,8 @@ type WorkflowDagExecutorImpl struct {
 	appServiceConfig              *app.AppServiceConfig
 	globalPluginService           plugin.GlobalPluginService
 
-	scopedVariableManager          variables.ScopedVariableCMCSManager
-	variableSnapshotHistoryService variables.VariableSnapshotHistoryService
-	pluginInputVariableParser      PluginInputVariableParser
+	scopedVariableManager     variables.ScopedVariableCMCSManager
+	pluginInputVariableParser PluginInputVariableParser
 
 	devtronAsyncHelmInstallRequestMap  map[int]bool
 	devtronAsyncHelmInstallRequestLock *sync.Mutex
@@ -253,8 +250,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	user user.UserService,
 	groupRepository repository.DeploymentGroupRepository,
 	envRepository repository2.EnvironmentRepository,
-	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, tokenCache *util3.TokenCache,
-	acdAuthConfig *util3.ACDAuthConfig, eventFactory client.EventFactory,
+	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, eventFactory client.EventFactory,
 	eventClient client.EventClient, cvePolicyRepository security.CvePolicyRepository,
 	scanResultRepository security.ImageScanResultRepository,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
@@ -319,8 +315,6 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		enforcer:                      enforcer,
 		enforcerUtil:                  enforcerUtil,
 		groupRepository:               groupRepository,
-		tokenCache:                    tokenCache,
-		acdAuthConfig:                 acdAuthConfig,
 		envRepository:                 envRepository,
 		eventFactory:                  eventFactory,
 		eventClient:                   eventClient,
