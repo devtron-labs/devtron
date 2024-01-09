@@ -112,6 +112,8 @@ func (impl PumpImpl) StartK8sStreamWithHeartBeat(w http.ResponseWriter, isReconn
 	}()
 
 	bufReader := bufio.NewReader(stream)
+	impl.logger.Infow("**** logging stream ****", "stream", stream)
+	impl.logger.Infow("**** logging bufReader ****", "bufReader", bufReader)
 	eof := false
 	for !eof {
 		log, err := bufReader.ReadString('\n')
