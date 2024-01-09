@@ -935,6 +935,8 @@ func (impl *AppCloneServiceImpl) CreateCiPipeline(req *cloneCiPipelineRequest) (
 			DockerRepository: templateOverride.DockerRepository,
 			CiBuildConfig:    ciBuildConfig,
 		}
+	} else if refCiPipeline.IsExternal {
+		ciPatchReq.CiPipeline.IsDockerConfigOverridden = false
 	}
 	return impl.pipelineBuilder.PatchCiPipeline(ciPatchReq)
 }
