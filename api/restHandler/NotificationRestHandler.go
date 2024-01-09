@@ -22,8 +22,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/authenticator/middleware"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/enterprise/api/drafts"
 	drafts2 "github.com/devtron-labs/devtron/enterprise/pkg/drafts"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -1139,7 +1139,7 @@ func (impl NotificationRestHandlerImpl) DeleteNotificationChannelConfig(w http.R
 		}
 
 		// RBAC enforcer applying
-		token := r.Header.Get(client.TOKEN)
+		token := r.Header.Get("token")
 		if ok := impl.enforcer.Enforce(token, casbin.ResourceNotification, casbin.ActionCreate, "*"); !ok {
 			response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
 			return
@@ -1159,7 +1159,7 @@ func (impl NotificationRestHandlerImpl) DeleteNotificationChannelConfig(w http.R
 }
 
 func (impl NotificationRestHandlerImpl) ConsumeDraftApprovalNotification(w http.ResponseWriter, r *http.Request) {
-	token := r.URL.Query().Get(client.TOKEN)
+	token := r.Header.Get(middleware.ApiTokenHeaderKey)
 	//verification is done internally
 	draftRequest, err := impl.createDraftRequest(token)
 	if err != nil {
@@ -1200,7 +1200,7 @@ func (impl NotificationRestHandlerImpl) createDraftRequest(token string) (apiTok
 }
 
 func (impl NotificationRestHandlerImpl) ConsumeDeploymentApprovalNotification(w http.ResponseWriter, r *http.Request) {
-	token := r.URL.Query().Get(client.TOKEN)
+	token := r.Header.Get(middleware.ApiTokenHeaderKey)
 	//verification is done internally
 	deploymentApprovalRequest, err := impl.createDeploymentApprovalRequest(token)
 	if err != nil {
