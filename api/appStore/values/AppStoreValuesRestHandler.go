@@ -19,14 +19,15 @@ package appStoreValues
 
 import (
 	"encoding/json"
+	"net/http"
+	"strconv"
+
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/appStore/values/service"
-	"github.com/devtron-labs/devtron/pkg/user"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
-	"net/http"
-	"strconv"
 )
 
 type AppStoreValuesRestHandler interface {

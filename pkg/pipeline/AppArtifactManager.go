@@ -18,19 +18,20 @@
 package pipeline
 
 import (
+	"sort"
+	"strings"
+
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	dockerArtifactStoreRegistry "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
-	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"sort"
-	"strings"
 )
 
 type AppArtifactManager interface {

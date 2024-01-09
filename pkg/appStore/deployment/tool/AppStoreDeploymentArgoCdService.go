@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	client "github.com/devtron-labs/devtron/api/helm-app"
@@ -12,7 +15,6 @@ import (
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
-	"github.com/devtron-labs/devtron/internal/constants"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -24,18 +26,15 @@ import (
 	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/go-pg/pg"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"k8s.io/utils/pointer"
-	"net/http"
-	"strings"
-	"time"
 )
 
 // creating duplicates because cannot use
@@ -43,7 +42,6 @@ import (
 type AppStoreDeploymentArgoCdService interface {
 	//InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error)
 	InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, chartGitAttr *util.ChartGitAttribute, ctx context.Context, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error)
-	GetAppStatus(installedAppAndEnvDetails repository.InstalledAppAndEnvDetails, w http.ResponseWriter, r *http.Request, token string) (string, error)
 	DeleteInstalledApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApps *repository.InstalledApps, dbTransaction *pg.Tx) error
 	RollbackRelease(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, deploymentVersion int32, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, bool, error)
 	GetDeploymentHistory(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO) (*client.HelmAppDeploymentHistory, error)
@@ -209,55 +207,6 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) InstallApp(installAppVersionRequ
 //	}
 //	return installAppVersionRequest, nil
 //}
-
-// TODO: Test ACD to get status
-func (impl AppStoreDeploymentArgoCdServiceImpl) GetAppStatus(installedAppAndEnvDetails repository.InstalledAppAndEnvDetails, w http.ResponseWriter, r *http.Request, token string) (string, error) {
-	if len(installedAppAndEnvDetails.AppName) > 0 && len(installedAppAndEnvDetails.EnvironmentName) > 0 {
-		acdAppName := installedAppAndEnvDetails.AppName + "-" + installedAppAndEnvDetails.EnvironmentName
-		query := &application.ResourcesQuery{
-			ApplicationName: &acdAppName,
-		}
-		ctx, cancel := context.WithCancel(r.Context())
-		if cn, ok := w.(http.CloseNotifier); ok {
-			go func(done <-chan struct{}, closed <-chan bool) {
-				select {
-				case <-done:
-				case <-closed:
-					cancel()
-				}
-			}(ctx.Done(), cn.CloseNotify())
-		}
-		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
-		if err != nil {
-			impl.Logger.Errorw("error in getting acd token", "err", err)
-			return "", err
-		}
-		ctx = context.WithValue(ctx, "token", acdToken)
-		defer cancel()
-		impl.Logger.Debugf("Getting status for app %s in env %s", installedAppAndEnvDetails.AppName, installedAppAndEnvDetails.EnvironmentName)
-		start := time.Now()
-		resp, err := impl.acdClient.ResourceTree(ctx, query)
-		elapsed := time.Since(start)
-		impl.Logger.Debugf("Time elapsed %s in fetching application %s for environment %s", elapsed, installedAppAndEnvDetails.AppName, installedAppAndEnvDetails.EnvironmentName)
-		if err != nil {
-			impl.Logger.Errorw("error fetching resource tree", "error", err)
-			err = &util.ApiError{
-				Code:            constants.AppDetailResourceTreeNotFound,
-				InternalMessage: "app detail fetched, failed to get resource tree from acd",
-				UserMessage:     "app detail fetched, failed to get resource tree from acd",
-			}
-			return "", err
-
-		}
-		//use this resp.Status to update app_status table
-		err = impl.appStatusService.UpdateStatusWithAppIdEnvId(installedAppAndEnvDetails.AppId, installedAppAndEnvDetails.EnvironmentId, resp.Status)
-		if err != nil {
-			impl.Logger.Warnw("error in updating app status", "err", err, installedAppAndEnvDetails.AppId, "envId", installedAppAndEnvDetails.EnvironmentId)
-		}
-		return resp.Status, nil
-	}
-	return "", errors.New("invalid app name or env name")
-}
 
 func (impl AppStoreDeploymentArgoCdServiceImpl) DeleteInstalledApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApps *repository.InstalledApps, dbTransaction *pg.Tx) error {
 

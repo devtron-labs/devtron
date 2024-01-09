@@ -2,6 +2,9 @@ package telemetry
 
 import (
 	"encoding/json"
+	"net/http"
+	"time"
+
 	util2 "github.com/devtron-labs/common-lib/utils/k8s"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -9,21 +12,19 @@ import (
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
+	"github.com/devtron-labs/devtron/pkg/auth/sso"
+	user2 "github.com/devtron-labs/devtron/pkg/auth/user"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	serverDataStore "github.com/devtron-labs/devtron/pkg/server/store"
-	"github.com/devtron-labs/devtron/pkg/sso"
-	"github.com/devtron-labs/devtron/pkg/user"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
-	"net/http"
-	"time"
 )
 
 const AppsCount int = 50
@@ -48,7 +49,7 @@ type TelemetryEventClientImplExtended struct {
 
 func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http.Client, clusterService cluster.ClusterService,
 	K8sUtil *util2.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig,
-	environmentService cluster.EnvironmentService, userService user.UserService,
+	environmentService cluster.EnvironmentService, userService user2.UserService,
 	appListingRepository repository.AppListingRepository, PosthogClient *PosthogClient,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository,
 	gitOpsConfigRepository repository.GitOpsConfigRepository, gitProviderRepository repository.GitProviderRepository,
@@ -56,7 +57,7 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository,
 	materialRepository pipelineConfig.MaterialRepository, ciTemplateRepository pipelineConfig.CiTemplateRepository,
-	chartRepository chartRepoRepository.ChartRepository, userAuditService user.UserAuditService,
+	chartRepository chartRepoRepository.ChartRepository, userAuditService user2.UserAuditService,
 	ciBuildConfigService pipeline.CiBuildConfigService, moduleRepository moduleRepo.ModuleRepository, serverDataStore *serverDataStore.ServerDataStore,
 	helmAppClient client.HelmAppClient, InstalledAppRepository repository2.InstalledAppRepository, userAttributesRepository repository.UserAttributesRepository) (*TelemetryEventClientImplExtended, error) {
 
