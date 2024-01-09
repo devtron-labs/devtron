@@ -868,26 +868,27 @@ func (impl GitOpsConfigServiceImpl) ValidateCustomGitRepoURL(request ValidateCus
 		return "", false, impl.ExtractErrorMessageByProvider(err, request.GitOpsProvider)
 	}
 
-	// For custom git repo; we expect the chart is not present hence setting isNew flag to be true.
 	if request.GitRepoURL != bean2.GIT_REPO_DEFAULT {
+		// For custom git repo; we expect the chart is not present hence setting isNew flag to be true.
 		isNewRepo = true
-	}
 
-	// Validate: Organisational URL starts
-	activeGitOpsConfig, err := impl.GetGitOpsConfigActive()
-	if err != nil {
-		impl.logger.Errorw("error in fetching active gitOps config", "err", err)
-		return "", false, err
-	}
-	repoUrl := strings.ReplaceAll(util.SanitiseCustomGitRepoURL(*activeGitOpsConfig, request.GitRepoURL), ".git", "")
-	if !strings.Contains(chartGitAttribute.RepoUrl, repoUrl) {
-		nonOrgErr := impl.getValidationErrorForNonOrganisationalURL(*activeGitOpsConfig)
-		if nonOrgErr != nil {
-			impl.logger.Errorw("non-organisational custom gitops repo validation error", "err", err)
-			return "", false, nonOrgErr
+		// Validate: Organisational URL starts
+		activeGitOpsConfig, err := impl.GetGitOpsConfigActive()
+		if err != nil {
+			impl.logger.Errorw("error in fetching active gitOps config", "err", err)
+			return "", false, err
 		}
+		repoUrl := strings.ReplaceAll(util.SanitiseCustomGitRepoURL(*activeGitOpsConfig, request.GitRepoURL), ".git", "")
+		if !strings.Contains(chartGitAttribute.RepoUrl, repoUrl) {
+			impl.logger.Errorw("non-organisational custom gitops repo", "expected repo", chartGitAttribute.RepoUrl, "user given repo", repoUrl)
+			nonOrgErr := impl.getValidationErrorForNonOrganisationalURL(*activeGitOpsConfig)
+			if nonOrgErr != nil {
+				impl.logger.Errorw("non-organisational custom gitops repo validation error", "err", err)
+				return "", false, nonOrgErr
+			}
+		}
+		// Validate: Organisational URL ends
 	}
-	// Validate: Organisational URL ends
 
 	// Validate: Unique GitOps repository URL starts
 	isValid := impl.commonService.ValidateUniqueGitOpsRepo(chartGitAttribute.RepoUrl)
