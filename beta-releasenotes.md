@@ -1,4 +1,5 @@
 ## Bugs
+- fix: panic in app clone service for [linked ci, external ci, linked cd] cases (#4526)
 - fix: Error code changed for resource api (#4414)
 - fix: handle argo delete event for charts and added socket config (#4471)
 - fix: app clone breaking if ci pipeline have same name (#4461)
