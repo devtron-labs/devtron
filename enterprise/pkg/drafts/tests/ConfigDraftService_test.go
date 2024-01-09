@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"testing"
+	"time"
+
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/enterprise/pkg/drafts"
 	"github.com/devtron-labs/devtron/enterprise/pkg/drafts/mocks"
@@ -13,6 +16,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	mocks6 "github.com/devtron-labs/devtron/internal/sql/repository/app/mocks"
 	"github.com/devtron-labs/devtron/internal/util"
+	mocks5 "github.com/devtron-labs/devtron/pkg/auth/user/mocks"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	mocks3 "github.com/devtron-labs/devtron/pkg/chart/mocks"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -20,12 +24,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	mocks2 "github.com/devtron-labs/devtron/pkg/pipeline/mocks"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	mocks5 "github.com/devtron-labs/devtron/pkg/user/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"go.uber.org/zap"
-	"testing"
-	"time"
 )
 
 func TestConfigDraftService(t *testing.T) {

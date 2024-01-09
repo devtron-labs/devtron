@@ -4,6 +4,12 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	"log"
+	"os"
+	"strconv"
+	"testing"
+	"time"
+
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	pubsub "github.com/devtron-labs/common-lib-private/pubsub-lib"
 	client "github.com/devtron-labs/devtron/api/helm-app"
@@ -16,6 +22,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	app2 "github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/app/status"
+	repository2 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository1 "github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -23,12 +30,6 @@ import (
 	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
 	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
-	"log"
-	"os"
-	"strconv"
-	"testing"
-	"time"
 )
 
 func TestAppServiceImpl_UpdateDeploymentStatusAndCheckIsSucceeded(t *testing.T) {

@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/enterprise/pkg/lockConfiguration/bean"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/go-pg/pg"
 	"github.com/ohler55/ojg/jp"
 	"github.com/ohler55/ojg/oj"
@@ -17,7 +17,7 @@ import (
 type LockConfigurationService interface {
 	GetLockConfiguration() (*bean.LockConfigResponse, error)
 	SaveLockConfiguration(*bean.LockConfigRequest, int32) error
-	DeleteActiveLockConfiguration(userId int32, tx *pg.Tx) error
+	DeleteActiveLockConfiguration(userId int32) error
 	HandleLockConfiguration(currentConfig, savedConfig string, userId int) (*bean.LockValidateErrorResponse, error)
 }
 
@@ -66,7 +66,7 @@ func (impl LockConfigurationServiceImpl) SaveLockConfiguration(lockConfig *bean.
 	defer tx.Rollback()
 
 	// Delete Active configuration
-	err = impl.DeleteActiveLockConfiguration(createdBy, tx)
+	err = impl.lockConfigurationRepository.DeleteActiveLockConfigs(int(createdBy))
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in deleting current active lock config", "err", err)
 		return err
@@ -91,26 +91,20 @@ func (impl LockConfigurationServiceImpl) SaveLockConfiguration(lockConfig *bean.
 	return err
 }
 
-func (impl LockConfigurationServiceImpl) DeleteActiveLockConfiguration(userId int32, tx *pg.Tx) error {
+func (impl LockConfigurationServiceImpl) DeleteActiveLockConfiguration(userId int32) error {
 	lockConfigDto, err := impl.lockConfigurationRepository.GetActiveLockConfig()
 	if err != nil {
 		impl.logger.Errorw("Error in getting active lock config", "err", err)
 		return err
 	}
 	dbConnection := impl.lockConfigurationRepository.GetConnection()
-	isNewTx := false
-	if tx == nil {
-		tx, err = dbConnection.Begin()
-		if err != nil {
-			return err
-		}
-		isNewTx = true
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return err
 	}
 
 	// Rollback tx on error.
-	if isNewTx {
-		defer tx.Rollback()
-	}
+	defer tx.Rollback()
 
 	lockConfigDto.Active = false
 	lockConfigDto.UpdatedOn = time.Now()
@@ -121,19 +115,18 @@ func (impl LockConfigurationServiceImpl) DeleteActiveLockConfiguration(userId in
 		return err
 	}
 	// commit TX
-	if isNewTx {
-		err = tx.Commit()
-		if err != nil {
-			impl.logger.Errorw("Error in committing tx", "err", err)
-			return err
-		}
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("Error in committing tx", "err", err)
+		return err
 	}
+
 	return nil
 }
 
 func (impl LockConfigurationServiceImpl) HandleLockConfiguration(currentConfig, savedConfig string, userId int) (*bean.LockValidateErrorResponse, error) {
 
-	isSuperAdmin, err := impl.userService.IsSuperAdmin(userId)
+	isSuperAdmin, err := impl.userService.IsSuperAdminForDevtronManaged(userId)
 
 	if err != nil || isSuperAdmin {
 		return nil, err
@@ -144,7 +137,6 @@ func (impl LockConfigurationServiceImpl) HandleLockConfiguration(currentConfig, 
 
 	lockConfig, err := impl.GetLockConfiguration()
 	if err != nil {
-
 		return nil, err
 	}
 

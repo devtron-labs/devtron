@@ -349,21 +349,13 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, e
 		return nil, fmt.Errorf("enviremnt is restricted to namespace: %s only, cant deploy to: %s", env.Namespace, propertiesRequest.Namespace)
 	}
 	envOverrideValue := oldEnvOverride.EnvOverrideValues
-
+	var envOverrideExisting *chartConfig.EnvConfigOverride
 	if !oldEnvOverride.Latest {
-		envOverrideExisting, err := impl.envConfigRepo.FindLatestChartForAppByAppIdAndEnvId(appId, oldEnvOverride.TargetEnvironment)
+		envOverrideExisting, err = impl.envConfigRepo.FindLatestChartForAppByAppIdAndEnvId(appId, oldEnvOverride.TargetEnvironment)
 		if err != nil && !errors.IsNotFound(err) {
 			return nil, err
 		}
 		if envOverrideExisting != nil {
-			envOverrideExisting.Latest = false
-			envOverrideExisting.IsOverride = false
-			envOverrideExisting.UpdatedOn = time.Now()
-			envOverrideExisting.UpdatedBy = userId
-			envOverrideExisting, err = impl.envConfigRepo.Update(envOverrideExisting)
-			if err != nil {
-				return nil, err
-			}
 			envOverrideValue = envOverrideExisting.EnvOverrideValues
 		} else {
 			chart, err := impl.chartRepo.FindLatestChartForAppByAppId(appId)
@@ -371,7 +363,6 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, e
 				return nil, err
 			}
 			envOverrideValue = chart.GlobalOverride
-
 		}
 	}
 	// TODO look on this at manager level
@@ -408,6 +399,16 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, e
 		}, nil
 	}
 
+	if envOverrideExisting != nil {
+		envOverrideExisting.Latest = false
+		envOverrideExisting.IsOverride = false
+		envOverrideExisting.UpdatedOn = time.Now()
+		envOverrideExisting.UpdatedBy = userId
+		envOverrideExisting, err = impl.envConfigRepo.Update(envOverrideExisting)
+		if err != nil {
+			return nil, err
+		}
+	}
 	override := &chartConfig.EnvConfigOverride{
 		Active:            propertiesRequest.Active,
 		Id:                propertiesRequest.Id,

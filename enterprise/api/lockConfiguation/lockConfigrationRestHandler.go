@@ -7,8 +7,8 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/enterprise/pkg/lockConfiguration"
 	"github.com/devtron-labs/devtron/enterprise/pkg/lockConfiguration/bean"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
@@ -60,14 +60,14 @@ func (handler LockConfigRestHandlerImpl) GetLockConfig(w http.ResponseWriter, r 
 	token := r.Header.Get("token")
 	isAuthorised := false
 	//checking superAdmin access
-	isAuthorised, err = handler.userService.IsSuperAdmin(int(userId))
+	isAuthorised, err = handler.userService.IsSuperAdminForDevtronManaged(int(userId))
 	if err != nil {
 		handler.logger.Errorw("error in checking superAdmin access of user", "err", err)
 		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
 		return
 	}
 	if !isAuthorised {
-		user, err := handler.userService.GetById(userId)
+		user, err := handler.userService.GetRoleFiltersForAUserById(userId)
 		if err != nil {
 			handler.logger.Errorw("error in getting user by id", "err", err)
 			common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
@@ -175,7 +175,7 @@ func (handler LockConfigRestHandlerImpl) DeleteLockConfig(w http.ResponseWriter,
 		return
 	}
 	// service call
-	err = handler.lockConfigurationService.DeleteActiveLockConfiguration(userId, nil)
+	err = handler.lockConfigurationService.DeleteActiveLockConfiguration(userId)
 	if err != nil {
 		handler.logger.Errorw("service err, DeleteActiveLockConfiguration", "err", err, "userId", userId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

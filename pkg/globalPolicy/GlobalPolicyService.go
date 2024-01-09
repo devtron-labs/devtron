@@ -943,8 +943,6 @@ func getFilteredGlobalPolicyIdsFromSearchableFields(searchableFieldsModels []*re
 		if _, ok := globalPolicyIdsMap[globalPolicyId]; ok {
 			//policy already present, no need to process further
 			continue
-		} else {
-			globalPolicyIdsMap[globalPolicyId] = true
 		}
 		value := searchableFieldsModel.Value
 		vals := strings.Split(value, "/")
@@ -955,6 +953,7 @@ func getFilteredGlobalPolicyIdsFromSearchableFields(searchableFieldsModels []*re
 				if len(vals) > 0 {
 					if projectMap[vals[0]] {
 						globalPolicyIds = append(globalPolicyIds, globalPolicyId)
+						globalPolicyIdsMap[globalPolicyId] = true
 					}
 				}
 			case bean2.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ENV_NAME:
@@ -962,6 +961,7 @@ func getFilteredGlobalPolicyIdsFromSearchableFields(searchableFieldsModels []*re
 				if len(vals) > 0 {
 					if clusterMap[vals[0]] {
 						globalPolicyIds = append(globalPolicyIds, globalPolicyId)
+						globalPolicyIdsMap[globalPolicyId] = true
 					}
 				}
 			case bean2.DEVTRON_RESOURCE_SEARCHABLE_KEY_CI_PIPELINE_BRANCH:
@@ -977,6 +977,7 @@ func getFilteredGlobalPolicyIdsFromSearchableFields(searchableFieldsModels []*re
 					}
 					if isAnyBranchMatched {
 						globalPolicyIds = append(globalPolicyIds, globalPolicyId)
+						globalPolicyIdsMap[globalPolicyId] = true
 						break
 					}
 				}
@@ -984,6 +985,7 @@ func getFilteredGlobalPolicyIdsFromSearchableFields(searchableFieldsModels []*re
 		} else {
 			//add global policy id directly
 			globalPolicyIds = append(globalPolicyIds, globalPolicyId)
+			globalPolicyIdsMap[globalPolicyId] = true
 		}
 	}
 	return globalPolicyIds, nil
