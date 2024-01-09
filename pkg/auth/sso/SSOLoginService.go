@@ -27,7 +27,6 @@ import (
 
 	"github.com/devtron-labs/devtron/api/bean"
 	util2 "github.com/devtron-labs/devtron/util"
-	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"sigs.k8s.io/yaml"
@@ -233,7 +232,7 @@ func (impl SSOLoginServiceImpl) updateDexConfig(request *bean.SSOLoginDto) (bool
 	retryCount := 0
 	for !updateSuccess && retryCount < 3 {
 		retryCount = retryCount + 1
-		secret, err := impl.K8sUtil.GetSecret(argo.DEVTRONCD_NAMESPACE, impl.devtronSecretConfig.DevtronSecretName, k8sClient)
+		secret, err := impl.K8sUtil.GetSecret(impl.devtronSecretConfig.DevtronDexSecretNamespace, impl.devtronSecretConfig.DevtronSecretName, k8sClient)
 		if err != nil {
 			impl.logger.Errorw("exception in fetching configmap", "error", err)
 			return flag, err
@@ -250,7 +249,7 @@ func (impl SSOLoginServiceImpl) updateDexConfig(request *bean.SSOLoginDto) (bool
 		data["dex.config"] = []byte(updatedData["dex.config"])
 		data["url"] = []byte(request.Url)
 		secret.Data = data
-		_, err = impl.K8sUtil.UpdateSecret(argo.DEVTRONCD_NAMESPACE, secret, k8sClient)
+		_, err = impl.K8sUtil.UpdateSecret(impl.devtronSecretConfig.DevtronDexSecretNamespace, secret, k8sClient)
 		if err != nil {
 			impl.logger.Warnw("config map update failed for sso config", "err", err)
 			continue
