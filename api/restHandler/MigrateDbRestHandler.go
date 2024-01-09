@@ -19,16 +19,17 @@ package restHandler
 
 import (
 	"encoding/json"
+	"net/http"
+	"strconv"
+
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
-	"net/http"
-	"strconv"
 )
 
 type MigrateDbRestHandler interface {
@@ -42,9 +43,9 @@ type MigrateDbRestHandlerImpl struct {
 	dockerRegistryConfig pipeline.DockerRegistryConfig
 	logger               *zap.SugaredLogger
 	gitRegistryConfig    pipeline.GitRegistryConfig
-	dbConfigService      pipeline.DbConfigService
-	userAuthService      user.UserService
-	validator            *validator.Validate
+	dbConfigService pipeline.DbConfigService
+	userAuthService user.UserService
+	validator       *validator.Validate
 	dbMigrationService   pipeline.DbMigrationService
 	enforcer             casbin.Enforcer
 }

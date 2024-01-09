@@ -20,6 +20,7 @@ package util
 import (
 	"fmt"
 	"github.com/go-pg/pg"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
@@ -54,4 +55,11 @@ func GetGRPCErrorDetailedMessage(err error) string {
 		return errStatus.Message()
 	}
 	return err.Error()
+}
+
+func GetGRPCDetailedError(err error) (codes.Code, string) {
+	if errStatus, ok := status.FromError(err); ok {
+		return errStatus.Code(), errStatus.Message()
+	}
+	return codes.Unknown, err.Error()
 }

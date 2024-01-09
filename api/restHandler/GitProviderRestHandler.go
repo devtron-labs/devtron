@@ -19,17 +19,18 @@ package restHandler
 
 import (
 	"encoding/json"
+	"net/http"
+
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/team"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
-	"net/http"
 )
 
 const GIT_ACCOUNT_DELETE_SUCCESS_RESP = "Git account deleted successfully."
@@ -47,9 +48,9 @@ type GitProviderRestHandlerImpl struct {
 	dockerRegistryConfig  pipeline.DockerRegistryConfig
 	logger                *zap.SugaredLogger
 	gitRegistryConfig     pipeline.GitRegistryConfig
-	dbConfigService       pipeline.DbConfigService
-	userAuthService       user.UserService
-	validator             *validator.Validate
+	dbConfigService pipeline.DbConfigService
+	userAuthService user.UserService
+	validator       *validator.Validate
 	enforcer              casbin.Enforcer
 	teamService           team.TeamService
 	deleteServiceFullMode delete2.DeleteServiceFullMode
