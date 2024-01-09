@@ -18,6 +18,9 @@
 package pipeline
 
 import (
+	"sort"
+	"strings"
+
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
@@ -25,15 +28,13 @@ import (
 	dockerArtifactStoreRegistry "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
-	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"sort"
-	"strings"
 )
 
 type AppArtifactManager interface {
@@ -56,9 +57,9 @@ type AppArtifactManager interface {
 
 type AppArtifactManagerImpl struct {
 	logger                  *zap.SugaredLogger
-	cdWorkflowRepository    pipelineConfig.CdWorkflowRepository
-	userService             user.UserService
-	imageTaggingService     ImageTaggingService
+	cdWorkflowRepository pipelineConfig.CdWorkflowRepository
+	userService          user.UserService
+	imageTaggingService  ImageTaggingService
 	ciArtifactRepository    repository.CiArtifactRepository
 	ciWorkflowRepository    pipelineConfig.CiWorkflowRepository
 	pipelineStageService    PipelineStageService
@@ -1217,11 +1218,14 @@ func (impl *AppArtifactManagerImpl) buildArtifactsForCdStageV2(listingFilterOpts
 	artifactRunningOnParentCd := 0
 	if listingFilterOpts.ParentCdId > 0 {
 		parentCdWfrList, err := impl.cdWorkflowRepository.FindArtifactByPipelineIdAndRunnerType(listingFilterOpts.ParentCdId, bean.CD_WORKFLOW_TYPE_DEPLOY, "", 1, []string{application.Healthy, application.SUCCEEDED, application.Progressing})
-		if err != nil || len(parentCdWfrList) == 0 {
+		if err != nil {
 			impl.logger.Errorw("error in getting artifact for parent cd", "parentCdPipelineId", listingFilterOpts.ParentCdId)
 			return ciArtifacts, totalCount, err
 		}
-		artifactRunningOnParentCd = parentCdWfrList[0].CdWorkflow.CiArtifact.Id
+
+		if len(parentCdWfrList) != 0 {
+			artifactRunningOnParentCd = parentCdWfrList[0].CdWorkflow.CiArtifact.Id
+		}
 	}
 
 	for _, artifact := range cdArtifacts {

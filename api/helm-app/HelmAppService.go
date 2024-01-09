@@ -8,6 +8,7 @@ import (
 	"github.com/devtron-labs/devtron/api/helm-app/models"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/go-pg/pg"
+	"google.golang.org/grpc/codes"
 	"net/http"
 	"reflect"
 	"strconv"
@@ -547,6 +548,14 @@ func (impl *HelmAppServiceImpl) DeleteApplication(ctx context.Context, app *AppI
 
 	deleteApplicationResponse, err := impl.helmAppClient.DeleteApplication(ctx, req)
 	if err != nil {
+		code, message := util.GetGRPCDetailedError(err)
+		if code == codes.NotFound {
+			return nil, &util.ApiError{
+				Code:           "404",
+				HttpStatusCode: 200,
+				UserMessage:    message,
+			}
+		}
 		impl.logger.Errorw("error in deleting helm application", "err", err)
 		return nil, errors.New(util.GetGRPCErrorDetailedMessage(err))
 	}

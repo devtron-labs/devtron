@@ -40,8 +40,9 @@ type UserInfo struct {
 	UserId       int32        `json:"-"` // created or modified user id
 	RoleFilters  []RoleFilter `json:"roleFilters"`
 	Status       string       `json:"status,omitempty"`
-	Groups       []string     `json:"groups"`
+	Groups       []string     `json:"groups"` // this will be deprecated in future do not use
 	SuperAdmin   bool         `json:"superAdmin,notnull"`
+	RoleGroups   []RoleGroup  `json:"roleGroups,omitempty"` // role group with metadata, currently using for group claims
 }
 
 type RoleGroup struct {
@@ -50,6 +51,7 @@ type RoleGroup struct {
 	Description string       `json:"description,omitempty"`
 	RoleFilters []RoleFilter `json:"roleFilters"`
 	Status      string       `json:"status,omitempty"`
+	SuperAdmin  bool         `json:"superAdmin"`
 	UserId      int32        `json:"-"` // created or modified user id
 }
 
@@ -94,13 +96,14 @@ type RoleData struct {
 }
 
 type SSOLoginDto struct {
-	Id     int32           `json:"id"`
-	Name   string          `json:"name,omitempty"`
-	Label  string          `json:"label,omitempty"`
-	Url    string          `json:"url,omitempty"`
-	Config json.RawMessage `json:"config,omitempty"`
-	Active bool            `json:"active"`
-	UserId int32           `json:"-"`
+	Id                   int32           `json:"id"`
+	Name                 string          `json:"name,omitempty"`
+	Label                string          `json:"label,omitempty"`
+	Url                  string          `json:"url,omitempty"`
+	Config               json.RawMessage `json:"config,omitempty"`
+	Active               bool            `json:"active"`
+	GlobalAuthConfigType string          `json:"globalAuthConfigType"`
+	UserId               int32           `json:"-"`
 }
 
 const (

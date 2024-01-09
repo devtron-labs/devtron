@@ -20,17 +20,18 @@ package restHandler
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"strconv"
+
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	security2 "github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/security"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"go.uber.org/zap"
-	"net/http"
-	"strconv"
 )
 
 type ImageScanRestHandler interface {
@@ -42,9 +43,9 @@ type ImageScanRestHandler interface {
 
 type ImageScanRestHandlerImpl struct {
 	logger             *zap.SugaredLogger
-	imageScanService   security.ImageScanService
-	userService        user.UserService
-	enforcer           casbin.Enforcer
+	imageScanService security.ImageScanService
+	userService      user.UserService
+	enforcer         casbin.Enforcer
 	enforcerUtil       rbac.EnforcerUtil
 	environmentService cluster.EnvironmentService
 }

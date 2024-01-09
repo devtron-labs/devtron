@@ -20,7 +20,7 @@ type InstalledAppVersionHistoryRepository interface {
 	FindPreviousInstalledAppVersionHistoryByStatus(installedAppVersionId int, installedAppVersionHistoryId int, status []string) ([]*InstalledAppVersionHistory, error)
 	UpdateInstalledAppVersionHistoryWithTxn(models []*InstalledAppVersionHistory, tx *pg.Tx) error
 	GetAppStoreApplicationVersionIdByInstalledAppVersionHistoryId(installedAppVersionHistoryId int) (int, error)
-
+	UpdateGitHash(installedAppVersionHistoryId int, gitHash string, tx *pg.Tx) error
 	GetConnection() *pg.DB
 }
 
@@ -161,6 +161,15 @@ func (impl InstalledAppVersionHistoryRepositoryImpl) FindPreviousInstalledAppVer
 		Order("installed_app_version_history.id DESC").
 		Select()
 	return iavr, err
+}
+
+func (impl InstalledAppVersionHistoryRepositoryImpl) UpdateGitHash(installedAppVersionHistoryId int, gitHash string, tx *pg.Tx) error {
+	query := "update installed_app_version_history set git_hash=? where id=?"
+	_, err := tx.Exec(query, gitHash, installedAppVersionHistoryId)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (impl InstalledAppVersionHistoryRepositoryImpl) GetConnection() *pg.DB {

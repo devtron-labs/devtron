@@ -4,14 +4,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/enterprise/pkg/protect"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
-	"net/http"
 )
 
 type ResourceProtectionRestHandler interface {
@@ -117,13 +118,6 @@ func (handler *ResourceProtectionRestHandlerImpl) GetResourceProtectMetadataForE
 	}
 
 	token := r.Header.Get("token")
-	userEmailId, err := handler.userService.GetEmailFromToken(token)
-	if err != nil {
-		handler.logger.Errorw("error in getting user emailId from token", "userId", userId, "err", err)
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-
 	appStatues := handler.resourceProtectionService.ResourceProtectionEnabledForEnv(envId)
 	if err != nil {
 		handler.logger.Errorw("error occurred while fetching resource protection", "err", err, "envId", envId)
@@ -139,7 +133,7 @@ func (handler *ResourceProtectionRestHandlerImpl) GetResourceProtectMetadataForE
 		rbacObjectVsAppIdMap[rbacObject] = appId
 	}
 
-	rbacResponse := handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceApplications, casbin.ActionGet, rbacObjectArray)
+	rbacResponse := handler.enforcer.EnforceInBatch(token, casbin.ResourceApplications, casbin.ActionGet, rbacObjectArray)
 	appStatusResponse := make(map[int]bool)
 	for rbacObj := range rbacResponse {
 		appId := rbacObjectVsAppIdMap[rbacObj]
