@@ -18,16 +18,17 @@
 package appStoreDiscover
 
 import (
-	"github.com/devtron-labs/devtron/api/restHandler/common"
-	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
-	"github.com/devtron-labs/devtron/pkg/appStore/discover/service"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
-	"github.com/gorilla/mux"
-	"go.uber.org/zap"
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/devtron-labs/devtron/api/restHandler/common"
+	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
+	"github.com/devtron-labs/devtron/pkg/appStore/discover/service"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
+	"github.com/gorilla/mux"
+	"go.uber.org/zap"
 )
 
 type AppStoreRestHandler interface {

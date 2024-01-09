@@ -19,8 +19,9 @@ package util
 
 import (
 	"context"
-	"github.com/devtron-labs/devtron/pkg/user"
 	"time"
+
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 
 	"github.com/caarlos0/env"
 	"github.com/patrickmn/go-cache"
