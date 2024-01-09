@@ -138,6 +138,7 @@ type CdHandlerImpl struct {
 	argocdClientWrapperService             argocdServer.ArgoClientWrapperService
 	AppConfig                              *app.AppServiceConfig
 	acdConfig                              *argocdServer.ACDConfig
+	appArtifactManager                     AppArtifactManager
 }
 
 func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService, cdWorkflowRepository pipelineConfig.CdWorkflowRepository, ciLogService CiLogService, ciArtifactRepository repository.CiArtifactRepository, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, pipelineRepository pipelineConfig.PipelineRepository, envRepository repository2.EnvironmentRepository, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, helmAppService client.HelmAppService, pipelineOverrideRepository chartConfig.PipelineOverrideRepository, workflowDagExecutor WorkflowDagExecutor, appListingService app.AppListingService, appListingRepository repository.AppListingRepository, pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository, application application.ServiceClient, argoUserService argo.ArgoUserService, deploymentEventHandler app.DeploymentEventHandler, eventClient client2.EventClient, pipelineStatusTimelineResourcesService status.PipelineStatusTimelineResourcesService, pipelineStatusSyncDetailService status.PipelineStatusSyncDetailService, pipelineStatusTimelineService status.PipelineStatusTimelineService, appService app.AppService, appStatusService app_status.AppStatusService, enforcerUtil rbac.EnforcerUtil, installedAppRepository repository3.InstalledAppRepository, installedAppVersionHistoryRepository repository3.InstalledAppVersionHistoryRepository, appRepository app2.AppRepository, resourceGroupService resourceGroup2.ResourceGroupService, imageTaggingService ImageTaggingService, k8sUtil *k8s.K8sUtil, workflowService WorkflowService, clusterService cluster.ClusterService, blobConfigStorageService BlobStorageConfigService,
@@ -147,7 +148,9 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService, c
 	customTagService CustomTagService,
 	argocdClientWrapperService argocdServer.ArgoClientWrapperService,
 	AppConfig *app.AppServiceConfig,
-	acdConfig *argocdServer.ACDConfig) *CdHandlerImpl {
+	acdConfig *argocdServer.ACDConfig,
+	appArtifactManager AppArtifactManager,
+) *CdHandlerImpl {
 	cdh := &CdHandlerImpl{
 		Logger:                                 Logger,
 		userService:                            userService,
@@ -190,6 +193,7 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService, c
 		argocdClientWrapperService:             argocdClientWrapperService,
 		AppConfig:                              AppConfig,
 		acdConfig:                              acdConfig,
+		appArtifactManager:                     appArtifactManager,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -1859,7 +1863,11 @@ func (impl *CdHandlerImpl) performNotificationApprovalAction(approvalActionReque
 		impl.Logger.Errorw("error occurred while updating approval request", "pipelineId", pipeline, "pipeline", pipeline, "err", err)
 	}
 	event := impl.eventFactory.Build(eventType, &approvalActionRequest.PipelineId, approvalActionRequest.AppId, &pipeline.EnvironmentId, "")
-	events = impl.eventFactory.BuildExtraApprovalData(event, approvalActionRequest, pipeline, userId)
+	imageComment, imageTagNames, err := impl.appArtifactManager.GetImageTagsAndComment(approvalActionRequest.ArtifactId)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching tags and comment", "artifactId", approvalActionRequest.ArtifactId)
+	}
+	events = impl.eventFactory.BuildExtraApprovalData(event, approvalActionRequest, pipeline, userId, imageTagNames, imageComment.Comment)
 	for _, evnt := range events {
 		_, evtErr := impl.eventClient.WriteNotificationEvent(evnt)
 		if evtErr != nil {

@@ -79,7 +79,6 @@ type ImageTaggingRepository interface {
 	UpdateReleaseTagInBulk(tx *pg.Tx, imageTags []*ImageTag) error
 	UpdateImageComment(tx *pg.Tx, imageComment *ImageComment) error
 	DeleteReleaseTagInBulk(tx *pg.Tx, imageTags []*ImageTag) error
-	GetImageTagsAndComment(artifactId int) (ImageComment, []string, error)
 }
 
 type ImageTaggingRepositoryImpl struct {
@@ -168,23 +167,4 @@ func (impl *ImageTaggingRepositoryImpl) DeleteReleaseTagInBulk(tx *pg.Tx, imageT
 		}
 	}
 	return nil
-}
-func (impl *ImageTaggingRepositoryImpl) GetImageTagsAndComment(artifactId int) (ImageComment, []string, error) {
-	var imageTagNames []string
-	imageComment, err := impl.GetImageComment(artifactId)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error fetching imageComment", "imageComment", imageComment, "err", err)
-		return imageComment, imageTagNames, nil
-	}
-	imageTags, err := impl.GetTagsByArtifactId(artifactId)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error fetching imageTags", "imageTags", imageTags, "err", err)
-		return imageComment, imageTagNames, nil
-	}
-	if imageTags != nil && len(imageTags) != 0 {
-		for _, tag := range imageTags {
-			imageTagNames = append(imageTagNames, tag.TagName)
-		}
-	}
-	return imageComment, imageTagNames, nil
 }

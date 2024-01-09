@@ -53,6 +53,7 @@ type AppArtifactManager interface {
 	BuildArtifactsForCdStage(pipelineId int, stageType bean.WorkflowType, ciArtifacts []bean2.CiArtifactBean, artifactMap map[int]int, parent bool, searchString string, limit int, parentCdId int) ([]bean2.CiArtifactBean, map[int]int, int, string, error)
 
 	BuildArtifactsForParentStage(cdPipelineId int, parentId int, parentType bean.WorkflowType, ciArtifacts []bean2.CiArtifactBean, artifactMap map[int]int, searchString string, limit int, parentCdId int) ([]bean2.CiArtifactBean, error)
+	GetImageTagsAndComment(artifactId int) (repository3.ImageComment, []string, error)
 }
 
 type AppArtifactManagerImpl struct {
@@ -71,6 +72,7 @@ type AppArtifactManagerImpl struct {
 	dockerArtifactRegistry  dockerArtifactStoreRegistry.DockerArtifactStoreRepository
 	CiPipelineRepository    pipelineConfig.CiPipelineRepository
 	ciTemplateService       CiTemplateService
+	imageTaggingRepository  repository3.ImageTaggingRepository
 }
 
 func NewAppArtifactManagerImpl(
@@ -87,7 +89,9 @@ func NewAppArtifactManagerImpl(
 	cdPipelineConfigService CdPipelineConfigService,
 	dockerArtifactRegistry dockerArtifactStoreRegistry.DockerArtifactStoreRepository,
 	CiPipelineRepository pipelineConfig.CiPipelineRepository,
-	ciTemplateService CiTemplateService) *AppArtifactManagerImpl {
+	ciTemplateService CiTemplateService,
+	imageTaggingRepository repository3.ImageTaggingRepository,
+) *AppArtifactManagerImpl {
 	cdConfig, err := types.GetCdConfig()
 	if err != nil {
 		return nil
@@ -108,6 +112,7 @@ func NewAppArtifactManagerImpl(
 		dockerArtifactRegistry:  dockerArtifactRegistry,
 		CiPipelineRepository:    CiPipelineRepository,
 		ciTemplateService:       ciTemplateService,
+		imageTaggingRepository:  imageTaggingRepository,
 	}
 }
 
@@ -1386,4 +1391,24 @@ func (impl *AppArtifactManagerImpl) getFilerState(imageTaggingResp []*repository
 		//not returning error by choice
 	}
 	return filterState
+}
+
+func (impl *AppArtifactManagerImpl) GetImageTagsAndComment(artifactId int) (repository3.ImageComment, []string, error) {
+	var imageTagNames []string
+	imageComment, err := impl.imageTaggingRepository.GetImageComment(artifactId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error fetching imageComment", "imageComment", imageComment, "err", err)
+		return imageComment, imageTagNames, nil
+	}
+	imageTags, err := impl.imageTaggingRepository.GetTagsByArtifactId(artifactId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error fetching imageTags", "imageTags", imageTags, "err", err)
+		return imageComment, imageTagNames, nil
+	}
+	if imageTags != nil && len(imageTags) != 0 {
+		for _, tag := range imageTags {
+			imageTagNames = append(imageTagNames, tag.TagName)
+		}
+	}
+	return imageComment, imageTagNames, nil
 }

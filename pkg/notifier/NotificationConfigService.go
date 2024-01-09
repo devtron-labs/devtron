@@ -22,11 +22,11 @@ import (
 	"github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/enterprise/pkg/drafts"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
-	repository5 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/pkg/apiToken"
 	repository4 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/pipeline"
 	repository2 "github.com/devtron-labs/devtron/pkg/team"
 
 	util "github.com/devtron-labs/devtron/util/event"
@@ -68,8 +68,8 @@ type NotificationConfigServiceImpl struct {
 	userRepository                 repository4.UserRepository
 	ciPipelineMaterialRepository   pipelineConfig.CiPipelineMaterialRepository
 	configDraftRepository          drafts.ConfigDraftRepository
-	imageTaggingRepository         repository5.ImageTaggingRepository
 	ciArtifactRepository           repository.CiArtifactRepository
+	appArtifactManager             pipeline.AppArtifactManager
 }
 
 type NotificationSettingRequest struct {
@@ -180,8 +180,8 @@ func NewNotificationConfigServiceImpl(logger *zap.SugaredLogger, notificationSet
 	environmentRepository repository3.EnvironmentRepository, appRepository app.AppRepository,
 	userRepository repository4.UserRepository, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	configDraftRepository drafts.ConfigDraftRepository,
-	imageTaggingRepository repository5.ImageTaggingRepository,
 	ciArtifactRepository repository.CiArtifactRepository,
+	appArtifactManager pipeline.AppArtifactManager,
 
 ) *NotificationConfigServiceImpl {
 	return &NotificationConfigServiceImpl{
@@ -200,8 +200,8 @@ func NewNotificationConfigServiceImpl(logger *zap.SugaredLogger, notificationSet
 		userRepository:                 userRepository,
 		ciPipelineMaterialRepository:   ciPipelineMaterialRepository,
 		configDraftRepository:          configDraftRepository,
-		imageTaggingRepository:         imageTaggingRepository,
 		ciArtifactRepository:           ciArtifactRepository,
+		appArtifactManager:             appArtifactManager,
 	}
 }
 
@@ -995,7 +995,7 @@ func (impl *NotificationConfigServiceImpl) GetMetaDataForDeploymentNotification(
 		impl.logger.Errorw("error fetching ciArtifact", "ciArtifactId", ciArtifact.Id, "err", err)
 		return DeploymentApprovalResp, err
 	}
-	imageComment, imageTagNames, err := impl.imageTaggingRepository.GetImageTagsAndComment(deploymentApprovalRequest.ArtifactId)
+	imageComment, imageTagNames, err := impl.appArtifactManager.GetImageTagsAndComment(deploymentApprovalRequest.ArtifactId)
 	if err != nil {
 		impl.logger.Errorw("error fetching image Tags and comments", "ciArtifactId", deploymentApprovalRequest.ArtifactId, "err", err)
 		return DeploymentApprovalResp, err

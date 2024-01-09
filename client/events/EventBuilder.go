@@ -27,7 +27,6 @@ import (
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
-	repository3 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/apiToken"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository"
@@ -42,7 +41,7 @@ import (
 type EventFactory interface {
 	Build(eventType util.EventType, sourceId *int, appId int, envId *int, pipelineType util.PipelineType) Event
 	BuildExtraCDData(event Event, wfr *pipelineConfig.CdWorkflowRunner, pipelineOverrideId int, stage bean2.WorkflowType) Event
-	BuildExtraApprovalData(event Event, approvalActionRequest bean.UserApprovalActionRequest, pipeline *pipelineConfig.Pipeline, userId int32) []Event
+	BuildExtraApprovalData(event Event, approvalActionRequest bean.UserApprovalActionRequest, pipeline *pipelineConfig.Pipeline, userId int32, imageTagNames []string, imageComment string) []Event
 	BuildExtraProtectConfigData(event Event, draftNotificationRequest ConfigDataForNotification, draftId int, DraftVersionId int) []Event
 	BuildExtraCIData(event Event, material *MaterialTriggerInfo, dockerImage string) Event
 	//BuildFinalData(event Event) *Payload
@@ -61,7 +60,6 @@ type EventSimpleFactoryImpl struct {
 	DeploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository
 	sesNotificationRepository    repository2.SESNotificationRepository
 	smtpNotificationRepository   repository2.SMTPNotificationRepository
-	imageTagRepository           repository3.ImageTaggingRepository
 	appRepo                      appRepository.AppRepository
 	envRepository                repository4.EnvironmentRepository
 	apiTokenServiceImpl          *apiToken.ApiTokenServiceImpl
@@ -72,7 +70,7 @@ func NewEventSimpleFactoryImpl(logger *zap.SugaredLogger, cdWorkflowRepository p
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository,
 	userRepository repository.UserRepository, ciArtifactRepository repository2.CiArtifactRepository, DeploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository,
-	sesNotificationRepository repository2.SESNotificationRepository, smtpNotificationRepository repository2.SMTPNotificationRepository, imageTagRepository repository3.ImageTaggingRepository,
+	sesNotificationRepository repository2.SESNotificationRepository, smtpNotificationRepository repository2.SMTPNotificationRepository,
 	appRepo appRepository.AppRepository, envRepository repository4.EnvironmentRepository, apiTokenServiceImpl *apiToken.ApiTokenServiceImpl,
 ) *EventSimpleFactoryImpl {
 	return &EventSimpleFactoryImpl{
@@ -88,7 +86,6 @@ func NewEventSimpleFactoryImpl(logger *zap.SugaredLogger, cdWorkflowRepository p
 		DeploymentApprovalRepository: DeploymentApprovalRepository,
 		sesNotificationRepository:    sesNotificationRepository,
 		smtpNotificationRepository:   smtpNotificationRepository,
-		imageTagRepository:           imageTagRepository,
 		appRepo:                      appRepo,
 		envRepository:                envRepository,
 		apiTokenServiceImpl:          apiTokenServiceImpl,
@@ -329,7 +326,7 @@ func (impl *EventSimpleFactoryImpl) getCiMaterialInfo(ciPipelineId int, ciArtifa
 	}
 	return materialTriggerInfo, nil
 }
-func (impl *EventSimpleFactoryImpl) BuildExtraApprovalData(event Event, approvalActionRequest bean.UserApprovalActionRequest, cdPipeline *pipelineConfig.Pipeline, userId int32) []Event {
+func (impl *EventSimpleFactoryImpl) BuildExtraApprovalData(event Event, approvalActionRequest bean.UserApprovalActionRequest, cdPipeline *pipelineConfig.Pipeline, userId int32, imageTagNames []string, imageComment string) []Event {
 	defaultSesConfig, defaultSmtpConfig, err := impl.getDefaultSESOrSMTPConfig()
 	if err != nil {
 		impl.logger.Errorw("found error in getting defaultSesConfig or  defaultSmtpConfig data", "err", err)
@@ -345,7 +342,7 @@ func (impl *EventSimpleFactoryImpl) BuildExtraApprovalData(event Event, approval
 	EmailIds := approvalActionRequest.ApprovalNotificationConfig.EmailIds
 	for _, emailId := range EmailIds {
 
-		payload, err := impl.setApprovalEventPayload(event, approvalActionRequest, cdPipeline)
+		payload, err := impl.setApprovalEventPayload(event, approvalActionRequest, cdPipeline, imageTagNames, imageComment)
 		if err != nil {
 			impl.logger.Errorw("error in setting payload", "error", err)
 			return events
@@ -364,13 +361,9 @@ func (impl *EventSimpleFactoryImpl) BuildExtraApprovalData(event Event, approval
 
 	return events
 }
-func (impl *EventSimpleFactoryImpl) setApprovalEventPayload(event Event, approvalActionRequest bean.UserApprovalActionRequest, cdPipeline *pipelineConfig.Pipeline) (*Payload, error) {
+func (impl *EventSimpleFactoryImpl) setApprovalEventPayload(event Event, approvalActionRequest bean.UserApprovalActionRequest, cdPipeline *pipelineConfig.Pipeline, imageTagNames []string, imageComment string) (*Payload, error) {
 	payload := &Payload{}
-	imageComment, imageTagNames, err := impl.imageTagRepository.GetImageTagsAndComment(approvalActionRequest.ArtifactId)
-	if err != nil {
-		return payload, err
-	}
-	payload.ImageComment = imageComment.Comment
+	payload.ImageComment = imageComment
 	payload.ImageTagNames = imageTagNames
 	ciArtifact, err := impl.ciArtifactRepository.Get(approvalActionRequest.ArtifactId)
 	if err != nil {
