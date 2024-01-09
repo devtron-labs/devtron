@@ -18,7 +18,6 @@
 package pipeline
 
 import (
-	"archive/zip"
 	"bufio"
 	"context"
 	"errors"
@@ -1578,32 +1577,6 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int, envId
 		Image:            ciArtifact.Image,
 	}
 	return gitTriggerInfoResponse, nil
-}
-
-func (impl *CiHandlerImpl) listFiles(file *zip.File, payload map[string]interface{}) (map[string]interface{}, error) {
-	fileRead, err := file.Open()
-	if err != nil {
-		return payload, err
-	}
-	defer fileRead.Close()
-
-	if strings.Contains(file.Name, ".xml") {
-		content, err := ioutil.ReadAll(fileRead)
-		if err != nil {
-			impl.Logger.Errorw("panic error", "err", err)
-			return payload, err
-		}
-		var reports []string
-		if _, ok := payload["xml"]; !ok {
-			reports = append(reports, string([]byte(content)))
-			payload["xml"] = reports
-		} else {
-			reports = payload["xml"].([]string)
-			reports = append(reports, string([]byte(content)))
-			payload["xml"] = reports
-		}
-	}
-	return payload, nil
 }
 
 func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuild int) error {
