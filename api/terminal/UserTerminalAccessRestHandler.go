@@ -3,16 +3,17 @@ package terminal
 import (
 	"encoding/json"
 	"errors"
+	"net/http"
+	"strconv"
+
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/clusterTerminalAccess"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
-	"net/http"
-	"strconv"
 )
 
 type UserTerminalAccessRestHandler interface {
@@ -38,9 +39,9 @@ type validShellResponse struct {
 type UserTerminalAccessRestHandlerImpl struct {
 	Logger                    *zap.SugaredLogger
 	UserTerminalAccessService clusterTerminalAccess.UserTerminalAccessService
-	Enforcer                  casbin.Enforcer
-	UserService               user.UserService
-	validator                 *validator.Validate
+	Enforcer    casbin.Enforcer
+	UserService user.UserService
+	validator   *validator.Validate
 }
 
 func NewUserTerminalAccessRestHandlerImpl(logger *zap.SugaredLogger, userTerminalAccessService clusterTerminalAccess.UserTerminalAccessService, Enforcer casbin.Enforcer,
