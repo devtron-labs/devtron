@@ -11,6 +11,7 @@ import (
 	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
 	appStoreDiscover "github.com/devtron-labs/devtron/api/appStore/discover"
 	appStoreValues "github.com/devtron-labs/devtron/api/appStore/values"
+	"github.com/devtron-labs/devtron/api/argoApplication"
 	"github.com/devtron-labs/devtron/api/auth/sso"
 	"github.com/devtron-labs/devtron/api/auth/user"
 	chartRepo "github.com/devtron-labs/devtron/api/chartRepo"
@@ -27,6 +28,8 @@ import (
 	"github.com/devtron-labs/devtron/api/team"
 	"github.com/devtron-labs/devtron/api/terminal"
 	webhookHelm "github.com/devtron-labs/devtron/api/webhook/helm"
+	"github.com/devtron-labs/devtron/client/argocdServer"
+	"github.com/devtron-labs/devtron/client/argocdServer/connection"
 	"github.com/devtron-labs/devtron/client/argocdServer/session"
 	"github.com/devtron-labs/devtron/client/dashboard"
 	"github.com/devtron-labs/devtron/client/telemetry"
@@ -81,6 +84,7 @@ func InitializeApp() (*App, error) {
 		apiToken.ApiTokenWireSet,
 		webhookHelm.WebhookHelmWireSet,
 		terminal.TerminalWireSet,
+		argoApplication.ArgoApplicationWireSet,
 
 		NewApp,
 		NewMuxRouter,
@@ -156,10 +160,14 @@ func InitializeApp() (*App, error) {
 
 		repository.NewGitOpsConfigRepositoryImpl,
 		wire.Bind(new(repository.GitOpsConfigRepository), new(*repository.GitOpsConfigRepositoryImpl)),
-
-		//binding argoUserService to helm via dummy implementation(HelmUserServiceImpl)
-		argo.NewHelmUserServiceImpl,
-		wire.Bind(new(argo.ArgoUserService), new(*argo.HelmUserServiceImpl)),
+		argocdServer.NewVersionServiceImpl,
+		wire.Bind(new(argocdServer.VersionService), new(*argocdServer.VersionServiceImpl)),
+		connection.GetConfig,
+		connection.SettingsManager,
+		connection.NewArgoCDConnectionManagerImpl,
+		wire.Bind(new(connection.ArgoCDConnectionManager), new(*connection.ArgoCDConnectionManagerImpl)),
+		argo.NewArgoUserServiceImpl,
+		wire.Bind(new(argo.ArgoUserService), new(*argo.ArgoUserServiceImpl)),
 
 		router.NewUserAttributesRouterImpl,
 		wire.Bind(new(router.UserAttributesRouter), new(*router.UserAttributesRouterImpl)),

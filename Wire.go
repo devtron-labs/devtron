@@ -30,6 +30,7 @@ import (
 	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
 	appStoreDiscover "github.com/devtron-labs/devtron/api/appStore/discover"
 	appStoreValues "github.com/devtron-labs/devtron/api/appStore/values"
+	"github.com/devtron-labs/devtron/api/argoApplication"
 	"github.com/devtron-labs/devtron/api/auth/sso"
 	"github.com/devtron-labs/devtron/api/auth/user"
 	chartRepo "github.com/devtron-labs/devtron/api/chartRepo"
@@ -157,6 +158,7 @@ func InitializeApp() (*App, error) {
 		apiToken.ApiTokenWireSet,
 		webhookHelm.WebhookHelmWireSet,
 		terminal.TerminalWireSet,
+		argoApplication.ArgoApplicationWireSet,
 		// -------wireset end ----------
 		//-------
 		gitSensor.GetConfig,

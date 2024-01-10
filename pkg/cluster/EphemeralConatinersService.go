@@ -2,18 +2,20 @@ package cluster
 
 import (
 	"errors"
+	"time"
+
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"go.uber.org/zap"
-	"time"
 )
 
 type EphemeralContainerRequest struct {
-	BasicData    *EphemeralContainerBasicData    `json:"basicData"`
-	AdvancedData *EphemeralContainerAdvancedData `json:"advancedData"`
-	Namespace    string                          `json:"namespace" validate:"required"`
-	ClusterId    int                             `json:"clusterId" validate:"gt=0"`
-	PodName      string                          `json:"podName"   validate:"required"`
-	UserId       int32                           `json:"-"`
+	BasicData                   *EphemeralContainerBasicData    `json:"basicData"`
+	AdvancedData                *EphemeralContainerAdvancedData `json:"advancedData"`
+	Namespace                   string                          `json:"namespace" validate:"required"`
+	ClusterId                   int                             `json:"clusterId" validate:"gt=0"`
+	PodName                     string                          `json:"podName"   validate:"required"`
+	UserId                      int32                           `json:"-"`
+	ExternalArgoApplicationName string                          `json:"externalArgoApplicationName,omitempty"`
 }
 
 type EphemeralContainerAdvancedData struct {
