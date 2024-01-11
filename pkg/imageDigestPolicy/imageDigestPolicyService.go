@@ -19,25 +19,25 @@ type ImageDigestPolicyService interface {
 	IsPolicyConfiguredForPipeline(pipelineId int) (bool, error)
 }
 
-type ImageDigestQualifierMappingServiceImpl struct {
+type ImageDigestPolicyServiceImpl struct {
 	logger                       *zap.SugaredLogger
 	qualifierMappingService      resourceQualifiers.QualifierMappingService
 	devtronResourceSearchableKey devtronResource.DevtronResourceSearchableKeyService
 }
 
-func NewImageDigestQualifierMappingServiceImpl(
+func NewImageDigestPolicyServiceImpl(
 	logger *zap.SugaredLogger,
 	qualifierMappingService resourceQualifiers.QualifierMappingService,
 	devtronResourceSearchableKey devtronResource.DevtronResourceSearchableKeyService,
-) *ImageDigestQualifierMappingServiceImpl {
-	return &ImageDigestQualifierMappingServiceImpl{
+) *ImageDigestPolicyServiceImpl {
+	return &ImageDigestPolicyServiceImpl{
 		logger:                       logger,
 		qualifierMappingService:      qualifierMappingService,
 		devtronResourceSearchableKey: devtronResourceSearchableKey,
 	}
 }
 
-func (impl ImageDigestQualifierMappingServiceImpl) CreateOrDeletePolicyForPipeline(pipelineId int, isImageDigestEnforcedForPipeline bool, UserId int32, tx *pg.Tx) error {
+func (impl ImageDigestPolicyServiceImpl) CreateOrDeletePolicyForPipeline(pipelineId int, isImageDigestEnforcedForPipeline bool, UserId int32, tx *pg.Tx) error {
 
 	devtronResourceSearchableKeyMap := impl.devtronResourceSearchableKey.GetAllSearchableKeyNameIdMap()
 
@@ -86,7 +86,7 @@ func (impl ImageDigestQualifierMappingServiceImpl) CreateOrDeletePolicyForPipeli
 	return nil
 }
 
-func (impl ImageDigestQualifierMappingServiceImpl) IsPolicyConfiguredForPipeline(pipelineId int) (bool, error) {
+func (impl ImageDigestPolicyServiceImpl) IsPolicyConfiguredForPipeline(pipelineId int) (bool, error) {
 	qualifierMappings, err := impl.getQualifierMappingForPipeline(pipelineId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching qualifier mappings for resourceType: imageDigest by pipelineId", "pipelineId", pipelineId)
@@ -98,7 +98,7 @@ func (impl ImageDigestQualifierMappingServiceImpl) IsPolicyConfiguredForPipeline
 	return true, nil
 }
 
-func (impl ImageDigestQualifierMappingServiceImpl) getQualifierMappingForPipeline(pipelineId int) ([]*resourceQualifiers.QualifierMapping, error) {
+func (impl ImageDigestPolicyServiceImpl) getQualifierMappingForPipeline(pipelineId int) ([]*resourceQualifiers.QualifierMapping, error) {
 	scope := &resourceQualifiers.Scope{PipelineId: pipelineId}
 	resourceIds := []int{resourceQualifiers.ImageDigestResourceId}
 	qualifierMappings, err := impl.qualifierMappingService.GetQualifierMappings(resourceQualifiers.ImageDigest, scope, resourceIds)
