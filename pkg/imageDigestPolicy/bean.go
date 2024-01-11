@@ -4,7 +4,7 @@ type imageDigestPolicy string
 
 const (
 	ALL_ENVIRONMENTS      imageDigestPolicy = "all_environments"
-	SELECTED_ENVIRONMENTS imageDigestPolicy = "selected_environments"
+	SPECIFIC_ENVIRONMENTS imageDigestPolicy = "specific_environments"
 )
 
 type ClusterId = int
@@ -19,5 +19,5 @@ type PolicyRequest struct {
 type ClusterDetail struct {
 	ClusterId    int               `json:"clusterId"`
 	Environments []int             `json:"environments"`
-	PolicyType   imageDigestPolicy `json:"policyType" validate:"oneof=all_environments selected_environments"`
+	PolicyType   imageDigestPolicy `json:"policyType" validate:"oneof=all_environments specific_environments"`
 }
