@@ -1007,8 +1007,8 @@ func InitializeApp() (*App, error) {
 		pipeline.NewPipelineConfigListenerServiceImpl,
 		wire.Bind(new(pipeline.PipelineConfigListenerService), new(*pipeline.PipelineConfigListenerServiceImpl)),
 
-		imageDigestPolicy.NewImageDigestQualifierMappingServiceImpl,
-		wire.Bind(new(imageDigestPolicy.ImageDigestPolicyService), new(*imageDigestPolicy.ImageDigestQualifierMappingServiceImpl)),
+		imageDigestPolicy.NewImageDigestPolicyServiceImpl,
+		wire.Bind(new(imageDigestPolicy.ImageDigestPolicyService), new(*imageDigestPolicy.ImageDigestPolicyServiceImpl)),
 
 		router.NewImageDigestPolicyRouterImpl,
 		wire.Bind(new(router.ImageDigestPolicyRouter), new(*router.ImageDigestPolicyRouterImpl)),
