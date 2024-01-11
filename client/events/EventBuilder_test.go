@@ -2,6 +2,9 @@ package client
 
 import (
 	"errors"
+	"reflect"
+	"testing"
+
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig/mocks"
 	repository "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
@@ -10,12 +13,10 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	mocks2 "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/mocks"
 	util2 "github.com/devtron-labs/devtron/internal/util"
+	repository3 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
+	mocks3 "github.com/devtron-labs/devtron/pkg/auth/user/repository/mocks"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/notifier"
-	repository3 "github.com/devtron-labs/devtron/pkg/user/repository"
-	mocks3 "github.com/devtron-labs/devtron/pkg/user/repository/mocks"
-	"reflect"
-	"testing"
 )
 
 func TestEventSimpleFactoryImpl_BuildExtraApprovalData(t *testing.T) {

@@ -5,13 +5,12 @@ package mocks
 import (
 	context "context"
 
+	userrepository "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	cluster "github.com/devtron-labs/devtron/pkg/cluster"
 
 	mock "github.com/stretchr/testify/mock"
 
 	repository "github.com/devtron-labs/devtron/pkg/cluster/repository"
-
-	userrepository "github.com/devtron-labs/devtron/pkg/user/repository"
 
 	util "github.com/devtron-labs/devtron/internal/util"
 

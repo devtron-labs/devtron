@@ -3,16 +3,19 @@ package cluster
 import (
 	"context"
 	"fmt"
+	auth "github.com/devtron-labs/devtron/pkg/auth/authorisation/globalConfig"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
+	"net/http"
+	"strings"
+	"time"
+
 	cluster3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
+	repository4 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/devtron-labs/devtron/pkg/k8s/informer"
-	repository4 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/go-pg/pg"
-	"net/http"
-	"strings"
-	"time"
 
 	cluster2 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
 	"github.com/devtron-labs/devtron/client/grafana"
@@ -42,7 +45,9 @@ func NewClusterServiceImplExtended(repository repository.ClusterRepository, envi
 	clusterServiceCD cluster2.ServiceClient, K8sInformerFactory informer.K8sInformerFactory,
 	gitOpsRepository repository3.GitOpsConfigRepository, userAuthRepository repository4.UserAuthRepository,
 	userRepository repository4.UserRepository, roleGroupRepository repository4.RoleGroupRepository,
-	sshTunnelWrapperService k8s.SSHTunnelWrapperService) *ClusterServiceImplExtended {
+	sshTunnelWrapperService k8s.SSHTunnelWrapperService,
+	globalAuthorisationConfigService auth.GlobalAuthorisationConfigService,
+	userService user.UserService) *ClusterServiceImplExtended {
 	clusterServiceExt := &ClusterServiceImplExtended{
 		environmentRepository:   environmentRepository,
 		grafanaClient:           grafanaClient,
@@ -51,13 +56,18 @@ func NewClusterServiceImplExtended(repository repository.ClusterRepository, envi
 		gitOpsRepository:        gitOpsRepository,
 		sshTunnelWrapperService: sshTunnelWrapperService,
 		ClusterServiceImpl: &ClusterServiceImpl{
-			clusterRepository:   repository,
-			logger:              logger,
-			K8sUtil:             K8sUtil,
-			K8sInformerFactory:  K8sInformerFactory,
-			userAuthRepository:  userAuthRepository,
-			userRepository:      userRepository,
-			roleGroupRepository: roleGroupRepository,
+			clusterRepository:                repository,
+			logger:                           logger,
+			K8sUtil:                          K8sUtil,
+			K8sInformerFactory:               K8sInformerFactory,
+			userAuthRepository:               userAuthRepository,
+			userRepository:                   userRepository,
+			roleGroupRepository:              roleGroupRepository,
+			globalAuthorisationConfigService: globalAuthorisationConfigService,
+			ClusterRbacServiceImpl: &ClusterRbacServiceImpl{
+				userService: userService,
+				logger:      logger,
+			},
 		},
 	}
 	go clusterServiceExt.updateClusterConnectionMap()

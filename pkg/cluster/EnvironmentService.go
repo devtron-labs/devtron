@@ -20,19 +20,20 @@ package cluster
 import (
 	"encoding/json"
 	"fmt"
-	util2 "github.com/devtron-labs/common-lib-private/utils/k8s"
-	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
-	"github.com/devtron-labs/devtron/pkg/attributes"
-	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
-	"github.com/devtron-labs/devtron/pkg/k8s/informer"
-	"github.com/devtron-labs/devtron/pkg/user/bean"
 	"strconv"
 	"strings"
 	"time"
 
+	util2 "github.com/devtron-labs/common-lib-private/utils/k8s"
+	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/pkg/attributes"
+	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
+	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
+	"github.com/devtron-labs/devtron/pkg/k8s/informer"
+
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/go-pg/pg"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -105,7 +106,7 @@ type EnvironmentService interface {
 	FindByIds(ids []*int) ([]*EnvironmentBean, error)
 	FindByNamespaceAndClusterName(namespaces string, clusterName string) (*repository.Environment, error)
 	GetByClusterId(id int) ([]*EnvironmentBean, error)
-	GetCombinedEnvironmentListForDropDown(emailId string, isActionUserSuperAdmin bool, auth func(email string, object []string) map[string]bool) ([]*ClusterEnvDto, error)
+	GetCombinedEnvironmentListForDropDown(token string, isActionUserSuperAdmin bool, auth func(email string, object []string) map[string]bool) ([]*ClusterEnvDto, error)
 	GetCombinedEnvironmentListForDropDownByClusterIds(token string, clusterIds []int, auth func(token string, object string) bool) ([]*ClusterEnvDto, error)
 	HandleErrorInClusterConnections(clusters []*ClusterBean, respMap map[int]error, clusterExistInDb bool)
 }
@@ -625,7 +626,7 @@ func (impl EnvironmentServiceImpl) GetByClusterId(id int) ([]*EnvironmentBean, e
 	return beans, nil
 }
 
-func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(emailId string, isActionUserSuperAdmin bool, auth func(email string, object []string) map[string]bool) ([]*ClusterEnvDto, error) {
+func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(token string, isActionUserSuperAdmin bool, auth func(email string, object []string) map[string]bool) ([]*ClusterEnvDto, error) {
 	var namespaceGroupByClusterResponse []*ClusterEnvDto
 	clusterModels, err := impl.clusterService.FindAllActive()
 	if err != nil {
@@ -652,7 +653,7 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(emailId
 		rbacObject = append(rbacObject, model.EnvironmentIdentifier)
 	}
 	// auth enforcer applied here in batch
-	rbacObjectResult := auth(emailId, rbacObject)
+	rbacObjectResult := auth(token, rbacObject)
 
 	uniqueComboMap := make(map[string]bool)
 	grantedEnvironmentMap := make(map[string][]*EnvDto)
@@ -690,7 +691,7 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(emailId
 		}
 	}
 	// auth enforcer applied here in batch
-	rbacObjectResult2 := auth(emailId, rbacObject)
+	rbacObjectResult2 := auth(token, rbacObject)
 
 	for clusterName, namespaces := range namespaceListGroupByClusters {
 		if isVirtualClusterMap[clusterName] {

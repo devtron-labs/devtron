@@ -20,20 +20,21 @@ package team
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/caarlos0/env/v6"
-	"github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/api/restHandler/common"
-	delete2 "github.com/devtron-labs/devtron/pkg/delete"
-	"github.com/devtron-labs/devtron/pkg/team"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
-	"github.com/gorilla/mux"
-	"go.uber.org/zap"
-	"gopkg.in/go-playground/validator.v9"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/caarlos0/env/v6"
+	"github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
+	delete2 "github.com/devtron-labs/devtron/pkg/delete"
+	"github.com/devtron-labs/devtron/pkg/team"
+	"github.com/gorilla/mux"
+	"go.uber.org/zap"
+	"gopkg.in/go-playground/validator.v9"
 )
 
 const PROJECT_DELETE_SUCCESS_RESP = "Project deleted successfully."
@@ -262,14 +263,13 @@ func (impl TeamRestHandlerImpl) FetchForAutocomplete(w http.ResponseWriter, r *h
 	start = time.Now()
 	if !impl.cfg.IgnoreAuthCheck {
 		grantedTeams = make([]team.TeamRequest, 0)
-		emailId, _ := impl.userService.GetEmailFromToken(token)
 		// RBAC enforcer applying
 		var teamNameList []string
 		for _, item := range teams {
 			teamNameList = append(teamNameList, strings.ToLower(item.Name))
 		}
 
-		result := impl.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceTeam, casbin.ActionGet, teamNameList)
+		result := impl.enforcer.EnforceInBatch(token, casbin.ResourceTeam, casbin.ActionGet, teamNameList)
 
 		for _, item := range teams {
 			if hasAccess := result[strings.ToLower(item.Name)]; hasAccess {

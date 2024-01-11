@@ -18,7 +18,7 @@
 package bean
 
 import (
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 )
 
 type PolicyRequest struct {

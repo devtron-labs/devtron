@@ -5,11 +5,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/generateManifest"
@@ -18,17 +25,11 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/pkg/variables/models"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
 	"go.opentelemetry.io/otel"
-	"io"
-	"net/http"
-	"strconv"
-	"strings"
-	"time"
 )
 
 const DefaultMinArtifactCount = 10
@@ -77,6 +78,7 @@ type DevtronAppDeploymentConfigRestHandler interface {
 	EnvConfigOverrideReset(w http.ResponseWriter, r *http.Request)
 
 	UpdateAppOverride(w http.ResponseWriter, r *http.Request)
+	ValidateAppOverride(w http.ResponseWriter, r *http.Request)
 	GetConfigmapSecretsForDeploymentStages(w http.ResponseWriter, r *http.Request)
 	GetDeploymentPipelineStrategy(w http.ResponseWriter, r *http.Request)
 	GetDefaultDeploymentPipelineStrategy(w http.ResponseWriter, r *http.Request)
@@ -122,10 +124,12 @@ func (handler PipelineConfigRestHandlerImpl) ConfigureDeploymentTemplateForApp(w
 	scope := resourceQualifiers.Scope{
 		AppId: templateRequest.AppId,
 	}
-	validate, err2 := handler.chartService.DeploymentTemplateValidate(r.Context(), templateRequest.ValuesOverride, chartRefId, scope)
-	if !validate {
-		common.WriteJsonResp(w, err2, nil, http.StatusBadRequest)
-		return
+	if !templateRequest.SaveEligibleChanges {
+		validate, err2 := handler.chartService.DeploymentTemplateValidate(r.Context(), templateRequest.ValuesOverride, chartRefId, scope)
+		if !validate {
+			common.WriteJsonResp(w, err2, nil, http.StatusBadRequest)
+			return
+		}
 	}
 
 	handler.Logger.Infow("request payload, ConfigureDeploymentTemplateForApp", "payload", templateRequest)
@@ -605,7 +609,7 @@ func (handler PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWrite
 	envConfigPropertiesOld, err := handler.propertiesConfigService.FetchEnvProperties(request.AppId, request.EnvId, request.TargetChartRefId)
 	if err == nil {
 		envConfigProperties.Id = envConfigPropertiesOld.Id
-		createResp, err := handler.propertiesConfigService.UpdateEnvironmentProperties(request.AppId, envConfigProperties, userId)
+		createResp, err := handler.propertiesConfigService.UpdateEnvironmentProperties(request.AppId, request.EnvId, envConfigProperties, userId)
 		if err != nil {
 			handler.Logger.Errorw("service err, EnvConfigOverrideUpdate", "err", err, "payload", envConfigProperties)
 			common.WriteJsonResp(w, err, createResp, http.StatusInternalServerError)
@@ -725,11 +729,13 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideCreate(w http.Resp
 		EnvId:     environmentId,
 		ClusterId: envConfigProperties.ClusterId,
 	}
-	validate, err2 := handler.chartService.DeploymentTemplateValidate(r.Context(), envConfigProperties.EnvOverrideValues, chartRefId, scope)
-	if !validate {
-		handler.Logger.Errorw("validation err, UpdateAppOverride", "err", err2, "payload", envConfigProperties)
-		common.WriteJsonResp(w, err2, nil, http.StatusBadRequest)
-		return
+	if !envConfigProperties.SaveEligibleChanges {
+		validate, err2 := handler.chartService.DeploymentTemplateValidate(r.Context(), envConfigProperties.EnvOverrideValues, chartRefId, scope)
+		if !validate {
+			handler.Logger.Errorw("validation err, UpdateAppOverride", "err", err2, "payload", envConfigProperties)
+			common.WriteJsonResp(w, err2, nil, http.StatusBadRequest)
+			return
+		}
 	}
 
 	createResp, err := handler.propertiesConfigService.CreateEnvironmentProperties(appId, &envConfigProperties)
@@ -840,14 +846,16 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideUpdate(w http.Resp
 		EnvId:     envId,
 		ClusterId: envConfigProperties.ClusterId,
 	}
-	validate, err2 := handler.chartService.DeploymentTemplateValidate(r.Context(), envConfigProperties.EnvOverrideValues, chartRefId, scope)
-	if !validate {
-		handler.Logger.Errorw("validation err, UpdateAppOverride", "err", err2, "payload", envConfigProperties)
-		common.WriteJsonResp(w, err2, nil, http.StatusBadRequest)
-		return
+	if !envConfigProperties.SaveEligibleChanges {
+		validate, err2 := handler.chartService.DeploymentTemplateValidate(r.Context(), envConfigProperties.EnvOverrideValues, chartRefId, scope)
+		if !validate {
+			handler.Logger.Errorw("validation err, UpdateAppOverride", "err", err2, "payload", envConfigProperties)
+			common.WriteJsonResp(w, err2, nil, http.StatusBadRequest)
+			return
+		}
 	}
 
-	createResp, err := handler.propertiesConfigService.UpdateEnvironmentProperties(appId, &envConfigProperties, userId)
+	createResp, err := handler.propertiesConfigService.UpdateEnvironmentProperties(appId, envId, &envConfigProperties, userId)
 	if err != nil {
 		handler.Logger.Errorw("service err, EnvConfigOverrideUpdate", "err", err, "payload", envConfigProperties)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -961,8 +969,7 @@ func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplateData(w http.Re
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	isSuperAdmin, _ := handler.userAuthService.IsSuperAdmin(int(userId))
-
+	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
 	//RBAC enforcer Ends
 
 	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
@@ -1552,12 +1559,14 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 		AppId: templateRequest.AppId,
 	}
 	_, span = otel.Tracer("orchestrator").Start(ctx, "chartService.DeploymentTemplateValidate")
-	validate, err2 := handler.chartService.DeploymentTemplateValidate(ctx, templateRequest.ValuesOverride, chartRefId, scope)
-	span.End()
-	if !validate {
-		handler.Logger.Errorw("validation err, UpdateAppOverride", "err", err2, "payload", templateRequest)
-		common.WriteJsonResp(w, err2, nil, http.StatusBadRequest)
-		return
+	if !templateRequest.SaveEligibleChanges {
+		validate, err2 := handler.chartService.DeploymentTemplateValidate(ctx, templateRequest.ValuesOverride, chartRefId, scope)
+		span.End()
+		if !validate {
+			handler.Logger.Errorw("validation err, UpdateAppOverride", "err", err2, "payload", templateRequest)
+			common.WriteJsonResp(w, err2, nil, http.StatusBadRequest)
+			return
+		}
 	}
 
 	protectionEnabled := handler.resourceProtectionService.ResourceProtectionEnabled(templateRequest.AppId, -1)
@@ -1578,6 +1587,80 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 	common.WriteJsonResp(w, err, createResp, http.StatusOK)
 
 }
+
+func (handler PipelineConfigRestHandlerImpl) ValidateAppOverride(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	var templateRequest *chart.TemplateRequest
+	err = decoder.Decode(&templateRequest)
+	templateRequest.UserId = userId
+	if err != nil {
+		handler.Logger.Errorw("request err, ValidateAppOverride", "err", err, "payload", templateRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	chartRefId := templateRequest.ChartRefId
+	//VARIABLE_RESOLVE
+	scope := resourceQualifiers.Scope{
+		AppId: templateRequest.AppId,
+	}
+	if !templateRequest.SaveEligibleChanges {
+		validate, err2 := handler.chartService.DeploymentTemplateValidate(r.Context(), templateRequest.ValuesOverride, chartRefId, scope)
+		if !validate {
+			common.WriteJsonResp(w, err2, nil, http.StatusBadRequest)
+			return
+		}
+	}
+
+	handler.Logger.Infow("request payload, ValidateAppOverride", "payload", templateRequest)
+	err = handler.validator.Struct(templateRequest)
+	if err != nil {
+		handler.Logger.Errorw("validation err, ValidateAppOverride", "err", err, "payload", templateRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	token := r.Header.Get("token")
+	app, err := handler.pipelineBuilder.GetApp(templateRequest.AppId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceName); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+
+	ctx, cancel := context.WithCancel(r.Context())
+	if cn, ok := w.(http.CloseNotifier); ok {
+		go func(done <-chan struct{}, closed <-chan bool) {
+			select {
+			case <-done:
+			case <-closed:
+				cancel()
+			}
+		}(ctx.Done(), cn.CloseNotify())
+	}
+	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		handler.Logger.Errorw("error in getting acd token", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	ctx = context.WithValue(r.Context(), "token", acdToken)
+	validateResp, err := handler.chartService.ValidateAppOverride(templateRequest)
+	if err != nil {
+		handler.Logger.Errorw("service err, ValidateAppOverride", "err", err, "payload", templateRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, validateResp, http.StatusOK)
+}
+
 func (handler PipelineConfigRestHandlerImpl) GetArtifactsForRollback(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -2641,17 +2724,12 @@ func (handler PipelineConfigRestHandlerImpl) UpgradeForAllApps(w http.ResponseWr
 
 func (handler PipelineConfigRestHandlerImpl) GetCdPipelinesByEnvironment(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
+	token := r.Header.Get("token")
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	user, err := handler.userAuthService.GetById(userId)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	userEmailId := strings.ToLower(user.EmailId)
 	envId, err := strconv.Atoi(vars["envId"])
 	if err != nil {
 		handler.Logger.Errorw("request err, GetCdPipelines", "err", err, "envId", envId)
@@ -2687,13 +2765,12 @@ func (handler PipelineConfigRestHandlerImpl) GetCdPipelinesByEnvironment(w http.
 		ResourceGroupId:   appGroupId,
 		ResourceGroupType: resourceGroup2.APP_GROUP,
 		ResourceIds:       appIds,
-		EmailId:           userEmailId,
 		CheckAuthBatch:    handler.checkAuthBatch,
 		UserId:            userId,
 		Ctx:               r.Context(),
 	}
 	_, span := otel.Tracer("orchestrator").Start(r.Context(), "cdHandler.FetchCdPipelinesForResourceGrouping")
-	results, err := handler.pipelineBuilder.GetCdPipelinesByEnvironment(request)
+	results, err := handler.pipelineBuilder.GetCdPipelinesByEnvironment(request, token)
 	span.End()
 	if err != nil {
 		handler.Logger.Errorw("service err, GetCdPipelines", "err", err, "envId", envId)
@@ -2710,12 +2787,7 @@ func (handler PipelineConfigRestHandlerImpl) GetCdPipelinesByEnvironmentMin(w ht
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	user, err := handler.userAuthService.GetById(userId)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	userEmailId := strings.ToLower(user.EmailId)
+	token := r.Header.Get("token")
 	envId, err := strconv.Atoi(vars["envId"])
 	if err != nil {
 		handler.Logger.Errorw("request err, GetCdPipelines", "err", err, "envId", envId)
@@ -2751,14 +2823,13 @@ func (handler PipelineConfigRestHandlerImpl) GetCdPipelinesByEnvironmentMin(w ht
 		ResourceGroupId:   appGroupId,
 		ResourceGroupType: resourceGroup2.APP_GROUP,
 		ResourceIds:       appIds,
-		EmailId:           userEmailId,
 		CheckAuthBatch:    handler.checkAuthBatch,
 		UserId:            userId,
 		Ctx:               r.Context(),
 	}
 
 	_, span := otel.Tracer("orchestrator").Start(r.Context(), "cdHandler.FetchCdPipelinesForResourceGrouping")
-	results, err := handler.pipelineBuilder.GetCdPipelinesByEnvironmentMin(request)
+	results, err := handler.pipelineBuilder.GetCdPipelinesByEnvironmentMin(request, token)
 	span.End()
 	if err != nil {
 		handler.Logger.Errorw("service err, GetCdPipelines", "err", err, "envId", envId)
@@ -2768,14 +2839,14 @@ func (handler PipelineConfigRestHandlerImpl) GetCdPipelinesByEnvironmentMin(w ht
 	common.WriteJsonResp(w, err, results, http.StatusOK)
 }
 
-func (handler *PipelineConfigRestHandlerImpl) checkAuthBatch(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool) {
+func (handler *PipelineConfigRestHandlerImpl) checkAuthBatch(token string, appObject []string, envObject []string) (map[string]bool, map[string]bool) {
 	var appResult map[string]bool
 	var envResult map[string]bool
 	if len(appObject) > 0 {
-		appResult = handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceApplications, casbin.ActionGet, appObject)
+		appResult = handler.enforcer.EnforceInBatch(token, casbin.ResourceApplications, casbin.ActionGet, appObject)
 	}
 	if len(envObject) > 0 {
-		envResult = handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceEnvironment, casbin.ActionGet, envObject)
+		envResult = handler.enforcer.EnforceInBatch(token, casbin.ResourceEnvironment, casbin.ActionGet, envObject)
 	}
 	return appResult, envResult
 }

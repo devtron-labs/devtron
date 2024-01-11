@@ -1,0 +1,107 @@
+openapi: 3.0.0
+info:
+  title: GlobalAuthorisationConfig (SSO Group Mapping AD/LDAP Support)
+  version: 1.0.0
+paths:
+  /orchestrator/authorisation/global-config:
+    post:
+      summary: Create or update authorization configuration
+      operationId: CreateOrUpdateAuthorisationConfig
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GlobalAuthorisationConfig'
+
+      responses:
+        '200':
+          description: Authorization configuration created or updated successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GlobalAuthorisationConfigResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    get:
+      summary: Get all active authorization configurations
+      operationId: GetAllActiveAuthorisationConfig
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GlobalAuthorisationConfigResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+
+components:
+  schemas:
+    GlobalAuthorisationConfig:
+      type: object
+      properties:
+        configTypes:
+          type: array
+          items:
+            type: string
+      required:
+        - configTypes
+
+    GlobalAuthorisationConfigResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        configType:
+          type: string
+        active:
+          type: boolean
+    Error:
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          description: Error code
+        message:
+          type: string
+          description: Error message
