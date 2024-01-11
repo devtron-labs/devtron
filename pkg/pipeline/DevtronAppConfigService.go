@@ -56,7 +56,7 @@ type DevtronAppConfigService interface {
 	//The function then performs authorization checks on these objects for the given user.
 	//Finally , the corresponding AppBean objects are added to the applicationList and then returned.
 	//In case of error,[]*AppBean is returned as nil.
-	GetAppListForEnvironment(request resourceGroup.ResourceGroupingRequest) ([]*AppBean, error)
+	GetAppListForEnvironment(request resourceGroup.ResourceGroupingRequest, token string) ([]*AppBean, error)
 	//FindAppsByTeamId : Retrieves applications (AppBean) associated with the provided teamId
 	//It queries the repository for applications belonging to the specified team(project) and
 	//constructs a list of AppBean instances containing ID and name.
@@ -190,7 +190,7 @@ func (impl *DevtronAppConfigServiceImpl) FindAllMatchesByAppName(appName string,
 	return appsRes, err
 }
 
-func (impl *DevtronAppConfigServiceImpl) GetAppListForEnvironment(request resourceGroup.ResourceGroupingRequest) ([]*AppBean, error) {
+func (impl *DevtronAppConfigServiceImpl) GetAppListForEnvironment(request resourceGroup.ResourceGroupingRequest, token string) ([]*AppBean, error) {
 	var applicationList []*AppBean
 	var cdPipelines []*pipelineConfig.Pipeline
 	var err error
@@ -221,7 +221,7 @@ func (impl *DevtronAppConfigServiceImpl) GetAppListForEnvironment(request resour
 		appObjectArr = append(appObjectArr, object[0])
 		envObjectArr = append(envObjectArr, object[1])
 	}
-	appResults, envResults := request.CheckAuthBatch(request.EmailId, appObjectArr, envObjectArr)
+	appResults, envResults := request.CheckAuthBatch(token, appObjectArr, envObjectArr)
 	for _, pipeline := range cdPipelines {
 		appObject := objects[pipeline.Id][0]
 		envObject := objects[pipeline.Id][1]

@@ -2,20 +2,21 @@ package history
 
 import (
 	"context"
+	"time"
+
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	repository6 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"time"
 )
 
 type DeploymentTemplateHistoryService interface {
@@ -274,9 +275,9 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetDeploymentDetailsForDeployed
 	var historiesDto []*DeploymentTemplateHistoryDto
 	for _, history := range histories {
 		if wfrIndex, ok := deploymentTimeStatusMap[history.DeployedOn]; ok {
-			user, err := impl.userService.GetById(history.DeployedBy)
+			userEmailId, err := impl.userService.GetEmailById(history.DeployedBy)
 			if err != nil {
-				impl.logger.Errorw("unable to find user by id", "err", err, "id", history.Id)
+				impl.logger.Errorw("unable to find user email by id", "err", err, "id", history.DeployedBy)
 				return nil, err
 			}
 			historyDto := &DeploymentTemplateHistoryDto{
@@ -286,7 +287,7 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetDeploymentDetailsForDeployed
 				Deployed:         history.Deployed,
 				DeployedOn:       history.DeployedOn,
 				DeployedBy:       history.DeployedBy,
-				EmailId:          user.EmailId,
+				EmailId:          userEmailId,
 				DeploymentStatus: wfrList[wfrIndex].Status,
 				WfrId:            wfrList[wfrIndex].Id,
 				WorkflowType:     string(wfrList[wfrIndex].WorkflowType),

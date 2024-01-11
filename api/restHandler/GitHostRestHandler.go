@@ -20,17 +20,18 @@ package restHandler
 import (
 	"context"
 	"encoding/json"
+	"net/http"
+	"strconv"
+
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/gitSensor"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
-	"net/http"
-	"strconv"
 )
 
 type GitHostRestHandler interface {
@@ -44,9 +45,9 @@ type GitHostRestHandler interface {
 
 type GitHostRestHandlerImpl struct {
 	logger            *zap.SugaredLogger
-	gitHostConfig     pipeline.GitHostConfig
-	userAuthService   user.UserService
-	validator         *validator.Validate
+	gitHostConfig   pipeline.GitHostConfig
+	userAuthService user.UserService
+	validator       *validator.Validate
 	enforcer          casbin.Enforcer
 	gitSensorClient   gitSensor.Client
 	gitProviderConfig pipeline.GitRegistryConfig
