@@ -1857,12 +1857,13 @@ func (handler CoreAppRestHandlerImpl) createEnvDeploymentTemplate(appId int, use
 		appMetrics = *envConfigProperties.AppMetrics
 	}
 	chartEntry.GlobalOverride = string(envConfigProperties.EnvOverrideValues)
-	_, err = handler.propertiesConfigService.CreateIfRequired(chartEntry, envId, userId, envConfigProperties.ManualReviewed, models.CHARTSTATUS_SUCCESS,
+	_, updatedAppMetrics, err := handler.propertiesConfigService.CreateIfRequired(chartEntry, envId, userId, envConfigProperties.ManualReviewed, models.CHARTSTATUS_SUCCESS,
 		true, appMetrics, envConfigProperties.Namespace, envConfigProperties.IsBasicViewLocked, envConfigProperties.CurrentViewEditor, nil)
 	if err != nil {
 		handler.logger.Errorw("service err, CreateIfRequired", "err", err, "appId", appId, "envId", envId, "chartRefId", chartRefId)
 		return err
 	}
+	envConfigProperties.AppMetrics = &updatedAppMetrics
 
 	//getting environment properties for db table id(this properties get created when cd pipeline is created)
 	env, err := handler.propertiesConfigService.GetEnvironmentProperties(appId, envId, deploymentTemplateOverride.ChartRefId)
@@ -1879,20 +1880,6 @@ func (handler CoreAppRestHandlerImpl) createEnvDeploymentTemplate(appId int, use
 		handler.logger.Errorw("service err, EnvConfigOverrideUpdate", "err", err, "appId", appId, "envId", envId)
 		return err
 	}
-
-	//updating app metrics
-	appMetricsRequest := &chart.AppMetricEnableDisableRequest{
-		AppId:               appId,
-		UserId:              userId,
-		EnvironmentId:       envId,
-		IsAppMetricsEnabled: deploymentTemplateOverride.ShowAppMetrics,
-	}
-	_, err = handler.propertiesConfigService.EnvMetricsEnableDisable(appMetricsRequest)
-	if err != nil {
-		handler.logger.Errorw("service err, EnvMetricsEnableDisable", "err", err, "appId", appId, "envId", envId)
-		return err
-	}
-
 	return nil
 }
 

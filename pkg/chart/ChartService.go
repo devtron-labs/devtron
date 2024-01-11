@@ -54,7 +54,6 @@ import (
 
 	"github.com/devtron-labs/devtron/client/argocdServer/repository"
 	"github.com/devtron-labs/devtron/internal/sql/models"
-	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -116,7 +115,6 @@ type ChartServiceImpl struct {
 	configMapRepository              chartConfig.ConfigMapRepository
 	environmentRepository            repository4.EnvironmentRepository
 	pipelineRepository               pipelineConfig.PipelineRepository
-	envLevelAppMetricsRepository     repository3.EnvLevelAppMetricsRepository
 	client                           *http.Client
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
 	scopedVariableManager            variables.ScopedVariableManager
@@ -138,7 +136,6 @@ func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
 	configMapRepository chartConfig.ConfigMapRepository,
 	environmentRepository repository4.EnvironmentRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
-	envLevelAppMetricsRepository repository3.EnvLevelAppMetricsRepository,
 	client *http.Client,
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
 	scopedVariableManager variables.ScopedVariableManager,
@@ -147,7 +144,6 @@ func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
 	// cache devtron reference charts list
 	devtronChartList, _ := chartRefRepository.FetchAllChartInfoByUploadFlag(false)
 	SetReservedChartList(devtronChartList)
-
 	return &ChartServiceImpl{
 		chartRepository:                  chartRepository,
 		logger:                           logger,
@@ -164,7 +160,6 @@ func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
 		configMapRepository:              configMapRepository,
 		environmentRepository:            environmentRepository,
 		pipelineRepository:               pipelineRepository,
-		envLevelAppMetricsRepository:     envLevelAppMetricsRepository,
 		client:                           client,
 		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
 		scopedVariableManager:            scopedVariableManager,
@@ -449,9 +444,9 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 		ChartRefId:    templateRequest.ChartRefId,
 		UserId:        templateRequest.UserId,
 	}
-	err = impl.deployedAppMetricsService.CheckAndUpdateAppLevelMetrics(ctx, appLevelMetricsUpdateReq)
+	err = impl.deployedAppMetricsService.CheckAndUpdateAppOrEnvLevelMetrics(ctx, appLevelMetricsUpdateReq)
 	if err != nil {
-		impl.logger.Errorw("error, CheckAndUpdateAppLevelMetrics", "err", err, "req", appLevelMetricsUpdateReq)
+		impl.logger.Errorw("error, CheckAndUpdateAppOrEnvLevelMetrics", "err", err, "req", appLevelMetricsUpdateReq)
 		return nil, err
 	}
 
@@ -846,14 +841,14 @@ func (impl ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateRequ
 		ChartRefId:    templateRequest.ChartRefId,
 		UserId:        templateRequest.UserId,
 	}
-	err = impl.deployedAppMetricsService.CheckAndUpdateAppLevelMetrics(ctx, appLevelMetricsUpdateReq)
+	err = impl.deployedAppMetricsService.CheckAndUpdateAppOrEnvLevelMetrics(ctx, appLevelMetricsUpdateReq)
 	if err != nil {
-		impl.logger.Errorw("error, CheckAndUpdateAppLevelMetrics", "err", err, "req", appLevelMetricsUpdateReq)
+		impl.logger.Errorw("error, CheckAndUpdateAppOrEnvLevelMetrics", "err", err, "req", appLevelMetricsUpdateReq)
 		return nil, err
 	}
 	_, span = otel.Tracer("orchestrator").Start(ctx, "CreateDeploymentTemplateHistoryFromGlobalTemplate")
 	//creating history entry for deployment template
-	err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromGlobalTemplate(template, nil, templateRequest.IsAppMetricsEnabled)
+	err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromGlobalTemplate(template, nil, appLevelMetricsUpdateReq.EnableMetrics)
 	span.End()
 	if err != nil {
 		impl.logger.Errorw("error in creating entry for deployment template history", "err", err, "chart", template)
@@ -1138,20 +1133,10 @@ func (impl ChartServiceImpl) UpgradeForApp(appId int, chartRefId int, newAppOver
 			return false, err
 		}
 		//creating history entry for deployment template
-		isAppMetricsEnabled := false
-		envLevelAppMetrics, err := impl.envLevelAppMetricsRepository.FindByAppIdAndEnvId(appId, envOverrideNew.TargetEnvironment)
-		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Errorw("error in getting env level app metrics", "err", err, "appId", appId, "envId", envOverrideNew.TargetEnvironment)
+		isAppMetricsEnabled, err := impl.deployedAppMetricsService.GetMetricsFlagForAPipelineByAppIdAndEnvId(appId, envOverrideNew.TargetEnvironment)
+		if err != nil {
+			impl.logger.Errorw("error, GetMetricsFlagForAPipelineByAppIdAndEnvId", "err", err, "appId", appId, "envId", envOverrideNew.TargetEnvironment)
 			return false, err
-		} else if err == pg.ErrNoRows {
-			isAppLevelMetricsEnabled, err := impl.deployedAppMetricsService.GetMetricsFlagByAppIdEvenIfNotInDb(appId)
-			if err != nil {
-				impl.logger.Errorw("error, GetMetricsFlagByAppIdEvenIfNotInDb", "err", err, "appId", appId)
-				return false, err
-			}
-			isAppMetricsEnabled = isAppLevelMetricsEnabled
-		} else {
-			isAppMetricsEnabled = *envLevelAppMetrics.AppMetrics
 		}
 		err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(envOverrideNew, nil, isAppMetricsEnabled, 0)
 		if err != nil {

@@ -160,7 +160,6 @@ type AppListingServiceImpl struct {
 	cdWorkflowRepository           pipelineConfig.CdWorkflowRepository
 	linkoutsRepository             repository.LinkoutsRepository
 	appLevelMetricsRepository      repository.AppLevelMetricsRepository
-	envLevelMetricsRepository      repository.EnvLevelAppMetricsRepository
 	pipelineOverrideRepository     chartConfig.PipelineOverrideRepository
 	environmentRepository          repository2.EnvironmentRepository
 	argoUserService                argo.ArgoUserService
@@ -175,7 +174,7 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 	application application2.ServiceClient, appRepository app.AppRepository,
 	appListingViewBuilder AppListingViewBuilder, pipelineRepository pipelineConfig.PipelineRepository,
 	linkoutsRepository repository.LinkoutsRepository, appLevelMetricsRepository repository.AppLevelMetricsRepository,
-	envLevelMetricsRepository repository.EnvLevelAppMetricsRepository, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
+	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository, environmentRepository repository2.EnvironmentRepository,
 	argoUserService argo.ArgoUserService, envOverrideRepository chartConfig.EnvConfigOverrideRepository,
 	chartRepository chartRepoRepository.ChartRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository,
@@ -189,7 +188,6 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 		pipelineRepository:             pipelineRepository,
 		linkoutsRepository:             linkoutsRepository,
 		appLevelMetricsRepository:      appLevelMetricsRepository,
-		envLevelMetricsRepository:      envLevelMetricsRepository,
 		cdWorkflowRepository:           cdWorkflowRepository,
 		pipelineOverrideRepository:     pipelineOverrideRepository,
 		environmentRepository:          environmentRepository,
@@ -882,52 +880,6 @@ func (impl AppListingServiceImpl) FetchAppDetails(ctx context.Context, appId int
 		return appDetailContainer, err
 	}
 
-	return appDetailContainer, nil
-}
-
-func (impl AppListingServiceImpl) fetchAppAndEnvLevelMatrics(ctx context.Context, appId int, appDetailContainer bean.AppDetailContainer) (bean.AppDetailContainer, error) {
-	var appMetrics bool
-	var infraMetrics bool
-	_, span := otel.Tracer("orchestrator").Start(ctx, "appLevelMetricsRepository.FindByAppId")
-	appLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(appId)
-	span.End()
-	if err != nil && err != pg.ErrNoRows {
-		impl.Logger.Errorw("error in app metrics app level flag", "error", err)
-		return bean.AppDetailContainer{}, err
-	} else if appLevelMetrics != nil {
-		appMetrics = appLevelMetrics.AppMetrics
-		infraMetrics = appLevelMetrics.InfraMetrics
-	}
-	i := 0
-	var envIds []int
-	for _, env := range appDetailContainer.Environments {
-		envIds = append(envIds, env.EnvironmentId)
-	}
-	envLevelAppMetricsMap := make(map[int]*repository.EnvLevelAppMetrics)
-	_, span = otel.Tracer("orchestrator").Start(ctx, "appLevelMetricsRepository.FindByAppIdAndEnvIds")
-	envLevelAppMetrics, err := impl.envLevelMetricsRepository.FindByAppIdAndEnvIds(appId, envIds)
-	span.End()
-	for _, envLevelAppMetric := range envLevelAppMetrics {
-		envLevelAppMetricsMap[envLevelAppMetric.EnvId] = envLevelAppMetric
-	}
-	for _, env := range appDetailContainer.Environments {
-		var envLevelMetrics *bool
-		var envLevelInfraMetrics *bool
-		envLevelAppMetrics := envLevelAppMetricsMap[env.EnvironmentId]
-		if envLevelAppMetrics != nil && envLevelAppMetrics.Id != 0 && envLevelAppMetrics.AppMetrics != nil {
-			envLevelMetrics = envLevelAppMetrics.AppMetrics
-		} else {
-			envLevelMetrics = &appMetrics
-		}
-		if envLevelAppMetrics != nil && envLevelAppMetrics.Id != 0 && envLevelAppMetrics.InfraMetrics != nil {
-			envLevelInfraMetrics = envLevelAppMetrics.InfraMetrics
-		} else {
-			envLevelInfraMetrics = &infraMetrics
-		}
-		appDetailContainer.Environments[i].AppMetrics = envLevelMetrics
-		appDetailContainer.Environments[i].InfraMetrics = envLevelInfraMetrics
-		i++
-	}
 	return appDetailContainer, nil
 }
 

@@ -5,7 +5,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"time"
 
-	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
@@ -40,7 +39,6 @@ type DeploymentTemplateHistoryServiceImpl struct {
 	pipelineRepository                  pipelineConfig.PipelineRepository
 	chartRepository                     chartRepoRepository.ChartRepository
 	chartRefRepository                  chartRepoRepository.ChartRefRepository
-	envLevelAppMetricsRepository        repository2.EnvLevelAppMetricsRepository
 	userService                         user.UserService
 	cdWorkflowRepository                pipelineConfig.CdWorkflowRepository
 	scopedVariableManager               variables.ScopedVariableManager
@@ -48,13 +46,9 @@ type DeploymentTemplateHistoryServiceImpl struct {
 }
 
 func NewDeploymentTemplateHistoryServiceImpl(logger *zap.SugaredLogger, deploymentTemplateHistoryRepository repository.DeploymentTemplateHistoryRepository,
-	pipelineRepository pipelineConfig.PipelineRepository,
-	chartRepository chartRepoRepository.ChartRepository,
-	chartRefRepository chartRepoRepository.ChartRefRepository,
-	envLevelAppMetricsRepository repository2.EnvLevelAppMetricsRepository,
-	userService user.UserService,
-	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
-	scopedVariableManager variables.ScopedVariableManager,
+	pipelineRepository pipelineConfig.PipelineRepository, chartRepository chartRepoRepository.ChartRepository,
+	chartRefRepository chartRepoRepository.ChartRefRepository, userService user.UserService,
+	cdWorkflowRepository pipelineConfig.CdWorkflowRepository, scopedVariableManager variables.ScopedVariableManager,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService) *DeploymentTemplateHistoryServiceImpl {
 	return &DeploymentTemplateHistoryServiceImpl{
 		logger:                              logger,
@@ -62,7 +56,6 @@ func NewDeploymentTemplateHistoryServiceImpl(logger *zap.SugaredLogger, deployme
 		pipelineRepository:                  pipelineRepository,
 		chartRepository:                     chartRepository,
 		chartRefRepository:                  chartRefRepository,
-		envLevelAppMetricsRepository:        envLevelAppMetricsRepository,
 		userService:                         userService,
 		cdWorkflowRepository:                cdWorkflowRepository,
 		scopedVariableManager:               scopedVariableManager,
@@ -208,20 +201,10 @@ func (impl DeploymentTemplateHistoryServiceImpl) CreateDeploymentTemplateHistory
 	if len(chartRef.Name) == 0 {
 		chartRef.Name = "Rollout Deployment"
 	}
-	isAppMetricsEnabled := false
-	envLevelAppMetrics, err := impl.envLevelAppMetricsRepository.FindByAppIdAndEnvId(pipeline.AppId, pipeline.EnvironmentId)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in getting env level app metrics", "err", err, "appId", pipeline.AppId, "envId", pipeline.EnvironmentId)
+	isAppMetricsEnabled, err := impl.deployedAppMetricsService.GetMetricsFlagForAPipelineByAppIdAndEnvId(pipeline.AppId, pipeline.EnvironmentId)
+	if err != nil {
+		impl.logger.Errorw("error, GetMetricsFlagForAPipelineByAppIdAndEnvId", "err", err, "appId", pipeline.AppId, "envId", pipeline.EnvironmentId)
 		return nil, err
-	} else if err == pg.ErrNoRows {
-		isAppLevelMetricsEnabled, err := impl.deployedAppMetricsService.GetMetricsFlagByAppIdEvenIfNotInDb(pipeline.AppId)
-		if err != nil {
-			impl.logger.Errorw("error in getting app level app metrics", "err", err, "appId", pipeline.AppId)
-			return nil, err
-		}
-		isAppMetricsEnabled = isAppLevelMetricsEnabled
-	} else {
-		isAppMetricsEnabled = *envLevelAppMetrics.AppMetrics
 	}
 	historyModel := &repository.DeploymentTemplateHistory{
 		AppId:                   pipeline.AppId,

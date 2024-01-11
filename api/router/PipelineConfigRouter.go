@@ -134,8 +134,6 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/env/reset/{appId}/{environmentId}/{id}").HandlerFunc(router.restHandler.EnvConfigOverrideReset).Methods("DELETE")
 	configRouter.Path("/env/namespace/{appId}/{environmentId}").HandlerFunc(router.restHandler.EnvConfigOverrideCreateNamespace).Methods("POST")
 
-	configRouter.Path("/env/metrics/{appId}/{environmentId}").HandlerFunc(router.restHandler.EnvMetricsEnableDisable).Methods("POST")
-
 	configRouter.Path("/app-wf").
 		HandlerFunc(router.appWorkflowRestHandler.CreateAppWorkflow).Methods("POST")
 

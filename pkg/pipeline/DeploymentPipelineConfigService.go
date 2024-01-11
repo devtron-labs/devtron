@@ -1672,11 +1672,20 @@ func (impl *CdPipelineConfigServiceImpl) createCdPipeline(ctx context.Context, a
 		if err != nil {
 			return 0, err
 		}
-		envOverride, err := impl.propertiesConfigService.CreateIfRequired(chart, pipeline.EnvironmentId, userId, false, models.CHARTSTATUS_NEW, false, false, pipeline.Namespace, chart.IsBasicViewLocked, chart.CurrentViewEditor, tx)
+		//getting global app metrics for cd pipeline create because env level metrics is not created yet
+		appLevelAppMetricsEnabled := false
+		isAppLevelMetricsEnabled, err := impl.deployedAppMetricsService.GetMetricsFlagByAppIdEvenIfNotInDb(app.Id)
+		if err != nil {
+			impl.logger.Errorw("error, GetMetricsFlagByAppIdEvenIfNotInDb", "err", err, "appId", app.Id)
+			return 0, err
+		}
+		appLevelAppMetricsEnabled = isAppLevelMetricsEnabled
+		envOverride, updatedAppMetrics, err := impl.propertiesConfigService.CreateIfRequired(chart, pipeline.EnvironmentId, userId, false,
+			models.CHARTSTATUS_NEW, false, appLevelAppMetricsEnabled, pipeline.Namespace, chart.IsBasicViewLocked, chart.CurrentViewEditor, tx)
 		if err != nil {
 			return 0, err
 		}
-
+		appLevelAppMetricsEnabled = updatedAppMetrics
 		// Get pipeline override based on Deployment strategy
 		//TODO: mark as created in our db
 		pipelineId, err = impl.ciCdPipelineOrchestrator.CreateCDPipelines(pipeline, app.Id, userId, tx, app.AppName)
@@ -1733,14 +1742,7 @@ func (impl *CdPipelineConfigServiceImpl) createCdPipeline(ctx context.Context, a
 				return 0, err
 			}
 		}
-		//getting global app metrics for cd pipeline create because env level metrics is not created yet
-		appLevelAppMetricsEnabled := false
-		isAppLevelMetricsEnabled, err := impl.deployedAppMetricsService.GetMetricsFlagByAppIdEvenIfNotInDb(app.Id)
-		if err != nil {
-			impl.logger.Errorw("error, GetMetricsFlagByAppIdEvenIfNotInDb", "err", err, "appId", app.Id)
-			return 0, err
-		}
-		appLevelAppMetricsEnabled = isAppLevelMetricsEnabled
+
 		err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(envOverride, tx, appLevelAppMetricsEnabled, pipelineId)
 		if err != nil {
 			impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", envOverride)

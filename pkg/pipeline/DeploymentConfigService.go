@@ -3,7 +3,6 @@ package pipeline
 import (
 	"context"
 	"encoding/json"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/bean"
@@ -25,24 +24,22 @@ type DeploymentConfigService interface {
 }
 
 type DeploymentConfigServiceImpl struct {
-	logger                       *zap.SugaredLogger
-	envConfigOverrideRepository  chartConfig.EnvConfigOverrideRepository
-	chartRepository              chartRepoRepository.ChartRepository
-	pipelineRepository           pipelineConfig.PipelineRepository
-	envLevelAppMetricsRepository repository.EnvLevelAppMetricsRepository
-	pipelineConfigRepository     chartConfig.PipelineConfigRepository
-	configMapRepository          chartConfig.ConfigMapRepository
-	configMapHistoryService      history.ConfigMapHistoryService
-	chartRefRepository           chartRepoRepository.ChartRefRepository
-	scopedVariableManager        variables.ScopedVariableCMCSManager
-	deployedAppMetricsService    deployedAppMetrics.DeployedAppMetricsService
+	logger                      *zap.SugaredLogger
+	envConfigOverrideRepository chartConfig.EnvConfigOverrideRepository
+	chartRepository             chartRepoRepository.ChartRepository
+	pipelineRepository          pipelineConfig.PipelineRepository
+	pipelineConfigRepository    chartConfig.PipelineConfigRepository
+	configMapRepository         chartConfig.ConfigMapRepository
+	configMapHistoryService     history.ConfigMapHistoryService
+	chartRefRepository          chartRepoRepository.ChartRefRepository
+	scopedVariableManager       variables.ScopedVariableCMCSManager
+	deployedAppMetricsService   deployedAppMetrics.DeployedAppMetricsService
 }
 
 func NewDeploymentConfigServiceImpl(logger *zap.SugaredLogger,
 	envConfigOverrideRepository chartConfig.EnvConfigOverrideRepository,
 	chartRepository chartRepoRepository.ChartRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
-	envLevelAppMetricsRepository repository.EnvLevelAppMetricsRepository,
 	pipelineConfigRepository chartConfig.PipelineConfigRepository,
 	configMapRepository chartConfig.ConfigMapRepository,
 	configMapHistoryService history.ConfigMapHistoryService,
@@ -50,17 +47,16 @@ func NewDeploymentConfigServiceImpl(logger *zap.SugaredLogger,
 	scopedVariableManager variables.ScopedVariableCMCSManager,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService) *DeploymentConfigServiceImpl {
 	return &DeploymentConfigServiceImpl{
-		logger:                       logger,
-		envConfigOverrideRepository:  envConfigOverrideRepository,
-		chartRepository:              chartRepository,
-		pipelineRepository:           pipelineRepository,
-		envLevelAppMetricsRepository: envLevelAppMetricsRepository,
-		pipelineConfigRepository:     pipelineConfigRepository,
-		configMapRepository:          configMapRepository,
-		configMapHistoryService:      configMapHistoryService,
-		chartRefRepository:           chartRefRepository,
-		scopedVariableManager:        scopedVariableManager,
-		deployedAppMetricsService:    deployedAppMetricsService,
+		logger:                      logger,
+		envConfigOverrideRepository: envConfigOverrideRepository,
+		chartRepository:             chartRepository,
+		pipelineRepository:          pipelineRepository,
+		pipelineConfigRepository:    pipelineConfigRepository,
+		configMapRepository:         configMapRepository,
+		configMapHistoryService:     configMapHistoryService,
+		chartRefRepository:          chartRefRepository,
+		scopedVariableManager:       scopedVariableManager,
+		deployedAppMetricsService:   deployedAppMetricsService,
 	}
 }
 
@@ -97,19 +93,10 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentConfigurationByPipel
 }
 
 func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(ctx context.Context, pipeline *pipelineConfig.Pipeline) (*history.HistoryDetailDto, error) {
-	isAppMetricsEnabled := false
-	envLevelAppMetrics, err := impl.envLevelAppMetricsRepository.FindByAppIdAndEnvId(pipeline.AppId, pipeline.EnvironmentId)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in getting env level app metrics", "err", err, "appId", pipeline.AppId, "envId", pipeline.EnvironmentId)
-	} else if err == pg.ErrNoRows {
-		isAppLevelMetricsEnabled, err := impl.deployedAppMetricsService.GetMetricsFlagByAppIdEvenIfNotInDb(pipeline.AppId)
-		if err != nil {
-			impl.logger.Errorw("error, GetMetricsFlagByAppIdEvenIfNotInDb", "err", err, "appId", pipeline.AppId)
-			return nil, err
-		}
-		isAppMetricsEnabled = isAppLevelMetricsEnabled
-	} else {
-		isAppMetricsEnabled = *envLevelAppMetrics.AppMetrics
+	isAppMetricsEnabled, err := impl.deployedAppMetricsService.GetMetricsFlagForAPipelineByAppIdAndEnvId(pipeline.AppId, pipeline.EnvironmentId)
+	if err != nil {
+		impl.logger.Errorw("error, GetMetricsFlagForAPipelineByAppIdAndEnvId", "err", err, "appId", pipeline.AppId, "envId", pipeline.EnvironmentId)
+		return nil, err
 	}
 	envOverride, err := impl.envConfigOverrideRepository.ActiveEnvConfigOverride(pipeline.AppId, pipeline.EnvironmentId)
 	if err != nil {

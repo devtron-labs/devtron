@@ -15,7 +15,10 @@ import (
 
 type DeployedAppMetricsService interface {
 	GetMetricsFlagByAppIdEvenIfNotInDb(appId int) (bool, error)
-	CheckAndUpdateAppLevelMetrics(ctx context.Context, req *bean.DeployedAppMetricsRequest) error
+	GetMetricsFlagByAppIdAndEnvId(appId, envId int) (bool, error)
+	GetMetricsFlagForAPipelineByAppIdAndEnvId(appId, envId int) (bool, error)
+	CheckAndUpdateAppOrEnvLevelMetrics(ctx context.Context, req *bean.DeployedAppMetricsRequest) error
+	DeleteEnvLevelMetricsIfPresent(appId, envId int) error
 }
 
 type DeployedAppMetricsServiceImpl struct {
@@ -40,7 +43,7 @@ func NewDeployedAppMetricsServiceImpl(logger *zap.SugaredLogger,
 func (impl *DeployedAppMetricsServiceImpl) GetMetricsFlagByAppIdEvenIfNotInDb(appId int) (bool, error) {
 	isAppMetricsEnabled := false
 	appMetrics, err := impl.appLevelMetricsRepository.FindByAppId(appId)
-	if err != nil && !util.IsErrNoRows(err) {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching app level metrics", "appId", appId, "err", err)
 		return isAppMetricsEnabled, err
 	}
@@ -50,8 +53,41 @@ func (impl *DeployedAppMetricsServiceImpl) GetMetricsFlagByAppIdEvenIfNotInDb(ap
 	return isAppMetricsEnabled, nil
 }
 
-// CheckAndUpdateAppLevelMetrics - this method checks whether chart being used supports metrics or not and update accordingly
-func (impl *DeployedAppMetricsServiceImpl) CheckAndUpdateAppLevelMetrics(ctx context.Context, req *bean.DeployedAppMetricsRequest) error {
+func (impl *DeployedAppMetricsServiceImpl) GetMetricsFlagByAppIdAndEnvId(appId, envId int) (bool, error) {
+	isAppMetricsEnabled := false
+	envLevelAppMetrics, err := impl.envLevelMetricsRepository.FindByAppIdAndEnvId(appId, envId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting env level app metrics", "err", err, "appId", appId, "envId", envId)
+		return isAppMetricsEnabled, err
+	}
+	if envLevelAppMetrics != nil {
+		isAppMetricsEnabled = *envLevelAppMetrics.AppMetrics
+	}
+	return isAppMetricsEnabled, nil
+}
+
+// GetMetricsFlagForAPipelineByAppIdAndEnvId - this function returns metrics flag for pipeline after resolving override and app level values
+func (impl *DeployedAppMetricsServiceImpl) GetMetricsFlagForAPipelineByAppIdAndEnvId(appId, envId int) (bool, error) {
+	isAppMetricsEnabled := false
+	envLevelAppMetrics, err := impl.envLevelMetricsRepository.FindByAppIdAndEnvId(appId, envId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting env level app metrics", "err", err, "appId", appId, "envId", envId)
+		return isAppMetricsEnabled, err
+	} else if err == pg.ErrNoRows {
+		isAppLevelMetricsEnabled, err := impl.GetMetricsFlagByAppIdEvenIfNotInDb(appId)
+		if err != nil {
+			impl.logger.Errorw("error, GetMetricsFlagByAppIdEvenIfNotInDb", "err", err, "appId", appId)
+			return false, err
+		}
+		isAppMetricsEnabled = isAppLevelMetricsEnabled
+	} else if envLevelAppMetrics != nil && envLevelAppMetrics.AppMetrics != nil {
+		isAppMetricsEnabled = *envLevelAppMetrics.AppMetrics
+	}
+	return isAppMetricsEnabled, nil
+}
+
+// CheckAndUpdateAppOrEnvLevelMetrics - this method checks whether chart being used supports metrics or not, is app level or env level and updates accordingly
+func (impl *DeployedAppMetricsServiceImpl) CheckAndUpdateAppOrEnvLevelMetrics(ctx context.Context, req *bean.DeployedAppMetricsRequest) error {
 	isAppMetricsSupported, err := impl.checkIsAppMetricsSupported(req.ChartRefId)
 	if err != nil {
 		return err
@@ -59,13 +95,40 @@ func (impl *DeployedAppMetricsServiceImpl) CheckAndUpdateAppLevelMetrics(ctx con
 	if !(isAppMetricsSupported) {
 		//chart does not have metrics support, disabling
 		req.EnableMetrics = false
+		return nil
 	}
-	_, span := otel.Tracer("orchestrator").Start(ctx, "updateAppLevelMetrics")
-	_, err = impl.updateAppLevelMetrics(req)
-	span.End()
-	if err != nil {
-		impl.logger.Errorw("error in disable app metric flag", "error", err)
+	if req.EnvId == 0 {
+		_, span := otel.Tracer("orchestrator").Start(ctx, "createOrUpdateAppLevelMetrics")
+		_, err = impl.createOrUpdateAppLevelMetrics(req)
+		span.End()
+		if err != nil {
+			impl.logger.Errorw("error in disable app metric flag", "error", err, "req", req)
+			return err
+		}
+	} else {
+		_, span := otel.Tracer("orchestrator").Start(ctx, "createOrUpdateEnvLevelMetrics")
+		_, err = impl.createOrUpdateEnvLevelMetrics(req)
+		span.End()
+		if err != nil {
+			impl.logger.Errorw("error in disable env level app metric flag", "error", err, "req", req)
+			return err
+		}
+	}
+	return nil
+}
+
+func (impl *DeployedAppMetricsServiceImpl) DeleteEnvLevelMetricsIfPresent(appId, envId int) error {
+	envLevelAppMetrics, err := impl.envLevelMetricsRepository.FindByAppIdAndEnvId(appId, envId)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.logger.Errorw("error while fetching env level app metric", "err", err, "appId", appId, "envId", envId)
 		return err
+	}
+	if envLevelAppMetrics != nil && envLevelAppMetrics.Id > 0 {
+		err = impl.envLevelMetricsRepository.Delete(envLevelAppMetrics)
+		if err != nil {
+			impl.logger.Errorw("error while deletion of app metric at env level", "err", err, "model", envLevelAppMetrics)
+			return err
+		}
 	}
 	return nil
 }
@@ -79,7 +142,7 @@ func (impl *DeployedAppMetricsServiceImpl) checkIsAppMetricsSupported(chartRefId
 	return chartRefValue.IsAppMetricsSupported, nil
 }
 
-func (impl *DeployedAppMetricsServiceImpl) updateAppLevelMetrics(req *bean.DeployedAppMetricsRequest) (*interalRepo.AppLevelMetrics, error) {
+func (impl *DeployedAppMetricsServiceImpl) createOrUpdateAppLevelMetrics(req *bean.DeployedAppMetricsRequest) (*interalRepo.AppLevelMetrics, error) {
 	existingAppLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(req.AppId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in app metrics app level flag", "error", err)
@@ -114,4 +177,43 @@ func (impl *DeployedAppMetricsServiceImpl) updateAppLevelMetrics(req *bean.Deplo
 		}
 		return appLevelMetricsNew, nil
 	}
+}
+
+func (impl *DeployedAppMetricsServiceImpl) createOrUpdateEnvLevelMetrics(req *bean.DeployedAppMetricsRequest) (*interalRepo.EnvLevelAppMetrics, error) {
+	// update and create env level app metrics
+	envLevelAppMetrics, err := impl.envLevelMetricsRepository.FindByAppIdAndEnvId(req.AppId, req.EnvId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Error("err", err)
+		return nil, err
+	}
+	if envLevelAppMetrics == nil || envLevelAppMetrics.Id == 0 {
+		infraMetrics := true
+		envLevelAppMetrics = &interalRepo.EnvLevelAppMetrics{
+			AppId:        req.AppId,
+			EnvId:        req.EnvId,
+			AppMetrics:   &req.EnableMetrics,
+			InfraMetrics: &infraMetrics,
+			AuditLog: sql.AuditLog{
+				CreatedOn: time.Now(),
+				UpdatedOn: time.Now(),
+				CreatedBy: req.UserId,
+				UpdatedBy: req.UserId,
+			},
+		}
+		err = impl.envLevelMetricsRepository.Save(envLevelAppMetrics)
+		if err != nil {
+			impl.logger.Error("err", err)
+			return nil, err
+		}
+	} else {
+		envLevelAppMetrics.AppMetrics = &req.EnableMetrics
+		envLevelAppMetrics.UpdatedOn = time.Now()
+		envLevelAppMetrics.UpdatedBy = req.UserId
+		err = impl.envLevelMetricsRepository.Update(envLevelAppMetrics)
+		if err != nil {
+			impl.logger.Error("err", err)
+			return nil, err
+		}
+	}
+	return envLevelAppMetrics, err
 }

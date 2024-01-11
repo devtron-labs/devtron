@@ -57,7 +57,8 @@ func (impl *EnvLevelAppMetricsRepositoryImpl) Save(metrics *EnvLevelAppMetrics) 
 
 func (impl *EnvLevelAppMetricsRepositoryImpl) FindByAppIdAndEnvId(appId int, envId int) (*EnvLevelAppMetrics, error) {
 	envAppLevelMetrics := &EnvLevelAppMetrics{}
-	err := impl.dbConnection.Model(envAppLevelMetrics).Where("env_level_app_metrics.app_id = ? ", appId).Where("env_level_app_metrics.env_id = ? ", envId).Select()
+	err := impl.dbConnection.Model(envAppLevelMetrics).Where("env_level_app_metrics.app_id = ? ", appId).
+		Where("env_level_app_metrics.env_id = ? ", envId).Select()
 	return envAppLevelMetrics, err
 }
 func (impl *EnvLevelAppMetricsRepositoryImpl) FindByAppId(appId int) ([]*EnvLevelAppMetrics, error) {

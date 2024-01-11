@@ -14,7 +14,6 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/argocdServer/repository"
 	"github.com/devtron-labs/devtron/internal/sql/models"
-	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/bulkUpdate"
@@ -26,6 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	pipeline1 "github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
@@ -77,8 +77,6 @@ type BulkUpdateServiceImpl struct {
 	configMapRepository              chartConfig.ConfigMapRepository
 	environmentRepository            repository2.EnvironmentRepository
 	pipelineRepository               pipelineConfig.PipelineRepository
-	appLevelMetricsRepository        repository3.AppLevelMetricsRepository
-	envLevelAppMetricsRepository     repository3.EnvLevelAppMetricsRepository
 	client                           *http.Client
 	appRepository                    app.AppRepository
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
@@ -96,6 +94,7 @@ type BulkUpdateServiceImpl struct {
 	pubsubClient                     *pubsub.PubSubClientServiceImpl
 	argoUserService                  argo.ArgoUserService
 	scopedVariableManager            variables.ScopedVariableManager
+	deployedAppMetricsService        deployedAppMetrics.DeployedAppMetricsService
 }
 
 func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateRepository,
@@ -112,8 +111,6 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 	configMapRepository chartConfig.ConfigMapRepository,
 	environmentRepository repository2.EnvironmentRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
-	appLevelMetricsRepository repository3.AppLevelMetricsRepository,
-	envLevelAppMetricsRepository repository3.EnvLevelAppMetricsRepository,
 	client *http.Client,
 	appRepository app.AppRepository,
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
@@ -127,7 +124,7 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 	pubsubClient *pubsub.PubSubClientServiceImpl,
 	argoUserService argo.ArgoUserService,
 	scopedVariableManager variables.ScopedVariableManager,
-) (*BulkUpdateServiceImpl, error) {
+	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService) (*BulkUpdateServiceImpl, error) {
 	impl := &BulkUpdateServiceImpl{
 		bulkUpdateRepository:             bulkUpdateRepository,
 		chartRepository:                  chartRepository,
@@ -143,8 +140,6 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 		configMapRepository:              configMapRepository,
 		environmentRepository:            environmentRepository,
 		pipelineRepository:               pipelineRepository,
-		appLevelMetricsRepository:        appLevelMetricsRepository,
-		envLevelAppMetricsRepository:     envLevelAppMetricsRepository,
 		client:                           client,
 		appRepository:                    appRepository,
 		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
@@ -162,6 +157,7 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 		pubsubClient:                     pubsubClient,
 		argoUserService:                  argoUserService,
 		scopedVariableManager:            scopedVariableManager,
+		deployedAppMetricsService:        deployedAppMetricsService,
 	}
 
 	err := impl.SubscribeToCdBulkTriggerTopic()
@@ -457,12 +453,10 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 							deploymentTemplateBulkUpdateResponse.Successful = append(deploymentTemplateBulkUpdateResponse.Successful, bulkUpdateSuccessResponse)
 
 							//creating history entry for deployment template
-							appLevelAppMetricsEnabled := false
-							appLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(chart.AppId)
-							if err != nil && err != pg.ErrNoRows {
-								impl.logger.Errorw("error in getting app level metrics app level", "error", err)
-							} else if err == nil {
-								appLevelAppMetricsEnabled = appLevelMetrics.AppMetrics
+							appLevelAppMetricsEnabled, err := impl.deployedAppMetricsService.GetMetricsFlagByAppIdEvenIfNotInDb(chart.AppId)
+							if err != nil {
+								impl.logger.Errorw("error in getting app level metrics app level", "error", err, "appId", chart.AppId)
+								return nil
 							}
 							chart.GlobalOverride = modified
 							chart.Values = modified
@@ -525,22 +519,13 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 							deploymentTemplateBulkUpdateResponse.Successful = append(deploymentTemplateBulkUpdateResponse.Successful, bulkUpdateSuccessResponse)
 
 							//creating history entry for deployment template
-							envLevelAppMetricsEnabled := false
-							envLevelAppMetrics, err := impl.envLevelAppMetricsRepository.FindByAppIdAndEnvId(chartEnv.Chart.AppId, chartEnv.TargetEnvironment)
-							if err != nil && err != pg.ErrNoRows {
-								impl.logger.Errorw("error in getting env level app metrics", "err", err, "appId", chartEnv.Chart.AppId, "envId", chartEnv.TargetEnvironment)
-							} else if err == pg.ErrNoRows {
-								appLevelAppMetrics, err := impl.appLevelMetricsRepository.FindByAppId(chartEnv.Chart.AppId)
-								if err != nil && err != pg.ErrNoRows {
-									impl.logger.Errorw("error in getting app level app metrics", "err", err, "appId", chartEnv.Chart.AppId)
-								} else if err == nil {
-									envLevelAppMetricsEnabled = appLevelAppMetrics.AppMetrics
-								}
-							} else {
-								envLevelAppMetricsEnabled = *envLevelAppMetrics.AppMetrics
+							isAppMetricsEnabled, err := impl.deployedAppMetricsService.GetMetricsFlagForAPipelineByAppIdAndEnvId(chartEnv.Chart.AppId, chartEnv.TargetEnvironment)
+							if err != nil {
+								impl.logger.Errorw("error, GetMetricsFlagForAPipelineByAppIdAndEnvId", "err", err, "appId", chartEnv.Chart.AppId, "envId", chartEnv.TargetEnvironment)
+								return nil
 							}
 							chartEnv.EnvOverrideValues = modified
-							err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(chartEnv, nil, envLevelAppMetricsEnabled, 0)
+							err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(chartEnv, nil, isAppMetricsEnabled, 0)
 							if err != nil {
 								impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", chartEnv)
 							}

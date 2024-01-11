@@ -189,7 +189,6 @@ type WorkflowDagExecutorImpl struct {
 	helmAppClient                       client2.HelmAppClient
 	chartRefRepository                  chartRepoRepository.ChartRefRepository
 	environmentConfigRepository         chartConfig.EnvConfigOverrideRepository
-	envLevelMetricsRepository           repository.EnvLevelAppMetricsRepository
 	dbMigrationConfigRepository         pipelineConfig.DbMigrationConfigRepository
 	mergeUtil                           *util.MergeUtil
 	gitOpsConfigRepository              repository.GitOpsConfigRepository
@@ -297,7 +296,6 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	helmAppClient client2.HelmAppClient,
 	chartRefRepository chartRepoRepository.ChartRefRepository,
 	environmentConfigRepository chartConfig.EnvConfigOverrideRepository,
-	envLevelMetricsRepository repository.EnvLevelAppMetricsRepository,
 	dbMigrationConfigRepository pipelineConfig.DbMigrationConfigRepository,
 	mergeUtil *util.MergeUtil,
 	gitOpsConfigRepository repository.GitOpsConfigRepository,
@@ -373,7 +371,6 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		helmAppClient:                       helmAppClient,
 		chartRefRepository:                  chartRefRepository,
 		environmentConfigRepository:         environmentConfigRepository,
-		envLevelMetricsRepository:           envLevelMetricsRepository,
 		dbMigrationConfigRepository:         dbMigrationConfigRepository,
 		mergeUtil:                           mergeUtil,
 		gitOpsConfigRepository:              gitOpsConfigRepository,
@@ -3809,23 +3806,14 @@ func (impl *WorkflowDagExecutorImpl) GetAppMetricsByTriggerType(overrideRequest 
 		appMetrics = deploymentTemplateHistory.IsAppMetricsEnabled
 
 	} else if overrideRequest.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED {
-		_, span := otel.Tracer("orchestrator").Start(ctx, "appLevelMetricsRepository.FindByAppId")
-		isAppLevelMetricsEnabled, err := impl.deployedAppMetricsService.GetMetricsFlagByAppIdEvenIfNotInDb(overrideRequest.AppId)
+		_, span := otel.Tracer("orchestrator").Start(ctx, "deployedAppMetricsService.GetMetricsFlagForAPipelineByAppIdAndEnvId")
+		isAppMetricsEnabled, err := impl.deployedAppMetricsService.GetMetricsFlagForAPipelineByAppIdAndEnvId(overrideRequest.AppId, overrideRequest.EnvId)
 		if err != nil {
-			impl.logger.Errorw("error, GetMetricsFlagByAppIdEvenIfNotInDb", "err", err, "appId", overrideRequest.AppId)
+			impl.logger.Errorw("error, GetMetricsFlagForAPipelineByAppIdAndEnvId", "err", err, "appId", overrideRequest.AppId, "envId", overrideRequest.EnvId)
 			return appMetrics, err
 		}
-		appMetrics = isAppLevelMetricsEnabled
-		_, span = otel.Tracer("orchestrator").Start(ctx, "envLevelMetricsRepository.FindByAppIdAndEnvId")
-		envLevelMetrics, err := impl.envLevelMetricsRepository.FindByAppIdAndEnvId(overrideRequest.AppId, overrideRequest.EnvId)
 		span.End()
-		if err != nil && !util.IsErrNoRows(err) {
-			impl.logger.Errorw("err", err)
-			return appMetrics, &util.ApiError{InternalMessage: "unable to fetch env level metrics flag"}
-		}
-		if envLevelMetrics.Id != 0 && envLevelMetrics.AppMetrics != nil {
-			appMetrics = *envLevelMetrics.AppMetrics
-		}
+		appMetrics = isAppMetricsEnabled
 	}
 	return appMetrics, nil
 }
