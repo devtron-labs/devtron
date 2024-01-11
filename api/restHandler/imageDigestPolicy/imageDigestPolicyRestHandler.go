@@ -2,10 +2,11 @@ package imageDigestPolicy
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
@@ -43,28 +44,60 @@ func NewImageDigestPolicyRestHandlerImpl(logger *zap.SugaredLogger,
 }
 
 func (handler ImageDigestPolicyRestHandlerImpl) GetAllImageDigestPolicies(w http.ResponseWriter, r *http.Request) {
+
+	token := r.Header.Get("token")
+	authorised := handler.applyAuth(token)
+	if !authorised {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
 	res, err := handler.imageDigestPolicyService.GetAllConfiguredGlobalPolicies()
 	if err != nil {
 		handler.logger.Errorw("error in getting active resource filters", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+
 	common.WriteJsonResp(w, nil, res, http.StatusOK)
 }
 
 func (handler ImageDigestPolicyRestHandlerImpl) SaveOrUpdateImageDigestPolicy(w http.ResponseWriter, r *http.Request) {
+
+	token := r.Header.Get("token")
+	authorised := handler.applyAuth(token)
+	if !authorised {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
 	decoder := json.NewDecoder(r.Body)
 	req := &imageDigestPolicy.PolicyRequest{}
-	err := decoder.Decode(req)
+	err = decoder.Decode(req)
 	if err != nil {
 		handler.logger.Errorw("request err, Save", "error", err, "request", req)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	req.UserId = userId
+
 	policyRequest, err := handler.imageDigestPolicyService.CreateOrUpdatePolicyForCluster(req)
 	if err != nil {
 		handler.logger.Errorw("service err, imageDigestPolicyService", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 	}
+
 	common.WriteJsonResp(w, nil, policyRequest, http.StatusOK)
+}
+
+func (handler *ImageDigestPolicyRestHandlerImpl) applyAuth(token string) bool {
+	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
+
+	return isSuperAdmin
 }
