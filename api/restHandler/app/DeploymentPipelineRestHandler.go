@@ -913,6 +913,11 @@ func (handler PipelineConfigRestHandlerImpl) GetEnvConfigOverride(w http.Respons
 
 func (handler PipelineConfigRestHandlerImpl) GetTemplateComparisonMetadata(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
 	token := r.Header.Get("token")
 	appId, err := strconv.Atoi(vars["appId"])
 	if err != nil {
@@ -927,11 +932,51 @@ func (handler PipelineConfigRestHandlerImpl) GetTemplateComparisonMetadata(w htt
 	}
 
 	// RBAC enforcer applying
-	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
-		common.WriteJsonResp(w, err, "unauthorized user", http.StatusForbidden)
-		return
+
+	if envId == -1 {
+		isAuthorised := false
+		//checking superAdmin access
+		isAuthorised, err = handler.userAuthService.IsSuperAdminForDevtronManaged(int(userId))
+		if err != nil {
+			handler.Logger.Errorw("error in checking superAdmin access of user", "err", err)
+			common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+			return
+		}
+		if !isAuthorised {
+			user, err := handler.userAuthService.GetRoleFiltersForAUserById(userId)
+			if err != nil {
+				handler.Logger.Errorw("error in getting user by id", "err", err)
+				common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+				return
+			}
+			// ApplicationResource pe Create
+			var roleFilters []bean2.RoleFilter
+			if user.RoleFilters != nil && len(user.RoleFilters) > 0 {
+				roleFilters = append(roleFilters, user.RoleFilters...)
+			}
+			if len(roleFilters) > 0 {
+				resourceObjects := handler.enforcerUtil.GetProjectsOrAppAdminRBACNamesByAppNamesAndTeamNames(roleFilters)
+				resourceObjectsMap := handler.enforcer.EnforceInBatch(token, casbin.ResourceApplications, casbin.ActionCreate, resourceObjects)
+				for _, value := range resourceObjectsMap {
+					if value {
+						isAuthorised = true
+						break
+					}
+				}
+			}
+		}
+		if !isAuthorised {
+			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+			return
+		}
+	} else {
+		object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+			common.WriteJsonResp(w, err, "unauthorized user", http.StatusForbidden)
+			return
+		}
 	}
+
 	//RBAC enforcer Ends
 
 	resp, err := handler.deploymentTemplateService.FetchDeploymentsWithChartRefs(appId, envId)
