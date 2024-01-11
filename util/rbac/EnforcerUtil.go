@@ -19,6 +19,7 @@ package rbac
 
 import (
 	"fmt"
+	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"strings"
 
 	"github.com/devtron-labs/common-lib-private/utils/k8s"
@@ -77,7 +78,7 @@ type EnforcerUtil interface {
 	GetClusterNameRBACObjByClusterId(clusterId int) string
 	CheckAppRbacForAppOrJob(token, resourceName, action string) bool
 	CheckAppRbacForAppOrJobInBulk(token, action string, rbacObjects []string, appType helper2.AppType) map[string]bool
-	GetProjectOrAppAdminRBACNameByAppNameAndTeamName(appName, teamName string) string
+	GetProjectsOrAppAdminRBACNamesByAppNamesAndTeamNames(roleFilters []bean2.RoleFilter) []string
 }
 
 type EnforcerUtilImpl struct {
@@ -756,4 +757,20 @@ func (impl EnforcerUtilImpl) GetProjectOrAppAdminRBACNameByAppNameAndTeamName(ap
 		return fmt.Sprintf("%s/%s", teamName, "*")
 	}
 	return fmt.Sprintf("%s/%s", teamName, appName)
+}
+
+func (impl EnforcerUtilImpl) GetProjectsOrAppAdminRBACNamesByAppNamesAndTeamNames(roleFilters []bean2.RoleFilter) []string {
+	var vals []string
+	for _, filter := range roleFilters {
+		if len(filter.Team) > 0 {
+			entityNames := strings.Split(filter.EntityName, ",")
+			if len(entityNames) > 0 {
+				for _, val := range entityNames {
+					resourceName := impl.GetProjectOrAppAdminRBACNameByAppNameAndTeamName(val, filter.Team)
+					vals = append(vals, resourceName)
+				}
+			}
+		}
+	}
+	return vals
 }

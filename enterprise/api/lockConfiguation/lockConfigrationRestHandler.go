@@ -13,7 +13,6 @@ import (
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
-	"strings"
 )
 
 type LockConfigRestHandler interface {
@@ -75,34 +74,16 @@ func (handler LockConfigRestHandlerImpl) GetLockConfig(w http.ResponseWriter, r 
 		}
 		// ApplicationResource pe Create
 		var roleFilters []bean2.RoleFilter
-		if len(user.Groups) > 0 {
-			groupRoleFilters, err := handler.userService.GetRoleFiltersByGroupNames(user.Groups)
-			if err != nil {
-				handler.logger.Errorw("Error in getting role filters by group names", "err", err, "groupNames", user.Groups)
-				common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
-				return
-			}
-			if len(groupRoleFilters) > 0 {
-				roleFilters = append(roleFilters, groupRoleFilters...)
-			}
-		}
 		if user.RoleFilters != nil && len(user.RoleFilters) > 0 {
 			roleFilters = append(roleFilters, user.RoleFilters...)
 		}
 		if len(roleFilters) > 0 {
-			for _, filter := range roleFilters {
-				if len(filter.Team) > 0 {
-					entityNames := strings.Split(filter.EntityName, ",")
-					if len(entityNames) > 0 {
-						for _, val := range entityNames {
-							resourceName := handler.enforcerUtil.GetProjectOrAppAdminRBACNameByAppNameAndTeamName(val, filter.Team)
-							if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceName); ok {
-								isAuthorised = true
-								break
-							}
-						}
-					}
-
+			resourceObjects := handler.enforcerUtil.GetProjectsOrAppAdminRBACNamesByAppNamesAndTeamNames(roleFilters)
+			resourceObjectsMap := handler.enforcer.EnforceInBatch(token, casbin.ResourceApplications, casbin.ActionCreate, resourceObjects)
+			for _, value := range resourceObjectsMap {
+				if value {
+					isAuthorised = true
+					break
 				}
 			}
 		}
