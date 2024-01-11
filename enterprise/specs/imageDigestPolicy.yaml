@@ -64,13 +64,13 @@ components:
     EnvironmentDetail:
       type: object
       properties:
-        clusterName:
-          type: string
+        clusterId:
+          type: int
           description: name of cluster
         environments:
           type: array
           items:
-            type: string
+            type: integer
           description: array of environment ids
         policyType:
           type: string
