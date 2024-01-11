@@ -103,7 +103,7 @@ const (
 const (
 	AppLevelBaseUrl        = "/dashboard/app/%d/edit/"
 	EnvLevelBaseUrl        = "/dashboard/app/%d/edit/env-override/%d/"
-	ImageApprovalLink      = "/dashboard/app/%d/trigger?approval-node=%d&search=%s"
+	ImageApprovalLink      = "/dashboard/app/%d/trigger?approval-node=%d&search=%s&approval-state=pending"
 	DeploymentApprovalLink = "/dashboard/deployment/approve?token=%s"
 	DraftApprovalLink      = "/dashboard/config/approve?token=%s"
 )
