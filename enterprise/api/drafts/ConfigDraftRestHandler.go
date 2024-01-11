@@ -401,7 +401,7 @@ func (impl *ConfigDraftRestHandlerImpl) ApproveDraft(w http.ResponseWriter, r *h
 func (impl *ConfigDraftRestHandlerImpl) CheckAccessAndApproveDraft(w http.ResponseWriter, token string, draftRequest apiToken.DraftApprovalRequest) (*drafts.DraftVersionResponse, error) {
 	var isNotAuthorized bool
 	if isNotAuthorized = impl.checkForApproverAccess(w, draftRequest.EnvId, draftRequest.AppId, token, true); isNotAuthorized {
-		return nil, errors.New("unauthorized user")
+		return nil, errors.NewUnauthorized(fmt.Errorf("unauthorized user"), "Access denied")
 	}
 	return impl.configDraftService.ApproveDraft(draftRequest.DraftId, draftRequest.DraftVersionId, draftRequest.UserId)
 }

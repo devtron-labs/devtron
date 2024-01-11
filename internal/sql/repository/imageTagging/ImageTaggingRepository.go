@@ -20,7 +20,6 @@ package repository
 import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
-	"go.uber.org/zap"
 	"time"
 )
 
@@ -83,7 +82,6 @@ type ImageTaggingRepository interface {
 
 type ImageTaggingRepositoryImpl struct {
 	dbConnection *pg.DB
-	logger       *zap.SugaredLogger
 	*sql.TransactionUtilImpl
 }
 

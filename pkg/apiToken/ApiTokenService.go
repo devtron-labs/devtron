@@ -84,7 +84,7 @@ type TokenVariableConfig struct {
 }
 
 func (config TokenVariableConfig) GetExpiryTimeInMs() int64 {
-	return time.Now().UnixMilli() + config.ExpireAtInHours*3600000
+	return time.Now().Add(time.Duration(config.ExpireAtInHours) * time.Hour).UnixMilli()
 }
 
 const API_TOKEN_USER_EMAIL_PREFIX = "API-TOKEN:"

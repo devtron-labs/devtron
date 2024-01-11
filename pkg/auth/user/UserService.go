@@ -1471,33 +1471,9 @@ func (impl UserServiceImpl) getMapClaims(token string) (jwt2.MapClaims, error) {
 }
 
 func (impl UserServiceImpl) GetEmailAndGroupClaimsFromToken(token string) (string, []string, error) {
-	if token == "" {
-		impl.logger.Infow("no token provided")
-		err := &util.ApiError{
-			Code:            constants.UserNoTokenProvided,
-			InternalMessage: "no token provided",
-		}
-		return "", nil, err
-	}
-
-	claims, err := impl.sessionManager2.VerifyToken(token)
+	mapClaims, err := impl.getMapClaims(token)
 	if err != nil {
-		impl.logger.Errorw("failed to verify token", "error", err)
-		err := &util.ApiError{
-			Code:            constants.UserNoTokenProvided,
-			InternalMessage: "failed to verify token",
-			UserMessage:     "token verification failed while getting logged in user",
-		}
-		return "", nil, err
-	}
-	mapClaims, err := jwt.MapClaims(claims)
-	if err != nil {
-		impl.logger.Errorw("failed to MapClaims", "error", err)
-		err := &util.ApiError{
-			Code:            constants.UserNoTokenProvided,
-			InternalMessage: "token invalid",
-			UserMessage:     "token verification failed while parsing token",
-		}
+		impl.logger.Errorw("error in fetching map claims", "err", err)
 		return "", nil, err
 	}
 	groupsClaims := make([]string, 0)

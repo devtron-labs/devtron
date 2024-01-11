@@ -12,16 +12,16 @@ type NotificationMetaData struct {
 }
 
 type DraftApprovalResponse struct {
-	ProtectConfigFileType string               `json:"protectConfigFileType"`
-	ProtectConfigFileName string               `json:"protectConfigFileName"`
-	ProtectConfigComment  string               `json:"protectConfigComment"`
-	NotificationMetaData  NotificationMetaData `json:"notificationMetaData"`
-	DraftState            uint8                `json:"draftState"`
+	ProtectConfigFileType string                `json:"protectConfigFileType"`
+	ProtectConfigFileName string                `json:"protectConfigFileName"`
+	ProtectConfigComment  string                `json:"protectConfigComment"`
+	NotificationMetaData  *NotificationMetaData `json:"notificationMetaData"`
+	DraftState            uint8                 `json:"draftState"`
 }
 type DeploymentApprovalResponse struct {
-	ImageTagNames        []string             `json:"imageTagNames"`
-	ImageComment         string               `json:"imageComment"`
-	DockerImageUrl       string               `json:"dockerImageUrl"`
-	NotificationMetaData NotificationMetaData `json:"notificationMetaData"`
-	Status               bean.ApprovalState   `json:"status"`
+	ImageTagNames        []string              `json:"imageTagNames"`
+	ImageComment         string                `json:"imageComment"`
+	DockerImageUrl       string                `json:"dockerImageUrl"`
+	NotificationMetaData *NotificationMetaData `json:"notificationMetaData"`
+	Status               bean.ApprovalState    `json:"status"`
 }

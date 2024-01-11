@@ -50,6 +50,7 @@ type NotificationConfigService interface {
 	FetchNSViewByIds(ids []*int) ([]*NSConfig, error)
 	GetMetaDataForDraftNotification(draftRequest *apiToken.DraftApprovalRequest) (*client.DraftApprovalResponse, error)
 	GetMetaDataForDeploymentNotification(deploymentApprovalRequest *apiToken.DeploymentApprovalRequest, appName string, envName string) (*client.DeploymentApprovalResponse, error)
+	PerformApprovalActionAndGetMetadata(deploymentApprovalRequest apiToken.DeploymentApprovalRequest, approvalActionRequest bean.UserApprovalActionRequest, pipelineInfo *pipelineConfig.Pipeline) (*client.DeploymentApprovalResponse, error)
 }
 
 type NotificationConfigServiceImpl struct {
@@ -70,6 +71,7 @@ type NotificationConfigServiceImpl struct {
 	configDraftRepository          drafts.ConfigDraftRepository
 	ciArtifactRepository           repository.CiArtifactRepository
 	appArtifactManager             pipeline.AppArtifactManager
+	cdHandler                      pipeline.CdHandler
 }
 
 type NotificationSettingRequest struct {
@@ -182,7 +184,7 @@ func NewNotificationConfigServiceImpl(logger *zap.SugaredLogger, notificationSet
 	configDraftRepository drafts.ConfigDraftRepository,
 	ciArtifactRepository repository.CiArtifactRepository,
 	appArtifactManager pipeline.AppArtifactManager,
-
+	cdHandler pipeline.CdHandler,
 ) *NotificationConfigServiceImpl {
 	return &NotificationConfigServiceImpl{
 		logger:                         logger,
@@ -202,6 +204,7 @@ func NewNotificationConfigServiceImpl(logger *zap.SugaredLogger, notificationSet
 		configDraftRepository:          configDraftRepository,
 		ciArtifactRepository:           ciArtifactRepository,
 		appArtifactManager:             appArtifactManager,
+		cdHandler:                      cdHandler,
 	}
 }
 
@@ -937,34 +940,37 @@ func (impl *NotificationConfigServiceImpl) IsSesOrSmtpConfigured() (*ConfigCheck
 }
 
 func (impl *NotificationConfigServiceImpl) GetMetaDataForDraftNotification(draftRequest *apiToken.DraftApprovalRequest) (*client.DraftApprovalResponse, error) {
-	DraftApprovalResp := &client.DraftApprovalResponse{}
+	draftApprovalResp := &client.DraftApprovalResponse{}
 	envName, appName, err := impl.getEnvAndAppName(draftRequest.EnvId, draftRequest.AppId)
 	if err != nil {
-		return DraftApprovalResp, err
+		return draftApprovalResp, err
 	}
-	DraftApprovalResp.NotificationMetaData.EnvName = envName
-	DraftApprovalResp.NotificationMetaData.AppName = appName
+	if draftApprovalResp.NotificationMetaData == nil {
+		draftApprovalResp.NotificationMetaData = &client.NotificationMetaData{}
+	}
+	draftApprovalResp.NotificationMetaData.EnvName = envName
+	draftApprovalResp.NotificationMetaData.AppName = appName
+	draftApprovalResp.NotificationMetaData.EventTime = time.Now().Format(bean.LayoutRFC3339)
+	draftApprovalResp.NotificationMetaData.ApprovedBy = draftRequest.EmailId
 	draft, err := impl.configDraftRepository.GetDraftVersionById(draftRequest.DraftVersionId)
 	if err != nil {
-		return DraftApprovalResp, err
+		return draftApprovalResp, err
 	}
 	draftComment, err := impl.configDraftRepository.GetDraftComments(draftRequest.DraftVersionId)
 	if err != nil && err != pg.ErrNoRows {
-		return DraftApprovalResp, err
+		return draftApprovalResp, err
 	}
-	DraftApprovalResp.ProtectConfigFileType = string(draft.Draft.Resource.GetDraftResourceType())
+	draftApprovalResp.ProtectConfigFileType = string(draft.Draft.Resource.GetDraftResourceType())
 	if draft.Draft.Resource == drafts.DeploymentTemplateResource {
-		DraftApprovalResp.ProtectConfigFileName = string(client.DeploymentTemplate)
+		draftApprovalResp.ProtectConfigFileName = string(client.DeploymentTemplate)
 	} else {
-		DraftApprovalResp.ProtectConfigFileName = draft.Draft.ResourceName
+		draftApprovalResp.ProtectConfigFileName = draft.Draft.ResourceName
 	}
 	if draftComment != nil {
-		DraftApprovalResp.ProtectConfigComment = draftComment.Comment
+		draftApprovalResp.ProtectConfigComment = draftComment.Comment
 	}
-	DraftApprovalResp.ProtectConfigFileName = draft.Draft.ResourceName
-	DraftApprovalResp.NotificationMetaData.EventTime = time.Now().Format(bean.LayoutRFC3339)
-	DraftApprovalResp.NotificationMetaData.ApprovedBy = draftRequest.EmailId
-	return DraftApprovalResp, nil
+	draftApprovalResp.ProtectConfigFileName = draft.Draft.ResourceName
+	return draftApprovalResp, nil
 }
 
 func (impl *NotificationConfigServiceImpl) getEnvAndAppName(envId int, appId int) (string, string, error) {
@@ -988,24 +994,47 @@ func (impl *NotificationConfigServiceImpl) getEnvAndAppName(envId int, appId int
 	appName = application.AppName
 	return envName, appName, err
 }
+func (impl *NotificationConfigServiceImpl) PerformApprovalActionAndGetMetadata(deploymentApprovalRequest apiToken.DeploymentApprovalRequest, approvalActionRequest bean.UserApprovalActionRequest, pipelineInfo *pipelineConfig.Pipeline) (*client.DeploymentApprovalResponse, error) {
+	var approvalState bean.ApprovalState
+	var resp *client.DeploymentApprovalResponse
+	err := impl.cdHandler.PerformDeploymentApprovalAction(deploymentApprovalRequest.UserId, approvalActionRequest)
+	if err != nil {
+		validationErr, ok := err.(*bean.DeploymentApprovalValidationError)
+		if ok {
+			approvalState = validationErr.ApprovalState
+		} else {
+			return resp, err
+		}
+	}
+	resp, err = impl.GetMetaDataForDeploymentNotification(&deploymentApprovalRequest, pipelineInfo.App.AppName, pipelineInfo.Environment.Name)
+	if err != nil {
+		impl.logger.Errorw("error in getting response", "err", err)
+		return resp, err
+	}
+	resp.Status = approvalState
+	return resp, nil
+}
 func (impl *NotificationConfigServiceImpl) GetMetaDataForDeploymentNotification(deploymentApprovalRequest *apiToken.DeploymentApprovalRequest, appName string, envName string) (*client.DeploymentApprovalResponse, error) {
-	DeploymentApprovalResp := &client.DeploymentApprovalResponse{}
 	ciArtifact, err := impl.ciArtifactRepository.Get(deploymentApprovalRequest.ArtifactId)
 	if err != nil {
 		impl.logger.Errorw("error fetching ciArtifact", "ciArtifactId", ciArtifact.Id, "err", err)
-		return DeploymentApprovalResp, err
+		return nil, err
 	}
 	imageComment, imageTagNames, err := impl.appArtifactManager.GetImageTagsAndComment(deploymentApprovalRequest.ArtifactId)
 	if err != nil {
 		impl.logger.Errorw("error fetching image Tags and comments", "ciArtifactId", deploymentApprovalRequest.ArtifactId, "err", err)
-		return DeploymentApprovalResp, err
+		return nil, err
 	}
-	DeploymentApprovalResp.NotificationMetaData.EnvName = envName
-	DeploymentApprovalResp.NotificationMetaData.AppName = appName
-	DeploymentApprovalResp.NotificationMetaData.EventTime = time.Now().Format(bean.LayoutRFC3339)
-	DeploymentApprovalResp.NotificationMetaData.ApprovedBy = deploymentApprovalRequest.EmailId
-	DeploymentApprovalResp.ImageTagNames = imageTagNames
-	DeploymentApprovalResp.ImageComment = imageComment.Comment
-	DeploymentApprovalResp.DockerImageUrl = ciArtifact.Image
-	return DeploymentApprovalResp, err
+
+	return &client.DeploymentApprovalResponse{
+		ImageTagNames:  imageTagNames,
+		ImageComment:   imageComment.Comment,
+		DockerImageUrl: ciArtifact.Image,
+		NotificationMetaData: &client.NotificationMetaData{
+			AppName:    appName,
+			EnvName:    envName,
+			ApprovedBy: deploymentApprovalRequest.EmailId,
+			EventTime:  time.Now().Format(bean.LayoutRFC3339),
+		},
+	}, nil
 }
