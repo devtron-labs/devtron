@@ -42,7 +42,7 @@ func GetIdentifierValue(identifierType models.IdentifierType, appNameToIdMap map
 	} else if identifierType == models.ClusterName {
 		identifierValue, found = clusterNameToIdMap[identifierName]
 		if !found {
-			return 0, fmt.Errorf("ClusterId mapping not found %s", identifierName)
+			return 0, fmt.Errorf("ClusterName mapping not found %s", identifierName)
 		}
 	} else {
 		return 0, fmt.Errorf("invalid identifierType")

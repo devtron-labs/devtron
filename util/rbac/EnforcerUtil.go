@@ -410,8 +410,8 @@ func (impl EnforcerUtilImpl) GetHelmObject(appId int, envId int) (string, string
 	}
 	//TODO - FIX required for futuristic permission for cluster__* all environment for migrated environment identifier only
 	/*//here cluster, env, namespace must not have double underscore in names, as we are using that for separator.
-	if !strings.HasPrefix(env.EnvironmentIdentifier, fmt.Sprintf("%s__", env.Cluster.ClusterId)) {
-		environmentIdentifier = fmt.Sprintf("%s__%s", env.Cluster.ClusterId, env.EnvironmentIdentifier)
+	if !strings.HasPrefix(env.EnvironmentIdentifier, fmt.Sprintf("%s__", env.Cluster.ClusterName)) {
+		environmentIdentifier = fmt.Sprintf("%s__%s", env.Cluster.ClusterName, env.EnvironmentIdentifier)
 	}*/
 
 	if environmentIdentifier2 == "" {
@@ -451,8 +451,8 @@ func (impl EnforcerUtilImpl) GetHelmObjectByAppNameAndEnvId(appName string, envI
 
 	//TODO - FIX required for futuristic permission for cluster__* all environment for migrated environment identifier only
 	/*//here cluster, env, namespace must not have double underscore in names, as we are using that for separator.
-	if !strings.HasPrefix(env.EnvironmentIdentifier, fmt.Sprintf("%s__", env.Cluster.ClusterId)) {
-		environmentIdentifier = fmt.Sprintf("%s__%s", env.Cluster.ClusterId, env.EnvironmentIdentifier)
+	if !strings.HasPrefix(env.EnvironmentIdentifier, fmt.Sprintf("%s__", env.Cluster.ClusterName)) {
+		environmentIdentifier = fmt.Sprintf("%s__%s", env.Cluster.ClusterName, env.EnvironmentIdentifier)
 	}*/
 	return fmt.Sprintf("%s/%s/%s", application.Team.Name, environmentIdentifier, application.AppName),
 		fmt.Sprintf("%s/%s/%s", application.Team.Name, environmentIdentifier2, application.AppName)
@@ -490,8 +490,8 @@ func (impl EnforcerUtilImpl) GetHelmObjectByProjectIdAndEnvId(teamId int, envId 
 
 	//TODO - FIX required for futuristic permission for cluster__* all environment for migrated environment identifier only
 	/*//here cluster, env, namespace must not have double underscore in names, as we are using that for separator.
-	if !strings.HasPrefix(env.EnvironmentIdentifier, fmt.Sprintf("%s__", env.Cluster.ClusterId)) {
-		environmentIdentifier = fmt.Sprintf("%s__%s", env.Cluster.ClusterId, env.EnvironmentIdentifier)
+	if !strings.HasPrefix(env.EnvironmentIdentifier, fmt.Sprintf("%s__", env.Cluster.ClusterName)) {
+		environmentIdentifier = fmt.Sprintf("%s__%s", env.Cluster.ClusterName, env.EnvironmentIdentifier)
 	}*/
 	return fmt.Sprintf("%s/%s/%s", team.Name, environmentIdentifier, "*"),
 		fmt.Sprintf("%s/%s/%s", team.Name, environmentIdentifier2, "*")
