@@ -50,8 +50,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	dirCopy "github.com/otiai10/copy"
 
-	repository2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/devtron/client/argocdServer/repository"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
@@ -91,7 +89,6 @@ type ChartService interface {
 	FormatChartName(chartName string) string
 	ValidateUploadedFileFormat(fileName string) error
 	ReadChartMetaDataForLocation(chartDir string, fileName string) (*ChartYamlStruct, error)
-	RegisterInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context) error
 	FetchCustomChartsInfo() ([]*ChartDto, error)
 	CheckCustomChartByAppId(id int) (bool, error)
 	CheckCustomChartByChartId(id int) (bool, error)
@@ -585,18 +582,6 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 
 	chartVal, err := impl.chartAdaptor(chart, nil)
 	return chartVal, err
-}
-
-func (impl ChartServiceImpl) RegisterInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context) error {
-	repo := &v1alpha1.Repository{
-		Repo: chartGitAttribute.RepoUrl,
-	}
-	repo, err := impl.repositoryService.Create(ctx, &repository2.RepoCreateRequest{Repo: repo, Upsert: true})
-	if err != nil {
-		impl.logger.Errorw("error in creating argo Repository ", "err", err)
-	}
-	impl.logger.Infow("repo registered in argo", "name", chartGitAttribute.RepoUrl)
-	return err
 }
 
 // converts db object to bean

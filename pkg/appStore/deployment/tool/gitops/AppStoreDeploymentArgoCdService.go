@@ -74,9 +74,9 @@ type AppStoreDeploymentArgoCdServiceImpl struct {
 	helmAppService                       client.HelmAppService
 	gitOpsConfigRepository               repository3.GitOpsConfigRepository
 	appStatusService                     appStatus.AppStatusService
-	pipelineStatusTimelineService    status.PipelineStatusTimelineService
-	userService                      user.UserService
-	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository
+	pipelineStatusTimelineService        status.PipelineStatusTimelineService
+	userService                          user.UserService
+	pipelineStatusTimelineRepository     pipelineConfig.PipelineStatusTimelineRepository
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository
 	argoClientWrapperService             argocdServer.ArgoClientWrapperService
 	acdConfig                            *argocdServer.ACDConfig
@@ -662,7 +662,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) patchAcdApp(ctx context.Context,
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Minute)
 	defer cancel()
 	//registerInArgo
-	err := impl.appStoreDeploymentFullModeService.RegisterInArgo(chartGitAttr, ctx)
+	err := impl.argoClientWrapperService.RegisterGitOpsRepoInArgo(ctx, chartGitAttr.RepoUrl)
 	if err != nil {
 		impl.Logger.Errorw("error in argo registry", "err", err)
 		return nil, err

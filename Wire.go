@@ -264,8 +264,6 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(restHandler.MigrateDbRestHandler), new(*restHandler.MigrateDbRestHandlerImpl)),
 		util.NewChartTemplateServiceImpl,
 		wire.Bind(new(util.ChartTemplateService), new(*util.ChartTemplateServiceImpl)),
-		util.NewChartDeploymentServiceImpl,
-		wire.Bind(new(util.ChartDeploymentService), new(*util.ChartDeploymentServiceImpl)),
 
 		//scoped variables start
 		variables.NewScopedVariableServiceImpl,

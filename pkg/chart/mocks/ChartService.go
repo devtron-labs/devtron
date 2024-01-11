@@ -680,19 +680,6 @@ func (_m *ChartService) ReadChartMetaDataForLocation(chartDir string, fileName s
 	return r0, r1
 }
 
-// RegisterInArgo provides a mock function with given fields: chartGitAttribute, ctx
-func (_m *ChartService) RegisterInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context) error {
-	ret := _m.Called(chartGitAttribute, ctx)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(*util.ChartGitAttribute, context.Context) error); ok {
-		r0 = rf(chartGitAttribute, ctx)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
 
 // UpdateAppOverride provides a mock function with given fields: ctx, templateRequest
 func (_m *ChartService) UpdateAppOverride(ctx context.Context, templateRequest *chart.TemplateRequest) (*chart.TemplateRequest, error) {
