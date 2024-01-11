@@ -11,9 +11,9 @@ import (
 	"time"
 )
 
-type ImageDigestQualifierMappingService interface {
+type ImageDigestPolicyService interface {
 	//CreateOrDeletePolicyForPipeline created policy for enforcing pull using digest at pipeline level
-	CreateOrDeletePolicyForPipeline(pipelineId int, isImageDigestEnforcedForPipeline bool, UserId int32) error
+	CreateOrDeletePolicyForPipeline(pipelineId int, isImageDigestEnforcedForPipeline bool, UserId int32, tx *pg.Tx) error
 
 	//IsPolicyConfiguredForPipeline returns true if pipeline or env or cluster has image digest policy enabled
 	IsPolicyConfiguredForPipeline(pipelineId int) (bool, error)
@@ -37,7 +37,7 @@ func NewImageDigestQualifierMappingServiceImpl(
 	}
 }
 
-func (impl ImageDigestQualifierMappingServiceImpl) CreateOrDeletePolicyForPipeline(pipelineId int, isImageDigestEnforcedInRequest bool, UserId int32) error {
+func (impl ImageDigestQualifierMappingServiceImpl) CreateOrDeletePolicyForPipeline(pipelineId int, isImageDigestEnforcedForPipeline bool, UserId int32, tx *pg.Tx) error {
 
 	devtronResourceSearchableKeyMap := impl.devtronResourceSearchableKey.GetAllSearchableKeyNameIdMap()
 
@@ -47,7 +47,7 @@ func (impl ImageDigestQualifierMappingServiceImpl) CreateOrDeletePolicyForPipeli
 		return err
 	}
 
-	if len(qualifierMappings) == 0 && isImageDigestEnforcedInRequest {
+	if len(qualifierMappings) == 0 && isImageDigestEnforcedForPipeline {
 
 		qualifierMapping := &resourceQualifiers.QualifierMapping{
 			ResourceId:            resourceQualifiers.ImageDigestResourceId,
@@ -64,20 +64,13 @@ func (impl ImageDigestQualifierMappingServiceImpl) CreateOrDeletePolicyForPipeli
 				UpdatedBy: UserId,
 			},
 		}
-
-		dbConnection := impl.qualifierMappingService.GetDbConnection()
-		tx, _ := dbConnection.Begin()
 		_, err := impl.qualifierMappingService.CreateQualifierMappings([]*resourceQualifiers.QualifierMapping{qualifierMapping}, tx)
 		if err != nil {
 			impl.logger.Errorw("error in creating image digest qualifier mapping for pipeline", "err", err)
 			return err
 		}
-		_ = tx.Commit()
 
-	} else if !isImageDigestEnforcedInRequest && len(qualifierMappings) > 0 {
-
-		dbConnection := impl.qualifierMappingService.GetDbConnection()
-		tx, _ := dbConnection.Begin()
+	} else if !isImageDigestEnforcedForPipeline && len(qualifierMappings) > 0 {
 		auditLog := sql.AuditLog{
 			CreatedOn: time.Now(),
 			CreatedBy: UserId,
@@ -89,8 +82,6 @@ func (impl ImageDigestQualifierMappingServiceImpl) CreateOrDeletePolicyForPipeli
 			impl.logger.Errorw("error in deleting image digest policy for pipeline", "err", err, "pipeline id", pipelineId)
 			return err
 		}
-		_ = tx.Commit()
-
 	}
 	return nil
 }

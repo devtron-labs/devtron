@@ -199,7 +199,7 @@ type WorkflowDagExecutorImpl struct {
 	pipelineConfigListenerService       PipelineConfigListenerService
 	customTagService                    CustomTagService
 	ACDConfig                           *argocdServer.ACDConfig
-	imageDigestQualifierMappingService  imageDigestPolicy.ImageDigestQualifierMappingService
+	imageDigestPolicyService            imageDigestPolicy.ImageDigestPolicyService
 }
 
 const kedaAutoscaling = "kedaAutoscaling"
@@ -308,7 +308,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	pipelineConfigListenerService PipelineConfigListenerService,
 	customTagService CustomTagService,
 	ACDConfig *argocdServer.ACDConfig,
-	imageDigestQualifierMappingService imageDigestPolicy.ImageDigestQualifierMappingService,
+	imageDigestPolicyService imageDigestPolicy.ImageDigestPolicyService,
 ) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
@@ -386,7 +386,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		pipelineConfigListenerService:       pipelineConfigListenerService,
 		customTagService:                    customTagService,
 		ACDConfig:                           ACDConfig,
-		imageDigestQualifierMappingService:  imageDigestQualifierMappingService,
+		imageDigestPolicyService:            imageDigestPolicyService,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -4107,7 +4107,7 @@ func (impl *WorkflowDagExecutorImpl) getReleaseOverride(envOverride *chartConfig
 		deploymentStrategy = string(strategy.Strategy)
 	}
 
-	isDigestPolicyConfiguredForPipeline, err := impl.imageDigestQualifierMappingService.IsPolicyConfiguredForPipeline(overrideRequest.PipelineId)
+	isDigestPolicyConfiguredForPipeline, err := impl.imageDigestPolicyService.IsPolicyConfiguredForPipeline(overrideRequest.PipelineId)
 	if err != nil {
 		impl.logger.Errorw("Error in checking if isDigestPolicyConfiguredForPipeline", "err", err)
 		return "", nil
