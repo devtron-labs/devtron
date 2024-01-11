@@ -11,9 +11,9 @@ type ClusterId = int
 type EnvironmentId = int
 
 type PolicyRequest struct {
-	ClusterDetails []*ClusterDetail `json:"clusterDetails"`
-	AllClusters    bool             `json:"allClusters"`
-	UserId         int32
+	ClusterDetails []*ClusterDetail `json:"clusterDetails" validate:"omitempty,dive"`
+	AllClusters    bool             `json:"allClusters,notnull"`
+	UserId         int32            `json:"-"`
 }
 
 type ClusterDetail struct {

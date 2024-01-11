@@ -46,8 +46,8 @@ func NewImageDigestPolicyRestHandlerImpl(logger *zap.SugaredLogger,
 func (handler ImageDigestPolicyRestHandlerImpl) GetAllImageDigestPolicies(w http.ResponseWriter, r *http.Request) {
 
 	token := r.Header.Get("token")
-	authorised := handler.applyAuth(token)
-	if !authorised {
+	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
+	if !isSuperAdmin {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
@@ -65,8 +65,8 @@ func (handler ImageDigestPolicyRestHandlerImpl) GetAllImageDigestPolicies(w http
 func (handler ImageDigestPolicyRestHandlerImpl) SaveOrUpdateImageDigestPolicy(w http.ResponseWriter, r *http.Request) {
 
 	token := r.Header.Get("token")
-	authorised := handler.applyAuth(token)
-	if !authorised {
+	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
+	if !isSuperAdmin {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
@@ -87,6 +87,13 @@ func (handler ImageDigestPolicyRestHandlerImpl) SaveOrUpdateImageDigestPolicy(w 
 	}
 	req.UserId = userId
 
+	err = handler.validator.Struct(req)
+	if err != nil {
+		handler.logger.Errorw("request err, Save", "error", err, "request", req)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
 	policyRequest, err := handler.imageDigestPolicyService.CreateOrUpdatePolicyForCluster(req)
 	if err != nil {
 		handler.logger.Errorw("service err, imageDigestPolicyService", "err", err)
@@ -94,10 +101,4 @@ func (handler ImageDigestPolicyRestHandlerImpl) SaveOrUpdateImageDigestPolicy(w 
 	}
 
 	common.WriteJsonResp(w, nil, policyRequest, http.StatusOK)
-}
-
-func (handler *ImageDigestPolicyRestHandlerImpl) applyAuth(token string) bool {
-	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
-
-	return isSuperAdmin
 }
