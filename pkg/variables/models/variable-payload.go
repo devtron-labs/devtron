@@ -66,7 +66,7 @@ type IdentifierType string
 
 const (
 	EnvName         IdentifierType = "EnvName"
-	ClusterName     IdentifierType = "ClusterName"
+	ClusterName     IdentifierType = "ClusterId"
 	ApplicationName IdentifierType = "ApplicationName"
 )
 

@@ -42,6 +42,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
+	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
@@ -211,6 +212,7 @@ type WorkflowDagExecutorImpl struct {
 	pipelineConfigListenerService       PipelineConfigListenerService
 	customTagService                    CustomTagService
 	ACDConfig                           *argocdServer.ACDConfig
+	imageDigestQualifierMappingService  imageDigestPolicy.ImageDigestQualifierMappingService
 }
 
 const kedaAutoscaling = "kedaAutoscaling"
@@ -324,6 +326,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	customTagService CustomTagService,
 	pipelineConfigListenerService PipelineConfigListenerService,
 	ACDConfig *argocdServer.ACDConfig,
+	imageDigestQualifierMappingService imageDigestPolicy.ImageDigestQualifierMappingService,
 ) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
@@ -409,6 +412,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		customTagService:                    customTagService,
 		pipelineConfigListenerService:       pipelineConfigListenerService,
 		ACDConfig:                           ACDConfig,
+		imageDigestQualifierMappingService:  imageDigestQualifierMappingService,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -4892,6 +4896,17 @@ func (impl *WorkflowDagExecutorImpl) getReleaseOverride(envOverride *chartConfig
 	if strategy != nil {
 		deploymentStrategy = string(strategy.Strategy)
 	}
+
+	isDigestPolicyConfiguredForPipeline, err := impl.imageDigestQualifierMappingService.IsPolicyConfiguredForPipeline(overrideRequest.PipelineId)
+	if err != nil {
+		impl.logger.Errorw("Error in checking if isDigestPolicyConfiguredForPipeline", "err", err)
+		return "", nil
+	}
+
+	if isDigestPolicyConfiguredForPipeline {
+		imageTag[imageTagLen-1] = fmt.Sprintf("%s@%s", imageTag[imageTagLen-1], artifact.ImageDigest)
+	}
+
 	releaseAttribute := app.ReleaseAttributes{
 		Name:           imageName,
 		Tag:            imageTag[imageTagLen-1],

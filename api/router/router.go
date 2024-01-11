@@ -133,6 +133,7 @@ type MuxRouter struct {
 	ciTriggerCron                      cron.CiTriggerCron
 	resourceFilterRouter               ResourceFilterRouter
 	devtronResourceRouter              devtronResource.DevtronResourceRouter
+	imageDigestPolicyRouter            ImageDigestPolicyRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -166,7 +167,8 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 	globalPolicyRouter globalPolicy.GlobalPolicyRouter, configDraftRouter drafts.ConfigDraftRouter, resourceProtectionRouter protect.ResourceProtectionRouter,
 	scopedVariableRouter ScopedVariableRouter, ciTriggerCron cron.CiTriggerCron,
 	resourceFilterRouter ResourceFilterRouter,
-	devtronResourceRouter devtronResource.DevtronResourceRouter) *MuxRouter {
+	devtronResourceRouter devtronResource.DevtronResourceRouter,
+	imageDigestPolicyRouter ImageDigestPolicyRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
 		HelmRouter:                         HelmRouter,
@@ -244,6 +246,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 		resourceProtectionRouter:           resourceProtectionRouter,
 		resourceFilterRouter:               resourceFilterRouter,
 		devtronResourceRouter:              devtronResourceRouter,
+		imageDigestPolicyRouter:            imageDigestPolicyRouter,
 	}
 	return r
 }
@@ -315,6 +318,9 @@ func (r MuxRouter) Init() {
 
 	resourceFilterRouter := r.Router.PathPrefix("/orchestrator/filters").Subrouter()
 	r.resourceFilterRouter.InitResourceFilterRouter(resourceFilterRouter)
+
+	imageDigestPolicyRouter := r.Router.PathPrefix("orchestrator/digestPolicy").Subrouter()
+	r.imageDigestPolicyRouter.initImageDigestPolicyRouter(imageDigestPolicyRouter)
 
 	projectManagementRouter := r.Router.PathPrefix("/orchestrator/project-management").Subrouter()
 	r.ProjectManagementRouter.InitProjectManagementRouter(projectManagementRouter)

@@ -5,6 +5,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"time"
 )
 
 type QualifierMappingService interface {
@@ -12,8 +13,13 @@ type QualifierMappingService interface {
 	GetQualifierMappingsForFilter(scope Scope) ([]*QualifierMapping, error)
 	GetQualifierMappingsForFilterById(resourceId int) ([]*QualifierMapping, error)
 	GetQualifierMappings(resourceType ResourceType, scope *Scope, resourceIds []int) ([]*QualifierMapping, error)
+	GetQualifierMappingsByResourceType(resourceType ResourceType) ([]*QualifierMapping, error)
 	DeleteAllQualifierMappings(resourceType ResourceType, auditLog sql.AuditLog, tx *pg.Tx) error
 	DeleteAllQualifierMappingsByResourceTypeAndId(resourceType ResourceType, resourceId int, auditLog sql.AuditLog, tx *pg.Tx) error
+	DeleteAllQualifierMappingsByIdentifierKeyAndValue(identifierKey int, identifierValue int, auditLog sql.AuditLog, tx *pg.Tx) error
+	DeleteAllByResourceTypeAndQualifierId(resourceType ResourceType, resourceId int, qualifierIds []int, userId int32, tx *pg.Tx) error
+	DeleteAllByIds(qualifierMappingIds []int, userId int32, tx *pg.Tx) error
+	GetDbConnection() *pg.DB
 }
 
 type QualifierMappingServiceImpl struct {
@@ -47,9 +53,42 @@ func (impl QualifierMappingServiceImpl) GetQualifierMappingsForFilter(scope Scop
 func (impl QualifierMappingServiceImpl) GetQualifierMappingsForFilterById(resourceId int) ([]*QualifierMapping, error) {
 	return impl.qualifierMappingRepository.GetQualifierMappingsForFilterById(resourceId)
 }
+
+func (impl QualifierMappingServiceImpl) GetQualifierMappingsByResourceType(resourceType ResourceType) ([]*QualifierMapping, error) {
+	return impl.qualifierMappingRepository.GetQualifierMappingsByResourceType(resourceType)
+}
+
 func (impl QualifierMappingServiceImpl) DeleteAllQualifierMappings(resourceType ResourceType, auditLog sql.AuditLog, tx *pg.Tx) error {
 	return impl.qualifierMappingRepository.DeleteAllQualifierMappings(resourceType, auditLog, tx)
 }
 func (impl QualifierMappingServiceImpl) DeleteAllQualifierMappingsByResourceTypeAndId(resourceType ResourceType, resourceId int, auditLog sql.AuditLog, tx *pg.Tx) error {
 	return impl.qualifierMappingRepository.DeleteAllQualifierMappingsByResourceTypeAndId(resourceType, resourceId, auditLog, tx)
+}
+
+func (impl QualifierMappingServiceImpl) DeleteAllQualifierMappingsByIdentifierKeyAndValue(identifierKey int, identifierValue int, auditLog sql.AuditLog, tx *pg.Tx) error {
+	return impl.qualifierMappingRepository.DeleteAllByIdentifierKeyAndValue(identifierKey, identifierValue, auditLog, tx)
+}
+
+func (impl QualifierMappingServiceImpl) DeleteAllByResourceTypeAndQualifierId(resourceType ResourceType, resourceId int, qualifierIds []int, userId int32, tx *pg.Tx) error {
+	auditLog := sql.AuditLog{
+		CreatedOn: time.Now(),
+		CreatedBy: userId,
+		UpdatedOn: time.Now(),
+		UpdatedBy: userId,
+	}
+	return impl.qualifierMappingRepository.DeleteAllByResourceTypeAndQualifierId(resourceType, resourceId, qualifierIds, auditLog, tx)
+}
+
+func (impl QualifierMappingServiceImpl) DeleteAllByIds(qualifierMappingIds []int, userId int32, tx *pg.Tx) error {
+	auditLog := sql.AuditLog{
+		CreatedOn: time.Now(),
+		CreatedBy: userId,
+		UpdatedOn: time.Now(),
+		UpdatedBy: userId,
+	}
+	return impl.qualifierMappingRepository.DeleteAllByIds(qualifierMappingIds, auditLog, tx)
+}
+
+func (impl QualifierMappingServiceImpl) GetDbConnection() *pg.DB {
+	return impl.qualifierMappingRepository.GetDbConnection()
 }

@@ -61,7 +61,7 @@ func TestScopedVariableServiceImpl_CreateVariables(t *testing.T) {
 						},
 						AttributeType: "Cluster",
 						AttributeParams: map[models.IdentifierType]string{
-							"ClusterName": "default_cluster",
+							"ClusterId": "default_cluster",
 						},
 					},
 				},
@@ -119,7 +119,7 @@ func TestScopedVariableServiceImpl_CreateVariables(t *testing.T) {
 						},
 						AttributeType: "Cluster",
 						AttributeParams: map[models.IdentifierType]string{
-							"ClusterName": "default_cluster",
+							"ClusterId": "default_cluster",
 						},
 					},
 				},
@@ -647,7 +647,7 @@ func TestScopedVariableServiceImpl_IsValidPayload(t *testing.T) {
 						},
 						AttributeType: "Cluster",
 						AttributeParams: map[models.IdentifierType]string{
-							"ClusterName": "default_cluster",
+							"ClusterId": "default_cluster",
 						},
 					},
 				},
@@ -1414,7 +1414,7 @@ func TestScopedVariableServiceImpl_GetJsonForVariables(t *testing.T) {
 						},
 						AttributeType: "Cluster",
 						AttributeParams: map[models.IdentifierType]string{
-							"ClusterName": "default_cluster",
+							"ClusterId": "default_cluster",
 						},
 					},
 				},

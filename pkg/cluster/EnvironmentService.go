@@ -52,6 +52,7 @@ type EnvironmentBean struct {
 	AppCount               int      `json:"appCount"`
 	IsVirtualEnvironment   bool     `json:"isVirtualEnvironment"`
 	AllowedDeploymentTypes []string `json:"allowedDeploymentTypes"`
+	IsDigestEnforcedForEnv bool     `json:is`
 }
 
 type VirtualEnvironmentBean struct {
@@ -327,7 +328,7 @@ func (impl EnvironmentServiceImpl) FindById(id int) (*EnvironmentBean, error) {
 
 	/*clusterBean := &ClusterBean{
 		id:model.Cluster.id,
-		ClusterName: model.Cluster.ClusterName,
+		ClusterId: model.Cluster.ClusterId,
 		Active:model.Cluster.Active,
 	}*/
 	return bean, nil

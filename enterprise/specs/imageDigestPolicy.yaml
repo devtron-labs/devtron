@@ -3,7 +3,7 @@ info:
   version: 1.0.0
   title: Devtron Labs
 paths:
-  /orchestrator/global/digestPolicy :
+  /orchestrator/digestPolicy :
     get:
       description: list of environments for which digest is enforced
       responses:
