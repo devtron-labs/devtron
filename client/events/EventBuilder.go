@@ -359,7 +359,7 @@ func (impl *EventSimpleFactoryImpl) BuildExtraApprovalData(event Event, approval
 		}
 		deploymentApprovalRequest := setDeploymentApprovalRequest(reqData, &approvalActionRequest, emailId)
 		err = impl.createAndSetToken(nil, deploymentApprovalRequest, &newPayload)
-		payload.TriggeredBy = user.EmailId
+		newPayload.TriggeredBy = user.EmailId
 		event.Payload = &newPayload
 		events = append(events, event)
 	}
@@ -416,7 +416,7 @@ func (impl *EventSimpleFactoryImpl) BuildExtraProtectConfigData(event Event, req
 
 			return events
 		}
-		payload.TriggeredBy = user.EmailId
+		newPayload.TriggeredBy = user.EmailId
 		event.Payload = &newPayload
 		events = append(events, event)
 
