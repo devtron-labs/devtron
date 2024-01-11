@@ -1,4 +1,5 @@
 ## Bugs
+- fix: adding new fields in resource node to identify hooks in case of helm deployment (#4472)
 - fix: panic in app clone service for [linked ci, external ci, linked cd] cases (#4526)
 - fix: Error code changed for resource api (#4414)
 - fix: handle argo delete event for charts and added socket config (#4471)
