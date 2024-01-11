@@ -76,7 +76,7 @@ type UserService interface {
 	GetApprovalUsersByEnv(appName, envName string) ([]string, error)
 	CheckForApproverAccess(appName, envName string, userId int32) bool
 	GetConfigApprovalUsersByEnv(appName, envName, team string) ([]string, error)
-	CheckRoleForAppAdminAndManager(userId int32, token string) (bool, error)
+	IsUserAdminOrManagerForAnyApp(userId int32, token string) (bool, error)
 }
 
 type UserServiceImpl struct {
@@ -1985,7 +1985,7 @@ func (impl UserServiceImpl) getRolefiltersForDevtronManaged(model *repository.Us
 	return roleFilters, nil
 }
 
-func (impl UserServiceImpl) CheckRoleForAppAdminAndManager(userId int32, token string) (bool, error) {
+func (impl UserServiceImpl) IsUserAdminOrManagerForAnyApp(userId int32, token string) (bool, error) {
 
 	isAuthorised := false
 

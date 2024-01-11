@@ -56,7 +56,7 @@ func (handler LockConfigRestHandlerImpl) GetLockConfig(w http.ResponseWriter, r 
 		return
 	}
 	token := r.Header.Get("token")
-	isAuthorised, err := handler.userService.CheckRoleForAppAdminAndManager(userId, token)
+	isAuthorised, err := handler.userService.IsUserAdminOrManagerForAnyApp(userId, token)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
