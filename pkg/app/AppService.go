@@ -118,17 +118,14 @@ type AppServiceImpl struct {
 	tokenCache                             *util3.TokenCache
 	acdAuthConfig                          *util3.ACDAuthConfig
 	enforcer                               casbin.Enforcer
-	enforcerUtil         rbac.EnforcerUtil
-	user                 user.UserService
-	appListingRepository repository.AppListingRepository
+	enforcerUtil                           rbac.EnforcerUtil
+	user                                   user.UserService
+	appListingRepository                   repository.AppListingRepository
 	appRepository                          app.AppRepository
 	envRepository                          repository2.EnvironmentRepository
 	pipelineConfigRepository               chartConfig.PipelineConfigRepository
 	configMapRepository                    chartConfig.ConfigMapRepository
 	chartRepository                        chartRepoRepository.ChartRepository
-	appRepo                                app.AppRepository
-	appLevelMetricsRepository              repository.AppLevelMetricsRepository
-	envLevelMetricsRepository              repository.EnvLevelAppMetricsRepository
 	ciPipelineMaterialRepository           pipelineConfig.CiPipelineMaterialRepository
 	cdWorkflowRepository                   pipelineConfig.CdWorkflowRepository
 	commonService                          commonService.CommonService
@@ -211,8 +208,6 @@ func NewAppService(
 	envRepository repository2.EnvironmentRepository,
 	pipelineConfigRepository chartConfig.PipelineConfigRepository,
 	configMapRepository chartConfig.ConfigMapRepository,
-	appLevelMetricsRepository repository.AppLevelMetricsRepository,
-	envLevelMetricsRepository repository.EnvLevelAppMetricsRepository,
 	chartRepository chartRepoRepository.ChartRepository,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
@@ -275,8 +270,6 @@ func NewAppService(
 		pipelineConfigRepository:               pipelineConfigRepository,
 		configMapRepository:                    configMapRepository,
 		chartRepository:                        chartRepository,
-		appLevelMetricsRepository:              appLevelMetricsRepository,
-		envLevelMetricsRepository:              envLevelMetricsRepository,
 		ciPipelineMaterialRepository:           ciPipelineMaterialRepository,
 		cdWorkflowRepository:                   cdWorkflowRepository,
 		commonService:                          commonService,

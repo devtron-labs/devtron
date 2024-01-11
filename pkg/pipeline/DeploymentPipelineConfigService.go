@@ -41,6 +41,7 @@ import (
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
@@ -135,7 +136,6 @@ type CdPipelineConfigServiceImpl struct {
 	resourceGroupService             resourceGroup2.ResourceGroupService
 	chartTemplateService             util.ChartTemplateService
 	propertiesConfigService          PropertiesConfigService
-	appLevelMetricsRepository        repository.AppLevelMetricsRepository
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
 	scopedVariableManager            variables.ScopedVariableManager
 	deploymentConfig                 *DeploymentServiceTypeConfig
@@ -146,6 +146,7 @@ type CdPipelineConfigServiceImpl struct {
 	ciPipelineConfigService          CiPipelineConfigService
 	buildPipelineSwitchService       BuildPipelineSwitchService
 	argoClientWrapperService         argocdServer.ArgoClientWrapperService
+	deployedAppMetricsService        deployedAppMetrics.DeployedAppMetricsService
 }
 
 func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepository pipelineConfig.PipelineRepository,
@@ -159,12 +160,13 @@ func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepositor
 	pipelineStrategyHistoryService history.PipelineStrategyHistoryService,
 	chartRepository chartRepoRepository.ChartRepository, resourceGroupService resourceGroup2.ResourceGroupService,
 	chartTemplateService util.ChartTemplateService, propertiesConfigService PropertiesConfigService,
-	appLevelMetricsRepository repository.AppLevelMetricsRepository, deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
+	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
 	scopedVariableManager variables.ScopedVariableManager, deploymentConfig *DeploymentServiceTypeConfig,
 	application application.ServiceClient, customTagService CustomTagService,
 	pipelineConfigListenerService PipelineConfigListenerService, devtronAppCMCSService DevtronAppCMCSService,
 	ciPipelineConfigService CiPipelineConfigService, buildPipelineSwitchService BuildPipelineSwitchService,
-	argoClientWrapperService argocdServer.ArgoClientWrapperService) *CdPipelineConfigServiceImpl {
+	argoClientWrapperService argocdServer.ArgoClientWrapperService,
+	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService) *CdPipelineConfigServiceImpl {
 	return &CdPipelineConfigServiceImpl{
 		logger:                           logger,
 		pipelineRepository:               pipelineRepository,
@@ -188,7 +190,6 @@ func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepositor
 		resourceGroupService:             resourceGroupService,
 		chartTemplateService:             chartTemplateService,
 		propertiesConfigService:          propertiesConfigService,
-		appLevelMetricsRepository:        appLevelMetricsRepository,
 		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
 		scopedVariableManager:            scopedVariableManager,
 		deploymentConfig:                 deploymentConfig,
@@ -199,6 +200,7 @@ func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepositor
 		ciPipelineConfigService:          ciPipelineConfigService,
 		buildPipelineSwitchService:       buildPipelineSwitchService,
 		argoClientWrapperService:         argoClientWrapperService,
+		deployedAppMetricsService:        deployedAppMetricsService,
 	}
 }
 
@@ -1733,12 +1735,12 @@ func (impl *CdPipelineConfigServiceImpl) createCdPipeline(ctx context.Context, a
 		}
 		//getting global app metrics for cd pipeline create because env level metrics is not created yet
 		appLevelAppMetricsEnabled := false
-		appLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(app.Id)
-		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Errorw("error in getting app level metrics app level", "error", err)
-		} else if err == nil {
-			appLevelAppMetricsEnabled = appLevelMetrics.AppMetrics
+		isAppLevelMetricsEnabled, err := impl.deployedAppMetricsService.GetMetricsFlagByAppIdEvenIfNotInDb(app.Id)
+		if err != nil {
+			impl.logger.Errorw("error, GetMetricsFlagByAppIdEvenIfNotInDb", "err", err, "appId", app.Id)
+			return 0, err
 		}
+		appLevelAppMetricsEnabled = isAppLevelMetricsEnabled
 		err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(envOverride, tx, appLevelAppMetricsEnabled, pipelineId)
 		if err != nil {
 			impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", envOverride)

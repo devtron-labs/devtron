@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	errors3 "errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"path"
 	"strconv"
 	"strings"
@@ -188,7 +189,6 @@ type WorkflowDagExecutorImpl struct {
 	helmAppClient                       client2.HelmAppClient
 	chartRefRepository                  chartRepoRepository.ChartRefRepository
 	environmentConfigRepository         chartConfig.EnvConfigOverrideRepository
-	appLevelMetricsRepository           repository.AppLevelMetricsRepository
 	envLevelMetricsRepository           repository.EnvLevelAppMetricsRepository
 	dbMigrationConfigRepository         pipelineConfig.DbMigrationConfigRepository
 	mergeUtil                           *util.MergeUtil
@@ -199,6 +199,7 @@ type WorkflowDagExecutorImpl struct {
 	pipelineConfigListenerService       PipelineConfigListenerService
 	customTagService                    CustomTagService
 	ACDConfig                           *argocdServer.ACDConfig
+	deployedAppMetricsService           deployedAppMetrics.DeployedAppMetricsService
 }
 
 const kedaAutoscaling = "kedaAutoscaling"
@@ -296,7 +297,6 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	helmAppClient client2.HelmAppClient,
 	chartRefRepository chartRepoRepository.ChartRefRepository,
 	environmentConfigRepository chartConfig.EnvConfigOverrideRepository,
-	appLevelMetricsRepository repository.AppLevelMetricsRepository,
 	envLevelMetricsRepository repository.EnvLevelAppMetricsRepository,
 	dbMigrationConfigRepository pipelineConfig.DbMigrationConfigRepository,
 	mergeUtil *util.MergeUtil,
@@ -307,7 +307,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	pipelineConfigListenerService PipelineConfigListenerService,
 	customTagService CustomTagService,
 	ACDConfig *argocdServer.ACDConfig,
-) *WorkflowDagExecutorImpl {
+	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
 		cdWorkflowRepository:          cdWorkflowRepository,
@@ -373,7 +373,6 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		helmAppClient:                       helmAppClient,
 		chartRefRepository:                  chartRefRepository,
 		environmentConfigRepository:         environmentConfigRepository,
-		appLevelMetricsRepository:           appLevelMetricsRepository,
 		envLevelMetricsRepository:           envLevelMetricsRepository,
 		dbMigrationConfigRepository:         dbMigrationConfigRepository,
 		mergeUtil:                           mergeUtil,
@@ -384,6 +383,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		pipelineConfigListenerService:       pipelineConfigListenerService,
 		customTagService:                    customTagService,
 		ACDConfig:                           ACDConfig,
+		deployedAppMetricsService:           deployedAppMetricsService,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -3810,14 +3810,12 @@ func (impl *WorkflowDagExecutorImpl) GetAppMetricsByTriggerType(overrideRequest 
 
 	} else if overrideRequest.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED {
 		_, span := otel.Tracer("orchestrator").Start(ctx, "appLevelMetricsRepository.FindByAppId")
-		appLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(overrideRequest.AppId)
-		span.End()
-		if err != nil && !util.IsErrNoRows(err) {
-			impl.logger.Errorw("err", err)
-			return appMetrics, &util.ApiError{InternalMessage: "unable to fetch app level metrics flag"}
+		isAppLevelMetricsEnabled, err := impl.deployedAppMetricsService.GetMetricsFlagByAppIdEvenIfNotInDb(overrideRequest.AppId)
+		if err != nil {
+			impl.logger.Errorw("error, GetMetricsFlagByAppIdEvenIfNotInDb", "err", err, "appId", overrideRequest.AppId)
+			return appMetrics, err
 		}
-		appMetrics = appLevelMetrics.AppMetrics
-
+		appMetrics = isAppLevelMetricsEnabled
 		_, span = otel.Tracer("orchestrator").Start(ctx, "envLevelMetricsRepository.FindByAppIdAndEnvId")
 		envLevelMetrics, err := impl.envLevelMetricsRepository.FindByAppIdAndEnvId(overrideRequest.AppId, overrideRequest.EnvId)
 		span.End()

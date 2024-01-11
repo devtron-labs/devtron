@@ -2,6 +2,7 @@ package history
 
 import (
 	"context"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"time"
 
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
@@ -40,10 +41,10 @@ type DeploymentTemplateHistoryServiceImpl struct {
 	chartRepository                     chartRepoRepository.ChartRepository
 	chartRefRepository                  chartRepoRepository.ChartRefRepository
 	envLevelAppMetricsRepository        repository2.EnvLevelAppMetricsRepository
-	appLevelMetricsRepository           repository2.AppLevelMetricsRepository
 	userService                         user.UserService
 	cdWorkflowRepository                pipelineConfig.CdWorkflowRepository
 	scopedVariableManager               variables.ScopedVariableManager
+	deployedAppMetricsService           deployedAppMetrics.DeployedAppMetricsService
 }
 
 func NewDeploymentTemplateHistoryServiceImpl(logger *zap.SugaredLogger, deploymentTemplateHistoryRepository repository.DeploymentTemplateHistoryRepository,
@@ -51,11 +52,10 @@ func NewDeploymentTemplateHistoryServiceImpl(logger *zap.SugaredLogger, deployme
 	chartRepository chartRepoRepository.ChartRepository,
 	chartRefRepository chartRepoRepository.ChartRefRepository,
 	envLevelAppMetricsRepository repository2.EnvLevelAppMetricsRepository,
-	appLevelMetricsRepository repository2.AppLevelMetricsRepository,
 	userService user.UserService,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	scopedVariableManager variables.ScopedVariableManager,
-) *DeploymentTemplateHistoryServiceImpl {
+	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService) *DeploymentTemplateHistoryServiceImpl {
 	return &DeploymentTemplateHistoryServiceImpl{
 		logger:                              logger,
 		deploymentTemplateHistoryRepository: deploymentTemplateHistoryRepository,
@@ -63,10 +63,10 @@ func NewDeploymentTemplateHistoryServiceImpl(logger *zap.SugaredLogger, deployme
 		chartRepository:                     chartRepository,
 		chartRefRepository:                  chartRefRepository,
 		envLevelAppMetricsRepository:        envLevelAppMetricsRepository,
-		appLevelMetricsRepository:           appLevelMetricsRepository,
 		userService:                         userService,
 		cdWorkflowRepository:                cdWorkflowRepository,
 		scopedVariableManager:               scopedVariableManager,
+		deployedAppMetricsService:           deployedAppMetricsService,
 	}
 }
 
@@ -214,13 +214,12 @@ func (impl DeploymentTemplateHistoryServiceImpl) CreateDeploymentTemplateHistory
 		impl.logger.Errorw("error in getting env level app metrics", "err", err, "appId", pipeline.AppId, "envId", pipeline.EnvironmentId)
 		return nil, err
 	} else if err == pg.ErrNoRows {
-		appLevelAppMetrics, err := impl.appLevelMetricsRepository.FindByAppId(pipeline.AppId)
-		if err != nil && err != pg.ErrNoRows {
+		isAppLevelMetricsEnabled, err := impl.deployedAppMetricsService.GetMetricsFlagByAppIdEvenIfNotInDb(pipeline.AppId)
+		if err != nil {
 			impl.logger.Errorw("error in getting app level app metrics", "err", err, "appId", pipeline.AppId)
 			return nil, err
-		} else if err == nil {
-			isAppMetricsEnabled = appLevelAppMetrics.AppMetrics
 		}
+		isAppMetricsEnabled = isAppLevelMetricsEnabled
 	} else {
 		isAppMetricsEnabled = *envLevelAppMetrics.AppMetrics
 	}

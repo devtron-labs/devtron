@@ -80,7 +80,6 @@ type DevtronAppDeploymentConfigRestHandler interface {
 	GetDeploymentPipelineStrategy(w http.ResponseWriter, r *http.Request)
 	GetDefaultDeploymentPipelineStrategy(w http.ResponseWriter, r *http.Request)
 
-	AppMetricsEnableDisable(w http.ResponseWriter, r *http.Request)
 	EnvMetricsEnableDisable(w http.ResponseWriter, r *http.Request)
 
 	EnvConfigOverrideCreateNamespace(w http.ResponseWriter, r *http.Request)
@@ -1698,49 +1697,6 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideReset(w http.Respo
 		return
 	}
 	common.WriteJsonResp(w, err, isSuccess, http.StatusOK)
-}
-
-func (handler PipelineConfigRestHandlerImpl) AppMetricsEnableDisable(w http.ResponseWriter, r *http.Request) {
-	decoder := json.NewDecoder(r.Body)
-	userId, err := handler.userAuthService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	token := r.Header.Get("token")
-	vars := mux.Vars(r)
-	appId, err := strconv.Atoi(vars["appId"])
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	var appMetricEnableDisableRequest chart.AppMetricEnableDisableRequest
-	err = decoder.Decode(&appMetricEnableDisableRequest)
-	appMetricEnableDisableRequest.AppId = appId
-	appMetricEnableDisableRequest.UserId = userId
-	if err != nil {
-		handler.Logger.Errorw("request err, AppMetricsEnableDisable", "err", err, "appId", appId, "payload", appMetricEnableDisableRequest)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	handler.Logger.Infow("request payload, AppMetricsEnableDisable", "err", err, "appId", appId, "payload", appMetricEnableDisableRequest)
-	app, err := handler.pipelineBuilder.GetApp(appId)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceName); !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-		return
-	}
-	createResp, err := handler.chartService.AppMetricsEnableDisable(appMetricEnableDisableRequest)
-	if err != nil {
-		handler.Logger.Errorw("service err, AppMetricsEnableDisable", "err", err, "appId", appId, "payload", appMetricEnableDisableRequest)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	common.WriteJsonResp(w, err, createResp, http.StatusOK)
 }
 
 func (handler PipelineConfigRestHandlerImpl) EnvMetricsEnableDisable(w http.ResponseWriter, r *http.Request) {

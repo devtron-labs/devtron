@@ -75,9 +75,9 @@ type CoreAppRestHandler interface {
 }
 
 type CoreAppRestHandlerImpl struct {
-	logger          *zap.SugaredLogger
-	userAuthService user.UserService
-	validator       *validator.Validate
+	logger                  *zap.SugaredLogger
+	userAuthService         user.UserService
+	validator               *validator.Validate
 	enforcerUtil            rbac.EnforcerUtil
 	enforcer                casbin.Enforcer
 	appCrudOperationService app.AppCrudOperationService
@@ -1391,19 +1391,6 @@ func (handler CoreAppRestHandlerImpl) createDeploymentTemplate(ctx context.Conte
 		handler.logger.Errorw("service err, Create in CreateDeploymentTemplate", "err", err, "createRequest", createDeploymentTemplateRequest)
 		return err, http.StatusInternalServerError
 	}
-
-	//updating app metrics
-	appMetricsRequest := chart.AppMetricEnableDisableRequest{
-		AppId:               appId,
-		UserId:              userId,
-		IsAppMetricsEnabled: deploymentTemplate.ShowAppMetrics,
-	}
-	_, err = handler.chartService.AppMetricsEnableDisable(appMetricsRequest)
-	if err != nil {
-		handler.logger.Errorw("service err, AppMetricsEnableDisable in createDeploymentTemplate", "err", err, "appId", appId, "payload", appMetricsRequest)
-		return err, http.StatusInternalServerError
-	}
-
 	return nil, http.StatusOK
 }
 

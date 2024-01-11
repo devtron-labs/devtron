@@ -97,6 +97,7 @@ import (
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/commonService"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	repository9 "github.com/devtron-labs/devtron/pkg/devtronResource/repository"
@@ -288,6 +289,9 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(variables.ScopedVariableCMCSManager), new(*variables.ScopedVariableCMCSManagerImpl)),
 
 		//end
+
+		deployedAppMetrics.NewDeployedAppMetricsServiceImpl,
+		wire.Bind(new(deployedAppMetrics.DeployedAppMetricsService), new(*deployedAppMetrics.DeployedAppMetricsServiceImpl)),
 
 		chart.NewChartServiceImpl,
 		wire.Bind(new(chart.ChartService), new(*chart.ChartServiceImpl)),
