@@ -934,36 +934,10 @@ func (handler PipelineConfigRestHandlerImpl) GetTemplateComparisonMetadata(w htt
 	// RBAC enforcer applying
 
 	if envId == -1 {
-		isAuthorised := false
-		//checking superAdmin access
-		isAuthorised, err = handler.userAuthService.IsSuperAdminForDevtronManaged(int(userId))
+		isAuthorised, err := handler.userAuthService.CheckRoleForAppAdminAndManager(userId, token)
 		if err != nil {
-			handler.Logger.Errorw("error in checking superAdmin access of user", "err", err)
-			common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
-		}
-		if !isAuthorised {
-			user, err := handler.userAuthService.GetRoleFiltersForAUserById(userId)
-			if err != nil {
-				handler.Logger.Errorw("error in getting user by id", "err", err)
-				common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
-				return
-			}
-			// ApplicationResource pe Create
-			var roleFilters []bean2.RoleFilter
-			if user.RoleFilters != nil && len(user.RoleFilters) > 0 {
-				roleFilters = append(roleFilters, user.RoleFilters...)
-			}
-			if len(roleFilters) > 0 {
-				resourceObjects := handler.enforcerUtil.GetProjectsOrAppAdminRBACNamesByAppNamesAndTeamNames(roleFilters)
-				resourceObjectsMap := handler.enforcer.EnforceInBatch(token, casbin.ResourceApplications, casbin.ActionCreate, resourceObjects)
-				for _, value := range resourceObjectsMap {
-					if value {
-						isAuthorised = true
-						break
-					}
-				}
-			}
 		}
 		if !isAuthorised {
 			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)

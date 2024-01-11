@@ -3,7 +3,6 @@ package lockConfiguation
 import (
 	"encoding/json"
 	"errors"
-	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/enterprise/pkg/lockConfiguration"
 	"github.com/devtron-labs/devtron/enterprise/pkg/lockConfiguration/bean"
@@ -57,42 +56,15 @@ func (handler LockConfigRestHandlerImpl) GetLockConfig(w http.ResponseWriter, r 
 		return
 	}
 	token := r.Header.Get("token")
-	isAuthorised := false
-	//checking superAdmin access
-	isAuthorised, err = handler.userService.IsSuperAdminForDevtronManaged(int(userId))
+	isAuthorised, err := handler.userService.CheckRoleForAppAdminAndManager(userId, token)
 	if err != nil {
-		handler.logger.Errorw("error in checking superAdmin access of user", "err", err)
-		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
-	}
-	if !isAuthorised {
-		user, err := handler.userService.GetRoleFiltersForAUserById(userId)
-		if err != nil {
-			handler.logger.Errorw("error in getting user by id", "err", err)
-			common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
-			return
-		}
-		// ApplicationResource pe Create
-		var roleFilters []bean2.RoleFilter
-		if user.RoleFilters != nil && len(user.RoleFilters) > 0 {
-			roleFilters = append(roleFilters, user.RoleFilters...)
-		}
-		if len(roleFilters) > 0 {
-			resourceObjects := handler.enforcerUtil.GetProjectsOrAppAdminRBACNamesByAppNamesAndTeamNames(roleFilters)
-			resourceObjectsMap := handler.enforcer.EnforceInBatch(token, casbin.ResourceApplications, casbin.ActionCreate, resourceObjects)
-			for _, value := range resourceObjectsMap {
-				if value {
-					isAuthorised = true
-					break
-				}
-			}
-		}
 	}
 	if !isAuthorised {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-
 	resp, err := handler.lockConfigurationService.GetLockConfiguration()
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

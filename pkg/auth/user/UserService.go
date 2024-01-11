@@ -20,6 +20,7 @@ package user
 import (
 	"context"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	auth "github.com/devtron-labs/devtron/pkg/auth/authorisation/globalConfig"
 	util3 "github.com/devtron-labs/devtron/pkg/auth/user/util"
 	"net/http"
@@ -75,6 +76,7 @@ type UserService interface {
 	GetApprovalUsersByEnv(appName, envName string) ([]string, error)
 	CheckForApproverAccess(appName, envName string, userId int32) bool
 	GetConfigApprovalUsersByEnv(appName, envName, team string) ([]string, error)
+	CheckRoleForAppAdminAndManager(userId int32, token string) (bool, error)
 }
 
 type UserServiceImpl struct {
@@ -92,6 +94,7 @@ type UserServiceImpl struct {
 	globalAuthorisationConfigService auth.GlobalAuthorisationConfigService
 	roleGroupService                 RoleGroupService
 	userGroupMapRepository           repository.UserGroupMapRepository
+	enforcer                         casbin.Enforcer
 }
 
 func NewUserServiceImpl(userAuthRepository repository.UserAuthRepository,
@@ -101,6 +104,7 @@ func NewUserServiceImpl(userAuthRepository repository.UserAuthRepository,
 	sessionManager2 *middleware.SessionManager, userCommonService UserCommonService, userAuditService UserAuditService,
 	globalAuthorisationConfigService auth.GlobalAuthorisationConfigService,
 	roleGroupService RoleGroupService, userGroupMapRepository repository.UserGroupMapRepository,
+	enforcer casbin.Enforcer,
 ) *UserServiceImpl {
 	serviceImpl := &UserServiceImpl{
 		userReqState:                     make(map[int32]bool),
@@ -114,6 +118,7 @@ func NewUserServiceImpl(userAuthRepository repository.UserAuthRepository,
 		globalAuthorisationConfigService: globalAuthorisationConfigService,
 		roleGroupService:                 roleGroupService,
 		userGroupMapRepository:           userGroupMapRepository,
+		enforcer:                         enforcer,
 	}
 	cStore = sessions.NewCookieStore(randKey())
 	return serviceImpl
@@ -1978,4 +1983,62 @@ func (impl UserServiceImpl) getRolefiltersForDevtronManaged(model *repository.Us
 		}
 	}
 	return roleFilters, nil
+}
+
+func (impl UserServiceImpl) CheckRoleForAppAdminAndManager(userId int32, token string) (bool, error) {
+
+	isAuthorised := false
+
+	//checking superAdmin access
+	isAuthorised, err := impl.IsSuperAdminForDevtronManaged(int(userId))
+	if err != nil {
+		impl.logger.Errorw("error in checking superAdmin access of user", "err", err)
+		return false, err
+	}
+	if !isAuthorised {
+		user, err := impl.GetRoleFiltersForAUserById(userId)
+		if err != nil {
+			impl.logger.Errorw("error in getting user by id", "err", err)
+			return false, err
+		}
+		// ApplicationResource pe Create
+		var roleFilters []bean.RoleFilter
+		if user.RoleFilters != nil && len(user.RoleFilters) > 0 {
+			roleFilters = append(roleFilters, user.RoleFilters...)
+		}
+		if len(roleFilters) > 0 {
+			resourceObjects := impl.getProjectsOrAppAdminRBACNamesByAppNamesAndTeamNames(roleFilters)
+			resourceObjectsMap := impl.enforcer.EnforceInBatch(token, casbin.ResourceApplications, casbin.ActionCreate, resourceObjects)
+			for _, value := range resourceObjectsMap {
+				if value {
+					isAuthorised = true
+					break
+				}
+			}
+		}
+	}
+	return isAuthorised, nil
+}
+
+func (impl UserServiceImpl) getProjectOrAppAdminRBACNameByAppNameAndTeamName(appName, teamName string) string {
+	if appName == "" {
+		return fmt.Sprintf("%s/%s", teamName, "*")
+	}
+	return fmt.Sprintf("%s/%s", teamName, appName)
+}
+
+func (impl UserServiceImpl) getProjectsOrAppAdminRBACNamesByAppNamesAndTeamNames(roleFilters []bean.RoleFilter) []string {
+	var vals []string
+	for _, filter := range roleFilters {
+		if len(filter.Team) > 0 {
+			entityNames := strings.Split(filter.EntityName, ",")
+			if len(entityNames) > 0 {
+				for _, val := range entityNames {
+					resourceName := impl.getProjectOrAppAdminRBACNameByAppNameAndTeamName(val, filter.Team)
+					vals = append(vals, resourceName)
+				}
+			}
+		}
+	}
+	return vals
 }

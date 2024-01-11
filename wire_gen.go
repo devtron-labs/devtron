@@ -29,7 +29,7 @@ import (
 	devtronResource2 "github.com/devtron-labs/devtron/api/devtronResource"
 	externalLink2 "github.com/devtron-labs/devtron/api/externalLink"
 	globalPolicy2 "github.com/devtron-labs/devtron/api/globalPolicy"
-	client3 "github.com/devtron-labs/devtron/api/helm-app"
+	client4 "github.com/devtron-labs/devtron/api/helm-app"
 	application3 "github.com/devtron-labs/devtron/api/k8s/application"
 	capacity2 "github.com/devtron-labs/devtron/api/k8s/capacity"
 	module2 "github.com/devtron-labs/devtron/api/module"
@@ -105,7 +105,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/auth/authentication"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
-	client4 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin/client"
+	client3 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin/client"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/globalConfig"
 	repository5 "github.com/devtron-labs/devtron/pkg/auth/authorisation/globalConfig/repository"
 	"github.com/devtron-labs/devtron/pkg/auth/sso"
@@ -280,13 +280,25 @@ func InitializeApp() (*App, error) {
 	userAuditServiceImpl := user.NewUserAuditServiceImpl(sugaredLogger, userAuditRepositoryImpl)
 	roleGroupServiceImpl := user.NewRoleGroupServiceImpl(userAuthRepositoryImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, userCommonServiceImpl)
 	userGroupMapRepositoryImpl := repository4.NewUserGroupMapRepositoryImpl(db, sugaredLogger)
-	userServiceImpl := user.NewUserServiceImpl(userAuthRepositoryImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, sessionManager, userCommonServiceImpl, userAuditServiceImpl, globalAuthorisationConfigServiceImpl, roleGroupServiceImpl, userGroupMapRepositoryImpl)
-	clusterServiceImplExtended := cluster2.NewClusterServiceImplExtended(clusterRepositoryImpl, environmentRepositoryImpl, grafanaClientImpl, sugaredLogger, installedAppRepositoryImpl, k8sUtil, serviceClientImpl, k8sInformerFactoryImpl, gitOpsConfigRepositoryImpl, userAuthRepositoryImpl, userRepositoryImpl, roleGroupRepositoryImpl, sshTunnelWrapperServiceImpl, globalAuthorisationConfigServiceImpl, userServiceImpl)
-	helmClientConfig, err := client3.GetConfig()
+	syncedEnforcer := casbin.Create()
+	casbinSyncedEnforcer := casbin.CreateV2()
+	casbinClientConfig, err := client3.GetConfig()
 	if err != nil {
 		return nil, err
 	}
-	helmAppClientImpl := client3.NewHelmAppClientImpl(sugaredLogger, helmClientConfig)
+	casbinClientImpl := client3.NewCasbinClientImpl(sugaredLogger, casbinClientConfig)
+	casbinServiceImpl := casbin.NewCasbinServiceImpl(sugaredLogger, casbinClientImpl)
+	enterpriseEnforcerImpl, err := casbin.NewEnterpriseEnforcerImpl(syncedEnforcer, casbinSyncedEnforcer, sessionManager, sugaredLogger, casbinServiceImpl, globalAuthorisationConfigServiceImpl)
+	if err != nil {
+		return nil, err
+	}
+	userServiceImpl := user.NewUserServiceImpl(userAuthRepositoryImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, sessionManager, userCommonServiceImpl, userAuditServiceImpl, globalAuthorisationConfigServiceImpl, roleGroupServiceImpl, userGroupMapRepositoryImpl, enterpriseEnforcerImpl)
+	clusterServiceImplExtended := cluster2.NewClusterServiceImplExtended(clusterRepositoryImpl, environmentRepositoryImpl, grafanaClientImpl, sugaredLogger, installedAppRepositoryImpl, k8sUtil, serviceClientImpl, k8sInformerFactoryImpl, gitOpsConfigRepositoryImpl, userAuthRepositoryImpl, userRepositoryImpl, roleGroupRepositoryImpl, sshTunnelWrapperServiceImpl, globalAuthorisationConfigServiceImpl, userServiceImpl)
+	helmClientConfig, err := client4.GetConfig()
+	if err != nil {
+		return nil, err
+	}
+	helmAppClientImpl := client4.NewHelmAppClientImpl(sugaredLogger, helmClientConfig)
 	pumpImpl := connector.NewPumpImpl(sugaredLogger)
 	teamRepositoryImpl := team.NewTeamRepositoryImpl(db)
 	appRepositoryImpl := app.NewAppRepositoryImpl(db, sugaredLogger)
@@ -296,11 +308,11 @@ func InitializeApp() (*App, error) {
 	loginService := middleware.NewUserLogin(sessionManager, k8sClient)
 	userAuthServiceImpl := user.NewUserAuthServiceImpl(userAuthRepositoryImpl, sessionManager, loginService, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, userServiceImpl)
 	environmentServiceImpl := cluster2.NewEnvironmentServiceImpl(environmentRepositoryImpl, clusterServiceImplExtended, sugaredLogger, k8sUtil, k8sInformerFactoryImpl, userAuthServiceImpl, attributesRepositoryImpl)
-	helmReleaseConfig, err := client3.GetHelmReleaseConfig()
+	helmReleaseConfig, err := client4.GetHelmReleaseConfig()
 	if err != nil {
 		return nil, err
 	}
-	helmAppServiceImpl := client3.NewHelmAppServiceImpl(sugaredLogger, clusterServiceImplExtended, helmAppClientImpl, pumpImpl, enforcerUtilHelmImpl, serverDataStoreServerDataStore, serverEnvConfigServerEnvConfig, appStoreApplicationVersionRepositoryImpl, environmentServiceImpl, pipelineRepositoryImpl, installedAppRepositoryImpl, appRepositoryImpl, clusterRepositoryImpl, k8sUtil, helmReleaseConfig)
+	helmAppServiceImpl := client4.NewHelmAppServiceImpl(sugaredLogger, clusterServiceImplExtended, helmAppClientImpl, pumpImpl, enforcerUtilHelmImpl, serverDataStoreServerDataStore, serverEnvConfigServerEnvConfig, appStoreApplicationVersionRepositoryImpl, environmentServiceImpl, pipelineRepositoryImpl, installedAppRepositoryImpl, appRepositoryImpl, clusterRepositoryImpl, k8sUtil, helmReleaseConfig)
 	serverCacheServiceImpl := server.NewServerCacheServiceImpl(sugaredLogger, serverEnvConfigServerEnvConfig, serverDataStoreServerDataStore, helmAppServiceImpl)
 	moduleEnvConfig, err := module.ParseModuleEnvConfig()
 	if err != nil {
@@ -332,18 +344,6 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	tokenCache := util2.NewTokenCache(sugaredLogger, acdAuthConfig, userAuthServiceImpl)
-	syncedEnforcer := casbin.Create()
-	casbinSyncedEnforcer := casbin.CreateV2()
-	casbinClientConfig, err := client4.GetConfig()
-	if err != nil {
-		return nil, err
-	}
-	casbinClientImpl := client4.NewCasbinClientImpl(sugaredLogger, casbinClientConfig)
-	casbinServiceImpl := casbin.NewCasbinServiceImpl(sugaredLogger, casbinClientImpl)
-	enterpriseEnforcerImpl, err := casbin.NewEnterpriseEnforcerImpl(syncedEnforcer, casbinSyncedEnforcer, sessionManager, sugaredLogger, casbinServiceImpl, globalAuthorisationConfigServiceImpl)
-	if err != nil {
-		return nil, err
-	}
 	enforcerUtilImpl := rbac.NewEnforcerUtilImpl(sugaredLogger, teamRepositoryImpl, appRepositoryImpl, environmentRepositoryImpl, pipelineRepositoryImpl, ciPipelineRepositoryImpl, clusterRepositoryImpl, enterpriseEnforcerImpl)
 	appListingRepositoryQueryBuilder := helper.NewAppListingRepositoryQueryBuilder(sugaredLogger)
 	appListingRepositoryImpl := repository.NewAppListingRepositoryImpl(sugaredLogger, db, appListingRepositoryQueryBuilder, environmentRepositoryImpl)
@@ -818,8 +818,8 @@ func InitializeApp() (*App, error) {
 	appRouterImpl := router.NewAppRouterImpl(sugaredLogger, appRestHandlerImpl)
 	coreAppRestHandlerImpl := restHandler.NewCoreAppRestHandlerImpl(sugaredLogger, userServiceImpl, validate, enforcerUtilImpl, enterpriseEnforcerImpl, appCrudOperationServiceEnterpriseImpl, pipelineBuilderImpl, gitRegistryConfigImpl, chartServiceImpl, configMapServiceImpl, appListingServiceImpl, propertiesConfigServiceImpl, appWorkflowServiceImpl, materialRepositoryImpl, gitProviderRepositoryImpl, appWorkflowRepositoryImpl, environmentRepositoryImpl, configMapRepositoryImpl, envConfigOverrideRepositoryImpl, chartRepositoryImpl, teamServiceImpl, argoUserServiceImpl, pipelineStageServiceImpl, ciPipelineRepositoryImpl)
 	coreAppRouterImpl := router.NewCoreAppRouterImpl(coreAppRestHandlerImpl)
-	helmAppRestHandlerImpl := client3.NewHelmAppRestHandlerImpl(sugaredLogger, helmAppServiceImpl, enterpriseEnforcerImpl, clusterServiceImplExtended, enforcerUtilHelmImpl, appStoreDeploymentCommonServiceImpl, userServiceImpl, attributesServiceImpl, serverEnvConfigServerEnvConfig)
-	helmAppRouterImpl := client3.NewHelmAppRouterImpl(helmAppRestHandlerImpl)
+	helmAppRestHandlerImpl := client4.NewHelmAppRestHandlerImpl(sugaredLogger, helmAppServiceImpl, enterpriseEnforcerImpl, clusterServiceImplExtended, enforcerUtilHelmImpl, appStoreDeploymentCommonServiceImpl, userServiceImpl, attributesServiceImpl, serverEnvConfigServerEnvConfig)
+	helmAppRouterImpl := client4.NewHelmAppRouterImpl(helmAppRestHandlerImpl)
 	k8sApplicationRestHandlerImpl := application3.NewK8sApplicationRestHandlerImpl(sugaredLogger, k8sApplicationServiceImpl, pumpImpl, terminalSessionHandlerImpl, enterpriseEnforcerImpl, enforcerUtilHelmImpl, enforcerUtilImpl, helmAppServiceImpl, userServiceImpl, k8sCommonServiceImpl, validate)
 	k8sApplicationRouterImpl := application3.NewK8sApplicationRouterImpl(k8sApplicationRestHandlerImpl)
 	pProfRestHandlerImpl := restHandler.NewPProfRestHandler(userServiceImpl, enterpriseEnforcerImpl)
