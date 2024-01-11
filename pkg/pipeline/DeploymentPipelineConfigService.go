@@ -154,7 +154,7 @@ type CdPipelineConfigServiceImpl struct {
 	customTagService                   CustomTagService
 	ciPipelineConfigService            CiPipelineConfigService
 	buildPipelineSwitchService         BuildPipelineSwitchService
-	imageDigestQualifierMappingService imageDigestPolicy.ImageDigestQualifierMappingService
+	imageDigestPolicyService imageDigestPolicy.ImageDigestPolicyService
 
 	devtronResourceService devtronResource.DevtronResourceService
 }
@@ -195,7 +195,7 @@ func NewCdPipelineConfigServiceImpl(
 	ciPipelineConfigService CiPipelineConfigService,
 	buildPipelineSwitchService BuildPipelineSwitchService,
 	devtronResourceService devtronResource.DevtronResourceService,
-	imageDigestQualifierMappingService imageDigestPolicy.ImageDigestQualifierMappingService) *CdPipelineConfigServiceImpl {
+	imageDigestPolicyService imageDigestPolicy.ImageDigestPolicyService) *CdPipelineConfigServiceImpl {
 	return &CdPipelineConfigServiceImpl{
 		logger:                             logger,
 		pipelineRepository:                 pipelineRepository,
@@ -232,7 +232,7 @@ func NewCdPipelineConfigServiceImpl(
 		customTagService:                   customTagService,
 		buildPipelineSwitchService:         buildPipelineSwitchService,
 		devtronResourceService:             devtronResourceService,
-		imageDigestQualifierMappingService: imageDigestQualifierMappingService,
+		imageDigestPolicyService: imageDigestPolicyService,
 	}
 }
 
@@ -496,24 +496,6 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 				}
 			}
 		}
-
-		isImageDigestPolicyConfiguredAtGlobalLevel, err :=
-			impl.imageDigestQualifierMappingService.IsPolicyConfiguredAtGlobalLevel(pipeline.EnvironmentId, 0)
-		if err != nil {
-			impl.logger.Errorw("error in checking if image digest policy is configured or not", "err", err)
-			return nil, err
-		}
-
-		if !isImageDigestPolicyConfiguredAtGlobalLevel {
-			err = impl.imageDigestQualifierMappingService.CreateOrDeletePolicyForPipeline(pipeline.Id, pipeline.IsDigestEnforcedForPipeline, pipelineCreateRequest.UserId)
-			if err != nil {
-				impl.logger.Errorw("error in imageDigestOperations while creating CD pipeline", "err", err)
-				return nil, err
-			}
-		} else {
-			impl.logger.Debugw("Image digest policy is enforced at global level, so skipping pipeline level operations")
-		}
-
 	}
 	return pipelineCreateRequest, nil
 }
@@ -901,7 +883,7 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 			impl.logger.Errorw("error in deleting custom tag for pre-cd stage", "Err", err, "cd-pipeline-id", pipeline.Id)
 		}
 	}
-	err = impl.imageDigestQualifierMappingService.CreateOrDeletePolicyForPipeline(pipeline.Id, false, userId)
+	err = impl.imageDigestPolicyService.CreateOrDeletePolicyForPipeline(pipeline.Id, false, userId, tx)
 	if err != nil {
 		impl.logger.Errorw("error in imageDigestPolicy operation", "err", err, "pipelineId", pipeline.Id)
 		return nil, err
@@ -1143,7 +1125,7 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesForApp(appId int) (cdPipe
 			customTagEnabled = customTagPostCD.Enabled
 		}
 
-		isImageDigestPolicyConfiguredForPipeline, err := impl.imageDigestQualifierMappingService.IsPolicyConfiguredForPipeline(dbPipeline.Id)
+		isImageDigestPolicyConfiguredForPipeline, err := impl.imageDigestPolicyService.IsPolicyConfiguredForPipeline(dbPipeline.Id)
 		if err != nil {
 			impl.logger.Errorw("error in checking if isImageDigestPolicyConfiguredForPipeline", "err", err)
 			return nil, err
@@ -2048,6 +2030,11 @@ func (impl *CdPipelineConfigServiceImpl) createCdPipeline(ctx context.Context, a
 	if err != nil {
 		return pipelineId, err
 	}
+	err = impl.imageDigestPolicyService.CreateOrDeletePolicyForPipeline(pipeline.Id, pipeline.IsDigestEnforcedForPipeline, userId, tx)
+	if err != nil {
+		impl.logger.Errorw("error in imageDigestOperations while creating CD pipeline", "err", err)
+		return pipelineId, err
+	}
 	err = tx.Commit()
 	if err != nil {
 		return 0, err
@@ -2286,13 +2273,13 @@ func (impl *CdPipelineConfigServiceImpl) updateCdPipeline(ctx context.Context, a
 	}
 
 	isImageDigestPolicyConfiguredAtGlobalLevel, err :=
-		impl.imageDigestQualifierMappingService.IsPolicyConfiguredAtGlobalLevel(pipeline.EnvironmentId, 0)
+		impl.imageDigestPolicyService.IsPolicyConfiguredAtGlobalLevel(pipeline.EnvironmentId, 0)
 	if err != nil {
 		impl.logger.Errorw("error in checking if image digest policy is configured or not", "err", err)
 		return err
 	}
 	if !isImageDigestPolicyConfiguredAtGlobalLevel {
-		err = impl.imageDigestQualifierMappingService.CreateOrDeletePolicyForPipeline(pipeline.Id, pipeline.IsDigestEnforcedForPipeline, userID)
+		err = impl.imageDigestPolicyService.CreateOrDeletePolicyForPipeline(pipeline.Id, pipeline.IsDigestEnforcedForPipeline, userID, tx)
 		if err != nil {
 			impl.logger.Errorw("error in imageDigestPolicy operations for CD pipeline", "err", err, "pipelineId", pipeline.Id)
 			return err

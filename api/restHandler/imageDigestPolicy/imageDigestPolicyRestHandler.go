@@ -23,7 +23,7 @@ type ImageDigestPolicyRestHandlerImpl struct {
 	enforcerUtil             rbac.EnforcerUtil
 	enforcer                 casbin.Enforcer
 	validator                *validator.Validate
-	imageDigestPolicyService imageDigestPolicy.ImageDigestQualifierMappingService
+	imageDigestPolicyService imageDigestPolicy.ImageDigestPolicyService
 }
 
 func NewImageDigestPolicyRestHandlerImpl(logger *zap.SugaredLogger,
@@ -31,7 +31,7 @@ func NewImageDigestPolicyRestHandlerImpl(logger *zap.SugaredLogger,
 	enforcerUtil rbac.EnforcerUtil,
 	enforcer casbin.Enforcer,
 	validator *validator.Validate,
-	imageDigestPolicyService imageDigestPolicy.ImageDigestQualifierMappingService) *ImageDigestPolicyRestHandlerImpl {
+	imageDigestPolicyService imageDigestPolicy.ImageDigestPolicyService) *ImageDigestPolicyRestHandlerImpl {
 	return &ImageDigestPolicyRestHandlerImpl{
 		logger:                   logger,
 		userAuthService:          userAuthService,
