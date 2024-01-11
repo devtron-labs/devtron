@@ -27,9 +27,9 @@ import (
 	util2 "github.com/devtron-labs/common-lib-private/utils/k8s"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/attributes"
-	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
+	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
 	"github.com/devtron-labs/devtron/pkg/k8s/informer"
 
 	"github.com/devtron-labs/devtron/internal/util"
@@ -333,7 +333,7 @@ func (impl EnvironmentServiceImpl) FindById(id int) (*EnvironmentBean, error) {
 
 	/*clusterBean := &ClusterBean{
 		id:model.Cluster.id,
-		ClusterId: model.Cluster.ClusterId,
+		ClusterName: model.Cluster.ClusterName,
 		Active:model.Cluster.Active,
 	}*/
 	return bean, nil
