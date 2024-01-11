@@ -4897,13 +4897,23 @@ func (impl *WorkflowDagExecutorImpl) getReleaseOverride(envOverride *chartConfig
 		deploymentStrategy = string(strategy.Strategy)
 	}
 
-	isDigestPolicyConfiguredForPipeline, err := impl.imageDigestPolicyService.IsPolicyConfiguredForPipeline(overrideRequest.PipelineId)
+	isImageDigestPolicyConfiguredAtGlobalLevel, err :=
+		impl.imageDigestPolicyService.IsPolicyConfiguredAtGlobalLevel(envOverride.TargetEnvironment, envOverride.Environment.ClusterId)
 	if err != nil {
-		impl.logger.Errorw("Error in checking if isDigestPolicyConfiguredForPipeline", "err", err)
-		return "", nil
+		impl.logger.Errorw("error in checking if image digest policy is configured or not", "err", err)
+		return "", err
 	}
 
-	if isDigestPolicyConfiguredForPipeline {
+	var isDigestPolicyConfiguredForPipeline bool
+	if !isImageDigestPolicyConfiguredAtGlobalLevel {
+		isDigestPolicyConfiguredForPipeline, err = impl.imageDigestPolicyService.IsPolicyConfiguredForPipeline(overrideRequest.PipelineId)
+		if err != nil {
+			impl.logger.Errorw("Error in checking if isDigestPolicyConfiguredForPipeline", "err", err)
+			return "", nil
+		}
+	}
+
+	if isImageDigestPolicyConfiguredAtGlobalLevel || isDigestPolicyConfiguredForPipeline {
 		imageTag[imageTagLen-1] = fmt.Sprintf("%s@%s", imageTag[imageTagLen-1], artifact.ImageDigest)
 	}
 

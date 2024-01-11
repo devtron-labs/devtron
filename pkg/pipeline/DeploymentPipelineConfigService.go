@@ -150,11 +150,11 @@ type CdPipelineConfigServiceImpl struct {
 	manifestPushConfigRepository     repository5.ManifestPushConfigRepository
 	pipelineConfigListenerService    PipelineConfigListenerService
 
-	devtronAppCMCSService              DevtronAppCMCSService
-	customTagService                   CustomTagService
-	ciPipelineConfigService            CiPipelineConfigService
-	buildPipelineSwitchService         BuildPipelineSwitchService
-	imageDigestPolicyService imageDigestPolicy.ImageDigestPolicyService
+	devtronAppCMCSService      DevtronAppCMCSService
+	customTagService           CustomTagService
+	ciPipelineConfigService    CiPipelineConfigService
+	buildPipelineSwitchService BuildPipelineSwitchService
+	imageDigestPolicyService   imageDigestPolicy.ImageDigestPolicyService
 
 	devtronResourceService devtronResource.DevtronResourceService
 }
@@ -197,42 +197,42 @@ func NewCdPipelineConfigServiceImpl(
 	devtronResourceService devtronResource.DevtronResourceService,
 	imageDigestPolicyService imageDigestPolicy.ImageDigestPolicyService) *CdPipelineConfigServiceImpl {
 	return &CdPipelineConfigServiceImpl{
-		logger:                             logger,
-		pipelineRepository:                 pipelineRepository,
-		environmentRepository:              environmentRepository,
-		pipelineConfigRepository:           pipelineConfigRepository,
-		appWorkflowRepository:              appWorkflowRepository,
-		pipelineStageService:               pipelineStageService,
-		appRepo:                            appRepo,
-		appService:                         appService,
-		deploymentGroupRepository:          deploymentGroupRepository,
-		ciCdPipelineOrchestrator:           ciCdPipelineOrchestrator,
-		appStatusRepository:                appStatusRepository,
-		ciPipelineRepository:               ciPipelineRepository,
-		prePostCdScriptHistoryService:      prePostCdScriptHistoryService,
-		clusterRepository:                  clusterRepository,
-		helmAppService:                     helmAppService,
-		enforcerUtil:                       enforcerUtil,
-		gitOpsRepository:                   gitOpsRepository,
-		pipelineStrategyHistoryService:     pipelineStrategyHistoryService,
-		chartRepository:                    chartRepository,
-		resourceGroupService:               resourceGroupService,
-		chartDeploymentService:             chartDeploymentService,
-		chartTemplateService:               chartTemplateService,
-		propertiesConfigService:            propertiesConfigService,
-		appLevelMetricsRepository:          appLevelMetricsRepository,
-		deploymentTemplateHistoryService:   deploymentTemplateHistoryService,
-		scopedVariableManager:              scopedVariableManager,
-		deploymentConfig:                   deploymentConfig,
-		application:                        application,
-		manifestPushConfigRepository:       manifestPushConfigRepository,
-		pipelineConfigListenerService:      pipelineConfigListenerService,
-		devtronAppCMCSService:              devtronAppCMCSService,
-		ciPipelineConfigService:            ciPipelineConfigService,
-		customTagService:                   customTagService,
-		buildPipelineSwitchService:         buildPipelineSwitchService,
-		devtronResourceService:             devtronResourceService,
-		imageDigestPolicyService: imageDigestPolicyService,
+		logger:                           logger,
+		pipelineRepository:               pipelineRepository,
+		environmentRepository:            environmentRepository,
+		pipelineConfigRepository:         pipelineConfigRepository,
+		appWorkflowRepository:            appWorkflowRepository,
+		pipelineStageService:             pipelineStageService,
+		appRepo:                          appRepo,
+		appService:                       appService,
+		deploymentGroupRepository:        deploymentGroupRepository,
+		ciCdPipelineOrchestrator:         ciCdPipelineOrchestrator,
+		appStatusRepository:              appStatusRepository,
+		ciPipelineRepository:             ciPipelineRepository,
+		prePostCdScriptHistoryService:    prePostCdScriptHistoryService,
+		clusterRepository:                clusterRepository,
+		helmAppService:                   helmAppService,
+		enforcerUtil:                     enforcerUtil,
+		gitOpsRepository:                 gitOpsRepository,
+		pipelineStrategyHistoryService:   pipelineStrategyHistoryService,
+		chartRepository:                  chartRepository,
+		resourceGroupService:             resourceGroupService,
+		chartDeploymentService:           chartDeploymentService,
+		chartTemplateService:             chartTemplateService,
+		propertiesConfigService:          propertiesConfigService,
+		appLevelMetricsRepository:        appLevelMetricsRepository,
+		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
+		scopedVariableManager:            scopedVariableManager,
+		deploymentConfig:                 deploymentConfig,
+		application:                      application,
+		manifestPushConfigRepository:     manifestPushConfigRepository,
+		pipelineConfigListenerService:    pipelineConfigListenerService,
+		devtronAppCMCSService:            devtronAppCMCSService,
+		ciPipelineConfigService:          ciPipelineConfigService,
+		customTagService:                 customTagService,
+		buildPipelineSwitchService:       buildPipelineSwitchService,
+		devtronResourceService:           devtronResourceService,
+		imageDigestPolicyService:         imageDigestPolicyService,
 	}
 }
 
@@ -1130,7 +1130,13 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesForApp(appId int) (cdPipe
 			impl.logger.Errorw("error in checking if isImageDigestPolicyConfiguredForPipeline", "err", err)
 			return nil, err
 		}
-		IsDigestEnforcedForEnv := false // will always be false in oss, in ent this will be configured at global configurations
+
+		IsDigestEnforcedForEnv, err :=
+			impl.imageDigestPolicyService.IsPolicyConfiguredAtGlobalLevel(environment.Id, environment.ClusterId)
+		if err != nil {
+			impl.logger.Errorw("error in checking if image digest policy is configured or not", "err", err)
+			return nil, err
+		}
 
 		pipeline := &bean.CDPipelineConfigObject{
 			Id:                            dbPipeline.Id,
@@ -2030,10 +2036,21 @@ func (impl *CdPipelineConfigServiceImpl) createCdPipeline(ctx context.Context, a
 	if err != nil {
 		return pipelineId, err
 	}
-	err = impl.imageDigestPolicyService.CreateOrDeletePolicyForPipeline(pipeline.Id, pipeline.IsDigestEnforcedForPipeline, userId, tx)
+
+	isImageDigestPolicyConfiguredAtGlobalLevel, err :=
+		impl.imageDigestPolicyService.IsPolicyConfiguredAtGlobalLevel(pipeline.EnvironmentId, 0)
 	if err != nil {
-		impl.logger.Errorw("error in imageDigestOperations while creating CD pipeline", "err", err)
+		impl.logger.Errorw("error in checking if image digest policy is configured or not", "err", err)
 		return pipelineId, err
+	}
+	if !isImageDigestPolicyConfiguredAtGlobalLevel {
+		err = impl.imageDigestPolicyService.CreateOrDeletePolicyForPipeline(pipeline.Id, pipeline.IsDigestEnforcedForPipeline, userId, tx)
+		if err != nil {
+			impl.logger.Errorw("error in imageDigestPolicy operations for CD pipeline", "err", err, "pipelineId", pipeline.Id)
+			return pipelineId, err
+		}
+	} else {
+		impl.logger.Debugw("Image digest policy is enforced at global level, so skipping pipeline level operations")
 	}
 	err = tx.Commit()
 	if err != nil {

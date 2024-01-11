@@ -25,8 +25,8 @@ type ImageDigestPolicyService interface {
 	//IsPolicyConfiguredAtGlobalLevel for env or cluster or for all clusters
 	IsPolicyConfiguredAtGlobalLevel(envId int, clusterId int) (bool, error)
 
-	//GetAllConfiguredPolicies get all cluster and environment configured for pull using image digest
-	GetAllConfiguredPolicies() (*PolicyRequest, error)
+	//GetAllConfiguredGlobalPolicies get all cluster and environment configured for pull using image digest
+	GetAllConfiguredGlobalPolicies() (*PolicyRequest, error)
 }
 
 type ImageDigestPolicyServiceImpl struct {
@@ -54,13 +54,13 @@ func (impl ImageDigestPolicyServiceImpl) CreateOrDeletePolicyForPipeline(pipelin
 
 	devtronResourceSearchableKeyMap := impl.devtronResourceSearchableKey.GetAllSearchableKeyNameIdMap()
 
-	qualifierMappings, err := impl.getQualifierMappingForPipeline(pipelineId)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in fetching qualifier mappings for resourceType: imageDigest by pipelineId", "pipelineId", pipelineId)
+	isDigestPolicyConfiguredForPipeline, err := impl.IsPolicyConfiguredForPipeline(pipelineId)
+	if err != nil {
+		impl.logger.Errorw("Error in checking if isDigestPolicyConfiguredForPipeline", "err", err)
 		return err
 	}
 
-	if len(qualifierMappings) == 0 && isImageDigestEnforcedForPipeline {
+	if !isDigestPolicyConfiguredForPipeline && isImageDigestEnforcedForPipeline {
 
 		qualifierMapping := &resourceQualifiers.QualifierMapping{
 			ResourceId:            resourceQualifiers.ImageDigestResourceId,
@@ -83,7 +83,7 @@ func (impl ImageDigestPolicyServiceImpl) CreateOrDeletePolicyForPipeline(pipelin
 			return err
 		}
 
-	} else if !isImageDigestEnforcedForPipeline && len(qualifierMappings) > 0 {
+	} else if isDigestPolicyConfiguredForPipeline && !isImageDigestEnforcedForPipeline {
 		auditLog := sql.AuditLog{
 			CreatedOn: time.Now(),
 			CreatedBy: UserId,
@@ -100,9 +100,10 @@ func (impl ImageDigestPolicyServiceImpl) CreateOrDeletePolicyForPipeline(pipelin
 }
 
 func (impl ImageDigestPolicyServiceImpl) IsPolicyConfiguredForPipeline(pipelineId int) (bool, error) {
-	qualifierMappings, err := impl.getQualifierMappingForPipeline(pipelineId)
+	scope := &resourceQualifiers.Scope{PipelineId: pipelineId}
+	resourceIds := []int{resourceQualifiers.ImageDigestResourceId}
+	qualifierMappings, err := impl.qualifierMappingService.GetQualifierMappings(resourceQualifiers.ImageDigest, scope, resourceIds)
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in fetching qualifier mappings for resourceType: imageDigest by pipelineId", "pipelineId", pipelineId)
 		return false, err
 	}
 	if err == pg.ErrNoRows || len(qualifierMappings) == 0 {
@@ -111,17 +112,7 @@ func (impl ImageDigestPolicyServiceImpl) IsPolicyConfiguredForPipeline(pipelineI
 	return true, nil
 }
 
-func (impl ImageDigestPolicyServiceImpl) getQualifierMappingForPipeline(pipelineId int) ([]*resourceQualifiers.QualifierMapping, error) {
-	scope := &resourceQualifiers.Scope{PipelineId: pipelineId}
-	resourceIds := []int{resourceQualifiers.ImageDigestResourceId}
-	qualifierMappings, err := impl.qualifierMappingService.GetQualifierMappings(resourceQualifiers.ImageDigest, scope, resourceIds)
-	if err != nil && err != pg.ErrNoRows {
-		return qualifierMappings, err
-	}
-	return qualifierMappings, err
-}
-
-func (impl ImageDigestPolicyServiceImpl) GetAllConfiguredPolicies() (*PolicyRequest, error) {
+func (impl ImageDigestPolicyServiceImpl) GetAllConfiguredGlobalPolicies() (*PolicyRequest, error) {
 
 	imageDigestQualifierMappings, err := impl.qualifierMappingService.GetQualifierMappingsByResourceType(resourceQualifiers.ImageDigest)
 	if err != nil {
@@ -284,7 +275,7 @@ func (impl ImageDigestPolicyServiceImpl) handleImageDigestPolicyForAllClusters(u
 	}
 
 	// deleting all cluster and env level policies
-	err = impl.qualifierMappingService.DeleteAllByResourceTypeAndQualifierId(
+	err = impl.qualifierMappingService.DeleteAllByResourceTypeAndQualifierIds(
 		resourceQualifiers.ImageDigest,
 		resourceQualifiers.ImageDigestResourceId,
 		[]int{int(resourceQualifiers.CLUSTER_QUALIFIER), int(resourceQualifiers.ENV_QUALIFIER)},

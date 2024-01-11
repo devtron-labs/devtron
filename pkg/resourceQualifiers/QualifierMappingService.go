@@ -17,7 +17,7 @@ type QualifierMappingService interface {
 	DeleteAllQualifierMappings(resourceType ResourceType, auditLog sql.AuditLog, tx *pg.Tx) error
 	DeleteAllQualifierMappingsByResourceTypeAndId(resourceType ResourceType, resourceId int, auditLog sql.AuditLog, tx *pg.Tx) error
 	DeleteAllQualifierMappingsByIdentifierKeyAndValue(identifierKey int, identifierValue int, auditLog sql.AuditLog, tx *pg.Tx) error
-	DeleteAllByResourceTypeAndQualifierId(resourceType ResourceType, resourceId int, qualifierIds []int, userId int32, tx *pg.Tx) error
+	DeleteAllByResourceTypeAndQualifierIds(resourceType ResourceType, resourceId int, qualifierIds []int, userId int32, tx *pg.Tx) error
 	DeleteAllByIds(qualifierMappingIds []int, userId int32, tx *pg.Tx) error
 	GetDbConnection() *pg.DB
 }
@@ -69,7 +69,7 @@ func (impl QualifierMappingServiceImpl) DeleteAllQualifierMappingsByIdentifierKe
 	return impl.qualifierMappingRepository.DeleteAllByIdentifierKeyAndValue(identifierKey, identifierValue, auditLog, tx)
 }
 
-func (impl QualifierMappingServiceImpl) DeleteAllByResourceTypeAndQualifierId(resourceType ResourceType, resourceId int, qualifierIds []int, userId int32, tx *pg.Tx) error {
+func (impl QualifierMappingServiceImpl) DeleteAllByResourceTypeAndQualifierIds(resourceType ResourceType, resourceId int, qualifierIds []int, userId int32, tx *pg.Tx) error {
 	auditLog := sql.AuditLog{
 		CreatedOn: time.Now(),
 		CreatedBy: userId,

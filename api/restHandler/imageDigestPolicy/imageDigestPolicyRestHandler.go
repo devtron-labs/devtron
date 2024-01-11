@@ -43,7 +43,7 @@ func NewImageDigestPolicyRestHandlerImpl(logger *zap.SugaredLogger,
 }
 
 func (handler ImageDigestPolicyRestHandlerImpl) GetAllImageDigestPolicies(w http.ResponseWriter, r *http.Request) {
-	res, err := handler.imageDigestPolicyService.GetAllConfiguredPolicies()
+	res, err := handler.imageDigestPolicyService.GetAllConfiguredGlobalPolicies()
 	if err != nil {
 		handler.logger.Errorw("error in getting active resource filters", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
