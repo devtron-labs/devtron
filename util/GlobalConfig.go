@@ -21,7 +21,8 @@ func GetGlobalEnvVariables() (*GlobalEnvVariables, error) {
 }
 
 type DevtronSecretConfig struct {
-	DevtronSecretName string `env:"DEVTRON_SECRET_NAME" envDefault:"devtron-secret"`
+	DevtronSecretName         string `env:"DEVTRON_SECRET_NAME" envDefault:"devtron-secret"`
+	DevtronDexSecretNamespace string `env:"DEVTRON_DEX_SECRET_NAMESPACE" envDefault:"devtroncd"`
 }
 
 func GetDevtronSecretName() (*DevtronSecretConfig, error) {

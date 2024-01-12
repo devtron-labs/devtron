@@ -2,10 +2,11 @@ package cluster
 
 import (
 	"errors"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
-	"go.uber.org/zap"
 	"strings"
+
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
+	"go.uber.org/zap"
 )
 
 type ClusterRbacService interface {
@@ -60,11 +61,6 @@ func (impl *ClusterRbacServiceImpl) CheckAuthorization(clusterName string, clust
 		}
 		return true, nil
 	}
-	emailId, err := impl.userService.GetEmailFromToken(token)
-	if err != nil {
-		impl.logger.Errorw("error in getting emailId from token", "err", err)
-		return false, err
-	}
 
 	var envIdentifierList []string
 	envIdentifierMap := make(map[string]bool)
@@ -77,7 +73,7 @@ func (impl *ClusterRbacServiceImpl) CheckAuthorization(clusterName string, clust
 		return false, errors.New("environment identifier list for rbac batch enforcing contains zero environments")
 	}
 	// RBAC enforcer applying
-	rbacResultMap := impl.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceGlobalEnvironment, casbin.ActionGet, envIdentifierList)
+	rbacResultMap := impl.enforcer.EnforceInBatch(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, envIdentifierList)
 	for envIdentifier, _ := range envIdentifierMap {
 		if rbacResultMap[envIdentifier] {
 			//if user has view permission to even one environment of this cluster, authorise the request

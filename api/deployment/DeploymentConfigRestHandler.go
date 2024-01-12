@@ -3,16 +3,6 @@ package deployment
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"github.com/devtron-labs/devtron/pkg/chart"
-	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
-	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
-	"github.com/gorilla/mux"
-	"github.com/juju/errors"
-	"go.uber.org/zap"
-	"gopkg.in/go-playground/validator.v9"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -20,6 +10,17 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
+	"github.com/devtron-labs/devtron/pkg/chart"
+	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
+	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/gorilla/mux"
+	"github.com/juju/errors"
+	"go.uber.org/zap"
+	"gopkg.in/go-playground/validator.v9"
 )
 
 type DeploymentConfigRestHandler interface {
@@ -30,9 +31,9 @@ type DeploymentConfigRestHandler interface {
 }
 
 type DeploymentConfigRestHandlerImpl struct {
-	Logger             *zap.SugaredLogger
-	userAuthService    user.UserService
-	enforcer           casbin.Enforcer
+	Logger          *zap.SugaredLogger
+	userAuthService user.UserService
+	enforcer        casbin.Enforcer
 	validator          *validator.Validate
 	refChartDir        chartRepoRepository.RefChartDir
 	chartService       chart.ChartService
