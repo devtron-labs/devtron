@@ -10,6 +10,7 @@
 - fix: error handling and url fix (#4407)
 - feat: skip bulk build source change (#4357)
 ## Enhancements
+- feat: Adds support for gRPC in health probes (#4495)
 - feat: Configurable namespace for secrets in dex config  (#4499)
 - feat: sql script update (#4522)
 - feat: refactoring authorisation checks and support of super-admin in permissions groups. (#4433)
