@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	errors2 "github.com/juju/errors"
 	"go.uber.org/zap"
@@ -690,7 +691,9 @@ func (handler *K8sApplicationRestHandlerImpl) DownloadPodLogs(w http.ResponseWri
 			return
 		}
 	}
-	common.WriteOctetStreamResp(w, r, dataBuffer.Bytes(), "podlogs.txt")
+	podLogsFilename := fmt.Sprintf("podlogs-%s-%s.txt", request.K8sRequest.ResourceIdentifier.Name, uuid.New().String())
+	common.WriteOctetStreamResp(w, r, dataBuffer.Bytes(), podLogsFilename)
+	return
 }
 
 func (handler *K8sApplicationRestHandlerImpl) requestValidationAndRBAC(w http.ResponseWriter, r *http.Request, token string, request *k8s.ResourceRequestBean) {
@@ -698,7 +701,7 @@ func (handler *K8sApplicationRestHandlerImpl) requestValidationAndRBAC(w http.Re
 		if request.DeploymentType == bean2.HelmInstalledType {
 			valid, err := handler.k8sApplicationService.ValidateResourceRequest(r.Context(), request.AppIdentifier, request.K8sRequest)
 			if err != nil || !valid {
-				handler.logger.Errorw("error in validating resource request", "err", err)
+				handler.logger.Errorw("error in validating resource request", "err", err, "request.AppIdentifier", request.AppIdentifier, "request.K8sRequest", request.K8sRequest)
 				apiError := util2.ApiError{
 					InternalMessage: "failed to validate the resource with error " + err.Error(),
 					UserMessage:     "Failed to validate resource",

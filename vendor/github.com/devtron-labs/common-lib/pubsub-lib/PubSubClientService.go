@@ -132,37 +132,37 @@ func (impl PubSubClientServiceImpl) Subscribe(topic string, callback func(msg *m
 		impl.Logger.Fatalw("error while subscribing to nats ", "stream", streamName, "topic", topic, "error", err)
 		return err
 	}
-	go impl.startListeningForEvents(processingBatchSize, channel, callback, topic)
+	go impl.startListeningForEvents(processingBatchSize, channel, callback)
 	impl.Logger.Infow("Successfully subscribed with Nats", "stream", streamName, "topic", topic, "queue", queueName, "consumer", consumerName)
 	return nil
 }
 
-func (impl PubSubClientServiceImpl) startListeningForEvents(processingBatchSize int, channel chan *nats.Msg, callback func(msg *model.PubSubMsg), topic string) {
+func (impl PubSubClientServiceImpl) startListeningForEvents(processingBatchSize int, channel chan *nats.Msg, callback func(msg *model.PubSubMsg)) {
 	wg := new(sync.WaitGroup)
 
 	for index := 0; index < processingBatchSize; index++ {
 		wg.Add(1)
-		go impl.processMessages(wg, channel, callback, topic)
+		go impl.processMessages(wg, channel, callback)
 	}
 	wg.Wait()
 	impl.Logger.Warn("msgs received Done from Nats side, going to end listening!!")
 }
 
-func (impl PubSubClientServiceImpl) processMessages(wg *sync.WaitGroup, channel chan *nats.Msg, callback func(msg *model.PubSubMsg), topic string) {
+func (impl PubSubClientServiceImpl) processMessages(wg *sync.WaitGroup, channel chan *nats.Msg, callback func(msg *model.PubSubMsg)) {
 	defer wg.Done()
 	for msg := range channel {
-		impl.processMsg(msg, callback, topic)
+		impl.processMsg(msg, callback)
 	}
 }
 
 // TODO need to extend msg ack depending upon response from callback like error scenario
-func (impl PubSubClientServiceImpl) processMsg(msg *nats.Msg, callback func(msg *model.PubSubMsg), topic string) {
+func (impl PubSubClientServiceImpl) processMsg(msg *nats.Msg, callback func(msg *model.PubSubMsg)) {
 	t1 := time.Now()
-	metrics.IncConsumingCount(topic)
-	defer metrics.IncConsumptionCount(topic)
+	metrics.IncConsumingCount(msg.Subject)
+	defer metrics.IncConsumptionCount(msg.Subject)
 	defer func() {
 		// wrapping this function in defer as directly calling Observe() will run immediately
-		metrics.NatsEventConsumptionTime.WithLabelValues(topic).Observe(float64(time.Since(t1).Milliseconds()))
+		metrics.NatsEventConsumptionTime.WithLabelValues(msg.Subject).Observe(float64(time.Since(t1).Milliseconds()))
 	}()
 	impl.TryCatchCallBack(msg, callback)
 }

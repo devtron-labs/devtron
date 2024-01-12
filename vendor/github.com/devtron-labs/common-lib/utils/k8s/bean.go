@@ -42,6 +42,7 @@ type ResourceListResponse struct {
 
 type PodLogsRequest struct {
 	SinceTime                  *v12.Time `json:"sinceTime,omitempty"`
+	SinceSeconds               int       `json:"sinceSeconds,omitempty"`
 	TailLines                  int       `json:"tailLines"`
 	Follow                     bool      `json:"follow"`
 	ContainerName              string    `json:"containerName"`

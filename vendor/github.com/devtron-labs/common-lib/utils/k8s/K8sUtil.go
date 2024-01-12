@@ -1150,7 +1150,7 @@ func (impl K8sUtil) ListEvents(restConfig *rest.Config, namespace string, groupV
 
 }
 
-func (impl K8sUtil) GetPodLogs(ctx context.Context, restConfig *rest.Config, name string, namespace string, sinceTime *metav1.Time, tailLines int, follow bool, containerName string, isPrevContainerLogsEnabled bool) (io.ReadCloser, error) {
+func (impl K8sUtil) GetPodLogs(ctx context.Context, restConfig *rest.Config, name string, namespace string, sinceTime *metav1.Time, tailLines int, sinceSeconds int, follow bool, containerName string, isPrevContainerLogsEnabled bool) (io.ReadCloser, error) {
 	httpClient, err := OverrideK8sHttpClientWithTracer(restConfig)
 	if err != nil {
 		impl.logger.Errorw("error in getting pod logs", "err", err)
@@ -1162,12 +1162,18 @@ func (impl K8sUtil) GetPodLogs(ctx context.Context, restConfig *rest.Config, nam
 		return nil, err
 	}
 	TailLines := int64(tailLines)
+	SinceSeconds := int64(sinceSeconds)
 	podLogOptions := &v1.PodLogOptions{
 		Follow:     follow,
-		TailLines:  &TailLines,
 		Container:  containerName,
 		Timestamps: true,
 		Previous:   isPrevContainerLogsEnabled,
+	}
+	if TailLines > 0 {
+		podLogOptions.TailLines = &TailLines
+	}
+	if SinceSeconds > 0 {
+		podLogOptions.SinceSeconds = &SinceSeconds
 	}
 	if sinceTime != nil {
 		podLogOptions.SinceTime = sinceTime
