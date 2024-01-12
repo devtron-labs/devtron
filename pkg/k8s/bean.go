@@ -38,5 +38,5 @@ type PodContainerList struct {
 
 type ResourceGetResponse struct {
 	ManifestResponse *k8s.ManifestResponse `json:"manifestResponse"`
-	SecretViewAccess bool                  `json:"secretViewAccess"` // this is being used to check whether a user can see obscured secret values or not.
+	SecretViewAccess bool                  `json:"secretViewAccess"` // imp: only for resource browser, this is being used to check whether a user can see obscured secret values or not.
 }

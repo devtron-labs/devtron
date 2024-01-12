@@ -235,7 +235,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 		}
 		resource.ManifestResponse.Manifest = *modifiedManifest
 	}
-	// setting flag for secret view access
+	// setting flag for secret view access only for resource browser
 	resource.SecretViewAccess = canUpdate
 
 	common.WriteJsonResp(w, nil, resource, http.StatusOK)
