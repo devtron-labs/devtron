@@ -1,6 +1,8 @@
 package application
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -26,6 +28,7 @@ import (
 	errors2 "github.com/juju/errors"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
+	"io"
 	errors3 "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
@@ -40,6 +43,7 @@ type K8sApplicationRestHandler interface {
 	DeleteResource(w http.ResponseWriter, r *http.Request)
 	ListEvents(w http.ResponseWriter, r *http.Request)
 	GetPodLogs(w http.ResponseWriter, r *http.Request)
+	DownloadPodLogs(w http.ResponseWriter, r *http.Request)
 	GetTerminalSession(w http.ResponseWriter, r *http.Request)
 	GetResourceInfo(w http.ResponseWriter, r *http.Request)
 	GetHostUrlsByBatch(w http.ResponseWriter, r *http.Request)
@@ -607,6 +611,89 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	handler.requestValidationAndRBAC(w, r, token, request)
+	lastEventId := r.Header.Get("Last-Event-ID")
+	isReconnect := false
+	if len(lastEventId) > 0 {
+		lastSeenMsgId, err := strconv.ParseInt(lastEventId, 10, 64)
+		if err != nil {
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+		lastSeenMsgId = lastSeenMsgId + 1 //increased by one ns to avoid duplicate
+		t := v1.Unix(0, lastSeenMsgId)
+		request.K8sRequest.PodLogsRequest.SinceTime = &t
+		isReconnect = true
+	}
+	stream, err := handler.k8sApplicationService.GetPodLogs(r.Context(), request)
+	//err is handled inside StartK8sStreamWithHeartBeat method
+	ctx, cancel := context.WithCancel(r.Context())
+	if cn, ok := w.(http.CloseNotifier); ok {
+		go func(done <-chan struct{}, closed <-chan bool) {
+			select {
+			case <-done:
+			case <-closed:
+				cancel()
+			}
+		}(ctx.Done(), cn.CloseNotify())
+	}
+	defer cancel()
+	defer util.Close(stream, handler.logger)
+	handler.pump.StartK8sStreamWithHeartBeat(w, isReconnect, stream, err)
+}
+
+func (handler *K8sApplicationRestHandlerImpl) DownloadPodLogs(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
+	request, err := handler.k8sApplicationService.ValidatePodLogsRequestQuery(r)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	handler.requestValidationAndRBAC(w, r, token, request)
+
+	stream, err := handler.k8sApplicationService.GetPodLogs(r.Context(), request)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	ctx, cancel := context.WithCancel(r.Context())
+	if cn, ok := w.(http.CloseNotifier); ok {
+		go func(done <-chan struct{}, closed <-chan bool) {
+			select {
+			case <-done:
+			case <-closed:
+				cancel()
+			}
+		}(ctx.Done(), cn.CloseNotify())
+	}
+	defer cancel()
+	defer util.Close(stream, handler.logger)
+
+	var dataBuffer bytes.Buffer
+	bufReader := bufio.NewReader(stream)
+	eof := false
+	for !eof {
+		log, err := bufReader.ReadString('\n')
+		if err == io.EOF {
+			eof = true
+			// stop if we reached end of stream and the next line is empty
+			if log == "" {
+				break
+			}
+		} else if err != nil && err != io.EOF {
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		_, err = dataBuffer.Write([]byte(log))
+		if err != nil {
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+	}
+	common.WriteOctetStreamResp(w, r, dataBuffer.Bytes(), "podlogs.txt")
+}
+
+func (handler *K8sApplicationRestHandlerImpl) requestValidationAndRBAC(w http.ResponseWriter, r *http.Request, token string, request *k8s.ResourceRequestBean) {
 	if request.AppIdentifier != nil {
 		if request.DeploymentType == bean2.HelmInstalledType {
 			valid, err := handler.k8sApplicationService.ValidateResourceRequest(r.Context(), request.AppIdentifier, request.K8sRequest)
@@ -658,34 +745,6 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 		common.WriteJsonResp(w, errors.New("can not get pod logs as target cluster is not provided"), nil, http.StatusBadRequest)
 		return
 	}
-	lastEventId := r.Header.Get("Last-Event-ID")
-	isReconnect := false
-	if len(lastEventId) > 0 {
-		lastSeenMsgId, err := strconv.ParseInt(lastEventId, 10, 64)
-		if err != nil {
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-			return
-		}
-		lastSeenMsgId = lastSeenMsgId + 1 //increased by one ns to avoid duplicate
-		t := v1.Unix(0, lastSeenMsgId)
-		request.K8sRequest.PodLogsRequest.SinceTime = &t
-		isReconnect = true
-	}
-	stream, err := handler.k8sApplicationService.GetPodLogs(r.Context(), request)
-	//err is handled inside StartK8sStreamWithHeartBeat method
-	ctx, cancel := context.WithCancel(r.Context())
-	if cn, ok := w.(http.CloseNotifier); ok {
-		go func(done <-chan struct{}, closed <-chan bool) {
-			select {
-			case <-done:
-			case <-closed:
-				cancel()
-			}
-		}(ctx.Done(), cn.CloseNotify())
-	}
-	defer cancel()
-	defer util.Close(stream, handler.logger)
-	handler.pump.StartK8sStreamWithHeartBeat(w, isReconnect, stream, err)
 }
 
 func (handler *K8sApplicationRestHandlerImpl) GetTerminalSession(w http.ResponseWriter, r *http.Request) {

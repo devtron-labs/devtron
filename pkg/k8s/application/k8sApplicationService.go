@@ -9,7 +9,6 @@ import (
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	k8sObjectUtils "github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
-
 	yamlUtil "github.com/devtron-labs/common-lib/utils/yaml"
 	"github.com/devtron-labs/devtron/api/connector"
 	client "github.com/devtron-labs/devtron/api/helm-app"
@@ -113,10 +112,15 @@ func (impl *K8sApplicationServiceImpl) ValidatePodLogsRequestQuery(r *http.Reque
 	v, vars := r.URL.Query(), mux.Vars(r)
 	request := &k8s.ResourceRequestBean{}
 	podName := vars["podName"]
-	/*sinceSeconds, err := strconv.Atoi(v.Get("sinceSeconds"))
+	sinceSeconds, err := strconv.Atoi(v.Get("sinceSeconds"))
 	if err != nil {
 		sinceSeconds = 0
-	}*/
+	}
+	sinceTimeVar, err := strconv.ParseInt(v.Get("sinceTime"), 10, 64)
+	if err != nil {
+		sinceTimeVar = 0
+	}
+	sinceTime := metav1.Unix(sinceTimeVar, 0)
 	containerName, clusterIdString := v.Get("containerName"), v.Get("clusterId")
 	prevContainerLogs := v.Get("previous")
 	isPrevLogs, err := strconv.ParseBool(prevContainerLogs)
@@ -138,7 +142,8 @@ func (impl *K8sApplicationServiceImpl) ValidatePodLogsRequestQuery(r *http.Reque
 			GroupVersionKind: schema.GroupVersionKind{},
 		},
 		PodLogsRequest: k8s2.PodLogsRequest{
-			//SinceTime:     sinceSeconds,
+			SinceSeconds:               sinceSeconds,
+			SinceTime:                  &sinceTime,
 			TailLines:                  tailLines,
 			Follow:                     follow,
 			ContainerName:              containerName,
@@ -313,7 +318,7 @@ func (impl *K8sApplicationServiceImpl) GetPodLogs(ctx context.Context, request *
 
 	resourceIdentifier := request.K8sRequest.ResourceIdentifier
 	podLogsRequest := request.K8sRequest.PodLogsRequest
-	resp, err := impl.K8sUtil.GetPodLogs(ctx, restConfig, resourceIdentifier.Name, resourceIdentifier.Namespace, podLogsRequest.SinceTime, podLogsRequest.TailLines, podLogsRequest.Follow, podLogsRequest.ContainerName, podLogsRequest.IsPrevContainerLogsEnabled)
+	resp, err := impl.K8sUtil.GetPodLogs(ctx, restConfig, resourceIdentifier.Name, resourceIdentifier.Namespace, podLogsRequest.SinceTime, podLogsRequest.TailLines, podLogsRequest.SinceSeconds, podLogsRequest.Follow, podLogsRequest.ContainerName, podLogsRequest.IsPrevContainerLogsEnabled)
 	if err != nil {
 		impl.logger.Errorw("error in getting pod logs", "err", err, "clusterId", clusterId)
 		return nil, err
