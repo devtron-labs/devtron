@@ -119,7 +119,7 @@ func (impl ImageDigestPolicyServiceImpl) CreateOrUpdatePolicyForCluster(policyRe
 	dbConnection := impl.qualifierMappingService.GetDbConnection()
 	tx, _ := dbConnection.Begin()
 
-	if policyRequest.AllClusters == true {
+	if policyRequest.EnableDigestForAllClusters == true {
 		err := impl.handleImageDigestPolicyForAllClusters(policyRequest.UserId, tx)
 		if err != nil {
 			impl.logger.Errorw("Error in saving image digest policy for all clusters", "err", err)
@@ -236,7 +236,7 @@ func (impl ImageDigestPolicyServiceImpl) saveNewPolicies(
 	newEnvironmentsWithImageDigestPolicyConfigured := make(map[EnvironmentId]bool)
 
 	for _, policy := range policyRequest.ClusterDetails {
-		if policy.PolicyType == ALL_ENVIRONMENTS {
+		if policy.PolicyType == ALL_EXISTING_AND_FUTURE_ENVIRONMENTS {
 			if _, ok := ExistingClustersWithImageDigestPolicyConfigured[policy.ClusterId]; !ok {
 				qualifierMapping := &resourceQualifiers.QualifierMapping{
 					ResourceId:         resourceQualifiers.ImageDigestResourceId,
@@ -308,7 +308,7 @@ func (impl ImageDigestPolicyServiceImpl) removePoliciesNotPresentInRequest(image
 				removePolicy = true
 			}
 		} else if existingMapping.QualifierId == int(resourceQualifiers.GLOBAL_QUALIFIER) {
-			// removing global policy because if we are here AllClusters=false in request
+			// removing global policy because if we are here EnableDigestForAllClusters=false in request
 			removePolicy = true
 		}
 		if removePolicy {
@@ -336,18 +336,18 @@ func (impl ImageDigestPolicyServiceImpl) GetAllConfiguredGlobalPolicies() (*Poli
 	}
 
 	imageDigestPolicies := &PolicyRequest{
-		ClusterDetails: make([]*ClusterDetail, 0),
-		AllClusters:    false,
+		ClusterDetails:             make([]*ClusterDetail, 0),
+		EnableDigestForAllClusters: false,
 	}
 
 	for _, qualifierMapping := range imageDigestQualifierMappings {
 		if qualifierMapping.QualifierId == int(resourceQualifiers.GLOBAL_QUALIFIER) {
-			imageDigestPolicies.AllClusters = true
+			imageDigestPolicies.EnableDigestForAllClusters = true
 			break
 		}
 	}
 
-	if imageDigestPolicies.AllClusters {
+	if imageDigestPolicies.EnableDigestForAllClusters {
 		return imageDigestPolicies, nil
 	}
 
@@ -362,7 +362,7 @@ func (impl ImageDigestPolicyServiceImpl) GetAllConfiguredGlobalPolicies() (*Poli
 			ClusterId: clusterId,
 		}
 		if len(envIds) == 0 {
-			clusterDetail.PolicyType = ALL_ENVIRONMENTS
+			clusterDetail.PolicyType = ALL_EXISTING_AND_FUTURE_ENVIRONMENTS
 		} else {
 			clusterDetail.Environments = envIds
 			clusterDetail.PolicyType = SPECIFIC_ENVIRONMENTS
@@ -374,7 +374,18 @@ func (impl ImageDigestPolicyServiceImpl) GetAllConfiguredGlobalPolicies() (*Poli
 }
 
 func (impl ImageDigestPolicyServiceImpl) getClusterIdToEnvIdsMapping(imageDigestQualifierMappings []*resourceQualifiers.QualifierMapping) (map[ClusterId][]EnvironmentId, error) {
-	ClusterIdToEnvIdsMapping := impl.getClusterIdToEnvIdsEmptyMapping(imageDigestQualifierMappings)
+
+	ClusterIdToEnvIdsMapping := make(map[ClusterId][]EnvironmentId)
+	devtronResourceSearchableKeyMap := impl.devtronResourceSearchableKey.GetAllSearchableKeyNameIdMap()
+
+	// adding cluster configured for all existing and future environments
+	for _, qualifierMapping := range imageDigestQualifierMappings {
+		if qualifierMapping.IdentifierKey == devtronResourceSearchableKeyMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ID] {
+			ClusterIdToEnvIdsMapping[qualifierMapping.IdentifierValueInt] = make([]EnvironmentId, 0)
+		}
+	}
+
+	// adding clusters added for specific environments
 	EnvToClusterMapping, err := impl.getEnvToClusterMapping(imageDigestQualifierMappings) // map[envId]clusterId
 	if err != nil {
 		impl.logger.Errorw("error in fetching environments to cluster maping", "err", err)
@@ -383,18 +394,8 @@ func (impl ImageDigestPolicyServiceImpl) getClusterIdToEnvIdsMapping(imageDigest
 	for envId, clusterId := range EnvToClusterMapping {
 		ClusterIdToEnvIdsMapping[clusterId] = append(ClusterIdToEnvIdsMapping[clusterId], envId)
 	}
-	return ClusterIdToEnvIdsMapping, nil
-}
 
-func (impl ImageDigestPolicyServiceImpl) getClusterIdToEnvIdsEmptyMapping(imageDigestQualifierMappings []*resourceQualifiers.QualifierMapping) map[ClusterId][]EnvironmentId {
-	devtronResourceSearchableKeyMap := impl.devtronResourceSearchableKey.GetAllSearchableKeyNameIdMap()
-	ClusterIdToEnvIdsMapping := make(map[ClusterId][]EnvironmentId)
-	for _, qualifierMapping := range imageDigestQualifierMappings {
-		if qualifierMapping.IdentifierKey == devtronResourceSearchableKeyMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ID] {
-			ClusterIdToEnvIdsMapping[qualifierMapping.IdentifierValueInt] = make([]EnvironmentId, 0)
-		}
-	}
-	return ClusterIdToEnvIdsMapping
+	return ClusterIdToEnvIdsMapping, nil
 }
 
 func (impl ImageDigestPolicyServiceImpl) getEnvToClusterMapping(imageDigestQualifierMappings []*resourceQualifiers.QualifierMapping) (map[EnvironmentId]ClusterId, error) {

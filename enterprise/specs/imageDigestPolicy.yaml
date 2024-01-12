@@ -66,7 +66,7 @@ components:
       properties:
         clusterId:
           type: int
-          description: name of cluster
+          description: cluster id
         environments:
           type: array
           items:
@@ -75,14 +75,14 @@ components:
         policyType:
           type: string
           description: whether it is for all existing plus future environment or for selected environments
-          enum: [all_environments, specific_environments]
+          enum: [all_existing_and_future_environments, specific_environments]
     ClusterDetails:
       type: object
       properties:
         clusterDetails:
           items:
             $ref: '#/components/schemas/EnvironmentDetail'
-        allClusters:
+        enableDigestForAllClusters:
           type: boolean
     ErrorResponse:
       required:
