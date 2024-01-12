@@ -20,17 +20,18 @@ package externalLink
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"strconv"
+
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/externalLink"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
 	"github.com/juju/errors"
 	"go.uber.org/zap"
-	"net/http"
-	"strconv"
 )
 
 type ExternalLinkRestHandler interface {
