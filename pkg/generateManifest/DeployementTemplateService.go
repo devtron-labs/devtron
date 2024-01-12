@@ -141,7 +141,7 @@ func (impl DeploymentTemplateServiceImpl) FetchDeploymentsWithChartRefs(appId in
 	}
 
 	// when the app id is -1 , then it is only used to get the default versions
-	if appId != -1 {
+	if appId > 0 {
 
 		publishedOnEnvs, err := impl.appListingService.FetchMinDetailOtherEnvironment(appId)
 		if err != nil {

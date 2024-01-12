@@ -1992,13 +1992,13 @@ func (impl UserServiceImpl) IsUserAdminOrManagerForAnyApp(userId int32, token st
 	//checking superAdmin access
 	isAuthorised, err := impl.IsSuperAdminForDevtronManaged(int(userId))
 	if err != nil {
-		impl.logger.Errorw("error in checking superAdmin access of user", "err", err)
+		impl.logger.Errorw("error in checking superAdmin access of user", "err", err, "userId", userId)
 		return false, err
 	}
 	if !isAuthorised {
 		user, err := impl.GetRoleFiltersForAUserById(userId)
 		if err != nil {
-			impl.logger.Errorw("error in getting user by id", "err", err)
+			impl.logger.Errorw("error in getting user by id", "err", err, "userId", userId)
 			return false, err
 		}
 		// ApplicationResource pe Create
@@ -2028,17 +2028,17 @@ func (impl UserServiceImpl) getProjectOrAppAdminRBACNameByAppNameAndTeamName(app
 }
 
 func (impl UserServiceImpl) getProjectsOrAppAdminRBACNamesByAppNamesAndTeamNames(roleFilters []bean.RoleFilter) []string {
-	var vals []string
+	var resourceObjects []string
 	for _, filter := range roleFilters {
 		if len(filter.Team) > 0 {
 			entityNames := strings.Split(filter.EntityName, ",")
 			if len(entityNames) > 0 {
 				for _, val := range entityNames {
 					resourceName := impl.getProjectOrAppAdminRBACNameByAppNameAndTeamName(val, filter.Team)
-					vals = append(vals, resourceName)
+					resourceObjects = append(resourceObjects, resourceName)
 				}
 			}
 		}
 	}
-	return vals
+	return resourceObjects
 }

@@ -933,7 +933,7 @@ func (handler PipelineConfigRestHandlerImpl) GetTemplateComparisonMetadata(w htt
 
 	// RBAC enforcer applying
 
-	if envId == -1 {
+	if appId == -1 {
 		isAuthorised, err := handler.userAuthService.IsUserAdminOrManagerForAnyApp(userId, token)
 		if err != nil {
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
