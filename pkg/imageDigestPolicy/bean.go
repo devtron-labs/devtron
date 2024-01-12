@@ -15,9 +15,15 @@ type ClusterId = int
 type EnvironmentId = int
 
 type PolicyRequest struct {
-	ClusterDetails             []*ClusterDetail `json:"clusterDetails" validate:"omitempty,dive"`
-	EnableDigestForAllClusters bool             `json:"enableDigestForAllClusters,notnull"`
-	UserId                     int32            `json:"-"`
+
+	//if EnableDigestForAllClusters is false, ClusterDetails will have details of cluster level policy
+	ClusterDetails []*ClusterDetail `json:"clusterDetails" validate:"omitempty,dive"`
+
+	//EnableDigestForAllClusters if true ClusterDetails field will be ignored and image digest policy will be
+	//configured for all existing and future CLUSTERS. In this resource qualifier mapping will have qualifier_id = <GLOBAL_QUALIFIER>
+	EnableDigestForAllClusters bool `json:"enableDigestForAllClusters,notnull"`
+
+	UserId int32 `json:"-"`
 }
 
 type ClusterDetail struct {
