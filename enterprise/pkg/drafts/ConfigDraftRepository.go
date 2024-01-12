@@ -164,7 +164,7 @@ func (repo *ConfigDraftRepositoryImpl) GetDraftComments(draftVersionId int) (*Dr
 		Where("active = ?", true).Select()
 	if err != nil {
 		repo.logger.Errorw("error occurred while fetching draft comment", "draftVersionId", draftVersionId, "err", err)
-		return nil, err
+		return draftComment, err
 	}
 	return draftComment, err
 }

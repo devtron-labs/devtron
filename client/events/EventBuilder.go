@@ -342,7 +342,7 @@ func (impl *EventSimpleFactoryImpl) BuildExtraApprovalData(event Event, approval
 	}
 	user, err := impl.userRepository.GetById(userId)
 	if err != nil {
-		impl.logger.Errorw("found error on getting user data ", "userId", user.Id)
+		impl.logger.Errorw("found error on getting user data ", "userId", userId)
 	}
 	payload, err := impl.setApprovalEventPayload(event, approvalActionRequest, cdPipeline, imageTagNames, imageComment)
 	if err != nil {
@@ -399,7 +399,7 @@ func (impl *EventSimpleFactoryImpl) BuildExtraProtectConfigData(event Event, req
 	}
 	user, err := impl.userRepository.GetById(request.UserId)
 	if err != nil {
-		impl.logger.Errorw("found error on getting user data ", "userId", user.Id)
+		impl.logger.Errorw("found error on getting user data ", "userId", request.UserId)
 	}
 	payload, err := impl.setEventPayload(request)
 	if err != nil {

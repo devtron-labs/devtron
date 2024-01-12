@@ -25,7 +25,6 @@ import (
 	"github.com/devtron-labs/authenticator/middleware"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/enterprise/api/drafts"
-	drafts2 "github.com/devtron-labs/devtron/enterprise/pkg/drafts"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
@@ -38,7 +37,6 @@ import (
 	"github.com/devtron-labs/devtron/util/response"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
-	errors1 "github.com/juju/errors"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
 	"io/ioutil"
@@ -72,7 +70,7 @@ type NotificationRestHandler interface {
 	RecipientListingSuggestion(w http.ResponseWriter, r *http.Request)
 	FindAllNotificationConfigAutocomplete(w http.ResponseWriter, r *http.Request)
 	GetOptionsForNotificationSettings(w http.ResponseWriter, r *http.Request)
-	ApproveDraftConfigForNotification(w http.ResponseWriter, r *http.Request)
+	ApproveConfigDraftForNotification(w http.ResponseWriter, r *http.Request)
 	ApproveDeploymentConfigForNotification(w http.ResponseWriter, r *http.Request)
 }
 type NotificationRestHandlerImpl struct {
@@ -1154,7 +1152,7 @@ func (impl NotificationRestHandlerImpl) DeleteNotificationChannelConfig(w http.R
 	}
 }
 
-func (impl NotificationRestHandlerImpl) ApproveDraftConfigForNotification(w http.ResponseWriter, r *http.Request) {
+func (impl NotificationRestHandlerImpl) ApproveConfigDraftForNotification(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get(middleware.ApiTokenHeaderKey)
 	//verification is done internally
 	draftRequest, err := impl.createDraftRequest(token)
@@ -1162,21 +1160,10 @@ func (impl NotificationRestHandlerImpl) ApproveDraftConfigForNotification(w http
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	var draftState drafts2.DraftState
-	_, err = impl.configDraftRestHandlerImpl.CheckAccessAndApproveDraft(w, token, *draftRequest)
-	if err != nil {
-		validationErr, ok := err.(*drafts2.DraftApprovalValidationError)
-		if ok {
-			draftState = validationErr.DraftState
-		}
-		if !ok {
-			if !errors1.IsUnauthorized(err) {
-				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-			}
-			return
-		}
+	_, draftState, err := impl.configDraftRestHandlerImpl.CheckAccessAndApproveDraft(w, token, *draftRequest)
+	if err != nil && draftState == 0 {
+		return
 	}
-
 	resp, err := impl.notificationService.GetMetaDataForDraftNotification(draftRequest)
 	resp.DraftState = uint8(draftState)
 	if err != nil {

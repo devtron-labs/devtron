@@ -390,20 +390,30 @@ func (impl *ConfigDraftRestHandlerImpl) ApproveDraft(w http.ResponseWriter, r *h
 	token := r.Header.Get("token")
 	envId := draftResponse.EnvId
 	appId := draftResponse.AppId
-	createResp, err := impl.CheckAccessAndApproveDraft(w, token, apiToken.GetDraftApprovalRequest(envId, appId, draftId, draftVersionId, userId))
+	createResp, _, err := impl.CheckAccessAndApproveDraft(w, token, apiToken.GetDraftApprovalRequest(envId, appId, draftId, draftVersionId, userId))
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
+		if errors.IsUnauthorized(err) {
+			return
+		} else {
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
 	}
 	common.WriteJsonResp(w, err, createResp, http.StatusOK)
 }
 
-func (impl *ConfigDraftRestHandlerImpl) CheckAccessAndApproveDraft(w http.ResponseWriter, token string, draftRequest apiToken.DraftApprovalRequest) (*drafts.DraftVersionResponse, error) {
+func (impl *ConfigDraftRestHandlerImpl) CheckAccessAndApproveDraft(w http.ResponseWriter, token string, draftRequest apiToken.DraftApprovalRequest) (*drafts.DraftVersionResponse, drafts.DraftState, error) {
 	var isNotAuthorized bool
 	if isNotAuthorized = impl.checkForApproverAccess(w, draftRequest.EnvId, draftRequest.AppId, token, true); isNotAuthorized {
-		return nil, errors.NewUnauthorized(fmt.Errorf("unauthorized user"), "Access denied")
+		return nil, 0, errors.NewUnauthorized(fmt.Errorf("unauthorized user"), "Access denied")
 	}
-	return impl.configDraftService.ApproveDraft(draftRequest.DraftId, draftRequest.DraftVersionId, draftRequest.UserId)
+	response, err := impl.configDraftService.ApproveDraft(draftRequest.DraftId, draftRequest.DraftVersionId, draftRequest.UserId)
+	if err != nil {
+		if validationErr, ok := err.(*drafts.DraftApprovalValidationError); ok {
+			return response, validationErr.DraftState, err
+		}
+	}
+	return response, 0, err
 }
 
 func (impl *ConfigDraftRestHandlerImpl) DeleteUserComment(w http.ResponseWriter, r *http.Request) {

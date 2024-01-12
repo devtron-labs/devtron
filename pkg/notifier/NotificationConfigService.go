@@ -940,24 +940,22 @@ func (impl *NotificationConfigServiceImpl) IsSesOrSmtpConfigured() (*ConfigCheck
 }
 
 func (impl *NotificationConfigServiceImpl) GetMetaDataForDraftNotification(draftRequest *apiToken.DraftApprovalRequest) (*client.DraftApprovalResponse, error) {
-	draftApprovalResp := &client.DraftApprovalResponse{}
+
 	envName, appName, err := impl.getEnvAndAppName(draftRequest.EnvId, draftRequest.AppId)
 	if err != nil {
-		return draftApprovalResp, err
+		return nil, err
 	}
-	if draftApprovalResp.NotificationMetaData == nil {
-		draftApprovalResp.NotificationMetaData = &client.NotificationMetaData{}
+
+	draftApprovalResp := &client.DraftApprovalResponse{
+		NotificationMetaData: &client.NotificationMetaData{
+			AppName:    appName,
+			EnvName:    envName,
+			ApprovedBy: draftRequest.EmailId,
+			EventTime:  time.Now().Format(bean.LayoutRFC3339),
+		},
 	}
-	draftApprovalResp.NotificationMetaData.EnvName = envName
-	draftApprovalResp.NotificationMetaData.AppName = appName
-	draftApprovalResp.NotificationMetaData.EventTime = time.Now().Format(bean.LayoutRFC3339)
-	draftApprovalResp.NotificationMetaData.ApprovedBy = draftRequest.EmailId
 	draft, err := impl.configDraftRepository.GetDraftVersionById(draftRequest.DraftVersionId)
 	if err != nil {
-		return draftApprovalResp, err
-	}
-	draftComment, err := impl.configDraftRepository.GetDraftComments(draftRequest.DraftVersionId)
-	if err != nil && err != pg.ErrNoRows {
 		return draftApprovalResp, err
 	}
 	draftApprovalResp.ProtectConfigFileType = string(draft.Draft.Resource.GetDraftResourceType())
@@ -966,10 +964,12 @@ func (impl *NotificationConfigServiceImpl) GetMetaDataForDraftNotification(draft
 	} else {
 		draftApprovalResp.ProtectConfigFileName = draft.Draft.ResourceName
 	}
-	if draftComment != nil {
-		draftApprovalResp.ProtectConfigComment = draftComment.Comment
+	draftComment, err := impl.configDraftRepository.GetDraftComments(draftRequest.DraftVersionId)
+	if err != nil && err != pg.ErrNoRows {
+		return draftApprovalResp, err
 	}
-	draftApprovalResp.ProtectConfigFileName = draft.Draft.ResourceName
+	draftApprovalResp.ProtectConfigComment = draftComment.Comment
+
 	return draftApprovalResp, nil
 }
 
