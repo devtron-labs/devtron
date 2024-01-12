@@ -2,10 +2,11 @@ package cluster
 
 import (
 	"errors"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
-	"go.uber.org/zap"
 	"strings"
+
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
+	"go.uber.org/zap"
 )
 
 type ClusterRbacService interface {
@@ -38,7 +39,7 @@ func NewClusterRbacServiceImpl(environmentService EnvironmentService,
 
 func (impl *ClusterRbacServiceImpl) CheckAuthorization(clusterName string, clusterId int, token string, userId int32, rbacForClusterMappingsAlso bool) (authenticated bool, err error) {
 	if rbacForClusterMappingsAlso {
-		allowedClusterMap, err := impl.FetchAllowedClusterMap(userId)
+		allowedClusterMap, err := impl.FetchAllowedClusterMap(userId, token)
 
 		if err != nil {
 			impl.logger.Errorw("error in fetching allowedClusterMap ", "err", err, "clusterName", clusterName)
@@ -60,11 +61,6 @@ func (impl *ClusterRbacServiceImpl) CheckAuthorization(clusterName string, clust
 		}
 		return true, nil
 	}
-	emailId, err := impl.userService.GetEmailFromToken(token)
-	if err != nil {
-		impl.logger.Errorw("error in getting emailId from token", "err", err)
-		return false, err
-	}
 
 	var envIdentifierList []string
 	envIdentifierMap := make(map[string]bool)
@@ -77,7 +73,7 @@ func (impl *ClusterRbacServiceImpl) CheckAuthorization(clusterName string, clust
 		return false, errors.New("environment identifier list for rbac batch enforcing contains zero environments")
 	}
 	// RBAC enforcer applying
-	rbacResultMap := impl.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceGlobalEnvironment, casbin.ActionGet, envIdentifierList)
+	rbacResultMap := impl.enforcer.EnforceInBatch(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, envIdentifierList)
 	for envIdentifier, _ := range envIdentifierMap {
 		if rbacResultMap[envIdentifier] {
 			//if user has view permission to even one environment of this cluster, authorise the request
@@ -87,9 +83,9 @@ func (impl *ClusterRbacServiceImpl) CheckAuthorization(clusterName string, clust
 
 	return false, nil
 }
-func (impl *ClusterRbacServiceImpl) FetchAllowedClusterMap(userId int32) (map[string]bool, error) {
+func (impl *ClusterRbacServiceImpl) FetchAllowedClusterMap(userId int32, token string) (map[string]bool, error) {
 	allowedClustersMap := make(map[string]bool)
-	roles, err := impl.clusterService.FetchRolesFromGroup(userId)
+	roles, err := impl.clusterService.FetchRolesFromGroup(userId, token)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user roles from db", "error", err)
 		return nil, err

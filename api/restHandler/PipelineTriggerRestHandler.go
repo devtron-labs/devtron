@@ -21,21 +21,21 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"strconv"
+
 	"github.com/devtron-labs/devtron/pkg/app"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/gorilla/mux"
 	"go.opentelemetry.io/otel"
-
-	"net/http"
-	"strconv"
 
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/team"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"go.uber.org/zap"
@@ -355,7 +355,7 @@ func (handler PipelineTriggerRestHandlerImpl) GetAllLatestDeploymentConfiguratio
 		return
 	}
 	//RBAC END
-	isSuperAdmin, _ := handler.userAuthService.IsSuperAdmin(int(userId))
+	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
 	ctx := r.Context()
 	ctx = util.SetSuperAdminInContext(ctx, isSuperAdmin)
 	//checking if user has admin access

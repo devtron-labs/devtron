@@ -372,7 +372,7 @@ github.com/davecgh/go-spew/spew
 # github.com/deckarep/golang-set v1.8.0
 ## explicit; go 1.17
 github.com/deckarep/golang-set
-# github.com/devtron-labs/authenticator v0.4.32
+# github.com/devtron-labs/authenticator v0.4.33
 ## explicit; go 1.16
 github.com/devtron-labs/authenticator/apiToken
 github.com/devtron-labs/authenticator/client
@@ -822,12 +822,18 @@ github.com/liggitt/tabwriter
 github.com/mailru/easyjson/buffer
 github.com/mailru/easyjson/jlexer
 github.com/mailru/easyjson/jwriter
+# github.com/mattbaird/jsonpatch v0.0.0-20230413205102-771768614e91
+## explicit
+github.com/mattbaird/jsonpatch
 # github.com/mattn/go-ieproxy v0.0.1
 ## explicit; go 1.14
 github.com/mattn/go-ieproxy
 # github.com/matttproud/golang_protobuf_extensions v1.0.4
 ## explicit; go 1.9
 github.com/matttproud/golang_protobuf_extensions/pbutil
+# github.com/mdaverde/jsonpath v0.2.1
+## explicit; go 1.16
+github.com/mdaverde/jsonpath
 # github.com/microsoft/azure-devops-go-api/azuredevops v1.0.0-b5
 ## explicit; go 1.12
 github.com/microsoft/azure-devops-go-api/azuredevops
@@ -890,6 +896,13 @@ github.com/nats-io/nkeys
 # github.com/nats-io/nuid v1.0.1
 ## explicit
 github.com/nats-io/nuid
+# github.com/ohler55/ojg v1.20.3
+## explicit; go 1.20
+github.com/ohler55/ojg
+github.com/ohler55/ojg/alt
+github.com/ohler55/ojg/gen
+github.com/ohler55/ojg/jp
+github.com/ohler55/ojg/oj
 # github.com/oliveagle/jsonpath v0.0.0-20180606110733-2e52cf6e6852
 ## explicit
 github.com/oliveagle/jsonpath

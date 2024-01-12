@@ -3,25 +3,26 @@ package devtronResource
 import (
 	"encoding/json"
 	"fmt"
+	"math"
+	"net/http"
+	"strings"
+	"time"
+
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
+	repository2 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/go-pg/pg"
 	"github.com/juju/errors"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"github.com/xeipuuv/gojsonschema"
 	"go.uber.org/zap"
-	"math"
-	"net/http"
-	"strings"
-	"time"
 )
 
 type DevtronResourceService interface {
@@ -45,9 +46,9 @@ type DevtronResourceServiceImpl struct {
 	devtronResourceSchemaAuditRepository repository.DevtronResourceSchemaAuditRepository
 	devtronResourceObjectAuditRepository repository.DevtronResourceObjectAuditRepository
 	appRepository                        appRepository.AppRepository
-	pipelineRepository                   pipelineConfig.PipelineRepository
-	userRepository                       repository2.UserRepository
-	appListingRepository                 repository3.AppListingRepository
+	pipelineRepository   pipelineConfig.PipelineRepository
+	userRepository       repository2.UserRepository
+	appListingRepository repository3.AppListingRepository
 	devtronResourcesMapById              map[int]*repository.DevtronResource       //map of id and its object
 	devtronResourcesMapByKind            map[string]*repository.DevtronResource    //map of kind and its object
 	devtronResourcesSchemaMapById        map[int]*repository.DevtronResourceSchema //map of id and its object
