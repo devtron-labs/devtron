@@ -776,8 +776,11 @@ type CiArtifactBean struct {
 	RegistryType                  string                    `json:"registryType"`
 	RegistryName                  string                    `json:"registryName"`
 	CiPipelineId                  int                       `json:"-"`
+	ComponentId                   int                       `json:"-"`
 	CredentialsSourceType         string                    `json:"-"`
 	CredentialsSourceValue        string                    `json:"-"`
+	IsSuperseded                  bool                      `json:"isSuperseded"`
+	HasDuplicateImages            bool                      `json:"hasDuplicateImages"`
 }
 
 type CiArtifactResponse struct {
