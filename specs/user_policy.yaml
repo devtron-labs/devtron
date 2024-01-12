@@ -19,6 +19,41 @@ paths:
       summary: Returns all users
       description: all the template users
       operationId: findAllUsers
+      requestBody:
+        description: User Listing Request
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum:
+                    - active
+                    - inactive
+                    - timeToLive
+                ttl:
+                  type: string
+                  format: date-time
+                nameSearch:
+                  type: string
+                sortOrder:
+                  type: string
+                  enum:
+                    - ASC
+                    - DESC
+                sortBy:
+                  type: string
+                  enum:
+                    - email
+                    - lastLogin
+                offset:
+                  type: integer
+                size:
+                  type: integer
+                showAll:
+                  type: boolean
       responses:
         '200':
           description: list response
@@ -26,7 +61,7 @@ paths:
             application/json:
               schema:
                 items:
-                  $ref: '#/components/schemas/User'
+                  $ref: '#/components/schemas/AllUsers'
         default:
           description: unexpected error
           content:
@@ -161,6 +196,37 @@ components:
             $ref: '#/components/schemas/roleFilter'
           description: role filters objects
 
+    AllUsers:
+      type: object
+      required:
+        - email_id
+      properties:
+        id:
+          type: integer
+          description: Unique id of user
+        email_id:
+          type: string
+          description: Unique valid email-id of user, comma separated emails ids for multiple users
+        groups:
+          type: array
+          items:
+            type: string
+        roleFilters:
+          type: array
+          items:
+            $ref: '#/components/schemas/emptyRoleFilter'
+          description: role filters objects
+        status:
+          type: string
+          description: user current status (active,inactive,ttl)
+        lastLogin:
+          type: string
+          format: date-time
+          description: user last login time
+        ttl:
+          type: string
+          format: date-time
+          description: user time to live status
 
     roleFilter:
       type: object
@@ -192,6 +258,12 @@ components:
           type: string
           enum: ["", "helm-app"]
           description: accessType difine permission type "devtron-app"=devtron app work flow, "helm-app"=helm app work flow. based on this flag data categoriesed into devtron and helm permission tabs in user auth section.
+
+    emptyRoleFilter:
+      type: object
+      required:
+        - action
+      properties:
 
 
 
