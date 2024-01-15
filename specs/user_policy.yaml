@@ -33,7 +33,7 @@ paths:
                     - active
                     - inactive
                     - timeToLive
-                ttl:
+                timeToLive:
                   type: string
                   format: date-time
                 nameSearch:
@@ -223,7 +223,7 @@ components:
           type: string
           format: date-time
           description: user last login time
-        ttl:
+        timeToLive:
           type: string
           format: date-time
           description: user time to live status
