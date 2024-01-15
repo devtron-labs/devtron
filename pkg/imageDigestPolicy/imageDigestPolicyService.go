@@ -256,7 +256,7 @@ func (impl ImageDigestPolicyServiceImpl) saveNewPolicies(
 			}
 			newClustersWithImageDigestPolicyConfigured[policy.ClusterId] = true
 		} else if policy.PolicyType == SPECIFIC_ENVIRONMENTS {
-			for _, envId := range policy.Environments {
+			for _, envId := range policy.EnvironmentIds {
 				if _, ok := ExistingEnvironmentsWithImageDigestPolicyConfigured[policy.ClusterId]; !ok {
 					qualifierMapping := &resourceQualifiers.QualifierMapping{
 						ResourceId:         resourceQualifiers.ImageDigestResourceId,
@@ -364,7 +364,7 @@ func (impl ImageDigestPolicyServiceImpl) GetAllConfiguredGlobalPolicies() (*Poli
 		if len(envIds) == 0 {
 			clusterDetail.PolicyType = ALL_EXISTING_AND_FUTURE_ENVIRONMENTS
 		} else {
-			clusterDetail.Environments = envIds
+			clusterDetail.EnvironmentIds = envIds
 			clusterDetail.PolicyType = SPECIFIC_ENVIRONMENTS
 		}
 		imageDigestPolicies.ClusterDetails = append(imageDigestPolicies.ClusterDetails, clusterDetail)

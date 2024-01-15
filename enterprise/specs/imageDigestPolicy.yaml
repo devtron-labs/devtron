@@ -3,7 +3,7 @@ info:
   version: 1.0.0
   title: Devtron Labs
 paths:
-  /orchestrator/digestPolicy :
+  /orchestrator/digest-policy :
     get:
       description: list of environments for which digest is enforced
       responses:
@@ -65,9 +65,9 @@ components:
       type: object
       properties:
         clusterId:
-          type: int
+          type: integer
           description: cluster id
-        environments:
+        environmentIds:
           type: array
           items:
             type: integer

@@ -29,7 +29,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
-	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
 	"github.com/devtron-labs/devtron/pkg/k8s/informer"
 
 	"github.com/devtron-labs/devtron/internal/util"
@@ -118,17 +117,15 @@ type EnvironmentServiceImpl struct {
 	K8sUtil               *util2.K8sUtil
 	k8sInformerFactory    informer.K8sInformerFactory
 	//propertiesConfigService pipeline.PropertiesConfigService
-	userAuthService          user.UserAuthService
-	attributesRepository     repository2.AttributesRepository
-	imageDigestPolicyService imageDigestPolicy.ImageDigestPolicyService
+	userAuthService      user.UserAuthService
+	attributesRepository repository2.AttributesRepository
 }
 
 func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepository,
 	clusterService ClusterService, logger *zap.SugaredLogger,
 	K8sUtil *util2.K8sUtil, k8sInformerFactory informer.K8sInformerFactory,
 	//  propertiesConfigService pipeline.PropertiesConfigService,
-	userAuthService user.UserAuthService, attributesRepository repository2.AttributesRepository,
-	imageDigestPolicyService imageDigestPolicy.ImageDigestPolicyService) *EnvironmentServiceImpl {
+	userAuthService user.UserAuthService, attributesRepository repository2.AttributesRepository) *EnvironmentServiceImpl {
 	return &EnvironmentServiceImpl{
 		environmentRepository: environmentRepository,
 		logger:                logger,
@@ -136,9 +133,8 @@ func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepos
 		K8sUtil:               K8sUtil,
 		k8sInformerFactory:    k8sInformerFactory,
 		//propertiesConfigService: propertiesConfigService,
-		userAuthService:          userAuthService,
-		attributesRepository:     attributesRepository,
-		imageDigestPolicyService: imageDigestPolicyService,
+		userAuthService:      userAuthService,
+		attributesRepository: attributesRepository,
 	}
 }
 
@@ -483,7 +479,7 @@ func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete(isDeploymen
 			} else {
 				allowedDeploymentConfigString = permittedDeploymentConfigString
 			}
-			IsDigestEnforcedForEnv, err := impl.imageDigestPolicyService.IsPolicyConfiguredAtGlobalLevel(model.Id, model.ClusterId)
+			IsDigestEnforcedForEnv, err := impl.clusterService.IsPolicyConfiguredForCluster(model.Id, model.ClusterId)
 			if err != nil {
 				impl.logger.Errorw("error in checking if image digest policy is configured or not", "err", err)
 				return nil, err

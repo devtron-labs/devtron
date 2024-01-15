@@ -5,6 +5,7 @@ import (
 	"fmt"
 	auth "github.com/devtron-labs/devtron/pkg/auth/authorisation/globalConfig"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
+	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
 	"net/http"
 	"strings"
 	"time"
@@ -29,13 +30,14 @@ import (
 
 // ClusterServiceImplExtended extends ClusterServiceImpl and enhances method of ClusterService with full mode specific errors
 type ClusterServiceImplExtended struct {
-	environmentRepository   repository.EnvironmentRepository
-	grafanaClient           grafana.GrafanaClient
-	installedAppRepository  repository2.InstalledAppRepository
-	clusterServiceCD        cluster2.ServiceClient
-	K8sInformerFactory      informer.K8sInformerFactory
-	gitOpsRepository        repository3.GitOpsConfigRepository
-	sshTunnelWrapperService k8s.SSHTunnelWrapperService
+	environmentRepository    repository.EnvironmentRepository
+	grafanaClient            grafana.GrafanaClient
+	installedAppRepository   repository2.InstalledAppRepository
+	clusterServiceCD         cluster2.ServiceClient
+	K8sInformerFactory       informer.K8sInformerFactory
+	gitOpsRepository         repository3.GitOpsConfigRepository
+	sshTunnelWrapperService  k8s.SSHTunnelWrapperService
+	imageDigestPolicyService imageDigestPolicy.ImageDigestPolicyService
 	*ClusterServiceImpl
 }
 
@@ -47,14 +49,16 @@ func NewClusterServiceImplExtended(repository repository.ClusterRepository, envi
 	userRepository repository4.UserRepository, roleGroupRepository repository4.RoleGroupRepository,
 	sshTunnelWrapperService k8s.SSHTunnelWrapperService,
 	globalAuthorisationConfigService auth.GlobalAuthorisationConfigService,
-	userService user.UserService) *ClusterServiceImplExtended {
+	userService user.UserService,
+	imageDigestPolicyService imageDigestPolicy.ImageDigestPolicyService) *ClusterServiceImplExtended {
 	clusterServiceExt := &ClusterServiceImplExtended{
-		environmentRepository:   environmentRepository,
-		grafanaClient:           grafanaClient,
-		installedAppRepository:  installedAppRepository,
-		clusterServiceCD:        clusterServiceCD,
-		gitOpsRepository:        gitOpsRepository,
-		sshTunnelWrapperService: sshTunnelWrapperService,
+		environmentRepository:    environmentRepository,
+		grafanaClient:            grafanaClient,
+		installedAppRepository:   installedAppRepository,
+		clusterServiceCD:         clusterServiceCD,
+		gitOpsRepository:         gitOpsRepository,
+		sshTunnelWrapperService:  sshTunnelWrapperService,
+		imageDigestPolicyService: imageDigestPolicyService,
 		ClusterServiceImpl: &ClusterServiceImpl{
 			clusterRepository:                repository,
 			logger:                           logger,
@@ -444,4 +448,13 @@ func (impl ClusterServiceImplExtended) DeleteFromDb(bean *ClusterBean, userId in
 	err = impl.K8sUtil.DeleteSecret("default", secretName, k8sClient)
 	impl.logger.Errorw("error in deleting secret", "error", err)
 	return nil
+}
+
+func (impl ClusterServiceImplExtended) IsPolicyConfiguredForCluster(envId, clusterId int) (bool, error) {
+	IsDigestEnforcedForEnv, err := impl.imageDigestPolicyService.IsPolicyConfiguredAtGlobalLevel(envId, clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in checking if image digest policy is configured or not", "err", err)
+		return IsDigestEnforcedForEnv, err
+	}
+	return IsDigestEnforcedForEnv, nil
 }

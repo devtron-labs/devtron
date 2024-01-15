@@ -231,6 +231,7 @@ type ClusterService interface {
 	ConvertClusterBeanObjectToCluster(bean *ClusterBean) *v1alpha1.Cluster
 
 	GetClusterConfigByClusterId(clusterId int) (*k8s.ClusterConfig, error)
+	IsPolicyConfiguredForCluster(envId, clusterId int) (bool, error)
 }
 
 type ClusterServiceImpl struct {
@@ -1312,4 +1313,8 @@ func (impl ClusterServiceImpl) GetClusterConfigByClusterId(clusterId int) (*k8s.
 	rq := *clusterBean
 	clusterConfig := rq.GetClusterConfig()
 	return clusterConfig, nil
+}
+
+func (impl ClusterServiceImpl) IsPolicyConfiguredForCluster(envId, clusterId int) (bool, error) {
+	return false, nil
 }

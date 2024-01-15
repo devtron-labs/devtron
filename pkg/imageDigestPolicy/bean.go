@@ -27,7 +27,7 @@ type PolicyRequest struct {
 }
 
 type ClusterDetail struct {
-	ClusterId    int               `json:"clusterId"`
-	Environments []int             `json:"environments"`
-	PolicyType   imageDigestPolicy `json:"policyType" validate:"oneof=all_existing_and_future_environments specific_environments"`
+	ClusterId      int               `json:"clusterId"`
+	EnvironmentIds []int             `json:"environmentIds"`
+	PolicyType     imageDigestPolicy `json:"policyType" validate:"oneof=all_existing_and_future_environments specific_environments"`
 }

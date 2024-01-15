@@ -327,7 +327,7 @@ func (r MuxRouter) Init() {
 	resourceFilterRouter := r.Router.PathPrefix("/orchestrator/filters").Subrouter()
 	r.resourceFilterRouter.InitResourceFilterRouter(resourceFilterRouter)
 
-	imageDigestPolicyRouter := r.Router.PathPrefix("/orchestrator/digestPolicy").Subrouter()
+	imageDigestPolicyRouter := r.Router.PathPrefix("/orchestrator/digest-policy").Subrouter()
 	r.imageDigestPolicyRouter.initImageDigestPolicyRouter(imageDigestPolicyRouter)
 
 	projectManagementRouter := r.Router.PathPrefix("/orchestrator/project-management").Subrouter()
