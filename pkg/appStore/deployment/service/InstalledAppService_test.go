@@ -11,6 +11,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
+	repository5 "github.com/devtron-labs/devtron/pkg/appStore/chartGroup/repository"
 	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
 	repository4 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
@@ -38,14 +39,14 @@ func TestInstalledAppServiceImpl_DeployDefaultChartOnCluster(t *testing.T) {
 		appStoreValuesService                service.AppStoreValuesService
 		pubsubClient                         *pubsub.PubSubClientServiceImpl
 		tokenCache                           *util2.TokenCache
-		chartGroupDeploymentRepository       repository4.ChartGroupDeploymentRepository
+		chartGroupDeploymentRepository       repository5.ChartGroupDeploymentRepository
 		envService                           cluster.EnvironmentService
 		ArgoK8sClient                        argocdServer.ArgoK8sClient
 		gitFactory                           *util.GitFactory
 		aCDAuthConfig                        *util2.ACDAuthConfig
-		gitOpsRepository          repository3.GitOpsConfigRepository
-		userService               user.UserService
-		appStoreDeploymentService AppStoreDeploymentService
+		gitOpsRepository                     repository3.GitOpsConfigRepository
+		userService                          user.UserService
+		appStoreDeploymentService            AppStoreDeploymentService
 		appStoreDeploymentFullModeService    appStoreDeploymentFullMode.AppStoreDeploymentFullModeService
 	}
 	type args struct {

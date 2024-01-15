@@ -48,9 +48,8 @@ type GitProviderRestHandlerImpl struct {
 	dockerRegistryConfig  pipeline.DockerRegistryConfig
 	logger                *zap.SugaredLogger
 	gitRegistryConfig     pipeline.GitRegistryConfig
-	dbConfigService pipeline.DbConfigService
-	userAuthService user.UserService
-	validator       *validator.Validate
+	userAuthService       user.UserService
+	validator             *validator.Validate
 	enforcer              casbin.Enforcer
 	teamService           team.TeamService
 	deleteServiceFullMode delete2.DeleteServiceFullMode
@@ -59,14 +58,13 @@ type GitProviderRestHandlerImpl struct {
 func NewGitProviderRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistryConfig,
 	logger *zap.SugaredLogger,
 	gitRegistryConfig pipeline.GitRegistryConfig,
-	dbConfigService pipeline.DbConfigService, userAuthService user.UserService,
+	userAuthService user.UserService,
 	validator *validator.Validate, enforcer casbin.Enforcer, teamService team.TeamService,
 	deleteServiceFullMode delete2.DeleteServiceFullMode) *GitProviderRestHandlerImpl {
 	return &GitProviderRestHandlerImpl{
 		dockerRegistryConfig:  dockerRegistryConfig,
 		logger:                logger,
 		gitRegistryConfig:     gitRegistryConfig,
-		dbConfigService:       dbConfigService,
 		userAuthService:       userAuthService,
 		validator:             validator,
 		enforcer:              enforcer,

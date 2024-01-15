@@ -44,7 +44,7 @@ func GetCiEventConfig() (*CiEventConfig, error) {
 }
 
 type CiEventHandler interface {
-	Subscribe() error
+	subscribe() error
 	BuildCiArtifactRequest(event CiCompleteEvent) (*pipeline.CiArtifactWebhookRequest, error)
 	BuildCiArtifactRequestForWebhook(event CiCompleteEvent) (*pipeline.CiArtifactWebhookRequest, error)
 }
@@ -87,7 +87,7 @@ func NewCiEventHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSu
 		webhookService: webhookService,
 		ciEventConfig:  ciEventConfig,
 	}
-	err := ciEventHandlerImpl.Subscribe()
+	err := ciEventHandlerImpl.subscribe()
 	if err != nil {
 		logger.Error(err)
 		return nil
@@ -95,7 +95,7 @@ func NewCiEventHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSu
 	return ciEventHandlerImpl
 }
 
-func (impl *CiEventHandlerImpl) Subscribe() error {
+func (impl *CiEventHandlerImpl) subscribe() error {
 	callback := func(msg *model.PubSubMsg) {
 		impl.logger.Debugw("ci complete event received")
 		//defer msg.Ack()

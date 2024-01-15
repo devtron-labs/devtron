@@ -24,7 +24,7 @@ import (
 	"strconv"
 
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
+	"github.com/devtron-labs/devtron/pkg/appStore/chartGroup"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/gorilla/mux"
@@ -35,14 +35,14 @@ import (
 const CHART_GROUP_DELETE_SUCCESS_RESP = "Chart group deleted successfully."
 
 type ChartGroupRestHandlerImpl struct {
-	ChartGroupService service.ChartGroupService
-	Logger          *zap.SugaredLogger
-	userAuthService user.UserService
-	enforcer        casbin.Enforcer
+	ChartGroupService chartGroup.ChartGroupService
+	Logger            *zap.SugaredLogger
+	userAuthService   user.UserService
+	enforcer          casbin.Enforcer
 	validator         *validator.Validate
 }
 
-func NewChartGroupRestHandlerImpl(ChartGroupService service.ChartGroupService,
+func NewChartGroupRestHandlerImpl(ChartGroupService chartGroup.ChartGroupService,
 	Logger *zap.SugaredLogger, userAuthService user.UserService,
 	enforcer casbin.Enforcer, validator *validator.Validate) *ChartGroupRestHandlerImpl {
 	return &ChartGroupRestHandlerImpl{
@@ -72,7 +72,7 @@ func (impl *ChartGroupRestHandlerImpl) CreateChartGroup(w http.ResponseWriter, r
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	var request service.ChartGroupBean
+	var request chartGroup.ChartGroupBean
 	err = decoder.Decode(&request)
 	if err != nil {
 		impl.Logger.Errorw("request err, CreateChartGroup", "err", err, "payload", request)
@@ -101,7 +101,7 @@ func (impl *ChartGroupRestHandlerImpl) CreateChartGroup(w http.ResponseWriter, r
 	if err != nil {
 		impl.Logger.Errorw("service err, CreateChartGroup", "err", err, "payload", request)
 		statusCode := http.StatusInternalServerError
-		if service.AppNameAlreadyExistsError == err.Error() {
+		if chartGroup.AppNameAlreadyExistsError == err.Error() {
 			statusCode = http.StatusBadRequest
 		}
 		common.WriteJsonResp(w, err, nil, statusCode)
@@ -117,7 +117,7 @@ func (impl *ChartGroupRestHandlerImpl) UpdateChartGroup(w http.ResponseWriter, r
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	var request service.ChartGroupBean
+	var request chartGroup.ChartGroupBean
 	err = decoder.Decode(&request)
 	if err != nil {
 		impl.Logger.Errorw("request err, UpdateChartGroup", "err", err, "payload", request)
@@ -158,7 +158,7 @@ func (impl *ChartGroupRestHandlerImpl) SaveChartGroupEntries(w http.ResponseWrit
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	var request service.ChartGroupBean
+	var request chartGroup.ChartGroupBean
 	err = decoder.Decode(&request)
 	if err != nil {
 		impl.Logger.Errorw("request err, SaveChartGroupEntries", "err", err, "payload", request)
@@ -326,7 +326,7 @@ func (impl *ChartGroupRestHandlerImpl) DeleteChartGroup(w http.ResponseWriter, r
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	var request service.ChartGroupBean
+	var request chartGroup.ChartGroupBean
 	err = decoder.Decode(&request)
 	if err != nil {
 		impl.Logger.Errorw("request err, DeleteChartGroup", "err", err, "payload", request)

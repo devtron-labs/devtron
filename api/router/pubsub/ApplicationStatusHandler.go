@@ -41,7 +41,7 @@ import (
 )
 
 type ApplicationStatusHandler interface {
-	Subscribe() error
+	subscribe() error
 	SubscribeDeleteStatus() error
 }
 
@@ -72,7 +72,7 @@ func NewApplicationStatusHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pu
 		pipelineRepository:        pipelineRepository,
 		installedAppRepository:    installedAppRepository,
 	}
-	err := appStatusUpdateHandlerImpl.Subscribe()
+	err := appStatusUpdateHandlerImpl.subscribe()
 	if err != nil {
 		//logger.Error("err", err)
 		return nil
@@ -89,7 +89,7 @@ type ApplicationDetail struct {
 	StatusTime  time.Time              `json:"statusTime"`
 }
 
-func (impl *ApplicationStatusHandlerImpl) Subscribe() error {
+func (impl *ApplicationStatusHandlerImpl) subscribe() error {
 	callback := func(msg *model.PubSubMsg) {
 		impl.logger.Debugw("APP_STATUS_UPDATE_REQ", "stage", "raw", "data", msg.Data)
 		applicationDetail := ApplicationDetail{}
