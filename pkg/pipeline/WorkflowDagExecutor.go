@@ -725,7 +725,7 @@ func (impl *WorkflowDagExecutorImpl) processDevtronAsyncHelmInstallRequest(CDAsy
 		impl.logger.Infow("pipeline triggered successfully !!", "cdPipelineId", overrideRequest.PipelineId, "artifactId", overrideRequest.CiArtifactId, "releaseId", releaseId)
 		// Update previous deployment runner status (in transaction): Failed
 		_, span = otel.Tracer("orchestrator").Start(ctx, "updatePreviousDeploymentStatus")
-		err1 := impl.updatePreviousDeploymentStatus(nil, cdWfr, overrideRequest.PipelineId, CDAsyncInstallNatsMessage.TriggeredAt, overrideRequest.UserId)
+		err1 := impl.updatePreviousDeploymentStatus(cdWfr, overrideRequest.PipelineId, CDAsyncInstallNatsMessage.TriggeredAt, overrideRequest.UserId)
 		span.End()
 		if err1 != nil {
 			impl.logger.Errorw("error while update previous cd workflow runners, processDevtronAsyncHelmInstallRequest", "err", err, "runner", cdWfr, "pipelineId", overrideRequest.PipelineId)
@@ -2102,9 +2102,17 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 	}
 
 	releaseErr := impl.TriggerCD(artifact, cdWf.Id, savedWfr.Id, pipeline, triggeredAt)
+	// if releaseErr found, then the mark current deployment Failed and return
+	if releaseErr != nil {
+		err := impl.MarkCurrentDeploymentFailed(runner, releaseErr, triggeredBy)
+		if err != nil {
+			impl.logger.Errorw("error while updating current runner status to failed, updatePreviousDeploymentStatus", "cdWfr", runner.Id, "err", err)
+		}
+		return releaseErr
+	}
 	//skip updatePreviousDeploymentStatus if Async Install is enabled; handled inside SubscribeDevtronAsyncHelmInstallRequest
 	if !impl.appService.IsDevtronAsyncInstallModeEnabled(pipeline.DeploymentAppType) {
-		err1 := impl.updatePreviousDeploymentStatus(releaseErr, runner, pipeline.Id, triggeredAt, triggeredBy)
+		err1 := impl.updatePreviousDeploymentStatus(runner, pipeline.Id, triggeredAt, triggeredBy)
 		if err1 != nil {
 			impl.logger.Errorw("error while update previous cd workflow runners", "err", err, "runner", runner, "pipelineId", pipeline.Id)
 			return err1
@@ -2113,16 +2121,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 	return nil
 }
 
-func (impl *WorkflowDagExecutorImpl) updatePreviousDeploymentStatus(releaseErr error, currentRunner *pipelineConfig.CdWorkflowRunner, pipelineId int, triggeredAt time.Time, triggeredBy int32) error {
-	// if releaseErr found, then the mark current deployment Failed and return
-	if releaseErr != nil {
-		err := impl.MarkCurrentDeploymentFailed(currentRunner, releaseErr, triggeredBy)
-		if err != nil {
-			impl.logger.Errorw("error while updating current runner status to failed, updatePreviousDeploymentStatus", "cdWfr", currentRunner.Id, "err", err)
-			return releaseErr
-		}
-		return releaseErr
-	}
+func (impl *WorkflowDagExecutorImpl) updatePreviousDeploymentStatus(currentRunner *pipelineConfig.CdWorkflowRunner, pipelineId int, triggeredAt time.Time, triggeredBy int32) error {
 	// Initiating DB transaction
 	dbConnection := impl.cdWorkflowRepository.GetConnection()
 	tx, err := dbConnection.Begin()
@@ -2444,12 +2443,19 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 		var releaseErr error
 		releaseId, _, releaseErr = impl.HandleCDTriggerRelease(overrideRequest, ctx, triggeredAt, overrideRequest.UserId)
 		span.End()
-
+		// if releaseErr found, then the mark current deployment Failed and return
+		if releaseErr != nil {
+			err := impl.MarkCurrentDeploymentFailed(runner, releaseErr, overrideRequest.UserId)
+			if err != nil {
+				impl.logger.Errorw("error while updating current runner status to failed, updatePreviousDeploymentStatus", "cdWfr", runner.Id, "err", err)
+			}
+			return 0, releaseErr
+		}
 		//skip updatePreviousDeploymentStatus if Async Install is enabled; handled inside SubscribeDevtronAsyncHelmInstallRequest
 		if !impl.appService.IsDevtronAsyncInstallModeEnabled(cdPipeline.DeploymentAppType) {
 			// Update previous deployment runner status (in transaction): Failed
 			_, span = otel.Tracer("orchestrator").Start(ctx, "updatePreviousDeploymentStatus")
-			err1 := impl.updatePreviousDeploymentStatus(releaseErr, runner, cdPipeline.Id, triggeredAt, overrideRequest.UserId)
+			err1 := impl.updatePreviousDeploymentStatus(runner, cdPipeline.Id, triggeredAt, overrideRequest.UserId)
 			span.End()
 			if releaseErr != nil || err1 != nil {
 				impl.logger.Errorw("error while update previous cd workflow runners, ManualCdTrigger", "err", err, "runner", runner, "pipelineId", cdPipeline.Id)
