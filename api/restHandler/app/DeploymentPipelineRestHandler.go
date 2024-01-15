@@ -1504,7 +1504,7 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsForRollback(w http.Resp
 		ciArtifactResponse, err = handler.pipelineBuilder.FetchArtifactForRollback(cdPipelineId, app.Id, offset, limit, searchString)
 	}
 
-	isDigestEnforced, err := handler.ImageDigestPolicyService.IsPolicyConfiguredForPipeline(pipeline.Id)
+	isDigestEnforced, err := handler.ImageDigestPolicyService.IsPolicyConfiguredForPipeline(cdPipelineId)
 	if err != nil {
 		handler.Logger.Errorw("error in checking if digest enforced for pipeline", "err", err)
 		return
