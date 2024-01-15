@@ -1672,11 +1672,11 @@ func (impl AppListingServiceImpl) FetchOtherEnvironment(ctx context.Context, app
 		return envs, err
 	}
 	appLevelInfraMetrics := true //default val, not being derived from DB. TODO: remove this from FE since this is derived from prometheus config at cluster level and this logic is already present at FE
-	newCtx, span = otel.Tracer("appLevelMetricsRepository").Start(newCtx, "FindByAppId")
-	appLevelAppMetrics, err := impl.deployedAppMetricsService.GetMetricsFlagByAppIdEvenIfNotInDb(appId)
+	newCtx, span = otel.Tracer("deployedAppMetricsService").Start(newCtx, "GetMetricsFlagByAppId")
+	appLevelAppMetrics, err := impl.deployedAppMetricsService.GetMetricsFlagByAppId(appId)
 	span.End()
 	if err != nil {
-		impl.Logger.Errorw("error, GetMetricsFlagByAppIdEvenIfNotInDb", "err", err, "appId", appId)
+		impl.Logger.Errorw("error, GetMetricsFlagByAppId", "err", err, "appId", appId)
 		return envs, err
 	}
 	newCtx, span = otel.Tracer("chartRepository").Start(newCtx, "FindLatestChartForAppByAppId")
@@ -1714,9 +1714,9 @@ func (impl AppListingServiceImpl) FetchMinDetailOtherEnvironment(appId int) ([]*
 		return envs, err
 	}
 	appLevelInfraMetrics := true //default val, not being derived from DB. TODO: remove this from FE since this is derived from prometheus config at cluster level and this logic is already present at FE
-	appLevelAppMetrics, err := impl.deployedAppMetricsService.GetMetricsFlagByAppIdEvenIfNotInDb(appId)
+	appLevelAppMetrics, err := impl.deployedAppMetricsService.GetMetricsFlagByAppId(appId)
 	if err != nil {
-		impl.Logger.Errorw("error, GetMetricsFlagByAppIdEvenIfNotInDb", "err", err, "appId", appId)
+		impl.Logger.Errorw("error, GetMetricsFlagByAppId", "err", err, "appId", appId)
 		return nil, err
 	}
 

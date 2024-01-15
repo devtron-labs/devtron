@@ -28,7 +28,7 @@ type EnvLevelAppMetrics struct {
 	Id         int      `sql:"id,pk"`
 	AppId      int      `sql:"app_id,notnull"`
 	EnvId      int      `sql:"env_id,notnull"`
-	AppMetrics *bool    `sql:"app_metrics,notnull"`
+	AppMetrics bool     `sql:"app_metrics,notnull"`
 	//InfraMetrics *bool    `sql:"infra_metrics,notnull"` not being used
 	sql.AuditLog
 }

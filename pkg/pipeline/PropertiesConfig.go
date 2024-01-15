@@ -324,7 +324,7 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, p
 		ChartRefId:    oldEnvOverride.Chart.ChartRefId,
 		UserId:        propertiesRequest.UserId,
 	}
-	err = impl.deployedAppMetricsService.CheckAndUpdateAppOrEnvLevelMetrics(context.Background(), envLevelMetricsUpdateReq)
+	err = impl.deployedAppMetricsService.CreateOrUpdateAppOrEnvLevelMetrics(context.Background(), envLevelMetricsUpdateReq)
 	if err != nil {
 		impl.logger.Errorw("error, CheckAndUpdateAppOrEnvLevelMetrics", "err", err, "req", envLevelMetricsUpdateReq)
 		return nil, err
@@ -434,7 +434,7 @@ func (impl PropertiesConfigServiceImpl) CreateIfRequired(chart *chartRepoReposit
 			ChartRefId:    chart.ChartRefId,
 			UserId:        userId,
 		}
-		err = impl.deployedAppMetricsService.CheckAndUpdateAppOrEnvLevelMetrics(context.Background(), envLevelMetricsUpdateReq)
+		err = impl.deployedAppMetricsService.CreateOrUpdateAppOrEnvLevelMetrics(context.Background(), envLevelMetricsUpdateReq)
 		if err != nil {
 			impl.logger.Errorw("error, CheckAndUpdateAppOrEnvLevelMetrics", "err", err, "req", envLevelMetricsUpdateReq)
 			return nil, isAppMetricsEnabled, err
