@@ -1,4 +1,5 @@
 ## Bugs
+- fix: error handling for trigger release (#4488)
 - fix: show deployed time for artifacts those were deployed in past (#4446)
 - fix: adding new fields in resource node to identify hooks in case of helm deployment (#4472)
 - fix: panic in app clone service for [linked ci, external ci, linked cd] cases (#4526)
