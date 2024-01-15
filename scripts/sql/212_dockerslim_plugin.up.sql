@@ -11,8 +11,6 @@ VALUES (
 httpProbe=$(echo "$HTTPProbe" | tr "[:upper:]" "[:lower:]")
 includeFilePath=$IncludePathFile
 
-apk add jq
-
 export tag=$(echo $CI_CD_EVENT | jq --raw-output .commonWorkflowRequest.dockerImageTag)
 export repo=$(echo $CI_CD_EVENT | jq --raw-output .commonWorkflowRequest.dockerRepository)
 
@@ -32,7 +30,12 @@ else
     docker run -i --rm -v /var/run/docker.sock:/var/run/docker.sock -v $PWD:$PWD dslim/slim build --http-probe=false --target $repo:$tag --tag $repo:$tag --continue-after=2
 fi
 
-echo "Docker-slim images built"$$,
+# Check the exit code of the last command
+if [ $? -eq 0 ]; then
+    echo "-----------***** Success: Docker-slim images built successfully *****-----------"
+else
+    echo "-----------***** Error: Docker-slim build failed, we are pushing original image to the container registry *****-----------"
+fi$$,
         'SHELL',
         'f',
         'now()',
