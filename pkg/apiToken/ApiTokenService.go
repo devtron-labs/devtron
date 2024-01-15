@@ -20,18 +20,19 @@ package apiToken
 import (
 	"errors"
 	"fmt"
-	"github.com/devtron-labs/authenticator/middleware"
-	"github.com/devtron-labs/devtron/api/bean"
-	openapi "github.com/devtron-labs/devtron/api/openapi/openapiClient"
-	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/go-pg/pg"
-	"github.com/golang-jwt/jwt/v4"
-	"go.uber.org/zap"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/devtron-labs/authenticator/middleware"
+	"github.com/devtron-labs/devtron/api/bean"
+	openapi "github.com/devtron-labs/devtron/api/openapi/openapiClient"
+	user2 "github.com/devtron-labs/devtron/pkg/auth/user"
+	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/go-pg/pg"
+	"github.com/golang-jwt/jwt/v4"
+	"go.uber.org/zap"
 )
 
 type ApiTokenService interface {
@@ -45,12 +46,12 @@ type ApiTokenService interface {
 type ApiTokenServiceImpl struct {
 	logger                *zap.SugaredLogger
 	apiTokenSecretService ApiTokenSecretService
-	userService           user.UserService
-	userAuditService      user.UserAuditService
+	userService           user2.UserService
+	userAuditService      user2.UserAuditService
 	apiTokenRepository    ApiTokenRepository
 }
 
-func NewApiTokenServiceImpl(logger *zap.SugaredLogger, apiTokenSecretService ApiTokenSecretService, userService user.UserService, userAuditService user.UserAuditService,
+func NewApiTokenServiceImpl(logger *zap.SugaredLogger, apiTokenSecretService ApiTokenSecretService, userService user2.UserService, userAuditService user2.UserAuditService,
 	apiTokenRepository ApiTokenRepository) *ApiTokenServiceImpl {
 	return &ApiTokenServiceImpl{
 		logger:                logger,

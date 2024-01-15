@@ -1,0 +1,14 @@
+server:
+ deployment:
+   image_tag: IMAGE_TAG
+   image: IMAGE_REPO
+   enabled: false
+dbMigrationConfig:
+  enabled: false
+
+pauseForSecondsBeforeSwitchActive: 0
+waitForSecondsBeforeScalingDown: 0
+autoPromotionSeconds: 30
+
+#used for deployment algo selection
+orchestrator.deploymant.algo: 1 

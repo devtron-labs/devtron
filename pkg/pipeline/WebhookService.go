@@ -30,6 +30,7 @@ import (
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	types2 "github.com/devtron-labs/devtron/pkg/pipeline/types"
 	repository3 "github.com/devtron-labs/devtron/pkg/plugin/repository"
@@ -60,7 +61,7 @@ type CiArtifactWebhookRequest struct {
 type WebhookService interface {
 	AuthenticateExternalCiWebhook(apiKey string) (int, error)
 	HandleCiSuccessEvent(ciPipelineId int, request *CiArtifactWebhookRequest, imagePushedAt *time.Time) (id int, err error)
-	HandleExternalCiWebhook(externalCiId int, request *CiArtifactWebhookRequest, auth func(token string, projectObject string, envObject string) bool) (id int, err error)
+	HandleExternalCiWebhook(externalCiId int, request *CiArtifactWebhookRequest, auth func(token string, projectObject string, envObject string) bool, token string) (id int, err error)
 	HandleCiStepFailedEvent(ciPipelineId int, request *CiArtifactWebhookRequest) (err error)
 	HandleMultipleImagesFromEvent(imageDetails []types.ImageDetail, ciWorkflowId int) (map[string]*pipelineConfig.CiWorkflow, error)
 }
@@ -175,6 +176,10 @@ func (impl WebhookServiceImpl) HandleCiSuccessEvent(ciPipelineId int, request *C
 		savedWorkflow, err := impl.ciWorkflowRepository.FindById(*request.WorkflowId)
 		if err != nil {
 			impl.logger.Errorw("cannot get saved wf", "err", err)
+			return 0, err
+		}
+		// if workflow already cancelled then return, this state arises when user force aborts a ci
+		if savedWorkflow.Status == executors.WorkflowCancel {
 			return 0, err
 		}
 		savedWorkflow.Status = string(v1alpha1.NodeSucceeded)
@@ -319,13 +324,6 @@ func (impl WebhookServiceImpl) HandleCiSuccessEvent(ciPipelineId int, request *C
 		ciArtifactArr = append(ciArtifactArr, pluginArtifacts[0])
 	}
 	go impl.WriteCISuccessEvent(request, pipeline, buildArtifact)
-	isCiManual := true
-	if request.UserId == 1 {
-		impl.logger.Debugw("Trigger (auto) by system user", "userId", request.UserId)
-		isCiManual = false
-	} else {
-		impl.logger.Debugw("Trigger (manual) by user", "userId", request.UserId)
-	}
 	async := false
 
 	// execute auto trigger in batch on CI success event
@@ -351,7 +349,7 @@ func (impl WebhookServiceImpl) HandleCiSuccessEvent(ciPipelineId int, request *C
 				defer wg.Done()
 				ciArtifact := ciArtifactArr[index]
 				// handle individual CiArtifact success event
-				err = impl.workflowDagExecutor.HandleCiSuccessEvent(ciArtifact, isCiManual, async, request.UserId)
+				err = impl.workflowDagExecutor.HandleCiSuccessEvent(ciArtifact, async, request.UserId)
 				if err != nil {
 					impl.logger.Errorw("error on handle  ci success event", "ciArtifactId", ciArtifact.Id, "err", err)
 				}
@@ -364,7 +362,7 @@ func (impl WebhookServiceImpl) HandleCiSuccessEvent(ciPipelineId int, request *C
 	return buildArtifact.Id, err
 }
 
-func (impl WebhookServiceImpl) HandleExternalCiWebhook(externalCiId int, request *CiArtifactWebhookRequest, auth func(token string, projectObject string, envObject string) bool) (id int, err error) {
+func (impl WebhookServiceImpl) HandleExternalCiWebhook(externalCiId int, request *CiArtifactWebhookRequest, auth func(token string, projectObject string, envObject string) bool, token string) (id int, err error) {
 	externalCiPipeline, err := impl.ciPipelineRepository.FindExternalCiById(externalCiId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching external ci", "err", err)
@@ -408,7 +406,7 @@ func (impl WebhookServiceImpl) HandleExternalCiWebhook(externalCiId int, request
 		return 0, err
 	}
 
-	hasAnyTriggered, err := impl.workflowDagExecutor.HandleWebhookExternalCiEvent(artifact, request.UserId, externalCiId, auth)
+	hasAnyTriggered, err := impl.workflowDagExecutor.HandleWebhookExternalCiEvent(artifact, request.UserId, externalCiId, auth, token)
 	if err != nil {
 		impl.logger.Errorw("error on handle ext ci webhook", "err", err)
 		// if none of the child node has been triggered
