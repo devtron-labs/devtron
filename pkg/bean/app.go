@@ -839,6 +839,7 @@ type CiArtifactResponse struct {
 	ResourceFilters            []*resourceFilter.FilterMetaDataBean `json:"resourceFilters"`
 	TotalCount                 int                                  `json:"totalCount"`
 	CanApproverDeploy          bool                                 `json:"canApproverDeploy"`
+	IsDigestEnforced           bool             `json:"isDigestEnforced"`
 }
 
 type AppLabelsDto struct {
