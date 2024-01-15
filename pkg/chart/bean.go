@@ -2,6 +2,7 @@ package chart
 
 import (
 	"encoding/json"
+	"github.com/devtron-labs/devtron/enterprise/pkg/lockConfiguration/bean"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 )
 
@@ -15,6 +16,11 @@ var ReservedChartRefNamesList *[]ReservedChartList
 type ReservedChartList struct {
 	LocationPrefix string
 	Name           string
+}
+
+type TemplateResponse struct {
+	*TemplateRequest
+	*bean.LockValidateErrorResponse
 }
 
 type TemplateRequest struct {
@@ -32,6 +38,7 @@ type TemplateRequest struct {
 	Readme                  string                      `json:"readme"`
 	IsBasicViewLocked       bool                        `json:"isBasicViewLocked"`
 	CurrentViewEditor       models.ChartsViewEditorType `json:"currentViewEditor"` //default "UNDEFINED" in db
+	SaveEligibleChanges     bool                        `json:"saveEligibleChanges"`
 	UserId                  int32                       `json:"-"`
 }
 

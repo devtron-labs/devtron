@@ -72,6 +72,7 @@ import (
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/enterprise/api/drafts"
 	"github.com/devtron-labs/devtron/enterprise/api/globalTag"
+	"github.com/devtron-labs/devtron/enterprise/api/lockConfiguation"
 	"github.com/devtron-labs/devtron/enterprise/api/protect"
 	app3 "github.com/devtron-labs/devtron/enterprise/pkg/app"
 	pipeline3 "github.com/devtron-labs/devtron/enterprise/pkg/pipeline"
@@ -173,6 +174,7 @@ func InitializeApp() (*App, error) {
 		protect.ProtectWireSet,
 		devtronResource.DevtronResourceWireSet,
 		globalConfig.GlobalConfigWireSet,
+		lockConfiguation.LockConfigWireSet,
 		// -------wireset end ----------
 		//-------
 		gitSensor.GetConfig,

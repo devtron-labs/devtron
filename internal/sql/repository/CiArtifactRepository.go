@@ -109,7 +109,7 @@ type CiArtifactRepository interface {
 	GetArtifactByCdWorkflowId(cdWorkflowId int) (artifact *CiArtifact, err error)
 	GetArtifactsByParentCiWorkflowId(parentCiWorkflowId int) ([]string, error)
 	FetchArtifactsByCdPipelineIdV2(listingFilterOptions bean.ArtifactsListFilterOptions) ([]CiArtifactWithExtraData, int, error)
-	FindArtifactByListFilter(listingFilterOptions *bean.ArtifactsListFilterOptions, isApprovalNode bool) ([]CiArtifact, int, error)
+	FindArtifactByListFilter(listingFilterOptions *bean.ArtifactsListFilterOptions, isApprovalNode bool) ([]*CiArtifact, int, error)
 	FetchApprovedArtifactsForRollback(listingFilterOptions bean.ArtifactsListFilterOptions) ([]CiArtifactWithExtraData, int, error)
 	FindApprovedArtifactsWithFilter(listingFilterOpts *bean.ArtifactsListFilterOptions) ([]*CiArtifact, int, error)
 	GetArtifactsByDataSourceAndComponentId(dataSource string, componentId int) ([]CiArtifact, error)
@@ -346,18 +346,16 @@ func (impl CiArtifactRepositoryImpl) setDeployedDataInArtifacts(pipelineId int, 
 		artifactsIds = append(artifactsIds, artifact.Id)
 	}
 
-	//(this will fetch all the artifacts that were deployed on the given pipeline atleast once in new->old deployed order)
+	// (this will fetch all the artifacts that were deployed on the given pipeline atleast once in new->old deployed order)
 	artifactsDeployed := make([]*CiArtifact, 0, len(artifactsIds))
-	query := " SELECT cia.id,pco.created_on AS created_on " +
-		" FROM ci_artifact cia" +
-		" INNER JOIN pipeline_config_override pco ON pco.ci_artifact_id=cia.id" +
+	query := "SELECT pco.ci_artifact_id AS id,pco.created_on AS created_on " +
+		" FROM pipeline_config_override pco " +
 		" WHERE pco.pipeline_id = ? " +
-		" AND cia.id IN (?) " +
-		" ORDER BY pco.id desc;"
+		" AND pco.ci_artifact_id IN (?) "
 
 	_, err := impl.dbConnection.Query(&artifactsDeployed, query, pipelineId, pg.In(artifactsIds))
 	if err != nil {
-		return artifacts, nil
+		return artifacts, err
 	}
 
 	//set deployed time and latest deployed artifact
@@ -467,7 +465,7 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineAndRunnerType(cdPip
 		return nil, err
 	}
 
-	//find latest deployed entry
+	// find latest deployed entry
 	latestObj := Object{}
 	latestDeployedQuery := "SELECT cia.id FROM ci_artifact cia" +
 		" INNER JOIN pipeline_config_override pco ON pco.ci_artifact_id=cia.id" +
@@ -674,7 +672,7 @@ func (impl CiArtifactRepositoryImpl) FinDByParentCiArtifactAndCiId(parentCiArtif
 }
 
 func (impl CiArtifactRepositoryImpl) GetLatest(cdPipelineId int) (int, error) {
-	//find latest deployed entry
+	// find latest deployed entry
 	type Object struct {
 		Id           int    `json:"id"`
 		MaterialInfo string `json:"material_info"`
@@ -733,10 +731,10 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByParentCiWorkflowId(parentCiWo
 	return artifacts, err
 }
 
-func (impl CiArtifactRepositoryImpl) FindArtifactByListFilter(listingFilterOptions *bean.ArtifactsListFilterOptions, isApprovalNode bool) ([]CiArtifact, int, error) {
+func (impl CiArtifactRepositoryImpl) FindArtifactByListFilter(listingFilterOptions *bean.ArtifactsListFilterOptions, isApprovalNode bool) ([]*CiArtifact, int, error) {
 
 	var ciArtifactsResp []CiArtifactWithExtraData
-	ciArtifacts := make([]CiArtifact, 0)
+	ciArtifacts := make([]*CiArtifact, 0)
 	totalCount := 0
 	finalQuery := BuildQueryForArtifactsForCdStage(*listingFilterOptions, isApprovalNode)
 	_, err := impl.dbConnection.Query(&ciArtifactsResp, finalQuery)
@@ -745,10 +743,12 @@ func (impl CiArtifactRepositoryImpl) FindArtifactByListFilter(listingFilterOptio
 	}
 
 	if listingFilterOptions.UseCdStageQueryV2 {
-		for _, cia := range ciArtifactsResp {
+		for i, _ := range ciArtifactsResp {
+			cia := ciArtifactsResp[i]
 			totalCount = cia.TotalCount
-			ciArtifacts = append(ciArtifacts, cia.CiArtifact)
+			ciArtifacts = append(ciArtifacts, &cia.CiArtifact)
 		}
+		ciArtifacts, err = impl.setDeployedDataInArtifacts(listingFilterOptions.PipelineId, ciArtifacts)
 		return ciArtifacts, totalCount, err
 	}
 
@@ -758,14 +758,20 @@ func (impl CiArtifactRepositoryImpl) FindArtifactByListFilter(listingFilterOptio
 		totalCount = af.TotalCount
 	}
 
-	err = impl.dbConnection.
-		Model(&ciArtifacts).
-		Where("id IN (?) ", pg.In(artifactIds)).
-		Select()
-
-	if err == pg.ErrNoRows {
-		return ciArtifacts, totalCount, nil
+	if len(artifactIds) > 0 {
+		err = impl.dbConnection.
+			Model(&ciArtifacts).
+			Where("id IN (?) ", pg.In(artifactIds)).
+			Select()
+		if err != nil {
+			if err == pg.ErrNoRows {
+				err = nil
+			}
+			return ciArtifacts, totalCount, err
+		}
 	}
+
+	ciArtifacts, err = impl.setDeployedDataInArtifacts(listingFilterOptions.PipelineId, ciArtifacts)
 	return ciArtifacts, totalCount, err
 }
 

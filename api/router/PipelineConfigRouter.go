@@ -62,11 +62,13 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/template/{appId}/default/{chartRefId}").HandlerFunc(router.restHandler.GetAppOverrideForDefaultTemplate).Methods("GET")
 
 	configRouter.Path("/template").HandlerFunc(router.restHandler.ConfigureDeploymentTemplateForApp).Methods("POST")
+	configRouter.Path("/template/default/{chartRefId}").HandlerFunc(router.restHandler.GetDefaultDeploymentTemplate).Methods("GET")
 	configRouter.Path("/template/{appId}/{chartRefId}").HandlerFunc(router.restHandler.GetDeploymentTemplate).Methods("GET")
 	configRouter.Path("/template/default/{appId}/{chartRefId}").HandlerFunc(router.restHandler.GetDefaultDeploymentTemplate).Methods("GET")
 	configRouter.Path("/template/update").HandlerFunc(router.restHandler.UpdateAppOverride).Methods("POST")
 	configRouter.Path("/template/list").Queries("appId", "{appId}").Queries("envId", "{envId}").HandlerFunc(router.restHandler.GetTemplateComparisonMetadata).Methods("GET")
 	configRouter.Path("/template/data").HandlerFunc(router.restHandler.GetDeploymentTemplateData).Methods("POST")
+	configRouter.Path("/template/validate").HandlerFunc(router.restHandler.ValidateAppOverride).Methods("POST")
 
 	configRouter.Path("/cd-pipeline").HandlerFunc(router.restHandler.CreateCdPipeline).Methods("POST")
 	configRouter.Path("/cd-pipeline/patch").HandlerFunc(router.restHandler.PatchCdPipeline).Methods("POST")
