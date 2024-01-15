@@ -2,10 +2,10 @@ package deployedAppMetrics
 
 import (
 	"context"
-	interalRepo "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics/bean"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
@@ -24,14 +24,14 @@ type DeployedAppMetricsService interface {
 type DeployedAppMetricsServiceImpl struct {
 	logger                    *zap.SugaredLogger
 	chartRefRepository        chartRepoRepository.ChartRefRepository
-	appLevelMetricsRepository interalRepo.AppLevelMetricsRepository
-	envLevelMetricsRepository interalRepo.EnvLevelAppMetricsRepository
+	appLevelMetricsRepository repository.AppLevelMetricsRepository
+	envLevelMetricsRepository repository.EnvLevelAppMetricsRepository
 }
 
 func NewDeployedAppMetricsServiceImpl(logger *zap.SugaredLogger,
 	chartRefRepository chartRepoRepository.ChartRefRepository,
-	appLevelMetricsRepository interalRepo.AppLevelMetricsRepository,
-	envLevelMetricsRepository interalRepo.EnvLevelAppMetricsRepository) *DeployedAppMetricsServiceImpl {
+	appLevelMetricsRepository repository.AppLevelMetricsRepository,
+	envLevelMetricsRepository repository.EnvLevelAppMetricsRepository) *DeployedAppMetricsServiceImpl {
 	return &DeployedAppMetricsServiceImpl{
 		logger:                    logger,
 		chartRefRepository:        chartRefRepository,
@@ -142,7 +142,7 @@ func (impl *DeployedAppMetricsServiceImpl) checkIsAppMetricsSupported(chartRefId
 	return chartRefValue.IsAppMetricsSupported, nil
 }
 
-func (impl *DeployedAppMetricsServiceImpl) createOrUpdateAppLevelMetrics(req *bean.DeployedAppMetricsRequest) (*interalRepo.AppLevelMetrics, error) {
+func (impl *DeployedAppMetricsServiceImpl) createOrUpdateAppLevelMetrics(req *bean.DeployedAppMetricsRequest) (*repository.AppLevelMetrics, error) {
 	existingAppLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(req.AppId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in app metrics app level flag", "error", err)
@@ -159,7 +159,7 @@ func (impl *DeployedAppMetricsServiceImpl) createOrUpdateAppLevelMetrics(req *be
 		}
 		return existingAppLevelMetrics, nil
 	} else {
-		appLevelMetricsNew := &interalRepo.AppLevelMetrics{
+		appLevelMetricsNew := &repository.AppLevelMetrics{
 			AppId:      req.AppId,
 			AppMetrics: req.EnableMetrics,
 			AuditLog: sql.AuditLog{
@@ -178,7 +178,7 @@ func (impl *DeployedAppMetricsServiceImpl) createOrUpdateAppLevelMetrics(req *be
 	}
 }
 
-func (impl *DeployedAppMetricsServiceImpl) createOrUpdateEnvLevelMetrics(req *bean.DeployedAppMetricsRequest) (*interalRepo.EnvLevelAppMetrics, error) {
+func (impl *DeployedAppMetricsServiceImpl) createOrUpdateEnvLevelMetrics(req *bean.DeployedAppMetricsRequest) (*repository.EnvLevelAppMetrics, error) {
 	// update and create env level app metrics
 	envLevelAppMetrics, err := impl.envLevelMetricsRepository.FindByAppIdAndEnvId(req.AppId, req.EnvId)
 	if err != nil && err != pg.ErrNoRows {
@@ -186,7 +186,7 @@ func (impl *DeployedAppMetricsServiceImpl) createOrUpdateEnvLevelMetrics(req *be
 		return nil, err
 	}
 	if envLevelAppMetrics == nil || envLevelAppMetrics.Id == 0 {
-		envLevelAppMetrics = &interalRepo.EnvLevelAppMetrics{
+		envLevelAppMetrics = &repository.EnvLevelAppMetrics{
 			AppId:      req.AppId,
 			EnvId:      req.EnvId,
 			AppMetrics: &req.EnableMetrics,

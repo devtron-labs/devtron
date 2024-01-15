@@ -98,6 +98,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/commonService"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
+	repository11 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics/repository"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	repository9 "github.com/devtron-labs/devtron/pkg/devtronResource/repository"
@@ -557,11 +558,11 @@ func InitializeApp() (*App, error) {
 
 		restHandler.NewExternalCiRestHandlerImpl,
 		wire.Bind(new(restHandler.ExternalCiRestHandler), new(*restHandler.ExternalCiRestHandlerImpl)),
-		repository.NewAppLevelMetricsRepositoryImpl,
-		wire.Bind(new(repository.AppLevelMetricsRepository), new(*repository.AppLevelMetricsRepositoryImpl)),
+		repository11.NewAppLevelMetricsRepositoryImpl,
+		wire.Bind(new(repository11.AppLevelMetricsRepository), new(*repository11.AppLevelMetricsRepositoryImpl)),
 
-		repository.NewEnvLevelAppMetricsRepositoryImpl,
-		wire.Bind(new(repository.EnvLevelAppMetricsRepository), new(*repository.EnvLevelAppMetricsRepositoryImpl)),
+		repository11.NewEnvLevelAppMetricsRepositoryImpl,
+		wire.Bind(new(repository11.EnvLevelAppMetricsRepository), new(*repository11.EnvLevelAppMetricsRepositoryImpl)),
 
 		grafana.GetGrafanaClientConfig,
 		grafana.NewGrafanaClientImpl,
