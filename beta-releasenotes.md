@@ -19,6 +19,7 @@
 - feat: common-lib version update (#4399)
 - feat: flag driven tag based build propogate same tag for CI Build  (#4404)
 ## Documentation
+- doc: Created Catalog Framework Doc (#4512)
 - doc: Added Minikube Tutorial + Restructured Doc (#4477)
 - doc: Update Helm Installation Command (#4429)
 - docs: Typos fixed in multiple files of user-guide/creating-application (#4098)
