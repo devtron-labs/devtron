@@ -797,14 +797,7 @@ func (impl CiArtifactRepositoryImpl) FindByImagePathsPipelineIdComponentId(image
 	var ciArtifacts []CiArtifact
 	err := impl.dbConnection.Model(&ciArtifacts).
 		Where("image in (?)", pg.In(images)).
-		Where("id > ? ", minArtifactId).
-		WhereGroup(func(query *orm.Query) (*orm.Query, error) {
-			query = query.Where("pipeline_id = ? ", pipelineId)
-			for dataSource, componentId := range dataSourceToComponentIdMapping {
-				query = query.Where(" data_source = ? and component_id = ? ", dataSource, componentId)
-			}
-			return query, nil
-		}).
+		Where("id >= ? ", minArtifactId).
 		Select()
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting ci artifacts by data_source and component_id")

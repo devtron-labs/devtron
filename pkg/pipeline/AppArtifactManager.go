@@ -418,7 +418,7 @@ func (impl *AppArtifactManagerImpl) BuildRollbackArtifactsList(artifactListingFi
 		})
 		artifactIds = append(artifactIds, ciArtifact.Id)
 	}
-	deployedCiArtifacts, err = impl.MarkArtifactsDuplicateAndSuperseded(deployedCiArtifacts, artifactListingFilterOpts.Limit)
+	deployedCiArtifacts, err = impl.MarkArtifactsDuplicateAndSuperseded(deployedCiArtifacts, artifactListingFilterOpts.Offset)
 	if err != nil {
 		impl.logger.Errorw("error in marking image duplicate and superseded", "err", err)
 	}
@@ -856,7 +856,7 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 		}
 	}
 
-	ciArtifacts, err = impl.MarkArtifactsDuplicateAndSuperseded(ciArtifacts, listingFilterOpts.Limit)
+	ciArtifacts, err = impl.MarkArtifactsDuplicateAndSuperseded(ciArtifacts, listingFilterOpts.Offset)
 	if err != nil {
 		impl.logger.Errorw("error in marking image duplicate and superseded", "err", err)
 	}
@@ -919,11 +919,6 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsForCdStageV2(listingFilterOpts
 		ciArtifacts = append(ciArtifacts, ciArtifact)
 	}
 
-	ciArtifacts, err = impl.MarkArtifactsDuplicateAndSuperseded(ciArtifacts, listingFilterOpts.Limit)
-	if err != nil {
-		impl.logger.Errorw("error in marking image duplicate and superseded", "err", err)
-	}
-
 	return ciArtifacts, totalCount, nil
 }
 
@@ -967,20 +962,15 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsForCIParentV2(listingFilterOpt
 		ciArtifacts = append(ciArtifacts, ciArtifact)
 	}
 
-	ciArtifacts, err = impl.MarkArtifactsDuplicateAndSuperseded(ciArtifacts, listingFilterOpts.Limit)
-	if err != nil {
-		impl.logger.Errorw("error in marking image duplicate and superseded", "err", err)
-	}
-
 	return ciArtifacts, totalCount, nil
 }
 
 func (impl *AppArtifactManagerImpl) MarkArtifactsDuplicateAndSuperseded(
-	artifacts []bean2.CiArtifactBean, limit int) (artifactsResponse []bean2.CiArtifactBean, err error) {
+	artifacts []bean2.CiArtifactBean, offset int) (artifactsResponse []bean2.CiArtifactBean, err error) {
 
 	var imageToLatestArtifactIdMapping, artifactToArtifactCountMapping map[string]int
 
-	if limit == 0 {
+	if offset == 0 {
 		// for page-0, we don't need to look into DB for duplicate
 		imageToLatestArtifactIdMapping, artifactToArtifactCountMapping =
 			getLatestArtifactMappingAndArtifactCountMapping(artifacts)
@@ -1003,7 +993,9 @@ func getLatestArtifactMappingAndArtifactCountMapping(artifacts []bean2.CiArtifac
 	imageToLatestArtifactIdMapping := make(map[string]int)
 	artifactToArtifactCountMapping := make(map[string]int)
 	for _, artifact := range artifacts {
-		imageToLatestArtifactIdMapping[artifact.Image] = artifact.Id
+		if artifact.Id > imageToLatestArtifactIdMapping[artifact.Image] {
+			imageToLatestArtifactIdMapping[artifact.Image] = artifact.Id
+		}
 		artifactToArtifactCountMapping[artifact.Image] = artifactToArtifactCountMapping[artifact.Image] + 1
 	}
 	return imageToLatestArtifactIdMapping, artifactToArtifactCountMapping
@@ -1015,7 +1007,7 @@ func (impl *AppArtifactManagerImpl) getLatestArtifactMappingAndArtifactCountMapp
 	artifactToArtifactCountMapping := make(map[string]int)
 
 	imagePaths := make([]string, 0)
-	minArtifactId := math.MaxInt // will only look images in DB having artifact id greater than this minArtifactId
+	minArtifactId := math.MaxInt // will only look images in DB having artifact id greater than minArtifactId
 	var pipelineId int
 	dataSourceToComponentIdMapping := make(map[string]int)
 
@@ -1023,10 +1015,6 @@ func (impl *AppArtifactManagerImpl) getLatestArtifactMappingAndArtifactCountMapp
 		imagePaths = append(imagePaths, artifact.Image)
 		if minArtifactId > artifact.Id {
 			minArtifactId = artifact.Id
-		}
-		dataSourceToComponentIdMapping[artifact.DataSource] = artifact.ComponentId
-		if artifact.CiPipelineId > 0 {
-			pipelineId = artifact.CiPipelineId
 		}
 	}
 
@@ -1048,13 +1036,13 @@ func markSupersededAndDuplicateTagInArtifacts(
 	imageToLatestArtifactIdMapping map[string]int,
 	artifactToArtifactCountMapping map[string]int) []bean2.CiArtifactBean {
 
-	for _, artifact := range artifacts {
+	for i, artifact := range artifacts {
 		latestImageId := imageToLatestArtifactIdMapping[artifact.Image]
 		if artifact.Id != latestImageId {
-			artifact.IsSuperseded = true
+			artifacts[i].IsSuperseded = true
 		}
 		if artifactToArtifactCountMapping[artifact.Image] > 1 {
-			artifact.HasDuplicateImages = true
+			artifacts[i].HasDuplicateImages = true
 		}
 	}
 	return artifacts
