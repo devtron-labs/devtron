@@ -18,6 +18,7 @@
 package pipeline
 
 import (
+	"math"
 	"sort"
 	"strings"
 
@@ -57,9 +58,9 @@ type AppArtifactManager interface {
 
 type AppArtifactManagerImpl struct {
 	logger                  *zap.SugaredLogger
-	cdWorkflowRepository pipelineConfig.CdWorkflowRepository
-	userService          user.UserService
-	imageTaggingService  ImageTaggingService
+	cdWorkflowRepository    pipelineConfig.CdWorkflowRepository
+	userService             user.UserService
+	imageTaggingService     ImageTaggingService
 	ciArtifactRepository    repository.CiArtifactRepository
 	ciWorkflowRepository    pipelineConfig.CiWorkflowRepository
 	pipelineStageService    PipelineStageService
@@ -497,11 +498,16 @@ func (impl *AppArtifactManagerImpl) BuildRollbackArtifactsList(artifactListingFi
 			Scanned:                ciArtifact.Scanned,
 			ScanEnabled:            ciArtifact.ScanEnabled,
 			CiPipelineId:           ciArtifact.PipelineId,
+			ComponentId:            ciArtifact.ComponentId,
 			CredentialsSourceType:  ciArtifact.CredentialsSourceType,
 			CredentialsSourceValue: ciArtifact.CredentialSourceValue,
 			DataSource:             ciArtifact.DataSource,
 		})
 		artifactIds = append(artifactIds, ciArtifact.Id)
+	}
+	deployedCiArtifacts, err = impl.MarkArtifactsDuplicateAndSuperseded(deployedCiArtifacts, artifactListingFilterOpts.Offset)
+	if err != nil {
+		impl.logger.Errorw("error in marking image duplicate and superseded", "err", err)
 	}
 	return deployedCiArtifacts, artifactIds, totalCount, nil
 
@@ -914,7 +920,7 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pi
 	}
 
 	for _, ciArtifactsRef := range ciArtifactsRefs {
-		ciArtifacts = append(ciArtifacts, *ciArtifactsRef)
+		ciArtifacts = append(ciArtifacts, ciArtifactsRef)
 	}
 
 	environment := pipeline.Environment
@@ -1081,9 +1087,9 @@ func (impl *AppArtifactManagerImpl) setGitTriggerData(ciArtifacts []bean2.CiArti
 	return ciArtifacts, nil
 }
 
-func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.ArtifactsListFilterOptions, isApprovalNode bool) ([]*bean2.CiArtifactBean, int, string, int, error) {
+func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.ArtifactsListFilterOptions, isApprovalNode bool) ([]bean2.CiArtifactBean, int, string, int, error) {
 
-	var ciArtifacts []*bean2.CiArtifactBean
+	var ciArtifacts []bean2.CiArtifactBean
 	totalCount := 0
 	//1)get current deployed artifact on this pipeline
 	latestWf, err := impl.cdWorkflowRepository.FindArtifactByPipelineIdAndRunnerType(listingFilterOpts.PipelineId, listingFilterOpts.StageType, "", 1, []string{application.Healthy, application.SUCCEEDED, application.Progressing})
@@ -1092,7 +1098,7 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 		return ciArtifacts, 0, "", totalCount, err
 	}
 
-	var currentRunningArtifactBean *bean2.CiArtifactBean
+	var currentRunningArtifactBean bean2.CiArtifactBean
 	currentRunningArtifactId := 0
 	currentRunningWorkflowStatus := ""
 
@@ -1111,7 +1117,7 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 			mInfo = []byte("[]")
 			impl.logger.Errorw("Error in parsing artifact material info", "err", err, "artifact", currentRunningArtifact)
 		}
-		currentRunningArtifactBean = &bean2.CiArtifactBean{
+		currentRunningArtifactBean = bean2.CiArtifactBean{
 			Id:                     currentRunningArtifact.Id,
 			Image:                  currentRunningArtifact.Image,
 			ImageDigest:            currentRunningArtifact.ImageDigest,
@@ -1124,6 +1130,7 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 			CreatedTime:            formatDate(currentRunningArtifact.CreatedOn, bean2.LayoutRFC3339),
 			DataSource:             currentRunningArtifact.DataSource,
 			CiPipelineId:           currentRunningArtifact.PipelineId,
+			ComponentId:            currentRunningArtifact.ComponentId,
 			CredentialsSourceType:  currentRunningArtifact.CredentialsSourceType,
 			CredentialsSourceValue: currentRunningArtifact.CredentialSourceValue,
 		}
@@ -1177,7 +1184,7 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 				return ciArtifacts, 0, "", totalCount, err
 			}
 			for i, artifact := range ciArtifacts {
-				if currentRunningArtifactBean != nil && artifact.Id == currentRunningArtifactBean.Id {
+				if currentRunningArtifactBean.Id != 0 && artifact.Id == currentRunningArtifactBean.Id {
 					ciArtifacts[i].Latest = true
 					ciArtifacts[i].Deployed = true
 					ciArtifacts[i].DeployedTime = currentRunningArtifactBean.DeployedTime
@@ -1193,7 +1200,7 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 
 	//we don't need currently deployed artifact for approvalNode explicitly
 	//if no artifact deployed skip adding currentRunningArtifactBean in ciArtifacts arr
-	if !isApprovalNode && currentRunningArtifactBean != nil {
+	if !isApprovalNode && currentRunningArtifactBean.Id != 0 {
 		// listingFilterOpts.SearchString is always like %?%
 		searchString := listingFilterOpts.SearchString[1 : len(listingFilterOpts.SearchString)-1]
 		// just send current deployed in approval configured pipeline or this is eligible in search
@@ -1203,16 +1210,21 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 		}
 	}
 
+	ciArtifacts, err = impl.MarkArtifactsDuplicateAndSuperseded(ciArtifacts, listingFilterOpts.Offset)
+	if err != nil {
+		impl.logger.Errorw("error in marking image duplicate and superseded", "err", err)
+	}
+
 	return ciArtifacts, currentRunningArtifactId, currentRunningWorkflowStatus, totalCount, nil
 }
 
-func (impl *AppArtifactManagerImpl) buildArtifactsForCdStageV2(listingFilterOpts *bean.ArtifactsListFilterOptions, isApprovalNode bool) ([]*bean2.CiArtifactBean, int, error) {
+func (impl *AppArtifactManagerImpl) buildArtifactsForCdStageV2(listingFilterOpts *bean.ArtifactsListFilterOptions, isApprovalNode bool) ([]bean2.CiArtifactBean, int, error) {
 	cdArtifacts, totalCount, err := impl.ciArtifactRepository.FindArtifactByListFilter(listingFilterOpts, isApprovalNode)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cd workflow runners using filter", "filterOptions", listingFilterOpts, "err", err)
 		return nil, totalCount, err
 	}
-	ciArtifacts := make([]*bean2.CiArtifactBean, 0, len(cdArtifacts))
+	ciArtifacts := make([]bean2.CiArtifactBean, 0, len(cdArtifacts))
 
 	//get artifact running on parent cd
 	artifactRunningOnParentCd := 0
@@ -1234,7 +1246,7 @@ func (impl *AppArtifactManagerImpl) buildArtifactsForCdStageV2(listingFilterOpts
 			mInfo = []byte("[]")
 			impl.logger.Errorw("Error in parsing artifact material info", "err", err)
 		}
-		ciArtifact := &bean2.CiArtifactBean{
+		ciArtifact := bean2.CiArtifactBean{
 			Id:           artifact.Id,
 			Image:        artifact.Image,
 			ImageDigest:  artifact.ImageDigest,
@@ -1248,8 +1260,11 @@ func (impl *AppArtifactManagerImpl) buildArtifactsForCdStageV2(listingFilterOpts
 			CreatedTime:            formatDate(artifact.CreatedOn, bean2.LayoutRFC3339),
 			DataSource:             artifact.DataSource,
 			CiPipelineId:           artifact.PipelineId,
+			ComponentId:            artifact.ComponentId,
 			CredentialsSourceType:  artifact.CredentialsSourceType,
 			CredentialsSourceValue: artifact.CredentialSourceValue,
+			Deployed:               artifact.Deployed,
+			DeployedTime:           formatDate(artifact.DeployedTime, bean2.LayoutRFC3339),
 		}
 		if artifact.WorkflowId != nil {
 			ciArtifact.CiWorkflowId = *artifact.WorkflowId
@@ -1260,7 +1275,7 @@ func (impl *AppArtifactManagerImpl) buildArtifactsForCdStageV2(listingFilterOpts
 	return ciArtifacts, totalCount, nil
 }
 
-func (impl *AppArtifactManagerImpl) buildArtifactsForCIParentV2(listingFilterOpts *bean.ArtifactsListFilterOptions, isApprovalNode bool) ([]*bean2.CiArtifactBean, int, error) {
+func (impl *AppArtifactManagerImpl) buildArtifactsForCIParentV2(listingFilterOpts *bean.ArtifactsListFilterOptions, isApprovalNode bool) ([]bean2.CiArtifactBean, int, error) {
 
 	artifacts, totalCount, err := impl.ciArtifactRepository.GetArtifactsByCDPipelineV3(listingFilterOpts, isApprovalNode)
 	if err != nil {
@@ -1268,14 +1283,14 @@ func (impl *AppArtifactManagerImpl) buildArtifactsForCIParentV2(listingFilterOpt
 		return nil, totalCount, err
 	}
 
-	ciArtifacts := make([]*bean2.CiArtifactBean, 0, len(artifacts))
+	ciArtifacts := make([]bean2.CiArtifactBean, 0, len(artifacts))
 	for _, artifact := range artifacts {
 		mInfo, err := parseMaterialInfo([]byte(artifact.MaterialInfo), artifact.DataSource)
 		if err != nil {
 			mInfo = []byte("[]")
 			impl.logger.Errorw("Error in parsing artifact material info", "err", err, "artifact", artifact)
 		}
-		ciArtifact := &bean2.CiArtifactBean{
+		ciArtifact := bean2.CiArtifactBean{
 			Id:                     artifact.Id,
 			Image:                  artifact.Image,
 			ImageDigest:            artifact.ImageDigest,
@@ -1289,6 +1304,7 @@ func (impl *AppArtifactManagerImpl) buildArtifactsForCIParentV2(listingFilterOpt
 			CreatedTime:            formatDate(artifact.CreatedOn, bean2.LayoutRFC3339),
 			DataSource:             artifact.DataSource,
 			CiPipelineId:           artifact.PipelineId,
+			ComponentId:            artifact.ComponentId,
 			CredentialsSourceType:  artifact.CredentialsSourceType,
 			CredentialsSourceValue: artifact.CredentialSourceValue,
 		}
@@ -1301,13 +1317,13 @@ func (impl *AppArtifactManagerImpl) buildArtifactsForCIParentV2(listingFilterOpt
 	return ciArtifacts, totalCount, nil
 }
 
-func (impl *AppArtifactManagerImpl) fetchApprovedArtifacts(listingFilterOpts *bean.ArtifactsListFilterOptions, currentRunningArtifactBean *bean2.CiArtifactBean) ([]*bean2.CiArtifactBean, int, error) {
+func (impl *AppArtifactManagerImpl) fetchApprovedArtifacts(listingFilterOpts *bean.ArtifactsListFilterOptions, currentRunningArtifactBean bean2.CiArtifactBean) ([]bean2.CiArtifactBean, int, error) {
 	artifacts, totalCount, err := impl.ciArtifactRepository.FindApprovedArtifactsWithFilter(listingFilterOpts)
 	if err != nil {
 		impl.logger.Errorw("error in fetching approved image list", "pipelineId", listingFilterOpts.PipelineId, "err", err)
 		return nil, totalCount, err
 	}
-	ciArtifacts := make([]*bean2.CiArtifactBean, 0, len(artifacts))
+	ciArtifacts := make([]bean2.CiArtifactBean, 0, len(artifacts))
 
 	//get approval metadata for above ciArtifacts and current running artifact
 	//TODO Gireesh: init array with default size and using append is not optimized
@@ -1315,7 +1331,7 @@ func (impl *AppArtifactManagerImpl) fetchApprovedArtifacts(listingFilterOpts *be
 	for _, item := range artifacts {
 		artifactIds = append(artifactIds, item.Id)
 	}
-	if currentRunningArtifactBean != nil {
+	if currentRunningArtifactBean.Id != 0 {
 		artifactIds = append(artifactIds, currentRunningArtifactBean.Id)
 	}
 
@@ -1333,7 +1349,7 @@ func (impl *AppArtifactManagerImpl) fetchApprovedArtifacts(listingFilterOpts *be
 			mInfo = []byte("[]")
 			impl.logger.Errorw("Error in parsing artifact material info", "err", err, "artifact", artifact)
 		}
-		ciArtifact := &bean2.CiArtifactBean{
+		ciArtifact := bean2.CiArtifactBean{
 			Id:                     artifact.Id,
 			Image:                  artifact.Image,
 			ImageDigest:            artifact.ImageDigest,
@@ -1346,6 +1362,7 @@ func (impl *AppArtifactManagerImpl) fetchApprovedArtifacts(listingFilterOpts *be
 			ParentCiArtifact:       artifact.ParentCiArtifact,
 			CreatedTime:            formatDate(artifact.CreatedOn, bean2.LayoutRFC3339),
 			CiPipelineId:           artifact.PipelineId,
+			ComponentId:            artifact.ComponentId,
 			DataSource:             artifact.DataSource,
 			CredentialsSourceType:  artifact.CredentialsSourceType,
 			CredentialsSourceValue: artifact.CredentialSourceValue,
@@ -1361,7 +1378,7 @@ func (impl *AppArtifactManagerImpl) fetchApprovedArtifacts(listingFilterOpts *be
 		ciArtifacts = append(ciArtifacts, ciArtifact)
 	}
 
-	if currentRunningArtifactBean != nil {
+	if currentRunningArtifactBean.Id != 0 {
 		if approvalMetadataForArtifact, ok := userApprovalMetadata[currentRunningArtifactBean.Id]; ok {
 			currentRunningArtifactBean.UserApprovalMetadata = approvalMetadataForArtifact
 		}
@@ -1370,6 +1387,89 @@ func (impl *AppArtifactManagerImpl) fetchApprovedArtifacts(listingFilterOpts *be
 	}
 
 	return ciArtifacts, totalCount, nil
+}
+
+func (impl *AppArtifactManagerImpl) MarkArtifactsDuplicateAndSuperseded(
+	artifacts []bean2.CiArtifactBean, offset int) (artifactsResponse []bean2.CiArtifactBean, err error) {
+
+	var imageToLatestArtifactIdMapping, artifactToArtifactCountMapping map[string]int
+
+	if offset == 0 {
+		// for page-0, we don't need to look into DB for duplicate
+		imageToLatestArtifactIdMapping, artifactToArtifactCountMapping =
+			getLatestArtifactMappingAndArtifactCountMapping(artifacts)
+
+	} else {
+		imageToLatestArtifactIdMapping, artifactToArtifactCountMapping, err =
+			impl.getLatestArtifactMappingAndArtifactCountMappingConsideringDBImages(artifacts)
+		if err != nil {
+			impl.logger.Errorw("error in getting artifacts list from db for marking image superseded and identifying duplicates", "err", err)
+			return artifacts, err
+		}
+
+	}
+	artifacts = markSupersededAndDuplicateTagInArtifacts(artifacts, imageToLatestArtifactIdMapping, artifactToArtifactCountMapping)
+
+	return artifacts, nil
+}
+
+func getLatestArtifactMappingAndArtifactCountMapping(artifacts []bean2.CiArtifactBean) (map[string]int, map[string]int) {
+	imageToLatestArtifactIdMapping := make(map[string]int)
+	artifactToArtifactCountMapping := make(map[string]int)
+	for _, artifact := range artifacts {
+		if artifact.Id > imageToLatestArtifactIdMapping[artifact.Image] {
+			imageToLatestArtifactIdMapping[artifact.Image] = artifact.Id
+		}
+		artifactToArtifactCountMapping[artifact.Image] = artifactToArtifactCountMapping[artifact.Image] + 1
+	}
+	return imageToLatestArtifactIdMapping, artifactToArtifactCountMapping
+}
+
+func (impl *AppArtifactManagerImpl) getLatestArtifactMappingAndArtifactCountMappingConsideringDBImages(requestArtifacts []bean2.CiArtifactBean) (map[string]int, map[string]int, error) {
+
+	imageToLatestArtifactIdMapping := make(map[string]int)
+	artifactToArtifactCountMapping := make(map[string]int)
+
+	imagePaths := make([]string, 0)
+	minArtifactId := math.MaxInt // will only look images in DB having artifact id greater than minArtifactId
+	var pipelineId int
+	dataSourceToComponentIdMapping := make(map[string]int)
+
+	for _, artifact := range requestArtifacts {
+		imagePaths = append(imagePaths, artifact.Image)
+		if minArtifactId > artifact.Id {
+			minArtifactId = artifact.Id
+		}
+	}
+
+	artifacts, err := impl.ciArtifactRepository.FindByImagePathsPipelineIdComponentId(imagePaths, minArtifactId, pipelineId, dataSourceToComponentIdMapping)
+	if err != nil {
+		return artifactToArtifactCountMapping, artifactToArtifactCountMapping, err
+	}
+
+	for _, artifact := range artifacts {
+		imageToLatestArtifactIdMapping[artifact.Image] = artifact.Id
+		artifactToArtifactCountMapping[artifact.Image] = artifactToArtifactCountMapping[artifact.Image] + 1
+	}
+
+	return artifactToArtifactCountMapping, artifactToArtifactCountMapping, nil
+}
+
+func markSupersededAndDuplicateTagInArtifacts(
+	artifacts []bean2.CiArtifactBean,
+	imageToLatestArtifactIdMapping map[string]int,
+	artifactToArtifactCountMapping map[string]int) []bean2.CiArtifactBean {
+
+	for i, artifact := range artifacts {
+		latestImageId := imageToLatestArtifactIdMapping[artifact.Image]
+		if artifact.Id != latestImageId {
+			artifacts[i].IsSuperseded = true
+		}
+		if artifactToArtifactCountMapping[artifact.Image] > 1 {
+			artifacts[i].HasDuplicateImages = true
+		}
+	}
+	return artifacts
 }
 
 func (impl *AppArtifactManagerImpl) getFilerState(imageTaggingResp []*repository3.ImageTag, filters []*resourceFilter.FilterMetaDataBean, image string) resourceFilter.FilterState {
