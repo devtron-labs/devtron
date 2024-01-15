@@ -1,5 +1,5 @@
 INSERT INTO plugin_metadata (id,name,description,type,icon,deleted,created_on,created_by,updated_on,updated_by)
-VALUES (nextval('id_seq_plugin_metadata'),'Copacetic v1.0.0','This plugin is used to patch the container image vulnerabilities (Patching for Multi Architecture Builds not supported currently).','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/copacetic-plugin/assets/copa-plugin-icon.png',false,'now()',1,'now()',1);
+VALUES (nextval('id_seq_plugin_metadata'),'Copacetic v1.0.0','This plugin is used to patch the container image vulnerabilities (Patching for Multi Architecture Builds not supported currently).','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/copa-plugin-icon.png',false,'now()',1,'now()',1);
 
 INSERT INTO "plugin_tag_relation" ("id", "tag_id", "plugin_id", "created_on", "created_by", "updated_on", "updated_by") VALUES (nextval('id_seq_plugin_tag_relation'), (SELECT id FROM plugin_tag WHERE name='Security'), (SELECT id FROM plugin_metadata WHERE name='Copacetic v1.0.0'),'now()', 1, 'now()', 1);
 INSERT INTO "plugin_tag_relation" ("id", "tag_id", "plugin_id", "created_on", "created_by", "updated_on", "updated_by") VALUES (nextval('id_seq_plugin_tag_relation'), (SELECT id FROM plugin_tag WHERE name='DevSecOps'), (SELECT id FROM plugin_metadata WHERE name='Copacetic v1.0.0'),'now()', 1, 'now()', 1);
@@ -51,7 +51,7 @@ else
         --entrypoint buildkitd \
         "moby/buildkit:$BUILDKIT_VERSION"
 
-    copa patch -i $registry/$repo:$tag -r $appName.json -t $tag --addr docker-container://buildkitd --timeout "$CopaTimeout"
+    copa patch -i $registry/$repo:$tag -r $appName.json -t $tag --addr docker-container://buildkitd --timeout "$CopaPatchTimeout"
 
     trivy image --vuln-type os --ignore-unfixed $registry/$repo:$tag | grep -i total
     docker push $registry/$repo:$tag
@@ -69,4 +69,4 @@ INSERT INTO "plugin_step" ("id", "plugin_id","name","description","index","step_
 VALUES (nextval('id_seq_plugin_step'), (SELECT id FROM plugin_metadata WHERE name='Copacetic v1.0.0'),'Step 1','Step 1 - Copacetic v1.0.0','1','INLINE',(SELECT last_value FROM id_seq_plugin_pipeline_script),'f','now()', 1, 'now()', 1);
 
 INSERT INTO plugin_step_variable (id,plugin_step_id,name,format,description,is_exposed,allow_empty_value,default_value,value,variable_type,value_type,previous_step_index,variable_step_index,variable_step_index_in_plugin,reference_variable_name,deleted,created_on,created_by,updated_on,updated_by) 
-VALUES (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Copacetic v1.0.0' and ps."index"=1 and ps.deleted=false),'CopaTimeout','STRING','Timeout for copa patch command, default timeout is 5 minutes. For ex: 10m','t','t','5m',null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1);
+VALUES (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Copacetic v1.0.0' and ps."index"=1 and ps.deleted=false),'CopaPatchTimeout','STRING','Timeout for copa patch command, default timeout is 5 minutes. For ex: 10m','t','t','5m',null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1);
