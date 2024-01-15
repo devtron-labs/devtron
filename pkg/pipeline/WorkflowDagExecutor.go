@@ -1136,7 +1136,9 @@ func (impl *WorkflowDagExecutorImpl) SetCopyContainerImagePluginDataInWorkflowRe
 			}
 
 			if !customTag.Enabled {
-				DockerImageTag = ""
+				// case when custom tag is not configured - source image tag will be taken as docker image tag
+				pluginTriggerImageSplit := strings.Split(artifact.Image, ":")
+				DockerImageTag = pluginTriggerImageSplit[len(pluginTriggerImageSplit)-1]
 			} else {
 				// for copyContainerImage plugin parse destination images and save its data in image path reservation table
 				customTagDbObject, customDockerImageTag, err := impl.customTagService.GetCustomTag(pipelineStageEntityType, strconv.Itoa(pipelineId))
@@ -1601,7 +1603,15 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			return nil, fmt.Errorf("unsupported workflow triggerd")
 		}
 	}
-
+	isDigestPolicyConfiguredForPipeline, err := impl.imageDigestPolicyService.IsPolicyConfiguredForPipeline(cdPipeline.Id)
+	if err != nil {
+		impl.logger.Errorw("Error in checking if isDigestPolicyConfiguredForPipeline", "err", err)
+		return nil, err
+	}
+	image := artifact.Image
+	if isDigestPolicyConfiguredForPipeline {
+		image = ReplaceImageTagWithDigest(image, artifact.ImageDigest)
+	}
 	cdStageWorkflowRequest := &types.WorkflowRequest{
 		EnvironmentId:         cdPipeline.EnvironmentId,
 		AppId:                 cdPipeline.AppId,
@@ -1854,6 +1864,12 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 	cdStageWorkflowRequest.DefaultAddressPoolBaseCidr = impl.config.GetDefaultAddressPoolBaseCidr()
 	cdStageWorkflowRequest.DefaultAddressPoolSize = impl.config.GetDefaultAddressPoolSize()
 	return cdStageWorkflowRequest, nil
+}
+
+func ReplaceImageTagWithDigest(image, digest string) string {
+	imageWithoutTag := strings.Split(image, ":")[0]
+	imageWithDigest := fmt.Sprintf("%s@%s", imageWithoutTag, digest)
+	return imageWithDigest
 }
 
 func (impl *WorkflowDagExecutorImpl) buildDefaultArtifactLocation(cdWorkflowConfig *pipelineConfig.CdWorkflowConfig, savedWf *pipelineConfig.CdWorkflow, runner *pipelineConfig.CdWorkflowRunner) string {
@@ -4069,7 +4085,7 @@ func (impl *WorkflowDagExecutorImpl) getReleaseOverride(envOverride *chartConfig
 	isDigestPolicyConfiguredForPipeline, err := impl.imageDigestPolicyService.IsPolicyConfiguredForPipeline(overrideRequest.PipelineId)
 	if err != nil {
 		impl.logger.Errorw("Error in checking if isDigestPolicyConfiguredForPipeline", "err", err)
-		return "", nil
+		return "", err
 	}
 
 	if isDigestPolicyConfiguredForPipeline {
