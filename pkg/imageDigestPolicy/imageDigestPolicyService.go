@@ -29,6 +29,9 @@ type ImageDigestPolicyService interface {
 
 	//IsPolicyConfiguredAtGlobalLevel for env or cluster or for all clusters
 	IsPolicyConfiguredAtGlobalLevel(envId int, clusterId int) (bool, error)
+
+	//IsPolicyConfiguredAtGlobalOrPipeline for env or cluster or for all clusters or for pipeline
+	IsPolicyConfiguredAtGlobalOrPipeline(envId, clusterId, pipelineId int) (bool, error)
 }
 
 type ImageDigestPolicyServiceImpl struct {
@@ -438,4 +441,24 @@ func (impl ImageDigestPolicyServiceImpl) IsPolicyConfiguredAtGlobalLevel(envId i
 		return false, nil
 	}
 	return true, nil
+}
+
+func (impl ImageDigestPolicyServiceImpl) IsPolicyConfiguredAtGlobalOrPipeline(envId, clusterId, pipelineId int) (bool, error) {
+	isImageDigestPolicyConfiguredAtGlobalLevel, err :=
+		impl.IsPolicyConfiguredAtGlobalLevel(envId, clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in checking if image digest policy is configured or not", "err", err)
+		return false, err
+	}
+
+	var isDigestPolicyConfiguredForPipeline bool
+	if !isImageDigestPolicyConfiguredAtGlobalLevel {
+		isDigestPolicyConfiguredForPipeline, err = impl.IsPolicyConfiguredForPipeline(pipelineId)
+		if err != nil {
+			impl.logger.Errorw("Error in checking if isDigestPolicyConfiguredForPipeline", "err", err)
+			return false, err
+		}
+	}
+	isDigestConfigured := isImageDigestPolicyConfiguredAtGlobalLevel || isDigestPolicyConfiguredForPipeline
+	return isDigestConfigured, nil
 }

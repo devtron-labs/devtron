@@ -1323,7 +1323,9 @@ func (impl *WorkflowDagExecutorImpl) SetCopyContainerImagePluginDataInWorkflowRe
 			}
 
 			if !customTag.Enabled {
-				DockerImageTag = ""
+				// case when custom tag is not configured - source image tag will be taken as docker image tag
+				pluginTriggerImageSplit := strings.Split(artifact.Image, ":")
+				DockerImageTag = pluginTriggerImageSplit[len(pluginTriggerImageSplit)-1]
 			} else {
 				// for copyContainerImage plugin parse destination images and save its data in image path reservation table
 				customTagDbObject, customDockerImageTag, err := impl.customTagService.GetCustomTag(pipelineStageEntityType, strconv.Itoa(pipelineId))
@@ -1901,6 +1903,20 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		}
 	}
 
+	isImageDigestPolicyConfiguredAtGlobalOrPipeline, err :=
+		impl.imageDigestPolicyService.IsPolicyConfiguredAtGlobalOrPipeline(
+			env.Id,
+			env.ClusterId,
+			cdPipeline.Id)
+	if err != nil {
+		impl.logger.Errorw("error in checking if digest policy is configured at global or pipeline level", "err", err)
+		return nil, err
+	}
+	image := artifact.Image
+	if isImageDigestPolicyConfiguredAtGlobalOrPipeline {
+		image = ReplaceImageTagWithDigest(image, artifact.ImageDigest)
+	}
+
 	cdStageWorkflowRequest := &types.WorkflowRequest{
 		EnvironmentId:         cdPipeline.EnvironmentId,
 		AppId:                 cdPipeline.AppId,
@@ -1918,7 +1934,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		CiArtifactDTO: types.CiArtifactDTO{
 			Id:           artifact.Id,
 			PipelineId:   artifact.PipelineId,
-			Image:        artifact.Image,
+			Image:        image,
 			ImageDigest:  artifact.ImageDigest,
 			MaterialInfo: artifact.MaterialInfo,
 			DataSource:   artifact.DataSource,
@@ -2156,6 +2172,12 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		cdStageWorkflowRequest.IsDryRun = true
 	}
 	return cdStageWorkflowRequest, nil
+}
+
+func ReplaceImageTagWithDigest(image, digest string) string {
+	imageWithoutTag := strings.Split(image, ":")[0]
+	imageWithDigest := fmt.Sprintf("%s@%s", imageWithoutTag, digest)
+	return imageWithDigest
 }
 
 func (impl *WorkflowDagExecutorImpl) buildDefaultArtifactLocation(cdWorkflowConfig *pipelineConfig.CdWorkflowConfig, savedWf *pipelineConfig.CdWorkflow, runner *pipelineConfig.CdWorkflowRunner) string {
@@ -4856,23 +4878,17 @@ func (impl *WorkflowDagExecutorImpl) getReleaseOverride(envOverride *chartConfig
 		deploymentStrategy = string(strategy.Strategy)
 	}
 
-	isImageDigestPolicyConfiguredAtGlobalLevel, err :=
-		impl.imageDigestPolicyService.IsPolicyConfiguredAtGlobalLevel(envOverride.TargetEnvironment, envOverride.Environment.ClusterId)
+	isImageDigestPolicyConfiguredAtGlobalOrPipeline, err :=
+		impl.imageDigestPolicyService.IsPolicyConfiguredAtGlobalOrPipeline(
+			envOverride.TargetEnvironment,
+			envOverride.Environment.ClusterId,
+			overrideRequest.PipelineId)
 	if err != nil {
-		impl.logger.Errorw("error in checking if image digest policy is configured or not", "err", err)
+		impl.logger.Errorw("error in checking if digest policy is configured at global or pipeline level", "err", err)
 		return "", err
 	}
 
-	var isDigestPolicyConfiguredForPipeline bool
-	if !isImageDigestPolicyConfiguredAtGlobalLevel {
-		isDigestPolicyConfiguredForPipeline, err = impl.imageDigestPolicyService.IsPolicyConfiguredForPipeline(overrideRequest.PipelineId)
-		if err != nil {
-			impl.logger.Errorw("Error in checking if isDigestPolicyConfiguredForPipeline", "err", err)
-			return "", nil
-		}
-	}
-
-	if isImageDigestPolicyConfiguredAtGlobalLevel || isDigestPolicyConfiguredForPipeline {
+	if isImageDigestPolicyConfiguredAtGlobalOrPipeline {
 		imageTag[imageTagLen-1] = fmt.Sprintf("%s@%s", imageTag[imageTagLen-1], artifact.ImageDigest)
 	}
 
