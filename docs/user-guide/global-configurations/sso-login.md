@@ -11,13 +11,13 @@ To add/edit SSO configuration, go to the `SSO Login Services` section of `Global
 
 Below are the SSO providers which are available in Devtron. Select one of the SSO providers (e.g., GitHub) to configure SSO:
 
-`Google` 
-`GitHub` 
-`GitLab`
-`Microsoft`
-`LDAP`  
-`OpenID Connect`
-`OpenShift` 
+[Google](./authorization/sso/google.md)
+[GitHub](./authorization/sso/github.md)
+[GitLab](./authorization/sso/gitlab.md)
+[Microsoft](./authorization/sso/microsoft.md)
+[LDAP](./authorization/sso/ldap.md)
+[OpenID Connect](./authorization/sso/oidc.md)
+[OpenShift](./authorization/sso/openshift.md)
 
 Dex implements connectors that target specific `identity providers` for each connector configuration. You must have a created account for the corresponding identity provider and registered an app for client key and secret.
 
@@ -30,7 +30,7 @@ Refer the following documents for more detail.
 
 Make sure that you have a [super admin access](https://docs.devtron.ai/global-configurations/authorization/user-access#assign-super-admin-permission).
 
-* Go to the `Global Configurations` -&gt; `SSO Login Services` and click any `SSO Provider` of your choice.
+* Go to the `Global Configurations` → `SSO Login Services` and click any `SSO Provider` of your choice.
 * In the `URL` field, enter the valid Devtron application `URL` where it is hosted.
 * For providing `redirectURI` or `callbackURI` registered with the SSO provider, you can either select `Configuration` or `Sample Script`.
 * Provide the `client ID` and `client Secret` of your SSO provider (e.g. If you select `Google` as SSO provider, then you must enter `$GOOGLE_CLIENT_ID` and `$GOOGLE_CLIENT_SECRET` in the `client ID` and `client Secret` respectively.)
@@ -57,3 +57,11 @@ You can change SSO configuration anytime by updating the configuration and click
 * `id` : Identity provider platform which is a unique ID in string. (Refer to [dexidp.io](https://dexidp.io/)
 * `config` : User can put connector details for this key. Platforms may not have same structure but common configurations are `clientID`, `clientSecret`, `redirectURI`.
 * `hostedDomains` : Domains authorized for SSO login.
+
+---
+
+## Next Steps
+
+After configuring an SSO for authentication, you need to [add users](./user-access.md#1-add-new-user) in Devtron, else your users won't be able to log in via SSO. 
+
+In case you have enabled auto-assign permissions in [Microsoft](./authorization/sso/microsoft.md) or [LDAP](./authorization/sso/ldap.md), relevant [permission groups](./authorization/permission-groups.md#add-group) must also exist in Devtron for a successful login.
