@@ -160,9 +160,8 @@ func (impl *DeployedAppMetricsServiceImpl) createOrUpdateAppLevelMetrics(req *be
 		return existingAppLevelMetrics, nil
 	} else {
 		appLevelMetricsNew := &interalRepo.AppLevelMetrics{
-			AppId:        req.AppId,
-			AppMetrics:   req.EnableMetrics,
-			InfraMetrics: true,
+			AppId:      req.AppId,
+			AppMetrics: req.EnableMetrics,
 			AuditLog: sql.AuditLog{
 				CreatedOn: time.Now(),
 				UpdatedOn: time.Now(),
@@ -187,12 +186,10 @@ func (impl *DeployedAppMetricsServiceImpl) createOrUpdateEnvLevelMetrics(req *be
 		return nil, err
 	}
 	if envLevelAppMetrics == nil || envLevelAppMetrics.Id == 0 {
-		infraMetrics := true
 		envLevelAppMetrics = &interalRepo.EnvLevelAppMetrics{
-			AppId:        req.AppId,
-			EnvId:        req.EnvId,
-			AppMetrics:   &req.EnableMetrics,
-			InfraMetrics: &infraMetrics,
+			AppId:      req.AppId,
+			EnvId:      req.EnvId,
+			AppMetrics: &req.EnableMetrics,
 			AuditLog: sql.AuditLog{
 				CreatedOn: time.Now(),
 				UpdatedOn: time.Now(),
