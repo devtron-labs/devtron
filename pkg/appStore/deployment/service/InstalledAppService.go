@@ -73,14 +73,6 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT = "devtron"
-	CLUSTER_COMPONENT_DIR_PATH                  = "/cluster/component"
-	HELM_RELEASE_STATUS_FAILED                  = "Failed"
-	HELM_RELEASE_STATUS_PROGRESSING             = "Progressing"
-	HELM_RELEASE_STATUS_UNKNOWN                 = "Unknown"
-)
-
 // DB operation + chart group + nats msg consume(to be removed)
 type InstalledAppService interface {
 	GetAll(filter *appStoreBean.AppStoreFilter) (openapi.AppList, error)
@@ -354,6 +346,7 @@ func (impl InstalledAppServiceImpl) createChartGroupEntryObject(installAppVersio
 		},
 	}
 }
+
 func (impl InstalledAppServiceImpl) performDeployStageOnAcd(installedAppVersion *appStoreBean.InstallAppVersionDTO, ctx context.Context, userId int32) (*appStoreBean.InstallAppVersionDTO, error) {
 	installedAppVersion.ACDAppName = fmt.Sprintf("%s-%s", installedAppVersion.AppName, installedAppVersion.Environment.Name)
 	chartGitAttr := &util.ChartGitAttribute{}
@@ -498,6 +491,7 @@ func (impl InstalledAppServiceImpl) performDeployStageOnAcd(installedAppVersion 
 	}
 	return installedAppVersion, nil
 }
+
 func (impl InstalledAppServiceImpl) performDeployStage(installedAppVersionId int, installedAppVersionHistoryId int, userId int32) (*appStoreBean.InstallAppVersionDTO, error) {
 	ctx := context.Background()
 	installedAppVersion, err := impl.appStoreDeploymentService.GetInstalledAppVersion(installedAppVersionId, userId)
@@ -640,7 +634,7 @@ func (impl *InstalledAppServiceImpl) Subscribe() error {
 func (impl *InstalledAppServiceImpl) DeployDefaultChartOnCluster(bean *cluster2.ClusterBean, userId int32) (bool, error) {
 	// STEP 1 - create environment with name "devton"
 	impl.logger.Infow("STEP 1", "create environment for cluster component", bean)
-	envName := fmt.Sprintf("%d-%s", bean.Id, DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT)
+	envName := fmt.Sprintf("%d-%s", bean.Id, appStoreBean.DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT)
 	env, err := impl.envService.FindOne(envName)
 	if err != nil && err != pg.ErrNoRows {
 		return false, err
@@ -662,13 +656,13 @@ func (impl *InstalledAppServiceImpl) DeployDefaultChartOnCluster(bean *cluster2.
 
 	// STEP 2 - create project with name "devtron"
 	impl.logger.Info("STEP 2", "create project for cluster components")
-	t, err := impl.teamRepository.FindByTeamName(DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT)
+	t, err := impl.teamRepository.FindByTeamName(appStoreBean.DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT)
 	if err != nil && err != pg.ErrNoRows {
 		return false, err
 	}
 	if err == pg.ErrNoRows {
 		t := &repository4.Team{
-			Name:     DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT,
+			Name:     appStoreBean.DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT,
 			Active:   true,
 			AuditLog: sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
 		}
@@ -681,13 +675,13 @@ func (impl *InstalledAppServiceImpl) DeployDefaultChartOnCluster(bean *cluster2.
 
 	// STEP 3- read the input data from env variables
 	impl.logger.Info("STEP 3", "read the input data from env variables")
-	charts := &ChartComponents{}
-	var chartComponents []*ChartComponent
-	if _, err := os.Stat(CLUSTER_COMPONENT_DIR_PATH); os.IsNotExist(err) {
+	charts := &appStoreBean.ChartComponents{}
+	var chartComponents []*appStoreBean.ChartComponent
+	if _, err := os.Stat(appStoreBean.CLUSTER_COMPONENT_DIR_PATH); os.IsNotExist(err) {
 		impl.logger.Infow("default cluster component directory error", "cluster", bean.ClusterName, "err", err)
 		return false, nil
 	} else {
-		fileInfo, err := ioutil.ReadDir(CLUSTER_COMPONENT_DIR_PATH)
+		fileInfo, err := ioutil.ReadDir(appStoreBean.CLUSTER_COMPONENT_DIR_PATH)
 		if err != nil {
 			impl.logger.Errorw("DeployDefaultChartOnCluster, err while reading directory", "err", err)
 			return false, err
@@ -695,12 +689,12 @@ func (impl *InstalledAppServiceImpl) DeployDefaultChartOnCluster(bean *cluster2.
 		for _, file := range fileInfo {
 			impl.logger.Infow("file", "name", file.Name())
 			if strings.Contains(file.Name(), ".yaml") {
-				content, err := ioutil.ReadFile(fmt.Sprintf("%s/%s", CLUSTER_COMPONENT_DIR_PATH, file.Name()))
+				content, err := ioutil.ReadFile(fmt.Sprintf("%s/%s", appStoreBean.CLUSTER_COMPONENT_DIR_PATH, file.Name()))
 				if err != nil {
 					impl.logger.Errorw("DeployDefaultChartOnCluster, error on reading file", "err", err)
 					return false, err
 				}
-				chartComponent := &ChartComponent{
+				chartComponent := &appStoreBean.ChartComponent{
 					Name:   strings.ReplaceAll(file.Name(), ".yaml", ""),
 					Values: string(content),
 				}
@@ -747,14 +741,6 @@ func (impl *InstalledAppServiceImpl) DeployDefaultChartOnCluster(bean *cluster2.
 		}
 	}
 	return true, nil
-}
-
-type ChartComponents struct {
-	ChartComponent []*ChartComponent `json:"charts"`
-}
-type ChartComponent struct {
-	Name   string `json:"name"`
-	Values string `json:"values"`
 }
 
 func (impl InstalledAppServiceImpl) DeployDefaultComponent(chartGroupInstallRequest *chartGroup.ChartGroupInstallRequest) (*chartGroup.ChartGroupInstallAppRes, error) {
@@ -992,22 +978,22 @@ func (impl InstalledAppServiceImpl) getReleaseStatusFromHelmReleaseInstallStatus
 			impl.logger.Errorw("error in unmarshalling helm release install status")
 			return releaseStatus
 		}
-		if status == HELM_RELEASE_STATUS_FAILED {
+		if status == appStoreBean.HELM_RELEASE_STATUS_FAILED {
 			releaseStatus.Status = status
 			releaseStatus.Description = helmInstallStatus.Message
 			releaseStatus.Message = "Release install/upgrade failed"
-		} else if status == HELM_RELEASE_STATUS_PROGRESSING {
+		} else if status == appStoreBean.HELM_RELEASE_STATUS_PROGRESSING {
 			releaseStatus.Status = status
 			releaseStatus.Description = helmInstallStatus.Message
 			releaseStatus.Message = helmInstallStatus.Message
 		} else {
 			// there can be a case when helm release is created but we are not able to fetch it
-			releaseStatus.Status = HELM_RELEASE_STATUS_UNKNOWN
+			releaseStatus.Status = appStoreBean.HELM_RELEASE_STATUS_UNKNOWN
 			releaseStatus.Description = "Unable to fetch release for app"
 			releaseStatus.Message = "Unable to fetch release for app"
 		}
 	} else {
-		releaseStatus.Status = HELM_RELEASE_STATUS_UNKNOWN
+		releaseStatus.Status = appStoreBean.HELM_RELEASE_STATUS_UNKNOWN
 		releaseStatus.Description = "Release not found"
 		releaseStatus.Message = "Release not found "
 	}

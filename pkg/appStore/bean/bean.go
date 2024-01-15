@@ -359,3 +359,20 @@ type HelmReleaseStatusConfig struct {
 	IsReleaseInstalled         bool
 	ErrorInInstallation        bool
 }
+
+type ChartComponents struct {
+	ChartComponent []*ChartComponent `json:"charts"`
+}
+
+type ChartComponent struct {
+	Name   string `json:"name"`
+	Values string `json:"values"`
+}
+
+const (
+	DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT = "devtron"
+	CLUSTER_COMPONENT_DIR_PATH                  = "/cluster/component"
+	HELM_RELEASE_STATUS_FAILED                  = "Failed"
+	HELM_RELEASE_STATUS_PROGRESSING             = "Progressing"
+	HELM_RELEASE_STATUS_UNKNOWN                 = "Unknown"
+)
