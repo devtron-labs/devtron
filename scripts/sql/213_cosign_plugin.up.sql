@@ -17,7 +17,6 @@ apk add cosign
 export COSIGN_PASSWORD=$CosignPassword
 # Verify the installation
 cosign version
-ls 
 echo $DOCKER_IMAGE
 
 if [ -z "$VariableAsPrivateKey" ]; then
