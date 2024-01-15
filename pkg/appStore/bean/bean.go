@@ -169,11 +169,6 @@ type Dependency struct {
 	Repository string `json:"repository"`
 }
 
-const BULK_APPSTORE_DEPLOY_TOPIC = "ORCHESTRATOR.APP-STORE.BULK-DEPLOY"
-const BULK_APPSTORE_DEPLOY_GROUP = "ORCHESTRATOR.APP-STORE.BULK-DEPLOY-GROUP-1"
-
-const BULK_APPSTORE_DEPLOY_DURABLE = "ORCHESTRATOR.APP-STORE.BULK-DEPLOY.DURABLE-1"
-
 type DeployPayload struct {
 	InstalledAppVersionId        int
 	InstalledAppVersionHistoryId int
