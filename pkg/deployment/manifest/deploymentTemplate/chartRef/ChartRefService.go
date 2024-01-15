@@ -33,6 +33,9 @@ type ChartRefService interface {
 
 	SaveCustomChart(req *bean.CustomChartRefDto) error
 	FetchCustomChartsInfo() ([]*bean.ChartDto, error)
+	ValidateCustomChartUploadedFileFormat(fileName string) error
+
+	GetSchemaAndReadmeForTemplateByChartRefId(chartRefId int) ([]byte, []byte, error)
 
 	ChartRefIdsCompatible(oldChartRefId int, newChartRefId int) (bool, string, string)
 
@@ -59,6 +62,13 @@ func NewChartRefServiceImpl(logger *zap.SugaredLogger,
 		chartRefRepository:   chartRefRepository,
 		chartTemplateService: chartTemplateService,
 	}
+}
+
+func (impl *ChartRefServiceImpl) ValidateCustomChartUploadedFileFormat(fileName string) error {
+	if !strings.HasSuffix(fileName, ".tgz") {
+		return errors.New("unsupported format")
+	}
+	return nil
 }
 
 func (impl *ChartRefServiceImpl) GetDefault() (*bean.ChartRefDto, error) {
@@ -98,6 +108,7 @@ func (impl *ChartRefServiceImpl) GetAllChartMetadata() (map[string]bean.ChartRef
 	}
 	return chartsMetadataMap, nil
 }
+
 func (impl *ChartRefServiceImpl) ChartRefIdsCompatible(oldChartRefId int, newChartRefId int) (bool, string, string) {
 	oldChart, err := impl.FindById(oldChartRefId)
 	if err != nil {
@@ -197,6 +208,30 @@ func (impl *ChartRefServiceImpl) GetRefChart(chartRefId int) (string, string, er
 		return "", "", err, "", ""
 	}
 	return chartPath, template, nil, version, pipelineStrategyPath
+}
+
+func (impl *ChartRefServiceImpl) GetSchemaAndReadmeForTemplateByChartRefId(chartRefId int) ([]byte, []byte, error) {
+	refChart, _, err, _, _ := impl.GetRefChart(chartRefId)
+	if err != nil {
+		impl.logger.Errorw("error in getting refChart", "err", err, "chartRefId", chartRefId)
+		return nil, nil, err
+	}
+	var schemaByte []byte
+	var readmeByte []byte
+	err = impl.CheckChartExists(chartRefId)
+	if err != nil {
+		impl.logger.Errorw("error in getting refChart", "err", err, "chartRefId", chartRefId)
+		return nil, nil, err
+	}
+	schemaByte, err = ioutil.ReadFile(filepath.Clean(filepath.Join(refChart, "schema.json")))
+	if err != nil {
+		impl.logger.Errorw("error in reading schema.json file for refChart", "err", err, "chartRefId", chartRefId)
+	}
+	readmeByte, err = ioutil.ReadFile(filepath.Clean(filepath.Join(refChart, "README.md")))
+	if err != nil {
+		impl.logger.Errorw("error in reading readme file for refChart", "err", err, "chartRefId", chartRefId)
+	}
+	return schemaByte, readmeByte, nil
 }
 
 func (impl *ChartRefServiceImpl) ChartRefAutocomplete() ([]*bean.ChartRefAutocompleteDto, error) {

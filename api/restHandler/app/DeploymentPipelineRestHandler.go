@@ -877,7 +877,7 @@ func (handler PipelineConfigRestHandlerImpl) GetEnvConfigOverride(w http.Respons
 		return
 	}
 
-	schema, readme, err := handler.chartService.GetSchemaAndReadmeForTemplateByChartRefId(chartRefId)
+	schema, readme, err := handler.chartRefService.GetSchemaAndReadmeForTemplateByChartRefId(chartRefId)
 	if err != nil {
 		handler.Logger.Errorw("err in getting schema and readme, GetEnvConfigOverride", "err", err, "appId", appId, "chartRefId", chartRefId)
 	}
@@ -997,7 +997,7 @@ func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.Respon
 		return
 	}
 
-	schema, readme, err := handler.chartService.GetSchemaAndReadmeForTemplateByChartRefId(chartRefId)
+	schema, readme, err := handler.chartRefService.GetSchemaAndReadmeForTemplateByChartRefId(chartRefId)
 	if err != nil {
 		handler.Logger.Errorw("err in getting schema and readme, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
 	}

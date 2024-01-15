@@ -72,8 +72,6 @@ type ChartService interface {
 	UpgradeForApp(appId int, chartRefId int, newAppOverride map[string]interface{}, userId int32, ctx context.Context) (bool, error)
 	DeploymentTemplateValidate(ctx context.Context, templatejson interface{}, chartRefId int, scope resourceQualifiers.Scope) (bool, error)
 	JsonSchemaExtractFromFile(chartRefId int) (map[string]interface{}, string, error)
-	GetSchemaAndReadmeForTemplateByChartRefId(chartRefId int) (schema []byte, readme []byte, err error)
-	ValidateUploadedFileFormat(fileName string) error
 	CheckIfChartRefUserUploadedByAppId(id int) (bool, error)
 	PatchEnvOverrides(values json.RawMessage, oldChartType string, newChartType string) (json.RawMessage, error)
 	FlaggerCanaryEnabled(values json.RawMessage) (bool, error)
@@ -149,30 +147,6 @@ func (impl ChartServiceImpl) FlaggerCanaryEnabled(values json.RawMessage) (bool,
 }
 func (impl ChartServiceImpl) PatchEnvOverrides(values json.RawMessage, oldChartType string, newChartType string) (json.RawMessage, error) {
 	return PatchWinterSoldierConfig(values, newChartType)
-}
-
-func (impl ChartServiceImpl) GetSchemaAndReadmeForTemplateByChartRefId(chartRefId int) ([]byte, []byte, error) {
-	refChart, _, err, _, _ := impl.chartRefService.GetRefChart(chartRefId)
-	if err != nil {
-		impl.logger.Errorw("error in getting refChart", "err", err, "chartRefId", chartRefId)
-		return nil, nil, err
-	}
-	var schemaByte []byte
-	var readmeByte []byte
-	err = impl.chartRefService.CheckChartExists(chartRefId)
-	if err != nil {
-		impl.logger.Errorw("error in getting refChart", "err", err, "chartRefId", chartRefId)
-		return nil, nil, err
-	}
-	schemaByte, err = ioutil.ReadFile(filepath.Clean(filepath.Join(refChart, "schema.json")))
-	if err != nil {
-		impl.logger.Errorw("error in reading schema.json file for refChart", "err", err, "chartRefId", chartRefId)
-	}
-	readmeByte, err = ioutil.ReadFile(filepath.Clean(filepath.Join(refChart, "README.md")))
-	if err != nil {
-		impl.logger.Errorw("error in reading readme file for refChart", "err", err, "chartRefId", chartRefId)
-	}
-	return schemaByte, readmeByte, nil
 }
 
 func (impl ChartServiceImpl) GetAppOverrideForDefaultTemplate(chartRefId int) (map[string]interface{}, string, error) {
@@ -1061,13 +1035,6 @@ func (impl ChartServiceImpl) JsonSchemaExtractFromFile(chartRefId int) (map[stri
 		}
 		return schemajson, version, nil
 	}
-}
-
-func (impl *ChartServiceImpl) ValidateUploadedFileFormat(fileName string) error {
-	if !strings.HasSuffix(fileName, ".tgz") {
-		return errors.New("unsupported format")
-	}
-	return nil
 }
 
 func (impl ChartServiceImpl) CheckIfChartRefUserUploadedByAppId(id int) (bool, error) {
