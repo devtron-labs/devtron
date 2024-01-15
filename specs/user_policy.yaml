@@ -36,7 +36,7 @@ paths:
                 timeToLive:
                   type: string
                   format: date-time
-                nameSearch:
+                searchKey:
                   type: string
                 sortOrder:
                   type: string
@@ -46,8 +46,8 @@ paths:
                 sortBy:
                   type: string
                   enum:
-                    - email
-                    - lastLogin
+                    - email_id
+                    - last_login
                 offset:
                   type: integer
                 size:

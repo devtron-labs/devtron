@@ -19,6 +19,31 @@ paths:
       summary: Returns all group policies
       description: all the template group policies
       operationId: findGroupPolicy
+      requestBody:
+        description: Listing Request
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                searchKey:
+                  type: string
+                sortOrder:
+                  type: string
+                  enum:
+                    - ASC
+                    - DESC
+                sortBy:
+                  type: string
+                  enum:
+                    - name
+                offset:
+                  type: integer
+                size:
+                  type: integer
+                showAll:
+                  type: boolean
       responses:
         '200':
           description: list response
