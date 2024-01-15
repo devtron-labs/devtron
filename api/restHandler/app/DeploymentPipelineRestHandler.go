@@ -1266,6 +1266,12 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 		return
 	}
 
+	isDigestEnforced, err := handler.ImageDigestPolicyService.IsPolicyConfiguredForPipeline(pipeline.Id)
+	if err != nil {
+		handler.Logger.Errorw("error in checking if digest enforced for pipeline", "err", err)
+		return
+	}
+	ciArtifactResponse.IsDigestEnforced = isDigestEnforced
 	ciArtifactResponse.AppReleaseTagNames = appTags
 
 	prodEnvExists, err := handler.imageTaggingService.GetProdEnvByCdPipelineId(pipeline.Id)
@@ -1498,6 +1504,12 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsForRollback(w http.Resp
 		ciArtifactResponse, err = handler.pipelineBuilder.FetchArtifactForRollback(cdPipelineId, app.Id, offset, limit, searchString)
 	}
 
+	isDigestEnforced, err := handler.ImageDigestPolicyService.IsPolicyConfiguredForPipeline(pipeline.Id)
+	if err != nil {
+		handler.Logger.Errorw("error in checking if digest enforced for pipeline", "err", err)
+		return
+	}
+	ciArtifactResponse.IsDigestEnforced = isDigestEnforced
 	if err != nil {
 		handler.Logger.Errorw("service err, GetArtifactsForRollback", "err", err, "cdPipelineId", cdPipelineId)
 		common.WriteJsonResp(w, err, "unable to fetch artifacts", http.StatusInternalServerError)
