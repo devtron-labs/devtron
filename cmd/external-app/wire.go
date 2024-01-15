@@ -39,9 +39,8 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
-	repository3 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
+	repository3 "github.com/devtron-labs/devtron/pkg/appStore/chartGroup/repository"
 	appStoreDeploymentTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool"
-	appStoreDeploymentGitopsTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool/gitops"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
@@ -138,7 +137,7 @@ func InitializeApp() (*App, error) {
 		// // needed for enforcer util ends
 
 		// binding gitops to helm (for hyperion)
-		wire.Bind(new(appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdService), new(*appStoreDeploymentTool.AppStoreDeploymentHelmServiceImpl)),
+		wire.Bind(new(appStoreDeploymentTool.AppStoreDeploymentArgoCdService), new(*appStoreDeploymentTool.AppStoreDeploymentHelmServiceImpl)),
 
 		wire.Value(chartRepoRepository.RefChartDir("scripts/devtron-reference-helm-charts")),
 
