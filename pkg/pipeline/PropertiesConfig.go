@@ -34,10 +34,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/sql"
 
-	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
-	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/go-pg/pg"
 	"github.com/juju/errors"
 	"go.uber.org/zap"
@@ -62,11 +60,7 @@ type PropertiesConfigServiceImpl struct {
 	logger                           *zap.SugaredLogger
 	envConfigRepo                    chartConfig.EnvConfigOverrideRepository
 	chartRepo                        chartRepoRepository.ChartRepository
-	chartRefRepository               chartRepoRepository.ChartRefRepository
-	mergeUtil                        util.MergeUtil
 	environmentRepository            repository2.EnvironmentRepository
-	ciCdPipelineOrchestrator         CiCdPipelineOrchestrator
-	application                      application.ServiceClient
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
 	scopedVariableManager            variables.ScopedVariableManager
 	deployedAppMetricsService        deployedAppMetrics.DeployedAppMetricsService
@@ -75,11 +69,7 @@ type PropertiesConfigServiceImpl struct {
 func NewPropertiesConfigServiceImpl(logger *zap.SugaredLogger,
 	envConfigRepo chartConfig.EnvConfigOverrideRepository,
 	chartRepo chartRepoRepository.ChartRepository,
-	chartRefRepository chartRepoRepository.ChartRefRepository,
-	mergeUtil util.MergeUtil,
 	environmentRepository repository2.EnvironmentRepository,
-	ciCdPipelineOrchestrator CiCdPipelineOrchestrator,
-	application application.ServiceClient,
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
 	scopedVariableManager variables.ScopedVariableManager,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService) *PropertiesConfigServiceImpl {
@@ -87,11 +77,7 @@ func NewPropertiesConfigServiceImpl(logger *zap.SugaredLogger,
 		logger:                           logger,
 		envConfigRepo:                    envConfigRepo,
 		chartRepo:                        chartRepo,
-		chartRefRepository:               chartRefRepository,
-		mergeUtil:                        mergeUtil,
 		environmentRepository:            environmentRepository,
-		ciCdPipelineOrchestrator:         ciCdPipelineOrchestrator,
-		application:                      application,
 		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
 		scopedVariableManager:            scopedVariableManager,
 		deployedAppMetricsService:        deployedAppMetricsService,

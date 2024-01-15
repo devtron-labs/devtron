@@ -85,7 +85,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appClone"
 	"github.com/devtron-labs/devtron/pkg/appClone/batch"
 	"github.com/devtron-labs/devtron/pkg/appStatus"
-	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
 	repository4 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
@@ -97,7 +96,7 @@ import (
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/commonService"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
-	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	repository9 "github.com/devtron-labs/devtron/pkg/devtronResource/repository"
@@ -158,6 +157,8 @@ func InitializeApp() (*App, error) {
 		apiToken.ApiTokenWireSet,
 		webhookHelm.WebhookHelmWireSet,
 		terminal.TerminalWireSet,
+		manifest.DeploymentManifestWireSet,
+
 		// -------wireset end ----------
 		//-------
 		gitSensor.GetConfig,
@@ -171,10 +172,6 @@ func InitializeApp() (*App, error) {
 		//sql.NewDbConnection,
 		//app.GetACDAuthConfig,
 		util3.GetACDAuthConfig,
-		wire.Value(chartRepoRepository.RefChartDir("scripts/devtron-reference-helm-charts")),
-		wire.Value(appStoreBean.RefChartProxyDir("scripts/devtron-reference-helm-charts")),
-		wire.Value(chart.DefaultChart("reference-app-rolling")),
-		wire.Value(util.ChartWorkingDir("/tmp/charts/")),
 		connection.SettingsManager,
 		//auth.GetConfig,
 
@@ -289,9 +286,6 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(variables.ScopedVariableCMCSManager), new(*variables.ScopedVariableCMCSManagerImpl)),
 
 		//end
-
-		deployedAppMetrics.NewDeployedAppMetricsServiceImpl,
-		wire.Bind(new(deployedAppMetrics.DeployedAppMetricsService), new(*deployedAppMetrics.DeployedAppMetricsServiceImpl)),
 
 		chart.NewChartServiceImpl,
 		wire.Bind(new(chart.ChartService), new(*chart.ChartServiceImpl)),

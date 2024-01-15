@@ -12,7 +12,6 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
-	"github.com/devtron-labs/devtron/client/argocdServer/repository"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
@@ -22,10 +21,11 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	appWorkflow2 "github.com/devtron-labs/devtron/pkg/appWorkflow"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
-	"github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
+	bean3 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	pipeline1 "github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
@@ -66,27 +66,14 @@ type BulkUpdateServiceImpl struct {
 	bulkUpdateRepository             bulkUpdate.BulkUpdateRepository
 	chartRepository                  chartRepoRepository.ChartRepository
 	logger                           *zap.SugaredLogger
-	repoRepository                   chartRepoRepository.ChartRepoRepository
-	chartTemplateService             util.ChartTemplateService
-	mergeUtil                        util.MergeUtil
-	repositoryService                repository.ServiceClient
-	defaultChart                     chart.DefaultChart
-	chartRefRepository               chartRepoRepository.ChartRefRepository
-	envOverrideRepository            chartConfig.EnvConfigOverrideRepository
-	pipelineConfigRepository         chartConfig.PipelineConfigRepository
-	configMapRepository              chartConfig.ConfigMapRepository
 	environmentRepository            repository2.EnvironmentRepository
 	pipelineRepository               pipelineConfig.PipelineRepository
-	client                           *http.Client
 	appRepository                    app.AppRepository
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
 	configMapHistoryService          history.ConfigMapHistoryService
 	workflowDagExecutor              pipeline.WorkflowDagExecutor
-	cdWorkflowRepository             pipelineConfig.CdWorkflowRepository
 	pipelineBuilder                  pipeline.PipelineBuilder
-	helmAppService                   client.HelmAppService
 	enforcerUtil                     rbac.EnforcerUtil
-	enforcerUtilHelm                 rbac.EnforcerUtilHelm
 	ciHandler                        pipeline.CiHandler
 	ciPipelineRepository             pipelineConfig.CiPipelineRepository
 	appWorkflowRepository            appWorkflow.AppWorkflowRepository
@@ -95,61 +82,40 @@ type BulkUpdateServiceImpl struct {
 	argoUserService                  argo.ArgoUserService
 	scopedVariableManager            variables.ScopedVariableManager
 	deployedAppMetricsService        deployedAppMetrics.DeployedAppMetricsService
+	chartRefService                  chartRef.ChartRefService
 }
 
 func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateRepository,
 	chartRepository chartRepoRepository.ChartRepository,
 	logger *zap.SugaredLogger,
-	chartTemplateService util.ChartTemplateService,
-	repoRepository chartRepoRepository.ChartRepoRepository,
-	defaultChart chart.DefaultChart,
-	mergeUtil util.MergeUtil,
-	repositoryService repository.ServiceClient,
-	chartRefRepository chartRepoRepository.ChartRefRepository,
-	envOverrideRepository chartConfig.EnvConfigOverrideRepository,
-	pipelineConfigRepository chartConfig.PipelineConfigRepository,
-	configMapRepository chartConfig.ConfigMapRepository,
 	environmentRepository repository2.EnvironmentRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
-	client *http.Client,
 	appRepository app.AppRepository,
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
 	configMapHistoryService history.ConfigMapHistoryService, workflowDagExecutor pipeline.WorkflowDagExecutor,
-	cdWorkflowRepository pipelineConfig.CdWorkflowRepository, pipelineBuilder pipeline.PipelineBuilder,
-	helmAppService client.HelmAppService, enforcerUtil rbac.EnforcerUtil,
-	enforcerUtilHelm rbac.EnforcerUtilHelm, ciHandler pipeline.CiHandler,
+	pipelineBuilder pipeline.PipelineBuilder,
+	enforcerUtil rbac.EnforcerUtil,
+	ciHandler pipeline.CiHandler,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
 	appWorkflowService appWorkflow2.AppWorkflowService,
 	pubsubClient *pubsub.PubSubClientServiceImpl,
 	argoUserService argo.ArgoUserService,
 	scopedVariableManager variables.ScopedVariableManager,
-	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService) (*BulkUpdateServiceImpl, error) {
+	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
+	chartRefService chartRef.ChartRefService) (*BulkUpdateServiceImpl, error) {
 	impl := &BulkUpdateServiceImpl{
 		bulkUpdateRepository:             bulkUpdateRepository,
 		chartRepository:                  chartRepository,
 		logger:                           logger,
-		chartTemplateService:             chartTemplateService,
-		repoRepository:                   repoRepository,
-		mergeUtil:                        mergeUtil,
-		defaultChart:                     defaultChart,
-		repositoryService:                repositoryService,
-		chartRefRepository:               chartRefRepository,
-		envOverrideRepository:            envOverrideRepository,
-		pipelineConfigRepository:         pipelineConfigRepository,
-		configMapRepository:              configMapRepository,
 		environmentRepository:            environmentRepository,
 		pipelineRepository:               pipelineRepository,
-		client:                           client,
 		appRepository:                    appRepository,
 		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
 		configMapHistoryService:          configMapHistoryService,
 		workflowDagExecutor:              workflowDagExecutor,
-		cdWorkflowRepository:             cdWorkflowRepository,
 		pipelineBuilder:                  pipelineBuilder,
-		helmAppService:                   helmAppService,
 		enforcerUtil:                     enforcerUtil,
-		enforcerUtilHelm:                 enforcerUtilHelm,
 		ciHandler:                        ciHandler,
 		ciPipelineRepository:             ciPipelineRepository,
 		appWorkflowRepository:            appWorkflowRepository,
@@ -158,6 +124,7 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 		argoUserService:                  argoUserService,
 		scopedVariableManager:            scopedVariableManager,
 		deployedAppMetricsService:        deployedAppMetricsService,
+		chartRefService:                  chartRefService,
 	}
 
 	err := impl.SubscribeToCdBulkTriggerTopic()
@@ -1099,14 +1066,14 @@ func (impl BulkUpdateServiceImpl) buildHibernateUnHibernateRequestForHelmPipelin
 	}
 
 	hibernateRequest := &openapi.HibernateRequest{}
-	chartInfo, err := impl.chartRefRepository.FetchInfoOfChartConfiguredInApp(pipeline.AppId)
+	chartInfo, err := impl.chartRefService.FetchInfoOfChartConfiguredInApp(pipeline.AppId)
 	if err != nil {
 		impl.logger.Errorw("error in getting chart info for chart configured in app", "err", err, "appId", pipeline.AppId)
 		return nil, nil, err
 	}
 	var group, kind, version, name string
 	name = fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
-	if chartInfo.Name == "" && chartInfo.UserUploaded == false {
+	if chartInfo.Name == bean3.RolloutChartType && chartInfo.UserUploaded == false {
 		// rollout type chart
 		group = "argoproj.io"
 		kind = "Rollout"
@@ -1122,7 +1089,7 @@ func (impl BulkUpdateServiceImpl) buildHibernateUnHibernateRequestForHelmPipelin
 				},
 			},
 		}
-	} else if chartInfo.Name == "Deployment" {
+	} else if chartInfo.Name == bean3.DeploymentChartType {
 		//deployment type chart
 		group = "apps"
 		kind = "Deployment"

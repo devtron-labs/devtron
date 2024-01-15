@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	"io/ioutil"
 	"net/url"
 	"os"
@@ -33,18 +34,9 @@ import (
 	"github.com/caarlos0/env"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
-	client2 "github.com/devtron-labs/devtron/api/helm-app"
 	status2 "github.com/devtron-labs/devtron/pkg/app/status"
 	repository4 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
-	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
-	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
-	"github.com/devtron-labs/devtron/pkg/auth/user"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
-	"github.com/devtron-labs/devtron/pkg/chart"
-	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
-	"github.com/devtron-labs/devtron/pkg/k8s"
-	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
-	repository5 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	_ "github.com/devtron-labs/devtron/pkg/variables/repository"
@@ -53,14 +45,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	chart2 "k8s.io/helm/pkg/proto/hapi/chart"
 
-	"github.com/devtron-labs/devtron/internal/sql/repository/app"
-	"github.com/devtron-labs/devtron/pkg/appStatus"
-	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
-	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
-	history2 "github.com/devtron-labs/devtron/pkg/pipeline/history"
-	"github.com/devtron-labs/devtron/pkg/sql"
-	util3 "github.com/devtron-labs/devtron/pkg/util"
-
 	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/devtron/api/bean"
@@ -68,14 +52,16 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	. "github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/appStatus"
+	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/commonService"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/util"
 	util "github.com/devtron-labs/devtron/util/event"
-	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -108,62 +94,29 @@ type AppServiceImpl struct {
 	pipelineOverrideRepository             chartConfig.PipelineOverrideRepository
 	mergeUtil                              *MergeUtil
 	logger                                 *zap.SugaredLogger
-	ciArtifactRepository                   repository.CiArtifactRepository
 	pipelineRepository                     pipelineConfig.PipelineRepository
-	gitFactory                             *GitFactory
-	dbMigrationConfigRepository            pipelineConfig.DbMigrationConfigRepository
 	eventClient                            client.EventClient
 	eventFactory                           client.EventFactory
 	acdClient                              application.ServiceClient
-	tokenCache                             *util3.TokenCache
-	acdAuthConfig                          *util3.ACDAuthConfig
-	enforcer                               casbin.Enforcer
-	enforcerUtil                           rbac.EnforcerUtil
-	user                                   user.UserService
-	appListingRepository                   repository.AppListingRepository
 	appRepository                          app.AppRepository
-	envRepository                          repository2.EnvironmentRepository
-	pipelineConfigRepository               chartConfig.PipelineConfigRepository
 	configMapRepository                    chartConfig.ConfigMapRepository
 	chartRepository                        chartRepoRepository.ChartRepository
-	ciPipelineMaterialRepository           pipelineConfig.CiPipelineMaterialRepository
 	cdWorkflowRepository                   pipelineConfig.CdWorkflowRepository
 	commonService                          commonService.CommonService
-	imageScanDeployInfoRepository          security.ImageScanDeployInfoRepository
-	imageScanHistoryRepository             security.ImageScanHistoryRepository
-	ArgoK8sClient                          argocdServer.ArgoK8sClient
-	pipelineStrategyHistoryService         history2.PipelineStrategyHistoryService
-	configMapHistoryService                history2.ConfigMapHistoryService
-	deploymentTemplateHistoryService       history2.DeploymentTemplateHistoryService
 	chartTemplateService                   ChartTemplateService
-	refChartDir                            chartRepoRepository.RefChartDir
-	helmAppClient                          client2.HelmAppClient
-	helmAppService                         client2.HelmAppService
-	chartRefRepository                     chartRepoRepository.ChartRefRepository
-	chartService                           chart.ChartService
 	argoUserService                        argo.ArgoUserService
 	pipelineStatusTimelineRepository       pipelineConfig.PipelineStatusTimelineRepository
-	appCrudOperationService                AppCrudOperationService
-	configMapHistoryRepository             repository3.ConfigMapHistoryRepository
-	strategyHistoryRepository              repository3.PipelineStrategyHistoryRepository
-	deploymentTemplateHistoryRepository    repository3.DeploymentTemplateHistoryRepository
-	dockerRegistryIpsConfigService         dockerRegistry.DockerRegistryIpsConfigService
 	pipelineStatusTimelineResourcesService status2.PipelineStatusTimelineResourcesService
 	pipelineStatusSyncDetailService        status2.PipelineStatusSyncDetailService
 	pipelineStatusTimelineService          status2.PipelineStatusTimelineService
 	appStatusConfig                        *AppServiceConfig
-	gitOpsConfigRepository                 repository.GitOpsConfigRepository
 	appStatusService                       appStatus.AppStatusService
 	installedAppRepository                 repository4.InstalledAppRepository
-	AppStoreDeploymentService              service.AppStoreDeploymentService
-	K8sCommonService                       k8s.K8sCommonService
 	installedAppVersionHistoryRepository   repository4.InstalledAppVersionHistoryRepository
 	globalEnvVariables                     *util2.GlobalEnvVariables
-	manifestPushConfigRepository           repository5.ManifestPushConfigRepository
-	GitOpsManifestPushService              GitOpsPushService
 	scopedVariableManager                  variables.ScopedVariableCMCSManager
-	argoClientWrapperService               argocdServer.ArgoClientWrapperService
 	acdConfig                              *argocdServer.ACDConfig
+	chartRefService                        chartRef.ChartRefService
 }
 
 type AppService interface {
@@ -196,119 +149,55 @@ func NewAppService(
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository,
 	mergeUtil *MergeUtil,
 	logger *zap.SugaredLogger,
-	ciArtifactRepository repository.CiArtifactRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
-	dbMigrationConfigRepository pipelineConfig.DbMigrationConfigRepository,
 	eventClient client.EventClient,
 	eventFactory client.EventFactory, acdClient application.ServiceClient,
-	cache *util3.TokenCache, authConfig *util3.ACDAuthConfig,
-	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, user user.UserService,
-	appListingRepository repository.AppListingRepository,
 	appRepository app.AppRepository,
-	envRepository repository2.EnvironmentRepository,
-	pipelineConfigRepository chartConfig.PipelineConfigRepository,
 	configMapRepository chartConfig.ConfigMapRepository,
 	chartRepository chartRepoRepository.ChartRepository,
-	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	commonService commonService.CommonService,
-	imageScanDeployInfoRepository security.ImageScanDeployInfoRepository,
-	imageScanHistoryRepository security.ImageScanHistoryRepository,
-	ArgoK8sClient argocdServer.ArgoK8sClient,
-	gitFactory *GitFactory,
-	pipelineStrategyHistoryService history2.PipelineStrategyHistoryService,
-	configMapHistoryService history2.ConfigMapHistoryService,
-	deploymentTemplateHistoryService history2.DeploymentTemplateHistoryService,
 	chartTemplateService ChartTemplateService,
-	refChartDir chartRepoRepository.RefChartDir,
-	chartRefRepository chartRepoRepository.ChartRefRepository,
-	chartService chart.ChartService,
-	helmAppClient client2.HelmAppClient,
 	argoUserService argo.ArgoUserService,
 	cdPipelineStatusTimelineRepo pipelineConfig.PipelineStatusTimelineRepository,
-	appCrudOperationService AppCrudOperationService,
-	configMapHistoryRepository repository3.ConfigMapHistoryRepository,
-	strategyHistoryRepository repository3.PipelineStrategyHistoryRepository,
-	deploymentTemplateHistoryRepository repository3.DeploymentTemplateHistoryRepository,
-	dockerRegistryIpsConfigService dockerRegistry.DockerRegistryIpsConfigService,
 	pipelineStatusTimelineResourcesService status2.PipelineStatusTimelineResourcesService,
 	pipelineStatusSyncDetailService status2.PipelineStatusSyncDetailService,
 	pipelineStatusTimelineService status2.PipelineStatusTimelineService,
 	appStatusConfig *AppServiceConfig,
-	gitOpsConfigRepository repository.GitOpsConfigRepository,
 	appStatusService appStatus.AppStatusService,
 	installedAppRepository repository4.InstalledAppRepository,
-	AppStoreDeploymentService service.AppStoreDeploymentService,
-	k8sCommonService k8s.K8sCommonService,
 	installedAppVersionHistoryRepository repository4.InstalledAppVersionHistoryRepository,
-	globalEnvVariables *util2.GlobalEnvVariables, helmAppService client2.HelmAppService,
-	manifestPushConfigRepository repository5.ManifestPushConfigRepository,
-	GitOpsManifestPushService GitOpsPushService,
-	argoClientWrapperService argocdServer.ArgoClientWrapperService,
+	globalEnvVariables *util2.GlobalEnvVariables,
 	scopedVariableManager variables.ScopedVariableCMCSManager,
-	acdConfig *argocdServer.ACDConfig,
-) *AppServiceImpl {
+	acdConfig *argocdServer.ACDConfig, chartRefService chartRef.ChartRefService) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:            environmentConfigRepository,
 		mergeUtil:                              mergeUtil,
 		pipelineOverrideRepository:             pipelineOverrideRepository,
 		logger:                                 logger,
-		ciArtifactRepository:                   ciArtifactRepository,
 		pipelineRepository:                     pipelineRepository,
-		dbMigrationConfigRepository:            dbMigrationConfigRepository,
 		eventClient:                            eventClient,
 		eventFactory:                           eventFactory,
 		acdClient:                              acdClient,
-		tokenCache:                             cache,
-		acdAuthConfig:                          authConfig,
-		enforcer:                               enforcer,
-		enforcerUtil:                           enforcerUtil,
-		user:                                   user,
-		appListingRepository:                   appListingRepository,
 		appRepository:                          appRepository,
-		envRepository:                          envRepository,
-		pipelineConfigRepository:               pipelineConfigRepository,
 		configMapRepository:                    configMapRepository,
 		chartRepository:                        chartRepository,
-		ciPipelineMaterialRepository:           ciPipelineMaterialRepository,
 		cdWorkflowRepository:                   cdWorkflowRepository,
 		commonService:                          commonService,
-		imageScanDeployInfoRepository:          imageScanDeployInfoRepository,
-		imageScanHistoryRepository:             imageScanHistoryRepository,
-		ArgoK8sClient:                          ArgoK8sClient,
-		gitFactory:                             gitFactory,
-		pipelineStrategyHistoryService:         pipelineStrategyHistoryService,
-		configMapHistoryService:                configMapHistoryService,
-		deploymentTemplateHistoryService:       deploymentTemplateHistoryService,
 		chartTemplateService:                   chartTemplateService,
-		refChartDir:                            refChartDir,
-		chartRefRepository:                     chartRefRepository,
-		chartService:                           chartService,
-		helmAppClient:                          helmAppClient,
 		argoUserService:                        argoUserService,
 		pipelineStatusTimelineRepository:       cdPipelineStatusTimelineRepo,
-		appCrudOperationService:                appCrudOperationService,
-		configMapHistoryRepository:             configMapHistoryRepository,
-		strategyHistoryRepository:              strategyHistoryRepository,
-		deploymentTemplateHistoryRepository:    deploymentTemplateHistoryRepository,
-		dockerRegistryIpsConfigService:         dockerRegistryIpsConfigService,
 		pipelineStatusTimelineResourcesService: pipelineStatusTimelineResourcesService,
 		pipelineStatusSyncDetailService:        pipelineStatusSyncDetailService,
 		pipelineStatusTimelineService:          pipelineStatusTimelineService,
 		appStatusConfig:                        appStatusConfig,
-		gitOpsConfigRepository:                 gitOpsConfigRepository,
 		appStatusService:                       appStatusService,
 		installedAppRepository:                 installedAppRepository,
-		AppStoreDeploymentService:              AppStoreDeploymentService,
-		K8sCommonService:                       k8sCommonService,
 		installedAppVersionHistoryRepository:   installedAppVersionHistoryRepository,
 		globalEnvVariables:                     globalEnvVariables,
-		helmAppService:                         helmAppService,
-		manifestPushConfigRepository:           manifestPushConfigRepository,
-		GitOpsManifestPushService:              GitOpsManifestPushService,
-		argoClientWrapperService:               argoClientWrapperService,
 		scopedVariableManager:                  scopedVariableManager,
 		acdConfig:                              acdConfig,
+		chartRefService:                        chartRefService,
 	}
 	return appServiceImpl
 }
@@ -984,16 +873,16 @@ func (impl *AppServiceImpl) BuildChartAndGetPath(appName string, envOverride *ch
 		Name:    appName,
 		Version: envOverride.Chart.ChartVersion,
 	}
-	referenceTemplatePath := path.Join(string(impl.refChartDir), envOverride.Chart.ReferenceTemplate)
+	referenceTemplatePath := path.Join(chartRepoRepository.RefChartDirPath, envOverride.Chart.ReferenceTemplate)
 	// Load custom charts to referenceTemplatePath if not exists
 	if _, err := os.Stat(referenceTemplatePath); os.IsNotExist(err) {
-		chartRefValue, err := impl.chartRefRepository.FindById(envOverride.Chart.ChartRefId)
+		chartRefValue, err := impl.chartRefService.FindById(envOverride.Chart.ChartRefId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching ChartRef data", "err", err)
 			return "", err
 		}
 		if chartRefValue.ChartData != nil {
-			chartInfo, err := impl.chartService.ExtractChartIfMissing(chartRefValue.ChartData, string(impl.refChartDir), chartRefValue.Location)
+			chartInfo, err := impl.chartRefService.ExtractChartIfMissing(chartRefValue.ChartData, chartRepoRepository.RefChartDirPath, chartRefValue.Location)
 			if chartInfo != nil && chartInfo.TemporaryFolder != "" {
 				err1 := os.RemoveAll(chartInfo.TemporaryFolder)
 				if err1 != nil {
@@ -1065,7 +954,7 @@ func (impl *AppServiceImpl) autoHealChartLocationInChart(ctx context.Context, en
 	// get chart ref from DB (to get location)
 	chartRefId := chart.ChartRefId
 	_, span = otel.Tracer("orchestrator").Start(ctx, "chartRefRepository.FindById")
-	chartRef, err := impl.chartRefRepository.FindById(chartRefId)
+	chartRefDto, err := impl.chartRefService.FindById(chartRefId)
 	span.End()
 	if err != nil {
 		impl.logger.Errorw("error occurred while fetching chartRef from DB", "chartRefId", chartRefId, "err", err)
@@ -1073,7 +962,7 @@ func (impl *AppServiceImpl) autoHealChartLocationInChart(ctx context.Context, en
 	}
 
 	// build new chart location
-	newChartLocation := filepath.Join(chartRef.Location, envOverride.Chart.ChartVersion)
+	newChartLocation := filepath.Join(chartRefDto.Location, envOverride.Chart.ChartVersion)
 	impl.logger.Infow("new chart location build", "chartId", chartId, "newChartLocation", newChartLocation)
 
 	// update chart in DB

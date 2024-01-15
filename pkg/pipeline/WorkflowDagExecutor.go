@@ -23,6 +23,7 @@ import (
 	errors3 "errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	"path"
 	"strconv"
 	"strings"
@@ -42,10 +43,8 @@ import (
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	gitSensorClient "github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/middleware"
-	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	bean4 "github.com/devtron-labs/devtron/pkg/app/bean"
 	"github.com/devtron-labs/devtron/pkg/app/status"
-	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
@@ -130,11 +129,8 @@ type WorkflowDagExecutorImpl struct {
 	pipelineOverrideRepository    chartConfig.PipelineOverrideRepository
 	ciArtifactRepository          repository.CiArtifactRepository
 	user                          user.UserService
-	enforcer                      casbin.Enforcer
 	enforcerUtil                  rbac.EnforcerUtil
 	groupRepository               repository.DeploymentGroupRepository
-	tokenCache                    *util3.TokenCache
-	acdAuthConfig                 *util3.ACDAuthConfig
 	envRepository                 repository2.EnvironmentRepository
 	eventFactory                  client.EventFactory
 	eventClient                   client.EventClient
@@ -150,15 +146,13 @@ type WorkflowDagExecutorImpl struct {
 	appLabelRepository            pipelineConfig.AppLabelRepository
 	gitSensorGrpcClient           gitSensorClient.Client
 	k8sCommonService              k8s.K8sCommonService
-	pipelineStageRepository       repository4.PipelineStageRepository
 	pipelineStageService          PipelineStageService
 	config                        *types.CdConfig
 	appServiceConfig              *app.AppServiceConfig
 	globalPluginService           plugin.GlobalPluginService
 
-	scopedVariableManager          variables.ScopedVariableCMCSManager
-	variableSnapshotHistoryService variables.VariableSnapshotHistoryService
-	pluginInputVariableParser      PluginInputVariableParser
+	scopedVariableManager     variables.ScopedVariableCMCSManager
+	pluginInputVariableParser PluginInputVariableParser
 
 	devtronAsyncHelmInstallRequestMap  map[int]bool
 	devtronAsyncHelmInstallRequestLock *sync.Mutex
@@ -179,15 +173,12 @@ type WorkflowDagExecutorImpl struct {
 	chartRepository                     chartRepoRepository.ChartRepository
 	chartTemplateService                util.ChartTemplateService
 	strategyHistoryRepository           repository3.PipelineStrategyHistoryRepository
-	appRepository                       app2.AppRepository
 	deploymentTemplateHistoryRepository repository3.DeploymentTemplateHistoryRepository
 	argoK8sClient                       argocdServer.ArgoK8sClient
 	configMapRepository                 chartConfig.ConfigMapRepository
 	configMapHistoryRepository          repository3.ConfigMapHistoryRepository
-	refChartDir                         chartRepoRepository.RefChartDir
 	helmAppService                      client2.HelmAppService
 	helmAppClient                       client2.HelmAppClient
-	chartRefRepository                  chartRepoRepository.ChartRefRepository
 	environmentConfigRepository         chartConfig.EnvConfigOverrideRepository
 	dbMigrationConfigRepository         pipelineConfig.DbMigrationConfigRepository
 	mergeUtil                           *util.MergeUtil
@@ -195,10 +186,10 @@ type WorkflowDagExecutorImpl struct {
 	gitFactory                          *util.GitFactory
 	acdClient                           application2.ServiceClient
 	argoClientWrapperService            argocdServer.ArgoClientWrapperService
-	pipelineConfigListenerService       PipelineConfigListenerService
 	customTagService                    CustomTagService
 	ACDConfig                           *argocdServer.ACDConfig
 	deployedAppMetricsService           deployedAppMetrics.DeployedAppMetricsService
+	chartRefService                     chartRef.ChartRefService
 }
 
 const kedaAutoscaling = "kedaAutoscaling"
@@ -254,8 +245,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	user user.UserService,
 	groupRepository repository.DeploymentGroupRepository,
 	envRepository repository2.EnvironmentRepository,
-	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, tokenCache *util3.TokenCache,
-	acdAuthConfig *util3.ACDAuthConfig, eventFactory client.EventFactory,
+	enforcerUtil rbac.EnforcerUtil, eventFactory client.EventFactory,
 	eventClient client.EventClient, cvePolicyRepository security.CvePolicyRepository,
 	scanResultRepository security.ImageScanResultRepository,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
@@ -267,7 +257,6 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	appLabelRepository pipelineConfig.AppLabelRepository, gitSensorGrpcClient gitSensorClient.Client,
 	pipelineStageService PipelineStageService, k8sCommonService k8s.K8sCommonService,
-	variableSnapshotHistoryService variables.VariableSnapshotHistoryService,
 	globalPluginService plugin.GlobalPluginService,
 	pluginInputVariableParser PluginInputVariableParser,
 	scopedVariableManager variables.ScopedVariableCMCSManager,
@@ -286,15 +275,12 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	chartRepository chartRepoRepository.ChartRepository,
 	chartTemplateService util.ChartTemplateService,
 	strategyHistoryRepository repository3.PipelineStrategyHistoryRepository,
-	appRepository app2.AppRepository,
 	deploymentTemplateHistoryRepository repository3.DeploymentTemplateHistoryRepository,
 	ArgoK8sClient argocdServer.ArgoK8sClient,
 	configMapRepository chartConfig.ConfigMapRepository,
 	configMapHistoryRepository repository3.ConfigMapHistoryRepository,
-	refChartDir chartRepoRepository.RefChartDir,
 	helmAppService client2.HelmAppService,
 	helmAppClient client2.HelmAppClient,
-	chartRefRepository chartRepoRepository.ChartRefRepository,
 	environmentConfigRepository chartConfig.EnvConfigOverrideRepository,
 	dbMigrationConfigRepository pipelineConfig.DbMigrationConfigRepository,
 	mergeUtil *util.MergeUtil,
@@ -305,7 +291,8 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	pipelineConfigListenerService PipelineConfigListenerService,
 	customTagService CustomTagService,
 	ACDConfig *argocdServer.ACDConfig,
-	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService) *WorkflowDagExecutorImpl {
+	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
+	chartRefService chartRef.ChartRefService) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
 		cdWorkflowRepository:          cdWorkflowRepository,
@@ -317,11 +304,8 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		materialRepository:            materialRepository,
 		pipelineOverrideRepository:    pipelineOverrideRepository,
 		user:                          user,
-		enforcer:                      enforcer,
 		enforcerUtil:                  enforcerUtil,
 		groupRepository:               groupRepository,
-		tokenCache:                    tokenCache,
-		acdAuthConfig:                 acdAuthConfig,
 		envRepository:                 envRepository,
 		eventFactory:                  eventFactory,
 		eventClient:                   eventClient,
@@ -361,15 +345,12 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		chartRepository:                     chartRepository,
 		chartTemplateService:                chartTemplateService,
 		strategyHistoryRepository:           strategyHistoryRepository,
-		appRepository:                       appRepository,
 		deploymentTemplateHistoryRepository: deploymentTemplateHistoryRepository,
 		argoK8sClient:                       ArgoK8sClient,
 		configMapRepository:                 configMapRepository,
 		configMapHistoryRepository:          configMapHistoryRepository,
-		refChartDir:                         refChartDir,
 		helmAppService:                      helmAppService,
 		helmAppClient:                       helmAppClient,
-		chartRefRepository:                  chartRefRepository,
 		environmentConfigRepository:         environmentConfigRepository,
 		dbMigrationConfigRepository:         dbMigrationConfigRepository,
 		mergeUtil:                           mergeUtil,
@@ -377,10 +358,10 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		gitFactory:                          gitFactory,
 		acdClient:                           acdClient,
 		argoClientWrapperService:            argoClientWrapperService,
-		pipelineConfigListenerService:       pipelineConfigListenerService,
 		customTagService:                    customTagService,
 		ACDConfig:                           ACDConfig,
 		deployedAppMetricsService:           deployedAppMetricsService,
+		chartRefService:                     chartRefService,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -3471,7 +3452,7 @@ func (impl *WorkflowDagExecutorImpl) createHelmAppForCdPipeline(overrideRequest 
 		Name:    pipeline.App.AppName,
 		Version: envOverride.Chart.ChartVersion,
 	}
-	referenceTemplatePath := path.Join(string(impl.refChartDir), envOverride.Chart.ReferenceTemplate)
+	referenceTemplatePath := path.Join(chartRepoRepository.RefChartDirPath, envOverride.Chart.ReferenceTemplate)
 
 	if util.IsHelmApp(pipeline.DeploymentAppType) {
 		referenceChartByte := envOverride.Chart.ReferenceChart
@@ -3653,7 +3634,7 @@ func (impl *WorkflowDagExecutorImpl) GetEnvOverrideByTriggerType(overrideRequest
 		}
 		//getting chart_ref by id
 		_, span = otel.Tracer("orchestrator").Start(ctx, "chartRefRepository.FindByVersionAndName")
-		chartRef, err := impl.chartRefRepository.FindByVersionAndName(templateName, templateVersion)
+		chartRefDto, err := impl.chartRefService.FindByVersionAndName(templateName, templateVersion)
 		span.End()
 		if err != nil {
 			impl.logger.Errorw("error in getting chartRef by version and name", "err", err, "version", templateVersion, "name", templateName)
@@ -3661,10 +3642,10 @@ func (impl *WorkflowDagExecutorImpl) GetEnvOverrideByTriggerType(overrideRequest
 		}
 		//assuming that if a chartVersion is deployed then it's envConfigOverride will be available
 		_, span = otel.Tracer("orchestrator").Start(ctx, "environmentConfigRepository.GetByAppIdEnvIdAndChartRefId")
-		envOverride, err = impl.environmentConfigRepository.GetByAppIdEnvIdAndChartRefId(overrideRequest.AppId, overrideRequest.EnvId, chartRef.Id)
+		envOverride, err = impl.environmentConfigRepository.GetByAppIdEnvIdAndChartRefId(overrideRequest.AppId, overrideRequest.EnvId, chartRefDto.Id)
 		span.End()
 		if err != nil {
-			impl.logger.Errorw("error in getting envConfigOverride for pipeline for specific chartVersion", "err", err, "appId", overrideRequest.AppId, "envId", overrideRequest.EnvId, "chartRefId", chartRef.Id)
+			impl.logger.Errorw("error in getting envConfigOverride for pipeline for specific chartVersion", "err", err, "appId", overrideRequest.AppId, "envId", overrideRequest.EnvId, "chartRefId", chartRefDto.Id)
 			return nil, err
 		}
 

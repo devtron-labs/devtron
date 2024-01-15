@@ -8,6 +8,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/bean"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
@@ -31,9 +32,9 @@ type DeploymentConfigServiceImpl struct {
 	pipelineConfigRepository    chartConfig.PipelineConfigRepository
 	configMapRepository         chartConfig.ConfigMapRepository
 	configMapHistoryService     history.ConfigMapHistoryService
-	chartRefRepository          chartRepoRepository.ChartRefRepository
 	scopedVariableManager       variables.ScopedVariableCMCSManager
 	deployedAppMetricsService   deployedAppMetrics.DeployedAppMetricsService
+	chartRefService             chartRef.ChartRefService
 }
 
 func NewDeploymentConfigServiceImpl(logger *zap.SugaredLogger,
@@ -43,9 +44,9 @@ func NewDeploymentConfigServiceImpl(logger *zap.SugaredLogger,
 	pipelineConfigRepository chartConfig.PipelineConfigRepository,
 	configMapRepository chartConfig.ConfigMapRepository,
 	configMapHistoryService history.ConfigMapHistoryService,
-	chartRefRepository chartRepoRepository.ChartRefRepository,
 	scopedVariableManager variables.ScopedVariableCMCSManager,
-	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService) *DeploymentConfigServiceImpl {
+	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
+	chartRefService chartRef.ChartRefService) *DeploymentConfigServiceImpl {
 	return &DeploymentConfigServiceImpl{
 		logger:                      logger,
 		envConfigOverrideRepository: envConfigOverrideRepository,
@@ -54,9 +55,9 @@ func NewDeploymentConfigServiceImpl(logger *zap.SugaredLogger,
 		pipelineConfigRepository:    pipelineConfigRepository,
 		configMapRepository:         configMapRepository,
 		configMapHistoryService:     configMapHistoryService,
-		chartRefRepository:          chartRefRepository,
 		scopedVariableManager:       scopedVariableManager,
 		deployedAppMetricsService:   deployedAppMetricsService,
+		chartRefService:             chartRefService,
 	}
 }
 
@@ -107,7 +108,7 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(ctx c
 	deploymentTemplateConfig := &history.HistoryDetailDto{}
 	if envOverride != nil && envOverride.Id > 0 && envOverride.IsOverride {
 		if envOverride.Chart != nil {
-			chartRef, err := impl.chartRefRepository.FindById(envOverride.Chart.ChartRefId)
+			chartRefDto, err := impl.chartRefService.FindById(envOverride.Chart.ChartRefId)
 			if err != nil {
 				impl.logger.Errorw("error in getting chartRef by id", "err", err, "chartRefId", envOverride.Chart.ChartRefId)
 				return nil, err
@@ -132,7 +133,7 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(ctx c
 
 			deploymentTemplateConfig = &history.HistoryDetailDto{
 				TemplateName:        envOverride.Chart.ChartName,
-				TemplateVersion:     chartRef.Version,
+				TemplateVersion:     chartRefDto.Version,
 				IsAppMetricsEnabled: &isAppMetricsEnabled,
 				CodeEditorValue: &history.HistoryDetailConfig{
 					DisplayName:      "values.yaml",
@@ -148,7 +149,7 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(ctx c
 			impl.logger.Errorw("error in getting chart by appId", "err", err, "appId", pipeline.AppId)
 			return nil, err
 		}
-		chartRef, err := impl.chartRefRepository.FindById(chart.ChartRefId)
+		chartRefDto, err := impl.chartRefService.FindById(chart.ChartRefId)
 		if err != nil {
 			impl.logger.Errorw("error in getting chartRef by id", "err", err, "chartRefId", envOverride.Chart.ChartRefId)
 			return nil, err
@@ -173,7 +174,7 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(ctx c
 		}
 		deploymentTemplateConfig = &history.HistoryDetailDto{
 			TemplateName:        chart.ChartName,
-			TemplateVersion:     chartRef.Version,
+			TemplateVersion:     chartRefDto.Version,
 			IsAppMetricsEnabled: &isAppMetricsEnabled,
 			CodeEditorValue: &history.HistoryDetailConfig{
 				DisplayName:      "values.yaml",

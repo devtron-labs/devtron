@@ -52,7 +52,6 @@ import (
 	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
 	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
-	appStoreDeploymentGitopsTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool/gitops"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/values/service"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
@@ -109,7 +108,6 @@ type InstalledAppServiceImpl struct {
 	logger                               *zap.SugaredLogger
 	installedAppRepository               repository2.InstalledAppRepository
 	chartTemplateService                 util.ChartTemplateService
-	refChartDir                          appStoreBean.RefChartProxyDir
 	repositoryService                    repository.ServiceClient
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository
 	environmentRepository                repository5.EnvironmentRepository
@@ -124,15 +122,14 @@ type InstalledAppServiceImpl struct {
 	ArgoK8sClient                        argocdServer.ArgoK8sClient
 	gitFactory                           *util.GitFactory
 	aCDAuthConfig                        *util2.ACDAuthConfig
-	gitOpsRepository          repository3.GitOpsConfigRepository
-	userService               user.UserService
-	appStoreDeploymentService AppStoreDeploymentService
+	gitOpsRepository                     repository3.GitOpsConfigRepository
+	userService                          user.UserService
+	appStoreDeploymentService            AppStoreDeploymentService
 	appStoreDeploymentFullModeService    appStoreDeploymentFullMode.AppStoreDeploymentFullModeService
 	installedAppRepositoryHistory        repository2.InstalledAppVersionHistoryRepository
 	argoUserService                      argo.ArgoUserService
 	helmAppClient                        client.HelmAppClient
 	helmAppService                       client.HelmAppService
-	attributesRepository                 repository3.AttributesRepository
 	appStatusService                     appStatus.AppStatusService
 	K8sUtil                              *util4.K8sUtil
 	pipelineStatusTimelineService        status.PipelineStatusTimelineService
@@ -144,7 +141,7 @@ type InstalledAppServiceImpl struct {
 
 func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 	installedAppRepository repository2.InstalledAppRepository,
-	chartTemplateService util.ChartTemplateService, refChartDir appStoreBean.RefChartProxyDir,
+	chartTemplateService util.ChartTemplateService,
 	repositoryService repository.ServiceClient,
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
 	environmentRepository repository5.EnvironmentRepository, teamRepository repository4.TeamRepository,
@@ -160,17 +157,15 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 	appStoreDeploymentService AppStoreDeploymentService,
 	installedAppRepositoryHistory repository2.InstalledAppVersionHistoryRepository,
 	argoUserService argo.ArgoUserService, helmAppClient client.HelmAppClient, helmAppService client.HelmAppService,
-	attributesRepository repository3.AttributesRepository,
 	appStatusService appStatus.AppStatusService, K8sUtil *util4.K8sUtil,
 	pipelineStatusTimelineService status.PipelineStatusTimelineService,
 	appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
-	appStoreDeploymentArgoCdService appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdService, k8sCommonService k8s.K8sCommonService, k8sApplicationService application3.K8sApplicationService,
+	k8sCommonService k8s.K8sCommonService, k8sApplicationService application3.K8sApplicationService,
 	acdConfig *argocdServer.ACDConfig) (*InstalledAppServiceImpl, error) {
 	impl := &InstalledAppServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
 		chartTemplateService:                 chartTemplateService,
-		refChartDir:                          refChartDir,
 		repositoryService:                    repositoryService,
 		appStoreApplicationVersionRepository: appStoreApplicationVersionRepository,
 		environmentRepository:                environmentRepository,
@@ -193,7 +188,6 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 		argoUserService:                      argoUserService,
 		helmAppClient:                        helmAppClient,
 		helmAppService:                       helmAppService,
-		attributesRepository:                 attributesRepository,
 		appStatusService:                     appStatusService,
 		K8sUtil:                              K8sUtil,
 		pipelineStatusTimelineService:        pipelineStatusTimelineService,

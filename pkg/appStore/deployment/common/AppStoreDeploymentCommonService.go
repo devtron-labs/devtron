@@ -66,7 +66,6 @@ type AppStoreDeploymentCommonServiceImpl struct {
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository
 	environmentRepository                repository2.EnvironmentRepository
 	chartTemplateService                 util.ChartTemplateService
-	refChartDir                          appStoreBean.RefChartProxyDir
 	gitFactory                           *util.GitFactory
 	gitOpsConfigRepository               repository3.GitOpsConfigRepository
 }
@@ -77,7 +76,6 @@ func NewAppStoreDeploymentCommonServiceImpl(
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
 	environmentRepository repository2.EnvironmentRepository,
 	chartTemplateService util.ChartTemplateService,
-	refChartDir appStoreBean.RefChartProxyDir,
 	gitFactory *util.GitFactory,
 	gitOpsConfigRepository repository3.GitOpsConfigRepository,
 ) *AppStoreDeploymentCommonServiceImpl {
@@ -87,7 +85,6 @@ func NewAppStoreDeploymentCommonServiceImpl(
 		appStoreApplicationVersionRepository: appStoreApplicationVersionRepository,
 		environmentRepository:                environmentRepository,
 		chartTemplateService:                 chartTemplateService,
-		refChartDir:                          refChartDir,
 		gitFactory:                           gitFactory,
 		gitOpsConfigRepository:               gitOpsConfigRepository,
 	}
@@ -352,7 +349,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) CreateChartProxyAndGetPath(insta
 
 	ChartCreateResponse := &util.ChartCreateResponse{}
 	template := appStoreBean.CHART_PROXY_TEMPLATE
-	chartPath := path.Join(string(impl.refChartDir), template)
+	chartPath := path.Join(appStoreBean.RefChartProxyDirPath, template)
 	valid, err := chartutil.IsChartDir(chartPath)
 	if err != nil || !valid {
 		impl.logger.Errorw("invalid base chart", "dir", chartPath, "err", err)

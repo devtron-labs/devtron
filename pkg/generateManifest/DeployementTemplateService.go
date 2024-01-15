@@ -13,6 +13,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
@@ -84,6 +85,7 @@ type DeploymentTemplateServiceImpl struct {
 	environmentRepository            repository3.EnvironmentRepository
 	appRepository                    appRepository.AppRepository
 	scopedVariableManager            variables.ScopedVariableManager
+	chartRefService                  chartRef.ChartRefService
 }
 
 func NewDeploymentTemplateServiceImpl(Logger *zap.SugaredLogger, chartService chart.ChartService,
@@ -100,7 +102,7 @@ func NewDeploymentTemplateServiceImpl(Logger *zap.SugaredLogger, chartService ch
 	environmentRepository repository3.EnvironmentRepository,
 	appRepository appRepository.AppRepository,
 	scopedVariableManager variables.ScopedVariableManager,
-) *DeploymentTemplateServiceImpl {
+	chartRefService chartRef.ChartRefService) *DeploymentTemplateServiceImpl {
 	return &DeploymentTemplateServiceImpl{
 		Logger:                           Logger,
 		chartService:                     chartService,
@@ -117,6 +119,7 @@ func NewDeploymentTemplateServiceImpl(Logger *zap.SugaredLogger, chartService ch
 		environmentRepository:            environmentRepository,
 		appRepository:                    appRepository,
 		scopedVariableManager:            scopedVariableManager,
+		chartRefService:                  chartRefService,
 	}
 }
 
@@ -301,7 +304,7 @@ func (impl DeploymentTemplateServiceImpl) extractScopeData(request DeploymentTem
 }
 
 func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, chartRefId int, valuesYaml string) (*openapi2.TemplateChartResponse, error) {
-	refChart, template, err, version, _ := impl.chartService.GetRefChart(chart.TemplateRequest{ChartRefId: chartRefId})
+	refChart, template, err, version, _ := impl.chartRefService.GetRefChart(chartRefId)
 	if err != nil {
 		impl.Logger.Errorw("error in getting refChart", "err", err, "chartRefId", chartRefId)
 		return nil, err

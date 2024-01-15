@@ -3,6 +3,7 @@ package history
 import (
 	"context"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	"time"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
@@ -38,28 +39,28 @@ type DeploymentTemplateHistoryServiceImpl struct {
 	deploymentTemplateHistoryRepository repository.DeploymentTemplateHistoryRepository
 	pipelineRepository                  pipelineConfig.PipelineRepository
 	chartRepository                     chartRepoRepository.ChartRepository
-	chartRefRepository                  chartRepoRepository.ChartRefRepository
 	userService                         user.UserService
 	cdWorkflowRepository                pipelineConfig.CdWorkflowRepository
 	scopedVariableManager               variables.ScopedVariableManager
 	deployedAppMetricsService           deployedAppMetrics.DeployedAppMetricsService
+	chartRefService                     chartRef.ChartRefService
 }
 
 func NewDeploymentTemplateHistoryServiceImpl(logger *zap.SugaredLogger, deploymentTemplateHistoryRepository repository.DeploymentTemplateHistoryRepository,
 	pipelineRepository pipelineConfig.PipelineRepository, chartRepository chartRepoRepository.ChartRepository,
-	chartRefRepository chartRepoRepository.ChartRefRepository, userService user.UserService,
-	cdWorkflowRepository pipelineConfig.CdWorkflowRepository, scopedVariableManager variables.ScopedVariableManager,
-	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService) *DeploymentTemplateHistoryServiceImpl {
+	userService user.UserService, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
+	scopedVariableManager variables.ScopedVariableManager, deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
+	chartRefService chartRef.ChartRefService) *DeploymentTemplateHistoryServiceImpl {
 	return &DeploymentTemplateHistoryServiceImpl{
 		logger:                              logger,
 		deploymentTemplateHistoryRepository: deploymentTemplateHistoryRepository,
 		pipelineRepository:                  pipelineRepository,
 		chartRepository:                     chartRepository,
-		chartRefRepository:                  chartRefRepository,
 		userService:                         userService,
 		cdWorkflowRepository:                cdWorkflowRepository,
 		scopedVariableManager:               scopedVariableManager,
 		deployedAppMetricsService:           deployedAppMetricsService,
+		chartRefService:                     chartRefService,
 	}
 }
 
@@ -70,13 +71,10 @@ func (impl DeploymentTemplateHistoryServiceImpl) CreateDeploymentTemplateHistory
 		impl.logger.Errorw("err in getting pipelines, CreateDeploymentTemplateHistoryFromGlobalTemplate", "err", err, "chart", chart)
 		return err
 	}
-	chartRef, err := impl.chartRefRepository.FindById(chart.ChartRefId)
+	chartRefDto, err := impl.chartRefService.FindById(chart.ChartRefId)
 	if err != nil {
 		impl.logger.Errorw("err in getting chartRef, CreateDeploymentTemplateHistoryFromGlobalTemplate", "err", err, "chart", chart)
 		return err
-	}
-	if len(chartRef.Name) == 0 {
-		chartRef.Name = "Rollout Deployment"
 	}
 	//creating history without pipeline id
 	historyModel := &repository.DeploymentTemplateHistory{
@@ -84,8 +82,8 @@ func (impl DeploymentTemplateHistoryServiceImpl) CreateDeploymentTemplateHistory
 		ImageDescriptorTemplate: chart.ImageDescriptorTemplate,
 		Template:                chart.GlobalOverride,
 		Deployed:                false,
-		TemplateName:            chartRef.Name,
-		TemplateVersion:         chartRef.Version,
+		TemplateName:            chartRefDto.Name,
+		TemplateVersion:         chartRefDto.Version,
 		IsAppMetricsEnabled:     IsAppMetricsEnabled,
 		AuditLog: sql.AuditLog{
 			CreatedOn: chart.CreatedOn,
@@ -111,8 +109,8 @@ func (impl DeploymentTemplateHistoryServiceImpl) CreateDeploymentTemplateHistory
 			ImageDescriptorTemplate: chart.ImageDescriptorTemplate,
 			Template:                chart.GlobalOverride,
 			Deployed:                false,
-			TemplateName:            chartRef.Name,
-			TemplateVersion:         chartRef.Version,
+			TemplateName:            chartRefDto.Name,
+			TemplateVersion:         chartRefDto.Version,
 			IsAppMetricsEnabled:     IsAppMetricsEnabled,
 			AuditLog: sql.AuditLog{
 				CreatedOn: chart.CreatedOn,
@@ -141,13 +139,10 @@ func (impl DeploymentTemplateHistoryServiceImpl) CreateDeploymentTemplateHistory
 		impl.logger.Errorw("err in getting global deployment template", "err", err, "chart", chart)
 		return err
 	}
-	chartRef, err := impl.chartRefRepository.FindById(chart.ChartRefId)
+	chartRefDto, err := impl.chartRefService.FindById(chart.ChartRefId)
 	if err != nil {
-		impl.logger.Errorw("err in getting chartRef, CreateDeploymentTemplateHistoryFromGlobalTemplate", "err", err, "chartRef", chartRef)
+		impl.logger.Errorw("err in getting chartRef, CreateDeploymentTemplateHistoryFromGlobalTemplate", "err", err, "chartRef", chartRefDto)
 		return err
-	}
-	if len(chartRef.Name) == 0 {
-		chartRef.Name = "Rollout Deployment"
 	}
 	if pipelineId == 0 {
 		pipeline, err := impl.pipelineRepository.GetByEnvOverrideIdAndEnvId(envOverride.Id, envOverride.TargetEnvironment)
@@ -163,8 +158,8 @@ func (impl DeploymentTemplateHistoryServiceImpl) CreateDeploymentTemplateHistory
 		ImageDescriptorTemplate: chart.ImageDescriptorTemplate,
 		TargetEnvironment:       envOverride.TargetEnvironment,
 		Deployed:                false,
-		TemplateName:            chartRef.Name,
-		TemplateVersion:         chartRef.Version,
+		TemplateName:            chartRefDto.Name,
+		TemplateVersion:         chartRefDto.Version,
 		IsAppMetricsEnabled:     IsAppMetricsEnabled,
 		AuditLog: sql.AuditLog{
 			CreatedOn: envOverride.CreatedOn,
@@ -193,13 +188,10 @@ func (impl DeploymentTemplateHistoryServiceImpl) CreateDeploymentTemplateHistory
 }
 
 func (impl DeploymentTemplateHistoryServiceImpl) CreateDeploymentTemplateHistoryForDeploymentTrigger(pipeline *pipelineConfig.Pipeline, envOverride *chartConfig.EnvConfigOverride, renderedImageTemplate string, deployedOn time.Time, deployedBy int32) (*repository.DeploymentTemplateHistory, error) {
-	chartRef, err := impl.chartRefRepository.FindById(envOverride.Chart.ChartRefId)
+	chartRefDto, err := impl.chartRefService.FindById(envOverride.Chart.ChartRefId)
 	if err != nil {
-		impl.logger.Errorw("err in getting chartRef, CreateDeploymentTemplateHistoryFromGlobalTemplate", "err", err, "chartRef", chartRef)
+		impl.logger.Errorw("err in getting chartRef, CreateDeploymentTemplateHistoryFromGlobalTemplate", "err", err, "chartRef", chartRefDto)
 		return nil, err
-	}
-	if len(chartRef.Name) == 0 {
-		chartRef.Name = "Rollout Deployment"
 	}
 	isAppMetricsEnabled, err := impl.deployedAppMetricsService.GetMetricsFlagForAPipelineByAppIdAndEnvId(pipeline.AppId, pipeline.EnvironmentId)
 	if err != nil {
@@ -214,8 +206,8 @@ func (impl DeploymentTemplateHistoryServiceImpl) CreateDeploymentTemplateHistory
 		Deployed:                true,
 		DeployedBy:              deployedBy,
 		DeployedOn:              deployedOn,
-		TemplateName:            chartRef.Name,
-		TemplateVersion:         chartRef.Version,
+		TemplateName:            chartRefDto.Name,
+		TemplateVersion:         chartRefDto.Version,
 		IsAppMetricsEnabled:     isAppMetricsEnabled,
 		AuditLog: sql.AuditLog{
 			CreatedOn: deployedOn,

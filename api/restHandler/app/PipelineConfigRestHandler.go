@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	"io"
 	"net/http"
 	"strconv"
@@ -43,7 +44,6 @@ import (
 	"go.opentelemetry.io/otel"
 
 	bean2 "github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
@@ -110,7 +110,6 @@ type PipelineConfigRestHandlerImpl struct {
 	chartService                 chart.ChartService
 	propertiesConfigService      pipeline.PropertiesConfigService
 	dbMigrationService           pipeline.DbMigrationService
-	application                  application.ServiceClient
 	userAuthService              user.UserService
 	validator                    *validator.Validate
 	teamService                  team.TeamService
@@ -134,13 +133,13 @@ type PipelineConfigRestHandlerImpl struct {
 	pipelineRestHandlerEnvConfig *PipelineRestHandlerEnvConfig
 	ciArtifactRepository         repository.CiArtifactRepository
 	deployedAppMetricsService    deployedAppMetrics.DeployedAppMetricsService
+	chartRefService              chartRef.ChartRefService
 }
 
 func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
 	chartService chart.ChartService,
 	propertiesConfigService pipeline.PropertiesConfigService,
 	dbMigrationService pipeline.DbMigrationService,
-	application application.ServiceClient,
 	userAuthService user.UserService,
 	teamService team.TeamService,
 	enforcer casbin.Enforcer,
@@ -159,7 +158,8 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	argoUserService argo.ArgoUserService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	imageTaggingService pipeline.ImageTaggingService,
 	ciArtifactRepository repository.CiArtifactRepository,
-	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService) *PipelineConfigRestHandlerImpl {
+	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
+	chartRefService chartRef.ChartRefService) *PipelineConfigRestHandlerImpl {
 	envConfig := &PipelineRestHandlerEnvConfig{}
 	err := env.Parse(envConfig)
 	if err != nil {
@@ -171,7 +171,6 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		chartService:                 chartService,
 		propertiesConfigService:      propertiesConfigService,
 		dbMigrationService:           dbMigrationService,
-		application:                  application,
 		userAuthService:              userAuthService,
 		validator:                    validator,
 		teamService:                  teamService,
@@ -198,6 +197,7 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		pipelineRestHandlerEnvConfig: envConfig,
 		ciArtifactRepository:         ciArtifactRepository,
 		deployedAppMetricsService:    deployedAppMetricsService,
+		chartRefService:              chartRefService,
 	}
 }
 

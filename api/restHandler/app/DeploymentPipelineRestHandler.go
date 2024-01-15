@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	bean4 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 	"io"
 	"net/http"
 	"strconv"
@@ -185,7 +186,7 @@ func (handler PipelineConfigRestHandlerImpl) CreateCdPipeline(w http.ResponseWri
 		return
 	}
 	handler.Logger.Infow("request payload, CreateCdPipeline", "payload", cdPipeline)
-	userUploaded, err := handler.chartService.CheckCustomChartByAppId(cdPipeline.AppId)
+	userUploaded, err := handler.chartService.CheckIfChartRefUserUploadedByAppId(cdPipeline.AppId)
 	if !userUploaded {
 		err = handler.validator.Struct(cdPipeline)
 		if err != nil {
@@ -541,7 +542,7 @@ func (handler PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWrite
 		common.WriteJsonResp(w, err, "specific environment is not overriden", http.StatusUnprocessableEntity)
 		return
 	}
-	compatible, oldChartType, newChartType := handler.chartService.ChartRefIdsCompatible(envConfigProperties.ChartRefId, request.TargetChartRefId)
+	compatible, oldChartType, newChartType := handler.chartRefService.ChartRefIdsCompatible(envConfigProperties.ChartRefId, request.TargetChartRefId)
 	if !compatible {
 		common.WriteJsonResp(w, fmt.Errorf("charts not compatible"), "chart not compatible", http.StatusUnprocessableEntity)
 		return
@@ -553,7 +554,7 @@ func (handler PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWrite
 		return
 	}
 
-	if newChartType == chart.RolloutChartType {
+	if newChartType == bean4.RolloutChartType {
 		enabled, err := handler.chartService.FlaggerCanaryEnabled(envConfigProperties.EnvOverrideValues)
 		if err != nil || enabled {
 			handler.Logger.Errorw("rollout charts do not support flaggerCanary, ChangeChartRef", "err", err, "payload", request)
@@ -989,7 +990,7 @@ func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.Respon
 	appConfigResponse := make(map[string]interface{})
 	appConfigResponse["globalConfig"] = nil
 
-	err = handler.chartService.CheckChartExists(chartRefId)
+	err = handler.chartRefService.CheckChartExists(chartRefId)
 	if err != nil {
 		handler.Logger.Errorw("refChartDir Not Found err, JsonSchemaExtractFromFile", err)
 		common.WriteJsonResp(w, err, nil, http.StatusForbidden)

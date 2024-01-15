@@ -72,7 +72,6 @@ type AppStoreDeploymentFullModeService interface {
 type AppStoreDeploymentFullModeServiceImpl struct {
 	logger                               *zap.SugaredLogger
 	chartTemplateService                 util.ChartTemplateService
-	refChartDir                          appStoreBean.RefChartProxyDir
 	repositoryService                    repository.ServiceClient
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository
 	environmentRepository                repository5.EnvironmentRepository
@@ -94,7 +93,7 @@ type AppStoreDeploymentFullModeServiceImpl struct {
 }
 
 func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
-	chartTemplateService util.ChartTemplateService, refChartDir appStoreBean.RefChartProxyDir,
+	chartTemplateService util.ChartTemplateService,
 	repositoryService repository.ServiceClient,
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
 	environmentRepository repository5.EnvironmentRepository,
@@ -114,7 +113,6 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 	appStoreDeploymentFullModeServiceImpl := &AppStoreDeploymentFullModeServiceImpl{
 		logger:                               logger,
 		chartTemplateService:                 chartTemplateService,
-		refChartDir:                          refChartDir,
 		repositoryService:                    repositoryService,
 		appStoreApplicationVersionRepository: appStoreApplicationVersionRepository,
 		environmentRepository:                environmentRepository,
@@ -156,7 +154,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 
 	//STEP 1: Commit and PUSH on Gitlab
 	template := appStoreBean.CHART_PROXY_TEMPLATE
-	chartPath := path.Join(string(impl.refChartDir), template)
+	chartPath := path.Join(appStoreBean.RefChartProxyDirPath, template)
 	valid, err := chartutil.IsChartDir(chartPath)
 	if err != nil || !valid {
 		impl.logger.Errorw("invalid base chart", "dir", chartPath, "err", err)

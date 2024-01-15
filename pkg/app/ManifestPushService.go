@@ -11,7 +11,7 @@ import (
 	. "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app/bean"
 	status2 "github.com/devtron-labs/devtron/pkg/app/status"
-	chartService "github.com/devtron-labs/devtron/pkg/chart"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
@@ -29,33 +29,31 @@ type GitOpsPushService interface {
 type GitOpsManifestPushServiceImpl struct {
 	logger                           *zap.SugaredLogger
 	chartTemplateService             util.ChartTemplateService
-	chartService                     chartService.ChartService
 	gitOpsConfigRepository           repository.GitOpsConfigRepository
 	gitFactory                       *GitFactory
 	pipelineStatusTimelineService    status2.PipelineStatusTimelineService
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository
 	acdConfig                        *argocdServer.ACDConfig
+	chartRefService                  chartRef.ChartRefService
 }
 
 func NewGitOpsManifestPushServiceImpl(
 	logger *zap.SugaredLogger,
 	chartTemplateService util.ChartTemplateService,
-	chartService chartService.ChartService,
 	gitOpsConfigRepository repository.GitOpsConfigRepository,
 	gitFactory *GitFactory,
 	pipelineStatusTimelineService status2.PipelineStatusTimelineService,
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository,
-	acdConfig *argocdServer.ACDConfig,
-) *GitOpsManifestPushServiceImpl {
+	acdConfig *argocdServer.ACDConfig, chartRefService chartRef.ChartRefService) *GitOpsManifestPushServiceImpl {
 	return &GitOpsManifestPushServiceImpl{
 		logger:                           logger,
 		chartTemplateService:             chartTemplateService,
-		chartService:                     chartService,
 		gitOpsConfigRepository:           gitOpsConfigRepository,
 		gitFactory:                       gitFactory,
 		pipelineStatusTimelineService:    pipelineStatusTimelineService,
 		pipelineStatusTimelineRepository: pipelineStatusTimelineRepository,
 		acdConfig:                        acdConfig,
+		chartRefService:                  chartRefService,
 	}
 }
 
@@ -110,7 +108,7 @@ func (impl *GitOpsManifestPushServiceImpl) PushChartToGitRepo(manifestPushTempla
 	gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(manifestPushTemplate.AppName)
 	span.End()
 	_, span = otel.Tracer("orchestrator").Start(ctx, "chartService.CheckChartExists")
-	err := impl.chartService.CheckChartExists(manifestPushTemplate.ChartRefId)
+	err := impl.chartRefService.CheckChartExists(manifestPushTemplate.ChartRefId)
 	span.End()
 	if err != nil {
 		impl.logger.Errorw("err in getting chart info", "err", err)

@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/rand"
-	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -48,11 +47,12 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-type ChartWorkingDir string
-
-const PIPELINE_DEPLOYMENT_TYPE_ACD string = "argo_cd"
-const PIPELINE_DEPLOYMENT_TYPE_HELM string = "helm"
-const PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD string = "manifest_download"
+const (
+	PIPELINE_DEPLOYMENT_TYPE_ACD               = "argo_cd"
+	PIPELINE_DEPLOYMENT_TYPE_HELM              = "helm"
+	PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD = "manifest_download"
+	ChartWorkingDirPath                        = "/tmp/charts/"
+)
 
 type ChartCreateRequest struct {
 	ChartMetaData *chart.Metadata
@@ -89,9 +89,7 @@ type ChartTemplateService interface {
 type ChartTemplateServiceImpl struct {
 	randSource             rand.Source
 	logger                 *zap.SugaredLogger
-	chartWorkingDir        ChartWorkingDir
 	gitFactory             *GitFactory
-	client                 *http.Client
 	globalEnvVariables     *util.GlobalEnvVariables
 	gitOpsConfigRepository repository.GitOpsConfigRepository
 	userRepository         repository2.UserRepository
@@ -108,16 +106,12 @@ type ChartValues struct {
 }
 
 func NewChartTemplateServiceImpl(logger *zap.SugaredLogger,
-	chartWorkingDir ChartWorkingDir,
-	client *http.Client,
 	gitFactory *GitFactory, globalEnvVariables *util.GlobalEnvVariables,
 	gitOpsConfigRepository repository.GitOpsConfigRepository,
 	userRepository repository2.UserRepository, chartRepository chartRepoRepository.ChartRepository) *ChartTemplateServiceImpl {
 	return &ChartTemplateServiceImpl{
 		randSource:             rand.NewSource(time.Now().UnixNano()),
 		logger:                 logger,
-		chartWorkingDir:        chartWorkingDir,
-		client:                 client,
 		gitFactory:             gitFactory,
 		globalEnvVariables:     globalEnvVariables,
 		gitOpsConfigRepository: gitOpsConfigRepository,
@@ -154,7 +148,7 @@ func (impl ChartTemplateServiceImpl) GetChartVersion(location string) (string, e
 func (impl ChartTemplateServiceImpl) FetchValuesFromReferenceChart(chartMetaData *chart.Metadata, refChartLocation string, templateName string, userId int32, pipelineStrategyPath string) (*ChartValues, *ChartGitAttribute, error) {
 	chartMetaData.ApiVersion = "v1" // ensure always v1
 	dir := impl.GetDir()
-	chartDir := filepath.Join(string(impl.chartWorkingDir), dir)
+	chartDir := filepath.Join(ChartWorkingDirPath, dir)
 	impl.logger.Debugw("chart dir ", "chart", chartMetaData.Name, "dir", chartDir)
 	err := os.MkdirAll(chartDir, os.ModePerm) //hack for concurrency handling
 	if err != nil {
@@ -194,7 +188,7 @@ func (impl ChartTemplateServiceImpl) FetchValuesFromReferenceChart(chartMetaData
 func (impl ChartTemplateServiceImpl) BuildChart(ctx context.Context, chartMetaData *chart.Metadata, referenceTemplatePath string) (string, error) {
 	chartMetaData.ApiVersion = "v1" // ensure always v1
 	dir := impl.GetDir()
-	tempReferenceTemplateDir := filepath.Join(string(impl.chartWorkingDir), dir)
+	tempReferenceTemplateDir := filepath.Join(ChartWorkingDirPath, dir)
 	impl.logger.Debugw("chart dir ", "chart", chartMetaData.Name, "dir", tempReferenceTemplateDir)
 	err := os.MkdirAll(tempReferenceTemplateDir, os.ModePerm) //hack for concurrency handling
 	if err != nil {
@@ -222,7 +216,7 @@ func (impl ChartTemplateServiceImpl) BuildChartProxyForHelmApps(chartCreateReque
 	chartMetaData := chartCreateRequest.ChartMetaData
 	chartMetaData.ApiVersion = "v2" // ensure always v2
 	dir := impl.GetDir()
-	chartDir := filepath.Join(string(impl.chartWorkingDir), dir)
+	chartDir := filepath.Join(ChartWorkingDirPath, dir)
 	impl.logger.Debugw("chart dir ", "chart", chartMetaData.Name, "dir", chartDir)
 	err := os.MkdirAll(chartDir, os.ModePerm) //hack for concurrency handling
 	if err != nil {
@@ -488,7 +482,7 @@ func (impl ChartTemplateServiceImpl) GetDir() string {
 func (impl ChartTemplateServiceImpl) CreateChartProxy(chartMetaData *chart.Metadata, refChartLocation string, envName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (string, *ChartGitAttribute, error) {
 	chartMetaData.ApiVersion = "v2" // ensure always v2
 	dir := impl.GetDir()
-	chartDir := filepath.Join(string(impl.chartWorkingDir), dir)
+	chartDir := filepath.Join(ChartWorkingDirPath, dir)
 	impl.logger.Debugw("chart dir ", "chart", chartMetaData.Name, "dir", chartDir)
 	err := os.MkdirAll(chartDir, os.ModePerm) //hack for concurrency handling
 	if err != nil {
@@ -670,7 +664,7 @@ func (impl ChartTemplateServiceImpl) GetGitOpsRepoNameFromUrl(gitRepoUrl string)
 func (impl ChartTemplateServiceImpl) GetByteArrayRefChart(chartMetaData *chart.Metadata, referenceTemplatePath string) ([]byte, error) {
 	chartMetaData.ApiVersion = "v1" // ensure always v1
 	dir := impl.GetDir()
-	tempReferenceTemplateDir := filepath.Join(string(impl.chartWorkingDir), dir)
+	tempReferenceTemplateDir := filepath.Join(ChartWorkingDirPath, dir)
 	impl.logger.Debugw("chart dir ", "chart", chartMetaData.Name, "dir", tempReferenceTemplateDir)
 	err := os.MkdirAll(tempReferenceTemplateDir, os.ModePerm) //hack for concurrency handling
 	if err != nil {

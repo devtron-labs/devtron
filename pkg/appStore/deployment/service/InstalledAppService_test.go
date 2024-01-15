@@ -10,7 +10,6 @@ import (
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/util"
-	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
 	repository4 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
@@ -28,7 +27,6 @@ func TestInstalledAppServiceImpl_DeployDefaultChartOnCluster(t *testing.T) {
 		logger                               *zap.SugaredLogger
 		installedAppRepository               repository4.InstalledAppRepository
 		chartTemplateService                 util.ChartTemplateService
-		refChartDir                          appStoreBean.RefChartProxyDir
 		repositoryService                    repository2.ServiceClient
 		appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository
 		environmentRepository                repository.EnvironmentRepository
@@ -43,9 +41,9 @@ func TestInstalledAppServiceImpl_DeployDefaultChartOnCluster(t *testing.T) {
 		ArgoK8sClient                        argocdServer.ArgoK8sClient
 		gitFactory                           *util.GitFactory
 		aCDAuthConfig                        *util2.ACDAuthConfig
-		gitOpsRepository          repository3.GitOpsConfigRepository
-		userService               user.UserService
-		appStoreDeploymentService AppStoreDeploymentService
+		gitOpsRepository                     repository3.GitOpsConfigRepository
+		userService                          user.UserService
+		appStoreDeploymentService            AppStoreDeploymentService
 		appStoreDeploymentFullModeService    appStoreDeploymentFullMode.AppStoreDeploymentFullModeService
 	}
 	type args struct {
@@ -67,7 +65,6 @@ func TestInstalledAppServiceImpl_DeployDefaultChartOnCluster(t *testing.T) {
 				logger:                               tt.fields.logger,
 				installedAppRepository:               tt.fields.installedAppRepository,
 				chartTemplateService:                 tt.fields.chartTemplateService,
-				refChartDir:                          tt.fields.refChartDir,
 				repositoryService:                    tt.fields.repositoryService,
 				appStoreApplicationVersionRepository: tt.fields.appStoreApplicationVersionRepository,
 				environmentRepository:                tt.fields.environmentRepository,

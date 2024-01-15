@@ -38,12 +38,10 @@ import (
 	security2 "github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
-	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	repository3 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	appStoreDeploymentTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool"
 	appStoreDeploymentGitopsTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool/gitops"
 	"github.com/devtron-labs/devtron/pkg/attributes"
-	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	repository2 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
@@ -140,8 +138,6 @@ func InitializeApp() (*App, error) {
 		// binding gitops to helm (for hyperion)
 		wire.Bind(new(appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdService), new(*appStoreDeploymentTool.AppStoreDeploymentHelmServiceImpl)),
 
-		wire.Value(chartRepoRepository.RefChartDir("scripts/devtron-reference-helm-charts")),
-
 		router.NewTelemetryRouterImpl,
 		wire.Bind(new(router.TelemetryRouter), new(*router.TelemetryRouterImpl)),
 		restHandler.NewTelemetryRestHandlerImpl,
@@ -179,8 +175,6 @@ func InitializeApp() (*App, error) {
 
 		util.NewChartTemplateServiceImpl,
 		wire.Bind(new(util.ChartTemplateService), new(*util.ChartTemplateServiceImpl)),
-		wire.Value(util.ChartWorkingDir("/tmp/charts/")),
-		wire.Value(appStoreBean.RefChartProxyDir("scripts/devtron-reference-helm-charts")),
 		util.NewGitFactory,
 		util.NewGitCliUtil,
 

@@ -7,7 +7,10 @@ import (
 	"strings"
 )
 
-type RefChartDir string
+const (
+	RefChartDirPath = "scripts/devtron-reference-helm-charts"
+)
+
 type ChartRef struct {
 	tableName              struct{} `sql:"chart_ref" pg:",discard_unknown_columns"`
 	Id                     int      `sql:"id,pk"`

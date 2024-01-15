@@ -4,8 +4,8 @@ import (
 	"context"
 	interalRepo "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
-	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics/bean"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
@@ -23,20 +23,20 @@ type DeployedAppMetricsService interface {
 
 type DeployedAppMetricsServiceImpl struct {
 	logger                    *zap.SugaredLogger
-	chartRefRepository        chartRepoRepository.ChartRefRepository
 	appLevelMetricsRepository interalRepo.AppLevelMetricsRepository
 	envLevelMetricsRepository interalRepo.EnvLevelAppMetricsRepository
+	chartRefService           chartRef.ChartRefService
 }
 
 func NewDeployedAppMetricsServiceImpl(logger *zap.SugaredLogger,
-	chartRefRepository chartRepoRepository.ChartRefRepository,
 	appLevelMetricsRepository interalRepo.AppLevelMetricsRepository,
-	envLevelMetricsRepository interalRepo.EnvLevelAppMetricsRepository) *DeployedAppMetricsServiceImpl {
+	envLevelMetricsRepository interalRepo.EnvLevelAppMetricsRepository,
+	chartRefService chartRef.ChartRefService) *DeployedAppMetricsServiceImpl {
 	return &DeployedAppMetricsServiceImpl{
 		logger:                    logger,
-		chartRefRepository:        chartRefRepository,
 		appLevelMetricsRepository: appLevelMetricsRepository,
 		envLevelMetricsRepository: envLevelMetricsRepository,
+		chartRefService:           chartRefService,
 	}
 }
 
@@ -134,7 +134,7 @@ func (impl *DeployedAppMetricsServiceImpl) DeleteEnvLevelMetricsIfPresent(appId,
 }
 
 func (impl *DeployedAppMetricsServiceImpl) checkIsAppMetricsSupported(chartRefId int) (bool, error) {
-	chartRefValue, err := impl.chartRefRepository.FindById(chartRefId)
+	chartRefValue, err := impl.chartRefService.FindById(chartRefId)
 	if err != nil {
 		impl.logger.Errorw("error in finding reference chart by id", "err", err)
 		return false, nil
