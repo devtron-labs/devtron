@@ -381,3 +381,28 @@ monitoring:
       resources: {}
     persistence:
       storage: "2Gi"
+selfSignedCert:
+  enabled: true
+  myCA: |
+        -----BEGIN CERTIFICATE-----
+        MIIDnzCCAoegAwIBAgIUfd9jaIjo2JCYYedUbfA8aecTdIswDQYJKoZIhvcNAQEL
+        BQAwXzELMAkGA1UEBhMCQVUxEzARBgNVBAgMClNvbWUtU3RhdGUxITAfBgNVBAoM
+        GEludGVybmV0IFdpZGdpdHMgUHR5IEx0ZDEYMBYGA1UEAwwPZ2NpLmV4YW1wbGUu
+        Y29tMB4XDTI0MDExMTE1NDAxMFoXDTI5MDEwOTE1NDAxMFowXzELMAkGA1UEBhMC
+        QVUxEzARBgNVBAgMClNvbWUtU3RhdGUxITAfBgNVBAoMGEludGVybmV0IFdpZGdp
+        dHMgUHR5IEx0ZDEYMBYGA1UEAwwPZ2NpLmV4YW1wbGUuY29tMIIBIjANBgkqhkiG
+        9w0BAQEFAAOCAQ8AMIIBCgKCAQEAm5fcO72+YCz5SIE1UY4cvRpsSzO+vIVnGqib
+        CsWd+8LtuZffqXXQ1FfjK+WUomGMRYVrWxSH7P/Xp7KAafceAiZP9j5wWtrzWEiS
+        U3ihOld2MY/wnIXtyrfz5CMRBEN0G12xvIKNiThyYneVgWnLfaABd3xhBrG8fmR7
+        qHELSpDL5FTUyTEPJIgWYR1/xwNSBAZpgPty2kWZW+msHO6nnZaXnqPdm/p8ZFim
+        C4K3GF2wUxt2rqHlJVnntMN9ybS32ktgnLDZCr+Y7nCTcwCQJplJ5kbHpkH0j9+H
+        2S1sOnmOyTLcOQRx72lnKEj5hTtIGwqFD7Fwa4UL8z4cq9TkpwIDAQABo1MwUTAd
+        BgNVHQ4EFgQUJo0mlaAu8ofHScnodanybBhiVbwwHwYDVR0jBBgwFoAUJo0mlaAu
+        8ofHScnodanybBhiVbwwDwYDVR0TAQH/BAUwAwEB/zANBgkqhkiG9w0BAQsFAAOC
+        AQEACx7Hcz/RqyRf0FK4Ubz3BcSTcbpzlmJiTEA/9F/Xe8mQe0Icn9yDYuYw9USn
+        nw3uaM1MHxrP39Q6A/2XFkeRcipW3rW/l5VTRp+Hdm2/c1hD+6mStJJWSdP6eudQ
+        zkIYM9WPFZ7KtvHYfzv7ddPlHMXOECSFNKL9Y9t0jVSNZWAT1nulVsu4O83sZlUv
+        n9zDcrYIwxlRpDnZwtIHAINZCxtFKaqFvPEcv/yFeOBNZ9yQMIQ3Ycree7YBuD+h
+        EXSKoI4rLM7WLTYdljGryKXnuR4hZFGB8Lr664l0z816DSyeFqdyEbIHaA4upbB8
+        G9ghU5ZeBcYAgpZEjfTqWYmceQ==
+        -----END CERTIFICATE-----

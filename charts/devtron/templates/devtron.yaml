@@ -106,6 +106,22 @@ spec:
       securityContext:
 {{- toYaml $.Values.global.podSecurityContext | nindent 8 }}
       {{- end }}
+      {{- if $.Values.selfSignedCert.enabled }}
+      initcontainers:
+        - name: self-signed-container
+          image: quay.io/devtron/ubuntu-k8s-utils:latest
+          command: 
+           - /bin/bash
+           - -c 
+           - echo "Starting the init-container"
+           - cp ~/tmp/self-signed-config/myCA.pem /usr/local/share/ca-certificates/myCA.crt
+           - sudo update-ca-certificates
+          volumeMounts:
+          - name: cert-volume
+            mountPath: /etc/ssl/certs
+          - name: config
+            mountPath: tmp/self-signed-config
+      {{- end }}
       containers:
         - name: devtron
           {{- if $.Values.installer.modules }}
@@ -154,6 +170,17 @@ spec:
           resources:
           {{- toYaml .resources | nindent 12 }}
           {{- end }}
+          {{- if $.Values.selfSignedCert.enabled }}
+          volumeMounts:
+          - mountPath: /etc/ssl/certs
+            name: cert-volume
+      volumes:
+        - name: cert-config
+          configMap:
+            name: self-signed-cert
+        - name: cert-volume
+          emptyDir: {}
+        {{- end }}
   revisionHistoryLimit: 3
 ---
 {{- if .serviceMonitor.enabled }}
