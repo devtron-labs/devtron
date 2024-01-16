@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"golang.org/x/exp/slices"
 	"strings"
 	"time"
 
@@ -82,6 +83,14 @@ type CiArtifact struct {
 	Latest                bool      `sql:"-"`
 	RunningOnParent       bool      `sql:"-"`
 	sql.AuditLog
+}
+
+func (c *CiArtifact) IsMigrationRequired() bool {
+	validDataSourceTypeList := []string{CI_RUNNER, WEBHOOK, PRE_CD, POST_CD, POST_CI, GOCD}
+	if slices.Contains(validDataSourceTypeList, c.DataSource) {
+		return false
+	}
+	return true
 }
 
 type CiArtifactRepository interface {
