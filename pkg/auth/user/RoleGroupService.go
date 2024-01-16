@@ -41,7 +41,8 @@ type RoleGroupService interface {
 	UpdateRoleGroup(request *bean.RoleGroup, token string, managerAuth func(resource, token string, object string) bool) (*bean.RoleGroup, error)
 	FetchDetailedRoleGroups() ([]*bean.RoleGroup, error)
 	FetchRoleGroupsById(id int32) (*bean.RoleGroup, error)
-	FetchRoleGroups() ([]*bean.RoleGroup, error)
+	FetchRoleGroups() (*bean.RoleGroupListingResponse, error)
+	FetchRoleGroupsWithFilters(req *bean.FetchListingRequest) (*bean.RoleGroupListingResponse, error)
 	FetchRoleGroupsByName(name string) ([]*bean.RoleGroup, error)
 	DeleteRoleGroup(model *bean.RoleGroup) (bool, error)
 	FetchRoleGroupsWithRolesByGroupNames(groupNames []string) ([]*bean.RoleFilter, []bean.RoleGroup, error)
@@ -631,12 +632,54 @@ func (impl RoleGroupServiceImpl) FetchDetailedRoleGroups() ([]*bean.RoleGroup, e
 	return list, nil
 }
 
-func (impl RoleGroupServiceImpl) FetchRoleGroups() ([]*bean.RoleGroup, error) {
+func (impl RoleGroupServiceImpl) FetchRoleGroups() (*bean.RoleGroupListingResponse, error) {
 	roleGroup, err := impl.roleGroupRepository.GetAllRoleGroup()
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
 		return nil, err
 	}
+	list := impl.fetchRoleGroupResponseFromModel(roleGroup)
+	response := &bean.RoleGroupListingResponse{
+		RoleGroups: list,
+		TotalCount: len(list),
+	}
+	return response, nil
+}
+
+// FetchRoleGroupsWithFilters takes FetchListingRequest as input and outputs RoleGroupListingResponse based on the request filters.
+func (impl RoleGroupServiceImpl) FetchRoleGroupsWithFilters(request *bean.FetchListingRequest) (*bean.RoleGroupListingResponse, error) {
+	if request.ShowAll {
+		return impl.FetchRoleGroups()
+	}
+	// Setting size as zero to calculate the total number of results based on request
+	size := request.Size
+	request.Size = 0
+	roleGroup, err := impl.roleGroupRepository.GetAllWithFilters(request)
+	if err != nil {
+		impl.logger.Errorw("error while fetching user from db", "error", err)
+		return nil, err
+	}
+	request.Size = size
+	totalCount := len(roleGroup)
+
+	// if total count is more than diff , then need to query with offset and limit(optimisation)
+	if totalCount > (request.Size - request.Offset) {
+		roleGroup, err = impl.roleGroupRepository.GetAllWithFilters(request)
+		if err != nil {
+			impl.logger.Errorw("error while fetching user from db", "error", err)
+			return nil, err
+		}
+	}
+
+	list := impl.fetchRoleGroupResponseFromModel(roleGroup)
+	response := &bean.RoleGroupListingResponse{
+		RoleGroups: list,
+		TotalCount: totalCount,
+	}
+	return response, nil
+}
+
+func (impl RoleGroupServiceImpl) fetchRoleGroupResponseFromModel(roleGroup []*repository.RoleGroup) []*bean.RoleGroup {
 	var list []*bean.RoleGroup
 	for _, item := range roleGroup {
 		bean := &bean.RoleGroup{
@@ -651,7 +694,7 @@ func (impl RoleGroupServiceImpl) FetchRoleGroups() ([]*bean.RoleGroup, error) {
 	if len(list) == 0 {
 		list = make([]*bean.RoleGroup, 0)
 	}
-	return list, nil
+	return list
 }
 
 func (impl RoleGroupServiceImpl) FetchRoleGroupsByName(name string) ([]*bean.RoleGroup, error) {

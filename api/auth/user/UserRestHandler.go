@@ -311,6 +311,7 @@ func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Reques
 }
 
 func (handler UserRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -353,7 +354,14 @@ func (handler UserRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Request
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	res, err := handler.userService.GetAll()
+	var request bean.FetchListingRequest
+	err = decoder.Decode(&request)
+	if err != nil {
+		handler.logger.Errorw("request err, GetAll", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	res, err := handler.userService.GetAllWithFilters(&request)
 	if err != nil {
 		handler.logger.Errorw("service err, GetAll", "err", err)
 		common.WriteJsonResp(w, err, "Failed to Get", http.StatusInternalServerError)
@@ -628,6 +636,7 @@ func (handler UserRestHandlerImpl) UpdateRoleGroup(w http.ResponseWriter, r *htt
 }
 
 func (handler UserRestHandlerImpl) FetchRoleGroups(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -670,7 +679,15 @@ func (handler UserRestHandlerImpl) FetchRoleGroups(w http.ResponseWriter, r *htt
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	res, err := handler.roleGroupService.FetchRoleGroups()
+	var request bean.FetchListingRequest
+	err = decoder.Decode(&request)
+	if err != nil {
+		handler.logger.Errorw("request err, GetAll", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	res, err := handler.roleGroupService.FetchRoleGroupsWithFilters(&request)
 	if err != nil {
 		handler.logger.Errorw("service err, FetchRoleGroups", "err", err)
 		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)

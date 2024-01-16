@@ -193,6 +193,20 @@ components:
           items:
             $ref: '#/components/schemas/roleFilter'
           description: role filters objects
+        status:
+          type: string
+          description: user current status (active,inactive,ttl)
+        lastLogin:
+          type: string
+          format: date-time
+          description: user last login time
+        timeToLive:
+          type: string
+          format: date-time
+          description: user time to live status
+
+
+
 
     UserListingResponse:
       type: object

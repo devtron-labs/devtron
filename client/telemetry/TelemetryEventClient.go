@@ -177,11 +177,12 @@ func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cl
 		return
 	}
 
-	users, err := impl.userService.GetAll()
+	userResponse, err := impl.userService.GetAll()
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("exception caught inside telemetry summery event", "err", err)
 		return
 	}
+	users := userResponse.Users
 
 	clusters, err := impl.clusterService.FindAllActive()
 

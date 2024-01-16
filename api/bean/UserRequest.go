@@ -19,6 +19,7 @@ package bean
 
 import (
 	"encoding/json"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"time"
 )
 
@@ -29,20 +30,22 @@ type UserRole struct {
 }
 
 type UserInfo struct {
-	Id           int32        `json:"id" validate:"number"`
-	EmailId      string       `json:"email_id" validate:"required"`
-	Roles        []string     `json:"roles,omitempty"`
-	AccessToken  string       `json:"access_token,omitempty"`
-	UserType     string       `json:"-"`
-	LastUsedAt   time.Time    `json:"-"`
-	LastUsedByIp string       `json:"-"`
-	Exist        bool         `json:"-"`
-	UserId       int32        `json:"-"` // created or modified user id
-	RoleFilters  []RoleFilter `json:"roleFilters"`
-	Status       string       `json:"status,omitempty"`
-	Groups       []string     `json:"groups"` // this will be deprecated in future do not use
-	SuperAdmin   bool         `json:"superAdmin,notnull"`
-	RoleGroups   []RoleGroup  `json:"roleGroups,omitempty"` // role group with metadata, currently using for group claims
+	Id            int32        `json:"id" validate:"number"`
+	EmailId       string       `json:"email_id" validate:"required"`
+	Roles         []string     `json:"roles,omitempty"`
+	AccessToken   string       `json:"access_token,omitempty"`
+	UserType      string       `json:"-"`
+	LastUsedAt    time.Time    `json:"-"`
+	LastUsedByIp  string       `json:"-"`
+	Exist         bool         `json:"-"`
+	UserId        int32        `json:"-"` // created or modified user id
+	RoleFilters   []RoleFilter `json:"roleFilters"`
+	Status        string       `json:"status,omitempty"`
+	Groups        []string     `json:"groups"` // this will be deprecated in future do not use
+	SuperAdmin    bool         `json:"superAdmin,notnull"`
+	RoleGroups    []RoleGroup  `json:"roleGroups,omitempty"` // role group with metadata, currently using for group claims
+	LastLoginTime time.Time    `json:"lastLoginTime"`
+	TimeToLive    time.Time    `json:"timeToLive"`
 }
 
 type RoleGroup struct {
@@ -120,4 +123,38 @@ const (
 	USER_TYPE_API_TOKEN             = "apiToken"
 	CHART_GROUP_ENTITY              = "chart-group"
 	CLUSTER_ENTITIY                 = "cluster"
+)
+
+type UserListingResponse struct {
+	Users      []UserInfo `json:"users"`
+	TotalCount int        `json:"totalCount"`
+}
+
+type RoleGroupListingResponse struct {
+	RoleGroups []*RoleGroup `json:"roleGroups"`
+	TotalCount int          `json:"totalCount"`
+}
+
+type FetchListingRequest struct {
+	Status    Status           `json:"status"`
+	TTL       time.Time        `json:"timeToLive,omitempty"`
+	SearchKey string           `json:"searchKey"`
+	SortOrder helper.SortOrder `json:"sortOrder"`
+	SortBy    helper.SortBy    `json:"sortBy"`
+	Offset    int              `json:"offset"`
+	Size      int              `json:"size"`
+	ShowAll   bool             `json:"showAll"`
+}
+
+type Status string
+
+const (
+	Active   Status = "active"
+	Inactive Status = "inactive"
+)
+
+const (
+	Email     helper.SortBy = "email_id"
+	LastLogin helper.SortBy = "last_login"
+	GroupName helper.SortBy = "name"
 )

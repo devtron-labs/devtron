@@ -56,7 +56,8 @@ type UserService interface {
 	GetByIdWithoutGroupClaims(id int32) (*bean.UserInfo, error)
 	GetRoleFiltersForAUserById(id int32) (*bean.UserInfo, error)
 	GetByIdForGroupClaims(id int32) (*bean.UserInfo, error)
-	GetAll() ([]bean.UserInfo, error)
+	GetAll() (*bean.UserListingResponse, error)
+	GetAllWithFilters(request *bean.FetchListingRequest) (*bean.UserListingResponse, error)
 	GetAllDetailedUsers() ([]bean.UserInfo, error)
 	GetEmailById(userId int32) (string, error)
 	GetEmailAndGroupClaimsFromToken(token string) (string, []string, error)
@@ -1181,25 +1182,70 @@ func (impl UserServiceImpl) getUserMetadata(model *repository.UserModel) (bool, 
 }
 
 // GetAll excluding API token user
-func (impl UserServiceImpl) GetAll() ([]bean.UserInfo, error) {
+func (impl UserServiceImpl) GetAll() (*bean.UserListingResponse, error) {
 	model, err := impl.userRepository.GetAllExcludingApiTokenUser()
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
 		return nil, err
 	}
+	response := impl.getUserResponseFromModel(model)
+	listingResponse := &bean.UserListingResponse{
+		Users:      response,
+		TotalCount: len(response),
+	}
+	return listingResponse, nil
+}
+
+// GetAllWithFilters takes FetchListingRequest as argument and gives UserListingResponse as output with some operations like filter, sorting, searching,pagination support inbuilt
+func (impl UserServiceImpl) GetAllWithFilters(request *bean.FetchListingRequest) (*bean.UserListingResponse, error) {
+	if request.ShowAll {
+		return impl.GetAll()
+	}
+	// Setting size as zero to calculate the total number of results based on request
+	size := request.Size
+	request.Size = 0
+	models, err := impl.userRepository.GetAllExcludingApiTokenWithFilters(request)
+	if err != nil {
+		impl.logger.Errorw("error while fetching user from db", "error", err)
+		return nil, err
+	}
+	request.Size = size
+	totalCount := len(models)
+
+	// if total count is more than diff , then need to query with offset and limit(optimisation)
+	if totalCount > (request.Size - request.Offset) {
+		models, err = impl.userRepository.GetAllExcludingApiTokenWithFilters(request)
+		if err != nil {
+			impl.logger.Errorw("error while fetching user from db", "error", err)
+			return nil, err
+		}
+	}
+	response := impl.getUserResponseFromModel(models)
+	listingResponse := &bean.UserListingResponse{
+		Users:      response,
+		TotalCount: totalCount,
+	}
+	return listingResponse, nil
+
+}
+
+func (impl UserServiceImpl) getUserResponseFromModel(model []repository.UserModel) []bean.UserInfo {
 	var response []bean.UserInfo
 	for _, m := range model {
 		response = append(response, bean.UserInfo{
-			Id:          m.Id,
-			EmailId:     m.EmailId,
-			RoleFilters: make([]bean.RoleFilter, 0),
-			Groups:      make([]string, 0),
+			Id:            m.Id,
+			EmailId:       m.EmailId,
+			RoleFilters:   make([]bean.RoleFilter, 0),
+			Groups:        make([]string, 0),
+			LastLoginTime: m.LastLoginTime,
+			Status:        m.Status,
+			TimeToLive:    m.TimeToLive,
 		})
 	}
 	if len(response) == 0 {
 		response = make([]bean.UserInfo, 0)
 	}
-	return response, nil
+	return response
 }
 
 func (impl UserServiceImpl) GetAllDetailedUsers() ([]bean.UserInfo, error) {

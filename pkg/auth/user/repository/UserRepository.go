@@ -21,10 +21,14 @@
 package repository
 
 import (
+	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"strconv"
+	"time"
 )
 
 type UserRepository interface {
@@ -33,6 +37,7 @@ type UserRepository interface {
 	GetById(id int32) (*UserModel, error)
 	GetByIdIncludeDeleted(id int32) (*UserModel, error)
 	GetAllExcludingApiTokenUser() ([]UserModel, error)
+	GetAllExcludingApiTokenWithFilters(req *bean.FetchListingRequest) ([]UserModel, error)
 	GetAllActiveUsers() ([]UserModel, error)
 	//GetAllUserRoleMappingsForRoleId(roleId int) ([]UserRoleModel, error)
 	FetchActiveUserByEmail(email string) (bean.UserInfo, error)
@@ -54,12 +59,15 @@ func NewUserRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *User
 }
 
 type UserModel struct {
-	TableName   struct{} `sql:"users"`
-	Id          int32    `sql:"id,pk"`
-	EmailId     string   `sql:"email_id,notnull"`
-	AccessToken string   `sql:"access_token"`
-	Active      bool     `sql:"active,notnull"`
-	UserType    string   `sql:"user_type"`
+	TableName     struct{}  `sql:"users" pg:",discard_unknown_columns"`
+	Id            int32     `sql:"id,pk"`
+	EmailId       string    `sql:"email_id,notnull"`
+	AccessToken   string    `sql:"access_token"`
+	Active        bool      `sql:"active,notnull"`
+	UserType      string    `sql:"user_type"`
+	LastLoginTime time.Time `sql:"last_login"`
+	Status        string    `sql:"status"`
+	TimeToLive    time.Time `sql:"time_to_live"`
 	sql.AuditLog
 }
 
@@ -67,8 +75,8 @@ type UserRoleModel struct {
 	TableName struct{} `sql:"user_roles"`
 	Id        int      `sql:"id,pk"`
 	UserId    int32    `sql:"user_id,notnull"`
-	RoleId int      `sql:"role_id,notnull"`
-	User   UserModel
+	RoleId    int      `sql:"role_id,notnull"`
+	User      UserModel
 	sql.AuditLog
 }
 
@@ -107,10 +115,49 @@ func (impl UserRepositoryImpl) GetByIdIncludeDeleted(id int32) (*UserModel, erro
 func (impl UserRepositoryImpl) GetAllExcludingApiTokenUser() ([]UserModel, error) {
 	var userModel []UserModel
 	err := impl.dbConnection.Model(&userModel).
+		ColumnExpr("user_model.*").
+		ColumnExpr("ua.updated_on as last_login").
+		Join("LEFT OUTER JOIN user_audit AS ua ON ua.user_id = user_model.id").
 		Where("active = ?", true).
 		Where("user_type is NULL or user_type != ?", bean.USER_TYPE_API_TOKEN).
 		Order("updated_on desc").Select()
 	return userModel, err
+}
+
+func (impl UserRepositoryImpl) GetAllExcludingApiTokenWithFilters(req *bean.FetchListingRequest) ([]UserModel, error) {
+	var userModel []UserModel
+	whereCondition := fmt.Sprintf("where active = %t AND (user_type is NULL or user_type != '%s') ", true, bean.USER_TYPE_API_TOKEN)
+	orderCondition := ""
+	if len(req.Status) > 0 {
+		whereCondition += fmt.Sprintf("AND status = '%s' ", req.Status)
+		if !req.TTL.IsZero() {
+			whereCondition += fmt.Sprintf("AND ttl < %s ", req.TTL)
+		}
+	}
+	if len(req.SearchKey) > 0 {
+		emailIdLike := "%" + req.SearchKey + "%"
+		whereCondition += fmt.Sprintf("AND email_id like '%s' ", emailIdLike)
+	}
+
+	if len(req.SortBy) > 0 {
+		orderCondition += fmt.Sprintf("order by %s ", req.SortBy)
+	}
+
+	if req.SortOrder == helper.Desc {
+		orderCondition += string(req.SortOrder)
+	}
+	if req.Size > 0 {
+		orderCondition += " limit " + strconv.Itoa(req.Size) + " offset " + strconv.Itoa(req.Offset) + ""
+	}
+	//TODO include status after db migration
+	query := fmt.Sprintf("SELECT u.*, ua.updated_on as last_login FROM USERS u LEFT OUTER JOIN user_audit ua on u.id = ua.user_id %s %s;", whereCondition, orderCondition)
+	_, err := impl.dbConnection.Query(&userModel, query)
+	if err != nil {
+		impl.Logger.Error("error in GetAllExcludingApiTokenUserWithFilters", "err", err, "req", req)
+		return nil, err
+	}
+	return userModel, err
+
 }
 
 func (impl UserRepositoryImpl) GetAllActiveUsers() ([]UserModel, error) {
