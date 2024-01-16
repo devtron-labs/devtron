@@ -37,6 +37,7 @@ type UserAuditService interface {
 	GetLatestByUserId(userId int32) (*UserAudit, error)
 	GetLatestUser() (*UserAudit, error)
 	Update(userAudit *UserAudit) error
+	GetLoginTimeForUsers(userIds []int32) (map[int32]time.Time, error)
 }
 
 type UserAuditServiceImpl struct {
@@ -122,4 +123,21 @@ func (impl UserAuditServiceImpl) GetLatestUser() (*UserAudit, error) {
 		CreatedOn: userAuditDb.CreatedOn,
 		UpdatedOn: userAuditDb.UpdatedOn,
 	}, nil
+}
+
+func (impl UserAuditServiceImpl) GetLoginTimeForUsers(userIds []int32) (map[int32]time.Time, error) {
+	userIdLoginTimeMap := make(map[int32]time.Time)
+	if len(userIds) == 0 {
+		return userIdLoginTimeMap, nil
+	}
+	userAudits, err := impl.userAuditRepository.GetByUserIds(userIds)
+	if err != nil {
+		impl.logger.Errorw("error in GetByUserIds", "err", err, "userIds", userIds)
+		return nil, err
+	}
+	for _, audit := range userAudits {
+		userIdLoginTimeMap[audit.UserId] = audit.UpdatedOn
+	}
+	return userIdLoginTimeMap, nil
+
 }

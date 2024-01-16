@@ -21,8 +21,10 @@ import (
 	"context"
 	"fmt"
 	auth "github.com/devtron-labs/devtron/pkg/auth/authorisation/globalConfig"
+	"github.com/devtron-labs/devtron/pkg/auth/user/repository/helper"
 	util3 "github.com/devtron-labs/devtron/pkg/auth/user/util"
 	"net/http"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -57,7 +59,7 @@ type UserService interface {
 	GetRoleFiltersForAUserById(id int32) (*bean.UserInfo, error)
 	GetByIdForGroupClaims(id int32) (*bean.UserInfo, error)
 	GetAll() (*bean.UserListingResponse, error)
-	GetAllWithFilters(request *bean.FetchListingRequest) (*bean.UserListingResponse, error)
+	GetAllWithFilters(request *helper.FetchListingRequest) (*bean.UserListingResponse, error)
 	GetAllDetailedUsers() ([]bean.UserInfo, error)
 	GetEmailById(userId int32) (string, error)
 	GetEmailAndGroupClaimsFromToken(token string) (string, []string, error)
@@ -82,17 +84,18 @@ type UserServiceImpl struct {
 	userReqLock sync.RWMutex
 	//map of userId and current lock-state of their serving ability;
 	//if TRUE then it means that some request is ongoing & unable to serve and FALSE then it is open to serve
-	userReqState                     map[int32]bool
-	userAuthRepository               repository.UserAuthRepository
-	logger                           *zap.SugaredLogger
-	userRepository                   repository.UserRepository
-	roleGroupRepository              repository.RoleGroupRepository
-	sessionManager2                  *middleware.SessionManager
-	userCommonService                UserCommonService
-	userAuditService                 UserAuditService
-	globalAuthorisationConfigService auth.GlobalAuthorisationConfigService
-	roleGroupService                 RoleGroupService
-	userGroupMapRepository           repository.UserGroupMapRepository
+	userReqState                      map[int32]bool
+	userAuthRepository                repository.UserAuthRepository
+	logger                            *zap.SugaredLogger
+	userRepository                    repository.UserRepository
+	roleGroupRepository               repository.RoleGroupRepository
+	sessionManager2                   *middleware.SessionManager
+	userCommonService                 UserCommonService
+	userAuditService                  UserAuditService
+	globalAuthorisationConfigService  auth.GlobalAuthorisationConfigService
+	roleGroupService                  RoleGroupService
+	userGroupMapRepository            repository.UserGroupMapRepository
+	userListingRepositoryQueryBuilder helper.UserListingRepositoryQueryBuilder
 }
 
 func NewUserServiceImpl(userAuthRepository repository.UserAuthRepository,
@@ -102,19 +105,21 @@ func NewUserServiceImpl(userAuthRepository repository.UserAuthRepository,
 	sessionManager2 *middleware.SessionManager, userCommonService UserCommonService, userAuditService UserAuditService,
 	globalAuthorisationConfigService auth.GlobalAuthorisationConfigService,
 	roleGroupService RoleGroupService, userGroupMapRepository repository.UserGroupMapRepository,
+	userListingRepositoryQueryBuilder helper.UserListingRepositoryQueryBuilder,
 ) *UserServiceImpl {
 	serviceImpl := &UserServiceImpl{
-		userReqState:                     make(map[int32]bool),
-		userAuthRepository:               userAuthRepository,
-		logger:                           logger,
-		userRepository:                   userRepository,
-		roleGroupRepository:              userGroupRepository,
-		sessionManager2:                  sessionManager2,
-		userCommonService:                userCommonService,
-		userAuditService:                 userAuditService,
-		globalAuthorisationConfigService: globalAuthorisationConfigService,
-		roleGroupService:                 roleGroupService,
-		userGroupMapRepository:           userGroupMapRepository,
+		userReqState:                      make(map[int32]bool),
+		userAuthRepository:                userAuthRepository,
+		logger:                            logger,
+		userRepository:                    userRepository,
+		roleGroupRepository:               userGroupRepository,
+		sessionManager2:                   sessionManager2,
+		userCommonService:                 userCommonService,
+		userAuditService:                  userAuditService,
+		globalAuthorisationConfigService:  globalAuthorisationConfigService,
+		roleGroupService:                  roleGroupService,
+		userGroupMapRepository:            userGroupMapRepository,
+		userListingRepositoryQueryBuilder: userListingRepositoryQueryBuilder,
 	}
 	cStore = sessions.NewCookieStore(randKey())
 	return serviceImpl
@@ -1188,7 +1193,11 @@ func (impl UserServiceImpl) GetAll() (*bean.UserListingResponse, error) {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
 		return nil, err
 	}
-	response := impl.getUserResponseFromModel(model)
+	response, err := impl.getUserResponseWithLoginAudit(model)
+	if err != nil {
+		impl.logger.Errorw("error in getUserResponseWithLoginAudit", "err", err)
+		return nil, err
+	}
 	listingResponse := &bean.UserListingResponse{
 		Users:      response,
 		TotalCount: len(response),
@@ -1197,14 +1206,16 @@ func (impl UserServiceImpl) GetAll() (*bean.UserListingResponse, error) {
 }
 
 // GetAllWithFilters takes FetchListingRequest as argument and gives UserListingResponse as output with some operations like filter, sorting, searching,pagination support inbuilt
-func (impl UserServiceImpl) GetAllWithFilters(request *bean.FetchListingRequest) (*bean.UserListingResponse, error) {
+func (impl UserServiceImpl) GetAllWithFilters(request *helper.FetchListingRequest) (*bean.UserListingResponse, error) {
 	if request.ShowAll {
 		return impl.GetAll()
 	}
 	// Setting size as zero to calculate the total number of results based on request
 	size := request.Size
 	request.Size = 0
-	models, err := impl.userRepository.GetAllExcludingApiTokenWithFilters(request)
+	// Build query from query builder
+	query := impl.userListingRepositoryQueryBuilder.GetQueryForUserListingWithFilters(request)
+	models, err := impl.userRepository.GetAllExcludingApiTokenWithFilters(query)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
 		return nil, err
@@ -1214,13 +1225,22 @@ func (impl UserServiceImpl) GetAllWithFilters(request *bean.FetchListingRequest)
 
 	// if total count is more than diff , then need to query with offset and limit(optimisation)
 	if totalCount > (request.Size - request.Offset) {
-		models, err = impl.userRepository.GetAllExcludingApiTokenWithFilters(request)
+		query = impl.userListingRepositoryQueryBuilder.GetQueryForUserListingWithFilters(request)
+		models, err = impl.userRepository.GetAllExcludingApiTokenWithFilters(query)
 		if err != nil {
 			impl.logger.Errorw("error while fetching user from db", "error", err)
 			return nil, err
 		}
 	}
-	response := impl.getUserResponseFromModel(models)
+	response, err := impl.getUserResponseWithLoginAudit(models)
+	if err != nil {
+		impl.logger.Errorw("error in getUserResponseWithLoginAudit", "err", err)
+		return nil, err
+	}
+	// Sorting according to login time
+	if request.SortBy == helper.SortBy(helper.LastLogin) {
+		response = impl.sortAccordingToLoginTime(response, request.SortOrder)
+	}
 	listingResponse := &bean.UserListingResponse{
 		Users:      response,
 		TotalCount: totalCount,
@@ -1229,15 +1249,24 @@ func (impl UserServiceImpl) GetAllWithFilters(request *bean.FetchListingRequest)
 
 }
 
-func (impl UserServiceImpl) getUserResponseFromModel(model []repository.UserModel) []bean.UserInfo {
+func (impl UserServiceImpl) getUserResponseWithLoginAudit(model []repository.UserModel) ([]bean.UserInfo, error) {
 	var response []bean.UserInfo
+	userIdLoginMap, err := impl.getLoginTimeForUsers(model)
+	if err != nil {
+		impl.logger.Errorw("error in getUserResponseWithLoginAudit ", "err", err)
+		return nil, err
+	}
 	for _, m := range model {
+		lastLoginTime := time.Time{}
+		if val, ok := userIdLoginMap[m.Id]; ok {
+			lastLoginTime = val
+		}
 		response = append(response, bean.UserInfo{
 			Id:            m.Id,
 			EmailId:       m.EmailId,
 			RoleFilters:   make([]bean.RoleFilter, 0),
 			Groups:        make([]string, 0),
-			LastLoginTime: m.LastLoginTime,
+			LastLoginTime: lastLoginTime,
 			Status:        m.Status,
 			TimeToLive:    m.TimeToLive,
 		})
@@ -1245,7 +1274,33 @@ func (impl UserServiceImpl) getUserResponseFromModel(model []repository.UserMode
 	if len(response) == 0 {
 		response = make([]bean.UserInfo, 0)
 	}
-	return response
+	return response, nil
+}
+
+func (impl UserServiceImpl) sortAccordingToLoginTime(users []bean.UserInfo, sortOrder helper.SortOrder) []bean.UserInfo {
+	if sortOrder == helper.Asc {
+		sort.Slice(users, func(i, j int) bool {
+			return users[i].LastLoginTime.Before(users[j].LastLoginTime)
+		})
+	} else if sortOrder == helper.Desc {
+		sort.Slice(users, func(i, j int) bool {
+			return users[i].LastLoginTime.After(users[j].LastLoginTime)
+		})
+	}
+	return users
+
+}
+func (impl UserServiceImpl) getLoginTimeForUsers(models []repository.UserModel) (map[int32]time.Time, error) {
+	userIds := make([]int32, 0, len(models))
+	for _, model := range models {
+		userIds = append(userIds, model.Id)
+	}
+	userIdLoginMap, err := impl.userAuditService.GetLoginTimeForUsers(userIds)
+	if err != nil {
+		impl.logger.Errorw("error in getLoginTimeForUser", "err", err, "userIds", userIds)
+		return nil, err
+	}
+	return userIdLoginMap, nil
 }
 
 func (impl UserServiceImpl) GetAllDetailedUsers() ([]bean.UserInfo, error) {

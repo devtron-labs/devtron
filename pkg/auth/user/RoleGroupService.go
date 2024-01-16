@@ -20,6 +20,7 @@ package user
 import (
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/auth/user/repository/helper"
 	"strings"
 	"time"
 
@@ -42,7 +43,7 @@ type RoleGroupService interface {
 	FetchDetailedRoleGroups() ([]*bean.RoleGroup, error)
 	FetchRoleGroupsById(id int32) (*bean.RoleGroup, error)
 	FetchRoleGroups() (*bean.RoleGroupListingResponse, error)
-	FetchRoleGroupsWithFilters(req *bean.FetchListingRequest) (*bean.RoleGroupListingResponse, error)
+	FetchRoleGroupsWithFilters(req *helper.FetchListingRequest) (*bean.RoleGroupListingResponse, error)
 	FetchRoleGroupsByName(name string) ([]*bean.RoleGroup, error)
 	DeleteRoleGroup(model *bean.RoleGroup) (bool, error)
 	FetchRoleGroupsWithRolesByGroupNames(groupNames []string) ([]*bean.RoleFilter, []bean.RoleGroup, error)
@@ -647,7 +648,7 @@ func (impl RoleGroupServiceImpl) FetchRoleGroups() (*bean.RoleGroupListingRespon
 }
 
 // FetchRoleGroupsWithFilters takes FetchListingRequest as input and outputs RoleGroupListingResponse based on the request filters.
-func (impl RoleGroupServiceImpl) FetchRoleGroupsWithFilters(request *bean.FetchListingRequest) (*bean.RoleGroupListingResponse, error) {
+func (impl RoleGroupServiceImpl) FetchRoleGroupsWithFilters(request *helper.FetchListingRequest) (*bean.RoleGroupListingResponse, error) {
 	if request.ShowAll {
 		return impl.FetchRoleGroups()
 	}

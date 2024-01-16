@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/auth/user/repository/helper"
 	"net/http"
 	"strconv"
 	"strings"
@@ -354,7 +355,7 @@ func (handler UserRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Request
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	var request bean.FetchListingRequest
+	var request helper.FetchListingRequest
 	err = decoder.Decode(&request)
 	if err != nil {
 		handler.logger.Errorw("request err, GetAll", "err", err, "payload", request)
@@ -679,7 +680,7 @@ func (handler UserRestHandlerImpl) FetchRoleGroups(w http.ResponseWriter, r *htt
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	var request bean.FetchListingRequest
+	var request helper.FetchListingRequest
 	err = decoder.Decode(&request)
 	if err != nil {
 		handler.logger.Errorw("request err, GetAll", "err", err, "payload", request)

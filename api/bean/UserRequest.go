@@ -19,7 +19,6 @@ package bean
 
 import (
 	"encoding/json"
-	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"time"
 )
 
@@ -134,27 +133,3 @@ type RoleGroupListingResponse struct {
 	RoleGroups []*RoleGroup `json:"roleGroups"`
 	TotalCount int          `json:"totalCount"`
 }
-
-type FetchListingRequest struct {
-	Status    Status           `json:"status"`
-	TTL       time.Time        `json:"timeToLive,omitempty"`
-	SearchKey string           `json:"searchKey"`
-	SortOrder helper.SortOrder `json:"sortOrder"`
-	SortBy    helper.SortBy    `json:"sortBy"`
-	Offset    int              `json:"offset"`
-	Size      int              `json:"size"`
-	ShowAll   bool             `json:"showAll"`
-}
-
-type Status string
-
-const (
-	Active   Status = "active"
-	Inactive Status = "inactive"
-)
-
-const (
-	Email     helper.SortBy = "email_id"
-	LastLogin helper.SortBy = "last_login"
-	GroupName helper.SortBy = "name"
-)
