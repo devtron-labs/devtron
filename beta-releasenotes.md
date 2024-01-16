@@ -1,4 +1,5 @@
 ## Bugs
+- fix: resource tree err handling (#4530)
 - fix: error handling for trigger release (#4488)
 - fix: show deployed time for artifacts those were deployed in past (#4446)
 - fix: adding new fields in resource node to identify hooks in case of helm deployment (#4472)
