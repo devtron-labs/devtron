@@ -1674,9 +1674,9 @@ func (impl *CdPipelineConfigServiceImpl) createCdPipeline(ctx context.Context, a
 		}
 		//getting global app metrics for cd pipeline create because env level metrics is not created yet
 		appLevelAppMetricsEnabled := false
-		isAppLevelMetricsEnabled, err := impl.deployedAppMetricsService.GetMetricsFlagByAppIdEvenIfNotInDb(app.Id)
+		isAppLevelMetricsEnabled, err := impl.deployedAppMetricsService.GetMetricsFlagByAppId(app.Id)
 		if err != nil {
-			impl.logger.Errorw("error, GetMetricsFlagByAppIdEvenIfNotInDb", "err", err, "appId", app.Id)
+			impl.logger.Errorw("error, GetMetricsFlagByAppId", "err", err, "appId", app.Id)
 			return 0, err
 		}
 		appLevelAppMetricsEnabled = isAppLevelMetricsEnabled

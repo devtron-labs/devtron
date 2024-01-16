@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/models"
-	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	mocks3 "github.com/devtron-labs/devtron/internal/sql/repository/chartConfig/mocks"
 	mocks5 "github.com/devtron-labs/devtron/internal/sql/repository/mocks"
@@ -14,6 +13,7 @@ import (
 	mocks2 "github.com/devtron-labs/devtron/pkg/chartRepo/repository/mocks"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	mocks4 "github.com/devtron-labs/devtron/pkg/cluster/repository/mocks"
+	repository4 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository/mocks"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -438,7 +438,7 @@ func TestDeploymentTemplateHistoryService(t *testing.T) {
 
 		mockedAppLevelMetricsRepository := mocks5.NewAppLevelMetricsRepository(t)
 
-		appLevelMetricsDBObject := &repository3.AppLevelMetrics{
+		appLevelMetricsDBObject := &repository4.AppLevelMetrics{
 			Id:           1,
 			AppId:        1,
 			AppMetrics:   false,
@@ -452,7 +452,7 @@ func TestDeploymentTemplateHistoryService(t *testing.T) {
 
 		appMetrics := true
 
-		mockedEnvLevelMetricsDBObject := &repository3.EnvLevelAppMetrics{
+		mockedEnvLevelMetricsDBObject := &repository4.EnvLevelAppMetrics{
 			Id:           1,
 			AppId:        1,
 			EnvId:        1,
@@ -521,7 +521,7 @@ func TestDeploymentTemplateHistoryService(t *testing.T) {
 
 		mockedAppLevelMetricsRepository := mocks5.NewAppLevelMetricsRepository(t)
 
-		appLevelMetricsDBObject := &repository3.AppLevelMetrics{
+		appLevelMetricsDBObject := &repository4.AppLevelMetrics{
 			Id:           1,
 			AppId:        1,
 			AppMetrics:   false,
@@ -533,7 +533,7 @@ func TestDeploymentTemplateHistoryService(t *testing.T) {
 
 		mockedEnvLevelMetricsRepository := mocks5.NewEnvLevelAppMetricsRepository(t)
 
-		mockedEnvLevelMetricsDBObject := &repository3.EnvLevelAppMetrics{
+		mockedEnvLevelMetricsDBObject := &repository4.EnvLevelAppMetrics{
 			Id:           0,
 			AppId:        0,
 			EnvId:        0,

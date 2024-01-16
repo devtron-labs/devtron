@@ -24,12 +24,12 @@ import (
 )
 
 type EnvLevelAppMetrics struct {
-	tableName    struct{} `sql:"env_level_app_metrics" pg:",discard_unknown_columns"`
-	Id           int      `sql:"id,pk"`
-	AppId        int      `sql:"app_id,notnull"`
-	EnvId        int      `sql:"env_id,notnull"`
-	AppMetrics   *bool    `sql:"app_metrics,notnull"`
-	InfraMetrics *bool    `sql:"infra_metrics,notnull"`
+	tableName  struct{} `sql:"env_level_app_metrics" pg:",discard_unknown_columns"`
+	Id         int      `sql:"id,pk"`
+	AppId      int      `sql:"app_id,notnull"`
+	EnvId      int      `sql:"env_id,notnull"`
+	AppMetrics bool     `sql:"app_metrics,notnull"`
+	//InfraMetrics *bool    `sql:"infra_metrics,notnull"` not being used
 	sql.AuditLog
 }
 

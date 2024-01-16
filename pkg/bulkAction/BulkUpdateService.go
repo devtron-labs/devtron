@@ -420,7 +420,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 							deploymentTemplateBulkUpdateResponse.Successful = append(deploymentTemplateBulkUpdateResponse.Successful, bulkUpdateSuccessResponse)
 
 							//creating history entry for deployment template
-							appLevelAppMetricsEnabled, err := impl.deployedAppMetricsService.GetMetricsFlagByAppIdEvenIfNotInDb(chart.AppId)
+							appLevelAppMetricsEnabled, err := impl.deployedAppMetricsService.GetMetricsFlagByAppId(chart.AppId)
 							if err != nil {
 								impl.logger.Errorw("error in getting app level metrics app level", "error", err, "appId", chart.AppId)
 								return nil

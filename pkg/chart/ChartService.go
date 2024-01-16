@@ -302,7 +302,7 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 		ChartRefId:    templateRequest.ChartRefId,
 		UserId:        templateRequest.UserId,
 	}
-	err = impl.deployedAppMetricsService.CheckAndUpdateAppOrEnvLevelMetrics(ctx, appLevelMetricsUpdateReq)
+	err = impl.deployedAppMetricsService.CreateOrUpdateAppOrEnvLevelMetrics(ctx, appLevelMetricsUpdateReq)
 	if err != nil {
 		impl.logger.Errorw("error, CheckAndUpdateAppOrEnvLevelMetrics", "err", err, "req", appLevelMetricsUpdateReq)
 		return nil, err
@@ -534,7 +534,7 @@ func (impl ChartServiceImpl) FindLatestChartForAppByAppId(appId int) (chartTempl
 		impl.logger.Errorw("error in fetching chart ", "appId", appId, "err", err)
 		return nil, err
 	}
-	isAppMetricsEnabled, err := impl.deployedAppMetricsService.GetMetricsFlagByAppIdEvenIfNotInDb(appId)
+	isAppMetricsEnabled, err := impl.deployedAppMetricsService.GetMetricsFlagByAppId(appId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching app-metrics", "appId", appId, "err", err)
 		return nil, err
@@ -549,7 +549,7 @@ func (impl ChartServiceImpl) GetByAppIdAndChartRefId(appId int, chartRefId int) 
 		impl.logger.Errorw("error in fetching chart ", "appId", appId, "err", err)
 		return nil, err
 	}
-	isAppMetricsEnabled, err := impl.deployedAppMetricsService.GetMetricsFlagByAppIdEvenIfNotInDb(appId)
+	isAppMetricsEnabled, err := impl.deployedAppMetricsService.GetMetricsFlagByAppId(appId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching app-metrics", "appId", appId, "err", err)
 		return nil, err
@@ -648,7 +648,7 @@ func (impl ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateRequ
 		ChartRefId:    templateRequest.ChartRefId,
 		UserId:        templateRequest.UserId,
 	}
-	err = impl.deployedAppMetricsService.CheckAndUpdateAppOrEnvLevelMetrics(ctx, appLevelMetricsUpdateReq)
+	err = impl.deployedAppMetricsService.CreateOrUpdateAppOrEnvLevelMetrics(ctx, appLevelMetricsUpdateReq)
 	if err != nil {
 		impl.logger.Errorw("error, CheckAndUpdateAppOrEnvLevelMetrics", "err", err, "req", appLevelMetricsUpdateReq)
 		return nil, err
