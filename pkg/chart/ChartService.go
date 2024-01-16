@@ -65,7 +65,6 @@ type ChartService interface {
 	UpgradeForApp(appId int, chartRefId int, newAppOverride map[string]interface{}, userId int32, ctx context.Context) (bool, error)
 	CheckIfChartRefUserUploadedByAppId(id int) (bool, error)
 	PatchEnvOverrides(values json.RawMessage, oldChartType string, newChartType string) (json.RawMessage, error)
-	FlaggerCanaryEnabled(values json.RawMessage) (bool, error)
 
 	ChartRefAutocompleteForAppOrEnv(appId int, envId int) (*bean2.ChartRefAutocompleteResponse, error)
 }
@@ -116,26 +115,6 @@ func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
 	}
 }
 
-func (impl ChartServiceImpl) FlaggerCanaryEnabled(values json.RawMessage) (bool, error) {
-	var jsonMap map[string]json.RawMessage
-	if err := json.Unmarshal([]byte(values), &jsonMap); err != nil {
-		return false, err
-	}
-
-	flaggerCanary, found := jsonMap["flaggerCanary"]
-	if !found {
-		return false, nil
-	}
-	var flaggerCanaryUnmarshalled map[string]json.RawMessage
-	if err := json.Unmarshal([]byte(flaggerCanary), &flaggerCanaryUnmarshalled); err != nil {
-		return false, err
-	}
-	enabled, found := flaggerCanaryUnmarshalled["enabled"]
-	if !found {
-		return true, fmt.Errorf("flagger canary enabled field must be set and be equal to false")
-	}
-	return string(enabled) == "true", nil
-}
 func (impl ChartServiceImpl) PatchEnvOverrides(values json.RawMessage, oldChartType string, newChartType string) (json.RawMessage, error) {
 	return PatchWinterSoldierConfig(values, newChartType)
 }

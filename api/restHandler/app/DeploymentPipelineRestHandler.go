@@ -555,7 +555,7 @@ func (handler PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWrite
 	}
 
 	if newChartType == bean4.RolloutChartType {
-		enabled, err := handler.chartService.FlaggerCanaryEnabled(envConfigProperties.EnvOverrideValues)
+		enabled, err := handler.deploymentTemplateValidationService.FlaggerCanaryEnabled(envConfigProperties.EnvOverrideValues)
 		if err != nil || enabled {
 			handler.Logger.Errorw("rollout charts do not support flaggerCanary, ChangeChartRef", "err", err, "payload", request)
 			common.WriteJsonResp(w, err, "rollout charts do not support flaggerCanary, ChangeChartRef", http.StatusBadRequest)

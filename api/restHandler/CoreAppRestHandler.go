@@ -93,7 +93,6 @@ type CoreAppRestHandlerImpl struct {
 	appWorkflowRepository   appWorkflow2.AppWorkflowRepository
 	environmentRepository   repository2.EnvironmentRepository
 	configMapRepository     chartConfig.ConfigMapRepository
-	envConfigRepo           chartConfig.EnvConfigOverrideRepository
 	chartRepo               chartRepoRepository.ChartRepository
 	teamService             team.TeamService
 	argoUserService         argo.ArgoUserService
@@ -107,7 +106,7 @@ func NewCoreAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.U
 	propertiesConfigService pipeline.PropertiesConfigService, appWorkflowService appWorkflow.AppWorkflowService,
 	materialRepository pipelineConfig.MaterialRepository, gitProviderRepo repository.GitProviderRepository,
 	appWorkflowRepository appWorkflow2.AppWorkflowRepository, environmentRepository repository2.EnvironmentRepository, configMapRepository chartConfig.ConfigMapRepository,
-	envConfigRepo chartConfig.EnvConfigOverrideRepository, chartRepo chartRepoRepository.ChartRepository, teamService team.TeamService,
+	chartRepo chartRepoRepository.ChartRepository, teamService team.TeamService,
 	argoUserService argo.ArgoUserService, pipelineStageService pipeline.PipelineStageService, ciPipelineRepository pipelineConfig.CiPipelineRepository) *CoreAppRestHandlerImpl {
 	handler := &CoreAppRestHandlerImpl{
 		logger:                  logger,
@@ -128,7 +127,6 @@ func NewCoreAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.U
 		appWorkflowRepository:   appWorkflowRepository,
 		environmentRepository:   environmentRepository,
 		configMapRepository:     configMapRepository,
-		envConfigRepo:           envConfigRepo,
 		chartRepo:               chartRepo,
 		teamService:             teamService,
 		argoUserService:         argoUserService,

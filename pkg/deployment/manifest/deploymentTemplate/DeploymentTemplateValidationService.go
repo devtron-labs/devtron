@@ -18,6 +18,7 @@ import (
 
 type DeploymentTemplateValidationService interface {
 	DeploymentTemplateValidate(ctx context.Context, template interface{}, chartRefId int, scope resourceQualifiers.Scope) (bool, error)
+	FlaggerCanaryEnabled(values json.RawMessage) (bool, error)
 }
 
 type DeploymentTemplateValidationServiceImpl struct {
@@ -102,4 +103,25 @@ func (impl *DeploymentTemplateValidationServiceImpl) DeploymentTemplateValidate(
 		}
 		return false, errors.New(stringerror)
 	}
+}
+
+func (impl *DeploymentTemplateValidationServiceImpl) FlaggerCanaryEnabled(values json.RawMessage) (bool, error) {
+	var jsonMap map[string]json.RawMessage
+	if err := json.Unmarshal(values, &jsonMap); err != nil {
+		return false, err
+	}
+
+	flaggerCanary, found := jsonMap[bean.FlaggerCanary]
+	if !found {
+		return false, nil
+	}
+	var flaggerCanaryUnmarshalled map[string]json.RawMessage
+	if err := json.Unmarshal(flaggerCanary, &flaggerCanaryUnmarshalled); err != nil {
+		return false, err
+	}
+	enabled, found := flaggerCanaryUnmarshalled[bean.EnabledFlag]
+	if !found {
+		return true, fmt.Errorf("flagger canary enabled field must be set and be equal to false")
+	}
+	return string(enabled) == bean.TrueFlag, nil
 }
