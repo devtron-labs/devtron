@@ -31,6 +31,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/chart"
+	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/go-pg/pg"
@@ -57,6 +58,7 @@ type AppCloneServiceImpl struct {
 	pipelineRepository      pipelineConfig.PipelineRepository
 	appWorkflowRepository   appWorkflow2.AppWorkflowRepository
 	ciPipelineConfigService pipeline.CiPipelineConfigService
+	imageDigestService      imageDigestPolicy.ImageDigestPolicyService
 }
 
 func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
@@ -71,7 +73,8 @@ func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
 	pipelineStageService pipeline.PipelineStageService, ciTemplateService pipeline.CiTemplateService,
 	appRepository app2.AppRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	pipelineRepository pipelineConfig.PipelineRepository, appWorkflowRepository appWorkflow2.AppWorkflowRepository,
-	ciPipelineConfigService pipeline.CiPipelineConfigService) *AppCloneServiceImpl {
+	ciPipelineConfigService pipeline.CiPipelineConfigService,
+	imageDigestService imageDigestPolicy.ImageDigestPolicyService) *AppCloneServiceImpl {
 	return &AppCloneServiceImpl{
 		logger:                  logger,
 		pipelineBuilder:         pipelineBuilder,
@@ -88,6 +91,7 @@ func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
 		pipelineRepository:      pipelineRepository,
 		appWorkflowRepository:   appWorkflowRepository,
 		ciPipelineConfigService: ciPipelineConfigService,
+		imageDigestService:      imageDigestService,
 	}
 }
 
@@ -998,7 +1002,11 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, c
 	} else if AllowedDeploymentAppTypes[util.PIPELINE_DEPLOYMENT_TYPE_HELM] {
 		deploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
 	}
-
+	isDigestPolicyConfiguredForRefPipeline, err := impl.imageDigestService.IsPolicyConfiguredForPipeline(refCdPipeline.Id)
+	if err != nil {
+		impl.logger.Errorw("error in checking if digest configured for pipeline or not", "err", err)
+		return nil, err
+	}
 	cdPipeline := &bean.CDPipelineConfigObject{
 		Id:                            0,
 		EnvironmentId:                 refCdPipeline.EnvironmentId,
@@ -1021,6 +1029,7 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, c
 		SourceToNewPipelineId:         refCdPipeline.SourceToNewPipelineId,
 		RefPipelineId:                 refCdPipeline.Id,
 		ParentPipelineType:            refCdPipeline.ParentPipelineType,
+		IsDigestEnforcedForPipeline:   isDigestPolicyConfiguredForRefPipeline,
 	}
 	if refCdPipeline.ParentPipelineType == "WEBHOOK" {
 		cdPipeline.CiPipelineId = 0

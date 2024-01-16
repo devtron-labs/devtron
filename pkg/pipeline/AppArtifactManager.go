@@ -1009,6 +1009,7 @@ func (impl *AppArtifactManagerImpl) getLatestArtifactMappingAndArtifactCountMapp
 	imagePaths := make([]string, 0)
 	minArtifactId := math.MaxInt // will only look images in DB having artifact id greater than minArtifactId
 	var pipelineId int
+	var externalCiPipelineId int
 	dataSourceToComponentIdMapping := make(map[string]int)
 
 	for _, artifact := range requestArtifacts {
@@ -1016,9 +1017,12 @@ func (impl *AppArtifactManagerImpl) getLatestArtifactMappingAndArtifactCountMapp
 		if minArtifactId > artifact.Id {
 			minArtifactId = artifact.Id
 		}
+		pipelineId = artifact.CiPipelineId
+		externalCiPipelineId = artifact.ExternalCiPipelineId
+		dataSourceToComponentIdMapping[artifact.DataSource] = artifact.ComponentId
 	}
 
-	artifacts, err := impl.ciArtifactRepository.FindByImagePathsPipelineIdComponentId(imagePaths, minArtifactId, pipelineId, dataSourceToComponentIdMapping)
+	artifacts, err := impl.ciArtifactRepository.FindByImagePathsPipelineIdComponentId(imagePaths, minArtifactId, pipelineId, dataSourceToComponentIdMapping, externalCiPipelineId)
 	if err != nil {
 		return artifactToArtifactCountMapping, artifactToArtifactCountMapping, err
 	}
