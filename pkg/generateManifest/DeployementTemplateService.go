@@ -200,7 +200,7 @@ func (impl DeploymentTemplateServiceImpl) GetDeploymentTemplate(ctx context.Cont
 	} else {
 		switch request.Type {
 		case repository.DefaultVersions:
-			_, values, err = impl.chartService.GetAppOverrideForDefaultTemplate(request.ChartRefId)
+			_, values, err = impl.chartRefService.GetAppOverrideForDefaultTemplate(request.ChartRefId)
 			resolvedValue = values
 		case repository.PublishedOnEnvironments:
 			values, resolvedValue, variableSnapshot, err = impl.fetchResolvedTemplateForPublishedEnvs(ctx, request)

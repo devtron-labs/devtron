@@ -39,8 +39,6 @@ import (
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 
-	"io/ioutil"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -65,13 +63,11 @@ type ChartService interface {
 	CreateChartFromEnvOverride(templateRequest TemplateRequest, ctx context.Context) (chart *TemplateRequest, err error)
 	FindLatestChartForAppByAppId(appId int) (chartTemplate *TemplateRequest, err error)
 	GetByAppIdAndChartRefId(appId int, chartRefId int) (chartTemplate *TemplateRequest, err error)
-	GetAppOverrideForDefaultTemplate(chartRefId int) (map[string]interface{}, string, error)
 	UpdateAppOverride(ctx context.Context, templateRequest *TemplateRequest) (*TemplateRequest, error)
 	IsReadyToTrigger(appId int, envId int, pipelineId int) (IsReady, error)
 	FindPreviousChartByAppId(appId int) (chartTemplate *TemplateRequest, err error)
 	UpgradeForApp(appId int, chartRefId int, newAppOverride map[string]interface{}, userId int32, ctx context.Context) (bool, error)
 	DeploymentTemplateValidate(ctx context.Context, templatejson interface{}, chartRefId int, scope resourceQualifiers.Scope) (bool, error)
-	JsonSchemaExtractFromFile(chartRefId int) (map[string]interface{}, string, error)
 	CheckIfChartRefUserUploadedByAppId(id int) (bool, error)
 	PatchEnvOverrides(values json.RawMessage, oldChartType string, newChartType string) (json.RawMessage, error)
 	FlaggerCanaryEnabled(values json.RawMessage) (bool, error)
@@ -147,60 +143,6 @@ func (impl ChartServiceImpl) FlaggerCanaryEnabled(values json.RawMessage) (bool,
 }
 func (impl ChartServiceImpl) PatchEnvOverrides(values json.RawMessage, oldChartType string, newChartType string) (json.RawMessage, error) {
 	return PatchWinterSoldierConfig(values, newChartType)
-}
-
-func (impl ChartServiceImpl) GetAppOverrideForDefaultTemplate(chartRefId int) (map[string]interface{}, string, error) {
-	err := impl.chartRefService.CheckChartExists(chartRefId)
-	if err != nil {
-		impl.logger.Errorw("error in getting missing chart for chartRefId", "err", err, "chartRefId")
-		return nil, "", err
-	}
-
-	refChart, _, err, _, _ := impl.chartRefService.GetRefChart(chartRefId)
-	if err != nil {
-		return nil, "", err
-	}
-	var appOverrideByte, envOverrideByte []byte
-	appOverrideByte, err = ioutil.ReadFile(filepath.Clean(filepath.Join(refChart, "app-values.yaml")))
-	if err != nil {
-		impl.logger.Infow("App values yaml file is missing")
-	} else {
-		appOverrideByte, err = yaml.YAMLToJSON(appOverrideByte)
-		if err != nil {
-			return nil, "", err
-		}
-	}
-
-	envOverrideByte, err = ioutil.ReadFile(filepath.Clean(filepath.Join(refChart, "env-values.yaml")))
-	if err != nil {
-		impl.logger.Infow("Env values yaml file is missing")
-	} else {
-		envOverrideByte, err = yaml.YAMLToJSON(envOverrideByte)
-		if err != nil {
-			return nil, "", err
-		}
-	}
-
-	messages := make(map[string]interface{})
-	var merged []byte
-	if appOverrideByte == nil && envOverrideByte == nil {
-		return messages, "", nil
-	} else if appOverrideByte == nil || envOverrideByte == nil {
-		if appOverrideByte == nil {
-			merged = envOverrideByte
-		} else {
-			merged = appOverrideByte
-		}
-	} else {
-		merged, err = impl.mergeUtil.JsonPatch(appOverrideByte, []byte(envOverrideByte))
-		if err != nil {
-			return nil, "", err
-		}
-	}
-
-	appOverride := json.RawMessage(merged)
-	messages["defaultAppOverride"] = appOverride
-	return messages, string(merged), nil
 }
 
 type AppMetricsEnabled struct {
@@ -924,7 +866,7 @@ const memory = "memory"
 
 func (impl ChartServiceImpl) DeploymentTemplateValidate(ctx context.Context, template interface{}, chartRefId int, scope resourceQualifiers.Scope) (bool, error) {
 	_, span := otel.Tracer("orchestrator").Start(ctx, "JsonSchemaExtractFromFile")
-	schemajson, version, err := impl.JsonSchemaExtractFromFile(chartRefId)
+	schemajson, version, err := impl.chartRefService.JsonSchemaExtractFromFile(chartRefId)
 	span.End()
 	if err != nil {
 		impl.logger.Errorw("Json Schema not found err, FindJsonSchema", "err", err)
@@ -996,44 +938,6 @@ func (impl ChartServiceImpl) DeploymentTemplateValidate(ctx context.Context, tem
 			}
 		}
 		return false, errors.New(stringerror)
-	}
-}
-
-func (impl ChartServiceImpl) JsonSchemaExtractFromFile(chartRefId int) (map[string]interface{}, string, error) {
-	err := impl.chartRefService.CheckChartExists(chartRefId)
-	if err != nil {
-		impl.logger.Errorw("refChartDir Not Found", "err", err)
-		return nil, "", err
-	}
-
-	refChartDir, _, err, version, _ := impl.chartRefService.GetRefChart(chartRefId)
-	if err != nil {
-		impl.logger.Errorw("refChartDir Not Found err, JsonSchemaExtractFromFile", err)
-		return nil, "", err
-	}
-	fileStatus := filepath.Join(refChartDir, "schema.json")
-	if _, err := os.Stat(fileStatus); os.IsNotExist(err) {
-		impl.logger.Errorw("Schema File Not Found err, JsonSchemaExtractFromFile", err)
-		return nil, "", err
-	} else {
-		jsonFile, err := os.Open(fileStatus)
-		if err != nil {
-			impl.logger.Errorw("jsonfile open err, JsonSchemaExtractFromFile", "err", err)
-			return nil, "", err
-		}
-		byteValueJsonFile, err := ioutil.ReadAll(jsonFile)
-		if err != nil {
-			impl.logger.Errorw("byteValueJsonFile read err, JsonSchemaExtractFromFile", "err", err)
-			return nil, "", err
-		}
-
-		var schemajson map[string]interface{}
-		err = json.Unmarshal([]byte(byteValueJsonFile), &schemajson)
-		if err != nil {
-			impl.logger.Errorw("Unmarshal err in byteValueJsonFile, DeploymentTemplateValidate", "err", err)
-			return nil, "", err
-		}
-		return schemajson, version, nil
 	}
 }
 

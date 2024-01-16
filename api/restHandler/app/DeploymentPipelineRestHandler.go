@@ -1010,7 +1010,7 @@ func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.Respon
 	}
 
 	if pg.ErrNoRows == err {
-		appOverride, _, err := handler.chartService.GetAppOverrideForDefaultTemplate(chartRefId)
+		appOverride, _, err := handler.chartRefService.GetAppOverrideForDefaultTemplate(chartRefId)
 		if err != nil {
 			handler.Logger.Errorw("service err, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -1085,7 +1085,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetDefaultDeploymentTemplate(w htt
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "unauthorized user", http.StatusForbidden)
 		return
 	}
-	defaultTemplate, _, err := handler.chartService.GetAppOverrideForDefaultTemplate(chartRefId)
+	defaultTemplate, _, err := handler.chartRefService.GetAppOverrideForDefaultTemplate(chartRefId)
 	if err != nil {
 		handler.Logger.Errorw("error in getting default deployment template, GetDefaultDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -1363,7 +1363,7 @@ func (handler PipelineConfigRestHandlerImpl) GetAppOverrideForDefaultTemplate(w 
 	}
 	//RBAC
 
-	appOverride, _, err := handler.chartService.GetAppOverrideForDefaultTemplate(chartRefId)
+	appOverride, _, err := handler.chartRefService.GetAppOverrideForDefaultTemplate(chartRefId)
 	if err != nil {
 		handler.Logger.Errorw("service err, UpdateCiTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -2311,7 +2311,7 @@ func (handler PipelineConfigRestHandlerImpl) UpgradeForAllApps(w http.ResponseWr
 		return
 	}
 
-	newAppOverride, _, err := handler.chartService.GetAppOverrideForDefaultTemplate(chartUpgradeRequest.ChartRefId)
+	newAppOverride, _, err := handler.chartRefService.GetAppOverrideForDefaultTemplate(chartUpgradeRequest.ChartRefId)
 	if err != nil {
 		handler.Logger.Errorw("service err, UpgradeForAllApps", "err", err, "payload", chartUpgradeRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
