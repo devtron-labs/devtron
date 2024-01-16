@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/authenticator/middleware"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/enterprise/api/drafts"
+	drafts2 "github.com/devtron-labs/devtron/enterprise/pkg/drafts"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
@@ -1161,9 +1162,16 @@ func (impl NotificationRestHandlerImpl) ApproveConfigDraftForNotification(w http
 		return
 	}
 	_, draftState, err := impl.configDraftRestHandlerImpl.CheckAccessAndApproveDraft(w, token, *draftRequest)
-	if err != nil && draftState == 0 {
-		return
+	if err != nil {
+		if draftState == 0 {
+			return
+		}
+		if draftState == drafts2.AwaitApprovalDraftState {
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
 	}
+
 	resp, err := impl.notificationService.GetMetaDataForDraftNotification(draftRequest)
 	resp.DraftState = uint8(draftState)
 	if err != nil {

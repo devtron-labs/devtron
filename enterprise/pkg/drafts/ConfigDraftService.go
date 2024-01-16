@@ -261,7 +261,10 @@ func (impl *ConfigDraftServiceImpl) validateDraftAction(draftId int, draftVersio
 			}
 			if contributedToDraft {
 				impl.logger.Errorw("user contributed to this draft", "draftId", draftId, "userId", userId)
-				return nil, errors.New(UserContributedToDraft)
+				return nil, &DraftApprovalValidationError{
+					Err:        errors.New(UserContributedToDraft),
+					DraftState: draftCurrentState,
+				}
 			}
 		}
 	}
