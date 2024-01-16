@@ -33,7 +33,6 @@ import (
 
 	cluster3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/client/argocdServer"
 	cluster2 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -95,8 +94,6 @@ type GitOpsConfigServiceImpl struct {
 	K8sUtil              *util4.K8sUtil
 	aCDAuthConfig        *util3.ACDAuthConfig
 	clusterService       cluster.ClusterService
-	envService           cluster.EnvironmentService
-	versionService       argocdServer.VersionService
 	gitFactory           *util.GitFactory
 	chartTemplateService util.ChartTemplateService
 	argoUserService      argo.ArgoUserService
@@ -106,7 +103,7 @@ type GitOpsConfigServiceImpl struct {
 func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger,
 	globalEnvVariables *util2.GlobalEnvVariables,
 	gitOpsRepository repository.GitOpsConfigRepository, K8sUtil *util4.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig,
-	clusterService cluster.ClusterService, envService cluster.EnvironmentService, versionService argocdServer.VersionService,
+	clusterService cluster.ClusterService,
 	gitFactory *util.GitFactory, chartTemplateService util.ChartTemplateService, argoUserService argo.ArgoUserService, clusterServiceCD cluster2.ServiceClient) *GitOpsConfigServiceImpl {
 	return &GitOpsConfigServiceImpl{
 		randSource:           rand.NewSource(time.Now().UnixNano()),
@@ -116,8 +113,6 @@ func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger,
 		K8sUtil:              K8sUtil,
 		aCDAuthConfig:        aCDAuthConfig,
 		clusterService:       clusterService,
-		envService:           envService,
-		versionService:       versionService,
 		gitFactory:           gitFactory,
 		chartTemplateService: chartTemplateService,
 		argoUserService:      argoUserService,
