@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"runtime/debug"
 )
 
 func Recovery(next http.Handler) http.Handler {
@@ -12,7 +13,7 @@ func Recovery(next http.Handler) http.Handler {
 		defer func() {
 			err := recover()
 			if err != nil {
-				log.Printf("recovered from panic")
+				log.Print("recovered from panic", "err", err, "stack", string(debug.Stack()))
 
 				jsonBody, _ := json.Marshal(map[string]string{
 					"error": "There was an internal server error",
