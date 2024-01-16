@@ -33,6 +33,7 @@ type Config struct {
 	User                   string `env:"PG_USER" envDefault:""`
 	Password               string `env:"PG_PASSWORD" envDefault:"" secretData:"-"`
 	Database               string `env:"PG_DATABASE" envDefault:"orchestrator"`
+	CasbinDatabase         string `env:"CASBIN_DATABASE" envDefault:"casbin"`
 	ApplicationName        string `env:"APP" envDefault:"orchestrator"`
 	LogQuery               bool   `env:"PG_LOG_QUERY" envDefault:"true"`
 	LogAllQuery            bool   `env:"PG_LOG_ALL_QUERY" envDefault:"false"`
