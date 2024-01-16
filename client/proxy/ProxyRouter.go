@@ -58,6 +58,7 @@ func NewProxyRouterImpl(logger *zap.SugaredLogger, proxyCfg *Config, userService
 }
 
 func (router ProxyRouterImpl) InitProxyRouter(ProxyRouter *mux.Router) {
+
 	ProxyRouter.PathPrefix("/kubelink").HandlerFunc(router.proxy["kubelink"])
 	ProxyRouter.PathPrefix("/gitsensor").HandlerFunc(router.proxy["gitsensor"])
 }

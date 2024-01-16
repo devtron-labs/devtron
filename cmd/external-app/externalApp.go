@@ -53,6 +53,7 @@ func (app *App) Start() {
 	}
 	server := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: authMiddleware.Authorizer(app.sessionManager, user.WhitelistChecker)(app.MuxRouter.Router)}
 	app.MuxRouter.Router.Use(middleware.PrometheusMiddleware)
+	app.MuxRouter.Router.Use(middleware.Recovery)
 	app.server = server
 
 	err = server.ListenAndServe()
