@@ -30,13 +30,6 @@ type TemplateRequest struct {
 	UserId                  int32                       `json:"-"`
 }
 
-type AppMetricEnableDisableRequest struct {
-	AppId               int   `json:"appId,omitempty"`
-	EnvironmentId       int   `json:"environmentId,omitempty"`
-	IsAppMetricsEnabled bool  `json:"isAppMetricsEnabled"`
-	UserId              int32 `json:"-"`
-}
-
 type ChartUpgradeRequest struct {
 	ChartRefId int   `json:"chartRefId"  validate:"number"`
 	All        bool  `json:"all"`

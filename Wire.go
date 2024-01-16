@@ -551,11 +551,6 @@ func InitializeApp() (*App, error) {
 
 		restHandler.NewExternalCiRestHandlerImpl,
 		wire.Bind(new(restHandler.ExternalCiRestHandler), new(*restHandler.ExternalCiRestHandlerImpl)),
-		repository.NewAppLevelMetricsRepositoryImpl,
-		wire.Bind(new(repository.AppLevelMetricsRepository), new(*repository.AppLevelMetricsRepositoryImpl)),
-
-		repository.NewEnvLevelAppMetricsRepositoryImpl,
-		wire.Bind(new(repository.EnvLevelAppMetricsRepository), new(*repository.EnvLevelAppMetricsRepositoryImpl)),
 
 		grafana.GetGrafanaClientConfig,
 		grafana.NewGrafanaClientImpl,
