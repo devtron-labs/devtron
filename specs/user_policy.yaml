@@ -60,8 +60,7 @@ paths:
           content:
             application/json:
               schema:
-                items:
-                  $ref: '#/components/schemas/AllUsers'
+                  $ref: '#/components/schemas/UserListingResponse'
         default:
           description: unexpected error
           content:
@@ -195,6 +194,17 @@ components:
           items:
             $ref: '#/components/schemas/roleFilter'
           description: role filters objects
+
+    UserListingResponse:
+      type: object
+      properties:
+        users:
+          items:
+            $ref: '#/components/schemas/AllUsers'
+          description: role filters objects
+        totalCount:
+          type: integer
+          description: total number of results satisfying the conditions
 
     AllUsers:
       type: object

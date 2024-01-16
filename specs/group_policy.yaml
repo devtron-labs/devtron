@@ -50,7 +50,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/RoleGroup'
+                $ref: '#/components/schemas/RoleGroupListingResponse'
         default:
           description: unexpected error
           content:
@@ -237,3 +237,14 @@ components:
         message:
           type: string
           description: Error message
+
+    RoleGroupListingResponse:
+      type: object
+      properties:
+        roleGroups:
+          items:
+            $ref: '#/components/schemas/RoleGroup'
+          description: role groups listing
+        totalCount:
+          type: integer
+          description: total number of results satisfying the conditions
