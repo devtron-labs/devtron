@@ -2086,20 +2086,6 @@ func convertCdDeploymentStrategies(deploymentStrategies []*appBean.DeploymentStr
 	return convertedStrategies, nil
 }
 
-func ExtractErrorType(err error) int {
-	switch err.(type) {
-	case *util2.InternalServerError:
-		return http.StatusInternalServerError
-	case *util2.ForbiddenError:
-		return http.StatusForbidden
-	case *util2.BadRequestError:
-		return http.StatusBadRequest
-	default:
-		//TODO : ask and update response for this case
-		return 0
-	}
-}
-
 func (handler CoreAppRestHandlerImpl) validateCdPipelines(cdPipelines []*appBean.CdPipelineDetails, appName, token string) (error, int) {
 	for _, cdPipeline := range cdPipelines {
 		envName := cdPipeline.EnvironmentName

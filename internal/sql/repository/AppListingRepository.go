@@ -181,18 +181,6 @@ func (impl AppListingRepositoryImpl) FetchJobsLastSucceededOn(CiPipelineIDs []in
 	return lastSucceededTimeArray, nil
 }
 
-func getRequiredAppIdsInSequence(appIds []int) []int {
-	resIDs := make([]int, 0)
-	appIdsSet := make(map[int]bool)
-	for _, appId := range appIds {
-		if _, ok := appIdsSet[appId]; !ok {
-			resIDs = append(resIDs, appId)
-			appIdsSet[appId] = true
-		}
-	}
-	return resIDs
-}
-
 func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter helper.AppListingFilter) ([]*bean.AppEnvironmentContainer, error) {
 	impl.Logger.Debug("reached at FetchAppsByEnvironment:")
 	var appEnvArr []*bean.AppEnvironmentContainer
@@ -490,19 +478,6 @@ func (impl AppListingRepositoryImpl) FetchAppDetail(ctx context.Context, appId i
 	}
 	appDetailContainer.DeploymentDetailContainer = deploymentDetail
 	return appDetailContainer, nil
-}
-
-func (impl AppListingRepositoryImpl) fetchLinkOutsByAppIdAndEnvId(appId int, envId int) ([]string, error) {
-	impl.Logger.Debug("reached at AppListingRepository:")
-
-	var linkOuts []string
-	query := "SELECT ael.link from app_env_linkouts ael where ael.app_id=? and ael.environment_id=?"
-	impl.Logger.Debugw("lingOut query:", query)
-	_, err := impl.dbConnection.Query(&linkOuts, query, appId, envId)
-	if err != nil {
-		impl.Logger.Errorw("err", err)
-	}
-	return linkOuts, err
 }
 
 func (impl AppListingRepositoryImpl) PrometheusApiByEnvId(id int) (*string, error) {

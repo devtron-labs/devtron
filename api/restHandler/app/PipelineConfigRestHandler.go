@@ -44,7 +44,6 @@ import (
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
 
-	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
@@ -59,10 +58,7 @@ import (
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
-	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"go.uber.org/zap"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"gopkg.in/go-playground/validator.v9"
 )
 
@@ -569,31 +565,6 @@ func (handler *PipelineConfigRestHandlerImpl) sendData(event []byte, w http.Resp
 	res = append(res, '\n', '\n')
 	if _, err := w.Write(res); err != nil {
 		handler.Logger.Errorw("Failed to send response chunk, sendData", "err", err)
-		return
-	}
-}
-
-func (handler *PipelineConfigRestHandlerImpl) handleForwardResponseStreamError(wroteHeader bool, w http.ResponseWriter, err error) {
-	code := "000"
-	if !wroteHeader {
-		s, ok := status.FromError(err)
-		if !ok {
-			s = status.New(codes.Unknown, err.Error())
-		}
-		w.WriteHeader(runtime.HTTPStatusFromCode(s.Code()))
-		code = fmt.Sprint(s.Code())
-	}
-	response := bean2.Response{}
-	apiErr := bean2.ApiError{}
-	apiErr.Code = code // 000=unknown
-	apiErr.InternalMessage = err.Error()
-	response.Errors = []bean2.ApiError{apiErr}
-	buf, err2 := json.Marshal(response)
-	if err2 != nil {
-		handler.Logger.Errorw("marshal err, handleForwardResponseStreamError", "err", err2, "response", response)
-	}
-	if _, err3 := w.Write(buf); err3 != nil {
-		handler.Logger.Errorw("Failed to notify error to client, handleForwardResponseStreamError", "err", err3, "response", response)
 		return
 	}
 }

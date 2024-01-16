@@ -119,10 +119,6 @@ func (impl ChartServiceImpl) PatchEnvOverrides(values json.RawMessage, oldChartT
 	return PatchWinterSoldierConfig(values, newChartType)
 }
 
-type AppMetricsEnabled struct {
-	AppMetrics bool `json:"app-metrics"`
-}
-
 func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context.Context) (*TemplateRequest, error) {
 	err := impl.chartRefService.CheckChartExists(templateRequest.ChartRefId)
 	if err != nil {
@@ -431,27 +427,6 @@ func (impl ChartServiceImpl) getChartMetaData(templateRequest TemplateRequest) (
 		Name: pg.AppName,
 	}
 	return metadata, err
-}
-
-func (impl ChartServiceImpl) getRefChartVersion(templateRequest TemplateRequest) (string, error) {
-	var version string
-	if templateRequest.ChartRefId > 0 {
-		chartRefDto, err := impl.chartRefService.FindById(templateRequest.ChartRefId)
-		if err != nil {
-			chartRefDto, err = impl.chartRefService.GetDefault()
-			if err != nil {
-				return "", err
-			}
-		}
-		version = chartRefDto.Version
-	} else {
-		chartRefDto, err := impl.chartRefService.GetDefault()
-		if err != nil {
-			return "", err
-		}
-		version = chartRefDto.Location
-	}
-	return version, nil
 }
 
 func (impl ChartServiceImpl) getChartRepo(templateRequest TemplateRequest) (*chartRepoRepository.ChartRepo, error) {

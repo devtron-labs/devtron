@@ -28,7 +28,6 @@ import (
 	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"time"
 
-	chartService "github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
@@ -329,18 +328,6 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, p
 	}
 
 	return propertiesRequest, err
-}
-
-func (impl PropertiesConfigServiceImpl) buildAppMetricsJson() ([]byte, error) {
-	appMetricsEnabled := chartService.AppMetricsEnabled{
-		AppMetrics: true,
-	}
-	appMetricsJson, err := json.Marshal(appMetricsEnabled)
-	if err != nil {
-		impl.logger.Error(err)
-		return nil, err
-	}
-	return appMetricsJson, nil
 }
 
 func (impl PropertiesConfigServiceImpl) CreateIfRequired(chart *chartRepoRepository.Chart, environmentId int, userId int32, manualReviewed bool, chartStatus models.ChartStatus, isOverride, isAppMetricsEnabled bool, namespace string, IsBasicViewLocked bool, CurrentViewEditor models.ChartsViewEditorType, tx *pg.Tx) (*chartConfig.EnvConfigOverride, bool, error) {
