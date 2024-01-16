@@ -24,22 +24,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
-	"github.com/devtron-labs/common-lib/utils/k8s"
-	bean2 "github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/client/gitSensor"
-	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
-	"github.com/devtron-labs/devtron/pkg/cluster"
-	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
-	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
-	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
-	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
-	"github.com/devtron-labs/devtron/pkg/pipeline/types"
-	resourceGroup "github.com/devtron-labs/devtron/pkg/resourceGroup"
-	"github.com/devtron-labs/devtron/util/rbac"
 	"io/ioutil"
-	errors2 "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/client-go/rest"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -48,13 +33,29 @@ import (
 	"strings"
 	"time"
 
+	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
+	"github.com/devtron-labs/common-lib/utils/k8s"
+	bean2 "github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/client/gitSensor"
+	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
+	"github.com/devtron-labs/devtron/pkg/cluster"
+	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
+	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
+	resourceGroup "github.com/devtron-labs/devtron/pkg/resourceGroup"
+	"github.com/devtron-labs/devtron/util/rbac"
+	errors2 "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/client-go/rest"
+
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
-	"github.com/devtron-labs/devtron/pkg/user"
 	util2 "github.com/devtron-labs/devtron/util/event"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -69,7 +70,7 @@ type CiHandler interface {
 	FetchWorkflowDetails(appId int, pipelineId int, buildId int) (types.WorkflowResponse, error)
 	FetchArtifactsForCiJob(buildId int) (*types.ArtifactsForCiJob, error)
 	//FetchBuildById(appId int, pipelineId int) (WorkflowResponse, error)
-	CancelBuild(workflowId int) (int, error)
+	CancelBuild(workflowId int, forceAbort bool) (int, error)
 
 	GetRunningWorkflowLogs(pipelineId int, workflowId int) (*bufio.Reader, func() error, error)
 	GetHistoricBuildLogs(pipelineId int, workflowId int, ciWorkflow *pipelineConfig.CiWorkflow) (map[string]string, error)
@@ -85,7 +86,7 @@ type CiHandler interface {
 	FetchMaterialInfoByArtifactId(ciArtifactId int, envId int) (*types.GitTriggerInfoResponse, error)
 	WriteToCreateTestSuites(pipelineId int, buildId int, triggeredBy int)
 	UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuild int) error
-	FetchCiStatusForTriggerViewForEnvironment(request resourceGroup.ResourceGroupingRequest) ([]*pipelineConfig.CiWorkflowStatus, error)
+	FetchCiStatusForTriggerViewForEnvironment(request resourceGroup.ResourceGroupingRequest, token string) ([]*pipelineConfig.CiWorkflowStatus, error)
 }
 
 type CiHandlerImpl struct {
@@ -163,6 +164,7 @@ const Running = "Running"
 const Starting = "Starting"
 const POD_DELETED_MESSAGE = "pod deleted"
 const TERMINATE_MESSAGE = "workflow shutdown with strategy: Terminate"
+const ABORT_MESSAGE_AFTER_STARTING_STAGE = "workflow shutdown with strategy: Force Abort"
 
 func (impl *CiHandlerImpl) CheckAndReTriggerCI(workflowStatus v1alpha1.WorkflowStatus) error {
 
@@ -581,15 +583,22 @@ func (impl *CiHandlerImpl) GetBuildHistory(pipelineId int, appId int, offset int
 	return ciWorkLowResponses, nil
 }
 
-func (impl *CiHandlerImpl) CancelBuild(workflowId int) (int, error) {
+func (impl *CiHandlerImpl) CancelBuild(workflowId int, forceAbort bool) (int, error) {
 	workflow, err := impl.ciWorkflowRepository.FindById(workflowId)
 	if err != nil {
 		impl.Logger.Errorw("err", "err", err)
 		return 0, err
 	}
 	if !(string(v1alpha1.NodePending) == workflow.Status || string(v1alpha1.NodeRunning) == workflow.Status) {
-		impl.Logger.Warn("cannot cancel build, build not in progress")
-		return 0, errors.New("cannot cancel build, build not in progress")
+		if forceAbort {
+			return impl.cancelBuildAfterStartWorkflowStage(workflow)
+		} else {
+			return 0, &util.ApiError{Code: "200", HttpStatusCode: 400, UserMessage: "cannot cancel build, build not in progress"}
+		}
+	}
+	//this arises when someone deletes the workflow in resource browser and wants to force abort a ci
+	if workflow.Status == string(v1alpha1.NodeRunning) && forceAbort {
+		return impl.cancelBuildAfterStartWorkflowStage(workflow)
 	}
 	isExt := workflow.Namespace != DefaultCiWorkflowNamespace
 	var env *repository3.Environment
@@ -603,9 +612,11 @@ func (impl *CiHandlerImpl) CancelBuild(workflowId int) (int, error) {
 
 	// Terminate workflow
 	err = impl.workflowService.TerminateWorkflow(workflow.ExecutorType, workflow.Name, workflow.Namespace, restConfig, isExt, env)
-	if err != nil {
+	if err != nil && !strings.Contains(err.Error(), "cannot find workflow") {
 		impl.Logger.Errorw("cannot terminate wf", "err", err)
 		return 0, err
+	} else if err != nil {
+		return 0, &util.ApiError{Code: "200", HttpStatusCode: 400, UserMessage: err.Error()}
 	}
 
 	workflow.Status = executors.WorkflowCancel
@@ -631,6 +642,18 @@ func (impl *CiHandlerImpl) CancelBuild(workflowId int) (int, error) {
 			impl.Logger.Errorw("error in marking image tag unreserved", "err", err)
 			return 0, err
 		}
+	}
+	return workflow.Id, nil
+}
+
+func (impl *CiHandlerImpl) cancelBuildAfterStartWorkflowStage(workflow *pipelineConfig.CiWorkflow) (int, error) {
+	workflow.Status = executors.WorkflowCancel
+	workflow.PodStatus = string(bean.Failed)
+	workflow.Message = ABORT_MESSAGE_AFTER_STARTING_STAGE
+	err := impl.ciWorkflowRepository.UpdateWorkFlow(workflow)
+	if err != nil {
+		impl.Logger.Errorw("error in updating workflow status", "err", err)
+		return 0, err
 	}
 	return workflow.Id, nil
 }
@@ -663,7 +686,7 @@ func (impl *CiHandlerImpl) FetchWorkflowDetails(appId int, pipelineId int, build
 		impl.Logger.Errorw("err", "err", err)
 		return types.WorkflowResponse{}, err
 	}
-	triggeredByUser, err := impl.userService.GetById(workflow.TriggeredBy)
+	triggeredByUserEmailId, err := impl.userService.GetEmailById(workflow.TriggeredBy)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.Logger.Errorw("err", "err", err)
 		return types.WorkflowResponse{}, err
@@ -723,7 +746,7 @@ func (impl *CiHandlerImpl) FetchWorkflowDetails(appId int, pipelineId int, build
 		GitTriggers:        workflow.GitTriggers,
 		CiMaterials:        ciMaterialsArr,
 		TriggeredBy:        workflow.TriggeredBy,
-		TriggeredByEmail:   triggeredByUser.EmailId,
+		TriggeredByEmail:   triggeredByUserEmailId,
 		Artifact:           ciArtifact.Image,
 		ArtifactId:         ciArtifact.Id,
 		IsArtifactUploaded: ciArtifact.IsArtifactUploaded,
@@ -785,13 +808,13 @@ func (impl *CiHandlerImpl) getWorkflowLogs(pipelineId int, ciWorkflow *pipelineC
 	logStream, cleanUp, err := impl.ciLogService.FetchRunningWorkflowLogs(ciLogRequest, clusterConfig, isExt)
 	if logStream == nil || err != nil {
 		if !ciWorkflow.BlobStorageEnabled {
-			return nil, nil, errors.New("logs-not-stored-in-repository")
+			return nil, nil, &util.ApiError{Code: "200", HttpStatusCode: 400, UserMessage: "logs-not-stored-in-repository"}
 		} else if string(v1alpha1.NodeSucceeded) == ciWorkflow.Status || string(v1alpha1.NodeError) == ciWorkflow.Status || string(v1alpha1.NodeFailed) == ciWorkflow.Status || ciWorkflow.Status == executors.WorkflowCancel {
 			impl.Logger.Errorw("err", "err", err)
 			return impl.getLogsFromRepository(pipelineId, ciWorkflow, clusterConfig, isExt)
 		}
 		impl.Logger.Errorw("err", "err", err)
-		return nil, nil, err
+		return nil, nil, &util.ApiError{Code: "200", HttpStatusCode: 400, UserMessage: err.Error()}
 	}
 	logReader := bufio.NewReader(logStream)
 	return logReader, cleanUp, err
@@ -1473,7 +1496,7 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int, envId
 	}
 
 	ciMaterialsArr := make([]pipelineConfig.CiPipelineMaterialResponse, 0)
-	triggeredByUser := &bean2.UserInfo{}
+	var triggeredByUserEmailId string
 	//check workflow data only for non external builds
 	if !ciPipeline.IsExternal {
 		var workflow *pipelineConfig.CiWorkflow
@@ -1491,7 +1514,7 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int, envId
 			}
 		}
 
-		triggeredByUser, err = impl.userService.GetById(workflow.TriggeredBy)
+		triggeredByUserEmailId, err = impl.userService.GetEmailById(workflow.TriggeredBy)
 		if err != nil && !util.IsErrNoRows(err) {
 			impl.Logger.Errorw("err", "err", err)
 			return &types.GitTriggerInfoResponse{}, err
@@ -1547,7 +1570,7 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int, envId
 	gitTriggerInfoResponse := &types.GitTriggerInfoResponse{
 		//GitTriggers:      workflow.GitTriggers,
 		CiMaterials:      ciMaterialsArr,
-		TriggeredByEmail: triggeredByUser.EmailId,
+		TriggeredByEmail: triggeredByUserEmailId,
 		AppId:            ciPipeline.AppId,
 		AppName:          deployDetail.AppName,
 		EnvironmentId:    deployDetail.EnvironmentId,
@@ -1751,7 +1774,7 @@ func (impl *CiHandlerImpl) handlePodDeleted(ciWorkflow *pipelineConfig.CiWorkflo
 		impl.Logger.Errorw("error in reTriggerCi", "ciWorkflowId", refCiWorkflow.Id, "workflowStatus", ciWorkflow.Status, "ciWorkflowMessage", "ciWorkflow.Message", "retryCount", retryCount, "err", err)
 	}
 }
-func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewForEnvironment(request resourceGroup.ResourceGroupingRequest) ([]*pipelineConfig.CiWorkflowStatus, error) {
+func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewForEnvironment(request resourceGroup.ResourceGroupingRequest, token string) ([]*pipelineConfig.CiWorkflowStatus, error) {
 	ciWorkflowStatuses := make([]*pipelineConfig.CiWorkflowStatus, 0)
 	var cdPipelines []*pipelineConfig.Pipeline
 	var err error
@@ -1800,7 +1823,7 @@ func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewForEnvironment(request res
 	for _, object := range objects {
 		appObjectArr = append(appObjectArr, object)
 	}
-	appResults, _ := request.CheckAuthBatch(request.EmailId, appObjectArr, []string{})
+	appResults, _ := request.CheckAuthBatch(token, appObjectArr, []string{})
 	for _, ciPipeline := range ciPipelines {
 		appObject := objects[ciPipeline.Id] //here only app permission have to check
 		if !appResults[appObject] {
