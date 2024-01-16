@@ -12,6 +12,8 @@ var DeploymentManifestWireSet = wire.NewSet(
 	wire.Bind(new(deployedAppMetrics.DeployedAppMetricsService), new(*deployedAppMetrics.DeployedAppMetricsServiceImpl)),
 	deploymentTemplate.NewDeploymentTemplateServiceImpl,
 	wire.Bind(new(deploymentTemplate.DeploymentTemplateService), new(*deploymentTemplate.DeploymentTemplateServiceImpl)),
+	deploymentTemplate.NewDeploymentTemplateValidationServiceImpl,
+	wire.Bind(new(deploymentTemplate.DeploymentTemplateValidationService), new(*deploymentTemplate.DeploymentTemplateValidationServiceImpl)),
 	chartRef.NewChartRefServiceImpl,
 	wire.Bind(new(chartRef.ChartRefService), new(*chartRef.ChartRefServiceImpl)),
 )

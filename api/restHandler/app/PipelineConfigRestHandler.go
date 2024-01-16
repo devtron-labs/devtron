@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	"io"
 	"net/http"
@@ -102,41 +103,43 @@ type PipelineConfigRestHandler interface {
 }
 
 type PipelineConfigRestHandlerImpl struct {
-	pipelineBuilder              pipeline.PipelineBuilder
-	ciPipelineRepository         pipelineConfig.CiPipelineRepository
-	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository
-	ciHandler                    pipeline.CiHandler
-	Logger                       *zap.SugaredLogger
-	chartService                 chart.ChartService
-	propertiesConfigService      pipeline.PropertiesConfigService
-	dbMigrationService           pipeline.DbMigrationService
-	userAuthService              user.UserService
-	validator                    *validator.Validate
-	teamService                  team.TeamService
-	enforcer                     casbin.Enforcer
-	gitSensorClient              gitSensor.Client
-	pipelineRepository           pipelineConfig.PipelineRepository
-	appWorkflowService           appWorkflow.AppWorkflowService
-	enforcerUtil                 rbac.EnforcerUtil
-	envService                   request.EnvironmentService
-	gitRegistryConfig            pipeline.GitRegistryConfig
-	dockerRegistryConfig         pipeline.DockerRegistryConfig
-	cdHandler                    pipeline.CdHandler
-	appCloneService              appClone.AppCloneService
-	materialRepository           pipelineConfig.MaterialRepository
-	policyService                security2.PolicyService
-	scanResultRepository         security.ImageScanResultRepository
-	gitProviderRepo              repository.GitProviderRepository
-	argoUserService              argo.ArgoUserService
-	imageTaggingService          pipeline.ImageTaggingService
-	deploymentTemplateService    generateManifest.DeploymentTemplateService
-	pipelineRestHandlerEnvConfig *PipelineRestHandlerEnvConfig
-	ciArtifactRepository         repository.CiArtifactRepository
-	deployedAppMetricsService    deployedAppMetrics.DeployedAppMetricsService
-	chartRefService              chartRef.ChartRefService
+	pipelineBuilder                     pipeline.PipelineBuilder
+	ciPipelineRepository                pipelineConfig.CiPipelineRepository
+	ciPipelineMaterialRepository        pipelineConfig.CiPipelineMaterialRepository
+	ciHandler                           pipeline.CiHandler
+	Logger                              *zap.SugaredLogger
+	deploymentTemplateValidationService deploymentTemplate.DeploymentTemplateValidationService
+	chartService                        chart.ChartService
+	propertiesConfigService             pipeline.PropertiesConfigService
+	dbMigrationService                  pipeline.DbMigrationService
+	userAuthService                     user.UserService
+	validator                           *validator.Validate
+	teamService                         team.TeamService
+	enforcer                            casbin.Enforcer
+	gitSensorClient                     gitSensor.Client
+	pipelineRepository                  pipelineConfig.PipelineRepository
+	appWorkflowService                  appWorkflow.AppWorkflowService
+	enforcerUtil                        rbac.EnforcerUtil
+	envService                          request.EnvironmentService
+	gitRegistryConfig                   pipeline.GitRegistryConfig
+	dockerRegistryConfig                pipeline.DockerRegistryConfig
+	cdHandler                           pipeline.CdHandler
+	appCloneService                     appClone.AppCloneService
+	materialRepository                  pipelineConfig.MaterialRepository
+	policyService                       security2.PolicyService
+	scanResultRepository                security.ImageScanResultRepository
+	gitProviderRepo                     repository.GitProviderRepository
+	argoUserService                     argo.ArgoUserService
+	imageTaggingService                 pipeline.ImageTaggingService
+	deploymentTemplateService           generateManifest.DeploymentTemplateService
+	pipelineRestHandlerEnvConfig        *PipelineRestHandlerEnvConfig
+	ciArtifactRepository                repository.CiArtifactRepository
+	deployedAppMetricsService           deployedAppMetrics.DeployedAppMetricsService
+	chartRefService                     chartRef.ChartRefService
 }
 
 func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
+	deploymentTemplateValidationService deploymentTemplate.DeploymentTemplateValidationService,
 	chartService chart.ChartService,
 	propertiesConfigService pipeline.PropertiesConfigService,
 	dbMigrationService pipeline.DbMigrationService,
@@ -166,38 +169,39 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		Logger.Errorw("error in parsing PipelineRestHandlerEnvConfig", "err", err)
 	}
 	return &PipelineConfigRestHandlerImpl{
-		pipelineBuilder:              pipelineBuilder,
-		Logger:                       Logger,
-		chartService:                 chartService,
-		propertiesConfigService:      propertiesConfigService,
-		dbMigrationService:           dbMigrationService,
-		userAuthService:              userAuthService,
-		validator:                    validator,
-		teamService:                  teamService,
-		enforcer:                     enforcer,
-		ciHandler:                    ciHandler,
-		gitSensorClient:              gitSensorClient,
-		ciPipelineRepository:         ciPipelineRepository,
-		pipelineRepository:           pipelineRepository,
-		enforcerUtil:                 enforcerUtil,
-		envService:                   envService,
-		gitRegistryConfig:            gitRegistryConfig,
-		dockerRegistryConfig:         dockerRegistryConfig,
-		cdHandler:                    cdHandler,
-		appCloneService:              appCloneService,
-		appWorkflowService:           appWorkflowService,
-		materialRepository:           materialRepository,
-		policyService:                policyService,
-		scanResultRepository:         scanResultRepository,
-		gitProviderRepo:              gitProviderRepo,
-		argoUserService:              argoUserService,
-		ciPipelineMaterialRepository: ciPipelineMaterialRepository,
-		imageTaggingService:          imageTaggingService,
-		deploymentTemplateService:    deploymentTemplateService,
-		pipelineRestHandlerEnvConfig: envConfig,
-		ciArtifactRepository:         ciArtifactRepository,
-		deployedAppMetricsService:    deployedAppMetricsService,
-		chartRefService:              chartRefService,
+		pipelineBuilder:                     pipelineBuilder,
+		Logger:                              Logger,
+		deploymentTemplateValidationService: deploymentTemplateValidationService,
+		chartService:                        chartService,
+		propertiesConfigService:             propertiesConfigService,
+		dbMigrationService:                  dbMigrationService,
+		userAuthService:                     userAuthService,
+		validator:                           validator,
+		teamService:                         teamService,
+		enforcer:                            enforcer,
+		ciHandler:                           ciHandler,
+		gitSensorClient:                     gitSensorClient,
+		ciPipelineRepository:                ciPipelineRepository,
+		pipelineRepository:                  pipelineRepository,
+		enforcerUtil:                        enforcerUtil,
+		envService:                          envService,
+		gitRegistryConfig:                   gitRegistryConfig,
+		dockerRegistryConfig:                dockerRegistryConfig,
+		cdHandler:                           cdHandler,
+		appCloneService:                     appCloneService,
+		appWorkflowService:                  appWorkflowService,
+		materialRepository:                  materialRepository,
+		policyService:                       policyService,
+		scanResultRepository:                scanResultRepository,
+		gitProviderRepo:                     gitProviderRepo,
+		argoUserService:                     argoUserService,
+		ciPipelineMaterialRepository:        ciPipelineMaterialRepository,
+		imageTaggingService:                 imageTaggingService,
+		deploymentTemplateService:           deploymentTemplateService,
+		pipelineRestHandlerEnvConfig:        envConfig,
+		ciArtifactRepository:                ciArtifactRepository,
+		deployedAppMetricsService:           deployedAppMetricsService,
+		chartRefService:                     chartRefService,
 	}
 }
 

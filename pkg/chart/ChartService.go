@@ -26,9 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
-	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/variables"
-	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
 
 	"go.opentelemetry.io/otel"
@@ -49,10 +47,8 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	repository4 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"github.com/juju/errors"
-	"github.com/xeipuuv/gojsonschema"
 	"go.uber.org/zap"
 	"k8s.io/helm/pkg/proto/hapi/chart"
 	"sigs.k8s.io/yaml"
@@ -67,7 +63,6 @@ type ChartService interface {
 	IsReadyToTrigger(appId int, envId int, pipelineId int) (IsReady, error)
 	FindPreviousChartByAppId(appId int) (chartTemplate *TemplateRequest, err error)
 	UpgradeForApp(appId int, chartRefId int, newAppOverride map[string]interface{}, userId int32, ctx context.Context) (bool, error)
-	DeploymentTemplateValidate(ctx context.Context, templatejson interface{}, chartRefId int, scope resourceQualifiers.Scope) (bool, error)
 	CheckIfChartRefUserUploadedByAppId(id int) (bool, error)
 	PatchEnvOverrides(values json.RawMessage, oldChartType string, newChartType string) (json.RawMessage, error)
 	FlaggerCanaryEnabled(values json.RawMessage) (bool, error)
@@ -857,88 +852,6 @@ func (impl ChartServiceImpl) UpgradeForApp(appId int, chartRefId int, newAppOver
 	}
 
 	return true, nil
-}
-
-const memoryPattern = `"1000Mi" or "1Gi"`
-const cpuPattern = `"50m" or "0.05"`
-const cpu = "cpu"
-const memory = "memory"
-
-func (impl ChartServiceImpl) DeploymentTemplateValidate(ctx context.Context, template interface{}, chartRefId int, scope resourceQualifiers.Scope) (bool, error) {
-	_, span := otel.Tracer("orchestrator").Start(ctx, "JsonSchemaExtractFromFile")
-	schemajson, version, err := impl.chartRefService.JsonSchemaExtractFromFile(chartRefId)
-	span.End()
-	if err != nil {
-		impl.logger.Errorw("Json Schema not found err, FindJsonSchema", "err", err)
-		return true, nil
-	}
-	//if err != nil && chartRefId >= 9 {
-	//	impl.logger.Errorw("Json Schema not found err, FindJsonSchema", "err", err)
-	//	return false, err
-	//} else if err != nil {
-	//	impl.logger.Errorw("Json Schema not found err, FindJsonSchema", "err", err)
-	//	return true, nil
-	//}
-
-	templateBytes := template.(json.RawMessage)
-	templatejsonstring, _, err := impl.scopedVariableManager.ExtractVariablesAndResolveTemplate(scope, string(templateBytes), parsers.JsonVariableTemplate, true, false)
-	if err != nil {
-		return false, err
-	}
-	var templatejson interface{}
-	err = json.Unmarshal([]byte(templatejsonstring), &templatejson)
-	if err != nil {
-		fmt.Println("Error:", err)
-		return false, err
-	}
-
-	schemaLoader := gojsonschema.NewGoLoader(schemajson)
-	documentLoader := gojsonschema.NewGoLoader(templatejson)
-	marshalTemplatejson, err := json.Marshal(templatejson)
-	if err != nil {
-		impl.logger.Errorw("json template marshal err, DeploymentTemplateValidate", "err", err)
-		return false, err
-	}
-	_, span = otel.Tracer("orchestrator").Start(ctx, "gojsonschema.Validate")
-	result, err := gojsonschema.Validate(schemaLoader, documentLoader)
-	span.End()
-	if err != nil {
-		impl.logger.Errorw("result validate err, DeploymentTemplateValidate", "err", err)
-		return false, err
-	}
-	if result.Valid() {
-		var dat map[string]interface{}
-		if err := json.Unmarshal(marshalTemplatejson, &dat); err != nil {
-			impl.logger.Errorw("json template unmarshal err, DeploymentTemplateValidate", "err", err)
-			return false, err
-		}
-
-		_, err := util2.CompareLimitsRequests(dat, version)
-		if err != nil {
-			impl.logger.Errorw("LimitRequestCompare err, DeploymentTemplateValidate", "err", err)
-			return false, err
-		}
-		_, err = util2.AutoScale(dat)
-		if err != nil {
-			impl.logger.Errorw("LimitRequestCompare err, DeploymentTemplateValidate", "err", err)
-			return false, err
-		}
-
-		return true, nil
-	} else {
-		var stringerror string
-		for _, err := range result.Errors() {
-			impl.logger.Errorw("result err, DeploymentTemplateValidate", "err", err.Details())
-			if err.Details()["format"] == cpu {
-				stringerror = stringerror + err.Field() + ": Format should be like " + cpuPattern + "\n"
-			} else if err.Details()["format"] == memory {
-				stringerror = stringerror + err.Field() + ": Format should be like " + memoryPattern + "\n"
-			} else {
-				stringerror = stringerror + err.String() + "\n"
-			}
-		}
-		return false, errors.New(stringerror)
-	}
 }
 
 func (impl ChartServiceImpl) CheckIfChartRefUserUploadedByAppId(id int) (bool, error) {
