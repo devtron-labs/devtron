@@ -66,6 +66,7 @@ type ACDAuthConfig struct {
 	ACDPassword                      string `env:"ACD_PASSWORD" `
 	ACDConfigMapName                 string `env:"ACD_CM" envDefault:"argocd-cm"`
 	ACDConfigMapNamespace            string `env:"ACD_NAMESPACE" envDefault:"devtroncd"`
+	GitopsSecretName                 string `env:"GITOPS_SECRET_NAME" envDefault:"devtron-gitops-secret"`
 	ResourceListForReplicas          string `env:"RESOURCE_LIST_FOR_REPLICAS" envDefault:"Deployment,Rollout,StatefulSet,ReplicaSet"`
 	ResourceListForReplicasBatchSize int    `env:"RESOURCE_LIST_FOR_REPLICAS_BATCH_SIZE" envDefault:"5"`
 }
