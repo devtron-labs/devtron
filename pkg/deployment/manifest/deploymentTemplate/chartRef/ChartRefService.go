@@ -2,6 +2,7 @@ package chartRef
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/constants"
@@ -35,6 +36,9 @@ type ChartRefService interface {
 	FetchCustomChartsInfo() ([]*bean.ChartDto, error)
 	ValidateCustomChartUploadedFileFormat(fileName string) error
 
+	GetAppOverrideForDefaultTemplate(chartRefId int) (map[string]interface{}, string, error)
+
+	JsonSchemaExtractFromFile(chartRefId int) (map[string]interface{}, string, error)
 	GetSchemaAndReadmeForTemplateByChartRefId(chartRefId int) ([]byte, []byte, error)
 
 	ChartRefIdsCompatible(oldChartRefId int, newChartRefId int) (bool, string, string)
@@ -49,11 +53,13 @@ type ChartRefServiceImpl struct {
 	logger               *zap.SugaredLogger
 	chartRefRepository   chartRepoRepository.ChartRefRepository
 	chartTemplateService util.ChartTemplateService
+	mergeUtil            util.MergeUtil
 }
 
 func NewChartRefServiceImpl(logger *zap.SugaredLogger,
 	chartRefRepository chartRepoRepository.ChartRefRepository,
-	chartTemplateService util.ChartTemplateService) *ChartRefServiceImpl {
+	chartTemplateService util.ChartTemplateService,
+	mergeUtil util.MergeUtil) *ChartRefServiceImpl {
 	// cache devtron reference charts list
 	devtronChartList, _ := chartRefRepository.FetchAllChartInfoByUploadFlag(false)
 	setReservedChartList(devtronChartList)
@@ -61,6 +67,7 @@ func NewChartRefServiceImpl(logger *zap.SugaredLogger,
 		logger:               logger,
 		chartRefRepository:   chartRefRepository,
 		chartTemplateService: chartTemplateService,
+		mergeUtil:            mergeUtil,
 	}
 }
 
@@ -327,6 +334,97 @@ func (impl *ChartRefServiceImpl) CheckChartExists(chartRefId int) error {
 		return err
 	}
 	return nil
+}
+func (impl *ChartRefServiceImpl) GetAppOverrideForDefaultTemplate(chartRefId int) (map[string]interface{}, string, error) {
+	err := impl.CheckChartExists(chartRefId)
+	if err != nil {
+		impl.logger.Errorw("error in getting missing chart for chartRefId", "err", err, "chartRefId")
+		return nil, "", err
+	}
+
+	refChart, _, err, _, _ := impl.GetRefChart(chartRefId)
+	if err != nil {
+		return nil, "", err
+	}
+	var appOverrideByte, envOverrideByte []byte
+	appOverrideByte, err = ioutil.ReadFile(filepath.Clean(filepath.Join(refChart, "app-values.yaml")))
+	if err != nil {
+		impl.logger.Infow("App values yaml file is missing")
+	} else {
+		appOverrideByte, err = yaml.YAMLToJSON(appOverrideByte)
+		if err != nil {
+			return nil, "", err
+		}
+	}
+
+	envOverrideByte, err = ioutil.ReadFile(filepath.Clean(filepath.Join(refChart, "env-values.yaml")))
+	if err != nil {
+		impl.logger.Infow("Env values yaml file is missing")
+	} else {
+		envOverrideByte, err = yaml.YAMLToJSON(envOverrideByte)
+		if err != nil {
+			return nil, "", err
+		}
+	}
+
+	messages := make(map[string]interface{})
+	var merged []byte
+	if appOverrideByte == nil && envOverrideByte == nil {
+		return messages, "", nil
+	} else if appOverrideByte == nil || envOverrideByte == nil {
+		if appOverrideByte == nil {
+			merged = envOverrideByte
+		} else {
+			merged = appOverrideByte
+		}
+	} else {
+		merged, err = impl.mergeUtil.JsonPatch(appOverrideByte, []byte(envOverrideByte))
+		if err != nil {
+			return nil, "", err
+		}
+	}
+
+	appOverride := json.RawMessage(merged)
+	messages["defaultAppOverride"] = appOverride
+	return messages, string(merged), nil
+}
+
+func (impl *ChartRefServiceImpl) JsonSchemaExtractFromFile(chartRefId int) (map[string]interface{}, string, error) {
+	err := impl.CheckChartExists(chartRefId)
+	if err != nil {
+		impl.logger.Errorw("refChartDir Not Found", "err", err)
+		return nil, "", err
+	}
+
+	refChartDir, _, err, version, _ := impl.GetRefChart(chartRefId)
+	if err != nil {
+		impl.logger.Errorw("refChartDir Not Found err, JsonSchemaExtractFromFile", err)
+		return nil, "", err
+	}
+	fileStatus := filepath.Join(refChartDir, "schema.json")
+	if _, err := os.Stat(fileStatus); os.IsNotExist(err) {
+		impl.logger.Errorw("Schema File Not Found err, JsonSchemaExtractFromFile", err)
+		return nil, "", err
+	} else {
+		jsonFile, err := os.Open(fileStatus)
+		if err != nil {
+			impl.logger.Errorw("jsonfile open err, JsonSchemaExtractFromFile", "err", err)
+			return nil, "", err
+		}
+		byteValueJsonFile, err := ioutil.ReadAll(jsonFile)
+		if err != nil {
+			impl.logger.Errorw("byteValueJsonFile read err, JsonSchemaExtractFromFile", "err", err)
+			return nil, "", err
+		}
+
+		var schemajson map[string]interface{}
+		err = json.Unmarshal([]byte(byteValueJsonFile), &schemajson)
+		if err != nil {
+			impl.logger.Errorw("Unmarshal err in byteValueJsonFile, DeploymentTemplateValidate", "err", err)
+			return nil, "", err
+		}
+		return schemajson, version, nil
+	}
 }
 
 func (impl *ChartRefServiceImpl) ExtractChartIfMissing(chartData []byte, refChartDir string, location string) (*bean.ChartDataInfo, error) {
