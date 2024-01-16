@@ -32,7 +32,6 @@ paths:
                   enum:
                     - active
                     - inactive
-                    - timeToLive
                 timeToLive:
                   type: string
                   format: date-time
