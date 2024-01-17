@@ -362,7 +362,17 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelineById(pipelineId int) (cdPi
 		customTagStage = repository5.PIPELINE_STAGE_TYPE_POST_CD
 		customTagEnabled = customTagPostCD.Enabled
 	}
-
+	isImageDigestPolicyConfiguredForPipeline, err := impl.imageDigestPolicyService.IsPolicyConfiguredForPipeline(dbPipeline.Id)
+	if err != nil {
+		impl.logger.Errorw("error in checking if isImageDigestPolicyConfiguredForPipeline", "err", err)
+		return nil, err
+	}
+	IsDigestEnforcedForEnv, err :=
+		impl.imageDigestPolicyService.IsPolicyConfiguredAtGlobalLevel(environment.Id, environment.ClusterId)
+	if err != nil {
+		impl.logger.Errorw("error in checking if image digest policy is configured or not", "err", err)
+		return nil, err
+	}
 	cdPipeline = &bean.CDPipelineConfigObject{
 		Id:                            dbPipeline.Id,
 		Name:                          dbPipeline.Name,
@@ -392,6 +402,8 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelineById(pipelineId int) (cdPi
 		CustomTagStage:                &customTagStage,
 		EnableCustomTag:               customTagEnabled,
 		AppId:                         dbPipeline.AppId,
+		IsDigestEnforcedForPipeline:   isImageDigestPolicyConfiguredForPipeline,
+		IsDigestEnforcedForEnv:        IsDigestEnforcedForEnv,
 	}
 	var preDeployStage *bean3.PipelineStageDto
 	var postDeployStage *bean3.PipelineStageDto
