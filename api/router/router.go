@@ -22,6 +22,7 @@ import (
 	pubsub2 "github.com/devtron-labs/common-lib-private/pubsub-lib"
 	"github.com/devtron-labs/devtron/api/apiToken"
 	"github.com/devtron-labs/devtron/api/appStore"
+	"github.com/devtron-labs/devtron/api/appStore/chartGroup"
 	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
 	"github.com/devtron-labs/devtron/api/auth/authorisation/globalConfig"
 	"github.com/devtron-labs/devtron/api/auth/sso"
@@ -88,7 +89,7 @@ type MuxRouter struct {
 	ChartRepositoryRouter              chartRepo.ChartRepositoryRouter
 	ReleaseMetricsRouter               ReleaseMetricsRouter
 	deploymentGroupRouter              DeploymentGroupRouter
-	chartGroupRouter                   ChartGroupRouter
+	chartGroupRouter                   chartGroup.ChartGroupRouter
 	batchOperationRouter               BatchOperationRouter
 	imageScanRouter                    ImageScanRouter
 	policyRouter                       PolicyRouter
@@ -151,7 +152,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 	ciEventHandler pubsub.CiEventHandler, pubsubClient *pubsub2.PubSubClientServiceImpl, UserRouter user.UserRouter,
 	ChartRefRouter ChartRefRouter, ConfigMapRouter ConfigMapRouter, AppStoreRouter appStore.AppStoreRouter, chartRepositoryRouter chartRepo.ChartRepositoryRouter,
 	ReleaseMetricsRouter ReleaseMetricsRouter, deploymentGroupRouter DeploymentGroupRouter, batchOperationRouter BatchOperationRouter,
-	chartGroupRouter ChartGroupRouter, imageScanRouter ImageScanRouter,
+	chartGroupRouter chartGroup.ChartGroupRouter, imageScanRouter ImageScanRouter,
 	policyRouter PolicyRouter, gitOpsConfigRouter GitOpsConfigRouter, dashboardRouter dashboard.DashboardRouter, attributesRouter AttributesRouter, userAttributesRouter UserAttributesRouter,
 	commonRouter CommonRouter, grafanaRouter GrafanaRouter, ssoLoginRouter sso.SsoLoginRouter, telemetryRouter TelemetryRouter, telemetryWatcher telemetry.TelemetryEventClient, bulkUpdateRouter BulkUpdateRouter, webhookListenerRouter WebhookListenerRouter, appRouter AppRouter,
 	coreAppRouter CoreAppRouter, helmAppRouter client.HelmAppRouter, k8sApplicationRouter application.K8sApplicationRouter,
@@ -349,7 +350,7 @@ func (r MuxRouter) Init() {
 	r.batchOperationRouter.initBatchOperationRouter(rootRouter)
 
 	chartGroupRouter := r.Router.PathPrefix("/orchestrator/chart-group").Subrouter()
-	r.chartGroupRouter.initChartGroupRouter(chartGroupRouter)
+	r.chartGroupRouter.InitChartGroupRouter(chartGroupRouter)
 
 	imageScanRouter := r.Router.PathPrefix("/orchestrator/security/scan").Subrouter()
 	r.imageScanRouter.InitImageScanRouter(imageScanRouter)
