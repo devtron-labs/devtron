@@ -1,5 +1,5 @@
 -- Plugin metadata
-INSERT INTO "plugin_metadata" ("id", "name", "description","type","icon","deleted", "created_on", "created_by", "updated_on", "updated_by") VALUES (nextval('id_seq_plugin_metadata'), 'Container Image Exporter','Create Tarball of you Docker images','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/vClutser.png','f', 'now()', 1, 'now()', 1);
+INSERT INTO "plugin_metadata" ("id", "name", "description","type","icon","deleted", "created_on", "created_by", "updated_on", "updated_by") VALUES (nextval('id_seq_plugin_metadata'), 'Container Image Exporter','Create Tarball of your Docker images','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/vClutser.png','f', 'now()', 1, 'now()', 1);
 
 -- Plugin Stage Mapping
 
