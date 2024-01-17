@@ -20,8 +20,11 @@ export platform=$(echo $CI_CD_EVENT | jq --raw-output .commonWorkflowRequest.ciB
 
 if [[ $platform == "linux/arm64,linux/amd64" ]] ; then
     echo "platform = $platform"
-    echo "######### Multi Platform Selected #########"
-    echo "Existing from Copacetic Plugin Stage as Multi Architecture Builds not supported"
+    echo "------------------------------------------------------------------------------------------------------------------------"
+    echo "######### Patching Multi Architecture Image not supported #########"
+    echo "------------------------------------------------------------------------------------------------------------------------"
+    echo "error: can't use copacetic plugin for muti-architecture builds"
+    exit 1;
 else
     curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.46.1
 
