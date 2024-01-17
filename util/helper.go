@@ -249,10 +249,10 @@ func TriggerCDMetrics(wfr CDMetrics, exposeCDMetrics bool) {
 	}
 }
 
-func TriggerCIMetrics(Metrics CIMetrics, exposeCIMetrics bool, PipelineName string, AppName string) {
+func TriggerCIMetrics(Metrics CIMetrics, exposeCIMetrics bool, PipelineName string, AppName string, pipelineId int) {
 	if exposeCIMetrics {
 		middleware.CacheDownloadDuration.WithLabelValues(PipelineName, AppName).Observe(Metrics.CacheDownDuration)
-		middleware.CiDuration.WithLabelValues(PipelineName, AppName).Observe(Metrics.TotalDuration)
+		middleware.CiDuration.WithLabelValues(PipelineName, AppName, strconv.Itoa(pipelineId)).Observe(Metrics.TotalDuration)
 		if Metrics.CacheUpDuration != 0 {
 			middleware.CacheUploadDuration.WithLabelValues(PipelineName, AppName).Observe(Metrics.CacheUpDuration)
 		}
@@ -262,7 +262,7 @@ func TriggerCIMetrics(Metrics CIMetrics, exposeCIMetrics bool, PipelineName stri
 		if Metrics.PreCiDuration != 0 {
 			middleware.PreCiDuration.WithLabelValues(PipelineName, AppName).Observe(Metrics.PreCiDuration)
 		}
-		middleware.BuildDuration.WithLabelValues(PipelineName, AppName).Observe(Metrics.BuildDuration)
+		middleware.BuildDuration.WithLabelValues(PipelineName, AppName, strconv.Itoa(pipelineId)).Observe(Metrics.BuildDuration)
 	}
 }
 

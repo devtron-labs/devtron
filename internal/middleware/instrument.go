@@ -52,7 +52,7 @@ var CiDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 	Name:    "ci_duration_seconds",
 	Help:    "Duration of CI process",
 	Buckets: prometheus.LinearBuckets(20, 20, 5),
-}, []string{"pipelineName", "appName"})
+}, []string{"pipelineName", "appName", "pipelineId"})
 
 var CacheDownloadDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 	Name:    "cache_download_duration_seconds",
@@ -70,7 +70,7 @@ var BuildDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 	Name:    "build_duration_seconds",
 	Help:    "Duration of Build process",
 	Buckets: prometheus.LinearBuckets(20, 20, 5),
-}, []string{"pipelineName", "appName"})
+}, []string{"pipelineName", "appName", "pipelineId"})
 
 var PostCiDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 	Name:    "post_ci_duration_seconds",
