@@ -202,12 +202,12 @@ components:
     User:
       type: object
       required:
-        - email_id
+        - emailId
       properties:
         id:
           type: integer
           description: Unique id of user
-        email_id:
+        emailId:
           type: string
           description: Unique valid email-id of user, comma separated emails ids for multiple users
         groups:
@@ -248,12 +248,12 @@ components:
     AllUsers:
       type: object
       required:
-        - email_id
+        - emailId
       properties:
         id:
           type: integer
           description: Unique id of user
-        email_id:
+        emailId:
           type: string
           description: Unique valid email-id of user, comma separated emails ids for multiple users
         groups:

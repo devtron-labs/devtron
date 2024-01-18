@@ -30,7 +30,7 @@ type UserRole struct {
 
 type UserInfo struct {
 	Id            int32        `json:"id" validate:"number"`
-	EmailId       string       `json:"email_id" validate:"required"`
+	EmailId       string       `json:"emailId" validate:"required"`
 	Roles         []string     `json:"roles,omitempty"`
 	AccessToken   string       `json:"access_token,omitempty"`
 	UserType      string       `json:"-"`
