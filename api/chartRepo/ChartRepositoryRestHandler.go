@@ -20,20 +20,21 @@ package chartRepo
 import (
 	"encoding/json"
 	"errors"
-	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/pkg/attributes"
-	"github.com/devtron-labs/devtron/pkg/chartRepo"
-	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
-	delete2 "github.com/devtron-labs/devtron/pkg/delete"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
-	"github.com/gorilla/mux"
-	"go.uber.org/zap"
-	"gopkg.in/go-playground/validator.v9"
 	"mime/multipart"
 	"net/http"
 	"strconv"
+
+	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/attributes"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
+	"github.com/devtron-labs/devtron/pkg/chartRepo"
+	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
+	delete2 "github.com/devtron-labs/devtron/pkg/delete"
+	"github.com/gorilla/mux"
+	"go.uber.org/zap"
+	"gopkg.in/go-playground/validator.v9"
 )
 
 const CHART_REPO_DELETE_SUCCESS_RESP = "Chart repo deleted successfully."
@@ -286,7 +287,11 @@ func (handler *ChartRepositoryRestHandlerImpl) TriggerChartSyncManual(w http.Res
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	err2 := handler.chartRepositoryService.TriggerChartSyncManual()
+	chartProviderConfig := &chartRepo.ChartProviderConfig{
+		ChartProviderId: "*",
+		IsOCIRegistry:   true,
+	}
+	err2 := handler.chartRepositoryService.TriggerChartSyncManual(chartProviderConfig)
 	if err2 != nil {
 		common.WriteJsonResp(w, err2, nil, http.StatusInternalServerError)
 	} else {

@@ -19,16 +19,17 @@ package restHandler
 
 import (
 	"encoding/json"
+	"net/http"
+	"strconv"
+
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
-	"net/http"
-	"strconv"
-	"strings"
 )
 
 type MigrateDbRestHandler interface {
@@ -73,7 +74,7 @@ func (impl MigrateDbRestHandlerImpl) SaveDbConfig(w http.ResponseWriter, r *http
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var bean pipeline.DbConfigBean
+	var bean types.DbConfigBean
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, SaveDbConfig", "err", err, "payload", bean)
@@ -91,7 +92,7 @@ func (impl MigrateDbRestHandlerImpl) SaveDbConfig(w http.ResponseWriter, r *http
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceMigrate, casbin.ActionCreate, strings.ToLower(bean.Name)); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceMigrate, casbin.ActionCreate, bean.Name); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -116,9 +117,9 @@ func (impl MigrateDbRestHandlerImpl) FetchAllDbConfig(w http.ResponseWriter, r *
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	var result []pipeline.DbConfigBean
+	var result []types.DbConfigBean
 	for _, item := range res {
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceMigrate, casbin.ActionGet, strings.ToLower(item.Name)); ok {
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceMigrate, casbin.ActionGet, item.Name); ok {
 			result = append(result, *item)
 		}
 	}
@@ -144,7 +145,7 @@ func (impl MigrateDbRestHandlerImpl) FetchOneDbConfig(w http.ResponseWriter, r *
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceMigrate, casbin.ActionGet, strings.ToLower(res.Name)); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceMigrate, casbin.ActionGet, res.Name); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -160,7 +161,7 @@ func (impl MigrateDbRestHandlerImpl) UpdateDbConfig(w http.ResponseWriter, r *ht
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var bean pipeline.DbConfigBean
+	var bean types.DbConfigBean
 
 	err = decoder.Decode(&bean)
 	if err != nil {
@@ -179,7 +180,7 @@ func (impl MigrateDbRestHandlerImpl) UpdateDbConfig(w http.ResponseWriter, r *ht
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceMigrate, casbin.ActionUpdate, strings.ToLower(bean.Name)); !ok {
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceMigrate, casbin.ActionUpdate, bean.Name); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -204,9 +205,9 @@ func (impl MigrateDbRestHandlerImpl) FetchDbConfigForAutoComp(w http.ResponseWri
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	var result []pipeline.DbConfigBean
+	var result []types.DbConfigBean
 	for _, item := range res {
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceMigrate, casbin.ActionGet, strings.ToLower(item.Name)); ok {
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceMigrate, casbin.ActionGet, item.Name); ok {
 			result = append(result, *item)
 		}
 	}

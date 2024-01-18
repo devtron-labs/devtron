@@ -20,26 +20,16 @@ package pipeline
 import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"go.uber.org/zap"
 	"time"
 )
 
-type DbMigrationConfigBean struct {
-	Id            int    `json:"id"`
-	DbConfigId    int    `json:"dbConfigId"`
-	PipelineId    int    `json:"pipelineId"`
-	GitMaterialId int    `json:"gitMaterialId"`
-	ScriptSource  string `json:"scriptSource"` //location of file in git. relative to git root
-	MigrationTool string `json:"migrationTool"`
-	Active        bool   `json:"active"`
-	UserId        int32  `json:"-"`
-}
-
 type DbMigrationService interface {
-	Save(bean *DbMigrationConfigBean) (*DbMigrationConfigBean, error)
-	Update(bean *DbMigrationConfigBean) (*DbMigrationConfigBean, error)
-	GetByPipelineId(pipelineId int) (*DbMigrationConfigBean, error)
+	Save(bean *types.DbMigrationConfigBean) (*types.DbMigrationConfigBean, error)
+	Update(bean *types.DbMigrationConfigBean) (*types.DbMigrationConfigBean, error)
+	GetByPipelineId(pipelineId int) (*types.DbMigrationConfigBean, error)
 }
 type DbMigrationServiceImpl struct {
 	logger                      *zap.SugaredLogger
@@ -54,7 +44,7 @@ func NewDbMogrationService(logger *zap.SugaredLogger,
 	}
 }
 
-func (impl DbMigrationServiceImpl) Save(bean *DbMigrationConfigBean) (*DbMigrationConfigBean, error) {
+func (impl DbMigrationServiceImpl) Save(bean *types.DbMigrationConfigBean) (*types.DbMigrationConfigBean, error) {
 	if valid := pipelineConfig.MigrationTool(bean.MigrationTool).IsValid(); !valid {
 		return nil, fmt.Errorf("unsupported migration tool %s", bean.MigrationTool)
 	}
@@ -74,7 +64,7 @@ func (impl DbMigrationServiceImpl) Save(bean *DbMigrationConfigBean) (*DbMigrati
 	return bean, nil
 }
 
-func (impl DbMigrationServiceImpl) Update(bean *DbMigrationConfigBean) (*DbMigrationConfigBean, error) {
+func (impl DbMigrationServiceImpl) Update(bean *types.DbMigrationConfigBean) (*types.DbMigrationConfigBean, error) {
 	if bean.MigrationTool != "" {
 		if valid := pipelineConfig.MigrationTool(bean.MigrationTool).IsValid(); !valid {
 			return nil, fmt.Errorf("unsupported migration tool %s", bean.MigrationTool)
@@ -95,13 +85,13 @@ func (impl DbMigrationServiceImpl) Update(bean *DbMigrationConfigBean) (*DbMigra
 	return bean, nil
 }
 
-func (impl DbMigrationServiceImpl) GetByPipelineId(pipelineId int) (*DbMigrationConfigBean, error) {
+func (impl DbMigrationServiceImpl) GetByPipelineId(pipelineId int) (*types.DbMigrationConfigBean, error) {
 	cfg, err := impl.dbMigrationConfigRepository.FindByPipelineId(pipelineId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching pipeline db migration config", "id", pipelineId, "err", err)
 		return nil, err
 	}
-	bean := &DbMigrationConfigBean{
+	bean := &types.DbMigrationConfigBean{
 		MigrationTool: string(cfg.MigrationTool),
 		GitMaterialId: cfg.GitMaterialId,
 		PipelineId:    cfg.PipelineId,
@@ -114,7 +104,7 @@ func (impl DbMigrationServiceImpl) GetByPipelineId(pipelineId int) (*DbMigration
 
 }
 
-func (impl DbMigrationServiceImpl) beanToModelAdaptor(bean *DbMigrationConfigBean) *pipelineConfig.DbMigrationConfig {
+func (impl DbMigrationServiceImpl) beanToModelAdaptor(bean *types.DbMigrationConfigBean) *pipelineConfig.DbMigrationConfig {
 
 	migrationConfig := &pipelineConfig.DbMigrationConfig{
 		Id:            bean.Id,

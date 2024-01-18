@@ -21,13 +21,19 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
 	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/caarlos0/env/v6"
+	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
+	"github.com/devtron-labs/common-lib/utils/k8s/health"
+	k8sObjectUtils "github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
-	bean2 "github.com/devtron-labs/devtron/api/restHandler/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/cron"
@@ -40,15 +46,16 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStatus"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	service1 "github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
+	"github.com/devtron-labs/devtron/pkg/generateManifest"
 	"github.com/devtron-labs/devtron/pkg/genericNotes"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	application3 "github.com/devtron-labs/devtron/pkg/k8s/application"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/team"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -56,10 +63,6 @@ import (
 	"github.com/gorilla/mux"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
-	"net/http"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type AppListingRestHandler interface {
@@ -110,6 +113,7 @@ type AppListingRestHandlerImpl struct {
 	genericNoteService                genericNotes.GenericNoteService
 	cfg                               *bean.Config
 	k8sApplicationService             application3.K8sApplicationService
+	deploymentTemplateService         generateManifest.DeploymentTemplateService
 }
 
 type AppStatus struct {
@@ -140,7 +144,7 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 	appStatusService appStatus.AppStatusService, installedAppRepository repository.InstalledAppRepository,
 	environmentClusterMappingsService cluster.EnvironmentService,
 	genericNoteService genericNotes.GenericNoteService,
-	k8sApplicationService application3.K8sApplicationService,
+	k8sApplicationService application3.K8sApplicationService, deploymentTemplateService generateManifest.DeploymentTemplateService,
 ) *AppListingRestHandlerImpl {
 	cfg := &bean.Config{}
 	err := env.Parse(cfg)
@@ -173,6 +177,7 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 		genericNoteService:                genericNoteService,
 		cfg:                               cfg,
 		k8sApplicationService:             k8sApplicationService,
+		deploymentTemplateService:         deploymentTemplateService,
 	}
 	return appListingHandler
 }
@@ -208,13 +213,34 @@ func (handler AppListingRestHandlerImpl) FetchJobs(w http.ResponseWriter, r *htt
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	isSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
-	if !isSuperAdmin || err != nil {
-		if err != nil {
-			handler.logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
+	token := r.Header.Get("token")
+	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
+	var validAppIds []int
+	//for non super admin users
+	if !isSuperAdmin {
+		rbacObjectsForAllAppsMap := handler.enforcerUtil.GetRbacObjectsForAllApps(helper.Job)
+		rbacObjectToAppIdMap := make(map[string]int)
+		rbacObjects := make([]string, len(rbacObjectsForAllAppsMap))
+		itr := 0
+		for appId, object := range rbacObjectsForAllAppsMap {
+			rbacObjects[itr] = object
+			rbacObjectToAppIdMap[object] = appId
+			itr++
 		}
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
-		return
+
+		result := handler.enforcer.EnforceInBatch(token, casbin.ResourceJobs, casbin.ActionGet, rbacObjects)
+		//O(n) loop, n = len(rbacObjectsForAllAppsMap)
+		for object, ok := range result {
+			if ok {
+				validAppIds = append(validAppIds, rbacObjectToAppIdMap[object])
+			}
+		}
+
+		if len(validAppIds) == 0 {
+			handler.logger.Infow("user doesn't have access to any app", "userId", userId)
+			common.WriteJsonResp(w, err, bean.JobContainerResponse{}, http.StatusOK)
+			return
+		}
 	}
 	var fetchJobListingRequest app.FetchAppListingRequest
 	decoder := json.NewDecoder(r.Body)
@@ -224,6 +250,10 @@ func (handler AppListingRestHandlerImpl) FetchJobs(w http.ResponseWriter, r *htt
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+
+	// fetching only those jobs whose access user has by setting valid app Ids.
+	fetchJobListingRequest.AppIds = validAppIds
+
 	jobs, err := handler.appListingService.FetchJobs(fetchJobListingRequest)
 	if err != nil {
 		handler.logger.Errorw("service err, FetchJobs", "err", err, "payload", fetchJobListingRequest)
@@ -255,14 +285,6 @@ func (handler AppListingRestHandlerImpl) FetchJobOverviewCiPipelines(w http.Resp
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	isSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
-	if !isSuperAdmin || err != nil {
-		if err != nil {
-			handler.logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
-		}
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
-		return
-	}
 	vars := mux.Vars(r)
 	jobId, err := strconv.Atoi(vars["jobId"])
 	if err != nil {
@@ -270,6 +292,14 @@ func (handler AppListingRestHandlerImpl) FetchJobOverviewCiPipelines(w http.Resp
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	//RBAC
+	token := r.Header.Get("token")
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(jobId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionGet, object); !ok {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	//RBAC ENDS
 	job, err := handler.pipeline.GetApp(jobId)
 	if err != nil || job == nil || job.AppType != helper.Job {
 		handler.logger.Errorw("Job with the given Id does not exist", "err", err, "jobId", jobId)
@@ -313,13 +343,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 		return
 	}
 	newCtx, span = otel.Tracer("userService").Start(newCtx, "GetById")
-	user, err := handler.userService.GetById(userId)
 	span.End()
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	userEmailId := strings.ToLower(user.EmailId)
 	var fetchAppListingRequest app.FetchAppListingRequest
 	decoder := json.NewDecoder(r.Body)
 	err = decoder.Decode(&fetchAppListingRequest)
@@ -362,13 +386,8 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 	t1 = t2
 
 	newCtx, span = otel.Tracer("userService").Start(newCtx, "IsSuperAdmin")
-	isActionUserSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
+	isActionUserSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
 	span.End()
-	if err != nil {
-		handler.logger.Errorw("request err, FetchAppsByEnvironment", "err", err, "userId", userId)
-		common.WriteJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
-		return
-	}
 	appEnvContainers := make([]*bean.AppEnvironmentContainer, 0)
 	if isActionUserSuperAdmin {
 		appEnvContainers = append(appEnvContainers, envContainers...)
@@ -389,7 +408,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 
 		newCtx, span = otel.Tracer("enforcer").Start(newCtx, "EnforceByEmailInBatchForTeams")
 		start = time.Now()
-		resultMap := handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceTeam, casbin.ActionGet, objectArray)
+		resultMap := handler.enforcer.EnforceInBatch(token, casbin.ResourceTeam, casbin.ActionGet, objectArray)
 		middleware.AppListingDuration.WithLabelValues("enforceByEmailInBatchResourceTeam", "devtron").Observe(time.Since(start).Seconds())
 		span.End()
 		for teamId, teamName := range uniqueTeams {
@@ -420,7 +439,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 
 		newCtx, span = otel.Tracer("enforcer").Start(newCtx, "EnforceByEmailInBatchForApps")
 		start = time.Now()
-		resultMap = handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceApplications, casbin.ActionGet, objectArray)
+		resultMap = handler.enforcer.EnforceInBatch(token, casbin.ResourceApplications, casbin.ActionGet, objectArray)
 		middleware.AppListingDuration.WithLabelValues("enforceByEmailInBatchResourceApplication", "devtron").Observe(time.Since(start).Seconds())
 		span.End()
 		for _, filteredAppEnvContainer := range filteredAppEnvContainers {
@@ -504,13 +523,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironmentV1(w http.Respons
 		return
 	}
 	newCtx, span = otel.Tracer("userService").Start(newCtx, "GetById")
-	user, err := handler.userService.GetById(userId)
 	span.End()
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	userEmailId := strings.ToLower(user.EmailId)
 	var fetchAppListingRequest app.FetchAppListingRequest
 	decoder := json.NewDecoder(r.Body)
 	err = decoder.Decode(&fetchAppListingRequest)
@@ -553,13 +566,8 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironmentV1(w http.Respons
 	t1 = t2
 
 	newCtx, span = otel.Tracer("userService").Start(newCtx, "IsSuperAdmin")
-	isActionUserSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
+	isActionUserSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
 	span.End()
-	if err != nil {
-		handler.logger.Errorw("request err, FetchAppsByEnvironment", "err", err, "userId", userId)
-		common.WriteJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
-		return
-	}
 	appEnvContainers := make([]*bean.AppEnvironmentContainer, 0)
 	if isActionUserSuperAdmin {
 		appEnvContainers = append(appEnvContainers, envContainers...)
@@ -580,7 +588,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironmentV1(w http.Respons
 
 		newCtx, span = otel.Tracer("enforcer").Start(newCtx, "EnforceByEmailInBatchForTeams")
 		start = time.Now()
-		resultMap := handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceTeam, casbin.ActionGet, objectArray)
+		resultMap := handler.enforcer.EnforceInBatch(token, casbin.ResourceTeam, casbin.ActionGet, objectArray)
 		middleware.AppListingDuration.WithLabelValues("enforceByEmailInBatchResourceTeam", "devtron").Observe(time.Since(start).Seconds())
 		span.End()
 		for teamId, teamName := range uniqueTeams {
@@ -611,7 +619,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironmentV1(w http.Respons
 
 		newCtx, span = otel.Tracer("enforcer").Start(newCtx, "EnforceByEmailInBatchForApps")
 		start = time.Now()
-		resultMap = handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceApplications, casbin.ActionGet, objectArray)
+		resultMap = handler.enforcer.EnforceInBatch(token, casbin.ResourceApplications, casbin.ActionGet, objectArray)
 		middleware.AppListingDuration.WithLabelValues("enforceByEmailInBatchResourceApplication", "devtron").Observe(time.Since(start).Seconds())
 		span.End()
 		for _, filteredAppEnvContainer := range filteredAppEnvContainers {
@@ -695,26 +703,14 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironmentV2(w http.Respons
 		return
 	}
 	newCtx, span = otel.Tracer("userService").Start(newCtx, "GetById")
-	user, err := handler.userService.GetById(userId)
 	span.End()
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
 	newCtx, span = otel.Tracer("userService").Start(newCtx, "IsSuperAdmin")
-	isActionUserSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
+	isActionUserSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
 	span.End()
-	if err != nil {
-		handler.logger.Errorw("request err, FetchAppsByEnvironment", "err", err, "userId", userId)
-		common.WriteJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
-		return
-	}
-
 	validAppIds := make([]int, 0)
 	//for non super admin users
 	if !isActionUserSuperAdmin {
-		userEmailId := strings.ToLower(user.EmailId)
-		rbacObjectsForAllAppsMap := handler.enforcerUtil.GetRbacObjectsForAllApps()
+		rbacObjectsForAllAppsMap := handler.enforcerUtil.GetRbacObjectsForAllApps(helper.CustomApp)
 		rbacObjectToAppIdMap := make(map[string]int)
 		rbacObjects := make([]string, len(rbacObjectsForAllAppsMap))
 		itr := 0
@@ -724,7 +720,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironmentV2(w http.Respons
 			itr++
 		}
 
-		result := handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceApplications, casbin.ActionGet, rbacObjects)
+		result := handler.enforcer.EnforceInBatch(token, casbin.ResourceApplications, casbin.ActionGet, rbacObjects)
 		//O(n) loop, n = len(rbacObjectsForAllAppsMap)
 		for object, ok := range result {
 			if ok {
@@ -826,11 +822,7 @@ func (handler AppListingRestHandlerImpl) FetchOverviewAppsByEnvironment(w http.R
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	user, err := handler.userService.GetById(userId)
-	if user == nil || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
+	token := r.Header.Get("token")
 	envId, err := strconv.Atoi(vars["env-id"])
 	if err != nil || envId == 0 {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -853,21 +845,12 @@ func (handler AppListingRestHandlerImpl) FetchOverviewAppsByEnvironment(w http.R
 		return
 	}
 	resp.AppCount = len(resp.Apps)
-	isActionUserSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
-	if err != nil {
-		handler.logger.Errorw("request err, FetchOverviewAppsByEnvironment", "err", err, "userId", userId)
-		common.WriteJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
-		return
-	}
-
-	//return if user is super admin
-	if isActionUserSuperAdmin {
+	//return all if user is super admin
+	if isActionUserSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); isActionUserSuperAdmin {
 		common.WriteJsonResp(w, err, resp, http.StatusOK)
 		return
 	}
 
-	//apply rbac
-	userEmailId := strings.ToLower(user.EmailId)
 	//get all the appIds
 	appIds := make([]int, 0)
 	appContainers := resp.Apps
@@ -884,7 +867,7 @@ func (handler AppListingRestHandlerImpl) FetchOverviewAppsByEnvironment(w http.R
 		itr++
 	}
 	//enforce rbac in batch
-	rbacResult := handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceApplications, casbin.ActionGet, rbacObjects)
+	rbacResult := handler.enforcer.EnforceInBatch(token, casbin.ResourceApplications, casbin.ActionGet, rbacObjects)
 	//filter out rbac passed apps
 	resp.Apps = make([]*bean.AppEnvironmentContainer, 0)
 	for _, appBean := range appContainers {
@@ -1041,22 +1024,36 @@ func (handler AppListingRestHandlerImpl) FetchResourceTree(w http.ResponseWriter
 		return
 	}
 	resourceTree, err := handler.fetchResourceTree(w, r, appId, envId, acdToken, cdPipeline)
+	if err != nil {
+		handler.logger.Errorw("error in fetching resource tree", "err", err, "appId", appId, "envId", envId)
+		handler.handleResourceTreeErrAndDeletePipelineIfNeeded(w, err, appId, envId, acdToken, cdPipeline)
+		return
+	}
+	common.WriteJsonResp(w, err, resourceTree, http.StatusOK)
+}
+
+func (handler AppListingRestHandlerImpl) handleResourceTreeErrAndDeletePipelineIfNeeded(w http.ResponseWriter, err error,
+	appId int, envId int, acdToken string, cdPipeline *pipelineConfig.Pipeline) {
 	if cdPipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
 		apiError, ok := err.(*util.ApiError)
 		if ok && apiError != nil {
 			if apiError.Code == constants.AppDetailResourceTreeNotFound && cdPipeline.DeploymentAppDeleteRequest == true && cdPipeline.DeploymentAppCreated == true {
-				acdAppFound, _ := handler.pipeline.MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDeleted(appId, envId, acdToken, cdPipeline)
-				if acdAppFound {
-					common.WriteJsonResp(w, fmt.Errorf("unable to fetch resource tree"), nil, http.StatusInternalServerError)
+				acdAppFound, appDeleteErr := handler.pipeline.MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDeleted(appId, envId, acdToken, cdPipeline)
+				if appDeleteErr != nil {
+					common.WriteJsonResp(w, fmt.Errorf("error in deleting devtron pipeline for deleted argocd app"), nil, http.StatusInternalServerError)
 					return
-				} else {
-					common.WriteJsonResp(w, fmt.Errorf("app deleted"), nil, http.StatusNotFound)
+				} else if appDeleteErr == nil && !acdAppFound {
+					common.WriteJsonResp(w, fmt.Errorf("argocd app deleted"), nil, http.StatusNotFound)
 					return
 				}
 			}
 		}
 	}
-	common.WriteJsonResp(w, err, resourceTree, http.StatusOK)
+	//not returned yet therefore no specific error to be handled, send error in internal message
+	common.WriteJsonResp(w, &util.ApiError{
+		InternalMessage: err.Error(),
+		UserMessage:     "unable to fetch resource tree",
+	}, nil, http.StatusInternalServerError)
 }
 
 func (handler AppListingRestHandlerImpl) FetchAppTriggerView(w http.ResponseWriter, r *http.Request) {
@@ -1208,7 +1205,8 @@ func (handler AppListingRestHandlerImpl) FetchAppStageStatus(w http.ResponseWrit
 
 	// RBAC enforcer applying
 	object := handler.enforcerUtil.GetAppRBACName(app.AppName)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet)
+	if !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -1281,7 +1279,8 @@ func (handler AppListingRestHandlerImpl) FetchMinDetailOtherEnvironment(w http.R
 
 	// RBAC enforcer applying
 	object := handler.enforcerUtil.GetAppRBACName(app.AppName)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet)
+	if !ok {
 		common.WriteJsonResp(w, err, "unauthorized user", http.StatusForbidden)
 		return
 	}
@@ -1345,10 +1344,10 @@ func (handler AppListingRestHandlerImpl) RedirectToLinkouts(w http.ResponseWrite
 	}
 	http.Redirect(w, r, link, http.StatusOK)
 }
-func (handler AppListingRestHandlerImpl) fetchResourceTreeFromInstallAppService(w http.ResponseWriter, r *http.Request, resourceTreeAndNotesContainer bean.ResourceTreeAndNotesContainer, installedApps repository.InstalledApps) (bean.ResourceTreeAndNotesContainer, error) {
+func (handler AppListingRestHandlerImpl) fetchResourceTreeFromInstallAppService(w http.ResponseWriter, r *http.Request, resourceTreeAndNotesContainer bean.AppDetailsContainer, installedApps repository.InstalledApps) (bean.AppDetailsContainer, error) {
 	rctx := r.Context()
 	cn, _ := w.(http.CloseNotifier)
-	err := handler.installedAppService.FetchResourceTree(rctx, cn, &resourceTreeAndNotesContainer, installedApps)
+	err := handler.installedAppService.FetchResourceTree(rctx, cn, &resourceTreeAndNotesContainer, installedApps, "", "")
 	return resourceTreeAndNotesContainer, err
 }
 func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWriter, r *http.Request) {
@@ -1420,7 +1419,7 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 			common.WriteJsonResp(w, err, "App not found in database", http.StatusBadRequest)
 			return
 		}
-		resourceTreeAndNotesContainer := bean.ResourceTreeAndNotesContainer{}
+		resourceTreeAndNotesContainer := bean.AppDetailsContainer{}
 		resourceTreeAndNotesContainer, err = handler.fetchResourceTreeFromInstallAppService(w, r, resourceTreeAndNotesContainer, *installedApp)
 		if err != nil {
 			common.WriteJsonResp(w, fmt.Errorf("error in fetching resource tree"), nil, http.StatusInternalServerError)
@@ -1460,8 +1459,7 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 		return
 	}
 	//valid batch requests, only valid requests will be sent for batch processing
-	validRequests := make([]k8s.ResourceRequestBean, 0)
-	validRequests = handler.k8sCommonService.FilterK8sResources(r.Context(), resourceTree, validRequests, appDetail, "", []string{k8s.ServiceKind, k8s.IngressKind})
+	validRequests := handler.k8sCommonService.FilterK8sResources(r.Context(), resourceTree, appDetail, "", []string{k8sCommonBean.ServiceKind, k8sCommonBean.IngressKind})
 	if len(validRequests) == 0 {
 		handler.logger.Error("neither service nor ingress found for", "appId", appIdParam, "envId", envIdParam, "installedAppId", installedAppIdParam)
 		common.WriteJsonResp(w, err, nil, http.StatusNoContent)
@@ -1539,7 +1537,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 			handler.logger.Errorw("error in getting pods by label", "err", err, "clusterId", cdPipeline.Environment.ClusterId, "namespace", cdPipeline.Environment.Namespace, "label", label)
 			return resourceTree, err
 		}
-		ephemeralContainersMap := bean2.ExtractEphemeralContainers(pods)
+		ephemeralContainersMap := k8sObjectUtils.ExtractEphemeralContainers(pods)
 		for _, metaData := range resp.PodMetadata {
 			metaData.EphemeralContainers = ephemeralContainersMap[metaData.Name]
 		}
@@ -1589,9 +1587,11 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		if err != nil {
 			handler.logger.Errorw("error in fetching app detail", "err", err)
 		}
-		if detail != nil {
+		if detail != nil && detail.ReleaseExist {
 			resourceTree = util2.InterfaceToMapAdapter(detail.ResourceTreeResponse)
+			releaseStatus := util2.InterfaceToMapAdapter(detail.ReleaseStatus)
 			applicationStatus := detail.ApplicationStatus
+			resourceTree["releaseStatus"] = releaseStatus
 			resourceTree["status"] = applicationStatus
 			if applicationStatus == application.Healthy {
 				status, err := handler.appListingService.ISLastReleaseStopType(appId, envId)
@@ -1614,7 +1614,6 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 			resourceTree["serverVersion"] = version.String()
 		}
 	}
-	validRequests := make([]k8s.ResourceRequestBean, 0)
 	k8sAppDetail := bean.AppDetailContainer{
 		DeploymentDetailContainer: bean.DeploymentDetailContainer{
 			ClusterId: cdPipeline.Environment.ClusterId,
@@ -1622,121 +1621,15 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		},
 	}
 	clusterIdString := strconv.Itoa(cdPipeline.Environment.ClusterId)
-	validRequest := handler.k8sCommonService.FilterK8sResources(r.Context(), resourceTree, validRequests, k8sAppDetail, clusterIdString, []string{k8s.ServiceKind, k8s.EndpointsKind, k8s.IngressKind})
+	validRequest := handler.k8sCommonService.FilterK8sResources(r.Context(), resourceTree, k8sAppDetail, clusterIdString, []string{k8sCommonBean.ServiceKind, k8sCommonBean.EndpointsKind, k8sCommonBean.IngressKind})
 	resp, err := handler.k8sCommonService.GetManifestsByBatch(r.Context(), validRequest)
-	newResourceTree, err := handler.PortNumberExtraction(resp, resourceTree, err)
+	if err != nil {
+		handler.logger.Errorw("error in getting manifest by batch", "err", err, "clusterId", clusterIdString)
+		return nil, err
+	}
+	newResourceTree := handler.k8sCommonService.PortNumberExtraction(resp, resourceTree)
 	return newResourceTree, nil
 }
-
-func (handler AppListingRestHandlerImpl) PortNumberExtraction(resp []k8s.BatchResourceResponse, resourceTree map[string]interface{}, err error) (map[string]interface{}, error) {
-	portsService := make([]int64, 0)
-	portsEndpoint := make([]int64, 0)
-	portEndpointSlice := make([]int64, 0)
-	for _, portHolder := range resp {
-		if portHolder.ManifestResponse == nil {
-			continue
-		}
-		kind, ok := portHolder.ManifestResponse.Manifest.Object["kind"]
-		if !ok {
-			handler.logger.Errorw("kind not found in resource tree, unable to extract port no")
-			return resourceTree, nil
-		}
-		if kind == k8s.ServiceKind {
-			specField, ok := portHolder.ManifestResponse.Manifest.Object["spec"]
-			if !ok {
-				handler.logger.Errorw("spec not found in resource tree, unable to extract port no")
-				return resourceTree, nil
-			}
-			spec := specField.(map[string]interface{})
-			if spec != nil {
-				ports, ok := spec["ports"]
-				if !ok {
-					handler.logger.Errorw("ports not found in resource tree, unable to extract port no")
-					return resourceTree, nil
-				}
-				portList := ports.([]interface{})
-				for _, portItem := range portList {
-					if portItem.(map[string]interface{}) != nil {
-						portNumbers := portItem.(map[string]interface{})["port"]
-						portNumber := portNumbers.(int64)
-						if portNumber != 0 {
-							portsService = append(portsService, portNumber)
-						}
-					}
-				}
-			} else {
-				handler.logger.Errorw("spec doest not contain data", "err", spec)
-			}
-		}
-		if kind == k8s.EndpointsKind {
-			subsetsField, ok := portHolder.ManifestResponse.Manifest.Object["subsets"]
-			if !ok {
-				handler.logger.Errorw("spec not found in resource tree, unable to extract port no")
-				return resourceTree, nil
-			}
-			if subsetsField != nil {
-				subsets := subsetsField.([]interface{})
-				for _, subset := range subsets {
-					subsetObj := subset.(map[string]interface{})
-					if subsetObj != nil {
-						ports, ok := subsetObj["ports"]
-						if !ok {
-							handler.logger.Errorw("ports not found in resource tree endpoints, unable to extract port no")
-							return resourceTree, nil
-						}
-						portsIfs := ports.([]interface{})
-						for _, portsIf := range portsIfs {
-							portsIfObj := portsIf.(map[string]interface{})
-							if portsIfObj != nil {
-								port := portsIfObj["port"].(int64)
-								portsEndpoint = append(portsEndpoint, port)
-							}
-						}
-					}
-				}
-			}
-		}
-		if kind == "EndpointSlice" {
-			portsField, ok := portHolder.ManifestResponse.Manifest.Object["ports"]
-			if !ok {
-				handler.logger.Errorw("ports not found in resource tree endpoint, unable to extract port no")
-				return resourceTree, nil
-			}
-			if portsField != nil {
-				endPointsSlicePorts := portsField.([]interface{})
-				for _, val := range endPointsSlicePorts {
-					portNumbers := val.(map[string]interface{})["port"]
-					portNumber := portNumbers.(int64)
-					if portNumber != 0 {
-						portEndpointSlice = append(portEndpointSlice, portNumber)
-					}
-				}
-			}
-		}
-	}
-	if err != nil {
-		handler.logger.Errorw("error in fetching manifest", "err", err)
-	}
-	if val, ok := resourceTree["nodes"]; ok {
-		resourceTreeVal := val.([]interface{})
-		for _, val := range resourceTreeVal {
-			value := val.(map[string]interface{})
-			for key, _type := range value {
-				if key == "kind" && _type == k8s.EndpointsKind {
-					value["port"] = portsEndpoint
-				}
-				if key == "kind" && _type == k8s.ServiceKind {
-					value["port"] = portsService
-				}
-				if key == "kind" && _type == "EndpointSlice" {
-					value["port"] = portEndpointSlice
-				}
-			}
-		}
-	}
-	return resourceTree, nil
-}
-
 func (handler AppListingRestHandlerImpl) ManualSyncAcdPipelineDeploymentStatus(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	vars := mux.Vars(r)
@@ -1847,7 +1740,6 @@ func (handler AppListingRestHandlerImpl) GetClusterTeamAndEnvListForAutocomplete
 	println(dbElapsedTime, grantedEnvironment)
 	if !handler.cfg.IgnoreAuthCheck {
 		grantedEnvironment = make([]cluster.EnvironmentBean, 0)
-		emailId, _ := handler.userService.GetEmailFromToken(token)
 		// RBAC enforcer applying
 		var envIdentifierList []string
 		for index, item := range environments {
@@ -1859,7 +1751,7 @@ func (handler AppListingRestHandlerImpl) GetClusterTeamAndEnvListForAutocomplete
 			envIdentifierList = append(envIdentifierList, strings.ToLower(item.EnvironmentIdentifier))
 		}
 
-		result := handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceGlobalEnvironment, casbin.ActionGet, envIdentifierList)
+		result := handler.enforcer.EnforceInBatch(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, envIdentifierList)
 		for _, item := range environments {
 
 			var hasAccess bool
@@ -1893,14 +1785,13 @@ func (handler AppListingRestHandlerImpl) GetClusterTeamAndEnvListForAutocomplete
 	start = time.Now()
 	if !handler.cfg.IgnoreAuthCheck {
 		grantedTeams = make([]team.TeamRequest, 0)
-		emailId, _ := handler.userService.GetEmailFromToken(token)
 		// RBAC enforcer applying
 		var teamNameList []string
 		for _, item := range teams {
 			teamNameList = append(teamNameList, strings.ToLower(item.Name))
 		}
 
-		result := handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceTeam, casbin.ActionGet, teamNameList)
+		result := handler.enforcer.EnforceInBatch(token, casbin.ResourceTeam, casbin.ActionGet, teamNameList)
 
 		for _, item := range teams {
 			if hasAccess := result[strings.ToLower(item.Name)]; hasAccess {

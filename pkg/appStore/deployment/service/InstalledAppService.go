@@ -20,10 +20,27 @@ package service
 import (
 	"bytes"
 	"context"
+	/* #nosec */
+	"crypto/sha1"
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"net/http"
+	"os"
+	"regexp"
+	"strconv"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"time"
+
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	"github.com/devtron-labs/common-lib/pubsub-lib/model"
+	util4 "github.com/devtron-labs/common-lib/utils/k8s"
+	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
+	k8sObjectUtils "github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
-	bean3 "github.com/devtron-labs/devtron/api/restHandler/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/middleware"
@@ -38,31 +55,16 @@ import (
 	appStoreDeploymentGitopsTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool/gitops"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/values/service"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	repository5 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	application3 "github.com/devtron-labs/devtron/pkg/k8s/application"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	repository4 "github.com/devtron-labs/devtron/pkg/team"
-	"github.com/devtron-labs/devtron/pkg/user"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
-	util4 "github.com/devtron-labs/devtron/util/k8s"
 	"github.com/tidwall/gjson"
-	"net/http"
-	"regexp"
-	"sync"
-	"sync/atomic"
-
-	/* #nosec */
-	"crypto/sha1"
-	"encoding/json"
-	"fmt"
-	"io/ioutil"
-	"os"
-	"strconv"
-	"strings"
-	"time"
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -81,6 +83,9 @@ import (
 const (
 	DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT = "devtron"
 	CLUSTER_COMPONENT_DIR_PATH                  = "/cluster/component"
+	HELM_RELEASE_STATUS_FAILED                  = "Failed"
+	HELM_RELEASE_STATUS_PROGRESSING             = "Progressing"
+	HELM_RELEASE_STATUS_UNKNOWN                 = "Unknown"
 )
 
 type InstalledAppService interface {
@@ -91,7 +96,7 @@ type InstalledAppService interface {
 	DeployDefaultChartOnCluster(bean *cluster2.ClusterBean, userId int32) (bool, error)
 	FindAppDetailsForAppstoreApplication(installedAppId, envId int) (bean2.AppDetailContainer, error)
 	UpdateInstalledAppVersionStatus(application *v1alpha1.Application) (bool, error)
-	FetchResourceTree(rctx context.Context, cn http.CloseNotifier, resourceTreeAndNotesContainer *bean2.ResourceTreeAndNotesContainer, installedApp repository2.InstalledApps) error
+	FetchResourceTree(rctx context.Context, cn http.CloseNotifier, appDetailsContainer *bean2.AppDetailsContainer, installedApp repository2.InstalledApps, helmReleaseInstallStatus string, status string) error
 	MarkGitOpsInstalledAppsDeletedIfArgoAppIsDeleted(installedAppId int, envId int) error
 	CheckAppExistsByInstalledAppId(installedAppId int) (*repository2.InstalledApps, error)
 	FindNotesForArgoApplication(installedAppId, envId int) (string, string, error)
@@ -134,6 +139,7 @@ type InstalledAppServiceImpl struct {
 	appStoreDeploymentCommonService      appStoreDeploymentCommon.AppStoreDeploymentCommonService
 	k8sCommonService                     k8s.K8sCommonService
 	k8sApplicationService                application3.K8sApplicationService
+	acdConfig                            *argocdServer.ACDConfig
 }
 
 func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
@@ -158,7 +164,8 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 	appStatusService appStatus.AppStatusService, K8sUtil *util4.K8sUtil,
 	pipelineStatusTimelineService status.PipelineStatusTimelineService,
 	appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
-	appStoreDeploymentArgoCdService appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdService, k8sCommonService k8s.K8sCommonService, k8sApplicationService application3.K8sApplicationService) (*InstalledAppServiceImpl, error) {
+	appStoreDeploymentArgoCdService appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdService, k8sCommonService k8s.K8sCommonService, k8sApplicationService application3.K8sApplicationService,
+	acdConfig *argocdServer.ACDConfig) (*InstalledAppServiceImpl, error) {
 	impl := &InstalledAppServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -193,6 +200,7 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 		appStoreDeploymentCommonService:      appStoreDeploymentCommonService,
 		k8sCommonService:                     k8sCommonService,
 		k8sApplicationService:                k8sApplicationService,
+		acdConfig:                            acdConfig,
 	}
 	err := impl.Subscribe()
 	if err != nil {
@@ -411,6 +419,7 @@ func (impl InstalledAppServiceImpl) performDeployStageOnAcd(installedAppVersion 
 			_ = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, true)
 			return nil, err
 		}
+
 		timeline := &pipelineConfig.PipelineStatusTimeline{
 			InstalledAppVersionHistoryId: installedAppVersion.InstalledAppVersionHistoryId,
 			Status:                       pipelineConfig.TIMELINE_STATUS_GIT_COMMIT,
@@ -428,6 +437,35 @@ func (impl InstalledAppServiceImpl) performDeployStageOnAcd(installedAppVersion 
 		_, err = impl.appStoreDeploymentService.AppStoreDeployOperationStatusUpdate(installedAppVersion.InstalledAppId, appStoreBean.GIT_SUCCESS)
 		if err != nil {
 			impl.logger.Errorw(" error", "err", err)
+			return nil, err
+		}
+
+		GitCommitSuccessTimeline := impl.pipelineStatusTimelineService.
+			GetTimelineDbObjectByTimelineStatusAndTimelineDescription(0, installedAppVersion.InstalledAppVersionHistoryId, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT, "Git commit done successfully.", installedAppVersion.UserId, time.Now())
+
+		timelines := []*pipelineConfig.PipelineStatusTimeline{GitCommitSuccessTimeline}
+		if !impl.acdConfig.ArgoCDAutoSyncEnabled {
+			ArgocdSyncInitiatedTimeline := impl.pipelineStatusTimelineService.
+				GetTimelineDbObjectByTimelineStatusAndTimelineDescription(0, installedAppVersion.InstalledAppVersionHistoryId, pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED, "ArgoCD sync initiated.", installedAppVersion.UserId, time.Now())
+
+			timelines = append(timelines, ArgocdSyncInitiatedTimeline)
+		}
+
+		dbConnection := impl.installedAppRepository.GetConnection()
+		tx, err := dbConnection.Begin()
+		if err != nil {
+			impl.logger.Errorw("error in getting db connection for saving timelines", "err", err)
+			return nil, err
+		}
+		err = impl.pipelineStatusTimelineService.SaveTimelines(timelines, tx)
+		if err != nil {
+			impl.logger.Errorw("error in creating timeline status for deployment initiation for update of installedAppVersionHistoryId", "err", err, "installedAppVersionHistoryId", installedAppVersion.InstalledAppVersionHistoryId)
+		}
+		tx.Commit()
+		// update build history for chart for argo_cd apps
+		err = impl.appStoreDeploymentService.UpdateInstalledAppVersionHistoryWithGitHash(installedAppVersion, nil)
+		if err != nil {
+			impl.logger.Errorw("error on updating history for chart deployment", "error", err, "installedAppVersion", installedAppVersion)
 			return nil, err
 		}
 		installedAppVersion.GitHash = appStoreGitOpsResponse.GitHash
@@ -472,7 +510,7 @@ func (impl InstalledAppServiceImpl) performDeployStageOnAcd(installedAppVersion 
 		installedAppVersion.Status == appStoreBean.GIT_SUCCESS ||
 		installedAppVersion.Status == appStoreBean.ACD_ERROR {
 		//step 3 acd operation register, sync
-		_, err := impl.appStoreDeploymentFullModeService.AppStoreDeployOperationACD(installedAppVersion, chartGitAttr, ctx)
+		_, err := impl.appStoreDeploymentFullModeService.AppStoreDeployOperationACD(installedAppVersion, chartGitAttr, ctx, nil)
 		if err != nil {
 			impl.logger.Errorw("error", "chartGitAttr", chartGitAttr, "err", err)
 			_, err = impl.appStoreDeploymentService.AppStoreDeployOperationStatusUpdate(installedAppVersion.InstalledAppId, appStoreBean.ACD_ERROR)
@@ -550,22 +588,6 @@ func (impl InstalledAppServiceImpl) performDeployStage(installedAppVersionId int
 		return nil, err
 	}
 
-	if util.IsAcdApp(installedAppVersion.DeploymentAppType) {
-		// update build history for chart for argo_cd apps
-		err = impl.appStoreDeploymentService.UpdateInstalledAppVersionHistoryWithGitHash(installedAppVersion)
-		if err != nil {
-			impl.logger.Errorw("error on updating history for chart deployment", "error", err, "installedAppVersion", installedAppVersion)
-			return nil, err
-		}
-	} else {
-		// create build history for chart on default component deployed via helm
-		err = impl.appStoreDeploymentService.UpdateInstallAppVersionHistory(installedAppVersion)
-		if err != nil {
-			impl.logger.Errorw("error on creating history for chart deployment", "error", err, "installedAppVersion", installedAppVersion)
-			return nil, err
-		}
-	}
-
 	return installedAppVersion, nil
 }
 
@@ -624,7 +646,7 @@ func (impl *InstalledAppServiceImpl) triggerDeploymentEvent(installAppVersions [
 }
 
 func (impl *InstalledAppServiceImpl) Subscribe() error {
-	callback := func(msg *pubsub.PubSubMsg) {
+	callback := func(msg *model.PubSubMsg) {
 		impl.logger.Debug("cd stage event received")
 		//defer msg.Ack()
 		deployPayload := &appStoreBean.DeployPayload{}
@@ -840,13 +862,24 @@ func (impl *InstalledAppServiceImpl) FindAppDetailsForAppstoreApplication(instal
 		impl.logger.Error(err)
 		return bean2.AppDetailContainer{}, err
 	}
+	helmReleaseInstallStatus, status, err := impl.installedAppRepository.GetHelmReleaseStatusConfigByInstalledAppId(installedAppVerison.InstalledAppId)
+	if err != nil {
+		impl.logger.Errorw("error in getting helm release status from db", "err", err)
+		return bean2.AppDetailContainer{}, err
+	}
+	var chartName string
+	if installedAppVerison.AppStoreApplicationVersion.AppStore.ChartRepoId != 0 {
+		chartName = installedAppVerison.AppStoreApplicationVersion.AppStore.ChartRepo.Name
+	} else {
+		chartName = installedAppVerison.AppStoreApplicationVersion.AppStore.DockerArtifactStore.Id
+	}
 	deploymentContainer := bean2.DeploymentDetailContainer{
 		InstalledAppId:                installedAppVerison.InstalledApp.Id,
 		AppId:                         installedAppVerison.InstalledApp.App.Id,
 		AppStoreInstalledAppVersionId: installedAppVerison.Id,
 		EnvironmentId:                 installedAppVerison.InstalledApp.EnvironmentId,
 		AppName:                       installedAppVerison.InstalledApp.App.AppName,
-		AppStoreChartName:             installedAppVerison.AppStoreApplicationVersion.AppStore.ChartRepo.Name,
+		AppStoreChartName:             chartName,
 		AppStoreChartId:               installedAppVerison.AppStoreApplicationVersion.AppStore.Id,
 		AppStoreAppName:               installedAppVerison.AppStoreApplicationVersion.Name,
 		AppStoreAppVersion:            installedAppVerison.AppStoreApplicationVersion.Version,
@@ -858,6 +891,8 @@ func (impl *InstalledAppServiceImpl) FindAppDetailsForAppstoreApplication(instal
 		DeploymentAppType:             installedAppVerison.InstalledApp.DeploymentAppType,
 		DeploymentAppDeleteRequest:    installedAppVerison.InstalledApp.DeploymentAppDeleteRequest,
 		IsVirtualEnvironment:          installedAppVerison.InstalledApp.Environment.IsVirtualEnvironment,
+		HelmReleaseInstallStatus:      helmReleaseInstallStatus,
+		Status:                        status,
 	}
 	userInfo, err := impl.userService.GetByIdIncludeDeleted(installedAppVerison.AuditLog.UpdatedBy)
 	if err != nil {
@@ -873,8 +908,14 @@ func (impl *InstalledAppServiceImpl) FindAppDetailsForAppstoreApplication(instal
 func (impl *InstalledAppServiceImpl) FetchChartNotes(installedAppId int, envId int, token string, checkNotesAuth func(token string, appName string, envId int) bool) (string, error) {
 	//check notes.txt in db
 	installedApp, err := impl.installedAppRepository.FetchNotes(installedAppId)
+	if err != nil && err != pg.ErrNoRows {
+		return "", err
+	}
 	installedAppVerison, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppIdAndEnvId(installedAppId, envId)
 	if err != nil {
+		if err == pg.ErrNoRows {
+			return "", fmt.Errorf("values are outdated. please fetch the latest version and try again")
+		}
 		impl.logger.Errorw("error fetching installed  app version in installed app service", "err", err)
 		return "", err
 	}
@@ -946,11 +987,16 @@ func (impl *InstalledAppServiceImpl) FindNotesForArgoApplication(installedAppId,
 			ReleaseIdentifier: &client.ReleaseIdentifier{
 				ReleaseNamespace: installedAppVerison.InstalledApp.Environment.Namespace,
 				ReleaseName:      installedAppVerison.InstalledApp.App.AppName,
-				ClusterConfig: &client.ClusterConfig{
-					ClusterId: int32(installedAppVerison.InstalledApp.Environment.ClusterId),
-				},
 			},
 		}
+
+		clusterId := installedAppVerison.InstalledApp.Environment.ClusterId
+		config, err := impl.helmAppService.GetClusterConf(clusterId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching cluster detail", "clusterId", clusterId, "err", err)
+			return "", appName, err
+		}
+		installReleaseRequest.ReleaseIdentifier.ClusterConfig = config
 
 		notes, err = impl.helmAppService.GetNotes(context.Background(), installReleaseRequest)
 		if err != nil {
@@ -1075,7 +1121,7 @@ func (impl InstalledAppServiceImpl) GetInstalledAppVersionHistoryValues(installe
 	values.ValuesYaml = versionHistory.ValuesYamlRaw
 	return values, err
 }
-func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn http.CloseNotifier, resourceTreeAndNotesContainer *bean2.ResourceTreeAndNotesContainer, installedApp repository2.InstalledApps) error {
+func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn http.CloseNotifier, appDetailsContainer *bean2.AppDetailsContainer, installedApp repository2.InstalledApps, helmReleaseInstallStatus string, status string) error {
 	var err error
 	var resourceTree map[string]interface{}
 	deploymentAppName := fmt.Sprintf("%s-%s", installedApp.App.AppName, installedApp.Environment.Name)
@@ -1095,11 +1141,49 @@ func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn h
 		if err != nil {
 			impl.logger.Errorw("error in fetching app detail", "err", err)
 		}
-		if detail != nil {
+
+		/* helmReleaseInstallStatus is nats message sent from kubelink to orchestrator and has the following details about installation :-
+		1) isReleaseInstalled -> whether release object is created or not in this installation
+		2) ErrorInInstallation -> if there is error in installation
+		3) Message -> error message/ success message
+		4) InstallAppVersionHistoryId
+		5) Status -> Progressing, Failed, Succeeded
+		*/
+
+		if detail != nil && detail.ReleaseExist {
+
 			resourceTree = util3.InterfaceToMapAdapter(detail.ResourceTreeResponse)
 			resourceTree["status"] = detail.ApplicationStatus
-			resourceTreeAndNotesContainer.Notes = detail.ChartMetadata.Notes
-			impl.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", installedApp.App.AppName, "env", installedApp.Environment.Name)
+			appDetailsContainer.Notes = detail.ChartMetadata.Notes
+
+			helmInstallStatus := &appStoreBean.HelmReleaseStatusConfig{}
+			releaseStatus := detail.ReleaseStatus
+
+			if len(helmReleaseInstallStatus) > 0 {
+				err := json.Unmarshal([]byte(helmReleaseInstallStatus), helmInstallStatus)
+				if err != nil {
+					impl.logger.Errorw("error in unmarshalling helm release install status")
+					return err
+				}
+				// ReleaseExist=true in app detail container but helm install status says that isReleaseInstalled=false which means this release was created externally
+				if helmInstallStatus.IsReleaseInstalled == false && status != "Progressing" {
+					/*
+						Handling case when :-
+						1) An external release with name "foo" exist
+						2) User creates an app with same name i.e "foo"
+						3) In this case we use helmReleaseInstallStatus which will have status of our release and not external release
+					*/
+					resourceTree = make(map[string]interface{})
+					releaseStatus = impl.getReleaseStatusFromHelmReleaseInstallStatus(helmReleaseInstallStatus, status)
+				}
+			}
+			releaseStatusMap := util3.InterfaceToMapAdapter(releaseStatus)
+			appDetailsContainer.ReleaseStatus = releaseStatusMap
+		} else {
+			// case when helm release is not created
+			releaseStatus := impl.getReleaseStatusFromHelmReleaseInstallStatus(helmReleaseInstallStatus, status)
+			releaseStatusMap := util3.InterfaceToMapAdapter(releaseStatus)
+			appDetailsContainer.ReleaseStatus = releaseStatusMap
 		}
 	}
 	if resourceTree != nil {
@@ -1109,9 +1193,41 @@ func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn h
 		} else {
 			resourceTree["serverVersion"] = version.String()
 		}
-		resourceTreeAndNotesContainer.ResourceTree = resourceTree
+		appDetailsContainer.ResourceTree = resourceTree
 	}
 	return err
+}
+
+func (impl InstalledAppServiceImpl) getReleaseStatusFromHelmReleaseInstallStatus(helmReleaseInstallStatus string, status string) *client.ReleaseStatus {
+	//release status is sent in resource tree call and is shown on UI as helm config apply status
+	releaseStatus := &client.ReleaseStatus{}
+	if len(helmReleaseInstallStatus) > 0 {
+		helmInstallStatus := &appStoreBean.HelmReleaseStatusConfig{}
+		err := json.Unmarshal([]byte(helmReleaseInstallStatus), helmInstallStatus)
+		if err != nil {
+			impl.logger.Errorw("error in unmarshalling helm release install status")
+			return releaseStatus
+		}
+		if status == HELM_RELEASE_STATUS_FAILED {
+			releaseStatus.Status = status
+			releaseStatus.Description = helmInstallStatus.Message
+			releaseStatus.Message = "Release install/upgrade failed"
+		} else if status == HELM_RELEASE_STATUS_PROGRESSING {
+			releaseStatus.Status = status
+			releaseStatus.Description = helmInstallStatus.Message
+			releaseStatus.Message = helmInstallStatus.Message
+		} else {
+			// there can be a case when helm release is created but we are not able to fetch it
+			releaseStatus.Status = HELM_RELEASE_STATUS_UNKNOWN
+			releaseStatus.Description = "Unable to fetch release for app"
+			releaseStatus.Message = "Unable to fetch release for app"
+		}
+	} else {
+		releaseStatus.Status = HELM_RELEASE_STATUS_UNKNOWN
+		releaseStatus.Description = "Release not found"
+		releaseStatus.Message = "Release not found "
+	}
+	return releaseStatus
 }
 
 func (impl InstalledAppServiceImpl) MarkGitOpsInstalledAppsDeletedIfArgoAppIsDeleted(installedAppId int, envId int) error {
@@ -1170,6 +1286,9 @@ func (impl InstalledAppServiceImpl) MarkGitOpsInstalledAppsDeletedIfArgoAppIsDel
 
 func (impl InstalledAppServiceImpl) CheckAppExistsByInstalledAppId(installedAppId int) (*repository2.InstalledApps, error) {
 	installedApp, err := impl.installedAppRepository.GetInstalledApp(installedAppId)
+	if err != nil {
+		return nil, err
+	}
 	return installedApp, err
 }
 
@@ -1350,7 +1469,7 @@ func (impl InstalledAppServiceImpl) fetchResourceTreeForACD(rctx context.Context
 		impl.logger.Errorw("error in getting pods by label", "err", err, "clusterId", clusterId, "namespace", namespace, "label", label)
 		return resourceTree, err
 	}
-	ephemeralContainersMap := bean3.ExtractEphemeralContainers(pods)
+	ephemeralContainersMap := k8sObjectUtils.ExtractEphemeralContainers(pods)
 	for _, metaData := range resp.PodMetadata {
 		metaData.EphemeralContainers = ephemeralContainersMap[metaData.Name]
 	}
@@ -1371,7 +1490,21 @@ func (impl InstalledAppServiceImpl) fetchResourceTreeForACD(rctx context.Context
 		}
 	}()
 	impl.logger.Debugf("application %s in environment %s had status %+v\n", appId, envId, resp)
-	return resourceTree, err
+	k8sAppDetail := bean2.AppDetailContainer{
+		DeploymentDetailContainer: bean2.DeploymentDetailContainer{
+			ClusterId: clusterId,
+			Namespace: namespace,
+		},
+	}
+	clusterIdString := strconv.Itoa(clusterId)
+	validRequest := impl.k8sCommonService.FilterK8sResources(rctx, resourceTree, k8sAppDetail, clusterIdString, []string{k8sCommonBean.ServiceKind, k8sCommonBean.EndpointsKind, k8sCommonBean.IngressKind})
+	response, err := impl.k8sCommonService.GetManifestsByBatch(rctx, validRequest)
+	if err != nil {
+		impl.logger.Errorw("error in getting manifest by batch", "err", err, "clusterId", clusterIdString)
+		return nil, err
+	}
+	newResourceTree := impl.k8sCommonService.PortNumberExtraction(response, resourceTree)
+	return newResourceTree, err
 }
 
 func (impl InstalledAppServiceImpl) filterOutReplicaNodes(responseTreeNodes interface{}) []interface{} {

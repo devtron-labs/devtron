@@ -18,6 +18,7 @@
 package appStore
 
 import (
+	chartProvider "github.com/devtron-labs/devtron/api/appStore/chartProvider"
 	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
 	appStoreDiscover "github.com/devtron-labs/devtron/api/appStore/discover"
 	appStoreValues "github.com/devtron-labs/devtron/api/appStore/values"
@@ -33,17 +34,21 @@ type AppStoreRouterImpl struct {
 	appStoreValuesRouter              appStoreValues.AppStoreValuesRouter
 	appStoreDiscoverRouter            appStoreDiscover.AppStoreDiscoverRouter
 	appStoreDeploymentRouter          appStoreDeployment.AppStoreDeploymentRouter
+	chartProviderRouter               chartProvider.ChartProviderRouter
 	appStoreStatusTimelineRestHandler AppStoreStatusTimelineRestHandler
 }
 
 func NewAppStoreRouterImpl(restHandler InstalledAppRestHandler,
-	appStoreValuesRouter appStoreValues.AppStoreValuesRouter, appStoreDiscoverRouter appStoreDiscover.AppStoreDiscoverRouter,
+	appStoreValuesRouter appStoreValues.AppStoreValuesRouter,
+	appStoreDiscoverRouter appStoreDiscover.AppStoreDiscoverRouter,
+	chartProviderRouter chartProvider.ChartProviderRouter,
 	appStoreDeploymentRouter appStoreDeployment.AppStoreDeploymentRouter,
 	appStoreStatusTimelineRestHandler AppStoreStatusTimelineRestHandler) *AppStoreRouterImpl {
 	return &AppStoreRouterImpl{
 		deployRestHandler:                 restHandler,
 		appStoreValuesRouter:              appStoreValuesRouter,
 		appStoreDiscoverRouter:            appStoreDiscoverRouter,
+		chartProviderRouter:               chartProviderRouter,
 		appStoreDeploymentRouter:          appStoreDeploymentRouter,
 		appStoreStatusTimelineRestHandler: appStoreStatusTimelineRestHandler,
 	}
@@ -69,6 +74,12 @@ func (router AppStoreRouterImpl) Init(configRouter *mux.Router) {
 	router.appStoreDiscoverRouter.Init(appStoreDiscoverSubRouter)
 	// discover router ends
 
+	// chart provider router starts
+	chartProviderSubRouter := configRouter.PathPrefix("/chart-provider").Subrouter()
+	router.chartProviderRouter.Init(chartProviderSubRouter)
+	// chart provider router ends
+	configRouter.Path("/overview").Queries("installedAppId", "{installedAppId}").
+		HandlerFunc(router.deployRestHandler.FetchAppOverview).Methods("GET")
 	configRouter.Path("/application/exists").
 		HandlerFunc(router.deployRestHandler.CheckAppExists).Methods("POST")
 	configRouter.Path("/group/install").

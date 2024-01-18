@@ -50,6 +50,7 @@ type RoleGroup struct {
 	Description string       `json:"description,omitempty"`
 	RoleFilters []RoleFilter `json:"roleFilters"`
 	Status      string       `json:"status,omitempty"`
+	SuperAdmin  bool         `json:"superAdmin"`
 	UserId      int32        `json:"-"` // created or modified user id
 }
 
@@ -66,6 +67,7 @@ type RoleFilter struct {
 	Group     string `json:"group"`
 	Kind      string `json:"kind"`
 	Resource  string `json:"resource"`
+	Workflow  string `json:"workflow"`
 }
 
 type Role struct {

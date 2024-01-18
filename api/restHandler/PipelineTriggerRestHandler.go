@@ -21,20 +21,21 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/gorilla/mux"
-	"go.opentelemetry.io/otel"
-
 	"net/http"
 	"strconv"
 
+	"github.com/devtron-labs/devtron/pkg/app"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
+	"github.com/devtron-labs/devtron/util"
+	"github.com/gorilla/mux"
+	"go.opentelemetry.io/otel"
+
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/team"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"go.uber.org/zap"
@@ -132,7 +133,7 @@ func (handler PipelineTriggerRestHandlerImpl) OverrideConfig(w http.ResponseWrit
 	span.End()
 	if err != nil {
 		handler.logger.Errorw("request err, OverrideConfig", "err", err, "payload", overrideRequest)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	res := map[string]interface{}{"releaseId": mergeResp}
@@ -352,9 +353,12 @@ func (handler PipelineTriggerRestHandlerImpl) GetAllLatestDeploymentConfiguratio
 		return
 	}
 	//RBAC END
+	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
+	ctx := r.Context()
+	ctx = util.SetSuperAdminInContext(ctx, isSuperAdmin)
 	//checking if user has admin access
 	userHasAdminAccess := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, resourceName)
-	allDeploymentconfig, err := handler.deploymentConfigService.GetLatestDeploymentConfigurationByPipelineId(pipelineId, userHasAdminAccess)
+	allDeploymentconfig, err := handler.deploymentConfigService.GetLatestDeploymentConfigurationByPipelineId(ctx, pipelineId, userHasAdminAccess)
 	if err != nil {
 		handler.logger.Errorw("error in getting latest deployment config, GetAllDeployedConfigurationHistoryForSpecificWfrIdForPipeline", "err", err, "pipelineId", pipelineId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

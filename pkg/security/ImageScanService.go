@@ -18,16 +18,17 @@
 package security
 
 import (
+	"time"
+
 	repository1 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	repository2 "github.com/devtron-labs/devtron/pkg/team"
-	"time"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/pkg/cluster"
-	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -325,7 +326,7 @@ func (impl ImageScanServiceImpl) FetchExecutionDetailResult(request *ImageScanRe
 			impl.Logger.Errorw("error while fetching scan execution result", "err", err)
 			return nil, err
 		}
-		ciPipeline, err := impl.ciPipelineRepository.FindById(ciArtifact.PipelineId)
+		ciPipeline, err := impl.ciPipelineRepository.FindByIdIncludingInActive(ciArtifact.PipelineId)
 		if err != nil {
 			impl.Logger.Errorw("error while fetching scan execution result", "err", err)
 			return nil, err
@@ -455,6 +456,10 @@ func (impl ImageScanServiceImpl) FetchExecutionDetailResult(request *ImageScanRe
 				updatedVulnerabilities = make([]*Vulnerabilities, 0)
 			}
 			imageScanResponse.Vulnerabilities = updatedVulnerabilities
+		} else {
+			for _, vulnerability := range imageScanResponse.Vulnerabilities {
+				vulnerability.Permission = "WHITELISTED"
+			}
 		}
 	}
 	return imageScanResponse, nil
@@ -577,15 +582,17 @@ func (impl ImageScanServiceImpl) VulnerabilityExposure(request *security.Vulnera
 	cveStores = append(cveStores, cveStore)
 	for _, item := range vulnerabilityExposureList {
 		envId := 0
-		if item.AppStore {
+		if item.AppType == helper.ChartStoreApp {
 			envId = item.ChartEnvId
-		} else {
+		} else if item.AppType == helper.CustomApp {
 			envId = item.PipelineEnvId
 		}
 		env := envMap[envId]
 		item.EnvId = envId
 		item.EnvName = env.Environment
-		blockCveList, err := impl.policyService.GetBlockedCVEList(cveStores, env.ClusterId, envId, item.AppId, item.AppStore)
+		var appStore bool
+		appStore = item.AppType == helper.ChartStoreApp
+		blockCveList, err := impl.policyService.GetBlockedCVEList(cveStores, env.ClusterId, envId, item.AppId, appStore)
 		if err != nil {
 			impl.Logger.Errorw("error while fetching blocked list", "err", err)
 			return nil, err

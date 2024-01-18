@@ -20,7 +20,7 @@ type InstalledAppVersionHistoryRepository interface {
 	FindPreviousInstalledAppVersionHistoryByStatus(installedAppVersionId int, installedAppVersionHistoryId int, status []string) ([]*InstalledAppVersionHistory, error)
 	UpdateInstalledAppVersionHistoryWithTxn(models []*InstalledAppVersionHistory, tx *pg.Tx) error
 	GetAppStoreApplicationVersionIdByInstalledAppVersionHistoryId(installedAppVersionHistoryId int) (int, error)
-
+	UpdateGitHash(installedAppVersionHistoryId int, gitHash string, tx *pg.Tx) error
 	GetConnection() *pg.DB
 }
 
@@ -34,14 +34,15 @@ func NewInstalledAppVersionHistoryRepositoryImpl(Logger *zap.SugaredLogger, dbCo
 }
 
 type InstalledAppVersionHistory struct {
-	TableName             struct{}  `sql:"installed_app_version_history" pg:",discard_unknown_columns"`
-	Id                    int       `sql:"id,pk"`
-	InstalledAppVersionId int       `sql:"installed_app_version_id,notnull"`
-	ValuesYamlRaw         string    `sql:"values_yaml_raw"`
-	Status                string    `sql:"status"`
-	GitHash               string    `sql:"git_hash"`
-	StartedOn             time.Time `sql:"started_on,type:timestamptz"`
-	FinishedOn            time.Time `sql:"finished_on,type:timestamptz"`
+	TableName               struct{}  `sql:"installed_app_version_history" pg:",discard_unknown_columns"`
+	Id                      int       `sql:"id,pk"`
+	InstalledAppVersionId   int       `sql:"installed_app_version_id,notnull"`
+	ValuesYamlRaw           string    `sql:"values_yaml_raw"`
+	Status                  string    `sql:"status"`
+	GitHash                 string    `sql:"git_hash"`
+	StartedOn               time.Time `sql:"started_on,type:timestamptz"`
+	FinishedOn              time.Time `sql:"finished_on,type:timestamptz"`
+	HelmReleaseStatusConfig string    `sql:"helm_release_status_config"`
 	sql.AuditLog
 }
 
@@ -160,6 +161,15 @@ func (impl InstalledAppVersionHistoryRepositoryImpl) FindPreviousInstalledAppVer
 		Order("installed_app_version_history.id DESC").
 		Select()
 	return iavr, err
+}
+
+func (impl InstalledAppVersionHistoryRepositoryImpl) UpdateGitHash(installedAppVersionHistoryId int, gitHash string, tx *pg.Tx) error {
+	query := "update installed_app_version_history set git_hash=? where id=?"
+	_, err := tx.Exec(query, gitHash, installedAppVersionHistoryId)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (impl InstalledAppVersionHistoryRepositoryImpl) GetConnection() *pg.DB {

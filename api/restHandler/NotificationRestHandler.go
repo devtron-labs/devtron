@@ -22,19 +22,19 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
 
+	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/notifier"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/team"
-	"github.com/devtron-labs/devtron/pkg/user"
 	util "github.com/devtron-labs/devtron/util/event"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/devtron-labs/devtron/util/response"
@@ -476,7 +476,7 @@ func (impl NotificationRestHandlerImpl) SaveNotificationChannelConfig(w http.Res
 			return
 		}
 		for _, item := range teams {
-			if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, fmt.Sprintf("%s/*", strings.ToLower(item.Name))); !ok {
+			if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, fmt.Sprintf("%s/*", item.Name)); !ok {
 				common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 				return
 			}
@@ -631,7 +631,7 @@ func (impl NotificationRestHandlerImpl) FindAllNotificationConfig(w http.Respons
 			return
 		}
 		for _, item := range teams {
-			if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, fmt.Sprintf("%s/*", strings.ToLower(item.Name))); !ok {
+			if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, fmt.Sprintf("%s/*", item.Name)); !ok {
 				pass = false
 				break
 			}
@@ -868,7 +868,7 @@ func (impl NotificationRestHandlerImpl) FindAllNotificationConfigAutocomplete(w 
 				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 				return
 			}
-			if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, fmt.Sprintf("%s/*", strings.ToLower(team.Name))); ok {
+			if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, fmt.Sprintf("%s/*", team.Name)); ok {
 				channelsResponse = append(channelsResponse, item)
 			}
 		}

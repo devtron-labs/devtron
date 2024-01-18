@@ -4,24 +4,26 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
-	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
-	"github.com/devtron-labs/devtron/api/restHandler/common"
-	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
-	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
-	"github.com/devtron-labs/devtron/pkg/attributes"
-	"github.com/devtron-labs/devtron/pkg/cluster"
-	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
-	"github.com/devtron-labs/devtron/util/k8sObjectsUtil"
-	"github.com/devtron-labs/devtron/util/rbac"
-	"github.com/gorilla/mux"
-	"go.uber.org/zap"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
+	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
+	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
+	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/internal/util"
+	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
+	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
+	"github.com/devtron-labs/devtron/pkg/attributes"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
+	"github.com/devtron-labs/devtron/pkg/cluster"
+	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
+	"github.com/devtron-labs/devtron/util/rbac"
+	"github.com/gorilla/mux"
+	"go.uber.org/zap"
 )
 
 type HelmAppRestHandler interface {
@@ -277,6 +279,11 @@ func (handler *HelmAppRestHandlerImpl) GetDesiredManifest(w http.ResponseWriter,
 }
 
 func (handler *HelmAppRestHandlerImpl) DeleteApplication(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
 	vars := mux.Vars(r)
 	appId := vars["appId"]
 	appIdentifier, err := handler.helmAppService.DecodeAppId(appId)
@@ -304,7 +311,10 @@ func (handler *HelmAppRestHandlerImpl) DeleteApplication(w http.ResponseWriter, 
 		return
 	}
 
-	res, err := handler.helmAppService.DeleteApplication(r.Context(), appIdentifier)
+	res, err := handler.helmAppService.DeleteDBLinkedHelmApplication(r.Context(), appIdentifier, userId)
+	if util.IsErrNoRows(err) {
+		res, err = handler.helmAppService.DeleteApplication(r.Context(), appIdentifier)
+	}
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -376,7 +386,7 @@ func (handler *HelmAppRestHandlerImpl) TemplateChart(w http.ResponseWriter, r *h
 }
 
 func (handler *HelmAppRestHandlerImpl) checkHelmAuth(token string, object string) bool {
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, strings.ToLower(object)); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object); !ok {
 		return false
 	}
 	return true

@@ -1,7 +1,7 @@
 package bitbucket
 
 type users interface {
-	Get(username string) (interface{}, error)
+	Get(username string) (*User, error)
 	Followers(username string) (interface{}, error)
 	Following(username string) (interface{}, error)
 	Repositories(username string) (interface{}, error)
@@ -179,6 +179,7 @@ type RepositoryFilesOptions struct {
 	RepoSlug string `json:"repo_slug"`
 	Ref      string `json:"ref"`
 	Path     string `json:"path"`
+	MaxDepth int    `json:"max_depth"`
 }
 
 type RepositoryBlobOptions struct {
@@ -473,6 +474,20 @@ type PipelinesOptions struct {
 type RepositoryEnvironmentsOptions struct {
 	Owner    string `json:"owner"`
 	RepoSlug string `json:"repo_slug"`
+}
+
+type RepositoryGroupPermissionsOptions struct {
+	Owner      string `json:"owner"`
+	RepoSlug   string `json:"repo_slug"`
+	Group      string `json:"group"`
+	Permission string `json:"permission"`
+}
+
+type RepositoryUserPermissionsOptions struct {
+	Owner      string `json:"owner"`
+	RepoSlug   string `json:"repo_slug"`
+	User       string `json:"user"`
+	Permission string `json:"permission"`
 }
 
 type RepositoryEnvironmentTypeOption int

@@ -1,33 +1,9 @@
 package k8s
 
 import (
-	"github.com/devtron-labs/devtron/api/helm-app"
+	"github.com/devtron-labs/common-lib/utils/k8s"
+	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/pkg/k8s/application/bean"
-	"github.com/devtron-labs/devtron/util/k8s"
-)
-
-const (
-	SecretKind                   = "Secret"
-	ServiceKind                  = "Service"
-	ServiceAccountKind           = "ServiceAccount"
-	EndpointsKind                = "Endpoints"
-	DeploymentKind               = "Deployment"
-	ReplicaSetKind               = "ReplicaSet"
-	StatefulSetKind              = "StatefulSet"
-	DaemonSetKind                = "DaemonSet"
-	IngressKind                  = "Ingress"
-	JobKind                      = "Job"
-	PersistentVolumeClaimKind    = "PersistentVolumeClaim"
-	CustomResourceDefinitionKind = "CustomResourceDefinition"
-	PodKind                      = "Pod"
-	APIServiceKind               = "APIService"
-	NamespaceKind                = "Namespace"
-	HorizontalPodAutoscalerKind  = "HorizontalPodAutoscaler"
-)
-
-const (
-	Group   = "group"
-	Version = "version"
 )
 
 type ResourceRequestBean struct {

@@ -3,16 +3,17 @@ package app
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"strconv"
+
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	repository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/gorilla/mux"
 	"go.opentelemetry.io/otel"
 	"k8s.io/utils/strings/slices"
-	"net/http"
-	"strconv"
 )
 
 type DevtronAppAutoCompleteRestHandler interface {
@@ -29,11 +30,8 @@ func (handler PipelineConfigRestHandlerImpl) GetAppListForAutocomplete(w http.Re
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	isActionUserSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
-	if err != nil {
-		common.WriteJsonResp(w, err, "Failed to check admin check", http.StatusInternalServerError)
-		return
-	}
+	token := r.Header.Get("token")
+	isActionUserSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
 
 	v := r.URL.Query()
 	teamId := v.Get("teamId")
@@ -47,6 +45,9 @@ func (handler PipelineConfigRestHandlerImpl) GetAppListForAutocomplete(w http.Re
 			common.WriteJsonResp(w, err, "Failed to parse appType param", http.StatusInternalServerError)
 			return
 		}
+	} else {
+		// if appType not provided we are considering it as customApp for now, doing this because to get all apps by team id rbac objects
+		appType = int(helper.CustomApp)
 	}
 	var teamIdInt int
 	handler.Logger.Infow("request payload, GetAppListForAutocomplete", "teamId", teamId)
@@ -79,21 +80,14 @@ func (handler PipelineConfigRestHandlerImpl) GetAppListForAutocomplete(w http.Re
 
 	// RBAC
 	_, span := otel.Tracer("autoCompleteAppAPI").Start(context.Background(), "RBACForAutoCompleteAppAPI")
-	token := r.Header.Get("token")
-	userEmailId, err := handler.userAuthService.GetEmailFromToken(token)
-	if err != nil {
-		handler.Logger.Errorw("error in getting user emailId from token", "userId", userId, "err", err)
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
 	accessedApps := make([]*pipeline.AppBean, 0)
 	rbacObjects := make([]string, 0)
 
 	var appIdToObjectMap map[int]string
 	if len(teamId) == 0 {
-		appIdToObjectMap = handler.enforcerUtil.GetRbacObjectsForAllAppsWithMatchingAppName(appName)
+		appIdToObjectMap = handler.enforcerUtil.GetRbacObjectsForAllAppsWithMatchingAppName(appName, helper.AppType(appType))
 	} else {
-		appIdToObjectMap = handler.enforcerUtil.GetRbacObjectsForAllAppsWithTeamID(teamIdInt)
+		appIdToObjectMap = handler.enforcerUtil.GetRbacObjectsForAllAppsWithTeamID(teamIdInt, helper.AppType(appType))
 	}
 
 	for _, app := range apps {
@@ -101,7 +95,7 @@ func (handler PipelineConfigRestHandlerImpl) GetAppListForAutocomplete(w http.Re
 		rbacObjects = append(rbacObjects, object)
 	}
 
-	enforcedMap := handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceApplications, casbin.ActionGet, rbacObjects)
+	enforcedMap := handler.enforcerUtil.CheckAppRbacForAppOrJobInBulk(token, casbin.ActionGet, rbacObjects, helper.AppType(appType))
 	for _, app := range apps {
 		object := appIdToObjectMap[app.Id]
 		if enforcedMap[object] {
@@ -154,7 +148,8 @@ func (handler PipelineConfigRestHandlerImpl) GitListAutocomplete(w http.Response
 	handler.Logger.Infow("request payload, GitListAutocomplete", "appId", appId)
 	//RBAC
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet)
+	if !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}

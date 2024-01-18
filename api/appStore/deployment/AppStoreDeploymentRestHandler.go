@@ -22,6 +22,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
@@ -30,18 +35,15 @@ import (
 	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
 	"github.com/devtron-labs/devtron/pkg/attributes"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
+	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
-	"net/http"
-	"strconv"
-	"strings"
-	"time"
 )
 
 const HELM_APP_UPDATE_COUNTER = "HelmAppUpdateCounter"
@@ -291,6 +293,11 @@ func (handler AppStoreDeploymentRestHandlerImpl) DeleteInstalledApp(w http.Respo
 	installedApp, err := handler.appStoreDeploymentService.GetInstalledApp(installAppId)
 	if err != nil {
 		handler.Logger.Error(err)
+		if err == pg.ErrNoRows {
+			err = &util.ApiError{Code: "404", HttpStatusCode: 404, UserMessage: "App not found in database", InternalMessage: err.Error()}
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

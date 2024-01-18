@@ -2,7 +2,7 @@
 
 Workflow is a logical sequence of different stages used for continuous integration and continuous deployment of an application.
 
-![](../../../.gitbook/assets/arora1%20%282%29.gif)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/arora1.gif)
 
 Click on `New Build Pipeline` to create a new workflow
 

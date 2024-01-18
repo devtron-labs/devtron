@@ -5,6 +5,7 @@ import (
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	bean3 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/stretchr/testify/assert"
 	v12 "k8s.io/api/core/v1"
 	"log"
@@ -14,11 +15,11 @@ import (
 func Test_getConfigMapsAndSecrets(t *testing.T) {
 	t.SkipNow()
 	type args struct {
-		workflowRequest   *WorkflowRequest
+		workflowRequest   *types.WorkflowRequest
 		existingConfigMap *bean3.ConfigMapJson
 		existingSecrets   *bean3.ConfigSecretJson
 	}
-	workflowRequest := &WorkflowRequest{
+	workflowRequest := &types.WorkflowRequest{
 		WorkflowId: 123,
 	}
 	existingConfigMap := &bean3.ConfigMapJson{
@@ -400,7 +401,7 @@ func Test_getCiTemplateWithConfigMapsAndSecrets(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := getCiTemplateWithConfigMapsAndSecrets(tt.args.configMaps, tt.args.secrets, tt.args.ciTemplate, tt.args.existingConfigMap, tt.args.existingSecrets)
+			got, err := getCiTemplateWithConfigMapsAndSecrets(tt.args.configMaps, tt.args.secrets, tt.args.ciTemplate)
 			if !tt.wantErr(t, err, fmt.Sprintf("getCiTemplateWithConfigMapsAndSecrets(%v, %v, %v, %v, %v)", tt.args.configMaps, tt.args.secrets, tt.args.ciTemplate, tt.args.existingConfigMap, tt.args.existingSecrets)) {
 				return
 			}
@@ -468,7 +469,7 @@ func Test_processConfigMapsAndSecrets(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.wantErr(t, processConfigMapsAndSecrets(tt.args.impl, tt.args.configMaps, tt.args.secrets, tt.args.entryPoint, tt.args.steps, tt.args.volumes, tt.args.templates), fmt.Sprintf("processConfigMapsAndSecrets(%v, %v, %v, %v, %v, %v, %v)", tt.args.impl, tt.args.configMaps, tt.args.secrets, tt.args.entryPoint, tt.args.steps, tt.args.volumes, tt.args.templates))
+			tt.wantErr(t, processConfigMapsAndSecrets(tt.args.impl, tt.args.configMaps, tt.args.secrets, tt.args.entryPoint, tt.args.steps, tt.args.templates), fmt.Sprintf("processConfigMapsAndSecrets(%v, %v, %v, %v, %v, %v, %v)", tt.args.impl, tt.args.configMaps, tt.args.secrets, tt.args.entryPoint, tt.args.steps, tt.args.volumes, tt.args.templates))
 		})
 	}
 }
@@ -540,7 +541,7 @@ func Test_processConfigMapsAndSecrets1(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := processConfigMapsAndSecrets(tt.args.impl, tt.args.configMaps, tt.args.secrets, tt.args.entryPoint, tt.args.steps, tt.args.volumes, tt.args.templates)
+			err := processConfigMapsAndSecrets(tt.args.impl, tt.args.configMaps, tt.args.secrets, tt.args.entryPoint, tt.args.steps, tt.args.templates)
 
 			if tt.wantErr {
 				if err == nil {

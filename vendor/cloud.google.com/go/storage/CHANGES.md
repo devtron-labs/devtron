@@ -1,6 +1,68 @@
 # Changes
 
 
+## [1.30.1](https://github.com/googleapis/google-cloud-go/compare/storage/v1.30.0...storage/v1.30.1) (2023-03-21)
+
+
+### Bug Fixes
+
+* **storage:** Retract versions with Copier bug ([#7583](https://github.com/googleapis/google-cloud-go/issues/7583)) ([9c10b6f](https://github.com/googleapis/google-cloud-go/commit/9c10b6f8a54cb8447260148b5e4a9b5160281020))
+  * Versions v1.25.0-v1.27.0 are retracted due to [#6857](https://github.com/googleapis/google-cloud-go/issues/6857).
+* **storage:** SignedURL v4 allows headers with colons in value ([#7603](https://github.com/googleapis/google-cloud-go/issues/7603)) ([6b50f9b](https://github.com/googleapis/google-cloud-go/commit/6b50f9b368f5b271ade1706c342865cef46712e6))
+
+## [1.30.0](https://github.com/googleapis/google-cloud-go/compare/storage/v1.29.0...storage/v1.30.0) (2023-03-15)
+
+
+### Features
+
+* **storage/internal:** Update routing annotation for CreateBucketRequest docs: Add support for end-to-end checksumming in the gRPC WriteObject flow feat!: BREAKING CHANGE - renaming Notification to NotificationConfig ([2fef56f](https://github.com/googleapis/google-cloud-go/commit/2fef56f75a63dc4ff6e0eea56c7b26d4831c8e27))
+* **storage:** Json downloads ([#7158](https://github.com/googleapis/google-cloud-go/issues/7158)) ([574a86c](https://github.com/googleapis/google-cloud-go/commit/574a86c614445f8c3f5a54446820df774c31cd47))
+* **storage:** Update iam and longrunning deps ([91a1f78](https://github.com/googleapis/google-cloud-go/commit/91a1f784a109da70f63b96414bba8a9b4254cddd))
+
+
+### Bug Fixes
+
+* **storage:** Specify credentials with STORAGE_EMULATOR_HOST ([#7271](https://github.com/googleapis/google-cloud-go/issues/7271)) ([940ae15](https://github.com/googleapis/google-cloud-go/commit/940ae15f725ff384e345e627feb03d22e1fd8db5))
+
+## [1.29.0](https://github.com/googleapis/google-cloud-go/compare/storage/v1.28.1...storage/v1.29.0) (2023-01-19)
+
+
+### Features
+
+* **storage:** Add ComponentCount as part of ObjectAttrs ([#7230](https://github.com/googleapis/google-cloud-go/issues/7230)) ([a19bca6](https://github.com/googleapis/google-cloud-go/commit/a19bca60704b4fbb674cf51d828580aa653c8210))
+* **storage:** Add REST client ([06a54a1](https://github.com/googleapis/google-cloud-go/commit/06a54a16a5866cce966547c51e203b9e09a25bc0))
+
+
+### Documentation
+
+* **storage/internal:** Corrected typos and spellings ([7357077](https://github.com/googleapis/google-cloud-go/commit/735707796d81d7f6f32fc3415800c512fe62297e))
+
+## [1.28.1](https://github.com/googleapis/google-cloud-go/compare/storage/v1.28.0...storage/v1.28.1) (2022-12-02)
+
+
+### Bug Fixes
+
+* **storage:** downgrade some dependencies ([7540152](https://github.com/googleapis/google-cloud-go/commit/754015236d5af7c82a75da218b71a87b9ead6eb5))
+
+## [1.28.0](https://github.com/googleapis/google-cloud-go/compare/storage/v1.27.0...storage/v1.28.0) (2022-11-03)
+
+
+### Features
+
+* **storage/internal:** Add routing annotations ([ce3f945](https://github.com/googleapis/google-cloud-go/commit/ce3f9458e511eca0910992763232abbcd64698f1))
+* **storage:** Add Autoclass support ([#6828](https://github.com/googleapis/google-cloud-go/issues/6828)) ([f7c7f41](https://github.com/googleapis/google-cloud-go/commit/f7c7f41e4d7fcffe05860e1114cb20f40c869da8))
+
+
+### Bug Fixes
+
+* **storage:** Fix read-write race in Writer.Write ([#6817](https://github.com/googleapis/google-cloud-go/issues/6817)) ([4766d3e](https://github.com/googleapis/google-cloud-go/commit/4766d3e1004119b93c6bd352024b5bf3404252eb))
+* **storage:** Fix request token passing for Copier.Run ([#6863](https://github.com/googleapis/google-cloud-go/issues/6863)) ([faaab06](https://github.com/googleapis/google-cloud-go/commit/faaab066d8e509dc440bcbc87391557ecee7dbf2)), refs [#6857](https://github.com/googleapis/google-cloud-go/issues/6857)
+
+
+### Documentation
+
+* **storage:** Update broken links for SignURL and PostPolicy ([#6779](https://github.com/googleapis/google-cloud-go/issues/6779)) ([776138b](https://github.com/googleapis/google-cloud-go/commit/776138bc06a1e5fd45acbf8f9d36e9dc6ce31dd3))
+
 ## [1.27.0](https://github.com/googleapis/google-cloud-go/compare/storage/v1.26.0...storage/v1.27.0) (2022-09-22)
 
 

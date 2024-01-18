@@ -9,32 +9,38 @@ global:
     runAsNonRoot: true
 
 installer:
-  release: "v0.6.21"
+  release: "v0.6.26"
   image: "quay.io/devtron/inception"
   tag: "44b30917-185-13275"
   
 components:
   dashboard:
-    image: "quay.io/devtron/dashboard:2bc7be59-325-14997"
+    image: "quay.io/devtron/dashboard:0988ee6d-325-20037"
     config:
       extraConfigs:
         USE_V2: "true"
         ENABLE_BUILD_CONTEXT: "true"
         ENABLE_RESTART_WORKLOAD: "true"
         HIDE_EXCLUDE_INCLUDE_GIT_COMMITS: "false"
+        ENABLE_SCOPED_VARIABLES: "true"
+        ENABLE_CI_JOB: "true"
   devtron:
-    image: "quay.io/devtron/hyperion:f1cf1ba4-280-15016"
-    cicdImage: "quay.io/devtron/devtron:f1cf1ba4-434-15017"
+    image: "quay.io/devtron/hyperion:24f51942-280-20082"
+    cicdImage: "quay.io/devtron/devtron:24f51942-434-20080"
     customOverrides:
-      DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:8a9f8b8c-138-15021"
+      DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:560e6867-138-19679"
   argocdDexServer:
     image: "ghcr.io/dexidp/dex:v2.30.2"
     initContainer:
       authenticator: "quay.io/devtron/authenticator:e414faff-393-13273"
   kubelink:
-    image: "quay.io/devtron/kubelink:af6112c2-318-14801"
+    image: "quay.io/devtron/kubelink:d19ec7b6-564-20012"
     configs:
       ENABLE_HELM_RELEASE_CACHE: "true"
+      MANIFEST_FETCH_BATCH_SIZE: "2"
+      NATS_MSG_PROCESSING_BATCH_SIZE: "1"
+      NATS_SERVER_HOST: nats://devtron-nats.devtroncd:4222
+      RUN_HELM_INSTALL_IN_ASYNC_MODE: "false"
       PG_ADDR: postgresql-postgresql.devtroncd
       PG_DATABASE: orchestrator
       PG_LOG_QUERY: "true"
@@ -46,16 +52,59 @@ components:
   postgres:
     image: "quay.io/devtron/postgres:11.9.0-debian-10-r26"
     armImage: "quay.io/devtron/postgres:11.9"
-  
+  gitsensor:
+    image: "quay.io/devtron/git-sensor:4f3b9a14-200-19136"
+    imagePullPolicy: "IfNotPresent"
+    serviceMonitor:
+      enabled: false
+    persistence:
+      volumeSize: 2Gi
+    configs:
+      PG_ADDR: postgresql-postgresql.devtroncd
+      PG_USER: postgres
+      COMMIT_STATS_TIMEOUT_IN_SEC: "2"
+      ENABLE_FILE_STATS: "true"
+    dbconfig:
+      secretName: postgresql-postgresql
+      keyName: postgresql-password
+  lens: 
+    image: "quay.io/devtron/lens:a0628f4f-333-19937"
+    imagePullPolicy: IfNotPresent
+    configs:
+      GIT_SENSOR_PROTOCOL: GRPC
+      GIT_SENSOR_URL: git-sensor-service.devtroncd:90
+      NATS_SERVER_HOST: nats://devtron-nats.devtroncd:4222
+      PG_ADDR: postgresql-postgresql.devtroncd
+      PG_PORT: "5432"
+      PG_USER: postgres
+      PG_DATABASE: lens
+    dbconfig:
+      secretName: postgresql-postgresql
+      keyName: postgresql-password
+  nats:
+    image: nats:2.9.3-alpine
+    imagePullPolicy: IfNotPresent
+    reloader:
+      image: quay.io/devtron/nats-server-config-reloader:0.6.2
+      imagePullPolicy: IfNotPresent
+    metrics:
+      image: quay.io/devtron/prometheus-nats-exporter:0.9.0
+      imagePullPolicy: IfNotPresent
+    serviceMonitor:
+      enabled: false
+    persistence:
+      storage: 5Gi
   migrator:
-    image: "quay.io/devtron/migrator:ec1dcab8-149-13278"
+    image: "quay.io/devtron/migrator:v4.16.2"
     envVars:
       devtron:
-        GIT_BRANCH: "main"
-        GIT_HASH: "f1cf1ba4a9000f084ac6fdd669501f57d1ef4f2d"
+        DB_NAME: "orchestrator"
       casbin:
-        GIT_BRANCH: "main"
-        GIT_HASH: "f1cf1ba4a9000f084ac6fdd669501f57d1ef4f2d"
+        DB_NAME: "casbin"
+      gitsensor:
+        DB_NAME: "git_sensor"
+      lens: 
+        DB_NAME: "lens"
         
 argo-cd:
   global:
@@ -63,10 +112,14 @@ argo-cd:
       repository: quay.io/argoproj/argocd
       tag: "v2.5.2"
       imagePullPolicy: IfNotPresent
+      
+workflowController:
+  image: "quay.io/argoproj/workflow-controller:v3.4.3"
+  executorImage: "quay.io/argoproj/argoexec:v3.4.3"
 
 security:
   imageScanner:
-    image: "quay.io/devtron/image-scanner:d554c0f8-334-14015"
+    image: "quay.io/devtron/image-scanner:abb1e033-334-19909"
 
 notifier:
-  image: "quay.io/devtron/notifier:d9c72180-372-14306"
+  image: "quay.io/devtron/notifier:1db5450e-372-20077"

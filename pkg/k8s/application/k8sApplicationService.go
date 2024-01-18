@@ -5,24 +5,30 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"strconv"
+	"strings"
+
 	"github.com/caarlos0/env/v6"
+	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
+	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
+	k8sObjectUtils "github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
+	yamlUtil "github.com/devtron-labs/common-lib/utils/yaml"
 	"github.com/devtron-labs/devtron/api/connector"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/helm-app/openapiClient"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	bean3 "github.com/devtron-labs/devtron/pkg/k8s/application/bean"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	"github.com/devtron-labs/devtron/pkg/terminal"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	util2 "github.com/devtron-labs/devtron/util"
-	k8s2 "github.com/devtron-labs/devtron/util/k8s"
-	yamlUtil "github.com/devtron-labs/devtron/util/yaml"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
-	"io"
 	corev1 "k8s.io/api/core/v1"
 	errors2 "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,9 +39,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"net/http"
-	"strconv"
-	"strings"
 )
 
 type K8sApplicationService interface {
@@ -48,6 +51,7 @@ type K8sApplicationService interface {
 		rbacCallback func(clusterName string, resourceIdentifier k8s2.ResourceIdentifier) bool) (bool, error)
 	ValidateClusterResourceBean(ctx context.Context, clusterId int, manifest unstructured.Unstructured, gvk schema.GroupVersionKind, rbacCallback func(clusterName string, resourceIdentifier k8s2.ResourceIdentifier) bool) bool
 	GetResourceInfo(ctx context.Context) (*bean3.ResourceInfo, error)
+	GetAllApiResourceGVKWithoutAuthorization(ctx context.Context, clusterId int) (*k8s2.GetAllApiResourcesResponse, error)
 	GetAllApiResources(ctx context.Context, clusterId int, isSuperAdmin bool, userId int32) (*k8s2.GetAllApiResourcesResponse, error)
 	GetResourceList(ctx context.Context, token string, request *k8s.ResourceRequestBean, validateResourceAccess func(token string, clusterName string, request k8s.ResourceRequestBean, casbinAction string) bool) (*k8s2.ClusterResourceListMap, error)
 	ApplyResources(ctx context.Context, token string, request *k8s2.ApplyResourcesRequest, resourceRbacHandler func(token string, clusterName string, request k8s.ResourceRequestBean, casbinAction string) bool) ([]*k8s2.ApplyResourcesResponse, error)
@@ -428,8 +432,9 @@ func (impl *K8sApplicationServiceImpl) GetResourceInfo(ctx context.Context) (*be
 	return response, nil
 }
 
-func (impl *K8sApplicationServiceImpl) GetAllApiResources(ctx context.Context, clusterId int, isSuperAdmin bool, userId int32) (*k8s2.GetAllApiResourcesResponse, error) {
-	impl.logger.Infow("getting all api-resources", "clusterId", clusterId)
+// GetAllApiResourceGVKWithoutAuthorization  This function will the all the available api resource GVK list for specific cluster
+func (impl *K8sApplicationServiceImpl) GetAllApiResourceGVKWithoutAuthorization(ctx context.Context, clusterId int) (*k8s2.GetAllApiResourcesResponse, error) {
+	impl.logger.Infow("getting all api-resources without auth", "clusterId", clusterId)
 	restConfig, err, _ := impl.k8sCommonService.GetRestConfigByClusterId(ctx, clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting cluster rest config", "clusterId", clusterId, "err", err)
@@ -439,7 +444,6 @@ func (impl *K8sApplicationServiceImpl) GetAllApiResources(ctx context.Context, c
 	if err != nil {
 		return nil, err
 	}
-
 	// FILTER STARTS
 	// 1) remove ""/v1 event kind if event kind exist in events.k8s.io/v1 and ""/v1
 	k8sEventIndex := -1
@@ -453,11 +457,28 @@ func (impl *K8sApplicationServiceImpl) GetAllApiResources(ctx context.Context, c
 				k8sEventIndex = index
 			}
 		}
+		if gvk.Kind == "Node" {
+			allApiResources = append(allApiResources[:index], allApiResources[index+1:]...)
+		}
 	}
 	if k8sEventIndex > -1 && v1EventIndex > -1 {
 		allApiResources = append(allApiResources[:v1EventIndex], allApiResources[v1EventIndex+1:]...)
 	}
 	// FILTER ENDS
+
+	response := &k8s2.GetAllApiResourcesResponse{
+		ApiResources: allApiResources,
+	}
+	return response, nil
+}
+
+func (impl *K8sApplicationServiceImpl) GetAllApiResources(ctx context.Context, clusterId int, isSuperAdmin bool, userId int32) (*k8s2.GetAllApiResourcesResponse, error) {
+	impl.logger.Infow("getting all api-resources", "clusterId", clusterId)
+	apiResourceGVKResponse, err := impl.GetAllApiResourceGVKWithoutAuthorization(ctx, clusterId)
+	if err != nil {
+		return nil, err
+	}
+	allApiResources := apiResourceGVKResponse.ApiResources
 
 	// RBAC FILER STARTS
 	allowedAll := isSuperAdmin
@@ -492,10 +513,10 @@ func (impl *K8sApplicationServiceImpl) GetAllApiResources(ctx context.Context, c
 			}
 			allowedGroupKinds[groupName+"||"+kind] = true
 			// add children for this kind
-			children, found := k8s2.KindVsChildrenGvk[kind]
+			children, found := k8sCommonBean.KindVsChildrenGvk[kind]
 			if found {
 				// if rollout kind other than argo, then neglect only
-				if kind != k8s2.K8sClusterResourceRolloutKind || groupName == k8s2.K8sClusterResourceRolloutGroup {
+				if kind != k8sCommonBean.K8sClusterResourceRolloutKind || groupName == k8sCommonBean.K8sClusterResourceRolloutGroup {
 					for _, child := range children {
 						allowedGroupKinds[child.Group+"||"+child.Kind] = true
 					}
@@ -802,8 +823,8 @@ func (impl *K8sApplicationServiceImpl) generateDebugContainer(pod *corev1.Pod, r
 		}
 	}
 	ephemeralContainer.Name = ephemeralContainer.Name + "-" + util2.Generate(5)
-	scriptCreateCommand := fmt.Sprintf("echo 'while true; do sleep 600; done;' > %s-devtron.sh", ephemeralContainer.Name)
-	scriptRunCommand := fmt.Sprintf("sh %s-devtron.sh", ephemeralContainer.Name)
+	scriptCreateCommand := fmt.Sprintf("echo 'while true; do sleep 600; done;' > "+k8sObjectUtils.EphemeralContainerStartingShellScriptFileName, ephemeralContainer.Name)
+	scriptRunCommand := fmt.Sprintf("sh "+k8sObjectUtils.EphemeralContainerStartingShellScriptFileName, ephemeralContainer.Name)
 	ephemeralContainer.Command = []string{"sh", "-c", scriptCreateCommand + " && " + scriptRunCommand}
 	copied.Spec.EphemeralContainers = append(copied.Spec.EphemeralContainers, *ephemeralContainer)
 	ephemeralContainer = &copied.Spec.EphemeralContainers[len(copied.Spec.EphemeralContainers)-1]
@@ -826,7 +847,7 @@ func (impl *K8sApplicationServiceImpl) TerminatePodEphemeralContainer(req cluste
 	if container == nil {
 		return false, errors.New("externally created ephemeral containers cannot be removed")
 	}
-	containerKillCommand := fmt.Sprintf("kill -16 $(pgrep -f '%s-devtron' -o)", terminalReq.ContainerName)
+	containerKillCommand := fmt.Sprintf("kill -16 $(pgrep -f '%s' -o)", fmt.Sprintf(k8sObjectUtils.EphemeralContainerStartingShellScriptFileName, terminalReq.ContainerName))
 	cmds := []string{"sh", "-c", containerKillCommand}
 	_, errBuf, err := impl.terminalSession.RunCmdInRemotePod(terminalReq, cmds)
 	if err != nil {
@@ -990,7 +1011,7 @@ func getUrls(manifest *k8s2.ManifestResponse) bean3.Response {
 	}
 	res.PointsTo = ""
 	urls := make([]string, 0)
-	if res.Kind == k8s.IngressKind {
+	if res.Kind == k8sCommonBean.IngressKind {
 		if manifest.Manifest.Object["spec"] != nil {
 			spec := manifest.Manifest.Object["spec"].(map[string]interface{})
 			if spec["rules"] != nil {

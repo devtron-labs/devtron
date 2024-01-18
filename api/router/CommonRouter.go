@@ -33,7 +33,6 @@ func NewCommonRouterImpl(commonRestHandler restHandler.CommonRestHanlder) *Commo
 	return &CommonRouterImpl{commonRestHandler: commonRestHandler}
 }
 func (impl CommonRouterImpl) InitCommonRouter(router *mux.Router) {
-
 	router.Path("/checklist").
 		HandlerFunc(impl.commonRestHandler.GlobalChecklist).
 		Methods("GET")

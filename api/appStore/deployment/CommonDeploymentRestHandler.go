@@ -21,6 +21,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"strconv"
+	"time"
+
+	"github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
@@ -28,18 +33,15 @@ import (
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	util2 "github.com/devtron-labs/devtron/util"
-	"github.com/devtron-labs/devtron/util/k8sObjectsUtil"
+	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
-	"net/http"
-	"strconv"
-	"time"
 )
 
 type CommonDeploymentRestHandler interface {
@@ -59,12 +61,13 @@ type CommonDeploymentRestHandlerImpl struct {
 	validator                  *validator.Validate
 	helmAppService             client.HelmAppService
 	helmAppRestHandler         client.HelmAppRestHandler
+	argoUserService            argo.ArgoUserService
 }
 
 func NewCommonDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService,
 	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, enforcerUtilHelm rbac.EnforcerUtilHelm, appStoreDeploymentService service.AppStoreDeploymentService,
 	validator *validator.Validate, helmAppService client.HelmAppService, appStoreDeploymentServiceC appStoreDeploymentCommon.AppStoreDeploymentCommonService,
-	helmAppRestHandler client.HelmAppRestHandler) *CommonDeploymentRestHandlerImpl {
+	helmAppRestHandler client.HelmAppRestHandler, argoUserService argo.ArgoUserService) *CommonDeploymentRestHandlerImpl {
 	return &CommonDeploymentRestHandlerImpl{
 		Logger:                     Logger,
 		userAuthService:            userAuthService,
@@ -76,6 +79,7 @@ func NewCommonDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthServi
 		helmAppService:             helmAppService,
 		appStoreDeploymentServiceC: appStoreDeploymentServiceC,
 		helmAppRestHandler:         helmAppRestHandler,
+		argoUserService:            argoUserService,
 	}
 }
 func (handler *CommonDeploymentRestHandlerImpl) getAppOfferingMode(installedAppId string, appId string) (string, *appStoreBean.InstallAppVersionDTO, error) {
@@ -287,8 +291,28 @@ func (handler *CommonDeploymentRestHandlerImpl) RollbackApplication(w http.Respo
 		return
 	}
 	//rbac block ends here
+	ctx, cancel := context.WithCancel(r.Context())
+	if cn, ok := w.(http.CloseNotifier); ok {
+		go func(done <-chan struct{}, closed <-chan bool) {
+			select {
+			case <-done:
+			case <-closed:
+				cancel()
+			}
+		}(ctx.Done(), cn.CloseNotify())
+	}
+	if util2.IsBaseStack() || util2.IsHelmApp(appOfferingMode) {
+		ctx = context.WithValue(r.Context(), "token", token)
+	} else {
+		acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+		if err != nil {
+			handler.Logger.Errorw("error in getting acd token", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		ctx = context.WithValue(r.Context(), "token", acdToken)
+	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 	success, err := handler.appStoreDeploymentService.RollbackApplication(ctx, request, installedAppDto, userId)
 	if err != nil {

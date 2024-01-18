@@ -19,18 +19,18 @@ package apiToken
 
 import (
 	"encoding/json"
+	"net/http"
+	"strconv"
+
 	openapi "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/apiToken"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/gorilla/mux"
 	"github.com/juju/errors"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
-	"net/http"
-	"strconv"
-	"strings"
 )
 
 type ApiTokenRestHandler interface {
@@ -213,7 +213,7 @@ func (impl ApiTokenRestHandlerImpl) DeleteApiToken(w http.ResponseWriter, r *htt
 }
 
 func (handler ApiTokenRestHandlerImpl) checkManagerAuth(resource, token, object string) bool {
-	if ok := handler.enforcer.Enforce(token, resource, casbin.ActionUpdate, strings.ToLower(object)); !ok {
+	if ok := handler.enforcer.Enforce(token, resource, casbin.ActionUpdate, object); !ok {
 		return false
 	}
 	return true
@@ -243,10 +243,10 @@ func (impl ApiTokenRestHandlerImpl) GetAllApiTokensForWebhook(w http.ResponseWri
 }
 
 func (handler ApiTokenRestHandlerImpl) CheckAuthorizationForWebhook(token string, projectObject string, envObject string) bool {
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, strings.ToLower(projectObject)); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, projectObject); !ok {
 		return false
 	}
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionTrigger, strings.ToLower(envObject)); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionTrigger, envObject); !ok {
 		return false
 	}
 	return true

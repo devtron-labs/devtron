@@ -22,20 +22,24 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"github.com/devtron-labs/devtron/client/gitSensor"
-	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
-	appGroup2 "github.com/devtron-labs/devtron/pkg/appGroup"
-	"github.com/devtron-labs/devtron/pkg/chart"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
-	"github.com/devtron-labs/devtron/util/argo"
-	"github.com/go-pg/pg"
-	"go.opentelemetry.io/otel"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/caarlos0/env"
+	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/client/gitSensor"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
+	"github.com/devtron-labs/devtron/pkg/chart"
+	"github.com/devtron-labs/devtron/pkg/generateManifest"
+	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
+	"github.com/devtron-labs/devtron/util/argo"
+	"github.com/go-pg/pg"
+	"go.opentelemetry.io/otel"
 
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
@@ -50,7 +54,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	security2 "github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/pkg/team"
-	"github.com/devtron-labs/devtron/pkg/user"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
@@ -60,6 +63,10 @@ import (
 	"google.golang.org/grpc/status"
 	"gopkg.in/go-playground/validator.v9"
 )
+
+type PipelineRestHandlerEnvConfig struct {
+	UseArtifactListApiV2 bool `env:"USE_ARTIFACT_LISTING_API_V2" envDefault:"true"`
+}
 
 type DevtronAppRestHandler interface {
 	CreateApp(w http.ResponseWriter, r *http.Request)
@@ -122,6 +129,9 @@ type PipelineConfigRestHandlerImpl struct {
 	gitProviderRepo              repository.GitProviderRepository
 	argoUserService              argo.ArgoUserService
 	imageTaggingService          pipeline.ImageTaggingService
+	deploymentTemplateService    generateManifest.DeploymentTemplateService
+	pipelineRestHandlerEnvConfig *PipelineRestHandlerEnvConfig
+	ciArtifactRepository         repository.CiArtifactRepository
 }
 
 func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
@@ -140,11 +150,18 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	gitRegistryConfig pipeline.GitRegistryConfig, dockerRegistryConfig pipeline.DockerRegistryConfig,
 	cdHandler pipeline.CdHandler,
 	appCloneService appClone.AppCloneService,
+	deploymentTemplateService generateManifest.DeploymentTemplateService,
 	appWorkflowService appWorkflow.AppWorkflowService,
 	materialRepository pipelineConfig.MaterialRepository, policyService security2.PolicyService,
 	scanResultRepository security.ImageScanResultRepository, gitProviderRepo repository.GitProviderRepository,
 	argoUserService argo.ArgoUserService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
-	imageTaggingService pipeline.ImageTaggingService) *PipelineConfigRestHandlerImpl {
+	imageTaggingService pipeline.ImageTaggingService,
+	ciArtifactRepository repository.CiArtifactRepository) *PipelineConfigRestHandlerImpl {
+	envConfig := &PipelineRestHandlerEnvConfig{}
+	err := env.Parse(envConfig)
+	if err != nil {
+		Logger.Errorw("error in parsing PipelineRestHandlerEnvConfig", "err", err)
+	}
 	return &PipelineConfigRestHandlerImpl{
 		pipelineBuilder:              pipelineBuilder,
 		Logger:                       Logger,
@@ -174,6 +191,9 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		argoUserService:              argoUserService,
 		ciPipelineMaterialRepository: ciPipelineMaterialRepository,
 		imageTaggingService:          imageTaggingService,
+		deploymentTemplateService:    deploymentTemplateService,
+		pipelineRestHandlerEnvConfig: envConfig,
+		ciArtifactRepository:         ciArtifactRepository,
 	}
 }
 
@@ -210,26 +230,11 @@ func (handler PipelineConfigRestHandlerImpl) DeleteApp(w http.ResponseWriter, r 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	app, err := handler.pipelineBuilder.GetApp(appId)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+	resourceObject := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, resourceObject, casbin.ActionDelete)
+	if !ok {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
-	}
-	if app.AppType == helper.Job {
-		isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
-		if !isSuperAdmin || err != nil {
-			if err != nil {
-				handler.Logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
-			}
-			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
-			return
-		}
-	} else {
-		resourceObject := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionDelete, resourceObject); !ok {
-			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
-			return
-		}
 	}
 	err = handler.pipelineBuilder.DeleteApp(appId, userId)
 	if err != nil {
@@ -336,16 +341,6 @@ func (handler PipelineConfigRestHandlerImpl) CreateApp(w http.ResponseWriter, r 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	if createRequest.AppType == helper.Job {
-		isSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
-		if !isSuperAdmin || err != nil {
-			if err != nil {
-				handler.Logger.Errorw("request err, CheckSuperAdmin", "err", isSuperAdmin, "isSuperAdmin", isSuperAdmin)
-			}
-			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
-			return
-		}
-	}
 	handler.Logger.Infow("request payload, CreateApp", "CreateApp", createRequest)
 	err = handler.validator.Struct(createRequest)
 	if err != nil {
@@ -359,11 +354,20 @@ func (handler PipelineConfigRestHandlerImpl) CreateApp(w http.ResponseWriter, r 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+
 	// with admin roles, you have to access for all the apps of the project to create new app. (admin or manager with specific app permission can't create app.)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, fmt.Sprintf("%s/%s", strings.ToLower(project.Name), "*")); !ok {
+	object := fmt.Sprintf("%s/%s", project.Name, "*")
+	isAuthorised := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionCreate)
+	if !isAuthorised {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
+	// Validation For appName
+	if ok := strings.Contains(createRequest.AppName, bean3.UniquePlaceHolderForAppName); ok {
+		common.WriteJsonResp(w, err, "app creation failed due to validation on app-name as it contains not allowed place-holder in name", http.StatusBadRequest)
+		return
+	}
+
 	var createResp *bean.CreateAppDTO
 	err = nil
 	if createRequest.TemplateId == 0 {
@@ -416,7 +420,8 @@ func (handler PipelineConfigRestHandlerImpl) GetApp(w http.ResponseWriter, r *ht
 
 	//rbac implementation starts here
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet)
+	if !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -601,7 +606,8 @@ func (handler PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerVie
 	handler.Logger.Infow("request payload, FetchAppWorkflowStatusForTriggerView", "appId", appId)
 	//RBAC CHECK
 	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, resourceName, casbin.ActionGet)
+	if !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -675,7 +681,8 @@ func (handler PipelineConfigRestHandlerImpl) PipelineNameSuggestion(w http.Respo
 	}
 	suggestedName := fmt.Sprintf("%s-%d-%s", pType, appId, util2.Generate(4))
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, resourceName, casbin.ActionGet)
+	if !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -683,17 +690,12 @@ func (handler PipelineConfigRestHandlerImpl) PipelineNameSuggestion(w http.Respo
 }
 
 func (handler PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerViewByEnvironment(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	user, err := handler.userAuthService.GetById(userId)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	userEmailId := strings.ToLower(user.EmailId)
 	vars := mux.Vars(r)
 	envId, err := strconv.Atoi(vars["envId"])
 	if err != nil {
@@ -723,18 +725,18 @@ func (handler PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerVie
 			return
 		}
 	}
-	request := appGroup2.AppGroupingRequest{
-		EnvId:          envId,
-		AppGroupId:     appGroupId,
-		AppIds:         appIds,
-		EmailId:        userEmailId,
-		CheckAuthBatch: handler.checkAuthBatch,
-		UserId:         userId,
-		Ctx:            r.Context(),
+	request := resourceGroup2.ResourceGroupingRequest{
+		ParentResourceId:  envId,
+		ResourceGroupId:   appGroupId,
+		ResourceGroupType: resourceGroup2.APP_GROUP,
+		ResourceIds:       appIds,
+		CheckAuthBatch:    handler.checkAuthBatch,
+		UserId:            userId,
+		Ctx:               r.Context(),
 	}
 	triggerWorkflowStatus := pipelineConfig.TriggerWorkflowStatus{}
-	_, span := otel.Tracer("orchestrator").Start(r.Context(), "ciHandler.FetchCiStatusForBuildAndDeployInAppGrouping")
-	ciWorkflowStatus, err := handler.ciHandler.FetchCiStatusForTriggerViewForEnvironment(request)
+	_, span := otel.Tracer("orchestrator").Start(r.Context(), "ciHandler.FetchCiStatusForBuildAndDeployInResourceGrouping")
+	ciWorkflowStatus, err := handler.ciHandler.FetchCiStatusForTriggerViewForEnvironment(request, token)
 	span.End()
 	if err != nil {
 		handler.Logger.Errorw("service err", "err", err)
@@ -747,8 +749,8 @@ func (handler PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerVie
 		return
 	}
 
-	_, span = otel.Tracer("orchestrator").Start(r.Context(), "ciHandler.FetchCdStatusForBuildAndDeployInAppGrouping")
-	cdWorkflowStatus, err := handler.cdHandler.FetchAppWorkflowStatusForTriggerViewForEnvironment(request)
+	_, span = otel.Tracer("orchestrator").Start(r.Context(), "ciHandler.FetchCdStatusForBuildAndDeployInResourceGrouping")
+	cdWorkflowStatus, err := handler.cdHandler.FetchAppWorkflowStatusForTriggerViewForEnvironment(request, token)
 	span.End()
 	if err != nil {
 		handler.Logger.Errorw("service err, FetchAppWorkflowStatusForTriggerView", "err", err)
@@ -767,17 +769,7 @@ func (handler PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerVie
 
 func (handler PipelineConfigRestHandlerImpl) GetEnvironmentListWithAppData(w http.ResponseWriter, r *http.Request) {
 	v := r.URL.Query()
-	userId, err := handler.userAuthService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	user, err := handler.userAuthService.GetById(userId)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	userEmailId := strings.ToLower(user.EmailId)
+	token := r.Header.Get("token")
 	envName := v.Get("envName")
 	clusterIdString := v.Get("clusterIds")
 	offset := 0
@@ -803,7 +795,7 @@ func (handler PipelineConfigRestHandlerImpl) GetEnvironmentListWithAppData(w htt
 		}
 	}
 	_, span := otel.Tracer("orchestrator").Start(r.Context(), "pipelineBuilder.GetEnvironmentListWithAppData")
-	result, err := handler.pipelineBuilder.GetEnvironmentListForAutocompleteFilter(envName, clusterIds, offset, size, userEmailId, handler.checkAuthBatch, r.Context())
+	result, err := handler.pipelineBuilder.GetEnvironmentListForAutocompleteFilter(envName, clusterIds, offset, size, token, handler.checkAuthBatch, r.Context())
 	span.End()
 	if err != nil {
 		handler.Logger.Errorw("service err, get app", "err", err)
@@ -815,17 +807,12 @@ func (handler PipelineConfigRestHandlerImpl) GetEnvironmentListWithAppData(w htt
 
 func (handler PipelineConfigRestHandlerImpl) GetApplicationsByEnvironment(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
+	token := r.Header.Get("token")
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	user, err := handler.userAuthService.GetById(userId)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	userEmailId := strings.ToLower(user.EmailId)
 	envId, err := strconv.Atoi(vars["envId"])
 	if err != nil {
 		handler.Logger.Errorw("request err, get app", "err", err, "envId", envId)
@@ -855,16 +842,16 @@ func (handler PipelineConfigRestHandlerImpl) GetApplicationsByEnvironment(w http
 			return
 		}
 	}
-	request := appGroup2.AppGroupingRequest{
-		EnvId:          envId,
-		AppGroupId:     appGroupId,
-		AppIds:         appIds,
-		EmailId:        userEmailId,
-		CheckAuthBatch: handler.checkAuthBatch,
-		UserId:         userId,
-		Ctx:            r.Context(),
+	request := resourceGroup2.ResourceGroupingRequest{
+		ParentResourceId:  envId,
+		ResourceGroupId:   appGroupId,
+		ResourceGroupType: resourceGroup2.APP_GROUP,
+		ResourceIds:       appIds,
+		CheckAuthBatch:    handler.checkAuthBatch,
+		UserId:            userId,
+		Ctx:               r.Context(),
 	}
-	results, err := handler.pipelineBuilder.GetAppListForEnvironment(request)
+	results, err := handler.pipelineBuilder.GetAppListForEnvironment(request, token)
 	if err != nil {
 		handler.Logger.Errorw("service err, get app", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -874,17 +861,12 @@ func (handler PipelineConfigRestHandlerImpl) GetApplicationsByEnvironment(w http
 }
 
 func (handler PipelineConfigRestHandlerImpl) FetchAppDeploymentStatusForEnvironments(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	user, err := handler.userAuthService.GetById(userId)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	userEmailId := strings.ToLower(user.EmailId)
 	vars := mux.Vars(r)
 	envId, err := strconv.Atoi(vars["envId"])
 	if err != nil {
@@ -914,17 +896,18 @@ func (handler PipelineConfigRestHandlerImpl) FetchAppDeploymentStatusForEnvironm
 			return
 		}
 	}
-	request := appGroup2.AppGroupingRequest{
-		EnvId:          envId,
-		AppGroupId:     appGroupId,
-		AppIds:         appIds,
-		EmailId:        userEmailId,
-		CheckAuthBatch: handler.checkAuthBatch,
-		UserId:         userId,
-		Ctx:            r.Context(),
+
+	request := resourceGroup2.ResourceGroupingRequest{
+		ParentResourceId:  envId,
+		ResourceGroupId:   appGroupId,
+		ResourceGroupType: resourceGroup2.APP_GROUP,
+		ResourceIds:       appIds,
+		CheckAuthBatch:    handler.checkAuthBatch,
+		UserId:            userId,
+		Ctx:               r.Context(),
 	}
 	_, span := otel.Tracer("orchestrator").Start(r.Context(), "pipelineBuilder.FetchAppDeploymentStatusForEnvironments")
-	results, err := handler.cdHandler.FetchAppDeploymentStatusForEnvironments(request)
+	results, err := handler.cdHandler.FetchAppDeploymentStatusForEnvironments(request, token)
 	span.End()
 	if err != nil {
 		handler.Logger.Errorw("service err, FetchAppWorkflowStatusForTriggerView", "err", err)

@@ -3,17 +3,17 @@ package capacity
 import (
 	"encoding/json"
 	"errors"
+	"net/http"
+	"strconv"
+
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/k8s/capacity"
 	"github.com/devtron-labs/devtron/pkg/k8s/capacity/bean"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
-	"net/http"
-	"strconv"
-	"strings"
 )
 
 type K8sCapacityRestHandler interface {
@@ -35,13 +35,15 @@ type K8sCapacityRestHandlerImpl struct {
 	enforcer           casbin.Enforcer
 	clusterService     cluster.ClusterService
 	environmentService cluster.EnvironmentService
+	clusterRbacService cluster.ClusterRbacService
 }
 
 func NewK8sCapacityRestHandlerImpl(logger *zap.SugaredLogger,
 	k8sCapacityService capacity.K8sCapacityService, userService user.UserService,
 	enforcer casbin.Enforcer,
 	clusterService cluster.ClusterService,
-	environmentService cluster.EnvironmentService) *K8sCapacityRestHandlerImpl {
+	environmentService cluster.EnvironmentService,
+	clusterRbacService cluster.ClusterRbacService) *K8sCapacityRestHandlerImpl {
 	return &K8sCapacityRestHandlerImpl{
 		logger:             logger,
 		k8sCapacityService: k8sCapacityService,
@@ -49,6 +51,7 @@ func NewK8sCapacityRestHandlerImpl(logger *zap.SugaredLogger,
 		enforcer:           enforcer,
 		clusterService:     clusterService,
 		environmentService: environmentService,
+		clusterRbacService: clusterRbacService,
 	}
 }
 
@@ -59,7 +62,7 @@ func (handler *K8sCapacityRestHandlerImpl) GetClusterListRaw(w http.ResponseWrit
 		return
 	}
 	token := r.Header.Get("token")
-	clusters, err := handler.clusterService.FindAll()
+	clusters, err := handler.clusterService.FindAllExceptVirtual()
 	if err != nil {
 		handler.logger.Errorw("error in getting all clusters", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -69,7 +72,7 @@ func (handler *K8sCapacityRestHandlerImpl) GetClusterListRaw(w http.ResponseWrit
 	var authenticatedClusters []*cluster.ClusterBean
 	var clusterDetailList []*bean.ClusterCapacityDetail
 	for _, cluster := range clusters {
-		authenticated, err := handler.CheckRbacForCluster(cluster, token)
+		authenticated, err := handler.clusterRbacService.CheckAuthorization(cluster.ClusterName, cluster.Id, token, userId, true)
 		if err != nil {
 			handler.logger.Errorw("error in checking rbac for cluster", "err", err, "clusterId", cluster.Id)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -81,7 +84,6 @@ func (handler *K8sCapacityRestHandlerImpl) GetClusterListRaw(w http.ResponseWrit
 				Id:                cluster.Id,
 				Name:              cluster.ClusterName,
 				ErrorInConnection: cluster.ErrorInConnecting,
-				IsVirtualCluster:  cluster.IsVirtualCluster,
 			}
 			clusterDetailList = append(clusterDetailList, clusterDetail)
 		}
@@ -100,7 +102,7 @@ func (handler *K8sCapacityRestHandlerImpl) GetClusterListWithDetail(w http.Respo
 		return
 	}
 	token := r.Header.Get("token")
-	clusters, err := handler.clusterService.FindAll()
+	clusters, err := handler.clusterService.FindAllExceptVirtual()
 	if err != nil {
 		handler.logger.Errorw("error in getting all clusters", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -109,7 +111,7 @@ func (handler *K8sCapacityRestHandlerImpl) GetClusterListWithDetail(w http.Respo
 	// RBAC enforcer applying
 	var authenticatedClusters []*cluster.ClusterBean
 	for _, cluster := range clusters {
-		authenticated, err := handler.CheckRbacForCluster(cluster, token)
+		authenticated, err := handler.clusterRbacService.CheckAuthorization(cluster.ClusterName, cluster.Id, token, userId, true)
 		if err != nil {
 			handler.logger.Errorw("error in checking rbac for cluster", "err", err, "clusterId", cluster.Id)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -153,7 +155,7 @@ func (handler *K8sCapacityRestHandlerImpl) GetClusterDetail(w http.ResponseWrite
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	authenticated, err := handler.CheckRbacForCluster(cluster, token)
+	authenticated, err := handler.clusterRbacService.CheckAuthorization(cluster.ClusterName, cluster.Id, token, userId, false)
 	if err != nil {
 		handler.logger.Errorw("error in checking rbac for cluster", "err", err, "clusterId", clusterId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -193,7 +195,7 @@ func (handler *K8sCapacityRestHandlerImpl) GetNodeList(w http.ResponseWriter, r 
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	authenticated, err := handler.CheckRbacForCluster(cluster, token)
+	authenticated, err := handler.clusterRbacService.CheckAuthorization(cluster.ClusterName, cluster.Id, token, userId, false)
 	if err != nil {
 		handler.logger.Errorw("error in checking rbac for cluster", "err", err, "clusterId", clusterId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -239,7 +241,7 @@ func (handler *K8sCapacityRestHandlerImpl) GetNodeDetail(w http.ResponseWriter, 
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	authenticated, err := handler.CheckRbacForCluster(cluster, token)
+	authenticated, err := handler.clusterRbacService.CheckAuthorization(cluster.ClusterName, cluster.Id, token, userId, false)
 	if err != nil {
 		handler.logger.Errorw("error in checking rbac for cluster", "err", err, "clusterId", clusterId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -401,44 +403,4 @@ func (handler *K8sCapacityRestHandlerImpl) EditNodeTaints(w http.ResponseWriter,
 		return
 	}
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
-}
-
-func (handler *K8sCapacityRestHandlerImpl) CheckRbacForCluster(cluster *cluster.ClusterBean, token string) (authenticated bool, err error) {
-	//getting all environments for this cluster
-	envs, err := handler.environmentService.GetByClusterId(cluster.Id)
-	if err != nil {
-		handler.logger.Errorw("error in getting environments by clusterId", "err", err, "clusterId", cluster.Id)
-		return false, err
-	}
-	if len(envs) == 0 {
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
-			return false, nil
-		}
-		return true, nil
-	}
-	emailId, err := handler.userService.GetEmailFromToken(token)
-	if err != nil {
-		handler.logger.Errorw("error in getting emailId from token", "err", err)
-		return false, err
-	}
-
-	var envIdentifierList []string
-	envIdentifierMap := make(map[string]bool)
-	for _, env := range envs {
-		envIdentifier := strings.ToLower(env.EnvironmentIdentifier)
-		envIdentifierList = append(envIdentifierList, envIdentifier)
-		envIdentifierMap[envIdentifier] = true
-	}
-	if len(envIdentifierList) == 0 {
-		return false, errors.New("environment identifier list for rbac batch enforcing contains zero environments")
-	}
-	// RBAC enforcer applying
-	rbacResultMap := handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceGlobalEnvironment, casbin.ActionGet, envIdentifierList)
-	for envIdentifier, _ := range envIdentifierMap {
-		if rbacResultMap[envIdentifier] {
-			//if user has view permission to even one environment of this cluster, authorise the request
-			return true, nil
-		}
-	}
-	return false, nil
 }

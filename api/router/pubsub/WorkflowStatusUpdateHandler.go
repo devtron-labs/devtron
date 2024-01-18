@@ -21,10 +21,12 @@ import (
 	"encoding/json"
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
+	"github.com/devtron-labs/common-lib/pubsub-lib/model"
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	util "github.com/devtron-labs/devtron/util/event"
 	"go.uber.org/zap"
 )
@@ -68,7 +70,7 @@ func NewWorkflowStatusUpdateHandlerImpl(logger *zap.SugaredLogger, pubsubClient 
 }
 
 func (impl *WorkflowStatusUpdateHandlerImpl) Subscribe() error {
-	callback := func(msg *pubsub.PubSubMsg) {
+	callback := func(msg *model.PubSubMsg) {
 		impl.logger.Debug("received wf update request")
 		//defer msg.Ack()
 		wfStatus := v1alpha1.WorkflowStatus{}
@@ -78,11 +80,18 @@ func (impl *WorkflowStatusUpdateHandlerImpl) Subscribe() error {
 			return
 		}
 
+		err = impl.ciHandler.CheckAndReTriggerCI(wfStatus)
+		if err != nil {
+			impl.logger.Errorw("error in checking and re triggering ci", "err", err)
+			//don't return as we have to update the workflow status
+		}
+
 		_, err = impl.ciHandler.UpdateWorkflow(wfStatus)
 		if err != nil {
 			impl.logger.Errorw("error on update workflow status", "err", err, "msg", string(msg.Data))
 			return
 		}
+
 	}
 	err := impl.pubsubClient.Subscribe(pubsub.WORKFLOW_STATUS_UPDATE_TOPIC, callback)
 
@@ -94,7 +103,7 @@ func (impl *WorkflowStatusUpdateHandlerImpl) Subscribe() error {
 }
 
 func (impl *WorkflowStatusUpdateHandlerImpl) SubscribeCD() error {
-	callback := func(msg *pubsub.PubSubMsg) {
+	callback := func(msg *model.PubSubMsg) {
 		impl.logger.Debug("received cd wf update request")
 		//defer msg.Ack()
 		wfStatus := v1alpha1.WorkflowStatus{}
@@ -106,7 +115,7 @@ func (impl *WorkflowStatusUpdateHandlerImpl) SubscribeCD() error {
 
 		impl.logger.Debugw("received cd wf update request body", "body", wfStatus)
 		wfrId, wfrStatus, err := impl.cdHandler.UpdateWorkflow(wfStatus)
-		impl.logger.Debug(wfrId)
+		impl.logger.Debugw("UpdateWorkflow", "wfrId", wfrId, "wfrStatus", wfrStatus)
 		if err != nil {
 			impl.logger.Error("err", err)
 			return
@@ -117,14 +126,30 @@ func (impl *WorkflowStatusUpdateHandlerImpl) SubscribeCD() error {
 			impl.logger.Errorw("could not get wf runner", "err", err)
 			return
 		}
-		if wfrStatus == string(v1alpha1.NodeSucceeded) ||
-			wfrStatus == string(v1alpha1.NodeFailed) || wfrStatus == string(v1alpha1.NodeError) {
+		if wfrStatus == string(v1alpha1.NodeFailed) || wfrStatus == string(v1alpha1.NodeError) {
+			if len(wfr.ImagePathReservationIds) > 0 {
+				err := impl.cdHandler.DeactivateImageReservationPathsOnFailure(wfr.ImagePathReservationIds)
+				if err != nil {
+					impl.logger.Errorw("error in removing image path reservation ")
+				}
+			}
+		}
+		if wfrStatus == string(v1alpha1.NodeSucceeded) || wfrStatus == string(v1alpha1.NodeFailed) || wfrStatus == string(v1alpha1.NodeError) {
 			eventType := util.EventType(0)
 			if wfrStatus == string(v1alpha1.NodeSucceeded) {
 				eventType = util.Success
 			} else if wfrStatus == string(v1alpha1.NodeFailed) || wfrStatus == string(v1alpha1.NodeError) {
 				eventType = util.Fail
 			}
+
+			if wfr != nil && executors.CheckIfReTriggerRequired(wfrStatus, wfStatus.Message, wfr.Status) {
+				err = impl.cdHandler.HandleCdStageReTrigger(wfr)
+				if err != nil {
+					//check if this log required or not
+					impl.logger.Errorw("error in HandleCdStageReTrigger", "error", err)
+				}
+			}
+
 			if wfr.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
 				event := impl.eventFactory.Build(eventType, &wfr.CdWorkflow.PipelineId, wfr.CdWorkflow.Pipeline.AppId, &wfr.CdWorkflow.Pipeline.EnvironmentId, util.CD)
 				impl.logger.Debugw("event pre stage", "event", event)

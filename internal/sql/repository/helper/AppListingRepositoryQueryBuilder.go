@@ -72,7 +72,7 @@ const (
 
 func (impl AppListingRepositoryQueryBuilder) BuildJobListingQuery(appIDs []int, statuses []string, environmentIds []int, sortOrder string) string {
 	query := "select ci_pipeline.name as ci_pipeline_name,ci_pipeline.id as ci_pipeline_id,app.id as job_id,app.display_name " +
-		"as job_name,app.description,cwr.started_on,cwr.status,cem.environment_id,cwr.environment_id as last_triggered_environment_id from app left join ci_pipeline on" +
+		"as job_name, app.app_name,app.description,cwr.started_on,cwr.status,cem.environment_id,cwr.environment_id as last_triggered_environment_id from app left join ci_pipeline on" +
 		" app.id = ci_pipeline.app_id and ci_pipeline.active=true left join (select cw.ci_pipeline_id, cw.status, cw.started_on, cw.environment_id " +
 		" from ci_workflow cw inner join (select ci_pipeline_id, MAX(started_on) max_started_on from ci_workflow group by ci_pipeline_id ) " +
 		"cws on cw.ci_pipeline_id = cws.ci_pipeline_id " +
@@ -288,9 +288,27 @@ func (impl AppListingRepositoryQueryBuilder) buildAppListingWhereCondition(appLi
 		whereCondition = whereCondition + "and dga.deployment_group_id = " + strconv.Itoa(appListingFilter.DeploymentGroupId) + " "
 	}
 	//add app-status filter here
+	var appStatusExcludingNotDeployed []string
+	var isNotDeployedFilterApplied bool
 	if len(appListingFilter.AppStatuses) > 0 {
-		appStatuses := util.ProcessAppStatuses(appListingFilter.AppStatuses)
-		whereCondition = whereCondition + "and aps.status IN (" + appStatuses + ") "
+		for _, status := range appListingFilter.AppStatuses {
+			if status == "NOT DEPLOYED" {
+				isNotDeployedFilterApplied = true
+			} else {
+				appStatusExcludingNotDeployed = append(appStatusExcludingNotDeployed, status)
+			}
+		}
+	}
+	appStatuses := util.ProcessAppStatuses(appStatusExcludingNotDeployed)
+	if isNotDeployedFilterApplied {
+		deploymentAppType := "manifest_download"
+		whereCondition += fmt.Sprintf(" and (p.deployment_app_created=%v and p.deployment_app_type != '%s' or a.id NOT IN (SELECT app_id from pipeline) ", false, deploymentAppType)
+		if len(appStatuses) > 0 {
+			whereCondition += fmt.Sprintf(" or aps.status IN ( %s ) ", appStatuses)
+		}
+		whereCondition += ") "
+	} else if len(appStatuses) > 0 {
+		whereCondition += fmt.Sprintf("and aps.status IN ( %s )", appStatuses)
 	}
 
 	if len(appListingFilter.AppIds) > 0 {
@@ -303,6 +321,17 @@ func GetCommaSepratedString[T int | string](appIds []T) string {
 	appIdsString := ""
 	for i, appId := range appIds {
 		appIdsString += fmt.Sprintf("%v", appId)
+		if i != len(appIds)-1 {
+			appIdsString += ","
+		}
+	}
+	return appIdsString
+}
+
+func GetCommaSepratedStringWithComma[T int | string](appIds []T) string {
+	appIdsString := ""
+	for i, appId := range appIds {
+		appIdsString += fmt.Sprintf("'%v'", appId)
 		if i != len(appIds)-1 {
 			appIdsString += ","
 		}

@@ -19,14 +19,15 @@ package service
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	appStoreValuesRepository "github.com/devtron-labs/devtron/pkg/appStore/values/repository"
-	"github.com/devtron-labs/devtron/pkg/user"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"go.uber.org/zap"
-	"time"
 )
 
 type AppStoreValuesService interface {
@@ -372,10 +373,15 @@ func (impl AppStoreValuesServiceImpl) GetSelectedChartMetaData(req *ChartMetaDat
 	for _, appversion := range appVersions {
 		chartMeta := &ChartMetaDataResponse{
 			ChartName:                    appversion.AppStore.Name,
-			ChartRepoName:                appversion.AppStore.ChartRepo.Name,
 			AppStoreApplicationVersionId: appversion.Id,
 			Icon:                         appversion.Icon,
 			Kind:                         appStoreBean.REFERENCE_TYPE_DEFAULT,
+		}
+		if appversion.AppStore.DockerArtifactStore != nil {
+			chartMeta.ChartRepoName = appversion.AppStore.DockerArtifactStore.Id
+		}
+		if appversion.AppStore.ChartRepo != nil {
+			chartMeta.ChartRepoName = appversion.AppStore.ChartRepo.Name
 		}
 		res = append(res, chartMeta)
 	}

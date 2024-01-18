@@ -1,34 +1,17 @@
-# Install Devtron with CICD
+# Install Devtron with CI/CD
 
 In this section, we describe the steps in detail on how you can install Devtron with CI/CD integration.
 
+---
 
-## Before you begin
+## Pre-requisites
 
-Install [Helm](https://helm.sh/docs/intro/install/), if you have not installed it.
+Install [Helm](https://helm.sh/docs/intro/install/), if you have not installed it already.
 
+{% hint style="info" %}
+If you are using EKS version 1.23 or above, you must also install [aws-ebs-csi-driver](https://docs.aws.amazon.com/eks/latest/userguide/ebs-csi.html).
 
-## Install Devtron with CI/CD
-
-Run the following command to install the latest version of Devtron along with the CI/CD module:
-
-```bash
-helm repo add devtron https://helm.devtron.ai 
-
-helm install devtron devtron/devtron-operator \
---create-namespace --namespace devtroncd \
---set installer.modules={cicd}
-```
-
-**Note**: If you want to configure Blob Storage during the installation, refer [configure blob storage duing installation](#configure-blob-storage-duing-installation).
-
-
-## Install AWS EBS CSI Driver, if require
-
-If you are using EKS version 1.23 or above, you must install [aws-ebs-csi-driver](https://docs.aws.amazon.com/eks/latest/userguide/ebs-csi.html).
-
-
-Run the following command to install aws ebs csi driver using Helm:
+Run the following command to install AWS EBS CSI driver using Helm:
 
 ```bash
 helm repo add aws-ebs-csi-driver \
@@ -37,17 +20,41 @@ helm repo update \
 helm upgrade --install aws-ebs-csi-driver \
 --namespace kube-system aws-ebs-csi-driver/aws-ebs-csi-driver
 ```
+{% endhint %}
+
+---
+
+## Command
+
+Run the following command to install the latest version of Devtron along with the CI/CD module:
+
+```bash
+helm repo add devtron https://helm.devtron.ai 
+
+helm repo update devtron
+
+helm install devtron devtron/devtron-operator \
+--create-namespace --namespace devtroncd \
+--set installer.modules={cicd}
+```
+
+{% hint style="info" %}
+If you want to configure Blob Storage during the installation, refer [configure blob storage duing installation](#configure-blob-storage-duing-installation).
+{% endhint %}
+
+---
 
 ## Install Multi-Architecture Nodes (ARM and AMD)
 
 To install Devtron on clusters with the multi-architecture nodes (ARM and AMD), append the Devtron installation command with `--set installer.arch=multi-arch`.
 
-**Note**: 
+{% hint style="info" %}
+If you want to install Devtron for `production deployments`, please refer our [recommended overrides](override-default-devtron-installation-configs.md) for Devtron Installation.
+{% endhint %}
 
-* If you want to install Devtron for `production deployments`, please refer to our recommended overrides for [Devtron Installation](override-default-devtron-installation-configs.md).
+---
 
-
-## Configure Blob Storage duing Installation
+## Configure Blob Storage during Installation
 
 Configuring Blob Storage in your Devtron environment allows you to store build logs and cache.
 In case, if you do not configure the Blob Storage, then:
@@ -66,6 +73,8 @@ Run the following command to install Devtron along with MinIO for storing logs a
 
 ```bash
 helm repo add devtron https://helm.devtron.ai 
+
+helm repo update devtron
 
 helm install devtron devtron/devtron-operator \
 --create-namespace --namespace devtroncd \
@@ -89,6 +98,8 @@ Run the following command to install Devtron along with AWS S3 buckets for stori
 ```bash
 helm repo add devtron https://helm.devtron.ai
 
+helm repo update devtron
+
 helm install devtron devtron/devtron-operator \
 --create-namespace --namespace devtroncd \
 --set installer.modules={cicd} \
@@ -103,6 +114,8 @@ helm install devtron devtron/devtron-operator \
 
 ```bash
 helm repo add devtron https://helm.devtron.ai
+
+helm repo update devtron
 
 helm install devtron devtron/devtron-operator \
 --create-namespace --namespace devtroncd \
@@ -120,6 +133,8 @@ helm install devtron devtron/devtron-operator \
 
 ```bash
 helm repo add devtron https://helm.devtron.ai
+
+helm repo update devtron
 
 helm install devtron devtron/devtron-operator \
 --create-namespace --namespace devtroncd \
@@ -145,6 +160,8 @@ Run the following command to install Devtron along with Azure Blob Storage for s
 ```bash
 helm repo add devtron https://helm.devtron.ai
 
+helm repo update devtron
+
 helm install devtron devtron/devtron-operator \
 --create-namespace --namespace devtroncd \
 --set installer.modules={cicd} \
@@ -166,6 +183,8 @@ Run the following command to install Devtron along with Google Cloud Storage for
 ```bash
 helm repo add devtron https://helm.devtron.ai
 
+helm repo update devtron
+
 helm install devtron devtron/devtron-operator \
 --create-namespace --namespace devtroncd \
 --set installer.modules={cicd} \
@@ -178,12 +197,15 @@ helm install devtron devtron/devtron-operator \
 {% endtab %}
 {% endtabs %}
 
+---
 
 ## Check Status of Devtron Installation
 
-**Note**: The installation takes about 15 to 20 minutes to spin up all of the Devtron microservices one by one.
+{% hint style="info" %}
+The installation takes about 15 to 20 minutes to spin up all of the Devtron microservices one by one
+{% endhint %}
 
- Run the following command to check the status of the installation:
+Run the following command to check the status of the installation:
 
 ```bash
 kubectl -n devtroncd get installers installer-devtron \
@@ -197,8 +219,9 @@ The command executes with one of the following output messages, indicating the s
 | `Downloaded` | The installer has downloaded all the manifests, and the installation is in progress. |
 | `Applied` | The installer has successfully applied all the manifests, and the installation is completed. |
 
+---
 
-## Check the installer logs
+## Check the Installer Logs
 
 Run the following command to check the installer logs:
 
@@ -206,7 +229,9 @@ Run the following command to check the installer logs:
 kubectl logs -f -l app=inception -n devtroncd
 ```
 
-## Devtron dashboard
+---
+
+## Devtron Dashboard
 
 Run the following command to get the Devtron dashboard URL:
 
@@ -223,17 +248,21 @@ You will get an output similar to the example shown below:
 
 Use the hostname `aaff16e9760594a92afa0140dbfd99f7-305259315.us-east-1.elb.amazonaws.com` (Loadbalancer URL) to access the Devtron dashboard.
 
-**Note**: If you do not get a hostname or receive a message that says "service doesn't exist," it means Devtron is still installing. 
-Please wait until the installation is completed.
+{% hint style="info" %}
+If you do not get a hostname or receive a message that says "service doesn't exist," it means Devtron is still installing. Please wait until the installation is completed.
+{% endhint %}
 
-**Note**: You can also use a `CNAME` entry corresponding to your domain/subdomain to point to the Loadbalancer URL to access at a customized domain.
+{% hint style="info" %}
+You can also use a `CNAME` entry corresponding to your domain/subdomain to point to the Loadbalancer URL to access at a customized domain.
+{% endhint %}
 
 | Host | Type | Points to |
 | :--- | :--- | :--- |
 | devtron.yourdomain.com | CNAME | aaff16e9760594a92afa0140dbfd99f7-305259315.us-east-1.elb.amazonaws.com |
 
+---
 
-## Devtron Admin credentials
+## Devtron Admin Credentials
 
 When you install Devtron for the first time, it creates a default admin user and password (with unrestricted access to Devtron). You can use that credentials to log in as an administrator. 
 
@@ -269,6 +298,7 @@ kubectl -n devtroncd get secret devtron-secret \
 * Related to installaltion, please also refer [FAQ](https://docs.devtron.ai/install/faq-on-installation) section also.
 
 
-
-**Note**: If you have questions, please let us know on our discord channel. [![Join Discord](https://img.shields.io/badge/Join%20us%20on-Discord-e01563.svg)](https://discord.gg/jsRG5qx2gp)
+{% hint style="info" %}
+If you have any questions, please let us know on our Discord channel. [![Join Discord](https://img.shields.io/badge/Join%20us%20on-Discord-e01563.svg)](https://discord.gg/jsRG5qx2gp)
+{% endhint %}
 

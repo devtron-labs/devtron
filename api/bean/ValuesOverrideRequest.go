@@ -20,6 +20,7 @@ package bean
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"time"
 )
 
@@ -39,6 +40,17 @@ const (
 	DEPLOYMENT_CONFIG_TYPE_SPECIFIC_TRIGGER DeploymentConfigurationType = "SPECIFIC_TRIGGER_CONFIG"
 )
 
+func (workflowType WorkflowType) WorkflowTypeToStageType() repository.PipelineStageType {
+	switch workflowType {
+	case CD_WORKFLOW_TYPE_PRE:
+		return repository.PIPELINE_STAGE_TYPE_PRE_CD
+	case CD_WORKFLOW_TYPE_POST:
+		return repository.PIPELINE_STAGE_TYPE_POST_CD
+	default:
+		return ""
+	}
+}
+
 type ValuesOverrideRequest struct {
 	PipelineId                            int                         `json:"pipelineId" validate:"required"`
 	AppId                                 int                         `json:"appId" validate:"required"`
@@ -52,19 +64,27 @@ type ValuesOverrideRequest struct {
 	CdWorkflowType                        WorkflowType                `json:"cdWorkflowType,notnull"`
 	WfrId                                 int                         `json:"wfrId,notnull"`
 	CdWorkflowId                          int                         `json:"cdWorkflowId"`
+	PipelineOverrideId                    int                         `json:"pipelineOverrideId"` //required for async install/upgrade event;
+	DeploymentType                        models.DeploymentType       `json:"deploymentType"`     //required for async install/upgrade handling; previously if was used internally
 	UserId                                int32                       `json:"-"`
-	DeploymentType                        models.DeploymentType       `json:"-"`
 	EnvId                                 int                         `json:"-"`
 	EnvName                               string                      `json:"-"`
 	ClusterId                             int                         `json:"-"`
 	AppName                               string                      `json:"-"`
 	PipelineName                          string                      `json:"-"`
 	DeploymentAppType                     string                      `json:"-"`
+	Image                                 string                      `json:"-"`
 }
 
 type BulkCdDeployEvent struct {
 	ValuesOverrideRequest *ValuesOverrideRequest `json:"valuesOverrideRequest"`
 	UserId                int32                  `json:"userId"`
+}
+
+type AsyncCdDeployEvent struct {
+	ValuesOverrideRequest *ValuesOverrideRequest `json:"valuesOverrideRequest"`
+	TriggeredAt           time.Time              `json:"triggeredAt"`
+	TriggeredBy           int32                  `json:"triggeredBy"`
 }
 
 type ReleaseStatusUpdateRequest struct {
@@ -80,4 +100,36 @@ type TriggerEvent struct {
 	ManifestStorageType        string
 	TriggeredBy                int32
 	TriggerdAt                 time.Time
+}
+
+type ArtifactsListFilterOptions struct {
+	//list filter data
+	Limit        int
+	Offset       int
+	SearchString string
+	Order        string
+
+	//self stage data
+	PipelineId int
+	StageType  WorkflowType
+
+	// CiPipelineId is id of ci-pipeline present in the same app-workflow of PipelineId
+	CiPipelineId int
+
+	//parent satge data
+	ParentCdId      int
+	ParentId        int
+	ParentStageType WorkflowType
+
+	//excludeArtifactIds
+	ExcludeArtifactIds []int
+
+	//excludeWfRunners
+	ExcludeWfrIds []int
+
+	//pluginStage
+	PluginStage string
+
+	// UseCdStageQueryV2 is to set query version
+	UseCdStageQueryV2 bool
 }

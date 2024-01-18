@@ -39,9 +39,9 @@ autoPromotionSeconds: 30
 
 Spec:
  Affinity:
-  Key:
+  Key: ""
 #  Key: kops.k8s.io/instancegroup 
-  Values:
+  Values: ""
 
 
 image:
@@ -209,7 +209,7 @@ istio:
     selector:
       enabled: false
     mtls:
-      mode:
+      mode: ""
     portLevelMtls: {}
   requestAuthentication:
     enabled: false

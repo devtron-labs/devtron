@@ -3,9 +3,12 @@ package main
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/api/apiToken"
+	chartProvider "github.com/devtron-labs/devtron/api/appStore/chartProvider"
 	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
 	appStoreDiscover "github.com/devtron-labs/devtron/api/appStore/discover"
 	appStoreValues "github.com/devtron-labs/devtron/api/appStore/values"
+	"github.com/devtron-labs/devtron/api/auth/sso"
+	"github.com/devtron-labs/devtron/api/auth/user"
 	"github.com/devtron-labs/devtron/api/chartRepo"
 	"github.com/devtron-labs/devtron/api/cluster"
 	"github.com/devtron-labs/devtron/api/dashboardEvent"
@@ -17,10 +20,8 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/api/router"
 	"github.com/devtron-labs/devtron/api/server"
-	"github.com/devtron-labs/devtron/api/sso"
 	"github.com/devtron-labs/devtron/api/team"
 	"github.com/devtron-labs/devtron/api/terminal"
-	"github.com/devtron-labs/devtron/api/user"
 	webhookHelm "github.com/devtron-labs/devtron/api/webhook/helm"
 	"github.com/devtron-labs/devtron/client/dashboard"
 	"github.com/devtron-labs/devtron/util"
@@ -45,6 +46,9 @@ type MuxRouter struct {
 	appStoreDiscoverRouter   appStoreDiscover.AppStoreDiscoverRouter
 	appStoreValuesRouter     appStoreValues.AppStoreValuesRouter
 	appStoreDeploymentRouter appStoreDeployment.AppStoreDeploymentRouter
+	chartProviderRouter      chartProvider.ChartProviderRouter
+	dockerRegRouter          router.DockerRegRouter
+
 	dashboardTelemetryRouter dashboardEvent.DashboardTelemetryRouter
 	commonDeploymentRouter   appStoreDeployment.CommonDeploymentRouter
 	externalLinksRouter      externalLink.ExternalLinkRouter
@@ -76,6 +80,8 @@ func NewMuxRouter(
 	appStoreDiscoverRouter appStoreDiscover.AppStoreDiscoverRouter,
 	appStoreValuesRouter appStoreValues.AppStoreValuesRouter,
 	appStoreDeploymentRouter appStoreDeployment.AppStoreDeploymentRouter,
+	chartProviderRouter chartProvider.ChartProviderRouter,
+	dockerRegRouter router.DockerRegRouter,
 	dashboardTelemetryRouter dashboardEvent.DashboardTelemetryRouter,
 	commonDeploymentRouter appStoreDeployment.CommonDeploymentRouter,
 	externalLinkRouter externalLink.ExternalLinkRouter,
@@ -106,6 +112,8 @@ func NewMuxRouter(
 		appStoreDiscoverRouter:   appStoreDiscoverRouter,
 		appStoreValuesRouter:     appStoreValuesRouter,
 		appStoreDeploymentRouter: appStoreDeploymentRouter,
+		chartProviderRouter:      chartProviderRouter,
+		dockerRegRouter:          dockerRegRouter,
 		dashboardTelemetryRouter: dashboardTelemetryRouter,
 		commonDeploymentRouter:   commonDeploymentRouter,
 		externalLinksRouter:      externalLinkRouter,
@@ -152,7 +160,6 @@ func (r *MuxRouter) Init() {
 		}
 		_, _ = writer.Write(b)
 	})
-
 	ssoLoginRouter := baseRouter.PathPrefix("/sso").Subrouter()
 	r.ssoLoginRouter.InitSsoLoginRouter(ssoLoginRouter)
 	teamRouter := baseRouter.PathPrefix("/team").Subrouter()
@@ -207,6 +214,16 @@ func (r *MuxRouter) Init() {
 	appStoreDeploymentSubRouter := r.Router.PathPrefix("/orchestrator/app-store/deployment").Subrouter()
 	r.appStoreDeploymentRouter.Init(appStoreDeploymentSubRouter)
 	// app-store deployment router ends
+
+	// chart provider router starts
+	chartProviderSubRouter := r.Router.PathPrefix("/orchestrator/app-store/chart-provider").Subrouter()
+	r.chartProviderRouter.Init(chartProviderSubRouter)
+	// chart provider router ends
+
+	// docker registry router starts
+	dockerRouter := r.Router.PathPrefix("/orchestrator/docker").Subrouter()
+	r.dockerRegRouter.InitDockerRegRouter(dockerRouter)
+	// docker registry router starts
 
 	//  dashboard event router starts
 	dashboardTelemetryRouter := r.Router.PathPrefix("/orchestrator/dashboard-event").Subrouter()

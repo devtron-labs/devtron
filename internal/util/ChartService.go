@@ -21,7 +21,6 @@ import (
 	"compress/gzip"
 	"context"
 	"fmt"
-
 	"io/ioutil"
 	"math/rand"
 	"net/http"
@@ -32,11 +31,13 @@ import (
 	"strings"
 	"time"
 
+	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
+	repository2 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
+
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
-	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	dirCopy "github.com/otiai10/copy"
@@ -82,6 +83,8 @@ type ChartTemplateService interface {
 	UpdateGitRepoUrlInCharts(appId int, chartGitAttribute *ChartGitAttribute, userId int32) error
 	CreateAndPushToGitChartProxy(appStoreName, tmpChartLocation string, envName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (chartGitAttribute *ChartGitAttribute, err error)
 	LoadChartInBytes(ChartPath string, deleteChart bool) ([]byte, error)
+	LoadChartFromDir(dir string) (*chart.Chart, error)
+	CreateZipFileForChart(chart *chart.Chart, outputChartPathDir string) ([]byte, error)
 }
 type ChartTemplateServiceImpl struct {
 	randSource             rand.Source
@@ -745,30 +748,43 @@ func (impl ChartTemplateServiceImpl) LoadChartInBytes(ChartPath string, deleteCh
 		impl.logger.Errorw("error in loading chart dir", "err", err, "dir")
 		return chartBytesArr, err
 	}
-
-	chartZipPath, err := chartutil.Save(chart, ChartPath)
+	chartBytesArr, err = impl.CreateZipFileForChart(chart, ChartPath)
 	if err != nil {
 		impl.logger.Errorw("error in saving", "err", err, "dir")
 		return chartBytesArr, err
 	}
 
-	file, err := os.Open(chartZipPath)
-	reader, err := gzip.NewReader(file)
+	if deleteChart {
+		defer impl.CleanDir(ChartPath)
+	}
+
+	return chartBytesArr, err
+}
+
+func (impl ChartTemplateServiceImpl) LoadChartFromDir(dir string) (*chart.Chart, error) {
+	//this function is removed in latest helm release and is replaced by Loader in loader package
+	chart, err := chartutil.LoadDir(dir)
+	if err != nil {
+		impl.logger.Errorw("error in loading chart dir", "err", err, "dir")
+		return chart, err
+	}
+	return chart, nil
+}
+
+func (impl ChartTemplateServiceImpl) CreateZipFileForChart(chart *chart.Chart, outputChartPathDir string) ([]byte, error) {
+	var chartBytesArr []byte
+	chartZipPath, err := chartutil.Save(chart, outputChartPathDir)
+	if err != nil {
+		impl.logger.Errorw("error in saving", "err", err, "dir")
+		return chartBytesArr, err
+	}
+
+	chartBytesArr, err = ioutil.ReadFile(chartZipPath)
 	if err != nil {
 		impl.logger.Errorw("There is a problem with os.Open", "err", err)
 		return nil, err
 	}
-
-	if deleteChart {
-		defer impl.CleanDir(ChartPath)
-	}
-	bs, err := ioutil.ReadAll(reader)
-	if err != nil {
-		impl.logger.Errorw("There is a problem with readAll", "err", err)
-		return nil, err
-	}
-
-	return bs, err
+	return chartBytesArr, nil
 }
 
 func IsHelmApp(deploymentAppType string) bool {
@@ -781,4 +797,23 @@ func IsAcdApp(deploymentAppType string) bool {
 
 func IsManifestDownload(deploymentAppType string) bool {
 	return deploymentAppType == PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD
+}
+
+func IsOCIRegistryChartProvider(ociRegistry dockerRegistryRepository.DockerArtifactStore) bool {
+	if ociRegistry.OCIRegistryConfig == nil ||
+		len(ociRegistry.OCIRegistryConfig) != 1 ||
+		!IsOCIConfigChartProvider(ociRegistry.OCIRegistryConfig[0]) {
+		return false
+	}
+	return true
+}
+
+func IsOCIConfigChartProvider(ociRegistryConfig *dockerRegistryRepository.OCIRegistryConfig) bool {
+	if ociRegistryConfig.RepositoryType == dockerRegistryRepository.OCI_REGISRTY_REPO_TYPE_CHART &&
+		(ociRegistryConfig.RepositoryAction == dockerRegistryRepository.STORAGE_ACTION_TYPE_PULL ||
+			ociRegistryConfig.RepositoryAction == dockerRegistryRepository.STORAGE_ACTION_TYPE_PULL_AND_PUSH) &&
+		ociRegistryConfig.RepositoryList != "" {
+		return true
+	}
+	return false
 }

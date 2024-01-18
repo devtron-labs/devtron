@@ -20,15 +20,16 @@ package restHandler
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"strconv"
+
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
-	"net/http"
-	"strconv"
 )
 
 const CHART_GROUP_DELETE_SUCCESS_RESP = "Chart group deleted successfully."
@@ -169,8 +170,10 @@ func (impl *ChartGroupRestHandlerImpl) SaveChartGroupEntries(w http.ResponseWrit
 	token := r.Header.Get("token")
 	rbacObject := request.Name
 	if ok := impl.enforcer.Enforce(token, casbin.ResourceChartGroup, casbin.ActionCreate, rbacObject); !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-		return
+		if ok1 := impl.enforcer.Enforce(token, casbin.ResourceChartGroup, casbin.ActionUpdate, rbacObject); !ok1 {
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+			return
+		}
 	}
 	//RBAC block ends here
 	res, err := impl.ChartGroupService.SaveChartGroupEntries(&request)

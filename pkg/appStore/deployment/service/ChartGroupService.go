@@ -19,15 +19,16 @@ package service
 
 import (
 	"errors"
+	"time"
+
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	appStoreValuesRepository "github.com/devtron-labs/devtron/pkg/appStore/values/repository"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
+	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/bean"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"time"
 )
 
 type ChartGroupServiceImpl struct {
@@ -263,6 +264,16 @@ func (impl *ChartGroupServiceImpl) charterEntryAdopter(chartGroupEntry *reposito
 
 		//appStoreValuesChartVersion = chartGroupEntry.AppStoreValuesVersion.AppStoreApplicationVersion.Version
 	}
+	var chartRepoName string
+	var isChartRepoActive bool
+
+	if chartGroupEntry.AppStoreApplicationVersion.AppStore.DockerArtifactStore != nil {
+		chartRepoName = chartGroupEntry.AppStoreApplicationVersion.AppStore.DockerArtifactStore.Id
+		isChartRepoActive = chartGroupEntry.AppStoreApplicationVersion.AppStore.DockerArtifactStore.OCIRegistryConfig[0].IsChartPullActive
+	} else {
+		chartRepoName = chartGroupEntry.AppStoreApplicationVersion.AppStore.ChartRepo.Name
+		isChartRepoActive = chartGroupEntry.AppStoreApplicationVersion.AppStore.ChartRepo.Active
+	}
 	entry := &ChartGroupEntryBean{
 		Id:                           chartGroupEntry.Id,
 		AppStoreValuesVersionId:      chartGroupEntry.AppStoreValuesVersionId,
@@ -272,11 +283,11 @@ func (impl *ChartGroupServiceImpl) charterEntryAdopter(chartGroupEntry *reposito
 		AppStoreValuesChartVersion:   appStoreValuesChartVersion,
 		ChartMetaData: &ChartMetaData{
 			ChartName:                  chartGroupEntry.AppStoreApplicationVersion.Name,
-			ChartRepoName:              chartGroupEntry.AppStoreApplicationVersion.AppStore.ChartRepo.Name,
+			ChartRepoName:              chartRepoName,
 			Icon:                       chartGroupEntry.AppStoreApplicationVersion.Icon,
 			AppStoreId:                 chartGroupEntry.AppStoreApplicationVersion.AppStoreId,
 			AppStoreApplicationVersion: chartGroupEntry.AppStoreApplicationVersion.Version,
-			IsChartRepoActive:          chartGroupEntry.AppStoreApplicationVersion.AppStore.ChartRepo.Active,
+			IsChartRepoActive:          isChartRepoActive,
 		},
 	}
 	return entry
@@ -345,15 +356,24 @@ func (impl *ChartGroupServiceImpl) GetChartGroupWithInstallationDetail(chartGrou
 				return nil, err
 			}
 			version := versions[0]
+			var chartRepoName string
+			var isChartRepoActive bool
+			if version.AppStoreApplicationVersion.AppStore.DockerArtifactStore != nil {
+				chartRepoName = version.AppStoreApplicationVersion.AppStore.DockerArtifactStore.Id
+				isChartRepoActive = version.AppStoreApplicationVersion.AppStore.DockerArtifactStore.OCIRegistryConfig[0].IsChartPullActive
+			} else {
+				chartRepoName = version.AppStoreApplicationVersion.AppStore.ChartRepo.Name
+				isChartRepoActive = version.AppStoreApplicationVersion.AppStore.ChartRepo.Active
+			}
 			installedChart := &InstalledChart{
 				ChartMetaData: ChartMetaData{
 					ChartName:         version.InstalledApp.App.AppName,
-					ChartRepoName:     version.AppStoreApplicationVersion.AppStore.ChartRepo.Name,
+					ChartRepoName:     chartRepoName,
 					Icon:              version.AppStoreApplicationVersion.Icon,
 					AppStoreId:        version.AppStoreApplicationVersion.AppStoreId,
 					EnvironmentName:   version.InstalledApp.Environment.Name,
 					EnvironmentId:     version.InstalledApp.EnvironmentId,
-					IsChartRepoActive: version.AppStoreApplicationVersion.AppStore.ChartRepo.Active,
+					IsChartRepoActive: isChartRepoActive,
 				},
 				InstalledAppId: version.InstalledAppId,
 			}
@@ -447,7 +467,7 @@ func (impl *ChartGroupServiceImpl) DeleteChartGroup(req *ChartGroupBean) error {
 		return err
 	}
 	//deleting auth roles entries for this chart group
-	err = impl.userAuthService.DeleteRoles(bean.CHART_GROUP_TYPE, req.Name, tx, "")
+	err = impl.userAuthService.DeleteRoles(bean.CHART_GROUP_TYPE, req.Name, tx, "", "")
 	if err != nil {
 		impl.Logger.Errorw("error in deleting auth roles", "err", err)
 		return err

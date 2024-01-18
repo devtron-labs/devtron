@@ -47,7 +47,7 @@ spec:
         - name: MIGRATE_TO_VERSION
           value: "0"
         - name: GIT_HASH
-          value: f1cf1ba4a9000f084ac6fdd669501f57d1ef4f2d
+          value: 24f5194277d91f182173de959f9846fab44ee80f
         envFrom:
           - secretRef:
               name: postgresql-migrator
@@ -96,7 +96,7 @@ spec:
         - name: MIGRATE_TO_VERSION
           value: "0"
         - name: GIT_HASH
-          value: f1cf1ba4a9000f084ac6fdd669501f57d1ef4f2d
+          value: 24f5194277d91f182173de959f9846fab44ee80f
         - name: GIT_BRANCH
           value: main
         envFrom:
@@ -148,7 +148,7 @@ spec:
         - name: GIT_BRANCH
           value: main
         - name: GIT_HASH
-          value: 84389534aef69197db77e425634f2130cd86711a
+          value: 4f3b9a1460889a9d0e0c1ec24f66ed2d8a4452e1
         envFrom:
           - secretRef:
               name: postgresql-migrator
@@ -194,7 +194,7 @@ spec:
         - name: GIT_BRANCH
           value: main
         - name: GIT_HASH
-          value: c5c40d94a31d9c02c53c3f96342a6fea303bde8c
+          value: a0628f4f99d956e07a615525358867353c5c3d12
         envFrom:
           - secretRef:
               name: postgresql-migrator
@@ -259,7 +259,7 @@ spec:
         spec:
           containers:
           - name: chart-sync
-            image: quay.io/devtron/chart-sync:04a03402-373-13820
+            image: quay.io/devtron/chart-sync:98957687-150-19133
             env:
             - name: PG_ADDR
               value: postgresql-postgresql.devtroncd

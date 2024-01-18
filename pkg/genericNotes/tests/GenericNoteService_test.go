@@ -2,19 +2,20 @@ package tests
 
 import (
 	"errors"
+	"testing"
+
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/auth/user/repository"
+	mocks2 "github.com/devtron-labs/devtron/pkg/auth/user/repository/mocks"
 	"github.com/devtron-labs/devtron/pkg/genericNotes"
 	mocks3 "github.com/devtron-labs/devtron/pkg/genericNotes/mocks"
 	repository3 "github.com/devtron-labs/devtron/pkg/genericNotes/repository"
 	"github.com/devtron-labs/devtron/pkg/genericNotes/repository/mocks"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/devtron-labs/devtron/pkg/user/repository"
-	mocks2 "github.com/devtron-labs/devtron/pkg/user/repository/mocks"
 	"github.com/go-pg/pg"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"testing"
 )
 
 var testAppId1, testAppId2 = 1, 2
@@ -310,7 +311,7 @@ func TestGetGenericNotesForAppIds(t *testing.T) {
 
 	})
 
-	t.Run("Test Success, Get Newly edited/created Description and old descriptions", func(tt *testing.T) {
+	t.Run("Test Success, Get Newly edited/created GenericNote and old descriptions", func(tt *testing.T) {
 		genericNoteSvc, mockedNoteRepo, _, mockedUserRepo := initGenericNoteService(t)
 
 		mockedNoteRepo.On("GetGenericNotesForAppIds", mock.AnythingOfType("[]int")).Return(getGenericNotesForAppIdsResp, nil)

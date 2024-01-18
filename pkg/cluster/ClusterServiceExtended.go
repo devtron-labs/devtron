@@ -3,15 +3,16 @@ package cluster
 import (
 	"context"
 	"fmt"
-	cluster3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
-	"github.com/devtron-labs/devtron/pkg/k8s/informer"
-	repository4 "github.com/devtron-labs/devtron/pkg/user/repository"
-	"github.com/devtron-labs/devtron/util/k8s"
 	"net/http"
 	"strings"
 	"time"
+
+	cluster3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/devtron-labs/common-lib/utils/k8s"
+	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
+	repository5 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
+	"github.com/devtron-labs/devtron/pkg/k8s/informer"
 
 	cluster2 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
 	"github.com/devtron-labs/devtron/client/grafana"
@@ -38,8 +39,8 @@ func NewClusterServiceImplExtended(repository repository.ClusterRepository, envi
 	grafanaClient grafana.GrafanaClient, logger *zap.SugaredLogger, installedAppRepository repository2.InstalledAppRepository,
 	K8sUtil *k8s.K8sUtil,
 	clusterServiceCD cluster2.ServiceClient, K8sInformerFactory informer.K8sInformerFactory,
-	gitOpsRepository repository3.GitOpsConfigRepository, userAuthRepository repository4.UserAuthRepository,
-	userRepository repository4.UserRepository, roleGroupRepository repository4.RoleGroupRepository) *ClusterServiceImplExtended {
+	gitOpsRepository repository3.GitOpsConfigRepository, userAuthRepository repository5.UserAuthRepository,
+	userRepository repository5.UserRepository, roleGroupRepository repository5.RoleGroupRepository) *ClusterServiceImplExtended {
 	clusterServiceExt := &ClusterServiceImplExtended{
 		environmentRepository:  environmentRepository,
 		grafanaClient:          grafanaClient,
@@ -71,11 +72,7 @@ func (impl *ClusterServiceImplExtended) FindAllWithoutConfig() ([]*ClusterBean, 
 	return beans, nil
 }
 
-func (impl *ClusterServiceImplExtended) FindAll() ([]*ClusterBean, error) {
-	beans, err := impl.ClusterServiceImpl.FindAll()
-	if err != nil {
-		return nil, err
-	}
+func (impl *ClusterServiceImplExtended) GetClusterFullModeDTO(beans []*ClusterBean) ([]*ClusterBean, error) {
 	//devtron full mode logic
 	var clusterIds []int
 	for _, cluster := range beans {
@@ -141,6 +138,22 @@ func (impl *ClusterServiceImplExtended) FindAll() ([]*ClusterBean, error) {
 		item.DefaultClusterComponent = defaultClusterComponents
 	}
 	return beans, nil
+}
+
+func (impl *ClusterServiceImplExtended) FindAll() ([]*ClusterBean, error) {
+	beans, err := impl.ClusterServiceImpl.FindAll()
+	if err != nil {
+		return nil, err
+	}
+	return impl.GetClusterFullModeDTO(beans)
+}
+
+func (impl *ClusterServiceImplExtended) FindAllExceptVirtual() ([]*ClusterBean, error) {
+	beans, err := impl.ClusterServiceImpl.FindAll()
+	if err != nil {
+		return nil, err
+	}
+	return impl.GetClusterFullModeDTO(beans)
 }
 
 func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {

@@ -19,13 +19,14 @@ package restHandler
 
 import (
 	"encoding/json"
-	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"github.com/devtron-labs/devtron/client/telemetry"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
-	"go.uber.org/zap"
 	"io"
 	"net/http"
+
+	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/client/telemetry"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
+	"go.uber.org/zap"
 )
 
 type TelemetryRestHandler interface {
