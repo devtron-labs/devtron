@@ -142,3 +142,14 @@ const (
 	Inactive        Status = "inactive"
 	TemporaryAccess Status = "temporaryAccess"
 )
+
+type BulkStatusUpdateRequest struct {
+	UserIds     []int     `json:"userIds",validate:"required"`
+	Status      Status    `json:"status",validate:"required"'`
+	TimeToLive  time.Time `json:"timeToLive"`
+	CurrentTime time.Time `json:"-"`
+}
+
+type ActionResponse struct {
+	Suceess bool `json:"suceess"`
+}

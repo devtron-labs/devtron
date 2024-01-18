@@ -14,7 +14,7 @@ import (
 var UserWireSet = wire.NewSet(
 	UserAuditWireSet,
 
-	helper.NewUserListingRepositoryQueryBuilder,
+	helper.NewUserRepositoryQueryBuilder,
 	NewUserAuthRouterImpl,
 	wire.Bind(new(UserAuthRouter), new(*UserAuthRouterImpl)),
 	NewUserAuthHandlerImpl,

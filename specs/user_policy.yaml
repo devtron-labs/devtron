@@ -195,6 +195,49 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /user/bulk/status:
+    get:
+      summary: Bulk Update Status for Users
+      description: bulk update status for users
+      operationId: BulkUpdateStatusForUsers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+                - userIds
+              properties:
+                userIds:
+                  type: array
+                  items:
+                    type: integer
+                  example: [ 10, 14 ]
+                status:
+                  type: string
+                  example: "active"
+                timeToLive:
+                  type: string
+                  format: date-time
+                  example: "2009-11-10T23:00:00Z"
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActionResponse'
+        '400':
+          description: Bad Request
+        '500':
+          description: Internal Server Error
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
 
 components:
@@ -314,6 +357,12 @@ components:
         - action
       properties:
 
+    ActionResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
 
 
     Error:

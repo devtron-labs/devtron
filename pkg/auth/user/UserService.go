@@ -19,6 +19,7 @@ package user
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	auth "github.com/devtron-labs/devtron/pkg/auth/authorisation/globalConfig"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository/helper"
@@ -78,6 +79,7 @@ type UserService interface {
 	GetApprovalUsersByEnv(appName, envName string) ([]string, error)
 	CheckForApproverAccess(appName, envName string, userId int32) bool
 	GetConfigApprovalUsersByEnv(appName, envName, team string) ([]string, error)
+	BulkUpdateStatusForUsers(request *bean.BulkStatusUpdateRequest) (*bean.ActionResponse, error)
 }
 
 type UserServiceImpl struct {
@@ -95,7 +97,7 @@ type UserServiceImpl struct {
 	globalAuthorisationConfigService  auth.GlobalAuthorisationConfigService
 	roleGroupService                  RoleGroupService
 	userGroupMapRepository            repository.UserGroupMapRepository
-	userListingRepositoryQueryBuilder helper.UserListingRepositoryQueryBuilder
+	userListingRepositoryQueryBuilder helper.UserRepositoryQueryBuilder
 }
 
 func NewUserServiceImpl(userAuthRepository repository.UserAuthRepository,
@@ -105,7 +107,7 @@ func NewUserServiceImpl(userAuthRepository repository.UserAuthRepository,
 	sessionManager2 *middleware.SessionManager, userCommonService UserCommonService, userAuditService UserAuditService,
 	globalAuthorisationConfigService auth.GlobalAuthorisationConfigService,
 	roleGroupService RoleGroupService, userGroupMapRepository repository.UserGroupMapRepository,
-	userListingRepositoryQueryBuilder helper.UserListingRepositoryQueryBuilder,
+	userListingRepositoryQueryBuilder helper.UserRepositoryQueryBuilder,
 ) *UserServiceImpl {
 	serviceImpl := &UserServiceImpl{
 		userReqState:                      make(map[int32]bool),
@@ -1224,7 +1226,7 @@ func (impl UserServiceImpl) GetAllWithFilters(status string, sortOrder string, s
 
 	// Build query from query builder
 	query := impl.userListingRepositoryQueryBuilder.GetQueryForUserListingWithFilters(request)
-	models, err := impl.userRepository.GetAllExcludingApiTokenWithFilters(query)
+	models, err := impl.userRepository.GetAllExecutingQuery(query)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
 		return nil, err
@@ -1235,7 +1237,7 @@ func (impl UserServiceImpl) GetAllWithFilters(status string, sortOrder string, s
 	// if total count is more than diff , then need to query with offset and limit(optimisation)
 	if totalCount > (request.Size - request.Offset) {
 		query = impl.userListingRepositoryQueryBuilder.GetQueryForUserListingWithFilters(request)
-		models, err = impl.userRepository.GetAllExcludingApiTokenWithFilters(query)
+		models, err = impl.userRepository.GetAllExecutingQuery(query)
 		if err != nil {
 			impl.logger.Errorw("error while fetching user from db", "error", err)
 			return nil, err
@@ -2125,4 +2127,24 @@ func (impl UserServiceImpl) getRolefiltersForDevtronManaged(model *repository.Us
 		}
 	}
 	return roleFilters, nil
+}
+
+func (impl UserServiceImpl) BulkUpdateStatusForUsers(request *bean.BulkStatusUpdateRequest) (*bean.ActionResponse, error) {
+	if len(request.UserIds) == 0 {
+		return nil, errors.New("bad request ,no user Ids provided")
+	}
+	// setting current time for overall consistency
+	request.CurrentTime = time.Now()
+	// query from query builder
+	query := impl.userListingRepositoryQueryBuilder.GetQueryForBulkUpdate(request)
+
+	_, err := impl.userRepository.GetAllExecutingQuery(query)
+	if err != nil {
+		impl.logger.Errorw("error in GetAllExecutingQuery", "err", err, "request", request)
+		return nil, err
+	}
+	resp := &bean.ActionResponse{
+		Suceess: true,
+	}
+	return resp, nil
 }

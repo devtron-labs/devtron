@@ -45,6 +45,7 @@ type UserRestHandler interface {
 	GetAll(w http.ResponseWriter, r *http.Request)
 	DeleteUser(w http.ResponseWriter, r *http.Request)
 	GetAllDetailedUsers(w http.ResponseWriter, r *http.Request)
+	BulkUpdateStatus(w http.ResponseWriter, r *http.Request)
 	FetchRoleGroupById(w http.ResponseWriter, r *http.Request)
 	CreateRoleGroup(w http.ResponseWriter, r *http.Request)
 	UpdateRoleGroup(w http.ResponseWriter, r *http.Request)
@@ -486,6 +487,52 @@ func (handler UserRestHandlerImpl) DeleteUser(w http.ResponseWriter, r *http.Req
 	}
 
 	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+
+func (handler UserRestHandlerImpl) BulkUpdateStatus(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	// request decoding
+	var request bean.BulkStatusUpdateRequest
+	err = decoder.Decode(&request)
+	if err != nil {
+		handler.logger.Errorw("request err, BulkUpdateStatus", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	handler.logger.Infow("request payload, BulkUpdateStatus", "payload", request)
+
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	// struct validation
+	err = handler.validator.Struct(request)
+	if err != nil {
+		handler.logger.Errorw("validation err, BulkUpdateStatus", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	// service call
+	res, err := handler.userService.BulkUpdateStatusForUsers(&request)
+	if err != nil {
+		handler.logger.Errorw("service err, BulkUpdateStatus", "err", err, "payload", request)
+		if err.Error() == bean2.NoUserIdsProvidedError {
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+		return
+	}
+
+	common.WriteJsonResp(w, err, res, http.StatusOK)
+
 }
 
 func (handler UserRestHandlerImpl) FetchRoleGroupById(w http.ResponseWriter, r *http.Request) {

@@ -3,17 +3,18 @@ package helper
 import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"go.uber.org/zap"
 	"strconv"
 	"time"
 )
 
-type UserListingRepositoryQueryBuilder struct {
+type UserRepositoryQueryBuilder struct {
 	logger *zap.SugaredLogger
 }
 
-func NewUserListingRepositoryQueryBuilder(logger *zap.SugaredLogger) UserListingRepositoryQueryBuilder {
-	userListingRepositoryQueryBuilder := UserListingRepositoryQueryBuilder{
+func NewUserRepositoryQueryBuilder(logger *zap.SugaredLogger) UserRepositoryQueryBuilder {
+	userListingRepositoryQueryBuilder := UserRepositoryQueryBuilder{
 		logger: logger,
 	}
 	return userListingRepositoryQueryBuilder
@@ -33,6 +34,8 @@ const (
 	GroupName SortBy = "name"
 )
 
+const QueryTimeFormat = "2006-01-02 15:04:05-07:00"
+
 type FetchListingRequest struct {
 	Status      bean.Status `json:"status"`
 	SearchKey   string      `json:"searchKey"`
@@ -44,18 +47,18 @@ type FetchListingRequest struct {
 	CurrentTime time.Time   `json:"-"` // for Internal Use
 }
 
-func (impl UserListingRepositoryQueryBuilder) GetStatusFromTTL(ttl, recordedTime time.Time) bean.Status {
+func (impl UserRepositoryQueryBuilder) GetStatusFromTTL(ttl, recordedTime time.Time) bean.Status {
 	if ttl.IsZero() || ttl.After(recordedTime) {
 		return bean.Active
 	}
 	return bean.Inactive
 }
 
-func (impl UserListingRepositoryQueryBuilder) GetQueryForUserListingWithFilters(req *FetchListingRequest) string {
+func (impl UserRepositoryQueryBuilder) GetQueryForUserListingWithFilters(req *FetchListingRequest) string {
 	whereCondition := fmt.Sprintf("where active = %t AND (user_type is NULL or user_type != '%s') ", true, bean.USER_TYPE_API_TOKEN)
 	orderCondition := ""
 	// formatted for query comparison
-	formattedTimeForQuery := req.CurrentTime.Format("2006-01-02 15:04:05-07:00")
+	formattedTimeForQuery := req.CurrentTime.Format(QueryTimeFormat)
 	if req.Status == bean.Active {
 		whereCondition += fmt.Sprintf("AND (time_to_live is null OR time_to_live > '%s' ) ", formattedTimeForQuery)
 	} else if req.Status == bean.Inactive {
@@ -80,5 +83,23 @@ func (impl UserListingRepositoryQueryBuilder) GetQueryForUserListingWithFilters(
 	}
 
 	query := fmt.Sprintf("SELECT * FROM USERS %s %s;", whereCondition, orderCondition)
+	return query
+}
+
+func (impl UserRepositoryQueryBuilder) GetQueryForBulkUpdate(req *bean.BulkStatusUpdateRequest) string {
+	ttlTime := req.CurrentTime.Format(QueryTimeFormat)
+	if req.Status == bean.Active {
+		if !req.TimeToLive.IsZero() {
+			ttlTime = fmt.Sprintf("'%s'", req.TimeToLive.Format(QueryTimeFormat))
+		} else {
+			ttlTime = "null"
+		}
+	} else if req.Status == bean.Inactive {
+		ttlTime = fmt.Sprintf("CURRENT_TIMESTAMP - INTERVAL '1 day' ")
+	}
+
+	whereCondition := " where id in (" + helper.GetCommaSepratedString(req.UserIds) + ") "
+	whereCondition += fmt.Sprintf("AND (user_type is NULL or user_type != '%s');", bean.USER_TYPE_API_TOKEN)
+	query := fmt.Sprintf("UPDATE USERS set time_to_live= %s %s", ttlTime, whereCondition)
 	return query
 }

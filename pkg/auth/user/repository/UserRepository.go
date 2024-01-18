@@ -34,7 +34,7 @@ type UserRepository interface {
 	GetById(id int32) (*UserModel, error)
 	GetByIdIncludeDeleted(id int32) (*UserModel, error)
 	GetAllExcludingApiTokenUser() ([]UserModel, error)
-	GetAllExcludingApiTokenWithFilters(query string) ([]UserModel, error)
+	GetAllExecutingQuery(query string) ([]UserModel, error)
 	GetAllActiveUsers() ([]UserModel, error)
 	//GetAllUserRoleMappingsForRoleId(roleId int) ([]UserRoleModel, error)
 	FetchActiveUserByEmail(email string) (bean.UserInfo, error)
@@ -116,11 +116,11 @@ func (impl UserRepositoryImpl) GetAllExcludingApiTokenUser() ([]UserModel, error
 	return userModel, err
 }
 
-func (impl UserRepositoryImpl) GetAllExcludingApiTokenWithFilters(query string) ([]UserModel, error) {
+func (impl UserRepositoryImpl) GetAllExecutingQuery(query string) ([]UserModel, error) {
 	var userModel []UserModel
 	_, err := impl.dbConnection.Query(&userModel, query)
 	if err != nil {
-		impl.Logger.Error("error in GetAllExcludingApiTokenUserWithFilters", "err", err, "query", query)
+		impl.Logger.Error("error in GetAllExecutingQuery", "err", err, "query", query)
 		return nil, err
 	}
 	return userModel, err
