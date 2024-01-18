@@ -304,7 +304,7 @@ func (impl DeploymentTemplateServiceImpl) extractScopeData(request DeploymentTem
 }
 
 func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, chartRefId int, valuesYaml string) (*openapi2.TemplateChartResponse, error) {
-	refChart, template, err, version, _ := impl.chartRefService.GetRefChart(chartRefId)
+	refChart, template, version, _, err := impl.chartRefService.GetRefChart(chartRefId)
 	if err != nil {
 		impl.Logger.Errorw("error in getting refChart", "err", err, "chartRefId", chartRefId)
 		return nil, err

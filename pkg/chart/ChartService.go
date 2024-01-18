@@ -168,7 +168,7 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 		return nil, err
 	}
 
-	refChart, templateName, err, _, pipelineStrategyPath := impl.chartRefService.GetRefChart(templateRequest.ChartRefId)
+	refChart, templateName, _, pipelineStrategyPath, err := impl.chartRefService.GetRefChart(templateRequest.ChartRefId)
 	if err != nil {
 		return nil, err
 	}
@@ -334,7 +334,7 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 		return nil, err
 	}
 
-	refChart, templateName, err, _, pipelineStrategyPath := impl.chartRefService.GetRefChart(templateRequest.ChartRefId)
+	refChart, templateName, _, pipelineStrategyPath, err := impl.chartRefService.GetRefChart(templateRequest.ChartRefId)
 	if err != nil {
 		return nil, err
 	}

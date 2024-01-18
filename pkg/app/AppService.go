@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
+	bean3 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 	"io/ioutil"
 	"net/url"
 	"os"
@@ -873,7 +874,7 @@ func (impl *AppServiceImpl) BuildChartAndGetPath(appName string, envOverride *ch
 		Name:    appName,
 		Version: envOverride.Chart.ChartVersion,
 	}
-	referenceTemplatePath := path.Join(chartRepoRepository.RefChartDirPath, envOverride.Chart.ReferenceTemplate)
+	referenceTemplatePath := path.Join(bean3.RefChartDirPath, envOverride.Chart.ReferenceTemplate)
 	// Load custom charts to referenceTemplatePath if not exists
 	if _, err := os.Stat(referenceTemplatePath); os.IsNotExist(err) {
 		chartRefValue, err := impl.chartRefService.FindById(envOverride.Chart.ChartRefId)
@@ -882,7 +883,7 @@ func (impl *AppServiceImpl) BuildChartAndGetPath(appName string, envOverride *ch
 			return "", err
 		}
 		if chartRefValue.ChartData != nil {
-			chartInfo, err := impl.chartRefService.ExtractChartIfMissing(chartRefValue.ChartData, chartRepoRepository.RefChartDirPath, chartRefValue.Location)
+			chartInfo, err := impl.chartRefService.ExtractChartIfMissing(chartRefValue.ChartData, bean3.RefChartDirPath, chartRefValue.Location)
 			if chartInfo != nil && chartInfo.TemporaryFolder != "" {
 				err1 := os.RemoveAll(chartInfo.TemporaryFolder)
 				if err1 != nil {
