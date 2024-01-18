@@ -43,9 +43,9 @@ func TestInstalledAppServiceImpl_DeployDefaultChartOnCluster(t *testing.T) {
 		ArgoK8sClient                        argocdServer.ArgoK8sClient
 		gitFactory                           *util.GitFactory
 		aCDAuthConfig                        *util2.ACDAuthConfig
-		gitOpsRepository          repository3.GitOpsConfigRepository
-		userService               user.UserService
-		appStoreDeploymentService AppStoreDeploymentService
+		gitOpsRepository                     repository3.GitOpsConfigRepository
+		userService                          user.UserService
+		appStoreDeploymentService            AppStoreDeploymentService
 		appStoreDeploymentFullModeService    appStoreDeploymentFullMode.AppStoreDeploymentFullModeService
 	}
 	type args struct {
