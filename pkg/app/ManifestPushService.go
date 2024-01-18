@@ -3,16 +3,14 @@ package app
 import (
 	"context"
 	"fmt"
-	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
-	. "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app/bean"
 	status2 "github.com/devtron-labs/devtron/pkg/app/status"
-	chartService "github.com/devtron-labs/devtron/pkg/chart"
-	"github.com/go-pg/pg"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/remote"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"time"
@@ -28,34 +26,28 @@ type GitOpsPushService interface {
 
 type GitOpsManifestPushServiceImpl struct {
 	logger                           *zap.SugaredLogger
-	chartTemplateService             util.ChartTemplateService
-	chartService                     chartService.ChartService
-	gitOpsConfigRepository           repository.GitOpsConfigRepository
-	gitFactory                       *GitFactory
 	pipelineStatusTimelineService    status2.PipelineStatusTimelineService
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository
 	acdConfig                        *argocdServer.ACDConfig
+	chartRefService                  chartRef.ChartRefService
+	gitOpsConfigReadService          config.GitOpsConfigReadService
+	gitOpsRemoteOperationService     remote.GitOpsRemoteOperationService
 }
 
-func NewGitOpsManifestPushServiceImpl(
-	logger *zap.SugaredLogger,
-	chartTemplateService util.ChartTemplateService,
-	chartService chartService.ChartService,
-	gitOpsConfigRepository repository.GitOpsConfigRepository,
-	gitFactory *GitFactory,
+func NewGitOpsManifestPushServiceImpl(logger *zap.SugaredLogger,
 	pipelineStatusTimelineService status2.PipelineStatusTimelineService,
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository,
-	acdConfig *argocdServer.ACDConfig,
-) *GitOpsManifestPushServiceImpl {
+	acdConfig *argocdServer.ACDConfig, chartRefService chartRef.ChartRefService,
+	gitOpsConfigReadService config.GitOpsConfigReadService,
+	gitOpsRemoteOperationService remote.GitOpsRemoteOperationService) *GitOpsManifestPushServiceImpl {
 	return &GitOpsManifestPushServiceImpl{
 		logger:                           logger,
-		chartTemplateService:             chartTemplateService,
-		chartService:                     chartService,
-		gitOpsConfigRepository:           gitOpsConfigRepository,
-		gitFactory:                       gitFactory,
 		pipelineStatusTimelineService:    pipelineStatusTimelineService,
 		pipelineStatusTimelineRepository: pipelineStatusTimelineRepository,
 		acdConfig:                        acdConfig,
+		chartRefService:                  chartRefService,
+		gitOpsConfigReadService:          gitOpsConfigReadService,
+		gitOpsRemoteOperationService:     gitOpsRemoteOperationService,
 	}
 }
 
@@ -107,16 +99,16 @@ func (impl *GitOpsManifestPushServiceImpl) PushChartToGitRepo(manifestPushTempla
 
 	_, span := otel.Tracer("orchestrator").Start(ctx, "chartTemplateService.GetGitOpsRepoName")
 	// CHART COMMIT and PUSH STARTS HERE, it will push latest version, if found modified on deployment template and overrides
-	gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(manifestPushTemplate.AppName)
+	gitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoName(manifestPushTemplate.AppName)
 	span.End()
 	_, span = otel.Tracer("orchestrator").Start(ctx, "chartService.CheckChartExists")
-	err := impl.chartService.CheckChartExists(manifestPushTemplate.ChartRefId)
+	err := impl.chartRefService.CheckChartExists(manifestPushTemplate.ChartRefId)
 	span.End()
 	if err != nil {
 		impl.logger.Errorw("err in getting chart info", "err", err)
 		return err
 	}
-	err = impl.chartTemplateService.PushChartToGitRepo(gitOpsRepoName, manifestPushTemplate.ChartReferenceTemplate, manifestPushTemplate.ChartVersion, manifestPushTemplate.BuiltChartPath, manifestPushTemplate.RepoUrl, manifestPushTemplate.UserId)
+	err = impl.gitOpsRemoteOperationService.PushChartToGitRepo(gitOpsRepoName, manifestPushTemplate.ChartReferenceTemplate, manifestPushTemplate.ChartVersion, manifestPushTemplate.BuiltChartPath, manifestPushTemplate.RepoUrl, manifestPushTemplate.UserId)
 	if err != nil {
 		impl.logger.Errorw("error in pushing chart to git", "err", err)
 		return err
@@ -127,10 +119,10 @@ func (impl *GitOpsManifestPushServiceImpl) PushChartToGitRepo(manifestPushTempla
 func (impl *GitOpsManifestPushServiceImpl) CommitValuesToGit(manifestPushTemplate *bean.ManifestPushTemplate, ctx context.Context) (commitHash string, commitTime time.Time, err error) {
 	commitHash = ""
 	commitTime = time.Time{}
-	chartRepoName := impl.chartTemplateService.GetGitOpsRepoNameFromUrl(manifestPushTemplate.RepoUrl)
+	chartRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoNameFromUrl(manifestPushTemplate.RepoUrl)
 	_, span := otel.Tracer("orchestrator").Start(ctx, "chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit")
 	//getting username & emailId for commit author data
-	userEmailId, userName := impl.chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit(manifestPushTemplate.UserId)
+	userEmailId, userName := impl.gitOpsConfigReadService.GetUserEmailIdAndNameForGitOpsCommit(manifestPushTemplate.UserId)
 	span.End()
 	chartGitAttr := &util.ChartConfig{
 		FileName:       fmt.Sprintf("_%d-values.yaml", manifestPushTemplate.TargetEnvironmentName),
@@ -142,27 +134,12 @@ func (impl *GitOpsManifestPushServiceImpl) CommitValuesToGit(manifestPushTemplat
 		UserName:       userName,
 		UserEmailId:    userEmailId,
 	}
-	gitOpsConfigBitbucket, err := impl.gitOpsConfigRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
-	if err != nil {
-		if err == pg.ErrNoRows {
-			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
-		} else {
-			return commitHash, commitTime, err
-		}
-	}
-	gitOpsConfig := &bean2.GitOpsConfigDto{BitBucketWorkspaceId: gitOpsConfigBitbucket.BitBucketWorkspaceId}
-	_, span = otel.Tracer("orchestrator").Start(ctx, "gitFactory.Client.CommitValues")
-	commitHash, commitTime, err = impl.gitFactory.Client.CommitValues(chartGitAttr, gitOpsConfig)
+
+	_, span = otel.Tracer("orchestrator").Start(ctx, "gitOpsRemoteOperationService.CommitValues")
+	commitHash, commitTime, err = impl.gitOpsRemoteOperationService.CommitValues(chartGitAttr)
 	span.End()
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
-		return commitHash, commitTime, err
-	}
-	if commitTime.IsZero() {
-		commitTime = time.Now()
-	}
-	span.End()
-	if err != nil {
 		return commitHash, commitTime, err
 	}
 	return commitHash, commitTime, nil

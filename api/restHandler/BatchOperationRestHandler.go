@@ -145,15 +145,3 @@ func validatePipeline(pipeline *v1.Pipeline, props v1.InheritedProps) error {
 	}
 	return nil
 }
-
-func executePipeline(pipeline *v1.Pipeline, props v1.InheritedProps) error {
-	if pipeline.Build == nil && pipeline.Deployment == nil {
-		return nil
-	} else if pipeline.Build != nil {
-		pipeline.Build.UpdateMissingProps(props)
-		return validation.ValidateBuild(pipeline.Build)
-	} else if pipeline.Deployment != nil {
-		//return batch.ExecuteDeployment(pipeline.Deployment, props)
-	}
-	return nil
-}

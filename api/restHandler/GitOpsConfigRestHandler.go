@@ -25,7 +25,6 @@ import (
 
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/gitops"
@@ -52,13 +51,12 @@ type GitOpsConfigRestHandlerImpl struct {
 	validator           *validator.Validate
 	enforcer            casbin.Enforcer
 	teamService         team.TeamService
-	gitOpsRepository    repository.GitOpsConfigRepository
 }
 
 func NewGitOpsConfigRestHandlerImpl(
 	logger *zap.SugaredLogger,
 	gitOpsConfigService gitops.GitOpsConfigService, userAuthService user.UserService,
-	validator *validator.Validate, enforcer casbin.Enforcer, teamService team.TeamService, gitOpsRepository repository.GitOpsConfigRepository) *GitOpsConfigRestHandlerImpl {
+	validator *validator.Validate, enforcer casbin.Enforcer, teamService team.TeamService) *GitOpsConfigRestHandlerImpl {
 	return &GitOpsConfigRestHandlerImpl{
 		logger:              logger,
 		gitOpsConfigService: gitOpsConfigService,
@@ -66,7 +64,6 @@ func NewGitOpsConfigRestHandlerImpl(
 		validator:           validator,
 		enforcer:            enforcer,
 		teamService:         teamService,
-		gitOpsRepository:    gitOpsRepository,
 	}
 }
 

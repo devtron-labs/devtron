@@ -20,6 +20,10 @@ package service
 import (
 	"bytes"
 	"context"
+	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/remote"
+
 	/* #nosec */
 	"crypto/sha1"
 	"encoding/json"
@@ -103,7 +107,6 @@ type InstalledAppServiceImpl struct {
 	pubsubClient                         *pubsub.PubSubClientServiceImpl
 	chartGroupDeploymentRepository       repository6.ChartGroupDeploymentRepository
 	envService                           cluster2.EnvironmentService
-	gitFactory                           *util.GitFactory
 	aCDAuthConfig                        *util2.ACDAuthConfig
 	gitOpsRepository                     repository3.GitOpsConfigRepository
 	userService                          user.UserService
@@ -120,6 +123,8 @@ type InstalledAppServiceImpl struct {
 	k8sCommonService                     k8s.K8sCommonService
 	k8sApplicationService                application3.K8sApplicationService
 	acdConfig                            *argocdServer.ACDConfig
+	gitOpsConfigReadService              config.GitOpsConfigReadService
+	gitOpsRemoteOperationService         remote.GitOpsRemoteOperationService
 }
 
 func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
@@ -132,7 +137,7 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 	pubsubClient *pubsub.PubSubClientServiceImpl,
 	chartGroupDeploymentRepository repository6.ChartGroupDeploymentRepository,
 	envService cluster2.EnvironmentService,
-	gitFactory *util.GitFactory, aCDAuthConfig *util2.ACDAuthConfig, gitOpsRepository repository3.GitOpsConfigRepository, userService user.UserService,
+	aCDAuthConfig *util2.ACDAuthConfig, gitOpsRepository repository3.GitOpsConfigRepository, userService user.UserService,
 	appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService,
 	appStoreDeploymentService AppStoreDeploymentService,
 	installedAppRepositoryHistory repository2.InstalledAppVersionHistoryRepository,
@@ -141,7 +146,8 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 	pipelineStatusTimelineService status.PipelineStatusTimelineService,
 	appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
 	k8sCommonService k8s.K8sCommonService, k8sApplicationService application3.K8sApplicationService,
-	acdConfig *argocdServer.ACDConfig) (*InstalledAppServiceImpl, error) {
+	acdConfig *argocdServer.ACDConfig, gitOpsConfigReadService config.GitOpsConfigReadService,
+	gitOpsRemoteOperationService remote.GitOpsRemoteOperationService) (*InstalledAppServiceImpl, error) {
 	impl := &InstalledAppServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -154,7 +160,6 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 		pubsubClient:                         pubsubClient,
 		chartGroupDeploymentRepository:       chartGroupDeploymentRepository,
 		envService:                           envService,
-		gitFactory:                           gitFactory,
 		aCDAuthConfig:                        aCDAuthConfig,
 		gitOpsRepository:                     gitOpsRepository,
 		userService:                          userService,
@@ -171,8 +176,10 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 		k8sCommonService:                     k8sCommonService,
 		k8sApplicationService:                k8sApplicationService,
 		acdConfig:                            acdConfig,
+		gitOpsConfigReadService:              gitOpsConfigReadService,
+		gitOpsRemoteOperationService:         gitOpsRemoteOperationService,
 	}
-	err := impl.Subscribe()
+	err := impl.subscribe()
 	if err != nil {
 		return nil, err
 	}
@@ -349,7 +356,7 @@ func (impl InstalledAppServiceImpl) createChartGroupEntryObject(installAppVersio
 
 func (impl InstalledAppServiceImpl) performDeployStageOnAcd(installedAppVersion *appStoreBean.InstallAppVersionDTO, ctx context.Context, userId int32) (*appStoreBean.InstallAppVersionDTO, error) {
 	installedAppVersion.ACDAppName = fmt.Sprintf("%s-%s", installedAppVersion.AppName, installedAppVersion.Environment.Name)
-	chartGitAttr := &util.ChartGitAttribute{}
+	chartGitAttr := &commonBean.ChartGitAttribute{}
 	if installedAppVersion.Status == appStoreBean.DEPLOY_INIT ||
 		installedAppVersion.Status == appStoreBean.ENQUEUED ||
 		installedAppVersion.Status == appStoreBean.QUE_ERROR ||
@@ -438,25 +445,13 @@ func (impl InstalledAppServiceImpl) performDeployStageOnAcd(installedAppVersion 
 			impl.logger.Errorw("fetching error", "err", err)
 			return nil, err
 		}
-		gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
-		if err != nil {
-			if err == pg.ErrNoRows {
-				gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
-				gitOpsConfigBitbucket.BitBucketProjectKey = ""
-			} else {
-				return nil, err
-			}
-		}
-		config := &bean2.GitOpsConfigDto{
-			GitRepoName:          installedAppVersion.GitOpsRepoName,
-			BitBucketWorkspaceId: gitOpsConfigBitbucket.BitBucketProjectKey,
-			BitBucketProjectKey:  gitOpsConfigBitbucket.BitBucketProjectKey,
-		}
-		repoUrl, err := impl.gitFactory.Client.GetRepoUrl(config)
+
+		repoUrl, err := impl.gitOpsRemoteOperationService.GetRepoUrlByRepoName(installedAppVersion.GitOpsRepoName)
 		if err != nil {
 			//will allow to continue to persist status on next operation
-			impl.logger.Errorw("fetching error", "err", err)
+			impl.logger.Errorw("error, GetRepoUrlByRepoName", "err", err)
 		}
+
 		chartGitAttr.RepoUrl = repoUrl
 		chartGitAttr.ChartLocation = fmt.Sprintf("%s-%s", installedAppVersion.AppName, environment.Name)
 		installedAppVersion.ACDAppName = fmt.Sprintf("%s-%s", installedAppVersion.AppName, environment.Name)
@@ -606,7 +601,7 @@ func (impl *InstalledAppServiceImpl) triggerDeploymentEvent(installAppVersions [
 	}
 }
 
-func (impl *InstalledAppServiceImpl) Subscribe() error {
+func (impl *InstalledAppServiceImpl) subscribe() error {
 	callback := func(msg *model.PubSubMsg) {
 		impl.logger.Debug("cd stage event received")
 		//defer msg.Ack()

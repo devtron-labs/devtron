@@ -9,7 +9,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
-	repository5 "github.com/devtron-labs/devtron/pkg/appStore/chartGroup/repository"
+	repository6 "github.com/devtron-labs/devtron/pkg/appStore/chartGroup/repository"
 	repository3 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	repository5 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
@@ -134,7 +134,7 @@ func initAppStoreDeploymentService(t *testing.T, internalUse bool) *AppStoreDepl
 	db, _ := sql.NewDbConnection(config, sugaredLogger)
 
 	gitOpsRepository := repository.NewGitOpsConfigRepositoryImpl(sugaredLogger, db)
-	chartGroupDeploymentRepository := repository5.NewChartGroupDeploymentRepositoryImpl(db, sugaredLogger)
+	chartGroupDeploymentRepository := repository6.NewChartGroupDeploymentRepositoryImpl(db, sugaredLogger)
 
 	appStoreDiscoverRepository := appStoreDiscoverRepository.NewAppStoreApplicationVersionRepositoryImpl(sugaredLogger, db)
 
@@ -171,11 +171,11 @@ func initAppStoreDeploymentService(t *testing.T, internalUse bool) *AppStoreDepl
 		clusterService,
 		nil,
 		nil,
-		nil,
 		InstalledAppVersionHistoryRepository,
 		gitOpsRepository,
 		nil,
 		&DeploymentServiceTypeConfig{IsInternalUse: internalUse},
+		nil,
 		nil)
 
 	return AppStoreDeploymentServiceImpl
