@@ -1,13 +1,14 @@
 package genericNotes
 
 import (
-	"github.com/devtron-labs/devtron/pkg/cluster"
-	repository2 "github.com/devtron-labs/devtron/pkg/genericNotes/repository"
-	"github.com/devtron-labs/devtron/pkg/sql"
-	repository3 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"log"
 	"testing"
 	"time"
+
+	repository3 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
+	"github.com/devtron-labs/devtron/pkg/cluster"
+	repository2 "github.com/devtron-labs/devtron/pkg/genericNotes/repository"
+	"github.com/devtron-labs/devtron/pkg/sql"
 
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/internal/util"

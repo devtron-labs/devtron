@@ -20,6 +20,20 @@ package service
 import (
 	"bytes"
 	"context"
+	/* #nosec */
+	"crypto/sha1"
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"net/http"
+	"os"
+	"regexp"
+	"strconv"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"time"
+
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/devtron-labs/common-lib/pubsub-lib/model"
 	util4 "github.com/devtron-labs/common-lib/utils/k8s"
@@ -41,30 +55,16 @@ import (
 	appStoreDeploymentGitopsTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool/gitops"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/values/service"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	repository5 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	application3 "github.com/devtron-labs/devtron/pkg/k8s/application"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	repository4 "github.com/devtron-labs/devtron/pkg/team"
-	"github.com/devtron-labs/devtron/pkg/user"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/tidwall/gjson"
-	"net/http"
-	"regexp"
-	"sync"
-	"sync/atomic"
-
-	/* #nosec */
-	"crypto/sha1"
-	"encoding/json"
-	"fmt"
-	"io/ioutil"
-	"os"
-	"strconv"
-	"strings"
-	"time"
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -139,6 +139,7 @@ type InstalledAppServiceImpl struct {
 	appStoreDeploymentCommonService      appStoreDeploymentCommon.AppStoreDeploymentCommonService
 	k8sCommonService                     k8s.K8sCommonService
 	k8sApplicationService                application3.K8sApplicationService
+	acdConfig                            *argocdServer.ACDConfig
 }
 
 func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
@@ -163,7 +164,8 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 	appStatusService appStatus.AppStatusService, K8sUtil *util4.K8sUtil,
 	pipelineStatusTimelineService status.PipelineStatusTimelineService,
 	appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
-	appStoreDeploymentArgoCdService appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdService, k8sCommonService k8s.K8sCommonService, k8sApplicationService application3.K8sApplicationService) (*InstalledAppServiceImpl, error) {
+	appStoreDeploymentArgoCdService appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdService, k8sCommonService k8s.K8sCommonService, k8sApplicationService application3.K8sApplicationService,
+	acdConfig *argocdServer.ACDConfig) (*InstalledAppServiceImpl, error) {
 	impl := &InstalledAppServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -198,6 +200,7 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 		appStoreDeploymentCommonService:      appStoreDeploymentCommonService,
 		k8sCommonService:                     k8sCommonService,
 		k8sApplicationService:                k8sApplicationService,
+		acdConfig:                            acdConfig,
 	}
 	err := impl.Subscribe()
 	if err != nil {
@@ -416,6 +419,7 @@ func (impl InstalledAppServiceImpl) performDeployStageOnAcd(installedAppVersion 
 			_ = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, true)
 			return nil, err
 		}
+
 		timeline := &pipelineConfig.PipelineStatusTimeline{
 			InstalledAppVersionHistoryId: installedAppVersion.InstalledAppVersionHistoryId,
 			Status:                       pipelineConfig.TIMELINE_STATUS_GIT_COMMIT,
@@ -433,6 +437,35 @@ func (impl InstalledAppServiceImpl) performDeployStageOnAcd(installedAppVersion 
 		_, err = impl.appStoreDeploymentService.AppStoreDeployOperationStatusUpdate(installedAppVersion.InstalledAppId, appStoreBean.GIT_SUCCESS)
 		if err != nil {
 			impl.logger.Errorw(" error", "err", err)
+			return nil, err
+		}
+
+		GitCommitSuccessTimeline := impl.pipelineStatusTimelineService.
+			GetTimelineDbObjectByTimelineStatusAndTimelineDescription(0, installedAppVersion.InstalledAppVersionHistoryId, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT, "Git commit done successfully.", installedAppVersion.UserId, time.Now())
+
+		timelines := []*pipelineConfig.PipelineStatusTimeline{GitCommitSuccessTimeline}
+		if !impl.acdConfig.ArgoCDAutoSyncEnabled {
+			ArgocdSyncInitiatedTimeline := impl.pipelineStatusTimelineService.
+				GetTimelineDbObjectByTimelineStatusAndTimelineDescription(0, installedAppVersion.InstalledAppVersionHistoryId, pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED, "ArgoCD sync initiated.", installedAppVersion.UserId, time.Now())
+
+			timelines = append(timelines, ArgocdSyncInitiatedTimeline)
+		}
+
+		dbConnection := impl.installedAppRepository.GetConnection()
+		tx, err := dbConnection.Begin()
+		if err != nil {
+			impl.logger.Errorw("error in getting db connection for saving timelines", "err", err)
+			return nil, err
+		}
+		err = impl.pipelineStatusTimelineService.SaveTimelines(timelines, tx)
+		if err != nil {
+			impl.logger.Errorw("error in creating timeline status for deployment initiation for update of installedAppVersionHistoryId", "err", err, "installedAppVersionHistoryId", installedAppVersion.InstalledAppVersionHistoryId)
+		}
+		tx.Commit()
+		// update build history for chart for argo_cd apps
+		err = impl.appStoreDeploymentService.UpdateInstalledAppVersionHistoryWithGitHash(installedAppVersion, nil)
+		if err != nil {
+			impl.logger.Errorw("error on updating history for chart deployment", "error", err, "installedAppVersion", installedAppVersion)
 			return nil, err
 		}
 		installedAppVersion.GitHash = appStoreGitOpsResponse.GitHash
@@ -477,7 +510,7 @@ func (impl InstalledAppServiceImpl) performDeployStageOnAcd(installedAppVersion 
 		installedAppVersion.Status == appStoreBean.GIT_SUCCESS ||
 		installedAppVersion.Status == appStoreBean.ACD_ERROR {
 		//step 3 acd operation register, sync
-		_, err := impl.appStoreDeploymentFullModeService.AppStoreDeployOperationACD(installedAppVersion, chartGitAttr, ctx)
+		_, err := impl.appStoreDeploymentFullModeService.AppStoreDeployOperationACD(installedAppVersion, chartGitAttr, ctx, nil)
 		if err != nil {
 			impl.logger.Errorw("error", "chartGitAttr", chartGitAttr, "err", err)
 			_, err = impl.appStoreDeploymentService.AppStoreDeployOperationStatusUpdate(installedAppVersion.InstalledAppId, appStoreBean.ACD_ERROR)
@@ -553,15 +586,6 @@ func (impl InstalledAppServiceImpl) performDeployStage(installedAppVersionId int
 	if err != nil {
 		impl.logger.Errorw("error", "err", err)
 		return nil, err
-	}
-
-	if util.IsAcdApp(installedAppVersion.DeploymentAppType) {
-		// update build history for chart for argo_cd apps
-		err = impl.appStoreDeploymentService.UpdateInstalledAppVersionHistoryWithGitHash(installedAppVersion)
-		if err != nil {
-			impl.logger.Errorw("error on updating history for chart deployment", "error", err, "installedAppVersion", installedAppVersion)
-			return nil, err
-		}
 	}
 
 	return installedAppVersion, nil

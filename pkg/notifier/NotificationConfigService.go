@@ -19,11 +19,12 @@ package notifier
 
 import (
 	"encoding/json"
+	"time"
+
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	repository4 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/team"
-	repository4 "github.com/devtron-labs/devtron/pkg/user/repository"
-	"time"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"

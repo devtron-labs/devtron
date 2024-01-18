@@ -2,16 +2,16 @@ package notifier
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	mocks2 "github.com/devtron-labs/devtron/internal/sql/repository/mocks"
 	util2 "github.com/devtron-labs/devtron/internal/util"
+	mocks3 "github.com/devtron-labs/devtron/pkg/auth/user/repository/mocks"
 	"github.com/devtron-labs/devtron/pkg/team/mocks"
 	"github.com/stretchr/testify/mock"
 
-	//"github.com/devtron-labs/devtron/pkg/user/repository"
-	mocks3 "github.com/devtron-labs/devtron/pkg/user/repository/mocks"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func Test_buildWebhookNewConfigs(t *testing.T) {

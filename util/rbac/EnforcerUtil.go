@@ -19,17 +19,18 @@ package rbac
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/util"
-	"strings"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/team"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -73,7 +74,7 @@ type EnforcerUtil interface {
 	GetAllWorkflowRBACObjectsByAppId(appId int, workflowNames []string, workflowIds []int) map[int]string
 	GetEnvRBACArrayByAppIdForJobs(appId int) []string
 	CheckAppRbacForAppOrJob(token, resourceName, action string) bool
-	CheckAppRbacForAppOrJobInBulk(email, action string, rbacObjects []string, appType helper.AppType) map[string]bool
+	CheckAppRbacForAppOrJobInBulk(token, action string, rbacObjects []string, appType helper.AppType) map[string]bool
 }
 
 type EnforcerUtilImpl struct {
@@ -708,12 +709,12 @@ func (impl EnforcerUtilImpl) CheckAppRbacForAppOrJob(token, resourceName, action
 	return ok
 }
 
-func (impl EnforcerUtilImpl) CheckAppRbacForAppOrJobInBulk(email, action string, rbacObjects []string, appType helper.AppType) map[string]bool {
+func (impl EnforcerUtilImpl) CheckAppRbacForAppOrJobInBulk(token, action string, rbacObjects []string, appType helper.AppType) map[string]bool {
 	var enforcedMap map[string]bool
 	if appType == helper.Job {
-		enforcedMap = impl.enforcer.EnforceByEmailInBatch(email, casbin.ResourceJobs, action, rbacObjects)
+		enforcedMap = impl.enforcer.EnforceInBatch(token, casbin.ResourceJobs, action, rbacObjects)
 	} else {
-		enforcedMap = impl.enforcer.EnforceByEmailInBatch(email, casbin.ResourceApplications, action, rbacObjects)
+		enforcedMap = impl.enforcer.EnforceInBatch(token, casbin.ResourceApplications, action, rbacObjects)
 	}
 
 	return enforcedMap

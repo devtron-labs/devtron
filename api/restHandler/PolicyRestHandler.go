@@ -21,17 +21,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"strconv"
+
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	security2 "github.com/devtron-labs/devtron/internal/sql/repository/security"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	user2 "github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/security"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"go.uber.org/zap"
-	"net/http"
-	"strconv"
 )
 
 type PolicyRestHandler interface {
@@ -43,8 +44,8 @@ type PolicyRestHandler interface {
 type PolicyRestHandlerImpl struct {
 	logger             *zap.SugaredLogger
 	policyService      security.PolicyService
-	userService        user.UserService
-	userAuthService    user.UserAuthService
+	userService        user2.UserService
+	userAuthService    user2.UserAuthService
 	enforcer           casbin.Enforcer
 	enforcerUtil       rbac.EnforcerUtil
 	environmentService cluster.EnvironmentService
@@ -52,7 +53,7 @@ type PolicyRestHandlerImpl struct {
 
 func NewPolicyRestHandlerImpl(logger *zap.SugaredLogger,
 	policyService security.PolicyService,
-	userService user.UserService, userAuthService user.UserAuthService,
+	userService user2.UserService, userAuthService user2.UserAuthService,
 	enforcer casbin.Enforcer,
 	enforcerUtil rbac.EnforcerUtil, environmentService cluster.EnvironmentService) *PolicyRestHandlerImpl {
 	return &PolicyRestHandlerImpl{
@@ -298,7 +299,7 @@ func (impl PolicyRestHandlerImpl) GetPolicy(w http.ResponseWriter, r *http.Reque
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-//TODO - move to image-scanner
+// TODO - move to image-scanner
 func (impl PolicyRestHandlerImpl) VerifyImage(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 
