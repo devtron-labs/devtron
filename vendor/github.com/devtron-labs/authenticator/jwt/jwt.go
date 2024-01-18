@@ -49,6 +49,11 @@ func GetField(claims jwt.MapClaims, fieldName string) string {
 	return ""
 }
 
+// GetFieldInterface extracts a field from the claims as an interface
+func GetFieldInterface(claims jwt.MapClaims, fieldName string) interface{} {
+	return claims[fieldName]
+}
+
 // GetScopeValues extracts the values of specified scopes from the claims
 func GetScopeValues(claims jwt.MapClaims, scopes []string) []string {
 	groups := make([]string, 0)
