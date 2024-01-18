@@ -51,9 +51,9 @@ type DeploymentGroupRestHandlerImpl struct {
 	logger                 *zap.SugaredLogger
 	validator              *validator.Validate
 	enforcer               casbin.Enforcer
-	teamService     team.TeamService
-	userAuthService user.UserService
-	enforcerUtil    rbac.EnforcerUtil
+	teamService            team.TeamService
+	userAuthService        user.UserService
+	enforcerUtil           rbac.EnforcerUtil
 }
 
 func NewDeploymentGroupRestHandlerImpl(deploymentGroupService deploymentGroup.DeploymentGroupService, logger *zap.SugaredLogger,

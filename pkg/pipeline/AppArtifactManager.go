@@ -52,9 +52,9 @@ type AppArtifactManager interface {
 
 type AppArtifactManagerImpl struct {
 	logger                  *zap.SugaredLogger
-	cdWorkflowRepository pipelineConfig.CdWorkflowRepository
-	userService          user.UserService
-	imageTaggingService  ImageTaggingService
+	cdWorkflowRepository    pipelineConfig.CdWorkflowRepository
+	userService             user.UserService
+	imageTaggingService     ImageTaggingService
 	ciArtifactRepository    repository.CiArtifactRepository
 	ciWorkflowRepository    pipelineConfig.CiWorkflowRepository
 	pipelineStageService    PipelineStageService
