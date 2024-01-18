@@ -38,9 +38,8 @@ import (
 	security2 "github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
-	repository3 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
+	repository4 "github.com/devtron-labs/devtron/pkg/appStore/chartGroup/repository"
 	appStoreDeploymentTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool"
-	appStoreDeploymentGitopsTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool/gitops"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps"
@@ -137,7 +136,7 @@ func InitializeApp() (*App, error) {
 		// // needed for enforcer util ends
 
 		// binding gitops to helm (for hyperion)
-		wire.Bind(new(appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdService), new(*appStoreDeploymentTool.AppStoreDeploymentHelmServiceImpl)),
+		wire.Bind(new(appStoreDeploymentTool.AppStoreDeploymentArgoCdService), new(*appStoreDeploymentTool.AppStoreDeploymentHelmServiceImpl)),
 
 		router.NewTelemetryRouterImpl,
 		wire.Bind(new(router.TelemetryRouter), new(*router.TelemetryRouterImpl)),
@@ -198,8 +197,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(dockerRegistryRepository.OCIRegistryConfigRepository), new(*dockerRegistryRepository.OCIRegistryConfigRepositoryImpl)),
 
 		// chart group repository layer wire injection started
-		repository3.NewChartGroupDeploymentRepositoryImpl,
-		wire.Bind(new(repository3.ChartGroupDeploymentRepository), new(*repository3.ChartGroupDeploymentRepositoryImpl)),
+		repository4.NewChartGroupDeploymentRepositoryImpl,
+		wire.Bind(new(repository4.ChartGroupDeploymentRepository), new(*repository4.ChartGroupDeploymentRepositoryImpl)),
 		// chart group repository layer wire injection ended
 
 		// end: docker registry wire set injection

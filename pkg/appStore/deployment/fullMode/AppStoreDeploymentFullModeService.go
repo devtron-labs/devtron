@@ -52,13 +52,12 @@ const (
 	CLUSTER_COMPONENT_DIR_PATH                  = "/cluster/component"
 )
 
+// ACD operation and git operation
 type AppStoreDeploymentFullModeService interface {
 	AppStoreDeployOperationACD(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, chartGitAttr *commonBean.ChartGitAttribute, ctx context.Context, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error)
-	SyncACD(acdAppName string, ctx context.Context)
 	UpdateValuesYaml(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error)
 	UpdateRequirementYaml(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, appStoreAppVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) error
 	GetGitOpsRepoName(appName string, environmentName string) (string, error)
-	SubscribeHelmInstallStatus() error
 }
 
 type AppStoreDeploymentFullModeServiceImpl struct {
@@ -103,7 +102,7 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 		gitOpsConfigReadService:         gitOpsConfigReadService,
 		gitOpsRemoteOperationService:    gitOpsRemoteOperationService,
 	}
-	err := appStoreDeploymentFullModeServiceImpl.SubscribeHelmInstallStatus()
+	err := appStoreDeploymentFullModeServiceImpl.subscribeHelmInstallStatus()
 	if err != nil {
 		return nil
 	}
@@ -155,18 +154,6 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationACD(ins
 	}
 
 	return installAppVersionRequest, nil
-}
-
-func (impl AppStoreDeploymentFullModeServiceImpl) SyncACD(acdAppName string, ctx context.Context) {
-	req := new(application.ApplicationSyncRequest)
-	req.Name = &acdAppName
-	if ctx == nil {
-		impl.logger.Errorw("err in syncing ACD for AppStore, ctx is NULL", "acdAppName", acdAppName)
-		return
-	}
-	if _, err := impl.acdClient.Sync(ctx, req); err != nil {
-		impl.logger.Errorw("err in syncing ACD for AppStore", "acdAppName", acdAppName, "err", err)
-	}
 }
 
 func (impl AppStoreDeploymentFullModeServiceImpl) createInArgo(chartGitAttribute *commonBean.ChartGitAttribute, ctx context.Context, envModel repository5.Environment, argocdAppName string) error {
@@ -263,7 +250,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) UpdateRequirementYaml(installA
 	return nil
 }
 
-func (impl AppStoreDeploymentFullModeServiceImpl) SubscribeHelmInstallStatus() error {
+func (impl AppStoreDeploymentFullModeServiceImpl) subscribeHelmInstallStatus() error {
 
 	callback := func(msg *model.PubSubMsg) {
 

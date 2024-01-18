@@ -107,7 +107,6 @@ type PipelineConfigRestHandlerImpl struct {
 	deploymentTemplateValidationService deploymentTemplate.DeploymentTemplateValidationService
 	chartService                        chart.ChartService
 	propertiesConfigService             pipeline.PropertiesConfigService
-	dbMigrationService                  pipeline.DbMigrationService
 	userAuthService                     user.UserService
 	validator                           *validator.Validate
 	teamService                         team.TeamService
@@ -138,7 +137,6 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	deploymentTemplateValidationService deploymentTemplate.DeploymentTemplateValidationService,
 	chartService chart.ChartService,
 	propertiesConfigService pipeline.PropertiesConfigService,
-	dbMigrationService pipeline.DbMigrationService,
 	userAuthService user.UserService,
 	teamService team.TeamService,
 	enforcer casbin.Enforcer,
@@ -170,7 +168,6 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		deploymentTemplateValidationService: deploymentTemplateValidationService,
 		chartService:                        chartService,
 		propertiesConfigService:             propertiesConfigService,
-		dbMigrationService:                  dbMigrationService,
 		userAuthService:                     userAuthService,
 		validator:                           validator,
 		teamService:                         teamService,
