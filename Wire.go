@@ -26,6 +26,7 @@ import (
 	util4 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/apiToken"
 	appStoreRestHandler "github.com/devtron-labs/devtron/api/appStore"
+	chartGroup2 "github.com/devtron-labs/devtron/api/appStore/chartGroup"
 	chartProvider "github.com/devtron-labs/devtron/api/appStore/chartProvider"
 	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
 	appStoreDiscover "github.com/devtron-labs/devtron/api/appStore/discover"
@@ -591,10 +592,10 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(repository4.ChartGroupEntriesRepository), new(*repository4.ChartGroupEntriesRepositoryImpl)),
 		chartGroup.NewChartGroupServiceImpl,
 		wire.Bind(new(chartGroup.ChartGroupService), new(*chartGroup.ChartGroupServiceImpl)),
-		restHandler.NewChartGroupRestHandlerImpl,
-		wire.Bind(new(restHandler.ChartGroupRestHandler), new(*restHandler.ChartGroupRestHandlerImpl)),
-		router.NewChartGroupRouterImpl,
-		wire.Bind(new(router.ChartGroupRouter), new(*router.ChartGroupRouterImpl)),
+		chartGroup2.NewChartGroupRestHandlerImpl,
+		wire.Bind(new(chartGroup2.ChartGroupRestHandler), new(*chartGroup2.ChartGroupRestHandlerImpl)),
+		chartGroup2.NewChartGroupRouterImpl,
+		wire.Bind(new(chartGroup2.ChartGroupRouter), new(*chartGroup2.ChartGroupRouterImpl)),
 		repository4.NewChartGroupDeploymentRepositoryImpl,
 		wire.Bind(new(repository4.ChartGroupDeploymentRepository), new(*repository4.ChartGroupDeploymentRepositoryImpl)),
 

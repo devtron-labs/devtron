@@ -15,7 +15,7 @@
  *
  */
 
-package restHandler
+package chartGroup
 
 import (
 	"encoding/json"
