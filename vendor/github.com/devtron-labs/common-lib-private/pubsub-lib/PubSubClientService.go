@@ -14,9 +14,18 @@ import (
 	"time"
 )
 
+const NATS_MSG_LOG_PREFIX = "NATS_LOG"
+
+type ValidateMsg func(msg model.PubSubMsg) bool
+
+// LoggerFunc is used to log the message before passing to callback function.
+// it expects logg message and key value pairs to be returned.
+// if keysAndValues is empty, it will log whole model.PubSubMsg
+type LoggerFunc func(msg model.PubSubMsg) (logMsg string, keysAndValues []interface{})
+
 type PubSubClientService interface {
 	Publish(topic string, msg string) error
-	Subscribe(topic string, callback func(msg *model.PubSubMsg)) error
+	Subscribe(topic string, callback func(msg *model.PubSubMsg), loggerFunc LoggerFunc, validations ...ValidateMsg) error
 }
 
 type PubSubClientServiceImpl struct {
@@ -77,7 +86,12 @@ func (impl PubSubClientServiceImpl) Publish(topic string, msg string) error {
 	return nil
 }
 
-func (impl PubSubClientServiceImpl) Subscribe(topic string, callback func(msg *model.PubSubMsg)) error {
+// Subscribe method is used to subscribe to the given topic(+required),
+// this creates blocking process to continuously fetch messages from nats server published on this topic.
+// invokes callback(+required) func for each message received.
+// loggerFunc(+optional) is invoked before passing the message to the callback function.
+// validations(+optional) methods were called before passing the message to the callback func.
+func (impl PubSubClientServiceImpl) Subscribe(topic string, callback func(msg *model.PubSubMsg), loggerFunc LoggerFunc, validations ...ValidateMsg) error {
 	impl.Logger.Infow("Subscribed to pubsub client", "topic", topic)
 	natsTopic := GetNatsTopic(topic)
 	streamName := natsTopic.streamName
@@ -91,80 +105,61 @@ func (impl PubSubClientServiceImpl) Subscribe(topic string, callback func(msg *m
 	if streamConfig.Retention == nats.WorkQueuePolicy {
 		deliveryOption = nats.DeliverAll()
 	}
-	processingBatchSize := NatsConsumerWiseConfigMapping[consumerName].NatsMsgProcessingBatchSize
-	msgBufferSize := NatsConsumerWiseConfigMapping[consumerName].NatsMsgBufferSize
+
+	consumerConfig := NatsConsumerWiseConfigMapping[consumerName]
+	processingBatchSize := consumerConfig.NatsMsgProcessingBatchSize
+	msgBufferSize := consumerConfig.GetNatsMsgBufferSize()
 
 	// Converting provided ack wait (int) into duration for comparing with nats-server config
-	ackWait := time.Duration(NatsConsumerWiseConfigMapping[consumerName].AckWaitInSecs) * time.Second
+	ackWait := time.Duration(consumerConfig.AckWaitInSecs) * time.Second
 
-	// Get the current Consumer config from NATS-server
-	info, err := natsClient.JetStrCtxt.ConsumerInfo(streamName, consumerName)
-
-	if err != nil {
-		impl.Logger.Errorw("unable to retrieve consumer info from NATS-server",
-			"stream", streamName,
-			"consumer", consumerName,
-			"err", err)
-
-	} else {
-		// Update NATS Consumer config if new changes detected
-		// Currently only checking for AckWait, but can be done for other editable properties as well
-
-		if ackWait > 0 && info.Config.AckWait != ackWait {
-
-			updatedConfig := info.Config
-			updatedConfig.AckWait = ackWait
-
-			_, err = natsClient.JetStrCtxt.UpdateConsumer(streamName, &updatedConfig)
-
-			if err != nil {
-				impl.Logger.Errorw("failed to update Consumer config",
-					"received consumer config", info.Config,
-					"err", err)
-			}
-		}
-	}
+	// Update consumer config if new changes detected
+	impl.updateConsumer(natsClient, streamName, consumerName, &consumerConfig)
 
 	channel := make(chan *nats.Msg, msgBufferSize)
-	_, err = natsClient.JetStrCtxt.ChanQueueSubscribe(topic, queueName, channel, nats.Durable(consumerName), deliveryOption, nats.ManualAck(),
+	_, err := natsClient.JetStrCtxt.ChanQueueSubscribe(topic, queueName, channel,
+		nats.Durable(consumerName),
+		deliveryOption,
+		nats.ManualAck(),
+		nats.AckWait(ackWait), // if ackWait is 0 , nats sets this option to 30secs by default
 		nats.BindStream(streamName))
 	if err != nil {
 		impl.Logger.Fatalw("error while subscribing to nats ", "stream", streamName, "topic", topic, "error", err)
 		return err
 	}
-	go impl.startListeningForEvents(processingBatchSize, channel, callback, topic)
+	go impl.startListeningForEvents(processingBatchSize, channel, callback, loggerFunc, validations...)
 	impl.Logger.Infow("Successfully subscribed with Nats", "stream", streamName, "topic", topic, "queue", queueName, "consumer", consumerName)
 	return nil
 }
 
-func (impl PubSubClientServiceImpl) startListeningForEvents(processingBatchSize int, channel chan *nats.Msg, callback func(msg *model.PubSubMsg), topic string) {
+func (impl PubSubClientServiceImpl) startListeningForEvents(processingBatchSize int, channel chan *nats.Msg, callback func(msg *model.PubSubMsg), loggerFunc LoggerFunc, validations ...ValidateMsg) {
 	wg := new(sync.WaitGroup)
 
 	for index := 0; index < processingBatchSize; index++ {
 		wg.Add(1)
-		go impl.processMessages(wg, channel, callback, topic)
+		go impl.processMessages(wg, channel, callback, loggerFunc, validations...)
 	}
 	wg.Wait()
 	impl.Logger.Warn("msgs received Done from Nats side, going to end listening!!")
 }
 
-func (impl PubSubClientServiceImpl) processMessages(wg *sync.WaitGroup, channel chan *nats.Msg, callback func(msg *model.PubSubMsg), topic string) {
+func (impl PubSubClientServiceImpl) processMessages(wg *sync.WaitGroup, channel chan *nats.Msg, callback func(msg *model.PubSubMsg), loggerFunc LoggerFunc, validations ...ValidateMsg) {
 	defer wg.Done()
 	for msg := range channel {
-		impl.processMsg(msg, callback, topic)
+		impl.processMsg(msg, callback, loggerFunc, validations...)
 	}
 }
 
 // TODO need to extend msg ack depending upon response from callback like error scenario
-func (impl PubSubClientServiceImpl) processMsg(msg *nats.Msg, callback func(msg *model.PubSubMsg), topic string) {
+func (impl PubSubClientServiceImpl) processMsg(msg *nats.Msg, callback func(msg *model.PubSubMsg), loggerFunc LoggerFunc, validations ...ValidateMsg) {
 	t1 := time.Now()
-	metrics.IncConsumingCount(topic)
-	defer metrics.IncConsumptionCount(topic)
+	metrics.IncConsumingCount(msg.Subject)
+	defer metrics.IncConsumptionCount(msg.Subject)
 	defer func() {
 		// wrapping this function in defer as directly calling Observe() will run immediately
-		metrics.NatsEventConsumptionTime.WithLabelValues(topic).Observe(float64(time.Since(t1).Milliseconds()))
+		metrics.NatsEventConsumptionTime.WithLabelValues(msg.Subject).Observe(float64(time.Since(t1).Milliseconds()))
 	}()
-	impl.TryCatchCallBack(msg, callback)
+	impl.TryCatchCallBack(msg, callback, loggerFunc, validations...)
 }
 
 func (impl PubSubClientServiceImpl) publishPanicError(msg *nats.Msg, panicErr error) (err error) {
@@ -190,14 +185,36 @@ func (impl PubSubClientServiceImpl) publishPanicError(msg *nats.Msg, panicErr er
 }
 
 // TryCatchCallBack is a fail-safe method to use callback function
-func (impl PubSubClientServiceImpl) TryCatchCallBack(msg *nats.Msg, callback func(msg *model.PubSubMsg)) {
-	subMsg := &model.PubSubMsg{Data: string(msg.Data)}
+func (impl PubSubClientServiceImpl) TryCatchCallBack(msg *nats.Msg, callback func(msg *model.PubSubMsg), loggerFunc LoggerFunc, validations ...ValidateMsg) {
+	var msgDeliveryCount uint64 = 0
+	if metadata, err := msg.Metadata(); err == nil {
+		msgDeliveryCount = metadata.NumDelivered
+	}
+	natsMsgId := msg.Header.Get(model.NatsMsgId)
+	subMsg := &model.PubSubMsg{Data: string(msg.Data), MsgDeliverCount: msgDeliveryCount, MsgId: natsMsgId}
+
+	// call loggersFunc
+	impl.Log(loggerFunc, msg.Subject, *subMsg)
+
+	// run validations
+	for _, validation := range validations {
+		if !validation(*subMsg) {
+			impl.Logger.Warnw("nats: message validation failed, not processing the message...", "subject", msg.Subject, "msg", string(msg.Data))
+			return
+		}
+	}
 	defer func() {
 		// Acknowledge the message delivery
 		err := msg.Ack()
 		if err != nil {
 			impl.Logger.Errorw("nats: unable to acknowledge the message", "subject", msg.Subject, "msg", string(msg.Data))
 		}
+
+		// publish metrics for msg delivery count if msgDeliveryCount > 1
+		if msgDeliveryCount > 1 {
+			metrics.NatsEventDeliveryCount.WithLabelValues(msg.Subject, natsMsgId).Observe(float64(msgDeliveryCount))
+		}
+
 		// Panic recovery handling
 		if panicInfo := recover(); panicInfo != nil {
 			impl.Logger.Warnw("nats: found panic error", "subject", msg.Subject, "payload", string(msg.Data), "logs", string(debug.Stack()))
@@ -214,12 +231,6 @@ func (impl PubSubClientServiceImpl) TryCatchCallBack(msg *nats.Msg, callback fun
 	callback(subMsg)
 }
 
-func (impl PubSubClientServiceImpl) printTimeDiff(t0 time.Time, msg *nats.Msg, timeLimitInMillSecs int64) {
-	t1 := time.Since(t0)
-	if t1.Milliseconds() > timeLimitInMillSecs {
-		impl.Logger.Debugw("time took to process msg: ", msg, "time :", t1)
-	}
-}
 func (impl PubSubClientServiceImpl) getStreamConfig(streamName string) *nats.StreamConfig {
 	configJson := NatsStreamWiseConfigMapping[streamName].StreamConfig
 	streamCfg := &nats.StreamConfig{}
@@ -234,4 +245,48 @@ func (impl PubSubClientServiceImpl) getStreamConfig(streamName string) *nats.Str
 	}
 
 	return streamCfg
+}
+
+// Updates NATS Consumer config if new changes detected
+// if consumer didn't exist, this will just return
+func (impl PubSubClientServiceImpl) updateConsumer(natsClient *NatsClient, streamName string, consumerName string, overrideConfig *NatsConsumerConfig) {
+
+	// Get the current Consumer config from NATS-server
+	info, err := natsClient.JetStrCtxt.ConsumerInfo(streamName, consumerName)
+	if err != nil {
+		impl.Logger.Errorw("unable to retrieve consumer info from NATS-server", "stream", streamName, "consumer", consumerName, "err", err)
+		return
+	}
+
+	existingConfig := info.Config
+	updatesDetected := false
+
+	// Currently only checking for AckWait,MaxAckPending but can be done for other editable properties as well
+	if ackWaitOverride := time.Duration(overrideConfig.AckWaitInSecs) * time.Second; ackWaitOverride > 0 && existingConfig.AckWait != ackWaitOverride {
+		existingConfig.AckWait = ackWaitOverride
+		updatesDetected = true
+	}
+
+	if messageBufferSize := overrideConfig.GetNatsMsgBufferSize(); messageBufferSize > 0 && existingConfig.MaxAckPending != messageBufferSize {
+		existingConfig.MaxAckPending = messageBufferSize
+		updatesDetected = true
+	}
+
+	if updatesDetected {
+		_, err = natsClient.JetStrCtxt.UpdateConsumer(streamName, &existingConfig)
+		if err != nil {
+			impl.Logger.Errorw("failed to update Consumer config", "received consumer config", info.Config, "err", err)
+		}
+	}
+	return
+}
+
+func (impl PubSubClientServiceImpl) Log(loggerFunc LoggerFunc, topic string, subMsg model.PubSubMsg) {
+	logMsg, metaSlice := loggerFunc(subMsg)
+	logMsg = fmt.Sprintf("%s:%s", NATS_MSG_LOG_PREFIX, logMsg)
+	if len(metaSlice) == 0 {
+		metaSlice = []interface{}{"msgId", subMsg.MsgId, "msg", subMsg.Data}
+	}
+	metaSlice = append(metaSlice, "topic", topic)
+	impl.Logger.Infow(logMsg, metaSlice...)
 }
