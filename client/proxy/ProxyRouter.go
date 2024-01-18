@@ -71,4 +71,5 @@ func (router ProxyRouterImpl) InitProxyRouter(ProxyRouter *mux.Router) {
 	ProxyRouter.PathPrefix("/kubelink").HandlerFunc(router.proxy["kubelink"])
 	ProxyRouter.PathPrefix("/gitsensor").HandlerFunc(router.proxy["gitsensor"])
 	ProxyRouter.PathPrefix("/kubewatch").HandlerFunc(router.proxy["kubewatch"])
+	ProxyRouter.PathPrefix("/image-scanner").HandlerFunc(router.proxy["image-scanner"])
 }
