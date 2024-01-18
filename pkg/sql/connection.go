@@ -32,7 +32,7 @@ type Config struct {
 	Port                   string `env:"PG_PORT" envDefault:"5432"`
 	User                   string `env:"PG_USER" envDefault:""`
 	Password               string `env:"PG_PASSWORD" envDefault:"" secretData:"-"`
-	Database               string `env:"PG_DATABASE" envDefault:"orchestrator_jatin"`
+	Database               string `env:"PG_DATABASE" envDefault:"orchestrator"`
 	ApplicationName        string `env:"APP" envDefault:"orchestrator"`
 	LogQuery               bool   `env:"PG_LOG_QUERY" envDefault:"true"`
 	LogAllQuery            bool   `env:"PG_LOG_ALL_QUERY" envDefault:"false"`
@@ -55,7 +55,7 @@ func NewDbConnection(cfg *Config, logger *zap.SugaredLogger) (*pg.DB, error) {
 		ApplicationName: cfg.ApplicationName,
 	}
 	dbConnection := pg.Connect(&options)
-	//check db connection
+	// check db connection
 	var test string
 	_, err := dbConnection.QueryOne(&test, `SELECT 1`)
 
@@ -66,7 +66,7 @@ func NewDbConnection(cfg *Config, logger *zap.SugaredLogger) (*pg.DB, error) {
 		logger.Infow("connected with db", "db", obfuscateSecretTags(cfg))
 	}
 
-	//--------------
+	// --------------
 	dbConnection.OnQueryProcessed(func(event *pg.QueryProcessedEvent) {
 		queryDuration := time.Since(event.StartTime)
 
