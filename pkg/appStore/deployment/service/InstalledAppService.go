@@ -22,6 +22,7 @@ import (
 	"context"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/remote"
 
 	/* #nosec */
 	"crypto/sha1"
@@ -122,7 +123,6 @@ type InstalledAppServiceImpl struct {
 	chartGroupDeploymentRepository       repository2.ChartGroupDeploymentRepository
 	envService                           cluster2.EnvironmentService
 	ArgoK8sClient                        argocdServer.ArgoK8sClient
-	gitFactory                           *util.GitFactory
 	aCDAuthConfig                        *util2.ACDAuthConfig
 	gitOpsRepository                     repository3.GitOpsConfigRepository
 	userService                          user.UserService
@@ -140,6 +140,7 @@ type InstalledAppServiceImpl struct {
 	k8sApplicationService                application3.K8sApplicationService
 	acdConfig                            *argocdServer.ACDConfig
 	gitOpsConfigReadService              config.GitOpsConfigReadService
+	gitOpsRemoteOperationService         remote.GitOpsRemoteOperationService
 }
 
 func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
@@ -154,7 +155,7 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 	tokenCache *util2.TokenCache,
 	chartGroupDeploymentRepository repository2.ChartGroupDeploymentRepository,
 	envService cluster2.EnvironmentService, argoK8sClient argocdServer.ArgoK8sClient,
-	gitFactory *util.GitFactory, aCDAuthConfig *util2.ACDAuthConfig, gitOpsRepository repository3.GitOpsConfigRepository, userService user.UserService,
+	aCDAuthConfig *util2.ACDAuthConfig, gitOpsRepository repository3.GitOpsConfigRepository, userService user.UserService,
 	appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService,
 	appStoreDeploymentService AppStoreDeploymentService,
 	installedAppRepositoryHistory repository2.InstalledAppVersionHistoryRepository,
@@ -163,8 +164,8 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 	pipelineStatusTimelineService status.PipelineStatusTimelineService,
 	appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
 	k8sCommonService k8s.K8sCommonService, k8sApplicationService application3.K8sApplicationService,
-	acdConfig *argocdServer.ACDConfig,
-	gitOpsConfigReadService config.GitOpsConfigReadService) (*InstalledAppServiceImpl, error) {
+	acdConfig *argocdServer.ACDConfig, gitOpsConfigReadService config.GitOpsConfigReadService,
+	gitOpsRemoteOperationService remote.GitOpsRemoteOperationService) (*InstalledAppServiceImpl, error) {
 	impl := &InstalledAppServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -180,7 +181,6 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 		chartGroupDeploymentRepository:       chartGroupDeploymentRepository,
 		envService:                           envService,
 		ArgoK8sClient:                        argoK8sClient,
-		gitFactory:                           gitFactory,
 		aCDAuthConfig:                        aCDAuthConfig,
 		gitOpsRepository:                     gitOpsRepository,
 		userService:                          userService,
@@ -198,6 +198,7 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 		k8sApplicationService:                k8sApplicationService,
 		acdConfig:                            acdConfig,
 		gitOpsConfigReadService:              gitOpsConfigReadService,
+		gitOpsRemoteOperationService:         gitOpsRemoteOperationService,
 	}
 	err := impl.Subscribe()
 	if err != nil {
@@ -475,21 +476,13 @@ func (impl InstalledAppServiceImpl) performDeployStageOnAcd(installedAppVersion 
 			impl.logger.Errorw("fetching error", "err", err)
 			return nil, err
 		}
-		bitbucketMetadata, err := impl.gitOpsConfigReadService.GetBitbucketMetadata()
-		if err != nil {
-			impl.logger.Errorw("error in getting bitbucket metadata", "err", err)
-			return nil, err
-		}
-		config := &bean2.GitOpsConfigDto{
-			GitRepoName:          installedAppVersion.GitOpsRepoName,
-			BitBucketWorkspaceId: bitbucketMetadata.BitBucketWorkspaceId,
-			BitBucketProjectKey:  bitbucketMetadata.BitBucketProjectKey,
-		}
-		repoUrl, err := impl.gitFactory.Client.GetRepoUrl(config)
+
+		repoUrl, err := impl.gitOpsRemoteOperationService.GetRepoUrlByRepoName(installedAppVersion.GitOpsRepoName)
 		if err != nil {
 			//will allow to continue to persist status on next operation
-			impl.logger.Errorw("fetching error", "err", err)
+			impl.logger.Errorw("error, GetRepoUrlByRepoName", "err", err)
 		}
+
 		chartGitAttr.RepoUrl = repoUrl
 		chartGitAttr.ChartLocation = fmt.Sprintf("%s-%s", installedAppVersion.AppName, environment.Name)
 		installedAppVersion.ACDAppName = fmt.Sprintf("%s-%s", installedAppVersion.AppName, environment.Name)

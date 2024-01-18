@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/remote"
 	"net/http"
 	"strings"
 	"time"
@@ -67,7 +68,6 @@ type AppStoreDeploymentArgoCdServiceImpl struct {
 	chartGroupDeploymentRepository       repository.ChartGroupDeploymentRepository
 	installedAppRepository               repository.InstalledAppRepository
 	installedAppRepositoryHistory        repository.InstalledAppVersionHistoryRepository
-	gitFactory                           *util.GitFactory
 	argoUserService                      argo.ArgoUserService
 	appStoreDeploymentCommonService      appStoreDeploymentCommon.AppStoreDeploymentCommonService
 	helmAppService                       client.HelmAppService
@@ -78,18 +78,19 @@ type AppStoreDeploymentArgoCdServiceImpl struct {
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository
 	argoClientWrapperService             argocdServer.ArgoClientWrapperService
 	acdConfig                            *argocdServer.ACDConfig
+	gitOpsRemoteOperationService         remote.GitOpsRemoteOperationService
 }
 
 func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService,
 	acdClient application2.ServiceClient, chartGroupDeploymentRepository repository.ChartGroupDeploymentRepository,
 	installedAppRepository repository.InstalledAppRepository, installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository,
-	gitFactory *util.GitFactory, argoUserService argo.ArgoUserService, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
+	argoUserService argo.ArgoUserService, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
 	helmAppService client.HelmAppService, appStatusService appStatus.AppStatusService,
 	pipelineStatusTimelineService status.PipelineStatusTimelineService, userService user.UserService,
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository,
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService, acdConfig *argocdServer.ACDConfig,
-) *AppStoreDeploymentArgoCdServiceImpl {
+	gitOpsRemoteOperationService remote.GitOpsRemoteOperationService) *AppStoreDeploymentArgoCdServiceImpl {
 	return &AppStoreDeploymentArgoCdServiceImpl{
 		Logger:                               logger,
 		appStoreDeploymentFullModeService:    appStoreDeploymentFullModeService,
@@ -97,7 +98,6 @@ func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreD
 		chartGroupDeploymentRepository:       chartGroupDeploymentRepository,
 		installedAppRepository:               installedAppRepository,
 		installedAppRepositoryHistory:        installedAppRepositoryHistory,
-		gitFactory:                           gitFactory,
 		argoUserService:                      argoUserService,
 		appStoreDeploymentCommonService:      appStoreDeploymentCommonService,
 		helmAppService:                       helmAppService,
@@ -108,6 +108,7 @@ func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreD
 		appStoreApplicationVersionRepository: appStoreApplicationVersionRepository,
 		argoClientWrapperService:             argoClientWrapperService,
 		acdConfig:                            acdConfig,
+		gitOpsRemoteOperationService:         gitOpsRemoteOperationService,
 	}
 }
 
@@ -604,7 +605,7 @@ func (impl *AppStoreDeploymentArgoCdServiceImpl) UpdateRequirementDependencies(i
 		impl.Logger.Errorw("error in getting git config for helm app", "err", err)
 		return err
 	}
-	_, err = impl.appStoreDeploymentCommonService.CommitConfigToGit(requirementsGitConfig)
+	_, _, err = impl.gitOpsRemoteOperationService.CommitValues(requirementsGitConfig)
 	if err != nil {
 		impl.Logger.Errorw("error in committing config to git for helm app", "err", err)
 		return err
@@ -697,7 +698,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) updateValuesYaml(installAppVersi
 		impl.Logger.Errorw("error in getting git config for helm app", "err", err)
 		return nil, err
 	}
-	gitHash, err := impl.appStoreDeploymentCommonService.CommitConfigToGit(valuesGitConfig)
+	gitHash, _, err := impl.gitOpsRemoteOperationService.CommitValues(valuesGitConfig)
 	if err != nil {
 		impl.Logger.Errorw("error in git commit", "err", err)
 		_ = impl.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED, fmt.Sprintf("Git commit failed - %v", err), time.Now(), tx)

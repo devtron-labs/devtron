@@ -5,6 +5,7 @@ import (
 	"errors"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/remote"
 	"net/http"
 	"time"
 
@@ -49,10 +50,15 @@ type AppStoreDeploymentHelmServiceImpl struct {
 	installedAppRepository               repository.InstalledAppRepository
 	appStoreDeploymentCommonService      appStoreDeploymentCommon.AppStoreDeploymentCommonService
 	OCIRegistryConfigRepository          repository2.OCIRegistryConfigRepository
+	gitOpsRemoteOperationService         remote.GitOpsRemoteOperationService
 }
 
-func NewAppStoreDeploymentHelmServiceImpl(logger *zap.SugaredLogger, helmAppService client.HelmAppService, appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
-	environmentRepository clusterRepository.EnvironmentRepository, helmAppClient client.HelmAppClient, installedAppRepository repository.InstalledAppRepository, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService, OCIRegistryConfigRepository repository2.OCIRegistryConfigRepository) *AppStoreDeploymentHelmServiceImpl {
+func NewAppStoreDeploymentHelmServiceImpl(logger *zap.SugaredLogger, helmAppService client.HelmAppService,
+	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
+	environmentRepository clusterRepository.EnvironmentRepository, helmAppClient client.HelmAppClient,
+	installedAppRepository repository.InstalledAppRepository, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
+	OCIRegistryConfigRepository repository2.OCIRegistryConfigRepository,
+	gitOpsRemoteOperationService remote.GitOpsRemoteOperationService) *AppStoreDeploymentHelmServiceImpl {
 	return &AppStoreDeploymentHelmServiceImpl{
 		Logger:                               logger,
 		helmAppService:                       helmAppService,
@@ -62,6 +68,7 @@ func NewAppStoreDeploymentHelmServiceImpl(logger *zap.SugaredLogger, helmAppServ
 		installedAppRepository:               installedAppRepository,
 		appStoreDeploymentCommonService:      appStoreDeploymentCommonService,
 		OCIRegistryConfigRepository:          OCIRegistryConfigRepository,
+		gitOpsRemoteOperationService:         gitOpsRemoteOperationService,
 	}
 }
 
@@ -322,7 +329,7 @@ func (impl *AppStoreDeploymentHelmServiceImpl) UpdateRequirementDependencies(ins
 		impl.Logger.Errorw("error in getting git config for helm app", "err", err)
 		return err
 	}
-	_, err = impl.appStoreDeploymentCommonService.CommitConfigToGit(requirementsGitConfig)
+	_, _, err = impl.gitOpsRemoteOperationService.CommitValues(requirementsGitConfig)
 	if err != nil {
 		impl.Logger.Errorw("error in committing config to git for helm app", "err", err)
 		return err
@@ -347,7 +354,7 @@ func (impl *AppStoreDeploymentHelmServiceImpl) UpdateValuesDependencies(installA
 		impl.Logger.Errorw("error in getting git config for helm app", "err", err)
 		return err
 	}
-	_, err = impl.appStoreDeploymentCommonService.CommitConfigToGit(valuesGitConfig)
+	_, _, err = impl.gitOpsRemoteOperationService.CommitValues(valuesGitConfig)
 	if err != nil {
 		impl.Logger.Errorw("error in committing config to git for helm app", "err", err)
 		return err

@@ -26,6 +26,7 @@ import (
 	"github.com/devtron-labs/common-lib/pubsub-lib/model"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/remote"
 	"time"
 
 	"github.com/devtron-labs/devtron/client/argocdServer"
@@ -73,6 +74,7 @@ type AppStoreDeploymentFullModeServiceImpl struct {
 	installedAppRepositoryHistory   repository4.InstalledAppVersionHistoryRepository
 	ACDConfig                       *argocdServer.ACDConfig
 	gitOpsConfigReadService         config.GitOpsConfigReadService
+	gitOpsRemoteOperationService    remote.GitOpsRemoteOperationService
 }
 
 func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
@@ -84,7 +86,8 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 	pubSubClient *pubsub_lib.PubSubClientServiceImpl,
 	installedAppRepositoryHistory repository4.InstalledAppVersionHistoryRepository,
 	ACDConfig *argocdServer.ACDConfig,
-	gitOpsConfigReadService config.GitOpsConfigReadService) *AppStoreDeploymentFullModeServiceImpl {
+	gitOpsConfigReadService config.GitOpsConfigReadService,
+	gitOpsRemoteOperationService remote.GitOpsRemoteOperationService) *AppStoreDeploymentFullModeServiceImpl {
 	appStoreDeploymentFullModeServiceImpl := &AppStoreDeploymentFullModeServiceImpl{
 		logger:                          logger,
 		acdClient:                       acdClient,
@@ -98,6 +101,7 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 		installedAppRepositoryHistory:   installedAppRepositoryHistory,
 		ACDConfig:                       ACDConfig,
 		gitOpsConfigReadService:         gitOpsConfigReadService,
+		gitOpsRemoteOperationService:    gitOpsRemoteOperationService,
 	}
 	err := appStoreDeploymentFullModeServiceImpl.SubscribeHelmInstallStatus()
 	if err != nil {
@@ -226,7 +230,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) UpdateValuesYaml(installAppVer
 		impl.logger.Errorw("error in getting git commit config", "err", err)
 	}
 
-	commitHash, err := impl.appStoreDeploymentCommonService.CommitConfigToGit(valuesGitConfig)
+	commitHash, _, err := impl.gitOpsRemoteOperationService.CommitValues(valuesGitConfig)
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
 		return installAppVersionRequest, errors.New(pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED)
@@ -250,7 +254,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) UpdateRequirementYaml(installA
 		return err
 	}
 
-	_, err = impl.appStoreDeploymentCommonService.CommitConfigToGit(requirementsGitConfig)
+	_, _, err = impl.gitOpsRemoteOperationService.CommitValues(requirementsGitConfig)
 	if err != nil {
 		impl.logger.Errorw("error in values commit", "err", err)
 		return errors.New(pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED)

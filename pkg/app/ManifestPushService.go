@@ -3,11 +3,9 @@ package app
 import (
 	"context"
 	"fmt"
-	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
-	. "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app/bean"
 	status2 "github.com/devtron-labs/devtron/pkg/app/status"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
@@ -28,7 +26,6 @@ type GitOpsPushService interface {
 
 type GitOpsManifestPushServiceImpl struct {
 	logger                           *zap.SugaredLogger
-	gitFactory                       *GitFactory
 	pipelineStatusTimelineService    status2.PipelineStatusTimelineService
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository
 	acdConfig                        *argocdServer.ACDConfig
@@ -37,9 +34,7 @@ type GitOpsManifestPushServiceImpl struct {
 	gitOpsRemoteOperationService     remote.GitOpsRemoteOperationService
 }
 
-func NewGitOpsManifestPushServiceImpl(
-	logger *zap.SugaredLogger,
-	gitFactory *GitFactory,
+func NewGitOpsManifestPushServiceImpl(logger *zap.SugaredLogger,
 	pipelineStatusTimelineService status2.PipelineStatusTimelineService,
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository,
 	acdConfig *argocdServer.ACDConfig, chartRefService chartRef.ChartRefService,
@@ -47,7 +42,6 @@ func NewGitOpsManifestPushServiceImpl(
 	gitOpsRemoteOperationService remote.GitOpsRemoteOperationService) *GitOpsManifestPushServiceImpl {
 	return &GitOpsManifestPushServiceImpl{
 		logger:                           logger,
-		gitFactory:                       gitFactory,
 		pipelineStatusTimelineService:    pipelineStatusTimelineService,
 		pipelineStatusTimelineRepository: pipelineStatusTimelineRepository,
 		acdConfig:                        acdConfig,
@@ -140,24 +134,12 @@ func (impl *GitOpsManifestPushServiceImpl) CommitValuesToGit(manifestPushTemplat
 		UserName:       userName,
 		UserEmailId:    userEmailId,
 	}
-	bitbucketMetadata, err := impl.gitOpsConfigReadService.GetBitbucketMetadata()
-	if err != nil {
-		impl.logger.Errorw("error in getting bitbucket metadata", "err", err)
-		return commitHash, commitTime, err
-	}
-	gitOpsConfig := &bean2.GitOpsConfigDto{BitBucketWorkspaceId: bitbucketMetadata.BitBucketWorkspaceId}
-	_, span = otel.Tracer("orchestrator").Start(ctx, "gitFactory.Client.CommitValues")
-	commitHash, commitTime, err = impl.gitFactory.Client.CommitValues(chartGitAttr, gitOpsConfig)
+
+	_, span = otel.Tracer("orchestrator").Start(ctx, "gitOpsRemoteOperationService.CommitValues")
+	commitHash, commitTime, err = impl.gitOpsRemoteOperationService.CommitValues(chartGitAttr)
 	span.End()
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
-		return commitHash, commitTime, err
-	}
-	if commitTime.IsZero() {
-		commitTime = time.Now()
-	}
-	span.End()
-	if err != nil {
 		return commitHash, commitTime, err
 	}
 	return commitHash, commitTime, nil

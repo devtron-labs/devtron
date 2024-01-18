@@ -53,7 +53,6 @@ type AppStoreDeploymentCommonService interface {
 	GetValuesAndRequirementGitConfig(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*util.ChartConfig, *util.ChartConfig, error)
 	CreateChartProxyAndGetPath(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*util.ChartCreateResponse, error)
 	CreateGitOpsRepoAndPushChart(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, builtChartPath string, requirementsConfig *util.ChartConfig, valuesConfig *util.ChartConfig) (*commonBean.ChartGitAttribute, bool, string, error)
-	CommitConfigToGit(chartConfig *util.ChartConfig) (gitHash string, err error)
 	GetGitCommitConfig(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, fileString string, filename string) (*util.ChartConfig, error)
 	GetValuesString(chartName, valuesOverrideYaml string) (string, error)
 	GetRequirementsString(appStoreVersionId int) (string, error)
@@ -404,7 +403,6 @@ func (impl AppStoreDeploymentCommonServiceImpl) GenerateManifest(installAppVersi
 
 // CreateGitOpsRepo creates a gitOps repo with readme
 func (impl AppStoreDeploymentCommonServiceImpl) CreateGitOpsRepo(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (string, bool, error) {
-
 	if len(installAppVersionRequest.GitOpsRepoName) == 0 {
 		//here gitops repo will be the app name, to breaking the mono repo structure
 		gitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoName(installAppVersionRequest.AppName)
@@ -416,21 +414,16 @@ func (impl AppStoreDeploymentCommonServiceImpl) CreateGitOpsRepo(installAppVersi
 		return "", false, err
 	}
 	//getting user name & emailId for commit author data
-	userEmailId, userName := impl.gitOpsConfigReadService.GetUserEmailIdAndNameForGitOpsCommit(installAppVersionRequest.UserId)
 	gitRepoRequest := &bean.GitOpsConfigDto{
 		GitRepoName:          installAppVersionRequest.GitOpsRepoName,
 		Description:          "helm chart for " + installAppVersionRequest.GitOpsRepoName,
-		Username:             userName,
-		UserEmailId:          userEmailId,
 		BitBucketWorkspaceId: bitbucketMetadata.BitBucketWorkspaceId,
 		BitBucketProjectKey:  bitbucketMetadata.BitBucketProjectKey,
 	}
-	repoUrl, isNew, detailedError := impl.gitFactory.Client.CreateRepository(gitRepoRequest)
-	for _, err := range detailedError.StageErrorMap {
-		if err != nil {
-			impl.logger.Errorw("error in creating git project", "name", installAppVersionRequest.GitOpsRepoName, "err", err)
-			return "", false, err
-		}
+	repoUrl, isNew, err := impl.gitOpsRemoteOperationService.CreateRepository(gitRepoRequest, installAppVersionRequest.UserId)
+	if err != nil {
+		impl.logger.Errorw("error in creating git project", "name", installAppVersionRequest.GitOpsRepoName, "err", err)
+		return "", false, err
 	}
 	return repoUrl, isNew, err
 }
@@ -540,22 +533,6 @@ func (impl AppStoreDeploymentCommonServiceImpl) CreateGitOpsRepoAndPushChart(ins
 	return chartGitAttribute, isNew, commitHash, err
 }
 
-// CommitConfigToGit is used for committing values.yaml and requirements.yaml file config
-func (impl AppStoreDeploymentCommonServiceImpl) CommitConfigToGit(chartConfig *util.ChartConfig) (string, error) {
-	bitbucketMetadata, err := impl.gitOpsConfigReadService.GetBitbucketMetadata()
-	if err != nil {
-		impl.logger.Errorw("error in getting bitbucket metadata", "err", err)
-		return "", err
-	}
-	gitOpsConfig := &bean.GitOpsConfigDto{BitBucketWorkspaceId: bitbucketMetadata.BitBucketWorkspaceId}
-	gitHash, _, err := impl.gitFactory.Client.CommitValues(chartConfig, gitOpsConfig)
-	if err != nil {
-		impl.logger.Errorw("error in git commit", "err", err)
-		return "", err
-	}
-	return gitHash, nil
-}
-
 func (impl AppStoreDeploymentCommonServiceImpl) GitOpsOperations(manifestResponse *AppStoreManifestResponse, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*AppStoreGitOpsResponse, error) {
 	appStoreGitOpsResponse := &AppStoreGitOpsResponse{}
 	chartGitAttribute, isNew, githash, err := impl.CreateGitOpsRepoAndPushChart(installAppVersionRequest, manifestResponse.ChartResponse.BuiltChartPath, manifestResponse.RequirementsConfig, manifestResponse.ValuesConfig)
@@ -570,7 +547,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) GitOpsOperations(manifestRespons
 	// Checking this is the first time chart has been pushed , if yes requirements.yaml has been already pushed with chart as there was sync-delay with github api.
 	// step-2 commit dependencies and values in git
 	if !isNew {
-		_, err = impl.CommitConfigToGit(manifestResponse.RequirementsConfig)
+		_, _, err = impl.gitOpsRemoteOperationService.CommitValues(manifestResponse.RequirementsConfig)
 		if err != nil {
 			impl.logger.Errorw("error in committing dependency config to git", "err", err)
 			return appStoreGitOpsResponse, err
@@ -581,7 +558,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) GitOpsOperations(manifestRespons
 			return appStoreGitOpsResponse, err
 		}
 
-		githash, err = impl.CommitConfigToGit(manifestResponse.ValuesConfig)
+		githash, _, err = impl.gitOpsRemoteOperationService.CommitValues(manifestResponse.ValuesConfig)
 		if err != nil {
 			impl.logger.Errorw("error in committing values config to git", "err", err)
 			return appStoreGitOpsResponse, err

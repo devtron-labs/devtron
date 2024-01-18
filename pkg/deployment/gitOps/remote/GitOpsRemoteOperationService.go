@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sigs.k8s.io/yaml"
+	"time"
 )
 
 type GitOpsRemoteOperationService interface {
@@ -25,6 +26,9 @@ type GitOpsRemoteOperationService interface {
 	CreateChartProxy(chartMetaData *chart.Metadata, refChartLocation string, envName string,
 		chartProxyReq *bean.ChartProxyReqDto) (string, *commonBean.ChartGitAttribute, error)
 	GitPull(clonedDir string, repoUrl string, appStoreName string) error
+	CommitValues(chartGitAttr *util.ChartConfig) (commitHash string, commitTime time.Time, err error)
+	CreateRepository(dto *bean2.GitOpsConfigDto, userId int32) (string, bool, error)
+	GetRepoUrlByRepoName(repoName string) (string, error)
 }
 
 type GitOpsRemoteOperationServiceImpl struct {
@@ -313,4 +317,59 @@ func (impl *GitOpsRemoteOperationServiceImpl) GitPull(clonedDir string, repoUrl 
 		return nil
 	}
 	return nil
+}
+
+func (impl *GitOpsRemoteOperationServiceImpl) CommitValues(chartGitAttr *util.ChartConfig) (commitHash string, commitTime time.Time, err error) {
+	bitbucketMetadata, err := impl.gitOpsConfigReadService.GetBitbucketMetadata()
+	if err != nil {
+		impl.logger.Errorw("error in getting bitbucket metadata", "err", err)
+		return commitHash, commitTime, err
+	}
+	gitOpsConfig := &bean2.GitOpsConfigDto{BitBucketWorkspaceId: bitbucketMetadata.BitBucketWorkspaceId}
+	commitHash, commitTime, err = impl.gitFactory.Client.CommitValues(chartGitAttr, gitOpsConfig)
+	if err != nil {
+		impl.logger.Errorw("error in git commit", "err", err)
+		return commitHash, commitTime, err
+	}
+	if commitTime.IsZero() {
+		commitTime = time.Now()
+	}
+	return commitHash, commitTime, nil
+}
+
+func (impl *GitOpsRemoteOperationServiceImpl) CreateRepository(dto *bean2.GitOpsConfigDto, userId int32) (string, bool, error) {
+	//getting user name & emailId for commit author data
+	userEmailId, userName := impl.gitOpsConfigReadService.GetUserEmailIdAndNameForGitOpsCommit(userId)
+	if dto != nil {
+		dto.UserEmailId = userEmailId
+		dto.Username = userName
+	}
+	repoUrl, isNew, detailedError := impl.gitFactory.Client.CreateRepository(dto)
+	for _, err := range detailedError.StageErrorMap {
+		if err != nil {
+			impl.logger.Errorw("error in creating git project", "err", err, "req", dto)
+			return "", false, err
+		}
+	}
+	return repoUrl, isNew, nil
+}
+
+func (impl *GitOpsRemoteOperationServiceImpl) GetRepoUrlByRepoName(repoName string) (string, error) {
+	repoUrl := ""
+	bitbucketMetadata, err := impl.gitOpsConfigReadService.GetBitbucketMetadata()
+	if err != nil {
+		impl.logger.Errorw("error in getting bitbucket metadata", "err", err)
+		return repoUrl, err
+	}
+	dto := &bean2.GitOpsConfigDto{
+		GitRepoName:          repoName,
+		BitBucketWorkspaceId: bitbucketMetadata.BitBucketWorkspaceId,
+		BitBucketProjectKey:  bitbucketMetadata.BitBucketProjectKey,
+	}
+	repoUrl, err = impl.gitFactory.Client.GetRepoUrl(dto)
+	if err != nil {
+		//will allow to continue to persist status on next operation
+		impl.logger.Errorw("error in getting repo url", "err", err, "repoName", repoName)
+	}
+	return repoUrl, nil
 }
