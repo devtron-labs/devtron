@@ -1,4 +1,5 @@
 ## Bugs
+- fix: CD stage trigger is not working for external CI (#4440)
 - fix: resource tree err handling (#4530)
 - fix: error handling for trigger release (#4488)
 - fix: show deployed time for artifacts those were deployed in past (#4446)
