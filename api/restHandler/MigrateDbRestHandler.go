@@ -43,9 +43,9 @@ type MigrateDbRestHandlerImpl struct {
 	dockerRegistryConfig pipeline.DockerRegistryConfig
 	logger               *zap.SugaredLogger
 	gitRegistryConfig    pipeline.GitRegistryConfig
-	dbConfigService pipeline.DbConfigService
-	userAuthService user.UserService
-	validator       *validator.Validate
+	dbConfigService      pipeline.DbConfigService
+	userAuthService      user.UserService
+	validator            *validator.Validate
 	dbMigrationService   pipeline.DbMigrationService
 	enforcer             casbin.Enforcer
 }

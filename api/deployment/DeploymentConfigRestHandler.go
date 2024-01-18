@@ -31,9 +31,9 @@ type DeploymentConfigRestHandler interface {
 }
 
 type DeploymentConfigRestHandlerImpl struct {
-	Logger          *zap.SugaredLogger
-	userAuthService user.UserService
-	enforcer        casbin.Enforcer
+	Logger             *zap.SugaredLogger
+	userAuthService    user.UserService
+	enforcer           casbin.Enforcer
 	validator          *validator.Validate
 	refChartDir        chartRepoRepository.RefChartDir
 	chartService       chart.ChartService

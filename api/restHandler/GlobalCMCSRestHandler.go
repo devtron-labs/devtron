@@ -24,9 +24,9 @@ type GlobalCMCSRestHandler interface {
 }
 
 type GlobalCMCSRestHandlerImpl struct {
-	logger          *zap.SugaredLogger
-	userAuthService user.UserService
-	validator       *validator.Validate
+	logger            *zap.SugaredLogger
+	userAuthService   user.UserService
+	validator         *validator.Validate
 	enforcer          casbin.Enforcer
 	globalCMCSService pipeline.GlobalCMCSService
 }
