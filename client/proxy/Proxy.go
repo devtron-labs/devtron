@@ -3,7 +3,7 @@ package proxy
 import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"github.com/devtron-labs/devtron/pkg/user"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"log"
 	"net/http"
 	"net/http/httputil"
@@ -50,23 +50,15 @@ func rewriteRequestUrl(path string, pathToExclude string) string {
 	return strings.Join(finalParts, "/")
 }
 
-func NewHTTPReverseProxy(serverAddr string, transport http.RoundTripper, userService user.UserService) func(writer http.ResponseWriter, request *http.Request) {
+func NewHTTPReverseProxy(serverAddr string, transport http.RoundTripper, enforcer casbin.Enforcer) func(writer http.ResponseWriter, request *http.Request) {
 	proxy := GetProxyServer(serverAddr, transport, Proxy)
 	return func(w http.ResponseWriter, r *http.Request) {
 
-		userId, err := userService.GetLoggedInUser(r)
-		if userId == 0 || err != nil {
-			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		token := r.Header.Get("token")
+		if ok := enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+			common.WriteJsonResp(w, nil, "Unauthorized User", http.StatusForbidden)
 			return
 		}
-		isActionUserSuperAdmin, err := userService.IsSuperAdmin(int(userId))
-		if err != nil {
-			common.WriteJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
-			return
-		}
-		if isActionUserSuperAdmin {
-			proxy.ServeHTTP(w, r)
-		}
-
+		proxy.ServeHTTP(w, r)
 	}
 }

@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"encoding/json"
+	"github.com/devtron-labs/common-lib/constants"
 	"log"
 	"net/http"
 	"runtime/debug"
@@ -13,7 +14,7 @@ func Recovery(next http.Handler) http.Handler {
 		defer func() {
 			err := recover()
 			if err != nil {
-				log.Print("recovered from panic", "err", err, "stack", string(debug.Stack()))
+				log.Print(constants.PanicLogIdentifier, "recovered from panic", "err", err, "stack", string(debug.Stack()))
 
 				jsonBody, _ := json.Marshal(map[string]string{
 					"error": "There was an internal server error",

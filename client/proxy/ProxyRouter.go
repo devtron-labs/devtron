@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/caarlos0/env"
-	"github.com/devtron-labs/devtron/pkg/user"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"net"
@@ -36,7 +36,7 @@ type ProxyRouterImpl struct {
 	proxy  map[string]func(writer http.ResponseWriter, request *http.Request)
 }
 
-func NewProxyRouterImpl(logger *zap.SugaredLogger, proxyCfg *Config, userService user.UserService) *ProxyRouterImpl {
+func NewProxyRouterImpl(logger *zap.SugaredLogger, proxyCfg *Config, enforcer casbin.Enforcer) *ProxyRouterImpl {
 	client := &http.Client{
 		Transport: &http.Transport{
 			Proxy: http.ProxyFromEnvironment,
@@ -56,7 +56,7 @@ func NewProxyRouterImpl(logger *zap.SugaredLogger, proxyCfg *Config, userService
 
 	proxy := make(map[string]func(writer http.ResponseWriter, request *http.Request))
 	for s, connection := range proxyConnection {
-		proxy[s] = NewHTTPReverseProxy(fmt.Sprintf("http://%s:%s", connection.Host, connection.Port), client.Transport, userService)
+		proxy[s] = NewHTTPReverseProxy(fmt.Sprintf("http://%s:%s", connection.Host, connection.Port), client.Transport, enforcer)
 	}
 
 	router := &ProxyRouterImpl{
@@ -70,4 +70,5 @@ func (router ProxyRouterImpl) InitProxyRouter(ProxyRouter *mux.Router) {
 
 	ProxyRouter.PathPrefix("/kubelink").HandlerFunc(router.proxy["kubelink"])
 	ProxyRouter.PathPrefix("/gitsensor").HandlerFunc(router.proxy["gitsensor"])
+	ProxyRouter.PathPrefix("/kubewatch").HandlerFunc(router.proxy["kubewatch"])
 }
