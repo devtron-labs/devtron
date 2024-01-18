@@ -23,6 +23,7 @@ import (
 	"github.com/devtron-labs/devtron/api/bean"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/appStore/adapter"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
@@ -141,7 +142,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) GetInstalledAppByClusterNamespac
 		if err != nil {
 			return nil, err
 		}
-		return impl.convert(installedApp, installedAppVersion), nil
+		return adapter.GenerateInstallAppVersionDTO(installedApp, installedAppVersion), nil
 	}
 
 	return nil, nil
@@ -153,59 +154,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) GetInstalledAppByInstalledAppId(
 		return nil, err
 	}
 	installedApp := &installedAppVersion.InstalledApp
-	return impl.convert(installedApp, installedAppVersion), nil
-}
-
-// converts db object to bean
-func (impl AppStoreDeploymentCommonServiceImpl) convert(chart *repository.InstalledApps, installedAppVersion *repository.InstalledAppVersions) *appStoreBean.InstallAppVersionDTO {
-
-	chartVersionApp := installedAppVersion.AppStoreApplicationVersion
-
-	var chartRepoName, chartRepoUrl, Username, Password string
-	if installedAppVersion.AppStoreApplicationVersion.AppStore.ChartRepoId != 0 {
-		chartRepo := installedAppVersion.AppStoreApplicationVersion.AppStore.ChartRepo
-		chartRepoName = chartRepo.Name
-		chartRepoUrl = chartRepo.Url
-		Username = chartRepo.UserName
-		Password = chartRepo.Password
-	} else {
-		chartRepo := installedAppVersion.AppStoreApplicationVersion.AppStore.DockerArtifactStore
-		chartRepoName = chartRepo.Id
-		chartRepoUrl = fmt.Sprintf("%s://%s/%s",
-			"oci",
-			installedAppVersion.AppStoreApplicationVersion.AppStore.DockerArtifactStore.RegistryURL,
-			installedAppVersion.AppStoreApplicationVersion.AppStore.Name)
-		Username = installedAppVersion.AppStoreApplicationVersion.AppStore.DockerArtifactStore.Username
-		Password = installedAppVersion.AppStoreApplicationVersion.AppStore.DockerArtifactStore.Password
-	}
-
-	return &appStoreBean.InstallAppVersionDTO{
-		EnvironmentId:         chart.EnvironmentId,
-		Id:                    chart.Id,
-		AppId:                 chart.AppId,
-		TeamId:                chart.App.TeamId,
-		TeamName:              chart.App.Team.Name,
-		AppOfferingMode:       chart.App.AppOfferingMode,
-		ClusterId:             chart.Environment.ClusterId,
-		Namespace:             chart.Environment.Namespace,
-		AppName:               chart.App.AppName,
-		EnvironmentName:       chart.Environment.Name,
-		InstalledAppId:        chart.Id,
-		InstalledAppVersionId: installedAppVersion.Id,
-		InstallAppVersionChartDTO: &appStoreBean.InstallAppVersionChartDTO{
-			AppStoreChartId: chartVersionApp.AppStore.Id,
-			ChartName:       chartVersionApp.Name,
-			ChartVersion:    chartVersionApp.Version,
-			InstallAppVersionChartRepoDTO: &appStoreBean.InstallAppVersionChartRepoDTO{
-				RepoName: chartRepoName,
-				RepoUrl:  chartRepoUrl,
-				UserName: Username,
-				Password: Password,
-			},
-		},
-		DeploymentAppType:            chart.DeploymentAppType,
-		AppStoreApplicationVersionId: installedAppVersion.AppStoreApplicationVersionId,
-	}
+	return adapter.GenerateInstallAppVersionDTO(installedApp, installedAppVersion), nil
 }
 
 func (impl AppStoreDeploymentCommonServiceImpl) ParseGitRepoErrorResponse(err error) (bool, error) {

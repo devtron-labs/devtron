@@ -172,7 +172,7 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 		k8sApplicationService:                k8sApplicationService,
 		acdConfig:                            acdConfig,
 	}
-	err := impl.Subscribe()
+	err := impl.subscribe()
 	if err != nil {
 		return nil, err
 	}
@@ -606,7 +606,7 @@ func (impl *InstalledAppServiceImpl) triggerDeploymentEvent(installAppVersions [
 	}
 }
 
-func (impl *InstalledAppServiceImpl) Subscribe() error {
+func (impl *InstalledAppServiceImpl) subscribe() error {
 	callback := func(msg *model.PubSubMsg) {
 		impl.logger.Debug("cd stage event received")
 		//defer msg.Ack()
