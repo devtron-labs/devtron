@@ -32,6 +32,7 @@
 - doc: Update Install-devtron-on-Minikube-Microk8s-K3s-Kind.md (#4133)
 - doc: fixed broken link and improved documentation in usecases (#4097)
 ## Others
+- chore: added sql-validator in git-hub action (#4255)
 - chore: Update Issues template and codeowners (#4475)
 - chore: add back argo-assets (#4467)
 - chore: dependabot version upgrade nats metrics oss (#4453)
