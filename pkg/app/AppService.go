@@ -119,9 +119,9 @@ type AppServiceImpl struct {
 	tokenCache                             *util3.TokenCache
 	acdAuthConfig                          *util3.ACDAuthConfig
 	enforcer                               casbin.Enforcer
-	enforcerUtil         rbac.EnforcerUtil
-	user                 user.UserService
-	appListingRepository repository.AppListingRepository
+	enforcerUtil                           rbac.EnforcerUtil
+	user                                   user.UserService
+	appListingRepository                   repository.AppListingRepository
 	appRepository                          app.AppRepository
 	envRepository                          repository2.EnvironmentRepository
 	pipelineConfigRepository               chartConfig.PipelineConfigRepository

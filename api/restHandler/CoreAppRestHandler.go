@@ -75,9 +75,9 @@ type CoreAppRestHandler interface {
 }
 
 type CoreAppRestHandlerImpl struct {
-	logger          *zap.SugaredLogger
-	userAuthService user.UserService
-	validator       *validator.Validate
+	logger                  *zap.SugaredLogger
+	userAuthService         user.UserService
+	validator               *validator.Validate
 	enforcerUtil            rbac.EnforcerUtil
 	enforcer                casbin.Enforcer
 	appCrudOperationService app.AppCrudOperationService
