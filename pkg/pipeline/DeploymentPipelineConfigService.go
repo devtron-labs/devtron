@@ -797,9 +797,9 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 			impl.logger.Errorw("error in deleting custom tag for pre-cd stage", "Err", err, "cd-pipeline-id", pipeline.Id)
 		}
 	}
-	err = impl.imageDigestPolicyService.CreateOrDeletePolicyForPipeline(pipeline.Id, false, userId, tx)
+	_, err = impl.imageDigestPolicyService.DeletePolicyForPipeline(tx, pipeline.Id, userId)
 	if err != nil {
-		impl.logger.Errorw("error in imageDigestPolicy operation", "err", err, "pipelineId", pipeline.Id)
+		impl.logger.Errorw("error in deleting imageDigestPolicy for pipeline", "err", err, "pipelineId", pipeline.Id)
 		return nil, err
 	}
 	//delete app from argo cd, if created
@@ -1827,10 +1827,18 @@ func (impl *CdPipelineConfigServiceImpl) createCdPipeline(ctx context.Context, a
 	if err != nil {
 		return pipelineId, err
 	}
-	err = impl.imageDigestPolicyService.CreateOrDeletePolicyForPipeline(pipeline.Id, pipeline.IsDigestEnforcedForPipeline, userId, tx)
-	if err != nil {
-		impl.logger.Errorw("error in imageDigestOperations while creating CD pipeline", "err", err)
-		return pipelineId, err
+	if pipeline.IsDigestEnforcedForPipeline {
+		_, err = impl.imageDigestPolicyService.CreatePolicyForPipelineIfNotExist(tx, pipeline.Id, userId)
+		if err != nil {
+			impl.logger.Errorw("error in imageDigestPolicy operations for CD pipeline", "err", err, "pipelineId", pipeline.Id)
+			return pipelineId, err
+		}
+	} else if !pipeline.IsDigestEnforcedForPipeline {
+		_, err = impl.imageDigestPolicyService.DeletePolicyForPipeline(tx, pipeline.Id, userId)
+		if err != nil {
+			impl.logger.Errorw("error in deleting imageDigestPolicy for pipeline", "err", err, "pipelineId", pipeline.Id)
+			return pipelineId, err
+		}
 	}
 	err = tx.Commit()
 	if err != nil {
@@ -1955,10 +1963,18 @@ func (impl *CdPipelineConfigServiceImpl) updateCdPipeline(ctx context.Context, p
 		impl.logger.Errorw("error in updating custom tag data for pipeline", "err", err)
 		return err
 	}
-	err = impl.imageDigestPolicyService.CreateOrDeletePolicyForPipeline(pipeline.Id, pipeline.IsDigestEnforcedForPipeline, userID, tx)
-	if err != nil {
-		impl.logger.Errorw("error in imageDigestPolicy operations for CD pipeline", "err", err, "pipelineId", pipeline.Id)
-		return err
+	if pipeline.IsDigestEnforcedForPipeline {
+		_, err = impl.imageDigestPolicyService.CreatePolicyForPipelineIfNotExist(tx, pipeline.Id, userID)
+		if err != nil {
+			impl.logger.Errorw("error in imageDigestPolicy operations for CD pipeline", "err", err, "pipelineId", pipeline.Id)
+			return err
+		}
+	} else if !pipeline.IsDigestEnforcedForPipeline {
+		_, err = impl.imageDigestPolicyService.DeletePolicyForPipeline(tx, pipeline.Id, userID)
+		if err != nil {
+			impl.logger.Errorw("error in deleting imageDigestPolicy for pipeline", "err", err, "pipelineId", pipeline.Id)
+			return err
+		}
 	}
 	err = tx.Commit()
 	if err != nil {

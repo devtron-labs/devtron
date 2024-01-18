@@ -1266,12 +1266,6 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 		return
 	}
 
-	isDigestEnforced, err := handler.ImageDigestPolicyService.IsPolicyConfiguredForPipeline(pipeline.Id)
-	if err != nil {
-		handler.Logger.Errorw("error in checking if digest enforced for pipeline", "err", err)
-		return
-	}
-	ciArtifactResponse.IsDigestEnforced = isDigestEnforced
 	ciArtifactResponse.AppReleaseTagNames = appTags
 
 	prodEnvExists, err := handler.imageTaggingService.GetProdEnvByCdPipelineId(pipeline.Id)
