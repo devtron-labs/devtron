@@ -105,7 +105,7 @@ type CiArtifactRepository interface {
 	FindArtifactByListFilter(listingFilterOptions *bean.ArtifactsListFilterOptions) ([]*CiArtifact, int, error)
 	GetArtifactsByDataSourceAndComponentId(dataSource string, componentId int) ([]CiArtifact, error)
 	FindCiArtifactByImagePaths(images []string) ([]CiArtifact, error)
-	FindByImagePathsPipelineIdComponentId(images []string, minArtifactId int, pipelineId int, dataSourceToComponentIdMapping map[string]int, externalCiPipelineId int) ([]CiArtifact, error)
+
 	UpdateLatestTimestamp(artifactIds []int) error
 }
 
@@ -785,27 +785,6 @@ func (impl CiArtifactRepositoryImpl) FindCiArtifactByImagePaths(images []string)
 	err := impl.dbConnection.
 		Model(&ciArtifacts).
 		Where(" image in (?) ", pg.In(images)).
-		Select()
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in getting ci artifacts by data_source and component_id")
-		return ciArtifacts, err
-	}
-	return ciArtifacts, nil
-}
-
-func (impl CiArtifactRepositoryImpl) FindByImagePathsPipelineIdComponentId(images []string, minArtifactId int, pipelineId int, dataSourceToComponentIdMapping map[string]int, externalCiPipelineId int) ([]CiArtifact, error) {
-	var ciArtifacts []CiArtifact
-	err := impl.dbConnection.Model(&ciArtifacts).
-		Where("image in (?)", pg.In(images)).
-		Where("id >= ? ", minArtifactId).
-		WhereGroup(func(query *orm.Query) (*orm.Query, error) {
-			query = query.WhereOr("data_source=? and pipeline_id = ? ", CI_RUNNER, pipelineId)
-			query = query.WhereOr("data_source=? and external_ci_pipeline_id = ? ", WEBHOOK, externalCiPipelineId)
-			for dataSource, componentId := range dataSourceToComponentIdMapping {
-				query = query.WhereOr(" data_source = ? and component_id = ? ", dataSource, componentId)
-			}
-			return query, nil
-		}).
 		Select()
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting ci artifacts by data_source and component_id")

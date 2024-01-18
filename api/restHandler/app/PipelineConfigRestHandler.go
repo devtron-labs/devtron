@@ -22,7 +22,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
 	"io"
 	"net/http"
 	"strconv"
@@ -133,7 +132,6 @@ type PipelineConfigRestHandlerImpl struct {
 	deploymentTemplateService    generateManifest.DeploymentTemplateService
 	pipelineRestHandlerEnvConfig *PipelineRestHandlerEnvConfig
 	ciArtifactRepository         repository.CiArtifactRepository
-	ImageDigestPolicyService     imageDigestPolicy.ImageDigestPolicyService
 }
 
 func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
@@ -158,8 +156,7 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	scanResultRepository security.ImageScanResultRepository, gitProviderRepo repository.GitProviderRepository,
 	argoUserService argo.ArgoUserService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	imageTaggingService pipeline.ImageTaggingService,
-	ciArtifactRepository repository.CiArtifactRepository,
-	ImageDigestPolicyService imageDigestPolicy.ImageDigestPolicyService) *PipelineConfigRestHandlerImpl {
+	ciArtifactRepository repository.CiArtifactRepository) *PipelineConfigRestHandlerImpl {
 	envConfig := &PipelineRestHandlerEnvConfig{}
 	err := env.Parse(envConfig)
 	if err != nil {
@@ -197,7 +194,6 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		deploymentTemplateService:    deploymentTemplateService,
 		pipelineRestHandlerEnvConfig: envConfig,
 		ciArtifactRepository:         ciArtifactRepository,
-		ImageDigestPolicyService:     ImageDigestPolicyService,
 	}
 }
 
