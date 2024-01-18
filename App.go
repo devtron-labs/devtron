@@ -103,7 +103,6 @@ func (app *App) Start() {
 	app.MuxRouter.Router.Use(middleware.PrometheusMiddleware)
 	app.MuxRouter.Router.Use(middleware.Recovery)
 
-	//app.MuxRouter.Router.Use(Rec)
 	if tracerProvider != nil {
 		app.MuxRouter.Router.Use(otelmux.Middleware(otel.OTEL_ORCHESTRASTOR_SERVICE_NAME))
 	}
