@@ -1,5 +1,10 @@
 package imageDigestPolicy
 
+import (
+	"gopkg.in/go-playground/validator.v9"
+	"k8s.io/utils/strings/slices"
+)
+
 type imageDigestPolicy string
 
 const (
@@ -14,7 +19,7 @@ const (
 type ClusterId = int
 type EnvironmentId = int
 
-type PolicyRequest struct {
+type PolicyBean struct {
 
 	//if EnableDigestForAllClusters is false, ClusterDetails will have details of cluster level policy
 	ClusterDetails []*ClusterDetail `json:"clusterDetails" validate:"omitempty,dive"`
@@ -29,5 +34,13 @@ type PolicyRequest struct {
 type ClusterDetail struct {
 	ClusterId      int               `json:"clusterId"`
 	EnvironmentIds []int             `json:"environmentIds"`
-	PolicyType     imageDigestPolicy `json:"policyType" validate:"oneof=all_existing_and_future_environments specific_environments"`
+	PolicyType     imageDigestPolicy `json:"policyType" validate:"validate-image-digest-policy-type"`
+}
+
+func ValidateImageDigestPolicyType(fl validator.FieldLevel) bool {
+	validPolicyType := []string{string(ALL_EXISTING_AND_FUTURE_ENVIRONMENTS), string(SPECIFIC_ENVIRONMENTS)}
+	if slices.Contains(validPolicyType, fl.Field().String()) {
+		return true
+	}
+	return false
 }

@@ -20,7 +20,7 @@ type QualifiersMappingRepository interface {
 	GetQualifierMappingsByResourceType(resourceType ResourceType) ([]*QualifierMapping, error)
 	DeleteAllQualifierMappings(ResourceType, sql.AuditLog, *pg.Tx) error
 	DeleteAllQualifierMappingsByResourceTypeAndId(resourceType ResourceType, resourceId int, auditLog sql.AuditLog, tx *pg.Tx) error
-	DeleteAllByIdentifierKeyAndValue(identifierKey int, identifierValue int, auditLog sql.AuditLog, tx *pg.Tx) error
+	DeleteByResourceTypeIdentifierKeyAndValue(resourceType ResourceType, identifierKey int, identifierValue int, auditLog sql.AuditLog, tx *pg.Tx) error
 	DeleteAllByResourceTypeAndQualifierId(resourceType ResourceType, resourceId int, qualifierIds []int, auditLog sql.AuditLog, tx *pg.Tx) error
 	DeleteAllByIds(qualifierMappingIds []int, auditLog sql.AuditLog, tx *pg.Tx) error
 	GetDbConnection() *pg.DB
@@ -161,12 +161,13 @@ func (repo *QualifiersMappingRepositoryImpl) DeleteAllQualifierMappingsByResourc
 	return err
 }
 
-func (repo *QualifiersMappingRepositoryImpl) DeleteAllByIdentifierKeyAndValue(identifierKey int, identifierValue int, auditLog sql.AuditLog, tx *pg.Tx) error {
+func (repo *QualifiersMappingRepositoryImpl) DeleteByResourceTypeIdentifierKeyAndValue(resourceType ResourceType, identifierKey int, identifierValue int, auditLog sql.AuditLog, tx *pg.Tx) error {
 	_, err := tx.Model(&QualifierMapping{}).
 		Set("updated_by = ?", auditLog.UpdatedBy).
 		Set("updated_on = ?", auditLog.UpdatedOn).
 		Set("active = ?", false).
 		Where("active = ?", true).
+		Where("resource_type = ? ", resourceType).
 		Where("identifier_key = ?", identifierKey).
 		Where("identifier_value_int = ?", identifierValue).
 		Update()

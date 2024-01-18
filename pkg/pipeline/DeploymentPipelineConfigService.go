@@ -895,9 +895,9 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 			impl.logger.Errorw("error in deleting custom tag for pre-cd stage", "Err", err, "cd-pipeline-id", pipeline.Id)
 		}
 	}
-	err = impl.imageDigestPolicyService.CreateOrDeletePolicyForPipeline(pipeline.Id, false, userId, tx)
+	_, err = impl.imageDigestPolicyService.DeletePolicyForPipeline(tx, pipeline.Id, userId)
 	if err != nil {
-		impl.logger.Errorw("error in imageDigestPolicy operation", "err", err, "pipelineId", pipeline.Id)
+		impl.logger.Errorw("error in deleting imageDigestPolicy for pipeline", "err", err, "pipelineId", pipeline.Id)
 		return nil, err
 	}
 	//delete app from argo cd, if created
@@ -2056,10 +2056,18 @@ func (impl *CdPipelineConfigServiceImpl) createCdPipeline(ctx context.Context, a
 		return pipelineId, err
 	}
 	if !isImageDigestPolicyConfiguredAtGlobalLevel {
-		err = impl.imageDigestPolicyService.CreateOrDeletePolicyForPipeline(pipeline.Id, pipeline.IsDigestEnforcedForPipeline, userId, tx)
-		if err != nil {
-			impl.logger.Errorw("error in imageDigestPolicy operations for CD pipeline", "err", err, "pipelineId", pipeline.Id)
-			return pipelineId, err
+		if pipeline.IsDigestEnforcedForPipeline {
+			_, err = impl.imageDigestPolicyService.CreatePolicyForPipelineIfNotExist(tx, pipeline.Id, userId)
+			if err != nil {
+				impl.logger.Errorw("error in imageDigestPolicy operations for CD pipeline", "err", err, "pipelineId", pipeline.Id)
+				return pipelineId, err
+			}
+		} else if !pipeline.IsDigestEnforcedForPipeline {
+			_, err = impl.imageDigestPolicyService.DeletePolicyForPipeline(tx, pipeline.Id, userId)
+			if err != nil {
+				impl.logger.Errorw("error in deleting imageDigestPolicy for pipeline", "err", err, "pipelineId", pipeline.Id)
+				return pipelineId, err
+			}
 		}
 	} else {
 		impl.logger.Debugw("Image digest policy is enforced at global level, so skipping pipeline level operations")
@@ -2308,10 +2316,18 @@ func (impl *CdPipelineConfigServiceImpl) updateCdPipeline(ctx context.Context, a
 		return err
 	}
 	if !isImageDigestPolicyConfiguredAtGlobalLevel {
-		err = impl.imageDigestPolicyService.CreateOrDeletePolicyForPipeline(pipeline.Id, pipeline.IsDigestEnforcedForPipeline, userID, tx)
-		if err != nil {
-			impl.logger.Errorw("error in imageDigestPolicy operations for CD pipeline", "err", err, "pipelineId", pipeline.Id)
-			return err
+		if pipeline.IsDigestEnforcedForPipeline {
+			_, err = impl.imageDigestPolicyService.CreatePolicyForPipelineIfNotExist(tx, pipeline.Id, userID)
+			if err != nil {
+				impl.logger.Errorw("error in imageDigestPolicy operations for CD pipeline", "err", err, "pipelineId", pipeline.Id)
+				return err
+			}
+		} else if !pipeline.IsDigestEnforcedForPipeline {
+			_, err = impl.imageDigestPolicyService.DeletePolicyForPipeline(tx, pipeline.Id, userID)
+			if err != nil {
+				impl.logger.Errorw("error in deleting imageDigestPolicy for pipeline", "err", err, "pipelineId", pipeline.Id)
+				return err
+			}
 		}
 	} else {
 		impl.logger.Debugw("Image digest policy is enforced at global level, so skipping pipeline level operations")
