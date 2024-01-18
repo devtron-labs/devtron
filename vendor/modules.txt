@@ -831,6 +831,8 @@ github.com/mattn/go-ieproxy
 # github.com/matttproud/golang_protobuf_extensions v1.0.4
 ## explicit; go 1.9
 github.com/matttproud/golang_protobuf_extensions/pbutil
+# github.com/mdaverde/jsonpath v0.2.1
+## explicit
 # github.com/microsoft/azure-devops-go-api/azuredevops v1.0.0-b5
 ## explicit; go 1.12
 github.com/microsoft/azure-devops-go-api/azuredevops
