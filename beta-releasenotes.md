@@ -1,4 +1,5 @@
 ## Bugs
+- fix: Image-Scanner status for failed request (#4513)
 - fix: CD stage trigger is not working for external CI (#4440)
 - fix: resource tree err handling (#4530)
 - fix: error handling for trigger release (#4488)
