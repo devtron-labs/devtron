@@ -16,6 +16,7 @@ includeFilePath=$IncludePathFile
 
 export tag=$(echo $CI_CD_EVENT | jq --raw-output .commonWorkflowRequest.dockerImageTag)
 export repo=$(echo $CI_CD_EVENT | jq --raw-output .commonWorkflowRequest.dockerRepository)
+export registry=$(echo $CI_CD_EVENT | jq --raw-output .commonWorkflowRequest.dockerRegistryURL)
 
 cd /devtroncd
 
@@ -32,6 +33,8 @@ elif [ -n "$includeFilePath" ]; then
 else
     docker run -i --rm -v /var/run/docker.sock:/var/run/docker.sock -v $PWD:$PWD dslim/slim build --http-probe=false --target $repo:$tag --tag $repo:$tag --continue-after=2
 fi
+
+docker push $registry/$repo:$tag
 
 # Check the exit code of the last command
 if [ $? -eq 0 ]; then
