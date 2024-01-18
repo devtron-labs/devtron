@@ -451,7 +451,7 @@ func (impl ClusterServiceImplExtended) DeleteFromDb(bean *ClusterBean, userId in
 }
 
 func (impl ClusterServiceImplExtended) IsPolicyConfiguredForCluster(envId, clusterId int) (bool, error) {
-	IsDigestEnforcedForEnv, err := impl.imageDigestPolicyService.IsPolicyConfiguredAtGlobalLevel(envId, clusterId)
+	IsDigestEnforcedForEnv, err := impl.imageDigestPolicyService.IsPolicyConfiguredForEnvOrCluster(envId, clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in checking if image digest policy is configured or not", "err", err)
 		return IsDigestEnforcedForEnv, err

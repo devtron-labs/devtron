@@ -1,8 +1,6 @@
 package imageDigestPolicy
 
 import (
-	"fmt"
-	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
@@ -10,7 +8,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	http2 "net/http"
 	"time"
 )
 
@@ -28,14 +25,14 @@ type ImageDigestPolicyService interface {
 	//CreateOrUpdatePolicyForCluster creates or updates image digest qualifier mapping for given cluster and environments
 	CreateOrUpdatePolicyForCluster(policyRequest *PolicyBean) (*PolicyBean, error)
 
-	//GetAllConfiguredGlobalPolicies get all cluster and environment configured for pull using image digest
-	GetAllConfiguredGlobalPolicies() (*PolicyBean, error)
+	//GetAllPoliciesConfiguredForClusterOrEnv get all cluster and environment configured for pull using image digest
+	GetAllPoliciesConfiguredForClusterOrEnv() (*PolicyBean, error)
 
-	//IsPolicyConfiguredAtGlobalLevel for env or cluster or for all clusters
-	IsPolicyConfiguredAtGlobalLevel(envId int, clusterId int) (bool, error)
+	//IsPolicyConfiguredForEnvOrCluster for env or cluster or for all clusters
+	IsPolicyConfiguredForEnvOrCluster(envId int, clusterId int) (bool, error)
 
-	//IsPolicyConfiguredAtGlobalOrPipeline for env or cluster or for all clusters or for pipeline
-	IsPolicyConfiguredAtGlobalOrPipeline(envId, clusterId, pipelineId int) (bool, error)
+	//IsPolicyConfiguredForClusterOrEnvOrPipeline for env or cluster or for all clusters or for pipeline
+	IsPolicyConfiguredForClusterOrEnvOrPipeline(envId, clusterId, pipelineId int) (bool, error)
 }
 
 type ImageDigestPolicyServiceImpl struct {
@@ -67,29 +64,21 @@ func (impl ImageDigestPolicyServiceImpl) CreatePolicyForPipelineIfNotExist(tx *p
 
 	isDigestPolicyConfiguredForPipeline, err := impl.IsPolicyConfiguredForPipeline(pipelineId)
 	if err != nil {
-		impl.logger.Errorw("Error in checking if isDigestPolicyConfiguredForPipeline", "err", err)
+		impl.logger.Errorw("Error in checking if isDigestPolicyConfiguredForPipeline", "err", err, "pipelineId", pipelineId)
 		return 0, err
 	}
 
 	if !isDigestPolicyConfiguredForPipeline {
-		qualifierMapping := &resourceQualifiers.QualifierMapping{
-			ResourceId:            resourceQualifiers.ImageDigestResourceId,
-			ResourceType:          resourceQualifiers.ImageDigest,
-			QualifierId:           int(resourceQualifiers.PIPELINE_QUALIFIER),
-			IdentifierKey:         devtronResourceSearchableKeyMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_PIPELINE_ID],
-			IdentifierValueInt:    pipelineId,
-			Active:                true,
-			IdentifierValueString: fmt.Sprintf("%d", pipelineId),
-			AuditLog: sql.AuditLog{
-				CreatedOn: time.Now(),
-				CreatedBy: UserId,
-				UpdatedOn: time.Now(),
-				UpdatedBy: UserId,
-			},
-		}
+		identifierKey := devtronResourceSearchableKeyMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_PIPELINE_ID]
+		identifierValue := pipelineId
+		qualifierMapping := QualifierMappingDao(int(resourceQualifiers.PIPELINE_QUALIFIER),
+			identifierKey,
+			identifierValue,
+			UserId,
+		)
 		_, err = impl.qualifierMappingService.CreateQualifierMappings([]*resourceQualifiers.QualifierMapping{qualifierMapping}, tx)
 		if err != nil {
-			impl.logger.Errorw("error in creating image digest qualifier mapping for pipeline", "err", err)
+			impl.logger.Errorw("error in creating image digest policy for pipeline", "err", err, "identifierKey", "pipelineId", pipelineId)
 			return qualifierMapping.Id, err
 		}
 		qualifierMappingId = qualifierMapping.Id
@@ -103,8 +92,7 @@ func (impl ImageDigestPolicyServiceImpl) IsPolicyConfiguredForPipeline(pipelineI
 	qualifierMappings, err := impl.qualifierMappingService.GetQualifierMappings(resourceQualifiers.ImageDigest, scope, resourceIds)
 	if err != nil && err != pg.ErrNoRows {
 		return false, err
-	}
-	if err == pg.ErrNoRows || len(qualifierMappings) == 0 {
+	} else if err == pg.ErrNoRows || len(qualifierMappings) == 0 {
 		return false, nil
 	}
 	return true, nil
@@ -134,80 +122,68 @@ func (impl ImageDigestPolicyServiceImpl) DeletePolicyForPipeline(tx *pg.Tx, pipe
 func (impl ImageDigestPolicyServiceImpl) CreateOrUpdatePolicyForCluster(policyRequest *PolicyBean) (*PolicyBean, error) {
 
 	dbConnection := impl.qualifierMappingService.GetDbConnection()
-	tx, _ := dbConnection.Begin()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		impl.logger.Errorw("error in transaction begin", "err", err)
+		return nil, err
+	}
+	defer func() {
+		err = tx.Commit()
+		if err != nil {
+			impl.logger.Errorw("error in commiting transaction", "err", err)
+			return
+		}
+	}()
 
 	if policyRequest.EnableDigestForAllClusters == true {
-		err := impl.handleImageDigestPolicyForAllClusters(policyRequest.UserId, tx)
+		err := impl.saveImageDigestPolicyForAllClusters(policyRequest.UserId, tx)
 		if err != nil {
 			impl.logger.Errorw("Error in saving image digest policy for all clusters", "err", err)
 			return nil, err
 		}
-		_ = tx.Commit()
 		return policyRequest, nil
-	} else if len(policyRequest.ClusterDetails) == 0 {
-		return policyRequest, &util.ApiError{
-			HttpStatusCode:  http2.StatusBadRequest,
-			InternalMessage: "all clusters = false and cluster details is also empty",
-			UserMessage:     "Please provide cluster details",
-		}
 	}
 
-	devtronResourceSearchableKeyMap := impl.devtronResourceSearchableKey.GetAllSearchableKeyNameIdMap()
-
 	// fetching already configured policies
-	imageDigestQualifierMappings, err := impl.qualifierMappingService.GetQualifierMappingsByResourceType(resourceQualifiers.ImageDigest)
+	existingDigestMappings, err := impl.qualifierMappingService.GetQualifierMappingsByResourceType(resourceQualifiers.ImageDigest)
 	if err != nil {
-		impl.logger.Errorw("error in fetching qualifier mappings by resourceType", "resourceType: ", resourceQualifiers.ImageDigest)
+		impl.logger.Errorw("error in getting configured image digest policies", "resourceType: ", resourceQualifiers.ImageDigest)
 		return nil, err
 	}
 
-	// exiting cluster and environments already having imageDigest configured
-	ExistingClustersWithImageDigestPolicyConfigured, ExistingEnvironmentsWithImageDigestPolicyConfigured := getExistingClustersAndEnvsWithImagePullPolicyConfigured(imageDigestQualifierMappings, devtronResourceSearchableKeyMap)
-
 	// saving image digest policy for new clusters and environments
-	newClustersWithImageDigestPolicyConfigured, newEnvironmentsWithImageDigestPolicyConfigured, err :=
-		impl.saveNewPolicies(
-			policyRequest,
-			ExistingClustersWithImageDigestPolicyConfigured, ExistingEnvironmentsWithImageDigestPolicyConfigured, devtronResourceSearchableKeyMap, tx)
+	savePolicyRequest := newPolicySaveRequest{
+		requestPolicies:            policyRequest,
+		existingConfiguredPolicies: existingDigestMappings,
+	}
+	newConfiguredClusters, newConfiguredEnvs, err := impl.saveNewPolicies(savePolicyRequest, tx)
 	if err != nil {
 		impl.logger.Errorw("error in creating image digest policies", "err", err)
 		return nil, err
 	}
 
 	// removing policies present in db but not present in request
-	err = impl.removePoliciesNotPresentInRequest(imageDigestQualifierMappings,
-		newClustersWithImageDigestPolicyConfigured,
-		newEnvironmentsWithImageDigestPolicyConfigured,
-		devtronResourceSearchableKeyMap,
-		policyRequest.UserId,
-		tx)
+	policyRemoveRequest := oldPolicyRemoveRequest{
+		existingConfiguredPolicies: existingDigestMappings,
+		newConfiguredClusters:      newConfiguredClusters,
+		newConfiguredEnvs:          newConfiguredEnvs,
+		userId:                     policyRequest.UserId,
+	}
+	err = impl.removePoliciesNotPresentInRequest(policyRemoveRequest, tx)
 	if err != nil {
 		impl.logger.Errorw("error in deleting policies not present in request but present in DB", "err", err)
 		return nil, err
 	}
 
-	_ = tx.Commit()
-
 	return policyRequest, nil
 }
 
-func (impl ImageDigestPolicyServiceImpl) handleImageDigestPolicyForAllClusters(userId int32, tx *pg.Tx) error {
+func (impl ImageDigestPolicyServiceImpl) saveImageDigestPolicyForAllClusters(userId int32, tx *pg.Tx) error {
 
 	// step1: create image digest policy for all clusters by setting qualifierId = int(resourceQualifiers.GLOBAL_QUALIFIER)
 	// step2: Delete individual cluster and env level image digest policy mappings
 
-	globalQualifierMapping := &resourceQualifiers.QualifierMapping{
-		ResourceId:   resourceQualifiers.ImageDigestResourceId,
-		ResourceType: resourceQualifiers.ImageDigest,
-		QualifierId:  int(resourceQualifiers.GLOBAL_QUALIFIER),
-		Active:       true,
-		AuditLog: sql.AuditLog{
-			CreatedOn: time.Time{},
-			CreatedBy: userId,
-			UpdatedOn: time.Time{},
-			UpdatedBy: userId,
-		},
-	}
+	globalQualifierMapping := QualifierMappingDao(int(resourceQualifiers.GLOBAL_QUALIFIER), 0, 0, userId)
 
 	// creating image digest policy at global level
 	_, err := impl.qualifierMappingService.CreateQualifierMappings([]*resourceQualifiers.QualifierMapping{globalQualifierMapping}, tx)
@@ -224,117 +200,121 @@ func (impl ImageDigestPolicyServiceImpl) handleImageDigestPolicyForAllClusters(u
 		userId,
 		tx)
 	if err != nil {
-		impl.logger.Errorw("error in deleting resource by resource type, id and qualifier id", "err", err)
+		impl.logger.Errorw("error in deleting image digest policies for all envs and clusters", "err", err)
 		return err
 	}
+
 	return nil
 }
 
-func getExistingClustersAndEnvsWithImagePullPolicyConfigured(imageDigestQualifierMappings []*resourceQualifiers.QualifierMapping, devtronResourceSearchableKeyMap map[bean.DevtronResourceSearchableKeyName]int) (map[ClusterId]bool, map[EnvironmentId]bool) {
-	ExistingClustersWithImageDigestPolicyConfigured := make(map[ClusterId]bool)
-	ExistingEnvironmentsWithImageDigestPolicyConfigured := make(map[EnvironmentId]bool)
-	for _, existingMapping := range imageDigestQualifierMappings {
-		if existingMapping.IdentifierKey == devtronResourceSearchableKeyMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ID] {
-			ExistingClustersWithImageDigestPolicyConfigured[existingMapping.IdentifierValueInt] = true
-		} else if existingMapping.IdentifierKey == devtronResourceSearchableKeyMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID] {
-			ExistingEnvironmentsWithImageDigestPolicyConfigured[existingMapping.IdentifierValueInt] = true
+func getConfiguredClustersAndEnvironments(existingDigestMappings []*resourceQualifiers.QualifierMapping,
+	devtronResourceSearchableKeyMap map[bean.DevtronResourceSearchableKeyName]int) (map[ClusterId]bool, map[EnvironmentId]bool) {
+
+	existingConfiguredClusters := make(map[ClusterId]bool)
+	existingConfiguredEnvironments := make(map[EnvironmentId]bool)
+
+	for _, existingMapping := range existingDigestMappings {
+
+		switch existingMapping.IdentifierKey {
+
+		case devtronResourceSearchableKeyMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ID]:
+			existingConfiguredClusters[existingMapping.IdentifierValueInt] = true
+
+		case devtronResourceSearchableKeyMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID]:
+			existingConfiguredEnvironments[existingMapping.IdentifierValueInt] = true
+
 		}
 	}
-	return ExistingClustersWithImageDigestPolicyConfigured, ExistingEnvironmentsWithImageDigestPolicyConfigured
+	return existingConfiguredClusters, existingConfiguredEnvironments
 }
 
-func (impl ImageDigestPolicyServiceImpl) saveNewPolicies(
-	policyRequest *PolicyBean, ExistingClustersWithImageDigestPolicyConfigured map[ClusterId]bool,
-	ExistingEnvironmentsWithImageDigestPolicyConfigured map[EnvironmentId]bool,
-	devtronResourceSearchableKeyMap map[bean.DevtronResourceSearchableKeyName]int, tx *pg.Tx) (map[ClusterId]bool, map[EnvironmentId]bool, error) {
+func (impl ImageDigestPolicyServiceImpl) saveNewPolicies(savePolicyRequest newPolicySaveRequest, tx *pg.Tx) (map[ClusterId]bool, map[EnvironmentId]bool, error) {
+
+	devtronResourceSearchableKeyMap := impl.devtronResourceSearchableKey.GetAllSearchableKeyNameIdMap()
+
+	requestPolicies := savePolicyRequest.requestPolicies
+
+	// exiting cluster and environments already having imageDigest configured
+	existingConfiguredClusters, existingConfiguredEnvs := getConfiguredClustersAndEnvironments(
+		savePolicyRequest.existingConfiguredPolicies, devtronResourceSearchableKeyMap)
 
 	newPolicies := make([]*resourceQualifiers.QualifierMapping, 0)
-	newClustersWithImageDigestPolicyConfigured := make(map[ClusterId]bool)
-	newEnvironmentsWithImageDigestPolicyConfigured := make(map[EnvironmentId]bool)
+	newClustersConfigured := make(map[ClusterId]bool)
+	newEnvsConfigured := make(map[EnvironmentId]bool)
 
-	for _, policy := range policyRequest.ClusterDetails {
-		if policy.PolicyType == ALL_EXISTING_AND_FUTURE_ENVIRONMENTS {
-			if _, ok := ExistingClustersWithImageDigestPolicyConfigured[policy.ClusterId]; !ok {
-				qualifierMapping := &resourceQualifiers.QualifierMapping{
-					ResourceId:         resourceQualifiers.ImageDigestResourceId,
-					ResourceType:       resourceQualifiers.ImageDigest,
-					QualifierId:        int(resourceQualifiers.CLUSTER_QUALIFIER),
-					IdentifierKey:      devtronResourceSearchableKeyMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ID],
-					IdentifierValueInt: policy.ClusterId,
-					Active:             true,
-					AuditLog: sql.AuditLog{
-						CreatedOn: time.Now(),
-						CreatedBy: policyRequest.UserId,
-						UpdatedOn: time.Now(),
-						UpdatedBy: policyRequest.UserId,
-					},
-				}
-				newPolicies = append(newPolicies, qualifierMapping)
+	for _, policy := range requestPolicies.ClusterDetails {
+
+		switch policy.PolicyType {
+
+		case ALL_EXISTING_AND_FUTURE_ENVIRONMENTS:
+
+			if _, ok := existingConfiguredClusters[policy.ClusterId]; !ok {
+
+				newQualifierMapping := QualifierMappingDao(int(resourceQualifiers.CLUSTER_QUALIFIER),
+					devtronResourceSearchableKeyMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ID],
+					policy.ClusterId,
+					requestPolicies.UserId,
+				)
+				newPolicies = append(newPolicies, newQualifierMapping)
+
 			}
-			newClustersWithImageDigestPolicyConfigured[policy.ClusterId] = true
-		} else if policy.PolicyType == SPECIFIC_ENVIRONMENTS {
+			newClustersConfigured[policy.ClusterId] = true
+
+		case SPECIFIC_ENVIRONMENTS:
+
 			for _, envId := range policy.EnvironmentIds {
-				if _, ok := ExistingEnvironmentsWithImageDigestPolicyConfigured[policy.ClusterId]; !ok {
-					qualifierMapping := &resourceQualifiers.QualifierMapping{
-						ResourceId:         resourceQualifiers.ImageDigestResourceId,
-						ResourceType:       resourceQualifiers.ImageDigest,
-						QualifierId:        int(resourceQualifiers.ENV_QUALIFIER),
-						IdentifierKey:      devtronResourceSearchableKeyMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID],
-						IdentifierValueInt: envId,
-						Active:             true,
-						AuditLog: sql.AuditLog{
-							CreatedOn: time.Now(),
-							CreatedBy: policyRequest.UserId,
-							UpdatedOn: time.Now(),
-							UpdatedBy: policyRequest.UserId,
-						},
-					}
-					newPolicies = append(newPolicies, qualifierMapping)
+				if _, ok := existingConfiguredEnvs[envId]; !ok {
+					newQualifierMapping := QualifierMappingDao(int(resourceQualifiers.ENV_QUALIFIER),
+						devtronResourceSearchableKeyMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID],
+						envId,
+						requestPolicies.UserId,
+					)
+					newPolicies = append(newPolicies, newQualifierMapping)
 				}
-				newEnvironmentsWithImageDigestPolicyConfigured[envId] = true
+				newEnvsConfigured[envId] = true
 			}
 		}
 	}
 	if len(newPolicies) > 0 {
 		_, err := impl.qualifierMappingService.CreateQualifierMappings(newPolicies, tx)
 		if err != nil {
-			impl.logger.Errorw("error in creating qualifier mappings for image digest policy", "err", err)
-			return newClustersWithImageDigestPolicyConfigured, newEnvironmentsWithImageDigestPolicyConfigured, err
+			impl.logger.Errorw("error in creating image digest policy", "err", err)
+			return newClustersConfigured, newEnvsConfigured, err
 		}
 	}
-	return newClustersWithImageDigestPolicyConfigured, newEnvironmentsWithImageDigestPolicyConfigured, nil
+	return newClustersConfigured, newEnvsConfigured, nil
 }
 
-func (impl ImageDigestPolicyServiceImpl) removePoliciesNotPresentInRequest(imageDigestQualifierMappings []*resourceQualifiers.QualifierMapping,
-	newClustersWithImageDigestPolicyConfigured map[ClusterId]bool,
-	newEnvironmentsWithImageDigestPolicyConfigured map[EnvironmentId]bool,
-	devtronResourceSearchableKeyMap map[bean.DevtronResourceSearchableKeyName]int,
-	UserId int32,
-	tx *pg.Tx) error {
+func (impl ImageDigestPolicyServiceImpl) removePoliciesNotPresentInRequest(policyRemoveRequest oldPolicyRemoveRequest, tx *pg.Tx) error {
+
+	existingPolicies := policyRemoveRequest.existingConfiguredPolicies
+	newClustersConfigured := policyRemoveRequest.newConfiguredClusters
+	newEnvsConfigured := policyRemoveRequest.newConfiguredEnvs
+	devtronResourceSearchableKeyMap := impl.devtronResourceSearchableKey.GetAllSearchableKeyNameIdMap()
 
 	policiesToBeRemovedIDs := make([]int, 0)
 
-	for _, existingMapping := range imageDigestQualifierMappings {
+	for _, policy := range existingPolicies {
 		removePolicy := false
-		if existingMapping.IdentifierKey == devtronResourceSearchableKeyMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ID] {
-			if _, ok := newClustersWithImageDigestPolicyConfigured[existingMapping.IdentifierValueInt]; !ok {
+		if policy.IdentifierKey == devtronResourceSearchableKeyMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ID] {
+			if _, ok := newClustersConfigured[policy.IdentifierValueInt]; !ok {
 				removePolicy = true
 			}
-		} else if existingMapping.IdentifierKey == devtronResourceSearchableKeyMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID] {
-			if _, ok := newEnvironmentsWithImageDigestPolicyConfigured[existingMapping.IdentifierValueInt]; !ok {
+		} else if policy.IdentifierKey == devtronResourceSearchableKeyMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID] {
+			if _, ok := newEnvsConfigured[policy.IdentifierValueInt]; !ok {
 				removePolicy = true
 			}
-		} else if existingMapping.QualifierId == int(resourceQualifiers.GLOBAL_QUALIFIER) {
+		} else if policy.QualifierId == int(resourceQualifiers.GLOBAL_QUALIFIER) {
 			// removing global policy because if we are here EnableDigestForAllClusters=false in request
 			removePolicy = true
 		}
 		if removePolicy {
-			policiesToBeRemovedIDs = append(policiesToBeRemovedIDs, existingMapping.Id)
+			policiesToBeRemovedIDs = append(policiesToBeRemovedIDs, policy.Id)
 		}
 	}
 
 	if len(policiesToBeRemovedIDs) > 0 {
-		err := impl.qualifierMappingService.DeleteAllByIds(policiesToBeRemovedIDs, UserId, tx)
+		err := impl.qualifierMappingService.DeleteAllByIds(policiesToBeRemovedIDs, policyRemoveRequest.userId, tx)
 		if err != nil {
 			impl.logger.Errorw("error in deleting old policies", "err", err)
 			return err
@@ -344,7 +324,7 @@ func (impl ImageDigestPolicyServiceImpl) removePoliciesNotPresentInRequest(image
 	return nil
 }
 
-func (impl ImageDigestPolicyServiceImpl) GetAllConfiguredGlobalPolicies() (*PolicyBean, error) {
+func (impl ImageDigestPolicyServiceImpl) GetAllPoliciesConfiguredForClusterOrEnv() (*PolicyBean, error) {
 
 	imageDigestQualifierMappings, err := impl.qualifierMappingService.GetQualifierMappingsByResourceType(resourceQualifiers.ImageDigest)
 	if err != nil {
@@ -437,14 +417,7 @@ func (impl ImageDigestPolicyServiceImpl) getEnvToClusterMapping(imageDigestQuali
 	return EnvToClusterMapping, nil
 }
 
-func (impl ImageDigestPolicyServiceImpl) IsPolicyConfiguredAtGlobalLevel(envId int, clusterId int) (bool, error) {
-	if clusterId == 0 {
-		env, err := impl.environmentRepository.FindById(envId)
-		if err != nil {
-			impl.logger.Errorw("error in fetching environment by envId", "err", err, "envId", envId)
-		}
-		clusterId = env.ClusterId
-	}
+func (impl ImageDigestPolicyServiceImpl) IsPolicyConfiguredForEnvOrCluster(envId int, clusterId int) (bool, error) {
 	scope := &resourceQualifiers.Scope{EnvId: envId, ClusterId: clusterId}
 	resourceIds := []int{resourceQualifiers.ImageDigestResourceId}
 	qualifierMappings, err := impl.qualifierMappingService.GetQualifierMappings(resourceQualifiers.ImageDigest, scope, resourceIds)
@@ -457,9 +430,9 @@ func (impl ImageDigestPolicyServiceImpl) IsPolicyConfiguredAtGlobalLevel(envId i
 	return true, nil
 }
 
-func (impl ImageDigestPolicyServiceImpl) IsPolicyConfiguredAtGlobalOrPipeline(envId, clusterId, pipelineId int) (bool, error) {
+func (impl ImageDigestPolicyServiceImpl) IsPolicyConfiguredForClusterOrEnvOrPipeline(envId, clusterId, pipelineId int) (bool, error) {
 	isImageDigestPolicyConfiguredAtGlobalLevel, err :=
-		impl.IsPolicyConfiguredAtGlobalLevel(envId, clusterId)
+		impl.IsPolicyConfiguredForEnvOrCluster(envId, clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in checking if image digest policy is configured or not", "err", err)
 		return false, err

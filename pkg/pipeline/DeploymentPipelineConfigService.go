@@ -368,7 +368,7 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelineById(pipelineId int) (cdPi
 		return nil, err
 	}
 	IsDigestEnforcedForEnv, err :=
-		impl.imageDigestPolicyService.IsPolicyConfiguredAtGlobalLevel(environment.Id, environment.ClusterId)
+		impl.imageDigestPolicyService.IsPolicyConfiguredForEnvOrCluster(environment.Id, environment.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in checking if image digest policy is configured or not", "err", err)
 		return nil, err
@@ -1144,7 +1144,7 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesForApp(appId int) (cdPipe
 		}
 
 		IsDigestEnforcedForEnv, err :=
-			impl.imageDigestPolicyService.IsPolicyConfiguredAtGlobalLevel(environment.Id, environment.ClusterId)
+			impl.imageDigestPolicyService.IsPolicyConfiguredForEnvOrCluster(environment.Id, environment.ClusterId)
 		if err != nil {
 			impl.logger.Errorw("error in checking if image digest policy is configured or not", "err", err)
 			return nil, err
@@ -2048,9 +2048,13 @@ func (impl *CdPipelineConfigServiceImpl) createCdPipeline(ctx context.Context, a
 	if err != nil {
 		return pipelineId, err
 	}
-
+	environment, err := impl.environmentRepository.FindById(pipeline.EnvironmentId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching environment by environmentId", "err", err, "environmentId", pipeline.EnvironmentId)
+		return pipelineId, err
+	}
 	isImageDigestPolicyConfiguredAtGlobalLevel, err :=
-		impl.imageDigestPolicyService.IsPolicyConfiguredAtGlobalLevel(pipeline.EnvironmentId, 0)
+		impl.imageDigestPolicyService.IsPolicyConfiguredForEnvOrCluster(environment.Id, environment.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in checking if image digest policy is configured or not", "err", err)
 		return pipelineId, err
@@ -2309,8 +2313,13 @@ func (impl *CdPipelineConfigServiceImpl) updateCdPipeline(ctx context.Context, a
 		return err
 	}
 
+	environment, err := impl.environmentRepository.FindById(pipeline.EnvironmentId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching environment by environmentId", "err", err, "environmentId", pipeline.EnvironmentId)
+		return err
+	}
 	isImageDigestPolicyConfiguredAtGlobalLevel, err :=
-		impl.imageDigestPolicyService.IsPolicyConfiguredAtGlobalLevel(pipeline.EnvironmentId, 0)
+		impl.imageDigestPolicyService.IsPolicyConfiguredForEnvOrCluster(environment.Id, environment.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in checking if image digest policy is configured or not", "err", err)
 		return err
@@ -2330,7 +2339,7 @@ func (impl *CdPipelineConfigServiceImpl) updateCdPipeline(ctx context.Context, a
 			}
 		}
 	} else {
-		impl.logger.Debugw("Image digest policy is enforced at global level, so skipping pipeline level operations")
+		impl.logger.Debugw("Image digest policy is enforced at global level, so skipping pipeline level operations", "pipelineId", pipeline.Id)
 	}
 	err = tx.Commit()
 	if err != nil {

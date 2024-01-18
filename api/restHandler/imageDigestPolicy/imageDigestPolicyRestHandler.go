@@ -57,7 +57,7 @@ func (handler ImageDigestPolicyRestHandlerImpl) GetAllImageDigestPolicies(w http
 		return
 	}
 
-	res, err := handler.imageDigestPolicyService.GetAllConfiguredGlobalPolicies()
+	res, err := handler.imageDigestPolicyService.GetAllPoliciesConfiguredForClusterOrEnv()
 	if err != nil {
 		handler.logger.Errorw("error in getting image digest policies", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -89,6 +89,11 @@ func (handler ImageDigestPolicyRestHandlerImpl) SaveOrUpdateImageDigestPolicy(w 
 	if err != nil {
 		handler.logger.Errorw("request err, Save", "error", err, "request", req)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	if req.EnableDigestForAllClusters == false && len(req.ClusterDetails) == 0 {
+		common.WriteJsonResp(w, err, imageDigestPolicy.EmptyClusterDetailsErr, http.StatusBadRequest)
 		return
 	}
 

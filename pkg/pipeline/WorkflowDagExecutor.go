@@ -1904,7 +1904,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 	}
 
 	isImageDigestPolicyConfiguredAtGlobalOrPipeline, err :=
-		impl.imageDigestPolicyService.IsPolicyConfiguredAtGlobalOrPipeline(
+		impl.imageDigestPolicyService.IsPolicyConfiguredForClusterOrEnvOrPipeline(
 			env.Id,
 			env.ClusterId,
 			cdPipeline.Id)
@@ -4886,7 +4886,7 @@ func (impl *WorkflowDagExecutorImpl) getReleaseOverride(envOverride *chartConfig
 	}
 
 	isImageDigestPolicyConfiguredAtGlobalOrPipeline, err :=
-		impl.imageDigestPolicyService.IsPolicyConfiguredAtGlobalOrPipeline(
+		impl.imageDigestPolicyService.IsPolicyConfiguredForClusterOrEnvOrPipeline(
 			envOverride.TargetEnvironment,
 			envOverride.Environment.ClusterId,
 			overrideRequest.PipelineId)

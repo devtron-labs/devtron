@@ -1,6 +1,8 @@
 package imageDigestPolicy
 
 import (
+	"errors"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"gopkg.in/go-playground/validator.v9"
 	"k8s.io/utils/strings/slices"
 )
@@ -19,6 +21,8 @@ const (
 type ClusterId = int
 type EnvironmentId = int
 
+var EmptyClusterDetailsErr = errors.New("enableDigestForAllClusters is false but cluster details not provided")
+
 type PolicyBean struct {
 
 	//if EnableDigestForAllClusters is false, ClusterDetails will have details of cluster level policy
@@ -33,7 +37,7 @@ type PolicyBean struct {
 
 type ClusterDetail struct {
 	ClusterId      int               `json:"clusterId"`
-	EnvironmentIds []int             `json:"environmentIds"`
+	EnvironmentIds []int             `json:"environmentIds,notnull"`
 	PolicyType     imageDigestPolicy `json:"policyType" validate:"validate-image-digest-policy-type"`
 }
 
@@ -43,4 +47,16 @@ func ValidateImageDigestPolicyType(fl validator.FieldLevel) bool {
 		return true
 	}
 	return false
+}
+
+type newPolicySaveRequest struct {
+	requestPolicies            *PolicyBean
+	existingConfiguredPolicies []*resourceQualifiers.QualifierMapping
+}
+
+type oldPolicyRemoveRequest struct {
+	existingConfiguredPolicies []*resourceQualifiers.QualifierMapping
+	newConfiguredClusters      map[ClusterId]bool
+	newConfiguredEnvs          map[EnvironmentId]bool
+	userId                     int32
 }
