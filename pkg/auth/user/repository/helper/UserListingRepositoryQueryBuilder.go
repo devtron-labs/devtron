@@ -54,12 +54,14 @@ func (impl UserListingRepositoryQueryBuilder) GetStatusFromTTL(ttl, recordedTime
 func (impl UserListingRepositoryQueryBuilder) GetQueryForUserListingWithFilters(req *FetchListingRequest) string {
 	whereCondition := fmt.Sprintf("where active = %t AND (user_type is NULL or user_type != '%s') ", true, bean.USER_TYPE_API_TOKEN)
 	orderCondition := ""
+	// formatted for query comparison
+	formattedTimeForQuery := req.CurrentTime.Format("2006-01-02 15:04:05-07:00")
 	if req.Status == bean.Active {
-		whereCondition += "AND (time_to_live is null OR time_to_live > %s ::timestamp AT TIME ZONE 'UTC') "
+		whereCondition += fmt.Sprintf("AND (time_to_live is null OR time_to_live > '%s' ) ", formattedTimeForQuery)
 	} else if req.Status == bean.Inactive {
-		whereCondition += fmt.Sprintf("AND time_to_live < %s ::timestamp AT TIME ZONE 'UTC'", req.CurrentTime)
+		whereCondition += fmt.Sprintf("AND time_to_live < '%s' ", formattedTimeForQuery)
 	} else if req.Status == bean.TemporaryAccess {
-		whereCondition += fmt.Sprintf(" AND time_to_live > %s ::timestamp AT TIME ZONE 'UTC' ", req.CurrentTime)
+		whereCondition += fmt.Sprintf(" AND time_to_live > '%s' ", formattedTimeForQuery)
 	}
 	if len(req.SearchKey) > 0 {
 		emailIdLike := "%" + req.SearchKey + "%"
