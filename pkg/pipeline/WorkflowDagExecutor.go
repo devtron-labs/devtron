@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	errors3 "errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	"path"
@@ -182,7 +183,6 @@ type WorkflowDagExecutorImpl struct {
 	environmentConfigRepository         chartConfig.EnvConfigOverrideRepository
 	dbMigrationConfigRepository         pipelineConfig.DbMigrationConfigRepository
 	mergeUtil                           *util.MergeUtil
-	gitOpsConfigRepository              repository.GitOpsConfigRepository
 	gitFactory                          *util.GitFactory
 	acdClient                           application2.ServiceClient
 	argoClientWrapperService            argocdServer.ArgoClientWrapperService
@@ -190,6 +190,7 @@ type WorkflowDagExecutorImpl struct {
 	ACDConfig                           *argocdServer.ACDConfig
 	deployedAppMetricsService           deployedAppMetrics.DeployedAppMetricsService
 	chartRefService                     chartRef.ChartRefService
+	gitOpsConfigReadService             config.GitOpsConfigReadService
 }
 
 const kedaAutoscaling = "kedaAutoscaling"
@@ -284,7 +285,6 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	environmentConfigRepository chartConfig.EnvConfigOverrideRepository,
 	dbMigrationConfigRepository pipelineConfig.DbMigrationConfigRepository,
 	mergeUtil *util.MergeUtil,
-	gitOpsConfigRepository repository.GitOpsConfigRepository,
 	gitFactory *util.GitFactory,
 	acdClient application2.ServiceClient,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
@@ -292,7 +292,8 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	customTagService CustomTagService,
 	ACDConfig *argocdServer.ACDConfig,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
-	chartRefService chartRef.ChartRefService) *WorkflowDagExecutorImpl {
+	chartRefService chartRef.ChartRefService,
+	gitOpsConfigReadService config.GitOpsConfigReadService) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
 		cdWorkflowRepository:          cdWorkflowRepository,
@@ -354,7 +355,6 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		environmentConfigRepository:         environmentConfigRepository,
 		dbMigrationConfigRepository:         dbMigrationConfigRepository,
 		mergeUtil:                           mergeUtil,
-		gitOpsConfigRepository:              gitOpsConfigRepository,
 		gitFactory:                          gitFactory,
 		acdClient:                           acdClient,
 		argoClientWrapperService:            argoClientWrapperService,
@@ -362,6 +362,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		ACDConfig:                           ACDConfig,
 		deployedAppMetricsService:           deployedAppMetricsService,
 		chartRefService:                     chartRefService,
+		gitOpsConfigReadService:             gitOpsConfigReadService,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -4140,10 +4141,10 @@ func (impl *WorkflowDagExecutorImpl) mergeAndSave(envOverride *chartConfig.EnvCo
 	commitHash := ""
 	commitTime := time.Time{}
 	if util.IsAcdApp(pipeline.DeploymentAppType) {
-		chartRepoName := impl.chartTemplateService.GetGitOpsRepoNameFromUrl(envOverride.Chart.GitRepoUrl)
+		chartRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoNameFromUrl(envOverride.Chart.GitRepoUrl)
 		_, span = otel.Tracer("orchestrator").Start(ctx, "chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit")
 		//getting username & emailId for commit author data
-		userEmailId, userName := impl.chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit(overrideRequest.UserId)
+		userEmailId, userName := impl.gitOpsConfigReadService.GetUserEmailIdAndNameForGitOpsCommit(overrideRequest.UserId)
 		span.End()
 		chartGitAttr := &util.ChartConfig{
 			FileName:       fmt.Sprintf("_%d-values.yaml", envOverride.TargetEnvironment),
@@ -4155,15 +4156,12 @@ func (impl *WorkflowDagExecutorImpl) mergeAndSave(envOverride *chartConfig.EnvCo
 			UserName:       userName,
 			UserEmailId:    userEmailId,
 		}
-		gitOpsConfigBitbucket, err := impl.gitOpsConfigRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
+		bitbucketMetadata, err := impl.gitOpsConfigReadService.GetBitbucketMetadata()
 		if err != nil {
-			if err == pg.ErrNoRows {
-				gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
-			} else {
-				return 0, 0, "", err
-			}
+			impl.logger.Errorw("error in getting bitbucket metadata", "err", err)
+			return 0, 0, "", err
 		}
-		gitOpsConfig := &bean.GitOpsConfigDto{BitBucketWorkspaceId: gitOpsConfigBitbucket.BitBucketWorkspaceId}
+		gitOpsConfig := &bean.GitOpsConfigDto{BitBucketWorkspaceId: bitbucketMetadata.BitBucketWorkspaceId}
 		_, span = otel.Tracer("orchestrator").Start(ctx, "gitFactory.Client.CommitValues")
 		commitHash, commitTime, err = impl.gitFactory.Client.CommitValues(chartGitAttr, gitOpsConfig)
 		span.End()

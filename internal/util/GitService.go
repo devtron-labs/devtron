@@ -52,6 +52,7 @@ const (
 )
 
 type GitClient interface {
+	//TODO: make all methods independent of GitOpsConfigDto, create own dto object
 	CreateRepository(config *bean2.GitOpsConfigDto) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions)
 	CommitValues(config *ChartConfig, gitOpsConfig *bean2.GitOpsConfigDto) (commitHash string, commitTime time.Time, err error)
 	GetRepoUrl(config *bean2.GitOpsConfigDto) (repoUrl string, err error)

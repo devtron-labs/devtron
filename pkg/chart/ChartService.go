@@ -67,6 +67,8 @@ type ChartService interface {
 	PatchEnvOverrides(values json.RawMessage, oldChartType string, newChartType string) (json.RawMessage, error)
 
 	ChartRefAutocompleteForAppOrEnv(appId int, envId int) (*bean2.ChartRefAutocompleteResponse, error)
+
+	UpdateGitRepoUrlInCharts(appId int, repoUrl, chartLocation string, userId int32) error
 }
 
 type ChartServiceImpl struct {
@@ -197,7 +199,7 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 	if err != nil {
 		return nil, err
 	}
-	chartValues, _, err := impl.chartTemplateService.FetchValuesFromReferenceChart(chartMeta, refChart, templateName, templateRequest.UserId, pipelineStrategyPath)
+	chartValues, err := impl.chartTemplateService.FetchValuesFromReferenceChart(chartMeta, refChart, templateName, templateRequest.UserId, pipelineStrategyPath)
 	if err != nil {
 		return nil, err
 	}
@@ -320,7 +322,7 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 	if err != nil {
 		return nil, err
 	}
-	chartValues, _, err := impl.chartTemplateService.FetchValuesFromReferenceChart(chartMeta, refChart, templateName, templateRequest.UserId, pipelineStrategyPath)
+	chartValues, err := impl.chartTemplateService.FetchValuesFromReferenceChart(chartMeta, refChart, templateName, templateRequest.UserId, pipelineStrategyPath)
 	if err != nil {
 		return nil, err
 	}
@@ -818,4 +820,24 @@ func (impl ChartServiceImpl) CheckIfChartRefUserUploadedByAppId(id int) (bool, e
 		return false, err
 	}
 	return chartData.UserUploaded, err
+}
+
+func (impl *ChartServiceImpl) UpdateGitRepoUrlInCharts(appId int, repoUrl, chartLocation string, userId int32) error {
+	charts, err := impl.chartRepository.FindActiveChartsByAppId(appId)
+	if err != nil && pg.ErrNoRows != err {
+		return err
+	}
+	for _, ch := range charts {
+		if len(ch.GitRepoUrl) == 0 {
+			ch.GitRepoUrl = repoUrl
+			ch.ChartLocation = chartLocation
+			ch.UpdatedOn = time.Now()
+			ch.UpdatedBy = userId
+			err = impl.chartRepository.Update(ch)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
