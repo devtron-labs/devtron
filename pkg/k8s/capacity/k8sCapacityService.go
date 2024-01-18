@@ -3,6 +3,7 @@ package capacity
 import (
 	"context"
 	"fmt"
+	"github.com/devtron-labs/common-lib/utils"
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/k8s"
@@ -638,7 +639,10 @@ func (impl *K8sCapacityServiceImpl) DrainNode(ctx context.Context, request *bean
 	}
 	request.NodeDrainHelper.K8sClientSet = k8sClientSet
 	err = impl.deleteOrEvictPods(request.Name, request.NodeDrainHelper)
-	if err != nil {
+	if err != nil && strings.Contains(err.Error(), bean.DaemonSetPodDeleteError) {
+		impl.logger.Errorw("daemonSet-managed pods can't be deleted", "err", err, "nodeName", request.Name)
+		return respMessage, &utils.ApiError{HttpStatusCode: http.StatusNotFound, Code: "200", UserMessage: "cannot delete DaemonSet-managed Pods"}
+	} else if err != nil {
 		impl.logger.Errorw("error in deleting/evicting pods", "err", err, "nodeName", request.Name)
 		return respMessage, err
 	}

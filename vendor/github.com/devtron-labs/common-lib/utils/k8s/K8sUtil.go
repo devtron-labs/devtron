@@ -905,7 +905,10 @@ func (impl K8sUtil) GetCoreV1ClientByRestConfig(restConfig *rest.Config) (*v12.C
 
 func (impl K8sUtil) GetNodesList(ctx context.Context, k8sClientSet *kubernetes.Clientset) (*v1.NodeList, error) {
 	nodeList, err := k8sClientSet.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
-	if err != nil {
+	if err != nil && strings.Contains(err.Error(), DnsLookupNoSuchHostError) {
+		impl.logger.Errorw("k8s cluster unreachable", "err", err)
+		return nil, &utils.ApiError{HttpStatusCode: http.StatusBadRequest, Code: "200", UserMessage: "k8s cluster unreachable"}
+	} else if err != nil {
 		impl.logger.Errorw("error in getting node list", "err", err)
 		return nil, err
 	}
@@ -1286,7 +1289,10 @@ func (impl K8sUtil) GetApiResources(restConfig *rest.Config, includeOnlyVerb str
 	}
 
 	apiResourcesListFromK8s, err := discoveryClient.ServerPreferredResources()
-	if err != nil {
+	if err != nil && strings.Contains(err.Error(), DnsLookupNoSuchHostError) {
+		impl.logger.Errorw("k8s cluster unreachable", "err", err)
+		return nil, &utils.ApiError{HttpStatusCode: http.StatusBadRequest, Code: "200", UserMessage: "k8s cluster unreachable"}
+	} else if err != nil {
 		//takes care when K8s is unable to handle the request for some resources
 		Isk8sApiError := strings.Contains(err.Error(), "unable to retrieve the complete list of server APIs")
 		switch Isk8sApiError {
@@ -1428,6 +1434,7 @@ func (impl *K8sUtil) DeleteResource(ctx context.Context, restConfig *rest.Config
 	if len(namespace) > 0 && namespaced {
 		obj, err = resourceIf.Namespace(namespace).Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
+			err = &utils.ApiError{Code: "404", HttpStatusCode: 404, UserMessage: "error on getting resource"}
 			impl.logger.Errorw("error in getting resource", "err", err, "resource", name, "namespace", namespace)
 			return nil, err
 		}
@@ -1435,6 +1442,7 @@ func (impl *K8sUtil) DeleteResource(ctx context.Context, restConfig *rest.Config
 	} else {
 		obj, err = resourceIf.Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
+			err = &utils.ApiError{Code: "404", HttpStatusCode: 404, UserMessage: "error on getting resource"}
 			impl.logger.Errorw("error in getting resource", "err", err, "resource", name, "namespace", namespace)
 			return nil, err
 		}
