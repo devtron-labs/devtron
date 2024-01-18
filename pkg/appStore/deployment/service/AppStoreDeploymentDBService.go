@@ -103,7 +103,7 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 	}
 
 	if util2.IsFullStack() {
-		installAppVersionRequest.GitOpsRepoName = impl.ChartTemplateService.GetGitOpsRepoName(installAppVersionRequest.AppName)
+		installAppVersionRequest.GitOpsRepoName = impl.gitOpsConfigReadService.GetGitOpsRepoName(installAppVersionRequest.AppName)
 	}
 
 	installedAppModel := adapter.NewInstallAppModel(installAppVersionRequest, appStoreBean.DEPLOY_INIT)

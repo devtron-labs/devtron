@@ -25,6 +25,7 @@ func TestInstalledAppServiceImpl_DeployDefaultChartOnCluster(t *testing.T) {
 	type fields struct {
 		logger                               *zap.SugaredLogger
 		installedAppRepository               repository4.InstalledAppRepository
+		chartTemplateService                 util.ChartTemplateService
 		appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository
 		environmentRepository                repository.EnvironmentRepository
 		teamRepository                       team.TeamRepository
@@ -69,7 +70,6 @@ func TestInstalledAppServiceImpl_DeployDefaultChartOnCluster(t *testing.T) {
 				pubsubClient:                         tt.fields.pubsubClient,
 				chartGroupDeploymentRepository:       tt.fields.chartGroupDeploymentRepository,
 				envService:                           tt.fields.envService,
-				gitFactory:                           tt.fields.gitFactory,
 				aCDAuthConfig:                        tt.fields.aCDAuthConfig,
 				gitOpsRepository:                     tt.fields.gitOpsRepository,
 				userService:                          tt.fields.userService,

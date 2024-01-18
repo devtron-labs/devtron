@@ -1,16 +1,12 @@
-package chart
+package chartRef
+
+import "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 
 type stringSet map[string]struct{}
 
-const (
-	DeploymentChartType = "Deployment"
-	RolloutChartType    = "Rollout Deployment"
-	ReferenceChart      = "reference-chart"
-)
-
 var chartCompatibilityMatrix = map[string]stringSet{
-	DeploymentChartType: {RolloutChartType: {}, DeploymentChartType: {}},
-	RolloutChartType:    {DeploymentChartType: {}, RolloutChartType: {}},
+	bean.DeploymentChartType: {bean.RolloutChartType: {}, bean.DeploymentChartType: {}},
+	bean.RolloutChartType:    {bean.DeploymentChartType: {}, bean.RolloutChartType: {}},
 }
 
 func CheckCompatibility(oldChartType, newChartType string) bool {
