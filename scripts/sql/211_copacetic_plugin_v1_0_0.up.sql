@@ -1,3 +1,4 @@
+--dummy commit
 INSERT INTO plugin_metadata (id,name,description,type,icon,deleted,created_on,created_by,updated_on,updated_by)
 VALUES (nextval('id_seq_plugin_metadata'),'Copacetic v1.0.0','This plugin is used to patch the container image vulnerabilities (Patching for Multi Architecture Builds not supported currently).','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/copa-plugin-icon.png',false,'now()',1,'now()',1);
 
