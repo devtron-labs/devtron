@@ -55,11 +55,11 @@ func (impl UserListingRepositoryQueryBuilder) GetQueryForUserListingWithFilters(
 	whereCondition := fmt.Sprintf("where active = %t AND (user_type is NULL or user_type != '%s') ", true, bean.USER_TYPE_API_TOKEN)
 	orderCondition := ""
 	if req.Status == bean.Active {
-		whereCondition += "AND time_to_live is null "
+		whereCondition += "AND (time_to_live is null OR time_to_live > %s ::timestamp AT TIME ZONE 'UTC') "
 	} else if req.Status == bean.Inactive {
 		whereCondition += fmt.Sprintf("AND time_to_live < %s ::timestamp AT TIME ZONE 'UTC'", req.CurrentTime)
 	} else if req.Status == bean.TemporaryAccess {
-		whereCondition += fmt.Sprintf(" AND (time_to_live is null OR time_to_live > %s ::timestamp AT TIME ZONE 'UTC') ", req.CurrentTime)
+		whereCondition += fmt.Sprintf(" AND time_to_live > %s ::timestamp AT TIME ZONE 'UTC' ", req.CurrentTime)
 	}
 	if len(req.SearchKey) > 0 {
 		emailIdLike := "%" + req.SearchKey + "%"
