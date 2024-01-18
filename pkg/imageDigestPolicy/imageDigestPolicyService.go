@@ -78,7 +78,7 @@ func (impl ImageDigestPolicyServiceImpl) CreatePolicyForPipelineIfNotExist(tx *p
 		)
 		_, err = impl.qualifierMappingService.CreateQualifierMappings([]*resourceQualifiers.QualifierMapping{qualifierMapping}, tx)
 		if err != nil {
-			impl.logger.Errorw("error in creating image digest policy for pipeline", "err", err, "identifierKey", "pipelineId", pipelineId)
+			impl.logger.Errorw("error in creating image digest policy for pipeline", "err", err, "pipelineId", pipelineId)
 			return qualifierMapping.Id, err
 		}
 		qualifierMappingId = qualifierMapping.Id

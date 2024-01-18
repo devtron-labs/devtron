@@ -1316,5 +1316,6 @@ func (impl ClusterServiceImpl) GetClusterConfigByClusterId(clusterId int) (*k8s.
 }
 
 func (impl ClusterServiceImpl) IsPolicyConfiguredForCluster(envId, clusterId int) (bool, error) {
+	// this implementation is used in hyperion mode, so IsPolicyConfiguredForCluster is always false
 	return false, nil
 }

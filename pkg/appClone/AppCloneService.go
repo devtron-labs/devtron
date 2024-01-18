@@ -1011,7 +1011,7 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, c
 	}
 	isDigestPolicyConfiguredForRefPipeline, err := impl.imageDigestService.IsPolicyConfiguredForPipeline(refCdPipeline.Id)
 	if err != nil {
-		impl.logger.Errorw("error in checking if digest configured for pipeline or not", "err", err)
+		impl.logger.Errorw("error in checking if digest configured for reference cd-pipeline or not in app clone", "err", err, "refCdPipelineId", refCdPipeline.Id)
 		return nil, err
 	}
 	cdPipeline := &bean.CDPipelineConfigObject{

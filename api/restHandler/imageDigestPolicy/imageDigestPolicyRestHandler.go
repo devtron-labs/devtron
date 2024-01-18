@@ -99,7 +99,7 @@ func (handler ImageDigestPolicyRestHandlerImpl) SaveOrUpdateImageDigestPolicy(w 
 
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusBadRequest)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusInternalServerError)
 		return
 	}
 	req.UserId = userId

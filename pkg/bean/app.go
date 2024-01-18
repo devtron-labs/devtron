@@ -816,11 +816,8 @@ type CiArtifactBean struct {
 	RegistryType            string                               `json:"registryType"`
 	RegistryName            string                               `json:"registryName"`
 	CiPipelineId            int                                  `json:"-"`
-	ComponentId             int                                  `json:"-"`
 	CredentialsSourceType   string                               `json:"-"`
 	CredentialsSourceValue  string                               `json:"-"`
-	IsSuperseded            bool                                 `json:"isSuperseded"`
-	HasDuplicateImages      bool                                 `json:"hasDuplicateImages"`
 }
 
 type CiArtifactResponse struct {
@@ -839,7 +836,6 @@ type CiArtifactResponse struct {
 	ResourceFilters            []*resourceFilter.FilterMetaDataBean `json:"resourceFilters"`
 	TotalCount                 int                                  `json:"totalCount"`
 	CanApproverDeploy          bool                                 `json:"canApproverDeploy"`
-	IsDigestEnforced           bool             `json:"isDigestEnforced"`
 }
 
 type AppLabelsDto struct {
