@@ -45,6 +45,7 @@ type UserInfo struct {
 	RoleGroups    []RoleGroup  `json:"roleGroups,omitempty"` // role group with metadata, currently using for group claims
 	LastLoginTime time.Time    `json:"lastLoginTime"`
 	TimeToLive    time.Time    `json:"timeToLive"`
+	UserStatus    Status       `json:"userStatus"`
 }
 
 type RoleGroup struct {
@@ -133,3 +134,11 @@ type RoleGroupListingResponse struct {
 	RoleGroups []*RoleGroup `json:"roleGroups"`
 	TotalCount int          `json:"totalCount"`
 }
+
+type Status string
+
+const (
+	Active          Status = "active"
+	Inactive        Status = "inactive"
+	TemporaryAccess Status = "temporaryAccess"
+)

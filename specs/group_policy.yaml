@@ -19,31 +19,54 @@ paths:
       summary: Returns all group policies
       description: all the template group policies
       operationId: findGroupPolicy
-      requestBody:
-        description: Listing Request
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                searchKey:
-                  type: string
-                sortOrder:
-                  type: string
-                  enum:
-                    - ASC
-                    - DESC
-                sortBy:
-                  type: string
-                  enum:
-                    - name
-                offset:
-                  type: integer
-                size:
-                  type: integer
-                showAll:
-                  type: boolean
+      parameters:
+        - name: searchKey
+          in: query
+          description: Search key for group listing
+          required: false
+          schema:
+            type: string
+
+        - name: sortOrder
+          in: query
+          description: Sorting order (ASC or DESC)
+          required: false
+          schema:
+            type: string
+            enum:
+              - ASC
+              - DESC
+
+        - name: sortBy
+          in: query
+          description: Sorting by name
+          required: false
+          schema:
+            type: string
+            enum:
+              - name
+
+        - name: offset
+          in: query
+          description: Offset for paginating the results
+          required: false
+          schema:
+            type: integer
+
+        - name: size
+          in: query
+          description: Size of the result set
+          required: false
+          schema:
+            type: integer
+
+        - name: showAll
+          in: query
+          description: Show all Role groups (boolean)
+          required: false
+          schema:
+            type: boolean
+
       responses:
         '200':
           description: list response

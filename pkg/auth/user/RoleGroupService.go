@@ -43,7 +43,7 @@ type RoleGroupService interface {
 	FetchDetailedRoleGroups() ([]*bean.RoleGroup, error)
 	FetchRoleGroupsById(id int32) (*bean.RoleGroup, error)
 	FetchRoleGroups() (*bean.RoleGroupListingResponse, error)
-	FetchRoleGroupsWithFilters(req *helper.FetchListingRequest) (*bean.RoleGroupListingResponse, error)
+	FetchRoleGroupsWithFilters(sortOrder string, sortBy string, offset int, totalSize int, showAll bool) (*bean.RoleGroupListingResponse, error)
 	FetchRoleGroupsByName(name string) ([]*bean.RoleGroup, error)
 	DeleteRoleGroup(model *bean.RoleGroup) (bool, error)
 	FetchRoleGroupsWithRolesByGroupNames(groupNames []string) ([]*bean.RoleFilter, []bean.RoleGroup, error)
@@ -634,12 +634,11 @@ func (impl RoleGroupServiceImpl) FetchDetailedRoleGroups() ([]*bean.RoleGroup, e
 }
 
 func (impl RoleGroupServiceImpl) FetchRoleGroups() (*bean.RoleGroupListingResponse, error) {
-	roleGroup, err := impl.roleGroupRepository.GetAllRoleGroup()
+	list, err := impl.FetchDetailedRoleGroups()
 	if err != nil {
-		impl.logger.Errorw("error while fetching user from db", "error", err)
+		impl.logger.Errorw("error in FetchDetailedRoleGroups", "err", err)
 		return nil, err
 	}
-	list := impl.fetchRoleGroupResponseFromModel(roleGroup)
 	response := &bean.RoleGroupListingResponse{
 		RoleGroups: list,
 		TotalCount: len(list),
@@ -647,8 +646,10 @@ func (impl RoleGroupServiceImpl) FetchRoleGroups() (*bean.RoleGroupListingRespon
 	return response, nil
 }
 
-// FetchRoleGroupsWithFilters takes FetchListingRequest as input and outputs RoleGroupListingResponse based on the request filters.
-func (impl RoleGroupServiceImpl) FetchRoleGroupsWithFilters(request *helper.FetchListingRequest) (*bean.RoleGroupListingResponse, error) {
+// FetchRoleGroupsWithFilters takes filters args as input and outputs RoleGroupListingResponse based on the request filters.
+func (impl RoleGroupServiceImpl) FetchRoleGroupsWithFilters(sortOrder string, sortBy string, offset int, totalSize int, showAll bool) (*bean.RoleGroupListingResponse, error) {
+	// getting request from filter args
+	request := impl.getRequestWithFiltersArgs(sortOrder, sortBy, offset, totalSize, showAll)
 	if request.ShowAll {
 		return impl.FetchRoleGroups()
 	}
@@ -678,6 +679,17 @@ func (impl RoleGroupServiceImpl) FetchRoleGroupsWithFilters(request *helper.Fetc
 		TotalCount: totalCount,
 	}
 	return response, nil
+}
+
+func (impl RoleGroupServiceImpl) getRequestWithFiltersArgs(sortOrder string, sortBy string, offset int, totalSize int, showAll bool) *helper.FetchListingRequest {
+	request := &helper.FetchListingRequest{
+		SortOrder: helper.SortOrder(sortOrder),
+		SortBy:    helper.SortBy(sortBy),
+		Offset:    offset,
+		Size:      totalSize,
+		ShowAll:   showAll,
+	}
+	return request
 }
 
 func (impl RoleGroupServiceImpl) fetchRoleGroupResponseFromModel(roleGroup []*repository.RoleGroup) []*bean.RoleGroup {

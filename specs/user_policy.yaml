@@ -19,40 +19,66 @@ paths:
       summary: Returns all users
       description: all the template users
       operationId: findAllUsers
-      requestBody:
-        description: User Listing Request
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                status:
-                  type: string
-                  enum:
-                    - active
-                    - inactive
-                timeToLive:
-                  type: string
-                  format: date-time
-                searchKey:
-                  type: string
-                sortOrder:
-                  type: string
-                  enum:
-                    - ASC
-                    - DESC
-                sortBy:
-                  type: string
-                  enum:
-                    - email_id
-                    - last_login
-                offset:
-                  type: integer
-                size:
-                  type: integer
-                showAll:
-                  type: boolean
+      parameters:
+        - name: status
+          in: query
+          description: Status of the user
+          required: false
+          schema:
+            type: string
+            enum:
+              - active
+              - inactive
+              - temporaryAccess
+
+        - name: searchKey
+          in: query
+          description: Search key for user listing
+          required: false
+          schema:
+            type: string
+
+        - name: sortOrder
+          in: query
+          description: Sorting order (ASC or DESC)
+          required: false
+          schema:
+            type: string
+            enum:
+              - ASC
+              - DESC
+
+        - name: sortBy
+          in: query
+          description: Sorting by email_id or last_login
+          required: false
+          schema:
+            type: string
+            enum:
+              - email_id
+              - last_login
+
+        - name: offset
+          in: query
+          description: Offset for paginating the results
+          required: false
+          schema:
+            type: integer
+
+        - name: size
+          in: query
+          description: Size of the result set
+          required: false
+          schema:
+            type: integer
+
+        - name: showAll
+          in: query
+          description: Show all users (boolean)
+          required: false
+          schema:
+            type: boolean
+
       responses:
         '200':
           description: list response
@@ -193,9 +219,9 @@ components:
           items:
             $ref: '#/components/schemas/roleFilter'
           description: role filters objects
-        status:
+        userStatus:
           type: string
-          description: user current status (active,inactive,ttl)
+          description: user current status (active,inactive)
         lastLogin:
           type: string
           format: date-time
@@ -239,9 +265,9 @@ components:
           items:
             $ref: '#/components/schemas/emptyRoleFilter'
           description: role filters objects
-        status:
+        userStatus:
           type: string
-          description: user current status (active,inactive,ttl)
+          description: user current status (active,inactive)
         lastLogin:
           type: string
           format: date-time

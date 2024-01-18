@@ -58,9 +58,9 @@ type UserService interface {
 	GetByIdWithoutGroupClaims(id int32) (*bean.UserInfo, error)
 	GetRoleFiltersForAUserById(id int32) (*bean.UserInfo, error)
 	GetByIdForGroupClaims(id int32) (*bean.UserInfo, error)
-	GetAll() (*bean.UserListingResponse, error)
-	GetAllWithFilters(request *helper.FetchListingRequest) (*bean.UserListingResponse, error)
-	GetAllDetailedUsers() ([]bean.UserInfo, error)
+	GetAll() ([]bean.UserInfo, error)
+	GetAllWithFilters(status string, sortOrder string, sortBy string, offset int, totalSize int, showAll bool) (*bean.UserListingResponse, error)
+	GetAllDetailedUsersWithAudit() ([]bean.UserInfo, error)
 	GetEmailById(userId int32) (string, error)
 	GetEmailAndGroupClaimsFromToken(token string) (string, []string, error)
 	GetLoggedInUser(r *http.Request) (int32, error)
@@ -1187,32 +1187,41 @@ func (impl UserServiceImpl) getUserMetadata(model *repository.UserModel) (bool, 
 }
 
 // GetAll excluding API token user
-func (impl UserServiceImpl) GetAll() (*bean.UserListingResponse, error) {
+func (impl UserServiceImpl) GetAll() ([]bean.UserInfo, error) {
 	model, err := impl.userRepository.GetAllExcludingApiTokenUser()
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
 		return nil, err
 	}
-	response, err := impl.getUserResponseWithLoginAudit(model)
-	if err != nil {
-		impl.logger.Errorw("error in getUserResponseWithLoginAudit", "err", err)
-		return nil, err
+	var response []bean.UserInfo
+	for _, m := range model {
+		response = append(response, bean.UserInfo{
+			Id:          m.Id,
+			EmailId:     m.EmailId,
+			RoleFilters: make([]bean.RoleFilter, 0),
+			Groups:      make([]string, 0),
+		})
 	}
-	listingResponse := &bean.UserListingResponse{
-		Users:      response,
-		TotalCount: len(response),
+	if len(response) == 0 {
+		response = make([]bean.UserInfo, 0)
 	}
-	return listingResponse, nil
+	return response, nil
 }
 
-// GetAllWithFilters takes FetchListingRequest as argument and gives UserListingResponse as output with some operations like filter, sorting, searching,pagination support inbuilt
-func (impl UserServiceImpl) GetAllWithFilters(request *helper.FetchListingRequest) (*bean.UserListingResponse, error) {
+// GetAllWithFilters takes filter arguments gives UserListingResponse as output with some operations like filter, sorting, searching,pagination support inbuilt
+func (impl UserServiceImpl) GetAllWithFilters(status string, sortOrder string, sortBy string, offset int, totalSize int, showAll bool) (*bean.UserListingResponse, error) {
+	// get req from arguments
+	request := impl.getRequestWithFiltersArgs(status, sortOrder, sortBy, offset, totalSize, showAll)
 	if request.ShowAll {
-		return impl.GetAll()
+		return impl.getAllDetailedUsers()
 	}
 	// Setting size as zero to calculate the total number of results based on request
 	size := request.Size
 	request.Size = 0
+
+	// Recording time here for overall consistency
+	request.CurrentTime = time.Now()
+
 	// Build query from query builder
 	query := impl.userListingRepositoryQueryBuilder.GetQueryForUserListingWithFilters(request)
 	models, err := impl.userRepository.GetAllExcludingApiTokenWithFilters(query)
@@ -1232,13 +1241,13 @@ func (impl UserServiceImpl) GetAllWithFilters(request *helper.FetchListingReques
 			return nil, err
 		}
 	}
-	response, err := impl.getUserResponseWithLoginAudit(models)
+	response, err := impl.getUserResponseWithLoginAudit(models, request.CurrentTime)
 	if err != nil {
 		impl.logger.Errorw("error in getUserResponseWithLoginAudit", "err", err)
 		return nil, err
 	}
 	// Sorting according to login time
-	if request.SortBy == helper.SortBy(helper.LastLogin) {
+	if request.SortBy == helper.LastLogin {
 		response = impl.sortAccordingToLoginTime(response, request.SortOrder)
 	}
 	listingResponse := &bean.UserListingResponse{
@@ -1248,8 +1257,33 @@ func (impl UserServiceImpl) GetAllWithFilters(request *helper.FetchListingReques
 	return listingResponse, nil
 
 }
+func (impl UserServiceImpl) getRequestWithFiltersArgs(status string, sortOrder string, sortBy string, offset int, totalSize int, showAll bool) *helper.FetchListingRequest {
+	request := &helper.FetchListingRequest{
+		Status:    bean.Status(status),
+		SortOrder: helper.SortOrder(sortOrder),
+		SortBy:    helper.SortBy(sortBy),
+		Offset:    offset,
+		Size:      totalSize,
+		ShowAll:   showAll,
+	}
+	return request
+}
 
-func (impl UserServiceImpl) getUserResponseWithLoginAudit(model []repository.UserModel) ([]bean.UserInfo, error) {
+func (impl UserServiceImpl) getAllDetailedUsers() (*bean.UserListingResponse, error) {
+	response, err := impl.GetAllDetailedUsersWithAudit()
+	if err != nil {
+		impl.logger.Errorw("error in getAllDetailedUsers", "err", err)
+		return nil, err
+	}
+
+	listingResponse := &bean.UserListingResponse{
+		Users:      response,
+		TotalCount: len(response),
+	}
+	return listingResponse, err
+}
+
+func (impl UserServiceImpl) getUserResponseWithLoginAudit(model []repository.UserModel, recordedTime time.Time) ([]bean.UserInfo, error) {
 	var response []bean.UserInfo
 	userIdLoginMap, err := impl.getLoginTimeForUsers(model)
 	if err != nil {
@@ -1267,7 +1301,7 @@ func (impl UserServiceImpl) getUserResponseWithLoginAudit(model []repository.Use
 			RoleFilters:   make([]bean.RoleFilter, 0),
 			Groups:        make([]string, 0),
 			LastLoginTime: lastLoginTime,
-			Status:        m.Status,
+			UserStatus:    impl.userListingRepositoryQueryBuilder.GetStatusFromTTL(m.TimeToLive, recordedTime),
 			TimeToLive:    m.TimeToLive,
 		})
 	}
@@ -1303,21 +1337,33 @@ func (impl UserServiceImpl) getLoginTimeForUsers(models []repository.UserModel) 
 	return userIdLoginMap, nil
 }
 
-func (impl UserServiceImpl) GetAllDetailedUsers() ([]bean.UserInfo, error) {
+func (impl UserServiceImpl) GetAllDetailedUsersWithAudit() ([]bean.UserInfo, error) {
 	models, err := impl.userRepository.GetAllExcludingApiTokenUser()
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
 		return nil, err
 	}
 	var response []bean.UserInfo
+	userIdLoginMap, err := impl.getLoginTimeForUsers(models)
+	if err != nil {
+		impl.logger.Errorw("error in getUserResponseWithLoginAudit ", "err", err)
+		return nil, err
+	}
 	for _, model := range models {
 		isSuperAdmin, roleFilters, filterGroups := impl.getUserMetadata(&model)
+		lastLoginTime := time.Time{}
+		if val, ok := userIdLoginMap[model.Id]; ok {
+			lastLoginTime = val
+		}
 		response = append(response, bean.UserInfo{
-			Id:          model.Id,
-			EmailId:     model.EmailId,
-			RoleFilters: roleFilters,
-			Groups:      filterGroups,
-			SuperAdmin:  isSuperAdmin,
+			Id:            model.Id,
+			EmailId:       model.EmailId,
+			RoleFilters:   roleFilters,
+			Groups:        filterGroups,
+			SuperAdmin:    isSuperAdmin,
+			LastLoginTime: lastLoginTime,
+			UserStatus:    impl.userListingRepositoryQueryBuilder.GetStatusFromTTL(model.TimeToLive, time.Now()),
+			TimeToLive:    model.TimeToLive,
 		})
 	}
 	if len(response) == 0 {

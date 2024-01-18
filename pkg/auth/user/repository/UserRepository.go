@@ -62,9 +62,7 @@ type UserModel struct {
 	AccessToken string    `sql:"access_token"`
 	Active      bool      `sql:"active,notnull"`
 	UserType    string    `sql:"user_type"`
-	Status      string    `sql:"status"`
 	TimeToLive  time.Time `sql:"time_to_live"`
-	//LastLoginTime time.Time `sql:"last_login"`
 	sql.AuditLog
 }
 
