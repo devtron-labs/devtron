@@ -1,0 +1,303 @@
+openapi: 3.0.3
+info:
+  title: Infra Config
+  description: API SPEC for Infra Configurations
+  version: 1.0.0
+servers:
+  - url: 'https'
+paths:
+#  send 404 responses if resource doesn't exist
+  /orchestrator/infra-config/profile/{id}:
+    get:
+      description: Get Infra Profile by id
+      responses:
+        "200":
+          description: gets the infra config profile by its id.
+          content:
+            application/json:
+              schema:
+                  $ref: "#/components/schemas/ProfileResponse"
+    put:
+      description: Update Infra Profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Profile'
+      responses:
+        "200":
+          description: creates a infra config profile.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+    delete:
+        description: Delete Infra Profile by id
+        responses:
+            "200":
+              description: deletes the infra config profile by its id.
+              content:
+                application/json:
+                  schema:
+                    $ref: "#/components/schemas/Profile"
+
+  /orchestrator/infra-config/profile:
+    get:
+      description: Get Infra Profiles
+      responses:
+        "200":
+          description: gets the infra config profiles by search param.
+          content:
+            application/json:
+              schema:
+                  $ref: "#/components/schemas/ProfilesResponse"
+    post:
+      description: Create Infra Profile
+      requestBody:
+          required: true
+          content:
+           application/json:
+              schema:
+               $ref: '#/components/schemas/Profile'
+      responses:
+          "200":
+            description: application rollback response
+            content:
+              application/json:
+                schema:
+                    $ref: "#/components/schemas/Profile"
+
+  /orchestrator/infra-config/{identifier}/list?search={search}&sort={sort}&profileId={profileId}&size={size}&offset={offset}:
+    get:
+      description: Get identifiers and their Infra Profiles
+      example: "/orchestrator/infra-config/APP/list?search=java&sort=0&profileId=1&size=10&offset=0"
+      responses:
+        "200":
+          description: successfully fetched the response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IdentifierProfileResponse"
+
+  /orchestrator/infra-config/{identifier}/apply:
+    post:
+      description: Update Application Infra Profile
+      requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/IdentifiersInfraConfigProfileRequest'
+      responses:
+            "200":
+                description: application rollback response
+
+
+components:
+  schemas:
+    Unit:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Unit Name
+          example: "mi"
+        conversionFactor:
+          type: number
+          description: Conversion Factor to convert to base unit
+          example: 1
+
+    ConfigurationUnits:
+        type: object
+        properties:
+          name:
+            type: string
+            description: Configuration Units
+          units:
+            type: array
+            description: Configuration Units
+            items:
+              $ref: '#/components/schemas/Unit'
+    ProfilesResponse:
+        type: object
+        properties:
+          profiles:
+            type: array
+            description: Infra Profiles
+            items:
+                $ref: '#/components/schemas/Profile'
+          defaultConfigurations:
+            type: array
+            description: Default Configurations
+            items:
+              $ref: '#/components/schemas/Configuration'
+    ProfileResponse:
+      type: object
+      properties:
+        configurationUnits:
+          type: array
+          description: Configuration Units
+          items:
+            $ref: '#/components/schemas/ConfigurationUnits'
+        defaultConfigurations:
+          type: array
+          description: Default Configurations
+          items:
+            $ref: '#/components/schemas/Configuration'
+        profile:
+          $ref: '#/components/schemas/Profile'
+    IdentifiersInfraConfigProfileRequest:
+      type: object
+      properties:
+        identifierType:
+          type: string
+          description: identifier type
+          example: "APP"
+        identifiersFilter:
+          $ref: '#/components/schemas/ListFilter'
+        identifiers:
+          type: array
+          description: identifier ids
+          items:
+            type: integer
+          example: [1,2,3]
+        updateToProfile:
+          type: integer
+          description: Profile id to which given identifiers or filtered identifiers be updated
+          example: 1
+
+    Identifier:
+      type: object
+      properties:
+        id:
+          readOnly: true
+          type: integer
+          description: identifier Id
+          example: 1
+        name:
+          type: string
+          description: Identifier name
+          example: "java-app"
+        profile:
+          $ref: '#/components/schemas/Profile'
+    IdentifierProfileResponse:
+      type: object
+      properties:
+        identifiers:
+          type: array
+          description: identifiers
+          items:
+            $ref: '#/components/schemas/Identifier'
+        count:
+          type: integer
+          description: Total number of identifiers
+          example: 1
+        overriddenIdentifierCount:
+          type: integer
+          description: identifiers count in which atleast one configuration is overriden
+    ListFilter:
+        type: object
+        properties:
+          search:
+            type: string
+            description: Search string on identifier name
+            example: "java"
+          sort:
+            type: integer
+            description: Sort order
+            example: 0 for asc and 1 for desc
+          profileId:
+            type: integer
+            description: Profile Id
+            example: 1
+          size:
+            type: integer
+            description: Page Size
+            example: 10
+          offset:
+            type: integer
+            description: Page Offset
+            example: 0
+
+    Configuration:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Property Id
+          example: 1
+        key:
+          type: string
+          description: Property Name
+          required: true,
+          example: "cpu_limits"
+        value:
+          required: true,
+          type: string
+          description: Property Value
+          example: "0.5"
+        profileName:
+          type: string
+          description: Profile Name
+          example: "java"
+        unit:
+          type: string
+          description: Property Unit
+          example: "m"
+        active:
+          type: boolean
+          description: Property Active
+          example: true
+
+    Profile:
+      type: object
+      properties:
+          id:
+            readOnly: true
+            type: integer
+            description: Profile Id
+            example: 1
+          name:
+            type: string
+            description: Profile Name
+            example: "java"
+          description:
+            type: string
+            description: Profile Description
+            example: "all java apps should have this infra profile"
+          type:
+            type: string
+            description: type of profile "eg:0,1,2"
+            example: DEFAULT,NORMAL,CUSTOM
+          configurations:
+            type: array
+            description: Profile Configurations
+            items:
+              $ref: '#/components/schemas/Configuration'
+          appCount:
+            readOnly: true
+            type: integer
+            description: Number of apps using this profile
+            example: 1
+          createdAt:
+            required: false
+            type: string
+            description: Profile Created At
+            example: "2021-06-01T06:30:00.000Z"
+          updatedAt:
+            type: string
+            description: Profile Updated At
+            example: "2021-06-01T06:30:00.000Z"
+          createdBy:
+            type: integer
+            description: Profile Created By
+            example: 1
+          updatedBy:
+            type: integer
+            description: Profile Updated By
+            example: 1
+
+  

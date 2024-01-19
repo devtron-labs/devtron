@@ -29,10 +29,6 @@ type CiCdConfig struct {
 	CiDefaultTimeout                 int64                               `env:"DEFAULT_TIMEOUT" envDefault:"3600"`
 	CiDefaultBuildLogsBucket         string                              `env:"DEFAULT_BUILD_LOGS_BUCKET" envDefault:"devtron-pro-ci-logs"`
 	CiDefaultCdLogsBucketRegion      string                              `env:"DEFAULT_CD_LOGS_BUCKET_REGION" envDefault:"us-east-2"`
-	CiLimitCpu                       string                              `env:"LIMIT_CI_CPU" envDefault:"0.5"`
-	CiLimitMem                       string                              `env:"LIMIT_CI_MEM" envDefault:"3G"`
-	CiReqCpu                         string                              `env:"REQ_CI_CPU" envDefault:"0.5"`
-	CiReqMem                         string                              `env:"REQ_CI_MEM" envDefault:"3G"`
 	CiTaintKey                       string                              `env:"CI_NODE_TAINTS_KEY" envDefault:""`
 	CiTaintValue                     string                              `env:"CI_NODE_TAINTS_VALUE" envDefault:""`
 	CiNodeLabelSelector              []string                            `env:"CI_NODE_LABEL_SELECTOR"`
