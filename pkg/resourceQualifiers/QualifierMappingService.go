@@ -12,7 +12,6 @@ type QualifierMappingService interface {
 	GetQualifierMappings(resourceType ResourceType, scope *Scope, resourceIds []int) ([]*QualifierMapping, error)
 	DeleteAllQualifierMappings(resourceType ResourceType, auditLog sql.AuditLog, tx *pg.Tx) error
 	DeleteByIdentifierKeyValue(resourceType ResourceType, identifierKey int, identifierValue int, auditLog sql.AuditLog, tx *pg.Tx) error
-	GetDbConnection() *pg.DB
 }
 
 type QualifierMappingServiceImpl struct {
@@ -44,8 +43,4 @@ func (impl QualifierMappingServiceImpl) DeleteAllQualifierMappings(resourceType 
 
 func (impl QualifierMappingServiceImpl) DeleteByIdentifierKeyValue(resourceType ResourceType, identifierKey int, identifierValue int, auditLog sql.AuditLog, tx *pg.Tx) error {
 	return impl.qualifierMappingRepository.DeleteByResourceTypeIdentifierKeyAndValue(resourceType, identifierKey, identifierValue, auditLog, tx)
-}
-
-func (impl QualifierMappingServiceImpl) GetDbConnection() *pg.DB {
-	return impl.qualifierMappingRepository.GetDbConnection()
 }
