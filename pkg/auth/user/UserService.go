@@ -60,7 +60,7 @@ type UserService interface {
 	GetRoleFiltersForAUserById(id int32) (*bean.UserInfo, error)
 	GetByIdForGroupClaims(id int32) (*bean.UserInfo, error)
 	GetAll() ([]bean.UserInfo, error)
-	GetAllWithFilters(status string, sortOrder string, sortBy string, offset int, totalSize int, showAll bool) (*bean.UserListingResponse, error)
+	GetAllWithFilters(status string, sortOrder string, sortBy string, offset int, totalSize int, showAll bool, searchKey string) (*bean.UserListingResponse, error)
 	GetAllDetailedUsersWithAudit() ([]bean.UserInfo, error)
 	GetEmailById(userId int32) (string, error)
 	GetEmailAndGroupClaimsFromToken(token string) (string, []string, error)
@@ -1211,9 +1211,9 @@ func (impl UserServiceImpl) GetAll() ([]bean.UserInfo, error) {
 }
 
 // GetAllWithFilters takes filter arguments gives UserListingResponse as output with some operations like filter, sorting, searching,pagination support inbuilt
-func (impl UserServiceImpl) GetAllWithFilters(status string, sortOrder string, sortBy string, offset int, totalSize int, showAll bool) (*bean.UserListingResponse, error) {
+func (impl UserServiceImpl) GetAllWithFilters(status string, sortOrder string, sortBy string, offset int, totalSize int, showAll bool, searchKey string) (*bean.UserListingResponse, error) {
 	// get req from arguments
-	request := impl.getRequestWithFiltersArgs(status, sortOrder, sortBy, offset, totalSize, showAll)
+	request := impl.getRequestWithFiltersArgs(status, sortOrder, sortBy, offset, totalSize, showAll, searchKey)
 	if request.ShowAll {
 		return impl.getAllDetailedUsers()
 	}
@@ -1259,7 +1259,7 @@ func (impl UserServiceImpl) GetAllWithFilters(status string, sortOrder string, s
 	return listingResponse, nil
 
 }
-func (impl UserServiceImpl) getRequestWithFiltersArgs(status string, sortOrder string, sortBy string, offset int, totalSize int, showAll bool) *helper.FetchListingRequest {
+func (impl UserServiceImpl) getRequestWithFiltersArgs(status string, sortOrder string, sortBy string, offset int, totalSize int, showAll bool, searchKey string) *helper.FetchListingRequest {
 	request := &helper.FetchListingRequest{
 		Status:    bean.Status(status),
 		SortOrder: helper.SortOrder(sortOrder),
@@ -1267,6 +1267,7 @@ func (impl UserServiceImpl) getRequestWithFiltersArgs(status string, sortOrder s
 		Offset:    offset,
 		Size:      totalSize,
 		ShowAll:   showAll,
+		SearchKey: searchKey,
 	}
 	return request
 }

@@ -43,7 +43,7 @@ type RoleGroupService interface {
 	FetchDetailedRoleGroups() ([]*bean.RoleGroup, error)
 	FetchRoleGroupsById(id int32) (*bean.RoleGroup, error)
 	FetchRoleGroups() (*bean.RoleGroupListingResponse, error)
-	FetchRoleGroupsWithFilters(sortOrder string, sortBy string, offset int, totalSize int, showAll bool) (*bean.RoleGroupListingResponse, error)
+	FetchRoleGroupsWithFilters(sortOrder string, sortBy string, offset int, totalSize int, showAll bool, searchKey string) (*bean.RoleGroupListingResponse, error)
 	FetchRoleGroupsByName(name string) ([]*bean.RoleGroup, error)
 	DeleteRoleGroup(model *bean.RoleGroup) (bool, error)
 	FetchRoleGroupsWithRolesByGroupNames(groupNames []string) ([]*bean.RoleFilter, []bean.RoleGroup, error)
@@ -647,9 +647,9 @@ func (impl RoleGroupServiceImpl) FetchRoleGroups() (*bean.RoleGroupListingRespon
 }
 
 // FetchRoleGroupsWithFilters takes filters args as input and outputs RoleGroupListingResponse based on the request filters.
-func (impl RoleGroupServiceImpl) FetchRoleGroupsWithFilters(sortOrder string, sortBy string, offset int, totalSize int, showAll bool) (*bean.RoleGroupListingResponse, error) {
+func (impl RoleGroupServiceImpl) FetchRoleGroupsWithFilters(sortOrder string, sortBy string, offset int, totalSize int, showAll bool, searchKey string) (*bean.RoleGroupListingResponse, error) {
 	// getting request from filter args
-	request := impl.getRequestWithFiltersArgs(sortOrder, sortBy, offset, totalSize, showAll)
+	request := impl.getRequestWithFiltersArgs(sortOrder, sortBy, offset, totalSize, showAll, searchKey)
 	if request.ShowAll {
 		return impl.FetchRoleGroups()
 	}
@@ -681,13 +681,14 @@ func (impl RoleGroupServiceImpl) FetchRoleGroupsWithFilters(sortOrder string, so
 	return response, nil
 }
 
-func (impl RoleGroupServiceImpl) getRequestWithFiltersArgs(sortOrder string, sortBy string, offset int, totalSize int, showAll bool) *helper.FetchListingRequest {
+func (impl RoleGroupServiceImpl) getRequestWithFiltersArgs(sortOrder string, sortBy string, offset int, totalSize int, showAll bool, searchKey string) *helper.FetchListingRequest {
 	request := &helper.FetchListingRequest{
 		SortOrder: helper.SortOrder(sortOrder),
 		SortBy:    helper.SortBy(sortBy),
 		Offset:    offset,
 		Size:      totalSize,
 		ShowAll:   showAll,
+		SearchKey: searchKey,
 	}
 	return request
 }

@@ -349,6 +349,7 @@ func (handler UserRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Request
 	// check query param
 	params := r.URL.Query()
 	status := params.Get("status")
+	searchKey := params.Get("searchKey")
 	sortOrder := params.Get("sortOrder")
 	sortBy := params.Get("sortBy")
 	offsetString := params.Get("offset")
@@ -381,7 +382,7 @@ func (handler UserRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Request
 			return
 		}
 	}
-	res, err := handler.userService.GetAllWithFilters(status, sortOrder, sortBy, offset, size, showAll)
+	res, err := handler.userService.GetAllWithFilters(status, sortOrder, sortBy, offset, size, showAll, searchKey)
 	if err != nil {
 		handler.logger.Errorw("service err, GetAll", "err", err)
 		common.WriteJsonResp(w, err, "Failed to Get", http.StatusInternalServerError)
@@ -747,6 +748,7 @@ func (handler UserRestHandlerImpl) FetchRoleGroups(w http.ResponseWriter, r *htt
 	// check query param
 	params := r.URL.Query()
 	sortOrder := params.Get("sortOrder")
+	searchKey := params.Get("searchKey")
 	sortBy := params.Get("sortBy")
 	offsetString := params.Get("offset")
 	var offset int
@@ -778,7 +780,7 @@ func (handler UserRestHandlerImpl) FetchRoleGroups(w http.ResponseWriter, r *htt
 			return
 		}
 	}
-	res, err := handler.roleGroupService.FetchRoleGroupsWithFilters(sortOrder, sortBy, offset, size, showAll)
+	res, err := handler.roleGroupService.FetchRoleGroupsWithFilters(sortOrder, sortBy, offset, size, showAll, searchKey)
 	if err != nil {
 		handler.logger.Errorw("service err, FetchRoleGroups", "err", err)
 		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
