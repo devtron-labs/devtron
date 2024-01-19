@@ -2048,34 +2048,12 @@ func (impl *CdPipelineConfigServiceImpl) createCdPipeline(ctx context.Context, a
 	if err != nil {
 		return pipelineId, err
 	}
-	environment, err := impl.environmentRepository.FindById(pipeline.EnvironmentId)
+
+	_, err = impl.handleImagePolicyDBOperations(tx, pipeline.Id, pipeline.EnvironmentId, pipeline.IsDigestEnforcedForPipeline, userId)
 	if err != nil {
-		impl.logger.Errorw("error in fetching environment by environmentId", "err", err, "environmentId", pipeline.EnvironmentId)
 		return pipelineId, err
 	}
-	isImageDigestPolicyConfiguredAtGlobalLevel, err :=
-		impl.imageDigestPolicyService.IsPolicyConfiguredForEnvOrCluster(environment.Id, environment.ClusterId)
-	if err != nil {
-		impl.logger.Errorw("error in checking if image digest policy is configured or not", "err", err)
-		return pipelineId, err
-	}
-	if !isImageDigestPolicyConfiguredAtGlobalLevel {
-		if pipeline.IsDigestEnforcedForPipeline {
-			_, err = impl.imageDigestPolicyService.CreatePolicyForPipelineIfNotExist(tx, pipeline.Id, userId)
-			if err != nil {
-				impl.logger.Errorw("error in imageDigestPolicy operations for CD pipeline", "err", err, "pipelineId", pipeline.Id)
-				return pipelineId, err
-			}
-		} else if !pipeline.IsDigestEnforcedForPipeline {
-			_, err = impl.imageDigestPolicyService.DeletePolicyForPipeline(tx, pipeline.Id, userId)
-			if err != nil {
-				impl.logger.Errorw("error in deleting imageDigestPolicy for pipeline", "err", err, "pipelineId", pipeline.Id)
-				return pipelineId, err
-			}
-		}
-	} else {
-		impl.logger.Debugw("Image digest policy is enforced at global level, so skipping pipeline level operations")
-	}
+
 	err = tx.Commit()
 	if err != nil {
 		return 0, err
@@ -2313,39 +2291,55 @@ func (impl *CdPipelineConfigServiceImpl) updateCdPipeline(ctx context.Context, a
 		return err
 	}
 
-	environment, err := impl.environmentRepository.FindById(pipeline.EnvironmentId)
+	_, err = impl.handleImagePolicyDBOperations(tx, pipeline.Id, pipeline.EnvironmentId, pipeline.IsDigestEnforcedForPipeline, userID)
 	if err != nil {
-		impl.logger.Errorw("error in fetching environment by environmentId", "err", err, "environmentId", pipeline.EnvironmentId)
 		return err
 	}
-	isImageDigestPolicyConfiguredAtGlobalLevel, err :=
-		impl.imageDigestPolicyService.IsPolicyConfiguredForEnvOrCluster(environment.Id, environment.ClusterId)
-	if err != nil {
-		impl.logger.Errorw("error in checking if image digest policy is configured or not", "err", err)
-		return err
-	}
-	if !isImageDigestPolicyConfiguredAtGlobalLevel {
-		if pipeline.IsDigestEnforcedForPipeline {
-			_, err = impl.imageDigestPolicyService.CreatePolicyForPipelineIfNotExist(tx, pipeline.Id, userID)
-			if err != nil {
-				impl.logger.Errorw("error in imageDigestPolicy operations for CD pipeline", "err", err, "pipelineId", pipeline.Id)
-				return err
-			}
-		} else if !pipeline.IsDigestEnforcedForPipeline {
-			_, err = impl.imageDigestPolicyService.DeletePolicyForPipeline(tx, pipeline.Id, userID)
-			if err != nil {
-				impl.logger.Errorw("error in deleting imageDigestPolicy for pipeline", "err", err, "pipelineId", pipeline.Id)
-				return err
-			}
-		}
-	} else {
-		impl.logger.Debugw("Image digest policy is enforced at global level, so skipping pipeline level operations", "pipelineId", pipeline.Id)
-	}
+
 	err = tx.Commit()
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+func (impl *CdPipelineConfigServiceImpl) handleImagePolicyDBOperations(tx *pg.Tx,
+	pipelineId int,
+	envId int,
+	isDigestEnforcedForPipeline bool,
+	userId int32) (resourceQualifierId int, err error) {
+
+	environment, err := impl.environmentRepository.FindById(envId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching environment by environmentId", "err", err, "environmentId", envId)
+		return pipelineId, err
+	}
+
+	isPolicyConfiguredForEnvOrCluster, err :=
+		impl.imageDigestPolicyService.IsPolicyConfiguredForEnvOrCluster(environment.Id, environment.ClusterId)
+	if err != nil {
+		impl.logger.Errorw("error in checking if image digest policy is configured or not", "err", err, "envId", envId, "clusterId", environment.ClusterId)
+		return pipelineId, err
+	}
+
+	if !isPolicyConfiguredForEnvOrCluster {
+		if isDigestEnforcedForPipeline {
+			_, err = impl.imageDigestPolicyService.CreatePolicyForPipelineIfNotExist(tx, pipelineId, userId)
+			if err != nil {
+				impl.logger.Errorw("error in imageDigestPolicy operations for CD pipeline", "err", err, "pipelineId", pipelineId)
+				return pipelineId, err
+			}
+		} else if !isDigestEnforcedForPipeline {
+			_, err = impl.imageDigestPolicyService.DeletePolicyForPipeline(tx, pipelineId, userId)
+			if err != nil {
+				impl.logger.Errorw("error in deleting imageDigestPolicy for pipeline", "err", err, "pipelineId", pipelineId)
+				return pipelineId, err
+			}
+		}
+	} else {
+		impl.logger.Debugw("Image digest policy is enforced at global level, so skipping pipeline level operations", "envId", envId, "pipelineId", pipelineId)
+	}
+	return resourceQualifierId, nil
 }
 
 func (impl *CdPipelineConfigServiceImpl) updateGitRepoUrlInCharts(appId int, chartGitAttribute *util.ChartGitAttribute, userId int32) error {
