@@ -47,9 +47,9 @@ type TestSuitRestHandler interface {
 }
 
 type TestSuitRestHandlerImpl struct {
-	logger      *zap.SugaredLogger
-	userService user.UserService
-	validator   *validator.Validate
+	logger       *zap.SugaredLogger
+	userService  user.UserService
+	validator    *validator.Validate
 	enforcer     casbin.Enforcer
 	enforcerUtil rbac.EnforcerUtil
 	config       *client.EventClientConfig

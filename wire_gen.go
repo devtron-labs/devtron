@@ -584,7 +584,7 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	ciEventHandlerImpl := pubsub.NewCiEventHandlerImpl(sugaredLogger, pubSubClientServiceImpl, webhookServiceImpl, ciEventConfig)
+	ciEventHandlerImpl := pubsub.NewCiEventHandlerImpl(sugaredLogger, pubSubClientServiceImpl, webhookServiceImpl, validate, ciEventConfig)
 	externalCiRestHandlerImpl := restHandler.NewExternalCiRestHandlerImpl(sugaredLogger, webhookServiceImpl, ciEventHandlerImpl, validate, userServiceImpl, enforcerImpl, enforcerUtilImpl)
 	pubSubClientRestHandlerImpl := restHandler.NewPubSubClientRestHandlerImpl(pubSubClientServiceImpl, sugaredLogger, ciCdConfig)
 	webhookRouterImpl := router.NewWebhookRouterImpl(gitWebhookRestHandlerImpl, pipelineConfigRestHandlerImpl, externalCiRestHandlerImpl, pubSubClientRestHandlerImpl)

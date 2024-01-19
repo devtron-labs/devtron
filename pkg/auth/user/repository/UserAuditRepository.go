@@ -16,7 +16,7 @@
  */
 
 /*
-	@description: user crud
+@description: user crud
 */
 package repository
 
