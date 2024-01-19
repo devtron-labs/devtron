@@ -1,8 +1,8 @@
-package infraProfiles
+package infraConfig
 
 import (
 	"fmt"
-	"github.com/devtron-labs/devtron/pkg/infraProfiles/units"
+	"github.com/devtron-labs/devtron/pkg/infraConfig/units"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/pkg/errors"
 	"time"
@@ -67,6 +67,19 @@ type InfraProfile struct {
 	sql.AuditLog
 }
 
+func (infraProfile *InfraProfile) ConvertToProfileBean() ProfileBean {
+	return ProfileBean{
+		Id:          infraProfile.Id,
+		Name:        infraProfile.Name,
+		Description: infraProfile.Description,
+		Active:      infraProfile.Active,
+		CreatedBy:   infraProfile.CreatedBy,
+		CreatedOn:   infraProfile.CreatedOn,
+		UpdatedBy:   infraProfile.UpdatedBy,
+		UpdatedOn:   infraProfile.UpdatedOn,
+	}
+}
+
 type InfraProfileConfiguration struct {
 	tableName struct{}         `sql:"infra_profile_configuration"`
 	Id        int              `sql:"id"`
@@ -78,40 +91,73 @@ type InfraProfileConfiguration struct {
 	sql.AuditLog
 }
 
-// service layer structs
-
-type Profile struct {
-	Id            int             `json:"id"`
-	Name          string          `json:"name" validate:"required"`
-	Description   string          `json:"description"`
-	Active        bool            `json:"active"`
-	Configuration []Configuration `json:"configuration"`
-	AppCount      int             `json:"appCount"`
-	CreatedBy     int32           `json:"createdBy"`
-	CreatedOn     time.Time       `json:"createdOn"`
-	UpdatedBy     int32           `json:"updatedBy"`
-	UpdatedOn     time.Time       `json:"updatedOn"`
+func (infraProfileConfiguration *InfraProfileConfiguration) ConvertToConfigurationBean() ConfigurationBean {
+	return ConfigurationBean{
+		Id:    infraProfileConfiguration.Id,
+		Key:   GetConfigKeyStr(infraProfileConfiguration.Key),
+		Value: infraProfileConfiguration.Value,
+		// Unit:
+		ProfileId: infraProfileConfiguration.ProfileId,
+		Active:    infraProfileConfiguration.Active,
+	}
 }
 
-type Configuration struct {
+// service layer structs
+
+type ProfileBean struct {
+	Id             int                 `json:"id"`
+	Name           string              `json:"name" validate:"required"`
+	Description    string              `json:"description"`
+	Active         bool                `json:"active"`
+	Configurations []ConfigurationBean `json:"configuration"`
+	AppCount       int                 `json:"appCount"`
+	CreatedBy      int32               `json:"createdBy"`
+	CreatedOn      time.Time           `json:"createdOn"`
+	UpdatedBy      int32               `json:"updatedBy"`
+	UpdatedOn      time.Time           `json:"updatedOn"`
+}
+
+func (profileBean *ProfileBean) ConvertToInfraProfile() *InfraProfile {
+	return &InfraProfile{
+		Id:          profileBean.Id,
+		Name:        profileBean.Name,
+		Description: profileBean.Description,
+	}
+}
+
+type ConfigurationBean struct {
 	Id          int          `json:"id"`
 	Key         ConfigKeyStr `json:"key" validate:"required"`
 	Value       string       `json:"value" validate:"required"`
 	Unit        string       `json:"unit"`
-	ProfileName int          `json:"profileName"`
+	ProfileName string       `json:"profileName"`
+	ProfileId   int          `json:"profileId"`
 	Active      bool         `json:"active"`
 }
 
+func (configurationBean *ConfigurationBean) ConvertToInfraProfileConfiguration() *InfraProfileConfiguration {
+	return &InfraProfileConfiguration{
+		Id:    configurationBean.Id,
+		Key:   GetConfigKey(configurationBean.Key),
+		Value: configurationBean.Value,
+		// Unit:      units.GetUnitSuffix(configurationBean.Unit),
+		ProfileId: configurationBean.ProfileId,
+		Active:    configurationBean.Active,
+	}
+}
+
+type InfraConfigMetaData struct {
+	DefaultConfigurations []ConfigurationBean           `json:"defaultConfigurations"`
+	ConfigurationUnits    map[ConfigKeyStr][]units.Unit `json:"configurationUnits"`
+}
 type ProfileResponse struct {
-	Profile               Profile                 `json:"profile"`
-	DefaultConfigurations []Configuration         `json:"defaultConfigurations"`
-	ConfigurationUnits    map[string][]units.Unit `json:"configurationUnits"`
+	Profile ProfileBean `json:"profile"`
+	InfraConfigMetaData
 }
 
 type ProfilesResponse struct {
-	Profiles              []Profile               `json:"profiles"`
-	DefaultConfigurations []Configuration         `json:"defaultConfigurations"`
-	ConfigurationUnits    map[string][]units.Unit `json:"configurationUnits"`
+	Profiles []ProfileBean `json:"profiles"`
+	InfraConfigMetaData
 }
 
 type InfraConfig struct {

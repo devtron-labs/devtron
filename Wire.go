@@ -39,6 +39,7 @@ import (
 	"github.com/devtron-labs/devtron/api/deployment"
 	"github.com/devtron-labs/devtron/api/externalLink"
 	client "github.com/devtron-labs/devtron/api/helm-app"
+	"github.com/devtron-labs/devtron/api/infraConfig"
 	"github.com/devtron-labs/devtron/api/k8s"
 	"github.com/devtron-labs/devtron/api/module"
 	"github.com/devtron-labs/devtron/api/restHandler"
@@ -104,6 +105,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/generateManifest"
 	"github.com/devtron-labs/devtron/pkg/git"
 	"github.com/devtron-labs/devtron/pkg/gitops"
+	infraConfigRepository "github.com/devtron-labs/devtron/pkg/infraConfig/repository"
+	infraConfigService "github.com/devtron-labs/devtron/pkg/infraConfig/service"
+	"github.com/devtron-labs/devtron/pkg/infraConfig/units"
 	jira2 "github.com/devtron-labs/devtron/pkg/jira"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	repository7 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
@@ -158,24 +162,24 @@ func InitializeApp() (*App, error) {
 		webhookHelm.WebhookHelmWireSet,
 		terminal.TerminalWireSet,
 		// -------wireset end ----------
-		//-------
+		// -------
 		gitSensor.GetConfig,
 		gitSensor.NewGitSensorClient,
 		wire.Bind(new(gitSensor.Client), new(*gitSensor.ClientImpl)),
-		//-------
+		// -------
 		helper.NewAppListingRepositoryQueryBuilder,
-		//sql.GetConfig,
+		// sql.GetConfig,
 		eClient.GetEventClientConfig,
 		util2.GetGlobalEnvVariables,
-		//sql.NewDbConnection,
-		//app.GetACDAuthConfig,
+		// sql.NewDbConnection,
+		// app.GetACDAuthConfig,
 		util3.GetACDAuthConfig,
 		wire.Value(chartRepoRepository.RefChartDir("scripts/devtron-reference-helm-charts")),
 		wire.Value(appStoreBean.RefChartProxyDir("scripts/devtron-reference-helm-charts")),
 		wire.Value(chart.DefaultChart("reference-app-rolling")),
 		wire.Value(util.ChartWorkingDir("/tmp/charts/")),
 		connection.SettingsManager,
-		//auth.GetConfig,
+		// auth.GetConfig,
 
 		connection.GetConfig,
 		wire.Bind(new(session2.ServiceClient), new(*middleware.LoginService)),
@@ -184,13 +188,13 @@ func InitializeApp() (*App, error) {
 		router.NewPipelineTriggerRouter,
 		wire.Bind(new(router.PipelineTriggerRouter), new(*router.PipelineTriggerRouterImpl)),
 
-		//---- pprof start ----
+		// ---- pprof start ----
 		restHandler.NewPProfRestHandler,
 		wire.Bind(new(restHandler.PProfRestHandler), new(*restHandler.PProfRestHandlerImpl)),
 
 		router.NewPProfRouter,
 		wire.Bind(new(router.PProfRouter), new(*router.PProfRouterImpl)),
-		//---- pprof end ----
+		// ---- pprof end ----
 
 		restHandler.NewPipelineRestHandler,
 		wire.Bind(new(restHandler.PipelineTriggerRestHandler), new(*restHandler.PipelineTriggerRestHandlerImpl)),
@@ -267,7 +271,7 @@ func InitializeApp() (*App, error) {
 		util.NewChartDeploymentServiceImpl,
 		wire.Bind(new(util.ChartDeploymentService), new(*util.ChartDeploymentServiceImpl)),
 
-		//scoped variables start
+		// scoped variables start
 		variables.NewScopedVariableServiceImpl,
 		wire.Bind(new(variables.ScopedVariableService), new(*variables.ScopedVariableServiceImpl)),
 
@@ -289,7 +293,7 @@ func InitializeApp() (*App, error) {
 		variables.NewScopedVariableCMCSManagerImpl,
 		wire.Bind(new(variables.ScopedVariableCMCSManager), new(*variables.ScopedVariableCMCSManagerImpl)),
 
-		//end
+		// end
 
 		chart.NewChartServiceImpl,
 		wire.Bind(new(chart.ChartService), new(*chart.ChartServiceImpl)),
@@ -386,7 +390,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(restHandler.ArgoApplicationRestHandler), new(*restHandler.ArgoApplicationRestHandlerImpl)),
 		router.NewApplicationRouterImpl,
 		wire.Bind(new(router.ApplicationRouter), new(*router.ApplicationRouterImpl)),
-		//app.GetConfig,
+		// app.GetConfig,
 
 		router.NewCDRouterImpl,
 		wire.Bind(new(router.CDRouter), new(*router.CDRouterImpl)),
@@ -397,10 +401,10 @@ func InitializeApp() (*App, error) {
 		ArgoUtil.NewArgoSession,
 		ArgoUtil.NewResourceServiceImpl,
 		wire.Bind(new(ArgoUtil.ResourceService), new(*ArgoUtil.ResourceServiceImpl)),
-		//ArgoUtil.NewApplicationServiceImpl,
-		//wire.Bind(new(ArgoUtil.ApplicationService), new(ArgoUtil.ApplicationServiceImpl)),
-		//ArgoUtil.NewRepositoryService,
-		//wire.Bind(new(ArgoUtil.RepositoryService), new(ArgoUtil.RepositoryServiceImpl)),
+		// ArgoUtil.NewApplicationServiceImpl,
+		// wire.Bind(new(ArgoUtil.ApplicationService), new(ArgoUtil.ApplicationServiceImpl)),
+		// ArgoUtil.NewRepositoryService,
+		// wire.Bind(new(ArgoUtil.RepositoryService), new(ArgoUtil.RepositoryServiceImpl)),
 
 		pipelineConfig.NewDbMigrationConfigRepositoryImpl,
 		wire.Bind(new(pipelineConfig.DbMigrationConfigRepository), new(*pipelineConfig.DbMigrationConfigRepositoryImpl)),
@@ -411,13 +415,13 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(repository.DbConfigRepository), new(*repository.DbConfigRepositoryImpl)),
 		pipeline.NewDbMogrationService,
 		wire.Bind(new(pipeline.DbMigrationService), new(*pipeline.DbMigrationServiceImpl)),
-		//ArgoUtil.NewClusterServiceImpl,
-		//wire.Bind(new(ArgoUtil.ClusterService), new(ArgoUtil.ClusterServiceImpl)),
+		// ArgoUtil.NewClusterServiceImpl,
+		// wire.Bind(new(ArgoUtil.ClusterService), new(ArgoUtil.ClusterServiceImpl)),
 		pipeline.GetEcrConfig,
-		//otel.NewOtelTracingServiceImpl,
-		//wire.Bind(new(otel.OtelTracingService), new(*otel.OtelTracingServiceImpl)),
+		// otel.NewOtelTracingServiceImpl,
+		// wire.Bind(new(otel.OtelTracingService), new(*otel.OtelTracingServiceImpl)),
 		NewApp,
-		//session.NewK8sClient,
+		// session.NewK8sClient,
 		repository8.NewImageTaggingRepositoryImpl,
 		wire.Bind(new(repository8.ImageTaggingRepository), new(*repository8.ImageTaggingRepositoryImpl)),
 		pipeline.NewImageTaggingServiceImpl,
@@ -603,7 +607,7 @@ func InitializeApp() (*App, error) {
 		restHandler.NewPubSubClientRestHandlerImpl,
 		wire.Bind(new(restHandler.PubSubClientRestHandler), new(*restHandler.PubSubClientRestHandlerImpl)),
 
-		//Batch actions
+		// Batch actions
 		batch.NewWorkflowActionImpl,
 		wire.Bind(new(batch.WorkflowAction), new(*batch.WorkflowActionImpl)),
 		batch.NewDeploymentActionImpl,
@@ -768,7 +772,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdService), new(*appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdServiceImpl)),
 		//	util2.NewGoJsonSchemaCustomFormatChecker,
 
-		//history starts
+		// history starts
 		restHandler.NewPipelineHistoryRestHandlerImpl,
 		wire.Bind(new(restHandler.PipelineHistoryRestHandler), new(*restHandler.PipelineHistoryRestHandlerImpl)),
 
@@ -812,9 +816,9 @@ func InitializeApp() (*App, error) {
 
 		history3.NewDeployedConfigurationHistoryServiceImpl,
 		wire.Bind(new(history3.DeployedConfigurationHistoryService), new(*history3.DeployedConfigurationHistoryServiceImpl)),
-		//history ends
+		// history ends
 
-		//plugin starts
+		// plugin starts
 		repository6.NewGlobalPluginRepository,
 		wire.Bind(new(repository6.GlobalPluginRepository), new(*repository6.GlobalPluginRepositoryImpl)),
 
@@ -832,7 +836,7 @@ func InitializeApp() (*App, error) {
 
 		pipeline.NewPipelineStageService,
 		wire.Bind(new(pipeline.PipelineStageService), new(*pipeline.PipelineStageServiceImpl)),
-		//plugin ends
+		// plugin ends
 
 		connection.NewArgoCDConnectionManagerImpl,
 		wire.Bind(new(connection.ArgoCDConnectionManager), new(*connection.ArgoCDConnectionManagerImpl)),
@@ -844,12 +848,12 @@ func InitializeApp() (*App, error) {
 		cron.NewCdApplicationStatusUpdateHandlerImpl,
 		wire.Bind(new(cron.CdApplicationStatusUpdateHandler), new(*cron.CdApplicationStatusUpdateHandlerImpl)),
 
-		//app_status
+		// app_status
 		appStatusRepo.NewAppStatusRepositoryImpl,
 		wire.Bind(new(appStatusRepo.AppStatusRepository), new(*appStatusRepo.AppStatusRepositoryImpl)),
 		appStatus.NewAppStatusServiceImpl,
 		wire.Bind(new(appStatus.AppStatusService), new(*appStatus.AppStatusServiceImpl)),
-		//app_status ends
+		// app_status ends
 
 		cron.GetCiWorkflowStatusUpdateConfig,
 		cron.NewCiStatusUpdateCronImpl,
@@ -894,8 +898,8 @@ func InitializeApp() (*App, error) {
 		repository.NewGlobalCMCSRepositoryImpl,
 		wire.Bind(new(repository.GlobalCMCSRepository), new(*repository.GlobalCMCSRepositoryImpl)),
 
-		//chartRepoRepository.NewGlobalStrategyMetadataRepositoryImpl,
-		//wire.Bind(new(chartRepoRepository.GlobalStrategyMetadataRepository), new(*chartRepoRepository.GlobalStrategyMetadataRepositoryImpl)),
+		// chartRepoRepository.NewGlobalStrategyMetadataRepositoryImpl,
+		// wire.Bind(new(chartRepoRepository.GlobalStrategyMetadataRepository), new(*chartRepoRepository.GlobalStrategyMetadataRepositoryImpl)),
 		chartRepoRepository.NewGlobalStrategyMetadataChartRefMappingRepositoryImpl,
 		wire.Bind(new(chartRepoRepository.GlobalStrategyMetadataChartRefMappingRepository), new(*chartRepoRepository.GlobalStrategyMetadataChartRefMappingRepositoryImpl)),
 
@@ -972,6 +976,16 @@ func InitializeApp() (*App, error) {
 
 		pipeline.NewPipelineConfigListenerServiceImpl,
 		wire.Bind(new(pipeline.PipelineConfigListenerService), new(*pipeline.PipelineConfigListenerServiceImpl)),
+
+		units.NewUnits,
+		infraConfigRepository.NewInfraProfileRepositoryImpl,
+		wire.Bind(new(infraConfigRepository.InfraProfileRepository), new(infraConfigRepository.InfraProfileRepositoryImpl)),
+		infraConfigService.NewInfraProfileServiceImpl,
+		wire.Bind(new(infraConfigService.InfraConfigService), new(infraConfigService.InfraConfigServiceImpl)),
+		infraConfig.NewInfraConfigRestHandlerImpl,
+		wire.Bind(new(infraConfig.InfraConfigRestHandler), new(infraConfig.InfraConfigRestHandlerImpl)),
+		infraConfig.NewInfraProfileRouterImpl,
+		wire.Bind(new(infraConfig.InfraConfigRouter), new(infraConfig.InfraConfigRouterImpl)),
 	)
 	return &App{}, nil
 }

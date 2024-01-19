@@ -275,8 +275,8 @@ func (impl *CiCdConfig) GetDefaultCdLogsBucketRegion() string {
 
 func (impl *CiCdConfig) GetLimitCpu() string {
 	switch impl.Type {
-	case CiConfigType:
-		return impl.CiLimitCpu
+	// case CiConfigType:
+	// 	return impl.CiLimitCpu
 	case CdConfigType:
 		return impl.CdLimitCpu
 	default:
@@ -286,8 +286,8 @@ func (impl *CiCdConfig) GetLimitCpu() string {
 
 func (impl *CiCdConfig) GetLimitMem() string {
 	switch impl.Type {
-	case CiConfigType:
-		return impl.CiLimitMem
+	// case CiConfigType:
+	// 	return impl.CiLimitMem
 	case CdConfigType:
 		return impl.CdLimitMem
 	default:
@@ -297,8 +297,8 @@ func (impl *CiCdConfig) GetLimitMem() string {
 
 func (impl *CiCdConfig) GetReqCpu() string {
 	switch impl.Type {
-	case CiConfigType:
-		return impl.CiReqCpu
+	// case CiConfigType:
+	// 	return impl.CiReqCpu
 	case CdConfigType:
 		return impl.CdReqCpu
 	default:
@@ -308,8 +308,8 @@ func (impl *CiCdConfig) GetReqCpu() string {
 
 func (impl *CiCdConfig) GetReqMem() string {
 	switch impl.Type {
-	case CiConfigType:
-		return impl.CiReqMem
+	// case CiConfigType:
+	// 	return impl.CiReqMem
 	case CdConfigType:
 		return impl.CdReqMem
 	default:

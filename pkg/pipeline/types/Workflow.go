@@ -409,10 +409,10 @@ func (workflowRequest *WorkflowRequest) GetLimitReqCpuMem(config *CiCdConfig) v1
 	switch workflowRequest.Type {
 	case bean.CI_WORKFLOW_PIPELINE_TYPE, bean.JOB_WORKFLOW_PIPELINE_TYPE:
 		limitReqCpuMem = &bean.LimitReqCpuMem{
-			LimitCpu: config.CiLimitCpu,
-			LimitMem: config.CiLimitMem,
-			ReqCpu:   config.CiReqCpu,
-			ReqMem:   config.CiReqMem,
+			// LimitCpu: config.CiLimitCpu,
+			// LimitMem: config.CiLimitMem,
+			// ReqCpu:   config.CiReqCpu,
+			// ReqMem:   config.CiReqMem,
 		}
 	case bean.CD_WORKFLOW_PIPELINE_TYPE:
 		limitReqCpuMem = &bean.LimitReqCpuMem{

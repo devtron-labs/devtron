@@ -7,12 +7,12 @@ servers:
   - url: 'https'
 paths:
 #  send 404 responses if resource doesn't exist
-  /orchestrator/infra-config/profile/{id}:
+  /orchestrator/infra-config/profile/{name}:
     get:
-      description: Get Infra Profile by id
+      description: Get Infra Profile by name
       responses:
         "200":
-          description: gets the infra config profile by its id.
+          description: gets the infra config profile by its name.
           content:
             application/json:
               schema:
