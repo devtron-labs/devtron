@@ -1827,19 +1827,12 @@ func (impl *CdPipelineConfigServiceImpl) createCdPipeline(ctx context.Context, a
 	if err != nil {
 		return pipelineId, err
 	}
-	if pipeline.IsDigestEnforcedForPipeline {
-		_, err = impl.imageDigestPolicyService.CreatePolicyForPipelineIfNotExist(tx, pipeline.Id, userId)
-		if err != nil {
-			impl.logger.Errorw("error in imageDigestPolicy operations for CD pipeline", "err", err, "pipelineId", pipeline.Id)
-			return pipelineId, err
-		}
-	} else if !pipeline.IsDigestEnforcedForPipeline {
-		_, err = impl.imageDigestPolicyService.DeletePolicyForPipeline(tx, pipeline.Id, userId)
-		if err != nil {
-			impl.logger.Errorw("error in deleting imageDigestPolicy for pipeline", "err", err, "pipelineId", pipeline.Id)
-			return pipelineId, err
-		}
+
+	_, err = impl.handleImagePolicyDBOperations(tx, pipeline.Id, pipeline.IsDigestEnforcedForPipeline, userId)
+	if err != nil {
+		return pipelineId, err
 	}
+
 	err = tx.Commit()
 	if err != nil {
 		return 0, err
@@ -1963,24 +1956,34 @@ func (impl *CdPipelineConfigServiceImpl) updateCdPipeline(ctx context.Context, p
 		impl.logger.Errorw("error in updating custom tag data for pipeline", "err", err)
 		return err
 	}
-	if pipeline.IsDigestEnforcedForPipeline {
-		_, err = impl.imageDigestPolicyService.CreatePolicyForPipelineIfNotExist(tx, pipeline.Id, userID)
-		if err != nil {
-			impl.logger.Errorw("error in imageDigestPolicy operations for CD pipeline", "err", err, "pipelineId", pipeline.Id)
-			return err
-		}
-	} else if !pipeline.IsDigestEnforcedForPipeline {
-		_, err = impl.imageDigestPolicyService.DeletePolicyForPipeline(tx, pipeline.Id, userID)
-		if err != nil {
-			impl.logger.Errorw("error in deleting imageDigestPolicy for pipeline", "err", err, "pipelineId", pipeline.Id)
-			return err
-		}
+
+	_, err = impl.handleImagePolicyDBOperations(tx, pipeline.Id, pipeline.IsDigestEnforcedForPipeline, userID)
+	if err != nil {
+		return err
 	}
+
 	err = tx.Commit()
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+func (impl *CdPipelineConfigServiceImpl) handleImagePolicyDBOperations(tx *pg.Tx, pipelineId int, isDigestEnforcedForPipeline bool, userId int32) (resourceQualifierId int, err error) {
+	if isDigestEnforcedForPipeline {
+		resourceQualifierId, err = impl.imageDigestPolicyService.CreatePolicyForPipelineIfNotExist(tx, pipelineId, userId)
+		if err != nil {
+			impl.logger.Errorw("error in imageDigestPolicy operations for CD pipeline", "err", err, "pipelineId", pipelineId)
+			return 0, err
+		}
+	} else if !isDigestEnforcedForPipeline {
+		resourceQualifierId, err = impl.imageDigestPolicyService.DeletePolicyForPipeline(tx, pipelineId, userId)
+		if err != nil {
+			impl.logger.Errorw("error in deleting imageDigestPolicy for pipeline", "err", err, "pipelineId", pipelineId)
+			return 0, err
+		}
+	}
+	return resourceQualifierId, nil
 }
 
 func (impl *CdPipelineConfigServiceImpl) updateGitRepoUrlInCharts(appId int, chartGitAttribute *util.ChartGitAttribute, userId int32) error {
