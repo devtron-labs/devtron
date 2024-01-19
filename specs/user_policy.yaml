@@ -196,7 +196,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
   /user/bulk/status:
-    get:
+    put:
       summary: Bulk Update Status for Users
       description: bulk update status for users
       operationId: BulkUpdateStatusForUsers
@@ -216,6 +216,7 @@ paths:
                   example: [ 10, 14 ]
                 status:
                   type: string
+                  enum: ["active", "inactive"]
                   example: "active"
                 timeToLive:
                   type: string
