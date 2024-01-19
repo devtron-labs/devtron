@@ -3,8 +3,10 @@ package imageDigestPolicy
 import (
 	"errors"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"gopkg.in/go-playground/validator.v9"
 	"k8s.io/utils/strings/slices"
+	"time"
 )
 
 type imageDigestPolicy string
@@ -41,14 +43,6 @@ type ClusterDetail struct {
 	PolicyType     imageDigestPolicy `json:"policyType" validate:"validate-image-digest-policy-type"`
 }
 
-func ValidateImageDigestPolicyType(fl validator.FieldLevel) bool {
-	validPolicyType := []string{string(ALL_EXISTING_AND_FUTURE_ENVIRONMENTS), string(SPECIFIC_ENVIRONMENTS)}
-	if slices.Contains(validPolicyType, fl.Field().String()) {
-		return true
-	}
-	return false
-}
-
 type newPolicySaveRequest struct {
 	requestPolicies            *PolicyBean
 	existingConfiguredPolicies []*resourceQualifiers.QualifierMapping
@@ -59,4 +53,29 @@ type oldPolicyRemoveRequest struct {
 	newConfiguredClusters      map[ClusterId]bool
 	newConfiguredEnvs          map[EnvironmentId]bool
 	userId                     int32
+}
+
+func QualifierMappingDao(qualifierId, identifierKey, IdentifierValueInt int, userId int32) *resourceQualifiers.QualifierMapping {
+	return &resourceQualifiers.QualifierMapping{
+		ResourceId:         resourceQualifiers.ImageDigestResourceId,
+		ResourceType:       resourceQualifiers.ImageDigest,
+		QualifierId:        qualifierId,
+		IdentifierKey:      identifierKey,
+		IdentifierValueInt: IdentifierValueInt,
+		Active:             true,
+		AuditLog: sql.AuditLog{
+			CreatedOn: time.Now(),
+			CreatedBy: userId,
+			UpdatedOn: time.Now(),
+			UpdatedBy: userId,
+		},
+	}
+}
+
+func ValidateImageDigestPolicyType(fl validator.FieldLevel) bool {
+	validPolicyType := []string{string(ALL_EXISTING_AND_FUTURE_ENVIRONMENTS), string(SPECIFIC_ENVIRONMENTS)}
+	if slices.Contains(validPolicyType, fl.Field().String()) {
+		return true
+	}
+	return false
 }

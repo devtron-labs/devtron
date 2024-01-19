@@ -128,9 +128,9 @@ func (impl ImageDigestPolicyServiceImpl) CreateOrUpdatePolicyForCluster(policyRe
 		return nil, err
 	}
 	defer func() {
-		err = tx.Commit()
+		err = tx.Rollback()
 		if err != nil {
-			impl.logger.Errorw("error in commiting transaction", "err", err)
+			impl.logger.Errorw("error in transaction rollback", "err", err)
 			return
 		}
 	}()
@@ -139,7 +139,12 @@ func (impl ImageDigestPolicyServiceImpl) CreateOrUpdatePolicyForCluster(policyRe
 		err := impl.saveImageDigestPolicyForAllClusters(policyRequest.UserId, tx)
 		if err != nil {
 			impl.logger.Errorw("Error in saving image digest policy for all clusters", "err", err)
-			return nil, err
+			return policyRequest, err
+		}
+		err = tx.Commit()
+		if err != nil {
+			impl.logger.Errorw("error in commiting transaction", "err", err)
+			return policyRequest, err
 		}
 		return policyRequest, nil
 	}
@@ -173,6 +178,12 @@ func (impl ImageDigestPolicyServiceImpl) CreateOrUpdatePolicyForCluster(policyRe
 	if err != nil {
 		impl.logger.Errorw("error in deleting policies not present in request but present in DB", "err", err)
 		return nil, err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("error in commiting transaction", "err", err)
+		return policyRequest, err
 	}
 
 	return policyRequest, nil
