@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/caarlos0/env/v6"
 	k8s2 "github.com/devtron-labs/common-lib-private/utils/k8s"
+	k8s3 "github.com/devtron-labs/common-lib/utils/k8s"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -39,7 +40,7 @@ type UserTerminalAccessService interface {
 	StopTerminalSession(ctx context.Context, userTerminalAccessId int)
 	DisconnectTerminalSession(ctx context.Context, userTerminalAccessId int) error
 	DisconnectAllSessionsForUser(ctx context.Context, userId int32)
-	FetchPodManifest(ctx context.Context, userTerminalAccessId int) (resp *k8s2.ManifestResponse, err error)
+	FetchPodManifest(ctx context.Context, userTerminalAccessId int) (resp *k8s3.ManifestResponse, err error)
 	FetchPodEvents(ctx context.Context, userTerminalAccessId int) (*models.UserTerminalPodEvents, error)
 	ValidateShell(podName, namespace, shellName, containerName string, clusterId int) (bool, string, error)
 	EditTerminalPodManifest(ctx context.Context, request *models.UserTerminalSessionRequest, override bool) (ManifestEditResponse, error)
@@ -55,7 +56,7 @@ type UserTerminalAccessServiceImpl struct {
 	K8sCommonService             k8s.K8sCommonService
 	terminalSessionHandler       terminal.TerminalSessionHandler
 	K8sCapacityService           capacity.K8sCapacityService
-	k8sUtil                      *k8s2.K8sUtil
+	k8sUtil                      *k8s2.K8sUtilExtended
 }
 
 type UserTerminalAccessSessionData struct {
@@ -66,7 +67,7 @@ type UserTerminalAccessSessionData struct {
 }
 type ManifestEditResponse struct {
 	ErrorComments    string                 `json:"errors,omitempty"`
-	ManifestResponse *k8s2.ManifestResponse `json:"manifestResponse"`
+	ManifestResponse *k8s3.ManifestResponse `json:"manifestResponse"`
 	models.UserTerminalSessionResponse
 }
 
@@ -79,7 +80,7 @@ func GetTerminalAccessConfig() (*models.UserTerminalSessionConfig, error) {
 	return config, err
 }
 
-func NewUserTerminalAccessServiceImpl(logger *zap.SugaredLogger, terminalAccessRepository repository.TerminalAccessRepository, config *models.UserTerminalSessionConfig, k8sCommonService k8s.K8sCommonService, terminalSessionHandler terminal.TerminalSessionHandler, K8sCapacityService capacity.K8sCapacityService, k8sUtil *k8s2.K8sUtil) (*UserTerminalAccessServiceImpl, error) {
+func NewUserTerminalAccessServiceImpl(logger *zap.SugaredLogger, terminalAccessRepository repository.TerminalAccessRepository, config *models.UserTerminalSessionConfig, k8sCommonService k8s.K8sCommonService, terminalSessionHandler terminal.TerminalSessionHandler, K8sCapacityService capacity.K8sCapacityService, k8sUtil *k8s2.K8sUtilExtended) (*UserTerminalAccessServiceImpl, error) {
 	//fetches all running and starting entities from db and start SyncStatus
 	podStatusSyncCron := cron.New(cron.WithChain())
 	terminalAccessDataArrayMutex := &sync.RWMutex{}
@@ -726,8 +727,8 @@ func (impl *UserTerminalAccessServiceImpl) DeleteTerminalResource(ctx context.Co
 		impl.Logger.Errorw("error occurred while extracting data for gvk", "resourceTemplateString", resourceTemplateString, "err", err)
 		return err
 	}
-	k8sRequest := &k8s2.K8sRequestBean{
-		ResourceIdentifier: k8s2.ResourceIdentifier{
+	k8sRequest := &k8s3.K8sRequestBean{
+		ResourceIdentifier: k8s3.ResourceIdentifier{
 			Name:      terminalResourceName,
 			Namespace: namespace,
 			GroupVersionKind: schema.GroupVersionKind{
@@ -761,8 +762,8 @@ func (impl *UserTerminalAccessServiceImpl) applyTemplate(ctx context.Context, cl
 		impl.Logger.Errorw("error occurred while extracting data for gvk", "gvkDataString", gvkDataString, "err", err)
 		return err
 	}
-	k8sRequest := &k8s2.K8sRequestBean{
-		ResourceIdentifier: k8s2.ResourceIdentifier{
+	k8sRequest := &k8s3.K8sRequestBean{
+		ResourceIdentifier: k8s3.ResourceIdentifier{
 			Namespace: namespace,
 			GroupVersionKind: schema.GroupVersionKind{
 				Group:   groupVersionKind.Group,
@@ -822,7 +823,7 @@ func (impl *UserTerminalAccessServiceImpl) getPodStatus(ctx context.Context, clu
 	return status, nodeName, nil
 }
 
-func (impl *UserTerminalAccessServiceImpl) getPodManifest(ctx context.Context, clusterId int, podName string, namespace string) (*k8s2.ManifestResponse, error) {
+func (impl *UserTerminalAccessServiceImpl) getPodManifest(ctx context.Context, clusterId int, podName string, namespace string) (*k8s3.ManifestResponse, error) {
 	request, err := impl.getPodRequestBean(clusterId, podName, namespace)
 	if err != nil {
 		return nil, err
@@ -858,8 +859,8 @@ func (impl *UserTerminalAccessServiceImpl) getPodRequestBean(clusterId int, podN
 		AppIdentifier: &client.AppIdentifier{
 			ClusterId: clusterId,
 		},
-		K8sRequest: &k8s2.K8sRequestBean{
-			ResourceIdentifier: k8s2.ResourceIdentifier{
+		K8sRequest: &k8s3.K8sRequestBean{
+			ResourceIdentifier: k8s3.ResourceIdentifier{
 				Name:      podName,
 				Namespace: namespace,
 				GroupVersionKind: schema.GroupVersionKind{
@@ -909,7 +910,7 @@ func (impl *UserTerminalAccessServiceImpl) deleteClusterTerminalTemplates(ctx co
 	impl.DeleteTerminalResource(ctx, clusterId, templateName, templateData.TemplateData, namespace)
 }
 
-func (impl *UserTerminalAccessServiceImpl) FetchPodManifest(ctx context.Context, userTerminalAccessId int) (resp *k8s2.ManifestResponse, err error) {
+func (impl *UserTerminalAccessServiceImpl) FetchPodManifest(ctx context.Context, userTerminalAccessId int) (resp *k8s3.ManifestResponse, err error) {
 	terminalAccessData, err := impl.getTerminalAccessDataForId(userTerminalAccessId)
 	if err != nil {
 		return nil, errors.New("unable to fetch manifest")
@@ -986,7 +987,7 @@ func (impl *UserTerminalAccessServiceImpl) EditTerminalPodManifest(ctx context.C
 
 	result := ManifestEditResponse{}
 
-	manifestResponse := &k8s2.ManifestResponse{}
+	manifestResponse := &k8s3.ManifestResponse{}
 	manifestMap := map[string]interface{}{}
 	err := json.Unmarshal([]byte(manifestRequest), &manifestMap)
 	if err != nil {

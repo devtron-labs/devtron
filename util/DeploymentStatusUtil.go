@@ -1,7 +1,7 @@
 package util
 
 import (
-	"github.com/devtron-labs/common-lib-private/utils/k8s/health"
+	"github.com/devtron-labs/common-lib/utils/k8s/health"
 )
 
 const (

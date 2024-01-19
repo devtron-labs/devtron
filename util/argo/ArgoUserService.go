@@ -51,10 +51,10 @@ type ArgoUserServiceImpl struct {
 	gitOpsRepository        repository.GitOpsConfigRepository
 	argoCDConnectionManager connection.ArgoCDConnectionManager
 	versionService          argocdServer.VersionService
-	k8sUtil                 *k8s.K8sUtil
+	k8sUtil                 *k8s.K8sUtilExtended
 }
 
-func NewArgoUserServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.ClusterService, devtronSecretConfig *util2.DevtronSecretConfig, runTimeConfig *client.RuntimeConfig, gitOpsRepository repository.GitOpsConfigRepository, argoCDConnectionManager connection.ArgoCDConnectionManager, versionService argocdServer.VersionService, k8sUtil *k8s.K8sUtil) (*ArgoUserServiceImpl, error) {
+func NewArgoUserServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.ClusterService, devtronSecretConfig *util2.DevtronSecretConfig, runTimeConfig *client.RuntimeConfig, gitOpsRepository repository.GitOpsConfigRepository, argoCDConnectionManager connection.ArgoCDConnectionManager, versionService argocdServer.VersionService, k8sUtil *k8s.K8sUtilExtended) (*ArgoUserServiceImpl, error) {
 	argoUserServiceImpl := &ArgoUserServiceImpl{
 		logger:                  Logger,
 		clusterService:          clusterService,

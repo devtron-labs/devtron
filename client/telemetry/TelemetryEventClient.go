@@ -10,6 +10,7 @@ import (
 
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/common-lib-private/utils/k8s"
+	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -46,7 +47,7 @@ type TelemetryEventClientImpl struct {
 	logger                   *zap.SugaredLogger
 	client                   *http.Client
 	clusterService           cluster.ClusterService
-	K8sUtil                  *k8s.K8sUtil
+	K8sUtil                  *k8s.K8sUtilExtended
 	aCDAuthConfig            *util3.ACDAuthConfig
 	userService              user.UserService
 	attributeRepo            repository.AttributesRepository
@@ -70,7 +71,7 @@ type TelemetryEventClient interface {
 }
 
 func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client, clusterService cluster.ClusterService,
-	K8sUtil *k8s.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig, userService user.UserService,
+	K8sUtil *k8s.K8sUtilExtended, aCDAuthConfig *util3.ACDAuthConfig, userService user.UserService,
 	attributeRepo repository.AttributesRepository, ssoLoginService sso.SSOLoginService,
 	PosthogClient *PosthogClient, moduleRepository moduleRepo.ModuleRepository, serverDataStore *serverDataStore.ServerDataStore, userAuditService user.UserAuditService, helmAppClient client.HelmAppClient, InstalledAppRepository repository2.InstalledAppRepository) (*TelemetryEventClientImpl, error) {
 	cron := cron.New(
@@ -224,7 +225,7 @@ func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cl
 		req := &client.AppListRequest{}
 		config := &client.ClusterConfig{
 			ApiServerUrl:           clusterDetail.ServerUrl,
-			Token:                  clusterDetail.Config[k8s.BearerToken],
+			Token:                  clusterDetail.Config[k8s2.BearerToken],
 			ClusterId:              int32(clusterDetail.Id),
 			ClusterName:            clusterDetail.ClusterName,
 			InsecureSkipTLSVerify:  clusterDetail.InsecureSkipTLSVerify,
@@ -238,9 +239,9 @@ func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cl
 			config.SshTunnelServerAddress = clusterDetail.SSHTunnelConfig.SSHServerAddress
 		}
 		if clusterDetail.InsecureSkipTLSVerify == false {
-			config.KeyData = clusterDetail.Config[k8s.TlsKey]
-			config.CertData = clusterDetail.Config[k8s.CertData]
-			config.CaData = clusterDetail.Config[k8s.CertificateAuthorityData]
+			config.KeyData = clusterDetail.Config[k8s2.TlsKey]
+			config.CertData = clusterDetail.Config[k8s2.CertData]
+			config.CaData = clusterDetail.Config[k8s2.CertificateAuthorityData]
 		}
 		req.Clusters = append(req.Clusters, config)
 		applicationStream, err := impl.helmAppClient.ListApplication(context.Background(), req)

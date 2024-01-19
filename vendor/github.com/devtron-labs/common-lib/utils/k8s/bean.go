@@ -2,7 +2,7 @@ package k8s
 
 import (
 	"fmt"
-	"github.com/devtron-labs/common-lib-private/utils/k8sObjectsUtil"
+	"github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
 	v1 "k8s.io/api/core/v1"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -25,6 +25,24 @@ const (
 	DEVTRON_APP_LABEL_VALUE1 = "devtron"
 	DEVTRON_APP_LABEL_VALUE2 = "orchestrator"
 )
+
+type ClusterConfig struct {
+	ClusterName                     string
+	Host                            string
+	BearerToken                     string
+	InsecureSkipTLSVerify           bool
+	KeyData                         string
+	CertData                        string
+	CAData                          string
+	ClusterId                       int
+	ProxyUrl                        string
+	ToConnectForClusterVerification bool
+	ToConnectWithSSHTunnel          bool
+	SSHTunnelUser                   string
+	SSHTunnelPassword               string
+	SSHTunnelAuthKey                string
+	SSHTunnelServerAddress          string
+}
 
 type ClusterResourceListMap struct {
 	Headers       []string                 `json:"headers"`

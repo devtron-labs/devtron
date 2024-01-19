@@ -25,7 +25,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/devtron-labs/common-lib-private/utils/k8sObjectsUtil"
+	"github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/api/restHandler/common"

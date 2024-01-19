@@ -22,7 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/devtron-labs/common-lib-private/pubsub-lib/model"
+	"github.com/devtron-labs/common-lib/pubsub-lib/model"
 	"k8s.io/utils/pointer"
 	"time"
 
@@ -33,7 +33,7 @@ import (
 	"k8s.io/utils/strings/slices"
 
 	v1alpha12 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	pubsub "github.com/devtron-labs/common-lib-private/pubsub-lib"
+	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
 	"github.com/devtron-labs/devtron/pkg/pipeline"

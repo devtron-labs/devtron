@@ -2,7 +2,7 @@ package health
 
 import (
 	"fmt"
-	"github.com/devtron-labs/common-lib-private/utils/k8s/commonBean"
+	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 
 	batchv1 "k8s.io/api/batch/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"

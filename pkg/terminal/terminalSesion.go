@@ -382,12 +382,12 @@ type TerminalSessionHandlerImpl struct {
 	environmentService        cluster.EnvironmentService
 	clusterService            cluster.ClusterService
 	logger                    *zap.SugaredLogger
-	k8sUtil                   *k8s.K8sUtil
+	k8sUtil                   *k8s.K8sUtilExtended
 	ephemeralContainerService cluster.EphemeralContainerService
 }
 
 func NewTerminalSessionHandlerImpl(environmentService cluster.EnvironmentService, clusterService cluster.ClusterService,
-	logger *zap.SugaredLogger, k8sUtil *k8s.K8sUtil, ephemeralContainerService cluster.EphemeralContainerService) *TerminalSessionHandlerImpl {
+	logger *zap.SugaredLogger, k8sUtil *k8s.K8sUtilExtended, ephemeralContainerService cluster.EphemeralContainerService) *TerminalSessionHandlerImpl {
 	return &TerminalSessionHandlerImpl{
 		environmentService:        environmentService,
 		clusterService:            clusterService,

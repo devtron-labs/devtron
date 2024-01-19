@@ -9,9 +9,9 @@ import (
 	"strconv"
 	"strings"
 
-	util3 "github.com/devtron-labs/common-lib-private/utils/k8s"
-	k8sCommonBean "github.com/devtron-labs/common-lib-private/utils/k8s/commonBean"
-	"github.com/devtron-labs/common-lib-private/utils/k8sObjectsUtil"
+	util4 "github.com/devtron-labs/common-lib/utils/k8s"
+	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
+	"github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/connector"
 	client "github.com/devtron-labs/devtron/api/helm-app"
@@ -854,7 +854,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetResourceList(w http.ResponseWri
 
 func (handler *K8sApplicationRestHandlerImpl) ApplyResources(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
-	var request util3.ApplyResourcesRequest
+	var request util4.ApplyResourcesRequest
 	token := r.Header.Get("token")
 	err := decoder.Decode(&request)
 	if err != nil {
@@ -872,13 +872,13 @@ func (handler *K8sApplicationRestHandlerImpl) ApplyResources(w http.ResponseWrit
 	common.WriteJsonResp(w, nil, response, http.StatusOK)
 }
 
-func (handler *K8sApplicationRestHandlerImpl) getRbacCallbackForResource(token string, casbinAction string) func(clusterName string, resourceIdentifier util3.ResourceIdentifier) bool {
-	return func(clusterName string, resourceIdentifier util3.ResourceIdentifier) bool {
+func (handler *K8sApplicationRestHandlerImpl) getRbacCallbackForResource(token string, casbinAction string) func(clusterName string, resourceIdentifier util4.ResourceIdentifier) bool {
+	return func(clusterName string, resourceIdentifier util4.ResourceIdentifier) bool {
 		return handler.verifyRbacForResource(token, clusterName, resourceIdentifier, casbinAction)
 	}
 }
 
-func (handler *K8sApplicationRestHandlerImpl) verifyRbacForResource(token string, clusterName string, resourceIdentifier util3.ResourceIdentifier, casbinAction string) bool {
+func (handler *K8sApplicationRestHandlerImpl) verifyRbacForResource(token string, clusterName string, resourceIdentifier util4.ResourceIdentifier, casbinAction string) bool {
 	resourceName, objectName := handler.enforcerUtil.GetRBACNameForClusterEntity(clusterName, resourceIdentifier)
 	return handler.enforcer.Enforce(token, strings.ToLower(resourceName), casbinAction, objectName)
 }

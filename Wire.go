@@ -22,8 +22,8 @@ package main
 
 import (
 	"github.com/devtron-labs/authenticator/middleware"
-	pubsub1 "github.com/devtron-labs/common-lib-private/pubsub-lib"
 	util4 "github.com/devtron-labs/common-lib-private/utils/k8s"
+	pubsub1 "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/api/apiToken"
 	appStoreRestHandler "github.com/devtron-labs/devtron/api/appStore"
 	chartProvider "github.com/devtron-labs/devtron/api/appStore/chartProvider"
@@ -69,6 +69,7 @@ import (
 	"github.com/devtron-labs/devtron/client/grafana"
 	jClient "github.com/devtron-labs/devtron/client/jira"
 	"github.com/devtron-labs/devtron/client/lens"
+	"github.com/devtron-labs/devtron/client/proxy"
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/enterprise/api/drafts"
 	"github.com/devtron-labs/devtron/enterprise/api/globalTag"
@@ -150,11 +151,12 @@ func InitializeApp() (*App, error) {
 		externalLink.ExternalLinkWireSet,
 		team.TeamsWireSet,
 		AuthWireSet,
-		util4.NewK8sUtil,
+		util4.NewK8sUtilExtended,
 		user.UserWireSet,
 		sso.SsoConfigWireSet,
 		cluster.ClusterWireSet,
 		dashboard.DashboardWireSet,
+		proxy.ProxyWireSet,
 		client.HelmAppWireSet,
 		k8s.K8sApplicationWireSet,
 		chartRepo.ChartRepositoryWireSet,

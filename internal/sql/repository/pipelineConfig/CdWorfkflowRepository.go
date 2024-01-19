@@ -21,7 +21,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/devtron-labs/common-lib-private/utils/k8s/health"
+	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/gitSensor"
@@ -183,7 +183,7 @@ type CdWorkflowRunner struct {
 	RefCdWorkflowRunnerId       int                  `sql:"ref_cd_workflow_runner_id,notnull"`
 	HelmReferenceChart          []byte               `sql:""`
 	ImagePathReservationIds     []int                `sql:"image_path_reservation_ids" pg:",array,notnull"`
-	ReferenceId             *string              `sql:"reference_id"`
+	ReferenceId                 *string              `sql:"reference_id"`
 	CdWorkflow                  *CdWorkflow
 	DeploymentApprovalRequest   *DeploymentApprovalRequest
 	sql.AuditLog

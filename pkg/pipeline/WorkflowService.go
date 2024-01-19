@@ -24,6 +24,7 @@ import (
 	v1alpha12 "github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned/typed/workflow/v1alpha1"
 	"github.com/argoproj/argo-workflows/v3/workflow/util"
 	"github.com/devtron-labs/common-lib-private/utils/k8s"
+	k8s3 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	util2 "github.com/devtron-labs/devtron/internal/util"
@@ -66,7 +67,7 @@ type WorkflowServiceImpl struct {
 	globalCMCSService      GlobalCMCSService
 	argoWorkflowExecutor   executors.ArgoWorkflowExecutor
 	systemWorkflowExecutor executors.SystemWorkflowExecutor
-	k8sUtil                *k8s.K8sUtil
+	k8sUtil                *k8s.K8sUtilExtended
 	k8sCommonService       k8s2.K8sCommonService
 	refChartDir            chartRepoRepository.RefChartDir
 	chartTemplateService   util2.ChartTemplateService
@@ -77,7 +78,7 @@ type WorkflowServiceImpl struct {
 
 func NewWorkflowServiceImpl(Logger *zap.SugaredLogger, envRepository repository.EnvironmentRepository, ciCdConfig *types.CiCdConfig,
 	appService app.AppService, globalCMCSService GlobalCMCSService, argoWorkflowExecutor executors.ArgoWorkflowExecutor,
-	k8sUtil *k8s.K8sUtil,
+	k8sUtil *k8s.K8sUtilExtended,
 	systemWorkflowExecutor executors.SystemWorkflowExecutor, k8sCommonService k8s2.K8sCommonService, refChartDir chartRepoRepository.RefChartDir, chartTemplateService util2.ChartTemplateService,
 	mergeUtil *util2.MergeUtil) (*WorkflowServiceImpl, error) {
 	commonWorkflowService := &WorkflowServiceImpl{Logger: Logger,
@@ -191,8 +192,8 @@ func (impl *WorkflowServiceImpl) getClusterConfig(workflowRequest *types.Workflo
 	env := workflowRequest.Env
 	if workflowRequest.IsExtRun {
 		configMap := env.Cluster.Config
-		bearerToken := configMap[k8s.BearerToken]
-		clusterConfig := &k8s.ClusterConfig{
+		bearerToken := configMap[k8s3.BearerToken]
+		clusterConfig := &k8s3.ClusterConfig{
 			ClusterName:           env.Cluster.ClusterName,
 			BearerToken:           bearerToken,
 			Host:                  env.Cluster.ServerUrl,

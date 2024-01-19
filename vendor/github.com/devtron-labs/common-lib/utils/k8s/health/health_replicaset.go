@@ -2,7 +2,7 @@ package health
 
 import (
 	"fmt"
-	"github.com/devtron-labs/common-lib-private/utils/k8s/commonBean"
+	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
