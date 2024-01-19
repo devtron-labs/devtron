@@ -1623,13 +1623,13 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			return nil, fmt.Errorf("unsupported workflow triggerd")
 		}
 	}
-	isDigestPolicyConfiguredForPipeline, err := impl.imageDigestPolicyService.IsPolicyConfiguredForPipeline(cdPipeline.Id)
+	isDigestPolicyConfigured, err := impl.imageDigestPolicyService.IsPolicyConfiguredForPipeline(cdPipeline.Id)
 	if err != nil {
-		impl.logger.Errorw("Error in checking if isDigestPolicyConfiguredForPipeline", "err", err)
+		impl.logger.Errorw("Error in checking if isDigestPolicyConfiguredForPipeline", "err", err, "pipelineId", cdPipeline.Id)
 		return nil, err
 	}
 	image := artifact.Image
-	if isDigestPolicyConfiguredForPipeline {
+	if isDigestPolicyConfigured {
 		image = ReplaceImageTagWithDigest(image, artifact.ImageDigest)
 	}
 	cdStageWorkflowRequest := &types.WorkflowRequest{
