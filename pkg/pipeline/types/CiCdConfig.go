@@ -65,6 +65,8 @@ type CiCdConfig struct {
 	SkipCreatingEcrRepo              bool                                `env:"SKIP_CREATING_ECR_REPO" envDefault:"false"`
 	MaxCiWorkflowRetries             int                                 `env:"MAX_CI_WORKFLOW_RETRIES" envDefault:"0"`
 	NatsServerHost                   string                              `env:"NATS_SERVER_HOST" envDefault:"nats://devtron-nats.devtroncd:4222"`
+	ImageScanMaxRetries              int                                 `env:"IMAGE_SCAN_MAX_RETRIES" envDefault:"3"`
+	ImageScanRetryDelay              int                                 `env:"IMAGE_SCAN_RETRY_DELAY" envDefault:"5"`
 	// from CdConfig
 	CdLimitCpu                       string                              `env:"CD_LIMIT_CI_CPU" envDefault:"0.5"`
 	CdLimitMem                       string                              `env:"CD_LIMIT_CI_MEM" envDefault:"3G"`
