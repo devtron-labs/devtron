@@ -70,27 +70,26 @@ func (repo *QualifiersMappingRepositoryImpl) GetQualifierMappings(resourceType R
 }
 
 func (repo *QualifiersMappingRepositoryImpl) DeleteAllQualifierMappings(resourceType ResourceType, auditLog sql.AuditLog, tx *pg.Tx) error {
-	_, err := tx.Model(&QualifierMapping{}).
-		Set("updated_by = ?", auditLog.UpdatedBy).
-		Set("updated_on = ?", auditLog.UpdatedOn).
-		Set("active = ?", false).
-		Where("active = ?", true).
-		Where("resource_type = ?", resourceType).
+	_, err := repo.getQualifierMappingDeleteQuery(resourceType, tx, auditLog).
 		Update()
 	return err
 }
 
 func (repo *QualifiersMappingRepositoryImpl) DeleteByResourceTypeIdentifierKeyAndValue(resourceType ResourceType, identifierKey int, identifierValue int, auditLog sql.AuditLog, tx *pg.Tx) error {
-	_, err := tx.Model(&QualifierMapping{}).
-		Set("updated_by = ?", auditLog.UpdatedBy).
-		Set("updated_on = ?", auditLog.UpdatedOn).
-		Set("active = ?", false).
-		Where("active = ?", true).
-		Where("resource_type = ? ", resourceType).
+	_, err := repo.getQualifierMappingDeleteQuery(resourceType, tx, auditLog).
 		Where("identifier_key = ?", identifierKey).
 		Where("identifier_value_int = ?", identifierValue).
 		Update()
 	return err
+}
+
+func (repo *QualifiersMappingRepositoryImpl) getQualifierMappingDeleteQuery(resourceType ResourceType, tx *pg.Tx, auditLog sql.AuditLog) *orm.Query {
+	return tx.Model(&QualifierMapping{}).
+		Set("updated_by = ?", auditLog.UpdatedBy).
+		Set("updated_on = ?", auditLog.UpdatedOn).
+		Set("active = ?", false).
+		Where("active = ?", true).
+		Where("resource_type = ? ", resourceType)
 }
 
 func (repo *QualifiersMappingRepositoryImpl) GetDbConnection() *pg.DB {

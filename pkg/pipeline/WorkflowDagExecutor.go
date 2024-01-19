@@ -1623,13 +1623,15 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			return nil, fmt.Errorf("unsupported workflow triggerd")
 		}
 	}
-	isDigestPolicyConfigured, err := impl.imageDigestPolicyService.IsPolicyConfiguredForPipeline(cdPipeline.Id)
+
+	digestConfigurationRequest := imageDigestPolicy.DigestPolicyConfigurationRequest{PipelineId: cdPipeline.Id}
+	digestPolicyConfigurations, err := impl.imageDigestPolicyService.GetDigestPolicyConfigurations(digestConfigurationRequest)
 	if err != nil {
-		impl.logger.Errorw("Error in checking if isDigestPolicyConfiguredForPipeline", "err", err, "pipelineId", cdPipeline.Id)
+		impl.logger.Errorw("error in checking if isImageDigestPolicyConfiguredForPipeline", "err", err)
 		return nil, err
 	}
 	image := artifact.Image
-	if isDigestPolicyConfigured {
+	if digestPolicyConfigurations.DigestConfiguredForPipeline {
 		image = ReplaceImageTagWithDigest(image, artifact.ImageDigest)
 	}
 	cdStageWorkflowRequest := &types.WorkflowRequest{
@@ -4129,13 +4131,14 @@ func (impl *WorkflowDagExecutorImpl) getReleaseOverride(envOverride *chartConfig
 		deploymentStrategy = string(strategy.Strategy)
 	}
 
-	isDigestPolicyConfiguredForPipeline, err := impl.imageDigestPolicyService.IsPolicyConfiguredForPipeline(overrideRequest.PipelineId)
+	digestConfigurationRequest := imageDigestPolicy.DigestPolicyConfigurationRequest{PipelineId: overrideRequest.PipelineId}
+	digestPolicyConfigurations, err := impl.imageDigestPolicyService.GetDigestPolicyConfigurations(digestConfigurationRequest)
 	if err != nil {
-		impl.logger.Errorw("Error in checking if isDigestPolicyConfiguredForPipeline", "err", err)
+		impl.logger.Errorw("error in checking if isImageDigestPolicyConfiguredForPipeline", "err", err)
 		return "", err
 	}
 
-	if isDigestPolicyConfiguredForPipeline {
+	if digestPolicyConfigurations.DigestConfiguredForPipeline {
 		imageTag[imageTagLen-1] = fmt.Sprintf("%s@%s", imageTag[imageTagLen-1], artifact.ImageDigest)
 	}
 
