@@ -1062,7 +1062,7 @@ func (impl *CiHandlerImpl) GetHistoricBuildLogs(pipelineId int, workflowId int, 
 	return resp, err
 }
 
-func (impl *CiHandlerImpl) extractWorkfowStatus(workflowStatus v1alpha1.WorkflowStatus) (string, string, string, string, string, string) {
+func ExtractWorkflowStatus(workflowStatus v1alpha1.WorkflowStatus) (string, string, string, string, string, string) {
 	workflowName := ""
 	status := string(workflowStatus.Phase)
 	podStatus := ""
@@ -1071,7 +1071,6 @@ func (impl *CiHandlerImpl) extractWorkfowStatus(workflowStatus v1alpha1.Workflow
 	logLocation := ""
 	for k, v := range workflowStatus.Nodes {
 		if v.TemplateName == bean3.CI_WORKFLOW_NAME {
-			impl.Logger.Infow("extractWorkflowStatus", "workflowName", k, "v", v)
 			if v.BoundaryID == "" {
 				workflowName = k
 			} else {
@@ -1096,7 +1095,7 @@ func (impl *CiHandlerImpl) extractWorkfowStatus(workflowStatus v1alpha1.Workflow
 const CiStageFailErrorCode = 2
 
 func (impl *CiHandlerImpl) extractPodStatusAndWorkflow(workflowStatus v1alpha1.WorkflowStatus) (string, string, *pipelineConfig.CiWorkflow, error) {
-	workflowName, status, _, message, _, _ := impl.extractWorkfowStatus(workflowStatus)
+	workflowName, status, _, message, _, _ := ExtractWorkflowStatus(workflowStatus)
 	if workflowName == "" {
 		impl.Logger.Errorw("extract workflow status, invalid wf name", "workflowName", workflowName, "status", status, "message", message)
 		return status, message, nil, errors.New("invalid wf name")
@@ -1132,7 +1131,7 @@ func (impl *CiHandlerImpl) getRefWorkflowAndCiRetryCount(savedWorkflow *pipeline
 }
 
 func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus) (int, error) {
-	workflowName, status, podStatus, message, _, podName := impl.extractWorkfowStatus(workflowStatus)
+	workflowName, status, podStatus, message, _, podName := ExtractWorkflowStatus(workflowStatus)
 	if workflowName == "" {
 		impl.Logger.Errorw("extract workflow status, invalid wf name", "workflowName", workflowName, "status", status, "podStatus", podStatus, "message", message)
 		return 0, errors.New("invalid wf name")
