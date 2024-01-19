@@ -18,6 +18,7 @@
 package notifier
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/enterprise/pkg/drafts"
@@ -997,7 +998,7 @@ func (impl *NotificationConfigServiceImpl) getEnvAndAppName(envId int, appId int
 func (impl *NotificationConfigServiceImpl) PerformApprovalActionAndGetMetadata(deploymentApprovalRequest apiToken.DeploymentApprovalRequest, approvalActionRequest bean.UserApprovalActionRequest, pipelineInfo *pipelineConfig.Pipeline) (*client.DeploymentApprovalResponse, error) {
 	var approvalState bean.ApprovalState
 	var resp *client.DeploymentApprovalResponse
-	err := impl.cdHandler.PerformDeploymentApprovalAction(deploymentApprovalRequest.UserId, approvalActionRequest)
+	err := impl.cdHandler.PerformDeploymentApprovalAction(pipeline.TriggerContext{Context: context.Background()}, deploymentApprovalRequest.UserId, approvalActionRequest)
 	if err != nil {
 		validationErr, ok := err.(*bean.DeploymentApprovalValidationError)
 		if ok {

@@ -30,6 +30,8 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/util"
 	"go.uber.org/zap"
+	"gopkg.in/go-playground/validator.v9"
+	"k8s.io/utils/pointer"
 	"time"
 )
 
@@ -53,6 +55,7 @@ type CiEventHandlerImpl struct {
 	logger         *zap.SugaredLogger
 	pubsubClient   *pubsub.PubSubClientServiceImpl
 	webhookService pipeline.WebhookService
+	validator      *validator.Validate
 	ciEventConfig  *CiEventConfig
 }
 
@@ -80,11 +83,12 @@ type CiCompleteEvent struct {
 	PluginArtifactStage           string                   `json:"pluginArtifactStage"`
 }
 
-func NewCiEventHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSubClientServiceImpl, webhookService pipeline.WebhookService, ciEventConfig *CiEventConfig) *CiEventHandlerImpl {
+func NewCiEventHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSubClientServiceImpl, webhookService pipeline.WebhookService, validator *validator.Validate, ciEventConfig *CiEventConfig) *CiEventHandlerImpl {
 	ciEventHandlerImpl := &CiEventHandlerImpl{
 		logger:         logger,
 		pubsubClient:   pubsubClient,
 		webhookService: webhookService,
+		validator:      validator,
 		ciEventConfig:  ciEventConfig,
 	}
 	err := ciEventHandlerImpl.Subscribe()
@@ -97,8 +101,6 @@ func NewCiEventHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSu
 
 func (impl *CiEventHandlerImpl) Subscribe() error {
 	callback := func(msg *model.PubSubMsg) {
-		impl.logger.Debugw("ci complete event received")
-		//defer msg.Ack()
 		ciCompleteEvent := CiCompleteEvent{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &ciCompleteEvent)
 		if err != nil {
@@ -109,6 +111,10 @@ func (impl *CiEventHandlerImpl) Subscribe() error {
 		req, err := impl.BuildCiArtifactRequest(ciCompleteEvent)
 		if err != nil {
 			return
+		}
+
+		triggerContext := pipeline.TriggerContext{
+			ReferenceId: pointer.String(msg.MsgId),
 		}
 
 		if ciCompleteEvent.FailureReason != "" {
@@ -133,10 +139,8 @@ func (impl *CiEventHandlerImpl) Subscribe() error {
 						impl.logger.Error("Error while creating request for pipelineID", "pipelineId", ciCompleteEvent.PipelineId, "err", err)
 						return
 					}
-					resp, err := impl.webhookService.HandleCiSuccessEvent(ciCompleteEvent.PipelineId, request, detail.ImagePushedAt)
+					resp, err := impl.ValidateAndHandleCiSuccessEvent(triggerContext, ciCompleteEvent.PipelineId, request, detail.ImagePushedAt)
 					if err != nil {
-						impl.logger.Error("Error while sending event for CI success for pipelineID", "pipelineId",
-							ciCompleteEvent.PipelineId, "request", request, "err", err)
 						return
 					}
 					impl.logger.Debug("response of handle ci success event for multiple images from plugin", "resp", resp)
@@ -145,21 +149,46 @@ func (impl *CiEventHandlerImpl) Subscribe() error {
 
 		} else {
 			util.TriggerCIMetrics(ciCompleteEvent.Metrics, impl.ciEventConfig.ExposeCiMetrics, ciCompleteEvent.PipelineName, ciCompleteEvent.AppName)
-			resp, err := impl.webhookService.HandleCiSuccessEvent(ciCompleteEvent.PipelineId, req, &time.Time{})
+			resp, err := impl.ValidateAndHandleCiSuccessEvent(triggerContext, ciCompleteEvent.PipelineId, req, &time.Time{})
 			if err != nil {
-				impl.logger.Error("Error while sending event for CI success for pipelineID: ",
-					ciCompleteEvent.PipelineId, "request: ", req, "error: ", err)
 				return
 			}
 			impl.logger.Debug(resp)
 		}
 	}
-	err := impl.pubsubClient.Subscribe(pubsub.CI_COMPLETE_TOPIC, callback)
+
+	// add required logging here
+	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) (string, []interface{}) {
+		ciCompleteEvent := CiCompleteEvent{}
+		err := json.Unmarshal([]byte(string(msg.Data)), &ciCompleteEvent)
+		if err != nil {
+			return "error while unmarshalling json data", []interface{}{"error", err}
+		}
+		return "got message for ci-completion", []interface{}{"ciPipelineId", ciCompleteEvent.PipelineId, "workflowId", ciCompleteEvent.WorkflowId}
+	}
+
+	validations := impl.webhookService.GetTriggerValidateFuncs()
+	err := impl.pubsubClient.Subscribe(pubsub.CI_COMPLETE_TOPIC, callback, loggerFunc, validations...)
 	if err != nil {
 		impl.logger.Error(err)
 		return err
 	}
 	return nil
+}
+
+func (impl *CiEventHandlerImpl) ValidateAndHandleCiSuccessEvent(triggerContext pipeline.TriggerContext, ciPipelineId int, request *pipeline.CiArtifactWebhookRequest, imagePushedAt *time.Time) (int, error) {
+	validationErr := impl.validator.Struct(request)
+	if validationErr != nil {
+		impl.logger.Errorw("validation err, HandleCiSuccessEvent", "err", validationErr, "payload", request)
+		return 0, validationErr
+	}
+	buildArtifactId, err := impl.webhookService.HandleCiSuccessEvent(triggerContext, ciPipelineId, request, imagePushedAt)
+	if err != nil {
+		impl.logger.Error("Error while sending event for CI success for pipelineID",
+			ciPipelineId, "request", request, "error", err)
+		return 0, err
+	}
+	return buildArtifactId, nil
 }
 
 func (impl *CiEventHandlerImpl) BuildCiArtifactRequest(event CiCompleteEvent) (*pipeline.CiArtifactWebhookRequest, error) {
@@ -228,6 +257,10 @@ func (impl *CiEventHandlerImpl) BuildCiArtifactRequest(event CiCompleteEvent) (*
 		PluginRegistryArtifactDetails: event.PluginRegistryArtifactDetails,
 		PluginArtifactStage:           event.PluginArtifactStage,
 	}
+	// if DataSource is empty, repository.WEBHOOK is considered as default
+	if request.DataSource == "" {
+		request.DataSource = repository.WEBHOOK
+	}
 	return request, nil
 }
 
@@ -243,6 +276,9 @@ func (impl *CiEventHandlerImpl) BuildCIArtifactRequestForImageFromCR(imageDetail
 		UserId:             event.TriggeredBy,
 		WorkflowId:         &workflowId,
 		IsArtifactUploaded: event.IsArtifactUploaded,
+	}
+	if request.DataSource == "" {
+		request.DataSource = repository.WEBHOOK
 	}
 	return request, nil
 }
@@ -313,6 +349,10 @@ func (impl *CiEventHandlerImpl) BuildCiArtifactRequestForWebhook(event CiComplet
 		UserId:             event.TriggeredBy,
 		WorkflowId:         event.WorkflowId,
 		IsArtifactUploaded: event.IsArtifactUploaded,
+	}
+	// if DataSource is empty, repository.WEBHOOK is considered as default
+	if request.DataSource == "" {
+		request.DataSource = repository.WEBHOOK
 	}
 	return request, nil
 }

@@ -37,7 +37,7 @@ const DefaultMinArtifactCount = 10
 type DeploymentHistoryResp struct {
 	CdWorkflows                []bean3.CdWorkflowWithArtifact `json:"cdWorkflows"`
 	TagsEdiatable              bool                           `json:"tagsEditable"`
-	AppReleaseTagNames         []string                       `json:"appReleaseTagNames"` //unique list of tags exists in the app
+	AppReleaseTagNames         []string                       `json:"appReleaseTagNames"` // unique list of tags exists in the app
 	HideImageTaggingHardDelete bool                           `json:"hideImageTaggingHardDelete"`
 }
 type DevtronAppDeploymentRestHandler interface {
@@ -120,7 +120,7 @@ func (handler PipelineConfigRestHandlerImpl) ConfigureDeploymentTemplateForApp(w
 		return
 	}
 	chartRefId := templateRequest.ChartRefId
-	//VARIABLE_RESOLVE
+	// VARIABLE_RESOLVE
 	scope := resourceQualifiers.Scope{
 		AppId: templateRequest.AppId,
 	}
@@ -220,7 +220,7 @@ func (handler PipelineConfigRestHandlerImpl) CreateCdPipeline(w http.ResponseWri
 		common.WriteJsonResp(w, fmt.Errorf("cannot create cd-pipeline for job"), "cannot create cd-pipeline for job", http.StatusBadRequest)
 		return
 	}
-	//RBAC
+	// RBAC
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceName); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
@@ -236,7 +236,7 @@ func (handler PipelineConfigRestHandlerImpl) CreateCdPipeline(w http.ResponseWri
 			}
 		}
 	}
-	//RBAC
+	// RBAC
 	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
 	if err != nil {
 		handler.Logger.Errorw("error in getting acd token", "err", err)
@@ -600,7 +600,7 @@ func (handler PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWrite
 		return
 	}
 
-	//VARIABLE_RESOLVE
+	// VARIABLE_RESOLVE
 	scope := resourceQualifiers.Scope{
 		AppId:     request.AppId,
 		EnvId:     request.EnvId,
@@ -729,7 +729,7 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideCreate(w http.Resp
 	}
 
 	chartRefId := envConfigProperties.ChartRefId
-	//VARIABLE_RESOLVE
+	// VARIABLE_RESOLVE
 	scope := resourceQualifiers.Scope{
 		AppId:     appId,
 		EnvId:     environmentId,
@@ -799,7 +799,7 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideCreate(w http.Resp
 
 func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideUpdate(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
-	//userId := getLoggedInUser(r)
+	// userId := getLoggedInUser(r)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -846,7 +846,7 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideUpdate(w http.Resp
 		return
 	}
 	chartRefId := envConfigProperties.ChartRefId
-	//VARIABLE_RESOLVE
+	// VARIABLE_RESOLVE
 	scope := resourceQualifiers.Scope{
 		AppId:     appId,
 		EnvId:     envId,
@@ -938,7 +938,7 @@ func (handler PipelineConfigRestHandlerImpl) GetTemplateComparisonMetadata(w htt
 		common.WriteJsonResp(w, err, "unauthorized user", http.StatusForbidden)
 		return
 	}
-	//RBAC enforcer Ends
+	// RBAC enforcer Ends
 
 	resp, err := handler.deploymentTemplateService.FetchDeploymentsWithChartRefs(appId, envId)
 	if err != nil {
@@ -976,12 +976,12 @@ func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplateData(w http.Re
 		return
 	}
 	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
-	//RBAC enforcer Ends
+	// RBAC enforcer Ends
 
 	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
 	ctx = util2.SetSuperAdminInContext(ctx, isSuperAdmin)
 	defer cancel()
-	//TODO fix
+	// TODO fix
 	resp, err := handler.deploymentTemplateService.GetDeploymentTemplate(ctx, request)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetEnvConfigOverride", "err", err, "payload", request)
@@ -1166,8 +1166,8 @@ func (handler PipelineConfigRestHandlerImpl) GetAllCdPipelinesAndEnvDataLite(w h
 		return
 	}
 	handler.Logger.Infow("request payload, GetAllCdPipelinesAndEnvDataLite", "appId", appId)
-	//not checking RBAC here because this api is meant to give pipeline list irrespective of the access of user
-	//this api is currently used for dependency feature on UI
+	// not checking RBAC here because this api is meant to give pipeline list irrespective of the access of user
+	// this api is currently used for dependency feature on UI
 	resp, err := handler.pipelineBuilder.GetAllCdPipelinesAndEnvDataLite(appId)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetAllCdPipelinesAndEnvDataLite", "err", err, "appId", appId)
@@ -1201,7 +1201,7 @@ func (handler PipelineConfigRestHandlerImpl) GetCdPipelinesForAppAndEnv(w http.R
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	//rbac
+	// rbac
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
@@ -1212,7 +1212,7 @@ func (handler PipelineConfigRestHandlerImpl) GetCdPipelinesForAppAndEnv(w http.R
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	//rbac
+	// rbac
 
 	cdPipelines, err := handler.pipelineBuilder.GetCdPipelinesForAppAndEnv(appId, envId)
 	if err != nil {
@@ -1251,7 +1251,7 @@ func (handler PipelineConfigRestHandlerImpl) PerformDeploymentApprovalAction(w h
 			return
 		}
 	} else {
-		//rbac block starts from here
+		// rbac block starts from here
 		token := r.Header.Get("token")
 		object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
@@ -1263,10 +1263,12 @@ func (handler PipelineConfigRestHandlerImpl) PerformDeploymentApprovalAction(w h
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 			return
 		}
-		//rback block ends here
+		// rback block ends here
 	}
-
-	err = handler.cdHandler.PerformDeploymentApprovalAction(userId, approvalActionRequest)
+	triggerContext := pipeline.TriggerContext{
+		Context: context.Background(),
+	}
+	err = handler.cdHandler.PerformDeploymentApprovalAction(triggerContext, userId, approvalActionRequest)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -1347,21 +1349,21 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 		return
 	}
 
-	//rbac block starts from here
+	// rbac block starts from here
 	object := handler.enforcerUtil.GetAppRBACName(pipeline.App.AppName)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	//rbac for edit tags access
+	// rbac for edit tags access
 	triggerAccess := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, object)
-	//rbac
+	// rbac
 	object = handler.enforcerUtil.GetAppRBACByAppNameAndEnvId(pipeline.App.AppName, pipeline.EnvironmentId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	//rbac block ends here
+	// rbac block ends here
 	var ciArtifactResponse *bean.CiArtifactResponse
 
 	pendingApprovalParam := r.URL.Query().Get("resource")
@@ -1430,7 +1432,7 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 	ciArtifactResponse.IsVirtualCluster = pipeline.Environment.IsVirtualEnvironment
 
 	if len(digests) > 0 {
-		//vulnerableMap := make(map[string]bool)
+		// vulnerableMap := make(map[string]bool)
 		cvePolicy, severityPolicy, err := handler.policyService.GetApplicablePolicy(pipeline.Environment.ClusterId,
 			pipeline.EnvironmentId,
 			pipeline.AppId,
@@ -1456,7 +1458,7 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 			if val, ok := digestVsCveStores[imageHash]; !ok {
 
 				// configuring size as len of ImageScanExecutionResult assuming all the
-				//scan results could belong to a single hash
+				// scan results could belong to a single hash
 				cveStores := make([]*security.CveStore, 0, len(imageScanResults))
 				cveStores = append(cveStores, &result.CveStore)
 				digestVsCveStores[imageHash] = cveStores
@@ -1502,13 +1504,13 @@ func (handler PipelineConfigRestHandlerImpl) GetAppOverrideForDefaultTemplate(w 
 		return
 	}
 
-	//RBAC
+	// RBAC
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	//RBAC
+	// RBAC
 
 	appOverride, _, err := handler.chartService.GetAppOverrideForDefaultTemplate(chartRefId)
 	if err != nil {
@@ -1560,7 +1562,7 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 		return
 	}
 	chartRefId := templateRequest.ChartRefId
-	//VARIABLE_RESOLVE
+	// VARIABLE_RESOLVE
 	scope := resourceQualifiers.Scope{
 		AppId: templateRequest.AppId,
 	}
@@ -1610,7 +1612,7 @@ func (handler PipelineConfigRestHandlerImpl) ValidateAppOverride(w http.Response
 		return
 	}
 	chartRefId := templateRequest.ChartRefId
-	//VARIABLE_RESOLVE
+	// VARIABLE_RESOLVE
 	scope := resourceQualifiers.Scope{
 		AppId: templateRequest.AppId,
 	}
@@ -1710,7 +1712,7 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsForRollback(w http.Resp
 	}
 	searchString := r.URL.Query().Get("search")
 
-	//rbac block starts from here
+	// rbac block starts from here
 	object := handler.enforcerUtil.GetAppRBACName(app.AppName)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
@@ -1721,8 +1723,8 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsForRollback(w http.Resp
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	//rbac block ends here
-	//rbac for edit tags access
+	// rbac block ends here
+	// rbac for edit tags access
 	var ciArtifactResponse bean.CiArtifactResponse
 	triggerAccess := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, object)
 	if handler.pipelineRestHandlerEnvConfig.UseArtifactListApiV2 {
@@ -2077,13 +2079,13 @@ func (handler *PipelineConfigRestHandlerImpl) ListDeploymentHistory(w http.Respo
 		return
 	}
 	handler.Logger.Infow("request payload, ListDeploymentHistory", "err", err, "appId", appId, "environmentId", environmentId, "pipelineId", pipelineId, "offset", offset)
-	//RBAC CHECK
+	// RBAC CHECK
 	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	//RBAC CHECK
+	// RBAC CHECK
 	resp := DeploymentHistoryResp{}
 	wfs, err := handler.cdHandler.GetCdBuildHistory(appId, environmentId, pipelineId, offset, limit)
 	resp.CdWorkflows = wfs
@@ -2143,13 +2145,13 @@ func (handler *PipelineConfigRestHandlerImpl) GetPrePostDeploymentLogs(w http.Re
 	}
 	handler.Logger.Infow("request payload, GetPrePostDeploymentLogs", "err", err, "appId", appId, "environmentId", environmentId, "pipelineId", pipelineId, "workflowId", workflowId)
 
-	//RBAC CHECK
+	// RBAC CHECK
 	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	//RBAC CHECK
+	// RBAC CHECK
 
 	logsReader, cleanUp, err := handler.cdHandler.GetRunningWorkflowLogs(environmentId, pipelineId, workflowId)
 	if err != nil {
@@ -2214,13 +2216,13 @@ func (handler PipelineConfigRestHandlerImpl) FetchCdWorkflowDetails(w http.Respo
 	showAppliedFilters := showAppliedFiltersStr == "true"
 	handler.Logger.Infow("request payload, FetchCdWorkflowDetails", "err", err, "appId", appId, "environmentId", environmentId, "pipelineId", pipelineId, "buildId", buildId)
 
-	//RBAC CHECK
+	// RBAC CHECK
 	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	//RBAC CHECK
+	// RBAC CHECK
 
 	resp, err := handler.cdHandler.FetchCdWorkflowDetails(appId, environmentId, pipelineId, buildId, showAppliedFilters)
 	if err != nil {
@@ -2261,7 +2263,7 @@ func (handler PipelineConfigRestHandlerImpl) DownloadArtifacts(w http.ResponseWr
 	}
 	handler.Logger.Infow("request payload, DownloadArtifacts", "err", err, "appId", appId, "pipelineId", pipelineId, "buildId", buildId)
 
-	//RBAC CHECK
+	// RBAC CHECK
 	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
@@ -2272,7 +2274,7 @@ func (handler PipelineConfigRestHandlerImpl) DownloadArtifacts(w http.ResponseWr
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	//RBAC CHECK
+	// RBAC CHECK
 
 	file, err := handler.cdHandler.DownloadCdWorkflowArtifacts(pipelineId, buildId)
 	defer file.Close()
@@ -2316,7 +2318,7 @@ func (handler PipelineConfigRestHandlerImpl) GetStageStatus(w http.ResponseWrite
 	}
 	handler.Logger.Infow("request payload, GetStageStatus", "err", err, "appId", appId, "pipelineId", pipelineId)
 
-	//RBAC CHECK
+	// RBAC CHECK
 	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
@@ -2327,7 +2329,7 @@ func (handler PipelineConfigRestHandlerImpl) GetStageStatus(w http.ResponseWrite
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	//RBAC CHECK
+	// RBAC CHECK
 
 	resp, err := handler.cdHandler.FetchCdPrePostStageStatus(pipelineId)
 	if err != nil {
@@ -2361,7 +2363,7 @@ func (handler PipelineConfigRestHandlerImpl) GetConfigmapSecretsForDeploymentSta
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	//FIXME: add RBAC
+	// FIXME: add RBAC
 	resp, err := handler.pipelineBuilder.FetchConfigmapSecretsForCdStages(deploymentPipeline.AppId, deploymentPipeline.EnvironmentId, pipelineId)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetConfigmapSecretsForDeploymentStages", "err", err, "pipelineId", pipelineId)
@@ -2445,14 +2447,14 @@ func (handler PipelineConfigRestHandlerImpl) CancelStage(w http.ResponseWriter, 
 	}
 	handler.Logger.Infow("request payload, CancelStage", "pipelineId", pipelineId, "workflowRunnerId", workflowRunnerId)
 
-	//RBAC
+	// RBAC
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(cdPipeline.AppId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	//RBAC
+	// RBAC
 
 	resp, err := handler.cdHandler.CancelStage(workflowRunnerId, userId)
 	if err != nil {
@@ -2476,13 +2478,13 @@ func (handler PipelineConfigRestHandlerImpl) GetDeploymentPipelineStrategy(w htt
 		return
 	}
 	handler.Logger.Infow("request payload, GetDeploymentPipelineStrategy", "appId", appId)
-	//RBAC
+	// RBAC
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	//RBAC
+	// RBAC
 
 	result, err := handler.pipelineBuilder.FetchCDPipelineStrategy(appId)
 	if err != nil {
@@ -2507,13 +2509,13 @@ func (handler PipelineConfigRestHandlerImpl) GetDefaultDeploymentPipelineStrateg
 		return
 	}
 	handler.Logger.Infow("request payload, GetDefaultDeploymentPipelineStrategy", "appId", appId, "envId", envId)
-	//RBAC
+	// RBAC
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	//RBAC
+	// RBAC
 
 	result, err := handler.pipelineBuilder.FetchDefaultCDPipelineStrategy(appId, envId)
 	if err != nil {
@@ -2596,7 +2598,7 @@ func (handler PipelineConfigRestHandlerImpl) IsReadyToTrigger(w http.ResponseWri
 		return
 	}
 	handler.Logger.Infow("request payload, IsReadyToTrigger", "appId", appId, "envId", envId, "pipelineId", pipelineId)
-	//RBAC
+	// RBAC
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
@@ -2607,7 +2609,7 @@ func (handler PipelineConfigRestHandlerImpl) IsReadyToTrigger(w http.ResponseWri
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	//RBAC
+	// RBAC
 
 	result, err := handler.chartService.IsReadyToTrigger(appId, envId, pipelineId)
 	if err != nil {
