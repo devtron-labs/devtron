@@ -455,7 +455,7 @@ func (impl ClusterServiceImplExtended) IsPolicyConfiguredForCluster(envId, clust
 	digestConfigurationRequest := imageDigestPolicy.DigestPolicyConfigurationRequest{ClusterId: envId, EnvironmentId: clusterId}
 	digestPolicyConfigurations, err := impl.imageDigestPolicyService.GetDigestPolicyConfigurations(digestConfigurationRequest)
 	if err != nil {
-		impl.logger.Errorw("error in checking if isImageDigestPolicyConfiguredForPipeline", "err", err)
+		impl.logger.Errorw("error in checking if isImageDigestPolicyConfiguredForPipeline", "err", err, "clusterId", clusterId, "envId", envId)
 		return false, err
 	}
 	return digestPolicyConfigurations.DigestConfiguredForEnvOrCluster, nil

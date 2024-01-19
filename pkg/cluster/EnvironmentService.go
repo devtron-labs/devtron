@@ -481,7 +481,7 @@ func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete(isDeploymen
 			}
 			IsDigestEnforcedForEnv, err := impl.clusterService.IsPolicyConfiguredForCluster(model.Id, model.ClusterId)
 			if err != nil {
-				impl.logger.Errorw("error in checking if image digest policy is configured or not", "err", err)
+				impl.logger.Errorw("error in checking if image digest policy is configured or not", "err", err, "envId", model.Id, "clusterId", model.ClusterId)
 				return nil, err
 			}
 			beans = append(beans, EnvironmentBean{

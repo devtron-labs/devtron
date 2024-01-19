@@ -108,6 +108,7 @@ func (impl ImageDigestPolicyServiceImpl) GetDigestPolicyConfigurations(digestCon
 	}
 	policyMappings, err := impl.qualifierMappingService.GetQualifierMappings(resourceQualifiers.ImageDigest, scope, resourceIds)
 	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting saved policy mappings", "err", err)
 		return digestPolicyConfiguration, err
 	}
 	if err == pg.ErrNoRows || len(policyMappings) == 0 {

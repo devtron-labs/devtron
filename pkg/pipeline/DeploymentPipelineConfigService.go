@@ -370,7 +370,7 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelineById(pipelineId int) (cdPi
 	}
 	digestPolicyConfigurations, err := impl.imageDigestPolicyService.GetDigestPolicyConfigurations(digestConfigurationRequest)
 	if err != nil {
-		impl.logger.Errorw("error in checking if isImageDigestPolicyConfiguredForPipeline", "err", err)
+		impl.logger.Errorw("error in checking if isImageDigestPolicyConfiguredForPipeline", "err", err, "clusterId", environment.ClusterId, "envId", environment.Id, "pipelineId", pipelineId)
 		return nil, err
 	}
 
@@ -1145,7 +1145,7 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesForApp(appId int) (cdPipe
 		}
 		digestPolicyConfigurations, err := impl.imageDigestPolicyService.GetDigestPolicyConfigurations(digestConfigurationRequest)
 		if err != nil {
-			impl.logger.Errorw("error in checking if isImageDigestPolicyConfiguredForPipeline", "err", err)
+			impl.logger.Errorw("error in checking if isImageDigestPolicyConfiguredForPipeline", "err", err, "clusterId", environment.ClusterId, "envId", environment.Id, "pipelineId", dbPipeline.Id)
 			return nil, err
 		}
 
@@ -2060,7 +2060,7 @@ func (impl *CdPipelineConfigServiceImpl) createCdPipeline(ctx context.Context, a
 		PipelineId:    pipelineId}
 	digestPolicyConfigurations, err := impl.imageDigestPolicyService.GetDigestPolicyConfigurations(digestConfigurationRequest)
 	if err != nil {
-		impl.logger.Errorw("error in checking if isImageDigestPolicyConfiguredForPipeline", "err", err)
+		impl.logger.Errorw("error in checking if isImageDigestPolicyConfiguredForPipeline", "err", err, "clusterId", environment.ClusterId, "envId", environment.Id, "pipelineId", pipelineId)
 		return pipelineId, err
 	}
 
@@ -2333,7 +2333,7 @@ func (impl *CdPipelineConfigServiceImpl) handleImagePolicyOperations(tx *pg.Tx, 
 	digestConfigurationRequest := imageDigestPolicy.DigestPolicyConfigurationRequest{ClusterId: environment.ClusterId, EnvironmentId: environment.Id, PipelineId: pipelineId}
 	digestPolicyConfigurations, err := impl.imageDigestPolicyService.GetDigestPolicyConfigurations(digestConfigurationRequest)
 	if err != nil {
-		impl.logger.Errorw("error in checking if isImageDigestPolicyConfiguredForPipeline", "err", err)
+		impl.logger.Errorw("error in checking if isImageDigestPolicyConfiguredForPipeline", "err", err, "clusterId", environment.ClusterId, "envId", environment.Id, "pipelineId", pipelineId)
 		return pipelineId, err
 	}
 
