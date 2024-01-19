@@ -1930,17 +1930,17 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		}
 	}
 
-	isImageDigestPolicyConfiguredAtGlobalOrPipeline, err :=
+	isImageDigestPolicyConfigured, err :=
 		impl.imageDigestPolicyService.IsPolicyConfiguredForClusterOrEnvOrPipeline(
 			env.Id,
 			env.ClusterId,
 			cdPipeline.Id)
 	if err != nil {
-		impl.logger.Errorw("error in checking if digest policy is configured at global or pipeline level", "err", err)
+		impl.logger.Errorw("error in checking if digest policy is configured at global or pipeline level", "err", err, "envId", env.Id, "clusterId", env.ClusterId, "pipelineId", cdPipeline.Id)
 		return nil, err
 	}
 	image := artifact.Image
-	if isImageDigestPolicyConfiguredAtGlobalOrPipeline {
+	if isImageDigestPolicyConfigured {
 		image = ReplaceImageTagWithDigest(image, artifact.ImageDigest)
 	}
 

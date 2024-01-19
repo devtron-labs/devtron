@@ -136,7 +136,7 @@ func (impl ImageDigestPolicyServiceImpl) CreateOrUpdatePolicyForCluster(policyRe
 	}()
 
 	if policyRequest.EnableDigestForAllClusters == true {
-		err := impl.saveImageDigestPolicyForAllClusters(policyRequest.UserId, tx)
+		err := impl.saveImageDigestPolicyForAllClusters(tx, policyRequest.UserId)
 		if err != nil {
 			impl.logger.Errorw("Error in saving image digest policy for all clusters", "err", err)
 			return policyRequest, err
@@ -161,7 +161,7 @@ func (impl ImageDigestPolicyServiceImpl) CreateOrUpdatePolicyForCluster(policyRe
 		requestPolicies:            policyRequest,
 		existingConfiguredPolicies: existingDigestMappings,
 	}
-	newConfiguredClusters, newConfiguredEnvs, err := impl.saveNewPolicies(savePolicyRequest, tx)
+	newConfiguredClusters, newConfiguredEnvs, err := impl.saveNewPolicies(tx, savePolicyRequest)
 	if err != nil {
 		impl.logger.Errorw("error in creating image digest policies", "err", err)
 		return nil, err
@@ -174,7 +174,7 @@ func (impl ImageDigestPolicyServiceImpl) CreateOrUpdatePolicyForCluster(policyRe
 		newConfiguredEnvs:          newConfiguredEnvs,
 		userId:                     policyRequest.UserId,
 	}
-	err = impl.removePoliciesNotPresentInRequest(policyRemoveRequest, tx)
+	err = impl.removePoliciesNotPresentInRequest(tx, policyRemoveRequest)
 	if err != nil {
 		impl.logger.Errorw("error in deleting policies not present in request but present in DB", "err", err)
 		return nil, err
@@ -189,7 +189,7 @@ func (impl ImageDigestPolicyServiceImpl) CreateOrUpdatePolicyForCluster(policyRe
 	return policyRequest, nil
 }
 
-func (impl ImageDigestPolicyServiceImpl) saveImageDigestPolicyForAllClusters(userId int32, tx *pg.Tx) error {
+func (impl ImageDigestPolicyServiceImpl) saveImageDigestPolicyForAllClusters(tx *pg.Tx, userId int32) error {
 
 	// step1: create image digest policy for all clusters by setting qualifierId = int(resourceQualifiers.GLOBAL_QUALIFIER)
 	// step2: Delete individual cluster and env level image digest policy mappings
@@ -239,7 +239,7 @@ func getConfiguredClustersAndEnvironments(existingDigestMappings []*resourceQual
 	return existingConfiguredClusters, existingConfiguredEnvironments
 }
 
-func (impl ImageDigestPolicyServiceImpl) saveNewPolicies(savePolicyRequest newPolicySaveRequest, tx *pg.Tx) (map[ClusterId]bool, map[EnvironmentId]bool, error) {
+func (impl ImageDigestPolicyServiceImpl) saveNewPolicies(tx *pg.Tx, savePolicyRequest newPolicySaveRequest) (map[ClusterId]bool, map[EnvironmentId]bool, error) {
 
 	devtronResourceSearchableKeyMap := impl.devtronResourceSearchableKey.GetAllSearchableKeyNameIdMap()
 
@@ -296,7 +296,7 @@ func (impl ImageDigestPolicyServiceImpl) saveNewPolicies(savePolicyRequest newPo
 	return newClustersConfigured, newEnvsConfigured, nil
 }
 
-func (impl ImageDigestPolicyServiceImpl) removePoliciesNotPresentInRequest(policyRemoveRequest oldPolicyRemoveRequest, tx *pg.Tx) error {
+func (impl ImageDigestPolicyServiceImpl) removePoliciesNotPresentInRequest(tx *pg.Tx, policyRemoveRequest oldPolicyRemoveRequest) error {
 
 	existingPolicies := policyRemoveRequest.existingConfiguredPolicies
 	newClustersConfigured := policyRemoveRequest.newConfiguredClusters
@@ -442,7 +442,7 @@ func (impl ImageDigestPolicyServiceImpl) IsPolicyConfiguredForEnvOrCluster(envId
 }
 
 func (impl ImageDigestPolicyServiceImpl) IsPolicyConfiguredForClusterOrEnvOrPipeline(envId, clusterId, pipelineId int) (bool, error) {
-	isImageDigestPolicyConfiguredAtGlobalLevel, err :=
+	isImageDigestPolicyConfiguredForEnvOrCluster, err :=
 		impl.IsPolicyConfiguredForEnvOrCluster(envId, clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in checking if image digest policy is configured or not", "err", err)
@@ -450,13 +450,13 @@ func (impl ImageDigestPolicyServiceImpl) IsPolicyConfiguredForClusterOrEnvOrPipe
 	}
 
 	var isDigestPolicyConfiguredForPipeline bool
-	if !isImageDigestPolicyConfiguredAtGlobalLevel {
+	if !isImageDigestPolicyConfiguredForEnvOrCluster {
 		isDigestPolicyConfiguredForPipeline, err = impl.IsPolicyConfiguredForPipeline(pipelineId)
 		if err != nil {
 			impl.logger.Errorw("Error in checking if isDigestPolicyConfiguredForPipeline", "err", err)
 			return false, err
 		}
 	}
-	isDigestConfigured := isImageDigestPolicyConfiguredAtGlobalLevel || isDigestPolicyConfiguredForPipeline
+	isDigestConfigured := isImageDigestPolicyConfiguredForEnvOrCluster || isDigestPolicyConfiguredForPipeline
 	return isDigestConfigured, nil
 }
