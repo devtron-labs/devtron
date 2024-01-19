@@ -17,11 +17,11 @@ type BlobStorageConfigService interface {
 }
 type BlobStorageConfigServiceImpl struct {
 	Logger     *zap.SugaredLogger
-	k8sUtil    *k8s.K8sUtil
+	k8sUtil    *k8s.K8sServiceImpl
 	ciCdConfig *types.CiCdConfig
 }
 
-func NewBlobStorageConfigServiceImpl(Logger *zap.SugaredLogger, k8sUtil *k8s.K8sUtil, ciCdConfig *types.CiCdConfig) *BlobStorageConfigServiceImpl {
+func NewBlobStorageConfigServiceImpl(Logger *zap.SugaredLogger, k8sUtil *k8s.K8sServiceImpl, ciCdConfig *types.CiCdConfig) *BlobStorageConfigServiceImpl {
 	return &BlobStorageConfigServiceImpl{
 		Logger:     Logger,
 		k8sUtil:    k8sUtil,
