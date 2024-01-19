@@ -59,7 +59,7 @@ func NewDbConnection(cfg *Config, logger *zap.SugaredLogger) (*pg.DB, error) {
 		WriteTimeout:    time.Duration(cfg.WriteTimeout) * time.Second,
 	}
 	dbConnection := pg.Connect(&options)
-	//check db connection
+	// check db connection
 	var test string
 	_, err := dbConnection.QueryOne(&test, `SELECT 1`)
 
@@ -70,7 +70,7 @@ func NewDbConnection(cfg *Config, logger *zap.SugaredLogger) (*pg.DB, error) {
 		logger.Infow("connected with db", "db", obfuscateSecretTags(cfg))
 	}
 
-	//--------------
+	// --------------
 	dbConnection.OnQueryProcessed(func(event *pg.QueryProcessedEvent) {
 		queryDuration := time.Since(event.StartTime)
 

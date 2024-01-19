@@ -28,6 +28,10 @@ var NatsEventPublishTime = promauto.NewHistogramVec(prometheus.HistogramOpts{
 	Name: "nats_event_publish_time",
 }, []string{"topic"})
 
+var NatsEventDeliveryCount = promauto.NewHistogramVec(prometheus.HistogramOpts{
+	Name: "nats_event_delivery_count",
+}, []string{"topic", "msg_id"})
+
 func IncPublishCount(topic, status string) {
 	NatsPublishingCount.WithLabelValues(topic, status).Inc()
 }
