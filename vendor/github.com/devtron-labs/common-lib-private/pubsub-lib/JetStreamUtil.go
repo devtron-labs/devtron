@@ -101,7 +101,10 @@ type NatsTopic struct {
 	consumerName string
 }
 type ConfigJson struct {
-	StreamConfigJson   string `env:"STREAM_CONFIG_JSON"`
+	// StreamConfigJson is a json string of map[string]NatsStreamConfig
+	StreamConfigJson string `env:"STREAM_CONFIG_JSON"`
+	// ConsumerConfigJson is a json string of map[string]NatsConsumerConfig
+	// eg: "{\"ARGO_PIPELINE_STATUS_UPDATE_DURABLE-1\" : \"{\"natsMsgProcessingBatchSize\" : 3, \"natsMsgBufferSize\" : 3, \"ackWaitInSecs\": 300}\"}"
 	ConsumerConfigJson string `env:"CONSUMER_CONFIG_JSON"`
 }
 
@@ -139,6 +142,7 @@ var NatsStreamWiseConfigMapping = map[string]NatsStreamConfig{
 	KUBEWATCH_STREAM:     {},
 	GIT_SENSOR_STREAM:    {},
 	IMAGE_SCANNER_STREAM: {},
+	DEVTRON_TEST_STREAM:  {},
 }
 
 var NatsConsumerWiseConfigMapping = map[string]NatsConsumerConfig{
@@ -161,8 +165,11 @@ var NatsConsumerWiseConfigMapping = map[string]NatsConsumerConfig{
 	HELM_CHART_INSTALL_STATUS_DURABLE:   {},
 	DEVTRON_CHART_INSTALL_DURABLE:       {},
 	PANIC_ON_PROCESSING_DURABLE:         {},
+	DEVTRON_TEST_CONSUMER:               {},
 }
 
+// getConsumerConfigMap will fetch the consumer wise config from the json string
+// this will only fetch consumerConfigs for given consumers in the jsonString
 func getConsumerConfigMap(jsonString string) map[string]NatsConsumerConfig {
 	resMap := map[string]NatsConsumerConfig{}
 	if jsonString == "" {
@@ -181,6 +188,8 @@ func getConsumerConfigMap(jsonString string) map[string]NatsConsumerConfig {
 	return resMap
 }
 
+// getStreamConfigMap will fetch the stream wise config from the json string
+// this will only fetch streamConfigs for given streams in the jsonString
 func getStreamConfigMap(jsonString string) map[string]NatsStreamConfig {
 	resMap := map[string]NatsStreamConfig{}
 	if jsonString == "" {
@@ -203,58 +212,41 @@ func ParseAndFillStreamWiseAndConsumerWiseConfigMaps() {
 	configJson := ConfigJson{}
 	err := env.Parse(&configJson)
 	if err != nil {
-		log.Fatal("error while parsing config from environment params", "err", err)
+		log.Fatal("error while parsing config from environment params", " err", err)
 	}
+
+	// fetch the consumer configs that were given explicitly in the configJson.ConsumerConfigJson
 	consumerConfigMap := getConsumerConfigMap(configJson.ConsumerConfigJson)
+	// fetch the stream configs that were given explicitly in the configJson.StreamConfigJson
 	streamConfigMap := getStreamConfigMap(configJson.StreamConfigJson)
+
+	// default nats configuration values
 	defaultConfig := NatsClientConfig{}
 	err = env.Parse(&defaultConfig)
 	if err != nil {
 		log.Print("error while parsing config from environment params", "err", err)
 	}
 
-	defaultStreamConfigVal := NatsStreamConfig{
-		StreamConfig: StreamConfig{MaxAge: DefaultMaxAge},
-	}
-	defaultConsumerConfigVal := NatsConsumerConfig{
-		NatsMsgBufferSize:          defaultConfig.NatsMsgBufferSize,
-		NatsMsgProcessingBatchSize: defaultConfig.NatsMsgProcessingBatchSize,
-	}
+	// default stream and consumer config values
+	defaultStreamConfigVal := defaultConfig.GetDefaultNatsStreamConfig()
+	defaultConsumerConfigVal := defaultConfig.GetDefaultNatsConsumerConfig()
 
-	// default NATS Consumer config value for BULK CD TRIGGER topic
-	defaultConsumerConfigForBulkCdTriggerTopic := NatsConsumerConfig{}
-
-	err = json.Unmarshal([]byte(defaultConfig.NatsConsumerConfig), &defaultConsumerConfigForBulkCdTriggerTopic)
-
-	if err != nil {
-		log.Print("error in unmarshalling nats consumer config",
-			"consumer-config", defaultConfig.NatsConsumerConfig,
-			"err", err)
-	}
-
+	// initialise all the consumer wise config with default values or user defined values
 	for key, _ := range NatsConsumerWiseConfigMapping {
-		defaultValue := defaultConsumerConfigVal
-
-		// Setting AckWait config. Only for BULK CD TRIGGER topics. Can be used for other topics
-		// if required to be made configurable
-		if key == BULK_DEPLOY_DURABLE || key == CD_BULK_DEPLOY_TRIGGER_DURABLE {
-			defaultValue.AckWaitInSecs = defaultConsumerConfigForBulkCdTriggerTopic.AckWaitInSecs
+		consumerConfig := defaultConsumerConfigVal
+		if _, ok := consumerConfigMap[key]; ok {
+			consumerConfig = consumerConfigMap[key]
 		}
-
-		// Overriding default config with explicitly provided topic-specific config
-		if _, ok := consumerConfigMap[key]; ok && (key != BULK_DEPLOY_DURABLE && key != CD_BULK_DEPLOY_TRIGGER_DURABLE) {
-			defaultValue = consumerConfigMap[key]
-		}
-
-		NatsConsumerWiseConfigMapping[key] = defaultValue
+		NatsConsumerWiseConfigMapping[key] = consumerConfig
 	}
 
+	// initialise all the consumer wise config with default values or user defined values
 	for key, _ := range NatsStreamWiseConfigMapping {
-		defaultValue := defaultStreamConfigVal
+		streamConfig := defaultStreamConfigVal
 		if _, ok := streamConfigMap[key]; ok {
-			defaultValue = streamConfigMap[key]
+			streamConfig = streamConfigMap[key]
 		}
-		NatsStreamWiseConfigMapping[key] = defaultValue
+		NatsStreamWiseConfigMapping[key] = streamConfig
 	}
 
 }
@@ -280,7 +272,7 @@ func AddStream(js nats.JetStreamContext, streamConfig *nats.StreamConfig, stream
 		streamInfo, err := js.StreamInfo(streamName)
 		if err == nats.ErrStreamNotFound || streamInfo == nil {
 			log.Print("No stream was created already. Need to create one. ", "Stream name: ", streamName)
-			//Stream doesn't already exist. Create a new stream from jetStreamContext
+			// Stream doesn't already exist. Create a new stream from jetStreamContext
 			cfgToSet := getNewConfig(streamName, streamConfig)
 			_, err = js.AddStream(cfgToSet)
 			if err != nil {
@@ -330,6 +322,5 @@ func getNewConfig(streamName string, toUpdateConfig *nats.StreamConfig) *nats.St
 	if toUpdateConfig.Retention != nats.RetentionPolicy(0) {
 		cfg.Retention = toUpdateConfig.Retention
 	}
-	//cfg.Retention = nats.RetentionPolicy(1)
 	return cfg
 }
