@@ -89,7 +89,19 @@ type DigestPolicyConfigurationRequest struct {
 	EnvironmentId int
 }
 
-type DigestPolicyConfiguration struct {
+func (request DigestPolicyConfigurationRequest) getQualifierMappingScope() *resourceQualifiers.Scope {
+	return &resourceQualifiers.Scope{
+		EnvId:      request.EnvironmentId,
+		ClusterId:  request.ClusterId,
+		PipelineId: request.PipelineId,
+	}
+}
+
+type DigestPolicyConfigurationResponse struct {
 	DigestConfiguredForPipeline     bool
 	DigestConfiguredForEnvOrCluster bool
+}
+
+func (config DigestPolicyConfigurationResponse) UseDigestForTrigger() bool {
+	return config.DigestConfiguredForEnvOrCluster || config.DigestConfiguredForPipeline
 }

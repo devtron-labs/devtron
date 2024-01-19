@@ -13,14 +13,14 @@ import (
 
 type ImageDigestPolicyService interface {
 
-	//CreatePolicyForPipeline creates image digest policy for pipeline
+	//CreatePolicyForPipeline creates image digest policy for pipeline even if it exists.
 	CreatePolicyForPipeline(tx *pg.Tx, pipelineId int, pipelineName string, UserId int32) (int, error)
 
 	//CreatePolicyForPipelineIfNotExist creates image digest policy for pipeline if not already created
 	CreatePolicyForPipelineIfNotExist(tx *pg.Tx, pipelineId int, pipelineName string, UserId int32) (int, error)
 
 	//GetDigestPolicyConfigurations returns true if pipeline or env or cluster has image digest policy enabled
-	GetDigestPolicyConfigurations(digestConfigurationRequest DigestPolicyConfigurationRequest) (digestPolicyConfiguration DigestPolicyConfiguration, err error)
+	GetDigestPolicyConfigurations(digestConfigurationRequest DigestPolicyConfigurationRequest) (digestPolicyConfiguration DigestPolicyConfigurationResponse, err error)
 
 	//DeletePolicyForPipeline deletes image digest policy for a pipeline
 	DeletePolicyForPipeline(tx *pg.Tx, pipelineId int, userId int32) (int, error)
@@ -97,15 +97,12 @@ func (impl ImageDigestPolicyServiceImpl) CreatePolicyForPipelineIfNotExist(tx *p
 	return qualifierMappingId, nil
 }
 
-func (impl ImageDigestPolicyServiceImpl) GetDigestPolicyConfigurations(digestConfigurationRequest DigestPolicyConfigurationRequest) (digestPolicyConfiguration DigestPolicyConfiguration, err error) {
+func (impl ImageDigestPolicyServiceImpl) GetDigestPolicyConfigurations(digestConfigurationRequest DigestPolicyConfigurationRequest) (digestPolicyConfiguration DigestPolicyConfigurationResponse, err error) {
 
 	resourceIds := []int{resourceQualifiers.ImageDigestResourceId}
 
-	scope := &resourceQualifiers.Scope{
-		ClusterId:  digestConfigurationRequest.ClusterId,
-		EnvId:      digestConfigurationRequest.EnvironmentId,
-		PipelineId: digestConfigurationRequest.PipelineId,
-	}
+	scope := digestConfigurationRequest.getQualifierMappingScope()
+
 	policyMappings, err := impl.qualifierMappingService.GetQualifierMappings(resourceQualifiers.ImageDigest, scope, resourceIds)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting saved policy mappings", "err", err)
@@ -211,7 +208,7 @@ func (impl ImageDigestPolicyServiceImpl) CreateOrUpdatePolicyForCluster(policyRe
 
 	err = tx.Commit()
 	if err != nil {
-		impl.logger.Errorw("error in commiting transaction", "err", err)
+		impl.logger.Errorw("error in committing transaction", "err", err)
 		return policyRequest, err
 	}
 

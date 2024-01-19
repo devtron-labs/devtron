@@ -2020,7 +2020,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		return nil, err
 	}
 	image := artifact.Image
-	if digestPolicyConfigurations.DigestConfiguredForEnvOrCluster || digestPolicyConfigurations.DigestConfiguredForPipeline {
+	if digestPolicyConfigurations.UseDigestForTrigger() {
 		image = ReplaceImageTagWithDigest(image, artifact.ImageDigest)
 	}
 
@@ -5091,7 +5091,7 @@ func (impl *WorkflowDagExecutorImpl) getReleaseOverride(envOverride *chartConfig
 		return "", err
 	}
 
-	if digestPolicyConfigurations.DigestConfiguredForPipeline {
+	if digestPolicyConfigurations.UseDigestForTrigger() {
 		imageTag[imageTagLen-1] = fmt.Sprintf("%s@%s", imageTag[imageTagLen-1], artifact.ImageDigest)
 	}
 
