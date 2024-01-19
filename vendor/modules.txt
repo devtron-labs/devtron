@@ -380,7 +380,7 @@ github.com/devtron-labs/authenticator/jwt
 github.com/devtron-labs/authenticator/middleware
 github.com/devtron-labs/authenticator/oidc
 github.com/devtron-labs/authenticator/password
-# github.com/devtron-labs/common-lib-private v0.0.9-0.20231226070358-e437d388cc00
+# github.com/devtron-labs/common-lib-private v0.0.9-0.20240118062311-9310f8208e2d
 ## explicit; go 1.20
 github.com/devtron-labs/common-lib-private/blob-storage
 github.com/devtron-labs/common-lib-private/pubsub-lib
@@ -831,6 +831,8 @@ github.com/mattn/go-ieproxy
 # github.com/matttproud/golang_protobuf_extensions v1.0.4
 ## explicit; go 1.9
 github.com/matttproud/golang_protobuf_extensions/pbutil
+# github.com/mdaverde/jsonpath v0.2.1
+## explicit
 # github.com/microsoft/azure-devops-go-api/azuredevops v1.0.0-b5
 ## explicit; go 1.12
 github.com/microsoft/azure-devops-go-api/azuredevops

@@ -19,6 +19,7 @@ package pipelineConfig
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/devtron-labs/common-lib-private/utils/k8s/health"
 	"github.com/devtron-labs/devtron/api/bean"
@@ -34,6 +35,7 @@ import (
 )
 
 type CdWorkflowRepository interface {
+	CheckWorkflowRunnerByReferenceId(referenceId string) (bool, error)
 	SaveWorkFlow(ctx context.Context, wf *CdWorkflow) error
 	UpdateWorkFlow(wf *CdWorkflow) error
 	FindById(wfId int) (*CdWorkflow, error)
@@ -181,6 +183,7 @@ type CdWorkflowRunner struct {
 	RefCdWorkflowRunnerId       int                  `sql:"ref_cd_workflow_runner_id,notnull"`
 	HelmReferenceChart          []byte               `sql:""`
 	ImagePathReservationIds     []int                `sql:"image_path_reservation_ids" pg:",array,notnull"`
+	ReferenceId             *string              `sql:"reference_id"`
 	CdWorkflow                  *CdWorkflow
 	DeploymentApprovalRequest   *DeploymentApprovalRequest
 	sql.AuditLog
@@ -304,7 +307,7 @@ func (impl *CdWorkflowRepositoryImpl) FindLatestCdWorkflowByPipelineId(pipelineI
 
 func (impl *CdWorkflowRepositoryImpl) FindLatestCdWorkflowByPipelineIdV2(pipelineIds []int) ([]*CdWorkflow, error) {
 	var cdWorkflow []*CdWorkflow
-	//err := impl.dbConnection.Model(&cdWorkflow).Where("pipeline_id in (?)", pg.In(pipelineIds)).Order("id DESC").Select()
+	// err := impl.dbConnection.Model(&cdWorkflow).Where("pipeline_id in (?)", pg.In(pipelineIds)).Order("id DESC").Select()
 	query := "SELECT cdw.pipeline_id, cdw.workflow_status, MAX(id) as id from cd_workflow cdw" +
 		" WHERE cdw.pipeline_id in(?)" +
 		" GROUP by cdw.pipeline_id, cdw.workflow_status ORDER by id desc;"
@@ -312,7 +315,7 @@ func (impl *CdWorkflowRepositoryImpl) FindLatestCdWorkflowByPipelineIdV2(pipelin
 	if err != nil {
 		return cdWorkflow, err
 	}
-	//TODO - Group By Environment And Pipeline will get latest pipeline from top
+	// TODO - Group By Environment And Pipeline will get latest pipeline from top
 	return cdWorkflow, err
 }
 
@@ -328,7 +331,7 @@ func (impl *CdWorkflowRepositoryImpl) FindCdWorkflowMetaByEnvironmentId(appId in
 		Join("inner join cd_workflow wf on wf.id = cd_workflow_runner.cd_workflow_id").
 		Join("inner join ci_artifact cia on cia.id = wf.ci_artifact_id").
 		Join("inner join pipeline p on p.id = wf.pipeline_id").
-		//Join("left join users u on u.id = wfr.triggered_by").
+		// Join("left join users u on u.id = wfr.triggered_by").
 		Offset(offset).Limit(limit).
 		Select()
 	if err != nil {
@@ -367,11 +370,11 @@ func (impl *CdWorkflowRepositoryImpl) FindCdWorkflowMetaByPipelineId(pipelineId 
 		Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline", "CdWorkflow.CiArtifact").
 		Where("cd_workflow.pipeline_id = ?", pipelineId).
 		Order("cd_workflow_runner.id DESC").
-		//Join("inner join cd_workflow wf on wf.id = cd_workflow_runner.cd_workflow_id").
-		//Join("inner join ci_artifact cia on cia.id = wf.ci_artifact_id").
-		//Join("inner join pipeline p on p.id = wf.pipeline_id").
-		//Join("left join users u on u.id = wfr.triggered_by").
-		//Order("ORDER BY cd_workflow_runner.started_on DESC").
+		// Join("inner join cd_workflow wf on wf.id = cd_workflow_runner.cd_workflow_id").
+		// Join("inner join ci_artifact cia on cia.id = wf.ci_artifact_id").
+		// Join("inner join pipeline p on p.id = wf.pipeline_id").
+		// Join("left join users u on u.id = wfr.triggered_by").
+		// Order("ORDER BY cd_workflow_runner.started_on DESC").
 		Offset(offset).Limit(limit).
 		Select()
 
@@ -694,4 +697,14 @@ func (impl *CdWorkflowRepositoryImpl) GetLatestTriggersOfHelmPipelinesStuckInNon
 		return nil, err
 	}
 	return wfrList, err
+}
+
+func (impl *CdWorkflowRepositoryImpl) CheckWorkflowRunnerByReferenceId(referenceId string) (bool, error) {
+	exists, err := impl.dbConnection.Model((*CdWorkflowRunner)(nil)).
+		Where("cd_workflow_runner.reference_id = ?", referenceId).
+		Exists()
+	if errors.Is(err, pg.ErrNoRows) {
+		return false, nil
+	}
+	return exists, err
 }
