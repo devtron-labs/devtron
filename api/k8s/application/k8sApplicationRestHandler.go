@@ -67,9 +67,9 @@ type K8sApplicationRestHandlerImpl struct {
 	validator              *validator.Validate
 	enforcerUtil           rbac.EnforcerUtil
 	enforcerUtilHelm       rbac.EnforcerUtilHelm
-	helmAppService   client.HelmAppService
-	userService      user.UserService
-	k8sCommonService k8s.K8sCommonService
+	helmAppService         client.HelmAppService
+	userService            user.UserService
+	k8sCommonService       k8s.K8sCommonService
 }
 
 func NewK8sApplicationRestHandlerImpl(logger *zap.SugaredLogger, k8sApplicationService application2.K8sApplicationService, pump connector.Pump, terminalSessionHandler terminal.TerminalSessionHandler, enforcer casbin.Enforcer, enforcerUtilHelm rbac.EnforcerUtilHelm, enforcerUtil rbac.EnforcerUtil, helmAppService client.HelmAppService, userService user.UserService, k8sCommonService k8s.K8sCommonService, validator *validator.Validate) *K8sApplicationRestHandlerImpl {
@@ -652,6 +652,9 @@ func (handler *K8sApplicationRestHandlerImpl) DownloadPodLogs(w http.ResponseWri
 		return
 	}
 	handler.requestValidationAndRBAC(w, r, token, request)
+
+	// just to make sure follow flag is set to false when downloading logs
+	request.K8sRequest.PodLogsRequest.Follow = false
 
 	stream, err := handler.k8sApplicationService.GetPodLogs(r.Context(), request)
 	if err != nil {
