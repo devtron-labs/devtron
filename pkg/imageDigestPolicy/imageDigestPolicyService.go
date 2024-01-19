@@ -37,6 +37,7 @@ type ImageDigestPolicyServiceImpl struct {
 	qualifierMappingService      resourceQualifiers.QualifierMappingService
 	devtronResourceSearchableKey devtronResource.DevtronResourceSearchableKeyService
 	environmentRepository        repository.EnvironmentRepository
+	clusterRepository            repository.ClusterRepository
 }
 
 func NewImageDigestPolicyServiceImpl(
@@ -44,12 +45,14 @@ func NewImageDigestPolicyServiceImpl(
 	qualifierMappingService resourceQualifiers.QualifierMappingService,
 	devtronResourceSearchableKey devtronResource.DevtronResourceSearchableKeyService,
 	environmentRepository repository.EnvironmentRepository,
+	clusterRepository repository.ClusterRepository,
 ) *ImageDigestPolicyServiceImpl {
 	return &ImageDigestPolicyServiceImpl{
 		logger:                       logger,
 		qualifierMappingService:      qualifierMappingService,
 		devtronResourceSearchableKey: devtronResourceSearchableKey,
 		environmentRepository:        environmentRepository,
+		clusterRepository:            clusterRepository,
 	}
 }
 
@@ -99,6 +102,8 @@ func (impl ImageDigestPolicyServiceImpl) GetDigestPolicyConfigurations(digestCon
 	resourceIds := []int{resourceQualifiers.ImageDigestResourceId}
 
 	scope := &resourceQualifiers.Scope{
+		ClusterId:  digestConfigurationRequest.ClusterId,
+		EnvId:      digestConfigurationRequest.EnvironmentId,
 		PipelineId: digestConfigurationRequest.PipelineId,
 	}
 	policyMappings, err := impl.qualifierMappingService.GetQualifierMappings(resourceQualifiers.ImageDigest, scope, resourceIds)
@@ -276,6 +281,12 @@ func (impl ImageDigestPolicyServiceImpl) saveNewPolicies(tx *pg.Tx, savePolicyRe
 	newClustersConfigured := make(map[ClusterId]bool)
 	newEnvsConfigured := make(map[EnvironmentId]bool)
 
+	clusterIdNameMap, envIdNameMap, err := impl.getIdToNameMappings(requestPolicies)
+	if err != nil {
+		impl.logger.Errorw("error in saving policies", "err", err)
+		return newClustersConfigured, newEnvsConfigured, nil
+	}
+
 	for _, policy := range requestPolicies.ClusterDetails {
 
 		switch policy.PolicyType {
@@ -284,7 +295,13 @@ func (impl ImageDigestPolicyServiceImpl) saveNewPolicies(tx *pg.Tx, savePolicyRe
 
 			if _, ok := existingConfiguredClusters[policy.ClusterId]; !ok {
 
-				newQualifierMapping := QualifierMappingDao(int(resourceQualifiers.CLUSTER_QUALIFIER), devtronResourceSearchableKeyMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ID], policy.ClusterId, "", requestPolicies.UserId)
+				qualifierId := int(resourceQualifiers.CLUSTER_QUALIFIER)
+				identifierKey := devtronResourceSearchableKeyMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ID]
+				identifierValueInt := policy.ClusterId
+				identifierValueString := clusterIdNameMap[policy.ClusterId]
+
+				newQualifierMapping := QualifierMappingDao(
+					qualifierId, identifierKey, identifierValueInt, identifierValueString, requestPolicies.UserId)
 				newPolicies = append(newPolicies, newQualifierMapping)
 
 			}
@@ -294,7 +311,14 @@ func (impl ImageDigestPolicyServiceImpl) saveNewPolicies(tx *pg.Tx, savePolicyRe
 
 			for _, envId := range policy.EnvironmentIds {
 				if _, ok := existingConfiguredEnvs[envId]; !ok {
-					newQualifierMapping := QualifierMappingDao(int(resourceQualifiers.ENV_QUALIFIER), devtronResourceSearchableKeyMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID], envId, "", requestPolicies.UserId)
+
+					qualifierId := int(resourceQualifiers.ENV_QUALIFIER)
+					identifierKey := devtronResourceSearchableKeyMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID]
+					identifierValueInt := envId
+					identifierValueString := envIdNameMap[envId]
+
+					newQualifierMapping := QualifierMappingDao(
+						qualifierId, identifierKey, identifierValueInt, identifierValueString, requestPolicies.UserId)
 					newPolicies = append(newPolicies, newQualifierMapping)
 				}
 				newEnvsConfigured[envId] = true
@@ -309,6 +333,41 @@ func (impl ImageDigestPolicyServiceImpl) saveNewPolicies(tx *pg.Tx, savePolicyRe
 		}
 	}
 	return newClustersConfigured, newEnvsConfigured, nil
+}
+
+func (impl ImageDigestPolicyServiceImpl) getIdToNameMappings(clusterDetails *PolicyBean) (clusterIdNameMap map[ClusterId]ClusterName, envIdNameMap map[EnvironmentId]EnvName, err error) {
+
+	clusterIdNameMap = make(map[ClusterId]ClusterName)
+	envIdNameMap = make(map[EnvironmentId]EnvName)
+
+	clusterIds := make([]int, 0)
+	envIds := make([]*int, 0)
+	for _, clusterDetail := range clusterDetails.ClusterDetails {
+		clusterIds = append(clusterIds, clusterDetail.ClusterId)
+		for _, envId := range clusterDetail.EnvironmentIds {
+			envIds = append(envIds, &envId)
+		}
+	}
+
+	environments, err := impl.environmentRepository.FindByIds(envIds)
+	if err != nil {
+		impl.logger.Errorw("error in fetching envs by ids", "err", err)
+		return clusterIdNameMap, envIdNameMap, err
+	}
+
+	clusters, err := impl.clusterRepository.FindByIds(clusterIds)
+	if err != nil {
+		impl.logger.Errorw("error in fetching envs by ids", "err", err)
+		return clusterIdNameMap, envIdNameMap, err
+	}
+
+	for _, env := range environments {
+		envIdNameMap[env.Id] = env.Name
+	}
+	for _, cluster := range clusters {
+		clusterIdNameMap[cluster.Id] = cluster.ClusterName
+	}
+	return clusterIdNameMap, envIdNameMap, nil
 }
 
 func (impl ImageDigestPolicyServiceImpl) removePoliciesNotPresentInRequest(tx *pg.Tx, policyRemoveRequest oldPolicyRemoveRequest) error {

@@ -296,7 +296,7 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	imageDigestPolicyServiceImpl := imageDigestPolicy.NewImageDigestPolicyServiceImpl(sugaredLogger, qualifierMappingServiceImpl, devtronResourceSearchableKeyServiceImpl, environmentRepositoryImpl)
+	imageDigestPolicyServiceImpl := imageDigestPolicy.NewImageDigestPolicyServiceImpl(sugaredLogger, qualifierMappingServiceImpl, devtronResourceSearchableKeyServiceImpl, environmentRepositoryImpl, clusterRepositoryImpl)
 	clusterServiceImplExtended := cluster2.NewClusterServiceImplExtended(clusterRepositoryImpl, environmentRepositoryImpl, grafanaClientImpl, sugaredLogger, installedAppRepositoryImpl, k8sUtil, serviceClientImpl, k8sInformerFactoryImpl, gitOpsConfigRepositoryImpl, userAuthRepositoryImpl, userRepositoryImpl, roleGroupRepositoryImpl, sshTunnelWrapperServiceImpl, globalAuthorisationConfigServiceImpl, userServiceImpl, imageDigestPolicyServiceImpl)
 	helmClientConfig, err := client3.GetConfig()
 	if err != nil {

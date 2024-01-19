@@ -22,6 +22,8 @@ const (
 
 type ClusterId = int
 type EnvironmentId = int
+type ClusterName = string
+type EnvName = string
 
 var EmptyClusterDetailsErr = errors.New("enableDigestForAllClusters is false but cluster details not provided")
 
