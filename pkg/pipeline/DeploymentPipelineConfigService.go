@@ -320,7 +320,7 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelineById(pipelineId int) (cdPi
 	digestConfigurationRequest := imageDigestPolicy.DigestPolicyConfigurationRequest{PipelineId: pipelineId}
 	digestPolicyConfigurations, err := impl.imageDigestPolicyService.GetDigestPolicyConfigurations(digestConfigurationRequest)
 	if err != nil {
-		impl.logger.Errorw("error in checking if isImageDigestPolicyConfiguredForPipeline", "err", err)
+		impl.logger.Errorw("error in checking if isImageDigestPolicyConfiguredForPipeline", "err", err, "pipelineId", pipelineId)
 		return nil, err
 	}
 
@@ -1037,7 +1037,7 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesForApp(appId int) (cdPipe
 		digestConfigurationRequest := imageDigestPolicy.DigestPolicyConfigurationRequest{PipelineId: dbPipeline.Id}
 		digestPolicyConfigurations, err := impl.imageDigestPolicyService.GetDigestPolicyConfigurations(digestConfigurationRequest)
 		if err != nil {
-			impl.logger.Errorw("error in checking if isImageDigestPolicyConfiguredForPipeline", "err", err)
+			impl.logger.Errorw("error in checking if isImageDigestPolicyConfiguredForPipeline", "err", err, "pipelineId", dbPipeline.Id)
 			return nil, err
 		}
 

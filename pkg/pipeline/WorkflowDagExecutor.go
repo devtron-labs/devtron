@@ -1710,7 +1710,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 	digestConfigurationRequest := imageDigestPolicy.DigestPolicyConfigurationRequest{PipelineId: cdPipeline.Id}
 	digestPolicyConfigurations, err := impl.imageDigestPolicyService.GetDigestPolicyConfigurations(digestConfigurationRequest)
 	if err != nil {
-		impl.logger.Errorw("error in checking if isImageDigestPolicyConfiguredForPipeline", "err", err)
+		impl.logger.Errorw("error in checking if isImageDigestPolicyConfiguredForPipeline", "err", err, "pipelineId", cdPipeline.Id)
 		return nil, err
 	}
 	image := artifact.Image
@@ -4288,7 +4288,7 @@ func (impl *WorkflowDagExecutorImpl) getReleaseOverride(envOverride *chartConfig
 	digestConfigurationRequest := imageDigestPolicy.DigestPolicyConfigurationRequest{PipelineId: overrideRequest.PipelineId}
 	digestPolicyConfigurations, err := impl.imageDigestPolicyService.GetDigestPolicyConfigurations(digestConfigurationRequest)
 	if err != nil {
-		impl.logger.Errorw("error in checking if isImageDigestPolicyConfiguredForPipeline", "err", err)
+		impl.logger.Errorw("error in checking if isImageDigestPolicyConfiguredForPipeline", "err", err, "pipelineId", overrideRequest.PipelineId)
 		return "", err
 	}
 
