@@ -18,12 +18,12 @@ type InfraConfigService interface {
 
 type InfraConfigServiceImpl struct {
 	logger           *zap.SugaredLogger
-	infraProfileRepo repository.InfraProfileRepository
+	infraProfileRepo repository.InfraConfigRepository
 	units            *units.Units
 	infraConfig      *infraConfig.InfraConfig
 }
 
-func NewInfraProfileServiceImpl(logger *zap.SugaredLogger, infraProfileRepo repository.InfraProfileRepository, units *units.Units) (*InfraConfigServiceImpl, error) {
+func NewInfraConfigServiceImpl(logger *zap.SugaredLogger, infraProfileRepo repository.InfraConfigRepository, units *units.Units) (*InfraConfigServiceImpl, error) {
 	infraConfiguration := &infraConfig.InfraConfig{}
 	err := env.Parse(infraConfiguration)
 	if err != nil {

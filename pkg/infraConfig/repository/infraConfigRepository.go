@@ -12,7 +12,7 @@ const DEFAULT_PROFILE_NAME = "default"
 const DEFAULT_PROFILE_EXISTS = "default profile exists"
 const noPropertiesFound = "no properties found"
 
-type InfraProfileRepository interface {
+type InfraConfigRepository interface {
 	CreateDefaultProfile(tx *pg.Tx, infraProfile *infraConfig.InfraProfile) error
 	GetProfileByName(name string) (*infraConfig.InfraProfile, error)
 	GetConfigurationsByProfileId(profileId int) ([]*infraConfig.InfraProfileConfiguration, error)
@@ -23,13 +23,13 @@ type InfraProfileRepository interface {
 	sql.TransactionWrapper
 }
 
-type InfraProfileRepositoryImpl struct {
+type InfraConfigRepositoryImpl struct {
 	dbConnection *pg.DB
 	*sql.TransactionUtilImpl
 }
 
-func NewInfraProfileRepositoryImpl(dbConnection *pg.DB) *InfraProfileRepositoryImpl {
-	return &InfraProfileRepositoryImpl{
+func NewInfraProfileRepositoryImpl(dbConnection *pg.DB) *InfraConfigRepositoryImpl {
+	return &InfraConfigRepositoryImpl{
 		dbConnection:        dbConnection,
 		TransactionUtilImpl: sql.NewTransactionUtilImpl(dbConnection),
 	}
@@ -37,7 +37,7 @@ func NewInfraProfileRepositoryImpl(dbConnection *pg.DB) *InfraProfileRepositoryI
 
 // CreateDefaultProfile saves the default profile in the database only once in a lifetime.
 // If the default profile already exists, it will not be saved again.
-func (impl *InfraProfileRepositoryImpl) CreateDefaultProfile(tx *pg.Tx, infraProfile *infraConfig.InfraProfile) error {
+func (impl *InfraConfigRepositoryImpl) CreateDefaultProfile(tx *pg.Tx, infraProfile *infraConfig.InfraProfile) error {
 	profile, err := impl.GetProfileByName(DEFAULT_PROFILE_NAME)
 	if err != nil && !errors.Is(err, pg.ErrNoRows) {
 		return err
@@ -49,7 +49,7 @@ func (impl *InfraProfileRepositoryImpl) CreateDefaultProfile(tx *pg.Tx, infraPro
 	return err
 }
 
-func (impl *InfraProfileRepositoryImpl) GetProfileByName(name string) (*infraConfig.InfraProfile, error) {
+func (impl *InfraConfigRepositoryImpl) GetProfileByName(name string) (*infraConfig.InfraProfile, error) {
 	var infraProfile infraConfig.InfraProfile
 	err := impl.dbConnection.Model(&infraProfile).
 		Where("name = ?", name).
@@ -58,17 +58,17 @@ func (impl *InfraProfileRepositoryImpl) GetProfileByName(name string) (*infraCon
 	return &infraProfile, err
 }
 
-func (impl *InfraProfileRepositoryImpl) CreateConfigurations(tx *pg.Tx, configurations []*infraConfig.InfraProfileConfiguration) error {
+func (impl *InfraConfigRepositoryImpl) CreateConfigurations(tx *pg.Tx, configurations []*infraConfig.InfraProfileConfiguration) error {
 	err := tx.Insert(&configurations)
 	return err
 }
 
-func (impl *InfraProfileRepositoryImpl) UpdateConfigurations(tx *pg.Tx, configurations []*infraConfig.InfraProfileConfiguration) error {
+func (impl *InfraConfigRepositoryImpl) UpdateConfigurations(tx *pg.Tx, configurations []*infraConfig.InfraProfileConfiguration) error {
 	err := tx.Update(&configurations)
 	return err
 }
 
-func (impl *InfraProfileRepositoryImpl) GetConfigurationsByProfileId(profileId int) ([]*infraConfig.InfraProfileConfiguration, error) {
+func (impl *InfraConfigRepositoryImpl) GetConfigurationsByProfileId(profileId int) ([]*infraConfig.InfraProfileConfiguration, error) {
 	var configurations []*infraConfig.InfraProfileConfiguration
 	err := impl.dbConnection.Model(&configurations).
 		Where("infra_profile_id = ?", profileId).
@@ -80,7 +80,7 @@ func (impl *InfraProfileRepositoryImpl) GetConfigurationsByProfileId(profileId i
 	return configurations, err
 }
 
-func (impl *InfraProfileRepositoryImpl) GetIdentifierCountForDefaultProfile(defaultProfileId int) (int, error) {
+func (impl *InfraConfigRepositoryImpl) GetIdentifierCountForDefaultProfile(defaultProfileId int) (int, error) {
 	query := " SELECT COUNT(DISTINCT app_id) " +
 		" FROM resource_identifier_mapping " +
 		" WHERE reference_type = ? AND reference_id IN ( " +
@@ -97,7 +97,7 @@ func (impl *InfraProfileRepositoryImpl) GetIdentifierCountForDefaultProfile(defa
 	return count, err
 }
 
-func (impl *InfraProfileRepositoryImpl) UpdateProfile(tx *pg.Tx, profileName string, profile *infraConfig.InfraProfile) error {
+func (impl *InfraConfigRepositoryImpl) UpdateProfile(tx *pg.Tx, profileName string, profile *infraConfig.InfraProfile) error {
 	_, err := tx.Model(&infraConfig.InfraProfile{}).
 		Set("name=?", profile.Name).
 		Set("description=?", profile.Description).

@@ -224,10 +224,10 @@ func InitializeApp() (*App, error) {
 			new(*dashboardEvent.DashboardTelemetryRouterImpl)),
 
 		infraConfigRepository.NewInfraProfileRepositoryImpl,
-		wire.Bind(new(infraConfigRepository.InfraProfileRepository), new(*infraConfigRepository.InfraProfileRepositoryImpl)),
+		wire.Bind(new(infraConfigRepository.InfraConfigRepository), new(*infraConfigRepository.InfraProfileRepositoryImpl)),
 
 		units.NewUnits,
-		infraConfigService.NewInfraProfileServiceImpl,
+		infraConfigService.NewInfraConfigServiceImpl,
 		wire.Bind(new(infraConfigService.InfraConfigService), new(*infraConfigService.InfraConfigServiceImpl)),
 
 		infraConfig.NewInfraConfigRestHandlerImpl,

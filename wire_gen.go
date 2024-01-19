@@ -826,7 +826,7 @@ func InitializeApp() (*App, error) {
 	ciTriggerCronImpl := cron.NewCiTriggerCronImpl(sugaredLogger, ciTriggerCronConfig, pipelineStageRepositoryImpl, ciHandlerImpl, ciArtifactRepositoryImpl, globalPluginRepositoryImpl)
 	infraProfileRepositoryImpl := repository15.NewInfraProfileRepositoryImpl(db)
 	unitsUnits := units.NewUnits()
-	infraConfigServiceImpl, err := service4.NewInfraProfileServiceImpl(sugaredLogger, infraProfileRepositoryImpl, unitsUnits)
+	infraConfigServiceImpl, err := service4.NewInfraConfigServiceImpl(sugaredLogger, infraProfileRepositoryImpl, unitsUnits)
 	if err != nil {
 		return nil, err
 	}
