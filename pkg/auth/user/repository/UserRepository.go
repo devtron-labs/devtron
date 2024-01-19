@@ -67,8 +67,8 @@ type UserRoleModel struct {
 	TableName struct{} `sql:"user_roles"`
 	Id        int      `sql:"id,pk"`
 	UserId    int32    `sql:"user_id,notnull"`
-	RoleId int      `sql:"role_id,notnull"`
-	User   UserModel
+	RoleId    int      `sql:"role_id,notnull"`
+	User      UserModel
 	sql.AuditLog
 }
 

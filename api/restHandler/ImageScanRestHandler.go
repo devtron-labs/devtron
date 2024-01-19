@@ -43,9 +43,9 @@ type ImageScanRestHandler interface {
 
 type ImageScanRestHandlerImpl struct {
 	logger             *zap.SugaredLogger
-	imageScanService security.ImageScanService
-	userService      user.UserService
-	enforcer         casbin.Enforcer
+	imageScanService   security.ImageScanService
+	userService        user.UserService
+	enforcer           casbin.Enforcer
 	enforcerUtil       rbac.EnforcerUtil
 	environmentService cluster.EnvironmentService
 }
