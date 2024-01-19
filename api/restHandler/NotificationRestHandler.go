@@ -1194,6 +1194,10 @@ func (impl NotificationRestHandlerImpl) ApproveDeploymentConfigForNotification(w
 	pipelineInfo, err := impl.pipelineBuilder.FindPipelineById(deploymentApprovalRequest.PipelineId)
 	if err != nil {
 		impl.logger.Errorw("error occurred while fetching pipeline details", "pipelineId", deploymentApprovalRequest.PipelineId, "err", err)
+		if err == pg.ErrNoRows {
+			common.WriteJsonResp(w, errors.New("pipeline not found"), nil, http.StatusInternalServerError)
+			return
+		}
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
