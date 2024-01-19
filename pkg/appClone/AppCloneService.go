@@ -1009,11 +1009,7 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, c
 	} else if AllowedDeploymentAppTypes[util.PIPELINE_DEPLOYMENT_TYPE_HELM] {
 		deploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
 	}
-	isDigestPolicyConfiguredForRefPipeline, err := impl.imageDigestService.IsPolicyConfiguredForPipeline(refCdPipeline.Id)
-	if err != nil {
-		impl.logger.Errorw("error in checking if digest configured for reference cd-pipeline or not in app clone", "err", err, "refCdPipelineId", refCdPipeline.Id)
-		return nil, err
-	}
+
 	cdPipeline := &bean.CDPipelineConfigObject{
 		Id:                            0,
 		EnvironmentId:                 refCdPipeline.EnvironmentId,
@@ -1038,7 +1034,7 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, c
 		SourceToNewPipelineId:         refCdPipeline.SourceToNewPipelineId,
 		RefPipelineId:                 refCdPipeline.Id,
 		ParentPipelineType:            refCdPipeline.ParentPipelineType,
-		IsDigestEnforcedForPipeline:   isDigestPolicyConfiguredForRefPipeline,
+		IsDigestEnforcedForPipeline:   refCdPipeline.IsDigestEnforcedForPipeline,
 	}
 	if refCdPipeline.ParentPipelineType == "WEBHOOK" {
 		cdPipeline.CiPipelineId = 0

@@ -55,14 +55,15 @@ type oldPolicyRemoveRequest struct {
 	userId                     int32
 }
 
-func QualifierMappingDao(qualifierId, identifierKey, IdentifierValueInt int, userId int32) *resourceQualifiers.QualifierMapping {
+func QualifierMappingDao(qualifierId, identifierKey, IdentifierValueInt int, IdentifierValueString string, userId int32) *resourceQualifiers.QualifierMapping {
 	return &resourceQualifiers.QualifierMapping{
-		ResourceId:         resourceQualifiers.ImageDigestResourceId,
-		ResourceType:       resourceQualifiers.ImageDigest,
-		QualifierId:        qualifierId,
-		IdentifierKey:      identifierKey,
-		IdentifierValueInt: IdentifierValueInt,
-		Active:             true,
+		ResourceId:            resourceQualifiers.ImageDigestResourceId,
+		ResourceType:          resourceQualifiers.ImageDigest,
+		QualifierId:           qualifierId,
+		IdentifierKey:         identifierKey,
+		IdentifierValueInt:    IdentifierValueInt,
+		IdentifierValueString: IdentifierValueString,
+		Active:                true,
 		AuditLog: sql.AuditLog{
 			CreatedOn: time.Now(),
 			CreatedBy: userId,
@@ -78,4 +79,15 @@ func ValidateImageDigestPolicyType(fl validator.FieldLevel) bool {
 		return true
 	}
 	return false
+}
+
+type DigestPolicyConfigurationRequest struct {
+	PipelineId    int
+	ClusterId     int
+	EnvironmentId int
+}
+
+type DigestPolicyConfiguration struct {
+	DigestConfiguredForPipeline     bool
+	DigestConfiguredForEnvOrCluster bool
 }

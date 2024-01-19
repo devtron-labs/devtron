@@ -362,17 +362,18 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelineById(pipelineId int) (cdPi
 		customTagStage = repository5.PIPELINE_STAGE_TYPE_POST_CD
 		customTagEnabled = customTagPostCD.Enabled
 	}
-	isImageDigestPolicyConfiguredForPipeline, err := impl.imageDigestPolicyService.IsPolicyConfiguredForPipeline(dbPipeline.Id)
+
+	digestConfigurationRequest := imageDigestPolicy.DigestPolicyConfigurationRequest{
+		ClusterId:     environment.ClusterId,
+		EnvironmentId: environment.Id,
+		PipelineId:    pipelineId,
+	}
+	digestPolicyConfigurations, err := impl.imageDigestPolicyService.GetDigestPolicyConfigurations(digestConfigurationRequest)
 	if err != nil {
 		impl.logger.Errorw("error in checking if isImageDigestPolicyConfiguredForPipeline", "err", err)
 		return nil, err
 	}
-	IsDigestEnforcedForEnv, err :=
-		impl.imageDigestPolicyService.IsPolicyConfiguredForEnvOrCluster(environment.Id, environment.ClusterId)
-	if err != nil {
-		impl.logger.Errorw("error in checking if image digest policy is configured or not", "err", err)
-		return nil, err
-	}
+
 	cdPipeline = &bean.CDPipelineConfigObject{
 		Id:                            dbPipeline.Id,
 		Name:                          dbPipeline.Name,
@@ -402,8 +403,8 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelineById(pipelineId int) (cdPi
 		CustomTagStage:                &customTagStage,
 		EnableCustomTag:               customTagEnabled,
 		AppId:                         dbPipeline.AppId,
-		IsDigestEnforcedForPipeline:   isImageDigestPolicyConfiguredForPipeline,
-		IsDigestEnforcedForEnv:        IsDigestEnforcedForEnv,
+		IsDigestEnforcedForPipeline:   digestPolicyConfigurations.DigestConfiguredForPipeline,
+		IsDigestEnforcedForEnv:        digestPolicyConfigurations.DigestConfiguredForEnvOrCluster,
 	}
 	var preDeployStage *bean3.PipelineStageDto
 	var postDeployStage *bean3.PipelineStageDto
@@ -1137,16 +1138,14 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesForApp(appId int) (cdPipe
 			customTagEnabled = customTagPostCD.Enabled
 		}
 
-		isImageDigestPolicyConfiguredForPipeline, err := impl.imageDigestPolicyService.IsPolicyConfiguredForPipeline(dbPipeline.Id)
+		digestConfigurationRequest := imageDigestPolicy.DigestPolicyConfigurationRequest{
+			ClusterId:     environment.ClusterId,
+			EnvironmentId: environment.Id,
+			PipelineId:    dbPipeline.Id,
+		}
+		digestPolicyConfigurations, err := impl.imageDigestPolicyService.GetDigestPolicyConfigurations(digestConfigurationRequest)
 		if err != nil {
 			impl.logger.Errorw("error in checking if isImageDigestPolicyConfiguredForPipeline", "err", err)
-			return nil, err
-		}
-
-		IsDigestEnforcedForEnv, err :=
-			impl.imageDigestPolicyService.IsPolicyConfiguredForEnvOrCluster(environment.Id, environment.ClusterId)
-		if err != nil {
-			impl.logger.Errorw("error in checking if image digest policy is configured or not", "err", err)
 			return nil, err
 		}
 
@@ -1181,8 +1180,8 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesForApp(appId int) (cdPipe
 			CustomTagObject:               customTag,
 			CustomTagStage:                &customTagStage,
 			EnableCustomTag:               customTagEnabled,
-			IsDigestEnforcedForPipeline:   isImageDigestPolicyConfiguredForPipeline,
-			IsDigestEnforcedForEnv:        IsDigestEnforcedForEnv, // will always be false in oss
+			IsDigestEnforcedForPipeline:   digestPolicyConfigurations.DigestConfiguredForPipeline,
+			IsDigestEnforcedForEnv:        digestPolicyConfigurations.DigestConfiguredForEnvOrCluster, // will always be false in oss
 		}
 		pipelines = append(pipelines, pipeline)
 	}
@@ -2049,9 +2048,29 @@ func (impl *CdPipelineConfigServiceImpl) createCdPipeline(ctx context.Context, a
 		return pipelineId, err
 	}
 
-	_, err = impl.handleImagePolicyDBOperations(tx, pipeline.Id, pipeline.EnvironmentId, pipeline.IsDigestEnforcedForPipeline, userId)
+	environment, err := impl.environmentRepository.FindById(pipeline.EnvironmentId)
 	if err != nil {
+		impl.logger.Errorw("error in fetching environment by environmentId", "err", err, "environmentId", pipeline.EnvironmentId)
 		return pipelineId, err
+	}
+
+	digestConfigurationRequest := imageDigestPolicy.DigestPolicyConfigurationRequest{
+		ClusterId:     environment.ClusterId,
+		EnvironmentId: environment.Id,
+		PipelineId:    pipelineId}
+	digestPolicyConfigurations, err := impl.imageDigestPolicyService.GetDigestPolicyConfigurations(digestConfigurationRequest)
+	if err != nil {
+		impl.logger.Errorw("error in checking if isImageDigestPolicyConfiguredForPipeline", "err", err)
+		return pipelineId, err
+	}
+
+	if !digestPolicyConfigurations.DigestConfiguredForEnvOrCluster {
+		if pipeline.IsDigestEnforcedForPipeline {
+			_, err = impl.imageDigestPolicyService.CreatePolicyForPipeline(tx, pipeline.Id, pipeline.Name, userId)
+			if err != nil {
+				return pipelineId, err
+			}
+		}
 	}
 
 	err = tx.Commit()
@@ -2291,7 +2310,7 @@ func (impl *CdPipelineConfigServiceImpl) updateCdPipeline(ctx context.Context, a
 		return err
 	}
 
-	_, err = impl.handleImagePolicyDBOperations(tx, pipeline.Id, pipeline.EnvironmentId, pipeline.IsDigestEnforcedForPipeline, userID)
+	_, err = impl.handleImagePolicyOperations(tx, pipeline.Id, pipeline.Name, pipeline.EnvironmentId, pipeline.IsDigestEnforcedForPipeline, userID)
 	if err != nil {
 		return err
 	}
@@ -2303,11 +2322,7 @@ func (impl *CdPipelineConfigServiceImpl) updateCdPipeline(ctx context.Context, a
 	return nil
 }
 
-func (impl *CdPipelineConfigServiceImpl) handleImagePolicyDBOperations(tx *pg.Tx,
-	pipelineId int,
-	envId int,
-	isDigestEnforcedForPipeline bool,
-	userId int32) (resourceQualifierId int, err error) {
+func (impl *CdPipelineConfigServiceImpl) handleImagePolicyOperations(tx *pg.Tx, pipelineId int, pipelineName string, envId int, isDigestEnforcedForPipeline bool, userId int32) (resourceQualifierId int, err error) {
 
 	environment, err := impl.environmentRepository.FindById(envId)
 	if err != nil {
@@ -2315,21 +2330,21 @@ func (impl *CdPipelineConfigServiceImpl) handleImagePolicyDBOperations(tx *pg.Tx
 		return pipelineId, err
 	}
 
-	isPolicyConfiguredForEnvOrCluster, err :=
-		impl.imageDigestPolicyService.IsPolicyConfiguredForEnvOrCluster(environment.Id, environment.ClusterId)
+	digestConfigurationRequest := imageDigestPolicy.DigestPolicyConfigurationRequest{ClusterId: environment.ClusterId, EnvironmentId: environment.Id, PipelineId: pipelineId}
+	digestPolicyConfigurations, err := impl.imageDigestPolicyService.GetDigestPolicyConfigurations(digestConfigurationRequest)
 	if err != nil {
-		impl.logger.Errorw("error in checking if image digest policy is configured or not", "err", err, "envId", envId, "clusterId", environment.ClusterId)
+		impl.logger.Errorw("error in checking if isImageDigestPolicyConfiguredForPipeline", "err", err)
 		return pipelineId, err
 	}
 
-	if !isPolicyConfiguredForEnvOrCluster {
-		if isDigestEnforcedForPipeline {
-			_, err = impl.imageDigestPolicyService.CreatePolicyForPipelineIfNotExist(tx, pipelineId, userId)
+	if !digestPolicyConfigurations.DigestConfiguredForEnvOrCluster {
+		if isDigestEnforcedForPipeline && !digestPolicyConfigurations.DigestConfiguredForPipeline {
+			_, err = impl.imageDigestPolicyService.CreatePolicyForPipeline(tx, pipelineId, pipelineName, userId)
 			if err != nil {
 				impl.logger.Errorw("error in imageDigestPolicy operations for CD pipeline", "err", err, "pipelineId", pipelineId)
 				return pipelineId, err
 			}
-		} else if !isDigestEnforcedForPipeline {
+		} else if !isDigestEnforcedForPipeline && digestPolicyConfigurations.DigestConfiguredForPipeline {
 			_, err = impl.imageDigestPolicyService.DeletePolicyForPipeline(tx, pipelineId, userId)
 			if err != nil {
 				impl.logger.Errorw("error in deleting imageDigestPolicy for pipeline", "err", err, "pipelineId", pipelineId)

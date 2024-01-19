@@ -1930,17 +1930,18 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		}
 	}
 
-	isImageDigestPolicyConfigured, err :=
-		impl.imageDigestPolicyService.IsPolicyConfiguredForClusterOrEnvOrPipeline(
-			env.Id,
-			env.ClusterId,
-			cdPipeline.Id)
+	digestConfigurationRequest := imageDigestPolicy.DigestPolicyConfigurationRequest{
+		ClusterId:     env.ClusterId,
+		EnvironmentId: env.Id,
+		PipelineId:    cdPipeline.Id,
+	}
+	digestPolicyConfigurations, err := impl.imageDigestPolicyService.GetDigestPolicyConfigurations(digestConfigurationRequest)
 	if err != nil {
-		impl.logger.Errorw("error in checking if digest policy is configured at global or pipeline level", "err", err, "envId", env.Id, "clusterId", env.ClusterId, "pipelineId", cdPipeline.Id)
+		impl.logger.Errorw("error in checking if isImageDigestPolicyConfiguredForPipeline", "err", err)
 		return nil, err
 	}
 	image := artifact.Image
-	if isImageDigestPolicyConfigured {
+	if digestPolicyConfigurations.DigestConfiguredForEnvOrCluster || digestPolicyConfigurations.DigestConfiguredForPipeline {
 		image = ReplaceImageTagWithDigest(image, artifact.ImageDigest)
 	}
 
@@ -4926,17 +4927,18 @@ func (impl *WorkflowDagExecutorImpl) getReleaseOverride(envOverride *chartConfig
 		deploymentStrategy = string(strategy.Strategy)
 	}
 
-	isImageDigestPolicyConfiguredAtGlobalOrPipeline, err :=
-		impl.imageDigestPolicyService.IsPolicyConfiguredForClusterOrEnvOrPipeline(
-			envOverride.TargetEnvironment,
-			envOverride.Environment.ClusterId,
-			overrideRequest.PipelineId)
+	digestConfigurationRequest := imageDigestPolicy.DigestPolicyConfigurationRequest{
+		PipelineId:    overrideRequest.PipelineId,
+		EnvironmentId: envOverride.TargetEnvironment,
+		ClusterId:     envOverride.Environment.ClusterId,
+	}
+	digestPolicyConfigurations, err := impl.imageDigestPolicyService.GetDigestPolicyConfigurations(digestConfigurationRequest)
 	if err != nil {
-		impl.logger.Errorw("error in checking if digest policy is configured at global or pipeline level", "err", err)
+		impl.logger.Errorw("error in checking if isImageDigestPolicyConfiguredForPipeline", "err", err)
 		return "", err
 	}
 
-	if isImageDigestPolicyConfiguredAtGlobalOrPipeline {
+	if digestPolicyConfigurations.DigestConfiguredForPipeline {
 		imageTag[imageTagLen-1] = fmt.Sprintf("%s@%s", imageTag[imageTagLen-1], artifact.ImageDigest)
 	}
 

@@ -451,10 +451,13 @@ func (impl ClusterServiceImplExtended) DeleteFromDb(bean *ClusterBean, userId in
 }
 
 func (impl ClusterServiceImplExtended) IsPolicyConfiguredForCluster(envId, clusterId int) (bool, error) {
-	IsDigestEnforcedForEnv, err := impl.imageDigestPolicyService.IsPolicyConfiguredForEnvOrCluster(envId, clusterId)
+
+	digestConfigurationRequest := imageDigestPolicy.DigestPolicyConfigurationRequest{ClusterId: envId, EnvironmentId: clusterId}
+	digestPolicyConfigurations, err := impl.imageDigestPolicyService.GetDigestPolicyConfigurations(digestConfigurationRequest)
 	if err != nil {
-		impl.logger.Errorw("error in checking if image digest policy is configured or not", "err", err)
-		return IsDigestEnforcedForEnv, err
+		impl.logger.Errorw("error in checking if isImageDigestPolicyConfiguredForPipeline", "err", err)
+		return false, err
 	}
-	return IsDigestEnforcedForEnv, nil
+	return digestPolicyConfigurations.DigestConfiguredForEnvOrCluster, nil
+
 }
