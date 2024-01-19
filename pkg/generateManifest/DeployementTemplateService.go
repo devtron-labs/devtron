@@ -77,7 +77,7 @@ type DeploymentTemplateServiceImpl struct {
 	helmAppService                   client.HelmAppService
 	chartRepository                  chartRepoRepository.ChartRepository
 	chartTemplateServiceImpl         util.ChartTemplateService
-	K8sUtil                          *k8s.K8sUtil
+	K8sUtil                          *k8s.K8sServiceImpl
 	helmAppClient                    client.HelmAppClient
 	propertiesConfigService          pipeline.PropertiesConfigService
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
@@ -94,7 +94,7 @@ func NewDeploymentTemplateServiceImpl(Logger *zap.SugaredLogger, chartService ch
 	chartRepository chartRepoRepository.ChartRepository,
 	chartTemplateServiceImpl util.ChartTemplateService,
 	helmAppClient client.HelmAppClient,
-	K8sUtil *k8s.K8sUtil,
+	K8sUtil *k8s.K8sServiceImpl,
 	propertiesConfigService pipeline.PropertiesConfigService,
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
 	environmentRepository repository3.EnvironmentRepository,

@@ -26,6 +26,24 @@ const (
 	DEVTRON_APP_LABEL_VALUE2 = "orchestrator"
 )
 
+type ClusterConfig struct {
+	ClusterName                     string
+	Host                            string
+	BearerToken                     string
+	InsecureSkipTLSVerify           bool
+	KeyData                         string
+	CertData                        string
+	CAData                          string
+	ClusterId                       int
+	ProxyUrl                        string
+	ToConnectForClusterVerification bool
+	ToConnectWithSSHTunnel          bool
+	SSHTunnelUser                   string
+	SSHTunnelPassword               string
+	SSHTunnelAuthKey                string
+	SSHTunnelServerAddress          string
+}
+
 type ClusterResourceListMap struct {
 	Headers       []string                 `json:"headers"`
 	Data          []map[string]interface{} `json:"data"`

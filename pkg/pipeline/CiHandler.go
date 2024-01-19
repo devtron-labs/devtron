@@ -103,7 +103,7 @@ type CiHandlerImpl struct {
 	eventFactory                 client.EventFactory
 	ciPipelineRepository         pipelineConfig.CiPipelineRepository
 	appListingRepository         repository.AppListingRepository
-	K8sUtil                      *k8s.K8sUtil
+	K8sUtil                      *k8s.K8sServiceImpl
 	cdPipelineRepository         pipelineConfig.PipelineRepository
 	enforcerUtil                 rbac.EnforcerUtil
 	resourceGroupService         resourceGroup.ResourceGroupService
@@ -120,7 +120,7 @@ type CiHandlerImpl struct {
 
 func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, gitSensorClient gitSensor.Client, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, workflowService WorkflowService,
 	ciLogService CiLogService, ciArtifactRepository repository.CiArtifactRepository, userService user.UserService, eventClient client.EventClient, eventFactory client.EventFactory, ciPipelineRepository pipelineConfig.CiPipelineRepository,
-	appListingRepository repository.AppListingRepository, K8sUtil *k8s.K8sUtil, cdPipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil, resourceGroupService resourceGroup.ResourceGroupService, envRepository repository3.EnvironmentRepository,
+	appListingRepository repository.AppListingRepository, K8sUtil *k8s.K8sServiceImpl, cdPipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil, resourceGroupService resourceGroup.ResourceGroupService, envRepository repository3.EnvironmentRepository,
 	imageTaggingService ImageTaggingService, k8sCommonService k8s2.K8sCommonService, clusterService cluster.ClusterService, blobConfigStorageService BlobStorageConfigService, appWorkflowRepository appWorkflow.AppWorkflowRepository, customTagService CustomTagService,
 	envService cluster.EnvironmentService) *CiHandlerImpl {
 	cih := &CiHandlerImpl{
