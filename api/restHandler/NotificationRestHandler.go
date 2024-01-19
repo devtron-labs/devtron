@@ -74,9 +74,9 @@ type NotificationRestHandlerImpl struct {
 	dockerRegistryConfig pipeline.DockerRegistryConfig
 	logger               *zap.SugaredLogger
 	gitRegistryConfig    pipeline.GitRegistryConfig
-	dbConfigService pipeline.DbConfigService
-	userAuthService user.UserService
-	validator       *validator.Validate
+	dbConfigService      pipeline.DbConfigService
+	userAuthService      user.UserService
+	validator            *validator.Validate
 	notificationService  notifier.NotificationConfigService
 	slackService         notifier.SlackNotificationService
 	webhookService       notifier.WebhookNotificationService

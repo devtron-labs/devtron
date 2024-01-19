@@ -39,9 +39,9 @@ type ChartProviderRestHandler interface {
 type ChartProviderRestHandlerImpl struct {
 	Logger               *zap.SugaredLogger
 	chartProviderService chartProvider.ChartProviderService
-	validator       *validator.Validate
-	userAuthService user.UserService
-	enforcer        casbin.Enforcer
+	validator            *validator.Validate
+	userAuthService      user.UserService
+	enforcer             casbin.Enforcer
 }
 
 func NewChartProviderRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService, validator *validator.Validate, chartProviderService chartProvider.ChartProviderService,
