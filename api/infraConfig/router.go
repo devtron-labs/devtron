@@ -3,7 +3,7 @@ package infraConfig
 import "github.com/gorilla/mux"
 
 type InfraConfigRouter interface {
-	InitInfraConfigRouter(gocdRouter *mux.Router)
+	InitInfraConfigRouter(configRouter *mux.Router)
 }
 
 type InfraConfigRouterImpl struct {
@@ -16,7 +16,7 @@ func NewInfraProfileRouterImpl(infraConfigRestHandler InfraConfigRestHandler) *I
 	}
 }
 
-func (impl InfraConfigRouterImpl) InitInfraConfigRouter(configRouter *mux.Router) {
+func (impl *InfraConfigRouterImpl) InitInfraConfigRouter(configRouter *mux.Router) {
 	configRouter.Path("/profile/{name}").
 		HandlerFunc(impl.infraConfigRestHandler.GetProfile).
 		Methods("GET")

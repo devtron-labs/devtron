@@ -5,7 +5,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/repository"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/units"
-	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"go.uber.org/zap"
 	"time"
@@ -24,7 +23,7 @@ type InfraConfigServiceImpl struct {
 	infraConfig      *infraConfig.InfraConfig
 }
 
-func NewInfraProfileServiceImpl(logger *zap.SugaredLogger, infraProfileRepo repository.InfraProfileRepository, units *units.Units, config *types.CiCdConfig) (*InfraConfigServiceImpl, error) {
+func NewInfraProfileServiceImpl(logger *zap.SugaredLogger, infraProfileRepo repository.InfraProfileRepository, units *units.Units) (*InfraConfigServiceImpl, error) {
 	infraConfiguration := &infraConfig.InfraConfig{}
 	err := env.Parse(infraConfiguration)
 	if err != nil {
@@ -39,8 +38,7 @@ func NewInfraProfileServiceImpl(logger *zap.SugaredLogger, infraProfileRepo repo
 	err = infraProfileService.loadDefaultProfile()
 	return infraProfileService, err
 }
-
-func (impl InfraConfigServiceImpl) GetDefaultProfile() (*infraConfig.ProfileBean, error) {
+func (impl *InfraConfigServiceImpl) GetDefaultProfile() (*infraConfig.ProfileBean, error) {
 	infraProfile, err := impl.infraProfileRepo.GetProfileByName(repository.DEFAULT_PROFILE_NAME)
 	if err != nil {
 		impl.logger.Errorw("error in fetching default profile", "error", err)
@@ -69,7 +67,7 @@ func (impl InfraConfigServiceImpl) GetDefaultProfile() (*infraConfig.ProfileBean
 	return &profileBean, nil
 }
 
-func (impl InfraConfigServiceImpl) UpdateProfile(userId int32, profileName string, profileBean *infraConfig.ProfileBean) error {
+func (impl *InfraConfigServiceImpl) UpdateProfile(userId int32, profileName string, profileBean *infraConfig.ProfileBean) error {
 	infraProfile := profileBean.ConvertToInfraProfile()
 	// user couldn't delete the profile, always set this to active
 	infraProfile.Active = true
@@ -108,7 +106,7 @@ func (impl InfraConfigServiceImpl) UpdateProfile(userId int32, profileName strin
 	return err
 }
 
-func (impl InfraConfigServiceImpl) loadDefaultProfile() error {
+func (impl *InfraConfigServiceImpl) loadDefaultProfile() error {
 	infraConfiguration := impl.infraConfig
 	cpuLimit, err := infraConfiguration.GetCiLimitCpu()
 	if err != nil {
@@ -188,7 +186,7 @@ func Transform[T any, K any](input []T, transform func(inp T) K) []K {
 
 }
 
-func (impl InfraConfigServiceImpl) GetConfigurationUnits() map[infraConfig.ConfigKeyStr][]units.Unit {
+func (impl *InfraConfigServiceImpl) GetConfigurationUnits() map[infraConfig.ConfigKeyStr][]units.Unit {
 	configurationUnits := make(map[infraConfig.ConfigKeyStr][]units.Unit)
 	configurationUnits[infraConfig.CPU_REQUEST] = impl.units.GetCpuUnits()
 	configurationUnits[infraConfig.CPU_LIMIT] = impl.units.GetCpuUnits()

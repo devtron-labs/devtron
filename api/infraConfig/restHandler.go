@@ -39,7 +39,7 @@ func NewInfraConfigRestHandlerImpl(logger *zap.SugaredLogger, infraProfileServic
 	}
 }
 
-func (handler InfraConfigRestHandlerImpl) UpdateInfraProfile(w http.ResponseWriter, r *http.Request) {
+func (handler *InfraConfigRestHandlerImpl) UpdateInfraProfile(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -69,7 +69,7 @@ func (handler InfraConfigRestHandlerImpl) UpdateInfraProfile(w http.ResponseWrit
 	common.WriteJsonResp(w, nil, nil, http.StatusOK)
 }
 
-func (handler InfraConfigRestHandlerImpl) GetProfile(w http.ResponseWriter, r *http.Request) {
+func (handler *InfraConfigRestHandlerImpl) GetProfile(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -84,7 +84,7 @@ func (handler InfraConfigRestHandlerImpl) GetProfile(w http.ResponseWriter, r *h
 	vars := mux.Vars(r)
 	profileName := vars["name"]
 	if profileName != repository.DEFAULT_PROFILE_NAME {
-		common.WriteJsonResp(w, errors.New(InvalidProfileRequest), nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, errors.New(InvalidProfileRequest), nil, http.StatusNotFound)
 		return
 	}
 

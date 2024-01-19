@@ -223,6 +223,19 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(dashboardEvent.DashboardTelemetryRouter),
 			new(*dashboardEvent.DashboardTelemetryRouterImpl)),
 
+		infraConfigRepository.NewInfraProfileRepositoryImpl,
+		wire.Bind(new(infraConfigRepository.InfraProfileRepository), new(*infraConfigRepository.InfraProfileRepositoryImpl)),
+
+		units.NewUnits,
+		infraConfigService.NewInfraProfileServiceImpl,
+		wire.Bind(new(infraConfigService.InfraConfigService), new(*infraConfigService.InfraConfigServiceImpl)),
+
+		infraConfig.NewInfraConfigRestHandlerImpl,
+		wire.Bind(new(infraConfig.InfraConfigRestHandler), new(*infraConfig.InfraConfigRestHandlerImpl)),
+
+		infraConfig.NewInfraProfileRouterImpl,
+		wire.Bind(new(infraConfig.InfraConfigRouter), new(*infraConfig.InfraConfigRouterImpl)),
+
 		router.NewMuxRouter,
 
 		app2.NewAppRepositoryImpl,
@@ -976,16 +989,6 @@ func InitializeApp() (*App, error) {
 
 		pipeline.NewPipelineConfigListenerServiceImpl,
 		wire.Bind(new(pipeline.PipelineConfigListenerService), new(*pipeline.PipelineConfigListenerServiceImpl)),
-
-		units.NewUnits,
-		infraConfigRepository.NewInfraProfileRepositoryImpl,
-		wire.Bind(new(infraConfigRepository.InfraProfileRepository), new(infraConfigRepository.InfraProfileRepositoryImpl)),
-		infraConfigService.NewInfraProfileServiceImpl,
-		wire.Bind(new(infraConfigService.InfraConfigService), new(infraConfigService.InfraConfigServiceImpl)),
-		infraConfig.NewInfraConfigRestHandlerImpl,
-		wire.Bind(new(infraConfig.InfraConfigRestHandler), new(infraConfig.InfraConfigRestHandlerImpl)),
-		infraConfig.NewInfraProfileRouterImpl,
-		wire.Bind(new(infraConfig.InfraConfigRouter), new(infraConfig.InfraConfigRouterImpl)),
 	)
 	return &App{}, nil
 }
