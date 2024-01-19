@@ -19,6 +19,7 @@ package bean
 
 import (
 	"encoding/json"
+	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"time"
 )
 
@@ -152,4 +153,15 @@ type BulkStatusUpdateRequest struct {
 
 type ActionResponse struct {
 	Suceess bool `json:"suceess"`
+}
+
+type FetchListingRequest struct {
+	Status      Status         `json:"status"`
+	SearchKey   string         `json:"searchKey"`
+	SortOrder   bean.SortOrder `json:"sortOrder"`
+	SortBy      bean.SortBy    `json:"sortBy"`
+	Offset      int            `json:"offset"`
+	Size        int            `json:"size"`
+	ShowAll     bool           `json:"showAll"`
+	CurrentTime time.Time      `json:"-"` // for Internal Use
 }

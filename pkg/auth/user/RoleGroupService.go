@@ -20,7 +20,6 @@ package user
 import (
 	"errors"
 	"fmt"
-	"github.com/devtron-labs/devtron/pkg/auth/user/repository/helper"
 	"strings"
 	"time"
 
@@ -681,10 +680,10 @@ func (impl RoleGroupServiceImpl) FetchRoleGroupsWithFilters(sortOrder string, so
 	return response, nil
 }
 
-func (impl RoleGroupServiceImpl) getRequestWithFiltersArgs(sortOrder string, sortBy string, offset int, totalSize int, showAll bool, searchKey string) *helper.FetchListingRequest {
-	request := &helper.FetchListingRequest{
-		SortOrder: helper.SortOrder(sortOrder),
-		SortBy:    helper.SortBy(sortBy),
+func (impl RoleGroupServiceImpl) getRequestWithFiltersArgs(sortOrder string, sortBy string, offset int, totalSize int, showAll bool, searchKey string) *bean.FetchListingRequest {
+	request := &bean.FetchListingRequest{
+		SortOrder: bean2.SortOrder(sortOrder),
+		SortBy:    bean2.SortBy(sortBy),
 		Offset:    offset,
 		Size:      totalSize,
 		ShowAll:   showAll,

@@ -1249,7 +1249,7 @@ func (impl UserServiceImpl) GetAllWithFilters(status string, sortOrder string, s
 		return nil, err
 	}
 	// Sorting according to login time
-	if request.SortBy == helper.LastLogin {
+	if request.SortBy == bean2.LastLogin {
 		response = impl.sortAccordingToLoginTime(response, request.SortOrder)
 	}
 	listingResponse := &bean.UserListingResponse{
@@ -1259,11 +1259,11 @@ func (impl UserServiceImpl) GetAllWithFilters(status string, sortOrder string, s
 	return listingResponse, nil
 
 }
-func (impl UserServiceImpl) getRequestWithFiltersArgs(status string, sortOrder string, sortBy string, offset int, totalSize int, showAll bool, searchKey string) *helper.FetchListingRequest {
-	request := &helper.FetchListingRequest{
+func (impl UserServiceImpl) getRequestWithFiltersArgs(status string, sortOrder string, sortBy string, offset int, totalSize int, showAll bool, searchKey string) *bean.FetchListingRequest {
+	request := &bean.FetchListingRequest{
 		Status:    bean.Status(status),
-		SortOrder: helper.SortOrder(sortOrder),
-		SortBy:    helper.SortBy(sortBy),
+		SortOrder: bean2.SortOrder(sortOrder),
+		SortBy:    bean2.SortBy(sortBy),
 		Offset:    offset,
 		Size:      totalSize,
 		ShowAll:   showAll,
@@ -1314,12 +1314,12 @@ func (impl UserServiceImpl) getUserResponseWithLoginAudit(model []repository.Use
 	return response, nil
 }
 
-func (impl UserServiceImpl) sortAccordingToLoginTime(users []bean.UserInfo, sortOrder helper.SortOrder) []bean.UserInfo {
-	if sortOrder == helper.Asc {
+func (impl UserServiceImpl) sortAccordingToLoginTime(users []bean.UserInfo, sortOrder bean2.SortOrder) []bean.UserInfo {
+	if sortOrder == bean2.Asc {
 		sort.Slice(users, func(i, j int) bool {
 			return users[i].LastLoginTime.Before(users[j].LastLoginTime)
 		})
-	} else if sortOrder == helper.Desc {
+	} else if sortOrder == bean2.Desc {
 		sort.Slice(users, func(i, j int) bool {
 			return users[i].LastLoginTime.After(users[j].LastLoginTime)
 		})

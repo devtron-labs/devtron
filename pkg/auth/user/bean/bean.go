@@ -70,3 +70,17 @@ type RbacPolicyResource struct {
 	Resource string   `json:"resource"`
 	Actions  []string `json:"actions"`
 }
+
+type SortBy string
+type SortOrder string
+
+const (
+	Asc  SortOrder = "ASC"
+	Desc SortOrder = "DESC"
+)
+
+const (
+	Email     SortBy = "email_id"
+	LastLogin SortBy = "last_login"
+	GroupName SortBy = "name"
+)

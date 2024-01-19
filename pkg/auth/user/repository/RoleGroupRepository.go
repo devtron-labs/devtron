@@ -19,7 +19,8 @@ package repository
 
 import (
 	"fmt"
-	"github.com/devtron-labs/devtron/pkg/auth/user/repository/helper"
+	"github.com/devtron-labs/devtron/api/bean"
+	bean2 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -33,7 +34,7 @@ type RoleGroupRepository interface {
 	GetRoleGroupByName(name string) (*RoleGroup, error)
 	GetRoleGroupListByName(name string) ([]*RoleGroup, error)
 	GetAllRoleGroup() ([]*RoleGroup, error)
-	GetAllWithFilters(req *helper.FetchListingRequest) ([]*RoleGroup, error)
+	GetAllWithFilters(req *bean.FetchListingRequest) ([]*RoleGroup, error)
 	GetRoleGroupListByCasbinNames(name []string) ([]*RoleGroup, error)
 	CheckRoleGroupExistByCasbinName(name string) (bool, error)
 	CreateRoleGroupRoleMapping(model *RoleGroupRoleMapping, tx *pg.Tx) (*RoleGroupRoleMapping, error)
@@ -124,7 +125,7 @@ func (impl RoleGroupRepositoryImpl) GetAllRoleGroup() ([]*RoleGroup, error) {
 	return model, err
 }
 
-func (impl RoleGroupRepositoryImpl) GetAllWithFilters(req *helper.FetchListingRequest) ([]*RoleGroup, error) {
+func (impl RoleGroupRepositoryImpl) GetAllWithFilters(req *bean.FetchListingRequest) ([]*RoleGroup, error) {
 	var model []*RoleGroup
 	whereCondition := fmt.Sprintf("where active = %t ", true)
 	orderCondition := ""
@@ -137,7 +138,7 @@ func (impl RoleGroupRepositoryImpl) GetAllWithFilters(req *helper.FetchListingRe
 		orderCondition += fmt.Sprintf("order by %s ", req.SortBy)
 	}
 
-	if req.SortOrder == helper.Desc {
+	if req.SortOrder == bean2.Desc {
 		orderCondition += string(req.SortOrder)
 	}
 	if req.Size > 0 {

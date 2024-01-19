@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	bean2 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"go.uber.org/zap"
 	"strconv"
 	"time"
@@ -20,32 +21,7 @@ func NewUserRepositoryQueryBuilder(logger *zap.SugaredLogger) UserRepositoryQuer
 	return userListingRepositoryQueryBuilder
 }
 
-type SortBy string
-type SortOrder string
-
-const (
-	Asc  SortOrder = "ASC"
-	Desc SortOrder = "DESC"
-)
-
-const (
-	Email     SortBy = "email_id"
-	LastLogin SortBy = "last_login"
-	GroupName SortBy = "name"
-)
-
 const QueryTimeFormat = "2006-01-02 15:04:05-07:00"
-
-type FetchListingRequest struct {
-	Status      bean.Status `json:"status"`
-	SearchKey   string      `json:"searchKey"`
-	SortOrder   SortOrder   `json:"sortOrder"`
-	SortBy      SortBy      `json:"sortBy"`
-	Offset      int         `json:"offset"`
-	Size        int         `json:"size"`
-	ShowAll     bool        `json:"showAll"`
-	CurrentTime time.Time   `json:"-"` // for Internal Use
-}
 
 func (impl UserRepositoryQueryBuilder) GetStatusFromTTL(ttl, recordedTime time.Time) bean.Status {
 	if ttl.IsZero() || ttl.After(recordedTime) {
@@ -54,7 +30,7 @@ func (impl UserRepositoryQueryBuilder) GetStatusFromTTL(ttl, recordedTime time.T
 	return bean.Inactive
 }
 
-func (impl UserRepositoryQueryBuilder) GetQueryForUserListingWithFilters(req *FetchListingRequest) string {
+func (impl UserRepositoryQueryBuilder) GetQueryForUserListingWithFilters(req *bean.FetchListingRequest) string {
 	whereCondition := fmt.Sprintf("where active = %t AND (user_type is NULL or user_type != '%s') ", true, bean.USER_TYPE_API_TOKEN)
 	orderCondition := ""
 	// formatted for query comparison
@@ -71,9 +47,9 @@ func (impl UserRepositoryQueryBuilder) GetQueryForUserListingWithFilters(req *Fe
 		whereCondition += fmt.Sprintf("AND email_id like '%s' ", emailIdLike)
 	}
 
-	if req.SortBy == Email {
+	if req.SortBy == bean2.Email {
 		orderCondition += fmt.Sprintf("order by %s ", req.SortBy)
-		if req.SortOrder == Desc {
+		if req.SortOrder == bean2.Desc {
 			orderCondition += string(req.SortOrder)
 		}
 	}
