@@ -1961,7 +1961,7 @@ func (impl *CdPipelineConfigServiceImpl) updateCdPipeline(ctx context.Context, p
 		return err
 	}
 
-	_, err = impl.handleImagePolicyOperations(tx, pipeline.Id, pipeline.IsDigestEnforcedForPipeline, userID)
+	_, err = impl.handleImagePolicyOperations(tx, pipeline.Id, "", pipeline.IsDigestEnforcedForPipeline, userID)
 	if err != nil {
 		return err
 	}
@@ -1973,9 +1973,9 @@ func (impl *CdPipelineConfigServiceImpl) updateCdPipeline(ctx context.Context, p
 	return nil
 }
 
-func (impl *CdPipelineConfigServiceImpl) handleImagePolicyOperations(tx *pg.Tx, pipelineId int, isDigestEnforcedForPipeline bool, userId int32) (resourceQualifierId int, err error) {
+func (impl *CdPipelineConfigServiceImpl) handleImagePolicyOperations(tx *pg.Tx, pipelineId int, pipelineName string, isDigestEnforcedForPipeline bool, userId int32) (resourceQualifierId int, err error) {
 	if isDigestEnforcedForPipeline {
-		resourceQualifierId, err = impl.imageDigestPolicyService.CreatePolicyForPipelineIfNotExist(tx, pipelineId, "", userId)
+		resourceQualifierId, err = impl.imageDigestPolicyService.CreatePolicyForPipelineIfNotExist(tx, pipelineId, pipelineName, userId)
 		if err != nil {
 			impl.logger.Errorw("error in imageDigestPolicy operations for CD pipeline", "err", err, "pipelineId", pipelineId)
 			return 0, err

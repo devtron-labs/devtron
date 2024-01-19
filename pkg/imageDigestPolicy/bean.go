@@ -6,14 +6,15 @@ import (
 	"time"
 )
 
-func QualifierMappingDao(qualifierId, identifierKey, IdentifierValueInt int, userId int32) *resourceQualifiers.QualifierMapping {
+func QualifierMappingDao(qualifierId, identifierKey, IdentifierValueInt int, identifierValueName string, userId int32) *resourceQualifiers.QualifierMapping {
 	return &resourceQualifiers.QualifierMapping{
-		ResourceId:         resourceQualifiers.ImageDigestResourceId,
-		ResourceType:       resourceQualifiers.ImageDigest,
-		QualifierId:        qualifierId,
-		IdentifierKey:      identifierKey,
-		IdentifierValueInt: IdentifierValueInt,
-		Active:             true,
+		ResourceId:            resourceQualifiers.ImageDigestResourceId,
+		ResourceType:          resourceQualifiers.ImageDigest,
+		QualifierId:           qualifierId,
+		IdentifierKey:         identifierKey,
+		IdentifierValueInt:    IdentifierValueInt,
+		IdentifierValueString: identifierValueName,
+		Active:                true,
 		AuditLog: sql.AuditLog{
 			CreatedOn: time.Now(),
 			CreatedBy: userId,

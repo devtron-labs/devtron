@@ -51,11 +51,7 @@ func (impl ImageDigestPolicyServiceImpl) CreatePolicyForPipeline(pipelineId int,
 
 	identifierKey := devtronResourceSearchableKeyMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_PIPELINE_ID]
 	identifierValue := pipelineId
-	qualifierMapping := QualifierMappingDao(int(resourceQualifiers.PIPELINE_QUALIFIER),
-		identifierKey,
-		identifierValue,
-		UserId,
-	)
+	qualifierMapping := QualifierMappingDao(int(resourceQualifiers.PIPELINE_QUALIFIER), identifierKey, identifierValue, pipelineName, UserId)
 	_, err := impl.qualifierMappingService.CreateQualifierMappings([]*resourceQualifiers.QualifierMapping{qualifierMapping}, tx)
 	if err != nil {
 		impl.logger.Errorw("error in creating image digest policy for pipeline", "err", err, "pipelineId", pipelineId)
@@ -78,7 +74,7 @@ func (impl ImageDigestPolicyServiceImpl) CreatePolicyForPipelineIfNotExist(tx *p
 	}
 
 	if !digestPolicyConfigurations.DigestConfiguredForPipeline {
-		qualifierMappingId, err = impl.CreatePolicyForPipeline(pipelineId, "", tx, UserId)
+		qualifierMappingId, err = impl.CreatePolicyForPipeline(pipelineId, pipelineName, tx, UserId)
 		if err != nil {
 			impl.logger.Errorw("error in creating policy for pipeline", "err", "pipelineId", pipelineId)
 			return qualifierMappingId, nil
