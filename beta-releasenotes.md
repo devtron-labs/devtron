@@ -15,6 +15,7 @@
 - fix: error handling and url fix (#4407)
 - feat: skip bulk build source change (#4357)
 ## Enhancements
+- feat: Create Dockerslim plugin and Create EKS Cluster plugin (#4525)
 - feat: Adds Copacetic plugin to patch vulnerable images  (#4566)
 - feat: Adds support for gRPC in health probes (#4495)
 - feat: Configurable namespace for secrets in dex config  (#4499)
