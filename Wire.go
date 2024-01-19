@@ -66,6 +66,7 @@ import (
 	"github.com/devtron-labs/devtron/client/grafana"
 	jClient "github.com/devtron-labs/devtron/client/jira"
 	"github.com/devtron-labs/devtron/client/lens"
+	"github.com/devtron-labs/devtron/client/proxy"
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -149,6 +150,7 @@ func InitializeApp() (*App, error) {
 		sso.SsoConfigWireSet,
 		cluster.ClusterWireSet,
 		dashboard.DashboardWireSet,
+		proxy.ProxyWireSet,
 		client.HelmAppWireSet,
 		k8s.K8sApplicationWireSet,
 		chartRepo.ChartRepositoryWireSet,
@@ -224,7 +226,7 @@ func InitializeApp() (*App, error) {
 			new(*dashboardEvent.DashboardTelemetryRouterImpl)),
 
 		infraConfigRepository.NewInfraProfileRepositoryImpl,
-		wire.Bind(new(infraConfigRepository.InfraConfigRepository), new(*infraConfigRepository.InfraProfileRepositoryImpl)),
+		wire.Bind(new(infraConfigRepository.InfraConfigRepository), new(*infraConfigRepository.InfraConfigRepositoryImpl)),
 
 		units.NewUnits,
 		infraConfigService.NewInfraConfigServiceImpl,

@@ -43,6 +43,7 @@ import (
 	webhookHelm "github.com/devtron-labs/devtron/api/webhook/helm"
 	"github.com/devtron-labs/devtron/client/cron"
 	"github.com/devtron-labs/devtron/client/dashboard"
+	"github.com/devtron-labs/devtron/client/proxy"
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/pkg/terminal"
 	"github.com/devtron-labs/devtron/util"
@@ -91,6 +92,7 @@ type MuxRouter struct {
 	policyRouter                       PolicyRouter
 	gitOpsConfigRouter                 GitOpsConfigRouter
 	dashboardRouter                    dashboard.DashboardRouter
+	proxyRouter                        proxy.ProxyRouter
 	attributesRouter                   AttributesRouter
 	userAttributesRouter               UserAttributesRouter
 	commonRouter                       CommonRouter
@@ -156,6 +158,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 	rbacRoleRouter user.RbacRoleRouter,
 	scopedVariableRouter ScopedVariableRouter,
 	ciTriggerCron cron.CiTriggerCron,
+	proxyRouter proxy.ProxyRouter,
 	infraConfigRouter infraConfig.InfraConfigRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
@@ -197,6 +200,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 		attributesRouter:                   attributesRouter,
 		userAttributesRouter:               userAttributesRouter,
 		dashboardRouter:                    dashboardRouter,
+		proxyRouter:                        proxyRouter,
 		commonRouter:                       commonRouter,
 		grafanaRouter:                      grafanaRouter,
 		ssoLoginRouter:                     ssoLoginRouter,
@@ -360,6 +364,9 @@ func (r MuxRouter) Init() {
 
 	dashboardRouter := r.Router.PathPrefix("/dashboard").Subrouter()
 	r.dashboardRouter.InitDashboardRouter(dashboardRouter)
+
+	proxyRouter := r.Router.PathPrefix("/proxy").Subrouter()
+	r.proxyRouter.InitProxyRouter(proxyRouter)
 
 	grafanaRouter := r.Router.PathPrefix("/grafana").Subrouter()
 	r.grafanaRouter.initGrafanaRouter(grafanaRouter)
