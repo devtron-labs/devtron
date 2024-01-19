@@ -212,19 +212,11 @@ func (handler UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Req
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-
-	if userInfo.EmailId == "admin" {
-		userInfo.EmailId = "admin@github.com/devtron-labs"
-	}
 	err = handler.validator.Struct(userInfo)
 	if err != nil {
 		handler.logger.Errorw("validation err, UpdateUser", "err", err, "payload", userInfo)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
-	}
-
-	if userInfo.EmailId == "admin@github.com/devtron-labs" {
-		userInfo.EmailId = "admin"
 	}
 
 	res, rolesChanged, groupsModified, restrictedGroups, err := handler.userService.UpdateUser(&userInfo, token, handler.CheckManagerAuth)

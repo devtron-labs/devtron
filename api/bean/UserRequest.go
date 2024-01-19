@@ -29,8 +29,8 @@ type UserRole struct {
 }
 
 type UserInfo struct {
-	Id            int32        `json:"id" validate:"number"`
-	EmailId       string       `json:"emailId" validate:"required"`
+	Id            int32        `json:"id" validate:"number,not-system-admin-userid"`
+	EmailId       string       `json:"emailId" validate:"required,not-system-admin-user"`
 	Roles         []string     `json:"roles,omitempty"`
 	AccessToken   string       `json:"access_token,omitempty"`
 	UserType      string       `json:"-"`
