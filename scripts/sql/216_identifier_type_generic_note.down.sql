@@ -1,1 +1,0 @@
-UPDATE generic_note SET identifier_type=NULL WHERE updated_by=-1 ;
