@@ -41,7 +41,7 @@ type K8sCommonService interface {
 }
 type K8sCommonServiceImpl struct {
 	logger                      *zap.SugaredLogger
-	K8sUtil                     *k8s.K8sUtil
+	K8sUtil                     *k8s.K8sServiceImpl
 	clusterService              cluster.ClusterService
 	K8sApplicationServiceConfig *K8sApplicationServiceConfig
 }
@@ -50,7 +50,7 @@ type K8sApplicationServiceConfig struct {
 	TimeOutInSeconds int `env:"TIMEOUT_IN_SECONDS" envDefault:"5"`
 }
 
-func NewK8sCommonServiceImpl(Logger *zap.SugaredLogger, k8sUtils *k8s.K8sUtil,
+func NewK8sCommonServiceImpl(Logger *zap.SugaredLogger, k8sUtils *k8s.K8sServiceImpl,
 	clusterService cluster.ClusterService) *K8sCommonServiceImpl {
 	cfg := &K8sApplicationServiceConfig{}
 	err := env.Parse(cfg)
