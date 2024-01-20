@@ -5,12 +5,12 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	"net/http"
 	"time"
 
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/bean"
-	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/attributes"
@@ -53,7 +53,7 @@ type TelemetryEventClientImpl struct {
 	moduleRepository         moduleRepo.ModuleRepository
 	serverDataStore          *serverDataStore.ServerDataStore
 	userAuditService         user2.UserAuditService
-	helmAppClient            client.HelmAppClient
+	helmAppClient            gRPC.HelmAppClient
 	InstalledAppRepository   repository2.InstalledAppRepository
 	userAttributesRepository repository.UserAttributesRepository
 }
@@ -70,7 +70,7 @@ type TelemetryEventClient interface {
 func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client, clusterService cluster.ClusterService,
 	K8sUtil *k8s.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig, userService user2.UserService,
 	attributeRepo repository.AttributesRepository, ssoLoginService sso.SSOLoginService,
-	PosthogClient *PosthogClient, moduleRepository moduleRepo.ModuleRepository, serverDataStore *serverDataStore.ServerDataStore, userAuditService user2.UserAuditService, helmAppClient client.HelmAppClient, InstalledAppRepository repository2.InstalledAppRepository) (*TelemetryEventClientImpl, error) {
+	PosthogClient *PosthogClient, moduleRepository moduleRepo.ModuleRepository, serverDataStore *serverDataStore.ServerDataStore, userAuditService user2.UserAuditService, helmAppClient gRPC.HelmAppClient, InstalledAppRepository repository2.InstalledAppRepository) (*TelemetryEventClientImpl, error) {
 	cron := cron.New(
 		cron.WithChain())
 	cron.Start()
@@ -219,8 +219,8 @@ func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cl
 	ExternalHelmAppClusterCount = make(map[int32]int)
 
 	for _, clusterDetail := range clusters {
-		req := &client.AppListRequest{}
-		config := &client.ClusterConfig{
+		req := &gRPC.AppListRequest{}
+		config := &gRPC.ClusterConfig{
 			ApiServerUrl:          clusterDetail.ServerUrl,
 			Token:                 clusterDetail.Config[k8s.BearerToken],
 			ClusterId:             int32(clusterDetail.Id),

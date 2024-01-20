@@ -13,6 +13,7 @@ type GitOpsConfigDto struct {
 	BitBucketWorkspaceId string `json:"bitBucketWorkspaceId"`
 	BitBucketProjectKey  string `json:"bitBucketProjectKey"`
 
+	// TODO refactoring: create different struct for internal fields
 	GitRepoName string `json:"gitRepoName"`
 	UserEmailId string `json:"userEmailId"`
 	Description string `json:"description"`
