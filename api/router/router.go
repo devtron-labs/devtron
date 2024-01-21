@@ -85,7 +85,6 @@ type MuxRouter struct {
 	deploymentGroupRouter              DeploymentGroupRouter
 	chartGroupRouter                   ChartGroupRouter
 	batchOperationRouter               BatchOperationRouter
-	testSuitRouter                     TestSuitRouter
 	imageScanRouter                    ImageScanRouter
 	policyRouter                       PolicyRouter
 	gitOpsConfigRouter                 GitOpsConfigRouter
@@ -139,7 +138,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 	ciEventHandler pubsub.CiEventHandler, pubsubClient *pubsub2.PubSubClientServiceImpl, UserRouter user.UserRouter,
 	ChartRefRouter ChartRefRouter, ConfigMapRouter ConfigMapRouter, AppStoreRouter appStore.AppStoreRouter, chartRepositoryRouter chartRepo.ChartRepositoryRouter,
 	ReleaseMetricsRouter ReleaseMetricsRouter, deploymentGroupRouter DeploymentGroupRouter, batchOperationRouter BatchOperationRouter,
-	chartGroupRouter ChartGroupRouter, testSuitRouter TestSuitRouter, imageScanRouter ImageScanRouter,
+	chartGroupRouter ChartGroupRouter, imageScanRouter ImageScanRouter,
 	policyRouter PolicyRouter, gitOpsConfigRouter GitOpsConfigRouter, dashboardRouter dashboard.DashboardRouter, attributesRouter AttributesRouter, userAttributesRouter UserAttributesRouter,
 	commonRouter CommonRouter, grafanaRouter GrafanaRouter, ssoLoginRouter sso.SsoLoginRouter, telemetryRouter TelemetryRouter, telemetryWatcher telemetry.TelemetryEventClient, bulkUpdateRouter BulkUpdateRouter, webhookListenerRouter WebhookListenerRouter, appRouter AppRouter,
 	coreAppRouter CoreAppRouter, helmAppRouter client.HelmAppRouter, k8sApplicationRouter application.K8sApplicationRouter,
@@ -187,7 +186,6 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 		deploymentGroupRouter:              deploymentGroupRouter,
 		batchOperationRouter:               batchOperationRouter,
 		chartGroupRouter:                   chartGroupRouter,
-		testSuitRouter:                     testSuitRouter,
 		imageScanRouter:                    imageScanRouter,
 		policyRouter:                       policyRouter,
 		gitOpsConfigRouter:                 gitOpsConfigRouter,
@@ -335,9 +333,6 @@ func (r MuxRouter) Init() {
 
 	chartGroupRouter := r.Router.PathPrefix("/orchestrator/chart-group").Subrouter()
 	r.chartGroupRouter.initChartGroupRouter(chartGroupRouter)
-
-	testSuitRouter := r.Router.PathPrefix("/orchestrator/test-report").Subrouter()
-	r.testSuitRouter.InitTestSuitRouter(testSuitRouter)
 
 	imageScanRouter := r.Router.PathPrefix("/orchestrator/security/scan").Subrouter()
 	r.imageScanRouter.InitImageScanRouter(imageScanRouter)
