@@ -82,6 +82,7 @@ type AppListingRestHandler interface {
 	GetHostUrlsByBatch(w http.ResponseWriter, r *http.Request)
 
 	ManualSyncAcdPipelineDeploymentStatus(w http.ResponseWriter, r *http.Request)
+	//TODO: move to appropriate service
 	GetClusterTeamAndEnvListForAutocomplete(w http.ResponseWriter, r *http.Request)
 	FetchAppsByEnvironmentV2(w http.ResponseWriter, r *http.Request)
 	FetchAppsByEnvironmentV1(w http.ResponseWriter, r *http.Request)
