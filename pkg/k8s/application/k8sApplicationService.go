@@ -19,6 +19,7 @@ import (
 	"github.com/devtron-labs/devtron/api/connector"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/helm-app/openapiClient"
+	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -426,6 +427,7 @@ func (impl *K8sApplicationServiceImpl) validateContainerNameIfReqd(valid bool, r
 func (impl *K8sApplicationServiceImpl) GetResourceInfo(ctx context.Context) (*bean3.ResourceInfo, error) {
 	pod, err := impl.K8sUtil.GetResourceInfoByLabelSelector(ctx, impl.aCDAuthConfig.ACDConfigMapNamespace, "app=inception")
 	if err != nil {
+		err = &util.ApiError{Code: "404", HttpStatusCode: 404, UserMessage: "error on getting resource from k8s"}
 		impl.logger.Errorw("error on getting resource from k8s, unable to fetch installer pod", "err", err)
 		return nil, err
 	}
