@@ -39,6 +39,7 @@ import (
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"go.uber.org/zap"
+	"k8s.io/utils/pointer"
 	"net/http"
 	"sort"
 	"strings"
@@ -1069,7 +1070,10 @@ func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvir
 			UserId:        request.UserId,
 			RequestType:   pipeline1.STOP,
 		}
-		_, hibernateReqError = impl.workflowDagExecutor.StopStartApp(stopRequest, ctx)
+		triggerContext := pipeline1.TriggerContext{
+			Context: ctx,
+		}
+		_, hibernateReqError = impl.workflowDagExecutor.StopStartApp(triggerContext, stopRequest)
 		if hibernateReqError != nil {
 			impl.logger.Errorw("error in hibernating application", "err", hibernateReqError, "pipeline", pipeline)
 			pipelineResponse := response[appKey]
@@ -1225,7 +1229,10 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 			UserId:        request.UserId,
 			RequestType:   pipeline1.START,
 		}
-		_, hibernateReqError = impl.workflowDagExecutor.StopStartApp(stopRequest, ctx)
+		triggerContext := pipeline1.TriggerContext{
+			Context: ctx,
+		}
+		_, hibernateReqError = impl.workflowDagExecutor.StopStartApp(triggerContext, stopRequest)
 		if hibernateReqError != nil {
 			impl.logger.Errorw("error in un-hibernating application", "err", hibernateReqError, "pipeline", pipeline)
 			pipelineResponse := response[appKey]
@@ -1423,9 +1430,6 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironm
 func (impl BulkUpdateServiceImpl) SubscribeToCdBulkTriggerTopic() error {
 
 	callback := func(msg *model.PubSubMsg) {
-		impl.logger.Infow("Event received",
-			"topic", pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC,
-			"msg", msg.Data)
 
 		event := &bean.BulkCdDeployEvent{}
 		err := json.Unmarshal([]byte(msg.Data), event)
@@ -1446,7 +1450,12 @@ func (impl BulkUpdateServiceImpl) SubscribeToCdBulkTriggerTopic() error {
 			return
 		}
 
-		_, err = impl.workflowDagExecutor.ManualCdTrigger(event.ValuesOverrideRequest, ctx)
+		triggerContext := pipeline1.TriggerContext{
+			ReferenceId: pointer.String(msg.MsgId),
+			Context:     ctx,
+		}
+
+		_, err = impl.workflowDagExecutor.ManualCdTrigger(triggerContext, event.ValuesOverrideRequest)
 		if err != nil {
 			impl.logger.Errorw("Error triggering CD",
 				"topic", pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC,
@@ -1454,7 +1463,19 @@ func (impl BulkUpdateServiceImpl) SubscribeToCdBulkTriggerTopic() error {
 				"err", err)
 		}
 	}
-	err := impl.pubsubClient.Subscribe(pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC, callback)
+
+	// add required logging here
+	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) (string, []interface{}) {
+		event := &bean.BulkCdDeployEvent{}
+		err := json.Unmarshal([]byte(msg.Data), event)
+		if err != nil {
+			return "error unmarshalling received event", []interface{}{"msg", msg.Data, "err", err}
+		}
+		return "got message for trigger cd in bulk", []interface{}{"pipelineId", event.ValuesOverrideRequest.PipelineId, "appId", event.ValuesOverrideRequest.AppId, "cdWorkflowType", event.ValuesOverrideRequest.CdWorkflowType, "ciArtifactId", event.ValuesOverrideRequest.CiArtifactId}
+	}
+
+	validations := impl.workflowDagExecutor.GetTriggerValidateFuncs()
+	err := impl.pubsubClient.Subscribe(pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC, callback, loggerFunc, validations...)
 	if err != nil {
 		impl.logger.Error("failed to subscribe to NATS topic",
 			"topic", pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC,

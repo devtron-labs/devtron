@@ -24,7 +24,7 @@ type K8sInformerFactoryImpl struct {
 	mutex                     sync.Mutex
 	informerStopper           map[string]chan struct{}
 	runtimeConfig             *client.RuntimeConfig
-	k8sUtil                   *k8s.K8sUtil
+	k8sUtil                   *k8s.K8sServiceImpl
 }
 
 type K8sInformerFactory interface {
@@ -33,7 +33,7 @@ type K8sInformerFactory interface {
 	CleanNamespaceInformer(clusterName string)
 }
 
-func NewK8sInformerFactoryImpl(logger *zap.SugaredLogger, globalMapClusterNamespace map[string]map[string]bool, runtimeConfig *client.RuntimeConfig, k8sUtil *k8s.K8sUtil) *K8sInformerFactoryImpl {
+func NewK8sInformerFactoryImpl(logger *zap.SugaredLogger, globalMapClusterNamespace map[string]map[string]bool, runtimeConfig *client.RuntimeConfig, k8sUtil *k8s.K8sServiceImpl) *K8sInformerFactoryImpl {
 	informerFactory := &K8sInformerFactoryImpl{
 		logger:                    logger,
 		globalMapClusterNamespace: globalMapClusterNamespace,

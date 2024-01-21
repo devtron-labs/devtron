@@ -44,7 +44,7 @@ type ModuleCacheService interface {
 type ModuleCacheServiceImpl struct {
 	logger           *zap.SugaredLogger
 	mutex            sync.Mutex
-	K8sUtil          *k8s.K8sUtil
+	K8sUtil          *k8s.K8sServiceImpl
 	moduleEnvConfig  *ModuleEnvConfig
 	serverEnvConfig  *serverEnvConfig.ServerEnvConfig
 	serverDataStore  *serverDataStore.ServerDataStore
@@ -52,7 +52,7 @@ type ModuleCacheServiceImpl struct {
 	teamService      team.TeamService
 }
 
-func NewModuleCacheServiceImpl(logger *zap.SugaredLogger, K8sUtil *k8s.K8sUtil, moduleEnvConfig *ModuleEnvConfig, serverEnvConfig *serverEnvConfig.ServerEnvConfig,
+func NewModuleCacheServiceImpl(logger *zap.SugaredLogger, K8sUtil *k8s.K8sServiceImpl, moduleEnvConfig *ModuleEnvConfig, serverEnvConfig *serverEnvConfig.ServerEnvConfig,
 	serverDataStore *serverDataStore.ServerDataStore, moduleRepository moduleRepo.ModuleRepository, teamService team.TeamService) *ModuleCacheServiceImpl {
 	impl := &ModuleCacheServiceImpl{
 		logger:           logger,
