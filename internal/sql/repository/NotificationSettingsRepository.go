@@ -73,7 +73,7 @@ type NotificationSettingsViewWithAppEnv struct {
 }
 
 type NotificationSettings struct {
-	tableName    struct{} `sql:"notification_settings"`
+	tableName    struct{} `sql:"notification_settings" pg:",discard_unknown_columns"`
 	Id           int      `sql:"id,pk"`
 	TeamId       *int     `sql:"team_id"`
 	AppId        *int     `sql:"app_id"`
