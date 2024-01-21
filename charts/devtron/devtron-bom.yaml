@@ -52,7 +52,7 @@ components:
     image: "quay.io/devtron/postgres:11.9.0-debian-10-r26"
     armImage: "quay.io/devtron/postgres:11.9"
   gitsensor:
-    image: "quay.io/devtron/git-sensor:448286bd-200-20468"
+    image: "quay.io/devtron/git-sensor:bd235ac9-200-20653"
     imagePullPolicy: "IfNotPresent"
     serviceMonitor:
       enabled: false

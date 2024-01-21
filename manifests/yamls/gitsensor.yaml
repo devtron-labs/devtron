@@ -67,7 +67,7 @@ spec:
           - /bin/sh
           - -c
           - mkdir -p /git-base/ssh-keys && chown -R devtron:devtron /git-base && chmod 777 /git-base/ssh-keys
-          image: "quay.io/devtron/git-sensor:448286bd-200-20468"
+          image: "quay.io/devtron/git-sensor:bd235ac9-200-20653"
           imagePullPolicy: IfNotPresent
           name: chown-git-base
           resources: {}
@@ -80,7 +80,7 @@ spec:
             name: git-volume
       containers:
         - name: git-sensor
-          image: "quay.io/devtron/git-sensor:448286bd-200-20468"
+          image: "quay.io/devtron/git-sensor:bd235ac9-200-20653"
           securityContext:
             allowPrivilegeEscalation: false
             runAsUser: 1000

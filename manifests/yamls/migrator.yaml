@@ -148,7 +148,7 @@ spec:
         - name: GIT_BRANCH
           value: main
         - name: GIT_HASH
-          value: 448286bdd7f17316c74fc88607d64fd2e38ac0e0
+          value: bd235ac9466a64593e5179a6809fda4fbe318054
         envFrom:
           - secretRef:
               name: postgresql-migrator
