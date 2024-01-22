@@ -40,6 +40,7 @@ import (
 	"github.com/juju/errors"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -1995,6 +1996,8 @@ func (impl *CiPipelineConfigServiceImpl) DeleteCiPipeline(request *bean.CiPatchR
 	}
 	if len(workflowMapping) > 0 {
 		return nil, &util.ApiError{
+			HttpStatusCode:    http.StatusBadRequest,
+			Code:              "200",
 			InternalMessage:   "Please delete deployment pipelines for this workflow first and try again.",
 			UserDetailMessage: fmt.Sprintf("Please delete deployment pipelines for this workflow first and try again."),
 			UserMessage:       fmt.Sprintf("Please delete deployment pipelines for this workflow first and try again.")}
