@@ -29,6 +29,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const CasbinDefaultDatabase = "casbin"
+
 var e *casbin.SyncedEnforcer
 var enforcerImplRef *EnforcerImpl
 
@@ -52,8 +54,12 @@ func Create() *casbin.SyncedEnforcer {
 	if err != nil {
 		log.Fatal(err)
 	}
-	dataSource := fmt.Sprintf("user=%s password=%s host=%s port=%s sslmode=disable", config.User, config.Password, config.Addr, config.Port)
-	a, err := xormadapter.NewAdapter("postgres", dataSource, false) // Your driver and data source.
+	dbSpecified := true
+	if config.CasbinDatabase == CasbinDefaultDatabase {
+		dbSpecified = false
+	}
+	dataSource := fmt.Sprintf("dbname=%s user=%s password=%s host=%s port=%s sslmode=disable", config.CasbinDatabase, config.User, config.Password, config.Addr, config.Port)
+	a, err := xormadapter.NewAdapter("postgres", dataSource, dbSpecified) // Your driver and data source.
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -92,7 +92,7 @@ type GitOpsConfigServiceImpl struct {
 	logger                  *zap.SugaredLogger
 	globalEnvVariables      *util2.GlobalEnvVariables
 	gitOpsRepository        repository.GitOpsConfigRepository
-	K8sUtil                 *util4.K8sUtil
+	K8sUtil                 *util4.K8sServiceImpl
 	aCDAuthConfig           *util3.ACDAuthConfig
 	clusterService          cluster.ClusterService
 	gitFactory              *util.GitFactory
@@ -103,7 +103,7 @@ type GitOpsConfigServiceImpl struct {
 
 func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger,
 	globalEnvVariables *util2.GlobalEnvVariables,
-	gitOpsRepository repository.GitOpsConfigRepository, K8sUtil *util4.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig,
+	gitOpsRepository repository.GitOpsConfigRepository, K8sUtil *util4.K8sServiceImpl, aCDAuthConfig *util3.ACDAuthConfig,
 	clusterService cluster.ClusterService,
 	gitFactory *util.GitFactory, argoUserService argo.ArgoUserService,
 	clusterServiceCD cluster2.ServiceClient, gitOpsConfigReadService config.GitOpsConfigReadService) *GitOpsConfigServiceImpl {

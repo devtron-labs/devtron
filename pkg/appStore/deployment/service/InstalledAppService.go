@@ -102,7 +102,7 @@ type InstalledAppServiceImpl struct {
 	appRepository                        app.AppRepository
 	acdClient                            application2.ServiceClient
 	appStoreValuesService                service.AppStoreValuesService
-	pubsubClient                         *pubsub.PubSubClientServiceImpl
+	pubSubClient                         *pubsub.PubSubClientServiceImpl
 	chartGroupDeploymentRepository       repository6.ChartGroupDeploymentRepository
 	envService                           cluster2.EnvironmentService
 	aCDAuthConfig                        *util2.ACDAuthConfig
@@ -113,7 +113,7 @@ type InstalledAppServiceImpl struct {
 	helmAppClient                        gRPC.HelmAppClient
 	helmAppService                       client.HelmAppService
 	appStatusService                     appStatus.AppStatusService
-	K8sUtil                              *util4.K8sUtil
+	K8sUtil                              *util4.K8sServiceImpl
 	pipelineStatusTimelineService        status.PipelineStatusTimelineService
 	k8sCommonService                     k8s.K8sCommonService
 	k8sApplicationService                application3.K8sApplicationService
@@ -136,7 +136,7 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 	appStoreDeploymentService AppStoreDeploymentService,
 	installedAppRepositoryHistory repository2.InstalledAppVersionHistoryRepository,
 	argoUserService argo.ArgoUserService, helmAppClient gRPC.HelmAppClient, helmAppService client.HelmAppService,
-	appStatusService appStatus.AppStatusService, K8sUtil *util4.K8sUtil,
+	appStatusService appStatus.AppStatusService, K8sUtil *util4.K8sServiceImpl,
 	pipelineStatusTimelineService status.PipelineStatusTimelineService,
 	k8sCommonService k8s.K8sCommonService, k8sApplicationService application3.K8sApplicationService,
 	acdConfig *argocdServer.ACDConfig,
@@ -151,7 +151,7 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 		appRepository:                        appRepository,
 		acdClient:                            acdClient,
 		appStoreValuesService:                appStoreValuesService,
-		pubsubClient:                         pubsubClient,
+		pubSubClient:                         pubsubClient,
 		chartGroupDeploymentRepository:       chartGroupDeploymentRepository,
 		envService:                           envService,
 		aCDAuthConfig:                        aCDAuthConfig,
@@ -184,7 +184,6 @@ func (impl InstalledAppServiceImpl) subscribeHelmInstallStatus() error {
 
 	callback := func(msg *model.PubSubMsg) {
 
-		impl.logger.Debug("received helm install status event - HELM_INSTALL_STATUS", "data", msg.Data)
 		helmInstallNatsMessage := &appStoreBean.HelmReleaseStatusConfig{}
 		err := json.Unmarshal([]byte(msg.Data), helmInstallNatsMessage)
 		if err != nil {
@@ -209,8 +208,17 @@ func (impl InstalledAppServiceImpl) subscribeHelmInstallStatus() error {
 			return
 		}
 	}
+	// add required logging here
+	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) (string, []interface{}) {
+		helmInstallNatsMessage := &appStoreBean.HelmReleaseStatusConfig{}
+		err := json.Unmarshal([]byte(msg.Data), helmInstallNatsMessage)
+		if err != nil {
+			return "error in unmarshalling helm install status nats message", []interface{}{"err", err}
+		}
+		return "got nats msg for helm chart install status", []interface{}{"InstallAppVersionHistoryId", helmInstallNatsMessage.InstallAppVersionHistoryId, "ErrorInInstallation", helmInstallNatsMessage.ErrorInInstallation, "IsReleaseInstalled", helmInstallNatsMessage.IsReleaseInstalled}
+	}
 
-	err := impl.pubsubClient.Subscribe(pubsub.HELM_CHART_INSTALL_STATUS_TOPIC, callback)
+	err := impl.pubSubClient.Subscribe(pubsub.HELM_CHART_INSTALL_STATUS_TOPIC, callback, loggerFunc)
 	if err != nil {
 		impl.logger.Error(err)
 		return err
@@ -614,7 +622,7 @@ func (impl *InstalledAppServiceImpl) triggerDeploymentEvent(installAppVersions [
 		if err != nil {
 			status = appStoreBean.QUE_ERROR
 		} else {
-			err = impl.pubsubClient.Publish(pubsub.BULK_APPSTORE_DEPLOY_TOPIC, string(data))
+			err = impl.pubSubClient.Publish(pubsub.BULK_APPSTORE_DEPLOY_TOPIC, string(data))
 			if err != nil {
 				impl.logger.Errorw("err while publishing msg for app-store bulk deploy", "msg", data, "err", err)
 				status = appStoreBean.QUE_ERROR
@@ -635,8 +643,6 @@ func (impl *InstalledAppServiceImpl) triggerDeploymentEvent(installAppVersions [
 
 func (impl *InstalledAppServiceImpl) subscribe() error {
 	callback := func(msg *model.PubSubMsg) {
-		impl.logger.Debug("cd stage event received")
-		//defer msg.Ack()
 		deployPayload := &appStoreBean.DeployPayload{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &deployPayload)
 		if err != nil {
@@ -650,7 +656,18 @@ func (impl *InstalledAppServiceImpl) subscribe() error {
 			impl.logger.Errorw("error in performing deploy stage", "deployPayload", deployPayload, "err", err)
 		}
 	}
-	err := impl.pubsubClient.Subscribe(pubsub.BULK_APPSTORE_DEPLOY_TOPIC, callback)
+
+	// add required logging here
+	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) (string, []interface{}) {
+		deployPayload := &appStoreBean.DeployPayload{}
+		err := json.Unmarshal([]byte(string(msg.Data)), &deployPayload)
+		if err != nil {
+			return "error while unmarshalling deployPayload json object", []interface{}{"error", err}
+		}
+		return "got message for deploy app-store apps in bulk", []interface{}{"installedAppVersionId", deployPayload.InstalledAppVersionId, "installedAppVersionHistoryId", deployPayload.InstalledAppVersionHistoryId}
+	}
+
+	err := impl.pubSubClient.Subscribe(pubsub.BULK_APPSTORE_DEPLOY_TOPIC, callback, loggerFunc)
 	if err != nil {
 		impl.logger.Error("err", err)
 		return err

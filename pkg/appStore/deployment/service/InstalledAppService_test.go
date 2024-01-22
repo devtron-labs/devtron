@@ -67,7 +67,7 @@ func TestInstalledAppServiceImpl_DeployDefaultChartOnCluster(t *testing.T) {
 				appRepository:                        tt.fields.appRepository,
 				acdClient:                            tt.fields.acdClient,
 				appStoreValuesService:                tt.fields.appStoreValuesService,
-				pubsubClient:                         tt.fields.pubsubClient,
+				pubSubClient:                         tt.fields.pubsubClient,
 				chartGroupDeploymentRepository:       tt.fields.chartGroupDeploymentRepository,
 				envService:                           tt.fields.envService,
 				aCDAuthConfig:                        tt.fields.aCDAuthConfig,

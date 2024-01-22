@@ -60,7 +60,7 @@ type WorkflowServiceImpl struct {
 	globalCMCSService      GlobalCMCSService
 	argoWorkflowExecutor   executors.ArgoWorkflowExecutor
 	systemWorkflowExecutor executors.SystemWorkflowExecutor
-	k8sUtil                *k8s.K8sUtil
+	k8sUtil                *k8s.K8sServiceImpl
 	k8sCommonService       k8s2.K8sCommonService
 }
 
@@ -68,7 +68,7 @@ type WorkflowServiceImpl struct {
 
 func NewWorkflowServiceImpl(Logger *zap.SugaredLogger, envRepository repository.EnvironmentRepository, ciCdConfig *types.CiCdConfig,
 	appService app.AppService, globalCMCSService GlobalCMCSService, argoWorkflowExecutor executors.ArgoWorkflowExecutor,
-	k8sUtil *k8s.K8sUtil,
+	k8sUtil *k8s.K8sServiceImpl,
 	systemWorkflowExecutor executors.SystemWorkflowExecutor, k8sCommonService k8s2.K8sCommonService) (*WorkflowServiceImpl, error) {
 	commonWorkflowService := &WorkflowServiceImpl{Logger: Logger,
 		ciCdConfig:             ciCdConfig,
