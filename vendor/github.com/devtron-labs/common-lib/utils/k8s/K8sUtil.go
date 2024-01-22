@@ -135,10 +135,6 @@ type K8sService interface {
 	GetResourceIf(restConfig *rest.Config, groupVersionKind schema.GroupVersionKind) (resourceIf dynamic.NamespaceableResourceInterface, namespaced bool, err error)
 	FetchConnectionStatusForCluster(k8sClientSet *kubernetes.Clientset) error
 	CreateK8sClientSet(restConfig *rest.Config) (*kubernetes.Clientset, error)
-	IsDevtronApp(labels map[string]string) bool
-	IsPod(gvk schema.GroupVersionKind) bool
-	IsService(gvk schema.GroupVersionKind) bool
-	ResolveResourceReferences(un *unstructured.Unstructured) ([]metav1.OwnerReference, func(ResourceKey) bool)
 }
 
 func NewK8sUtil(logger *zap.SugaredLogger, runTimeConfig *client.RuntimeConfig) *K8sServiceImpl {
@@ -1550,15 +1546,15 @@ func (impl K8sServiceImpl) GetPodListByLabel(namespace, label string, clientSet 
 	return podList.Items, nil
 }
 
-func (impl K8sServiceImpl) IsService(gvk schema.GroupVersionKind) bool {
+func IsService(gvk schema.GroupVersionKind) bool {
 	return gvk.Group == "" && gvk.Kind == commonBean.ServiceKind
 }
 
-func (impl K8sServiceImpl) IsPod(gvk schema.GroupVersionKind) bool {
+func IsPod(gvk schema.GroupVersionKind) bool {
 	return gvk.Group == "" && gvk.Kind == commonBean.PodKind && gvk.Version == "v1"
 }
 
-func (impl K8sServiceImpl) IsDevtronApp(labels map[string]string) bool {
+func IsDevtronApp(labels map[string]string) bool {
 	isDevtronApp := false
 	if val, ok := labels[DEVTRON_APP_LABEL_KEY]; ok {
 		if val == DEVTRON_APP_LABEL_VALUE1 || val == DEVTRON_APP_LABEL_VALUE2 {
@@ -1596,7 +1592,7 @@ func isServiceAccountTokenSecret(un *unstructured.Unstructured) (bool, metav1.Ow
 	return ref.Name != "" && ref.UID != "", ref
 }
 
-func (impl K8sServiceImpl) ResolveResourceReferences(un *unstructured.Unstructured) ([]metav1.OwnerReference, func(ResourceKey) bool) {
+func ResolveResourceReferences(un *unstructured.Unstructured) ([]metav1.OwnerReference, func(ResourceKey) bool) {
 	var isInferredParentOf func(_ ResourceKey) bool
 	ownerRefs := un.GetOwnerReferences()
 	gvk := un.GroupVersionKind()
