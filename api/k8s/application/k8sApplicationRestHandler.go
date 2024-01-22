@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/common-lib/utils"
 	"net/http"
 	"strconv"
 	"strings"
@@ -512,8 +513,17 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWrit
 
 	resource, err := handler.k8sApplicationService.DeleteResourceWithAudit(r.Context(), &request, userId)
 	if err != nil {
+		errCode := http.StatusInternalServerError
+		if apiErr, ok := err.(*utils.ApiError); ok {
+			errCode = apiErr.HttpStatusCode
+			switch errCode {
+			case http.StatusNotFound:
+				errorMessage := "resource not found"
+				err = fmt.Errorf("%s: %w", errorMessage, err)
+			}
+		}
 		handler.logger.Errorw("error in deleting resource", "err", err)
-		common.WriteJsonResp(w, err, resource, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, resource, errCode)
 		return
 	}
 	common.WriteJsonResp(w, nil, resource, http.StatusOK)
