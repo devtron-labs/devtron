@@ -353,6 +353,23 @@ func (impl PropertiesConfigServiceImpl) CreateIfRequired(chart *chartRepoReposit
 		namespace = env.Namespace
 	}
 
+	if isOverride { //case of override, to do app metrics operation
+		envLevelMetricsUpdateReq := &bean2.DeployedAppMetricsRequest{
+			EnableMetrics: isAppMetricsEnabled,
+			AppId:         chart.AppId,
+			EnvId:         environmentId,
+			ChartRefId:    chart.ChartRefId,
+			UserId:        userId,
+		}
+		err = impl.deployedAppMetricsService.CreateOrUpdateAppOrEnvLevelMetrics(context.Background(), envLevelMetricsUpdateReq)
+		if err != nil {
+			impl.logger.Errorw("error, CheckAndUpdateAppOrEnvLevelMetrics", "err", err, "req", envLevelMetricsUpdateReq)
+			return nil, isAppMetricsEnabled, err
+		}
+		//updating metrics flag because it might be possible that the chartRef used was not supported and that could have override the metrics flag got in request
+		isAppMetricsEnabled = envLevelMetricsUpdateReq.EnableMetrics
+	}
+
 	envOverride, err := impl.envConfigRepo.GetByChartAndEnvironment(chart.Id, environmentId)
 	if err != nil && !errors.IsNotFound(err) {
 		return nil, isAppMetricsEnabled, err
@@ -413,20 +430,6 @@ func (impl PropertiesConfigServiceImpl) CreateIfRequired(chart *chartRepoReposit
 			impl.logger.Errorw("error in creating envconfig", "data", envOverride, "error", err)
 			return nil, isAppMetricsEnabled, err
 		}
-		envLevelMetricsUpdateReq := &bean2.DeployedAppMetricsRequest{
-			EnableMetrics: isAppMetricsEnabled,
-			AppId:         chart.AppId,
-			EnvId:         environmentId,
-			ChartRefId:    chart.ChartRefId,
-			UserId:        userId,
-		}
-		err = impl.deployedAppMetricsService.CreateOrUpdateAppOrEnvLevelMetrics(context.Background(), envLevelMetricsUpdateReq)
-		if err != nil {
-			impl.logger.Errorw("error, CheckAndUpdateAppOrEnvLevelMetrics", "err", err, "req", envLevelMetricsUpdateReq)
-			return nil, isAppMetricsEnabled, err
-		}
-		//updating metrics flag because it might be possible that the chartRef used was not supported and that could have override the metrics flag got in request
-		isAppMetricsEnabled = envLevelMetricsUpdateReq.EnableMetrics
 		err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(envOverride, tx, isAppMetricsEnabled, 0)
 		if err != nil {
 			impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", envOverride)
