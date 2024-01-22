@@ -466,6 +466,7 @@ func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCSById(ctx contex
 			VariableSnapshot: variableSnapshotMap,
 			ResolvedValue:    resolvedTemplate,
 		},
+		SecretViewAccess: userHasAdminAccess,
 	}
 	if configType == repository.SECRET_TYPE {
 		if config.Data != nil {
