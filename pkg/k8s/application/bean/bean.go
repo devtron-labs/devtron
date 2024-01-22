@@ -23,6 +23,7 @@ const (
 
 const (
 	DnsLookupNoSuchHostError = "no such host"
+	TimeoutError             = "timeout"
 )
 
 type ResourceInfo struct {
