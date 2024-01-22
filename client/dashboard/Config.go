@@ -1,6 +1,8 @@
 package dashboard
 
-import "github.com/caarlos0/env"
+import (
+	"github.com/caarlos0/env"
+)
 
 type Config struct {
 	Host      string `env:"DASHBOARD_HOST" envDefault:"localhost"`

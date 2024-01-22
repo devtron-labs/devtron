@@ -183,7 +183,7 @@ func (impl *GitOpsRemoteOperationServiceImpl) CreateChartProxy(chartMetaData *ch
 	chartProxyReq *bean.ChartProxyReqDto) (string, *commonBean.ChartGitAttribute, error) {
 	chartMetaData.ApiVersion = "v2" // ensure always v2
 	dir := impl.chartTemplateService.GetDir()
-	chartDir := filepath.Join(util.ChartWorkingDirPath, dir)
+	chartDir := filepath.Join(util.CHART_WORKING_DIR_PATH, dir)
 	impl.logger.Debugw("chart dir ", "chart", chartMetaData.Name, "dir", chartDir)
 	err := os.MkdirAll(chartDir, os.ModePerm) //hack for concurrency handling
 	if err != nil {

@@ -192,7 +192,7 @@ type ClusterService interface {
 type ClusterServiceImpl struct {
 	clusterRepository   repository.ClusterRepository
 	logger              *zap.SugaredLogger
-	K8sUtil             *k8s.K8sUtil
+	K8sUtil             *k8s.K8sServiceImpl
 	K8sInformerFactory  informer.K8sInformerFactory
 	userAuthRepository  repository3.UserAuthRepository
 	userRepository      repository3.UserRepository
@@ -201,7 +201,7 @@ type ClusterServiceImpl struct {
 }
 
 func NewClusterServiceImpl(repository repository.ClusterRepository, logger *zap.SugaredLogger,
-	K8sUtil *k8s.K8sUtil, K8sInformerFactory informer.K8sInformerFactory,
+	K8sUtil *k8s.K8sServiceImpl, K8sInformerFactory informer.K8sInformerFactory,
 	userAuthRepository repository3.UserAuthRepository, userRepository repository3.UserRepository,
 	roleGroupRepository repository3.RoleGroupRepository) *ClusterServiceImpl {
 	clusterService := &ClusterServiceImpl{

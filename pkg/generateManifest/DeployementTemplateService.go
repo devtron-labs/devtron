@@ -78,7 +78,7 @@ type DeploymentTemplateServiceImpl struct {
 	helmAppService                   client.HelmAppService
 	chartRepository                  chartRepoRepository.ChartRepository
 	chartTemplateServiceImpl         util.ChartTemplateService
-	K8sUtil                          *k8s.K8sUtil
+	K8sUtil                          *k8s.K8sServiceImpl
 	helmAppClient                    client.HelmAppClient
 	propertiesConfigService          pipeline.PropertiesConfigService
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
@@ -96,7 +96,7 @@ func NewDeploymentTemplateServiceImpl(Logger *zap.SugaredLogger, chartService ch
 	chartRepository chartRepoRepository.ChartRepository,
 	chartTemplateServiceImpl util.ChartTemplateService,
 	helmAppClient client.HelmAppClient,
-	K8sUtil *k8s.K8sUtil,
+	K8sUtil *k8s.K8sServiceImpl,
 	propertiesConfigService pipeline.PropertiesConfigService,
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
 	environmentRepository repository3.EnvironmentRepository,
@@ -304,7 +304,7 @@ func (impl DeploymentTemplateServiceImpl) extractScopeData(request DeploymentTem
 }
 
 func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, chartRefId int, valuesYaml string) (*openapi2.TemplateChartResponse, error) {
-	refChart, template, err, version, _ := impl.chartRefService.GetRefChart(chartRefId)
+	refChart, template, version, _, err := impl.chartRefService.GetRefChart(chartRefId)
 	if err != nil {
 		impl.Logger.Errorw("error in getting refChart", "err", err, "chartRefId", chartRefId)
 		return nil, err
