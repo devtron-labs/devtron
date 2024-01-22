@@ -40,7 +40,7 @@ type ChartRepoFields struct {
 	AllowInsecureConnection bool                `sql:"allow_insecure_connection"`
 }
 type ChartRepo struct {
-	tableName struct{} `sql:"chart_repo"`
+	tableName struct{} `sql:"chart_repo" pg:",discard_unknown_columns"`
 	ChartRepoFields
 	sql.AuditLog
 }

@@ -43,7 +43,7 @@ type SSOLoginService interface {
 type SSOLoginServiceImpl struct {
 	logger              *zap.SugaredLogger
 	ssoLoginRepository  SSOLoginRepository
-	K8sUtil             *k8s.K8sUtil
+	K8sUtil             *k8s.K8sServiceImpl
 	devtronSecretConfig *util2.DevtronSecretConfig
 	userAuthOidcHelper  authentication.UserAuthOidcHelper
 }
@@ -61,7 +61,7 @@ const ClientSecret = "clientSecret"
 func NewSSOLoginServiceImpl(
 	logger *zap.SugaredLogger,
 	ssoLoginRepository SSOLoginRepository,
-	K8sUtil *k8s.K8sUtil, devtronSecretConfig *util2.DevtronSecretConfig, userAuthOidcHelper authentication.UserAuthOidcHelper) *SSOLoginServiceImpl {
+	K8sUtil *k8s.K8sServiceImpl, devtronSecretConfig *util2.DevtronSecretConfig, userAuthOidcHelper authentication.UserAuthOidcHelper) *SSOLoginServiceImpl {
 	serviceImpl := &SSOLoginServiceImpl{
 		logger:              logger,
 		ssoLoginRepository:  ssoLoginRepository,

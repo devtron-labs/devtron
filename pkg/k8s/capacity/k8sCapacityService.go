@@ -44,13 +44,13 @@ type K8sCapacityServiceImpl struct {
 	logger                *zap.SugaredLogger
 	clusterService        cluster.ClusterService
 	k8sApplicationService application2.K8sApplicationService
-	K8sUtil               *k8s2.K8sUtil
+	K8sUtil               *k8s2.K8sServiceImpl
 	k8sCommonService      k8s.K8sCommonService
 	clusterCronService    cluster.ClusterCronService
 }
 
 func NewK8sCapacityServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.ClusterService,
-	k8sApplicationService application2.K8sApplicationService, K8sUtil *k8s2.K8sUtil,
+	k8sApplicationService application2.K8sApplicationService, K8sUtil *k8s2.K8sServiceImpl,
 	k8sCommonService k8s.K8sCommonService, clusterCronService cluster.ClusterCronService) *K8sCapacityServiceImpl {
 	return &K8sCapacityServiceImpl{
 		logger:                Logger,
