@@ -36,10 +36,6 @@ func (e *ApiError) Error() string {
 	return e.InternalMessage
 }
 
-func (e *ApiError) StatusCode() int {
-	return e.HttpStatusCode
-}
-
 // default internal will be set
 func (e *ApiError) ErrorfInternal(format string, a ...interface{}) error {
 	return &ApiError{InternalMessage: fmt.Sprintf(format, a...)}

@@ -3,8 +3,8 @@ package capacity
 import (
 	"context"
 	"fmt"
-	"github.com/devtron-labs/common-lib/utils"
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/devtron/internal/util"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/k8s"
@@ -628,7 +628,7 @@ func (impl *K8sCapacityServiceImpl) DrainNode(ctx context.Context, request *bean
 	node, err := impl.K8sUtil.GetNodeByName(context.Background(), k8sClientSet, request.Name)
 	if err != nil && strings.Contains(err.Error(), bean2.NOT_FOUND) {
 		impl.logger.Errorw("node not found", "err", err, "nodeName", request.Name)
-		return respMessage, &utils.ApiError{HttpStatusCode: http.StatusNotFound, Code: "200", UserMessage: err.Error()}
+		return respMessage, &util.ApiError{HttpStatusCode: http.StatusNotFound, Code: "200", UserMessage: err.Error()}
 	} else if err != nil {
 		impl.logger.Errorw("error in getting node", "err", err)
 		return respMessage, err
@@ -645,7 +645,7 @@ func (impl *K8sCapacityServiceImpl) DrainNode(ctx context.Context, request *bean
 	err = impl.deleteOrEvictPods(request.Name, request.NodeDrainHelper)
 	if err != nil && strings.Contains(err.Error(), bean.DaemonSetPodDeleteError) {
 		impl.logger.Errorw("daemonSet-managed pods can't be deleted", "err", err, "nodeName", request.Name)
-		return respMessage, &utils.ApiError{HttpStatusCode: http.StatusNotFound, Code: "200", UserMessage: bean.DaemonSetPodDeleteError}
+		return respMessage, &util.ApiError{HttpStatusCode: http.StatusNotFound, Code: "200", UserMessage: err.Error()}
 	} else if err != nil {
 		impl.logger.Errorw("error in deleting/evicting pods", "err", err, "nodeName", request.Name)
 		return respMessage, err
