@@ -373,7 +373,7 @@ func (handler *K8sCapacityRestHandlerImpl) DrainNode(w http.ResponseWriter, r *h
 		errCode := http.StatusInternalServerError
 		if apiErr, ok := err.(*utils.ApiError); ok {
 			switch errCode {
-			case http.StatusBadRequest:
+			case http.StatusNotFound:
 				errCode = apiErr.HttpStatusCode
 			}
 		}
