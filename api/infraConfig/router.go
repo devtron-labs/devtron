@@ -37,4 +37,6 @@ func (impl *InfraConfigRouterImpl) InitInfraConfigRouter(configRouter *mux.Route
 		Queries("searchStr", "{profileNameLike}").
 		HandlerFunc(impl.infraConfigRestHandler.GetProfileList).
 		Methods("GET")
+
+	// todo: @gireesh create a lite weight api autocomplete api for profile name and id data
 }

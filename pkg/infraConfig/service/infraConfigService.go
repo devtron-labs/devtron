@@ -2,10 +2,13 @@ package service
 
 import (
 	"github.com/caarlos0/env"
+	"github.com/devtron-labs/devtron/pkg/devtronResource"
+	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/repository"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/units"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"time"
@@ -16,46 +19,51 @@ const InvalidProfileName = "profile name is invalid"
 
 type InfraConfigService interface {
 
+	// GetConfigurationUnits fetches all the units for the configurations.
+	GetConfigurationUnits() map[infraConfig.ConfigKeyStr][]units.Unit
+
 	// GetDefaultProfile fetches the default profile and its configurations.
 	GetDefaultProfile() (*infraConfig.ProfileBean, error)
+
+	// GetProfileByName fetches the profile and its configurations matching the given profileName.
+	GetProfileByName(profileName string) (*infraConfig.ProfileBean, error)
+
+	// GetProfileList fetches all the profile and their configurations matching the given profileNameLike string.
+	// If profileNameLike is empty, it will fetch all the active profiles.
+	GetProfileList(profileNameLike string) (*infraConfig.ProfilesResponse, error)
 
 	// UpdateProfile updates the profile and its configurations matching the given profileName.
 	// If profileName is empty, it will return an error.
 	UpdateProfile(userId int32, profileName string, profileBean *infraConfig.ProfileBean) error
 
-	// GetConfigurationUnits fetches all the units for the configurations.
-	GetConfigurationUnits() map[infraConfig.ConfigKeyStr][]units.Unit
-
-	// GetProfileByName fetches the profile and its configurations matching the given profileName.
-	GetProfileByName(profileName string) (*infraConfig.ProfileBean, error)
-
 	// DeleteProfile deletes the profile and its configurations matching the given profileName.
 	// If profileName is empty, it will return an error.
 	DeleteProfile(profileName string) error
-
-	// GetProfileList fetches all the profile and their configurations matching the given profileNameLike string.
-	// If profileNameLike is empty, it will fetch all the active profiles.
-	GetProfileList(profileNameLike string) ([]*infraConfig.ProfileBean, error)
 }
 
 type InfraConfigServiceImpl struct {
-	logger           *zap.SugaredLogger
-	infraProfileRepo repository.InfraConfigRepository
-	units            *units.Units
-	infraConfig      *infraConfig.InfraConfig
+	logger                              *zap.SugaredLogger
+	infraProfileRepo                    repository.InfraConfigRepository
+	units                               *units.Units
+	infraConfig                         *infraConfig.InfraConfig
+	devtronResourceSearchableKeyService devtronResource.DevtronResourceSearchableKeyService
 }
 
-func NewInfraConfigServiceImpl(logger *zap.SugaredLogger, infraProfileRepo repository.InfraConfigRepository, units *units.Units) (*InfraConfigServiceImpl, error) {
+func NewInfraConfigServiceImpl(logger *zap.SugaredLogger,
+	infraProfileRepo repository.InfraConfigRepository,
+	units *units.Units,
+	devtronResourceSearchableKeyService devtronResource.DevtronResourceSearchableKeyService) (*InfraConfigServiceImpl, error) {
 	infraConfiguration := &infraConfig.InfraConfig{}
 	err := env.Parse(infraConfiguration)
 	if err != nil {
 		return nil, err
 	}
 	infraProfileService := &InfraConfigServiceImpl{
-		logger:           logger,
-		infraProfileRepo: infraProfileRepo,
-		units:            units,
-		infraConfig:      infraConfiguration,
+		logger:                              logger,
+		infraProfileRepo:                    infraProfileRepo,
+		units:                               units,
+		devtronResourceSearchableKeyService: devtronResourceSearchableKeyService,
+		infraConfig:                         infraConfiguration,
 	}
 	err = infraProfileService.loadDefaultProfile()
 	return infraProfileService, err
@@ -74,18 +82,12 @@ func (impl *InfraConfigServiceImpl) GetDefaultProfile() (*infraConfig.ProfileBea
 		return nil, err
 	}
 
-	configurationBeans := infraConfig.Transform(infraConfigurations, func(config *infraConfig.InfraProfileConfiguration) infraConfig.ConfigurationBean {
+	configurationBeans := util.Transform(infraConfigurations, func(config *infraConfig.InfraProfileConfiguration) infraConfig.ConfigurationBean {
 		configBean := config.ConvertToConfigurationBean()
 		configBean.ProfileName = profileBean.Name
 		return configBean
 	})
 	profileBean.Configurations = configurationBeans
-	appCount, err := impl.infraProfileRepo.GetIdentifierCountForDefaultProfile(infraProfile.Id)
-	if err != nil {
-		impl.logger.Errorw("error in fetching app count for default profile", "error", err)
-		return nil, err
-	}
-	profileBean.AppCount = appCount
 	return &profileBean, nil
 }
 
@@ -107,7 +109,7 @@ func (impl *InfraConfigServiceImpl) GetProfileByName(profileName string) (*infra
 		return nil, err
 	}
 
-	configurationBeans := infraConfig.Transform(infraConfigurations, func(config *infraConfig.InfraProfileConfiguration) infraConfig.ConfigurationBean {
+	configurationBeans := util.Transform(infraConfigurations, func(config *infraConfig.InfraProfileConfiguration) infraConfig.ConfigurationBean {
 		configBean := config.ConvertToConfigurationBean()
 		configBean.ProfileName = profileBean.Name
 		return configBean
@@ -116,23 +118,81 @@ func (impl *InfraConfigServiceImpl) GetProfileByName(profileName string) (*infra
 	return &profileBean, nil
 }
 
-func (impl *InfraConfigServiceImpl) GetProfileList(profileNameLike string) ([]*infraConfig.ProfileBean, error) {
-	profileNameLike = "%" + profileNameLike + "%"
+func (impl *InfraConfigServiceImpl) GetProfileList(profileNameLike string) (*infraConfig.ProfilesResponse, error) {
+	// fetch all the profiles matching the given profileNameLike filter
 	infraProfiles, err := impl.infraProfileRepo.GetProfileList(profileNameLike)
-
+	defaultProfileIndx := 0
+	// extract out profileIds from the profiles
 	profileIds := make([]int, len(infraProfiles))
-	profilesMap := make(map[int]*infraConfig.InfraProfile)
+	profilesMap := make(map[int]infraConfig.ProfileBean)
 	for i, _ := range infraProfiles {
-		profileIds[i] = infraProfiles[i].Id
-		profilesMap[infraProfiles[i].Id] = infraProfiles[i]
+		profileBean := infraProfiles[i].ConvertToProfileBean()
+		if profileBean.Name == repository.DEFAULT_PROFILE_NAME {
+			defaultProfileIndx = i
+		}
+		profileIds[i] = profileBean.Id
+		profilesMap[profileBean.Id] = profileBean
 	}
 
-	profileAppCount, err := impl.infraProfileRepo.GetIdentifierCountForNonDefaultProfiles(profileIds, "APP")
+	// fetch all the configurations matching the given profileIds
+	infraConfigurations, err := impl.infraProfileRepo.GetConfigurationsByProfileId(profileIds)
+	if err != nil {
+		impl.logger.Errorw("error in fetching default configurations", "profileIds", profileIds, "error", err)
+		return nil, err
+	}
+
+	// map the configurations to their respective profiles
+	for _, configuration := range infraConfigurations {
+		profileBean := profilesMap[configuration.ProfileId]
+		configurationBean := configuration.ConvertToConfigurationBean()
+		configurationBean.ProfileName = profileBean.Name
+		profileBean.Configurations = append(profileBean.Configurations, configurationBean)
+		profilesMap[configuration.ProfileId] = profileBean
+	}
+
+	searchableKeyNameIdMap := impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap()
+	profileAppCount, err := impl.infraProfileRepo.GetIdentifierCountForNonDefaultProfiles(profileIds, searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID])
 	if err != nil {
 		impl.logger.Errorw("error in fetching app count for non default profiles", "error", err)
 		return nil, err
 	}
-	return nil, nil
+
+	// set app count for each profile
+	for _, profileAppCnt := range profileAppCount {
+		profileBean := profilesMap[profileAppCnt.ProfileId]
+		profileBean.AppCount = profileAppCnt.IdentifierCount
+		profilesMap[profileAppCnt.ProfileId] = profileBean
+	}
+
+	// fill the default configurations for each profile if any of the default configuration is missing
+	defaultProfile := profilesMap[profileIds[defaultProfileIndx]]
+	defaultConfigurations := defaultProfile.Configurations
+
+	profiles := make([]infraConfig.ProfileBean, 0, len(profilesMap))
+	for profileId, profile := range profilesMap {
+		if profile.Name == repository.DEFAULT_PROFILE_NAME {
+			continue
+		}
+
+		for _, defaultConfiguration := range defaultConfigurations {
+			// if profile doesn't have the default configuration, add it to the profile
+			if !util.Contains(profile.Configurations, func(config infraConfig.ConfigurationBean) bool {
+				return config.Key == defaultConfiguration.Key
+			}) {
+				profile.Configurations = append(profile.Configurations, defaultConfiguration)
+			}
+		}
+
+		profiles = append(profiles, profile)
+		// update map with updated profile
+		profilesMap[profileId] = profile
+	}
+	resp := &infraConfig.ProfilesResponse{
+		Profiles: profiles,
+	}
+	resp.DefaultConfigurations = defaultConfigurations
+	resp.ConfigurationUnits = impl.GetConfigurationUnits()
+	return resp, nil
 }
 
 func (impl *InfraConfigServiceImpl) UpdateProfile(userId int32, profileName string, profileBean *infraConfig.ProfileBean) error {
@@ -143,7 +203,7 @@ func (impl *InfraConfigServiceImpl) UpdateProfile(userId int32, profileName stri
 	infraProfile := profileBean.ConvertToInfraProfile()
 	// user couldn't delete the profile, always set this to active
 	infraProfile.Active = true
-	infraConfigurations := infraConfig.Transform(profileBean.Configurations, func(config infraConfig.ConfigurationBean) *infraConfig.InfraProfileConfiguration {
+	infraConfigurations := util.Transform(profileBean.Configurations, func(config infraConfig.ConfigurationBean) *infraConfig.InfraProfileConfiguration {
 		config.ProfileId = infraProfile.Id
 		// user couldn't delete the configuration for default profile, always set this to active
 		if infraProfile.Name == repository.DEFAULT_PROFILE_NAME {
@@ -262,7 +322,7 @@ func (impl *InfraConfigServiceImpl) loadDefaultProfile() error {
 		return err
 	}
 
-	infraConfig.Transform(defaultConfigurations, func(config *infraConfig.InfraProfileConfiguration) *infraConfig.InfraProfileConfiguration {
+	util.Transform(defaultConfigurations, func(config *infraConfig.InfraProfileConfiguration) *infraConfig.InfraProfileConfiguration {
 		config.ProfileId = defaultProfile.Id
 		config.Active = true
 		config.AuditLog = sql.AuditLog{

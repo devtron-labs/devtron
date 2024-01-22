@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"fmt"
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -12,23 +13,28 @@ const DEFAULT_PROFILE_NAME = "default"
 const DEFAULT_PROFILE_EXISTS = "default profile exists"
 const noPropertiesFound = "no properties found"
 
-type ResourceIdentifierCount struct {
-	ResourceId      int
+type ProfileIdentifierCount struct {
+	ProfileId       int
 	IdentifierCount int
 }
 
 type InfraConfigRepository interface {
-	CreateDefaultProfile(tx *pg.Tx, infraProfile *infraConfig.InfraProfile) error
 	GetProfileByName(name string) (*infraConfig.InfraProfile, error)
+	GetProfileList(profileNameLike string) ([]*infraConfig.InfraProfile, error)
+
 	GetConfigurationsByProfileId(profileNameLike []int) ([]*infraConfig.InfraProfileConfiguration, error)
+
+	GetIdentifierCountForDefaultProfile(defaultProfileId int, identifierType int) (int, error)
+	GetIdentifierCountForNonDefaultProfiles(profileIds []int, identifierType int) ([]ProfileIdentifierCount, error)
+
+	CreateDefaultProfile(tx *pg.Tx, infraProfile *infraConfig.InfraProfile) error
 	CreateConfigurations(tx *pg.Tx, configurations []*infraConfig.InfraProfileConfiguration) error
+
 	UpdateConfigurations(tx *pg.Tx, configurations []*infraConfig.InfraProfileConfiguration) error
-	GetIdentifierCountForDefaultProfile(defaultProfileId int) (int, error)
-	GetIdentifierCountForNonDefaultProfiles(profileIds []int, identifierType string) ([]ResourceIdentifierCount, error)
 	UpdateProfile(tx *pg.Tx, profileName string, profile *infraConfig.InfraProfile) error
+
 	DeleteProfile(tx *pg.Tx, profileName string) error
 	DeleteConfigurations(tx *pg.Tx, profileName string) error
-	GetProfileList(profileNameLike string) ([]*infraConfig.InfraProfile, error)
 	sql.TransactionWrapper
 }
 
@@ -69,10 +75,13 @@ func (impl *InfraConfigRepositoryImpl) GetProfileByName(name string) (*infraConf
 
 func (impl *InfraConfigRepositoryImpl) GetProfileList(profileNameLike string) ([]*infraConfig.InfraProfile, error) {
 	var infraProfiles []*infraConfig.InfraProfile
-	err := impl.dbConnection.Model(&infraProfiles).
-		Where("name LIKE ?", profileNameLike).
-		Where("active = ?", true).
-		Select()
+	query := impl.dbConnection.Model(&infraProfiles).
+		Where("active = ?", true)
+	if profileNameLike == "" {
+		profileNameLike = "%" + profileNameLike + "%"
+		query = query.Where("name LIKE ? OR name = ?", profileNameLike, DEFAULT_PROFILE_NAME)
+	}
+	err := query.Select()
 	return infraProfiles, err
 }
 
@@ -102,26 +111,31 @@ func (impl *InfraConfigRepositoryImpl) GetConfigurationsByProfileId(profileIds [
 	return configurations, err
 }
 
-func (impl *InfraConfigRepositoryImpl) GetIdentifierCountForDefaultProfile(defaultProfileId int) (int, error) {
-	query := " SELECT COUNT(DISTINCT app_id) " +
+func (impl *InfraConfigRepositoryImpl) GetIdentifierCountForDefaultProfile(defaultProfileId int, identifierKey int) (int, error) {
+	queryToGetAppIdsWhichDoesntInheritDefaultConfigurations := " SELECT identifier_value_int " +
 		" FROM resource_qualifier_mapping " +
-		" WHERE reference_type = ? AND reference_id IN ( " +
+		" WHERE reference_type = %d AND reference_id IN ( " +
 		" 	SELECT profile_id " +
 		"   FROM infra_profile_configuration " +
-		"   GROUP BY profile_id HAVING COUNT(profile_id) < ( " +
+		"   GROUP BY profile_id HAVING COUNT(profile_id) = ( " +
 		" 	      SELECT COUNT(id) " +
 		" 	      FROM infra_profile_configuration " +
-		" 	      WHERE active=true AND profile_id=?) " +
-		" ) AND active=true"
+		" 	      WHERE active=true AND profile_id=%d ) " +
+		" ) AND identifier_key = %d AND active=true"
+	queryToGetAppIdsWhichDoesntInheritDefaultConfigurations = fmt.Sprintf(queryToGetAppIdsWhichDoesntInheritDefaultConfigurations, resourceQualifiers.InfraProfile, defaultProfileId, identifierKey)
 
+	// exclude appIds which inherit default configurations
+	query := " SELECT COUNT(id) " +
+		" FROM app WHERE Id NOT IN (%s) and active=true"
+	query = fmt.Sprintf(query, queryToGetAppIdsWhichDoesntInheritDefaultConfigurations)
 	count := 0
-	_, err := impl.dbConnection.Query(&count, query, resourceQualifiers.InfraProfile, defaultProfileId)
+	_, err := impl.dbConnection.Query(&count, query)
 	return count, err
 }
 
 // GetIdentifierCountForNonDefaultProfiles returns the count of identifiers for the given profileIds and identifierType
 // if resourceIds is empty, it will return the count of identifiers for all the profiles
-func (impl *InfraConfigRepositoryImpl) GetIdentifierCountForNonDefaultProfiles(profileIds []int, identifierType string) ([]ResourceIdentifierCount, error) {
+func (impl *InfraConfigRepositoryImpl) GetIdentifierCountForNonDefaultProfiles(profileIds []int, identifierType int) ([]ProfileIdentifierCount, error) {
 	query := " SELECT COUNT(DISTINCT identifier_id) as identifier_count, resource_id" +
 		" FROM resource_qualifier_mapping " +
 		" WHERE resource_type = ? AND identifier_type = ? AND active=true "
@@ -130,8 +144,7 @@ func (impl *InfraConfigRepositoryImpl) GetIdentifierCountForNonDefaultProfiles(p
 	}
 
 	query += " GROUP BY resource_id"
-	counts := make([]ResourceIdentifierCount, 0)
-	// todo: @gireesh identifier_type should be updated later
+	counts := make([]ProfileIdentifierCount, 0)
 	_, err := impl.dbConnection.Query(&counts, query, resourceQualifiers.InfraProfile, identifierType)
 	return counts, err
 }

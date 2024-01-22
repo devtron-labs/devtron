@@ -112,6 +112,7 @@ func (handler *InfraConfigRestHandlerImpl) GetProfile(w http.ResponseWriter, r *
 	}
 	resp.DefaultConfigurations = defaultProfile.Configurations
 	resp.ConfigurationUnits = handler.infraProfileService.GetConfigurationUnits()
+	// todo: append default configurations to the profileBean.Configurations
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
 
@@ -127,9 +128,15 @@ func (handler *InfraConfigRestHandlerImpl) GetProfileList(w http.ResponseWriter,
 		return
 	}
 
-	// vars := mux.Vars(r)
-	// profileNameLike := vars["profileNameLike"]
+	vars := mux.Vars(r)
+	profileNameLike := vars["profileNameLike"]
+	profilesResponse, err := handler.infraProfileService.GetProfileList(profileNameLike)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
 
+	common.WriteJsonResp(w, nil, profilesResponse, http.StatusOK)
 }
 
 func (handler *InfraConfigRestHandlerImpl) DeleteProfile(w http.ResponseWriter, r *http.Request) {

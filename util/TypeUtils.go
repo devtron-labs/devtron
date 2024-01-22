@@ -60,3 +60,22 @@ func GetMapValuesPtr[T any](valueMap map[string]*T) []*T {
 	}
 	return values
 }
+
+func Transform[T any, K any](input []T, transform func(inp T) K) []K {
+
+	res := make([]K, len(input))
+	for i, _ := range input {
+		res[i] = transform(input[i])
+	}
+	return res
+
+}
+
+func Contains[T any](input []T, check func(inp T) bool) bool {
+	for i, _ := range input {
+		if check(input[i]) {
+			return true
+		}
+	}
+	return false
+}
