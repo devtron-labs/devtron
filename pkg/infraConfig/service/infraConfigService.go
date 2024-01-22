@@ -6,14 +6,36 @@ import (
 	"github.com/devtron-labs/devtron/pkg/infraConfig/repository"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/units"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"time"
 )
 
+const CannotDeleteDefaultProfile = "cannot delete default profile"
+const InvalidProfileName = "profile name is invalid"
+
 type InfraConfigService interface {
+
+	// GetDefaultProfile fetches the default profile and its configurations.
 	GetDefaultProfile() (*infraConfig.ProfileBean, error)
+
+	// UpdateProfile updates the profile and its configurations matching the given profileName.
+	// If profileName is empty, it will return an error.
 	UpdateProfile(userId int32, profileName string, profileBean *infraConfig.ProfileBean) error
+
+	// GetConfigurationUnits fetches all the units for the configurations.
 	GetConfigurationUnits() map[infraConfig.ConfigKeyStr][]units.Unit
+
+	// GetProfileByName fetches the profile and its configurations matching the given profileName.
+	GetProfileByName(profileName string) (*infraConfig.ProfileBean, error)
+
+	// DeleteProfile deletes the profile and its configurations matching the given profileName.
+	// If profileName is empty, it will return an error.
+	DeleteProfile(profileName string) error
+
+	// GetProfileList fetches all the profile and their configurations matching the given profileNameLike string.
+	// If profileNameLike is empty, it will fetch all the active profiles.
+	GetProfileList(profileNameLike string) ([]*infraConfig.ProfileBean, error)
 }
 
 type InfraConfigServiceImpl struct {
@@ -46,13 +68,13 @@ func (impl *InfraConfigServiceImpl) GetDefaultProfile() (*infraConfig.ProfileBea
 	}
 
 	profileBean := infraProfile.ConvertToProfileBean()
-	infraConfigurations, err := impl.infraProfileRepo.GetConfigurationsByProfileId(infraProfile.Id)
+	infraConfigurations, err := impl.infraProfileRepo.GetConfigurationsByProfileId([]int{infraProfile.Id})
 	if err != nil {
 		impl.logger.Errorw("error in fetching default configurations", "error", err)
 		return nil, err
 	}
 
-	configurationBeans := Transform(infraConfigurations, func(config *infraConfig.InfraProfileConfiguration) infraConfig.ConfigurationBean {
+	configurationBeans := infraConfig.Transform(infraConfigurations, func(config *infraConfig.InfraProfileConfiguration) infraConfig.ConfigurationBean {
 		configBean := config.ConvertToConfigurationBean()
 		configBean.ProfileName = profileBean.Name
 		return configBean
@@ -67,11 +89,52 @@ func (impl *InfraConfigServiceImpl) GetDefaultProfile() (*infraConfig.ProfileBea
 	return &profileBean, nil
 }
 
+func (impl *InfraConfigServiceImpl) GetProfileByName(profileName string) (*infraConfig.ProfileBean, error) {
+	if profileName == "" {
+		return nil, errors.New(InvalidProfileName)
+	}
+
+	infraProfile, err := impl.infraProfileRepo.GetProfileByName(profileName)
+	if err != nil {
+		impl.logger.Errorw("error in fetching default profile", "error", err)
+		return nil, err
+	}
+
+	profileBean := infraProfile.ConvertToProfileBean()
+	infraConfigurations, err := impl.infraProfileRepo.GetConfigurationsByProfileId([]int{infraProfile.Id})
+	if err != nil {
+		impl.logger.Errorw("error in fetching default configurations", "error", err)
+		return nil, err
+	}
+
+	configurationBeans := infraConfig.Transform(infraConfigurations, func(config *infraConfig.InfraProfileConfiguration) infraConfig.ConfigurationBean {
+		configBean := config.ConvertToConfigurationBean()
+		configBean.ProfileName = profileBean.Name
+		return configBean
+	})
+	profileBean.Configurations = configurationBeans
+	return &profileBean, nil
+}
+
+func (impl *InfraConfigServiceImpl) GetProfileList(profileNameLike string) ([]*infraConfig.ProfileBean, error) {
+
+	profileAppCount, err := impl.infraProfileRepo.GetIdentifierCountForNonDefaultProfiles([]int{}, "APP")
+	if err != nil {
+		impl.logger.Errorw("error in fetching app count for non default profiles", "error", err)
+		return nil, err
+	}
+	return nil, nil
+}
+
 func (impl *InfraConfigServiceImpl) UpdateProfile(userId int32, profileName string, profileBean *infraConfig.ProfileBean) error {
+	if profileName == "" {
+		return errors.New(InvalidProfileName)
+	}
+
 	infraProfile := profileBean.ConvertToInfraProfile()
 	// user couldn't delete the profile, always set this to active
 	infraProfile.Active = true
-	infraConfigurations := Transform(profileBean.Configurations, func(config infraConfig.ConfigurationBean) *infraConfig.InfraProfileConfiguration {
+	infraConfigurations := infraConfig.Transform(profileBean.Configurations, func(config infraConfig.ConfigurationBean) *infraConfig.InfraProfileConfiguration {
 		config.ProfileId = infraProfile.Id
 		// user couldn't delete the configuration for default profile, always set this to active
 		if infraProfile.Name == repository.DEFAULT_PROFILE_NAME {
@@ -102,6 +165,44 @@ func (impl *InfraConfigServiceImpl) UpdateProfile(userId int32, profileName stri
 	err = impl.infraProfileRepo.CommitTx(tx)
 	if err != nil {
 		impl.logger.Errorw("error in committing transaction to update profile", "error", err)
+	}
+	return err
+}
+
+func (impl *InfraConfigServiceImpl) DeleteProfile(profileName string) error {
+	if profileName == "" {
+		return errors.New(InvalidProfileName)
+	}
+
+	if profileName == repository.DEFAULT_PROFILE_NAME {
+		return errors.New(CannotDeleteDefaultProfile)
+	}
+
+	tx, err := impl.infraProfileRepo.StartTx()
+	if err != nil {
+		impl.logger.Errorw("error in starting transaction to delete profile", "profileName", profileName, "error", err)
+		return err
+	}
+	defer impl.infraProfileRepo.RollbackTx(tx)
+
+	// step1: delete profile
+	err = impl.infraProfileRepo.DeleteProfile(tx, profileName)
+	if err != nil {
+		impl.logger.Errorw("error in deleting profile", "profileName", profileName, "error", err)
+		return err
+	}
+
+	// step2: delete configurations
+	err = impl.infraProfileRepo.DeleteConfigurations(tx, profileName)
+	if err != nil {
+		impl.logger.Errorw("error in deleting configurations", "profileName", profileName, "error", err)
+	}
+
+	// step3: delete profile identifier mappings
+	// todo: delete from resource_identifier_mapping where resource_id is profileId and resource_type is infraProfile
+	err = impl.infraProfileRepo.CommitTx(tx)
+	if err != nil {
+		impl.logger.Errorw("error in committing transaction to delete profile", "profileName", profileName, "error", err)
 	}
 	return err
 }
@@ -152,7 +253,7 @@ func (impl *InfraConfigServiceImpl) loadDefaultProfile() error {
 		return err
 	}
 
-	Transform(defaultConfigurations, func(config *infraConfig.InfraProfileConfiguration) *infraConfig.InfraProfileConfiguration {
+	infraConfig.Transform(defaultConfigurations, func(config *infraConfig.InfraProfileConfiguration) *infraConfig.InfraProfileConfiguration {
 		config.ProfileId = defaultProfile.Id
 		config.Active = true
 		config.AuditLog = sql.AuditLog{
@@ -171,19 +272,6 @@ func (impl *InfraConfigServiceImpl) loadDefaultProfile() error {
 		impl.logger.Errorw("error in committing transaction to save default configurations", "error", err)
 	}
 	return err
-}
-
-// todo: delete thsi function
-// Transform will iterate through elements of input slice and apply transform function on each object
-// and returns the transformed slice
-func Transform[T any, K any](input []T, transform func(inp T) K) []K {
-
-	res := make([]K, len(input))
-	for i, _ := range input {
-		res[i] = transform(input[i])
-	}
-	return res
-
 }
 
 func (impl *InfraConfigServiceImpl) GetConfigurationUnits() map[infraConfig.ConfigKeyStr][]units.Unit {

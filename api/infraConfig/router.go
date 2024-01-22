@@ -24,4 +24,17 @@ func (impl *InfraConfigRouterImpl) InitInfraConfigRouter(configRouter *mux.Route
 	configRouter.Path("/profile/{name}").
 		HandlerFunc(impl.infraConfigRestHandler.UpdateInfraProfile).
 		Methods("PUT")
+
+	configRouter.Path("/profile/{name}").
+		HandlerFunc(impl.infraConfigRestHandler.DeleteProfile).
+		Methods("DELETE")
+
+	configRouter.Path("/profile").
+		HandlerFunc(impl.infraConfigRestHandler.CreateProfile).
+		Methods("POST")
+
+	configRouter.Path("/profile").
+		Queries("searchStr", "{profileNameLike}").
+		HandlerFunc(impl.infraConfigRestHandler.GetProfileList).
+		Methods("GET")
 }

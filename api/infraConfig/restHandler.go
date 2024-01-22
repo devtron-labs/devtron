@@ -6,7 +6,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
-	"github.com/devtron-labs/devtron/pkg/infraConfig/repository"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/service"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
@@ -20,7 +19,11 @@ const InvalidProfileRequest = "requested profile doesn't exist"
 type InfraConfigRestHandler interface {
 	UpdateInfraProfile(w http.ResponseWriter, r *http.Request)
 	GetProfile(w http.ResponseWriter, r *http.Request)
+	DeleteProfile(w http.ResponseWriter, r *http.Request)
+	CreateProfile(w http.ResponseWriter, r *http.Request)
+	GetProfileList(w http.ResponseWriter, r *http.Request)
 }
+
 type InfraConfigRestHandlerImpl struct {
 	logger              *zap.SugaredLogger
 	infraProfileService service.InfraConfigService
@@ -39,6 +42,10 @@ func NewInfraConfigRestHandlerImpl(logger *zap.SugaredLogger, infraProfileServic
 	}
 }
 
+func (handler *InfraConfigRestHandlerImpl) CreateProfile(w http.ResponseWriter, r *http.Request) {
+
+}
+
 func (handler *InfraConfigRestHandlerImpl) UpdateInfraProfile(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -53,6 +60,10 @@ func (handler *InfraConfigRestHandlerImpl) UpdateInfraProfile(w http.ResponseWri
 
 	vars := mux.Vars(r)
 	profileName := vars["name"]
+	if profileName == "" {
+		common.WriteJsonResp(w, errors.New(service.InvalidProfileName), nil, http.StatusBadRequest)
+		return
+	}
 	payload := &infraConfig.ProfileBean{}
 	decoder := json.NewDecoder(r.Body)
 	err = decoder.Decode(payload)
@@ -83,8 +94,8 @@ func (handler *InfraConfigRestHandlerImpl) GetProfile(w http.ResponseWriter, r *
 
 	vars := mux.Vars(r)
 	profileName := vars["name"]
-	if profileName != repository.DEFAULT_PROFILE_NAME {
-		common.WriteJsonResp(w, errors.New(InvalidProfileRequest), nil, http.StatusNotFound)
+	if profileName == "" {
+		common.WriteJsonResp(w, errors.New(service.InvalidProfileName), nil, http.StatusBadRequest)
 		return
 	}
 
@@ -93,10 +104,56 @@ func (handler *InfraConfigRestHandlerImpl) GetProfile(w http.ResponseWriter, r *
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+
+	profile, err := handler.infraProfileService.GetProfileByName(profileName)
+
 	resp := infraConfig.ProfileResponse{
-		Profile: *defaultProfile,
+		Profile: *profile,
 	}
 	resp.DefaultConfigurations = defaultProfile.Configurations
 	resp.ConfigurationUnits = handler.infraProfileService.GetConfigurationUnits()
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
+}
+
+func (handler *InfraConfigRestHandlerImpl) GetProfileList(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+
+	// vars := mux.Vars(r)
+	// profileNameLike := vars["profileNameLike"]
+
+}
+
+func (handler *InfraConfigRestHandlerImpl) DeleteProfile(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+
+	vars := mux.Vars(r)
+	profileName := vars["name"]
+	if profileName == "" {
+		common.WriteJsonResp(w, errors.New(service.InvalidProfileName), nil, http.StatusBadRequest)
+		return
+	}
+	err = handler.infraProfileService.DeleteProfile(profileName)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	common.WriteJsonResp(w, nil, nil, http.StatusOK)
 }

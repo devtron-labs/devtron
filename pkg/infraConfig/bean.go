@@ -81,13 +81,14 @@ func (infraProfile *InfraProfile) ConvertToProfileBean() ProfileBean {
 }
 
 type InfraProfileConfiguration struct {
-	tableName struct{}         `sql:"infra_profile_configuration"`
-	Id        int              `sql:"id"`
-	Key       ConfigKey        `sql:"name"`
-	Value     string           `sql:"description"`
-	Unit      units.UnitSuffix `sql:"unit"`
-	ProfileId int              `sql:"profile_id"`
-	Active    bool             `sql:"active"`
+	tableName    struct{}         `sql:"infra_profile_configuration"`
+	Id           int              `sql:"id"`
+	Key          ConfigKey        `sql:"name"`
+	Value        string           `sql:"description"`
+	Unit         units.UnitSuffix `sql:"unit"`
+	ProfileId    int              `sql:"profile_id"`
+	Active       bool             `sql:"active"`
+	InfraProfile InfraProfile
 	sql.AuditLog
 }
 
@@ -242,4 +243,17 @@ func (infraConfig InfraConfig) GetDefaultTimeout() (*InfraProfileConfiguration, 
 		Value: fmt.Sprintf("%d", infraConfig.CiDefaultTimeout),
 		Unit:  units.GetTimeUnit(units.SecondStr),
 	}, nil
+}
+
+// todo: delete this function
+// Transform will iterate through elements of input slice and apply transform function on each object
+// and returns the transformed slice
+func Transform[T any, K any](input []T, transform func(inp T) K) []K {
+
+	res := make([]K, len(input))
+	for i, _ := range input {
+		res[i] = transform(input[i])
+	}
+	return res
+
 }
