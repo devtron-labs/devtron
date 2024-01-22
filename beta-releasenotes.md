@@ -17,6 +17,7 @@
 - fix: error handling and url fix (#4407)
 - feat: skip bulk build source change (#4357)
 ## Enhancements
+- feat: added posthog events for cloud provider and version (#4443)
 - feat: making pre,post,deploy triggers flows idempotent (#4486)
 - feat: Create Dockerslim plugin and Create EKS Cluster plugin (#4525)
 - feat: Adds Copacetic plugin to patch vulnerable images  (#4566)
