@@ -3,7 +3,7 @@ package service
 import (
 	"testing"
 
-	pubsub "github.com/devtron-labs/common-lib-private/pubsub-lib"
+	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	repository2 "github.com/devtron-labs/devtron/client/argocdServer/repository"

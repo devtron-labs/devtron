@@ -3,8 +3,8 @@ package pipeline
 import (
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/devtron-labs/authenticator/client"
-	blob_storage "github.com/devtron-labs/common-lib-private/blob-storage"
 	"github.com/devtron-labs/common-lib-private/utils/k8s"
+	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"

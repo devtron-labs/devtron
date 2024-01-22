@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/authenticator/client"
 	"github.com/devtron-labs/common-lib-private/utils/k8s"
-	k8sCommonBean "github.com/devtron-labs/common-lib-private/utils/k8s/commonBean"
+	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"

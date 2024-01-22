@@ -21,7 +21,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/devtron-labs/common-lib-private/utils/k8s/health"
+	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/gitSensor"

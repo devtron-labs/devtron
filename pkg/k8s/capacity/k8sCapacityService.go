@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	k8s2 "github.com/devtron-labs/common-lib-private/utils/k8s"
+	k8s3 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	application2 "github.com/devtron-labs/devtron/pkg/k8s/application"
@@ -33,8 +34,8 @@ type K8sCapacityService interface {
 	GetClusterCapacityDetail(ctx context.Context, cluster *cluster.ClusterBean, callForList bool) (*bean.ClusterCapacityDetail, error)
 	GetNodeCapacityDetailsListByCluster(ctx context.Context, cluster *cluster.ClusterBean) ([]*bean.NodeCapacityDetail, error)
 	GetNodeCapacityDetailByNameAndCluster(ctx context.Context, cluster *cluster.ClusterBean, name string) (*bean.NodeCapacityDetail, error)
-	UpdateNodeManifest(ctx context.Context, request *bean.NodeUpdateRequestDto) (*k8s2.ManifestResponse, error)
-	DeleteNode(ctx context.Context, request *bean.NodeUpdateRequestDto) (*k8s2.ManifestResponse, error)
+	UpdateNodeManifest(ctx context.Context, request *bean.NodeUpdateRequestDto) (*k8s3.ManifestResponse, error)
+	DeleteNode(ctx context.Context, request *bean.NodeUpdateRequestDto) (*k8s3.ManifestResponse, error)
 	CordonOrUnCordonNode(ctx context.Context, request *bean.NodeUpdateRequestDto) (string, error)
 	DrainNode(ctx context.Context, request *bean.NodeUpdateRequestDto) (string, error)
 	EditNodeTaints(ctx context.Context, request *bean.NodeUpdateRequestDto) (string, error)
@@ -44,13 +45,13 @@ type K8sCapacityServiceImpl struct {
 	logger                *zap.SugaredLogger
 	clusterService        cluster.ClusterService
 	k8sApplicationService application2.K8sApplicationService
-	K8sUtil               *k8s2.K8sUtil
+	K8sUtil               *k8s2.K8sUtilExtended
 	k8sCommonService      k8s.K8sCommonService
 	clusterCronService    cluster.ClusterCronService
 }
 
 func NewK8sCapacityServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.ClusterService,
-	k8sApplicationService application2.K8sApplicationService, K8sUtil *k8s2.K8sUtil,
+	k8sApplicationService application2.K8sApplicationService, K8sUtil *k8s2.K8sUtilExtended,
 	k8sCommonService k8s.K8sCommonService, clusterCronService cluster.ClusterCronService) *K8sCapacityServiceImpl {
 	return &K8sCapacityServiceImpl{
 		logger:                Logger,
@@ -455,8 +456,8 @@ func (impl *K8sCapacityServiceImpl) updateAdditionalDetailForNode(nodeDetail *be
 
 func (impl *K8sCapacityServiceImpl) updateManifestData(ctx context.Context, nodeDetail *bean.NodeCapacityDetail, node *corev1.Node, clusterId int) error {
 	//getting manifest
-	manifestRequest := &k8s2.K8sRequestBean{
-		ResourceIdentifier: k8s2.ResourceIdentifier{
+	manifestRequest := &k8s3.K8sRequestBean{
+		ResourceIdentifier: k8s3.ResourceIdentifier{
 			Name: node.Name,
 			GroupVersionKind: schema.GroupVersionKind{
 				Version: nodeDetail.Version,
@@ -529,9 +530,9 @@ func (impl *K8sCapacityServiceImpl) updateNodeResources(node *corev1.Node, nodeL
 	}
 }
 
-func (impl *K8sCapacityServiceImpl) UpdateNodeManifest(ctx context.Context, request *bean.NodeUpdateRequestDto) (*k8s2.ManifestResponse, error) {
-	manifestUpdateReq := &k8s2.K8sRequestBean{
-		ResourceIdentifier: k8s2.ResourceIdentifier{
+func (impl *K8sCapacityServiceImpl) UpdateNodeManifest(ctx context.Context, request *bean.NodeUpdateRequestDto) (*k8s3.ManifestResponse, error) {
+	manifestUpdateReq := &k8s3.K8sRequestBean{
+		ResourceIdentifier: k8s3.ResourceIdentifier{
 			Name: request.Name,
 			GroupVersionKind: schema.GroupVersionKind{
 				Group:   "",
@@ -550,9 +551,9 @@ func (impl *K8sCapacityServiceImpl) UpdateNodeManifest(ctx context.Context, requ
 	return manifestResponse, nil
 }
 
-func (impl *K8sCapacityServiceImpl) DeleteNode(ctx context.Context, request *bean.NodeUpdateRequestDto) (*k8s2.ManifestResponse, error) {
-	deleteReq := &k8s2.K8sRequestBean{
-		ResourceIdentifier: k8s2.ResourceIdentifier{
+func (impl *K8sCapacityServiceImpl) DeleteNode(ctx context.Context, request *bean.NodeUpdateRequestDto) (*k8s3.ManifestResponse, error) {
+	deleteReq := &k8s3.K8sRequestBean{
+		ResourceIdentifier: k8s3.ResourceIdentifier{
 			Name: request.Name,
 			GroupVersionKind: schema.GroupVersionKind{
 				Group:   "",
@@ -592,7 +593,7 @@ func (impl *K8sCapacityServiceImpl) CordonOrUnCordonNode(ctx context.Context, re
 		return respMessage, getErrorForCordonUpdateReq(request.NodeCordonHelper.UnschedulableDesired)
 	}
 	//updating node with desired cordon value
-	node, err = k8s2.UpdateNodeUnschedulableProperty(request.NodeCordonHelper.UnschedulableDesired, node, k8sClientSet)
+	node, err = k8s3.UpdateNodeUnschedulableProperty(request.NodeCordonHelper.UnschedulableDesired, node, k8sClientSet)
 	if err != nil {
 		impl.logger.Errorw("error in updating node", "err", err)
 		return respMessage, err
@@ -626,7 +627,7 @@ func (impl *K8sCapacityServiceImpl) DrainNode(ctx context.Context, request *bean
 	}
 	//checking if node is unschedulable or not, if not then need to unschedule before draining
 	if !node.Spec.Unschedulable {
-		node, err = k8s2.UpdateNodeUnschedulableProperty(true, node, k8sClientSet)
+		node, err = k8s3.UpdateNodeUnschedulableProperty(true, node, k8sClientSet)
 		if err != nil {
 			impl.logger.Errorw("error in making node unschedulable", "err", err)
 			return respMessage, err
@@ -776,7 +777,7 @@ func (impl *K8sCapacityServiceImpl) deleteOrEvictPods(nodeName string, nodeDrain
 		//delete instead of eviction
 		return impl.deletePods(pods, nodeDrainHelper.K8sClientSet, deleteOptions)
 	} else {
-		evictionGroupVersion, err := k8s2.CheckEvictionSupport(nodeDrainHelper.K8sClientSet)
+		evictionGroupVersion, err := k8s3.CheckEvictionSupport(nodeDrainHelper.K8sClientSet)
 		if err != nil {
 			return err
 		}
@@ -795,7 +796,7 @@ func (impl *K8sCapacityServiceImpl) evictPods(pods []corev1.Pod, k8sClientSet *k
 		go func(pod corev1.Pod, returnCh chan error) {
 			// Create a temporary pod, so we don't mutate the pod in the loop.
 			activePod := pod
-			err := k8s2.EvictPod(activePod, k8sClientSet, evictionGroupVersion, deleteOptions)
+			err := k8s3.EvictPod(activePod, k8sClientSet, evictionGroupVersion, deleteOptions)
 			if err == nil {
 				returnCh <- nil
 				return
@@ -831,7 +832,7 @@ func (impl *K8sCapacityServiceImpl) deletePods(pods []corev1.Pod, k8sClientSet *
 	var podDeletionErrors []error
 	for _, pod := range pods {
 		impl.logger.Infow("deleting pod", "pod", pod)
-		err := k8s2.DeletePod(pod, k8sClientSet, deleteOptions)
+		err := k8s3.DeletePod(pod, k8sClientSet, deleteOptions)
 		if err != nil && !apierrors.IsNotFound(err) {
 			podDeletionErrors = append(podDeletionErrors, err)
 		}

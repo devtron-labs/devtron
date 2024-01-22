@@ -20,7 +20,8 @@ require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/deckarep/golang-set v1.8.0
 	github.com/devtron-labs/authenticator v0.4.33
-	github.com/devtron-labs/common-lib-private v0.0.9-0.20240118062311-9310f8208e2d
+	github.com/devtron-labs/common-lib v0.0.10
+	github.com/devtron-labs/common-lib-private v0.0.9-0.20240119145743-4dc10b978696
 	github.com/devtron-labs/protos v0.0.0-20230503113602-282404f70fd2
 	github.com/evanphx/json-patch v5.6.0+incompatible
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
@@ -47,7 +48,6 @@ require (
 	github.com/ktrysmt/go-bitbucket v0.9.55
 	github.com/lib/pq v1.10.4
 	github.com/mattbaird/jsonpatch v0.0.0-20230413205102-771768614e91
-	github.com/mdaverde/jsonpath v0.2.1
 	github.com/microsoft/azure-devops-go-api/azuredevops v1.0.0-b5
 	github.com/ohler55/ojg v1.20.3
 	github.com/otiai10/copy v1.0.2
