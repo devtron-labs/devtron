@@ -444,7 +444,10 @@ func (impl *K8sApplicationServiceImpl) GetAllApiResourceGVKWithoutAuthorization(
 		return nil, err
 	}
 	allApiResources, err := impl.K8sUtil.GetApiResources(restConfig, bean3.LIST_VERB)
-	if err != nil {
+	if err != nil && strings.Contains(err.Error(), k8s2.DnsLookupNoSuchHostError) {
+		impl.logger.Errorw("k8s cluster unreachable", "err", err)
+		return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: "200", UserMessage: "k8s cluster unreachable"}
+	} else if err != nil {
 		return nil, err
 	}
 	// FILTER STARTS
