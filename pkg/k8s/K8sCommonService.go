@@ -296,7 +296,9 @@ func (impl *K8sCommonServiceImpl) getManifestsByBatch(ctx context.Context, reque
 			go func(j int) {
 				resp := BatchResourceResponse{}
 				response, err := impl.GetResource(ctx, &requests[i+j])
-				resp.ManifestResponse = response.ManifestResponse
+				if response != nil {
+					resp.ManifestResponse = response.ManifestResponse
+				}
 				resp.Err = err
 				res[i+j] = resp
 				wg.Done()
