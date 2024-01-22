@@ -134,7 +134,7 @@ type InstalledAppServiceImpl struct {
 	helmAppService                       client.HelmAppService
 	attributesRepository                 repository3.AttributesRepository
 	appStatusService                     appStatus.AppStatusService
-	K8sUtil                              *util4.K8sUtil
+	K8sUtil                              *util4.K8sServiceImpl
 	pipelineStatusTimelineService        status.PipelineStatusTimelineService
 	appStoreDeploymentCommonService      appStoreDeploymentCommon.AppStoreDeploymentCommonService
 	k8sCommonService                     k8s.K8sCommonService
@@ -161,7 +161,7 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 	installedAppRepositoryHistory repository2.InstalledAppVersionHistoryRepository,
 	argoUserService argo.ArgoUserService, helmAppClient client.HelmAppClient, helmAppService client.HelmAppService,
 	attributesRepository repository3.AttributesRepository,
-	appStatusService appStatus.AppStatusService, K8sUtil *util4.K8sUtil,
+	appStatusService appStatus.AppStatusService, K8sUtil *util4.K8sServiceImpl,
 	pipelineStatusTimelineService status.PipelineStatusTimelineService,
 	appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
 	appStoreDeploymentArgoCdService appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdService, k8sCommonService k8s.K8sCommonService, k8sApplicationService application3.K8sApplicationService,
@@ -647,8 +647,6 @@ func (impl *InstalledAppServiceImpl) triggerDeploymentEvent(installAppVersions [
 
 func (impl *InstalledAppServiceImpl) Subscribe() error {
 	callback := func(msg *model.PubSubMsg) {
-		impl.logger.Debug("cd stage event received")
-		//defer msg.Ack()
 		deployPayload := &appStoreBean.DeployPayload{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &deployPayload)
 		if err != nil {
@@ -662,7 +660,18 @@ func (impl *InstalledAppServiceImpl) Subscribe() error {
 			impl.logger.Errorw("error in performing deploy stage", "deployPayload", deployPayload, "err", err)
 		}
 	}
-	err := impl.pubsubClient.Subscribe(pubsub.BULK_APPSTORE_DEPLOY_TOPIC, callback)
+
+	// add required logging here
+	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) (string, []interface{}) {
+		deployPayload := &appStoreBean.DeployPayload{}
+		err := json.Unmarshal([]byte(string(msg.Data)), &deployPayload)
+		if err != nil {
+			return "error while unmarshalling deployPayload json object", []interface{}{"error", err}
+		}
+		return "got message for deploy app-store apps in bulk", []interface{}{"installedAppVersionId", deployPayload.InstalledAppVersionId, "installedAppVersionHistoryId", deployPayload.InstalledAppVersionHistoryId}
+	}
+
+	err := impl.pubsubClient.Subscribe(pubsub.BULK_APPSTORE_DEPLOY_TOPIC, callback, loggerFunc)
 	if err != nil {
 		impl.logger.Error("err", err)
 		return err
@@ -910,11 +919,14 @@ func (impl *InstalledAppServiceImpl) FetchChartNotes(installedAppId int, envId i
 	installedApp, err := impl.installedAppRepository.FetchNotes(installedAppId)
 	if err != nil && err != pg.ErrNoRows {
 		return "", err
+	} else if err == pg.ErrNoRows {
+		impl.logger.Errorw("installed app not found or may have been deleted", "installedAppId", installedAppId, "envId", envId)
+		return "", &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: "400", UserMessage: "Installed app not found in database or may have been deleted", InternalMessage: err.Error()}
 	}
 	installedAppVerison, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppIdAndEnvId(installedAppId, envId)
 	if err != nil {
 		if err == pg.ErrNoRows {
-			return "", fmt.Errorf("values are outdated. please fetch the latest version and try again")
+			return "", &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: "400", UserMessage: "values are outdated. please fetch the latest version and try again", InternalMessage: err.Error()}
 		}
 		impl.logger.Errorw("error fetching installed  app version in installed app service", "err", err)
 		return "", err

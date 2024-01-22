@@ -22,6 +22,7 @@ package main
 
 import (
 	"github.com/devtron-labs/authenticator/middleware"
+	cloudProviderIdentifier "github.com/devtron-labs/common-lib/cloud-provider-identifier"
 	pubsub1 "github.com/devtron-labs/common-lib/pubsub-lib"
 	util4 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/apiToken"
@@ -65,6 +66,7 @@ import (
 	"github.com/devtron-labs/devtron/client/grafana"
 	jClient "github.com/devtron-labs/devtron/client/jira"
 	"github.com/devtron-labs/devtron/client/lens"
+	"github.com/devtron-labs/devtron/client/proxy"
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -147,6 +149,7 @@ func InitializeApp() (*App, error) {
 		sso.SsoConfigWireSet,
 		cluster.ClusterWireSet,
 		dashboard.DashboardWireSet,
+		proxy.ProxyWireSet,
 		client.HelmAppWireSet,
 		k8s.K8sApplicationWireSet,
 		chartRepo.ChartRepositoryWireSet,
@@ -714,6 +717,9 @@ func InitializeApp() (*App, error) {
 		restHandler.NewTelemetryRestHandlerImpl,
 		wire.Bind(new(restHandler.TelemetryRestHandler), new(*restHandler.TelemetryRestHandlerImpl)),
 		telemetry.NewPosthogClient,
+
+		cloudProviderIdentifier.NewProviderIdentifierServiceImpl,
+		wire.Bind(new(cloudProviderIdentifier.ProviderIdentifierService), new(*cloudProviderIdentifier.ProviderIdentifierServiceImpl)),
 
 		telemetry.NewTelemetryEventClientImplExtended,
 		wire.Bind(new(telemetry.TelemetryEventClient), new(*telemetry.TelemetryEventClientImplExtended)),

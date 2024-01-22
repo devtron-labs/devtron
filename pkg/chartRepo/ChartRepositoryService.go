@@ -82,14 +82,14 @@ type ChartRepositoryService interface {
 type ChartRepositoryServiceImpl struct {
 	logger          *zap.SugaredLogger
 	repoRepository  chartRepoRepository.ChartRepoRepository
-	K8sUtil         *util3.K8sUtil
+	K8sUtil         *util3.K8sServiceImpl
 	clusterService  cluster.ClusterService
 	aCDAuthConfig   *util2.ACDAuthConfig
 	client          *http.Client
 	serverEnvConfig *serverEnvConfig.ServerEnvConfig
 }
 
-func NewChartRepositoryServiceImpl(logger *zap.SugaredLogger, repoRepository chartRepoRepository.ChartRepoRepository, K8sUtil *util3.K8sUtil, clusterService cluster.ClusterService,
+func NewChartRepositoryServiceImpl(logger *zap.SugaredLogger, repoRepository chartRepoRepository.ChartRepoRepository, K8sUtil *util3.K8sServiceImpl, clusterService cluster.ClusterService,
 	aCDAuthConfig *util2.ACDAuthConfig, client *http.Client, serverEnvConfig *serverEnvConfig.ServerEnvConfig) *ChartRepositoryServiceImpl {
 	return &ChartRepositoryServiceImpl{
 		logger:          logger,

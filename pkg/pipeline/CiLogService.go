@@ -39,10 +39,10 @@ type CiLogServiceImpl struct {
 	logger     *zap.SugaredLogger
 	ciService  CiService
 	kubeClient *kubernetes.Clientset
-	k8sUtil    *k8s.K8sUtil
+	k8sUtil    *k8s.K8sServiceImpl
 }
 
-func NewCiLogServiceImpl(logger *zap.SugaredLogger, ciService CiService, k8sUtil *k8s.K8sUtil) (*CiLogServiceImpl, error) {
+func NewCiLogServiceImpl(logger *zap.SugaredLogger, ciService CiService, k8sUtil *k8s.K8sServiceImpl) (*CiLogServiceImpl, error) {
 	_, _, clientSet, err := k8sUtil.GetK8sInClusterConfigAndClients()
 	if err != nil {
 		logger.Errorw("error in getting k8s in cluster client set", "err", err)
