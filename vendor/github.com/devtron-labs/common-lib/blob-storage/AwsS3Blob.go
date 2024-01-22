@@ -10,7 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
-	"github.com/devtron-labs/common-lib-private/utils"
+	"github.com/devtron-labs/common-lib/utils"
 	"log"
 	"os"
 	"os/exec"

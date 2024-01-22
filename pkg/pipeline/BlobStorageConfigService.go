@@ -4,8 +4,9 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	blob_storage "github.com/devtron-labs/common-lib-private/blob-storage"
 	"github.com/devtron-labs/common-lib-private/utils/k8s"
+	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
+	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"go.uber.org/zap"
@@ -14,15 +15,15 @@ import (
 )
 
 type BlobStorageConfigService interface {
-	FetchCmAndSecretBlobConfigFromExternalCluster(clusterConfig *k8s.ClusterConfig, namespace string) (*bean2.CmBlobStorageConfig, *bean2.SecretBlobStorageConfig, error)
+	FetchCmAndSecretBlobConfigFromExternalCluster(clusterConfig *k8s2.ClusterConfig, namespace string) (*bean2.CmBlobStorageConfig, *bean2.SecretBlobStorageConfig, error)
 }
 type BlobStorageConfigServiceImpl struct {
 	Logger     *zap.SugaredLogger
-	k8sUtil    *k8s.K8sUtil
+	k8sUtil    *k8s.K8sUtilExtended
 	ciCdConfig *types.CiCdConfig
 }
 
-func NewBlobStorageConfigServiceImpl(Logger *zap.SugaredLogger, k8sUtil *k8s.K8sUtil, ciCdConfig *types.CiCdConfig) *BlobStorageConfigServiceImpl {
+func NewBlobStorageConfigServiceImpl(Logger *zap.SugaredLogger, k8sUtil *k8s.K8sUtilExtended, ciCdConfig *types.CiCdConfig) *BlobStorageConfigServiceImpl {
 	return &BlobStorageConfigServiceImpl{
 		Logger:     Logger,
 		k8sUtil:    k8sUtil,
@@ -30,7 +31,7 @@ func NewBlobStorageConfigServiceImpl(Logger *zap.SugaredLogger, k8sUtil *k8s.K8s
 	}
 }
 
-func (impl *BlobStorageConfigServiceImpl) FetchCmAndSecretBlobConfigFromExternalCluster(clusterConfig *k8s.ClusterConfig, namespace string) (*bean2.CmBlobStorageConfig, *bean2.SecretBlobStorageConfig, error) {
+func (impl *BlobStorageConfigServiceImpl) FetchCmAndSecretBlobConfigFromExternalCluster(clusterConfig *k8s2.ClusterConfig, namespace string) (*bean2.CmBlobStorageConfig, *bean2.SecretBlobStorageConfig, error) {
 	cmConfig := &bean2.CmBlobStorageConfig{}
 	secretConfig := &bean2.SecretBlobStorageConfig{}
 	_, _, kubeClient, err := impl.k8sUtil.GetK8sConfigAndClients(clusterConfig)

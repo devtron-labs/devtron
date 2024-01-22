@@ -1,7 +1,7 @@
 package health
 
 import (
-	"github.com/devtron-labs/common-lib-private/utils/k8s/commonBean"
+	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )

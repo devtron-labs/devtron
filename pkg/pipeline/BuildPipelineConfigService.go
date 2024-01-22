@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/caarlos0/env"
+	"github.com/devtron-labs/common-lib-private/utils"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -1368,6 +1369,7 @@ func (impl *CiPipelineConfigServiceImpl) handlePipelineCreate(request *bean.CiPa
 	}
 
 	if pipelineExists {
+		err = &utils.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "pipeline name already exist"}
 		impl.logger.Errorw("pipeline name already exist", "err", err, "patch cipipeline name", request.CiPipeline.Name)
 		return nil, fmt.Errorf(bean3.PIPELINE_NAME_ALREADY_EXISTS_ERROR)
 	}

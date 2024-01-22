@@ -49,7 +49,7 @@ import (
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 
-	"github.com/devtron-labs/common-lib-private/blob-storage"
+	"github.com/devtron-labs/common-lib/blob-storage"
 	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"

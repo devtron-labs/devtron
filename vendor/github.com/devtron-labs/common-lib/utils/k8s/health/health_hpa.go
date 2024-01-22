@@ -3,7 +3,7 @@ package health
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/common-lib-private/utils/k8s/commonBean"
+	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"

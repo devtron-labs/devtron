@@ -22,7 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	k8sObjectUtils "github.com/devtron-labs/common-lib-private/utils/k8sObjectsUtil"
+	k8sObjectUtils "github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
 	"github.com/devtron-labs/devtron/client/argocdServer/connection"
 	"strings"
 	"time"

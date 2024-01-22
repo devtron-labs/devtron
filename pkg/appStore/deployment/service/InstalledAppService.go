@@ -35,10 +35,10 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	"github.com/devtron-labs/common-lib-private/pubsub-lib/model"
 	util4 "github.com/devtron-labs/common-lib-private/utils/k8s"
-	k8sCommonBean "github.com/devtron-labs/common-lib-private/utils/k8s/commonBean"
-	k8sObjectUtils "github.com/devtron-labs/common-lib-private/utils/k8sObjectsUtil"
+	"github.com/devtron-labs/common-lib/pubsub-lib/model"
+	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
+	k8sObjectUtils "github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/client/argocdServer"
@@ -68,7 +68,7 @@ import (
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	pubsub "github.com/devtron-labs/common-lib-private/pubsub-lib"
+	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/argocdServer/repository"
@@ -138,7 +138,7 @@ type InstalledAppServiceImpl struct {
 	helmAppService                       client.HelmAppService
 	attributesRepository                 repository3.AttributesRepository
 	appStatusService                     appStatus.AppStatusService
-	K8sUtil                              *util4.K8sUtil
+	K8sUtil                              *util4.K8sUtilExtended
 	pipelineStatusTimelineService        status.PipelineStatusTimelineService
 	appStoreDeploymentCommonService      appStoreDeploymentCommon.AppStoreDeploymentCommonService
 	k8sCommonService                     k8s.K8sCommonService
@@ -165,7 +165,7 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 	installedAppRepositoryHistory repository2.InstalledAppVersionHistoryRepository,
 	argoUserService argo.ArgoUserService, helmAppClient client.HelmAppClient, helmAppService client.HelmAppService,
 	attributesRepository repository3.AttributesRepository,
-	appStatusService appStatus.AppStatusService, K8sUtil *util4.K8sUtil,
+	appStatusService appStatus.AppStatusService, K8sUtil *util4.K8sUtilExtended,
 	pipelineStatusTimelineService status.PipelineStatusTimelineService,
 	appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
 	appStoreDeploymentArgoCdService appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdService, k8sCommonService k8s.K8sCommonService, k8sApplicationService application3.K8sApplicationService,
@@ -978,11 +978,14 @@ func (impl *InstalledAppServiceImpl) FetchChartNotes(installedAppId int, envId i
 	installedApp, err := impl.installedAppRepository.FetchNotes(installedAppId)
 	if err != nil && err != pg.ErrNoRows {
 		return "", err
+	} else if err == pg.ErrNoRows {
+		impl.logger.Errorw("installed app not found or may have been deleted", "installedAppId", installedAppId, "envId", envId)
+		return "", &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: "400", UserMessage: "Installed app not found in database or may have been deleted", InternalMessage: err.Error()}
 	}
 	installedAppVerison, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppIdAndEnvId(installedAppId, envId)
 	if err != nil {
 		if err == pg.ErrNoRows {
-			return "", fmt.Errorf("values are outdated. please fetch the latest version and try again")
+			return "", &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: "400", UserMessage: "values are outdated. please fetch the latest version and try again", InternalMessage: err.Error()}
 		}
 		impl.logger.Errorw("error fetching installed  app version in installed app service", "err", err)
 		return "", err
