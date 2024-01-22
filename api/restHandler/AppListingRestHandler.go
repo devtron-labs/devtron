@@ -29,9 +29,9 @@ import (
 	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/caarlos0/env/v6"
-	k8sCommonBean "github.com/devtron-labs/common-lib-private/utils/k8s/commonBean"
-	"github.com/devtron-labs/common-lib-private/utils/k8s/health"
-	k8sObjectUtils "github.com/devtron-labs/common-lib-private/utils/k8sObjectsUtil"
+	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
+	"github.com/devtron-labs/common-lib/utils/k8s/health"
+	k8sObjectUtils "github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
@@ -1030,22 +1030,36 @@ func (handler AppListingRestHandlerImpl) FetchResourceTree(w http.ResponseWriter
 		return
 	}
 	resourceTree, err := handler.fetchResourceTree(w, r, appId, envId, acdToken, cdPipeline)
+	if err != nil {
+		handler.logger.Errorw("error in fetching resource tree", "err", err, "appId", appId, "envId", envId)
+		handler.handleResourceTreeErrAndDeletePipelineIfNeeded(w, err, appId, envId, acdToken, cdPipeline)
+		return
+	}
+	common.WriteJsonResp(w, err, resourceTree, http.StatusOK)
+}
+
+func (handler AppListingRestHandlerImpl) handleResourceTreeErrAndDeletePipelineIfNeeded(w http.ResponseWriter, err error,
+	appId int, envId int, acdToken string, cdPipeline *pipelineConfig.Pipeline) {
 	if cdPipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
 		apiError, ok := err.(*util.ApiError)
 		if ok && apiError != nil {
 			if apiError.Code == constants.AppDetailResourceTreeNotFound && cdPipeline.DeploymentAppDeleteRequest == true && cdPipeline.DeploymentAppCreated == true {
-				acdAppFound, _ := handler.pipeline.MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDeleted(appId, envId, acdToken, cdPipeline)
-				if acdAppFound {
-					common.WriteJsonResp(w, fmt.Errorf("unable to fetch resource tree"), nil, http.StatusInternalServerError)
+				acdAppFound, appDeleteErr := handler.pipeline.MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDeleted(appId, envId, acdToken, cdPipeline)
+				if appDeleteErr != nil {
+					common.WriteJsonResp(w, fmt.Errorf("error in deleting devtron pipeline for deleted argocd app"), nil, http.StatusInternalServerError)
 					return
-				} else {
-					common.WriteJsonResp(w, fmt.Errorf("app deleted"), nil, http.StatusNotFound)
+				} else if appDeleteErr == nil && !acdAppFound {
+					common.WriteJsonResp(w, fmt.Errorf("argocd app deleted"), nil, http.StatusNotFound)
 					return
 				}
 			}
 		}
 	}
-	common.WriteJsonResp(w, err, resourceTree, http.StatusOK)
+	//not returned yet therefore no specific error to be handled, send error in internal message
+	common.WriteJsonResp(w, &util.ApiError{
+		InternalMessage: err.Error(),
+		UserMessage:     "unable to fetch resource tree",
+	}, nil, http.StatusInternalServerError)
 }
 
 func (handler AppListingRestHandlerImpl) FetchAppTriggerView(w http.ResponseWriter, r *http.Request) {

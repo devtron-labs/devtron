@@ -100,6 +100,13 @@ func (impl ExternalCiRestHandlerImpl) HandleExternalCiWebhook(w http.ResponseWri
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+
+	err = impl.validator.Struct(ciArtifactReq)
+	if err != nil {
+		impl.logger.Errorw("validation err, HandleExternalCiWebhook", "err", err, "payload", ciArtifactReq)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
 	_, err = impl.webhookService.HandleExternalCiWebhook(externalCiId, ciArtifactReq, impl.checkExternalCiDeploymentAuth, token)
 	if err != nil {
 		impl.logger.Errorw("service err, HandleExternalCiWebhook", "err", err, "payload", req)

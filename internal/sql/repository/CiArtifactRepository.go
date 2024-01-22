@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"golang.org/x/exp/slices"
 	"strings"
 	"time"
 
@@ -32,19 +33,23 @@ import (
 )
 
 type credentialsSource = string
-type artifactsSourceType = string
+type ArtifactsSourceType = string
 
 const (
 	GLOBAL_CONTAINER_REGISTRY credentialsSource = "global_container_registry"
 )
+
+// List of possible DataSource Type for an artifact
 const (
-	CI_RUNNER artifactsSourceType = "CI-RUNNER"
-	WEBHOOK   artifactsSourceType = "EXTERNAL"
-	PRE_CD    artifactsSourceType = "pre_cd"
-	POST_CD   artifactsSourceType = "post_cd"
-	PRE_CI    artifactsSourceType = "pre_ci"
-	POST_CI   artifactsSourceType = "post_ci"
-	GOCD      artifactsSourceType = "GOCD"
+	CI_RUNNER ArtifactsSourceType = "CI-RUNNER"
+	WEBHOOK   ArtifactsSourceType = "EXTERNAL" // Currently in use instead of EXT
+	PRE_CD    ArtifactsSourceType = "pre_cd"
+	POST_CD   ArtifactsSourceType = "post_cd"
+	POST_CI   ArtifactsSourceType = "post_ci"
+	GOCD      ArtifactsSourceType = "GOCD"
+	// deprecated; Handled for backward compatibility
+	EXT ArtifactsSourceType = "ext"
+	// PRE_CI is not a valid DataSource for an artifact
 )
 
 type CiArtifactWithExtraData struct {
@@ -59,11 +64,11 @@ type CiArtifactWithExtraData struct {
 type CiArtifact struct {
 	tableName             struct{}  `sql:"ci_artifact" pg:",discard_unknown_columns"`
 	Id                    int       `sql:"id,pk"`
-	PipelineId            int       `sql:"pipeline_id"` //id of the ci pipeline from which this webhook was triggered
+	PipelineId            int       `sql:"pipeline_id"` // id of the ci pipeline from which this webhook was triggered
 	Image                 string    `sql:"image,notnull"`
 	ImageDigest           string    `sql:"image_digest,notnull"`
-	MaterialInfo          string    `sql:"material_info"`       //git material metadata json array string
-	DataSource            string    `sql:"data_source,notnull"` // possible values -> (CI_RUNNER,ext,post_ci,pre_cd,post_cd) CI_runner is for normal build ci
+	MaterialInfo          string    `sql:"material_info"`       // git material metadata json array string
+	DataSource            string    `sql:"data_source,notnull"` // possible values -> (CI_RUNNER,EXTERNAL,post_ci,pre_cd,post_cd) CI_runner is for normal build ci
 	WorkflowId            *int      `sql:"ci_workflow_id"`
 	ParentCiArtifact      int       `sql:"parent_ci_artifact"`
 	ScanEnabled           bool      `sql:"scan_enabled,notnull"`
@@ -80,9 +85,20 @@ type CiArtifact struct {
 	sql.AuditLog
 }
 
+func (c *CiArtifact) IsMigrationRequired() bool {
+	validDataSourceTypeList := []string{CI_RUNNER, WEBHOOK, PRE_CD, POST_CD, POST_CI, GOCD}
+	if slices.Contains(validDataSourceTypeList, c.DataSource) {
+		return false
+	}
+	return true
+}
+
 type CiArtifactRepository interface {
 	Save(artifact *CiArtifact) error
 	Delete(artifact *CiArtifact) error
+
+	// Get returns the CiArtifact of the given id.
+	// Note: Use Get along with MigrateToWebHookDataSourceType. For webhook artifacts, migration is required for column DataSource from 'ext' to 'EXTERNAL'
 	Get(id int) (artifact *CiArtifact, err error)
 	GetArtifactParentCiAndWorkflowDetailsByIdsInDesc(ids []int) ([]*CiArtifact, error)
 	GetByWfId(wfId int) (artifact *CiArtifact, err error)
@@ -108,6 +124,8 @@ type CiArtifactRepository interface {
 	GetArtifactsByDataSourceAndComponentId(dataSource string, componentId int) ([]CiArtifact, error)
 	FindCiArtifactByImagePaths(images []string) ([]CiArtifact, error)
 
+	// MigrateToWebHookDataSourceType is used for backward compatibility. It'll migrate the deprecated DataSource type
+	MigrateToWebHookDataSourceType(id int) error
 	UpdateLatestTimestamp(artifactIds []int) error
 }
 
@@ -132,6 +150,14 @@ func (impl CiArtifactRepositoryImpl) SaveAll(artifacts []*CiArtifact) ([]*CiArti
 		return nil
 	})
 	return artifacts, err
+}
+
+func (impl CiArtifactRepositoryImpl) MigrateToWebHookDataSourceType(id int) error {
+	_, err := impl.dbConnection.Model(&CiArtifact{}).
+		Set("data_source = ?", WEBHOOK).
+		Where("id = ?", id).
+		Update()
+	return err
 }
 
 func (impl CiArtifactRepositoryImpl) UpdateLatestTimestamp(artifactIds []int) error {
@@ -321,7 +347,7 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineV3(listingFilterOpt
 }
 
 func (impl CiArtifactRepositoryImpl) setDeployedDataInArtifacts(pipelineId int, artifacts []*CiArtifact) ([]*CiArtifact, error) {
-	//processing
+	// processing
 	artifactsMap := make(map[int]*CiArtifact)
 	artifactsIds := make([]int, 0, len(artifacts))
 	for _, artifact := range artifacts {
@@ -341,7 +367,7 @@ func (impl CiArtifactRepositoryImpl) setDeployedDataInArtifacts(pipelineId int, 
 		return artifacts, err
 	}
 
-	//set deployed time and latest deployed artifact
+	// set deployed time and latest deployed artifact
 	for _, deployedArtifact := range artifactsDeployed {
 		artifactId := deployedArtifact.Id
 		if _, ok := artifactsMap[artifactId]; ok {
@@ -396,8 +422,8 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineAndRunnerType(cdPip
 		" INNER JOIN cd_workflow_runner wfr on wfr.cd_workflow_id = wf.id" +
 		" WHERE p.id= ? and wfr.workflow_type = ? GROUP BY cia.id, cia.data_source, cia.image ORDER BY cia.id DESC"*/
 
-	//this query gets details for status = Succeeded, this status is only valid
-	//for pre stages & post stages, for deploy stage status will be healthy, degraded, aborted, missing etc
+	// this query gets details for status = Succeeded, this status is only valid
+	// for pre stages & post stages, for deploy stage status will be healthy, degraded, aborted, missing etc
 	queryFetchArtifacts = "SELECT cia.id, cia.data_source, cia.image, cia.image_digest FROM cd_workflow_runner wfr" +
 		" INNER JOIN cd_workflow wf on wf.id=wfr.cd_workflow_id" +
 		" INNER JOIN pipeline p on p.id = wf.pipeline_id" +
@@ -483,7 +509,7 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineAndRunnerType(cdPip
 
 // return map of gitUrl:hash
 func (info *CiArtifact) ParseMaterialInfo() (map[string]string, error) {
-	if info.DataSource != "GOCD" && info.DataSource != "CI-RUNNER" && info.DataSource != "EXTERNAL" {
+	if info.DataSource != GOCD && info.DataSource != CI_RUNNER && info.DataSource != WEBHOOK && info.DataSource != EXT {
 		return nil, fmt.Errorf("datasource: %s not supported", info.DataSource)
 	}
 	var ciMaterials []*CiMaterialInfo
@@ -594,7 +620,7 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineV2(cdPipelineId int
 }
 
 func GetCiMaterialInfo(materialInfo string, source string) ([]CiMaterialInfo, error) {
-	if source != "GOCD" && source != "CI-RUNNER" && source != "EXTERNAL" && source != "post_ci" && source != "pre_cd" && source != "post_cd" {
+	if source != GOCD && source != CI_RUNNER && source != WEBHOOK && source != POST_CI && source != PRE_CD && source != POST_CD && source != EXT {
 		return nil, fmt.Errorf("datasource: %s not supported", source)
 	}
 	var ciMaterials []CiMaterialInfo

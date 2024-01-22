@@ -380,22 +380,28 @@ github.com/devtron-labs/authenticator/jwt
 github.com/devtron-labs/authenticator/middleware
 github.com/devtron-labs/authenticator/oidc
 github.com/devtron-labs/authenticator/password
-# github.com/devtron-labs/common-lib-private v0.0.9-0.20231226070358-e437d388cc00
+# github.com/devtron-labs/common-lib v0.0.10-0.20240119145348-c0a954e53e9e
 ## explicit; go 1.20
-github.com/devtron-labs/common-lib-private/blob-storage
-github.com/devtron-labs/common-lib-private/pubsub-lib
-github.com/devtron-labs/common-lib-private/pubsub-lib/metrics
-github.com/devtron-labs/common-lib-private/pubsub-lib/model
+github.com/devtron-labs/common-lib/blob-storage
+github.com/devtron-labs/common-lib/constants
+github.com/devtron-labs/common-lib/middlewares
+github.com/devtron-labs/common-lib/pubsub-lib
+github.com/devtron-labs/common-lib/pubsub-lib/metrics
+github.com/devtron-labs/common-lib/pubsub-lib/model
+github.com/devtron-labs/common-lib/utils
+github.com/devtron-labs/common-lib/utils/bean
+github.com/devtron-labs/common-lib/utils/http
+github.com/devtron-labs/common-lib/utils/k8s
+github.com/devtron-labs/common-lib/utils/k8s/commonBean
+github.com/devtron-labs/common-lib/utils/k8s/health
+github.com/devtron-labs/common-lib/utils/k8sObjectsUtil
+github.com/devtron-labs/common-lib/utils/yaml
+# github.com/devtron-labs/common-lib-private v0.0.9-0.20240119145743-4dc10b978696
+## explicit; go 1.20
 github.com/devtron-labs/common-lib-private/sshTunnel
 github.com/devtron-labs/common-lib-private/sshTunnel/bean
 github.com/devtron-labs/common-lib-private/utils
-github.com/devtron-labs/common-lib-private/utils/bean
-github.com/devtron-labs/common-lib-private/utils/http
 github.com/devtron-labs/common-lib-private/utils/k8s
-github.com/devtron-labs/common-lib-private/utils/k8s/commonBean
-github.com/devtron-labs/common-lib-private/utils/k8s/health
-github.com/devtron-labs/common-lib-private/utils/k8sObjectsUtil
-github.com/devtron-labs/common-lib-private/utils/yaml
 # github.com/devtron-labs/protos v0.0.0-20230503113602-282404f70fd2
 ## explicit; go 1.17
 github.com/devtron-labs/protos/gitSensor
@@ -831,9 +837,6 @@ github.com/mattn/go-ieproxy
 # github.com/matttproud/golang_protobuf_extensions v1.0.4
 ## explicit; go 1.9
 github.com/matttproud/golang_protobuf_extensions/pbutil
-# github.com/mdaverde/jsonpath v0.2.1
-## explicit; go 1.16
-github.com/mdaverde/jsonpath
 # github.com/microsoft/azure-devops-go-api/azuredevops v1.0.0-b5
 ## explicit; go 1.12
 github.com/microsoft/azure-devops-go-api/azuredevops
@@ -882,8 +885,8 @@ github.com/monochromegane/go-gitignore
 # github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822
 ## explicit
 github.com/munnerz/goautoneg
-# github.com/nats-io/jwt/v2 v2.2.1-0.20220330180145-442af02fd36a
-## explicit; go 1.16
+# github.com/nats-io/jwt/v2 v2.5.3
+## explicit; go 1.18
 # github.com/nats-io/nats.go v1.28.0
 ## explicit; go 1.19
 github.com/nats-io/nats.go

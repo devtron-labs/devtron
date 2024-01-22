@@ -18,7 +18,7 @@
 package app
 
 import (
-	pubsub "github.com/devtron-labs/common-lib-private/pubsub-lib"
+	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/client/lens"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
