@@ -516,3 +516,8 @@ kubectl delete pod -n devtroncd -l app=devtron
 This command deletes the Devtron pod in the `devtroncd` namespace with the label `app=devtron`.
 
 Following these steps should allow you to refresh the ArgoCD certificates when they have expired.
+
+
+
+
+

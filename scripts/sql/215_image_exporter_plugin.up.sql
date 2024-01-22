@@ -35,7 +35,7 @@ ls
 if [ $CloudProvider == "azure" ]
 then
     docker run  --rm  -v $(pwd):/data  mcr.microsoft.com/azure-cli  /bin/bash -c " az storage blob upload --account-name $AzureAccountName --account-key $AzureAccountKey  --container-name $BucketName --name $file --file data/$file"
-    echo "docker run  --rm   mcr.microsoft.com/azure-cli  /bin/bash -c " az storage blob generate-sas --account-name $AzureAccountName --account-key $AzureAccountKey --container-name $BucketName --name $FilePrefix-$DOCKER_IMAGE_TAG --permissions r --expiry $future_date""
+    echo "docker run  --rm   mcr.microsoft.com/azure-cli  /bin/bash -c " az storage blob generate-sas --account-name $AzureAccountName --account-key $AzureAccountKey --container-name $BucketName --name $file --permissions r --expiry $future_date""
     sas_token=$(docker run  --rm   mcr.microsoft.com/azure-cli  /bin/bash -c " az storage blob generate-sas --account-name $AzureAccountName --account-key $AzureAccountKey --container-name $BucketName --name $file --permissions r --expiry $future_date")
     token=$sas_token
     echo $token 
