@@ -38,6 +38,8 @@ type Config struct {
 	LogAllQuery            bool   `env:"PG_LOG_ALL_QUERY" envDefault:"false"`
 	ExportPromMetrics      bool   `env:"PG_EXPORT_PROM_METRICS" envDefault:"false"`
 	QueryDurationThreshold int64  `env:"PG_QUERY_DUR_THRESHOLD" envDefault:"5000"`
+	ReadTimeout            int64  `env:"PG_READ_TIMEOUT" envDefault:"30"`
+	WriteTimeout           int64  `env:"PG_WRITE_TIMEOUT" envDefault:"30"`
 }
 
 func GetConfig() (*Config, error) {
@@ -53,6 +55,8 @@ func NewDbConnection(cfg *Config, logger *zap.SugaredLogger) (*pg.DB, error) {
 		Password:        cfg.Password,
 		Database:        cfg.Database,
 		ApplicationName: cfg.ApplicationName,
+		ReadTimeout:     time.Duration(cfg.ReadTimeout) * time.Second,
+		WriteTimeout:    time.Duration(cfg.WriteTimeout) * time.Second,
 	}
 	dbConnection := pg.Connect(&options)
 	// check db connection
