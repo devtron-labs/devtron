@@ -19,7 +19,6 @@ type QualifierMappingService interface {
 	DeleteByIdentifierKeyAndValue(resourceType ResourceType, identifierKey int, identifierValue int, auditLog sql.AuditLog, tx *pg.Tx) error
 	DeleteAllByResourceTypeAndQualifierIds(resourceType ResourceType, resourceId int, qualifierIds []int, userId int32, tx *pg.Tx) error
 	DeleteAllByIds(qualifierMappingIds []int, userId int32, tx *pg.Tx) error
-	GetDbConnection() *pg.DB
 }
 
 type QualifierMappingServiceImpl struct {
@@ -87,8 +86,4 @@ func (impl QualifierMappingServiceImpl) DeleteAllByIds(qualifierMappingIds []int
 		UpdatedBy: userId,
 	}
 	return impl.qualifierMappingRepository.DeleteAllByIds(qualifierMappingIds, auditLog, tx)
-}
-
-func (impl QualifierMappingServiceImpl) GetDbConnection() *pg.DB {
-	return impl.qualifierMappingRepository.GetDbConnection()
 }

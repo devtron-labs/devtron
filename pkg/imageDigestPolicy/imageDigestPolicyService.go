@@ -38,6 +38,7 @@ type ImageDigestPolicyServiceImpl struct {
 	devtronResourceSearchableKey devtronResource.DevtronResourceSearchableKeyService
 	environmentRepository        repository.EnvironmentRepository
 	clusterRepository            repository.ClusterRepository
+	dbConnection                 *pg.DB
 }
 
 func NewImageDigestPolicyServiceImpl(
@@ -46,6 +47,7 @@ func NewImageDigestPolicyServiceImpl(
 	devtronResourceSearchableKey devtronResource.DevtronResourceSearchableKeyService,
 	environmentRepository repository.EnvironmentRepository,
 	clusterRepository repository.ClusterRepository,
+	dbConnection *pg.DB,
 ) *ImageDigestPolicyServiceImpl {
 	return &ImageDigestPolicyServiceImpl{
 		logger:                       logger,
@@ -53,6 +55,7 @@ func NewImageDigestPolicyServiceImpl(
 		devtronResourceSearchableKey: devtronResourceSearchableKey,
 		environmentRepository:        environmentRepository,
 		clusterRepository:            clusterRepository,
+		dbConnection:                 dbConnection,
 	}
 }
 
@@ -147,8 +150,7 @@ func (impl ImageDigestPolicyServiceImpl) DeletePolicyForPipeline(tx *pg.Tx, pipe
 
 func (impl ImageDigestPolicyServiceImpl) CreateOrUpdatePolicyForCluster(policyRequest *PolicyBean) (*PolicyBean, error) {
 
-	dbConnection := impl.qualifierMappingService.GetDbConnection()
-	tx, err := dbConnection.Begin()
+	tx, err := impl.dbConnection.Begin()
 	if err != nil {
 		impl.logger.Errorw("error in transaction begin", "err", err)
 		return nil, err
