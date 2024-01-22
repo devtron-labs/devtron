@@ -7,14 +7,13 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/service"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"net/http"
 )
-
-const InvalidProfileRequest = "requested profile doesn't exist"
 
 type InfraConfigRestHandler interface {
 	UpdateInfraProfile(w http.ResponseWriter, r *http.Request)
@@ -111,8 +110,17 @@ func (handler *InfraConfigRestHandlerImpl) GetProfile(w http.ResponseWriter, r *
 		Profile: *profile,
 	}
 	resp.DefaultConfigurations = defaultProfile.Configurations
+
+	// add default configurations if not present in profile
+	for _, defaultConfiguration := range defaultProfile.Configurations {
+		if !util.Contains(profile.Configurations, func(configuration infraConfig.ConfigurationBean) bool {
+			return configuration.Key == defaultConfiguration.Key
+		}) {
+			resp.Profile.Configurations = append(resp.Profile.Configurations, defaultConfiguration)
+		}
+	}
+
 	resp.ConfigurationUnits = handler.infraProfileService.GetConfigurationUnits()
-	// todo: append default configurations to the profileBean.Configurations
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
 
