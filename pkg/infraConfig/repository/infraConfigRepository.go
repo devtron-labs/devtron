@@ -22,7 +22,7 @@ type InfraConfigRepository interface {
 	GetProfileByName(name string) (*infraConfig.InfraProfile, error)
 	GetProfileList(profileNameLike string) ([]*infraConfig.InfraProfile, error)
 
-	GetConfigurationsByProfileId(profileNameLike []int) ([]*infraConfig.InfraProfileConfiguration, error)
+	GetConfigurationsByProfileId(profileIds []int) ([]*infraConfig.InfraProfileConfiguration, error)
 
 	GetIdentifierCountForDefaultProfile(defaultProfileId int, identifierType int) (int, error)
 	GetIdentifierCountForNonDefaultProfiles(profileIds []int, identifierType int) ([]ProfileIdentifierCount, error)

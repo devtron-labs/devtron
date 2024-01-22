@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
@@ -11,11 +12,13 @@ import (
 	"github.com/devtron-labs/devtron/util"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
+	"gopkg.in/go-playground/validator.v9"
 	"time"
 )
 
 const CannotDeleteDefaultProfile = "cannot delete default profile"
 const InvalidProfileName = "profile name is invalid"
+const PayloadValidationError = "payload validation failed"
 
 type InfraConfigService interface {
 
@@ -32,6 +35,8 @@ type InfraConfigService interface {
 	// If profileNameLike is empty, it will fetch all the active profiles.
 	GetProfileList(profileNameLike string) (*infraConfig.ProfilesResponse, error)
 
+	CreateProfile(userId int32, profileBean *infraConfig.ProfileBean) error
+
 	// UpdateProfile updates the profile and its configurations matching the given profileName.
 	// If profileName is empty, it will return an error.
 	UpdateProfile(userId int32, profileName string, profileBean *infraConfig.ProfileBean) error
@@ -47,12 +52,14 @@ type InfraConfigServiceImpl struct {
 	units                               *units.Units
 	infraConfig                         *infraConfig.InfraConfig
 	devtronResourceSearchableKeyService devtronResource.DevtronResourceSearchableKeyService
+	validator                           *validator.Validate
 }
 
 func NewInfraConfigServiceImpl(logger *zap.SugaredLogger,
 	infraProfileRepo repository.InfraConfigRepository,
 	units *units.Units,
-	devtronResourceSearchableKeyService devtronResource.DevtronResourceSearchableKeyService) (*InfraConfigServiceImpl, error) {
+	devtronResourceSearchableKeyService devtronResource.DevtronResourceSearchableKeyService,
+	validator *validator.Validate) (*InfraConfigServiceImpl, error) {
 	infraConfiguration := &infraConfig.InfraConfig{}
 	err := env.Parse(infraConfiguration)
 	if err != nil {
@@ -64,6 +71,7 @@ func NewInfraConfigServiceImpl(logger *zap.SugaredLogger,
 		units:                               units,
 		devtronResourceSearchableKeyService: devtronResourceSearchableKeyService,
 		infraConfig:                         infraConfiguration,
+		validator:                           validator,
 	}
 	err = infraProfileService.loadDefaultProfile()
 	return infraProfileService, err
@@ -193,6 +201,19 @@ func (impl *InfraConfigServiceImpl) GetProfileList(profileNameLike string) (*inf
 	resp.DefaultConfigurations = defaultConfigurations
 	resp.ConfigurationUnits = impl.GetConfigurationUnits()
 	return resp, nil
+}
+
+func (impl *InfraConfigServiceImpl) CreateProfile(userId int32, profileBean *infraConfig.ProfileBean) error {
+	defaultProfile, err := impl.GetDefaultProfile()
+	if err != nil {
+		impl.logger.Errorw("error in fetching default profile", "error", err)
+		return err
+	}
+	if err := impl.Validate(profileBean, defaultProfile); err != nil {
+		impl.logger.Errorw("error occurred in validation the profile create request", "error", err)
+		return err
+	}
+
 }
 
 func (impl *InfraConfigServiceImpl) UpdateProfile(userId int32, profileName string, profileBean *infraConfig.ProfileBean) error {
@@ -354,4 +375,79 @@ func (impl *InfraConfigServiceImpl) GetConfigurationUnits() map[infraConfig.Conf
 	configurationUnits[infraConfig.TIME_OUT] = impl.units.GetTimeUnits()
 
 	return configurationUnits
+}
+
+func (impl *InfraConfigServiceImpl) Validate(profileBean *infraConfig.ProfileBean, defaultProfile *infraConfig.ProfileBean) error {
+	err := impl.validator.Struct(profileBean)
+	if err != nil {
+		err = errors.Wrap(err, PayloadValidationError)
+		return err
+	}
+
+	// validate configurations only contain default configurations types.(cpu_limit,cpu_request,mem_limit,mem_request,timeout)
+	for _, propertyConfig := range profileBean.Configurations {
+		if !util.Contains(defaultProfile.Configurations, func(defaultConfig infraConfig.ConfigurationBean) bool {
+			return propertyConfig.Key == defaultConfig.Key
+		}) {
+			if err == nil {
+				err = errors.New(fmt.Sprintf("invalid configuration property \"%s\"", propertyConfig.Key))
+			}
+			err = errors.Wrap(err, fmt.Sprintf("invalid configuration property \"%s\"", propertyConfig.Key))
+		}
+	}
+
+	if err != nil {
+		err = errors.Wrap(err, PayloadValidationError)
+		return err
+	}
+
+	err = impl.ValidateCpuMem(profileBean, defaultProfile)
+	return err
+}
+
+func (impl *InfraConfigServiceImpl) ValidateCpuMem(profileBean *infraConfig.ProfileBean, defaultProfile *infraConfig.ProfileBean) error {
+	// currently validating cpu and memory limits and reqs only
+	var (
+		cpuLimit *infraConfig.ConfigurationBean
+		cpuReq   *infraConfig.ConfigurationBean
+		memLimit *infraConfig.ConfigurationBean
+		memReq   *infraConfig.ConfigurationBean
+	)
+
+	for _, propertyConfig := range profileBean.Configurations {
+		// get cpu limit and req
+		switch propertyConfig.Key {
+		case infraConfig.CPU_LIMIT:
+			cpuLimit = &propertyConfig
+		case infraConfig.CPU_REQUEST:
+			cpuReq = &propertyConfig
+		case infraConfig.MEMORY_LIMIT:
+			memLimit = &propertyConfig
+		case infraConfig.MEMORY_REQUEST:
+			memReq = &propertyConfig
+		}
+	}
+
+	for _, defaultPropertyConfig := range defaultProfile.Configurations {
+		// get cpu limit and req
+		switch defaultPropertyConfig.Key {
+		case infraConfig.CPU_LIMIT:
+			if cpuLimit == nil {
+				cpuLimit = &defaultPropertyConfig
+			}
+		case infraConfig.CPU_REQUEST:
+			if cpuReq == nil {
+				cpuReq = &defaultPropertyConfig
+			}
+		case infraConfig.MEMORY_LIMIT:
+			if memLimit == nil {
+				memLimit = &defaultPropertyConfig
+			}
+		case infraConfig.MEMORY_REQUEST:
+			if memReq == nil {
+				memReq = &defaultPropertyConfig
+			}
+		}
+	}
+
 }
