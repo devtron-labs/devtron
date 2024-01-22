@@ -27,12 +27,33 @@ func (impl *IdentifyAlibaba) Identify() (string, error) {
 }
 
 func (impl *IdentifyAlibaba) IdentifyViaMetadataServer(detected chan<- string) {
-	req, err := http.NewRequest("GET", bean.AlibabaMetadataServer, nil)
+	req, err := http.NewRequest("PUT", bean.TokenForAlibabaMetadataServer, nil)
 	if err != nil {
 		impl.Logger.Errorw("error while creating new request", "error", err)
 		detected <- bean.Unknown
 		return
 	}
+	req.Header.Set("X-aliyun-ecs-metadata-token-ttl-seconds", "21600")
+	tokenResp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		impl.Logger.Errorw("error while requesting", "error", err, "request", req)
+		detected <- bean.Unknown
+		return
+	}
+	defer tokenResp.Body.Close()
+	token, err := io.ReadAll(tokenResp.Body)
+	if err != nil {
+		impl.Logger.Errorw("error while reading response body", "error", err, "respBody", tokenResp.Body)
+		detected <- bean.Unknown
+		return
+	}
+	req, err = http.NewRequest("GET", bean.AlibabaMetadataServer, nil)
+	if err != nil {
+		impl.Logger.Errorw("error while creating new request", "error", err)
+		detected <- bean.Unknown
+		return
+	}
+	req.Header.Set("X-aliyun-ecs-metadata-token", string(token))
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		impl.Logger.Errorw("error while requesting", "error", err, "request", req)

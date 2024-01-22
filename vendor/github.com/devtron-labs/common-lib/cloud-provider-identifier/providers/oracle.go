@@ -33,7 +33,7 @@ func (impl *IdentifyOracle) Identify() (string, error) {
 
 func (impl *IdentifyOracle) IdentifyViaMetadataServer(detected chan<- string) {
 	r := oracleMetadataResponse{}
-	req, err := http.NewRequest("GET", bean.OracleMetadataServer, nil)
+	req, err := http.NewRequest("GET", bean.OracleMetadataServerV1, nil)
 	if err != nil {
 		impl.Logger.Errorw("error while creating new request", "error", err)
 		detected <- bean.Unknown
@@ -44,6 +44,21 @@ func (impl *IdentifyOracle) IdentifyViaMetadataServer(detected chan<- string) {
 		impl.Logger.Errorw("error while requesting", "error", err, "request", req)
 		detected <- bean.Unknown
 		return
+	}
+	if resp.StatusCode == http.StatusNotFound {
+		req, err = http.NewRequest("GET", bean.OracleMetadataServerV2, nil)
+		if err != nil {
+			impl.Logger.Errorw("error while creating new request", "error", err)
+			detected <- bean.Unknown
+			return
+		}
+		req.Header.Set("Authorization", "Bearer Oracle")
+		resp, err = http.DefaultClient.Do(req)
+		if err != nil {
+			impl.Logger.Errorw("error while requesting", "error", err, "request", req)
+			detected <- bean.Unknown
+			return
+		}
 	}
 	if resp.StatusCode == http.StatusOK {
 		defer resp.Body.Close()
