@@ -3,6 +3,7 @@ package capacity
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/devtron-labs/common-lib/utils"
 	"net/http"
 	"strconv"
@@ -372,9 +373,11 @@ func (handler *K8sCapacityRestHandlerImpl) DrainNode(w http.ResponseWriter, r *h
 	if err != nil {
 		errCode := http.StatusInternalServerError
 		if apiErr, ok := err.(*utils.ApiError); ok {
+			errCode = apiErr.HttpStatusCode
 			switch errCode {
 			case http.StatusNotFound:
-				errCode = apiErr.HttpStatusCode
+				errorMessage := apiErr.UserMessage
+				err = fmt.Errorf("%s: %w", errorMessage, err)
 			}
 		}
 		handler.logger.Errorw("error in draining node", "err", err, "req", nodeDrainReq)
