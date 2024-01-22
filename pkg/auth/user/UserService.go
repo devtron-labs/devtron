@@ -19,9 +19,11 @@ package user
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	auth "github.com/devtron-labs/devtron/pkg/auth/authorisation/globalConfig"
 	util3 "github.com/devtron-labs/devtron/pkg/auth/user/util"
+	jwt2 "github.com/golang-jwt/jwt/v4"
 	"net/http"
 	"strings"
 	"sync"
@@ -32,6 +34,7 @@ import (
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
+
 	casbin2 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	bean2 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository"
@@ -75,6 +78,7 @@ type UserService interface {
 	GetApprovalUsersByEnv(appName, envName string) ([]string, error)
 	CheckForApproverAccess(appName, envName string, userId int32) bool
 	GetConfigApprovalUsersByEnv(appName, envName, team string) ([]string, error)
+	GetFieldValuesFromToken(token string) ([]byte, error)
 }
 
 type UserServiceImpl struct {
@@ -1419,18 +1423,31 @@ func (impl UserServiceImpl) GetUserByToken(context context.Context, token string
 	}
 	return userInfo.Id, userInfo.UserType, nil
 }
-
-func (impl UserServiceImpl) GetEmailAndGroupClaimsFromToken(token string) (string, []string, error) {
+func (impl UserServiceImpl) GetFieldValuesFromToken(token string) ([]byte, error) {
+	var claimBytes []byte
+	mapClaims, err := impl.getMapClaims(token)
+	if err != nil {
+		return claimBytes, err
+	}
+	impl.logger.Infow("got map claims", "mapClaims", mapClaims)
+	claimBytes, err = json.Marshal(mapClaims)
+	if err != nil {
+		return nil, err
+	}
+	return claimBytes, nil
+}
+func (impl UserServiceImpl) getMapClaims(token string) (jwt2.MapClaims, error) {
 	if token == "" {
 		impl.logger.Infow("no token provided")
 		err := &util.ApiError{
 			Code:            constants.UserNoTokenProvided,
 			InternalMessage: "no token provided",
 		}
-		return "", nil, err
+		return nil, err
 	}
 
 	claims, err := impl.sessionManager2.VerifyToken(token)
+
 	if err != nil {
 		impl.logger.Errorw("failed to verify token", "error", err)
 		err := &util.ApiError{
@@ -1438,9 +1455,8 @@ func (impl UserServiceImpl) GetEmailAndGroupClaimsFromToken(token string) (strin
 			InternalMessage: "failed to verify token",
 			UserMessage:     "token verification failed while getting logged in user",
 		}
-		return "", nil, err
+		return nil, err
 	}
-
 	mapClaims, err := jwt.MapClaims(claims)
 	if err != nil {
 		impl.logger.Errorw("failed to MapClaims", "error", err)
@@ -1449,6 +1465,15 @@ func (impl UserServiceImpl) GetEmailAndGroupClaimsFromToken(token string) (strin
 			InternalMessage: "token invalid",
 			UserMessage:     "token verification failed while parsing token",
 		}
+		return nil, err
+	}
+	return mapClaims, nil
+}
+
+func (impl UserServiceImpl) GetEmailAndGroupClaimsFromToken(token string) (string, []string, error) {
+	mapClaims, err := impl.getMapClaims(token)
+	if err != nil {
+		impl.logger.Errorw("error in fetching map claims", "err", err)
 		return "", nil, err
 	}
 	groupsClaims := make([]string, 0)

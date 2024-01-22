@@ -14,6 +14,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/util"
+
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
@@ -21,6 +22,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
+
 	util2 "github.com/devtron-labs/devtron/util/event"
 	"github.com/go-pg/pg"
 	errors1 "github.com/juju/errors"
@@ -70,7 +72,8 @@ func NewConfigDraftServiceImpl(logger *zap.SugaredLogger, configDraftRepository 
 	lockedConfigService lockConfiguration.LockConfigurationService,
 	envConfigRepo chartConfig.EnvConfigOverrideRepository,
 	mergeUtil util.MergeUtil,
-	eventFactory client.EventFactory, eventClient client.EventClient) *ConfigDraftServiceImpl {
+	eventFactory client.EventFactory, eventClient client.EventClient,
+) *ConfigDraftServiceImpl {
 	draftServiceImpl := &ConfigDraftServiceImpl{
 		logger:                    logger,
 		configDraftRepository:     configDraftRepository,
@@ -121,22 +124,26 @@ func (impl *ConfigDraftServiceImpl) CreateDraft(request ConfigDraftRequest) (*Co
 	if err != nil {
 		return nil, err
 	}
-	go impl.performNotificationConfigAction(request)
+
+	go impl.performNotificationConfigAction(request, draft.DraftId, draft.DraftVersionId)
 	return draft, err
 
 }
 
-func (impl *ConfigDraftServiceImpl) performNotificationConfigAction(request ConfigDraftRequest) {
+func (impl *ConfigDraftServiceImpl) performNotificationConfigAction(request ConfigDraftRequest, draftId int, DraftVersionId int) {
+
 	if len(request.ProtectNotificationConfig.EmailIds) == 0 {
 		return
 	}
 	eventType := util2.ConfigApproval
 	event := impl.eventFactory.Build(eventType, nil, request.AppId, &request.EnvId, "")
 	draftRequest := request.TransformDraftRequestForNotification()
-	event = impl.eventFactory.BuildExtraProtectConfigData(event, draftRequest)
-	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
-	if evtErr != nil {
-		impl.logger.Errorw("unable to send notification for protect config approval", "error", evtErr)
+	events := impl.eventFactory.BuildExtraProtectConfigData(event, draftRequest, draftId, DraftVersionId)
+	for _, evnt := range events {
+		_, evtErr := impl.eventClient.WriteNotificationEvent(evnt)
+		if evtErr != nil {
+			impl.logger.Errorw("unable to send notification for protect config approval", "error", evtErr)
+		}
 	}
 }
 func (impl *ConfigDraftServiceImpl) AddDraftVersion(request ConfigDraftVersionRequest) (*ConfigDraftResponse, error) {
@@ -188,16 +195,17 @@ func (impl *ConfigDraftServiceImpl) AddDraftVersion(request ConfigDraftVersionRe
 			return nil, err
 		}
 	}
-	impl.performNotificationConfigActionForVersion(request, draftId)
+	impl.performNotificationConfigActionForVersion(request, draftId, lastDraftVersionId)
 	return &ConfigDraftResponse{DraftVersionId: lastDraftVersionId}, nil
 }
 
-func (impl *ConfigDraftServiceImpl) performNotificationConfigActionForVersion(request ConfigDraftVersionRequest, draftId int) {
+func (impl *ConfigDraftServiceImpl) performNotificationConfigActionForVersion(request ConfigDraftVersionRequest, draftId int, draftVersionId int) {
 	draftData, err := impl.configDraftRepository.GetDraftMetadataById(draftId)
 	if err != nil {
-		impl.logger.Errorw("error in performing notification event for config draft version ", "err", err)
+		impl.logger.Errorw("error in performing notification event for config draft version ", "err", err, "draftData", draftData)
 		return
 	}
+
 	config := ConfigDraftRequest{
 		AppId:                     draftData.AppId,
 		EnvId:                     draftData.EnvId,
@@ -207,7 +215,7 @@ func (impl *ConfigDraftServiceImpl) performNotificationConfigActionForVersion(re
 		UserId:                    request.UserId,
 		ProtectNotificationConfig: request.ProtectNotificationConfig,
 	}
-	go impl.performNotificationConfigAction(config)
+	go impl.performNotificationConfigAction(config, draftId, draftVersionId)
 
 }
 
@@ -237,7 +245,10 @@ func (impl *ConfigDraftServiceImpl) validateDraftAction(draftId int, draftVersio
 	draftCurrentState := draftMetadataDto.DraftState
 	if draftCurrentState.IsTerminal() {
 		impl.logger.Errorw("draft is already in terminal state", "draftId", draftId, "draftCurrentState", draftCurrentState)
-		return nil, errors.New(DraftAlreadyInTerminalState)
+		return nil, &DraftApprovalValidationError{
+			Err:        errors.New(DraftAlreadyInTerminalState),
+			DraftState: draftCurrentState,
+		}
 	}
 	if toUpdateDraftState == PublishedDraftState {
 		if draftCurrentState != AwaitApprovalDraftState {
@@ -250,7 +261,10 @@ func (impl *ConfigDraftServiceImpl) validateDraftAction(draftId int, draftVersio
 			}
 			if contributedToDraft {
 				impl.logger.Errorw("user contributed to this draft", "draftId", draftId, "userId", userId)
-				return nil, errors.New(UserContributedToDraft)
+				return nil, &DraftApprovalValidationError{
+					Err:        errors.New(UserContributedToDraft),
+					DraftState: draftCurrentState,
+				}
 			}
 		}
 	}
