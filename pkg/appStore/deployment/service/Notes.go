@@ -3,9 +3,10 @@ package service
 import (
 	"context"
 	"fmt"
-	"github.com/devtron-labs/devtron/api/helm-app"
+	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/go-pg/pg"
+	"net/http"
 	"regexp"
 )
 
@@ -14,11 +15,14 @@ func (impl *InstalledAppServiceImpl) FetchChartNotes(installedAppId int, envId i
 	installedApp, err := impl.installedAppRepository.FetchNotes(installedAppId)
 	if err != nil && err != pg.ErrNoRows {
 		return "", err
+	} else if err == pg.ErrNoRows {
+		impl.logger.Errorw("installed app not found or may have been deleted", "installedAppId", installedAppId, "envId", envId)
+		return "", &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: "400", UserMessage: "Installed app not found in database or may have been deleted", InternalMessage: err.Error()}
 	}
 	installedAppVerison, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppIdAndEnvId(installedAppId, envId)
 	if err != nil {
 		if err == pg.ErrNoRows {
-			return "", fmt.Errorf("values are outdated. please fetch the latest version and try again")
+			return "", &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: "400", UserMessage: "values are outdated. please fetch the latest version and try again", InternalMessage: err.Error()}
 		}
 		impl.logger.Errorw("error fetching installed  app version in installed app service", "err", err)
 		return "", err
@@ -78,18 +82,18 @@ func (impl *InstalledAppServiceImpl) findNotesForArgoApplication(installedAppId,
 			return notes, appName, err
 		}
 
-		installReleaseRequest := &client.InstallReleaseRequest{
+		installReleaseRequest := &gRPC.InstallReleaseRequest{
 			ChartName:    appStoreAppVersion.Name,
 			ChartVersion: appStoreAppVersion.Version,
 			ValuesYaml:   installedAppVerison.ValuesYaml,
 			K8SVersion:   k8sServerVersion.String(),
-			ChartRepository: &client.ChartRepository{
+			ChartRepository: &gRPC.ChartRepository{
 				Name:     appStoreAppVersion.AppStore.ChartRepo.Name,
 				Url:      appStoreAppVersion.AppStore.ChartRepo.Url,
 				Username: appStoreAppVersion.AppStore.ChartRepo.UserName,
 				Password: appStoreAppVersion.AppStore.ChartRepo.Password,
 			},
-			ReleaseIdentifier: &client.ReleaseIdentifier{
+			ReleaseIdentifier: &gRPC.ReleaseIdentifier{
 				ReleaseNamespace: installedAppVerison.InstalledApp.Environment.Namespace,
 				ReleaseName:      installedAppVerison.InstalledApp.App.AppName,
 			},

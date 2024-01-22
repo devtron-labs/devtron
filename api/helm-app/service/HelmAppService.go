@@ -1,11 +1,14 @@
-package client
+package service
 
 import (
 	"context"
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/devtron/api/helm-app/bean"
+	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	"github.com/devtron-labs/devtron/api/helm-app/models"
+	"github.com/devtron-labs/devtron/internal/constants"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/go-pg/pg"
 	"google.golang.org/grpc/codes"
@@ -43,37 +46,37 @@ import (
 
 type HelmAppService interface {
 	ListHelmApplications(ctx context.Context, clusterIds []int, w http.ResponseWriter, token string, helmAuth func(token string, object string) bool)
-	GetApplicationDetail(ctx context.Context, app *AppIdentifier) (*AppDetail, error)
-	GetApplicationAndReleaseStatus(ctx context.Context, app *AppIdentifier) (*AppStatus, error)
-	GetApplicationDetailWithFilter(ctx context.Context, app *AppIdentifier, resourceTreeFilter *ResourceTreeFilter) (*AppDetail, error)
+	GetApplicationDetail(ctx context.Context, app *AppIdentifier) (*gRPC.AppDetail, error)
+	GetApplicationAndReleaseStatus(ctx context.Context, app *AppIdentifier) (*gRPC.AppStatus, error)
+	GetApplicationDetailWithFilter(ctx context.Context, app *AppIdentifier, resourceTreeFilter *gRPC.ResourceTreeFilter) (*gRPC.AppDetail, error)
 	HibernateApplication(ctx context.Context, app *AppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
 	UnHibernateApplication(ctx context.Context, app *AppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
 	DecodeAppId(appId string) (*AppIdentifier, error)
 	EncodeAppId(appIdentifier *AppIdentifier) string
-	GetDeploymentHistory(ctx context.Context, app *AppIdentifier) (*HelmAppDeploymentHistory, error)
-	GetValuesYaml(ctx context.Context, app *AppIdentifier) (*ReleaseInfo, error)
+	GetDeploymentHistory(ctx context.Context, app *AppIdentifier) (*gRPC.HelmAppDeploymentHistory, error)
+	GetValuesYaml(ctx context.Context, app *AppIdentifier) (*gRPC.ReleaseInfo, error)
 	GetDesiredManifest(ctx context.Context, app *AppIdentifier, resource *openapi.ResourceIdentifier) (*openapi.DesiredManifestResponse, error)
 	DeleteApplication(ctx context.Context, app *AppIdentifier) (*openapi.UninstallReleaseResponse, error)
 	DeleteDBLinkedHelmApplication(ctx context.Context, app *AppIdentifier, useId int32) (*openapi.UninstallReleaseResponse, error)
-	UpdateApplication(ctx context.Context, app *AppIdentifier, request *UpdateApplicationRequestDto) (*openapi.UpdateReleaseResponse, error)
+	UpdateApplication(ctx context.Context, app *AppIdentifier, request *bean.UpdateApplicationRequestDto) (*openapi.UpdateReleaseResponse, error)
 	GetDeploymentDetail(ctx context.Context, app *AppIdentifier, version int32) (*openapi.HelmAppDeploymentManifestDetail, error)
-	InstallRelease(ctx context.Context, clusterId int, installReleaseRequest *InstallReleaseRequest) (*InstallReleaseResponse, error)
-	UpdateApplicationWithChartInfo(ctx context.Context, clusterId int, request *UpdateApplicationWithChartInfoRequestDto) (*openapi.UpdateReleaseResponse, error)
+	InstallRelease(ctx context.Context, clusterId int, installReleaseRequest *gRPC.InstallReleaseRequest) (*gRPC.InstallReleaseResponse, error)
+	UpdateApplicationWithChartInfo(ctx context.Context, clusterId int, request *bean.UpdateApplicationWithChartInfoRequestDto) (*openapi.UpdateReleaseResponse, error)
 	IsReleaseInstalled(ctx context.Context, app *AppIdentifier) (bool, error)
 	RollbackRelease(ctx context.Context, app *AppIdentifier, version int32) (bool, error)
-	GetClusterConf(clusterId int) (*ClusterConfig, error)
+	GetClusterConf(clusterId int) (*gRPC.ClusterConfig, error)
 	GetDevtronHelmAppIdentifier() *AppIdentifier
-	UpdateApplicationWithChartInfoWithExtraValues(ctx context.Context, appIdentifier *AppIdentifier, chartRepository *ChartRepository, extraValues map[string]interface{}, extraValuesYamlUrl string, useLatestChartVersion bool) (*openapi.UpdateReleaseResponse, error)
+	UpdateApplicationWithChartInfoWithExtraValues(ctx context.Context, appIdentifier *AppIdentifier, chartRepository *gRPC.ChartRepository, extraValues map[string]interface{}, extraValuesYamlUrl string, useLatestChartVersion bool) (*openapi.UpdateReleaseResponse, error)
 	TemplateChart(ctx context.Context, templateChartRequest *openapi2.TemplateChartRequest) (*openapi2.TemplateChartResponse, error)
-	GetNotes(ctx context.Context, request *InstallReleaseRequest) (string, error)
-	ValidateOCIRegistry(ctx context.Context, OCIRegistryRequest *RegistryCredential) bool
-	GetRevisionHistoryMaxValue(appType SourceAppType) int32
+	GetNotes(ctx context.Context, request *gRPC.InstallReleaseRequest) (string, error)
+	ValidateOCIRegistry(ctx context.Context, OCIRegistryRequest *gRPC.RegistryCredential) bool
+	GetRevisionHistoryMaxValue(appType bean.SourceAppType) int32
 }
 
 type HelmAppServiceImpl struct {
 	logger                               *zap.SugaredLogger
 	clusterService                       cluster.ClusterService
-	helmAppClient                        HelmAppClient
+	helmAppClient                        gRPC.HelmAppClient
 	pump                                 connector.Pump
 	enforcerUtil                         rbac.EnforcerUtilHelm
 	serverDataStore                      *serverDataStore.ServerDataStore
@@ -84,17 +87,17 @@ type HelmAppServiceImpl struct {
 	installedAppRepository               repository.InstalledAppRepository
 	appRepository                        app.AppRepository
 	clusterRepository                    clusterRepository.ClusterRepository
-	K8sUtil                              *k8s.K8sUtil
+	K8sUtil                              *k8s.K8sServiceImpl
 	helmReleaseConfig                    *HelmReleaseConfig
 }
 
 func NewHelmAppServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.ClusterService,
-	helmAppClient HelmAppClient, pump connector.Pump, enforcerUtil rbac.EnforcerUtilHelm,
+	helmAppClient gRPC.HelmAppClient, pump connector.Pump, enforcerUtil rbac.EnforcerUtilHelm,
 	serverDataStore *serverDataStore.ServerDataStore, serverEnvConfig *serverEnvConfig.ServerEnvConfig,
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
 	environmentService cluster.EnvironmentService, pipelineRepository pipelineConfig.PipelineRepository,
 	installedAppRepository repository.InstalledAppRepository, appRepository app.AppRepository,
-	clusterRepository clusterRepository.ClusterRepository, K8sUtil *k8s.K8sUtil,
+	clusterRepository clusterRepository.ClusterRepository, K8sUtil *k8s.K8sServiceImpl,
 	helmReleaseConfig *HelmReleaseConfig) *HelmAppServiceImpl {
 	return &HelmAppServiceImpl{
 		logger:                               Logger,
@@ -127,7 +130,7 @@ func GetHelmReleaseConfig() (*HelmReleaseConfig, error) {
 	return cfg, err
 }
 
-func (impl *HelmAppServiceImpl) listApplications(ctx context.Context, clusterIds []int) (ApplicationService_ListApplicationsClient, error) {
+func (impl *HelmAppServiceImpl) listApplications(ctx context.Context, clusterIds []int) (gRPC.ApplicationService_ListApplicationsClient, error) {
 	if len(clusterIds) == 0 {
 		return nil, nil
 	}
@@ -138,9 +141,9 @@ func (impl *HelmAppServiceImpl) listApplications(ctx context.Context, clusterIds
 		impl.logger.Errorw("error in fetching cluster detail", "err", err)
 		return nil, err
 	}
-	req := &AppListRequest{}
+	req := &gRPC.AppListRequest{}
 	for _, clusterDetail := range clusters {
-		config := &ClusterConfig{
+		config := &gRPC.ClusterConfig{
 			ApiServerUrl:          clusterDetail.ServerUrl,
 			Token:                 clusterDetail.Config[k8s.BearerToken],
 			ClusterId:             int32(clusterDetail.Id),
@@ -198,14 +201,14 @@ func (impl *HelmAppServiceImpl) ListHelmApplications(ctx context.Context, cluste
 		return appStream.Recv()
 	}, err,
 		func(message interface{}) interface{} {
-			return impl.appListRespProtoTransformer(message.(*DeployedAppList), token, helmAuth, helmCdPipelines, installedHelmApps)
+			return impl.appListRespProtoTransformer(message.(*gRPC.DeployedAppList), token, helmAuth, helmCdPipelines, installedHelmApps)
 		})
 }
 
-func (impl *HelmAppServiceImpl) hibernateReqAdaptor(hibernateRequest *openapi.HibernateRequest) *HibernateRequest {
-	req := &HibernateRequest{}
+func (impl *HelmAppServiceImpl) hibernateReqAdaptor(hibernateRequest *openapi.HibernateRequest) *gRPC.HibernateRequest {
+	req := &gRPC.HibernateRequest{}
 	for _, reqObject := range hibernateRequest.GetResources() {
-		obj := &ObjectIdentifier{
+		obj := &gRPC.ObjectIdentifier{
 			Group:     *reqObject.Group,
 			Kind:      *reqObject.Kind,
 			Version:   *reqObject.Version,
@@ -216,7 +219,7 @@ func (impl *HelmAppServiceImpl) hibernateReqAdaptor(hibernateRequest *openapi.Hi
 	}
 	return req
 }
-func (impl *HelmAppServiceImpl) hibernateResponseAdaptor(in []*HibernateStatus) []*openapi.HibernateStatus {
+func (impl *HelmAppServiceImpl) hibernateResponseAdaptor(in []*gRPC.HibernateStatus) []*openapi.HibernateStatus {
 	var resStatus []*openapi.HibernateStatus
 	for _, status := range in {
 		resObj := &openapi.HibernateStatus{
@@ -265,13 +268,13 @@ func (impl *HelmAppServiceImpl) UnHibernateApplication(ctx context.Context, app 
 	return response, nil
 }
 
-func (impl *HelmAppServiceImpl) GetClusterConf(clusterId int) (*ClusterConfig, error) {
+func (impl *HelmAppServiceImpl) GetClusterConf(clusterId int) (*gRPC.ClusterConfig, error) {
 	cluster, err := impl.clusterService.FindById(clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cluster detail", "err", err)
 		return nil, err
 	}
-	config := &ClusterConfig{
+	config := &gRPC.ClusterConfig{
 		ApiServerUrl:          cluster.ServerUrl,
 		Token:                 cluster.Config[k8s.BearerToken],
 		ClusterId:             int32(cluster.Id),
@@ -286,25 +289,25 @@ func (impl *HelmAppServiceImpl) GetClusterConf(clusterId int) (*ClusterConfig, e
 	return config, nil
 }
 
-func (impl *HelmAppServiceImpl) GetApplicationDetail(ctx context.Context, app *AppIdentifier) (*AppDetail, error) {
+func (impl *HelmAppServiceImpl) GetApplicationDetail(ctx context.Context, app *AppIdentifier) (*gRPC.AppDetail, error) {
 	return impl.getApplicationDetail(ctx, app, nil)
 }
 
-func (impl *HelmAppServiceImpl) GetApplicationAndReleaseStatus(ctx context.Context, app *AppIdentifier) (*AppStatus, error) {
+func (impl *HelmAppServiceImpl) GetApplicationAndReleaseStatus(ctx context.Context, app *AppIdentifier) (*gRPC.AppStatus, error) {
 	return impl.getApplicationAndReleaseStatus(ctx, app)
 }
 
-func (impl *HelmAppServiceImpl) GetApplicationDetailWithFilter(ctx context.Context, app *AppIdentifier, resourceTreeFilter *ResourceTreeFilter) (*AppDetail, error) {
+func (impl *HelmAppServiceImpl) GetApplicationDetailWithFilter(ctx context.Context, app *AppIdentifier, resourceTreeFilter *gRPC.ResourceTreeFilter) (*gRPC.AppDetail, error) {
 	return impl.getApplicationDetail(ctx, app, resourceTreeFilter)
 }
 
-func (impl *HelmAppServiceImpl) getApplicationDetail(ctx context.Context, app *AppIdentifier, resourceTreeFilter *ResourceTreeFilter) (*AppDetail, error) {
+func (impl *HelmAppServiceImpl) getApplicationDetail(ctx context.Context, app *AppIdentifier, resourceTreeFilter *gRPC.ResourceTreeFilter) (*gRPC.AppDetail, error) {
 	config, err := impl.GetClusterConf(app.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cluster detail", "err", err)
 		return nil, err
 	}
-	req := &AppDetailRequest{
+	req := &gRPC.AppDetailRequest{
 		ClusterConfig:      config,
 		Namespace:          app.Namespace,
 		ReleaseName:        app.ReleaseName,
@@ -334,13 +337,13 @@ func (impl *HelmAppServiceImpl) getApplicationDetail(ctx context.Context, app *A
 	return appdetail, err
 }
 
-func (impl *HelmAppServiceImpl) getApplicationAndReleaseStatus(ctx context.Context, app *AppIdentifier) (*AppStatus, error) {
+func (impl *HelmAppServiceImpl) getApplicationAndReleaseStatus(ctx context.Context, app *AppIdentifier) (*gRPC.AppStatus, error) {
 	config, err := impl.GetClusterConf(app.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cluster detail", "err", err)
 		return nil, err
 	}
-	req := &AppDetailRequest{
+	req := &gRPC.AppDetailRequest{
 		ClusterConfig: config,
 		Namespace:     app.Namespace,
 		ReleaseName:   app.ReleaseName,
@@ -353,28 +356,35 @@ func (impl *HelmAppServiceImpl) getApplicationAndReleaseStatus(ctx context.Conte
 	return appStatus, err
 }
 
-func (impl *HelmAppServiceImpl) GetDeploymentHistory(ctx context.Context, app *AppIdentifier) (*HelmAppDeploymentHistory, error) {
+func (impl *HelmAppServiceImpl) GetDeploymentHistory(ctx context.Context, app *AppIdentifier) (*gRPC.HelmAppDeploymentHistory, error) {
 	config, err := impl.GetClusterConf(app.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cluster detail", "err", err)
 		return nil, err
 	}
-	req := &AppDetailRequest{
+	req := &gRPC.AppDetailRequest{
 		ClusterConfig: config,
 		Namespace:     app.Namespace,
 		ReleaseName:   app.ReleaseName,
 	}
 	history, err := impl.helmAppClient.GetDeploymentHistory(ctx, req)
+	if util.GetGRPCErrorDetailedMessage(err) == bean.ErrReleaseNotFound {
+		err = &util.ApiError{
+			Code:            constants.HelmReleaseNotFound,
+			InternalMessage: bean.ErrReleaseNotFound,
+			UserMessage:     fmt.Sprintf("no release found with release name '%s'", req.ReleaseName),
+		}
+	}
 	return history, err
 }
 
-func (impl *HelmAppServiceImpl) GetValuesYaml(ctx context.Context, app *AppIdentifier) (*ReleaseInfo, error) {
+func (impl *HelmAppServiceImpl) GetValuesYaml(ctx context.Context, app *AppIdentifier) (*gRPC.ReleaseInfo, error) {
 	config, err := impl.GetClusterConf(app.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cluster detail", "err", err)
 		return nil, err
 	}
-	req := &AppDetailRequest{
+	req := &gRPC.AppDetailRequest{
 		ClusterConfig: config,
 		Namespace:     app.Namespace,
 		ReleaseName:   app.ReleaseName,
@@ -390,11 +400,11 @@ func (impl *HelmAppServiceImpl) GetDesiredManifest(ctx context.Context, app *App
 		return nil, err
 	}
 
-	req := &ObjectRequest{
+	req := &gRPC.ObjectRequest{
 		ClusterConfig:    config,
 		ReleaseName:      app.ReleaseName,
 		ReleaseNamespace: app.Namespace,
-		ObjectIdentifier: &ObjectIdentifier{
+		ObjectIdentifier: &gRPC.ObjectIdentifier{
 			Group:     resource.GetGroup(),
 			Kind:      resource.GetKind(),
 			Version:   resource.GetVersion(),
@@ -513,7 +523,7 @@ func (impl *HelmAppServiceImpl) DeleteApplication(ctx context.Context, app *AppI
 		return nil, models.NamespaceNotExistError{Err: fmt.Errorf("namespace %s does not exist", app.Namespace)}
 	}
 
-	req := &ReleaseIdentifier{
+	req := &gRPC.ReleaseIdentifier{
 		ClusterConfig:    config,
 		ReleaseName:      app.ReleaseName,
 		ReleaseNamespace: app.Namespace,
@@ -564,15 +574,15 @@ func (impl *HelmAppServiceImpl) checkIfNsExists(app *AppIdentifier) (bool, error
 	return exists, nil
 }
 
-func (impl *HelmAppServiceImpl) UpdateApplication(ctx context.Context, app *AppIdentifier, request *UpdateApplicationRequestDto) (*openapi.UpdateReleaseResponse, error) {
+func (impl *HelmAppServiceImpl) UpdateApplication(ctx context.Context, app *AppIdentifier, request *bean.UpdateApplicationRequestDto) (*openapi.UpdateReleaseResponse, error) {
 	config, err := impl.GetClusterConf(app.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cluster detail", "clusterId", app.ClusterId, "err", err)
 		return nil, err
 	}
 
-	req := &UpgradeReleaseRequest{
-		ReleaseIdentifier: &ReleaseIdentifier{
+	req := &gRPC.UpgradeReleaseRequest{
+		ReleaseIdentifier: &gRPC.ReleaseIdentifier{
 			ClusterConfig:    config,
 			ReleaseName:      app.ReleaseName,
 			ReleaseNamespace: app.Namespace,
@@ -600,8 +610,8 @@ func (impl *HelmAppServiceImpl) GetDeploymentDetail(ctx context.Context, app *Ap
 		return nil, err
 	}
 
-	req := &DeploymentDetailRequest{
-		ReleaseIdentifier: &ReleaseIdentifier{
+	req := &gRPC.DeploymentDetailRequest{
+		ReleaseIdentifier: &gRPC.ReleaseIdentifier{
 			ClusterConfig:    config,
 			ReleaseName:      app.ReleaseName,
 			ReleaseNamespace: app.Namespace,
@@ -623,7 +633,7 @@ func (impl *HelmAppServiceImpl) GetDeploymentDetail(ctx context.Context, app *Ap
 	return response, nil
 }
 
-func (impl *HelmAppServiceImpl) InstallRelease(ctx context.Context, clusterId int, installReleaseRequest *InstallReleaseRequest) (*InstallReleaseResponse, error) {
+func (impl *HelmAppServiceImpl) InstallRelease(ctx context.Context, clusterId int, installReleaseRequest *gRPC.InstallReleaseRequest) (*gRPC.InstallReleaseResponse, error) {
 	config, err := impl.GetClusterConf(clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cluster detail", "clusterId", clusterId, "err", err)
@@ -642,7 +652,7 @@ func (impl *HelmAppServiceImpl) InstallRelease(ctx context.Context, clusterId in
 }
 
 func (impl *HelmAppServiceImpl) UpdateApplicationWithChartInfo(ctx context.Context, clusterId int,
-	request *UpdateApplicationWithChartInfoRequestDto) (*openapi.UpdateReleaseResponse, error) {
+	request *bean.UpdateApplicationWithChartInfoRequestDto) (*openapi.UpdateReleaseResponse, error) {
 	config, err := impl.GetClusterConf(clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cluster detail", "clusterId", clusterId, "err", err)
@@ -671,7 +681,7 @@ func (impl *HelmAppServiceImpl) IsReleaseInstalled(ctx context.Context, app *App
 		return false, err
 	}
 
-	req := &ReleaseIdentifier{
+	req := &gRPC.ReleaseIdentifier{
 		ClusterConfig:    config,
 		ReleaseName:      app.ReleaseName,
 		ReleaseNamespace: app.Namespace,
@@ -693,8 +703,8 @@ func (impl *HelmAppServiceImpl) RollbackRelease(ctx context.Context, app *AppIde
 		return false, err
 	}
 
-	req := &RollbackReleaseRequest{
-		ReleaseIdentifier: &ReleaseIdentifier{
+	req := &gRPC.RollbackReleaseRequest{
+		ReleaseIdentifier: &gRPC.ReleaseIdentifier{
 			ClusterConfig:    config,
 			ReleaseName:      app.ReleaseName,
 			ReleaseNamespace: app.Namespace,
@@ -720,7 +730,7 @@ func (impl *HelmAppServiceImpl) GetDevtronHelmAppIdentifier() *AppIdentifier {
 }
 
 func (impl *HelmAppServiceImpl) UpdateApplicationWithChartInfoWithExtraValues(ctx context.Context, appIdentifier *AppIdentifier,
-	chartRepository *ChartRepository, extraValues map[string]interface{}, extraValuesYamlUrl string, useLatestChartVersion bool) (*openapi.UpdateReleaseResponse, error) {
+	chartRepository *gRPC.ChartRepository, extraValues map[string]interface{}, extraValuesYamlUrl string, useLatestChartVersion bool) (*openapi.UpdateReleaseResponse, error) {
 
 	// get release info
 	releaseInfo, err := impl.GetValuesYaml(context.Background(), appIdentifier)
@@ -794,9 +804,9 @@ func (impl *HelmAppServiceImpl) UpdateApplicationWithChartInfoWithExtraValues(ct
 
 	// update in helm
 
-	updateReleaseRequest := &UpdateApplicationWithChartInfoRequestDto{
-		InstallReleaseRequest: &InstallReleaseRequest{
-			ReleaseIdentifier: &ReleaseIdentifier{
+	updateReleaseRequest := &bean.UpdateApplicationWithChartInfoRequestDto{
+		InstallReleaseRequest: &gRPC.InstallReleaseRequest{
+			ReleaseIdentifier: &gRPC.ReleaseIdentifier{
 				ReleaseName:      appIdentifier.ReleaseName,
 				ReleaseNamespace: appIdentifier.Namespace,
 			},
@@ -804,7 +814,7 @@ func (impl *HelmAppServiceImpl) UpdateApplicationWithChartInfoWithExtraValues(ct
 			ValuesYaml:      string(mergedValuesYamlByteArr),
 			ChartRepository: chartRepository,
 		},
-		SourceAppType: SOURCE_UNKNOWN,
+		SourceAppType: bean.SOURCE_UNKNOWN,
 	}
 	if !useLatestChartVersion {
 		updateReleaseRequest.ChartVersion = releaseInfo.DeployedAppDetail.ChartVersion
@@ -865,8 +875,8 @@ func (impl *HelmAppServiceImpl) TemplateChart(ctx context.Context, templateChart
 		return nil, err
 	}
 	var IsOCIRepo bool
-	var registryCredential *RegistryCredential
-	var chartRepository *ChartRepository
+	var registryCredential *gRPC.RegistryCredential
+	var chartRepository *gRPC.ChartRepository
 	dockerRegistryId := appStoreAppVersion.AppStore.DockerArtifactStoreId
 	if dockerRegistryId != "" {
 		ociRegistryConfigs := appStoreAppVersion.AppStore.DockerArtifactStore.OCIRegistryConfig
@@ -882,7 +892,7 @@ func (impl *HelmAppServiceImpl) TemplateChart(ctx context.Context, templateChart
 			}
 		}
 		IsOCIRepo = true
-		registryCredential = &RegistryCredential{
+		registryCredential = &gRPC.RegistryCredential{
 			RegistryUrl:  appStoreAppVersion.AppStore.DockerArtifactStore.RegistryURL,
 			Username:     appStoreAppVersion.AppStore.DockerArtifactStore.Username,
 			Password:     appStoreAppVersion.AppStore.DockerArtifactStore.Password,
@@ -894,7 +904,7 @@ func (impl *HelmAppServiceImpl) TemplateChart(ctx context.Context, templateChart
 			IsPublic:     ociRegistryConfig.IsPublic,
 		}
 	} else {
-		chartRepository = &ChartRepository{
+		chartRepository = &gRPC.ChartRepository{
 			Name:     appStoreAppVersion.AppStore.ChartRepo.Name,
 			Url:      appStoreAppVersion.AppStore.ChartRepo.Url,
 			Username: appStoreAppVersion.AppStore.ChartRepo.UserName,
@@ -902,13 +912,13 @@ func (impl *HelmAppServiceImpl) TemplateChart(ctx context.Context, templateChart
 		}
 	}
 
-	installReleaseRequest := &InstallReleaseRequest{
+	installReleaseRequest := &gRPC.InstallReleaseRequest{
 		ChartName:       appStoreAppVersion.Name,
 		ChartVersion:    appStoreAppVersion.Version,
 		ValuesYaml:      *templateChartRequest.ValuesYaml,
 		K8SVersion:      k8sServerVersion.String(),
 		ChartRepository: chartRepository,
-		ReleaseIdentifier: &ReleaseIdentifier{
+		ReleaseIdentifier: &gRPC.ReleaseIdentifier{
 			ReleaseNamespace: *templateChartRequest.Namespace,
 			ReleaseName:      *templateChartRequest.ReleaseName,
 		},
@@ -936,7 +946,7 @@ func (impl *HelmAppServiceImpl) TemplateChart(ctx context.Context, templateChart
 
 	return response, nil
 }
-func (impl *HelmAppServiceImpl) GetNotes(ctx context.Context, request *InstallReleaseRequest) (string, error) {
+func (impl *HelmAppServiceImpl) GetNotes(ctx context.Context, request *gRPC.InstallReleaseRequest) (string, error) {
 	var notesTxt string
 	response, err := impl.helmAppClient.GetNotes(ctx, request)
 	if err != nil {
@@ -947,7 +957,7 @@ func (impl *HelmAppServiceImpl) GetNotes(ctx context.Context, request *InstallRe
 	return notesTxt, err
 }
 
-func (impl *HelmAppServiceImpl) ValidateOCIRegistry(ctx context.Context, OCIRegistryRequest *RegistryCredential) bool {
+func (impl *HelmAppServiceImpl) ValidateOCIRegistry(ctx context.Context, OCIRegistryRequest *gRPC.RegistryCredential) bool {
 	response, err := impl.helmAppClient.ValidateOCIRegistry(ctx, OCIRegistryRequest)
 	if err != nil {
 		impl.logger.Errorw("error in fetching chart", "err", err)
@@ -985,7 +995,7 @@ func (impl *HelmAppServiceImpl) EncodeAppId(appIdentifier *AppIdentifier) string
 	return fmt.Sprintf("%d|%s|%s", appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
 }
 
-func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *DeployedAppList, token string, helmAuth func(token string, object string) bool, helmCdPipelines []*pipelineConfig.Pipeline, installedHelmApps []*repository.InstalledApps) openapi.AppList {
+func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *gRPC.DeployedAppList, token string, helmAuth func(token string, object string) bool, helmCdPipelines []*pipelineConfig.Pipeline, installedHelmApps []*repository.InstalledApps) openapi.AppList {
 	applicationType := "HELM-APP"
 	appList := openapi.AppList{ClusterIds: &[]int32{deployedApps.ClusterId}, ApplicationType: &applicationType}
 	if deployedApps.Errored {
@@ -1054,13 +1064,13 @@ func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *Deploy
 	return appList
 }
 
-func (impl *HelmAppServiceImpl) GetRevisionHistoryMaxValue(appType SourceAppType) int32 {
+func (impl *HelmAppServiceImpl) GetRevisionHistoryMaxValue(appType bean.SourceAppType) int32 {
 	switch appType {
-	case SOURCE_DEVTRON_APP:
+	case bean.SOURCE_DEVTRON_APP:
 		return int32(impl.helmReleaseConfig.RevisionHistoryLimitDevtronApp)
-	case SOURCE_HELM_APP:
+	case bean.SOURCE_HELM_APP:
 		return int32(impl.helmReleaseConfig.RevisionHistoryLimitHelmApp)
-	case SOURCE_EXTERNAL_HELM_APP:
+	case bean.SOURCE_EXTERNAL_HELM_APP:
 		return int32(impl.helmReleaseConfig.RevisionHistoryLimitExternalHelmApp)
 	default:
 		return 0

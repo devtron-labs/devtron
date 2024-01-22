@@ -351,15 +351,6 @@ func (a AppstoreDeploymentStatus) String() string {
 		"HELM_SUCCESS"}[a]
 }
 
-type PushChartToGitRequestDTO struct {
-	AppName           string
-	EnvName           string
-	ChartAppStoreName string
-	RepoURL           string
-	TempChartRefDir   string
-	UserId            int32
-}
-
 type HelmReleaseStatusConfig struct {
 	InstallAppVersionHistoryId int
 	Message                    string

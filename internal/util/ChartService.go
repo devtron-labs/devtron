@@ -21,6 +21,7 @@ import (
 	"compress/gzip"
 	"context"
 	"fmt"
+	util2 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -41,7 +42,7 @@ import (
 const (
 	PIPELINE_DEPLOYMENT_TYPE_ACD               = "argo_cd"
 	PIPELINE_DEPLOYMENT_TYPE_HELM              = "helm"
-	PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD = "manifest_download"
+	PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD = "manifest_download" // TODO refactoring: This const belongs to enterprise only
 	ChartWorkingDirPath                        = "/tmp/charts/"
 )
 
@@ -67,6 +68,8 @@ type ChartTemplateService interface {
 	LoadChartFromDir(dir string) (*chart.Chart, error)
 	CreateZipFileForChart(chart *chart.Chart, outputChartPathDir string) ([]byte, error)
 	PackageChart(tempReferenceTemplateDir string, chartMetaData *chart.Metadata) (*string, string, error)
+	// AddConfigFileToChart will override requirements.yaml file in chart
+	AddConfigFileToChart(config *ChartConfig, dir string, clonedDir string) error
 }
 type ChartTemplateServiceImpl struct {
 	randSource rand.Source
@@ -417,6 +420,28 @@ func (impl ChartTemplateServiceImpl) CreateZipFileForChart(chart *chart.Chart, o
 	return chartBytesArr, nil
 }
 
+func (impl ChartTemplateServiceImpl) AddConfigFileToChart(config *ChartConfig, dir string, clonedDir string) error {
+	filePath := filepath.Join(clonedDir, config.FileName)
+	file, err := os.Create(filePath)
+	if err != nil {
+		impl.logger.Errorw("error in creating file", "err", err, "fileName", config.FileName)
+		return err
+	}
+	defer file.Close()
+	_, err = file.Write([]byte(config.FileContent))
+	if err != nil {
+		impl.logger.Errorw("error in writing file content", "err", err, "fileName", config.FileName)
+		return err
+	}
+	destinationFilePath := filepath.Join(dir, config.FileName)
+	err = util2.MoveFileToDestination(filePath, destinationFilePath)
+	if err != nil {
+		impl.logger.Errorw("error in moving file from source to destination", "err", err)
+		return err
+	}
+	return nil
+}
+
 func IsHelmApp(deploymentAppType string) bool {
 	return deploymentAppType == PIPELINE_DEPLOYMENT_TYPE_HELM
 }
@@ -425,6 +450,7 @@ func IsAcdApp(deploymentAppType string) bool {
 	return deploymentAppType == PIPELINE_DEPLOYMENT_TYPE_ACD
 }
 
+// TODO refactoring: This feature belongs to enterprise only
 func IsManifestDownload(deploymentAppType string) bool {
 	return deploymentAppType == PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD
 }

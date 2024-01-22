@@ -173,8 +173,8 @@ func initAppStoreDeploymentService(t *testing.T, internalUse bool) *AppStoreDepl
 		nil,
 		InstalledAppVersionHistoryRepository,
 		gitOpsRepository,
-		nil,
 		&DeploymentServiceTypeConfig{IsInternalUse: internalUse},
+		nil,
 		nil,
 		nil)
 

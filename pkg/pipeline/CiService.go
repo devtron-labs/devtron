@@ -245,6 +245,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 	} else {
 		workflowRequest.Type = bean2.CI_WORKFLOW_PIPELINE_TYPE
 	}
+
 	err = impl.executeCiPipeline(workflowRequest)
 	if err != nil {
 		impl.Logger.Errorw("workflow error", "err", err)
@@ -659,6 +660,8 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		RegistryDestinationImageMap: registryDestinationImageMap,
 		RegistryCredentialMap:       registryCredentialMap,
 		PluginArtifactStage:         pluginArtifactStage,
+		ImageScanMaxRetries:         impl.config.ImageScanMaxRetries,
+		ImageScanRetryDelay:         impl.config.ImageScanRetryDelay,
 	}
 
 	if dockerRegistry != nil {

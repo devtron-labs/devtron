@@ -178,3 +178,35 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationStatusUpdate(in
 	}
 	return true, nil
 }
+
+func (impl AppStoreDeploymentServiceImpl) GetInstalledAppByClusterNamespaceAndName(clusterId int, namespace string, appName string) (*appStoreBean.InstallAppVersionDTO, error) {
+	installedApp, err := impl.installedAppRepository.GetInstalledApplicationByClusterIdAndNamespaceAndAppName(clusterId, namespace, appName)
+	if err != nil {
+		if err == pg.ErrNoRows {
+			impl.logger.Warnw("no installed apps found", "clusterId", clusterId)
+			return nil, nil
+		} else {
+			impl.logger.Errorw("error while fetching installed apps", "clusterId", clusterId, "error", err)
+			return nil, err
+		}
+	}
+
+	if installedApp.Id > 0 {
+		installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppIdAndEnvId(installedApp.Id, installedApp.EnvironmentId)
+		if err != nil {
+			return nil, err
+		}
+		return adapter.GenerateInstallAppVersionDTO(installedApp, installedAppVersion), nil
+	}
+
+	return nil, nil
+}
+
+func (impl AppStoreDeploymentServiceImpl) GetInstalledAppByInstalledAppId(installedAppId int) (*appStoreBean.InstallAppVersionDTO, error) {
+	installedAppVersion, err := impl.installedAppRepository.GetActiveInstalledAppVersionByInstalledAppId(installedAppId)
+	if err != nil {
+		return nil, err
+	}
+	installedApp := &installedAppVersion.InstalledApp
+	return adapter.GenerateInstallAppVersionDTO(installedApp, installedAppVersion), nil
+}

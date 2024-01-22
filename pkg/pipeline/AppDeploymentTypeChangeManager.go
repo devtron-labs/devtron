@@ -21,7 +21,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	"github.com/devtron-labs/devtron/api/helm-app"
+	"github.com/devtron-labs/devtron/api/helm-app/service"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
@@ -62,7 +62,7 @@ type AppDeploymentTypeChangeManagerImpl struct {
 	workflowDagExecutor WorkflowDagExecutor
 	appService          app2.AppService
 	appStatusRepository appStatus.AppStatusRepository
-	helmAppService      client.HelmAppService
+	helmAppService      service.HelmAppService
 	application         application2.ServiceClient
 
 	appArtifactManager      AppArtifactManager
@@ -77,7 +77,7 @@ func NewAppDeploymentTypeChangeManagerImpl(
 	workflowDagExecutor WorkflowDagExecutor,
 	appService app2.AppService,
 	appStatusRepository appStatus.AppStatusRepository,
-	helmAppService client.HelmAppService,
+	helmAppService service.HelmAppService,
 	application application2.ServiceClient,
 	appArtifactManager AppArtifactManager,
 	cdPipelineConfigService CdPipelineConfigService,
@@ -628,7 +628,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) FetchDeletedApp(ctx context.Cont
 		deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
 		var err error
 		if pipeline.DeploymentAppType == string(bean.ArgoCd) {
-			appIdentifier := &client.AppIdentifier{
+			appIdentifier := &service.AppIdentifier{
 				ClusterId:   pipeline.Environment.ClusterId,
 				ReleaseName: pipeline.DeploymentAppName,
 				Namespace:   pipeline.Environment.Namespace,
@@ -720,7 +720,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) deleteHelmApp(ctx context.Contex
 	}
 
 	// create app identifier
-	appIdentifier := &client.AppIdentifier{
+	appIdentifier := &service.AppIdentifier{
 		ClusterId:   pipeline.Environment.ClusterId,
 		ReleaseName: pipeline.DeploymentAppName,
 		Namespace:   pipeline.Environment.Namespace,

@@ -9,11 +9,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/remote/bean"
 	dirCopy "github.com/otiai10/copy"
 	"go.uber.org/zap"
-	"k8s.io/helm/pkg/proto/hapi/chart"
 	"os"
 	"path/filepath"
 	"regexp"
-	"sigs.k8s.io/yaml"
 	"time"
 )
 
@@ -23,12 +21,14 @@ type GitOpsRemoteOperationService interface {
 	PushChartToGitRepo(gitOpsRepoName, referenceTemplate, version,
 		tempReferenceTemplateDir string, repoUrl string, userId int32) (err error)
 	CreateReadmeInGitRepo(gitOpsRepoName string, userId int32) error
-	CreateChartProxy(chartMetaData *chart.Metadata, refChartLocation string, envName string,
-		chartProxyReq *bean.ChartProxyReqDto) (string, *commonBean.ChartGitAttribute, error)
 	GitPull(clonedDir string, repoUrl string, appStoreName string) error
 	CommitValues(chartGitAttr *util.ChartConfig) (commitHash string, commitTime time.Time, err error)
+	CommitRequirementsAndValues(appStoreName, repoUrl string, requirementsConfig *util.ChartConfig,
+		valuesConfig *util.ChartConfig) (gitHash string, err error)
 	CreateRepository(dto *bean2.GitOpsConfigDto, userId int32) (string, bool, error)
 	GetRepoUrlByRepoName(repoName string) (string, error)
+	PushChartToGitOpsRepoForHelmApp(PushChartToGitRequest *bean.PushChartToGitRequestDTO,
+		requirementsConfig *util.ChartConfig, valuesConfig *util.ChartConfig) (*commonBean.ChartGitAttribute, string, error)
 }
 
 type GitOpsRemoteOperationServiceImpl struct {
@@ -43,6 +43,7 @@ func NewGitOpsRemoteOperationServiceImpl(logger *zap.SugaredLogger, gitFactory *
 	chartTemplateService util.ChartTemplateService) *GitOpsRemoteOperationServiceImpl {
 	return &GitOpsRemoteOperationServiceImpl{
 		logger:                  logger,
+		gitFactory:              gitFactory,
 		gitOpsConfigReadService: gitOpsConfigReadService,
 		chartTemplateService:    chartTemplateService,
 	}
@@ -179,47 +180,6 @@ func (impl *GitOpsRemoteOperationServiceImpl) CreateReadmeInGitRepo(gitOpsRepoNa
 	return nil
 }
 
-func (impl *GitOpsRemoteOperationServiceImpl) CreateChartProxy(chartMetaData *chart.Metadata, refChartLocation string, envName string,
-	chartProxyReq *bean.ChartProxyReqDto) (string, *commonBean.ChartGitAttribute, error) {
-	chartMetaData.ApiVersion = "v2" // ensure always v2
-	dir := impl.chartTemplateService.GetDir()
-	chartDir := filepath.Join(util.ChartWorkingDirPath, dir)
-	impl.logger.Debugw("chart dir ", "chart", chartMetaData.Name, "dir", chartDir)
-	err := os.MkdirAll(chartDir, os.ModePerm) //hack for concurrency handling
-	if err != nil {
-		impl.logger.Errorw("err in creating dir", "dir", chartDir, "err", err)
-		return "", nil, err
-	}
-	defer impl.chartTemplateService.CleanDir(chartDir)
-	err = dirCopy.Copy(refChartLocation, chartDir)
-
-	if err != nil {
-		impl.logger.Errorw("error in copying chart for app", "app", chartMetaData.Name, "error", err)
-		return "", nil, err
-	}
-	archivePath, valuesYaml, err := impl.chartTemplateService.PackageChart(chartDir, chartMetaData)
-	if err != nil {
-		impl.logger.Errorw("error in creating archive", "err", err)
-		return "", nil, err
-	}
-
-	chartGitAttr, err := impl.createAndPushToGitChartProxy(chartMetaData.Name, chartDir, envName, chartProxyReq)
-	if err != nil {
-		impl.logger.Errorw("error in pushing chart to git ", "path", archivePath, "err", err)
-		return "", nil, err
-	}
-	if valuesYaml == "" {
-		valuesYaml = "{}"
-	} else {
-		valuesYamlByte, err := yaml.YAMLToJSON([]byte(valuesYaml))
-		if err != nil {
-			return "", nil, err
-		}
-		valuesYaml = string(valuesYamlByte)
-	}
-	return valuesYaml, chartGitAttr, nil
-}
-
 func (impl *GitOpsRemoteOperationServiceImpl) createAndPushToGitChartProxy(appStoreName, tmpChartLocation string, envName string,
 	chartProxyReq *bean.ChartProxyReqDto) (chartGitAttribute *commonBean.ChartGitAttribute, err error) {
 	//baseTemplateName  replace whitespace
@@ -306,7 +266,10 @@ func (impl *GitOpsRemoteOperationServiceImpl) createAndPushToGitChartProxy(appSt
 }
 
 func (impl *GitOpsRemoteOperationServiceImpl) GitPull(clonedDir string, repoUrl string, appStoreName string) error {
-	err := impl.gitFactory.GitService.Pull(clonedDir) //TODO check for local repo exists before clone
+	//TODO refactoring: remove invalid param appStoreName
+	//TODO check for local repo exists before clone
+	//TODO verify remote has repoUrl; or delete and clone
+	err := impl.gitFactory.GitService.Pull(clonedDir)
 	if err != nil {
 		impl.logger.Errorw("error in pulling git", "clonedDir", clonedDir, "err", err)
 		_, err := impl.gitFactory.GitService.Clone(repoUrl, appStoreName)
@@ -372,4 +335,97 @@ func (impl *GitOpsRemoteOperationServiceImpl) GetRepoUrlByRepoName(repoName stri
 		impl.logger.Errorw("error in getting repo url", "err", err, "repoName", repoName)
 	}
 	return repoUrl, nil
+}
+
+// TODO refactoring: Make a common method for both PushChartToGitRepo and PushChartToGitOpsRepoForHelmApp
+// PushChartToGitOpsRepoForHelmApp pushes built chart to GitOps repo (Specific implementation for Helm Apps)
+func (impl *GitOpsRemoteOperationServiceImpl) PushChartToGitOpsRepoForHelmApp(PushChartToGitRequest *bean.PushChartToGitRequestDTO, requirementsConfig *util.ChartConfig, valuesConfig *util.ChartConfig) (*commonBean.ChartGitAttribute, string, error) {
+	space := regexp.MustCompile(`\s+`)
+	appStoreName := space.ReplaceAllString(PushChartToGitRequest.ChartAppStoreName, "-")
+	chartDir := fmt.Sprintf("%s-%s", PushChartToGitRequest.AppName, impl.chartTemplateService.GetDir())
+	clonedDir := impl.gitFactory.GitService.GetCloneDirectory(chartDir)
+	if _, err := os.Stat(clonedDir); os.IsNotExist(err) {
+		clonedDir, err = impl.gitFactory.GitService.Clone(PushChartToGitRequest.RepoURL, chartDir)
+		if err != nil {
+			impl.logger.Errorw("error in cloning repo", "url", PushChartToGitRequest.RepoURL, "err", err)
+			return nil, "", err
+		}
+	} else {
+		err = impl.GitPull(clonedDir, PushChartToGitRequest.RepoURL, appStoreName)
+		if err != nil {
+			return nil, "", err
+		}
+	}
+	acdAppName := fmt.Sprintf("%s-%s", PushChartToGitRequest.AppName, PushChartToGitRequest.EnvName)
+	dir := filepath.Join(clonedDir, acdAppName)
+	err := os.MkdirAll(dir, os.ModePerm)
+	if err != nil {
+		impl.logger.Errorw("error in making dir", "err", err)
+		return nil, "", err
+	}
+	err = dirCopy.Copy(PushChartToGitRequest.TempChartRefDir, dir)
+	if err != nil {
+		impl.logger.Errorw("error copying dir", "err", err)
+		return nil, "", err
+	}
+	err = impl.chartTemplateService.AddConfigFileToChart(requirementsConfig, dir, clonedDir)
+	if err != nil {
+		impl.logger.Errorw("error in adding requirements.yaml to chart", "err", err, "appName", PushChartToGitRequest.AppName)
+		return nil, "", err
+	}
+	err = impl.chartTemplateService.AddConfigFileToChart(valuesConfig, dir, clonedDir)
+	if err != nil {
+		impl.logger.Errorw("error in adding values.yaml to chart", "err", err, "appName", PushChartToGitRequest.AppName)
+		return nil, "", err
+	}
+	userEmailId, userName := impl.gitOpsConfigReadService.GetUserEmailIdAndNameForGitOpsCommit(PushChartToGitRequest.UserId)
+	commit, err := impl.gitFactory.GitService.CommitAndPushAllChanges(clonedDir, "first commit", userName, userEmailId)
+	if err != nil {
+		impl.logger.Errorw("error in pushing git", "err", err)
+		impl.logger.Warn("re-trying, taking pull and then push again")
+		err = impl.GitPull(clonedDir, PushChartToGitRequest.RepoURL, acdAppName)
+		if err != nil {
+			impl.logger.Errorw("error in git pull", "err", err, "appName", acdAppName)
+			return nil, "", err
+		}
+		err = dirCopy.Copy(PushChartToGitRequest.TempChartRefDir, dir)
+		if err != nil {
+			impl.logger.Errorw("error copying dir", "err", err)
+			return nil, "", err
+		}
+		commit, err = impl.gitFactory.GitService.CommitAndPushAllChanges(clonedDir, "first commit", userName, userEmailId)
+		if err != nil {
+			impl.logger.Errorw("error in pushing git", "err", err)
+			return nil, "", err
+		}
+	}
+	impl.logger.Debugw("template committed", "url", PushChartToGitRequest.RepoURL, "commit", commit)
+	defer impl.chartTemplateService.CleanDir(clonedDir)
+	return &commonBean.ChartGitAttribute{RepoUrl: PushChartToGitRequest.RepoURL, ChartLocation: acdAppName}, commit, err
+}
+
+func (impl *GitOpsRemoteOperationServiceImpl) CommitRequirementsAndValues(appStoreName, repoUrl string, requirementsConfig *util.ChartConfig, valuesConfig *util.ChartConfig) (gitHash string, err error) {
+	clonedDir := impl.gitFactory.GitWorkingDir + "" + appStoreName
+	_, _, err = impl.CommitValues(requirementsConfig)
+	if err != nil {
+		impl.logger.Errorw("error in committing dependency config to git", "err", err)
+		return gitHash, err
+	}
+	err = impl.GitPull(clonedDir, repoUrl, appStoreName)
+	if err != nil {
+		impl.logger.Errorw("error in git pull", "err", err)
+		return gitHash, err
+	}
+
+	gitHash, _, err = impl.CommitValues(valuesConfig)
+	if err != nil {
+		impl.logger.Errorw("error in committing values config to git", "err", err)
+		return gitHash, err
+	}
+	err = impl.GitPull(clonedDir, repoUrl, appStoreName)
+	if err != nil {
+		impl.logger.Errorw("error in git pull", "err", err)
+		return gitHash, err
+	}
+	return gitHash, nil
 }
