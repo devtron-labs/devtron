@@ -28,6 +28,7 @@ type InfraConfigRepository interface {
 	UpdateProfile(tx *pg.Tx, profileName string, profile *infraConfig.InfraProfile) error
 	DeleteProfile(tx *pg.Tx, profileName string) error
 	DeleteConfigurations(tx *pg.Tx, profileName string) error
+	GetProfileList(profileNameLike string) ([]*infraConfig.InfraProfile, error)
 	sql.TransactionWrapper
 }
 
@@ -64,6 +65,15 @@ func (impl *InfraConfigRepositoryImpl) GetProfileByName(name string) (*infraConf
 		Where("active = ?", true).
 		Select()
 	return &infraProfile, err
+}
+
+func (impl *InfraConfigRepositoryImpl) GetProfileList(profileNameLike string) ([]*infraConfig.InfraProfile, error) {
+	var infraProfiles []*infraConfig.InfraProfile
+	err := impl.dbConnection.Model(&infraProfiles).
+		Where("name LIKE ?", profileNameLike).
+		Where("active = ?", true).
+		Select()
+	return infraProfiles, err
 }
 
 func (impl *InfraConfigRepositoryImpl) CreateConfigurations(tx *pg.Tx, configurations []*infraConfig.InfraProfileConfiguration) error {

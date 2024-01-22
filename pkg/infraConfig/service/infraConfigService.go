@@ -117,8 +117,17 @@ func (impl *InfraConfigServiceImpl) GetProfileByName(profileName string) (*infra
 }
 
 func (impl *InfraConfigServiceImpl) GetProfileList(profileNameLike string) ([]*infraConfig.ProfileBean, error) {
+	profileNameLike = "%" + profileNameLike + "%"
+	infraProfiles, err := impl.infraProfileRepo.GetProfileList(profileNameLike)
 
-	profileAppCount, err := impl.infraProfileRepo.GetIdentifierCountForNonDefaultProfiles([]int{}, "APP")
+	profileIds := make([]int, len(infraProfiles))
+	profilesMap := make(map[int]*infraConfig.InfraProfile)
+	for i, _ := range infraProfiles {
+		profileIds[i] = infraProfiles[i].Id
+		profilesMap[infraProfiles[i].Id] = infraProfiles[i]
+	}
+
+	profileAppCount, err := impl.infraProfileRepo.GetIdentifierCountForNonDefaultProfiles(profileIds, "APP")
 	if err != nil {
 		impl.logger.Errorw("error in fetching app count for non default profiles", "error", err)
 		return nil, err
