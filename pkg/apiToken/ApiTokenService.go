@@ -80,7 +80,7 @@ func GetTokenConfig() (*TokenVariableConfig, error) {
 }
 
 type TokenVariableConfig struct {
-	ExpireAtInHours int64 `env:"TOKEN_EXPIRY_TIME_HOURS" envDefault:"720"` //30*24
+	ExpireAtInHours int64 `env:"NOTIFICATION_TOKEN_EXPIRY_TIME_HOURS" envDefault:"720"` //30*24
 }
 
 func (config TokenVariableConfig) GetExpiryTimeInMs() int64 {
