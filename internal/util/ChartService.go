@@ -21,7 +21,6 @@ import (
 	"compress/gzip"
 	"context"
 	"fmt"
-	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"io/ioutil"
 	"math/rand"
 	"net/http"
@@ -32,11 +31,13 @@ import (
 	"strings"
 	"time"
 
+	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
+	repository2 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
+
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
-	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	dirCopy "github.com/otiai10/copy"
@@ -74,7 +75,7 @@ type ChartTemplateService interface {
 	CleanDir(dir string)
 	GetUserEmailIdAndNameForGitOpsCommit(userId int32) (emailId, name string)
 	GetGitOpsRepoName(appName string) string
-	CreateGitRepositoryForApp(gitOpsRepoName string, userId int32) (chartGitAttribute *ChartGitAttribute, err error)
+	CreateGitRepositoryForApp(gitOpsRepoName string, userId int32) (chartGitAttribute *ChartGitAttribute, isNewRepo bool, err error)
 	PushChartToGitRepo(gitOpsRepoName, referenceTemplate, version, tempReferenceTemplateDir string, repoUrl string, userId int32) (err error)
 	GetByteArrayRefChart(chartMetaData *chart.Metadata, referenceTemplatePath string) ([]byte, error)
 	CreateReadmeInGitRepo(gitOpsRepoName string, userId int32) error
@@ -246,7 +247,7 @@ type ChartGitAttribute struct {
 	RepoUrl, ChartLocation string
 }
 
-func (impl ChartTemplateServiceImpl) CreateGitRepositoryForApp(gitOpsRepoName string, userId int32) (chartGitAttribute *ChartGitAttribute, err error) {
+func (impl ChartTemplateServiceImpl) CreateGitRepositoryForApp(gitOpsRepoName string, userId int32) (chartGitAttribute *ChartGitAttribute, isNewRepo bool, err error) {
 	//baseTemplateName  replace whitespace
 	space := regexp.MustCompile(`\s+`)
 	gitOpsRepoName = space.ReplaceAllString(gitOpsRepoName, "-")
@@ -256,7 +257,7 @@ func (impl ChartTemplateServiceImpl) CreateGitRepositoryForApp(gitOpsRepoName st
 		if err == pg.ErrNoRows {
 			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
 		} else {
-			return nil, err
+			return nil, isNewRepo, err
 		}
 	}
 	//getting user name & emailId for commit author data
@@ -269,14 +270,14 @@ func (impl ChartTemplateServiceImpl) CreateGitRepositoryForApp(gitOpsRepoName st
 		BitBucketWorkspaceId: gitOpsConfigBitbucket.BitBucketWorkspaceId,
 		BitBucketProjectKey:  gitOpsConfigBitbucket.BitBucketProjectKey,
 	}
-	repoUrl, _, detailedError := impl.gitFactory.Client.CreateRepository(gitRepoRequest)
+	repoUrl, isNewRepo, detailedError := impl.gitFactory.Client.CreateRepository(gitRepoRequest)
 	for _, err := range detailedError.StageErrorMap {
 		if err != nil {
 			impl.logger.Errorw("error in creating git project", "name", gitOpsRepoName, "err", err)
-			return nil, err
+			return nil, isNewRepo, err
 		}
 	}
-	return &ChartGitAttribute{RepoUrl: repoUrl}, nil
+	return &ChartGitAttribute{RepoUrl: repoUrl}, isNewRepo, nil
 }
 
 func (impl ChartTemplateServiceImpl) PushChartToGitRepo(gitOpsRepoName, referenceTemplate, version, tempReferenceTemplateDir string, repoUrl string, userId int32) (err error) {

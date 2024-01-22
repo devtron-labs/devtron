@@ -21,6 +21,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/url"
+	"os"
+	"path"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/caarlos0/env"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
@@ -28,6 +37,8 @@ import (
 	status2 "github.com/devtron-labs/devtron/pkg/app/status"
 	repository4 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
@@ -39,16 +50,8 @@ import (
 	_ "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"github.com/devtron-labs/devtron/util/argo"
 	"go.opentelemetry.io/otel"
-	"io/ioutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	chart2 "k8s.io/helm/pkg/proto/hapi/chart"
-	"net/url"
-	"os"
-	"path"
-	"path/filepath"
-	"strconv"
-	"strings"
-	"time"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/pkg/appStatus"
@@ -56,7 +59,6 @@ import (
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	history2 "github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 
 	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
@@ -71,7 +73,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	. "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/commonService"
-	"github.com/devtron-labs/devtron/pkg/user"
 	util2 "github.com/devtron-labs/devtron/util"
 	util "github.com/devtron-labs/devtron/util/event"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -536,31 +537,16 @@ func (impl *AppServiceImpl) CheckIfPipelineUpdateEventIsValidForAppStore(gitOpsA
 	isValid := false
 	var err error
 	installedAppVersionHistory := &repository4.InstalledAppVersionHistory{}
-	installedAppId := 0
-	gitOpsAppNameAndInstalledAppMapping := make(map[string]*int)
 	//checking if the gitOpsAppName is present in installed_apps table, if yes the find installed_app_version_history else return
-	gitOpsAppNameAndInstalledAppId, err := impl.installedAppRepository.GetAllGitOpsAppNameAndInstalledAppMapping()
+	installedAppModel, err := impl.installedAppRepository.GetInstalledAppByGitOpsAppName(gitOpsAppName)
 	if err != nil {
 		impl.logger.Errorw("error in getting all installed apps in GetAllGitOpsAppNameAndInstalledAppMapping", "err", err, "gitOpsAppName", gitOpsAppName)
 		return isValid, installedAppVersionHistory, 0, 0, err
 	}
-	for _, item := range gitOpsAppNameAndInstalledAppId {
-		gitOpsAppNameAndInstalledAppMapping[item.GitOpsAppName] = &item.InstalledAppId
-	}
-	var devtronAcdAppName string
-	if len(impl.globalEnvVariables.GitOpsRepoPrefix) > 0 {
-		devtronAcdAppName = fmt.Sprintf("%s-%s", impl.globalEnvVariables.GitOpsRepoPrefix, gitOpsAppName)
-	} else {
-		devtronAcdAppName = gitOpsAppName
-	}
 
-	if gitOpsAppNameAndInstalledAppMapping[devtronAcdAppName] != nil {
-		installedAppId = *gitOpsAppNameAndInstalledAppMapping[devtronAcdAppName]
-	}
-
-	installedAppVersionHistory, err = impl.installedAppVersionHistoryRepository.GetLatestInstalledAppVersionHistoryByInstalledAppId(installedAppId)
+	installedAppVersionHistory, err = impl.installedAppVersionHistoryRepository.GetLatestInstalledAppVersionHistoryByInstalledAppId(installedAppModel.Id)
 	if err != nil {
-		impl.logger.Errorw("error in getting latest installedAppVersionHistory by installedAppId", "err", err, "installedAppId", installedAppId)
+		impl.logger.Errorw("error in getting latest installedAppVersionHistory by installedAppId", "err", err, "installedAppId", installedAppModel.Id)
 		return isValid, installedAppVersionHistory, 0, 0, err
 	}
 	appId, envId, err := impl.installedAppVersionHistoryRepository.GetAppIdAndEnvIdWithInstalledAppVersionId(installedAppVersionHistory.InstalledAppVersionId)
@@ -1024,7 +1010,7 @@ func (impl *AppServiceImpl) CreateGitopsRepo(app *app.App, userId int32) (gitops
 		return "", nil, err
 	}
 	gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(app.AppName)
-	chartGitAttr, err = impl.chartTemplateService.CreateGitRepositoryForApp(gitOpsRepoName, userId)
+	chartGitAttr, _, err = impl.chartTemplateService.CreateGitRepositoryForApp(gitOpsRepoName, userId)
 	if err != nil {
 		impl.logger.Errorw("error in pushing chart to git ", "gitOpsRepoName", gitOpsRepoName, "err", err)
 		return "", nil, err

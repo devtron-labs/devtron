@@ -11,7 +11,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"strings"
 	"time"
 )
 
@@ -71,6 +70,7 @@ func (impl GitBitbucketClient) GetRepoUrl(config *bean2.GitOpsConfigDto) (repoUr
 		return repoUrl, nil
 	}
 }
+
 func (impl GitBitbucketClient) CreateRepository(config *bean2.GitOpsConfigDto) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
 
@@ -189,10 +189,10 @@ func (impl GitBitbucketClient) ensureProjectAvailabilityOnSsh(repoOptions *bitbu
 	for count := 0; count < 5; count++ {
 		_, err := impl.gitService.Clone(repoUrl, fmt.Sprintf("/ensure-clone/%s", repoOptions.RepoSlug))
 		if err == nil {
-			impl.logger.Infow("ensureProjectAvailability clone passed bitbucket", "try count", count, "repoUrl", repoUrl)
+			impl.logger.Infow("ensureProjectAvailability clone passed Bitbucket", "try count", count, "repoUrl", repoUrl)
 			return true, nil
 		}
-		impl.logger.Errorw("ensureProjectAvailability clone failed ssh bitbucket", "try count", count, "err", err)
+		impl.logger.Errorw("ensureProjectAvailability clone failed ssh Bitbucket", "try count", count, "err", err)
 		time.Sleep(10 * time.Second)
 	}
 	return false, nil
@@ -300,36 +300,4 @@ func (impl GitBitbucketClient) GetCommits(repoName, projectName string) ([]*GitC
 		gitCommitsDto = append(gitCommitsDto, gitCommitDto)
 	}
 	return gitCommitsDto, nil
-}
-
-func (impl GitBitbucketClient) GetCommitsCount(repoName, projectName string) (int, error) {
-	gitOpsConfigBitbucket, err := impl.gitOpsConfigRepository.GetGitOpsConfigByProvider(BITBUCKET_PROVIDER)
-	if err != nil {
-		if err == pg.ErrNoRows {
-			gitOpsConfigBitbucket = &repository.GitOpsConfig{}
-			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
-			gitOpsConfigBitbucket.BitBucketProjectKey = ""
-		} else {
-			impl.logger.Errorw("error in fetching gitOps bitbucket config", "err", err)
-			return 0, err
-		}
-	}
-	bitbucketWorkspaceId := gitOpsConfigBitbucket.BitBucketWorkspaceId
-	bitbucketClient := impl.client
-	getCommitsOptions := &bitbucket.CommitsOptions{
-		RepoSlug:    repoName,
-		Owner:       bitbucketWorkspaceId,
-		Branchortag: "master",
-	}
-	gitCommitsIf, err := bitbucketClient.Repositories.Commits.GetCommits(getCommitsOptions)
-	if err != nil {
-		if errorResponse, ok := err.(*bitbucket.UnexpectedResponseStatusError); ok && strings.Contains(errorResponse.Error(), "404 Not Found") {
-			return 0, nil
-		}
-		impl.logger.Errorw("error in getting commits", "err", err, "repoName", repoName)
-		return 0, err
-	}
-
-	gitCommits := gitCommitsIf.(map[string]interface{})["values"].([]interface{})
-	return len(gitCommits), nil
 }

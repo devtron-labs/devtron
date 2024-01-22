@@ -5,10 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"strings"
+	"time"
+
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
-	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
@@ -25,19 +28,16 @@ import (
 	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/gitops"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/go-pg/pg"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"k8s.io/utils/pointer"
-	"net/http"
-	"strings"
-	"time"
 )
 
 // creating duplicates because cannot use
@@ -59,7 +59,7 @@ type AppStoreDeploymentArgoCdService interface {
 	SaveTimelineForACDHelmApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, status string, statusDetail string, statusTime time.Time, tx *pg.Tx) error
 	UpdateChartInfo(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *util.ChartGitAttribute, installedAppVersionHistoryId int, ctx context.Context) error
 	UpdateAndSyncACDApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *util.ChartGitAttribute, isMonoRepoMigrationRequired bool, ctx context.Context, tx *pg.Tx) error
-	ValidateCustomGitRepoURL(request gitops.ValidateCustomGitRepoURLRequest) bean.DetailedErrorGitOpsConfigResponse
+	ValidateCustomGitRepoURL(request gitops.ValidateCustomGitRepoURLRequest) (string, bool, error)
 	GetGitRepoUrl(gitOpsRepoName string) (string, error)
 }
 
@@ -195,7 +195,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) SaveTimelineForACDHelmApps(insta
 	return timelineErr
 }
 
-func (impl AppStoreDeploymentArgoCdServiceImpl) ValidateCustomGitRepoURL(request gitops.ValidateCustomGitRepoURLRequest) bean.DetailedErrorGitOpsConfigResponse {
+func (impl AppStoreDeploymentArgoCdServiceImpl) ValidateCustomGitRepoURL(request gitops.ValidateCustomGitRepoURLRequest) (string, bool, error) {
 	return impl.gitOpsService.ValidateCustomGitRepoURL(request)
 }
 
@@ -678,7 +678,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) patchAcdApp(ctx context.Context,
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Minute)
 	defer cancel()
 	//registerInArgo
-	err := impl.chartDeploymentService.RegisterInArgo(chartGitAttr, installAppVersionRequest.UserId, ctx, false)
+	err := impl.chartDeploymentService.RegisterInArgo(chartGitAttr, installAppVersionRequest.UserId, ctx)
 	if err != nil {
 		impl.Logger.Errorw("error in argo registry", "err", err)
 		return nil, err

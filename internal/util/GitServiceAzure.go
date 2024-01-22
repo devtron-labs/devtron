@@ -49,6 +49,7 @@ func NewGitAzureClient(token string, host string, project string, logger *zap.Su
 		gitOpsConfigRepository: gitOpsConfigRepository,
 	}, err
 }
+
 func (impl GitAzureClient) DeleteRepository(config *bean2.GitOpsConfigDto) error {
 	clientAzure := *impl.client
 	gitRepository, err := clientAzure.GetRepository(context.Background(), git.GetRepositoryArgs{
@@ -65,6 +66,7 @@ func (impl GitAzureClient) DeleteRepository(config *bean2.GitOpsConfigDto) error
 	}
 	return err
 }
+
 func (impl GitAzureClient) CreateRepository(config *bean2.GitOpsConfigDto) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
 	ctx := context.Background()
@@ -113,7 +115,7 @@ func (impl GitAzureClient) CreateRepository(config *bean2.GitOpsConfigDto) (url 
 	}
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CreateReadmeStage)
 
-	validated, err = impl.ensureProjectAvailabilityOnSsh(impl.project, config.GitRepoName, *operationReference.WebUrl)
+	validated, err = impl.ensureProjectAvailabilityOnSsh(impl.project, *operationReference.WebUrl)
 	if err != nil {
 		impl.logger.Errorw("error in ensuring project availability azure", "project", config.GitRepoName, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CloneSshStage] = err
@@ -286,7 +288,7 @@ func (impl GitAzureClient) ensureProjectAvailabilityOnHttp(repoName string) (boo
 	return false, nil
 }
 
-func (impl GitAzureClient) ensureProjectAvailabilityOnSsh(projectName string, repoName string, repoUrl string) (bool, error) {
+func (impl GitAzureClient) ensureProjectAvailabilityOnSsh(projectName string, repoUrl string) (bool, error) {
 	for count := 0; count < 8; count++ {
 		_, err := impl.gitService.Clone(repoUrl, fmt.Sprintf("/ensure-clone/%s", projectName))
 		if err == nil {
@@ -320,19 +322,4 @@ func (impl GitAzureClient) GetCommits(repoName, projectName string) ([]*GitCommi
 		gitCommitsDto = append(gitCommitsDto, gitCommitDto)
 	}
 	return gitCommitsDto, nil
-}
-
-func (impl GitAzureClient) GetCommitsCount(repoName, projectName string) (int, error) {
-	azureClient := *impl.client
-	getCommitsArgs := git.GetCommitsArgs{
-		RepositoryId:   &repoName,
-		Project:        &projectName,
-		SearchCriteria: &git.GitQueryCommitsCriteria{},
-	}
-	gitCommits, err := azureClient.GetCommits(context.Background(), getCommitsArgs)
-	if err != nil {
-		impl.logger.Errorw("error in getting commits", "err", err, "repoName", repoName, "projectName", projectName)
-		return 0, err
-	}
-	return len(*gitCommits), nil
 }

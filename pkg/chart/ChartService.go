@@ -100,8 +100,8 @@ type ChartService interface {
 	FlaggerCanaryEnabled(values json.RawMessage) (bool, error)
 	GetCustomChartInBytes(chatRefId int) ([]byte, error)
 	UpdateGitRepoUrlInCharts(appId int, chartGitAttribute *util.ChartGitAttribute, userId int32) error
-	SaveAppLevelGitOpsConfiguration(appGitOpsRequest AppGitOpsConfigRequest, appName string, ctx context.Context) (detailedErrorGitOpsConfigResponse bean.DetailedErrorGitOpsConfigResponse, err error)
-	GetGitOpsConfigurationOfApp(appId int) (*AppGitOpsConfigResponse, error)
+	SaveAppLevelGitOpsConfiguration(appGitOpsRequest *AppGitOpsConfigRequest, appName string, ctx context.Context) (err error)
+	GetAppLevelGitOpsConfiguration(appId int) (*AppGitOpsConfigResponse, error)
 	GetRefChart(templateRequest TemplateRequest) (string, string, error, string, string)
 	IsGitRepoUrlPresent(appId int) bool
 	IsGitOpsRepoConfiguredForDevtronApps(appId int) (bool, error)
@@ -1771,78 +1771,75 @@ func (impl ChartServiceImpl) UpdateGitRepoUrlInCharts(appId int, chartGitAttribu
 	return nil
 }
 
-func (impl ChartServiceImpl) SaveAppLevelGitOpsConfiguration(appGitOpsRequest AppGitOpsConfigRequest, appName string, ctx context.Context) (detailedErrorGitOpsConfigResponse bean.DetailedErrorGitOpsConfigResponse, err error) {
+func (impl ChartServiceImpl) SaveAppLevelGitOpsConfiguration(appGitOpsRequest *AppGitOpsConfigRequest, appName string, ctx context.Context) (err error) {
 	activeGlobalGitOpsConfig, err := impl.gitOpsConfigService.GetGitOpsConfigActive()
 	if err != nil {
 		impl.logger.Errorw("error in fetching active gitOps config", "err", err)
 		if util.IsErrNoRows(err) {
-			return detailedErrorGitOpsConfigResponse, fmt.Errorf("Gitops integration is not installed/configured. Please install/configure gitops.")
+			return fmt.Errorf("Gitops integration is not installed/configured. Please install/configure gitops.")
 		}
-		return detailedErrorGitOpsConfigResponse, err
+		return err
 	}
 	if !activeGlobalGitOpsConfig.AllowCustomRepository {
-		return detailedErrorGitOpsConfigResponse, fmt.Errorf("Invalid request! Please configure Gitops with 'Allow changing git repository for application'.")
+		apiErr := &util.ApiError{
+			HttpStatusCode:  http.StatusResetContent,
+			UserMessage:     "Invalid request! Please configure Gitops with 'Allow changing git repository for application'.",
+			InternalMessage: "Invalid request! Custom repository is not valid, as the global configuration is updated",
+		}
+		return apiErr
 	}
 
 	if impl.IsGitRepoUrlPresent(appGitOpsRequest.AppId) {
-		return detailedErrorGitOpsConfigResponse, fmt.Errorf("Invalid request! GitOps repository is already configured.")
+		return fmt.Errorf("Invalid request! GitOps repository is already configured.")
 	}
 
 	charts, err := impl.chartRepository.FindActiveChartsByAppId(appGitOpsRequest.AppId)
 	if err != nil {
 		impl.logger.Errorw("Error in fetching charts for app", "err", err, "appId", appGitOpsRequest.AppId)
-		return detailedErrorGitOpsConfigResponse, err
+		return err
 	}
 
 	validateCustomGitRepoURLRequest := gitops.ValidateCustomGitRepoURLRequest{
-		GitRepoURL:               appGitOpsRequest.GitOpsRepoURL,
-		UserId:                   appGitOpsRequest.UserId,
-		ExtraValidationStage:     gitops.Create_Readme,
-		PerformDefaultValidation: appGitOpsRequest.GitOpsRepoURL == bean.GIT_REPO_DEFAULT,
+		GitRepoURL:     appGitOpsRequest.GitOpsRepoURL,
+		UserId:         appGitOpsRequest.UserId,
+		AppName:        appName,
+		GitOpsProvider: activeGlobalGitOpsConfig.Provider,
 	}
-
-	detailedErrorGitOpsConfigResponse = impl.gitOpsConfigService.ValidateCustomGitRepoURL(validateCustomGitRepoURLRequest)
-	if len(detailedErrorGitOpsConfigResponse.StageErrorMap) != 0 {
-		return detailedErrorGitOpsConfigResponse, nil
-	}
-
-	gitRepoUrl := appGitOpsRequest.GitOpsRepoURL
-
-	var chartGitAttr *util.ChartGitAttribute
-	if appGitOpsRequest.GitOpsRepoURL == bean.GIT_REPO_DEFAULT {
-		gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(appName)
-		chartGitAttr, err = impl.chartTemplateService.CreateGitRepositoryForApp(gitOpsRepoName, appGitOpsRequest.UserId)
-		if err != nil {
-			impl.logger.Errorw("error in pushing chart to git ", "gitOpsRepoName", gitOpsRepoName, "err", err)
-			return detailedErrorGitOpsConfigResponse, err
+	repoUrl, _, validationErr := impl.gitOpsConfigService.ValidateCustomGitRepoURL(validateCustomGitRepoURLRequest)
+	if validationErr != nil {
+		apiErr := &util.ApiError{
+			HttpStatusCode:  http.StatusBadRequest,
+			UserMessage:     validationErr.Error(),
+			InternalMessage: validationErr.Error(),
 		}
-		gitRepoUrl = chartGitAttr.RepoUrl
-	} else {
-		// For custom GitOps repo url
-		chartGitAttr = &util.ChartGitAttribute{
-			RepoUrl: gitRepoUrl,
-		}
+		return apiErr
 	}
-	err = impl.chartDeploymentService.RegisterInArgo(chartGitAttr, appGitOpsRequest.UserId, ctx, false)
+	// ValidateCustomGitRepoURL returns sanitized repo url after validation
+	appGitOpsRequest.GitOpsRepoURL = repoUrl
+	chartGitAttr := &util.ChartGitAttribute{
+		RepoUrl: repoUrl,
+	}
+	err = impl.chartDeploymentService.RegisterInArgo(chartGitAttr, appGitOpsRequest.UserId, ctx)
 	if err != nil {
 		impl.logger.Errorw("error while register git repo in argo", "err", err)
-		return detailedErrorGitOpsConfigResponse, err
+		return err
 	}
+
 	for _, chart := range charts {
-		chart.GitRepoUrl = gitRepoUrl
+		chart.GitRepoUrl = repoUrl
 		chart.UpdatedOn = time.Now()
 		chart.UpdatedBy = appGitOpsRequest.UserId
 		chart.IsCustomGitRepository = activeGlobalGitOpsConfig.AllowCustomRepository && appGitOpsRequest.GitOpsRepoURL != bean.GIT_REPO_DEFAULT
 		err = impl.chartRepository.Update(chart)
 		if err != nil {
 			impl.logger.Errorw("error in updating git repo url in charts while saving git repo url", "err", err, "appGitOpsRequest", appGitOpsRequest)
-			return detailedErrorGitOpsConfigResponse, err
+			return err
 		}
 	}
-	return detailedErrorGitOpsConfigResponse, nil
+	return nil
 }
 
-func (impl ChartServiceImpl) GetGitOpsConfigurationOfApp(appId int) (*AppGitOpsConfigResponse, error) {
+func (impl ChartServiceImpl) GetAppLevelGitOpsConfiguration(appId int) (*AppGitOpsConfigResponse, error) {
 	activeGlobalGitOpsConfig, err := impl.gitOpsConfigService.GetGitOpsConfigActive()
 	if err != nil {
 		impl.logger.Errorw("error in fetching active gitOps config", "err", err)
@@ -1852,7 +1849,12 @@ func (impl ChartServiceImpl) GetGitOpsConfigurationOfApp(appId int) (*AppGitOpsC
 		return nil, err
 	}
 	if !activeGlobalGitOpsConfig.AllowCustomRepository {
-		return nil, fmt.Errorf("Invalid request! Please configure Gitops with 'Allow changing git repository for application'.")
+		apiErr := &util.ApiError{
+			HttpStatusCode:  http.StatusResetContent,
+			UserMessage:     "Invalid request! Please configure Gitops with 'Allow changing git repository for application'.",
+			InternalMessage: "Invalid request! Custom repository is not valid, as the global configuration is updated",
+		}
+		return nil, apiErr
 	}
 	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
 	if err != nil {

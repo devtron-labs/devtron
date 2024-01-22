@@ -18,12 +18,13 @@
 package cluster
 
 import (
+	"time"
+
 	apiBean "github.com/devtron-labs/devtron/api/bean"
+	repository2 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
-	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"time"
 )
 
 type ClusterDescriptionBean struct {

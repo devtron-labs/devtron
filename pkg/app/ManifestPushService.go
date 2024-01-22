@@ -31,14 +31,14 @@ type GitOpsPushService interface {
 type GitOpsManifestPushServiceImpl struct {
 	logger                           *zap.SugaredLogger
 	chartTemplateService             util.ChartTemplateService
-	chartDeploymentService        util.ChartDeploymentService
+	chartDeploymentService           util.ChartDeploymentService
 	chartService                     chartService.ChartService
 	gitOpsConfigRepository           repository.GitOpsConfigRepository
 	gitFactory                       *GitFactory
 	pipelineStatusTimelineService    status2.PipelineStatusTimelineService
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository
 	acdConfig                        *argocdServer.ACDConfig
-	gitOpsConfigService           gitops.GitOpsConfigService
+	gitOpsConfigService              gitops.GitOpsConfigService
 }
 
 func NewGitOpsManifestPushServiceImpl(
@@ -56,89 +56,77 @@ func NewGitOpsManifestPushServiceImpl(
 	return &GitOpsManifestPushServiceImpl{
 		logger:                           logger,
 		chartTemplateService:             chartTemplateService,
-		chartDeploymentService:        chartDeploymentService,
+		chartDeploymentService:           chartDeploymentService,
 		chartService:                     chartService,
 		gitOpsConfigRepository:           gitOpsConfigRepository,
 		gitFactory:                       gitFactory,
 		pipelineStatusTimelineService:    pipelineStatusTimelineService,
 		pipelineStatusTimelineRepository: pipelineStatusTimelineRepository,
 		acdConfig:                        acdConfig,
-		gitOpsConfigService:           gitOpsConfigService,
+		gitOpsConfigService:              gitOpsConfigService,
 	}
 }
 
-func (impl *GitOpsManifestPushServiceImpl) PushChart(manifestPushTemplate *bean.ManifestPushTemplate, ctx context.Context) bean.ManifestPushResponse {
-	manifestPushResponse := bean.ManifestPushResponse{}
+func (impl *GitOpsManifestPushServiceImpl) ValidateRepoForGitOperation(manifestPushTemplate *bean.ManifestPushTemplate, ctx context.Context) error {
+	// 1. Fetch Global GitOps Details
 	activeGlobalGitOpsConfig, err := impl.gitOpsConfigService.GetGitOpsConfigActive()
 	if err != nil {
 		impl.logger.Errorw("error in fetching active gitOps config", "err", err)
 		if util.IsErrNoRows(err) {
-			errMsg := fmt.Errorf("Gitops integration is not installed/configured. Please install/configure gitops.")
-			manifestPushResponse.Error = errMsg
-			impl.SaveTimelineForError(manifestPushTemplate, errMsg)
-			return manifestPushResponse
+			return fmt.Errorf("Gitops integration is not installed/configured. Please install/configure gitops.")
 		}
-		manifestPushResponse.Error = err
-		impl.SaveTimelineForError(manifestPushTemplate, err)
-		return manifestPushResponse
+		return err
 	}
 
+	// 2. Create Git Repo if required
 	if ChartsUtil.IsGitOpsRepoNotConfigured(manifestPushTemplate.RepoUrl) || manifestPushTemplate.GitOpsRepoMigrationRequired {
 		if activeGlobalGitOpsConfig.AllowCustomRepository || manifestPushTemplate.IsCustomGitRepository {
-			errMsg := fmt.Errorf("GitOps repository is not configured! Please configure gitops repository for application first.")
-			manifestPushResponse.Error = errMsg
-			impl.SaveTimelineForError(manifestPushTemplate, errMsg)
-			return manifestPushResponse
+			return fmt.Errorf("GitOps repository is not configured! Please configure gitops repository for application first.")
 		}
 
 		gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(manifestPushTemplate.AppName)
-		chartGitAttr, err := impl.chartTemplateService.CreateGitRepositoryForApp(gitOpsRepoName, manifestPushTemplate.UserId)
+		chartGitAttr, _, err := impl.chartTemplateService.CreateGitRepositoryForApp(gitOpsRepoName, manifestPushTemplate.UserId)
 		if err != nil {
 			impl.logger.Errorw("error in pushing chart to git ", "gitOpsRepoName", gitOpsRepoName, "err", err)
-			errMsg := fmt.Errorf("No repository configured for Gitops! Error while creating git repository: '%s'", gitOpsRepoName)
-			manifestPushResponse.Error = errMsg
-			impl.SaveTimelineForError(manifestPushTemplate, errMsg)
-			return manifestPushResponse
+			return fmt.Errorf("No repository configured for Gitops! Error while creating git repository: '%s'", gitOpsRepoName)
 		}
-		err = impl.chartDeploymentService.RegisterInArgo(chartGitAttr, manifestPushTemplate.UserId, ctx, false)
+		err = impl.chartDeploymentService.RegisterInArgo(chartGitAttr, manifestPushTemplate.UserId, ctx)
 		if err != nil {
 			impl.logger.Errorw("error in registering app in acd", "err", err)
-			errMsg := fmt.Errorf("Error in registering repository '%s' in ArgoCd", gitOpsRepoName)
-			manifestPushResponse.Error = errMsg
-			impl.SaveTimelineForError(manifestPushTemplate, errMsg)
-			return manifestPushResponse
+			return fmt.Errorf("Error in registering repository '%s' in ArgoCd", gitOpsRepoName)
 		}
 		manifestPushTemplate.RepoUrl = chartGitAttr.RepoUrl
 		chartGitAttr.ChartLocation = manifestPushTemplate.ChartLocation
 		err = impl.chartService.UpdateGitRepoUrlInCharts(manifestPushTemplate.AppId, chartGitAttr, manifestPushTemplate.UserId)
 		if err != nil {
 			impl.logger.Errorw("error in updating git repo url in charts", "err", err)
-			errMsg := fmt.Errorf("No repository configured for Gitops! Error while creating git repository: '%s'", gitOpsRepoName)
-			manifestPushResponse.Error = errMsg
-			impl.SaveTimelineForError(manifestPushTemplate, errMsg)
-			return manifestPushResponse
+			return fmt.Errorf("No repository configured for Gitops! Error while creating git repository: '%s'", gitOpsRepoName)
 		}
 	}
+	return nil
+}
 
-	validateRequest := gitops.ValidateCustomGitRepoURLRequest{
-		GitRepoURL: manifestPushTemplate.RepoUrl,
-	}
-	detailedErrorGitOpsConfigResponse := impl.gitOpsConfigService.ValidateCustomGitRepoURL(validateRequest)
-	if len(detailedErrorGitOpsConfigResponse.StageErrorMap) != 0 {
-		errMsg := impl.gitOpsConfigService.ExtractErrorsFromGitOpsConfigResponse(detailedErrorGitOpsConfigResponse)
-		impl.logger.Errorw("invalid gitOps repo URL", "err", errMsg)
-		manifestPushResponse.Error = errMsg //as the pipeline_status_timeline.status_detail is of type TEXT; the length of errMsg won't be an issue
+func (impl *GitOpsManifestPushServiceImpl) PushChart(manifestPushTemplate *bean.ManifestPushTemplate, ctx context.Context) bean.ManifestPushResponse {
+	manifestPushResponse := bean.ManifestPushResponse{}
+
+	// 1. Validate Repository for Git Operation
+	errMsg := impl.ValidateRepoForGitOperation(manifestPushTemplate, ctx)
+	if errMsg != nil {
+		manifestPushResponse.Error = errMsg
 		impl.SaveTimelineForError(manifestPushTemplate, errMsg)
 		return manifestPushResponse
 	}
 
-	err = impl.PushChartToGitRepo(manifestPushTemplate, ctx)
+	// 2. Push Chart to Git Repository
+	err := impl.PushChartToGitRepo(manifestPushTemplate, ctx)
 	if err != nil {
 		impl.logger.Errorw("error in pushing chart to git", "err", err)
 		manifestPushResponse.Error = err
 		impl.SaveTimelineForError(manifestPushTemplate, err)
 		return manifestPushResponse
 	}
+
+	// 3. Commit chart values to Git Repository
 	commitHash, commitTime, err := impl.CommitValuesToGit(manifestPushTemplate, ctx)
 	if err != nil {
 		impl.logger.Errorw("error in committing values to git", "err", err)
@@ -149,6 +137,7 @@ func (impl *GitOpsManifestPushServiceImpl) PushChart(manifestPushTemplate *bean.
 	manifestPushResponse.CommitHash = commitHash
 	manifestPushResponse.CommitTime = commitTime
 
+	// 4. Update Deployment Status Timeline
 	dbConnection := impl.pipelineStatusTimelineRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {

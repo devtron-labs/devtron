@@ -106,6 +106,4 @@ func (router AppStoreRouterImpl) Init(configRouter *mux.Router) {
 		HandlerFunc(router.deployRestHandler.GetAllInstalledApp).Methods("GET")
 	configRouter.Path("/cluster-component/install/{clusterId}").
 		HandlerFunc(router.deployRestHandler.DefaultComponentInstallation).Methods("POST")
-	configRouter.Path("/gitops/validate").
-		HandlerFunc(router.deployRestHandler.ValidateGitOpsConfigForHelmApp).Methods("POST")
 }

@@ -20,6 +20,20 @@ package service
 import (
 	"bytes"
 	"context"
+	/* #nosec */
+	"crypto/sha1"
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"net/http"
+	"os"
+	"regexp"
+	"strconv"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"time"
+
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/devtron-labs/common-lib/pubsub-lib/model"
 	util4 "github.com/devtron-labs/common-lib/utils/k8s"
@@ -41,30 +55,16 @@ import (
 	appStoreDeploymentGitopsTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool/gitops"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/values/service"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	repository5 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	application3 "github.com/devtron-labs/devtron/pkg/k8s/application"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	repository4 "github.com/devtron-labs/devtron/pkg/team"
-	"github.com/devtron-labs/devtron/pkg/user"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/tidwall/gjson"
-	"net/http"
-	"regexp"
-	"sync"
-	"sync/atomic"
-
-	/* #nosec */
-	"crypto/sha1"
-	"encoding/json"
-	"fmt"
-	"io/ioutil"
-	"os"
-	"strconv"
-	"strings"
-	"time"
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -324,15 +324,6 @@ func (impl InstalledAppServiceImpl) DeployBulk(chartGroupInstallRequest *appStor
 		if err != nil {
 			impl.logger.Errorw("DeployBulk, error while app store deploy db operation", "err", err)
 			return nil, err
-		}
-
-		if installAppVersionDTO.DetailedErrorGitOpsConfigResponse != nil &&
-			len(installAppVersionDTO.DetailedErrorGitOpsConfigResponse.StageErrorMap) != 0 {
-			errMsg := fmt.Sprintf("GitOps repository validation error for app '%s':", installAppVersionDTO.AppName)
-			for stage, errorMessage := range installAppVersionDTO.DetailedErrorGitOpsConfigResponse.StageErrorMap {
-				errMsg += fmt.Sprintf("\n%s: %s", stage, errorMessage)
-			}
-			return nil, fmt.Errorf(errMsg)
 		}
 		installAppVersions = append(installAppVersions, installAppVersionDTO)
 	}

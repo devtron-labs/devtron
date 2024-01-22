@@ -22,6 +22,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
@@ -35,12 +40,10 @@ import (
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
-	"github.com/devtron-labs/devtron/pkg/chart"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/cluster"
-	"github.com/devtron-labs/devtron/pkg/gitops"
 	application2 "github.com/devtron-labs/devtron/pkg/k8s/application"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -49,10 +52,6 @@ import (
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
-	"net/http"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type InstalledAppRestHandler interface {
@@ -67,7 +66,6 @@ type InstalledAppRestHandler interface {
 	FetchResourceTree(w http.ResponseWriter, r *http.Request)
 	FetchResourceTreeForACDApp(w http.ResponseWriter, r *http.Request)
 	FetchNotesForArgoInstalledApp(w http.ResponseWriter, r *http.Request)
-	ValidateGitOpsConfigForHelmApp(w http.ResponseWriter, r *http.Request)
 }
 
 type InstalledAppRestHandlerImpl struct {
@@ -87,7 +85,6 @@ type InstalledAppRestHandlerImpl struct {
 	installedAppRepository           repository.InstalledAppRepository
 	K8sApplicationService            application2.K8sApplicationService
 	appCrudOperationService          app2.AppCrudOperationService
-	gitOpsService                    gitops.GitOpsConfigService
 }
 
 func NewInstalledAppRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService,
@@ -98,7 +95,6 @@ func NewInstalledAppRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService u
 	cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler,
 	installedAppRepository repository.InstalledAppRepository,
 	appCrudOperationService app2.AppCrudOperationService,
-	gitOpsService gitops.GitOpsConfigService,
 ) *InstalledAppRestHandlerImpl {
 	return &InstalledAppRestHandlerImpl{
 		Logger:                           Logger,
@@ -116,7 +112,6 @@ func NewInstalledAppRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService u
 		cdApplicationStatusUpdateHandler: cdApplicationStatusUpdateHandler,
 		installedAppRepository:           installedAppRepository,
 		appCrudOperationService:          appCrudOperationService,
-		gitOpsService:                    gitOpsService,
 	}
 }
 func (handler *InstalledAppRestHandlerImpl) FetchAppOverview(w http.ResponseWriter, r *http.Request) {
@@ -166,12 +161,6 @@ func (handler InstalledAppRestHandlerImpl) GetAllInstalledApp(w http.ResponseWri
 	}
 	v := r.URL.Query()
 	token := r.Header.Get("token")
-	userEmailId, err := handler.userAuthService.GetEmailFromToken(token)
-	if err != nil {
-		handler.Logger.Errorw("error in getting user emailId from token", "userId", userId, "err", err)
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
 	var envIds []int
 	envsQueryParam := v.Get("envIds")
 	if envsQueryParam != "" {
@@ -297,8 +286,8 @@ func (handler InstalledAppRestHandlerImpl) GetAllInstalledApp(w http.ResponseWri
 
 	}
 	start := time.Now()
-	resultObjectMap1 := handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceHelmApp, casbin.ActionGet, objectArray1)
-	resultObjectMap2 := handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceHelmApp, casbin.ActionGet, objectArray2)
+	resultObjectMap1 := handler.enforcer.EnforceInBatch(token, casbin.ResourceHelmApp, casbin.ActionGet, objectArray1)
+	resultObjectMap2 := handler.enforcer.EnforceInBatch(token, casbin.ResourceHelmApp, casbin.ActionGet, objectArray2)
 	middleware.AppListingDuration.WithLabelValues("enforceByEmailInBatch", "helm").Observe(time.Since(start).Seconds())
 	authorizedAppIdSet := make(map[string]bool)
 	//O(n) time loop , at max we will only iterate through all the apps
@@ -844,47 +833,4 @@ func (handler *InstalledAppRestHandlerImpl) fetchResourceTreeWithHibernateForACD
 	ctx := r.Context()
 	cn, _ := w.(http.CloseNotifier)
 	handler.installedAppService.FetchResourceTreeWithHibernateForACD(ctx, cn, appDetail)
-}
-
-func (handler *InstalledAppRestHandlerImpl) ValidateGitOpsConfigForHelmApp(w http.ResponseWriter, r *http.Request) {
-	userId, err := handler.userAuthService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-
-	var gitOpsConfigRequest chart.HelmAppGitOpsConfigRequest
-	decoder := json.NewDecoder(r.Body)
-	err = decoder.Decode(&gitOpsConfigRequest)
-	if err != nil {
-		handler.Logger.Errorw("request err, ValidateGitOpsConfigForHelmApp", "error", err, "payload", gitOpsConfigRequest)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	err = handler.validator.Struct(gitOpsConfigRequest)
-	if err != nil {
-		handler.Logger.Errorw("validation err, ValidateGitOpsConfigForHelmApp", "err", err, "payload", gitOpsConfigRequest)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	//rbac block starts from here
-	token := r.Header.Get("token")
-	rbacObject, rbacObject2 := handler.enforcerUtil.GetHelmObjectByProjectIdAndEnvId(gitOpsConfigRequest.TeamId, gitOpsConfigRequest.EnvironmentId)
-
-	ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionCreate, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionCreate, rbacObject2)
-	if !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
-		return
-	}
-	//rbac block ends here
-	validateRequest := gitops.ValidateCustomGitRepoURLRequest{
-		GitRepoURL:               gitOpsConfigRequest.GitOpsRepoURL,
-		UserId:                   userId,
-		ExtraValidationStage:     gitops.Validate_Empty_Repo,
-		PerformDefaultValidation: gitOpsConfigRequest.GitOpsRepoURL == bean2.GIT_REPO_DEFAULT,
-	}
-	detailedErrorGitOpsConfigResponse := handler.gitOpsService.ValidateCustomGitRepoURL(validateRequest)
-	common.WriteJsonResp(w, nil, detailedErrorGitOpsConfigResponse, http.StatusOK)
 }

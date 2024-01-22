@@ -51,7 +51,7 @@ type AppStoreDeploymentCommonService interface {
 	GetValuesAndRequirementGitConfig(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*util.ChartConfig, *util.ChartConfig, error)
 	CreateChartProxyAndGetPath(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*util.ChartCreateResponse, error)
 	CreateGitOpsRepoAndPushChart(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, builtChartPath string, requirementsConfig *util.ChartConfig, valuesConfig *util.ChartConfig) (*util.ChartGitAttribute, string, error)
-	CreateGitOpsRepo(gitOpsRepoURL, appName string, userId int32) (string, bool, error)
+	CreateGitOpsRepo(gitOpsRepoName string, userId int32) (string, bool, error)
 	CommitConfigToGit(chartConfig *util.ChartConfig) (gitHash string, err error)
 	GetGitCommitConfig(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, fileString string, filename string) (*util.ChartConfig, error)
 	GetValuesString(chartName, valuesOverrideYaml string) (string, error)
@@ -415,9 +415,9 @@ func (impl AppStoreDeploymentCommonServiceImpl) GenerateManifest(installAppVersi
 //}
 
 // CreateGitOpsRepo creates a gitOps repo with readme
-func (impl AppStoreDeploymentCommonServiceImpl) CreateGitOpsRepo(gitOpsRepoURL, appName string, userId int32) (string, bool, error) {
+func (impl AppStoreDeploymentCommonServiceImpl) CreateGitOpsRepo(gitOpsRepoName string, userId int32) (string, bool, error) {
 	//here gitops repo will be the app name, to breaking the mono repo structure
-	gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(appName)
+
 	gitOpsConfigBitbucket, err := impl.gitOpsConfigRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
 	if err != nil {
 		if err == pg.ErrNoRows {
@@ -552,7 +552,8 @@ func (impl AppStoreDeploymentCommonServiceImpl) CreateGitOpsRepoAndPushChart(ins
 		if gitOpsConfig.AllowCustomRepository && InstalledApp.IsCustomRepository {
 			return nil, "", fmt.Errorf("Invalid request! Git repository URL is not fpund for installed app '%s'", installAppVersionRequest.AppName)
 		}
-		gitopsRepoURL, isNew, err := impl.CreateGitOpsRepo(installAppVersionRequest.GitOpsRepoURL, installAppVersionRequest.AppName, installAppVersionRequest.UserId)
+		gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(installAppVersionRequest.AppName)
+		gitopsRepoURL, isNew, err := impl.CreateGitOpsRepo(gitOpsRepoName, installAppVersionRequest.UserId)
 		if err != nil {
 			impl.logger.Errorw("Error in creating gitops repo for ", "appName", installAppVersionRequest.AppName, "err", err)
 			return nil, "", err
@@ -567,6 +568,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) CreateGitOpsRepoAndPushChart(ins
 		// Rollback tx on error.
 		defer tx.Rollback()
 		InstalledApp.GitOpsRepoUrl = gitopsRepoURL
+		InstalledApp.GitOpsRepoName = gitOpsRepoName // Handled for backward compatibility
 		InstalledApp.IsCustomRepository = false
 		_, err = impl.installedAppRepository.UpdateInstalledApp(InstalledApp, tx)
 		if err != nil {

@@ -5,12 +5,19 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/generateManifest"
@@ -19,17 +26,11 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/pkg/variables/models"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
 	"go.opentelemetry.io/otel"
-	"io"
-	"net/http"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type DeploymentHistoryResp struct {
@@ -68,8 +69,8 @@ type DevtronAppDeploymentConfigRestHandler interface {
 	GetAppOverrideForDefaultTemplate(w http.ResponseWriter, r *http.Request)
 	GetTemplateComparisonMetadata(w http.ResponseWriter, r *http.Request)
 	GetDeploymentTemplateData(w http.ResponseWriter, r *http.Request)
-	ConfigureGitOpsConfigurationForApp(w http.ResponseWriter, r *http.Request)
-	GetGitOpsConfigurationOfApp(w http.ResponseWriter, r *http.Request)
+	SaveGitOpsConfiguration(w http.ResponseWriter, r *http.Request)
+	GetGitOpsConfiguration(w http.ResponseWriter, r *http.Request)
 
 	EnvConfigOverrideCreate(w http.ResponseWriter, r *http.Request)
 	EnvConfigOverrideUpdate(w http.ResponseWriter, r *http.Request)
@@ -947,8 +948,7 @@ func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplateData(w http.Re
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	isSuperAdmin, _ := handler.userAuthService.IsSuperAdmin(int(userId))
-
+	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
 	//RBAC enforcer Ends
 
 	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
@@ -2490,17 +2490,12 @@ func (handler PipelineConfigRestHandlerImpl) UpgradeForAllApps(w http.ResponseWr
 
 func (handler PipelineConfigRestHandlerImpl) GetCdPipelinesByEnvironment(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
+	token := r.Header.Get("token")
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	user, err := handler.userAuthService.GetById(userId)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	userEmailId := strings.ToLower(user.EmailId)
 	envId, err := strconv.Atoi(vars["envId"])
 	if err != nil {
 		handler.Logger.Errorw("request err, GetCdPipelines", "err", err, "envId", envId)
@@ -2536,13 +2531,12 @@ func (handler PipelineConfigRestHandlerImpl) GetCdPipelinesByEnvironment(w http.
 		ResourceGroupId:   appGroupId,
 		ResourceGroupType: resourceGroup2.APP_GROUP,
 		ResourceIds:       appIds,
-		EmailId:           userEmailId,
 		CheckAuthBatch:    handler.checkAuthBatch,
 		UserId:            userId,
 		Ctx:               r.Context(),
 	}
 	_, span := otel.Tracer("orchestrator").Start(r.Context(), "cdHandler.FetchCdPipelinesForResourceGrouping")
-	results, err := handler.pipelineBuilder.GetCdPipelinesByEnvironment(request)
+	results, err := handler.pipelineBuilder.GetCdPipelinesByEnvironment(request, token)
 	span.End()
 	if err != nil {
 		handler.Logger.Errorw("service err, GetCdPipelines", "err", err, "envId", envId)
@@ -2559,12 +2553,7 @@ func (handler PipelineConfigRestHandlerImpl) GetCdPipelinesByEnvironmentMin(w ht
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	user, err := handler.userAuthService.GetById(userId)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	userEmailId := strings.ToLower(user.EmailId)
+	token := r.Header.Get("token")
 	envId, err := strconv.Atoi(vars["envId"])
 	if err != nil {
 		handler.Logger.Errorw("request err, GetCdPipelines", "err", err, "envId", envId)
@@ -2600,14 +2589,13 @@ func (handler PipelineConfigRestHandlerImpl) GetCdPipelinesByEnvironmentMin(w ht
 		ResourceGroupId:   appGroupId,
 		ResourceGroupType: resourceGroup2.APP_GROUP,
 		ResourceIds:       appIds,
-		EmailId:           userEmailId,
 		CheckAuthBatch:    handler.checkAuthBatch,
 		UserId:            userId,
 		Ctx:               r.Context(),
 	}
 
 	_, span := otel.Tracer("orchestrator").Start(r.Context(), "cdHandler.FetchCdPipelinesForResourceGrouping")
-	results, err := handler.pipelineBuilder.GetCdPipelinesByEnvironmentMin(request)
+	results, err := handler.pipelineBuilder.GetCdPipelinesByEnvironmentMin(request, token)
 	span.End()
 	if err != nil {
 		handler.Logger.Errorw("service err, GetCdPipelines", "err", err, "envId", envId)
@@ -2617,19 +2605,19 @@ func (handler PipelineConfigRestHandlerImpl) GetCdPipelinesByEnvironmentMin(w ht
 	common.WriteJsonResp(w, err, results, http.StatusOK)
 }
 
-func (handler *PipelineConfigRestHandlerImpl) checkAuthBatch(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool) {
+func (handler *PipelineConfigRestHandlerImpl) checkAuthBatch(token string, appObject []string, envObject []string) (map[string]bool, map[string]bool) {
 	var appResult map[string]bool
 	var envResult map[string]bool
 	if len(appObject) > 0 {
-		appResult = handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceApplications, casbin.ActionGet, appObject)
+		appResult = handler.enforcer.EnforceInBatch(token, casbin.ResourceApplications, casbin.ActionGet, appObject)
 	}
 	if len(envObject) > 0 {
-		envResult = handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceEnvironment, casbin.ActionGet, envObject)
+		envResult = handler.enforcer.EnforceInBatch(token, casbin.ResourceEnvironment, casbin.ActionGet, envObject)
 	}
 	return appResult, envResult
 }
 
-func (handler *PipelineConfigRestHandlerImpl) ConfigureGitOpsConfigurationForApp(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) SaveGitOpsConfiguration(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -2639,13 +2627,13 @@ func (handler *PipelineConfigRestHandlerImpl) ConfigureGitOpsConfigurationForApp
 	var appGitOpsConfigRequest chart.AppGitOpsConfigRequest
 	err = decoder.Decode(&appGitOpsConfigRequest)
 	if err != nil {
-		handler.Logger.Errorw("request err, ConfigureGitOpsConfigurationForApp", "err", err, "payload", appGitOpsConfigRequest)
+		handler.Logger.Errorw("request err, SaveGitOpsConfiguration", "err", err, "payload", appGitOpsConfigRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	appGitOpsConfigRequest.UserId = userId
 
-	handler.Logger.Infow("request payload, ConfigureGitOpsConfigurationForApp", "payload", appGitOpsConfigRequest)
+	handler.Logger.Infow("request payload, SaveGitOpsConfiguration", "payload", appGitOpsConfigRequest)
 	err = handler.validator.Struct(appGitOpsConfigRequest)
 	if err != nil {
 		handler.Logger.Errorw("validation err, ConfigureDeploymentTemplateForApp", "err", err, "payload", appGitOpsConfigRequest)
@@ -2673,17 +2661,22 @@ func (handler *PipelineConfigRestHandlerImpl) ConfigureGitOpsConfigurationForApp
 	ctx := context.WithValue(r.Context(), "token", acdToken)
 
 	_, span := otel.Tracer("orchestrator").Start(ctx, "chartService.SaveAppLevelGitOpsConfiguration")
-	detailedErrorGitOpsConfigResponse, err := handler.chartService.SaveAppLevelGitOpsConfiguration(appGitOpsConfigRequest, app.AppName, ctx)
+	err = handler.chartService.SaveAppLevelGitOpsConfiguration(&appGitOpsConfigRequest, app.AppName, ctx)
 	span.End()
 	if err != nil {
 		handler.Logger.Errorw("service err, SaveAppLevelGitOpsConfiguration", "err", err, "request", appGitOpsConfigRequest)
-		common.WriteJsonResp(w, err, err, http.StatusInternalServerError)
+		errResponse, ok := err.(*util.ApiError)
+		if ok && errResponse.HttpStatusCode != 0 {
+			common.WriteJsonResp(w, err, err, errResponse.HttpStatusCode)
+			return
+		}
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	common.WriteJsonResp(w, nil, detailedErrorGitOpsConfigResponse, http.StatusOK)
+	common.WriteJsonResp(w, nil, appGitOpsConfigRequest, http.StatusOK)
 }
 
-func (handler *PipelineConfigRestHandlerImpl) GetGitOpsConfigurationOfApp(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) GetGitOpsConfiguration(w http.ResponseWriter, r *http.Request) {
 
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -2708,9 +2701,14 @@ func (handler *PipelineConfigRestHandlerImpl) GetGitOpsConfigurationOfApp(w http
 		return
 	}
 
-	appGitOpsConfig, err := handler.chartService.GetGitOpsConfigurationOfApp(appId)
+	appGitOpsConfig, err := handler.chartService.GetAppLevelGitOpsConfiguration(appId)
 	if err != nil {
-		handler.Logger.Errorw("service err, GetGitOpsConfigurationOfApp", "err", err, "appId", appId)
+		handler.Logger.Errorw("service err, GetAppLevelGitOpsConfiguration", "err", err, "appId", appId)
+		errResponse, ok := err.(*util.ApiError)
+		if ok && errResponse.HttpStatusCode != 0 {
+			common.WriteJsonResp(w, err, err, errResponse.HttpStatusCode)
+			return
+		}
 		common.WriteJsonResp(w, err, err, http.StatusInternalServerError)
 		return
 	}
