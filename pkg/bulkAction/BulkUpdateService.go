@@ -39,6 +39,7 @@ import (
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"go.uber.org/zap"
+	"k8s.io/utils/pointer"
 	"net/http"
 	"sort"
 	"strings"
@@ -55,7 +56,7 @@ type BulkUpdateService interface {
 
 	BulkHibernate(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationHibernateUnhibernateForEnvironmentResponse, error)
 	BulkUnHibernate(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationHibernateUnhibernateForEnvironmentResponse, error)
-	BulkDeploy(request *BulkApplicationForEnvironmentPayload, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) (*BulkApplicationForEnvironmentResponse, error)
+	BulkDeploy(request *BulkApplicationForEnvironmentPayload, token string, checkAuthBatch func(token string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) (*BulkApplicationForEnvironmentResponse, error)
 	BulkBuildTrigger(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationForEnvironmentResponse, error)
 
 	GetBulkActionImpactedPipelinesAndWfs(dto *CdBulkActionRequestDto) ([]*pipelineConfig.Pipeline, []int, []int, error)
@@ -1069,7 +1070,10 @@ func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvir
 			UserId:        request.UserId,
 			RequestType:   pipeline1.STOP,
 		}
-		_, hibernateReqError = impl.workflowDagExecutor.StopStartApp(stopRequest, ctx)
+		triggerContext := pipeline1.TriggerContext{
+			Context: ctx,
+		}
+		_, hibernateReqError = impl.workflowDagExecutor.StopStartApp(triggerContext, stopRequest)
 		if hibernateReqError != nil {
 			impl.logger.Errorw("error in hibernating application", "err", hibernateReqError, "pipeline", pipeline)
 			pipelineResponse := response[appKey]
@@ -1225,7 +1229,10 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 			UserId:        request.UserId,
 			RequestType:   pipeline1.START,
 		}
-		_, hibernateReqError = impl.workflowDagExecutor.StopStartApp(stopRequest, ctx)
+		triggerContext := pipeline1.TriggerContext{
+			Context: ctx,
+		}
+		_, hibernateReqError = impl.workflowDagExecutor.StopStartApp(triggerContext, stopRequest)
 		if hibernateReqError != nil {
 			impl.logger.Errorw("error in un-hibernating application", "err", hibernateReqError, "pipeline", pipeline)
 			pipelineResponse := response[appKey]
@@ -1265,7 +1272,7 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 	return bulkOperationResponse, nil
 }
 
-func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironmentPayload, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) (*BulkApplicationForEnvironmentResponse, error) {
+func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironmentPayload, token string, checkAuthBatch func(token string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) (*BulkApplicationForEnvironmentResponse, error) {
 	var pipelines []*pipelineConfig.Pipeline
 	var err error
 
@@ -1332,7 +1339,7 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironm
 		appObjectArr = append(appObjectArr, object[0])
 		envObjectArr = append(envObjectArr, object[1])
 	}
-	appResults, envResults := checkAuthBatch(emailId, appObjectArr, envObjectArr)
+	appResults, envResults := checkAuthBatch(token, appObjectArr, envObjectArr)
 	//authorization block ends here
 
 	response := make(map[string]map[string]bool)
@@ -1423,9 +1430,6 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironm
 func (impl BulkUpdateServiceImpl) SubscribeToCdBulkTriggerTopic() error {
 
 	callback := func(msg *model.PubSubMsg) {
-		impl.logger.Infow("Event received",
-			"topic", pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC,
-			"msg", msg.Data)
 
 		event := &bean.BulkCdDeployEvent{}
 		err := json.Unmarshal([]byte(msg.Data), event)
@@ -1446,7 +1450,12 @@ func (impl BulkUpdateServiceImpl) SubscribeToCdBulkTriggerTopic() error {
 			return
 		}
 
-		_, err = impl.workflowDagExecutor.ManualCdTrigger(event.ValuesOverrideRequest, ctx)
+		triggerContext := pipeline1.TriggerContext{
+			ReferenceId: pointer.String(msg.MsgId),
+			Context:     ctx,
+		}
+
+		_, err = impl.workflowDagExecutor.ManualCdTrigger(triggerContext, event.ValuesOverrideRequest)
 		if err != nil {
 			impl.logger.Errorw("Error triggering CD",
 				"topic", pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC,
@@ -1454,7 +1463,19 @@ func (impl BulkUpdateServiceImpl) SubscribeToCdBulkTriggerTopic() error {
 				"err", err)
 		}
 	}
-	err := impl.pubsubClient.Subscribe(pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC, callback)
+
+	// add required logging here
+	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) (string, []interface{}) {
+		event := &bean.BulkCdDeployEvent{}
+		err := json.Unmarshal([]byte(msg.Data), event)
+		if err != nil {
+			return "error unmarshalling received event", []interface{}{"msg", msg.Data, "err", err}
+		}
+		return "got message for trigger cd in bulk", []interface{}{"pipelineId", event.ValuesOverrideRequest.PipelineId, "appId", event.ValuesOverrideRequest.AppId, "cdWorkflowType", event.ValuesOverrideRequest.CdWorkflowType, "ciArtifactId", event.ValuesOverrideRequest.CiArtifactId}
+	}
+
+	validations := impl.workflowDagExecutor.GetTriggerValidateFuncs()
+	err := impl.pubsubClient.Subscribe(pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC, callback, loggerFunc, validations...)
 	if err != nil {
 		impl.logger.Error("failed to subscribe to NATS topic",
 			"topic", pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC,

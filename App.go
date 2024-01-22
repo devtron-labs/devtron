@@ -21,13 +21,16 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/devtron-labs/devtron/api/util"
-	"github.com/devtron-labs/devtron/client/telemetry"
-	"github.com/devtron-labs/devtron/otel"
+	"github.com/devtron-labs/common-lib/middlewares"
 	"log"
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/devtron-labs/devtron/api/util"
+	"github.com/devtron-labs/devtron/client/telemetry"
+	"github.com/devtron-labs/devtron/otel"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 
 	"github.com/casbin/casbin"
 	authMiddleware "github.com/devtron-labs/authenticator/middleware"
@@ -35,7 +38,6 @@ import (
 	"github.com/devtron-labs/devtron/api/router"
 	"github.com/devtron-labs/devtron/api/sse"
 	"github.com/devtron-labs/devtron/internal/middleware"
-	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/go-pg/pg"
 	_ "github.com/lib/pq"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
@@ -100,6 +102,8 @@ func (app *App) Start() {
 	server := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: authMiddleware.Authorizer(app.sessionManager2, user.WhitelistChecker)(app.MuxRouter.Router)}
 	app.MuxRouter.Router.Use(app.loggingMiddleware.LoggingMiddleware)
 	app.MuxRouter.Router.Use(middleware.PrometheusMiddleware)
+	app.MuxRouter.Router.Use(middlewares.Recovery)
+
 	if tracerProvider != nil {
 		app.MuxRouter.Router.Use(otelmux.Middleware(otel.OTEL_ORCHESTRASTOR_SERVICE_NAME))
 	}

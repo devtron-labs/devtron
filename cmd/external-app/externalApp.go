@@ -2,14 +2,16 @@ package main
 
 import (
 	"fmt"
-	authMiddleware "github.com/devtron-labs/authenticator/middleware"
-	"github.com/devtron-labs/devtron/client/telemetry"
-	"github.com/devtron-labs/devtron/internal/middleware"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/go-pg/pg"
-	"go.uber.org/zap"
 	"net/http"
 	"os"
+
+	authMiddleware "github.com/devtron-labs/authenticator/middleware"
+	"github.com/devtron-labs/common-lib/middlewares"
+	"github.com/devtron-labs/devtron/client/telemetry"
+	"github.com/devtron-labs/devtron/internal/middleware"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
+	"github.com/go-pg/pg"
+	"go.uber.org/zap"
 )
 
 type App struct {
@@ -53,6 +55,7 @@ func (app *App) Start() {
 	}
 	server := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: authMiddleware.Authorizer(app.sessionManager, user.WhitelistChecker)(app.MuxRouter.Router)}
 	app.MuxRouter.Router.Use(middleware.PrometheusMiddleware)
+	app.MuxRouter.Router.Use(middlewares.Recovery)
 	app.server = server
 
 	err = server.ListenAndServe()

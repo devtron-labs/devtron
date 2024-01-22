@@ -5,18 +5,21 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"time"
+
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/attributes"
+	"github.com/devtron-labs/devtron/pkg/auth/sso"
+	user2 "github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	module2 "github.com/devtron-labs/devtron/pkg/module"
 	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
 	serverDataStore "github.com/devtron-labs/devtron/pkg/server/store"
-	"github.com/devtron-labs/devtron/pkg/sso"
-	"github.com/devtron-labs/devtron/pkg/user"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
@@ -30,8 +33,6 @@ import (
 	"k8s.io/api/core/v1"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/version"
-	"net/http"
-	"time"
 )
 
 const LOGIN_COUNT_CONST = "login-count"
@@ -43,15 +44,15 @@ type TelemetryEventClientImpl struct {
 	logger                   *zap.SugaredLogger
 	client                   *http.Client
 	clusterService           cluster.ClusterService
-	K8sUtil                  *k8s.K8sUtil
+	K8sUtil                  *k8s.K8sServiceImpl
 	aCDAuthConfig            *util3.ACDAuthConfig
-	userService              user.UserService
+	userService              user2.UserService
 	attributeRepo            repository.AttributesRepository
 	ssoLoginService          sso.SSOLoginService
 	PosthogClient            *PosthogClient
 	moduleRepository         moduleRepo.ModuleRepository
 	serverDataStore          *serverDataStore.ServerDataStore
-	userAuditService         user.UserAuditService
+	userAuditService         user2.UserAuditService
 	helmAppClient            client.HelmAppClient
 	InstalledAppRepository   repository2.InstalledAppRepository
 	userAttributesRepository repository.UserAttributesRepository
@@ -67,9 +68,9 @@ type TelemetryEventClient interface {
 }
 
 func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client, clusterService cluster.ClusterService,
-	K8sUtil *k8s.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig, userService user.UserService,
+	K8sUtil *k8s.K8sServiceImpl, aCDAuthConfig *util3.ACDAuthConfig, userService user2.UserService,
 	attributeRepo repository.AttributesRepository, ssoLoginService sso.SSOLoginService,
-	PosthogClient *PosthogClient, moduleRepository moduleRepo.ModuleRepository, serverDataStore *serverDataStore.ServerDataStore, userAuditService user.UserAuditService, helmAppClient client.HelmAppClient, InstalledAppRepository repository2.InstalledAppRepository) (*TelemetryEventClientImpl, error) {
+	PosthogClient *PosthogClient, moduleRepository moduleRepo.ModuleRepository, serverDataStore *serverDataStore.ServerDataStore, userAuditService user2.UserAuditService, helmAppClient client.HelmAppClient, InstalledAppRepository repository2.InstalledAppRepository) (*TelemetryEventClientImpl, error) {
 	cron := cron.New(
 		cron.WithChain())
 	cron.Start()
