@@ -2,9 +2,12 @@ package model
 
 const PUBLISH_SUCCESS = "SUCCESS"
 const PUBLISH_FAILURE = "FAILURE"
+const NatsMsgId = "Nats-Msg-Id"
 
 type PubSubMsg struct {
-	Data string
+	Data            string
+	MsgDeliverCount uint64
+	MsgId           string
 }
 
 type LogsConfig struct {
