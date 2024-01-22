@@ -19,7 +19,7 @@ type ImageDigestPolicyService interface {
 	CreatePolicyForPipelineIfNotExist(tx *pg.Tx, pipelineId int, pipelineName string, UserId int32) (int, error)
 
 	//GetDigestPolicyConfigurations returns true if pipeline or env or cluster has image digest policy enabled
-	GetDigestPolicyConfigurations(digestConfigurationRequest DigestPolicyConfigurationRequest) (digestPolicyConfiguration DigestPolicyConfiguration, err error)
+	GetDigestPolicyConfigurations(digestConfigurationRequest DigestPolicyConfigurationRequest) (digestPolicyConfiguration DigestPolicyConfigurationResponse, err error)
 
 	//DeletePolicyForPipeline deletes image digest policy for a pipeline
 	DeletePolicyForPipeline(tx *pg.Tx, pipelineId int, userId int32) (int, error)
@@ -83,13 +83,12 @@ func (impl ImageDigestPolicyServiceImpl) CreatePolicyForPipelineIfNotExist(tx *p
 	return qualifierMappingId, nil
 }
 
-func (impl ImageDigestPolicyServiceImpl) GetDigestPolicyConfigurations(digestConfigurationRequest DigestPolicyConfigurationRequest) (digestPolicyConfiguration DigestPolicyConfiguration, err error) {
+func (impl ImageDigestPolicyServiceImpl) GetDigestPolicyConfigurations(digestConfigurationRequest DigestPolicyConfigurationRequest) (digestPolicyConfiguration DigestPolicyConfigurationResponse, err error) {
 
 	resourceIds := []int{resourceQualifiers.ImageDigestResourceId}
 
-	scope := &resourceQualifiers.Scope{
-		PipelineId: digestConfigurationRequest.PipelineId,
-	}
+	scope := digestConfigurationRequest.getQualifierMappingScope()
+
 	policyMappings, err := impl.qualifierMappingService.GetQualifierMappings(resourceQualifiers.ImageDigest, scope, resourceIds)
 	if err != nil && err != pg.ErrNoRows {
 		return digestPolicyConfiguration, err
@@ -129,14 +128,4 @@ func (impl ImageDigestPolicyServiceImpl) DeletePolicyForPipeline(tx *pg.Tx, pipe
 		return pipelineId, err
 	}
 	return pipelineId, nil
-}
-
-func (impl ImageDigestPolicyServiceImpl) getQualifierMappingForPipeline(pipelineId int) ([]*resourceQualifiers.QualifierMapping, error) {
-	scope := &resourceQualifiers.Scope{PipelineId: pipelineId}
-	resourceIds := []int{resourceQualifiers.ImageDigestResourceId}
-	qualifierMappings, err := impl.qualifierMappingService.GetQualifierMappings(resourceQualifiers.ImageDigest, scope, resourceIds)
-	if err != nil && err != pg.ErrNoRows {
-		return qualifierMappings, err
-	}
-	return qualifierMappings, err
 }

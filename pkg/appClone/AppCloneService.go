@@ -31,7 +31,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/chart"
-	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/go-pg/pg"
@@ -58,7 +57,6 @@ type AppCloneServiceImpl struct {
 	pipelineRepository      pipelineConfig.PipelineRepository
 	appWorkflowRepository   appWorkflow2.AppWorkflowRepository
 	ciPipelineConfigService pipeline.CiPipelineConfigService
-	imageDigestService      imageDigestPolicy.ImageDigestPolicyService
 }
 
 func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
@@ -73,8 +71,7 @@ func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
 	pipelineStageService pipeline.PipelineStageService, ciTemplateService pipeline.CiTemplateService,
 	appRepository app2.AppRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	pipelineRepository pipelineConfig.PipelineRepository, appWorkflowRepository appWorkflow2.AppWorkflowRepository,
-	ciPipelineConfigService pipeline.CiPipelineConfigService,
-	imageDigestService imageDigestPolicy.ImageDigestPolicyService) *AppCloneServiceImpl {
+	ciPipelineConfigService pipeline.CiPipelineConfigService) *AppCloneServiceImpl {
 	return &AppCloneServiceImpl{
 		logger:                  logger,
 		pipelineBuilder:         pipelineBuilder,
@@ -91,7 +88,6 @@ func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
 		pipelineRepository:      pipelineRepository,
 		appWorkflowRepository:   appWorkflowRepository,
 		ciPipelineConfigService: ciPipelineConfigService,
-		imageDigestService:      imageDigestService,
 	}
 }
 
