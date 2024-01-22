@@ -517,7 +517,3 @@ This command deletes the Devtron pod in the `devtroncd` namespace with the label
 
 Following these steps should allow you to refresh the ArgoCD certificates when they have expired.
 
-
-
-
-
