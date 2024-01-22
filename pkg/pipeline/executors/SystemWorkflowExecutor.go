@@ -30,10 +30,10 @@ type SystemWorkflowExecutor interface {
 
 type SystemWorkflowExecutorImpl struct {
 	logger  *zap.SugaredLogger
-	k8sUtil *k8s.K8sUtil
+	k8sUtil *k8s.K8sServiceImpl
 }
 
-func NewSystemWorkflowExecutorImpl(logger *zap.SugaredLogger, k8sUtil *k8s.K8sUtil) *SystemWorkflowExecutorImpl {
+func NewSystemWorkflowExecutorImpl(logger *zap.SugaredLogger, k8sUtil *k8s.K8sServiceImpl) *SystemWorkflowExecutorImpl {
 	return &SystemWorkflowExecutorImpl{logger: logger, k8sUtil: k8sUtil}
 }
 

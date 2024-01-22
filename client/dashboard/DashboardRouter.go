@@ -2,6 +2,7 @@ package dashboard
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/client/proxy"
 	"github.com/google/wire"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -31,7 +32,7 @@ func NewDashboardRouterImpl(logger *zap.SugaredLogger, dashboardCfg *Config) *Da
 			ExpectContinueTimeout: 1 * time.Second,
 		},
 	}
-	dashboardProxy := NewDashboardHTTPReverseProxy(fmt.Sprintf("http://%s:%s", dashboardCfg.Host, dashboardCfg.Port), client.Transport)
+	dashboardProxy := proxy.NewDashboardHTTPReverseProxy(fmt.Sprintf("http://%s:%s", dashboardCfg.Host, dashboardCfg.Port), client.Transport)
 	router := &DashboardRouterImpl{
 		dashboardProxy: dashboardProxy,
 		logger:         logger,

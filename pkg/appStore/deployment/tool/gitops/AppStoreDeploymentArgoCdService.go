@@ -74,9 +74,9 @@ type AppStoreDeploymentArgoCdServiceImpl struct {
 	helmAppService                       client.HelmAppService
 	gitOpsConfigRepository               repository3.GitOpsConfigRepository
 	appStatusService                     appStatus.AppStatusService
-	pipelineStatusTimelineService    status.PipelineStatusTimelineService
-	userService                      user.UserService
-	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository
+	pipelineStatusTimelineService        status.PipelineStatusTimelineService
+	userService                          user.UserService
+	pipelineStatusTimelineRepository     pipelineConfig.PipelineStatusTimelineRepository
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository
 	argoClientWrapperService             argocdServer.ArgoClientWrapperService
 	acdConfig                            *argocdServer.ACDConfig
@@ -463,7 +463,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) GetDeploymentHistory(ctx context
 	installedAppVersions, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppIdMeta(installedAppDto.InstalledAppId)
 	if err != nil {
 		if err == pg.ErrNoRows {
-			return nil, fmt.Errorf("values are outdated. please fetch the latest version and try again")
+			return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: "400", UserMessage: "values are outdated. please fetch the latest version and try again", InternalMessage: err.Error()}
 		}
 		impl.Logger.Errorw("error while fetching installed version", "error", err)
 		return result, err

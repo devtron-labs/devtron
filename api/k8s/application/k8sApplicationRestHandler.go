@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/common-lib/utils"
 	"net/http"
 	"strconv"
 	"strings"
@@ -62,9 +63,9 @@ type K8sApplicationRestHandlerImpl struct {
 	validator              *validator.Validate
 	enforcerUtil           rbac.EnforcerUtil
 	enforcerUtilHelm       rbac.EnforcerUtilHelm
-	helmAppService   client.HelmAppService
-	userService      user.UserService
-	k8sCommonService k8s.K8sCommonService
+	helmAppService         client.HelmAppService
+	userService            user.UserService
+	k8sCommonService       k8s.K8sCommonService
 }
 
 func NewK8sApplicationRestHandlerImpl(logger *zap.SugaredLogger, k8sApplicationService application2.K8sApplicationService, pump connector.Pump, terminalSessionHandler terminal.TerminalSessionHandler, enforcer casbin.Enforcer, enforcerUtilHelm rbac.EnforcerUtilHelm, enforcerUtil rbac.EnforcerUtil, helmAppService client.HelmAppService, userService user.UserService, k8sCommonService k8s.K8sCommonService, validator *validator.Validate) *K8sApplicationRestHandlerImpl {
@@ -512,8 +513,17 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWrit
 
 	resource, err := handler.k8sApplicationService.DeleteResourceWithAudit(r.Context(), &request, userId)
 	if err != nil {
+		errCode := http.StatusInternalServerError
+		if apiErr, ok := err.(*utils.ApiError); ok {
+			errCode = apiErr.HttpStatusCode
+			switch errCode {
+			case http.StatusNotFound:
+				errorMessage := "resource not found"
+				err = fmt.Errorf("%s: %w", errorMessage, err)
+			}
+		}
 		handler.logger.Errorw("error in deleting resource", "err", err)
-		common.WriteJsonResp(w, err, resource, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, resource, errCode)
 		return
 	}
 	common.WriteJsonResp(w, nil, resource, http.StatusOK)

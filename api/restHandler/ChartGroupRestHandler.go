@@ -36,9 +36,9 @@ const CHART_GROUP_DELETE_SUCCESS_RESP = "Chart group deleted successfully."
 
 type ChartGroupRestHandlerImpl struct {
 	ChartGroupService service.ChartGroupService
-	Logger          *zap.SugaredLogger
-	userAuthService user.UserService
-	enforcer        casbin.Enforcer
+	Logger            *zap.SugaredLogger
+	userAuthService   user.UserService
+	enforcer          casbin.Enforcer
 	validator         *validator.Validate
 }
 
