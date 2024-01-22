@@ -5,8 +5,9 @@ import "github.com/devtron-labs/devtron/pkg/sql"
 type ResourceType int
 
 const (
-	Variable ResourceType = 0
-	Filter                = 1
+	Variable     ResourceType = 0
+	Filter                    = 1
+	InfraProfile              = 2
 )
 
 type QualifierSelector int
@@ -44,7 +45,7 @@ type QualifierMapping struct {
 	IdentifierValueString string       `sql:"identifier_value_string"`
 	ParentIdentifier      int          `sql:"parent_identifier"`
 	CompositeKey          string       `sql:"-"`
-	//Data                  string   `sql:"-"`
-	//VariableData          *VariableData
+	// Data                  string   `sql:"-"`
+	// VariableData          *VariableData
 	sql.AuditLog
 }

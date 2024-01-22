@@ -29,10 +29,6 @@ type CiCdConfig struct {
 	CiDefaultTimeout                 int64                               `env:"DEFAULT_TIMEOUT" envDefault:"3600"`
 	CiDefaultBuildLogsBucket         string                              `env:"DEFAULT_BUILD_LOGS_BUCKET" envDefault:"devtron-pro-ci-logs"`
 	CiDefaultCdLogsBucketRegion      string                              `env:"DEFAULT_CD_LOGS_BUCKET_REGION" envDefault:"us-east-2"`
-	CiLimitCpu                       string                              `env:"LIMIT_CI_CPU" envDefault:"0.5"`
-	CiLimitMem                       string                              `env:"LIMIT_CI_MEM" envDefault:"3G"`
-	CiReqCpu                         string                              `env:"REQ_CI_CPU" envDefault:"0.5"`
-	CiReqMem                         string                              `env:"REQ_CI_MEM" envDefault:"3G"`
 	CiTaintKey                       string                              `env:"CI_NODE_TAINTS_KEY" envDefault:""`
 	CiTaintValue                     string                              `env:"CI_NODE_TAINTS_VALUE" envDefault:""`
 	CiNodeLabelSelector              []string                            `env:"CI_NODE_LABEL_SELECTOR"`
@@ -284,8 +280,8 @@ func (impl *CiCdConfig) GetDefaultCdLogsBucketRegion() string {
 
 func (impl *CiCdConfig) GetLimitCpu() string {
 	switch impl.Type {
-	case CiConfigType:
-		return impl.CiLimitCpu
+	// case CiConfigType:
+	// 	return impl.CiLimitCpu
 	case CdConfigType:
 		return impl.CdLimitCpu
 	default:
@@ -295,8 +291,8 @@ func (impl *CiCdConfig) GetLimitCpu() string {
 
 func (impl *CiCdConfig) GetLimitMem() string {
 	switch impl.Type {
-	case CiConfigType:
-		return impl.CiLimitMem
+	// case CiConfigType:
+	// 	return impl.CiLimitMem
 	case CdConfigType:
 		return impl.CdLimitMem
 	default:
@@ -306,8 +302,8 @@ func (impl *CiCdConfig) GetLimitMem() string {
 
 func (impl *CiCdConfig) GetReqCpu() string {
 	switch impl.Type {
-	case CiConfigType:
-		return impl.CiReqCpu
+	// case CiConfigType:
+	// 	return impl.CiReqCpu
 	case CdConfigType:
 		return impl.CdReqCpu
 	default:
@@ -317,8 +313,8 @@ func (impl *CiCdConfig) GetReqCpu() string {
 
 func (impl *CiCdConfig) GetReqMem() string {
 	switch impl.Type {
-	case CiConfigType:
-		return impl.CiReqMem
+	// case CiConfigType:
+	// 	return impl.CiReqMem
 	case CdConfigType:
 		return impl.CdReqMem
 	default:
