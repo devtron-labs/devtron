@@ -96,7 +96,7 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetail(ctx context.Context
 	}
 	clusterDetail := &bean.ClusterCapacityDetail{}
 	nodeList, err := impl.K8sUtil.GetNodesList(ctx, k8sClientSet)
-	if err != nil && strings.Contains(err.Error(), bean3.DnsLookupNoSuchHostError) {
+	if err != nil && (strings.Contains(err.Error(), bean3.DnsLookupNoSuchHostError) || strings.Contains(err.Error(), bean3.TimeoutError)) {
 		impl.logger.Errorw("k8s cluster unreachable", "err", err)
 		return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: "200", UserMessage: "k8s cluster unreachable"}
 	} else if err != nil {
@@ -238,7 +238,7 @@ func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailsListByCluster(ctx cont
 		impl.logger.Errorw("error in getting node metrics", "err", err)
 	}
 	nodeList, err := impl.K8sUtil.GetNodesList(ctx, k8sClientSet)
-	if err != nil && strings.Contains(err.Error(), bean3.DnsLookupNoSuchHostError) {
+	if err != nil && (strings.Contains(err.Error(), bean3.DnsLookupNoSuchHostError) || strings.Contains(err.Error(), bean3.TimeoutError)) {
 		impl.logger.Errorw("k8s cluster unreachable", "err", err)
 		return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: "200", UserMessage: "k8s cluster unreachable"}
 	} else if err != nil {
