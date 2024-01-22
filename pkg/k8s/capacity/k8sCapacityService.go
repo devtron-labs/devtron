@@ -9,6 +9,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	application2 "github.com/devtron-labs/devtron/pkg/k8s/application"
+	bean3 "github.com/devtron-labs/devtron/pkg/k8s/application/bean"
 	"github.com/devtron-labs/devtron/pkg/k8s/capacity/bean"
 	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
@@ -95,7 +96,7 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetail(ctx context.Context
 	}
 	clusterDetail := &bean.ClusterCapacityDetail{}
 	nodeList, err := impl.K8sUtil.GetNodesList(ctx, k8sClientSet)
-	if err != nil && strings.Contains(err.Error(), k8s2.DnsLookupNoSuchHostError) {
+	if err != nil && strings.Contains(err.Error(), bean3.DnsLookupNoSuchHostError) {
 		impl.logger.Errorw("k8s cluster unreachable", "err", err)
 		return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: "200", UserMessage: "k8s cluster unreachable"}
 	} else if err != nil {
@@ -237,7 +238,7 @@ func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailsListByCluster(ctx cont
 		impl.logger.Errorw("error in getting node metrics", "err", err)
 	}
 	nodeList, err := impl.K8sUtil.GetNodesList(ctx, k8sClientSet)
-	if err != nil && strings.Contains(err.Error(), k8s2.DnsLookupNoSuchHostError) {
+	if err != nil && strings.Contains(err.Error(), bean3.DnsLookupNoSuchHostError) {
 		impl.logger.Errorw("k8s cluster unreachable", "err", err)
 		return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: "200", UserMessage: "k8s cluster unreachable"}
 	} else if err != nil {

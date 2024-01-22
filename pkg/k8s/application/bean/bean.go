@@ -21,6 +21,10 @@ const (
 	ArgoInstalledType = 1 // Identifier for ArgoCD deployment
 )
 
+const (
+	DnsLookupNoSuchHostError = "no such host"
+)
+
 type ResourceInfo struct {
 	PodName string `json:"podName"`
 }
