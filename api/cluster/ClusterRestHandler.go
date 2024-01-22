@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/devtron-labs/common-lib/utils"
 	"net/http"
 	"strconv"
 	"time"
@@ -611,8 +612,15 @@ func (impl ClusterRestHandlerImpl) DeleteCluster(w http.ResponseWriter, r *http.
 	//RBAC enforcer Ends
 	err = impl.deleteService.DeleteCluster(&bean, userId)
 	if err != nil {
+		errCode := http.StatusInternalServerError
+		if apiErr, ok := err.(*utils.ApiError); ok {
+			switch errCode {
+			case http.StatusBadRequest:
+				errCode = apiErr.HttpStatusCode
+			}
+		}
 		impl.logger.Errorw("error in deleting cluster", "err", err, "id", bean.Id, "name", bean.ClusterName)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, errCode)
 		return
 	}
 	common.WriteJsonResp(w, err, CLUSTER_DELETE_SUCCESS_RESP, http.StatusOK)
