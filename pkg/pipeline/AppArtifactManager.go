@@ -18,19 +18,20 @@
 package pipeline
 
 import (
+	"sort"
+	"strings"
+
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	dockerArtifactStoreRegistry "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
-	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"sort"
-	"strings"
 )
 
 type AppArtifactManager interface {
@@ -864,11 +865,14 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsForCdStageV2(listingFilterOpts
 	if listingFilterOpts.ParentCdId > 0 {
 		//TODO: check if we can fetch LastSuccessfulTriggerOnParent wfr along with last running wf
 		parentCdWfrList, err := impl.cdWorkflowRepository.FindArtifactByPipelineIdAndRunnerType(listingFilterOpts.ParentCdId, bean.CD_WORKFLOW_TYPE_DEPLOY, 1, []string{application.Healthy, application.SUCCEEDED, application.Progressing})
-		if err != nil || len(parentCdWfrList) == 0 {
+		if err != nil {
 			impl.logger.Errorw("error in getting artifact for parent cd", "parentCdPipelineId", listingFilterOpts.ParentCdId)
 			return ciArtifacts, totalCount, err
 		}
-		artifactRunningOnParentCd = parentCdWfrList[0].CdWorkflow.CiArtifact.Id
+
+		if len(parentCdWfrList) != 0 {
+			artifactRunningOnParentCd = parentCdWfrList[0].CdWorkflow.CiArtifact.Id
+		}
 	}
 
 	for _, artifact := range cdArtifacts {
@@ -893,6 +897,8 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsForCdStageV2(listingFilterOpts
 			CiPipelineId:           artifact.PipelineId,
 			CredentialsSourceType:  artifact.CredentialsSourceType,
 			CredentialsSourceValue: artifact.CredentialSourceValue,
+			Deployed:               artifact.Deployed,
+			DeployedTime:           formatDate(artifact.DeployedTime, bean2.LayoutRFC3339),
 		}
 		if artifact.WorkflowId != nil {
 			ciArtifact.CiWorkflowId = *artifact.WorkflowId

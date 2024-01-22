@@ -41,7 +41,7 @@ type DockerRegistryIpsConfigService interface {
 type DockerRegistryIpsConfigServiceImpl struct {
 	logger                            *zap.SugaredLogger
 	dockerRegistryIpsConfigRepository repository.DockerRegistryIpsConfigRepository
-	k8sUtil                           *k8s.K8sUtil
+	k8sUtil                           *k8s.K8sServiceImpl
 	clusterService                    cluster.ClusterService
 	ciPipelineRepository              pipelineConfig.CiPipelineRepository
 	dockerArtifactStoreRepository     repository.DockerArtifactStoreRepository
@@ -49,7 +49,7 @@ type DockerRegistryIpsConfigServiceImpl struct {
 }
 
 func NewDockerRegistryIpsConfigServiceImpl(logger *zap.SugaredLogger, dockerRegistryIpsConfigRepository repository.DockerRegistryIpsConfigRepository,
-	k8sUtil *k8s.K8sUtil, clusterService cluster.ClusterService, ciPipelineRepository pipelineConfig.CiPipelineRepository,
+	k8sUtil *k8s.K8sServiceImpl, clusterService cluster.ClusterService, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	dockerArtifactStoreRepository repository.DockerArtifactStoreRepository, ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository) *DockerRegistryIpsConfigServiceImpl {
 	return &DockerRegistryIpsConfigServiceImpl{
 		logger:                            logger,

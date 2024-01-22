@@ -8,6 +8,7 @@ import (
 	"github.com/devtron-labs/devtron/api/helm-app/models"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/go-pg/pg"
+	"google.golang.org/grpc/codes"
 	"net/http"
 	"reflect"
 	"strconv"
@@ -83,7 +84,7 @@ type HelmAppServiceImpl struct {
 	installedAppRepository               repository.InstalledAppRepository
 	appRepository                        app.AppRepository
 	clusterRepository                    clusterRepository.ClusterRepository
-	K8sUtil                              *k8s.K8sUtil
+	K8sUtil                              *k8s.K8sServiceImpl
 	helmReleaseConfig                    *HelmReleaseConfig
 }
 
@@ -93,7 +94,7 @@ func NewHelmAppServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.Clu
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
 	environmentService cluster.EnvironmentService, pipelineRepository pipelineConfig.PipelineRepository,
 	installedAppRepository repository.InstalledAppRepository, appRepository app.AppRepository,
-	clusterRepository clusterRepository.ClusterRepository, K8sUtil *k8s.K8sUtil,
+	clusterRepository clusterRepository.ClusterRepository, K8sUtil *k8s.K8sServiceImpl,
 	helmReleaseConfig *HelmReleaseConfig) *HelmAppServiceImpl {
 	return &HelmAppServiceImpl{
 		logger:                               Logger,
@@ -520,6 +521,14 @@ func (impl *HelmAppServiceImpl) DeleteApplication(ctx context.Context, app *AppI
 
 	deleteApplicationResponse, err := impl.helmAppClient.DeleteApplication(ctx, req)
 	if err != nil {
+		code, message := util.GetGRPCDetailedError(err)
+		if code == codes.NotFound {
+			return nil, &util.ApiError{
+				Code:           "404",
+				HttpStatusCode: 200,
+				UserMessage:    message,
+			}
+		}
 		impl.logger.Errorw("error in deleting helm application", "err", err)
 		return nil, errors.New(util.GetGRPCErrorDetailedMessage(err))
 	}

@@ -26,12 +26,21 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path"
+	"regexp"
+	"strconv"
+	"strings"
+	"time"
+
 	util3 "github.com/devtron-labs/common-lib/utils/k8s"
 	bean4 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
+	bean3 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/genericNotes"
 	repository3 "github.com/devtron-labs/devtron/pkg/genericNotes/repository"
@@ -41,15 +50,7 @@ import (
 	repository5 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/devtron-labs/devtron/pkg/user"
-	bean3 "github.com/devtron-labs/devtron/pkg/user/bean"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	util2 "github.com/devtron-labs/devtron/util"
-	"path"
-	"regexp"
-	"strconv"
-	"strings"
-	"time"
 
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -990,7 +991,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 				CiBuildConfig:      ciPipeline.DockerConfigOverride.CiBuildConfig,
 				UserId:             createRequest.UserId,
 			}
-			if !ciPipeline.IsExternal {
+			if !ciPipeline.IsExternal { //pipeline is not [linked, webhook] and overridden, then create template override
 				err = impl.createDockerRepoIfNeeded(ciPipeline.DockerConfigOverride.DockerRegistry, ciPipeline.DockerConfigOverride.DockerRepository)
 				if err != nil {
 					impl.logger.Errorw("error, createDockerRepoIfNeeded", "err", err, "dockerRegistryId", ciPipeline.DockerConfigOverride.DockerRegistry, "dockerRegistry", ciPipeline.DockerConfigOverride.DockerRepository)
@@ -1778,6 +1779,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int) (cdPipe
 			PreStageConfigMapSecretNames:  preStageConfigmapSecrets,
 			PostStageConfigMapSecretNames: postStageConfigmapSecrets,
 			DeploymentAppType:             dbPipeline.DeploymentAppType,
+			DeploymentAppCreated:          dbPipeline.DeploymentAppCreated,
 			DeploymentAppDeleteRequest:    dbPipeline.DeploymentAppDeleteRequest,
 			IsVirtualEnvironment:          dbPipeline.Environment.IsVirtualEnvironment,
 		}

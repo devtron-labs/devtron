@@ -25,7 +25,6 @@ import (
 	util3 "github.com/devtron-labs/common-lib/utils/k8s"
 	"io"
 	"io/ioutil"
-	v1 "k8s.io/api/batch/v1"
 	"net/http"
 	"net/url"
 	"strings"
@@ -83,14 +82,14 @@ type ChartRepositoryService interface {
 type ChartRepositoryServiceImpl struct {
 	logger          *zap.SugaredLogger
 	repoRepository  chartRepoRepository.ChartRepoRepository
-	K8sUtil         *util3.K8sUtil
+	K8sUtil         *util3.K8sServiceImpl
 	clusterService  cluster.ClusterService
 	aCDAuthConfig   *util2.ACDAuthConfig
 	client          *http.Client
 	serverEnvConfig *serverEnvConfig.ServerEnvConfig
 }
 
-func NewChartRepositoryServiceImpl(logger *zap.SugaredLogger, repoRepository chartRepoRepository.ChartRepoRepository, K8sUtil *util3.K8sUtil, clusterService cluster.ClusterService,
+func NewChartRepositoryServiceImpl(logger *zap.SugaredLogger, repoRepository chartRepoRepository.ChartRepoRepository, K8sUtil *util3.K8sServiceImpl, clusterService cluster.ClusterService,
 	aCDAuthConfig *util2.ACDAuthConfig, client *http.Client, serverEnvConfig *serverEnvConfig.ServerEnvConfig) *ChartRepositoryServiceImpl {
 	return &ChartRepositoryServiceImpl{
 		logger:          logger,
@@ -712,17 +711,9 @@ func (impl *ChartRepositoryServiceImpl) TriggerChartSyncManual(chartProviderConf
 	}
 
 	manualAppSyncJobByteArr := manualAppSyncJobByteArr(impl.serverEnvConfig.AppSyncImage, impl.serverEnvConfig.AppSyncJobResourcesObj, chartProviderConfig)
-
-	var job v1.Job
-	err = yaml.Unmarshal(manualAppSyncJobByteArr, &job)
+	err = impl.K8sUtil.DeleteAndCreateJob(manualAppSyncJobByteArr, impl.aCDAuthConfig.ACDConfigMapNamespace, defaultClusterConfig)
 	if err != nil {
-		impl.logger.Errorw("Unmarshal err, CreateJobSafely", "err", err)
-		return err
-	}
-
-	err = impl.K8sUtil.CreateJob(impl.aCDAuthConfig.ACDConfigMapNamespace, job.Name, defaultClusterConfig, &job)
-	if err != nil {
-		impl.logger.Errorw("CreateJob err, CreateJobSafely", "err", err)
+		impl.logger.Errorw("DeleteAndCreateJob err, TriggerChartSyncManual", "err", err)
 		return err
 	}
 

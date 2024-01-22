@@ -14,7 +14,7 @@ func TestClusterServiceImpl_CheckIfConfigIsValid(t *testing.T) {
 	type fields struct {
 		clusterRepository  repository.ClusterRepository
 		logger             *zap.SugaredLogger
-		K8sUtil            *util2.K8sUtil
+		K8sUtil            *util2.K8sServiceImpl
 		K8sInformerFactory informer.K8sInformerFactory
 	}
 	type args struct {

@@ -31,6 +31,8 @@ import (
 	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
 	appStoreDiscover "github.com/devtron-labs/devtron/api/appStore/discover"
 	appStoreValues "github.com/devtron-labs/devtron/api/appStore/values"
+	"github.com/devtron-labs/devtron/api/auth/sso"
+	"github.com/devtron-labs/devtron/api/auth/user"
 	chartRepo "github.com/devtron-labs/devtron/api/chartRepo"
 	"github.com/devtron-labs/devtron/api/cluster"
 	"github.com/devtron-labs/devtron/api/connector"
@@ -47,10 +49,8 @@ import (
 	"github.com/devtron-labs/devtron/api/router/pubsub"
 	"github.com/devtron-labs/devtron/api/server"
 	"github.com/devtron-labs/devtron/api/sse"
-	"github.com/devtron-labs/devtron/api/sso"
 	"github.com/devtron-labs/devtron/api/team"
 	"github.com/devtron-labs/devtron/api/terminal"
-	"github.com/devtron-labs/devtron/api/user"
 	util5 "github.com/devtron-labs/devtron/api/util"
 	webhookHelm "github.com/devtron-labs/devtron/api/webhook/helm"
 	"github.com/devtron-labs/devtron/client/argocdServer"
@@ -66,6 +66,7 @@ import (
 	"github.com/devtron-labs/devtron/client/grafana"
 	jClient "github.com/devtron-labs/devtron/client/jira"
 	"github.com/devtron-labs/devtron/client/lens"
+	"github.com/devtron-labs/devtron/client/proxy"
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -146,6 +147,7 @@ func InitializeApp() (*App, error) {
 		sso.SsoConfigWireSet,
 		cluster.ClusterWireSet,
 		dashboard.DashboardWireSet,
+		proxy.ProxyWireSet,
 		client.HelmAppWireSet,
 		k8s.K8sApplicationWireSet,
 		chartRepo.ChartRepositoryWireSet,

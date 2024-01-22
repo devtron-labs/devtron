@@ -21,11 +21,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
+	"net/http"
+	"net/url"
+	"sync"
+	"time"
+
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/common-lib/utils/k8s"
+	casbin2 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	repository3 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/devtron-labs/devtron/pkg/k8s/informer"
-	casbin2 "github.com/devtron-labs/devtron/pkg/user/casbin"
-	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
 	errors1 "github.com/juju/errors"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,11 +39,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/client-go/tools/clientcmd/api/latest"
-	"log"
-	"net/http"
-	"net/url"
-	"sync"
-	"time"
 
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/constants"
@@ -179,7 +180,7 @@ type ClusterService interface {
 	GetAllClusterNamespaces() map[string][]string
 	FindAllNamespacesByUserIdAndClusterId(userId int32, clusterId int, isActionUserSuperAdmin bool) ([]string, error)
 	FindAllForClusterByUserId(userId int32, isActionUserSuperAdmin bool) ([]ClusterBean, error)
-	FetchRolesFromGroup(userId int32) ([]*repository2.RoleModel, error)
+	FetchRolesFromGroup(userId int32) ([]*repository3.RoleModel, error)
 	HandleErrorInClusterConnections(clusters []*ClusterBean, respMap map[int]error, clusterExistInDb bool)
 	ConnectClustersInBatch(clusters []*ClusterBean, clusterExistInDb bool)
 	ConvertClusterBeanToCluster(clusterBean *ClusterBean, userId int32) *repository.Cluster
@@ -191,18 +192,18 @@ type ClusterService interface {
 type ClusterServiceImpl struct {
 	clusterRepository   repository.ClusterRepository
 	logger              *zap.SugaredLogger
-	K8sUtil             *k8s.K8sUtil
+	K8sUtil             *k8s.K8sServiceImpl
 	K8sInformerFactory  informer.K8sInformerFactory
-	userAuthRepository  repository2.UserAuthRepository
-	userRepository      repository2.UserRepository
-	roleGroupRepository repository2.RoleGroupRepository
+	userAuthRepository  repository3.UserAuthRepository
+	userRepository      repository3.UserRepository
+	roleGroupRepository repository3.RoleGroupRepository
 	*ClusterRbacServiceImpl
 }
 
 func NewClusterServiceImpl(repository repository.ClusterRepository, logger *zap.SugaredLogger,
-	K8sUtil *k8s.K8sUtil, K8sInformerFactory informer.K8sInformerFactory,
-	userAuthRepository repository2.UserAuthRepository, userRepository repository2.UserRepository,
-	roleGroupRepository repository2.RoleGroupRepository) *ClusterServiceImpl {
+	K8sUtil *k8s.K8sServiceImpl, K8sInformerFactory informer.K8sInformerFactory,
+	userAuthRepository repository3.UserAuthRepository, userRepository repository3.UserRepository,
+	roleGroupRepository repository3.RoleGroupRepository) *ClusterServiceImpl {
 	clusterService := &ClusterServiceImpl{
 		clusterRepository:   repository,
 		logger:              logger,
@@ -802,7 +803,7 @@ func (impl *ClusterServiceImpl) FindAllForClusterByUserId(userId int32, isAction
 	return beans, nil
 }
 
-func (impl *ClusterServiceImpl) FetchRolesFromGroup(userId int32) ([]*repository2.RoleModel, error) {
+func (impl *ClusterServiceImpl) FetchRolesFromGroup(userId int32) ([]*repository3.RoleModel, error) {
 	user, err := impl.userRepository.GetByIdIncludeDeleted(userId)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)

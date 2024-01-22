@@ -1,6 +1,7 @@
 package appStoreDeployment
 
 import (
+	"github.com/devtron-labs/devtron/client/argocdServer"
 	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
@@ -29,4 +30,5 @@ var AppStoreDeploymentWireSet = wire.NewSet(
 	wire.Bind(new(CommonDeploymentRestHandler), new(*CommonDeploymentRestHandlerImpl)),
 	NewCommonDeploymentRouterImpl,
 	wire.Bind(new(CommonDeploymentRouter), new(*CommonDeploymentRouterImpl)),
+	argocdServer.GetACDDeploymentConfig,
 )

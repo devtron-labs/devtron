@@ -5,27 +5,32 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"strconv"
+	"strings"
+
 	"github.com/caarlos0/env/v6"
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	k8sObjectUtils "github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
+	"github.com/devtron-labs/devtron/internal/util"
 
 	yamlUtil "github.com/devtron-labs/common-lib/utils/yaml"
 	"github.com/devtron-labs/devtron/api/connector"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/helm-app/openapiClient"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	bean3 "github.com/devtron-labs/devtron/pkg/k8s/application/bean"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	"github.com/devtron-labs/devtron/pkg/terminal"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
-	"io"
 	corev1 "k8s.io/api/core/v1"
 	errors2 "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -36,9 +41,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"net/http"
-	"strconv"
-	"strings"
 )
 
 type K8sApplicationService interface {
@@ -69,7 +71,7 @@ type K8sApplicationServiceImpl struct {
 	clusterService               cluster.ClusterService
 	pump                         connector.Pump
 	helmAppService               client.HelmAppService
-	K8sUtil                      *k8s2.K8sUtil
+	K8sUtil                      *k8s2.K8sServiceImpl
 	aCDAuthConfig                *util3.ACDAuthConfig
 	K8sResourceHistoryService    kubernetesResourceAuditLogs.K8sResourceHistoryService
 	k8sCommonService             k8s.K8sCommonService
@@ -79,7 +81,7 @@ type K8sApplicationServiceImpl struct {
 	ephemeralContainerConfig     *EphemeralContainerConfig
 }
 
-func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.ClusterService, pump connector.Pump, helmAppService client.HelmAppService, K8sUtil *k8s2.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig, K8sResourceHistoryService kubernetesResourceAuditLogs.K8sResourceHistoryService,
+func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.ClusterService, pump connector.Pump, helmAppService client.HelmAppService, K8sUtil *k8s2.K8sServiceImpl, aCDAuthConfig *util3.ACDAuthConfig, K8sResourceHistoryService kubernetesResourceAuditLogs.K8sResourceHistoryService,
 	k8sCommonService k8s.K8sCommonService, terminalSession terminal.TerminalSessionHandler,
 	ephemeralContainerService cluster.EphemeralContainerService,
 	ephemeralContainerRepository repository.EphemeralContainersRepository) (*K8sApplicationServiceImpl, error) {
@@ -425,6 +427,7 @@ func (impl *K8sApplicationServiceImpl) validateContainerNameIfReqd(valid bool, r
 func (impl *K8sApplicationServiceImpl) GetResourceInfo(ctx context.Context) (*bean3.ResourceInfo, error) {
 	pod, err := impl.K8sUtil.GetResourceInfoByLabelSelector(ctx, impl.aCDAuthConfig.ACDConfigMapNamespace, "app=inception")
 	if err != nil {
+		err = &util.ApiError{Code: "404", HttpStatusCode: 404, UserMessage: "error on getting resource from k8s"}
 		impl.logger.Errorw("error on getting resource from k8s, unable to fetch installer pod", "err", err)
 		return nil, err
 	}

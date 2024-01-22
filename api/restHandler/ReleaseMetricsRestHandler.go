@@ -20,17 +20,18 @@ package restHandler
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/lens"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/app"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/team"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/schema"
 	"go.uber.org/zap"
-	"net/http"
 )
 
 type ReleaseMetricsRestHandler interface {
@@ -148,7 +149,7 @@ func (impl *ReleaseMetricsRestHandlerImpl) ResetDataForAllAppEnvironment(w http.
 	}
 }
 
-//err := decoder.Decode(&employeeStruct, r.URL.Query())
+// err := decoder.Decode(&employeeStruct, r.URL.Query())
 var decoder = schema.NewDecoder()
 
 func (impl *ReleaseMetricsRestHandlerImpl) GetDeploymentMetrics(w http.ResponseWriter, r *http.Request) {
