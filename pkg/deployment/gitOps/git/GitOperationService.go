@@ -17,7 +17,7 @@ import (
 	"time"
 )
 
-type GitOpsRemoteOperationService interface {
+type GitOperationService interface {
 	CreateGitRepositoryForApp(gitOpsRepoName, baseTemplateName,
 		version string, userId int32) (chartGitAttribute *commonBean.ChartGitAttribute, err error)
 	PushChartToGitRepo(gitOpsRepoName, referenceTemplate, version,
@@ -31,25 +31,26 @@ type GitOpsRemoteOperationService interface {
 	GetRepoUrlByRepoName(repoName string) (string, error)
 }
 
-type GitOpsRemoteOperationServiceImpl struct {
+type GitOperationServiceImpl struct {
 	logger                  *zap.SugaredLogger
 	gitFactory              *util.GitFactory
 	gitOpsConfigReadService config.GitOpsConfigReadService
 	chartTemplateService    util.ChartTemplateService
 }
 
-func NewGitOpsRemoteOperationServiceImpl(logger *zap.SugaredLogger, gitFactory *util.GitFactory,
+func NewGitOperationServiceImpl(logger *zap.SugaredLogger, gitFactory *util.GitFactory,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
-	chartTemplateService util.ChartTemplateService) *GitOpsRemoteOperationServiceImpl {
-	return &GitOpsRemoteOperationServiceImpl{
+	chartTemplateService util.ChartTemplateService) *GitOperationServiceImpl {
+	return &GitOperationServiceImpl{
 		logger:                  logger,
+		gitFactory:              gitFactory,
 		gitOpsConfigReadService: gitOpsConfigReadService,
 		chartTemplateService:    chartTemplateService,
 	}
 
 }
 
-func (impl *GitOpsRemoteOperationServiceImpl) CreateGitRepositoryForApp(gitOpsRepoName, baseTemplateName,
+func (impl *GitOperationServiceImpl) CreateGitRepositoryForApp(gitOpsRepoName, baseTemplateName,
 	version string, userId int32) (chartGitAttribute *commonBean.ChartGitAttribute, err error) {
 	//baseTemplateName  replace whitespace
 	space := regexp.MustCompile(`\s+`)
@@ -80,7 +81,7 @@ func (impl *GitOpsRemoteOperationServiceImpl) CreateGitRepositoryForApp(gitOpsRe
 	return &commonBean.ChartGitAttribute{RepoUrl: repoUrl, ChartLocation: filepath.Join(baseTemplateName, version)}, nil
 }
 
-func (impl *GitOpsRemoteOperationServiceImpl) PushChartToGitRepo(gitOpsRepoName, referenceTemplate, version,
+func (impl *GitOperationServiceImpl) PushChartToGitRepo(gitOpsRepoName, referenceTemplate, version,
 	tempReferenceTemplateDir string, repoUrl string, userId int32) (err error) {
 	chartDir := fmt.Sprintf("%s-%s", gitOpsRepoName, impl.chartTemplateService.GetDir())
 	clonedDir := impl.gitFactory.GitService.GetCloneDirectory(chartDir)
@@ -159,7 +160,7 @@ func (impl *GitOpsRemoteOperationServiceImpl) PushChartToGitRepo(gitOpsRepoName,
 	return nil
 }
 
-func (impl *GitOpsRemoteOperationServiceImpl) CreateReadmeInGitRepo(gitOpsRepoName string, userId int32) error {
+func (impl *GitOperationServiceImpl) CreateReadmeInGitRepo(gitOpsRepoName string, userId int32) error {
 	userEmailId, userName := impl.gitOpsConfigReadService.GetUserEmailIdAndNameForGitOpsCommit(userId)
 	gitOpsConfig, err := impl.gitOpsConfigReadService.GetGitOpsConfigActive()
 	if err != nil {
@@ -179,7 +180,7 @@ func (impl *GitOpsRemoteOperationServiceImpl) CreateReadmeInGitRepo(gitOpsRepoNa
 	return nil
 }
 
-func (impl *GitOpsRemoteOperationServiceImpl) CreateChartProxy(chartMetaData *chart.Metadata, refChartLocation string, envName string,
+func (impl *GitOperationServiceImpl) CreateChartProxy(chartMetaData *chart.Metadata, refChartLocation string, envName string,
 	chartProxyReq *bean.ChartProxyReqDto) (string, *commonBean.ChartGitAttribute, error) {
 	chartMetaData.ApiVersion = "v2" // ensure always v2
 	dir := impl.chartTemplateService.GetDir()
@@ -220,7 +221,7 @@ func (impl *GitOpsRemoteOperationServiceImpl) CreateChartProxy(chartMetaData *ch
 	return valuesYaml, chartGitAttr, nil
 }
 
-func (impl *GitOpsRemoteOperationServiceImpl) createAndPushToGitChartProxy(appStoreName, tmpChartLocation string, envName string,
+func (impl *GitOperationServiceImpl) createAndPushToGitChartProxy(appStoreName, tmpChartLocation string, envName string,
 	chartProxyReq *bean.ChartProxyReqDto) (chartGitAttribute *commonBean.ChartGitAttribute, err error) {
 	//baseTemplateName  replace whitespace
 	space := regexp.MustCompile(`\s+`)
@@ -305,7 +306,7 @@ func (impl *GitOpsRemoteOperationServiceImpl) createAndPushToGitChartProxy(appSt
 	return &commonBean.ChartGitAttribute{RepoUrl: repoUrl, ChartLocation: filepath.Join("", acdAppName)}, nil
 }
 
-func (impl *GitOpsRemoteOperationServiceImpl) GitPull(clonedDir string, repoUrl string, appStoreName string) error {
+func (impl *GitOperationServiceImpl) GitPull(clonedDir string, repoUrl string, appStoreName string) error {
 	err := impl.gitFactory.GitService.Pull(clonedDir) //TODO check for local repo exists before clone
 	if err != nil {
 		impl.logger.Errorw("error in pulling git", "clonedDir", clonedDir, "err", err)
@@ -319,7 +320,7 @@ func (impl *GitOpsRemoteOperationServiceImpl) GitPull(clonedDir string, repoUrl 
 	return nil
 }
 
-func (impl *GitOpsRemoteOperationServiceImpl) CommitValues(chartGitAttr *util.ChartConfig) (commitHash string, commitTime time.Time, err error) {
+func (impl *GitOperationServiceImpl) CommitValues(chartGitAttr *util.ChartConfig) (commitHash string, commitTime time.Time, err error) {
 	bitbucketMetadata, err := impl.gitOpsConfigReadService.GetBitbucketMetadata()
 	if err != nil {
 		impl.logger.Errorw("error in getting bitbucket metadata", "err", err)
@@ -337,7 +338,7 @@ func (impl *GitOpsRemoteOperationServiceImpl) CommitValues(chartGitAttr *util.Ch
 	return commitHash, commitTime, nil
 }
 
-func (impl *GitOpsRemoteOperationServiceImpl) CreateRepository(dto *bean2.GitOpsConfigDto, userId int32) (string, bool, error) {
+func (impl *GitOperationServiceImpl) CreateRepository(dto *bean2.GitOpsConfigDto, userId int32) (string, bool, error) {
 	//getting user name & emailId for commit author data
 	userEmailId, userName := impl.gitOpsConfigReadService.GetUserEmailIdAndNameForGitOpsCommit(userId)
 	if dto != nil {
@@ -354,7 +355,7 @@ func (impl *GitOpsRemoteOperationServiceImpl) CreateRepository(dto *bean2.GitOps
 	return repoUrl, isNew, nil
 }
 
-func (impl *GitOpsRemoteOperationServiceImpl) GetRepoUrlByRepoName(repoName string) (string, error) {
+func (impl *GitOperationServiceImpl) GetRepoUrlByRepoName(repoName string) (string, error) {
 	repoUrl := ""
 	bitbucketMetadata, err := impl.gitOpsConfigReadService.GetBitbucketMetadata()
 	if err != nil {

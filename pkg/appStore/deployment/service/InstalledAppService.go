@@ -124,7 +124,7 @@ type InstalledAppServiceImpl struct {
 	k8sApplicationService                application3.K8sApplicationService
 	acdConfig                            *argocdServer.ACDConfig
 	gitOpsConfigReadService              config.GitOpsConfigReadService
-	gitOpsRemoteOperationService         git.GitOpsRemoteOperationService
+	gitOpsRemoteOperationService         git.GitOperationService
 }
 
 func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
@@ -147,7 +147,7 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 	appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
 	k8sCommonService k8s.K8sCommonService, k8sApplicationService application3.K8sApplicationService,
 	acdConfig *argocdServer.ACDConfig, gitOpsConfigReadService config.GitOpsConfigReadService,
-	gitOpsRemoteOperationService git.GitOpsRemoteOperationService) (*InstalledAppServiceImpl, error) {
+	gitOpsRemoteOperationService git.GitOperationService) (*InstalledAppServiceImpl, error) {
 	impl := &InstalledAppServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,

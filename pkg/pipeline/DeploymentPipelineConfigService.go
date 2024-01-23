@@ -148,7 +148,7 @@ type CdPipelineConfigServiceImpl struct {
 	argoClientWrapperService         argocdServer.ArgoClientWrapperService
 	deployedAppMetricsService        deployedAppMetrics.DeployedAppMetricsService
 	gitOpsConfigReadService          config.GitOpsConfigReadService
-	gitOpsRemoteOperationService     git.GitOpsRemoteOperationService
+	gitOpsRemoteOperationService     git.GitOperationService
 }
 
 func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepository pipelineConfig.PipelineRepository,
@@ -169,7 +169,7 @@ func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepositor
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
-	gitOpsRemoteOperationService git.GitOpsRemoteOperationService) *CdPipelineConfigServiceImpl {
+	gitOpsRemoteOperationService git.GitOperationService) *CdPipelineConfigServiceImpl {
 	return &CdPipelineConfigServiceImpl{
 		logger:                           logger,
 		pipelineRepository:               pipelineRepository,

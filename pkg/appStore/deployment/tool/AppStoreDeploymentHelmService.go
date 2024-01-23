@@ -39,7 +39,7 @@ type AppStoreDeploymentHelmServiceImpl struct {
 	installedAppRepository               repository.InstalledAppRepository
 	appStoreDeploymentCommonService      appStoreDeploymentCommon.AppStoreDeploymentCommonService
 	OCIRegistryConfigRepository          repository2.OCIRegistryConfigRepository
-	gitOpsRemoteOperationService         git.GitOpsRemoteOperationService
+	gitOpsRemoteOperationService         git.GitOperationService
 }
 
 func NewAppStoreDeploymentHelmServiceImpl(logger *zap.SugaredLogger, helmAppService client.HelmAppService,
@@ -47,7 +47,7 @@ func NewAppStoreDeploymentHelmServiceImpl(logger *zap.SugaredLogger, helmAppServ
 	helmAppClient client.HelmAppClient,
 	installedAppRepository repository.InstalledAppRepository, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
 	OCIRegistryConfigRepository repository2.OCIRegistryConfigRepository,
-	gitOpsRemoteOperationService git.GitOpsRemoteOperationService) *AppStoreDeploymentHelmServiceImpl {
+	gitOpsRemoteOperationService git.GitOperationService) *AppStoreDeploymentHelmServiceImpl {
 	return &AppStoreDeploymentHelmServiceImpl{
 		Logger:                               logger,
 		helmAppService:                       helmAppService,

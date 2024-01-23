@@ -193,7 +193,7 @@ type WorkflowDagExecutorImpl struct {
 	deployedAppMetricsService           deployedAppMetrics.DeployedAppMetricsService
 	chartRefService                     chartRef.ChartRefService
 	gitOpsConfigReadService             config.GitOpsConfigReadService
-	gitOpsRemoteOperationService        git.GitOpsRemoteOperationService
+	gitOpsRemoteOperationService        git.GitOperationService
 }
 
 const kedaAutoscaling = "kedaAutoscaling"
@@ -314,7 +314,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
 	chartRefService chartRef.ChartRefService,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
-	gitOpsRemoteOperationService git.GitOpsRemoteOperationService) *WorkflowDagExecutorImpl {
+	gitOpsRemoteOperationService git.GitOperationService) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
 		cdWorkflowRepository:          cdWorkflowRepository,

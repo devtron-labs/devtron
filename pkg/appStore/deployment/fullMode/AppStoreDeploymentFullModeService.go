@@ -73,7 +73,7 @@ type AppStoreDeploymentFullModeServiceImpl struct {
 	installedAppRepositoryHistory   repository4.InstalledAppVersionHistoryRepository
 	ACDConfig                       *argocdServer.ACDConfig
 	gitOpsConfigReadService         config.GitOpsConfigReadService
-	gitOpsRemoteOperationService    git.GitOpsRemoteOperationService
+	gitOpsRemoteOperationService    git.GitOperationService
 }
 
 func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
@@ -86,7 +86,7 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 	installedAppRepositoryHistory repository4.InstalledAppVersionHistoryRepository,
 	ACDConfig *argocdServer.ACDConfig,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
-	gitOpsRemoteOperationService git.GitOpsRemoteOperationService) *AppStoreDeploymentFullModeServiceImpl {
+	gitOpsRemoteOperationService git.GitOperationService) *AppStoreDeploymentFullModeServiceImpl {
 	appStoreDeploymentFullModeServiceImpl := &AppStoreDeploymentFullModeServiceImpl{
 		logger:                          logger,
 		acdClient:                       acdClient,

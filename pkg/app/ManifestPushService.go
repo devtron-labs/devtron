@@ -31,7 +31,7 @@ type GitOpsManifestPushServiceImpl struct {
 	acdConfig                        *argocdServer.ACDConfig
 	chartRefService                  chartRef.ChartRefService
 	gitOpsConfigReadService          config.GitOpsConfigReadService
-	gitOpsRemoteOperationService     git.GitOpsRemoteOperationService
+	gitOpsRemoteOperationService     git.GitOperationService
 }
 
 func NewGitOpsManifestPushServiceImpl(logger *zap.SugaredLogger,
@@ -39,7 +39,7 @@ func NewGitOpsManifestPushServiceImpl(logger *zap.SugaredLogger,
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository,
 	acdConfig *argocdServer.ACDConfig, chartRefService chartRef.ChartRefService,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
-	gitOpsRemoteOperationService git.GitOpsRemoteOperationService) *GitOpsManifestPushServiceImpl {
+	gitOpsRemoteOperationService git.GitOperationService) *GitOpsManifestPushServiceImpl {
 	return &GitOpsManifestPushServiceImpl{
 		logger:                           logger,
 		pipelineStatusTimelineService:    pipelineStatusTimelineService,

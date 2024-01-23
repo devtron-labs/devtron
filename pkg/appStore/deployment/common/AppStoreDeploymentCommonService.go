@@ -69,7 +69,7 @@ type AppStoreDeploymentCommonServiceImpl struct {
 	chartTemplateService                 util.ChartTemplateService
 	gitFactory                           *util.GitFactory
 	gitOpsConfigReadService              config.GitOpsConfigReadService
-	gitOpsRemoteOperationService         git.GitOpsRemoteOperationService
+	gitOpsRemoteOperationService         git.GitOperationService
 }
 
 func NewAppStoreDeploymentCommonServiceImpl(
@@ -80,7 +80,7 @@ func NewAppStoreDeploymentCommonServiceImpl(
 	chartTemplateService util.ChartTemplateService,
 	gitFactory *util.GitFactory,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
-	gitOpsRemoteOperationService git.GitOpsRemoteOperationService) *AppStoreDeploymentCommonServiceImpl {
+	gitOpsRemoteOperationService git.GitOperationService) *AppStoreDeploymentCommonServiceImpl {
 	return &AppStoreDeploymentCommonServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,

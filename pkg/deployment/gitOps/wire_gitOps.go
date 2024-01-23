@@ -10,6 +10,6 @@ var GitOpsWireSet = wire.NewSet(
 	config.NewGitOpsConfigReadServiceImpl,
 	wire.Bind(new(config.GitOpsConfigReadService), new(*config.GitOpsConfigReadServiceImpl)),
 
-	git.NewGitOpsRemoteOperationServiceImpl,
-	wire.Bind(new(git.GitOpsRemoteOperationService), new(*git.GitOpsRemoteOperationServiceImpl)),
+	git.NewGitOperationServiceImpl,
+	wire.Bind(new(git.GitOperationService), new(*git.GitOperationServiceImpl)),
 )

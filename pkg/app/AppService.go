@@ -122,7 +122,7 @@ type AppServiceImpl struct {
 	acdConfig                              *argocdServer.ACDConfig
 	chartRefService                        chartRef.ChartRefService
 	gitOpsConfigReadService                config.GitOpsConfigReadService
-	gitOpsRemoteOperationService           git.GitOpsRemoteOperationService
+	gitOpsRemoteOperationService           git.GitOperationService
 }
 
 type AppService interface {
@@ -177,7 +177,7 @@ func NewAppService(
 	scopedVariableManager variables.ScopedVariableCMCSManager,
 	acdConfig *argocdServer.ACDConfig, chartRefService chartRef.ChartRefService,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
-	gitOpsRemoteOperationService git.GitOpsRemoteOperationService) *AppServiceImpl {
+	gitOpsRemoteOperationService git.GitOperationService) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:            environmentConfigRepository,
 		mergeUtil:                              mergeUtil,
