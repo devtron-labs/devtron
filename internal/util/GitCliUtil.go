@@ -137,7 +137,7 @@ func (impl *GitCliUtil) Clone(rootDir string, remoteUrl string, username string,
 	}
 	response, errMsg, err = impl.Fetch(rootDir, username, password)
 	if err == nil && errMsg == "" {
-		impl.logger.Warn("git fetch completed, pulling master branch data from remote origin")
+		impl.logger.Warn("git fetch completed, pulling master branch data from git origin")
 		response, errMsg, err = impl.ListBranch(rootDir, username, password)
 		if err != nil {
 			impl.logger.Errorw("error on git pull", "response", response, "errMsg", errMsg, "err", err)

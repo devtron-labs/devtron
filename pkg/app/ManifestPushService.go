@@ -9,7 +9,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app/bean"
 	status2 "github.com/devtron-labs/devtron/pkg/app/status"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
-	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/remote"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
@@ -31,7 +31,7 @@ type GitOpsManifestPushServiceImpl struct {
 	acdConfig                        *argocdServer.ACDConfig
 	chartRefService                  chartRef.ChartRefService
 	gitOpsConfigReadService          config.GitOpsConfigReadService
-	gitOpsRemoteOperationService     remote.GitOpsRemoteOperationService
+	gitOpsRemoteOperationService     git.GitOpsRemoteOperationService
 }
 
 func NewGitOpsManifestPushServiceImpl(logger *zap.SugaredLogger,
@@ -39,7 +39,7 @@ func NewGitOpsManifestPushServiceImpl(logger *zap.SugaredLogger,
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository,
 	acdConfig *argocdServer.ACDConfig, chartRefService chartRef.ChartRefService,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
-	gitOpsRemoteOperationService remote.GitOpsRemoteOperationService) *GitOpsManifestPushServiceImpl {
+	gitOpsRemoteOperationService git.GitOpsRemoteOperationService) *GitOpsManifestPushServiceImpl {
 	return &GitOpsManifestPushServiceImpl{
 		logger:                           logger,
 		pipelineStatusTimelineService:    pipelineStatusTimelineService,

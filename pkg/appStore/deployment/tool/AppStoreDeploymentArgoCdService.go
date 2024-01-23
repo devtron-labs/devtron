@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
-	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/remote"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"net/http"
 	"strings"
 	"time"
@@ -71,7 +71,7 @@ type AppStoreDeploymentArgoCdServiceImpl struct {
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository
 	argoClientWrapperService             argocdServer.ArgoClientWrapperService
 	acdConfig                            *argocdServer.ACDConfig
-	gitOpsRemoteOperationService         remote.GitOpsRemoteOperationService
+	gitOpsRemoteOperationService         git.GitOpsRemoteOperationService
 }
 
 func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService,
@@ -83,7 +83,7 @@ func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreD
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository,
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService, acdConfig *argocdServer.ACDConfig,
-	gitOpsRemoteOperationService remote.GitOpsRemoteOperationService) *AppStoreDeploymentArgoCdServiceImpl {
+	gitOpsRemoteOperationService git.GitOpsRemoteOperationService) *AppStoreDeploymentArgoCdServiceImpl {
 	return &AppStoreDeploymentArgoCdServiceImpl{
 		Logger:                               logger,
 		appStoreDeploymentFullModeService:    appStoreDeploymentFullModeService,

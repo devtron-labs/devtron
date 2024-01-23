@@ -307,11 +307,11 @@ then
     export GOCACHE=/usr/local/go/cache
     export PATH=$PATH:/usr/local/go/bin
     go install go.k6.io/xk6/cmd/xk6@latest
-    xk6 build --with github.com/grafana/xk6-output-prometheus-remote
+    xk6 build --with github.com/grafana/xk6-output-prometheus-git
     K6_PROMETHEUS_USER=$PrometheusUsername \
     K6_PROMETHEUS_PASSWORD=$PrometheusApiKey \
     K6_PROMETHEUS_REMOTE_URL=$PrometheusRemoteWriteEndpoint \
-    ./k6 run $PathToScript -o output-prometheus-remote
+    ./k6 run $PathToScript -o output-prometheus-git
 elif [ $OutputType == "LOG" ]
 then
     docker pull grafana/k6
@@ -343,7 +343,7 @@ INSERT INTO "public"."plugin_step_variable" ("id", "plugin_step_id", "name", "fo
 ('1', '1','RelativePathToScript','STRING','checkout path + script path along with script name','t','f','INPUT','NEW','/./script.js','1','f','now()', '1', 'now()', '1'),
 ('2', '1','PrometheusUsername','STRING','username of prometheus account','t','t','INPUT','NEW',null, '1' ,'f','now()', '1', 'now()', '1'),
 ('3', '1','PrometheusApiKey','STRING','api key of prometheus account','t','t','INPUT','NEW',null, '1','f','now()', '1', 'now()', '1'),
-('4', '1','PrometheusRemoteWriteEndpoint','STRING','remote write endpoint of prometheus account','t','t','INPUT','NEW',null, '1','f','now()', '1', 'now()', '1'),
+('4', '1','PrometheusRemoteWriteEndpoint','STRING','git write endpoint of prometheus account','t','t','INPUT','NEW',null, '1','f','now()', '1', 'now()', '1'),
 ('5', '1','OutputType','STRING','output type - LOG or PROMETHEUS','t','f','INPUT','NEW','LOG', '1','f','now()', '1', 'now()', '1'),
 ('6', '2','SonarqubeProjectKey','STRING','project key of grafana sonarqube account','t','t','INPUT','NEW',null, '1', 'f','now()', '1', 'now()', '1'),
 ('7', '2','SonarqubeApiKey','STRING','api key of sonarqube account','t','t','INPUT','NEW',null, '1', 'f','now()', '1', 'now()', '1'),

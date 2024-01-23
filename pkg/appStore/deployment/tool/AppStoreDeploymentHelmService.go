@@ -5,7 +5,7 @@ import (
 	"errors"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
-	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/remote"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"time"
 
 	client "github.com/devtron-labs/devtron/api/helm-app"
@@ -39,7 +39,7 @@ type AppStoreDeploymentHelmServiceImpl struct {
 	installedAppRepository               repository.InstalledAppRepository
 	appStoreDeploymentCommonService      appStoreDeploymentCommon.AppStoreDeploymentCommonService
 	OCIRegistryConfigRepository          repository2.OCIRegistryConfigRepository
-	gitOpsRemoteOperationService         remote.GitOpsRemoteOperationService
+	gitOpsRemoteOperationService         git.GitOpsRemoteOperationService
 }
 
 func NewAppStoreDeploymentHelmServiceImpl(logger *zap.SugaredLogger, helmAppService client.HelmAppService,
@@ -47,7 +47,7 @@ func NewAppStoreDeploymentHelmServiceImpl(logger *zap.SugaredLogger, helmAppServ
 	helmAppClient client.HelmAppClient,
 	installedAppRepository repository.InstalledAppRepository, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
 	OCIRegistryConfigRepository repository2.OCIRegistryConfigRepository,
-	gitOpsRemoteOperationService remote.GitOpsRemoteOperationService) *AppStoreDeploymentHelmServiceImpl {
+	gitOpsRemoteOperationService git.GitOpsRemoteOperationService) *AppStoreDeploymentHelmServiceImpl {
 	return &AppStoreDeploymentHelmServiceImpl{
 		Logger:                               logger,
 		helmAppService:                       helmAppService,

@@ -26,7 +26,7 @@ import (
 	"github.com/devtron-labs/common-lib/pubsub-lib/model"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
-	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/remote"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"time"
 
 	"github.com/devtron-labs/devtron/client/argocdServer"
@@ -73,7 +73,7 @@ type AppStoreDeploymentFullModeServiceImpl struct {
 	installedAppRepositoryHistory   repository4.InstalledAppVersionHistoryRepository
 	ACDConfig                       *argocdServer.ACDConfig
 	gitOpsConfigReadService         config.GitOpsConfigReadService
-	gitOpsRemoteOperationService    remote.GitOpsRemoteOperationService
+	gitOpsRemoteOperationService    git.GitOpsRemoteOperationService
 }
 
 func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
@@ -86,7 +86,7 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 	installedAppRepositoryHistory repository4.InstalledAppVersionHistoryRepository,
 	ACDConfig *argocdServer.ACDConfig,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
-	gitOpsRemoteOperationService remote.GitOpsRemoteOperationService) *AppStoreDeploymentFullModeServiceImpl {
+	gitOpsRemoteOperationService git.GitOpsRemoteOperationService) *AppStoreDeploymentFullModeServiceImpl {
 	appStoreDeploymentFullModeServiceImpl := &AppStoreDeploymentFullModeServiceImpl{
 		logger:                          logger,
 		acdClient:                       acdClient,

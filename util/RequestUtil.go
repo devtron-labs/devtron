@@ -24,7 +24,7 @@ import (
 const xForwardedForHeaderName = "X-Forwarded-For"
 
 // GetClientIP gets a requests IP address by reading off the forwarded-for
-// header (for proxies) and falls back to use the remote address.
+// header (for proxies) and falls back to use the git address.
 func GetClientIP(r *http.Request) string {
 	xForwardedFor := r.Header.Get(xForwardedForHeaderName)
 	if len(xForwardedFor) > 0 {

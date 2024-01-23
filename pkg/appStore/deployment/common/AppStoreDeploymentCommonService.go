@@ -29,7 +29,7 @@ import (
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
-	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/remote"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/go-pg/pg"
 	"github.com/google/go-github/github"
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
@@ -69,7 +69,7 @@ type AppStoreDeploymentCommonServiceImpl struct {
 	chartTemplateService                 util.ChartTemplateService
 	gitFactory                           *util.GitFactory
 	gitOpsConfigReadService              config.GitOpsConfigReadService
-	gitOpsRemoteOperationService         remote.GitOpsRemoteOperationService
+	gitOpsRemoteOperationService         git.GitOpsRemoteOperationService
 }
 
 func NewAppStoreDeploymentCommonServiceImpl(
@@ -80,7 +80,7 @@ func NewAppStoreDeploymentCommonServiceImpl(
 	chartTemplateService util.ChartTemplateService,
 	gitFactory *util.GitFactory,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
-	gitOpsRemoteOperationService remote.GitOpsRemoteOperationService) *AppStoreDeploymentCommonServiceImpl {
+	gitOpsRemoteOperationService git.GitOpsRemoteOperationService) *AppStoreDeploymentCommonServiceImpl {
 	return &AppStoreDeploymentCommonServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,

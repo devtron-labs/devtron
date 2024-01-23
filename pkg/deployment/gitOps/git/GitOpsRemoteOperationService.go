@@ -1,4 +1,4 @@
-package remote
+package git
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
-	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/remote/bean"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
 	dirCopy "github.com/otiai10/copy"
 	"go.uber.org/zap"
 	"k8s.io/helm/pkg/proto/hapi/chart"
