@@ -7,7 +7,6 @@ import (
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/helm-app/models"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
-	bean3 "github.com/devtron-labs/devtron/pkg/k8s/application/bean"
 	"github.com/go-pg/pg"
 	"google.golang.org/grpc/codes"
 	"net/http"
@@ -557,10 +556,11 @@ func (impl *HelmAppServiceImpl) checkIfNsExists(app *AppIdentifier) (bool, error
 		return false, err
 	}
 	exists, err := impl.K8sUtil.CheckIfNsExists(app.Namespace, v12Client)
-	if err != nil && (strings.Contains(err.Error(), bean3.DnsLookupNoSuchHostError) || strings.Contains(err.Error(), bean3.TimeoutError)) {
-		impl.logger.Errorw("k8s cluster unreachable", "err", err)
-		return false, &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: "200", UserMessage: "k8s cluster unreachable"}
-	} else if err != nil {
+	if err != nil {
+		if IsClusterUnReachableError(err) {
+			impl.logger.Errorw("k8s cluster unreachable", "err", err)
+			return false, &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: "200", UserMessage: "k8s cluster unreachable"}
+		}
 		impl.logger.Errorw("error in checking if namespace exists or not", "error", err, "clusterConfig", config)
 		return false, err
 	}
