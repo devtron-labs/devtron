@@ -433,23 +433,45 @@ func (impl ImageDigestPolicyServiceImpl) GetAllPoliciesConfiguredForClusterOrEnv
 		return imageDigestPolicies, nil
 	}
 
-	ClusterIdToEnvIdsMapping, err := impl.getClusterIdToEnvIdsMapping(imageDigestQualifierMappings)
+	configuredClusterToEnvMapping, err := impl.getClusterIdToEnvIdsMapping(imageDigestQualifierMappings)
 	if err != nil {
 		impl.logger.Errorw("error in getting cluster id to envIds map", "err", err)
 		return nil, err
 	}
 
-	for clusterId, envIds := range ClusterIdToEnvIdsMapping {
+	for clusterId, envIds := range configuredClusterToEnvMapping {
 		clusterDetail := &ClusterDetail{
 			ClusterId: clusterId,
 		}
 		if len(envIds) == 0 {
+			envs, err := impl.environmentRepository.FindByClusterId(clusterId)
+			if err != nil {
+				impl.logger.Errorw("error in fetching envs by clusterId", "err", err, "clusterId", clusterId)
+				return nil, err
+			}
+			environmentIds := make([]int, 0)
+			for _, env := range envs {
+				environmentIds = append(environmentIds, env.Id)
+			}
 			clusterDetail.PolicyType = ALL_EXISTING_AND_FUTURE_ENVIRONMENTS
+			clusterDetail.EnvironmentIds = environmentIds
 		} else {
 			clusterDetail.EnvironmentIds = envIds
 			clusterDetail.PolicyType = SPECIFIC_ENVIRONMENTS
 		}
 		imageDigestPolicies.ClusterDetails = append(imageDigestPolicies.ClusterDetails, clusterDetail)
+	}
+
+	AllClusters, err := impl.clusterRepository.FindAll()
+	// adding empty lists for envs for which policy is not configured
+	for _, cluster := range AllClusters {
+		if _, ok := configuredClusterToEnvMapping[cluster.Id]; !ok {
+			imageDigestPolicies.ClusterDetails = append(imageDigestPolicies.ClusterDetails, &ClusterDetail{
+				ClusterId:      cluster.Id,
+				EnvironmentIds: make([]int, 0),
+				PolicyType:     SPECIFIC_ENVIRONMENTS,
+			})
+		}
 	}
 
 	return imageDigestPolicies, nil
