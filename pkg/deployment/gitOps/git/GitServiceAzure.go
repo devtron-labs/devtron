@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/git"
 	"go.uber.org/zap"
@@ -13,11 +12,10 @@ import (
 )
 
 type GitAzureClient struct {
-	client                 *git.Client
-	logger                 *zap.SugaredLogger
-	project                string
-	gitService             GitService
-	gitOpsConfigRepository repository.GitOpsConfigRepository
+	client     *git.Client
+	logger     *zap.SugaredLogger
+	project    string
+	gitService GitService
 }
 
 func (impl GitAzureClient) GetRepoUrl(config *bean2.GitOpsConfigDto) (repoUrl string, err error) {
@@ -31,8 +29,7 @@ func (impl GitAzureClient) GetRepoUrl(config *bean2.GitOpsConfigDto) (repoUrl st
 	}
 }
 
-func NewGitAzureClient(token string, host string, project string, logger *zap.SugaredLogger, gitService GitService,
-	gitOpsConfigRepository repository.GitOpsConfigRepository) (GitAzureClient, error) {
+func NewGitAzureClient(token string, host string, project string, logger *zap.SugaredLogger, gitService GitService) (GitAzureClient, error) {
 	ctx := context.Background()
 	// Create a connection to your organization
 	connection := azuredevops.NewPatConnection(host, token)
@@ -42,11 +39,10 @@ func NewGitAzureClient(token string, host string, project string, logger *zap.Su
 		logger.Errorw("error in creating azure gitops client, gitops related operation might fail", "err", err)
 	}
 	return GitAzureClient{
-		client:                 &coreClient,
-		project:                project,
-		logger:                 logger,
-		gitService:             gitService,
-		gitOpsConfigRepository: gitOpsConfigRepository,
+		client:     &coreClient,
+		project:    project,
+		logger:     logger,
+		gitService: gitService,
 	}, err
 }
 func (impl GitAzureClient) DeleteRepository(config *bean2.GitOpsConfigDto) error {
@@ -297,27 +293,4 @@ func (impl GitAzureClient) ensureProjectAvailabilityOnSsh(projectName string, re
 		time.Sleep(10 * time.Second)
 	}
 	return false, nil
-}
-
-func (impl GitAzureClient) GetCommits(repoName, projectName string) ([]*GitCommitDto, error) {
-	azureClient := *impl.client
-	getCommitsArgs := git.GetCommitsArgs{
-		RepositoryId: &repoName,
-		Project:      &projectName,
-	}
-	gitCommits, err := azureClient.GetCommits(context.Background(), getCommitsArgs)
-	if err != nil {
-		impl.logger.Errorw("error in getting commits", "err", err, "repoName", repoName, "projectName", projectName)
-		return nil, err
-	}
-	var gitCommitsDto []*GitCommitDto
-	for _, gitCommit := range *gitCommits {
-		gitCommitDto := &GitCommitDto{
-			CommitHash: *gitCommit.CommitId,
-			AuthorName: *gitCommit.Author.Name,
-			CommitTime: gitCommit.Author.Date.Time,
-		}
-		gitCommitsDto = append(gitCommitsDto, gitCommitDto)
-	}
-	return gitCommitsDto, nil
 }

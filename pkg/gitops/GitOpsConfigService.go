@@ -348,7 +348,7 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(ctx context.Context, req
 		return nil, err
 	}
 
-	err = impl.gitFactory.Reload()
+	err = impl.gitFactory.Reload(impl.gitOpsRepository)
 	if err != nil {
 		return nil, err
 	}
@@ -523,7 +523,7 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *bean2.GitOpsCon
 	if err != nil {
 		return err
 	}
-	err = impl.gitFactory.Reload()
+	err = impl.gitFactory.Reload(impl.gitOpsRepository)
 	if err != nil {
 		return err
 	}

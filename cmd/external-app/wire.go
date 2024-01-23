@@ -154,9 +154,6 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(dashboardEvent.DashboardTelemetryRouter),
 			new(*dashboardEvent.DashboardTelemetryRouterImpl)),
 
-		repository.NewGitOpsConfigRepositoryImpl,
-		wire.Bind(new(repository.GitOpsConfigRepository), new(*repository.GitOpsConfigRepositoryImpl)),
-
 		//binding argoUserService to helm via dummy implementation(HelmUserServiceImpl)
 		argo.NewHelmUserServiceImpl,
 		wire.Bind(new(argo.ArgoUserService), new(*argo.HelmUserServiceImpl)),

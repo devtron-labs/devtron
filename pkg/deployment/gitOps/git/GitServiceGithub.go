@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/google/go-github/github"
 	"go.uber.org/zap"
 	"golang.org/x/oauth2"
@@ -16,17 +15,14 @@ import (
 )
 
 type GitHubClient struct {
-	client *github.Client
-
-	//config *GitConfig
-	logger                 *zap.SugaredLogger
-	org                    string
-	gitService             GitService
-	gitOpsConfigRepository repository.GitOpsConfigRepository
+	client     *github.Client
+	logger     *zap.SugaredLogger
+	org        string
+	gitService GitService
 }
 
 func NewGithubClient(host string, token string, org string, logger *zap.SugaredLogger,
-	gitService GitService, gitOpsConfigRepository repository.GitOpsConfigRepository) (GitHubClient, error) {
+	gitService GitService) (GitHubClient, error) {
 	ctx := context.Background()
 	httpTransport := &http2.Transport{}
 	httpClient := &http2.Client{Transport: httpTransport}
@@ -52,11 +48,10 @@ func NewGithubClient(host string, token string, org string, logger *zap.SugaredL
 	}
 
 	return GitHubClient{
-		client:                 client,
-		org:                    org,
-		logger:                 logger,
-		gitService:             gitService,
-		gitOpsConfigRepository: gitOpsConfigRepository,
+		client:     client,
+		org:        org,
+		logger:     logger,
+		gitService: gitService,
 	}, err
 }
 func (impl GitHubClient) DeleteRepository(config *bean2.GitOpsConfigDto) error {
@@ -243,23 +238,4 @@ func (impl GitHubClient) ensureProjectAvailabilityOnSsh(projectName string, repo
 		time.Sleep(10 * time.Second)
 	}
 	return false, nil
-}
-
-func (impl GitHubClient) GetCommits(repoName, projectName string) ([]*GitCommitDto, error) {
-	githubClient := impl.client
-	gitCommits, _, err := githubClient.Repositories.ListCommits(context.Background(), impl.org, repoName, &github.CommitsListOptions{})
-	if err != nil {
-		impl.logger.Errorw("error in getting commits", "err", err, "repoName", repoName)
-		return nil, err
-	}
-	var gitCommitsDto []*GitCommitDto
-	for _, gitCommit := range gitCommits {
-		gitCommitDto := &GitCommitDto{
-			CommitHash: gitCommit.GetSHA(),
-			AuthorName: *gitCommit.Author.Name,
-			CommitTime: *gitCommit.Commit.Author.Date,
-		}
-		gitCommitsDto = append(gitCommitsDto, gitCommitDto)
-	}
-	return gitCommitsDto, nil
 }

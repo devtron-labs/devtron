@@ -269,26 +269,3 @@ func (impl GitLabClient) CommitValues(config *ChartConfig, gitOpsConfig *bean2.G
 	}
 	return c.ID, *c.AuthoredDate, err
 }
-
-func (impl GitLabClient) GetCommits(repoName, projectName string) ([]*GitCommitDto, error) {
-	gitlabClient := impl.client
-	branch := "master"
-	listCommitOptions := &gitlab.ListCommitsOptions{
-		RefName: &branch,
-	}
-	gitCommits, _, err := gitlabClient.Commits.ListCommits(fmt.Sprintf("%s/%s", impl.config.GitlabGroupPath, repoName), listCommitOptions)
-	if err != nil {
-		impl.logger.Errorw("error in getting commits", "err", err, "repoName", repoName)
-		return nil, err
-	}
-	var gitCommitsDto []*GitCommitDto
-	for _, gitCommit := range gitCommits {
-		gitCommitDto := &GitCommitDto{
-			CommitHash: gitCommit.String(),
-			AuthorName: gitCommit.AuthorName,
-			CommitTime: *gitCommit.AuthoredDate,
-		}
-		gitCommitsDto = append(gitCommitsDto, gitCommitDto)
-	}
-	return gitCommitsDto, nil
-}

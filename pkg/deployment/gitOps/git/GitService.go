@@ -56,15 +56,13 @@ type GitClient interface {
 	GetRepoUrl(config *bean2.GitOpsConfigDto) (repoUrl string, err error)
 	DeleteRepository(config *bean2.GitOpsConfigDto) error
 	CreateReadme(config *bean2.GitOpsConfigDto) (string, error)
-	GetCommits(repoName, projectName string) ([]*GitCommitDto, error)
 }
 
 type GitFactory struct {
-	Client           GitClient
-	GitService       GitService
-	logger           *zap.SugaredLogger
-	gitOpsRepository repository.GitOpsConfigRepository
-	gitCliUtil       *GitCliUtil
+	Client     GitClient
+	GitService GitService
+	logger     *zap.SugaredLogger
+	gitCliUtil *GitCliUtil
 }
 
 type DetailedErrorGitOpsConfigActions struct {
@@ -80,20 +78,20 @@ type GitCommitDto struct {
 	CommitTime time.Time `json:"commitTime"`
 }
 
-func (factory *GitFactory) Reload() error {
+func (factory *GitFactory) Reload(gitOpsRepository repository.GitOpsConfigRepository) error {
 	var err error
 	start := time.Now()
 	defer func() {
 		util.TriggerGitOpsMetrics("Reload", "GitService", start, err)
 	}()
 	factory.logger.Infow("reloading gitops details")
-	cfg, err := GetGitConfig(factory.gitOpsRepository)
+	cfg, err := GetGitConfig(gitOpsRepository)
 	if err != nil {
 		return err
 	}
 	gitService := NewGitServiceImpl(cfg, factory.logger, factory.gitCliUtil)
 	factory.GitService = gitService
-	client, err := NewGitOpsClient(cfg, factory.logger, gitService, factory.gitOpsRepository)
+	client, err := NewGitOpsClient(cfg, factory.logger, gitService)
 	if err != nil {
 		return err
 	}
@@ -158,7 +156,7 @@ func (factory *GitFactory) NewClientForValidation(gitOpsConfig *bean2.GitOpsConf
 	}
 	gitService := NewGitServiceImpl(cfg, factory.logger, factory.gitCliUtil)
 	//factory.GitService = GitService
-	client, err := NewGitOpsClient(cfg, factory.logger, gitService, factory.gitOpsRepository)
+	client, err := NewGitOpsClient(cfg, factory.logger, gitService)
 	if err != nil {
 		return client, gitService, err
 	}
@@ -174,16 +172,15 @@ func NewGitFactory(logger *zap.SugaredLogger, gitOpsRepository repository.GitOps
 		return nil, err
 	}
 	gitService := NewGitServiceImpl(cfg, logger, gitCliUtil)
-	client, err := NewGitOpsClient(cfg, logger, gitService, gitOpsRepository)
+	client, err := NewGitOpsClient(cfg, logger, gitService)
 	if err != nil {
 		logger.Errorw("error in creating gitOps client", "err", err, "gitProvider", cfg.GitProvider)
 	}
 	return &GitFactory{
-		Client:           client,
-		logger:           logger,
-		GitService:       gitService,
-		gitOpsRepository: gitOpsRepository,
-		gitCliUtil:       gitCliUtil,
+		Client:     client,
+		logger:     logger,
+		GitService: gitService,
+		gitCliUtil: gitCliUtil,
 	}, nil
 }
 
@@ -231,18 +228,18 @@ func GetGitConfig(gitOpsRepository repository.GitOpsConfigRepository) (*GitConfi
 	return cfg, err
 }
 
-func NewGitOpsClient(config *GitConfig, logger *zap.SugaredLogger, gitService GitService, gitOpsConfigRepository repository.GitOpsConfigRepository) (GitClient, error) {
+func NewGitOpsClient(config *GitConfig, logger *zap.SugaredLogger, gitService GitService) (GitClient, error) {
 	if config.GitProvider == GITLAB_PROVIDER {
 		gitLabClient, err := NewGitLabClient(config, logger, gitService)
 		return gitLabClient, err
 	} else if config.GitProvider == GITHUB_PROVIDER {
-		gitHubClient, err := NewGithubClient(config.GitHost, config.GitToken, config.GithubOrganization, logger, gitService, gitOpsConfigRepository)
+		gitHubClient, err := NewGithubClient(config.GitHost, config.GitToken, config.GithubOrganization, logger, gitService)
 		return gitHubClient, err
 	} else if config.GitProvider == AZURE_DEVOPS_PROVIDER {
-		gitAzureClient, err := NewGitAzureClient(config.AzureToken, config.GitHost, config.AzureProject, logger, gitService, gitOpsConfigRepository)
+		gitAzureClient, err := NewGitAzureClient(config.AzureToken, config.GitHost, config.AzureProject, logger, gitService)
 		return gitAzureClient, err
 	} else if config.GitProvider == BITBUCKET_PROVIDER {
-		gitBitbucketClient := NewGitBitbucketClient(config.GitUserName, config.GitToken, config.GitHost, logger, gitService, gitOpsConfigRepository)
+		gitBitbucketClient := NewGitBitbucketClient(config.GitUserName, config.GitToken, config.GitHost, logger, gitService)
 		return gitBitbucketClient, nil
 	} else {
 		logger.Errorw("no gitops config provided, gitops will not work ")
