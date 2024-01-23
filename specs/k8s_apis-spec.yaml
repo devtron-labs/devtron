@@ -359,6 +359,18 @@ components:
     ResourceGetResponse:
       type: object
       properties:
+        manifestResponse:
+          $ref: '#/components/schemas/ManifestResponse'
+        secretViewAccess:
+          type: boolean
+          description: >
+            Indicates whether a user can see obscured secret values or not.
+      required:
+        - manifestResponse
+        - secretViewAccess
+    ManifestResponse:
+      type: object
+      properties:
         manifest:
           type: object
           properties:
