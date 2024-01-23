@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS public.infra_profile
     "updated_on"                   timestamptz  NOT NULL,
     "updated_by"                   int4         NOT NULL,
     PRIMARY KEY ("id")
+    CONSTRAINT "infra_profile_name_key" UNIQUE ("name")
     );
 
 CREATE SEQUENCE IF NOT EXISTS id_seq_infra_profile_configuration;
@@ -26,7 +27,7 @@ CREATE TABLE IF NOT EXISTS public.infra_profile_configuration
     "created_by"                   int4         NOT NULL,
     "updated_on"                   timestamptz  NOT NULL,
     "updated_by"                   int4         NOT NULL,
-    PRIMARY KEY ("id")
-    FOREIGN KEY ("profile_id") REFERENCES build_infra_profile ("id")
+    PRIMARY KEY ("id"),
+    CONSTRAINT "infra_profile_configuration_profile_id_fkey" FOREIGN KEY ("profile_id") REFERENCES "public"."infra_profile" ("id")
     );
 

@@ -11,7 +11,7 @@ import (
 // repo structs
 
 type InfraProfile struct {
-	tableName   struct{} `sql:"infra_profile"`
+	tableName   struct{} `sql:"infra_profile" pg:",discard_unknown_columns"`
 	Id          int      `sql:"id"`
 	Name        string   `sql:"name"`
 	Description string   `sql:"description"`
@@ -33,14 +33,13 @@ func (infraProfile *InfraProfile) ConvertToProfileBean() ProfileBean {
 }
 
 type InfraProfileConfiguration struct {
-	tableName    struct{}         `sql:"infra_profile_configuration"`
-	Id           int              `sql:"id"`
-	Key          ConfigKey        `sql:"name"`
-	Value        float64          `sql:"description"`
-	Unit         units.UnitSuffix `sql:"unit"`
-	ProfileId    int              `sql:"profile_id"`
-	Active       bool             `sql:"active"`
-	InfraProfile InfraProfile
+	tableName struct{}         `sql:"infra_profile_configuration" pg:",discard_unknown_columns"`
+	Id        int              `sql:"id"`
+	Key       ConfigKey        `sql:"key"`
+	Value     float64          `sql:"value"`
+	Unit      units.UnitSuffix `sql:"unit"`
+	ProfileId int              `sql:"profile_id"`
+	Active    bool             `sql:"active"`
 	sql.AuditLog
 }
 
