@@ -24,7 +24,7 @@ const PayloadValidationError = "payload validation failed"
 type InfraConfigService interface {
 
 	// todo: @gireesh for all get apis, check if we can get profile and configurations in one db call
-	// can use rigth join
+	// can use right join
 
 	// GetConfigurationUnits fetches all the units for the configurations.
 	GetConfigurationUnits() map[infraConfig.ConfigKeyStr]map[string]units.Unit
@@ -221,8 +221,7 @@ func (impl *InfraConfigServiceImpl) CreateProfile(userId int32, profileBean *inf
 
 	infraProfile := profileBean.ConvertToInfraProfile()
 	infraProfile.Active = true
-	infraProfile.CreatedBy = userId
-	infraProfile.CreatedOn = time.Now()
+	infraProfile.AuditLog = sql.NewDefaultAuditLog(userId)
 
 	tx, err := impl.infraProfileRepo.StartTx()
 	if err != nil {
@@ -390,12 +389,7 @@ func (impl *InfraConfigServiceImpl) loadDefaultProfile() error {
 		Name:        repository.DEFAULT_PROFILE_NAME,
 		Description: "",
 		Active:      true,
-		AuditLog: sql.AuditLog{
-			CreatedBy: 1, // system user
-			CreatedOn: time.Now(),
-			UpdatedOn: time.Now(),
-			UpdatedBy: 1, // system user
-		},
+		AuditLog:    sql.NewDefaultAuditLog(1),
 	}
 	tx, err := impl.infraProfileRepo.StartTx()
 	if err != nil {
@@ -413,12 +407,7 @@ func (impl *InfraConfigServiceImpl) loadDefaultProfile() error {
 	util.Transform(defaultConfigurations, func(config *infraConfig.InfraProfileConfiguration) *infraConfig.InfraProfileConfiguration {
 		config.ProfileId = defaultProfile.Id
 		config.Active = true
-		config.AuditLog = sql.AuditLog{
-			CreatedBy: 1, // system user
-			CreatedOn: time.Now(),
-			UpdatedOn: time.Now(),
-			UpdatedBy: 1, // system user
-		}
+		config.AuditLog = sql.NewDefaultAuditLog(1)
 		return config
 	})
 	err = impl.infraProfileRepo.CreateConfigurations(tx, defaultConfigurations)
