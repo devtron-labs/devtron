@@ -66,7 +66,7 @@ func (impl *InfraConfigRepositoryImpl) UpdateConfigurations(tx *pg.Tx, configura
 func (impl *InfraConfigRepositoryImpl) GetConfigurationsByProfileId(profileId int) ([]*infraConfig.InfraProfileConfiguration, error) {
 	var configurations []*infraConfig.InfraProfileConfiguration
 	err := impl.dbConnection.Model(&configurations).
-		Where("infra_profile_id = ?", profileId).
+		Where("profile_id = ?", profileId).
 		Where("active = ?", true).
 		Select()
 	if errors.Is(err, pg.ErrNoRows) {
