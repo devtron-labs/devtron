@@ -118,7 +118,7 @@ workflowController:
 
 security:
   imageScanner:
-    image: "quay.io/devtron/image-scanner:56b2b5e0-334-20621"
+    image: "quay.io/devtron/image-scanner:28f95d21-334-20763"
 
 notifier:
   image: "quay.io/devtron/notifier:b08cf04a-372-20326"
