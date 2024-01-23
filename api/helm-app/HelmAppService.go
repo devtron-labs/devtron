@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/common-lib-private/utils/k8s"
+	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/helm-app/models"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/go-pg/pg"
@@ -84,7 +85,7 @@ type HelmAppServiceImpl struct {
 	installedAppRepository               repository.InstalledAppRepository
 	appRepository                        app.AppRepository
 	clusterRepository                    clusterRepository.ClusterRepository
-	K8sUtil                              *k8s.K8sUtil
+	K8sUtil                              *k8s.K8sUtilExtended
 	helmReleaseConfig                    *HelmReleaseConfig
 }
 
@@ -94,7 +95,7 @@ func NewHelmAppServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.Clu
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
 	environmentService cluster.EnvironmentService, pipelineRepository pipelineConfig.PipelineRepository,
 	installedAppRepository repository.InstalledAppRepository, appRepository app.AppRepository,
-	clusterRepository clusterRepository.ClusterRepository, K8sUtil *k8s.K8sUtil,
+	clusterRepository clusterRepository.ClusterRepository, K8sUtil *k8s.K8sUtilExtended,
 	helmReleaseConfig *HelmReleaseConfig) *HelmAppServiceImpl {
 	return &HelmAppServiceImpl{
 		logger:                               Logger,
@@ -142,7 +143,7 @@ func (impl *HelmAppServiceImpl) listApplications(ctx context.Context, clusterIds
 	for _, clusterDetail := range clusters {
 		config := &ClusterConfig{
 			ApiServerUrl:           clusterDetail.ServerUrl,
-			Token:                  clusterDetail.Config[k8s.BearerToken],
+			Token:                  clusterDetail.Config[k8s2.BearerToken],
 			ClusterId:              int32(clusterDetail.Id),
 			ClusterName:            clusterDetail.ClusterName,
 			InsecureSkipTLSVerify:  clusterDetail.InsecureSkipTLSVerify,
@@ -156,9 +157,9 @@ func (impl *HelmAppServiceImpl) listApplications(ctx context.Context, clusterIds
 			config.SshTunnelServerAddress = clusterDetail.SSHTunnelConfig.SSHServerAddress
 		}
 		if clusterDetail.InsecureSkipTLSVerify == false {
-			config.KeyData = clusterDetail.Config[k8s.TlsKey]
-			config.CertData = clusterDetail.Config[k8s.CertData]
-			config.CaData = clusterDetail.Config[k8s.CertificateAuthorityData]
+			config.KeyData = clusterDetail.Config[k8s2.TlsKey]
+			config.CertData = clusterDetail.Config[k8s2.CertData]
+			config.CaData = clusterDetail.Config[k8s2.CertificateAuthorityData]
 		}
 		req.Clusters = append(req.Clusters, config)
 	}
@@ -290,7 +291,7 @@ func (impl *HelmAppServiceImpl) GetClusterConf(clusterId int) (*ClusterConfig, e
 	} else {
 		config = ClusterConfig{
 			ApiServerUrl:           clusterObj.ServerUrl,
-			Token:                  clusterObj.Config[k8s.BearerToken],
+			Token:                  clusterObj.Config[k8s2.BearerToken],
 			ClusterId:              int32(clusterObj.Id),
 			ClusterName:            clusterObj.ClusterName,
 			ProxyUrl:               clusterObj.ProxyUrl,
@@ -304,9 +305,9 @@ func (impl *HelmAppServiceImpl) GetClusterConf(clusterId int) (*ClusterConfig, e
 			config.SshTunnelServerAddress = clusterObj.SSHTunnelConfig.SSHServerAddress
 		}
 		if clusterObj.InsecureSkipTLSVerify == false {
-			config.KeyData = clusterObj.Config[k8s.TlsKey]
-			config.CertData = clusterObj.Config[k8s.CertData]
-			config.CaData = clusterObj.Config[k8s.CertificateAuthorityData]
+			config.KeyData = clusterObj.Config[k8s2.TlsKey]
+			config.CertData = clusterObj.Config[k8s2.CertData]
+			config.CaData = clusterObj.Config[k8s2.CertificateAuthorityData]
 		}
 	}
 

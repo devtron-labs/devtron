@@ -1,7 +1,7 @@
 package bean
 
 import (
-	"github.com/devtron-labs/common-lib-private/utils/k8s"
+	"github.com/devtron-labs/common-lib/utils/k8s"
 )
 
 const (

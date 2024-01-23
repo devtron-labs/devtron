@@ -22,8 +22,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/devtron-labs/common-lib-private/pubsub-lib"
-	"github.com/devtron-labs/common-lib-private/pubsub-lib/model"
+	"github.com/devtron-labs/common-lib/pubsub-lib"
+	"github.com/devtron-labs/common-lib/pubsub-lib/model"
 	"time"
 
 	"github.com/devtron-labs/devtron/client/argocdServer"
@@ -272,7 +272,6 @@ func (impl AppStoreDeploymentFullModeServiceImpl) subscribeHelmInstallStatus() e
 
 	callback := func(msg *model.PubSubMsg) {
 
-		impl.logger.Debug("received helm install status event - HELM_INSTALL_STATUS", "data", msg.Data)
 		helmInstallNatsMessage := &appStoreBean.HelmReleaseStatusConfig{}
 		err := json.Unmarshal([]byte(msg.Data), helmInstallNatsMessage)
 		if err != nil {
@@ -298,7 +297,17 @@ func (impl AppStoreDeploymentFullModeServiceImpl) subscribeHelmInstallStatus() e
 		}
 	}
 
-	err := impl.pubSubClient.Subscribe(pubsub_lib.HELM_CHART_INSTALL_STATUS_TOPIC, callback)
+	// add required logging here
+	var loggerFunc pubsub_lib.LoggerFunc = func(msg model.PubSubMsg) (string, []interface{}) {
+		helmInstallNatsMessage := &appStoreBean.HelmReleaseStatusConfig{}
+		err := json.Unmarshal([]byte(msg.Data), helmInstallNatsMessage)
+		if err != nil {
+			return "error in unmarshalling helm install status nats message", []interface{}{"err", err}
+		}
+		return "got nats msg for helm chart install status", []interface{}{"InstallAppVersionHistoryId", helmInstallNatsMessage.InstallAppVersionHistoryId, "ErrorInInstallation", helmInstallNatsMessage.ErrorInInstallation, "IsReleaseInstalled", helmInstallNatsMessage.IsReleaseInstalled}
+	}
+
+	err := impl.pubSubClient.Subscribe(pubsub_lib.HELM_CHART_INSTALL_STATUS_TOPIC, callback, loggerFunc)
 	if err != nil {
 		impl.logger.Error(err)
 		return err

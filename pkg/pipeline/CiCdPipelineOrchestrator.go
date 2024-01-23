@@ -32,7 +32,7 @@ import (
 	"strings"
 	"time"
 
-	util3 "github.com/devtron-labs/common-lib-private/utils/k8s"
+	util4 "github.com/devtron-labs/common-lib/utils/k8s"
 	bean5 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -1137,7 +1137,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateApp(createRequest *bean.CreateApp
 		}
 		labelKey := label.Key
 		labelValue := label.Value
-		err := util3.CheckIfValidLabel(labelKey, labelValue)
+		err := util4.CheckIfValidLabel(labelKey, labelValue)
 		if err != nil {
 			return nil, err
 		}

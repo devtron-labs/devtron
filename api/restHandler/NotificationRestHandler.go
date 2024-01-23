@@ -22,12 +22,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
-	"net/http"
-	"strconv"
-	"strings"
-
+	"github.com/devtron-labs/authenticator/middleware"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/enterprise/api/drafts"
+	drafts2 "github.com/devtron-labs/devtron/enterprise/pkg/drafts"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
@@ -42,6 +40,10 @@ import (
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
+	"io/ioutil"
+	"net/http"
+	"strconv"
+	"strings"
 )
 
 const (
@@ -69,6 +71,8 @@ type NotificationRestHandler interface {
 	RecipientListingSuggestion(w http.ResponseWriter, r *http.Request)
 	FindAllNotificationConfigAutocomplete(w http.ResponseWriter, r *http.Request)
 	GetOptionsForNotificationSettings(w http.ResponseWriter, r *http.Request)
+	ApproveConfigDraftForNotification(w http.ResponseWriter, r *http.Request)
+	ApproveDeploymentConfigForNotification(w http.ResponseWriter, r *http.Request)
 }
 type NotificationRestHandlerImpl struct {
 	dockerRegistryConfig pipeline.DockerRegistryConfig
@@ -86,6 +90,7 @@ type NotificationRestHandlerImpl struct {
 	environmentService   cluster.EnvironmentService
 	pipelineBuilder      pipeline.PipelineBuilder
 	enforcerUtil         rbac.EnforcerUtil
+	configDraftRestHandlerImpl *drafts.ConfigDraftRestHandlerImpl
 }
 
 type ChannelDto struct {
@@ -98,7 +103,9 @@ func NewNotificationRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistry
 	validator *validator.Validate, notificationService notifier.NotificationConfigService,
 	slackService notifier.SlackNotificationService, webhookService notifier.WebhookNotificationService, sesService notifier.SESNotificationService, smtpService notifier.SMTPNotificationService,
 	enforcer casbin.Enforcer, teamService team.TeamService, environmentService cluster.EnvironmentService, pipelineBuilder pipeline.PipelineBuilder,
-	enforcerUtil rbac.EnforcerUtil) *NotificationRestHandlerImpl {
+	enforcerUtil rbac.EnforcerUtil,
+	configDraftRestHandlerImpl *drafts.ConfigDraftRestHandlerImpl,
+) *NotificationRestHandlerImpl {
 	return &NotificationRestHandlerImpl{
 		dockerRegistryConfig: dockerRegistryConfig,
 		logger:               logger,
@@ -115,6 +122,7 @@ func NewNotificationRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistry
 		environmentService:   environmentService,
 		pipelineBuilder:      pipelineBuilder,
 		enforcerUtil:         enforcerUtil,
+		configDraftRestHandlerImpl: configDraftRestHandlerImpl,
 	}
 }
 
@@ -1141,4 +1149,65 @@ func (impl NotificationRestHandlerImpl) DeleteNotificationChannelConfig(w http.R
 	} else {
 		common.WriteJsonResp(w, fmt.Errorf(" The channel you requested is not supported"), nil, http.StatusBadRequest)
 	}
+}
+
+func (impl NotificationRestHandlerImpl) ApproveConfigDraftForNotification(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get(middleware.ApiTokenHeaderKey)
+	//verification is done internally
+	draftRequest, err := impl.createDraftRequest(token)
+	if err != nil || draftRequest == nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	_, draftState, err := impl.configDraftRestHandlerImpl.CheckAccessAndApproveDraft(w, token, *draftRequest)
+	if err != nil {
+		if draftState == 0 {
+			return
+		}
+		if draftState == drafts2.AwaitApprovalDraftState {
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+	}
+
+	resp, err := impl.notificationService.GetMetaDataForDraftNotification(draftRequest)
+	resp.DraftState = uint8(draftState)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
+
+}
+
+func (impl NotificationRestHandlerImpl) ApproveDeploymentConfigForNotification(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get(middleware.ApiTokenHeaderKey)
+	//verification is done internally
+	deploymentApprovalRequest, err := impl.createDeploymentApprovalRequest(token)
+	if err != nil || deploymentApprovalRequest == nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	approvalActionRequest := deploymentApprovalRequest.CreateApprovalActionRequest()
+	pipelineInfo, err := impl.pipelineBuilder.FindPipelineById(deploymentApprovalRequest.PipelineId)
+	if err != nil {
+		impl.logger.Errorw("error occurred while fetching pipeline details", "pipelineId", deploymentApprovalRequest.PipelineId, "err", err)
+		if err == pg.ErrNoRows {
+			common.WriteJsonResp(w, errors.New("pipeline not found"), nil, http.StatusInternalServerError)
+			return
+		}
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	allowed := impl.userAuthService.CheckForApproverAccess(pipelineInfo.App.AppName, pipelineInfo.Environment.EnvironmentIdentifier, deploymentApprovalRequest.UserId)
+	if !allowed {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	resp, err := impl.notificationService.PerformApprovalActionAndGetMetadata(*deploymentApprovalRequest, approvalActionRequest, pipelineInfo)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }

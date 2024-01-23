@@ -21,7 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/argoproj/argo-workflows/v3/workflow/common"
-	"github.com/devtron-labs/common-lib-private/blob-storage"
+	"github.com/devtron-labs/common-lib/blob-storage"
 	bean3 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
@@ -132,6 +132,8 @@ type WorkflowRequest struct {
 	RegistryCredentialMap       map[string]plugin.RegistryCredentials `json:"registryCredentialMap"`
 	PluginArtifactStage         string                                `json:"pluginArtifactStage"`
 	PushImageBeforePostCI       bool                                  `json:"pushImageBeforePostCI"`
+	ImageScanMaxRetries         int                                   `json:"imageScanMaxRetries,omitempty"`
+	ImageScanRetryDelay         int                                   `json:"imageScanRetryDelay,omitempty"`
 	Scope                       resourceQualifiers.Scope
 }
 
