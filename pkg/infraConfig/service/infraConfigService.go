@@ -6,6 +6,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/infraConfig/repository"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/units"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/util"
 	"go.uber.org/zap"
 	"time"
 )
@@ -13,7 +14,7 @@ import (
 type InfraConfigService interface {
 	GetDefaultProfile() (*infraConfig.ProfileBean, error)
 	UpdateProfile(userId int32, profileName string, profileBean *infraConfig.ProfileBean) error
-	GetConfigurationUnits() map[infraConfig.ConfigKeyStr][]units.Unit
+	GetConfigurationUnits() map[infraConfig.ConfigKeyStr]map[string]units.Unit
 }
 
 type InfraConfigServiceImpl struct {
@@ -52,13 +53,13 @@ func (impl *InfraConfigServiceImpl) GetDefaultProfile() (*infraConfig.ProfileBea
 		return nil, err
 	}
 
-	configurationBeans := Transform(infraConfigurations, func(config *infraConfig.InfraProfileConfiguration) infraConfig.ConfigurationBean {
+	configurationBeans := util.Transform(infraConfigurations, func(config *infraConfig.InfraProfileConfiguration) infraConfig.ConfigurationBean {
 		configBean := config.ConvertToConfigurationBean()
 		configBean.ProfileName = profileBean.Name
 		return configBean
 	})
 	profileBean.Configurations = configurationBeans
-	appCount, err := impl.infraProfileRepo.GetIdentifierCountForDefaultProfile(infraProfile.Id)
+	appCount, err := impl.infraProfileRepo.GetIdentifierCountForDefaultProfile()
 	if err != nil {
 		impl.logger.Errorw("error in fetching app count for default profile", "error", err)
 		return nil, err
@@ -71,7 +72,7 @@ func (impl *InfraConfigServiceImpl) UpdateProfile(userId int32, profileName stri
 	infraProfile := profileBean.ConvertToInfraProfile()
 	// user couldn't delete the profile, always set this to active
 	infraProfile.Active = true
-	infraConfigurations := Transform(profileBean.Configurations, func(config infraConfig.ConfigurationBean) *infraConfig.InfraProfileConfiguration {
+	infraConfigurations := util.Transform(profileBean.Configurations, func(config infraConfig.ConfigurationBean) *infraConfig.InfraProfileConfiguration {
 		config.ProfileId = infraProfile.Id
 		// user couldn't delete the configuration for default profile, always set this to active
 		if infraProfile.Name == repository.DEFAULT_PROFILE_NAME {
@@ -82,7 +83,7 @@ func (impl *InfraConfigServiceImpl) UpdateProfile(userId int32, profileName stri
 
 	tx, err := impl.infraProfileRepo.StartTx()
 	if err != nil {
-		impl.logger.Errorw("error in starting transaction to update profile", "error", err)
+		impl.logger.Errorw("error in starting transaction to update profile", "profileName", profileName, "error", err)
 		return err
 	}
 	defer impl.infraProfileRepo.RollbackTx(tx)
@@ -152,7 +153,7 @@ func (impl *InfraConfigServiceImpl) loadDefaultProfile() error {
 		return err
 	}
 
-	Transform(defaultConfigurations, func(config *infraConfig.InfraProfileConfiguration) *infraConfig.InfraProfileConfiguration {
+	util.Transform(defaultConfigurations, func(config *infraConfig.InfraProfileConfiguration) *infraConfig.InfraProfileConfiguration {
 		config.ProfileId = defaultProfile.Id
 		config.Active = true
 		config.AuditLog = sql.AuditLog{
@@ -173,21 +174,8 @@ func (impl *InfraConfigServiceImpl) loadDefaultProfile() error {
 	return err
 }
 
-// todo: delete thsi function
-// Transform will iterate through elements of input slice and apply transform function on each object
-// and returns the transformed slice
-func Transform[T any, K any](input []T, transform func(inp T) K) []K {
-
-	res := make([]K, len(input))
-	for i, _ := range input {
-		res[i] = transform(input[i])
-	}
-	return res
-
-}
-
-func (impl *InfraConfigServiceImpl) GetConfigurationUnits() map[infraConfig.ConfigKeyStr][]units.Unit {
-	configurationUnits := make(map[infraConfig.ConfigKeyStr][]units.Unit)
+func (impl *InfraConfigServiceImpl) GetConfigurationUnits() map[infraConfig.ConfigKeyStr]map[string]units.Unit {
+	configurationUnits := make(map[infraConfig.ConfigKeyStr]map[string]units.Unit)
 	configurationUnits[infraConfig.CPU_REQUEST] = impl.units.GetCpuUnits()
 	configurationUnits[infraConfig.CPU_LIMIT] = impl.units.GetCpuUnits()
 

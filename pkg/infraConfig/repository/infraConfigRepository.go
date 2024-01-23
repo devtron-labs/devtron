@@ -1,8 +1,8 @@
 package repository
 
 import (
+	repository1 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
-	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/pkg/errors"
@@ -18,7 +18,7 @@ type InfraConfigRepository interface {
 	GetConfigurationsByProfileId(profileId int) ([]*infraConfig.InfraProfileConfiguration, error)
 	CreateConfigurations(tx *pg.Tx, configurations []*infraConfig.InfraProfileConfiguration) error
 	UpdateConfigurations(tx *pg.Tx, configurations []*infraConfig.InfraProfileConfiguration) error
-	GetIdentifierCountForDefaultProfile(defaultProfileId int) (int, error)
+	GetIdentifierCountForDefaultProfile() (int, error)
 	UpdateProfile(tx *pg.Tx, profileName string, profile *infraConfig.InfraProfile) error
 	sql.TransactionWrapper
 }
@@ -80,20 +80,11 @@ func (impl *InfraConfigRepositoryImpl) GetConfigurationsByProfileId(profileId in
 	return configurations, err
 }
 
-func (impl *InfraConfigRepositoryImpl) GetIdentifierCountForDefaultProfile(defaultProfileId int) (int, error) {
-	query := " SELECT COUNT(DISTINCT app_id) " +
-		" FROM resource_identifier_mapping " +
-		" WHERE reference_type = ? AND reference_id IN ( " +
-		" 	SELECT profile_id " +
-		"   FROM infra_profile_configuration " +
-		"   GROUP BY profile_id HAVING COUNT(profile_id) < ( " +
-		" 	      SELECT COUNT(id) " +
-		" 	      FROM infra_profile_configuration " +
-		" 	      WHERE active=true AND profile_id=?) " +
-		" ) AND active=true"
+func (impl *InfraConfigRepositoryImpl) GetIdentifierCountForDefaultProfile() (int, error) {
 
-	count := 0
-	_, err := impl.dbConnection.Query(&count, query, resourceQualifiers.InfraProfile, defaultProfileId)
+	count, err := impl.dbConnection.Model(repository1.App{}).
+		Where("active = ?", true).
+		Count()
 	return count, err
 }
 

@@ -1,10 +1,10 @@
 package infraConfig
 
 import (
-	"fmt"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/units"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/pkg/errors"
+	"strconv"
 	"time"
 )
 
@@ -81,13 +81,14 @@ func (infraProfile *InfraProfile) ConvertToProfileBean() ProfileBean {
 }
 
 type InfraProfileConfiguration struct {
-	tableName struct{}         `sql:"infra_profile_configuration"`
-	Id        int              `sql:"id"`
-	Key       ConfigKey        `sql:"name"`
-	Value     string           `sql:"description"`
-	Unit      units.UnitSuffix `sql:"unit"`
-	ProfileId int              `sql:"profile_id"`
-	Active    bool             `sql:"active"`
+	tableName    struct{}         `sql:"infra_profile_configuration"`
+	Id           int              `sql:"id"`
+	Key          ConfigKey        `sql:"name"`
+	Value        float64          `sql:"description"`
+	Unit         units.UnitSuffix `sql:"unit"`
+	ProfileId    int              `sql:"profile_id"`
+	Active       bool             `sql:"active"`
+	InfraProfile InfraProfile
 	sql.AuditLog
 }
 
@@ -106,10 +107,10 @@ func (infraProfileConfiguration *InfraProfileConfiguration) ConvertToConfigurati
 
 type ProfileBean struct {
 	Id             int                 `json:"id"`
-	Name           string              `json:"name" validate:"required"`
-	Description    string              `json:"description"`
+	Name           string              `json:"name" validate:"required,min=1,max=50"`
+	Description    string              `json:"description" validate:"max=300"`
 	Active         bool                `json:"active"`
-	Configurations []ConfigurationBean `json:"configuration"`
+	Configurations []ConfigurationBean `json:"configuration" validate:"dive"`
 	AppCount       int                 `json:"appCount"`
 	CreatedBy      int32               `json:"createdBy"`
 	CreatedOn      time.Time           `json:"createdOn"`
@@ -128,8 +129,8 @@ func (profileBean *ProfileBean) ConvertToInfraProfile() *InfraProfile {
 type ConfigurationBean struct {
 	Id          int          `json:"id"`
 	Key         ConfigKeyStr `json:"key" validate:"required"`
-	Value       string       `json:"value" validate:"required"`
-	Unit        string       `json:"unit"`
+	Value       float64      `json:"value" validate:"required"`
+	Unit        string       `json:"unit" validate:"required"`
 	ProfileName string       `json:"profileName"`
 	ProfileId   int          `json:"profileId"`
 	Active      bool         `json:"active"`
@@ -147,8 +148,8 @@ func (configurationBean *ConfigurationBean) ConvertToInfraProfileConfiguration()
 }
 
 type InfraConfigMetaData struct {
-	DefaultConfigurations []ConfigurationBean           `json:"defaultConfigurations"`
-	ConfigurationUnits    map[ConfigKeyStr][]units.Unit `json:"configurationUnits"`
+	DefaultConfigurations []ConfigurationBean                    `json:"defaultConfigurations"`
+	ConfigurationUnits    map[ConfigKeyStr]map[string]units.Unit `json:"configurationUnits"`
 }
 type ProfileResponse struct {
 	Profile ProfileBean `json:"profile"`
@@ -179,9 +180,13 @@ func (infraConfig InfraConfig) GetCiLimitCpu() (*InfraProfileConfiguration, erro
 		return nil, errors.New("negative value not allowed for cpu limits")
 	}
 
+	val, err := strconv.ParseFloat(num, 64)
+	if err != nil {
+		return nil, err
+	}
 	return &InfraProfileConfiguration{
 		Key:   CPULimit,
-		Value: num,
+		Value: val,
 		Unit:  units.GetCPUUnit(units.CPUUnitStr(suffix)),
 	}, nil
 
@@ -196,9 +201,13 @@ func (infraConfig InfraConfig) GetCiLimitMem() (*InfraProfileConfiguration, erro
 		return nil, errors.New("negative value not allowed for memory limits")
 	}
 
+	val, err := strconv.ParseFloat(num, 64)
+	if err != nil {
+		return nil, err
+	}
 	return &InfraProfileConfiguration{
 		Key:   MemoryLimit,
-		Value: num,
+		Value: val,
 		Unit:  units.GetMemoryUnit(units.MemoryUnitStr(suffix)),
 	}, nil
 
@@ -213,9 +222,14 @@ func (infraConfig InfraConfig) GetCiReqCpu() (*InfraProfileConfiguration, error)
 		return nil, errors.New("negative value not allowed for cpu requests")
 	}
 
+	val, err := strconv.ParseFloat(num, 64)
+	if err != nil {
+		return nil, err
+	}
+
 	return &InfraProfileConfiguration{
 		Key:   CPURequest,
-		Value: num,
+		Value: val,
 		Unit:  units.GetCPUUnit(units.CPUUnitStr(suffix)),
 	}, nil
 }
@@ -228,10 +242,14 @@ func (infraConfig InfraConfig) GetCiReqMem() (*InfraProfileConfiguration, error)
 	if !positive {
 		return nil, errors.New("negative value not allowed for memory requests")
 	}
+	val, err := strconv.ParseFloat(num, 64)
+	if err != nil {
+		return nil, err
+	}
 
 	return &InfraProfileConfiguration{
 		Key:   MemoryRequest,
-		Value: num,
+		Value: val,
 		Unit:  units.GetMemoryUnit(units.MemoryUnitStr(suffix)),
 	}, nil
 }
@@ -239,7 +257,7 @@ func (infraConfig InfraConfig) GetCiReqMem() (*InfraProfileConfiguration, error)
 func (infraConfig InfraConfig) GetDefaultTimeout() (*InfraProfileConfiguration, error) {
 	return &InfraProfileConfiguration{
 		Key:   TimeOut,
-		Value: fmt.Sprintf("%d", infraConfig.CiDefaultTimeout),
+		Value: float64(infraConfig.CiDefaultTimeout),
 		Unit:  units.GetTimeUnit(units.SecondStr),
 	}, nil
 }

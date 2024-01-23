@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS public.infra_profile_configuration
 (
     "id"                           int          NOT NULL DEFAULT nextval('id_seq_infra_profile_configuration'::regclass),
     "key"                          int          NOT NULL,
-    "value"                        VARCHAR      NOT NULL,
+    "value"                        float        NOT NULL,
     "profile_id"                   int          NOT NULL,
     "unit"                         int          NOT NULL,
     "active"                       bool         NOT NULL,
