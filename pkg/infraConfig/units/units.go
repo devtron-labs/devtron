@@ -383,7 +383,7 @@ Num:
 			suffix = str[suffixStart:end]
 			return
 		}
-		if !strings.ContainsAny(str[i:i+1], "sheEinumkKMGTP") {
+		if !strings.ContainsAny(str[i:i+1], "eEinumkKMGTP") {
 			pos = i
 			break
 		}

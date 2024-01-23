@@ -11,7 +11,7 @@ import (
 // repo structs
 
 type InfraProfile struct {
-	tableName   struct{} `sql:"infra_profile"`
+	tableName   struct{} `sql:"infra_profile" pg:",discard_unknown_columns"`
 	Id          int      `sql:"id"`
 	Name        string   `sql:"name"`
 	Description string   `sql:"description"`
@@ -33,14 +33,13 @@ func (infraProfile *InfraProfile) ConvertToProfileBean() ProfileBean {
 }
 
 type InfraProfileConfiguration struct {
-	tableName    struct{}         `sql:"infra_profile_configuration"`
-	Id           int              `sql:"id"`
-	Key          ConfigKey        `sql:"name"`
-	Value        float64          `sql:"description"`
-	Unit         units.UnitSuffix `sql:"unit"`
-	ProfileId    int              `sql:"profile_id"`
-	Active       bool             `sql:"active"`
-	InfraProfile InfraProfile
+	tableName struct{}         `sql:"infra_profile_configuration" pg:",discard_unknown_columns"`
+	Id        int              `sql:"id"`
+	Key       ConfigKey        `sql:"key"`
+	Value     float64          `sql:"value"`
+	Unit      units.UnitSuffix `sql:"unit"`
+	ProfileId int              `sql:"profile_id"`
+	Active    bool             `sql:"active"`
 	sql.AuditLog
 }
 
@@ -123,15 +122,19 @@ type InfraConfig struct {
 }
 
 func (infraConfig InfraConfig) GetCiLimitCpu() (*InfraProfileConfiguration, error) {
-	positive, _, num, _, suffix, err := units.ParseQuantityString(infraConfig.CiLimitCpu)
+	positive, _, num, denom, suffix, err := units.ParseQuantityString(infraConfig.CiLimitCpu)
 	if err != nil {
 		return nil, err
 	}
 	if !positive {
 		return nil, errors.New("negative value not allowed for cpu limits")
 	}
+	valStr := num
+	if denom != "" {
+		valStr = num + "." + denom
+	}
 
-	val, err := strconv.ParseFloat(num, 64)
+	val, err := strconv.ParseFloat(valStr, 64)
 	if err != nil {
 		return nil, err
 	}
@@ -144,15 +147,18 @@ func (infraConfig InfraConfig) GetCiLimitCpu() (*InfraProfileConfiguration, erro
 }
 
 func (infraConfig InfraConfig) GetCiLimitMem() (*InfraProfileConfiguration, error) {
-	positive, _, num, _, suffix, err := units.ParseQuantityString(infraConfig.CiLimitMem)
+	positive, _, num, denom, suffix, err := units.ParseQuantityString(infraConfig.CiLimitMem)
 	if err != nil {
 		return nil, err
 	}
 	if !positive {
 		return nil, errors.New("negative value not allowed for memory limits")
 	}
-
-	val, err := strconv.ParseFloat(num, 64)
+	valStr := num
+	if denom != "" {
+		valStr = num + "." + denom
+	}
+	val, err := strconv.ParseFloat(valStr, 64)
 	if err != nil {
 		return nil, err
 	}
@@ -165,7 +171,7 @@ func (infraConfig InfraConfig) GetCiLimitMem() (*InfraProfileConfiguration, erro
 }
 
 func (infraConfig InfraConfig) GetCiReqCpu() (*InfraProfileConfiguration, error) {
-	positive, _, num, _, suffix, err := units.ParseQuantityString(infraConfig.CiReqCpu)
+	positive, _, num, denom, suffix, err := units.ParseQuantityString(infraConfig.CiReqCpu)
 	if err != nil {
 		return nil, err
 	}
@@ -173,7 +179,12 @@ func (infraConfig InfraConfig) GetCiReqCpu() (*InfraProfileConfiguration, error)
 		return nil, errors.New("negative value not allowed for cpu requests")
 	}
 
-	val, err := strconv.ParseFloat(num, 64)
+	valStr := num
+	if denom != "" {
+		valStr = num + "." + denom
+	}
+
+	val, err := strconv.ParseFloat(valStr, 64)
 	if err != nil {
 		return nil, err
 	}
@@ -186,14 +197,18 @@ func (infraConfig InfraConfig) GetCiReqCpu() (*InfraProfileConfiguration, error)
 }
 
 func (infraConfig InfraConfig) GetCiReqMem() (*InfraProfileConfiguration, error) {
-	positive, _, num, _, suffix, err := units.ParseQuantityString(infraConfig.CiReqMem)
+	positive, _, num, denom, suffix, err := units.ParseQuantityString(infraConfig.CiReqMem)
 	if err != nil {
 		return nil, err
 	}
 	if !positive {
 		return nil, errors.New("negative value not allowed for memory requests")
 	}
-	val, err := strconv.ParseFloat(num, 64)
+	valStr := num
+	if denom != "" {
+		valStr = num + "." + denom
+	}
+	val, err := strconv.ParseFloat(valStr, 64)
 	if err != nil {
 		return nil, err
 	}

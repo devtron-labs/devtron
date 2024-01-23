@@ -10,6 +10,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/infraConfig/units"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/util"
+	"github.com/go-pg/pg"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
@@ -263,6 +264,7 @@ func (impl *InfraConfigServiceImpl) UpdateProfile(userId int32, profileName stri
 		return errors.New(InvalidProfileName)
 	}
 
+	// validation
 	defaultProfile, err := impl.GetDefaultProfile()
 	if err != nil {
 		impl.logger.Errorw("error in fetching default profile", "profileCreateRequest", profileBean, "error", err)
@@ -272,6 +274,7 @@ func (impl *InfraConfigServiceImpl) UpdateProfile(userId int32, profileName stri
 		impl.logger.Errorw("error occurred in validation the profile create request", "profileCreateRequest", profileBean, "error", err)
 		return err
 	}
+	// validations end
 
 	infraProfile := profileBean.ConvertToInfraProfile()
 	// user couldn't delete the profile, always set this to active
@@ -350,6 +353,16 @@ func (impl *InfraConfigServiceImpl) DeleteProfile(profileName string) error {
 }
 
 func (impl *InfraConfigServiceImpl) loadDefaultProfile() error {
+
+	profile, err := impl.infraProfileRepo.GetProfileByName(repository.DEFAULT_PROFILE_NAME)
+	if err != nil && !errors.Is(err, pg.ErrNoRows) {
+		return err
+	}
+	if profile.Id != 0 {
+		// return here because entry already exists and we dont need to create it again
+		return nil
+	}
+
 	infraConfiguration := impl.infraConfig
 	cpuLimit, err := infraConfiguration.GetCiLimitCpu()
 	if err != nil {
@@ -378,8 +391,10 @@ func (impl *InfraConfigServiceImpl) loadDefaultProfile() error {
 		Description: "",
 		Active:      true,
 		AuditLog: sql.AuditLog{
-			CreatedBy: 1,
+			CreatedBy: 1, // system user
 			CreatedOn: time.Now(),
+			UpdatedOn: time.Now(),
+			UpdatedBy: 1, // system user
 		},
 	}
 	tx, err := impl.infraProfileRepo.StartTx()
@@ -389,7 +404,7 @@ func (impl *InfraConfigServiceImpl) loadDefaultProfile() error {
 	}
 
 	defer impl.infraProfileRepo.RollbackTx(tx)
-	err = impl.infraProfileRepo.CreateDefaultProfile(tx, defaultProfile)
+	err = impl.infraProfileRepo.CreateProfile(tx, defaultProfile)
 	if err != nil {
 		impl.logger.Errorw("error in saving default profile", "error", err)
 		return err
@@ -401,6 +416,8 @@ func (impl *InfraConfigServiceImpl) loadDefaultProfile() error {
 		config.AuditLog = sql.AuditLog{
 			CreatedBy: 1, // system user
 			CreatedOn: time.Now(),
+			UpdatedOn: time.Now(),
+			UpdatedBy: 1, // system user
 		}
 		return config
 	})

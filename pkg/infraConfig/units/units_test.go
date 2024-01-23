@@ -6,7 +6,7 @@ import (
 )
 
 func TestParseQuantityString(t *testing.T) {
-	memLimit := "004Gi"
+	memLimit := "01.400Gi"
 	pos, val, num, denom, suf, err := ParseQuantityString(memLimit)
 	fmt.Println("pos: ", pos)
 	fmt.Println("val: ", val)

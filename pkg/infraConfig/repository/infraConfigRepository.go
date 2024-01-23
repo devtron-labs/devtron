@@ -27,7 +27,6 @@ type InfraConfigRepository interface {
 	GetIdentifierCountForDefaultProfile(defaultProfileId int, identifierType int) (int, error)
 	GetIdentifierCountForNonDefaultProfiles(profileIds []int, identifierType int) ([]ProfileIdentifierCount, error)
 
-	CreateDefaultProfile(tx *pg.Tx, infraProfile *infraConfig.InfraProfile) error
 	CreateProfile(tx *pg.Tx, infraProfile *infraConfig.InfraProfile) error
 	CreateConfigurations(tx *pg.Tx, configurations []*infraConfig.InfraProfileConfiguration) error
 
@@ -51,32 +50,20 @@ func NewInfraProfileRepositoryImpl(dbConnection *pg.DB) *InfraConfigRepositoryIm
 	}
 }
 
-// CreateDefaultProfile saves the default profile in the database only once in a lifetime.
+// CreateProfile saves the default profile in the database only once in a lifetime.
 // If the default profile already exists, it will not be saved again.
-func (impl *InfraConfigRepositoryImpl) CreateDefaultProfile(tx *pg.Tx, infraProfile *infraConfig.InfraProfile) error {
-	profile, err := impl.GetProfileByName(DEFAULT_PROFILE_NAME)
-	if err != nil && !errors.Is(err, pg.ErrNoRows) {
-		return err
-	}
-	if profile != nil {
-		return errors.New(DEFAULT_PROFILE_EXISTS)
-	}
-	err = tx.Insert(infraProfile)
-	return err
-}
-
 func (impl *InfraConfigRepositoryImpl) CreateProfile(tx *pg.Tx, infraProfile *infraConfig.InfraProfile) error {
 	err := tx.Insert(infraProfile)
 	return err
 }
 
 func (impl *InfraConfigRepositoryImpl) GetProfileByName(name string) (*infraConfig.InfraProfile, error) {
-	var infraProfile infraConfig.InfraProfile
-	err := impl.dbConnection.Model(&infraProfile).
+	infraProfile := &infraConfig.InfraProfile{}
+	err := impl.dbConnection.Model(infraProfile).
 		Where("name = ?", name).
 		Where("active = ?", true).
 		Select()
-	return &infraProfile, err
+	return infraProfile, err
 }
 
 func (impl *InfraConfigRepositoryImpl) GetProfileList(profileNameLike string) ([]*infraConfig.InfraProfile, error) {
