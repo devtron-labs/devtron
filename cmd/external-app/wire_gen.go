@@ -165,7 +165,7 @@ func InitializeApp() (*App, error) {
 	userAuditServiceImpl := user.NewUserAuditServiceImpl(sugaredLogger, userAuditRepositoryImpl)
 	roleGroupServiceImpl := user.NewRoleGroupServiceImpl(userAuthRepositoryImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, userCommonServiceImpl)
 	userGroupMapRepositoryImpl := repository2.NewUserGroupMapRepositoryImpl(db, sugaredLogger)
-	userServiceImpl := user.NewUserServiceImpl(userAuthRepositoryImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, sessionManager, userCommonServiceImpl, userAuditServiceImpl, globalAuthorisationConfigServiceImpl, roleGroupServiceImpl, userGroupMapRepositoryImpl)
+	userServiceImpl := user.NewUserServiceImpl(userAuthRepositoryImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, sessionManager, userCommonServiceImpl, userAuditServiceImpl, globalAuthorisationConfigServiceImpl, roleGroupServiceImpl, userGroupMapRepositoryImpl, enterpriseEnforcerImpl)
 	ssoLoginRepositoryImpl := sso.NewSSOLoginRepositoryImpl(db)
 	sshTunnelWrapperServiceImpl, err := k8s.NewSSHTunnelWrapperServiceImpl(sugaredLogger)
 	if err != nil {
