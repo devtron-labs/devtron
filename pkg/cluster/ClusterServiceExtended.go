@@ -37,7 +37,7 @@ type ClusterServiceImplExtended struct {
 
 func NewClusterServiceImplExtended(repository repository.ClusterRepository, environmentRepository repository.EnvironmentRepository,
 	grafanaClient grafana.GrafanaClient, logger *zap.SugaredLogger, installedAppRepository repository2.InstalledAppRepository,
-	K8sUtil *k8s.K8sUtil,
+	K8sUtil *k8s.K8sServiceImpl,
 	clusterServiceCD cluster2.ServiceClient, K8sInformerFactory informer.K8sInformerFactory,
 	gitOpsRepository repository3.GitOpsConfigRepository, userAuthRepository repository5.UserAuthRepository,
 	userRepository repository5.UserRepository, roleGroupRepository repository5.RoleGroupRepository) *ClusterServiceImplExtended {

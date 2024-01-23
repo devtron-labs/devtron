@@ -1563,7 +1563,7 @@ func (impl AppStoreDeploymentServiceImpl) GetInstalledAppVersion(id int, userId 
 	app, err := impl.installedAppRepository.GetInstalledAppVersion(id)
 	if err != nil {
 		if err == pg.ErrNoRows {
-			return nil, fmt.Errorf("values are outdated. please fetch the latest version and try again")
+			return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: "400", UserMessage: "values are outdated. please fetch the latest version and try again", InternalMessage: err.Error()}
 		}
 		impl.logger.Errorw("error while fetching from db", "error", err)
 		return nil, err

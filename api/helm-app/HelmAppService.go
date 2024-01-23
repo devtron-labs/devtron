@@ -84,7 +84,7 @@ type HelmAppServiceImpl struct {
 	installedAppRepository               repository.InstalledAppRepository
 	appRepository                        app.AppRepository
 	clusterRepository                    clusterRepository.ClusterRepository
-	K8sUtil                              *k8s.K8sUtil
+	K8sUtil                              *k8s.K8sServiceImpl
 	helmReleaseConfig                    *HelmReleaseConfig
 }
 
@@ -94,7 +94,7 @@ func NewHelmAppServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.Clu
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
 	environmentService cluster.EnvironmentService, pipelineRepository pipelineConfig.PipelineRepository,
 	installedAppRepository repository.InstalledAppRepository, appRepository app.AppRepository,
-	clusterRepository clusterRepository.ClusterRepository, K8sUtil *k8s.K8sUtil,
+	clusterRepository clusterRepository.ClusterRepository, K8sUtil *k8s.K8sServiceImpl,
 	helmReleaseConfig *HelmReleaseConfig) *HelmAppServiceImpl {
 	return &HelmAppServiceImpl{
 		logger:                               Logger,
