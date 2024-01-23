@@ -1,5 +1,7 @@
 package infraConfig
 
+import "github.com/devtron-labs/devtron/pkg/infraConfig/units"
+
 type ConfigKey int
 
 const CPULimit ConfigKey = 1
@@ -60,4 +62,22 @@ func GetConfigKey(configKeyStr ConfigKeyStr) ConfigKey {
 		return TimeOut
 	}
 	return 0
+}
+
+// GetUnitSuffix loosely typed method to get the unit suffix using the unitKey type
+func GetUnitSuffix(unitKey ConfigKeyStr, unitStr string) units.UnitSuffix {
+	switch unitKey {
+	case CPU_LIMIT, CPU_REQUEST:
+		return units.GetCPUUnit(units.CPUUnitStr(unitStr))
+	}
+	return units.GetMemoryUnit(units.MemoryUnitStr(unitStr))
+}
+
+// GetUnitSuffixStr loosely typed method to get the unit suffix using the unitKey type
+func GetUnitSuffixStr(unitKey ConfigKey, unit units.UnitSuffix) string {
+	switch unitKey {
+	case CPULimit, CPURequest:
+		return string(units.GetCPUUnitStr(unit))
+	}
+	return string(units.GetMemoryUnitStr(unit))
 }

@@ -46,10 +46,10 @@ type InfraProfileConfiguration struct {
 
 func (infraProfileConfiguration *InfraProfileConfiguration) ConvertToConfigurationBean() ConfigurationBean {
 	return ConfigurationBean{
-		Id:    infraProfileConfiguration.Id,
-		Key:   GetConfigKeyStr(infraProfileConfiguration.Key),
-		Value: infraProfileConfiguration.Value,
-		// Unit:
+		Id:        infraProfileConfiguration.Id,
+		Key:       GetConfigKeyStr(infraProfileConfiguration.Key),
+		Value:     infraProfileConfiguration.Value,
+		Unit:      GetUnitSuffixStr(infraProfileConfiguration.Key, infraProfileConfiguration.Unit),
 		ProfileId: infraProfileConfiguration.ProfileId,
 		Active:    infraProfileConfiguration.Active,
 	}
@@ -90,10 +90,10 @@ type ConfigurationBean struct {
 
 func (configurationBean *ConfigurationBean) ConvertToInfraProfileConfiguration() *InfraProfileConfiguration {
 	return &InfraProfileConfiguration{
-		Id:    configurationBean.Id,
-		Key:   GetConfigKey(configurationBean.Key),
-		Value: configurationBean.Value,
-		// Unit:      units.GetUnitSuffix(configurationBean.Unit),
+		Id:        configurationBean.Id,
+		Key:       GetConfigKey(configurationBean.Key),
+		Value:     configurationBean.Value,
+		Unit:      GetUnitSuffix(configurationBean.Key, configurationBean.Unit),
 		ProfileId: configurationBean.ProfileId,
 		Active:    configurationBean.Active,
 	}
@@ -120,7 +120,6 @@ type InfraConfig struct {
 	CiReqCpu         string `env:"REQ_CI_CPU" envDefault:"0.5"`
 	CiReqMem         string `env:"REQ_CI_MEM" envDefault:"3G"`
 	CiDefaultTimeout int64  `env:"DEFAULT_TIMEOUT" envDefault:"3600"`
-	// TODO: add cd config in future
 }
 
 func (infraConfig InfraConfig) GetCiLimitCpu() (*InfraProfileConfiguration, error) {
