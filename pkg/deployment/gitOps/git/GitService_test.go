@@ -1,17 +1,17 @@
-package util
+package git
 
 import (
 	"github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
+	"github.com/devtron-labs/devtron/internal/util"
 	"testing"
 )
 
-func getTestGithubClient() git.GitHubClient {
-	logger, err := NewSugardLogger()
-	gitCliUtl := git.NewGitCliUtil(logger)
-	gitService := git.NewGitServiceImpl(&git.GitConfig{GitToken: "", GitUserName: "nishant"}, logger, gitCliUtl)
+func getTestGithubClient() GitHubClient {
+	logger, err := util.NewSugardLogger()
+	gitCliUtl := NewGitCliUtil(logger)
+	gitService := NewGitServiceImpl(&GitConfig{GitToken: "", GitUserName: "nishant"}, logger, gitCliUtl)
 
-	githubClient, err := git.NewGithubClient("", "", "test-org", logger, gitService, nil)
+	githubClient, err := NewGithubClient("", "", "test-org", logger, gitService)
 	if err != nil {
 		panic(err)
 	}

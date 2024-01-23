@@ -21,7 +21,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/devtron-labs/devtron/util"
-	"net/url"
 	"path/filepath"
 	"time"
 
@@ -72,12 +71,6 @@ type DetailedErrorGitOpsConfigActions struct {
 	DeleteRepoFailed bool             `json:"deleteRepoFailed"`
 }
 
-type GitCommitDto struct {
-	CommitHash string    `json:"commitHash"`
-	AuthorName string    `json:"authorName"`
-	CommitTime time.Time `json:"commitTime"`
-}
-
 func (factory *GitFactory) Reload(gitOpsRepository repository.GitOpsConfigRepository) error {
 	var err error
 	start := time.Now()
@@ -102,27 +95,14 @@ func (factory *GitFactory) Reload(gitOpsRepository repository.GitOpsConfigReposi
 
 func (factory *GitFactory) GetGitLabGroupPath(gitOpsConfig *bean2.GitOpsConfigDto) (string, error) {
 	start := time.Now()
-	var gitLabClient *gitlab.Client
 	var err error
 	defer func() {
 		util.TriggerGitOpsMetrics("GetGitLabGroupPath", "GitService", start, err)
 	}()
-	if len(gitOpsConfig.Host) > 0 {
-		_, err = url.ParseRequestURI(gitOpsConfig.Host)
-		if err != nil {
-			return "", err
-		}
-		gitLabClient, err = gitlab.NewClient(gitOpsConfig.Token, gitlab.WithBaseURL(gitOpsConfig.Host))
-		if err != nil {
-			factory.logger.Errorw("error in getting new gitlab client", "err", err)
-			return "", err
-		}
-	} else {
-		gitLabClient, err = gitlab.NewClient(gitOpsConfig.Token)
-		if err != nil {
-			factory.logger.Errorw("error in getting new gitlab client", "err", err)
-			return "", err
-		}
+	gitLabClient, err := CreateGitlabClient(gitOpsConfig.Host, gitOpsConfig.Token)
+	if err != nil {
+		factory.logger.Errorw("error in creating gitlab client", "err", err)
+		return "", err
 	}
 	group, _, err := gitLabClient.Groups.GetGroup(gitOpsConfig.GitLabGroupId, &gitlab.GetGroupOptions{})
 	if err != nil {

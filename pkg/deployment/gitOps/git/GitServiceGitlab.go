@@ -19,24 +19,11 @@ type GitLabClient struct {
 }
 
 func NewGitLabClient(config *GitConfig, logger *zap.SugaredLogger, gitService GitService) (GitClient, error) {
-	var gitLabClient *gitlab.Client
-	var err error
-	if len(config.GitHost) > 0 {
-		_, err = url.ParseRequestURI(config.GitHost)
-		if err != nil {
-			return nil, err
-		}
-		gitLabClient, err = gitlab.NewClient(config.GitToken, gitlab.WithBaseURL(config.GitHost))
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		gitLabClient, err = gitlab.NewClient(config.GitToken)
-		if err != nil {
-			return nil, err
-		}
+	gitLabClient, err := CreateGitlabClient(config.GitHost, config.GitToken)
+	if err != nil {
+		logger.Errorw("error in creating gitlab client", "err", err)
+		return nil, err
 	}
-
 	gitlabGroupId := ""
 	if len(config.GitlabGroupId) > 0 {
 		if _, err := strconv.Atoi(config.GitlabGroupId); err == nil {
@@ -80,6 +67,27 @@ func NewGitLabClient(config *GitConfig, logger *zap.SugaredLogger, gitService Gi
 		logger:     logger,
 		gitService: gitService,
 	}, nil
+}
+
+func CreateGitlabClient(host, token string) (*gitlab.Client, error) {
+	var gitLabClient *gitlab.Client
+	var err error
+	if len(host) > 0 {
+		_, err = url.ParseRequestURI(host)
+		if err != nil {
+			return nil, err
+		}
+		gitLabClient, err = gitlab.NewClient(token, gitlab.WithBaseURL(host))
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		gitLabClient, err = gitlab.NewClient(token)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return gitLabClient, err
 }
 
 func (impl GitLabClient) DeleteRepository(config *bean2.GitOpsConfigDto) error {
