@@ -39,7 +39,7 @@ type AppStoreDeploymentHelmServiceImpl struct {
 	installedAppRepository               repository.InstalledAppRepository
 	appStoreDeploymentCommonService      appStoreDeploymentCommon.AppStoreDeploymentCommonService
 	OCIRegistryConfigRepository          repository2.OCIRegistryConfigRepository
-	gitOpsRemoteOperationService         git.GitOperationService
+	gitOperationService                  git.GitOperationService
 }
 
 func NewAppStoreDeploymentHelmServiceImpl(logger *zap.SugaredLogger, helmAppService client.HelmAppService,
@@ -47,7 +47,7 @@ func NewAppStoreDeploymentHelmServiceImpl(logger *zap.SugaredLogger, helmAppServ
 	helmAppClient client.HelmAppClient,
 	installedAppRepository repository.InstalledAppRepository, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
 	OCIRegistryConfigRepository repository2.OCIRegistryConfigRepository,
-	gitOpsRemoteOperationService git.GitOperationService) *AppStoreDeploymentHelmServiceImpl {
+	gitOperationService git.GitOperationService) *AppStoreDeploymentHelmServiceImpl {
 	return &AppStoreDeploymentHelmServiceImpl{
 		Logger:                               logger,
 		helmAppService:                       helmAppService,
@@ -56,7 +56,7 @@ func NewAppStoreDeploymentHelmServiceImpl(logger *zap.SugaredLogger, helmAppServ
 		installedAppRepository:               installedAppRepository,
 		appStoreDeploymentCommonService:      appStoreDeploymentCommonService,
 		OCIRegistryConfigRepository:          OCIRegistryConfigRepository,
-		gitOpsRemoteOperationService:         gitOpsRemoteOperationService,
+		gitOperationService:                  gitOperationService,
 	}
 }
 
@@ -274,7 +274,7 @@ func (impl *AppStoreDeploymentHelmServiceImpl) UpdateValuesDependencies(installA
 		impl.Logger.Errorw("error in getting git config for helm app", "err", err)
 		return err
 	}
-	_, _, err = impl.gitOpsRemoteOperationService.CommitValues(valuesGitConfig)
+	_, _, err = impl.gitOperationService.CommitValues(valuesGitConfig)
 	if err != nil {
 		impl.Logger.Errorw("error in committing config to git for helm app", "err", err)
 		return err

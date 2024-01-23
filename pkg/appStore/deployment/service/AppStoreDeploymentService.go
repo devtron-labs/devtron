@@ -108,7 +108,7 @@ type AppStoreDeploymentServiceImpl struct {
 	deploymentTypeConfig                 *DeploymentServiceTypeConfig
 	aCDConfig                            *argocdServer.ACDConfig
 	gitOpsConfigReadService              config.GitOpsConfigReadService
-	gitOpsRemoteOperationService         git.GitOperationService
+	gitOperationService                  git.GitOperationService
 }
 
 func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRepository repository.InstalledAppRepository,
@@ -120,7 +120,7 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRep
 	installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository, gitOpsRepository repository2.GitOpsConfigRepository,
 	deploymentTypeConfig *DeploymentServiceTypeConfig, aCDConfig *argocdServer.ACDConfig,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
-	gitOpsRemoteOperationService git.GitOperationService) *AppStoreDeploymentServiceImpl {
+	gitOperationService git.GitOperationService) *AppStoreDeploymentServiceImpl {
 
 	appStoreDeploymentServiceImpl := &AppStoreDeploymentServiceImpl{
 		logger:                               logger,
@@ -141,7 +141,7 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRep
 		deploymentTypeConfig:                 deploymentTypeConfig,
 		aCDConfig:                            aCDConfig,
 		gitOpsConfigReadService:              gitOpsConfigReadService,
-		gitOpsRemoteOperationService:         gitOpsRemoteOperationService,
+		gitOperationService:                  gitOperationService,
 	}
 	return appStoreDeploymentServiceImpl
 }
@@ -1475,12 +1475,12 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 
 		} else if isChartChanged || isVersionChanged {
 			// update dependency if chart or chart version is changed
-			_, _, requirementsCommitErr = impl.gitOpsRemoteOperationService.CommitValues(manifest.RequirementsConfig)
-			gitHash, _, valuesCommitErr = impl.gitOpsRemoteOperationService.CommitValues(manifest.ValuesConfig)
+			_, _, requirementsCommitErr = impl.gitOperationService.CommitValues(manifest.RequirementsConfig)
+			gitHash, _, valuesCommitErr = impl.gitOperationService.CommitValues(manifest.ValuesConfig)
 
 		} else {
 			// only values are changed in update, so commit values config
-			gitHash, _, valuesCommitErr = impl.gitOpsRemoteOperationService.CommitValues(manifest.ValuesConfig)
+			gitHash, _, valuesCommitErr = impl.gitOperationService.CommitValues(manifest.ValuesConfig)
 		}
 
 		if valuesCommitErr != nil || requirementsCommitErr != nil {

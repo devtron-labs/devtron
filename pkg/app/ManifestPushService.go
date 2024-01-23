@@ -31,7 +31,7 @@ type GitOpsManifestPushServiceImpl struct {
 	acdConfig                        *argocdServer.ACDConfig
 	chartRefService                  chartRef.ChartRefService
 	gitOpsConfigReadService          config.GitOpsConfigReadService
-	gitOpsRemoteOperationService     git.GitOperationService
+	gitOperationService              git.GitOperationService
 }
 
 func NewGitOpsManifestPushServiceImpl(logger *zap.SugaredLogger,
@@ -39,7 +39,7 @@ func NewGitOpsManifestPushServiceImpl(logger *zap.SugaredLogger,
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository,
 	acdConfig *argocdServer.ACDConfig, chartRefService chartRef.ChartRefService,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
-	gitOpsRemoteOperationService git.GitOperationService) *GitOpsManifestPushServiceImpl {
+	gitOperationService git.GitOperationService) *GitOpsManifestPushServiceImpl {
 	return &GitOpsManifestPushServiceImpl{
 		logger:                           logger,
 		pipelineStatusTimelineService:    pipelineStatusTimelineService,
@@ -47,7 +47,7 @@ func NewGitOpsManifestPushServiceImpl(logger *zap.SugaredLogger,
 		acdConfig:                        acdConfig,
 		chartRefService:                  chartRefService,
 		gitOpsConfigReadService:          gitOpsConfigReadService,
-		gitOpsRemoteOperationService:     gitOpsRemoteOperationService,
+		gitOperationService:              gitOperationService,
 	}
 }
 
@@ -108,7 +108,7 @@ func (impl *GitOpsManifestPushServiceImpl) PushChartToGitRepo(manifestPushTempla
 		impl.logger.Errorw("err in getting chart info", "err", err)
 		return err
 	}
-	err = impl.gitOpsRemoteOperationService.PushChartToGitRepo(gitOpsRepoName, manifestPushTemplate.ChartReferenceTemplate, manifestPushTemplate.ChartVersion, manifestPushTemplate.BuiltChartPath, manifestPushTemplate.RepoUrl, manifestPushTemplate.UserId)
+	err = impl.gitOperationService.PushChartToGitRepo(gitOpsRepoName, manifestPushTemplate.ChartReferenceTemplate, manifestPushTemplate.ChartVersion, manifestPushTemplate.BuiltChartPath, manifestPushTemplate.RepoUrl, manifestPushTemplate.UserId)
 	if err != nil {
 		impl.logger.Errorw("error in pushing chart to git", "err", err)
 		return err
@@ -135,8 +135,8 @@ func (impl *GitOpsManifestPushServiceImpl) CommitValuesToGit(manifestPushTemplat
 		UserEmailId:    userEmailId,
 	}
 
-	_, span = otel.Tracer("orchestrator").Start(ctx, "gitOpsRemoteOperationService.CommitValues")
-	commitHash, commitTime, err = impl.gitOpsRemoteOperationService.CommitValues(chartGitAttr)
+	_, span = otel.Tracer("orchestrator").Start(ctx, "gitOperationService.CommitValues")
+	commitHash, commitTime, err = impl.gitOperationService.CommitValues(chartGitAttr)
 	span.End()
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)

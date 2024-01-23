@@ -71,7 +71,7 @@ type AppStoreDeploymentArgoCdServiceImpl struct {
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository
 	argoClientWrapperService             argocdServer.ArgoClientWrapperService
 	acdConfig                            *argocdServer.ACDConfig
-	gitOpsRemoteOperationService         git.GitOperationService
+	gitOperationService                  git.GitOperationService
 }
 
 func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService,
@@ -83,7 +83,7 @@ func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreD
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository,
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService, acdConfig *argocdServer.ACDConfig,
-	gitOpsRemoteOperationService git.GitOperationService) *AppStoreDeploymentArgoCdServiceImpl {
+	gitOperationService git.GitOperationService) *AppStoreDeploymentArgoCdServiceImpl {
 	return &AppStoreDeploymentArgoCdServiceImpl{
 		Logger:                               logger,
 		appStoreDeploymentFullModeService:    appStoreDeploymentFullModeService,
@@ -101,7 +101,7 @@ func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreD
 		appStoreApplicationVersionRepository: appStoreApplicationVersionRepository,
 		argoClientWrapperService:             argoClientWrapperService,
 		acdConfig:                            acdConfig,
-		gitOpsRemoteOperationService:         gitOpsRemoteOperationService,
+		gitOperationService:                  gitOperationService,
 	}
 }
 
@@ -544,7 +544,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) updateValuesYaml(installAppVersi
 		impl.Logger.Errorw("error in getting git config for helm app", "err", err)
 		return nil, err
 	}
-	gitHash, _, err := impl.gitOpsRemoteOperationService.CommitValues(valuesGitConfig)
+	gitHash, _, err := impl.gitOperationService.CommitValues(valuesGitConfig)
 	if err != nil {
 		impl.Logger.Errorw("error in git commit", "err", err)
 		_ = impl.SaveTimelineForACDHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED, fmt.Sprintf("Git commit failed - %v", err), time.Now(), tx)

@@ -122,7 +122,7 @@ type AppServiceImpl struct {
 	acdConfig                              *argocdServer.ACDConfig
 	chartRefService                        chartRef.ChartRefService
 	gitOpsConfigReadService                config.GitOpsConfigReadService
-	gitOpsRemoteOperationService           git.GitOperationService
+	gitOperationService                    git.GitOperationService
 }
 
 type AppService interface {
@@ -177,7 +177,7 @@ func NewAppService(
 	scopedVariableManager variables.ScopedVariableCMCSManager,
 	acdConfig *argocdServer.ACDConfig, chartRefService chartRef.ChartRefService,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
-	gitOpsRemoteOperationService git.GitOperationService) *AppServiceImpl {
+	gitOperationService git.GitOperationService) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:            environmentConfigRepository,
 		mergeUtil:                              mergeUtil,
@@ -207,7 +207,7 @@ func NewAppService(
 		acdConfig:                              acdConfig,
 		chartRefService:                        chartRefService,
 		gitOpsConfigReadService:                gitOpsConfigReadService,
-		gitOpsRemoteOperationService:           gitOpsRemoteOperationService,
+		gitOperationService:                    gitOperationService,
 	}
 	return appServiceImpl
 }
@@ -917,7 +917,7 @@ func (impl *AppServiceImpl) CreateGitopsRepo(app *app.App, userId int32) (gitops
 		return "", nil, err
 	}
 	gitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoName(app.AppName)
-	chartGitAttr, err = impl.gitOpsRemoteOperationService.CreateGitRepositoryForApp(gitOpsRepoName, chart.ReferenceTemplate, chart.ChartVersion, userId)
+	chartGitAttr, err = impl.gitOperationService.CreateGitRepositoryForApp(gitOpsRepoName, chart.ReferenceTemplate, chart.ChartVersion, userId)
 	if err != nil {
 		impl.logger.Errorw("error in pushing chart to git ", "gitOpsRepoName", gitOpsRepoName, "err", err)
 		return "", nil, err

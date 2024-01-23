@@ -124,7 +124,7 @@ type InstalledAppServiceImpl struct {
 	k8sApplicationService                application3.K8sApplicationService
 	acdConfig                            *argocdServer.ACDConfig
 	gitOpsConfigReadService              config.GitOpsConfigReadService
-	gitOpsRemoteOperationService         git.GitOperationService
+	gitOperationService                  git.GitOperationService
 }
 
 func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
@@ -147,7 +147,7 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 	appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
 	k8sCommonService k8s.K8sCommonService, k8sApplicationService application3.K8sApplicationService,
 	acdConfig *argocdServer.ACDConfig, gitOpsConfigReadService config.GitOpsConfigReadService,
-	gitOpsRemoteOperationService git.GitOperationService) (*InstalledAppServiceImpl, error) {
+	gitOperationService git.GitOperationService) (*InstalledAppServiceImpl, error) {
 	impl := &InstalledAppServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -177,7 +177,7 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 		k8sApplicationService:                k8sApplicationService,
 		acdConfig:                            acdConfig,
 		gitOpsConfigReadService:              gitOpsConfigReadService,
-		gitOpsRemoteOperationService:         gitOpsRemoteOperationService,
+		gitOperationService:                  gitOperationService,
 	}
 	err := impl.Subscribe()
 	if err != nil {
@@ -446,7 +446,7 @@ func (impl InstalledAppServiceImpl) performDeployStageOnAcd(installedAppVersion 
 			return nil, err
 		}
 
-		repoUrl, err := impl.gitOpsRemoteOperationService.GetRepoUrlByRepoName(installedAppVersion.GitOpsRepoName)
+		repoUrl, err := impl.gitOperationService.GetRepoUrlByRepoName(installedAppVersion.GitOpsRepoName)
 		if err != nil {
 			//will allow to continue to persist status on next operation
 			impl.logger.Errorw("error, GetRepoUrlByRepoName", "err", err)

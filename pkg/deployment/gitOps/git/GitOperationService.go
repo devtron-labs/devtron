@@ -26,9 +26,15 @@ type GitOperationService interface {
 	CreateChartProxy(chartMetaData *chart.Metadata, refChartLocation string, envName string,
 		chartProxyReq *bean.ChartProxyReqDto) (string, *commonBean.ChartGitAttribute, error)
 	GitPull(clonedDir string, repoUrl string, appStoreName string) error
+
 	CommitValues(chartGitAttr *util.ChartConfig) (commitHash string, commitTime time.Time, err error)
+	CommitAndPushAllChanges(clonedDir, commitMsg, userName, userEmailId string) (commitHash string, err error)
+
 	CreateRepository(dto *bean2.GitOpsConfigDto, userId int32) (string, bool, error)
 	GetRepoUrlByRepoName(repoName string) (string, error)
+
+	GetClonedDir(chartDir, repoUrl string) (string, error)
+	CloneDir(repoUrl, chartDir string) (string, error)
 }
 
 type GitOperationServiceImpl struct {
@@ -338,6 +344,15 @@ func (impl *GitOperationServiceImpl) CommitValues(chartGitAttr *util.ChartConfig
 	return commitHash, commitTime, nil
 }
 
+func (impl *GitOperationServiceImpl) CommitAndPushAllChanges(clonedDir, commitMsg, userName, userEmailId string) (commitHash string, err error) {
+	commitHash, err = impl.gitFactory.GitService.CommitAndPushAllChanges(clonedDir, commitMsg, userName, userEmailId)
+	if err != nil {
+		impl.logger.Errorw("error in pushing git", "err", err)
+		return commitHash, err
+	}
+	return commitHash, nil
+}
+
 func (impl *GitOperationServiceImpl) CreateRepository(dto *bean2.GitOpsConfigDto, userId int32) (string, bool, error) {
 	//getting user name & emailId for commit author data
 	userEmailId, userName := impl.gitOpsConfigReadService.GetUserEmailIdAndNameForGitOpsCommit(userId)
@@ -373,4 +388,24 @@ func (impl *GitOperationServiceImpl) GetRepoUrlByRepoName(repoName string) (stri
 		impl.logger.Errorw("error in getting repo url", "err", err, "repoName", repoName)
 	}
 	return repoUrl, nil
+}
+
+func (impl *GitOperationServiceImpl) GetClonedDir(chartDir, repoUrl string) (string, error) {
+	clonedDir := impl.gitFactory.GitService.GetCloneDirectory(chartDir)
+	if _, err := os.Stat(clonedDir); os.IsNotExist(err) {
+		return impl.CloneDir(repoUrl, chartDir)
+	} else if err != nil {
+		impl.logger.Errorw("error in cloning repo", "url", repoUrl, "err", err)
+		return "", err
+	}
+	return clonedDir, nil
+}
+
+func (impl *GitOperationServiceImpl) CloneDir(repoUrl, chartDir string) (string, error) {
+	clonedDir, err := impl.gitFactory.GitService.Clone(repoUrl, chartDir)
+	if err != nil {
+		impl.logger.Errorw("error in cloning repo", "url", repoUrl, "err", err)
+		return "", err
+	}
+	return clonedDir, nil
 }

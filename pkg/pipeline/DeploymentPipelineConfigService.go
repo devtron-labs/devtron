@@ -148,7 +148,7 @@ type CdPipelineConfigServiceImpl struct {
 	argoClientWrapperService         argocdServer.ArgoClientWrapperService
 	deployedAppMetricsService        deployedAppMetrics.DeployedAppMetricsService
 	gitOpsConfigReadService          config.GitOpsConfigReadService
-	gitOpsRemoteOperationService     git.GitOperationService
+	gitOperationService              git.GitOperationService
 }
 
 func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepository pipelineConfig.PipelineRepository,
@@ -169,7 +169,7 @@ func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepositor
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
-	gitOpsRemoteOperationService git.GitOperationService) *CdPipelineConfigServiceImpl {
+	gitOperationService git.GitOperationService) *CdPipelineConfigServiceImpl {
 	return &CdPipelineConfigServiceImpl{
 		logger:                           logger,
 		pipelineRepository:               pipelineRepository,
@@ -203,7 +203,7 @@ func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepositor
 		argoClientWrapperService:         argoClientWrapperService,
 		deployedAppMetricsService:        deployedAppMetricsService,
 		gitOpsConfigReadService:          gitOpsConfigReadService,
-		gitOpsRemoteOperationService:     gitOpsRemoteOperationService,
+		gitOperationService:              gitOperationService,
 	}
 }
 
@@ -1596,7 +1596,7 @@ func (impl *CdPipelineConfigServiceImpl) RegisterInACD(gitOpsRepoName string, ch
 		emptyRepoErrorMessage := []string{"failed to get index: 404 Not Found", "git repository is empty"}
 		if strings.Contains(err.Error(), emptyRepoErrorMessage[0]) || strings.Contains(err.Error(), emptyRepoErrorMessage[1]) {
 			// - found empty repository, create some file in repository
-			err := impl.gitOpsRemoteOperationService.CreateReadmeInGitRepo(gitOpsRepoName, userId)
+			err := impl.gitOperationService.CreateReadmeInGitRepo(gitOpsRepoName, userId)
 			if err != nil {
 				impl.logger.Errorw("error in creating file in git repo", "err", err)
 				return err

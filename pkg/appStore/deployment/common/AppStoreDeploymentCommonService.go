@@ -69,7 +69,7 @@ type AppStoreDeploymentCommonServiceImpl struct {
 	chartTemplateService                 util.ChartTemplateService
 	gitFactory                           *util.GitFactory
 	gitOpsConfigReadService              config.GitOpsConfigReadService
-	gitOpsRemoteOperationService         git.GitOperationService
+	gitOperationService                  git.GitOperationService
 }
 
 func NewAppStoreDeploymentCommonServiceImpl(
@@ -80,7 +80,7 @@ func NewAppStoreDeploymentCommonServiceImpl(
 	chartTemplateService util.ChartTemplateService,
 	gitFactory *util.GitFactory,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
-	gitOpsRemoteOperationService git.GitOperationService) *AppStoreDeploymentCommonServiceImpl {
+	gitOperationService git.GitOperationService) *AppStoreDeploymentCommonServiceImpl {
 	return &AppStoreDeploymentCommonServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -89,7 +89,7 @@ func NewAppStoreDeploymentCommonServiceImpl(
 		chartTemplateService:                 chartTemplateService,
 		gitFactory:                           gitFactory,
 		gitOpsConfigReadService:              gitOpsConfigReadService,
-		gitOpsRemoteOperationService:         gitOpsRemoteOperationService,
+		gitOperationService:                  gitOperationService,
 	}
 }
 
@@ -420,7 +420,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) CreateGitOpsRepo(installAppVersi
 		BitBucketWorkspaceId: bitbucketMetadata.BitBucketWorkspaceId,
 		BitBucketProjectKey:  bitbucketMetadata.BitBucketProjectKey,
 	}
-	repoUrl, isNew, err := impl.gitOpsRemoteOperationService.CreateRepository(gitRepoRequest, installAppVersionRequest.UserId)
+	repoUrl, isNew, err := impl.gitOperationService.CreateRepository(gitRepoRequest, installAppVersionRequest.UserId)
 	if err != nil {
 		impl.logger.Errorw("error in creating git project", "name", installAppVersionRequest.GitOpsRepoName, "err", err)
 		return "", false, err
@@ -433,22 +433,19 @@ func (impl AppStoreDeploymentCommonServiceImpl) PushChartToGitopsRepo(PushChartT
 	space := regexp.MustCompile(`\s+`)
 	appStoreName := space.ReplaceAllString(PushChartToGitRequest.ChartAppStoreName, "-")
 	chartDir := fmt.Sprintf("%s-%s", PushChartToGitRequest.AppName, impl.chartTemplateService.GetDir())
-	clonedDir := impl.gitFactory.GitService.GetCloneDirectory(chartDir)
-	if _, err := os.Stat(clonedDir); os.IsNotExist(err) {
-		clonedDir, err = impl.gitFactory.GitService.Clone(PushChartToGitRequest.RepoURL, chartDir)
-		if err != nil {
-			impl.logger.Errorw("error in cloning repo", "url", PushChartToGitRequest.RepoURL, "err", err)
-			return nil, "", err
-		}
-	} else {
-		err = impl.gitOpsRemoteOperationService.GitPull(clonedDir, PushChartToGitRequest.RepoURL, appStoreName)
-		if err != nil {
-			return nil, "", err
-		}
+	clonedDir, err := impl.gitOperationService.GetClonedDir(chartDir, PushChartToGitRequest.RepoURL)
+	if err != nil {
+		impl.logger.Errorw("error in cloning repo", "url", PushChartToGitRequest.RepoURL, "err", err)
+		return nil, "", err
 	}
+	err = impl.gitOperationService.GitPull(clonedDir, PushChartToGitRequest.RepoURL, appStoreName)
+	if err != nil {
+		return nil, "", err
+	}
+
 	acdAppName := fmt.Sprintf("%s-%s", PushChartToGitRequest.AppName, PushChartToGitRequest.EnvName)
 	dir := filepath.Join(clonedDir, acdAppName)
-	err := os.MkdirAll(dir, os.ModePerm)
+	err = os.MkdirAll(dir, os.ModePerm)
 	if err != nil {
 		impl.logger.Errorw("error in making dir", "err", err)
 		return nil, "", err
@@ -469,11 +466,11 @@ func (impl AppStoreDeploymentCommonServiceImpl) PushChartToGitopsRepo(PushChartT
 		return nil, "", err
 	}
 	userEmailId, userName := impl.gitOpsConfigReadService.GetUserEmailIdAndNameForGitOpsCommit(PushChartToGitRequest.UserId)
-	commit, err := impl.gitFactory.GitService.CommitAndPushAllChanges(clonedDir, "first commit", userName, userEmailId)
+	commit, err := impl.gitOperationService.CommitAndPushAllChanges(clonedDir, "first commit", userName, userEmailId)
 	if err != nil {
 		impl.logger.Errorw("error in pushing git", "err", err)
 		impl.logger.Warn("re-trying, taking pull and then push again")
-		err = impl.gitOpsRemoteOperationService.GitPull(clonedDir, PushChartToGitRequest.RepoURL, acdAppName)
+		err = impl.gitOperationService.GitPull(clonedDir, PushChartToGitRequest.RepoURL, acdAppName)
 		if err != nil {
 			impl.logger.Errorw("error in git pull", "err", err, "appName", acdAppName)
 			return nil, "", err
@@ -483,7 +480,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) PushChartToGitopsRepo(PushChartT
 			impl.logger.Errorw("error copying dir", "err", err)
 			return nil, "", err
 		}
-		commit, err = impl.gitFactory.GitService.CommitAndPushAllChanges(clonedDir, "first commit", userName, userEmailId)
+		commit, err = impl.gitOperationService.CommitAndPushAllChanges(clonedDir, "first commit", userName, userEmailId)
 		if err != nil {
 			impl.logger.Errorw("error in pushing git", "err", err)
 			return nil, "", err
@@ -547,23 +544,23 @@ func (impl AppStoreDeploymentCommonServiceImpl) GitOpsOperations(manifestRespons
 	// Checking this is the first time chart has been pushed , if yes requirements.yaml has been already pushed with chart as there was sync-delay with github api.
 	// step-2 commit dependencies and values in git
 	if !isNew {
-		_, _, err = impl.gitOpsRemoteOperationService.CommitValues(manifestResponse.RequirementsConfig)
+		_, _, err = impl.gitOperationService.CommitValues(manifestResponse.RequirementsConfig)
 		if err != nil {
 			impl.logger.Errorw("error in committing dependency config to git", "err", err)
 			return appStoreGitOpsResponse, err
 		}
-		err = impl.gitOpsRemoteOperationService.GitPull(clonedDir, chartGitAttribute.RepoUrl, appStoreName)
+		err = impl.gitOperationService.GitPull(clonedDir, chartGitAttribute.RepoUrl, appStoreName)
 		if err != nil {
 			impl.logger.Errorw("error in git pull", "err", err)
 			return appStoreGitOpsResponse, err
 		}
 
-		githash, _, err = impl.gitOpsRemoteOperationService.CommitValues(manifestResponse.ValuesConfig)
+		githash, _, err = impl.gitOperationService.CommitValues(manifestResponse.ValuesConfig)
 		if err != nil {
 			impl.logger.Errorw("error in committing values config to git", "err", err)
 			return appStoreGitOpsResponse, err
 		}
-		err = impl.gitOpsRemoteOperationService.GitPull(clonedDir, chartGitAttribute.RepoUrl, appStoreName)
+		err = impl.gitOperationService.GitPull(clonedDir, chartGitAttribute.RepoUrl, appStoreName)
 		if err != nil {
 			impl.logger.Errorw("error in git pull", "err", err)
 			return appStoreGitOpsResponse, err
