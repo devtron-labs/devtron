@@ -422,16 +422,16 @@ func (impl *InfraConfigServiceImpl) Validate(profileBean *infraConfig.ProfileBea
 		return err
 	}
 
+	defaultConfigurationsKeyMap := infraConfig.GetDefaultConfigKeysMap()
 	// validate configurations only contain default configurations types.(cpu_limit,cpu_request,mem_limit,mem_request,timeout)
 	for _, propertyConfig := range profileBean.Configurations {
-		if !util.Contains(defaultProfile.Configurations, func(defaultConfig infraConfig.ConfigurationBean) bool {
-			return propertyConfig.Key == defaultConfig.Key
-		}) {
+		if _, ok := defaultConfigurationsKeyMap[propertyConfig.Key]; !ok {
 			if err == nil {
 				err = errors.New(fmt.Sprintf("invalid configuration property \"%s\"", propertyConfig.Key))
 			}
 			err = errors.Wrap(err, fmt.Sprintf("invalid configuration property \"%s\"", propertyConfig.Key))
 		}
+
 	}
 
 	if err != nil {
