@@ -7,9 +7,11 @@ import (
 
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/enterprise/pkg/drafts"
+	"github.com/devtron-labs/devtron/pkg/apiToken"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/util/rbac"
+	"github.com/juju/errors"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
 )
@@ -388,15 +390,30 @@ func (impl *ConfigDraftRestHandlerImpl) ApproveDraft(w http.ResponseWriter, r *h
 	token := r.Header.Get("token")
 	envId := draftResponse.EnvId
 	appId := draftResponse.AppId
-	if notAnApprover := impl.checkForApproverAccess(w, envId, appId, token, true); notAnApprover {
-		return
-	}
-	createResp, err := impl.configDraftService.ApproveDraft(draftId, draftVersionId, userId)
+	createResp, _, err := impl.CheckAccessAndApproveDraft(w, token, apiToken.GetDraftApprovalRequest(envId, appId, draftId, draftVersionId, userId))
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
+		if errors.IsUnauthorized(err) {
+			return
+		} else {
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
 	}
 	common.WriteJsonResp(w, err, createResp, http.StatusOK)
+}
+
+func (impl *ConfigDraftRestHandlerImpl) CheckAccessAndApproveDraft(w http.ResponseWriter, token string, draftRequest apiToken.DraftApprovalRequest) (*drafts.DraftVersionResponse, drafts.DraftState, error) {
+	var isNotAuthorized bool
+	if isNotAuthorized = impl.checkForApproverAccess(w, draftRequest.EnvId, draftRequest.AppId, token, true); isNotAuthorized {
+		return nil, 0, errors.NewUnauthorized(fmt.Errorf("unauthorized user"), "Access denied")
+	}
+	response, err := impl.configDraftService.ApproveDraft(draftRequest.DraftId, draftRequest.DraftVersionId, draftRequest.UserId)
+	if err != nil {
+		if validationErr, ok := err.(*drafts.DraftApprovalValidationError); ok {
+			return response, validationErr.DraftState, err
+		}
+	}
+	return response, 0, err
 }
 
 func (impl *ConfigDraftRestHandlerImpl) DeleteUserComment(w http.ResponseWriter, r *http.Request) {

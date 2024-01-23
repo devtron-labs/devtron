@@ -2,6 +2,7 @@ package notifier
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -11,8 +12,6 @@ import (
 	"go.uber.org/zap"
 	"time"
 )
-
-const SMTP_CONFIG_TYPE = "smtp"
 
 type SMTPNotificationService interface {
 	SaveOrEditNotificationConfig(channelReq []*SMTPConfigDto, userId int32) ([]int, error)
@@ -234,7 +233,7 @@ func (impl *SMTPNotificationServiceImpl) DeleteNotificationConfig(deleteReq *SMT
 		impl.logger.Errorw("No matching entry found for delete", "err", err, "id", deleteReq.Id)
 		return err
 	}
-	notifications, err := impl.notificationSettingsRepository.FindNotificationSettingsByConfigIdAndConfigType(deleteReq.Id, SMTP_CONFIG_TYPE)
+	notifications, err := impl.notificationSettingsRepository.FindNotificationSettingsByConfigIdAndConfigType(deleteReq.Id, client.SMTP_CONFIG_TYPE)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in deleting smtp config", "config", deleteReq)
 		return err
