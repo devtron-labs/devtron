@@ -23,7 +23,7 @@ const PayloadValidationError = "payload validation failed"
 type InfraConfigService interface {
 
 	// GetConfigurationUnits fetches all the units for the configurations.
-	GetConfigurationUnits() map[infraConfig.ConfigKeyStr][]units.Unit
+	GetConfigurationUnits() map[infraConfig.ConfigKeyStr]map[string]units.Unit
 
 	// GetDefaultProfile fetches the default profile and its configurations.
 	GetDefaultProfile() (*infraConfig.ProfileBean, error)
@@ -206,14 +206,52 @@ func (impl *InfraConfigServiceImpl) GetProfileList(profileNameLike string) (*inf
 func (impl *InfraConfigServiceImpl) CreateProfile(userId int32, profileBean *infraConfig.ProfileBean) error {
 	defaultProfile, err := impl.GetDefaultProfile()
 	if err != nil {
-		impl.logger.Errorw("error in fetching default profile", "error", err)
+		impl.logger.Errorw("error in fetching default profile", "profileCreateRequest", profileBean, "error", err)
 		return err
 	}
 	if err := impl.Validate(profileBean, defaultProfile); err != nil {
-		impl.logger.Errorw("error occurred in validation the profile create request", "error", err)
+		impl.logger.Errorw("error occurred in validation the profile create request", "profileCreateRequest", profileBean, "error", err)
 		return err
 	}
 
+	infraProfile := profileBean.ConvertToInfraProfile()
+	infraProfile.Active = true
+	infraProfile.CreatedBy = userId
+	infraProfile.CreatedOn = time.Now()
+
+	tx, err := impl.infraProfileRepo.StartTx()
+	if err != nil {
+		impl.logger.Errorw("error in starting transaction to create profile", "profileCreateRequest", profileBean, "error", err)
+		return err
+	}
+	defer impl.infraProfileRepo.RollbackTx(tx)
+	err = impl.infraProfileRepo.CreateProfile(tx, infraProfile)
+	if err != nil {
+		impl.logger.Errorw("error in creating infra config profile", "infraProfile", infraProfile, "err", err)
+		return err
+	}
+
+	infraConfigurations := make([]*infraConfig.InfraProfileConfiguration, 0, len(profileBean.Configurations))
+	for _, configuration := range profileBean.Configurations {
+		infraConfiguration := configuration.ConvertToInfraProfileConfiguration()
+		infraConfiguration.Active = true
+		infraConfiguration.CreatedBy = userId
+		infraConfiguration.CreatedOn = time.Now()
+		infraConfiguration.ProfileId = infraProfile.Id
+		infraConfigurations = append(infraConfigurations, infraConfiguration)
+	}
+
+	err = impl.infraProfileRepo.CreateConfigurations(tx, infraConfigurations)
+	if err != nil {
+		impl.logger.Errorw("error in creating infra configurations", "infraConfigurations", infraConfigurations, "err", err)
+		return err
+	}
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("error in committing transaction while creating infra configuration profile", "profileCreateRequest", profileBean, "err", err)
+		return err
+	}
+	return nil
 }
 
 func (impl *InfraConfigServiceImpl) UpdateProfile(userId int32, profileName string, profileBean *infraConfig.ProfileBean) error {
@@ -254,7 +292,7 @@ func (impl *InfraConfigServiceImpl) UpdateProfile(userId int32, profileName stri
 	}
 	err = impl.infraProfileRepo.CommitTx(tx)
 	if err != nil {
-		impl.logger.Errorw("error in committing transaction to update profile", "error", err)
+		impl.logger.Errorw("error in committing transaction to update profile", "profileCreateRequest", profileBean, "error", err)
 	}
 	return err
 }
@@ -364,8 +402,8 @@ func (impl *InfraConfigServiceImpl) loadDefaultProfile() error {
 	return err
 }
 
-func (impl *InfraConfigServiceImpl) GetConfigurationUnits() map[infraConfig.ConfigKeyStr][]units.Unit {
-	configurationUnits := make(map[infraConfig.ConfigKeyStr][]units.Unit)
+func (impl *InfraConfigServiceImpl) GetConfigurationUnits() map[infraConfig.ConfigKeyStr]map[string]units.Unit {
+	configurationUnits := make(map[infraConfig.ConfigKeyStr]map[string]units.Unit)
 	configurationUnits[infraConfig.CPU_REQUEST] = impl.units.GetCpuUnits()
 	configurationUnits[infraConfig.CPU_LIMIT] = impl.units.GetCpuUnits()
 
@@ -401,11 +439,17 @@ func (impl *InfraConfigServiceImpl) Validate(profileBean *infraConfig.ProfileBea
 		return err
 	}
 
-	err = impl.ValidateCpuMem(profileBean, defaultProfile)
-	return err
+	err = impl.validateCpuMem(profileBean, defaultProfile)
+	if err != nil {
+		err = errors.Wrap(err, PayloadValidationError)
+		return err
+	}
+	return nil
 }
 
-func (impl *InfraConfigServiceImpl) ValidateCpuMem(profileBean *infraConfig.ProfileBean, defaultProfile *infraConfig.ProfileBean) error {
+func (impl *InfraConfigServiceImpl) validateCpuMem(profileBean *infraConfig.ProfileBean, defaultProfile *infraConfig.ProfileBean) error {
+
+	configurationUnits := impl.units
 	// currently validating cpu and memory limits and reqs only
 	var (
 		cpuLimit *infraConfig.ConfigurationBean
@@ -450,4 +494,54 @@ func (impl *InfraConfigServiceImpl) ValidateCpuMem(profileBean *infraConfig.Prof
 		}
 	}
 
+	// validate cpu
+	cpuLimitUnitSuffix := units.GetCPUUnit(units.CPUUnitStr(cpuLimit.Unit))
+	cpuReqUnitSuffix := units.GetCPUUnit(units.CPUUnitStr(cpuReq.Unit))
+	var cpuLimitUnit *units.Unit
+	var cpuReqUnit *units.Unit
+	for cpuUnitSuffix, cpuUnit := range configurationUnits.GetCpuUnits() {
+		if string(units.GetCPUUnitStr(cpuLimitUnitSuffix)) == cpuUnitSuffix {
+			cpuLimitUnit = &cpuUnit
+		}
+
+		if string(units.GetCPUUnitStr(cpuReqUnitSuffix)) == cpuUnitSuffix {
+			cpuReqUnit = &cpuUnit
+		}
+
+	}
+
+	// this condition should be true for valid case => (lim/req)*(lf/rf) >= 1
+	limitToReqRationCPU := cpuLimit.Value / cpuReq.Value
+	convFactorCPU := cpuLimitUnit.ConversionFactor / cpuReqUnit.ConversionFactor
+
+	if limitToReqRationCPU*convFactorCPU < 1 {
+		return errors.New("cpu limit should not be less than cpu request")
+	}
+
+	// validate mem
+
+	memLimitUnitSuffix := units.GetMemoryUnit(units.MemoryUnitStr(memLimit.Unit))
+	memReqUnitSuffix := units.GetMemoryUnit(units.MemoryUnitStr(memReq.Unit))
+	var memLimitUnit *units.Unit
+	var memReqUnit *units.Unit
+
+	for memUnitSuffix, memUnit := range configurationUnits.GetMemoryUnits() {
+		if string(units.GetMemoryUnitStr(memLimitUnitSuffix)) == memUnitSuffix {
+			memLimitUnit = &memUnit
+		}
+
+		if string(units.GetMemoryUnitStr(memReqUnitSuffix)) == memUnitSuffix {
+			memReqUnit = &memUnit
+		}
+	}
+
+	// this condition should be true for valid case => (lim/req)*(lf/rf) >= 1
+	limitToReqRationMem := memLimit.Value / memReq.Value
+	convFactorMem := memLimitUnit.ConversionFactor / memReqUnit.ConversionFactor
+
+	if limitToReqRationMem*convFactorMem < 1 {
+		return errors.New("memory limit should not be less than memory request")
+	}
+
+	return nil
 }

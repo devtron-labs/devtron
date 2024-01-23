@@ -84,7 +84,7 @@ type InfraProfileConfiguration struct {
 	tableName    struct{}         `sql:"infra_profile_configuration"`
 	Id           int              `sql:"id"`
 	Key          ConfigKey        `sql:"name"`
-	Value        int64            `sql:"description"`
+	Value        float64          `sql:"description"`
 	Unit         units.UnitSuffix `sql:"unit"`
 	ProfileId    int              `sql:"profile_id"`
 	Active       bool             `sql:"active"`
@@ -129,7 +129,7 @@ func (profileBean *ProfileBean) ConvertToInfraProfile() *InfraProfile {
 type ConfigurationBean struct {
 	Id          int          `json:"id"`
 	Key         ConfigKeyStr `json:"key" validate:"required"`
-	Value       int64        `json:"value" validate:"required"`
+	Value       float64      `json:"value" validate:"required"`
 	Unit        string       `json:"unit" validate:"required"`
 	ProfileName string       `json:"profileName"`
 	ProfileId   int          `json:"profileId"`
@@ -148,8 +148,8 @@ func (configurationBean *ConfigurationBean) ConvertToInfraProfileConfiguration()
 }
 
 type InfraConfigMetaData struct {
-	DefaultConfigurations []ConfigurationBean           `json:"defaultConfigurations"`
-	ConfigurationUnits    map[ConfigKeyStr][]units.Unit `json:"configurationUnits"`
+	DefaultConfigurations []ConfigurationBean                    `json:"defaultConfigurations"`
+	ConfigurationUnits    map[ConfigKeyStr]map[string]units.Unit `json:"configurationUnits"`
 }
 type ProfileResponse struct {
 	Profile ProfileBean `json:"profile"`
@@ -180,7 +180,7 @@ func (infraConfig InfraConfig) GetCiLimitCpu() (*InfraProfileConfiguration, erro
 		return nil, errors.New("negative value not allowed for cpu limits")
 	}
 
-	val, err := strconv.ParseInt(num, 10, 64)
+	val, err := strconv.ParseFloat(num, 64)
 	if err != nil {
 		return nil, err
 	}
@@ -201,7 +201,7 @@ func (infraConfig InfraConfig) GetCiLimitMem() (*InfraProfileConfiguration, erro
 		return nil, errors.New("negative value not allowed for memory limits")
 	}
 
-	val, err := strconv.ParseInt(num, 10, 64)
+	val, err := strconv.ParseFloat(num, 64)
 	if err != nil {
 		return nil, err
 	}
@@ -222,7 +222,7 @@ func (infraConfig InfraConfig) GetCiReqCpu() (*InfraProfileConfiguration, error)
 		return nil, errors.New("negative value not allowed for cpu requests")
 	}
 
-	val, err := strconv.ParseInt(num, 10, 64)
+	val, err := strconv.ParseFloat(num, 64)
 	if err != nil {
 		return nil, err
 	}
@@ -242,7 +242,7 @@ func (infraConfig InfraConfig) GetCiReqMem() (*InfraProfileConfiguration, error)
 	if !positive {
 		return nil, errors.New("negative value not allowed for memory requests")
 	}
-	val, err := strconv.ParseInt(num, 10, 64)
+	val, err := strconv.ParseFloat(num, 64)
 	if err != nil {
 		return nil, err
 	}
@@ -257,7 +257,7 @@ func (infraConfig InfraConfig) GetCiReqMem() (*InfraProfileConfiguration, error)
 func (infraConfig InfraConfig) GetDefaultTimeout() (*InfraProfileConfiguration, error) {
 	return &InfraProfileConfiguration{
 		Key:   TimeOut,
-		Value: infraConfig.CiDefaultTimeout,
+		Value: float64(infraConfig.CiDefaultTimeout),
 		Unit:  units.GetTimeUnit(units.SecondStr),
 	}, nil
 }

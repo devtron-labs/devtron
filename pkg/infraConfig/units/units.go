@@ -180,108 +180,108 @@ func GetTimeUnit(timeUnitStr TimeUnitStr) UnitSuffix {
 }
 
 type Units struct {
-	cpuUnits    []Unit
-	memoryUnits []Unit
-	timeUnits   []Unit
+	cpuUnits    map[string]Unit
+	memoryUnits map[string]Unit
+	timeUnits   map[string]Unit
 }
 
 func NewUnits() *Units {
-	cpuUnits := [2]Unit{
-		{
+	cpuUnits := map[string]Unit{
+		string(MILLI): {
 			Name:             string(MILLI),
-			ConversionFactor: 1000,
+			ConversionFactor: 1 / 1000,
 		},
-		{
+		string(CORE): {
 			Name:             string(CORE),
 			ConversionFactor: 1,
 		},
 	}
 
-	memoryUnits := [13]Unit{
-		{
+	memoryUnits := map[string]Unit{
+		string(BYTE): {
 			Name:             string(BYTE),
 			ConversionFactor: 1,
 		},
-		{
+		string(KBYTE): {
 			Name:             string(KBYTE),
-			ConversionFactor: 1 / 1000,
+			ConversionFactor: 1000,
 		},
-		{
+		string(MBYTE): {
 			Name:             string(MBYTE),
-			ConversionFactor: 1 / 1000000,
+			ConversionFactor: 1000000,
 		},
-		{
+		string(GBYTE): {
 			Name:             string(GBYTE),
-			ConversionFactor: 1 / 1000000000,
+			ConversionFactor: 1000000000,
 		},
-		{
+		string(TBYTE): {
 			Name:             string(TBYTE),
-			ConversionFactor: 1 / 1000000000000,
+			ConversionFactor: 1000000000000,
 		},
-		{
+		string(PBYTE): {
 			Name:             string(PBYTE),
-			ConversionFactor: 1 / 1000000000000000,
+			ConversionFactor: 1000000000000000,
 		},
-		{
+		string(EBYTE): {
 			Name:             string(EBYTE),
-			ConversionFactor: 1 / 1000000000000000000,
+			ConversionFactor: 1000000000000000000,
 		},
-		{
+		string(KIBYTE): {
 			Name:             string(KIBYTE),
-			ConversionFactor: 1 / (1024),
+			ConversionFactor: 1024,
 		},
-		{
+		string(MIBYTE): {
 			Name:             string(MIBYTE),
-			ConversionFactor: 1 / (1024 * 1024),
+			ConversionFactor: 1024 * 1024,
 		},
-		{
+		string(GIBYTE): {
 			Name:             string(GIBYTE),
-			ConversionFactor: 1 / (1024 * 1024 * 1024),
+			ConversionFactor: 1024 * 1024 * 1024,
 		},
-		{
+		string(TIBYTE): {
 			Name:             string(TIBYTE),
-			ConversionFactor: 1 / (1024 * 1024 * 1024 * 1024),
+			ConversionFactor: 1024 * 1024 * 1024 * 1024,
 		},
-		{
+		string(PIBYTE): {
 			Name:             string(PIBYTE),
-			ConversionFactor: 1 / (1024 * 1024 * 1024 * 1024 * 1024),
+			ConversionFactor: 1024 * 1024 * 1024 * 1024 * 1024,
 		},
-		{
+		string(EIBYTE): {
 			Name:             string(EIBYTE),
-			ConversionFactor: 1 / (1024 * 1024 * 1024 * 1024 * 1024 * 1024),
+			ConversionFactor: 1024 * 1024 * 1024 * 1024 * 1024 * 1024,
 		},
 	}
 
-	timeUnits := [3]Unit{
-		{
-			Name:             "s",
+	timeUnits := map[string]Unit{
+		string(SecondStr): {
+			Name:             string(SecondStr),
 			ConversionFactor: 1,
 		},
-		{
-			Name:             "m",
-			ConversionFactor: 1 / 60,
+		string(MinuteStr): {
+			Name:             string(MinuteStr),
+			ConversionFactor: 60,
 		},
-		{
-			Name:             "h",
-			ConversionFactor: 1 / 3600,
+		string(HourStr): {
+			Name:             string(HourStr),
+			ConversionFactor: 3600,
 		},
 	}
 	return &Units{
 
-		cpuUnits:    cpuUnits[:],
-		memoryUnits: memoryUnits[:],
-		timeUnits:   timeUnits[:],
+		cpuUnits:    cpuUnits,
+		memoryUnits: memoryUnits,
+		timeUnits:   timeUnits,
 	}
 }
 
-func (u *Units) GetCpuUnits() []Unit {
+func (u *Units) GetCpuUnits() map[string]Unit {
 	return u.cpuUnits
 }
-func (u *Units) GetMemoryUnits() []Unit {
+func (u *Units) GetMemoryUnits() map[string]Unit {
 	return u.memoryUnits
 }
 
-func (u *Units) GetTimeUnits() []Unit {
+func (u *Units) GetTimeUnits() map[string]Unit {
 	return u.timeUnits
 }
 

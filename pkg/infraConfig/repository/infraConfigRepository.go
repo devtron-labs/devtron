@@ -28,6 +28,7 @@ type InfraConfigRepository interface {
 	GetIdentifierCountForNonDefaultProfiles(profileIds []int, identifierType int) ([]ProfileIdentifierCount, error)
 
 	CreateDefaultProfile(tx *pg.Tx, infraProfile *infraConfig.InfraProfile) error
+	CreateProfile(tx *pg.Tx, infraProfile *infraConfig.InfraProfile) error
 	CreateConfigurations(tx *pg.Tx, configurations []*infraConfig.InfraProfileConfiguration) error
 
 	UpdateConfigurations(tx *pg.Tx, configurations []*infraConfig.InfraProfileConfiguration) error
@@ -61,6 +62,11 @@ func (impl *InfraConfigRepositoryImpl) CreateDefaultProfile(tx *pg.Tx, infraProf
 		return errors.New(DEFAULT_PROFILE_EXISTS)
 	}
 	err = tx.Insert(infraProfile)
+	return err
+}
+
+func (impl *InfraConfigRepositoryImpl) CreateProfile(tx *pg.Tx, infraProfile *infraConfig.InfraProfile) error {
+	err := tx.Insert(infraProfile)
 	return err
 }
 
