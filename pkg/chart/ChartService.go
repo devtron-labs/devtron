@@ -145,10 +145,6 @@ func (impl ChartServiceImpl) PatchEnvOverrides(values json.RawMessage, oldChartT
 	return PatchWinterSoldierConfig(values, newChartType)
 }
 
-type AppMetricsEnabled struct {
-	AppMetrics bool `json:"app-metrics"`
-}
-
 func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context.Context) (*TemplateRequest, error) {
 	err := impl.chartRefService.CheckChartExists(templateRequest.ChartRefId)
 	if err != nil {
