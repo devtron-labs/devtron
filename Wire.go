@@ -1008,6 +1008,9 @@ func InitializeApp() (*App, error) {
 
 		pipeline.NewPipelineConfigListenerServiceImpl,
 		wire.Bind(new(pipeline.PipelineConfigListenerService), new(*pipeline.PipelineConfigListenerServiceImpl)),
+
+		util5.NewUserStatusCheckMiddlewareImpl,
+		wire.Bind(new(util5.UserStatusCheckMiddleware), new(*util5.UserStatusCheckMiddlewareImpl)),
 	)
 	return &App{}, nil
 }

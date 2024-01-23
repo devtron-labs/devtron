@@ -80,6 +80,7 @@ type UserService interface {
 	CheckForApproverAccess(appName, envName string, userId int32) bool
 	GetConfigApprovalUsersByEnv(appName, envName, team string) ([]string, error)
 	BulkUpdateStatusForUsers(request *bean.BulkStatusUpdateRequest) (*bean.ActionResponse, error)
+	GetUserByEmail(emailId string) (*bean.UserInfo, error)
 }
 
 type UserServiceImpl struct {
