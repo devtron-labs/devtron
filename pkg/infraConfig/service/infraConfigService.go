@@ -22,6 +22,9 @@ const PayloadValidationError = "payload validation failed"
 
 type InfraConfigService interface {
 
+	// todo: @gireesh for all get apis, check if we can get profile and configurations in one db call
+	// can use rigth join
+
 	// GetConfigurationUnits fetches all the units for the configurations.
 	GetConfigurationUnits() map[infraConfig.ConfigKeyStr]map[string]units.Unit
 
@@ -76,6 +79,7 @@ func NewInfraConfigServiceImpl(logger *zap.SugaredLogger,
 	err = infraProfileService.loadDefaultProfile()
 	return infraProfileService, err
 }
+
 func (impl *InfraConfigServiceImpl) GetDefaultProfile() (*infraConfig.ProfileBean, error) {
 	infraProfile, err := impl.infraProfileRepo.GetProfileByName(repository.DEFAULT_PROFILE_NAME)
 	if err != nil {
