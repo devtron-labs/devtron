@@ -167,6 +167,12 @@ func (handler PipelineConfigRestHandlerImpl) ConfigureDeploymentTemplateForApp(w
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+	protectionEnabled := handler.resourceProtectionService.ResourceProtectionEnabled(templateRequest.AppId, -1)
+	if protectionEnabled {
+		handler.Logger.Errorw("resource protection enabled", "appId", templateRequest.AppId, "envId", -1)
+		common.WriteJsonResp(w, fmt.Errorf("resource protection enabled"), "resource protection enabled", http.StatusLocked)
+		return
+	}
 	ctx = context.WithValue(r.Context(), "token", acdToken)
 	createResp, err := handler.chartService.Create(templateRequest, ctx)
 	if err != nil {

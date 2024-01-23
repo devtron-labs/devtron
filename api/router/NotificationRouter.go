@@ -87,5 +87,11 @@ func (impl NotificationRouterImpl) InitNotificationRegRouter(configRouter *mux.R
 	configRouter.Path("/search").
 		HandlerFunc(impl.notificationRestHandler.GetOptionsForNotificationSettings).
 		Methods("POST")
+	configRouter.Path("/channel/config/approve").
+		HandlerFunc(impl.notificationRestHandler.ApproveConfigDraftForNotification).
+		Methods("POST")
+	configRouter.Path("/channel/deployment/approve").
+		HandlerFunc(impl.notificationRestHandler.ApproveDeploymentConfigForNotification).
+		Methods("POST")
 
 }

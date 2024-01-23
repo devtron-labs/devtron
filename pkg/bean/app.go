@@ -680,6 +680,13 @@ const (
 	APPROVAL_REQUEST_CANCEL_ACTION
 )
 
+type ApprovalState int
+
+const (
+	AlreadyApproved ApprovalState = iota + 1
+	RequestCancelled
+)
+
 type UserApprovalActionRequest struct {
 	AppId                      int                        `json:"appId"` // would be required for RBAC
 	ActionType                 UserApprovalActionType     `json:"actionType" validate:"required"`

@@ -21,7 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/caarlos0/env"
-	"github.com/devtron-labs/common-lib-private/utils"
+	"github.com/devtron-labs/common-lib/utils"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"

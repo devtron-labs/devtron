@@ -139,6 +139,7 @@ type CdHandlerImpl struct {
 	argocdClientWrapperService             argocdServer.ArgoClientWrapperService
 	AppConfig                              *app.AppServiceConfig
 	acdConfig                              *argocdServer.ACDConfig
+	appArtifactManager                     AppArtifactManager
 }
 
 func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService, cdWorkflowRepository pipelineConfig.CdWorkflowRepository, ciLogService CiLogService, ciArtifactRepository repository.CiArtifactRepository, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, pipelineRepository pipelineConfig.PipelineRepository, envRepository repository2.EnvironmentRepository, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, helmAppService client.HelmAppService, pipelineOverrideRepository chartConfig.PipelineOverrideRepository, workflowDagExecutor WorkflowDagExecutor, appListingService app.AppListingService, appListingRepository repository.AppListingRepository, pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository, application application.ServiceClient, argoUserService argo.ArgoUserService, deploymentEventHandler app.DeploymentEventHandler, eventClient client2.EventClient, pipelineStatusTimelineResourcesService status.PipelineStatusTimelineResourcesService, pipelineStatusSyncDetailService status.PipelineStatusSyncDetailService, pipelineStatusTimelineService status.PipelineStatusTimelineService, appService app.AppService, appStatusService app_status.AppStatusService, enforcerUtil rbac.EnforcerUtil, installedAppRepository repository3.InstalledAppRepository, installedAppVersionHistoryRepository repository3.InstalledAppVersionHistoryRepository, appRepository app2.AppRepository, resourceGroupService resourceGroup2.ResourceGroupService, imageTaggingService ImageTaggingService, k8sUtil *k8s.K8sUtilExtended, workflowService WorkflowService, clusterService cluster.ClusterService, blobConfigStorageService BlobStorageConfigService,
@@ -148,7 +149,9 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService, c
 	customTagService CustomTagService,
 	argocdClientWrapperService argocdServer.ArgoClientWrapperService,
 	AppConfig *app.AppServiceConfig,
-	acdConfig *argocdServer.ACDConfig) *CdHandlerImpl {
+	acdConfig *argocdServer.ACDConfig,
+	appArtifactManager AppArtifactManager,
+) *CdHandlerImpl {
 	cdh := &CdHandlerImpl{
 		Logger:                                 Logger,
 		userService:                            userService,
@@ -191,6 +194,7 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService, c
 		argocdClientWrapperService:             argocdClientWrapperService,
 		AppConfig:                              AppConfig,
 		acdConfig:                              acdConfig,
+		appArtifactManager:                     appArtifactManager,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -1748,6 +1752,7 @@ func (impl *CdHandlerImpl) FetchAppDeploymentStatusForEnvironments(request resou
 	}
 
 	return deploymentStatuses, err
+
 }
 
 func (impl *CdHandlerImpl) PerformDeploymentApprovalAction(triggerContext TriggerContext, userId int32, approvalActionRequest bean3.UserApprovalActionRequest) error {
@@ -1758,10 +1763,17 @@ func (impl *CdHandlerImpl) PerformDeploymentApprovalAction(triggerContext Trigge
 		// fetch approval request data, same user should not be Approval requester
 		approvalRequest, err := impl.deploymentApprovalRepository.FetchWithPipelineAndArtifactDetails(approvalRequestId)
 		if err != nil {
-			return errors.New("failed to fetch approval request data")
+			return &bean3.DeploymentApprovalValidationError{
+				Err:           errors.New("failed to fetch approval request data"),
+				ApprovalState: bean3.RequestCancelled,
+			}
+
 		}
 		if approvalRequest.ArtifactDeploymentTriggered == true {
-			return errors.New("deployment has already been triggered for this request")
+			return &bean3.DeploymentApprovalValidationError{
+				Err:           errors.New("deployment has already been triggered for this request"),
+				ApprovalState: bean3.AlreadyApproved,
+			}
 		}
 		if approvalRequest.CreatedBy == userId {
 			return errors.New("requester cannot be an approver")
@@ -1786,7 +1798,10 @@ func (impl *CdHandlerImpl) PerformDeploymentApprovalAction(triggerContext Trigge
 		err = impl.deploymentApprovalRepository.SaveDeploymentUserData(deploymentApprovalData)
 		if err != nil {
 			impl.Logger.Errorw("error occurred while saving user approval data", "approvalRequestId", approvalRequestId, "err", err)
-			return err
+			return &bean3.DeploymentApprovalValidationError{
+				Err:           err,
+				ApprovalState: bean3.AlreadyApproved,
+			}
 		}
 		// trigger deployment if approved and pipeline type is automatic
 		pipeline := approvalRequest.Pipeline
@@ -1833,6 +1848,7 @@ func (impl *CdHandlerImpl) PerformDeploymentApprovalAction(triggerContext Trigge
 			impl.Logger.Errorw("error occurred while submitting approval request", "pipelineId", pipelineId, "artifactId", artifactId, "err", err)
 			return err
 		}
+		approvalActionRequest.ApprovalRequestId = deploymentApprovalRequest.Id
 		go impl.performNotificationApprovalAction(approvalActionRequest, userId)
 
 	} else {
@@ -1862,15 +1878,22 @@ func (impl *CdHandlerImpl) performNotificationApprovalAction(approvalActionReque
 		return
 	}
 	eventType := util2.Approval
+	var events []client2.Event
 	pipeline, err := impl.pipelineRepository.FindById(approvalActionRequest.PipelineId)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while updating approval request", "pipelineId", pipeline, "pipeline", pipeline, "err", err)
 	}
 	event := impl.eventFactory.Build(eventType, &approvalActionRequest.PipelineId, approvalActionRequest.AppId, &pipeline.EnvironmentId, "")
-	event = impl.eventFactory.BuildExtraApprovalData(event, approvalActionRequest, pipeline, userId)
-	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
-	if evtErr != nil {
-		impl.Logger.Errorw("CD stage post fail or success event unable to sent", "error", evtErr)
+	imageComment, imageTagNames, err := impl.appArtifactManager.GetImageTagsAndComment(approvalActionRequest.ArtifactId)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching tags and comment", "artifactId", approvalActionRequest.ArtifactId)
+	}
+	events = impl.eventFactory.BuildExtraApprovalData(event, approvalActionRequest, pipeline, userId, imageTagNames, imageComment.Comment)
+	for _, evnt := range events {
+		_, evtErr := impl.eventClient.WriteNotificationEvent(evnt)
+		if evtErr != nil {
+			impl.Logger.Errorw("unable to send approval event", "error", evtErr)
+		}
 	}
 
 }
