@@ -259,6 +259,16 @@ func (impl *InfraConfigServiceImpl) UpdateProfile(userId int32, profileName stri
 		return errors.New(InvalidProfileName)
 	}
 
+	defaultProfile, err := impl.GetDefaultProfile()
+	if err != nil {
+		impl.logger.Errorw("error in fetching default profile", "profileCreateRequest", profileBean, "error", err)
+		return err
+	}
+	if err := impl.Validate(profileBean, defaultProfile); err != nil {
+		impl.logger.Errorw("error occurred in validation the profile create request", "profileCreateRequest", profileBean, "error", err)
+		return err
+	}
+
 	infraProfile := profileBean.ConvertToInfraProfile()
 	// user couldn't delete the profile, always set this to active
 	infraProfile.Active = true
