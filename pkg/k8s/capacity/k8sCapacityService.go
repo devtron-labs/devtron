@@ -469,12 +469,12 @@ func (impl *K8sCapacityServiceImpl) updateManifestData(ctx context.Context, node
 		K8sRequest: manifestRequest,
 		ClusterId:  clusterId,
 	}
-	manifestResponse, err := impl.k8sCommonService.GetResource(ctx, request)
+	response, err := impl.k8sCommonService.GetResource(ctx, request)
 	if err != nil {
 		impl.logger.Errorw("error in getting node manifest", "err", err)
 		return err
 	}
-	nodeDetail.Manifest = manifestResponse.Manifest
+	nodeDetail.Manifest = response.ManifestResponse.Manifest
 	return nil
 }
 

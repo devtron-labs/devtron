@@ -29,7 +29,7 @@ import (
 )
 
 type K8sCommonService interface {
-	GetResource(ctx context.Context, request *ResourceRequestBean) (resp *k8s2.ManifestResponse, err error)
+	GetResource(ctx context.Context, request *ResourceRequestBean) (resp *ResourceGetResponse, err error)
 	UpdateResource(ctx context.Context, request *ResourceRequestBean) (resp *k8s2.ManifestResponse, err error)
 	DeleteResource(ctx context.Context, request *ResourceRequestBean) (*k8s2.ManifestResponse, error)
 	ListEvents(ctx context.Context, request *ResourceRequestBean) (*k8s2.EventsResponse, error)
@@ -73,7 +73,7 @@ func NewK8sCommonServiceImpl(Logger *zap.SugaredLogger, k8sUtils *k8s.K8sUtilExt
 	}
 }
 
-func (impl *K8sCommonServiceImpl) GetResource(ctx context.Context, request *ResourceRequestBean) (*k8s2.ManifestResponse, error) {
+func (impl *K8sCommonServiceImpl) GetResource(ctx context.Context, request *ResourceRequestBean) (*ResourceGetResponse, error) {
 	clusterId := request.ClusterId
 	//getting rest config by clusterId
 	restConfig, err, _ := impl.GetRestConfigByClusterId(ctx, clusterId)
@@ -87,7 +87,10 @@ func (impl *K8sCommonServiceImpl) GetResource(ctx context.Context, request *Reso
 		impl.logger.Errorw("error in getting resource", "err", err, "resource", resourceIdentifier.Name)
 		return nil, err
 	}
-	return resp, nil
+	response := &ResourceGetResponse{
+		ManifestResponse: resp,
+	}
+	return response, nil
 }
 
 func (impl *K8sCommonServiceImpl) UpdateResource(ctx context.Context, request *ResourceRequestBean) (*k8s2.ManifestResponse, error) {
@@ -315,7 +318,11 @@ func (impl *K8sCommonServiceImpl) getManifestsByBatch(ctx context.Context, reque
 			wg.Add(1)
 			go func(j int) {
 				resp := BatchResourceResponse{}
-				resp.ManifestResponse, resp.Err = impl.GetResource(ctx, &requests[i+j])
+				response, err := impl.GetResource(ctx, &requests[i+j])
+				if response != nil {
+					resp.ManifestResponse = response.ManifestResponse
+				}
+				resp.Err = err
 				res[i+j] = resp
 				wg.Done()
 			}(j)
