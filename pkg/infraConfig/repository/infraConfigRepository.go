@@ -10,7 +10,7 @@ import (
 
 const DEFAULT_PROFILE_NAME = "default"
 const DEFAULT_PROFILE_EXISTS = "default profile exists"
-const noPropertiesFound = "no properties found"
+const NO_PROPERTIES_FOUND = "no properties found"
 
 type InfraConfigRepository interface {
 	GetIdentifierCountForDefaultProfile() (int, error)
@@ -70,7 +70,7 @@ func (impl *InfraConfigRepositoryImpl) GetConfigurationsByProfileId(profileId in
 		Where("active = ?", true).
 		Select()
 	if errors.Is(err, pg.ErrNoRows) {
-		return nil, errors.New(noPropertiesFound)
+		return nil, errors.New(NO_PROPERTIES_FOUND)
 	}
 	return configurations, err
 }
