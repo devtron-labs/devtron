@@ -17,6 +17,7 @@
 - fix: error handling and url fix (#4407)
 - feat: skip bulk build source change (#4357)
 ## Enhancements
+- feat: Secret viewable key enhancements in get resource api and draft api (#4537)
 - feat: introduced CASBIN_DATABASE env to make casbin db configurable (#4547)
 - feat: added posthog events for cloud provider and version (#4443)
 - feat: making pre,post,deploy triggers flows idempotent (#4486)
