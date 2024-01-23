@@ -191,7 +191,7 @@ components:
           description: identifiers
           items:
             $ref: '#/components/schemas/Identifier'
-        count:
+        totalIdentifierCount:
           type: integer
           description: Total number of identifiers
           example: 1

@@ -48,6 +48,8 @@ type InfraConfigService interface {
 	// DeleteProfile deletes the profile and its configurations matching the given profileName.
 	// If profileName is empty, it will return an error.
 	DeleteProfile(profileName string) error
+
+	GetIdentifierList(listFilter *infraConfig.IdentifierListFilter) (*infraConfig.IdentifierProfileResponse, error)
 }
 
 type InfraConfigServiceImpl struct {
@@ -184,6 +186,9 @@ func (impl *InfraConfigServiceImpl) GetProfileList(profileNameLike string) (*inf
 	profiles := make([]infraConfig.ProfileBean, 0, len(profilesMap))
 	for profileId, profile := range profilesMap {
 		if profile.Name == repository.DEFAULT_PROFILE_NAME {
+			profiles = append(profiles, profile)
+			// update map with updated profile
+			profilesMap[profileId] = profile
 			continue
 		}
 
@@ -556,6 +561,8 @@ func (impl *InfraConfigServiceImpl) validateCpuMem(profileBean *infraConfig.Prof
 	}
 
 	// this condition should be true for valid case => (lim/req)*(lf/rf) >= 1
+	// not directly comparing lim*lf with req*rf because this multiplication can overflow float64 limit
+	// so we are dividing lim/req and lf/rf and then comparing.
 	limitToReqRationMem := memLimit.Value / memReq.Value
 	convFactorMem := memLimitUnit.ConversionFactor / memReqUnit.ConversionFactor
 
@@ -564,4 +571,8 @@ func (impl *InfraConfigServiceImpl) validateCpuMem(profileBean *infraConfig.Prof
 	}
 
 	return nil
+}
+
+func (impl *InfraConfigServiceImpl) GetIdentifierList(listFilter *infraConfig.IdentifierListFilter) (*infraConfig.IdentifierProfileResponse, error) {
+
 }

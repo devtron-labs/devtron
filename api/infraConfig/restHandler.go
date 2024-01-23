@@ -2,6 +2,7 @@ package infraConfig
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
@@ -14,7 +15,10 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"net/http"
+	"strconv"
 )
+
+const InvalidIdentifierType = "identifier %s is not valid"
 
 type InfraConfigRestHandler interface {
 	UpdateInfraProfile(w http.ResponseWriter, r *http.Request)
@@ -22,6 +26,7 @@ type InfraConfigRestHandler interface {
 	DeleteProfile(w http.ResponseWriter, r *http.Request)
 	CreateProfile(w http.ResponseWriter, r *http.Request)
 	GetProfileList(w http.ResponseWriter, r *http.Request)
+	GetIdentifierList(w http.ResponseWriter, r *http.Request)
 }
 
 type InfraConfigRestHandlerImpl struct {
@@ -204,4 +209,63 @@ func (handler *InfraConfigRestHandlerImpl) DeleteProfile(w http.ResponseWriter, 
 		return
 	}
 	common.WriteJsonResp(w, nil, nil, http.StatusOK)
+}
+
+func (handler *InfraConfigRestHandlerImpl) GetIdentifierList(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+
+	vars := mux.Vars(r)
+	identifierType := vars["identifierType"]
+	if identifierType != string(infraConfig.APPLICATION) {
+		common.WriteJsonResp(w, errors.New(fmt.Sprintf(InvalidIdentifierType, identifierType)), nil, http.StatusBadRequest)
+		return
+	}
+	identifierNameLike := vars["identifierNameLike"]
+	sortOrder := vars["sortOrder"]
+
+	if !(sortOrder == "ASC" || sortOrder == "DESC") {
+		common.WriteJsonResp(w, errors.New("sort order can only be ASC or DESC"), nil, http.StatusBadRequest)
+		return
+	}
+	sizeStr := vars["size"]
+	size, err := strconv.Atoi(sizeStr)
+	if err != nil || size < 0 {
+		common.WriteJsonResp(w, errors.Wrap(err, "invalid size"), nil, http.StatusBadRequest)
+		return
+	}
+	if size == 0 {
+		size = 20
+	}
+	offsetStr := vars["offset"]
+	offset, err := strconv.Atoi(offsetStr)
+	if err != nil || offset < 0 {
+		common.WriteJsonResp(w, errors.Wrap(err, "invalid offset"), nil, http.StatusBadRequest)
+		return
+	}
+
+	profileName := vars["profileName"]
+	listFilter := infraConfig.IdentifierListFilter{
+		Limit:              size,
+		Offset:             offset,
+		SortOrder:          sortOrder,
+		ProfileName:        profileName,
+		IdentifierNameLike: identifierNameLike,
+		IdentifierType:     infraConfig.APPLICATION,
+	}
+
+	res, err := handler.infraProfileService.GetIdentifierList(&listFilter)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	common.WriteJsonResp(w, nil, res, http.StatusOK)
 }

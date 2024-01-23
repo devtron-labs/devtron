@@ -74,6 +74,7 @@ func (impl *InfraConfigRepositoryImpl) GetProfileList(profileNameLike string) ([
 		profileNameLike = "%" + profileNameLike + "%"
 		query = query.Where("name LIKE ? OR name = ?", profileNameLike, DEFAULT_PROFILE_NAME)
 	}
+	query.Order("name ASC")
 	err := query.Select()
 	return infraProfiles, err
 }

@@ -81,3 +81,7 @@ func GetUnitSuffixStr(unitKey ConfigKey, unit units.UnitSuffix) string {
 	}
 	return string(units.GetMemoryUnitStr(unit))
 }
+
+type IdentifierType string
+
+const APPLICATION IdentifierType = "application"

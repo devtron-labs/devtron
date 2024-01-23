@@ -112,6 +112,27 @@ type ProfilesResponse struct {
 	InfraConfigMetaData
 }
 
+type IdentifierListFilter struct {
+	IdentifierType     IdentifierType // currently supporting app
+	IdentifierNameLike string         // currently app_name  is supported
+	ProfileName        string         // gets  the list for this profile
+	Limit              int            // limit on the result set , defaults to 20
+	Offset             int            // offset on the result set, defaults to 0
+	SortOrder          string         // asc or desc, defaults to asc by appName
+}
+
+type Identifier struct {
+	Id      int          `json:"id"`
+	Name    string       `json:"name"`
+	Profile *ProfileBean `json:"profile"`
+}
+
+type IdentifierProfileResponse struct {
+	Identifiers               []Identifier `json:"identifiers"`
+	TotalIdentifierCount      int          `json:"totalIdentifierCount"`
+	OverriddenIdentifierCount int          `json:"overriddenIdentifierCount"`
+}
+
 type InfraConfig struct {
 	// currently only for ci
 	CiLimitCpu       string `env:"LIMIT_CI_CPU" envDefault:"0.5"`
