@@ -39,7 +39,7 @@ func TestConfigDraftService(t *testing.T) {
 		userId := int32(1)
 		draftLatestVersion := &drafts.DraftVersion{Id: draftVersionId + 1}
 		configDraftRepository.On("GetLatestConfigDraft", draftId).Return(draftLatestVersion, nil)
-		err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
+		_, err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
 		assert.Error(t, err, drafts.LastVersionOutdated)
 	})
 	t.Run("approval request for draft in terminal state", func(t *testing.T) {
@@ -51,7 +51,7 @@ func TestConfigDraftService(t *testing.T) {
 		draftDto := &drafts.DraftDto{DraftState: drafts.PublishedDraftState}
 		configDraftRepository.On("GetLatestConfigDraft", draftId).Return(draftLatestVersion, nil)
 		configDraftRepository.On("GetDraftMetadataById", draftId).Return(draftDto, nil)
-		err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
+		_, err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
 		assert.Error(t, err, drafts.DraftAlreadyInTerminalState)
 	})
 	t.Run("approval request for draft in init state", func(t *testing.T) {
@@ -63,7 +63,7 @@ func TestConfigDraftService(t *testing.T) {
 		draftDto := &drafts.DraftDto{DraftState: drafts.InitDraftState}
 		configDraftRepository.On("GetLatestConfigDraft", draftId).Return(draftLatestVersion, nil)
 		configDraftRepository.On("GetDraftMetadataById", draftId).Return(draftDto, nil)
-		err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
+		_, err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
 		assert.Error(t, err, drafts.ApprovalRequestNotRaised)
 	})
 
@@ -77,7 +77,7 @@ func TestConfigDraftService(t *testing.T) {
 		configDraftRepository.On("GetLatestConfigDraft", draftId).Return(draftLatestVersion, nil)
 		configDraftRepository.On("GetDraftMetadataById", draftId).Return(draftDto, nil)
 		configDraftRepository.On("GetDraftVersionsMetadata", draftId).Return([]*drafts.DraftVersion{draftLatestVersion}, nil)
-		err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
+		_, err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
 		assert.Error(t, err, drafts.UserContributedToDraft)
 	})
 
@@ -106,7 +106,7 @@ func TestConfigDraftService(t *testing.T) {
 				return configMapRequest
 			}, nil)
 		configDraftRepository.On("UpdateDraftState", draftId, drafts.PublishedDraftState, userId).Return(nil)
-		err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
+		_, err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
 		assert.NoError(t, err)
 		configMapService.AssertCalled(t, "CMGlobalAddUpdate", mock.AnythingOfType("*bean.ConfigDataRequest"))
 	})
@@ -138,7 +138,7 @@ func TestConfigDraftService(t *testing.T) {
 				return configMapRequest
 			}, nil)
 		configDraftRepository.On("UpdateDraftState", draftId, drafts.PublishedDraftState, userId).Return(nil)
-		err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
+		_, err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
 		assert.NoError(t, err)
 		configMapService.AssertCalled(t, "CMEnvironmentAddUpdate", mock.AnythingOfType("*bean.ConfigDataRequest"))
 	})
@@ -162,7 +162,7 @@ func TestConfigDraftService(t *testing.T) {
 		configDraftRepository.On("GetDraftVersionsMetadata", draftId).Return([]*drafts.DraftVersion{draftLatestVersion}, nil)
 		configMapService.On("CMGlobalDelete", resourceName, cmId, draftVersionUserId).Return(true, nil)
 		configDraftRepository.On("UpdateDraftState", draftId, drafts.PublishedDraftState, userId).Return(nil)
-		err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
+		_, err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
 		assert.NoError(t, err)
 	})
 
@@ -185,7 +185,7 @@ func TestConfigDraftService(t *testing.T) {
 		configDraftRepository.On("GetDraftVersionsMetadata", draftId).Return([]*drafts.DraftVersion{draftLatestVersion}, nil)
 		configMapService.On("CMEnvironmentDelete", resourceName, cmId, draftVersionUserId).Return(true, nil)
 		configDraftRepository.On("UpdateDraftState", draftId, drafts.PublishedDraftState, userId).Return(nil)
-		err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
+		_, err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
 		assert.NoError(t, err)
 	})
 
@@ -215,7 +215,7 @@ func TestConfigDraftService(t *testing.T) {
 				return configMapRequest
 			}, nil)
 		configDraftRepository.On("UpdateDraftState", draftId, drafts.PublishedDraftState, userId).Return(nil)
-		err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
+		_, err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
 		assert.NoError(t, err)
 		configMapService.AssertCalled(t, "CSGlobalAddUpdate", mock.AnythingOfType("*bean.ConfigDataRequest"))
 	})
@@ -247,7 +247,7 @@ func TestConfigDraftService(t *testing.T) {
 				return configMapRequest
 			}, nil)
 		configDraftRepository.On("UpdateDraftState", draftId, drafts.PublishedDraftState, userId).Return(nil)
-		err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
+		_, err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
 		assert.NoError(t, err)
 		configMapService.AssertCalled(t, "CSEnvironmentAddUpdate", mock.AnythingOfType("*bean.ConfigDataRequest"))
 	})
@@ -271,7 +271,7 @@ func TestConfigDraftService(t *testing.T) {
 		configDraftRepository.On("GetDraftVersionsMetadata", draftId).Return([]*drafts.DraftVersion{draftLatestVersion}, nil)
 		configMapService.On("CSGlobalDelete", resourceName, csId, draftVersionUserId).Return(true, nil)
 		configDraftRepository.On("UpdateDraftState", draftId, drafts.PublishedDraftState, userId).Return(nil)
-		err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
+		_, err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
 		assert.NoError(t, err)
 	})
 
@@ -294,7 +294,7 @@ func TestConfigDraftService(t *testing.T) {
 		configDraftRepository.On("GetDraftVersionsMetadata", draftId).Return([]*drafts.DraftVersion{draftLatestVersion}, nil)
 		configMapService.On("CSEnvironmentDelete", resourceName, cmId, draftVersionUserId).Return(true, nil)
 		configDraftRepository.On("UpdateDraftState", draftId, drafts.PublishedDraftState, userId).Return(nil)
-		err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
+		_, err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
 		assert.NoError(t, err)
 	})
 
@@ -323,7 +323,7 @@ func TestConfigDraftService(t *testing.T) {
 				return template
 			}, nil)
 		configDraftRepository.On("UpdateDraftState", draftId, drafts.PublishedDraftState, userId).Return(nil)
-		err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
+		_, err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
 		assert.NoError(t, err)
 	})
 
@@ -352,7 +352,7 @@ func TestConfigDraftService(t *testing.T) {
 				return template
 			}, nil)
 		configDraftRepository.On("UpdateDraftState", draftId, drafts.PublishedDraftState, userId).Return(nil)
-		err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
+		_, err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
 		assert.NoError(t, err)
 	})
 
@@ -373,7 +373,7 @@ func TestConfigDraftService(t *testing.T) {
 		configDraftRepository.On("GetLatestConfigDraft", draftId).Return(draftLatestVersion, nil)
 		configDraftRepository.On("GetDraftMetadataById", draftId).Return(draftDto, nil)
 		configDraftRepository.On("GetDraftVersionsMetadata", draftId).Return([]*drafts.DraftVersion{draftLatestVersion}, nil)
-		err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
+		_, err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
 		assert.NotNil(t, err)
 	})
 
@@ -395,7 +395,7 @@ func TestConfigDraftService(t *testing.T) {
 		configDraftRepository.On("GetDraftVersionsMetadata", draftId).Return([]*drafts.DraftVersion{draftLatestVersion}, nil)
 		ctx := context.Background()
 		chartService.On("DeploymentTemplateValidate", ctx, templateRequest.ValuesOverride, templateRequest.ChartRefId).Return(false, nil)
-		err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
+		_, err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
 		assert.Error(t, err, drafts.TemplateOutdated)
 	})
 
@@ -418,7 +418,7 @@ func TestConfigDraftService(t *testing.T) {
 		ctx := context.Background()
 		validationErrorMsg := "error during validating template"
 		chartService.On("DeploymentTemplateValidate", ctx, templateRequest.ValuesOverride, templateRequest.ChartRefId).Return(false, errors.New(validationErrorMsg))
-		err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
+		_, err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
 		assert.Error(t, err, validationErrorMsg)
 	})
 
@@ -440,7 +440,7 @@ func TestConfigDraftService(t *testing.T) {
 		configDraftRepository.On("GetDraftVersionsMetadata", draftId).Return([]*drafts.DraftVersion{draftLatestVersion}, nil)
 		ctx := context.Background()
 		chartService.On("DeploymentTemplateValidate", ctx, environmentProperties.EnvOverrideValues, environmentProperties.ChartRefId).Return(false, nil)
-		err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
+		_, err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
 		assert.Error(t, err, drafts.TemplateOutdated)
 	})
 
@@ -463,7 +463,7 @@ func TestConfigDraftService(t *testing.T) {
 		ctx := context.Background()
 		validateErrMsg := "error during template validation"
 		chartService.On("DeploymentTemplateValidate", ctx, environmentProperties.EnvOverrideValues, environmentProperties.ChartRefId).Return(false, errors.New(validateErrMsg))
-		err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
+		_, err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
 		assert.Error(t, err, validateErrMsg)
 	})
 
@@ -483,7 +483,7 @@ func TestConfigDraftService(t *testing.T) {
 		configDraftRepository.On("GetLatestConfigDraft", draftId).Return(draftLatestVersion, nil)
 		configDraftRepository.On("GetDraftMetadataById", draftId).Return(draftDto, nil)
 		configDraftRepository.On("GetDraftVersionsMetadata", draftId).Return([]*drafts.DraftVersion{draftLatestVersion}, nil)
-		err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
+		_, err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
 		assert.NotNil(t, err)
 	})
 
@@ -511,7 +511,7 @@ func TestConfigDraftService(t *testing.T) {
 			return propertiesRequest
 		}, nil)
 		configDraftRepository.On("UpdateDraftState", draftId, drafts.PublishedDraftState, userId).Return(nil)
-		err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
+		_, err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
 		assert.Nil(t, err)
 	})
 
@@ -550,7 +550,7 @@ func TestConfigDraftService(t *testing.T) {
 			return &templateRequest
 		}, nil)
 		configDraftRepository.On("UpdateDraftState", draftId, drafts.PublishedDraftState, userId).Return(nil)
-		err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
+		_, err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
 		assert.Nil(t, err)
 	})
 
@@ -578,7 +578,7 @@ func TestConfigDraftService(t *testing.T) {
 			return propertiesRequest
 		}, nil)
 		configDraftRepository.On("UpdateDraftState", draftId, drafts.PublishedDraftState, userId).Return(nil)
-		err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
+		_, err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
 		assert.Nil(t, err)
 	})
 
@@ -600,7 +600,7 @@ func TestConfigDraftService(t *testing.T) {
 		configDraftRepository.On("GetDraftVersionsMetadata", draftId).Return([]*drafts.DraftVersion{draftLatestVersion}, nil)
 		propertiesConfigService.On("ResetEnvironmentProperties", 1).Return(true, nil)
 		configDraftRepository.On("UpdateDraftState", draftId, drafts.PublishedDraftState, userId).Return(nil)
-		err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
+		_, err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
 		assert.Nil(t, err)
 	})
 
@@ -622,7 +622,7 @@ func TestConfigDraftService(t *testing.T) {
 		configDraftRepository.On("GetDraftVersionsMetadata", draftId).Return([]*drafts.DraftVersion{draftLatestVersion}, nil)
 		errMsg := "failed to reset props"
 		propertiesConfigService.On("ResetEnvironmentProperties", 1).Return(false, errors.New(errMsg))
-		err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
+		_, err = configDraftServiceImpl.ApproveDraft(draftId, draftVersionId, userId)
 		assert.Error(t, err, errMsg)
 	})
 

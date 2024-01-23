@@ -20,6 +20,7 @@ package apiToken
 import (
 	"errors"
 	"fmt"
+	"github.com/caarlos0/env"
 	"regexp"
 	"strconv"
 	"strings"
@@ -41,6 +42,7 @@ type ApiTokenService interface {
 	UpdateApiToken(apiTokenId int, request *openapi.UpdateApiTokenRequest, updatedBy int32) (*openapi.UpdateApiTokenResponse, error)
 	DeleteApiToken(apiTokenId int, deletedBy int32) (*openapi.ActionResponse, error)
 	GetAllApiTokensForWebhook(projectName string, environmentName string, appName string, auth func(token string, projectObject string, envObject string) bool) ([]*openapi.ApiToken, error)
+	CreateApiJwtTokenForNotification(claims *TokenCustomClaimsForNotification, expireAtInMs int64) (string, error)
 }
 
 type ApiTokenServiceImpl struct {
@@ -49,26 +51,53 @@ type ApiTokenServiceImpl struct {
 	userService           user.UserService
 	userAuditService      user.UserAuditService
 	apiTokenRepository    ApiTokenRepository
+	TokenVariableConfig   *TokenVariableConfig
 }
 
 func NewApiTokenServiceImpl(logger *zap.SugaredLogger, apiTokenSecretService ApiTokenSecretService, userService user.UserService, userAuditService user.UserAuditService,
-	apiTokenRepository ApiTokenRepository) *ApiTokenServiceImpl {
-	return &ApiTokenServiceImpl{
+	apiTokenRepository ApiTokenRepository,
+) (*ApiTokenServiceImpl, error) {
+	apiTokenService := &ApiTokenServiceImpl{
 		logger:                logger,
 		apiTokenSecretService: apiTokenSecretService,
 		userService:           userService,
 		userAuditService:      userAuditService,
 		apiTokenRepository:    apiTokenRepository,
 	}
+
+	cfg, err := GetTokenConfig()
+	if err != nil {
+		return nil, err
+	}
+	apiTokenService.TokenVariableConfig = cfg
+
+	return apiTokenService, err
+}
+func GetTokenConfig() (*TokenVariableConfig, error) {
+	cfg := &TokenVariableConfig{}
+	err := env.Parse(cfg)
+	return cfg, err
+}
+
+type TokenVariableConfig struct {
+	ExpireAtInHours int64 `env:"NOTIFICATION_TOKEN_EXPIRY_TIME_HOURS" envDefault:"720"` //30*24
+}
+
+func (config TokenVariableConfig) GetExpiryTimeInMs() int64 {
+	return time.Now().Add(time.Duration(config.ExpireAtInHours) * time.Hour).UnixMilli()
 }
 
 const API_TOKEN_USER_EMAIL_PREFIX = "API-TOKEN:"
 
 var invalidCharsInApiTokenName = regexp.MustCompile("[,\\s]")
 
-type ApiTokenCustomClaims struct {
-	Email string `json:"email"`
-	jwt.RegisteredClaims
+func (tokenCustomClaimsForNotification TokenCustomClaimsForNotification) generateToken(secretByteArr []byte) (string, error) {
+	unsignedToken := jwt.NewWithClaims(jwt.SigningMethodHS256, tokenCustomClaimsForNotification)
+	token, err := unsignedToken.SignedString(secretByteArr)
+	if err != nil {
+		return "", err
+	}
+	return token, nil
 }
 
 func (impl ApiTokenServiceImpl) GetAllApiTokensForWebhook(projectName string, environmentName string, appName string, auth func(token string, projectObject string, envObject string) bool) ([]*openapi.ApiToken, error) {
@@ -321,25 +350,56 @@ func (impl ApiTokenServiceImpl) DeleteApiToken(apiTokenId int, deletedBy int32) 
 	}, nil
 
 }
+func (impl ApiTokenServiceImpl) CreateApiJwtTokenForNotification(claims *TokenCustomClaimsForNotification, expireAtInMs int64) (string, error) {
+	registeredClaims, secretByteArr, err := impl.setRegisteredClaims(expireAtInMs)
+	if err != nil {
+		impl.logger.Errorw("error in setting registered claims", "err", err)
+		return "", err
+	}
+	claims.setRegisteredClaims(registeredClaims)
+	token, err := claims.generateToken(secretByteArr)
+	if err != nil {
+		impl.logger.Errorw("error in generating token", "err", err)
+		return token, err
+	}
 
+	return token, nil
+
+}
 func (impl ApiTokenServiceImpl) createApiJwtToken(email string, expireAtInMs int64) (string, error) {
+	registeredClaims, secretByteArr, err := impl.setRegisteredClaims(expireAtInMs)
+	if err != nil {
+		return "", err
+	}
+	claims := &ApiTokenCustomClaims{
+		email,
+		registeredClaims,
+	}
+	token, err := impl.generateToken(claims, secretByteArr)
+	if err != nil {
+		return "", err
+	}
+	return token, nil
+}
+
+func (impl ApiTokenServiceImpl) setRegisteredClaims(expireAtInMs int64) (jwt.RegisteredClaims, []byte, error) {
 	secretByteArr, err := impl.apiTokenSecretService.GetApiTokenSecretByteArr()
 	if err != nil {
 		impl.logger.Errorw("error while getting api token secret", "error", err)
-		return "", err
+		return jwt.RegisteredClaims{}, secretByteArr, err
 	}
 
 	registeredClaims := jwt.RegisteredClaims{
 		Issuer: middleware.ApiTokenClaimIssuer,
 	}
+
 	if expireAtInMs > 0 {
 		registeredClaims.ExpiresAt = jwt.NewNumericDate(time.Unix(expireAtInMs/1000, 0))
 	}
+	return registeredClaims, secretByteArr, nil
+}
 
-	claims := &ApiTokenCustomClaims{
-		email,
-		registeredClaims,
-	}
+func (impl ApiTokenServiceImpl) generateToken(claims *ApiTokenCustomClaims, secretByteArr []byte) (string, error) {
 	unsignedToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	token, err := unsignedToken.SignedString(secretByteArr)
 	if err != nil {

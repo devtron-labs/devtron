@@ -18,18 +18,24 @@
 package notifier
 
 import (
+	"context"
 	"encoding/json"
-	"time"
-
+	"github.com/devtron-labs/devtron/client/events"
+	"github.com/devtron-labs/devtron/enterprise/pkg/drafts"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/pkg/apiToken"
 	repository4 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
+	"github.com/devtron-labs/devtron/pkg/bean"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/pipeline"
 	repository2 "github.com/devtron-labs/devtron/pkg/team"
+
+	util "github.com/devtron-labs/devtron/util/event"
+	"time"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	util2 "github.com/devtron-labs/devtron/internal/util"
-	util "github.com/devtron-labs/devtron/util/event"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -43,6 +49,9 @@ type NotificationConfigService interface {
 	IsSesOrSmtpConfigured() (*ConfigCheck, error)
 	UpdateNotificationSettings(notificationSettingsRequest *NotificationUpdateRequest, userId int32) (int, error)
 	FetchNSViewByIds(ids []*int) ([]*NSConfig, error)
+	GetMetaDataForDraftNotification(draftRequest *apiToken.DraftApprovalRequest) (*client.DraftApprovalResponse, error)
+	GetMetaDataForDeploymentNotification(deploymentApprovalRequest *apiToken.DeploymentApprovalRequest, appName string, envName string) (*client.DeploymentApprovalResponse, error)
+	PerformApprovalActionAndGetMetadata(deploymentApprovalRequest apiToken.DeploymentApprovalRequest, approvalActionRequest bean.UserApprovalActionRequest, pipelineInfo *pipelineConfig.Pipeline) (*client.DeploymentApprovalResponse, error)
 }
 
 type NotificationConfigServiceImpl struct {
@@ -60,6 +69,10 @@ type NotificationConfigServiceImpl struct {
 	appRepository                  app.AppRepository
 	userRepository                 repository4.UserRepository
 	ciPipelineMaterialRepository   pipelineConfig.CiPipelineMaterialRepository
+	configDraftRepository          drafts.ConfigDraftRepository
+	ciArtifactRepository           repository.CiArtifactRepository
+	appArtifactManager             pipeline.AppArtifactManager
+	cdHandler                      pipeline.CdHandler
 }
 
 type NotificationSettingRequest struct {
@@ -70,18 +83,11 @@ type NotificationSettingRequest struct {
 	//Pipelines    []int             `json:"pipelineIds"`
 	PipelineType util.PipelineType `json:"pipelineType" validate:"required"`
 	EventTypeIds []int             `json:"eventTypeIds" validate:"required"`
-	Providers    []Provider        `json:"providers" validate:"required"`
-}
-
-type Provider struct {
-	Destination util.Channel `json:"dest"`
-	Rule        string       `json:"rule"`
-	ConfigId    int          `json:"configId"`
-	Recipient   string       `json:"recipient"`
+	Providers    []client.Provider `json:"providers" validate:"required"`
 }
 
 type Providers struct {
-	Providers []Provider `json:"providers"`
+	Providers []client.Provider `json:"providers"`
 }
 
 type NSDeleteRequest struct {
@@ -91,7 +97,7 @@ type NSDeleteRequest struct {
 type NotificationRequest struct {
 	UpdateType                util.UpdateType              `json:"updateType,omitempty"`
 	SesConfigId               int                          `json:"sesConfigId,omitempty"`
-	Providers                 []*Provider                  `json:"providers"`
+	Providers                 []*client.Provider           `json:"providers"`
 	NotificationConfigRequest []*NotificationConfigRequest `json:"notificationConfigRequest" validate:"required"`
 }
 type NotificationUpdateRequest struct {
@@ -99,14 +105,14 @@ type NotificationUpdateRequest struct {
 	NotificationConfigRequest []*NotificationConfigRequest `json:"notificationConfigRequest" validate:"required"`
 }
 type NotificationConfigRequest struct {
-	Id           int               `json:"id"`
-	TeamId       []*int            `json:"teamId"`
-	AppId        []*int            `json:"appId"`
-	EnvId        []*int            `json:"envId"`
-	PipelineId   *int              `json:"pipelineId"`
-	PipelineType util.PipelineType `json:"pipelineType" validate:"required"`
-	EventTypeIds []int             `json:"eventTypeIds" validate:"required"`
-	Providers    []*Provider       `json:"providers"`
+	Id           int                `json:"id"`
+	TeamId       []*int             `json:"teamId"`
+	AppId        []*int             `json:"appId"`
+	EnvId        []*int             `json:"envId"`
+	PipelineId   *int               `json:"pipelineId"`
+	PipelineType util.PipelineType  `json:"pipelineType" validate:"required"`
+	EventTypeIds []int              `json:"eventTypeIds" validate:"required"`
+	Providers    []*client.Provider `json:"providers"`
 }
 
 type NSViewResponse struct {
@@ -175,7 +181,12 @@ func NewNotificationConfigServiceImpl(logger *zap.SugaredLogger, notificationSet
 	sesRepository repository.SESNotificationRepository, smtpRepository repository.SMTPNotificationRepository,
 	teamRepository repository2.TeamRepository,
 	environmentRepository repository3.EnvironmentRepository, appRepository app.AppRepository,
-	userRepository repository4.UserRepository, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository) *NotificationConfigServiceImpl {
+	userRepository repository4.UserRepository, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
+	configDraftRepository drafts.ConfigDraftRepository,
+	ciArtifactRepository repository.CiArtifactRepository,
+	appArtifactManager pipeline.AppArtifactManager,
+	cdHandler pipeline.CdHandler,
+) *NotificationConfigServiceImpl {
 	return &NotificationConfigServiceImpl{
 		logger:                         logger,
 		notificationSettingsRepository: notificationSettingsRepository,
@@ -191,6 +202,10 @@ func NewNotificationConfigServiceImpl(logger *zap.SugaredLogger, notificationSet
 		appRepository:                  appRepository,
 		userRepository:                 userRepository,
 		ciPipelineMaterialRepository:   ciPipelineMaterialRepository,
+		configDraftRepository:          configDraftRepository,
+		ciArtifactRepository:           ciArtifactRepository,
+		appArtifactManager:             appArtifactManager,
+		cdHandler:                      cdHandler,
 	}
 }
 
@@ -254,7 +269,7 @@ type config struct {
 	Pipelines    []int             `json:"pipelineIds"`
 	PipelineType util.PipelineType `json:"pipelineType" validate:"required"`
 	EventTypeIds []int             `json:"eventTypeIds" validate:"required"`
-	Providers    []Provider        `json:"providers" validate:"required"`
+	Providers    []client.Provider `json:"providers" validate:"required"`
 }
 
 func (impl *NotificationConfigServiceImpl) CreateOrUpdateNotificationSettings(notificationSettingsRequest *NotificationRequest, userId int32) (int, error) {
@@ -923,4 +938,104 @@ func (impl *NotificationConfigServiceImpl) IsSesOrSmtpConfigured() (*ConfigCheck
 	}
 
 	return &configCheck, nil
+}
+
+func (impl *NotificationConfigServiceImpl) GetMetaDataForDraftNotification(draftRequest *apiToken.DraftApprovalRequest) (*client.DraftApprovalResponse, error) {
+
+	envName, appName, err := impl.getEnvAndAppName(draftRequest.EnvId, draftRequest.AppId)
+	if err != nil {
+		return nil, err
+	}
+
+	draftApprovalResp := &client.DraftApprovalResponse{
+		NotificationMetaData: &client.NotificationMetaData{
+			AppName:    appName,
+			EnvName:    envName,
+			ApprovedBy: draftRequest.EmailId,
+			EventTime:  time.Now().Format(bean.LayoutRFC3339),
+		},
+	}
+	draft, err := impl.configDraftRepository.GetDraftVersionById(draftRequest.DraftVersionId)
+	if err != nil {
+		return draftApprovalResp, err
+	}
+	draftApprovalResp.ProtectConfigFileType = string(draft.Draft.Resource.GetDraftResourceType())
+	if draft.Draft.Resource == drafts.DeploymentTemplateResource {
+		draftApprovalResp.ProtectConfigFileName = string(client.DeploymentTemplate)
+	} else {
+		draftApprovalResp.ProtectConfigFileName = draft.Draft.ResourceName
+	}
+	draftComment, err := impl.configDraftRepository.GetDraftComments(draftRequest.DraftVersionId)
+	if err != nil && err != pg.ErrNoRows {
+		return draftApprovalResp, err
+	}
+	draftApprovalResp.ProtectConfigComment = draftComment.Comment
+
+	return draftApprovalResp, nil
+}
+
+func (impl *NotificationConfigServiceImpl) getEnvAndAppName(envId int, appId int) (string, string, error) {
+	var envName, appName string
+
+	if envId > 0 {
+		env, err := impl.environmentRepository.FindById(envId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching  env", "envId", env.Id)
+
+			return envName, appName, err
+		}
+		envName = env.Name
+	}
+	application, err := impl.appRepository.FindById(appId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching application", "appId", application.Id)
+
+		return envName, appName, err
+	}
+	appName = application.AppName
+	return envName, appName, err
+}
+func (impl *NotificationConfigServiceImpl) PerformApprovalActionAndGetMetadata(deploymentApprovalRequest apiToken.DeploymentApprovalRequest, approvalActionRequest bean.UserApprovalActionRequest, pipelineInfo *pipelineConfig.Pipeline) (*client.DeploymentApprovalResponse, error) {
+	var approvalState bean.ApprovalState
+	var resp *client.DeploymentApprovalResponse
+	err := impl.cdHandler.PerformDeploymentApprovalAction(pipeline.TriggerContext{Context: context.Background()}, deploymentApprovalRequest.UserId, approvalActionRequest)
+	if err != nil {
+		validationErr, ok := err.(*bean.DeploymentApprovalValidationError)
+		if ok {
+			approvalState = validationErr.ApprovalState
+		} else {
+			return resp, err
+		}
+	}
+	resp, err = impl.GetMetaDataForDeploymentNotification(&deploymentApprovalRequest, pipelineInfo.App.AppName, pipelineInfo.Environment.Name)
+	if err != nil {
+		impl.logger.Errorw("error in getting response", "err", err)
+		return resp, err
+	}
+	resp.Status = approvalState
+	return resp, nil
+}
+func (impl *NotificationConfigServiceImpl) GetMetaDataForDeploymentNotification(deploymentApprovalRequest *apiToken.DeploymentApprovalRequest, appName string, envName string) (*client.DeploymentApprovalResponse, error) {
+	ciArtifact, err := impl.ciArtifactRepository.Get(deploymentApprovalRequest.ArtifactId)
+	if err != nil {
+		impl.logger.Errorw("error fetching ciArtifact", "ciArtifactId", ciArtifact.Id, "err", err)
+		return nil, err
+	}
+	imageComment, imageTagNames, err := impl.appArtifactManager.GetImageTagsAndComment(deploymentApprovalRequest.ArtifactId)
+	if err != nil {
+		impl.logger.Errorw("error fetching image Tags and comments", "ciArtifactId", deploymentApprovalRequest.ArtifactId, "err", err)
+		return nil, err
+	}
+
+	return &client.DeploymentApprovalResponse{
+		ImageTagNames:  imageTagNames,
+		ImageComment:   imageComment.Comment,
+		DockerImageUrl: ciArtifact.Image,
+		NotificationMetaData: &client.NotificationMetaData{
+			AppName:    appName,
+			EnvName:    envName,
+			ApprovedBy: deploymentApprovalRequest.EmailId,
+			EventTime:  time.Now().Format(bean.LayoutRFC3339),
+		},
+	}, nil
 }

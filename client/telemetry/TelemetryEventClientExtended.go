@@ -175,7 +175,7 @@ type TelemetryEventDto struct {
 	HelmChartSuccessfulDeploymentCount        int                `json:"helmChartSuccessfulDeploymentCount,omitempty"`
 	ExternalHelmAppClusterCount               map[int32]int      `json:"ExternalHelmAppClusterCount"`
 	CountOfApplicationsWithDependenciesMapped int                `json:"countOfApplicationsWithDependenciesMapped,omitempty"`
-	ClusterProvider                      string             `json:"clusterProvider,omitempty"`
+	ClusterProvider                           string             `json:"clusterProvider,omitempty"`
 }
 
 func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
