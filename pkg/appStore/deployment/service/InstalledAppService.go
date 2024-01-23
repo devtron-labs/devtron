@@ -69,7 +69,6 @@ import (
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
-	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
@@ -108,7 +107,6 @@ type InstalledAppServiceImpl struct {
 	chartGroupDeploymentRepository       repository6.ChartGroupDeploymentRepository
 	envService                           cluster2.EnvironmentService
 	aCDAuthConfig                        *util2.ACDAuthConfig
-	gitOpsRepository                     repository3.GitOpsConfigRepository
 	userService                          user.UserService
 	appStoreDeploymentService            AppStoreDeploymentService
 	appStoreDeploymentFullModeService    appStoreDeploymentFullMode.AppStoreDeploymentFullModeService
@@ -131,13 +129,10 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 	installedAppRepository repository2.InstalledAppRepository,
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
 	environmentRepository repository5.EnvironmentRepository, teamRepository repository4.TeamRepository,
-	appRepository app.AppRepository,
-	acdClient application2.ServiceClient,
-	appStoreValuesService service.AppStoreValuesService,
-	pubsubClient *pubsub.PubSubClientServiceImpl,
+	appRepository app.AppRepository, acdClient application2.ServiceClient,
+	appStoreValuesService service.AppStoreValuesService, pubsubClient *pubsub.PubSubClientServiceImpl,
 	chartGroupDeploymentRepository repository6.ChartGroupDeploymentRepository,
-	envService cluster2.EnvironmentService,
-	aCDAuthConfig *util2.ACDAuthConfig, gitOpsRepository repository3.GitOpsConfigRepository, userService user.UserService,
+	envService cluster2.EnvironmentService, aCDAuthConfig *util2.ACDAuthConfig, userService user.UserService,
 	appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService,
 	appStoreDeploymentService AppStoreDeploymentService,
 	installedAppRepositoryHistory repository2.InstalledAppVersionHistoryRepository,
@@ -161,7 +156,6 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 		chartGroupDeploymentRepository:       chartGroupDeploymentRepository,
 		envService:                           envService,
 		aCDAuthConfig:                        aCDAuthConfig,
-		gitOpsRepository:                     gitOpsRepository,
 		userService:                          userService,
 		appStoreDeploymentService:            appStoreDeploymentService,
 		appStoreDeploymentFullModeService:    appStoreDeploymentFullModeService,

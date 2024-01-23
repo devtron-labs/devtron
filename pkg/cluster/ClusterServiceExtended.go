@@ -3,6 +3,7 @@ package cluster
 import (
 	"context"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"net/http"
 	"strings"
 	"time"
@@ -10,7 +11,6 @@ import (
 	cluster3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/common-lib/utils/k8s"
-	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	repository5 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/devtron-labs/devtron/pkg/k8s/informer"
 
@@ -26,12 +26,12 @@ import (
 
 // extends ClusterServiceImpl and enhances method of ClusterService with full mode specific errors
 type ClusterServiceImplExtended struct {
-	environmentRepository  repository.EnvironmentRepository
-	grafanaClient          grafana.GrafanaClient
-	installedAppRepository repository2.InstalledAppRepository
-	clusterServiceCD       cluster2.ServiceClient
-	K8sInformerFactory     informer.K8sInformerFactory
-	gitOpsRepository       repository3.GitOpsConfigRepository
+	environmentRepository   repository.EnvironmentRepository
+	grafanaClient           grafana.GrafanaClient
+	installedAppRepository  repository2.InstalledAppRepository
+	clusterServiceCD        cluster2.ServiceClient
+	K8sInformerFactory      informer.K8sInformerFactory
+	gitOpsConfigReadService config.GitOpsConfigReadService
 	*ClusterServiceImpl
 }
 
@@ -39,14 +39,14 @@ func NewClusterServiceImplExtended(repository repository.ClusterRepository, envi
 	grafanaClient grafana.GrafanaClient, logger *zap.SugaredLogger, installedAppRepository repository2.InstalledAppRepository,
 	K8sUtil *k8s.K8sServiceImpl,
 	clusterServiceCD cluster2.ServiceClient, K8sInformerFactory informer.K8sInformerFactory,
-	gitOpsRepository repository3.GitOpsConfigRepository, userAuthRepository repository5.UserAuthRepository,
-	userRepository repository5.UserRepository, roleGroupRepository repository5.RoleGroupRepository) *ClusterServiceImplExtended {
+	userAuthRepository repository5.UserAuthRepository,
+	userRepository repository5.UserRepository, roleGroupRepository repository5.RoleGroupRepository,
+	gitOpsConfigReadService config.GitOpsConfigReadService) *ClusterServiceImplExtended {
 	clusterServiceExt := &ClusterServiceImplExtended{
 		environmentRepository:  environmentRepository,
 		grafanaClient:          grafanaClient,
 		installedAppRepository: installedAppRepository,
 		clusterServiceCD:       clusterServiceCD,
-		gitOpsRepository:       gitOpsRepository,
 		ClusterServiceImpl: &ClusterServiceImpl{
 			clusterRepository:   repository,
 			logger:              logger,
@@ -157,7 +157,7 @@ func (impl *ClusterServiceImplExtended) FindAllExceptVirtual() ([]*ClusterBean, 
 }
 
 func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {
-	isGitOpsConfigured, err1 := impl.gitOpsRepository.IsGitOpsConfigured()
+	isGitOpsConfigured, err1 := impl.gitOpsConfigReadService.IsGitOpsConfigured()
 	if err1 != nil {
 		return nil, err1
 	}
@@ -337,7 +337,7 @@ func (impl *ClusterServiceImplExtended) CreateGrafanaDataSource(clusterBean *Clu
 }
 
 func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {
-	isGitOpsConfigured, err := impl.gitOpsRepository.IsGitOpsConfigured()
+	isGitOpsConfigured, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
 	if err != nil {
 		return nil, err
 	}

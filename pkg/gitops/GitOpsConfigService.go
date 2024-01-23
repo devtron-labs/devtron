@@ -322,7 +322,7 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(ctx context.Context, req
 	}
 
 	// if git-ops config is created/saved successfully (just before transaction commit) and this was first git-ops config, then upsert clusters in acd
-	isGitOpsConfigured, err := impl.gitOpsRepository.IsGitOpsConfigured()
+	isGitOpsConfigured, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
 	if err != nil {
 		return nil, err
 	}

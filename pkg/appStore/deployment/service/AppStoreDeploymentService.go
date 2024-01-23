@@ -28,7 +28,6 @@ import (
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/constants"
-	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -104,7 +103,6 @@ type AppStoreDeploymentServiceImpl struct {
 	helmAppService                       client.HelmAppService
 	appStoreDeploymentCommonService      appStoreDeploymentCommon.AppStoreDeploymentCommonService
 	installedAppRepositoryHistory        repository.InstalledAppVersionHistoryRepository
-	gitOpsRepository                     repository2.GitOpsConfigRepository
 	deploymentTypeConfig                 *DeploymentServiceTypeConfig
 	aCDConfig                            *argocdServer.ACDConfig
 	gitOpsConfigReadService              config.GitOpsConfigReadService
@@ -117,7 +115,7 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRep
 	appStoreDeploymentHelmService appStoreDeploymentTool.AppStoreDeploymentHelmService,
 	appStoreDeploymentArgoCdService appStoreDeploymentTool.AppStoreDeploymentArgoCdService, environmentService cluster.EnvironmentService,
 	clusterService cluster.ClusterService, helmAppService client.HelmAppService, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
-	installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository, gitOpsRepository repository2.GitOpsConfigRepository,
+	installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository,
 	deploymentTypeConfig *DeploymentServiceTypeConfig, aCDConfig *argocdServer.ACDConfig,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
 	gitOperationService git.GitOperationService) *AppStoreDeploymentServiceImpl {
@@ -137,7 +135,6 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRep
 		helmAppService:                       helmAppService,
 		appStoreDeploymentCommonService:      appStoreDeploymentCommonService,
 		installedAppRepositoryHistory:        installedAppRepositoryHistory,
-		gitOpsRepository:                     gitOpsRepository,
 		deploymentTypeConfig:                 deploymentTypeConfig,
 		aCDConfig:                            aCDConfig,
 		gitOpsConfigReadService:              gitOpsConfigReadService,
@@ -149,17 +146,11 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRep
 func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx, skipAppCreation bool) (*appStoreBean.InstallAppVersionDTO, error) {
 
 	var isInternalUse = impl.deploymentTypeConfig.IsInternalUse
-
-	isGitOpsConfigured := false
-	gitOpsConfig, err := impl.gitOpsRepository.GetGitOpsConfigActive()
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("GetGitOpsConfigActive, error while getting", "err", err)
+	isGitOpsConfigured, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
+	if err != nil {
+		impl.logger.Errorw("error while checking if gitOps is configured", "err", err)
 		return nil, err
 	}
-	if gitOpsConfig != nil && gitOpsConfig.Id > 0 {
-		isGitOpsConfigured = true
-	}
-
 	if isInternalUse && !isGitOpsConfigured && installAppVersionRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
 		impl.logger.Errorw("gitops not configured but selected for CD")
 		err := &util.ApiError{

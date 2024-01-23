@@ -90,21 +90,16 @@ func (impl *GitOperationServiceImpl) CreateGitRepositoryForApp(gitOpsRepoName, b
 func (impl *GitOperationServiceImpl) PushChartToGitRepo(gitOpsRepoName, referenceTemplate, version,
 	tempReferenceTemplateDir string, repoUrl string, userId int32) (err error) {
 	chartDir := fmt.Sprintf("%s-%s", gitOpsRepoName, impl.chartTemplateService.GetDir())
-	clonedDir := impl.gitFactory.GitService.GetCloneDirectory(chartDir)
-	if _, err := os.Stat(clonedDir); os.IsNotExist(err) {
-		clonedDir, err = impl.gitFactory.GitService.Clone(repoUrl, chartDir)
-		if err != nil {
-			impl.logger.Errorw("error in cloning repo", "url", repoUrl, "err", err)
-			return err
-		}
-	} else {
-		err = impl.GitPull(clonedDir, repoUrl, gitOpsRepoName)
-		if err != nil {
-			impl.logger.Errorw("error in pulling git repo", "url", repoUrl, "err", err)
-			return err
-		}
+	clonedDir, err := impl.GetClonedDir(chartDir, repoUrl)
+	if err != nil {
+		impl.logger.Errorw("error in cloning repo", "url", repoUrl, "err", err)
+		return err
 	}
-
+	err = impl.GitPull(clonedDir, repoUrl, gitOpsRepoName)
+	if err != nil {
+		impl.logger.Errorw("error in pulling git repo", "url", repoUrl, "err", err)
+		return err
+	}
 	dir := filepath.Join(clonedDir, referenceTemplate, version)
 	pushChartToGit := true
 
@@ -262,18 +257,15 @@ func (impl *GitOperationServiceImpl) createAndPushToGitChartProxy(appStoreName, 
 	}
 
 	chartDir := fmt.Sprintf("%s-%s", chartProxyReq.AppName, impl.chartTemplateService.GetDir())
-	clonedDir := impl.gitFactory.GitService.GetCloneDirectory(chartDir)
-	if _, err := os.Stat(clonedDir); os.IsNotExist(err) {
-		clonedDir, err = impl.gitFactory.GitService.Clone(repoUrl, chartDir)
-		if err != nil {
-			impl.logger.Errorw("error in cloning repo", "url", repoUrl, "err", err)
-			return nil, err
-		}
-	} else {
-		err = impl.GitPull(clonedDir, repoUrl, appStoreName)
-		if err != nil {
-			return nil, err
-		}
+	clonedDir, err := impl.GetClonedDir(chartDir, repoUrl)
+	if err != nil {
+		impl.logger.Errorw("error in cloning repo", "url", repoUrl, "err", err)
+		return nil, err
+	}
+
+	err = impl.GitPull(clonedDir, repoUrl, appStoreName)
+	if err != nil {
+		return nil, err
 	}
 
 	acdAppName := fmt.Sprintf("%s-%s", chartProxyReq.AppName, envName)

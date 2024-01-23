@@ -539,7 +539,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) GitOpsOperations(manifestRespons
 	}
 	space := regexp.MustCompile(`\s+`)
 	appStoreName := space.ReplaceAllString(installAppVersionRequest.AppName, "-")
-	clonedDir := impl.gitFactory.GitWorkingDir + "" + appStoreName
+	clonedDir := git.GIT_WORKING_DIR + "" + appStoreName
 
 	// Checking this is the first time chart has been pushed , if yes requirements.yaml has been already pushed with chart as there was sync-delay with github api.
 	// step-2 commit dependencies and values in git
