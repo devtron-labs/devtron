@@ -63,7 +63,7 @@ func (impl DeleteServiceExtendedImpl) DeleteCluster(deleteRequest *cluster.Clust
 	}
 	if len(env) > 0 {
 		impl.logger.Errorw("err in deleting cluster, found env in this cluster", "clusterName", deleteRequest.ClusterName, "err", err)
-		return &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: "200", UserMessage: " Please delete all related environments before deleting this cluster"}
+		return &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: " Please delete all related environments before deleting this cluster"}
 	}
 	err = impl.clusterService.DeleteFromDb(deleteRequest, userId)
 	if err != nil {
@@ -91,13 +91,13 @@ func (impl DeleteServiceExtendedImpl) DeleteEnvironment(deleteRequest *cluster.E
 	}
 	if len(installedApps) > 0 && len(pipelines) > 0 {
 		impl.logger.Errorw("err in deleting env, found cd pipelines and helm apps in this env", "envName", deleteRequest.Environment, "err", err)
-		return &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: "200", UserMessage: " Please delete all related cd pipelines and helm apps before deleting this environment"}
+		return &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: " Please delete all related cd pipelines and helm apps before deleting this environment"}
 	} else if len(installedApps) > 0 {
 		impl.logger.Errorw("err in deleting env, found helm apps in this env", "envName", deleteRequest.Environment, "err", err)
-		return &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: "200", UserMessage: " Please delete all related helm apps before deleting this environment"}
+		return &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: " Please delete all related helm apps before deleting this environment"}
 	} else if len(pipelines) > 0 {
 		impl.logger.Errorw("err in deleting env, found cd pipelines in this env", "envName", deleteRequest.Environment, "err", err)
-		return &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: "200", UserMessage: " Please delete all related cd pipelines before deleting this environment"}
+		return &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: " Please delete all related cd pipelines before deleting this environment"}
 	}
 
 	err = impl.environmentService.Delete(deleteRequest, userId)

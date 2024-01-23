@@ -447,7 +447,7 @@ func (impl *K8sApplicationServiceImpl) GetAllApiResourceGVKWithoutAuthorization(
 	if err != nil {
 		if client.IsClusterUnReachableError(err) {
 			impl.logger.Errorw("k8s cluster unreachable", "err", err)
-			return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: "200", UserMessage: "k8s cluster unreachable"}
+			return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "k8s cluster unreachable"}
 		}
 		return nil, err
 	}

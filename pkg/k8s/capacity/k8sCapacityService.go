@@ -98,7 +98,7 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetail(ctx context.Context
 	if err != nil {
 		if client.IsClusterUnReachableError(err) {
 			impl.logger.Errorw("k8s cluster unreachable", "err", err)
-			return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: "200", UserMessage: "k8s cluster unreachable"}
+			return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "k8s cluster unreachable"}
 		}
 		impl.logger.Errorw("error in getting node list", "err", err, "clusterId", cluster.Id)
 		return nil, err
@@ -241,7 +241,7 @@ func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailsListByCluster(ctx cont
 	if err != nil {
 		if client.IsClusterUnReachableError(err) {
 			impl.logger.Errorw("k8s cluster unreachable", "err", err)
-			return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: "200", UserMessage: "k8s cluster unreachable"}
+			return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "k8s cluster unreachable"}
 		}
 		impl.logger.Errorw("error in getting node list", "err", err, "clusterId", cluster.Id)
 		return nil, err
@@ -637,7 +637,7 @@ func (impl *K8sCapacityServiceImpl) DrainNode(ctx context.Context, request *bean
 	if err != nil {
 		if client.IsNodeNotFoundError(err) {
 			impl.logger.Errorw("node not found", "err", err, "nodeName", request.Name)
-			return respMessage, &util.ApiError{HttpStatusCode: http.StatusNotFound, Code: "200", UserMessage: err.Error()}
+			return respMessage, &util.ApiError{HttpStatusCode: http.StatusNotFound, UserMessage: err.Error()}
 		}
 		impl.logger.Errorw("error in getting node", "err", err)
 		return respMessage, err
@@ -655,7 +655,7 @@ func (impl *K8sCapacityServiceImpl) DrainNode(ctx context.Context, request *bean
 	if err != nil {
 		if client.IsDaemonSetPodDeleteError(err) {
 			impl.logger.Errorw("daemonSet-managed pods can't be deleted", "err", err, "nodeName", request.Name)
-			return respMessage, &util.ApiError{HttpStatusCode: http.StatusNotFound, Code: "200", UserMessage: err.Error()}
+			return respMessage, &util.ApiError{HttpStatusCode: http.StatusNotFound, UserMessage: err.Error()}
 		}
 		impl.logger.Errorw("error in deleting/evicting pods", "err", err, "nodeName", request.Name)
 		return respMessage, err

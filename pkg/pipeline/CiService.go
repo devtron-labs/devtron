@@ -205,7 +205,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 	variableSnapshot := prePostAndRefPluginResponse.VariableSnapshot
 
 	if len(preCiSteps) == 0 && isJob {
-		return 0, &util.ApiError{HttpStatusCode: http.StatusNotFound, Code: "200", UserMessage: "No tasks are configured in this job pipeline"}
+		return 0, &util.ApiError{HttpStatusCode: http.StatusNotFound, UserMessage: "No tasks are configured in this job pipeline"}
 	}
 	savedCiWf, err := impl.saveNewWorkflow(pipeline, ciWorkflowConfig, trigger.CommitHashes, trigger.TriggeredBy, trigger.EnvironmentId, isJob, trigger.ReferenceCiWorkflowId)
 	if err != nil {
