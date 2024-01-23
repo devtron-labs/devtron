@@ -8,54 +8,6 @@ import (
 	"time"
 )
 
-type ConfigKey int
-
-const CPULimit ConfigKey = 1
-const CPURequest ConfigKey = 2
-const MemoryLimit ConfigKey = 3
-const MemoryRequest ConfigKey = 4
-const TimeOut ConfigKey = 5
-
-type ConfigKeyStr string
-
-const CPU_LIMIT ConfigKeyStr = "cpu_limit"
-const CPU_REQUEST ConfigKeyStr = "cpu_request"
-const MEMORY_LIMIT ConfigKeyStr = "memory_limit"
-const MEMORY_REQUEST ConfigKeyStr = "memory_request"
-const TIME_OUT ConfigKeyStr = "timeout"
-
-func GetConfigKeyStr(configKey ConfigKey) ConfigKeyStr {
-	switch configKey {
-	case CPULimit:
-		return CPU_LIMIT
-	case CPURequest:
-		return CPU_REQUEST
-	case MemoryLimit:
-		return MEMORY_LIMIT
-	case MemoryRequest:
-		return MEMORY_REQUEST
-	case TimeOut:
-		return TIME_OUT
-	}
-	return ""
-}
-
-func GetConfigKey(configKeyStr ConfigKeyStr) ConfigKey {
-	switch configKeyStr {
-	case CPU_LIMIT:
-		return CPULimit
-	case CPU_REQUEST:
-		return CPURequest
-	case MEMORY_LIMIT:
-		return MemoryLimit
-	case MEMORY_REQUEST:
-		return MemoryRequest
-	case TIME_OUT:
-		return TimeOut
-	}
-	return 0
-}
-
 // repo structs
 
 type InfraProfile struct {

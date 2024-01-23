@@ -13,12 +13,14 @@ const DEFAULT_PROFILE_EXISTS = "default profile exists"
 const noPropertiesFound = "no properties found"
 
 type InfraConfigRepository interface {
-	CreateDefaultProfile(tx *pg.Tx, infraProfile *infraConfig.InfraProfile) error
+	GetIdentifierCountForDefaultProfile() (int, error)
 	GetProfileByName(name string) (*infraConfig.InfraProfile, error)
 	GetConfigurationsByProfileId(profileId int) ([]*infraConfig.InfraProfileConfiguration, error)
+
+	CreateDefaultProfile(tx *pg.Tx, infraProfile *infraConfig.InfraProfile) error
 	CreateConfigurations(tx *pg.Tx, configurations []*infraConfig.InfraProfileConfiguration) error
+
 	UpdateConfigurations(tx *pg.Tx, configurations []*infraConfig.InfraProfileConfiguration) error
-	GetIdentifierCountForDefaultProfile() (int, error)
 	UpdateProfile(tx *pg.Tx, profileName string, profile *infraConfig.InfraProfile) error
 	sql.TransactionWrapper
 }

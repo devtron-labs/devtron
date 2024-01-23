@@ -66,3 +66,12 @@ func Transform[T any, K any](input []T, transform func(inp T) K) []K {
 	return res
 
 }
+
+func Contains[T any](input []T, check func(inp T) bool) bool {
+	for i, _ := range input {
+		if check(input[i]) {
+			return true
+		}
+	}
+	return false
+}
