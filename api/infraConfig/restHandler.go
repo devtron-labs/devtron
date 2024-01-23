@@ -137,9 +137,9 @@ func (handler *InfraConfigRestHandlerImpl) GetProfile(w http.ResponseWriter, r *
 
 	profile, err := handler.infraProfileService.GetProfileByName(profileName)
 	if err != nil {
-		statusCode := http.StatusInternalServerError
+		statusCode := http.StatusBadRequest
 		if errors.Is(err, pg.ErrNoRows) {
-			statusCode = http.StatusNoContent
+			statusCode = http.StatusNotFound
 		}
 		common.WriteJsonResp(w, err, nil, statusCode)
 		return
@@ -264,7 +264,11 @@ func (handler *InfraConfigRestHandlerImpl) GetIdentifierList(w http.ResponseWrit
 
 	res, err := handler.infraProfileService.GetIdentifierList(&listFilter)
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		statusCode := http.StatusBadRequest
+		if errors.Is(err, pg.ErrNoRows) {
+			statusCode = http.StatusNotFound
+		}
+		common.WriteJsonResp(w, err, nil, statusCode)
 		return
 	}
 	common.WriteJsonResp(w, nil, res, http.StatusOK)

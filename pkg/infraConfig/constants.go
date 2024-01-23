@@ -1,6 +1,9 @@
 package infraConfig
 
-import "github.com/devtron-labs/devtron/pkg/infraConfig/units"
+import (
+	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
+	"github.com/devtron-labs/devtron/pkg/infraConfig/units"
+)
 
 type ConfigKey int
 
@@ -85,3 +88,11 @@ func GetUnitSuffixStr(unitKey ConfigKey, unit units.UnitSuffix) string {
 type IdentifierType string
 
 const APPLICATION IdentifierType = "application"
+
+func GetIdentifierKey(identifierType IdentifierType, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) int {
+	switch identifierType {
+	case APPLICATION:
+		return searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID]
+	}
+	return -1
+}

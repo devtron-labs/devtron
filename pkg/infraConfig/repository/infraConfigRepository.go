@@ -2,10 +2,12 @@ package repository
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
+	"github.com/go-pg/pg/orm"
 	"github.com/pkg/errors"
 )
 
@@ -22,8 +24,13 @@ type InfraConfigRepository interface {
 	GetProfileByName(name string) (*infraConfig.InfraProfile, error)
 	GetProfileList(profileNameLike string) ([]*infraConfig.InfraProfile, error)
 
+	// GetProfileListByIds returns the list of profiles for the given profileIds
+	// includeDefault is used to explicitly include the default profile in the list
+	GetProfileListByIds(profileIds []int, includeDefault bool) ([]*infraConfig.InfraProfile, error)
+
 	GetConfigurationsByProfileId(profileIds []int) ([]*infraConfig.InfraProfileConfiguration, error)
 
+	GetIdentifierList(lisFilter infraConfig.IdentifierListFilter, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) ([]*infraConfig.Identifier, error)
 	GetIdentifierCountForDefaultProfile(defaultProfileId int, identifierType int) (int, error)
 	GetIdentifierCountForNonDefaultProfiles(profileIds []int, identifierType int) ([]ProfileIdentifierCount, error)
 
@@ -35,6 +42,7 @@ type InfraConfigRepository interface {
 
 	DeleteProfile(tx *pg.Tx, profileName string) error
 	DeleteConfigurations(tx *pg.Tx, profileName string) error
+	DeleteProfileIdentifierMappings(tx *pg.Tx, profileId int) error
 	sql.TransactionWrapper
 }
 
@@ -76,6 +84,20 @@ func (impl *InfraConfigRepositoryImpl) GetProfileList(profileNameLike string) ([
 	}
 	query.Order("name ASC")
 	err := query.Select()
+	return infraProfiles, err
+}
+
+func (impl *InfraConfigRepositoryImpl) GetProfileListByIds(profileIds []int, includeDefault bool) ([]*infraConfig.InfraProfile, error) {
+	var infraProfiles []*infraConfig.InfraProfile
+	err := impl.dbConnection.Model(&infraProfiles).
+		Where("active = ?", true).
+		WhereGroup(func(q *orm.Query) (*orm.Query, error) {
+			q = q.WhereOr("id IN (?)", pg.In(profileIds))
+			if includeDefault {
+				q = q.WhereOr("name = ?", DEFAULT_PROFILE_NAME)
+			}
+			return q, nil
+		}).Select()
 	return infraProfiles, err
 }
 
@@ -168,4 +190,47 @@ func (impl *InfraConfigRepositoryImpl) DeleteConfigurations(tx *pg.Tx, profileNa
 		Where("infra_profile_id IN (SELECT id FROM infra_profile WHERE name = ? AND active = true)", profileName).
 		Update()
 	return err
+}
+
+func (impl *InfraConfigRepositoryImpl) GetIdentifierList(listFilter infraConfig.IdentifierListFilter, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) ([]*infraConfig.Identifier, error) {
+	listFilter.IdentifierNameLike = "%" + listFilter.IdentifierNameLike + "%"
+
+	totalOverridenCountQuery := "SELECT COUNT(id) " +
+		" FROM resource_qualifier_mapping " +
+		" WHERE reference_type = ? " +
+		" AND active=true "
+
+	finalQuery := "SELECT identifier_value_int AS id, identifier_value_str AS name, reference_id as profile_id, COUNT(id) OVER() AS total_identifier_count" + totalOverridenCountQuery + " AS overridden_identifier_count " +
+		" FROM resource_qualifier_mapping "
+	finalQuery += fmt.Sprintf(" WHERE reference_type = %d ", resourceQualifiers.InfraProfile)
+	if listFilter.ProfileName != "" {
+		finalQuery += fmt.Sprintf(" AND reference_id IN (SELECT id FROM infra_profile WHERE name = '%s')", listFilter.ProfileName)
+	}
+
+	filterQuery := "SELECT id" +
+		" FROM app " +
+		" AND active=true " +
+		" AND name LIKE ? " +
+		" ORDER BY name ? " +
+		" LIMIT ? " +
+		" OFFSET ? "
+
+	finalQuery += " AND identifier_type = ? " +
+		" WHERE id IN (" + filterQuery + ") " +
+		" AND active=true"
+
+	var identifiers []*infraConfig.Identifier
+	_, err := impl.dbConnection.Query(&identifiers, finalQuery,
+		infraConfig.GetIdentifierKey(listFilter.IdentifierType, searchableKeyNameIdMap),
+		listFilter.IdentifierNameLike,
+		listFilter.SortOrder,
+		listFilter.Limit,
+		listFilter.Offset)
+	return identifiers, err
+
+}
+
+func (impl *InfraConfigRepositoryImpl) DeleteProfileIdentifierMappings(tx *pg.Tx, profileId int) error {
+	// todo: @gireesh delete from resource_qualifier_mapping
+	return nil
 }

@@ -574,5 +574,30 @@ func (impl *InfraConfigServiceImpl) validateCpuMem(profileBean *infraConfig.Prof
 }
 
 func (impl *InfraConfigServiceImpl) GetIdentifierList(listFilter *infraConfig.IdentifierListFilter) (*infraConfig.IdentifierProfileResponse, error) {
+	// case-1 : if no profile name is provided get all the identifiers for the first page and return first page results
+	// steps: get all the active apps using limit and offset and then fetch profiles for those apps.
 
+	// case-2 : if profile name is provided get those apps which are found in resource_qualifier_mapping table.
+
+	idenfierListResponse := &infraConfig.IdentifierProfileResponse{}
+	identifiers, err := impl.infraProfileRepo.GetIdentifierList(*listFilter, impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap())
+	if err != nil {
+		impl.logger.Errorw("error in fetching identifiers", "listFilter", listFilter, "error", err)
+		return nil, err
+	}
+	profileIds := make([]int, 0)
+	totalIdentifiersCount := 0
+	overriddenIdentifiersCount := 0
+	for _, identifier := range identifiers {
+		profileIds = append(profileIds, identifier.ProfileId)
+		totalIdentifiersCount = identifier.TotalIdentifierCount
+		overriddenIdentifiersCount = identifier.OverriddenIdentifierCount
+	}
+
+	// todo: @gireesh fetch profile data just set in the result
+	profiles, err := impl.infraProfileRepo.GetProfileListByIds(profileIds, true)
+
+	idenfierListResponse.TotalIdentifierCount = totalIdentifiersCount
+	idenfierListResponse.OverriddenIdentifierCount = overriddenIdentifiersCount
+	return idenfierListResponse, nil
 }

@@ -125,12 +125,17 @@ type Identifier struct {
 	Id      int          `json:"id"`
 	Name    string       `json:"name"`
 	Profile *ProfileBean `json:"profile"`
+
+	// for internal use only, do not propagate these values to api response
+	ProfileId                 int `json:"-"`
+	TotalIdentifierCount      int `json:"-"`
+	OverriddenIdentifierCount int `json:"-"`
 }
 
 type IdentifierProfileResponse struct {
-	Identifiers               []Identifier `json:"identifiers"`
-	TotalIdentifierCount      int          `json:"totalIdentifierCount"`
-	OverriddenIdentifierCount int          `json:"overriddenIdentifierCount"`
+	Identifiers               []*Identifier `json:"identifiers"`
+	TotalIdentifierCount      int           `json:"totalIdentifierCount"`
+	OverriddenIdentifierCount int           `json:"overriddenIdentifierCount"`
 }
 
 type InfraConfig struct {
