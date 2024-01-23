@@ -834,7 +834,7 @@ func InitializeApp() (*App, error) {
 	proxyRouterImpl := proxy.NewProxyRouterImpl(sugaredLogger, proxyConfig, enforcerImpl)
 	infraConfigRepositoryImpl := repository15.NewInfraProfileRepositoryImpl(db)
 	unitsUnits := units.NewUnits()
-	infraConfigServiceImpl, err := service4.NewInfraConfigServiceImpl(sugaredLogger, infraConfigRepositoryImpl, unitsUnits)
+	infraConfigServiceImpl, err := service4.NewInfraConfigServiceImpl(sugaredLogger, infraConfigRepositoryImpl, unitsUnits, validate)
 	if err != nil {
 		return nil, err
 	}
