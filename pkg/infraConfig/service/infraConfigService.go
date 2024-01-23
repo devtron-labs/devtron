@@ -173,12 +173,7 @@ func (impl *InfraConfigServiceImpl) loadDefaultProfile() error {
 		Name:        repository.DEFAULT_PROFILE_NAME,
 		Description: "",
 		Active:      true,
-		AuditLog: sql.AuditLog{
-			CreatedBy: 1, // system user
-			CreatedOn: time.Now(),
-			UpdatedOn: time.Now(),
-			UpdatedBy: 1, // system user
-		},
+		AuditLog:    sql.NewDefaultAuditLog(1),
 	}
 	tx, err := impl.infraProfileRepo.StartTx()
 	if err != nil {
@@ -196,12 +191,7 @@ func (impl *InfraConfigServiceImpl) loadDefaultProfile() error {
 	util.Transform(defaultConfigurations, func(config *infraConfig.InfraProfileConfiguration) *infraConfig.InfraProfileConfiguration {
 		config.ProfileId = defaultProfile.Id
 		config.Active = true
-		config.AuditLog = sql.AuditLog{
-			CreatedBy: 1, // system user
-			CreatedOn: time.Now(),
-			UpdatedOn: time.Now(),
-			UpdatedBy: 1, // system user
-		}
+		config.AuditLog = sql.NewDefaultAuditLog(1)
 		return config
 	})
 	err = impl.infraProfileRepo.CreateConfigurations(tx, defaultConfigurations)
