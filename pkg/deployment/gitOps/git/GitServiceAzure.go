@@ -1,4 +1,4 @@
-package util
+package git
 
 import (
 	"context"
@@ -91,7 +91,7 @@ func (impl GitAzureClient) CreateRepository(config *bean2.GitOpsConfigDto) (url 
 		detailedErrorGitOpsConfigActions.StageErrorMap[CreateRepoStage] = err
 		return "", true, detailedErrorGitOpsConfigActions
 	}
-	logger.Infow("repo created ", "r", operationReference.WebUrl)
+	impl.logger.Infow("repo created ", "r", operationReference.WebUrl)
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CreateRepoStage)
 	validated, err := impl.ensureProjectAvailabilityOnHttp(config.GitRepoName)
 	if err != nil {

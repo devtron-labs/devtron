@@ -50,10 +50,10 @@ type AppStoreDeploymentCommonService interface {
 	GetInstalledAppByClusterNamespaceAndName(clusterId int, namespace string, appName string) (*appStoreBean.InstallAppVersionDTO, error)
 	GetInstalledAppByInstalledAppId(installedAppId int) (*appStoreBean.InstallAppVersionDTO, error)
 	ParseGitRepoErrorResponse(err error) (bool, error)
-	GetValuesAndRequirementGitConfig(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*util.ChartConfig, *util.ChartConfig, error)
+	GetValuesAndRequirementGitConfig(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*git.ChartConfig, *git.ChartConfig, error)
 	CreateChartProxyAndGetPath(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*util.ChartCreateResponse, error)
-	CreateGitOpsRepoAndPushChart(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, builtChartPath string, requirementsConfig *util.ChartConfig, valuesConfig *util.ChartConfig) (*commonBean.ChartGitAttribute, bool, string, error)
-	GetGitCommitConfig(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, fileString string, filename string) (*util.ChartConfig, error)
+	CreateGitOpsRepoAndPushChart(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, builtChartPath string, requirementsConfig *git.ChartConfig, valuesConfig *git.ChartConfig) (*commonBean.ChartGitAttribute, bool, string, error)
+	GetGitCommitConfig(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, fileString string, filename string) (*git.ChartConfig, error)
 	GetValuesString(chartName, valuesOverrideYaml string) (string, error)
 	GetRequirementsString(appStoreVersionId int) (string, error)
 	GenerateManifest(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (manifestResponse *AppStoreManifestResponse, err error)
@@ -67,7 +67,7 @@ type AppStoreDeploymentCommonServiceImpl struct {
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository
 	environmentRepository                repository2.EnvironmentRepository
 	chartTemplateService                 util.ChartTemplateService
-	gitFactory                           *util.GitFactory
+	gitFactory                           *git.GitFactory
 	gitOpsConfigReadService              config.GitOpsConfigReadService
 	gitOperationService                  git.GitOperationService
 }
@@ -78,7 +78,7 @@ func NewAppStoreDeploymentCommonServiceImpl(
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
 	environmentRepository repository2.EnvironmentRepository,
 	chartTemplateService util.ChartTemplateService,
-	gitFactory *util.GitFactory,
+	gitFactory *git.GitFactory,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
 	gitOperationService git.GitOperationService) *AppStoreDeploymentCommonServiceImpl {
 	return &AppStoreDeploymentCommonServiceImpl{
@@ -115,8 +115,8 @@ func ParseChartGitPushRequest(installAppRequestDTO *appStoreBean.InstallAppVersi
 
 type AppStoreManifestResponse struct {
 	ChartResponse      *util.ChartCreateResponse
-	ValuesConfig       *util.ChartConfig
-	RequirementsConfig *util.ChartConfig
+	ValuesConfig       *git.ChartConfig
+	RequirementsConfig *git.ChartConfig
 }
 
 type AppStoreGitOpsResponse struct {
@@ -228,7 +228,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) ParseGitRepoErrorResponse(err er
 			impl.logger.Errorw("no content found while updating git repo gitlab, do auto fix", "error", err)
 			noTargetFound = true
 		}
-		if err.Error() == util.BITBUCKET_REPO_NOT_FOUND_ERROR {
+		if err.Error() == git.BITBUCKET_REPO_NOT_FOUND_ERROR {
 			impl.logger.Errorw("no content found while updating git repo bitbucket, do auto fix", "error", err)
 			noTargetFound = true
 		}
@@ -289,7 +289,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) GetRequirementsString(appStoreVe
 	return string(requirementDependenciesByte), nil
 }
 
-func (impl AppStoreDeploymentCommonServiceImpl) GetGitCommitConfig(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, fileString string, filename string) (*util.ChartConfig, error) {
+func (impl AppStoreDeploymentCommonServiceImpl) GetGitCommitConfig(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, fileString string, filename string) (*git.ChartConfig, error) {
 	appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)
 	if err != nil {
 		impl.logger.Errorw("fetching error", "err", err)
@@ -304,7 +304,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) GetGitCommitConfig(installAppVer
 	argocdAppName := installAppVersionRequest.AppName + "-" + environment.Name
 	gitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoName(installAppVersionRequest.AppName)
 	userEmailId, userName := impl.gitOpsConfigReadService.GetUserEmailIdAndNameForGitOpsCommit(installAppVersionRequest.UserId)
-	YamlConfig := &util.ChartConfig{
+	YamlConfig := &git.ChartConfig{
 		FileName:       filename,
 		FileContent:    fileString,
 		ChartName:      installAppVersionRequest.AppName,
@@ -317,7 +317,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) GetGitCommitConfig(installAppVer
 	return YamlConfig, nil
 }
 
-func (impl AppStoreDeploymentCommonServiceImpl) GetValuesAndRequirementGitConfig(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*util.ChartConfig, *util.ChartConfig, error) {
+func (impl AppStoreDeploymentCommonServiceImpl) GetValuesAndRequirementGitConfig(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*git.ChartConfig, *git.ChartConfig, error) {
 
 	appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)
 	if err != nil {
@@ -429,7 +429,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) CreateGitOpsRepo(installAppVersi
 }
 
 // PushChartToGitopsRepo pushes built chart to gitOps repo
-func (impl AppStoreDeploymentCommonServiceImpl) PushChartToGitopsRepo(PushChartToGitRequest *appStoreBean.PushChartToGitRequestDTO, requirementsConfig *util.ChartConfig, valuesConfig *util.ChartConfig) (*commonBean.ChartGitAttribute, string, error) {
+func (impl AppStoreDeploymentCommonServiceImpl) PushChartToGitopsRepo(PushChartToGitRequest *appStoreBean.PushChartToGitRequestDTO, requirementsConfig *git.ChartConfig, valuesConfig *git.ChartConfig) (*commonBean.ChartGitAttribute, string, error) {
 	space := regexp.MustCompile(`\s+`)
 	appStoreName := space.ReplaceAllString(PushChartToGitRequest.ChartAppStoreName, "-")
 	chartDir := fmt.Sprintf("%s-%s", PushChartToGitRequest.AppName, impl.chartTemplateService.GetDir())
@@ -492,7 +492,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) PushChartToGitopsRepo(PushChartT
 }
 
 // AddConfigFileToChart will override requirements.yaml file in chart
-func (impl AppStoreDeploymentCommonServiceImpl) AddConfigFileToChart(config *util.ChartConfig, dir string, clonedDir string) error {
+func (impl AppStoreDeploymentCommonServiceImpl) AddConfigFileToChart(config *git.ChartConfig, dir string, clonedDir string) error {
 	filePath := filepath.Join(clonedDir, config.FileName)
 	file, err := os.Create(filePath)
 	if err != nil {
@@ -515,7 +515,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) AddConfigFileToChart(config *uti
 }
 
 // CreateGitOpsRepoAndPushChart is a wrapper for creating gitops repo and pushing chart to created repo
-func (impl AppStoreDeploymentCommonServiceImpl) CreateGitOpsRepoAndPushChart(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, builtChartPath string, requirementsConfig *util.ChartConfig, valuesConfig *util.ChartConfig) (*commonBean.ChartGitAttribute, bool, string, error) {
+func (impl AppStoreDeploymentCommonServiceImpl) CreateGitOpsRepoAndPushChart(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, builtChartPath string, requirementsConfig *git.ChartConfig, valuesConfig *git.ChartConfig) (*commonBean.ChartGitAttribute, bool, string, error) {
 	repoURL, isNew, err := impl.CreateGitOpsRepo(installAppVersionRequest)
 	if err != nil {
 		impl.logger.Errorw("Error in creating gitops repo for ", "appName", installAppVersionRequest.AppName, "err", err)

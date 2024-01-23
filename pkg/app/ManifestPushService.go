@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app/bean"
 	status2 "github.com/devtron-labs/devtron/pkg/app/status"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
@@ -124,7 +123,7 @@ func (impl *GitOpsManifestPushServiceImpl) CommitValuesToGit(manifestPushTemplat
 	//getting username & emailId for commit author data
 	userEmailId, userName := impl.gitOpsConfigReadService.GetUserEmailIdAndNameForGitOpsCommit(manifestPushTemplate.UserId)
 	span.End()
-	chartGitAttr := &util.ChartConfig{
+	chartGitAttr := &git.ChartConfig{
 		FileName:       fmt.Sprintf("_%d-values.yaml", manifestPushTemplate.TargetEnvironmentName),
 		FileContent:    string(manifestPushTemplate.MergedValues),
 		ChartName:      manifestPushTemplate.ChartName,

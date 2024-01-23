@@ -1,4 +1,4 @@
-package util
+package git
 
 import (
 	"context"
@@ -99,7 +99,7 @@ func (impl GitHubClient) CreateRepository(config *bean2.GitOpsConfigDto) (url st
 		detailedErrorGitOpsConfigActions.StageErrorMap[CreateRepoStage] = err
 		return "", true, detailedErrorGitOpsConfigActions
 	}
-	logger.Infow("github repo created ", "r", r.CloneURL)
+	impl.logger.Infow("github repo created ", "r", r.CloneURL)
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CreateRepoStage)
 
 	validated, err := impl.ensureProjectAvailabilityOnHttp(config)

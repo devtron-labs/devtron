@@ -27,7 +27,7 @@ type GitOperationService interface {
 		chartProxyReq *bean.ChartProxyReqDto) (string, *commonBean.ChartGitAttribute, error)
 	GitPull(clonedDir string, repoUrl string, appStoreName string) error
 
-	CommitValues(chartGitAttr *util.ChartConfig) (commitHash string, commitTime time.Time, err error)
+	CommitValues(chartGitAttr *ChartConfig) (commitHash string, commitTime time.Time, err error)
 	CommitAndPushAllChanges(clonedDir, commitMsg, userName, userEmailId string) (commitHash string, err error)
 
 	CreateRepository(dto *bean2.GitOpsConfigDto, userId int32) (string, bool, error)
@@ -39,12 +39,12 @@ type GitOperationService interface {
 
 type GitOperationServiceImpl struct {
 	logger                  *zap.SugaredLogger
-	gitFactory              *util.GitFactory
+	gitFactory              *GitFactory
 	gitOpsConfigReadService config.GitOpsConfigReadService
 	chartTemplateService    util.ChartTemplateService
 }
 
-func NewGitOperationServiceImpl(logger *zap.SugaredLogger, gitFactory *util.GitFactory,
+func NewGitOperationServiceImpl(logger *zap.SugaredLogger, gitFactory *GitFactory,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
 	chartTemplateService util.ChartTemplateService) *GitOperationServiceImpl {
 	return &GitOperationServiceImpl{
@@ -326,7 +326,7 @@ func (impl *GitOperationServiceImpl) GitPull(clonedDir string, repoUrl string, a
 	return nil
 }
 
-func (impl *GitOperationServiceImpl) CommitValues(chartGitAttr *util.ChartConfig) (commitHash string, commitTime time.Time, err error) {
+func (impl *GitOperationServiceImpl) CommitValues(chartGitAttr *ChartConfig) (commitHash string, commitTime time.Time, err error) {
 	bitbucketMetadata, err := impl.gitOpsConfigReadService.GetBitbucketMetadata()
 	if err != nil {
 		impl.logger.Errorw("error in getting bitbucket metadata", "err", err)

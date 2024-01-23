@@ -1,4 +1,4 @@
-package util
+package git
 
 import (
 	"fmt"
@@ -100,7 +100,7 @@ func (impl GitBitbucketClient) CreateRepository(config *bean2.GitOpsConfigDto) (
 		return "", true, detailedErrorGitOpsConfigActions
 	}
 	repoUrl = fmt.Sprintf(BITBUCKET_CLONE_BASE_URL+"%s/%s.git", repoOptions.Owner, repoOptions.RepoSlug)
-	logger.Infow("repo created ", "repoUrl", repoUrl)
+	impl.logger.Infow("repo created ", "repoUrl", repoUrl)
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CreateRepoStage)
 
 	validated, err := impl.ensureProjectAvailabilityOnHttp(repoOptions)

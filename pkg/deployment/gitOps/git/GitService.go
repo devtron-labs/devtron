@@ -15,7 +15,7 @@
  *
  */
 
-package util
+package git
 
 import (
 	"context"
@@ -88,19 +88,19 @@ func (factory *GitFactory) Reload() error {
 	defer func() {
 		util.TriggerGitOpsMetrics("Reload", "GitService", start, err)
 	}()
-	logger.Infow("reloading gitops details")
+	factory.logger.Infow("reloading gitops details")
 	cfg, err := GetGitConfig(factory.gitOpsRepository)
 	if err != nil {
 		return err
 	}
-	gitService := NewGitServiceImpl(cfg, logger, factory.gitCliUtil)
+	gitService := NewGitServiceImpl(cfg, factory.logger, factory.gitCliUtil)
 	factory.GitService = gitService
-	client, err := NewGitOpsClient(cfg, logger, gitService, factory.gitOpsRepository)
+	client, err := NewGitOpsClient(cfg, factory.logger, gitService, factory.gitOpsRepository)
 	if err != nil {
 		return err
 	}
 	factory.Client = client
-	logger.Infow(" gitops details reload success")
+	factory.logger.Infow(" gitops details reload success")
 	return nil
 }
 
@@ -159,15 +159,15 @@ func (factory *GitFactory) NewClientForValidation(gitOpsConfig *bean2.GitOpsConf
 		BitbucketWorkspaceId: gitOpsConfig.BitBucketWorkspaceId,
 		BitbucketProjectKey:  gitOpsConfig.BitBucketProjectKey,
 	}
-	gitService := NewGitServiceImpl(cfg, logger, factory.gitCliUtil)
+	gitService := NewGitServiceImpl(cfg, factory.logger, factory.gitCliUtil)
 	//factory.GitService = GitService
-	client, err := NewGitOpsClient(cfg, logger, gitService, factory.gitOpsRepository)
+	client, err := NewGitOpsClient(cfg, factory.logger, gitService, factory.gitOpsRepository)
 	if err != nil {
 		return client, gitService, err
 	}
 
 	//factory.Client = client
-	logger.Infow("client changed successfully", "cfg", cfg)
+	factory.logger.Infow("client changed successfully", "cfg", cfg)
 	return client, gitService, nil
 }
 

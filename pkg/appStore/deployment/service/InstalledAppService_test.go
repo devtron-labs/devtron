@@ -1,6 +1,7 @@
 package service
 
 import (
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"testing"
 
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
@@ -40,7 +41,7 @@ func TestInstalledAppServiceImpl_DeployDefaultChartOnCluster(t *testing.T) {
 		chartGroupDeploymentRepository       repository5.ChartGroupDeploymentRepository
 		envService                           cluster.EnvironmentService
 		ArgoK8sClient                        argocdServer.ArgoK8sClient
-		gitFactory                           *util.GitFactory
+		gitFactory                           *git.GitFactory
 		aCDAuthConfig                        *util2.ACDAuthConfig
 		gitOpsRepository                     repository3.GitOpsConfigRepository
 		userService                          user.UserService
