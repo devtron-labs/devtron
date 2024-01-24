@@ -38,8 +38,8 @@ type TelemetryRestHandler interface {
 type TelemetryRestHandlerImpl struct {
 	logger               *zap.SugaredLogger
 	telemetryEventClient telemetry.TelemetryEventClient
-	enforcer    casbin.Enforcer
-	userService user.UserService
+	enforcer             casbin.Enforcer
+	userService          user.UserService
 }
 
 type TelemetryGenericEvent struct {

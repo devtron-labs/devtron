@@ -44,13 +44,13 @@ type K8sCapacityServiceImpl struct {
 	logger                *zap.SugaredLogger
 	clusterService        cluster.ClusterService
 	k8sApplicationService application2.K8sApplicationService
-	K8sUtil               *k8s2.K8sUtil
+	K8sUtil               *k8s2.K8sServiceImpl
 	k8sCommonService      k8s.K8sCommonService
 	clusterCronService    cluster.ClusterCronService
 }
 
 func NewK8sCapacityServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.ClusterService,
-	k8sApplicationService application2.K8sApplicationService, K8sUtil *k8s2.K8sUtil,
+	k8sApplicationService application2.K8sApplicationService, K8sUtil *k8s2.K8sServiceImpl,
 	k8sCommonService k8s.K8sCommonService, clusterCronService cluster.ClusterCronService) *K8sCapacityServiceImpl {
 	return &K8sCapacityServiceImpl{
 		logger:                Logger,
@@ -472,12 +472,12 @@ func (impl *K8sCapacityServiceImpl) updateManifestData(ctx context.Context, node
 		K8sRequest: manifestRequest,
 		ClusterId:  clusterId,
 	}
-	manifestResponse, err := impl.k8sCommonService.GetResource(ctx, request)
+	response, err := impl.k8sCommonService.GetResource(ctx, request)
 	if err != nil {
 		impl.logger.Errorw("error in getting node manifest", "err", err)
 		return err
 	}
-	nodeDetail.Manifest = manifestResponse.Manifest
+	nodeDetail.Manifest = response.ManifestResponse.Manifest
 	return nil
 }
 

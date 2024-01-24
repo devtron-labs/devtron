@@ -24,13 +24,9 @@ import (
 	"fmt"
 	"github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/common-lib/pubsub-lib/model"
-	"path"
-	"regexp"
 	"time"
 
-	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer"
-	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
@@ -40,7 +36,6 @@ import (
 	repository5 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
-	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/go-pg/pg"
 
@@ -51,9 +46,6 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer/repository"
 	"github.com/devtron-labs/devtron/internal/util"
 	"go.uber.org/zap"
-	"k8s.io/helm/pkg/chartutil"
-	"k8s.io/helm/pkg/proto/hapi/chart"
-	"sigs.k8s.io/yaml"
 )
 
 const (
@@ -61,52 +53,39 @@ const (
 	CLUSTER_COMPONENT_DIR_PATH                  = "/cluster/component"
 )
 
+// ACD operation and git operation
 type AppStoreDeploymentFullModeService interface {
-	AppStoreDeployOperationGIT(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, *util.ChartGitAttribute, error)
 	AppStoreDeployOperationACD(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, chartGitAttr *util.ChartGitAttribute, ctx context.Context, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error)
+	//TRACE usages and delete if unused
 	RegisterInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context) error
-	SyncACD(acdAppName string, ctx context.Context)
 	UpdateValuesYaml(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error)
 	UpdateRequirementYaml(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, appStoreAppVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) error
 	GetGitOpsRepoName(appName string, environmentName string) (string, error)
-	SubscribeHelmInstallStatus() error
 }
 
 type AppStoreDeploymentFullModeServiceImpl struct {
-	logger                               *zap.SugaredLogger
-	chartTemplateService                 util.ChartTemplateService
-	refChartDir                          appStoreBean.RefChartProxyDir
-	repositoryService                    repository.ServiceClient
-	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository
-	environmentRepository                repository5.EnvironmentRepository
-	acdClient                            application2.ServiceClient
-	ArgoK8sClient                        argocdServer.ArgoK8sClient
-	gitFactory                           *util.GitFactory
-	aCDAuthConfig                        *util2.ACDAuthConfig
-	globalEnvVariables                   *util3.GlobalEnvVariables
-	installedAppRepository               repository4.InstalledAppRepository
-	tokenCache                           *util2.TokenCache
-	argoUserService                      argo.ArgoUserService
-	gitOpsConfigRepository               repository3.GitOpsConfigRepository
-	pipelineStatusTimelineService        status.PipelineStatusTimelineService
-	appStoreDeploymentCommonService      appStoreDeploymentCommon.AppStoreDeploymentCommonService
-	argoClientWrapperService             argocdServer.ArgoClientWrapperService
-	pubSubClient                         *pubsub_lib.PubSubClientServiceImpl
-	installedAppRepositoryHistory        repository4.InstalledAppVersionHistoryRepository
-	ACDConfig                            *argocdServer.ACDConfig
+	logger                          *zap.SugaredLogger
+	chartTemplateService            util.ChartTemplateService
+	repositoryService               repository.ServiceClient
+	acdClient                       application2.ServiceClient
+	ArgoK8sClient                   argocdServer.ArgoK8sClient
+	aCDAuthConfig                   *util2.ACDAuthConfig
+	argoUserService                 argo.ArgoUserService
+	pipelineStatusTimelineService   status.PipelineStatusTimelineService
+	appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService
+	argoClientWrapperService        argocdServer.ArgoClientWrapperService
+	pubSubClient                    *pubsub_lib.PubSubClientServiceImpl
+	installedAppRepositoryHistory   repository4.InstalledAppVersionHistoryRepository
+	ACDConfig                       *argocdServer.ACDConfig
 }
 
 func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
-	chartTemplateService util.ChartTemplateService, refChartDir appStoreBean.RefChartProxyDir,
+	chartTemplateService util.ChartTemplateService,
 	repositoryService repository.ServiceClient,
-	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
-	environmentRepository repository5.EnvironmentRepository,
 	acdClient application2.ServiceClient,
 	argoK8sClient argocdServer.ArgoK8sClient,
-	gitFactory *util.GitFactory, aCDAuthConfig *util2.ACDAuthConfig,
-	globalEnvVariables *util3.GlobalEnvVariables,
-	installedAppRepository repository4.InstalledAppRepository, tokenCache *util2.TokenCache,
-	argoUserService argo.ArgoUserService, gitOpsConfigRepository repository3.GitOpsConfigRepository,
+	aCDAuthConfig *util2.ACDAuthConfig,
+	argoUserService argo.ArgoUserService,
 	pipelineStatusTimelineService status.PipelineStatusTimelineService,
 	appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
@@ -115,208 +94,25 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 	ACDConfig *argocdServer.ACDConfig,
 ) *AppStoreDeploymentFullModeServiceImpl {
 	appStoreDeploymentFullModeServiceImpl := &AppStoreDeploymentFullModeServiceImpl{
-		logger:                               logger,
-		chartTemplateService:                 chartTemplateService,
-		refChartDir:                          refChartDir,
-		repositoryService:                    repositoryService,
-		appStoreApplicationVersionRepository: appStoreApplicationVersionRepository,
-		environmentRepository:                environmentRepository,
-		acdClient:                            acdClient,
-		ArgoK8sClient:                        argoK8sClient,
-		gitFactory:                           gitFactory,
-		aCDAuthConfig:                        aCDAuthConfig,
-		globalEnvVariables:                   globalEnvVariables,
-		installedAppRepository:               installedAppRepository,
-		tokenCache:                           tokenCache,
-		argoUserService:                      argoUserService,
-		gitOpsConfigRepository:               gitOpsConfigRepository,
-		pipelineStatusTimelineService:        pipelineStatusTimelineService,
-		appStoreDeploymentCommonService:      appStoreDeploymentCommonService,
-		argoClientWrapperService:             argoClientWrapperService,
-		pubSubClient:                         pubSubClient,
-		installedAppRepositoryHistory:        installedAppRepositoryHistory,
-		ACDConfig:                            ACDConfig,
+		logger:                          logger,
+		chartTemplateService:            chartTemplateService,
+		repositoryService:               repositoryService,
+		acdClient:                       acdClient,
+		ArgoK8sClient:                   argoK8sClient,
+		aCDAuthConfig:                   aCDAuthConfig,
+		argoUserService:                 argoUserService,
+		pipelineStatusTimelineService:   pipelineStatusTimelineService,
+		appStoreDeploymentCommonService: appStoreDeploymentCommonService,
+		argoClientWrapperService:        argoClientWrapperService,
+		pubSubClient:                    pubSubClient,
+		installedAppRepositoryHistory:   installedAppRepositoryHistory,
+		ACDConfig:                       ACDConfig,
 	}
-	err := appStoreDeploymentFullModeServiceImpl.SubscribeHelmInstallStatus()
+	err := appStoreDeploymentFullModeServiceImpl.subscribeHelmInstallStatus()
 	if err != nil {
 		return nil
 	}
 	return appStoreDeploymentFullModeServiceImpl
-}
-
-func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, *util.ChartGitAttribute, error) {
-	appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)
-	if err != nil {
-		impl.logger.Errorw("fetching error", "err", err)
-		return installAppVersionRequest, nil, err
-	}
-
-	environment, err := impl.environmentRepository.FindById(installAppVersionRequest.EnvironmentId)
-	if err != nil {
-		impl.logger.Errorw("fetching error", "err", err)
-		return installAppVersionRequest, nil, err
-	}
-
-	//STEP 1: Commit and PUSH on Gitlab
-	template := appStoreBean.CHART_PROXY_TEMPLATE
-	chartPath := path.Join(string(impl.refChartDir), template)
-	valid, err := chartutil.IsChartDir(chartPath)
-	if err != nil || !valid {
-		impl.logger.Errorw("invalid base chart", "dir", chartPath, "err", err)
-		return installAppVersionRequest, nil, err
-	}
-	chartMeta := &chart.Metadata{
-		Name:    installAppVersionRequest.AppName,
-		Version: "1.0.1",
-	}
-	_, chartGitAttr, err := impl.chartTemplateService.CreateChartProxy(chartMeta, chartPath, environment.Name, installAppVersionRequest)
-	if err != nil {
-		return installAppVersionRequest, nil, err
-	}
-
-	//STEP 3 - update requirements and values
-	argocdAppName := installAppVersionRequest.AppName + "-" + environment.Name
-	dependency := appStoreBean.Dependency{
-		Name:    appStoreAppVersion.AppStore.Name,
-		Version: appStoreAppVersion.Version,
-	}
-	if appStoreAppVersion.AppStore.ChartRepo != nil {
-		dependency.Repository = appStoreAppVersion.AppStore.ChartRepo.Url
-	}
-	var dependencies []appStoreBean.Dependency
-	dependencies = append(dependencies, dependency)
-	requirementDependencies := &appStoreBean.Dependencies{
-		Dependencies: dependencies,
-	}
-	requirementDependenciesByte, err := json.Marshal(requirementDependencies)
-	if err != nil {
-		return installAppVersionRequest, nil, err
-	}
-	requirementDependenciesByte, err = yaml.JSONToYAML(requirementDependenciesByte)
-	if err != nil {
-		return installAppVersionRequest, nil, err
-	}
-
-	gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(installAppVersionRequest.AppName)
-	//getting username & emailId for commit author data
-	userEmailId, userName := impl.chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit(installAppVersionRequest.UserId)
-	gitOpsConfigBitbucket, err := impl.gitOpsConfigRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
-	if err != nil {
-		if err == pg.ErrNoRows {
-			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
-		} else {
-			return installAppVersionRequest, nil, err
-		}
-	}
-	requirmentYamlConfig := &util.ChartConfig{
-		FileName:       appStoreBean.REQUIREMENTS_YAML_FILE,
-		FileContent:    string(requirementDependenciesByte),
-		ChartName:      chartMeta.Name,
-		ChartLocation:  argocdAppName,
-		ChartRepoName:  gitOpsRepoName,
-		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", appStoreAppVersion.Id, environment.Id),
-		UserEmailId:    userEmailId,
-		UserName:       userName,
-	}
-	gitOpsConfig := &bean.GitOpsConfigDto{BitBucketWorkspaceId: gitOpsConfigBitbucket.BitBucketWorkspaceId}
-	_, _, err = impl.gitFactory.Client.CommitValues(requirmentYamlConfig, gitOpsConfig)
-	if err != nil {
-		impl.logger.Errorw("error in git commit", "err", err)
-		return installAppVersionRequest, nil, err
-	}
-
-	//GIT PULL
-	space := regexp.MustCompile(`\s+`)
-	appStoreName := space.ReplaceAllString(chartMeta.Name, "-")
-	clonedDir := impl.gitFactory.GitWorkingDir + "" + appStoreName
-	err = impl.chartTemplateService.GitPull(clonedDir, chartGitAttr.RepoUrl, appStoreName)
-	if err != nil {
-		impl.logger.Errorw("error in git pull", "err", err)
-		return installAppVersionRequest, nil, err
-	}
-
-	//update values yaml in chart
-	ValuesOverrideByte, err := yaml.YAMLToJSON([]byte(installAppVersionRequest.ValuesOverrideYaml))
-	if err != nil {
-		impl.logger.Errorw("error in json patch", "err", err)
-		return installAppVersionRequest, nil, err
-	}
-
-	var dat map[string]interface{}
-	err = json.Unmarshal(ValuesOverrideByte, &dat)
-
-	valuesMap := make(map[string]map[string]interface{})
-	valuesMap[appStoreAppVersion.AppStore.Name] = dat
-	valuesByte, err := json.Marshal(valuesMap)
-	if err != nil {
-		impl.logger.Errorw("error in marshaling", "err", err)
-		return installAppVersionRequest, nil, err
-	}
-
-	valuesYamlConfig := &util.ChartConfig{
-		FileName:       appStoreBean.VALUES_YAML_FILE,
-		FileContent:    string(valuesByte),
-		ChartName:      chartMeta.Name,
-		ChartLocation:  argocdAppName,
-		ChartRepoName:  gitOpsRepoName,
-		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", appStoreAppVersion.Id, environment.Id),
-		UserEmailId:    userEmailId,
-		UserName:       userName,
-	}
-
-	commitHash, _, err := impl.gitFactory.Client.CommitValues(valuesYamlConfig, gitOpsConfig)
-	if err != nil {
-		impl.logger.Errorw("error in git commit", "err", err)
-		//update timeline status for git commit failed state
-		gitCommitStatus := pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED
-		gitCommitStatusDetail := fmt.Sprintf("Git commit failed - %v", err)
-		timeline := &pipelineConfig.PipelineStatusTimeline{
-			InstalledAppVersionHistoryId: installAppVersionRequest.InstalledAppVersionHistoryId,
-			Status:                       gitCommitStatus,
-			StatusDetail:                 gitCommitStatusDetail,
-			StatusTime:                   time.Now(),
-			AuditLog: sql.AuditLog{
-				CreatedBy: installAppVersionRequest.UserId,
-				CreatedOn: time.Now(),
-				UpdatedBy: installAppVersionRequest.UserId,
-				UpdatedOn: time.Now(),
-			},
-		}
-		timelineErr := impl.pipelineStatusTimelineService.SaveTimeline(timeline, tx, true)
-		if timelineErr != nil {
-			impl.logger.Errorw("error in creating timeline status for git commit", "err", timelineErr, "timeline", timeline)
-		}
-		return installAppVersionRequest, nil, err
-	}
-	//creating timeline for Git Commit stage
-	timeline := &pipelineConfig.PipelineStatusTimeline{
-		InstalledAppVersionHistoryId: installAppVersionRequest.InstalledAppVersionHistoryId,
-		Status:                       pipelineConfig.TIMELINE_STATUS_GIT_COMMIT,
-		StatusDetail:                 "Git commit done successfully.",
-		StatusTime:                   time.Now(),
-		AuditLog: sql.AuditLog{
-			CreatedBy: installAppVersionRequest.UserId,
-			CreatedOn: time.Now(),
-			UpdatedBy: installAppVersionRequest.UserId,
-			UpdatedOn: time.Now(),
-		},
-	}
-	err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, tx, true)
-	if err != nil {
-		impl.logger.Errorw("error in creating timeline status for git commit", "err", err, "timeline", timeline)
-	}
-
-	//sync local dir with remote
-	err = impl.chartTemplateService.GitPull(clonedDir, chartGitAttr.RepoUrl, appStoreName)
-	if err != nil {
-		impl.logger.Errorw("error in git pull", "err", err)
-		return installAppVersionRequest, nil, err
-	}
-	installAppVersionRequest.GitHash = commitHash
-	installAppVersionRequest.ACDAppName = argocdAppName
-	installAppVersionRequest.Environment = environment
-
-	return installAppVersionRequest, chartGitAttr, nil
 }
 
 func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationACD(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, chartGitAttr *util.ChartGitAttribute, ctx context.Context, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error) {
@@ -376,18 +172,6 @@ func (impl AppStoreDeploymentFullModeServiceImpl) RegisterInArgo(chartGitAttribu
 	}
 	impl.logger.Debugw("repo registered in argo", "name", chartGitAttribute.RepoUrl)
 	return err
-}
-
-func (impl AppStoreDeploymentFullModeServiceImpl) SyncACD(acdAppName string, ctx context.Context) {
-	req := new(application.ApplicationSyncRequest)
-	req.Name = &acdAppName
-	if ctx == nil {
-		impl.logger.Errorw("err in syncing ACD for AppStore, ctx is NULL", "acdAppName", acdAppName)
-		return
-	}
-	if _, err := impl.acdClient.Sync(ctx, req); err != nil {
-		impl.logger.Errorw("err in syncing ACD for AppStore", "acdAppName", acdAppName, "err", err)
-	}
 }
 
 func (impl AppStoreDeploymentFullModeServiceImpl) createInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context, envModel repository5.Environment, argocdAppName string) error {
@@ -484,11 +268,10 @@ func (impl AppStoreDeploymentFullModeServiceImpl) UpdateRequirementYaml(installA
 	return nil
 }
 
-func (impl AppStoreDeploymentFullModeServiceImpl) SubscribeHelmInstallStatus() error {
+func (impl AppStoreDeploymentFullModeServiceImpl) subscribeHelmInstallStatus() error {
 
 	callback := func(msg *model.PubSubMsg) {
 
-		impl.logger.Debug("received helm install status event - HELM_INSTALL_STATUS", "data", msg.Data)
 		helmInstallNatsMessage := &appStoreBean.HelmReleaseStatusConfig{}
 		err := json.Unmarshal([]byte(msg.Data), helmInstallNatsMessage)
 		if err != nil {
@@ -514,7 +297,17 @@ func (impl AppStoreDeploymentFullModeServiceImpl) SubscribeHelmInstallStatus() e
 		}
 	}
 
-	err := impl.pubSubClient.Subscribe(pubsub_lib.HELM_CHART_INSTALL_STATUS_TOPIC, callback)
+	// add required logging here
+	var loggerFunc pubsub_lib.LoggerFunc = func(msg model.PubSubMsg) (string, []interface{}) {
+		helmInstallNatsMessage := &appStoreBean.HelmReleaseStatusConfig{}
+		err := json.Unmarshal([]byte(msg.Data), helmInstallNatsMessage)
+		if err != nil {
+			return "error in unmarshalling helm install status nats message", []interface{}{"err", err}
+		}
+		return "got nats msg for helm chart install status", []interface{}{"InstallAppVersionHistoryId", helmInstallNatsMessage.InstallAppVersionHistoryId, "ErrorInInstallation", helmInstallNatsMessage.ErrorInInstallation, "IsReleaseInstalled", helmInstallNatsMessage.IsReleaseInstalled}
+	}
+
+	err := impl.pubSubClient.Subscribe(pubsub_lib.HELM_CHART_INSTALL_STATUS_TOPIC, callback, loggerFunc)
 	if err != nil {
 		impl.logger.Error(err)
 		return err
