@@ -34,10 +34,10 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
+	repository3 "github.com/devtron-labs/devtron/pkg/appStore/chartGroup/repository"
 	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	appStoreDeploymentTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool"
-	appStoreDeploymentGitopsTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool/gitops"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/bean"
@@ -91,18 +91,17 @@ func GetDeploymentServiceTypeConfig() (*DeploymentServiceTypeConfig, error) {
 type AppStoreDeploymentServiceImpl struct {
 	logger                               *zap.SugaredLogger
 	installedAppRepository               repository.InstalledAppRepository
-	chartGroupDeploymentRepository       repository.ChartGroupDeploymentRepository
+	chartGroupDeploymentRepository       repository3.ChartGroupDeploymentRepository
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository
 	environmentRepository                clusterRepository.EnvironmentRepository
 	clusterInstalledAppsRepository       repository.ClusterInstalledAppsRepository
 	appRepository                        app.AppRepository
 	appStoreDeploymentHelmService        appStoreDeploymentTool.AppStoreDeploymentHelmService
-	appStoreDeploymentArgoCdService      appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdService
+	appStoreDeploymentArgoCdService      appStoreDeploymentTool.AppStoreDeploymentArgoCdService
 	environmentService                   cluster.EnvironmentService
 	clusterService                       cluster.ClusterService
 	helmAppService                       client.HelmAppService
 	appStoreDeploymentCommonService      appStoreDeploymentCommon.AppStoreDeploymentCommonService
-	globalEnvVariables                   *util2.GlobalEnvVariables
 	installedAppRepositoryHistory        repository.InstalledAppVersionHistoryRepository
 	gitOpsRepository                     repository2.GitOpsConfigRepository
 	deploymentTypeConfig                 *DeploymentServiceTypeConfig
@@ -111,12 +110,11 @@ type AppStoreDeploymentServiceImpl struct {
 }
 
 func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRepository repository.InstalledAppRepository,
-	chartGroupDeploymentRepository repository.ChartGroupDeploymentRepository, appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository, environmentRepository clusterRepository.EnvironmentRepository,
+	chartGroupDeploymentRepository repository3.ChartGroupDeploymentRepository, appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository, environmentRepository clusterRepository.EnvironmentRepository,
 	clusterInstalledAppsRepository repository.ClusterInstalledAppsRepository, appRepository app.AppRepository,
 	appStoreDeploymentHelmService appStoreDeploymentTool.AppStoreDeploymentHelmService,
-	appStoreDeploymentArgoCdService appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdService, environmentService cluster.EnvironmentService,
+	appStoreDeploymentArgoCdService appStoreDeploymentTool.AppStoreDeploymentArgoCdService, environmentService cluster.EnvironmentService,
 	clusterService cluster.ClusterService, helmAppService client.HelmAppService, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
-	globalEnvVariables *util2.GlobalEnvVariables,
 	installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository, gitOpsRepository repository2.GitOpsConfigRepository, attributesService attributes.AttributesService,
 	deploymentTypeConfig *DeploymentServiceTypeConfig, ChartTemplateService util.ChartTemplateService, aCDConfig *argocdServer.ACDConfig) *AppStoreDeploymentServiceImpl {
 
@@ -134,7 +132,6 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRep
 		clusterService:                       clusterService,
 		helmAppService:                       helmAppService,
 		appStoreDeploymentCommonService:      appStoreDeploymentCommonService,
-		globalEnvVariables:                   globalEnvVariables,
 		installedAppRepositoryHistory:        installedAppRepositoryHistory,
 		gitOpsRepository:                     gitOpsRepository,
 		deploymentTypeConfig:                 deploymentTypeConfig,
@@ -1566,7 +1563,7 @@ func (impl AppStoreDeploymentServiceImpl) GetInstalledAppVersion(id int, userId 
 	app, err := impl.installedAppRepository.GetInstalledAppVersion(id)
 	if err != nil {
 		if err == pg.ErrNoRows {
-			return nil, fmt.Errorf("values are outdated. please fetch the latest version and try again")
+			return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: "400", UserMessage: "values are outdated. please fetch the latest version and try again", InternalMessage: err.Error()}
 		}
 		impl.logger.Errorw("error while fetching from db", "error", err)
 		return nil, err

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/common-lib/utils"
 	"net/http"
 	"strconv"
 	"strings"
@@ -202,8 +203,8 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 		common.WriteJsonResp(w, err, resource, http.StatusInternalServerError)
 		return
 	}
-	if resource != nil {
-		err = resource.SetRunningEphemeralContainers()
+	if resource != nil && resource.ManifestResponse != nil {
+		err = resource.ManifestResponse.SetRunningEphemeralContainers()
 		if err != nil {
 			handler.logger.Errorw("error in setting running ephemeral containers and setting them in resource response", "err", err)
 			common.WriteJsonResp(w, err, resource, http.StatusInternalServerError)
@@ -215,10 +216,10 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 	// Obfuscate secret if user does not have edit access
 	if request.AppIdentifier == nil && request.DevtronAppIdentifier == nil && request.ClusterId > 0 {
 		// Verify update access for Resource Browser
-		canUpdate = handler.k8sApplicationService.ValidateClusterResourceBean(r.Context(), request.ClusterId, resource.Manifest, request.K8sRequest.ResourceIdentifier.GroupVersionKind, handler.getRbacCallbackForResource(token, casbin.ActionUpdate))
+		canUpdate = handler.k8sApplicationService.ValidateClusterResourceBean(r.Context(), request.ClusterId, resource.ManifestResponse.Manifest, request.K8sRequest.ResourceIdentifier.GroupVersionKind, handler.getRbacCallbackForResource(token, casbin.ActionUpdate))
 		if !canUpdate {
 			// Verify read access for Resource Browser
-			readAllowed := handler.k8sApplicationService.ValidateClusterResourceBean(r.Context(), request.ClusterId, resource.Manifest, request.K8sRequest.ResourceIdentifier.GroupVersionKind, handler.getRbacCallbackForResource(token, casbin.ActionGet))
+			readAllowed := handler.k8sApplicationService.ValidateClusterResourceBean(r.Context(), request.ClusterId, resource.ManifestResponse.Manifest, request.K8sRequest.ResourceIdentifier.GroupVersionKind, handler.getRbacCallbackForResource(token, casbin.ActionGet))
 			if !readAllowed {
 				common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
 				return
@@ -227,14 +228,16 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 	}
 	if !canUpdate && resource != nil {
 		// Hide secret for read only access
-		modifiedManifest, err := k8sObjectsUtil.HideValuesIfSecret(&resource.Manifest)
+		modifiedManifest, err := k8sObjectsUtil.HideValuesIfSecret(&resource.ManifestResponse.Manifest)
 		if err != nil {
 			handler.logger.Errorw("error in hiding secret values", "err", err)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
 		}
-		resource.Manifest = *modifiedManifest
+		resource.ManifestResponse.Manifest = *modifiedManifest
 	}
+	// setting flag for secret view access only for resource browser
+	resource.SecretViewAccess = canUpdate
 
 	common.WriteJsonResp(w, nil, resource, http.StatusOK)
 }
@@ -512,8 +515,17 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWrit
 
 	resource, err := handler.k8sApplicationService.DeleteResourceWithAudit(r.Context(), &request, userId)
 	if err != nil {
+		errCode := http.StatusInternalServerError
+		if apiErr, ok := err.(*utils.ApiError); ok {
+			errCode = apiErr.HttpStatusCode
+			switch errCode {
+			case http.StatusNotFound:
+				errorMessage := "resource not found"
+				err = fmt.Errorf("%s: %w", errorMessage, err)
+			}
+		}
 		handler.logger.Errorw("error in deleting resource", "err", err)
-		common.WriteJsonResp(w, err, resource, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, resource, errCode)
 		return
 	}
 	common.WriteJsonResp(w, nil, resource, http.StatusOK)

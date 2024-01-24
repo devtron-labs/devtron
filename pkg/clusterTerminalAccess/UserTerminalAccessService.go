@@ -55,7 +55,7 @@ type UserTerminalAccessServiceImpl struct {
 	K8sCommonService             k8s.K8sCommonService
 	terminalSessionHandler       terminal.TerminalSessionHandler
 	K8sCapacityService           capacity.K8sCapacityService
-	k8sUtil                      *k8s2.K8sUtil
+	k8sUtil                      *k8s2.K8sServiceImpl
 }
 
 type UserTerminalAccessSessionData struct {
@@ -79,7 +79,7 @@ func GetTerminalAccessConfig() (*models.UserTerminalSessionConfig, error) {
 	return config, err
 }
 
-func NewUserTerminalAccessServiceImpl(logger *zap.SugaredLogger, terminalAccessRepository repository.TerminalAccessRepository, config *models.UserTerminalSessionConfig, k8sCommonService k8s.K8sCommonService, terminalSessionHandler terminal.TerminalSessionHandler, K8sCapacityService capacity.K8sCapacityService, k8sUtil *k8s2.K8sUtil) (*UserTerminalAccessServiceImpl, error) {
+func NewUserTerminalAccessServiceImpl(logger *zap.SugaredLogger, terminalAccessRepository repository.TerminalAccessRepository, config *models.UserTerminalSessionConfig, k8sCommonService k8s.K8sCommonService, terminalSessionHandler terminal.TerminalSessionHandler, K8sCapacityService capacity.K8sCapacityService, k8sUtil *k8s2.K8sServiceImpl) (*UserTerminalAccessServiceImpl, error) {
 	//fetches all running and starting entities from db and start SyncStatus
 	podStatusSyncCron := cron.New(cron.WithChain())
 	terminalAccessDataArrayMutex := &sync.RWMutex{}
@@ -838,7 +838,7 @@ func (impl *UserTerminalAccessServiceImpl) getPodManifest(ctx context.Context, c
 			return nil, err
 		}
 	}
-	return response, nil
+	return response.ManifestResponse, nil
 }
 
 func (impl *UserTerminalAccessServiceImpl) getPodRequestBean(clusterId int, podName string, namespace string) (*k8s.ResourceRequestBean, error) {
@@ -1130,7 +1130,7 @@ func (impl *UserTerminalAccessServiceImpl) EditTerminalPodManifest(ctx context.C
 func (impl *UserTerminalAccessServiceImpl) checkOtherPodExists(ctx context.Context, podName, namespace string, clusterId int) bool {
 	podRequestBean, _ := impl.getPodRequestBean(clusterId, podName, namespace)
 	res, _ := impl.K8sCommonService.GetResource(ctx, podRequestBean)
-	if res != nil {
+	if res != nil && res.ManifestResponse != nil {
 		return true
 	}
 	return false
