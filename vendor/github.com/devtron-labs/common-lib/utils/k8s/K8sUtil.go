@@ -1175,7 +1175,7 @@ func (impl K8sUtil) GetPodLogs(ctx context.Context, restConfig *rest.Config, nam
 	if SinceSeconds > 0 {
 		podLogOptions.SinceSeconds = &SinceSeconds
 	}
-	if sinceTime != nil {
+	if sinceTime != nil && SinceSeconds == 0 {
 		podLogOptions.SinceTime = sinceTime
 	}
 	podIf := podClient.Pods(namespace)
