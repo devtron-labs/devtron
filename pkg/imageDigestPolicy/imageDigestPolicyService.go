@@ -68,7 +68,7 @@ func (impl ImageDigestPolicyServiceImpl) CreatePolicyForPipeline(tx *pg.Tx, pipe
 	identifierKey := devtronResourceSearchableKeyMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_PIPELINE_ID]
 	identifierValueId := pipelineId
 	identifierValueString := pipelineName
-	qualifierMapping := DigestPolicyQualifierMappingDao(int(resourceQualifiers.PIPELINE_QUALIFIER), identifierKey, identifierValueId, identifierValueString, UserId)
+	qualifierMapping := digestPolicyQualifierMappingDao(int(resourceQualifiers.PIPELINE_QUALIFIER), identifierKey, identifierValueId, identifierValueString, UserId)
 	_, err := impl.qualifierMappingService.CreateQualifierMappings([]*resourceQualifiers.QualifierMapping{qualifierMapping}, tx)
 	if err != nil {
 		impl.logger.Errorw("error in creating image digest policy for pipeline", "err", err, "pipelineId", pipelineId)
@@ -241,7 +241,7 @@ func (impl ImageDigestPolicyServiceImpl) saveImageDigestPolicyForAllClusters(tx 
 	identifierValueInt := resourceQualifiers.AllExistingAndFutureEnvsInt
 	identifierValueString := resourceQualifiers.AllExistingAndFutureEnvsString
 
-	globalQualifierMapping := DigestPolicyQualifierMappingDao(qualifierId, identifierKey, identifierValueInt, identifierValueString, userId)
+	globalQualifierMapping := digestPolicyQualifierMappingDao(qualifierId, identifierKey, identifierValueInt, identifierValueString, userId)
 	_, err = impl.qualifierMappingService.CreateQualifierMappings([]*resourceQualifiers.QualifierMapping{globalQualifierMapping}, tx)
 	if err != nil {
 		impl.logger.Errorw("error in creating global image digest policy", "err", err)
@@ -305,7 +305,7 @@ func (impl ImageDigestPolicyServiceImpl) saveNewPolicies(tx *pg.Tx, savePolicyRe
 				identifierValueInt := policy.ClusterId
 				identifierValueString := clusterIdNameMap[policy.ClusterId]
 
-				newQualifierMapping := DigestPolicyQualifierMappingDao(
+				newQualifierMapping := digestPolicyQualifierMappingDao(
 					qualifierId, identifierKey, identifierValueInt, identifierValueString, requestPolicies.UserId)
 				newPolicies = append(newPolicies, newQualifierMapping)
 
@@ -322,7 +322,7 @@ func (impl ImageDigestPolicyServiceImpl) saveNewPolicies(tx *pg.Tx, savePolicyRe
 					identifierValueInt := envId
 					identifierValueString := envIdNameMap[envId]
 
-					newQualifierMapping := DigestPolicyQualifierMappingDao(
+					newQualifierMapping := digestPolicyQualifierMappingDao(
 						qualifierId, identifierKey, identifierValueInt, identifierValueString, requestPolicies.UserId)
 					newPolicies = append(newPolicies, newQualifierMapping)
 				}

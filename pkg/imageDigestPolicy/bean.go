@@ -62,7 +62,7 @@ type oldPolicyRemoveRequest struct {
 	userId                     int32
 }
 
-func DigestPolicyQualifierMappingDao(qualifierId, identifierKey, IdentifierValueInt int, IdentifierValueString string, userId int32) *resourceQualifiers.QualifierMapping {
+func digestPolicyQualifierMappingDao(qualifierId, identifierKey, IdentifierValueInt int, IdentifierValueString string, userId int32) *resourceQualifiers.QualifierMapping {
 	return &resourceQualifiers.QualifierMapping{
 		ResourceId:            resourceQualifiers.ImageDigestResourceId,
 		ResourceType:          resourceQualifiers.ImageDigest,
