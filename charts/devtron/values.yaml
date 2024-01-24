@@ -117,7 +117,7 @@ components:
     persistence:
       volumeSize: "20Gi"
   gitsensor:
-    image: "quay.io/devtron/git-sensor:bd235ac9-200-20653"
+    image: "quay.io/devtron/git-sensor:25c3eb64-200-20764"
     imagePullPolicy: "IfNotPresent"
     serviceMonitor:
       enabled: false
