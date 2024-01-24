@@ -564,6 +564,7 @@ func (impl *K8sCapacityServiceImpl) DeleteNode(ctx context.Context, request *bea
 				Kind:    request.Kind,
 			},
 		},
+		ForceDelete: request.ForceDelete,
 	}
 	resourceRequest := &k8s.ResourceRequestBean{K8sRequest: deleteReq, ClusterId: request.ClusterId}
 	// Here Sending userId as 0 as appIdentifier is being sent nil so user id is not used in method. Update userid if appIdentifier is used
