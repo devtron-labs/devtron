@@ -3,7 +3,6 @@ package infraConfig
 import (
 	"fmt"
 	"github.com/caarlos0/env"
-	"github.com/devtron-labs/devtron/pkg/infraConfig/repository"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/units"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/util"
@@ -26,14 +25,14 @@ type InfraConfigService interface {
 
 type InfraConfigServiceImpl struct {
 	logger           *zap.SugaredLogger
-	infraProfileRepo repository.InfraConfigRepository
+	infraProfileRepo InfraConfigRepository
 	units            *units.Units
 	infraConfig      *InfraConfig
 	validator        *validator.Validate
 }
 
 func NewInfraConfigServiceImpl(logger *zap.SugaredLogger,
-	infraProfileRepo repository.InfraConfigRepository,
+	infraProfileRepo InfraConfigRepository,
 	units *units.Units,
 	validator *validator.Validate) (*InfraConfigServiceImpl, error) {
 	infraConfiguration := &InfraConfig{}

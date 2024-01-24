@@ -108,7 +108,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/git"
 	"github.com/devtron-labs/devtron/pkg/gitops"
 	infraConfigService "github.com/devtron-labs/devtron/pkg/infraConfig"
-	infraConfigRepository "github.com/devtron-labs/devtron/pkg/infraConfig/repository"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/units"
 	jira2 "github.com/devtron-labs/devtron/pkg/jira"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
@@ -226,8 +225,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(dashboardEvent.DashboardTelemetryRouter),
 			new(*dashboardEvent.DashboardTelemetryRouterImpl)),
 
-		infraConfigRepository.NewInfraProfileRepositoryImpl,
-		wire.Bind(new(infraConfigRepository.InfraConfigRepository), new(*infraConfigRepository.InfraConfigRepositoryImpl)),
+		infraConfigService.NewInfraProfileRepositoryImpl,
+		wire.Bind(new(infraConfigService.InfraConfigRepository), new(*infraConfigService.InfraConfigRepositoryImpl)),
 
 		units.NewUnits,
 		infraConfigService.NewInfraConfigServiceImpl,
