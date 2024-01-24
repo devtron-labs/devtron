@@ -114,6 +114,11 @@ type ProfilesResponse struct {
 	InfraConfigMetaData
 }
 
+type Scope struct {
+	AppId int
+}
+
+// InfraConfig is used for read only purpose outside this package
 type InfraConfig struct {
 	// currently only for ci
 	CiLimitCpu       string `env:"LIMIT_CI_CPU" envDefault:"0.5"`

@@ -11,6 +11,7 @@ import (
 type InfraConfigRepository interface {
 	GetIdentifierCountForDefaultProfile() (int, error)
 	GetProfileByName(name string) (*infraConfig.InfraProfile, error)
+	GetConfigurationsByProfileName(profileName string) ([]*infraConfig.InfraProfileConfiguration, error)
 	GetConfigurationsByProfileId(profileId int) ([]*infraConfig.InfraProfileConfiguration, error)
 
 	CreateProfile(tx *pg.Tx, infraProfile *infraConfig.InfraProfile) error
@@ -57,6 +58,18 @@ func (impl *InfraConfigRepositoryImpl) CreateConfigurations(tx *pg.Tx, configura
 func (impl *InfraConfigRepositoryImpl) UpdateConfigurations(tx *pg.Tx, configurations []*infraConfig.InfraProfileConfiguration) error {
 	err := tx.Update(&configurations)
 	return err
+}
+
+func (impl *InfraConfigRepositoryImpl) GetConfigurationsByProfileName(profileName string) ([]*infraConfig.InfraProfileConfiguration, error) {
+	var configurations []*infraConfig.InfraProfileConfiguration
+	err := impl.dbConnection.Model(&configurations).
+		Where("infra_profile_id IN (SELECT id FROM infra_profile WHERE name = ? AND active = true)", profileName).
+		Where("active = ?", true).
+		Select()
+	if errors.Is(err, pg.ErrNoRows) {
+		return nil, errors.New(infraConfig.NO_PROPERTIES_FOUND)
+	}
+	return configurations, err
 }
 
 func (impl *InfraConfigRepositoryImpl) GetConfigurationsByProfileId(profileId int) ([]*infraConfig.InfraProfileConfiguration, error) {

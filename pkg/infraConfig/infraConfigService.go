@@ -21,6 +21,7 @@ type InfraConfigService interface {
 	GetConfigurationUnits() map[ConfigKeyStr]map[string]units.Unit
 	GetDefaultProfile() (*ProfileBean, error)
 	UpdateProfile(userId int32, profileName string, profileBean *ProfileBean) error
+	GetInfraConfigurationsByScope(scope Scope) (*InfraConfig, error)
 }
 
 type InfraConfigServiceImpl struct {
@@ -347,4 +348,45 @@ func (impl *InfraConfigServiceImpl) validateCpuMem(profileBean *ProfileBean, def
 	}
 
 	return nil
+}
+
+func (impl *InfraConfigServiceImpl) GetInfraConfigurationsByScope(scope Scope) (*InfraConfig, error) {
+	infraConfiguration := &InfraConfig{}
+	updateInfraConfig := func(config ConfigurationBean) {
+		switch config.Key {
+		case CPU_LIMIT:
+			infraConfiguration.setCiLimitCpu(impl.GetResolvedValue(config).(string))
+		case CPU_REQUEST:
+			infraConfiguration.setCiReqCpu(impl.GetResolvedValue(config).(string))
+		case MEMORY_LIMIT:
+			infraConfiguration.setCiLimitMem(impl.GetResolvedValue(config).(string))
+		case MEMORY_REQUEST:
+			infraConfiguration.setCiReqMem(impl.GetResolvedValue(config).(string))
+		case TIME_OUT:
+			infraConfiguration.setCiDefaultTimeout(impl.GetResolvedValue(config).(int64))
+		}
+	}
+	defaultConfigurations, err := impl.infraProfileRepo.GetConfigurationsByProfileName(DEFAULT_PROFILE_NAME)
+	if err != nil {
+		impl.logger.Errorw("error in fetching default configurations", "scope", scope, "error", err)
+		return nil, err
+	}
+
+	for _, defaultConfiguration := range defaultConfigurations {
+		defaultConfigurationBean := defaultConfiguration.ConvertToConfigurationBean()
+		updateInfraConfig(defaultConfigurationBean)
+	}
+	return infraConfiguration, nil
+}
+
+func (impl *InfraConfigServiceImpl) GetResolvedValue(configurationBean ConfigurationBean) interface{} {
+	// for timeout we need to get the value in seconds
+	if configurationBean.Key == GetConfigKeyStr(TimeOut) {
+		// if user ever gives the timeout in float, after conversion to int64 it will be rounded off
+		return int64(configurationBean.Value * impl.units.GetTimeUnits()[configurationBean.Unit].ConversionFactor)
+	}
+	if configurationBean.Unit == string(units.CORE) || configurationBean.Unit == string(units.BYTE) {
+		return fmt.Sprintf("%v", configurationBean.Value)
+	}
+	return fmt.Sprintf("%v%v", configurationBean.Value, configurationBean.Unit)
 }
