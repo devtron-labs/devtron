@@ -302,7 +302,7 @@ func (handler *InfraConfigRestHandlerImpl) ApplyProfileToIdentifiers(w http.Resp
 		return
 	}
 
-	err = handler.infraProfileService.ApplyProfileToIdentifiers(request)
+	err = handler.infraProfileService.ApplyProfileToIdentifiers(userId, request)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return

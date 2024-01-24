@@ -8,6 +8,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/repository"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/units"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
@@ -51,12 +52,13 @@ type InfraConfigService interface {
 
 	GetIdentifierList(listFilter *infraConfig.IdentifierListFilter) (*infraConfig.IdentifierProfileResponse, error)
 
-	ApplyProfileToIdentifiers(applyIdentifiersRequest infraConfig.InfraProfileApplyRequest) error
+	ApplyProfileToIdentifiers(userId int32, applyIdentifiersRequest infraConfig.InfraProfileApplyRequest) error
 }
 
 type InfraConfigServiceImpl struct {
 	logger                              *zap.SugaredLogger
 	infraProfileRepo                    repository.InfraConfigRepository
+	qualifiersMappingRepository         resourceQualifiers.QualifiersMappingRepository
 	units                               *units.Units
 	infraConfig                         *infraConfig.InfraConfig
 	devtronResourceSearchableKeyService devtronResource.DevtronResourceSearchableKeyService
@@ -65,6 +67,7 @@ type InfraConfigServiceImpl struct {
 
 func NewInfraConfigServiceImpl(logger *zap.SugaredLogger,
 	infraProfileRepo repository.InfraConfigRepository,
+	qualifiersMappingRepository resourceQualifiers.QualifiersMappingRepository,
 	units *units.Units,
 	devtronResourceSearchableKeyService devtronResource.DevtronResourceSearchableKeyService,
 	validator *validator.Validate) (*InfraConfigServiceImpl, error) {
@@ -76,6 +79,7 @@ func NewInfraConfigServiceImpl(logger *zap.SugaredLogger,
 	infraProfileService := &InfraConfigServiceImpl{
 		logger:                              logger,
 		infraProfileRepo:                    infraProfileRepo,
+		qualifiersMappingRepository:         qualifiersMappingRepository,
 		units:                               units,
 		devtronResourceSearchableKeyService: devtronResourceSearchableKeyService,
 		infraConfig:                         infraConfiguration,
@@ -657,7 +661,7 @@ func (impl *InfraConfigServiceImpl) GetIdentifierList(listFilter *infraConfig.Id
 	return idenfierListResponse, nil
 }
 
-func (impl *InfraConfigServiceImpl) ApplyProfileToIdentifiers(applyIdentifiersRequest infraConfig.InfraProfileApplyRequest) error {
+func (impl *InfraConfigServiceImpl) ApplyProfileToIdentifiers(userId int32, applyIdentifiersRequest infraConfig.InfraProfileApplyRequest) error {
 	if applyIdentifiersRequest.IdentifiersFilter == nil && applyIdentifiersRequest.Identifiers == nil {
 		return errors.New("invalid apply request")
 	}
@@ -666,6 +670,7 @@ func (impl *InfraConfigServiceImpl) ApplyProfileToIdentifiers(applyIdentifiersRe
 		return errors.New("invalid apply request")
 	}
 
+	identifierIdNameMap := make(map[int]string)
 	if applyIdentifiersRequest.IdentifiersFilter != nil {
 		// validate IdentifiersFilter
 		err := impl.validator.Struct(applyIdentifiersRequest.IdentifiersFilter)
@@ -674,6 +679,7 @@ func (impl *InfraConfigServiceImpl) ApplyProfileToIdentifiers(applyIdentifiersRe
 			return err
 		}
 
+		// get apps using filter
 		// set identifiers in the filter
 
 	}
@@ -682,10 +688,39 @@ func (impl *InfraConfigServiceImpl) ApplyProfileToIdentifiers(applyIdentifiersRe
 		impl.logger.Errorw("error in starting transaction to apply profile to identifiers", "applyIdentifiersRequest", applyIdentifiersRequest, "error", err)
 		return err
 	}
-	err = impl.infraProfileRepo.DeleteProfileIdentifierMappingsByIds(tx, applyIdentifiersRequest.Identifiers, infraConfig.APPLICATION, impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap())
+
+	defer impl.infraProfileRepo.RollbackTx(tx)
+	searchableKeyNameIdMap := impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap()
+	err = impl.infraProfileRepo.DeleteProfileIdentifierMappingsByIds(tx, applyIdentifiersRequest.Identifiers, infraConfig.APPLICATION, searchableKeyNameIdMap)
 	if err != nil {
 		impl.logger.Errorw("error in deleting profile identifier mappings", "applyIdentifiersRequest", applyIdentifiersRequest, "error", err)
 		return err
 	}
 
+	if applyIdentifiersRequest.UpdateToProfile != 1 {
+		qualifierMappings := make([]*resourceQualifiers.QualifierMapping, 0, len(applyIdentifiersRequest.Identifiers))
+		for _, identifierId := range applyIdentifiersRequest.Identifiers {
+			qualifierMapping := &resourceQualifiers.QualifierMapping{
+				ResourceId:            applyIdentifiersRequest.UpdateToProfile,
+				ResourceType:          resourceQualifiers.InfraProfile,
+				Active:                true,
+				AuditLog:              sql.NewDefaultAuditLog(userId),
+				IdentifierValueInt:    identifierId,
+				IdentifierKey:         infraConfig.GetIdentifierKey(infraConfig.APPLICATION, searchableKeyNameIdMap),
+				IdentifierValueString: identifierIdNameMap[identifierId],
+			}
+			qualifierMappings = append(qualifierMappings, qualifierMapping)
+		}
+		_, err = impl.qualifiersMappingRepository.CreateQualifierMappings(qualifierMappings, tx)
+		if err != nil {
+			impl.logger.Errorw("error in creating profile identifier mappings", "applyIdentifiersRequest", applyIdentifiersRequest, "error", err)
+			return err
+		}
+	}
+	err = impl.infraProfileRepo.CommitTx(tx)
+	if err != nil {
+		impl.logger.Errorw("error in committing transaction to apply profile to identifiers", "applyIdentifiersRequest", applyIdentifiersRequest, "error", err)
+		return err
+	}
+	return err
 }
