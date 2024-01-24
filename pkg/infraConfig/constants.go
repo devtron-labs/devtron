@@ -72,8 +72,10 @@ func GetUnitSuffix(unitKey ConfigKeyStr, unitStr string) units.UnitSuffix {
 	switch unitKey {
 	case CPU_LIMIT, CPU_REQUEST:
 		return units.GetCPUUnit(units.CPUUnitStr(unitStr))
+	case MEMORY_LIMIT, MEMORY_REQUEST:
+		return units.GetMemoryUnit(units.MemoryUnitStr(unitStr))
 	}
-	return units.GetMemoryUnit(units.MemoryUnitStr(unitStr))
+	return units.GetTimeUnit(units.TimeUnitStr(unitStr))
 }
 
 // GetUnitSuffixStr loosely typed method to get the unit suffix using the unitKey type
@@ -81,8 +83,10 @@ func GetUnitSuffixStr(unitKey ConfigKey, unit units.UnitSuffix) string {
 	switch unitKey {
 	case CPULimit, CPURequest:
 		return string(units.GetCPUUnitStr(unit))
+	case MemoryLimit, MemoryRequest:
+		return string(units.GetMemoryUnitStr(unit))
 	}
-	return string(units.GetMemoryUnitStr(unit))
+	return string(units.GetTimeUnitStr(unit))
 }
 
 type IdentifierType string
