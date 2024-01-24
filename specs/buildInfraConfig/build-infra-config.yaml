@@ -266,7 +266,7 @@ components:
             example: "all java apps should have this infra profile"
           type:
             type: string
-            description: type of profile "eg:0,1,2"
+            description: type of profile 
             example: DEFAULT,NORMAL,CUSTOM
           configurations:
             type: array

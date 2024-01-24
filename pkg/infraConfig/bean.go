@@ -1,6 +1,7 @@
 package infraConfig
 
 import (
+	"github.com/devtron-labs/devtron/pkg/infraConfig/repository"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/units"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/pkg/errors"
@@ -20,9 +21,14 @@ type InfraProfile struct {
 }
 
 func (infraProfile *InfraProfile) ConvertToProfileBean() ProfileBean {
+	profileType := NORMAL
+	if infraProfile.Name == repository.DEFAULT_PROFILE_NAME {
+		profileType = DEFAULT
+	}
 	return ProfileBean{
 		Id:          infraProfile.Id,
 		Name:        infraProfile.Name,
+		Type:        profileType,
 		Description: infraProfile.Description,
 		Active:      infraProfile.Active,
 		CreatedBy:   infraProfile.CreatedBy,
@@ -62,6 +68,7 @@ type ProfileBean struct {
 	Description    string              `json:"description" validate:"max=300"`
 	Active         bool                `json:"active"`
 	Configurations []ConfigurationBean `json:"configurations" validate:"dive"`
+	Type           ProfileType         `json:"type"`
 	AppCount       int                 `json:"appCount"`
 	CreatedBy      int32               `json:"createdBy"`
 	CreatedOn      time.Time           `json:"createdOn"`

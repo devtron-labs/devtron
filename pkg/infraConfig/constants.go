@@ -89,6 +89,11 @@ func GetUnitSuffixStr(unitKey ConfigKey, unit units.UnitSuffix) string {
 	return string(units.GetTimeUnitStr(unit))
 }
 
+type ProfileType string
+
+const DEFAULT ProfileType = "DEFAULT"
+const NORMAL ProfileType = "NORMAL"
+
 type IdentifierType string
 
 const APPLICATION IdentifierType = "application"
