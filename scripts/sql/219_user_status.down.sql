@@ -1,5 +1,5 @@
+ALTER TABLE users DROP CONSTRAINT users_timeout_window_configuration_id_fkey;
+
 ALTER TABLE users DROP COLUMN timeout_window_configuration_id;
 
-ALTER TABLE DROP FOREIGN KEY timeout_window_configuration_id;
-
-ALTER TABLE timeout_window_configuration;
+DROP TABLE timeout_window_configuration;
