@@ -838,7 +838,7 @@ func (impl *UserTerminalAccessServiceImpl) getPodManifest(ctx context.Context, c
 			return nil, err
 		}
 	}
-	return response, nil
+	return response.ManifestResponse, nil
 }
 
 func (impl *UserTerminalAccessServiceImpl) getPodRequestBean(clusterId int, podName string, namespace string) (*k8s.ResourceRequestBean, error) {
@@ -1130,7 +1130,7 @@ func (impl *UserTerminalAccessServiceImpl) EditTerminalPodManifest(ctx context.C
 func (impl *UserTerminalAccessServiceImpl) checkOtherPodExists(ctx context.Context, podName, namespace string, clusterId int) bool {
 	podRequestBean, _ := impl.getPodRequestBean(clusterId, podName, namespace)
 	res, _ := impl.K8sCommonService.GetResource(ctx, podRequestBean)
-	if res != nil {
+	if res != nil && res.ManifestResponse != nil {
 		return true
 	}
 	return false

@@ -338,7 +338,7 @@ func (impl *K8sApplicationServiceImpl) ValidateClusterResourceRequest(ctx contex
 		impl.logger.Errorw("error in getting resource", "err", err, "request", clusterResourceRequest)
 		return false, err
 	}
-	return impl.validateResourceManifest(clusterName, respManifest.Manifest, k8sRequest.ResourceIdentifier.GroupVersionKind, rbacCallback), nil
+	return impl.validateResourceManifest(clusterName, respManifest.ManifestResponse.Manifest, k8sRequest.ResourceIdentifier.GroupVersionKind, rbacCallback), nil
 }
 
 func (impl *K8sApplicationServiceImpl) validateResourceManifest(clusterName string, resourceManifest unstructured.Unstructured, gvk schema.GroupVersionKind, rbacCallback func(clusterName string, resourceIdentifier k8s2.ResourceIdentifier) bool) bool {
