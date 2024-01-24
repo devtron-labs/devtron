@@ -639,6 +639,12 @@ func (impl *InfraConfigServiceImpl) GetIdentifierList(listFilter *infraConfig.Id
 		profilesMap[profileId] = profile
 	}
 
+	for _, identifier := range identifiers {
+		profile := profilesMap[identifier.ProfileId]
+		identifier.Profile = &profile
+	}
+
+	idenfierListResponse.Identifiers = identifiers
 	idenfierListResponse.TotalIdentifierCount = totalIdentifiersCount
 	idenfierListResponse.OverriddenIdentifierCount = overriddenIdentifiersCount
 	return idenfierListResponse, nil
