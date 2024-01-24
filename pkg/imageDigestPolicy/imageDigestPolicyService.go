@@ -355,16 +355,22 @@ func (impl ImageDigestPolicyServiceImpl) getIdToNameMappings(clusterDetails *Pol
 		}
 	}
 
-	environments, err := impl.environmentRepository.FindByIds(envIds)
-	if err != nil {
-		impl.logger.Errorw("error in fetching envs by ids", "envIds", envIds, "err", err)
-		return clusterIdNameMap, envIdNameMap, err
+	var environments []*repository.Environment
+	if len(envIds) > 0 {
+		environments, err = impl.environmentRepository.FindByIds(envIds)
+		if err != nil {
+			impl.logger.Errorw("error in fetching envs by ids", "envIds", envIds, "err", err)
+			return clusterIdNameMap, envIdNameMap, err
+		}
 	}
 
-	clusters, err := impl.clusterRepository.FindByIds(clusterIds)
-	if err != nil {
-		impl.logger.Errorw("error in fetching envs by ids", "clusterIds", clusterIds, "err", err)
-		return clusterIdNameMap, envIdNameMap, err
+	var clusters []repository.Cluster
+	if len(clusterIds) > 0 {
+		clusters, err = impl.clusterRepository.FindByIds(clusterIds)
+		if err != nil {
+			impl.logger.Errorw("error in fetching envs by ids", "clusterIds", clusterIds, "err", err)
+			return clusterIdNameMap, envIdNameMap, err
+		}
 	}
 
 	for _, env := range environments {
@@ -395,9 +401,6 @@ func (impl ImageDigestPolicyServiceImpl) removePoliciesNotPresentInRequest(tx *p
 			if _, ok := newEnvsConfigured[policy.IdentifierValueInt]; !ok {
 				removePolicy = true
 			}
-		} else if policy.QualifierId == int(resourceQualifiers.GLOBAL_QUALIFIER) {
-			// removing global policy because if we are here EnableDigestForAllClusters=false in request
-			removePolicy = true
 		}
 		if removePolicy {
 			policiesToBeRemovedIDs = append(policiesToBeRemovedIDs, policy.Id)

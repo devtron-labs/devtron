@@ -92,18 +92,6 @@ func (handler ImageDigestPolicyRestHandlerImpl) SaveOrUpdateImageDigestPolicy(w 
 		return
 	}
 
-	if req.EnableDigestForAllClusters == false && len(req.ClusterDetails) == 0 {
-		common.WriteJsonResp(w, imageDigestPolicy.EmptyClusterDetailsErr, nil, http.StatusBadRequest)
-		return
-	} else if req.EnableDigestForAllClusters == false {
-		for _, policy := range req.ClusterDetails {
-			if policy.PolicyType == imageDigestPolicy.SPECIFIC_ENVIRONMENTS && len(policy.EnvironmentIds) == 0 {
-				common.WriteJsonResp(w, imageDigestPolicy.EmptyEnvDetailsErr, nil, http.StatusBadRequest)
-				return
-			}
-		}
-	}
-
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusInternalServerError)
