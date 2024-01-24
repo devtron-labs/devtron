@@ -189,7 +189,7 @@ func NewUnits() *Units {
 	cpuUnits := map[string]Unit{
 		string(MILLI): {
 			Name:             string(MILLI),
-			ConversionFactor: 1 / 1000,
+			ConversionFactor: 1e-3,
 		},
 		string(CORE): {
 			Name:             string(CORE),
