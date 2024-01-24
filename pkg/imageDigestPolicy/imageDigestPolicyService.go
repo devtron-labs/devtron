@@ -108,12 +108,9 @@ func (impl ImageDigestPolicyServiceImpl) GetDigestPolicyConfigurations(digestCon
 	scope := digestConfigurationRequest.getQualifierMappingScope()
 
 	policyMappings, err := impl.qualifierMappingService.GetQualifierMappings(resourceQualifiers.ImageDigest, scope, resourceIds)
-	if err != nil && err != pg.ErrNoRows {
+	if err != nil {
 		impl.logger.Errorw("error in getting saved policy mappings", "err", err)
 		return digestPolicyConfiguration, err
-	}
-	if err == pg.ErrNoRows || len(policyMappings) == 0 {
-		return digestPolicyConfiguration, nil
 	}
 
 	devtronResourceSearchableKeyMap := impl.devtronResourceSearchableKey.GetAllSearchableKeyNameIdMap()
@@ -128,6 +125,17 @@ func (impl ImageDigestPolicyServiceImpl) GetDigestPolicyConfigurations(digestCon
 		case pipelineIdentifierKey:
 			digestPolicyConfiguration.DigestConfiguredForPipeline = true
 		}
+	}
+
+	// case when digest policy is configured for all future and existing clusters
+	globalScope := getImageDigestPolicyGlobalScope()
+	globalPolicyMapping, err := impl.qualifierMappingService.GetQualifierMappings(resourceQualifiers.ImageDigest, globalScope, resourceIds)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting saved policy mappings", "err", err)
+		return digestPolicyConfiguration, err
+	}
+	if len(globalPolicyMapping) > 0 {
+		digestPolicyConfiguration.DigestConfiguredForEnvOrCluster = true
 	}
 
 	return digestPolicyConfiguration, nil

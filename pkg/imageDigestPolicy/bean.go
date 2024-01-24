@@ -102,6 +102,12 @@ func (request DigestPolicyConfigurationRequest) getQualifierMappingScope() *reso
 	}
 }
 
+func getImageDigestPolicyGlobalScope() *resourceQualifiers.Scope {
+	return &resourceQualifiers.Scope{
+		ClusterId: resourceQualifiers.AllExistingAndFutureEnvsInt,
+	}
+}
+
 type DigestPolicyConfigurationResponse struct {
 	DigestConfiguredForPipeline     bool
 	DigestConfiguredForEnvOrCluster bool
