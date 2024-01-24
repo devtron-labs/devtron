@@ -87,11 +87,11 @@ func (impl *InfraConfigServiceImpl) UpdateProfile(userId int32, profileName stri
 	// validation
 	defaultProfile, err := impl.GetDefaultProfile()
 	if err != nil {
-		impl.logger.Errorw("error in fetching default profile", "profileCreateRequest", profileBean, "error", err)
+		impl.logger.Errorw("error in fetching default profile", "profileName", profileName, "profileCreateRequest", profileBean, "error", err)
 		return err
 	}
 	if err := impl.Validate(profileBean, defaultProfile); err != nil {
-		impl.logger.Errorw("error occurred in validation the profile create request", "profileCreateRequest", profileBean, "error", err)
+		impl.logger.Errorw("error occurred in validation the profile create request", "profileName", profileName, "profileCreateRequest", profileBean, "error", err)
 		return err
 	}
 	// validations end
@@ -110,7 +110,7 @@ func (impl *InfraConfigServiceImpl) UpdateProfile(userId int32, profileName stri
 
 	tx, err := impl.infraProfileRepo.StartTx()
 	if err != nil {
-		impl.logger.Errorw("error in starting transaction to update profile", "error", err)
+		impl.logger.Errorw("error in starting transaction to update profile", "profileName", profileName, "profileCreateRequest", profileBean, "error", err)
 		return err
 	}
 	defer impl.infraProfileRepo.RollbackTx(tx)
@@ -118,18 +118,18 @@ func (impl *InfraConfigServiceImpl) UpdateProfile(userId int32, profileName stri
 	infraProfile.UpdatedBy = userId
 	err = impl.infraProfileRepo.UpdateProfile(tx, profileName, infraProfile)
 	if err != nil {
-		impl.logger.Errorw("error in updating profile", "error", err)
+		impl.logger.Errorw("error in updating profile", "error", "profileName", profileName, "profileCreateRequest", profileBean, err)
 		return err
 	}
 
 	err = impl.infraProfileRepo.UpdateConfigurations(tx, infraConfigurations)
 	if err != nil {
-		impl.logger.Errorw("error in creating configurations", "error", err)
+		impl.logger.Errorw("error in creating configurations", "error", "profileName", profileName, "profileCreateRequest", profileBean, err)
 		return err
 	}
 	err = impl.infraProfileRepo.CommitTx(tx)
 	if err != nil {
-		impl.logger.Errorw("error in committing transaction to update profile", "error", err)
+		impl.logger.Errorw("error in committing transaction to update profile", "profileName", profileName, "profileCreateRequest", profileBean, "error", err)
 	}
 	return err
 }

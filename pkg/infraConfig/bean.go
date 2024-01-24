@@ -12,7 +12,7 @@ import (
 
 type InfraProfile struct {
 	tableName   struct{} `sql:"infra_profile" pg:",discard_unknown_columns"`
-	Id          int      `sql:"id"`
+	Id          int      `sql:"id,pk"`
 	Name        string   `sql:"name"`
 	Description string   `sql:"description"`
 	Active      bool     `sql:"active"`
@@ -35,7 +35,7 @@ func (infraProfile *InfraProfile) ConvertToProfileBean() ProfileBean {
 
 type InfraProfileConfiguration struct {
 	tableName struct{}         `sql:"infra_profile_configuration" pg:",discard_unknown_columns"`
-	Id        int              `sql:"id"`
+	Id        int              `sql:"id,pk"`
 	Key       ConfigKey        `sql:"key"`
 	Value     float64          `sql:"value"`
 	Unit      units.UnitSuffix `sql:"unit"`
