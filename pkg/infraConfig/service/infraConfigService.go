@@ -582,7 +582,7 @@ func (impl *InfraConfigServiceImpl) validateCpuMem(profileBean *infraConfig.Prof
 
 	// this condition should be true for valid case => (lim/req)*(lf/rf) >= 1
 	// not directly comparing lim*lf with req*rf because this multiplication can overflow float64 limit
-	// so we are dividing lim/req and lf/rf and then comparing.
+	// so, we are dividing lim/req and lf/rf and then comparing.
 	limitToReqRationMem := memLimit.Value / memReq.Value
 	convFactorMem := memLimitUnit.ConversionFactor / memReqUnit.ConversionFactor
 
@@ -599,7 +599,7 @@ func (impl *InfraConfigServiceImpl) GetIdentifierList(listFilter *infraConfig.Id
 
 	// case-2 : if profile name is provided get those apps which are found in resource_qualifier_mapping table.
 
-	idenfierListResponse := &infraConfig.IdentifierProfileResponse{}
+	identifierListResponse := &infraConfig.IdentifierProfileResponse{}
 	identifiers, err := impl.infraProfileRepo.GetIdentifierList(*listFilter, impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap())
 	if err != nil {
 		impl.logger.Errorw("error in fetching identifiers", "listFilter", listFilter, "error", err)
@@ -660,10 +660,10 @@ func (impl *InfraConfigServiceImpl) GetIdentifierList(listFilter *infraConfig.Id
 		identifier.Profile = &profile
 	}
 
-	idenfierListResponse.Identifiers = identifiers
-	idenfierListResponse.TotalIdentifierCount = totalIdentifiersCount
-	idenfierListResponse.OverriddenIdentifierCount = overriddenIdentifiersCount
-	return idenfierListResponse, nil
+	identifierListResponse.Identifiers = identifiers
+	identifierListResponse.TotalIdentifierCount = totalIdentifiersCount
+	identifierListResponse.OverriddenIdentifierCount = overriddenIdentifiersCount
+	return identifierListResponse, nil
 }
 
 func (impl *InfraConfigServiceImpl) ApplyProfileToIdentifiers(userId int32, applyIdentifiersRequest infraConfig.InfraProfileApplyRequest) error {
