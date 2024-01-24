@@ -276,5 +276,5 @@ hostAliases: []
 #     - "bar.local"
 #   - ip: "10.1.2.3"
 #     hostnames:
-#     - "foo.git"
-#     - "bar.git"
+#     - "foo.remote"
+#     - "bar.remote"
