@@ -77,7 +77,7 @@ func (impl *InfraConfigRepositoryImpl) GetConfigurationsByProfileId(profileId in
 
 func (impl *InfraConfigRepositoryImpl) GetIdentifierCountForDefaultProfile() (int, error) {
 
-	count, err := impl.dbConnection.Model(repository1.App{}).
+	count, err := impl.dbConnection.Model(&repository1.App{}).
 		Where("active = ?", true).
 		Count()
 	return count, err
