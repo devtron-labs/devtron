@@ -469,7 +469,7 @@ func (impl ImageDigestPolicyServiceImpl) GetAllPoliciesConfiguredForClusterOrEnv
 			imageDigestPolicies.ClusterDetails = append(imageDigestPolicies.ClusterDetails, &ClusterDetail{
 				ClusterId:      cluster.Id,
 				EnvironmentIds: make([]int, 0),
-				PolicyType:     SPECIFIC_ENVIRONMENTS,
+				PolicyType:     NOT_CONFIGURED,
 			})
 		}
 	}

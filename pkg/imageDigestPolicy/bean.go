@@ -19,6 +19,9 @@ const (
 
 	//SPECIFIC_ENVIRONMENTS - For this policy we will have entry for each environment of that cluster in resource qualifier mapping. identifierKey=<environmentKey> and identifierValue=<EnvironmentId>
 	SPECIFIC_ENVIRONMENTS imageDigestPolicy = "specific_environments"
+
+	//NOT_CONFIGURED - If image digest policy is not configured
+	NOT_CONFIGURED imageDigestPolicy = "not_configured"
 )
 
 type ClusterId = int
