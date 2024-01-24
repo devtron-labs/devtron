@@ -95,7 +95,7 @@ func NewInfraConfigServiceImpl(logger *zap.SugaredLogger,
 }
 
 func (impl *InfraConfigServiceImpl) GetDefaultProfile() (*infraConfig.ProfileBean, error) {
-	infraProfile, err := impl.infraProfileRepo.GetProfileByName(repository.DEFAULT_PROFILE_NAME)
+	infraProfile, err := impl.infraProfileRepo.GetProfileByName(infraConfig.DEFAULT_PROFILE_NAME)
 	if err != nil {
 		impl.logger.Errorw("error in fetching default profile", "error", err)
 		return nil, err
@@ -153,7 +153,7 @@ func (impl *InfraConfigServiceImpl) GetProfileList(profileNameLike string) (*inf
 	profilesMap := make(map[int]infraConfig.ProfileBean)
 	for i, _ := range infraProfiles {
 		profileBean := infraProfiles[i].ConvertToProfileBean()
-		if profileBean.Name == repository.DEFAULT_PROFILE_NAME {
+		if profileBean.Name == infraConfig.DEFAULT_PROFILE_NAME {
 			defaultProfileId = profileBean.Id
 		}
 		profileIds[i] = profileBean.Id
@@ -196,7 +196,7 @@ func (impl *InfraConfigServiceImpl) GetProfileList(profileNameLike string) (*inf
 
 	profiles := make([]infraConfig.ProfileBean, 0, len(profilesMap))
 	for profileId, profile := range profilesMap {
-		if profile.Name == repository.DEFAULT_PROFILE_NAME {
+		if profile.Name == infraConfig.DEFAULT_PROFILE_NAME {
 			profiles = append(profiles, profile)
 			// update map with updated profile
 			profilesMap[profileId] = profile
@@ -301,7 +301,7 @@ func (impl *InfraConfigServiceImpl) UpdateProfile(userId int32, profileName stri
 	infraConfigurations := util.Transform(profileBean.Configurations, func(config infraConfig.ConfigurationBean) *infraConfig.InfraProfileConfiguration {
 		config.ProfileId = infraProfile.Id
 		// user couldn't delete the configuration for default profile, always set this to active
-		if infraProfile.Name == repository.DEFAULT_PROFILE_NAME {
+		if infraProfile.Name == infraConfig.DEFAULT_PROFILE_NAME {
 			config.Active = true
 		}
 		return config.ConvertToInfraProfileConfiguration()
@@ -338,7 +338,7 @@ func (impl *InfraConfigServiceImpl) DeleteProfile(profileName string) error {
 		return errors.New(InvalidProfileName)
 	}
 
-	if profileName == repository.DEFAULT_PROFILE_NAME {
+	if profileName == infraConfig.DEFAULT_PROFILE_NAME {
 		return errors.New(CannotDeleteDefaultProfile)
 	}
 
@@ -378,7 +378,7 @@ func (impl *InfraConfigServiceImpl) DeleteProfile(profileName string) error {
 
 func (impl *InfraConfigServiceImpl) loadDefaultProfile() error {
 
-	profile, err := impl.infraProfileRepo.GetProfileByName(repository.DEFAULT_PROFILE_NAME)
+	profile, err := impl.infraProfileRepo.GetProfileByName(infraConfig.DEFAULT_PROFILE_NAME)
 	if err != nil && !errors.Is(err, pg.ErrNoRows) {
 		return err
 	}
@@ -411,7 +411,7 @@ func (impl *InfraConfigServiceImpl) loadDefaultProfile() error {
 
 	defaultConfigurations := []*infraConfig.InfraProfileConfiguration{cpuLimit, memLimit, cpuReq, memReq, timeout}
 	defaultProfile := &infraConfig.InfraProfile{
-		Name:        repository.DEFAULT_PROFILE_NAME,
+		Name:        infraConfig.DEFAULT_PROFILE_NAME,
 		Description: "",
 		Active:      true,
 		AuditLog:    sql.NewDefaultAuditLog(1),
@@ -620,7 +620,7 @@ func (impl *InfraConfigServiceImpl) GetIdentifierList(listFilter *infraConfig.Id
 	for _, profile := range profiles {
 		profileIds = append(profileIds, profile.Id)
 		profilesMap[profile.Id] = profile.ConvertToProfileBean()
-		if profile.Name == repository.DEFAULT_PROFILE_NAME {
+		if profile.Name == infraConfig.DEFAULT_PROFILE_NAME {
 			defaultProfileId = profile.Id
 		}
 	}
@@ -646,7 +646,7 @@ func (impl *InfraConfigServiceImpl) GetIdentifierList(listFilter *infraConfig.Id
 	defaultConfigurations := defaultProfile.Configurations
 
 	for profileId, profile := range profilesMap {
-		if profile.Name == repository.DEFAULT_PROFILE_NAME {
+		if profile.Name == infraConfig.DEFAULT_PROFILE_NAME {
 			profilesMap[profileId] = profile
 			continue
 		}
@@ -676,7 +676,7 @@ func (impl *InfraConfigServiceImpl) ApplyProfileToIdentifiers(userId int32, appl
 	}
 
 	// fetch default profile
-	defaultProfile, err := impl.GetProfileByName(repository.DEFAULT_PROFILE_NAME)
+	defaultProfile, err := impl.GetProfileByName(infraConfig.DEFAULT_PROFILE_NAME)
 	if err != nil {
 		impl.logger.Errorw("error in fetching default profile", "applyIdentifiersRequest", applyIdentifiersRequest, "error", err)
 		return err

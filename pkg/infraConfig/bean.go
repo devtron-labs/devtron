@@ -1,7 +1,6 @@
 package infraConfig
 
 import (
-	"github.com/devtron-labs/devtron/pkg/infraConfig/repository"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/units"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/pkg/errors"
@@ -22,7 +21,7 @@ type InfraProfile struct {
 
 func (infraProfile *InfraProfile) ConvertToProfileBean() ProfileBean {
 	profileType := NORMAL
-	if infraProfile.Name == repository.DEFAULT_PROFILE_NAME {
+	if infraProfile.Name == DEFAULT_PROFILE_NAME {
 		profileType = DEFAULT
 	}
 	return ProfileBean{

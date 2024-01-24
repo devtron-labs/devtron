@@ -12,10 +12,6 @@ import (
 	"time"
 )
 
-const DEFAULT_PROFILE_NAME = "default"
-const DEFAULT_PROFILE_EXISTS = "default profile exists"
-const noPropertiesFound = "no properties found"
-
 type ProfileIdentifierCount struct {
 	ProfileId       int
 	IdentifierCount int
@@ -82,7 +78,7 @@ func (impl *InfraConfigRepositoryImpl) GetProfileList(profileNameLike string) ([
 		Where("active = ?", true)
 	if profileNameLike == "" {
 		profileNameLike = "%" + profileNameLike + "%"
-		query = query.Where("name LIKE ? OR name = ?", profileNameLike, DEFAULT_PROFILE_NAME)
+		query = query.Where("name LIKE ? OR name = ?", profileNameLike, infraConfig.DEFAULT_PROFILE_NAME)
 	}
 	query.Order("name ASC")
 	err := query.Select()
@@ -96,7 +92,7 @@ func (impl *InfraConfigRepositoryImpl) GetProfileListByIds(profileIds []int, inc
 		WhereGroup(func(q *orm.Query) (*orm.Query, error) {
 			q = q.WhereOr("id IN (?)", pg.In(profileIds))
 			if includeDefault {
-				q = q.WhereOr("name = ?", DEFAULT_PROFILE_NAME)
+				q = q.WhereOr("name = ?", infraConfig.DEFAULT_PROFILE_NAME)
 			}
 			return q, nil
 		}).Select()
@@ -124,7 +120,7 @@ func (impl *InfraConfigRepositoryImpl) GetConfigurationsByProfileId(profileIds [
 		Where("active = ?", true).
 		Select()
 	if errors.Is(err, pg.ErrNoRows) {
-		return nil, errors.New(noPropertiesFound)
+		return nil, errors.New(infraConfig.NO_PROPERTIES_FOUND)
 	}
 	return configurations, err
 }
@@ -202,7 +198,7 @@ func (impl *InfraConfigRepositoryImpl) GetIdentifierList(listFilter infraConfig.
 		fmt.Sprintf(" WHERE reference_type = %d ", resourceQualifiers.InfraProfile) +
 		" AND active=true "
 
-	if listFilter.ProfileName == DEFAULT_PROFILE_NAME {
+	if listFilter.ProfileName == infraConfig.DEFAULT_PROFILE_NAME {
 		excludeAppIdsQuery := "SELECT identifier_value_int " +
 			" FROM resource_qualifier_mapping " +
 			fmt.Sprintf(" WHERE reference_type = %d AND active=true AND identifier_type = %d", resourceQualifiers.InfraProfile, identifierType)
@@ -220,7 +216,7 @@ func (impl *InfraConfigRepositoryImpl) GetIdentifierList(listFilter infraConfig.
 
 		var identifiers []*infraConfig.Identifier
 		_, err := impl.dbConnection.Query(&identifiers, query,
-			DEFAULT_PROFILE_NAME,
+			infraConfig.DEFAULT_PROFILE_NAME,
 			listFilter.IdentifierNameLike,
 			listFilter.SortOrder,
 			listFilter.Limit,
