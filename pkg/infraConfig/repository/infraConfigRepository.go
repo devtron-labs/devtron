@@ -25,7 +25,9 @@ type InfraConfigRepository interface {
 	// includeDefault is used to explicitly include the default profile in the list
 	GetProfileListByIds(profileIds []int, includeDefault bool) ([]*infraConfig.InfraProfile, error)
 
+	GetConfigurationsByProfileName(profileName string) ([]*infraConfig.InfraProfileConfiguration, error)
 	GetConfigurationsByProfileId(profileIds []int) ([]*infraConfig.InfraProfileConfiguration, error)
+	GetConfigurationsByScope(scope infraConfig.Scope, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) ([]*infraConfig.InfraProfileConfiguration, error)
 
 	GetIdentifierList(lisFilter infraConfig.IdentifierListFilter, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) ([]*infraConfig.Identifier, error)
 	GetIdentifierCountForDefaultProfile(defaultProfileId int, identifierType int) (int, error)
@@ -109,6 +111,18 @@ func (impl *InfraConfigRepositoryImpl) UpdateConfigurations(tx *pg.Tx, configura
 	return err
 }
 
+func (impl *InfraConfigRepositoryImpl) GetConfigurationsByProfileName(profileName string) ([]*infraConfig.InfraProfileConfiguration, error) {
+	var configurations []*infraConfig.InfraProfileConfiguration
+	err := impl.dbConnection.Model(&configurations).
+		Where("infra_profile_id IN (SELECT id FROM infra_profile WHERE name = ? AND active = true)", profileName).
+		Where("active = ?", true).
+		Select()
+	if errors.Is(err, pg.ErrNoRows) {
+		return nil, errors.New(infraConfig.NO_PROPERTIES_FOUND)
+	}
+	return configurations, err
+}
+
 func (impl *InfraConfigRepositoryImpl) GetConfigurationsByProfileId(profileIds []int) ([]*infraConfig.InfraProfileConfiguration, error) {
 	if len(profileIds) == 0 {
 		return nil, errors.New("profileIds cannot be empty")
@@ -118,6 +132,22 @@ func (impl *InfraConfigRepositoryImpl) GetConfigurationsByProfileId(profileIds [
 	err := impl.dbConnection.Model(&configurations).
 		Where("infra_profile_id IN (?)", profileIds).
 		Where("active = ?", true).
+		Select()
+	if errors.Is(err, pg.ErrNoRows) {
+		return nil, errors.New(infraConfig.NO_PROPERTIES_FOUND)
+	}
+	return configurations, err
+}
+
+func (impl *InfraConfigRepositoryImpl) GetConfigurationsByScope(scope infraConfig.Scope, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) ([]*infraConfig.InfraProfileConfiguration, error) {
+	var configurations []*infraConfig.InfraProfileConfiguration
+	getProfileIdByScopeQuery := "SELECT resource_id " +
+		" FROM resource_qualifier_mapping " +
+		fmt.Sprintf(" WHERE resource_type = %d AND identifier_key = %d AND identifier_value_int = %d AND active=true", resourceQualifiers.InfraProfile, infraConfig.GetIdentifierKey(infraConfig.APPLICATION, searchableKeyNameIdMap), scope.AppId)
+
+	err := impl.dbConnection.Model(&configurations).
+		Where("active = ?", true).
+		Where("id IN (?)", getProfileIdByScopeQuery).
 		Select()
 	if errors.Is(err, pg.ErrNoRows) {
 		return nil, errors.New(infraConfig.NO_PROPERTIES_FOUND)

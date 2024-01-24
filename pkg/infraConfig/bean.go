@@ -150,7 +150,11 @@ type InfraProfileApplyRequest struct {
 	UpdateToProfile   int                   `json:"updateToProfile"`
 }
 
-// InfraConfig is used for read only purpose
+type Scope struct {
+	AppId int
+}
+
+// InfraConfig is used for read only purpose outside this package
 type InfraConfig struct {
 	// currently only for ci
 	CiLimitCpu       string `env:"LIMIT_CI_CPU" envDefault:"0.5"`
@@ -158,6 +162,46 @@ type InfraConfig struct {
 	CiReqCpu         string `env:"REQ_CI_CPU" envDefault:"0.5"`
 	CiReqMem         string `env:"REQ_CI_MEM" envDefault:"3G"`
 	CiDefaultTimeout int64  `env:"DEFAULT_TIMEOUT" envDefault:"3600"`
+}
+
+func (infraConfig InfraConfig) GetCiLimitCpu() string {
+	return infraConfig.CiLimitCpu
+}
+
+func (infraConfig InfraConfig) setCiLimitCpu(cpu string) {
+	infraConfig.CiLimitCpu = cpu
+}
+
+func (infraConfig InfraConfig) GetCiLimitMem() string {
+	return infraConfig.CiLimitMem
+}
+
+func (infraConfig InfraConfig) setCiLimitMem(mem string) {
+	infraConfig.CiLimitMem = mem
+}
+
+func (infraConfig InfraConfig) GetCiReqCpu() string {
+	return infraConfig.CiReqCpu
+}
+
+func (infraConfig InfraConfig) setCiReqCpu(cpu string) {
+	infraConfig.CiReqCpu = cpu
+}
+
+func (infraConfig InfraConfig) GetCiReqMem() string {
+	return infraConfig.CiReqMem
+}
+
+func (infraConfig InfraConfig) setCiReqMem(mem string) {
+	infraConfig.CiReqMem = mem
+}
+
+func (infraConfig InfraConfig) GetCiDefaultTimeout() int64 {
+	return infraConfig.CiDefaultTimeout
+}
+
+func (infraConfig InfraConfig) setCiDefaultTimeout(timeout int64) {
+	infraConfig.CiDefaultTimeout = timeout
 }
 
 func (infraConfig InfraConfig) LoadCiLimitCpu() (*InfraProfileConfiguration, error) {

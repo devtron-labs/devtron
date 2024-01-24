@@ -57,14 +57,14 @@ func GetCPUUnit(cpuUnitStr CPUUnitStr) UnitSuffix {
 }
 
 const (
-	CORE  CPUUnitStr = " "
+	CORE  CPUUnitStr = "Core"
 	MILLI CPUUnitStr = "m"
 )
 
 type MemoryUnitStr string
 
 const (
-	BYTE   MemoryUnitStr = " "
+	BYTE   MemoryUnitStr = "byte"
 	KIBYTE MemoryUnitStr = "Ki"
 	MIBYTE MemoryUnitStr = "Mi"
 	GIBYTE MemoryUnitStr = "Gi"
@@ -148,9 +148,9 @@ func GetMemoryUnit(memoryUnitStr MemoryUnitStr) UnitSuffix {
 type TimeUnitStr string
 
 const (
-	SecondStr TimeUnitStr = "s"
-	MinuteStr TimeUnitStr = "m"
-	HourStr   TimeUnitStr = "h"
+	SecondStr TimeUnitStr = "Seconds"
+	MinuteStr TimeUnitStr = "Minutes"
+	HourStr   TimeUnitStr = "Hours"
 )
 
 func GetTimeUnitStr(timeUnit UnitSuffix) TimeUnitStr {
@@ -189,7 +189,7 @@ func NewUnits() *Units {
 	cpuUnits := map[string]Unit{
 		string(MILLI): {
 			Name:             string(MILLI),
-			ConversionFactor: 1 / 1000,
+			ConversionFactor: 1e-3,
 		},
 		string(CORE): {
 			Name:             string(CORE),
