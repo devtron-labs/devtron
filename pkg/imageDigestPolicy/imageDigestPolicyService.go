@@ -130,7 +130,7 @@ func (impl ImageDigestPolicyServiceImpl) GetDigestPolicyConfigurations(digestCon
 	// case when digest policy is configured for all future and existing clusters
 	globalScope := getImageDigestPolicyGlobalScope()
 	globalPolicyMapping, err := impl.qualifierMappingService.GetQualifierMappings(resourceQualifiers.ImageDigest, globalScope, resourceIds)
-	if err != nil && err != pg.ErrNoRows {
+	if err != nil {
 		impl.logger.Errorw("error in getting saved policy mappings", "err", err)
 		return digestPolicyConfiguration, err
 	}
