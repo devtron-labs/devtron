@@ -136,14 +136,14 @@ func (impl *InfraConfigServiceImpl) GetProfileByName(profileName string) (*infra
 func (impl *InfraConfigServiceImpl) GetProfileList(profileNameLike string) (*infraConfig.ProfilesResponse, error) {
 	// fetch all the profiles matching the given profileNameLike filter
 	infraProfiles, err := impl.infraProfileRepo.GetProfileList(profileNameLike)
-	defaultProfileIndx := 0
+	defaultProfileId := 0
 	// extract out profileIds from the profiles
 	profileIds := make([]int, len(infraProfiles))
 	profilesMap := make(map[int]infraConfig.ProfileBean)
 	for i, _ := range infraProfiles {
 		profileBean := infraProfiles[i].ConvertToProfileBean()
 		if profileBean.Name == repository.DEFAULT_PROFILE_NAME {
-			defaultProfileIndx = i
+			defaultProfileId = profileBean.Id
 		}
 		profileIds[i] = profileBean.Id
 		profilesMap[profileBean.Id] = profileBean
@@ -180,7 +180,7 @@ func (impl *InfraConfigServiceImpl) GetProfileList(profileNameLike string) (*inf
 	}
 
 	// fill the default configurations for each profile if any of the default configuration is missing
-	defaultProfile := profilesMap[profileIds[defaultProfileIndx]]
+	defaultProfile := profilesMap[defaultProfileId]
 	defaultConfigurations := defaultProfile.Configurations
 
 	profiles := make([]infraConfig.ProfileBean, 0, len(profilesMap))
@@ -191,26 +191,30 @@ func (impl *InfraConfigServiceImpl) GetProfileList(profileNameLike string) (*inf
 			profilesMap[profileId] = profile
 			continue
 		}
-
-		for _, defaultConfiguration := range defaultConfigurations {
-			// if profile doesn't have the default configuration, add it to the profile
-			if !util.Contains(profile.Configurations, func(config infraConfig.ConfigurationBean) bool {
-				return config.Key == defaultConfiguration.Key
-			}) {
-				profile.Configurations = append(profile.Configurations, defaultConfiguration)
-			}
-		}
-
+		profile = impl.updateProfileMissingConfigurationsWithDefault(profile, defaultConfigurations)
 		profiles = append(profiles, profile)
 		// update map with updated profile
 		profilesMap[profileId] = profile
 	}
+
 	resp := &infraConfig.ProfilesResponse{
 		Profiles: profiles,
 	}
 	resp.DefaultConfigurations = defaultConfigurations
 	resp.ConfigurationUnits = impl.GetConfigurationUnits()
 	return resp, nil
+}
+
+func (impl *InfraConfigServiceImpl) updateProfileMissingConfigurationsWithDefault(profile infraConfig.ProfileBean, defaultConfigurations []infraConfig.ConfigurationBean) infraConfig.ProfileBean {
+	for _, defaultConfiguration := range defaultConfigurations {
+		// if profile doesn't have the default configuration, add it to the profile
+		if !util.Contains(profile.Configurations, func(config infraConfig.ConfigurationBean) bool {
+			return config.Key == defaultConfiguration.Key
+		}) {
+			profile.Configurations = append(profile.Configurations, defaultConfiguration)
+		}
+	}
+	return profile
 }
 
 func (impl *InfraConfigServiceImpl) CreateProfile(userId int32, profileBean *infraConfig.ProfileBean) error {
@@ -594,8 +598,46 @@ func (impl *InfraConfigServiceImpl) GetIdentifierList(listFilter *infraConfig.Id
 		overriddenIdentifiersCount = identifier.OverriddenIdentifierCount
 	}
 
-	// todo: @gireesh fetch profile data just set in the result
 	profiles, err := impl.infraProfileRepo.GetProfileListByIds(profileIds, true)
+	profilesMap := make(map[int]infraConfig.ProfileBean)
+	defaultProfileId := 0
+	for _, profile := range profiles {
+		profileIds = append(profileIds, profile.Id)
+		profilesMap[profile.Id] = profile.ConvertToProfileBean()
+		if profile.Name == repository.DEFAULT_PROFILE_NAME {
+			defaultProfileId = profile.Id
+		}
+	}
+
+	// find the configurations for the profileIds
+	infraConfigurations, err := impl.infraProfileRepo.GetConfigurationsByProfileId(profileIds)
+	if err != nil {
+		impl.logger.Errorw("error in fetching default configurations", "profileIds", profileIds, "error", err)
+		return nil, err
+	}
+
+	// map the configurations to their respective profiles
+	for _, configuration := range infraConfigurations {
+		profileBean := profilesMap[configuration.ProfileId]
+		configurationBean := configuration.ConvertToConfigurationBean()
+		configurationBean.ProfileName = profileBean.Name
+		profileBean.Configurations = append(profileBean.Configurations, configurationBean)
+		profilesMap[configuration.ProfileId] = profileBean
+	}
+
+	// fill the default configurations for each profile if any of the default configuration is missing
+	defaultProfile := profilesMap[defaultProfileId]
+	defaultConfigurations := defaultProfile.Configurations
+
+	for profileId, profile := range profilesMap {
+		if profile.Name == repository.DEFAULT_PROFILE_NAME {
+			profilesMap[profileId] = profile
+			continue
+		}
+		profile = impl.updateProfileMissingConfigurationsWithDefault(profile, defaultConfigurations)
+		// update map with updated profile
+		profilesMap[profileId] = profile
+	}
 
 	idenfierListResponse.TotalIdentifierCount = totalIdentifiersCount
 	idenfierListResponse.OverriddenIdentifierCount = overriddenIdentifiersCount

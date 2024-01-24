@@ -57,14 +57,14 @@ func GetCPUUnit(cpuUnitStr CPUUnitStr) UnitSuffix {
 }
 
 const (
-	CORE  CPUUnitStr = ""
+	CORE  CPUUnitStr = " "
 	MILLI CPUUnitStr = "m"
 )
 
 type MemoryUnitStr string
 
 const (
-	BYTE   MemoryUnitStr = ""
+	BYTE   MemoryUnitStr = " "
 	KIBYTE MemoryUnitStr = "Ki"
 	MIBYTE MemoryUnitStr = "Mi"
 	GIBYTE MemoryUnitStr = "Gi"
