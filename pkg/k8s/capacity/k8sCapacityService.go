@@ -98,7 +98,7 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetail(ctx context.Context
 	if err != nil {
 		if client.IsClusterUnReachableError(err) {
 			impl.logger.Errorw("k8s cluster unreachable", "err", err)
-			return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "k8s cluster unreachable"}
+			return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: err.Error()}
 		}
 		impl.logger.Errorw("error in getting node list", "err", err, "clusterId", cluster.Id)
 		return nil, err
@@ -241,7 +241,7 @@ func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailsListByCluster(ctx cont
 	if err != nil {
 		if client.IsClusterUnReachableError(err) {
 			impl.logger.Errorw("k8s cluster unreachable", "err", err)
-			return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "k8s cluster unreachable"}
+			return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: err.Error()}
 		}
 		impl.logger.Errorw("error in getting node list", "err", err, "clusterId", cluster.Id)
 		return nil, err
