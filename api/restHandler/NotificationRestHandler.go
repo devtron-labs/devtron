@@ -73,7 +73,6 @@ type NotificationRestHandlerImpl struct {
 	dockerRegistryConfig pipeline.DockerRegistryConfig
 	logger               *zap.SugaredLogger
 	gitRegistryConfig    pipeline.GitRegistryConfig
-	dbConfigService      pipeline.DbConfigService
 	userAuthService      user.UserService
 	validator            *validator.Validate
 	notificationService  notifier.NotificationConfigService
@@ -94,7 +93,7 @@ type ChannelDto struct {
 
 func NewNotificationRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistryConfig,
 	logger *zap.SugaredLogger, gitRegistryConfig pipeline.GitRegistryConfig,
-	dbConfigService pipeline.DbConfigService, userAuthService user.UserService,
+	userAuthService user.UserService,
 	validator *validator.Validate, notificationService notifier.NotificationConfigService,
 	slackService notifier.SlackNotificationService, webhookService notifier.WebhookNotificationService, sesService notifier.SESNotificationService, smtpService notifier.SMTPNotificationService,
 	enforcer casbin.Enforcer, teamService team.TeamService, environmentService cluster.EnvironmentService, pipelineBuilder pipeline.PipelineBuilder,
@@ -103,7 +102,6 @@ func NewNotificationRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistry
 		dockerRegistryConfig: dockerRegistryConfig,
 		logger:               logger,
 		gitRegistryConfig:    gitRegistryConfig,
-		dbConfigService:      dbConfigService,
 		userAuthService:      userAuthService,
 		validator:            validator,
 		notificationService:  notificationService,
