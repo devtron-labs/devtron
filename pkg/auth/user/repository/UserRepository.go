@@ -61,15 +61,15 @@ func NewUserRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *User
 }
 
 type UserModel struct {
-	TableName                    struct{} `sql:"users" pg:",discard_unknown_columns"`
-	Id                           int32    `sql:"id,pk"`
-	EmailId                      string   `sql:"email_id,notnull"`
-	AccessToken                  string   `sql:"access_token"`
-	Active                       bool     `sql:"active,notnull"`
-	UserType                     string   `sql:"user_type"`
-	TimeoutWindowConfigurationId int      `sql:"timeout_window_configuration_id"`
-	TimeoutWindowConfiguration   *repository.TimeoutWindowConfiguration
-	UserAudit                    *UserAudit
+	TableName                    struct{}                               `sql:"users" pg:",discard_unknown_columns"`
+	Id                           int32                                  `sql:"id,pk"`
+	EmailId                      string                                 `sql:"email_id,notnull"`
+	AccessToken                  string                                 `sql:"access_token"`
+	Active                       bool                                   `sql:"active,notnull"`
+	UserType                     string                                 `sql:"user_type"`
+	TimeoutWindowConfigurationId int                                    `sql:"timeout_window_configuration_id"`
+	TimeoutWindowConfiguration   *repository.TimeoutWindowConfiguration `sql:"-"`
+	UserAudit                    *UserAudit                             `sql:"-"`
 	sql.AuditLog
 }
 
@@ -110,7 +110,9 @@ func (impl UserRepositoryImpl) GetById(id int32) (*UserModel, error) {
 
 func (impl UserRepositoryImpl) GetByIdIncludeDeleted(id int32) (*UserModel, error) {
 	var model UserModel
-	err := impl.dbConnection.Model(&model).Where("id = ?", id).Select()
+	err := impl.dbConnection.Model(&model).
+		//Column(" .*").
+		Where("id = ?", id).Select()
 	return &model, err
 }
 
