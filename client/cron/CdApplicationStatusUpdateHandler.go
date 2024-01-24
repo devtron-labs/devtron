@@ -27,7 +27,7 @@ type CdApplicationStatusUpdateHandler interface {
 	HelmApplicationStatusUpdate()
 	ArgoApplicationStatusUpdate()
 	ArgoPipelineTimelineUpdate()
-	Subscribe() error
+	subscribe() error
 	SyncPipelineStatusForResourceTreeCall(pipeline *pipelineConfig.Pipeline) error
 	SyncPipelineStatusForAppStoreForResourceTreeCall(installedAppVersion *repository2.InstalledAppVersions) error
 	ManualSyncPipelineStatus(appId, envId int, userId int32) error
@@ -94,7 +94,7 @@ func NewCdApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, appServi
 		installedAppVersionRepository:        installedAppVersionRepository,
 	}
 
-	err := impl.Subscribe()
+	err := impl.subscribe()
 	if err != nil {
 		logger.Errorw("error on subscribe", "err", err)
 		return nil
@@ -117,7 +117,7 @@ func NewCdApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, appServi
 	return impl
 }
 
-func (impl *CdApplicationStatusUpdateHandlerImpl) Subscribe() error {
+func (impl *CdApplicationStatusUpdateHandlerImpl) subscribe() error {
 	callback := func(msg *model.PubSubMsg) {
 		statusUpdateEvent := pipeline.ArgoPipelineStatusSyncEvent{}
 		var err error

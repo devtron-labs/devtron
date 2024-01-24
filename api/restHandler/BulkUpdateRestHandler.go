@@ -51,7 +51,6 @@ type BulkUpdateRestHandlerImpl struct {
 	bulkUpdateService       bulkAction.BulkUpdateService
 	chartService            chart.ChartService
 	propertiesConfigService pipeline.PropertiesConfigService
-	dbMigrationService      pipeline.DbMigrationService
 	application             application.ServiceClient
 	userAuthService         user.UserService
 	validator               *validator.Validate
@@ -76,7 +75,6 @@ func NewBulkUpdateRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, logg
 	bulkUpdateService bulkAction.BulkUpdateService,
 	chartService chart.ChartService,
 	propertiesConfigService pipeline.PropertiesConfigService,
-	dbMigrationService pipeline.DbMigrationService,
 	application application.ServiceClient,
 	userAuthService user.UserService,
 	teamService team.TeamService,
@@ -99,7 +97,6 @@ func NewBulkUpdateRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, logg
 		bulkUpdateService:       bulkUpdateService,
 		chartService:            chartService,
 		propertiesConfigService: propertiesConfigService,
-		dbMigrationService:      dbMigrationService,
 		application:             application,
 		userAuthService:         userAuthService,
 		validator:               validator,
