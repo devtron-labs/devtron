@@ -108,7 +108,6 @@ type PipelineConfigRestHandlerImpl struct {
 	Logger                       *zap.SugaredLogger
 	chartService                 chart.ChartService
 	propertiesConfigService      pipeline.PropertiesConfigService
-	dbMigrationService           pipeline.DbMigrationService
 	application                  application.ServiceClient
 	userAuthService              user.UserService
 	validator                    *validator.Validate
@@ -137,7 +136,6 @@ type PipelineConfigRestHandlerImpl struct {
 func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
 	chartService chart.ChartService,
 	propertiesConfigService pipeline.PropertiesConfigService,
-	dbMigrationService pipeline.DbMigrationService,
 	application application.ServiceClient,
 	userAuthService user.UserService,
 	teamService team.TeamService,
@@ -167,7 +165,6 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		Logger:                       Logger,
 		chartService:                 chartService,
 		propertiesConfigService:      propertiesConfigService,
-		dbMigrationService:           dbMigrationService,
 		application:                  application,
 		userAuthService:              userAuthService,
 		validator:                    validator,
