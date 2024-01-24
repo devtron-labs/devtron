@@ -463,6 +463,10 @@ func (impl ImageDigestPolicyServiceImpl) GetAllPoliciesConfiguredForClusterOrEnv
 	}
 
 	AllClusters, err := impl.clusterRepository.FindAll()
+	if err != nil {
+		impl.logger.Errorw("error in fetching all clusters", "err", err)
+		return nil, err
+	}
 	// adding empty lists for envs for which policy is not configured
 	for _, cluster := range AllClusters {
 		if _, ok := configuredClusterToEnvMapping[cluster.Id]; !ok {
