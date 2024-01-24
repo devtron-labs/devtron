@@ -32,68 +32,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Profile"
-    delete:
-        description: Delete Infra Profile by id
-        responses:
-            "200":
-              description: deletes the infra config profile by its id.
-              content:
-                application/json:
-                  schema:
-                    $ref: "#/components/schemas/Profile"
-
-  /orchestrator/infra-config/profile:
-    get:
-      description: Get Infra Profiles
-      responses:
-        "200":
-          description: gets the infra config profiles by search param.
-          content:
-            application/json:
-              schema:
-                  $ref: "#/components/schemas/ProfilesResponse"
-    post:
-      description: Create Infra Profile
-      requestBody:
-          required: true
-          content:
-           application/json:
-              schema:
-               $ref: '#/components/schemas/Profile'
-      responses:
-          "200":
-            description: application rollback response
-            content:
-              application/json:
-                schema:
-                    $ref: "#/components/schemas/Profile"
-
-  /orchestrator/infra-config/{identifier}/list?search={search}&sort={sort}&profileId={profileId}&size={size}&offset={offset}:
-    get:
-      description: Get identifiers and their Infra Profiles
-      example: "/orchestrator/infra-config/APP/list?search=java&sort=0&profileId=1&size=10&offset=0"
-      responses:
-        "200":
-          description: successfully fetched the response
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/IdentifierProfileResponse"
-
-  /orchestrator/infra-config/{identifier}/apply:
-    post:
-      description: Update Application Infra Profile
-      requestBody:
-          required: true
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/IdentifiersInfraConfigProfileRequest'
-      responses:
-            "200":
-                description: application rollback response
 
 
 components:
@@ -121,19 +59,6 @@ components:
             description: Configuration Units
             items:
               $ref: '#/components/schemas/Unit'
-    ProfilesResponse:
-        type: object
-        properties:
-          profiles:
-            type: array
-            description: Infra Profiles
-            items:
-                $ref: '#/components/schemas/Profile'
-          defaultConfigurations:
-            type: array
-            description: Default Configurations
-            items:
-              $ref: '#/components/schemas/Configuration'
     ProfileResponse:
       type: object
       properties:
@@ -149,78 +74,11 @@ components:
             $ref: '#/components/schemas/Configuration'
         profile:
           $ref: '#/components/schemas/Profile'
-    IdentifiersInfraConfigProfileRequest:
-      type: object
-      properties:
-        identifierType:
-          type: string
-          description: identifier type
-          example: "APP"
-        identifiersFilter:
-          $ref: '#/components/schemas/ListFilter'
-        identifiers:
-          type: array
-          description: identifier ids
-          items:
-            type: integer
-          example: [1,2,3]
-        updateToProfile:
-          type: integer
-          description: Profile id to which given identifiers or filtered identifiers be updated
-          example: 1
 
-    Identifier:
-      type: object
-      properties:
-        id:
-          readOnly: true
-          type: integer
-          description: identifier Id
-          example: 1
-        name:
-          type: string
-          description: Identifier name
-          example: "java-app"
-        profile:
-          $ref: '#/components/schemas/Profile'
-    IdentifierProfileResponse:
-      type: object
-      properties:
-        identifiers:
-          type: array
-          description: identifiers
-          items:
-            $ref: '#/components/schemas/Identifier'
-        count:
-          type: integer
-          description: Total number of identifiers
-          example: 1
-        overriddenIdentifierCount:
-          type: integer
-          description: identifiers count in which atleast one configuration is overriden
-    ListFilter:
-        type: object
-        properties:
-          search:
-            type: string
-            description: Search string on identifier name
-            example: "java"
-          sort:
-            type: integer
-            description: Sort order
-            example: 0 for asc and 1 for desc
-          profileId:
-            type: integer
-            description: Profile Id
-            example: 1
-          size:
-            type: integer
-            description: Page Size
-            example: 10
-          offset:
-            type: integer
-            description: Page Offset
-            example: 0
+
+
+
+
 
     Configuration:
       type: object
