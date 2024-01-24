@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/infraConfig"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -94,6 +95,7 @@ type CiServiceImpl struct {
 	scopedVariableManager         variables.ScopedVariableManager
 	pluginInputVariableParser     PluginInputVariableParser
 	globalPluginService           plugin.GlobalPluginService
+	infraConfigService            infraConfig.InfraConfigService
 }
 
 func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
@@ -112,6 +114,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 	customTagService CustomTagService,
 	pluginInputVariableParser PluginInputVariableParser,
 	globalPluginService plugin.GlobalPluginService,
+	infraConfigService infraConfig.InfraConfigService,
 ) *CiServiceImpl {
 	cis := &CiServiceImpl{
 		Logger:                        Logger,
@@ -134,6 +137,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 		customTagService:              customTagService,
 		pluginInputVariableParser:     pluginInputVariableParser,
 		globalPluginService:           globalPluginService,
+		infraConfigService:            infraConfigService,
 	}
 	config, err := types.GetCiConfig()
 	if err != nil {
@@ -196,7 +200,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 	if isJob && env != nil {
 		ciWorkflowConfig.Namespace = env.Namespace
 
-		//This will be populated for jobs running in selected environment
+		// This will be populated for jobs running in selected environment
 		scope.EnvId = env.Id
 		scope.ClusterId = env.ClusterId
 
@@ -210,7 +214,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 		ciWorkflowConfig.Namespace = impl.config.GetDefaultNamespace()
 	}
 
-	//preCiSteps, postCiSteps, refPluginsData, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(pipeline.Id, ciEvent)
+	// preCiSteps, postCiSteps, refPluginsData, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(pipeline.Id, ciEvent)
 	prePostAndRefPluginResponse, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(pipeline.Id, bean2.CiStage, scope)
 	if err != nil {
 		impl.Logger.Errorw("error in getting pre steps data for wf request", "err", err, "ciPipelineId", pipeline.Id)
@@ -248,7 +252,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 		}
 	}
 
-	//savedCiWf.LogLocation = impl.ciCdConfig.CiDefaultBuildLogsKeyPrefix + "/" + workflowRequest.WorkflowNamePrefix + "/main.log"
+	// savedCiWf.LogLocation = impl.ciCdConfig.CiDefaultBuildLogsKeyPrefix + "/" + workflowRequest.WorkflowNamePrefix + "/main.log"
 	savedCiWf.LogLocation = fmt.Sprintf("%s/%s/main.log", impl.config.GetDefaultBuildLogsKeyPrefix(), workflowRequest.WorkflowNamePrefix)
 	err = impl.updateCiWorkflow(workflowRequest, savedCiWf)
 
@@ -379,7 +383,7 @@ func (impl *CiServiceImpl) saveNewWorkflowForCITrigger(pipeline *pipelineConfig.
 	}
 	ciWorkflow := &pipelineConfig.CiWorkflow{
 		Name:                  pipeline.Name + "-" + strconv.Itoa(pipeline.Id),
-		Status:                pipelineConfig.WorkflowStarting, //starting CIStage
+		Status:                pipelineConfig.WorkflowStarting, // starting CIStage
 		Message:               "",
 		StartedOn:             time.Now(),
 		CiPipelineId:          pipeline.Id,
@@ -508,11 +512,20 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	}
 
 	if !(len(beforeDockerBuildScripts) == 0 && len(afterDockerBuildScripts) == 0) {
-		//found beforeDockerBuildScripts/afterDockerBuildScripts
-		//building preCiSteps & postCiSteps from them, refPluginsData not needed
+		// found beforeDockerBuildScripts/afterDockerBuildScripts
+		// building preCiSteps & postCiSteps from them, refPluginsData not needed
 		preCiSteps = buildCiStepsDataFromDockerBuildScripts(beforeDockerBuildScripts)
 		postCiSteps = buildCiStepsDataFromDockerBuildScripts(afterDockerBuildScripts)
 		refPluginsData = []*bean2.RefPluginObject{}
+	}
+
+	infraConfigScope := infraConfig.Scope{
+		AppId: pipeline.AppId,
+	}
+	infraConfiguration, err := impl.infraConfigService.GetInfraConfigurationsByScope(infraConfigScope)
+	if err != nil {
+		impl.Logger.Errorw("error in getting infra configuration using scope ", "scope", infraConfigScope, "err", err)
+		return nil, err
 	}
 
 	if ciWorkflowConfig.CiCacheBucket == "" {
@@ -526,8 +539,10 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	if ciWorkflowConfig.CiImage == "" {
 		ciWorkflowConfig.CiImage = impl.config.GetDefaultImage()
 	}
+
 	if ciWorkflowConfig.CiTimeout == 0 {
-		ciWorkflowConfig.CiTimeout = impl.config.GetDefaultTimeout()
+		// get it from infraConfig
+		ciWorkflowConfig.CiTimeout = infraConfiguration.GetCiDefaultTimeout()
 	}
 
 	ciTemplate := pipeline.CiTemplate
@@ -599,7 +614,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 			return nil, err
 		}
 		savedWf.ImagePathReservationIds = []int{imagePathReservation.Id}
-		//imagePath = docker.io/avd0/dashboard:fd23414b
+		// imagePath = docker.io/avd0/dashboard:fd23414b
 		imagePathSplit := strings.Split(imagePathReservation.ImagePath, ":")
 		if len(imagePathSplit) >= 1 {
 			dockerImageTag = imagePathSplit[len(imagePathSplit)-1]
@@ -633,7 +648,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 
 		savedWf.ImagePathReservationIds = append(savedWf.ImagePathReservationIds, imageReservationIds...)
 	}
-	//mergedArgs := string(merged)
+	// mergedArgs := string(merged)
 	oldArgs := ciTemplate.Args
 	ciBuildConfigBean, err = bean2.OverrideCiBuildConfig(dockerfilePath, oldArgs, ciLevelArgs, ciTemplate.DockerBuildOptions, ciTemplate.TargetPlatform, ciBuildConfigBean)
 	if err != nil {
@@ -649,7 +664,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		buildContextCheckoutPath = checkoutPath
 	}
 	if ciBuildConfigBean.UseRootBuildContext {
-		//use root build context i.e '.'
+		// use root build context i.e '.'
 		buildContextCheckoutPath = "."
 	}
 
@@ -745,7 +760,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	}
 	switch workflowRequest.CloudProvider {
 	case types.BLOB_STORAGE_S3:
-		//No AccessKey is used for uploading artifacts, instead IAM based auth is used
+		// No AccessKey is used for uploading artifacts, instead IAM based auth is used
 		workflowRequest.CiCacheRegion = ciWorkflowConfig.CiCacheRegion
 		workflowRequest.CiCacheLocation = ciWorkflowConfig.CiCacheBucket
 		workflowRequest.CiArtifactLocation, workflowRequest.CiArtifactBucket, workflowRequest.CiArtifactFileName = impl.buildS3ArtifactLocation(ciWorkflowConfig, savedWf)
@@ -858,8 +873,8 @@ func (impl *CiServiceImpl) ReserveImagesGeneratedAtPlugin(customTagId int, regis
 }
 
 func buildCiStepsDataFromDockerBuildScripts(dockerBuildScripts []*bean.CiScript) []*bean2.StepObject {
-	//before plugin support, few variables were set as env vars in ci-runner
-	//these variables are now moved to global vars in plugin steps, but to avoid error in old scripts adding those variables in payload
+	// before plugin support, few variables were set as env vars in ci-runner
+	// these variables are now moved to global vars in plugin steps, but to avoid error in old scripts adding those variables in payload
 	inputVars := []*bean2.VariableObject{
 		{
 			Name:                  "DOCKER_IMAGE_TAG",
