@@ -81,7 +81,7 @@ func QualifierMappingDao(qualifierId, identifierKey, IdentifierValueInt int, Ide
 }
 
 func ValidateImageDigestPolicyType(fl validator.FieldLevel) bool {
-	validPolicyType := []string{string(ALL_EXISTING_AND_FUTURE_ENVIRONMENTS), string(SPECIFIC_ENVIRONMENTS)}
+	validPolicyType := []string{string(ALL_EXISTING_AND_FUTURE_ENVIRONMENTS), string(SPECIFIC_ENVIRONMENTS), string(NOT_CONFIGURED)}
 	if slices.Contains(validPolicyType, fl.Field().String()) {
 		return true
 	}
