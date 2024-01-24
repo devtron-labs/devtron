@@ -244,6 +244,7 @@ func (impl ImageDigestPolicyServiceImpl) saveImageDigestPolicyForAllClusters(tx 
 	}
 
 	devtronResourceSearchableKeyMap := impl.devtronResourceSearchableKey.GetAllSearchableKeyNameIdMap()
+
 	// creating image digest policy at global level
 	qualifierId := int(resourceQualifiers.CLUSTER_QUALIFIER)
 	identifierKey := devtronResourceSearchableKeyMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ID]
@@ -401,11 +402,12 @@ func (impl ImageDigestPolicyServiceImpl) removePoliciesNotPresentInRequest(tx *p
 
 	for _, policy := range existingPolicies {
 		removePolicy := false
-		if policy.IdentifierKey == devtronResourceSearchableKeyMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ID] {
+		switch policy.IdentifierKey {
+		case devtronResourceSearchableKeyMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ID]:
 			if _, ok := newClustersConfigured[policy.IdentifierValueInt]; !ok {
 				removePolicy = true
 			}
-		} else if policy.IdentifierKey == devtronResourceSearchableKeyMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID] {
+		case devtronResourceSearchableKeyMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID]:
 			if _, ok := newEnvsConfigured[policy.IdentifierValueInt]; !ok {
 				removePolicy = true
 			}

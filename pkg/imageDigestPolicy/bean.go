@@ -1,8 +1,6 @@
 package imageDigestPolicy
 
 import (
-	"errors"
-	"fmt"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"gopkg.in/go-playground/validator.v9"
@@ -28,9 +26,6 @@ type ClusterId = int
 type EnvironmentId = int
 type ClusterName = string
 type EnvName = string
-
-var EmptyClusterDetailsErr = errors.New("cluster details cannot be empty if enableDigestForAllClusters=false")
-var EmptyEnvDetailsErr = errors.New(fmt.Sprintf("env details cannot be empty for policyType=%s", SPECIFIC_ENVIRONMENTS))
 
 type PolicyBean struct {
 
