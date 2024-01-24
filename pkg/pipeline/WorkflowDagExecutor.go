@@ -4280,7 +4280,7 @@ func (impl *WorkflowDagExecutorImpl) autoscalingCheckBeforeTrigger(ctx context.C
 				impl.logger.Errorw("error occurred while fetching resource for app", "resourceName", hpaResourceRequest.ResourceName, "err", err)
 				return merged
 			}
-			resourceManifest = k8sResource.Manifest.Object
+			resourceManifest = k8sResource.ManifestResponse.Manifest.Object
 		}
 		if len(resourceManifest) > 0 {
 			statusMap := resourceManifest["status"].(map[string]interface{})
