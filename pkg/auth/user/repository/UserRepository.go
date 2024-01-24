@@ -23,9 +23,9 @@ package repository
 import (
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/pkg/timeoutWindow/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"time"
 )
 
 type UserRepository interface {
@@ -44,6 +44,9 @@ type UserRepository interface {
 	FetchUserMatchesByEmailIdExcludingApiTokenUser(email string) ([]UserModel, error)
 	FetchActiveOrDeletedUserByEmail(email string) (*UserModel, error)
 	UpdateRoleIdForUserRolesMappings(roleId int, newRoleId int) (*UserRoleModel, error)
+	GetCountExecutingQuery(query string) (int, error)
+	UpdateWindowIdtoNull(userIds []int32) error
+	UpdateTimeWindowId(userid int32, windowId int) error
 }
 
 type UserRepositoryImpl struct {
@@ -56,13 +59,15 @@ func NewUserRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *User
 }
 
 type UserModel struct {
-	TableName   struct{}  `sql:"users" pg:",discard_unknown_columns"`
-	Id          int32     `sql:"id,pk"`
-	EmailId     string    `sql:"email_id,notnull"`
-	AccessToken string    `sql:"access_token"`
-	Active      bool      `sql:"active,notnull"`
-	UserType    string    `sql:"user_type"`
-	TimeToLive  time.Time `sql:"time_to_live"`
+	TableName                    struct{} `sql:"users" pg:",discard_unknown_columns"`
+	Id                           int32    `sql:"id,pk"`
+	EmailId                      string   `sql:"email_id,notnull"`
+	AccessToken                  string   `sql:"access_token"`
+	Active                       bool     `sql:"active,notnull"`
+	UserType                     string   `sql:"user_type"`
+	TimeoutWindowConfigurationId int      `sql:"timeout_window_configuration_id"`
+	TimeoutWindowConfiguration   *repository.TimeoutWindowConfiguration
+	UserAudit                    *UserAudit
 	sql.AuditLog
 }
 
@@ -176,7 +181,9 @@ func (impl UserRepositoryImpl) FetchUserDetailByEmail(email string) (bean.UserIn
 }
 func (impl UserRepositoryImpl) GetByIds(ids []int32) ([]UserModel, error) {
 	var model []UserModel
-	err := impl.dbConnection.Model(&model).Where("id in (?)", pg.In(ids)).Where("active = ?", true).Select()
+	err := impl.dbConnection.Model(&model).
+		Column("user_model.*").
+		Where("id in (?)", pg.In(ids)).Where("active = ?", true).Select()
 	return model, err
 }
 
@@ -204,4 +211,36 @@ func (impl UserRepositoryImpl) UpdateRoleIdForUserRolesMappings(roleId int, newR
 	_, err := impl.dbConnection.Model(&model).Set("role_id = ? ", newRoleId).Where("role_id = ? ", roleId).Update()
 	return &model, err
 
+}
+
+func (impl UserRepositoryImpl) GetCountExecutingQuery(query string) (int, error) {
+	var totalCount int
+	_, err := impl.dbConnection.Query(&totalCount, query)
+	if err != nil {
+		impl.Logger.Error("Exception caught: GetCountExecutingQuery", err)
+		return totalCount, err
+	}
+	return totalCount, err
+}
+
+func (impl UserRepositoryImpl) UpdateWindowIdtoNull(userIds []int32) error {
+	var model []UserModel
+	_, err := impl.dbConnection.Model(&model).Set("timeout_window_configuration_id = null").
+		Where("id in (?)", pg.In(userIds)).Update()
+	if err != nil {
+		impl.Logger.Error("error in UpdateFKtoNull", "err", err, "userIds", userIds)
+		return err
+	}
+	return nil
+}
+
+func (impl UserRepositoryImpl) UpdateTimeWindowId(userid int32, windowId int) error {
+	var model []UserModel
+	_, err := impl.dbConnection.Model(&model).Set("timeout_window_configuration_id = ? ", windowId).
+		Where("id = ? ", userid).Update()
+	if err != nil {
+		impl.Logger.Error("error in UpdateTimeWindowId", "err", err, "userid", userid, "windowId", windowId)
+		return err
+	}
+	return nil
 }

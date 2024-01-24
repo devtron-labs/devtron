@@ -408,7 +408,7 @@ func (handler UserRestHandlerImpl) GetAllDetailedUsers(w http.ResponseWriter, r 
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	res, err := handler.userService.GetAllDetailedUsersWithAudit()
+	res, err := handler.userService.GetAllDetailedUsers()
 	if err != nil {
 		handler.logger.Errorw("service err, GetAllDetailedUsers", "err", err)
 		common.WriteJsonResp(w, err, "Failed to Get", http.StatusInternalServerError)

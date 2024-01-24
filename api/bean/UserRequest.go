@@ -142,13 +142,13 @@ const (
 	Active          Status = "active"
 	Inactive        Status = "inactive"
 	TemporaryAccess Status = "temporaryAccess"
+	Unknown         Status = "unknown"
 )
 
 type BulkStatusUpdateRequest struct {
-	UserIds     []int     `json:"userIds",validate:"required"`
-	Status      Status    `json:"status",validate:"required"'`
-	TimeToLive  time.Time `json:"timeToLive"`
-	CurrentTime time.Time `json:"-"`
+	UserIds    []int32   `json:"userIds",validate:"required"`
+	Status     Status    `json:"status",validate:"required"'`
+	TimeToLive time.Time `json:"timeToLive"`
 }
 
 type ActionResponse struct {

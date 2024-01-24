@@ -356,7 +356,6 @@ components:
       type: object
       required:
         - action
-      properties:
 
     ActionResponse:
       type: object
