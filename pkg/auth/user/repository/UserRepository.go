@@ -46,7 +46,9 @@ type UserRepository interface {
 	UpdateRoleIdForUserRolesMappings(roleId int, newRoleId int) (*UserRoleModel, error)
 	GetCountExecutingQuery(query string) (int, error)
 	UpdateWindowIdtoNull(userIds []int32) error
-	UpdateTimeWindowId(userid int32, windowId int) error
+	UpdateTimeWindowId(tx *pg.Tx, userid int32, windowId int) error
+	StartATransaction() (*pg.Tx, error)
+	CommitATransaction(tx *pg.Tx) error
 }
 
 type UserRepositoryImpl struct {
@@ -234,12 +236,30 @@ func (impl UserRepositoryImpl) UpdateWindowIdtoNull(userIds []int32) error {
 	return nil
 }
 
-func (impl UserRepositoryImpl) UpdateTimeWindowId(userid int32, windowId int) error {
+func (impl UserRepositoryImpl) UpdateTimeWindowId(tx *pg.Tx, userid int32, windowId int) error {
 	var model []UserModel
-	_, err := impl.dbConnection.Model(&model).Set("timeout_window_configuration_id = ? ", windowId).
+	_, err := tx.Model(&model).Set("timeout_window_configuration_id = ? ", windowId).
 		Where("id = ? ", userid).Update()
 	if err != nil {
 		impl.Logger.Error("error in UpdateTimeWindowId", "err", err, "userid", userid, "windowId", windowId)
+		return err
+	}
+	return nil
+}
+
+func (impl UserRepositoryImpl) StartATransaction() (*pg.Tx, error) {
+	tx, err := impl.dbConnection.Begin()
+	if err != nil {
+		impl.Logger.Errorw("error in beginning a transaction", "err", err)
+		return nil, err
+	}
+	return tx, nil
+}
+
+func (impl UserRepositoryImpl) CommitATransaction(tx *pg.Tx) error {
+	err := tx.Commit()
+	if err != nil {
+		impl.Logger.Errorw("error in commiting a transaction", "err", err)
 		return err
 	}
 	return nil

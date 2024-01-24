@@ -1219,7 +1219,7 @@ func (impl UserServiceImpl) GetAll() ([]bean.UserInfo, error) {
 // GetAllWithFilters takes filter arguments gives UserListingResponse as output with some operations like filter, sorting, searching,pagination support inbuilt
 func (impl UserServiceImpl) GetAllWithFilters(status string, sortOrder string, sortBy string, offset int, totalSize int, showAll bool, searchKey string) (*bean.UserListingResponse, error) {
 	// get req from arguments
-	request := impl.getRequestWithFiltersArgs(status, sortOrder, sortBy, offset, totalSize, showAll, searchKey)
+	request := impl.getRequestWithFiltersArgsOrDefault(status, sortOrder, sortBy, offset, totalSize, showAll, searchKey)
 	if request.ShowAll {
 		return impl.getAllDetailedUsers()
 	}
@@ -1278,17 +1278,31 @@ func (impl UserServiceImpl) getDesiredResponseWithOffSetAndSize(resp []bean.User
 	return resp[start:end]
 
 }
-func (impl UserServiceImpl) getRequestWithFiltersArgs(status string, sortOrder string, sortBy string, offset int, totalSize int, showAll bool, searchKey string) *bean.FetchListingRequest {
+func (impl UserServiceImpl) getRequestWithFiltersArgsOrDefault(status string, sortOrder string, sortBy string, offset int, totalSize int, showAll bool, searchKey string) *bean.FetchListingRequest {
+	sortByRes, size := impl.getDefaultValuesIfNotPresent(sortBy, totalSize)
 	request := &bean.FetchListingRequest{
 		Status:    bean.Status(status),
 		SortOrder: bean2.SortOrder(sortOrder),
-		SortBy:    bean2.SortBy(sortBy),
+		SortBy:    sortByRes,
 		Offset:    offset,
-		Size:      totalSize,
+		Size:      size,
 		ShowAll:   showAll,
 		SearchKey: searchKey,
 	}
 	return request
+}
+
+func (impl UserServiceImpl) getDefaultValuesIfNotPresent(sortBy string, totalSize int) (bean2.SortBy, int) {
+	var sortByFinal bean2.SortBy
+	if len(sortBy) > 0 {
+		sortByFinal = bean2.SortBy(sortBy)
+	} else {
+		sortByFinal = bean2.Email
+	}
+	if totalSize == 0 {
+		totalSize = bean2.DefaultSize
+	}
+	return sortByFinal, totalSize
 }
 
 func (impl UserServiceImpl) getAllDetailedUsers() (*bean.UserListingResponse, error) {
@@ -1307,17 +1321,8 @@ func (impl UserServiceImpl) getAllDetailedUsers() (*bean.UserListingResponse, er
 
 func (impl UserServiceImpl) getUserResponse(model []repository.UserModel, recordedTime time.Time) ([]bean.UserInfo, error) {
 	var response []bean.UserInfo
-	//userIdLoginMap, err := impl.getLoginTimeForUsers(model)
-	//if err != nil {
-	//	impl.logger.Errorw("error in getUserResponseWithLoginAudit ", "err", err)
-	//	return nil, err
-	//}
 	for _, m := range model {
-		//lastLoginTime := time.Time{}
-		//if val, ok := userIdLoginMap[m.Id]; ok {
-		//	lastLoginTime = val
-		//}
-		userStatus, ttlTime := impl.getStatusAndTTL(m, recordedTime, bean3.TimeStamp)
+		userStatus, ttlTime := impl.getStatusAndTTL(m, recordedTime)
 		lastLoginTime := impl.getLastLoginTime(m)
 		response = append(response, bean.UserInfo{
 			Id:            m.Id,
@@ -1365,30 +1370,17 @@ func (impl UserServiceImpl) GetAllDetailedUsers() ([]bean.UserInfo, error) {
 	query := impl.userListingRepositoryQueryBuilder.GetQueryForAllUserWithAudit()
 	models, err := impl.userRepository.GetAllExecutingQuery(query)
 	if err != nil {
-		impl.logger.Errorw("error in GetAllDetailedUsersWithAudit", "err", err)
+		impl.logger.Errorw("error in GetAllDetailedUsers", "err", err)
 		return nil, err
 	}
-	//models, err := impl.userRepository.GetAllExcludingApiTokenUser()
-	//if err != nil {
-	//	impl.logger.Errorw("error while fetching user from db", "error", err)
-	//	return nil, err
-	//}
+
 	var response []bean.UserInfo
-	//userIdLoginMap, err := impl.getLoginTimeForUsers(models)
-	//if err != nil {
-	//	impl.logger.Errorw("error in getUserResponseWithLoginAudit ", "err", err)
-	//	return nil, err
-	//}
 	// recording time here for overall status consistency
 	recordedTime := time.Now()
 
 	for _, model := range models {
 		isSuperAdmin, roleFilters, filterGroups := impl.getUserMetadata(&model)
-		//lastLoginTime := time.Time{}
-		//if val, ok := userIdLoginMap[model.Id]; ok {
-		//	lastLoginTime = val
-		//}
-		userStatus, ttlTime := impl.getStatusAndTTL(model, recordedTime, bean3.TimeStamp)
+		userStatus, ttlTime := impl.getStatusAndTTL(model, recordedTime)
 		lastLoginTime := impl.getLastLoginTime(model)
 		response = append(response, bean.UserInfo{
 			Id:            model.Id,
@@ -2178,7 +2170,6 @@ func (impl UserServiceImpl) BulkUpdateStatusForUsers(request *bean.BulkStatusUpd
 	activeStatus := request.Status == bean.Active && request.TimeToLive.IsZero()
 	inactiveStatus := request.Status == bean.Inactive
 	timeExpressionStatus := request.Status == bean.Active && !request.TimeToLive.IsZero()
-
 	if activeStatus {
 		// active case
 		// set foreign key to null for every user
@@ -2230,9 +2221,16 @@ func (impl UserServiceImpl) updateOrCreateAndUpdateWindowID(userIds []int32, tim
 		impl.logger.Errorw("error in updateOrCreateAndUpdateWindowID", "err", err, "userIds", userIds)
 		return err
 	}
+	tx, err := impl.userRepository.StartATransaction()
+	if err != nil {
+		impl.logger.Errorw("error in starting a transaction", "err", err)
+		return err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
 	// case when fk exist , just update the configuration in the timeout window for fks
 	if len(idsWithWindowId) > 0 && len(windowIds) > 0 {
-		err = impl.timeoutWindowService.UpdateTimeoutExpressionForIds(timeoutExpression, windowIds)
+		err = impl.timeoutWindowService.UpdateTimeoutExpressionForIds(tx, timeoutExpression, windowIds)
 		if err != nil {
 			impl.logger.Errorw("error in updateOrCreateAndUpdateWindowID", "err", err, "userIds", userIds)
 			return err
@@ -2242,26 +2240,39 @@ func (impl UserServiceImpl) updateOrCreateAndUpdateWindowID(userIds []int32, tim
 	countWithoutWindowId := len(idsWithoutWindowId)
 	// case when no fk exist , will create it and update the fk constraint for user
 	if countWithoutWindowId > 0 {
-		models, err := impl.timeoutWindowService.CreateWithTimeoutExpression(timeoutExpression, countWithoutWindowId)
+		err = impl.createAndMapTimeoutWindow(tx, timeoutExpression, countWithoutWindowId, idsWithoutWindowId)
 		if err != nil {
-			impl.logger.Errorw("error in updateOrCreateAndUpdateWindowID", "err", err)
+			impl.logger.Errorw("error in updateOrCreateAndUpdateWindowID", "err", err, "userIds", userIds, "timeoutExpression", timeoutExpression)
 			return err
 		}
-		// user id vs windowId map
-		windowMapping, err := impl.getUserIdVsWindowIdMapping(idsWithoutWindowId, models)
-		if err != nil {
-			impl.logger.Errorw("error in updateOrCreateAndUpdateWindowID", "err", err)
-			return err
-		}
-		err = impl.updateWindowIdForId(windowMapping)
-		if err != nil {
-			impl.logger.Errorw("error in updateOrCreateAndUpdateWindowID", "err", err)
-			return err
-		}
-
+	}
+	err = impl.userRepository.CommitATransaction(tx)
+	if err != nil {
+		impl.logger.Errorw("error in committing a transaction", "err", err)
+		return err
 	}
 	return nil
 
+}
+
+func (impl UserServiceImpl) createAndMapTimeoutWindow(tx *pg.Tx, timeoutExpression string, countWithoutWindowId int, idsWithoutWindowId []int32) error {
+	models, err := impl.timeoutWindowService.CreateWithTimeoutExpression(tx, timeoutExpression, countWithoutWindowId)
+	if err != nil {
+		impl.logger.Errorw("error in updateOrCreateAndUpdateWindowID", "err", err)
+		return err
+	}
+	// user id vs windowId map
+	windowMapping, err := impl.getUserIdVsWindowIdMapping(idsWithoutWindowId, models)
+	if err != nil {
+		impl.logger.Errorw("error in updateOrCreateAndUpdateWindowID", "err", err)
+		return err
+	}
+	err = impl.updateWindowIdForId(tx, windowMapping)
+	if err != nil {
+		impl.logger.Errorw("error in updateOrCreateAndUpdateWindowID", "err", err)
+		return err
+	}
+	return nil
 }
 
 func (impl UserServiceImpl) getUserIdVsWindowIdMapping(userIds []int32, models []*repository2.TimeoutWindowConfiguration) (map[int32]int, error) {
@@ -2316,9 +2327,9 @@ func (impl UserServiceImpl) getTimeoutExpressionforReq(timeExpressionStatus, ina
 }
 
 // TODO: have to optimise this query in loop
-func (impl UserServiceImpl) updateWindowIdForId(mapping map[int32]int) error {
+func (impl UserServiceImpl) updateWindowIdForId(tx *pg.Tx, mapping map[int32]int) error {
 	for userId, windowId := range mapping {
-		err := impl.userRepository.UpdateTimeWindowId(userId, windowId)
+		err := impl.userRepository.UpdateTimeWindowId(tx, userId, windowId)
 		if err != nil {
 			impl.logger.Errorw("updateWindowIdForId failed", "err", err, "userId", userId, "windowId", windowId)
 			return err
@@ -2327,11 +2338,11 @@ func (impl UserServiceImpl) updateWindowIdForId(mapping map[int32]int) error {
 	return nil
 }
 
-func (impl UserServiceImpl) getStatusAndTTL(model repository.UserModel, recordedTime time.Time, expressionFormat bean3.ExpressionFormat) (bean.Status, time.Time) {
+func (impl UserServiceImpl) getStatusAndTTL(model repository.UserModel, recordedTime time.Time) (bean.Status, time.Time) {
 	status := bean.Active
 	var ttlTime time.Time
 	if model.TimeoutWindowConfiguration != nil && len(model.TimeoutWindowConfiguration.TimeoutWindowExpression) > 0 {
-		status, ttlTime = impl.getUserStatusFromTimeoutWindowExpression(model.TimeoutWindowConfiguration.TimeoutWindowExpression, recordedTime, expressionFormat)
+		status, ttlTime = impl.getUserStatusFromTimeoutWindowExpression(model.TimeoutWindowConfiguration.TimeoutWindowExpression, recordedTime, model.TimeoutWindowConfiguration.ExpressionFormat)
 	}
 	return status, ttlTime
 }
@@ -2353,6 +2364,9 @@ func (impl UserServiceImpl) getParsedTimeFromExpression(expression string, forma
 	switch format {
 	case bean3.TimeStamp:
 		return impl.parseExpressionToTime(expression)
+	case bean3.TimeZeroFormat:
+		// Considering format timeZeroFormat for extremities, kept it in other format but represents UTC time
+		return impl.parseExpressionToTime(expression)
 	default:
 		return impl.parseExpressionToTime(expression)
 	}
@@ -2361,9 +2375,11 @@ func (impl UserServiceImpl) getParsedTimeFromExpression(expression string, forma
 }
 
 func (impl UserServiceImpl) parseExpressionToTime(expression string) (time.Time, error) {
-	parsedTime, err := time.Parse(helper.TimeFormatUTC, expression)
+	parsedTime, err := time.Parse(helper.TimeFormatForParsing, expression)
 	if err != nil {
 		impl.logger.Errorw("error in parsing time from expression :getParsedTimeFromExpression", "err", err, "expression", expression)
+		return parsedTime, err
 	}
+	//parsedTimeString := parsedTime.Format(time.RFC3339)
 	return parsedTime, err
 }
