@@ -110,9 +110,7 @@ func (impl UserRepositoryImpl) GetById(id int32) (*UserModel, error) {
 
 func (impl UserRepositoryImpl) GetByIdIncludeDeleted(id int32) (*UserModel, error) {
 	var model UserModel
-	err := impl.dbConnection.Model(&model).
-		//Column(" .*").
-		Where("id = ?", id).Select()
+	err := impl.dbConnection.Model(&model).Where("id = ?", id).Select()
 	return &model, err
 }
 
