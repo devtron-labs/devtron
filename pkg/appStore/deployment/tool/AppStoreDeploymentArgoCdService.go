@@ -66,8 +66,8 @@ type AppStoreDeploymentArgoCdServiceImpl struct {
 	helmAppService                       client.HelmAppService
 	appStatusService                     appStatus.AppStatusService
 	pipelineStatusTimelineService        status.PipelineStatusTimelineService
-	userService                          user.UserService
 	pipelineStatusTimelineRepository     pipelineConfig.PipelineStatusTimelineRepository
+	userService                          user.UserService
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository
 	argoClientWrapperService             argocdServer.ArgoClientWrapperService
 	acdConfig                            *argocdServer.ACDConfig
