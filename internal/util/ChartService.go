@@ -179,7 +179,11 @@ func (impl ChartTemplateServiceImpl) FetchValuesFromReferenceChart(chartMetaData
 		impl.logger.Errorw("error in pushing chart", "path", archivePath, "err", err)
 		return nil, nil, err
 	}
-	values.Values = valuesYaml
+	if len(values.AppOverrides) > 0 {
+		values.Values = values.AppOverrides
+	} else {
+		values.Values = valuesYaml
+	}
 	descriptor, err := ioutil.ReadFile(filepath.Clean(filepath.Join(chartDir, ".image_descriptor_template.json")))
 	if err != nil {
 		impl.logger.Errorw("error in reading descriptor", "path", chartDir, "err", err)
