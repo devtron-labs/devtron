@@ -356,9 +356,12 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 		return nil, err
 	}
 
-	defaultAppOverride, err := impl.mergeUtil.JsonPatch([]byte(chartValues.AppOverrides), []byte(chartValues.EnvOverrides))
-	if err != nil {
-		return nil, err
+	defaultAppOverride := []byte(chartValues.AppOverrides)
+	if len(chartValues.AppOverrides) > 0 && len(chartValues.EnvOverrides) > 0 {
+		defaultAppOverride, err = impl.mergeUtil.JsonPatch([]byte(chartValues.AppOverrides), []byte(chartValues.EnvOverrides))
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	currentLatestChart, err := impl.chartRepository.FindLatestChartForAppByAppId(templateRequest.AppId)
