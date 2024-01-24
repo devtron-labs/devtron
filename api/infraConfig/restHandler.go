@@ -6,7 +6,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
-	"github.com/devtron-labs/devtron/pkg/infraConfig/repository"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/service"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
@@ -83,7 +82,7 @@ func (handler *InfraConfigRestHandlerImpl) GetProfile(w http.ResponseWriter, r *
 
 	vars := mux.Vars(r)
 	profileName := vars["name"]
-	if profileName != repository.DEFAULT_PROFILE_NAME {
+	if profileName != infraConfig.DEFAULT_PROFILE_NAME {
 		common.WriteJsonResp(w, errors.New(InvalidProfileRequest), nil, http.StatusNotFound)
 		return
 	}

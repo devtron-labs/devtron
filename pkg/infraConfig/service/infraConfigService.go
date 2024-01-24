@@ -52,7 +52,7 @@ func NewInfraConfigServiceImpl(logger *zap.SugaredLogger,
 	return infraProfileService, err
 }
 func (impl *InfraConfigServiceImpl) GetDefaultProfile() (*infraConfig.ProfileBean, error) {
-	infraProfile, err := impl.infraProfileRepo.GetProfileByName(repository.DEFAULT_PROFILE_NAME)
+	infraProfile, err := impl.infraProfileRepo.GetProfileByName(infraConfig.DEFAULT_PROFILE_NAME)
 	if err != nil {
 		impl.logger.Errorw("error in fetching default profile", "error", err)
 		return nil, err
@@ -103,7 +103,7 @@ func (impl *InfraConfigServiceImpl) UpdateProfile(userId int32, profileName stri
 	infraConfigurations := util.Transform(profileBean.Configurations, func(config infraConfig.ConfigurationBean) *infraConfig.InfraProfileConfiguration {
 		config.ProfileId = infraProfile.Id
 		// user couldn't delete the configuration for default profile, always set this to active
-		if infraProfile.Name == repository.DEFAULT_PROFILE_NAME {
+		if infraProfile.Name == infraConfig.DEFAULT_PROFILE_NAME {
 			config.Active = true
 		}
 		return config.ConvertToInfraProfileConfiguration()
@@ -137,7 +137,7 @@ func (impl *InfraConfigServiceImpl) UpdateProfile(userId int32, profileName stri
 
 func (impl *InfraConfigServiceImpl) loadDefaultProfile() error {
 
-	profile, err := impl.infraProfileRepo.GetProfileByName(repository.DEFAULT_PROFILE_NAME)
+	profile, err := impl.infraProfileRepo.GetProfileByName(infraConfig.DEFAULT_PROFILE_NAME)
 	if err != nil && !errors.Is(err, pg.ErrNoRows) {
 		return err
 	}
@@ -170,7 +170,7 @@ func (impl *InfraConfigServiceImpl) loadDefaultProfile() error {
 
 	defaultConfigurations := []*infraConfig.InfraProfileConfiguration{cpuLimit, memLimit, cpuReq, memReq, timeout}
 	defaultProfile := &infraConfig.InfraProfile{
-		Name:        repository.DEFAULT_PROFILE_NAME,
+		Name:        infraConfig.DEFAULT_PROFILE_NAME,
 		Description: "",
 		Active:      true,
 		AuditLog:    sql.NewDefaultAuditLog(1),

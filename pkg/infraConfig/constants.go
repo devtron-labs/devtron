@@ -2,6 +2,10 @@ package infraConfig
 
 import "github.com/devtron-labs/devtron/pkg/infraConfig/units"
 
+const DEFAULT_PROFILE_NAME = "default"
+const DEFAULT_PROFILE_EXISTS = "default profile exists"
+const NO_PROPERTIES_FOUND = "no properties found"
+
 type ConfigKey int
 
 const CPULimit ConfigKey = 1
