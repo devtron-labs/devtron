@@ -118,6 +118,23 @@ type K8sService interface {
 	GetClientForInCluster() (*v12.CoreV1Client, error)
 	GetCoreV1Client(clusterConfig *ClusterConfig) (*v12.CoreV1Client, error)
 	GetRestConfigByCluster(clusterConfig *ClusterConfig) (*restclient.Config, error)
+	GetResource(ctx context.Context, namespace string, name string, gvk schema.GroupVersionKind, restConfig *rest.Config) (*ManifestResponse, error)
+	UpdateResource(ctx context.Context, restConfig *rest.Config, gvk schema.GroupVersionKind, namespace string, k8sRequestPatch string) (*ManifestResponse, error)
+	DeleteResource(ctx context.Context, restConfig *rest.Config, gvk schema.GroupVersionKind, namespace string, name string, forceDelete bool) (*ManifestResponse, error)
+	GetPodListByLabel(namespace, label string, clientSet *kubernetes.Clientset) ([]v1.Pod, error)
+	ExtractK8sServerMajorAndMinorVersion(k8sServerVersion *version.Info) (int, int, error)
+	GetK8sServerVersion(clientSet *kubernetes.Clientset) (*version.Info, error)
+	DecodeGroupKindversion(data string) (*schema.GroupVersionKind, error)
+	GetApiResources(restConfig *rest.Config, includeOnlyVerb string) ([]*K8sApiResource, error)
+	CreateResources(ctx context.Context, restConfig *rest.Config, manifest string, gvk schema.GroupVersionKind, namespace string) (*ManifestResponse, error)
+	PatchResourceRequest(ctx context.Context, restConfig *rest.Config, pt types.PatchType, manifest string, name string, namespace string, gvk schema.GroupVersionKind) (*ManifestResponse, error)
+	GetResourceList(ctx context.Context, restConfig *rest.Config, gvk schema.GroupVersionKind, namespace string) (*ResourceListResponse, bool, error)
+	GetResourceIfWithAcceptHeader(restConfig *rest.Config, groupVersionKind schema.GroupVersionKind) (resourceIf dynamic.NamespaceableResourceInterface, namespaced bool, err error)
+	GetPodLogs(ctx context.Context, restConfig *rest.Config, name string, namespace string, sinceTime *metav1.Time, tailLines int, follow bool, containerName string, isPrevContainerLogsEnabled bool) (io.ReadCloser, error)
+	ListEvents(restConfig *rest.Config, namespace string, groupVersionKind schema.GroupVersionKind, ctx context.Context, name string) (*v1.EventList, error)
+	GetResourceIf(restConfig *rest.Config, groupVersionKind schema.GroupVersionKind) (resourceIf dynamic.NamespaceableResourceInterface, namespaced bool, err error)
+	FetchConnectionStatusForCluster(k8sClientSet *kubernetes.Clientset) error
+	CreateK8sClientSet(restConfig *rest.Config) (*kubernetes.Clientset, error)
 }
 
 func NewK8sUtil(logger *zap.SugaredLogger, runTimeConfig *client.RuntimeConfig) *K8sServiceImpl {
