@@ -19,6 +19,7 @@ package appStoreBean
 
 import (
 	"encoding/json"
+	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"time"
 )
@@ -129,27 +130,6 @@ type InstallAppVersionChartRepoDTO struct {
 	Password string `json:"-"`
 }
 
-// / bean for v2
-type ChartGroupInstallRequest struct {
-	ProjectId                     int                              `json:"projectId"  validate:"required,number"`
-	ChartGroupInstallChartRequest []*ChartGroupInstallChartRequest `json:"charts" validate:"dive,required"`
-	ChartGroupId                  int                              `json:"chartGroupId"` //optional
-	UserId                        int32                            `json:"-"`
-}
-
-type ChartGroupInstallChartRequest struct {
-	AppName                 string `json:"appName,omitempty"  validate:"name-component,max=100" `
-	EnvironmentId           int    `json:"environmentId,omitempty" validate:"required,number" `
-	AppStoreVersion         int    `json:"appStoreVersion,omitempty,notnull" validate:"required,number" `
-	ValuesOverrideYaml      string `json:"valuesOverrideYaml,omitempty"` //optional
-	ReferenceValueId        int    `json:"referenceValueId, omitempty" validate:"required,number"`
-	ReferenceValueKind      string `json:"referenceValueKind, omitempty" validate:"oneof=DEFAULT TEMPLATE DEPLOYED"`
-	ChartGroupEntryId       int    `json:"chartGroupEntryId"` //optional
-	DefaultClusterComponent bool   `json:"-"`
-}
-type ChartGroupInstallAppRes struct {
-}
-
 // /
 type RefChartProxyDir string
 
@@ -192,11 +172,6 @@ type Dependency struct {
 	Version    string `json:"version"`
 	Repository string `json:"repository"`
 }
-
-const BULK_APPSTORE_DEPLOY_TOPIC = "ORCHESTRATOR.APP-STORE.BULK-DEPLOY"
-const BULK_APPSTORE_DEPLOY_GROUP = "ORCHESTRATOR.APP-STORE.BULK-DEPLOY-GROUP-1"
-
-const BULK_APPSTORE_DEPLOY_DURABLE = "ORCHESTRATOR.APP-STORE.BULK-DEPLOY.DURABLE-1"
 
 type DeployPayload struct {
 	InstalledAppVersionId        int
@@ -382,4 +357,73 @@ type HelmReleaseStatusConfig struct {
 	Message                    string
 	IsReleaseInstalled         bool
 	ErrorInInstallation        bool
+}
+
+type ChartComponents struct {
+	ChartComponent []*ChartComponent `json:"charts"`
+}
+
+type ChartComponent struct {
+	Name   string `json:"name"`
+	Values string `json:"values"`
+}
+
+const (
+	DEFAULT_CLUSTER_ID                          = 1
+	DEFAULT_NAMESPACE                           = "default"
+	DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT = "devtron"
+	CLUSTER_COMPONENT_DIR_PATH                  = "/cluster/component"
+	HELM_RELEASE_STATUS_FAILED                  = "Failed"
+	HELM_RELEASE_STATUS_PROGRESSING             = "Progressing"
+	HELM_RELEASE_STATUS_UNKNOWN                 = "Unknown"
+)
+
+type EnvironmentDetails struct {
+	EnvironmentName *string `json:"environmentName,omitempty"`
+	// id in which app is deployed
+	EnvironmentId *int32 `json:"environmentId,omitempty"`
+	// namespace corresponding to the environemnt
+	Namespace *string `json:"namespace,omitempty"`
+	// if given environemnt is marked as production or not, nullable
+	IsPrduction *bool `json:"isPrduction,omitempty"`
+	// cluster corresponding to the environemt where application is deployed
+	ClusterName *string `json:"clusterName,omitempty"`
+	// clusterId corresponding to the environemt where application is deployed
+	ClusterId *int32 `json:"clusterId,omitempty"`
+
+	IsVirtualEnvironment *bool `json:"isVirtualEnvironment"`
+}
+
+type HelmAppDetails struct {
+	// time when this application was last deployed/updated
+	LastDeployedAt *time.Time `json:"lastDeployedAt,omitempty"`
+	// name of the helm application/helm release name
+	AppName *string `json:"appName,omitempty"`
+	// unique identifier for app
+	AppId *string `json:"appId,omitempty"`
+	// name of the chart
+	ChartName *string `json:"chartName,omitempty"`
+	// url/location of the chart icon
+	ChartAvatar *string `json:"chartAvatar,omitempty"`
+	// unique identifier for the project, APP with no project will have id `0`
+	ProjectId *int32 `json:"projectId,omitempty"`
+	// chart version
+	ChartVersion      *string             `json:"chartVersion,omitempty"`
+	EnvironmentDetail *EnvironmentDetails `json:"environmentDetail,omitempty"`
+	AppStatus         *string             `json:"appStatus,omitempty"`
+}
+
+type AppListDetail struct {
+	// clusters to which result corresponds
+	ClusterIds *[]int32 `json:"clusterIds,omitempty"`
+	// application type inside the array
+	ApplicationType *string `json:"applicationType,omitempty"`
+	// if data fetch for that cluster produced error
+	Errored *bool `json:"errored,omitempty"`
+	// error msg if client failed to fetch
+	ErrorMsg *string `json:"errorMsg,omitempty"`
+	// all helm app list, EA+ devtronapp
+	HelmApps *[]HelmAppDetails `json:"helmApps,omitempty"`
+	// all helm app list, EA+ devtronapp
+	DevtronApps *[]openapi.DevtronApp `json:"devtronApps,omitempty"`
 }
