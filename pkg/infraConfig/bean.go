@@ -20,14 +20,10 @@ type InfraProfile struct {
 }
 
 func (infraProfile *InfraProfile) ConvertToProfileBean() ProfileBean {
-	profileType := NORMAL
-	if infraProfile.Name == DEFAULT_PROFILE_NAME {
-		profileType = DEFAULT
-	}
 	return ProfileBean{
 		Id:          infraProfile.Id,
 		Name:        infraProfile.Name,
-		Type:        profileType,
+		Type:        DEFAULT,
 		Description: infraProfile.Description,
 		Active:      infraProfile.Active,
 		CreatedBy:   infraProfile.CreatedBy,
