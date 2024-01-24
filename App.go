@@ -21,6 +21,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/devtron-labs/common-lib/middlewares"
 	"log"
 	"net/http"
 	"os"
@@ -35,7 +36,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 
 	authMiddleware "github.com/devtron-labs/authenticator/middleware"
-	pubsub "github.com/devtron-labs/common-lib-private/pubsub-lib"
+	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/api/router"
 	"github.com/devtron-labs/devtron/api/sse"
 	"github.com/devtron-labs/devtron/internal/middleware"
@@ -109,6 +110,8 @@ func (app *App) Start() {
 	server := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: authMiddleware.Authorizer(app.sessionManager2, user.WhitelistChecker)(app.MuxRouter.Router)}
 	app.MuxRouter.Router.Use(app.loggingMiddleware.LoggingMiddleware)
 	app.MuxRouter.Router.Use(middleware.PrometheusMiddleware)
+	app.MuxRouter.Router.Use(middlewares.Recovery)
+
 	if tracerProvider != nil {
 		app.MuxRouter.Router.Use(otelmux.Middleware(otel.OTEL_ORCHESTRASTOR_SERVICE_NAME))
 	}

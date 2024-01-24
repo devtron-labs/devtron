@@ -22,8 +22,8 @@ import (
 	"fmt"
 	"github.com/aws/aws-sdk-go-v2/service/ecr/types"
 	"github.com/caarlos0/env/v6"
-	pubsub "github.com/devtron-labs/common-lib-private/pubsub-lib"
-	"github.com/devtron-labs/common-lib-private/pubsub-lib/model"
+	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
+	"github.com/devtron-labs/common-lib/pubsub-lib/model"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -31,6 +31,7 @@ import (
 	"github.com/devtron-labs/devtron/util"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
+	"k8s.io/utils/pointer"
 	"time"
 )
 
@@ -100,8 +101,6 @@ func NewCiEventHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSu
 
 func (impl *CiEventHandlerImpl) Subscribe() error {
 	callback := func(msg *model.PubSubMsg) {
-		impl.logger.Debugw("ci complete event received")
-		//defer msg.Ack()
 		ciCompleteEvent := CiCompleteEvent{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &ciCompleteEvent)
 		if err != nil {
@@ -112,6 +111,10 @@ func (impl *CiEventHandlerImpl) Subscribe() error {
 		req, err := impl.BuildCiArtifactRequest(ciCompleteEvent)
 		if err != nil {
 			return
+		}
+
+		triggerContext := pipeline.TriggerContext{
+			ReferenceId: pointer.String(msg.MsgId),
 		}
 
 		if ciCompleteEvent.FailureReason != "" {
@@ -136,7 +139,7 @@ func (impl *CiEventHandlerImpl) Subscribe() error {
 						impl.logger.Error("Error while creating request for pipelineID", "pipelineId", ciCompleteEvent.PipelineId, "err", err)
 						return
 					}
-					resp, err := impl.ValidateAndHandleCiSuccessEvent(ciCompleteEvent.PipelineId, request, detail.ImagePushedAt)
+					resp, err := impl.ValidateAndHandleCiSuccessEvent(triggerContext, ciCompleteEvent.PipelineId, request, detail.ImagePushedAt)
 					if err != nil {
 						return
 					}
@@ -146,14 +149,26 @@ func (impl *CiEventHandlerImpl) Subscribe() error {
 
 		} else {
 			util.TriggerCIMetrics(ciCompleteEvent.Metrics, impl.ciEventConfig.ExposeCiMetrics, ciCompleteEvent.PipelineName, ciCompleteEvent.AppName)
-			resp, err := impl.ValidateAndHandleCiSuccessEvent(ciCompleteEvent.PipelineId, req, &time.Time{})
+			resp, err := impl.ValidateAndHandleCiSuccessEvent(triggerContext, ciCompleteEvent.PipelineId, req, &time.Time{})
 			if err != nil {
 				return
 			}
 			impl.logger.Debug(resp)
 		}
 	}
-	err := impl.pubsubClient.Subscribe(pubsub.CI_COMPLETE_TOPIC, callback)
+
+	// add required logging here
+	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) (string, []interface{}) {
+		ciCompleteEvent := CiCompleteEvent{}
+		err := json.Unmarshal([]byte(string(msg.Data)), &ciCompleteEvent)
+		if err != nil {
+			return "error while unmarshalling json data", []interface{}{"error", err}
+		}
+		return "got message for ci-completion", []interface{}{"ciPipelineId", ciCompleteEvent.PipelineId, "workflowId", ciCompleteEvent.WorkflowId}
+	}
+
+	validations := impl.webhookService.GetTriggerValidateFuncs()
+	err := impl.pubsubClient.Subscribe(pubsub.CI_COMPLETE_TOPIC, callback, loggerFunc, validations...)
 	if err != nil {
 		impl.logger.Error(err)
 		return err
@@ -161,13 +176,13 @@ func (impl *CiEventHandlerImpl) Subscribe() error {
 	return nil
 }
 
-func (impl *CiEventHandlerImpl) ValidateAndHandleCiSuccessEvent(ciPipelineId int, request *pipeline.CiArtifactWebhookRequest, imagePushedAt *time.Time) (int, error) {
+func (impl *CiEventHandlerImpl) ValidateAndHandleCiSuccessEvent(triggerContext pipeline.TriggerContext, ciPipelineId int, request *pipeline.CiArtifactWebhookRequest, imagePushedAt *time.Time) (int, error) {
 	validationErr := impl.validator.Struct(request)
 	if validationErr != nil {
 		impl.logger.Errorw("validation err, HandleCiSuccessEvent", "err", validationErr, "payload", request)
 		return 0, validationErr
 	}
-	buildArtifactId, err := impl.webhookService.HandleCiSuccessEvent(ciPipelineId, request, imagePushedAt)
+	buildArtifactId, err := impl.webhookService.HandleCiSuccessEvent(triggerContext, ciPipelineId, request, imagePushedAt)
 	if err != nil {
 		impl.logger.Error("Error while sending event for CI success for pipelineID",
 			ciPipelineId, "request", request, "error", err)

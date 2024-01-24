@@ -31,8 +31,8 @@ import (
 	"time"
 
 	"github.com/caarlos0/env"
-	k8sCommonBean "github.com/devtron-labs/common-lib-private/utils/k8s/commonBean"
-	"github.com/devtron-labs/common-lib-private/utils/k8s/health"
+	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
+	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	client2 "github.com/devtron-labs/devtron/api/helm-app"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	status2 "github.com/devtron-labs/devtron/pkg/app/status"

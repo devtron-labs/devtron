@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/devtron-labs/common-lib-private/sshTunnel"
+	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
 	"go.uber.org/zap"
 	"net/url"
 	"strconv"
@@ -14,8 +15,8 @@ import (
 //This service communicates with our sshTunnel library present at devtron-labs/common-lib-private/sshTunnel
 
 type SSHTunnelWrapperService interface {
-	StartUpdateConnectionForCluster(cluster *ClusterConfig) (int, error)
-	GetPortUsedForACluster(clusterConfig *ClusterConfig) (int, error)
+	StartUpdateConnectionForCluster(cluster *k8s2.ClusterConfig) (int, error)
+	GetPortUsedForACluster(clusterConfig *k8s2.ClusterConfig) (int, error)
 	CleanupForVerificationCluster(clusterName string)
 }
 
@@ -46,7 +47,7 @@ type ConnectionDetail struct {
 }
 
 // StartUpdateConnectionForCluster takes clusterId and returns the port being used for connection and error if an
-func (impl *SSHTunnelWrapperServiceImpl) StartUpdateConnectionForCluster(cluster *ClusterConfig) (int, error) {
+func (impl *SSHTunnelWrapperServiceImpl) StartUpdateConnectionForCluster(cluster *k8s2.ClusterConfig) (int, error) {
 	portUsed := 0
 	availablePort, err := impl.getAvailablePort()
 	if err != nil {
@@ -135,7 +136,7 @@ func (impl *SSHTunnelWrapperServiceImpl) deferForStartUpdateConnectionForCluster
 	impl.clusterMapMutex.Unlock()
 }
 
-func (impl *SSHTunnelWrapperServiceImpl) GetPortUsedForACluster(clusterConfig *ClusterConfig) (int, error) {
+func (impl *SSHTunnelWrapperServiceImpl) GetPortUsedForACluster(clusterConfig *k8s2.ClusterConfig) (int, error) {
 	portUsed := 0
 	if !clusterConfig.ToConnectForClusterVerification {
 		connectionDetail := impl.clusterConnectionMap[clusterConfig.ClusterId]

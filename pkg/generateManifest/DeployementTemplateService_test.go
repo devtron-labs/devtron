@@ -22,7 +22,7 @@ import (
 	"testing"
 )
 
-var K8sUtilObj *k8s.K8sUtil
+var K8sUtilObj *k8s.K8sUtilExtended
 
 func TestDeploymentTemplateServiceImpl_FetchDeploymentsWithChartRefs(t *testing.T) {
 	defaultVersions := &chart.ChartRefResponse{
@@ -520,7 +520,7 @@ func InitEventSimpleFactoryImpl(t *testing.T) (*DeploymentTemplateServiceImpl, *
 	chartRepository := mocks5.NewChartRepository(t)
 	chartTemplateServiceImpl := mocks6.NewChartTemplateService(t)
 	helmAppClient := mocks4.NewHelmAppClient(t)
-	var k8sUtil *k8s.K8sUtil
+	var k8sUtil *k8s.K8sUtilExtended
 	if K8sUtilObj != nil {
 		k8sUtil = K8sUtilObj
 	} else {

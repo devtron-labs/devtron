@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/devtron-labs/common-lib-private/utils/k8sObjectsUtil"
+	"github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/api/restHandler/common"

@@ -23,12 +23,11 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/module"
-	"github.com/devtron-labs/devtron/pkg/notifier"
 	"net/http"
 	"time"
 
 	"github.com/caarlos0/env"
-	pubsub "github.com/devtron-labs/common-lib-private/pubsub-lib"
+	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -92,7 +91,7 @@ type Payload struct {
 	MaterialTriggerInfo   *MaterialTriggerInfo `json:"material"`
 	ApprovedByEmail       []string             `json:"approvedByEmail"`
 	FailureReason         string               `json:"failureReason"`
-	Providers             []*notifier.Provider `json:"providers"`
+	Providers             []*Provider          `json:"providers"`
 	ImageTagNames         []string             `json:"imageTagNames"`
 	ImageComment          string               `json:"imageComment"`
 	ImageApprovalLink     string               `json:"imageApprovalLink"`
@@ -100,6 +99,7 @@ type Payload struct {
 	ProtectConfigFileName string               `json:"protectConfigFileName"`
 	ProtectConfigComment  string               `json:"protectConfigComment"`
 	ProtectConfigLink     string               `json:"protectConfigLink"`
+	ApprovalLink          string               `json:"approvalLink"`
 }
 
 type CiPipelineMaterialResponse struct {
