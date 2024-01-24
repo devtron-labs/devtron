@@ -6,7 +6,6 @@ import (
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
-	"github.com/devtron-labs/devtron/pkg/infraConfig/repository"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/units"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -26,7 +25,6 @@ const PayloadValidationError = "payload validation failed"
 type InfraConfigService interface {
 
 	// todo: @gireesh for all get apis, check if we can get profile and configurations in one db call
-	// can use right join
 
 	// GetConfigurationUnits fetches all the units for the configurations.
 	GetConfigurationUnits() map[ConfigKeyStr]map[string]units.Unit
@@ -60,7 +58,7 @@ type InfraConfigService interface {
 
 type InfraConfigServiceImpl struct {
 	logger                              *zap.SugaredLogger
-	infraProfileRepo                    repository.InfraConfigRepository
+	infraProfileRepo                    InfraConfigRepository
 	qualifiersMappingRepository         resourceQualifiers.QualifiersMappingRepository
 	appRepository                       appRepository.AppRepository
 	units                               *units.Units
@@ -70,7 +68,7 @@ type InfraConfigServiceImpl struct {
 }
 
 func NewInfraConfigServiceImpl(logger *zap.SugaredLogger,
-	infraProfileRepo repository.InfraConfigRepository,
+	infraProfileRepo InfraConfigRepository,
 	qualifiersMappingRepository resourceQualifiers.QualifiersMappingRepository,
 	appRepository appRepository.AppRepository,
 	units *units.Units,
@@ -830,7 +828,7 @@ func (impl *InfraConfigServiceImpl) GetInfraConfigurationsByScope(scope Scope) (
 			defaultConfigurationBean := defaultConfiguration.ConvertToConfigurationBean()
 			// if the key is found true in the map, it means the configuration is missing for the given scope (search for  hack:))
 			if _, ok := getDefaultConfigurationKeys[defaultConfigurationBean.Key]; ok {
-				updateInfraConfig(defaultConfiguration.ConvertToConfigurationBean())
+				updateInfraConfig(defaultConfigurationBean)
 			}
 		}
 	}

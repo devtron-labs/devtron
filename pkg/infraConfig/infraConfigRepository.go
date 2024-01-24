@@ -1,9 +1,8 @@
-package repository
+package infraConfig
 
 import (
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
-	"github.com/devtron-labs/devtron/pkg/infraConfig"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
@@ -18,28 +17,28 @@ type ProfileIdentifierCount struct {
 }
 
 type InfraConfigRepository interface {
-	GetProfileByName(name string) (*infraConfig.InfraProfile, error)
-	GetProfileList(profileNameLike string) ([]*infraConfig.InfraProfile, error)
+	GetProfileByName(name string) (*InfraProfile, error)
+	GetProfileList(profileNameLike string) ([]*InfraProfile, error)
 
 	// GetProfileListByIds returns the list of profiles for the given profileIds
 	// includeDefault is used to explicitly include the default profile in the list
-	GetProfileListByIds(profileIds []int, includeDefault bool) ([]*infraConfig.InfraProfile, error)
+	GetProfileListByIds(profileIds []int, includeDefault bool) ([]*InfraProfile, error)
 
-	GetConfigurationsByProfileName(profileName string) ([]*infraConfig.InfraProfileConfiguration, error)
-	GetConfigurationsByProfileId(profileIds []int) ([]*infraConfig.InfraProfileConfiguration, error)
-	GetConfigurationsByScope(scope infraConfig.Scope, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) ([]*infraConfig.InfraProfileConfiguration, error)
+	GetConfigurationsByProfileName(profileName string) ([]*InfraProfileConfiguration, error)
+	GetConfigurationsByProfileId(profileIds []int) ([]*InfraProfileConfiguration, error)
+	GetConfigurationsByScope(scope Scope, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) ([]*InfraProfileConfiguration, error)
 
-	GetIdentifierList(lisFilter infraConfig.IdentifierListFilter, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) ([]*infraConfig.Identifier, error)
+	GetIdentifierList(lisFilter IdentifierListFilter, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) ([]*Identifier, error)
 	GetIdentifierCountForDefaultProfile(defaultProfileId int, identifierType int) (int, error)
 	GetIdentifierCountForNonDefaultProfiles(profileIds []int, identifierType int) ([]ProfileIdentifierCount, error)
 
-	CreateProfile(tx *pg.Tx, infraProfile *infraConfig.InfraProfile) error
-	CreateConfigurations(tx *pg.Tx, configurations []*infraConfig.InfraProfileConfiguration) error
+	CreateProfile(tx *pg.Tx, infraProfile *InfraProfile) error
+	CreateConfigurations(tx *pg.Tx, configurations []*InfraProfileConfiguration) error
 
-	UpdateConfigurations(tx *pg.Tx, configurations []*infraConfig.InfraProfileConfiguration) error
-	UpdateProfile(tx *pg.Tx, profileName string, profile *infraConfig.InfraProfile) error
+	UpdateConfigurations(tx *pg.Tx, configurations []*InfraProfileConfiguration) error
+	UpdateProfile(tx *pg.Tx, profileName string, profile *InfraProfile) error
 
-	DeleteProfileIdentifierMappingsByIds(tx *pg.Tx, userId int32, identifierIds []int, identifierType infraConfig.IdentifierType, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) error
+	DeleteProfileIdentifierMappingsByIds(tx *pg.Tx, userId int32, identifierIds []int, identifierType IdentifierType, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) error
 	DeleteProfile(tx *pg.Tx, profileName string) error
 	DeleteConfigurations(tx *pg.Tx, profileName string) error
 	DeleteProfileIdentifierMappings(tx *pg.Tx, profileName string) error
@@ -60,13 +59,13 @@ func NewInfraProfileRepositoryImpl(dbConnection *pg.DB) *InfraConfigRepositoryIm
 
 // CreateProfile saves the default profile in the database only once in a lifetime.
 // If the default profile already exists, it will not be saved again.
-func (impl *InfraConfigRepositoryImpl) CreateProfile(tx *pg.Tx, infraProfile *infraConfig.InfraProfile) error {
+func (impl *InfraConfigRepositoryImpl) CreateProfile(tx *pg.Tx, infraProfile *InfraProfile) error {
 	err := tx.Insert(infraProfile)
 	return err
 }
 
-func (impl *InfraConfigRepositoryImpl) GetProfileByName(name string) (*infraConfig.InfraProfile, error) {
-	infraProfile := &infraConfig.InfraProfile{}
+func (impl *InfraConfigRepositoryImpl) GetProfileByName(name string) (*InfraProfile, error) {
+	infraProfile := &InfraProfile{}
 	err := impl.dbConnection.Model(infraProfile).
 		Where("name = ?", name).
 		Where("active = ?", true).
@@ -74,83 +73,83 @@ func (impl *InfraConfigRepositoryImpl) GetProfileByName(name string) (*infraConf
 	return infraProfile, err
 }
 
-func (impl *InfraConfigRepositoryImpl) GetProfileList(profileNameLike string) ([]*infraConfig.InfraProfile, error) {
-	var infraProfiles []*infraConfig.InfraProfile
+func (impl *InfraConfigRepositoryImpl) GetProfileList(profileNameLike string) ([]*InfraProfile, error) {
+	var infraProfiles []*InfraProfile
 	query := impl.dbConnection.Model(&infraProfiles).
 		Where("active = ?", true)
 	if profileNameLike == "" {
 		profileNameLike = "%" + profileNameLike + "%"
-		query = query.Where("name LIKE ? OR name = ?", profileNameLike, infraConfig.DEFAULT_PROFILE_NAME)
+		query = query.Where("name LIKE ? OR name = ?", profileNameLike, DEFAULT_PROFILE_NAME)
 	}
 	query.Order("name ASC")
 	err := query.Select()
 	return infraProfiles, err
 }
 
-func (impl *InfraConfigRepositoryImpl) GetProfileListByIds(profileIds []int, includeDefault bool) ([]*infraConfig.InfraProfile, error) {
-	var infraProfiles []*infraConfig.InfraProfile
+func (impl *InfraConfigRepositoryImpl) GetProfileListByIds(profileIds []int, includeDefault bool) ([]*InfraProfile, error) {
+	var infraProfiles []*InfraProfile
 	err := impl.dbConnection.Model(&infraProfiles).
 		Where("active = ?", true).
 		WhereGroup(func(q *orm.Query) (*orm.Query, error) {
 			q = q.WhereOr("id IN (?)", pg.In(profileIds))
 			if includeDefault {
-				q = q.WhereOr("name = ?", infraConfig.DEFAULT_PROFILE_NAME)
+				q = q.WhereOr("name = ?", DEFAULT_PROFILE_NAME)
 			}
 			return q, nil
 		}).Select()
 	return infraProfiles, err
 }
 
-func (impl *InfraConfigRepositoryImpl) CreateConfigurations(tx *pg.Tx, configurations []*infraConfig.InfraProfileConfiguration) error {
+func (impl *InfraConfigRepositoryImpl) CreateConfigurations(tx *pg.Tx, configurations []*InfraProfileConfiguration) error {
 	err := tx.Insert(&configurations)
 	return err
 }
 
-func (impl *InfraConfigRepositoryImpl) UpdateConfigurations(tx *pg.Tx, configurations []*infraConfig.InfraProfileConfiguration) error {
+func (impl *InfraConfigRepositoryImpl) UpdateConfigurations(tx *pg.Tx, configurations []*InfraProfileConfiguration) error {
 	err := tx.Update(&configurations)
 	return err
 }
 
-func (impl *InfraConfigRepositoryImpl) GetConfigurationsByProfileName(profileName string) ([]*infraConfig.InfraProfileConfiguration, error) {
-	var configurations []*infraConfig.InfraProfileConfiguration
+func (impl *InfraConfigRepositoryImpl) GetConfigurationsByProfileName(profileName string) ([]*InfraProfileConfiguration, error) {
+	var configurations []*InfraProfileConfiguration
 	err := impl.dbConnection.Model(&configurations).
 		Where("infra_profile_id IN (SELECT id FROM infra_profile WHERE name = ? AND active = true)", profileName).
 		Where("active = ?", true).
 		Select()
 	if errors.Is(err, pg.ErrNoRows) {
-		return nil, errors.New(infraConfig.NO_PROPERTIES_FOUND)
+		return nil, errors.New(NO_PROPERTIES_FOUND)
 	}
 	return configurations, err
 }
 
-func (impl *InfraConfigRepositoryImpl) GetConfigurationsByProfileId(profileIds []int) ([]*infraConfig.InfraProfileConfiguration, error) {
+func (impl *InfraConfigRepositoryImpl) GetConfigurationsByProfileId(profileIds []int) ([]*InfraProfileConfiguration, error) {
 	if len(profileIds) == 0 {
 		return nil, errors.New("profileIds cannot be empty")
 	}
 
-	var configurations []*infraConfig.InfraProfileConfiguration
+	var configurations []*InfraProfileConfiguration
 	err := impl.dbConnection.Model(&configurations).
 		Where("infra_profile_id IN (?)", profileIds).
 		Where("active = ?", true).
 		Select()
 	if errors.Is(err, pg.ErrNoRows) {
-		return nil, errors.New(infraConfig.NO_PROPERTIES_FOUND)
+		return nil, errors.New(NO_PROPERTIES_FOUND)
 	}
 	return configurations, err
 }
 
-func (impl *InfraConfigRepositoryImpl) GetConfigurationsByScope(scope infraConfig.Scope, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) ([]*infraConfig.InfraProfileConfiguration, error) {
-	var configurations []*infraConfig.InfraProfileConfiguration
+func (impl *InfraConfigRepositoryImpl) GetConfigurationsByScope(scope Scope, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) ([]*InfraProfileConfiguration, error) {
+	var configurations []*InfraProfileConfiguration
 	getProfileIdByScopeQuery := "SELECT resource_id " +
 		" FROM resource_qualifier_mapping " +
-		fmt.Sprintf(" WHERE resource_type = %d AND identifier_key = %d AND identifier_value_int = %d AND active=true", resourceQualifiers.InfraProfile, infraConfig.GetIdentifierKey(infraConfig.APPLICATION, searchableKeyNameIdMap), scope.AppId)
+		fmt.Sprintf(" WHERE resource_type = %d AND identifier_key = %d AND identifier_value_int = %d AND active=true", resourceQualifiers.InfraProfile, GetIdentifierKey(APPLICATION, searchableKeyNameIdMap), scope.AppId)
 
 	err := impl.dbConnection.Model(&configurations).
 		Where("active = ?", true).
 		Where("id IN (?)", getProfileIdByScopeQuery).
 		Select()
 	if errors.Is(err, pg.ErrNoRows) {
-		return nil, errors.New(infraConfig.NO_PROPERTIES_FOUND)
+		return nil, errors.New(NO_PROPERTIES_FOUND)
 	}
 	return configurations, err
 }
@@ -193,8 +192,8 @@ func (impl *InfraConfigRepositoryImpl) GetIdentifierCountForNonDefaultProfiles(p
 	return counts, err
 }
 
-func (impl *InfraConfigRepositoryImpl) UpdateProfile(tx *pg.Tx, profileName string, profile *infraConfig.InfraProfile) error {
-	_, err := tx.Model(&infraConfig.InfraProfile{}).
+func (impl *InfraConfigRepositoryImpl) UpdateProfile(tx *pg.Tx, profileName string, profile *InfraProfile) error {
+	_, err := tx.Model(&InfraProfile{}).
 		Set("name=?", profile.Name).
 		Set("description=?", profile.Description).
 		Set("updated_by=?", profile.UpdatedBy).
@@ -205,7 +204,7 @@ func (impl *InfraConfigRepositoryImpl) UpdateProfile(tx *pg.Tx, profileName stri
 }
 
 func (impl *InfraConfigRepositoryImpl) DeleteProfile(tx *pg.Tx, profileName string) error {
-	_, err := tx.Model(&infraConfig.InfraProfile{}).
+	_, err := tx.Model(&InfraProfile{}).
 		Set("active=?", false).
 		Where("name = ?", profileName).
 		Update()
@@ -213,22 +212,22 @@ func (impl *InfraConfigRepositoryImpl) DeleteProfile(tx *pg.Tx, profileName stri
 }
 
 func (impl *InfraConfigRepositoryImpl) DeleteConfigurations(tx *pg.Tx, profileName string) error {
-	_, err := tx.Model(&infraConfig.InfraProfileConfiguration{}).
+	_, err := tx.Model(&InfraProfileConfiguration{}).
 		Set("active=?", false).
 		Where("infra_profile_id IN (SELECT id FROM infra_profile WHERE name = ? AND active = true)", profileName).
 		Update()
 	return err
 }
 
-func (impl *InfraConfigRepositoryImpl) GetIdentifierList(listFilter infraConfig.IdentifierListFilter, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) ([]*infraConfig.Identifier, error) {
+func (impl *InfraConfigRepositoryImpl) GetIdentifierList(listFilter IdentifierListFilter, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) ([]*Identifier, error) {
 	listFilter.IdentifierNameLike = "%" + listFilter.IdentifierNameLike + "%"
-	identifierType := infraConfig.GetIdentifierKey(listFilter.IdentifierType, searchableKeyNameIdMap)
+	identifierType := GetIdentifierKey(listFilter.IdentifierType, searchableKeyNameIdMap)
 	totalOverridenCountQuery := "SELECT COUNT(id) " +
 		" FROM resource_qualifier_mapping " +
 		fmt.Sprintf(" WHERE reference_type = %d ", resourceQualifiers.InfraProfile) +
 		" AND active=true "
 
-	if listFilter.ProfileName == infraConfig.DEFAULT_PROFILE_NAME {
+	if listFilter.ProfileName == DEFAULT_PROFILE_NAME {
 		excludeAppIdsQuery := "SELECT identifier_value_int " +
 			" FROM resource_qualifier_mapping " +
 			fmt.Sprintf(" WHERE reference_type = %d AND active=true AND identifier_type = %d", resourceQualifiers.InfraProfile, identifierType)
@@ -244,9 +243,9 @@ func (impl *InfraConfigRepositoryImpl) GetIdentifierList(listFilter infraConfig.
 			" LIMIT ? " +
 			" OFFSET ? "
 
-		var identifiers []*infraConfig.Identifier
+		var identifiers []*Identifier
 		_, err := impl.dbConnection.Query(&identifiers, query,
-			infraConfig.DEFAULT_PROFILE_NAME,
+			DEFAULT_PROFILE_NAME,
 			listFilter.IdentifierNameLike,
 			listFilter.SortOrder,
 			listFilter.Limit,
@@ -273,7 +272,7 @@ func (impl *InfraConfigRepositoryImpl) GetIdentifierList(listFilter infraConfig.
 		" WHERE id IN (" + filterQuery + ") " +
 		" AND active=true"
 
-	var identifiers []*infraConfig.Identifier
+	var identifiers []*Identifier
 	_, err := impl.dbConnection.Query(&identifiers, finalQuery,
 		identifierType,
 		listFilter.IdentifierNameLike,
@@ -294,7 +293,7 @@ func (impl *InfraConfigRepositoryImpl) DeleteProfileIdentifierMappings(tx *pg.Tx
 	return err
 }
 
-func (impl *InfraConfigRepositoryImpl) DeleteProfileIdentifierMappingsByIds(tx *pg.Tx, userId int32, identifierIds []int, identifierType infraConfig.IdentifierType, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) error {
+func (impl *InfraConfigRepositoryImpl) DeleteProfileIdentifierMappingsByIds(tx *pg.Tx, userId int32, identifierIds []int, identifierType IdentifierType, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) error {
 	_, err := tx.Model(&resourceQualifiers.QualifierMapping{}).
 		Set("active=?", false).
 		Set("updated_by=?").
@@ -302,7 +301,7 @@ func (impl *InfraConfigRepositoryImpl) DeleteProfileIdentifierMappingsByIds(tx *
 		Where("resource_type=?", resourceQualifiers.InfraProfile).
 		Where("active=?", true).
 		Where("identifier_value_int IN (?)", pg.In(identifierIds)).
-		Where("identifier_key=?", infraConfig.GetIdentifierKey(identifierType, searchableKeyNameIdMap)).
+		Where("identifier_key=?", GetIdentifierKey(identifierType, searchableKeyNameIdMap)).
 		Update()
 	return err
 }
