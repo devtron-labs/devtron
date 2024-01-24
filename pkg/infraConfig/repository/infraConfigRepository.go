@@ -40,9 +40,10 @@ type InfraConfigRepository interface {
 	UpdateConfigurations(tx *pg.Tx, configurations []*infraConfig.InfraProfileConfiguration) error
 	UpdateProfile(tx *pg.Tx, profileName string, profile *infraConfig.InfraProfile) error
 
+	DeleteProfileIdentifierMappingsByIds(tx *pg.Tx, identifierIds []int, identifierType infraConfig.IdentifierType, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) error
 	DeleteProfile(tx *pg.Tx, profileName string) error
 	DeleteConfigurations(tx *pg.Tx, profileName string) error
-	DeleteProfileIdentifierMappings(tx *pg.Tx, profileId int) error
+	DeleteProfileIdentifierMappings(tx *pg.Tx, profileName string) error
 	sql.TransactionWrapper
 }
 
@@ -230,7 +231,23 @@ func (impl *InfraConfigRepositoryImpl) GetIdentifierList(listFilter infraConfig.
 
 }
 
-func (impl *InfraConfigRepositoryImpl) DeleteProfileIdentifierMappings(tx *pg.Tx, profileId int) error {
-	// todo: @gireesh delete from resource_qualifier_mapping
-	return nil
+func (impl *InfraConfigRepositoryImpl) DeleteProfileIdentifierMappings(tx *pg.Tx, profileId string) error {
+	_, err := tx.Model(&resourceQualifiers.QualifierMapping{}).
+		Set("active=?", false).
+		Where("resource_id=?", profileId).
+		Where("resource_type=?", resourceQualifiers.InfraProfile).
+		Where("active=?", true).
+		Update()
+	return err
+}
+
+func (impl *InfraConfigRepositoryImpl) DeleteProfileIdentifierMappingsByIds(tx *pg.Tx, identifierIds []int, identifierType infraConfig.IdentifierType, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) error {
+	_, err := tx.Model(&resourceQualifiers.QualifierMapping{}).
+		Set("active=?", false).
+		Where("resource_type=?", resourceQualifiers.InfraProfile).
+		Where("active=?", true).
+		Where("identifier_value_int IN (?)", pg.In(identifierIds)).
+		Where("identifier_key=?", infraConfig.GetIdentifierKey(identifierType, searchableKeyNameIdMap)).
+		Update()
+	return err
 }

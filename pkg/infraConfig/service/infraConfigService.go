@@ -50,6 +50,8 @@ type InfraConfigService interface {
 	DeleteProfile(profileName string) error
 
 	GetIdentifierList(listFilter *infraConfig.IdentifierListFilter) (*infraConfig.IdentifierProfileResponse, error)
+
+	ApplyProfileToIdentifiers(applyIdentifiersRequest infraConfig.InfraProfileApplyRequest) error
 }
 
 type InfraConfigServiceImpl struct {
@@ -352,6 +354,11 @@ func (impl *InfraConfigServiceImpl) DeleteProfile(profileName string) error {
 	}
 
 	// step3: delete profile identifier mappings
+	err = impl.infraProfileRepo.DeleteProfileIdentifierMappings(tx, profileName)
+	if err != nil {
+		impl.logger.Errorw("error in deleting profile identifier mappings", "profileName", profileName, "error", err)
+		return err
+	}
 	// todo: delete from resource_identifier_mapping where resource_id is profileId and resource_type is infraProfile
 	err = impl.infraProfileRepo.CommitTx(tx)
 	if err != nil {
@@ -648,4 +655,37 @@ func (impl *InfraConfigServiceImpl) GetIdentifierList(listFilter *infraConfig.Id
 	idenfierListResponse.TotalIdentifierCount = totalIdentifiersCount
 	idenfierListResponse.OverriddenIdentifierCount = overriddenIdentifiersCount
 	return idenfierListResponse, nil
+}
+
+func (impl *InfraConfigServiceImpl) ApplyProfileToIdentifiers(applyIdentifiersRequest infraConfig.InfraProfileApplyRequest) error {
+	if applyIdentifiersRequest.IdentifiersFilter == nil && applyIdentifiersRequest.Identifiers == nil {
+		return errors.New("invalid apply request")
+	}
+
+	if applyIdentifiersRequest.IdentifiersFilter != nil && applyIdentifiersRequest.Identifiers != nil {
+		return errors.New("invalid apply request")
+	}
+
+	if applyIdentifiersRequest.IdentifiersFilter != nil {
+		// validate IdentifiersFilter
+		err := impl.validator.Struct(applyIdentifiersRequest.IdentifiersFilter)
+		if err != nil {
+			err = errors.Wrap(err, PayloadValidationError)
+			return err
+		}
+
+		// set identifiers in the filter
+
+	}
+	tx, err := impl.infraProfileRepo.StartTx()
+	if err != nil {
+		impl.logger.Errorw("error in starting transaction to apply profile to identifiers", "applyIdentifiersRequest", applyIdentifiersRequest, "error", err)
+		return err
+	}
+	err = impl.infraProfileRepo.DeleteProfileIdentifierMappingsByIds(tx, applyIdentifiersRequest.Identifiers, infraConfig.APPLICATION, impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap())
+	if err != nil {
+		impl.logger.Errorw("error in deleting profile identifier mappings", "applyIdentifiersRequest", applyIdentifiersRequest, "error", err)
+		return err
+	}
+
 }

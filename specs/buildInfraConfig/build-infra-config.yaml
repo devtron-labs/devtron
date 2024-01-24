@@ -152,10 +152,6 @@ components:
     IdentifiersInfraConfigProfileRequest:
       type: object
       properties:
-        identifierType:
-          type: string
-          description: identifier type
-          example: "APP"
         identifiersFilter:
           $ref: '#/components/schemas/ListFilter'
         identifiers:
@@ -206,13 +202,13 @@ components:
             description: Search string on identifier name
             example: "java"
           sort:
-            type: integer
+            type: string
             description: Sort order
-            example: 0 for asc and 1 for desc
-          profileId:
-            type: integer
-            description: Profile Id
-            example: 1
+            example: ASC for asc and DESC for desc
+          profileName:
+            type: string
+            description: Profile name
+            example: "java-1"
           size:
             type: integer
             description: Page Size

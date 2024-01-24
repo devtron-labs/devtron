@@ -27,6 +27,7 @@ type InfraConfigRestHandler interface {
 	CreateProfile(w http.ResponseWriter, r *http.Request)
 	GetProfileList(w http.ResponseWriter, r *http.Request)
 	GetIdentifierList(w http.ResponseWriter, r *http.Request)
+	ApplyProfileToIdentifiers(w http.ResponseWriter, r *http.Request)
 }
 
 type InfraConfigRestHandlerImpl struct {
@@ -117,7 +118,7 @@ func (handler *InfraConfigRestHandlerImpl) GetProfile(w http.ResponseWriter, r *
 		return
 	}
 	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -169,7 +170,7 @@ func (handler *InfraConfigRestHandlerImpl) GetProfileList(w http.ResponseWriter,
 		return
 	}
 	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -192,7 +193,7 @@ func (handler *InfraConfigRestHandlerImpl) DeleteProfile(w http.ResponseWriter, 
 		return
 	}
 	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionDelete, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -218,7 +219,7 @@ func (handler *InfraConfigRestHandlerImpl) GetIdentifierList(w http.ResponseWrit
 		return
 	}
 	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -272,4 +273,39 @@ func (handler *InfraConfigRestHandlerImpl) GetIdentifierList(w http.ResponseWrit
 		return
 	}
 	common.WriteJsonResp(w, nil, res, http.StatusOK)
+}
+
+func (handler *InfraConfigRestHandlerImpl) ApplyProfileToIdentifiers(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+
+	vars := mux.Vars(r)
+	identifierType := vars["identifierType"]
+	if identifierType != string(infraConfig.APPLICATION) {
+		common.WriteJsonResp(w, errors.New(fmt.Sprintf(InvalidIdentifierType, identifierType)), nil, http.StatusBadRequest)
+		return
+	}
+	var request infraConfig.InfraProfileApplyRequest
+	decoder := json.NewDecoder(r.Body)
+	err = decoder.Decode(&request)
+	if err != nil {
+		handler.logger.Errorw("error in decoding the request payload", "err", err, "requestBody", r.Body)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	err = handler.infraProfileService.ApplyProfileToIdentifiers(request)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	common.WriteJsonResp(w, nil, nil, http.StatusOK)
 }

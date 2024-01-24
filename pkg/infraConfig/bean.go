@@ -61,7 +61,7 @@ type ProfileBean struct {
 	Name           string              `json:"name" validate:"required,min=1,max=50"`
 	Description    string              `json:"description" validate:"max=300"`
 	Active         bool                `json:"active"`
-	Configurations []ConfigurationBean `json:"configuration" validate:"dive"`
+	Configurations []ConfigurationBean `json:"configurations" validate:"dive"`
 	AppCount       int                 `json:"appCount"`
 	CreatedBy      int32               `json:"createdBy"`
 	CreatedOn      time.Time           `json:"createdOn"`
@@ -113,12 +113,12 @@ type ProfilesResponse struct {
 }
 
 type IdentifierListFilter struct {
-	IdentifierType     IdentifierType // currently supporting app
-	IdentifierNameLike string         // currently app_name  is supported
-	ProfileName        string         // gets  the list for this profile
-	Limit              int            // limit on the result set , defaults to 20
-	Offset             int            // offset on the result set, defaults to 0
-	SortOrder          string         // asc or desc, defaults to asc by appName
+	IdentifierType     IdentifierType `json:"-"`                              // currently supporting app
+	IdentifierNameLike string         `json:"search"`                         // currently app_name  is supported
+	ProfileName        string         `json:"profileName"`                    // gets  the list for this profile
+	Limit              int            `json:"size" validate:"min=0"`          // limit on the result set , defaults to 20
+	Offset             int            `json:"offset" validate:"min=0"`        // offset on the result set, defaults to 0
+	SortOrder          string         `json:"sort" validate:"oneof=ASC DESC"` // asc or desc, defaults to asc by appName
 }
 
 type Identifier struct {
@@ -136,6 +136,12 @@ type IdentifierProfileResponse struct {
 	Identifiers               []*Identifier `json:"identifiers"`
 	TotalIdentifierCount      int           `json:"totalIdentifierCount"`
 	OverriddenIdentifierCount int           `json:"overriddenIdentifierCount"`
+}
+
+type InfraProfileApplyRequest struct {
+	IdentifiersFilter *IdentifierListFilter `json:"identifiersFilter"`
+	Identifiers       []int                 `json:"identifiers"`
+	UpdateToProfile   int                   `json:"updateToProfile"`
 }
 
 type InfraConfig struct {
