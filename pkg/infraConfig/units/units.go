@@ -148,9 +148,9 @@ func GetMemoryUnit(memoryUnitStr MemoryUnitStr) UnitSuffix {
 type TimeUnitStr string
 
 const (
-	SecondStr TimeUnitStr = "s"
-	MinuteStr TimeUnitStr = "m"
-	HourStr   TimeUnitStr = "h"
+	SecondStr TimeUnitStr = "Seconds"
+	MinuteStr TimeUnitStr = "Minutes"
+	HourStr   TimeUnitStr = "Hours"
 )
 
 func GetTimeUnitStr(timeUnit UnitSuffix) TimeUnitStr {
