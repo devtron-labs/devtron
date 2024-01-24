@@ -104,7 +104,7 @@ func (handler *InfraConfigRestHandlerImpl) UpdateInfraProfile(w http.ResponseWri
 	}
 	err = handler.infraProfileService.UpdateProfile(userId, profileName, payload)
 	if err != nil {
-		handler.logger.Errorw("error in updating profile and configurations", "profileName", profileName, "payLoad", payload)
+		handler.logger.Errorw("error in updating profile and configurations", "profileName", profileName, "payLoad", payload, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 	}
 	common.WriteJsonResp(w, nil, nil, http.StatusOK)
