@@ -195,13 +195,39 @@ func (impl *InfraConfigRepositoryImpl) DeleteConfigurations(tx *pg.Tx, profileNa
 
 func (impl *InfraConfigRepositoryImpl) GetIdentifierList(listFilter infraConfig.IdentifierListFilter, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) ([]*infraConfig.Identifier, error) {
 	listFilter.IdentifierNameLike = "%" + listFilter.IdentifierNameLike + "%"
-
+	identifierType := infraConfig.GetIdentifierKey(listFilter.IdentifierType, searchableKeyNameIdMap)
 	totalOverridenCountQuery := "SELECT COUNT(id) " +
 		" FROM resource_qualifier_mapping " +
-		" WHERE reference_type = ? " +
+		fmt.Sprintf(" WHERE reference_type = %d ", resourceQualifiers.InfraProfile) +
 		" AND active=true "
 
-	finalQuery := "SELECT identifier_value_int AS id, identifier_value_str AS name, reference_id as profile_id, COUNT(id) OVER() AS total_identifier_count" + totalOverridenCountQuery + " AS overridden_identifier_count " +
+	if listFilter.ProfileName == DEFAULT_PROFILE_NAME {
+		excludeAppIdsQuery := "SELECT identifier_value_int " +
+			" FROM resource_qualifier_mapping " +
+			fmt.Sprintf(" WHERE reference_type = %d AND active=true AND identifier_type = %d", resourceQualifiers.InfraProfile, identifierType)
+
+		query := "SELECT id," +
+			"app_name AS name," +
+			"(SELECT id FROM profile WHERE name = ?) AS profile_id, COUNT(id) OVER() AS total_identifier_count,(" + totalOverridenCountQuery + ") AS overridden_identifier_count " +
+			" FROM app " +
+			" WHERE active=true " +
+			" AND name LIKE ? " +
+			" AND id NOT IN ( " + excludeAppIdsQuery + " ) " +
+			" ORDER BY name ? " +
+			" LIMIT ? " +
+			" OFFSET ? "
+
+		var identifiers []*infraConfig.Identifier
+		_, err := impl.dbConnection.Query(&identifiers, query,
+			DEFAULT_PROFILE_NAME,
+			listFilter.IdentifierNameLike,
+			listFilter.SortOrder,
+			listFilter.Limit,
+			listFilter.Offset)
+		return identifiers, err
+	}
+
+	finalQuery := "SELECT identifier_value_int AS id, identifier_value_str AS name, reference_id as profile_id, COUNT(id) OVER() AS total_identifier_count, (" + totalOverridenCountQuery + ") AS overridden_identifier_count " +
 		" FROM resource_qualifier_mapping "
 	finalQuery += fmt.Sprintf(" WHERE reference_type = %d ", resourceQualifiers.InfraProfile)
 	if listFilter.ProfileName != "" {
@@ -222,7 +248,7 @@ func (impl *InfraConfigRepositoryImpl) GetIdentifierList(listFilter infraConfig.
 
 	var identifiers []*infraConfig.Identifier
 	_, err := impl.dbConnection.Query(&identifiers, finalQuery,
-		infraConfig.GetIdentifierKey(listFilter.IdentifierType, searchableKeyNameIdMap),
+		identifierType,
 		listFilter.IdentifierNameLike,
 		listFilter.SortOrder,
 		listFilter.Limit,
