@@ -61,7 +61,7 @@ type ProfileBean struct {
 	Name           string              `json:"name" validate:"required,min=1,max=50"`
 	Description    string              `json:"description" validate:"max=300"`
 	Active         bool                `json:"active"`
-	Configurations []ConfigurationBean `json:"configuration" validate:"dive"`
+	Configurations []ConfigurationBean `json:"configurations" validate:"dive"`
 	AppCount       int                 `json:"appCount"`
 	CreatedBy      int32               `json:"createdBy"`
 	CreatedOn      time.Time           `json:"createdOn"`
