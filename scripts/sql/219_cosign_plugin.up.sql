@@ -1,5 +1,5 @@
 INSERT INTO plugin_metadata (id,name,description,type,icon,deleted,created_on,created_by,updated_on,updated_by)
-VALUES (nextval('id_seq_plugin_metadata'),'Cosign v1.0.0','This plugin is using cosign to sign the Docker images that are created in Continuous Integration (CI).','PRESET','https://github.com/devtron-labs/devtron/blob/main/assets/cosign-logo.png?raw=true',false,'now()',1,'now()',1);
+VALUES (nextval('id_seq_plugin_metadata'),'Cosign v1.0.0','This plugin is used to Cosign v1.0.0 the docker images.','PRESET','https://github.com/jatin-jangir-0220/test/blob/main/CDBA2B21-4D52-4A1A-8BF4-C9F66B9CF2FF.png?raw=true',false,'now()',1,'now()',1);
 
 INSERT INTO plugin_stage_mapping (id,plugin_id,stage_type,created_on,created_by,updated_on,updated_by)
 VALUES (nextval('id_seq_plugin_stage_mapping'),(SELECT id from plugin_metadata where name='Cosign v1.0.0'), 0,'now()',1,'now()',1);
@@ -9,16 +9,23 @@ VALUES (
      nextval('id_seq_plugin_pipeline_script'),
         $$#!/bin/sh 
 set -eo pipefail 
-apk update
 
-# Install 
-apk add cosign
 
-export COSIGN_PASSWORD=$CosignPassword
-# Verify the installation
-cosign version
 echo $DOCKER_IMAGE
+DOCKER_CONFIG_FILE="$HOME/.docker/config.json"
 
+# Extract the first entry in .auths section
+DOCKER_AUTHS=$(jq -r '.auths | to_entries | .[0].value' "$DOCKER_CONFIG_FILE")
+
+# Extract registry, username, and password
+DOCKER_REGISTRY=$(jq -r '.auths | to_entries | .[0].key' "$DOCKER_CONFIG_FILE" )
+DOCKER_USERNAME=$(echo "$DOCKER_AUTHS" | jq -r '.auth' | base64 -d | cut -d ":" -f1)
+DOCKER_PASSWORD=$(echo "$DOCKER_AUTHS" | jq -r '.auth' | base64 -d | cut -d ":" -f2)
+
+# Print the extracted values
+echo "Registry: $DOCKER_REGISTRY"
+echo "Username: $DOCKER_USERNAME"
+echo "password: $DOCKER_PASSWORD"
 if [ -z "$VariableAsPrivateKey" ]; then
     echo "VariableAsPrivateKey is not set. VariableAsPrivateKey must be present."
     if [ -z "$PreCommand" ]; then
@@ -28,7 +35,7 @@ if [ -z "$VariableAsPrivateKey" ]; then
             exit 1
         else
             echo "in PrivateKeyFile"
-            cosign sign --yes=true --key $PrivateKeyFile $DOCKER_IMAGE $ExtraArguments
+            docker run   -v $PWD:$PWD -w $PWD/$WORKINGDIR --user=root  -e COSIGN_PASSWORD=$CosignPassword gcr.io/projectsigstore/cosign:v2.2.2  -c sign --yes=true --key=$PrivateKeyFile --registry-username=$DOCKER_USERNAME --registry-password=$DOCKER_PASSWORD $DOCKER_IMAGE $ExtraArguments
         fi
     else
         if [ -z "$PrivateKeyFile" ]; then
@@ -37,13 +44,14 @@ if [ -z "$VariableAsPrivateKey" ]; then
         else
             echo "in PreCommand"
             $PreCommand
-            cosign sign --yes=true --key $PrivateKeyFile $DOCKER_IMAGE $ExtraArguments
+            docker run   -v $PWD:$PWD -w $PWD/$WORKINGDIR --user=root  -e COSIGN_PASSWORD=$CosignPassword gcr.io/projectsigstore/cosign:v2.2.2  sign --yes=true --key=$PrivateKeyFile --registry-username=$DOCKER_USERNAME --registry-password=$DOCKER_PASSWORD $DOCKER_IMAGE $ExtraArguments
         fi
     fi
 else
     echo "in VariableAsPrivateKey"
-    echo $VariableAsPrivateKey | base64 -d > cosign_ci.key
-    cosign sign  --yes=true --key cosign_ci.key $DOCKER_IMAGE $ExtraArguments
+    echo $VariableAsPrivateKey| base64 -d > cosign_ci.key
+    cat cosign_ci.key
+    docker run   -v $PWD:$PWD -w $PWD/$WORKINGDIR --user=root  -e COSIGN_PASSWORD=$CosignPassword gcr.io/projectsigstore/cosign:v2.2.2  sign --yes=true --key=cosign_ci.key --registry-username=$DOCKER_USERNAME --registry-password=$DOCKER_PASSWORD $DOCKER_IMAGE $ExtraArguments
 fi
 
 $PostCommand
