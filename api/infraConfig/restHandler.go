@@ -6,7 +6,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
-	"github.com/devtron-labs/devtron/pkg/infraConfig/service"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
@@ -22,13 +21,13 @@ type InfraConfigRestHandler interface {
 }
 type InfraConfigRestHandlerImpl struct {
 	logger              *zap.SugaredLogger
-	infraProfileService service.InfraConfigService
+	infraProfileService infraConfig.InfraConfigService
 	userService         user.UserService
 	enforcer            casbin.Enforcer
 	enforcerUtil        rbac.EnforcerUtil
 }
 
-func NewInfraConfigRestHandlerImpl(logger *zap.SugaredLogger, infraProfileService service.InfraConfigService, userService user.UserService, enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil) *InfraConfigRestHandlerImpl {
+func NewInfraConfigRestHandlerImpl(logger *zap.SugaredLogger, infraProfileService infraConfig.InfraConfigService, userService user.UserService, enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil) *InfraConfigRestHandlerImpl {
 	return &InfraConfigRestHandlerImpl{
 		logger:              logger,
 		infraProfileService: infraProfileService,

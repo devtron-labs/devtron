@@ -123,7 +123,47 @@ type InfraConfig struct {
 	CiDefaultTimeout int64  `env:"DEFAULT_TIMEOUT" envDefault:"3600"`
 }
 
-func (infraConfig InfraConfig) GetCiLimitCpu() (*InfraProfileConfiguration, error) {
+func (infraConfig InfraConfig) GetCiLimitCpu() string {
+	return infraConfig.CiLimitCpu
+}
+
+func (infraConfig InfraConfig) setCiLimitCpu(cpu string) {
+	infraConfig.CiLimitCpu = cpu
+}
+
+func (infraConfig InfraConfig) GetCiLimitMem() string {
+	return infraConfig.CiLimitMem
+}
+
+func (infraConfig InfraConfig) setCiLimitMem(mem string) {
+	infraConfig.CiLimitMem = mem
+}
+
+func (infraConfig InfraConfig) GetCiReqCpu() string {
+	return infraConfig.CiReqCpu
+}
+
+func (infraConfig InfraConfig) setCiReqCpu(cpu string) {
+	infraConfig.CiReqCpu = cpu
+}
+
+func (infraConfig InfraConfig) GetCiReqMem() string {
+	return infraConfig.CiReqMem
+}
+
+func (infraConfig InfraConfig) setCiReqMem(mem string) {
+	infraConfig.CiReqMem = mem
+}
+
+func (infraConfig InfraConfig) GetCiDefaultTimeout() int64 {
+	return infraConfig.CiDefaultTimeout
+}
+
+func (infraConfig InfraConfig) setCiDefaultTimeout(timeout int64) {
+	infraConfig.CiDefaultTimeout = timeout
+}
+
+func (infraConfig InfraConfig) LoadCiLimitCpu() (*InfraProfileConfiguration, error) {
 	positive, _, num, denom, suffix, err := units.ParseQuantityString(infraConfig.CiLimitCpu)
 	if err != nil {
 		return nil, err
@@ -148,7 +188,7 @@ func (infraConfig InfraConfig) GetCiLimitCpu() (*InfraProfileConfiguration, erro
 
 }
 
-func (infraConfig InfraConfig) GetCiLimitMem() (*InfraProfileConfiguration, error) {
+func (infraConfig InfraConfig) LoadCiLimitMem() (*InfraProfileConfiguration, error) {
 	positive, _, num, denom, suffix, err := units.ParseQuantityString(infraConfig.CiLimitMem)
 	if err != nil {
 		return nil, err
@@ -172,7 +212,7 @@ func (infraConfig InfraConfig) GetCiLimitMem() (*InfraProfileConfiguration, erro
 
 }
 
-func (infraConfig InfraConfig) GetCiReqCpu() (*InfraProfileConfiguration, error) {
+func (infraConfig InfraConfig) LoadCiReqCpu() (*InfraProfileConfiguration, error) {
 	positive, _, num, denom, suffix, err := units.ParseQuantityString(infraConfig.CiReqCpu)
 	if err != nil {
 		return nil, err
@@ -198,7 +238,7 @@ func (infraConfig InfraConfig) GetCiReqCpu() (*InfraProfileConfiguration, error)
 	}, nil
 }
 
-func (infraConfig InfraConfig) GetCiReqMem() (*InfraProfileConfiguration, error) {
+func (infraConfig InfraConfig) LoadCiReqMem() (*InfraProfileConfiguration, error) {
 	positive, _, num, denom, suffix, err := units.ParseQuantityString(infraConfig.CiReqMem)
 	if err != nil {
 		return nil, err
@@ -222,7 +262,7 @@ func (infraConfig InfraConfig) GetCiReqMem() (*InfraProfileConfiguration, error)
 	}, nil
 }
 
-func (infraConfig InfraConfig) GetDefaultTimeout() (*InfraProfileConfiguration, error) {
+func (infraConfig InfraConfig) LoadDefaultTimeout() (*InfraProfileConfiguration, error) {
 	return &InfraProfileConfiguration{
 		Key:   TimeOut,
 		Value: float64(infraConfig.CiDefaultTimeout),
