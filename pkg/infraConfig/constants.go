@@ -93,4 +93,3 @@ func GetUnitSuffixStr(unitKey ConfigKey, unit units.UnitSuffix) string {
 type ProfileType string
 
 const DEFAULT ProfileType = "DEFAULT"
-const NORMAL ProfileType = "NORMAL"
