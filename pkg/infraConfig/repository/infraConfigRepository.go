@@ -9,6 +9,7 @@ import (
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
 	"github.com/pkg/errors"
+	"time"
 )
 
 const DEFAULT_PROFILE_NAME = "default"
@@ -40,7 +41,7 @@ type InfraConfigRepository interface {
 	UpdateConfigurations(tx *pg.Tx, configurations []*infraConfig.InfraProfileConfiguration) error
 	UpdateProfile(tx *pg.Tx, profileName string, profile *infraConfig.InfraProfile) error
 
-	DeleteProfileIdentifierMappingsByIds(tx *pg.Tx, identifierIds []int, identifierType infraConfig.IdentifierType, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) error
+	DeleteProfileIdentifierMappingsByIds(tx *pg.Tx, userId int32, identifierIds []int, identifierType infraConfig.IdentifierType, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) error
 	DeleteProfile(tx *pg.Tx, profileName string) error
 	DeleteConfigurations(tx *pg.Tx, profileName string) error
 	DeleteProfileIdentifierMappings(tx *pg.Tx, profileName string) error
@@ -267,9 +268,11 @@ func (impl *InfraConfigRepositoryImpl) DeleteProfileIdentifierMappings(tx *pg.Tx
 	return err
 }
 
-func (impl *InfraConfigRepositoryImpl) DeleteProfileIdentifierMappingsByIds(tx *pg.Tx, identifierIds []int, identifierType infraConfig.IdentifierType, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) error {
+func (impl *InfraConfigRepositoryImpl) DeleteProfileIdentifierMappingsByIds(tx *pg.Tx, userId int32, identifierIds []int, identifierType infraConfig.IdentifierType, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) error {
 	_, err := tx.Model(&resourceQualifiers.QualifierMapping{}).
 		Set("active=?", false).
+		Set("updated_by=?").
+		Set("updated_on=?", time.Now()).
 		Where("resource_type=?", resourceQualifiers.InfraProfile).
 		Where("active=?", true).
 		Where("identifier_value_int IN (?)", pg.In(identifierIds)).

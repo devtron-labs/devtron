@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 	"github.com/caarlos0/env"
+	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
@@ -15,6 +16,7 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
+	"k8s.io/utils/pointer"
 	"time"
 )
 
@@ -59,6 +61,7 @@ type InfraConfigServiceImpl struct {
 	logger                              *zap.SugaredLogger
 	infraProfileRepo                    repository.InfraConfigRepository
 	qualifiersMappingRepository         resourceQualifiers.QualifiersMappingRepository
+	appRepository                       appRepository.AppRepository
 	units                               *units.Units
 	infraConfig                         *infraConfig.InfraConfig
 	devtronResourceSearchableKeyService devtronResource.DevtronResourceSearchableKeyService
@@ -68,6 +71,7 @@ type InfraConfigServiceImpl struct {
 func NewInfraConfigServiceImpl(logger *zap.SugaredLogger,
 	infraProfileRepo repository.InfraConfigRepository,
 	qualifiersMappingRepository resourceQualifiers.QualifiersMappingRepository,
+	appRepository appRepository.AppRepository,
 	units *units.Units,
 	devtronResourceSearchableKeyService devtronResource.DevtronResourceSearchableKeyService,
 	validator *validator.Validate) (*InfraConfigServiceImpl, error) {
@@ -80,6 +84,7 @@ func NewInfraConfigServiceImpl(logger *zap.SugaredLogger,
 		logger:                              logger,
 		infraProfileRepo:                    infraProfileRepo,
 		qualifiersMappingRepository:         qualifiersMappingRepository,
+		appRepository:                       appRepository,
 		units:                               units,
 		devtronResourceSearchableKeyService: devtronResourceSearchableKeyService,
 		infraConfig:                         infraConfiguration,
@@ -670,7 +675,17 @@ func (impl *InfraConfigServiceImpl) ApplyProfileToIdentifiers(userId int32, appl
 		return errors.New("invalid apply request")
 	}
 
+	// fetch default profile
+	defaultProfile, err := impl.GetProfileByName(repository.DEFAULT_PROFILE_NAME)
+	if err != nil {
+		impl.logger.Errorw("error in fetching default profile", "applyIdentifiersRequest", applyIdentifiersRequest, "error", err)
+		return err
+	}
+	searchableKeyNameIdMap := impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap()
+
 	identifierIdNameMap := make(map[int]string)
+
+	// apply profile for those identifiers those qualified by the applyIdentifiersRequest.IdentifiersFilter
 	if applyIdentifiersRequest.IdentifiersFilter != nil {
 		// validate IdentifiersFilter
 		err := impl.validator.Struct(applyIdentifiersRequest.IdentifiersFilter)
@@ -680,9 +695,48 @@ func (impl *InfraConfigServiceImpl) ApplyProfileToIdentifiers(userId int32, appl
 		}
 
 		// get apps using filter
+		identifiersList, err := impl.infraProfileRepo.GetIdentifierList(*applyIdentifiersRequest.IdentifiersFilter, searchableKeyNameIdMap)
 		// set identifiers in the filter
+		identifierIds := make([]int, 0, len(identifiersList))
+		for _, identifier := range identifiersList {
+			identifierIds = append(identifierIds, identifier.Id)
+			identifierIdNameMap[identifier.Id] = identifier.Name
+		}
+		// set identifierIds in the filter
+		applyIdentifiersRequest.Identifiers = identifierIds
 
+	} else {
+		// apply profile for those identifiers those are provided in the applyIdentifiersRequest.Identifiers by the user
+
+		// get all the apps with the given identifiers, getting apps because the current supported identifier type is only apps.
+		// may need to fetch respective identifier objects in future
+
+		identifierPtrIds := util.Transform(applyIdentifiersRequest.Identifiers, func(identifierId int) *int {
+			return pointer.Int(identifierId)
+		})
+
+		// here we are fetching only the active identifiers list, if user provided identifiers have any inactive at the time of this computation
+		// ignore applying profile for those inactive identifiers
+		activeIdentifiers := make([]int, 0, len(identifierPtrIds))
+		identifiersList, err := impl.appRepository.FindByIds(identifierPtrIds)
+		if err != nil {
+			impl.logger.Errorw("error in fetching apps using ids", "appIds", applyIdentifiersRequest.Identifiers, "error", err)
+			return err
+		}
+
+		for _, identifier := range identifiersList {
+			activeIdentifiers = append(activeIdentifiers, identifier.Id)
+			identifierIdNameMap[identifier.Id] = identifier.AppName
+		}
+
+		// reset the identifiers in the applyProfileRequest with active identifiers for further processing
+		applyIdentifiersRequest.Identifiers = activeIdentifiers
 	}
+
+	return impl.applyProfile(userId, applyIdentifiersRequest, searchableKeyNameIdMap, defaultProfile, identifierIdNameMap)
+}
+
+func (impl *InfraConfigServiceImpl) applyProfile(userId int32, applyIdentifiersRequest infraConfig.InfraProfileApplyRequest, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int, defaultProfile *infraConfig.ProfileBean, identifierIdNameMap map[int]string) error {
 	tx, err := impl.infraProfileRepo.StartTx()
 	if err != nil {
 		impl.logger.Errorw("error in starting transaction to apply profile to identifiers", "applyIdentifiersRequest", applyIdentifiersRequest, "error", err)
@@ -690,14 +744,16 @@ func (impl *InfraConfigServiceImpl) ApplyProfileToIdentifiers(userId int32, appl
 	}
 
 	defer impl.infraProfileRepo.RollbackTx(tx)
-	searchableKeyNameIdMap := impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap()
-	err = impl.infraProfileRepo.DeleteProfileIdentifierMappingsByIds(tx, applyIdentifiersRequest.Identifiers, infraConfig.APPLICATION, searchableKeyNameIdMap)
+
+	// mark the old profile identifier mappings inactive as they will be overridden by the new profile
+	err = impl.infraProfileRepo.DeleteProfileIdentifierMappingsByIds(tx, userId, applyIdentifiersRequest.Identifiers, infraConfig.APPLICATION, searchableKeyNameIdMap)
 	if err != nil {
 		impl.logger.Errorw("error in deleting profile identifier mappings", "applyIdentifiersRequest", applyIdentifiersRequest, "error", err)
 		return err
 	}
 
-	if applyIdentifiersRequest.UpdateToProfile != 1 {
+	// don't store qualifier mappings for default profile
+	if applyIdentifiersRequest.UpdateToProfile != defaultProfile.Id {
 		qualifierMappings := make([]*resourceQualifiers.QualifierMapping, 0, len(applyIdentifiersRequest.Identifiers))
 		for _, identifierId := range applyIdentifiersRequest.Identifiers {
 			qualifierMapping := &resourceQualifiers.QualifierMapping{
