@@ -696,8 +696,8 @@ func (handler *K8sApplicationRestHandlerImpl) DownloadPodLogs(w http.ResponseWri
 		}
 	}
 	podLogsFilename := fmt.Sprintf("podlogs-%s-%s.txt", request.K8sRequest.ResourceIdentifier.Name, uuid.New().String())
-	common.WriteOctetStreamResp(w, r, dataBuffer.Bytes(), podLogsFilename)
-	return
+	logsBody := k8s.LogsDownloadBean{FileName: podLogsFilename, LogsData: dataBuffer.String()}
+	common.WriteJsonResp(w, nil, logsBody, http.StatusOK)
 }
 
 func (handler *K8sApplicationRestHandlerImpl) requestValidationAndRBAC(w http.ResponseWriter, r *http.Request, token string, request *k8s.ResourceRequestBean) {
