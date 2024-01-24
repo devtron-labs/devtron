@@ -150,6 +150,7 @@ type InfraProfileApplyRequest struct {
 	UpdateToProfile   int                   `json:"updateToProfile"`
 }
 
+// InfraConfig is used for read only purpose
 type InfraConfig struct {
 	// currently only for ci
 	CiLimitCpu       string `env:"LIMIT_CI_CPU" envDefault:"0.5"`
@@ -159,7 +160,7 @@ type InfraConfig struct {
 	CiDefaultTimeout int64  `env:"DEFAULT_TIMEOUT" envDefault:"3600"`
 }
 
-func (infraConfig InfraConfig) GetCiLimitCpu() (*InfraProfileConfiguration, error) {
+func (infraConfig InfraConfig) LoadCiLimitCpu() (*InfraProfileConfiguration, error) {
 	positive, _, num, denom, suffix, err := units.ParseQuantityString(infraConfig.CiLimitCpu)
 	if err != nil {
 		return nil, err
@@ -184,7 +185,7 @@ func (infraConfig InfraConfig) GetCiLimitCpu() (*InfraProfileConfiguration, erro
 
 }
 
-func (infraConfig InfraConfig) GetCiLimitMem() (*InfraProfileConfiguration, error) {
+func (infraConfig InfraConfig) LoadCiLimitMem() (*InfraProfileConfiguration, error) {
 	positive, _, num, denom, suffix, err := units.ParseQuantityString(infraConfig.CiLimitMem)
 	if err != nil {
 		return nil, err
@@ -208,7 +209,7 @@ func (infraConfig InfraConfig) GetCiLimitMem() (*InfraProfileConfiguration, erro
 
 }
 
-func (infraConfig InfraConfig) GetCiReqCpu() (*InfraProfileConfiguration, error) {
+func (infraConfig InfraConfig) LoadCiReqCpu() (*InfraProfileConfiguration, error) {
 	positive, _, num, denom, suffix, err := units.ParseQuantityString(infraConfig.CiReqCpu)
 	if err != nil {
 		return nil, err
@@ -234,7 +235,7 @@ func (infraConfig InfraConfig) GetCiReqCpu() (*InfraProfileConfiguration, error)
 	}, nil
 }
 
-func (infraConfig InfraConfig) GetCiReqMem() (*InfraProfileConfiguration, error) {
+func (infraConfig InfraConfig) LoadCiReqMem() (*InfraProfileConfiguration, error) {
 	positive, _, num, denom, suffix, err := units.ParseQuantityString(infraConfig.CiReqMem)
 	if err != nil {
 		return nil, err
@@ -258,7 +259,7 @@ func (infraConfig InfraConfig) GetCiReqMem() (*InfraProfileConfiguration, error)
 	}, nil
 }
 
-func (infraConfig InfraConfig) GetDefaultTimeout() (*InfraProfileConfiguration, error) {
+func (infraConfig InfraConfig) LoadDefaultTimeout() (*InfraProfileConfiguration, error) {
 	return &InfraProfileConfiguration{
 		Key:   TimeOut,
 		Value: float64(infraConfig.CiDefaultTimeout),

@@ -55,6 +55,8 @@ type InfraConfigService interface {
 	GetIdentifierList(listFilter *infraConfig.IdentifierListFilter) (*infraConfig.IdentifierProfileResponse, error)
 
 	ApplyProfileToIdentifiers(userId int32, applyIdentifiersRequest infraConfig.InfraProfileApplyRequest) error
+
+	GetInfraConfigurationsByScope(scope infraConfig.Scope) (*infraConfig.InfraConfigurationsResponse, error)
 }
 
 type InfraConfigServiceImpl struct {
@@ -388,23 +390,23 @@ func (impl *InfraConfigServiceImpl) loadDefaultProfile() error {
 	}
 
 	infraConfiguration := impl.infraConfig
-	cpuLimit, err := infraConfiguration.GetCiLimitCpu()
+	cpuLimit, err := infraConfiguration.LoadCiLimitCpu()
 	if err != nil {
 		return err
 	}
-	memLimit, err := infraConfiguration.GetCiLimitMem()
+	memLimit, err := infraConfiguration.LoadCiLimitMem()
 	if err != nil {
 		return err
 	}
-	cpuReq, err := infraConfiguration.GetCiReqCpu()
+	cpuReq, err := infraConfiguration.LoadCiReqCpu()
 	if err != nil {
 		return err
 	}
-	memReq, err := infraConfiguration.GetCiReqMem()
+	memReq, err := infraConfiguration.LoadCiReqMem()
 	if err != nil {
 		return err
 	}
-	timeout, err := infraConfiguration.GetDefaultTimeout()
+	timeout, err := infraConfiguration.LoadDefaultTimeout()
 	if err != nil {
 		return err
 	}
