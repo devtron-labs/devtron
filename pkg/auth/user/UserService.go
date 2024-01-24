@@ -25,10 +25,10 @@ import (
 	auth "github.com/devtron-labs/devtron/pkg/auth/authorisation/globalConfig"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository/helper"
 	util3 "github.com/devtron-labs/devtron/pkg/auth/user/util"
-	jwt2 "github.com/golang-jwt/jwt/v4"
 	"github.com/devtron-labs/devtron/pkg/timeoutWindow"
 	repository2 "github.com/devtron-labs/devtron/pkg/timeoutWindow/repository"
 	bean3 "github.com/devtron-labs/devtron/pkg/timeoutWindow/repository/bean"
+	jwt2 "github.com/golang-jwt/jwt/v4"
 	"net/http"
 	"sort"
 	"strings"
@@ -1896,6 +1896,7 @@ func (impl UserServiceImpl) saveUserAudit(r *http.Request, userId int32) {
 		UserId:    userId,
 		ClientIp:  clientIp,
 		CreatedOn: time.Now(),
+		UpdatedOn: time.Now(),
 	}
 	impl.userAuditService.Save(userAudit)
 }
