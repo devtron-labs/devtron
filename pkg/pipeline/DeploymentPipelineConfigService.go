@@ -1593,7 +1593,7 @@ func (impl *CdPipelineConfigServiceImpl) RegisterInACD(gitOpsRepoName string, ch
 	err := impl.argoClientWrapperService.RegisterGitOpsRepoInArgo(ctx, chartGitAttr.RepoUrl)
 	if err != nil {
 		impl.logger.Errorw("error while register git repo in argo", "err", err)
-		emptyRepoErrorMessage := []string{"failed to get index: 404 Not Found", "git repository is empty"}
+		emptyRepoErrorMessage := []string{"failed to get index: 404 Not Found", "remote repository is empty"}
 		if strings.Contains(err.Error(), emptyRepoErrorMessage[0]) || strings.Contains(err.Error(), emptyRepoErrorMessage[1]) {
 			// - found empty repository, create some file in repository
 			err := impl.gitOperationService.CreateReadmeInGitRepo(gitOpsRepoName, userId)
