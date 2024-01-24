@@ -695,7 +695,7 @@ func (handler *K8sApplicationRestHandlerImpl) DownloadPodLogs(w http.ResponseWri
 			return
 		}
 	}
-	podLogsFilename := fmt.Sprintf("podlogs-%s-%s.txt", request.K8sRequest.ResourceIdentifier.Name, uuid.New().String())
+	podLogsFilename := fmt.Sprintf("podlogs-%s-%s.log", request.K8sRequest.ResourceIdentifier.Name, uuid.New().String())
 	common.WriteOctetStreamResp(w, r, dataBuffer.Bytes(), podLogsFilename)
 }
 
