@@ -25,6 +25,8 @@ const (
 	AllExistingAndFutureProdEnvsInt      = -2
 	AllExistingAndFutureNonProdEnvsValue = "-1"
 	AllExistingAndFutureNonProdEnvsInt   = -1
+	AllExistingAndFutureEnvsString       = "-3"
+	AllExistingAndFutureEnvsInt          = -3
 )
 
 func GetEnvIdentifierValue(scope Scope) int {
