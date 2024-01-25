@@ -1284,7 +1284,7 @@ func (impl UserServiceImpl) getDesiredResponseWithOffSetAndSize(resp []bean.User
 
 }
 func (impl UserServiceImpl) getRequestWithFiltersArgsOrDefault(status string, sortOrder string, sortBy string, offset int, totalSize int, showAll bool, searchKey string) *bean.FetchListingRequest {
-	sortByRes, size := impl.getDefaultValuesIfNotPresent(sortBy, totalSize)
+	sortByRes, size := impl.userCommonService.GetDefaultValuesIfNotPresent(sortBy, totalSize, false)
 	request := &bean.FetchListingRequest{
 		Status:    bean.Status(status),
 		SortOrder: bean2.SortOrder(sortOrder),
@@ -1295,19 +1295,6 @@ func (impl UserServiceImpl) getRequestWithFiltersArgsOrDefault(status string, so
 		SearchKey: searchKey,
 	}
 	return request
-}
-
-func (impl UserServiceImpl) getDefaultValuesIfNotPresent(sortBy string, totalSize int) (bean2.SortBy, int) {
-	var sortByFinal bean2.SortBy
-	if len(sortBy) > 0 {
-		sortByFinal = bean2.SortBy(sortBy)
-	} else {
-		sortByFinal = bean2.Email
-	}
-	if totalSize == 0 {
-		totalSize = bean2.DefaultSize
-	}
-	return sortByFinal, totalSize
 }
 
 func (impl UserServiceImpl) getAllDetailedUsers() (*bean.UserListingResponse, error) {

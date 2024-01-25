@@ -755,7 +755,7 @@ func (handler UserRestHandlerImpl) FetchRoleGroups(w http.ResponseWriter, r *htt
 	if len(offsetString) > 0 {
 		offset, err = strconv.Atoi(offsetString)
 		if err != nil {
-			handler.logger.Errorw("request err, GetAll", "err", err, "offset", offset)
+			handler.logger.Errorw("request err, FetchRoleGroups", "err", err, "offset", offset)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
@@ -765,7 +765,7 @@ func (handler UserRestHandlerImpl) FetchRoleGroups(w http.ResponseWriter, r *htt
 	if len(sizeString) > 0 {
 		size, err = strconv.Atoi(sizeString)
 		if err != nil {
-			handler.logger.Errorw("request err, GetAll", "err", err, "size", size)
+			handler.logger.Errorw("request err, FetchRoleGroups", "err", err, "size", size)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
@@ -775,7 +775,7 @@ func (handler UserRestHandlerImpl) FetchRoleGroups(w http.ResponseWriter, r *htt
 	if len(showAllString) > 0 {
 		showAll, err = strconv.ParseBool(showAllString)
 		if err != nil {
-			handler.logger.Errorw("request err, GetAll", "err", err, "showAll", showAll)
+			handler.logger.Errorw("request err, FetchRoleGroups", "err", err, "showAll", showAll)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}

@@ -136,11 +136,11 @@ func (impl RoleGroupRepositoryImpl) GetAllWithFilters(req *bean.FetchListingRequ
 
 	if len(req.SortBy) > 0 {
 		orderCondition += fmt.Sprintf("order by %s ", req.SortBy)
+		if req.SortOrder == bean2.Desc {
+			orderCondition += string(req.SortOrder)
+		}
 	}
 
-	if req.SortOrder == bean2.Desc {
-		orderCondition += string(req.SortOrder)
-	}
 	if req.Size > 0 {
 		orderCondition += " limit " + strconv.Itoa(req.Size) + " offset " + strconv.Itoa(req.Offset) + ""
 	}
@@ -148,7 +148,7 @@ func (impl RoleGroupRepositoryImpl) GetAllWithFilters(req *bean.FetchListingRequ
 	query := fmt.Sprintf("SELECT * from role_group %s %s;", whereCondition, orderCondition)
 	_, err := impl.dbConnection.Query(&model, query)
 	if err != nil {
-		impl.Logger.Error("error in GetAllExcludingApiTokenUserWithFilters", "err", err, "req", req)
+		impl.Logger.Error("error in GetAllWithFilters", "err", err, "req", req)
 		return nil, err
 	}
 	return model, err

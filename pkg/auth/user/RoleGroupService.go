@@ -681,11 +681,12 @@ func (impl RoleGroupServiceImpl) FetchRoleGroupsWithFilters(sortOrder string, so
 }
 
 func (impl RoleGroupServiceImpl) getRequestWithFiltersArgs(sortOrder string, sortBy string, offset int, totalSize int, showAll bool, searchKey string) *bean.FetchListingRequest {
+	sortByRes, size := impl.userCommonService.GetDefaultValuesIfNotPresent(sortBy, totalSize, true)
 	request := &bean.FetchListingRequest{
 		SortOrder: bean2.SortOrder(sortOrder),
-		SortBy:    bean2.SortBy(sortBy),
+		SortBy:    sortByRes,
 		Offset:    offset,
-		Size:      totalSize,
+		Size:      size,
 		ShowAll:   showAll,
 		SearchKey: searchKey,
 	}
