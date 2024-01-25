@@ -62,15 +62,15 @@ func NewUserRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *User
 }
 
 type UserModel struct {
-	TableName                    struct{}                               `sql:"users" pg:",discard_unknown_columns"`
-	Id                           int32                                  `sql:"id,pk"`
-	EmailId                      string                                 `sql:"email_id,notnull"`
-	AccessToken                  string                                 `sql:"access_token"`
-	Active                       bool                                   `sql:"active,notnull"`
-	UserType                     string                                 `sql:"user_type"`
-	TimeoutWindowConfigurationId int                                    `sql:"timeout_window_configuration_id"`
-	TimeoutWindowConfiguration   *repository.TimeoutWindowConfiguration `sql:"-"`
-	UserAudit                    *UserAudit                             `sql:"-"`
+	TableName                    struct{} `sql:"users" pg:",discard_unknown_columns"`
+	Id                           int32    `sql:"id,pk"`
+	EmailId                      string   `sql:"email_id,notnull"`
+	AccessToken                  string   `sql:"access_token"`
+	Active                       bool     `sql:"active,notnull"`
+	UserType                     string   `sql:"user_type"`
+	TimeoutWindowConfigurationId int      `sql:"timeout_window_configuration_id"`
+	TimeoutWindowConfiguration   *repository.TimeoutWindowConfiguration
+	UserAudit                    *UserAudit `sql:"-"`
 	sql.AuditLog
 }
 
@@ -184,9 +184,7 @@ func (impl UserRepositoryImpl) FetchUserDetailByEmail(email string) (bean.UserIn
 }
 func (impl UserRepositoryImpl) GetByIds(ids []int32) ([]UserModel, error) {
 	var model []UserModel
-	err := impl.dbConnection.Model(&model).
-		Column("user_model.*").
-		Where("id in (?)", pg.In(ids)).Where("active = ?", true).Select()
+	err := impl.dbConnection.Model(&model).Where("id in (?)", pg.In(ids)).Where("active = ?", true).Select()
 	return model, err
 }
 
