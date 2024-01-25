@@ -74,7 +74,7 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 	K8sUtil *k8s.K8sServiceImpl, aCDAuthConfig *util3.ACDAuthConfig, userService user2.UserService,
 	attributeRepo repository.AttributesRepository, ssoLoginService sso.SSOLoginService,
 	PosthogClient *PosthogClient, moduleRepository moduleRepo.ModuleRepository, serverDataStore *serverDataStore.ServerDataStore, userAuditService user2.UserAuditService, helmAppClient client.HelmAppClient, InstalledAppRepository repository2.InstalledAppRepository,
-	cloudProviderIdentifierService cloudProviderIdentifier.ProviderIdentifierService, telemetryConfig TelemetryConfig) (*TelemetryEventClientImpl, error) {
+	cloudProviderIdentifierService cloudProviderIdentifier.ProviderIdentifierService) (*TelemetryEventClientImpl, error) {
 	cron := cron.New(
 		cron.WithChain())
 	cron.Start()
@@ -92,7 +92,7 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 		helmAppClient:                  helmAppClient,
 		InstalledAppRepository:         InstalledAppRepository,
 		cloudProviderIdentifierService: cloudProviderIdentifierService,
-		telemetryConfig:                telemetryConfig,
+		telemetryConfig:                TelemetryConfig{},
 	}
 
 	watcher.HeartbeatEventForTelemetry()
