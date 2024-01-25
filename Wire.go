@@ -131,6 +131,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/pkg/timeoutWindow"
+	repository9 "github.com/devtron-labs/devtron/pkg/timeoutWindow/repository"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
@@ -1008,6 +1010,12 @@ func InitializeApp() (*App, error) {
 
 		pipeline.NewPipelineConfigListenerServiceImpl,
 		wire.Bind(new(pipeline.PipelineConfigListenerService), new(*pipeline.PipelineConfigListenerServiceImpl)),
+
+		timeoutWindow.NewTimeWindowServiceImpl,
+		wire.Bind(new(timeoutWindow.TimeoutWindowService), new(*timeoutWindow.TimeWindowServiceImpl)),
+
+		repository9.NewTimeWindowRepositoryImpl,
+		wire.Bind(new(repository9.TimeWindowRepository), new(*repository9.TimeWindowRepositoryImpl)),
 
 		util5.NewUserStatusCheckMiddlewareImpl,
 		wire.Bind(new(util5.UserStatusCheckMiddleware), new(*util5.UserStatusCheckMiddlewareImpl)),

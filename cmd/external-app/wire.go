@@ -53,6 +53,8 @@ import (
 	repository2 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/pkg/timeoutWindow"
+	repository4 "github.com/devtron-labs/devtron/pkg/timeoutWindow/repository"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
@@ -219,6 +221,12 @@ func InitializeApp() (*App, error) {
 		// end: docker registry wire set injection
 		util4.NewSSHTunnelWrapperServiceImpl,
 		wire.Bind(new(util4.SSHTunnelWrapperService), new(*util4.SSHTunnelWrapperServiceImpl)),
+
+		timeoutWindow.NewTimeWindowServiceImpl,
+		wire.Bind(new(timeoutWindow.TimeoutWindowService), new(*timeoutWindow.TimeWindowServiceImpl)),
+
+		repository4.NewTimeWindowRepositoryImpl,
+		wire.Bind(new(repository4.TimeWindowRepository), new(*repository4.TimeWindowRepositoryImpl)),
 	)
 	return &App{}, nil
 }

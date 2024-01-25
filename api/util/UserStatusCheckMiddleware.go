@@ -1,7 +1,9 @@
 package util
 
 import (
+	"fmt"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
+	"github.com/devtron-labs/devtron/util/response"
 	"log"
 	"net/http"
 )
@@ -23,17 +25,24 @@ func NewUserStatusCheckMiddlewareImpl(userService user.UserService) *UserStatusC
 func (impl UserStatusCheckMiddlewareImpl) UserStatusCheckMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token := r.Header.Get("token")
-		userEmail, _, err := impl.userService.GetEmailAndGroupClaimsFromToken(token)
+		emailId, _, err := impl.userService.GetEmailAndGroupClaimsFromToken(token)
 		if err != nil {
 			log.Printf("unable to fetch user by token %s", token)
 		}
 		//todo - changes service function
-		user, err := impl.userService.GetUserByEmail(userEmail)
+		isInactive, err := impl.userService.GetUserWithTimeoutWindowConfiguration(emailId)
 		if err != nil {
-			log.Printf("unable to fetch user by email %s", userEmail)
+			log.Printf("unable to fetch user by email %s", emailId)
+			// todo - correct status code
+			response.WriteResponse(http.StatusUnauthorized, "UN-AUTHENTICATED", w, fmt.Errorf("unauthenticated"))
+			return
 		}
-		log.Print(user.Id)
+		if isInactive {
+			response.WriteResponse(http.StatusUnauthorized, "UN-AUTHENTICATED", w, fmt.Errorf("unauthenticated"))
+			return
+		}
 		//TODO - put user id into context
+
 		// Call the next handler in the chain.
 		next.ServeHTTP(w, r)
 	})
