@@ -56,6 +56,7 @@ import (
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
+	"github.com/devtron-labs/devtron/util/cron"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/google/wire"
 )
@@ -221,6 +222,7 @@ func InitializeApp() (*App, error) {
 		// end: docker registry wire set injection
 		util4.NewSSHTunnelWrapperServiceImpl,
 		wire.Bind(new(util4.SSHTunnelWrapperService), new(*util4.SSHTunnelWrapperServiceImpl)),
+		cron.NewCronLoggerImpl,
 	)
 	return &App{}, nil
 }
