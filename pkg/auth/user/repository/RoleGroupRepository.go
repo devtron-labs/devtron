@@ -18,13 +18,9 @@
 package repository
 
 import (
-	"fmt"
-	"github.com/devtron-labs/devtron/api/bean"
-	bean2 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"strconv"
 )
 
 type RoleGroupRepository interface {
@@ -34,7 +30,7 @@ type RoleGroupRepository interface {
 	GetRoleGroupByName(name string) (*RoleGroup, error)
 	GetRoleGroupListByName(name string) ([]*RoleGroup, error)
 	GetAllRoleGroup() ([]*RoleGroup, error)
-	GetAllWithFilters(req *bean.FetchListingRequest) ([]*RoleGroup, error)
+	GetAllExecutingQuery(query string) ([]*RoleGroup, error)
 	GetRoleGroupListByCasbinNames(name []string) ([]*RoleGroup, error)
 	CheckRoleGroupExistByCasbinName(name string) (bool, error)
 	CreateRoleGroupRoleMapping(model *RoleGroupRoleMapping, tx *pg.Tx) (*RoleGroupRoleMapping, error)
@@ -125,30 +121,11 @@ func (impl RoleGroupRepositoryImpl) GetAllRoleGroup() ([]*RoleGroup, error) {
 	return model, err
 }
 
-func (impl RoleGroupRepositoryImpl) GetAllWithFilters(req *bean.FetchListingRequest) ([]*RoleGroup, error) {
+func (impl RoleGroupRepositoryImpl) GetAllExecutingQuery(query string) ([]*RoleGroup, error) {
 	var model []*RoleGroup
-	whereCondition := fmt.Sprintf("where active = %t ", true)
-	orderCondition := ""
-	if len(req.SearchKey) > 0 {
-		nameIdLike := "%" + req.SearchKey + "%"
-		whereCondition += fmt.Sprintf("AND name like '%s' ", nameIdLike)
-	}
-
-	if len(req.SortBy) > 0 {
-		orderCondition += fmt.Sprintf("order by %s ", req.SortBy)
-		if req.SortOrder == bean2.Desc {
-			orderCondition += string(req.SortOrder)
-		}
-	}
-
-	if req.Size > 0 {
-		orderCondition += " limit " + strconv.Itoa(req.Size) + " offset " + strconv.Itoa(req.Offset) + ""
-	}
-
-	query := fmt.Sprintf("SELECT * from role_group %s %s;", whereCondition, orderCondition)
 	_, err := impl.dbConnection.Query(&model, query)
 	if err != nil {
-		impl.Logger.Error("error in GetAllWithFilters", "err", err, "req", req)
+		impl.Logger.Error("error in GetAllExecutingQuery", "err", err)
 		return nil, err
 	}
 	return model, err

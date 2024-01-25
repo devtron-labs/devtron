@@ -104,3 +104,31 @@ func (impl UserRepositoryQueryBuilder) GetQueryForAllUserWithAudit() string {
 //	query := fmt.Sprintf("UPDATE USERS set time_to_live= %s %s", ttlTime, whereCondition)
 //	return query
 //}
+
+func (impl UserRepositoryQueryBuilder) GetQueryForGroupListingWithFilters(req *bean.FetchListingRequest) string {
+	whereCondition := fmt.Sprintf("where active = %t ", true)
+	orderCondition := ""
+	if len(req.SearchKey) > 0 {
+		nameIdLike := "%" + req.SearchKey + "%"
+		whereCondition += fmt.Sprintf("AND name like '%s' ", nameIdLike)
+	}
+
+	if len(req.SortBy) > 0 {
+		orderCondition += fmt.Sprintf("order by %s ", req.SortBy)
+		if req.SortOrder == bean2.Desc {
+			orderCondition += string(req.SortOrder)
+		}
+	}
+
+	if req.Size > 0 {
+		orderCondition += " limit " + strconv.Itoa(req.Size) + " offset " + strconv.Itoa(req.Offset) + ""
+	}
+	var query string
+	if req.Size == 0 {
+		query = fmt.Sprintf("SELECT count(*) from role_group %s %s;", whereCondition, orderCondition)
+	} else {
+		query = fmt.Sprintf("SELECT * from role_group %s %s;", whereCondition, orderCondition)
+	}
+	return query
+
+}
