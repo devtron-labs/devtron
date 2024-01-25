@@ -101,12 +101,12 @@ func (impl ImageDigestPolicyServiceImpl) GetDigestPolicyConfigurations(digestCon
 	clusterIdentifierKey := devtronResourceSearchableKeyMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ID]
 	envIdentifierKey := devtronResourceSearchableKeyMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID]
 	pipelineIdentifierKey := devtronResourceSearchableKeyMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_PIPELINE_ID]
-	globalQualifierId := int(resourceQualifiers.GLOBAL_QUALIFIER)
 
 	for _, policy := range policyMappings {
-		if policy.QualifierId == globalQualifierId || policy.IdentifierKey == clusterIdentifierKey || pipelineIdentifierKey == envIdentifierKey {
+		switch policy.IdentifierKey {
+		case clusterIdentifierKey, envIdentifierKey:
 			digestPolicyConfiguration.DigestConfiguredForEnvOrCluster = true
-		} else if policy.IdentifierKey == pipelineIdentifierKey {
+		case pipelineIdentifierKey:
 			digestPolicyConfiguration.DigestConfiguredForPipeline = true
 		}
 	}
