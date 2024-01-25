@@ -278,7 +278,7 @@ func (impl *InfraConfigServiceImpl) CreateProfile(userId int32, profileBean *Pro
 }
 
 func (impl *InfraConfigServiceImpl) UpdateProfile(userId int32, profileName string, profileBean *ProfileBean) error {
-	if profileName == "" {
+	if profileName == "" || (profileName == DEFAULT_PROFILE_NAME && profileBean.Name != DEFAULT_PROFILE_NAME) {
 		return errors.New(InvalidProfileName)
 	}
 
@@ -298,9 +298,8 @@ func (impl *InfraConfigServiceImpl) UpdateProfile(userId int32, profileName stri
 	// user couldn't delete the profile, always set this to active
 	infraProfile.Active = true
 	infraConfigurations := util.Transform(profileBean.Configurations, func(config ConfigurationBean) *InfraProfileConfiguration {
-		config.ProfileId = infraProfile.Id
 		// user couldn't delete the configuration for default profile, always set this to active
-		if infraProfile.Name == DEFAULT_PROFILE_NAME {
+		if profileName == DEFAULT_PROFILE_NAME {
 			config.Active = true
 		}
 		return config.ConvertToInfraProfileConfiguration()
@@ -475,7 +474,6 @@ func (impl *InfraConfigServiceImpl) Validate(profileBean *ProfileBean, defaultPr
 			}
 			err = errors.Wrap(err, fmt.Sprintf("invalid configuration property \"%s\"", propertyConfig.Key))
 		}
-
 	}
 
 	if err != nil {
@@ -502,17 +500,17 @@ func (impl *InfraConfigServiceImpl) validateCpuMem(profileBean *ProfileBean, def
 		memReq   *ConfigurationBean
 	)
 
-	for _, propertyConfig := range profileBean.Configurations {
+	for i, _ := range profileBean.Configurations {
 		// get cpu limit and req
-		switch propertyConfig.Key {
+		switch profileBean.Configurations[i].Key {
 		case CPU_LIMIT:
-			cpuLimit = &propertyConfig
+			cpuLimit = &profileBean.Configurations[i]
 		case CPU_REQUEST:
-			cpuReq = &propertyConfig
+			cpuReq = &profileBean.Configurations[i]
 		case MEMORY_LIMIT:
-			memLimit = &propertyConfig
+			memLimit = &profileBean.Configurations[i]
 		case MEMORY_REQUEST:
-			memReq = &propertyConfig
+			memReq = &profileBean.Configurations[i]
 		}
 	}
 
@@ -541,15 +539,15 @@ func (impl *InfraConfigServiceImpl) validateCpuMem(profileBean *ProfileBean, def
 	// validate cpu
 	cpuLimitUnitSuffix := units.GetCPUUnit(units.CPUUnitStr(cpuLimit.Unit))
 	cpuReqUnitSuffix := units.GetCPUUnit(units.CPUUnitStr(cpuReq.Unit))
-	var cpuLimitUnit *units.Unit
-	var cpuReqUnit *units.Unit
+	var cpuLimitUnit units.Unit
+	var cpuReqUnit units.Unit
 	for cpuUnitSuffix, cpuUnit := range configurationUnits.GetCpuUnits() {
 		if string(units.GetCPUUnitStr(cpuLimitUnitSuffix)) == cpuUnitSuffix {
-			cpuLimitUnit = &cpuUnit
+			cpuLimitUnit = cpuUnit
 		}
 
 		if string(units.GetCPUUnitStr(cpuReqUnitSuffix)) == cpuUnitSuffix {
-			cpuReqUnit = &cpuUnit
+			cpuReqUnit = cpuUnit
 		}
 
 	}
@@ -566,16 +564,16 @@ func (impl *InfraConfigServiceImpl) validateCpuMem(profileBean *ProfileBean, def
 
 	memLimitUnitSuffix := units.GetMemoryUnit(units.MemoryUnitStr(memLimit.Unit))
 	memReqUnitSuffix := units.GetMemoryUnit(units.MemoryUnitStr(memReq.Unit))
-	var memLimitUnit *units.Unit
-	var memReqUnit *units.Unit
+	var memLimitUnit units.Unit
+	var memReqUnit units.Unit
 
 	for memUnitSuffix, memUnit := range configurationUnits.GetMemoryUnits() {
 		if string(units.GetMemoryUnitStr(memLimitUnitSuffix)) == memUnitSuffix {
-			memLimitUnit = &memUnit
+			memLimitUnit = memUnit
 		}
 
 		if string(units.GetMemoryUnitStr(memReqUnitSuffix)) == memUnitSuffix {
-			memReqUnit = &memUnit
+			memReqUnit = memUnit
 		}
 	}
 

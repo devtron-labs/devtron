@@ -2,6 +2,7 @@ package infraConfig
 
 import (
 	"fmt"
+	helper2 "github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -106,7 +107,17 @@ func (impl *InfraConfigRepositoryImpl) CreateConfigurations(tx *pg.Tx, configura
 }
 
 func (impl *InfraConfigRepositoryImpl) UpdateConfigurations(tx *pg.Tx, configurations []*InfraProfileConfiguration) error {
-	err := tx.Update(&configurations)
+	var err error
+	for _, configuration := range configurations {
+		_, err = tx.Model(configuration).
+			Set("value = ?", configuration.Value).
+			Set("unit = ?", configuration.Unit).
+			Set("active = ?", configuration.Active).
+			Set("updated_by = ?", configuration.UpdatedBy).
+			Set("updated_on = ?", configuration.UpdatedOn).
+			Where("id = ?", configuration.Id).
+			Update()
+	}
 	return err
 }
 
@@ -129,7 +140,7 @@ func (impl *InfraConfigRepositoryImpl) GetConfigurationsByProfileId(profileIds [
 
 	var configurations []*InfraProfileConfiguration
 	err := impl.dbConnection.Model(&configurations).
-		Where("profile_id IN (?)", profileIds).
+		Where("profile_id IN (?)", pg.In(profileIds)).
 		Where("active = ?", true).
 		Select()
 	if errors.Is(err, pg.ErrNoRows) {
@@ -183,7 +194,7 @@ func (impl *InfraConfigRepositoryImpl) GetIdentifierCountForNonDefaultProfiles(p
 		" FROM resource_qualifier_mapping " +
 		" WHERE resource_type = ? AND identifier_type = ? AND active=true "
 	if len(profileIds) > 0 {
-		query += " AND resource_id IN (?) "
+		query += fmt.Sprintf(" AND resource_id IN (%s) ", helper2.GetCommaSepratedStringWithComma(profileIds))
 	}
 
 	query += " GROUP BY resource_id"
