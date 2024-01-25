@@ -135,7 +135,7 @@ func (impl DeploymentTemplateServiceImpl) FetchDeploymentsWithChartRefs(appId in
 
 	for _, item := range defaultVersions.ChartRefs {
 		res := &repository.DeploymentTemplateComparisonMetadata{
-			ChartId:      item.Id,
+			ChartRefId:   item.Id,
 			ChartVersion: item.Version,
 			ChartType:    item.Name,
 			Type:         repository.DefaultVersions,
@@ -151,7 +151,7 @@ func (impl DeploymentTemplateServiceImpl) FetchDeploymentsWithChartRefs(appId in
 
 	for _, env := range publishedOnEnvs {
 		item := &repository.DeploymentTemplateComparisonMetadata{
-			ChartId:         env.ChartRefId,
+			ChartRefId:      env.ChartRefId,
 			EnvironmentId:   env.EnvironmentId,
 			EnvironmentName: env.EnvironmentName,
 			Type:            repository.PublishedOnEnvironments,
