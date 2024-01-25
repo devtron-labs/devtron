@@ -1,6 +1,7 @@
 package util
 
 import (
+	"context"
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/util/response"
@@ -29,8 +30,7 @@ func (impl UserStatusCheckMiddlewareImpl) UserStatusCheckMiddleware(next http.Ha
 		if err != nil {
 			log.Printf("unable to fetch user by token %s", token)
 		}
-		//todo - changes service function
-		isInactive, err := impl.userService.GetUserWithTimeoutWindowConfiguration(emailId)
+		userId, isInactive, err := impl.userService.GetUserWithTimeoutWindowConfiguration(emailId)
 		if err != nil {
 			log.Printf("unable to fetch user by email %s", emailId)
 			// todo - correct status code
@@ -42,7 +42,7 @@ func (impl UserStatusCheckMiddlewareImpl) UserStatusCheckMiddleware(next http.Ha
 			return
 		}
 		//TODO - put user id into context
-
+		context.WithValue(r.Context(), "userId", userId)
 		// Call the next handler in the chain.
 		next.ServeHTTP(w, r)
 	})

@@ -87,7 +87,7 @@ type UserService interface {
 	GetConfigApprovalUsersByEnv(appName, envName, team string) ([]string, error)
 	GetFieldValuesFromToken(token string) ([]byte, error)
 	BulkUpdateStatusForUsers(request *bean.BulkStatusUpdateRequest) (*bean.ActionResponse, error)
-	GetUserWithTimeoutWindowConfiguration(emailId string) (bool, error)
+	GetUserWithTimeoutWindowConfiguration(emailId string) (int32, bool, error)
 }
 
 type UserServiceImpl struct {
@@ -1517,28 +1517,28 @@ func (impl UserServiceImpl) SaveLoginAudit(emailId, clientIp string, id int32) {
 	}
 }
 
-func (impl UserServiceImpl) GetUserWithTimeoutWindowConfiguration(emailId string) (bool, error) {
+func (impl UserServiceImpl) GetUserWithTimeoutWindowConfiguration(emailId string) (int32, bool, error) {
 	isInactive := true
 	user, err := impl.userRepository.GetUserWithTimeoutWindowConfiguration(emailId)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
-		return isInactive, err
+		return user.Id, isInactive, err
 	}
 
 	if user.TimeoutWindowConfigurationId == 0 {
 		isInactive = false
-		return isInactive, nil
+		return user.Id, isInactive, err
 	} else {
 		expiryDate, err := time.Parse(time.DateTime, user.TimeoutWindowConfiguration.TimeoutWindowExpression)
 		if err != nil {
 			impl.logger.Errorw("error while parsing date time", "error", err)
-			return isInactive, err
+			return user.Id, isInactive, err
 		}
 		if expiryDate.After(time.Now()) {
 			isInactive = false
 		}
 	}
-	return isInactive, nil
+	return user.Id, isInactive, nil
 }
 
 func (impl UserServiceImpl) GetUserByEmail(emailId string) (*bean.UserInfo, error) {
