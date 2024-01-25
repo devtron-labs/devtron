@@ -42,6 +42,7 @@
 - doc: Update Install-devtron-on-Minikube-Microk8s-K3s-Kind.md (#4133)
 - doc: fixed broken link and improved documentation in usecases (#4097)
 ## Others
+- chore: added recovery in crons recovery (#4592)
 - chore: code refactoring v1 (#4545)
 - chore: panic middleware and proxy handler (#4546)
 - chore: added sql-validator in git-hub action (#4255)
