@@ -2245,7 +2245,7 @@ func (impl UserServiceImpl) BulkUpdateStatusForUsers(request *bean.BulkStatusUpd
 }
 
 func (impl UserServiceImpl) statusUpdateToActive(userIds []int32) error {
-	err := impl.userRepository.UpdateWindowIdtoNull(userIds)
+	err := impl.userRepository.UpdateWindowIdToNull(userIds)
 	if err != nil {
 		impl.logger.Errorw("error in statusUpdateToActive", "err", err)
 		return err

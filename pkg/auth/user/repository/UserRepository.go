@@ -45,7 +45,7 @@ type UserRepository interface {
 	FetchActiveOrDeletedUserByEmail(email string) (*UserModel, error)
 	UpdateRoleIdForUserRolesMappings(roleId int, newRoleId int) (*UserRoleModel, error)
 	GetCountExecutingQuery(query string) (int, error)
-	UpdateWindowIdtoNull(userIds []int32) error
+	UpdateWindowIdToNull(userIds []int32) error
 	UpdateTimeWindowId(tx *pg.Tx, userid int32, windowId int) error
 	StartATransaction() (*pg.Tx, error)
 	CommitATransaction(tx *pg.Tx) error
@@ -224,7 +224,7 @@ func (impl UserRepositoryImpl) GetCountExecutingQuery(query string) (int, error)
 	return totalCount, err
 }
 
-func (impl UserRepositoryImpl) UpdateWindowIdtoNull(userIds []int32) error {
+func (impl UserRepositoryImpl) UpdateWindowIdToNull(userIds []int32) error {
 	var model []UserModel
 	_, err := impl.dbConnection.Model(&model).Set("timeout_window_configuration_id = null").
 		Where("id in (?)", pg.In(userIds)).Update()
