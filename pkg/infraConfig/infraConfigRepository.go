@@ -92,12 +92,12 @@ func (impl *InfraConfigRepositoryImpl) GetIdentifierCountForDefaultProfile() (in
 }
 
 func (impl *InfraConfigRepositoryImpl) UpdateProfile(tx *pg.Tx, profileName string, profile *InfraProfile) error {
-	_, err := tx.Model(&InfraProfile{}).
-		Set("name=?", profile.Name).
+	_, err := tx.Model(profile).
 		Set("description=?", profile.Description).
 		Set("updated_by=?", profile.UpdatedBy).
 		Set("updated_on=?", profile.UpdatedOn).
 		Where("name = ?", profileName).
-		Update(profile)
+		Where("active = ?", true).
+		Update()
 	return err
 }

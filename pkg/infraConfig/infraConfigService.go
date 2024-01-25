@@ -80,7 +80,7 @@ func (impl *InfraConfigServiceImpl) GetDefaultProfile() (*ProfileBean, error) {
 }
 
 func (impl *InfraConfigServiceImpl) UpdateProfile(userId int32, profileName string, profileBean *ProfileBean) error {
-	if profileName == "" {
+	if profileName != DEFAULT_PROFILE_NAME {
 		return errors.New(InvalidProfileName)
 	}
 
@@ -90,7 +90,7 @@ func (impl *InfraConfigServiceImpl) UpdateProfile(userId int32, profileName stri
 		impl.logger.Errorw("error in fetching default profile", "profileName", profileName, "profileCreateRequest", profileBean, "error", err)
 		return err
 	}
-	if err := impl.Validate(profileBean, defaultProfile); err != nil {
+	if err = impl.Validate(profileBean, defaultProfile); err != nil {
 		impl.logger.Errorw("error occurred in validation the profile create request", "profileName", profileName, "profileCreateRequest", profileBean, "error", err)
 		return err
 	}
@@ -100,12 +100,15 @@ func (impl *InfraConfigServiceImpl) UpdateProfile(userId int32, profileName stri
 	// user couldn't delete the profile, always set this to active
 	infraProfile.Active = true
 	infraConfigurations := util.Transform(profileBean.Configurations, func(config ConfigurationBean) *InfraProfileConfiguration {
-		config.ProfileId = infraProfile.Id
+		config.ProfileId = defaultProfile.Id
 		// user couldn't delete the configuration for default profile, always set this to active
 		if infraProfile.Name == DEFAULT_PROFILE_NAME {
 			config.Active = true
 		}
-		return config.ConvertToInfraProfileConfiguration()
+		configuration := config.ConvertToInfraProfileConfiguration()
+		configuration.UpdatedOn = time.Now()
+		configuration.UpdatedBy = userId
+		return configuration
 	})
 
 	tx, err := impl.infraProfileRepo.StartTx()
