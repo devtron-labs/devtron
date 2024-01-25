@@ -58,6 +58,7 @@ type TelemetryEventClientImpl struct {
 	InstalledAppRepository         repository2.InstalledAppRepository
 	userAttributesRepository       repository.UserAttributesRepository
 	cloudProviderIdentifierService cloudProviderIdentifier.ProviderIdentifierService
+	cloudProviderCache             string
 }
 
 type TelemetryEventClient interface {
@@ -105,7 +106,16 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 		logger.Errorw("error in starting heartbeat event", "err", err)
 		return nil, err
 	}
+	err = watcher.SetCloudProvider()
+	if err != nil {
+		logger.Errorw("error in setting cloud provider", "err", err)
+		return nil, err
+	}
 	return watcher, err
+}
+
+func (impl *TelemetryEventClientImpl) SetCloudProvider() error {
+	return nil
 }
 
 func (impl *TelemetryEventClientImpl) StopCron() {
