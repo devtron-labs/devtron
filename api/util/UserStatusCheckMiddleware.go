@@ -31,22 +31,24 @@ func (impl UserStatusCheckMiddlewareImpl) UserStatusCheckMiddleware(next http.Ha
 		if cookie != nil {
 			token = cookie.Value
 			r.Header.Set("token", token)
+			log.Print("token fetching from cookie")
 		}
 		if token == "" && cookie == nil {
 			token = r.Header.Get("token")
+			log.Print("token fetching from header")
 		}
 		emailId, _, err := impl.userService.GetEmailAndGroupClaimsFromToken(token)
 		if err != nil {
-			log.Printf("unable to fetch user by token %s", token)
+			log.Print("unable to fetch user by token")
 		}
 		userId, isInactive, err := impl.userService.GetUserWithTimeoutWindowConfiguration(emailId)
 		if err != nil {
-			log.Printf("unable to fetch user by email %s", emailId)
+			log.Printf("unable to fetch user by email : %s", emailId)
 			// todo - correct status code
-			response.WriteResponse(http.StatusUnauthorized, "UN-AUTHENTICATED", w, fmt.Errorf("unauthenticated"))
-			return
+			//response.WriteResponse(http.StatusUnauthorized, "UN-AUTHENTICATED", w, fmt.Errorf("unauthenticated"))
+			//return
 		}
-		if isInactive {
+		if isInactive && err == nil {
 			response.WriteResponse(http.StatusUnauthorized, "UN-AUTHENTICATED", w, fmt.Errorf("unauthenticated"))
 			return
 		}
