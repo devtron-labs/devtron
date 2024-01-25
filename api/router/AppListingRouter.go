@@ -73,10 +73,6 @@ func (router AppListingRouterImpl) initAppListingRouter(appListingRouter *mux.Ro
 		HandlerFunc(router.appListingRestHandler.FetchResourceTree).
 		Methods("GET")
 
-	appListingRouter.Path("/vsm").Queries("app-id", "{app-id}").
-		HandlerFunc(router.appListingRestHandler.FetchAppTriggerView).
-		Methods("GET")
-
 	appListingRouter.Path("/stage/status").Queries("app-id", "{app-id}").
 		HandlerFunc(router.appListingRestHandler.FetchAppStageStatus).
 		Methods("GET")

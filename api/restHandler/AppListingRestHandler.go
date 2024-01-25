@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	bean2 "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"net/http"
 	"strconv"
 	"strings"
@@ -73,7 +74,6 @@ type AppListingRestHandler interface {
 	FetchAppDetailsV2(w http.ResponseWriter, r *http.Request)
 	FetchResourceTree(w http.ResponseWriter, r *http.Request)
 	FetchAllDevtronManagedApps(w http.ResponseWriter, r *http.Request)
-	FetchAppTriggerView(w http.ResponseWriter, r *http.Request)
 	FetchAppStageStatus(w http.ResponseWriter, r *http.Request)
 
 	FetchOtherEnvironment(w http.ResponseWriter, r *http.Request)
@@ -82,7 +82,7 @@ type AppListingRestHandler interface {
 	GetHostUrlsByBatch(w http.ResponseWriter, r *http.Request)
 
 	ManualSyncAcdPipelineDeploymentStatus(w http.ResponseWriter, r *http.Request)
-	//TODO: move to appropriate service
+	//TODO Asutosh: move to appropriate service
 	GetClusterTeamAndEnvListForAutocomplete(w http.ResponseWriter, r *http.Request)
 	FetchAppsByEnvironmentV2(w http.ResponseWriter, r *http.Request)
 	FetchAppsByEnvironmentV1(w http.ResponseWriter, r *http.Request)
@@ -1057,136 +1057,6 @@ func (handler AppListingRestHandlerImpl) handleResourceTreeErrAndDeletePipelineI
 	}, nil, http.StatusInternalServerError)
 }
 
-func (handler AppListingRestHandlerImpl) FetchAppTriggerView(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	token := r.Header.Get("token")
-	appId, err := strconv.Atoi(vars["app-id"])
-	if err != nil {
-		handler.logger.Errorw("request err, FetchAppTriggerView", "err", err, "appId", appId)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	handler.logger.Debugw("request payload, FetchAppTriggerView", "appId", appId)
-
-	triggerView, err := handler.appListingService.FetchAppTriggerView(appId)
-	if err != nil {
-		handler.logger.Errorw("service err, FetchAppTriggerView", "err", err, "appId", appId)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-
-	//TODO: environment based auth, purge data of environment on which user doesnt have access, only show environment name
-	// RBAC enforcer applying
-	if len(triggerView) > 0 {
-		object := handler.enforcerUtil.GetAppRBACName(triggerView[0].AppName)
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
-			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
-			return
-		}
-	}
-	//RBAC enforcer Ends
-
-	ctx, cancel := context.WithCancel(r.Context())
-	if cn, ok := w.(http.CloseNotifier); ok {
-		go func(done <-chan struct{}, closed <-chan bool) {
-			select {
-			case <-done:
-			case <-closed:
-				cancel()
-			}
-		}(ctx.Done(), cn.CloseNotify())
-	}
-	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		handler.logger.Errorw("error in getting acd token", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	ctx = context.WithValue(ctx, "token", acdToken)
-	defer cancel()
-
-	response := make(chan AppStatus)
-	qCount := len(triggerView)
-	responses := map[string]AppStatus{}
-
-	for i := 0; i < len(triggerView); i++ {
-		acdAppName := triggerView[i].AppName + "-" + triggerView[i].EnvironmentName
-		go func(pipelineName string) {
-			ctxt, cancel := context.WithTimeout(ctx, 60*time.Second)
-			defer cancel()
-			query := application2.ApplicationQuery{Name: &pipelineName}
-			app, conn, err := handler.application.Watch(ctxt, &query)
-			defer conn.Close()
-			if err != nil {
-				response <- AppStatus{name: pipelineName, status: "", message: "", err: err, conditions: make([]v1alpha1.ApplicationCondition, 0)}
-				return
-			}
-			if app != nil {
-				resp, err := app.Recv()
-				if err != nil {
-					response <- AppStatus{name: pipelineName, status: "", message: "", err: err, conditions: make([]v1alpha1.ApplicationCondition, 0)}
-					return
-				}
-				if resp != nil {
-					healthStatus := resp.Application.Status.Health.Status
-					status := AppStatus{
-						name:       pipelineName,
-						status:     string(healthStatus),
-						message:    resp.Application.Status.Health.Message,
-						err:        nil,
-						conditions: resp.Application.Status.Conditions,
-					}
-					response <- status
-					return
-				}
-				response <- AppStatus{name: pipelineName, status: "", message: "", err: fmt.Errorf("Missing Application"), conditions: make([]v1alpha1.ApplicationCondition, 0)}
-				return
-			}
-			response <- AppStatus{name: pipelineName, status: "", message: "", err: fmt.Errorf("Connection Closed by Client"), conditions: make([]v1alpha1.ApplicationCondition, 0)}
-
-		}(acdAppName)
-	}
-	rCount := 0
-
-	for {
-		select {
-		case msg, ok := <-response:
-			if ok {
-				if msg.err == nil {
-					responses[msg.name] = msg
-				}
-			}
-			rCount++
-		}
-		if qCount == rCount {
-			break
-		}
-	}
-
-	for i := 0; i < len(triggerView); i++ {
-		acdAppName := triggerView[i].AppName + "-" + triggerView[i].EnvironmentName
-		if val, ok := responses[acdAppName]; ok {
-			status := val.status
-			conditions := val.conditions
-			for _, condition := range conditions {
-				if condition.Type != v1alpha1.ApplicationConditionSharedResourceWarning {
-					status = "Degraded"
-				}
-			}
-			triggerView[i].Status = status
-			triggerView[i].StatusMessage = val.message
-			triggerView[i].Conditions = val.conditions
-		}
-		if triggerView[i].Status == "" {
-			triggerView[i].Status = "Unknown"
-		}
-		if triggerView[i].Status == string(health.HealthStatusDegraded) {
-			triggerView[i].Status = "Not Deployed"
-		}
-	}
-	common.WriteJsonResp(w, err, triggerView, http.StatusOK)
-}
-
 func (handler AppListingRestHandlerImpl) FetchAppStageStatus(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["app-id"])
@@ -1548,7 +1418,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 			if err != nil {
 				handler.logger.Errorw("service err, FetchAppDetailsV2", "err", err, "app", appId, "env", envId)
 			} else if status {
-				resp.Status = application.HIBERNATING
+				resp.Status = bean2.HIBERNATING
 			}
 		}
 		if resp.Status == string(health.HealthStatusDegraded) {
@@ -1594,12 +1464,12 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 			applicationStatus := detail.ApplicationStatus
 			resourceTree["releaseStatus"] = releaseStatus
 			resourceTree["status"] = applicationStatus
-			if applicationStatus == application.Healthy {
+			if applicationStatus == bean2.Healthy {
 				status, err := handler.appListingService.ISLastReleaseStopType(appId, envId)
 				if err != nil {
 					handler.logger.Errorw("service err, FetchAppDetailsV2", "err", err, "app", appId, "env", envId)
 				} else if status {
-					resourceTree["status"] = application.HIBERNATING
+					resourceTree["status"] = bean2.HIBERNATING
 				}
 			}
 			handler.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", cdPipeline.DeploymentAppName, "env", cdPipeline.Environment.Name)

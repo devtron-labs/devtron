@@ -20,6 +20,7 @@ package app
 import (
 	"context"
 	"fmt"
+	bean2 "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"net/http"
 	"strconv"
 	"strings"
@@ -37,10 +38,8 @@ import (
 	"go.opentelemetry.io/otel"
 	"golang.org/x/exp/slices"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/devtron-labs/devtron/api/bean"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
-	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
@@ -48,7 +47,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/go-pg/pg"
-	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
@@ -78,10 +76,8 @@ type AppListingService interface {
 }
 
 const (
-	Initiate              string = "Initiate"
-	ScalingReplicaSetDown string = "ScalingReplicaSetDown"
-	APIVersionV1          string = "v1"
-	APIVersionV2          string = "v2"
+	APIVersionV1 string = "v1"
+	APIVersionV2 string = "v2"
 )
 
 type FetchAppListingRequest struct {
@@ -744,7 +740,7 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 				if status == string(health.HealthStatusHealthy) {
 					stopType := releaseMap[pipeline.Id]
 					if stopType {
-						status = application2.HIBERNATING
+						status = bean2.HIBERNATING
 						env.Status = status
 					}
 				}
@@ -790,55 +786,6 @@ func (impl AppListingServiceImpl) fetchACDAppStatusV2(fetchAppListingRequest Fet
 		appEnvMapping[appKey] = append(appEnvMapping[appKey], env)
 	}
 	return appEnvMapping, nil
-}
-
-func (impl AppListingServiceImpl) getAppACDStatus(env bean.AppEnvironmentContainer, w http.ResponseWriter, r *http.Request, token string) (string, error) {
-	//not being used  now
-	if len(env.AppName) > 0 && len(env.EnvironmentName) > 0 {
-		acdAppName := env.AppName + "-" + env.EnvironmentName
-		query := &application.ResourcesQuery{
-			ApplicationName: &acdAppName,
-		}
-		ctx, cancel := context.WithCancel(r.Context())
-		if cn, ok := w.(http.CloseNotifier); ok {
-			go func(done <-chan struct{}, closed <-chan bool) {
-				select {
-				case <-done:
-				case <-closed:
-					cancel()
-				}
-			}(ctx.Done(), cn.CloseNotify())
-		}
-		defer cancel()
-		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
-		if err != nil {
-			impl.Logger.Errorw("error in getting acd token", "err", err)
-			return "", err
-		}
-		ctx = context.WithValue(ctx, "token", acdToken)
-		impl.Logger.Debugf("Getting status for app %s in env %s", env.AppId, env.EnvironmentId)
-		start := time.Now()
-		resp, err := impl.application.ResourceTree(ctx, query)
-		elapsed := time.Since(start)
-		impl.Logger.Debugf("Time elapsed %s in fetching application %s for environment %s", elapsed, env.AppId, env.EnvironmentId)
-		if err != nil {
-			impl.Logger.Errorw("error fetching resource tree", "error", err)
-			err = &util.ApiError{
-				Code:            constants.AppDetailResourceTreeNotFound,
-				InternalMessage: "app detail fetched, failed to get resource tree from acd",
-				UserMessage:     "app detail fetched, failed to get resource tree from acd",
-			}
-			return "", err
-		}
-		return resp.Status, nil
-	}
-	impl.Logger.Error("invalid acd app name and env ", env.AppName, " - ", env.EnvironmentName)
-	return "", errors.New(AcdInvalidAppErr)
-}
-
-// TODO: Status mapping
-func (impl AppListingServiceImpl) adaptStatusForView(status string) string {
-	return status
 }
 
 func (impl AppListingServiceImpl) FetchAppDetails(ctx context.Context, appId int, envId int) (bean.AppDetailContainer, error) {

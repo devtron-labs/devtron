@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	errors3 "errors"
 	"fmt"
+	bean5 "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"path"
 	"strconv"
 	"strings"
@@ -37,7 +38,6 @@ import (
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	client2 "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/client/argocdServer"
-	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	gitSensorClient "github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/middleware"
@@ -541,7 +541,7 @@ func (impl *WorkflowDagExecutorImpl) UpdateWorkflowRunnerStatusForDeployment(app
 			return false
 		}
 
-		if helmInstalledDevtronApp.GetApplicationStatus() == application.Healthy {
+		if helmInstalledDevtronApp.GetApplicationStatus() == bean5.Healthy {
 			// mark the deployment as succeed
 			wfr.Status = pipelineConfig.WorkflowSucceeded
 			wfr.FinishedOn = time.Now()

@@ -361,10 +361,7 @@ func InitializeApp() (*App, error) {
 		repository2.NewServiceClientImpl,
 		wire.Bind(new(repository2.ServiceClient), new(*repository2.ServiceClientImpl)),
 		wire.Bind(new(connector.Pump), new(*connector.PumpImpl)),
-		restHandler.NewArgoApplicationRestHandlerImpl,
-		wire.Bind(new(restHandler.ArgoApplicationRestHandler), new(*restHandler.ArgoApplicationRestHandlerImpl)),
-		router.NewApplicationRouterImpl,
-		wire.Bind(new(router.ApplicationRouter), new(*router.ApplicationRouterImpl)),
+
 		//app.GetConfig,
 
 		router.NewCDRouterImpl,

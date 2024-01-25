@@ -64,7 +64,6 @@ type MuxRouter struct {
 	ClusterRouter                      cluster.ClusterRouter
 	WebHookRouter                      WebhookRouter
 	UserAuthRouter                     user.UserAuthRouter
-	ApplicationRouter                  ApplicationRouter
 	CDRouter                           CDRouter
 	GitProviderRouter                  GitProviderRouter
 	GitHostRouter                      GitHostRouter
@@ -127,7 +126,7 @@ type MuxRouter struct {
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, PipelineConfigRouter PipelineConfigRouter,
 	AppListingRouter AppListingRouter,
 	EnvironmentClusterMappingsRouter cluster.EnvironmentRouter, ClusterRouter cluster.ClusterRouter,
-	WebHookRouter WebhookRouter, UserAuthRouter user.UserAuthRouter, ApplicationRouter ApplicationRouter,
+	WebHookRouter WebhookRouter, UserAuthRouter user.UserAuthRouter,
 	CDRouter CDRouter,
 	GitProviderRouter GitProviderRouter, GitHostRouter GitHostRouter,
 	DockerRegRouter DockerRegRouter,
@@ -164,7 +163,6 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 		ClusterRouter:                      ClusterRouter,
 		WebHookRouter:                      WebHookRouter,
 		UserAuthRouter:                     UserAuthRouter,
-		ApplicationRouter:                  ApplicationRouter,
 		CDRouter:                           CDRouter,
 		DockerRegRouter:                    DockerRegRouter,
 		GitProviderRouter:                  GitProviderRouter,
@@ -266,8 +264,8 @@ func (r MuxRouter) Init() {
 	r.coreAppRouter.initCoreAppRouter(coreAppRouter)
 
 	pipelineConfigRouter := r.Router.PathPrefix("/orchestrator/app").Subrouter()
-	r.PipelineConfigRouter.initPipelineConfigRouter(pipelineConfigRouter)
 	r.AppListingRouter.initAppListingRouter(pipelineConfigRouter)
+	r.PipelineConfigRouter.initPipelineConfigRouter(pipelineConfigRouter)
 	r.HelmRouter.initPipelineTriggerRouter(pipelineConfigRouter)
 	r.appRouter.InitAppRouter(pipelineConfigRouter)
 
@@ -283,9 +281,6 @@ func (r MuxRouter) Init() {
 
 	webHookRouter := r.Router.PathPrefix("/orchestrator/webhook").Subrouter()
 	r.WebHookRouter.intWebhookRouter(webHookRouter)
-
-	applicationRouter := r.Router.PathPrefix("/orchestrator/api/v1/applications").Subrouter()
-	r.ApplicationRouter.initApplicationRouter(applicationRouter)
 
 	rootRouter := r.Router.PathPrefix("/orchestrator").Subrouter()
 	r.UserAuthRouter.InitUserAuthRouter(rootRouter)
