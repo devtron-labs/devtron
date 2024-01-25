@@ -55,7 +55,16 @@ func (impl *InfraConfigRepositoryImpl) CreateConfigurations(tx *pg.Tx, configura
 }
 
 func (impl *InfraConfigRepositoryImpl) UpdateConfigurations(tx *pg.Tx, configurations []*InfraProfileConfiguration) error {
-	err := tx.Update(&configurations)
+	var err error
+	for _, configuration := range configurations {
+		_, err = tx.Model(configuration).
+			Set("value = ?", configuration.Value).
+			Set("unit = ?", configuration.Unit).
+			Set("updated_by = ?", configuration.UpdatedBy).
+			Set("updated_on = ?", configuration.UpdatedOn).
+			Where("id = ?", configuration.Id).
+			Update()
+	}
 	return err
 }
 
