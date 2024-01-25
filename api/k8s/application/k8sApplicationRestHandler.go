@@ -626,15 +626,15 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 		return
 	}
 	handler.requestValidationAndRBAC(w, r, token, request)
-	lastEventId := r.Header.Get("Last-Event-ID")
+	lastEventId := r.Header.Get(bean2.LastEventID)
 	isReconnect := false
 	if len(lastEventId) > 0 {
-		lastSeenMsgId, err := strconv.ParseInt(lastEventId, 10, 64)
+		lastSeenMsgId, err := strconv.ParseInt(lastEventId, bean2.IntegerBase, bean2.IntegerBitSize)
 		if err != nil {
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
-		lastSeenMsgId = lastSeenMsgId + 1 //increased by one ns to avoid duplicate
+		lastSeenMsgId = lastSeenMsgId + bean2.TimestampOffsetToAvoidDuplicateLogs //increased by one ns to avoid duplicate
 		t := v1.Unix(0, lastSeenMsgId)
 		request.K8sRequest.PodLogsRequest.SinceTime = &t
 		isReconnect = true
@@ -707,8 +707,12 @@ func (handler *K8sApplicationRestHandlerImpl) DownloadPodLogs(w http.ResponseWri
 			return
 		}
 	}
-	podLogsFilename := fmt.Sprintf("podlogs-%s-%s.log", request.K8sRequest.ResourceIdentifier.Name, uuid.New().String())
+	podLogsFilename := generatePodLogsFilename(request.K8sRequest.ResourceIdentifier.Name)
 	common.WriteOctetStreamResp(w, r, dataBuffer.Bytes(), podLogsFilename)
+}
+
+func generatePodLogsFilename(filename string) string {
+	return fmt.Sprintf("podlogs-%s-%s.log", filename, uuid.New().String())
 }
 
 func (handler *K8sApplicationRestHandlerImpl) requestValidationAndRBAC(w http.ResponseWriter, r *http.Request, token string, request *k8s.ResourceRequestBean) {

@@ -21,6 +21,13 @@ const (
 	ArgoInstalledType = 1 // Identifier for ArgoCD deployment
 )
 
+const (
+	LastEventID                         = "Last-Event-ID"
+	TimestampOffsetToAvoidDuplicateLogs = 1
+	IntegerBase                         = 10
+	IntegerBitSize                      = 64
+)
+
 type ResourceInfo struct {
 	PodName string `json:"podName"`
 }
