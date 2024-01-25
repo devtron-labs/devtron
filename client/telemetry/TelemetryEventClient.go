@@ -581,7 +581,6 @@ func (impl *TelemetryEventClientImpl) SendTelemetryDashboardAccessEvent() error 
 			return err
 		}
 	}
-	impl.logger.Infow("printing cloud provider name ====== ", "cloudProvider", impl.cloudProviderCache)
 	payload.ClusterProvider = impl.cloudProviderCache
 
 	reqBody, err := json.Marshal(payload)
