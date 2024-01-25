@@ -20,6 +20,7 @@ package user
 import (
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/auth/user/repository/helper"
 	"strings"
 	"time"
 
@@ -48,22 +49,25 @@ type RoleGroupService interface {
 }
 
 type RoleGroupServiceImpl struct {
-	userAuthRepository  repository.UserAuthRepository
-	logger              *zap.SugaredLogger
-	userRepository      repository.UserRepository
-	roleGroupRepository repository.RoleGroupRepository
-	userCommonService   UserCommonService
+	userAuthRepository         repository.UserAuthRepository
+	logger                     *zap.SugaredLogger
+	userRepository             repository.UserRepository
+	roleGroupRepository        repository.RoleGroupRepository
+	userCommonService          UserCommonService
+	userRepositoryQueryBuilder helper.UserRepositoryQueryBuilder
 }
 
 func NewRoleGroupServiceImpl(userAuthRepository repository.UserAuthRepository,
 	logger *zap.SugaredLogger, userRepository repository.UserRepository,
-	roleGroupRepository repository.RoleGroupRepository, userCommonService UserCommonService) *RoleGroupServiceImpl {
+	roleGroupRepository repository.RoleGroupRepository, userCommonService UserCommonService,
+	userRepositoryQueryBuilder helper.UserRepositoryQueryBuilder) *RoleGroupServiceImpl {
 	serviceImpl := &RoleGroupServiceImpl{
-		userAuthRepository:  userAuthRepository,
-		logger:              logger,
-		userRepository:      userRepository,
-		roleGroupRepository: roleGroupRepository,
-		userCommonService:   userCommonService,
+		userAuthRepository:         userAuthRepository,
+		logger:                     logger,
+		userRepository:             userRepository,
+		roleGroupRepository:        roleGroupRepository,
+		userCommonService:          userCommonService,
+		userRepositoryQueryBuilder: userRepositoryQueryBuilder,
 	}
 	cStore = sessions.NewCookieStore(randKey())
 	return serviceImpl
@@ -643,21 +647,20 @@ func (impl RoleGroupServiceImpl) FetchRoleGroupsWithFilters(sortOrder string, so
 	// Setting size as zero to calculate the total number of results based on request
 	size := request.Size
 	request.Size = 0
-	roleGroup, err := impl.roleGroupRepository.GetAllWithFilters(request)
+
+	query := impl.userRepositoryQueryBuilder.GetQueryForGroupListingWithFilters(request)
+	totalCount, err := impl.userRepository.GetCountExecutingQuery(query)
 	if err != nil {
-		impl.logger.Errorw("error while fetching user from db", "error", err)
+		impl.logger.Errorw("error in FetchRoleGroupsWithFilters", "err", err, "query", query)
 		return nil, err
 	}
-	request.Size = size
-	totalCount := len(roleGroup)
 
-	// if total count is more than diff , then need to query with offset and limit(optimisation)
-	if totalCount > (request.Size - request.Offset) {
-		roleGroup, err = impl.roleGroupRepository.GetAllWithFilters(request)
-		if err != nil {
-			impl.logger.Errorw("error while fetching user from db", "error", err)
-			return nil, err
-		}
+	request.Size = size
+	query = impl.userRepositoryQueryBuilder.GetQueryForGroupListingWithFilters(request)
+	roleGroup, err := impl.roleGroupRepository.GetAllExecutingQuery(query)
+	if err != nil {
+		impl.logger.Errorw("error while FetchRoleGroupsWithFilters", "error", err, "query", query)
+		return nil, err
 	}
 
 	list := impl.fetchRoleGroupResponseFromModel(roleGroup)

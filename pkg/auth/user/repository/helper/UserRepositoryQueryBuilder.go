@@ -55,3 +55,31 @@ func (impl UserRepositoryQueryBuilder) GetQueryForAllUserWithAudit() string {
 	query := fmt.Sprintf("SELECT \"user_model\".*, \"user_audit\".\"id\" AS \"user_audit__id\", \"user_audit\".\"updated_on\" AS \"user_audit__updated_on\",\"user_audit\".\"user_id\" AS \"user_audit__user_id\" ,\"user_audit\".\"created_on\" AS \"user_audit__created_on\" from users As \"user_model\" LEFT JOIN user_audit As \"user_audit\" on \"user_audit\".\"user_id\" = \"user_model\".\"id\" %s %s;", whereCondition, orderCondition)
 	return query
 }
+
+func (impl UserRepositoryQueryBuilder) GetQueryForGroupListingWithFilters(req *bean.FetchListingRequest) string {
+	whereCondition := fmt.Sprintf("where active = %t ", true)
+	orderCondition := ""
+	if len(req.SearchKey) > 0 {
+		nameIdLike := "%" + req.SearchKey + "%"
+		whereCondition += fmt.Sprintf("AND name like '%s' ", nameIdLike)
+	}
+
+	if len(req.SortBy) > 0 {
+		orderCondition += fmt.Sprintf("order by %s ", req.SortBy)
+		if req.SortOrder == bean2.Desc {
+			orderCondition += string(req.SortOrder)
+		}
+	}
+
+	if req.Size > 0 {
+		orderCondition += " limit " + strconv.Itoa(req.Size) + " offset " + strconv.Itoa(req.Offset) + ""
+	}
+	var query string
+	if req.Size == 0 {
+		query = fmt.Sprintf("SELECT count(*) from role_group %s %s;", whereCondition, orderCondition)
+	} else {
+		query = fmt.Sprintf("SELECT * from role_group %s %s;", whereCondition, orderCondition)
+	}
+	return query
+
+}
