@@ -632,7 +632,7 @@ func InitializeApp() (*App, error) {
 	gitWebhookHandlerImpl := pubsub.NewGitWebhookHandler(sugaredLogger, pubSubClientServiceImpl, gitWebhookServiceImpl)
 	workflowStatusUpdateHandlerImpl := pubsub.NewWorkflowStatusUpdateHandlerImpl(sugaredLogger, pubSubClientServiceImpl, ciHandlerImpl, cdHandlerImpl, eventSimpleFactoryImpl, eventRESTClientImpl, cdWorkflowRepositoryImpl)
 	applicationStatusHandlerImpl := pubsub.NewApplicationStatusHandlerImpl(sugaredLogger, pubSubClientServiceImpl, appServiceImpl, workflowDagExecutorImpl, installedAppServiceImpl, appStoreDeploymentServiceImpl, pipelineBuilderImpl, pipelineRepositoryImpl, installedAppRepositoryImpl)
-	roleGroupServiceImpl := user.NewRoleGroupServiceImpl(userAuthRepositoryImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, userCommonServiceImpl)
+	roleGroupServiceImpl := user.NewRoleGroupServiceImpl(userAuthRepositoryImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, userCommonServiceImpl, userRepositoryQueryBuilder)
 	userRestHandlerImpl := user2.NewUserRestHandlerImpl(userServiceImpl, validate, sugaredLogger, enforcerImpl, roleGroupServiceImpl, userCommonServiceImpl)
 	userRouterImpl := user2.NewUserRouterImpl(userRestHandlerImpl)
 	chartRefRestHandlerImpl := restHandler.NewChartRefRestHandlerImpl(chartServiceImpl, sugaredLogger)
