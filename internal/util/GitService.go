@@ -21,7 +21,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/devtron-labs/devtron/util"
-	"io/ioutil"
 	"net/url"
 	"path/filepath"
 	"time"
@@ -57,7 +56,7 @@ type GitClient interface {
 	GetRepoUrl(config *bean2.GitOpsConfigDto) (repoUrl string, err error)
 	DeleteRepository(config *bean2.GitOpsConfigDto) error
 	CreateReadme(config *bean2.GitOpsConfigDto) (string, error)
-	GetCommits(repoName, projectName string) ([]*GitCommitDto, error)
+	//GetCommits(repoName, projectName string) ([]*GitCommitDto, error)
 }
 
 type GitFactory struct {
@@ -66,7 +65,7 @@ type GitFactory struct {
 	GitWorkingDir    string
 	logger           *zap.SugaredLogger
 	gitOpsRepository repository.GitOpsConfigRepository
-	gitCliUtil       *GitCliUtil
+	gitCliUtil       *GitCliManagerImpl
 }
 
 type DetailedErrorGitOpsConfigActions struct {
@@ -171,7 +170,7 @@ func (factory *GitFactory) NewClientForValidation(gitOpsConfig *bean2.GitOpsConf
 	return client, gitService, nil
 }
 
-func NewGitFactory(logger *zap.SugaredLogger, gitOpsRepository repository.GitOpsConfigRepository, gitCliUtil *GitCliUtil) (*GitFactory, error) {
+func NewGitFactory(logger *zap.SugaredLogger, gitOpsRepository repository.GitOpsConfigRepository, gitCliUtil *GitCliManagerImpl) (*GitFactory, error) {
 	cfg, err := GetGitConfig(gitOpsRepository)
 	if err != nil {
 		return nil, err
@@ -271,21 +270,27 @@ type ChartConfig struct {
 type GitService interface {
 	Clone(url, targetDir string) (clonedDir string, err error)
 	CommitAndPushAllChanges(repoRoot, commitMsg, name, emailId string) (commitHash string, err error)
-	ForceResetHead(repoRoot string) (err error)
-	CommitValues(config *ChartConfig) (commitHash string, err error)
+	//ForceResetHead(repoRoot string) (err error)
+	//CommitValues(config *ChartConfig) (commitHash string, err error)
 
 	GetCloneDirectory(targetDir string) (clonedDir string)
 	Pull(repoRoot string) (err error)
 }
-type GitServiceImpl struct {
-	Auth       *http.BasicAuth
-	config     *GitConfig
-	logger     *zap.SugaredLogger
-	gitCliUtil *GitCliUtil
+
+// BasicAuth represent a HTTP basic auth
+type BasicAuth struct {
+	Username, Password string
 }
 
-func NewGitServiceImpl(config *GitConfig, logger *zap.SugaredLogger, GitCliUtil *GitCliUtil) *GitServiceImpl {
-	auth := &http.BasicAuth{Password: config.GitToken, Username: config.GitUserName}
+type GitServiceImpl struct {
+	Auth       *BasicAuth
+	config     *GitConfig
+	logger     *zap.SugaredLogger
+	gitCliUtil *GitCliManagerImpl
+}
+
+func NewGitServiceImpl(config *GitConfig, logger *zap.SugaredLogger, GitCliUtil *GitCliManagerImpl) *GitServiceImpl {
+	auth := &BasicAuth{Password: config.GitToken, Username: config.GitUserName}
 	return &GitServiceImpl{
 		Auth:       auth,
 		logger:     logger,
@@ -322,6 +327,68 @@ func (impl GitServiceImpl) Clone(url, targetDir string) (clonedDir string, err e
 	return clonedDir, nil
 }
 
+//func (impl GitServiceImpl) ForceResetHead(repoRoot string) (err error) {
+//	start := time.Now()
+//	defer func() {
+//		util.TriggerGitOpsMetrics("ForceResetHead", "GitService", start, err)
+//	}()
+//	_, workTree, err := impl.getRepoAndWorktree(repoRoot)
+//	if err != nil {
+//		return err
+//	}
+//	err = workTree.Reset(&git.ResetOptions{Mode: git.HardReset})
+//	if err != nil {
+//		return err
+//	}
+//	err = workTree.Pull(&git.PullOptions{
+//		Auth:         impl.Auth,
+//		Force:        true,
+//		SingleBranch: true,
+//	})
+//	return err
+//}
+
+//func (impl GitServiceImpl) CommitValues(config *ChartConfig) (commitHash string, err error) {
+//	//TODO acquire lock
+//	start := time.Now()
+//	defer func() {
+//		util.TriggerGitOpsMetrics("CommitValues", "GitService", start, err)
+//	}()
+//	gitDir := filepath.Join(impl.config.GitWorkingDir, config.ChartName)
+//	if err != nil {
+//		return "", err
+//	}
+//	err = ioutil.WriteFile(filepath.Join(gitDir, config.ChartLocation, config.FileName), []byte(config.FileContent), 0600)
+//	if err != nil {
+//		return "", err
+//	}
+//	hash, err := impl.CommitAndPushAllChanges(gitDir, config.ReleaseMessage, "devtron bot", "devtron-bot@devtron.ai")
+//	return hash, err
+//}
+
+// operations dependent on go-git
+
+func (impl GitServiceImpl) Pull(repoRoot string) (err error) {
+	start := time.Now()
+	defer func() {
+		util.TriggerGitOpsMetrics("Pull", "GitService", start, err)
+	}()
+	_, workTree, err := impl.getRepoAndWorktree(repoRoot)
+
+	if err != nil {
+		return err
+	}
+	//-----------pull
+	err = workTree.PullContext(context.Background(), &git.PullOptions{
+		Auth: impl.Auth.BasicAuthGoGitTransformer(),
+	})
+	if err != nil && err.Error() == "already up-to-date" {
+		err = nil
+		return nil
+	}
+	return err
+}
+
 func (impl GitServiceImpl) CommitAndPushAllChanges(repoRoot, commitMsg, name, emailId string) (commitHash string, err error) {
 	start := time.Now()
 	defer func() {
@@ -354,9 +421,16 @@ func (impl GitServiceImpl) CommitAndPushAllChanges(repoRoot, commitMsg, name, em
 	impl.logger.Debugw("git hash", "repo", repoRoot, "hash", commit.String())
 	//-----------push
 	err = repo.Push(&git.PushOptions{
-		Auth: impl.Auth,
+		Auth: impl.Auth.BasicAuthGoGitTransformer(),
 	})
 	return commit.String(), err
+}
+
+func (auth *BasicAuth) BasicAuthGoGitTransformer() *http.BasicAuth {
+	return &http.BasicAuth{
+		Username: auth.Username,
+		Password: auth.Password,
+	}
 }
 
 func (impl GitServiceImpl) getRepoAndWorktree(repoRoot string) (*git.Repository, *git.Worktree, error) {
@@ -371,64 +445,4 @@ func (impl GitServiceImpl) getRepoAndWorktree(repoRoot string) (*git.Repository,
 	}
 	w, err := r.Worktree()
 	return r, w, err
-}
-
-func (impl GitServiceImpl) ForceResetHead(repoRoot string) (err error) {
-	start := time.Now()
-	defer func() {
-		util.TriggerGitOpsMetrics("ForceResetHead", "GitService", start, err)
-	}()
-	_, workTree, err := impl.getRepoAndWorktree(repoRoot)
-	if err != nil {
-		return err
-	}
-	err = workTree.Reset(&git.ResetOptions{Mode: git.HardReset})
-	if err != nil {
-		return err
-	}
-	err = workTree.Pull(&git.PullOptions{
-		Auth:         impl.Auth,
-		Force:        true,
-		SingleBranch: true,
-	})
-	return err
-}
-
-func (impl GitServiceImpl) CommitValues(config *ChartConfig) (commitHash string, err error) {
-	//TODO acquire lock
-	start := time.Now()
-	defer func() {
-		util.TriggerGitOpsMetrics("CommitValues", "GitService", start, err)
-	}()
-	gitDir := filepath.Join(impl.config.GitWorkingDir, config.ChartName)
-	if err != nil {
-		return "", err
-	}
-	err = ioutil.WriteFile(filepath.Join(gitDir, config.ChartLocation, config.FileName), []byte(config.FileContent), 0600)
-	if err != nil {
-		return "", err
-	}
-	hash, err := impl.CommitAndPushAllChanges(gitDir, config.ReleaseMessage, "devtron bot", "devtron-bot@devtron.ai")
-	return hash, err
-}
-
-func (impl GitServiceImpl) Pull(repoRoot string) (err error) {
-	start := time.Now()
-	defer func() {
-		util.TriggerGitOpsMetrics("Pull", "GitService", start, err)
-	}()
-	_, workTree, err := impl.getRepoAndWorktree(repoRoot)
-
-	if err != nil {
-		return err
-	}
-	//-----------pull
-	err = workTree.PullContext(context.Background(), &git.PullOptions{
-		Auth: impl.Auth,
-	})
-	if err != nil && err.Error() == "already up-to-date" {
-		err = nil
-		return nil
-	}
-	return err
 }

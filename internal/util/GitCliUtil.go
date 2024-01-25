@@ -12,12 +12,20 @@ import (
 	"time"
 )
 
-type GitCliUtil struct {
+type GitManager interface {
+	Init(rootDir string, remoteUrl string, isBare bool) error
+}
+
+type GitCliManagerImpl struct {
 	logger *zap.SugaredLogger
 }
 
-func NewGitCliUtil(logger *zap.SugaredLogger) *GitCliUtil {
-	return &GitCliUtil{
+type GoGitSdkManagerImpl struct {
+	logger *zap.SugaredLogger
+}
+
+func NewGitCliUtil(logger *zap.SugaredLogger) *GitCliManagerImpl {
+	return &GitCliManagerImpl{
 		logger: logger,
 	}
 }
@@ -25,7 +33,7 @@ func NewGitCliUtil(logger *zap.SugaredLogger) *GitCliUtil {
 const GIT_ASK_PASS = "/git-ask-pass.sh"
 const Branch_Master = "master"
 
-func (impl *GitCliUtil) Fetch(rootDir string, username string, password string) (response, errMsg string, err error) {
+func (impl *GitCliManagerImpl) fetch(rootDir string, username string, password string) (response, errMsg string, err error) {
 	start := time.Now()
 	defer func() {
 		util.TriggerGitOpsMetrics("Fetch", "GitCli", start, err)
@@ -37,7 +45,7 @@ func (impl *GitCliUtil) Fetch(rootDir string, username string, password string) 
 	return output, errMsg, err
 }
 
-func (impl *GitCliUtil) Pull(rootDir string, username string, password string, branch string) (response, errMsg string, err error) {
+func (impl *GitCliManagerImpl) pull(rootDir string, username string, password string, branch string) (response, errMsg string, err error) {
 	start := time.Now()
 	defer func() {
 		util.TriggerGitOpsMetrics("Pull", "GitCli", start, err)
@@ -49,19 +57,19 @@ func (impl *GitCliUtil) Pull(rootDir string, username string, password string, b
 	return output, errMsg, err
 }
 
-func (impl *GitCliUtil) Checkout(rootDir string, branch string) (response, errMsg string, err error) {
-	start := time.Now()
-	defer func() {
-		util.TriggerGitOpsMetrics("Checkout", "GitCli", start, err)
-	}()
-	impl.logger.Debugw("git checkout ", "location", rootDir)
-	cmd := exec.Command("git", "-C", rootDir, "checkout", branch, "--force")
-	output, errMsg, err := impl.runCommand(cmd)
-	impl.logger.Debugw("checkout output", "root", rootDir, "opt", output, "errMsg", errMsg, "error", err)
-	return output, errMsg, err
-}
+//func (impl *GitCliManagerImpl) Checkout(rootDir string, branch string) (response, errMsg string, err error) {
+//	start := time.Now()
+//	defer func() {
+//		util.TriggerGitOpsMetrics("Checkout", "GitCli", start, err)
+//	}()
+//	impl.logger.Debugw("git checkout ", "location", rootDir)
+//	cmd := exec.Command("git", "-C", rootDir, "checkout", branch, "--force")
+//	output, errMsg, err := impl.runCommand(cmd)
+//	impl.logger.Debugw("checkout output", "root", rootDir, "opt", output, "errMsg", errMsg, "error", err)
+//	return output, errMsg, err
+//}
 
-func (impl *GitCliUtil) ListBranch(rootDir string, username string, password string) (response, errMsg string, err error) {
+func (impl *GitCliManagerImpl) listBranch(rootDir string, username string, password string) (response, errMsg string, err error) {
 	start := time.Now()
 	defer func() {
 		util.TriggerGitOpsMetrics("ListBranch", "GitCli", start, err)
@@ -73,7 +81,7 @@ func (impl *GitCliUtil) ListBranch(rootDir string, username string, password str
 	return output, errMsg, err
 }
 
-func (impl *GitCliUtil) runCommandWithCred(cmd *exec.Cmd, userName, password string) (response, errMsg string, err error) {
+func (impl *GitCliManagerImpl) runCommandWithCred(cmd *exec.Cmd, userName, password string) (response, errMsg string, err error) {
 	cmd.Env = append(os.Environ(),
 		fmt.Sprintf("GIT_ASKPASS=%s", GIT_ASK_PASS),
 		fmt.Sprintf("GIT_USERNAME=%s", userName),
@@ -82,7 +90,7 @@ func (impl *GitCliUtil) runCommandWithCred(cmd *exec.Cmd, userName, password str
 	return impl.runCommand(cmd)
 }
 
-func (impl *GitCliUtil) runCommand(cmd *exec.Cmd) (response, errMsg string, err error) {
+func (impl *GitCliManagerImpl) runCommand(cmd *exec.Cmd) (response, errMsg string, err error) {
 	cmd.Env = append(cmd.Env, "HOME=/dev/null")
 	outBytes, err := cmd.CombinedOutput()
 	if err != nil {
@@ -98,7 +106,52 @@ func (impl *GitCliUtil) runCommand(cmd *exec.Cmd) (response, errMsg string, err 
 	return output, "", nil
 }
 
-func (impl *GitCliUtil) Init(rootDir string, remoteUrl string, isBare bool) error {
+func (impl *GitCliManagerImpl) Clone(rootDir string, remoteUrl string, username string, password string) (response, errMsg string, err error) {
+	start := time.Now()
+	defer func() {
+		util.TriggerGitOpsMetrics("Clone", "GitCli", start, err)
+	}()
+	impl.logger.Infow("git clone request", "rootDir", rootDir, "remoteUrl", remoteUrl, "username", username)
+	err = impl.Init(rootDir, remoteUrl, false)
+	if err != nil {
+		return "", "", err
+	}
+	response, errMsg, err = impl.fetch(rootDir, username, password)
+	if err == nil && errMsg == "" {
+		impl.logger.Warn("git fetch completed, pulling master branch data from remote origin")
+		response, errMsg, err = impl.listBranch(rootDir, username, password)
+		if err != nil {
+			impl.logger.Errorw("error on git pull", "response", response, "errMsg", errMsg, "err", err)
+			return response, errMsg, err
+		}
+		branches := strings.Split(response, "\n")
+		impl.logger.Infow("total branch available in git repo", "branches", branches)
+		branch := ""
+		for _, item := range branches {
+			if strings.TrimSpace(item) == "origin/master" {
+				branch = Branch_Master
+			}
+		}
+		//if git repo has some branch take pull of the first branch, but eventually proxy chart will push into master branch
+		if len(branch) == 0 && branches != nil && len(branches[0]) > 0 {
+			branch = strings.ReplaceAll(branches[0], "origin/", "")
+		}
+		if branch == "" {
+			impl.logger.Warnw("no branch found in git repo", "remoteUrl", remoteUrl, "response", response)
+			return response, "", nil
+		}
+		response, errMsg, err = impl.pull(rootDir, username, password, branch)
+		if err != nil {
+			impl.logger.Errorw("error on git pull", "branch", branch, "err", err)
+			return response, errMsg, err
+		}
+	}
+	return response, errMsg, err
+}
+
+//operations dependent on go-git
+
+func (impl *GitCliManagerImpl) Init(rootDir string, remoteUrl string, isBare bool) error {
 	//-----------------
 	start := time.Now()
 	var err error
@@ -125,45 +178,18 @@ func (impl *GitCliUtil) Init(rootDir string, remoteUrl string, isBare bool) erro
 	return err
 }
 
-func (impl *GitCliUtil) Clone(rootDir string, remoteUrl string, username string, password string) (response, errMsg string, err error) {
-	start := time.Now()
-	defer func() {
-		util.TriggerGitOpsMetrics("Clone", "GitCli", start, err)
-	}()
-	impl.logger.Infow("git clone request", "rootDir", rootDir, "remoteUrl", remoteUrl, "username", username)
-	err = impl.Init(rootDir, remoteUrl, false)
-	if err != nil {
-		return "", "", err
-	}
-	response, errMsg, err = impl.Fetch(rootDir, username, password)
-	if err == nil && errMsg == "" {
-		impl.logger.Warn("git fetch completed, pulling master branch data from remote origin")
-		response, errMsg, err = impl.ListBranch(rootDir, username, password)
-		if err != nil {
-			impl.logger.Errorw("error on git pull", "response", response, "errMsg", errMsg, "err", err)
-			return response, errMsg, err
-		}
-		branches := strings.Split(response, "\n")
-		impl.logger.Infow("total branch available in git repo", "branches", branches)
-		branch := ""
-		for _, item := range branches {
-			if strings.TrimSpace(item) == "origin/master" {
-				branch = Branch_Master
-			}
-		}
-		//if git repo has some branch take pull of the first branch, but eventually proxy chart will push into master branch
-		if len(branch) == 0 && branches != nil && len(branches[0]) > 0 {
-			branch = strings.ReplaceAll(branches[0], "origin/", "")
-		}
-		if branch == "" {
-			impl.logger.Warnw("no branch found in git repo", "remoteUrl", remoteUrl, "response", response)
-			return response, "", nil
-		}
-		response, errMsg, err = impl.Pull(rootDir, username, password, branch)
-		if err != nil {
-			impl.logger.Errorw("error on git pull", "branch", branch, "err", err)
-			return response, errMsg, err
-		}
-	}
-	return response, errMsg, err
-}
+//func (impl *GitCliManagerImpl) Init(rootDir string, remoteUrl string, isBare bool) error {
+//	//-----------------
+//
+//	err := os.MkdirAll(rootDir, 0755)
+//	if err != nil {
+//		return err
+//	}
+//
+//	err = impl.GitInit(gitCtx, rootDir)
+//	if err != nil {
+//		return err
+//	}
+//	return impl.GitCreateRemote(gitCtx, rootDir, remoteUrl)
+//
+//}
