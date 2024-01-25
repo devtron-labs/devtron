@@ -34,7 +34,7 @@ type GitOperationService interface {
 	GetRepoUrlByRepoName(repoName string) (string, error)
 
 	GetClonedDir(chartDir, repoUrl string) (string, error)
-	CloneDir(repoUrl, chartDir string) (string, error)
+	CloneInDir(repoUrl, chartDir string) (string, error)
 }
 
 type GitOperationServiceImpl struct {
@@ -91,6 +91,7 @@ func (impl *GitOperationServiceImpl) PushChartToGitRepo(gitOpsRepoName, referenc
 	tempReferenceTemplateDir string, repoUrl string, userId int32) (err error) {
 	chartDir := fmt.Sprintf("%s-%s", gitOpsRepoName, impl.chartTemplateService.GetDir())
 	clonedDir, err := impl.GetClonedDir(chartDir, repoUrl)
+	defer impl.chartTemplateService.CleanDir(clonedDir)
 	if err != nil {
 		impl.logger.Errorw("error in cloning repo", "url", repoUrl, "err", err)
 		return err
@@ -101,7 +102,7 @@ func (impl *GitOperationServiceImpl) PushChartToGitRepo(gitOpsRepoName, referenc
 		return err
 	}
 	dir := filepath.Join(clonedDir, referenceTemplate, version)
-	pushChartToGit := true
+	performFirstCommitPush := true
 
 	//if chart already exists don't overrides it by reference template
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
@@ -128,12 +129,12 @@ func (impl *GitOperationServiceImpl) PushChartToGitRepo(gitOpsRepoName, referenc
 			}
 		} else {
 			// chart exists on git, hence not performing first commit
-			pushChartToGit = false
+			performFirstCommitPush = false
 		}
 	}
 
 	// if push needed, then only push
-	if pushChartToGit {
+	if performFirstCommitPush {
 		userEmailId, userName := impl.gitOpsConfigReadService.GetUserEmailIdAndNameForGitOpsCommit(userId)
 		commit, err := impl.gitFactory.GitService.CommitAndPushAllChanges(clonedDir, "first commit", userName, userEmailId)
 		if err != nil {
@@ -157,7 +158,6 @@ func (impl *GitOperationServiceImpl) PushChartToGitRepo(gitOpsRepoName, referenc
 		impl.logger.Debugw("template committed", "url", repoUrl, "commit", commit)
 	}
 
-	defer impl.chartTemplateService.CleanDir(clonedDir)
 	return nil
 }
 
@@ -176,6 +176,7 @@ func (impl *GitOperationServiceImpl) CreateReadmeInGitRepo(gitOpsRepoName string
 	}
 	_, err = impl.gitFactory.Client.CreateReadme(gitOpsConfig)
 	if err != nil {
+		impl.logger.Errorw("error in creating readme", "err", err, "gitOpsRepoName", gitOpsRepoName, "userId", userId)
 		return err
 	}
 	return nil
@@ -330,9 +331,6 @@ func (impl *GitOperationServiceImpl) CommitValues(chartGitAttr *ChartConfig) (co
 		impl.logger.Errorw("error in git commit", "err", err)
 		return commitHash, commitTime, err
 	}
-	if commitTime.IsZero() {
-		commitTime = time.Now()
-	}
 	return commitHash, commitTime, nil
 }
 
@@ -385,7 +383,7 @@ func (impl *GitOperationServiceImpl) GetRepoUrlByRepoName(repoName string) (stri
 func (impl *GitOperationServiceImpl) GetClonedDir(chartDir, repoUrl string) (string, error) {
 	clonedDir := impl.gitFactory.GitService.GetCloneDirectory(chartDir)
 	if _, err := os.Stat(clonedDir); os.IsNotExist(err) {
-		return impl.CloneDir(repoUrl, chartDir)
+		return impl.CloneInDir(repoUrl, chartDir)
 	} else if err != nil {
 		impl.logger.Errorw("error in cloning repo", "url", repoUrl, "err", err)
 		return "", err
@@ -393,7 +391,7 @@ func (impl *GitOperationServiceImpl) GetClonedDir(chartDir, repoUrl string) (str
 	return clonedDir, nil
 }
 
-func (impl *GitOperationServiceImpl) CloneDir(repoUrl, chartDir string) (string, error) {
+func (impl *GitOperationServiceImpl) CloneInDir(repoUrl, chartDir string) (string, error) {
 	clonedDir, err := impl.gitFactory.GitService.Clone(repoUrl, chartDir)
 	if err != nil {
 		impl.logger.Errorw("error in cloning repo", "url", repoUrl, "err", err)

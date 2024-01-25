@@ -233,7 +233,7 @@ func (impl GitAzureClient) CommitValues(config *ChartConfig, gitOpsConfig *bean2
 	}
 	//gitPush.Commits
 	commitId := ""
-	commitAuthorTime := time.Time{}
+	commitAuthorTime := time.Now() //default is current time, if found then will get updated accordingly
 	if len(*push.Commits) > 0 {
 		commitId = *(*push.Commits)[0].CommitId
 		commitAuthorTime = (*push.Commits)[0].Author.Date.Time

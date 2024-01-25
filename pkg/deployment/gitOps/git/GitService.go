@@ -20,6 +20,8 @@ package git
 import (
 	"context"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/adapter"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
 	"github.com/devtron-labs/devtron/util"
 	"path/filepath"
 	"time"
@@ -122,18 +124,7 @@ func (factory *GitFactory) NewClientForValidation(gitOpsConfig *bean2.GitOpsConf
 	defer func() {
 		util.TriggerGitOpsMetrics("NewClientForValidation", "GitService", start, err)
 	}()
-	cfg := &GitConfig{
-		GitlabGroupId:        gitOpsConfig.GitLabGroupId,
-		GitToken:             gitOpsConfig.Token,
-		GitUserName:          gitOpsConfig.Username,
-		GithubOrganization:   gitOpsConfig.GitHubOrgId,
-		GitProvider:          gitOpsConfig.Provider,
-		GitHost:              gitOpsConfig.Host,
-		AzureToken:           gitOpsConfig.Token,
-		AzureProject:         gitOpsConfig.AzureProjectName,
-		BitbucketWorkspaceId: gitOpsConfig.BitBucketWorkspaceId,
-		BitbucketProjectKey:  gitOpsConfig.BitBucketProjectKey,
-	}
+	cfg := adapter.ConvertGitOpsConfigToGitConfig(gitOpsConfig)
 	gitService := NewGitServiceImpl(cfg, factory.logger, factory.gitCliUtil)
 	//factory.GitService = GitService
 	client, err := NewGitOpsClient(cfg, factory.logger, gitService)
@@ -164,21 +155,7 @@ func NewGitFactory(logger *zap.SugaredLogger, gitOpsRepository repository.GitOps
 	}, nil
 }
 
-type GitConfig struct {
-	GitlabGroupId        string //local
-	GitlabGroupPath      string //local
-	GitToken             string //not null  // public
-	GitUserName          string //not null  // public
-	GithubOrganization   string
-	GitProvider          string // SUPPORTED VALUES  GITHUB, GITLAB
-	GitHost              string
-	AzureToken           string
-	AzureProject         string
-	BitbucketWorkspaceId string
-	BitbucketProjectKey  string
-}
-
-func GetGitConfig(gitOpsRepository repository.GitOpsConfigRepository) (*GitConfig, error) {
+func GetGitConfig(gitOpsRepository repository.GitOpsConfigRepository) (*bean.GitConfig, error) {
 	gitOpsConfig, err := gitOpsRepository.GetGitOpsConfigActive()
 	if err != nil && err != pg.ErrNoRows {
 		return nil, err
@@ -187,13 +164,13 @@ func GetGitConfig(gitOpsRepository repository.GitOpsConfigRepository) (*GitConfi
 		// cfg := &GitConfig{}
 		// err := env.Parse(cfg)
 		// return cfg, err
-		return &GitConfig{}, nil
+		return &bean.GitConfig{}, nil
 	}
 
 	if gitOpsConfig == nil || gitOpsConfig.Id == 0 {
 		return nil, err
 	}
-	cfg := &GitConfig{
+	cfg := &bean.GitConfig{
 		GitlabGroupId:        gitOpsConfig.GitLabGroupId,
 		GitToken:             gitOpsConfig.Token,
 		GitUserName:          gitOpsConfig.Username,
@@ -208,7 +185,7 @@ func GetGitConfig(gitOpsRepository repository.GitOpsConfigRepository) (*GitConfi
 	return cfg, err
 }
 
-func NewGitOpsClient(config *GitConfig, logger *zap.SugaredLogger, gitService GitService) (GitClient, error) {
+func NewGitOpsClient(config *bean.GitConfig, logger *zap.SugaredLogger, gitService GitService) (GitClient, error) {
 	if config.GitProvider == GITLAB_PROVIDER {
 		gitLabClient, err := NewGitLabClient(config, logger, gitService)
 		return gitLabClient, err
@@ -252,7 +229,7 @@ type GitServiceImpl struct {
 	gitCliUtil *GitCliUtil
 }
 
-func NewGitServiceImpl(config *GitConfig, logger *zap.SugaredLogger, GitCliUtil *GitCliUtil) *GitServiceImpl {
+func NewGitServiceImpl(config *bean.GitConfig, logger *zap.SugaredLogger, GitCliUtil *GitCliUtil) *GitServiceImpl {
 	auth := &http.BasicAuth{Password: config.GitToken, Username: config.GitUserName}
 	return &GitServiceImpl{
 		Auth:       auth,

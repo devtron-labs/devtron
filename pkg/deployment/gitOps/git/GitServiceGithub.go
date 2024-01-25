@@ -191,7 +191,11 @@ func (impl GitHubClient) CommitValues(config *ChartConfig, gitOpsConfig *bean2.G
 		impl.logger.Errorw("error in commit github", "err", err, "config", config)
 		return "", time.Time{}, err
 	}
-	return *c.SHA, *c.Commit.Author.Date, nil
+	commitTime = time.Now() // default is current time, if found then will get updated accordingly
+	if c != nil && c.Commit.Author != nil {
+		commitTime = *c.Commit.Author.Date
+	}
+	return *c.SHA, commitTime, nil
 }
 
 func (impl GitHubClient) GetRepoUrl(config *bean2.GitOpsConfigDto) (repoUrl string, err error) {

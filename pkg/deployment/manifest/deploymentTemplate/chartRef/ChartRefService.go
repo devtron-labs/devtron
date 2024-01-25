@@ -24,8 +24,12 @@ import (
 )
 
 type ChartRefService interface {
-	//below methods are for getting data from db
+	ChartRefDbReadService
+	CustomChartService
+	ChartRefFileOpService
+}
 
+type ChartRefDbReadService interface {
 	GetDefault() (*bean.ChartRefDto, error)
 	GetAll() ([]*bean.ChartRefDto, error)
 	GetAllChartMetadata() (map[string]bean.ChartRefMetaData, error)
@@ -35,15 +39,15 @@ type ChartRefService interface {
 	ChartRefAutocomplete() ([]*bean.ChartRefAutocompleteDto, error)
 	CheckChartExists(chartRefId int) error
 	ChartRefIdsCompatible(oldChartRefId int, newChartRefId int) (bool, string, string)
+}
 
-	//below methods are for custom chart
-
+type CustomChartService interface {
 	SaveCustomChart(req *bean.CustomChartRefDto) error
 	FetchCustomChartsInfo() ([]*bean.ChartDto, error)
 	ValidateCustomChartUploadedFileFormat(fileName string) error
+}
 
-	//below methods are for chart file data actions
-
+type ChartRefFileOpService interface {
 	GetAppOverrideForDefaultTemplate(chartRefId int) (map[string]interface{}, string, error)
 	JsonSchemaExtractFromFile(chartRefId int) (map[string]interface{}, string, error)
 	GetSchemaAndReadmeForTemplateByChartRefId(chartRefId int) ([]byte, []byte, error)

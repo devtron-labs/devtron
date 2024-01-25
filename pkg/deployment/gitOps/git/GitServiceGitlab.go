@@ -3,6 +3,7 @@ package git
 import (
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
 	"github.com/xanzy/go-gitlab"
 	"go.uber.org/zap"
 	"net/url"
@@ -13,12 +14,12 @@ import (
 
 type GitLabClient struct {
 	client     *gitlab.Client
-	config     *GitConfig
+	config     *bean.GitConfig
 	logger     *zap.SugaredLogger
 	gitService GitService
 }
 
-func NewGitLabClient(config *GitConfig, logger *zap.SugaredLogger, gitService GitService) (GitClient, error) {
+func NewGitLabClient(config *bean.GitConfig, logger *zap.SugaredLogger, gitService GitService) (GitClient, error) {
 	gitLabClient, err := CreateGitlabClient(config.GitHost, config.GitToken)
 	if err != nil {
 		logger.Errorw("error in creating gitlab client", "err", err)
@@ -275,5 +276,9 @@ func (impl GitLabClient) CommitValues(config *ChartConfig, gitOpsConfig *bean2.G
 	if err != nil {
 		return "", time.Time{}, err
 	}
-	return c.ID, *c.AuthoredDate, err
+	commitTime = time.Now() //default is current time, if found then will get updated accordingly
+	if c != nil {
+		commitTime = *c.AuthoredDate
+	}
+	return c.ID, commitTime, err
 }
