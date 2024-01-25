@@ -612,11 +612,11 @@ func (impl *CiHandlerImpl) CancelBuild(workflowId int, forceAbort bool) (int, er
 
 	// Terminate workflow
 	err = impl.workflowService.TerminateWorkflow(workflow.ExecutorType, workflow.Name, workflow.Namespace, restConfig, isExt, env)
-	if err != nil && !strings.Contains(err.Error(), "cannot find workflow") {
+	if err != nil && strings.Contains(err.Error(), "cannot find workflow") {
+		return 0, &util.ApiError{Code: "200", HttpStatusCode: http.StatusBadRequest, UserMessage: err.Error()}
+	} else if err != nil {
 		impl.Logger.Errorw("cannot terminate wf", "err", err)
 		return 0, err
-	} else if err != nil {
-		return 0, &util.ApiError{Code: "200", HttpStatusCode: 400, UserMessage: err.Error()}
 	}
 
 	workflow.Status = executors.WorkflowCancel
