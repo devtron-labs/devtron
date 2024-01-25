@@ -106,16 +106,22 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 		logger.Errorw("error in starting heartbeat event", "err", err)
 		return nil, err
 	}
-	err = watcher.SetCloudProvider()
+	err = watcher.UpdateCloudProviderCache()
 	if err != nil {
-		logger.Errorw("error in setting cloud provider", "err", err)
+		logger.Errorw("error in updating cloud provider", "err", err)
 		return nil, err
 	}
 	return watcher, err
 }
 
-func (impl *TelemetryEventClientImpl) SetCloudProvider() error {
-	return nil
+func (impl *TelemetryEventClientImpl) UpdateCloudProviderCache() error {
+	provider, err := impl.cloudProviderIdentifierService.IdentifyProvider()
+	if err != nil {
+		impl.logger.Errorw("exception while getting cluster provider", "error", err)
+		return err
+	}
+	impl.cloudProviderCache = provider
+	return err
 }
 
 func (impl *TelemetryEventClientImpl) StopCron() {
@@ -153,6 +159,7 @@ const DevtronUniqueClientIdConfigMap = "devtron-ucid"
 const DevtronUniqueClientIdConfigMapKey = "UCID"
 const InstallEventKey = "installEvent"
 const UIEventKey = "uiEventKey"
+const Unknown = "unknown"
 
 type TelemetryEventType string
 
@@ -330,12 +337,14 @@ func (impl *TelemetryEventClientImpl) SendSummaryEvent(eventType string) error {
 	payload.HelmChartSuccessfulDeploymentCount = helmChartSuccessfulDeploymentCount
 	payload.ExternalHelmAppClusterCount = ExternalHelmAppClusterCount
 
-	provider, err := impl.cloudProviderIdentifierService.IdentifyProvider()
-	if err != nil {
-		impl.logger.Errorw("exception while getting cluster provider", "error", err)
-		return err
+	if len(payload.ClusterProvider) == 0 || payload.ClusterProvider == Unknown {
+		err := impl.UpdateCloudProviderCache()
+		if err != nil {
+			impl.logger.Errorw("error while updating cluster provider", "error", err)
+			return err
+		}
 	}
-	payload.ClusterProvider = provider
+	payload.ClusterProvider = impl.cloudProviderCache
 
 	latestUser, err := impl.userAuditService.GetLatestUser()
 	if err == nil {
@@ -496,12 +505,14 @@ func (impl *TelemetryEventClientImpl) SendTelemetryInstallEventEA() (*TelemetryE
 	payload.DevtronMode = util.GetDevtronVersion().ServerMode
 	payload.ServerVersion = k8sServerVersion.String()
 
-	provider, err := impl.cloudProviderIdentifierService.IdentifyProvider()
-	if err != nil {
-		impl.logger.Errorw("exception while getting cluster provider", "error", err)
-		return nil, err
+	if len(payload.ClusterProvider) == 0 || payload.ClusterProvider == Unknown {
+		err := impl.UpdateCloudProviderCache()
+		if err != nil {
+			impl.logger.Errorw("error while updating cluster provider", "error", err)
+			return nil, err
+		}
 	}
-	payload.ClusterProvider = provider
+	payload.ClusterProvider = impl.cloudProviderCache
 
 	reqBody, err := json.Marshal(payload)
 	if err != nil {
@@ -563,12 +574,15 @@ func (impl *TelemetryEventClientImpl) SendTelemetryDashboardAccessEvent() error 
 	payload.DevtronMode = util.GetDevtronVersion().ServerMode
 	payload.ServerVersion = k8sServerVersion.String()
 
-	provider, err := impl.cloudProviderIdentifierService.IdentifyProvider()
-	if err != nil {
-		impl.logger.Errorw("exception while getting cluster provider", "error", err)
-		return err
+	if len(payload.ClusterProvider) == 0 || payload.ClusterProvider == Unknown {
+		err := impl.UpdateCloudProviderCache()
+		if err != nil {
+			impl.logger.Errorw("error while updating cluster provider", "error", err)
+			return err
+		}
 	}
-	payload.ClusterProvider = provider
+	impl.logger.Infow("printing cloud provider name ====== ", "cloudProvider", impl.cloudProviderCache)
+	payload.ClusterProvider = impl.cloudProviderCache
 
 	reqBody, err := json.Marshal(payload)
 	if err != nil {
@@ -630,12 +644,14 @@ func (impl *TelemetryEventClientImpl) SendTelemetryDashboardLoggedInEvent() erro
 	payload.DevtronMode = util.GetDevtronVersion().ServerMode
 	payload.ServerVersion = k8sServerVersion.String()
 
-	provider, err := impl.cloudProviderIdentifierService.IdentifyProvider()
-	if err != nil {
-		impl.logger.Errorw("exception while getting cluster provider", "error", err)
-		return err
+	if len(payload.ClusterProvider) == 0 || payload.ClusterProvider == Unknown {
+		err := impl.UpdateCloudProviderCache()
+		if err != nil {
+			impl.logger.Errorw("error while updating cluster provider", "error", err)
+			return err
+		}
 	}
-	payload.ClusterProvider = provider
+	payload.ClusterProvider = impl.cloudProviderCache
 
 	reqBody, err := json.Marshal(payload)
 	if err != nil {
