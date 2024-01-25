@@ -84,3 +84,7 @@ const (
 	LastLogin SortBy = "last_login"
 	GroupName SortBy = "name"
 )
+
+const (
+	DefaultSize int = 20
+)

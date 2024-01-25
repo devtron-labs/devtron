@@ -19,8 +19,9 @@ package pipeline
 
 import (
 	"context"
-	blob_storage "github.com/devtron-labs/common-lib-private/blob-storage"
 	"github.com/devtron-labs/common-lib-private/utils/k8s"
+	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
+	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"go.uber.org/zap"
@@ -31,7 +32,7 @@ import (
 )
 
 type CiLogService interface {
-	FetchRunningWorkflowLogs(ciLogRequest types.BuildLogRequest, clusterConfig *k8s.ClusterConfig, isExt bool) (io.ReadCloser, func() error, error)
+	FetchRunningWorkflowLogs(ciLogRequest types.BuildLogRequest, clusterConfig *k8s2.ClusterConfig, isExt bool) (io.ReadCloser, func() error, error)
 	FetchLogs(baseLogLocationPathConfig string, ciLogRequest types.BuildLogRequest) (*os.File, func() error, error)
 }
 
@@ -39,10 +40,10 @@ type CiLogServiceImpl struct {
 	logger     *zap.SugaredLogger
 	ciService  CiService
 	kubeClient *kubernetes.Clientset
-	k8sUtil    *k8s.K8sUtil
+	k8sUtil    *k8s.K8sUtilExtended
 }
 
-func NewCiLogServiceImpl(logger *zap.SugaredLogger, ciService CiService, k8sUtil *k8s.K8sUtil) (*CiLogServiceImpl, error) {
+func NewCiLogServiceImpl(logger *zap.SugaredLogger, ciService CiService, k8sUtil *k8s.K8sUtilExtended) (*CiLogServiceImpl, error) {
 	_, _, clientSet, err := k8sUtil.GetK8sInClusterConfigAndClients()
 	if err != nil {
 		logger.Errorw("error in getting k8s in cluster client set", "err", err)
@@ -56,7 +57,7 @@ func NewCiLogServiceImpl(logger *zap.SugaredLogger, ciService CiService, k8sUtil
 	}, nil
 }
 
-func (impl *CiLogServiceImpl) FetchRunningWorkflowLogs(ciLogRequest types.BuildLogRequest, clusterConfig *k8s.ClusterConfig, isExt bool) (io.ReadCloser, func() error, error) {
+func (impl *CiLogServiceImpl) FetchRunningWorkflowLogs(ciLogRequest types.BuildLogRequest, clusterConfig *k8s2.ClusterConfig, isExt bool) (io.ReadCloser, func() error, error) {
 	var kubeClient *kubernetes.Clientset
 	kubeClient = impl.kubeClient
 	var err error

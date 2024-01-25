@@ -20,8 +20,8 @@ package pubsub
 import (
 	"encoding/json"
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
-	pubsub "github.com/devtron-labs/common-lib-private/pubsub-lib"
-	"github.com/devtron-labs/common-lib-private/pubsub-lib/model"
+	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
+	"github.com/devtron-labs/common-lib/pubsub-lib/model"
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -32,7 +32,7 @@ import (
 )
 
 type WorkflowStatusUpdateHandler interface {
-	Subscribe() error
+	subscribe() error
 }
 
 type WorkflowStatusUpdateHandlerImpl struct {
@@ -56,7 +56,7 @@ func NewWorkflowStatusUpdateHandlerImpl(logger *zap.SugaredLogger, pubsubClient 
 		eventClient:          eventClient,
 		cdWorkflowRepository: cdWorkflowRepository,
 	}
-	err := workflowStatusUpdateHandlerImpl.Subscribe()
+	err := workflowStatusUpdateHandlerImpl.subscribe()
 	if err != nil {
 		logger.Error("err", err)
 		return nil
@@ -69,10 +69,8 @@ func NewWorkflowStatusUpdateHandlerImpl(logger *zap.SugaredLogger, pubsubClient 
 	return workflowStatusUpdateHandlerImpl
 }
 
-func (impl *WorkflowStatusUpdateHandlerImpl) Subscribe() error {
+func (impl *WorkflowStatusUpdateHandlerImpl) subscribe() error {
 	callback := func(msg *model.PubSubMsg) {
-		impl.logger.Debug("received wf update request")
-		//defer msg.Ack()
 		wfStatus := v1alpha1.WorkflowStatus{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &wfStatus)
 		if err != nil {
@@ -93,7 +91,20 @@ func (impl *WorkflowStatusUpdateHandlerImpl) Subscribe() error {
 		}
 
 	}
-	err := impl.pubsubClient.Subscribe(pubsub.WORKFLOW_STATUS_UPDATE_TOPIC, callback)
+
+	// add required logging here
+	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) (string, []interface{}) {
+		wfStatus := v1alpha1.WorkflowStatus{}
+		err := json.Unmarshal([]byte(string(msg.Data)), &wfStatus)
+		if err != nil {
+			return "error while unmarshalling wf status update", []interface{}{"err", err, "msg", string(msg.Data)}
+		}
+
+		workflowName, status, _, message, _, _ := pipeline.ExtractWorkflowStatus(wfStatus)
+		return "got message for ci workflow status update ", []interface{}{"workflowName", workflowName, "status", status, "message", message}
+	}
+
+	err := impl.pubsubClient.Subscribe(pubsub.WORKFLOW_STATUS_UPDATE_TOPIC, callback, loggerFunc)
 
 	if err != nil {
 		impl.logger.Error("err", err)
@@ -104,8 +115,6 @@ func (impl *WorkflowStatusUpdateHandlerImpl) Subscribe() error {
 
 func (impl *WorkflowStatusUpdateHandlerImpl) SubscribeCD() error {
 	callback := func(msg *model.PubSubMsg) {
-		impl.logger.Debug("received cd wf update request")
-		//defer msg.Ack()
 		wfStatus := v1alpha1.WorkflowStatus{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &wfStatus)
 		if err != nil {
@@ -113,7 +122,6 @@ func (impl *WorkflowStatusUpdateHandlerImpl) SubscribeCD() error {
 			return
 		}
 
-		impl.logger.Debugw("received cd wf update request body", "body", wfStatus)
 		wfrId, wfrStatus, err := impl.cdHandler.UpdateWorkflow(wfStatus)
 		impl.logger.Debugw("UpdateWorkflow", "wfrId", wfrId, "wfrStatus", wfrStatus)
 		if err != nil {
@@ -170,7 +178,19 @@ func (impl *WorkflowStatusUpdateHandlerImpl) SubscribeCD() error {
 			}
 		}
 	}
-	err := impl.pubsubClient.Subscribe(pubsub.CD_WORKFLOW_STATUS_UPDATE, callback)
+
+	// add required logging here
+	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) (string, []interface{}) {
+		wfStatus := v1alpha1.WorkflowStatus{}
+		err := json.Unmarshal([]byte(string(msg.Data)), &wfStatus)
+		if err != nil {
+			return "error while unmarshalling wfStatus json object", []interface{}{"error", err}
+		}
+		workflowName, status, _, message, _, _ := pipeline.ExtractWorkflowStatus(wfStatus)
+		return "got message for cd workflow status", []interface{}{"workflowName", workflowName, "status", status, "message", message}
+	}
+
+	err := impl.pubsubClient.Subscribe(pubsub.CD_WORKFLOW_STATUS_UPDATE, callback, loggerFunc)
 	if err != nil {
 		impl.logger.Error("err", err)
 		return err

@@ -3,7 +3,7 @@ package service
 import (
 	"testing"
 
-	pubsub "github.com/devtron-labs/common-lib-private/pubsub-lib"
+	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	repository2 "github.com/devtron-labs/devtron/client/argocdServer/repository"
@@ -11,6 +11,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
+	repository5 "github.com/devtron-labs/devtron/pkg/appStore/chartGroup/repository"
 	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
 	repository4 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
@@ -38,7 +39,7 @@ func TestInstalledAppServiceImpl_DeployDefaultChartOnCluster(t *testing.T) {
 		appStoreValuesService                service.AppStoreValuesService
 		pubsubClient                         *pubsub.PubSubClientServiceImpl
 		tokenCache                           *util2.TokenCache
-		chartGroupDeploymentRepository       repository4.ChartGroupDeploymentRepository
+		chartGroupDeploymentRepository       repository5.ChartGroupDeploymentRepository
 		envService                           cluster.EnvironmentService
 		ArgoK8sClient                        argocdServer.ArgoK8sClient
 		gitFactory                           *util.GitFactory

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
+	bean3 "github.com/devtron-labs/devtron/pkg/timeoutWindow/repository/bean"
 	"go.uber.org/zap"
 	"strconv"
 )
@@ -20,9 +21,9 @@ func NewUserRepositoryQueryBuilder(logger *zap.SugaredLogger) UserRepositoryQuer
 }
 
 const (
-	QueryTimeFormat        = "2006-01-02 15:04:05-07:00"
-	TimeStampFormat        = "YYYY-MM-DD HH24:MI:SS"
-	TimeFormatUTC   string = "2006-01-02 15:04:05 -0700 MST"
+	QueryTimeFormat      string = "2006-01-02 15:04:05-07:00"
+	TimeStampFormat      string = "YYYY-MM-DD HH24:MI:SS"
+	TimeFormatForParsing string = "2006-01-02 15:04:05 -0700 MST"
 )
 
 //func (impl UserRepositoryQueryBuilder) GetStatusFromTTL(ttl, recordedTime time.Time) bean.Status {
@@ -45,12 +46,13 @@ func (impl UserRepositoryQueryBuilder) GetQueryForUserListingWithFilters(req *be
 	orderCondition := ""
 	//formatted for query comparison
 	formattedTimeForQuery := req.CurrentTime.Format(QueryTimeFormat)
+	// Have handled both formats 1 and 2 in the query for user inactive status
 	if req.Status == bean.Active {
-		whereCondition += fmt.Sprintf("AND (u.timeout_window_configuration_id is null OR ( tw.timeout_window_expression_format = %v AND TO_TIMESTAMP(tw.timeout_window_expression,'%s') > '%s' ) )", 1, TimeStampFormat, formattedTimeForQuery) //  TODO: replace 1 with expressionformat const
+		whereCondition += fmt.Sprintf("AND (user_model.timeout_window_configuration_id is null OR ( timeout_window_configuration.timeout_window_expression_format = %v AND TO_TIMESTAMP(timeout_window_configuration.timeout_window_expression,'%s') > '%s' ) ) ", bean3.TimeStamp, TimeStampFormat, formattedTimeForQuery) //  TODO: replace 1 with expressionformat const
 	} else if req.Status == bean.Inactive {
-		whereCondition += fmt.Sprintf("AND (tw.timeout_window_expression_format = %v AND TO_TIMESTAMP(tw.timeout_window_expression,'%s') < '%s' ) ", 1, TimeStampFormat, formattedTimeForQuery)
+		whereCondition += fmt.Sprintf("AND ( TO_TIMESTAMP(timeout_window_configuration.timeout_window_expression,'%s') < '%s' ) ", TimeStampFormat, formattedTimeForQuery)
 	} else if req.Status == bean.TemporaryAccess {
-		whereCondition += fmt.Sprintf(" AND (tw.timeout_window_expression_format = %v AND TO_TIMESTAMP(tw.timeout_window_expression,'%s') > '%s' ) ", 1, TimeStampFormat, formattedTimeForQuery)
+		whereCondition += fmt.Sprintf(" AND (timeout_window_configuration.timeout_window_expression_format = %v AND TO_TIMESTAMP(timeout_window_configuration.timeout_window_expression,'%s') > '%s' ) ", bean3.TimeStamp, TimeStampFormat, formattedTimeForQuery)
 	}
 	if len(req.SearchKey) > 0 {
 		emailIdLike := "%" + req.SearchKey + "%"
@@ -69,11 +71,9 @@ func (impl UserRepositoryQueryBuilder) GetQueryForUserListingWithFilters(req *be
 	}
 	var query string
 	if req.Size == 0 {
-		query = fmt.Sprintf("select count(*) from users u left join user_audit au on au.user_id=u.id left join timeout_window_configuration tw on tw.id=u.timeout_window_configuration_id %s %s;", whereCondition, orderCondition)
+		query = fmt.Sprintf("select count(*) from users AS user_model left join user_audit AS au on au.user_id=user_model.id left join timeout_window_configuration AS timeout_window_configuration on timeout_window_configuration.id=user_model.timeout_window_configuration_id %s %s;", whereCondition, orderCondition)
 	} else {
-		// Have not collected client ip here. always will be empty
-		//query = fmt.Sprintf("select u.id,u.email_id,u.active,u.user_type,u.timeout_window_configuration_id,au.updated_on as last_login,au.updated_on,timeout_window_configuration.* from users u left join user_audit au on au.user_id=u.id left join timeout_window_configuration on timeout_window_configuration.id=u.timeout_window_configuration_id %s %s;", whereCondition, orderCondition)
-		//query = fmt.Sprintf("select user_model.*, timeout_window_configuration.*, user_audit.* from users as user_model left join user_audit as user_audit on user_audit.user_id=user_model.id left join timeout_window_configuration AS timeout_window_configuration on timeout_window_configuration.id=user_model.timeout_window_configuration_id %s %s;", whereCondition, orderCondition)
+		// have not collected client ip here. always will be empty
 		query = fmt.Sprintf("SELECT \"user_model\".*, \"timeout_window_configuration\".\"id\" AS \"timeout_window_configuration__id\", \"timeout_window_configuration\".\"timeout_window_expression\" AS \"timeout_window_configuration__timeout_window_expression\", \"timeout_window_configuration\".\"timeout_window_expression_format\" AS \"timeout_window_configuration__timeout_window_expression_format\", \"user_audit\".\"id\" AS \"user_audit__id\", \"user_audit\".\"updated_on\" AS \"user_audit__updated_on\",\"user_audit\".\"user_id\" AS \"user_audit__user_id\" ,\"user_audit\".\"created_on\" AS \"user_audit__created_on\" ,\"user_audit\".\"updated_on\" AS \"last_login\" from users As \"user_model\" LEFT JOIN user_audit As \"user_audit\" on \"user_audit\".\"user_id\" = \"user_model\".\"id\" LEFT JOIN timeout_window_configuration AS \"timeout_window_configuration\" ON \"timeout_window_configuration\".\"id\" = \"user_model\".\"timeout_window_configuration_id\" %s %s;", whereCondition, orderCondition)
 	}
 

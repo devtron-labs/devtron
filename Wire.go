@@ -22,10 +22,12 @@ package main
 
 import (
 	"github.com/devtron-labs/authenticator/middleware"
-	pubsub1 "github.com/devtron-labs/common-lib-private/pubsub-lib"
 	util4 "github.com/devtron-labs/common-lib-private/utils/k8s"
+	cloudProviderIdentifier "github.com/devtron-labs/common-lib/cloud-provider-identifier"
+	pubsub1 "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/api/apiToken"
 	appStoreRestHandler "github.com/devtron-labs/devtron/api/appStore"
+	chartGroup2 "github.com/devtron-labs/devtron/api/appStore/chartGroup"
 	chartProvider "github.com/devtron-labs/devtron/api/appStore/chartProvider"
 	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
 	appStoreDiscover "github.com/devtron-labs/devtron/api/appStore/discover"
@@ -67,8 +69,8 @@ import (
 	eClient "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/client/grafana"
-	jClient "github.com/devtron-labs/devtron/client/jira"
 	"github.com/devtron-labs/devtron/client/lens"
+	"github.com/devtron-labs/devtron/client/proxy"
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/enterprise/api/drafts"
 	"github.com/devtron-labs/devtron/enterprise/api/globalTag"
@@ -97,10 +99,11 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appClone/batch"
 	"github.com/devtron-labs/devtron/pkg/appStatus"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
+	"github.com/devtron-labs/devtron/pkg/appStore/chartGroup"
+	repository4 "github.com/devtron-labs/devtron/pkg/appStore/chartGroup/repository"
 	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
-	repository4 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
-	appStoreDeploymentGitopsTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool/gitops"
+	appStoreDeploymentGitopsTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	client2 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
@@ -114,7 +117,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/generateManifest"
 	"github.com/devtron-labs/devtron/pkg/git"
 	"github.com/devtron-labs/devtron/pkg/gitops"
-	jira2 "github.com/devtron-labs/devtron/pkg/jira"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	repository7 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
 	"github.com/devtron-labs/devtron/pkg/notifier"
@@ -126,7 +128,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/plugin"
 	repository6 "github.com/devtron-labs/devtron/pkg/plugin/repository"
-	"github.com/devtron-labs/devtron/pkg/projectManagementService/jira"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/security"
@@ -152,11 +153,12 @@ func InitializeApp() (*App, error) {
 		externalLink.ExternalLinkWireSet,
 		team.TeamsWireSet,
 		AuthWireSet,
-		util4.NewK8sUtil,
+		util4.NewK8sUtilExtended,
 		user.UserWireSet,
 		sso.SsoConfigWireSet,
 		cluster.ClusterWireSet,
 		dashboard.DashboardWireSet,
+		proxy.ProxyWireSet,
 		client.HelmAppWireSet,
 		k8s.K8sApplicationWireSet,
 		chartRepo.ChartRepositoryWireSet,
@@ -278,10 +280,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipeline.CiCdPipelineOrchestrator), new(*pipeline3.CiCdPipelineOrchestratorEnterpriseImpl)),
 		pipelineConfig.NewMaterialRepositoryImpl,
 		wire.Bind(new(pipelineConfig.MaterialRepository), new(*pipelineConfig.MaterialRepositoryImpl)),
-		router.NewMigrateDbRouterImpl,
-		wire.Bind(new(router.MigrateDbRouter), new(*router.MigrateDbRouterImpl)),
-		restHandler.NewMigrateDbRestHandlerImpl,
-		wire.Bind(new(restHandler.MigrateDbRestHandler), new(*restHandler.MigrateDbRestHandlerImpl)),
+
 		util.NewChartTemplateServiceImpl,
 		wire.Bind(new(util.ChartTemplateService), new(*util.ChartTemplateServiceImpl)),
 		util.NewChartDeploymentServiceImpl,
@@ -349,22 +348,7 @@ func InitializeApp() (*App, error) {
 		pipeline.NewPropertiesConfigServiceImpl,
 		wire.Bind(new(pipeline.PropertiesConfigService), new(*pipeline.PropertiesConfigServiceImpl)),
 
-		router.NewProjectManagementRouterImpl,
-		wire.Bind(new(router.ProjectManagementRouter), new(*router.ProjectManagementRouterImpl)),
-
-		restHandler.NewJiraRestHandlerImpl,
-		wire.Bind(new(restHandler.JiraRestHandler), new(*restHandler.JiraRestHandlerImpl)),
-
-		jira2.NewProjectManagementServiceImpl,
-		wire.Bind(new(jira2.ProjectManagementService), new(*jira2.ProjectManagementServiceImpl)),
-
-		jira.NewAccountServiceImpl,
-		wire.Bind(new(jira.AccountService), new(*jira.AccountServiceImpl)),
-
 		util.NewHttpClient,
-
-		jClient.NewJiraClientImpl,
-		wire.Bind(new(jClient.JiraClient), new(*jClient.JiraClientImpl)),
 
 		eClient.NewEventRESTClientImpl,
 		wire.Bind(new(eClient.EventClient), new(*eClient.EventRESTClientImpl)),
@@ -373,11 +357,6 @@ func InitializeApp() (*App, error) {
 
 		eClient.NewEventSimpleFactoryImpl,
 		wire.Bind(new(eClient.EventFactory), new(*eClient.EventSimpleFactoryImpl)),
-
-		repository.NewJiraAccountRepositoryImpl,
-		wire.Bind(new(repository.JiraAccountRepository), new(*repository.JiraAccountRepositoryImpl)),
-		jira.NewAccountValidatorImpl,
-		wire.Bind(new(jira.AccountValidator), new(*jira.AccountValidatorImpl)),
 
 		repository.NewCiArtifactRepositoryImpl,
 		wire.Bind(new(repository.CiArtifactRepository), new(*repository.CiArtifactRepositoryImpl)),
@@ -422,15 +401,6 @@ func InitializeApp() (*App, error) {
 		//ArgoUtil.NewRepositoryService,
 		//wire.Bind(new(ArgoUtil.RepositoryService), new(ArgoUtil.RepositoryServiceImpl)),
 
-		pipelineConfig.NewDbMigrationConfigRepositoryImpl,
-		wire.Bind(new(pipelineConfig.DbMigrationConfigRepository), new(*pipelineConfig.DbMigrationConfigRepositoryImpl)),
-		pipeline.NewDbConfigService,
-		wire.Bind(new(pipeline.DbConfigService), new(*pipeline.DbConfigServiceImpl)),
-
-		repository.NewDbConfigRepositoryImpl,
-		wire.Bind(new(repository.DbConfigRepository), new(*repository.DbConfigRepositoryImpl)),
-		pipeline.NewDbMogrationService,
-		wire.Bind(new(pipeline.DbMigrationService), new(*pipeline.DbMigrationServiceImpl)),
 		//ArgoUtil.NewClusterServiceImpl,
 		//wire.Bind(new(ArgoUtil.ClusterService), new(ArgoUtil.ClusterServiceImpl)),
 		pipeline.GetEcrConfig,
@@ -643,22 +613,17 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(repository4.ChartGroupReposotory), new(*repository4.ChartGroupReposotoryImpl)),
 		repository4.NewChartGroupEntriesRepositoryImpl,
 		wire.Bind(new(repository4.ChartGroupEntriesRepository), new(*repository4.ChartGroupEntriesRepositoryImpl)),
-		service.NewChartGroupServiceImpl,
-		wire.Bind(new(service.ChartGroupService), new(*service.ChartGroupServiceImpl)),
-		restHandler.NewChartGroupRestHandlerImpl,
-		wire.Bind(new(restHandler.ChartGroupRestHandler), new(*restHandler.ChartGroupRestHandlerImpl)),
-		router.NewChartGroupRouterImpl,
-		wire.Bind(new(router.ChartGroupRouter), new(*router.ChartGroupRouterImpl)),
+		chartGroup.NewChartGroupServiceImpl,
+		wire.Bind(new(chartGroup.ChartGroupService), new(*chartGroup.ChartGroupServiceImpl)),
+		chartGroup2.NewChartGroupRestHandlerImpl,
+		wire.Bind(new(chartGroup2.ChartGroupRestHandler), new(*chartGroup2.ChartGroupRestHandlerImpl)),
+		chartGroup2.NewChartGroupRouterImpl,
+		wire.Bind(new(chartGroup2.ChartGroupRouter), new(*chartGroup2.ChartGroupRouterImpl)),
 		repository4.NewChartGroupDeploymentRepositoryImpl,
 		wire.Bind(new(repository4.ChartGroupDeploymentRepository), new(*repository4.ChartGroupDeploymentRepositoryImpl)),
 
 		commonService.NewCommonServiceImpl,
 		wire.Bind(new(commonService.CommonService), new(*commonService.CommonServiceImpl)),
-
-		router.NewTestSuitRouterImpl,
-		wire.Bind(new(router.TestSuitRouter), new(*router.TestSuitRouterImpl)),
-		restHandler.NewTestSuitRestHandlerImpl,
-		wire.Bind(new(restHandler.TestSuitRestHandler), new(*restHandler.TestSuitRestHandlerImpl)),
 
 		router.NewImageScanRouterImpl,
 		wire.Bind(new(router.ImageScanRouter), new(*router.ImageScanRouterImpl)),
@@ -731,6 +696,9 @@ func InitializeApp() (*App, error) {
 		restHandler.NewTelemetryRestHandlerImpl,
 		wire.Bind(new(restHandler.TelemetryRestHandler), new(*restHandler.TelemetryRestHandlerImpl)),
 		telemetry.NewPosthogClient,
+
+		cloudProviderIdentifier.NewProviderIdentifierServiceImpl,
+		wire.Bind(new(cloudProviderIdentifier.ProviderIdentifierService), new(*cloudProviderIdentifier.ProviderIdentifierServiceImpl)),
 
 		telemetry.NewTelemetryEventClientImplExtended,
 		wire.Bind(new(telemetry.TelemetryEventClient), new(*telemetry.TelemetryEventClientImplExtended)),

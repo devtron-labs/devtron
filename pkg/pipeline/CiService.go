@@ -49,7 +49,7 @@ import (
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 
-	"github.com/devtron-labs/common-lib-private/blob-storage"
+	"github.com/devtron-labs/common-lib/blob-storage"
 	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -264,6 +264,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 	} else {
 		workflowRequest.Type = bean2.CI_WORKFLOW_PIPELINE_TYPE
 	}
+
 	err = impl.executeCiPipeline(workflowRequest)
 	if err != nil {
 		impl.Logger.Errorw("workflow error", "err", err)
@@ -715,6 +716,8 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		RegistryDestinationImageMap: registryDestinationImageMap,
 		RegistryCredentialMap:       registryCredentialMap,
 		PluginArtifactStage:         pluginArtifactStage,
+		ImageScanMaxRetries:         impl.config.ImageScanMaxRetries,
+		ImageScanRetryDelay:         impl.config.ImageScanRetryDelay,
 	}
 
 	if dockerRegistry != nil {

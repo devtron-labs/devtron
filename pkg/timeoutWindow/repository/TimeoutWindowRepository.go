@@ -9,11 +9,11 @@ import (
 type TimeWindowRepository interface {
 	Create(model *TimeoutWindowConfiguration) (*TimeoutWindowConfiguration, error)
 	Update(model *TimeoutWindowConfiguration) (*TimeoutWindowConfiguration, error)
-	CreateInBatch(models []*TimeoutWindowConfiguration) ([]*TimeoutWindowConfiguration, error)
+	CreateInBatch(tx *pg.Tx, models []*TimeoutWindowConfiguration) ([]*TimeoutWindowConfiguration, error)
 	UpdateInBatch(models []*TimeoutWindowConfiguration) ([]*TimeoutWindowConfiguration, error)
 	GetWithExpressionAndFormat(expression string, format bean.ExpressionFormat) (*TimeoutWindowConfiguration, error)
 	GetWithIds(ids []int) ([]*TimeoutWindowConfiguration, error)
-	UpdateTimeoutExpressionForIds(expression string, ids []int) error
+	UpdateTimeoutExpressionForIds(tx *pg.Tx, expression string, ids []int) error
 }
 type TimeoutWindowConfiguration struct {
 	TableName               struct{}              `sql:"timeout_window_configuration" pg:",discard_unknown_columns"`
@@ -81,8 +81,8 @@ func (impl TimeWindowRepositoryImpl) Update(model *TimeoutWindowConfiguration) (
 }
 
 // CreateInBatch create takes timeModels in input and creates them in db in bulk
-func (impl TimeWindowRepositoryImpl) CreateInBatch(models []*TimeoutWindowConfiguration) ([]*TimeoutWindowConfiguration, error) {
-	err := impl.dbConnection.Insert(&models)
+func (impl TimeWindowRepositoryImpl) CreateInBatch(tx *pg.Tx, models []*TimeoutWindowConfiguration) ([]*TimeoutWindowConfiguration, error) {
+	err := tx.Insert(&models)
 	if err != nil {
 		impl.logger.Errorw("error in CreateInBatch time window", "err", err)
 		return nil, err
@@ -99,9 +99,9 @@ func (impl TimeWindowRepositoryImpl) UpdateInBatch(models []*TimeoutWindowConfig
 	}
 	return models, nil
 }
-func (impl TimeWindowRepositoryImpl) UpdateTimeoutExpressionForIds(expression string, ids []int) error {
+func (impl TimeWindowRepositoryImpl) UpdateTimeoutExpressionForIds(tx *pg.Tx, expression string, ids []int) error {
 	var model []*TimeoutWindowConfiguration
-	_, err := impl.dbConnection.Model(&model).Set("timeout_window_expression = ?", expression).
+	_, err := tx.Model(&model).Set("timeout_window_expression = ?", expression).
 		Where("id in (?)", pg.In(ids)).
 		Update()
 	if err != nil {

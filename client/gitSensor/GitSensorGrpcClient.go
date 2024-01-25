@@ -336,10 +336,12 @@ func (client *GrpcApiClientImpl) GetCommitMetadataForPipelineMaterial(ctx contex
 		GitTag:             req.GitTag,
 		BranchName:         req.BranchName,
 	})
+
 	if err != nil {
 		return nil, err
 	}
-	if res == nil {
+
+	if res.Commit == "" {
 		return nil, nil
 	}
 
