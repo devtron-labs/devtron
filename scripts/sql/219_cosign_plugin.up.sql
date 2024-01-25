@@ -10,8 +10,6 @@ VALUES (
         $$#!/bin/sh 
 set -eo pipefail 
 
-
-echo $DOCKER_IMAGE
 DOCKER_CONFIG_FILE="$HOME/.docker/config.json"
 
 # Extract the first entry in .auths section
@@ -25,7 +23,8 @@ DOCKER_PASSWORD=$(echo "$DOCKER_AUTHS" | jq -r '.auth' | base64 -d | cut -d ":" 
 # Print the extracted values
 echo "Registry: $DOCKER_REGISTRY"
 echo "Username: $DOCKER_USERNAME"
-echo "password: $DOCKER_PASSWORD"
+echo "DOCKER_IMAGE: $DOCKER_IMAGE"
+
 if [ -z "$VariableAsPrivateKey" ]; then
     echo "VariableAsPrivateKey is not set. VariableAsPrivateKey must be present."
     if [ -z "$PreCommand" ]; then
