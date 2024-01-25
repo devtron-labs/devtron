@@ -113,7 +113,7 @@ func (impl *InfraConfigRepositoryImpl) UpdateConfigurations(tx *pg.Tx, configura
 func (impl *InfraConfigRepositoryImpl) GetConfigurationsByProfileName(profileName string) ([]*InfraProfileConfiguration, error) {
 	var configurations []*InfraProfileConfiguration
 	err := impl.dbConnection.Model(&configurations).
-		Where("infra_profile_id IN (SELECT id FROM infra_profile WHERE name = ? AND active = true)", profileName).
+		Where("profile_id IN (SELECT id FROM infra_profile WHERE name = ? AND active = true)", profileName).
 		Where("active = ?", true).
 		Select()
 	if errors.Is(err, pg.ErrNoRows) {
@@ -129,7 +129,7 @@ func (impl *InfraConfigRepositoryImpl) GetConfigurationsByProfileId(profileIds [
 
 	var configurations []*InfraProfileConfiguration
 	err := impl.dbConnection.Model(&configurations).
-		Where("infra_profile_id IN (?)", profileIds).
+		Where("profile_id IN (?)", profileIds).
 		Where("active = ?", true).
 		Select()
 	if errors.Is(err, pg.ErrNoRows) {
@@ -214,7 +214,7 @@ func (impl *InfraConfigRepositoryImpl) DeleteProfile(tx *pg.Tx, profileName stri
 func (impl *InfraConfigRepositoryImpl) DeleteConfigurations(tx *pg.Tx, profileName string) error {
 	_, err := tx.Model(&InfraProfileConfiguration{}).
 		Set("active=?", false).
-		Where("infra_profile_id IN (SELECT id FROM infra_profile WHERE name = ? AND active = true)", profileName).
+		Where("profile_id IN (SELECT id FROM infra_profile WHERE name = ? AND active = true)", profileName).
 		Update()
 	return err
 }

@@ -134,15 +134,19 @@ func (handler *InfraConfigRestHandlerImpl) GetProfile(w http.ResponseWriter, r *
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-
-	profile, err := handler.infraProfileService.GetProfileByName(profileName)
-	if err != nil {
-		statusCode := http.StatusBadRequest
-		if errors.Is(err, pg.ErrNoRows) {
-			statusCode = http.StatusNotFound
+	var profile *infraConfig.ProfileBean
+	if profileName == infraConfig.DEFAULT_PROFILE_NAME {
+		profile = defaultProfile
+	} else {
+		profile, err = handler.infraProfileService.GetProfileByName(profileName)
+		if err != nil {
+			statusCode := http.StatusBadRequest
+			if errors.Is(err, pg.ErrNoRows) {
+				statusCode = http.StatusNotFound
+			}
+			common.WriteJsonResp(w, err, nil, statusCode)
+			return
 		}
-		common.WriteJsonResp(w, err, nil, statusCode)
-		return
 	}
 	resp := infraConfig.ProfileResponse{
 		Profile: *profile,
