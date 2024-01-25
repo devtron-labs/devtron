@@ -326,14 +326,11 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 	payload.HelmChartSuccessfulDeploymentCount = HelmChartSuccessfulDeploymentCount
 	payload.ExternalHelmAppClusterCount = ExternalHelmAppClusterCount
 
-	if len(payload.ClusterProvider) == 0 || payload.ClusterProvider == Unknown {
-		err := impl.UpdateCloudProviderCache()
-		if err != nil {
-			impl.logger.Errorw("error while updating cluster provider", "error", err)
-			return err
-		}
+	payload.ClusterProvider, err = impl.GetCloudProvider()
+	if err != nil {
+		impl.logger.Errorw("error while getting cluster provider", "error", err)
+		return err
 	}
-	payload.ClusterProvider = impl.cloudProviderCache
 
 	latestUser, err := impl.userAuditService.GetLatestUser()
 	if err == nil {

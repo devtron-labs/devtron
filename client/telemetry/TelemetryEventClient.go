@@ -58,7 +58,7 @@ type TelemetryEventClientImpl struct {
 	InstalledAppRepository         repository2.InstalledAppRepository
 	userAttributesRepository       repository.UserAttributesRepository
 	cloudProviderIdentifierService cloudProviderIdentifier.ProviderIdentifierService
-	cloudProviderCache             string
+	telemetryConfig                TelemetryConfig
 }
 
 type TelemetryEventClient interface {
@@ -74,7 +74,7 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 	K8sUtil *k8s.K8sServiceImpl, aCDAuthConfig *util3.ACDAuthConfig, userService user2.UserService,
 	attributeRepo repository.AttributesRepository, ssoLoginService sso.SSOLoginService,
 	PosthogClient *PosthogClient, moduleRepository moduleRepo.ModuleRepository, serverDataStore *serverDataStore.ServerDataStore, userAuditService user2.UserAuditService, helmAppClient client.HelmAppClient, InstalledAppRepository repository2.InstalledAppRepository,
-	cloudProviderIdentifierService cloudProviderIdentifier.ProviderIdentifierService) (*TelemetryEventClientImpl, error) {
+	cloudProviderIdentifierService cloudProviderIdentifier.ProviderIdentifierService, telemetryConfig TelemetryConfig) (*TelemetryEventClientImpl, error) {
 	cron := cron.New(
 		cron.WithChain())
 	cron.Start()
@@ -92,6 +92,7 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 		helmAppClient:                  helmAppClient,
 		InstalledAppRepository:         InstalledAppRepository,
 		cloudProviderIdentifierService: cloudProviderIdentifierService,
+		telemetryConfig:                telemetryConfig,
 	}
 
 	watcher.HeartbeatEventForTelemetry()
@@ -106,22 +107,20 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 		logger.Errorw("error in starting heartbeat event", "err", err)
 		return nil, err
 	}
-	err = watcher.UpdateCloudProviderCache()
-	if err != nil {
-		logger.Errorw("error in updating cloud provider", "err", err)
-		return nil, err
-	}
 	return watcher, err
 }
 
-func (impl *TelemetryEventClientImpl) UpdateCloudProviderCache() error {
-	provider, err := impl.cloudProviderIdentifierService.IdentifyProvider()
-	if err != nil {
-		impl.logger.Errorw("exception while getting cluster provider", "error", err)
-		return err
+func (impl *TelemetryEventClientImpl) GetCloudProvider() (string, error) {
+	// assumption: the IMDS server will be reachable on startup
+	if len(impl.telemetryConfig.cloudProvider) == 0 {
+		provider, err := impl.cloudProviderIdentifierService.IdentifyProvider()
+		if err != nil {
+			impl.logger.Errorw("exception while getting cluster provider", "error", err)
+			return "", err
+		}
+		impl.telemetryConfig.cloudProvider = provider
 	}
-	impl.cloudProviderCache = provider
-	return err
+	return impl.telemetryConfig.cloudProvider, nil
 }
 
 func (impl *TelemetryEventClientImpl) StopCron() {
@@ -159,7 +158,6 @@ const DevtronUniqueClientIdConfigMap = "devtron-ucid"
 const DevtronUniqueClientIdConfigMapKey = "UCID"
 const InstallEventKey = "installEvent"
 const UIEventKey = "uiEventKey"
-const Unknown = "unknown"
 
 type TelemetryEventType string
 
@@ -337,14 +335,11 @@ func (impl *TelemetryEventClientImpl) SendSummaryEvent(eventType string) error {
 	payload.HelmChartSuccessfulDeploymentCount = helmChartSuccessfulDeploymentCount
 	payload.ExternalHelmAppClusterCount = ExternalHelmAppClusterCount
 
-	if len(payload.ClusterProvider) == 0 || payload.ClusterProvider == Unknown {
-		err := impl.UpdateCloudProviderCache()
-		if err != nil {
-			impl.logger.Errorw("error while updating cluster provider", "error", err)
-			return err
-		}
+	payload.ClusterProvider, err = impl.GetCloudProvider()
+	if err != nil {
+		impl.logger.Errorw("error while getting cluster provider", "error", err)
+		return err
 	}
-	payload.ClusterProvider = impl.cloudProviderCache
 
 	latestUser, err := impl.userAuditService.GetLatestUser()
 	if err == nil {
@@ -505,14 +500,11 @@ func (impl *TelemetryEventClientImpl) SendTelemetryInstallEventEA() (*TelemetryE
 	payload.DevtronMode = util.GetDevtronVersion().ServerMode
 	payload.ServerVersion = k8sServerVersion.String()
 
-	if len(payload.ClusterProvider) == 0 || payload.ClusterProvider == Unknown {
-		err := impl.UpdateCloudProviderCache()
-		if err != nil {
-			impl.logger.Errorw("error while updating cluster provider", "error", err)
-			return nil, err
-		}
+	payload.ClusterProvider, err = impl.GetCloudProvider()
+	if err != nil {
+		impl.logger.Errorw("error while getting cluster provider", "error", err)
+		return nil, err
 	}
-	payload.ClusterProvider = impl.cloudProviderCache
 
 	reqBody, err := json.Marshal(payload)
 	if err != nil {
@@ -574,14 +566,11 @@ func (impl *TelemetryEventClientImpl) SendTelemetryDashboardAccessEvent() error 
 	payload.DevtronMode = util.GetDevtronVersion().ServerMode
 	payload.ServerVersion = k8sServerVersion.String()
 
-	if len(payload.ClusterProvider) == 0 || payload.ClusterProvider == Unknown {
-		err := impl.UpdateCloudProviderCache()
-		if err != nil {
-			impl.logger.Errorw("error while updating cluster provider", "error", err)
-			return err
-		}
+	payload.ClusterProvider, err = impl.GetCloudProvider()
+	if err != nil {
+		impl.logger.Errorw("error while getting cluster provider", "error", err)
+		return err
 	}
-	payload.ClusterProvider = impl.cloudProviderCache
 
 	reqBody, err := json.Marshal(payload)
 	if err != nil {
@@ -643,14 +632,11 @@ func (impl *TelemetryEventClientImpl) SendTelemetryDashboardLoggedInEvent() erro
 	payload.DevtronMode = util.GetDevtronVersion().ServerMode
 	payload.ServerVersion = k8sServerVersion.String()
 
-	if len(payload.ClusterProvider) == 0 || payload.ClusterProvider == Unknown {
-		err := impl.UpdateCloudProviderCache()
-		if err != nil {
-			impl.logger.Errorw("error while updating cluster provider", "error", err)
-			return err
-		}
+	payload.ClusterProvider, err = impl.GetCloudProvider()
+	if err != nil {
+		impl.logger.Errorw("error while getting cluster provider", "error", err)
+		return err
 	}
-	payload.ClusterProvider = impl.cloudProviderCache
 
 	reqBody, err := json.Marshal(payload)
 	if err != nil {
