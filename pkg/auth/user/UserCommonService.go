@@ -681,9 +681,9 @@ func (impl UserCommonServiceImpl) GetDefaultValuesIfNotPresent(sortBy string, to
 	if len(sortBy) > 0 {
 		sortByFinal = bean2.SortBy(sortBy)
 	} else if isRoleGroup {
-		sortByFinal = bean2.Email
-	} else {
 		sortByFinal = bean2.GroupName
+	} else {
+		sortByFinal = bean2.Email
 	}
 	if totalSize == 0 {
 		totalSize = bean2.DefaultSize
