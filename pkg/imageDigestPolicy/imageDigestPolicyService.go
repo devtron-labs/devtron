@@ -36,7 +36,7 @@ type ImageDigestPolicyServiceImpl struct {
 	logger                       *zap.SugaredLogger
 	qualifierMappingService      resourceQualifiers.QualifierMappingService
 	devtronResourceSearchableKey devtronResource.DevtronResourceSearchableKeyService
-	environmentRepository        repository.EnvironmentRepository
+	environmentRepository        repository.EnvironmentRepository // need to break db service
 	clusterRepository            repository.ClusterRepository
 	dbConnection                 *pg.DB
 }

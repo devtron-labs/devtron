@@ -2066,7 +2066,7 @@ func (impl *CdPipelineConfigServiceImpl) createCdPipeline(ctx context.Context, a
 
 	if !digestPolicyConfigurations.DigestConfiguredForEnvOrCluster {
 		if pipeline.IsDigestEnforcedForPipeline {
-			_, err = impl.imageDigestPolicyService.CreatePolicyForPipeline(tx, pipeline.Id, pipeline.Name, userId)
+			_, err = impl.imageDigestPolicyService.CreatePolicyForPipeline(tx, pipelineId, pipeline.Name, userId)
 			if err != nil {
 				return pipelineId, err
 			}
