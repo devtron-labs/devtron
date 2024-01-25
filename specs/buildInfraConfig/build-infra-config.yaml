@@ -114,7 +114,6 @@ components:
       type: object
       properties:
           id:
-            readOnly: true
             type: integer
             description: Profile Id
             example: 1
