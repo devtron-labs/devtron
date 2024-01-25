@@ -85,9 +85,9 @@ func (profileBean *ProfileBean) ConvertToInfraProfile() *InfraProfile {
 
 type ConfigurationBean struct {
 	Id          int          `json:"id"`
-	Key         ConfigKeyStr `json:"key" validate:"required"`
-	Value       float64      `json:"value" validate:"required"`
-	Unit        string       `json:"unit" validate:"required"`
+	Key         ConfigKeyStr `json:"key" validate:"required,oneof=cpu_limit cpu_request memory_limit memory_request timeout"`
+	Value       float64      `json:"value" validate:"required,min=0"`
+	Unit        string       `json:"unit" validate:"required,min=0"`
 	ProfileName string       `json:"profileName"`
 	ProfileId   int          `json:"profileId"`
 	Active      bool         `json:"active"`
