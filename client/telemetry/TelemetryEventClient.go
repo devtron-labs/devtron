@@ -67,7 +67,7 @@ type TelemetryEventClient interface {
 	SendTelemetryDashboardLoggedInEvent() error
 	SendGenericTelemetryEvent(eventType string, prop map[string]interface{}) error
 	SendSummaryEvent(eventType string) error
-}
+}w
 
 func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client, clusterService cluster.ClusterService,
 	K8sUtil *k8s.K8sServiceImpl, aCDAuthConfig *util3.ACDAuthConfig, userService user2.UserService,

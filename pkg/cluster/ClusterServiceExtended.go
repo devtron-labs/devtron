@@ -43,10 +43,11 @@ func NewClusterServiceImplExtended(repository repository.ClusterRepository, envi
 	userRepository repository5.UserRepository, roleGroupRepository repository5.RoleGroupRepository,
 	gitOpsConfigReadService config.GitOpsConfigReadService) *ClusterServiceImplExtended {
 	clusterServiceExt := &ClusterServiceImplExtended{
-		environmentRepository:  environmentRepository,
-		grafanaClient:          grafanaClient,
-		installedAppRepository: installedAppRepository,
-		clusterServiceCD:       clusterServiceCD,
+		environmentRepository:   environmentRepository,
+		grafanaClient:           grafanaClient,
+		installedAppRepository:  installedAppRepository,
+		clusterServiceCD:        clusterServiceCD,
+		gitOpsConfigReadService: gitOpsConfigReadService,
 		ClusterServiceImpl: &ClusterServiceImpl{
 			clusterRepository:   repository,
 			logger:              logger,
