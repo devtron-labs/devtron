@@ -168,7 +168,7 @@ func (impl *InfraConfigRepositoryImpl) GetConfigurationsByScope(scope Scope, sea
 func (impl *InfraConfigRepositoryImpl) GetIdentifierCountForDefaultProfile(defaultProfileId int, identifierKey int) (int, error) {
 	queryToGetAppIdsWhichDoesntInheritDefaultConfigurations := " SELECT identifier_value_int " +
 		" FROM resource_qualifier_mapping " +
-		" WHERE reference_type = %d AND reference_id IN ( " +
+		" WHERE resource_type = %d AND resource_id IN ( " +
 		" 	SELECT profile_id " +
 		"   FROM infra_profile_configuration " +
 		"   GROUP BY profile_id HAVING COUNT(profile_id) = ( " +
@@ -190,9 +190,9 @@ func (impl *InfraConfigRepositoryImpl) GetIdentifierCountForDefaultProfile(defau
 // GetIdentifierCountForNonDefaultProfiles returns the count of identifiers for the given profileIds and identifierType
 // if resourceIds is empty, it will return the count of identifiers for all the profiles
 func (impl *InfraConfigRepositoryImpl) GetIdentifierCountForNonDefaultProfiles(profileIds []int, identifierType int) ([]ProfileIdentifierCount, error) {
-	query := " SELECT COUNT(DISTINCT identifier_id) as identifier_count, resource_id" +
+	query := " SELECT COUNT(DISTINCT identifier_value_int) as identifier_count, resource_id" +
 		" FROM resource_qualifier_mapping " +
-		" WHERE resource_type = ? AND identifier_type = ? AND active=true "
+		" WHERE resource_type = ? AND identifier_key = ? AND active=true "
 	if len(profileIds) > 0 {
 		query += fmt.Sprintf(" AND resource_id IN (%s) ", helper2.GetCommaSepratedStringWithComma(profileIds))
 	}
@@ -235,13 +235,13 @@ func (impl *InfraConfigRepositoryImpl) GetIdentifierList(listFilter IdentifierLi
 	identifierType := GetIdentifierKey(listFilter.IdentifierType, searchableKeyNameIdMap)
 	totalOverridenCountQuery := "SELECT COUNT(id) " +
 		" FROM resource_qualifier_mapping " +
-		fmt.Sprintf(" WHERE reference_type = %d ", resourceQualifiers.InfraProfile) +
+		fmt.Sprintf(" WHERE resource_type = %d ", resourceQualifiers.InfraProfile) +
 		" AND active=true "
 
 	if listFilter.ProfileName == DEFAULT_PROFILE_NAME {
 		excludeAppIdsQuery := "SELECT identifier_value_int " +
 			" FROM resource_qualifier_mapping " +
-			fmt.Sprintf(" WHERE reference_type = %d AND active=true AND identifier_type = %d", resourceQualifiers.InfraProfile, identifierType)
+			fmt.Sprintf(" WHERE resource_type = %d AND active=true AND identifier_key = %d", resourceQualifiers.InfraProfile, identifierType)
 
 		query := "SELECT id," +
 			"app_name AS name," +
@@ -264,11 +264,11 @@ func (impl *InfraConfigRepositoryImpl) GetIdentifierList(listFilter IdentifierLi
 		return identifiers, err
 	}
 
-	finalQuery := "SELECT identifier_value_int AS id, identifier_value_str AS name, reference_id as profile_id, COUNT(id) OVER() AS total_identifier_count, (" + totalOverridenCountQuery + ") AS overridden_identifier_count " +
+	finalQuery := "SELECT identifier_value_int AS id, identifier_value_str AS name, resource_id as profile_id, COUNT(id) OVER() AS total_identifier_count, (" + totalOverridenCountQuery + ") AS overridden_identifier_count " +
 		" FROM resource_qualifier_mapping "
-	finalQuery += fmt.Sprintf(" WHERE reference_type = %d ", resourceQualifiers.InfraProfile)
+	finalQuery += fmt.Sprintf(" WHERE resource_type = %d ", resourceQualifiers.InfraProfile)
 	if listFilter.ProfileName != "" {
-		finalQuery += fmt.Sprintf(" AND reference_id IN (SELECT id FROM infra_profile WHERE name = '%s')", listFilter.ProfileName)
+		finalQuery += fmt.Sprintf(" AND resource_id IN (SELECT id FROM infra_profile WHERE name = '%s')", listFilter.ProfileName)
 	}
 
 	filterQuery := "SELECT id" +
@@ -279,7 +279,7 @@ func (impl *InfraConfigRepositoryImpl) GetIdentifierList(listFilter IdentifierLi
 		" LIMIT ? " +
 		" OFFSET ? "
 
-	finalQuery += " AND identifier_type = ? " +
+	finalQuery += " AND identifier_key = ? " +
 		" WHERE id IN (" + filterQuery + ") " +
 		" AND active=true"
 

@@ -130,7 +130,7 @@ func (handler *InfraConfigRestHandlerImpl) GetProfile(w http.ResponseWriter, r *
 		return
 	}
 
-	defaultProfile, err := handler.infraProfileService.GetDefaultProfile()
+	defaultProfile, err := handler.infraProfileService.GetDefaultProfile(true)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
@@ -180,7 +180,7 @@ func (handler *InfraConfigRestHandlerImpl) GetProfileList(w http.ResponseWriter,
 	}
 
 	vars := mux.Vars(r)
-	profileNameLike := vars["profileNameLike"]
+	profileNameLike := vars["search"]
 	profilesResponse, err := handler.infraProfileService.GetProfileList(profileNameLike)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -234,8 +234,8 @@ func (handler *InfraConfigRestHandlerImpl) GetIdentifierList(w http.ResponseWrit
 		common.WriteJsonResp(w, errors.New(fmt.Sprintf(InvalidIdentifierType, identifierType)), nil, http.StatusBadRequest)
 		return
 	}
-	identifierNameLike := vars["identifierNameLike"]
-	sortOrder := vars["sortOrder"]
+	identifierNameLike := vars["search"]
+	sortOrder := vars["sort"]
 
 	if !(sortOrder == "ASC" || sortOrder == "DESC") {
 		common.WriteJsonResp(w, errors.New("sort order can only be ASC or DESC"), nil, http.StatusBadRequest)

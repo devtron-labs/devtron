@@ -33,17 +33,17 @@ func (impl *InfraConfigRouterImpl) InitInfraConfigRouter(configRouter *mux.Route
 		HandlerFunc(impl.infraConfigRestHandler.CreateProfile).
 		Methods("POST")
 
-	configRouter.Path("/profile").
-		Queries("searchStr", "{profileNameLike}").
+	configRouter.Path("/list/profile").
+		// Queries("search", "{profileNameLike}").
 		HandlerFunc(impl.infraConfigRestHandler.GetProfileList).
 		Methods("GET")
 
-	configRouter.Path("identifier/{identifierType}").
-		Queries("search", "{identifierNameLike}",
-			"sort", "{sortOrder}",
-			"profileName", "{profileName}",
-			"size", "{size}",
-			"offset", "{offset}").
+	configRouter.Path("/list/identifier/{identifierType}").
+		// Queries("search", "{identifierNameLike}",
+		// 	"sort", "{sortOrder}",
+		// 	"profileName", "{profileName}",
+		// 	"size", "{size}",
+		// 	"offset", "{offset}").
 		HandlerFunc(impl.infraConfigRestHandler.GetIdentifierList).
 		Methods("GET")
 
