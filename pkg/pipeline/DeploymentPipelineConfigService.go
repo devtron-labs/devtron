@@ -1831,7 +1831,7 @@ func (impl *CdPipelineConfigServiceImpl) createCdPipeline(ctx context.Context, a
 	}
 
 	if pipeline.IsDigestEnforcedForPipeline {
-		_, err = impl.imageDigestPolicyService.CreatePolicyForPipeline(pipelineId, pipeline.Name, tx, userId)
+		_, err = impl.imageDigestPolicyService.CreatePolicyForPipeline(tx, pipelineId, pipeline.Name, userId)
 		if err != nil {
 			return pipelineId, err
 		}

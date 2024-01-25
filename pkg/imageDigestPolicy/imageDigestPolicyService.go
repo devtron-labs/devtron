@@ -13,7 +13,7 @@ import (
 type ImageDigestPolicyService interface {
 
 	//CreatePolicyForPipeline creates image digest policy for pipeline
-	CreatePolicyForPipeline(pipelineId int, pipelineName string, tx *pg.Tx, UserId int32) (int, error)
+	CreatePolicyForPipeline(tx *pg.Tx, pipelineId int, pipelineName string, UserId int32) (int, error)
 
 	//CreatePolicyForPipelineIfNotExist creates image digest policy for pipeline if not already created
 	CreatePolicyForPipelineIfNotExist(tx *pg.Tx, pipelineId int, pipelineName string, UserId int32) (int, error)
@@ -43,7 +43,7 @@ func NewImageDigestPolicyServiceImpl(
 	}
 }
 
-func (impl ImageDigestPolicyServiceImpl) CreatePolicyForPipeline(pipelineId int, pipelineName string, tx *pg.Tx, UserId int32) (int, error) {
+func (impl ImageDigestPolicyServiceImpl) CreatePolicyForPipeline(tx *pg.Tx, pipelineId int, pipelineName string, UserId int32) (int, error) {
 
 	var qualifierMappingId int
 
@@ -74,7 +74,7 @@ func (impl ImageDigestPolicyServiceImpl) CreatePolicyForPipelineIfNotExist(tx *p
 	}
 
 	if !digestPolicyConfigurations.DigestConfiguredForPipeline {
-		qualifierMappingId, err = impl.CreatePolicyForPipeline(pipelineId, pipelineName, tx, UserId)
+		qualifierMappingId, err = impl.CreatePolicyForPipeline(tx, pipelineId, pipelineName, UserId)
 		if err != nil {
 			impl.logger.Errorw("error in creating policy for pipeline", "err", "pipelineId", pipelineId)
 			return qualifierMappingId, nil
