@@ -25,7 +25,7 @@ import (
 )
 
 type ExternalLinkIdentifierMapping struct {
-	tableName      struct{}      `sql:"external_link_identifier_mapping"`
+	tableName      struct{}      `sql:"external_link_identifier_mapping" pg:",discard_unknown_columns"`
 	Id             int           `sql:"id,pk"`
 	ExternalLinkId int           `sql:"external_link_id,notnull"`
 	Type           AppIdentifier `sql:"type,notnull"`

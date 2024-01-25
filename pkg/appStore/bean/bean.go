@@ -126,27 +126,6 @@ type InstallAppVersionChartRepoDTO struct {
 	Password string `json:"-"`
 }
 
-// / bean for v2
-type ChartGroupInstallRequest struct {
-	ProjectId                     int                              `json:"projectId"  validate:"required,number"`
-	ChartGroupInstallChartRequest []*ChartGroupInstallChartRequest `json:"charts" validate:"dive,required"`
-	ChartGroupId                  int                              `json:"chartGroupId"` //optional
-	UserId                        int32                            `json:"-"`
-}
-
-type ChartGroupInstallChartRequest struct {
-	AppName                 string `json:"appName,omitempty"  validate:"name-component,max=100" `
-	EnvironmentId           int    `json:"environmentId,omitempty" validate:"required,number" `
-	AppStoreVersion         int    `json:"appStoreVersion,omitempty,notnull" validate:"required,number" `
-	ValuesOverrideYaml      string `json:"valuesOverrideYaml,omitempty"` //optional
-	ReferenceValueId        int    `json:"referenceValueId, omitempty" validate:"required,number"`
-	ReferenceValueKind      string `json:"referenceValueKind, omitempty" validate:"oneof=DEFAULT TEMPLATE DEPLOYED"`
-	ChartGroupEntryId       int    `json:"chartGroupEntryId"` //optional
-	DefaultClusterComponent bool   `json:"-"`
-}
-type ChartGroupInstallAppRes struct {
-}
-
 // /
 type RefChartProxyDir string
 
@@ -189,11 +168,6 @@ type Dependency struct {
 	Version    string `json:"version"`
 	Repository string `json:"repository"`
 }
-
-const BULK_APPSTORE_DEPLOY_TOPIC = "ORCHESTRATOR.APP-STORE.BULK-DEPLOY"
-const BULK_APPSTORE_DEPLOY_GROUP = "ORCHESTRATOR.APP-STORE.BULK-DEPLOY-GROUP-1"
-
-const BULK_APPSTORE_DEPLOY_DURABLE = "ORCHESTRATOR.APP-STORE.BULK-DEPLOY.DURABLE-1"
 
 type DeployPayload struct {
 	InstalledAppVersionId        int
@@ -380,3 +354,20 @@ type HelmReleaseStatusConfig struct {
 	IsReleaseInstalled         bool
 	ErrorInInstallation        bool
 }
+
+type ChartComponents struct {
+	ChartComponent []*ChartComponent `json:"charts"`
+}
+
+type ChartComponent struct {
+	Name   string `json:"name"`
+	Values string `json:"values"`
+}
+
+const (
+	DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT = "devtron"
+	CLUSTER_COMPONENT_DIR_PATH                  = "/cluster/component"
+	HELM_RELEASE_STATUS_FAILED                  = "Failed"
+	HELM_RELEASE_STATUS_PROGRESSING             = "Progressing"
+	HELM_RELEASE_STATUS_UNKNOWN                 = "Unknown"
+)

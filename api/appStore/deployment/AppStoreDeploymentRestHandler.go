@@ -59,9 +59,9 @@ type AppStoreDeploymentRestHandler interface {
 }
 
 type AppStoreDeploymentRestHandlerImpl struct {
-	Logger          *zap.SugaredLogger
-	userAuthService user.UserService
-	enforcer        casbin.Enforcer
+	Logger                     *zap.SugaredLogger
+	userAuthService            user.UserService
+	enforcer                   casbin.Enforcer
 	enforcerUtil               rbac.EnforcerUtil
 	enforcerUtilHelm           rbac.EnforcerUtilHelm
 	appStoreDeploymentService  service.AppStoreDeploymentService

@@ -40,3 +40,8 @@ type PodContainerList struct {
 	InitContainers      []string
 	EphemeralContainers []string
 }
+
+type ResourceGetResponse struct {
+	ManifestResponse *k8s.ManifestResponse `json:"manifestResponse"`
+	SecretViewAccess bool                  `json:"secretViewAccess"` // imp: only for resource browser, this is being used to check whether a user can see obscured secret values or not.
+}

@@ -49,9 +49,9 @@ type EventSimpleFactoryImpl struct {
 	ciWorkflowRepository         pipelineConfig.CiWorkflowRepository
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository
 	ciPipelineRepository         pipelineConfig.CiPipelineRepository
-	pipelineRepository   pipelineConfig.PipelineRepository
-	userRepository       repository.UserRepository
-	ciArtifactRepository repository2.CiArtifactRepository
+	pipelineRepository           pipelineConfig.PipelineRepository
+	userRepository               repository.UserRepository
+	ciArtifactRepository         repository2.CiArtifactRepository
 }
 
 func NewEventSimpleFactoryImpl(logger *zap.SugaredLogger, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,

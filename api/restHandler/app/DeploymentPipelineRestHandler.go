@@ -23,7 +23,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/generateManifest"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
-	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/variables/models"
@@ -87,9 +86,6 @@ type DevtronAppDeploymentConfigRestHandler interface {
 }
 
 type DevtronAppPrePostDeploymentRestHandler interface {
-	GetMigrationConfig(w http.ResponseWriter, r *http.Request)
-	CreateMigrationConfig(w http.ResponseWriter, r *http.Request)
-	UpdateMigrationConfig(w http.ResponseWriter, r *http.Request)
 	GetStageStatus(w http.ResponseWriter, r *http.Request)
 	GetPrePostDeploymentLogs(w http.ResponseWriter, r *http.Request)
 	// CancelStage Cancel Pre/Post ArgoWorkflow execution
@@ -1521,133 +1517,6 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsForRollback(w http.Resp
 		return
 	}
 	common.WriteJsonResp(w, err, ciArtifactResponse, http.StatusOK)
-}
-
-func (handler PipelineConfigRestHandlerImpl) GetMigrationConfig(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	pipelineId, err := strconv.Atoi(vars["pipelineId"])
-	if err != nil {
-		handler.Logger.Errorw("request err, GetMigrationConfig", "err", err, "pipelineId", pipelineId)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	handler.Logger.Infow("request payload, GetMigrationConfig", "pipelineId", pipelineId)
-	token := r.Header.Get("token")
-	deploymentPipeline, err := handler.pipelineBuilder.FindPipelineById(pipelineId)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	app, err := handler.pipelineBuilder.GetApp(deploymentPipeline.AppId)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-		return
-	}
-	ciConf, err := handler.dbMigrationService.GetByPipelineId(pipelineId)
-	if err != nil {
-		handler.Logger.Errorw("service err, GetMigrationConfig", "err", err, "pipelineId", pipelineId)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	common.WriteJsonResp(w, err, ciConf, http.StatusOK)
-}
-
-func (handler PipelineConfigRestHandlerImpl) CreateMigrationConfig(w http.ResponseWriter, r *http.Request) {
-	decoder := json.NewDecoder(r.Body)
-	userId, err := handler.userAuthService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	var dbMigrationConfigBean types.DbMigrationConfigBean
-	err = decoder.Decode(&dbMigrationConfigBean)
-
-	dbMigrationConfigBean.UserId = userId
-	if err != nil {
-		handler.Logger.Errorw("request err, CreateMigrationConfig", "err", err, "payload", dbMigrationConfigBean)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	err = handler.validator.Struct(dbMigrationConfigBean)
-	if err != nil {
-		handler.Logger.Errorw("validation err, CreateMigrationConfig", "err", err, "payload", dbMigrationConfigBean)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	handler.Logger.Infow("request payload, CreateMigrationConfig", "payload", dbMigrationConfigBean)
-	token := r.Header.Get("token")
-	deploymentPipeline, err := handler.pipelineBuilder.FindPipelineById(dbMigrationConfigBean.PipelineId)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	app, err := handler.pipelineBuilder.GetApp(deploymentPipeline.AppId)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-	}
-	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceName); !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-		return
-	}
-	createResp, err := handler.dbMigrationService.Save(&dbMigrationConfigBean)
-	if err != nil {
-		handler.Logger.Errorw("service err, CreateMigrationConfig", "err", err, "payload", dbMigrationConfigBean)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	common.WriteJsonResp(w, err, createResp, http.StatusOK)
-}
-func (handler PipelineConfigRestHandlerImpl) UpdateMigrationConfig(w http.ResponseWriter, r *http.Request) {
-	decoder := json.NewDecoder(r.Body)
-	userId, err := handler.userAuthService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	var dbMigrationConfigBean types.DbMigrationConfigBean
-	err = decoder.Decode(&dbMigrationConfigBean)
-	dbMigrationConfigBean.UserId = userId
-	if err != nil {
-		handler.Logger.Errorw("request err, UpdateMigrationConfig", "err", err, "payload", dbMigrationConfigBean)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	err = handler.validator.Struct(dbMigrationConfigBean)
-	if err != nil {
-		handler.Logger.Errorw("validation err, UpdateMigrationConfig", "err", err, "payload", dbMigrationConfigBean)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	handler.Logger.Infow("request payload, UpdateMigrationConfig", "payload", dbMigrationConfigBean)
-	token := r.Header.Get("token")
-	deploymentPipeline, err := handler.pipelineBuilder.FindPipelineById(dbMigrationConfigBean.PipelineId)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	app, err := handler.pipelineBuilder.GetApp(deploymentPipeline.AppId)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceName); !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-		return
-	}
-	createResp, err := handler.dbMigrationService.Update(&dbMigrationConfigBean)
-	if err != nil {
-		handler.Logger.Errorw("service err, UpdateMigrationConfig", "err", err, "payload", dbMigrationConfigBean)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	common.WriteJsonResp(w, err, createResp, http.StatusOK)
 }
 
 func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideReset(w http.ResponseWriter, r *http.Request) {

@@ -111,16 +111,15 @@ type AppServiceImpl struct {
 	ciArtifactRepository                   repository.CiArtifactRepository
 	pipelineRepository                     pipelineConfig.PipelineRepository
 	gitFactory                             *GitFactory
-	dbMigrationConfigRepository            pipelineConfig.DbMigrationConfigRepository
 	eventClient                            client.EventClient
 	eventFactory                           client.EventFactory
 	acdClient                              application.ServiceClient
 	tokenCache                             *util3.TokenCache
 	acdAuthConfig                          *util3.ACDAuthConfig
 	enforcer                               casbin.Enforcer
-	enforcerUtil         rbac.EnforcerUtil
-	user                 user.UserService
-	appListingRepository repository.AppListingRepository
+	enforcerUtil                           rbac.EnforcerUtil
+	user                                   user.UserService
+	appListingRepository                   repository.AppListingRepository
 	appRepository                          app.AppRepository
 	envRepository                          repository2.EnvironmentRepository
 	pipelineConfigRepository               chartConfig.PipelineConfigRepository
@@ -201,7 +200,6 @@ func NewAppService(
 	logger *zap.SugaredLogger,
 	ciArtifactRepository repository.CiArtifactRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
-	dbMigrationConfigRepository pipelineConfig.DbMigrationConfigRepository,
 	eventClient client.EventClient,
 	eventFactory client.EventFactory, acdClient application.ServiceClient,
 	cache *util3.TokenCache, authConfig *util3.ACDAuthConfig,
@@ -260,7 +258,6 @@ func NewAppService(
 		logger:                                 logger,
 		ciArtifactRepository:                   ciArtifactRepository,
 		pipelineRepository:                     pipelineRepository,
-		dbMigrationConfigRepository:            dbMigrationConfigRepository,
 		eventClient:                            eventClient,
 		eventFactory:                           eventFactory,
 		acdClient:                              acdClient,
