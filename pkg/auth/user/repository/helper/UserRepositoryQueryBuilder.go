@@ -64,7 +64,7 @@ func (impl UserRepositoryQueryBuilder) GetQueryForGroupListingWithFilters(req *b
 		whereCondition += fmt.Sprintf("AND name like '%s' ", nameIdLike)
 	}
 
-	if len(req.SortBy) > 0 {
+	if len(req.SortBy) > 0 && req.Size > 0 {
 		orderCondition += fmt.Sprintf("order by %s ", req.SortBy)
 		if req.SortOrder == bean2.Desc {
 			orderCondition += string(req.SortOrder)
