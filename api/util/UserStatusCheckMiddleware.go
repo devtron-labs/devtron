@@ -25,7 +25,16 @@ func NewUserStatusCheckMiddlewareImpl(userService user.UserService) *UserStatusC
 
 func (impl UserStatusCheckMiddlewareImpl) UserStatusCheckMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		token := r.Header.Get("token")
+		//token := r.Header.Get("token")
+		token := ""
+		cookie, _ := r.Cookie("argocd.token")
+		if cookie != nil {
+			token = cookie.Value
+			r.Header.Set("token", token)
+		}
+		if token == "" && cookie == nil {
+			token = r.Header.Get("token")
+		}
 		emailId, _, err := impl.userService.GetEmailAndGroupClaimsFromToken(token)
 		if err != nil {
 			log.Printf("unable to fetch user by token %s", token)
