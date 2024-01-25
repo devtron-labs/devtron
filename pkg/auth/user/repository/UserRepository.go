@@ -33,6 +33,7 @@ type UserRepository interface {
 	GetById(id int32) (*UserModel, error)
 	GetByIdIncludeDeleted(id int32) (*UserModel, error)
 	GetAllExcludingApiTokenUser() ([]UserModel, error)
+	GetAllExecutingQuery(query string) ([]UserModel, error)
 	//GetAllUserRoleMappingsForRoleId(roleId int) ([]UserRoleModel, error)
 	FetchActiveUserByEmail(email string) (bean.UserInfo, error)
 	FetchUserDetailByEmail(email string) (bean.UserInfo, error)
@@ -41,6 +42,9 @@ type UserRepository interface {
 	FetchUserMatchesByEmailIdExcludingApiTokenUser(email string) ([]UserModel, error)
 	FetchActiveOrDeletedUserByEmail(email string) (*UserModel, error)
 	UpdateRoleIdForUserRolesMappings(roleId int, newRoleId int) (*UserRoleModel, error)
+	GetCountExecutingQuery(query string) (int, error)
+	StartATransaction() (*pg.Tx, error)
+	CommitATransaction(tx *pg.Tx) error
 }
 
 type UserRepositoryImpl struct {
@@ -53,12 +57,13 @@ func NewUserRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *User
 }
 
 type UserModel struct {
-	TableName   struct{} `sql:"users"`
-	Id          int32    `sql:"id,pk"`
-	EmailId     string   `sql:"email_id,notnull"`
-	AccessToken string   `sql:"access_token"`
-	Active      bool     `sql:"active,notnull"`
-	UserType    string   `sql:"user_type"`
+	TableName   struct{}   `sql:"users"`
+	Id          int32      `sql:"id,pk"`
+	EmailId     string     `sql:"email_id,notnull"`
+	AccessToken string     `sql:"access_token"`
+	Active      bool       `sql:"active,notnull"`
+	UserType    string     `sql:"user_type"`
+	UserAudit   *UserAudit `sql:"-"`
 	sql.AuditLog
 }
 
@@ -109,6 +114,16 @@ func (impl UserRepositoryImpl) GetAllExcludingApiTokenUser() ([]UserModel, error
 		Where("active = ?", true).
 		Where("user_type is NULL or user_type != ?", bean.USER_TYPE_API_TOKEN).
 		Order("updated_on desc").Select()
+	return userModel, err
+}
+
+func (impl UserRepositoryImpl) GetAllExecutingQuery(query string) ([]UserModel, error) {
+	var userModel []UserModel
+	_, err := impl.dbConnection.Query(&userModel, query)
+	if err != nil {
+		impl.Logger.Error("error in GetAllExecutingQuery", "err", err, "query", query)
+		return nil, err
+	}
 	return userModel, err
 }
 
@@ -181,4 +196,32 @@ func (impl UserRepositoryImpl) UpdateRoleIdForUserRolesMappings(roleId int, newR
 	_, err := impl.dbConnection.Model(&model).Set("role_id = ? ", newRoleId).Where("role_id = ? ", roleId).Update()
 	return &model, err
 
+}
+
+func (impl UserRepositoryImpl) GetCountExecutingQuery(query string) (int, error) {
+	var totalCount int
+	_, err := impl.dbConnection.Query(&totalCount, query)
+	if err != nil {
+		impl.Logger.Error("Exception caught: GetCountExecutingQuery", err)
+		return totalCount, err
+	}
+	return totalCount, err
+}
+
+func (impl UserRepositoryImpl) StartATransaction() (*pg.Tx, error) {
+	tx, err := impl.dbConnection.Begin()
+	if err != nil {
+		impl.Logger.Errorw("error in beginning a transaction", "err", err)
+		return nil, err
+	}
+	return tx, nil
+}
+
+func (impl UserRepositoryImpl) CommitATransaction(tx *pg.Tx) error {
+	err := tx.Commit()
+	if err != nil {
+		impl.Logger.Errorw("error in commiting a transaction", "err", err)
+		return err
+	}
+	return nil
 }

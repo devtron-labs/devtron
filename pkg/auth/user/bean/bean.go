@@ -50,3 +50,21 @@ type RbacPolicyEntityGroupDto struct {
 	Entity     string `json:"entity" validate:"oneof=apps cluster chart-group jobs"`
 	AccessType string `json:"accessType,omitempty"`
 }
+
+type SortBy string
+type SortOrder string
+
+const (
+	Asc  SortOrder = "ASC"
+	Desc SortOrder = "DESC"
+)
+
+const (
+	Email     SortBy = "email_id"
+	LastLogin SortBy = "last_login"
+	GroupName SortBy = "name"
+)
+
+const (
+	DefaultSize int = 20
+)

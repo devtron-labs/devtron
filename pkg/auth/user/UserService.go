@@ -20,6 +20,7 @@ package user
 import (
 	"context"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/auth/user/repository/helper"
 	"net/http"
 	"strings"
 	"sync"
@@ -52,6 +53,7 @@ type UserService interface {
 	UpdateUser(userInfo *bean.UserInfo, token string, managerAuth func(resource, token string, object string) bool) (*bean.UserInfo, bool, bool, []string, error)
 	GetById(id int32) (*bean.UserInfo, error)
 	GetAll() ([]bean.UserInfo, error)
+	GetAllWithFilters(sortOrder string, sortBy string, offset int, totalSize int, showAll bool, searchKey string) (*bean.UserListingResponse, error)
 	GetAllDetailedUsers() ([]bean.UserInfo, error)
 	GetEmailFromToken(token string) (string, error)
 	GetEmailById(userId int32) (string, error)
@@ -73,30 +75,33 @@ type UserServiceImpl struct {
 	userReqLock sync.RWMutex
 	//map of userId and current lock-state of their serving ability;
 	//if TRUE then it means that some request is ongoing & unable to serve and FALSE then it is open to serve
-	userReqState        map[int32]bool
-	userAuthRepository  repository.UserAuthRepository
-	logger              *zap.SugaredLogger
-	userRepository      repository.UserRepository
-	roleGroupRepository repository.RoleGroupRepository
-	sessionManager2     *middleware.SessionManager
-	userCommonService   UserCommonService
-	userAuditService    UserAuditService
+	userReqState                      map[int32]bool
+	userAuthRepository                repository.UserAuthRepository
+	logger                            *zap.SugaredLogger
+	userRepository                    repository.UserRepository
+	roleGroupRepository               repository.RoleGroupRepository
+	sessionManager2                   *middleware.SessionManager
+	userCommonService                 UserCommonService
+	userAuditService                  UserAuditService
+	userListingRepositoryQueryBuilder helper.UserRepositoryQueryBuilder
 }
 
 func NewUserServiceImpl(userAuthRepository repository.UserAuthRepository,
 	logger *zap.SugaredLogger,
 	userRepository repository.UserRepository,
 	userGroupRepository repository.RoleGroupRepository,
-	sessionManager2 *middleware.SessionManager, userCommonService UserCommonService, userAuditService UserAuditService) *UserServiceImpl {
+	sessionManager2 *middleware.SessionManager, userCommonService UserCommonService, userAuditService UserAuditService,
+	userListingRepositoryQueryBuilder helper.UserRepositoryQueryBuilder) *UserServiceImpl {
 	serviceImpl := &UserServiceImpl{
-		userReqState:        make(map[int32]bool),
-		userAuthRepository:  userAuthRepository,
-		logger:              logger,
-		userRepository:      userRepository,
-		roleGroupRepository: userGroupRepository,
-		sessionManager2:     sessionManager2,
-		userCommonService:   userCommonService,
-		userAuditService:    userAuditService,
+		userReqState:                      make(map[int32]bool),
+		userAuthRepository:                userAuthRepository,
+		logger:                            logger,
+		userRepository:                    userRepository,
+		roleGroupRepository:               userGroupRepository,
+		sessionManager2:                   sessionManager2,
+		userCommonService:                 userCommonService,
+		userAuditService:                  userAuditService,
+		userListingRepositoryQueryBuilder: userListingRepositoryQueryBuilder,
 	}
 	cStore = sessions.NewCookieStore(randKey())
 	return serviceImpl
@@ -944,15 +949,103 @@ func (impl *UserServiceImpl) GetAll() ([]bean.UserInfo, error) {
 	return response, nil
 }
 
-func (impl *UserServiceImpl) GetAllDetailedUsers() ([]bean.UserInfo, error) {
-	models, err := impl.userRepository.GetAllExcludingApiTokenUser()
+// GetAllWithFilters takes filter arguments gives UserListingResponse as output with some operations like filter, sorting, searching,pagination support inbuilt
+func (impl UserServiceImpl) GetAllWithFilters(sortOrder string, sortBy string, offset int, totalSize int, showAll bool, searchKey string) (*bean.UserListingResponse, error) {
+	// get req from arguments
+	request := impl.getRequestWithFiltersArgsOrDefault(sortOrder, sortBy, offset, totalSize, showAll, searchKey)
+	if request.ShowAll {
+		return impl.getAllDetailedUsers()
+	}
+	// Setting size as zero to calculate the total number of results based on request
+	size := request.Size
+	request.Size = 0
+
+	// Build query from query builder
+	query := impl.userListingRepositoryQueryBuilder.GetQueryForUserListingWithFilters(request)
+	totalCount, err := impl.userRepository.GetCountExecutingQuery(query)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
+		return nil, err
+	}
+	request.Size = size
+
+	query = impl.userListingRepositoryQueryBuilder.GetQueryForUserListingWithFilters(request)
+	models, err := impl.userRepository.GetAllExecutingQuery(query)
+	if err != nil {
+		impl.logger.Errorw("error while fetching user from db", "error", err)
+		return nil, err
+	}
+
+	response, err := impl.getUserResponse(models)
+	if err != nil {
+		impl.logger.Errorw("error in getUserResponseWithLoginAudit", "err", err)
+		return nil, err
+	}
+
+	listingResponse := &bean.UserListingResponse{
+		Users:      response,
+		TotalCount: totalCount,
+	}
+	return listingResponse, nil
+
+}
+
+func (impl UserServiceImpl) getRequestWithFiltersArgsOrDefault(sortOrder string, sortBy string, offset int, totalSize int, showAll bool, searchKey string) *bean.FetchListingRequest {
+	sortByRes, size := impl.userCommonService.GetDefaultValuesIfNotPresent(sortBy, totalSize, false)
+	request := &bean.FetchListingRequest{
+		SortOrder: bean2.SortOrder(sortOrder),
+		SortBy:    sortByRes,
+		Offset:    offset,
+		Size:      size,
+		ShowAll:   showAll,
+		SearchKey: searchKey,
+	}
+	return request
+}
+
+func (impl UserServiceImpl) getAllDetailedUsers() (*bean.UserListingResponse, error) {
+	response, err := impl.GetAllDetailedUsers()
+	if err != nil {
+		impl.logger.Errorw("error in getAllDetailedUsers", "err", err)
+		return nil, err
+	}
+
+	listingResponse := &bean.UserListingResponse{
+		Users:      response,
+		TotalCount: len(response),
+	}
+	return listingResponse, err
+}
+
+func (impl UserServiceImpl) getUserResponse(model []repository.UserModel) ([]bean.UserInfo, error) {
+	var response []bean.UserInfo
+	for _, m := range model {
+		lastLoginTime := impl.getLastLoginTime(m)
+		response = append(response, bean.UserInfo{
+			Id:            m.Id,
+			EmailId:       m.EmailId,
+			RoleFilters:   make([]bean.RoleFilter, 0),
+			Groups:        make([]string, 0),
+			LastLoginTime: lastLoginTime,
+		})
+	}
+	if len(response) == 0 {
+		response = make([]bean.UserInfo, 0)
+	}
+	return response, nil
+}
+
+func (impl *UserServiceImpl) GetAllDetailedUsers() ([]bean.UserInfo, error) {
+	query := impl.userListingRepositoryQueryBuilder.GetQueryForAllUserWithAudit()
+	models, err := impl.userRepository.GetAllExecutingQuery(query)
+	if err != nil {
+		impl.logger.Errorw("error in GetAllDetailedUsers", "err", err)
 		return nil, err
 	}
 	var response []bean.UserInfo
 	for _, model := range models {
 		isSuperAdmin, roleFilters, filterGroups := impl.getUserMetadata(&model)
+		lastLoginTime := impl.getLastLoginTime(model)
 		for index, roleFilter := range roleFilters {
 			if roleFilter.Entity == "" {
 				roleFilters[index].Entity = bean2.ENTITY_APPS
@@ -962,17 +1055,25 @@ func (impl *UserServiceImpl) GetAllDetailedUsers() ([]bean.UserInfo, error) {
 			}
 		}
 		response = append(response, bean.UserInfo{
-			Id:          model.Id,
-			EmailId:     model.EmailId,
-			RoleFilters: roleFilters,
-			Groups:      filterGroups,
-			SuperAdmin:  isSuperAdmin,
+			Id:            model.Id,
+			EmailId:       model.EmailId,
+			RoleFilters:   roleFilters,
+			Groups:        filterGroups,
+			SuperAdmin:    isSuperAdmin,
+			LastLoginTime: lastLoginTime,
 		})
 	}
 	if len(response) == 0 {
 		response = make([]bean.UserInfo, 0)
 	}
 	return response, nil
+}
+func (impl UserServiceImpl) getLastLoginTime(model repository.UserModel) time.Time {
+	lastLoginTime := time.Time{}
+	if model.UserAudit != nil {
+		lastLoginTime = model.UserAudit.CreatedOn
+	}
+	return lastLoginTime
 }
 
 func (impl *UserServiceImpl) UserExists(emailId string) bool {
@@ -1334,6 +1435,7 @@ func (impl *UserServiceImpl) saveUserAudit(r *http.Request, userId int32) {
 		UserId:    userId,
 		ClientIp:  clientIp,
 		CreatedOn: time.Now(),
+		UpdatedOn: time.Now(),
 	}
 	impl.userAuditService.Save(userAudit)
 }

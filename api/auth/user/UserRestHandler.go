@@ -210,18 +210,11 @@ func (handler UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Req
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
 
-	if userInfo.EmailId == "admin" {
-		userInfo.EmailId = "admin@github.com/devtron-labs"
-	}
 	err = handler.validator.Struct(userInfo)
 	if err != nil {
 		handler.logger.Errorw("validation err, UpdateUser", "err", err, "payload", userInfo)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
-	}
-
-	if userInfo.EmailId == "admin@github.com/devtron-labs" {
-		userInfo.EmailId = "admin"
 	}
 
 	res, rolesChanged, groupsModified, restrictedGroups, err := handler.userService.UpdateUser(&userInfo, token, handler.CheckManagerAuth)
@@ -362,7 +355,42 @@ func (handler UserRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Request
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	res, err := handler.userService.GetAll()
+	// check query param
+	params := r.URL.Query()
+	searchKey := params.Get("searchKey")
+	sortOrder := params.Get("sortOrder")
+	sortBy := params.Get("sortBy")
+	offsetString := params.Get("offset")
+	var offset int
+	if len(offsetString) > 0 {
+		offset, err = strconv.Atoi(offsetString)
+		if err != nil {
+			handler.logger.Errorw("request err, GetAll", "err", err, "offset", offset)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+	}
+	sizeString := params.Get("size")
+	var size int
+	if len(sizeString) > 0 {
+		size, err = strconv.Atoi(sizeString)
+		if err != nil {
+			handler.logger.Errorw("request err, GetAll", "err", err, "size", size)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+	}
+	showAllString := params.Get("showAll")
+	showAll := false
+	if len(showAllString) > 0 {
+		showAll, err = strconv.ParseBool(showAllString)
+		if err != nil {
+			handler.logger.Errorw("request err, GetAll", "err", err, "showAll", showAll)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+	}
+	res, err := handler.userService.GetAllWithFilters(sortOrder, sortBy, offset, size, showAll, searchKey)
 	if err != nil {
 		handler.logger.Errorw("service err, GetAll", "err", err)
 		common.WriteJsonResp(w, err, "Failed to Get", http.StatusInternalServerError)
@@ -692,7 +720,42 @@ func (handler UserRestHandlerImpl) FetchRoleGroups(w http.ResponseWriter, r *htt
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	res, err := handler.roleGroupService.FetchRoleGroups()
+	// check query param
+	params := r.URL.Query()
+	sortOrder := params.Get("sortOrder")
+	searchKey := params.Get("searchKey")
+	sortBy := params.Get("sortBy")
+	offsetString := params.Get("offset")
+	var offset int
+	if len(offsetString) > 0 {
+		offset, err = strconv.Atoi(offsetString)
+		if err != nil {
+			handler.logger.Errorw("request err, FetchRoleGroups", "err", err, "offset", offset)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+	}
+	sizeString := params.Get("size")
+	var size int
+	if len(sizeString) > 0 {
+		size, err = strconv.Atoi(sizeString)
+		if err != nil {
+			handler.logger.Errorw("request err, FetchRoleGroups", "err", err, "size", size)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+	}
+	showAllString := params.Get("showAll")
+	showAll := false
+	if len(showAllString) > 0 {
+		showAll, err = strconv.ParseBool(showAllString)
+		if err != nil {
+			handler.logger.Errorw("request err, FetchRoleGroups", "err", err, "showAll", showAll)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+	}
+	res, err := handler.roleGroupService.FetchRoleGroupsWithFilters(sortOrder, sortBy, offset, size, showAll, searchKey)
 	if err != nil {
 		handler.logger.Errorw("service err, FetchRoleGroups", "err", err)
 		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
