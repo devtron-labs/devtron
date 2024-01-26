@@ -117,8 +117,11 @@ func (impl *InfraConfigRepositoryImpl) UpdateConfigurations(tx *pg.Tx, configura
 			Set("updated_on = ?", configuration.UpdatedOn).
 			Where("id = ?", configuration.Id).
 			Update()
+		if err != nil {
+			return err
+		}
 	}
-	return err
+	return nil
 }
 
 func (impl *InfraConfigRepositoryImpl) GetConfigurationsByProfileName(profileName string) ([]*InfraProfileConfiguration, error) {

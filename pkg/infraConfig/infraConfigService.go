@@ -268,9 +268,9 @@ func (impl *InfraConfigServiceImpl) CreateProfile(userId int32, profileBean *Pro
 	infraConfigurations := make([]*InfraProfileConfiguration, 0, len(profileBean.Configurations))
 	for _, configuration := range profileBean.Configurations {
 		infraConfiguration := configuration.ConvertToInfraProfileConfiguration()
+		infraConfiguration.Id = 0
 		infraConfiguration.Active = true
-		infraConfiguration.CreatedBy = userId
-		infraConfiguration.CreatedOn = time.Now()
+		infraConfiguration.AuditLog = sql.NewDefaultAuditLog(userId)
 		infraConfiguration.ProfileId = infraProfile.Id
 		infraConfigurations = append(infraConfigurations, infraConfiguration)
 	}
