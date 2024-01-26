@@ -14,8 +14,27 @@ VALUES (
     E'#!/bin/bash
     set -eo pipefail
 
-DOCKER_IMAGE=$image
+export platform=$(echo $CI_CD_EVENT | jq --raw-output .commonWorkflowRequest.ciBuildConfig.dockerBuildConfig.targetPlatform)
 echo $platform
+arch
+if [[ $platform == "linux/arm64,linux/amd64" ]] ; then
+    platform=$Platform
+elif [[ $platform == "linux/arm64" ]]
+then
+    platform="arm64"
+elif [[ $platform == "linux/amd64" ]]  
+then
+    platform="amd64"
+else
+    if [[ arch == "x86_64" ]]
+    then
+        platform="amd64"
+    else
+        platform="arm64"
+    fi    
+fi        
+echo $platform   
+CloudProvider=$(echo "$CloudProvider" | awk \'{print tolower($0)}\')
 current_timestamp=$(date +%s)
 if [[ -z $FilePrefix ]]
 then
@@ -29,7 +48,7 @@ echo $file
 future_timestamp=$((current_timestamp + $Expiry * 60))
 future_date=$(date -u  -d@"$future_timestamp" +"%Y-%m-%dT%H:%M:%SZ")
 aws_secs=$(($Expiry * 60))
-docker pull --platform linux/$Platform $ContainerImage
+docker pull --platform linux/$platform $ContainerImage
 docker save $ContainerImage > $file
 ls
 if [ $CloudProvider == "azure" ]
@@ -69,13 +88,13 @@ INSERT INTO "plugin_step" ("id", "plugin_id","name","description","index","step_
 -- Input Variables
 
 INSERT INTO "plugin_step_variable" ("id", "plugin_step_id", "name", "format", "description", "is_exposed", "allow_empty_value", "variable_type", "value_type", "variable_step_index", "deleted", "created_on", "created_by", "updated_on", "updated_by") VALUES
-(nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Container Image Exporter v1.0.0' and ps."index"=1 and ps.deleted=false), 'Platform','STRING',' Specify the platform architecture of the image being exported (arm64 or amd64).',true,false,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1),
+(nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Container Image Exporter v1.0.0' and ps."index"=1 and ps.deleted=false), 'Platform','STRING',' Specify the platform architecture of the image being exported (arm64 or amd64).',true,true,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1),
 (nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Container Image Exporter v1.0.0' and ps."index"=1 and ps.deleted=false), 'AswRegion','STRING',' Specify the AWS region where your S3 bucket is located ',true,true,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1),
 (nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Container Image Exporter v1.0.0' and ps."index"=1 and ps.deleted=false), 'AwsAccessKey','STRING',' Provide your AWS access key ID. ',true,true,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1),
 (nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Container Image Exporter v1.0.0' and ps."index"=1 and ps.deleted=false), 'AwsSecretKey','STRING',' Provide your AWS secret access key. Keep this key confidential.',true,true,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1),
 (nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Container Image Exporter v1.0.0' and ps."index"=1 and ps.deleted=false), 'AzureAccountKey','STRING',' Provide the access key for your Azure storage account.',true,true,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1),
 (nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Container Image Exporter v1.0.0' and ps."index"=1 and ps.deleted=false), 'AzureAccountName','STRING',' Specify the name of your Azure storage account.',true,true,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1),
-(nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Container Image Exporter v1.0.0' and ps."index"=1 and ps.deleted=false), 'FilePrefix','STRING','If youd like to add a prefix to the exported image files name,  enter it here.',true,false,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1),
+(nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Container Image Exporter v1.0.0' and ps."index"=1 and ps.deleted=false), 'FilePrefix','STRING','If youd like to add a prefix to the exported image files name,  enter it here.',true,true,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1),
 (nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Container Image Exporter v1.0.0' and ps."index"=1 and ps.deleted=false), 'CloudProvider','STRING',' Provide which cloud storage provider you want to use: "aws" for Amazon S3 or "azure" for Azure Blob Storage.',true,false,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1),
 (nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Container Image Exporter v1.0.0' and ps."index"=1 and ps.deleted=false), 'Expiry','STRING','Must be a whole number between 1 and 720 minutes',true,false,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1),
 (nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Container Image Exporter v1.0.0' and ps."index"=1 and ps.deleted=false), 'BucketName','STRING',' Enter the name of the storage container where you want to upload the exported image file.',true,false,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1),
