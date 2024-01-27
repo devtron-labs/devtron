@@ -2220,8 +2220,8 @@ func (impl UserServiceImpl) BulkUpdateStatusForUsers(request *bean.BulkStatusUpd
 		// case: time out expression or inactive
 
 		// getting expression from request configuration
-		timeOutExpression := impl.getTimeoutExpressionforReq(timeExpressionStatus, inactiveStatus, request.TimeToLive)
-		err = impl.updateOrCreateAndUpdateWindowID(request.UserIds, timeOutExpression)
+		timeOutExpression, expressionFormat := impl.getTimeoutExpressionAndFormatforReq(timeExpressionStatus, inactiveStatus, request.TimeToLive)
+		err = impl.updateOrCreateAndUpdateWindowID(request.UserIds, timeOutExpression, expressionFormat)
 		if err != nil {
 			impl.logger.Errorw("error in BulkUpdateStatusForUsers", "err", err, "status", request.Status)
 			return nil, err
@@ -2253,7 +2253,7 @@ func (impl UserServiceImpl) statusUpdateToActive(userIds []int32) error {
 	return nil
 }
 
-func (impl UserServiceImpl) updateOrCreateAndUpdateWindowID(userIds []int32, timeoutExpression string) error {
+func (impl UserServiceImpl) updateOrCreateAndUpdateWindowID(userIds []int32, timeoutExpression string, expressionFormat bean3.ExpressionFormat) error {
 	idsWithWindowId, idsWithoutWindowId, windowIds, err := impl.getIdsWithAndWithoutWindowId(userIds)
 	if err != nil {
 		impl.logger.Errorw("error in updateOrCreateAndUpdateWindowID", "err", err, "userIds", userIds)
@@ -2268,7 +2268,7 @@ func (impl UserServiceImpl) updateOrCreateAndUpdateWindowID(userIds []int32, tim
 	defer tx.Rollback()
 	// case when fk exist , just update the configuration in the timeout window for fks
 	if len(idsWithWindowId) > 0 && len(windowIds) > 0 {
-		err = impl.timeoutWindowService.UpdateTimeoutExpressionForIds(tx, timeoutExpression, windowIds)
+		err = impl.timeoutWindowService.UpdateTimeoutExpressionAndFormatForIds(tx, timeoutExpression, windowIds, expressionFormat)
 		if err != nil {
 			impl.logger.Errorw("error in updateOrCreateAndUpdateWindowID", "err", err, "userIds", userIds)
 			return err
@@ -2278,7 +2278,7 @@ func (impl UserServiceImpl) updateOrCreateAndUpdateWindowID(userIds []int32, tim
 	countWithoutWindowId := len(idsWithoutWindowId)
 	// case when no fk exist , will create it and update the fk constraint for user
 	if countWithoutWindowId > 0 {
-		err = impl.createAndMapTimeoutWindow(tx, timeoutExpression, countWithoutWindowId, idsWithoutWindowId)
+		err = impl.createAndMapTimeoutWindow(tx, timeoutExpression, countWithoutWindowId, idsWithoutWindowId, expressionFormat)
 		if err != nil {
 			impl.logger.Errorw("error in updateOrCreateAndUpdateWindowID", "err", err, "userIds", userIds, "timeoutExpression", timeoutExpression)
 			return err
@@ -2293,8 +2293,8 @@ func (impl UserServiceImpl) updateOrCreateAndUpdateWindowID(userIds []int32, tim
 
 }
 
-func (impl UserServiceImpl) createAndMapTimeoutWindow(tx *pg.Tx, timeoutExpression string, countWithoutWindowId int, idsWithoutWindowId []int32) error {
-	models, err := impl.timeoutWindowService.CreateWithTimeoutExpression(tx, timeoutExpression, countWithoutWindowId)
+func (impl UserServiceImpl) createAndMapTimeoutWindow(tx *pg.Tx, timeoutExpression string, countWithoutWindowId int, idsWithoutWindowId []int32, expressionFormat bean3.ExpressionFormat) error {
+	models, err := impl.timeoutWindowService.CreateWithTimeoutExpressionAndFormat(tx, timeoutExpression, countWithoutWindowId, expressionFormat)
 	if err != nil {
 		impl.logger.Errorw("error in updateOrCreateAndUpdateWindowID", "err", err)
 		return err
@@ -2355,13 +2355,13 @@ func (impl UserServiceImpl) getUserIdsAndWindowIds(users []repository.UserModel)
 	return idsWithWindowId, idsWithoutWindowId, windowIds
 }
 
-func (impl UserServiceImpl) getTimeoutExpressionforReq(timeExpressionStatus, inactiveStatus bool, requestTime time.Time) string {
+func (impl UserServiceImpl) getTimeoutExpressionAndFormatforReq(timeExpressionStatus, inactiveStatus bool, requestTime time.Time) (string, bean3.ExpressionFormat) {
 	if timeExpressionStatus {
-		return requestTime.String()
+		return requestTime.String(), bean3.TimeStamp
 	} else if inactiveStatus {
-		return time.Time{}.String()
+		return time.Time{}.String(), bean3.TimeZeroFormat
 	}
-	return ""
+	return "", bean3.TimeStamp
 }
 
 // TODO: have to optimise this query in loop

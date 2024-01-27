@@ -13,7 +13,7 @@ type TimeWindowRepository interface {
 	UpdateInBatch(models []*TimeoutWindowConfiguration) ([]*TimeoutWindowConfiguration, error)
 	GetWithExpressionAndFormat(expression string, format bean.ExpressionFormat) (*TimeoutWindowConfiguration, error)
 	GetWithIds(ids []int) ([]*TimeoutWindowConfiguration, error)
-	UpdateTimeoutExpressionForIds(tx *pg.Tx, expression string, ids []int) error
+	UpdateTimeoutExpressionAndFormatForIds(tx *pg.Tx, expression string, ids []int, format bean.ExpressionFormat) error
 }
 type TimeoutWindowConfiguration struct {
 	TableName               struct{}              `sql:"timeout_window_configuration" pg:",discard_unknown_columns"`
@@ -99,9 +99,10 @@ func (impl TimeWindowRepositoryImpl) UpdateInBatch(models []*TimeoutWindowConfig
 	}
 	return models, nil
 }
-func (impl TimeWindowRepositoryImpl) UpdateTimeoutExpressionForIds(tx *pg.Tx, expression string, ids []int) error {
+func (impl TimeWindowRepositoryImpl) UpdateTimeoutExpressionAndFormatForIds(tx *pg.Tx, expression string, ids []int, format bean.ExpressionFormat) error {
 	var model []*TimeoutWindowConfiguration
 	_, err := tx.Model(&model).Set("timeout_window_expression = ?", expression).
+		Set("timeout_window_expression_format = ?", format).
 		Where("id in (?)", pg.In(ids)).
 		Update()
 	if err != nil {

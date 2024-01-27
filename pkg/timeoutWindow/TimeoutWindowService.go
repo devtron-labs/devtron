@@ -10,8 +10,8 @@ import (
 type TimeoutWindowService interface {
 	GetAndCreateIfNotPresent()
 	GetAllWithIds(ids []int) ([]*repository.TimeoutWindowConfiguration, error)
-	UpdateTimeoutExpressionForIds(tx *pg.Tx, timeoutExpression string, ids []int) error
-	CreateWithTimeoutExpression(tx *pg.Tx, timeoutExpression string, count int) ([]*repository.TimeoutWindowConfiguration, error)
+	UpdateTimeoutExpressionAndFormatForIds(tx *pg.Tx, timeoutExpression string, ids []int, expressionFormat bean.ExpressionFormat) error
+	CreateWithTimeoutExpressionAndFormat(tx *pg.Tx, timeoutExpression string, count int, expressionFormat bean.ExpressionFormat) ([]*repository.TimeoutWindowConfiguration, error)
 }
 
 type TimeWindowServiceImpl struct {
@@ -42,8 +42,8 @@ func (impl TimeWindowServiceImpl) GetAllWithIds(ids []int) ([]*repository.Timeou
 	return timeWindows, err
 }
 
-func (impl TimeWindowServiceImpl) UpdateTimeoutExpressionForIds(tx *pg.Tx, timeoutExpression string, ids []int) error {
-	err := impl.timeWindowRepository.UpdateTimeoutExpressionForIds(tx, timeoutExpression, ids)
+func (impl TimeWindowServiceImpl) UpdateTimeoutExpressionAndFormatForIds(tx *pg.Tx, timeoutExpression string, ids []int, expressionFormat bean.ExpressionFormat) error {
+	err := impl.timeWindowRepository.UpdateTimeoutExpressionAndFormatForIds(tx, timeoutExpression, ids, expressionFormat)
 	if err != nil {
 		impl.logger.Errorw("error in UpdateTimeoutExpressionForIds", "err", err, "timeoutExpression", timeoutExpression)
 		return err
@@ -51,13 +51,12 @@ func (impl TimeWindowServiceImpl) UpdateTimeoutExpressionForIds(tx *pg.Tx, timeo
 	return err
 }
 
-func (impl TimeWindowServiceImpl) CreateWithTimeoutExpression(tx *pg.Tx, timeoutExpression string, count int) ([]*repository.TimeoutWindowConfiguration, error) {
-	// Considering timestamp expression format for now, if other formats are added support can be added
+func (impl TimeWindowServiceImpl) CreateWithTimeoutExpressionAndFormat(tx *pg.Tx, timeoutExpression string, count int, expressionFormat bean.ExpressionFormat) ([]*repository.TimeoutWindowConfiguration, error) {
 	var models []*repository.TimeoutWindowConfiguration
 	for i := 0; i < count; i++ {
 		model := &repository.TimeoutWindowConfiguration{
 			TimeoutWindowExpression: timeoutExpression,
-			ExpressionFormat:        bean.TimeStamp,
+			ExpressionFormat:        expressionFormat,
 		}
 		models = append(models, model)
 	}
