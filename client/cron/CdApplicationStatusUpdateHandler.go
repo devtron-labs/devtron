@@ -16,6 +16,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/util"
+	cron2 "github.com/devtron-labs/devtron/util/cron"
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
 	"k8s.io/utils/pointer"
@@ -51,19 +52,6 @@ type CdApplicationStatusUpdateHandlerImpl struct {
 	installedAppVersionRepository        repository2.InstalledAppRepository
 }
 
-type CronLoggerImpl struct {
-	logger *zap.SugaredLogger
-}
-
-func (impl *CronLoggerImpl) Info(msg string, keysAndValues ...interface{}) {
-	impl.logger.Infow(msg, keysAndValues...)
-}
-
-func (impl *CronLoggerImpl) Error(err error, msg string, keysAndValues ...interface{}) {
-	keysAndValues = append([]interface{}{"err", err}, keysAndValues...)
-	impl.logger.Errorw(msg, keysAndValues...)
-}
-
 func NewCdApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, appService app.AppService,
 	workflowDagExecutor pipeline.WorkflowDagExecutor, installedAppService service.InstalledAppService,
 	CdHandler pipeline.CdHandler, AppStatusConfig *app.AppServiceConfig, pubsubClient *pubsub.PubSubClientServiceImpl,
@@ -71,10 +59,10 @@ func NewCdApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, appServi
 	eventClient client2.EventClient, appListingRepository repository.AppListingRepository,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	pipelineRepository pipelineConfig.PipelineRepository, installedAppVersionHistoryRepository repository2.InstalledAppVersionHistoryRepository,
-	installedAppVersionRepository repository2.InstalledAppRepository) *CdApplicationStatusUpdateHandlerImpl {
-	cronLogger := &CronLoggerImpl{logger: logger}
+	installedAppVersionRepository repository2.InstalledAppRepository, cronLogger *cron2.CronLoggerImpl) *CdApplicationStatusUpdateHandlerImpl {
+
 	cron := cron.New(
-		cron.WithChain(cron.SkipIfStillRunning(cronLogger)))
+		cron.WithChain(cron.SkipIfStillRunning(cronLogger), cron.Recover(cronLogger)))
 	cron.Start()
 	impl := &CdApplicationStatusUpdateHandlerImpl{
 		logger:                               logger,
