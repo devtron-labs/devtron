@@ -9,6 +9,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	repository3 "github.com/devtron-labs/devtron/pkg/plugin/repository"
+	cron2 "github.com/devtron-labs/devtron/util/cron"
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
 )
@@ -28,9 +29,9 @@ type CiTriggerCronImpl struct {
 }
 
 func NewCiTriggerCronImpl(logger *zap.SugaredLogger, cfg *CiTriggerCronConfig, pipelineStageRepository repository.PipelineStageRepository,
-	ciHandler pipeline.CiHandler, ciArtifactRepository repository2.CiArtifactRepository, globalPluginRepository repository3.GlobalPluginRepository) *CiTriggerCronImpl {
+	ciHandler pipeline.CiHandler, ciArtifactRepository repository2.CiArtifactRepository, globalPluginRepository repository3.GlobalPluginRepository, cronLogger *cron2.CronLoggerImpl) *CiTriggerCronImpl {
 	cron := cron.New(
-		cron.WithChain())
+		cron.WithChain(cron.Recover(cronLogger)))
 	cron.Start()
 	impl := &CiTriggerCronImpl{
 		logger:                  logger,
