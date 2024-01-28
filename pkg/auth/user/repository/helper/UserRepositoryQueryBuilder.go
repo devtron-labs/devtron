@@ -48,11 +48,11 @@ func (impl UserRepositoryQueryBuilder) GetQueryForUserListingWithFilters(req *be
 	formattedTimeForQuery := req.CurrentTime.Format(QueryTimeFormat)
 	// Have handled both formats 1 and 2 in the query for user inactive status
 	if req.Status == bean.Active {
-		whereCondition += fmt.Sprintf("AND (user_model.timeout_window_configuration_id is null OR ( timeout_window_configuration.timeout_window_expression_format = %v AND TO_TIMESTAMP(timeout_window_configuration.timeout_window_expression,'%s') > '%s' ) ) ", bean3.TimeStamp, TimeStampFormat, formattedTimeForQuery) //  TODO: replace 1 with expressionformat const
+		whereCondition += fmt.Sprintf("AND (user_model.timeout_window_configuration_id is null OR ( timeout_window_configuration.timeout_window_expression_format = %v AND timeout_window_configuration.timeout_window_expression > '%s' ) ) ", bean3.TimeStamp, formattedTimeForQuery)
 	} else if req.Status == bean.Inactive {
-		whereCondition += fmt.Sprintf("AND ( TO_TIMESTAMP(timeout_window_configuration.timeout_window_expression,'%s') < '%s' ) ", TimeStampFormat, formattedTimeForQuery)
+		whereCondition += fmt.Sprintf("AND ( timeout_window_configuration.timeout_window_expression < '%s' ) ", formattedTimeForQuery)
 	} else if req.Status == bean.TemporaryAccess {
-		whereCondition += fmt.Sprintf(" AND (timeout_window_configuration.timeout_window_expression_format = %v AND TO_TIMESTAMP(timeout_window_configuration.timeout_window_expression,'%s') > '%s' ) ", bean3.TimeStamp, TimeStampFormat, formattedTimeForQuery)
+		whereCondition += fmt.Sprintf(" AND (timeout_window_configuration.timeout_window_expression_format = %v AND timeout_window_configuration.timeout_window_expression > '%s' ) ", bean3.TimeStamp, formattedTimeForQuery)
 	}
 	if len(req.SearchKey) > 0 {
 		emailIdLike := "%" + req.SearchKey + "%"
