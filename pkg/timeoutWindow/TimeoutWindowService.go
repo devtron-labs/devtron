@@ -8,7 +8,6 @@ import (
 )
 
 type TimeoutWindowService interface {
-	GetAndCreateIfNotPresent()
 	GetAllWithIds(ids []int) ([]*repository.TimeoutWindowConfiguration, error)
 	UpdateTimeoutExpressionAndFormatForIds(tx *pg.Tx, timeoutExpression string, ids []int, expressionFormat bean.ExpressionFormat) error
 	CreateWithTimeoutExpressionAndFormat(tx *pg.Tx, timeoutExpression string, count int, expressionFormat bean.ExpressionFormat) ([]*repository.TimeoutWindowConfiguration, error)
@@ -26,11 +25,6 @@ func NewTimeWindowServiceImpl(logger *zap.SugaredLogger,
 		timeWindowRepository: timeWindowRepository,
 	}
 	return timeoutWindowServiceImpl
-}
-
-func (impl TimeWindowServiceImpl) GetAndCreateIfNotPresent() {
-	// get with desired
-
 }
 
 func (impl TimeWindowServiceImpl) GetAllWithIds(ids []int) ([]*repository.TimeoutWindowConfiguration, error) {

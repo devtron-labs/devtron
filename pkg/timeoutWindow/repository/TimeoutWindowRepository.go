@@ -49,6 +49,7 @@ func (impl TimeWindowRepositoryImpl) GetWithExpressionAndFormat(expression strin
 	return model, nil
 }
 
+// GetWithIds takes in timeout window ids and results rows corresponding to that id in db.
 func (impl TimeWindowRepositoryImpl) GetWithIds(ids []int) ([]*TimeoutWindowConfiguration, error) {
 	var model []*TimeoutWindowConfiguration
 	err := impl.dbConnection.Model(&model).Where("id in (?)", pg.In(ids)).Select()
@@ -99,6 +100,8 @@ func (impl TimeWindowRepositoryImpl) UpdateInBatch(models []*TimeoutWindowConfig
 	}
 	return models, nil
 }
+
+// UpdateTimeoutExpressionAndFormatForIds bulk updates expression and format for given user ids
 func (impl TimeWindowRepositoryImpl) UpdateTimeoutExpressionAndFormatForIds(tx *pg.Tx, expression string, ids []int, format bean.ExpressionFormat) error {
 	var model []*TimeoutWindowConfiguration
 	_, err := tx.Model(&model).Set("timeout_window_expression = ?", expression).
