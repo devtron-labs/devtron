@@ -2305,7 +2305,7 @@ func (impl UserServiceImpl) createAndMapTimeoutWindow(tx *pg.Tx, timeoutExpressi
 		impl.logger.Errorw("error in updateOrCreateAndUpdateWindowID", "err", err)
 		return err
 	}
-	err = impl.updateWindowIdForId(tx, windowMapping)
+	err = impl.updateWindowIdForId(tx, windowMapping, idsWithoutWindowId)
 	if err != nil {
 		impl.logger.Errorw("error in updateOrCreateAndUpdateWindowID", "err", err)
 		return err
@@ -2364,14 +2364,11 @@ func (impl UserServiceImpl) getTimeoutExpressionAndFormatforReq(timeExpressionSt
 	return "", bean3.TimeStamp
 }
 
-// TODO: have to optimise this query in loop
-func (impl UserServiceImpl) updateWindowIdForId(tx *pg.Tx, mapping map[int32]int) error {
-	for userId, windowId := range mapping {
-		err := impl.userRepository.UpdateTimeWindowId(tx, userId, windowId)
-		if err != nil {
-			impl.logger.Errorw("updateWindowIdForId failed", "err", err, "userId", userId, "windowId", windowId)
-			return err
-		}
+func (impl UserServiceImpl) updateWindowIdForId(tx *pg.Tx, mapping map[int32]int, idsWithoutWindowId []int32) error {
+	err := impl.userRepository.UpdateTimeWindowIdInBatch(tx, idsWithoutWindowId, mapping)
+	if err != nil {
+		impl.logger.Errorw("updateWindowIdForId failed", "err", err, "idsWithoutWindowId", idsWithoutWindowId)
+		return err
 	}
 	return nil
 }

@@ -21,11 +21,13 @@
 package repository
 
 import (
+	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/timeoutWindow/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"strings"
 )
 
 type UserRepository interface {
@@ -47,6 +49,7 @@ type UserRepository interface {
 	GetCountExecutingQuery(query string) (int, error)
 	UpdateWindowIdToNull(userIds []int32) error
 	UpdateTimeWindowId(tx *pg.Tx, userid int32, windowId int) error
+	UpdateTimeWindowIdInBatch(tx *pg.Tx, userIds []int32, userWindowIdMap map[int32]int) error
 	StartATransaction() (*pg.Tx, error)
 	CommitATransaction(tx *pg.Tx) error
 	GetUserWithTimeoutWindowConfiguration(emailId string) (*UserModel, error)
@@ -244,6 +247,29 @@ func (impl UserRepositoryImpl) UpdateTimeWindowId(tx *pg.Tx, userid int32, windo
 		return err
 	}
 	return nil
+}
+
+func (impl UserRepositoryImpl) UpdateTimeWindowIdInBatch(tx *pg.Tx, userIds []int32, userWindowIdMap map[int32]int) error {
+
+	var model []UserModel
+	var cases []string
+	// Constructing the SQL expression with a loop
+	for userID, windowId := range userWindowIdMap {
+		cases = append(cases, fmt.Sprintf("WHEN id = %d THEN %d", userID, windowId))
+	}
+
+	// Constructing the complete SQL expression
+	sqlExpression := fmt.Sprintf("CASE %s ELSE timeout_window_configuration_id END", strings.Join(cases, " "))
+	// Bulk update using Updates with the dynamically generated SQL expression
+	_, err := tx.Model(&model).
+		Set("timeout_window_configuration_id = "+sqlExpression).
+		Where("id IN (?)", pg.In(userIds)).Update()
+	if err != nil {
+		impl.Logger.Error("error in UpdateTimeWindowIdInBatch", "err", err, "userIds", userIds)
+		return err
+	}
+	return nil
+
 }
 
 func (impl UserRepositoryImpl) StartATransaction() (*pg.Tx, error) {
