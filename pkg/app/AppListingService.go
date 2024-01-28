@@ -104,6 +104,7 @@ type AppNameTypeIdContainer struct {
 func (req FetchAppListingRequest) GetNamespaceClusterMapping() (namespaceClusterPair []*repository2.ClusterNamespacePair, clusterIds []int, err error) {
 	for _, ns := range req.Namespaces {
 		items := strings.Split(ns, "_")
+		// TODO refactoring: invalid condition; always false
 		if len(items) < 1 && len(items) > 2 {
 			return nil, nil, fmt.Errorf("invalid namespaceds")
 		}
