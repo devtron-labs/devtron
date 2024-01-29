@@ -3,7 +3,8 @@ package util
 import (
 	"fmt"
 	"github.com/devtron-labs/devtron/util"
-	"github.com/go-git/go-billy/v5/osfs"
+	"gopkg.in/src-d/go-billy.v4/osfs"
+
 	"os"
 	"os/exec"
 	"path/filepath"
