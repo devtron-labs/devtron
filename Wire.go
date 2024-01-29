@@ -127,6 +127,7 @@ import (
 	repository10 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
+	cron2 "github.com/devtron-labs/devtron/util/cron"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/google/wire"
 )
@@ -926,6 +927,7 @@ func InitializeApp() (*App, error) {
 
 		pipeline.NewPipelineConfigListenerServiceImpl,
 		wire.Bind(new(pipeline.PipelineConfigListenerService), new(*pipeline.PipelineConfigListenerServiceImpl)),
+		cron2.NewCronLoggerImpl,
 	)
 	return &App{}, nil
 }

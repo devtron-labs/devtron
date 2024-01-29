@@ -51,6 +51,7 @@ import (
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
+	"github.com/devtron-labs/devtron/util/cron"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/google/wire"
 )
@@ -205,6 +206,7 @@ func InitializeApp() (*App, error) {
 		// chart group repository layer wire injection ended
 
 		// end: docker registry wire set injection
+		cron.NewCronLoggerImpl,
 	)
 	return &App{}, nil
 }
