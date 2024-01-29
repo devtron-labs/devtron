@@ -30,7 +30,7 @@ const tokenHeaderKey = "token"
 const argocdTokenHeaderKey = "argocd.token"
 
 // Authorizer is a middleware for authorization
-func Authorizer(sessionManager *SessionManager, whitelistChecker func(url string) bool) func(next http.Handler) http.Handler {
+func Authorizer(sessionManager *SessionManager, whitelistChecker func(url string) bool, userStatusCheckInDb func(token string) (bool, int32)) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {
 			token := ""
@@ -48,6 +48,7 @@ func Authorizer(sessionManager *SessionManager, whitelistChecker func(url string
 					token = r.Header.Get(tokenHeaderKey)
 				}
 			}
+
 			//users = append(users, "anonymous")
 			authEnabled := true
 			pass := false
@@ -66,6 +67,11 @@ func Authorizer(sessionManager *SessionManager, whitelistChecker func(url string
 				}
 				pass = true
 				//TODO - we also can set user info in session (to avoid fetch it for all create n active)
+
+				isInactive, userId := userStatusCheckInDb(token)
+				log.Print("auth middleware : check user status in db")
+				log.Print(isInactive)
+				log.Print(userId)
 			}
 			if pass {
 				next.ServeHTTP(w, r)
