@@ -47,13 +47,7 @@ func (router AppListingRouterImpl) InitAppListingRouter(appListingRouter *mux.Ro
 		HandlerFunc(router.appListingRestHandler.FetchAppsByEnvironmentVersioned).
 		Methods("POST")
 
-	//TODO refactoring: why 2 of these ??
 	appListingRouter.Path("/group/{env-id}").
-		HandlerFunc(router.appListingRestHandler.FetchOverviewAppsByEnvironment).
-		Methods("GET")
-
-	appListingRouter.Path("/group/{env-id}").
-		Queries("size", "{size}", "offset", "{offset}").
 		HandlerFunc(router.appListingRestHandler.FetchOverviewAppsByEnvironment).
 		Methods("GET")
 }
