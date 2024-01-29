@@ -1497,7 +1497,7 @@ func (impl UserServiceImpl) GetUserWithTimeoutWindowConfiguration(emailId string
 		isInactive = false
 		return user.Id, isInactive, nil
 	} else {
-		expiryDate, err := time.Parse(time.DateTime, user.TimeoutWindowConfiguration.TimeoutWindowExpression)
+		expiryDate, err := time.Parse(helper.TimeFormatForParsing, user.TimeoutWindowConfiguration.TimeoutWindowExpression)
 		if err != nil {
 			impl.logger.Errorw("error while parsing date time", "error", err)
 			return user.Id, isInactive, err
