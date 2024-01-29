@@ -101,6 +101,7 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 			InstalledAppRepository:         InstalledAppRepository,
 			userAttributesRepository:       userAttributesRepository,
 			cloudProviderIdentifierService: cloudProviderIdentifierService,
+			telemetryConfig: TelemetryConfig{},
 		},
 	}
 
@@ -327,12 +328,11 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 	payload.HelmChartSuccessfulDeploymentCount = HelmChartSuccessfulDeploymentCount
 	payload.ExternalHelmAppClusterCount = ExternalHelmAppClusterCount
 
-	provider, err := impl.cloudProviderIdentifierService.IdentifyProvider()
+	payload.ClusterProvider, err = impl.GetCloudProvider()
 	if err != nil {
-		impl.logger.Errorw("exception while getting cluster provider", "error", err)
+		impl.logger.Errorw("error while getting cluster provider", "error", err)
 		return err
 	}
-	payload.ClusterProvider = provider
 
 	latestUser, err := impl.userAuditService.GetLatestUser()
 	if err == nil {

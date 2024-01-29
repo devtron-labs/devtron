@@ -41,6 +41,7 @@ func (impl *IdentifyAzure) IdentifyViaMetadataServer(detected chan<- string) {
 	}
 	if resp.StatusCode == http.StatusOK {
 		detected <- bean.Azure
+		return
 	} else {
 		detected <- bean.Unknown
 		return
