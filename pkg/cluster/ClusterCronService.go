@@ -3,6 +3,7 @@ package cluster
 import (
 	"fmt"
 	"github.com/caarlos0/env/v6"
+	cron2 "github.com/devtron-labs/devtron/util/cron"
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
 )
@@ -19,13 +20,13 @@ type ClusterStatusConfig struct {
 	ClusterStatusCronTime int `env:"CLUSTER_STATUS_CRON_TIME" envDefault:"15"`
 }
 
-func NewClusterCronServiceImpl(logger *zap.SugaredLogger, clusterService ClusterService) (*ClusterCronServiceImpl, error) {
+func NewClusterCronServiceImpl(logger *zap.SugaredLogger, clusterService ClusterService, cronLogger *cron2.CronLoggerImpl) (*ClusterCronServiceImpl, error) {
 	clusterCronServiceImpl := &ClusterCronServiceImpl{
 		logger:         logger,
 		clusterService: clusterService,
 	}
 	// initialise cron
-	newCron := cron.New(cron.WithChain())
+	newCron := cron.New(cron.WithChain(cron.Recover(cronLogger)))
 	newCron.Start()
 	cfg := &ClusterStatusConfig{}
 	err := env.Parse(cfg)
