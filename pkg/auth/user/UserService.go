@@ -1256,13 +1256,6 @@ func (impl UserServiceImpl) GetAllWithFilters(status string, sortOrder string, s
 		impl.logger.Errorw("error in getUserResponseWithLoginAudit", "err", err)
 		return nil, err
 	}
-	//// Sorting according to login time
-	//if request.SortBy == bean2.LastLogin {
-	//	response = impl.sortByLoginTime(response, request.SortOrder)
-	//}
-
-	//// processing response with offset and size
-	//response = impl.getDesiredResponseWithOffSetAndSize(response, offset, totalSize)
 
 	listingResponse := &bean.UserListingResponse{
 		Users:      response,
@@ -2218,14 +2211,6 @@ func (impl UserServiceImpl) BulkUpdateStatusForUsers(request *bean.BulkStatusUpd
 		return nil, errors.New("bad request ,status not supported")
 	}
 
-	//// query from query builder
-	//query := impl.userListingRepositoryQueryBuilder.GetQueryForBulkUpdate(request)
-	//
-	//_, err = impl.userRepository.GetAllExecutingQuery(query)
-	//if err != nil {
-	//	impl.logger.Errorw("error in GetAllExecutingQuery", "err", err, "request", request)
-	//	return nil, err
-	//}
 	resp := &bean.ActionResponse{
 		Suceess: true,
 	}
@@ -2403,6 +2388,5 @@ func (impl UserServiceImpl) parseExpressionToTime(expression string) (time.Time,
 		impl.logger.Errorw("error in parsing time from expression :getParsedTimeFromExpression", "err", err, "expression", expression)
 		return parsedTime, err
 	}
-	//parsedTimeString := parsedTime.Format(time.RFC3339)
 	return parsedTime, err
 }
