@@ -11,6 +11,7 @@ import (
 
 type UserStatusCheckMiddleware interface {
 	UserStatusCheckMiddleware(next http.Handler) http.Handler
+	UserStatusCheckInDb(token string) (bool, int32)
 }
 
 type UserStatusCheckMiddlewareImpl struct {
@@ -57,4 +58,19 @@ func (impl UserStatusCheckMiddlewareImpl) UserStatusCheckMiddleware(next http.Ha
 		// Call the next handler in the chain.
 		next.ServeHTTP(w, r)
 	})
+}
+
+func (impl UserStatusCheckMiddlewareImpl) UserStatusCheckInDb(token string) (bool, int32) {
+	emailId, _, err := impl.userService.GetEmailAndGroupClaimsFromToken(token)
+	if err != nil {
+		log.Print("unable to fetch user by token")
+	}
+	userId, isInactive, err := impl.userService.GetUserWithTimeoutWindowConfiguration(emailId)
+	if err != nil {
+		log.Printf("unable to fetch user by email : %s", emailId)
+	}
+	if isInactive && err == nil {
+		return isInactive, userId
+	}
+	return isInactive, userId
 }
