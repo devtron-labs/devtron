@@ -1,16 +1,18 @@
-package util
+package git
 
 import (
 	"github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/internal/util"
+	bean2 "github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
 	"testing"
 )
 
 func getTestGithubClient() GitHubClient {
-	logger, err := NewSugardLogger()
+	logger, err := util.NewSugardLogger()
 	gitCliUtl := NewGitCliUtil(logger)
-	gitService := NewGitServiceImpl(&GitConfig{GitToken: "", GitUserName: "nishant"}, logger, gitCliUtl)
+	gitService := NewGitServiceImpl(&bean2.GitConfig{GitToken: "", GitUserName: "nishant"}, logger, gitCliUtl)
 
-	githubClient, err := NewGithubClient("", "", "test-org", logger, gitService, nil)
+	githubClient, err := NewGithubClient("", "", "test-org", logger, gitService)
 	if err != nil {
 		panic(err)
 	}

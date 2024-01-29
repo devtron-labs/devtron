@@ -16,14 +16,10 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 
 	var isInternalUse = impl.deploymentTypeConfig.IsInternalUse
 
-	isGitOpsConfigured := false
-	gitOpsConfig, err := impl.gitOpsRepository.GetGitOpsConfigActive()
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("GetGitOpsConfigActive, error while getting", "err", err)
+	isGitOpsConfigured, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
+	if err != nil {
+		impl.logger.Errorw("error while checking IsGitOpsConfigured", "err", err)
 		return nil, err
-	}
-	if gitOpsConfig != nil && gitOpsConfig.Id > 0 {
-		isGitOpsConfigured = true
 	}
 
 	if isInternalUse && !isGitOpsConfigured && installAppVersionRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {

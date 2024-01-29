@@ -20,6 +20,7 @@ type GitOpsConfigReadService interface {
 	GetGitOpsRepoNameFromUrl(gitRepoUrl string) string
 	GetBitbucketMetadata() (*bean.BitbucketProviderMetadata, error)
 	GetGitOpsConfigActive() (*bean2.GitOpsConfigDto, error)
+	GetConfiguredGitOpsCount() (int, error)
 }
 
 type GitOpsConfigReadServiceImpl struct {
@@ -130,4 +131,15 @@ func (impl *GitOpsConfigReadServiceImpl) GetGitOpsConfigActive() (*bean2.GitOpsC
 		BitBucketProjectKey:  model.BitBucketProjectKey,
 	}
 	return config, err
+}
+
+func (impl *GitOpsConfigReadServiceImpl) GetConfiguredGitOpsCount() (int, error) {
+	count := 0
+	models, err := impl.gitOpsRepository.GetAllGitOpsConfig()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error, GetGitOpsConfigActive", "err", err)
+		return count, err
+	}
+	count = len(models)
+	return count, nil
 }

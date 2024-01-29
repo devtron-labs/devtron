@@ -24,6 +24,7 @@ import (
 	util4 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config/bean"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -95,7 +96,7 @@ type GitOpsConfigServiceImpl struct {
 	K8sUtil                 *util4.K8sServiceImpl
 	aCDAuthConfig           *util3.ACDAuthConfig
 	clusterService          cluster.ClusterService
-	gitFactory              *util.GitFactory
+	gitFactory              *git.GitFactory
 	argoUserService         argo.ArgoUserService
 	clusterServiceCD        cluster2.ServiceClient
 	gitOpsConfigReadService config.GitOpsConfigReadService
@@ -105,7 +106,7 @@ func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger,
 	globalEnvVariables *util2.GlobalEnvVariables,
 	gitOpsRepository repository.GitOpsConfigRepository, K8sUtil *util4.K8sServiceImpl, aCDAuthConfig *util3.ACDAuthConfig,
 	clusterService cluster.ClusterService,
-	gitFactory *util.GitFactory, argoUserService argo.ArgoUserService,
+	gitFactory *git.GitFactory, argoUserService argo.ArgoUserService,
 	clusterServiceCD cluster2.ServiceClient, gitOpsConfigReadService config.GitOpsConfigReadService) *GitOpsConfigServiceImpl {
 	return &GitOpsConfigServiceImpl{
 		randSource:              rand.NewSource(time.Now().UnixNano()),
@@ -290,7 +291,7 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(ctx context.Context, req
 		}
 	}
 	if strings.ToUpper(request.Provider) == bean.BITBUCKET_PROVIDER {
-		request.Host = util.BITBUCKET_CLONE_BASE_URL + request.BitBucketWorkspaceId
+		request.Host = git.BITBUCKET_CLONE_BASE_URL + request.BitBucketWorkspaceId
 	}
 	operationComplete := false
 	retryCount := 0
@@ -321,7 +322,7 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(ctx context.Context, req
 	}
 
 	// if git-ops config is created/saved successfully (just before transaction commit) and this was first git-ops config, then upsert clusters in acd
-	isGitOpsConfigured, err := impl.gitOpsRepository.IsGitOpsConfigured()
+	isGitOpsConfigured, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
 	if err != nil {
 		return nil, err
 	}
@@ -347,7 +348,7 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(ctx context.Context, req
 		return nil, err
 	}
 
-	err = impl.gitFactory.Reload()
+	err = impl.gitFactory.Reload(impl.gitOpsRepository)
 	if err != nil {
 		return nil, err
 	}
@@ -491,7 +492,7 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *bean2.GitOpsCon
 		}
 	}
 	if strings.ToUpper(request.Provider) == bean.BITBUCKET_PROVIDER {
-		request.Host = util.BITBUCKET_CLONE_BASE_URL + request.BitBucketWorkspaceId
+		request.Host = git.BITBUCKET_CLONE_BASE_URL + request.BitBucketWorkspaceId
 	}
 	operationComplete := false
 	retryCount := 0
@@ -522,7 +523,7 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *bean2.GitOpsCon
 	if err != nil {
 		return err
 	}
-	err = impl.gitFactory.Reload()
+	err = impl.gitFactory.Reload(impl.gitOpsRepository)
 	if err != nil {
 		return err
 	}
@@ -679,13 +680,13 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsCo
 		}
 		config.Token = model.Token
 	}
-	detailedErrorGitOpsConfigActions := util.DetailedErrorGitOpsConfigActions{}
+	detailedErrorGitOpsConfigActions := git.DetailedErrorGitOpsConfigActions{}
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
 	/*if strings.ToUpper(config.Provider) == GITHUB_PROVIDER {
 		config.Host = GITHUB_HOST
 	}*/
 	if strings.ToUpper(config.Provider) == bean.BITBUCKET_PROVIDER {
-		config.Host = util.BITBUCKET_CLONE_BASE_URL
+		config.Host = git.BITBUCKET_CLONE_BASE_URL
 		config.BitBucketProjectKey = strings.ToUpper(config.BitBucketProjectKey)
 	}
 	client, gitService, err := impl.gitFactory.NewClientForValidation(config)
@@ -793,7 +794,7 @@ func (impl *GitOpsConfigServiceImpl) extractErrorMessageByProvider(err error, pr
 	return err
 }
 
-func (impl *GitOpsConfigServiceImpl) convertDetailedErrorToResponse(detailedErrorGitOpsConfigActions util.DetailedErrorGitOpsConfigActions) (detailedErrorResponse DetailedErrorGitOpsConfigResponse) {
+func (impl *GitOpsConfigServiceImpl) convertDetailedErrorToResponse(detailedErrorGitOpsConfigActions git.DetailedErrorGitOpsConfigActions) (detailedErrorResponse DetailedErrorGitOpsConfigResponse) {
 	detailedErrorResponse.StageErrorMap = make(map[string]string)
 	detailedErrorResponse.SuccessfulStages = detailedErrorGitOpsConfigActions.SuccessfulStages
 	for stage, err := range detailedErrorGitOpsConfigActions.StageErrorMap {

@@ -30,7 +30,6 @@ import (
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/constants"
-	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -48,7 +47,7 @@ import (
 	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
-	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/remote"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
@@ -110,11 +109,10 @@ type AppStoreDeploymentServiceImpl struct {
 	helmAppService                       service.HelmAppService
 	appStoreDeploymentCommonService      appStoreDeploymentCommon.AppStoreDeploymentCommonService
 	installedAppRepositoryHistory        repository.InstalledAppVersionHistoryRepository
-	gitOpsRepository                     repository2.GitOpsConfigRepository
 	deploymentTypeConfig                 *DeploymentServiceTypeConfig
 	aCDConfig                            *argocdServer.ACDConfig
 	gitOpsConfigReadService              config.GitOpsConfigReadService
-	gitOpsRemoteOperationService         remote.GitOpsRemoteOperationService
+	gitOperationService                  git.GitOperationService
 }
 
 func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRepository repository.InstalledAppRepository,
@@ -123,10 +121,10 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRep
 	appStoreDeploymentHelmService appStoreDeploymentTool.AppStoreDeploymentHelmService,
 	appStoreDeploymentArgoCdService appStoreDeploymentTool.AppStoreDeploymentArgoCdService, environmentService cluster.EnvironmentService,
 	clusterService cluster.ClusterService, helmAppService service.HelmAppService, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
-	installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository, gitOpsRepository repository2.GitOpsConfigRepository,
+	installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository,
 	deploymentTypeConfig *DeploymentServiceTypeConfig, aCDConfig *argocdServer.ACDConfig,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
-	gitOpsRemoteOperationService remote.GitOpsRemoteOperationService) *AppStoreDeploymentServiceImpl {
+	gitOperationService git.GitOperationService) *AppStoreDeploymentServiceImpl {
 
 	appStoreDeploymentServiceImpl := &AppStoreDeploymentServiceImpl{
 		logger:                               logger,
@@ -143,11 +141,10 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRep
 		helmAppService:                       helmAppService,
 		appStoreDeploymentCommonService:      appStoreDeploymentCommonService,
 		installedAppRepositoryHistory:        installedAppRepositoryHistory,
-		gitOpsRepository:                     gitOpsRepository,
 		deploymentTypeConfig:                 deploymentTypeConfig,
 		aCDConfig:                            aCDConfig,
 		gitOpsConfigReadService:              gitOpsConfigReadService,
-		gitOpsRemoteOperationService:         gitOpsRemoteOperationService,
+		gitOperationService:                  gitOperationService,
 	}
 	return appStoreDeploymentServiceImpl
 }
@@ -1217,12 +1214,12 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 
 		} else if isChartChanged || isVersionChanged {
 			// update dependency if chart or chart version is changed
-			_, _, requirementsCommitErr = impl.gitOpsRemoteOperationService.CommitValues(manifest.RequirementsConfig)
-			gitHash, _, valuesCommitErr = impl.gitOpsRemoteOperationService.CommitValues(manifest.ValuesConfig)
+			_, _, requirementsCommitErr = impl.gitOperationService.CommitValues(manifest.RequirementsConfig)
+			gitHash, _, valuesCommitErr = impl.gitOperationService.CommitValues(manifest.ValuesConfig)
 
 		} else {
 			// only values are changed in update, so commit values config
-			gitHash, _, valuesCommitErr = impl.gitOpsRemoteOperationService.CommitValues(manifest.ValuesConfig)
+			gitHash, _, valuesCommitErr = impl.gitOperationService.CommitValues(manifest.ValuesConfig)
 		}
 
 		if valuesCommitErr != nil || requirementsCommitErr != nil {

@@ -21,7 +21,6 @@ import (
 	"compress/gzip"
 	"context"
 	"fmt"
-	util2 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -42,8 +41,8 @@ import (
 const (
 	PIPELINE_DEPLOYMENT_TYPE_ACD               = "argo_cd"
 	PIPELINE_DEPLOYMENT_TYPE_HELM              = "helm"
-	PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD = "manifest_download" // TODO refactoring: This const belongs to enterprise only
-	ChartWorkingDirPath                        = "/tmp/charts/"
+	PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD = "manifest_download"
+	CHART_WORKING_DIR_PATH                     = "/tmp/charts/"
 )
 
 type ChartCreateRequest struct {
@@ -68,8 +67,6 @@ type ChartTemplateService interface {
 	LoadChartFromDir(dir string) (*chart.Chart, error)
 	CreateZipFileForChart(chart *chart.Chart, outputChartPathDir string) ([]byte, error)
 	PackageChart(tempReferenceTemplateDir string, chartMetaData *chart.Metadata) (*string, string, error)
-	// AddConfigFileToChart will override requirements.yaml file in chart
-	AddConfigFileToChart(config *ChartConfig, dir string, clonedDir string) error
 }
 type ChartTemplateServiceImpl struct {
 	randSource rand.Source
@@ -120,7 +117,7 @@ func (impl ChartTemplateServiceImpl) GetChartVersion(location string) (string, e
 func (impl ChartTemplateServiceImpl) FetchValuesFromReferenceChart(chartMetaData *chart.Metadata, refChartLocation string, templateName string, userId int32, pipelineStrategyPath string) (*ChartValues, error) {
 	chartMetaData.ApiVersion = "v1" // ensure always v1
 	dir := impl.GetDir()
-	chartDir := filepath.Join(ChartWorkingDirPath, dir)
+	chartDir := filepath.Join(CHART_WORKING_DIR_PATH, dir)
 	impl.logger.Debugw("chart dir ", "chart", chartMetaData.Name, "dir", chartDir)
 	err := os.MkdirAll(chartDir, os.ModePerm) //hack for concurrency handling
 	if err != nil {
@@ -159,7 +156,7 @@ func (impl ChartTemplateServiceImpl) FetchValuesFromReferenceChart(chartMetaData
 func (impl ChartTemplateServiceImpl) BuildChart(ctx context.Context, chartMetaData *chart.Metadata, referenceTemplatePath string) (string, error) {
 	chartMetaData.ApiVersion = "v1" // ensure always v1
 	dir := impl.GetDir()
-	tempReferenceTemplateDir := filepath.Join(ChartWorkingDirPath, dir)
+	tempReferenceTemplateDir := filepath.Join(CHART_WORKING_DIR_PATH, dir)
 	impl.logger.Debugw("chart dir ", "chart", chartMetaData.Name, "dir", tempReferenceTemplateDir)
 	err := os.MkdirAll(tempReferenceTemplateDir, os.ModePerm) //hack for concurrency handling
 	if err != nil {
@@ -187,7 +184,7 @@ func (impl ChartTemplateServiceImpl) BuildChartProxyForHelmApps(chartCreateReque
 	chartMetaData := chartCreateRequest.ChartMetaData
 	chartMetaData.ApiVersion = "v2" // ensure always v2
 	dir := impl.GetDir()
-	chartDir := filepath.Join(ChartWorkingDirPath, dir)
+	chartDir := filepath.Join(CHART_WORKING_DIR_PATH, dir)
 	impl.logger.Debugw("chart dir ", "chart", chartMetaData.Name, "dir", chartDir)
 	err := os.MkdirAll(chartDir, os.ModePerm) //hack for concurrency handling
 	if err != nil {
@@ -343,7 +340,7 @@ func (impl ChartTemplateServiceImpl) GetDir() string {
 func (impl ChartTemplateServiceImpl) GetByteArrayRefChart(chartMetaData *chart.Metadata, referenceTemplatePath string) ([]byte, error) {
 	chartMetaData.ApiVersion = "v1" // ensure always v1
 	dir := impl.GetDir()
-	tempReferenceTemplateDir := filepath.Join(ChartWorkingDirPath, dir)
+	tempReferenceTemplateDir := filepath.Join(CHART_WORKING_DIR_PATH, dir)
 	impl.logger.Debugw("chart dir ", "chart", chartMetaData.Name, "dir", tempReferenceTemplateDir)
 	err := os.MkdirAll(tempReferenceTemplateDir, os.ModePerm) //hack for concurrency handling
 	if err != nil {
@@ -422,28 +419,6 @@ func (impl ChartTemplateServiceImpl) CreateZipFileForChart(chart *chart.Chart, o
 		return nil, err
 	}
 	return chartBytesArr, nil
-}
-
-func (impl ChartTemplateServiceImpl) AddConfigFileToChart(config *ChartConfig, dir string, clonedDir string) error {
-	filePath := filepath.Join(clonedDir, config.FileName)
-	file, err := os.Create(filePath)
-	if err != nil {
-		impl.logger.Errorw("error in creating file", "err", err, "fileName", config.FileName)
-		return err
-	}
-	defer file.Close()
-	_, err = file.Write([]byte(config.FileContent))
-	if err != nil {
-		impl.logger.Errorw("error in writing file content", "err", err, "fileName", config.FileName)
-		return err
-	}
-	destinationFilePath := filepath.Join(dir, config.FileName)
-	err = util2.MoveFileToDestination(filePath, destinationFilePath)
-	if err != nil {
-		impl.logger.Errorw("error in moving file from source to destination", "err", err)
-		return err
-	}
-	return nil
 }
 
 func IsHelmApp(deploymentAppType string) bool {

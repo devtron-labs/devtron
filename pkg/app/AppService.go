@@ -23,8 +23,9 @@ import (
 	"fmt"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
-	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/remote"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
+	bean3 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 	"io/ioutil"
 	"net/url"
 	"os"
@@ -121,7 +122,7 @@ type AppServiceImpl struct {
 	acdConfig                              *argocdServer.ACDConfig
 	chartRefService                        chartRef.ChartRefService
 	gitOpsConfigReadService                config.GitOpsConfigReadService
-	gitOpsRemoteOperationService           remote.GitOpsRemoteOperationService
+	gitOperationService                    git.GitOperationService
 }
 
 type AppService interface {
@@ -176,7 +177,7 @@ func NewAppService(
 	scopedVariableManager variables.ScopedVariableCMCSManager,
 	acdConfig *argocdServer.ACDConfig, chartRefService chartRef.ChartRefService,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
-	gitOpsRemoteOperationService remote.GitOpsRemoteOperationService) *AppServiceImpl {
+	gitOperationService git.GitOperationService) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:            environmentConfigRepository,
 		mergeUtil:                              mergeUtil,
@@ -206,7 +207,7 @@ func NewAppService(
 		acdConfig:                              acdConfig,
 		chartRefService:                        chartRefService,
 		gitOpsConfigReadService:                gitOpsConfigReadService,
-		gitOpsRemoteOperationService:           gitOpsRemoteOperationService,
+		gitOperationService:                    gitOperationService,
 	}
 	return appServiceImpl
 }
@@ -882,7 +883,7 @@ func (impl *AppServiceImpl) BuildChartAndGetPath(appName string, envOverride *ch
 		Name:    appName,
 		Version: envOverride.Chart.ChartVersion,
 	}
-	referenceTemplatePath := path.Join(chartRepoRepository.RefChartDirPath, envOverride.Chart.ReferenceTemplate)
+	referenceTemplatePath := path.Join(bean3.RefChartDirPath, envOverride.Chart.ReferenceTemplate)
 	// Load custom charts to referenceTemplatePath if not exists
 	if _, err := os.Stat(referenceTemplatePath); os.IsNotExist(err) {
 		chartRefValue, err := impl.chartRefService.FindById(envOverride.Chart.ChartRefId)
@@ -891,7 +892,7 @@ func (impl *AppServiceImpl) BuildChartAndGetPath(appName string, envOverride *ch
 			return "", err
 		}
 		if chartRefValue.ChartData != nil {
-			chartInfo, err := impl.chartRefService.ExtractChartIfMissing(chartRefValue.ChartData, chartRepoRepository.RefChartDirPath, chartRefValue.Location)
+			chartInfo, err := impl.chartRefService.ExtractChartIfMissing(chartRefValue.ChartData, bean3.RefChartDirPath, chartRefValue.Location)
 			if chartInfo != nil && chartInfo.TemporaryFolder != "" {
 				err1 := os.RemoveAll(chartInfo.TemporaryFolder)
 				if err1 != nil {
@@ -916,7 +917,7 @@ func (impl *AppServiceImpl) CreateGitopsRepo(app *app.App, userId int32) (gitops
 		return "", nil, err
 	}
 	gitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoName(app.AppName)
-	chartGitAttr, err = impl.gitOpsRemoteOperationService.CreateGitRepositoryForApp(gitOpsRepoName, chart.ReferenceTemplate, chart.ChartVersion, userId)
+	chartGitAttr, err = impl.gitOperationService.CreateGitRepositoryForApp(gitOpsRepoName, chart.ReferenceTemplate, chart.ChartVersion, userId)
 	if err != nil {
 		impl.logger.Errorw("error in pushing chart to git ", "gitOpsRepoName", gitOpsRepoName, "err", err)
 		return "", nil, err

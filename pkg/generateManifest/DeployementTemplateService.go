@@ -137,7 +137,7 @@ func (impl DeploymentTemplateServiceImpl) FetchDeploymentsWithChartRefs(appId in
 
 	for _, item := range defaultVersions.ChartRefs {
 		res := &repository.DeploymentTemplateComparisonMetadata{
-			ChartId:      item.Id,
+			ChartRefId:   item.Id,
 			ChartVersion: item.Version,
 			ChartType:    item.Name,
 			Type:         repository.DefaultVersions,
@@ -153,7 +153,7 @@ func (impl DeploymentTemplateServiceImpl) FetchDeploymentsWithChartRefs(appId in
 
 	for _, env := range publishedOnEnvs {
 		item := &repository.DeploymentTemplateComparisonMetadata{
-			ChartId:         env.ChartRefId,
+			ChartRefId:      env.ChartRefId,
 			EnvironmentId:   env.EnvironmentId,
 			EnvironmentName: env.EnvironmentName,
 			Type:            repository.PublishedOnEnvironments,
@@ -306,7 +306,7 @@ func (impl DeploymentTemplateServiceImpl) extractScopeData(request DeploymentTem
 }
 
 func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, chartRefId int, valuesYaml string) (*openapi2.TemplateChartResponse, error) {
-	refChart, template, err, version, _ := impl.chartRefService.GetRefChart(chartRefId)
+	refChart, template, version, _, err := impl.chartRefService.GetRefChart(chartRefId)
 	if err != nil {
 		impl.Logger.Errorw("error in getting refChart", "err", err, "chartRefId", chartRefId)
 		return nil, err

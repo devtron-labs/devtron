@@ -44,6 +44,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	repository2 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -154,9 +155,6 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(dashboardEvent.DashboardTelemetryRouter),
 			new(*dashboardEvent.DashboardTelemetryRouterImpl)),
 
-		repository.NewGitOpsConfigRepositoryImpl,
-		wire.Bind(new(repository.GitOpsConfigRepository), new(*repository.GitOpsConfigRepositoryImpl)),
-
 		//binding argoUserService to helm via dummy implementation(HelmUserServiceImpl)
 		argo.NewHelmUserServiceImpl,
 		wire.Bind(new(argo.ArgoUserService), new(*argo.HelmUserServiceImpl)),
@@ -179,8 +177,8 @@ func InitializeApp() (*App, error) {
 
 		util.NewChartTemplateServiceImpl,
 		wire.Bind(new(util.ChartTemplateService), new(*util.ChartTemplateServiceImpl)),
-		util.NewGitFactory,
-		util.NewGitCliUtil,
+		git.NewGitFactory,
+		git.NewGitCliUtil,
 
 		security2.NewScanToolMetadataRepositoryImpl,
 		wire.Bind(new(security2.ScanToolMetadataRepository), new(*security2.ScanToolMetadataRepositoryImpl)),
