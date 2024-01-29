@@ -102,6 +102,9 @@ func (impl *InfraConfigRepositoryImpl) GetProfileListByIds(profileIds []int, inc
 }
 
 func (impl *InfraConfigRepositoryImpl) CreateConfigurations(tx *pg.Tx, configurations []*InfraProfileConfiguration) error {
+	if len(configurations) == 0 {
+		return nil
+	}
 	err := tx.Insert(&configurations)
 	return err
 }

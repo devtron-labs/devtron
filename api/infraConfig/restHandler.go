@@ -72,6 +72,7 @@ func (handler *InfraConfigRestHandlerImpl) CreateProfile(w http.ResponseWriter, 
 	if err != nil {
 		handler.logger.Errorw("error in creating profile and configurations", "payLoad", payload)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
 	}
 	common.WriteJsonResp(w, nil, nil, http.StatusOK)
 }

@@ -207,7 +207,7 @@ func (impl *InfraConfigServiceImpl) GetProfileList(profileNameLike string) (*Pro
 	profiles := make([]ProfileBean, 0, len(profilesMap))
 	for profileId, profile := range profilesMap {
 		if profile.Name == DEFAULT_PROFILE_NAME {
-			// profiles = append(profiles, profile)
+			profiles = append(profiles, profile)
 			// update map with updated profile
 			profilesMap[profileId] = profile
 			continue
