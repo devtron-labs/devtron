@@ -928,7 +928,7 @@ func (handler AppListingRestHandlerImpl) FetchOverviewAppsByEnvironment(w http.R
 	//filter out rbac passed apps
 	resp.Apps = make([]*bean.AppEnvironmentContainer, 0)
 	for _, appBean := range appContainers {
-		rbacObject := rbacObjectsWithAppId[appBean.AppId]
+		rbacObject := strings.ToLower(rbacObjectsWithAppId[appBean.AppId])
 		if rbacResult[rbacObject] {
 			resp.Apps = append(resp.Apps, appBean)
 		}
