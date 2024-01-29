@@ -195,6 +195,12 @@ func (impl *InfraConfigServiceImpl) GetProfileList(profileNameLike string) (*Pro
 		return nil, err
 	}
 
+	defaultProfileIdentifierCount, err := impl.infraProfileRepo.GetIdentifierCountForDefaultProfile(defaultProfileId, GetIdentifierKey(APPLICATION, impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap()))
+	if err != nil {
+		impl.logger.Errorw("error in fetching app count for default profile", "", defaultProfileId, defaultProfileId, "error", err)
+		return nil, err
+	}
+
 	// set app count for each profile
 	for _, profileAppCnt := range profileAppCount {
 		profileBean := profilesMap[profileAppCnt.ProfileId]
@@ -204,8 +210,10 @@ func (impl *InfraConfigServiceImpl) GetProfileList(profileNameLike string) (*Pro
 
 	// fill the default configurations for each profile if any of the default configuration is missing
 	defaultProfile := profilesMap[defaultProfileId]
-	defaultConfigurations := defaultProfile.Configurations
+	defaultProfile.AppCount = defaultProfileIdentifierCount
+	profilesMap[defaultProfileId] = defaultProfile
 
+	defaultConfigurations := defaultProfile.Configurations
 	profiles := make([]ProfileBean, 0, len(profilesMap))
 	for profileId, profile := range profilesMap {
 		if profile.Name == DEFAULT_PROFILE_NAME {
@@ -752,12 +760,6 @@ func (impl *InfraConfigServiceImpl) ApplyProfileToIdentifiers(userId int32, appl
 		return errors.New("invalid apply request")
 	}
 
-	// fetch default profile
-	defaultProfile, err := impl.GetProfileByName(DEFAULT_PROFILE_NAME)
-	if err != nil {
-		impl.logger.Errorw("error in fetching default profile", "applyIdentifiersRequest", applyIdentifiersRequest, "error", err)
-		return err
-	}
 	searchableKeyNameIdMap := impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap()
 
 	identifierIdNameMap := make(map[int]string)
@@ -810,10 +812,16 @@ func (impl *InfraConfigServiceImpl) ApplyProfileToIdentifiers(userId int32, appl
 		applyIdentifiersRequest.Identifiers = activeIdentifiers
 	}
 
-	return impl.applyProfile(userId, applyIdentifiersRequest, searchableKeyNameIdMap, defaultProfile, identifierIdNameMap)
+	// fetch default profile
+	defaultProfile, err := impl.infraProfileRepo.GetProfileByName(DEFAULT_PROFILE_NAME)
+	if err != nil {
+		impl.logger.Errorw("error in fetching default profile", "applyIdentifiersRequest", applyIdentifiersRequest, "error", err)
+		return err
+	}
+	return impl.applyProfile(userId, applyIdentifiersRequest, searchableKeyNameIdMap, defaultProfile.Id, identifierIdNameMap)
 }
 
-func (impl *InfraConfigServiceImpl) applyProfile(userId int32, applyIdentifiersRequest InfraProfileApplyRequest, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int, defaultProfile *ProfileBean, identifierIdNameMap map[int]string) error {
+func (impl *InfraConfigServiceImpl) applyProfile(userId int32, applyIdentifiersRequest InfraProfileApplyRequest, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int, defaultProfileId int, identifierIdNameMap map[int]string) error {
 	tx, err := impl.infraProfileRepo.StartTx()
 	if err != nil {
 		impl.logger.Errorw("error in starting transaction to apply profile to identifiers", "applyIdentifiersRequest", applyIdentifiersRequest, "error", err)
@@ -830,7 +838,7 @@ func (impl *InfraConfigServiceImpl) applyProfile(userId int32, applyIdentifiersR
 	}
 
 	// don't store qualifier mappings for default profile
-	if applyIdentifiersRequest.UpdateToProfile != defaultProfile.Id {
+	if applyIdentifiersRequest.UpdateToProfile != defaultProfileId {
 		qualifierMappings := make([]*resourceQualifiers.QualifierMapping, 0, len(applyIdentifiersRequest.Identifiers))
 		for _, identifierId := range applyIdentifiersRequest.Identifiers {
 			qualifierMapping := &resourceQualifiers.QualifierMapping{
