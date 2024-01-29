@@ -59,6 +59,7 @@ type TelemetryEventClientImpl struct {
 	InstalledAppRepository         repository2.InstalledAppRepository
 	userAttributesRepository       repository.UserAttributesRepository
 	cloudProviderIdentifierService cloudProviderIdentifier.ProviderIdentifierService
+	telemetryConfig                TelemetryConfig
 }
 
 type TelemetryEventClient interface {
@@ -92,6 +93,7 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 		helmAppClient:                  helmAppClient,
 		InstalledAppRepository:         InstalledAppRepository,
 		cloudProviderIdentifierService: cloudProviderIdentifierService,
+		telemetryConfig:                TelemetryConfig{},
 	}
 
 	watcher.HeartbeatEventForTelemetry()
@@ -107,6 +109,19 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 		return nil, err
 	}
 	return watcher, err
+}
+
+func (impl *TelemetryEventClientImpl) GetCloudProvider() (string, error) {
+	// assumption: the IMDS server will be reachable on startup
+	if len(impl.telemetryConfig.cloudProvider) == 0 {
+		provider, err := impl.cloudProviderIdentifierService.IdentifyProvider()
+		if err != nil {
+			impl.logger.Errorw("exception while getting cluster provider", "error", err)
+			return "", err
+		}
+		impl.telemetryConfig.cloudProvider = provider
+	}
+	return impl.telemetryConfig.cloudProvider, nil
 }
 
 func (impl *TelemetryEventClientImpl) StopCron() {
@@ -321,12 +336,11 @@ func (impl *TelemetryEventClientImpl) SendSummaryEvent(eventType string) error {
 	payload.HelmChartSuccessfulDeploymentCount = helmChartSuccessfulDeploymentCount
 	payload.ExternalHelmAppClusterCount = ExternalHelmAppClusterCount
 
-	provider, err := impl.cloudProviderIdentifierService.IdentifyProvider()
+	payload.ClusterProvider, err = impl.GetCloudProvider()
 	if err != nil {
-		impl.logger.Errorw("exception while getting cluster provider", "error", err)
+		impl.logger.Errorw("error while getting cluster provider", "error", err)
 		return err
 	}
-	payload.ClusterProvider = provider
 
 	latestUser, err := impl.userAuditService.GetLatestUser()
 	if err == nil {
@@ -487,12 +501,11 @@ func (impl *TelemetryEventClientImpl) SendTelemetryInstallEventEA() (*TelemetryE
 	payload.DevtronMode = util.GetDevtronVersion().ServerMode
 	payload.ServerVersion = k8sServerVersion.String()
 
-	provider, err := impl.cloudProviderIdentifierService.IdentifyProvider()
+	payload.ClusterProvider, err = impl.GetCloudProvider()
 	if err != nil {
-		impl.logger.Errorw("exception while getting cluster provider", "error", err)
+		impl.logger.Errorw("error while getting cluster provider", "error", err)
 		return nil, err
 	}
-	payload.ClusterProvider = provider
 
 	reqBody, err := json.Marshal(payload)
 	if err != nil {
@@ -554,12 +567,11 @@ func (impl *TelemetryEventClientImpl) SendTelemetryDashboardAccessEvent() error 
 	payload.DevtronMode = util.GetDevtronVersion().ServerMode
 	payload.ServerVersion = k8sServerVersion.String()
 
-	provider, err := impl.cloudProviderIdentifierService.IdentifyProvider()
+	payload.ClusterProvider, err = impl.GetCloudProvider()
 	if err != nil {
-		impl.logger.Errorw("exception while getting cluster provider", "error", err)
+		impl.logger.Errorw("error while getting cluster provider", "error", err)
 		return err
 	}
-	payload.ClusterProvider = provider
 
 	reqBody, err := json.Marshal(payload)
 	if err != nil {
@@ -621,12 +633,11 @@ func (impl *TelemetryEventClientImpl) SendTelemetryDashboardLoggedInEvent() erro
 	payload.DevtronMode = util.GetDevtronVersion().ServerMode
 	payload.ServerVersion = k8sServerVersion.String()
 
-	provider, err := impl.cloudProviderIdentifierService.IdentifyProvider()
+	payload.ClusterProvider, err = impl.GetCloudProvider()
 	if err != nil {
-		impl.logger.Errorw("exception while getting cluster provider", "error", err)
+		impl.logger.Errorw("error while getting cluster provider", "error", err)
 		return err
 	}
-	payload.ClusterProvider = provider
 
 	reqBody, err := json.Marshal(payload)
 	if err != nil {
