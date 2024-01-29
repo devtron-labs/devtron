@@ -484,14 +484,9 @@ func (handler UserRestHandlerImpl) DeleteUser(w http.ResponseWriter, r *http.Req
 
 func (handler UserRestHandlerImpl) BulkUpdateStatus(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
-	userId, err := handler.userService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
 	// request decoding
 	var request bean.BulkStatusUpdateRequest
-	err = decoder.Decode(&request)
+	err := decoder.Decode(&request)
 	if err != nil {
 		handler.logger.Errorw("request err, BulkUpdateStatus", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
