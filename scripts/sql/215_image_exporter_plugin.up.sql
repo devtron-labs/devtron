@@ -38,10 +38,10 @@ CloudProvider=$(echo "$CloudProvider" | awk \'{print tolower($0)}\')
 current_timestamp=$(date +%s)
 if [[ -z $FilePrefix ]]
 then
-    file=$ContainerImage.tar
+    file=$ContainerImage-$platform.tar
     file=$(echo $file | tr \'/\' \'_\')
 else
-    file=$FilePrefix-$ContainerImage.tar
+    file=$FilePrefix-$platform-$ContainerImage.tar
     file=$(echo $file | tr \'/\' \'_\')
 fi   
 echo $file     
@@ -89,7 +89,7 @@ INSERT INTO "plugin_step" ("id", "plugin_id","name","description","index","step_
 
 INSERT INTO "plugin_step_variable" ("id", "plugin_step_id", "name", "format", "description", "is_exposed", "allow_empty_value", "variable_type", "value_type", "variable_step_index", "deleted", "created_on", "created_by", "updated_on", "updated_by") VALUES
 (nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Container Image Exporter v1.0.0' and ps."index"=1 and ps.deleted=false), 'Platform','STRING',' Specify the platform architecture of the image being exported (arm64 or amd64).',true,true,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1),
-(nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Container Image Exporter v1.0.0' and ps."index"=1 and ps.deleted=false), 'AswRegion','STRING',' Specify the AWS region where your S3 bucket is located ',true,true,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1),
+(nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Container Image Exporter v1.0.0' and ps."index"=1 and ps.deleted=false), 'AwsRegion','STRING',' Specify the AWS region where your S3 bucket is located ',true,true,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1),
 (nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Container Image Exporter v1.0.0' and ps."index"=1 and ps.deleted=false), 'AwsAccessKey','STRING',' Provide your AWS access key ID. ',true,true,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1),
 (nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Container Image Exporter v1.0.0' and ps."index"=1 and ps.deleted=false), 'AwsSecretKey','STRING',' Provide your AWS secret access key. Keep this key confidential.',true,true,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1),
 (nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Container Image Exporter v1.0.0' and ps."index"=1 and ps.deleted=false), 'AzureAccountKey','STRING',' Provide the access key for your Azure storage account.',true,true,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1),
