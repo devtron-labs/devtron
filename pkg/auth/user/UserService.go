@@ -1071,7 +1071,7 @@ func (impl *UserServiceImpl) GetAllDetailedUsers() ([]bean.UserInfo, error) {
 func (impl UserServiceImpl) getLastLoginTime(model repository.UserModel) time.Time {
 	lastLoginTime := time.Time{}
 	if model.UserAudit != nil {
-		lastLoginTime = model.UserAudit.CreatedOn
+		lastLoginTime = model.UserAudit.UpdatedOn
 	}
 	return lastLoginTime
 }
