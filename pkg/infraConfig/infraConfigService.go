@@ -20,7 +20,6 @@ type InfraConfigService interface {
 	GetConfigurationUnits() map[ConfigKeyStr]map[string]units.Unit
 	GetDefaultProfile() (*ProfileBean, error)
 	UpdateProfile(userId int32, profileName string, profileBean *ProfileBean) error
-	GetInfraConfigurationsByScope(scope Scope) (*InfraConfig, error)
 }
 
 type InfraConfigServiceImpl struct {
@@ -330,7 +329,7 @@ func (impl *InfraConfigServiceImpl) validateCpuMem(profileBean *ProfileBean) err
 	return nil
 }
 
-func (impl *InfraConfigServiceImpl) GetInfraConfigurationsByScope(scope Scope) (*InfraConfig, error) {
+func (impl *InfraConfigServiceImpl) getInfraConfigurationsByScope(scope Scope) (*InfraConfig, error) {
 	infraConfiguration := &InfraConfig{}
 	updateInfraConfig := func(config ConfigurationBean) {
 		switch config.Key {

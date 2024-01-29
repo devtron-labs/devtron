@@ -83,7 +83,7 @@ type CiServiceImpl struct {
 	scopedVariableManager         variables.ScopedVariableManager
 	pluginInputVariableParser     PluginInputVariableParser
 	globalPluginService           plugin.GlobalPluginService
-	infraConfigService            infraConfig.InfraConfigService
+	infraGetter                   infraConfig.InfraGetter
 }
 
 func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
@@ -98,7 +98,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 	customTagService CustomTagService,
 	pluginInputVariableParser PluginInputVariableParser,
 	globalPluginService plugin.GlobalPluginService,
-	infraConfigService infraConfig.InfraConfigService,
+	infraGetter infraConfig.InfraGetter,
 ) *CiServiceImpl {
 	cis := &CiServiceImpl{
 		Logger:                        Logger,
@@ -120,7 +120,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 		customTagService:              customTagService,
 		pluginInputVariableParser:     pluginInputVariableParser,
 		globalPluginService:           globalPluginService,
-		infraConfigService:            infraConfigService,
+		infraGetter:                   infraGetter,
 	}
 	config, err := types.GetCiConfig()
 	if err != nil {
@@ -466,7 +466,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	infraConfigScope := infraConfig.Scope{
 		AppId: pipeline.AppId,
 	}
-	infraConfiguration, err := impl.infraConfigService.GetInfraConfigurationsByScope(infraConfigScope)
+	infraConfiguration, err := impl.infraGetter.GetInfraConfigurationsByScope(infraConfigScope)
 	if err != nil {
 		impl.Logger.Errorw("error in getting infra configuration using scope ", "scope", infraConfigScope, "err", err)
 		return nil, err

@@ -230,7 +230,8 @@ func InitializeApp() (*App, error) {
 		units.NewUnits,
 		infraConfigService.NewInfraConfigServiceImpl,
 		wire.Bind(new(infraConfigService.InfraConfigService), new(*infraConfigService.InfraConfigServiceImpl)),
-
+		infraConfigService.NewCiInfraGetter,
+		wire.Bind(new(infraConfigService.InfraGetter), new(*infraConfigService.CiInfraGetter)),
 		infraConfig.NewInfraConfigRestHandlerImpl,
 		wire.Bind(new(infraConfig.InfraConfigRestHandler), new(*infraConfig.InfraConfigRestHandlerImpl)),
 

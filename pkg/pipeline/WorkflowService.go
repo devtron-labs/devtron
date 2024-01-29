@@ -63,7 +63,7 @@ type WorkflowServiceImpl struct {
 	systemWorkflowExecutor executors.SystemWorkflowExecutor
 	k8sUtil                *k8s.K8sServiceImpl
 	k8sCommonService       k8s2.K8sCommonService
-	infraConfigService     infraConfig.InfraConfigService
+	infraGetter            infraConfig.InfraGetter
 }
 
 // TODO: Move to bean
@@ -72,7 +72,7 @@ func NewWorkflowServiceImpl(Logger *zap.SugaredLogger, envRepository repository.
 	appService app.AppService, globalCMCSService GlobalCMCSService, argoWorkflowExecutor executors.ArgoWorkflowExecutor,
 	k8sUtil *k8s.K8sServiceImpl,
 	systemWorkflowExecutor executors.SystemWorkflowExecutor, k8sCommonService k8s2.K8sCommonService,
-	infraConfigService infraConfig.InfraConfigService) (*WorkflowServiceImpl, error) {
+	infraGetter infraConfig.InfraGetter) (*WorkflowServiceImpl, error) {
 	commonWorkflowService := &WorkflowServiceImpl{
 		Logger:                 Logger,
 		ciCdConfig:             ciCdConfig,
@@ -83,7 +83,7 @@ func NewWorkflowServiceImpl(Logger *zap.SugaredLogger, envRepository repository.
 		k8sUtil:                k8sUtil,
 		systemWorkflowExecutor: systemWorkflowExecutor,
 		k8sCommonService:       k8sCommonService,
-		infraConfigService:     infraConfigService,
+		infraGetter:            infraGetter,
 	}
 	restConfig, err := k8sUtil.GetK8sInClusterRestConfig()
 	if err != nil {
@@ -140,7 +140,7 @@ func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *types.W
 	infraConfigScope := infraConfig.Scope{
 		AppId: workflowRequest.AppId,
 	}
-	infraConfiguration, err := impl.infraConfigService.GetInfraConfigurationsByScope(infraConfigScope)
+	infraConfiguration, err := impl.infraGetter.GetInfraConfigurationsByScope(infraConfigScope)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while getting infra config", "infraConfigScope", infraConfigScope, "err", err)
 		return bean3.WorkflowTemplate{}, err
