@@ -54,8 +54,6 @@ type InfraConfigService interface {
 	GetIdentifierList(listFilter *IdentifierListFilter) (*IdentifierProfileResponse, error)
 
 	ApplyProfileToIdentifiers(userId int32, applyIdentifiersRequest InfraProfileApplyRequest) error
-
-	GetInfraConfigurationsByScope(scope Scope) (*InfraConfig, error)
 }
 
 type InfraConfigServiceImpl struct {
@@ -882,7 +880,7 @@ func (impl *InfraConfigServiceImpl) applyProfile(userId int32, applyIdentifiersR
 	return err
 }
 
-func (impl *InfraConfigServiceImpl) GetInfraConfigurationsByScope(scope Scope) (*InfraConfig, error) {
+func (impl *InfraConfigServiceImpl) getInfraConfigurationsByScope(scope Scope) (*InfraConfig, error) {
 
 	infraConfigurations, err := impl.infraProfileRepo.GetConfigurationsByScope(scope, impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap())
 	if err != nil {

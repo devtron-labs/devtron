@@ -73,7 +73,7 @@ type WorkflowServiceImpl struct {
 	refChartDir            chartRepoRepository.RefChartDir
 	chartTemplateService   util2.ChartTemplateService
 	mergeUtil              *util2.MergeUtil
-	infraConfigService     infraConfig.InfraConfigService
+	infraGetter            infraConfig.InfraGetter
 }
 
 // TODO: Move to bean
@@ -83,7 +83,7 @@ func NewWorkflowServiceImpl(Logger *zap.SugaredLogger, envRepository repository.
 	k8sUtil *k8s.K8sUtilExtended,
 	systemWorkflowExecutor executors.SystemWorkflowExecutor, k8sCommonService k8s2.K8sCommonService, refChartDir chartRepoRepository.RefChartDir, chartTemplateService util2.ChartTemplateService,
 	mergeUtil *util2.MergeUtil,
-	infraConfigService infraConfig.InfraConfigService) (*WorkflowServiceImpl, error) {
+	infraGetter infraConfig.InfraGetter) (*WorkflowServiceImpl, error) {
 	commonWorkflowService := &WorkflowServiceImpl{
 		Logger:                 Logger,
 		ciCdConfig:             ciCdConfig,
@@ -97,7 +97,7 @@ func NewWorkflowServiceImpl(Logger *zap.SugaredLogger, envRepository repository.
 		refChartDir:            refChartDir,
 		chartTemplateService:   chartTemplateService,
 		mergeUtil:              mergeUtil,
-		infraConfigService:     infraConfigService,
+		infraGetter:            infraGetter,
 	}
 	restConfig, err := k8sUtil.GetK8sInClusterRestConfig()
 	if err != nil {
@@ -170,7 +170,7 @@ func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *types.W
 	infraConfigScope := infraConfig.Scope{
 		AppId: workflowRequest.AppId,
 	}
-	infraConfiguration, err := impl.infraConfigService.GetInfraConfigurationsByScope(infraConfigScope)
+	infraConfiguration, err := impl.infraGetter.GetInfraConfigurationsByScope(infraConfigScope)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while getting infra config", "infraConfigScope", infraConfigScope, "err", err)
 		return bean3.WorkflowTemplate{}, err
