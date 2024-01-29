@@ -40,7 +40,6 @@ type UserAuditRepository interface {
 	GetLatestByUserId(userId int32) (*UserAudit, error)
 	GetLatestUser() (*UserAudit, error)
 	Update(userAudit *UserAudit) error
-	GetByUserIds(userIds []int32) ([]UserAudit, error)
 }
 
 type UserAuditRepositoryImpl struct {
@@ -85,14 +84,6 @@ func (impl UserAuditRepositoryImpl) GetLatestUser() (*UserAudit, error) {
 		Where("updated_on is not null").
 		Order("updated_on desc").
 		Limit(1).
-		Select()
-	return userAudit, err
-}
-
-func (impl UserAuditRepositoryImpl) GetByUserIds(userIds []int32) ([]UserAudit, error) {
-	var userAudit []UserAudit
-	err := impl.dbConnection.Model(&userAudit).
-		Where("user_id in (?)", pg.In(userIds)).
 		Select()
 	return userAudit, err
 }
