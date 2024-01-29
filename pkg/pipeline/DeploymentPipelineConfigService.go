@@ -1474,8 +1474,8 @@ func (impl *CdPipelineConfigServiceImpl) GetEnvironmentListForAutocompleteFilter
 
 	pipelinesMap := make(map[int][]*pipelineConfig.Pipeline)
 	for i, pipeline := range cdPipelines {
-		appObject := objects[pipeline.Id][0]
-		envObject := objects[pipeline.Id][1]
+		appObject := strings.ToLower(objects[pipeline.Id][0])
+		envObject := strings.ToLower(objects[pipeline.Id][1])
 		impl.logger.Infow("GetEnvironmentListForAutocompleteFilter cdPipeline rbac results iteration",
 			"appObject", appObject, "envObject", envObject, "it", i)
 
