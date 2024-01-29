@@ -1407,6 +1407,7 @@ func (impl *CdPipelineConfigServiceImpl) MarkGitOpsDevtronAppsDeletedWhereArgoAp
 }
 
 func (impl *CdPipelineConfigServiceImpl) GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, offset int, size int, emailId string, checkAuthBatch func(emailId string, appObject []string, envObject []string) (map[string]bool, map[string]bool), ctx context.Context) (*cluster.ResourceGroupingResponse, error) {
+	impl.logger.Infow("GetEnvironmentListForAutocompleteFilter request start", "envName", envName, "clusterIds", clusterIds, "offset", offset, "size", size)
 	result := &cluster.ResourceGroupingResponse{}
 	var models []*repository2.Environment
 	var beans []cluster.EnvironmentBean
@@ -1420,6 +1421,7 @@ func (impl *CdPipelineConfigServiceImpl) GetEnvironmentListForAutocompleteFilter
 	} else {
 		models, err = impl.environmentRepository.FindAllActiveWithFilter()
 	}
+	impl.logger.Infow("GetEnvironmentListForAutocompleteFilter env models fetched from db", "models", models, "err", err)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching environment", "err", err)
 		return result, err
@@ -1428,6 +1430,7 @@ func (impl *CdPipelineConfigServiceImpl) GetEnvironmentListForAutocompleteFilter
 	for _, model := range models {
 		envIds = append(envIds, model.Id)
 	}
+	impl.logger.Infow("GetEnvironmentListForAutocompleteFilter env ids computed", "envIds", envIds)
 	if len(envIds) == 0 {
 		err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no matching environment found"}
 		return nil, err
@@ -1435,6 +1438,8 @@ func (impl *CdPipelineConfigServiceImpl) GetEnvironmentListForAutocompleteFilter
 	_, span := otel.Tracer("orchestrator").Start(ctx, "pipelineBuilder.FindActiveByEnvIds")
 	cdPipelines, err := impl.pipelineRepository.FindActiveByEnvIds(envIds)
 	span.End()
+	impl.logger.Infow("GetEnvironmentListForAutocompleteFilter pipelines fetched from db", "pipelines", cdPipelines, "err", err)
+
 	if err != nil && err != pg.ErrNoRows {
 		return result, err
 	}
@@ -1442,6 +1447,7 @@ func (impl *CdPipelineConfigServiceImpl) GetEnvironmentListForAutocompleteFilter
 	for _, pipeline := range cdPipelines {
 		pipelineIds = append(pipelineIds, pipeline.Id)
 	}
+	impl.logger.Infow("GetEnvironmentListForAutocompleteFilter pipelineIds computed", "pipelineIds", pipelineIds)
 	if len(pipelineIds) == 0 {
 		err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no matching pipeline found"}
 		return nil, err
@@ -1451,27 +1457,41 @@ func (impl *CdPipelineConfigServiceImpl) GetEnvironmentListForAutocompleteFilter
 	var envObjectArr []string
 	_, span = otel.Tracer("orchestrator").Start(ctx, "pipelineBuilder.GetAppAndEnvObjectByPipelineIds")
 	objects := impl.enforcerUtil.GetAppAndEnvObjectByPipelineIds(pipelineIds)
+	impl.logger.Infow("GetEnvironmentListForAutocompleteFilter rbac objects fetched", "objects", objects)
 	span.End()
 	pipelineIds = []int{}
 	for _, object := range objects {
 		appObjectArr = append(appObjectArr, object[0])
 		envObjectArr = append(envObjectArr, object[1])
 	}
+	impl.logger.Infow("GetEnvironmentListForAutocompleteFilter app and env objects computed", "appObjectArr", appObjectArr, "envObjectArr", envObjectArr)
+
 	_, span = otel.Tracer("orchestrator").Start(ctx, "pipelineBuilder.checkAuthBatch")
 	appResults, envResults := checkAuthBatch(emailId, appObjectArr, envObjectArr)
 	span.End()
 	//authorization block ends here
+	impl.logger.Infow("GetEnvironmentListForAutocompleteFilter rbac results computed", "appResults", appResults, "envResults", envResults)
 
 	pipelinesMap := make(map[int][]*pipelineConfig.Pipeline)
-	for _, pipeline := range cdPipelines {
+	for i, pipeline := range cdPipelines {
 		appObject := objects[pipeline.Id][0]
 		envObject := objects[pipeline.Id][1]
+		impl.logger.Infow("GetEnvironmentListForAutocompleteFilter cdPipeline rbac results iteration",
+			"appObject", appObject, "envObject", envObject, "it", i)
+
 		if !(appResults[appObject] && envResults[envObject]) {
 			//if user unauthorized, skip items
+			impl.logger.Infow("GetEnvironmentListForAutocompleteFilter cdPipeline rbac result iteration unauthorized",
+				"appResults[appObject]", appResults[appObject], "envResults[envObject]", envResults[envObject], "i", i)
 			continue
+		} else {
+			impl.logger.Infow("GetEnvironmentListForAutocompleteFilter cdPipeline rbac result iteration authorized",
+				"appResults[appObject]", appResults[appObject], "envResults[envObject]", envResults[envObject], "i", i)
 		}
 		pipelinesMap[pipeline.EnvironmentId] = append(pipelinesMap[pipeline.EnvironmentId], pipeline)
 	}
+	impl.logger.Infow("GetEnvironmentListForAutocompleteFilter pipelines after rbac computed", "pipelinesMap", pipelinesMap)
+
 	for _, model := range models {
 		environment := cluster.EnvironmentBean{
 			Id:                    model.Id,
@@ -1486,12 +1506,14 @@ func (impl *CdPipelineConfigServiceImpl) GetEnvironmentListForAutocompleteFilter
 		//authorization block starts here
 		appCount := 0
 		envPipelines := pipelinesMap[model.Id]
+		impl.logger.Infow("GetEnvironmentListForAutocompleteFilter pipelines appCount check", "pipelinesMap[model.Id]", pipelinesMap[model.Id])
 		if _, ok := pipelinesMap[model.Id]; ok {
 			appCount = len(envPipelines)
 		}
 		environment.AppCount = appCount
 		beans = append(beans, environment)
 	}
+	impl.logger.Infow("GetEnvironmentListForAutocompleteFilter pipelines appCount updated", "beans", beans)
 
 	envCount := len(beans)
 	// Apply pagination
