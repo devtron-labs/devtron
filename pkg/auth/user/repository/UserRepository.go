@@ -57,7 +57,7 @@ func NewUserRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *User
 }
 
 type UserModel struct {
-	TableName   struct{}   `sql:"users"`
+	TableName   struct{}   `sql:"users" pg:",discard_unknown_columns"`
 	Id          int32      `sql:"id,pk"`
 	EmailId     string     `sql:"email_id,notnull"`
 	AccessToken string     `sql:"access_token"`
