@@ -759,6 +759,9 @@ func (impl *InfraConfigServiceImpl) GetIdentifierList(listFilter *IdentifierList
 		}
 	}
 
+	if len(identifiers) == 0 {
+		identifiers = []*Identifier{}
+	}
 	identifierListResponse.Identifiers = identifiers
 	identifierListResponse.TotalIdentifierCount = totalIdentifiersCount
 	identifierListResponse.OverriddenIdentifierCount = overriddenIdentifiersCount
@@ -773,7 +776,14 @@ func (impl *InfraConfigServiceImpl) ApplyProfileToIdentifiers(userId int32, appl
 	if applyIdentifiersRequest.IdentifiersFilter != nil && applyIdentifiersRequest.Identifiers != nil {
 		return errors.New("invalid apply request")
 	}
-
+	exists, err := impl.infraProfileRepo.CheckProfileExistsById(applyIdentifiersRequest.UpdateToProfile)
+	if err != nil {
+		impl.logger.Errorw("error in checking profile exists ", "profileId", applyIdentifiersRequest.UpdateToProfile, "error", err)
+		return err
+	}
+	if !exists {
+		return errors.New("cannot apply profile that does not exists")
+	}
 	searchableKeyNameIdMap := impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap()
 
 	identifierIdNameMap := make(map[int]string)

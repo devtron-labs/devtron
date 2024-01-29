@@ -25,7 +25,7 @@ type InfraConfigRepository interface {
 	// GetProfileListByIds returns the list of profiles for the given profileIds
 	// includeDefault is used to explicitly include the default profile in the list
 	GetProfileListByIds(profileIds []int, includeDefault bool) ([]*InfraProfile, error)
-
+	CheckProfileExistsById(profileId int) (bool, error)
 	GetConfigurationsByProfileName(profileName string) ([]*InfraProfileConfiguration, error)
 	GetConfigurationsByProfileId(profileIds []int) ([]*InfraProfileConfiguration, error)
 	GetConfigurationsByScope(scope Scope, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) ([]*InfraProfileConfiguration, error)
@@ -83,6 +83,13 @@ func (impl *InfraConfigRepositoryImpl) GetProfileByName(name string) (*InfraProf
 		Where("active = ?", true).
 		Select()
 	return infraProfile, err
+}
+
+func (impl *InfraConfigRepositoryImpl) CheckProfileExistsById(profileId int) (bool, error) {
+	return impl.dbConnection.Model(&InfraProfile{}).
+		Where("id = ?", profileId).
+		Where("active = ?", true).
+		Exists()
 }
 
 func (impl *InfraConfigRepositoryImpl) GetProfileList(profileNameLike string) ([]*InfraProfile, error) {
