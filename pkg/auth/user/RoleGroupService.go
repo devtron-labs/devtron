@@ -639,7 +639,7 @@ func (impl RoleGroupServiceImpl) FetchRoleGroups() (*bean.RoleGroupListingRespon
 
 // FetchRoleGroupsWithFilters takes filters args as input and outputs RoleGroupListingResponse based on the request filters.
 func (impl RoleGroupServiceImpl) FetchRoleGroupsWithFilters(sortOrder string, sortBy string, offset int, totalSize int, showAll bool, searchKey string) (*bean.RoleGroupListingResponse, error) {
-	// getting request from filter args
+	// default values will be used if not provided
 	request := impl.getRequestWithFiltersArgs(sortOrder, sortBy, offset, totalSize, showAll, searchKey)
 	if request.ShowAll {
 		return impl.FetchRoleGroups()

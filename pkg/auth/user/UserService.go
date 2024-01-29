@@ -951,7 +951,7 @@ func (impl *UserServiceImpl) GetAll() ([]bean.UserInfo, error) {
 
 // GetAllWithFilters takes filter arguments gives UserListingResponse as output with some operations like filter, sorting, searching,pagination support inbuilt
 func (impl UserServiceImpl) GetAllWithFilters(sortOrder string, sortBy string, offset int, totalSize int, showAll bool, searchKey string) (*bean.UserListingResponse, error) {
-	// get req from arguments
+	//  default values will be used if not provided
 	request := impl.getRequestWithFiltersArgsOrDefault(sortOrder, sortBy, offset, totalSize, showAll, searchKey)
 	if request.ShowAll {
 		return impl.getAllDetailedUsers()
