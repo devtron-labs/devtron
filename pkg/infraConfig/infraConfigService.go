@@ -14,7 +14,6 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
-	"k8s.io/utils/pointer"
 	"sort"
 	"strings"
 	"time"
@@ -810,7 +809,7 @@ func (impl *InfraConfigServiceImpl) ApplyProfileToIdentifiers(userId int32, appl
 			identifierIdNameMap[identifier.Id] = identifier.Name
 		}
 		// set identifierIds in the filter
-		applyIdentifiersRequest.Identifiers = identifierIds
+		applyIdentifiersRequest.IdentifierIds = identifierIds
 
 	} else {
 		// apply profile for those identifiers those are provided in the applyIdentifiersRequest.Identifiers by the user
@@ -818,26 +817,16 @@ func (impl *InfraConfigServiceImpl) ApplyProfileToIdentifiers(userId int32, appl
 		// get all the apps with the given identifiers, getting apps because the current supported identifier type is only apps.
 		// may need to fetch respective identifier objects in future
 
-		identifierPtrIds := util.Transform(applyIdentifiersRequest.Identifiers, func(identifierId int) *int {
-			return pointer.Int(identifierId)
-		})
-
 		// here we are fetching only the active identifiers list, if user provided identifiers have any inactive at the time of this computation
 		// ignore applying profile for those inactive identifiers
-		activeIdentifiers := make([]int, 0, len(identifierPtrIds))
-		identifiersList, err := impl.appRepository.FindByIds(identifierPtrIds)
+		ActiveIdentifierIds, err := impl.appRepository.FindIdsByNames(applyIdentifiersRequest.Identifiers)
 		if err != nil {
 			impl.logger.Errorw("error in fetching apps using ids", "appIds", applyIdentifiersRequest.Identifiers, "error", err)
 			return err
 		}
 
-		for _, identifier := range identifiersList {
-			activeIdentifiers = append(activeIdentifiers, identifier.Id)
-			identifierIdNameMap[identifier.Id] = identifier.AppName
-		}
-
-		// reset the identifiers in the applyProfileRequest with active identifiers for further processing
-		applyIdentifiersRequest.Identifiers = activeIdentifiers
+		// reset the identifierIds in the applyProfileRequest with active identifiers for further processing
+		applyIdentifiersRequest.IdentifierIds = ActiveIdentifierIds
 	}
 
 	// fetch default profile
@@ -859,7 +848,7 @@ func (impl *InfraConfigServiceImpl) applyProfile(userId int32, applyIdentifiersR
 	defer impl.infraProfileRepo.RollbackTx(tx)
 
 	// mark the old profile identifier mappings inactive as they will be overridden by the new profile
-	err = impl.infraProfileRepo.DeleteProfileIdentifierMappingsByIds(tx, userId, applyIdentifiersRequest.Identifiers, APPLICATION, searchableKeyNameIdMap)
+	err = impl.infraProfileRepo.DeleteProfileIdentifierMappingsByIds(tx, userId, applyIdentifiersRequest.IdentifierIds, APPLICATION, searchableKeyNameIdMap)
 	if err != nil {
 		impl.logger.Errorw("error in deleting profile identifier mappings", "applyIdentifiersRequest", applyIdentifiersRequest, "error", err)
 		return err
@@ -868,7 +857,7 @@ func (impl *InfraConfigServiceImpl) applyProfile(userId int32, applyIdentifiersR
 	// don't store qualifier mappings for default profile
 	if applyIdentifiersRequest.UpdateToProfile != defaultProfileId {
 		qualifierMappings := make([]*resourceQualifiers.QualifierMapping, 0, len(applyIdentifiersRequest.Identifiers))
-		for _, identifierId := range applyIdentifiersRequest.Identifiers {
+		for _, identifierId := range applyIdentifiersRequest.IdentifierIds {
 			qualifierMapping := &resourceQualifiers.QualifierMapping{
 				ResourceId:            applyIdentifiersRequest.UpdateToProfile,
 				ResourceType:          resourceQualifiers.InfraProfile,

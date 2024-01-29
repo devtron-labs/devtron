@@ -146,8 +146,10 @@ type IdentifierProfileResponse struct {
 
 type InfraProfileApplyRequest struct {
 	IdentifiersFilter *IdentifierListFilter `json:"identifiersFilter"`
-	Identifiers       []int                 `json:"identifiers"`
+	Identifiers       []string              `json:"identifiers"`
 	UpdateToProfile   int                   `json:"updateToProfile"`
+	// internal use only
+	IdentifierIds []int `json:"-"`
 }
 
 type Scope struct {
