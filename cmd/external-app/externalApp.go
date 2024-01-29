@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/devtron-labs/devtron/api/util"
 	"net/http"
 	"os"
 
@@ -16,14 +15,14 @@ import (
 )
 
 type App struct {
-	db                        *pg.DB
-	sessionManager            *authMiddleware.SessionManager
-	MuxRouter                 *MuxRouter
-	Logger                    *zap.SugaredLogger
-	server                    *http.Server
-	telemetry                 telemetry.TelemetryEventClient
-	posthogClient             *telemetry.PosthogClient
-	userStatusCheckMiddleware util.UserStatusCheckMiddleware
+	db             *pg.DB
+	sessionManager *authMiddleware.SessionManager
+	MuxRouter      *MuxRouter
+	Logger         *zap.SugaredLogger
+	server         *http.Server
+	telemetry      telemetry.TelemetryEventClient
+	posthogClient  *telemetry.PosthogClient
+	userService    user.UserService
 }
 
 func NewApp(db *pg.DB,
@@ -32,15 +31,15 @@ func NewApp(db *pg.DB,
 	telemetry telemetry.TelemetryEventClient,
 	posthogClient *telemetry.PosthogClient,
 	Logger *zap.SugaredLogger,
-	userStatusCheckMiddleware util.UserStatusCheckMiddleware) *App {
+	userService user.UserService) *App {
 	return &App{
-		db:                        db,
-		sessionManager:            sessionManager,
-		MuxRouter:                 MuxRouter,
-		Logger:                    Logger,
-		telemetry:                 telemetry,
-		posthogClient:             posthogClient,
-		userStatusCheckMiddleware: userStatusCheckMiddleware,
+		db:             db,
+		sessionManager: sessionManager,
+		MuxRouter:      MuxRouter,
+		Logger:         Logger,
+		telemetry:      telemetry,
+		posthogClient:  posthogClient,
+		userService:    userService,
 	}
 }
 func (app *App) Start() {

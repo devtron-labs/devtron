@@ -88,6 +88,7 @@ type UserService interface {
 	GetFieldValuesFromToken(token string) ([]byte, error)
 	BulkUpdateStatusForUsers(request *bean.BulkStatusUpdateRequest) (*bean.ActionResponse, error)
 	GetUserWithTimeoutWindowConfiguration(emailId string) (int32, bool, error)
+	UserStatusCheckInDb(token string) (bool, int32, error)
 }
 
 type UserServiceImpl struct {
@@ -2389,4 +2390,18 @@ func (impl UserServiceImpl) parseExpressionToTime(expression string) (time.Time,
 		return parsedTime, err
 	}
 	return parsedTime, err
+}
+
+func (impl UserServiceImpl) UserStatusCheckInDb(token string) (bool, int32, error) {
+	emailId, _, err := impl.GetEmailAndGroupClaimsFromToken(token)
+	if err != nil {
+		impl.logger.Error("unable to fetch user by token")
+		return false, 0, err
+	}
+	userId, isInactive, err := impl.GetUserWithTimeoutWindowConfiguration(emailId)
+	if err != nil {
+		impl.logger.Errorw("unable to fetch user by email, %s", emailId)
+		return isInactive, userId, err
+	}
+	return isInactive, userId, nil
 }

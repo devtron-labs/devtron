@@ -474,6 +474,23 @@ func (impl UserAuthServiceImpl) AuthVerification(r *http.Request) (bool, error) 
 		return false, err
 	}
 
+	isInactive, _, err := impl.userService.UserStatusCheckInDb(token)
+	if err != nil {
+		err := &util.ApiError{
+			HttpStatusCode:  http.StatusUnauthorized,
+			InternalMessage: "invalid user",
+			UserMessage:     fmt.Sprintf("invalid user: %s", token),
+		}
+		return false, err
+	} else if isInactive {
+		err := &util.ApiError{
+			HttpStatusCode:  http.StatusUnauthorized,
+			InternalMessage: "inactive user",
+			UserMessage:     "inactive user",
+		}
+		return false, err
+	}
+
 	//TODO - extends for other purpose
 	return true, nil
 }
