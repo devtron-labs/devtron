@@ -9,7 +9,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/util"
 	repository5 "github.com/devtron-labs/devtron/pkg/appStore/chartGroup/repository"
-	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
 	repository4 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/values/service"
@@ -40,7 +39,6 @@ func TestInstalledAppServiceImpl_DeployDefaultChartOnCluster(t *testing.T) {
 		gitOpsRepository                     repository3.GitOpsConfigRepository
 		userService                          user.UserService
 		appStoreDeploymentService            AppStoreDeploymentService
-		appStoreDeploymentFullModeService    appStoreDeploymentFullMode.AppStoreDeploymentFullModeService
 	}
 	type args struct {
 		bean   *cluster.ClusterBean
@@ -71,10 +69,8 @@ func TestInstalledAppServiceImpl_DeployDefaultChartOnCluster(t *testing.T) {
 				chartGroupDeploymentRepository:       tt.fields.chartGroupDeploymentRepository,
 				envService:                           tt.fields.envService,
 				aCDAuthConfig:                        tt.fields.aCDAuthConfig,
-				gitOpsRepository:                     tt.fields.gitOpsRepository,
 				userService:                          tt.fields.userService,
 				appStoreDeploymentService:            tt.fields.appStoreDeploymentService,
-				appStoreDeploymentFullModeService:    tt.fields.appStoreDeploymentFullModeService,
 			}
 			got, err := impl.DeployDefaultChartOnCluster(tt.args.bean, tt.args.userId)
 			if (err != nil) != tt.wantErr {
