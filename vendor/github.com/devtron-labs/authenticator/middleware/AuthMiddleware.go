@@ -18,6 +18,7 @@
 package middleware
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	log "github.com/sirupsen/logrus"
@@ -30,7 +31,7 @@ const tokenHeaderKey = "token"
 const argocdTokenHeaderKey = "argocd.token"
 
 // Authorizer is a middleware for authorization
-func Authorizer(sessionManager *SessionManager, whitelistChecker func(url string) bool, userStatusCheckInDb func(token string) (bool, int32)) func(next http.Handler) http.Handler {
+func Authorizer(sessionManager *SessionManager, whitelistChecker func(url string) bool, userStatusCheckInDb func(token string) (bool, int32, error)) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {
 			token := ""
@@ -68,10 +69,18 @@ func Authorizer(sessionManager *SessionManager, whitelistChecker func(url string
 				pass = true
 				//TODO - we also can set user info in session (to avoid fetch it for all create n active)
 
-				isInactive, userId := userStatusCheckInDb(token)
+				isInactive, userId, err := userStatusCheckInDb(token)
 				log.Print("auth middleware : check user status in db")
 				log.Print(isInactive)
 				log.Print(userId)
+				if err != nil {
+					writeResponse(http.StatusNotAcceptable, "Not Acceptable", w, err)
+					return
+				} else if isInactive {
+					writeResponse(http.StatusUnauthorized, "UN-AUTHENTICATED", w, fmt.Errorf("unauthenticated"))
+					return
+				}
+				context.WithValue(r.Context(), "userId", userId)
 			}
 			if pass {
 				next.ServeHTTP(w, r)
