@@ -14,6 +14,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 	"strconv"
+	"strings"
 )
 
 var ArgoWorkflowOwnerRef = v1.OwnerReference{APIVersion: "argoproj.io/v1alpha1", Kind: "Workflow", Name: "{{workflow.name}}", UID: "{{workflow.uid}}", BlockOwnerDeletion: &[]bool{true}[0]}
@@ -236,6 +237,16 @@ func CheckIfReTriggerRequired(status, message, workflowRunnerStatus string) bool
 	return ((status == string(v1alpha1.NodeError) || status == string(v1alpha1.NodeFailed)) &&
 		message == POD_DELETED_MESSAGE) && workflowRunnerStatus != WorkflowCancel
 
+}
+
+func AreKnowsErrors(err error) bool {
+	if strings.Contains(err.Error(), "Kubernetes cluster unreachable") || strings.Contains(err.Error(), "ensure CRDs are installed first") ||
+		(strings.Contains(err.Error(), "namespaces") && strings.Contains(err.Error(), "not found")) ||
+		strings.Contains(err.Error(), "got array expected string") || strings.Contains(err.Error(), "Invalid value") ||
+		strings.Contains(err.Error(), "another operation (install/upgrade/rollback) is in progress") {
+		return true
+	}
+	return false
 }
 
 const WorkflowCancel = "CANCELLED"

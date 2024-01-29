@@ -22,6 +22,8 @@ import (
 	"encoding/json"
 	errors3 "errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
+	"net/http"
 	"path"
 	"strconv"
 	"strings"
@@ -3731,6 +3733,9 @@ func (impl *WorkflowDagExecutorImpl) createHelmAppForCdPipeline(overrideRequest 
 			// For cases where helm release was not found, kubelink will install the same configuration
 			updateApplicationResponse, err := impl.helmAppClient.UpdateApplication(ctx, req)
 			if err != nil {
+				if executors.AreKnowsErrors(err) {
+					return false, &util.ApiError{HttpStatusCode: http.StatusOK, Code: "200", InternalMessage: err.Error(), UserMessage: err.Error()}
+				}
 				impl.logger.Errorw("error in updating helm application for cd pipeline", "err", err)
 				if util.GetGRPCErrorDetailedMessage(err) == context.Canceled.Error() {
 					err = errors.New(pipelineConfig.NEW_DEPLOYMENT_INITIATED)
@@ -3743,7 +3748,9 @@ func (impl *WorkflowDagExecutorImpl) createHelmAppForCdPipeline(overrideRequest 
 		} else {
 
 			helmResponse, err := impl.helmInstallReleaseWithCustomChart(ctx, releaseIdentifier, referenceChartByte, mergeAndSave)
-
+			if executors.AreKnowsErrors(err) {
+				return false, &util.ApiError{HttpStatusCode: http.StatusOK, Code: "200", InternalMessage: err.Error(), UserMessage: err.Error()}
+			}
 			// For connection related errors, no need to update the db
 			if err != nil && strings.Contains(err.Error(), "connection error") {
 				impl.logger.Errorw("error in helm install custom chart", "err", err)
