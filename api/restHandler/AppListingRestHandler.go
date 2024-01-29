@@ -23,6 +23,8 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/resource"
 	"net/http"
 	"strconv"
 	"strings"
@@ -45,8 +47,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/appStatus"
-	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
-	service1 "github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/cluster"
@@ -106,7 +107,8 @@ type AppListingRestHandlerImpl struct {
 	helmAppService                    client.HelmAppService
 	argoUserService                   argo.ArgoUserService
 	k8sCommonService                  k8s.K8sCommonService
-	installedAppService               service1.InstalledAppService
+	installedAppService               FullMode.InstalledAppDBExtendedService
+	installedAppResourceService       resource.InstalledAppResourceService
 	cdApplicationStatusUpdateHandler  cron.CdApplicationStatusUpdateHandler
 	pipelineRepository                pipelineConfig.PipelineRepository
 	appStatusService                  appStatus.AppStatusService
@@ -140,7 +142,9 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 	logger *zap.SugaredLogger, enforcerUtil rbac.EnforcerUtil,
 	deploymentGroupService deploymentGroup.DeploymentGroupService, userService user.UserService,
 	helmAppClient gRPC.HelmAppClient, clusterService cluster.ClusterService, helmAppService client.HelmAppService,
-	argoUserService argo.ArgoUserService, k8sCommonService k8s.K8sCommonService, installedAppService service1.InstalledAppService,
+	argoUserService argo.ArgoUserService, k8sCommonService k8s.K8sCommonService,
+	installedAppService FullMode.InstalledAppDBExtendedService,
+	installedAppResourceService resource.InstalledAppResourceService,
 	cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	appStatusService appStatus.AppStatusService, installedAppRepository repository.InstalledAppRepository,
@@ -171,6 +175,7 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 		argoUserService:                   argoUserService,
 		k8sCommonService:                  k8sCommonService,
 		installedAppService:               installedAppService,
+		installedAppResourceService:       installedAppResourceService,
 		cdApplicationStatusUpdateHandler:  cdApplicationStatusUpdateHandler,
 		pipelineRepository:                pipelineRepository,
 		appStatusService:                  appStatusService,
@@ -1349,7 +1354,7 @@ func (handler AppListingRestHandlerImpl) RedirectToLinkouts(w http.ResponseWrite
 func (handler AppListingRestHandlerImpl) fetchResourceTreeFromInstallAppService(w http.ResponseWriter, r *http.Request, resourceTreeAndNotesContainer bean.AppDetailsContainer, installedApps repository.InstalledApps) (bean.AppDetailsContainer, error) {
 	rctx := r.Context()
 	cn, _ := w.(http.CloseNotifier)
-	err := handler.installedAppService.FetchResourceTree(rctx, cn, &resourceTreeAndNotesContainer, installedApps, "", "")
+	err := handler.installedAppResourceService.FetchResourceTree(rctx, cn, &resourceTreeAndNotesContainer, installedApps, "", "")
 	return resourceTreeAndNotesContainer, err
 }
 func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWriter, r *http.Request) {

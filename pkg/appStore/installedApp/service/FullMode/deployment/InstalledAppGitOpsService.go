@@ -1,4 +1,4 @@
-package appStoreDeploymentTool
+package deployment
 
 import (
 	"errors"
@@ -7,9 +7,9 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
-	"github.com/devtron-labs/devtron/pkg/appStore/deployment/adapter"
-	"github.com/devtron-labs/devtron/pkg/appStore/deployment/tool/bean"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/adapter"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/bean"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/google/go-github/github"
@@ -18,9 +18,27 @@ import (
 	"net/http"
 	"path"
 	"regexp"
+	"time"
 )
 
-func (impl AppStoreDeploymentArgoCdServiceImpl) ParseGitRepoErrorResponse(err error) (bool, error) {
+type InstalledAppGitOpsService interface {
+	// CommitValues will commit git.ChartConfig and returns commitHash
+	CommitValues(chartGitAttr *git.ChartConfig) (commitHash string, commitTime time.Time, err error)
+	// ParseGitRepoErrorResponse will return noTargetFound (if git API returns 404 status)
+	ParseGitRepoErrorResponse(err error) (bool, error)
+	// GitOpsOperations performs git operations specific to helm app deployments
+	GitOpsOperations(manifestResponse *bean.AppStoreManifestResponse, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*bean.AppStoreGitOpsResponse, error)
+	// GenerateManifest returns bean.AppStoreManifestResponse required in GitOps
+	GenerateManifest(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (manifestResponse *bean.AppStoreManifestResponse, err error)
+	// GenerateManifestAndPerformGitOperations is a wrapper function for both GenerateManifest and GitOpsOperations
+	GenerateManifestAndPerformGitOperations(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*bean.AppStoreGitOpsResponse, error)
+}
+
+func (impl *FullModeDeploymentServiceImpl) CommitValues(chartGitAttr *git.ChartConfig) (commitHash string, commitTime time.Time, err error) {
+	return impl.gitOperationService.CommitValues(chartGitAttr)
+}
+
+func (impl *FullModeDeploymentServiceImpl) ParseGitRepoErrorResponse(err error) (bool, error) {
 	//update values yaml in chart
 	noTargetFound := false
 	if err != nil {
@@ -48,7 +66,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) ParseGitRepoErrorResponse(err er
 	return noTargetFound, err
 }
 
-func (impl AppStoreDeploymentArgoCdServiceImpl) GenerateManifestAndPerformGitOperations(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*bean.AppStoreGitOpsResponse, error) {
+func (impl *FullModeDeploymentServiceImpl) GenerateManifestAndPerformGitOperations(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*bean.AppStoreGitOpsResponse, error) {
 	appStoreGitOpsResponse := &bean.AppStoreGitOpsResponse{}
 	manifest, err := impl.GenerateManifest(installAppVersionRequest)
 	if err != nil {
@@ -66,7 +84,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) GenerateManifestAndPerformGitOpe
 }
 
 // GitOpsOperations handles all git operations for Helm App
-func (impl AppStoreDeploymentArgoCdServiceImpl) GitOpsOperations(manifestResponse *bean.AppStoreManifestResponse, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*bean.AppStoreGitOpsResponse, error) {
+func (impl *FullModeDeploymentServiceImpl) GitOpsOperations(manifestResponse *bean.AppStoreManifestResponse, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*bean.AppStoreGitOpsResponse, error) {
 	appStoreGitOpsResponse := &bean.AppStoreGitOpsResponse{}
 	chartGitAttribute, isNew, githash, err := impl.createGitOpsRepoAndPushChart(installAppVersionRequest, manifestResponse.ChartResponse.BuiltChartPath, manifestResponse.RequirementsConfig, manifestResponse.ValuesConfig)
 	if err != nil {
@@ -90,7 +108,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) GitOpsOperations(manifestRespons
 	return appStoreGitOpsResponse, nil
 }
 
-func (impl AppStoreDeploymentArgoCdServiceImpl) GenerateManifest(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (manifestResponse *bean.AppStoreManifestResponse, err error) {
+func (impl *FullModeDeploymentServiceImpl) GenerateManifest(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (manifestResponse *bean.AppStoreManifestResponse, err error) {
 
 	manifestResponse = &bean.AppStoreManifestResponse{}
 
@@ -113,7 +131,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) GenerateManifest(installAppVersi
 }
 
 // createGitOpsRepoAndPushChart is a wrapper for creating GitOps repo and pushing chart to created repo
-func (impl AppStoreDeploymentArgoCdServiceImpl) createGitOpsRepoAndPushChart(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, builtChartPath string, requirementsConfig *git.ChartConfig, valuesConfig *git.ChartConfig) (*commonBean.ChartGitAttribute, bool, string, error) {
+func (impl *FullModeDeploymentServiceImpl) createGitOpsRepoAndPushChart(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, builtChartPath string, requirementsConfig *git.ChartConfig, valuesConfig *git.ChartConfig) (*commonBean.ChartGitAttribute, bool, string, error) {
 	repoURL, isNew, err := impl.createGitOpsRepo(installAppVersionRequest)
 	if err != nil {
 		impl.Logger.Errorw("Error in creating gitops repo for ", "appName", installAppVersionRequest.AppName, "err", err)
@@ -129,7 +147,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) createGitOpsRepoAndPushChart(ins
 }
 
 // createGitOpsRepo creates a gitOps repo with readme
-func (impl AppStoreDeploymentArgoCdServiceImpl) createGitOpsRepo(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (string, bool, error) {
+func (impl *FullModeDeploymentServiceImpl) createGitOpsRepo(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (string, bool, error) {
 	if len(installAppVersionRequest.GitOpsRepoName) == 0 {
 		//here gitops repo will be the app name, to breaking the mono repo structure
 		gitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoName(installAppVersionRequest.AppName)
@@ -155,7 +173,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) createGitOpsRepo(installAppVersi
 	return repoUrl, isNew, err
 }
 
-func (impl AppStoreDeploymentArgoCdServiceImpl) updateValuesYamlInGit(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error) {
+func (impl *FullModeDeploymentServiceImpl) updateValuesYamlInGit(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error) {
 	valuesString, err := impl.appStoreDeploymentCommonService.GetValuesString(installAppVersionRequest.AppStoreName, installAppVersionRequest.ValuesOverrideYaml)
 	if err != nil {
 		impl.Logger.Errorw("error in getting values string", "err", err)
@@ -177,7 +195,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) updateValuesYamlInGit(installApp
 	return installAppVersionRequest, nil
 }
 
-func (impl AppStoreDeploymentArgoCdServiceImpl) updateRequirementYamlInGit(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, appStoreAppVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) error {
+func (impl *FullModeDeploymentServiceImpl) updateRequirementYamlInGit(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, appStoreAppVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) error {
 	requirementsString, err := impl.appStoreDeploymentCommonService.GetRequirementsString(appStoreAppVersion.Id)
 	if err != nil {
 		impl.Logger.Errorw("error in getting requirements string", "err", err)
@@ -200,7 +218,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) updateRequirementYamlInGit(insta
 }
 
 // createChartProxyAndGetPath parse chart in local directory and returns path of local dir and values.yaml
-func (impl AppStoreDeploymentArgoCdServiceImpl) createChartProxyAndGetPath(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*util.ChartCreateResponse, error) {
+func (impl *FullModeDeploymentServiceImpl) createChartProxyAndGetPath(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*util.ChartCreateResponse, error) {
 	template := appStoreBean.CHART_PROXY_TEMPLATE
 	chartPath := path.Join(appStoreBean.RefChartProxyDirPath, template)
 	chartCreateRequest := adapter.ParseChartCreateRequest(installAppVersionRequest, chartPath)
@@ -214,7 +232,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) createChartProxyAndGetPath(insta
 }
 
 // getGitCommitConfig will return util.ChartConfig (git commit config) for GitOps
-func (impl AppStoreDeploymentArgoCdServiceImpl) getGitCommitConfig(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, fileString string, filename string) (*git.ChartConfig, error) {
+func (impl *FullModeDeploymentServiceImpl) getGitCommitConfig(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, fileString string, filename string) (*git.ChartConfig, error) {
 	appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)
 	if err != nil {
 		impl.Logger.Errorw("fetching error", "err", err)
@@ -243,7 +261,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) getGitCommitConfig(installAppVer
 }
 
 // getValuesAndRequirementForGitConfig will return chart values(*util.ChartConfig) and requirements(*util.ChartConfig) for git commit
-func (impl AppStoreDeploymentArgoCdServiceImpl) getValuesAndRequirementForGitConfig(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*git.ChartConfig, *git.ChartConfig, error) {
+func (impl *FullModeDeploymentServiceImpl) getValuesAndRequirementForGitConfig(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*git.ChartConfig, *git.ChartConfig, error) {
 	appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)
 	if err != nil {
 		impl.Logger.Errorw("fetching error", "err", err)

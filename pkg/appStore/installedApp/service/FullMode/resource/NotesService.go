@@ -1,4 +1,4 @@
-package service
+package resource
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	"regexp"
 )
 
-func (impl *InstalledAppServiceImpl) FetchChartNotes(installedAppId int, envId int, token string, checkNotesAuth func(token string, appName string, envId int) bool) (string, error) {
+func (impl *InstalledAppResourceServiceImpl) FetchChartNotes(installedAppId int, envId int, token string, checkNotesAuth func(token string, appName string, envId int) bool) (string, error) {
 	//check notes.txt in db
 	installedApp, err := impl.installedAppRepository.FetchNotes(installedAppId)
 	if err != nil && err != pg.ErrNoRows {
@@ -61,7 +61,7 @@ func (impl *InstalledAppServiceImpl) FetchChartNotes(installedAppId int, envId i
 	return installedApp.Notes, nil
 }
 
-func (impl *InstalledAppServiceImpl) findNotesForArgoApplication(installedAppId, envId int) (string, string, error) {
+func (impl *InstalledAppResourceServiceImpl) findNotesForArgoApplication(installedAppId, envId int) (string, string, error) {
 	installedAppVerison, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppIdAndEnvId(installedAppId, envId)
 	if err != nil {
 		impl.logger.Errorw("error fetching installed  app version in installed app service", "err", err)
@@ -123,7 +123,7 @@ func (impl *InstalledAppServiceImpl) findNotesForArgoApplication(installedAppId,
 }
 
 // updateNotesForInstalledApp will update the notes in repository.InstalledApps table
-func (impl *InstalledAppServiceImpl) updateNotesForInstalledApp(installAppId int, notes string) (bool, error) {
+func (impl *InstalledAppResourceServiceImpl) updateNotesForInstalledApp(installAppId int, notes string) (bool, error) {
 	dbConnection := impl.installedAppRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {

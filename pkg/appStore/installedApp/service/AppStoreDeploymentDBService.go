@@ -12,7 +12,7 @@ import (
 	"net/http"
 )
 
-func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx, skipAppCreation bool) (*appStoreBean.InstallAppVersionDTO, error) {
+func (impl *AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx, skipAppCreation bool) (*appStoreBean.InstallAppVersionDTO, error) {
 
 	var isInternalUse = impl.deploymentTypeConfig.IsInternalUse
 
@@ -148,7 +148,7 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 	return installAppVersionRequest, nil
 }
 
-func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationStatusUpdate(installAppId int, status appStoreBean.AppstoreDeploymentStatus) (bool, error) {
+func (impl *AppStoreDeploymentServiceImpl) AppStoreDeployOperationStatusUpdate(installAppId int, status appStoreBean.AppstoreDeploymentStatus) (bool, error) {
 	dbConnection := impl.installedAppRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -173,36 +173,4 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationStatusUpdate(in
 		return false, err
 	}
 	return true, nil
-}
-
-func (impl AppStoreDeploymentServiceImpl) GetInstalledAppByClusterNamespaceAndName(clusterId int, namespace string, appName string) (*appStoreBean.InstallAppVersionDTO, error) {
-	installedApp, err := impl.installedAppRepository.GetInstalledApplicationByClusterIdAndNamespaceAndAppName(clusterId, namespace, appName)
-	if err != nil {
-		if err == pg.ErrNoRows {
-			impl.logger.Warnw("no installed apps found", "clusterId", clusterId)
-			return nil, nil
-		} else {
-			impl.logger.Errorw("error while fetching installed apps", "clusterId", clusterId, "error", err)
-			return nil, err
-		}
-	}
-
-	if installedApp.Id > 0 {
-		installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppIdAndEnvId(installedApp.Id, installedApp.EnvironmentId)
-		if err != nil {
-			return nil, err
-		}
-		return adapter.GenerateInstallAppVersionDTO(installedApp, installedAppVersion), nil
-	}
-
-	return nil, nil
-}
-
-func (impl AppStoreDeploymentServiceImpl) GetInstalledAppByInstalledAppId(installedAppId int) (*appStoreBean.InstallAppVersionDTO, error) {
-	installedAppVersion, err := impl.installedAppRepository.GetActiveInstalledAppVersionByInstalledAppId(installedAppId)
-	if err != nil {
-		return nil, err
-	}
-	installedApp := &installedAppVersion.InstalledApp
-	return adapter.GenerateInstallAppVersionDTO(installedApp, installedAppVersion), nil
 }
