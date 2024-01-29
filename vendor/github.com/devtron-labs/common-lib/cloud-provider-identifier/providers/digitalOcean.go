@@ -61,6 +61,7 @@ func (impl *IdentifyDigitalOcean) IdentifyViaMetadataServer(detected chan<- stri
 		}
 		if r.DropletID > 0 {
 			detected <- bean.DigitalOcean
+			return
 		}
 	} else {
 		detected <- bean.Unknown

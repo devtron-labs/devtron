@@ -314,8 +314,12 @@ func (impl ChartTemplateServiceImpl) PackageChart(tempReferenceTemplateDir strin
 		return nil, "", err
 	}
 	impl.logger.Debugw("chart archive path", "path", archivePath)
-	//chart.Values
-	valuesYaml := chart.Values.Raw
+	var valuesYaml string
+	if chart.Values != nil {
+		valuesYaml = chart.Values.Raw
+	} else {
+		impl.logger.Warnw("values.yaml not found in helm chart", "dir", tempReferenceTemplateDir)
+	}
 	return &archivePath, valuesYaml, nil
 }
 

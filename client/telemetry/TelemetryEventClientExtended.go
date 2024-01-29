@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	cloudProviderIdentifier "github.com/devtron-labs/common-lib/cloud-provider-identifier"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
+	cron3 "github.com/devtron-labs/devtron/util/cron"
 	"net/http"
 	"time"
 
@@ -62,11 +63,11 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 	chartRepository chartRepoRepository.ChartRepository, userAuditService user2.UserAuditService,
 	ciBuildConfigService pipeline.CiBuildConfigService, moduleRepository moduleRepo.ModuleRepository, serverDataStore *serverDataStore.ServerDataStore,
 	helmAppClient client.HelmAppClient, InstalledAppRepository repository2.InstalledAppRepository, userAttributesRepository repository.UserAttributesRepository,
-	cloudProviderIdentifierService cloudProviderIdentifier.ProviderIdentifierService,
+	cloudProviderIdentifierService cloudProviderIdentifier.ProviderIdentifierService,cronLogger *cron3.CronLoggerImpl,
 	gitOpsConfigReadService config.GitOpsConfigReadService) (*TelemetryEventClientImplExtended, error) {
 
 	cron := cron.New(
-		cron.WithChain())
+		cron.WithChain(cron.Recover(cronLogger)))
 	cron.Start()
 	watcher := &TelemetryEventClientImplExtended{
 		environmentService:            environmentService,
@@ -101,6 +102,7 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 			InstalledAppRepository:         InstalledAppRepository,
 			userAttributesRepository:       userAttributesRepository,
 			cloudProviderIdentifierService: cloudProviderIdentifierService,
+			telemetryConfig: TelemetryConfig{},
 		},
 	}
 
@@ -327,12 +329,11 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 	payload.HelmChartSuccessfulDeploymentCount = HelmChartSuccessfulDeploymentCount
 	payload.ExternalHelmAppClusterCount = ExternalHelmAppClusterCount
 
-	provider, err := impl.cloudProviderIdentifierService.IdentifyProvider()
+	payload.ClusterProvider, err = impl.GetCloudProvider()
 	if err != nil {
-		impl.logger.Errorw("exception while getting cluster provider", "error", err)
+		impl.logger.Errorw("error while getting cluster provider", "error", err)
 		return err
 	}
-	payload.ClusterProvider = provider
 
 	latestUser, err := impl.userAuditService.GetLatestUser()
 	if err == nil {
