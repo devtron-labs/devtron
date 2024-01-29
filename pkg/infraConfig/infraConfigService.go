@@ -700,6 +700,16 @@ func (impl *InfraConfigServiceImpl) GetIdentifierList(listFilter *IdentifierList
 	}
 
 	profiles, err := impl.infraProfileRepo.GetProfileListByIds(profileIds, true)
+	if err != nil {
+		impl.logger.Errorw("error in fetching profiles", "profileIds", profileIds, "error", err)
+		return nil, err
+	}
+
+	// override profileIds with the profiles fetched from db
+	profileIds = []int{}
+	for _, profile := range profiles {
+		profileIds = append(profileIds, profile.Id)
+	}
 	profilesMap := make(map[int]ProfileBean)
 	defaultProfileId := 0
 	for _, profile := range profiles {
@@ -741,8 +751,14 @@ func (impl *InfraConfigServiceImpl) GetIdentifierList(listFilter *IdentifierList
 	}
 
 	for _, identifier := range identifiers {
-		profile := profilesMap[identifier.ProfileId]
-		identifier.Profile = &profile
+		// if profile id is 0 or default profile id then set default profile in the identifier
+		if identifier.ProfileId == defaultProfileId || identifier.ProfileId == 0 {
+			profile := profilesMap[defaultProfileId]
+			identifier.Profile = &profile
+		} else {
+			profile := profilesMap[identifier.ProfileId]
+			identifier.Profile = &profile
+		}
 	}
 
 	identifierListResponse.Identifiers = identifiers

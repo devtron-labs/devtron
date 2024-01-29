@@ -239,20 +239,23 @@ func (handler *InfraConfigRestHandlerImpl) GetIdentifierList(w http.ResponseWrit
 		common.WriteJsonResp(w, errors.New("sort order can only be ASC or DESC"), nil, http.StatusBadRequest)
 		return
 	}
-	sizeStr := vars["size"]
-	size, err := strconv.Atoi(sizeStr)
-	if err != nil || size < 0 {
-		common.WriteJsonResp(w, errors.Wrap(err, "invalid size"), nil, http.StatusBadRequest)
-		return
+	sizeStr, ok := vars["size"]
+	size := 20
+	if ok {
+		size, err = strconv.Atoi(sizeStr)
+		if err != nil || size < 0 {
+			common.WriteJsonResp(w, errors.Wrap(err, "invalid size"), nil, http.StatusBadRequest)
+			return
+		}
 	}
-	if size == 0 {
-		size = 20
-	}
-	offsetStr := vars["offset"]
-	offset, err := strconv.Atoi(offsetStr)
-	if err != nil || offset < 0 {
-		common.WriteJsonResp(w, errors.Wrap(err, "invalid offset"), nil, http.StatusBadRequest)
-		return
+	offsetStr, ok := vars["offset"]
+	offset := 0
+	if ok {
+		offset, err = strconv.Atoi(offsetStr)
+		if err != nil || offset < 0 {
+			common.WriteJsonResp(w, errors.Wrap(err, "invalid offset"), nil, http.StatusBadRequest)
+			return
+		}
 	}
 
 	profileName := strings.ToLower(vars["profileName"])

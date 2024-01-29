@@ -12,24 +12,24 @@ import (
 type UnitSuffix int
 
 const (
-	Byte   UnitSuffix = 0
-	KiByte UnitSuffix = 1
-	MiByte UnitSuffix = 2
-	GiByte UnitSuffix = 3
-	TiByte UnitSuffix = 4
-	PiByte UnitSuffix = 5
-	EiByte UnitSuffix = 6
-	K      UnitSuffix = 7
-	M      UnitSuffix = 8
-	G      UnitSuffix = 9
-	T      UnitSuffix = 10
-	P      UnitSuffix = 11
-	E      UnitSuffix = 12
-	Core   UnitSuffix = 13
-	Milli  UnitSuffix = 14
-	Second UnitSuffix = 15
-	Minute UnitSuffix = 16
-	Hour   UnitSuffix = 17
+	Byte   UnitSuffix = 1
+	KiByte UnitSuffix = 2
+	MiByte UnitSuffix = 3
+	GiByte UnitSuffix = 4
+	TiByte UnitSuffix = 5
+	PiByte UnitSuffix = 6
+	EiByte UnitSuffix = 7
+	K      UnitSuffix = 8
+	M      UnitSuffix = 9
+	G      UnitSuffix = 10
+	T      UnitSuffix = 11
+	P      UnitSuffix = 12
+	E      UnitSuffix = 13
+	Core   UnitSuffix = 14
+	Milli  UnitSuffix = 15
+	Second UnitSuffix = 16
+	Minute UnitSuffix = 17
+	Hour   UnitSuffix = 18
 )
 
 type CPUUnitStr string
