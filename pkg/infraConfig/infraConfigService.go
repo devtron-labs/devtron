@@ -417,7 +417,7 @@ func (impl *InfraConfigServiceImpl) DeleteProfile(profileName string) error {
 		return errors.New(InvalidProfileName)
 	}
 
-	if strings.ToLower(profileName) == DEFAULT_PROFILE_NAME {
+	if profileName == DEFAULT_PROFILE_NAME {
 		return errors.New(CannotDeleteDefaultProfile)
 	}
 

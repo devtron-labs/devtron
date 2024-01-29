@@ -132,24 +132,27 @@ func (handler *InfraConfigRestHandlerImpl) GetProfile(w http.ResponseWriter, r *
 		return
 	}
 
-	defaultProfile, err := handler.infraProfileService.GetDefaultProfile(true)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
 	var profile *infraConfig.ProfileBean
-	if profileName == infraConfig.DEFAULT_PROFILE_NAME {
-		profile = defaultProfile
-	} else {
+	if profileName != infraConfig.DEFAULT_PROFILE_NAME {
 		profile, err = handler.infraProfileService.GetProfileByName(profileName)
 		if err != nil {
 			statusCode := http.StatusBadRequest
 			if errors.Is(err, pg.ErrNoRows) {
+				err = errors.New(fmt.Sprintf("profile %s not found", profileName))
 				statusCode = http.StatusNotFound
 			}
 			common.WriteJsonResp(w, err, nil, statusCode)
 			return
 		}
+	}
+
+	defaultProfile, err := handler.infraProfileService.GetDefaultProfile(false)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	if profileName == infraConfig.DEFAULT_PROFILE_NAME {
+		profile = defaultProfile
 	}
 	resp := infraConfig.ProfileResponse{
 		Profile: *profile,
@@ -228,7 +231,10 @@ func (handler *InfraConfigRestHandlerImpl) GetIdentifierList(w http.ResponseWrit
 	}
 	identifierNameLike := vars["search"]
 	sortOrder := vars["sort"]
-
+	if sortOrder == "" {
+		// set to default asc order
+		sortOrder = "ASC"
+	}
 	if !(sortOrder == "ASC" || sortOrder == "DESC") {
 		common.WriteJsonResp(w, errors.New("sort order can only be ASC or DESC"), nil, http.StatusBadRequest)
 		return

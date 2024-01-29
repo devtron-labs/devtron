@@ -311,10 +311,10 @@ func (impl *InfraConfigRepositoryImpl) GetIdentifierList(listFilter IdentifierLi
 
 }
 
-func (impl *InfraConfigRepositoryImpl) DeleteProfileIdentifierMappings(tx *pg.Tx, profileId string) error {
+func (impl *InfraConfigRepositoryImpl) DeleteProfileIdentifierMappings(tx *pg.Tx, profileName string) error {
 	_, err := tx.Model(&resourceQualifiers.QualifierMapping{}).
 		Set("active=?", false).
-		Where("resource_id=?", profileId).
+		Where("resource_id IN (SELECT id FROM infra_profile WHERE name = ? AND active = true)", profileName).
 		Where("resource_type=?", resourceQualifiers.InfraProfile).
 		Where("active=?", true).
 		Update()
