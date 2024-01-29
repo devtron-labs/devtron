@@ -18,10 +18,8 @@
 package util
 
 import (
-	"context"
 	"fmt"
 	"github.com/devtron-labs/devtron/util"
-	"io/ioutil"
 	"net/url"
 	"path/filepath"
 	"time"
@@ -31,9 +29,6 @@ import (
 	"github.com/go-pg/pg"
 	"github.com/xanzy/go-gitlab"
 	"go.uber.org/zap"
-	"gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"gopkg.in/src-d/go-git.v4/plumbing/transport/http"
 )
 
 const (
@@ -57,7 +52,6 @@ type GitClient interface {
 	GetRepoUrl(config *bean2.GitOpsConfigDto) (repoUrl string, err error)
 	DeleteRepository(config *bean2.GitOpsConfigDto) error
 	CreateReadme(config *bean2.GitOpsConfigDto) (string, error)
-	GetCommits(repoName, projectName string) ([]*GitCommitDto, error)
 }
 
 type GitFactory struct {
@@ -66,7 +60,7 @@ type GitFactory struct {
 	GitWorkingDir    string
 	logger           *zap.SugaredLogger
 	gitOpsRepository repository.GitOpsConfigRepository
-	gitCliUtil       *GitCliUtil
+	gitManager       *GitManagerImpl
 }
 
 type DetailedErrorGitOpsConfigActions struct {
@@ -93,7 +87,7 @@ func (factory *GitFactory) Reload() error {
 	if err != nil {
 		return err
 	}
-	gitService := NewGitServiceImpl(cfg, logger, factory.gitCliUtil)
+	gitService := NewGitServiceImpl(cfg, logger, factory.gitManager)
 	factory.GitService = gitService
 	client, err := NewGitOpsClient(cfg, logger, gitService, factory.gitOpsRepository)
 	if err != nil {
@@ -159,7 +153,7 @@ func (factory *GitFactory) NewClientForValidation(gitOpsConfig *bean2.GitOpsConf
 		BitbucketWorkspaceId: gitOpsConfig.BitBucketWorkspaceId,
 		BitbucketProjectKey:  gitOpsConfig.BitBucketProjectKey,
 	}
-	gitService := NewGitServiceImpl(cfg, logger, factory.gitCliUtil)
+	gitService := NewGitServiceImpl(cfg, logger, factory.gitManager)
 	//factory.GitService = GitService
 	client, err := NewGitOpsClient(cfg, logger, gitService, factory.gitOpsRepository)
 	if err != nil {
@@ -171,23 +165,24 @@ func (factory *GitFactory) NewClientForValidation(gitOpsConfig *bean2.GitOpsConf
 	return client, gitService, nil
 }
 
-func NewGitFactory(logger *zap.SugaredLogger, gitOpsRepository repository.GitOpsConfigRepository, gitCliUtil *GitCliUtil) (*GitFactory, error) {
+func NewGitFactory(logger *zap.SugaredLogger, gitOpsRepository repository.GitOpsConfigRepository, gitManager *GitManagerImpl) (*GitFactory, error) {
 	cfg, err := GetGitConfig(gitOpsRepository)
 	if err != nil {
 		return nil, err
 	}
-	gitService := NewGitServiceImpl(cfg, logger, gitCliUtil)
+	gitService := NewGitServiceImpl(cfg, logger, gitManager)
 	client, err := NewGitOpsClient(cfg, logger, gitService, gitOpsRepository)
 	if err != nil {
 		logger.Errorw("error in creating gitOps client", "err", err, "gitProvider", cfg.GitProvider)
 	}
+
 	return &GitFactory{
 		Client:           client,
 		logger:           logger,
 		GitService:       gitService,
 		gitOpsRepository: gitOpsRepository,
 		GitWorkingDir:    cfg.GitWorkingDir,
-		gitCliUtil:       gitCliUtil,
+		gitManager:       gitManager,
 	}, nil
 }
 
@@ -267,30 +262,34 @@ type ChartConfig struct {
 	UserEmailId    string
 }
 
-// -------------------- go-git integration -------------------
+// -------------------- go-git and cli integration -------------------
 type GitService interface {
 	Clone(url, targetDir string) (clonedDir string, err error)
 	CommitAndPushAllChanges(repoRoot, commitMsg, name, emailId string) (commitHash string, err error)
-	ForceResetHead(repoRoot string) (err error)
-	CommitValues(config *ChartConfig) (commitHash string, err error)
-
 	GetCloneDirectory(targetDir string) (clonedDir string)
 	Pull(repoRoot string) (err error)
 }
-type GitServiceImpl struct {
-	Auth       *http.BasicAuth
-	config     *GitConfig
-	logger     *zap.SugaredLogger
-	gitCliUtil *GitCliUtil
+
+// BasicAuth represent a HTTP basic auth
+type BasicAuth struct {
+	username, password string
 }
 
-func NewGitServiceImpl(config *GitConfig, logger *zap.SugaredLogger, GitCliUtil *GitCliUtil) *GitServiceImpl {
-	auth := &http.BasicAuth{Password: config.GitToken, Username: config.GitUserName}
+type GitServiceImpl struct {
+	Auth       *BasicAuth
+	config     *GitConfig
+	logger     *zap.SugaredLogger
+	gitManager *GitManagerImpl
+}
+
+func NewGitServiceImpl(config *GitConfig, logger *zap.SugaredLogger, gitManager *GitManagerImpl) *GitServiceImpl {
+	auth := &BasicAuth{password: config.GitToken, username: config.GitUserName}
+
 	return &GitServiceImpl{
 		Auth:       auth,
 		logger:     logger,
 		config:     config,
-		gitCliUtil: GitCliUtil,
+		gitManager: gitManager,
 	}
 }
 
@@ -311,7 +310,7 @@ func (impl GitServiceImpl) Clone(url, targetDir string) (clonedDir string, err e
 	}()
 	impl.logger.Debugw("git checkout ", "url", url, "dir", targetDir)
 	clonedDir = filepath.Join(impl.config.GitWorkingDir, targetDir)
-	_, errorMsg, err := impl.gitCliUtil.Clone(clonedDir, url, impl.Auth.Username, impl.Auth.Password)
+	errorMsg, err := impl.gitManager.Clone(clonedDir, url, impl.Auth)
 	if err != nil {
 		impl.logger.Errorw("error in git checkout", "url", url, "targetDir", targetDir, "err", err)
 		return "", err
@@ -322,113 +321,18 @@ func (impl GitServiceImpl) Clone(url, targetDir string) (clonedDir string, err e
 	return clonedDir, nil
 }
 
-func (impl GitServiceImpl) CommitAndPushAllChanges(repoRoot, commitMsg, name, emailId string) (commitHash string, err error) {
-	start := time.Now()
-	defer func() {
-		util.TriggerGitOpsMetrics("CommitAndPushAllChanges", "GitService", start, err)
-	}()
-	repo, workTree, err := impl.getRepoAndWorktree(repoRoot)
-	if err != nil {
-		return "", err
-	}
-	err = workTree.AddGlob("")
-	if err != nil {
-		return "", err
-	}
-	//--  commit
-	commit, err := workTree.Commit(commitMsg, &git.CommitOptions{
-		Author: &object.Signature{
-			Name:  name,
-			Email: emailId,
-			When:  time.Now(),
-		},
-		Committer: &object.Signature{
-			Name:  name,
-			Email: emailId,
-			When:  time.Now(),
-		},
-	})
-	if err != nil {
-		return "", err
-	}
-	impl.logger.Debugw("git hash", "repo", repoRoot, "hash", commit.String())
-	//-----------push
-	err = repo.Push(&git.PushOptions{
-		Auth: impl.Auth,
-	})
-	return commit.String(), err
-}
-
-func (impl GitServiceImpl) getRepoAndWorktree(repoRoot string) (*git.Repository, *git.Worktree, error) {
-	var err error
-	start := time.Now()
-	defer func() {
-		util.TriggerGitOpsMetrics("getRepoAndWorktree", "GitService", start, err)
-	}()
-	r, err := git.PlainOpen(repoRoot)
-	if err != nil {
-		return nil, nil, err
-	}
-	w, err := r.Worktree()
-	return r, w, err
-}
-
-func (impl GitServiceImpl) ForceResetHead(repoRoot string) (err error) {
-	start := time.Now()
-	defer func() {
-		util.TriggerGitOpsMetrics("ForceResetHead", "GitService", start, err)
-	}()
-	_, workTree, err := impl.getRepoAndWorktree(repoRoot)
-	if err != nil {
-		return err
-	}
-	err = workTree.Reset(&git.ResetOptions{Mode: git.HardReset})
-	if err != nil {
-		return err
-	}
-	err = workTree.Pull(&git.PullOptions{
-		Auth:         impl.Auth,
-		Force:        true,
-		SingleBranch: true,
-	})
-	return err
-}
-
-func (impl GitServiceImpl) CommitValues(config *ChartConfig) (commitHash string, err error) {
-	//TODO acquire lock
-	start := time.Now()
-	defer func() {
-		util.TriggerGitOpsMetrics("CommitValues", "GitService", start, err)
-	}()
-	gitDir := filepath.Join(impl.config.GitWorkingDir, config.ChartName)
-	if err != nil {
-		return "", err
-	}
-	err = ioutil.WriteFile(filepath.Join(gitDir, config.ChartLocation, config.FileName), []byte(config.FileContent), 0600)
-	if err != nil {
-		return "", err
-	}
-	hash, err := impl.CommitAndPushAllChanges(gitDir, config.ReleaseMessage, "devtron bot", "devtron-bot@devtron.ai")
-	return hash, err
-}
-
 func (impl GitServiceImpl) Pull(repoRoot string) (err error) {
 	start := time.Now()
 	defer func() {
 		util.TriggerGitOpsMetrics("Pull", "GitService", start, err)
 	}()
-	_, workTree, err := impl.getRepoAndWorktree(repoRoot)
+	return impl.gitManager.Pull(repoRoot, impl.Auth)
+}
 
-	if err != nil {
-		return err
-	}
-	//-----------pull
-	err = workTree.PullContext(context.Background(), &git.PullOptions{
-		Auth: impl.Auth,
-	})
-	if err != nil && err.Error() == "already up-to-date" {
-		err = nil
-		return nil
-	}
-	return err
+func (impl GitServiceImpl) CommitAndPushAllChanges(repoRoot, commitMsg, name, emailId string) (commitHash string, err error) {
+	start := time.Now()
+	defer func() {
+		util.TriggerGitOpsMetrics("CommitAndPushAllChanges", "GitService", start, err)
+	}()
+	return impl.gitManager.CommitAndPush(repoRoot, commitMsg, name, emailId, impl.Auth)
 }

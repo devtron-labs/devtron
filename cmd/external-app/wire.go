@@ -185,7 +185,7 @@ func InitializeApp() (*App, error) {
 		wire.Value(util.ChartWorkingDir("/tmp/charts/")),
 		wire.Value(appStoreBean.RefChartProxyDir("scripts/devtron-reference-helm-charts")),
 		util.NewGitFactory,
-		util.NewGitCliUtil,
+		util.NewGitManagerImpl,
 
 		security2.NewScanToolMetadataRepositoryImpl,
 		wire.Bind(new(security2.ScanToolMetadataRepository), new(*security2.ScanToolMetadataRepositoryImpl)),
