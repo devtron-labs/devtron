@@ -174,8 +174,8 @@ func (handler *InfraConfigRestHandlerImpl) GetProfileList(w http.ResponseWriter,
 		return
 	}
 
-	vars := mux.Vars(r)
-	profileNameLike := vars["search"]
+	queryParams := r.URL.Query()
+	profileNameLike := queryParams.Get("search")
 	profilesResponse, err := handler.infraProfileService.GetProfileList(profileNameLike)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -229,8 +229,9 @@ func (handler *InfraConfigRestHandlerImpl) GetIdentifierList(w http.ResponseWrit
 		common.WriteJsonResp(w, errors.New(fmt.Sprintf(InvalidIdentifierType, identifierType)), nil, http.StatusBadRequest)
 		return
 	}
-	identifierNameLike := vars["search"]
-	sortOrder := vars["sort"]
+	queryParams := r.URL.Query()
+	identifierNameLike := queryParams.Get("search")
+	sortOrder := queryParams.Get("sort")
 	if sortOrder == "" {
 		// set to default asc order
 		sortOrder = "ASC"
@@ -239,18 +240,18 @@ func (handler *InfraConfigRestHandlerImpl) GetIdentifierList(w http.ResponseWrit
 		common.WriteJsonResp(w, errors.New("sort order can only be ASC or DESC"), nil, http.StatusBadRequest)
 		return
 	}
-	sizeStr, ok := vars["size"]
+	sizeStr := queryParams.Get("size")
 	size := 20
-	if ok {
+	if sizeStr != "" {
 		size, err = strconv.Atoi(sizeStr)
 		if err != nil || size < 0 {
 			common.WriteJsonResp(w, errors.Wrap(err, "invalid size"), nil, http.StatusBadRequest)
 			return
 		}
 	}
-	offsetStr, ok := vars["offset"]
+	offsetStr := queryParams.Get("offset")
 	offset := 0
-	if ok {
+	if offsetStr != "" {
 		offset, err = strconv.Atoi(offsetStr)
 		if err != nil || offset < 0 {
 			common.WriteJsonResp(w, errors.Wrap(err, "invalid offset"), nil, http.StatusBadRequest)
@@ -258,7 +259,7 @@ func (handler *InfraConfigRestHandlerImpl) GetIdentifierList(w http.ResponseWrit
 		}
 	}
 
-	profileName := strings.ToLower(vars["profileName"])
+	profileName := strings.ToLower(queryParams.Get("profileName"))
 	listFilter := infraConfig.IdentifierListFilter{
 		Limit:              size,
 		Offset:             offset,

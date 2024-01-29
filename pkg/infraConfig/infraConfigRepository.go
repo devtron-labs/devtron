@@ -345,17 +345,26 @@ func (impl *InfraConfigRepositoryImpl) getIdentifiersListForMiscProfiles(listFil
 }
 
 func (impl *InfraConfigRepositoryImpl) getIdentifiersListForDefaultProfile(listFilter IdentifierListFilter, identifierType int, totalOverriddenCountQuery string) ([]*Identifier, error) {
-	excludeAppIdsQuery := "SELECT identifier_value_int " +
+	queryToGetAppIdsWhichDoesNotInheritDefaultConfigurations := " SELECT identifier_value_int " +
 		" FROM resource_qualifier_mapping " +
-		fmt.Sprintf(" WHERE resource_type = %d AND active=true AND identifier_key = %d", resourceQualifiers.InfraProfile, identifierType)
+		" WHERE resource_type = %d AND resource_id IN ( " +
+		" 	SELECT profile_id " +
+		"   FROM infra_profile_configuration " +
+		"   GROUP BY profile_id HAVING COUNT(profile_id) = ( " +
+		" 	      SELECT COUNT(ip.id) " +
+		" 	      FROM infra_profile_configuration ipc" +
+		"         INNER JOIN infra_profile ip ON ipc.profile_id = ip.id " +
+		" 	      WHERE ip.active=true AND ipc.active=true AND ip.name='%s' ) " +
+		" ) AND identifier_key = %d AND active=true"
+	queryToGetAppIdsWhichDoesNotInheritDefaultConfigurations = fmt.Sprintf(queryToGetAppIdsWhichDoesNotInheritDefaultConfigurations, resourceQualifiers.InfraProfile, DEFAULT_PROFILE_NAME, identifierType)
 
 	query := "SELECT id," +
 		"app_name AS name," +
-		"(SELECT id FROM profile WHERE name = ?) AS profile_id, COUNT(id) OVER() AS total_identifier_count,(" + totalOverriddenCountQuery + ") AS overridden_identifier_count " +
+		"(SELECT id FROM infra_profile WHERE name = ?) AS profile_id, COUNT(id) OVER() AS total_identifier_count,(" + totalOverriddenCountQuery + ") AS overridden_identifier_count " +
 		" FROM app " +
 		" WHERE active=true " +
 		" AND app_name LIKE ? " +
-		" AND id NOT IN ( " + excludeAppIdsQuery + " ) " +
+		" AND id NOT IN ( " + queryToGetAppIdsWhichDoesNotInheritDefaultConfigurations + " ) " +
 		" ORDER BY name ? " +
 		" LIMIT ? " +
 		" OFFSET ? "
