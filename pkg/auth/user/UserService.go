@@ -1345,18 +1345,6 @@ func (impl UserServiceImpl) sortByLoginTime(users []bean.UserInfo, sortOrder bea
 	return users
 
 }
-func (impl UserServiceImpl) getLoginTimeForUsers(models []repository.UserModel) (map[int32]time.Time, error) {
-	userIds := make([]int32, 0, len(models))
-	for _, model := range models {
-		userIds = append(userIds, model.Id)
-	}
-	userIdLoginMap, err := impl.userAuditService.GetLoginTimeForUsers(userIds)
-	if err != nil {
-		impl.logger.Errorw("error in getLoginTimeForUser", "err", err, "userIds", userIds)
-		return nil, err
-	}
-	return userIdLoginMap, nil
-}
 
 func (impl UserServiceImpl) GetAllDetailedUsers() ([]bean.UserInfo, error) {
 	query := impl.userListingRepositoryQueryBuilder.GetQueryForAllUserWithAudit()
