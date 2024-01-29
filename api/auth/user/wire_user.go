@@ -1,6 +1,7 @@
 package user
 
 import (
+	util5 "github.com/devtron-labs/devtron/api/util"
 	"github.com/devtron-labs/devtron/pkg/auth/authentication"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	user2 "github.com/devtron-labs/devtron/pkg/auth/user"
@@ -80,4 +81,7 @@ var UserWireSet = wire.NewSet(
 	wire.Bind(new(user2.DefaultRbacRoleService), new(*user2.DefaultRbacRoleServiceImpl)),
 	repository2.NewDefaultRbacRoleDataRepositoryImpl,
 	wire.Bind(new(repository2.DefaultRbacRoleDataRepository), new(*repository2.DefaultRbacRoleDataRepositoryImpl)),
+
+	util5.NewUserStatusCheckMiddlewareImpl,
+	wire.Bind(new(util5.UserStatusCheckMiddleware), new(*util5.UserStatusCheckMiddlewareImpl)),
 )

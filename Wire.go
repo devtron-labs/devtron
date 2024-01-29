@@ -987,8 +987,6 @@ func InitializeApp() (*App, error) {
 		repository9.NewTimeWindowRepositoryImpl,
 		wire.Bind(new(repository9.TimeWindowRepository), new(*repository9.TimeWindowRepositoryImpl)),
 
-		util5.NewUserStatusCheckMiddlewareImpl,
-		wire.Bind(new(util5.UserStatusCheckMiddleware), new(*util5.UserStatusCheckMiddlewareImpl)),
 	)
 	return &App{}, nil
 }

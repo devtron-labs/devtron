@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/api/util"
 	"net/http"
 	"os"
 
@@ -15,13 +16,14 @@ import (
 )
 
 type App struct {
-	db             *pg.DB
-	sessionManager *authMiddleware.SessionManager
-	MuxRouter      *MuxRouter
-	Logger         *zap.SugaredLogger
-	server         *http.Server
-	telemetry      telemetry.TelemetryEventClient
-	posthogClient  *telemetry.PosthogClient
+	db                        *pg.DB
+	sessionManager            *authMiddleware.SessionManager
+	MuxRouter                 *MuxRouter
+	Logger                    *zap.SugaredLogger
+	server                    *http.Server
+	telemetry                 telemetry.TelemetryEventClient
+	posthogClient             *telemetry.PosthogClient
+	userStatusCheckMiddleware util.UserStatusCheckMiddleware
 }
 
 func NewApp(db *pg.DB,
@@ -29,14 +31,16 @@ func NewApp(db *pg.DB,
 	MuxRouter *MuxRouter,
 	telemetry telemetry.TelemetryEventClient,
 	posthogClient *telemetry.PosthogClient,
-	Logger *zap.SugaredLogger) *App {
+	Logger *zap.SugaredLogger,
+	userStatusCheckMiddleware util.UserStatusCheckMiddleware) *App {
 	return &App{
-		db:             db,
-		sessionManager: sessionManager,
-		MuxRouter:      MuxRouter,
-		Logger:         Logger,
-		telemetry:      telemetry,
-		posthogClient:  posthogClient,
+		db:                        db,
+		sessionManager:            sessionManager,
+		MuxRouter:                 MuxRouter,
+		Logger:                    Logger,
+		telemetry:                 telemetry,
+		posthogClient:             posthogClient,
+		userStatusCheckMiddleware: userStatusCheckMiddleware,
 	}
 }
 func (app *App) Start() {
@@ -53,7 +57,7 @@ func (app *App) Start() {
 	if err != nil {
 		app.Logger.Warnw("telemetry installation success event failed", "err", err)
 	}
-	server := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: authMiddleware.Authorizer(app.sessionManager, user.WhitelistChecker)(app.MuxRouter.Router)}
+	server := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: authMiddleware.Authorizer(app.sessionManager, user.WhitelistChecker, app.userStatusCheckMiddleware.UserStatusCheckInDb)(app.MuxRouter.Router)}
 	app.MuxRouter.Router.Use(middleware.PrometheusMiddleware)
 	app.MuxRouter.Router.Use(middlewares.Recovery)
 	app.server = server
