@@ -50,7 +50,7 @@ type RuntimeConfig struct {
 	DevtronDefaultNamespaceName string       `env:"DEVTRON_DEFAULT_NAMESPACE" envDefault:"devtroncd"`
 }
 
-func GetRuntimeConfig() (*RuntimeConfig, error) {
+func (impl *K8sClient) GetRuntimeConfig() (*RuntimeConfig, error) {
 	cfg := &RuntimeConfig{}
 	err := env.Parse(cfg)
 	return cfg, err

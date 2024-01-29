@@ -74,10 +74,10 @@ func Authorizer(sessionManager *SessionManager, whitelistChecker func(url string
 				log.Print(isInactive)
 				log.Print(userId)
 				if err != nil {
-					writeResponse(http.StatusNotAcceptable, "Not Acceptable", w, err)
+					writeResponse(http.StatusUnauthorized, "Invalid User", w, err)
 					return
 				} else if isInactive {
-					writeResponse(http.StatusUnauthorized, "UN-AUTHENTICATED", w, fmt.Errorf("unauthenticated"))
+					writeResponse(http.StatusUnauthorized, "Inactive User", w, fmt.Errorf("inactive User"))
 					return
 				}
 				context.WithValue(r.Context(), "userId", userId)
