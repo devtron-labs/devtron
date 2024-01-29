@@ -1,4 +1,5 @@
 ## Bugs
+- fix: implemented cache for storing cloud provider  (#4591)
 - fix: panic handling when giving empty values.yaml in custom packaged chart (#4586)
 - fix: 500 fixes second iteration (#4464)
 - fix: sql script added for putting Identifier type=0 for all null values present in generic_note (#4568)
