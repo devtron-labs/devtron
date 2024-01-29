@@ -41,7 +41,7 @@ func (impl UserRepositoryQueryBuilder) GetQueryForUserListingWithFilters(req *be
 	}
 	if len(req.SearchKey) > 0 {
 		emailIdLike := "%" + req.SearchKey + "%"
-		whereCondition += fmt.Sprintf("AND email_id like '%s' ", emailIdLike)
+		whereCondition += fmt.Sprintf("AND email_id ilike '%s' ", emailIdLike)
 	}
 
 	if len(req.SortBy) > 0 && req.Size > 0 {
@@ -77,7 +77,7 @@ func (impl UserRepositoryQueryBuilder) GetQueryForGroupListingWithFilters(req *b
 	orderCondition := ""
 	if len(req.SearchKey) > 0 {
 		nameIdLike := "%" + req.SearchKey + "%"
-		whereCondition += fmt.Sprintf("AND name like '%s' ", nameIdLike)
+		whereCondition += fmt.Sprintf("AND name ilike '%s' ", nameIdLike)
 	}
 
 	if len(req.SortBy) > 0 && req.Size > 0 {
