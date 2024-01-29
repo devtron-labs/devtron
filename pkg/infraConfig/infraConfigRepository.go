@@ -18,6 +18,7 @@ type ProfileIdentifierCount struct {
 }
 
 type InfraConfigRepository interface {
+	GetProfileIdByName(name string) (int, error)
 	GetProfileByName(name string) (*InfraProfile, error)
 	GetProfileList(profileNameLike string) ([]*InfraProfile, error)
 
@@ -63,6 +64,16 @@ func NewInfraProfileRepositoryImpl(dbConnection *pg.DB) *InfraConfigRepositoryIm
 func (impl *InfraConfigRepositoryImpl) CreateProfile(tx *pg.Tx, infraProfile *InfraProfile) error {
 	err := tx.Insert(infraProfile)
 	return err
+}
+
+func (impl *InfraConfigRepositoryImpl) GetProfileIdByName(name string) (int, error) {
+	var profileId int
+	err := impl.dbConnection.Model(&InfraProfile{}).
+		Column("id").
+		Where("name = ?", name).
+		Where("active = ?", true).
+		Select(&profileId)
+	return profileId, err
 }
 
 func (impl *InfraConfigRepositoryImpl) GetProfileByName(name string) (*InfraProfile, error) {
@@ -210,13 +221,13 @@ func (impl *InfraConfigRepositoryImpl) GetIdentifierCountForNonDefaultProfiles(p
 }
 
 func (impl *InfraConfigRepositoryImpl) UpdateProfile(tx *pg.Tx, profileName string, profile *InfraProfile) error {
-	_, err := tx.Model(&InfraProfile{}).
+	_, err := tx.Model(profile).
 		Set("name=?", profile.Name).
 		Set("description=?", profile.Description).
 		Set("updated_by=?", profile.UpdatedBy).
 		Set("updated_on=?", profile.UpdatedOn).
 		Where("name = ?", profileName).
-		Update(profile)
+		Update()
 	return err
 }
 

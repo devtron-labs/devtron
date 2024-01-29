@@ -7,7 +7,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
-	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
@@ -15,6 +14,7 @@ import (
 	"go.uber.org/zap"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 const InvalidIdentifierType = "identifier %s is not valid"
@@ -90,7 +90,7 @@ func (handler *InfraConfigRestHandlerImpl) UpdateInfraProfile(w http.ResponseWri
 	}
 
 	vars := mux.Vars(r)
-	profileName := vars["name"]
+	profileName := strings.ToLower(vars["name"])
 	if profileName == "" {
 		common.WriteJsonResp(w, errors.New(infraConfig.InvalidProfileName), nil, http.StatusBadRequest)
 		return
@@ -103,6 +103,7 @@ func (handler *InfraConfigRestHandlerImpl) UpdateInfraProfile(w http.ResponseWri
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	payload.Name = strings.ToLower(payload.Name)
 	err = handler.infraProfileService.UpdateProfile(userId, profileName, payload)
 	if err != nil {
 		handler.logger.Errorw("error in updating profile and configurations", "profileName", profileName, "payLoad", payload, "err", err)
@@ -125,7 +126,7 @@ func (handler *InfraConfigRestHandlerImpl) GetProfile(w http.ResponseWriter, r *
 	}
 
 	vars := mux.Vars(r)
-	profileName := vars["name"]
+	profileName := strings.ToLower(vars["name"])
 	if profileName == "" {
 		common.WriteJsonResp(w, errors.New(infraConfig.InvalidProfileName), nil, http.StatusBadRequest)
 		return
@@ -153,18 +154,8 @@ func (handler *InfraConfigRestHandlerImpl) GetProfile(w http.ResponseWriter, r *
 	resp := infraConfig.ProfileResponse{
 		Profile: *profile,
 	}
-	resp.DefaultConfigurations = defaultProfile.Configurations
-
-	// add default configurations if not present in profile
-	for _, defaultConfiguration := range defaultProfile.Configurations {
-		if !util.Contains(profile.Configurations, func(configuration infraConfig.ConfigurationBean) bool {
-			return configuration.Key == defaultConfiguration.Key
-		}) {
-			resp.Profile.Configurations = append(resp.Profile.Configurations, defaultConfiguration)
-		}
-	}
-
 	resp.ConfigurationUnits = handler.infraProfileService.GetConfigurationUnits()
+	resp.DefaultConfigurations = defaultProfile.Configurations
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
 
@@ -204,7 +195,7 @@ func (handler *InfraConfigRestHandlerImpl) DeleteProfile(w http.ResponseWriter, 
 	}
 
 	vars := mux.Vars(r)
-	profileName := vars["name"]
+	profileName := strings.ToLower(vars["name"])
 	if profileName == "" {
 		common.WriteJsonResp(w, errors.New(infraConfig.InvalidProfileName), nil, http.StatusBadRequest)
 		return
@@ -258,7 +249,7 @@ func (handler *InfraConfigRestHandlerImpl) GetIdentifierList(w http.ResponseWrit
 		return
 	}
 
-	profileName := vars["profileName"]
+	profileName := strings.ToLower(vars["profileName"])
 	listFilter := infraConfig.IdentifierListFilter{
 		Limit:              size,
 		Offset:             offset,

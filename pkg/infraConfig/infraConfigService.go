@@ -15,6 +15,8 @@ import (
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
 	"k8s.io/utils/pointer"
+	"sort"
+	"strings"
 	"time"
 )
 
@@ -212,11 +214,19 @@ func (impl *InfraConfigServiceImpl) GetProfileList(profileNameLike string) (*Pro
 			profilesMap[profileId] = profile
 			continue
 		}
-		profile = impl.updateProfileMissingConfigurationsWithDefault(profile, defaultConfigurations)
+		profile = UpdateProfileMissingConfigurationsWithDefault(profile, defaultConfigurations)
 		profiles = append(profiles, profile)
 		// update map with updated profile
 		profilesMap[profileId] = profile
 	}
+
+	// order profiles by name
+	sort.Slice(profiles, func(i, j int) bool {
+		if strings.Compare(profiles[i].Name, profiles[j].Name) <= 0 {
+			return true
+		}
+		return false
+	})
 
 	resp := &ProfilesResponse{
 		Profiles: profiles,
@@ -224,18 +234,6 @@ func (impl *InfraConfigServiceImpl) GetProfileList(profileNameLike string) (*Pro
 	resp.DefaultConfigurations = defaultConfigurations
 	resp.ConfigurationUnits = impl.GetConfigurationUnits()
 	return resp, nil
-}
-
-func (impl *InfraConfigServiceImpl) updateProfileMissingConfigurationsWithDefault(profile ProfileBean, defaultConfigurations []ConfigurationBean) ProfileBean {
-	for _, defaultConfiguration := range defaultConfigurations {
-		// if profile doesn't have the default configuration, add it to the profile
-		if !util.Contains(profile.Configurations, func(config ConfigurationBean) bool {
-			return config.Key == defaultConfiguration.Key
-		}) {
-			profile.Configurations = append(profile.Configurations, defaultConfiguration)
-		}
-	}
-	return profile
 }
 
 func (impl *InfraConfigServiceImpl) CreateProfile(userId int32, profileBean *ProfileBean) error {
@@ -303,6 +301,7 @@ func (impl *InfraConfigServiceImpl) UpdateProfile(userId int32, profileName stri
 		impl.logger.Errorw("error occurred in validation the profile create request", "profileCreateRequest", profileBean, "error", err)
 		return err
 	}
+
 	// validations end
 
 	infraProfile := profileBean.ConvertToInfraProfile()
@@ -316,9 +315,74 @@ func (impl *InfraConfigServiceImpl) UpdateProfile(userId int32, profileName stri
 		return config.ConvertToInfraProfileConfiguration()
 	})
 
+	// filter out creatable and updatable configurations
+	creatableInfraConfigurations := make([]*InfraProfileConfiguration, 0, len(infraConfigurations))
+	updatableInfraConfigurations := make([]*InfraProfileConfiguration, 0, len(infraConfigurations))
+	for _, configuration := range infraConfigurations {
+		if configuration.Id == 0 {
+			if profileName == DEFAULT_PROFILE_NAME {
+				return errors.New("cannot create new configuration for default profile")
+			}
+			creatableInfraConfigurations = append(creatableInfraConfigurations, configuration)
+		} else {
+			updatableInfraConfigurations = append(updatableInfraConfigurations, configuration)
+		}
+	}
+
+	existingConfigurations, err := impl.infraProfileRepo.GetConfigurationsByProfileName(profileName)
+	if err != nil {
+		impl.logger.Errorw("error in fetching existing configuration ids", "profileName", profileName, "error", err)
+		if !errors.Is(err, pg.ErrNoRows) {
+			return err
+		}
+	}
+
+	if len(updatableInfraConfigurations) > 0 {
+
+		// at max there can be 5 default configurations (even in future these can be in the order of 10x)
+		// so below double loop won't be problematic
+		for _, updatableInfraConfiguration := range updatableInfraConfigurations {
+			profileContainsThisConfiguration := false
+			for _, existingConfiguration := range existingConfigurations {
+				if updatableInfraConfiguration.Id == existingConfiguration.Id {
+					profileContainsThisConfiguration = true
+					break
+				}
+			}
+			if !profileContainsThisConfiguration {
+				return errors.New(fmt.Sprintf("cannot update configuration with id %d as it does not belong to %s profile", updatableInfraConfiguration.Id, profileName))
+			}
+		}
+
+	}
+
+	if len(creatableInfraConfigurations) > 0 {
+
+		// at max there can be 5 default configurations (even in future these can be in the order of 10x)
+		// so below double loop won't be problematic
+		for _, configuration := range creatableInfraConfigurations {
+			for _, existingConfiguration := range existingConfigurations {
+				if configuration.Key == existingConfiguration.Key {
+					return errors.New(fmt.Sprintf("cannot create configuration with key %s as it already exists in %s profile", configuration.Key, profileName))
+				}
+			}
+		}
+
+		pId, err := impl.infraProfileRepo.GetProfileIdByName(profileName)
+		if err != nil {
+			impl.logger.Errorw("error in fetching profile", "profileName", profileName, "error", err)
+			return err
+		}
+		for _, configuration := range creatableInfraConfigurations {
+			configuration.ProfileId = pId
+			configuration.Active = true
+			configuration.AuditLog = sql.NewDefaultAuditLog(userId)
+		}
+	}
+
 	tx, err := impl.infraProfileRepo.StartTx()
 	if err != nil {
-		impl.logger.Errorw("error in starting transaction to update profile", "error", err)
+		impl.logger.Errorw("error in starting transaction to update profile", "profileBean", profileBean, "error", err)
 		return err
 	}
 	defer impl.infraProfileRepo.RollbackTx(tx)
@@ -326,13 +390,19 @@ func (impl *InfraConfigServiceImpl) UpdateProfile(userId int32, profileName stri
 	infraProfile.UpdatedBy = userId
 	err = impl.infraProfileRepo.UpdateProfile(tx, profileName, infraProfile)
 	if err != nil {
-		impl.logger.Errorw("error in updating profile", "error", err)
+		impl.logger.Errorw("error in updating profile", "infraProfile", infraProfile, "error", err)
 		return err
 	}
 
-	err = impl.infraProfileRepo.UpdateConfigurations(tx, infraConfigurations)
+	err = impl.infraProfileRepo.UpdateConfigurations(tx, updatableInfraConfigurations)
 	if err != nil {
-		impl.logger.Errorw("error in creating configurations", "error", err)
+		impl.logger.Errorw("error in creating configurations", "updatableInfraConfigurations", updatableInfraConfigurations, "error", err)
+		return err
+	}
+
+	err = impl.infraProfileRepo.CreateConfigurations(tx, creatableInfraConfigurations)
+	if err != nil {
+		impl.logger.Errorw("error in creating configurations", "creatableInfraConfigurations", creatableInfraConfigurations, "error", err)
 		return err
 	}
 	err = impl.infraProfileRepo.CommitTx(tx)
@@ -347,7 +417,7 @@ func (impl *InfraConfigServiceImpl) DeleteProfile(profileName string) error {
 		return errors.New(InvalidProfileName)
 	}
 
-	if profileName == DEFAULT_PROFILE_NAME {
+	if strings.ToLower(profileName) == DEFAULT_PROFILE_NAME {
 		return errors.New(CannotDeleteDefaultProfile)
 	}
 
@@ -377,7 +447,6 @@ func (impl *InfraConfigServiceImpl) DeleteProfile(profileName string) error {
 		impl.logger.Errorw("error in deleting profile identifier mappings", "profileName", profileName, "error", err)
 		return err
 	}
-	// todo: delete from resource_identifier_mapping where resource_id is profileId and resource_type is infraProfile
 	err = impl.infraProfileRepo.CommitTx(tx)
 	if err != nil {
 		impl.logger.Errorw("error in committing transaction to delete profile", "profileName", profileName, "error", err)
@@ -658,7 +727,7 @@ func (impl *InfraConfigServiceImpl) GetIdentifierList(listFilter *IdentifierList
 			profilesMap[profileId] = profile
 			continue
 		}
-		profile = impl.updateProfileMissingConfigurationsWithDefault(profile, defaultConfigurations)
+		profile = UpdateProfileMissingConfigurationsWithDefault(profile, defaultConfigurations)
 		// update map with updated profile
 		profilesMap[profileId] = profile
 	}
