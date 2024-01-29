@@ -68,7 +68,7 @@ type ProfileBean struct {
 	Active         bool                `json:"active"`
 	Configurations []ConfigurationBean `json:"configurations" validate:"dive"`
 	Type           ProfileType         `json:"type"`
-	AppCount       int                 `json:"appCount"`
+	AppCount       int                 `json:"appCount,omitempty"`
 	CreatedBy      int32               `json:"createdBy"`
 	CreatedOn      time.Time           `json:"createdOn"`
 	UpdatedBy      int32               `json:"updatedBy"`

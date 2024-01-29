@@ -47,7 +47,7 @@ func (impl *InfraConfigRouterImpl) InitInfraConfigRouter(configRouter *mux.Route
 		HandlerFunc(impl.infraConfigRestHandler.GetIdentifierList).
 		Methods("GET")
 
-	configRouter.Path("identifier/{identifierType}/apply").
+	configRouter.Path("/identifier/{identifierType}/apply").
 		HandlerFunc(impl.infraConfigRestHandler.ApplyProfileToIdentifiers).
 		Methods("POST")
 

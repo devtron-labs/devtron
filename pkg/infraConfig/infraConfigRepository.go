@@ -216,14 +216,14 @@ func (impl *InfraConfigRepositoryImpl) GetIdentifierCountForDefaultProfile(defau
 // GetIdentifierCountForNonDefaultProfiles returns the count of identifiers for the given profileIds and identifierType
 // if resourceIds is empty, it will return the count of identifiers for all the profiles
 func (impl *InfraConfigRepositoryImpl) GetIdentifierCountForNonDefaultProfiles(profileIds []int, identifierType int) ([]ProfileIdentifierCount, error) {
-	query := " SELECT COUNT(DISTINCT identifier_value_int) as identifier_count, resource_id" +
+	query := " SELECT COUNT(DISTINCT identifier_value_int) as identifier_count, resource_id AS profile_id" +
 		" FROM resource_qualifier_mapping " +
 		" WHERE resource_type = ? AND identifier_key = ? AND active=true "
 	if len(profileIds) > 0 {
 		query += fmt.Sprintf(" AND resource_id IN (%s) ", helper2.GetCommaSepratedStringWithComma(profileIds))
 	}
 
-	query += " GROUP BY resource_id"
+	query += " GROUP BY profile_id"
 	counts := make([]ProfileIdentifierCount, 0)
 	_, err := impl.dbConnection.Query(&counts, query, resourceQualifiers.InfraProfile, identifierType)
 	return counts, err
@@ -399,7 +399,7 @@ func (impl *InfraConfigRepositoryImpl) DeleteProfileIdentifierMappings(tx *pg.Tx
 func (impl *InfraConfigRepositoryImpl) DeleteProfileIdentifierMappingsByIds(tx *pg.Tx, userId int32, identifierIds []int, identifierType IdentifierType, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) error {
 	_, err := tx.Model(&resourceQualifiers.QualifierMapping{}).
 		Set("active=?", false).
-		Set("updated_by=?").
+		Set("updated_by=?", userId).
 		Set("updated_on=?", time.Now()).
 		Where("resource_type=?", resourceQualifiers.InfraProfile).
 		Where("active=?", true).

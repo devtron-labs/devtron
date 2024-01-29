@@ -791,7 +791,7 @@ func (impl *InfraConfigServiceImpl) ApplyProfileToIdentifiers(userId int32, appl
 	// apply profile for those identifiers those qualified by the applyIdentifiersRequest.IdentifiersFilter
 	if applyIdentifiersRequest.IdentifiersFilter != nil {
 		// validate IdentifiersFilter
-		err := impl.validator.Struct(applyIdentifiersRequest.IdentifiersFilter)
+		err = impl.validator.Struct(applyIdentifiersRequest.IdentifiersFilter)
 		if err != nil {
 			err = errors.Wrap(err, PayloadValidationError)
 			return err
@@ -799,6 +799,10 @@ func (impl *InfraConfigServiceImpl) ApplyProfileToIdentifiers(userId int32, appl
 
 		// get apps using filter
 		identifiersList, err := impl.infraProfileRepo.GetIdentifierList(*applyIdentifiersRequest.IdentifiersFilter, searchableKeyNameIdMap)
+		if err != nil {
+			impl.logger.Errorw("error in fetching identifiers", "applyIdentifiersRequest", applyIdentifiersRequest, "error", err)
+			return err
+		}
 		// set identifiers in the filter
 		identifierIds := make([]int, 0, len(identifiersList))
 		for _, identifier := range identifiersList {
