@@ -95,7 +95,6 @@ func (impl *DeployedAppMetricsServiceImpl) CreateOrUpdateAppOrEnvLevelMetrics(ct
 	if !(isAppMetricsSupported) {
 		//chart does not have metrics support, disabling
 		req.EnableMetrics = false
-		return nil
 	}
 	if req.EnvId == 0 {
 		_, span := otel.Tracer("orchestrator").Start(ctx, "createOrUpdateAppLevelMetrics")

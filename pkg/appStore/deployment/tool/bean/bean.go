@@ -3,12 +3,13 @@ package bean
 import (
 	"github.com/devtron-labs/devtron/internal/util"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 )
 
 type AppStoreManifestResponse struct {
 	ChartResponse      *util.ChartCreateResponse
-	ValuesConfig       *util.ChartConfig
-	RequirementsConfig *util.ChartConfig
+	ValuesConfig       *git.ChartConfig
+	RequirementsConfig *git.ChartConfig
 }
 
 type AppStoreGitOpsResponse struct {

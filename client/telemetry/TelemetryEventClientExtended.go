@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	cloudProviderIdentifier "github.com/devtron-labs/common-lib/cloud-provider-identifier"
 	client "github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	cron3 "github.com/devtron-labs/devtron/util/cron"
 	"net/http"
 	"time"
@@ -36,7 +37,6 @@ type TelemetryEventClientImplExtended struct {
 	appListingRepository          repository.AppListingRepository
 	ciPipelineRepository          pipelineConfig.CiPipelineRepository
 	pipelineRepository            pipelineConfig.PipelineRepository
-	gitOpsConfigRepository        repository.GitOpsConfigRepository
 	gitProviderRepository         repository.GitProviderRepository
 	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository
 	appRepository                 app.AppRepository
@@ -46,6 +46,7 @@ type TelemetryEventClientImplExtended struct {
 	ciTemplateRepository          pipelineConfig.CiTemplateRepository
 	chartRepository               chartRepoRepository.ChartRepository
 	ciBuildConfigService          pipeline.CiBuildConfigService
+	gitOpsConfigReadService       config.GitOpsConfigReadService
 	*TelemetryEventClientImpl
 }
 
@@ -54,15 +55,16 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 	environmentService cluster.EnvironmentService, userService user2.UserService,
 	appListingRepository repository.AppListingRepository, PosthogClient *PosthogClient,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository,
-	gitOpsConfigRepository repository.GitOpsConfigRepository, gitProviderRepository repository.GitProviderRepository,
-	attributeRepo repository.AttributesRepository, ssoLoginService sso.SSOLoginService, appRepository app.AppRepository,
+	gitProviderRepository repository.GitProviderRepository, attributeRepo repository.AttributesRepository,
+	ssoLoginService sso.SSOLoginService, appRepository app.AppRepository,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository,
 	materialRepository pipelineConfig.MaterialRepository, ciTemplateRepository pipelineConfig.CiTemplateRepository,
 	chartRepository chartRepoRepository.ChartRepository, userAuditService user2.UserAuditService,
 	ciBuildConfigService pipeline.CiBuildConfigService, moduleRepository moduleRepo.ModuleRepository, serverDataStore *serverDataStore.ServerDataStore,
 	helmAppClient client.HelmAppClient, InstalledAppRepository repository2.InstalledAppRepository, userAttributesRepository repository.UserAttributesRepository,
-	cloudProviderIdentifierService cloudProviderIdentifier.ProviderIdentifierService, cronLogger *cron3.CronLoggerImpl) (*TelemetryEventClientImplExtended, error) {
+	cloudProviderIdentifierService cloudProviderIdentifier.ProviderIdentifierService,cronLogger *cron3.CronLoggerImpl,
+	gitOpsConfigReadService config.GitOpsConfigReadService) (*TelemetryEventClientImplExtended, error) {
 
 	cron := cron.New(
 		cron.WithChain(cron.Recover(cronLogger)))
@@ -72,7 +74,6 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 		appListingRepository:          appListingRepository,
 		ciPipelineRepository:          ciPipelineRepository,
 		pipelineRepository:            pipelineRepository,
-		gitOpsConfigRepository:        gitOpsConfigRepository,
 		gitProviderRepository:         gitProviderRepository,
 		dockerArtifactStoreRepository: dockerArtifactStoreRepository,
 		appRepository:                 appRepository,
@@ -82,7 +83,7 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 		ciTemplateRepository:          ciTemplateRepository,
 		chartRepository:               chartRepository,
 		ciBuildConfigService:          ciBuildConfigService,
-
+		gitOpsConfigReadService:       gitOpsConfigReadService,
 		TelemetryEventClientImpl: &TelemetryEventClientImpl{
 			cron:                           cron,
 			logger:                         logger,
@@ -101,6 +102,7 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 			InstalledAppRepository:         InstalledAppRepository,
 			userAttributesRepository:       userAttributesRepository,
 			cloudProviderIdentifierService: cloudProviderIdentifierService,
+			telemetryConfig: TelemetryConfig{},
 		},
 	}
 
@@ -234,8 +236,8 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 		return err
 	}
 
-	gitOps, err := impl.gitOpsConfigRepository.GetAllGitOpsConfig()
-	if err != nil && err != pg.ErrNoRows {
+	gitOpsCount, err := impl.gitOpsConfigReadService.GetConfiguredGitOpsCount()
+	if err != nil {
 		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
 		return err
 	}
@@ -309,7 +311,7 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 
 	payload.CdCountPerDay = len(cdPipeline)
 	payload.GitAccountsCount = len(gitAccounts)
-	payload.GitOpsCount = len(gitOps)
+	payload.GitOpsCount = gitOpsCount
 	payload.HostURL = hostURL
 	payload.DevtronGitVersion = devtronVersion.GitCommit
 	payload.Build = build
@@ -327,12 +329,11 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 	payload.HelmChartSuccessfulDeploymentCount = HelmChartSuccessfulDeploymentCount
 	payload.ExternalHelmAppClusterCount = ExternalHelmAppClusterCount
 
-	provider, err := impl.cloudProviderIdentifierService.IdentifyProvider()
+	payload.ClusterProvider, err = impl.GetCloudProvider()
 	if err != nil {
-		impl.logger.Errorw("exception while getting cluster provider", "error", err)
+		impl.logger.Errorw("error while getting cluster provider", "error", err)
 		return err
 	}
-	payload.ClusterProvider = provider
 
 	latestUser, err := impl.userAuditService.GetLatestUser()
 	if err == nil {

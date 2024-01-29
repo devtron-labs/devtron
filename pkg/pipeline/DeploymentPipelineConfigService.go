@@ -43,8 +43,9 @@ import (
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
-	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/remote"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
+	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
@@ -148,7 +149,8 @@ type CdPipelineConfigServiceImpl struct {
 	argoClientWrapperService         argocdServer.ArgoClientWrapperService
 	deployedAppMetricsService        deployedAppMetrics.DeployedAppMetricsService
 	gitOpsConfigReadService          config.GitOpsConfigReadService
-	gitOpsRemoteOperationService     remote.GitOpsRemoteOperationService
+	gitOperationService              git.GitOperationService
+	imageDigestPolicyService         imageDigestPolicy.ImageDigestPolicyService
 }
 
 func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepository pipelineConfig.PipelineRepository,
@@ -169,7 +171,8 @@ func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepositor
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
-	gitOpsRemoteOperationService remote.GitOpsRemoteOperationService) *CdPipelineConfigServiceImpl {
+	gitOperationService git.GitOperationService,
+	imageDigestPolicyService imageDigestPolicy.ImageDigestPolicyService) *CdPipelineConfigServiceImpl {
 	return &CdPipelineConfigServiceImpl{
 		logger:                           logger,
 		pipelineRepository:               pipelineRepository,
@@ -203,7 +206,8 @@ func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepositor
 		argoClientWrapperService:         argoClientWrapperService,
 		deployedAppMetricsService:        deployedAppMetricsService,
 		gitOpsConfigReadService:          gitOpsConfigReadService,
-		gitOpsRemoteOperationService:     gitOpsRemoteOperationService,
+		gitOperationService:              gitOperationService,
+		imageDigestPolicyService:         imageDigestPolicyService,
 	}
 }
 
@@ -302,6 +306,13 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelineById(pipelineId int) (cdPi
 		customTagEnabled = customTagPostCD.Enabled
 	}
 
+	digestConfigurationRequest := imageDigestPolicy.DigestPolicyConfigurationRequest{PipelineId: pipelineId}
+	digestPolicyConfigurations, err := impl.imageDigestPolicyService.GetDigestPolicyConfigurations(digestConfigurationRequest)
+	if err != nil {
+		impl.logger.Errorw("error in checking if isImageDigestPolicyConfiguredForPipeline", "err", err, "pipelineId", pipelineId)
+		return nil, err
+	}
+
 	cdPipeline = &bean.CDPipelineConfigObject{
 		Id:                            dbPipeline.Id,
 		Name:                          dbPipeline.Name,
@@ -327,6 +338,7 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelineById(pipelineId int) (cdPi
 		CustomTagStage:                &customTagStage,
 		EnableCustomTag:               customTagEnabled,
 		AppId:                         dbPipeline.AppId,
+		IsDigestEnforcedForPipeline:   digestPolicyConfigurations.DigestConfiguredForPipeline,
 	}
 	var preDeployStage *bean3.PipelineStageDto
 	var postDeployStage *bean3.PipelineStageDto
@@ -779,6 +791,11 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 			impl.logger.Errorw("error in deleting custom tag for pre-cd stage", "Err", err, "cd-pipeline-id", pipeline.Id)
 		}
 	}
+	_, err = impl.imageDigestPolicyService.DeletePolicyForPipeline(tx, pipeline.Id, userId)
+	if err != nil {
+		impl.logger.Errorw("error in deleting imageDigestPolicy for pipeline", "err", err, "pipelineId", pipeline.Id)
+		return nil, err
+	}
 	//delete app from argo cd, if created
 	if pipeline.DeploymentAppCreated == true {
 		deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
@@ -1008,6 +1025,14 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesForApp(appId int) (cdPipe
 			customTagStage = repository5.PIPELINE_STAGE_TYPE_POST_CD
 			customTagEnabled = customTagPostCD.Enabled
 		}
+
+		digestConfigurationRequest := imageDigestPolicy.DigestPolicyConfigurationRequest{PipelineId: dbPipeline.Id}
+		digestPolicyConfigurations, err := impl.imageDigestPolicyService.GetDigestPolicyConfigurations(digestConfigurationRequest)
+		if err != nil {
+			impl.logger.Errorw("error in checking if isImageDigestPolicyConfiguredForPipeline", "err", err, "pipelineId", dbPipeline.Id)
+			return nil, err
+		}
+
 		pipeline := &bean.CDPipelineConfigObject{
 			Id:                            dbPipeline.Id,
 			Name:                          dbPipeline.Name,
@@ -1035,6 +1060,8 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesForApp(appId int) (cdPipe
 			CustomTagObject:               customTag,
 			CustomTagStage:                &customTagStage,
 			EnableCustomTag:               customTagEnabled,
+			IsDigestEnforcedForPipeline:   digestPolicyConfigurations.DigestConfiguredForPipeline,
+			IsDigestEnforcedForEnv:        digestPolicyConfigurations.DigestConfiguredForEnvOrCluster, // will always be false in oss
 		}
 		pipelines = append(pipelines, pipeline)
 	}
@@ -1596,7 +1623,7 @@ func (impl *CdPipelineConfigServiceImpl) RegisterInACD(gitOpsRepoName string, ch
 		emptyRepoErrorMessage := []string{"failed to get index: 404 Not Found", "remote repository is empty"}
 		if strings.Contains(err.Error(), emptyRepoErrorMessage[0]) || strings.Contains(err.Error(), emptyRepoErrorMessage[1]) {
 			// - found empty repository, create some file in repository
-			err := impl.gitOpsRemoteOperationService.CreateReadmeInGitRepo(gitOpsRepoName, userId)
+			err := impl.gitOperationService.CreateReadmeInGitRepo(gitOpsRepoName, userId)
 			if err != nil {
 				impl.logger.Errorw("error in creating file in git repo", "err", err)
 				return err
@@ -1778,6 +1805,14 @@ func (impl *CdPipelineConfigServiceImpl) createCdPipeline(ctx context.Context, a
 	if err != nil {
 		return pipelineId, err
 	}
+
+	if pipeline.IsDigestEnforcedForPipeline {
+		_, err = impl.imageDigestPolicyService.CreatePolicyForPipeline(tx, pipelineId, pipeline.Name, userId)
+		if err != nil {
+			return pipelineId, err
+		}
+	}
+
 	err = tx.Commit()
 	if err != nil {
 		return 0, err
@@ -1901,11 +1936,34 @@ func (impl *CdPipelineConfigServiceImpl) updateCdPipeline(ctx context.Context, p
 		impl.logger.Errorw("error in updating custom tag data for pipeline", "err", err)
 		return err
 	}
+
+	_, err = impl.handleDigestPolicyOperations(tx, pipeline.Id, pipeline.Name, pipeline.IsDigestEnforcedForPipeline, userID)
+	if err != nil {
+		return err
+	}
+
 	err = tx.Commit()
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+func (impl *CdPipelineConfigServiceImpl) handleDigestPolicyOperations(tx *pg.Tx, pipelineId int, pipelineName string, isDigestEnforcedForPipeline bool, userId int32) (resourceQualifierId int, err error) {
+	if isDigestEnforcedForPipeline {
+		resourceQualifierId, err = impl.imageDigestPolicyService.CreatePolicyForPipelineIfNotExist(tx, pipelineId, pipelineName, userId)
+		if err != nil {
+			impl.logger.Errorw("error in imageDigestPolicy operations for CD pipeline", "err", err, "pipelineId", pipelineId)
+			return 0, err
+		}
+	} else {
+		resourceQualifierId, err = impl.imageDigestPolicyService.DeletePolicyForPipeline(tx, pipelineId, userId)
+		if err != nil {
+			impl.logger.Errorw("error in deleting imageDigestPolicy for pipeline", "err", err, "pipelineId", pipelineId)
+			return 0, err
+		}
+	}
+	return resourceQualifierId, nil
 }
 
 func (impl *CdPipelineConfigServiceImpl) updateGitRepoUrlInCharts(appId int, chartGitAttribute *commonBean.ChartGitAttribute, userId int32) error {

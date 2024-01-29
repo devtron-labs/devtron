@@ -99,6 +99,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/commonService"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	deployment2 "github.com/devtron-labs/devtron/pkg/deployment"
+	git2 "github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	repository9 "github.com/devtron-labs/devtron/pkg/devtronResource/repository"
@@ -106,6 +107,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/generateManifest"
 	"github.com/devtron-labs/devtron/pkg/git"
 	"github.com/devtron-labs/devtron/pkg/gitops"
+	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	repository7 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
 	"github.com/devtron-labs/devtron/pkg/notifier"
@@ -345,7 +347,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipelineConfig.CiPipelineRepository), new(*pipelineConfig.CiPipelineRepositoryImpl)),
 		pipelineConfig.NewCiPipelineMaterialRepositoryImpl,
 		wire.Bind(new(pipelineConfig.CiPipelineMaterialRepository), new(*pipelineConfig.CiPipelineMaterialRepositoryImpl)),
-		util.NewGitFactory,
+		git2.NewGitFactory,
 
 		application.NewApplicationClientImpl,
 		wire.Bind(new(application.ServiceClient), new(*application.ServiceClientImpl)),
@@ -636,8 +638,6 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(restHandler.GitOpsConfigRestHandler), new(*restHandler.GitOpsConfigRestHandlerImpl)),
 		gitops.NewGitOpsConfigServiceImpl,
 		wire.Bind(new(gitops.GitOpsConfigService), new(*gitops.GitOpsConfigServiceImpl)),
-		repository.NewGitOpsConfigRepositoryImpl,
-		wire.Bind(new(repository.GitOpsConfigRepository), new(*repository.GitOpsConfigRepositoryImpl)),
 
 		router.NewAttributesRouterImpl,
 		wire.Bind(new(router.AttributesRouter), new(*router.AttributesRouterImpl)),
@@ -658,7 +658,7 @@ func InitializeApp() (*App, error) {
 		scopedVariable.NewScopedVariableRestHandlerImpl,
 		wire.Bind(new(scopedVariable.ScopedVariableRestHandler), new(*scopedVariable.ScopedVariableRestHandlerImpl)),
 
-		util.NewGitCliUtil,
+		git2.NewGitCliUtil,
 
 		router.NewTelemetryRouterImpl,
 		wire.Bind(new(router.TelemetryRouter), new(*router.TelemetryRouterImpl)),
@@ -928,6 +928,9 @@ func InitializeApp() (*App, error) {
 		pipeline.NewPipelineConfigListenerServiceImpl,
 		wire.Bind(new(pipeline.PipelineConfigListenerService), new(*pipeline.PipelineConfigListenerServiceImpl)),
 		cron2.NewCronLoggerImpl,
+
+		imageDigestPolicy.NewImageDigestPolicyServiceImpl,
+		wire.Bind(new(imageDigestPolicy.ImageDigestPolicyService), new(*imageDigestPolicy.ImageDigestPolicyServiceImpl)),
 	)
 	return &App{}, nil
 }

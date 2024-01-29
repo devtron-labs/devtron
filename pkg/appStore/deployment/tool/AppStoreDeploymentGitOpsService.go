@@ -11,6 +11,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/tool/bean"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/google/go-github/github"
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
 	"github.com/xanzy/go-gitlab"
@@ -39,7 +40,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) ParseGitRepoErrorResponse(err er
 			impl.Logger.Errorw("no content found while updating git repo gitlab, do auto fix", "error", err)
 			noTargetFound = true
 		}
-		if err.Error() == util.BITBUCKET_REPO_NOT_FOUND_ERROR {
+		if err.Error() == git.BITBUCKET_REPO_NOT_FOUND_ERROR {
 			impl.Logger.Errorw("no content found while updating git repo bitbucket, do auto fix", "error", err)
 			noTargetFound = true
 		}
@@ -78,7 +79,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) GitOpsOperations(manifestRespons
 	// Checking this is the first time chart has been pushed , if yes requirements.yaml has been already pushed with chart as there was sync-delay with github api.
 	// step-2 commit dependencies and values in git
 	if !isNew {
-		githash, err = impl.gitOpsRemoteOperationService.CommitRequirementsAndValues(appStoreName, chartGitAttribute.RepoUrl, manifestResponse.RequirementsConfig, manifestResponse.ValuesConfig)
+		githash, err = impl.gitOperationService.CommitRequirementsAndValues(appStoreName, chartGitAttribute.RepoUrl, manifestResponse.RequirementsConfig, manifestResponse.ValuesConfig)
 		if err != nil {
 			impl.Logger.Errorw("error in committing config to git", "err", err)
 			return appStoreGitOpsResponse, err
@@ -112,14 +113,14 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) GenerateManifest(installAppVersi
 }
 
 // createGitOpsRepoAndPushChart is a wrapper for creating GitOps repo and pushing chart to created repo
-func (impl AppStoreDeploymentArgoCdServiceImpl) createGitOpsRepoAndPushChart(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, builtChartPath string, requirementsConfig *util.ChartConfig, valuesConfig *util.ChartConfig) (*commonBean.ChartGitAttribute, bool, string, error) {
+func (impl AppStoreDeploymentArgoCdServiceImpl) createGitOpsRepoAndPushChart(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, builtChartPath string, requirementsConfig *git.ChartConfig, valuesConfig *git.ChartConfig) (*commonBean.ChartGitAttribute, bool, string, error) {
 	repoURL, isNew, err := impl.createGitOpsRepo(installAppVersionRequest)
 	if err != nil {
 		impl.Logger.Errorw("Error in creating gitops repo for ", "appName", installAppVersionRequest.AppName, "err", err)
 		return nil, false, "", err
 	}
 	pushChartToGitRequest := adapter.ParseChartGitPushRequest(installAppVersionRequest, repoURL, builtChartPath)
-	chartGitAttribute, commitHash, err := impl.gitOpsRemoteOperationService.PushChartToGitOpsRepoForHelmApp(pushChartToGitRequest, requirementsConfig, valuesConfig)
+	chartGitAttribute, commitHash, err := impl.gitOperationService.PushChartToGitOpsRepoForHelmApp(pushChartToGitRequest, requirementsConfig, valuesConfig)
 	if err != nil {
 		impl.Logger.Errorw("error in pushing chart to git", "err", err)
 		return nil, false, "", err
@@ -146,7 +147,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) createGitOpsRepo(installAppVersi
 		BitBucketWorkspaceId: bitbucketMetadata.BitBucketWorkspaceId,
 		BitBucketProjectKey:  bitbucketMetadata.BitBucketProjectKey,
 	}
-	repoUrl, isNew, err := impl.gitOpsRemoteOperationService.CreateRepository(gitRepoRequest, installAppVersionRequest.UserId)
+	repoUrl, isNew, err := impl.gitOperationService.CreateRepository(gitRepoRequest, installAppVersionRequest.UserId)
 	if err != nil {
 		impl.Logger.Errorw("error in creating git project", "name", installAppVersionRequest.GitOpsRepoName, "err", err)
 		return "", false, err
@@ -166,7 +167,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) updateValuesYamlInGit(installApp
 		impl.Logger.Errorw("error in getting git commit config", "err", err)
 	}
 
-	commitHash, _, err := impl.gitOpsRemoteOperationService.CommitValues(valuesGitConfig)
+	commitHash, _, err := impl.gitOperationService.CommitValues(valuesGitConfig)
 	if err != nil {
 		impl.Logger.Errorw("error in git commit", "err", err)
 		return installAppVersionRequest, errors.New(pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED)
@@ -189,7 +190,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) updateRequirementYamlInGit(insta
 		return err
 	}
 
-	_, _, err = impl.gitOpsRemoteOperationService.CommitValues(requirementsGitConfig)
+	_, _, err = impl.gitOperationService.CommitValues(requirementsGitConfig)
 	if err != nil {
 		impl.Logger.Errorw("error in values commit", "err", err)
 		return errors.New(pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED)
@@ -213,7 +214,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) createChartProxyAndGetPath(insta
 }
 
 // getGitCommitConfig will return util.ChartConfig (git commit config) for GitOps
-func (impl AppStoreDeploymentArgoCdServiceImpl) getGitCommitConfig(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, fileString string, filename string) (*util.ChartConfig, error) {
+func (impl AppStoreDeploymentArgoCdServiceImpl) getGitCommitConfig(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, fileString string, filename string) (*git.ChartConfig, error) {
 	appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)
 	if err != nil {
 		impl.Logger.Errorw("fetching error", "err", err)
@@ -228,7 +229,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) getGitCommitConfig(installAppVer
 	argocdAppName := installAppVersionRequest.AppName + "-" + environment.Name
 	gitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoName(installAppVersionRequest.AppName)
 	userEmailId, userName := impl.gitOpsConfigReadService.GetUserEmailIdAndNameForGitOpsCommit(installAppVersionRequest.UserId)
-	YamlConfig := &util.ChartConfig{
+	YamlConfig := &git.ChartConfig{
 		FileName:       filename,
 		FileContent:    fileString,
 		ChartName:      installAppVersionRequest.AppName,
@@ -242,7 +243,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) getGitCommitConfig(installAppVer
 }
 
 // getValuesAndRequirementForGitConfig will return chart values(*util.ChartConfig) and requirements(*util.ChartConfig) for git commit
-func (impl AppStoreDeploymentArgoCdServiceImpl) getValuesAndRequirementForGitConfig(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*util.ChartConfig, *util.ChartConfig, error) {
+func (impl AppStoreDeploymentArgoCdServiceImpl) getValuesAndRequirementForGitConfig(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*git.ChartConfig, *git.ChartConfig, error) {
 	appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)
 	if err != nil {
 		impl.Logger.Errorw("fetching error", "err", err)

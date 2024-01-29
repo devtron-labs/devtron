@@ -1,11 +1,11 @@
 package service
 
 import (
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"testing"
 
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
-	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/util"
 	repository5 "github.com/devtron-labs/devtron/pkg/appStore/chartGroup/repository"
@@ -34,9 +34,8 @@ func TestInstalledAppServiceImpl_DeployDefaultChartOnCluster(t *testing.T) {
 		pubsubClient                         *pubsub.PubSubClientServiceImpl
 		chartGroupDeploymentRepository       repository5.ChartGroupDeploymentRepository
 		envService                           cluster.EnvironmentService
-		gitFactory                           *util.GitFactory
+		gitFactory                           *git.GitFactory
 		aCDAuthConfig                        *util2.ACDAuthConfig
-		gitOpsRepository                     repository3.GitOpsConfigRepository
 		userService                          user.UserService
 		appStoreDeploymentService            AppStoreDeploymentService
 	}
@@ -56,9 +55,8 @@ func TestInstalledAppServiceImpl_DeployDefaultChartOnCluster(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			impl := &InstalledAppServiceImpl{
-				logger:                 tt.fields.logger,
-				installedAppRepository: tt.fields.installedAppRepository,
-
+				logger:                               tt.fields.logger,
+				installedAppRepository:               tt.fields.installedAppRepository,
 				appStoreApplicationVersionRepository: tt.fields.appStoreApplicationVersionRepository,
 				environmentRepository:                tt.fields.environmentRepository,
 				teamRepository:                       tt.fields.teamRepository,

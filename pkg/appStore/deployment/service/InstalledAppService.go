@@ -24,7 +24,7 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	appStoreDeploymentTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
-	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/remote"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 
 	/* #nosec */
@@ -118,18 +118,16 @@ type InstalledAppServiceImpl struct {
 	k8sCommonService                     k8s.K8sCommonService
 	k8sApplicationService                application3.K8sApplicationService
 	acdConfig                            *argocdServer.ACDConfig
-	gitOpsRemoteOperationService         remote.GitOpsRemoteOperationService
 	appStoreDeploymentArgoCdService      appStoreDeploymentTool.AppStoreDeploymentArgoCdService
+	gitOperationService                  git.GitOperationService
 }
 
 func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 	installedAppRepository repository2.InstalledAppRepository,
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
 	environmentRepository repository5.EnvironmentRepository, teamRepository repository4.TeamRepository,
-	appRepository app.AppRepository,
-	acdClient application2.ServiceClient,
-	appStoreValuesService service.AppStoreValuesService,
-	pubsubClient *pubsub.PubSubClientServiceImpl,
+	appRepository app.AppRepository, acdClient application2.ServiceClient,
+	appStoreValuesService service.AppStoreValuesService, pubsubClient *pubsub.PubSubClientServiceImpl,
 	chartGroupDeploymentRepository repository6.ChartGroupDeploymentRepository,
 	envService cluster2.EnvironmentService,
 	userService user.UserService, aCDAuthConfig *util2.ACDAuthConfig,
@@ -139,8 +137,7 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 	appStatusService appStatus.AppStatusService, K8sUtil *util4.K8sServiceImpl,
 	pipelineStatusTimelineService status.PipelineStatusTimelineService,
 	k8sCommonService k8s.K8sCommonService, k8sApplicationService application3.K8sApplicationService,
-	acdConfig *argocdServer.ACDConfig,
-	gitOpsRemoteOperationService remote.GitOpsRemoteOperationService,
+	acdConfig *argocdServer.ACDConfig, gitOperationService git.GitOperationService,
 	appStoreDeploymentArgoCdService appStoreDeploymentTool.AppStoreDeploymentArgoCdService) (*InstalledAppServiceImpl, error) {
 	impl := &InstalledAppServiceImpl{
 		logger:                               logger,
@@ -167,7 +164,7 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 		k8sCommonService:                     k8sCommonService,
 		k8sApplicationService:                k8sApplicationService,
 		acdConfig:                            acdConfig,
-		gitOpsRemoteOperationService:         gitOpsRemoteOperationService,
+		gitOperationService:                  gitOperationService,
 		appStoreDeploymentArgoCdService:      appStoreDeploymentArgoCdService,
 	}
 	err := impl.subscribe()
@@ -486,7 +483,7 @@ func (impl InstalledAppServiceImpl) performDeployStageOnAcd(installedAppVersion 
 			return nil, err
 		}
 
-		repoUrl, err := impl.gitOpsRemoteOperationService.GetRepoUrlByRepoName(installedAppVersion.GitOpsRepoName)
+		repoUrl, err := impl.gitOperationService.GetRepoUrlByRepoName(installedAppVersion.GitOpsRepoName)
 		if err != nil {
 			//will allow to continue to persist status on next operation
 			impl.logger.Errorw("error, GetRepoUrlByRepoName", "err", err)

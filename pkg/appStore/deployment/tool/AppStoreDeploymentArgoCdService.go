@@ -11,7 +11,7 @@ import (
 	repository5 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
-	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/remote"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	"net/http"
 	"strings"
@@ -99,7 +99,7 @@ type AppStoreDeploymentArgoCdServiceImpl struct {
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository
 	argoClientWrapperService             argocdServer.ArgoClientWrapperService
 	acdConfig                            *argocdServer.ACDConfig
-	gitOpsRemoteOperationService         remote.GitOpsRemoteOperationService
+	gitOperationService                  git.GitOperationService
 	gitOpsConfigReadService              config.GitOpsConfigReadService
 	environmentRepository                repository5.EnvironmentRepository
 }
@@ -122,7 +122,7 @@ func NewAppStoreDeploymentArgoCdServiceImpl(
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
 	acdConfig *argocdServer.ACDConfig,
-	gitOpsRemoteOperationService remote.GitOpsRemoteOperationService,
+	gitOperationService git.GitOperationService,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
 	environmentRepository repository5.EnvironmentRepository) *AppStoreDeploymentArgoCdServiceImpl {
 	return &AppStoreDeploymentArgoCdServiceImpl{
@@ -143,7 +143,7 @@ func NewAppStoreDeploymentArgoCdServiceImpl(
 		appStoreApplicationVersionRepository: appStoreApplicationVersionRepository,
 		argoClientWrapperService:             argoClientWrapperService,
 		acdConfig:                            acdConfig,
-		gitOpsRemoteOperationService:         gitOpsRemoteOperationService,
+		gitOperationService:                  gitOperationService,
 		gitOpsConfigReadService:              gitOpsConfigReadService,
 		environmentRepository:                environmentRepository,
 	}

@@ -15,14 +15,14 @@
  *
  */
 
-package util
+package git
 
 import (
 	"context"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/adapter"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
 	"github.com/devtron-labs/devtron/util"
-	"io/ioutil"
-	"net/url"
 	"path/filepath"
 	"time"
 
@@ -57,16 +57,13 @@ type GitClient interface {
 	GetRepoUrl(config *bean2.GitOpsConfigDto) (repoUrl string, err error)
 	DeleteRepository(config *bean2.GitOpsConfigDto) error
 	CreateReadme(config *bean2.GitOpsConfigDto) (string, error)
-	GetCommits(repoName, projectName string) ([]*GitCommitDto, error)
 }
 
 type GitFactory struct {
-	Client           GitClient
-	GitService       GitService
-	GitWorkingDir    string
-	logger           *zap.SugaredLogger
-	gitOpsRepository repository.GitOpsConfigRepository
-	gitCliUtil       *GitCliUtil
+	Client     GitClient
+	GitService GitService
+	logger     *zap.SugaredLogger
+	gitCliUtil *GitCliUtil
 }
 
 type DetailedErrorGitOpsConfigActions struct {
@@ -76,57 +73,38 @@ type DetailedErrorGitOpsConfigActions struct {
 	DeleteRepoFailed bool             `json:"deleteRepoFailed"`
 }
 
-type GitCommitDto struct {
-	CommitHash string    `json:"commitHash"`
-	AuthorName string    `json:"authorName"`
-	CommitTime time.Time `json:"commitTime"`
-}
-
-func (factory *GitFactory) Reload() error {
+func (factory *GitFactory) Reload(gitOpsRepository repository.GitOpsConfigRepository) error {
 	var err error
 	start := time.Now()
 	defer func() {
 		util.TriggerGitOpsMetrics("Reload", "GitService", start, err)
 	}()
-	logger.Infow("reloading gitops details")
-	cfg, err := GetGitConfig(factory.gitOpsRepository)
+	factory.logger.Infow("reloading gitops details")
+	cfg, err := GetGitConfig(gitOpsRepository)
 	if err != nil {
 		return err
 	}
-	gitService := NewGitServiceImpl(cfg, logger, factory.gitCliUtil)
+	gitService := NewGitServiceImpl(cfg, factory.logger, factory.gitCliUtil)
 	factory.GitService = gitService
-	client, err := NewGitOpsClient(cfg, logger, gitService, factory.gitOpsRepository)
+	client, err := NewGitOpsClient(cfg, factory.logger, gitService)
 	if err != nil {
 		return err
 	}
 	factory.Client = client
-	logger.Infow(" gitops details reload success")
+	factory.logger.Infow(" gitops details reload success")
 	return nil
 }
 
 func (factory *GitFactory) GetGitLabGroupPath(gitOpsConfig *bean2.GitOpsConfigDto) (string, error) {
 	start := time.Now()
-	var gitLabClient *gitlab.Client
 	var err error
 	defer func() {
 		util.TriggerGitOpsMetrics("GetGitLabGroupPath", "GitService", start, err)
 	}()
-	if len(gitOpsConfig.Host) > 0 {
-		_, err = url.ParseRequestURI(gitOpsConfig.Host)
-		if err != nil {
-			return "", err
-		}
-		gitLabClient, err = gitlab.NewClient(gitOpsConfig.Token, gitlab.WithBaseURL(gitOpsConfig.Host))
-		if err != nil {
-			factory.logger.Errorw("error in getting new gitlab client", "err", err)
-			return "", err
-		}
-	} else {
-		gitLabClient, err = gitlab.NewClient(gitOpsConfig.Token)
-		if err != nil {
-			factory.logger.Errorw("error in getting new gitlab client", "err", err)
-			return "", err
-		}
+	gitLabClient, err := CreateGitlabClient(gitOpsConfig.Host, gitOpsConfig.Token)
+	if err != nil {
+		factory.logger.Errorw("error in creating gitlab client", "err", err)
+		return "", err
 	}
 	group, _, err := gitLabClient.Groups.GetGroup(gitOpsConfig.GitLabGroupId, &gitlab.GetGroupOptions{})
 	if err != nil {
@@ -146,28 +124,16 @@ func (factory *GitFactory) NewClientForValidation(gitOpsConfig *bean2.GitOpsConf
 	defer func() {
 		util.TriggerGitOpsMetrics("NewClientForValidation", "GitService", start, err)
 	}()
-	cfg := &GitConfig{
-		GitlabGroupId:        gitOpsConfig.GitLabGroupId,
-		GitToken:             gitOpsConfig.Token,
-		GitUserName:          gitOpsConfig.Username,
-		GitWorkingDir:        GIT_WORKING_DIR,
-		GithubOrganization:   gitOpsConfig.GitHubOrgId,
-		GitProvider:          gitOpsConfig.Provider,
-		GitHost:              gitOpsConfig.Host,
-		AzureToken:           gitOpsConfig.Token,
-		AzureProject:         gitOpsConfig.AzureProjectName,
-		BitbucketWorkspaceId: gitOpsConfig.BitBucketWorkspaceId,
-		BitbucketProjectKey:  gitOpsConfig.BitBucketProjectKey,
-	}
-	gitService := NewGitServiceImpl(cfg, logger, factory.gitCliUtil)
+	cfg := adapter.ConvertGitOpsConfigToGitConfig(gitOpsConfig)
+	gitService := NewGitServiceImpl(cfg, factory.logger, factory.gitCliUtil)
 	//factory.GitService = GitService
-	client, err := NewGitOpsClient(cfg, logger, gitService, factory.gitOpsRepository)
+	client, err := NewGitOpsClient(cfg, factory.logger, gitService)
 	if err != nil {
 		return client, gitService, err
 	}
 
 	//factory.Client = client
-	logger.Infow("client changed successfully", "cfg", cfg)
+	factory.logger.Infow("client changed successfully", "cfg", cfg)
 	return client, gitService, nil
 }
 
@@ -177,36 +143,19 @@ func NewGitFactory(logger *zap.SugaredLogger, gitOpsRepository repository.GitOps
 		return nil, err
 	}
 	gitService := NewGitServiceImpl(cfg, logger, gitCliUtil)
-	client, err := NewGitOpsClient(cfg, logger, gitService, gitOpsRepository)
+	client, err := NewGitOpsClient(cfg, logger, gitService)
 	if err != nil {
 		logger.Errorw("error in creating gitOps client", "err", err, "gitProvider", cfg.GitProvider)
 	}
 	return &GitFactory{
-		Client:           client,
-		logger:           logger,
-		GitService:       gitService,
-		gitOpsRepository: gitOpsRepository,
-		GitWorkingDir:    cfg.GitWorkingDir,
-		gitCliUtil:       gitCliUtil,
+		Client:     client,
+		logger:     logger,
+		GitService: gitService,
+		gitCliUtil: gitCliUtil,
 	}, nil
 }
 
-type GitConfig struct {
-	GitlabGroupId        string //local
-	GitlabGroupPath      string //local
-	GitToken             string //not null  // public
-	GitUserName          string //not null  // public
-	GitWorkingDir        string //working directory for git. might use pvc
-	GithubOrganization   string
-	GitProvider          string // SUPPORTED VALUES  GITHUB, GITLAB
-	GitHost              string
-	AzureToken           string
-	AzureProject         string
-	BitbucketWorkspaceId string
-	BitbucketProjectKey  string
-}
-
-func GetGitConfig(gitOpsRepository repository.GitOpsConfigRepository) (*GitConfig, error) {
+func GetGitConfig(gitOpsRepository repository.GitOpsConfigRepository) (*bean.GitConfig, error) {
 	gitOpsConfig, err := gitOpsRepository.GetGitOpsConfigActive()
 	if err != nil && err != pg.ErrNoRows {
 		return nil, err
@@ -215,17 +164,16 @@ func GetGitConfig(gitOpsRepository repository.GitOpsConfigRepository) (*GitConfi
 		// cfg := &GitConfig{}
 		// err := env.Parse(cfg)
 		// return cfg, err
-		return &GitConfig{}, nil
+		return &bean.GitConfig{}, nil
 	}
 
 	if gitOpsConfig == nil || gitOpsConfig.Id == 0 {
 		return nil, err
 	}
-	cfg := &GitConfig{
+	cfg := &bean.GitConfig{
 		GitlabGroupId:        gitOpsConfig.GitLabGroupId,
 		GitToken:             gitOpsConfig.Token,
 		GitUserName:          gitOpsConfig.Username,
-		GitWorkingDir:        GIT_WORKING_DIR,
 		GithubOrganization:   gitOpsConfig.GitHubOrgId,
 		GitProvider:          gitOpsConfig.Provider,
 		GitHost:              gitOpsConfig.Host,
@@ -237,18 +185,18 @@ func GetGitConfig(gitOpsRepository repository.GitOpsConfigRepository) (*GitConfi
 	return cfg, err
 }
 
-func NewGitOpsClient(config *GitConfig, logger *zap.SugaredLogger, gitService GitService, gitOpsConfigRepository repository.GitOpsConfigRepository) (GitClient, error) {
+func NewGitOpsClient(config *bean.GitConfig, logger *zap.SugaredLogger, gitService GitService) (GitClient, error) {
 	if config.GitProvider == GITLAB_PROVIDER {
 		gitLabClient, err := NewGitLabClient(config, logger, gitService)
 		return gitLabClient, err
 	} else if config.GitProvider == GITHUB_PROVIDER {
-		gitHubClient, err := NewGithubClient(config.GitHost, config.GitToken, config.GithubOrganization, logger, gitService, gitOpsConfigRepository)
+		gitHubClient, err := NewGithubClient(config.GitHost, config.GitToken, config.GithubOrganization, logger, gitService)
 		return gitHubClient, err
 	} else if config.GitProvider == AZURE_DEVOPS_PROVIDER {
-		gitAzureClient, err := NewGitAzureClient(config.AzureToken, config.GitHost, config.AzureProject, logger, gitService, gitOpsConfigRepository)
+		gitAzureClient, err := NewGitAzureClient(config.AzureToken, config.GitHost, config.AzureProject, logger, gitService)
 		return gitAzureClient, err
 	} else if config.GitProvider == BITBUCKET_PROVIDER {
-		gitBitbucketClient := NewGitBitbucketClient(config.GitUserName, config.GitToken, config.GitHost, logger, gitService, gitOpsConfigRepository)
+		gitBitbucketClient := NewGitBitbucketClient(config.GitUserName, config.GitToken, config.GitHost, logger, gitService)
 		return gitBitbucketClient, nil
 	} else {
 		logger.Errorw("no gitops config provided, gitops will not work ")
@@ -271,36 +219,31 @@ type ChartConfig struct {
 type GitService interface {
 	Clone(url, targetDir string) (clonedDir string, err error)
 	CommitAndPushAllChanges(repoRoot, commitMsg, name, emailId string) (commitHash string, err error)
-	ForceResetHead(repoRoot string) (err error)
-	CommitValues(config *ChartConfig) (commitHash string, err error)
 
 	GetCloneDirectory(targetDir string) (clonedDir string)
 	Pull(repoRoot string) (err error)
 }
 type GitServiceImpl struct {
 	Auth       *http.BasicAuth
-	config     *GitConfig
 	logger     *zap.SugaredLogger
 	gitCliUtil *GitCliUtil
 }
 
-func NewGitServiceImpl(config *GitConfig, logger *zap.SugaredLogger, GitCliUtil *GitCliUtil) *GitServiceImpl {
+func NewGitServiceImpl(config *bean.GitConfig, logger *zap.SugaredLogger, GitCliUtil *GitCliUtil) *GitServiceImpl {
 	auth := &http.BasicAuth{Password: config.GitToken, Username: config.GitUserName}
 	return &GitServiceImpl{
 		Auth:       auth,
 		logger:     logger,
-		config:     config,
 		gitCliUtil: GitCliUtil,
 	}
 }
 
 func (impl GitServiceImpl) GetCloneDirectory(targetDir string) (clonedDir string) {
-
 	start := time.Now()
 	defer func() {
 		util.TriggerGitOpsMetrics("GetCloneDirectory", "GitService", start, nil)
 	}()
-	clonedDir = filepath.Join(impl.config.GitWorkingDir, targetDir)
+	clonedDir = filepath.Join(GIT_WORKING_DIR, targetDir)
 	return clonedDir
 }
 
@@ -310,7 +253,7 @@ func (impl GitServiceImpl) Clone(url, targetDir string) (clonedDir string, err e
 		util.TriggerGitOpsMetrics("Clone", "GitService", start, err)
 	}()
 	impl.logger.Debugw("git checkout ", "url", url, "dir", targetDir)
-	clonedDir = filepath.Join(impl.config.GitWorkingDir, targetDir)
+	clonedDir = filepath.Join(GIT_WORKING_DIR, targetDir)
 	_, errorMsg, err := impl.gitCliUtil.Clone(clonedDir, url, impl.Auth.Username, impl.Auth.Password)
 	if err != nil {
 		impl.logger.Errorw("error in git checkout", "url", url, "targetDir", targetDir, "err", err)
@@ -371,45 +314,6 @@ func (impl GitServiceImpl) getRepoAndWorktree(repoRoot string) (*git.Repository,
 	}
 	w, err := r.Worktree()
 	return r, w, err
-}
-
-func (impl GitServiceImpl) ForceResetHead(repoRoot string) (err error) {
-	start := time.Now()
-	defer func() {
-		util.TriggerGitOpsMetrics("ForceResetHead", "GitService", start, err)
-	}()
-	_, workTree, err := impl.getRepoAndWorktree(repoRoot)
-	if err != nil {
-		return err
-	}
-	err = workTree.Reset(&git.ResetOptions{Mode: git.HardReset})
-	if err != nil {
-		return err
-	}
-	err = workTree.Pull(&git.PullOptions{
-		Auth:         impl.Auth,
-		Force:        true,
-		SingleBranch: true,
-	})
-	return err
-}
-
-func (impl GitServiceImpl) CommitValues(config *ChartConfig) (commitHash string, err error) {
-	//TODO acquire lock
-	start := time.Now()
-	defer func() {
-		util.TriggerGitOpsMetrics("CommitValues", "GitService", start, err)
-	}()
-	gitDir := filepath.Join(impl.config.GitWorkingDir, config.ChartName)
-	if err != nil {
-		return "", err
-	}
-	err = ioutil.WriteFile(filepath.Join(gitDir, config.ChartLocation, config.FileName), []byte(config.FileContent), 0600)
-	if err != nil {
-		return "", err
-	}
-	hash, err := impl.CommitAndPushAllChanges(gitDir, config.ReleaseMessage, "devtron bot", "devtron-bot@devtron.ai")
-	return hash, err
 }
 
 func (impl GitServiceImpl) Pull(repoRoot string) (err error) {

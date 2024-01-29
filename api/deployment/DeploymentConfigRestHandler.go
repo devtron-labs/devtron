@@ -17,7 +17,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/chart"
-	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/gorilla/mux"
 	"github.com/juju/errors"
@@ -99,7 +98,7 @@ func (handler *DeploymentConfigRestHandlerImpl) CreateChartFromFile(w http.Respo
 		return
 	}
 
-	chartInfo, err := handler.chartRefService.ExtractChartIfMissing(fileBytes, chartRepoRepository.RefChartDirPath, "")
+	chartInfo, err := handler.chartRefService.ExtractChartIfMissing(fileBytes, bean.RefChartDirPath, "")
 
 	if err != nil {
 		if chartInfo != nil && chartInfo.TemporaryFolder != "" {
@@ -108,7 +107,7 @@ func (handler *DeploymentConfigRestHandlerImpl) CreateChartFromFile(w http.Respo
 				handler.Logger.Errorw("error in deleting temp dir ", "err", err1)
 			}
 		}
-		if err.Error() == bean.CHART_ALREADY_EXISTS_INTERNAL_ERROR || err.Error() == bean.CHART_NAME_RESERVED_INTERNAL_ERROR {
+		if err.Error() == bean.ChartAlreadyExistsInternalError || err.Error() == bean.ChartNameReservedInternalError {
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
@@ -175,7 +174,7 @@ func (handler *DeploymentConfigRestHandlerImpl) SaveChart(w http.ResponseWriter,
 		return
 	}
 
-	location := filepath.Join(chartRepoRepository.RefChartDirPath, request.FileId)
+	location := filepath.Join(bean.RefChartDirPath, request.FileId)
 	if request.Action == "Save" {
 		file, err := ioutil.ReadFile(filepath.Join(location, "output.json"))
 		if err != nil {
@@ -231,7 +230,7 @@ func (handler *DeploymentConfigRestHandlerImpl) DownloadChart(w http.ResponseWri
 		common.WriteJsonResp(w, fmt.Errorf("error in parsing chartRefId : %s must be integer", chartRefId), nil, http.StatusBadRequest)
 		return
 	}
-	manifestByteArr, err := handler.chartRefService.GetCustomChartInBytes(chartRefId)
+	manifestByteArr, err := handler.chartRefService.GetChartInBytes(chartRefId)
 	if err != nil {
 		handler.Logger.Errorw("error in converting chart to bytes", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

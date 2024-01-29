@@ -24,6 +24,12 @@ import (
 )
 
 type ChartRefService interface {
+	ChartRefDbReadService
+	CustomChartService
+	ChartRefFileOpService
+}
+
+type ChartRefDbReadService interface {
 	GetDefault() (*bean.ChartRefDto, error)
 	GetAll() ([]*bean.ChartRefDto, error)
 	GetAllChartMetadata() (map[string]bean.ChartRefMetaData, error)
@@ -31,22 +37,23 @@ type ChartRefService interface {
 	FindByVersionAndName(version, name string) (*bean.ChartRefDto, error)
 	FetchInfoOfChartConfiguredInApp(appId int) (*bean.ChartRefDto, error)
 	ChartRefAutocomplete() ([]*bean.ChartRefAutocompleteDto, error)
+	CheckChartExists(chartRefId int) error
+	ChartRefIdsCompatible(oldChartRefId int, newChartRefId int) (bool, string, string)
+}
 
+type CustomChartService interface {
 	SaveCustomChart(req *bean.CustomChartRefDto) error
 	FetchCustomChartsInfo() ([]*bean.ChartDto, error)
 	ValidateCustomChartUploadedFileFormat(fileName string) error
+}
 
+type ChartRefFileOpService interface {
 	GetAppOverrideForDefaultTemplate(chartRefId int) (map[string]interface{}, string, error)
-
 	JsonSchemaExtractFromFile(chartRefId int) (map[string]interface{}, string, error)
 	GetSchemaAndReadmeForTemplateByChartRefId(chartRefId int) ([]byte, []byte, error)
-
-	ChartRefIdsCompatible(oldChartRefId int, newChartRefId int) (bool, string, string)
-
-	CheckChartExists(chartRefId int) error
-	GetRefChart(chartRefId int) (string, string, error, string, string)
+	GetRefChart(chartRefId int) (string, string, string, string, error)
 	ExtractChartIfMissing(chartData []byte, refChartDir string, location string) (*bean.ChartDataInfo, error)
-	GetCustomChartInBytes(chartRefId int) ([]byte, error)
+	GetChartInBytes(chartRefId int) ([]byte, error)
 }
 
 type ChartRefServiceImpl struct {
@@ -61,7 +68,7 @@ func NewChartRefServiceImpl(logger *zap.SugaredLogger,
 	chartTemplateService util.ChartTemplateService,
 	mergeUtil util.MergeUtil) *ChartRefServiceImpl {
 	// cache devtron reference charts list
-	devtronChartList, _ := chartRefRepository.FetchAllChartInfoByUploadFlag(false)
+	devtronChartList, _ := chartRefRepository.FetchAllNonUserUploadedChartInfo()
 	setReservedChartList(devtronChartList)
 	return &ChartRefServiceImpl{
 		logger:               logger,
@@ -165,7 +172,7 @@ func (impl *ChartRefServiceImpl) SaveCustomChart(req *bean.CustomChartRefDto) er
 	return nil
 }
 
-func (impl *ChartRefServiceImpl) GetRefChart(chartRefId int) (string, string, error, string, string) {
+func (impl *ChartRefServiceImpl) GetRefChart(chartRefId int) (string, string, string, string, error) {
 	var template string
 	var version string
 	//path of file in chart from where strategy config is to be taken
@@ -175,12 +182,12 @@ func (impl *ChartRefServiceImpl) GetRefChart(chartRefId int) (string, string, er
 		if err != nil {
 			chartRef, err = impl.chartRefRepository.GetDefault()
 			if err != nil {
-				return "", "", err, "", ""
+				return "", "", "", "", err
 			}
 		} else if chartRef.UserUploaded {
-			refChartLocation := filepath.Join(chartRepoRepository.RefChartDirPath, chartRef.Location)
+			refChartLocation := filepath.Join(bean.RefChartDirPath, chartRef.Location)
 			if _, err := os.Stat(refChartLocation); os.IsNotExist(err) {
-				chartInfo, err := impl.ExtractChartIfMissing(chartRef.ChartData, chartRepoRepository.RefChartDirPath, chartRef.Location)
+				chartInfo, err := impl.ExtractChartIfMissing(chartRef.ChartData, bean.RefChartDirPath, chartRef.Location)
 				if chartInfo != nil && chartInfo.TemporaryFolder != "" {
 					err1 := os.RemoveAll(chartInfo.TemporaryFolder)
 					if err1 != nil {
@@ -189,7 +196,7 @@ func (impl *ChartRefServiceImpl) GetRefChart(chartRefId int) (string, string, er
 				}
 				if err != nil {
 					impl.logger.Errorw("Error regarding uploaded chart", "err", err)
-					return "", "", err, "", ""
+					return "", "", "", "", err
 				}
 
 			}
@@ -200,7 +207,7 @@ func (impl *ChartRefServiceImpl) GetRefChart(chartRefId int) (string, string, er
 	} else {
 		chartRef, err := impl.chartRefRepository.GetDefault()
 		if err != nil {
-			return "", "", err, "", ""
+			return "", "", "", "", err
 		}
 		template = chartRef.Location
 		version = chartRef.Version
@@ -208,17 +215,17 @@ func (impl *ChartRefServiceImpl) GetRefChart(chartRefId int) (string, string, er
 	}
 
 	//TODO VIKI- fetch from chart ref table
-	chartPath := path.Join(chartRepoRepository.RefChartDirPath, template)
+	chartPath := path.Join(bean.RefChartDirPath, template)
 	valid, err := chartutil.IsChartDir(chartPath)
 	if err != nil || !valid {
 		impl.logger.Errorw("invalid base chart", "dir", chartPath, "err", err)
-		return "", "", err, "", ""
+		return "", "", "", "", err
 	}
-	return chartPath, template, nil, version, pipelineStrategyPath
+	return chartPath, template, version, pipelineStrategyPath, nil
 }
 
 func (impl *ChartRefServiceImpl) GetSchemaAndReadmeForTemplateByChartRefId(chartRefId int) ([]byte, []byte, error) {
-	refChart, _, err, _, _ := impl.GetRefChart(chartRefId)
+	refChart, _, _, _, err := impl.GetRefChart(chartRefId)
 	if err != nil {
 		impl.logger.Errorw("error in getting refChart", "err", err, "chartRefId", chartRefId)
 		return nil, nil, err
@@ -262,7 +269,7 @@ func (impl *ChartRefServiceImpl) ChartRefAutocomplete() ([]*bean.ChartRefAutocom
 	return chartRefs, nil
 }
 
-func (impl *ChartRefServiceImpl) GetCustomChartInBytes(chartRefId int) ([]byte, error) {
+func (impl *ChartRefServiceImpl) GetChartInBytes(chartRefId int) ([]byte, error) {
 	chartRef, err := impl.chartRefRepository.FindById(chartRefId)
 	if err != nil {
 		impl.logger.Errorw("error getting chart data", "chartRefId", chartRefId, "err", err)
@@ -273,7 +280,7 @@ func (impl *ChartRefServiceImpl) GetCustomChartInBytes(chartRefId int) ([]byte, 
 		return chartRef.ChartData, nil
 	}
 	// For Devtron reference charts the chart will be load from the directory location
-	refChartPath := filepath.Join(chartRepoRepository.RefChartDirPath, chartRef.Location)
+	refChartPath := filepath.Join(bean.RefChartDirPath, chartRef.Location)
 	manifestByteArr, err := impl.chartTemplateService.LoadChartInBytes(refChartPath, false)
 	if err != nil {
 		impl.logger.Errorw("error in converting chart to bytes", "err", err)
@@ -322,9 +329,9 @@ func (impl *ChartRefServiceImpl) CheckChartExists(chartRefId int) error {
 		impl.logger.Errorw("error in finding ref chart by id", "err", err)
 		return err
 	}
-	refChartLocation := filepath.Join(chartRepoRepository.RefChartDirPath, chartRefValue.Location)
+	refChartLocation := filepath.Join(bean.RefChartDirPath, chartRefValue.Location)
 	if _, err := os.Stat(refChartLocation); os.IsNotExist(err) {
-		chartInfo, err := impl.ExtractChartIfMissing(chartRefValue.ChartData, chartRepoRepository.RefChartDirPath, chartRefValue.Location)
+		chartInfo, err := impl.ExtractChartIfMissing(chartRefValue.ChartData, bean.RefChartDirPath, chartRefValue.Location)
 		if chartInfo != nil && chartInfo.TemporaryFolder != "" {
 			err1 := os.RemoveAll(chartInfo.TemporaryFolder)
 			if err1 != nil {
@@ -342,7 +349,7 @@ func (impl *ChartRefServiceImpl) GetAppOverrideForDefaultTemplate(chartRefId int
 		return nil, "", err
 	}
 
-	refChart, _, err, _, _ := impl.GetRefChart(chartRefId)
+	refChart, _, _, _, err := impl.GetRefChart(chartRefId)
 	if err != nil {
 		return nil, "", err
 	}
@@ -396,7 +403,7 @@ func (impl *ChartRefServiceImpl) JsonSchemaExtractFromFile(chartRefId int) (map[
 		return nil, "", err
 	}
 
-	refChartDir, _, err, version, _ := impl.GetRefChart(chartRefId)
+	refChartDir, _, version, _, err := impl.GetRefChart(chartRefId)
 	if err != nil {
 		impl.logger.Errorw("refChartDir Not Found err, JsonSchemaExtractFromFile", err)
 		return nil, "", err
@@ -430,14 +437,7 @@ func (impl *ChartRefServiceImpl) JsonSchemaExtractFromFile(chartRefId int) (map[
 func (impl *ChartRefServiceImpl) ExtractChartIfMissing(chartData []byte, refChartDir string, location string) (*bean.ChartDataInfo, error) {
 	binaryDataReader := bytes.NewReader(chartData)
 	dir := impl.chartTemplateService.GetDir()
-	chartInfo := &bean.ChartDataInfo{
-		ChartName:       "",
-		ChartVersion:    "",
-		ChartLocation:   "",
-		TemporaryFolder: "",
-		Description:     "",
-		Message:         "",
-	}
+	chartInfo := &bean.ChartDataInfo{}
 	temporaryChartWorkingDir := filepath.Clean(filepath.Join(refChartDir, dir))
 	err := os.MkdirAll(temporaryChartWorkingDir, os.ModePerm)
 	if err != nil {
@@ -504,7 +504,7 @@ func (impl *ChartRefServiceImpl) ExtractChartIfMissing(chartData []byte, refChar
 			impl.logger.Errorw("request err, chart name is reserved by Devtron")
 			err = &util.ApiError{
 				Code:            constants.ChartNameAlreadyReserved,
-				InternalMessage: bean.CHART_NAME_RESERVED_INTERNAL_ERROR,
+				InternalMessage: bean.ChartNameReservedInternalError,
 				UserMessage:     fmt.Sprintf("The name '%s' is reserved for a chart provided by Devtron", chartName),
 			}
 			return chartInfo, err
@@ -520,7 +520,7 @@ func (impl *ChartRefServiceImpl) ExtractChartIfMissing(chartData []byte, refChar
 			impl.logger.Errorw("request err, chart name and version exists already in the database")
 			err = &util.ApiError{
 				Code:            constants.ChartCreatedAlreadyExists,
-				InternalMessage: bean.CHART_ALREADY_EXISTS_INTERNAL_ERROR,
+				InternalMessage: bean.ChartAlreadyExistsInternalError,
 				UserMessage:     fmt.Sprintf("%s of %s exists already in the database", chartVersion, chartName),
 			}
 			return chartInfo, err

@@ -22,13 +22,14 @@ import (
 	"encoding/json"
 	errors3 "errors"
 	"fmt"
-	bean5 "github.com/devtron-labs/devtron/api/helm-app/bean"
+	bean6 "github.com/devtron-labs/devtron/api/helm-app/bean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client2 "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
-	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/remote"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
+	bean5 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 	"path"
 	"strconv"
 	"strings"
@@ -52,6 +53,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
+	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
@@ -185,17 +187,18 @@ type WorkflowDagExecutorImpl struct {
 	configMapHistoryRepository          repository3.ConfigMapHistoryRepository
 	helmAppService                      client2.HelmAppService
 	//TODO fix me next
-	helmAppClient                gRPC.HelmAppClient //TODO refactoring: use helm app service instead
-	environmentConfigRepository  chartConfig.EnvConfigOverrideRepository
-	mergeUtil                    *util.MergeUtil
-	acdClient                    application2.ServiceClient
-	argoClientWrapperService     argocdServer.ArgoClientWrapperService
-	customTagService             CustomTagService
-	ACDConfig                    *argocdServer.ACDConfig
-	deployedAppMetricsService    deployedAppMetrics.DeployedAppMetricsService
-	chartRefService              chartRef.ChartRefService
-	gitOpsConfigReadService      config.GitOpsConfigReadService
-	gitOpsRemoteOperationService remote.GitOpsRemoteOperationService
+	helmAppClient                		gRPC.HelmAppClient //TODO refactoring: use helm app service instead
+	environmentConfigRepository  		chartConfig.EnvConfigOverrideRepository
+	mergeUtil                    		*util.MergeUtil
+	acdClient                    		application2.ServiceClient
+	argoClientWrapperService     		argocdServer.ArgoClientWrapperService
+	customTagService             		CustomTagService
+	ACDConfig                    		*argocdServer.ACDConfig
+	deployedAppMetricsService    		deployedAppMetrics.DeployedAppMetricsService
+	chartRefService              		chartRef.ChartRefService
+	gitOpsConfigReadService             config.GitOpsConfigReadService
+	gitOperationService                 git.GitOperationService
+	imageDigestPolicyService            imageDigestPolicy.ImageDigestPolicyService
 }
 
 const kedaAutoscaling = "kedaAutoscaling"
@@ -316,7 +319,9 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
 	chartRefService chartRef.ChartRefService,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
-	gitOpsRemoteOperationService remote.GitOpsRemoteOperationService) *WorkflowDagExecutorImpl {
+	gitOperationService git.GitOperationService,
+	imageDigestPolicyService imageDigestPolicy.ImageDigestPolicyService,
+) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
 		cdWorkflowRepository:          cdWorkflowRepository,
@@ -384,7 +389,8 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		deployedAppMetricsService:           deployedAppMetricsService,
 		chartRefService:                     chartRefService,
 		gitOpsConfigReadService:             gitOpsConfigReadService,
-		gitOpsRemoteOperationService:        gitOpsRemoteOperationService,
+		gitOperationService:                 gitOperationService,
+		imageDigestPolicyService:            imageDigestPolicyService,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -499,7 +505,7 @@ func (impl *WorkflowDagExecutorImpl) UpdateWorkflowRunnerStatusForDeployment(app
 	if err != nil {
 		impl.logger.Errorw("error in getting helm app release status", "appIdentifier", appIdentifier, "err", err)
 		// Handle release not found errors
-		if skipReleaseNotFound && util.GetGRPCErrorDetailedMessage(err) != bean5.ErrReleaseNotFound {
+		if skipReleaseNotFound && util.GetGRPCErrorDetailedMessage(err) != bean6.ErrReleaseNotFound {
 			// skip this error and continue for next workflow status
 			impl.logger.Warnw("found error, skipping helm apps status update for this trigger", "appIdentifier", appIdentifier, "err", err)
 			return false
@@ -1198,7 +1204,9 @@ func (impl *WorkflowDagExecutorImpl) SetCopyContainerImagePluginDataInWorkflowRe
 			}
 
 			if !customTag.Enabled {
-				DockerImageTag = ""
+				// case when custom tag is not configured - source image tag will be taken as docker image tag
+				pluginTriggerImageSplit := strings.Split(artifact.Image, ":")
+				DockerImageTag = pluginTriggerImageSplit[len(pluginTriggerImageSplit)-1]
 			} else {
 				// for copyContainerImage plugin parse destination images and save its data in image path reservation table
 				customTagDbObject, customDockerImageTag, err := impl.customTagService.GetCustomTag(pipelineStageEntityType, strconv.Itoa(pipelineId))
@@ -1681,6 +1689,16 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		}
 	}
 
+	digestConfigurationRequest := imageDigestPolicy.DigestPolicyConfigurationRequest{PipelineId: cdPipeline.Id}
+	digestPolicyConfigurations, err := impl.imageDigestPolicyService.GetDigestPolicyConfigurations(digestConfigurationRequest)
+	if err != nil {
+		impl.logger.Errorw("error in checking if isImageDigestPolicyConfiguredForPipeline", "err", err, "pipelineId", cdPipeline.Id)
+		return nil, err
+	}
+	image := artifact.Image
+	if digestPolicyConfigurations.UseDigestForTrigger() {
+		image = ReplaceImageTagWithDigest(image, artifact.ImageDigest)
+	}
 	cdStageWorkflowRequest := &types.WorkflowRequest{
 		EnvironmentId:         cdPipeline.EnvironmentId,
 		AppId:                 cdPipeline.AppId,
@@ -1933,6 +1951,12 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 	cdStageWorkflowRequest.DefaultAddressPoolBaseCidr = impl.config.GetDefaultAddressPoolBaseCidr()
 	cdStageWorkflowRequest.DefaultAddressPoolSize = impl.config.GetDefaultAddressPoolSize()
 	return cdStageWorkflowRequest, nil
+}
+
+func ReplaceImageTagWithDigest(image, digest string) string {
+	imageWithoutTag := strings.Split(image, ":")[0]
+	imageWithDigest := fmt.Sprintf("%s@%s", imageWithoutTag, digest)
+	return imageWithDigest
 }
 
 func (impl *WorkflowDagExecutorImpl) buildDefaultArtifactLocation(cdWorkflowConfig *pipelineConfig.CdWorkflowConfig, savedWf *pipelineConfig.CdWorkflow, runner *pipelineConfig.CdWorkflowRunner) string {
@@ -3109,7 +3133,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPipeline(overrideRequest *bean.Value
 		manifestPushResponse := manifestPushService.PushChart(manifestPushTemplate, ctx)
 		if manifestPushResponse.Error != nil {
 			impl.logger.Errorw("Error in pushing manifest to git", "err", err, "git_repo_url", manifestPushTemplate.RepoUrl)
-			return releaseNo, manifest, err
+			return releaseNo, manifest, manifestPushResponse.Error
 		}
 		pipelineOverrideUpdateRequest := &chartConfig.PipelineOverride{
 			Id:                     valuesOverrideResponse.PipelineOverride.Id,
@@ -3646,7 +3670,7 @@ func (impl *WorkflowDagExecutorImpl) createHelmAppForCdPipeline(overrideRequest 
 		Name:    pipeline.App.AppName,
 		Version: envOverride.Chart.ChartVersion,
 	}
-	referenceTemplatePath := path.Join(chartRepoRepository.RefChartDirPath, envOverride.Chart.ReferenceTemplate)
+	referenceTemplatePath := path.Join(bean5.RefChartDirPath, envOverride.Chart.ReferenceTemplate)
 
 	if util.IsHelmApp(pipeline.DeploymentAppType) {
 		referenceChartByte := envOverride.Chart.ReferenceChart
@@ -3693,7 +3717,7 @@ func (impl *WorkflowDagExecutorImpl) createHelmAppForCdPipeline(overrideRequest 
 			req := &gRPC.UpgradeReleaseRequest{
 				ReleaseIdentifier: releaseIdentifier,
 				ValuesYaml:        mergeAndSave,
-				HistoryMax:        impl.helmAppService.GetRevisionHistoryMaxValue(bean5.SOURCE_DEVTRON_APP),
+				HistoryMax:        impl.helmAppService.GetRevisionHistoryMaxValue(bean6.SOURCE_DEVTRON_APP),
 				ChartContent:      &gRPC.ChartContent{Content: referenceChartByte},
 			}
 			if impl.appService.IsDevtronAsyncInstallModeEnabled(bean2.Helm) {
@@ -4158,6 +4182,18 @@ func (impl *WorkflowDagExecutorImpl) getReleaseOverride(envOverride *chartConfig
 	if strategy != nil {
 		deploymentStrategy = string(strategy.Strategy)
 	}
+
+	digestConfigurationRequest := imageDigestPolicy.DigestPolicyConfigurationRequest{PipelineId: overrideRequest.PipelineId}
+	digestPolicyConfigurations, err := impl.imageDigestPolicyService.GetDigestPolicyConfigurations(digestConfigurationRequest)
+	if err != nil {
+		impl.logger.Errorw("error in checking if isImageDigestPolicyConfiguredForPipeline", "err", err, "pipelineId", overrideRequest.PipelineId)
+		return "", err
+	}
+
+	if digestPolicyConfigurations.UseDigestForTrigger() {
+		imageTag[imageTagLen-1] = fmt.Sprintf("%s@%s", imageTag[imageTagLen-1], artifact.ImageDigest)
+	}
+
 	releaseAttribute := app.ReleaseAttributes{
 		Name:           imageName,
 		Tag:            imageTag[imageTagLen-1],

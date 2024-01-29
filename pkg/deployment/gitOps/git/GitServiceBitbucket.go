@@ -1,10 +1,8 @@
-package util
+package git
 
 import (
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
-	"github.com/go-pg/pg"
 	"github.com/ktrysmt/go-bitbucket"
 	"go.uber.org/zap"
 	"io/ioutil"
@@ -22,21 +20,18 @@ const (
 )
 
 type GitBitbucketClient struct {
-	client                 *bitbucket.Client
-	logger                 *zap.SugaredLogger
-	gitService             GitService
-	gitOpsConfigRepository repository.GitOpsConfigRepository
+	client     *bitbucket.Client
+	logger     *zap.SugaredLogger
+	gitService GitService
 }
 
-func NewGitBitbucketClient(username, token, host string, logger *zap.SugaredLogger, gitService GitService,
-	gitOpsConfigRepository repository.GitOpsConfigRepository) GitBitbucketClient {
+func NewGitBitbucketClient(username, token, host string, logger *zap.SugaredLogger, gitService GitService) GitBitbucketClient {
 	coreClient := bitbucket.NewBasicAuth(username, token)
 	logger.Infow("bitbucket client created", "clientDetails", coreClient)
 	return GitBitbucketClient{
-		client:                 coreClient,
-		logger:                 logger,
-		gitService:             gitService,
-		gitOpsConfigRepository: gitOpsConfigRepository,
+		client:     coreClient,
+		logger:     logger,
+		gitService: gitService,
 	}
 }
 
@@ -100,7 +95,7 @@ func (impl GitBitbucketClient) CreateRepository(config *bean2.GitOpsConfigDto) (
 		return "", true, detailedErrorGitOpsConfigActions
 	}
 	repoUrl = fmt.Sprintf(BITBUCKET_CLONE_BASE_URL+"%s/%s.git", repoOptions.Owner, repoOptions.RepoSlug)
-	logger.Infow("repo created ", "repoUrl", repoUrl)
+	impl.logger.Infow("repo created ", "repoUrl", repoUrl)
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CreateRepoStage)
 
 	validated, err := impl.ensureProjectAvailabilityOnHttp(repoOptions)
@@ -255,48 +250,4 @@ func (impl GitBitbucketClient) CommitValues(config *ChartConfig, gitOpsConfig *b
 		return "", time.Time{}, err
 	}
 	return commitHash, commitTime, nil
-}
-
-func (impl GitBitbucketClient) GetCommits(repoName, projectName string) ([]*GitCommitDto, error) {
-	gitOpsConfigBitbucket, err := impl.gitOpsConfigRepository.GetGitOpsConfigByProvider(BITBUCKET_PROVIDER)
-	if err != nil {
-		if err == pg.ErrNoRows {
-			gitOpsConfigBitbucket = &repository.GitOpsConfig{}
-			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
-			gitOpsConfigBitbucket.BitBucketProjectKey = ""
-		} else {
-			impl.logger.Errorw("error in fetching gitOps bitbucket config", "err", err)
-			return nil, err
-		}
-	}
-	bitbucketWorkspaceId := gitOpsConfigBitbucket.BitBucketWorkspaceId
-	bitbucketClient := impl.client
-	getCommitsOptions := &bitbucket.CommitsOptions{
-		RepoSlug:    repoName,
-		Owner:       bitbucketWorkspaceId,
-		Branchortag: "master",
-	}
-	gitCommitsIf, err := bitbucketClient.Repositories.Commits.GetCommits(getCommitsOptions)
-	if err != nil {
-		impl.logger.Errorw("error in getting commits", "err", err, "repoName", repoName)
-		return nil, err
-	}
-
-	gitCommits := gitCommitsIf.(map[string]interface{})["values"].([]interface{})
-	var gitCommitsDto []*GitCommitDto
-	for _, gitCommit := range gitCommits {
-
-		commitHash := gitCommit.(map[string]string)["hash"]
-		commitTime, err := time.Parse(time.RFC3339, gitCommit.(map[string]interface{})["date"].(string))
-		if err != nil {
-			impl.logger.Errorw("error in getting commitTime", "err", err, "gitCommit", gitCommit)
-			return nil, err
-		}
-		gitCommitDto := &GitCommitDto{
-			CommitHash: commitHash,
-			CommitTime: commitTime,
-		}
-		gitCommitsDto = append(gitCommitsDto, gitCommitDto)
-	}
-	return gitCommitsDto, nil
 }

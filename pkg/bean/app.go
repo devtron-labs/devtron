@@ -590,6 +590,8 @@ type CDPipelineConfigObject struct {
 	SwitchFromCiPipelineId        int                                    `json:"switchFromCiPipelineId"`
 	CDPipelineAddType             CDPipelineAddType                      `json:"addType"`
 	ChildPipelineId               int                                    `json:"childPipelineId"`
+	IsDigestEnforcedForPipeline   bool                                   `json:"isDigestEnforcedForPipeline"`
+	IsDigestEnforcedForEnv        bool                                   `json:"isDigestEnforcedForEnv"`
 }
 
 type CDPipelineAddType string

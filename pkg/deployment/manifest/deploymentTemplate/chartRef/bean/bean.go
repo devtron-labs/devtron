@@ -3,11 +3,12 @@ package bean
 import "github.com/devtron-labs/devtron/pkg/sql"
 
 const (
-	DeploymentChartType                 = "Deployment"
-	RolloutChartType                    = "Rollout Deployment"
-	ReferenceChart                      = "reference-chart"
-	CHART_ALREADY_EXISTS_INTERNAL_ERROR = "Chart exists already, try uploading another chart"
-	CHART_NAME_RESERVED_INTERNAL_ERROR  = "Change the name of the chart and try uploading again"
+	DeploymentChartType             = "Deployment"
+	RolloutChartType                = "Rollout Deployment"
+	ReferenceChart                  = "reference-chart"
+	RefChartDirPath                 = "scripts/devtron-reference-helm-charts"
+	ChartAlreadyExistsInternalError = "Chart exists already, try uploading another chart"
+	ChartNameReservedInternalError  = "Change the name of the chart and try uploading again"
 )
 
 type ChartDataInfo struct {

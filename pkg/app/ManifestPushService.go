@@ -5,11 +5,10 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app/bean"
 	status2 "github.com/devtron-labs/devtron/pkg/app/status"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
-	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/remote"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
@@ -31,7 +30,7 @@ type GitOpsManifestPushServiceImpl struct {
 	acdConfig                        *argocdServer.ACDConfig
 	chartRefService                  chartRef.ChartRefService
 	gitOpsConfigReadService          config.GitOpsConfigReadService
-	gitOpsRemoteOperationService     remote.GitOpsRemoteOperationService
+	gitOperationService              git.GitOperationService
 }
 
 func NewGitOpsManifestPushServiceImpl(logger *zap.SugaredLogger,
@@ -39,7 +38,7 @@ func NewGitOpsManifestPushServiceImpl(logger *zap.SugaredLogger,
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository,
 	acdConfig *argocdServer.ACDConfig, chartRefService chartRef.ChartRefService,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
-	gitOpsRemoteOperationService remote.GitOpsRemoteOperationService) *GitOpsManifestPushServiceImpl {
+	gitOperationService git.GitOperationService) *GitOpsManifestPushServiceImpl {
 	return &GitOpsManifestPushServiceImpl{
 		logger:                           logger,
 		pipelineStatusTimelineService:    pipelineStatusTimelineService,
@@ -47,7 +46,7 @@ func NewGitOpsManifestPushServiceImpl(logger *zap.SugaredLogger,
 		acdConfig:                        acdConfig,
 		chartRefService:                  chartRefService,
 		gitOpsConfigReadService:          gitOpsConfigReadService,
-		gitOpsRemoteOperationService:     gitOpsRemoteOperationService,
+		gitOperationService:              gitOperationService,
 	}
 }
 
@@ -108,7 +107,7 @@ func (impl *GitOpsManifestPushServiceImpl) PushChartToGitRepo(manifestPushTempla
 		impl.logger.Errorw("err in getting chart info", "err", err)
 		return err
 	}
-	err = impl.gitOpsRemoteOperationService.PushChartToGitRepo(gitOpsRepoName, manifestPushTemplate.ChartReferenceTemplate, manifestPushTemplate.ChartVersion, manifestPushTemplate.BuiltChartPath, manifestPushTemplate.RepoUrl, manifestPushTemplate.UserId)
+	err = impl.gitOperationService.PushChartToGitRepo(gitOpsRepoName, manifestPushTemplate.ChartReferenceTemplate, manifestPushTemplate.ChartVersion, manifestPushTemplate.BuiltChartPath, manifestPushTemplate.RepoUrl, manifestPushTemplate.UserId)
 	if err != nil {
 		impl.logger.Errorw("error in pushing chart to git", "err", err)
 		return err
@@ -124,7 +123,7 @@ func (impl *GitOpsManifestPushServiceImpl) CommitValuesToGit(manifestPushTemplat
 	//getting username & emailId for commit author data
 	userEmailId, userName := impl.gitOpsConfigReadService.GetUserEmailIdAndNameForGitOpsCommit(manifestPushTemplate.UserId)
 	span.End()
-	chartGitAttr := &util.ChartConfig{
+	chartGitAttr := &git.ChartConfig{
 		FileName:       fmt.Sprintf("_%d-values.yaml", manifestPushTemplate.TargetEnvironmentName),
 		FileContent:    string(manifestPushTemplate.MergedValues),
 		ChartName:      manifestPushTemplate.ChartName,
@@ -135,8 +134,8 @@ func (impl *GitOpsManifestPushServiceImpl) CommitValuesToGit(manifestPushTemplat
 		UserEmailId:    userEmailId,
 	}
 
-	_, span = otel.Tracer("orchestrator").Start(ctx, "gitOpsRemoteOperationService.CommitValues")
-	commitHash, commitTime, err = impl.gitOpsRemoteOperationService.CommitValues(chartGitAttr)
+	_, span = otel.Tracer("orchestrator").Start(ctx, "gitOperationService.CommitValues")
+	commitHash, commitTime, err = impl.gitOperationService.CommitValues(chartGitAttr)
 	span.End()
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
