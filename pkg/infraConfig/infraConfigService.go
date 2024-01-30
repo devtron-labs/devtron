@@ -689,14 +689,14 @@ func (impl *InfraConfigServiceImpl) GetIdentifierList(listFilter *IdentifierList
 		return nil, err
 	}
 	profileIds := make([]int, 0)
-	overriddenIdentifiersCount := 0
+	totalIdentifiersCount := 0
 	for _, identifier := range identifiers {
 		if identifier.ProfileId != 0 {
 			profileIds = append(profileIds, identifier.ProfileId)
 		}
-		overriddenIdentifiersCount = identifier.OverriddenIdentifierCount
+		totalIdentifiersCount = identifier.TotalIdentifierCount
 	}
-	totalIdentifiersCount, err := impl.infraProfileRepo.GetTotalOverriddenCount()
+	overriddenIdentifiersCount, err := impl.infraProfileRepo.GetTotalOverriddenCount()
 	if err != nil {
 		impl.logger.Errorw("error in fetching total overridden count", "listFilter", listFilter, "error", err)
 		return nil, err

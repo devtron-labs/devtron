@@ -133,9 +133,8 @@ type Identifier struct {
 	Profile *ProfileBean `json:"profile"`
 
 	// for internal use only, do not propagate these values to api response
-	ProfileId                 int `json:"-"`
-	TotalIdentifierCount      int `json:"-"`
-	OverriddenIdentifierCount int `json:"-"`
+	ProfileId            int `json:"-"`
+	TotalIdentifierCount int `json:"-"`
 }
 
 type IdentifierProfileResponse struct {

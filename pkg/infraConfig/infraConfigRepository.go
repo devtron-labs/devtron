@@ -332,27 +332,8 @@ func (impl *InfraConfigRepositoryImpl) getIdentifiersListForMiscProfiles(listFil
 		return nil, err
 	}
 	// get profileIds for the above identifiers
-	profileIdentifiersMappings := make([]*Identifier, 0)
-	profileIdentifiersMappingsQuery := "SELECT identifier_value_int AS id,resource_id AS profile_id " +
-		" FROM resource_qualifier_mapping " +
-		" WHERE resource_type = ? " +
-		" AND identifier_key = ? " +
-		" AND active = true "
-	_, err = impl.dbConnection.Query(&profileIdentifiersMappings, profileIdentifiersMappingsQuery, resourceQualifiers.InfraProfile, identifierType)
-	if err != nil {
-		return nil, err
-	}
-	identifiersMap := make(map[int]*Identifier)
-	for _, identifier := range identifiers {
-		identifiersMap[identifier.Id] = identifier
-	}
-	for _, profileIdentifierMapping := range profileIdentifiersMappings {
-		identifier, ok := identifiersMap[profileIdentifierMapping.Id]
-		if ok {
-			identifier.ProfileId = profileIdentifierMapping.ProfileId
-		}
-	}
-	return identifiers, nil
+	identifiers, err = impl.fillIdentifiersWithProfileId(identifierType, identifiers)
+	return identifiers, err
 }
 
 func (impl *InfraConfigRepositoryImpl) getIdentifiersListForDefaultProfile(listFilter IdentifierListFilter, identifierType int) ([]*Identifier, error) {
@@ -371,7 +352,7 @@ func (impl *InfraConfigRepositoryImpl) getIdentifiersListForDefaultProfile(listF
 
 	query := "SELECT id," +
 		"app_name AS name," +
-		"(SELECT id FROM infra_profile WHERE name = ?) AS profile_id, COUNT(id) OVER() AS total_identifier_count " +
+		"COUNT(id) OVER() AS total_identifier_count " +
 		" FROM app " +
 		" WHERE active=true " +
 		" AND id NOT IN ( " + queryToGetAppIdsWhichDoesNotInheritDefaultConfigurations + " ) "
@@ -390,7 +371,36 @@ func (impl *InfraConfigRepositoryImpl) getIdentifiersListForDefaultProfile(listF
 
 	var identifiers []*Identifier
 	_, err := impl.dbConnection.Query(&identifiers, query, DEFAULT_PROFILE_NAME)
+	if err != nil {
+		return nil, err
+	}
+	identifiers, err = impl.fillIdentifiersWithProfileId(identifierType, identifiers)
 	return identifiers, err
+}
+
+func (impl *InfraConfigRepositoryImpl) fillIdentifiersWithProfileId(identifierType int, identifiers []*Identifier) ([]*Identifier, error) {
+	// get profileIds for the above identifiers
+	profileIdentifiersMappings := make([]*Identifier, 0)
+	profileIdentifiersMappingsQuery := "SELECT identifier_value_int AS id,resource_id AS profile_id " +
+		" FROM resource_qualifier_mapping " +
+		" WHERE resource_type = ? " +
+		" AND identifier_key = ? " +
+		" AND active = true "
+	_, err := impl.dbConnection.Query(&profileIdentifiersMappings, profileIdentifiersMappingsQuery, resourceQualifiers.InfraProfile, identifierType)
+	if err != nil {
+		return nil, err
+	}
+	identifiersMap := make(map[int]*Identifier)
+	for _, identifier := range identifiers {
+		identifiersMap[identifier.Id] = identifier
+	}
+	for _, profileIdentifierMapping := range profileIdentifiersMappings {
+		identifier, ok := identifiersMap[profileIdentifierMapping.Id]
+		if ok {
+			identifier.ProfileId = profileIdentifierMapping.ProfileId
+		}
+	}
+	return identifiers, nil
 }
 
 func (impl *InfraConfigRepositoryImpl) DeleteProfileIdentifierMappings(tx *pg.Tx, profileName string) error {
