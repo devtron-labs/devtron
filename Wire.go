@@ -989,9 +989,6 @@ func InitializeApp() (*App, error) {
 		imageDigestPolicy2.NewImageDigestPolicyRestHandlerImpl,
 		wire.Bind(new(imageDigestPolicy2.ImageDigestPolicyRestHandler), new(*imageDigestPolicy2.ImageDigestPolicyRestHandlerImpl)),
 		cron2.NewCronLoggerImpl,
-
-		imageDigestPolicy.NewImageDigestPolicyServiceImpl,
-		wire.Bind(new(imageDigestPolicy.ImageDigestPolicyService), new(*imageDigestPolicy.ImageDigestPolicyServiceImpl)),
 	)
 	return &App{}, nil
 }
