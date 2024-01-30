@@ -21,13 +21,13 @@ import (
 	"encoding/json"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/common-lib/pubsub-lib/model"
+	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
 	"time"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/pkg/appStatus"
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
@@ -137,7 +137,7 @@ func (impl *InstalledAppDBExtendedServiceImpl) UpdateInstalledAppVersionStatus(a
 		impl.Logger.Errorw("error while fetching installed version history", "error", err)
 		return isHealthy, err
 	}
-	if versionHistory.Status != (application2.Healthy) {
+	if versionHistory.Status != (argoApplication.Healthy) {
 		versionHistory.Status = string(application.Status.Health.Status)
 		versionHistory.UpdatedOn = time.Now()
 		versionHistory.UpdatedBy = 1

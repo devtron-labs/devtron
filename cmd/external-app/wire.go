@@ -23,7 +23,12 @@ import (
 	"github.com/devtron-labs/devtron/api/k8s"
 	"github.com/devtron-labs/devtron/api/module"
 	"github.com/devtron-labs/devtron/api/restHandler"
+	"github.com/devtron-labs/devtron/api/restHandler/app/appInfo"
+	appList2 "github.com/devtron-labs/devtron/api/restHandler/app/appList"
 	"github.com/devtron-labs/devtron/api/router"
+	app3 "github.com/devtron-labs/devtron/api/router/app"
+	appInfo2 "github.com/devtron-labs/devtron/api/router/app/appInfo"
+	"github.com/devtron-labs/devtron/api/router/app/appList"
 	"github.com/devtron-labs/devtron/api/server"
 	"github.com/devtron-labs/devtron/api/team"
 	"github.com/devtron-labs/devtron/api/terminal"
@@ -102,10 +107,18 @@ func InitializeApp() (*App, error) {
 		rbac.NewEnforcerUtilImpl,
 		wire.Bind(new(rbac.EnforcerUtil), new(*rbac.EnforcerUtilImpl)),
 
-		router.NewAppRouterImpl,
-		wire.Bind(new(router.AppRouter), new(*router.AppRouterImpl)),
-		restHandler.NewAppRestHandlerImpl,
-		wire.Bind(new(restHandler.AppRestHandler), new(*restHandler.AppRestHandlerImpl)),
+		appInfo2.NewAppInfoRouterImpl,
+		wire.Bind(new(appInfo2.AppInfoRouter), new(*appInfo2.AppInfoRouterImpl)),
+		appInfo.NewAppInfoRestHandlerImpl,
+		wire.Bind(new(appInfo.AppInfoRestHandler), new(*appInfo.AppInfoRestHandlerImpl)),
+
+		appList.NewAppFilteringRouterImpl,
+		wire.Bind(new(appList.AppFilteringRouter), new(*appList.AppFilteringRouterImpl)),
+		appList2.NewAppFilteringRestHandlerImpl,
+		wire.Bind(new(appList2.AppFilteringRestHandler), new(*appList2.AppFilteringRestHandlerImpl)),
+
+		app3.NewAppRouterEAModeImpl,
+		wire.Bind(new(app3.AppRouterEAMode), new(*app3.AppRouterEAModeImpl)),
 
 		app.NewAppCrudOperationServiceImpl,
 		wire.Bind(new(app.AppCrudOperationService), new(*app.AppCrudOperationServiceImpl)),
