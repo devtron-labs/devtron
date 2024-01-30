@@ -30,7 +30,6 @@ import (
 	bean3 "github.com/devtron-labs/devtron/pkg/timeoutWindow/repository/bean"
 	jwt2 "github.com/golang-jwt/jwt/v4"
 	"net/http"
-	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -1265,18 +1264,7 @@ func (impl UserServiceImpl) GetAllWithFilters(status string, sortOrder string, s
 	return listingResponse, nil
 
 }
-func (impl UserServiceImpl) getDesiredResponseWithOffSetAndSize(resp []bean.UserInfo, offset, size int) []bean.UserInfo {
-	sizeOfResponse := len(resp)
-	if sizeOfResponse == 0 {
-		return resp
-	}
-	start, end := util3.FindStartAndEndForOffsetAndSize(sizeOfResponse, offset, size)
-	if start >= end {
-		return []bean.UserInfo{}
-	}
-	return resp[start:end]
 
-}
 func (impl UserServiceImpl) getRequestWithFiltersArgsOrDefault(status string, sortOrder string, sortBy string, offset int, totalSize int, showAll bool, searchKey string) *bean.FetchListingRequest {
 	sortByRes, size := impl.userCommonService.GetDefaultValuesIfNotPresent(sortBy, totalSize, false)
 	request := &bean.FetchListingRequest{
@@ -1308,7 +1296,7 @@ func (impl UserServiceImpl) getAllDetailedUsers() (*bean.UserListingResponse, er
 func (impl UserServiceImpl) getUserResponse(model []repository.UserModel, recordedTime time.Time) ([]bean.UserInfo, error) {
 	var response []bean.UserInfo
 	for _, m := range model {
-		userStatus, ttlTime := impl.getStatusAndTTL(m, recordedTime)
+		userStatus, ttlTime := getStatusAndTTL(m, recordedTime)
 		lastLoginTime := impl.getLastLoginTime(m)
 		response = append(response, bean.UserInfo{
 			Id:            m.Id,
@@ -1326,20 +1314,6 @@ func (impl UserServiceImpl) getUserResponse(model []repository.UserModel, record
 	return response, nil
 }
 
-func (impl UserServiceImpl) sortByLoginTime(users []bean.UserInfo, sortOrder bean2.SortOrder) []bean.UserInfo {
-	if sortOrder == bean2.Asc {
-		sort.Slice(users, func(i, j int) bool {
-			return users[i].LastLoginTime.Before(users[j].LastLoginTime)
-		})
-	} else if sortOrder == bean2.Desc {
-		sort.Slice(users, func(i, j int) bool {
-			return users[i].LastLoginTime.After(users[j].LastLoginTime)
-		})
-	}
-	return users
-
-}
-
 func (impl UserServiceImpl) GetAllDetailedUsers() ([]bean.UserInfo, error) {
 	query := impl.userListingRepositoryQueryBuilder.GetQueryForAllUserWithAudit()
 	models, err := impl.userRepository.GetAllExecutingQuery(query)
@@ -1354,24 +1328,31 @@ func (impl UserServiceImpl) GetAllDetailedUsers() ([]bean.UserInfo, error) {
 
 	for _, model := range models {
 		isSuperAdmin, roleFilters, filterGroups := impl.getUserMetadata(&model)
-		userStatus, ttlTime := impl.getStatusAndTTL(model, recordedTime)
+		userStatus, ttlTime := getStatusAndTTL(model, recordedTime)
 		lastLoginTime := impl.getLastLoginTime(model)
-		response = append(response, bean.UserInfo{
-			Id:            model.Id,
-			EmailId:       model.EmailId,
-			RoleFilters:   roleFilters,
-			Groups:        filterGroups,
-			SuperAdmin:    isSuperAdmin,
-			LastLoginTime: lastLoginTime,
-			UserStatus:    userStatus,
-			TimeToLive:    ttlTime,
-		})
+		userResp := getUserInfoAdapter(model.Id, model.EmailId, roleFilters, filterGroups, isSuperAdmin, lastLoginTime, ttlTime, userStatus)
+		response = append(response, userResp)
 	}
 	if len(response) == 0 {
 		response = make([]bean.UserInfo, 0)
 	}
 	return response, nil
 }
+
+func getUserInfoAdapter(id int32, emailId string, roleFilters []bean.RoleFilter, filterGroups []string, isSuperAdmin bool, lastLoginTime, ttlTime time.Time, userStatus bean.Status) bean.UserInfo {
+	user := bean.UserInfo{
+		Id:            id,
+		EmailId:       emailId,
+		RoleFilters:   roleFilters,
+		Groups:        filterGroups,
+		SuperAdmin:    isSuperAdmin,
+		LastLoginTime: lastLoginTime,
+		UserStatus:    userStatus,
+		TimeToLive:    ttlTime,
+	}
+	return user
+}
+
 func (impl UserServiceImpl) getLastLoginTime(model repository.UserModel) time.Time {
 	lastLoginTime := time.Time{}
 	if model.UserAudit != nil {
@@ -2183,7 +2164,7 @@ func (impl UserServiceImpl) getRolefiltersForDevtronManaged(model *repository.Us
 
 func (impl UserServiceImpl) BulkUpdateStatusForUsers(request *bean.BulkStatusUpdateRequest) (*bean.ActionResponse, error) {
 	if len(request.UserIds) == 0 {
-		return nil, errors.New("bad request ,no user Ids provided")
+		return nil, &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "no user ids provided"}
 	}
 
 	var err error
@@ -2193,7 +2174,7 @@ func (impl UserServiceImpl) BulkUpdateStatusForUsers(request *bean.BulkStatusUpd
 	if activeStatus {
 		// active case
 		// set foreign key to null for every user
-		err = impl.statusUpdateToActive(request.UserIds)
+		err = impl.userRepository.UpdateWindowIdToNull(request.UserIds)
 		if err != nil {
 			impl.logger.Errorw("error in BulkUpdateStatusForUsers", "err", err, "status", request.Status)
 			return nil, err
@@ -2202,7 +2183,7 @@ func (impl UserServiceImpl) BulkUpdateStatusForUsers(request *bean.BulkStatusUpd
 		// case: time out expression or inactive
 
 		// getting expression from request configuration
-		timeOutExpression, expressionFormat := impl.getTimeoutExpressionAndFormatforReq(timeExpressionStatus, inactiveStatus, request.TimeToLive)
+		timeOutExpression, expressionFormat := getTimeoutExpressionAndFormatforReq(timeExpressionStatus, inactiveStatus, request.TimeToLive)
 		err = impl.updateOrCreateAndUpdateWindowID(request.UserIds, timeOutExpression, expressionFormat)
 		if err != nil {
 			impl.logger.Errorw("error in BulkUpdateStatusForUsers", "err", err, "status", request.Status)
@@ -2216,15 +2197,6 @@ func (impl UserServiceImpl) BulkUpdateStatusForUsers(request *bean.BulkStatusUpd
 		Suceess: true,
 	}
 	return resp, nil
-}
-
-func (impl UserServiceImpl) statusUpdateToActive(userIds []int32) error {
-	err := impl.userRepository.UpdateWindowIdToNull(userIds)
-	if err != nil {
-		impl.logger.Errorw("error in statusUpdateToActive", "err", err)
-		return err
-	}
-	return nil
 }
 
 func (impl UserServiceImpl) updateOrCreateAndUpdateWindowID(userIds []int32, timeoutExpression string, expressionFormat bean3.ExpressionFormat) error {
@@ -2279,7 +2251,7 @@ func (impl UserServiceImpl) createAndMapTimeoutWindow(tx *pg.Tx, timeoutExpressi
 		impl.logger.Errorw("error in updateOrCreateAndUpdateWindowID", "err", err)
 		return err
 	}
-	err = impl.updateWindowIdForId(tx, windowMapping, idsWithoutWindowId)
+	err = impl.userRepository.UpdateTimeWindowIdInBatch(tx, idsWithoutWindowId, windowMapping)
 	if err != nil {
 		impl.logger.Errorw("error in updateOrCreateAndUpdateWindowID", "err", err)
 		return err
@@ -2291,7 +2263,7 @@ func (impl UserServiceImpl) getUserIdVsWindowIdMapping(userIds []int32, models [
 	length := len(userIds)
 	if length != len(models) {
 		impl.logger.Errorw("created time models differ with what was required to be created")
-		return nil, errors.New("something went wrong")
+		return nil, &util.ApiError{Code: "500", HttpStatusCode: 500, UserMessage: "something went wrong, length does not match for userIds given and db users"}
 	}
 	mapping := make(map[int32]int, len(userIds))
 	for i := 0; i < length; i++ {
@@ -2308,12 +2280,12 @@ func (impl UserServiceImpl) getIdsWithAndWithoutWindowId(userIds []int32) ([]int
 		impl.logger.Errorw("error in statusUpdateToActiveWithTimeExpression ", "err", err, "userIds", userIds)
 		return []int32{}, []int32{}, []int{}, err
 	}
-	idsWithWindowId, idsWithoutWindowId, windowIds := impl.getUserIdsAndWindowIds(users)
+	idsWithWindowId, idsWithoutWindowId, windowIds := getUserIdsAndWindowIds(users)
 	return idsWithWindowId, idsWithoutWindowId, windowIds, nil
 
 }
 
-func (impl UserServiceImpl) getUserIdsAndWindowIds(users []repository.UserModel) ([]int32, []int32, []int) {
+func getUserIdsAndWindowIds(users []repository.UserModel) ([]int32, []int32, []int) {
 	totalLen := len(users)
 	idsWithWindowId := make([]int32, 0, totalLen)
 	idsWithoutWindowId := make([]int32, 0, totalLen)
@@ -2329,7 +2301,7 @@ func (impl UserServiceImpl) getUserIdsAndWindowIds(users []repository.UserModel)
 	return idsWithWindowId, idsWithoutWindowId, windowIds
 }
 
-func (impl UserServiceImpl) getTimeoutExpressionAndFormatforReq(timeExpressionStatus, inactiveStatus bool, requestTime time.Time) (string, bean3.ExpressionFormat) {
+func getTimeoutExpressionAndFormatforReq(timeExpressionStatus, inactiveStatus bool, requestTime time.Time) (string, bean3.ExpressionFormat) {
 	if timeExpressionStatus {
 		return requestTime.String(), bean3.TimeStamp
 	} else if inactiveStatus {
@@ -2338,28 +2310,18 @@ func (impl UserServiceImpl) getTimeoutExpressionAndFormatforReq(timeExpressionSt
 	return "", bean3.TimeStamp
 }
 
-func (impl UserServiceImpl) updateWindowIdForId(tx *pg.Tx, mapping map[int32]int, idsWithoutWindowId []int32) error {
-	err := impl.userRepository.UpdateTimeWindowIdInBatch(tx, idsWithoutWindowId, mapping)
-	if err != nil {
-		impl.logger.Errorw("updateWindowIdForId failed", "err", err, "idsWithoutWindowId", idsWithoutWindowId)
-		return err
-	}
-	return nil
-}
-
-func (impl UserServiceImpl) getStatusAndTTL(model repository.UserModel, recordedTime time.Time) (bean.Status, time.Time) {
+func getStatusAndTTL(model repository.UserModel, recordedTime time.Time) (bean.Status, time.Time) {
 	status := bean.Active
 	var ttlTime time.Time
 	if model.TimeoutWindowConfiguration != nil && len(model.TimeoutWindowConfiguration.TimeoutWindowExpression) > 0 {
-		status, ttlTime = impl.getUserStatusFromTimeoutWindowExpression(model.TimeoutWindowConfiguration.TimeoutWindowExpression, recordedTime, model.TimeoutWindowConfiguration.ExpressionFormat)
+		status, ttlTime = getUserStatusFromTimeoutWindowExpression(model.TimeoutWindowConfiguration.TimeoutWindowExpression, recordedTime, model.TimeoutWindowConfiguration.ExpressionFormat)
 	}
 	return status, ttlTime
 }
 
-func (impl UserServiceImpl) getUserStatusFromTimeoutWindowExpression(expression string, recordedTime time.Time, expressionFormat bean3.ExpressionFormat) (bean.Status, time.Time) {
-	parsedTime, err := impl.getParsedTimeFromExpression(expression, expressionFormat)
+func getUserStatusFromTimeoutWindowExpression(expression string, recordedTime time.Time, expressionFormat bean3.ExpressionFormat) (bean.Status, time.Time) {
+	parsedTime, err := getParsedTimeFromExpression(expression, expressionFormat)
 	if err != nil {
-		impl.logger.Errorw("error in getUserStatusFromTimeoutWindowExpression", "err", err, "expression", expression, "expressionFormat", expressionFormat)
 		return bean.Inactive, parsedTime
 	}
 	if parsedTime.IsZero() || parsedTime.Before(recordedTime) {
@@ -2368,25 +2330,25 @@ func (impl UserServiceImpl) getUserStatusFromTimeoutWindowExpression(expression 
 	return bean.Active, parsedTime
 }
 
-func (impl UserServiceImpl) getParsedTimeFromExpression(expression string, format bean3.ExpressionFormat) (time.Time, error) {
+func getParsedTimeFromExpression(expression string, format bean3.ExpressionFormat) (time.Time, error) {
 	// considering default to timestamp , will add support for other formats here in future
 	switch format {
 	case bean3.TimeStamp:
-		return impl.parseExpressionToTime(expression)
+		return parseExpressionToTime(expression)
 	case bean3.TimeZeroFormat:
 		// Considering format timeZeroFormat for extremities, kept it in other format but represents UTC time
-		return impl.parseExpressionToTime(expression)
+		return parseExpressionToTime(expression)
 	default:
-		return impl.parseExpressionToTime(expression)
+		return parseExpressionToTime(expression)
 	}
 
-	return time.Time{}, errors.New("expression format not supported")
+	return time.Time{}, &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "expression format not supported"}
+
 }
 
-func (impl UserServiceImpl) parseExpressionToTime(expression string) (time.Time, error) {
+func parseExpressionToTime(expression string) (time.Time, error) {
 	parsedTime, err := time.Parse(helper.TimeFormatForParsing, expression)
 	if err != nil {
-		impl.logger.Errorw("error in parsing time from expression :getParsedTimeFromExpression", "err", err, "expression", expression)
 		return parsedTime, err
 	}
 	return parsedTime, err

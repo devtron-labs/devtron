@@ -478,15 +478,15 @@ func (impl UserAuthServiceImpl) AuthVerification(r *http.Request) (bool, error) 
 	if err != nil {
 		err := &util.ApiError{
 			HttpStatusCode:  http.StatusUnauthorized,
-			InternalMessage: "invalid user",
+			InternalMessage: bean2.InvalidUserError,
 			UserMessage:     fmt.Sprintf("invalid user: %s", token),
 		}
 		return false, err
 	} else if isInactive {
 		err := &util.ApiError{
 			HttpStatusCode:  http.StatusUnauthorized,
-			InternalMessage: "inactive user",
-			UserMessage:     "inactive user",
+			InternalMessage: bean2.InactiveUserError,
+			UserMessage:     bean2.InactiveUserError,
 		}
 		return false, err
 	}

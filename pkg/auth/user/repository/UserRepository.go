@@ -304,25 +304,3 @@ func (impl UserRepositoryImpl) GetUserWithTimeoutWindowConfiguration(emailId str
 	}
 	return &model, nil
 }
-
-/*
-func (impl UserRepositoryImpl) GetUserWithTimeoutWindowConfiguration_V2(emailId string) (*UserModel, error) {
-	var model UserModel
-	//formattedTimeForQuery := time.Now().Format(helper.QueryTimeFormat)
-	err := impl.dbConnection.Model(&model).
-		Column("user_model.*", "TimeoutWindowConfiguration").
-		Join("left join timeout_window_configuration twc on twc.id = user_model.timeout_window_configuration_id").
-		Where("user_model.email_id like (?) ", emailId).
-		Where("user_model.active = ? ", true).
-		Where("twc.timeout_window_expression_format = ?", 1).
-		Where("twc.timeout_window_expression > ?", time.Now()).
-		//Where("TO_TIMESTAMP(twc.timeout_window_expression,'YYYY-MM-DD HH24:MI:SS') < '?' )", formattedTimeForQuery).
-		Select()
-
-	if err != nil {
-		impl.Logger.Errorw("error in GetUserWithTimeoutWindow", "err", err, "emailId", emailId)
-		return &model, err
-	}
-	return &model, nil
-}
-*/

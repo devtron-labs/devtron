@@ -515,7 +515,7 @@ func (handler UserRestHandlerImpl) BulkUpdateStatus(w http.ResponseWriter, r *ht
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
-		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 

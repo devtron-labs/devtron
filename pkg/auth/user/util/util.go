@@ -34,16 +34,3 @@ func CheckIfAdminOrApiToken(email string) bool {
 	}
 	return false
 }
-
-func FindMin(a, b int) int {
-	if a > b {
-		return b
-	}
-	return a
-}
-
-func FindStartAndEndForOffsetAndSize(totalLen, offset, size int) (int, int) {
-	start := offset
-	end := FindMin(offset+size, totalLen)
-	return start, end
-}

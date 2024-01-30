@@ -38,6 +38,8 @@ const (
 const (
 	VALIDATION_FAILED_ERROR_MSG string = "validation failed: group name with , is not allowed"
 	NoUserIdsProvidedError             = "bad request ,no user Ids provided"
+	InvalidUserError                   = "inactive user"
+	InactiveUserError                  = "inactive user"
 )
 
 // custom role const set
