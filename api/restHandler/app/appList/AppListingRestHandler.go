@@ -22,7 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	util3 "github.com/devtron-labs/devtron/api/util"
-	bean2 "github.com/devtron-labs/devtron/client/argocdServer/bean"
+	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"net/http"
 	"strconv"
 	"strings"
@@ -797,6 +797,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironmentV2(w http.Respons
 	common.WriteJsonResp(w, err, appContainerResponse, http.StatusOK)
 }
 
+// TODO refactoring: use schema.NewDecoder().Decode(&queryStruct, r.URL.Query())
 func (handler AppListingRestHandlerImpl) FetchOverviewAppsByEnvironment(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	userId, err := handler.userService.GetLoggedInUser(r)
@@ -1399,7 +1400,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 			if err != nil {
 				handler.logger.Errorw("service err, FetchAppDetailsV2", "err", err, "app", appId, "env", envId)
 			} else if status {
-				resp.Status = bean2.HIBERNATING
+				resp.Status = argoApplication.HIBERNATING
 			}
 		}
 		if resp.Status == string(health.HealthStatusDegraded) {
@@ -1445,12 +1446,12 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 			applicationStatus := detail.ApplicationStatus
 			resourceTree["releaseStatus"] = releaseStatus
 			resourceTree["status"] = applicationStatus
-			if applicationStatus == bean2.Healthy {
+			if applicationStatus == argoApplication.Healthy {
 				status, err := handler.appListingService.ISLastReleaseStopType(appId, envId)
 				if err != nil {
 					handler.logger.Errorw("service err, FetchAppDetailsV2", "err", err, "app", appId, "env", envId)
 				} else if status {
-					resourceTree["status"] = bean2.HIBERNATING
+					resourceTree["status"] = argoApplication.HIBERNATING
 				}
 			}
 			handler.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", cdPipeline.DeploymentAppName, "env", cdPipeline.Environment.Name)

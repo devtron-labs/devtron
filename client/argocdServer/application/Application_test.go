@@ -21,7 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/devtron-labs/devtron/client/argocdServer/bean"
+	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"testing"
 
 	"go.uber.org/zap"
@@ -61,7 +61,7 @@ func TestServiceClientImpl_getRolloutStatus(t *testing.T) {
 				resp:                data1.respTree,
 			},
 			wantNewReplicaSet: "app-deployment-9-7c797c6d54",
-			wantStatus:        bean.Healthy,
+			wantStatus:        argoApplication.Healthy,
 		},
 		{
 			name: "test2",
@@ -75,7 +75,7 @@ func TestServiceClientImpl_getRolloutStatus(t *testing.T) {
 				resp:                data2.respTree,
 			},
 			wantNewReplicaSet: "app-deployment-9-7c797c6d54",
-			wantStatus:        bean.Degraded,
+			wantStatus:        argoApplication.Degraded,
 		},
 		{
 			name: "test3",
@@ -89,7 +89,7 @@ func TestServiceClientImpl_getRolloutStatus(t *testing.T) {
 				resp:                data3.respTree,
 			},
 			wantNewReplicaSet: "app-deployment-9-7c797c6d54",
-			wantStatus:        bean.Suspended,
+			wantStatus:        argoApplication.Suspended,
 		},
 		{
 			name: "test4",
@@ -103,7 +103,7 @@ func TestServiceClientImpl_getRolloutStatus(t *testing.T) {
 				resp:                data4.respTree,
 			},
 			wantNewReplicaSet: "app-deployment-9-7c797c6d54",
-			wantStatus:        bean.Degraded,
+			wantStatus:        argoApplication.Degraded,
 		},
 	}
 	for _, tt := range tests {

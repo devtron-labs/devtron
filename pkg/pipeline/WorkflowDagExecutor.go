@@ -22,7 +22,7 @@ import (
 	"encoding/json"
 	errors3 "errors"
 	"fmt"
-	bean5 "github.com/devtron-labs/devtron/client/argocdServer/bean"
+	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"path"
 	"strconv"
 	"strings"
@@ -541,7 +541,7 @@ func (impl *WorkflowDagExecutorImpl) UpdateWorkflowRunnerStatusForDeployment(app
 			return false
 		}
 
-		if helmInstalledDevtronApp.GetApplicationStatus() == bean5.Healthy {
+		if helmInstalledDevtronApp.GetApplicationStatus() == argoApplication.Healthy {
 			// mark the deployment as succeed
 			wfr.Status = pipelineConfig.WorkflowSucceeded
 			wfr.FinishedOn = time.Now()

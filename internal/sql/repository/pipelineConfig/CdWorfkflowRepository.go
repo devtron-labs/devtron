@@ -23,7 +23,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	"github.com/devtron-labs/devtron/api/bean"
-	bean2 "github.com/devtron-labs/devtron/client/argocdServer/bean"
+	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
@@ -109,7 +109,7 @@ const (
 	WorkflowTypePost           = "POST"
 )
 
-var WfrTerminalStatusList = []string{WorkflowAborted, WorkflowFailed, WorkflowSucceeded, bean2.HIBERNATING, string(health.HealthStatusHealthy), string(health.HealthStatusDegraded)}
+var WfrTerminalStatusList = []string{WorkflowAborted, WorkflowFailed, WorkflowSucceeded, argoApplication.HIBERNATING, string(health.HealthStatusHealthy), string(health.HealthStatusDegraded)}
 
 func (a WorkflowStatus) String() string {
 	return [...]string{"WF_UNKNOWN", "REQUEST_ACCEPTED", "ENQUEUED", "QUE_ERROR", "WF_STARTED", "DROPPED_STALE", "DEQUE_ERROR", "TRIGGER_ERROR"}[a]

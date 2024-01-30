@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/devtron-labs/devtron/client/argocdServer/bean"
+	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/util"
 	v12 "k8s.io/api/apps/v1"
 	"strings"
@@ -43,10 +43,10 @@ func updateNodeHealthStatus(resp *v1alpha1.ApplicationTree, appResp *v1alpha1.Ap
 	}
 }
 
-func parseResult(resp *v1alpha1.ApplicationTree, query *application.ResourcesQuery, ctx context.Context, asc application.ApplicationServiceClient, err error, c ServiceClientImpl) []*bean.Result {
-	var responses = make([]*bean.Result, 0)
+func parseResult(resp *v1alpha1.ApplicationTree, query *application.ResourcesQuery, ctx context.Context, asc application.ApplicationServiceClient, err error, c ServiceClientImpl) []*argoApplication.Result {
+	var responses = make([]*argoApplication.Result, 0)
 	qCount := 0
-	response := make(chan bean.Result)
+	response := make(chan argoApplication.Result)
 	if err != nil || resp == nil || len(resp.Nodes) == 0 {
 		return responses
 	}
@@ -129,9 +129,9 @@ func parseResult(resp *v1alpha1.ApplicationTree, query *application.ResourcesQue
 				c.logger.Debugw("GRPC_GET_RESOURCE", "data", request, "timeTaken", time.Since(startTime))
 			}
 			if res != nil || err != nil {
-				response <- bean.Result{Response: res, Error: err, Request: &request}
+				response <- argoApplication.Result{Response: res, Error: err, Request: &request}
 			} else {
-				response <- bean.Result{Response: nil, Error: fmt.Errorf("connection closed by client"), Request: &request}
+				response <- argoApplication.Result{Response: nil, Error: fmt.Errorf("connection closed by client"), Request: &request}
 			}
 		}(*rQuery)
 	}
@@ -324,7 +324,7 @@ func getRolloutPodTemplateHash(pod map[string]interface{}) string {
 	return ""
 }
 
-func buildPodMetadataFromPod(resp *v1alpha1.ApplicationTree, podManifests []map[string]interface{}, newPodNames map[string]bool) (podMetadata []*bean.PodMetadata) {
+func buildPodMetadataFromPod(resp *v1alpha1.ApplicationTree, podManifests []map[string]interface{}, newPodNames map[string]bool) (podMetadata []*argoApplication.PodMetadata) {
 	containerMapping := make(map[string][]*string)
 	initContainerMapping := make(map[string][]*string)
 	for _, pod := range podManifests {
@@ -338,7 +338,7 @@ func buildPodMetadataFromPod(resp *v1alpha1.ApplicationTree, podManifests []map[
 	for _, node := range resp.Nodes {
 		if node.Kind == "Pod" {
 			isNew := newPodNames[node.Name]
-			metadata := bean.PodMetadata{Name: node.Name, UID: node.UID, Containers: containerMapping[node.Name], InitContainers: initContainerMapping[node.Name], IsNew: isNew}
+			metadata := argoApplication.PodMetadata{Name: node.Name, UID: node.UID, Containers: containerMapping[node.Name], InitContainers: initContainerMapping[node.Name], IsNew: isNew}
 			podMetadata = append(podMetadata, &metadata)
 		}
 	}
@@ -398,7 +398,7 @@ func getPodInitContainers(resource map[string]interface{}) []*string {
 	return containers
 }
 
-func buildPodMetadataFromReplicaSet(resp *v1alpha1.ApplicationTree, newReplicaSets []string, replicaSetManifests []map[string]interface{}) (podMetadata []*bean.PodMetadata) {
+func buildPodMetadataFromReplicaSet(resp *v1alpha1.ApplicationTree, newReplicaSets []string, replicaSetManifests []map[string]interface{}) (podMetadata []*argoApplication.PodMetadata) {
 	replicaSets := make(map[string]map[string]interface{})
 	for _, replicaSet := range replicaSetManifests {
 		replicaSets[getResourceName(replicaSet)] = replicaSet
@@ -421,7 +421,7 @@ func buildPodMetadataFromReplicaSet(resp *v1alpha1.ApplicationTree, newReplicaSe
 				}
 				replicaSet := replicaSets[parentName]
 				containers, intContainers := getReplicaSetContainers(replicaSet)
-				metadata := bean.PodMetadata{Name: node.Name, UID: node.UID, Containers: containers, InitContainers: intContainers, IsNew: isNew}
+				metadata := argoApplication.PodMetadata{Name: node.Name, UID: node.UID, Containers: containers, InitContainers: intContainers, IsNew: isNew}
 				podMetadata = append(podMetadata, &metadata)
 			}
 		}

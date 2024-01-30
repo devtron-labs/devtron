@@ -18,7 +18,7 @@
 package pipeline
 
 import (
-	bean3 "github.com/devtron-labs/devtron/client/argocdServer/bean"
+	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"sort"
 	"strings"
 
@@ -135,7 +135,7 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsForCdStage(pipelineId int, sta
 			deploymentArtifactId = wfr.CdWorkflow.CiArtifact.Id
 			deploymentArtifactStatus = wfr.Status
 		}
-		if wfr.Status == bean3.Healthy || wfr.Status == bean3.SUCCEEDED {
+		if wfr.Status == argoApplication.Healthy || wfr.Status == argoApplication.SUCCEEDED {
 			lastSuccessfulTriggerOnParent := parent && index == 0
 			latest := !parent && index == 0
 			runningOnParentCd := parentCdRunningArtifactId == wfr.CdWorkflow.CiArtifact.Id
@@ -360,7 +360,7 @@ func (impl *AppArtifactManagerImpl) BuildRollbackArtifactsList(artifactListingFi
 	totalCount := 0
 
 	//1)get current deployed artifact on this pipeline
-	latestWf, err := impl.cdWorkflowRepository.FindArtifactByPipelineIdAndRunnerType(artifactListingFilterOpts.PipelineId, artifactListingFilterOpts.StageType, 1, []string{bean3.Healthy, bean3.SUCCEEDED, bean3.Progressing})
+	latestWf, err := impl.cdWorkflowRepository.FindArtifactByPipelineIdAndRunnerType(artifactListingFilterOpts.PipelineId, artifactListingFilterOpts.StageType, 1, []string{argoApplication.Healthy, argoApplication.SUCCEEDED, argoApplication.Progressing})
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting latest workflow by pipelineId", "pipelineId", artifactListingFilterOpts.PipelineId, "currentStageType", artifactListingFilterOpts.StageType)
 		return deployedCiArtifacts, nil, totalCount, err
@@ -776,7 +776,7 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 	var ciArtifacts []*bean2.CiArtifactBean
 	totalCount := 0
 	//1)get current deployed artifact on this pipeline
-	latestWf, err := impl.cdWorkflowRepository.FindArtifactByPipelineIdAndRunnerType(listingFilterOpts.PipelineId, listingFilterOpts.StageType, 1, []string{bean3.Healthy, bean3.SUCCEEDED, bean3.Progressing})
+	latestWf, err := impl.cdWorkflowRepository.FindArtifactByPipelineIdAndRunnerType(listingFilterOpts.PipelineId, listingFilterOpts.StageType, 1, []string{argoApplication.Healthy, argoApplication.SUCCEEDED, argoApplication.Progressing})
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting latest workflow by pipelineId", "pipelineId", listingFilterOpts.PipelineId, "currentStageType", listingFilterOpts.StageType)
 		return ciArtifacts, 0, "", totalCount, err
@@ -864,7 +864,7 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsForCdStageV2(listingFilterOpts
 	artifactRunningOnParentCd := 0
 	if listingFilterOpts.ParentCdId > 0 {
 		//TODO: check if we can fetch LastSuccessfulTriggerOnParent wfr along with last running wf
-		parentCdWfrList, err := impl.cdWorkflowRepository.FindArtifactByPipelineIdAndRunnerType(listingFilterOpts.ParentCdId, bean.CD_WORKFLOW_TYPE_DEPLOY, 1, []string{bean3.Healthy, bean3.SUCCEEDED, bean3.Progressing})
+		parentCdWfrList, err := impl.cdWorkflowRepository.FindArtifactByPipelineIdAndRunnerType(listingFilterOpts.ParentCdId, bean.CD_WORKFLOW_TYPE_DEPLOY, 1, []string{argoApplication.Healthy, argoApplication.SUCCEEDED, argoApplication.Progressing})
 		if err != nil {
 			impl.logger.Errorw("error in getting artifact for parent cd", "parentCdPipelineId", listingFilterOpts.ParentCdId)
 			return ciArtifacts, totalCount, err

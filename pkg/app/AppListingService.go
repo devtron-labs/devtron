@@ -20,7 +20,7 @@ package app
 import (
 	"context"
 	"fmt"
-	bean2 "github.com/devtron-labs/devtron/client/argocdServer/bean"
+	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"net/http"
 	"strconv"
 	"strings"
@@ -741,7 +741,7 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 				if status == string(health.HealthStatusHealthy) {
 					stopType := releaseMap[pipeline.Id]
 					if stopType {
-						status = bean2.HIBERNATING
+						status = argoApplication.HIBERNATING
 						env.Status = status
 					}
 				}

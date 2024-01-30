@@ -23,7 +23,7 @@ import (
 	"errors"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/devtron-labs/devtron/client/argocdServer/bean"
+	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/connection"
 	"github.com/devtron-labs/devtron/util"
 	"go.uber.org/zap"
@@ -31,7 +31,7 @@ import (
 
 type ServiceClient interface {
 	// ResourceTree	returns the status for all Apps deployed via ArgoCd
-	ResourceTree(ctx context.Context, query *application.ResourcesQuery) (*bean.ResourceTreeResponse, error)
+	ResourceTree(ctx context.Context, query *application.ResourcesQuery) (*argoApplication.ResourceTreeResponse, error)
 
 	// Patch an ArgoCd application
 	Patch(ctx context.Context, query *application.ApplicationPatchRequest) (*v1alpha1.Application, error)
@@ -67,7 +67,7 @@ func NewApplicationClientImpl(
 }
 
 func (c ServiceClientImpl) Patch(ctxt context.Context, query *application.ApplicationPatchRequest) (*v1alpha1.Application, error) {
-	ctx, cancel := context.WithTimeout(ctxt, bean.TimeoutLazy)
+	ctx, cancel := context.WithTimeout(ctxt, argoApplication.TimeoutLazy)
 	defer cancel()
 	token, ok := ctxt.Value("token").(string)
 	if !ok {
@@ -81,7 +81,7 @@ func (c ServiceClientImpl) Patch(ctxt context.Context, query *application.Applic
 }
 
 func (c ServiceClientImpl) Get(ctxt context.Context, query *application.ApplicationQuery) (*v1alpha1.Application, error) {
-	ctx, cancel := context.WithTimeout(ctxt, bean.TimeoutFast)
+	ctx, cancel := context.WithTimeout(ctxt, argoApplication.TimeoutFast)
 	defer cancel()
 	token, ok := ctxt.Value("token").(string)
 	if !ok {
@@ -95,7 +95,7 @@ func (c ServiceClientImpl) Get(ctxt context.Context, query *application.Applicat
 }
 
 func (c ServiceClientImpl) Update(ctxt context.Context, query *application.ApplicationUpdateRequest) (*v1alpha1.Application, error) {
-	ctx, cancel := context.WithTimeout(ctxt, bean.TimeoutFast)
+	ctx, cancel := context.WithTimeout(ctxt, argoApplication.TimeoutFast)
 	defer cancel()
 	token, ok := ctxt.Value("token").(string)
 	if !ok {
@@ -109,11 +109,11 @@ func (c ServiceClientImpl) Update(ctxt context.Context, query *application.Appli
 }
 
 func (c ServiceClientImpl) Sync(ctxt context.Context, query *application.ApplicationSyncRequest) (*v1alpha1.Application, error) {
-	ctx, cancel := context.WithTimeout(ctxt, bean.TimeoutFast)
+	ctx, cancel := context.WithTimeout(ctxt, argoApplication.TimeoutFast)
 	defer cancel()
 	token, ok := ctxt.Value("token").(string)
 	if !ok {
-		return nil, bean.NewErrUnauthorized("Unauthorized")
+		return nil, argoApplication.NewErrUnauthorized("Unauthorized")
 	}
 	conn := c.argoCDConnectionManager.GetConnection(token)
 	defer util.Close(conn, c.logger)
@@ -123,7 +123,7 @@ func (c ServiceClientImpl) Sync(ctxt context.Context, query *application.Applica
 }
 
 func (c ServiceClientImpl) GetResource(ctxt context.Context, query *application.ApplicationResourceRequest) (*application.ApplicationResourceResponse, error) {
-	ctx, cancel := context.WithTimeout(ctxt, bean.TimeoutFast)
+	ctx, cancel := context.WithTimeout(ctxt, argoApplication.TimeoutFast)
 	defer cancel()
 	token, ok := ctxt.Value("token").(string)
 	if !ok {
@@ -136,7 +136,7 @@ func (c ServiceClientImpl) GetResource(ctxt context.Context, query *application.
 }
 
 func (c ServiceClientImpl) Delete(ctxt context.Context, query *application.ApplicationDeleteRequest) (*application.ApplicationResponse, error) {
-	ctx, cancel := context.WithTimeout(ctxt, bean.TimeoutSlow)
+	ctx, cancel := context.WithTimeout(ctxt, argoApplication.TimeoutSlow)
 	defer cancel()
 	token, ok := ctxt.Value("token").(string)
 	if !ok {
@@ -148,9 +148,9 @@ func (c ServiceClientImpl) Delete(ctxt context.Context, query *application.Appli
 	return asc.Delete(ctx, query)
 }
 
-func (c ServiceClientImpl) ResourceTree(ctxt context.Context, query *application.ResourcesQuery) (*bean.ResourceTreeResponse, error) {
+func (c ServiceClientImpl) ResourceTree(ctxt context.Context, query *application.ResourcesQuery) (*argoApplication.ResourceTreeResponse, error) {
 	//all the apps deployed via argo are fetching status from here
-	ctx, cancel := context.WithTimeout(ctxt, bean.TimeoutSlow)
+	ctx, cancel := context.WithTimeout(ctxt, argoApplication.TimeoutSlow)
 	defer cancel()
 	token, ok := ctxt.Value("token").(string)
 	if !ok {
@@ -192,10 +192,10 @@ func (c ServiceClientImpl) ResourceTree(ctxt context.Context, query *application
 			}
 		}
 	}
-	return &bean.ResourceTreeResponse{resp, newReplicaSets, status, hash, podMetadata, conditions}, err
+	return &argoApplication.ResourceTreeResponse{resp, newReplicaSets, status, hash, podMetadata, conditions}, err
 }
 
-func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, responses []*bean.Result) (podMetaData []*bean.PodMetadata, newReplicaSets []string) {
+func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, responses []*argoApplication.Result) (podMetaData []*argoApplication.PodMetadata, newReplicaSets []string) {
 	rolloutManifests := make([]map[string]interface{}, 0)
 	statefulSetManifest := make(map[string]interface{})
 	deploymentManifests := make([]map[string]interface{}, 0)

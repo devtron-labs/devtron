@@ -23,7 +23,7 @@ import (
 	repository2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	"github.com/devtron-labs/devtron/client/argocdServer/bean"
+	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/connection"
 	"go.uber.org/zap"
 )
@@ -66,7 +66,7 @@ func (r ServiceClientImpl) getService(ctx context.Context) (repository2.Reposito
 }
 
 func (r ServiceClientImpl) List(ctx context.Context, query *repository2.RepoQuery) (*v1alpha1.RepositoryList, error) {
-	ctx, cancel := context.WithTimeout(ctx, bean.TimeoutFast)
+	ctx, cancel := context.WithTimeout(ctx, argoApplication.TimeoutFast)
 	defer cancel()
 	client, err := r.getService(ctx)
 	if err != nil {
@@ -76,7 +76,7 @@ func (r ServiceClientImpl) List(ctx context.Context, query *repository2.RepoQuer
 }
 
 func (r ServiceClientImpl) ListApps(ctx context.Context, query *repository2.RepoAppsQuery) (*repository2.RepoAppsResponse, error) {
-	ctx, cancel := context.WithTimeout(ctx, bean.TimeoutFast)
+	ctx, cancel := context.WithTimeout(ctx, argoApplication.TimeoutFast)
 	defer cancel()
 	client, err := r.getService(ctx)
 	if err != nil {
@@ -86,7 +86,7 @@ func (r ServiceClientImpl) ListApps(ctx context.Context, query *repository2.Repo
 }
 
 func (r ServiceClientImpl) GetAppDetails(ctx context.Context, query *repository2.RepoAppDetailsQuery) (*apiclient.RepoAppDetailsResponse, error) {
-	ctx, cancel := context.WithTimeout(ctx, bean.TimeoutFast)
+	ctx, cancel := context.WithTimeout(ctx, argoApplication.TimeoutFast)
 	defer cancel()
 	client, err := r.getService(ctx)
 	if err != nil {
@@ -96,7 +96,7 @@ func (r ServiceClientImpl) GetAppDetails(ctx context.Context, query *repository2
 }
 
 func (r ServiceClientImpl) Create(ctx context.Context, query *repository2.RepoCreateRequest) (*v1alpha1.Repository, error) {
-	ctx, cancel := context.WithTimeout(ctx, bean.TimeoutSlow)
+	ctx, cancel := context.WithTimeout(ctx, argoApplication.TimeoutSlow)
 	defer cancel()
 	client, err := r.getService(ctx)
 	if err != nil {
@@ -106,7 +106,7 @@ func (r ServiceClientImpl) Create(ctx context.Context, query *repository2.RepoCr
 }
 
 func (r ServiceClientImpl) Update(ctx context.Context, query *repository2.RepoUpdateRequest) (*v1alpha1.Repository, error) {
-	ctx, cancel := context.WithTimeout(ctx, bean.TimeoutSlow)
+	ctx, cancel := context.WithTimeout(ctx, argoApplication.TimeoutSlow)
 	defer cancel()
 	client, err := r.getService(ctx)
 	if err != nil {
@@ -116,7 +116,7 @@ func (r ServiceClientImpl) Update(ctx context.Context, query *repository2.RepoUp
 }
 
 func (r ServiceClientImpl) Delete(ctx context.Context, query *repository2.RepoQuery) (*repository2.RepoResponse, error) {
-	ctx, cancel := context.WithTimeout(ctx, bean.TimeoutSlow)
+	ctx, cancel := context.WithTimeout(ctx, argoApplication.TimeoutSlow)
 	defer cancel()
 	client, err := r.getService(ctx)
 	if err != nil {

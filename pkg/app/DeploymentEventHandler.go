@@ -18,7 +18,7 @@
 package app
 
 import (
-	bean2 "github.com/devtron-labs/devtron/client/argocdServer/bean"
+	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"strings"
 	"time"
 
@@ -71,5 +71,5 @@ func (impl *DeploymentEventHandlerImpl) BuildPayload(appName string, deploymentF
 }
 
 func (impl *DeploymentEventHandlerImpl) isDeploymentFailed(ds repository.DeploymentStatus) bool {
-	return ds.Status == bean2.Degraded && time.Since(ds.UpdatedOn) > 5*time.Minute
+	return ds.Status == argoApplication.Degraded && time.Since(ds.UpdatedOn) > 5*time.Minute
 }
