@@ -139,6 +139,9 @@ func (impl LockConfigurationServiceImpl) HandleLockConfiguration(currentConfig, 
 	if err != nil {
 		return nil, err
 	}
+	if lockConfig.Id == 0 {
+		return nil, nil
+	}
 
 	err = json.Unmarshal([]byte(savedConfig), &savedConfigMap)
 	if err != nil {
