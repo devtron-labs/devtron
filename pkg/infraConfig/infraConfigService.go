@@ -775,14 +775,19 @@ func (impl *InfraConfigServiceImpl) ApplyProfileToIdentifiers(userId int32, appl
 	if applyIdentifiersRequest.IdentifiersFilter != nil && applyIdentifiersRequest.Identifiers != nil {
 		return errors.New("invalid apply request")
 	}
-	exists, err := impl.infraProfileRepo.CheckProfileExistsById(applyIdentifiersRequest.UpdateToProfile)
-	if err != nil {
+
+	// check if profile exists or not
+	updateToProfile, err := impl.infraProfileRepo.GetProfileByName(applyIdentifiersRequest.UpdateToProfile)
+	if err != nil && errors.Is(err, pg.ErrNoRows) {
 		impl.logger.Errorw("error in checking profile exists ", "profileId", applyIdentifiersRequest.UpdateToProfile, "error", err)
 		return err
 	}
-	if !exists {
+
+	if errors.Is(err, pg.ErrNoRows) || updateToProfile == nil {
 		return errors.New("cannot apply profile that does not exists")
 	}
+
+	applyIdentifiersRequest.UpdateToProfileId = updateToProfile.Id
 	searchableKeyNameIdMap := impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap()
 
 	identifierIdNameMap := make(map[int]string)
@@ -855,11 +860,11 @@ func (impl *InfraConfigServiceImpl) applyProfile(userId int32, applyIdentifiersR
 	}
 
 	// don't store qualifier mappings for default profile
-	if applyIdentifiersRequest.UpdateToProfile != defaultProfileId {
+	if applyIdentifiersRequest.UpdateToProfileId != defaultProfileId {
 		qualifierMappings := make([]*resourceQualifiers.QualifierMapping, 0, len(applyIdentifiersRequest.Identifiers))
 		for _, identifierId := range applyIdentifiersRequest.IdentifierIds {
 			qualifierMapping := &resourceQualifiers.QualifierMapping{
-				ResourceId:            applyIdentifiersRequest.UpdateToProfile,
+				ResourceId:            applyIdentifiersRequest.UpdateToProfileId,
 				ResourceType:          resourceQualifiers.InfraProfile,
 				Active:                true,
 				AuditLog:              sql.NewDefaultAuditLog(userId),
