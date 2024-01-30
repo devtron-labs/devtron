@@ -19,6 +19,7 @@
 - fix: error handling and url fix (#4407)
 - feat: skip bulk build source change (#4357)
 ## Enhancements
+- feat: Container Image Exporter Plugin (#4556)
 - feat: using image digest in deployment (#4515)
 - feat: Secret viewable key enhancements in get resource api and draft api (#4537)
 - feat: introduced CASBIN_DATABASE env to make casbin db configurable (#4547)
