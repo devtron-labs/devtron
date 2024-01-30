@@ -45,6 +45,7 @@
 - doc: Update Install-devtron-on-Minikube-Microk8s-K3s-Kind.md (#4133)
 - doc: fixed broken link and improved documentation in usecases (#4097)
 ## Others
+- chore:  Enhanced SonarQube Script by exposing Docker Image (#4600)
 - chore: fix for the extra [ ] in volume mount in statefulset chart (#4553)
 - chore: added recovery in crons recovery (#4592)
 - chore: code refactoring v1 (#4545)
