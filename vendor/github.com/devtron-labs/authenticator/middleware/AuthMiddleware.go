@@ -70,9 +70,6 @@ func Authorizer(sessionManager *SessionManager, whitelistChecker func(url string
 				//TODO - we also can set user info in session (to avoid fetch it for all create n active)
 
 				isInactive, userId, err := userStatusCheckInDb(token)
-				log.Print("auth middleware : check user status in db")
-				log.Print(isInactive)
-				log.Print(userId)
 				if err != nil {
 					writeResponse(http.StatusUnauthorized, "Invalid User", w, err)
 					return
