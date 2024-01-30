@@ -34,6 +34,7 @@
 - feat: common-lib version update (#4399)
 - feat: flag driven tag based build propogate same tag for CI Build  (#4404)
 ## Documentation
+- doc: Redirection added for old SSO doc link (#4607)
 - doc: added --reuse-values in troubleshoot (#4577)
 - docs: Segregated SSO Docs + Added Auto-Assign Permissions Feature (#4493)
 - doc: Created Catalog Framework Doc (#4512)
