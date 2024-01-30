@@ -9,7 +9,7 @@ global:
     runAsNonRoot: true
 
 installer:
-  release: "v0.6.26"
+  release: "v0.6.27"
   image: "quay.io/devtron/inception"
   tag: "a9820f38-185-20840"
   openshift: false # Set this to true if you are installing on openshift
