@@ -40,7 +40,7 @@ func (router PipelineStatusRouterImpl) InitPipelineStatusRouter(appRouter *mux.R
 		HandlerFunc(router.pipelineStatusTimelineRestHandler.FetchTimelines).
 		Methods("GET")
 
-	appRouter.Path("/deployment-status/manual-sync/{appId}/{envId}").
+	appRouter.Path("/manual-sync/{appId}/{envId}").
 		HandlerFunc(router.pipelineStatusTimelineRestHandler.ManualSyncAcdPipelineDeploymentStatus).
 		Methods("GET")
 }
