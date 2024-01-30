@@ -10,8 +10,11 @@ CREATE TABLE IF NOT EXISTS public.infra_profile
     "updated_on"                   timestamptz  NOT NULL,
     "updated_by"                   int4         NOT NULL,
     PRIMARY KEY ("id"),
-    CONSTRAINT "infra_profile_name_key" UNIQUE ("name")
     );
+
+CREATE UNIQUE INDEX idx_unique_name
+    ON infra_profile (name)
+    WHERE active = true;
 
 CREATE SEQUENCE IF NOT EXISTS id_seq_infra_profile_configuration;
 

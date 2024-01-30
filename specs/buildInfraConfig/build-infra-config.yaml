@@ -88,8 +88,6 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
                   $ref: '#/components/schemas/IdentifiersInfraConfigProfileRequest'
       responses:
             "200":
@@ -158,12 +156,12 @@ components:
           type: array
           description: identifier ids
           items:
-            type: integer
-          example: [1,2,3]
+            type: string
+          example: ["app1","app2","app3"]
         updateToProfile:
-          type: integer
+          type: string
           description: Profile id to which given identifiers or filtered identifiers be updated
-          example: 1
+          example: "profile1"
 
     Identifier:
       type: object
