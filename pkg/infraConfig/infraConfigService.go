@@ -22,6 +22,7 @@ import (
 const CannotDeleteDefaultProfile = "cannot delete default profile"
 const InvalidProfileName = "profile name is invalid"
 const PayloadValidationError = "payload validation failed"
+const profileApplyErr = "selected filter does not match any apps, cannot apply the given profile"
 
 type InfraConfigService interface {
 
@@ -688,14 +689,17 @@ func (impl *InfraConfigServiceImpl) GetIdentifierList(listFilter *IdentifierList
 		return nil, err
 	}
 	profileIds := make([]int, 0)
-	totalIdentifiersCount := 0
 	overriddenIdentifiersCount := 0
 	for _, identifier := range identifiers {
 		if identifier.ProfileId != 0 {
 			profileIds = append(profileIds, identifier.ProfileId)
 		}
-		totalIdentifiersCount = identifier.TotalIdentifierCount
 		overriddenIdentifiersCount = identifier.OverriddenIdentifierCount
+	}
+	totalIdentifiersCount, err := impl.infraProfileRepo.GetTotalOverriddenCount()
+	if err != nil {
+		impl.logger.Errorw("error in fetching total overridden count", "listFilter", listFilter, "error", err)
+		return nil, err
 	}
 
 	profiles, err := impl.infraProfileRepo.GetProfileListByIds(profileIds, true)
@@ -770,11 +774,11 @@ func (impl *InfraConfigServiceImpl) GetIdentifierList(listFilter *IdentifierList
 }
 
 func (impl *InfraConfigServiceImpl) ApplyProfileToIdentifiers(userId int32, applyIdentifiersRequest InfraProfileApplyRequest) error {
-	if applyIdentifiersRequest.IdentifiersFilter == nil && applyIdentifiersRequest.Identifiers == nil {
+	if applyIdentifiersRequest.IdentifiersFilter == nil && len(applyIdentifiersRequest.Identifiers) == 0 {
 		return errors.New("invalid apply request")
 	}
 
-	if applyIdentifiersRequest.IdentifiersFilter != nil && applyIdentifiersRequest.Identifiers != nil {
+	if applyIdentifiersRequest.IdentifiersFilter != nil && len(applyIdentifiersRequest.Identifiers) != 0 {
 		return errors.New("invalid apply request")
 	}
 
@@ -796,12 +800,6 @@ func (impl *InfraConfigServiceImpl) ApplyProfileToIdentifiers(userId int32, appl
 
 	// apply profile for those identifiers those qualified by the applyIdentifiersRequest.IdentifiersFilter
 	if applyIdentifiersRequest.IdentifiersFilter != nil {
-		// validate IdentifiersFilter
-		err = impl.validator.Struct(applyIdentifiersRequest.IdentifiersFilter)
-		if err != nil {
-			err = errors.Wrap(err, PayloadValidationError)
-			return err
-		}
 
 		// get apps using filter
 		identifiersList, err := impl.infraProfileRepo.GetIdentifierList(*applyIdentifiersRequest.IdentifiersFilter, searchableKeyNameIdMap)
@@ -841,6 +839,11 @@ func (impl *InfraConfigServiceImpl) ApplyProfileToIdentifiers(userId int32, appl
 
 		// set the identifierIds in the applyProfileRequest with active identifiers for further processing
 		applyIdentifiersRequest.IdentifierIds = ActiveIdentifierIds
+	}
+
+	if len(applyIdentifiersRequest.IdentifierIds) == 0 {
+		// return here because there are no identifiers to apply profile
+		return errors.New(profileApplyErr)
 	}
 
 	// fetch default profile

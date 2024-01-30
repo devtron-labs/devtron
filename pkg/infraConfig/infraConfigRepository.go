@@ -32,7 +32,7 @@ type InfraConfigRepository interface {
 	GetIdentifierList(lisFilter IdentifierListFilter, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) ([]*Identifier, error)
 	GetIdentifierCountForDefaultProfile(defaultProfileId int, identifierType int) (int, error)
 	GetIdentifierCountForNonDefaultProfiles(profileIds []int, identifierType int) ([]ProfileIdentifierCount, error)
-
+	GetTotalOverriddenCount() (int, error)
 	CreateProfile(tx *pg.Tx, infraProfile *InfraProfile) error
 	CreateConfigurations(tx *pg.Tx, configurations []*InfraProfileConfiguration) error
 
@@ -248,79 +248,86 @@ func (impl *InfraConfigRepositoryImpl) DeleteConfigurations(tx *pg.Tx, profileNa
 	return err
 }
 
+func (impl *InfraConfigRepositoryImpl) GetTotalOverriddenCount() (int, error) {
+	query := "SELECT COUNT(id) " +
+		" FROM resource_qualifier_mapping " +
+		" WHERE resource_type = ? AND active=true"
+	count := 0
+	_, err := impl.dbConnection.Query(&count, query, resourceQualifiers.InfraProfile)
+	return count, err
+}
+
 func (impl *InfraConfigRepositoryImpl) GetIdentifierList(listFilter IdentifierListFilter, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) ([]*Identifier, error) {
 	listFilter.IdentifierNameLike = "%" + listFilter.IdentifierNameLike + "%"
 	identifierType := GetIdentifierKey(listFilter.IdentifierType, searchableKeyNameIdMap)
-	totalOverriddenCountQuery := "SELECT COUNT(id) " +
-		" FROM resource_qualifier_mapping " +
-		fmt.Sprintf(" WHERE resource_type = %d ", resourceQualifiers.InfraProfile) +
-		" AND active=true "
-
 	// for empty profile name we have to get identifiers
 	if listFilter.ProfileName == ALL_PROFILES {
-		return impl.getIdentifiersListForMiscProfiles(listFilter, totalOverriddenCountQuery, identifierType)
+		return impl.getIdentifiersListForMiscProfiles(listFilter, identifierType)
 	}
 
 	// for default profile
 	if listFilter.ProfileName == DEFAULT_PROFILE_NAME {
-		identifiers, err := impl.getIdentifiersListForDefaultProfile(listFilter, identifierType, totalOverriddenCountQuery)
+		identifiers, err := impl.getIdentifiersListForDefaultProfile(listFilter, identifierType)
 		return identifiers, err
 	}
 
 	// for any other profile
-	identifiers, err := impl.getIdentifiersListForNonDefaultProfile(listFilter, totalOverriddenCountQuery, identifierType)
+	identifiers, err := impl.getIdentifiersListForNonDefaultProfile(listFilter, identifierType)
 	return identifiers, err
 
 }
 
-func (impl *InfraConfigRepositoryImpl) getIdentifiersListForNonDefaultProfile(listFilter IdentifierListFilter, totalOverriddenCountQuery string, identifierType int) ([]*Identifier, error) {
-	finalQuery := "SELECT identifier_value_int AS id, identifier_value_string AS name, resource_id as profile_id, COUNT(id) OVER() AS total_identifier_count, (" + totalOverriddenCountQuery + ") AS overridden_identifier_count " +
+func (impl *InfraConfigRepositoryImpl) getIdentifiersListForNonDefaultProfile(listFilter IdentifierListFilter, identifierType int) ([]*Identifier, error) {
+	query := "SELECT identifier_value_int AS id, identifier_value_string AS name, resource_id as profile_id, COUNT(id) OVER() AS total_identifier_count " +
 		" FROM resource_qualifier_mapping "
-	finalQuery += fmt.Sprintf(" WHERE resource_type = %d ", resourceQualifiers.InfraProfile)
+	query += fmt.Sprintf(" WHERE resource_type = %d ", resourceQualifiers.InfraProfile)
 	if listFilter.ProfileName != "" {
-		finalQuery += fmt.Sprintf(" AND resource_id IN (SELECT id FROM infra_profile WHERE name = '%s')", listFilter.ProfileName)
+		query += fmt.Sprintf(" AND resource_id IN (SELECT id FROM infra_profile WHERE name = '%s')", listFilter.ProfileName)
 	}
 
-	finalQuery += " AND identifier_key = ? " +
+	query += " AND identifier_key = ? " +
 		" AND active=true "
 
-	filterQuery :=
-		" AND identifier_value_string LIKE ? " +
-			" ORDER BY name ? " +
-			" LIMIT ? " +
-			" OFFSET ? "
-
-	finalQuery += filterQuery
+	if listFilter.IdentifierNameLike != "" {
+		query += fmt.Sprintf(" AND identifier_value_string LIKE '%s' ", listFilter.IdentifierNameLike)
+	}
+	if listFilter.SortOrder != "" {
+		query += fmt.Sprintf(" ORDER BY name %s ", listFilter.SortOrder)
+	}
+	if listFilter.Limit > 0 {
+		query += fmt.Sprintf(" LIMIT %d ", listFilter.Limit)
+	}
+	if listFilter.Offset > 0 {
+		query += fmt.Sprintf(" OFFSET %d ", listFilter.Offset)
+	}
 
 	var identifiers []*Identifier
-	_, err := impl.dbConnection.Query(&identifiers, finalQuery,
-		identifierType,
-		listFilter.IdentifierNameLike,
-		listFilter.SortOrder,
-		listFilter.Limit,
-		listFilter.Offset,
-	)
+	_, err := impl.dbConnection.Query(&identifiers, query, identifierType)
 	return identifiers, err
 }
 
-func (impl *InfraConfigRepositoryImpl) getIdentifiersListForMiscProfiles(listFilter IdentifierListFilter, totalOverriddenCountQuery string, identifierType int) ([]*Identifier, error) {
+func (impl *InfraConfigRepositoryImpl) getIdentifiersListForMiscProfiles(listFilter IdentifierListFilter, identifierType int) ([]*Identifier, error) {
 	// get apps first and then get their respective profile Ids
 	// get apps using filters
 	query := "SELECT id," +
 		"app_name AS name," +
-		" COUNT(id) OVER() AS total_identifier_count,(" + totalOverriddenCountQuery + ") AS overridden_identifier_count " +
+		" COUNT(id) OVER() AS total_identifier_count " +
 		" FROM app " +
-		" WHERE active=true " +
-		" AND app_name LIKE ? " +
-		" ORDER BY name ? " +
-		" LIMIT ? " +
-		" OFFSET ? "
+		" WHERE active=true "
+	if listFilter.IdentifierNameLike != "" {
+		query += fmt.Sprintf(" AND app_name LIKE '%s' ", listFilter.IdentifierNameLike)
+	}
+	if listFilter.SortOrder != "" {
+		query += fmt.Sprintf(" ORDER BY name %s ", listFilter.SortOrder)
+	}
+	if listFilter.Limit > 0 {
+		query += fmt.Sprintf(" LIMIT %d ", listFilter.Limit)
+	}
+	if listFilter.Offset > 0 {
+		query += fmt.Sprintf(" OFFSET %d ", listFilter.Offset)
+	}
 	var identifiers []*Identifier
-	_, err := impl.dbConnection.Query(&identifiers, query,
-		listFilter.IdentifierNameLike,
-		listFilter.SortOrder,
-		listFilter.Limit,
-		listFilter.Offset)
+	_, err := impl.dbConnection.Query(&identifiers, query)
 	if err != nil {
 		return nil, err
 	}
@@ -348,7 +355,7 @@ func (impl *InfraConfigRepositoryImpl) getIdentifiersListForMiscProfiles(listFil
 	return identifiers, nil
 }
 
-func (impl *InfraConfigRepositoryImpl) getIdentifiersListForDefaultProfile(listFilter IdentifierListFilter, identifierType int, totalOverriddenCountQuery string) ([]*Identifier, error) {
+func (impl *InfraConfigRepositoryImpl) getIdentifiersListForDefaultProfile(listFilter IdentifierListFilter, identifierType int) ([]*Identifier, error) {
 	queryToGetAppIdsWhichDoesNotInheritDefaultConfigurations := " SELECT identifier_value_int " +
 		" FROM resource_qualifier_mapping " +
 		" WHERE resource_type = %d AND resource_id IN ( " +
@@ -364,22 +371,25 @@ func (impl *InfraConfigRepositoryImpl) getIdentifiersListForDefaultProfile(listF
 
 	query := "SELECT id," +
 		"app_name AS name," +
-		"(SELECT id FROM infra_profile WHERE name = ?) AS profile_id, COUNT(id) OVER() AS total_identifier_count,(" + totalOverriddenCountQuery + ") AS overridden_identifier_count " +
+		"(SELECT id FROM infra_profile WHERE name = ?) AS profile_id, COUNT(id) OVER() AS total_identifier_count " +
 		" FROM app " +
 		" WHERE active=true " +
-		" AND app_name LIKE ? " +
-		" AND id NOT IN ( " + queryToGetAppIdsWhichDoesNotInheritDefaultConfigurations + " ) " +
-		" ORDER BY name ? " +
-		" LIMIT ? " +
-		" OFFSET ? "
+		" AND id NOT IN ( " + queryToGetAppIdsWhichDoesNotInheritDefaultConfigurations + " ) "
+	if listFilter.IdentifierNameLike != "" {
+		query += fmt.Sprintf(" AND app_name LIKE '%s' ", listFilter.IdentifierNameLike)
+	}
+	if listFilter.SortOrder != "" {
+		query += fmt.Sprintf(" ORDER BY name %s ", listFilter.SortOrder)
+	}
+	if listFilter.Limit > 0 {
+		query += fmt.Sprintf(" LIMIT %d ", listFilter.Limit)
+	}
+	if listFilter.Offset > 0 {
+		query += fmt.Sprintf(" OFFSET %d ", listFilter.Offset)
+	}
 
 	var identifiers []*Identifier
-	_, err := impl.dbConnection.Query(&identifiers, query,
-		DEFAULT_PROFILE_NAME,
-		listFilter.IdentifierNameLike,
-		listFilter.SortOrder,
-		listFilter.Limit,
-		listFilter.Offset)
+	_, err := impl.dbConnection.Query(&identifiers, query, DEFAULT_PROFILE_NAME)
 	return identifiers, err
 }
 
