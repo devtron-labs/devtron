@@ -57,6 +57,8 @@ components:
         HIDE_EXCLUDE_INCLUDE_GIT_COMMITS: "false"
         ENABLE_SCOPED_VARIABLES: "true"
         ENABLE_CI_JOB: "true"
+        GLOBAL_API_TIMEOUT: "60000"
+        TRIGGER_API_TIMEOUT: "60000"
     image: "quay.io/devtron/dashboard:039f8f38-325-20827"
     imagePullPolicy: IfNotPresent
 
@@ -129,6 +131,7 @@ components:
       PG_USER: postgres
       COMMIT_STATS_TIMEOUT_IN_SEC: "2"
       ENABLE_FILE_STATS: "true"
+      USE_GIT_CLI: "false"
     dbconfig:
       secretName: postgresql-postgresql
       keyName: postgresql-password
