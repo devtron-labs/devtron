@@ -1,21 +1,30 @@
-package service
+package resource
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	util4 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
 	"github.com/devtron-labs/devtron/api/bean"
-	bean2 "github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appStatus"
 	"github.com/devtron-labs/devtron/pkg/appStore/bean"
-	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
+	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
+	"github.com/devtron-labs/devtron/pkg/k8s"
+	application3 "github.com/devtron-labs/devtron/pkg/k8s/application"
+	util3 "github.com/devtron-labs/devtron/pkg/util"
 	util2 "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/tidwall/gjson"
+	"go.uber.org/zap"
 	"net/http"
 	"strconv"
 	"strings"
@@ -24,7 +33,55 @@ import (
 	"time"
 )
 
-func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn http.CloseNotifier, appDetailsContainer *bean.AppDetailsContainer, installedApp repository.InstalledApps, helmReleaseInstallStatus string, status string) error {
+type InstalledAppResourceService interface {
+	FetchResourceTreeWithHibernateForACD(rctx context.Context, cn http.CloseNotifier, appDetail *bean.AppDetailContainer) bean.AppDetailContainer
+	FetchResourceTree(rctx context.Context, cn http.CloseNotifier, appDetailsContainer *bean.AppDetailsContainer, installedApp repository.InstalledApps, helmReleaseInstallStatus string, status string) error
+	FetchChartNotes(installedAppId int, envId int, token string, checkNotesAuth func(token string, appName string, envId int) bool) (string, error)
+}
+
+type InstalledAppResourceServiceImpl struct {
+	logger                               *zap.SugaredLogger
+	installedAppRepository               repository.InstalledAppRepository
+	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository
+	acdClient                            application2.ServiceClient
+	aCDAuthConfig                        *util3.ACDAuthConfig
+	installedAppRepositoryHistory        repository.InstalledAppVersionHistoryRepository
+	argoUserService                      argo.ArgoUserService
+	helmAppClient                        gRPC.HelmAppClient
+	helmAppService                       client.HelmAppService
+	appStatusService                     appStatus.AppStatusService
+	K8sUtil                              *util4.K8sServiceImpl
+	k8sCommonService                     k8s.K8sCommonService
+	k8sApplicationService                application3.K8sApplicationService
+}
+
+func NewInstalledAppResourceServiceImpl(logger *zap.SugaredLogger,
+	installedAppRepository repository.InstalledAppRepository,
+	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
+	acdClient application2.ServiceClient,
+	aCDAuthConfig *util3.ACDAuthConfig,
+	installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository,
+	argoUserService argo.ArgoUserService, helmAppClient gRPC.HelmAppClient, helmAppService client.HelmAppService,
+	appStatusService appStatus.AppStatusService, K8sUtil *util4.K8sServiceImpl,
+	k8sCommonService k8s.K8sCommonService, k8sApplicationService application3.K8sApplicationService) *InstalledAppResourceServiceImpl {
+	return &InstalledAppResourceServiceImpl{
+		logger:                               logger,
+		installedAppRepository:               installedAppRepository,
+		appStoreApplicationVersionRepository: appStoreApplicationVersionRepository,
+		acdClient:                            acdClient,
+		aCDAuthConfig:                        aCDAuthConfig,
+		installedAppRepositoryHistory:        installedAppRepositoryHistory,
+		argoUserService:                      argoUserService,
+		helmAppClient:                        helmAppClient,
+		helmAppService:                       helmAppService,
+		appStatusService:                     appStatusService,
+		K8sUtil:                              K8sUtil,
+		k8sCommonService:                     k8sCommonService,
+		k8sApplicationService:                k8sApplicationService,
+	}
+}
+
+func (impl *InstalledAppResourceServiceImpl) FetchResourceTree(rctx context.Context, cn http.CloseNotifier, appDetailsContainer *bean.AppDetailsContainer, installedApp repository.InstalledApps, helmReleaseInstallStatus string, status string) error {
 	var err error
 	var resourceTree map[string]interface{}
 	deploymentAppName := fmt.Sprintf("%s-%s", installedApp.App.AppName, installedApp.Environment.Name)
@@ -35,7 +92,7 @@ func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn h
 		if err != nil {
 			impl.logger.Errorw("error in fetching cluster detail", "err", err)
 		}
-		req := &bean2.AppDetailRequest{
+		req := &gRPC.AppDetailRequest{
 			ClusterConfig: config,
 			Namespace:     installedApp.Environment.Namespace,
 			ReleaseName:   installedApp.App.AppName,
@@ -101,7 +158,38 @@ func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn h
 	return err
 }
 
-func (impl InstalledAppServiceImpl) fetchResourceTreeForACD(rctx context.Context, cn http.CloseNotifier, appId int, envId, clusterId int, deploymentAppName, namespace string) (map[string]interface{}, error) {
+func (impl *InstalledAppResourceServiceImpl) FetchResourceTreeWithHibernateForACD(rctx context.Context, cn http.CloseNotifier, appDetail *bean.AppDetailContainer) bean.AppDetailContainer {
+	ctx, cancel := context.WithCancel(rctx)
+	if cn != nil {
+		go func(done <-chan struct{}, closed <-chan bool) {
+			select {
+			case <-done:
+			case <-closed:
+				cancel()
+			}
+		}(ctx.Done(), cn.CloseNotify())
+	}
+	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		impl.logger.Errorw("error in getting acd token", "err", err)
+		return *appDetail
+	}
+	ctx = context.WithValue(ctx, "token", acdToken)
+	defer cancel()
+	deploymentAppName := fmt.Sprintf("%s-%s", appDetail.AppName, appDetail.EnvironmentName)
+	resourceTree, err := impl.fetchResourceTreeForACD(rctx, cn, appDetail.InstalledAppId, appDetail.EnvironmentId, appDetail.ClusterId, deploymentAppName, appDetail.Namespace)
+	appDetail.ResourceTree = resourceTree
+	if err != nil {
+		return *appDetail
+	}
+	if appDetail.ResourceTree["nodes"] == nil {
+		return *appDetail
+	}
+	appDetail.ResourceTree, _ = impl.checkHibernate(appDetail.ResourceTree, deploymentAppName, ctx)
+	return *appDetail
+}
+
+func (impl *InstalledAppResourceServiceImpl) fetchResourceTreeForACD(rctx context.Context, cn http.CloseNotifier, appId int, envId, clusterId int, deploymentAppName, namespace string) (map[string]interface{}, error) {
 	var resourceTree map[string]interface{}
 	query := &application.ResourcesQuery{
 		ApplicationName: &deploymentAppName,
@@ -181,38 +269,7 @@ func (impl InstalledAppServiceImpl) fetchResourceTreeForACD(rctx context.Context
 	return newResourceTree, err
 }
 
-func (impl InstalledAppServiceImpl) FetchResourceTreeWithHibernateForACD(rctx context.Context, cn http.CloseNotifier, appDetail *bean.AppDetailContainer) bean.AppDetailContainer {
-	ctx, cancel := context.WithCancel(rctx)
-	if cn != nil {
-		go func(done <-chan struct{}, closed <-chan bool) {
-			select {
-			case <-done:
-			case <-closed:
-				cancel()
-			}
-		}(ctx.Done(), cn.CloseNotify())
-	}
-	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		impl.logger.Errorw("error in getting acd token", "err", err)
-		return *appDetail
-	}
-	ctx = context.WithValue(ctx, "token", acdToken)
-	defer cancel()
-	deploymentAppName := fmt.Sprintf("%s-%s", appDetail.AppName, appDetail.EnvironmentName)
-	resourceTree, err := impl.fetchResourceTreeForACD(rctx, cn, appDetail.InstalledAppId, appDetail.EnvironmentId, appDetail.ClusterId, deploymentAppName, appDetail.Namespace)
-	appDetail.ResourceTree = resourceTree
-	if err != nil {
-		return *appDetail
-	}
-	if appDetail.ResourceTree["nodes"] == nil {
-		return *appDetail
-	}
-	appDetail.ResourceTree, _ = impl.checkHibernate(appDetail.ResourceTree, deploymentAppName, ctx)
-	return *appDetail
-}
-
-func (impl InstalledAppServiceImpl) checkHibernate(resp map[string]interface{}, deploymentAppName string, ctx context.Context) (map[string]interface{}, string) {
+func (impl *InstalledAppResourceServiceImpl) checkHibernate(resp map[string]interface{}, deploymentAppName string, ctx context.Context) (map[string]interface{}, string) {
 
 	if resp == nil {
 		return resp, ""
@@ -263,7 +320,7 @@ func (impl InstalledAppServiceImpl) checkHibernate(resp map[string]interface{}, 
 	return responseTree, status
 }
 
-func (impl InstalledAppServiceImpl) processReplicaNodeForHibernation(node interface{}, deploymentAppName string, ctx context.Context) (bool, bool) {
+func (impl *InstalledAppResourceServiceImpl) processReplicaNodeForHibernation(node interface{}, deploymentAppName string, ctx context.Context) (bool, bool) {
 	currNode := node.(interface{}).(map[string]interface{})
 	resName := util2.InterfaceToString(currNode["name"])
 	resKind := util2.InterfaceToString(currNode["kind"])
@@ -287,7 +344,7 @@ func (impl InstalledAppServiceImpl) processReplicaNodeForHibernation(node interf
 	return canBeHibernatedFlag, alreadyHibernated
 }
 
-func (impl InstalledAppServiceImpl) checkForHibernation(ctx context.Context, rQuery *application.ApplicationResourceRequest, currNode map[string]interface{}) (bool, bool) {
+func (impl *InstalledAppResourceServiceImpl) checkForHibernation(ctx context.Context, rQuery *application.ApplicationResourceRequest, currNode map[string]interface{}) (bool, bool) {
 	t0 := time.Now()
 	canBeHibernated := false
 	alreadyHibernated := false
@@ -318,7 +375,7 @@ func (impl InstalledAppServiceImpl) checkForHibernation(ctx context.Context, rQu
 	return canBeHibernated, alreadyHibernated
 }
 
-func (impl InstalledAppServiceImpl) filterOutReplicaNodes(responseTreeNodes interface{}) []interface{} {
+func (impl *InstalledAppResourceServiceImpl) filterOutReplicaNodes(responseTreeNodes interface{}) []interface{} {
 	resourceListForReplicas := impl.aCDAuthConfig.ResourceListForReplicas
 	entries := strings.Split(resourceListForReplicas, ",")
 	resourceListMap := util2.ConvertStringSliceToMap(entries)
@@ -331,4 +388,36 @@ func (impl InstalledAppServiceImpl) filterOutReplicaNodes(responseTreeNodes inte
 		}
 	}
 	return replicaNodes
+}
+
+func (impl *InstalledAppResourceServiceImpl) getReleaseStatusFromHelmReleaseInstallStatus(helmReleaseInstallStatus string, status string) *gRPC.ReleaseStatus {
+	//release status is sent in resource tree call and is shown on UI as helm config apply status
+	releaseStatus := &gRPC.ReleaseStatus{}
+	if len(helmReleaseInstallStatus) > 0 {
+		helmInstallStatus := &appStoreBean.HelmReleaseStatusConfig{}
+		err := json.Unmarshal([]byte(helmReleaseInstallStatus), helmInstallStatus)
+		if err != nil {
+			impl.logger.Errorw("error in unmarshalling helm release install status")
+			return releaseStatus
+		}
+		if status == appStoreBean.HELM_RELEASE_STATUS_FAILED {
+			releaseStatus.Status = status
+			releaseStatus.Description = helmInstallStatus.Message
+			releaseStatus.Message = "Release install/upgrade failed"
+		} else if status == appStoreBean.HELM_RELEASE_STATUS_PROGRESSING {
+			releaseStatus.Status = status
+			releaseStatus.Description = helmInstallStatus.Message
+			releaseStatus.Message = helmInstallStatus.Message
+		} else {
+			// there can be a case when helm release is created but we are not able to fetch it
+			releaseStatus.Status = appStoreBean.HELM_RELEASE_STATUS_UNKNOWN
+			releaseStatus.Description = "Unable to fetch release for app"
+			releaseStatus.Message = "Unable to fetch release for app"
+		}
+	} else {
+		releaseStatus.Status = appStoreBean.HELM_RELEASE_STATUS_UNKNOWN
+		releaseStatus.Description = "Release not found"
+		releaseStatus.Message = "Release not found "
+	}
+	return releaseStatus
 }

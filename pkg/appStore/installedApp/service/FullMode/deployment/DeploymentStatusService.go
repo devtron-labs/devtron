@@ -1,15 +1,49 @@
-package appStoreDeploymentTool
+package deployment
 
 import (
 	"fmt"
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/go-pg/pg"
 	"time"
 )
 
-func (impl AppStoreDeploymentArgoCdServiceImpl) UpdateInstalledAppAndPipelineStatusForFailedDeploymentStatus(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, triggeredAt time.Time, err error) error {
+type DeploymentStatusService interface {
+	// TODO refactoring: Move to DB service
+	SaveTimelineForHelmApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, status string, statusDetail string, statusTime time.Time, tx *pg.Tx) error
+	// UpdateInstalledAppAndPipelineStatusForFailedDeploymentStatus updates failed status in pipelineConfig.PipelineStatusTimeline table
+	UpdateInstalledAppAndPipelineStatusForFailedDeploymentStatus(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, triggeredAt time.Time, err error) error
+}
+
+func (impl *FullModeDeploymentServiceImpl) SaveTimelineForHelmApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, status string, statusDetail string, statusTime time.Time, tx *pg.Tx) error {
+
+	if !util.IsAcdApp(installAppVersionRequest.DeploymentAppType) && !util.IsManifestDownload(installAppVersionRequest.DeploymentAppType) {
+		return nil
+	}
+
+	timeline := &pipelineConfig.PipelineStatusTimeline{
+		InstalledAppVersionHistoryId: installAppVersionRequest.InstalledAppVersionHistoryId,
+		Status:                       status,
+		StatusDetail:                 statusDetail,
+		StatusTime:                   statusTime,
+		AuditLog: sql.AuditLog{
+			CreatedBy: installAppVersionRequest.UserId,
+			CreatedOn: time.Now(),
+			UpdatedBy: installAppVersionRequest.UserId,
+			UpdatedOn: time.Now(),
+		},
+	}
+	timelineErr := impl.pipelineStatusTimelineService.SaveTimeline(timeline, tx, true)
+	if timelineErr != nil {
+		impl.Logger.Errorw("error in creating timeline status for git commit", "err", timelineErr, "timeline", timeline)
+	}
+	return timelineErr
+}
+
+func (impl *FullModeDeploymentServiceImpl) UpdateInstalledAppAndPipelineStatusForFailedDeploymentStatus(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, triggeredAt time.Time, err error) error {
 	if err != nil {
 		terminalStatusExists, timelineErr := impl.pipelineStatusTimelineRepository.CheckIfTerminalStatusTimelinePresentByInstalledAppVersionHistoryId(installAppVersionRequest.InstalledAppVersionHistoryId)
 		if timelineErr != nil {

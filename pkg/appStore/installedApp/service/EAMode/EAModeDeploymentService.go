@@ -1,4 +1,4 @@
-package appStoreDeploymentTool
+package EAMode
 
 import (
 	"context"
@@ -7,32 +7,32 @@ import (
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
-	"github.com/devtron-labs/devtron/pkg/appStore/deployment/tool/bean"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/bean"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"time"
 
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
-	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"sigs.k8s.io/yaml"
 )
 
-type AppStoreDeploymentHelmService interface {
+type EAModeDeploymentService interface {
 	InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, chartGitAttr *commonBean.ChartGitAttribute, ctx context.Context, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error)
 	DeleteInstalledApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApps *repository.InstalledApps, dbTransaction *pg.Tx) error
 	RollbackRelease(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, deploymentVersion int32, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, bool, error)
 	GetDeploymentHistory(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO) (*gRPC.HelmAppDeploymentHistory, error)
 	GetDeploymentHistoryInfo(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, version int32) (*openapi.HelmAppDeploymentManifestDetail, error)
-	DeleteDeploymentApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error
-	UpdateChartInfo(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *commonBean.ChartGitAttribute, installedAppVersionHistoryId int, ctx context.Context) error
+	UpgradeDeployment(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *commonBean.ChartGitAttribute, installedAppVersionHistoryId int, ctx context.Context) error
 }
 
-type AppStoreDeploymentHelmServiceImpl struct {
+type EAModeDeploymentServiceImpl struct {
 	Logger                               *zap.SugaredLogger
 	helmAppService                       client.HelmAppService
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository
@@ -42,12 +42,12 @@ type AppStoreDeploymentHelmServiceImpl struct {
 	OCIRegistryConfigRepository repository2.OCIRegistryConfigRepository
 }
 
-func NewAppStoreDeploymentHelmServiceImpl(logger *zap.SugaredLogger, helmAppService client.HelmAppService,
+func NewEAModeDeploymentServiceImpl(logger *zap.SugaredLogger, helmAppService client.HelmAppService,
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
 	helmAppClient gRPC.HelmAppClient,
 	installedAppRepository repository.InstalledAppRepository,
-	OCIRegistryConfigRepository repository2.OCIRegistryConfigRepository) *AppStoreDeploymentHelmServiceImpl {
-	return &AppStoreDeploymentHelmServiceImpl{
+	OCIRegistryConfigRepository repository2.OCIRegistryConfigRepository) *EAModeDeploymentServiceImpl {
+	return &EAModeDeploymentServiceImpl{
 		Logger:                               logger,
 		helmAppService:                       helmAppService,
 		appStoreApplicationVersionRepository: appStoreApplicationVersionRepository,
@@ -57,7 +57,7 @@ func NewAppStoreDeploymentHelmServiceImpl(logger *zap.SugaredLogger, helmAppServ
 	}
 }
 
-func (impl AppStoreDeploymentHelmServiceImpl) UpdateChartInfo(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *commonBean.ChartGitAttribute, installedAppVersionHistoryId int, ctx context.Context) error {
+func (impl *EAModeDeploymentServiceImpl) UpgradeDeployment(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *commonBean.ChartGitAttribute, installedAppVersionHistoryId int, ctx context.Context) error {
 	err := impl.updateApplicationWithChartInfo(ctx, installAppVersionRequest.InstalledAppId, installAppVersionRequest.AppStoreVersion, installAppVersionRequest.ValuesOverrideYaml, installedAppVersionHistoryId)
 	if err != nil {
 		impl.Logger.Errorw("error in updating helm app", "err", err)
@@ -66,7 +66,7 @@ func (impl AppStoreDeploymentHelmServiceImpl) UpdateChartInfo(installAppVersionR
 	return nil
 }
 
-func (impl AppStoreDeploymentHelmServiceImpl) InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, chartGitAttr *commonBean.ChartGitAttribute, ctx context.Context, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error) {
+func (impl *EAModeDeploymentServiceImpl) InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, chartGitAttr *commonBean.ChartGitAttribute, ctx context.Context, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error) {
 	installAppVersionRequest.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
 	appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)
 	if err != nil {
@@ -131,7 +131,7 @@ func (impl AppStoreDeploymentHelmServiceImpl) InstallApp(installAppVersionReques
 	return installAppVersionRequest, nil
 }
 
-func (impl AppStoreDeploymentHelmServiceImpl) DeleteInstalledApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApps *repository.InstalledApps, dbTransaction *pg.Tx) error {
+func (impl *EAModeDeploymentServiceImpl) DeleteInstalledApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApps *repository.InstalledApps, dbTransaction *pg.Tx) error {
 	if installAppVersionRequest.ForceDelete {
 		return nil
 	}
@@ -162,7 +162,7 @@ func (impl AppStoreDeploymentHelmServiceImpl) DeleteInstalledApp(ctx context.Con
 }
 
 // returns - valuesYamlStr, success, error
-func (impl AppStoreDeploymentHelmServiceImpl) RollbackRelease(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, deploymentVersion int32, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, bool, error) {
+func (impl *EAModeDeploymentServiceImpl) RollbackRelease(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, deploymentVersion int32, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, bool, error) {
 
 	// TODO : fetch values yaml from DB instead of fetching from helm cli
 	// TODO Dependency : on updating helm APP, DB is not being updated. values yaml is sent directly to helm cli. After DB updatation development, we can fetch values yaml from DB, not from CLI.
@@ -195,7 +195,7 @@ func (impl AppStoreDeploymentHelmServiceImpl) RollbackRelease(ctx context.Contex
 	return installedApp, success, nil
 }
 
-func (impl *AppStoreDeploymentHelmServiceImpl) GetDeploymentHistory(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO) (*gRPC.HelmAppDeploymentHistory, error) {
+func (impl *EAModeDeploymentServiceImpl) GetDeploymentHistory(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO) (*gRPC.HelmAppDeploymentHistory, error) {
 	helmAppIdentifier := &client.AppIdentifier{
 		ClusterId:   installedApp.ClusterId,
 		Namespace:   installedApp.Namespace,
@@ -205,7 +205,7 @@ func (impl *AppStoreDeploymentHelmServiceImpl) GetDeploymentHistory(ctx context.
 	return history, err
 }
 
-func (impl *AppStoreDeploymentHelmServiceImpl) GetDeploymentHistoryInfo(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, version int32) (*openapi.HelmAppDeploymentManifestDetail, error) {
+func (impl *EAModeDeploymentServiceImpl) GetDeploymentHistoryInfo(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, version int32) (*openapi.HelmAppDeploymentManifestDetail, error) {
 	helmAppIdeltifier := &client.AppIdentifier{
 		ClusterId:   installedApp.ClusterId,
 		Namespace:   installedApp.Namespace,
@@ -241,7 +241,7 @@ func (impl *AppStoreDeploymentHelmServiceImpl) GetDeploymentHistoryInfo(ctx cont
 	return response, nil
 }
 
-func (impl *AppStoreDeploymentHelmServiceImpl) updateApplicationWithChartInfo(ctx context.Context, installedAppId int, appStoreApplicationVersionId int, valuesOverrideYaml string, installAppVersionHistoryId int) error {
+func (impl *EAModeDeploymentServiceImpl) updateApplicationWithChartInfo(ctx context.Context, installedAppId int, appStoreApplicationVersionId int, valuesOverrideYaml string, installAppVersionHistoryId int) error {
 	installedApp, err := impl.installedAppRepository.GetInstalledApp(installedAppId)
 	if err != nil {
 		impl.Logger.Errorw("error in getting in installedApp", "installedAppId", installedAppId, "err", err)
@@ -317,45 +317,53 @@ func (impl *AppStoreDeploymentHelmServiceImpl) updateApplicationWithChartInfo(ct
 	return nil
 }
 
-func (impl *AppStoreDeploymentHelmServiceImpl) GetAcdAppGitOpsRepoName(appName string, environmentName string) (string, error) {
+func (impl *EAModeDeploymentServiceImpl) GetAcdAppGitOpsRepoName(appName string, environmentName string) (string, error) {
 	return "", errors.New("method GetGitOpsRepoName not implemented")
 }
 
-func (impl *AppStoreDeploymentHelmServiceImpl) DeleteDeploymentApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error {
+func (impl *EAModeDeploymentServiceImpl) DeleteACDAppObject(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error {
 	return errors.New("this is not implemented")
 }
 
-func (impl *AppStoreDeploymentHelmServiceImpl) SaveTimelineForACDHelmApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, status string, statusDetail string, statusTime time.Time, tx *pg.Tx) error {
+func (impl *EAModeDeploymentServiceImpl) SaveTimelineForHelmApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, status string, statusDetail string, statusTime time.Time, tx *pg.Tx) error {
 	return errors.New("this is not implemented")
 }
 
-func (impl *AppStoreDeploymentHelmServiceImpl) UpdateInstalledAppAndPipelineStatusForFailedDeploymentStatus(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, triggeredAt time.Time, err error) error {
+func (impl *EAModeDeploymentServiceImpl) UpdateInstalledAppAndPipelineStatusForFailedDeploymentStatus(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, triggeredAt time.Time, err error) error {
 	return errors.New("this is not implemented")
 }
 
 // TODO: Need to refactor this,refer below reason
 // This is being done as in ea mode wire argocd service is being binded to helmServiceImpl due to which we are restricted to implement this here.
 // RefreshAndUpdateACDApp this will update chart info in acd app if required in case of mono repo migration and will refresh argo app
-func (impl *AppStoreDeploymentHelmServiceImpl) UpdateAndSyncACDApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *commonBean.ChartGitAttribute, isMonoRepoMigrationRequired bool, ctx context.Context, tx *pg.Tx) error {
+func (impl *EAModeDeploymentServiceImpl) UpdateAndSyncACDApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *commonBean.ChartGitAttribute, isMonoRepoMigrationRequired bool, ctx context.Context, tx *pg.Tx) error {
 	return errors.New("this is not implemented")
 }
 
-func (impl *AppStoreDeploymentHelmServiceImpl) UpdateValuesDependencies(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error {
+func (impl *EAModeDeploymentServiceImpl) UpdateValuesDependencies(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error {
 	return errors.New("this is not implemented")
 }
 
-func (impl *AppStoreDeploymentHelmServiceImpl) ParseGitRepoErrorResponse(err error) (bool, error) {
+func (impl *EAModeDeploymentServiceImpl) ParseGitRepoErrorResponse(err error) (bool, error) {
 	return false, errors.New("this is not implemented")
 }
 
-func (impl *AppStoreDeploymentHelmServiceImpl) GitOpsOperations(manifestResponse *bean.AppStoreManifestResponse, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*bean.AppStoreGitOpsResponse, error) {
+func (impl *EAModeDeploymentServiceImpl) GitOpsOperations(manifestResponse *bean.AppStoreManifestResponse, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*bean.AppStoreGitOpsResponse, error) {
 	return nil, errors.New("this is not implemented")
 }
 
-func (impl *AppStoreDeploymentHelmServiceImpl) GenerateManifestAndPerformGitOperations(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*bean.AppStoreGitOpsResponse, error) {
+func (impl *EAModeDeploymentServiceImpl) GenerateManifestAndPerformGitOperations(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*bean.AppStoreGitOpsResponse, error) {
 	return nil, errors.New("this is not implemented")
 }
 
-func (impl *AppStoreDeploymentHelmServiceImpl) GenerateManifest(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (manifestResponse *bean.AppStoreManifestResponse, err error) {
+func (impl *EAModeDeploymentServiceImpl) GenerateManifest(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (manifestResponse *bean.AppStoreManifestResponse, err error) {
 	return nil, errors.New("this is not implemented")
+}
+
+func (impl *EAModeDeploymentServiceImpl) CheckIfArgoAppExists(acdAppName string) (isFound bool, err error) {
+	return isFound, errors.New("this is not implemented")
+}
+
+func (impl *EAModeDeploymentServiceImpl) CommitValues(chartGitAttr *git.ChartConfig) (commitHash string, commitTime time.Time, err error) {
+	return commitHash, commitTime, errors.New("this is not implemented")
 }

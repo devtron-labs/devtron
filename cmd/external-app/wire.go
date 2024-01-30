@@ -40,11 +40,11 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	repository4 "github.com/devtron-labs/devtron/pkg/appStore/chartGroup/repository"
-	appStoreDeploymentTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deployment"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps"
-	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	repository2 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -82,7 +82,7 @@ func InitializeApp() (*App, error) {
 		apiToken.ApiTokenWireSet,
 		webhookHelm.WebhookHelmWireSet,
 		terminal.TerminalWireSet,
-		gitOps.GitOpsWireSet,
+		gitOps.GitOpsEAWireSet,
 		NewApp,
 		NewMuxRouter,
 		util3.GetGlobalEnvVariables,
@@ -141,7 +141,7 @@ func InitializeApp() (*App, error) {
 		// // needed for enforcer util ends
 
 		// binding gitops to helm (for hyperion)
-		wire.Bind(new(appStoreDeploymentTool.AppStoreDeploymentArgoCdService), new(*appStoreDeploymentTool.AppStoreDeploymentHelmServiceImpl)),
+		wire.Bind(new(deployment.FullModeDeploymentService), new(*EAMode.EAModeDeploymentServiceImpl)),
 
 		router.NewTelemetryRouterImpl,
 		wire.Bind(new(router.TelemetryRouter), new(*router.TelemetryRouterImpl)),
@@ -177,8 +177,6 @@ func InitializeApp() (*App, error) {
 
 		util.NewChartTemplateServiceImpl,
 		wire.Bind(new(util.ChartTemplateService), new(*util.ChartTemplateServiceImpl)),
-		git.NewGitFactory,
-		git.NewGitCliUtil,
 
 		security2.NewScanToolMetadataRepositoryImpl,
 		wire.Bind(new(security2.ScanToolMetadataRepository), new(*security2.ScanToolMetadataRepositoryImpl)),
