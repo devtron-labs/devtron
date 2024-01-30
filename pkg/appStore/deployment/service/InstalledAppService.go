@@ -20,6 +20,8 @@ package service
 import (
 	"bytes"
 	"context"
+	bean3 "github.com/devtron-labs/devtron/client/argocdServer/bean"
+
 	/* #nosec */
 	"crypto/sha1"
 	"encoding/json"
@@ -944,7 +946,7 @@ func (impl InstalledAppServiceImpl) UpdateInstalledAppVersionStatus(application 
 		impl.logger.Errorw("error while fetching installed version history", "error", err)
 		return isHealthy, err
 	}
-	if versionHistory.Status != (application2.Healthy) {
+	if versionHistory.Status != (bean3.Healthy) {
 		versionHistory.Status = string(application.Status.Health.Status)
 		versionHistory.UpdatedOn = time.Now()
 		versionHistory.UpdatedBy = 1

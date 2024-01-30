@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"io/ioutil"
 	"net/url"
 	"os"
@@ -650,7 +651,7 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForPipeline(app *v1alpha1.Appl
 		impl.logger.Errorw("error on update cd workflow runner", "CdWorkflowId", pipelineOverride.CdWorkflowId, "app", app, "err", err)
 		return isSucceeded, err
 	}
-	if application.Healthy == app.Status.Health.Status {
+	if argoApplication.Healthy == app.Status.Health.Status {
 		isSucceeded = true
 	}
 	return isSucceeded, nil
@@ -664,7 +665,7 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForAppStore(app *v1alpha1.Appl
 		impl.logger.Errorw("error on update installed version history", "installedVersionHistoryId", installedVersionHistoryId, "app", app, "err", err)
 		return isSucceeded, err
 	}
-	if application.Healthy == app.Status.Health.Status {
+	if argoApplication.Healthy == app.Status.Health.Status {
 		isSucceeded = true
 	}
 	return isSucceeded, nil

@@ -11,7 +11,7 @@ import (
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
-	"github.com/devtron-labs/devtron/client/argocdServer/application"
+	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/repository"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
@@ -1054,7 +1054,7 @@ func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvir
 			impl.logger.Infow("application already hibernated", "app_id", pipeline.AppId)
 			pipelineResponse := response[appKey]
 			pipelineResponse[pipelineKey] = false
-			if deploymentHistory.Status == application.HIBERNATING {
+			if deploymentHistory.Status == argoApplication.HIBERNATING {
 				pipelineResponse[Skipped] = "Application is already hibernated"
 			} else {
 				pipelineResponse[Skipped] = "Hibernation already in progress"
@@ -1213,7 +1213,7 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 			impl.logger.Infow("application already UnHibernated", "app_id", pipeline.AppId)
 			pipelineResponse := response[appKey]
 			pipelineResponse[pipelineKey] = false
-			if deploymentHistory.Status == application.Healthy {
+			if deploymentHistory.Status == argoApplication.Healthy {
 				pipelineResponse[Skipped] = "Application is already un-hibernated"
 			} else {
 				pipelineResponse[Skipped] = "Un-hibernation already in progress"
