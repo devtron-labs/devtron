@@ -8,10 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/common-lib/utils"
-	"net/http"
-	"strconv"
-	"strings"
-
 	util3 "github.com/devtron-labs/common-lib/utils/k8s"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
@@ -37,6 +33,11 @@ import (
 	"io"
 	errors3 "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"net/http"
+	"regexp"
+	"strconv"
+	"strings"
+	"time"
 )
 
 type K8sApplicationRestHandler interface {
@@ -691,6 +692,25 @@ func (handler *K8sApplicationRestHandlerImpl) DownloadPodLogs(w http.ResponseWri
 	eof := false
 	for !eof {
 		log, err := bufReader.ReadString('\n')
+		log = strings.TrimSpace(log) // Remove trailing line ending
+		a := regexp.MustCompile(" ")
+		var res []byte
+		splitLog := a.Split(log, 2)
+		if len(splitLog[0]) > 0 {
+			parsedTime, err := time.Parse(time.RFC3339, splitLog[0])
+			if err != nil {
+				handler.logger.Errorw("error in writing data", "err", err)
+				return
+			}
+			humanReadableTime := parsedTime.UTC().Format(http.TimeFormat)
+			res = append(res, humanReadableTime...)
+		}
+
+		if len(splitLog) == 2 {
+			res = append(res, " "...)
+			res = append(res, splitLog[1]...)
+		}
+		res = append(res, "\n"...)
 		if err == io.EOF {
 			eof = true
 			// stop if we reached end of stream and the next line is empty
@@ -701,7 +721,7 @@ func (handler *K8sApplicationRestHandlerImpl) DownloadPodLogs(w http.ResponseWri
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
 		}
-		_, err = dataBuffer.Write([]byte(log))
+		_, err = dataBuffer.Write(res)
 		if err != nil {
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
