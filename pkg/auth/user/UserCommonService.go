@@ -29,7 +29,7 @@ type UserCommonService interface {
 	BuildRoleFilterKeyForOtherEntity(roleFilterMap map[string]*bean.RoleFilter, role repository.RoleModel, key string)
 	BuildRoleFilterForAllTypes(roleFilterMap map[string]*bean.RoleFilter, role repository.RoleModel, key string)
 	GetUniqueKeyForAllEntity(role repository.RoleModel) string
-	GetDefaultValuesIfNotPresent(sortBy string, totalSize int, isRoleGroup bool) (bean2.SortBy, int)
+	SetDefaultValuesIfNotPresent(request *bean.FetchListingRequest, isRoleGroup bool)
 }
 
 type UserCommonServiceImpl struct {
@@ -676,17 +676,15 @@ func (impl UserCommonServiceImpl) GetUniqueKeyForAllEntity(role repository.RoleM
 	return key
 }
 
-func (impl UserCommonServiceImpl) GetDefaultValuesIfNotPresent(sortBy string, totalSize int, isRoleGroup bool) (bean2.SortBy, int) {
-	var sortByFinal bean2.SortBy
-	if len(sortBy) > 0 {
-		sortByFinal = bean2.SortBy(sortBy)
-	} else if isRoleGroup {
-		sortByFinal = bean2.GroupName
-	} else {
-		sortByFinal = bean2.Email
+func (impl UserCommonServiceImpl) SetDefaultValuesIfNotPresent(request *bean.FetchListingRequest, isRoleGroup bool) {
+	if len(request.SortBy) == 0 {
+		if isRoleGroup {
+			request.SortBy = bean2.GroupName
+		} else {
+			request.SortBy = bean2.Email
+		}
 	}
-	if totalSize == 0 {
-		totalSize = bean2.DefaultSize
+	if request.Size == 0 {
+		request.Size = bean2.DefaultSize
 	}
-	return sortByFinal, totalSize
 }

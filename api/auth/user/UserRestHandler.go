@@ -355,42 +355,14 @@ func (handler UserRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Request
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	// check query param
-	params := r.URL.Query()
-	searchKey := params.Get("searchKey")
-	sortOrder := params.Get("sortOrder")
-	sortBy := params.Get("sortBy")
-	offsetString := params.Get("offset")
-	var offset int
-	if len(offsetString) > 0 {
-		offset, err = strconv.Atoi(offsetString)
-		if err != nil {
-			handler.logger.Errorw("request err, GetAll", "err", err, "offset", offset)
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-			return
-		}
+
+	req, err := handler.getQueryParamsForListing(r)
+	if err != nil {
+		handler.logger.Errorw("request err, GetAll", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
 	}
-	sizeString := params.Get("size")
-	var size int
-	if len(sizeString) > 0 {
-		size, err = strconv.Atoi(sizeString)
-		if err != nil {
-			handler.logger.Errorw("request err, GetAll", "err", err, "size", size)
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-			return
-		}
-	}
-	showAllString := params.Get("showAll")
-	showAll := false
-	if len(showAllString) > 0 {
-		showAll, err = strconv.ParseBool(showAllString)
-		if err != nil {
-			handler.logger.Errorw("request err, GetAll", "err", err, "showAll", showAll)
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-			return
-		}
-	}
-	res, err := handler.userService.GetAllWithFilters(sortOrder, sortBy, offset, size, showAll, searchKey)
+	res, err := handler.userService.GetAllWithFilters(req)
 	if err != nil {
 		handler.logger.Errorw("service err, GetAll", "err", err)
 		common.WriteJsonResp(w, err, "Failed to Get", http.StatusInternalServerError)
@@ -398,6 +370,51 @@ func (handler UserRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Request
 	}
 
 	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+
+func (handler UserRestHandlerImpl) getQueryParamsForListing(r *http.Request) (*bean.FetchListingRequest, error) {
+	// check query param
+	params := r.URL.Query()
+	searchKey := params.Get("searchKey")
+	sortOrder := params.Get("sortOrder")
+	sortBy := params.Get("sortBy")
+	offsetString := params.Get("offset")
+	var err error
+	var offset int
+	if len(offsetString) > 0 {
+		offset, err = strconv.Atoi(offsetString)
+		if err != nil {
+			handler.logger.Errorw("error in getQueryParamsForListing", "err", err, "offset", offset)
+			return nil, err
+		}
+	}
+	sizeString := params.Get("size")
+	var size int
+	if len(sizeString) > 0 {
+		size, err = strconv.Atoi(sizeString)
+		if err != nil {
+			handler.logger.Errorw("error in getQueryParamsForListing", "err", err, "size", size)
+			return nil, err
+		}
+	}
+	showAllString := params.Get("showAll")
+	showAll := false
+	if len(showAllString) > 0 {
+		showAll, err = strconv.ParseBool(showAllString)
+		if err != nil {
+			handler.logger.Errorw("error in getQueryParamsForListing", "err", err, "showAll", showAll)
+			return nil, err
+		}
+	}
+	request := &bean.FetchListingRequest{
+		SortOrder: bean2.SortOrder(sortOrder),
+		SortBy:    bean2.SortBy(sortBy),
+		Offset:    offset,
+		Size:      size,
+		ShowAll:   showAll,
+		SearchKey: searchKey,
+	}
+	return request, nil
 }
 
 func (handler UserRestHandlerImpl) GetAllDetailedUsers(w http.ResponseWriter, r *http.Request) {
@@ -720,42 +737,14 @@ func (handler UserRestHandlerImpl) FetchRoleGroups(w http.ResponseWriter, r *htt
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	// check query param
-	params := r.URL.Query()
-	sortOrder := params.Get("sortOrder")
-	searchKey := params.Get("searchKey")
-	sortBy := params.Get("sortBy")
-	offsetString := params.Get("offset")
-	var offset int
-	if len(offsetString) > 0 {
-		offset, err = strconv.Atoi(offsetString)
-		if err != nil {
-			handler.logger.Errorw("request err, FetchRoleGroups", "err", err, "offset", offset)
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-			return
-		}
+
+	req, err := handler.getQueryParamsForListing(r)
+	if err != nil {
+		handler.logger.Errorw("request err, FetchRoleGroups", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
 	}
-	sizeString := params.Get("size")
-	var size int
-	if len(sizeString) > 0 {
-		size, err = strconv.Atoi(sizeString)
-		if err != nil {
-			handler.logger.Errorw("request err, FetchRoleGroups", "err", err, "size", size)
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-			return
-		}
-	}
-	showAllString := params.Get("showAll")
-	showAll := false
-	if len(showAllString) > 0 {
-		showAll, err = strconv.ParseBool(showAllString)
-		if err != nil {
-			handler.logger.Errorw("request err, FetchRoleGroups", "err", err, "showAll", showAll)
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-			return
-		}
-	}
-	res, err := handler.roleGroupService.FetchRoleGroupsWithFilters(sortOrder, sortBy, offset, size, showAll, searchKey)
+	res, err := handler.roleGroupService.FetchRoleGroupsWithFilters(req)
 	if err != nil {
 		handler.logger.Errorw("service err, FetchRoleGroups", "err", err)
 		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)

@@ -43,8 +43,6 @@ type UserRepository interface {
 	FetchActiveOrDeletedUserByEmail(email string) (*UserModel, error)
 	UpdateRoleIdForUserRolesMappings(roleId int, newRoleId int) (*UserRoleModel, error)
 	GetCountExecutingQuery(query string) (int, error)
-	StartATransaction() (*pg.Tx, error)
-	CommitATransaction(tx *pg.Tx) error
 }
 
 type UserRepositoryImpl struct {
@@ -206,22 +204,4 @@ func (impl UserRepositoryImpl) GetCountExecutingQuery(query string) (int, error)
 		return totalCount, err
 	}
 	return totalCount, err
-}
-
-func (impl UserRepositoryImpl) StartATransaction() (*pg.Tx, error) {
-	tx, err := impl.dbConnection.Begin()
-	if err != nil {
-		impl.Logger.Errorw("error in beginning a transaction", "err", err)
-		return nil, err
-	}
-	return tx, nil
-}
-
-func (impl UserRepositoryImpl) CommitATransaction(tx *pg.Tx) error {
-	err := tx.Commit()
-	if err != nil {
-		impl.Logger.Errorw("error in commiting a transaction", "err", err)
-		return err
-	}
-	return nil
 }

@@ -42,7 +42,7 @@ type RoleGroupService interface {
 	FetchDetailedRoleGroups() ([]*bean.RoleGroup, error)
 	FetchRoleGroupsById(id int32) (*bean.RoleGroup, error)
 	FetchRoleGroups() (*bean.RoleGroupListingResponse, error)
-	FetchRoleGroupsWithFilters(sortOrder string, sortBy string, offset int, totalSize int, showAll bool, searchKey string) (*bean.RoleGroupListingResponse, error)
+	FetchRoleGroupsWithFilters(request *bean.FetchListingRequest) (*bean.RoleGroupListingResponse, error)
 	FetchRoleGroupsByName(name string) ([]*bean.RoleGroup, error)
 	DeleteRoleGroup(model *bean.RoleGroup) (bool, error)
 	FetchRolesForGroups(groupNames []string) ([]*bean.RoleFilter, error)
@@ -637,10 +637,10 @@ func (impl RoleGroupServiceImpl) FetchRoleGroups() (*bean.RoleGroupListingRespon
 	return response, nil
 }
 
-// FetchRoleGroupsWithFilters takes filters args as input and outputs RoleGroupListingResponse based on the request filters.
-func (impl RoleGroupServiceImpl) FetchRoleGroupsWithFilters(sortOrder string, sortBy string, offset int, totalSize int, showAll bool, searchKey string) (*bean.RoleGroupListingResponse, error) {
+// FetchRoleGroupsWithFilters takes listing request as input and outputs RoleGroupListingResponse based on the request filters.
+func (impl RoleGroupServiceImpl) FetchRoleGroupsWithFilters(request *bean.FetchListingRequest) (*bean.RoleGroupListingResponse, error) {
 	// default values will be used if not provided
-	request := impl.getRequestWithFiltersArgs(sortOrder, sortBy, offset, totalSize, showAll, searchKey)
+	impl.userCommonService.SetDefaultValuesIfNotPresent(request, true)
 	if request.ShowAll {
 		return impl.FetchRoleGroups()
 	}
@@ -663,28 +663,11 @@ func (impl RoleGroupServiceImpl) FetchRoleGroupsWithFilters(sortOrder string, so
 		return nil, err
 	}
 
-	list := impl.fetchRoleGroupResponseFromModel(roleGroup)
-	response := &bean.RoleGroupListingResponse{
-		RoleGroups: list,
-		TotalCount: totalCount,
-	}
+	response := impl.fetchRoleGroupResponseFromModel(roleGroup, totalCount)
 	return response, nil
 }
 
-func (impl RoleGroupServiceImpl) getRequestWithFiltersArgs(sortOrder string, sortBy string, offset int, totalSize int, showAll bool, searchKey string) *bean.FetchListingRequest {
-	sortByRes, size := impl.userCommonService.GetDefaultValuesIfNotPresent(sortBy, totalSize, true)
-	request := &bean.FetchListingRequest{
-		SortOrder: bean2.SortOrder(sortOrder),
-		SortBy:    sortByRes,
-		Offset:    offset,
-		Size:      size,
-		ShowAll:   showAll,
-		SearchKey: searchKey,
-	}
-	return request
-}
-
-func (impl RoleGroupServiceImpl) fetchRoleGroupResponseFromModel(roleGroup []*repository.RoleGroup) []*bean.RoleGroup {
+func (impl RoleGroupServiceImpl) fetchRoleGroupResponseFromModel(roleGroup []*repository.RoleGroup, totalCount int) *bean.RoleGroupListingResponse {
 	var list []*bean.RoleGroup
 	for _, item := range roleGroup {
 		bean := &bean.RoleGroup{
@@ -699,7 +682,12 @@ func (impl RoleGroupServiceImpl) fetchRoleGroupResponseFromModel(roleGroup []*re
 	if len(list) == 0 {
 		list = make([]*bean.RoleGroup, 0)
 	}
-	return list
+
+	response := &bean.RoleGroupListingResponse{
+		RoleGroups: list,
+		TotalCount: totalCount,
+	}
+	return response
 }
 
 func (impl RoleGroupServiceImpl) FetchRoleGroupsByName(name string) ([]*bean.RoleGroup, error) {

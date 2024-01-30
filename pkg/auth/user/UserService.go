@@ -20,6 +20,7 @@ package user
 import (
 	"context"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/auth/user/adapter"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository/helper"
 	"net/http"
 	"strings"
@@ -53,7 +54,7 @@ type UserService interface {
 	UpdateUser(userInfo *bean.UserInfo, token string, managerAuth func(resource, token string, object string) bool) (*bean.UserInfo, bool, bool, []string, error)
 	GetById(id int32) (*bean.UserInfo, error)
 	GetAll() ([]bean.UserInfo, error)
-	GetAllWithFilters(sortOrder string, sortBy string, offset int, totalSize int, showAll bool, searchKey string) (*bean.UserListingResponse, error)
+	GetAllWithFilters(request *bean.FetchListingRequest) (*bean.UserListingResponse, error)
 	GetAllDetailedUsers() ([]bean.UserInfo, error)
 	GetEmailFromToken(token string) (string, error)
 	GetEmailById(userId int32) (string, error)
@@ -949,12 +950,17 @@ func (impl *UserServiceImpl) GetAll() ([]bean.UserInfo, error) {
 	return response, nil
 }
 
-// GetAllWithFilters takes filter arguments gives UserListingResponse as output with some operations like filter, sorting, searching,pagination support inbuilt
-func (impl UserServiceImpl) GetAllWithFilters(sortOrder string, sortBy string, offset int, totalSize int, showAll bool, searchKey string) (*bean.UserListingResponse, error) {
+// GetAllWithFilters takes filter request  gives UserListingResponse as output with some operations like filter, sorting, searching,pagination support inbuilt
+func (impl UserServiceImpl) GetAllWithFilters(request *bean.FetchListingRequest) (*bean.UserListingResponse, error) {
 	//  default values will be used if not provided
-	request := impl.getRequestWithFiltersArgsOrDefault(sortOrder, sortBy, offset, totalSize, showAll, searchKey)
+	impl.userCommonService.SetDefaultValuesIfNotPresent(request, false)
 	if request.ShowAll {
-		return impl.getAllDetailedUsers()
+		response, err := impl.GetAllDetailedUsers()
+		if err != nil {
+			impl.logger.Errorw("error in getAllDetailedUsers", "err", err)
+			return nil, err
+		}
+		return impl.getAllDetailedUsersAdapter(response), nil
 	}
 	// Setting size as zero to calculate the total number of results based on request
 	size := request.Size
@@ -976,51 +982,28 @@ func (impl UserServiceImpl) GetAllWithFilters(sortOrder string, sortBy string, o
 		return nil, err
 	}
 
-	response, err := impl.getUserResponse(models)
+	listingResponse, err := impl.getUserResponse(models, totalCount)
 	if err != nil {
 		impl.logger.Errorw("error in getUserResponseWithLoginAudit", "err", err)
 		return nil, err
 	}
 
-	listingResponse := &bean.UserListingResponse{
-		Users:      response,
-		TotalCount: totalCount,
-	}
 	return listingResponse, nil
 
 }
 
-func (impl UserServiceImpl) getRequestWithFiltersArgsOrDefault(sortOrder string, sortBy string, offset int, totalSize int, showAll bool, searchKey string) *bean.FetchListingRequest {
-	sortByRes, size := impl.userCommonService.GetDefaultValuesIfNotPresent(sortBy, totalSize, false)
-	request := &bean.FetchListingRequest{
-		SortOrder: bean2.SortOrder(sortOrder),
-		SortBy:    sortByRes,
-		Offset:    offset,
-		Size:      size,
-		ShowAll:   showAll,
-		SearchKey: searchKey,
-	}
-	return request
-}
-
-func (impl UserServiceImpl) getAllDetailedUsers() (*bean.UserListingResponse, error) {
-	response, err := impl.GetAllDetailedUsers()
-	if err != nil {
-		impl.logger.Errorw("error in getAllDetailedUsers", "err", err)
-		return nil, err
-	}
-
+func (impl UserServiceImpl) getAllDetailedUsersAdapter(detailedUsers []bean.UserInfo) *bean.UserListingResponse {
 	listingResponse := &bean.UserListingResponse{
-		Users:      response,
-		TotalCount: len(response),
+		Users:      detailedUsers,
+		TotalCount: len(detailedUsers),
 	}
-	return listingResponse, err
+	return listingResponse
 }
 
-func (impl UserServiceImpl) getUserResponse(model []repository.UserModel) ([]bean.UserInfo, error) {
+func (impl UserServiceImpl) getUserResponse(model []repository.UserModel, totalCount int) (*bean.UserListingResponse, error) {
 	var response []bean.UserInfo
 	for _, m := range model {
-		lastLoginTime := impl.getLastLoginTime(m)
+		lastLoginTime := adapter.GetLastLoginTime(m)
 		response = append(response, bean.UserInfo{
 			Id:            m.Id,
 			EmailId:       m.EmailId,
@@ -1032,7 +1015,12 @@ func (impl UserServiceImpl) getUserResponse(model []repository.UserModel) ([]bea
 	if len(response) == 0 {
 		response = make([]bean.UserInfo, 0)
 	}
-	return response, nil
+
+	listingResponse := &bean.UserListingResponse{
+		Users:      response,
+		TotalCount: totalCount,
+	}
+	return listingResponse, nil
 }
 
 func (impl *UserServiceImpl) GetAllDetailedUsers() ([]bean.UserInfo, error) {
@@ -1045,7 +1033,7 @@ func (impl *UserServiceImpl) GetAllDetailedUsers() ([]bean.UserInfo, error) {
 	var response []bean.UserInfo
 	for _, model := range models {
 		isSuperAdmin, roleFilters, filterGroups := impl.getUserMetadata(&model)
-		lastLoginTime := impl.getLastLoginTime(model)
+		lastLoginTime := adapter.GetLastLoginTime(model)
 		for index, roleFilter := range roleFilters {
 			if roleFilter.Entity == "" {
 				roleFilters[index].Entity = bean2.ENTITY_APPS
@@ -1067,13 +1055,6 @@ func (impl *UserServiceImpl) GetAllDetailedUsers() ([]bean.UserInfo, error) {
 		response = make([]bean.UserInfo, 0)
 	}
 	return response, nil
-}
-func (impl UserServiceImpl) getLastLoginTime(model repository.UserModel) time.Time {
-	lastLoginTime := time.Time{}
-	if model.UserAudit != nil {
-		lastLoginTime = model.UserAudit.UpdatedOn
-	}
-	return lastLoginTime
 }
 
 func (impl *UserServiceImpl) UserExists(emailId string) bool {
