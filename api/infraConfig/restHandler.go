@@ -10,6 +10,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
+	"gopkg.in/go-playground/validator.v9"
 	"net/http"
 )
 
@@ -25,15 +26,17 @@ type InfraConfigRestHandlerImpl struct {
 	userService         user.UserService
 	enforcer            casbin.Enforcer
 	enforcerUtil        rbac.EnforcerUtil
+	validator           *validator.Validate
 }
 
-func NewInfraConfigRestHandlerImpl(logger *zap.SugaredLogger, infraProfileService infraConfig.InfraConfigService, userService user.UserService, enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil) *InfraConfigRestHandlerImpl {
+func NewInfraConfigRestHandlerImpl(logger *zap.SugaredLogger, infraProfileService infraConfig.InfraConfigService, userService user.UserService, enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, validator *validator.Validate) *InfraConfigRestHandlerImpl {
 	return &InfraConfigRestHandlerImpl{
 		logger:              logger,
 		infraProfileService: infraProfileService,
 		userService:         userService,
 		enforcer:            enforcer,
 		enforcerUtil:        enforcerUtil,
+		validator:           validator,
 	}
 }
 
@@ -51,11 +54,22 @@ func (handler *InfraConfigRestHandlerImpl) UpdateInfraProfile(w http.ResponseWri
 
 	vars := mux.Vars(r)
 	profileName := vars["name"]
+	// use validator here
+	if profileName != infraConfig.DEFAULT_PROFILE_NAME {
+		common.WriteJsonResp(w, errors.New(InvalidProfileRequest), nil, http.StatusNotFound)
+		return
+	}
 	payload := &infraConfig.ProfileBean{}
 	decoder := json.NewDecoder(r.Body)
 	err = decoder.Decode(payload)
 	if err != nil {
 		handler.logger.Errorw("error in decoding the request payload", "err", err, "requestBody", r.Body)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	err = handler.validator.Struct(payload)
+	if err != nil {
+		err = errors.Wrap(err, infraConfig.PayloadValidationError)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -87,7 +101,7 @@ func (handler *InfraConfigRestHandlerImpl) GetProfile(w http.ResponseWriter, r *
 		return
 	}
 
-	defaultProfile, err := handler.infraProfileService.GetDefaultProfile()
+	defaultProfile, err := handler.infraProfileService.GetProfileByName(profileName)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return

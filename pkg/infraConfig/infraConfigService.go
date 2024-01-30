@@ -9,13 +9,12 @@ import (
 	"github.com/go-pg/pg"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
-	"gopkg.in/go-playground/validator.v9"
 	"time"
 )
 
 type InfraConfigService interface {
 	GetConfigurationUnits() map[ConfigKeyStr]map[string]units.Unit
-	GetDefaultProfile() (*ProfileBean, error)
+	GetProfileByName(name string) (*ProfileBean, error)
 	UpdateProfile(userId int32, profileName string, profileBean *ProfileBean) error
 }
 
@@ -24,13 +23,11 @@ type InfraConfigServiceImpl struct {
 	infraProfileRepo InfraConfigRepository
 	units            *units.Units
 	infraConfig      *InfraConfig
-	validator        *validator.Validate
 }
 
 func NewInfraConfigServiceImpl(logger *zap.SugaredLogger,
 	infraProfileRepo InfraConfigRepository,
-	units *units.Units,
-	validator *validator.Validate) (*InfraConfigServiceImpl, error) {
+	units *units.Units) (*InfraConfigServiceImpl, error) {
 	infraConfiguration := &InfraConfig{}
 	err := env.Parse(infraConfiguration)
 	if err != nil {
@@ -41,14 +38,13 @@ func NewInfraConfigServiceImpl(logger *zap.SugaredLogger,
 		infraProfileRepo: infraProfileRepo,
 		units:            units,
 		infraConfig:      infraConfiguration,
-		validator:        validator,
 	}
 	err = infraProfileService.loadDefaultProfile()
 	return infraProfileService, err
 }
 
-func (impl *InfraConfigServiceImpl) GetDefaultProfile() (*ProfileBean, error) {
-	infraProfile, err := impl.infraProfileRepo.GetProfileByName(DEFAULT_PROFILE_NAME)
+func (impl *InfraConfigServiceImpl) GetProfileByName(name string) (*ProfileBean, error) {
+	infraProfile, err := impl.infraProfileRepo.GetProfileByName(name)
 	if err != nil {
 		impl.logger.Errorw("error in fetching default profile", "error", err)
 		return nil, err
@@ -78,13 +74,8 @@ func (impl *InfraConfigServiceImpl) GetDefaultProfile() (*ProfileBean, error) {
 }
 
 func (impl *InfraConfigServiceImpl) UpdateProfile(userId int32, profileName string, profileToUpdate *ProfileBean) error {
-	// use validator here
-	if profileName != DEFAULT_PROFILE_NAME {
-		return errors.New(InvalidProfileName)
-	}
-
 	// validation
-	defaultProfile, err := impl.GetDefaultProfile()
+	defaultProfile, err := impl.GetProfileByName(profileName)
 	if err != nil {
 		impl.logger.Errorw("error in fetching default profile", "profileName", profileName, "profileCreateRequest", profileToUpdate, "error", err)
 		return err
@@ -136,6 +127,9 @@ func (impl *InfraConfigServiceImpl) UpdateProfile(userId int32, profileName stri
 	return err
 }
 
+// loadDefaultProfile loads default configurations from environment and save them in db.
+// this will only create the default profile only once if not exists in db.(container restarts won't create new default profile everytime)
+// this will load the default configurations provided in InfraConfig. if db is in out of sync with InfraConfig then it will create new entries for those missing configurations in db.
 func (impl *InfraConfigServiceImpl) loadDefaultProfile() error {
 
 	profile, err := impl.infraProfileRepo.GetProfileByName(DEFAULT_PROFILE_NAME)
@@ -209,6 +203,47 @@ func (impl *InfraConfigServiceImpl) loadDefaultProfile() error {
 	return err
 }
 
+func (impl *InfraConfigServiceImpl) getInfraConfigurationsByScope(scope Scope) (*InfraConfig, error) {
+	infraConfiguration := &InfraConfig{}
+	overrideInfraConfigFunc := func(config ConfigurationBean) {
+		switch config.Key {
+		case CPU_LIMIT:
+			infraConfiguration.setCiLimitCpu(impl.getResolvedValue(config).(string))
+		case CPU_REQUEST:
+			infraConfiguration.setCiReqCpu(impl.getResolvedValue(config).(string))
+		case MEMORY_LIMIT:
+			infraConfiguration.setCiLimitMem(impl.getResolvedValue(config).(string))
+		case MEMORY_REQUEST:
+			infraConfiguration.setCiReqMem(impl.getResolvedValue(config).(string))
+		case TIME_OUT:
+			infraConfiguration.setCiDefaultTimeout(impl.getResolvedValue(config).(int64))
+		}
+	}
+	defaultConfigurations, err := impl.infraProfileRepo.GetConfigurationsByProfileName(DEFAULT_PROFILE_NAME)
+	if err != nil {
+		impl.logger.Errorw("error in fetching default configurations", "scope", scope, "error", err)
+		return nil, err
+	}
+
+	for _, defaultConfiguration := range defaultConfigurations {
+		defaultConfigurationBean := defaultConfiguration.ConvertToConfigurationBean()
+		overrideInfraConfigFunc(defaultConfigurationBean)
+	}
+	return infraConfiguration, nil
+}
+
+func (impl *InfraConfigServiceImpl) getResolvedValue(configurationBean ConfigurationBean) interface{} {
+	// for timeout we need to get the value in seconds
+	if configurationBean.Key == GetConfigKeyStr(TimeOut) {
+		// if user ever gives the timeout in float, after conversion to int64 it will be rounded off
+		return int64(configurationBean.Value * impl.units.GetTimeUnits()[configurationBean.Unit].ConversionFactor)
+	}
+	if configurationBean.Unit == string(units.CORE) || configurationBean.Unit == string(units.BYTE) {
+		return fmt.Sprintf("%v", configurationBean.Value)
+	}
+	return fmt.Sprintf("%v%v", configurationBean.Value, configurationBean.Unit)
+}
+
 func (impl *InfraConfigServiceImpl) GetConfigurationUnits() map[ConfigKeyStr]map[string]units.Unit {
 	configurationUnits := make(map[ConfigKeyStr]map[string]units.Unit)
 	configurationUnits[CPU_REQUEST] = impl.units.GetCpuUnits()
@@ -223,12 +258,8 @@ func (impl *InfraConfigServiceImpl) GetConfigurationUnits() map[ConfigKeyStr]map
 }
 
 func (impl *InfraConfigServiceImpl) Validate(profileToUpdate *ProfileBean, defaultProfile *ProfileBean) error {
-	err := impl.validator.Struct(profileToUpdate)
-	if err != nil {
-		err = errors.Wrap(err, PayloadValidationError)
-		return err
-	}
 
+	var err error = nil
 	// validate configurations only contain default configurations types.(cpu_limit,cpu_request,mem_limit,mem_request,timeout)
 	for _, propertyConfig := range profileToUpdate.Configurations {
 		if !util.Contains(defaultProfile.Configurations, func(defaultConfig ConfigurationBean) bool {
@@ -257,7 +288,6 @@ func (impl *InfraConfigServiceImpl) Validate(profileToUpdate *ProfileBean, defau
 
 func (impl *InfraConfigServiceImpl) validateCpuMem(profileBean *ProfileBean) error {
 
-	configurationUnits := impl.units
 	// currently validating cpu and memory limits and reqs only
 	var (
 		cpuLimit *ConfigurationBean
@@ -281,6 +311,20 @@ func (impl *InfraConfigServiceImpl) validateCpuMem(profileBean *ProfileBean) err
 	}
 
 	// validate cpu
+	err := impl.validateCPU(cpuLimit, cpuReq)
+	if err != nil {
+		return err
+	}
+	// validate mem
+	err = impl.validateMEM(memLimit, memReq)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (impl *InfraConfigServiceImpl) validateCPU(cpuLimit, cpuReq *ConfigurationBean) error {
+	configurationUnits := impl.units
 	cpuLimitUnitSuffix := units.CPUUnitStr(cpuLimit.Unit).GetCPUUnit()
 	cpuReqUnitSuffix := units.CPUUnitStr(cpuReq.Unit).GetCPUUnit()
 	var cpuLimitUnit units.Unit
@@ -295,7 +339,6 @@ func (impl *InfraConfigServiceImpl) validateCpuMem(profileBean *ProfileBean) err
 		}
 
 	}
-
 	// this condition should be true for valid case => (lim/req)*(lf/rf) >= 1
 	limitToReqRationCPU := cpuLimit.Value / cpuReq.Value
 	convFactorCPU := cpuLimitUnit.ConversionFactor / cpuReqUnit.ConversionFactor
@@ -303,9 +346,11 @@ func (impl *InfraConfigServiceImpl) validateCpuMem(profileBean *ProfileBean) err
 	if limitToReqRationCPU*convFactorCPU < 1 {
 		return errors.New(CPULimReqErrorCompErr)
 	}
+	return nil
+}
 
-	// validate mem
-
+func (impl *InfraConfigServiceImpl) validateMEM(memLimit, memReq *ConfigurationBean) error {
+	configurationUnits := impl.units
 	memLimitUnitSuffix := units.MemoryUnitStr(memLimit.Unit).GetMemoryUnit()
 	memReqUnitSuffix := units.MemoryUnitStr(memReq.Unit).GetMemoryUnit()
 	var memLimitUnit units.Unit
@@ -328,47 +373,5 @@ func (impl *InfraConfigServiceImpl) validateCpuMem(profileBean *ProfileBean) err
 	if limitToReqRationMem*convFactorMem < 1 {
 		return errors.New(MEMLimReqErrorCompErr)
 	}
-
 	return nil
-}
-
-func (impl *InfraConfigServiceImpl) getInfraConfigurationsByScope(scope Scope) (*InfraConfig, error) {
-	infraConfiguration := &InfraConfig{}
-	overrideInfraConfigFunc := func(config ConfigurationBean) {
-		switch config.Key {
-		case CPU_LIMIT:
-			infraConfiguration.setCiLimitCpu(impl.GetResolvedValue(config).(string))
-		case CPU_REQUEST:
-			infraConfiguration.setCiReqCpu(impl.GetResolvedValue(config).(string))
-		case MEMORY_LIMIT:
-			infraConfiguration.setCiLimitMem(impl.GetResolvedValue(config).(string))
-		case MEMORY_REQUEST:
-			infraConfiguration.setCiReqMem(impl.GetResolvedValue(config).(string))
-		case TIME_OUT:
-			infraConfiguration.setCiDefaultTimeout(impl.GetResolvedValue(config).(int64))
-		}
-	}
-	defaultConfigurations, err := impl.infraProfileRepo.GetConfigurationsByProfileName(DEFAULT_PROFILE_NAME)
-	if err != nil {
-		impl.logger.Errorw("error in fetching default configurations", "scope", scope, "error", err)
-		return nil, err
-	}
-
-	for _, defaultConfiguration := range defaultConfigurations {
-		defaultConfigurationBean := defaultConfiguration.ConvertToConfigurationBean()
-		overrideInfraConfigFunc(defaultConfigurationBean)
-	}
-	return infraConfiguration, nil
-}
-
-func (impl *InfraConfigServiceImpl) GetResolvedValue(configurationBean ConfigurationBean) interface{} {
-	// for timeout we need to get the value in seconds
-	if configurationBean.Key == GetConfigKeyStr(TimeOut) {
-		// if user ever gives the timeout in float, after conversion to int64 it will be rounded off
-		return int64(configurationBean.Value * impl.units.GetTimeUnits()[configurationBean.Unit].ConversionFactor)
-	}
-	if configurationBean.Unit == string(units.CORE) || configurationBean.Unit == string(units.BYTE) {
-		return fmt.Sprintf("%v", configurationBean.Value)
-	}
-	return fmt.Sprintf("%v%v", configurationBean.Value, configurationBean.Unit)
 }

@@ -81,7 +81,7 @@ func (profileBean *ProfileBean) ConvertToInfraProfileEntity() *InfraProfileEntit
 
 type ConfigurationBean struct {
 	Id          int          `json:"id"`
-	Key         ConfigKeyStr `json:"key" validate:"required,oneof=cpu_limit cpu_request memory_limit memory_request timeout"`
+	Key         ConfigKeyStr `json:"key"`
 	Value       float64      `json:"value" validate:"required,gt=0"`
 	Unit        string       `json:"unit" validate:"required,gt=0"`
 	ProfileName string       `json:"profileName"`
