@@ -268,6 +268,12 @@ func (impl *InfraConfigRepositoryImpl) GetIdentifierList(listFilter IdentifierLi
 	}
 
 	// for any other profile
+	identifiers, err := impl.getIdentifiersListForNonDefaultProfile(listFilter, totalOverriddenCountQuery, identifierType)
+	return identifiers, err
+
+}
+
+func (impl *InfraConfigRepositoryImpl) getIdentifiersListForNonDefaultProfile(listFilter IdentifierListFilter, totalOverriddenCountQuery string, identifierType int) ([]*Identifier, error) {
 	finalQuery := "SELECT identifier_value_int AS id, identifier_value_string AS name, resource_id as profile_id, COUNT(id) OVER() AS total_identifier_count, (" + totalOverriddenCountQuery + ") AS overridden_identifier_count " +
 		" FROM resource_qualifier_mapping "
 	finalQuery += fmt.Sprintf(" WHERE resource_type = %d ", resourceQualifiers.InfraProfile)
@@ -275,17 +281,16 @@ func (impl *InfraConfigRepositoryImpl) GetIdentifierList(listFilter IdentifierLi
 		finalQuery += fmt.Sprintf(" AND resource_id IN (SELECT id FROM infra_profile WHERE name = '%s')", listFilter.ProfileName)
 	}
 
-	filterQuery := "SELECT id" +
-		" FROM app " +
-		" WHERE active=true " +
-		" AND app_name LIKE ? " +
-		" ORDER BY name ? " +
-		" LIMIT ? " +
-		" OFFSET ? "
-
 	finalQuery += " AND identifier_key = ? " +
-		" AND id IN (" + filterQuery + ") " +
-		" AND active=true"
+		" AND active=true "
+
+	filterQuery :=
+		" AND identifier_value_string LIKE ? " +
+			" ORDER BY name ? " +
+			" LIMIT ? " +
+			" OFFSET ? "
+
+	finalQuery += filterQuery
 
 	var identifiers []*Identifier
 	_, err := impl.dbConnection.Query(&identifiers, finalQuery,
@@ -293,9 +298,9 @@ func (impl *InfraConfigRepositoryImpl) GetIdentifierList(listFilter IdentifierLi
 		listFilter.IdentifierNameLike,
 		listFilter.SortOrder,
 		listFilter.Limit,
-		listFilter.Offset)
+		listFilter.Offset,
+	)
 	return identifiers, err
-
 }
 
 func (impl *InfraConfigRepositoryImpl) getIdentifiersListForMiscProfiles(listFilter IdentifierListFilter, totalOverriddenCountQuery string, identifierType int) ([]*Identifier, error) {

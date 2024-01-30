@@ -826,13 +826,20 @@ func (impl *InfraConfigServiceImpl) ApplyProfileToIdentifiers(userId int32, appl
 
 		// here we are fetching only the active identifiers list, if user provided identifiers have any inactive at the time of this computation
 		// ignore applying profile for those inactive identifiers
-		ActiveIdentifierIds, err := impl.appRepository.FindIdsByNames(applyIdentifiersRequest.Identifiers)
+		ActiveIdentifiers, err := impl.appRepository.FindByNames(applyIdentifiersRequest.Identifiers)
 		if err != nil {
 			impl.logger.Errorw("error in fetching apps using ids", "appIds", applyIdentifiersRequest.Identifiers, "error", err)
 			return err
 		}
 
-		// reset the identifierIds in the applyProfileRequest with active identifiers for further processing
+		// set identifiers in the filter
+		ActiveIdentifierIds := make([]int, 0, len(ActiveIdentifiers))
+		for _, identifier := range ActiveIdentifiers {
+			ActiveIdentifierIds = append(ActiveIdentifierIds, identifier.Id)
+			identifierIdNameMap[identifier.Id] = identifier.AppName
+		}
+
+		// set the identifierIds in the applyProfileRequest with active identifiers for further processing
 		applyIdentifiersRequest.IdentifierIds = ActiveIdentifierIds
 	}
 
