@@ -29,7 +29,7 @@ import (
 )
 
 type GitWebhookHandler interface {
-	Subscribe() error
+	subscribe() error
 }
 
 type GitWebhookHandlerImpl struct {
@@ -44,7 +44,7 @@ func NewGitWebhookHandler(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSub
 		pubsubClient:      pubsubClient,
 		gitWebhookService: gitWebhookService,
 	}
-	err := gitWebhookHandlerImpl.Subscribe()
+	err := gitWebhookHandlerImpl.subscribe()
 	if err != nil {
 		logger.Error("err", err)
 		return nil
@@ -52,7 +52,7 @@ func NewGitWebhookHandler(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSub
 	return gitWebhookHandlerImpl
 }
 
-func (impl *GitWebhookHandlerImpl) Subscribe() error {
+func (impl *GitWebhookHandlerImpl) subscribe() error {
 	callback := func(msg *model.PubSubMsg) {
 		//defer msg.Ack()
 		ciPipelineMaterial := gitSensor.CiPipelineMaterial{}

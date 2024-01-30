@@ -2,6 +2,7 @@ package user
 
 import (
 	"fmt"
+	cron2 "github.com/devtron-labs/devtron/util/cron"
 
 	"github.com/caarlos0/env/v6"
 	casbin2 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
@@ -26,7 +27,8 @@ type CleanUpPoliciesServiceImpl struct {
 func NewCleanUpPoliciesServiceImpl(userAuthRepository repository.UserAuthRepository,
 	logger *zap.SugaredLogger, userRepository repository.UserRepository,
 	roleGroupRepository repository.RoleGroupRepository,
-	cleanUpPoliciesRepository repository.PoliciesCleanUpRepository) *CleanUpPoliciesServiceImpl {
+	cleanUpPoliciesRepository repository.PoliciesCleanUpRepository,
+	cronLogger *cron2.CronLoggerImpl) *CleanUpPoliciesServiceImpl {
 	cleanUpPoliciesCronServiceImpl := &CleanUpPoliciesServiceImpl{
 		logger:                    logger,
 		userRepository:            userRepository,
@@ -40,7 +42,7 @@ func NewCleanUpPoliciesServiceImpl(userAuthRepository repository.UserAuthReposit
 		fmt.Println("failed to parse server cluster status config: " + err.Error())
 	}
 	if cfg.CleanUpPoliciesRun {
-		cron := cron.New(cron.WithChain())
+		cron := cron.New(cron.WithChain(cron.Recover(cronLogger)))
 		cron.Start()
 
 		_, err = cron.AddFunc(cfg.CleanUpPoliciesCronTime, cleanUpPoliciesCronServiceImpl.CleanUpPoliciesForCron)

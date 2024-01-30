@@ -3,6 +3,7 @@ package cluster
 import (
 	"context"
 	"fmt"
+	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	auth "github.com/devtron-labs/devtron/pkg/auth/authorisation/globalConfig"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
@@ -14,7 +15,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
-	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	repository4 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/devtron-labs/devtron/pkg/k8s/informer"
 	"github.com/go-pg/pg"
