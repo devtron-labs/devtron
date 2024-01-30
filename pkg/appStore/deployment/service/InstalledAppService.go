@@ -20,6 +20,10 @@ package service
 import (
 	"bytes"
 	"context"
+	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
+
 	/* #nosec */
 	"crypto/sha1"
 	"encoding/json"
@@ -65,7 +69,6 @@ import (
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
-	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
@@ -103,9 +106,7 @@ type InstalledAppServiceImpl struct {
 	pubsubClient                         *pubsub.PubSubClientServiceImpl
 	chartGroupDeploymentRepository       repository6.ChartGroupDeploymentRepository
 	envService                           cluster2.EnvironmentService
-	gitFactory                           *util.GitFactory
 	aCDAuthConfig                        *util2.ACDAuthConfig
-	gitOpsRepository                     repository3.GitOpsConfigRepository
 	userService                          user.UserService
 	appStoreDeploymentService            AppStoreDeploymentService
 	appStoreDeploymentFullModeService    appStoreDeploymentFullMode.AppStoreDeploymentFullModeService
@@ -120,19 +121,18 @@ type InstalledAppServiceImpl struct {
 	k8sCommonService                     k8s.K8sCommonService
 	k8sApplicationService                application3.K8sApplicationService
 	acdConfig                            *argocdServer.ACDConfig
+	gitOpsConfigReadService              config.GitOpsConfigReadService
+	gitOperationService                  git.GitOperationService
 }
 
 func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 	installedAppRepository repository2.InstalledAppRepository,
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
 	environmentRepository repository5.EnvironmentRepository, teamRepository repository4.TeamRepository,
-	appRepository app.AppRepository,
-	acdClient application2.ServiceClient,
-	appStoreValuesService service.AppStoreValuesService,
-	pubsubClient *pubsub.PubSubClientServiceImpl,
+	appRepository app.AppRepository, acdClient application2.ServiceClient,
+	appStoreValuesService service.AppStoreValuesService, pubsubClient *pubsub.PubSubClientServiceImpl,
 	chartGroupDeploymentRepository repository6.ChartGroupDeploymentRepository,
-	envService cluster2.EnvironmentService,
-	gitFactory *util.GitFactory, aCDAuthConfig *util2.ACDAuthConfig, gitOpsRepository repository3.GitOpsConfigRepository, userService user.UserService,
+	envService cluster2.EnvironmentService, aCDAuthConfig *util2.ACDAuthConfig, userService user.UserService,
 	appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService,
 	appStoreDeploymentService AppStoreDeploymentService,
 	installedAppRepositoryHistory repository2.InstalledAppVersionHistoryRepository,
@@ -141,7 +141,8 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 	pipelineStatusTimelineService status.PipelineStatusTimelineService,
 	appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
 	k8sCommonService k8s.K8sCommonService, k8sApplicationService application3.K8sApplicationService,
-	acdConfig *argocdServer.ACDConfig) (*InstalledAppServiceImpl, error) {
+	acdConfig *argocdServer.ACDConfig, gitOpsConfigReadService config.GitOpsConfigReadService,
+	gitOperationService git.GitOperationService) (*InstalledAppServiceImpl, error) {
 	impl := &InstalledAppServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -154,9 +155,7 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 		pubsubClient:                         pubsubClient,
 		chartGroupDeploymentRepository:       chartGroupDeploymentRepository,
 		envService:                           envService,
-		gitFactory:                           gitFactory,
 		aCDAuthConfig:                        aCDAuthConfig,
-		gitOpsRepository:                     gitOpsRepository,
 		userService:                          userService,
 		appStoreDeploymentService:            appStoreDeploymentService,
 		appStoreDeploymentFullModeService:    appStoreDeploymentFullModeService,
@@ -171,6 +170,8 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 		k8sCommonService:                     k8sCommonService,
 		k8sApplicationService:                k8sApplicationService,
 		acdConfig:                            acdConfig,
+		gitOpsConfigReadService:              gitOpsConfigReadService,
+		gitOperationService:                  gitOperationService,
 	}
 	err := impl.Subscribe()
 	if err != nil {
@@ -349,7 +350,7 @@ func (impl InstalledAppServiceImpl) createChartGroupEntryObject(installAppVersio
 
 func (impl InstalledAppServiceImpl) performDeployStageOnAcd(installedAppVersion *appStoreBean.InstallAppVersionDTO, ctx context.Context, userId int32) (*appStoreBean.InstallAppVersionDTO, error) {
 	installedAppVersion.ACDAppName = fmt.Sprintf("%s-%s", installedAppVersion.AppName, installedAppVersion.Environment.Name)
-	chartGitAttr := &util.ChartGitAttribute{}
+	chartGitAttr := &commonBean.ChartGitAttribute{}
 	if installedAppVersion.Status == appStoreBean.DEPLOY_INIT ||
 		installedAppVersion.Status == appStoreBean.ENQUEUED ||
 		installedAppVersion.Status == appStoreBean.QUE_ERROR ||
@@ -438,25 +439,13 @@ func (impl InstalledAppServiceImpl) performDeployStageOnAcd(installedAppVersion 
 			impl.logger.Errorw("fetching error", "err", err)
 			return nil, err
 		}
-		gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
-		if err != nil {
-			if err == pg.ErrNoRows {
-				gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
-				gitOpsConfigBitbucket.BitBucketProjectKey = ""
-			} else {
-				return nil, err
-			}
-		}
-		config := &bean2.GitOpsConfigDto{
-			GitRepoName:          installedAppVersion.GitOpsRepoName,
-			BitBucketWorkspaceId: gitOpsConfigBitbucket.BitBucketProjectKey,
-			BitBucketProjectKey:  gitOpsConfigBitbucket.BitBucketProjectKey,
-		}
-		repoUrl, err := impl.gitFactory.Client.GetRepoUrl(config)
+
+		repoUrl, err := impl.gitOperationService.GetRepoUrlByRepoName(installedAppVersion.GitOpsRepoName)
 		if err != nil {
 			//will allow to continue to persist status on next operation
-			impl.logger.Errorw("fetching error", "err", err)
+			impl.logger.Errorw("error, GetRepoUrlByRepoName", "err", err)
 		}
+
 		chartGitAttr.RepoUrl = repoUrl
 		chartGitAttr.ChartLocation = fmt.Sprintf("%s-%s", installedAppVersion.AppName, environment.Name)
 		installedAppVersion.ACDAppName = fmt.Sprintf("%s-%s", installedAppVersion.AppName, environment.Name)

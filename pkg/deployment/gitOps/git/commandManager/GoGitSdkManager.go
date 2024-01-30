@@ -1,4 +1,4 @@
-package util
+package commandManager
 
 import (
 	"context"
@@ -34,7 +34,7 @@ func (impl GoGitSDKManagerImpl) Pull(ctx context.Context, repoRoot string, auth 
 	}
 	//-----------pull
 	err = workTree.PullContext(ctx, &git.PullOptions{
-		Auth: auth.toBasicAuth(),
+		Auth: auth.ToBasicAuth(),
 	})
 	if err != nil && err.Error() == "already up-to-date" {
 		err = nil
@@ -85,13 +85,13 @@ func (impl GoGitSDKManagerImpl) CommitAndPush(ctx context.Context, repoRoot, com
 	impl.logger.Debugw("git hash", "repo", repoRoot, "hash", commit.String())
 	//-----------push
 	err = repo.PushContext(ctx, &git.PushOptions{
-		Auth: auth.toBasicAuth(),
+		Auth: auth.ToBasicAuth(),
 	})
 	return commit.String(), err
 }
-func (auth *BasicAuth) toBasicAuth() *http.BasicAuth {
+func (auth *BasicAuth) ToBasicAuth() *http.BasicAuth {
 	return &http.BasicAuth{
-		Username: auth.username,
-		Password: auth.password,
+		Username: auth.Username,
+		Password: auth.Password,
 	}
 }

@@ -1,4 +1,4 @@
-package util
+package commandManager
 
 import (
 	"context"
@@ -19,6 +19,11 @@ func ParseConfiguration() (*Configuration, error) {
 	cfg := &Configuration{}
 	err := env.Parse(cfg)
 	return cfg, err
+}
+
+// BasicAuth represent a HTTP basic auth
+type BasicAuth struct {
+	Username, Password string
 }
 
 const GIT_ASK_PASS = "/git-ask-pass.sh"
@@ -57,15 +62,15 @@ func (impl *GitManagerImpl) Clone(ctx context.Context, rootDir string, remoteUrl
 	defer func() {
 		util.TriggerGitOpsMetrics("Clone", "GitCli", start, err)
 	}()
-	impl.logger.Infow("git clone request", "rootDir", rootDir, "remoteUrl", remoteUrl, "username", auth.username)
+	impl.logger.Infow("git clone request", "rootDir", rootDir, "remoteUrl", remoteUrl, "username", auth.Username)
 	err = impl.init(ctx, rootDir, remoteUrl, false, auth)
 	if err != nil {
 		return "", err
 	}
-	_, errMsg, err = impl.Fetch(ctx, rootDir, auth.username, auth.password)
+	_, errMsg, err = impl.Fetch(ctx, rootDir, auth.Username, auth.Password)
 	if err == nil && errMsg == "" {
 		impl.logger.Warn("git fetch completed, pulling master branch data from remote origin")
-		_, errMsg, err := impl.pullFromBranch(ctx, rootDir, auth.username, auth.password)
+		_, errMsg, err := impl.pullFromBranch(ctx, rootDir, auth.Username, auth.Password)
 		if err != nil {
 			impl.logger.Errorw("error on git pull", "err", err)
 			return errMsg, err

@@ -1,8 +1,9 @@
-package util
+package git
 
 import (
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
 	"github.com/xanzy/go-gitlab"
 	"go.uber.org/zap"
 	"net/url"
@@ -13,30 +14,17 @@ import (
 
 type GitLabClient struct {
 	client     *gitlab.Client
-	config     *GitConfig
+	config     *bean.GitConfig
 	logger     *zap.SugaredLogger
 	gitService GitService
 }
 
-func NewGitLabClient(config *GitConfig, logger *zap.SugaredLogger, gitService GitService) (GitClient, error) {
-	var gitLabClient *gitlab.Client
-	var err error
-	if len(config.GitHost) > 0 {
-		_, err = url.ParseRequestURI(config.GitHost)
-		if err != nil {
-			return nil, err
-		}
-		gitLabClient, err = gitlab.NewClient(config.GitToken, gitlab.WithBaseURL(config.GitHost))
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		gitLabClient, err = gitlab.NewClient(config.GitToken)
-		if err != nil {
-			return nil, err
-		}
+func NewGitLabClient(config *bean.GitConfig, logger *zap.SugaredLogger, gitService GitService) (GitClient, error) {
+	gitLabClient, err := CreateGitlabClient(config.GitHost, config.GitToken)
+	if err != nil {
+		logger.Errorw("error in creating gitlab client", "err", err)
+		return nil, err
 	}
-
 	gitlabGroupId := ""
 	if len(config.GitlabGroupId) > 0 {
 		if _, err := strconv.Atoi(config.GitlabGroupId); err == nil {
@@ -80,6 +68,27 @@ func NewGitLabClient(config *GitConfig, logger *zap.SugaredLogger, gitService Gi
 		logger:     logger,
 		gitService: gitService,
 	}, nil
+}
+
+func CreateGitlabClient(host, token string) (*gitlab.Client, error) {
+	var gitLabClient *gitlab.Client
+	var err error
+	if len(host) > 0 {
+		_, err = url.ParseRequestURI(host)
+		if err != nil {
+			return nil, err
+		}
+		gitLabClient, err = gitlab.NewClient(token, gitlab.WithBaseURL(host))
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		gitLabClient, err = gitlab.NewClient(token)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return gitLabClient, err
 }
 
 func (impl GitLabClient) DeleteRepository(config *bean2.GitOpsConfigDto) error {
@@ -267,28 +276,9 @@ func (impl GitLabClient) CommitValues(config *ChartConfig, gitOpsConfig *bean2.G
 	if err != nil {
 		return "", time.Time{}, err
 	}
-	return c.ID, *c.AuthoredDate, err
-}
-
-func (impl GitLabClient) GetCommits(repoName, projectName string) ([]*GitCommitDto, error) {
-	gitlabClient := impl.client
-	branch := "master"
-	listCommitOptions := &gitlab.ListCommitsOptions{
-		RefName: &branch,
+	commitTime = time.Now() //default is current time, if found then will get updated accordingly
+	if c != nil {
+		commitTime = *c.AuthoredDate
 	}
-	gitCommits, _, err := gitlabClient.Commits.ListCommits(fmt.Sprintf("%s/%s", impl.config.GitlabGroupPath, repoName), listCommitOptions)
-	if err != nil {
-		impl.logger.Errorw("error in getting commits", "err", err, "repoName", repoName)
-		return nil, err
-	}
-	var gitCommitsDto []*GitCommitDto
-	for _, gitCommit := range gitCommits {
-		gitCommitDto := &GitCommitDto{
-			CommitHash: gitCommit.String(),
-			AuthorName: gitCommit.AuthorName,
-			CommitTime: *gitCommit.AuthoredDate,
-		}
-		gitCommitsDto = append(gitCommitsDto, gitCommitDto)
-	}
-	return gitCommitsDto, nil
+	return c.ID, commitTime, err
 }

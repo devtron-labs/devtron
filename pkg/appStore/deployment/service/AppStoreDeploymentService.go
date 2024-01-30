@@ -28,7 +28,6 @@ import (
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/constants"
-	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -39,11 +38,12 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	appStoreDeploymentTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
-	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
@@ -103,10 +103,10 @@ type AppStoreDeploymentServiceImpl struct {
 	helmAppService                       client.HelmAppService
 	appStoreDeploymentCommonService      appStoreDeploymentCommon.AppStoreDeploymentCommonService
 	installedAppRepositoryHistory        repository.InstalledAppVersionHistoryRepository
-	gitOpsRepository                     repository2.GitOpsConfigRepository
 	deploymentTypeConfig                 *DeploymentServiceTypeConfig
-	ChartTemplateService                 util.ChartTemplateService
 	aCDConfig                            *argocdServer.ACDConfig
+	gitOpsConfigReadService              config.GitOpsConfigReadService
+	gitOperationService                  git.GitOperationService
 }
 
 func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRepository repository.InstalledAppRepository,
@@ -115,8 +115,10 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRep
 	appStoreDeploymentHelmService appStoreDeploymentTool.AppStoreDeploymentHelmService,
 	appStoreDeploymentArgoCdService appStoreDeploymentTool.AppStoreDeploymentArgoCdService, environmentService cluster.EnvironmentService,
 	clusterService cluster.ClusterService, helmAppService client.HelmAppService, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
-	installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository, gitOpsRepository repository2.GitOpsConfigRepository, attributesService attributes.AttributesService,
-	deploymentTypeConfig *DeploymentServiceTypeConfig, ChartTemplateService util.ChartTemplateService, aCDConfig *argocdServer.ACDConfig) *AppStoreDeploymentServiceImpl {
+	installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository,
+	deploymentTypeConfig *DeploymentServiceTypeConfig, aCDConfig *argocdServer.ACDConfig,
+	gitOpsConfigReadService config.GitOpsConfigReadService,
+	gitOperationService git.GitOperationService) *AppStoreDeploymentServiceImpl {
 
 	appStoreDeploymentServiceImpl := &AppStoreDeploymentServiceImpl{
 		logger:                               logger,
@@ -133,10 +135,10 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRep
 		helmAppService:                       helmAppService,
 		appStoreDeploymentCommonService:      appStoreDeploymentCommonService,
 		installedAppRepositoryHistory:        installedAppRepositoryHistory,
-		gitOpsRepository:                     gitOpsRepository,
 		deploymentTypeConfig:                 deploymentTypeConfig,
-		ChartTemplateService:                 ChartTemplateService,
 		aCDConfig:                            aCDConfig,
+		gitOpsConfigReadService:              gitOpsConfigReadService,
+		gitOperationService:                  gitOperationService,
 	}
 	return appStoreDeploymentServiceImpl
 }
@@ -144,17 +146,11 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRep
 func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx, skipAppCreation bool) (*appStoreBean.InstallAppVersionDTO, error) {
 
 	var isInternalUse = impl.deploymentTypeConfig.IsInternalUse
-
-	isGitOpsConfigured := false
-	gitOpsConfig, err := impl.gitOpsRepository.GetGitOpsConfigActive()
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("GetGitOpsConfigActive, error while getting", "err", err)
+	isGitOpsConfigured, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
+	if err != nil {
+		impl.logger.Errorw("error while checking if gitOps is configured", "err", err)
 		return nil, err
 	}
-	if gitOpsConfig != nil && gitOpsConfig.Id > 0 {
-		isGitOpsConfigured = true
-	}
-
 	if isInternalUse && !isGitOpsConfigured && installAppVersionRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
 		impl.logger.Errorw("gitops not configured but selected for CD")
 		err := &util.ApiError{
@@ -244,7 +240,7 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 	installedAppModel.UpdatedOn = time.Now()
 	installedAppModel.Active = true
 	if util2.IsFullStack() {
-		installedAppModel.GitOpsRepoName = impl.ChartTemplateService.GetGitOpsRepoName(installAppVersionRequest.AppName)
+		installedAppModel.GitOpsRepoName = impl.gitOpsConfigReadService.GetGitOpsRepoName(installAppVersionRequest.AppName)
 		installAppVersionRequest.GitOpsRepoName = installedAppModel.GitOpsRepoName
 	}
 	installedApp, err := impl.installedAppRepository.CreateInstalledApp(installedAppModel, tx)
@@ -1286,11 +1282,11 @@ func (impl *AppStoreDeploymentServiceImpl) CheckIfMonoRepoMigrationRequired(inst
 				return false
 			}
 		} else {
-			gitOpsRepoName = impl.ChartTemplateService.GetGitOpsRepoName(installAppVersionRequest.AppName)
+			gitOpsRepoName = impl.gitOpsConfigReadService.GetGitOpsRepoName(installAppVersionRequest.AppName)
 		}
 	}
 	//here will set new git repo name if required to migrate
-	newGitOpsRepoName := impl.ChartTemplateService.GetGitOpsRepoName(installedApp.App.AppName)
+	newGitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoName(installedApp.App.AppName)
 	//checking weather git repo migration needed or not, if existing git repo and new independent git repo is not same than go ahead with migration
 	if newGitOpsRepoName != gitOpsRepoName {
 		monoRepoMigrationRequired = true
@@ -1444,11 +1440,11 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 					return nil, err
 				}
 			} else {
-				gitOpsRepoName = impl.ChartTemplateService.GetGitOpsRepoName(installAppVersionRequest.AppName)
+				gitOpsRepoName = impl.gitOpsConfigReadService.GetGitOpsRepoName(installAppVersionRequest.AppName)
 			}
 		}
 		//here will set new git repo name if required to migrate
-		newGitOpsRepoName := impl.ChartTemplateService.GetGitOpsRepoName(installedApp.App.AppName)
+		newGitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoName(installedApp.App.AppName)
 		//checking weather git repo migration needed or not, if existing git repo and new independent git repo is not same than go ahead with migration
 		if newGitOpsRepoName != gitOpsRepoName {
 			monoRepoMigrationRequired = true
@@ -1470,12 +1466,12 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 
 		} else if isChartChanged || isVersionChanged {
 			// update dependency if chart or chart version is changed
-			_, requirementsCommitErr = impl.appStoreDeploymentCommonService.CommitConfigToGit(manifest.RequirementsConfig)
-			gitHash, valuesCommitErr = impl.appStoreDeploymentCommonService.CommitConfigToGit(manifest.ValuesConfig)
+			_, _, requirementsCommitErr = impl.gitOperationService.CommitValues(manifest.RequirementsConfig)
+			gitHash, _, valuesCommitErr = impl.gitOperationService.CommitValues(manifest.ValuesConfig)
 
 		} else {
 			// only values are changed in update, so commit values config
-			gitHash, valuesCommitErr = impl.appStoreDeploymentCommonService.CommitConfigToGit(manifest.ValuesConfig)
+			gitHash, _, valuesCommitErr = impl.gitOperationService.CommitValues(manifest.ValuesConfig)
 		}
 
 		if valuesCommitErr != nil || requirementsCommitErr != nil {

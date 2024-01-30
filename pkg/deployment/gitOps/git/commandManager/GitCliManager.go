@@ -1,4 +1,4 @@
-package util
+package commandManager
 
 import (
 	"context"
@@ -17,11 +17,11 @@ type GitCliManagerImpl struct {
 }
 
 func (impl *GitCliManagerImpl) AddRepo(ctx context.Context, rootDir string, remoteUrl string, isBare bool, auth *BasicAuth) error {
-	err := impl.gitInit(ctx, rootDir, auth.username, auth.password)
+	err := impl.gitInit(ctx, rootDir, auth.Username, auth.Password)
 	if err != nil {
 		return err
 	}
-	return impl.gitCreateRemote(ctx, rootDir, remoteUrl, auth.username, auth.password)
+	return impl.gitCreateRemote(ctx, rootDir, remoteUrl, auth.Username, auth.Password)
 }
 
 func (impl *GitCliManagerImpl) openRepoPlain(path string) error {
@@ -46,21 +46,21 @@ func (impl GitCliManagerImpl) CommitAndPush(ctx context.Context, repoRoot, commi
 	if err != nil {
 		return "", err
 	}
-	_, _, err = impl.add(ctx, repoRoot, auth.username, auth.password)
+	_, _, err = impl.add(ctx, repoRoot, auth.Username, auth.Password)
 	if err != nil {
 		return "", err
 	}
-	_, _, err = impl.commit(ctx, repoRoot, auth.username, auth.password, commitMsg, name, emailId)
+	_, _, err = impl.commit(ctx, repoRoot, auth.Username, auth.Password, commitMsg, name, emailId)
 	if err != nil {
 		return "", err
 	}
-	commit, _, err := impl.lastCommitHash(ctx, repoRoot, auth.username, auth.password)
+	commit, _, err := impl.lastCommitHash(ctx, repoRoot, auth.Username, auth.Password)
 	if err != nil {
 		return "", err
 	}
 	impl.logger.Debugw("git hash", "repo", repoRoot, "hash", commit)
 
-	_, _, err = impl.push(ctx, repoRoot, auth.username, auth.password)
+	_, _, err = impl.push(ctx, repoRoot, auth.Username, auth.Password)
 
 	return commit, err
 }
@@ -75,7 +75,7 @@ func (impl *GitCliManagerImpl) Pull(ctx context.Context, repoRoot string, auth *
 	if err != nil {
 		return err
 	}
-	response, errMsg, err := impl.PullCli(ctx, repoRoot, auth.username, auth.password, "origin/master")
+	response, errMsg, err := impl.PullCli(ctx, repoRoot, auth.Username, auth.Password, "origin/master")
 
 	if strings.Contains(response, "already up-to-date") || strings.Contains(errMsg, "already up-to-date") {
 		err = nil
