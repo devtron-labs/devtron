@@ -1,3 +1,5 @@
+## v0.6.27
+
 ## Bugs
 - fix: implemented cache for storing cloud provider  (#4591)
 - fix: panic handling when giving empty values.yaml in custom packaged chart (#4586)
@@ -57,3 +59,6 @@
 - chore: dependabot version upgrade nats metrics oss (#4453)
 - chore: share same nats url used by orchestrator (#4422)
 - chore: migration for global resource schema (#4374)
+
+
+
