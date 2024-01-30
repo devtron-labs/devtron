@@ -11,7 +11,7 @@ global:
 installer:
   release: "v0.6.26"
   image: "quay.io/devtron/inception"
-  tag: "44b30917-185-13275"
+  tag: "a9820f38-185-20840"
   openshift: false # Set this to true if you are installing on openshift
   
 components:
