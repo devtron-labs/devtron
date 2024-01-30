@@ -26,7 +26,7 @@ then
  then
   echo "*********  SonarQube Policy Passed *********"
  fi
-fi' WHERE id=(SELECT id FROM plugin_metadata WHERE name='Sonarqube');
+fi' WHERE id=(select script_id FROM plugin_step WHERE plugin_id=(SELECT id FROM plugin_metadata WHERE name='Sonarqube'));
 DELETE FROM plugin_step_variable WHERE id =(select id from plugin_step_variable where name='SonarContainerImage' and plugin_step_id=(SELECT id FROM plugin_metadata WHERE name='Sonarqube'));
 
 
