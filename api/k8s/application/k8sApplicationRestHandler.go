@@ -699,7 +699,7 @@ func (handler *K8sApplicationRestHandlerImpl) DownloadPodLogs(w http.ResponseWri
 		if len(splitLog[0]) > 0 {
 			parsedTime, err := time.Parse(time.RFC3339, splitLog[0])
 			if err != nil {
-				handler.logger.Errorw("error in writing data", "err", err)
+				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 				return
 			}
 			humanReadableTime := parsedTime.UTC().Format(http.TimeFormat)
