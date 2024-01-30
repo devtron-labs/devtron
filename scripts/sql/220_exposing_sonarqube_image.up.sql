@@ -4,6 +4,10 @@ if [[ -z "$UsePropertiesFileFromProject" || $UsePropertiesFileFromProject == fal
 then
   echo "sonar.projectKey=$SonarqubeProjectKey" > sonar-project.properties
 fi
+if [[ -z "$SonarContainerImage" ]]
+then 
+    SonarContainerImage="sonarsource/sonar-scanner-cli"
+fi
 docker run \\
 --rm \\
 -e SONAR_HOST_URL=$SonarqubeEndpoint \\
@@ -64,6 +68,11 @@ UPDATE plugin_pipeline_script SET script=E'#!/bin/sh
     # Define sonarqube scan function
     SonarqubeScanFunction() {
     echo -e "\n********** Starting the scanning ************"
+    if [[ -z "$SonarContainerImage" ]]
+    then 
+        SonarContainerImage="sonarsource/sonar-scanner-cli"
+    fi
+
     docker run --rm -e SONAR_HOST_URL=$SonarqubeEndpoint -e SONAR_LOGIN=$SonarqubeApiKey -v "/$PWD:/usr/src" $SonarContainerImage
     SonarScanStatusCode=$?
     echo -e "\nStatus code of sonarqube scanning command : $SonarScanStatusCode"
