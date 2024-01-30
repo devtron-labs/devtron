@@ -9,15 +9,15 @@ import (
 
 type InfraConfigRepository interface {
 	GetIdentifierCountForDefaultProfile() (int, error)
-	GetProfileByName(name string) (*InfraProfile, error)
-	GetConfigurationsByProfileName(profileName string) ([]*InfraProfileConfiguration, error)
-	GetConfigurationsByProfileId(profileId int) ([]*InfraProfileConfiguration, error)
+	GetProfileByName(name string) (*InfraProfileEntity, error)
+	GetConfigurationsByProfileName(profileName string) ([]*InfraProfileConfigurationEntity, error)
+	GetConfigurationsByProfileId(profileId int) ([]*InfraProfileConfigurationEntity, error)
 
-	CreateProfile(tx *pg.Tx, infraProfile *InfraProfile) error
-	CreateConfigurations(tx *pg.Tx, configurations []*InfraProfileConfiguration) error
+	CreateProfile(tx *pg.Tx, infraProfile *InfraProfileEntity) error
+	CreateConfigurations(tx *pg.Tx, configurations []*InfraProfileConfigurationEntity) error
 
-	UpdateConfigurations(tx *pg.Tx, configurations []*InfraProfileConfiguration) error
-	UpdateProfile(tx *pg.Tx, profileName string, profile *InfraProfile) error
+	UpdateConfigurations(tx *pg.Tx, configurations []*InfraProfileConfigurationEntity) error
+	UpdateProfile(tx *pg.Tx, profileName string, profile *InfraProfileEntity) error
 	sql.TransactionWrapper
 }
 
@@ -35,13 +35,13 @@ func NewInfraProfileRepositoryImpl(dbConnection *pg.DB) *InfraConfigRepositoryIm
 
 // CreateProfile saves the default profile in the database only once in a lifetime.
 // If the default profile already exists, it will not be saved again.
-func (impl *InfraConfigRepositoryImpl) CreateProfile(tx *pg.Tx, infraProfile *InfraProfile) error {
+func (impl *InfraConfigRepositoryImpl) CreateProfile(tx *pg.Tx, infraProfile *InfraProfileEntity) error {
 	err := tx.Insert(infraProfile)
 	return err
 }
 
-func (impl *InfraConfigRepositoryImpl) GetProfileByName(name string) (*InfraProfile, error) {
-	infraProfile := &InfraProfile{}
+func (impl *InfraConfigRepositoryImpl) GetProfileByName(name string) (*InfraProfileEntity, error) {
+	infraProfile := &InfraProfileEntity{}
 	err := impl.dbConnection.Model(infraProfile).
 		Where("name = ?", name).
 		Where("active = ?", true).
@@ -49,12 +49,12 @@ func (impl *InfraConfigRepositoryImpl) GetProfileByName(name string) (*InfraProf
 	return infraProfile, err
 }
 
-func (impl *InfraConfigRepositoryImpl) CreateConfigurations(tx *pg.Tx, configurations []*InfraProfileConfiguration) error {
+func (impl *InfraConfigRepositoryImpl) CreateConfigurations(tx *pg.Tx, configurations []*InfraProfileConfigurationEntity) error {
 	err := tx.Insert(&configurations)
 	return err
 }
 
-func (impl *InfraConfigRepositoryImpl) UpdateConfigurations(tx *pg.Tx, configurations []*InfraProfileConfiguration) error {
+func (impl *InfraConfigRepositoryImpl) UpdateConfigurations(tx *pg.Tx, configurations []*InfraProfileConfigurationEntity) error {
 	var err error
 	for _, configuration := range configurations {
 		_, err = tx.Model(configuration).
@@ -68,8 +68,8 @@ func (impl *InfraConfigRepositoryImpl) UpdateConfigurations(tx *pg.Tx, configura
 	return err
 }
 
-func (impl *InfraConfigRepositoryImpl) GetConfigurationsByProfileName(profileName string) ([]*InfraProfileConfiguration, error) {
-	var configurations []*InfraProfileConfiguration
+func (impl *InfraConfigRepositoryImpl) GetConfigurationsByProfileName(profileName string) ([]*InfraProfileConfigurationEntity, error) {
+	var configurations []*InfraProfileConfigurationEntity
 	err := impl.dbConnection.Model(&configurations).
 		Where("infra_profile_id IN (SELECT id FROM infra_profile WHERE name = ? AND active = true)", profileName).
 		Where("active = ?", true).
@@ -80,8 +80,8 @@ func (impl *InfraConfigRepositoryImpl) GetConfigurationsByProfileName(profileNam
 	return configurations, err
 }
 
-func (impl *InfraConfigRepositoryImpl) GetConfigurationsByProfileId(profileId int) ([]*InfraProfileConfiguration, error) {
-	var configurations []*InfraProfileConfiguration
+func (impl *InfraConfigRepositoryImpl) GetConfigurationsByProfileId(profileId int) ([]*InfraProfileConfigurationEntity, error) {
+	var configurations []*InfraProfileConfigurationEntity
 	err := impl.dbConnection.Model(&configurations).
 		Where("profile_id = ?", profileId).
 		Where("active = ?", true).
@@ -93,14 +93,14 @@ func (impl *InfraConfigRepositoryImpl) GetConfigurationsByProfileId(profileId in
 }
 
 func (impl *InfraConfigRepositoryImpl) GetIdentifierCountForDefaultProfile() (int, error) {
-
+	// move it to app service
 	count, err := impl.dbConnection.Model(&repository1.App{}).
 		Where("active = ?", true).
 		Count()
 	return count, err
 }
 
-func (impl *InfraConfigRepositoryImpl) UpdateProfile(tx *pg.Tx, profileName string, profile *InfraProfile) error {
+func (impl *InfraConfigRepositoryImpl) UpdateProfile(tx *pg.Tx, profileName string, profile *InfraProfileEntity) error {
 	_, err := tx.Model(profile).
 		Set("description=?", profile.Description).
 		Set("updated_by=?", profile.UpdatedBy).

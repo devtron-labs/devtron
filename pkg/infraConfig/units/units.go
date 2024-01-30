@@ -13,19 +13,19 @@ type UnitSuffix int
 
 const (
 	Byte   UnitSuffix = 1
-	KiByte UnitSuffix = 2
+	KiByte UnitSuffix = 2 // 1024
 	MiByte UnitSuffix = 3
 	GiByte UnitSuffix = 4
 	TiByte UnitSuffix = 5
 	PiByte UnitSuffix = 6
 	EiByte UnitSuffix = 7
-	K      UnitSuffix = 8
+	K      UnitSuffix = 8 // 1000
 	M      UnitSuffix = 9
 	G      UnitSuffix = 10
 	T      UnitSuffix = 11
 	P      UnitSuffix = 12
 	E      UnitSuffix = 13
-	Core   UnitSuffix = 14
+	Core   UnitSuffix = 14 // CPU cores
 	Milli  UnitSuffix = 15
 	Second UnitSuffix = 16
 	Minute UnitSuffix = 17
@@ -34,7 +34,7 @@ const (
 
 type CPUUnitStr string
 
-func GetCPUUnitStr(cpuUnit UnitSuffix) CPUUnitStr {
+func (cpuUnit UnitSuffix) GetCPUUnitStr() CPUUnitStr {
 	switch cpuUnit {
 	case Core:
 		return CORE
@@ -45,7 +45,7 @@ func GetCPUUnitStr(cpuUnit UnitSuffix) CPUUnitStr {
 	}
 }
 
-func GetCPUUnit(cpuUnitStr CPUUnitStr) UnitSuffix {
+func (cpuUnitStr CPUUnitStr) GetCPUUnit() UnitSuffix {
 	switch cpuUnitStr {
 	case CORE:
 		return Core
@@ -79,7 +79,7 @@ const (
 	EBYTE  MemoryUnitStr = "E"
 )
 
-func GetMemoryUnitStr(memoryUnit UnitSuffix) MemoryUnitStr {
+func (memoryUnit UnitSuffix) GetMemoryUnitStr() MemoryUnitStr {
 	switch memoryUnit {
 	case Byte:
 		return BYTE
@@ -112,7 +112,7 @@ func GetMemoryUnitStr(memoryUnit UnitSuffix) MemoryUnitStr {
 	}
 }
 
-func GetMemoryUnit(memoryUnitStr MemoryUnitStr) UnitSuffix {
+func (memoryUnitStr MemoryUnitStr) GetMemoryUnit() UnitSuffix {
 	switch memoryUnitStr {
 	case BYTE:
 		return Byte
@@ -153,7 +153,7 @@ const (
 	HourStr   TimeUnitStr = "Hours"
 )
 
-func GetTimeUnitStr(timeUnit UnitSuffix) TimeUnitStr {
+func (timeUnit UnitSuffix) GetTimeUnitStr() TimeUnitStr {
 	switch timeUnit {
 	case Second:
 		return SecondStr
@@ -166,7 +166,7 @@ func GetTimeUnitStr(timeUnit UnitSuffix) TimeUnitStr {
 	}
 }
 
-func GetTimeUnit(timeUnitStr TimeUnitStr) UnitSuffix {
+func (timeUnitStr TimeUnitStr) GetTimeUnit() UnitSuffix {
 	switch timeUnitStr {
 	case SecondStr:
 		return Second
