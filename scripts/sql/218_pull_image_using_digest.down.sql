@@ -1,1 +1,0 @@
-delete from devtron_resource_searchable_key where name='PIPELINE_ID';
