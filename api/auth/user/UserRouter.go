@@ -54,7 +54,7 @@ func (router UserRouterImpl) InitUserRouter(userAuthRouter *mux.Router) {
 		HandlerFunc(router.userRestHandler.DeleteUser).Methods("DELETE")
 	userAuthRouter.Path("/detail/get").
 		HandlerFunc(router.userRestHandler.GetAllDetailedUsers).Methods("GET")
-	userAuthRouter.Path("/bulk/status").
+	userAuthRouter.Path("/status").
 		HandlerFunc(router.userRestHandler.BulkUpdateStatus).Methods("PUT")
 
 	userAuthRouter.Path("/role/group/{id}").

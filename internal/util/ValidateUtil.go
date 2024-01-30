@@ -94,7 +94,7 @@ func IntValidator() (*validator.Validate, error) {
 	if err != nil {
 		return v, err
 	}
-	err = v.RegisterValidation("not-system-admin-user", validateForSystemOrAdminUser)
+	err = v.RegisterValidation("not-system-admin-user-email", validateForSystemOrAdminUserEmail)
 	if err != nil {
 		return v, err
 	}
@@ -113,7 +113,7 @@ func validateDockerImage(fl validator.FieldLevel) bool {
 	return false
 }
 
-func validateForSystemOrAdminUser(fl validator.FieldLevel) bool {
+func validateForSystemOrAdminUserEmail(fl validator.FieldLevel) bool {
 	value := fl.Field().String()
 	if value == "admin" || value == "system" {
 		return false

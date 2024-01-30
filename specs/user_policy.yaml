@@ -186,7 +186,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /user/bulk/status:
+  /user/status:
     put:
       summary: Bulk Update Status for Users
       description: bulk update status for users

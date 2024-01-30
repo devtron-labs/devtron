@@ -656,19 +656,15 @@ func (impl RoleGroupServiceImpl) FetchRoleGroupsWithFilters(sortOrder string, so
 	if request.ShowAll {
 		return impl.FetchRoleGroups()
 	}
-	// Setting size as zero to calculate the total number of results based on request
-	size := request.Size
-	request.Size = 0
 
-	query := impl.userRepositoryQueryBuilder.GetQueryForGroupListingWithFilters(request)
+	query := impl.userRepositoryQueryBuilder.GetQueryForGroupListingWithFilters(request, true)
 	totalCount, err := impl.userRepository.GetCountExecutingQuery(query)
 	if err != nil {
 		impl.logger.Errorw("error in FetchRoleGroupsWithFilters", "err", err, "query", query)
 		return nil, err
 	}
 
-	request.Size = size
-	query = impl.userRepositoryQueryBuilder.GetQueryForGroupListingWithFilters(request)
+	query = impl.userRepositoryQueryBuilder.GetQueryForGroupListingWithFilters(request, false)
 	roleGroup, err := impl.roleGroupRepository.GetAllExecutingQuery(query)
 	if err != nil {
 		impl.logger.Errorw("error while FetchRoleGroupsWithFilters", "error", err, "query", query)

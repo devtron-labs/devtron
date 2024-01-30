@@ -493,7 +493,7 @@ func (handler UserRestHandlerImpl) BulkUpdateStatus(w http.ResponseWriter, r *ht
 	var request bean.BulkStatusUpdateRequest
 	err = decoder.Decode(&request)
 	if err != nil {
-		handler.logger.Errorw("request err, BulkUpdateStatus", "err", err, "payload", request)
+		handler.logger.Errorw("request err, BulkUpdateStatus", "payload", request, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -508,14 +508,14 @@ func (handler UserRestHandlerImpl) BulkUpdateStatus(w http.ResponseWriter, r *ht
 	// struct validation
 	err = handler.validator.Struct(request)
 	if err != nil {
-		handler.logger.Errorw("validation err, BulkUpdateStatus", "err", err, "payload", request)
+		handler.logger.Errorw("validation err, BulkUpdateStatus", "payload", request, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	// service call
 	res, err := handler.userService.BulkUpdateStatusForUsers(&request, userId)
 	if err != nil {
-		handler.logger.Errorw("service err, BulkUpdateStatus", "err", err, "payload", request)
+		handler.logger.Errorw("service err, BulkUpdateStatus", "payload", request, "err", err)
 		if err.Error() == bean2.NoUserIdsProvidedError {
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
@@ -524,7 +524,7 @@ func (handler UserRestHandlerImpl) BulkUpdateStatus(w http.ResponseWriter, r *ht
 		return
 	}
 
-	common.WriteJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, nil, res, http.StatusOK)
 
 }
 

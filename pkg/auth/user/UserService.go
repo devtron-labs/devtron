@@ -1228,23 +1228,19 @@ func (impl UserServiceImpl) GetAllWithFilters(status string, sortOrder string, s
 	if request.ShowAll {
 		return impl.getAllDetailedUsers()
 	}
-	// Setting size as zero to calculate the total number of results based on request
-	size := request.Size
-	request.Size = 0
 
 	// Recording time here for overall consistency
 	request.CurrentTime = time.Now()
 
 	// Build query from query builder
-	query := impl.userListingRepositoryQueryBuilder.GetQueryForUserListingWithFilters(request)
+	query := impl.userListingRepositoryQueryBuilder.GetQueryForUserListingWithFilters(request, true)
 	totalCount, err := impl.userRepository.GetCountExecutingQuery(query)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
 		return nil, err
 	}
-	request.Size = size
 
-	query = impl.userListingRepositoryQueryBuilder.GetQueryForUserListingWithFilters(request)
+	query = impl.userListingRepositoryQueryBuilder.GetQueryForUserListingWithFilters(request, false)
 	models, err := impl.userRepository.GetAllExecutingQuery(query)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
