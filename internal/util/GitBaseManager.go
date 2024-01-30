@@ -1,6 +1,7 @@
 package util
 
 import (
+	"context"
 	"fmt"
 	"github.com/devtron-labs/devtron/util"
 	"go.uber.org/zap"
@@ -11,24 +12,52 @@ import (
 )
 
 type GitManagerBase interface {
-	Fetch(rootDir string, username string, password string) (response, errMsg string, err error)
-	ListBranch(rootDir string, username string, password string) (response, errMsg string, err error)
-	PullCli(rootDir string, username string, password string, branch string) (response, errMsg string, err error)
+	Fetch(ctx context.Context, rootDir string, username string, password string) (response, errMsg string, err error)
+	ListBranch(ctx context.Context, rootDir string, username string, password string) (response, errMsg string, err error)
+	PullCli(ctx context.Context, rootDir string, username string, password string, branch string) (response, errMsg string, err error)
 }
 
 type GitManagerBaseImpl struct {
 	logger *zap.SugaredLogger
+	cfg    *Configuration
 }
 
-func (impl *GitManagerBaseImpl) Fetch(rootDir string, username string, password string) (response, errMsg string, err error) {
+func (impl *GitManagerBaseImpl) Fetch(ctx context.Context, rootDir string, username string, password string) (response, errMsg string, err error) {
 	start := time.Now()
 	defer func() {
 		util.TriggerGitOpsMetrics("Fetch", "GitCli", start, err)
 	}()
 	impl.logger.Debugw("git fetch ", "location", rootDir)
-	cmd := exec.Command("git", "-C", rootDir, "fetch", "origin", "--tags", "--force")
+	cmd, cancel := impl.createCmdWithContext(ctx, "git", "-C", rootDir, "fetch", "origin", "--tags", "--force")
+	defer cancel()
 	output, errMsg, err := impl.runCommandWithCred(cmd, username, password)
 	impl.logger.Debugw("fetch output", "root", rootDir, "opt", output, "errMsg", errMsg, "error", err)
+	return output, errMsg, err
+}
+
+func (impl *GitManagerBaseImpl) ListBranch(ctx context.Context, rootDir string, username string, password string) (response, errMsg string, err error) {
+	start := time.Now()
+	defer func() {
+		util.TriggerGitOpsMetrics("ListBranch", "GitCli", start, err)
+	}()
+	impl.logger.Debugw("git branch ", "location", rootDir)
+	cmd, cancel := impl.createCmdWithContext(ctx, "git", "-C", rootDir, "branch", "-r")
+	defer cancel()
+	output, errMsg, err := impl.runCommandWithCred(cmd, username, password)
+	impl.logger.Debugw("branch output", "root", rootDir, "opt", output, "errMsg", errMsg, "error", err)
+	return output, errMsg, err
+}
+
+func (impl *GitManagerBaseImpl) PullCli(ctx context.Context, rootDir string, username string, password string, branch string) (response, errMsg string, err error) {
+	start := time.Now()
+	defer func() {
+		util.TriggerGitOpsMetrics("Pull", "GitCli", start, err)
+	}()
+	impl.logger.Debugw("git pull ", "location", rootDir)
+	cmd, cancel := impl.createCmdWithContext(ctx, "git", "-C", rootDir, "pull", "origin", branch, "--force")
+	defer cancel()
+	output, errMsg, err := impl.runCommandWithCred(cmd, username, password)
+	impl.logger.Debugw("pull output", "root", rootDir, "opt", output, "errMsg", errMsg, "error", err)
 	return output, errMsg, err
 }
 
@@ -57,26 +86,14 @@ func (impl *GitManagerBaseImpl) runCommand(cmd *exec.Cmd) (response, errMsg stri
 	return output, "", nil
 }
 
-func (impl *GitManagerBaseImpl) ListBranch(rootDir string, username string, password string) (response, errMsg string, err error) {
-	start := time.Now()
-	defer func() {
-		util.TriggerGitOpsMetrics("ListBranch", "GitCli", start, err)
-	}()
-	impl.logger.Debugw("git branch ", "location", rootDir)
-	cmd := exec.Command("git", "-C", rootDir, "branch", "-r")
-	output, errMsg, err := impl.runCommandWithCred(cmd, username, password)
-	impl.logger.Debugw("branch output", "root", rootDir, "opt", output, "errMsg", errMsg, "error", err)
-	return output, errMsg, err
-}
+func (impl *GitManagerBaseImpl) createCmdWithContext(ctx context.Context, name string, arg ...string) (*exec.Cmd, context.CancelFunc) {
+	newCtx := ctx
+	cancel := func() {}
 
-func (impl *GitManagerBaseImpl) PullCli(rootDir string, username string, password string, branch string) (response, errMsg string, err error) {
-	start := time.Now()
-	defer func() {
-		util.TriggerGitOpsMetrics("Pull", "GitCli", start, err)
-	}()
-	impl.logger.Debugw("git pull ", "location", rootDir)
-	cmd := exec.Command("git", "-C", rootDir, "pull", "origin", branch, "--force")
-	output, errMsg, err := impl.runCommandWithCred(cmd, username, password)
-	impl.logger.Debugw("pull output", "root", rootDir, "opt", output, "errMsg", errMsg, "error", err)
-	return output, errMsg, err
+	timeout := impl.cfg.CliCmdTimeoutGlobal
+	if _, ok := ctx.Deadline(); !ok && timeout > 0 {
+		newCtx, cancel = context.WithTimeout(ctx, time.Duration(timeout)*time.Second)
+	}
+	cmd := exec.CommandContext(newCtx, name, arg...)
+	return cmd, cancel
 }

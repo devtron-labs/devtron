@@ -18,6 +18,7 @@
 package util
 
 import (
+	"context"
 	"fmt"
 	"github.com/devtron-labs/devtron/util"
 	"net/url"
@@ -310,7 +311,7 @@ func (impl GitServiceImpl) Clone(url, targetDir string) (clonedDir string, err e
 	}()
 	impl.logger.Debugw("git checkout ", "url", url, "dir", targetDir)
 	clonedDir = filepath.Join(impl.config.GitWorkingDir, targetDir)
-	errorMsg, err := impl.gitManager.Clone(clonedDir, url, impl.Auth)
+	errorMsg, err := impl.gitManager.Clone(context.Background(), clonedDir, url, impl.Auth)
 	if err != nil {
 		impl.logger.Errorw("error in git checkout", "url", url, "targetDir", targetDir, "err", err)
 		return "", err
@@ -326,7 +327,7 @@ func (impl GitServiceImpl) Pull(repoRoot string) (err error) {
 	defer func() {
 		util.TriggerGitOpsMetrics("Pull", "GitService", start, err)
 	}()
-	return impl.gitManager.Pull(repoRoot, impl.Auth)
+	return impl.gitManager.Pull(context.Background(), repoRoot, impl.Auth)
 }
 
 func (impl GitServiceImpl) CommitAndPushAllChanges(repoRoot, commitMsg, name, emailId string) (commitHash string, err error) {
@@ -334,5 +335,5 @@ func (impl GitServiceImpl) CommitAndPushAllChanges(repoRoot, commitMsg, name, em
 	defer func() {
 		util.TriggerGitOpsMetrics("CommitAndPushAllChanges", "GitService", start, err)
 	}()
-	return impl.gitManager.CommitAndPush(repoRoot, commitMsg, name, emailId, impl.Auth)
+	return impl.gitManager.CommitAndPush(context.Background(), repoRoot, commitMsg, name, emailId, impl.Auth)
 }

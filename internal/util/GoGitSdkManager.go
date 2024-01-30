@@ -14,7 +14,7 @@ type GoGitSDKManagerImpl struct {
 	*GitManagerBaseImpl
 }
 
-func (impl *GoGitSDKManagerImpl) AddRepo(rootDir string, remoteUrl string, isBare bool, auth *BasicAuth) error {
+func (impl *GoGitSDKManagerImpl) AddRepo(ctx context.Context, rootDir string, remoteUrl string, isBare bool, auth *BasicAuth) error {
 	repo, err := git.PlainInit(rootDir, isBare)
 	if err != nil {
 		return err
@@ -26,14 +26,14 @@ func (impl *GoGitSDKManagerImpl) AddRepo(rootDir string, remoteUrl string, isBar
 	return err
 }
 
-func (impl GoGitSDKManagerImpl) Pull(repoRoot string, auth *BasicAuth) (err error) {
+func (impl GoGitSDKManagerImpl) Pull(ctx context.Context, repoRoot string, auth *BasicAuth) (err error) {
 
 	_, workTree, err := impl.getRepoAndWorktree(repoRoot)
 	if err != nil {
 		return err
 	}
 	//-----------pull
-	err = workTree.PullContext(context.Background(), &git.PullOptions{
+	err = workTree.PullContext(ctx, &git.PullOptions{
 		Auth: auth.toBasicAuth(),
 	})
 	if err != nil && err.Error() == "already up-to-date" {
@@ -57,7 +57,7 @@ func (impl GoGitSDKManagerImpl) getRepoAndWorktree(repoRoot string) (*git.Reposi
 	return r, w, err
 }
 
-func (impl GoGitSDKManagerImpl) CommitAndPush(repoRoot, commitMsg, name, emailId string, auth *BasicAuth) (string, error) {
+func (impl GoGitSDKManagerImpl) CommitAndPush(ctx context.Context, repoRoot, commitMsg, name, emailId string, auth *BasicAuth) (string, error) {
 	repo, workTree, err := impl.getRepoAndWorktree(repoRoot)
 	if err != nil {
 		return "", err
@@ -84,7 +84,7 @@ func (impl GoGitSDKManagerImpl) CommitAndPush(repoRoot, commitMsg, name, emailId
 	}
 	impl.logger.Debugw("git hash", "repo", repoRoot, "hash", commit.String())
 	//-----------push
-	err = repo.Push(&git.PushOptions{
+	err = repo.PushContext(ctx, &git.PushOptions{
 		Auth: auth.toBasicAuth(),
 	})
 	return commit.String(), err
