@@ -92,7 +92,6 @@ type CoreAppRestHandlerImpl struct {
 	appWorkflowRepository   appWorkflow2.AppWorkflowRepository
 	environmentRepository   repository2.EnvironmentRepository
 	configMapRepository     chartConfig.ConfigMapRepository
-	envConfigRepo           chartConfig.EnvConfigOverrideRepository
 	chartRepo               chartRepoRepository.ChartRepository
 	teamService             team.TeamService
 	argoUserService         argo.ArgoUserService
@@ -106,7 +105,7 @@ func NewCoreAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.U
 	propertiesConfigService pipeline.PropertiesConfigService, appWorkflowService appWorkflow.AppWorkflowService,
 	materialRepository pipelineConfig.MaterialRepository, gitProviderRepo repository.GitProviderRepository,
 	appWorkflowRepository appWorkflow2.AppWorkflowRepository, environmentRepository repository2.EnvironmentRepository, configMapRepository chartConfig.ConfigMapRepository,
-	envConfigRepo chartConfig.EnvConfigOverrideRepository, chartRepo chartRepoRepository.ChartRepository, teamService team.TeamService,
+	chartRepo chartRepoRepository.ChartRepository, teamService team.TeamService,
 	argoUserService argo.ArgoUserService, pipelineStageService pipeline.PipelineStageService, ciPipelineRepository pipelineConfig.CiPipelineRepository) *CoreAppRestHandlerImpl {
 	handler := &CoreAppRestHandlerImpl{
 		logger:                  logger,
@@ -127,7 +126,6 @@ func NewCoreAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.U
 		appWorkflowRepository:   appWorkflowRepository,
 		environmentRepository:   environmentRepository,
 		configMapRepository:     configMapRepository,
-		envConfigRepo:           envConfigRepo,
 		chartRepo:               chartRepo,
 		teamService:             teamService,
 		argoUserService:         argoUserService,
@@ -1390,19 +1388,6 @@ func (handler CoreAppRestHandlerImpl) createDeploymentTemplate(ctx context.Conte
 		handler.logger.Errorw("service err, Create in CreateDeploymentTemplate", "err", err, "createRequest", createDeploymentTemplateRequest)
 		return err, http.StatusInternalServerError
 	}
-
-	//updating app metrics
-	appMetricsRequest := chart.AppMetricEnableDisableRequest{
-		AppId:               appId,
-		UserId:              userId,
-		IsAppMetricsEnabled: deploymentTemplate.ShowAppMetrics,
-	}
-	_, err = handler.chartService.AppMetricsEnableDisable(appMetricsRequest)
-	if err != nil {
-		handler.logger.Errorw("service err, AppMetricsEnableDisable in createDeploymentTemplate", "err", err, "appId", appId, "payload", appMetricsRequest)
-		return err, http.StatusInternalServerError
-	}
-
 	return nil, http.StatusOK
 }
 
@@ -1869,12 +1854,13 @@ func (handler CoreAppRestHandlerImpl) createEnvDeploymentTemplate(appId int, use
 		appMetrics = *envConfigProperties.AppMetrics
 	}
 	chartEntry.GlobalOverride = string(envConfigProperties.EnvOverrideValues)
-	_, err = handler.propertiesConfigService.CreateIfRequired(chartEntry, envId, userId, envConfigProperties.ManualReviewed, models.CHARTSTATUS_SUCCESS,
+	_, updatedAppMetrics, err := handler.propertiesConfigService.CreateIfRequired(chartEntry, envId, userId, envConfigProperties.ManualReviewed, models.CHARTSTATUS_SUCCESS,
 		true, appMetrics, envConfigProperties.Namespace, envConfigProperties.IsBasicViewLocked, envConfigProperties.CurrentViewEditor, nil)
 	if err != nil {
 		handler.logger.Errorw("service err, CreateIfRequired", "err", err, "appId", appId, "envId", envId, "chartRefId", chartRefId)
 		return err
 	}
+	envConfigProperties.AppMetrics = &updatedAppMetrics
 
 	//getting environment properties for db table id(this properties get created when cd pipeline is created)
 	env, err := handler.propertiesConfigService.GetEnvironmentProperties(appId, envId, deploymentTemplateOverride.ChartRefId)
@@ -1891,20 +1877,6 @@ func (handler CoreAppRestHandlerImpl) createEnvDeploymentTemplate(appId int, use
 		handler.logger.Errorw("service err, EnvConfigOverrideUpdate", "err", err, "appId", appId, "envId", envId)
 		return err
 	}
-
-	//updating app metrics
-	appMetricsRequest := &chart.AppMetricEnableDisableRequest{
-		AppId:               appId,
-		UserId:              userId,
-		EnvironmentId:       envId,
-		IsAppMetricsEnabled: deploymentTemplateOverride.ShowAppMetrics,
-	}
-	_, err = handler.propertiesConfigService.EnvMetricsEnableDisable(appMetricsRequest)
-	if err != nil {
-		handler.logger.Errorw("service err, EnvMetricsEnableDisable", "err", err, "appId", appId, "envId", envId)
-		return err
-	}
-
 	return nil
 }
 
@@ -2111,20 +2083,6 @@ func convertCdDeploymentStrategies(deploymentStrategies []*appBean.DeploymentStr
 		convertedStrategies = append(convertedStrategies, convertedStrategy)
 	}
 	return convertedStrategies, nil
-}
-
-func ExtractErrorType(err error) int {
-	switch err.(type) {
-	case *util2.InternalServerError:
-		return http.StatusInternalServerError
-	case *util2.ForbiddenError:
-		return http.StatusForbidden
-	case *util2.BadRequestError:
-		return http.StatusBadRequest
-	default:
-		//TODO : ask and update response for this case
-		return 0
-	}
 }
 
 func (handler CoreAppRestHandlerImpl) validateCdPipelines(cdPipelines []*appBean.CdPipelineDetails, appName, token string) (error, int) {

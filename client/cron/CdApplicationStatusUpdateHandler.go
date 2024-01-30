@@ -12,10 +12,11 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
-	repository2 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
-	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
+	repository2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/util"
+	cron2 "github.com/devtron-labs/devtron/util/cron"
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
 	"k8s.io/utils/pointer"
@@ -38,7 +39,7 @@ type CdApplicationStatusUpdateHandlerImpl struct {
 	cron                                 *cron.Cron
 	appService                           app.AppService
 	workflowDagExecutor                  pipeline.WorkflowDagExecutor
-	installedAppService                  service.InstalledAppService
+	installedAppService                  EAMode.InstalledAppDBService
 	CdHandler                            pipeline.CdHandler
 	AppStatusConfig                      *app.AppServiceConfig
 	pubsubClient                         *pubsub.PubSubClientServiceImpl
@@ -51,30 +52,17 @@ type CdApplicationStatusUpdateHandlerImpl struct {
 	installedAppVersionRepository        repository2.InstalledAppRepository
 }
 
-type CronLoggerImpl struct {
-	logger *zap.SugaredLogger
-}
-
-func (impl *CronLoggerImpl) Info(msg string, keysAndValues ...interface{}) {
-	impl.logger.Infow(msg, keysAndValues...)
-}
-
-func (impl *CronLoggerImpl) Error(err error, msg string, keysAndValues ...interface{}) {
-	keysAndValues = append([]interface{}{"err", err}, keysAndValues...)
-	impl.logger.Errorw(msg, keysAndValues...)
-}
-
 func NewCdApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, appService app.AppService,
-	workflowDagExecutor pipeline.WorkflowDagExecutor, installedAppService service.InstalledAppService,
+	workflowDagExecutor pipeline.WorkflowDagExecutor, installedAppService EAMode.InstalledAppDBService,
 	CdHandler pipeline.CdHandler, AppStatusConfig *app.AppServiceConfig, pubsubClient *pubsub.PubSubClientServiceImpl,
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository,
 	eventClient client2.EventClient, appListingRepository repository.AppListingRepository,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	pipelineRepository pipelineConfig.PipelineRepository, installedAppVersionHistoryRepository repository2.InstalledAppVersionHistoryRepository,
-	installedAppVersionRepository repository2.InstalledAppRepository) *CdApplicationStatusUpdateHandlerImpl {
-	cronLogger := &CronLoggerImpl{logger: logger}
+	installedAppVersionRepository repository2.InstalledAppRepository, cronLogger *cron2.CronLoggerImpl) *CdApplicationStatusUpdateHandlerImpl {
+
 	cron := cron.New(
-		cron.WithChain(cron.SkipIfStillRunning(cronLogger)))
+		cron.WithChain(cron.SkipIfStillRunning(cronLogger), cron.Recover(cronLogger)))
 	cron.Start()
 	impl := &CdApplicationStatusUpdateHandlerImpl{
 		logger:                               logger,

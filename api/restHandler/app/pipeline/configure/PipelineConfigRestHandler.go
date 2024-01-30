@@ -22,6 +22,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	"io"
 	"net/http"
 	"strconv"
@@ -41,8 +44,6 @@ import (
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
 
-	bean2 "github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
@@ -56,10 +57,7 @@ import (
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
-	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"go.uber.org/zap"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"gopkg.in/go-playground/validator.v9"
 )
 
@@ -99,40 +97,42 @@ type PipelineConfigRestHandler interface {
 }
 
 type PipelineConfigRestHandlerImpl struct {
-	pipelineBuilder              pipeline.PipelineBuilder
-	ciPipelineRepository         pipelineConfig.CiPipelineRepository
-	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository
-	ciHandler                    pipeline.CiHandler
-	Logger                       *zap.SugaredLogger
-	chartService                 chart.ChartService
-	propertiesConfigService      pipeline.PropertiesConfigService
-	application                  application.ServiceClient
-	userAuthService              user.UserService
-	validator                    *validator.Validate
-	teamService                  team.TeamService
-	enforcer                     casbin.Enforcer
-	gitSensorClient              gitSensor.Client
-	pipelineRepository           pipelineConfig.PipelineRepository
-	appWorkflowService           appWorkflow.AppWorkflowService
-	enforcerUtil                 rbac.EnforcerUtil
-	dockerRegistryConfig         pipeline.DockerRegistryConfig
-	cdHandler                    pipeline.CdHandler
-	appCloneService              appClone.AppCloneService
-	materialRepository           pipelineConfig.MaterialRepository
-	policyService                security2.PolicyService
-	scanResultRepository         security.ImageScanResultRepository
-	gitProviderRepo              repository.GitProviderRepository
-	argoUserService              argo.ArgoUserService
-	imageTaggingService          pipeline.ImageTaggingService
-	deploymentTemplateService    generateManifest.DeploymentTemplateService
-	pipelineRestHandlerEnvConfig *PipelineRestHandlerEnvConfig
-	ciArtifactRepository         repository.CiArtifactRepository
+	pipelineBuilder                     pipeline.PipelineBuilder
+	ciPipelineRepository                pipelineConfig.CiPipelineRepository
+	ciPipelineMaterialRepository        pipelineConfig.CiPipelineMaterialRepository
+	ciHandler                           pipeline.CiHandler
+	Logger                              *zap.SugaredLogger
+	deploymentTemplateValidationService deploymentTemplate.DeploymentTemplateValidationService
+	chartService                        chart.ChartService
+	propertiesConfigService             pipeline.PropertiesConfigService
+	userAuthService                     user.UserService
+	validator                           *validator.Validate
+	teamService                         team.TeamService
+	enforcer                            casbin.Enforcer
+	gitSensorClient                     gitSensor.Client
+	pipelineRepository                  pipelineConfig.PipelineRepository
+	appWorkflowService                  appWorkflow.AppWorkflowService
+	enforcerUtil                        rbac.EnforcerUtil
+	dockerRegistryConfig                pipeline.DockerRegistryConfig
+	cdHandler                           pipeline.CdHandler
+	appCloneService                     appClone.AppCloneService
+	materialRepository                  pipelineConfig.MaterialRepository
+	policyService                       security2.PolicyService
+	scanResultRepository                security.ImageScanResultRepository
+	gitProviderRepo                     repository.GitProviderRepository
+	argoUserService                     argo.ArgoUserService
+	imageTaggingService                 pipeline.ImageTaggingService
+	deploymentTemplateService           generateManifest.DeploymentTemplateService
+	pipelineRestHandlerEnvConfig        *PipelineRestHandlerEnvConfig
+	ciArtifactRepository                repository.CiArtifactRepository
+	deployedAppMetricsService           deployedAppMetrics.DeployedAppMetricsService
+	chartRefService                     chartRef.ChartRefService
 }
 
 func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
+	deploymentTemplateValidationService deploymentTemplate.DeploymentTemplateValidationService,
 	chartService chart.ChartService,
 	propertiesConfigService pipeline.PropertiesConfigService,
-	application application.ServiceClient,
 	userAuthService user.UserService,
 	teamService team.TeamService,
 	enforcer casbin.Enforcer,
@@ -150,41 +150,45 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	scanResultRepository security.ImageScanResultRepository, gitProviderRepo repository.GitProviderRepository,
 	argoUserService argo.ArgoUserService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	imageTaggingService pipeline.ImageTaggingService,
-	ciArtifactRepository repository.CiArtifactRepository) *PipelineConfigRestHandlerImpl {
+	ciArtifactRepository repository.CiArtifactRepository,
+	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
+	chartRefService chartRef.ChartRefService) *PipelineConfigRestHandlerImpl {
 	envConfig := &PipelineRestHandlerEnvConfig{}
 	err := env.Parse(envConfig)
 	if err != nil {
 		Logger.Errorw("error in parsing PipelineRestHandlerEnvConfig", "err", err)
 	}
 	return &PipelineConfigRestHandlerImpl{
-		pipelineBuilder:              pipelineBuilder,
-		Logger:                       Logger,
-		chartService:                 chartService,
-		propertiesConfigService:      propertiesConfigService,
-		application:                  application,
-		userAuthService:              userAuthService,
-		validator:                    validator,
-		teamService:                  teamService,
-		enforcer:                     enforcer,
-		ciHandler:                    ciHandler,
-		gitSensorClient:              gitSensorClient,
-		ciPipelineRepository:         ciPipelineRepository,
-		pipelineRepository:           pipelineRepository,
-		enforcerUtil:                 enforcerUtil,
-		dockerRegistryConfig:         dockerRegistryConfig,
-		cdHandler:                    cdHandler,
-		appCloneService:              appCloneService,
-		appWorkflowService:           appWorkflowService,
-		materialRepository:           materialRepository,
-		policyService:                policyService,
-		scanResultRepository:         scanResultRepository,
-		gitProviderRepo:              gitProviderRepo,
-		argoUserService:              argoUserService,
-		ciPipelineMaterialRepository: ciPipelineMaterialRepository,
-		imageTaggingService:          imageTaggingService,
-		deploymentTemplateService:    deploymentTemplateService,
-		pipelineRestHandlerEnvConfig: envConfig,
-		ciArtifactRepository:         ciArtifactRepository,
+		pipelineBuilder:                     pipelineBuilder,
+		Logger:                              Logger,
+		deploymentTemplateValidationService: deploymentTemplateValidationService,
+		chartService:                        chartService,
+		propertiesConfigService:             propertiesConfigService,
+		userAuthService:                     userAuthService,
+		validator:                           validator,
+		teamService:                         teamService,
+		enforcer:                            enforcer,
+		ciHandler:                           ciHandler,
+		gitSensorClient:                     gitSensorClient,
+		ciPipelineRepository:                ciPipelineRepository,
+		pipelineRepository:                  pipelineRepository,
+		enforcerUtil:                        enforcerUtil,
+		dockerRegistryConfig:                dockerRegistryConfig,
+		cdHandler:                           cdHandler,
+		appCloneService:                     appCloneService,
+		appWorkflowService:                  appWorkflowService,
+		materialRepository:                  materialRepository,
+		policyService:                       policyService,
+		scanResultRepository:                scanResultRepository,
+		gitProviderRepo:                     gitProviderRepo,
+		argoUserService:                     argoUserService,
+		ciPipelineMaterialRepository:        ciPipelineMaterialRepository,
+		imageTaggingService:                 imageTaggingService,
+		deploymentTemplateService:           deploymentTemplateService,
+		pipelineRestHandlerEnvConfig:        envConfig,
+		ciArtifactRepository:                ciArtifactRepository,
+		deployedAppMetricsService:           deployedAppMetricsService,
+		chartRefService:                     chartRefService,
 	}
 }
 
@@ -552,31 +556,6 @@ func (handler *PipelineConfigRestHandlerImpl) sendData(event []byte, w http.Resp
 	res = append(res, '\n', '\n')
 	if _, err := w.Write(res); err != nil {
 		handler.Logger.Errorw("Failed to send response chunk, sendData", "err", err)
-		return
-	}
-}
-
-func (handler *PipelineConfigRestHandlerImpl) handleForwardResponseStreamError(wroteHeader bool, w http.ResponseWriter, err error) {
-	code := "000"
-	if !wroteHeader {
-		s, ok := status.FromError(err)
-		if !ok {
-			s = status.New(codes.Unknown, err.Error())
-		}
-		w.WriteHeader(runtime.HTTPStatusFromCode(s.Code()))
-		code = fmt.Sprint(s.Code())
-	}
-	response := bean2.Response{}
-	apiErr := bean2.ApiError{}
-	apiErr.Code = code // 000=unknown
-	apiErr.InternalMessage = err.Error()
-	response.Errors = []bean2.ApiError{apiErr}
-	buf, err2 := json.Marshal(response)
-	if err2 != nil {
-		handler.Logger.Errorw("marshal err, handleForwardResponseStreamError", "err", err2, "response", response)
-	}
-	if _, err3 := w.Write(buf); err3 != nil {
-		handler.Logger.Errorw("Failed to notify error to client, handleForwardResponseStreamError", "err", err3, "response", response)
 		return
 	}
 }

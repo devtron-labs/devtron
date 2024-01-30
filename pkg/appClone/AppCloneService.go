@@ -31,6 +31,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/chart"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/go-pg/pg"
@@ -44,7 +45,6 @@ type AppCloneService interface {
 type AppCloneServiceImpl struct {
 	logger                  *zap.SugaredLogger
 	pipelineBuilder         pipeline.PipelineBuilder
-	materialRepository      pipelineConfig.MaterialRepository
 	chartService            chart.ChartService
 	configMapService        pipeline.ConfigMapService
 	appWorkflowService      appWorkflow.AppWorkflowService
@@ -55,27 +55,25 @@ type AppCloneServiceImpl struct {
 	appRepository           app2.AppRepository
 	ciPipelineRepository    pipelineConfig.CiPipelineRepository
 	pipelineRepository      pipelineConfig.PipelineRepository
-	appWorkflowRepository   appWorkflow2.AppWorkflowRepository
 	ciPipelineConfigService pipeline.CiPipelineConfigService
+	gitOpsConfigReadService config.GitOpsConfigReadService
 }
 
 func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
 	pipelineBuilder pipeline.PipelineBuilder,
-	materialRepository pipelineConfig.MaterialRepository,
 	chartService chart.ChartService,
 	configMapService pipeline.ConfigMapService,
 	appWorkflowService appWorkflow.AppWorkflowService,
 	appListingService app.AppListingService,
 	propertiesConfigService pipeline.PropertiesConfigService,
-	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository,
 	pipelineStageService pipeline.PipelineStageService, ciTemplateService pipeline.CiTemplateService,
 	appRepository app2.AppRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository,
-	pipelineRepository pipelineConfig.PipelineRepository, appWorkflowRepository appWorkflow2.AppWorkflowRepository,
-	ciPipelineConfigService pipeline.CiPipelineConfigService) *AppCloneServiceImpl {
+	pipelineRepository pipelineConfig.PipelineRepository,
+	ciPipelineConfigService pipeline.CiPipelineConfigService,
+	gitOpsConfigReadService config.GitOpsConfigReadService) *AppCloneServiceImpl {
 	return &AppCloneServiceImpl{
 		logger:                  logger,
 		pipelineBuilder:         pipelineBuilder,
-		materialRepository:      materialRepository,
 		chartService:            chartService,
 		configMapService:        configMapService,
 		appWorkflowService:      appWorkflowService,
@@ -86,8 +84,8 @@ func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
 		appRepository:           appRepository,
 		ciPipelineRepository:    ciPipelineRepository,
 		pipelineRepository:      pipelineRepository,
-		appWorkflowRepository:   appWorkflowRepository,
 		ciPipelineConfigService: ciPipelineConfigService,
+		gitOpsConfigReadService: gitOpsConfigReadService,
 	}
 }
 
@@ -985,7 +983,7 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, c
 	for deploymentType, allowed := range DeploymentAppConfigForEnvironment {
 		AllowedDeploymentAppTypes[deploymentType] = allowed
 	}
-	isGitopsConfigured, err := impl.pipelineBuilder.IsGitopsConfigured()
+	isGitopsConfigured, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
 	if err != nil {
 		impl.logger.Errorw("error in checking if gitOps configured", "err", err)
 		return nil, err
@@ -1021,6 +1019,7 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, c
 		SourceToNewPipelineId:         refCdPipeline.SourceToNewPipelineId,
 		RefPipelineId:                 refCdPipeline.Id,
 		ParentPipelineType:            refCdPipeline.ParentPipelineType,
+		IsDigestEnforcedForPipeline:   refCdPipeline.IsDigestEnforcedForPipeline,
 	}
 	if refCdPipeline.ParentPipelineType == "WEBHOOK" {
 		cdPipeline.CiPipelineId = 0

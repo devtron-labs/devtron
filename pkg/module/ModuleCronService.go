@@ -21,12 +21,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	client "github.com/devtron-labs/devtron/api/helm-app"
+	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
 	moduleDataStore "github.com/devtron-labs/devtron/pkg/module/store"
 	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
 	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
 	"github.com/devtron-labs/devtron/util"
+	cron2 "github.com/devtron-labs/devtron/util/cron"
 	"github.com/go-pg/pg"
 	"github.com/robfig/cron/v3"
 	"github.com/tidwall/gjson"
@@ -52,7 +54,7 @@ type ModuleCronServiceImpl struct {
 
 func NewModuleCronServiceImpl(logger *zap.SugaredLogger, moduleEnvConfig *ModuleEnvConfig, moduleRepository moduleRepo.ModuleRepository,
 	serverEnvConfig *serverEnvConfig.ServerEnvConfig, helmAppService client.HelmAppService, moduleServiceHelper ModuleServiceHelper, moduleResourceStatusRepository moduleRepo.ModuleResourceStatusRepository,
-	moduleDataStore *moduleDataStore.ModuleDataStore) (*ModuleCronServiceImpl, error) {
+	moduleDataStore *moduleDataStore.ModuleDataStore, cronLogger *cron2.CronLoggerImpl) (*ModuleCronServiceImpl, error) {
 
 	moduleCronServiceImpl := &ModuleCronServiceImpl{
 		logger:                         logger,
@@ -70,7 +72,7 @@ func NewModuleCronServiceImpl(logger *zap.SugaredLogger, moduleEnvConfig *Module
 		// cron job to update module status
 		// initialise cron
 		cron := cron.New(
-			cron.WithChain())
+			cron.WithChain(cron.Recover(cronLogger)))
 		cron.Start()
 
 		// add function into cron
@@ -158,7 +160,7 @@ func (impl *ModuleCronServiceImpl) handleModuleStatus(moduleNameInput string) {
 
 }
 
-func (impl *ModuleCronServiceImpl) saveModuleResourcesStatus(moduleId int, appDetail *client.AppDetail) error {
+func (impl *ModuleCronServiceImpl) saveModuleResourcesStatus(moduleId int, appDetail *gRPC.AppDetail) error {
 	impl.logger.Infow("updating module resources status", "moduleId", moduleId)
 	if appDetail == nil || appDetail.ResourceTreeResponse == nil {
 		return nil
@@ -233,7 +235,7 @@ func (impl *ModuleCronServiceImpl) saveModuleResourcesStatus(moduleId int, appDe
 	return nil
 }
 
-func (impl *ModuleCronServiceImpl) buildResourceTreeFilter(moduleName string) (*client.ResourceTreeFilter, error) {
+func (impl *ModuleCronServiceImpl) buildResourceTreeFilter(moduleName string) (*gRPC.ResourceTreeFilter, error) {
 	moduleMetaData, err := impl.moduleServiceHelper.GetModuleMetadata(moduleName)
 	if err != nil {
 		impl.logger.Errorw("Error in getting module metadata", "moduleName", moduleName, "err", err)
@@ -254,13 +256,13 @@ func (impl *ModuleCronServiceImpl) buildResourceTreeFilter(moduleName string) (*
 		return nil, err
 	}
 
-	var resourceTreeFilter *client.ResourceTreeFilter
+	var resourceTreeFilter *gRPC.ResourceTreeFilter
 
 	// handle global filter
 	globalFilter := resourceFilterIfaceValue.GlobalFilter
 	if globalFilter != nil {
-		resourceTreeFilter = &client.ResourceTreeFilter{
-			GlobalFilter: &client.ResourceIdentifier{
+		resourceTreeFilter = &gRPC.ResourceTreeFilter{
+			GlobalFilter: &gRPC.ResourceIdentifier{
 				Labels: globalFilter.Labels,
 			},
 		}
@@ -268,21 +270,21 @@ func (impl *ModuleCronServiceImpl) buildResourceTreeFilter(moduleName string) (*
 	}
 
 	// otherwise handle gvk level
-	var resourceFilters []*client.ResourceFilter
+	var resourceFilters []*gRPC.ResourceFilter
 	for _, gvkLevelFilters := range resourceFilterIfaceValue.GvkLevelFilters {
 		gvk := gvkLevelFilters.Gvk
-		resourceFilters = append(resourceFilters, &client.ResourceFilter{
-			Gvk: &client.Gvk{
+		resourceFilters = append(resourceFilters, &gRPC.ResourceFilter{
+			Gvk: &gRPC.Gvk{
 				Group:   gvk.Group,
 				Version: gvk.Version,
 				Kind:    gvk.Kind,
 			},
-			ResourceIdentifier: &client.ResourceIdentifier{
+			ResourceIdentifier: &gRPC.ResourceIdentifier{
 				Labels: gvkLevelFilters.ResourceIdentifier.Labels,
 			},
 		})
 	}
-	resourceTreeFilter = &client.ResourceTreeFilter{
+	resourceTreeFilter = &gRPC.ResourceTreeFilter{
 		ResourceFilters: resourceFilters,
 	}
 	return resourceTreeFilter, nil
