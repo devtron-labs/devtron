@@ -38,6 +38,7 @@ import (
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	app2 "github.com/devtron-labs/devtron/pkg/app"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
+	"github.com/devtron-labs/devtron/pkg/appStore/chartGroup"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
@@ -326,7 +327,7 @@ func (handler *InstalledAppRestHandlerImpl) DeployBulk(w http.ResponseWriter, r 
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	var request appStoreBean.ChartGroupInstallRequest
+	var request chartGroup.ChartGroupInstallRequest
 	err = decoder.Decode(&request)
 	if err != nil {
 		handler.Logger.Errorw("request err, DeployBulk", "err", err, "payload", request)

@@ -19,7 +19,6 @@ package util
 
 import (
 	"net/url"
-	"strings"
 )
 
 func IsValidUrl(input string) bool {
@@ -34,10 +33,4 @@ func IsValidUrl(input string) bool {
 	}
 
 	return true
-}
-
-func GetGitRepoNameFromGitRepoUrl(gitRepoUrl string) string {
-	gitRepoUrl = gitRepoUrl[strings.LastIndex(gitRepoUrl, "/")+1:]
-	gitRepoUrl = strings.ReplaceAll(gitRepoUrl, ".git", "")
-	return gitRepoUrl
 }

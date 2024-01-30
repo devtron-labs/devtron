@@ -21,6 +21,7 @@ import (
 	"compress/gzip"
 	"context"
 	"fmt"
+	"github.com/devtron-labs/devtron/util/gitUtil"
 	"io/ioutil"
 	"math/rand"
 	"net/http"
@@ -465,8 +466,12 @@ func (impl ChartTemplateServiceImpl) packageChart(tempReferenceTemplateDir strin
 		return nil, "", err
 	}
 	impl.logger.Debugw("chart archive path", "path", archivePath)
-	//chart.Values
-	valuesYaml := chart.Values.Raw
+	var valuesYaml string
+	if chart.Values != nil {
+		valuesYaml = chart.Values.Raw
+	} else {
+		impl.logger.Warnw("values.yaml not found in helm chart", "dir", tempReferenceTemplateDir)
+	}
 	return &archivePath, valuesYaml, nil
 }
 
@@ -527,7 +532,7 @@ func (impl ChartTemplateServiceImpl) CreateAndPushToGitChartProxy(appStoreName, 
 	//baseTemplateName  replace whitespace
 	space := regexp.MustCompile(`\s+`)
 	appStoreName = space.ReplaceAllString(appStoreName, "-")
-	gitOpsRepoName := GetGitRepoNameFromGitRepoUrl(installAppVersionRequest.GitOpsRepoURL)
+	gitOpsRepoName := gitUtil.GetGitRepoNameFromGitRepoUrl(installAppVersionRequest.GitOpsRepoURL)
 	if len(gitOpsRepoName) == 0 {
 		//here git ops repo will be the app name, to breaking the mono repo structure
 		gitOpsRepoName = impl.GetGitOpsRepoName(installAppVersionRequest.AppName)

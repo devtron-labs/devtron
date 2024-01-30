@@ -28,6 +28,7 @@ import (
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	util2 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/util/gitUtil"
 	"github.com/go-pg/pg"
 	"github.com/google/go-github/github"
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
@@ -315,7 +316,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) GetGitCommitConfig(installAppVer
 		}
 		installAppVersionRequest.GitOpsRepoURL = InstalledApp.GitOpsRepoUrl
 	}
-	gitOpsRepoName := util.GetGitRepoNameFromGitRepoUrl(installAppVersionRequest.GitOpsRepoURL)
+	gitOpsRepoName := gitUtil.GetGitRepoNameFromGitRepoUrl(installAppVersionRequest.GitOpsRepoURL)
 	userEmailId, userName := impl.chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit(installAppVersionRequest.UserId)
 	YamlConfig := &util.ChartConfig{
 		FileName:       filename,

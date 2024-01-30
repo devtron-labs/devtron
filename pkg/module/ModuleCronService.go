@@ -27,6 +27,7 @@ import (
 	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
 	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
 	"github.com/devtron-labs/devtron/util"
+	cron2 "github.com/devtron-labs/devtron/util/cron"
 	"github.com/go-pg/pg"
 	"github.com/robfig/cron/v3"
 	"github.com/tidwall/gjson"
@@ -52,7 +53,7 @@ type ModuleCronServiceImpl struct {
 
 func NewModuleCronServiceImpl(logger *zap.SugaredLogger, moduleEnvConfig *ModuleEnvConfig, moduleRepository moduleRepo.ModuleRepository,
 	serverEnvConfig *serverEnvConfig.ServerEnvConfig, helmAppService client.HelmAppService, moduleServiceHelper ModuleServiceHelper, moduleResourceStatusRepository moduleRepo.ModuleResourceStatusRepository,
-	moduleDataStore *moduleDataStore.ModuleDataStore) (*ModuleCronServiceImpl, error) {
+	moduleDataStore *moduleDataStore.ModuleDataStore, cronLogger *cron2.CronLoggerImpl) (*ModuleCronServiceImpl, error) {
 
 	moduleCronServiceImpl := &ModuleCronServiceImpl{
 		logger:                         logger,
@@ -70,7 +71,7 @@ func NewModuleCronServiceImpl(logger *zap.SugaredLogger, moduleEnvConfig *Module
 		// cron job to update module status
 		// initialise cron
 		cron := cron.New(
-			cron.WithChain())
+			cron.WithChain(cron.Recover(cronLogger)))
 		cron.Start()
 
 		// add function into cron

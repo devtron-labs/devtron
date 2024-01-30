@@ -20,6 +20,8 @@ package service
 import (
 	"bytes"
 	"context"
+	"github.com/devtron-labs/devtron/util/gitUtil"
+
 	/* #nosec */
 	"crypto/sha1"
 	"encoding/json"
@@ -27,32 +29,27 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
-	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/devtron-labs/common-lib/pubsub-lib/model"
 	util4 "github.com/devtron-labs/common-lib/utils/k8s"
-	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
-	k8sObjectUtils "github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/client/argocdServer"
-	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	"github.com/devtron-labs/devtron/pkg/appStatus"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
+	"github.com/devtron-labs/devtron/pkg/appStore/chartGroup"
+	repository6 "github.com/devtron-labs/devtron/pkg/appStore/chartGroup/repository"
 	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
 	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
-	appStoreDeploymentGitopsTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool/gitops"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/values/service"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
@@ -64,14 +61,12 @@ import (
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
-	"github.com/tidwall/gjson"
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
-	"github.com/devtron-labs/devtron/client/argocdServer/repository"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
@@ -80,37 +75,27 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT = "devtron"
-	CLUSTER_COMPONENT_DIR_PATH                  = "/cluster/component"
-	HELM_RELEASE_STATUS_FAILED                  = "Failed"
-	HELM_RELEASE_STATUS_PROGRESSING             = "Progressing"
-	HELM_RELEASE_STATUS_UNKNOWN                 = "Unknown"
-)
-
+// DB operation + chart group + nats msg consume(to be removed)
 type InstalledAppService interface {
 	GetAll(filter *appStoreBean.AppStoreFilter) (openapi.AppList, error)
-	DeployBulk(chartGroupInstallRequest *appStoreBean.ChartGroupInstallRequest) (*appStoreBean.ChartGroupInstallAppRes, error)
-	performDeployStage(appId int, installedAppVersionHistoryId int, userId int32) (*appStoreBean.InstallAppVersionDTO, error)
+	DeployBulk(chartGroupInstallRequest *chartGroup.ChartGroupInstallRequest) (*chartGroup.ChartGroupInstallAppRes, error)
 	CheckAppExists(appNames []*appStoreBean.AppNames) ([]*appStoreBean.AppNames, error)
 	DeployDefaultChartOnCluster(bean *cluster2.ClusterBean, userId int32) (bool, error)
 	FindAppDetailsForAppstoreApplication(installedAppId, envId int) (bean2.AppDetailContainer, error)
 	UpdateInstalledAppVersionStatus(application *v1alpha1.Application) (bool, error)
-	FetchResourceTree(rctx context.Context, cn http.CloseNotifier, appDetailsContainer *bean2.AppDetailsContainer, installedApp repository2.InstalledApps, helmReleaseInstallStatus string, status string) error
 	MarkGitOpsInstalledAppsDeletedIfArgoAppIsDeleted(installedAppId int, envId int) error
 	CheckAppExistsByInstalledAppId(installedAppId int) (*repository2.InstalledApps, error)
-	FindNotesForArgoApplication(installedAppId, envId int) (string, string, error)
-	FetchChartNotes(installedAppId int, envId int, token string, checkNotesAuth func(token string, appName string, envId int) bool) (string, error)
+
 	FetchResourceTreeWithHibernateForACD(rctx context.Context, cn http.CloseNotifier, appDetail *bean2.AppDetailContainer) bean2.AppDetailContainer
-	fetchResourceTreeForACD(rctx context.Context, cn http.CloseNotifier, appId int, envId, clusterId int, deploymentAppName, namespace string) (map[string]interface{}, error)
+	FetchResourceTree(rctx context.Context, cn http.CloseNotifier, appDetailsContainer *bean2.AppDetailsContainer, installedApp repository2.InstalledApps, helmReleaseInstallStatus string, status string) error
+
+	//move to notes service
+	FetchChartNotes(installedAppId int, envId int, token string, checkNotesAuth func(token string, appName string, envId int) bool) (string, error)
 }
 
 type InstalledAppServiceImpl struct {
 	logger                               *zap.SugaredLogger
 	installedAppRepository               repository2.InstalledAppRepository
-	chartTemplateService                 util.ChartTemplateService
-	refChartDir                          appStoreBean.RefChartProxyDir
-	repositoryService                    repository.ServiceClient
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository
 	environmentRepository                repository5.EnvironmentRepository
 	teamRepository                       repository4.TeamRepository
@@ -118,10 +103,8 @@ type InstalledAppServiceImpl struct {
 	acdClient                            application2.ServiceClient
 	appStoreValuesService                service.AppStoreValuesService
 	pubsubClient                         *pubsub.PubSubClientServiceImpl
-	tokenCache                           *util2.TokenCache
-	chartGroupDeploymentRepository       repository2.ChartGroupDeploymentRepository
+	chartGroupDeploymentRepository       repository6.ChartGroupDeploymentRepository
 	envService                           cluster2.EnvironmentService
-	ArgoK8sClient                        argocdServer.ArgoK8sClient
 	gitFactory                           *util.GitFactory
 	aCDAuthConfig                        *util2.ACDAuthConfig
 	gitOpsRepository                     repository3.GitOpsConfigRepository
@@ -132,7 +115,6 @@ type InstalledAppServiceImpl struct {
 	argoUserService                      argo.ArgoUserService
 	helmAppClient                        client.HelmAppClient
 	helmAppService                       client.HelmAppService
-	attributesRepository                 repository3.AttributesRepository
 	appStatusService                     appStatus.AppStatusService
 	K8sUtil                              *util4.K8sServiceImpl
 	pipelineStatusTimelineService        status.PipelineStatusTimelineService
@@ -144,34 +126,27 @@ type InstalledAppServiceImpl struct {
 
 func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 	installedAppRepository repository2.InstalledAppRepository,
-	chartTemplateService util.ChartTemplateService, refChartDir appStoreBean.RefChartProxyDir,
-	repositoryService repository.ServiceClient,
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
 	environmentRepository repository5.EnvironmentRepository, teamRepository repository4.TeamRepository,
 	appRepository app.AppRepository,
 	acdClient application2.ServiceClient,
 	appStoreValuesService service.AppStoreValuesService,
 	pubsubClient *pubsub.PubSubClientServiceImpl,
-	tokenCache *util2.TokenCache,
-	chartGroupDeploymentRepository repository2.ChartGroupDeploymentRepository,
-	envService cluster2.EnvironmentService, argoK8sClient argocdServer.ArgoK8sClient,
+	chartGroupDeploymentRepository repository6.ChartGroupDeploymentRepository,
+	envService cluster2.EnvironmentService,
 	gitFactory *util.GitFactory, aCDAuthConfig *util2.ACDAuthConfig, gitOpsRepository repository3.GitOpsConfigRepository, userService user.UserService,
 	appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService,
 	appStoreDeploymentService AppStoreDeploymentService,
 	installedAppRepositoryHistory repository2.InstalledAppVersionHistoryRepository,
 	argoUserService argo.ArgoUserService, helmAppClient client.HelmAppClient, helmAppService client.HelmAppService,
-	attributesRepository repository3.AttributesRepository,
 	appStatusService appStatus.AppStatusService, K8sUtil *util4.K8sServiceImpl,
 	pipelineStatusTimelineService status.PipelineStatusTimelineService,
 	appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
-	appStoreDeploymentArgoCdService appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdService, k8sCommonService k8s.K8sCommonService, k8sApplicationService application3.K8sApplicationService,
+	k8sCommonService k8s.K8sCommonService, k8sApplicationService application3.K8sApplicationService,
 	acdConfig *argocdServer.ACDConfig) (*InstalledAppServiceImpl, error) {
 	impl := &InstalledAppServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
-		chartTemplateService:                 chartTemplateService,
-		refChartDir:                          refChartDir,
-		repositoryService:                    repositoryService,
 		appStoreApplicationVersionRepository: appStoreApplicationVersionRepository,
 		environmentRepository:                environmentRepository,
 		teamRepository:                       teamRepository,
@@ -179,10 +154,8 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 		acdClient:                            acdClient,
 		appStoreValuesService:                appStoreValuesService,
 		pubsubClient:                         pubsubClient,
-		tokenCache:                           tokenCache,
 		chartGroupDeploymentRepository:       chartGroupDeploymentRepository,
 		envService:                           envService,
-		ArgoK8sClient:                        argoK8sClient,
 		gitFactory:                           gitFactory,
 		aCDAuthConfig:                        aCDAuthConfig,
 		gitOpsRepository:                     gitOpsRepository,
@@ -193,7 +166,6 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 		argoUserService:                      argoUserService,
 		helmAppClient:                        helmAppClient,
 		helmAppService:                       helmAppService,
-		attributesRepository:                 attributesRepository,
 		appStatusService:                     appStatusService,
 		K8sUtil:                              K8sUtil,
 		pipelineStatusTimelineService:        pipelineStatusTimelineService,
@@ -260,17 +232,6 @@ func (impl InstalledAppServiceImpl) GetAll(filter *appStoreBean.AppStoreFilter) 
 	return installedAppsResponse, nil
 }
 
-// converts db object to bean
-func (impl InstalledAppServiceImpl) chartAdaptor(chart *repository2.InstalledAppVersions) (*appStoreBean.InstallAppVersionDTO, error) {
-
-	return &appStoreBean.InstallAppVersionDTO{
-		InstalledAppId:     chart.InstalledAppId,
-		Id:                 chart.Id,
-		AppStoreVersion:    chart.AppStoreApplicationVersionId,
-		ValuesOverrideYaml: chart.ValuesYaml,
-	}, nil
-}
-
 func (impl InstalledAppServiceImpl) CheckAppExists(appNames []*appStoreBean.AppNames) ([]*appStoreBean.AppNames, error) {
 	if len(appNames) == 0 {
 		return nil, nil
@@ -297,7 +258,7 @@ func (impl InstalledAppServiceImpl) CheckAppExists(appNames []*appStoreBean.AppN
 	return appNames, nil
 }
 
-func (impl InstalledAppServiceImpl) DeployBulk(chartGroupInstallRequest *appStoreBean.ChartGroupInstallRequest) (*appStoreBean.ChartGroupInstallAppRes, error) {
+func (impl InstalledAppServiceImpl) DeployBulk(chartGroupInstallRequest *chartGroup.ChartGroupInstallRequest) (*chartGroup.ChartGroupInstallAppRes, error) {
 	impl.logger.Debugw("bulk app install request", "req", chartGroupInstallRequest)
 	//save in db
 	// raise nats event
@@ -349,7 +310,7 @@ func (impl InstalledAppServiceImpl) DeployBulk(chartGroupInstallRequest *appStor
 	}
 	//nats event
 	impl.triggerDeploymentEvent(installAppVersions)
-	return &appStoreBean.ChartGroupInstallAppRes{}, nil
+	return &chartGroup.ChartGroupInstallAppRes{}, nil
 }
 
 // generate unique installation ID using APPID
@@ -372,8 +333,8 @@ func (impl InstalledAppServiceImpl) getInstallationId(installAppVersions []*appS
 	return fmt.Sprintf("%x", bs), nil
 }
 
-func (impl InstalledAppServiceImpl) createChartGroupEntryObject(installAppVersionDTO *appStoreBean.InstallAppVersionDTO, chartGroupId int, groupINstallationId string) *repository2.ChartGroupDeployment {
-	return &repository2.ChartGroupDeployment{
+func (impl InstalledAppServiceImpl) createChartGroupEntryObject(installAppVersionDTO *appStoreBean.InstallAppVersionDTO, chartGroupId int, groupINstallationId string) *repository6.ChartGroupDeployment {
+	return &repository6.ChartGroupDeployment{
 		ChartGroupId:        chartGroupId,
 		ChartGroupEntryId:   installAppVersionDTO.ChartGroupEntryId,
 		InstalledAppId:      installAppVersionDTO.InstalledAppId,
@@ -387,6 +348,7 @@ func (impl InstalledAppServiceImpl) createChartGroupEntryObject(installAppVersio
 		},
 	}
 }
+
 func (impl InstalledAppServiceImpl) performDeployStageOnAcd(installedAppVersion *appStoreBean.InstallAppVersionDTO, ctx context.Context, userId int32) (*appStoreBean.InstallAppVersionDTO, error) {
 	installedAppVersion.ACDAppName = fmt.Sprintf("%s-%s", installedAppVersion.AppName, installedAppVersion.Environment.Name)
 	chartGitAttr := &util.ChartGitAttribute{}
@@ -488,7 +450,7 @@ func (impl InstalledAppServiceImpl) performDeployStageOnAcd(installedAppVersion 
 			}
 		}
 		config := &bean2.GitOpsConfigDto{
-			GitRepoName:          util.GetGitRepoNameFromGitRepoUrl(installedAppVersion.GitOpsRepoURL),
+			GitRepoName:          gitUtil.GetGitRepoNameFromGitRepoUrl(installedAppVersion.GitOpsRepoURL),
 			BitBucketWorkspaceId: gitOpsConfigBitbucket.BitBucketProjectKey,
 			BitBucketProjectKey:  gitOpsConfigBitbucket.BitBucketProjectKey,
 		}
@@ -531,6 +493,7 @@ func (impl InstalledAppServiceImpl) performDeployStageOnAcd(installedAppVersion 
 	}
 	return installedAppVersion, nil
 }
+
 func (impl InstalledAppServiceImpl) performDeployStage(installedAppVersionId int, installedAppVersionHistoryId int, userId int32) (*appStoreBean.InstallAppVersionDTO, error) {
 	ctx := context.Background()
 	installedAppVersion, err := impl.appStoreDeploymentService.GetInstalledAppVersion(installedAppVersionId, userId)
@@ -591,7 +554,7 @@ func (impl InstalledAppServiceImpl) performDeployStage(installedAppVersionId int
 	return installedAppVersion, nil
 }
 
-func (impl InstalledAppServiceImpl) requestBuilderForBulkDeployment(installRequest *appStoreBean.ChartGroupInstallChartRequest, projectId int, userId int32) (*appStoreBean.InstallAppVersionDTO, error) {
+func (impl InstalledAppServiceImpl) requestBuilderForBulkDeployment(installRequest *chartGroup.ChartGroupInstallChartRequest, projectId int, userId int32) (*appStoreBean.InstallAppVersionDTO, error) {
 	valYaml := installRequest.ValuesOverrideYaml
 	if valYaml == "" {
 		valVersion, err := impl.appStoreValuesService.FindValuesByIdAndKind(installRequest.ReferenceValueId, installRequest.ReferenceValueKind)
@@ -682,7 +645,7 @@ func (impl *InstalledAppServiceImpl) Subscribe() error {
 func (impl *InstalledAppServiceImpl) DeployDefaultChartOnCluster(bean *cluster2.ClusterBean, userId int32) (bool, error) {
 	// STEP 1 - create environment with name "devton"
 	impl.logger.Infow("STEP 1", "create environment for cluster component", bean)
-	envName := fmt.Sprintf("%d-%s", bean.Id, DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT)
+	envName := fmt.Sprintf("%d-%s", bean.Id, appStoreBean.DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT)
 	env, err := impl.envService.FindOne(envName)
 	if err != nil && err != pg.ErrNoRows {
 		return false, err
@@ -704,13 +667,13 @@ func (impl *InstalledAppServiceImpl) DeployDefaultChartOnCluster(bean *cluster2.
 
 	// STEP 2 - create project with name "devtron"
 	impl.logger.Info("STEP 2", "create project for cluster components")
-	t, err := impl.teamRepository.FindByTeamName(DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT)
+	t, err := impl.teamRepository.FindByTeamName(appStoreBean.DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT)
 	if err != nil && err != pg.ErrNoRows {
 		return false, err
 	}
 	if err == pg.ErrNoRows {
 		t := &repository4.Team{
-			Name:     DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT,
+			Name:     appStoreBean.DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT,
 			Active:   true,
 			AuditLog: sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
 		}
@@ -723,13 +686,13 @@ func (impl *InstalledAppServiceImpl) DeployDefaultChartOnCluster(bean *cluster2.
 
 	// STEP 3- read the input data from env variables
 	impl.logger.Info("STEP 3", "read the input data from env variables")
-	charts := &ChartComponents{}
-	var chartComponents []*ChartComponent
-	if _, err := os.Stat(CLUSTER_COMPONENT_DIR_PATH); os.IsNotExist(err) {
+	charts := &appStoreBean.ChartComponents{}
+	var chartComponents []*appStoreBean.ChartComponent
+	if _, err := os.Stat(appStoreBean.CLUSTER_COMPONENT_DIR_PATH); os.IsNotExist(err) {
 		impl.logger.Infow("default cluster component directory error", "cluster", bean.ClusterName, "err", err)
 		return false, nil
 	} else {
-		fileInfo, err := ioutil.ReadDir(CLUSTER_COMPONENT_DIR_PATH)
+		fileInfo, err := ioutil.ReadDir(appStoreBean.CLUSTER_COMPONENT_DIR_PATH)
 		if err != nil {
 			impl.logger.Errorw("DeployDefaultChartOnCluster, err while reading directory", "err", err)
 			return false, err
@@ -737,12 +700,12 @@ func (impl *InstalledAppServiceImpl) DeployDefaultChartOnCluster(bean *cluster2.
 		for _, file := range fileInfo {
 			impl.logger.Infow("file", "name", file.Name())
 			if strings.Contains(file.Name(), ".yaml") {
-				content, err := ioutil.ReadFile(fmt.Sprintf("%s/%s", CLUSTER_COMPONENT_DIR_PATH, file.Name()))
+				content, err := ioutil.ReadFile(fmt.Sprintf("%s/%s", appStoreBean.CLUSTER_COMPONENT_DIR_PATH, file.Name()))
 				if err != nil {
 					impl.logger.Errorw("DeployDefaultChartOnCluster, error on reading file", "err", err)
 					return false, err
 				}
-				chartComponent := &ChartComponent{
+				chartComponent := &appStoreBean.ChartComponent{
 					Name:   strings.ReplaceAll(file.Name(), ".yaml", ""),
 					Values: string(content),
 				}
@@ -756,17 +719,17 @@ func (impl *InstalledAppServiceImpl) DeployDefaultChartOnCluster(bean *cluster2.
 			// STEP 4 - prepare a bulk request (unique names need to apply for deploying chart)
 			// STEP 4.1 - fetch chart for required name(actual chart name (app-store)) with default values
 			// STEP 4.2 - update all the required charts, override values.yaml with env variables.
-			chartGroupInstallRequest := &appStoreBean.ChartGroupInstallRequest{}
+			chartGroupInstallRequest := &chartGroup.ChartGroupInstallRequest{}
 			chartGroupInstallRequest.ProjectId = t.Id
 			chartGroupInstallRequest.UserId = userId
-			var chartGroupInstallChartRequests []*appStoreBean.ChartGroupInstallChartRequest
+			var chartGroupInstallChartRequests []*chartGroup.ChartGroupInstallChartRequest
 			for _, item := range charts.ChartComponent {
 				appStore, err := impl.appStoreApplicationVersionRepository.FindByAppStoreName(item.Name)
 				if err != nil {
 					impl.logger.Errorw("DeployDefaultChartOnCluster, error in getting app store", "data", t, "err", err)
 					return false, err
 				}
-				chartGroupInstallChartRequest := &appStoreBean.ChartGroupInstallChartRequest{
+				chartGroupInstallChartRequest := &chartGroup.ChartGroupInstallChartRequest{
 					AppName:                 fmt.Sprintf("%d-%d-%s", bean.Id, env.Id, item.Name),
 					EnvironmentId:           env.Id,
 					ValuesOverrideYaml:      item.Values,
@@ -791,15 +754,7 @@ func (impl *InstalledAppServiceImpl) DeployDefaultChartOnCluster(bean *cluster2.
 	return true, nil
 }
 
-type ChartComponents struct {
-	ChartComponent []*ChartComponent `json:"charts"`
-}
-type ChartComponent struct {
-	Name   string `json:"name"`
-	Values string `json:"values"`
-}
-
-func (impl InstalledAppServiceImpl) DeployDefaultComponent(chartGroupInstallRequest *appStoreBean.ChartGroupInstallRequest) (*appStoreBean.ChartGroupInstallAppRes, error) {
+func (impl InstalledAppServiceImpl) DeployDefaultComponent(chartGroupInstallRequest *chartGroup.ChartGroupInstallRequest) (*chartGroup.ChartGroupInstallAppRes, error) {
 	impl.logger.Debugw("bulk app install request", "req", chartGroupInstallRequest)
 	//save in db
 	// raise nats event
@@ -862,7 +817,7 @@ func (impl InstalledAppServiceImpl) DeployDefaultComponent(chartGroupInstallRequ
 		}
 	}
 
-	return &appStoreBean.ChartGroupInstallAppRes{}, nil
+	return &chartGroup.ChartGroupInstallAppRes{}, nil
 }
 
 func (impl *InstalledAppServiceImpl) FindAppDetailsForAppstoreApplication(installedAppId, envId int) (bean2.AppDetailContainer, error) {
@@ -913,116 +868,6 @@ func (impl *InstalledAppServiceImpl) FindAppDetailsForAppstoreApplication(instal
 		DeploymentDetailContainer: deploymentContainer,
 	}
 	return appDetail, nil
-}
-func (impl *InstalledAppServiceImpl) FetchChartNotes(installedAppId int, envId int, token string, checkNotesAuth func(token string, appName string, envId int) bool) (string, error) {
-	//check notes.txt in db
-	installedApp, err := impl.installedAppRepository.FetchNotes(installedAppId)
-	if err != nil && err != pg.ErrNoRows {
-		return "", err
-	} else if err == pg.ErrNoRows {
-		impl.logger.Errorw("installed app not found or may have been deleted", "installedAppId", installedAppId, "envId", envId)
-		return "", &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: "400", UserMessage: "Installed app not found in database or may have been deleted", InternalMessage: err.Error()}
-	}
-	installedAppVerison, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppIdAndEnvId(installedAppId, envId)
-	if err != nil {
-		if err == pg.ErrNoRows {
-			return "", &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: "400", UserMessage: "values are outdated. please fetch the latest version and try again", InternalMessage: err.Error()}
-		}
-		impl.logger.Errorw("error fetching installed  app version in installed app service", "err", err)
-		return "", err
-	}
-	chartVersion := installedAppVerison.AppStoreApplicationVersion.Version
-	if err != nil {
-		impl.logger.Errorw("error fetching chart  version in installed app service", "err", err)
-		return "", err
-	}
-	re := regexp.MustCompile(`CHART VERSION: ([0-9]+\.[0-9]+\.[0-9]+)`)
-	newStr := re.ReplaceAllString(installedApp.Notes, "CHART VERSION: "+chartVersion)
-	installedApp.Notes = newStr
-	appName := installedApp.App.AppName
-	if err != nil {
-		impl.logger.Errorw("error fetching notes from db", "err", err)
-		return "", err
-	}
-	isValidAuth := checkNotesAuth(token, appName, envId)
-	if !isValidAuth {
-		impl.logger.Errorw("unauthorized user", "isValidAuth", isValidAuth)
-		return "", fmt.Errorf("unauthorized user")
-	}
-	//if notes is not present in db then below call will happen
-	if installedApp.Notes == "" {
-		notes, _, err := impl.FindNotesForArgoApplication(installedAppId, envId)
-		if err != nil {
-			impl.logger.Errorw("error fetching notes", "err", err)
-			return "", err
-		}
-		if notes == "" {
-			impl.logger.Errorw("error fetching notes", "err", err)
-		}
-		return notes, err
-	}
-
-	return installedApp.Notes, nil
-}
-func (impl *InstalledAppServiceImpl) FindNotesForArgoApplication(installedAppId, envId int) (string, string, error) {
-	installedAppVerison, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppIdAndEnvId(installedAppId, envId)
-	if err != nil {
-		impl.logger.Errorw("error fetching installed  app version in installed app service", "err", err)
-		return "", "", err
-	}
-	var notes string
-	appName := installedAppVerison.InstalledApp.App.AppName
-
-	if util.IsAcdApp(installedAppVerison.InstalledApp.DeploymentAppType) {
-		appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installedAppVerison.AppStoreApplicationVersion.Id)
-		if err != nil {
-			impl.logger.Errorw("error fetching app store app version in installed app service", "err", err)
-			return notes, appName, err
-		}
-		k8sServerVersion, err := impl.K8sUtil.GetKubeVersion()
-		if err != nil {
-			impl.logger.Errorw("exception caught in getting k8sServerVersion", "err", err)
-			return notes, appName, err
-		}
-
-		installReleaseRequest := &client.InstallReleaseRequest{
-			ChartName:    appStoreAppVersion.Name,
-			ChartVersion: appStoreAppVersion.Version,
-			ValuesYaml:   installedAppVerison.ValuesYaml,
-			K8SVersion:   k8sServerVersion.String(),
-			ChartRepository: &client.ChartRepository{
-				Name:     appStoreAppVersion.AppStore.ChartRepo.Name,
-				Url:      appStoreAppVersion.AppStore.ChartRepo.Url,
-				Username: appStoreAppVersion.AppStore.ChartRepo.UserName,
-				Password: appStoreAppVersion.AppStore.ChartRepo.Password,
-			},
-			ReleaseIdentifier: &client.ReleaseIdentifier{
-				ReleaseNamespace: installedAppVerison.InstalledApp.Environment.Namespace,
-				ReleaseName:      installedAppVerison.InstalledApp.App.AppName,
-			},
-		}
-
-		clusterId := installedAppVerison.InstalledApp.Environment.ClusterId
-		config, err := impl.helmAppService.GetClusterConf(clusterId)
-		if err != nil {
-			impl.logger.Errorw("error in fetching cluster detail", "clusterId", clusterId, "err", err)
-			return "", appName, err
-		}
-		installReleaseRequest.ReleaseIdentifier.ClusterConfig = config
-
-		notes, err = impl.helmAppService.GetNotes(context.Background(), installReleaseRequest)
-		if err != nil {
-			impl.logger.Errorw("error in fetching notes", "err", err)
-			return notes, appName, err
-		}
-		_, err = impl.appStoreDeploymentService.UpdateNotesForInstalledApp(installedAppId, notes)
-		if err != nil {
-			impl.logger.Errorw("error in updating notes in db ", "err", err)
-			return notes, appName, err
-		}
-	}
-
-	return notes, appName, nil
 }
 
 func (impl InstalledAppServiceImpl) GetInstalledAppVersionHistory(installedAppId int) (*appStoreBean.InstallAppVersionHistoryDto, error) {
@@ -1133,82 +978,6 @@ func (impl InstalledAppServiceImpl) GetInstalledAppVersionHistoryValues(installe
 	values.ValuesYaml = versionHistory.ValuesYamlRaw
 	return values, err
 }
-func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn http.CloseNotifier, appDetailsContainer *bean2.AppDetailsContainer, installedApp repository2.InstalledApps, helmReleaseInstallStatus string, status string) error {
-	var err error
-	var resourceTree map[string]interface{}
-	deploymentAppName := fmt.Sprintf("%s-%s", installedApp.App.AppName, installedApp.Environment.Name)
-	if util.IsAcdApp(installedApp.DeploymentAppType) {
-		resourceTree, err = impl.fetchResourceTreeForACD(rctx, cn, installedApp.App.Id, installedApp.EnvironmentId, installedApp.Environment.ClusterId, deploymentAppName, installedApp.Environment.Namespace)
-	} else if util.IsHelmApp(installedApp.DeploymentAppType) {
-		config, err := impl.helmAppService.GetClusterConf(installedApp.Environment.ClusterId)
-		if err != nil {
-			impl.logger.Errorw("error in fetching cluster detail", "err", err)
-		}
-		req := &client.AppDetailRequest{
-			ClusterConfig: config,
-			Namespace:     installedApp.Environment.Namespace,
-			ReleaseName:   installedApp.App.AppName,
-		}
-		detail, err := impl.helmAppClient.GetAppDetail(rctx, req)
-		if err != nil {
-			impl.logger.Errorw("error in fetching app detail", "err", err)
-		}
-
-		/* helmReleaseInstallStatus is nats message sent from kubelink to orchestrator and has the following details about installation :-
-		1) isReleaseInstalled -> whether release object is created or not in this installation
-		2) ErrorInInstallation -> if there is error in installation
-		3) Message -> error message/ success message
-		4) InstallAppVersionHistoryId
-		5) Status -> Progressing, Failed, Succeeded
-		*/
-
-		if detail != nil && detail.ReleaseExist {
-
-			resourceTree = util3.InterfaceToMapAdapter(detail.ResourceTreeResponse)
-			resourceTree["status"] = detail.ApplicationStatus
-			appDetailsContainer.Notes = detail.ChartMetadata.Notes
-
-			helmInstallStatus := &appStoreBean.HelmReleaseStatusConfig{}
-			releaseStatus := detail.ReleaseStatus
-
-			if len(helmReleaseInstallStatus) > 0 {
-				err := json.Unmarshal([]byte(helmReleaseInstallStatus), helmInstallStatus)
-				if err != nil {
-					impl.logger.Errorw("error in unmarshalling helm release install status")
-					return err
-				}
-				// ReleaseExist=true in app detail container but helm install status says that isReleaseInstalled=false which means this release was created externally
-				if helmInstallStatus.IsReleaseInstalled == false && status != "Progressing" {
-					/*
-						Handling case when :-
-						1) An external release with name "foo" exist
-						2) User creates an app with same name i.e "foo"
-						3) In this case we use helmReleaseInstallStatus which will have status of our release and not external release
-					*/
-					resourceTree = make(map[string]interface{})
-					releaseStatus = impl.getReleaseStatusFromHelmReleaseInstallStatus(helmReleaseInstallStatus, status)
-				}
-			}
-			releaseStatusMap := util3.InterfaceToMapAdapter(releaseStatus)
-			appDetailsContainer.ReleaseStatus = releaseStatusMap
-		} else {
-			// case when helm release is not created
-			releaseStatus := impl.getReleaseStatusFromHelmReleaseInstallStatus(helmReleaseInstallStatus, status)
-			releaseStatusMap := util3.InterfaceToMapAdapter(releaseStatus)
-			appDetailsContainer.ReleaseStatus = releaseStatusMap
-		}
-	}
-	if resourceTree != nil {
-		version, err := impl.k8sCommonService.GetK8sServerVersion(installedApp.Environment.ClusterId)
-		if err != nil {
-			impl.logger.Errorw("error in fetching k8s version in resource tree call fetching", "clusterId", installedApp.Environment.ClusterId, "err", err)
-		} else {
-			resourceTree["serverVersion"] = version.String()
-		}
-		appDetailsContainer.ResourceTree = resourceTree
-	}
-	return err
-}
 
 func (impl InstalledAppServiceImpl) getReleaseStatusFromHelmReleaseInstallStatus(helmReleaseInstallStatus string, status string) *client.ReleaseStatus {
 	//release status is sent in resource tree call and is shown on UI as helm config apply status
@@ -1220,22 +989,22 @@ func (impl InstalledAppServiceImpl) getReleaseStatusFromHelmReleaseInstallStatus
 			impl.logger.Errorw("error in unmarshalling helm release install status")
 			return releaseStatus
 		}
-		if status == HELM_RELEASE_STATUS_FAILED {
+		if status == appStoreBean.HELM_RELEASE_STATUS_FAILED {
 			releaseStatus.Status = status
 			releaseStatus.Description = helmInstallStatus.Message
 			releaseStatus.Message = "Release install/upgrade failed"
-		} else if status == HELM_RELEASE_STATUS_PROGRESSING {
+		} else if status == appStoreBean.HELM_RELEASE_STATUS_PROGRESSING {
 			releaseStatus.Status = status
 			releaseStatus.Description = helmInstallStatus.Message
 			releaseStatus.Message = helmInstallStatus.Message
 		} else {
 			// there can be a case when helm release is created but we are not able to fetch it
-			releaseStatus.Status = HELM_RELEASE_STATUS_UNKNOWN
+			releaseStatus.Status = appStoreBean.HELM_RELEASE_STATUS_UNKNOWN
 			releaseStatus.Description = "Unable to fetch release for app"
 			releaseStatus.Message = "Unable to fetch release for app"
 		}
 	} else {
-		releaseStatus.Status = HELM_RELEASE_STATUS_UNKNOWN
+		releaseStatus.Status = appStoreBean.HELM_RELEASE_STATUS_UNKNOWN
 		releaseStatus.Description = "Release not found"
 		releaseStatus.Message = "Release not found "
 	}
@@ -1302,234 +1071,4 @@ func (impl InstalledAppServiceImpl) CheckAppExistsByInstalledAppId(installedAppI
 		return nil, err
 	}
 	return installedApp, err
-}
-
-func (impl InstalledAppServiceImpl) FetchResourceTreeWithHibernateForACD(rctx context.Context, cn http.CloseNotifier, appDetail *bean2.AppDetailContainer) bean2.AppDetailContainer {
-	ctx, cancel := context.WithCancel(rctx)
-	if cn != nil {
-		go func(done <-chan struct{}, closed <-chan bool) {
-			select {
-			case <-done:
-			case <-closed:
-				cancel()
-			}
-		}(ctx.Done(), cn.CloseNotify())
-	}
-	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		impl.logger.Errorw("error in getting acd token", "err", err)
-		return *appDetail
-	}
-	ctx = context.WithValue(ctx, "token", acdToken)
-	defer cancel()
-	deploymentAppName := fmt.Sprintf("%s-%s", appDetail.AppName, appDetail.EnvironmentName)
-	resourceTree, err := impl.fetchResourceTreeForACD(rctx, cn, appDetail.InstalledAppId, appDetail.EnvironmentId, appDetail.ClusterId, deploymentAppName, appDetail.Namespace)
-	appDetail.ResourceTree = resourceTree
-	if err != nil {
-		return *appDetail
-	}
-	if appDetail.ResourceTree["nodes"] == nil {
-		return *appDetail
-	}
-	appDetail.ResourceTree, _ = impl.checkHibernate(appDetail.ResourceTree, deploymentAppName, ctx)
-	return *appDetail
-}
-func (impl InstalledAppServiceImpl) checkHibernate(resp map[string]interface{}, deploymentAppName string, ctx context.Context) (map[string]interface{}, string) {
-
-	if resp == nil {
-		return resp, ""
-	}
-	responseTree := resp
-	var canBeHibernated uint64 = 0
-	var hibernated uint64 = 0
-	responseTreeNodes, ok := responseTree["nodes"]
-	if !ok {
-		return resp, ""
-	}
-	replicaNodes := impl.filterOutReplicaNodes(responseTreeNodes)
-	batchSize := impl.aCDAuthConfig.ResourceListForReplicasBatchSize
-	requestsLength := len(replicaNodes)
-	for i := 0; i < requestsLength; {
-		//requests left to process
-		remainingBatch := requestsLength - i
-		if remainingBatch < batchSize {
-			batchSize = remainingBatch
-		}
-		var wg sync.WaitGroup
-		for j := 0; j < batchSize; j++ {
-			wg.Add(1)
-			go func(j int) {
-				defer wg.Done()
-				canBeHibernatedFlag, hibernatedFlag := impl.processReplicaNodeForHibernation(replicaNodes[i+j], deploymentAppName, ctx)
-				if canBeHibernatedFlag {
-					atomic.AddUint64(&canBeHibernated, 1)
-				}
-				if hibernatedFlag {
-					atomic.AddUint64(&hibernated, 1)
-				}
-			}(j)
-		}
-		wg.Wait()
-		i += batchSize
-	}
-
-	status := ""
-	if hibernated > 0 && canBeHibernated > 0 {
-		if hibernated == canBeHibernated {
-			status = appStatus.HealthStatusHibernating
-		} else if hibernated < canBeHibernated {
-			status = appStatus.HealthStatusPartiallyHibernated
-		}
-	}
-
-	return responseTree, status
-}
-
-func (impl InstalledAppServiceImpl) processReplicaNodeForHibernation(node interface{}, deploymentAppName string, ctx context.Context) (bool, bool) {
-	currNode := node.(interface{}).(map[string]interface{})
-	resName := util3.InterfaceToString(currNode["name"])
-	resKind := util3.InterfaceToString(currNode["kind"])
-	resGroup := util3.InterfaceToString(currNode["group"])
-	resVersion := util3.InterfaceToString(currNode["version"])
-	resNamespace := util3.InterfaceToString(currNode["namespace"])
-	rQuery := &application.ApplicationResourceRequest{
-		Name:         &deploymentAppName,
-		ResourceName: &resName,
-		Kind:         &resKind,
-		Group:        &resGroup,
-		Version:      &resVersion,
-		Namespace:    &resNamespace,
-	}
-	canBeHibernatedFlag := false
-	alreadyHibernated := false
-
-	if currNode["parentRefs"] == nil {
-		canBeHibernatedFlag, alreadyHibernated = impl.checkForHibernation(ctx, rQuery, currNode)
-	}
-	return canBeHibernatedFlag, alreadyHibernated
-}
-
-func (impl InstalledAppServiceImpl) checkForHibernation(ctx context.Context, rQuery *application.ApplicationResourceRequest, currNode map[string]interface{}) (bool, bool) {
-	t0 := time.Now()
-	canBeHibernated := false
-	alreadyHibernated := false
-	ctx, _ = context.WithTimeout(ctx, 60*time.Second)
-	res, err := impl.acdClient.GetResource(ctx, rQuery)
-	if err != nil {
-		impl.logger.Errorw("error getting response from acdClient", "request", rQuery, "data", res, "timeTaken", time.Since(t0), "err", err)
-		return canBeHibernated, alreadyHibernated
-	}
-	if res.Manifest != nil {
-		manifest, _ := gjson.Parse(*res.Manifest).Value().(map[string]interface{})
-		replicas := util3.InterfaceToMapAdapter(manifest["spec"])["replicas"]
-		if replicas != nil {
-			currNode["canBeHibernated"] = true
-			canBeHibernated = true
-		}
-		annotations := util3.InterfaceToMapAdapter(manifest["metadata"])["annotations"]
-		if annotations != nil {
-			val := util3.InterfaceToMapAdapter(annotations)["hibernator.devtron.ai/replicas"]
-			if val != nil {
-				if util3.InterfaceToString(val) != "0" && util3.InterfaceToFloat(replicas) == 0 {
-					currNode["isHibernated"] = true
-					alreadyHibernated = true
-				}
-			}
-		}
-	}
-	return canBeHibernated, alreadyHibernated
-}
-
-func (impl InstalledAppServiceImpl) fetchResourceTreeForACD(rctx context.Context, cn http.CloseNotifier, appId int, envId, clusterId int, deploymentAppName, namespace string) (map[string]interface{}, error) {
-	var resourceTree map[string]interface{}
-	query := &application.ResourcesQuery{
-		ApplicationName: &deploymentAppName,
-	}
-	ctx, cancel := context.WithCancel(rctx)
-	if cn != nil {
-		go func(done <-chan struct{}, closed <-chan bool) {
-			select {
-			case <-done:
-			case <-closed:
-				cancel()
-			}
-		}(ctx.Done(), cn.CloseNotify())
-	}
-	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		impl.logger.Errorw("error in getting acd token", "err", err)
-		return resourceTree, err
-	}
-	ctx = context.WithValue(ctx, "token", acdToken)
-	defer cancel()
-	start := time.Now()
-	resp, err := impl.acdClient.ResourceTree(ctx, query)
-	elapsed := time.Since(start)
-	impl.logger.Debugf("Time elapsed %s in fetching app-store installed application %s for environment %s", elapsed, deploymentAppName, envId)
-	if err != nil {
-		impl.logger.Errorw("service err, FetchAppDetailsForInstalledAppV2, fetching resource tree", "err", err, "installedAppId", appId, "envId", envId)
-		err = &util.ApiError{
-			Code:            constants.AppDetailResourceTreeNotFound,
-			InternalMessage: "app detail fetched, failed to get resource tree from acd",
-			UserMessage:     "app detail fetched, failed to get resource tree from acd",
-		}
-		return resourceTree, err
-	}
-	label := fmt.Sprintf("app.kubernetes.io/instance=%s", deploymentAppName)
-	pods, err := impl.k8sApplicationService.GetPodListByLabel(clusterId, namespace, label)
-	if err != nil {
-		impl.logger.Errorw("error in getting pods by label", "err", err, "clusterId", clusterId, "namespace", namespace, "label", label)
-		return resourceTree, err
-	}
-	ephemeralContainersMap := k8sObjectUtils.ExtractEphemeralContainers(pods)
-	for _, metaData := range resp.PodMetadata {
-		metaData.EphemeralContainers = ephemeralContainersMap[metaData.Name]
-	}
-	resourceTree = util3.InterfaceToMapAdapter(resp)
-	resourceTree, hibernationStatus := impl.checkHibernate(resourceTree, deploymentAppName, ctx)
-	appStatus := resp.Status
-	if resourceTree != nil {
-		if hibernationStatus != "" {
-			resourceTree["status"] = hibernationStatus
-			appStatus = hibernationStatus
-		}
-	}
-	// using this resp.Status to update in app_status table
-	go func() {
-		err = impl.appStatusService.UpdateStatusWithAppIdEnvId(appId, envId, appStatus)
-		if err != nil {
-			impl.logger.Warnw("error in updating app status", "err", err, appId, "envId", envId)
-		}
-	}()
-	impl.logger.Debugf("application %s in environment %s had status %+v\n", appId, envId, resp)
-	k8sAppDetail := bean2.AppDetailContainer{
-		DeploymentDetailContainer: bean2.DeploymentDetailContainer{
-			ClusterId: clusterId,
-			Namespace: namespace,
-		},
-	}
-	clusterIdString := strconv.Itoa(clusterId)
-	validRequest := impl.k8sCommonService.FilterK8sResources(rctx, resourceTree, k8sAppDetail, clusterIdString, []string{k8sCommonBean.ServiceKind, k8sCommonBean.EndpointsKind, k8sCommonBean.IngressKind})
-	response, err := impl.k8sCommonService.GetManifestsByBatch(rctx, validRequest)
-	if err != nil {
-		impl.logger.Errorw("error in getting manifest by batch", "err", err, "clusterId", clusterIdString)
-		return nil, err
-	}
-	newResourceTree := impl.k8sCommonService.PortNumberExtraction(response, resourceTree)
-	return newResourceTree, err
-}
-
-func (impl InstalledAppServiceImpl) filterOutReplicaNodes(responseTreeNodes interface{}) []interface{} {
-	resourceListForReplicas := impl.aCDAuthConfig.ResourceListForReplicas
-	entries := strings.Split(resourceListForReplicas, ",")
-	resourceListMap := util3.ConvertStringSliceToMap(entries)
-	var replicaNodes []interface{}
-	for _, node := range responseTreeNodes.(interface{}).([]interface{}) {
-		currNode := node.(interface{}).(map[string]interface{})
-		resKind := util3.InterfaceToString(currNode["kind"])
-		if _, ok := resourceListMap[resKind]; ok {
-			replicaNodes = append(replicaNodes, node)
-		}
-	}
-	return replicaNodes
 }

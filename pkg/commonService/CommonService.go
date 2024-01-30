@@ -29,6 +29,7 @@ import (
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/team"
+	"github.com/devtron-labs/devtron/util/gitUtil"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -219,7 +220,7 @@ func (impl *CommonServiceImpl) ValidateUniqueGitOpsRepo(repoUrl string) (isValid
 		impl.logger.Errorw("repository is already in use for devtron app", "repoUrl", repoUrl, "appId", chart.AppId)
 		return isValid
 	}
-	repoName := util.GetGitRepoNameFromGitRepoUrl(repoUrl)
+	repoName := gitUtil.GetGitRepoNameFromGitRepoUrl(repoUrl)
 	installedAppModel, err := impl.installedAppRepository.GetInstalledAppByGitRepoUrl(repoName, repoUrl)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Errorw("error in fetching chart", "repoUrl", repoUrl, "err", err)

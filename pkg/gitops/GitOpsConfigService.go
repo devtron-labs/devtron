@@ -23,6 +23,7 @@ import (
 	"fmt"
 	util4 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/pkg/commonService"
+	"github.com/devtron-labs/devtron/util/gitUtil"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -858,7 +859,7 @@ func (impl GitOpsConfigServiceImpl) ValidateCustomGitRepoURL(request ValidateCus
 	if request.GitRepoURL == bean2.GIT_REPO_DEFAULT {
 		gitOpsRepoName = impl.chartTemplateService.GetGitOpsRepoName(request.AppName)
 	} else {
-		gitOpsRepoName = util.GetGitRepoNameFromGitRepoUrl(request.GitRepoURL)
+		gitOpsRepoName = gitUtil.GetGitRepoNameFromGitRepoUrl(request.GitRepoURL)
 	}
 
 	// CreateGitRepositoryForApp will try to create repository if not present, and returns a sanitized repo url, use this repo url to maintain uniformity

@@ -5,6 +5,7 @@ import (
 	repository3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	repository4 "github.com/devtron-labs/devtron/client/argocdServer/repository"
+	"github.com/devtron-labs/devtron/util/gitUtil"
 	"go.uber.org/zap"
 	"strings"
 	"time"
@@ -43,7 +44,7 @@ func (impl *ChartDeploymentServiceImpl) handleArgoRepoCreationError(retryCount i
 	}
 	if notArgoRepoCreationErrorMessage {
 		// - found empty repository, create some file in repository
-		gitOpsRepoName := GetGitRepoNameFromGitRepoUrl(repoUrl)
+		gitOpsRepoName := gitUtil.GetGitRepoNameFromGitRepoUrl(repoUrl)
 		err := impl.chartTemplateService.CreateReadmeInGitRepo(gitOpsRepoName, userId)
 		if err != nil {
 			impl.logger.Errorw("error in creating file in git repo", "err", err)

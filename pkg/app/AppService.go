@@ -111,7 +111,6 @@ type AppServiceImpl struct {
 	ciArtifactRepository                   repository.CiArtifactRepository
 	pipelineRepository                     pipelineConfig.PipelineRepository
 	gitFactory                             *GitFactory
-	dbMigrationConfigRepository            pipelineConfig.DbMigrationConfigRepository
 	eventClient                            client.EventClient
 	eventFactory                           client.EventFactory
 	acdClient                              application.ServiceClient
@@ -201,7 +200,6 @@ func NewAppService(
 	logger *zap.SugaredLogger,
 	ciArtifactRepository repository.CiArtifactRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
-	dbMigrationConfigRepository pipelineConfig.DbMigrationConfigRepository,
 	eventClient client.EventClient,
 	eventFactory client.EventFactory, acdClient application.ServiceClient,
 	cache *util3.TokenCache, authConfig *util3.ACDAuthConfig,
@@ -260,7 +258,6 @@ func NewAppService(
 		logger:                                 logger,
 		ciArtifactRepository:                   ciArtifactRepository,
 		pipelineRepository:                     pipelineRepository,
-		dbMigrationConfigRepository:            dbMigrationConfigRepository,
 		eventClient:                            eventClient,
 		eventFactory:                           eventFactory,
 		acdClient:                              acdClient,

@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	errors3 "errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/util/gitUtil"
 	"path"
 	"strconv"
 	"strings"
@@ -48,6 +49,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
+	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
@@ -135,8 +137,6 @@ type WorkflowDagExecutorImpl struct {
 	enforcer                      casbin.Enforcer
 	enforcerUtil                  rbac.EnforcerUtil
 	groupRepository               repository.DeploymentGroupRepository
-	tokenCache                    *util3.TokenCache
-	acdAuthConfig                 *util3.ACDAuthConfig
 	envRepository                 repository2.EnvironmentRepository
 	eventFactory                  client.EventFactory
 	eventClient                   client.EventClient
@@ -158,9 +158,8 @@ type WorkflowDagExecutorImpl struct {
 	appServiceConfig              *app.AppServiceConfig
 	globalPluginService           plugin.GlobalPluginService
 
-	scopedVariableManager          variables.ScopedVariableCMCSManager
-	variableSnapshotHistoryService variables.VariableSnapshotHistoryService
-	pluginInputVariableParser      PluginInputVariableParser
+	scopedVariableManager     variables.ScopedVariableCMCSManager
+	pluginInputVariableParser PluginInputVariableParser
 
 	devtronAsyncHelmInstallRequestMap  map[int]bool
 	devtronAsyncHelmInstallRequestLock *sync.Mutex
@@ -193,7 +192,6 @@ type WorkflowDagExecutorImpl struct {
 	environmentConfigRepository         chartConfig.EnvConfigOverrideRepository
 	appLevelMetricsRepository           repository.AppLevelMetricsRepository
 	envLevelMetricsRepository           repository.EnvLevelAppMetricsRepository
-	dbMigrationConfigRepository         pipelineConfig.DbMigrationConfigRepository
 	mergeUtil                           *util.MergeUtil
 	gitOpsConfigRepository              repository.GitOpsConfigRepository
 	gitFactory                          *util.GitFactory
@@ -202,6 +200,7 @@ type WorkflowDagExecutorImpl struct {
 	pipelineConfigListenerService       PipelineConfigListenerService
 	customTagService                    CustomTagService
 	ACDConfig                           *argocdServer.ACDConfig
+	imageDigestPolicyService            imageDigestPolicy.ImageDigestPolicyService
 }
 
 const kedaAutoscaling = "kedaAutoscaling"
@@ -276,8 +275,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	user user.UserService,
 	groupRepository repository.DeploymentGroupRepository,
 	envRepository repository2.EnvironmentRepository,
-	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, tokenCache *util3.TokenCache,
-	acdAuthConfig *util3.ACDAuthConfig, eventFactory client.EventFactory,
+	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, eventFactory client.EventFactory,
 	eventClient client.EventClient, cvePolicyRepository security.CvePolicyRepository,
 	scanResultRepository security.ImageScanResultRepository,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
@@ -289,7 +287,6 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	appLabelRepository pipelineConfig.AppLabelRepository, gitSensorGrpcClient gitSensorClient.Client,
 	pipelineStageService PipelineStageService, k8sCommonService k8s.K8sCommonService,
-	variableSnapshotHistoryService variables.VariableSnapshotHistoryService,
 	globalPluginService plugin.GlobalPluginService,
 	pluginInputVariableParser PluginInputVariableParser,
 	scopedVariableManager variables.ScopedVariableCMCSManager,
@@ -320,7 +317,6 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	environmentConfigRepository chartConfig.EnvConfigOverrideRepository,
 	appLevelMetricsRepository repository.AppLevelMetricsRepository,
 	envLevelMetricsRepository repository.EnvLevelAppMetricsRepository,
-	dbMigrationConfigRepository pipelineConfig.DbMigrationConfigRepository,
 	mergeUtil *util.MergeUtil,
 	gitOpsConfigRepository repository.GitOpsConfigRepository,
 	gitFactory *util.GitFactory,
@@ -329,6 +325,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	pipelineConfigListenerService PipelineConfigListenerService,
 	customTagService CustomTagService,
 	ACDConfig *argocdServer.ACDConfig,
+	imageDigestPolicyService imageDigestPolicy.ImageDigestPolicyService,
 ) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
@@ -344,8 +341,6 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		enforcer:                      enforcer,
 		enforcerUtil:                  enforcerUtil,
 		groupRepository:               groupRepository,
-		tokenCache:                    tokenCache,
-		acdAuthConfig:                 acdAuthConfig,
 		envRepository:                 envRepository,
 		eventFactory:                  eventFactory,
 		eventClient:                   eventClient,
@@ -397,7 +392,6 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		environmentConfigRepository:         environmentConfigRepository,
 		appLevelMetricsRepository:           appLevelMetricsRepository,
 		envLevelMetricsRepository:           envLevelMetricsRepository,
-		dbMigrationConfigRepository:         dbMigrationConfigRepository,
 		mergeUtil:                           mergeUtil,
 		gitOpsConfigRepository:              gitOpsConfigRepository,
 		gitFactory:                          gitFactory,
@@ -406,6 +400,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		pipelineConfigListenerService:       pipelineConfigListenerService,
 		customTagService:                    customTagService,
 		ACDConfig:                           ACDConfig,
+		imageDigestPolicyService:            imageDigestPolicyService,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -1263,7 +1258,9 @@ func (impl *WorkflowDagExecutorImpl) SetCopyContainerImagePluginDataInWorkflowRe
 			}
 
 			if !customTag.Enabled {
-				DockerImageTag = ""
+				// case when custom tag is not configured - source image tag will be taken as docker image tag
+				pluginTriggerImageSplit := strings.Split(artifact.Image, ":")
+				DockerImageTag = pluginTriggerImageSplit[len(pluginTriggerImageSplit)-1]
 			} else {
 				// for copyContainerImage plugin parse destination images and save its data in image path reservation table
 				customTagDbObject, customDockerImageTag, err := impl.customTagService.GetCustomTag(pipelineStageEntityType, strconv.Itoa(pipelineId))
@@ -1755,6 +1752,16 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		}
 	}
 
+	digestConfigurationRequest := imageDigestPolicy.DigestPolicyConfigurationRequest{PipelineId: cdPipeline.Id}
+	digestPolicyConfigurations, err := impl.imageDigestPolicyService.GetDigestPolicyConfigurations(digestConfigurationRequest)
+	if err != nil {
+		impl.logger.Errorw("error in checking if isImageDigestPolicyConfiguredForPipeline", "err", err, "pipelineId", cdPipeline.Id)
+		return nil, err
+	}
+	image := artifact.Image
+	if digestPolicyConfigurations.UseDigestForTrigger() {
+		image = ReplaceImageTagWithDigest(image, artifact.ImageDigest)
+	}
 	cdStageWorkflowRequest := &types.WorkflowRequest{
 		EnvironmentId:         cdPipeline.EnvironmentId,
 		AppId:                 cdPipeline.AppId,
@@ -2007,6 +2014,12 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 	cdStageWorkflowRequest.DefaultAddressPoolBaseCidr = impl.config.GetDefaultAddressPoolBaseCidr()
 	cdStageWorkflowRequest.DefaultAddressPoolSize = impl.config.GetDefaultAddressPoolSize()
 	return cdStageWorkflowRequest, nil
+}
+
+func ReplaceImageTagWithDigest(image, digest string) string {
+	imageWithoutTag := strings.Split(image, ":")[0]
+	imageWithDigest := fmt.Sprintf("%s@%s", imageWithoutTag, digest)
+	return imageWithDigest
 }
 
 func (impl *WorkflowDagExecutorImpl) buildDefaultArtifactLocation(cdWorkflowConfig *pipelineConfig.CdWorkflowConfig, savedWf *pipelineConfig.CdWorkflow, runner *pipelineConfig.CdWorkflowRunner) string {
@@ -3517,8 +3530,8 @@ func (impl *WorkflowDagExecutorImpl) GetValuesOverrideForTrigger(overrideRequest
 		return valuesOverrideResponse, err
 	}
 	var (
-		pipelineOverride                                     *chartConfig.PipelineOverride
-		dbMigrationOverride, configMapJson, appLabelJsonByte []byte
+		pipelineOverride                *chartConfig.PipelineOverride
+		configMapJson, appLabelJsonByte []byte
 	)
 
 	// Conditional Block based on PipelineOverrideCreated --> start
@@ -3549,15 +3562,6 @@ func (impl *WorkflowDagExecutorImpl) GetValuesOverrideForTrigger(overrideRequest
 
 	// Conditional Block based on PipelineOverrideCreated --> start
 	if !isPipelineOverrideCreated {
-		_, span = otel.Tracer("orchestrator").Start(ctx, "getDbMigrationOverride")
-		//FIXME: how to determine rollback
-		//we can't depend on ciArtifact ID because CI pipeline can be manually triggered in any order regardless of sourcecode status
-		dbMigrationOverride, err = impl.getDbMigrationOverride(overrideRequest, artifact, false)
-		span.End()
-		if err != nil {
-			impl.logger.Errorw("error in fetching db migration config", "req", overrideRequest, "err", err)
-			return valuesOverrideResponse, err
-		}
 		chartVersion := envOverride.Chart.ChartVersion
 		_, span = otel.Tracer("orchestrator").Start(ctx, "getConfigMapAndSecretJsonV2")
 		scope := getScopeForVariables(overrideRequest, envOverride)
@@ -3577,7 +3581,7 @@ func (impl *WorkflowDagExecutorImpl) GetValuesOverrideForTrigger(overrideRequest
 			appLabelJsonByte = nil
 		}
 
-		mergedValues, err := impl.mergeOverrideValues(envOverride, dbMigrationOverride, releaseOverrideJson, configMapJson, appLabelJsonByte, strategy)
+		mergedValues, err := impl.mergeOverrideValues(envOverride, releaseOverrideJson, configMapJson, appLabelJsonByte, strategy)
 		appName := fmt.Sprintf("%s-%s", overrideRequest.AppName, envOverride.Environment.Name)
 		mergedValues = impl.autoscalingCheckBeforeTrigger(ctx, appName, envOverride.Namespace, mergedValues, overrideRequest)
 
@@ -4099,70 +4103,6 @@ func (impl *WorkflowDagExecutorImpl) GetAppMetricsByTriggerType(overrideRequest 
 	return appMetrics, nil
 }
 
-func (impl *WorkflowDagExecutorImpl) getDbMigrationOverride(overrideRequest *bean.ValuesOverrideRequest, artifact *repository.CiArtifact, isRollback bool) (overrideJson []byte, err error) {
-	if isRollback {
-		return nil, fmt.Errorf("rollback not supported ye")
-	}
-	notConfigured := false
-	config, err := impl.dbMigrationConfigRepository.FindByPipelineId(overrideRequest.PipelineId)
-	if err != nil && !util.IsErrNoRows(err) {
-		impl.logger.Errorw("error in fetching pipeline override config", "req", overrideRequest, "err", err)
-		return nil, err
-	} else if util.IsErrNoRows(err) {
-		notConfigured = true
-	}
-	envVal := &EnvironmentOverride{}
-	if notConfigured {
-		impl.logger.Warnw("no active db migration found", "pipeline", overrideRequest.PipelineId)
-		envVal.Enabled = false
-	} else {
-		materialInfos, err := artifact.ParseMaterialInfo()
-		if err != nil {
-			return nil, err
-		}
-
-		hash, ok := materialInfos[config.GitMaterial.Url]
-		if !ok {
-			impl.logger.Errorf("wrong url map ", "map", materialInfos, "url", config.GitMaterial.Url)
-			return nil, fmt.Errorf("configured url not found in material %s", config.GitMaterial.Url)
-		}
-
-		envVal.Enabled = true
-		if config.GitMaterial.GitProvider.AuthMode != repository.AUTH_MODE_USERNAME_PASSWORD &&
-			config.GitMaterial.GitProvider.AuthMode != repository.AUTH_MODE_ACCESS_TOKEN &&
-			config.GitMaterial.GitProvider.AuthMode != repository.AUTH_MODE_ANONYMOUS {
-			return nil, fmt.Errorf("auth mode %s not supported for migration", config.GitMaterial.GitProvider.AuthMode)
-		}
-		envVal.appendEnvironmentVariable("GIT_REPO_URL", config.GitMaterial.Url)
-		envVal.appendEnvironmentVariable("GIT_USER", config.GitMaterial.GitProvider.UserName)
-		var password string
-		if config.GitMaterial.GitProvider.AuthMode == repository.AUTH_MODE_USERNAME_PASSWORD {
-			password = config.GitMaterial.GitProvider.Password
-		} else {
-			password = config.GitMaterial.GitProvider.AccessToken
-		}
-		envVal.appendEnvironmentVariable("GIT_AUTH_TOKEN", password)
-		// parse git-tag not required
-		//envVal.appendEnvironmentVariable("GIT_TAG", "")
-		envVal.appendEnvironmentVariable("GIT_HASH", hash)
-		envVal.appendEnvironmentVariable("SCRIPT_LOCATION", config.ScriptSource)
-		envVal.appendEnvironmentVariable("DB_TYPE", string(config.DbConfig.Type))
-		envVal.appendEnvironmentVariable("DB_USER_NAME", config.DbConfig.UserName)
-		envVal.appendEnvironmentVariable("DB_PASSWORD", config.DbConfig.Password)
-		envVal.appendEnvironmentVariable("DB_HOST", config.DbConfig.Host)
-		envVal.appendEnvironmentVariable("DB_PORT", config.DbConfig.Port)
-		envVal.appendEnvironmentVariable("DB_NAME", config.DbConfig.DbName)
-		//Will be used for rollback don't delete it
-		//envVal.appendEnvironmentVariable("MIGRATE_TO_VERSION", strconv.Itoa(overrideRequest.TargetDbVersion))
-	}
-	dbMigrationConfig := map[string]interface{}{"dbMigrationConfig": envVal}
-	confByte, err := json.Marshal(dbMigrationConfig)
-	if err != nil {
-		return nil, err
-	}
-	return confByte, nil
-}
-
 type ConfigMapAndSecretJsonV2 struct {
 	AppId                                 int
 	EnvId                                 int
@@ -4328,6 +4268,18 @@ func (impl *WorkflowDagExecutorImpl) getReleaseOverride(envOverride *chartConfig
 	if strategy != nil {
 		deploymentStrategy = string(strategy.Strategy)
 	}
+
+	digestConfigurationRequest := imageDigestPolicy.DigestPolicyConfigurationRequest{PipelineId: overrideRequest.PipelineId}
+	digestPolicyConfigurations, err := impl.imageDigestPolicyService.GetDigestPolicyConfigurations(digestConfigurationRequest)
+	if err != nil {
+		impl.logger.Errorw("error in checking if isImageDigestPolicyConfiguredForPipeline", "err", err, "pipelineId", overrideRequest.PipelineId)
+		return "", err
+	}
+
+	if digestPolicyConfigurations.UseDigestForTrigger() {
+		imageTag[imageTagLen-1] = fmt.Sprintf("%s@%s", imageTag[imageTagLen-1], artifact.ImageDigest)
+	}
+
 	releaseAttribute := app.ReleaseAttributes{
 		Name:           imageName,
 		Tag:            imageTag[imageTagLen-1],
@@ -4356,142 +4308,7 @@ func (impl *WorkflowDagExecutorImpl) getReleaseOverride(envOverride *chartConfig
 	return override, nil
 }
 
-func (impl *WorkflowDagExecutorImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverride,
-	overrideRequest *bean.ValuesOverrideRequest,
-	dbMigrationOverride []byte,
-	artifact *repository.CiArtifact,
-	pipeline *pipelineConfig.Pipeline, configMapJson, appLabelJsonByte []byte, strategy *chartConfig.PipelineStrategy, ctx context.Context,
-	triggeredAt time.Time, deployedBy int32, appMetrics *bool) (releaseId int, overrideId int, mergedValues string, err error) {
-
-	//register release , obtain release id TODO: populate releaseId to template
-	override, err := impl.savePipelineOverride(overrideRequest, envOverride.Id, triggeredAt)
-	if err != nil {
-		return 0, 0, "", err
-	}
-	//TODO: check status and apply lock
-	overrideJson, err := impl.getReleaseOverride(envOverride, overrideRequest, artifact, override, strategy, appMetrics)
-	if err != nil {
-		return 0, 0, "", err
-	}
-
-	//merge three values on the fly
-	//ordering is important here
-	//global < environment < db< release
-	var merged []byte
-	if !envOverride.IsOverride {
-		merged, err = impl.mergeUtil.JsonPatch([]byte("{}"), []byte(envOverride.Chart.GlobalOverride))
-		if err != nil {
-			return 0, 0, "", err
-		}
-	} else {
-		merged, err = impl.mergeUtil.JsonPatch([]byte("{}"), []byte(envOverride.EnvOverrideValues))
-		if err != nil {
-			return 0, 0, "", err
-		}
-	}
-
-	//pipeline override here comes from pipeline strategy table
-	if strategy != nil && len(strategy.Config) > 0 {
-		merged, err = impl.mergeUtil.JsonPatch(merged, []byte(strategy.Config))
-		if err != nil {
-			return 0, 0, "", err
-		}
-	}
-	merged, err = impl.mergeUtil.JsonPatch(merged, dbMigrationOverride)
-	if err != nil {
-		return 0, 0, "", err
-	}
-	merged, err = impl.mergeUtil.JsonPatch(merged, []byte(overrideJson))
-	if err != nil {
-		return 0, 0, "", err
-	}
-
-	if configMapJson != nil {
-		merged, err = impl.mergeUtil.JsonPatch(merged, configMapJson)
-		if err != nil {
-			return 0, 0, "", err
-		}
-	}
-
-	if appLabelJsonByte != nil {
-		merged, err = impl.mergeUtil.JsonPatch(merged, appLabelJsonByte)
-		if err != nil {
-			return 0, 0, "", err
-		}
-	}
-
-	appName := fmt.Sprintf("%s-%s", pipeline.App.AppName, envOverride.Environment.Name)
-	merged = impl.autoscalingCheckBeforeTrigger(ctx, appName, envOverride.Namespace, merged, overrideRequest)
-
-	_, span := otel.Tracer("orchestrator").Start(ctx, "dockerRegistryIpsConfigService.HandleImagePullSecretOnApplicationDeployment")
-	// handle image pull secret if access given
-	merged, err = impl.dockerRegistryIpsConfigService.HandleImagePullSecretOnApplicationDeployment(envOverride.Environment, artifact, pipeline.CiPipelineId, merged)
-	span.End()
-	if err != nil {
-		return 0, 0, "", err
-	}
-
-	commitHash := ""
-	commitTime := time.Time{}
-	if util.IsAcdApp(pipeline.DeploymentAppType) {
-		chartRepoName := util.GetGitRepoNameFromGitRepoUrl(envOverride.Chart.GitRepoUrl)
-		_, span = otel.Tracer("orchestrator").Start(ctx, "chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit")
-		//getting username & emailId for commit author data
-		userEmailId, userName := impl.chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit(overrideRequest.UserId)
-		span.End()
-		chartGitAttr := &util.ChartConfig{
-			FileName:       fmt.Sprintf("_%d-values.yaml", envOverride.TargetEnvironment),
-			FileContent:    string(merged),
-			ChartName:      envOverride.Chart.ChartName,
-			ChartLocation:  envOverride.Chart.ChartLocation,
-			ChartRepoName:  chartRepoName,
-			ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", override.Id, envOverride.TargetEnvironment),
-			UserName:       userName,
-			UserEmailId:    userEmailId,
-		}
-		gitOpsConfigBitbucket, err := impl.gitOpsConfigRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
-		if err != nil {
-			if err == pg.ErrNoRows {
-				gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
-			} else {
-				return 0, 0, "", err
-			}
-		}
-		gitOpsConfig := &bean.GitOpsConfigDto{BitBucketWorkspaceId: gitOpsConfigBitbucket.BitBucketWorkspaceId}
-		_, span = otel.Tracer("orchestrator").Start(ctx, "gitFactory.Client.CommitValues")
-		commitHash, commitTime, err = impl.gitFactory.Client.CommitValues(chartGitAttr, gitOpsConfig)
-		span.End()
-		if err != nil {
-			impl.logger.Errorw("error in git commit", "err", err)
-			return 0, 0, "", err
-		}
-	}
-	if commitTime.IsZero() {
-		commitTime = time.Now()
-	}
-	pipelineOverride := &chartConfig.PipelineOverride{
-		Id:                     override.Id,
-		GitHash:                commitHash,
-		CommitTime:             commitTime,
-		EnvConfigOverrideId:    envOverride.Id,
-		PipelineOverrideValues: overrideJson,
-		PipelineId:             overrideRequest.PipelineId,
-		CiArtifactId:           overrideRequest.CiArtifactId,
-		PipelineMergedValues:   string(merged),
-		AuditLog:               sql.AuditLog{UpdatedOn: triggeredAt, UpdatedBy: deployedBy},
-	}
-	_, span = otel.Tracer("orchestrator").Start(ctx, "pipelineOverrideRepository.Update")
-	err = impl.pipelineOverrideRepository.Update(pipelineOverride)
-	span.End()
-	if err != nil {
-		return 0, 0, "", err
-	}
-	mergedValues = string(merged)
-	return override.PipelineReleaseCounter, override.Id, mergedValues, nil
-}
-
 func (impl *WorkflowDagExecutorImpl) mergeOverrideValues(envOverride *chartConfig.EnvConfigOverride,
-	dbMigrationOverride []byte,
 	releaseOverrideJson string,
 	configMapJson []byte,
 	appLabelJsonByte []byte,
@@ -4518,10 +4335,6 @@ func (impl *WorkflowDagExecutorImpl) mergeOverrideValues(envOverride *chartConfi
 		if err != nil {
 			return nil, err
 		}
-	}
-	merged, err = impl.mergeUtil.JsonPatch(merged, dbMigrationOverride)
-	if err != nil {
-		return nil, err
 	}
 	merged, err = impl.mergeUtil.JsonPatch(merged, []byte(releaseOverrideJson))
 	if err != nil {
@@ -4591,7 +4404,7 @@ func (impl *WorkflowDagExecutorImpl) autoscalingCheckBeforeTrigger(ctx context.C
 				impl.logger.Errorw("error occurred while fetching resource for app", "resourceName", hpaResourceRequest.ResourceName, "err", err)
 				return merged
 			}
-			resourceManifest = k8sResource.Manifest.Object
+			resourceManifest = k8sResource.ManifestResponse.Manifest.Object
 		}
 		if len(resourceManifest) > 0 {
 			statusMap := resourceManifest["status"].(map[string]interface{})
@@ -4655,7 +4468,7 @@ func (impl *WorkflowDagExecutorImpl) CheckIfRepoMigrationRequired(manifestPushTe
 		return false
 	}
 	var err error
-	gitOpsRepoName := util.GetGitRepoNameFromGitRepoUrl(manifestPushTemplate.RepoUrl)
+	gitOpsRepoName := gitUtil.GetGitRepoNameFromGitRepoUrl(manifestPushTemplate.RepoUrl)
 	if len(gitOpsRepoName) == 0 {
 		gitOpsRepoName, err = impl.GetGitOpsRepoName(manifestPushTemplate.AppName, manifestPushTemplate.EnvironmentName)
 		if err != nil || gitOpsRepoName == "" {
@@ -4689,7 +4502,7 @@ func (impl *WorkflowDagExecutorImpl) GetGitOpsRepoName(appName string, environme
 	}
 	if application != nil {
 		gitOpsRepoUrl := application.Spec.Source.RepoURL
-		gitOpsRepoName = util.GetGitRepoNameFromGitRepoUrl(gitOpsRepoUrl)
+		gitOpsRepoName = gitUtil.GetGitRepoNameFromGitRepoUrl(gitOpsRepoUrl)
 	}
 	return gitOpsRepoName, nil
 }
