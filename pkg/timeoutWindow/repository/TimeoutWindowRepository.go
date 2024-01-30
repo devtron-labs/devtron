@@ -1,9 +1,11 @@
 package repository
 
 import (
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/timeoutWindow/repository/bean"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"time"
 )
 
 type TimeWindowRepository interface {
@@ -13,14 +15,14 @@ type TimeWindowRepository interface {
 	UpdateInBatch(models []*TimeoutWindowConfiguration) ([]*TimeoutWindowConfiguration, error)
 	GetWithExpressionAndFormat(expression string, format bean.ExpressionFormat) (*TimeoutWindowConfiguration, error)
 	GetWithIds(ids []int) ([]*TimeoutWindowConfiguration, error)
-	UpdateTimeoutExpressionAndFormatForIds(tx *pg.Tx, expression string, ids []int, format bean.ExpressionFormat) error
+	UpdateTimeoutExpressionAndFormatForIds(tx *pg.Tx, expression string, ids []int, format bean.ExpressionFormat, loggedInUserId int32) error
 }
 type TimeoutWindowConfiguration struct {
 	TableName               struct{}              `sql:"timeout_window_configuration" pg:",discard_unknown_columns"`
 	Id                      int                   `sql:"id,pk"`
 	TimeoutWindowExpression string                `sql:"timeout_window_expression,notnull"`
 	ExpressionFormat        bean.ExpressionFormat `sql:"timeout_window_expression_format,notnull"` // '1=timestamp, 2=other format'
-
+	sql.AuditLog
 }
 
 type TimeWindowRepositoryImpl struct {
@@ -102,10 +104,12 @@ func (impl TimeWindowRepositoryImpl) UpdateInBatch(models []*TimeoutWindowConfig
 }
 
 // UpdateTimeoutExpressionAndFormatForIds bulk updates expression and format for given user ids
-func (impl TimeWindowRepositoryImpl) UpdateTimeoutExpressionAndFormatForIds(tx *pg.Tx, expression string, ids []int, format bean.ExpressionFormat) error {
+func (impl TimeWindowRepositoryImpl) UpdateTimeoutExpressionAndFormatForIds(tx *pg.Tx, expression string, ids []int, format bean.ExpressionFormat, loggedInUserId int32) error {
 	var model []*TimeoutWindowConfiguration
 	_, err := tx.Model(&model).Set("timeout_window_expression = ?", expression).
 		Set("timeout_window_expression_format = ?", format).
+		Set("updated_on = ?", time.Now()).
+		Set("updated_by = ?", loggedInUserId).
 		Where("id in (?)", pg.In(ids)).
 		Update()
 	if err != nil {

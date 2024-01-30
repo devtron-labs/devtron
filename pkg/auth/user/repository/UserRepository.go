@@ -28,6 +28,7 @@ import (
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"strings"
+	"time"
 )
 
 type UserRepository interface {
@@ -47,9 +48,9 @@ type UserRepository interface {
 	FetchActiveOrDeletedUserByEmail(email string) (*UserModel, error)
 	UpdateRoleIdForUserRolesMappings(roleId int, newRoleId int) (*UserRoleModel, error)
 	GetCountExecutingQuery(query string) (int, error)
-	UpdateWindowIdToNull(userIds []int32) error
+	UpdateWindowIdToNull(userIds []int32, loggedInUserID int32) error
 	UpdateTimeWindowId(tx *pg.Tx, userid int32, windowId int) error
-	UpdateTimeWindowIdInBatch(tx *pg.Tx, userIds []int32, userWindowIdMap map[int32]int) error
+	UpdateTimeWindowIdInBatch(tx *pg.Tx, userIds []int32, userWindowIdMap map[int32]int, loggedInUserId int32) error
 	StartATransaction() (*pg.Tx, error)
 	CommitATransaction(tx *pg.Tx) error
 	GetUserWithTimeoutWindowConfiguration(emailId string) (*UserModel, error)
@@ -227,9 +228,11 @@ func (impl UserRepositoryImpl) GetCountExecutingQuery(query string) (int, error)
 	return totalCount, err
 }
 
-func (impl UserRepositoryImpl) UpdateWindowIdToNull(userIds []int32) error {
+func (impl UserRepositoryImpl) UpdateWindowIdToNull(userIds []int32, loggedInUserID int32) error {
 	var model []UserModel
 	_, err := impl.dbConnection.Model(&model).Set("timeout_window_configuration_id = null").
+		Set("updated_on = ?", time.Now()).
+		Set("updated_by = ?", loggedInUserID).
 		Where("id in (?)", pg.In(userIds)).Update()
 	if err != nil {
 		impl.Logger.Error("error in UpdateFKtoNull", "err", err, "userIds", userIds)
@@ -249,7 +252,7 @@ func (impl UserRepositoryImpl) UpdateTimeWindowId(tx *pg.Tx, userid int32, windo
 	return nil
 }
 
-func (impl UserRepositoryImpl) UpdateTimeWindowIdInBatch(tx *pg.Tx, userIds []int32, userWindowIdMap map[int32]int) error {
+func (impl UserRepositoryImpl) UpdateTimeWindowIdInBatch(tx *pg.Tx, userIds []int32, userWindowIdMap map[int32]int, loggedInUserId int32) error {
 
 	var model []UserModel
 	var cases []string
@@ -263,6 +266,8 @@ func (impl UserRepositoryImpl) UpdateTimeWindowIdInBatch(tx *pg.Tx, userIds []in
 	// Bulk update using Updates with the dynamically generated SQL expression
 	_, err := tx.Model(&model).
 		Set("timeout_window_configuration_id = "+sqlExpression).
+		Set("updated_on = ?", loggedInUserId).
+		Set("updated_by = ?", time.Now()).
 		Where("id IN (?)", pg.In(userIds)).Update()
 	if err != nil {
 		impl.Logger.Error("error in UpdateTimeWindowIdInBatch", "err", err, "userIds", userIds)

@@ -85,7 +85,7 @@ type UserService interface {
 	CheckForApproverAccess(appName, envName string, userId int32) bool
 	GetConfigApprovalUsersByEnv(appName, envName, team string) ([]string, error)
 	GetFieldValuesFromToken(token string) ([]byte, error)
-	BulkUpdateStatusForUsers(request *bean.BulkStatusUpdateRequest) (*bean.ActionResponse, error)
+	BulkUpdateStatusForUsers(request *bean.BulkStatusUpdateRequest, userId int32) (*bean.ActionResponse, error)
 	GetUserWithTimeoutWindowConfiguration(emailId string) (int32, bool, error)
 	UserStatusCheckInDb(token string) (bool, int32, error)
 }
@@ -2162,7 +2162,7 @@ func (impl UserServiceImpl) getRolefiltersForDevtronManaged(model *repository.Us
 	return roleFilters, nil
 }
 
-func (impl UserServiceImpl) BulkUpdateStatusForUsers(request *bean.BulkStatusUpdateRequest) (*bean.ActionResponse, error) {
+func (impl UserServiceImpl) BulkUpdateStatusForUsers(request *bean.BulkStatusUpdateRequest, userId int32) (*bean.ActionResponse, error) {
 	if len(request.UserIds) == 0 {
 		return nil, &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "no user ids provided"}
 	}
@@ -2174,7 +2174,7 @@ func (impl UserServiceImpl) BulkUpdateStatusForUsers(request *bean.BulkStatusUpd
 	if activeStatus {
 		// active case
 		// set foreign key to null for every user
-		err = impl.userRepository.UpdateWindowIdToNull(request.UserIds)
+		err = impl.userRepository.UpdateWindowIdToNull(request.UserIds, userId)
 		if err != nil {
 			impl.logger.Errorw("error in BulkUpdateStatusForUsers", "err", err, "status", request.Status)
 			return nil, err
@@ -2184,7 +2184,7 @@ func (impl UserServiceImpl) BulkUpdateStatusForUsers(request *bean.BulkStatusUpd
 
 		// getting expression from request configuration
 		timeOutExpression, expressionFormat := getTimeoutExpressionAndFormatforReq(timeExpressionStatus, inactiveStatus, request.TimeToLive)
-		err = impl.updateOrCreateAndUpdateWindowID(request.UserIds, timeOutExpression, expressionFormat)
+		err = impl.updateOrCreateAndUpdateWindowID(request.UserIds, timeOutExpression, expressionFormat, userId)
 		if err != nil {
 			impl.logger.Errorw("error in BulkUpdateStatusForUsers", "err", err, "status", request.Status)
 			return nil, err
@@ -2199,7 +2199,7 @@ func (impl UserServiceImpl) BulkUpdateStatusForUsers(request *bean.BulkStatusUpd
 	return resp, nil
 }
 
-func (impl UserServiceImpl) updateOrCreateAndUpdateWindowID(userIds []int32, timeoutExpression string, expressionFormat bean3.ExpressionFormat) error {
+func (impl UserServiceImpl) updateOrCreateAndUpdateWindowID(userIds []int32, timeoutExpression string, expressionFormat bean3.ExpressionFormat, loggedInUserId int32) error {
 	idsWithWindowId, idsWithoutWindowId, windowIds, err := impl.getIdsWithAndWithoutWindowId(userIds)
 	if err != nil {
 		impl.logger.Errorw("error in updateOrCreateAndUpdateWindowID", "err", err, "userIds", userIds)
@@ -2214,7 +2214,7 @@ func (impl UserServiceImpl) updateOrCreateAndUpdateWindowID(userIds []int32, tim
 	defer tx.Rollback()
 	// case when fk exist , just update the configuration in the timeout window for fks
 	if len(idsWithWindowId) > 0 && len(windowIds) > 0 {
-		err = impl.timeoutWindowService.UpdateTimeoutExpressionAndFormatForIds(tx, timeoutExpression, windowIds, expressionFormat)
+		err = impl.timeoutWindowService.UpdateTimeoutExpressionAndFormatForIds(tx, timeoutExpression, windowIds, expressionFormat, loggedInUserId)
 		if err != nil {
 			impl.logger.Errorw("error in updateOrCreateAndUpdateWindowID", "err", err, "userIds", userIds)
 			return err
@@ -2224,7 +2224,7 @@ func (impl UserServiceImpl) updateOrCreateAndUpdateWindowID(userIds []int32, tim
 	countWithoutWindowId := len(idsWithoutWindowId)
 	// case when no fk exist , will create it and update the fk constraint for user
 	if countWithoutWindowId > 0 {
-		err = impl.createAndMapTimeoutWindow(tx, timeoutExpression, countWithoutWindowId, idsWithoutWindowId, expressionFormat)
+		err = impl.createAndMapTimeoutWindow(tx, timeoutExpression, countWithoutWindowId, idsWithoutWindowId, expressionFormat, loggedInUserId)
 		if err != nil {
 			impl.logger.Errorw("error in updateOrCreateAndUpdateWindowID", "err", err, "userIds", userIds, "timeoutExpression", timeoutExpression)
 			return err
@@ -2239,8 +2239,8 @@ func (impl UserServiceImpl) updateOrCreateAndUpdateWindowID(userIds []int32, tim
 
 }
 
-func (impl UserServiceImpl) createAndMapTimeoutWindow(tx *pg.Tx, timeoutExpression string, countWithoutWindowId int, idsWithoutWindowId []int32, expressionFormat bean3.ExpressionFormat) error {
-	models, err := impl.timeoutWindowService.CreateWithTimeoutExpressionAndFormat(tx, timeoutExpression, countWithoutWindowId, expressionFormat)
+func (impl UserServiceImpl) createAndMapTimeoutWindow(tx *pg.Tx, timeoutExpression string, countWithoutWindowId int, idsWithoutWindowId []int32, expressionFormat bean3.ExpressionFormat, loggedInUserId int32) error {
+	models, err := impl.timeoutWindowService.CreateWithTimeoutExpressionAndFormat(tx, timeoutExpression, countWithoutWindowId, expressionFormat, loggedInUserId)
 	if err != nil {
 		impl.logger.Errorw("error in updateOrCreateAndUpdateWindowID", "err", err)
 		return err
@@ -2251,7 +2251,7 @@ func (impl UserServiceImpl) createAndMapTimeoutWindow(tx *pg.Tx, timeoutExpressi
 		impl.logger.Errorw("error in updateOrCreateAndUpdateWindowID", "err", err)
 		return err
 	}
-	err = impl.userRepository.UpdateTimeWindowIdInBatch(tx, idsWithoutWindowId, windowMapping)
+	err = impl.userRepository.UpdateTimeWindowIdInBatch(tx, idsWithoutWindowId, windowMapping, loggedInUserId)
 	if err != nil {
 		impl.logger.Errorw("error in updateOrCreateAndUpdateWindowID", "err", err)
 		return err

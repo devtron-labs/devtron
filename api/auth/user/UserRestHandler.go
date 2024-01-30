@@ -483,10 +483,15 @@ func (handler UserRestHandlerImpl) DeleteUser(w http.ResponseWriter, r *http.Req
 }
 
 func (handler UserRestHandlerImpl) BulkUpdateStatus(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
 	decoder := json.NewDecoder(r.Body)
 	// request decoding
 	var request bean.BulkStatusUpdateRequest
-	err := decoder.Decode(&request)
+	err = decoder.Decode(&request)
 	if err != nil {
 		handler.logger.Errorw("request err, BulkUpdateStatus", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -508,7 +513,7 @@ func (handler UserRestHandlerImpl) BulkUpdateStatus(w http.ResponseWriter, r *ht
 		return
 	}
 	// service call
-	res, err := handler.userService.BulkUpdateStatusForUsers(&request)
+	res, err := handler.userService.BulkUpdateStatusForUsers(&request, userId)
 	if err != nil {
 		handler.logger.Errorw("service err, BulkUpdateStatus", "err", err, "payload", request)
 		if err.Error() == bean2.NoUserIdsProvidedError {

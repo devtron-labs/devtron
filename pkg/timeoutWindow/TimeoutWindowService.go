@@ -1,16 +1,18 @@
 package timeoutWindow
 
 import (
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/timeoutWindow/repository"
 	"github.com/devtron-labs/devtron/pkg/timeoutWindow/repository/bean"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"time"
 )
 
 type TimeoutWindowService interface {
 	GetAllWithIds(ids []int) ([]*repository.TimeoutWindowConfiguration, error)
-	UpdateTimeoutExpressionAndFormatForIds(tx *pg.Tx, timeoutExpression string, ids []int, expressionFormat bean.ExpressionFormat) error
-	CreateWithTimeoutExpressionAndFormat(tx *pg.Tx, timeoutExpression string, count int, expressionFormat bean.ExpressionFormat) ([]*repository.TimeoutWindowConfiguration, error)
+	UpdateTimeoutExpressionAndFormatForIds(tx *pg.Tx, timeoutExpression string, ids []int, expressionFormat bean.ExpressionFormat, loggedInUserId int32) error
+	CreateWithTimeoutExpressionAndFormat(tx *pg.Tx, timeoutExpression string, count int, expressionFormat bean.ExpressionFormat, loggedInUserId int32) ([]*repository.TimeoutWindowConfiguration, error)
 }
 
 type TimeWindowServiceImpl struct {
@@ -36,8 +38,8 @@ func (impl TimeWindowServiceImpl) GetAllWithIds(ids []int) ([]*repository.Timeou
 	return timeWindows, err
 }
 
-func (impl TimeWindowServiceImpl) UpdateTimeoutExpressionAndFormatForIds(tx *pg.Tx, timeoutExpression string, ids []int, expressionFormat bean.ExpressionFormat) error {
-	err := impl.timeWindowRepository.UpdateTimeoutExpressionAndFormatForIds(tx, timeoutExpression, ids, expressionFormat)
+func (impl TimeWindowServiceImpl) UpdateTimeoutExpressionAndFormatForIds(tx *pg.Tx, timeoutExpression string, ids []int, expressionFormat bean.ExpressionFormat, loggedInUserId int32) error {
+	err := impl.timeWindowRepository.UpdateTimeoutExpressionAndFormatForIds(tx, timeoutExpression, ids, expressionFormat, loggedInUserId)
 	if err != nil {
 		impl.logger.Errorw("error in UpdateTimeoutExpressionForIds", "err", err, "timeoutExpression", timeoutExpression)
 		return err
@@ -45,12 +47,18 @@ func (impl TimeWindowServiceImpl) UpdateTimeoutExpressionAndFormatForIds(tx *pg.
 	return err
 }
 
-func (impl TimeWindowServiceImpl) CreateWithTimeoutExpressionAndFormat(tx *pg.Tx, timeoutExpression string, count int, expressionFormat bean.ExpressionFormat) ([]*repository.TimeoutWindowConfiguration, error) {
+func (impl TimeWindowServiceImpl) CreateWithTimeoutExpressionAndFormat(tx *pg.Tx, timeoutExpression string, count int, expressionFormat bean.ExpressionFormat, loggedInUserId int32) ([]*repository.TimeoutWindowConfiguration, error) {
 	var models []*repository.TimeoutWindowConfiguration
 	for i := 0; i < count; i++ {
 		model := &repository.TimeoutWindowConfiguration{
 			TimeoutWindowExpression: timeoutExpression,
 			ExpressionFormat:        expressionFormat,
+			AuditLog: sql.AuditLog{
+				CreatedOn: time.Now(),
+				CreatedBy: loggedInUserId,
+				UpdatedOn: time.Now(),
+				UpdatedBy: loggedInUserId,
+			},
 		}
 		models = append(models, model)
 	}
