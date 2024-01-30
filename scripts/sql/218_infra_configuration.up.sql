@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS public.infra_profile
     "created_by"                   int4         NOT NULL,
     "updated_on"                   timestamptz  NOT NULL,
     "updated_by"                   int4         NOT NULL,
-    PRIMARY KEY ("id"),
+    PRIMARY KEY ("id")
     );
 
 CREATE UNIQUE INDEX idx_unique_name

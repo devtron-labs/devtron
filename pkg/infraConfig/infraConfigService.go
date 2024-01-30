@@ -433,23 +433,23 @@ func (impl *InfraConfigServiceImpl) DeleteProfile(profileName string) error {
 	}
 	defer impl.infraProfileRepo.RollbackTx(tx)
 
-	// step1: delete profile
-	err = impl.infraProfileRepo.DeleteProfile(tx, profileName)
-	if err != nil {
-		impl.logger.Errorw("error in deleting profile", "profileName", profileName, "error", err)
-		return err
-	}
-
-	// step2: delete configurations
+	// step1: delete configurations
 	err = impl.infraProfileRepo.DeleteConfigurations(tx, profileName)
 	if err != nil {
 		impl.logger.Errorw("error in deleting configurations", "profileName", profileName, "error", err)
 	}
 
-	// step3: delete profile identifier mappings
+	// step2: delete profile identifier mappings
 	err = impl.infraProfileRepo.DeleteProfileIdentifierMappings(tx, profileName)
 	if err != nil {
 		impl.logger.Errorw("error in deleting profile identifier mappings", "profileName", profileName, "error", err)
+		return err
+	}
+
+	// step3: delete profile
+	err = impl.infraProfileRepo.DeleteProfile(tx, profileName)
+	if err != nil {
+		impl.logger.Errorw("error in deleting profile", "profileName", profileName, "error", err)
 		return err
 	}
 	err = impl.infraProfileRepo.CommitTx(tx)
@@ -691,7 +691,9 @@ func (impl *InfraConfigServiceImpl) GetIdentifierList(listFilter *IdentifierList
 	totalIdentifiersCount := 0
 	overriddenIdentifiersCount := 0
 	for _, identifier := range identifiers {
-		profileIds = append(profileIds, identifier.ProfileId)
+		if identifier.ProfileId != 0 {
+			profileIds = append(profileIds, identifier.ProfileId)
+		}
 		totalIdentifiersCount = identifier.TotalIdentifierCount
 		overriddenIdentifiersCount = identifier.OverriddenIdentifierCount
 	}
