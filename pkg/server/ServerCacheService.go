@@ -61,11 +61,11 @@ func NewServerCacheServiceImpl(logger *zap.SugaredLogger, serverEnvConfig *serve
 	}
 
 	// check if the release is installed or not
-	// isDevtronHelmReleaseInstalled, err := impl.helmAppService.IsReleaseInstalled(context.Background(), &appIdentifier)
-	// if err != nil {
-	// 	log.Fatalln("not able to check if the devtron helm release exists or not.", "error", err)
-	// }
-	isDevtronHelmReleaseInstalled := false
+	isDevtronHelmReleaseInstalled, err := impl.helmAppService.IsReleaseInstalled(context.Background(), &appIdentifier)
+	if err != nil {
+		log.Fatalln("not able to check if the devtron helm release exists or not.", "error", err)
+	}
+
 	// if not installed, treat it as OSS kubectl user
 	// if installed, treat it as OSS helm user and fetch current version
 	if isDevtronHelmReleaseInstalled {
