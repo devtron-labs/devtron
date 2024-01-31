@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"fmt"
 	bean6 "github.com/devtron-labs/devtron/api/helm-app/bean"
-	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client2 "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
@@ -40,7 +39,6 @@ import (
 	"github.com/devtron-labs/common-lib/pubsub-lib/model"
 	util5 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
-	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	gitSensorClient "github.com/devtron-labs/devtron/client/gitSensor"
@@ -163,30 +161,20 @@ type WorkflowDagExecutorImpl struct {
 	deploymentTemplateHistoryService    history2.DeploymentTemplateHistoryService
 	configMapHistoryService             history2.ConfigMapHistoryService
 	pipelineStrategyHistoryService      history2.PipelineStrategyHistoryService
-	manifestPushConfigRepository        repository4.ManifestPushConfigRepository
-	gitOpsManifestPushService           app.GitOpsPushService
-	ciPipelineMaterialRepository        pipelineConfig.CiPipelineMaterialRepository
-	imageScanHistoryRepository          security.ImageScanHistoryRepository
-	imageScanDeployInfoRepository       security.ImageScanDeployInfoRepository
 	appCrudOperationService             app.AppCrudOperationService
 	pipelineConfigRepository            chartConfig.PipelineConfigRepository
 	dockerRegistryIpsConfigService      dockerRegistry.DockerRegistryIpsConfigService
 	chartRepository                     chartRepoRepository.ChartRepository
-	chartTemplateService                util.ChartTemplateService
 	strategyHistoryRepository           repository3.PipelineStrategyHistoryRepository
 	deploymentTemplateHistoryRepository repository3.DeploymentTemplateHistoryRepository
-	argoK8sClient                       argocdServer.ArgoK8sClient
 	configMapRepository                 chartConfig.ConfigMapRepository
 	configMapHistoryRepository          repository3.ConfigMapHistoryRepository
 	helmAppService                      client2.HelmAppService
 	//TODO fix me next
-	helmAppClient               gRPC.HelmAppClient //TODO refactoring: use helm app service instead
 	environmentConfigRepository chartConfig.EnvConfigOverrideRepository
 	mergeUtil                   *util.MergeUtil
 	acdClient                   application2.ServiceClient
-	argoClientWrapperService    argocdServer.ArgoClientWrapperService
 	customTagService            CustomTagService
-	ACDConfig                   *argocdServer.ACDConfig
 	deployedAppMetricsService   deployedAppMetrics.DeployedAppMetricsService
 	chartRefService             chartRef.ChartRefService
 	imageDigestPolicyService    imageDigestPolicy.ImageDigestPolicyService
@@ -272,30 +260,20 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	deploymentTemplateHistoryService history2.DeploymentTemplateHistoryService,
 	configMapHistoryService history2.ConfigMapHistoryService,
 	pipelineStrategyHistoryService history2.PipelineStrategyHistoryService,
-	manifestPushConfigRepository repository4.ManifestPushConfigRepository,
-	gitOpsManifestPushService app.GitOpsPushService,
-	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
-	imageScanHistoryRepository security.ImageScanHistoryRepository,
-	imageScanDeployInfoRepository security.ImageScanDeployInfoRepository,
 	appCrudOperationService app.AppCrudOperationService,
 	pipelineConfigRepository chartConfig.PipelineConfigRepository,
 	dockerRegistryIpsConfigService dockerRegistry.DockerRegistryIpsConfigService,
 	chartRepository chartRepoRepository.ChartRepository,
-	chartTemplateService util.ChartTemplateService,
 	strategyHistoryRepository repository3.PipelineStrategyHistoryRepository,
 	deploymentTemplateHistoryRepository repository3.DeploymentTemplateHistoryRepository,
-	ArgoK8sClient argocdServer.ArgoK8sClient,
 	configMapRepository chartConfig.ConfigMapRepository,
 	configMapHistoryRepository repository3.ConfigMapHistoryRepository,
 	helmAppService client2.HelmAppService,
-	helmAppClient gRPC.HelmAppClient,
 	environmentConfigRepository chartConfig.EnvConfigOverrideRepository,
 	mergeUtil *util.MergeUtil,
 	acdClient application2.ServiceClient,
-	argoClientWrapperService argocdServer.ArgoClientWrapperService,
 	pipelineConfigListenerService PipelineConfigListenerService,
 	customTagService CustomTagService,
-	ACDConfig *argocdServer.ACDConfig,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
 	chartRefService chartRef.ChartRefService,
 	imageDigestPolicyService imageDigestPolicy.ImageDigestPolicyService,
@@ -342,29 +320,19 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		deploymentTemplateHistoryService:    deploymentTemplateHistoryService,
 		configMapHistoryService:             configMapHistoryService,
 		pipelineStrategyHistoryService:      pipelineStrategyHistoryService,
-		manifestPushConfigRepository:        manifestPushConfigRepository,
-		gitOpsManifestPushService:           gitOpsManifestPushService,
-		ciPipelineMaterialRepository:        ciPipelineMaterialRepository,
-		imageScanHistoryRepository:          imageScanHistoryRepository,
-		imageScanDeployInfoRepository:       imageScanDeployInfoRepository,
 		appCrudOperationService:             appCrudOperationService,
 		pipelineConfigRepository:            pipelineConfigRepository,
 		dockerRegistryIpsConfigService:      dockerRegistryIpsConfigService,
 		chartRepository:                     chartRepository,
-		chartTemplateService:                chartTemplateService,
 		strategyHistoryRepository:           strategyHistoryRepository,
 		deploymentTemplateHistoryRepository: deploymentTemplateHistoryRepository,
-		argoK8sClient:                       ArgoK8sClient,
 		configMapRepository:                 configMapRepository,
 		configMapHistoryRepository:          configMapHistoryRepository,
 		helmAppService:                      helmAppService,
-		helmAppClient:                       helmAppClient,
 		environmentConfigRepository:         environmentConfigRepository,
 		mergeUtil:                           mergeUtil,
 		acdClient:                           acdClient,
-		argoClientWrapperService:            argoClientWrapperService,
 		customTagService:                    customTagService,
-		ACDConfig:                           ACDConfig,
 		deployedAppMetricsService:           deployedAppMetricsService,
 		chartRefService:                     chartRefService,
 		imageDigestPolicyService:            imageDigestPolicyService,
