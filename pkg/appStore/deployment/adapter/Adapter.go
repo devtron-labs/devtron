@@ -5,6 +5,7 @@ import (
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
 	"k8s.io/helm/pkg/proto/hapi/chart"
+	"path"
 )
 
 func ParseChartGitPushRequest(installAppRequestDTO *appStoreBean.InstallAppVersionDTO, repoURl string, tempRefChart string) *bean.PushChartToGitRequestDTO {
@@ -18,9 +19,18 @@ func ParseChartGitPushRequest(installAppRequestDTO *appStoreBean.InstallAppVersi
 	}
 }
 
-func ParseChartCreateRequest(installAppRequestDTO *appStoreBean.InstallAppVersionDTO, chartPath string) *util.ChartCreateRequest {
-	return &util.ChartCreateRequest{ChartMetaData: &chart.Metadata{
-		Name:    installAppRequestDTO.AppName,
-		Version: "1.0.1",
-	}, ChartPath: chartPath}
+func ParseChartCreateRequest(appName string) *util.ChartCreateRequest {
+	chartPath := getRefProxyChartPath()
+	return &util.ChartCreateRequest{
+		ChartMetaData: &chart.Metadata{
+			Name:    appName,
+			Version: "1.0.1",
+		},
+		ChartPath: chartPath,
+	}
+}
+
+func getRefProxyChartPath() string {
+	template := appStoreBean.CHART_PROXY_TEMPLATE
+	return path.Join(appStoreBean.RefChartProxyDirPath, template)
 }
