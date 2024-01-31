@@ -124,18 +124,12 @@ func (impl *UserSelfRegistrationServiceImpl) CheckAndCreateUserIfConfigured(clai
 	emailId, groups := impl.globalAuthorisationConfigService.GetEmailAndGroupsFromClaims(claims)
 	impl.logger.Info("check and create user if configured")
 	exists := impl.userService.UserExists(emailId)
-	isInactive, _, err := impl.userService.UserStatusCheckInDb(emailId)
-	if err != nil {
-		impl.logger.Errorw("skip this error and check for self registration", "error", err)
-	}
-	var id int32
 	if !exists {
 		impl.logger.Infow("self registering user,  ", "email", emailId)
 		user, err := impl.SelfRegister(emailId, groups)
 		if err != nil {
 			impl.logger.Errorw("error while register user", "error", err)
 		} else if user != nil && user.Id > 0 {
-			id = user.Id
 			exists = true
 		}
 	}
@@ -148,10 +142,6 @@ func (impl *UserSelfRegistrationServiceImpl) CheckAndCreateUserIfConfigured(clai
 				impl.logger.Errorw("error in updating data for user group claims map", "err", err, "emailId", emailId)
 				return exists
 			}
-		}
-		impl.logger.Info("check and create user if configured - save audit", "isInactive", isInactive)
-		if !isInactive {
-			impl.userService.SaveLoginAudit(emailId, "localhost", id)
 		}
 	}
 	impl.logger.Infow("user status", "email", emailId, "status", exists)

@@ -85,8 +85,8 @@ type UserService interface {
 	GetConfigApprovalUsersByEnv(appName, envName, team string) ([]string, error)
 	GetFieldValuesFromToken(token string) ([]byte, error)
 	BulkUpdateStatusForUsers(request *bean.BulkStatusUpdateRequest, userId int32) (*bean.ActionResponse, error)
-	UserStatusCheckInDb(token string) (bool, int32, error)
-	GetUserBasicdataByEmailId(emailId string) (*bean.UserInfo, error)
+	CheckUserStatusAndUpdateLoginAudit(token string) (bool, int32, error)
+	GetUserBasicDataByEmailId(emailId string) (*bean.UserInfo, error)
 }
 
 type UserServiceImpl struct {
@@ -1427,7 +1427,7 @@ func (impl UserServiceImpl) extractEmailIds(permissionGroupNames []string, email
 func (impl UserServiceImpl) SaveLoginAudit(emailId, clientIp string, id int32) {
 
 	if emailId != "" && id <= 0 {
-		user, err := impl.GetUserBasicdataByEmailId(emailId)
+		user, err := impl.GetUserBasicDataByEmailId(emailId)
 		if err != nil {
 			impl.logger.Errorw("error in getting userInfo by emailId", "err", err, "emailId", emailId)
 			return
@@ -1551,7 +1551,7 @@ func (impl UserServiceImpl) GetUserByToken(context context.Context, token string
 	if err != nil {
 		return http.StatusUnauthorized, "", err
 	}
-	userInfo, err := impl.GetUserBasicdataByEmailId(email)
+	userInfo, err := impl.GetUserBasicDataByEmailId(email)
 	if err != nil {
 		impl.logger.Errorw("unable to fetch user from db", "error", err)
 		err := &util.ApiError{
@@ -2334,7 +2334,7 @@ func parseExpressionToTime(expression string) (time.Time, error) {
 	return parsedTime, err
 }
 
-func (impl UserServiceImpl) GetUserBasicdataByEmailId(emailId string) (*bean.UserInfo, error) {
+func (impl UserServiceImpl) GetUserBasicDataByEmailId(emailId string) (*bean.UserInfo, error) {
 	model, err := impl.userRepository.FetchActiveUserByEmail(emailId)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
@@ -2348,7 +2348,7 @@ func (impl UserServiceImpl) GetUserBasicdataByEmailId(emailId string) (*bean.Use
 	return response, nil
 }
 
-func (impl UserServiceImpl) UserStatusCheckInDb(token string) (bool, int32, error) {
+func (impl UserServiceImpl) CheckUserStatusAndUpdateLoginAudit(token string) (bool, int32, error) {
 	emailId, _, err := impl.GetEmailAndGroupClaimsFromToken(token)
 	if err != nil {
 		impl.logger.Error("unable to fetch user by token")
@@ -2360,5 +2360,11 @@ func (impl UserServiceImpl) UserStatusCheckInDb(token string) (bool, int32, erro
 		impl.logger.Errorw("unable to fetch user by email, %s", token)
 		return isInactive, userId, err
 	}
+
+	//if user is inactive, no need to store audit log
+	if !isInactive {
+		impl.SaveLoginAudit(emailId, "localhost", userId)
+	}
+
 	return isInactive, userId, nil
 }

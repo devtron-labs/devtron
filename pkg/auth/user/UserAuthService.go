@@ -475,7 +475,7 @@ func (impl UserAuthServiceImpl) AuthVerification(r *http.Request) (bool, error) 
 		return false, err
 	}
 
-	isInactive, _, err := impl.userService.UserStatusCheckInDb(token)
+	isInactive, _, err := impl.userService.CheckUserStatusAndUpdateLoginAudit(token)
 	if err != nil {
 		err := &util.ApiError{
 			HttpStatusCode:  http.StatusUnauthorized,
