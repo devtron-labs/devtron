@@ -15,14 +15,14 @@ import (
 )
 
 type GitHubClient struct {
-	client     *github.Client
-	logger     *zap.SugaredLogger
-	org        string
-	gitService GitService
+	client       *github.Client
+	logger       *zap.SugaredLogger
+	org          string
+	gitOpsHelper *GitOpsHelper
 }
 
 func NewGithubClient(host string, token string, org string, logger *zap.SugaredLogger,
-	gitService GitService) (GitHubClient, error) {
+	gitOpsHelper *GitOpsHelper) (GitHubClient, error) {
 	ctx := context.Background()
 	httpTransport := &http2.Transport{}
 	httpClient := &http2.Client{Transport: httpTransport}
@@ -48,10 +48,10 @@ func NewGithubClient(host string, token string, org string, logger *zap.SugaredL
 	}
 
 	return GitHubClient{
-		client:     client,
-		org:        org,
-		logger:     logger,
-		gitService: gitService,
+		client:       client,
+		org:          org,
+		logger:       logger,
+		gitOpsHelper: gitOpsHelper,
 	}, err
 }
 func (impl GitHubClient) DeleteRepository(config *bean2.GitOpsConfigDto) error {
@@ -231,7 +231,7 @@ func (impl GitHubClient) ensureProjectAvailabilityOnSsh(projectName string, repo
 	count := 0
 	for count < 3 {
 		count = count + 1
-		_, err := impl.gitService.Clone(repoUrl, fmt.Sprintf("/ensure-clone/%s", projectName))
+		_, err := impl.gitOpsHelper.Clone(repoUrl, fmt.Sprintf("/ensure-clone/%s", projectName))
 		if err == nil {
 			impl.logger.Infow("github ensureProjectAvailability clone passed", "try count", count, "repoUrl", repoUrl)
 			return true, nil

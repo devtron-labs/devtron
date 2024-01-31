@@ -106,7 +106,6 @@ import (
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
-	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/commandManager"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	repository11 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
@@ -376,8 +375,7 @@ func InitializeApp() (*App, error) {
 		Logger: sugaredLogger,
 	}
 	chartRefServiceImpl := chartRef.NewChartRefServiceImpl(sugaredLogger, chartRefRepositoryImpl, chartTemplateServiceImpl, utilMergeUtil)
-	gitManagerImpl := commandManager.NewGitManagerImpl(sugaredLogger)
-	gitFactory, err := git.NewGitFactory(sugaredLogger, gitOpsConfigRepositoryImpl, gitManagerImpl)
+	gitFactory, err := git.NewGitFactory(sugaredLogger, gitOpsConfigRepositoryImpl)
 	if err != nil {
 		return nil, err
 	}

@@ -45,7 +45,6 @@ import (
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
-	git2 "github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/commandManager"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	repository2 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -179,7 +178,6 @@ func InitializeApp() (*App, error) {
 		util.NewChartTemplateServiceImpl,
 		wire.Bind(new(util.ChartTemplateService), new(*util.ChartTemplateServiceImpl)),
 		git.NewGitFactory,
-		git2.NewGitManagerImpl,
 
 		security2.NewScanToolMetadataRepositoryImpl,
 		wire.Bind(new(security2.ScanToolMetadataRepository), new(*security2.ScanToolMetadataRepositoryImpl)),

@@ -5,7 +5,6 @@ import (
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/adapter"
-	git "github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/commandManager"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/xanzy/go-gitlab"
 	"go.uber.org/zap"
@@ -13,9 +12,9 @@ import (
 )
 
 type GitFactory struct {
-	Client     GitClient
-	GitService GitService
-	logger     *zap.SugaredLogger
+	Client       GitClient
+	GitOpsHelper *GitOpsHelper
+	logger       *zap.SugaredLogger
 }
 
 func (factory *GitFactory) Reload(gitOpsRepository repository.GitOpsConfigRepository) error {
@@ -29,8 +28,8 @@ func (factory *GitFactory) Reload(gitOpsRepository repository.GitOpsConfigReposi
 	if err != nil {
 		return err
 	}
-	factory.GitService.SetAuth(cfg.GetAuth())
-	client, err := NewGitOpsClient(cfg, factory.logger, factory.GitService)
+	factory.GitOpsHelper.SetAuth(cfg.GetAuth())
+	client, err := NewGitOpsClient(cfg, factory.logger, factory.GitOpsHelper)
 	if err != nil {
 		return err
 	}
@@ -43,7 +42,7 @@ func (factory *GitFactory) GetGitLabGroupPath(gitOpsConfig *bean2.GitOpsConfigDt
 	start := time.Now()
 	var err error
 	defer func() {
-		util.TriggerGitOpsMetrics("GetGitLabGroupPath", "GitService", start, err)
+		util.TriggerGitOpsMetrics("GetGitLabGroupPath", "GitOpsHelper", start, err)
 	}()
 	gitLabClient, err := CreateGitlabClient(gitOpsConfig.Host, gitOpsConfig.Token)
 	if err != nil {
@@ -62,37 +61,39 @@ func (factory *GitFactory) GetGitLabGroupPath(gitOpsConfig *bean2.GitOpsConfigDt
 	return group.FullPath, nil
 }
 
-func (factory *GitFactory) NewClientForValidation(gitOpsConfig *bean2.GitOpsConfigDto) (GitClient, GitService, error) {
+func (factory *GitFactory) NewClientForValidation(gitOpsConfig *bean2.GitOpsConfigDto) (GitClient, *GitOpsHelper, error) {
 	start := time.Now()
 	var err error
 	defer func() {
-		util.TriggerGitOpsMetrics("NewClientForValidation", "GitService", start, err)
+		util.TriggerGitOpsMetrics("NewClientForValidation", "GitOpsHelper", start, err)
 	}()
 	cfg := adapter.ConvertGitOpsConfigToGitConfig(gitOpsConfig)
-	factory.GitService.SetAuth(cfg.GetAuth())
-	client, err := NewGitOpsClient(cfg, factory.logger, factory.GitService)
+	//factory.GitOpsHelper.SetAuth(cfg.GetAuth())
+	gitOpsHelper := NewGitOpsHelperImpl(cfg.GetAuth(), factory.logger)
+
+	client, err := NewGitOpsClient(cfg, factory.logger, gitOpsHelper)
 	if err != nil {
-		return client, factory.GitService, err
+		return client, gitOpsHelper, err
 	}
 
 	//factory.Client = client
 	factory.logger.Infow("client changed successfully", "cfg", cfg)
-	return client, factory.GitService, nil
+	return client, gitOpsHelper, nil
 }
 
-func NewGitFactory(logger *zap.SugaredLogger, gitOpsRepository repository.GitOpsConfigRepository, gitManager *git.GitManagerImpl) (*GitFactory, error) {
+func NewGitFactory(logger *zap.SugaredLogger, gitOpsRepository repository.GitOpsConfigRepository) (*GitFactory, error) {
 	cfg, err := GetGitConfig(gitOpsRepository)
 	if err != nil {
 		return nil, err
 	}
-	gitService := NewGitServiceImpl(cfg.GetAuth(), logger, gitManager)
-	client, err := NewGitOpsClient(cfg, logger, gitService)
+	gitOpsHelper := NewGitOpsHelperImpl(cfg.GetAuth(), logger)
+	client, err := NewGitOpsClient(cfg, logger, gitOpsHelper)
 	if err != nil {
 		logger.Errorw("error in creating gitOps client", "err", err, "gitProvider", cfg.GitProvider)
 	}
 	return &GitFactory{
-		Client:     client,
-		logger:     logger,
-		GitService: gitService,
+		Client:       client,
+		logger:       logger,
+		GitOpsHelper: gitOpsHelper,
 	}, nil
 }

@@ -13,13 +13,13 @@ import (
 )
 
 type GitLabClient struct {
-	client     *gitlab.Client
-	config     *bean.GitConfig
-	logger     *zap.SugaredLogger
-	gitService GitService
+	client       *gitlab.Client
+	config       *bean.GitConfig
+	logger       *zap.SugaredLogger
+	gitOpsHelper *GitOpsHelper
 }
 
-func NewGitLabClient(config *bean.GitConfig, logger *zap.SugaredLogger, gitService GitService) (GitClient, error) {
+func NewGitLabClient(config *bean.GitConfig, logger *zap.SugaredLogger, gitOpsHelper *GitOpsHelper) (GitClient, error) {
 	gitLabClient, err := CreateGitlabClient(config.GitHost, config.GitToken)
 	if err != nil {
 		logger.Errorw("error in creating gitlab client", "err", err)
@@ -63,10 +63,10 @@ func NewGitLabClient(config *bean.GitConfig, logger *zap.SugaredLogger, gitServi
 	}
 	logger.Debugw("gitlab config", "config", config)
 	return &GitLabClient{
-		client:     gitLabClient,
-		config:     config,
-		logger:     logger,
-		gitService: gitService,
+		client:       gitLabClient,
+		config:       config,
+		logger:       logger,
+		gitOpsHelper: gitOpsHelper,
 	}, nil
 }
 
@@ -205,7 +205,7 @@ func (impl GitLabClient) ensureProjectAvailabilityOnSsh(projectName string, repo
 	count := 0
 	for count < 3 {
 		count = count + 1
-		_, err := impl.gitService.Clone(repoUrl, fmt.Sprintf("/ensure-clone/%s", projectName))
+		_, err := impl.gitOpsHelper.Clone(repoUrl, fmt.Sprintf("/ensure-clone/%s", projectName))
 		if err == nil {
 			impl.logger.Infow("gitlab ensureProjectAvailability clone passed", "try count", count, "repoUrl", repoUrl)
 			return true, nil

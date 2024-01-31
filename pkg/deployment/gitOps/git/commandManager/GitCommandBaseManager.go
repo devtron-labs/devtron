@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-type GitManagerBase interface {
+type GitCommandManagerBase interface {
 	Fetch(ctx context.Context, rootDir string, username string, password string) (response, errMsg string, err error)
 	ListBranch(ctx context.Context, rootDir string, username string, password string) (response, errMsg string, err error)
 	PullCli(ctx context.Context, rootDir string, username string, password string, branch string) (response, errMsg string, err error)

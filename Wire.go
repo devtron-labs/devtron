@@ -101,7 +101,6 @@ import (
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	deployment2 "github.com/devtron-labs/devtron/pkg/deployment"
 	git2 "github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
-	git3 "github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/commandManager"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	repository9 "github.com/devtron-labs/devtron/pkg/devtronResource/repository"
@@ -659,8 +658,6 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(router.ScopedVariableRouter), new(*router.ScopedVariableRouterImpl)),
 		scopedVariable.NewScopedVariableRestHandlerImpl,
 		wire.Bind(new(scopedVariable.ScopedVariableRestHandler), new(*scopedVariable.ScopedVariableRestHandlerImpl)),
-
-		git3.NewGitManagerImpl,
 
 		router.NewTelemetryRouterImpl,
 		wire.Bind(new(router.TelemetryRouter), new(*router.TelemetryRouterImpl)),

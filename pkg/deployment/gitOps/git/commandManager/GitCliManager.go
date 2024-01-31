@@ -105,7 +105,7 @@ func (impl *GitCliManagerImpl) commit(ctx context.Context, rootDir string, usern
 
 func (impl *GitCliManagerImpl) lastCommitHash(ctx context.Context, rootDir string, username string, password string) (response, errMsg string, err error) {
 	impl.logger.Debugw("git log ", "location", rootDir)
-	cmd, cancel := impl.createCmdWithContext(ctx, "git", "-C", rootDir, "--pretty=format:'%h' -n 1")
+	cmd, cancel := impl.createCmdWithContext(ctx, "git", "-C", rootDir, "log", "--pretty=format:'%h'", "-n", "1")
 	defer cancel()
 	output, errMsg, err := impl.runCommandWithCred(cmd, username, password)
 	impl.logger.Debugw("git commit output", "root", rootDir, "opt", output, "errMsg", errMsg, "error", err)
