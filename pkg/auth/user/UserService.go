@@ -2305,7 +2305,8 @@ func getUserStatusFromTimeoutWindowExpression(expression string, recordedTime ti
 		return bean.Inactive, parsedTime
 	}
 	if parsedTime.IsZero() || parsedTime.Before(recordedTime) {
-		return bean.Inactive, parsedTime
+		// sending time zero in case of inactive status,ignoring time expression in db,in automatic expire case
+		return bean.Inactive, time.Time{}
 	}
 	return bean.Active, parsedTime
 }
