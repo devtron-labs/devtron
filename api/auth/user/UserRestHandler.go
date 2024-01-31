@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/gorilla/schema"
 	"net/http"
 	"strconv"
 	"strings"
@@ -302,6 +303,7 @@ func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Reques
 }
 
 func (handler UserRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Request) {
+	var decoder = schema.NewDecoder()
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -355,10 +357,10 @@ func (handler UserRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Request
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-
-	req, err := handler.getQueryParamsForListing(r)
+	req := &bean.FetchListingRequest{}
+	err = decoder.Decode(req, r.URL.Query())
 	if err != nil {
-		handler.logger.Errorw("request err, GetAll", "err", err)
+		handler.logger.Errorw("request err, GetAll", "err", err, "payload", req)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -370,51 +372,6 @@ func (handler UserRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Request
 	}
 
 	common.WriteJsonResp(w, err, res, http.StatusOK)
-}
-
-func (handler UserRestHandlerImpl) getQueryParamsForListing(r *http.Request) (*bean.FetchListingRequest, error) {
-	// check query param
-	params := r.URL.Query()
-	searchKey := params.Get("searchKey")
-	sortOrder := params.Get("sortOrder")
-	sortBy := params.Get("sortBy")
-	offsetString := params.Get("offset")
-	var err error
-	var offset int
-	if len(offsetString) > 0 {
-		offset, err = strconv.Atoi(offsetString)
-		if err != nil {
-			handler.logger.Errorw("error in getQueryParamsForListing", "err", err, "offset", offset)
-			return nil, err
-		}
-	}
-	sizeString := params.Get("size")
-	var size int
-	if len(sizeString) > 0 {
-		size, err = strconv.Atoi(sizeString)
-		if err != nil {
-			handler.logger.Errorw("error in getQueryParamsForListing", "err", err, "size", size)
-			return nil, err
-		}
-	}
-	showAllString := params.Get("showAll")
-	showAll := false
-	if len(showAllString) > 0 {
-		showAll, err = strconv.ParseBool(showAllString)
-		if err != nil {
-			handler.logger.Errorw("error in getQueryParamsForListing", "err", err, "showAll", showAll)
-			return nil, err
-		}
-	}
-	request := &bean.FetchListingRequest{
-		SortOrder: bean2.SortOrder(sortOrder),
-		SortBy:    bean2.SortBy(sortBy),
-		Offset:    offset,
-		Size:      size,
-		ShowAll:   showAll,
-		SearchKey: searchKey,
-	}
-	return request, nil
 }
 
 func (handler UserRestHandlerImpl) GetAllDetailedUsers(w http.ResponseWriter, r *http.Request) {
@@ -684,6 +641,7 @@ func (handler UserRestHandlerImpl) UpdateRoleGroup(w http.ResponseWriter, r *htt
 }
 
 func (handler UserRestHandlerImpl) FetchRoleGroups(w http.ResponseWriter, r *http.Request) {
+	var decoder = schema.NewDecoder()
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -738,9 +696,10 @@ func (handler UserRestHandlerImpl) FetchRoleGroups(w http.ResponseWriter, r *htt
 		return
 	}
 
-	req, err := handler.getQueryParamsForListing(r)
+	req := &bean.FetchListingRequest{}
+	err = decoder.Decode(req, r.URL.Query())
 	if err != nil {
-		handler.logger.Errorw("request err, FetchRoleGroups", "err", err)
+		handler.logger.Errorw("request err, FetchRoleGroups", "err", err, "payload", req)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
