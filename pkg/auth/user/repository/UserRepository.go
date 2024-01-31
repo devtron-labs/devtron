@@ -266,8 +266,8 @@ func (impl UserRepositoryImpl) UpdateTimeWindowIdInBatch(tx *pg.Tx, userIds []in
 	// Bulk update using Updates with the dynamically generated SQL expression
 	_, err := tx.Model(&model).
 		Set("timeout_window_configuration_id = "+sqlExpression).
-		Set("updated_on = ?", loggedInUserId).
-		Set("updated_by = ?", time.Now()).
+		//Set("updated_on = ?", loggedInUserId).
+		//Set("updated_by = ?", time.Now()).
 		Where("id IN (?)", pg.In(userIds)).Update()
 	if err != nil {
 		impl.Logger.Error("error in UpdateTimeWindowIdInBatch", "err", err, "userIds", userIds)
