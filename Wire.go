@@ -48,6 +48,7 @@ import (
 	"github.com/devtron-labs/devtron/api/module"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	pipeline2 "github.com/devtron-labs/devtron/api/restHandler/app"
+	imageDigestPolicy2 "github.com/devtron-labs/devtron/api/restHandler/imageDigestPolicy"
 	resourceFilter2 "github.com/devtron-labs/devtron/api/restHandler/resourceFilter"
 	"github.com/devtron-labs/devtron/api/restHandler/scopedVariable"
 	"github.com/devtron-labs/devtron/api/router"
@@ -117,6 +118,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/generateManifest"
 	"github.com/devtron-labs/devtron/pkg/git"
 	"github.com/devtron-labs/devtron/pkg/gitops"
+	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	repository7 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
 	"github.com/devtron-labs/devtron/pkg/notifier"
@@ -977,6 +979,15 @@ func InitializeApp() (*App, error) {
 
 		pipeline.NewPipelineConfigListenerServiceImpl,
 		wire.Bind(new(pipeline.PipelineConfigListenerService), new(*pipeline.PipelineConfigListenerServiceImpl)),
+
+		imageDigestPolicy.NewImageDigestPolicyServiceImpl,
+		wire.Bind(new(imageDigestPolicy.ImageDigestPolicyService), new(*imageDigestPolicy.ImageDigestPolicyServiceImpl)),
+
+		router.NewImageDigestPolicyRouterImpl,
+		wire.Bind(new(router.ImageDigestPolicyRouter), new(*router.ImageDigestPolicyRouterImpl)),
+
+		imageDigestPolicy2.NewImageDigestPolicyRestHandlerImpl,
+		wire.Bind(new(imageDigestPolicy2.ImageDigestPolicyRestHandler), new(*imageDigestPolicy2.ImageDigestPolicyRestHandlerImpl)),
 		cron2.NewCronLoggerImpl,
 	)
 	return &App{}, nil
