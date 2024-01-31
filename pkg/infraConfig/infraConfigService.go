@@ -141,13 +141,14 @@ func (impl *InfraConfigServiceImpl) loadDefaultProfile() error {
 	if err != nil && !errors.Is(err, pg.ErrNoRows) {
 		return err
 	}
+	profileCreationRequired := errors.Is(err, pg.ErrNoRows)
 	tx, err := impl.infraProfileRepo.StartTx()
 	if err != nil {
 		impl.logger.Errorw("error in starting transaction to save default configurations", "error", err)
 		return err
 	}
 	defer impl.infraProfileRepo.RollbackTx(tx)
-	if errors.Is(err, pg.ErrNoRows) {
+	if profileCreationRequired {
 		// if default profiles not found then create default profile
 		defaultProfile := &InfraProfileEntity{
 			Name:        DEFAULT_PROFILE_NAME,
