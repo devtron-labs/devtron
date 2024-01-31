@@ -4,6 +4,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/infraConfig/units"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/util"
+	"math"
 	"time"
 )
 
@@ -93,10 +94,14 @@ type ConfigurationBean struct {
 }
 
 func (configurationBean *ConfigurationBean) ConvertToInfraProfileConfigurationEntity() *InfraProfileConfigurationEntity {
+	value := configurationBean.Value
+	if configurationBean.Key == TIME_OUT {
+		value = math.Floor(value)
+	}
 	return &InfraProfileConfigurationEntity{
 		Id:        configurationBean.Id,
 		Key:       GetConfigKey(configurationBean.Key),
-		Value:     configurationBean.Value,
+		Value:     value,
 		Unit:      GetUnitSuffix(configurationBean.Key, configurationBean.Unit),
 		ProfileId: configurationBean.ProfileId,
 		Active:    configurationBean.Active,

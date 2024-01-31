@@ -7,10 +7,10 @@ type IdentifierType string
 
 const ALL_PROFILES = ""
 const CannotDeleteDefaultProfile = "cannot delete default profile"
-const NORMAL ProfileType = "NORMAL"
 const profileApplyErr = "selected filter does not match any apps, cannot apply the given profile"
 const APPLICATION IdentifierType = "application"
 
+const NORMAL ProfileType = "NORMAL"
 const InvalidUnit = "invalid %s unit found in %s "
 const DEFAULT_PROFILE_NAME = "default"
 const DEFAULT_PROFILE_EXISTS = "default profile exists"
