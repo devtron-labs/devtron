@@ -122,7 +122,12 @@ func (impl *UserSelfRegistrationServiceImpl) SelfRegister(emailId string, groups
 
 func (impl *UserSelfRegistrationServiceImpl) CheckAndCreateUserIfConfigured(claims jwt.MapClaims) bool {
 	emailId, groups := impl.globalAuthorisationConfigService.GetEmailAndGroupsFromClaims(claims)
+	impl.logger.Info("check and create user if configured")
 	exists := impl.userService.UserExists(emailId)
+	isInactive, _, err := impl.userService.UserStatusCheckInDb(emailId)
+	if err != nil {
+		impl.logger.Errorw("skip this error and check for self registration", "error", err)
+	}
 	var id int32
 	if !exists {
 		impl.logger.Infow("self registering user,  ", "email", emailId)
@@ -144,8 +149,10 @@ func (impl *UserSelfRegistrationServiceImpl) CheckAndCreateUserIfConfigured(clai
 				return exists
 			}
 		}
-
-		impl.userService.SaveLoginAudit(emailId, "localhost", id)
+		impl.logger.Info("check and create user if configured - save audit", "isInactive", isInactive)
+		if !isInactive {
+			impl.userService.SaveLoginAudit(emailId, "localhost", id)
+		}
 	}
 	impl.logger.Infow("user status", "email", emailId, "status", exists)
 	return exists

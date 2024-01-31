@@ -154,7 +154,7 @@ func (impl UserRepositoryImpl) FetchActiveUserByEmail(email string) (bean.UserIn
 		"WHERE u.active = true and u.email_id ILIKE ? order by u.updated_on desc"
 	_, err := impl.dbConnection.Query(&users, query, email)
 	if err != nil {
-		impl.Logger.Error("Exception caught:", err)
+		impl.Logger.Errorw("Exception caught:", "err", err)
 		return users, err
 	}
 
