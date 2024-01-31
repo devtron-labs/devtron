@@ -137,6 +137,7 @@ type MuxRouter struct {
 	devtronResourceRouter              devtronResource.DevtronResourceRouter
 	globalAuthorisationConfigRouter    globalConfig.AuthorisationConfigRouter
 	lockConfigurationRouter            lockConfiguation.LockConfigurationRouter
+	imageDigestPolicyRouter            ImageDigestPolicyRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -173,7 +174,8 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 	devtronResourceRouter devtronResource.DevtronResourceRouter,
 	globalAuthorisationConfigRouter globalConfig.AuthorisationConfigRouter,
 	lockConfigurationRouter lockConfiguation.LockConfigurationRouter,
-	proxyRouter proxy.ProxyRouter) *MuxRouter {
+	proxyRouter proxy.ProxyRouter,
+	imageDigestPolicyRouter ImageDigestPolicyRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
 		HelmRouter:                         HelmRouter,
@@ -251,6 +253,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 		devtronResourceRouter:              devtronResourceRouter,
 		globalAuthorisationConfigRouter:    globalAuthorisationConfigRouter,
 		lockConfigurationRouter:            lockConfigurationRouter,
+		imageDigestPolicyRouter:            imageDigestPolicyRouter,
 	}
 	return r
 }
@@ -316,6 +319,12 @@ func (r MuxRouter) Init() {
 
 	rootRouter := r.Router.PathPrefix("/orchestrator").Subrouter()
 	r.UserAuthRouter.InitUserAuthRouter(rootRouter)
+
+	resourceFilterRouter := r.Router.PathPrefix("/orchestrator/filters").Subrouter()
+	r.resourceFilterRouter.InitResourceFilterRouter(resourceFilterRouter)
+
+	imageDigestPolicyRouter := r.Router.PathPrefix("/orchestrator/digest-policy").Subrouter()
+	r.imageDigestPolicyRouter.initImageDigestPolicyRouter(imageDigestPolicyRouter)
 
 	gitRouter := r.Router.PathPrefix("/orchestrator/git").Subrouter()
 	r.GitProviderRouter.InitGitProviderRouter(gitRouter)

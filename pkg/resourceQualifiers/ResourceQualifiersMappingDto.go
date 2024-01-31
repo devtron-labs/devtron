@@ -5,8 +5,10 @@ import "github.com/devtron-labs/devtron/pkg/sql"
 type ResourceType int
 
 const (
-	Variable ResourceType = 0
-	Filter                = 1
+	Variable              ResourceType = 0
+	Filter                ResourceType = 1
+	ImageDigest           ResourceType = 2
+	ImageDigestResourceId              = -1 // for ImageDigest resource id will is constant unlike filter and variables
 )
 
 type QualifierSelector int
@@ -23,6 +25,8 @@ const (
 	AllExistingAndFutureProdEnvsInt      = -2
 	AllExistingAndFutureNonProdEnvsValue = "-1"
 	AllExistingAndFutureNonProdEnvsInt   = -1
+	AllExistingAndFutureEnvsString       = "-3"
+	AllExistingAndFutureEnvsInt          = -3
 )
 
 func GetEnvIdentifierValue(scope Scope) int {
