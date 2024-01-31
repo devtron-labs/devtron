@@ -48,6 +48,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
+	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
@@ -197,6 +198,7 @@ type WorkflowDagExecutorImpl struct {
 	pipelineConfigListenerService       PipelineConfigListenerService
 	customTagService                    CustomTagService
 	ACDConfig                           *argocdServer.ACDConfig
+	imageDigestPolicyService            imageDigestPolicy.ImageDigestPolicyService
 }
 
 const kedaAutoscaling = "kedaAutoscaling"
@@ -321,6 +323,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	pipelineConfigListenerService PipelineConfigListenerService,
 	customTagService CustomTagService,
 	ACDConfig *argocdServer.ACDConfig,
+	imageDigestPolicyService imageDigestPolicy.ImageDigestPolicyService,
 ) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
@@ -395,6 +398,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		pipelineConfigListenerService:       pipelineConfigListenerService,
 		customTagService:                    customTagService,
 		ACDConfig:                           ACDConfig,
+		imageDigestPolicyService:            imageDigestPolicyService,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -1208,7 +1212,9 @@ func (impl *WorkflowDagExecutorImpl) SetCopyContainerImagePluginDataInWorkflowRe
 			}
 
 			if !customTag.Enabled {
-				DockerImageTag = ""
+				// case when custom tag is not configured - source image tag will be taken as docker image tag
+				pluginTriggerImageSplit := strings.Split(artifact.Image, ":")
+				DockerImageTag = pluginTriggerImageSplit[len(pluginTriggerImageSplit)-1]
 			} else {
 				// for copyContainerImage plugin parse destination images and save its data in image path reservation table
 				customTagDbObject, customDockerImageTag, err := impl.customTagService.GetCustomTag(pipelineStageEntityType, strconv.Itoa(pipelineId))
@@ -1691,6 +1697,16 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		}
 	}
 
+	digestConfigurationRequest := imageDigestPolicy.DigestPolicyConfigurationRequest{PipelineId: cdPipeline.Id}
+	digestPolicyConfigurations, err := impl.imageDigestPolicyService.GetDigestPolicyConfigurations(digestConfigurationRequest)
+	if err != nil {
+		impl.logger.Errorw("error in checking if isImageDigestPolicyConfiguredForPipeline", "err", err, "pipelineId", cdPipeline.Id)
+		return nil, err
+	}
+	image := artifact.Image
+	if digestPolicyConfigurations.UseDigestForTrigger() {
+		image = ReplaceImageTagWithDigest(image, artifact.ImageDigest)
+	}
 	cdStageWorkflowRequest := &types.WorkflowRequest{
 		EnvironmentId:         cdPipeline.EnvironmentId,
 		AppId:                 cdPipeline.AppId,
@@ -1943,6 +1959,12 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 	cdStageWorkflowRequest.DefaultAddressPoolBaseCidr = impl.config.GetDefaultAddressPoolBaseCidr()
 	cdStageWorkflowRequest.DefaultAddressPoolSize = impl.config.GetDefaultAddressPoolSize()
 	return cdStageWorkflowRequest, nil
+}
+
+func ReplaceImageTagWithDigest(image, digest string) string {
+	imageWithoutTag := strings.Split(image, ":")[0]
+	imageWithDigest := fmt.Sprintf("%s@%s", imageWithoutTag, digest)
+	return imageWithDigest
 }
 
 func (impl *WorkflowDagExecutorImpl) buildDefaultArtifactLocation(cdWorkflowConfig *pipelineConfig.CdWorkflowConfig, savedWf *pipelineConfig.CdWorkflow, runner *pipelineConfig.CdWorkflowRunner) string {
@@ -3119,7 +3141,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPipeline(overrideRequest *bean.Value
 		manifestPushResponse := manifestPushService.PushChart(manifestPushTemplate, ctx)
 		if manifestPushResponse.Error != nil {
 			impl.logger.Errorw("Error in pushing manifest to git", "err", err, "git_repo_url", manifestPushTemplate.RepoUrl)
-			return releaseNo, manifest, err
+			return releaseNo, manifest, manifestPushResponse.Error
 		}
 		pipelineOverrideUpdateRequest := &chartConfig.PipelineOverride{
 			Id:                     valuesOverrideResponse.PipelineOverride.Id,
@@ -4179,6 +4201,18 @@ func (impl *WorkflowDagExecutorImpl) getReleaseOverride(envOverride *chartConfig
 	if strategy != nil {
 		deploymentStrategy = string(strategy.Strategy)
 	}
+
+	digestConfigurationRequest := imageDigestPolicy.DigestPolicyConfigurationRequest{PipelineId: overrideRequest.PipelineId}
+	digestPolicyConfigurations, err := impl.imageDigestPolicyService.GetDigestPolicyConfigurations(digestConfigurationRequest)
+	if err != nil {
+		impl.logger.Errorw("error in checking if isImageDigestPolicyConfiguredForPipeline", "err", err, "pipelineId", overrideRequest.PipelineId)
+		return "", err
+	}
+
+	if digestPolicyConfigurations.UseDigestForTrigger() {
+		imageTag[imageTagLen-1] = fmt.Sprintf("%s@%s", imageTag[imageTagLen-1], artifact.ImageDigest)
+	}
+
 	releaseAttribute := app.ReleaseAttributes{
 		Name:           imageName,
 		Tag:            imageTag[imageTagLen-1],
