@@ -474,6 +474,21 @@ func (impl UserAuthServiceImpl) AuthVerification(r *http.Request) (bool, error) 
 		}
 		return false, err
 	}
+	emailId, err := impl.userService.GetEmailFromToken(token)
+	if err != nil {
+		impl.logger.Errorw("AuthVerification failed ", "token", token, "error", err)
+		return false, err
+	}
+	exists := impl.userService.UserExists(emailId)
+	if !exists {
+		err = &util.ApiError{
+			HttpStatusCode:  http.StatusUnauthorized,
+			Code:            constants.UserNotFoundForToken,
+			InternalMessage: "user does not exist",
+			UserMessage:     fmt.Sprintf("active user does not exist for token: %s", token),
+		}
+		return false, err
+	}
 
 	isInactive, _, err := impl.userService.CheckUserStatusAndUpdateLoginAudit(token)
 	if err != nil {
