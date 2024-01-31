@@ -31,6 +31,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/bean"
 	chartService "github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
+	bean3 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/juju/errors"
 	"go.uber.org/zap"
 	"strconv"
@@ -53,7 +54,7 @@ type AppDeploymentTypeChangeManager interface {
 	//DeleteDeploymentAppsForEnvironment : takes in environment id and current deployment app type
 	// and deletes all the cd pipelines for that deployment type in all apps that belongs to
 	// that environment.
-	DeleteDeploymentAppsForEnvironment(ctx context.Context, environmentId int, currentDeploymentAppType bean.DeploymentType, exclusionList []int, includeApps []int, userId int32) (*bean.DeploymentAppTypeChangeResponse, error)
+	DeleteDeploymentAppsForEnvironment(ctx context.Context, environmentId int, currentDeploymentAppType bean3.DeploymentType, exclusionList []int, includeApps []int, userId int32) (*bean.DeploymentAppTypeChangeResponse, error)
 }
 
 type AppDeploymentTypeChangeManagerImpl struct {
@@ -102,13 +103,13 @@ func (impl *AppDeploymentTypeChangeManagerImpl) ChangeDeploymentType(ctx context
 	request *bean.DeploymentAppTypeChangeRequest) (*bean.DeploymentAppTypeChangeResponse, error) {
 
 	var response *bean.DeploymentAppTypeChangeResponse
-	var deleteDeploymentType bean.DeploymentType
+	var deleteDeploymentType bean3.DeploymentType
 	var err error
 
-	if request.DesiredDeploymentType == bean.ArgoCd {
-		deleteDeploymentType = bean.Helm
+	if request.DesiredDeploymentType == bean3.ArgoCd {
+		deleteDeploymentType = bean3.Helm
 	} else {
-		deleteDeploymentType = bean.ArgoCd
+		deleteDeploymentType = bean3.ArgoCd
 	}
 
 	// Force delete apps
@@ -222,12 +223,12 @@ func (impl *AppDeploymentTypeChangeManagerImpl) ChangePipelineDeploymentType(ctx
 		TriggeredPipelines:    make([]*bean.CdPipelineTrigger, 0),
 	}
 
-	var deleteDeploymentType bean.DeploymentType
+	var deleteDeploymentType bean3.DeploymentType
 
-	if request.DesiredDeploymentType == bean.ArgoCd {
-		deleteDeploymentType = bean.Helm
+	if request.DesiredDeploymentType == bean3.ArgoCd {
+		deleteDeploymentType = bean3.Helm
 	} else {
-		deleteDeploymentType = bean.ArgoCd
+		deleteDeploymentType = bean3.ArgoCd
 	}
 
 	pipelines, err := impl.pipelineRepository.FindActiveByEnvIdAndDeploymentType(request.EnvId,
@@ -425,7 +426,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentApps(ctx context
 		var err error
 
 		// delete request
-		if pipeline.DeploymentAppType == bean.ArgoCd {
+		if pipeline.DeploymentAppType == bean3.ArgoCd {
 			err = impl.deleteArgoCdApp(ctx, pipeline, deploymentAppName, true)
 
 		} else {
@@ -507,7 +508,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentApps(ctx context
 }
 
 func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentAppsForEnvironment(ctx context.Context, environmentId int,
-	currentDeploymentAppType bean.DeploymentType, exclusionList []int, includeApps []int, userId int32) (*bean.DeploymentAppTypeChangeResponse, error) {
+	currentDeploymentAppType bean3.DeploymentType, exclusionList []int, includeApps []int, userId int32) (*bean.DeploymentAppTypeChangeResponse, error) {
 
 	// fetch active pipelines from database for the given environment id and current deployment app type
 	pipelines, err := impl.pipelineRepository.FindActiveByEnvIdAndDeploymentType(environmentId,
@@ -548,7 +549,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) isPipelineInfoValid(pipeline *pi
 func (impl *AppDeploymentTypeChangeManagerImpl) handleNotHealthyAppsIfArgoDeploymentType(pipeline *pipelineConfig.Pipeline,
 	failedPipelines []*bean.DeploymentChangeStatus) ([]*bean.DeploymentChangeStatus, error) {
 
-	if pipeline.DeploymentAppType == bean.ArgoCd {
+	if pipeline.DeploymentAppType == bean3.ArgoCd {
 		// check if app status is Healthy
 		status, err := impl.appStatusRepository.Get(pipeline.AppId, pipeline.EnvironmentId)
 
@@ -579,7 +580,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) handleNotHealthyAppsIfArgoDeploy
 func (impl *AppDeploymentTypeChangeManagerImpl) handleNotDeployedAppsIfArgoDeploymentType(pipeline *pipelineConfig.Pipeline,
 	failedPipelines []*bean.DeploymentChangeStatus) ([]*bean.DeploymentChangeStatus, error) {
 
-	if pipeline.DeploymentAppType == string(bean.ArgoCd) {
+	if pipeline.DeploymentAppType == string(bean3.ArgoCd) {
 		// check if app status is Healthy
 		status, err := impl.appStatusRepository.Get(pipeline.AppId, pipeline.EnvironmentId)
 
@@ -627,7 +628,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) FetchDeletedApp(ctx context.Cont
 
 		deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
 		var err error
-		if pipeline.DeploymentAppType == string(bean.ArgoCd) {
+		if pipeline.DeploymentAppType == bean3.ArgoCd {
 			appIdentifier := &service.AppIdentifier{
 				ClusterId:   pipeline.Environment.ClusterId,
 				ReleaseName: pipeline.DeploymentAppName,

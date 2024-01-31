@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
-	"time"
 )
 
 type WorkflowType string
@@ -81,25 +80,9 @@ type BulkCdDeployEvent struct {
 	UserId                int32                  `json:"userId"`
 }
 
-type AsyncCdDeployEvent struct {
-	ValuesOverrideRequest *ValuesOverrideRequest `json:"valuesOverrideRequest"`
-	TriggeredAt           time.Time              `json:"triggeredAt"`
-	TriggeredBy           int32                  `json:"triggeredBy"`
-}
-
 type ReleaseStatusUpdateRequest struct {
 	RequestId string             `json:"requestId"`
 	NewStatus models.ChartStatus `json:"newStatus"`
-}
-
-type TriggerEvent struct {
-	PerformChartPush           bool
-	PerformDeploymentOnCluster bool
-	GetManifestInResponse      bool
-	DeploymentAppType          string
-	ManifestStorageType        string
-	TriggeredBy                int32
-	TriggerdAt                 time.Time
 }
 
 type ArtifactsListFilterOptions struct {

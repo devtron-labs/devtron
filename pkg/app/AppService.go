@@ -26,6 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
+	bean4 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"io/ioutil"
 	"net/url"
 	"os"
@@ -40,7 +41,6 @@ import (
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	status2 "github.com/devtron-labs/devtron/pkg/app/status"
 	repository4 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
-	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	_ "github.com/devtron-labs/devtron/pkg/variables/repository"
@@ -500,7 +500,7 @@ func (impl *AppServiceImpl) CheckIfPipelineUpdateEventIsValid(argoAppName, gitHa
 		return isValid, pipeline, cdWfr, pipelineOverride, err
 	}
 	//getting latest pipelineOverride for app (by appId and envId)
-	pipelineOverride, err = impl.pipelineOverrideRepository.FindLatestByAppIdAndEnvId(pipeline.AppId, pipeline.EnvironmentId, bean2.ArgoCd)
+	pipelineOverride, err = impl.pipelineOverrideRepository.FindLatestByAppIdAndEnvId(pipeline.AppId, pipeline.EnvironmentId, bean4.ArgoCd)
 	if err != nil {
 		impl.logger.Errorw("error in getting latest pipelineOverride by appId and envId", "err", err, "appId", pipeline.AppId, "envId", pipeline.EnvironmentId)
 		return isValid, pipeline, cdWfr, pipelineOverride, err
@@ -1257,5 +1257,5 @@ func (impl *AppServiceImpl) GetGitOpsRepoPrefix() string {
 
 func (impl *AppServiceImpl) IsDevtronAsyncInstallModeEnabled(deploymentAppType string) bool {
 	return impl.appStatusConfig.EnableAsyncInstallDevtronChart &&
-		deploymentAppType == bean2.Helm
+		deploymentAppType == bean4.Helm
 }

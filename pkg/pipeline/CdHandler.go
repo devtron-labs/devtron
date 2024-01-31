@@ -575,7 +575,7 @@ func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb(helmPipel
 		wfr.UpdatedBy = 1
 		wfr.UpdatedOn = time.Now()
 		if wfr.Status == pipelineConfig.WorkflowFailed {
-			err = impl.workflowDagExecutor.MarkPipelineStatusTimelineFailed(wfr, errors.New(pipelineConfig.NEW_DEPLOYMENT_INITIATED))
+			err = impl.pipelineStatusTimelineService.MarkPipelineStatusTimelineFailed(wfr.RefCdWorkflowRunnerId, pipelineConfig.NEW_DEPLOYMENT_INITIATED)
 			if err != nil {
 				impl.Logger.Errorw("error updating CdPipelineStatusTimeline", "err", err)
 				return err
@@ -587,7 +587,7 @@ func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb(helmPipel
 			return err
 		}
 		if slices.Contains(pipelineConfig.WfrTerminalStatusList, wfr.Status) {
-			impl.workflowDagExecutor.UpdateTriggerCDMetricsOnFinish(wfr)
+			util3.TriggerCDMetrics(pipelineConfig.GetTriggerMetricsFromRunnerObj(wfr), impl.config.ExposeCDMetrics)
 		}
 
 		impl.Logger.Infow("updated workflow runner status for helm app", "wfr", wfr)

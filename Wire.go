@@ -104,6 +104,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	repository9 "github.com/devtron-labs/devtron/pkg/devtronResource/repository"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
+	"github.com/devtron-labs/devtron/pkg/eventProcessor"
 	"github.com/devtron-labs/devtron/pkg/generateManifest"
 	"github.com/devtron-labs/devtron/pkg/git"
 	"github.com/devtron-labs/devtron/pkg/gitops"
@@ -127,6 +128,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	repository10 "github.com/devtron-labs/devtron/pkg/variables/repository"
+	"github.com/devtron-labs/devtron/pkg/workflow/cd"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	cron2 "github.com/devtron-labs/devtron/util/cron"
@@ -162,7 +164,8 @@ func InitializeApp() (*App, error) {
 		webhookHelm.WebhookHelmWireSet,
 		terminal.TerminalWireSet,
 		deployment2.DeploymentWireSet,
-
+		eventProcessor.EventProcessorWireSet,
+		cd.CdWorkflowWireSet,
 		// -------wireset end ----------
 		//-------
 		gitSensor.GetConfig,

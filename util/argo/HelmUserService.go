@@ -1,10 +1,12 @@
 package argo
 
 import (
+	"context"
 	"errors"
 	"go.uber.org/zap"
 )
 
+// TODO : remove this service completely
 type HelmUserServiceImpl struct {
 	logger *zap.SugaredLogger
 }
@@ -26,4 +28,8 @@ func (impl *HelmUserServiceImpl) ValidateGitOpsAndGetOrUpdateArgoCdUserDetail() 
 
 func (impl *HelmUserServiceImpl) GetOrUpdateArgoCdUserDetail() string {
 	return ""
+}
+
+func (impl *HelmUserServiceImpl) BuildACDContext() (acdContext context.Context, err error) {
+	return context.Background(), nil
 }

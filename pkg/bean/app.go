@@ -26,6 +26,7 @@ import (
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
+	bean3 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"time"
@@ -662,12 +663,12 @@ const (
 )
 
 type DeploymentAppTypeChangeRequest struct {
-	EnvId                 int            `json:"envId,omitempty" validate:"required"`
-	DesiredDeploymentType DeploymentType `json:"desiredDeploymentType,omitempty" validate:"required"`
-	ExcludeApps           []int          `json:"excludeApps"`
-	IncludeApps           []int          `json:"includeApps"`
-	AutoTriggerDeployment bool           `json:"autoTriggerDeployment"`
-	UserId                int32          `json:"-"`
+	EnvId                 int                  `json:"envId,omitempty" validate:"required"`
+	DesiredDeploymentType bean3.DeploymentType `json:"desiredDeploymentType,omitempty" validate:"required"`
+	ExcludeApps           []int                `json:"excludeApps"`
+	IncludeApps           []int                `json:"includeApps"`
+	AutoTriggerDeployment bool                 `json:"autoTriggerDeployment"`
+	UserId                int32                `json:"-"`
 }
 
 type DeploymentChangeStatus struct {
@@ -682,7 +683,7 @@ type DeploymentChangeStatus struct {
 
 type DeploymentAppTypeChangeResponse struct {
 	EnvId                 int                       `json:"envId,omitempty"`
-	DesiredDeploymentType DeploymentType            `json:"desiredDeploymentType,omitempty"`
+	DesiredDeploymentType bean3.DeploymentType      `json:"desiredDeploymentType,omitempty"`
 	SuccessfulPipelines   []*DeploymentChangeStatus `json:"successfulPipelines"`
 	FailedPipelines       []*DeploymentChangeStatus `json:"failedPipelines"`
 	TriggeredPipelines    []*CdPipelineTrigger      `json:"-"` // Disabling auto-trigger until bulk trigger API is fixed
@@ -691,23 +692,6 @@ type DeploymentAppTypeChangeResponse struct {
 type CdPipelineTrigger struct {
 	CiArtifactId int `json:"ciArtifactId"`
 	PipelineId   int `json:"pipelineId"`
-}
-
-type DeploymentType = string
-
-const (
-	Helm                    DeploymentType = "helm"
-	ArgoCd                  DeploymentType = "argo_cd"
-	ManifestDownload        DeploymentType = "manifest_download"
-	GitOpsWithoutDeployment DeploymentType = "git_ops_without_deployment"
-)
-
-func IsAcdApp(deploymentType string) bool {
-	return deploymentType == ArgoCd
-}
-
-func IsHelmApp(deploymentType string) bool {
-	return deploymentType == Helm
 }
 
 type Status string
