@@ -1,12 +1,12 @@
 package resourceQualifiers
 
 type Scope struct {
-	AppId     int  `json:"appId"`
-	EnvId     int  `json:"envId"`
-	ClusterId int  `json:"clusterId"`
-	ProjectId int  `json:"projectId"`
-	IsProdEnv bool `json:"isProdEnv"`
-
+	AppId          int             `json:"appId"`
+	EnvId          int             `json:"envId"`
+	ClusterId      int             `json:"clusterId"`
+	ProjectId      int             `json:"projectId"`
+	IsProdEnv      bool            `json:"isProdEnv"`
+	PipelineId     int             `json:"pipelineId"`
 	SystemMetadata *SystemMetadata `json:"-"`
 }
 
@@ -45,6 +45,7 @@ const (
 	ENV_QUALIFIER         Qualifier = 3
 	CLUSTER_QUALIFIER     Qualifier = 4
 	GLOBAL_QUALIFIER      Qualifier = 5
+	PIPELINE_QUALIFIER    Qualifier = 6
 )
 
 var CompoundQualifiers = []Qualifier{APP_AND_ENV_QUALIFIER}

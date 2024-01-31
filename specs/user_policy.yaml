@@ -209,7 +209,7 @@ paths:
                   type: string
                   enum: ["active", "inactive"]
                   example: "active"
-                timeToLive:
+                timeoutWindowExpression:
                   type: string
                   format: date-time
                   example: "2009-11-10T23:00:00Z"
@@ -261,7 +261,7 @@ components:
           type: string
           format: date-time
           description: user last login time
-        timeToLive:
+        timeoutWindowExpression:
           type: string
           format: date-time
           description: user time to live status
@@ -307,7 +307,7 @@ components:
           type: string
           format: date-time
           description: user last login time
-        timeToLive:
+        timeoutWindowExpression:
           type: string
           format: date-time
           description: user time to live status

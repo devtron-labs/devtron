@@ -77,7 +77,7 @@ func (impl TimeWindowRepositoryImpl) Create(model *TimeoutWindowConfiguration) (
 func (impl TimeWindowRepositoryImpl) Update(model *TimeoutWindowConfiguration) (*TimeoutWindowConfiguration, error) {
 	_, err := impl.dbConnection.Model(&model).Update()
 	if err != nil {
-		impl.logger.Errorw("error in UpdateInBatch time window", "err", err)
+		impl.logger.Errorw("error in Update time window", "err", err)
 		return nil, err
 	}
 	return model, nil

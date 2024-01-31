@@ -1030,6 +1030,7 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, c
 		SourceToNewPipelineId:         refCdPipeline.SourceToNewPipelineId,
 		RefPipelineId:                 refCdPipeline.Id,
 		ParentPipelineType:            refCdPipeline.ParentPipelineType,
+		IsDigestEnforcedForPipeline:   refCdPipeline.IsDigestEnforcedForPipeline,
 	}
 	if refCdPipeline.ParentPipelineType == "WEBHOOK" {
 		cdPipeline.CiPipelineId = 0

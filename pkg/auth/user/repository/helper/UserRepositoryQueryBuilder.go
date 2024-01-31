@@ -44,14 +44,14 @@ func (impl UserRepositoryQueryBuilder) GetQueryForUserListingWithFilters(req *be
 		whereCondition += fmt.Sprintf("AND email_id ilike '%s' ", emailIdLike)
 	}
 
-	if len(req.SortBy) > 0 && req.Size > 0 && !countCheck {
+	if len(req.SortBy) > 0 && !countCheck {
 		orderCondition += fmt.Sprintf("order by %s ", req.SortBy)
 		if req.SortOrder == bean2.Desc {
 			orderCondition += string(req.SortOrder)
 		}
 	}
 
-	if req.Size > 0 {
+	if req.Size > 0 && !countCheck {
 		orderCondition += " limit " + strconv.Itoa(req.Size) + " offset " + strconv.Itoa(req.Offset) + ""
 	}
 	var query string
@@ -80,14 +80,14 @@ func (impl UserRepositoryQueryBuilder) GetQueryForGroupListingWithFilters(req *b
 		whereCondition += fmt.Sprintf("AND name ilike '%s' ", nameIdLike)
 	}
 
-	if len(req.SortBy) > 0 && req.Size > 0 && !countCheck {
+	if len(req.SortBy) > 0 && !countCheck {
 		orderCondition += fmt.Sprintf("order by %s ", req.SortBy)
 		if req.SortOrder == bean2.Desc {
 			orderCondition += string(req.SortOrder)
 		}
 	}
 
-	if req.Size > 0 {
+	if req.Size > 0 && !countCheck {
 		orderCondition += " limit " + strconv.Itoa(req.Size) + " offset " + strconv.Itoa(req.Offset) + ""
 	}
 	var query string

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/devtron-labs/common-lib/utils"
+	"github.com/devtron-labs/common-lib-private/utils"
 	"net/http"
 	"strconv"
 	"strings"
