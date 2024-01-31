@@ -161,7 +161,7 @@ func (handler *InfraConfigRestHandlerImpl) GetProfile(w http.ResponseWriter, r *
 		}
 	}
 
-	defaultProfile, err := handler.infraProfileService.GetDefaultProfile()
+	defaultProfile, err := handler.infraProfileService.GetProfileByName(infraConfig.DEFAULT_PROFILE_NAME)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
@@ -218,7 +218,7 @@ func (handler *InfraConfigRestHandlerImpl) DeleteProfile(w http.ResponseWriter, 
 		common.WriteJsonResp(w, errors.New(infraConfig.InvalidProfileName), nil, http.StatusBadRequest)
 		return
 	}
-	err = handler.infraProfileService.DeleteProfile(profileName)
+	err = handler.infraProfileService.DeleteProfile(userId, profileName)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return

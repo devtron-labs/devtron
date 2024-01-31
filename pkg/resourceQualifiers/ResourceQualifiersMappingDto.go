@@ -7,7 +7,7 @@ type ResourceType int
 const (
 	Variable     ResourceType = 0
 	Filter                    = 1
-	InfraProfile              = 2
+	InfraProfile              = 3
 )
 
 type QualifierSelector int

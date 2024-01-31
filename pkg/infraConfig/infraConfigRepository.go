@@ -9,7 +9,6 @@ import (
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
 	"github.com/pkg/errors"
-	"time"
 )
 
 type ProfileIdentifierCount struct {
@@ -39,10 +38,8 @@ type InfraConfigRepository interface {
 	UpdateConfigurations(tx *pg.Tx, configurations []*InfraProfileConfigurationEntity) error
 	UpdateProfile(tx *pg.Tx, profileName string, profile *InfraProfileEntity) error
 
-	DeleteProfileIdentifierMappingsByIds(tx *pg.Tx, userId int32, identifierIds []int, identifierType IdentifierType, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) error
-	DeleteProfile(tx *pg.Tx, profileName string) error
-	DeleteConfigurations(tx *pg.Tx, profileName string) error
-	DeleteProfileIdentifierMappings(tx *pg.Tx, profileName string) error
+	DeleteProfile(tx *pg.Tx, id int) error
+	DeleteConfigurations(tx *pg.Tx, profileId int) error
 	sql.TransactionWrapper
 }
 
@@ -232,18 +229,18 @@ func (impl *InfraConfigRepositoryImpl) UpdateProfile(tx *pg.Tx, profileName stri
 	return err
 }
 
-func (impl *InfraConfigRepositoryImpl) DeleteProfile(tx *pg.Tx, profileName string) error {
+func (impl *InfraConfigRepositoryImpl) DeleteProfile(tx *pg.Tx, id int) error {
 	_, err := tx.Model(&InfraProfileEntity{}).
 		Set("active=?", false).
-		Where("name = ?", profileName).
+		Where("id = ?", id).
 		Update()
 	return err
 }
 
-func (impl *InfraConfigRepositoryImpl) DeleteConfigurations(tx *pg.Tx, profileName string) error {
+func (impl *InfraConfigRepositoryImpl) DeleteConfigurations(tx *pg.Tx, profileId int) error {
 	_, err := tx.Model(&InfraProfileConfigurationEntity{}).
 		Set("active=?", false).
-		Where("profile_id IN (SELECT id FROM infra_profile WHERE name = ? AND active = true)", profileName).
+		Where("profile_id = ? ", profileId).
 		Update()
 	return err
 }
@@ -401,27 +398,4 @@ func (impl *InfraConfigRepositoryImpl) fillIdentifiersWithProfileId(identifierTy
 		}
 	}
 	return identifiers, nil
-}
-
-func (impl *InfraConfigRepositoryImpl) DeleteProfileIdentifierMappings(tx *pg.Tx, profileName string) error {
-	_, err := tx.Model(&resourceQualifiers.QualifierMapping{}).
-		Set("active=?", false).
-		Where("resource_id IN (SELECT id FROM infra_profile WHERE name = ? AND active = true)", profileName).
-		Where("resource_type=?", resourceQualifiers.InfraProfile).
-		Where("active=?", true).
-		Update()
-	return err
-}
-
-func (impl *InfraConfigRepositoryImpl) DeleteProfileIdentifierMappingsByIds(tx *pg.Tx, userId int32, identifierIds []int, identifierType IdentifierType, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) error {
-	_, err := tx.Model(&resourceQualifiers.QualifierMapping{}).
-		Set("active=?", false).
-		Set("updated_by=?", userId).
-		Set("updated_on=?", time.Now()).
-		Where("resource_type=?", resourceQualifiers.InfraProfile).
-		Where("active=?", true).
-		Where("identifier_value_int IN (?)", pg.In(identifierIds)).
-		Where("identifier_key=?", GetIdentifierKey(identifierType, searchableKeyNameIdMap)).
-		Update()
-	return err
 }

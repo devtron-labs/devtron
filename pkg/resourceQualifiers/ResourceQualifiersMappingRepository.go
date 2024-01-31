@@ -11,7 +11,7 @@ import (
 )
 
 type QualifiersMappingRepository interface {
-	//transaction util funcs
+	// transaction util funcs
 	sql.TransactionWrapper
 	CreateQualifierMappings(qualifierMappings []*QualifierMapping, tx *pg.Tx) ([]*QualifierMapping, error)
 	GetQualifierMappings(resourceType ResourceType, scope *Scope, searchableIdMap map[bean.DevtronResourceSearchableKeyName]int, resourceIds []int) ([]*QualifierMapping, error)
@@ -19,6 +19,7 @@ type QualifiersMappingRepository interface {
 	GetQualifierMappingsForFilterById(resourceId int) ([]*QualifierMapping, error)
 	DeleteAllQualifierMappings(ResourceType, sql.AuditLog, *pg.Tx) error
 	DeleteAllQualifierMappingsByResourceTypeAndId(resourceType ResourceType, resourceId int, auditLog sql.AuditLog, tx *pg.Tx) error
+	DeleteGivenQualifierMappingsByResourceType(resourceType ResourceType, identifierKey int, identifierValueInts []int, auditLog sql.AuditLog, tx *pg.Tx) error
 }
 
 type QualifiersMappingRepositoryImpl struct {
@@ -138,6 +139,19 @@ func (repo *QualifiersMappingRepositoryImpl) DeleteAllQualifierMappingsByResourc
 		Where("active = ?", true).
 		Where("resource_type = ?", resourceType).
 		Where("resource_id = ?", resourceId).
+		Update()
+	return err
+}
+
+func (repo *QualifiersMappingRepositoryImpl) DeleteGivenQualifierMappingsByResourceType(resourceType ResourceType, identifierKey int, identifierValueInts []int, auditLog sql.AuditLog, tx *pg.Tx) error {
+	_, err := tx.Model(&QualifierMapping{}).
+		Set("updated_by=?", auditLog.UpdatedBy).
+		Set("updated_on=?", auditLog.UpdatedOn).
+		Set("active=?", false).
+		Where("active=?", true).
+		Where("resource_type=?", resourceType).
+		Where("identifier_value_int IN (?)", pg.In(identifierValueInts)).
+		Where("identifier_key=?", identifierKey).
 		Update()
 	return err
 }

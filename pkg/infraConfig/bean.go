@@ -19,10 +19,14 @@ type InfraProfileEntity struct {
 }
 
 func (infraProfile *InfraProfileEntity) ConvertToProfileBean() ProfileBean {
+	profileType := DEFAULT
+	if infraProfile.Name != DEFAULT_PROFILE_NAME {
+		profileType = NORMAL
+	}
 	return ProfileBean{
 		Id:          infraProfile.Id,
 		Name:        infraProfile.Name,
-		Type:        DEFAULT,
+		Type:        profileType,
 		Description: infraProfile.Description,
 		Active:      infraProfile.Active,
 		CreatedBy:   infraProfile.CreatedBy,
@@ -252,6 +256,20 @@ func (infraConfig InfraConfig) LoadInfraConfigInEntities() ([]*InfraProfileConfi
 	return defaultConfigurations, nil
 }
 
+func UpdateProfileMissingConfigurationsWithDefault(profile ProfileBean, defaultConfigurations []ConfigurationBean) ProfileBean {
+	extraConfigurations := make([]ConfigurationBean, 0)
+	for _, defaultConfiguration := range defaultConfigurations {
+		// if profile doesn't have the default configuration, add it to the profile
+		if !util.Contains(profile.Configurations, func(config ConfigurationBean) bool {
+			return config.Key == defaultConfiguration.Key
+		}) {
+			extraConfigurations = append(extraConfigurations, defaultConfiguration)
+		}
+	}
+	profile.Configurations = append(profile.Configurations, extraConfigurations...)
+	return profile
+}
+
 type IdentifierListFilter struct {
 	IdentifierType     IdentifierType `json:"-"`                              // currently supporting app
 	IdentifierNameLike string         `json:"search"`                         // currently app_name  is supported
@@ -284,18 +302,4 @@ type InfraProfileApplyRequest struct {
 	// internal use only
 	UpdateToProfileId int   `json:"-"`
 	IdentifierIds     []int `json:"-"`
-}
-
-func UpdateProfileMissingConfigurationsWithDefault(profile ProfileBean, defaultConfigurations []ConfigurationBean) ProfileBean {
-	extraConfigurations := make([]ConfigurationBean, 0)
-	for _, defaultConfiguration := range defaultConfigurations {
-		// if profile doesn't have the default configuration, add it to the profile
-		if !util.Contains(profile.Configurations, func(config ConfigurationBean) bool {
-			return config.Key == defaultConfiguration.Key
-		}) {
-			extraConfigurations = append(extraConfigurations, defaultConfiguration)
-		}
-	}
-	profile.Configurations = append(profile.Configurations, extraConfigurations...)
-	return profile
 }

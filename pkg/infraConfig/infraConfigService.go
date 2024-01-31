@@ -3,7 +3,7 @@ package infraConfig
 import (
 	"fmt"
 	"github.com/caarlos0/env"
-	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/units"
@@ -22,12 +22,11 @@ type InfraConfigService interface {
 
 	// GetConfigurationUnits fetches all the units for the configurations.
 	GetConfigurationUnits() map[ConfigKeyStr]map[string]units.Unit
-
-	// GetDefaultProfile fetches the default profile and its configurations.
-	GetDefaultProfile() (*ProfileBean, error)
-
 	// GetProfileByName fetches the profile and its configurations matching the given profileName.
 	GetProfileByName(name string) (*ProfileBean, error)
+	// UpdateProfile updates the profile and its configurations matching the given profileName.
+	// If profileName is empty, it will return an error.
+	UpdateProfile(userId int32, profileName string, profileBean *ProfileBean) error
 
 	// GetProfileList fetches all the profile and their configurations matching the given profileNameLike string.
 	// If profileNameLike is empty, it will fetch all the active profiles.
@@ -35,13 +34,9 @@ type InfraConfigService interface {
 
 	CreateProfile(userId int32, profileBean *ProfileBean) error
 
-	// UpdateProfile updates the profile and its configurations matching the given profileName.
-	// If profileName is empty, it will return an error.
-	UpdateProfile(userId int32, profileName string, profileBean *ProfileBean) error
-
 	// DeleteProfile deletes the profile and its configurations matching the given profileName.
 	// If profileName is empty, it will return an error.
-	DeleteProfile(profileName string) error
+	DeleteProfile(userId int32, profileName string) error
 
 	GetIdentifierList(listFilter *IdentifierListFilter) (*IdentifierProfileResponse, error)
 
@@ -53,17 +48,17 @@ type InfraConfigServiceImpl struct {
 	infraProfileRepo                    InfraConfigRepository
 	units                               *units.Units
 	infraConfig                         *InfraConfig
-	qualifiersMappingRepository         resourceQualifiers.QualifiersMappingRepository
-	appRepository                       appRepository.AppRepository
+	appService                          app.AppService
 	devtronResourceSearchableKeyService devtronResource.DevtronResourceSearchableKeyService
+	qualifierMappingService             resourceQualifiers.QualifierMappingService
 }
 
 func NewInfraConfigServiceImpl(logger *zap.SugaredLogger,
 	infraProfileRepo InfraConfigRepository,
 	units *units.Units,
-	qualifiersMappingRepository resourceQualifiers.QualifiersMappingRepository,
-	appRepository appRepository.AppRepository,
-	devtronResourceSearchableKeyService devtronResource.DevtronResourceSearchableKeyService) (*InfraConfigServiceImpl, error) {
+	appService app.AppService,
+	devtronResourceSearchableKeyService devtronResource.DevtronResourceSearchableKeyService,
+	qualifierMappingService resourceQualifiers.QualifierMappingService) (*InfraConfigServiceImpl, error) {
 	infraConfiguration := &InfraConfig{}
 	err := env.Parse(infraConfiguration)
 	if err != nil {
@@ -74,8 +69,8 @@ func NewInfraConfigServiceImpl(logger *zap.SugaredLogger,
 		infraProfileRepo:                    infraProfileRepo,
 		units:                               units,
 		infraConfig:                         infraConfiguration,
-		qualifiersMappingRepository:         qualifiersMappingRepository,
-		appRepository:                       appRepository,
+		qualifierMappingService:             qualifierMappingService,
+		appService:                          appService,
 		devtronResourceSearchableKeyService: devtronResourceSearchableKeyService,
 	}
 	err = infraProfileService.loadDefaultProfile()
@@ -371,7 +366,7 @@ func (impl *InfraConfigServiceImpl) CreateProfile(userId int32, profileBean *Pro
 	return nil
 }
 
-func (impl *InfraConfigServiceImpl) DeleteProfile(profileName string) error {
+func (impl *InfraConfigServiceImpl) DeleteProfile(userId int32, profileName string) error {
 	if profileName == "" {
 		return errors.New(InvalidProfileName)
 	}
@@ -380,6 +375,14 @@ func (impl *InfraConfigServiceImpl) DeleteProfile(profileName string) error {
 		return errors.New(CannotDeleteDefaultProfile)
 	}
 
+	profileToBeDeleted, err := impl.infraProfileRepo.GetProfileByName(profileName)
+	if errors.Is(err, pg.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		impl.logger.Errorw("error in fetching profile", "profileName", profileName, "error", err)
+		return err
+	}
 	tx, err := impl.infraProfileRepo.StartTx()
 	if err != nil {
 		impl.logger.Errorw("error in starting transaction to delete profile", "profileName", profileName, "error", err)
@@ -388,20 +391,20 @@ func (impl *InfraConfigServiceImpl) DeleteProfile(profileName string) error {
 	defer impl.infraProfileRepo.RollbackTx(tx)
 
 	// step1: delete configurations
-	err = impl.infraProfileRepo.DeleteConfigurations(tx, profileName)
+	err = impl.infraProfileRepo.DeleteConfigurations(tx, profileToBeDeleted.Id)
 	if err != nil {
 		impl.logger.Errorw("error in deleting configurations", "profileName", profileName, "error", err)
 	}
 
 	// step2: delete profile identifier mappings
-	err = impl.infraProfileRepo.DeleteProfileIdentifierMappings(tx, profileName)
+	err = impl.qualifierMappingService.DeleteAllQualifierMappingsByResourceTypeAndId(resourceQualifiers.InfraProfile, profileToBeDeleted.Id, sql.AuditLog{UpdatedOn: time.Now(), UpdatedBy: userId}, tx)
 	if err != nil {
 		impl.logger.Errorw("error in deleting profile identifier mappings", "profileName", profileName, "error", err)
 		return err
 	}
 
 	// step3: delete profile
-	err = impl.infraProfileRepo.DeleteProfile(tx, profileName)
+	err = impl.infraProfileRepo.DeleteProfile(tx, profileToBeDeleted.Id)
 	if err != nil {
 		impl.logger.Errorw("error in deleting profile", "profileName", profileName, "error", err)
 		return err
@@ -561,7 +564,7 @@ func (impl *InfraConfigServiceImpl) ApplyProfileToIdentifiers(userId int32, appl
 
 		// here we are fetching only the active identifiers list, if user provided identifiers have any inactive at the time of this computation
 		// ignore applying profile for those inactive identifiers
-		ActiveIdentifiers, err := impl.appRepository.FindByNames(applyIdentifiersRequest.Identifiers)
+		ActiveIdentifiers, err := impl.appService.FindAppByNames(applyIdentifiersRequest.Identifiers)
 		if err != nil {
 			impl.logger.Errorw("error in fetching apps using ids", "appIds", applyIdentifiersRequest.Identifiers, "error", err)
 			return err
@@ -602,7 +605,7 @@ func (impl *InfraConfigServiceImpl) applyProfile(userId int32, applyIdentifiersR
 	defer impl.infraProfileRepo.RollbackTx(tx)
 
 	// mark the old profile identifier mappings inactive as they will be overridden by the new profile
-	err = impl.infraProfileRepo.DeleteProfileIdentifierMappingsByIds(tx, userId, applyIdentifiersRequest.IdentifierIds, APPLICATION, searchableKeyNameIdMap)
+	err = impl.qualifierMappingService.DeleteGivenQualifierMappingsByResourceType(resourceQualifiers.InfraProfile, GetIdentifierKey(APPLICATION, searchableKeyNameIdMap), applyIdentifiersRequest.IdentifierIds, sql.AuditLog{UpdatedOn: time.Now(), UpdatedBy: userId}, tx)
 	if err != nil {
 		impl.logger.Errorw("error in deleting profile identifier mappings", "applyIdentifiersRequest", applyIdentifiersRequest, "error", err)
 		return err
@@ -623,7 +626,7 @@ func (impl *InfraConfigServiceImpl) applyProfile(userId int32, applyIdentifiersR
 			}
 			qualifierMappings = append(qualifierMappings, qualifierMapping)
 		}
-		_, err = impl.qualifiersMappingRepository.CreateQualifierMappings(qualifierMappings, tx)
+		_, err = impl.qualifierMappingService.CreateQualifierMappings(qualifierMappings, tx)
 		if err != nil {
 			impl.logger.Errorw("error in creating profile identifier mappings", "applyIdentifiersRequest", applyIdentifiersRequest, "error", err)
 			return err
