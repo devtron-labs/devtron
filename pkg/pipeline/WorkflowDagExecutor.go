@@ -103,7 +103,6 @@ type WorkflowDagExecutor interface {
 	TriggerPreStage(request TriggerRequest) error
 	TriggerDeployment(request TriggerRequest) error
 	ManualCdTrigger(triggerContext TriggerContext, overrideRequest *bean.ValuesOverrideRequest) (int, error)
-	TriggerBulkDeploymentAsync(requests []*BulkTriggerRequest, UserId int32) (interface{}, error)
 	TriggerStageForBulk(triggerRequest TriggerRequest) error
 
 	TriggerBulkHibernateAsync(request StopDeploymentGroupRequest, ctx context.Context) (interface{}, error)
@@ -2504,35 +2503,6 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(triggerContext TriggerConte
 	return releaseId, err
 }
 
-type BulkTriggerRequest struct {
-	CiArtifactId int `sql:"ci_artifact_id"`
-	PipelineId   int `sql:"pipeline_id"`
-}
-
-func (impl *WorkflowDagExecutorImpl) TriggerBulkDeploymentAsync(requests []*BulkTriggerRequest, UserId int32) (interface{}, error) {
-	var cdWorkflows []*pipelineConfig.CdWorkflow
-	for _, request := range requests {
-		cdWf := &pipelineConfig.CdWorkflow{
-			CiArtifactId:   request.CiArtifactId,
-			PipelineId:     request.PipelineId,
-			AuditLog:       sql.AuditLog{CreatedOn: time.Now(), CreatedBy: UserId, UpdatedOn: time.Now(), UpdatedBy: UserId},
-			WorkflowStatus: pipelineConfig.REQUEST_ACCEPTED,
-		}
-		cdWorkflows = append(cdWorkflows, cdWf)
-	}
-	err := impl.cdWorkflowRepository.SaveWorkFlows(cdWorkflows...)
-	if err != nil {
-		impl.logger.Errorw("error in saving wfs", "req", requests, "err", err)
-		return nil, err
-	}
-	impl.triggerNatsEventForBulkAction(cdWorkflows)
-	return nil, nil
-	//return
-	//publish nats async
-	//update status
-	//consume message
-}
-
 type DeploymentGroupAppWithEnv struct {
 	EnvironmentId     int         `json:"environmentId"`
 	DeploymentGroupId int         `json:"deploymentGroupId"`
@@ -2570,26 +2540,6 @@ func (impl *WorkflowDagExecutorImpl) TriggerBulkHibernateAsync(request StopDeplo
 		}
 	}
 	return nil, nil
-}
-
-func (impl *WorkflowDagExecutorImpl) triggerNatsEventForBulkAction(cdWorkflows []*pipelineConfig.CdWorkflow) {
-	for _, wf := range cdWorkflows {
-		data, err := json.Marshal(wf)
-		if err != nil {
-			wf.WorkflowStatus = pipelineConfig.QUE_ERROR
-		} else {
-			err = impl.pubsubClient.Publish(pubsub.BULK_DEPLOY_TOPIC, string(data))
-			if err != nil {
-				wf.WorkflowStatus = pipelineConfig.QUE_ERROR
-			} else {
-				wf.WorkflowStatus = pipelineConfig.ENQUEUED
-			}
-		}
-		err = impl.cdWorkflowRepository.UpdateWorkFlow(wf)
-		if err != nil {
-			impl.logger.Errorw("error in publishing wf msg", "wf", wf, "err", err)
-		}
-	}
 }
 
 func extractTimelineFailedStatusDetails(err error) string {
