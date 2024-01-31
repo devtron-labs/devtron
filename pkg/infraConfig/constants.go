@@ -4,6 +4,7 @@ type ConfigKey int
 type ConfigKeyStr string
 type ProfileType string
 
+const InvalidUnit = "invalid %s unit found in %s "
 const DEFAULT_PROFILE_NAME = "default"
 const DEFAULT_PROFILE_EXISTS = "default profile exists"
 const NO_PROPERTIES_FOUND = "no properties found"

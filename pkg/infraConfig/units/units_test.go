@@ -5,6 +5,7 @@ import (
 	"testing"
 )
 
+// todo: add more test cases
 func TestParseQuantityString(t *testing.T) {
 	memLimit := "01.400Gi"
 	pos, val, num, denom, suf, err := ParseQuantityString(memLimit)

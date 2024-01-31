@@ -3,8 +3,6 @@ package infraConfig
 import (
 	"github.com/devtron-labs/devtron/pkg/infraConfig/units"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/pkg/errors"
-	"strconv"
 	"time"
 )
 
@@ -169,19 +167,7 @@ func (infraConfig *InfraConfig) setCiDefaultTimeout(timeout int64) {
 }
 
 func (infraConfig InfraConfig) LoadCiLimitCpu() (*InfraProfileConfigurationEntity, error) {
-	positive, _, num, denom, suffix, err := units.ParseQuantityString(infraConfig.CiLimitCpu)
-	if err != nil {
-		return nil, err
-	}
-	if !positive {
-		return nil, errors.New("negative value not allowed for cpu limits")
-	}
-	valStr := num
-	if denom != "" {
-		valStr = num + "." + denom
-	}
-
-	val, err := strconv.ParseFloat(valStr, 64)
+	val, suffix, err := units.ParseValAndUnit(infraConfig.CiLimitCpu)
 	if err != nil {
 		return nil, err
 	}
@@ -194,18 +180,7 @@ func (infraConfig InfraConfig) LoadCiLimitCpu() (*InfraProfileConfigurationEntit
 }
 
 func (infraConfig InfraConfig) LoadCiLimitMem() (*InfraProfileConfigurationEntity, error) {
-	positive, _, num, denom, suffix, err := units.ParseQuantityString(infraConfig.CiLimitMem)
-	if err != nil {
-		return nil, err
-	}
-	if !positive {
-		return nil, errors.New("negative value not allowed for memory limits")
-	}
-	valStr := num
-	if denom != "" {
-		valStr = num + "." + denom
-	}
-	val, err := strconv.ParseFloat(valStr, 64)
+	val, suffix, err := units.ParseValAndUnit(infraConfig.CiLimitMem)
 	if err != nil {
 		return nil, err
 	}
@@ -218,24 +193,10 @@ func (infraConfig InfraConfig) LoadCiLimitMem() (*InfraProfileConfigurationEntit
 }
 
 func (infraConfig InfraConfig) LoadCiReqCpu() (*InfraProfileConfigurationEntity, error) {
-	positive, _, num, denom, suffix, err := units.ParseQuantityString(infraConfig.CiReqCpu)
+	val, suffix, err := units.ParseValAndUnit(infraConfig.CiReqCpu)
 	if err != nil {
 		return nil, err
 	}
-	if !positive {
-		return nil, errors.New("negative value not allowed for cpu requests")
-	}
-
-	valStr := num
-	if denom != "" {
-		valStr = num + "." + denom
-	}
-
-	val, err := strconv.ParseFloat(valStr, 64)
-	if err != nil {
-		return nil, err
-	}
-
 	return &InfraProfileConfigurationEntity{
 		Key:   CPURequest,
 		Value: val,
@@ -244,18 +205,7 @@ func (infraConfig InfraConfig) LoadCiReqCpu() (*InfraProfileConfigurationEntity,
 }
 
 func (infraConfig InfraConfig) LoadCiReqMem() (*InfraProfileConfigurationEntity, error) {
-	positive, _, num, denom, suffix, err := units.ParseQuantityString(infraConfig.CiReqMem)
-	if err != nil {
-		return nil, err
-	}
-	if !positive {
-		return nil, errors.New("negative value not allowed for memory requests")
-	}
-	valStr := num
-	if denom != "" {
-		valStr = num + "." + denom
-	}
-	val, err := strconv.ParseFloat(valStr, 64)
+	val, suffix, err := units.ParseValAndUnit(infraConfig.CiReqMem)
 	if err != nil {
 		return nil, err
 	}

@@ -173,6 +173,7 @@ func (impl *InfraConfigServiceImpl) loadDefaultProfile() error {
 
 	// get db configurations and create new entries if db is out of sync
 	defaultConfigurationsFromDB, err := impl.infraProfileRepo.GetConfigurationsByProfileName(DEFAULT_PROFILE_NAME)
+	// todo: check the error logic here
 	if err != nil {
 		impl.logger.Errorw("error in fetching default configurations", "error", err)
 		return err
@@ -183,20 +184,19 @@ func (impl *InfraConfigServiceImpl) loadDefaultProfile() error {
 	}
 
 	creatableConfigurations := make([]*InfraProfileConfigurationEntity, 0, len(defaultConfigurationsFromEnv))
-	util.Transform(defaultConfigurationsFromEnv, func(config *InfraProfileConfigurationEntity) *InfraProfileConfigurationEntity {
-		if !defaultConfigurationsFromDBMap[config.Key] {
-			config.ProfileId = profile.Id
-			config.Active = true
-			config.AuditLog = sql.NewDefaultAuditLog(1)
-			creatableConfigurations = append(creatableConfigurations, config)
+	for _, configurationFromEnv := range defaultConfigurationsFromEnv {
+		if !defaultConfigurationsFromDBMap[configurationFromEnv.Key] {
+			configurationFromEnv.ProfileId = profile.Id
+			configurationFromEnv.Active = true
+			configurationFromEnv.AuditLog = sql.NewDefaultAuditLog(1)
+			creatableConfigurations = append(creatableConfigurations, configurationFromEnv)
 		}
-		return config
-	})
+	}
 
 	if len(creatableConfigurations) > 0 {
 		err = impl.infraProfileRepo.CreateConfigurations(tx, creatableConfigurations)
 		if err != nil {
-			impl.logger.Errorw("error in saving default configurations", "error", err)
+			impl.logger.Errorw("error in saving default configurations", "configurations", creatableConfigurations, "error", err)
 			return err
 		}
 	}
@@ -241,7 +241,8 @@ func (impl *InfraConfigServiceImpl) getResolvedValue(configurationBean Configura
 	// for timeout we need to get the value in seconds
 	if configurationBean.Key == GetConfigKeyStr(TimeOut) {
 		// if user ever gives the timeout in float, after conversion to int64 it will be rounded off
-		return int64(configurationBean.Value * impl.units.GetTimeUnits()[configurationBean.Unit].ConversionFactor)
+		timeUnit := units.TimeUnitStr(configurationBean.Unit)
+		return int64(configurationBean.Value * impl.units.GetTimeUnits()[timeUnit].ConversionFactor)
 	}
 	if configurationBean.Unit == string(units.CORE) || configurationBean.Unit == string(units.BYTE) {
 		return fmt.Sprintf("%v", configurationBean.Value)
@@ -251,13 +252,26 @@ func (impl *InfraConfigServiceImpl) getResolvedValue(configurationBean Configura
 
 func (impl *InfraConfigServiceImpl) GetConfigurationUnits() map[ConfigKeyStr]map[string]units.Unit {
 	configurationUnits := make(map[ConfigKeyStr]map[string]units.Unit)
-	configurationUnits[CPU_REQUEST] = impl.units.GetCpuUnits()
-	configurationUnits[CPU_LIMIT] = impl.units.GetCpuUnits()
+	cpuUnits := make(map[string]units.Unit)
+	memUnits := make(map[string]units.Unit)
+	timeUnits := make(map[string]units.Unit)
+	for key, val := range impl.units.GetCpuUnits() {
+		cpuUnits[string(key)] = val
+	}
+	for key, val := range impl.units.GetMemoryUnits() {
+		memUnits[string(key)] = val
+	}
+	for key, val := range impl.units.GetTimeUnits() {
+		timeUnits[string(key)] = val
+	}
 
-	configurationUnits[MEMORY_REQUEST] = impl.units.GetMemoryUnits()
-	configurationUnits[MEMORY_LIMIT] = impl.units.GetMemoryUnits()
+	configurationUnits[CPU_REQUEST] = cpuUnits
+	configurationUnits[CPU_LIMIT] = cpuUnits
 
-	configurationUnits[TIME_OUT] = impl.units.GetTimeUnits()
+	configurationUnits[MEMORY_REQUEST] = memUnits
+	configurationUnits[MEMORY_LIMIT] = memUnits
+
+	configurationUnits[TIME_OUT] = timeUnits
 
 	return configurationUnits
 }
@@ -329,54 +343,46 @@ func (impl *InfraConfigServiceImpl) validateCpuMem(profileBean *ProfileBean) err
 }
 
 func (impl *InfraConfigServiceImpl) validateCPU(cpuLimit, cpuReq *ConfigurationBean) error {
-	configurationUnits := impl.units
-	cpuLimitUnitSuffix := units.CPUUnitStr(cpuLimit.Unit).GetCPUUnit()
-	cpuReqUnitSuffix := units.CPUUnitStr(cpuReq.Unit).GetCPUUnit()
-	var cpuLimitUnit units.Unit
-	var cpuReqUnit units.Unit
-	for cpuUnitSuffix, cpuUnit := range configurationUnits.GetCpuUnits() {
-		if string(cpuLimitUnitSuffix.GetCPUUnitStr()) == cpuUnitSuffix {
-			cpuLimitUnit = cpuUnit
-		}
-
-		if string(cpuReqUnitSuffix.GetCPUUnitStr()) == cpuUnitSuffix {
-			cpuReqUnit = cpuUnit
-		}
-
+	cpuLimitUnitSuffix := units.CPUUnitStr(cpuLimit.Unit)
+	cpuReqUnitSuffix := units.CPUUnitStr(cpuReq.Unit)
+	cpuUnits := impl.units.GetCpuUnits()
+	cpuLimitUnit, ok := cpuUnits[cpuLimitUnitSuffix]
+	if !ok {
+		return errors.New(fmt.Sprintf(InvalidUnit, cpuLimit.Unit, cpuLimit.Key))
 	}
-	// this condition should be true for valid case => (lim/req)*(lf/rf) >= 1
-	limitToReqRationCPU := cpuLimit.Value / cpuReq.Value
-	convFactorCPU := cpuLimitUnit.ConversionFactor / cpuReqUnit.ConversionFactor
+	cpuReqUnit, ok := cpuUnits[cpuReqUnitSuffix]
+	if !ok {
+		return errors.New(fmt.Sprintf(InvalidUnit, cpuReq.Unit, cpuReq.Key))
+	}
 
-	if limitToReqRationCPU*convFactorCPU < 1 {
+	if !validLimReq(cpuLimit.Value, cpuLimitUnit.ConversionFactor, cpuReq.Value, cpuReqUnit.ConversionFactor) {
 		return errors.New(CPULimReqErrorCompErr)
 	}
 	return nil
 }
 
 func (impl *InfraConfigServiceImpl) validateMEM(memLimit, memReq *ConfigurationBean) error {
-	configurationUnits := impl.units
-	memLimitUnitSuffix := units.MemoryUnitStr(memLimit.Unit).GetMemoryUnit()
-	memReqUnitSuffix := units.MemoryUnitStr(memReq.Unit).GetMemoryUnit()
-	var memLimitUnit units.Unit
-	var memReqUnit units.Unit
-
-	for memUnitSuffix, memUnit := range configurationUnits.GetMemoryUnits() {
-		if string(memLimitUnitSuffix.GetMemoryUnitStr()) == memUnitSuffix {
-			memLimitUnit = memUnit
-		}
-
-		if string(memReqUnitSuffix.GetMemoryUnitStr()) == memUnitSuffix {
-			memReqUnit = memUnit
-		}
+	memLimitUnitSuffix := units.MemoryUnitStr(memLimit.Unit)
+	memReqUnitSuffix := units.MemoryUnitStr(memReq.Unit)
+	memUnits := impl.units.GetMemoryUnits()
+	memLimitUnit, ok := memUnits[memLimitUnitSuffix]
+	if !ok {
+		return errors.New(fmt.Sprintf(InvalidUnit, memLimit.Unit, memLimit.Key))
+	}
+	memReqUnit, ok := memUnits[memReqUnitSuffix]
+	if !ok {
+		return errors.New(fmt.Sprintf(InvalidUnit, memReq.Unit, memReq.Key))
 	}
 
-	// this condition should be true for valid case => (lim/req)*(lf/rf) >= 1
-	limitToReqRationMem := memLimit.Value / memReq.Value
-	convFactorMem := memLimitUnit.ConversionFactor / memReqUnit.ConversionFactor
-
-	if limitToReqRationMem*convFactorMem < 1 {
+	if !validLimReq(memLimit.Value, memLimitUnit.ConversionFactor, memReq.Value, memReqUnit.ConversionFactor) {
 		return errors.New(MEMLimReqErrorCompErr)
 	}
 	return nil
+}
+
+func validLimReq(lim, limFactor, req, reqFactor float64) bool {
+	// this condition should be true for valid case => (lim/req)*(lf/rf) >= 1
+	limitToReqRatio := lim / req
+	convFactor := limFactor / reqFactor
+	return limitToReqRatio*convFactor >= 1
 }
