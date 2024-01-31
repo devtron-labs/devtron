@@ -3,6 +3,7 @@ package infraConfig
 import (
 	"github.com/devtron-labs/devtron/pkg/infraConfig/units"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/pkg/errors"
 	"strconv"
 	"time"
@@ -10,7 +11,7 @@ import (
 
 // repo structs
 
-type InfraProfile struct {
+type InfraProfileEntity struct {
 	tableName   struct{} `sql:"infra_profile" pg:",discard_unknown_columns"`
 	Id          int      `sql:"id"`
 	Name        string   `sql:"name"`
@@ -19,15 +20,11 @@ type InfraProfile struct {
 	sql.AuditLog
 }
 
-func (infraProfile *InfraProfile) ConvertToProfileBean() ProfileBean {
-	profileType := NORMAL
-	if infraProfile.Name == DEFAULT_PROFILE_NAME {
-		profileType = DEFAULT
-	}
+func (infraProfile *InfraProfileEntity) ConvertToProfileBean() ProfileBean {
 	return ProfileBean{
 		Id:          infraProfile.Id,
 		Name:        infraProfile.Name,
-		Type:        profileType,
+		Type:        DEFAULT,
 		Description: infraProfile.Description,
 		Active:      infraProfile.Active,
 		CreatedBy:   infraProfile.CreatedBy,
@@ -37,7 +34,7 @@ func (infraProfile *InfraProfile) ConvertToProfileBean() ProfileBean {
 	}
 }
 
-type InfraProfileConfiguration struct {
+type InfraProfileConfigurationEntity struct {
 	tableName struct{}         `sql:"infra_profile_configuration" pg:",discard_unknown_columns"`
 	Id        int              `sql:"id"`
 	Key       ConfigKey        `sql:"key"`
@@ -48,7 +45,7 @@ type InfraProfileConfiguration struct {
 	sql.AuditLog
 }
 
-func (infraProfileConfiguration *InfraProfileConfiguration) ConvertToConfigurationBean() ConfigurationBean {
+func (infraProfileConfiguration *InfraProfileConfigurationEntity) ConvertToConfigurationBean() ConfigurationBean {
 	return ConfigurationBean{
 		Id:        infraProfileConfiguration.Id,
 		Key:       GetConfigKeyStr(infraProfileConfiguration.Key),
@@ -68,15 +65,15 @@ type ProfileBean struct {
 	Active         bool                `json:"active"`
 	Configurations []ConfigurationBean `json:"configurations" validate:"dive"`
 	Type           ProfileType         `json:"type"`
-	AppCount       int                 `json:"appCount,omitempty"`
+	AppCount       int                 `json:"appCount"`
 	CreatedBy      int32               `json:"createdBy"`
 	CreatedOn      time.Time           `json:"createdOn"`
 	UpdatedBy      int32               `json:"updatedBy"`
 	UpdatedOn      time.Time           `json:"updatedOn"`
 }
 
-func (profileBean *ProfileBean) ConvertToInfraProfile() *InfraProfile {
-	return &InfraProfile{
+func (profileBean *ProfileBean) ConvertToInfraProfileEntity() *InfraProfileEntity {
+	return &InfraProfileEntity{
 		Id:          profileBean.Id,
 		Name:        profileBean.Name,
 		Description: profileBean.Description,
@@ -85,16 +82,16 @@ func (profileBean *ProfileBean) ConvertToInfraProfile() *InfraProfile {
 
 type ConfigurationBean struct {
 	Id          int          `json:"id"`
-	Key         ConfigKeyStr `json:"key" validate:"required,oneof=cpu_limit cpu_request memory_limit memory_request timeout"`
-	Value       float64      `json:"value" validate:"required,min=0"`
-	Unit        string       `json:"unit" validate:"required,min=0"`
+	Key         ConfigKeyStr `json:"key"`
+	Value       float64      `json:"value" validate:"required,gt=0"`
+	Unit        string       `json:"unit" validate:"required,gt=0"`
 	ProfileName string       `json:"profileName"`
 	ProfileId   int          `json:"profileId"`
 	Active      bool         `json:"active"`
 }
 
-func (configurationBean *ConfigurationBean) ConvertToInfraProfileConfiguration() *InfraProfileConfiguration {
-	return &InfraProfileConfiguration{
+func (configurationBean *ConfigurationBean) ConvertToInfraProfileConfigurationEntity() *InfraProfileConfigurationEntity {
+	return &InfraProfileConfigurationEntity{
 		Id:        configurationBean.Id,
 		Key:       GetConfigKey(configurationBean.Key),
 		Value:     configurationBean.Value,
@@ -116,40 +113,6 @@ type ProfileResponse struct {
 type ProfilesResponse struct {
 	Profiles []ProfileBean `json:"profiles"`
 	InfraConfigMetaData
-}
-
-type IdentifierListFilter struct {
-	IdentifierType     IdentifierType `json:"-"`                              // currently supporting app
-	IdentifierNameLike string         `json:"search"`                         // currently app_name  is supported
-	ProfileName        string         `json:"profileName"`                    // gets  the list for this profile
-	Limit              int            `json:"size" validate:"min=0"`          // limit on the result set , defaults to 20
-	Offset             int            `json:"offset" validate:"min=0"`        // offset on the result set, defaults to 0
-	SortOrder          string         `json:"sort" validate:"oneof=ASC DESC"` // asc or desc, defaults to asc by appName
-}
-
-type Identifier struct {
-	Id      int          `json:"id"`
-	Name    string       `json:"name"`
-	Profile *ProfileBean `json:"profile"`
-
-	// for internal use only, do not propagate these values to api response
-	ProfileId            int `json:"-"`
-	TotalIdentifierCount int `json:"-"`
-}
-
-type IdentifierProfileResponse struct {
-	Identifiers               []*Identifier `json:"identifiers"`
-	TotalIdentifierCount      int           `json:"totalIdentifierCount"`
-	OverriddenIdentifierCount int           `json:"overriddenIdentifierCount"`
-}
-
-type InfraProfileApplyRequest struct {
-	IdentifiersFilter *IdentifierListFilter `json:"identifiersFilter"`
-	Identifiers       []string              `json:"identifiers"`
-	UpdateToProfile   string                `json:"updateToProfile"`
-	// internal use only
-	UpdateToProfileId int   `json:"-"`
-	IdentifierIds     []int `json:"-"`
 }
 
 type Scope struct {
@@ -206,7 +169,7 @@ func (infraConfig InfraConfig) setCiDefaultTimeout(timeout int64) {
 	infraConfig.CiDefaultTimeout = timeout
 }
 
-func (infraConfig InfraConfig) LoadCiLimitCpu() (*InfraProfileConfiguration, error) {
+func (infraConfig InfraConfig) LoadCiLimitCpu() (*InfraProfileConfigurationEntity, error) {
 	positive, _, num, denom, suffix, err := units.ParseQuantityString(infraConfig.CiLimitCpu)
 	if err != nil {
 		return nil, err
@@ -223,15 +186,15 @@ func (infraConfig InfraConfig) LoadCiLimitCpu() (*InfraProfileConfiguration, err
 	if err != nil {
 		return nil, err
 	}
-	return &InfraProfileConfiguration{
+	return &InfraProfileConfigurationEntity{
 		Key:   CPULimit,
 		Value: val,
-		Unit:  units.GetCPUUnit(units.CPUUnitStr(suffix)),
+		Unit:  units.CPUUnitStr(suffix).GetCPUUnit(),
 	}, nil
 
 }
 
-func (infraConfig InfraConfig) LoadCiLimitMem() (*InfraProfileConfiguration, error) {
+func (infraConfig InfraConfig) LoadCiLimitMem() (*InfraProfileConfigurationEntity, error) {
 	positive, _, num, denom, suffix, err := units.ParseQuantityString(infraConfig.CiLimitMem)
 	if err != nil {
 		return nil, err
@@ -247,15 +210,15 @@ func (infraConfig InfraConfig) LoadCiLimitMem() (*InfraProfileConfiguration, err
 	if err != nil {
 		return nil, err
 	}
-	return &InfraProfileConfiguration{
+	return &InfraProfileConfigurationEntity{
 		Key:   MemoryLimit,
 		Value: val,
-		Unit:  units.GetMemoryUnit(units.MemoryUnitStr(suffix)),
+		Unit:  units.MemoryUnitStr(suffix).GetMemoryUnit(),
 	}, nil
 
 }
 
-func (infraConfig InfraConfig) LoadCiReqCpu() (*InfraProfileConfiguration, error) {
+func (infraConfig InfraConfig) LoadCiReqCpu() (*InfraProfileConfigurationEntity, error) {
 	positive, _, num, denom, suffix, err := units.ParseQuantityString(infraConfig.CiReqCpu)
 	if err != nil {
 		return nil, err
@@ -274,14 +237,14 @@ func (infraConfig InfraConfig) LoadCiReqCpu() (*InfraProfileConfiguration, error
 		return nil, err
 	}
 
-	return &InfraProfileConfiguration{
+	return &InfraProfileConfigurationEntity{
 		Key:   CPURequest,
 		Value: val,
-		Unit:  units.GetCPUUnit(units.CPUUnitStr(suffix)),
+		Unit:  units.CPUUnitStr(suffix).GetCPUUnit(),
 	}, nil
 }
 
-func (infraConfig InfraConfig) LoadCiReqMem() (*InfraProfileConfiguration, error) {
+func (infraConfig InfraConfig) LoadCiReqMem() (*InfraProfileConfigurationEntity, error) {
 	positive, _, num, denom, suffix, err := units.ParseQuantityString(infraConfig.CiReqMem)
 	if err != nil {
 		return nil, err
@@ -298,17 +261,91 @@ func (infraConfig InfraConfig) LoadCiReqMem() (*InfraProfileConfiguration, error
 		return nil, err
 	}
 
-	return &InfraProfileConfiguration{
+	return &InfraProfileConfigurationEntity{
 		Key:   MemoryRequest,
 		Value: val,
-		Unit:  units.GetMemoryUnit(units.MemoryUnitStr(suffix)),
+		Unit:  units.MemoryUnitStr(suffix).GetMemoryUnit(),
 	}, nil
 }
 
-func (infraConfig InfraConfig) LoadDefaultTimeout() (*InfraProfileConfiguration, error) {
-	return &InfraProfileConfiguration{
+func (infraConfig InfraConfig) LoadDefaultTimeout() (*InfraProfileConfigurationEntity, error) {
+	return &InfraProfileConfigurationEntity{
 		Key:   TimeOut,
 		Value: float64(infraConfig.CiDefaultTimeout),
-		Unit:  units.GetTimeUnit(units.SecondStr),
+		Unit:  units.SecondStr.GetTimeUnit(),
 	}, nil
+}
+
+func (infraConfig InfraConfig) LoadInfraConfigInEntities() ([]*InfraProfileConfigurationEntity, error) {
+	cpuLimit, err := infraConfig.LoadCiLimitCpu()
+	if err != nil {
+		return nil, err
+	}
+	memLimit, err := infraConfig.LoadCiLimitMem()
+	if err != nil {
+		return nil, err
+	}
+	cpuReq, err := infraConfig.LoadCiReqCpu()
+	if err != nil {
+		return nil, err
+	}
+	memReq, err := infraConfig.LoadCiReqMem()
+	if err != nil {
+		return nil, err
+	}
+	timeout, err := infraConfig.LoadDefaultTimeout()
+	if err != nil {
+		return nil, err
+	}
+
+	defaultConfigurations := []*InfraProfileConfigurationEntity{cpuLimit, memLimit, cpuReq, memReq, timeout}
+	return defaultConfigurations, nil
+}
+
+type IdentifierListFilter struct {
+	IdentifierType     IdentifierType `json:"-"`                              // currently supporting app
+	IdentifierNameLike string         `json:"search"`                         // currently app_name  is supported
+	ProfileName        string         `json:"profileName"`                    // gets  the list for this profile
+	Limit              int            `json:"size" validate:"min=0"`          // limit on the result set , defaults to 20
+	Offset             int            `json:"offset" validate:"min=0"`        // offset on the result set, defaults to 0
+	SortOrder          string         `json:"sort" validate:"oneof=ASC DESC"` // asc or desc, defaults to asc by appName
+}
+
+type Identifier struct {
+	Id      int          `json:"id"`
+	Name    string       `json:"name"`
+	Profile *ProfileBean `json:"profile"`
+
+	// for internal use only, do not propagate these values to api response
+	ProfileId            int `json:"-"`
+	TotalIdentifierCount int `json:"-"`
+}
+
+type IdentifierProfileResponse struct {
+	Identifiers               []*Identifier `json:"identifiers"`
+	TotalIdentifierCount      int           `json:"totalIdentifierCount"`
+	OverriddenIdentifierCount int           `json:"overriddenIdentifierCount"`
+}
+
+type InfraProfileApplyRequest struct {
+	IdentifiersFilter *IdentifierListFilter `json:"identifiersFilter"`
+	Identifiers       []string              `json:"identifiers"`
+	UpdateToProfile   string                `json:"updateToProfile"`
+	// internal use only
+	UpdateToProfileId int   `json:"-"`
+	IdentifierIds     []int `json:"-"`
+}
+
+func UpdateProfileMissingConfigurationsWithDefault(profile ProfileBean, defaultConfigurations []ConfigurationBean) ProfileBean {
+	extraConfigurations := make([]ConfigurationBean, 0)
+	for _, defaultConfiguration := range defaultConfigurations {
+		// if profile doesn't have the default configuration, add it to the profile
+		if !util.Contains(profile.Configurations, func(config ConfigurationBean) bool {
+			return config.Key == defaultConfiguration.Key
+		}) {
+			extraConfigurations = append(extraConfigurations, defaultConfiguration)
+		}
+	}
+	profile.Configurations = append(profile.Configurations, extraConfigurations...)
+	return profile
 }

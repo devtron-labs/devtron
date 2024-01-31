@@ -13,29 +13,21 @@ import (
 	"github.com/go-pg/pg"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
-	"gopkg.in/go-playground/validator.v9"
 	"sort"
 	"strings"
 	"time"
 )
 
-const CannotDeleteDefaultProfile = "cannot delete default profile"
-const InvalidProfileName = "profile name is invalid"
-const PayloadValidationError = "payload validation failed"
-const profileApplyErr = "selected filter does not match any apps, cannot apply the given profile"
-
 type InfraConfigService interface {
-
-	// todo: @gireesh for all get apis, check if we can get profile and configurations in one db call
 
 	// GetConfigurationUnits fetches all the units for the configurations.
 	GetConfigurationUnits() map[ConfigKeyStr]map[string]units.Unit
 
 	// GetDefaultProfile fetches the default profile and its configurations.
-	GetDefaultProfile(setAppCount bool) (*ProfileBean, error)
+	GetDefaultProfile() (*ProfileBean, error)
 
 	// GetProfileByName fetches the profile and its configurations matching the given profileName.
-	GetProfileByName(profileName string) (*ProfileBean, error)
+	GetProfileByName(name string) (*ProfileBean, error)
 
 	// GetProfileList fetches all the profile and their configurations matching the given profileNameLike string.
 	// If profileNameLike is empty, it will fetch all the active profiles.
@@ -59,21 +51,19 @@ type InfraConfigService interface {
 type InfraConfigServiceImpl struct {
 	logger                              *zap.SugaredLogger
 	infraProfileRepo                    InfraConfigRepository
-	qualifiersMappingRepository         resourceQualifiers.QualifiersMappingRepository
-	appRepository                       appRepository.AppRepository
 	units                               *units.Units
 	infraConfig                         *InfraConfig
+	qualifiersMappingRepository         resourceQualifiers.QualifiersMappingRepository
+	appRepository                       appRepository.AppRepository
 	devtronResourceSearchableKeyService devtronResource.DevtronResourceSearchableKeyService
-	validator                           *validator.Validate
 }
 
 func NewInfraConfigServiceImpl(logger *zap.SugaredLogger,
 	infraProfileRepo InfraConfigRepository,
+	units *units.Units,
 	qualifiersMappingRepository resourceQualifiers.QualifiersMappingRepository,
 	appRepository appRepository.AppRepository,
-	units *units.Units,
-	devtronResourceSearchableKeyService devtronResource.DevtronResourceSearchableKeyService,
-	validator *validator.Validate) (*InfraConfigServiceImpl, error) {
+	devtronResourceSearchableKeyService devtronResource.DevtronResourceSearchableKeyService) (*InfraConfigServiceImpl, error) {
 	infraConfiguration := &InfraConfig{}
 	err := env.Parse(infraConfiguration)
 	if err != nil {
@@ -82,19 +72,18 @@ func NewInfraConfigServiceImpl(logger *zap.SugaredLogger,
 	infraProfileService := &InfraConfigServiceImpl{
 		logger:                              logger,
 		infraProfileRepo:                    infraProfileRepo,
+		units:                               units,
+		infraConfig:                         infraConfiguration,
 		qualifiersMappingRepository:         qualifiersMappingRepository,
 		appRepository:                       appRepository,
-		units:                               units,
 		devtronResourceSearchableKeyService: devtronResourceSearchableKeyService,
-		infraConfig:                         infraConfiguration,
-		validator:                           validator,
 	}
 	err = infraProfileService.loadDefaultProfile()
 	return infraProfileService, err
 }
 
-func (impl *InfraConfigServiceImpl) GetDefaultProfile(setAppCount bool) (*ProfileBean, error) {
-	infraProfile, err := impl.infraProfileRepo.GetProfileByName(DEFAULT_PROFILE_NAME)
+func (impl *InfraConfigServiceImpl) GetProfileByName(name string) (*ProfileBean, error) {
+	infraProfile, err := impl.infraProfileRepo.GetProfileByName(name)
 	if err != nil {
 		impl.logger.Errorw("error in fetching default profile", "error", err)
 		return nil, err
@@ -106,48 +95,138 @@ func (impl *InfraConfigServiceImpl) GetDefaultProfile(setAppCount bool) (*Profil
 		impl.logger.Errorw("error in fetching default configurations", "error", err)
 		return nil, err
 	}
-	if setAppCount {
-		identifierCount, err := impl.infraProfileRepo.GetIdentifierCountForDefaultProfile(infraProfile.Id, GetIdentifierKey(APPLICATION, impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap()))
-		if err != nil {
-			impl.logger.Errorw("error in fetching app count for default profile", "error", err)
-			return nil, err
-		}
-		profileBean.AppCount = identifierCount
-	}
-	configurationBeans := util.Transform(infraConfigurations, func(config *InfraProfileConfiguration) ConfigurationBean {
+
+	configurationBeans := util.Transform(infraConfigurations, func(config *InfraProfileConfigurationEntity) ConfigurationBean {
 		configBean := config.ConvertToConfigurationBean()
 		configBean.ProfileName = profileBean.Name
 		return configBean
 	})
+
 	profileBean.Configurations = configurationBeans
 	return &profileBean, nil
 }
 
-func (impl *InfraConfigServiceImpl) GetProfileByName(profileName string) (*ProfileBean, error) {
-	if profileName == "" {
-		return nil, errors.New(InvalidProfileName)
-	}
-
-	infraProfile, err := impl.infraProfileRepo.GetProfileByName(profileName)
+func (impl *InfraConfigServiceImpl) UpdateProfile(userId int32, profileName string, profileToUpdate *ProfileBean) error {
+	// validation
+	defaultProfile, err := impl.GetDefaultProfile()
 	if err != nil {
-		impl.logger.Errorw("error in fetching default profile", "error", err)
-		return nil, err
+		impl.logger.Errorw("error in fetching default profile", "profileName", profileName, "profileCreateRequest", profileToUpdate, "error", err)
+		return err
 	}
-
-	profileBean := infraProfile.ConvertToProfileBean()
-	infraConfigurations, err := impl.infraProfileRepo.GetConfigurationsByProfileId([]int{infraProfile.Id})
-	if err != nil {
-		impl.logger.Errorw("error in fetching default configurations", "error", err)
-		return nil, err
+	if err = impl.Validate(profileToUpdate, defaultProfile); err != nil {
+		impl.logger.Errorw("error occurred in validation the profile create request", "profileName", profileName, "profileCreateRequest", profileToUpdate, "error", err)
+		return err
 	}
+	// validations end
 
-	configurationBeans := util.Transform(infraConfigurations, func(config *InfraProfileConfiguration) ConfigurationBean {
-		configBean := config.ConvertToConfigurationBean()
-		configBean.ProfileName = profileBean.Name
-		return configBean
+	infraProfileEntity := profileToUpdate.ConvertToInfraProfileEntity()
+	// user couldn't delete the profile, always set this to active
+	infraProfileEntity.Active = true
+	infraConfigurationEntities := util.Transform(profileToUpdate.Configurations, func(config ConfigurationBean) *InfraProfileConfigurationEntity {
+		// user couldn't delete the configuration for default profile, always set this to active
+		if profileName == DEFAULT_PROFILE_NAME {
+			config.Active = true
+		}
+		return config.ConvertToInfraProfileConfigurationEntity()
 	})
-	profileBean.Configurations = configurationBeans
-	return &profileBean, nil
+
+	// filter out creatable and updatable configurations
+	creatableInfraConfigurations := make([]*InfraProfileConfigurationEntity, 0, len(infraConfigurationEntities))
+	updatableInfraConfigurations := make([]*InfraProfileConfigurationEntity, 0, len(infraConfigurationEntities))
+	for _, configuration := range infraConfigurationEntities {
+		if configuration.Id == 0 {
+			creatableInfraConfigurations = append(creatableInfraConfigurations, configuration)
+		} else {
+			updatableInfraConfigurations = append(updatableInfraConfigurations, configuration)
+		}
+	}
+
+	// return error if creatable configurations exists and the profile is default, as user cannot create configurations for default profile
+	if profileName == DEFAULT_PROFILE_NAME && len(creatableInfraConfigurations) > 0 {
+		return errors.New("cannot create new configuration for default profile")
+	}
+
+	existingConfigurations, err := impl.infraProfileRepo.GetConfigurationsByProfileName(profileName)
+	if err != nil {
+		impl.logger.Errorw("error in fetching existing configuration ids", "profileName", profileName, "error", err)
+		if !errors.Is(err, pg.ErrNoRows) {
+			return err
+		}
+	}
+
+	if len(updatableInfraConfigurations) > 0 {
+
+		// at max there can be 5 default configurations (even in future these can be in the order of 10x)
+		// so below double loop won't be problematic
+		for _, updatableInfraConfiguration := range updatableInfraConfigurations {
+			profileContainsThisConfiguration := false
+			for _, existingConfiguration := range existingConfigurations {
+				if updatableInfraConfiguration.Id == existingConfiguration.Id {
+					profileContainsThisConfiguration = true
+					break
+				}
+			}
+			if !profileContainsThisConfiguration {
+				return errors.New(fmt.Sprintf("cannot update configuration with id %d as it does not belong to %s profile", updatableInfraConfiguration.Id, profileName))
+			}
+		}
+
+	}
+
+	if len(creatableInfraConfigurations) > 0 {
+
+		// at max there can be 5 default configurations (even in future these can be in the order of 10x)
+		// so below double loop won't be problematic
+		for _, configuration := range creatableInfraConfigurations {
+			for _, existingConfiguration := range existingConfigurations {
+				if configuration.Key == existingConfiguration.Key {
+					return errors.New(fmt.Sprintf("cannot create configuration with key %s as it already exists in %s profile", configuration.Key, profileName))
+				}
+			}
+		}
+
+		pId, err := impl.infraProfileRepo.GetProfileIdByName(profileName)
+		if err != nil {
+			impl.logger.Errorw("error in fetching profile", "profileName", profileName, "error", err)
+			return err
+		}
+		for _, configuration := range creatableInfraConfigurations {
+			configuration.ProfileId = pId
+			configuration.Active = true
+			configuration.AuditLog = sql.NewDefaultAuditLog(userId)
+		}
+	}
+
+	tx, err := impl.infraProfileRepo.StartTx()
+	if err != nil {
+		impl.logger.Errorw("error in starting transaction to update profile", "profileBean", profileToUpdate, "error", err)
+		return err
+	}
+	defer impl.infraProfileRepo.RollbackTx(tx)
+	infraProfileEntity.UpdatedOn = time.Now()
+	infraProfileEntity.UpdatedBy = userId
+	err = impl.infraProfileRepo.UpdateProfile(tx, profileName, infraProfileEntity)
+	if err != nil {
+		impl.logger.Errorw("error in updating profile", "infraProfile", infraProfileEntity, "error", err)
+		return err
+	}
+
+	err = impl.infraProfileRepo.UpdateConfigurations(tx, updatableInfraConfigurations)
+	if err != nil {
+		impl.logger.Errorw("error in creating configurations", "updatableInfraConfigurations", updatableInfraConfigurations, "error", err)
+		return err
+	}
+
+	err = impl.infraProfileRepo.CreateConfigurations(tx, creatableInfraConfigurations)
+	if err != nil {
+		impl.logger.Errorw("error in creating configurations", "creatableInfraConfigurations", creatableInfraConfigurations, "error", err)
+		return err
+	}
+	err = impl.infraProfileRepo.CommitTx(tx)
+	if err != nil {
+		impl.logger.Errorw("error in committing transaction to update profile", "profileCreateRequest", profileToUpdate, "error", err)
+	}
+	return err
 }
 
 func (impl *InfraConfigServiceImpl) GetProfileList(profileNameLike string) (*ProfilesResponse, error) {
@@ -243,7 +322,7 @@ func (impl *InfraConfigServiceImpl) GetProfileList(profileNameLike string) (*Pro
 }
 
 func (impl *InfraConfigServiceImpl) CreateProfile(userId int32, profileBean *ProfileBean) error {
-	defaultProfile, err := impl.GetDefaultProfile(false)
+	defaultProfile, err := impl.GetDefaultProfile()
 	if err != nil {
 		impl.logger.Errorw("error in fetching default profile", "profileCreateRequest", profileBean, "error", err)
 		return err
@@ -253,7 +332,7 @@ func (impl *InfraConfigServiceImpl) CreateProfile(userId int32, profileBean *Pro
 		return err
 	}
 
-	infraProfile := profileBean.ConvertToInfraProfile()
+	infraProfile := profileBean.ConvertToInfraProfileEntity()
 	infraProfile.Active = true
 	infraProfile.AuditLog = sql.NewDefaultAuditLog(userId)
 
@@ -269,9 +348,9 @@ func (impl *InfraConfigServiceImpl) CreateProfile(userId int32, profileBean *Pro
 		return err
 	}
 
-	infraConfigurations := make([]*InfraProfileConfiguration, 0, len(profileBean.Configurations))
+	infraConfigurations := make([]*InfraProfileConfigurationEntity, 0, len(profileBean.Configurations))
 	for _, configuration := range profileBean.Configurations {
-		infraConfiguration := configuration.ConvertToInfraProfileConfiguration()
+		infraConfiguration := configuration.ConvertToInfraProfileConfigurationEntity()
 		infraConfiguration.Id = 0
 		infraConfiguration.Active = true
 		infraConfiguration.AuditLog = sql.NewDefaultAuditLog(userId)
@@ -290,132 +369,6 @@ func (impl *InfraConfigServiceImpl) CreateProfile(userId int32, profileBean *Pro
 		return err
 	}
 	return nil
-}
-
-func (impl *InfraConfigServiceImpl) UpdateProfile(userId int32, profileName string, profileBean *ProfileBean) error {
-	if profileName == "" || (profileName == DEFAULT_PROFILE_NAME && profileBean.Name != DEFAULT_PROFILE_NAME) {
-		return errors.New(InvalidProfileName)
-	}
-
-	// validation
-	defaultProfile, err := impl.GetDefaultProfile(false)
-	if err != nil {
-		impl.logger.Errorw("error in fetching default profile", "profileCreateRequest", profileBean, "error", err)
-		return err
-	}
-	if err := impl.Validate(profileBean, defaultProfile); err != nil {
-		impl.logger.Errorw("error occurred in validation the profile create request", "profileCreateRequest", profileBean, "error", err)
-		return err
-	}
-
-	// validations end
-
-	infraProfile := profileBean.ConvertToInfraProfile()
-	// user couldn't delete the profile, always set this to active
-	infraProfile.Active = true
-	infraConfigurations := util.Transform(profileBean.Configurations, func(config ConfigurationBean) *InfraProfileConfiguration {
-		// user couldn't delete the configuration for default profile, always set this to active
-		if profileName == DEFAULT_PROFILE_NAME {
-			config.Active = true
-		}
-		return config.ConvertToInfraProfileConfiguration()
-	})
-
-	// filter out creatable and updatable configurations
-	creatableInfraConfigurations := make([]*InfraProfileConfiguration, 0, len(infraConfigurations))
-	updatableInfraConfigurations := make([]*InfraProfileConfiguration, 0, len(infraConfigurations))
-	for _, configuration := range infraConfigurations {
-		if configuration.Id == 0 {
-			if profileName == DEFAULT_PROFILE_NAME {
-				return errors.New("cannot create new configuration for default profile")
-			}
-			creatableInfraConfigurations = append(creatableInfraConfigurations, configuration)
-		} else {
-			updatableInfraConfigurations = append(updatableInfraConfigurations, configuration)
-		}
-	}
-
-	existingConfigurations, err := impl.infraProfileRepo.GetConfigurationsByProfileName(profileName)
-	if err != nil {
-		impl.logger.Errorw("error in fetching existing configuration ids", "profileName", profileName, "error", err)
-		if !errors.Is(err, pg.ErrNoRows) {
-			return err
-		}
-	}
-
-	if len(updatableInfraConfigurations) > 0 {
-
-		// at max there can be 5 default configurations (even in future these can be in the order of 10x)
-		// so below double loop won't be problematic
-		for _, updatableInfraConfiguration := range updatableInfraConfigurations {
-			profileContainsThisConfiguration := false
-			for _, existingConfiguration := range existingConfigurations {
-				if updatableInfraConfiguration.Id == existingConfiguration.Id {
-					profileContainsThisConfiguration = true
-					break
-				}
-			}
-			if !profileContainsThisConfiguration {
-				return errors.New(fmt.Sprintf("cannot update configuration with id %d as it does not belong to %s profile", updatableInfraConfiguration.Id, profileName))
-			}
-		}
-
-	}
-
-	if len(creatableInfraConfigurations) > 0 {
-
-		// at max there can be 5 default configurations (even in future these can be in the order of 10x)
-		// so below double loop won't be problematic
-		for _, configuration := range creatableInfraConfigurations {
-			for _, existingConfiguration := range existingConfigurations {
-				if configuration.Key == existingConfiguration.Key {
-					return errors.New(fmt.Sprintf("cannot create configuration with key %s as it already exists in %s profile", configuration.Key, profileName))
-				}
-			}
-		}
-
-		pId, err := impl.infraProfileRepo.GetProfileIdByName(profileName)
-		if err != nil {
-			impl.logger.Errorw("error in fetching profile", "profileName", profileName, "error", err)
-			return err
-		}
-		for _, configuration := range creatableInfraConfigurations {
-			configuration.ProfileId = pId
-			configuration.Active = true
-			configuration.AuditLog = sql.NewDefaultAuditLog(userId)
-		}
-	}
-
-	tx, err := impl.infraProfileRepo.StartTx()
-	if err != nil {
-		impl.logger.Errorw("error in starting transaction to update profile", "profileBean", profileBean, "error", err)
-		return err
-	}
-	defer impl.infraProfileRepo.RollbackTx(tx)
-	infraProfile.UpdatedOn = time.Now()
-	infraProfile.UpdatedBy = userId
-	err = impl.infraProfileRepo.UpdateProfile(tx, profileName, infraProfile)
-	if err != nil {
-		impl.logger.Errorw("error in updating profile", "infraProfile", infraProfile, "error", err)
-		return err
-	}
-
-	err = impl.infraProfileRepo.UpdateConfigurations(tx, updatableInfraConfigurations)
-	if err != nil {
-		impl.logger.Errorw("error in creating configurations", "updatableInfraConfigurations", updatableInfraConfigurations, "error", err)
-		return err
-	}
-
-	err = impl.infraProfileRepo.CreateConfigurations(tx, creatableInfraConfigurations)
-	if err != nil {
-		impl.logger.Errorw("error in creating configurations", "creatableInfraConfigurations", creatableInfraConfigurations, "error", err)
-		return err
-	}
-	err = impl.infraProfileRepo.CommitTx(tx)
-	if err != nil {
-		impl.logger.Errorw("error in committing transaction to update profile", "profileCreateRequest", profileBean, "error", err)
-	}
-	return err
 }
 
 func (impl *InfraConfigServiceImpl) DeleteProfile(profileName string) error {
@@ -458,222 +411,6 @@ func (impl *InfraConfigServiceImpl) DeleteProfile(profileName string) error {
 		impl.logger.Errorw("error in committing transaction to delete profile", "profileName", profileName, "error", err)
 	}
 	return err
-}
-
-func (impl *InfraConfigServiceImpl) loadDefaultProfile() error {
-
-	profile, err := impl.infraProfileRepo.GetProfileByName(DEFAULT_PROFILE_NAME)
-	if err != nil && !errors.Is(err, pg.ErrNoRows) {
-		return err
-	}
-	if profile.Id != 0 {
-		// return here because entry already exists and we dont need to create it again
-		return nil
-	}
-
-	infraConfiguration := impl.infraConfig
-	cpuLimit, err := infraConfiguration.LoadCiLimitCpu()
-	if err != nil {
-		return err
-	}
-	memLimit, err := infraConfiguration.LoadCiLimitMem()
-	if err != nil {
-		return err
-	}
-	cpuReq, err := infraConfiguration.LoadCiReqCpu()
-	if err != nil {
-		return err
-	}
-	memReq, err := infraConfiguration.LoadCiReqMem()
-	if err != nil {
-		return err
-	}
-	timeout, err := infraConfiguration.LoadDefaultTimeout()
-	if err != nil {
-		return err
-	}
-
-	defaultConfigurations := []*InfraProfileConfiguration{cpuLimit, memLimit, cpuReq, memReq, timeout}
-	defaultProfile := &InfraProfile{
-		Name:        DEFAULT_PROFILE_NAME,
-		Description: "",
-		Active:      true,
-		AuditLog:    sql.NewDefaultAuditLog(1),
-	}
-	tx, err := impl.infraProfileRepo.StartTx()
-	if err != nil {
-		impl.logger.Errorw("error in starting transaction to save default configurations", "error", err)
-		return err
-	}
-
-	defer impl.infraProfileRepo.RollbackTx(tx)
-	err = impl.infraProfileRepo.CreateProfile(tx, defaultProfile)
-	if err != nil {
-		impl.logger.Errorw("error in saving default profile", "error", err)
-		return err
-	}
-
-	util.Transform(defaultConfigurations, func(config *InfraProfileConfiguration) *InfraProfileConfiguration {
-		config.ProfileId = defaultProfile.Id
-		config.Active = true
-		config.AuditLog = sql.NewDefaultAuditLog(1)
-		return config
-	})
-	err = impl.infraProfileRepo.CreateConfigurations(tx, defaultConfigurations)
-	if err != nil {
-		impl.logger.Errorw("error in saving default configurations", "error", err)
-		return err
-	}
-	err = impl.infraProfileRepo.CommitTx(tx)
-	if err != nil {
-		impl.logger.Errorw("error in committing transaction to save default configurations", "error", err)
-	}
-	return err
-}
-
-func (impl *InfraConfigServiceImpl) GetConfigurationUnits() map[ConfigKeyStr]map[string]units.Unit {
-	configurationUnits := make(map[ConfigKeyStr]map[string]units.Unit)
-	configurationUnits[CPU_REQUEST] = impl.units.GetCpuUnits()
-	configurationUnits[CPU_LIMIT] = impl.units.GetCpuUnits()
-
-	configurationUnits[MEMORY_REQUEST] = impl.units.GetMemoryUnits()
-	configurationUnits[MEMORY_LIMIT] = impl.units.GetMemoryUnits()
-
-	configurationUnits[TIME_OUT] = impl.units.GetTimeUnits()
-
-	return configurationUnits
-}
-
-func (impl *InfraConfigServiceImpl) Validate(profileBean *ProfileBean, defaultProfile *ProfileBean) error {
-	err := impl.validator.Struct(profileBean)
-	if err != nil {
-		err = errors.Wrap(err, PayloadValidationError)
-		return err
-	}
-
-	defaultConfigurationsKeyMap := GetDefaultConfigKeysMap()
-	// validate configurations only contain default configurations types.(cpu_limit,cpu_request,mem_limit,mem_request,timeout)
-	for _, propertyConfig := range profileBean.Configurations {
-		if _, ok := defaultConfigurationsKeyMap[propertyConfig.Key]; !ok {
-			if err == nil {
-				err = errors.New(fmt.Sprintf("invalid configuration property \"%s\"", propertyConfig.Key))
-			}
-			err = errors.Wrap(err, fmt.Sprintf("invalid configuration property \"%s\"", propertyConfig.Key))
-		}
-	}
-
-	if err != nil {
-		err = errors.Wrap(err, PayloadValidationError)
-		return err
-	}
-
-	err = impl.validateCpuMem(profileBean, defaultProfile)
-	if err != nil {
-		err = errors.Wrap(err, PayloadValidationError)
-		return err
-	}
-	return nil
-}
-
-func (impl *InfraConfigServiceImpl) validateCpuMem(profileBean *ProfileBean, defaultProfile *ProfileBean) error {
-
-	configurationUnits := impl.units
-	// currently validating cpu and memory limits and reqs only
-	var (
-		cpuLimit *ConfigurationBean
-		cpuReq   *ConfigurationBean
-		memLimit *ConfigurationBean
-		memReq   *ConfigurationBean
-	)
-
-	for i, _ := range profileBean.Configurations {
-		// get cpu limit and req
-		switch profileBean.Configurations[i].Key {
-		case CPU_LIMIT:
-			cpuLimit = &profileBean.Configurations[i]
-		case CPU_REQUEST:
-			cpuReq = &profileBean.Configurations[i]
-		case MEMORY_LIMIT:
-			memLimit = &profileBean.Configurations[i]
-		case MEMORY_REQUEST:
-			memReq = &profileBean.Configurations[i]
-		}
-	}
-
-	for i, _ := range defaultProfile.Configurations {
-		// get cpu limit and req
-		switch defaultProfile.Configurations[i].Key {
-		case CPU_LIMIT:
-			if cpuLimit == nil {
-				cpuLimit = &defaultProfile.Configurations[i]
-			}
-		case CPU_REQUEST:
-			if cpuReq == nil {
-				cpuReq = &defaultProfile.Configurations[i]
-			}
-		case MEMORY_LIMIT:
-			if memLimit == nil {
-				memLimit = &defaultProfile.Configurations[i]
-			}
-		case MEMORY_REQUEST:
-			if memReq == nil {
-				memReq = &defaultProfile.Configurations[i]
-			}
-		}
-	}
-
-	// validate cpu
-	cpuLimitUnitSuffix := units.GetCPUUnit(units.CPUUnitStr(cpuLimit.Unit))
-	cpuReqUnitSuffix := units.GetCPUUnit(units.CPUUnitStr(cpuReq.Unit))
-	var cpuLimitUnit units.Unit
-	var cpuReqUnit units.Unit
-	for cpuUnitSuffix, cpuUnit := range configurationUnits.GetCpuUnits() {
-		if string(units.GetCPUUnitStr(cpuLimitUnitSuffix)) == cpuUnitSuffix {
-			cpuLimitUnit = cpuUnit
-		}
-
-		if string(units.GetCPUUnitStr(cpuReqUnitSuffix)) == cpuUnitSuffix {
-			cpuReqUnit = cpuUnit
-		}
-
-	}
-
-	// this condition should be true for valid case => (lim/req)*(lf/rf) >= 1
-	limitToReqRationCPU := cpuLimit.Value / cpuReq.Value
-	convFactorCPU := cpuLimitUnit.ConversionFactor / cpuReqUnit.ConversionFactor
-
-	if limitToReqRationCPU*convFactorCPU < 1 {
-		return errors.New("cpu limit should not be less than cpu request")
-	}
-
-	// validate mem
-
-	memLimitUnitSuffix := units.GetMemoryUnit(units.MemoryUnitStr(memLimit.Unit))
-	memReqUnitSuffix := units.GetMemoryUnit(units.MemoryUnitStr(memReq.Unit))
-	var memLimitUnit units.Unit
-	var memReqUnit units.Unit
-
-	for memUnitSuffix, memUnit := range configurationUnits.GetMemoryUnits() {
-		if string(units.GetMemoryUnitStr(memLimitUnitSuffix)) == memUnitSuffix {
-			memLimitUnit = memUnit
-		}
-
-		if string(units.GetMemoryUnitStr(memReqUnitSuffix)) == memUnitSuffix {
-			memReqUnit = memUnit
-		}
-	}
-
-	// this condition should be true for valid case => (lim/req)*(lf/rf) >= 1
-	// not directly comparing lim*lf with req*rf because this multiplication can overflow float64 limit
-	// so, we are dividing lim/req and lf/rf and then comparing.
-	limitToReqRationMem := memLimit.Value / memReq.Value
-	convFactorMem := memLimitUnit.ConversionFactor / memReqUnit.ConversionFactor
-
-	if limitToReqRationMem*convFactorMem < 1 {
-		return errors.New("memory limit should not be less than memory request")
-	}
-
-	return nil
 }
 
 func (impl *InfraConfigServiceImpl) GetIdentifierList(listFilter *IdentifierListFilter) (*IdentifierProfileResponse, error) {
@@ -900,6 +637,82 @@ func (impl *InfraConfigServiceImpl) applyProfile(userId int32, applyIdentifiersR
 	return err
 }
 
+// loadDefaultProfile loads default configurations from environment and save them in db.
+// this will only create the default profile only once if not exists in db.(container restarts won't create new default profile everytime)
+// this will load the default configurations provided in InfraConfig. if db is in out of sync with InfraConfig then it will create new entries for those missing configurations in db.
+func (impl *InfraConfigServiceImpl) loadDefaultProfile() error {
+
+	profile, err := impl.infraProfileRepo.GetProfileByName(DEFAULT_PROFILE_NAME)
+	// make sure about no rows error
+	if err != nil && !errors.Is(err, pg.ErrNoRows) {
+		return err
+	}
+	tx, err := impl.infraProfileRepo.StartTx()
+	if err != nil {
+		impl.logger.Errorw("error in starting transaction to save default configurations", "error", err)
+		return err
+	}
+	defer impl.infraProfileRepo.RollbackTx(tx)
+	if errors.Is(err, pg.ErrNoRows) {
+		// if default profiles not found then create default profile
+		defaultProfile := &InfraProfileEntity{
+			Name:        DEFAULT_PROFILE_NAME,
+			Description: "",
+			Active:      true,
+			AuditLog:    sql.NewDefaultAuditLog(1),
+		}
+
+		err = impl.infraProfileRepo.CreateProfile(tx, defaultProfile)
+		if err != nil {
+			impl.logger.Errorw("error in saving default profile", "error", err)
+			return err
+		}
+		profile = defaultProfile
+	}
+
+	defaultConfigurationsFromEnv, err := impl.infraConfig.LoadInfraConfigInEntities()
+	if err != nil {
+		impl.logger.Errorw("error in loading default configurations from environment", "error", err)
+		return err
+	}
+
+	// get db configurations and create new entries if db is out of sync
+	defaultConfigurationsFromDB, err := impl.infraProfileRepo.GetConfigurationsByProfileName(DEFAULT_PROFILE_NAME)
+	if err != nil {
+		impl.logger.Errorw("error in fetching default configurations", "error", err)
+		return err
+	}
+	defaultConfigurationsFromDBMap := make(map[ConfigKey]bool)
+	for _, defaultConfigurationFromDB := range defaultConfigurationsFromDB {
+		defaultConfigurationsFromDBMap[defaultConfigurationFromDB.Key] = true
+	}
+
+	creatableConfigurations := make([]*InfraProfileConfigurationEntity, 0, len(defaultConfigurationsFromEnv))
+	util.Transform(defaultConfigurationsFromEnv, func(config *InfraProfileConfigurationEntity) *InfraProfileConfigurationEntity {
+		if !defaultConfigurationsFromDBMap[config.Key] {
+			config.ProfileId = profile.Id
+			config.Active = true
+			config.AuditLog = sql.NewDefaultAuditLog(1)
+			creatableConfigurations = append(creatableConfigurations, config)
+		}
+		return config
+	})
+
+	if len(creatableConfigurations) > 0 {
+		err = impl.infraProfileRepo.CreateConfigurations(tx, creatableConfigurations)
+		if err != nil {
+			impl.logger.Errorw("error in saving default configurations", "error", err)
+			return err
+		}
+	}
+
+	err = impl.infraProfileRepo.CommitTx(tx)
+	if err != nil {
+		impl.logger.Errorw("error in committing transaction to save default configurations", "error", err)
+	}
+	return err
+}
+
 func (impl *InfraConfigServiceImpl) getInfraConfigurationsByScope(scope Scope) (*InfraConfig, error) {
 
 	infraConfigurations, err := impl.infraProfileRepo.GetConfigurationsByScope(scope, impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap())
@@ -908,7 +721,7 @@ func (impl *InfraConfigServiceImpl) getInfraConfigurationsByScope(scope Scope) (
 		return nil, err
 	}
 
-	infraConfigurationBeans := util.Transform(infraConfigurations, func(config *InfraProfileConfiguration) ConfigurationBean {
+	infraConfigurationBeans := util.Transform(infraConfigurations, func(config *InfraProfileConfigurationEntity) ConfigurationBean {
 		return config.ConvertToConfigurationBean()
 	})
 
@@ -916,15 +729,15 @@ func (impl *InfraConfigServiceImpl) getInfraConfigurationsByScope(scope Scope) (
 	updateInfraConfig := func(config ConfigurationBean) {
 		switch config.Key {
 		case CPU_LIMIT:
-			infraConfiguration.setCiLimitCpu(impl.GetResolvedValue(config).(string))
+			infraConfiguration.setCiLimitCpu(impl.getResolvedValue(config).(string))
 		case CPU_REQUEST:
-			infraConfiguration.setCiReqCpu(impl.GetResolvedValue(config).(string))
+			infraConfiguration.setCiReqCpu(impl.getResolvedValue(config).(string))
 		case MEMORY_LIMIT:
-			infraConfiguration.setCiLimitMem(impl.GetResolvedValue(config).(string))
+			infraConfiguration.setCiLimitMem(impl.getResolvedValue(config).(string))
 		case MEMORY_REQUEST:
-			infraConfiguration.setCiReqMem(impl.GetResolvedValue(config).(string))
+			infraConfiguration.setCiReqMem(impl.getResolvedValue(config).(string))
 		case TIME_OUT:
-			infraConfiguration.setCiDefaultTimeout(impl.GetResolvedValue(config).(int64))
+			infraConfiguration.setCiDefaultTimeout(impl.getResolvedValue(config).(int64))
 		}
 	}
 
@@ -955,7 +768,7 @@ func (impl *InfraConfigServiceImpl) getInfraConfigurationsByScope(scope Scope) (
 	return infraConfiguration, nil
 }
 
-func (impl *InfraConfigServiceImpl) GetResolvedValue(configurationBean ConfigurationBean) interface{} {
+func (impl *InfraConfigServiceImpl) getResolvedValue(configurationBean ConfigurationBean) interface{} {
 	// for timeout we need to get the value in seconds
 	if configurationBean.Key == GetConfigKeyStr(TimeOut) {
 		// if user ever gives the timeout in float, after conversion to int64 it will be rounded off
@@ -965,4 +778,166 @@ func (impl *InfraConfigServiceImpl) GetResolvedValue(configurationBean Configura
 		return fmt.Sprintf("%v", configurationBean.Value)
 	}
 	return fmt.Sprintf("%v%v", configurationBean.Value, configurationBean.Unit)
+}
+
+func (impl *InfraConfigServiceImpl) GetConfigurationUnits() map[ConfigKeyStr]map[string]units.Unit {
+	configurationUnits := make(map[ConfigKeyStr]map[string]units.Unit)
+	configurationUnits[CPU_REQUEST] = impl.units.GetCpuUnits()
+	configurationUnits[CPU_LIMIT] = impl.units.GetCpuUnits()
+
+	configurationUnits[MEMORY_REQUEST] = impl.units.GetMemoryUnits()
+	configurationUnits[MEMORY_LIMIT] = impl.units.GetMemoryUnits()
+
+	configurationUnits[TIME_OUT] = impl.units.GetTimeUnits()
+
+	return configurationUnits
+}
+
+func (impl *InfraConfigServiceImpl) Validate(profileBean *ProfileBean, defaultProfile *ProfileBean) error {
+	var err error = nil
+	defaultConfigurationsKeyMap := GetDefaultConfigKeysMap()
+	// validate configurations only contain default configurations types.(cpu_limit,cpu_request,mem_limit,mem_request,timeout)
+	for _, propertyConfig := range profileBean.Configurations {
+		if _, ok := defaultConfigurationsKeyMap[propertyConfig.Key]; !ok {
+			if err == nil {
+				err = errors.New(fmt.Sprintf("invalid configuration property \"%s\"", propertyConfig.Key))
+			}
+			err = errors.Wrap(err, fmt.Sprintf("invalid configuration property \"%s\"", propertyConfig.Key))
+		}
+	}
+
+	if err != nil {
+		err = errors.Wrap(err, PayloadValidationError)
+		return err
+	}
+
+	err = impl.validateConfigurationProperties(profileBean, defaultProfile)
+	if err != nil {
+		err = errors.Wrap(err, PayloadValidationError)
+		return err
+	}
+	return nil
+}
+
+func (impl *InfraConfigServiceImpl) validateConfigurationProperties(profileBean *ProfileBean, defaultProfile *ProfileBean) error {
+
+	// currently validating cpu and memory limits and reqs only
+	var (
+		cpuLimit *ConfigurationBean
+		cpuReq   *ConfigurationBean
+		memLimit *ConfigurationBean
+		memReq   *ConfigurationBean
+	)
+
+	for i, _ := range profileBean.Configurations {
+		// get cpu limit and req
+		switch profileBean.Configurations[i].Key {
+		case CPU_LIMIT:
+			cpuLimit = &profileBean.Configurations[i]
+		case CPU_REQUEST:
+			cpuReq = &profileBean.Configurations[i]
+		case MEMORY_LIMIT:
+			memLimit = &profileBean.Configurations[i]
+		case MEMORY_REQUEST:
+			memReq = &profileBean.Configurations[i]
+		}
+	}
+
+	for i, _ := range defaultProfile.Configurations {
+		// get cpu limit and req
+		switch defaultProfile.Configurations[i].Key {
+		case CPU_LIMIT:
+			if cpuLimit == nil {
+				cpuLimit = &defaultProfile.Configurations[i]
+			}
+		case CPU_REQUEST:
+			if cpuReq == nil {
+				cpuReq = &defaultProfile.Configurations[i]
+			}
+		case MEMORY_LIMIT:
+			if memLimit == nil {
+				memLimit = &defaultProfile.Configurations[i]
+			}
+		case MEMORY_REQUEST:
+			if memReq == nil {
+				memReq = &defaultProfile.Configurations[i]
+			}
+		}
+	}
+
+	// validate cpu
+	err := impl.validateCPU(cpuLimit, cpuReq)
+	if err != nil {
+		return err
+	}
+	// validate mem
+	err = impl.validateMEM(memLimit, memReq)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (impl *InfraConfigServiceImpl) validateCPU(cpuLimit, cpuReq *ConfigurationBean) error {
+	configurationUnits := impl.units
+	cpuLimitUnitSuffix := units.CPUUnitStr(cpuLimit.Unit).GetCPUUnit()
+	cpuReqUnitSuffix := units.CPUUnitStr(cpuReq.Unit).GetCPUUnit()
+	var cpuLimitUnit units.Unit
+	var cpuReqUnit units.Unit
+	for cpuUnitSuffix, cpuUnit := range configurationUnits.GetCpuUnits() {
+		if string(cpuLimitUnitSuffix.GetCPUUnitStr()) == cpuUnitSuffix {
+			cpuLimitUnit = cpuUnit
+		}
+
+		if string(cpuReqUnitSuffix.GetCPUUnitStr()) == cpuUnitSuffix {
+			cpuReqUnit = cpuUnit
+		}
+
+	}
+	// this condition should be true for valid case => (lim/req)*(lf/rf) >= 1
+	limitToReqRationCPU := cpuLimit.Value / cpuReq.Value
+	convFactorCPU := cpuLimitUnit.ConversionFactor / cpuReqUnit.ConversionFactor
+
+	if limitToReqRationCPU*convFactorCPU < 1 {
+		return errors.New(CPULimReqErrorCompErr)
+	}
+	return nil
+}
+
+func (impl *InfraConfigServiceImpl) validateMEM(memLimit, memReq *ConfigurationBean) error {
+	configurationUnits := impl.units
+	memLimitUnitSuffix := units.MemoryUnitStr(memLimit.Unit).GetMemoryUnit()
+	memReqUnitSuffix := units.MemoryUnitStr(memReq.Unit).GetMemoryUnit()
+	var memLimitUnit units.Unit
+	var memReqUnit units.Unit
+
+	for memUnitSuffix, memUnit := range configurationUnits.GetMemoryUnits() {
+		if string(memLimitUnitSuffix.GetMemoryUnitStr()) == memUnitSuffix {
+			memLimitUnit = memUnit
+		}
+
+		if string(memReqUnitSuffix.GetMemoryUnitStr()) == memUnitSuffix {
+			memReqUnit = memUnit
+		}
+	}
+
+	// this condition should be true for valid case => (lim/req)*(lf/rf) >= 1
+	// not directly comparing lim*lf with req*rf because this multiplication can overflow float64 limit
+	// so, we are dividing lim/req and lf/rf and then comparing.
+	limitToReqRationMem := memLimit.Value / memReq.Value
+	convFactorMem := memLimitUnit.ConversionFactor / memReqUnit.ConversionFactor
+
+	if limitToReqRationMem*convFactorMem < 1 {
+		return errors.New(MEMLimReqErrorCompErr)
+	}
+	return nil
+}
+
+func (impl *InfraConfigServiceImpl) GetDefaultProfile() (*ProfileBean, error) {
+	infraProfile, err := impl.GetProfileByName(DEFAULT_PROFILE_NAME)
+	if err != nil {
+		impl.logger.Errorw("error in fetching default profile", "error", err)
+		return nil, err
+	}
+	return infraProfile, nil
 }

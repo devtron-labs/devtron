@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
+	"gopkg.in/go-playground/validator.v9"
 	"net/http"
 	"strconv"
 	"strings"
@@ -35,15 +36,17 @@ type InfraConfigRestHandlerImpl struct {
 	userService         user.UserService
 	enforcer            casbin.Enforcer
 	enforcerUtil        rbac.EnforcerUtil
+	validator           *validator.Validate
 }
 
-func NewInfraConfigRestHandlerImpl(logger *zap.SugaredLogger, infraProfileService infraConfig.InfraConfigService, userService user.UserService, enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil) *InfraConfigRestHandlerImpl {
+func NewInfraConfigRestHandlerImpl(logger *zap.SugaredLogger, infraProfileService infraConfig.InfraConfigService, userService user.UserService, enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, validator *validator.Validate) *InfraConfigRestHandlerImpl {
 	return &InfraConfigRestHandlerImpl{
 		logger:              logger,
 		infraProfileService: infraProfileService,
 		userService:         userService,
 		enforcer:            enforcer,
 		enforcerUtil:        enforcerUtil,
+		validator:           validator,
 	}
 }
 
@@ -66,6 +69,11 @@ func (handler *InfraConfigRestHandlerImpl) CreateProfile(w http.ResponseWriter, 
 		handler.logger.Errorw("error in decoding the request payload", "err", err, "requestBody", r.Body)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
+	}
+	err = handler.validator.Struct(payload)
+	if err != nil {
+		err = errors.Wrap(err, infraConfig.PayloadValidationError)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 	}
 
 	err = handler.infraProfileService.CreateProfile(userId, payload)
@@ -104,6 +112,14 @@ func (handler *InfraConfigRestHandlerImpl) UpdateInfraProfile(w http.ResponseWri
 		return
 	}
 	payload.Name = strings.ToLower(payload.Name)
+	err = handler.validator.Struct(payload)
+	if err != nil {
+		err = errors.Wrap(err, infraConfig.PayloadValidationError)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+	}
+	if profileName == "" || (profileName == infraConfig.DEFAULT_PROFILE_NAME && payload.Name != infraConfig.DEFAULT_PROFILE_NAME) {
+		common.WriteJsonResp(w, errors.New(infraConfig.InvalidProfileName), nil, http.StatusBadRequest)
+	}
 	err = handler.infraProfileService.UpdateProfile(userId, profileName, payload)
 	if err != nil {
 		handler.logger.Errorw("error in updating profile and configurations", "profileName", profileName, "payLoad", payload, "err", err)
@@ -146,7 +162,7 @@ func (handler *InfraConfigRestHandlerImpl) GetProfile(w http.ResponseWriter, r *
 		}
 	}
 
-	defaultProfile, err := handler.infraProfileService.GetDefaultProfile(false)
+	defaultProfile, err := handler.infraProfileService.GetDefaultProfile()
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
