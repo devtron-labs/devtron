@@ -55,7 +55,6 @@ type UserService interface {
 	GetById(id int32) (*bean.UserInfo, error)
 	GetAll() ([]bean.UserInfo, error)
 	GetAllWithFilters(request *bean.FetchListingRequest) (*bean.UserListingResponse, error)
-	GetAllDetailedUsers() ([]bean.UserInfo, error)
 	GetEmailFromToken(token string) (string, error)
 	GetEmailById(userId int32) (string, error)
 	GetLoggedInUser(r *http.Request) (int32, error)
@@ -955,7 +954,7 @@ func (impl UserServiceImpl) GetAllWithFilters(request *bean.FetchListingRequest)
 	//  default values will be used if not provided
 	impl.userCommonService.SetDefaultValuesIfNotPresent(request, false)
 	if request.ShowAll {
-		response, err := impl.GetAllDetailedUsers()
+		response, err := impl.getAllDetailedUsers()
 		if err != nil {
 			impl.logger.Errorw("error in getAllDetailedUsers", "err", err)
 			return nil, err
@@ -1019,7 +1018,7 @@ func (impl UserServiceImpl) getUserResponse(model []repository.UserModel, totalC
 	return listingResponse, nil
 }
 
-func (impl *UserServiceImpl) GetAllDetailedUsers() ([]bean.UserInfo, error) {
+func (impl *UserServiceImpl) getAllDetailedUsers() ([]bean.UserInfo, error) {
 	query := impl.userListingRepositoryQueryBuilder.GetQueryForAllUserWithAudit()
 	models, err := impl.userRepository.GetAllExecutingQuery(query)
 	if err != nil {
