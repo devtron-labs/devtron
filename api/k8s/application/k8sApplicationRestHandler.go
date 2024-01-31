@@ -729,9 +729,11 @@ func (handler *K8sApplicationRestHandlerImpl) DownloadPodLogs(w http.ResponseWri
 	}
 	if len(dataBuffer.Bytes()) == 0 {
 		common.WriteJsonResp(w, errors.New("no logs found"), nil, http.StatusNotFound)
+		return
 	}
 	podLogsFilename := generatePodLogsFilename(request.K8sRequest.ResourceIdentifier.Name)
 	common.WriteOctetStreamResp(w, r, dataBuffer.Bytes(), podLogsFilename)
+	return
 }
 
 func generatePodLogsFilename(filename string) string {
