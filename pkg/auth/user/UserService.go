@@ -2349,13 +2349,13 @@ func (impl UserServiceImpl) GetUserBasicdataByEmailId(emailId string) (*bean.Use
 }
 
 func (impl UserServiceImpl) UserStatusCheckInDb(token string) (bool, int32, error) {
-	/*emailId, _, err := impl.GetEmailAndGroupClaimsFromToken(token)
+	emailId, _, err := impl.GetEmailAndGroupClaimsFromToken(token)
 	if err != nil {
 		impl.logger.Error("unable to fetch user by token")
 		err = &util.ApiError{HttpStatusCode: 401, UserMessage: "Invalid User", InternalMessage: "unable to fetch user by token"}
 		return false, 0, err
-	}*/
-	userId, isInactive, err := impl.getUserWithTimeoutWindowConfiguration(token)
+	}
+	userId, isInactive, err := impl.getUserWithTimeoutWindowConfiguration(emailId)
 	if err != nil {
 		impl.logger.Errorw("unable to fetch user by email, %s", token)
 		return isInactive, userId, err
