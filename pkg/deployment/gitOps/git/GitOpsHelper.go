@@ -146,12 +146,12 @@ func (impl *GitOpsHelper) getBranch(ctx context.Context, rootDir string, usernam
 	impl.logger.Infow("total branch available in git repo", "branches", branches)
 	branch := ""
 	for _, item := range branches {
-		if strings.TrimSpace(item) == "origin/master" {
+		if strings.TrimSpace(item) == git.ORIGIN_MASTER {
 			branch = git.Branch_Master
 		}
 	}
 	//if git repo has some branch take pull of the first branch, but eventually proxy chart will push into master branch
-	if len(branch) == 0 && branches != nil && len(branches[0]) > 0 {
+	if len(branch) == 0 && branches != nil {
 		branch = strings.ReplaceAll(branches[0], "origin/", "")
 	}
 	return branch, nil

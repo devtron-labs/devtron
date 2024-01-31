@@ -48,3 +48,4 @@ type BasicAuth struct {
 const GIT_ASK_PASS = "/git-ask-pass.sh"
 
 const Branch_Master = "master"
+const ORIGIN_MASTER = "origin/master"
