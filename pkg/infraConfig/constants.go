@@ -11,6 +11,7 @@ const NORMAL ProfileType = "NORMAL"
 const profileApplyErr = "selected filter does not match any apps, cannot apply the given profile"
 const APPLICATION IdentifierType = "application"
 
+const InvalidUnit = "invalid %s unit found in %s "
 const DEFAULT_PROFILE_NAME = "default"
 const DEFAULT_PROFILE_EXISTS = "default profile exists"
 const NO_PROPERTIES_FOUND = "no properties found"

@@ -29,7 +29,6 @@ type InfraConfigRestHandler interface {
 	GetIdentifierList(w http.ResponseWriter, r *http.Request)
 	ApplyProfileToIdentifiers(w http.ResponseWriter, r *http.Request)
 }
-
 type InfraConfigRestHandlerImpl struct {
 	logger              *zap.SugaredLogger
 	infraProfileService infraConfig.InfraConfigService

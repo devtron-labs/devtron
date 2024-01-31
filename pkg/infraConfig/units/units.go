@@ -1,7 +1,9 @@
 package units
 
 import (
+	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"strconv"
 	"strings"
 )
 
@@ -31,6 +33,10 @@ const (
 	Minute UnitSuffix = 17
 	Hour   UnitSuffix = 18
 )
+
+type UnitStr interface {
+	CPUUnitStr | MemoryUnitStr | TimeUnitStr
+}
 
 type CPUUnitStr string
 
@@ -180,108 +186,108 @@ func (timeUnitStr TimeUnitStr) GetTimeUnit() UnitSuffix {
 }
 
 type Units struct {
-	cpuUnits    map[string]Unit
-	memoryUnits map[string]Unit
-	timeUnits   map[string]Unit
+	cpuUnits    map[CPUUnitStr]Unit
+	memoryUnits map[MemoryUnitStr]Unit
+	timeUnits   map[TimeUnitStr]Unit
 }
 
 func NewUnits() *Units {
-	cpuUnits := map[string]Unit{
-		string(MILLI): {
+	cpuUnits := map[CPUUnitStr]Unit{
+		MILLI: {
 			Name:             string(MILLI),
 			ConversionFactor: 1e-3,
 		},
-		string(CORE): {
+		CORE: {
 			Name:             string(CORE),
 			ConversionFactor: 1,
 		},
 	}
 
-	memoryUnits := map[string]Unit{
-		string(BYTE): {
+	memoryUnits := map[MemoryUnitStr]Unit{
+		BYTE: {
 			Name:             string(BYTE),
 			ConversionFactor: 1,
 		},
-		string(KBYTE): {
+		KBYTE: {
 			Name:             string(KBYTE),
 			ConversionFactor: 1000,
 		},
-		string(MBYTE): {
+		MBYTE: {
 			Name:             string(MBYTE),
 			ConversionFactor: 1000000,
 		},
-		string(GBYTE): {
+		GBYTE: {
 			Name:             string(GBYTE),
 			ConversionFactor: 1000000000,
 		},
-		string(TBYTE): {
+		TBYTE: {
 			Name:             string(TBYTE),
 			ConversionFactor: 1000000000000,
 		},
-		string(PBYTE): {
+		PBYTE: {
 			Name:             string(PBYTE),
 			ConversionFactor: 1000000000000000,
 		},
-		string(EBYTE): {
+		EBYTE: {
 			Name:             string(EBYTE),
 			ConversionFactor: 1000000000000000000,
 		},
-		string(KIBYTE): {
+		KIBYTE: {
 			Name:             string(KIBYTE),
 			ConversionFactor: 1024,
 		},
-		string(MIBYTE): {
+		MIBYTE: {
 			Name:             string(MIBYTE),
 			ConversionFactor: 1024 * 1024,
 		},
-		string(GIBYTE): {
+		GIBYTE: {
 			Name:             string(GIBYTE),
 			ConversionFactor: 1024 * 1024 * 1024,
 		},
-		string(TIBYTE): {
+		TIBYTE: {
 			Name:             string(TIBYTE),
 			ConversionFactor: 1024 * 1024 * 1024 * 1024,
 		},
-		string(PIBYTE): {
+		PIBYTE: {
 			Name:             string(PIBYTE),
 			ConversionFactor: 1024 * 1024 * 1024 * 1024 * 1024,
 		},
-		string(EIBYTE): {
+		EIBYTE: {
 			Name:             string(EIBYTE),
 			ConversionFactor: 1024 * 1024 * 1024 * 1024 * 1024 * 1024,
 		},
 	}
 
-	timeUnits := map[string]Unit{
-		string(SecondStr): {
+	timeUnits := map[TimeUnitStr]Unit{
+		SecondStr: {
 			Name:             string(SecondStr),
 			ConversionFactor: 1,
 		},
-		string(MinuteStr): {
+		MinuteStr: {
 			Name:             string(MinuteStr),
 			ConversionFactor: 60,
 		},
-		string(HourStr): {
+		HourStr: {
 			Name:             string(HourStr),
 			ConversionFactor: 3600,
 		},
 	}
 	return &Units{
-
 		cpuUnits:    cpuUnits,
 		memoryUnits: memoryUnits,
 		timeUnits:   timeUnits,
 	}
 }
 
-func (u *Units) GetCpuUnits() map[string]Unit {
+func (u *Units) GetCpuUnits() map[CPUUnitStr]Unit {
 	return u.cpuUnits
 }
-func (u *Units) GetMemoryUnits() map[string]Unit {
+
+func (u *Units) GetMemoryUnits() map[MemoryUnitStr]Unit {
 	return u.memoryUnits
 }
 
-func (u *Units) GetTimeUnits() map[string]Unit {
+func (u *Units) GetTimeUnits() map[TimeUnitStr]Unit {
 	return u.timeUnits
 }
 
@@ -292,6 +298,25 @@ type Unit struct {
 	// ConversionFactor is used to convert this unit to the base unit
 	// if ConversionFactor is 1, then this is the base unit
 	ConversionFactor float64 `json:"conversionFactor"`
+}
+
+// ParseValAndUnit parses the quantity which have number values string and returns the value and unit
+// returns error if parsing fails
+func ParseValAndUnit(quantity string) (float64, string, error) {
+	positive, _, num, denom, suffix, err := ParseQuantityString(quantity)
+	if err != nil {
+		return 0, "", err
+	}
+	if !positive {
+		return 0, "", errors.New("negative value not allowed for cpu limits")
+	}
+	valStr := num
+	if denom != "" {
+		valStr = num + "." + denom
+	}
+
+	val, err := strconv.ParseFloat(valStr, 64)
+	return val, suffix, err
 }
 
 // ParseQuantityString is a fast scanner for quantity values.

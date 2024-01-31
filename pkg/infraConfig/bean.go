@@ -4,8 +4,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/infraConfig/units"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/util"
-	"github.com/pkg/errors"
-	"strconv"
 	"time"
 )
 
@@ -133,7 +131,7 @@ func (infraConfig InfraConfig) GetCiLimitCpu() string {
 	return infraConfig.CiLimitCpu
 }
 
-func (infraConfig InfraConfig) setCiLimitCpu(cpu string) {
+func (infraConfig *InfraConfig) setCiLimitCpu(cpu string) {
 	infraConfig.CiLimitCpu = cpu
 }
 
@@ -141,7 +139,7 @@ func (infraConfig InfraConfig) GetCiLimitMem() string {
 	return infraConfig.CiLimitMem
 }
 
-func (infraConfig InfraConfig) setCiLimitMem(mem string) {
+func (infraConfig *InfraConfig) setCiLimitMem(mem string) {
 	infraConfig.CiLimitMem = mem
 }
 
@@ -149,7 +147,7 @@ func (infraConfig InfraConfig) GetCiReqCpu() string {
 	return infraConfig.CiReqCpu
 }
 
-func (infraConfig InfraConfig) setCiReqCpu(cpu string) {
+func (infraConfig *InfraConfig) setCiReqCpu(cpu string) {
 	infraConfig.CiReqCpu = cpu
 }
 
@@ -157,7 +155,7 @@ func (infraConfig InfraConfig) GetCiReqMem() string {
 	return infraConfig.CiReqMem
 }
 
-func (infraConfig InfraConfig) setCiReqMem(mem string) {
+func (infraConfig *InfraConfig) setCiReqMem(mem string) {
 	infraConfig.CiReqMem = mem
 }
 
@@ -165,24 +163,12 @@ func (infraConfig InfraConfig) GetCiDefaultTimeout() int64 {
 	return infraConfig.CiDefaultTimeout
 }
 
-func (infraConfig InfraConfig) setCiDefaultTimeout(timeout int64) {
+func (infraConfig *InfraConfig) setCiDefaultTimeout(timeout int64) {
 	infraConfig.CiDefaultTimeout = timeout
 }
 
 func (infraConfig InfraConfig) LoadCiLimitCpu() (*InfraProfileConfigurationEntity, error) {
-	positive, _, num, denom, suffix, err := units.ParseQuantityString(infraConfig.CiLimitCpu)
-	if err != nil {
-		return nil, err
-	}
-	if !positive {
-		return nil, errors.New("negative value not allowed for cpu limits")
-	}
-	valStr := num
-	if denom != "" {
-		valStr = num + "." + denom
-	}
-
-	val, err := strconv.ParseFloat(valStr, 64)
+	val, suffix, err := units.ParseValAndUnit(infraConfig.CiLimitCpu)
 	if err != nil {
 		return nil, err
 	}
@@ -195,18 +181,7 @@ func (infraConfig InfraConfig) LoadCiLimitCpu() (*InfraProfileConfigurationEntit
 }
 
 func (infraConfig InfraConfig) LoadCiLimitMem() (*InfraProfileConfigurationEntity, error) {
-	positive, _, num, denom, suffix, err := units.ParseQuantityString(infraConfig.CiLimitMem)
-	if err != nil {
-		return nil, err
-	}
-	if !positive {
-		return nil, errors.New("negative value not allowed for memory limits")
-	}
-	valStr := num
-	if denom != "" {
-		valStr = num + "." + denom
-	}
-	val, err := strconv.ParseFloat(valStr, 64)
+	val, suffix, err := units.ParseValAndUnit(infraConfig.CiLimitMem)
 	if err != nil {
 		return nil, err
 	}
@@ -219,24 +194,10 @@ func (infraConfig InfraConfig) LoadCiLimitMem() (*InfraProfileConfigurationEntit
 }
 
 func (infraConfig InfraConfig) LoadCiReqCpu() (*InfraProfileConfigurationEntity, error) {
-	positive, _, num, denom, suffix, err := units.ParseQuantityString(infraConfig.CiReqCpu)
+	val, suffix, err := units.ParseValAndUnit(infraConfig.CiReqCpu)
 	if err != nil {
 		return nil, err
 	}
-	if !positive {
-		return nil, errors.New("negative value not allowed for cpu requests")
-	}
-
-	valStr := num
-	if denom != "" {
-		valStr = num + "." + denom
-	}
-
-	val, err := strconv.ParseFloat(valStr, 64)
-	if err != nil {
-		return nil, err
-	}
-
 	return &InfraProfileConfigurationEntity{
 		Key:   CPURequest,
 		Value: val,
@@ -245,18 +206,7 @@ func (infraConfig InfraConfig) LoadCiReqCpu() (*InfraProfileConfigurationEntity,
 }
 
 func (infraConfig InfraConfig) LoadCiReqMem() (*InfraProfileConfigurationEntity, error) {
-	positive, _, num, denom, suffix, err := units.ParseQuantityString(infraConfig.CiReqMem)
-	if err != nil {
-		return nil, err
-	}
-	if !positive {
-		return nil, errors.New("negative value not allowed for memory requests")
-	}
-	valStr := num
-	if denom != "" {
-		valStr = num + "." + denom
-	}
-	val, err := strconv.ParseFloat(valStr, 64)
+	val, suffix, err := units.ParseValAndUnit(infraConfig.CiReqMem)
 	if err != nil {
 		return nil, err
 	}
