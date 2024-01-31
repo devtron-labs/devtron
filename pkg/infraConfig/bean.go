@@ -132,7 +132,7 @@ func (infraConfig InfraConfig) GetCiLimitCpu() string {
 	return infraConfig.CiLimitCpu
 }
 
-func (infraConfig InfraConfig) setCiLimitCpu(cpu string) {
+func (infraConfig *InfraConfig) setCiLimitCpu(cpu string) {
 	infraConfig.CiLimitCpu = cpu
 }
 
@@ -140,7 +140,7 @@ func (infraConfig InfraConfig) GetCiLimitMem() string {
 	return infraConfig.CiLimitMem
 }
 
-func (infraConfig InfraConfig) setCiLimitMem(mem string) {
+func (infraConfig *InfraConfig) setCiLimitMem(mem string) {
 	infraConfig.CiLimitMem = mem
 }
 
@@ -148,7 +148,7 @@ func (infraConfig InfraConfig) GetCiReqCpu() string {
 	return infraConfig.CiReqCpu
 }
 
-func (infraConfig InfraConfig) setCiReqCpu(cpu string) {
+func (infraConfig *InfraConfig) setCiReqCpu(cpu string) {
 	infraConfig.CiReqCpu = cpu
 }
 
@@ -156,7 +156,7 @@ func (infraConfig InfraConfig) GetCiReqMem() string {
 	return infraConfig.CiReqMem
 }
 
-func (infraConfig InfraConfig) setCiReqMem(mem string) {
+func (infraConfig *InfraConfig) setCiReqMem(mem string) {
 	infraConfig.CiReqMem = mem
 }
 
@@ -164,7 +164,7 @@ func (infraConfig InfraConfig) GetCiDefaultTimeout() int64 {
 	return infraConfig.CiDefaultTimeout
 }
 
-func (infraConfig InfraConfig) setCiDefaultTimeout(timeout int64) {
+func (infraConfig *InfraConfig) setCiDefaultTimeout(timeout int64) {
 	infraConfig.CiDefaultTimeout = timeout
 }
 
