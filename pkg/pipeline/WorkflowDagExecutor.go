@@ -27,7 +27,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps"
-	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/helper"
 	bean7 "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd"
 	"strconv"
@@ -651,7 +650,7 @@ func (impl *WorkflowDagExecutorImpl) processDevtronAsyncHelmInstallRequest(CDAsy
 	}
 
 	_, span := otel.Tracer("orchestrator").Start(ctx, "appService.TriggerRelease")
-	releaseId, _, releaseErr := impl.TriggerRelease(overrideRequest, valuesOverrideResponse, builtChartPath, ctx, CDAsyncInstallNatsMessage.TriggeredAt, CDAsyncInstallNatsMessage.TriggeredBy)
+	releaseId, _, releaseErr := impl.cdTriggerService.TriggerRelease(overrideRequest, valuesOverrideResponse, builtChartPath, ctx, CDAsyncInstallNatsMessage.TriggeredAt, CDAsyncInstallNatsMessage.TriggeredBy)
 	span.End()
 	if releaseErr != nil {
 		impl.handleAsyncTriggerReleaseError(releaseErr, cdWfr, overrideRequest, appIdentifier)
@@ -2675,7 +2674,7 @@ func (impl *WorkflowDagExecutorImpl) HandleCDTriggerRelease(overrideRequest *bea
 		impl.logger.Errorw("error in building merged manifest for trigger", "err", err)
 		return releaseNo, manifest, err
 	}
-	return impl.TriggerRelease(overrideRequest, valuesOverrideResponse, builtChartPath, ctx, triggeredAt, deployedBy)
+	return impl.cdTriggerService.TriggerRelease(overrideRequest, valuesOverrideResponse, builtChartPath, ctx, triggeredAt, deployedBy)
 }
 
 // TriggerHelmAsyncRelease will publish async helm Install/Upgrade request event for Devtron App releases
@@ -2729,20 +2728,6 @@ func (impl *WorkflowDagExecutorImpl) TriggerHelmAsyncRelease(overrideRequest *be
 		return 0, manifest, err
 	}
 	return 0, manifest, nil
-}
-
-// TriggerRelease will trigger Install/Upgrade request for Devtron App releases synchronously
-func (impl *WorkflowDagExecutorImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse, builtChartPath string, ctx context.Context, triggeredAt time.Time, triggeredBy int32) (releaseNo int, manifest []byte, err error) {
-	// Handling for auto trigger
-	if overrideRequest.UserId == 0 {
-		overrideRequest.UserId = triggeredBy
-	}
-	triggerEvent := helper.GetTriggerEvent(overrideRequest.DeploymentAppType, triggeredAt, triggeredBy)
-	releaseNo, manifest, err = impl.cdTriggerService.TriggerPipeline(overrideRequest, valuesOverrideResponse, builtChartPath, triggerEvent, ctx)
-	if err != nil {
-		return 0, manifest, err
-	}
-	return releaseNo, manifest, nil
 }
 
 func (impl *WorkflowDagExecutorImpl) TriggerCD(artifact *repository.CiArtifact, cdWorkflowId, wfrId int, pipeline *pipelineConfig.Pipeline, triggeredAt time.Time) error {
