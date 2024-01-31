@@ -5,6 +5,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	cloudProviderIdentifier "github.com/devtron-labs/common-lib/cloud-provider-identifier"
+	cron3 "github.com/devtron-labs/devtron/util/cron"
 	"net/http"
 	"time"
 
@@ -40,22 +42,24 @@ const SKIPPED_ONBOARDING_CONST = "SkippedOnboarding"
 const ADMIN_EMAIL_ID_CONST = "admin"
 
 type TelemetryEventClientImpl struct {
-	cron                     *cron.Cron
-	logger                   *zap.SugaredLogger
-	client                   *http.Client
-	clusterService           cluster.ClusterService
-	K8sUtil                  *k8s.K8sUtil
-	aCDAuthConfig            *util3.ACDAuthConfig
-	userService              user2.UserService
-	attributeRepo            repository.AttributesRepository
-	ssoLoginService          sso.SSOLoginService
-	PosthogClient            *PosthogClient
-	moduleRepository         moduleRepo.ModuleRepository
-	serverDataStore          *serverDataStore.ServerDataStore
-	userAuditService         user2.UserAuditService
-	helmAppClient            client.HelmAppClient
-	InstalledAppRepository   repository2.InstalledAppRepository
-	userAttributesRepository repository.UserAttributesRepository
+	cron                           *cron.Cron
+	logger                         *zap.SugaredLogger
+	client                         *http.Client
+	clusterService                 cluster.ClusterService
+	K8sUtil                        *k8s.K8sServiceImpl
+	aCDAuthConfig                  *util3.ACDAuthConfig
+	userService                    user2.UserService
+	attributeRepo                  repository.AttributesRepository
+	ssoLoginService                sso.SSOLoginService
+	PosthogClient                  *PosthogClient
+	moduleRepository               moduleRepo.ModuleRepository
+	serverDataStore                *serverDataStore.ServerDataStore
+	userAuditService               user2.UserAuditService
+	helmAppClient                  client.HelmAppClient
+	InstalledAppRepository         repository2.InstalledAppRepository
+	userAttributesRepository       repository.UserAttributesRepository
+	cloudProviderIdentifierService cloudProviderIdentifier.ProviderIdentifierService
+	telemetryConfig                TelemetryConfig
 }
 
 type TelemetryEventClient interface {
@@ -68,11 +72,12 @@ type TelemetryEventClient interface {
 }
 
 func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client, clusterService cluster.ClusterService,
-	K8sUtil *k8s.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig, userService user2.UserService,
+	K8sUtil *k8s.K8sServiceImpl, aCDAuthConfig *util3.ACDAuthConfig, userService user2.UserService,
 	attributeRepo repository.AttributesRepository, ssoLoginService sso.SSOLoginService,
-	PosthogClient *PosthogClient, moduleRepository moduleRepo.ModuleRepository, serverDataStore *serverDataStore.ServerDataStore, userAuditService user2.UserAuditService, helmAppClient client.HelmAppClient, InstalledAppRepository repository2.InstalledAppRepository) (*TelemetryEventClientImpl, error) {
+	PosthogClient *PosthogClient, moduleRepository moduleRepo.ModuleRepository, serverDataStore *serverDataStore.ServerDataStore, userAuditService user2.UserAuditService, helmAppClient client.HelmAppClient, InstalledAppRepository repository2.InstalledAppRepository,
+	cloudProviderIdentifierService cloudProviderIdentifier.ProviderIdentifierService, cronLogger *cron3.CronLoggerImpl) (*TelemetryEventClientImpl, error) {
 	cron := cron.New(
-		cron.WithChain())
+		cron.WithChain(cron.Recover(cronLogger)))
 	cron.Start()
 	watcher := &TelemetryEventClientImpl{
 		cron:   cron,
@@ -80,13 +85,15 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 		client: client, clusterService: clusterService,
 		K8sUtil: K8sUtil, aCDAuthConfig: aCDAuthConfig,
 		userService: userService, attributeRepo: attributeRepo,
-		ssoLoginService:        ssoLoginService,
-		PosthogClient:          PosthogClient,
-		moduleRepository:       moduleRepository,
-		serverDataStore:        serverDataStore,
-		userAuditService:       userAuditService,
-		helmAppClient:          helmAppClient,
-		InstalledAppRepository: InstalledAppRepository,
+		ssoLoginService:                ssoLoginService,
+		PosthogClient:                  PosthogClient,
+		moduleRepository:               moduleRepository,
+		serverDataStore:                serverDataStore,
+		userAuditService:               userAuditService,
+		helmAppClient:                  helmAppClient,
+		InstalledAppRepository:         InstalledAppRepository,
+		cloudProviderIdentifierService: cloudProviderIdentifierService,
+		telemetryConfig:                TelemetryConfig{},
 	}
 
 	watcher.HeartbeatEventForTelemetry()
@@ -102,6 +109,19 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 		return nil, err
 	}
 	return watcher, err
+}
+
+func (impl *TelemetryEventClientImpl) GetCloudProvider() (string, error) {
+	// assumption: the IMDS server will be reachable on startup
+	if len(impl.telemetryConfig.cloudProvider) == 0 {
+		provider, err := impl.cloudProviderIdentifierService.IdentifyProvider()
+		if err != nil {
+			impl.logger.Errorw("exception while getting cluster provider", "error", err)
+			return "", err
+		}
+		impl.telemetryConfig.cloudProvider = provider
+	}
+	return impl.telemetryConfig.cloudProvider, nil
 }
 
 func (impl *TelemetryEventClientImpl) StopCron() {
@@ -132,6 +152,7 @@ type TelemetryEventEA struct {
 	SkippedOnboarding                  bool               `json:"SkippedOnboarding"`
 	HelmChartSuccessfulDeploymentCount int                `json:"helmChartSuccessfulDeploymentCount,omitempty"`
 	ExternalHelmAppClusterCount        map[int32]int      `json:"ExternalHelmAppClusterCount,omitempty"`
+	ClusterProvider                    string             `json:"clusterProvider,omitempty"`
 }
 
 const DevtronUniqueClientIdConfigMap = "devtron-ucid"
@@ -315,6 +336,12 @@ func (impl *TelemetryEventClientImpl) SendSummaryEvent(eventType string) error {
 	payload.HelmChartSuccessfulDeploymentCount = helmChartSuccessfulDeploymentCount
 	payload.ExternalHelmAppClusterCount = ExternalHelmAppClusterCount
 
+	payload.ClusterProvider, err = impl.GetCloudProvider()
+	if err != nil {
+		impl.logger.Errorw("error while getting cluster provider", "error", err)
+		return err
+	}
+
 	latestUser, err := impl.userAuditService.GetLatestUser()
 	if err == nil {
 		loginTime := latestUser.UpdatedOn
@@ -459,8 +486,26 @@ func (impl *TelemetryEventClientImpl) SendTelemetryInstallEventEA() (*TelemetryE
 		return nil, err
 	}
 
+	discoveryClient, err := impl.K8sUtil.GetK8sDiscoveryClientInCluster()
+	if err != nil {
+		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+		return nil, err
+	}
+	k8sServerVersion, err := discoveryClient.ServerVersion()
+	if err != nil {
+		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+		return nil, err
+	}
+
 	payload := &TelemetryEventEA{UCID: ucid, Timestamp: time.Now(), EventType: InstallationSuccess, DevtronVersion: "v1"}
 	payload.DevtronMode = util.GetDevtronVersion().ServerMode
+	payload.ServerVersion = k8sServerVersion.String()
+
+	payload.ClusterProvider, err = impl.GetCloudProvider()
+	if err != nil {
+		impl.logger.Errorw("error while getting cluster provider", "error", err)
+		return nil, err
+	}
 
 	reqBody, err := json.Marshal(payload)
 	if err != nil {
@@ -507,8 +552,26 @@ func (impl *TelemetryEventClientImpl) SendTelemetryDashboardAccessEvent() error 
 		return err
 	}
 
+	discoveryClient, err := impl.K8sUtil.GetK8sDiscoveryClientInCluster()
+	if err != nil {
+		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+		return err
+	}
+	k8sServerVersion, err := discoveryClient.ServerVersion()
+	if err != nil {
+		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+		return err
+	}
+
 	payload := &TelemetryEventEA{UCID: ucid, Timestamp: time.Now(), EventType: DashboardAccessed, DevtronVersion: "v1"}
 	payload.DevtronMode = util.GetDevtronVersion().ServerMode
+	payload.ServerVersion = k8sServerVersion.String()
+
+	payload.ClusterProvider, err = impl.GetCloudProvider()
+	if err != nil {
+		impl.logger.Errorw("error while getting cluster provider", "error", err)
+		return err
+	}
 
 	reqBody, err := json.Marshal(payload)
 	if err != nil {
@@ -555,8 +618,26 @@ func (impl *TelemetryEventClientImpl) SendTelemetryDashboardLoggedInEvent() erro
 		return err
 	}
 
+	discoveryClient, err := impl.K8sUtil.GetK8sDiscoveryClientInCluster()
+	if err != nil {
+		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+		return err
+	}
+	k8sServerVersion, err := discoveryClient.ServerVersion()
+	if err != nil {
+		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+		return err
+	}
+
 	payload := &TelemetryEventEA{UCID: ucid, Timestamp: time.Now(), EventType: DashboardLoggedIn, DevtronVersion: "v1"}
 	payload.DevtronMode = util.GetDevtronVersion().ServerMode
+	payload.ServerVersion = k8sServerVersion.String()
+
+	payload.ClusterProvider, err = impl.GetCloudProvider()
+	if err != nil {
+		impl.logger.Errorw("error while getting cluster provider", "error", err)
+		return err
+	}
 
 	reqBody, err := json.Marshal(payload)
 	if err != nil {

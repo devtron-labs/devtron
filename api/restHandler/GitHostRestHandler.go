@@ -45,9 +45,9 @@ type GitHostRestHandler interface {
 
 type GitHostRestHandlerImpl struct {
 	logger            *zap.SugaredLogger
-	gitHostConfig   pipeline.GitHostConfig
-	userAuthService user.UserService
-	validator       *validator.Validate
+	gitHostConfig     pipeline.GitHostConfig
+	userAuthService   user.UserService
+	validator         *validator.Validate
 	enforcer          casbin.Enforcer
 	gitSensorClient   gitSensor.Client
 	gitProviderConfig pipeline.GitRegistryConfig
