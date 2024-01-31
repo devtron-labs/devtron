@@ -40,7 +40,6 @@ import (
 type RoleGroupService interface {
 	CreateRoleGroup(request *bean.RoleGroup) (*bean.RoleGroup, error)
 	UpdateRoleGroup(request *bean.RoleGroup, token string, managerAuth func(resource, token string, object string) bool) (*bean.RoleGroup, error)
-	FetchDetailedRoleGroups() ([]*bean.RoleGroup, error)
 	FetchRoleGroupsById(id int32) (*bean.RoleGroup, error)
 	FetchRoleGroups() (*bean.RoleGroupListingResponse, error)
 	FetchRoleGroupsWithFilters(request *bean.FetchListingRequest) (*bean.RoleGroupListingResponse, error)
@@ -603,7 +602,7 @@ func (impl RoleGroupServiceImpl) getRoleGroupMetadata(roleGroup *repository.Role
 	return roleFilters, isSuperAdmin
 }
 
-func (impl RoleGroupServiceImpl) FetchDetailedRoleGroups() ([]*bean.RoleGroup, error) {
+func (impl RoleGroupServiceImpl) fetchDetailedRoleGroups() ([]*bean.RoleGroup, error) {
 	roleGroups, err := impl.roleGroupRepository.GetAllRoleGroup()
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
@@ -637,7 +636,7 @@ func (impl RoleGroupServiceImpl) FetchDetailedRoleGroups() ([]*bean.RoleGroup, e
 }
 
 func (impl RoleGroupServiceImpl) FetchRoleGroups() (*bean.RoleGroupListingResponse, error) {
-	list, err := impl.FetchDetailedRoleGroups()
+	list, err := impl.fetchDetailedRoleGroups()
 	if err != nil {
 		impl.logger.Errorw("error in FetchDetailedRoleGroups", "err", err)
 		return nil, err
