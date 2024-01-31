@@ -20,7 +20,6 @@ package user
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	auth "github.com/devtron-labs/devtron/pkg/auth/authorisation/globalConfig"
 	"github.com/devtron-labs/devtron/pkg/auth/user/adapter"
@@ -65,9 +64,8 @@ type UserService interface {
 	GetByIdWithoutGroupClaims(id int32) (*bean.UserInfo, error)
 	GetRoleFiltersForAUserById(id int32) (*bean.UserInfo, error)
 	GetByIdForGroupClaims(id int32) (*bean.UserInfo, error)
-	GetAll() ([]bean.UserInfo, error)
+	GetAll() ([]bean.UserInfo, error) //this is only being used for summary event for now , in use is GetAllWithFilters
 	GetAllWithFilters(request *bean.FetchListingRequest) (*bean.UserListingResponse, error)
-	GetAllDetailedUsers() ([]bean.UserInfo, error)
 	GetEmailById(userId int32) (string, error)
 	GetEmailAndGroupClaimsFromToken(token string) (string, []string, error)
 	GetLoggedInUser(r *http.Request) (int32, error)
@@ -1227,7 +1225,7 @@ func (impl UserServiceImpl) GetAllWithFilters(request *bean.FetchListingRequest)
 	//  default values will be used if not provided
 	impl.userCommonService.SetDefaultValuesIfNotPresent(request, false)
 	if request.ShowAll {
-		response, err := impl.GetAllDetailedUsers()
+		response, err := impl.getAllDetailedUsers()
 		if err != nil {
 			impl.logger.Errorw("error in getAllDetailedUsers", "err", err)
 			return nil, err
@@ -1297,7 +1295,7 @@ func (impl UserServiceImpl) getUserResponse(model []repository.UserModel, record
 	return listingResponse, nil
 }
 
-func (impl UserServiceImpl) GetAllDetailedUsers() ([]bean.UserInfo, error) {
+func (impl UserServiceImpl) getAllDetailedUsers() ([]bean.UserInfo, error) {
 	query := impl.userListingRepositoryQueryBuilder.GetQueryForAllUserWithAudit()
 	models, err := impl.userRepository.GetAllExecutingQuery(query)
 	if err != nil {
@@ -2146,18 +2144,13 @@ func (impl UserServiceImpl) getRolefiltersForDevtronManaged(model *repository.Us
 }
 
 func (impl UserServiceImpl) BulkUpdateStatusForUsers(request *bean.BulkStatusUpdateRequest, userId int32) (*bean.ActionResponse, error) {
-	if len(request.UserIds) == 0 {
-		return nil, &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "no user ids provided"}
-	}
-
-	var err error
 	activeStatus := request.Status == bean.Active && request.TimeoutWindowExpression.IsZero()
 	inactiveStatus := request.Status == bean.Inactive
 	timeExpressionStatus := request.Status == bean.Active && !request.TimeoutWindowExpression.IsZero()
 	if activeStatus {
 		// active case
 		// set foreign key to null for every user
-		err = impl.userRepository.UpdateWindowIdToNull(request.UserIds, userId)
+		err := impl.userRepository.UpdateWindowIdToNull(request.UserIds, userId)
 		if err != nil {
 			impl.logger.Errorw("error in BulkUpdateStatusForUsers", "err", err, "status", request.Status)
 			return nil, err
@@ -2167,13 +2160,13 @@ func (impl UserServiceImpl) BulkUpdateStatusForUsers(request *bean.BulkStatusUpd
 
 		// getting expression from request configuration
 		timeOutExpression, expressionFormat := getTimeoutExpressionAndFormatforReq(timeExpressionStatus, inactiveStatus, request.TimeoutWindowExpression)
-		err = impl.updateOrCreateAndUpdateWindowID(request.UserIds, timeOutExpression, expressionFormat, userId)
+		err := impl.createAndUpdateWindowID(request.UserIds, timeOutExpression, expressionFormat, userId)
 		if err != nil {
 			impl.logger.Errorw("error in BulkUpdateStatusForUsers", "err", err, "status", request.Status)
 			return nil, err
 		}
 	} else {
-		return nil, errors.New("bad request ,status not supported")
+		return nil, &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "status not supported"}
 	}
 
 	resp := &bean.ActionResponse{
@@ -2182,7 +2175,7 @@ func (impl UserServiceImpl) BulkUpdateStatusForUsers(request *bean.BulkStatusUpd
 	return resp, nil
 }
 
-func (impl UserServiceImpl) updateOrCreateAndUpdateWindowID(userIds []int32, timeoutExpression string, expressionFormat bean3.ExpressionFormat, loggedInUserId int32) error {
+func (impl UserServiceImpl) createAndUpdateWindowID(userIds []int32, timeoutExpression string, expressionFormat bean3.ExpressionFormat, loggedInUserId int32) error {
 	idsWithWindowId, idsWithoutWindowId, windowIds, err := impl.getIdsWithAndWithoutWindowId(userIds)
 	if err != nil {
 		impl.logger.Errorw("error in updateOrCreateAndUpdateWindowID", "err", err, "userIds", userIds)

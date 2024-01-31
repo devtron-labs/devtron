@@ -365,32 +365,6 @@ func (handler UserRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Request
 	common.WriteJsonResp(w, nil, res, http.StatusOK)
 }
 
-func (handler UserRestHandlerImpl) GetAllDetailedUsers(w http.ResponseWriter, r *http.Request) {
-	userId, err := handler.userService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-
-	token := r.Header.Get("token")
-	isActionUserSuperAdmin := false
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); ok {
-		isActionUserSuperAdmin = true
-	}
-	if !isActionUserSuperAdmin {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
-	}
-	res, err := handler.userService.GetAllDetailedUsers()
-	if err != nil {
-		handler.logger.Errorw("service err, GetAllDetailedUsers", "err", err)
-		common.WriteJsonResp(w, err, "Failed to Get", http.StatusInternalServerError)
-		return
-	}
-
-	common.WriteJsonResp(w, err, res, http.StatusOK)
-}
-
 func (handler UserRestHandlerImpl) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -482,6 +456,12 @@ func (handler UserRestHandlerImpl) BulkUpdateStatus(w http.ResponseWriter, r *ht
 	err = handler.validator.Struct(request)
 	if err != nil {
 		handler.logger.Errorw("validation err, BulkUpdateStatus", "payload", request, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	if len(request.UserIds) == 0 {
+		err = errors.New("no user ids provided")
+		handler.logger.Errorw("request err, BulkUpdateStatus", "payload", request, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
