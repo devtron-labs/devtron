@@ -3,6 +3,7 @@ package infraConfig
 import (
 	"fmt"
 	"github.com/caarlos0/env"
+	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/units"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/util"
@@ -21,12 +22,14 @@ type InfraConfigService interface {
 type InfraConfigServiceImpl struct {
 	logger           *zap.SugaredLogger
 	infraProfileRepo InfraConfigRepository
+	appService       app.AppService
 	units            *units.Units
 	infraConfig      *InfraConfig
 }
 
 func NewInfraConfigServiceImpl(logger *zap.SugaredLogger,
 	infraProfileRepo InfraConfigRepository,
+	appService app.AppService,
 	units *units.Units) (*InfraConfigServiceImpl, error) {
 	infraConfiguration := &InfraConfig{}
 	err := env.Parse(infraConfiguration)
@@ -36,6 +39,7 @@ func NewInfraConfigServiceImpl(logger *zap.SugaredLogger,
 	infraProfileService := &InfraConfigServiceImpl{
 		logger:           logger,
 		infraProfileRepo: infraProfileRepo,
+		appService:       appService,
 		units:            units,
 		infraConfig:      infraConfiguration,
 	}
@@ -64,7 +68,7 @@ func (impl *InfraConfigServiceImpl) GetProfileByName(name string) (*ProfileBean,
 	})
 
 	profileBean.Configurations = configurationBeans
-	appCount, err := impl.infraProfileRepo.GetIdentifierCountForDefaultProfile()
+	appCount, err := impl.appService.GetActiveCiCdAppsCount()
 	if err != nil {
 		impl.logger.Errorw("error in fetching app count for default profile", "error", err)
 		return nil, err

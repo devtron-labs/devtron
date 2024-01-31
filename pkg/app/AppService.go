@@ -83,14 +83,14 @@ import (
 type AppServiceConfig struct {
 	CdPipelineStatusCronTime                   string `env:"CD_PIPELINE_STATUS_CRON_TIME" envDefault:"*/2 * * * *"`
 	CdHelmPipelineStatusCronTime               string `env:"CD_HELM_PIPELINE_STATUS_CRON_TIME" envDefault:"*/2 * * * *"`
-	CdPipelineStatusTimeoutDuration            string `env:"CD_PIPELINE_STATUS_TIMEOUT_DURATION" envDefault:"20"`                   //in minutes
-	PipelineDegradedTime                       string `env:"PIPELINE_DEGRADED_TIME" envDefault:"10"`                                //in minutes
-	GetPipelineDeployedWithinHours             int    `env:"DEPLOY_STATUS_CRON_GET_PIPELINE_DEPLOYED_WITHIN_HOURS" envDefault:"12"` //in hours
-	HelmPipelineStatusCheckEligibleTime        string `env:"HELM_PIPELINE_STATUS_CHECK_ELIGIBLE_TIME" envDefault:"120"`             //in seconds
+	CdPipelineStatusTimeoutDuration            string `env:"CD_PIPELINE_STATUS_TIMEOUT_DURATION" envDefault:"20"`                   // in minutes
+	PipelineDegradedTime                       string `env:"PIPELINE_DEGRADED_TIME" envDefault:"10"`                                // in minutes
+	GetPipelineDeployedWithinHours             int    `env:"DEPLOY_STATUS_CRON_GET_PIPELINE_DEPLOYED_WITHIN_HOURS" envDefault:"12"` // in hours
+	HelmPipelineStatusCheckEligibleTime        string `env:"HELM_PIPELINE_STATUS_CHECK_ELIGIBLE_TIME" envDefault:"120"`             // in seconds
 	ExposeCDMetrics                            bool   `env:"EXPOSE_CD_METRICS" envDefault:"false"`
 	EnableAsyncInstallDevtronChart             bool   `env:"ENABLE_ASYNC_INSTALL_DEVTRON_CHART" envDefault:"false"`
 	DevtronChartInstallRequestTimeout          int    `env:"DEVTRON_CHART_INSTALL_REQUEST_TIMEOUT" envDefault:"6"`
-	ArgocdManualSyncCronPipelineDeployedBefore int    `env:"ARGO_APP_MANUAL_SYNC_TIME" envDefault:"3"` //in minutes
+	ArgocdManualSyncCronPipelineDeployedBefore int    `env:"ARGO_APP_MANUAL_SYNC_TIME" envDefault:"3"` // in minutes
 }
 
 func GetAppServiceConfig() (*AppServiceConfig, error) {
@@ -169,28 +169,29 @@ type AppServiceImpl struct {
 }
 
 type AppService interface {
-	//HandleCDTriggerRelease(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, deployedBy int32) (releaseNo int, manifest []byte, err error)
-	//TriggerRelease(overrideRequest *bean.ValuesOverrideRequest, valuesOverrideResponse *ValuesOverrideResponse, builtChartPath string, ctx context.Context, triggeredAt time.Time, deployedBy int32) (releaseNo int, manifest []byte, err error)
+	// HandleCDTriggerRelease(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, deployedBy int32) (releaseNo int, manifest []byte, err error)
+	// TriggerRelease(overrideRequest *bean.ValuesOverrideRequest, valuesOverrideResponse *ValuesOverrideResponse, builtChartPath string, ctx context.Context, triggeredAt time.Time, deployedBy int32) (releaseNo int, manifest []byte, err error)
 	UpdateReleaseStatus(request *bean.ReleaseStatusUpdateRequest) (bool, error)
 	UpdateDeploymentStatusAndCheckIsSucceeded(app *v1alpha1.Application, statusTime time.Time, isAppStore bool) (bool, *chartConfig.PipelineOverride, error)
-	//TriggerCD(artifact *repository.CiArtifact, cdWorkflowId, wfrId int, pipeline *pipelineConfig.Pipeline, triggeredAt time.Time) error
+	// TriggerCD(artifact *repository.CiArtifact, cdWorkflowId, wfrId int, pipeline *pipelineConfig.Pipeline, triggeredAt time.Time) error
 	GetConfigMapAndSecretJson(appId int, envId int, pipelineId int) ([]byte, error)
 	UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Application, cdWfrId int, updateTimedOutStatus bool) error
 	GetCmSecretNew(appId int, envId int, isJob bool, scope resourceQualifiers.Scope) (*bean.ConfigMapJson, *bean.ConfigSecretJson, error)
-	//MarkImageScanDeployed(appId int, envId int, imageDigest string, clusterId int, isScanEnabled bool) error
+	// MarkImageScanDeployed(appId int, envId int, imageDigest string, clusterId int, isScanEnabled bool) error
 	UpdateDeploymentStatusForGitOpsPipelines(app *v1alpha1.Application, statusTime time.Time, isAppStore bool) (bool, bool, *chartConfig.PipelineOverride, error)
 	WriteCDSuccessEvent(appId int, envId int, override *chartConfig.PipelineOverride)
 	GetGitOpsRepoPrefix() string
-	//GetValuesOverrideForTrigger(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (*ValuesOverrideResponse, error)
-	//GetEnvOverrideByTriggerType(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (*chartConfig.EnvConfigOverride, error)
-	//GetAppMetricsByTriggerType(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (bool, error)
-	//GetDeploymentStrategyByTriggerType(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (*chartConfig.PipelineStrategy, error)
+	// GetValuesOverrideForTrigger(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (*ValuesOverrideResponse, error)
+	// GetEnvOverrideByTriggerType(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (*chartConfig.EnvConfigOverride, error)
+	// GetAppMetricsByTriggerType(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (bool, error)
+	// GetDeploymentStrategyByTriggerType(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (*chartConfig.PipelineStrategy, error)
 	CreateGitopsRepo(app *app.App, userId int32) (gitopsRepoName string, chartGitAttr *ChartGitAttribute, err error)
 	GetDeployedManifestByPipelineIdAndCDWorkflowId(appId int, envId int, cdWorkflowId int, ctx context.Context) ([]byte, error)
-	//SetPipelineFieldsInOverrideRequest(overrideRequest *bean.ValuesOverrideRequest, pipeline *pipelineConfig.Pipeline)
+	// SetPipelineFieldsInOverrideRequest(overrideRequest *bean.ValuesOverrideRequest, pipeline *pipelineConfig.Pipeline)
 
 	BuildChartAndGetPath(appName string, envOverride *chartConfig.EnvConfigOverride, ctx context.Context) (string, error)
 	IsDevtronAsyncInstallModeEnabled(deploymentAppType string) bool
+	GetActiveCiCdAppsCount() (int, error)
 }
 
 func NewAppService(
@@ -431,13 +432,13 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsPipelines(app *v1alph
 			reconciledAt = app.Status.ReconciledAt
 		}
 		var kubectlSyncedTimeline *pipelineConfig.PipelineStatusTimeline
-		//updating cd pipeline status timeline
+		// updating cd pipeline status timeline
 		isTimelineUpdated, isTimelineTimedOut, kubectlSyncedTimeline, err = impl.UpdatePipelineStatusTimelineForApplicationChanges(app, cdWfr.Id, statusTime, cdWfr.StartedOn, timeoutDuration, latestTimelineBeforeThisEvent, reconciledAt, false)
 		if err != nil {
 			impl.logger.Errorw("error in updating pipeline status timeline", "err", err)
 		}
 		if isTimelineTimedOut {
-			//not checking further and directly updating timedOutStatus
+			// not checking further and directly updating timedOutStatus
 			err := impl.UpdateCdWorkflowRunnerByACDObject(app, cdWfr.Id, true)
 			if err != nil {
 				impl.logger.Errorw("error on update cd workflow runner", "CdWorkflowId", pipelineOverride.CdWorkflowId, "status", pipelineConfig.WorkflowTimedOut, "err", err)
@@ -492,19 +493,19 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsPipelines(app *v1alph
 		if err != nil {
 			impl.logger.Errorw("error occurred while updating app status in app_status table", "error", err, "appId", appId, "envId", envId)
 		}
-		//reconcile time is how often your applications will sync from Argo CD to the Git repository
+		// reconcile time is how often your applications will sync from Argo CD to the Git repository
 		reconciledAt := &metav1.Time{}
 		if app != nil {
 			reconciledAt = app.Status.ReconciledAt
 		}
 		var kubectlSyncedTimeline *pipelineConfig.PipelineStatusTimeline
-		//updating versionHistory pipeline status timeline
+		// updating versionHistory pipeline status timeline
 		isTimelineUpdated, isTimelineTimedOut, kubectlSyncedTimeline, err = impl.UpdatePipelineStatusTimelineForApplicationChanges(app, installedAppVersionHistory.Id, statusTime, installedAppVersionHistory.StartedOn, timeoutDuration, latestTimelineBeforeThisEvent, reconciledAt, true)
 		if err != nil {
 			impl.logger.Errorw("error in updating pipeline status timeline", "err", err)
 		}
 		if isTimelineTimedOut {
-			//not checking further and directly updating timedOutStatus
+			// not checking further and directly updating timedOutStatus
 			err := impl.UpdateInstalledAppVersionHistoryByACDObject(app, installedAppVersionHistory.Id, true)
 			if err != nil {
 				impl.logger.Errorw("error on update installedAppVersionHistory", "installedAppVersionHistory", installedAppVersionHistory.Id, "status", pipelineConfig.WorkflowTimedOut, "err", err)
@@ -536,7 +537,7 @@ func (impl *AppServiceImpl) CheckIfPipelineUpdateEventIsValidForAppStore(gitOpsA
 	installedAppVersionHistory := &repository4.InstalledAppVersionHistory{}
 	installedAppId := 0
 	gitOpsAppNameAndInstalledAppMapping := make(map[string]*int)
-	//checking if the gitOpsAppName is present in installed_apps table, if yes the find installed_app_version_history else return
+	// checking if the gitOpsAppName is present in installed_apps table, if yes the find installed_app_version_history else return
 	gitOpsAppNameAndInstalledAppId, err := impl.installedAppRepository.GetAllGitOpsAppNameAndInstalledAppMapping()
 	if err != nil {
 		impl.logger.Errorw("error in getting all installed apps in GetAllGitOpsAppNameAndInstalledAppMapping", "err", err, "gitOpsAppName", gitOpsAppName)
@@ -573,13 +574,13 @@ func (impl *AppServiceImpl) CheckIfPipelineUpdateEventIsValidForAppStore(gitOpsA
 			return isValid, installedAppVersionHistory, appId, envId, err
 		}
 		if installedAppVersionHistoryByHash.StartedOn.Before(installedAppVersionHistory.StartedOn) {
-			//we have received trigger hash which is committed before this apps actual gitHash stored by us
+			// we have received trigger hash which is committed before this apps actual gitHash stored by us
 			// this means that the hash stored by us will be synced later, so we will drop this event
 			return isValid, installedAppVersionHistory, appId, envId, nil
 		}
 	}
 	if util2.IsTerminalStatus(installedAppVersionHistory.Status) {
-		//drop event
+		// drop event
 		return isValid, installedAppVersionHistory, appId, envId, nil
 	}
 	if !impl.acdConfig.ArgoCDAutoSyncEnabled {
@@ -595,7 +596,7 @@ func (impl *AppServiceImpl) CheckIfPipelineUpdateEventIsValidForAppStore(gitOpsA
 func (impl *AppServiceImpl) CheckIfPipelineUpdateEventIsValid(argoAppName, gitHash string) (bool, pipelineConfig.Pipeline, pipelineConfig.CdWorkflowRunner, *chartConfig.PipelineOverride, error) {
 	isValid := false
 	var err error
-	//var deploymentStatus repository.DeploymentStatus
+	// var deploymentStatus repository.DeploymentStatus
 	var pipeline pipelineConfig.Pipeline
 	var pipelineOverride *chartConfig.PipelineOverride
 	var cdWfr pipelineConfig.CdWorkflowRunner
@@ -604,7 +605,7 @@ func (impl *AppServiceImpl) CheckIfPipelineUpdateEventIsValid(argoAppName, gitHa
 		impl.logger.Errorw("error in getting cd pipeline by argoAppName", "err", err, "argoAppName", argoAppName)
 		return isValid, pipeline, cdWfr, pipelineOverride, err
 	}
-	//getting latest pipelineOverride for app (by appId and envId)
+	// getting latest pipelineOverride for app (by appId and envId)
 	pipelineOverride, err = impl.pipelineOverrideRepository.FindLatestByAppIdAndEnvId(pipeline.AppId, pipeline.EnvironmentId, bean2.ArgoCd)
 	if err != nil {
 		impl.logger.Errorw("error in getting latest pipelineOverride by appId and envId", "err", err, "appId", pipeline.AppId, "envId", pipeline.EnvironmentId)
@@ -617,7 +618,7 @@ func (impl *AppServiceImpl) CheckIfPipelineUpdateEventIsValid(argoAppName, gitHa
 			return isValid, pipeline, cdWfr, pipelineOverride, err
 		}
 		if pipelineOverrideByHash.CommitTime.Before(pipelineOverride.CommitTime) {
-			//we have received trigger hash which is committed before this apps actual gitHash stored by us
+			// we have received trigger hash which is committed before this apps actual gitHash stored by us
 			// this means that the hash stored by us will be synced later, so we will drop this event
 			return isValid, pipeline, cdWfr, pipelineOverride, nil
 		}
@@ -628,7 +629,7 @@ func (impl *AppServiceImpl) CheckIfPipelineUpdateEventIsValid(argoAppName, gitHa
 		return isValid, pipeline, cdWfr, pipelineOverride, err
 	}
 	if util2.IsTerminalStatus(cdWfr.Status) {
-		//drop event
+		// drop event
 		return isValid, pipeline, cdWfr, pipelineOverride, nil
 	}
 	if !impl.acdConfig.ArgoCDAutoSyncEnabled {
@@ -675,7 +676,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 	latestTimelineBeforeUpdate *pipelineConfig.PipelineStatusTimeline, reconciledAt *metav1.Time, isAppStore bool) (isTimelineUpdated bool,
 	isTimelineTimedOut bool, kubectlApplySyncedTimeline *pipelineConfig.PipelineStatusTimeline, err error) {
 
-	//pipelineId can be wfrId or installedAppVersionHistoryId
+	// pipelineId can be wfrId or installedAppVersionHistoryId
 	impl.logger.Debugw("updating pipeline status timeline", "app", app, "pipelineOverride", pipelineId, "APP_TO_UPDATE", app.Name)
 	isTimelineUpdated = false
 	isTimelineTimedOut = false
@@ -708,13 +709,13 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 		if app != nil && app.Status.OperationState != nil {
 			timeline.StatusDetail = app.Status.OperationState.Message
 		}
-		//checking and saving if this timeline is present or not because kubewatch may stream same objects multiple times
+		// checking and saving if this timeline is present or not because kubewatch may stream same objects multiple times
 		_, err, isTimelineUpdated = impl.pipelineStatusTimelineService.SavePipelineStatusTimelineIfNotAlreadyPresent(pipelineId, timeline.Status, timeline, false)
 		if err != nil {
 			impl.logger.Errorw("error in saving pipeline status timeline", "err", err)
 			return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, err
 		}
-		//saving timeline resource details
+		// saving timeline resource details
 		err = impl.pipelineStatusTimelineResourcesService.SaveOrUpdatePipelineTimelineResources(pipelineId, app, nil, 1, false)
 		if err != nil {
 			impl.logger.Errorw("error in saving/updating timeline resources", "err", err, "cdWfrId", pipelineId)
@@ -729,7 +730,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 			timeline.Id = 0
 			timeline.Status = pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED
 			timeline.StatusDetail = app.Status.OperationState.Message
-			//checking and saving if this timeline is present or not because kubewatch may stream same objects multiple times
+			// checking and saving if this timeline is present or not because kubewatch may stream same objects multiple times
 			err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, false)
 			if err != nil {
 				impl.logger.Errorw("error in saving pipeline status timeline", "err", err)
@@ -749,7 +750,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 				timeline.StatusDetail = "App status is Healthy."
 			}
 			if haveNewTimeline {
-				//not checking if this status is already present or not because already checked for terminal status existence earlier
+				// not checking if this status is already present or not because already checked for terminal status existence earlier
 				err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, false)
 				if err != nil {
 					impl.logger.Errorw("error in creating timeline status", "err", err, "timeline", timeline)
@@ -761,7 +762,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 		}
 
 		if !isTimelineUpdated {
-			//no timeline updated since before, in this case we will check for timeout cases
+			// no timeline updated since before, in this case we will check for timeout cases
 			var lastTimeToCheckForTimeout time.Time
 			if latestTimelineBeforeUpdate == nil {
 				lastTimeToCheckForTimeout = triggeredAt
@@ -769,7 +770,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 				lastTimeToCheckForTimeout = latestTimelineBeforeUpdate.StatusTime
 			}
 			if time.Since(lastTimeToCheckForTimeout) >= time.Duration(statusTimeoutDuration)*time.Minute {
-				//mark as timed out if not already marked
+				// mark as timed out if not already marked
 				timeline.Status = pipelineConfig.TIMELINE_STATUS_FETCH_TIMED_OUT
 				timeline.StatusDetail = "Deployment timed out."
 				_, err, isTimelineUpdated = impl.pipelineStatusTimelineService.SavePipelineStatusTimelineIfNotAlreadyPresent(pipelineId, timeline.Status, timeline, false)
@@ -811,13 +812,13 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 		if app != nil && app.Status.OperationState != nil {
 			timeline.StatusDetail = app.Status.OperationState.Message
 		}
-		//checking and saving if this timeline is present or not because kubewatch may stream same objects multiple times
+		// checking and saving if this timeline is present or not because kubewatch may stream same objects multiple times
 		_, err, isTimelineUpdated = impl.pipelineStatusTimelineService.SavePipelineStatusTimelineIfNotAlreadyPresent(pipelineId, timeline.Status, timeline, true)
 		if err != nil {
 			impl.logger.Errorw("error in saving pipeline status timeline", "err", err)
 			return isTimelineUpdated, isTimelineTimedOut, kubectlApplySyncedTimeline, err
 		}
-		//saving timeline resource details
+		// saving timeline resource details
 		err = impl.pipelineStatusTimelineResourcesService.SaveOrUpdatePipelineTimelineResources(pipelineId, app, nil, 1, true)
 		if err != nil {
 			impl.logger.Errorw("error in saving/updating timeline resources", "err", err, "installedAppVersionId", pipelineId)
@@ -832,7 +833,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 			timeline.Id = 0
 			timeline.Status = pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED
 			timeline.StatusDetail = app.Status.OperationState.Message
-			//checking and saving if this timeline is present or not because kubewatch may stream same objects multiple times
+			// checking and saving if this timeline is present or not because kubewatch may stream same objects multiple times
 			err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, true)
 			if err != nil {
 				impl.logger.Errorw("error in saving pipeline status timeline", "err", err)
@@ -852,7 +853,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 				timeline.StatusDetail = "App status is Healthy."
 			}
 			if haveNewTimeline {
-				//not checking if this status is already present or not because already checked for terminal status existence earlier
+				// not checking if this status is already present or not because already checked for terminal status existence earlier
 				err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, true)
 				if err != nil {
 					impl.logger.Errorw("error in creating timeline status", "err", err, "timeline", timeline)
@@ -864,7 +865,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 		}
 
 		if !isTimelineUpdated {
-			//no timeline updated since before, in this case we will check for timeout cases
+			// no timeline updated since before, in this case we will check for timeout cases
 			var lastTimeToCheckForTimeout time.Time
 			if latestTimelineBeforeUpdate == nil {
 				lastTimeToCheckForTimeout = triggeredAt
@@ -872,7 +873,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 				lastTimeToCheckForTimeout = latestTimelineBeforeUpdate.StatusTime
 			}
 			if time.Since(lastTimeToCheckForTimeout) >= time.Duration(statusTimeoutDuration)*time.Minute {
-				//mark as timed out if not already marked
+				// mark as timed out if not already marked
 				timeline.Status = pipelineConfig.TIMELINE_STATUS_FETCH_TIMED_OUT
 				timeline.StatusDetail = "Deployment timed out."
 				_, err, isTimelineUpdated = impl.pipelineStatusTimelineService.SavePipelineStatusTimelineIfNotAlreadyPresent(pipelineId, timeline.Status, timeline, true)
@@ -918,7 +919,7 @@ type ValuesOverrideResponse struct {
 }
 
 func (impl *AppServiceImpl) buildACDContext() (acdContext context.Context, err error) {
-	//this method should only call in case of argo-integration and gitops configured
+	// this method should only call in case of argo-integration and gitops configured
 	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
 	if err != nil {
 		impl.logger.Errorw("error in getting acd token", "err", err)
@@ -1103,8 +1104,8 @@ func (impl *AppServiceImpl) GetCmSecretNew(appId int, envId int, isJob bool, sco
 	var secretDataJsonApp string
 	var configMapJsonEnv string
 	var secretDataJsonEnv string
-	//var configMapJsonPipeline string
-	//var secretDataJsonPipeline string
+	// var configMapJsonPipeline string
+	// var secretDataJsonPipeline string
 
 	configMapA, err := impl.configMapRepository.GetByAppIdAppLevel(appId)
 	if err != nil && pg.ErrNoRows != err {
@@ -1363,4 +1364,8 @@ func (impl *AppServiceImpl) GetGitOpsRepoPrefix() string {
 func (impl *AppServiceImpl) IsDevtronAsyncInstallModeEnabled(deploymentAppType string) bool {
 	return impl.appStatusConfig.EnableAsyncInstallDevtronChart &&
 		deploymentAppType == bean2.Helm
+}
+
+func (impl *AppServiceImpl) GetActiveCiCdAppsCount() (int, error) {
+	return impl.appRepository.GetActiveCiCdAppsCount()
 }

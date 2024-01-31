@@ -1,14 +1,12 @@
 package infraConfig
 
 import (
-	repository1 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/pkg/errors"
 )
 
 type InfraConfigRepository interface {
-	GetIdentifierCountForDefaultProfile() (int, error)
 	GetProfileByName(name string) (*InfraProfileEntity, error)
 	GetConfigurationsByProfileName(profileName string) ([]*InfraProfileConfigurationEntity, error)
 	GetConfigurationsByProfileId(profileId int) ([]*InfraProfileConfigurationEntity, error)
@@ -90,14 +88,6 @@ func (impl *InfraConfigRepositoryImpl) GetConfigurationsByProfileId(profileId in
 		return nil, errors.New(NO_PROPERTIES_FOUND)
 	}
 	return configurations, err
-}
-
-func (impl *InfraConfigRepositoryImpl) GetIdentifierCountForDefaultProfile() (int, error) {
-	// move it to app service
-	count, err := impl.dbConnection.Model(&repository1.App{}).
-		Where("active = ?", true).
-		Count()
-	return count, err
 }
 
 func (impl *InfraConfigRepositoryImpl) UpdateProfile(tx *pg.Tx, profileName string, profile *InfraProfileEntity) error {
