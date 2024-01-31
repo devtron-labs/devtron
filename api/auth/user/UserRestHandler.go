@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/gorilla/schema"
 	"net/http"
 	"strconv"
@@ -425,7 +426,14 @@ func (handler UserRestHandlerImpl) DeleteUser(w http.ResponseWriter, r *http.Req
 		}
 	}
 	//RBAC enforcer Ends
-
+	//validation
+	err = checkValidationForSystemOrAdminUser(int32(id))
+	if err != nil {
+		handler.logger.Errorw("request err, DeleteUser, validation failed", "id", id, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	//service call
 	res, err := handler.userService.DeleteUser(user)
 	if err != nil {
 		handler.logger.Errorw("service err, DeleteUser", "err", err, "id", id)
@@ -434,6 +442,13 @@ func (handler UserRestHandlerImpl) DeleteUser(w http.ResponseWriter, r *http.Req
 	}
 
 	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+
+func checkValidationForSystemOrAdminUser(userId int32) error {
+	if userId == constants.SystemUserId || userId == constants.AdminUserId {
+		return &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "cannot delete system or admin user"}
+	}
+	return nil
 }
 
 func (handler UserRestHandlerImpl) FetchRoleGroupById(w http.ResponseWriter, r *http.Request) {
