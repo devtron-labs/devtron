@@ -88,6 +88,7 @@ type UserService interface {
 	BulkUpdateStatusForUsers(request *bean.BulkStatusUpdateRequest, userId int32) (*bean.ActionResponse, error)
 	GetUserWithTimeoutWindowConfiguration(emailId string) (int32, bool, error)
 	UserStatusCheckInDb(token string) (bool, int32, error)
+	GetUserBasicdataByEmailId(emailId string) (*bean.UserInfo, error)
 }
 
 type UserServiceImpl struct {
@@ -1442,7 +1443,7 @@ func (impl UserServiceImpl) extractEmailIds(permissionGroupNames []string, email
 func (impl UserServiceImpl) SaveLoginAudit(emailId, clientIp string, id int32) {
 
 	if emailId != "" && id <= 0 {
-		user, err := impl.GetUserByEmail(emailId)
+		user, err := impl.GetUserBasicdataByEmailId(emailId)
 		if err != nil {
 			impl.logger.Errorw("error in getting userInfo by emailId", "err", err, "emailId", emailId)
 			return
@@ -1467,16 +1468,19 @@ func (impl UserServiceImpl) GetUserWithTimeoutWindowConfiguration(emailId string
 	isInactive := true
 	user, err := impl.userRepository.GetUserWithTimeoutWindowConfiguration(emailId)
 	if err != nil {
+		err = &util.ApiError{HttpStatusCode: 401, UserMessage: "Invalid User", InternalMessage: "failed to fetch user by email id"}
 		impl.logger.Errorw("error while fetching user from db", "error", err)
-		return user.Id, isInactive, err
+		return 0, isInactive, err
 	}
 
 	if user.TimeoutWindowConfigurationId == 0 {
+		//no timeout window configuration available refer infinite active
 		isInactive = false
 		return user.Id, isInactive, nil
 	} else {
 		expiryDate, err := time.Parse(helper.TimeFormatForParsing, user.TimeoutWindowConfiguration.TimeoutWindowExpression)
 		if err != nil {
+			err = &util.ApiError{HttpStatusCode: 401, UserMessage: "Invalid User", InternalMessage: "failed to parse TimeoutWindowExpression"}
 			impl.logger.Errorw("error while parsing date time", "error", err)
 			return user.Id, isInactive, err
 		}
@@ -1563,7 +1567,7 @@ func (impl UserServiceImpl) GetUserByToken(context context.Context, token string
 	if err != nil {
 		return http.StatusUnauthorized, "", err
 	}
-	userInfo, err := impl.GetUserByEmail(email)
+	userInfo, err := impl.GetUserBasicdataByEmailId(email)
 	if err != nil {
 		impl.logger.Errorw("unable to fetch user from db", "error", err)
 		err := &util.ApiError{
@@ -1575,6 +1579,7 @@ func (impl UserServiceImpl) GetUserByToken(context context.Context, token string
 	}
 	return userInfo.Id, userInfo.UserType, nil
 }
+
 func (impl UserServiceImpl) GetFieldValuesFromToken(token string) ([]byte, error) {
 	var claimBytes []byte
 	mapClaims, err := impl.getMapClaims(token)
@@ -2350,10 +2355,25 @@ func parseExpressionToTime(expression string) (time.Time, error) {
 	return parsedTime, err
 }
 
+func (impl UserServiceImpl) GetUserBasicdataByEmailId(emailId string) (*bean.UserInfo, error) {
+	model, err := impl.userRepository.FetchActiveUserByEmail(emailId)
+	if err != nil {
+		impl.logger.Errorw("error while fetching user from db", "error", err)
+		return nil, err
+	}
+	response := &bean.UserInfo{
+		Id:       model.Id,
+		EmailId:  model.EmailId,
+		UserType: model.UserType,
+	}
+	return response, nil
+}
+
 func (impl UserServiceImpl) UserStatusCheckInDb(token string) (bool, int32, error) {
 	emailId, _, err := impl.GetEmailAndGroupClaimsFromToken(token)
 	if err != nil {
 		impl.logger.Error("unable to fetch user by token")
+		err = &util.ApiError{HttpStatusCode: 401, UserMessage: "Invalid User", InternalMessage: "unable to fetch user by token"}
 		return false, 0, err
 	}
 	userId, isInactive, err := impl.GetUserWithTimeoutWindowConfiguration(emailId)

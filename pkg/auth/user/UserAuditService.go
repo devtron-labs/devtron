@@ -53,7 +53,7 @@ func NewUserAuditServiceImpl(logger *zap.SugaredLogger, userAuditRepository repo
 
 func (impl UserAuditServiceImpl) Update(userAudit *UserAudit) error {
 	userId := userAudit.UserId
-	impl.logger.Infow("Saving user audit", "userId", userId)
+	impl.logger.Infow("Update user audit", "userId", userId)
 	userAuditDb := &repository2.UserAudit{
 		UserId:   userId,
 		ClientIp: userAudit.ClientIp,
