@@ -12,9 +12,8 @@ import (
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
+	"strings"
 )
-
-const InvalidProfileRequest = "requested profile doesn't exist"
 
 type InfraConfigRestHandler interface {
 	UpdateInfraProfile(w http.ResponseWriter, r *http.Request)
@@ -53,10 +52,9 @@ func (handler *InfraConfigRestHandlerImpl) UpdateInfraProfile(w http.ResponseWri
 	}
 
 	vars := mux.Vars(r)
-	profileName := vars["name"]
-	// use validator here
-	if profileName != infraConfig.DEFAULT_PROFILE_NAME {
-		common.WriteJsonResp(w, errors.New(InvalidProfileRequest), nil, http.StatusNotFound)
+	profileName := strings.ToLower(vars["name"])
+	if profileName == "" {
+		common.WriteJsonResp(w, errors.New(infraConfig.InvalidProfileName), nil, http.StatusBadRequest)
 		return
 	}
 	payload := &infraConfig.ProfileBean{}
@@ -67,15 +65,18 @@ func (handler *InfraConfigRestHandlerImpl) UpdateInfraProfile(w http.ResponseWri
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	payload.Name = strings.ToLower(payload.Name)
 	err = handler.validator.Struct(payload)
 	if err != nil {
 		err = errors.Wrap(err, infraConfig.PayloadValidationError)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
+	}
+	if profileName == "" || (profileName == infraConfig.DEFAULT_PROFILE_NAME && payload.Name != infraConfig.DEFAULT_PROFILE_NAME) {
+		common.WriteJsonResp(w, errors.New(infraConfig.InvalidProfileName), nil, http.StatusBadRequest)
 	}
 	err = handler.infraProfileService.UpdateProfile(userId, profileName, payload)
 	if err != nil {
-		handler.logger.Errorw("error in updating profile and configurations", "profileName", profileName, "payLoad", payload)
+		handler.logger.Errorw("error in updating profile and configurations", "profileName", profileName, "payLoad", payload, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -89,27 +90,31 @@ func (handler *InfraConfigRestHandlerImpl) GetProfile(w http.ResponseWriter, r *
 		return
 	}
 	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 
 	vars := mux.Vars(r)
-	profileName := vars["name"]
-	if profileName != infraConfig.DEFAULT_PROFILE_NAME {
-		common.WriteJsonResp(w, errors.New(InvalidProfileRequest), nil, http.StatusNotFound)
+	profileName := strings.ToLower(vars["name"])
+	if profileName == "" {
+		common.WriteJsonResp(w, errors.New(infraConfig.InvalidProfileName), nil, http.StatusBadRequest)
 		return
 	}
 
+	var profile *infraConfig.ProfileBean
 	defaultProfile, err := handler.infraProfileService.GetProfileByName(profileName)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	resp := infraConfig.ProfileResponse{
-		Profile: *defaultProfile,
+	if profileName == infraConfig.DEFAULT_PROFILE_NAME {
+		profile = defaultProfile
 	}
-	resp.DefaultConfigurations = defaultProfile.Configurations
+	resp := infraConfig.ProfileResponse{
+		Profile: *profile,
+	}
 	resp.ConfigurationUnits = handler.infraProfileService.GetConfigurationUnits()
+	resp.DefaultConfigurations = defaultProfile.Configurations
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }

@@ -14,8 +14,13 @@ import (
 )
 
 type InfraConfigService interface {
+
+	// GetConfigurationUnits fetches all the units for the configurations.
 	GetConfigurationUnits() map[ConfigKeyStr]map[string]units.Unit
+	// GetProfileByName fetches the profile and its configurations matching the given profileName.
 	GetProfileByName(name string) (*ProfileBean, error)
+	// UpdateProfile updates the profile and its configurations matching the given profileName.
+	// If profileName is empty, it will return an error.
 	UpdateProfile(userId int32, profileName string, profileBean *ProfileBean) error
 }
 
@@ -96,7 +101,7 @@ func (impl *InfraConfigServiceImpl) UpdateProfile(userId int32, profileName stri
 	infraConfigurations := util.Transform(profileToUpdate.Configurations, func(config ConfigurationBean) *InfraProfileConfigurationEntity {
 		config.ProfileId = defaultProfile.Id
 		// user couldn't delete the configuration for default profile, always set this to active
-		if infraProfileEntity.Name == DEFAULT_PROFILE_NAME {
+		if profileName == DEFAULT_PROFILE_NAME {
 			config.Active = true
 		}
 		configuration := config.ConvertToInfraProfileConfigurationEntity()
@@ -107,7 +112,7 @@ func (impl *InfraConfigServiceImpl) UpdateProfile(userId int32, profileName stri
 
 	tx, err := impl.infraProfileRepo.StartTx()
 	if err != nil {
-		impl.logger.Errorw("error in starting transaction to update profile", "profileName", profileName, "profileCreateRequest", profileToUpdate, "error", err)
+		impl.logger.Errorw("error in starting transaction to update profile", "profileBean", profileToUpdate, "error", err)
 		return err
 	}
 	defer impl.infraProfileRepo.RollbackTx(tx)
@@ -277,13 +282,11 @@ func (impl *InfraConfigServiceImpl) GetConfigurationUnits() map[ConfigKeyStr]map
 }
 
 func (impl *InfraConfigServiceImpl) Validate(profileToUpdate *ProfileBean, defaultProfile *ProfileBean) error {
-
 	var err error = nil
+	defaultConfigurationsKeyMap := GetDefaultConfigKeysMap()
 	// validate configurations only contain default configurations types.(cpu_limit,cpu_request,mem_limit,mem_request,timeout)
 	for _, propertyConfig := range profileToUpdate.Configurations {
-		if !util.Contains(defaultProfile.Configurations, func(defaultConfig ConfigurationBean) bool {
-			return propertyConfig.Key == defaultConfig.Key
-		}) {
+		if _, ok := defaultConfigurationsKeyMap[propertyConfig.Key]; !ok {
 			errorMsg := fmt.Sprintf("invalid configuration property \"%s\"", propertyConfig.Key)
 			if err == nil {
 				err = errors.New(errorMsg)
@@ -297,7 +300,7 @@ func (impl *InfraConfigServiceImpl) Validate(profileToUpdate *ProfileBean, defau
 		return err
 	}
 
-	err = impl.validateCpuMem(profileToUpdate)
+	err = impl.validateCpuMem(profileToUpdate, defaultProfile)
 	if err != nil {
 		err = errors.Wrap(err, PayloadValidationError)
 		return err
@@ -305,7 +308,7 @@ func (impl *InfraConfigServiceImpl) Validate(profileToUpdate *ProfileBean, defau
 	return nil
 }
 
-func (impl *InfraConfigServiceImpl) validateCpuMem(profileBean *ProfileBean) error {
+func (impl *InfraConfigServiceImpl) validateCpuMem(profileBean *ProfileBean, defaultProfile *ProfileBean) error {
 
 	// currently validating cpu and memory limits and reqs only
 	var (

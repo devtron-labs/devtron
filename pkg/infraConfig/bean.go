@@ -3,6 +3,7 @@ package infraConfig
 import (
 	"github.com/devtron-labs/devtron/pkg/infraConfig/units"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/util"
 	"time"
 )
 
@@ -249,4 +250,17 @@ func (infraConfig InfraConfig) LoadInfraConfigInEntities() ([]*InfraProfileConfi
 
 	defaultConfigurations := []*InfraProfileConfigurationEntity{cpuLimit, memLimit, cpuReq, memReq, timeout}
 	return defaultConfigurations, nil
+}
+func UpdateProfileMissingConfigurationsWithDefault(profile ProfileBean, defaultConfigurations []ConfigurationBean) ProfileBean {
+	extraConfigurations := make([]ConfigurationBean, 0)
+	for _, defaultConfiguration := range defaultConfigurations {
+		// if profile doesn't have the default configuration, add it to the profile
+		if !util.Contains(profile.Configurations, func(config ConfigurationBean) bool {
+			return config.Key == defaultConfiguration.Key
+		}) {
+			extraConfigurations = append(extraConfigurations, defaultConfiguration)
+		}
+	}
+	profile.Configurations = append(profile.Configurations, extraConfigurations...)
+	return profile
 }
