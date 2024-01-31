@@ -21,7 +21,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/gorilla/schema"
+	"golang.org/x/exp/slices"
 	"net/http"
 	"strconv"
 	"strings"
@@ -457,9 +459,9 @@ func (handler UserRestHandlerImpl) BulkUpdateStatus(w http.ResponseWriter, r *ht
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	if len(request.UserIds) == 0 {
-		err = errors.New("no user ids provided")
-		handler.logger.Errorw("request err, BulkUpdateStatus", "payload", request, "err", err)
+	err = checkValidationForAdminAndSystemUserId(request.UserIds)
+	if err != nil {
+		handler.logger.Errorw("request err, BulkUpdateStatus, validation failed", "payload", request, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -477,6 +479,17 @@ func (handler UserRestHandlerImpl) BulkUpdateStatus(w http.ResponseWriter, r *ht
 
 	common.WriteJsonResp(w, nil, res, http.StatusOK)
 
+}
+func checkValidationForAdminAndSystemUserId(userIds []int32) error {
+	if len(userIds) == 0 {
+		err := &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "no user ids provided"}
+		return err
+	}
+	if slices.Contains(userIds, constants.AdminUserId) || slices.Contains(userIds, constants.SystemUserId) {
+		err := &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "cannot update status for system or admin user"}
+		return err
+	}
+	return nil
 }
 
 func (handler UserRestHandlerImpl) FetchRoleGroupById(w http.ResponseWriter, r *http.Request) {
