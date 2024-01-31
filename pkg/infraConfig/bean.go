@@ -4,6 +4,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/infraConfig/units"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/util"
+	"math"
 	"time"
 )
 
@@ -19,10 +20,14 @@ type InfraProfileEntity struct {
 }
 
 func (infraProfile *InfraProfileEntity) ConvertToProfileBean() ProfileBean {
+	profileType := DEFAULT
+	if infraProfile.Name != DEFAULT_PROFILE_NAME {
+		profileType = NORMAL
+	}
 	return ProfileBean{
 		Id:          infraProfile.Id,
 		Name:        infraProfile.Name,
-		Type:        DEFAULT,
+		Type:        profileType,
 		Description: infraProfile.Description,
 		Active:      infraProfile.Active,
 		CreatedBy:   infraProfile.CreatedBy,
@@ -89,10 +94,14 @@ type ConfigurationBean struct {
 }
 
 func (configurationBean *ConfigurationBean) ConvertToInfraProfileConfigurationEntity() *InfraProfileConfigurationEntity {
+	value := configurationBean.Value
+	if configurationBean.Key == TIME_OUT {
+		value = math.Floor(value)
+	}
 	return &InfraProfileConfigurationEntity{
 		Id:        configurationBean.Id,
 		Key:       GetConfigKey(configurationBean.Key),
-		Value:     configurationBean.Value,
+		Value:     value,
 		Unit:      GetUnitSuffix(configurationBean.Key, configurationBean.Unit),
 		ProfileId: configurationBean.ProfileId,
 		Active:    configurationBean.Active,
@@ -251,6 +260,7 @@ func (infraConfig InfraConfig) LoadInfraConfigInEntities() ([]*InfraProfileConfi
 	defaultConfigurations := []*InfraProfileConfigurationEntity{cpuLimit, memLimit, cpuReq, memReq, timeout}
 	return defaultConfigurations, nil
 }
+
 func UpdateProfileMissingConfigurationsWithDefault(profile ProfileBean, defaultConfigurations []ConfigurationBean) ProfileBean {
 	extraConfigurations := make([]ConfigurationBean, 0)
 	for _, defaultConfiguration := range defaultConfigurations {
