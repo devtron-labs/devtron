@@ -156,7 +156,7 @@ type ActionResponse struct {
 }
 
 type FetchListingRequest struct {
-	Status      Status         `json:"status"`
+	Status      Status         `json:"status"` // only being used for users
 	SearchKey   string         `json:"searchKey"`
 	SortOrder   bean.SortOrder `json:"sortOrder"`
 	SortBy      bean.SortBy    `json:"sortBy"`

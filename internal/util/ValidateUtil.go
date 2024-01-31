@@ -18,6 +18,7 @@
 package util
 
 import (
+	"github.com/devtron-labs/devtron/internal/constants"
 	"regexp"
 	"strings"
 
@@ -115,7 +116,7 @@ func validateDockerImage(fl validator.FieldLevel) bool {
 
 func validateForSystemOrAdminUserEmail(fl validator.FieldLevel) bool {
 	value := fl.Field().String()
-	if value == "admin" || value == "system" {
+	if value == constants.AdminUser || value == constants.SystemUser {
 		return false
 	}
 	return true
@@ -123,7 +124,7 @@ func validateForSystemOrAdminUserEmail(fl validator.FieldLevel) bool {
 
 func validateForSystemOrAdminUserById(fl validator.FieldLevel) bool {
 	value := fl.Field().Int()
-	if value == 1 || value == 2 {
+	if value == constants.AdminUserId || value == constants.SystemUserId {
 		return false
 	}
 	return true
