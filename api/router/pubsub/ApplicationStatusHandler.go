@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/common-lib/pubsub-lib/model"
 	"github.com/devtron-labs/devtron/pkg/app"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"k8s.io/utils/pointer"
 	"time"
 
@@ -56,12 +57,14 @@ type ApplicationStatusHandlerImpl struct {
 	pipelineBuilder           pipeline.PipelineBuilder
 	pipelineRepository        pipelineConfig.PipelineRepository
 	installedAppRepository    repository4.InstalledAppRepository
+	gitOpsConfigReadService   config.GitOpsConfigReadService
 }
 
 func NewApplicationStatusHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSubClientServiceImpl, appService app.AppService,
 	workflowDagExecutor pipeline.WorkflowDagExecutor, installedAppService service.InstalledAppService,
 	appStoreDeploymentService service.AppStoreDeploymentService, pipelineBuilder pipeline.PipelineBuilder,
-	pipelineRepository pipelineConfig.PipelineRepository, installedAppRepository repository4.InstalledAppRepository) *ApplicationStatusHandlerImpl {
+	pipelineRepository pipelineConfig.PipelineRepository, installedAppRepository repository4.InstalledAppRepository,
+	gitOpsConfigReadService config.GitOpsConfigReadService) *ApplicationStatusHandlerImpl {
 	appStatusUpdateHandlerImpl := &ApplicationStatusHandlerImpl{
 		logger:                    logger,
 		pubsubClient:              pubsubClient,
@@ -72,6 +75,7 @@ func NewApplicationStatusHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pu
 		pipelineBuilder:           pipelineBuilder,
 		pipelineRepository:        pipelineRepository,
 		installedAppRepository:    installedAppRepository,
+		gitOpsConfigReadService:   gitOpsConfigReadService,
 	}
 	err := appStatusUpdateHandlerImpl.Subscribe()
 	if err != nil {
@@ -119,13 +123,7 @@ func (impl *ApplicationStatusHandlerImpl) Subscribe() error {
 				impl.logger.Errorw("error in getting all gitops deployment app names from installed_apps ", "err", err)
 				return
 			}
-			var devtronGitOpsAppName string
-			gitOpsRepoPrefix := impl.appService.GetGitOpsRepoPrefix()
-			if len(gitOpsRepoPrefix) > 0 {
-				devtronGitOpsAppName = fmt.Sprintf("%s-%s", gitOpsRepoPrefix, app.ObjectMeta.Name)
-			} else {
-				devtronGitOpsAppName = app.ObjectMeta.Name
-			}
+			devtronGitOpsAppName := impl.gitOpsConfigReadService.GetGitOpsRepoName(app.ObjectMeta.Name)
 			if slices.Contains(gitOpsDeployedAppNames, devtronGitOpsAppName) {
 				// app found in installed_apps table hence setting flag to true
 				isAppStoreApplication = true

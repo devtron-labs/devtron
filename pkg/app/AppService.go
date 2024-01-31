@@ -137,7 +137,6 @@ type AppService interface {
 	//MarkImageScanDeployed(appId int, envId int, imageDigest string, clusterId int, isScanEnabled bool) error
 	UpdateDeploymentStatusForGitOpsPipelines(app *v1alpha1.Application, statusTime time.Time, isAppStore bool) (bool, bool, *chartConfig.PipelineOverride, error)
 	WriteCDSuccessEvent(appId int, envId int, override *chartConfig.PipelineOverride)
-	GetGitOpsRepoPrefix() string
 	//GetValuesOverrideForTrigger(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (*ValuesOverrideResponse, error)
 	//GetEnvOverrideByTriggerType(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (*chartConfig.EnvConfigOverride, error)
 	//GetAppMetricsByTriggerType(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (bool, error)
@@ -440,13 +439,7 @@ func (impl *AppServiceImpl) CheckIfPipelineUpdateEventIsValidForAppStore(gitOpsA
 	for _, item := range gitOpsAppNameAndInstalledAppId {
 		gitOpsAppNameAndInstalledAppMapping[item.GitOpsAppName] = &item.InstalledAppId
 	}
-	var devtronAcdAppName string
-	if len(impl.globalEnvVariables.GitOpsRepoPrefix) > 0 {
-		devtronAcdAppName = fmt.Sprintf("%s-%s", impl.globalEnvVariables.GitOpsRepoPrefix, gitOpsAppName)
-	} else {
-		devtronAcdAppName = gitOpsAppName
-	}
-
+	devtronAcdAppName := impl.gitOpsConfigReadService.GetGitOpsRepoName(gitOpsAppName)
 	if gitOpsAppNameAndInstalledAppMapping[devtronAcdAppName] != nil {
 		installedAppId = *gitOpsAppNameAndInstalledAppMapping[devtronAcdAppName]
 	}
@@ -1250,10 +1243,6 @@ const fullnameOverride = "fullnameOverride"
 const nameOverride = "nameOverride"
 const enabled = "enabled"
 const replicaCount = "replicaCount"
-
-func (impl *AppServiceImpl) GetGitOpsRepoPrefix() string {
-	return impl.globalEnvVariables.GitOpsRepoPrefix
-}
 
 func (impl *AppServiceImpl) IsDevtronAsyncInstallModeEnabled(deploymentAppType string) bool {
 	return impl.appStatusConfig.EnableAsyncInstallDevtronChart &&
