@@ -1277,13 +1277,13 @@ func (impl UserServiceImpl) getUserResponse(model []repository.UserModel, record
 		lastLoginTime := adapter.GetLastLoginTime(m)
 		userStatus, ttlTime := getStatusAndTTL(m, recordedTime)
 		response = append(response, bean.UserInfo{
-			Id:            m.Id,
-			EmailId:       m.EmailId,
-			RoleFilters:   make([]bean.RoleFilter, 0),
-			Groups:        make([]string, 0),
-			LastLoginTime: lastLoginTime,
-			UserStatus:    userStatus,
-			TimeToLive:    ttlTime,
+			Id:                      m.Id,
+			EmailId:                 m.EmailId,
+			RoleFilters:             make([]bean.RoleFilter, 0),
+			Groups:                  make([]string, 0),
+			LastLoginTime:           lastLoginTime,
+			UserStatus:              userStatus,
+			TimeoutWindowExpression: ttlTime,
 		})
 	}
 	if len(response) == 0 {
@@ -1324,14 +1324,14 @@ func (impl UserServiceImpl) GetAllDetailedUsers() ([]bean.UserInfo, error) {
 
 func getUserInfoAdapter(id int32, emailId string, roleFilters []bean.RoleFilter, filterGroups []string, isSuperAdmin bool, lastLoginTime, ttlTime time.Time, userStatus bean.Status) bean.UserInfo {
 	user := bean.UserInfo{
-		Id:            id,
-		EmailId:       emailId,
-		RoleFilters:   roleFilters,
-		Groups:        filterGroups,
-		SuperAdmin:    isSuperAdmin,
-		LastLoginTime: lastLoginTime,
-		UserStatus:    userStatus,
-		TimeToLive:    ttlTime,
+		Id:                      id,
+		EmailId:                 emailId,
+		RoleFilters:             roleFilters,
+		Groups:                  filterGroups,
+		SuperAdmin:              isSuperAdmin,
+		LastLoginTime:           lastLoginTime,
+		UserStatus:              userStatus,
+		TimeoutWindowExpression: ttlTime,
 	}
 	return user
 }
@@ -2151,9 +2151,9 @@ func (impl UserServiceImpl) BulkUpdateStatusForUsers(request *bean.BulkStatusUpd
 	}
 
 	var err error
-	activeStatus := request.Status == bean.Active && request.TimeToLive.IsZero()
+	activeStatus := request.Status == bean.Active && request.TimeoutWindowExpression.IsZero()
 	inactiveStatus := request.Status == bean.Inactive
-	timeExpressionStatus := request.Status == bean.Active && !request.TimeToLive.IsZero()
+	timeExpressionStatus := request.Status == bean.Active && !request.TimeoutWindowExpression.IsZero()
 	if activeStatus {
 		// active case
 		// set foreign key to null for every user
@@ -2166,7 +2166,7 @@ func (impl UserServiceImpl) BulkUpdateStatusForUsers(request *bean.BulkStatusUpd
 		// case: time out expression or inactive
 
 		// getting expression from request configuration
-		timeOutExpression, expressionFormat := getTimeoutExpressionAndFormatforReq(timeExpressionStatus, inactiveStatus, request.TimeToLive)
+		timeOutExpression, expressionFormat := getTimeoutExpressionAndFormatforReq(timeExpressionStatus, inactiveStatus, request.TimeoutWindowExpression)
 		err = impl.updateOrCreateAndUpdateWindowID(request.UserIds, timeOutExpression, expressionFormat, userId)
 		if err != nil {
 			impl.logger.Errorw("error in BulkUpdateStatusForUsers", "err", err, "status", request.Status)
