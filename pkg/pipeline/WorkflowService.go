@@ -63,7 +63,7 @@ type WorkflowServiceImpl struct {
 	systemWorkflowExecutor executors.SystemWorkflowExecutor
 	k8sUtil                *k8s.K8sServiceImpl
 	k8sCommonService       k8s2.K8sCommonService
-	infraGetter            infraConfig.InfraGetter
+	ciInfraGetter          infraConfig.InfraGetter
 }
 
 // TODO: Move to bean
@@ -83,7 +83,7 @@ func NewWorkflowServiceImpl(Logger *zap.SugaredLogger, envRepository repository.
 		k8sUtil:                k8sUtil,
 		systemWorkflowExecutor: systemWorkflowExecutor,
 		k8sCommonService:       k8sCommonService,
-		infraGetter:            infraGetter,
+		ciInfraGetter:          infraGetter,
 	}
 	restConfig, err := k8sUtil.GetK8sInClusterRestConfig()
 	if err != nil {
@@ -137,14 +137,18 @@ func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *types.W
 	workflowTemplate.Volumes = executors.ExtractVolumesFromCmCs(workflowConfigMaps, workflowSecrets)
 
 	workflowRequest.AddNodeConstraintsFromConfig(&workflowTemplate, impl.ciCdConfig)
-	infraConfigScope := infraConfig.Scope{
-		AppId: workflowRequest.AppId,
+	infraConfiguration := &infraConfig.InfraConfig{}
+	if workflowRequest.Type == bean3.CI_WORKFLOW_PIPELINE_TYPE {
+		infraConfigScope := infraConfig.Scope{
+			AppId: workflowRequest.AppId,
+		}
+		infraConfiguration, err = impl.ciInfraGetter.GetInfraConfigurationsByScope(infraConfigScope)
+		if err != nil {
+			impl.Logger.Errorw("error occurred while getting infra config", "infraConfigScope", infraConfigScope, "err", err)
+			return bean3.WorkflowTemplate{}, err
+		}
 	}
-	infraConfiguration, err := impl.infraGetter.GetInfraConfigurationsByScope(infraConfigScope)
-	if err != nil {
-		impl.Logger.Errorw("error occurred while getting infra config", "infraConfigScope", infraConfigScope, "err", err)
-		return bean3.WorkflowTemplate{}, err
-	}
+
 	workflowMainContainer, err := workflowRequest.GetWorkflowMainContainer(impl.ciCdConfig, infraConfiguration, workflowJson, &workflowTemplate, workflowConfigMaps, workflowSecrets)
 
 	if err != nil {
