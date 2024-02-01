@@ -2,11 +2,8 @@ package devtronApps
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	application3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	util5 "github.com/devtron-labs/common-lib/utils/k8s"
 	bean3 "github.com/devtron-labs/devtron/api/bean"
@@ -14,7 +11,7 @@ import (
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client2 "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/client/argocdServer"
-	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
+	bean7 "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
@@ -34,6 +31,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd"
+	util3 "github.com/devtron-labs/devtron/util"
 	util2 "github.com/devtron-labs/devtron/util/event"
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
@@ -49,6 +47,9 @@ import (
 type TriggerService interface {
 	TriggerRelease(overrideRequest *bean3.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse,
 		builtChartPath string, ctx context.Context, triggeredAt time.Time, triggeredBy int32) (releaseNo int, manifest []byte, err error)
+
+	//TODO: make this method private and move all usages in this service since TriggerService should own if async mode is enabled and if yes then how to act on it
+	IsDevtronAsyncInstallModeEnabled(deploymentAppType string) bool
 }
 
 type TriggerServiceImpl struct {
@@ -57,13 +58,12 @@ type TriggerServiceImpl struct {
 	gitOpsManifestPushService     app.GitOpsPushService
 	argoK8sClient                 argocdServer.ArgoK8sClient
 	ACDConfig                     *argocdServer.ACDConfig
-	acdClient                     application2.ServiceClient
 	argoClientWrapperService      argocdServer.ArgoClientWrapperService
 	pipelineStatusTimelineService status.PipelineStatusTimelineService
 	chartTemplateService          util.ChartTemplateService
-	appService                    app.AppService
 	eventFactory                  client.EventFactory
 	eventClient                   client.EventClient
+	globalEnvVariables            *util3.GlobalEnvVariables
 
 	helmAppService client2.HelmAppService
 
@@ -83,15 +83,14 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 	gitOpsManifestPushService app.GitOpsPushService,
 	argoK8sClient argocdServer.ArgoK8sClient,
 	ACDConfig *argocdServer.ACDConfig,
-	acdClient application2.ServiceClient,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
 	pipelineStatusTimelineService status.PipelineStatusTimelineService,
 	chartTemplateService util.ChartTemplateService,
-	appService app.AppService,
 	helmAppService client2.HelmAppService,
 	helmAppClient gRPC.HelmAppClient,
 	eventFactory client.EventFactory,
 	eventClient client.EventClient,
+	globalEnvVariables *util3.GlobalEnvVariables,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	imageScanHistoryRepository security.ImageScanHistoryRepository,
 	imageScanDeployInfoRepository security.ImageScanDeployInfoRepository,
@@ -106,17 +105,14 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 		gitOpsManifestPushService:     gitOpsManifestPushService,
 		argoK8sClient:                 argoK8sClient,
 		ACDConfig:                     ACDConfig,
-		acdClient:                     acdClient,
 		argoClientWrapperService:      argoClientWrapperService,
 		pipelineStatusTimelineService: pipelineStatusTimelineService,
 		chartTemplateService:          chartTemplateService,
-		appService:                    appService,
 		helmAppService:                helmAppService,
-		eventClient:                   eventClient,
 		eventFactory:                  eventFactory,
-
-		helmAppClient: helmAppClient,
-
+		eventClient:                   eventClient,
+		globalEnvVariables:            globalEnvVariables,
+		helmAppClient:                 helmAppClient,
 		ciPipelineMaterialRepository:  ciPipelineMaterialRepository,
 		imageScanHistoryRepository:    imageScanHistoryRepository,
 		imageScanDeployInfoRepository: imageScanDeployInfoRepository,
@@ -333,7 +329,7 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean
 				HistoryMax:        impl.helmAppService.GetRevisionHistoryMaxValue(bean6.SOURCE_DEVTRON_APP),
 				ChartContent:      &gRPC.ChartContent{Content: referenceChartByte},
 			}
-			if impl.appService.IsDevtronAsyncInstallModeEnabled(bean.Helm) {
+			if impl.IsDevtronAsyncInstallModeEnabled(bean.Helm) {
 				req.RunInCtx = true
 			}
 			// For cases where helm release was not found, kubelink will install the same configuration
@@ -452,7 +448,7 @@ func (impl *TriggerServiceImpl) updateArgoPipeline(pipeline *pipelineConfig.Pipe
 	}
 	argoAppName := pipeline.DeploymentAppName
 	impl.logger.Infow("received payload, updateArgoPipeline", "appId", pipeline.AppId, "pipelineName", pipeline.Name, "envId", envOverride.TargetEnvironment, "argoAppName", argoAppName, "context", ctx)
-	argoApplication, err := impl.acdClient.Get(ctx, &application3.ApplicationQuery{Name: &argoAppName})
+	argoApplication, err := impl.argoClientWrapperService.GetArgoAppByName(ctx, argoAppName)
 	if err != nil {
 		impl.logger.Errorw("no argo app exists", "app", argoAppName, "pipeline", pipeline.Name)
 		return false, err
@@ -462,19 +458,19 @@ func (impl *TriggerServiceImpl) updateArgoPipeline(pipeline *pipelineConfig.Pipe
 	if appStatus.Code() == codes.OK {
 		impl.logger.Debugw("argo app exists", "app", argoAppName, "pipeline", pipeline.Name)
 		if argoApplication.Spec.Source.Path != envOverride.Chart.ChartLocation || argoApplication.Spec.Source.TargetRevision != "master" {
-			patchReq := v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{Path: envOverride.Chart.ChartLocation, RepoURL: envOverride.Chart.GitRepoUrl, TargetRevision: "master"}}}
-			reqbyte, err := json.Marshal(patchReq)
-			if err != nil {
-				impl.logger.Errorw("error in creating patch", "err", err)
+			patchRequestDto := &bean7.ArgoCdAppPatchReqDto{
+				ArgoAppName:    argoAppName,
+				ChartLocation:  envOverride.Chart.ChartLocation,
+				GitRepoUrl:     envOverride.Chart.GitRepoUrl,
+				TargetRevision: bean7.TargetRevisionMaster,
+				PatchType:      bean7.PatchTypeMerge,
 			}
-			reqString := string(reqbyte)
-			patchType := "merge"
-			_, err = impl.acdClient.Patch(ctx, &application3.ApplicationPatchRequest{Patch: &reqString, Name: &argoAppName, PatchType: &patchType})
+			err = impl.argoClientWrapperService.PatchArgoCdApp(ctx, patchRequestDto)
 			if err != nil {
-				impl.logger.Errorw("error in creating argo pipeline ", "name", pipeline.Name, "patch", string(reqbyte), "err", err)
+				impl.logger.Errorw("error in patching argo pipeline", "err", err, "req", patchRequestDto)
 				return false, err
 			}
-			impl.logger.Debugw("pipeline update req ", "res", patchReq)
+			impl.logger.Debugw("pipeline update req", "res", patchRequestDto)
 		} else {
 			impl.logger.Debug("pipeline no need to update ")
 		}
@@ -521,7 +517,7 @@ func (impl *TriggerServiceImpl) createArgoApplicationIfRequired(appId int, envCo
 			TargetNamespace: appNamespace,
 			TargetServer:    envModel.Cluster.ServerUrl,
 			Project:         "default",
-			ValuesFile:      impl.getValuesFileForEnv(envModel.Id),
+			ValuesFile:      getValuesFileForEnv(envModel.Id),
 			RepoPath:        chart.ChartLocation,
 			RepoUrl:         chart.GitRepoUrl,
 			AutoSyncEnabled: impl.ACDConfig.ArgoCDAutoSyncEnabled,
@@ -540,7 +536,7 @@ func (impl *TriggerServiceImpl) createArgoApplicationIfRequired(appId int, envCo
 	}
 }
 
-func (impl *TriggerServiceImpl) getValuesFileForEnv(environmentId int) string {
+func getValuesFileForEnv(environmentId int) string {
 	return fmt.Sprintf("_%d-values.yaml", environmentId) //-{envId}-values.yaml
 }
 
@@ -561,7 +557,7 @@ func (impl *TriggerServiceImpl) helmInstallReleaseWithCustomChart(ctx context.Co
 		ChartContent:      &gRPC.ChartContent{Content: referenceChartByte},
 		ReleaseIdentifier: releaseIdentifier,
 	}
-	if impl.appService.IsDevtronAsyncInstallModeEnabled(bean.Helm) {
+	if impl.IsDevtronAsyncInstallModeEnabled(bean.Helm) {
 		helmInstallRequest.RunInCtx = true
 	}
 	// Request exec
@@ -663,4 +659,9 @@ func (impl *TriggerServiceImpl) markImageScanDeployed(appId int, envId int, imag
 		}
 	}
 	return err
+}
+
+func (impl *TriggerServiceImpl) IsDevtronAsyncInstallModeEnabled(deploymentAppType string) bool {
+	return impl.globalEnvVariables.EnableAsyncInstallDevtronChart &&
+		deploymentAppType == bean.Helm
 }

@@ -24,33 +24,20 @@ import (
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
-	bean3 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 	bean4 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"io/ioutil"
 	"net/url"
-	"os"
 	"path"
-	"path/filepath"
 	"strconv"
-	"strings"
 	"time"
-
-	"github.com/caarlos0/env"
-	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
-	"github.com/devtron-labs/common-lib/utils/k8s/health"
-	status2 "github.com/devtron-labs/devtron/pkg/app/status"
-	repository4 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
-	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
-	"github.com/devtron-labs/devtron/pkg/variables"
-	_ "github.com/devtron-labs/devtron/pkg/variables/repository"
-	"github.com/devtron-labs/devtron/util/argo"
-	"go.opentelemetry.io/otel"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	chart2 "k8s.io/helm/pkg/proto/hapi/chart"
 
 	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/caarlos0/env"
+	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
+	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
@@ -60,14 +47,22 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	. "github.com/devtron-labs/devtron/internal/util"
+	status2 "github.com/devtron-labs/devtron/pkg/app/status"
 	"github.com/devtron-labs/devtron/pkg/appStatus"
+	repository4 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/commonService"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/pkg/variables"
+	_ "github.com/devtron-labs/devtron/pkg/variables/repository"
 	util2 "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/argo"
 	util "github.com/devtron-labs/devtron/util/event"
 	"github.com/go-pg/pg"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type AppServiceConfig struct {
@@ -123,6 +118,7 @@ type AppServiceImpl struct {
 	chartRefService                        chartRef.ChartRefService
 	gitOpsConfigReadService                config.GitOpsConfigReadService
 	gitOperationService                    git.GitOperationService
+	deploymentTemplateService              deploymentTemplate.DeploymentTemplateService
 }
 
 type AppService interface {
@@ -144,9 +140,6 @@ type AppService interface {
 	CreateGitopsRepo(app *app.App, userId int32) (gitopsRepoName string, chartGitAttr *commonBean.ChartGitAttribute, err error)
 	GetDeployedManifestByPipelineIdAndCDWorkflowId(appId int, envId int, cdWorkflowId int, ctx context.Context) ([]byte, error)
 	//SetPipelineFieldsInOverrideRequest(overrideRequest *bean.ValuesOverrideRequest, pipeline *pipelineConfig.Pipeline)
-
-	BuildChartAndGetPath(appName string, envOverride *chartConfig.EnvConfigOverride, ctx context.Context) (string, error)
-	IsDevtronAsyncInstallModeEnabled(deploymentAppType string) bool
 }
 
 func NewAppService(
@@ -176,7 +169,8 @@ func NewAppService(
 	scopedVariableManager variables.ScopedVariableCMCSManager,
 	acdConfig *argocdServer.ACDConfig, chartRefService chartRef.ChartRefService,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
-	gitOperationService git.GitOperationService) *AppServiceImpl {
+	gitOperationService git.GitOperationService,
+	deploymentTemplateService deploymentTemplate.DeploymentTemplateService) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:            environmentConfigRepository,
 		mergeUtil:                              mergeUtil,
@@ -207,6 +201,7 @@ func NewAppService(
 		chartRefService:                        chartRefService,
 		gitOpsConfigReadService:                gitOpsConfigReadService,
 		gitOperationService:                    gitOperationService,
+		deploymentTemplateService:              deploymentTemplateService,
 	}
 	return appServiceImpl
 }
@@ -839,7 +834,7 @@ func (impl *AppServiceImpl) GetDeployedManifestByPipelineIdAndCDWorkflowId(appId
 	}
 
 	appName := pipeline[0].App.AppName
-	builtChartPath, err := impl.BuildChartAndGetPath(appName, envConfigOverride, ctx)
+	builtChartPath, err := impl.deploymentTemplateService.BuildChartAndGetPath(appName, envConfigOverride, ctx)
 	if err != nil {
 		impl.logger.Errorw("error in parsing reference chart", "err", err)
 		return manifestByteArray, err
@@ -860,48 +855,6 @@ func (impl *AppServiceImpl) GetDeployedManifestByPipelineIdAndCDWorkflowId(appId
 
 	return manifestByteArray, nil
 
-}
-
-func (impl *AppServiceImpl) BuildChartAndGetPath(appName string, envOverride *chartConfig.EnvConfigOverride, ctx context.Context) (string, error) {
-
-	if !strings.HasSuffix(envOverride.Chart.ChartLocation, fmt.Sprintf("%s%s", "/", envOverride.Chart.ChartVersion)) {
-		_, span := otel.Tracer("orchestrator").Start(ctx, "autoHealChartLocationInChart")
-		err := impl.autoHealChartLocationInChart(ctx, envOverride)
-		span.End()
-		if err != nil {
-			return "", err
-		}
-	}
-	chartMetaData := &chart2.Metadata{
-		Name:    appName,
-		Version: envOverride.Chart.ChartVersion,
-	}
-	referenceTemplatePath := path.Join(bean3.RefChartDirPath, envOverride.Chart.ReferenceTemplate)
-	// Load custom charts to referenceTemplatePath if not exists
-	if _, err := os.Stat(referenceTemplatePath); os.IsNotExist(err) {
-		chartRefValue, err := impl.chartRefService.FindById(envOverride.Chart.ChartRefId)
-		if err != nil {
-			impl.logger.Errorw("error in fetching ChartRef data", "err", err)
-			return "", err
-		}
-		if chartRefValue.ChartData != nil {
-			chartInfo, err := impl.chartRefService.ExtractChartIfMissing(chartRefValue.ChartData, bean3.RefChartDirPath, chartRefValue.Location)
-			if chartInfo != nil && chartInfo.TemporaryFolder != "" {
-				err1 := os.RemoveAll(chartInfo.TemporaryFolder)
-				if err1 != nil {
-					impl.logger.Errorw("error in deleting temp dir ", "err", err)
-				}
-			}
-			return "", err
-		}
-	}
-	_, span := otel.Tracer("orchestrator").Start(ctx, "chartTemplateService.BuildChart")
-	tempReferenceTemplateDir, err := impl.chartTemplateService.BuildChart(ctx, chartMetaData, referenceTemplatePath)
-	span.End()
-	if err != nil {
-		return "", err
-	}
-	return tempReferenceTemplateDir, nil
 }
 
 func (impl *AppServiceImpl) CreateGitopsRepo(app *app.App, userId int32) (gitopsRepoName string, chartGitAttr *commonBean.ChartGitAttribute, err error) {
@@ -938,49 +891,6 @@ func (impl *AppServiceImpl) saveTimeline(overrideRequest *bean.ValuesOverrideReq
 	if timelineErr != nil {
 		impl.logger.Errorw("error in creating timeline status for git commit", "err", timelineErr, "timeline", timeline)
 	}
-}
-
-func (impl *AppServiceImpl) autoHealChartLocationInChart(ctx context.Context, envOverride *chartConfig.EnvConfigOverride) error {
-	chartId := envOverride.Chart.Id
-	impl.logger.Infow("auto-healing: Chart location in chart not correct. modifying ", "chartId", chartId,
-		"current chartLocation", envOverride.Chart.ChartLocation, "current chartVersion", envOverride.Chart.ChartVersion)
-
-	// get chart from DB (getting it from DB because envOverride.Chart does not have full row of DB)
-	_, span := otel.Tracer("orchestrator").Start(ctx, "chartRepository.FindById")
-	chart, err := impl.chartRepository.FindById(chartId)
-	span.End()
-	if err != nil {
-		impl.logger.Errorw("error occurred while fetching chart from DB", "chartId", chartId, "err", err)
-		return err
-	}
-
-	// get chart ref from DB (to get location)
-	chartRefId := chart.ChartRefId
-	_, span = otel.Tracer("orchestrator").Start(ctx, "chartRefRepository.FindById")
-	chartRefDto, err := impl.chartRefService.FindById(chartRefId)
-	span.End()
-	if err != nil {
-		impl.logger.Errorw("error occurred while fetching chartRef from DB", "chartRefId", chartRefId, "err", err)
-		return err
-	}
-
-	// build new chart location
-	newChartLocation := filepath.Join(chartRefDto.Location, envOverride.Chart.ChartVersion)
-	impl.logger.Infow("new chart location build", "chartId", chartId, "newChartLocation", newChartLocation)
-
-	// update chart in DB
-	chart.ChartLocation = newChartLocation
-	_, span = otel.Tracer("orchestrator").Start(ctx, "chartRepository.Update")
-	err = impl.chartRepository.Update(chart)
-	span.End()
-	if err != nil {
-		impl.logger.Errorw("error occurred while saving chart into DB", "chartId", chartId, "err", err)
-		return err
-	}
-
-	// update newChartLocation in model
-	envOverride.Chart.ChartLocation = newChartLocation
-	return nil
 }
 
 // FIXME tmp workaround
@@ -1235,16 +1145,4 @@ func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Appl
 	}
 	util2.TriggerCDMetrics(cdMetrics, impl.appStatusConfig.ExposeCDMetrics)
 	return nil
-}
-
-const kedaAutoscaling = "kedaAutoscaling"
-const HorizontalPodAutoscaler = "HorizontalPodAutoscaler"
-const fullnameOverride = "fullnameOverride"
-const nameOverride = "nameOverride"
-const enabled = "enabled"
-const replicaCount = "replicaCount"
-
-func (impl *AppServiceImpl) IsDevtronAsyncInstallModeEnabled(deploymentAppType string) bool {
-	return impl.appStatusConfig.EnableAsyncInstallDevtronChart &&
-		deploymentAppType == bean4.Helm
 }
