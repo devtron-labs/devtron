@@ -483,10 +483,6 @@ func (handler UserRestHandlerImpl) BulkUpdateStatus(w http.ResponseWriter, r *ht
 	res, err := handler.userService.BulkUpdateStatusForUsers(&request, userId)
 	if err != nil {
 		handler.logger.Errorw("service err, BulkUpdateStatus", "payload", request, "err", err)
-		if err.Error() == bean2.NoUserIdsProvidedError {
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-			return
-		}
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
