@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/gorilla/schema"
 	"golang.org/x/exp/slices"
 	"net/http"
@@ -437,7 +436,7 @@ func (handler UserRestHandlerImpl) DeleteUser(w http.ResponseWriter, r *http.Req
 }
 
 func checkValidationForSystemOrAdminUser(userId int32) error {
-	if userId == constants.SystemUserId || userId == constants.AdminUserId {
+	if userId == bean2.SystemUserId || userId == bean2.AdminUserId {
 		return &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "cannot delete system or admin user"}
 	}
 	return nil
@@ -495,7 +494,7 @@ func checkValidationForAdminAndSystemUserId(userIds []int32) error {
 		err := &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "no user ids provided"}
 		return err
 	}
-	if slices.Contains(userIds, constants.AdminUserId) || slices.Contains(userIds, constants.SystemUserId) {
+	if slices.Contains(userIds, bean2.AdminUserId) || slices.Contains(userIds, bean2.SystemUserId) {
 		err := &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "cannot update status for system or admin user"}
 		return err
 	}

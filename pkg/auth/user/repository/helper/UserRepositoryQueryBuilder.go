@@ -26,7 +26,7 @@ const (
 	TimeFormatForParsing string = "2006-01-02 15:04:05 -0700 MST"
 )
 
-func (impl UserRepositoryQueryBuilder) GetQueryForUserListingWithFilters(req *bean.FetchListingRequest, countCheck bool) string {
+func (impl UserRepositoryQueryBuilder) GetQueryForUserListingWithFilters(req *bean.FetchListingRequest) string {
 	whereCondition := fmt.Sprintf("where active = %t AND (user_type is NULL or user_type != '%s') ", true, bean.USER_TYPE_API_TOKEN)
 	orderCondition := ""
 	//formatted for query comparison
@@ -44,18 +44,18 @@ func (impl UserRepositoryQueryBuilder) GetQueryForUserListingWithFilters(req *be
 		whereCondition += fmt.Sprintf("AND email_id ilike '%s' ", emailIdLike)
 	}
 
-	if len(req.SortBy) > 0 && !countCheck {
+	if len(req.SortBy) > 0 && !req.CountCheck {
 		orderCondition += fmt.Sprintf("order by %s ", req.SortBy)
 		if req.SortOrder == bean2.Desc {
 			orderCondition += string(req.SortOrder)
 		}
 	}
 
-	if req.Size > 0 && !countCheck {
+	if req.Size > 0 && !req.CountCheck {
 		orderCondition += " limit " + strconv.Itoa(req.Size) + " offset " + strconv.Itoa(req.Offset) + ""
 	}
 	var query string
-	if countCheck {
+	if req.CountCheck {
 		query = fmt.Sprintf("select count(*) from users AS user_model left join user_audit AS au on au.user_id=user_model.id left join timeout_window_configuration AS timeout_window_configuration on timeout_window_configuration.id=user_model.timeout_window_configuration_id %s %s;", whereCondition, orderCondition)
 	} else {
 		// have not collected client ip here. always will be empty
@@ -72,7 +72,7 @@ func (impl UserRepositoryQueryBuilder) GetQueryForAllUserWithAudit() string {
 	return query
 }
 
-func (impl UserRepositoryQueryBuilder) GetQueryForGroupListingWithFilters(req *bean.FetchListingRequest, countCheck bool) string {
+func (impl UserRepositoryQueryBuilder) GetQueryForGroupListingWithFilters(req *bean.FetchListingRequest) string {
 	whereCondition := fmt.Sprintf("where active = %t ", true)
 	orderCondition := ""
 	if len(req.SearchKey) > 0 {
@@ -80,18 +80,18 @@ func (impl UserRepositoryQueryBuilder) GetQueryForGroupListingWithFilters(req *b
 		whereCondition += fmt.Sprintf("AND name ilike '%s' ", nameIdLike)
 	}
 
-	if len(req.SortBy) > 0 && !countCheck {
+	if len(req.SortBy) > 0 && !req.CountCheck {
 		orderCondition += fmt.Sprintf("order by %s ", req.SortBy)
 		if req.SortOrder == bean2.Desc {
 			orderCondition += string(req.SortOrder)
 		}
 	}
 
-	if req.Size > 0 && !countCheck {
+	if req.Size > 0 && !req.CountCheck {
 		orderCondition += " limit " + strconv.Itoa(req.Size) + " offset " + strconv.Itoa(req.Offset) + ""
 	}
 	var query string
-	if countCheck {
+	if req.CountCheck {
 		query = fmt.Sprintf("SELECT count(*) from role_group %s %s;", whereCondition, orderCondition)
 	} else {
 		query = fmt.Sprintf("SELECT * from role_group %s %s;", whereCondition, orderCondition)

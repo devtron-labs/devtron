@@ -34,11 +34,6 @@ type UserInfo struct {
 	EmailId                 string       `json:"emailId" validate:"required,not-system-admin-user-email"`
 	Roles                   []string     `json:"roles,omitempty"`
 	AccessToken             string       `json:"access_token,omitempty"`
-	UserType                string       `json:"-"`
-	LastUsedAt              time.Time    `json:"-"`
-	LastUsedByIp            string       `json:"-"`
-	Exist                   bool         `json:"-"`
-	UserId                  int32        `json:"-"` // created or modified user id
 	RoleFilters             []RoleFilter `json:"roleFilters"`
 	Status                  string       `json:"status,omitempty"`
 	Groups                  []string     `json:"groups"` // this will be deprecated in future do not use
@@ -47,6 +42,11 @@ type UserInfo struct {
 	LastLoginTime           time.Time    `json:"lastLoginTime"`
 	TimeoutWindowExpression time.Time    `json:"timeoutWindowExpression"`
 	UserStatus              Status       `json:"userStatus"`
+	UserType                string       `json:"-"`
+	LastUsedAt              time.Time    `json:"-"`
+	LastUsedByIp            string       `json:"-"`
+	Exist                   bool         `json:"-"`
+	UserId                  int32        `json:"-"` // created or modified user id
 }
 
 type RoleGroup struct {
@@ -164,4 +164,5 @@ type FetchListingRequest struct {
 	Size        int            `json:"size"`
 	ShowAll     bool           `json:"showAll"`
 	CurrentTime time.Time      `json:"-"` // for Internal Use
+	CountCheck  bool           `json:"-"` // for Internal Use
 }

@@ -470,7 +470,7 @@ func (impl UserAuthServiceImpl) AuthVerification(r *http.Request) (bool, error) 
 			HttpStatusCode:  http.StatusUnauthorized,
 			Code:            constants.UserNoTokenProvided,
 			InternalMessage: "failed to verify token",
-			UserMessage:     fmt.Sprintf("token verification failed while getting logged in user: %s", token),
+			UserMessage:     "token verification failed while getting logged in user",
 		}
 		return false, err
 	}
@@ -480,7 +480,7 @@ func (impl UserAuthServiceImpl) AuthVerification(r *http.Request) (bool, error) 
 		err := &util.ApiError{
 			HttpStatusCode:  http.StatusUnauthorized,
 			InternalMessage: bean2.InvalidUserError,
-			UserMessage:     fmt.Sprintf("invalid user: %s", token),
+			UserMessage:     bean2.InvalidUserError,
 		}
 		return false, err
 	} else if isInactive {

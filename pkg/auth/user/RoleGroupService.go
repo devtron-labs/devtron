@@ -656,14 +656,18 @@ func (impl RoleGroupServiceImpl) FetchRoleGroupsWithFilters(request *bean.FetchL
 		return impl.FetchRoleGroups()
 	}
 
-	query := impl.userRepositoryQueryBuilder.GetQueryForGroupListingWithFilters(request, true)
+	// setting count check to true for getting only count
+	request.CountCheck = true
+	query := impl.userRepositoryQueryBuilder.GetQueryForGroupListingWithFilters(request)
 	totalCount, err := impl.userRepository.GetCountExecutingQuery(query)
 	if err != nil {
 		impl.logger.Errorw("error in FetchRoleGroupsWithFilters", "err", err, "query", query)
 		return nil, err
 	}
+	// setting count check to false for getting data
+	request.CountCheck = false
 
-	query = impl.userRepositoryQueryBuilder.GetQueryForGroupListingWithFilters(request, false)
+	query = impl.userRepositoryQueryBuilder.GetQueryForGroupListingWithFilters(request)
 	roleGroup, err := impl.roleGroupRepository.GetAllExecutingQuery(query)
 	if err != nil {
 		impl.logger.Errorw("error while FetchRoleGroupsWithFilters", "error", err, "query", query)

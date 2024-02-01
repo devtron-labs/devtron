@@ -18,7 +18,7 @@
 package util
 
 import (
-	"github.com/devtron-labs/devtron/internal/constants"
+	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"regexp"
 	"strings"
 
@@ -116,7 +116,7 @@ func validateDockerImage(fl validator.FieldLevel) bool {
 
 func validateForSystemOrAdminUserEmail(fl validator.FieldLevel) bool {
 	value := fl.Field().String()
-	if value == constants.AdminUser || value == constants.SystemUser {
+	if value == bean.AdminUser || value == bean.SystemUser {
 		return false
 	}
 	return true
@@ -124,7 +124,7 @@ func validateForSystemOrAdminUserEmail(fl validator.FieldLevel) bool {
 
 func validateForSystemOrAdminUserById(fl validator.FieldLevel) bool {
 	value := fl.Field().Int()
-	if value == constants.AdminUserId || value == constants.SystemUserId {
+	if value == bean.AdminUserId || value == bean.SystemUserId {
 		return false
 	}
 	return true
