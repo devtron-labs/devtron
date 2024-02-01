@@ -18,10 +18,8 @@
 package pipeline
 
 import (
-	"archive/zip"
 	"bufio"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -84,7 +82,6 @@ type CiHandler interface {
 	FetchCiStatusForTriggerViewV1(appId int) ([]*pipelineConfig.CiWorkflowStatus, error)
 	RefreshMaterialByCiPipelineMaterialId(gitMaterialId int) (refreshRes *gitSensor.RefreshGitMaterialResponse, err error)
 	FetchMaterialInfoByArtifactId(ciArtifactId int, envId int) (*types.GitTriggerInfoResponse, error)
-	WriteToCreateTestSuites(pipelineId int, buildId int, triggeredBy int)
 	UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuild int) error
 	FetchCiStatusForTriggerViewForEnvironment(request resourceGroup.ResourceGroupingRequest, token string) ([]*pipelineConfig.CiWorkflowStatus, error)
 }
@@ -1186,8 +1183,6 @@ func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 			} else {
 				impl.Logger.Infof("Step failed notification received for wfID %d with message %s", savedWorkflow.Id, savedWorkflow.Message)
 			}
-
-			impl.WriteToCreateTestSuites(savedWorkflow.CiPipelineId, workflowId, int(savedWorkflow.TriggeredBy))
 		}
 	}
 	return savedWorkflow.Id, nil
@@ -1559,76 +1554,6 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int, envId
 		Image:            ciArtifact.Image,
 	}
 	return gitTriggerInfoResponse, nil
-}
-
-func (impl *CiHandlerImpl) WriteToCreateTestSuites(pipelineId int, buildId int, triggeredBy int) {
-	testReportFile, err := impl.DownloadCiWorkflowArtifacts(pipelineId, buildId)
-	if err != nil {
-		impl.Logger.Errorw("WriteTestSuite, error in fetching report file from s3", "err", err, "pipelineId", pipelineId, "buildId", buildId)
-		return
-	}
-	if testReportFile == nil {
-		return
-	}
-	read, err := zip.OpenReader(testReportFile.Name())
-	if err != nil {
-		impl.Logger.Errorw("WriteTestSuite, error while open reader", "name", testReportFile.Name())
-		return
-	}
-	defer read.Close()
-	const CreatedBy = "created_by"
-	const TriggerId = "trigger_id"
-	const CiPipelineId = "ci_pipeline_id"
-	const XML = "xml"
-	payload := make(map[string]interface{})
-	var reports []string
-	payload[CreatedBy] = triggeredBy
-	payload[TriggerId] = buildId
-	payload[CiPipelineId] = pipelineId
-	payload[XML] = reports
-	for _, file := range read.File {
-		if payload, err = impl.listFiles(file, payload); err != nil {
-			impl.Logger.Errorw("WriteTestSuite, failed to read from zip", "file", file.Name, "error", err)
-			return
-		}
-	}
-	b, err := json.Marshal(payload)
-	if err != nil {
-		impl.Logger.Errorw("WriteTestSuite, payload marshal error", "error", err)
-		return
-	}
-	impl.Logger.Debugw("WriteTestSuite, sending to create", "TriggerId", buildId)
-	_, err = impl.eventClient.SendTestSuite(b)
-	if err != nil {
-		impl.Logger.Errorw("WriteTestSuite, error while making test suit post request", "err", err)
-		return
-	}
-}
-
-func (impl *CiHandlerImpl) listFiles(file *zip.File, payload map[string]interface{}) (map[string]interface{}, error) {
-	fileRead, err := file.Open()
-	if err != nil {
-		return payload, err
-	}
-	defer fileRead.Close()
-
-	if strings.Contains(file.Name, ".xml") {
-		content, err := ioutil.ReadAll(fileRead)
-		if err != nil {
-			impl.Logger.Errorw("panic error", "err", err)
-			return payload, err
-		}
-		var reports []string
-		if _, ok := payload["xml"]; !ok {
-			reports = append(reports, string([]byte(content)))
-			payload["xml"] = reports
-		} else {
-			reports = payload["xml"].([]string)
-			reports = append(reports, string([]byte(content)))
-			payload["xml"] = reports
-		}
-	}
-	return payload, nil
 }
 
 func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuild int) error {

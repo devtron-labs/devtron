@@ -58,6 +58,7 @@ type HistoryDetailDto struct {
 	SubPath            *bool                `json:"subPath,omitempty"`
 	FilePermission     string               `json:"filePermission,omitempty"`
 	CodeEditorValue    *HistoryDetailConfig `json:"codeEditorValue"`
+	SecretViewAccess   bool                 `json:"secretViewAccess"` // this is being used to check whether a user can see obscured secret values or not.
 }
 
 type HistoryDetailConfig struct {

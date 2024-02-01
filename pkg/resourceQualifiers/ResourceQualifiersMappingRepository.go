@@ -17,8 +17,13 @@ type QualifiersMappingRepository interface {
 	GetQualifierMappings(resourceType ResourceType, scope *Scope, searchableIdMap map[bean.DevtronResourceSearchableKeyName]int, resourceIds []int) ([]*QualifierMapping, error)
 	GetQualifierMappingsForFilter(scope Scope, searchableIdMap map[bean.DevtronResourceSearchableKeyName]int) ([]*QualifierMapping, error)
 	GetQualifierMappingsForFilterById(resourceId int) ([]*QualifierMapping, error)
+	GetQualifierMappingsByResourceType(resourceType ResourceType) ([]*QualifierMapping, error)
 	DeleteAllQualifierMappings(ResourceType, sql.AuditLog, *pg.Tx) error
 	DeleteAllQualifierMappingsByResourceTypeAndId(resourceType ResourceType, resourceId int, auditLog sql.AuditLog, tx *pg.Tx) error
+	DeleteByResourceTypeIdentifierKeyAndValue(resourceType ResourceType, identifierKey int, identifierValue int, auditLog sql.AuditLog, tx *pg.Tx) error
+	DeleteAllByResourceTypeAndQualifierId(resourceType ResourceType, resourceId int, qualifierIds []int, auditLog sql.AuditLog, tx *pg.Tx) error
+	DeleteAllByIds(qualifierMappingIds []int, auditLog sql.AuditLog, tx *pg.Tx) error
+	GetDbConnection() *pg.DB
 	DeleteGivenQualifierMappingsByResourceType(resourceType ResourceType, identifierKey int, identifierValueInts []int, auditLog sql.AuditLog, tx *pg.Tx) error
 }
 
@@ -90,11 +95,13 @@ func (repo *QualifiersMappingRepositoryImpl) addScopeWhereClause(query *orm.Quer
 			"OR (qualifier_id = ? AND identifier_key = ? AND identifier_value_int = ?) "+
 			"OR (qualifier_id = ? AND identifier_key = ? AND identifier_value_int = ?) "+
 			"OR (qualifier_id = ? AND identifier_key = ? AND identifier_value_int = ?) "+
+			"OR (qualifier_id = ? AND identifier_key = ? AND identifier_value_int = ?) "+
 			"OR (qualifier_id = ?)",
 		searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID], scope.AppId, searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID], scope.EnvId, APP_AND_ENV_QUALIFIER,
 		APP_QUALIFIER, searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID], scope.AppId,
 		ENV_QUALIFIER, searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID], scope.EnvId,
 		CLUSTER_QUALIFIER, searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ID], scope.ClusterId,
+		PIPELINE_QUALIFIER, searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_PIPELINE_ID], scope.PipelineId,
 		GLOBAL_QUALIFIER,
 	)
 }
@@ -121,13 +128,20 @@ func (repo *QualifiersMappingRepositoryImpl) GetQualifierMappings(resourceType R
 	return qualifierMappings, nil
 }
 
-func (repo *QualifiersMappingRepositoryImpl) DeleteAllQualifierMappings(resourceType ResourceType, auditLog sql.AuditLog, tx *pg.Tx) error {
-	_, err := tx.Model(&QualifierMapping{}).
-		Set("updated_by = ?", auditLog.UpdatedBy).
-		Set("updated_on = ?", auditLog.UpdatedOn).
-		Set("active = ?", false).
+func (repo *QualifiersMappingRepositoryImpl) GetQualifierMappingsByResourceType(resourceType ResourceType) ([]*QualifierMapping, error) {
+	var qualifierMappings []*QualifierMapping
+	query := repo.dbConnection.Model(&qualifierMappings).
 		Where("active = ?", true).
-		Where("resource_type = ?", resourceType).
+		Where("resource_type = ?", resourceType)
+	err := query.Select()
+	if err != nil {
+		return nil, err
+	}
+	return qualifierMappings, nil
+}
+
+func (repo *QualifiersMappingRepositoryImpl) DeleteAllQualifierMappings(resourceType ResourceType, auditLog sql.AuditLog, tx *pg.Tx) error {
+	_, err := repo.getQualifierMappingDeleteQuery(resourceType, tx, auditLog).
 		Update()
 	return err
 }
@@ -141,6 +155,51 @@ func (repo *QualifiersMappingRepositoryImpl) DeleteAllQualifierMappingsByResourc
 		Where("resource_id = ?", resourceId).
 		Update()
 	return err
+}
+
+func (repo *QualifiersMappingRepositoryImpl) DeleteByResourceTypeIdentifierKeyAndValue(resourceType ResourceType, identifierKey int, identifierValue int, auditLog sql.AuditLog, tx *pg.Tx) error {
+	_, err := repo.getQualifierMappingDeleteQuery(resourceType, tx, auditLog).
+		Where("identifier_key = ?", identifierKey).
+		Where("identifier_value_int = ?", identifierValue).
+		Update()
+	return err
+}
+
+func (repo *QualifiersMappingRepositoryImpl) DeleteAllByResourceTypeAndQualifierId(resourceType ResourceType, resourceId int, qualifierIds []int, auditLog sql.AuditLog, tx *pg.Tx) error {
+	_, err := tx.Model(&QualifierMapping{}).
+		Set("updated_by = ?", auditLog.UpdatedBy).
+		Set("updated_on = ?", auditLog.UpdatedOn).
+		Set("active = ?", false).
+		Where("active = ?", true).
+		Where("resource_type = ?", resourceType).
+		Where("resource_id = ?", resourceId).
+		Where("qualifier_id in (?)", pg.In(qualifierIds)).
+		Update()
+	return err
+}
+
+func (repo *QualifiersMappingRepositoryImpl) DeleteAllByIds(qualifierMappingIds []int, auditLog sql.AuditLog, tx *pg.Tx) error {
+	_, err := tx.Model(&QualifierMapping{}).
+		Set("updated_by = ?", auditLog.UpdatedBy).
+		Set("updated_on = ?", auditLog.UpdatedOn).
+		Set("active = ?", false).
+		Where("active = ?", true).
+		Where("id in (?)", pg.In(qualifierMappingIds)).
+		Update()
+	return err
+}
+
+func (repo *QualifiersMappingRepositoryImpl) getQualifierMappingDeleteQuery(resourceType ResourceType, tx *pg.Tx, auditLog sql.AuditLog) *orm.Query {
+	return tx.Model(&QualifierMapping{}).
+		Set("updated_by = ?", auditLog.UpdatedBy).
+		Set("updated_on = ?", auditLog.UpdatedOn).
+		Set("active = ?", false).
+		Where("active = ?", true).
+		Where("resource_type = ? ", resourceType)
+}
+
+func (repo *QualifiersMappingRepositoryImpl) GetDbConnection() *pg.DB {
+	return repo.dbConnection
 }
 
 func (repo *QualifiersMappingRepositoryImpl) DeleteGivenQualifierMappingsByResourceType(resourceType ResourceType, identifierKey int, identifierValueInts []int, auditLog sql.AuditLog, tx *pg.Tx) error {
