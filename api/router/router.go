@@ -122,6 +122,7 @@ type MuxRouter struct {
 	rbacRoleRouter                     user.RbacRoleRouter
 	scopedVariableRouter               ScopedVariableRouter
 	ciTriggerCron                      cron.CiTriggerCron
+	deploymentConfigurationRouter      DeploymentConfigurationRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -154,7 +155,9 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 	rbacRoleRouter user.RbacRoleRouter,
 	scopedVariableRouter ScopedVariableRouter,
 	ciTriggerCron cron.CiTriggerCron,
-	proxyRouter proxy.ProxyRouter) *MuxRouter {
+	proxyRouter proxy.ProxyRouter,
+	deploymentConfigurationRouter DeploymentConfigurationRouter,
+) *MuxRouter {
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
 		HelmRouter:                         HelmRouter,
@@ -224,6 +227,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 		rbacRoleRouter:                     rbacRoleRouter,
 		scopedVariableRouter:               scopedVariableRouter,
 		ciTriggerCron:                      ciTriggerCron,
+		deploymentConfigurationRouter:      deploymentConfigurationRouter,
 	}
 	return r
 }
@@ -309,8 +313,9 @@ func (r MuxRouter) Init() {
 	chartRefRouter := r.Router.PathPrefix("/orchestrator/chartref").Subrouter()
 	r.ChartRefRouter.initChartRefRouter(chartRefRouter)
 
-	configMapRouter := r.Router.PathPrefix("/orchestrator/config").Subrouter()
-	r.ConfigMapRouter.initConfigMapRouter(configMapRouter)
+	configRouter := r.Router.PathPrefix("/orchestrator/config/").Subrouter()
+	r.ConfigMapRouter.initConfigMapRouter(configRouter)
+	r.deploymentConfigurationRouter.initDeploymentConfigurationRouter(configRouter)
 
 	appStoreRouter := r.Router.PathPrefix("/orchestrator/app-store").Subrouter()
 	r.AppStoreRouter.Init(appStoreRouter)

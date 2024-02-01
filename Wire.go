@@ -99,6 +99,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/commonService"
+	"github.com/devtron-labs/devtron/pkg/config"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
@@ -670,6 +671,13 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(router.ScopedVariableRouter), new(*router.ScopedVariableRouterImpl)),
 		scopedVariable.NewScopedVariableRestHandlerImpl,
 		wire.Bind(new(scopedVariable.ScopedVariableRestHandler), new(*scopedVariable.ScopedVariableRestHandlerImpl)),
+
+		router.NewDeploymentConfigurationRouter,
+		wire.Bind(new(router.DeploymentConfigurationRouter), new(*router.DeploymentConfigurationRouterImpl)),
+		restHandler.NewDeploymentConfigurationRestHandlerImpl,
+		wire.Bind(new(restHandler.DeploymentConfigurationRestHandler), new(*restHandler.DeploymentConfigurationRestHandlerImpl)),
+		config.NewDeploymentConfigurationServiceImpl,
+		wire.Bind(new(config.DeploymentConfigurationService), new(*config.DeploymentConfigurationServiceImpl)),
 
 		util.NewGitCliUtil,
 
