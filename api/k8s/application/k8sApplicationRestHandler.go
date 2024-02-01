@@ -702,7 +702,7 @@ func (handler *K8sApplicationRestHandlerImpl) DownloadPodLogs(w http.ResponseWri
 				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 				return
 			}
-			humanReadableTime := parsedTime.UTC().Format(http.TimeFormat)
+			humanReadableTime := parsedTime.UTC().Local().Format(time.RFC1123)
 			res = append(res, humanReadableTime...)
 		}
 
@@ -728,7 +728,7 @@ func (handler *K8sApplicationRestHandlerImpl) DownloadPodLogs(w http.ResponseWri
 		}
 	}
 	if len(dataBuffer.Bytes()) == 0 {
-		common.WriteJsonResp(w, errors.New("no logs found"), nil, http.StatusNotFound)
+		common.WriteJsonResp(w, fmt.Errorf("logs not found"), nil, http.StatusOK)
 		return
 	}
 	podLogsFilename := generatePodLogsFilename(request.K8sRequest.ResourceIdentifier.Name)
