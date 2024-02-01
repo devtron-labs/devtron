@@ -702,7 +702,7 @@ func (handler *K8sApplicationRestHandlerImpl) DownloadPodLogs(w http.ResponseWri
 				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 				return
 			}
-			gmtTimeLoc := time.FixedZone("GMT+0530", int((5*time.Hour).Seconds()+(30*time.Minute).Seconds()))
+			gmtTimeLoc := time.FixedZone(bean2.LocalTimezoneInGMT, bean2.LocalTimeOffset)
 			humanReadableTime := parsedTime.In(gmtTimeLoc).Format(time.RFC1123)
 			res = append(res, humanReadableTime...)
 		}

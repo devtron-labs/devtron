@@ -28,6 +28,11 @@ const (
 	IntegerBitSize                      = 64
 )
 
+const (
+	LocalTimezoneInGMT = "GMT+0530"
+	LocalTimeOffset    = 5*60*60 + 30*60
+)
+
 type ResourceInfo struct {
 	PodName string `json:"podName"`
 }
