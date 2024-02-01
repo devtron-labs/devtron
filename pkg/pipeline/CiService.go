@@ -524,7 +524,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	}
 	infraConfiguration, err := impl.infraGetter.GetInfraConfigurationsByScope(infraConfigScope)
 	if err != nil {
-		impl.Logger.Errorw("error in getting infra configuration using scope ", "scope", infraConfigScope, "err", err)
+		impl.Logger.Errorw("error in getting infra configuration using scope ", "ciPipelineId", pipeline.Id, "scope", infraConfigScope, "err", err)
 		return nil, err
 	}
 
