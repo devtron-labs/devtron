@@ -292,7 +292,7 @@ func (impl *InfraConfigRepositoryImpl) getIdentifiersListForNonDefaultProfile(li
 		query += fmt.Sprintf(" AND resource_id IN (SELECT id FROM infra_profile WHERE name = '%s')", listFilter.ProfileName)
 	}
 
-	query += " AND identifier_key = ? " +
+	query += fmt.Sprintf(" AND identifier_key = %d ", identifierType) +
 		" AND active=true "
 
 	if listFilter.IdentifierNameLike != "" {
@@ -309,7 +309,7 @@ func (impl *InfraConfigRepositoryImpl) getIdentifiersListForNonDefaultProfile(li
 	}
 
 	var identifiers []*Identifier
-	_, err := impl.dbConnection.Query(&identifiers, query, identifierType)
+	_, err := impl.dbConnection.Query(&identifiers, query)
 	return identifiers, err
 }
 
@@ -377,7 +377,7 @@ func (impl *InfraConfigRepositoryImpl) getIdentifiersListForDefaultProfile(listF
 	}
 
 	var identifiers []*Identifier
-	_, err := impl.dbConnection.Query(&identifiers, query, DEFAULT_PROFILE_NAME)
+	_, err := impl.dbConnection.Query(&identifiers, query)
 	if err != nil {
 		return nil, err
 	}
