@@ -1,0 +1,67 @@
+openapi: 3.0.0
+info:
+  title: Orchestrator Config Autocomplete API
+  version: 1.0.0
+paths:
+  /orchestrator/config/autocomplete:
+    get:
+      summary: Retrieve autocomplete data for configuration based on the provided appId and envId. The response includes configuration definitions with names, draft states, and types.
+      parameters:
+        - name: appId
+          in: query
+          description: The application ID.
+          required: true
+          schema:
+            type: string
+        - name: envId
+          in: query
+          description: The environment ID.
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              example:
+                resourceConfig:
+                  - name: "SampleConfig"
+                    configState: 1
+                    type: "ConfigMap"
+                  - name: "SecretConfig"
+                    configState: 2
+                    type: "Secret"
+                  - name: "DeploymentConfig"
+                    configState: 3
+                    type: "Deployment Template"
+
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              example:
+                #In case of Invalid appId and envId
+                error: "Invalid input parameters"
+
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              example:
+                #when BaseDeployment Template is not configured
+                error: "Resource not found"
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              example:
+                error: "Internal Server Error"
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              example:
+                #when not have access of particular resources
+                error: "Forbidden"
+
