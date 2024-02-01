@@ -9,6 +9,7 @@ const ALL_PROFILES = ""
 const CannotDeleteDefaultProfile = "cannot delete default profile"
 const profileApplyErr = "selected filter does not match any apps, cannot apply the given profile"
 const APPLICATION IdentifierType = "application"
+const InvalidIdentifierType = "identifier %s is not valid"
 
 const NORMAL ProfileType = "NORMAL"
 const InvalidUnit = "invalid %s unit found in %s "

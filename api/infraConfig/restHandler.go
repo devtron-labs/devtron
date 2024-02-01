@@ -18,8 +18,6 @@ import (
 	"strings"
 )
 
-const InvalidIdentifierType = "identifier %s is not valid"
-
 type InfraConfigRestHandler interface {
 	UpdateInfraProfile(w http.ResponseWriter, r *http.Request)
 	GetProfile(w http.ResponseWriter, r *http.Request)
@@ -47,41 +45,6 @@ func NewInfraConfigRestHandlerImpl(logger *zap.SugaredLogger, infraProfileServic
 		enforcerUtil:        enforcerUtil,
 		validator:           validator,
 	}
-}
-
-func (handler *InfraConfigRestHandlerImpl) CreateProfile(w http.ResponseWriter, r *http.Request) {
-	userId, err := handler.userService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*"); !ok {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
-	}
-
-	payload := &infraConfig.ProfileBean{}
-	decoder := json.NewDecoder(r.Body)
-	err = decoder.Decode(payload)
-	if err != nil {
-		handler.logger.Errorw("error in decoding the request payload", "err", err, "requestBody", r.Body)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	err = handler.validator.Struct(payload)
-	if err != nil {
-		err = errors.Wrap(err, infraConfig.PayloadValidationError)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-	}
-
-	err = handler.infraProfileService.CreateProfile(userId, payload)
-	if err != nil {
-		handler.logger.Errorw("error in creating profile and configurations", "payLoad", payload)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	common.WriteJsonResp(w, nil, nil, http.StatusOK)
 }
 
 func (handler *InfraConfigRestHandlerImpl) UpdateInfraProfile(w http.ResponseWriter, r *http.Request) {
@@ -177,6 +140,41 @@ func (handler *InfraConfigRestHandlerImpl) GetProfile(w http.ResponseWriter, r *
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
 
+func (handler *InfraConfigRestHandlerImpl) CreateProfile(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+
+	payload := &infraConfig.ProfileBean{}
+	decoder := json.NewDecoder(r.Body)
+	err = decoder.Decode(payload)
+	if err != nil {
+		handler.logger.Errorw("error in decoding the request payload", "err", err, "requestBody", r.Body)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	err = handler.validator.Struct(payload)
+	if err != nil {
+		err = errors.Wrap(err, infraConfig.PayloadValidationError)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+	}
+
+	err = handler.infraProfileService.CreateProfile(userId, payload)
+	if err != nil {
+		handler.logger.Errorw("error in creating profile and configurations", "payLoad", payload)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	common.WriteJsonResp(w, nil, nil, http.StatusOK)
+}
+
 func (handler *InfraConfigRestHandlerImpl) GetProfileList(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -241,7 +239,7 @@ func (handler *InfraConfigRestHandlerImpl) GetIdentifierList(w http.ResponseWrit
 	vars := mux.Vars(r)
 	identifierType := vars["identifierType"]
 	if identifierType != string(infraConfig.APPLICATION) {
-		common.WriteJsonResp(w, errors.New(fmt.Sprintf(InvalidIdentifierType, identifierType)), nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, errors.New(fmt.Sprintf(infraConfig.InvalidIdentifierType, identifierType)), nil, http.StatusBadRequest)
 		return
 	}
 	queryParams := r.URL.Query()
@@ -311,7 +309,7 @@ func (handler *InfraConfigRestHandlerImpl) ApplyProfileToIdentifiers(w http.Resp
 	vars := mux.Vars(r)
 	identifierType := vars["identifierType"]
 	if identifierType != string(infraConfig.APPLICATION) {
-		common.WriteJsonResp(w, errors.New(fmt.Sprintf(InvalidIdentifierType, identifierType)), nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, errors.New(fmt.Sprintf(infraConfig.InvalidIdentifierType, identifierType)), nil, http.StatusBadRequest)
 		return
 	}
 	var request infraConfig.InfraProfileApplyRequest
