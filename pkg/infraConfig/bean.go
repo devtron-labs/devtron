@@ -96,7 +96,7 @@ type ConfigurationBean struct {
 func (configurationBean *ConfigurationBean) ConvertToInfraProfileConfigurationEntity() *InfraProfileConfigurationEntity {
 	value := util.TruncateFloat(configurationBean.Value, 2)
 	if configurationBean.Key == TIME_OUT {
-		value = math.Min(math.Floor(value), math.MaxInt)
+		value = math.Min(math.Floor(value), math.MaxInt64)
 	}
 	return &InfraProfileConfigurationEntity{
 		Id:        configurationBean.Id,
