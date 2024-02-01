@@ -702,12 +702,8 @@ func (handler *K8sApplicationRestHandlerImpl) DownloadPodLogs(w http.ResponseWri
 				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 				return
 			}
-			loc, err := time.LoadLocation("Asia/Kolkata")
-			if err != nil {
-				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-				return
-			}
-			humanReadableTime := parsedTime.In(loc).Format(time.RFC1123)
+			gmtTimeLoc := time.FixedZone("GMT+0530", int((5*time.Hour).Seconds()+(30*time.Minute).Seconds()))
+			humanReadableTime := parsedTime.In(gmtTimeLoc).Format(http.TimeFormat)
 			res = append(res, humanReadableTime...)
 		}
 
