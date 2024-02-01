@@ -306,6 +306,7 @@ helm repo update
 
 helm upgrade devtron devtron/devtron-operator \
 --create-namespace --namespace devtroncd \
+--reuse-values \
 --set installer.modules={cicd} \
 --set minio.enabled=true
 ```
@@ -323,6 +324,7 @@ This configuration will use AWS S3 bucket for storing build logs and cache. Refe
 helm repo update
 helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
 --set installer.modules={cicd} \
+--reuse-values \
 --set configs.BLOB_STORAGE_PROVIDER=S3 \
 --set configs.DEFAULT_CACHE_BUCKET=demo-s3-bucket \
 --set configs.DEFAULT_CACHE_BUCKET_REGION=us-east-1 \
@@ -337,6 +339,7 @@ helm repo update
 
 helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
 --set installer.modules={cicd} \
+--reuse-values \
 --set configs.BLOB_STORAGE_PROVIDER=S3 \
 --set configs.DEFAULT_CACHE_BUCKET=demo-s3-bucket \
 --set configs.DEFAULT_CACHE_BUCKET_REGION=us-east-1 \
@@ -353,6 +356,7 @@ helm repo update
 
 helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
 --set installer.modules={cicd} \
+--reuse-values \
 --set configs.BLOB_STORAGE_PROVIDER=S3 \
 --set configs.DEFAULT_CACHE_BUCKET=demo-s3-bucket \
 --set configs.DEFAULT_CACHE_BUCKET_REGION=us-east-1 \
@@ -373,6 +377,7 @@ Refer to the `Azure specific` parameters on the [Storage for Logs and Cache](../
 helm repo update
 helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
 --set installer.modules={cicd} \
+--reuse-values \
 --set secrets.AZURE_ACCOUNT_KEY=xxxxxxxxxx \
 --set configs.BLOB_STORAGE_PROVIDER=AZURE \
 --set configs.AZURE_ACCOUNT_NAME=test-account \
@@ -391,6 +396,7 @@ helm repo update
 
 helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
 --set installer.modules={cicd} \
+--reuse-values \
 --set configs.BLOB_STORAGE_PROVIDER: GCP \
 --set secrets.BLOB_STORAGE_GCP_CREDENTIALS_JSON: {\"type\": \"service_account\",\"project_id\": \"<your-project-id>\",\"private_key_id\": \"<your-private-key-id>\",\"private_key\": \"<your-private-key>\",\"client_email\": \"<your-client-email>\",\"client_id\": \"<your-client-id>\",\"auth_uri\": \"https://accounts.google.com/o/oauth2/auth\",\"token_uri\": \"https://oauth2.googleapis.com/token\",\"auth_provider_x509_cert_url\": \"https://www.googleapis.com/oauth2/v1/certs\",\"client_x509_cert_url\": \"<your-client-cert-url>\"} \
 --set configs.DEFAULT_CACHE_BUCKET: cache-bucket
