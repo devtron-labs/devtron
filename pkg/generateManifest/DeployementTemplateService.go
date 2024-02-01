@@ -13,6 +13,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
@@ -84,6 +85,7 @@ type DeploymentTemplateServiceImpl struct {
 	environmentRepository            repository3.EnvironmentRepository
 	appRepository                    appRepository.AppRepository
 	scopedVariableManager            variables.ScopedVariableManager
+	chartRefService                  chartRef.ChartRefService
 }
 
 func NewDeploymentTemplateServiceImpl(Logger *zap.SugaredLogger, chartService chart.ChartService,
@@ -100,7 +102,7 @@ func NewDeploymentTemplateServiceImpl(Logger *zap.SugaredLogger, chartService ch
 	environmentRepository repository3.EnvironmentRepository,
 	appRepository appRepository.AppRepository,
 	scopedVariableManager variables.ScopedVariableManager,
-) *DeploymentTemplateServiceImpl {
+	chartRefService chartRef.ChartRefService) *DeploymentTemplateServiceImpl {
 	return &DeploymentTemplateServiceImpl{
 		Logger:                           Logger,
 		chartService:                     chartService,
@@ -117,6 +119,7 @@ func NewDeploymentTemplateServiceImpl(Logger *zap.SugaredLogger, chartService ch
 		environmentRepository:            environmentRepository,
 		appRepository:                    appRepository,
 		scopedVariableManager:            scopedVariableManager,
+		chartRefService:                  chartRefService,
 	}
 }
 
@@ -132,7 +135,7 @@ func (impl DeploymentTemplateServiceImpl) FetchDeploymentsWithChartRefs(appId in
 
 	for _, item := range defaultVersions.ChartRefs {
 		res := &repository.DeploymentTemplateComparisonMetadata{
-			ChartId:      item.Id,
+			ChartRefId:   item.Id,
 			ChartVersion: item.Version,
 			ChartType:    item.Name,
 			Type:         repository.DefaultVersions,
@@ -148,7 +151,7 @@ func (impl DeploymentTemplateServiceImpl) FetchDeploymentsWithChartRefs(appId in
 
 	for _, env := range publishedOnEnvs {
 		item := &repository.DeploymentTemplateComparisonMetadata{
-			ChartId:         env.ChartRefId,
+			ChartRefId:      env.ChartRefId,
 			EnvironmentId:   env.EnvironmentId,
 			EnvironmentName: env.EnvironmentName,
 			Type:            repository.PublishedOnEnvironments,
@@ -197,7 +200,7 @@ func (impl DeploymentTemplateServiceImpl) GetDeploymentTemplate(ctx context.Cont
 	} else {
 		switch request.Type {
 		case repository.DefaultVersions:
-			_, values, err = impl.chartService.GetAppOverrideForDefaultTemplate(request.ChartRefId)
+			_, values, err = impl.chartRefService.GetAppOverrideForDefaultTemplate(request.ChartRefId)
 			resolvedValue = values
 		case repository.PublishedOnEnvironments:
 			values, resolvedValue, variableSnapshot, err = impl.fetchResolvedTemplateForPublishedEnvs(ctx, request)
@@ -301,7 +304,7 @@ func (impl DeploymentTemplateServiceImpl) extractScopeData(request DeploymentTem
 }
 
 func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, chartRefId int, valuesYaml string) (*openapi2.TemplateChartResponse, error) {
-	refChart, template, err, version, _ := impl.chartService.GetRefChart(chart.TemplateRequest{ChartRefId: chartRefId})
+	refChart, template, version, _, err := impl.chartRefService.GetRefChart(chartRefId)
 	if err != nil {
 		impl.Logger.Errorw("error in getting refChart", "err", err, "chartRefId", chartRefId)
 		return nil, err

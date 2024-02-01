@@ -29,6 +29,8 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	app2 "github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	chartService "github.com/devtron-labs/devtron/pkg/chart"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/juju/errors"
 	"go.uber.org/zap"
 	"strconv"
@@ -55,17 +57,18 @@ type AppDeploymentTypeChangeManager interface {
 }
 
 type AppDeploymentTypeChangeManagerImpl struct {
-	logger               *zap.SugaredLogger
-	pipelineRepository   pipelineConfig.PipelineRepository
-	workflowDagExecutor  WorkflowDagExecutor
-	appService           app2.AppService
-	chartTemplateService util.ChartTemplateService
-	appStatusRepository  appStatus.AppStatusRepository
-	helmAppService       client.HelmAppService
-	application          application2.ServiceClient
+	logger              *zap.SugaredLogger
+	pipelineRepository  pipelineConfig.PipelineRepository
+	workflowDagExecutor WorkflowDagExecutor
+	appService          app2.AppService
+	appStatusRepository appStatus.AppStatusRepository
+	helmAppService      client.HelmAppService
+	application         application2.ServiceClient
 
 	appArtifactManager      AppArtifactManager
 	cdPipelineConfigService CdPipelineConfigService
+	gitOpsConfigReadService config.GitOpsConfigReadService
+	chartService            chartService.ChartService
 }
 
 func NewAppDeploymentTypeChangeManagerImpl(
@@ -73,23 +76,25 @@ func NewAppDeploymentTypeChangeManagerImpl(
 	pipelineRepository pipelineConfig.PipelineRepository,
 	workflowDagExecutor WorkflowDagExecutor,
 	appService app2.AppService,
-	chartTemplateService util.ChartTemplateService,
 	appStatusRepository appStatus.AppStatusRepository,
 	helmAppService client.HelmAppService,
 	application application2.ServiceClient,
 	appArtifactManager AppArtifactManager,
-	cdPipelineConfigService CdPipelineConfigService) *AppDeploymentTypeChangeManagerImpl {
+	cdPipelineConfigService CdPipelineConfigService,
+	gitOpsConfigReadService config.GitOpsConfigReadService,
+	chartService chartService.ChartService) *AppDeploymentTypeChangeManagerImpl {
 	return &AppDeploymentTypeChangeManagerImpl{
 		logger:                  logger,
 		pipelineRepository:      pipelineRepository,
 		workflowDagExecutor:     workflowDagExecutor,
 		appService:              appService,
-		chartTemplateService:    chartTemplateService,
 		appStatusRepository:     appStatusRepository,
 		helmAppService:          helmAppService,
 		application:             application,
 		appArtifactManager:      appArtifactManager,
 		cdPipelineConfigService: cdPipelineConfigService,
+		gitOpsConfigReadService: gitOpsConfigReadService,
+		chartService:            chartService,
 	}
 }
 
@@ -397,7 +402,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentApps(ctx context
 	successfulPipelines := make([]*bean.DeploymentChangeStatus, 0)
 	failedPipelines := make([]*bean.DeploymentChangeStatus, 0)
 
-	isGitOpsConfigured, gitOpsConfigErr := impl.cdPipelineConfigService.IsGitopsConfigured()
+	isGitOpsConfigured, gitOpsConfigErr := impl.gitOpsConfigReadService.IsGitOpsConfigured()
 
 	// Iterate over all the pipelines in the environment for given deployment app type
 	for _, pipeline := range pipelines {
@@ -445,7 +450,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentApps(ctx context
 						impl.logger.Errorw("error in registering acd app", "err", err)
 					}
 					if AcdRegisterErr == nil {
-						RepoURLUpdateErr = impl.chartTemplateService.UpdateGitRepoUrlInCharts(pipeline.AppId, chartGitAttr, userId)
+						RepoURLUpdateErr = impl.chartService.UpdateGitRepoUrlInCharts(pipeline.AppId, chartGitAttr.RepoUrl, chartGitAttr.ChartLocation, userId)
 						if RepoURLUpdateErr != nil {
 							impl.logger.Errorw("error in updating git repo url in charts", "err", err)
 						}
