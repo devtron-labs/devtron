@@ -703,7 +703,7 @@ func (handler *K8sApplicationRestHandlerImpl) DownloadPodLogs(w http.ResponseWri
 				return
 			}
 			gmtTimeLoc := time.FixedZone("GMT+0530", int((5*time.Hour).Seconds()+(30*time.Minute).Seconds()))
-			humanReadableTime := parsedTime.In(gmtTimeLoc).Format(http.TimeFormat)
+			humanReadableTime := parsedTime.In(gmtTimeLoc).Format(time.RFC1123)
 			res = append(res, humanReadableTime...)
 		}
 
