@@ -540,47 +540,60 @@ func (impl *InfraConfigServiceImpl) GetIdentifierList(listFilter *IdentifierList
 }
 
 func (impl *InfraConfigServiceImpl) ApplyProfileToIdentifiers(userId int32, applyIdentifiersRequest InfraProfileApplyRequest) error {
-	if applyIdentifiersRequest.IdentifiersFilter == nil && len(applyIdentifiersRequest.Identifiers) == 0 {
-		return errors.New("invalid apply request")
-	}
-
-	if applyIdentifiersRequest.IdentifiersFilter != nil && len(applyIdentifiersRequest.Identifiers) != 0 {
-		return errors.New("invalid apply request")
-	}
 
 	// check if profile exists or not
 	updateToProfile, err := impl.infraProfileRepo.GetProfileByName(applyIdentifiersRequest.UpdateToProfile)
-	if err != nil && errors.Is(err, pg.ErrNoRows) {
+	if err != nil {
 		impl.logger.Errorw("error in checking profile exists ", "profileId", applyIdentifiersRequest.UpdateToProfile, "error", err)
+		if errors.Is(err, pg.ErrNoRows) {
+			return errors.New("cannot apply profile that does not exists")
+		}
 		return err
 	}
 
-	if errors.Is(err, pg.ErrNoRows) || updateToProfile == nil {
-		return errors.New("cannot apply profile that does not exists")
+	applyIdentifiersRequest.UpdateToProfileId = updateToProfile.Id
+	identifierIdNameMap, err := impl.getFilteredIdentifiers(applyIdentifiersRequest)
+	if err != nil {
+		return err
 	}
 
-	applyIdentifiersRequest.UpdateToProfileId = updateToProfile.Id
+	if len(identifierIdNameMap) == 0 {
+		// return here because there are no identifiers to apply profile
+		return errors.New(profileApplyErr)
+	}
+
+	// set identifiers in the filter
+	identifierIds := make([]int, 0, len(identifierIdNameMap))
+	for identifierId, _ := range identifierIdNameMap {
+		identifierIds = append(identifierIds, identifierId)
+	}
+
+	// fetch default profile
+	defaultProfile, err := impl.infraProfileRepo.GetProfileByName(DEFAULT_PROFILE_NAME)
+	if err != nil {
+		impl.logger.Errorw("error in fetching default profile", "applyIdentifiersRequest", applyIdentifiersRequest, "error", err)
+		return err
+	}
 	searchableKeyNameIdMap := impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap()
+	return impl.applyProfile(userId, applyIdentifiersRequest, searchableKeyNameIdMap, defaultProfile.Id, identifierIdNameMap)
+}
 
+func (impl *InfraConfigServiceImpl) getFilteredIdentifiers(applyIdentifiersRequest InfraProfileApplyRequest) (map[int]string, error) {
 	identifierIdNameMap := make(map[int]string)
-
 	// apply profile for those identifiers those qualified by the applyIdentifiersRequest.IdentifiersFilter
+	searchableKeyNameIdMap := impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap()
 	if applyIdentifiersRequest.IdentifiersFilter != nil {
 
 		// get apps using filter
 		identifiersList, err := impl.infraProfileRepo.GetIdentifierList(*applyIdentifiersRequest.IdentifiersFilter, searchableKeyNameIdMap)
 		if err != nil {
 			impl.logger.Errorw("error in fetching identifiers", "applyIdentifiersRequest", applyIdentifiersRequest, "error", err)
-			return err
+			return identifierIdNameMap, err
 		}
-		// set identifiers in the filter
-		identifierIds := make([]int, 0, len(identifiersList))
+
 		for _, identifier := range identifiersList {
-			identifierIds = append(identifierIds, identifier.Id)
 			identifierIdNameMap[identifier.Id] = identifier.Name
 		}
-		// set identifierIds in the filter
-		applyIdentifiersRequest.IdentifierIds = identifierIds
 
 	} else {
 		// apply profile for those identifiers those are provided in the applyIdentifiersRequest.Identifiers by the user
@@ -593,32 +606,15 @@ func (impl *InfraConfigServiceImpl) ApplyProfileToIdentifiers(userId int32, appl
 		ActiveIdentifiers, err := impl.appService.FindAppByNames(applyIdentifiersRequest.Identifiers)
 		if err != nil {
 			impl.logger.Errorw("error in fetching apps using ids", "appIds", applyIdentifiersRequest.Identifiers, "error", err)
-			return err
+			return identifierIdNameMap, err
 		}
 
-		// set identifiers in the filter
-		ActiveIdentifierIds := make([]int, 0, len(ActiveIdentifiers))
 		for _, identifier := range ActiveIdentifiers {
-			ActiveIdentifierIds = append(ActiveIdentifierIds, identifier.Id)
 			identifierIdNameMap[identifier.Id] = identifier.AppName
 		}
 
-		// set the identifierIds in the applyProfileRequest with active identifiers for further processing
-		applyIdentifiersRequest.IdentifierIds = ActiveIdentifierIds
 	}
-
-	if len(applyIdentifiersRequest.IdentifierIds) == 0 {
-		// return here because there are no identifiers to apply profile
-		return errors.New(profileApplyErr)
-	}
-
-	// fetch default profile
-	defaultProfile, err := impl.infraProfileRepo.GetProfileByName(DEFAULT_PROFILE_NAME)
-	if err != nil {
-		impl.logger.Errorw("error in fetching default profile", "applyIdentifiersRequest", applyIdentifiersRequest, "error", err)
-		return err
-	}
-	return impl.applyProfile(userId, applyIdentifiersRequest, searchableKeyNameIdMap, defaultProfile.Id, identifierIdNameMap)
+	return identifierIdNameMap, nil
 }
 
 func (impl *InfraConfigServiceImpl) applyProfile(userId int32, applyIdentifiersRequest InfraProfileApplyRequest, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int, defaultProfileId int, identifierIdNameMap map[int]string) error {

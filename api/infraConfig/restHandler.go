@@ -354,6 +354,13 @@ func (handler *InfraConfigRestHandlerImpl) ApplyProfileToIdentifiers(w http.Resp
 	if request.IdentifiersFilter != nil {
 		request.IdentifiersFilter.IdentifierType = infraConfig.IdentifierType(identifierType)
 	}
+
+	invalidPayload := errors.New("invalid apply request")
+	if (request.IdentifiersFilter == nil && len(request.Identifiers) == 0) || (request.IdentifiersFilter != nil && len(request.Identifiers) != 0) {
+		common.WriteJsonResp(w, invalidPayload, nil, http.StatusBadRequest)
+		return
+	}
+
 	err = handler.infraProfileService.ApplyProfileToIdentifiers(userId, request)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
