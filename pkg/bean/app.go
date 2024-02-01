@@ -103,6 +103,8 @@ type CiPipeline struct {
 	ParentCiPipeline           int                    `json:"parentCiPipeline"`
 	ParentAppId                int                    `json:"parentAppId"`
 	AppId                      int                    `json:"appId"`
+	AppName                  string                 `json:"appName,omitempty"`
+	AppType                  helper.AppType         `json:"appType,omitempty"`
 	ExternalCiConfig           ExternalCiConfig       `json:"externalCiConfig"`
 	CiMaterial                 []*CiMaterial          `json:"ciMaterial,omitempty" validate:"dive,min=1"`
 	Name                       string                 `json:"name,omitempty" validate:"name-component,max=100"` //name suffix of corresponding pipeline. required, unique, validation corresponding to gocd pipelineName will be applicable
