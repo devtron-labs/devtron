@@ -93,6 +93,7 @@ type InstalledAppService interface {
 	FetchChartNotes(installedAppId int, envId int, token string, checkNotesAuth func(token string, appName string, envId int) bool) (string, error)
 	// MigrateDeploymentTypeAndTrigger migrates the deployment type of installed app and then trigger in loop
 	MigrateDeploymentTypeAndTrigger(ctx context.Context, request *bean.DeploymentAppTypeChangeRequest) (*bean.DeploymentAppTypeChangeResponse, error)
+	DeleteInstalledApps(ctx context.Context, installedApps []*repository2.InstalledApps, userId int32) *bean.DeploymentAppTypeChangeResponse
 }
 
 type InstalledAppServiceImpl struct {
@@ -1102,5 +1103,37 @@ func (impl InstalledAppServiceImpl) MigrateDeploymentTypeAndTrigger(ctx context.
 	if len(installedAppIds) == 0 {
 		return response, nil
 	}
+
+	deleteResponse := impl.DeleteInstalledApps(ctx, installedApps, request.UserId)
+
+	response.SuccessfulPipelines = deleteResponse.SuccessfulPipelines
+	response.FailedPipelines = deleteResponse.FailedPipelines
+
+	//instead of failed pipelines, mark successful pipelines
+	var cdPipelineIds []int
+	for _, item := range response.FailedPipelines {
+		cdPipelineIds = append(cdPipelineIds, item.PipelineId)
+	}
+
+	if len(cdPipelineIds) == 0 {
+		return response, nil
+	}
+
+	err = impl.pipelineRepository.UpdateCdPipelineDeploymentAppInFilter(string(deleteDeploymentType),
+		cdPipelineIds, request.UserId, true, false)
+
+	if err != nil {
+		impl.logger.Errorw("failed to update deployment app type in db",
+			"pipeline ids", cdPipelineIds,
+			"desired deployment type", request.DesiredDeploymentType,
+			"err", err)
+
+		return response, nil
+	}
+
 	return response, nil
+}
+
+func (impl InstalledAppServiceImpl) DeleteInstalledApps(ctx context.Context, installedApps []*repository2.InstalledApps, userId int32) *bean.DeploymentAppTypeChangeResponse {
+
 }
