@@ -24,17 +24,10 @@ paths:
           description: Successful response
           content:
             application/json:
-              example:
-                resourceConfig:
-                  - name: "SampleConfig"
-                    configState: 1
-                    type: "ConfigMap"
-                  - name: "SecretConfig"
-                    configState: 2
-                    type: "Secret"
-                  - name: "DeploymentConfig"
-                    configState: 3
-                    type: "Deployment Template"
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ResourceConfig"
 
         '400':
           description: Bad Request
@@ -65,3 +58,23 @@ paths:
                 #when not have access of particular resources
                 error: "Forbidden"
 
+components:
+  schemas:
+    ResourceConfig:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Name of config
+          example: cm-1
+          nullable: true
+        configState:
+          type: integer
+          description: state of config{1 represent published state ,2 represents draft state , 3 represent approval pending state }
+          example: 1
+          nullable: false
+        type:
+          type: string
+          description: describe the config type {possible values are ConfigMap, Secret, Deployment Template}
+          example: ConfigMap
+          nullable: true
