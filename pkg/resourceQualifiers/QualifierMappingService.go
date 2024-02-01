@@ -14,6 +14,9 @@ type QualifierMappingService interface {
 	GetQualifierMappingsForFilterById(resourceId int) ([]*QualifierMapping, error)
 	GetQualifierMappings(resourceType ResourceType, scope *Scope, resourceIds []int) ([]*QualifierMapping, error)
 	GetQualifierMappingsByResourceType(resourceType ResourceType) ([]*QualifierMapping, error)
+	GetActiveIdentifierCountPerResource(resourceType ResourceType, resourceIds []int, identifierKey int) ([]ResourceIdentifierCount, error)
+	GetIdentifierIdsByResourceTypeAndIds(resourceType ResourceType, resourceIds []int, identifierKey int) ([]int, error)
+	GetActiveMappingsCount(resourceType ResourceType) (int, error)
 	DeleteAllQualifierMappings(resourceType ResourceType, auditLog sql.AuditLog, tx *pg.Tx) error
 	DeleteAllQualifierMappingsByResourceTypeAndId(resourceType ResourceType, resourceId int, auditLog sql.AuditLog, tx *pg.Tx) error
 	DeleteByIdentifierKeyAndValue(resourceType ResourceType, identifierKey int, identifierValue int, auditLog sql.AuditLog, tx *pg.Tx) error
@@ -91,4 +94,16 @@ func (impl QualifierMappingServiceImpl) DeleteAllByIds(qualifierMappingIds []int
 
 func (impl QualifierMappingServiceImpl) DeleteGivenQualifierMappingsByResourceType(resourceType ResourceType, identifierKey int, identifierValueInts []int, auditLog sql.AuditLog, tx *pg.Tx) error {
 	return impl.qualifierMappingRepository.DeleteGivenQualifierMappingsByResourceType(resourceType, identifierKey, identifierValueInts, auditLog, tx)
+}
+
+func (impl QualifierMappingServiceImpl) GetActiveIdentifierCountPerResource(resourceType ResourceType, resourceIds []int, identifierKey int) ([]ResourceIdentifierCount, error) {
+	return impl.qualifierMappingRepository.GetActiveIdentifierCountPerResource(resourceType, resourceIds, identifierKey)
+}
+
+func (impl QualifierMappingServiceImpl) GetIdentifierIdsByResourceTypeAndIds(resourceType ResourceType, resourceIds []int, identifierKey int) ([]int, error) {
+	return impl.qualifierMappingRepository.GetIdentifierIdsByResourceTypeAndIds(resourceType, resourceIds, identifierKey)
+}
+
+func (impl QualifierMappingServiceImpl) GetActiveMappingsCount(resourceType ResourceType) (int, error) {
+	return impl.qualifierMappingRepository.GetActiveMappingsCount(resourceType)
 }

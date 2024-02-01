@@ -1,5 +1,7 @@
 package infraConfig
 
+import "github.com/pkg/errors"
+
 type ConfigKey int
 type ConfigKeyStr string
 type ProfileType string
@@ -15,7 +17,6 @@ const NORMAL ProfileType = "NORMAL"
 const InvalidUnit = "invalid %s unit found in %s "
 const DEFAULT_PROFILE_NAME = "default"
 const DEFAULT_PROFILE_EXISTS = "default profile exists"
-const NO_PROPERTIES_FOUND = "no properties found"
 const DEFAULT ProfileType = "DEFAULT"
 const InvalidProfileName = "profile name is invalid"
 const PayloadValidationError = "payload validation failed"
@@ -36,3 +37,7 @@ const CPU_REQUEST ConfigKeyStr = "cpu_request"
 const MEMORY_LIMIT ConfigKeyStr = "memory_limit"
 const MEMORY_REQUEST ConfigKeyStr = "memory_request"
 const TIME_OUT ConfigKeyStr = "timeout"
+
+const CREATION_BLOCKED_FOR_DEFAULT_PROFILE_CONFIGURATIONS = "cannot create new configuration for default profile"
+
+var NO_PROPERTIES_FOUND_ERROR = errors.New("no properties found")

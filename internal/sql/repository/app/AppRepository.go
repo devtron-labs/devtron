@@ -30,7 +30,7 @@ import (
 type App struct {
 	tableName       struct{}       `sql:"app" pg:",discard_unknown_columns"`
 	Id              int            `sql:"id,pk"`
-	AppName         string         `sql:"app_name,notnull"` //same as app name
+	AppName         string         `sql:"app_name,notnull"` // same as app name
 	DisplayName     string         `sql:"display_name"`
 	Active          bool           `sql:"active, notnull"`
 	TeamId          int            `sql:"team_id"`
@@ -79,6 +79,7 @@ type AppRepository interface {
 	FindAppAndProjectByIdsIn(ids []int) ([]*App, error)
 	FindAppAndProjectByIdsOrderByTeam(ids []int) ([]*App, error)
 	FetchAppIdsByDisplayNamesForJobs(names []string) (map[int]string, []int, error)
+	GetActiveCiCdAppsCount(excludeAppIds []int) (int, error)
 }
 
 const DevtronApp = "DevtronApp"
@@ -491,4 +492,14 @@ func (repo AppRepositoryImpl) FindAppAndProjectByIdsOrderByTeam(ids []int) ([]*A
 		Order("app.team_id").
 		Select()
 	return apps, err
+}
+
+func (repo AppRepositoryImpl) GetActiveCiCdAppsCount(excludeAppIds []int) (int, error) {
+	query := repo.dbConnection.Model(&App{}).
+		Where("active=?", true).
+		Where("app_type=?", helper.CustomApp)
+	if len(excludeAppIds) > 0 {
+		query = query.Where("id not in (?)", pg.In(excludeAppIds))
+	}
+	return query.Count()
 }

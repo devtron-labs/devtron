@@ -14,6 +14,7 @@ import (
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -190,12 +191,24 @@ func (handler *InfraConfigRestHandlerImpl) GetProfileList(w http.ResponseWriter,
 
 	queryParams := r.URL.Query()
 	profileNameLike := queryParams.Get("search")
-	profilesResponse, err := handler.infraProfileService.GetProfileList(profileNameLike)
+	profiles, defaultConfigurations, err := handler.infraProfileService.GetProfileList(profileNameLike)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
+	// order profiles by name
+	sort.Slice(profiles, func(i, j int) bool {
+		if strings.Compare(profiles[i].Name, profiles[j].Name) <= 0 {
+			return true
+		}
+		return false
+	})
+	profilesResponse := &infraConfig.ProfilesResponse{
+		Profiles: profiles,
+	}
+	profilesResponse.DefaultConfigurations = defaultConfigurations
+	profilesResponse.ConfigurationUnits = handler.infraProfileService.GetConfigurationUnits()
 	common.WriteJsonResp(w, nil, profilesResponse, http.StatusOK)
 }
 
@@ -276,7 +289,7 @@ func (handler *InfraConfigRestHandlerImpl) GetIdentifierList(w http.ResponseWrit
 	if sizeStr != "" {
 		size, err = strconv.Atoi(sizeStr)
 		if err != nil || size < 0 {
-			common.WriteJsonResp(w, errors.Wrap(err, "invalid size"), nil, http.StatusBadRequest)
+			common.WriteJsonResp(w, errors.New("invalid size"), nil, http.StatusBadRequest)
 			return
 		}
 	}
@@ -285,7 +298,7 @@ func (handler *InfraConfigRestHandlerImpl) GetIdentifierList(w http.ResponseWrit
 	if offsetStr != "" {
 		offset, err = strconv.Atoi(offsetStr)
 		if err != nil || offset < 0 {
-			common.WriteJsonResp(w, errors.Wrap(err, "invalid offset"), nil, http.StatusBadRequest)
+			common.WriteJsonResp(w, errors.New("invalid offset"), nil, http.StatusBadRequest)
 			return
 		}
 	}

@@ -197,6 +197,7 @@ type AppService interface {
 	BuildChartAndGetPath(appName string, envOverride *chartConfig.EnvConfigOverride, ctx context.Context) (string, error)
 	IsDevtronAsyncInstallModeEnabled(deploymentAppType string) bool
 	FindAppByNames(names []string) ([]*app.App, error)
+	GetActiveCiCdAppsCount(excludeAppIds []int) (int, error)
 }
 
 func NewAppService(
@@ -1402,4 +1403,8 @@ func (impl *AppServiceImpl) IsDevtronAsyncInstallModeEnabled(deploymentAppType s
 
 func (impl *AppServiceImpl) FindAppByNames(names []string) ([]*app.App, error) {
 	return impl.appRepository.FindByNames(names)
+}
+
+func (impl *AppServiceImpl) GetActiveCiCdAppsCount(excludeAppIds []int) (int, error) {
+	return impl.appRepository.GetActiveCiCdAppsCount(excludeAppIds)
 }
