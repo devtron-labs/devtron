@@ -74,6 +74,8 @@ type InstalledAppRepository interface {
 	GetArgoPipelinesHavingLatestTriggerStuckInNonTerminalStatusesForAppStore(getPipelineDeployedBeforeMinutes int, getPipelineDeployedWithinHours int) ([]*InstalledAppVersions, error)
 	GetArgoPipelinesHavingTriggersStuckInLastPossibleNonTerminalTimelinesForAppStore(pendingSinceSeconds int, timeForDegradation int) ([]*InstalledAppVersions, error)
 	GetHelmReleaseStatusConfigByInstalledAppId(installedAppVersionHistoryId int) (string, string, error)
+
+	GetActiveInstalledAppByEnvIdAndDeploymentType(envId int, deploymentType string, excludeAppIds []string, includeAppIds []string) ([]*InstalledApps, error)
 }
 
 type InstalledAppRepositoryImpl struct {
@@ -852,4 +854,31 @@ func (impl InstalledAppRepositoryImpl) GetHelmReleaseStatusConfigByInstalledAppI
 		return installStatus.HelmReleaseStatusConfig, "", err
 	}
 	return installStatus.HelmReleaseStatusConfig, installStatus.Status, nil
+}
+
+func (impl InstalledAppRepositoryImpl) GetActiveInstalledAppByEnvIdAndDeploymentType(envId int, deploymentType string,
+	excludeAppIds []string, includeAppIds []string) ([]*InstalledApps, error) {
+	var installedApps []*InstalledApps
+
+	query := impl.dbConnection.
+		Model(&installedApps).
+		Column("installed_apps.*", "App", "Environment").
+		Join("inner join app a on installed_apps.app_id = a.id").
+		Where("installed_apps.environment_id = ?", envId).
+		Where("installed_apps.deployment_app_type = ?", deploymentType).
+		Where("installed_apps.active = ?", true)
+
+	if len(excludeAppIds) > 0 {
+		query.Where("pipeline.app_id not in (?)", pg.In(excludeAppIds))
+	}
+
+	if len(includeAppIds) > 0 {
+		query.Where("pipeline.app_id in (?)", pg.In(includeAppIds))
+	}
+
+	err := query.Select()
+	if err != nil {
+		return nil, err
+	}
+	return installedApps, nil
 }

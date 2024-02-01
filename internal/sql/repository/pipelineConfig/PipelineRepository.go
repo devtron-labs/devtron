@@ -24,12 +24,12 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/util"
+	util2 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"k8s.io/utils/pointer"
-	"strconv"
 	"time"
 )
 
@@ -332,15 +332,9 @@ func (impl PipelineRepositoryImpl) FindActiveByEnvIdAndDeploymentType(environmen
 	deploymentAppType string, exclusionList []int, includeApps []int) ([]*Pipeline, error) {
 
 	// NOTE: PG query throws error with slice of integer
-	exclusionListString := []string{}
-	for _, appId := range exclusionList {
-		exclusionListString = append(exclusionListString, strconv.Itoa(appId))
-	}
+	exclusionListString := util2.ConvertIntArrayToStringArray(exclusionList)
 
-	inclusionListString := []string{}
-	for _, appId := range includeApps {
-		inclusionListString = append(inclusionListString, strconv.Itoa(appId))
-	}
+	inclusionListString := util2.ConvertIntArrayToStringArray(includeApps)
 
 	var pipelines []*Pipeline
 

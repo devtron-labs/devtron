@@ -20,6 +20,8 @@ package service
 import (
 	"bytes"
 	"context"
+	util5 "github.com/devtron-labs/devtron/pkg/appStore/util"
+
 	/* #nosec */
 	"crypto/sha1"
 	"encoding/json"
@@ -89,6 +91,8 @@ type InstalledAppService interface {
 
 	//move to notes service
 	FetchChartNotes(installedAppId int, envId int, token string, checkNotesAuth func(token string, appName string, envId int) bool) (string, error)
+	// MigrateDeploymentTypeAndTrigger migrates the deployment type of installed app and then trigger in loop
+	MigrateDeploymentTypeAndTrigger(ctx context.Context, request *bean.DeploymentAppTypeChangeRequest) (*bean.DeploymentAppTypeChangeResponse, error)
 }
 
 type InstalledAppServiceImpl struct {
@@ -1069,4 +1073,34 @@ func (impl InstalledAppServiceImpl) CheckAppExistsByInstalledAppId(installedAppI
 		return nil, err
 	}
 	return installedApp, err
+}
+
+func (impl InstalledAppServiceImpl) MigrateDeploymentTypeAndTrigger(ctx context.Context, request *bean.DeploymentAppTypeChangeRequest) (*bean.DeploymentAppTypeChangeResponse, error) {
+	response := &bean.DeploymentAppTypeChangeResponse{
+		EnvId:                 request.EnvId,
+		DesiredDeploymentType: request.DesiredDeploymentType,
+	}
+	var deleteDeploymentType bean.DeploymentType
+
+	if request.DesiredDeploymentType == bean.ArgoCd {
+		deleteDeploymentType = bean.Helm
+	} else {
+		deleteDeploymentType = bean.ArgoCd
+	}
+
+	installedApps, err := impl.installedAppRepository.GetActiveInstalledAppByEnvIdAndDeploymentType(request.EnvId,
+		deleteDeploymentType, util5.ConvertIntArrayToStringArray(request.ExcludeApps), util5.ConvertIntArrayToStringArray(request.IncludeApps))
+	if err != nil {
+		impl.logger.Errorw("error in fetching installed apps by env id and deployment type", "endId", request.EnvId, "deleteDeploymentType", deleteDeploymentType)
+		return response, err
+	}
+	var installedAppIds []int
+	for _, item := range installedApps {
+		installedAppIds = append(installedAppIds, item.Id)
+	}
+
+	if len(installedAppIds) == 0 {
+		return response, nil
+	}
+	return response, nil
 }

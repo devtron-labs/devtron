@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/bean"
 	"net/http"
 	"strconv"
 	"strings"
@@ -67,6 +68,8 @@ type InstalledAppRestHandler interface {
 	FetchResourceTree(w http.ResponseWriter, r *http.Request)
 	FetchResourceTreeForACDApp(w http.ResponseWriter, r *http.Request)
 	FetchNotesForArgoInstalledApp(w http.ResponseWriter, r *http.Request)
+
+	MigrateTypeAndTriggerDeployment(w http.ResponseWriter, r *http.Request)
 }
 
 type InstalledAppRestHandlerImpl struct {
@@ -833,4 +836,56 @@ func (handler *InstalledAppRestHandlerImpl) fetchResourceTreeWithHibernateForACD
 	ctx := r.Context()
 	cn, _ := w.(http.CloseNotifier)
 	handler.installedAppService.FetchResourceTreeWithHibernateForACD(ctx, cn, appDetail)
+}
+
+func (handler *InstalledAppRestHandlerImpl) MigrateTypeAndTriggerDeployment(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	decoder := json.NewDecoder(r.Body)
+	var migrateAndTriggerReq *bean.DeploymentAppTypeChangeRequest
+	err = decoder.Decode(&migrateAndTriggerReq)
+	if err != nil {
+		handler.Logger.Errorw("request err, MigrateTypeAndTriggerDeployment", "err", err, "payload", migrateAndTriggerReq)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	migrateAndTriggerReq.UserId = userId
+
+	err = handler.validator.Struct(migrateAndTriggerReq)
+	if err != nil {
+		handler.Logger.Errorw("validation err, MigrateTypeAndTriggerDeployment", "err", err, "payload", migrateAndTriggerReq)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	token := r.Header.Get("token")
+
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionDelete, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+
+	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		handler.Logger.Errorw("error in getting acd token", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	ctx := context.WithValue(r.Context(), "token", acdToken)
+	resp, err := handler.installedAppService.MigrateDeploymentTypeAndTrigger(ctx, migrateAndTriggerReq)
+	if err != nil {
+		handler.Logger.Errorw(err.Error(),
+			"payload", migrateAndTriggerReq,
+			"err", err)
+
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
+	return
 }
