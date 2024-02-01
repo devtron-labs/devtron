@@ -38,6 +38,10 @@ func (impl *InfraConfigRouterImpl) InitInfraConfigRouter(configRouter *mux.Route
 		HandlerFunc(impl.infraConfigRestHandler.GetProfileList).
 		Methods("GET")
 
+	configRouter.Path("/list/min/profile").
+		HandlerFunc(impl.infraConfigRestHandler.GetProfilesMin).
+		Methods("GET")
+
 	configRouter.Path("/list/identifier/{identifierType}").
 		// Queries("search", "{identifierNameLike}",
 		// 	"sort", "{sortOrder}",

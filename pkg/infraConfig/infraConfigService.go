@@ -32,6 +32,9 @@ type InfraConfigService interface {
 	// If profileNameLike is empty, it will fetch all the active profiles.
 	GetProfileList(profileNameLike string) (*ProfilesResponse, error)
 
+	// GetProfileListMin is a lite weight method which fetches all the profile names.
+	GetProfileListMin() ([]string, error)
+
 	CreateProfile(userId int32, profileBean *ProfileBean) error
 
 	// DeleteProfile deletes the profile and its configurations matching the given profileName.
@@ -638,6 +641,16 @@ func (impl *InfraConfigServiceImpl) applyProfile(userId int32, applyIdentifiersR
 		return err
 	}
 	return err
+}
+
+func (impl *InfraConfigServiceImpl) GetProfileListMin() ([]string, error) {
+	// fetch all the profiles matching the given profileNameLike filter
+	infraProfiles, err := impl.infraProfileRepo.GetActiveProfileNames()
+	if err != nil {
+		impl.logger.Errorw("error in fetching default profiles", "error", err)
+		return nil, err
+	}
+	return infraProfiles, nil
 }
 
 // loadDefaultProfile loads default configurations from environment and save them in db.

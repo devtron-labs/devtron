@@ -24,6 +24,7 @@ type InfraConfigRestHandler interface {
 	DeleteProfile(w http.ResponseWriter, r *http.Request)
 	CreateProfile(w http.ResponseWriter, r *http.Request)
 	GetProfileList(w http.ResponseWriter, r *http.Request)
+	GetProfilesMin(w http.ResponseWriter, r *http.Request)
 	GetIdentifierList(w http.ResponseWriter, r *http.Request)
 	ApplyProfileToIdentifiers(w http.ResponseWriter, r *http.Request)
 }
@@ -190,6 +191,23 @@ func (handler *InfraConfigRestHandlerImpl) GetProfileList(w http.ResponseWriter,
 	queryParams := r.URL.Query()
 	profileNameLike := queryParams.Get("search")
 	profilesResponse, err := handler.infraProfileService.GetProfileList(profileNameLike)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	common.WriteJsonResp(w, nil, profilesResponse, http.StatusOK)
+}
+
+func (handler *InfraConfigRestHandlerImpl) GetProfilesMin(w http.ResponseWriter, r *http.Request) {
+
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+
+	profilesResponse, err := handler.infraProfileService.GetProfileListMin()
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return

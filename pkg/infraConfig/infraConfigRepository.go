@@ -20,6 +20,7 @@ type InfraConfigRepository interface {
 	GetProfileIdByName(name string) (int, error)
 	GetProfileByName(name string) (*InfraProfileEntity, error)
 	GetProfileList(profileNameLike string) ([]*InfraProfileEntity, error)
+	GetActiveProfileNames() ([]string, error)
 
 	// GetProfileListByIds returns the list of profiles for the given profileIds
 	// includeDefault is used to explicitly include the default profile in the list
@@ -92,6 +93,15 @@ func (impl *InfraConfigRepositoryImpl) GetProfileList(profileNameLike string) ([
 	query.Order("name ASC")
 	err := query.Select()
 	return infraProfiles, err
+}
+
+func (impl *InfraConfigRepositoryImpl) GetActiveProfileNames() ([]string, error) {
+	var profileNames []string
+	err := impl.dbConnection.Model((*InfraProfileEntity)(nil)).
+		Column("name").
+		Where("active = ?", true).
+		Select(&profileNames)
+	return profileNames, err
 }
 
 func (impl *InfraConfigRepositoryImpl) GetProfileListByIds(profileIds []int, includeDefault bool) ([]*InfraProfileEntity, error) {
