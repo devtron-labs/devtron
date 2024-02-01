@@ -68,7 +68,7 @@ func (impl *GitOpsHelper) Clone(url, targetDir string) (clonedDir string, err er
 	clonedDir = filepath.Join(GIT_WORKING_DIR, targetDir)
 	//errorMsg, err := impl.Clone2(context.Background(), clonedDir, clonedDir, impl.Auth)
 	ctx := context.Background()
-	err = impl.init(ctx, clonedDir, clonedDir, false, impl.Auth)
+	err = impl.init(ctx, clonedDir, url, false, impl.Auth)
 	if err != nil {
 		return "", err
 	}

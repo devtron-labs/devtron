@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/util"
 	"gopkg.in/src-d/go-billy.v4/osfs"
+	"os/exec"
 
 	"os"
 	"path/filepath"
@@ -46,6 +47,7 @@ func (impl GitCliManagerImpl) CommitAndPush(ctx context.Context, repoRoot, commi
 	if err != nil {
 		return "", err
 	}
+	impl.setConfig(repoRoot, auth.Username, emailId)
 	_, _, err = impl.add(ctx, repoRoot, auth.Username, auth.Password)
 	if err != nil {
 		return "", err
@@ -93,10 +95,18 @@ func (impl *GitCliManagerImpl) gitInit(ctx context.Context, rootDir string, user
 	return err
 }
 
+func (impl *GitCliManagerImpl) setConfig(rootDir string, username string, email string) {
+	impl.logger.Debugw("git config ", "location", rootDir)
+	cmdUser := exec.Command("git", "-C", rootDir, "config", "user.name", username)
+	cmdEmail := exec.Command("git", "-C", rootDir, "config", "user.email", email)
+	impl.runCommand(cmdUser)
+	impl.runCommand(cmdEmail)
+}
+
 func (impl *GitCliManagerImpl) commit(ctx context.Context, rootDir string, username string, password string, commitMsg string, user string, email string) (response, errMsg string, err error) {
 	impl.logger.Debugw("git commit ", "location", rootDir)
 	author := fmt.Sprintf("%s <%s>", user, email)
-	cmd, cancel := impl.createCmdWithContext(ctx, "git", "-C", rootDir, "commit", "-m", commitMsg, "--author", author)
+	cmd, cancel := impl.createCmdWithContext(ctx, "git", "-C", rootDir, "commit", "--allow-empty", "-m", commitMsg, "--author", author)
 	defer cancel()
 	output, errMsg, err := impl.runCommandWithCred(cmd, username, password)
 	impl.logger.Debugw("git commit output", "root", rootDir, "opt", output, "errMsg", errMsg, "error", err)
@@ -123,7 +133,7 @@ func (impl *GitCliManagerImpl) add(ctx context.Context, rootDir string, username
 
 func (impl *GitCliManagerImpl) push(ctx context.Context, rootDir string, username string, password string) (response, errMsg string, err error) {
 	impl.logger.Debugw("git push ", "location", rootDir)
-	cmd, cancel := impl.createCmdWithContext(ctx, "git", "-C", rootDir, "push", "--force")
+	cmd, cancel := impl.createCmdWithContext(ctx, "git", "-C", rootDir, "push", "origin", "master", "--force")
 	defer cancel()
 	output, errMsg, err := impl.runCommandWithCred(cmd, username, password)
 	impl.logger.Debugw("git add output", "root", rootDir, "opt", output, "errMsg", errMsg, "error", err)
