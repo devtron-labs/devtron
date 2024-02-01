@@ -78,7 +78,7 @@ func (impl ConfigMapRepositoryImpl) GetConfigNamesEnvLevel(appId int, envId int)
 	var cMCSNames []CMCSNames
 	query := "SELECT json_array_elements(config_map_data::json->'maps')->>'name' AS cm_name,    " +
 		"json_array_elements(secret_data::json->'secrets')->>'name' AS cs_name " +
-		"FROM config_map_app_level WHERE app_id = ? AND env_id=?;"
+		"FROM config_map_env_level WHERE app_id = ? AND env_id=?;"
 
 	_, err := impl.dbConnection.Query(cMCSNames, query, appId, envId)
 	return cMCSNames, err

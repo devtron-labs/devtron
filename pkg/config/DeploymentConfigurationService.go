@@ -24,7 +24,7 @@ func NewDeploymentConfigurationServiceImpl(logger *zap.SugaredLogger, configMapR
 }
 
 func (impl DeploymentConfigurationServiceImpl) ConfigAutoComplete(appId int, envId int) (*ConfigDataResponse, error) {
-	var configDataResponse ConfigDataResponse
+	var configDataResponse *ConfigDataResponse
 	var cMCSNamesEnvLevel []chartConfig.CMCSNames
 	cMCSNamesAppLevel, err := impl.configMapRepository.GetConfigNamesAppLevel(appId)
 	if err != nil {
@@ -33,14 +33,23 @@ func (impl DeploymentConfigurationServiceImpl) ConfigAutoComplete(appId int, env
 	if envId > 0 {
 		cMCSNamesEnvLevel, err = impl.configMapRepository.GetConfigNamesEnvLevel(appId, envId)
 	}
-	for i, name := range cMCSNamesAppLevel {
-		configDataResponse.ResourceConfig[i].Name = name.CMName
-		configDataResponse.ResourceConfig[i].Type = CM
-	}
-	for i, name := range cMCSNamesEnvLevel {
-		configDataResponse.ResourceConfig[i].Name = name.CMName
-		configDataResponse.ResourceConfig[i].Type = CM
-	}
+	configDataResponse = setConfigDataResponse(cMCSNamesAppLevel)
+	configDataResponse = setConfigDataResponse(cMCSNamesEnvLevel)
 
-	return nil, nil
+	return configDataResponse, nil
+}
+
+func setConfigDataResponse(cMCSNames []chartConfig.CMCSNames) *ConfigDataResponse {
+	var configDataResponse *ConfigDataResponse
+	for i, name := range cMCSNames {
+		configDataResponse.ResourceConfig[i].Name = name.CMName
+		configDataResponse.ResourceConfig[i].Type = CM
+		configDataResponse.ResourceConfig[i].ConfigState = PublishedConfigState
+	}
+	for i, name := range cMCSNames {
+		configDataResponse.ResourceConfig[i].Name = name.CSName
+		configDataResponse.ResourceConfig[i].Type = CS
+		configDataResponse.ResourceConfig[i].ConfigState = PublishedConfigState
+	}
+	return configDataResponse
 }

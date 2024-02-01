@@ -7,7 +7,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/config"
 	"github.com/devtron-labs/devtron/util/rbac"
-	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
@@ -47,18 +46,16 @@ func (handler *DeploymentConfigurationRestHandlerImpl) ConfigAutoComplete(w http
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	vars := mux.Vars(r)
-	//todo aditya get from query params
-	appId, err := strconv.Atoi(vars["appId"])
-	if err != nil {
-		handler.logger.Errorw("request err, CSEnvironmentFetch", "err", err, "appId", appId)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+	appIdQueryParam := r.URL.Query().Get("appId")
+	appId, err := strconv.Atoi(appIdQueryParam)
+	if appIdQueryParam == "" || err != nil {
+		common.WriteJsonResp(w, err, "invalid appId", http.StatusBadRequest)
 		return
 	}
-	envId, err := strconv.Atoi(vars["envId"])
-	if err != nil {
-		handler.logger.Errorw("bad request", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+	envIdQueryParam := r.URL.Query().Get("appId")
+	envId, err := strconv.Atoi(appIdQueryParam)
+	if envIdQueryParam == "" || err != nil {
+		common.WriteJsonResp(w, err, "invalid appId", http.StatusBadRequest)
 		return
 	}
 

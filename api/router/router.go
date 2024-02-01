@@ -313,7 +313,7 @@ func (r MuxRouter) Init() {
 	chartRefRouter := r.Router.PathPrefix("/orchestrator/chartref").Subrouter()
 	r.ChartRefRouter.initChartRefRouter(chartRefRouter)
 
-	configRouter := r.Router.PathPrefix("/orchestrator/config/").Subrouter()
+	configRouter := r.Router.PathPrefix("/orchestrator/config").Subrouter()
 	r.ConfigMapRouter.initConfigMapRouter(configRouter)
 	r.deploymentConfigurationRouter.initDeploymentConfigurationRouter(configRouter)
 
