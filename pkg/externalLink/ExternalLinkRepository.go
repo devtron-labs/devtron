@@ -23,7 +23,7 @@ import (
 )
 
 type ExternalLink struct {
-	tableName                    struct{} `sql:"external_link"`
+	tableName                    struct{} `sql:"external_link" pg:",discard_unknown_columns"`
 	Id                           int      `sql:"id,pk"`
 	ExternalLinkMonitoringToolId int      `sql:"external_link_monitoring_tool_id, notnull"`
 	Name                         string   `sql:"name,notnull"`

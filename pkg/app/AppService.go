@@ -31,8 +31,8 @@ import (
 	"time"
 
 	"github.com/caarlos0/env"
-	k8sCommonBean "github.com/devtron-labs/common-lib-private/utils/k8s/commonBean"
-	"github.com/devtron-labs/common-lib-private/utils/k8s/health"
+	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
+	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	client2 "github.com/devtron-labs/devtron/api/helm-app"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	status2 "github.com/devtron-labs/devtron/pkg/app/status"
@@ -112,7 +112,6 @@ type AppServiceImpl struct {
 	ciArtifactRepository                   repository.CiArtifactRepository
 	pipelineRepository                     pipelineConfig.PipelineRepository
 	gitFactory                             *GitFactory
-	dbMigrationConfigRepository            pipelineConfig.DbMigrationConfigRepository
 	eventClient                            client.EventClient
 	eventFactory                           client.EventFactory
 	acdClient                              application.ServiceClient
@@ -206,7 +205,6 @@ func NewAppService(
 	logger *zap.SugaredLogger,
 	ciArtifactRepository repository.CiArtifactRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
-	dbMigrationConfigRepository pipelineConfig.DbMigrationConfigRepository,
 	eventClient client.EventClient,
 	eventFactory client.EventFactory, acdClient application.ServiceClient,
 	cache *util3.TokenCache, authConfig *util3.ACDAuthConfig,
@@ -267,7 +265,6 @@ func NewAppService(
 		logger:                                 logger,
 		ciArtifactRepository:                   ciArtifactRepository,
 		pipelineRepository:                     pipelineRepository,
-		dbMigrationConfigRepository:            dbMigrationConfigRepository,
 		eventClient:                            eventClient,
 		eventFactory:                           eventFactory,
 		acdClient:                              acdClient,

@@ -34,10 +34,10 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
+	repository3 "github.com/devtron-labs/devtron/pkg/appStore/chartGroup/repository"
 	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	appStoreDeploymentTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool"
-	appStoreDeploymentGitopsTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool/gitops"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/bean"
@@ -93,18 +93,17 @@ func GetDeploymentServiceTypeConfig() (*DeploymentServiceTypeConfig, error) {
 type AppStoreDeploymentServiceImpl struct {
 	logger                               *zap.SugaredLogger
 	installedAppRepository               repository.InstalledAppRepository
-	chartGroupDeploymentRepository       repository.ChartGroupDeploymentRepository
+	chartGroupDeploymentRepository       repository3.ChartGroupDeploymentRepository
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository
 	environmentRepository                clusterRepository.EnvironmentRepository
 	clusterInstalledAppsRepository       repository.ClusterInstalledAppsRepository
 	appRepository                        app.AppRepository
 	appStoreDeploymentHelmService        appStoreDeploymentTool.AppStoreDeploymentHelmService
-	appStoreDeploymentArgoCdService      appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdService
+	appStoreDeploymentArgoCdService      appStoreDeploymentTool.AppStoreDeploymentArgoCdService
 	environmentService                   cluster.EnvironmentService
 	clusterService                       cluster.ClusterService
 	helmAppService                       client.HelmAppService
 	appStoreDeploymentCommonService      appStoreDeploymentCommon.AppStoreDeploymentCommonService
-	globalEnvVariables                   *util2.GlobalEnvVariables
 	installedAppRepositoryHistory        repository.InstalledAppVersionHistoryRepository
 	gitOpsRepository                     repository2.GitOpsConfigRepository
 	deploymentTypeConfig                 *DeploymentServiceTypeConfig
@@ -114,12 +113,11 @@ type AppStoreDeploymentServiceImpl struct {
 }
 
 func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRepository repository.InstalledAppRepository,
-	chartGroupDeploymentRepository repository.ChartGroupDeploymentRepository, appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository, environmentRepository clusterRepository.EnvironmentRepository,
+	chartGroupDeploymentRepository repository3.ChartGroupDeploymentRepository, appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository, environmentRepository clusterRepository.EnvironmentRepository,
 	clusterInstalledAppsRepository repository.ClusterInstalledAppsRepository, appRepository app.AppRepository,
 	appStoreDeploymentHelmService appStoreDeploymentTool.AppStoreDeploymentHelmService,
-	appStoreDeploymentArgoCdService appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdService, environmentService cluster.EnvironmentService,
+	appStoreDeploymentArgoCdService appStoreDeploymentTool.AppStoreDeploymentArgoCdService, environmentService cluster.EnvironmentService,
 	clusterService cluster.ClusterService, helmAppService client.HelmAppService, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
-	globalEnvVariables *util2.GlobalEnvVariables,
 	installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository, gitOpsRepository repository2.GitOpsConfigRepository, attributesService attributes.AttributesService,
 	deploymentTypeConfig *DeploymentServiceTypeConfig, ChartTemplateService util.ChartTemplateService,
 	devtronResourceService devtronResource.DevtronResourceService,
@@ -139,7 +137,6 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRep
 		clusterService:                       clusterService,
 		helmAppService:                       helmAppService,
 		appStoreDeploymentCommonService:      appStoreDeploymentCommonService,
-		globalEnvVariables:                   globalEnvVariables,
 		installedAppRepositoryHistory:        installedAppRepositoryHistory,
 		gitOpsRepository:                     gitOpsRepository,
 		deploymentTypeConfig:                 deploymentTypeConfig,
@@ -1609,7 +1606,7 @@ func (impl AppStoreDeploymentServiceImpl) GetInstalledAppVersion(id int, userId 
 	app, err := impl.installedAppRepository.GetInstalledAppVersion(id)
 	if err != nil {
 		if err == pg.ErrNoRows {
-			return nil, fmt.Errorf("values are outdated. please fetch the latest version and try again")
+			return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: "400", UserMessage: "values are outdated. please fetch the latest version and try again", InternalMessage: err.Error()}
 		}
 		impl.logger.Errorw("error while fetching from db", "error", err)
 		return nil, err
@@ -1646,61 +1643,6 @@ func (impl AppStoreDeploymentServiceImpl) GetInstalledAppVersion(id int, userId 
 	return installAppVersion, err
 }
 
-func (impl AppStoreDeploymentServiceImpl) upgradeInstalledApp(environment *clusterRepository.Environment, ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApp *repository.InstalledApps, tx *pg.Tx, monoRepoMigrationRequired bool, installedAppVersion *repository.InstalledAppVersions) (*appStoreBean.InstallAppVersionDTO, *repository.InstalledAppVersions, error) {
-
-	appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)
-	if err != nil {
-		impl.logger.Errorw("fetching error", "err", err)
-		return installAppVersionRequest, installedAppVersion, err
-	}
-
-	if util2.IsHelmApp(installedApp.App.AppOfferingMode) || util.IsHelmApp(installedApp.DeploymentAppType) {
-		// update in helm
-		if !monoRepoMigrationRequired {
-			if installAppVersionRequest.PerformGitOpsForHelmApp {
-				err = impl.appStoreDeploymentHelmService.UpdateRequirementDependencies(installAppVersionRequest, appStoreAppVersion)
-			}
-			installAppVersionRequest, err = impl.appStoreDeploymentHelmService.UpdateInstalledApp(ctx, installAppVersionRequest, environment, installedAppVersion, tx)
-			if err != nil {
-				impl.logger.Errorw("error while commit values to git", "error", err)
-				return installAppVersionRequest, installedAppVersion, err
-			}
-		}
-	} else {
-		//step 2 git operation pull push
-		//step 3 acd operation register, sync
-		//installAppVersionRequest, err = impl.appStoreDeploymentArgoCdService.OnUpdateRepoInInstalledApp(ctx, installAppVersionRequest)
-
-		//here if migration happen that means git and acd operations already done.
-		if !monoRepoMigrationRequired {
-			err = impl.appStoreDeploymentArgoCdService.UpdateRequirementDependencies(installAppVersionRequest, appStoreAppVersion)
-			if err != nil {
-				impl.logger.Errorw("error while commit required dependencies to git", "error", err)
-				return installAppVersionRequest, installedAppVersion, err
-			}
-			//update values yaml in chart
-			installAppVersionRequest, err := impl.appStoreDeploymentArgoCdService.UpdateInstalledApp(ctx, installAppVersionRequest, environment, installedAppVersion, tx)
-			if err != nil {
-				impl.logger.Errorw("error while commit values to git", "error", err)
-				return installAppVersionRequest, installedAppVersion, err
-			}
-		}
-	}
-	if err != nil {
-		impl.logger.Errorw(" error", "err", err)
-		return installAppVersionRequest, installedAppVersion, err
-	}
-
-	//step 4 db operation status triggered
-	installedApp.Status = appStoreBean.DEPLOY_SUCCESS
-	_, err = impl.installedAppRepository.UpdateInstalledApp(installedApp, tx)
-	if err != nil {
-		impl.logger.Errorw("error while fetching from db", "error", err)
-		return installAppVersionRequest, installedAppVersion, err
-	}
-
-	return installAppVersionRequest, installedAppVersion, err
-}
 func (impl AppStoreDeploymentServiceImpl) InstallAppByHelm(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error) {
 	if installAppVersionRequest.PerformGitOps {
 		_, err := impl.appStoreDeploymentCommonService.GenerateManifestAndPerformGitOperations(installAppVersionRequest)

@@ -23,12 +23,11 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/module"
-	"github.com/devtron-labs/devtron/pkg/notifier"
 	"net/http"
 	"time"
 
 	"github.com/caarlos0/env"
-	pubsub "github.com/devtron-labs/common-lib-private/pubsub-lib"
+	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -40,7 +39,6 @@ import (
 
 type EventClientConfig struct {
 	DestinationURL string `env:"EVENT_URL" envDefault:"http://localhost:3000/notify"`
-	TestSuitURL    string `env:"TEST_SUIT_URL" envDefault:"http://localhost:3000"`
 }
 
 func GetEventClientConfig() (*EventClientConfig, error) {
@@ -55,7 +53,6 @@ func GetEventClientConfig() (*EventClientConfig, error) {
 type EventClient interface {
 	WriteNotificationEvent(event Event) (bool, error)
 	WriteNatsEvent(channel string, payload interface{}) error
-	SendTestSuite(reqBody []byte) (bool, error)
 }
 
 type Event struct {
@@ -92,7 +89,7 @@ type Payload struct {
 	MaterialTriggerInfo   *MaterialTriggerInfo `json:"material"`
 	ApprovedByEmail       []string             `json:"approvedByEmail"`
 	FailureReason         string               `json:"failureReason"`
-	Providers             []*notifier.Provider `json:"providers"`
+	Providers             []*Provider          `json:"providers"`
 	ImageTagNames         []string             `json:"imageTagNames"`
 	ImageComment          string               `json:"imageComment"`
 	ImageApprovalLink     string               `json:"imageApprovalLink"`
@@ -100,6 +97,7 @@ type Payload struct {
 	ProtectConfigFileName string               `json:"protectConfigFileName"`
 	ProtectConfigComment  string               `json:"protectConfigComment"`
 	ProtectConfigLink     string               `json:"protectConfigLink"`
+	ApprovalLink          string               `json:"approvalLink"`
 }
 
 type CiPipelineMaterialResponse struct {
@@ -283,21 +281,4 @@ func (impl *EventRESTClientImpl) WriteNatsEvent(topic string, payload interface{
 	}
 	err = impl.pubsubClient.Publish(topic, string(body))
 	return err
-}
-
-func (impl *EventRESTClientImpl) SendTestSuite(reqBody []byte) (bool, error) {
-	impl.logger.Debugw("request", "body", string(reqBody))
-	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/triggers", impl.config.TestSuitURL), bytes.NewBuffer(reqBody))
-	if err != nil {
-		impl.logger.Errorw("error while writing test suites", "err", err)
-		return false, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := impl.client.Do(req)
-	if err != nil {
-		impl.logger.Errorw("error while UpdateJiraTransition request ", "err", err)
-		return false, err
-	}
-	impl.logger.Debugw("response from test suit create api", "status code", resp.StatusCode)
-	return true, err
 }

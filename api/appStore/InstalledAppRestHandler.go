@@ -37,6 +37,7 @@ import (
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	app2 "github.com/devtron-labs/devtron/pkg/app"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
+	"github.com/devtron-labs/devtron/pkg/appStore/chartGroup"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
@@ -253,7 +254,7 @@ func (handler InstalledAppRestHandlerImpl) GetAllInstalledApp(w http.ResponseWri
 		return
 	}
 
-	appIdToAppMap := make(map[string]service.HelmAppDetails)
+	appIdToAppMap := make(map[string]appStoreBean.HelmAppDetails)
 
 	//the value of this map is array of strings because the GetHelmObjectByAppNameAndEnvId method may return "//" for error cases
 	//so different apps may contain same object, to handle that we are using (map[string] []string)
@@ -309,7 +310,7 @@ func (handler InstalledAppRestHandlerImpl) GetAllInstalledApp(w http.ResponseWri
 		}
 	}
 
-	authorizedApps := make([]service.HelmAppDetails, 0)
+	authorizedApps := make([]appStoreBean.HelmAppDetails, 0)
 	for appId, _ := range authorizedAppIdSet {
 		authorizedApp := appIdToAppMap[appId]
 		authorizedApps = append(authorizedApps, authorizedApp)
@@ -326,7 +327,7 @@ func (handler *InstalledAppRestHandlerImpl) DeployBulk(w http.ResponseWriter, r 
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	var request appStoreBean.ChartGroupInstallRequest
+	var request chartGroup.ChartGroupInstallRequest
 	err = decoder.Decode(&request)
 	if err != nil {
 		handler.Logger.Errorw("request err, DeployBulk", "err", err, "payload", request)

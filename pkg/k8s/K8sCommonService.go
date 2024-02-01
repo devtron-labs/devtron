@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/common-lib-private/utils/k8s"
-	k8sCommonBean "github.com/devtron-labs/common-lib-private/utils/k8s/commonBean"
+	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
+	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/helm-app"
 	util2 "github.com/devtron-labs/devtron/internal/util"
@@ -28,10 +29,10 @@ import (
 )
 
 type K8sCommonService interface {
-	GetResource(ctx context.Context, request *ResourceRequestBean) (resp *k8s.ManifestResponse, err error)
-	UpdateResource(ctx context.Context, request *ResourceRequestBean) (resp *k8s.ManifestResponse, err error)
-	DeleteResource(ctx context.Context, request *ResourceRequestBean) (*k8s.ManifestResponse, error)
-	ListEvents(ctx context.Context, request *ResourceRequestBean) (*k8s.EventsResponse, error)
+	GetResource(ctx context.Context, request *ResourceRequestBean) (resp *ResourceGetResponse, err error)
+	UpdateResource(ctx context.Context, request *ResourceRequestBean) (resp *k8s2.ManifestResponse, err error)
+	DeleteResource(ctx context.Context, request *ResourceRequestBean) (*k8s2.ManifestResponse, error)
+	ListEvents(ctx context.Context, request *ResourceRequestBean) (*k8s2.EventsResponse, error)
 	GetRestConfigByClusterId(ctx context.Context, clusterId int) (*rest.Config, error, *cluster.ClusterBean)
 	GetManifestsByBatch(ctx context.Context, request []ResourceRequestBean) ([]BatchResourceResponse, error)
 	FilterK8sResources(ctx context.Context, resourceTreeInf map[string]interface{}, appDetail bean.AppDetailContainer, appId string, kindsToBeFiltered []string) []ResourceRequestBean
@@ -43,7 +44,7 @@ type K8sCommonService interface {
 }
 type K8sCommonServiceImpl struct {
 	logger                      *zap.SugaredLogger
-	K8sUtil                     *k8s.K8sUtil
+	K8sUtil                     *k8s.K8sUtilExtended
 	helmAppService              client.HelmAppService
 	K8sResourceHistoryService   kubernetesResourceAuditLogs.K8sResourceHistoryService
 	clusterService              cluster.ClusterService
@@ -55,7 +56,7 @@ type K8sApplicationServiceConfig struct {
 	TimeOutInSeconds int `env:"TIMEOUT_IN_SECONDS" envDefault:"5"`
 }
 
-func NewK8sCommonServiceImpl(Logger *zap.SugaredLogger, k8sUtils *k8s.K8sUtil, helmAppService client.HelmAppService,
+func NewK8sCommonServiceImpl(Logger *zap.SugaredLogger, k8sUtils *k8s.K8sUtilExtended, helmAppService client.HelmAppService,
 	K8sResourceHistoryService kubernetesResourceAuditLogs.K8sResourceHistoryService, clusterService cluster.ClusterService) *K8sCommonServiceImpl {
 	cfg := &K8sApplicationServiceConfig{}
 	err := env.Parse(cfg)
@@ -72,7 +73,7 @@ func NewK8sCommonServiceImpl(Logger *zap.SugaredLogger, k8sUtils *k8s.K8sUtil, h
 	}
 }
 
-func (impl *K8sCommonServiceImpl) GetResource(ctx context.Context, request *ResourceRequestBean) (*k8s.ManifestResponse, error) {
+func (impl *K8sCommonServiceImpl) GetResource(ctx context.Context, request *ResourceRequestBean) (*ResourceGetResponse, error) {
 	clusterId := request.ClusterId
 	//getting rest config by clusterId
 	restConfig, err, _ := impl.GetRestConfigByClusterId(ctx, clusterId)
@@ -81,15 +82,18 @@ func (impl *K8sCommonServiceImpl) GetResource(ctx context.Context, request *Reso
 		return nil, err
 	}
 	resourceIdentifier := request.K8sRequest.ResourceIdentifier
-	resp, err := impl.K8sUtil.GetResource(ctx, resourceIdentifier.Namespace, resourceIdentifier.Name, resourceIdentifier.GroupVersionKind, restConfig)
+	resp, err := impl.K8sUtil.K8sService.GetResource(ctx, resourceIdentifier.Namespace, resourceIdentifier.Name, resourceIdentifier.GroupVersionKind, restConfig)
 	if err != nil {
 		impl.logger.Errorw("error in getting resource", "err", err, "resource", resourceIdentifier.Name)
 		return nil, err
 	}
-	return resp, nil
+	response := &ResourceGetResponse{
+		ManifestResponse: resp,
+	}
+	return response, nil
 }
 
-func (impl *K8sCommonServiceImpl) UpdateResource(ctx context.Context, request *ResourceRequestBean) (*k8s.ManifestResponse, error) {
+func (impl *K8sCommonServiceImpl) UpdateResource(ctx context.Context, request *ResourceRequestBean) (*k8s2.ManifestResponse, error) {
 	//getting rest config by clusterId
 	clusterId := request.ClusterId
 	restConfig, err, _ := impl.GetRestConfigByClusterId(ctx, clusterId)
@@ -110,7 +114,7 @@ func (impl *K8sCommonServiceImpl) UpdateResource(ctx context.Context, request *R
 	return resp, nil
 }
 
-func (impl *K8sCommonServiceImpl) DeleteResource(ctx context.Context, request *ResourceRequestBean) (*k8s.ManifestResponse, error) {
+func (impl *K8sCommonServiceImpl) DeleteResource(ctx context.Context, request *ResourceRequestBean) (*k8s2.ManifestResponse, error) {
 	//getting rest config by clusterId
 	clusterId := request.ClusterId
 	restConfig, err, _ := impl.GetRestConfigByClusterId(ctx, clusterId)
@@ -133,7 +137,7 @@ func (impl *K8sCommonServiceImpl) DeleteResource(ctx context.Context, request *R
 	return resp, nil
 }
 
-func (impl *K8sCommonServiceImpl) ListEvents(ctx context.Context, request *ResourceRequestBean) (*k8s.EventsResponse, error) {
+func (impl *K8sCommonServiceImpl) ListEvents(ctx context.Context, request *ResourceRequestBean) (*k8s2.EventsResponse, error) {
 	clusterId := request.ClusterId
 	//getting rest config by clusterId
 	restConfig, err, _ := impl.GetRestConfigByClusterId(ctx, clusterId)
@@ -147,7 +151,7 @@ func (impl *K8sCommonServiceImpl) ListEvents(ctx context.Context, request *Resou
 		impl.logger.Errorw("error in listing events", "err", err, "clusterId", clusterId)
 		return nil, err
 	}
-	return &k8s.EventsResponse{list}, nil
+	return &k8s2.EventsResponse{list}, nil
 
 }
 
@@ -179,8 +183,8 @@ func (impl *K8sCommonServiceImpl) FilterK8sResources(ctx context.Context, resour
 				AppIdentifier: &client.AppIdentifier{
 					ClusterId: appDetail.ClusterId,
 				},
-				K8sRequest: &k8s.K8sRequestBean{
-					ResourceIdentifier: k8s.ResourceIdentifier{
+				K8sRequest: &k8s2.K8sRequestBean{
+					ResourceIdentifier: k8s2.ResourceIdentifier{
 						Name:      name,
 						Namespace: namespace,
 						GroupVersionKind: schema.GroupVersionKind{
@@ -269,7 +273,7 @@ func (impl *K8sCommonServiceImpl) RotatePods(ctx context.Context, request *Rotat
 		if resourceKind != k8sCommonBean.DeploymentKind && resourceKind != k8sCommonBean.StatefulSetKind && resourceKind != k8sCommonBean.DaemonSetKind && resourceKind != k8sCommonBean.K8sClusterResourceRolloutKind {
 			impl.logger.Errorf("restarting not supported for kind %s name %s", resourceKind, resourceIdentifier.Name)
 			containsError = true
-			resourceResponse.ErrorResponse = k8s.RestartingNotSupported
+			resourceResponse.ErrorResponse = k8s2.RestartingNotSupported
 		} else {
 			activitySnapshot := time.Now().Format(time.RFC3339)
 			data := fmt.Sprintf(`{"metadata": {"annotations": {"devtron.ai/restartedAt": "%s"}},"spec": {"template": {"metadata": {"annotations": {"devtron.ai/activity": "%s"}}}}}`, activitySnapshot, activitySnapshot)
@@ -314,7 +318,11 @@ func (impl *K8sCommonServiceImpl) getManifestsByBatch(ctx context.Context, reque
 			wg.Add(1)
 			go func(j int) {
 				resp := BatchResourceResponse{}
-				resp.ManifestResponse, resp.Err = impl.GetResource(ctx, &requests[i+j])
+				response, err := impl.GetResource(ctx, &requests[i+j])
+				if response != nil {
+					resp.ManifestResponse = response.ManifestResponse
+				}
+				resp.Err = err
 				res[i+j] = resp
 				wg.Done()
 			}(j)
@@ -332,7 +340,7 @@ func (impl *K8sCommonServiceImpl) extractResourceValue(resourceItem map[string]i
 	return ""
 }
 
-func (impl *K8sCommonServiceImpl) getUrls(manifest *k8s.ManifestResponse) bean3.Response {
+func (impl *K8sCommonServiceImpl) getUrls(manifest *k8s2.ManifestResponse) bean3.Response {
 	var res bean3.Response
 	kind := manifest.Manifest.Object["kind"]
 	if _, ok := manifest.Manifest.Object["metadata"]; ok {

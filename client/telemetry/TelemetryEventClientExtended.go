@@ -2,6 +2,8 @@ package telemetry
 
 import (
 	"encoding/json"
+	cloudProviderIdentifier "github.com/devtron-labs/common-lib/cloud-provider-identifier"
+	cron3 "github.com/devtron-labs/devtron/util/cron"
 	"net/http"
 	"time"
 
@@ -50,7 +52,7 @@ type TelemetryEventClientImplExtended struct {
 }
 
 func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http.Client, clusterService cluster.ClusterService,
-	K8sUtil *util2.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig,
+	K8sUtil *util2.K8sUtilExtended, aCDAuthConfig *util3.ACDAuthConfig,
 	environmentService cluster.EnvironmentService, userService user.UserService,
 	appListingRepository repository.AppListingRepository, PosthogClient *PosthogClient,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository,
@@ -62,10 +64,11 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 	chartRepository chartRepoRepository.ChartRepository, userAuditService user.UserAuditService,
 	ciBuildConfigService pipeline.CiBuildConfigService, moduleRepository moduleRepo.ModuleRepository, serverDataStore *serverDataStore.ServerDataStore,
 	helmAppClient client.HelmAppClient, InstalledAppRepository repository2.InstalledAppRepository, userAttributesRepository repository.UserAttributesRepository,
-	devtronResourceService devtronResource.DevtronResourceService) (*TelemetryEventClientImplExtended, error) {
+	devtronResourceService devtronResource.DevtronResourceService,
+	cloudProviderIdentifierService cloudProviderIdentifier.ProviderIdentifierService, cronLogger *cron3.CronLoggerImpl) (*TelemetryEventClientImplExtended, error) {
 
 	cron := cron.New(
-		cron.WithChain())
+		cron.WithChain(cron.Recover(cronLogger)))
 	cron.Start()
 	watcher := &TelemetryEventClientImplExtended{
 		environmentService:            environmentService,
@@ -85,22 +88,24 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 		devtronResourceService:        devtronResourceService,
 
 		TelemetryEventClientImpl: &TelemetryEventClientImpl{
-			cron:                     cron,
-			logger:                   logger,
-			client:                   client,
-			clusterService:           clusterService,
-			K8sUtil:                  K8sUtil,
-			aCDAuthConfig:            aCDAuthConfig,
-			userService:              userService,
-			attributeRepo:            attributeRepo,
-			ssoLoginService:          ssoLoginService,
-			PosthogClient:            PosthogClient,
-			moduleRepository:         moduleRepository,
-			serverDataStore:          serverDataStore,
-			userAuditService:         userAuditService,
-			helmAppClient:            helmAppClient,
-			InstalledAppRepository:   InstalledAppRepository,
-			userAttributesRepository: userAttributesRepository,
+			cron:                           cron,
+			logger:                         logger,
+			client:                         client,
+			clusterService:                 clusterService,
+			K8sUtil:                        K8sUtil,
+			aCDAuthConfig:                  aCDAuthConfig,
+			userService:                    userService,
+			attributeRepo:                  attributeRepo,
+			ssoLoginService:                ssoLoginService,
+			PosthogClient:                  PosthogClient,
+			moduleRepository:               moduleRepository,
+			serverDataStore:                serverDataStore,
+			userAuditService:               userAuditService,
+			helmAppClient:                  helmAppClient,
+			InstalledAppRepository:         InstalledAppRepository,
+			userAttributesRepository:       userAttributesRepository,
+			cloudProviderIdentifierService: cloudProviderIdentifierService,
+			telemetryConfig: TelemetryConfig{},
 		},
 	}
 
@@ -172,6 +177,7 @@ type TelemetryEventDto struct {
 	HelmChartSuccessfulDeploymentCount        int                `json:"helmChartSuccessfulDeploymentCount,omitempty"`
 	ExternalHelmAppClusterCount               map[int32]int      `json:"ExternalHelmAppClusterCount"`
 	CountOfApplicationsWithDependenciesMapped int                `json:"countOfApplicationsWithDependenciesMapped,omitempty"`
+	ClusterProvider                           string             `json:"clusterProvider,omitempty"`
 }
 
 func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
@@ -333,6 +339,12 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 	payload.HelmAppUpdateCounter = HelmAppUpdateCounter
 	payload.HelmChartSuccessfulDeploymentCount = HelmChartSuccessfulDeploymentCount
 	payload.ExternalHelmAppClusterCount = ExternalHelmAppClusterCount
+
+	payload.ClusterProvider, err = impl.GetCloudProvider()
+	if err != nil {
+		impl.logger.Errorw("error while getting cluster provider", "error", err)
+		return err
+	}
 
 	latestUser, err := impl.userAuditService.GetLatestUser()
 	if err == nil {

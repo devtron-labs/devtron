@@ -603,6 +603,8 @@ type CDPipelineConfigObject struct {
 	SwitchFromCiPipelineId        int                                    `json:"switchFromCiPipelineId"`
 	CDPipelineAddType             CDPipelineAddType                      `json:"addType"`
 	ChildPipelineId               int                                    `json:"childPipelineId"`
+	IsDigestEnforcedForPipeline   bool                                   `json:"isDigestEnforcedForPipeline"`
+	IsDigestEnforcedForEnv        bool                                   `json:"isDigestEnforcedForEnv"`
 }
 
 type CDPipelineAddType string
@@ -678,6 +680,13 @@ const (
 	APPROVAL_REQUEST_ACTION UserApprovalActionType = iota
 	APPROVAL_APPROVE_ACTION
 	APPROVAL_REQUEST_CANCEL_ACTION
+)
+
+type ApprovalState int
+
+const (
+	AlreadyApproved ApprovalState = iota + 1
+	RequestCancelled
 )
 
 type UserApprovalActionRequest struct {

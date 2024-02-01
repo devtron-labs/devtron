@@ -19,9 +19,9 @@ package pubsub
 
 import (
 	"encoding/json"
-	"github.com/devtron-labs/common-lib-private/pubsub-lib/model"
+	"github.com/devtron-labs/common-lib/pubsub-lib/model"
 
-	pubsub "github.com/devtron-labs/common-lib-private/pubsub-lib"
+	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/pkg/git"
 
@@ -29,7 +29,7 @@ import (
 )
 
 type GitWebhookHandler interface {
-	Subscribe() error
+	subscribe() error
 }
 
 type GitWebhookHandlerImpl struct {
@@ -44,7 +44,7 @@ func NewGitWebhookHandler(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSub
 		pubsubClient:      pubsubClient,
 		gitWebhookService: gitWebhookService,
 	}
-	err := gitWebhookHandlerImpl.Subscribe()
+	err := gitWebhookHandlerImpl.subscribe()
 	if err != nil {
 		logger.Error("err", err)
 		return nil
@@ -52,7 +52,7 @@ func NewGitWebhookHandler(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSub
 	return gitWebhookHandlerImpl
 }
 
-func (impl *GitWebhookHandlerImpl) Subscribe() error {
+func (impl *GitWebhookHandlerImpl) subscribe() error {
 	callback := func(msg *model.PubSubMsg) {
 		//defer msg.Ack()
 		ciPipelineMaterial := gitSensor.CiPipelineMaterial{}
@@ -68,7 +68,18 @@ func (impl *GitWebhookHandlerImpl) Subscribe() error {
 			return
 		}
 	}
-	err := impl.pubsubClient.Subscribe(pubsub.NEW_CI_MATERIAL_TOPIC, callback)
+
+	// add required logging here
+	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) (string, []interface{}) {
+		ciPipelineMaterial := gitSensor.CiPipelineMaterial{}
+		err := json.Unmarshal([]byte(string(msg.Data)), &ciPipelineMaterial)
+		if err != nil {
+			return "error while unmarshalling json response", []interface{}{"error", err}
+		}
+		return "got message for about new ci material", []interface{}{"ciPipelineMaterialId", ciPipelineMaterial.Id, "gitMaterialId", ciPipelineMaterial.GitMaterialId, "type", ciPipelineMaterial.Type}
+	}
+
+	err := impl.pubsubClient.Subscribe(pubsub.NEW_CI_MATERIAL_TOPIC, callback, loggerFunc)
 	if err != nil {
 		impl.logger.Error("err", err)
 		return err

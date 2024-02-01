@@ -3,8 +3,10 @@ package cluster
 import (
 	"context"
 	"fmt"
+	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	auth "github.com/devtron-labs/devtron/pkg/auth/authorisation/globalConfig"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
+	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
 	"net/http"
 	"strings"
 	"time"
@@ -12,7 +14,7 @@ import (
 	cluster3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/common-lib-private/utils/k8s"
-	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
+	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
 	repository4 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/devtron-labs/devtron/pkg/k8s/informer"
 	"github.com/go-pg/pg"
@@ -29,32 +31,35 @@ import (
 
 // ClusterServiceImplExtended extends ClusterServiceImpl and enhances method of ClusterService with full mode specific errors
 type ClusterServiceImplExtended struct {
-	environmentRepository   repository.EnvironmentRepository
-	grafanaClient           grafana.GrafanaClient
-	installedAppRepository  repository2.InstalledAppRepository
-	clusterServiceCD        cluster2.ServiceClient
-	K8sInformerFactory      informer.K8sInformerFactory
-	gitOpsRepository        repository3.GitOpsConfigRepository
-	sshTunnelWrapperService k8s.SSHTunnelWrapperService
+	environmentRepository    repository.EnvironmentRepository
+	grafanaClient            grafana.GrafanaClient
+	installedAppRepository   repository2.InstalledAppRepository
+	clusterServiceCD         cluster2.ServiceClient
+	K8sInformerFactory       informer.K8sInformerFactory
+	gitOpsRepository         repository3.GitOpsConfigRepository
+	sshTunnelWrapperService  k8s.SSHTunnelWrapperService
+	imageDigestPolicyService imageDigestPolicy.ImageDigestPolicyService
 	*ClusterServiceImpl
 }
 
 func NewClusterServiceImplExtended(repository repository.ClusterRepository, environmentRepository repository.EnvironmentRepository,
 	grafanaClient grafana.GrafanaClient, logger *zap.SugaredLogger, installedAppRepository repository2.InstalledAppRepository,
-	K8sUtil *k8s.K8sUtil,
+	K8sUtil *k8s.K8sUtilExtended,
 	clusterServiceCD cluster2.ServiceClient, K8sInformerFactory informer.K8sInformerFactory,
 	gitOpsRepository repository3.GitOpsConfigRepository, userAuthRepository repository4.UserAuthRepository,
 	userRepository repository4.UserRepository, roleGroupRepository repository4.RoleGroupRepository,
 	sshTunnelWrapperService k8s.SSHTunnelWrapperService,
 	globalAuthorisationConfigService auth.GlobalAuthorisationConfigService,
-	userService user.UserService) *ClusterServiceImplExtended {
+	userService user.UserService,
+	imageDigestPolicyService imageDigestPolicy.ImageDigestPolicyService) *ClusterServiceImplExtended {
 	clusterServiceExt := &ClusterServiceImplExtended{
-		environmentRepository:   environmentRepository,
-		grafanaClient:           grafanaClient,
-		installedAppRepository:  installedAppRepository,
-		clusterServiceCD:        clusterServiceCD,
-		gitOpsRepository:        gitOpsRepository,
-		sshTunnelWrapperService: sshTunnelWrapperService,
+		environmentRepository:    environmentRepository,
+		grafanaClient:            grafanaClient,
+		installedAppRepository:   installedAppRepository,
+		clusterServiceCD:         clusterServiceCD,
+		gitOpsRepository:         gitOpsRepository,
+		sshTunnelWrapperService:  sshTunnelWrapperService,
+		imageDigestPolicyService: imageDigestPolicyService,
 		ClusterServiceImpl: &ClusterServiceImpl{
 			clusterRepository:                repository,
 			logger:                           logger,
@@ -101,7 +106,7 @@ func (impl *ClusterServiceImplExtended) FindAllWithoutConfig() ([]*ClusterBean, 
 		return nil, err
 	}
 	for _, bean := range beans {
-		bean.Config = map[string]string{k8s.BearerToken: ""}
+		bean.Config = map[string]string{k8s2.BearerToken: ""}
 		if bean.SSHTunnelConfig != nil {
 			if len(bean.SSHTunnelConfig.Password) > 0 {
 				bean.SSHTunnelConfig.Password = SecretDataObfuscatePlaceholder
@@ -281,17 +286,17 @@ func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *Cluste
 		configMap := bean.Config
 		serverUrl := bean.ServerUrl
 		bearerToken := ""
-		if configMap[k8s.BearerToken] != "" {
-			bearerToken = configMap[k8s.BearerToken]
+		if configMap[k8s2.BearerToken] != "" {
+			bearerToken = configMap[k8s2.BearerToken]
 		}
 
 		tlsConfig := v1alpha1.TLSClientConfig{
 			Insecure: bean.InsecureSkipTLSVerify,
 		}
 		if !bean.InsecureSkipTLSVerify {
-			tlsConfig.KeyData = []byte(configMap[k8s.TlsKey])
-			tlsConfig.CertData = []byte(configMap[k8s.CertData])
-			tlsConfig.CAData = []byte(configMap[k8s.CertificateAuthorityData])
+			tlsConfig.KeyData = []byte(configMap[k8s2.TlsKey])
+			tlsConfig.CertData = []byte(configMap[k8s2.CertData])
+			tlsConfig.CAData = []byte(configMap[k8s2.CertificateAuthorityData])
 		}
 
 		cdClusterConfig := v1alpha1.ClusterConfig{
@@ -310,7 +315,7 @@ func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *Cluste
 		if err != nil {
 			impl.logger.Errorw("service err, Update", "error", err, "payload", cl)
 			userMsg := "failed to update on cluster via ACD"
-			if strings.Contains(err.Error(), k8s.DefaultClusterUrl) {
+			if strings.Contains(err.Error(), k8s2.DefaultClusterUrl) {
 				userMsg = fmt.Sprintf("%s, %s", err.Error(), ", successfully updated in ACD")
 			}
 			err = &util.ApiError{
@@ -444,4 +449,16 @@ func (impl ClusterServiceImplExtended) DeleteFromDb(bean *ClusterBean, userId in
 	err = impl.K8sUtil.DeleteSecret("default", secretName, k8sClient)
 	impl.logger.Errorw("error in deleting secret", "error", err)
 	return nil
+}
+
+func (impl ClusterServiceImplExtended) IsPolicyConfiguredForCluster(envId, clusterId int) (bool, error) {
+
+	digestConfigurationRequest := imageDigestPolicy.DigestPolicyConfigurationRequest{ClusterId: clusterId, EnvironmentId: envId}
+	digestPolicyConfigurations, err := impl.imageDigestPolicyService.GetDigestPolicyConfigurations(digestConfigurationRequest)
+	if err != nil {
+		impl.logger.Errorw("error in checking if isImageDigestPolicyConfiguredForPipeline", "err", err, "clusterId", clusterId, "envId", envId)
+		return false, err
+	}
+	return digestPolicyConfigurations.DigestConfiguredForEnvOrCluster, nil
+
 }

@@ -53,6 +53,7 @@ type EnvironmentBean struct {
 	AppCount               int      `json:"appCount"`
 	IsVirtualEnvironment   bool     `json:"isVirtualEnvironment"`
 	AllowedDeploymentTypes []string `json:"allowedDeploymentTypes"`
+	IsDigestEnforcedForEnv bool     `json:"isDigestEnforcedForEnv"`
 }
 
 type VirtualEnvironmentBean struct {
@@ -113,7 +114,7 @@ type EnvironmentServiceImpl struct {
 	environmentRepository repository.EnvironmentRepository
 	logger                *zap.SugaredLogger
 	clusterService        ClusterService
-	K8sUtil               *util2.K8sUtil
+	K8sUtil               *util2.K8sUtilExtended
 	k8sInformerFactory    informer.K8sInformerFactory
 	//propertiesConfigService pipeline.PropertiesConfigService
 	userAuthService      user.UserAuthService
@@ -122,7 +123,7 @@ type EnvironmentServiceImpl struct {
 
 func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepository,
 	clusterService ClusterService, logger *zap.SugaredLogger,
-	K8sUtil *util2.K8sUtil, k8sInformerFactory informer.K8sInformerFactory,
+	K8sUtil *util2.K8sUtilExtended, k8sInformerFactory informer.K8sInformerFactory,
 	//  propertiesConfigService pipeline.PropertiesConfigService,
 	userAuthService user.UserAuthService, attributesRepository repository2.AttributesRepository) *EnvironmentServiceImpl {
 	return &EnvironmentServiceImpl{
@@ -478,6 +479,11 @@ func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete(isDeploymen
 			} else {
 				allowedDeploymentConfigString = permittedDeploymentConfigString
 			}
+			IsDigestEnforcedForEnv, err := impl.clusterService.IsPolicyConfiguredForCluster(model.Id, model.ClusterId)
+			if err != nil {
+				impl.logger.Errorw("error in checking if image digest policy is configured or not", "err", err, "envId", model.Id, "clusterId", model.ClusterId)
+				return nil, err
+			}
 			beans = append(beans, EnvironmentBean{
 				Id:                     model.Id,
 				Environment:            model.Name,
@@ -490,6 +496,7 @@ func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete(isDeploymen
 				AllowedDeploymentTypes: allowedDeploymentConfigString,
 				ClusterId:              model.ClusterId,
 				Default:                model.Default,
+				IsDigestEnforcedForEnv: IsDigestEnforcedForEnv,
 			})
 		}
 	} else {

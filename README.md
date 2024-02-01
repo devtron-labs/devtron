@@ -5,7 +5,7 @@
   <img width="333.333" height="260" src="./assets/devtron-logo-dark-light.png">
 </picture>
 <h1 align= "center">Cloud Native tool integration platform for Kubernetes</h1>
-</p>
+</p> 
  
 <p align="center">
 <br>

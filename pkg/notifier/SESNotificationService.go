@@ -19,6 +19,7 @@ package notifier
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -28,8 +29,6 @@ import (
 	"go.uber.org/zap"
 	"time"
 )
-
-const SES_CONFIG_TYPE = "ses"
 
 type SESNotificationService interface {
 	SaveOrEditNotificationConfig(channelReq []*SESConfigDto, userId int32) ([]int, error)
@@ -258,7 +257,7 @@ func (impl *SESNotificationServiceImpl) DeleteNotificationConfig(deleteReq *SESC
 		impl.logger.Errorw("No matching entry found for delete", "err", err, "id", deleteReq.Id)
 		return err
 	}
-	notifications, err := impl.notificationSettingsRepository.FindNotificationSettingsByConfigIdAndConfigType(deleteReq.Id, SES_CONFIG_TYPE)
+	notifications, err := impl.notificationSettingsRepository.FindNotificationSettingsByConfigIdAndConfigType(deleteReq.Id, client.SES_CONFIG_TYPE)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in deleting ses config", "config", deleteReq)
 		return err

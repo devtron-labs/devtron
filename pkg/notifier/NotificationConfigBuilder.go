@@ -19,6 +19,7 @@ package notifier
 
 import (
 	"encoding/json"
+	"github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/util/event"
 	"go.uber.org/zap"
@@ -28,7 +29,7 @@ import (
 type NotificationConfigBuilder interface {
 	BuildNotificationSettingsConfig(notificationSettingsRequest *NotificationConfigRequest, existingNotificationSettingsConfig *repository.NotificationSettingsView, userId int32) (*repository.NotificationSettingsView, error)
 	BuildNewNotificationSettings(notificationSettingsRequest *NotificationConfigRequest, notificationSettingsView *repository.NotificationSettingsView) ([]repository.NotificationSettings, error)
-	BuildNotificationSettingWithPipeline(teamId *int, envId *int, appId *int, pipelineId *int, pipelineType util.PipelineType, eventTypeId int, viewId int, providers []*Provider) (repository.NotificationSettings, error)
+	BuildNotificationSettingWithPipeline(teamId *int, envId *int, appId *int, pipelineId *int, pipelineType util.PipelineType, eventTypeId int, viewId int, providers []*client.Provider) (repository.NotificationSettings, error)
 }
 
 type NotificationConfigBuilderImpl struct {
@@ -42,13 +43,13 @@ func NewNotificationConfigBuilderImpl(logger *zap.SugaredLogger) *NotificationCo
 }
 
 type NSConfig struct {
-	TeamId       []*int            `json:"teamId"`
-	AppId        []*int            `json:"appId"`
-	EnvId        []*int            `json:"envId"`
-	PipelineId   *int              `json:"pipelineId"`
-	PipelineType util.PipelineType `json:"pipelineType" validate:"required"`
-	EventTypeIds []int             `json:"eventTypeIds" validate:"required"`
-	Providers    []*Provider       `json:"providers" validate:"required"`
+	TeamId       []*int             `json:"teamId"`
+	AppId        []*int             `json:"appId"`
+	EnvId        []*int             `json:"envId"`
+	PipelineId   *int               `json:"pipelineId"`
+	PipelineType util.PipelineType  `json:"pipelineType" validate:"required"`
+	EventTypeIds []int              `json:"eventTypeIds" validate:"required"`
+	Providers    []*client.Provider `json:"providers" validate:"required"`
 }
 
 func (impl NotificationConfigBuilderImpl) BuildNotificationSettingsConfig(notificationSettingsRequest *NotificationConfigRequest, existingNotificationSettingsConfig *repository.NotificationSettingsView, userId int32) (*repository.NotificationSettingsView, error) {
@@ -168,8 +169,8 @@ func (impl NotificationConfigBuilderImpl) buildNotificationSetting(notificationS
 	return notificationSetting, nil
 }
 
-func (impl NotificationConfigBuilderImpl) BuildNotificationSettingWithPipeline(teamId *int, envId *int, appId *int, pipelineId *int, pipelineType util.PipelineType, eventTypeId int, viewId int, providers []*Provider) (repository.NotificationSettings, error) {
-	
+func (impl NotificationConfigBuilderImpl) BuildNotificationSettingWithPipeline(teamId *int, envId *int, appId *int, pipelineId *int, pipelineType util.PipelineType, eventTypeId int, viewId int, providers []*client.Provider) (repository.NotificationSettings, error) {
+
 	providersJson, err := json.Marshal(providers)
 	if err != nil {
 		impl.logger.Error(err)

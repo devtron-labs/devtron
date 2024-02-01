@@ -19,9 +19,10 @@ package router
 
 import (
 	"encoding/json"
-	pubsub2 "github.com/devtron-labs/common-lib-private/pubsub-lib"
+	pubsub2 "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/api/apiToken"
 	"github.com/devtron-labs/devtron/api/appStore"
+	"github.com/devtron-labs/devtron/api/appStore/chartGroup"
 	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
 	"github.com/devtron-labs/devtron/api/auth/authorisation/globalConfig"
 	"github.com/devtron-labs/devtron/api/auth/sso"
@@ -45,6 +46,7 @@ import (
 	webhookHelm "github.com/devtron-labs/devtron/api/webhook/helm"
 	"github.com/devtron-labs/devtron/client/cron"
 	"github.com/devtron-labs/devtron/client/dashboard"
+	"github.com/devtron-labs/devtron/client/proxy"
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/enterprise/api/drafts"
 	"github.com/devtron-labs/devtron/enterprise/api/globalTag"
@@ -64,7 +66,6 @@ type MuxRouter struct {
 	HelmRouter                         PipelineTriggerRouter
 	PipelineConfigRouter               PipelineConfigRouter
 	JobRouter                          JobRouter
-	MigrateDbRouter                    MigrateDbRouter
 	EnvironmentClusterMappingsRouter   cluster.EnvironmentRouter
 	AppListingRouter                   AppListingRouter
 	ClusterRouter                      cluster.ClusterRouter
@@ -72,7 +73,6 @@ type MuxRouter struct {
 	UserAuthRouter                     user.UserAuthRouter
 	ApplicationRouter                  ApplicationRouter
 	CDRouter                           CDRouter
-	ProjectManagementRouter            ProjectManagementRouter
 	GitProviderRouter                  GitProviderRouter
 	GitHostRouter                      GitHostRouter
 	DockerRegRouter                    DockerRegRouter
@@ -90,13 +90,13 @@ type MuxRouter struct {
 	ChartRepositoryRouter              chartRepo.ChartRepositoryRouter
 	ReleaseMetricsRouter               ReleaseMetricsRouter
 	deploymentGroupRouter              DeploymentGroupRouter
-	chartGroupRouter                   ChartGroupRouter
+	chartGroupRouter                   chartGroup.ChartGroupRouter
 	batchOperationRouter               BatchOperationRouter
-	testSuitRouter                     TestSuitRouter
 	imageScanRouter                    ImageScanRouter
 	policyRouter                       PolicyRouter
 	gitOpsConfigRouter                 GitOpsConfigRouter
 	dashboardRouter                    dashboard.DashboardRouter
+	proxyRouter                        proxy.ProxyRouter
 	attributesRouter                   AttributesRouter
 	userAttributesRouter               UserAttributesRouter
 	commonRouter                       CommonRouter
@@ -137,13 +137,14 @@ type MuxRouter struct {
 	devtronResourceRouter              devtronResource.DevtronResourceRouter
 	globalAuthorisationConfigRouter    globalConfig.AuthorisationConfigRouter
 	lockConfigurationRouter            lockConfiguation.LockConfigurationRouter
+	imageDigestPolicyRouter            ImageDigestPolicyRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, PipelineConfigRouter PipelineConfigRouter,
-	MigrateDbRouter MigrateDbRouter, AppListingRouter AppListingRouter,
+	AppListingRouter AppListingRouter,
 	EnvironmentClusterMappingsRouter cluster.EnvironmentRouter, ClusterRouter cluster.ClusterRouter,
 	WebHookRouter WebhookRouter, UserAuthRouter user.UserAuthRouter, ApplicationRouter ApplicationRouter,
-	CDRouter CDRouter, ProjectManagementRouter ProjectManagementRouter,
+	CDRouter CDRouter,
 	GitProviderRouter GitProviderRouter, GitHostRouter GitHostRouter,
 	DockerRegRouter DockerRegRouter,
 	NotificationRouter NotificationRouter,
@@ -154,7 +155,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 	ciEventHandler pubsub.CiEventHandler, pubsubClient *pubsub2.PubSubClientServiceImpl, UserRouter user.UserRouter,
 	ChartRefRouter ChartRefRouter, ConfigMapRouter ConfigMapRouter, AppStoreRouter appStore.AppStoreRouter, chartRepositoryRouter chartRepo.ChartRepositoryRouter,
 	ReleaseMetricsRouter ReleaseMetricsRouter, deploymentGroupRouter DeploymentGroupRouter, batchOperationRouter BatchOperationRouter,
-	chartGroupRouter ChartGroupRouter, testSuitRouter TestSuitRouter, imageScanRouter ImageScanRouter,
+	chartGroupRouter chartGroup.ChartGroupRouter, imageScanRouter ImageScanRouter,
 	policyRouter PolicyRouter, gitOpsConfigRouter GitOpsConfigRouter, dashboardRouter dashboard.DashboardRouter, attributesRouter AttributesRouter, userAttributesRouter UserAttributesRouter,
 	commonRouter CommonRouter, grafanaRouter GrafanaRouter, ssoLoginRouter sso.SsoLoginRouter, telemetryRouter TelemetryRouter, telemetryWatcher telemetry.TelemetryEventClient, bulkUpdateRouter BulkUpdateRouter, webhookListenerRouter WebhookListenerRouter, appRouter AppRouter,
 	coreAppRouter CoreAppRouter, helmAppRouter client.HelmAppRouter, k8sApplicationRouter application.K8sApplicationRouter,
@@ -172,12 +173,13 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 	resourceFilterRouter ResourceFilterRouter,
 	devtronResourceRouter devtronResource.DevtronResourceRouter,
 	globalAuthorisationConfigRouter globalConfig.AuthorisationConfigRouter,
-	lockConfigurationRouter lockConfiguation.LockConfigurationRouter) *MuxRouter {
+	lockConfigurationRouter lockConfiguation.LockConfigurationRouter,
+	proxyRouter proxy.ProxyRouter,
+	imageDigestPolicyRouter ImageDigestPolicyRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
 		HelmRouter:                         HelmRouter,
 		PipelineConfigRouter:               PipelineConfigRouter,
-		MigrateDbRouter:                    MigrateDbRouter,
 		EnvironmentClusterMappingsRouter:   EnvironmentClusterMappingsRouter,
 		AppListingRouter:                   AppListingRouter,
 		ClusterRouter:                      ClusterRouter,
@@ -185,7 +187,6 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 		UserAuthRouter:                     UserAuthRouter,
 		ApplicationRouter:                  ApplicationRouter,
 		CDRouter:                           CDRouter,
-		ProjectManagementRouter:            ProjectManagementRouter,
 		DockerRegRouter:                    DockerRegRouter,
 		GitProviderRouter:                  GitProviderRouter,
 		GitHostRouter:                      GitHostRouter,
@@ -206,13 +207,13 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 		deploymentGroupRouter:              deploymentGroupRouter,
 		batchOperationRouter:               batchOperationRouter,
 		chartGroupRouter:                   chartGroupRouter,
-		testSuitRouter:                     testSuitRouter,
 		imageScanRouter:                    imageScanRouter,
 		policyRouter:                       policyRouter,
 		gitOpsConfigRouter:                 gitOpsConfigRouter,
 		attributesRouter:                   attributesRouter,
 		userAttributesRouter:               userAttributesRouter,
 		dashboardRouter:                    dashboardRouter,
+		proxyRouter:                        proxyRouter,
 		commonRouter:                       commonRouter,
 		grafanaRouter:                      grafanaRouter,
 		ssoLoginRouter:                     ssoLoginRouter,
@@ -252,6 +253,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 		devtronResourceRouter:              devtronResourceRouter,
 		globalAuthorisationConfigRouter:    globalAuthorisationConfigRouter,
 		lockConfigurationRouter:            lockConfigurationRouter,
+		imageDigestPolicyRouter:            imageDigestPolicyRouter,
 	}
 	return r
 }
@@ -302,9 +304,6 @@ func (r MuxRouter) Init() {
 	jobConfigRouter := r.Router.PathPrefix("/orchestrator/job").Subrouter()
 	r.JobRouter.InitJobRouter(jobConfigRouter)
 
-	migrateRouter := r.Router.PathPrefix("/orchestrator/migrate").Subrouter()
-	r.MigrateDbRouter.InitMigrateDbRouter(migrateRouter)
-
 	environmentClusterMappingsRouter := r.Router.PathPrefix("/orchestrator/env").Subrouter()
 	r.EnvironmentClusterMappingsRouter.InitEnvironmentClusterMappingsRouter(environmentClusterMappingsRouter)
 	r.resourceGroupingRouter.InitResourceGroupingRouter(environmentClusterMappingsRouter)
@@ -324,8 +323,8 @@ func (r MuxRouter) Init() {
 	resourceFilterRouter := r.Router.PathPrefix("/orchestrator/filters").Subrouter()
 	r.resourceFilterRouter.InitResourceFilterRouter(resourceFilterRouter)
 
-	projectManagementRouter := r.Router.PathPrefix("/orchestrator/project-management").Subrouter()
-	r.ProjectManagementRouter.InitProjectManagementRouter(projectManagementRouter)
+	imageDigestPolicyRouter := r.Router.PathPrefix("/orchestrator/digest-policy").Subrouter()
+	r.imageDigestPolicyRouter.initImageDigestPolicyRouter(imageDigestPolicyRouter)
 
 	gitRouter := r.Router.PathPrefix("/orchestrator/git").Subrouter()
 	r.GitProviderRouter.InitGitProviderRouter(gitRouter)
@@ -364,10 +363,7 @@ func (r MuxRouter) Init() {
 	r.batchOperationRouter.initBatchOperationRouter(rootRouter)
 
 	chartGroupRouter := r.Router.PathPrefix("/orchestrator/chart-group").Subrouter()
-	r.chartGroupRouter.initChartGroupRouter(chartGroupRouter)
-
-	testSuitRouter := r.Router.PathPrefix("/orchestrator/test-report").Subrouter()
-	r.testSuitRouter.InitTestSuitRouter(testSuitRouter)
+	r.chartGroupRouter.InitChartGroupRouter(chartGroupRouter)
 
 	imageScanRouter := r.Router.PathPrefix("/orchestrator/security/scan").Subrouter()
 	r.imageScanRouter.InitImageScanRouter(imageScanRouter)
@@ -386,6 +382,9 @@ func (r MuxRouter) Init() {
 
 	dashboardRouter := r.Router.PathPrefix("/dashboard").Subrouter()
 	r.dashboardRouter.InitDashboardRouter(dashboardRouter)
+
+	proxyRouter := r.Router.PathPrefix("/proxy").Subrouter()
+	r.proxyRouter.InitProxyRouter(proxyRouter)
 
 	grafanaRouter := r.Router.PathPrefix("/grafana").Subrouter()
 	r.grafanaRouter.initGrafanaRouter(grafanaRouter)

@@ -46,9 +46,9 @@ type DevtronResourceServiceImpl struct {
 	devtronResourceSchemaAuditRepository repository.DevtronResourceSchemaAuditRepository
 	devtronResourceObjectAuditRepository repository.DevtronResourceObjectAuditRepository
 	appRepository                        appRepository.AppRepository
-	pipelineRepository   pipelineConfig.PipelineRepository
-	userRepository       repository2.UserRepository
-	appListingRepository repository3.AppListingRepository
+	pipelineRepository                   pipelineConfig.PipelineRepository
+	userRepository                       repository2.UserRepository
+	appListingRepository                 repository3.AppListingRepository
 	devtronResourcesMapById              map[int]*repository.DevtronResource       //map of id and its object
 	devtronResourcesMapByKind            map[string]*repository.DevtronResource    //map of kind and its object
 	devtronResourcesSchemaMapById        map[int]*repository.DevtronResourceSchema //map of id and its object

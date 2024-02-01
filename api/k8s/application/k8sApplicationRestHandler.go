@@ -5,13 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/common-lib-private/utils"
 	"net/http"
 	"strconv"
 	"strings"
 
-	util3 "github.com/devtron-labs/common-lib-private/utils/k8s"
-	k8sCommonBean "github.com/devtron-labs/common-lib-private/utils/k8s/commonBean"
-	"github.com/devtron-labs/common-lib-private/utils/k8sObjectsUtil"
+	util4 "github.com/devtron-labs/common-lib/utils/k8s"
+	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
+	"github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/connector"
 	client "github.com/devtron-labs/devtron/api/helm-app"
@@ -202,8 +203,8 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 		common.WriteJsonResp(w, err, resource, http.StatusInternalServerError)
 		return
 	}
-	if resource != nil {
-		err = resource.SetRunningEphemeralContainers()
+	if resource != nil && resource.ManifestResponse != nil {
+		err = resource.ManifestResponse.SetRunningEphemeralContainers()
 		if err != nil {
 			handler.logger.Errorw("error in setting running ephemeral containers and setting them in resource response", "err", err)
 			common.WriteJsonResp(w, err, resource, http.StatusInternalServerError)
@@ -215,10 +216,10 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 	// Obfuscate secret if user does not have edit access
 	if request.AppIdentifier == nil && request.DevtronAppIdentifier == nil && request.ClusterId > 0 {
 		// Verify update access for Resource Browser
-		canUpdate = handler.k8sApplicationService.ValidateClusterResourceBean(r.Context(), request.ClusterId, resource.Manifest, request.K8sRequest.ResourceIdentifier.GroupVersionKind, handler.getRbacCallbackForResource(token, casbin.ActionUpdate))
+		canUpdate = handler.k8sApplicationService.ValidateClusterResourceBean(r.Context(), request.ClusterId, resource.ManifestResponse.Manifest, request.K8sRequest.ResourceIdentifier.GroupVersionKind, handler.getRbacCallbackForResource(token, casbin.ActionUpdate))
 		if !canUpdate {
 			// Verify read access for Resource Browser
-			readAllowed := handler.k8sApplicationService.ValidateClusterResourceBean(r.Context(), request.ClusterId, resource.Manifest, request.K8sRequest.ResourceIdentifier.GroupVersionKind, handler.getRbacCallbackForResource(token, casbin.ActionGet))
+			readAllowed := handler.k8sApplicationService.ValidateClusterResourceBean(r.Context(), request.ClusterId, resource.ManifestResponse.Manifest, request.K8sRequest.ResourceIdentifier.GroupVersionKind, handler.getRbacCallbackForResource(token, casbin.ActionGet))
 			if !readAllowed {
 				common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
 				return
@@ -227,14 +228,16 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 	}
 	if !canUpdate && resource != nil {
 		// Hide secret for read only access
-		modifiedManifest, err := k8sObjectsUtil.HideValuesIfSecret(&resource.Manifest)
+		modifiedManifest, err := k8sObjectsUtil.HideValuesIfSecret(&resource.ManifestResponse.Manifest)
 		if err != nil {
 			handler.logger.Errorw("error in hiding secret values", "err", err)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
 		}
-		resource.Manifest = *modifiedManifest
+		resource.ManifestResponse.Manifest = *modifiedManifest
 	}
+	// setting flag for secret view access only for resource browser
+	resource.SecretViewAccess = canUpdate
 
 	common.WriteJsonResp(w, nil, resource, http.StatusOK)
 }
@@ -512,8 +515,17 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWrit
 
 	resource, err := handler.k8sApplicationService.DeleteResourceWithAudit(r.Context(), &request, userId)
 	if err != nil {
+		errCode := http.StatusInternalServerError
+		if apiErr, ok := err.(*utils.ApiError); ok {
+			errCode = apiErr.HttpStatusCode
+			switch errCode {
+			case http.StatusNotFound:
+				errorMessage := "resource not found"
+				err = fmt.Errorf("%s: %w", errorMessage, err)
+			}
+		}
 		handler.logger.Errorw("error in deleting resource", "err", err)
-		common.WriteJsonResp(w, err, resource, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, resource, errCode)
 		return
 	}
 	common.WriteJsonResp(w, nil, resource, http.StatusOK)
@@ -854,7 +866,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetResourceList(w http.ResponseWri
 
 func (handler *K8sApplicationRestHandlerImpl) ApplyResources(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
-	var request util3.ApplyResourcesRequest
+	var request util4.ApplyResourcesRequest
 	token := r.Header.Get("token")
 	err := decoder.Decode(&request)
 	if err != nil {
@@ -872,13 +884,13 @@ func (handler *K8sApplicationRestHandlerImpl) ApplyResources(w http.ResponseWrit
 	common.WriteJsonResp(w, nil, response, http.StatusOK)
 }
 
-func (handler *K8sApplicationRestHandlerImpl) getRbacCallbackForResource(token string, casbinAction string) func(clusterName string, resourceIdentifier util3.ResourceIdentifier) bool {
-	return func(clusterName string, resourceIdentifier util3.ResourceIdentifier) bool {
+func (handler *K8sApplicationRestHandlerImpl) getRbacCallbackForResource(token string, casbinAction string) func(clusterName string, resourceIdentifier util4.ResourceIdentifier) bool {
+	return func(clusterName string, resourceIdentifier util4.ResourceIdentifier) bool {
 		return handler.verifyRbacForResource(token, clusterName, resourceIdentifier, casbinAction)
 	}
 }
 
-func (handler *K8sApplicationRestHandlerImpl) verifyRbacForResource(token string, clusterName string, resourceIdentifier util3.ResourceIdentifier, casbinAction string) bool {
+func (handler *K8sApplicationRestHandlerImpl) verifyRbacForResource(token string, clusterName string, resourceIdentifier util4.ResourceIdentifier, casbinAction string) bool {
 	resourceName, objectName := handler.enforcerUtil.GetRBACNameForClusterEntity(clusterName, resourceIdentifier)
 	return handler.enforcer.Enforce(token, strings.ToLower(resourceName), casbinAction, objectName)
 }
