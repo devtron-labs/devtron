@@ -29,34 +29,14 @@ paths:
                 items:
                   $ref: "#/components/schemas/ResourceConfig"
 
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              example:
-                #In case of Invalid appId and envId
-                error: "Invalid input parameters"
-
-        '404':
-          description: Not Found
-          content:
-            application/json:
-              example:
-                #when BaseDeployment Template is not configured
-                error: "Resource not found"
         '500':
-          description: Internal Server Error
-          content:
-            application/json:
-              example:
-                error: "Internal Server Error"
+          description: will get this response if any failure occurs at server side.
+        '400':
+          description: will get this response if invalid payload is sent in the request.
         '403':
-          description: Forbidden
-          content:
-            application/json:
-              example:
-                #when not have access of particular resources
-                error: "Forbidden"
+          description: will get this response if user doesn't view access  permission for the app or env
+        '404':
+          description:  will get this when BaseDeployment Template is not configured
 
 components:
   schemas:
