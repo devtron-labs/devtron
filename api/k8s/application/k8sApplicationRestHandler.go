@@ -728,7 +728,7 @@ func (handler *K8sApplicationRestHandlerImpl) DownloadPodLogs(w http.ResponseWri
 		}
 	}
 	if len(dataBuffer.Bytes()) == 0 {
-		common.WriteJsonResp(w, fmt.Errorf("logs not found"), nil, http.StatusOK)
+		common.WriteJsonResp(w, errors.New("logs not found"), nil, http.StatusOK)
 		return
 	}
 	podLogsFilename := generatePodLogsFilename(request.K8sRequest.ResourceIdentifier.Name)
