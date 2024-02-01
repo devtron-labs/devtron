@@ -2534,11 +2534,6 @@ func (handler *PipelineConfigRestHandlerImpl) SaveGitOpsConfiguration(w http.Res
 	span.End()
 	if err != nil {
 		handler.Logger.Errorw("service err, SaveAppLevelGitOpsConfiguration", "err", err, "request", appGitOpsConfigRequest)
-		errResponse, ok := err.(*util.ApiError)
-		if ok && errResponse.HttpStatusCode != 0 {
-			common.WriteJsonResp(w, err, err, errResponse.HttpStatusCode)
-			return
-		}
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -2573,11 +2568,6 @@ func (handler *PipelineConfigRestHandlerImpl) GetGitOpsConfiguration(w http.Resp
 	appGitOpsConfig, err := handler.chartService.GetAppLevelGitOpsConfiguration(appId)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetAppLevelGitOpsConfiguration", "err", err, "appId", appId)
-		errResponse, ok := err.(*util.ApiError)
-		if ok && errResponse.HttpStatusCode != 0 {
-			common.WriteJsonResp(w, err, err, errResponse.HttpStatusCode)
-			return
-		}
 		common.WriteJsonResp(w, err, err, http.StatusInternalServerError)
 		return
 	}

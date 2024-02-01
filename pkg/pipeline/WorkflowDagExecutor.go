@@ -23,6 +23,7 @@ import (
 	errors3 "errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/util/gitUtil"
+	"net/http"
 	"path"
 	"strconv"
 	"strings"
@@ -1102,7 +1103,12 @@ func (impl *WorkflowDagExecutorImpl) handleCustomGitOpsRepoValidation(runner *pi
 				impl.logger.Errorw("error in updating wfr status due to vulnerable image", "err", err)
 				return err
 			}
-			return fmt.Errorf(pipelineConfig.GITOPS_REPO_NOT_CONFIGURED)
+			apiErr := &util.ApiError{
+				HttpStatusCode:  http.StatusConflict,
+				UserMessage:     pipelineConfig.GITOPS_REPO_NOT_CONFIGURED,
+				InternalMessage: pipelineConfig.GITOPS_REPO_NOT_CONFIGURED,
+			}
+			return apiErr
 		}
 	}
 	return nil

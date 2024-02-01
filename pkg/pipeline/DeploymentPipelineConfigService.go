@@ -419,7 +419,12 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 		}
 		if ChartsUtil.IsGitOpsRepoNotConfigured(chart.GitRepoUrl) {
 			if gitOpsConfig.AllowCustomRepository || chart.IsCustomGitRepository {
-				return nil, fmt.Errorf(pipelineConfig.GITOPS_REPO_NOT_CONFIGURED)
+				apiErr := &util.ApiError{
+					HttpStatusCode:  http.StatusConflict,
+					UserMessage:     pipelineConfig.GITOPS_REPO_NOT_CONFIGURED,
+					InternalMessage: pipelineConfig.GITOPS_REPO_NOT_CONFIGURED,
+				}
+				return nil, apiErr
 			}
 			_, chartGitAttr, err := impl.appService.CreateGitopsRepo(app, pipelineCreateRequest.UserId)
 			if err != nil {
