@@ -21,8 +21,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/auth/user/helper"
 	"github.com/gorilla/schema"
-	"golang.org/x/exp/slices"
 	"net/http"
 	"strconv"
 	"strings"
@@ -418,10 +418,11 @@ func (handler UserRestHandlerImpl) DeleteUser(w http.ResponseWriter, r *http.Req
 	}
 	//RBAC enforcer Ends
 	//validation
-	err = checkValidationForSystemOrAdminUser(int32(id))
-	if err != nil {
+	validated := helper.CheckIfUserDevtronManaged(int32(id))
+	if !validated {
+		err = &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "cannot delete system or admin user"}
 		handler.logger.Errorw("request err, DeleteUser, validation failed", "id", id, "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	//service call
@@ -472,7 +473,7 @@ func (handler UserRestHandlerImpl) BulkUpdateStatus(w http.ResponseWriter, r *ht
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	err = checkValidationForAdminAndSystemUserId(request.UserIds)
+	err = helper.CheckValidationForAdminAndSystemUserId(request.UserIds)
 	if err != nil {
 		handler.logger.Errorw("request err, BulkUpdateStatus, validation failed", "payload", request, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -488,17 +489,6 @@ func (handler UserRestHandlerImpl) BulkUpdateStatus(w http.ResponseWriter, r *ht
 
 	common.WriteJsonResp(w, nil, res, http.StatusOK)
 
-}
-func checkValidationForAdminAndSystemUserId(userIds []int32) error {
-	if len(userIds) == 0 {
-		err := &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "no user ids provided"}
-		return err
-	}
-	if slices.Contains(userIds, bean2.AdminUserId) || slices.Contains(userIds, bean2.SystemUserId) {
-		err := &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "cannot update status for system or admin user"}
-		return err
-	}
-	return nil
 }
 
 func (handler UserRestHandlerImpl) FetchRoleGroupById(w http.ResponseWriter, r *http.Request) {
