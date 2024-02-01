@@ -1,6 +1,7 @@
 package units
 
 import (
+	"github.com/devtron-labs/devtron/util"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"strconv"
@@ -316,6 +317,9 @@ func ParseValAndUnit(quantity string) (float64, string, error) {
 	}
 
 	val, err := strconv.ParseFloat(valStr, 64)
+
+	// currently we are not supporting exponential values upto 2 decimals
+	val = util.TruncateFloat(val, 2)
 	return val, suffix, err
 }
 
