@@ -322,6 +322,12 @@ func getDiffJson(savedConfigMap, currentConfigMap map[string]interface{}) (map[s
 			continue
 		}
 		if !reflect.DeepEqual(savedConfigMap[key], currentConfigMap[key]) {
+			if val, ok := savedConfigMap[key]; ok {
+				if val == nil {
+					lockedMap[key] = currentConfigMap[key]
+					continue
+				}
+			}
 			switch reflect.TypeOf(savedConfigMap[key]).Kind() {
 			case reflect.Map:
 				locked, isSaveEligibleChangesDisabled := getDiffJson(savedConfigMap[key].(map[string]interface{}), currentConfigMap[key].(map[string]interface{}))
