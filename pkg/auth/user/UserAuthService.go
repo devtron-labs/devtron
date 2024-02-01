@@ -469,13 +469,13 @@ func (impl UserAuthServiceImpl) AuthVerification(r *http.Request) (bool, error) 
 			HttpStatusCode:  http.StatusUnauthorized,
 			Code:            constants.UserNoTokenProvided,
 			InternalMessage: "failed to verify token",
-			UserMessage:     fmt.Sprintf("token verification failed while getting logged in user: %s", token),
+			UserMessage:     "token verification failed while getting logged in user",
 		}
 		return false, err
 	}
 	emailId, err := impl.userService.GetEmailFromToken(token)
 	if err != nil {
-		impl.logger.Errorw("AuthVerification failed ", "token", token, "error", err)
+		impl.logger.Errorw("AuthVerification failed ", "error", err)
 		return false, err
 	}
 	exists := impl.userService.UserExists(emailId)
@@ -484,7 +484,7 @@ func (impl UserAuthServiceImpl) AuthVerification(r *http.Request) (bool, error) 
 			HttpStatusCode:  http.StatusUnauthorized,
 			Code:            constants.UserNotFoundForToken,
 			InternalMessage: "user does not exist",
-			UserMessage:     fmt.Sprintf("active user does not exist for token: %s", token),
+			UserMessage:     "active user does not exist",
 		}
 		return false, err
 	}

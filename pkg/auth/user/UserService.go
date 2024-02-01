@@ -956,30 +956,34 @@ func (impl UserServiceImpl) GetAllWithFilters(request *bean.FetchListingRequest)
 	if request.ShowAll {
 		response, err := impl.getAllDetailedUsers()
 		if err != nil {
-			impl.logger.Errorw("error in getAllDetailedUsers", "err", err)
+			impl.logger.Errorw("error in GetAllWithFilters", "err", err)
 			return nil, err
 		}
 		return impl.getAllDetailedUsersAdapter(response), nil
 	}
-
+	// setting count check to true for only count
+	request.CountCheck = true
 	// Build query from query builder
-	query := impl.userListingRepositoryQueryBuilder.GetQueryForUserListingWithFilters(request, true)
+	query := impl.userListingRepositoryQueryBuilder.GetQueryForUserListingWithFilters(request)
 	totalCount, err := impl.userRepository.GetCountExecutingQuery(query)
 	if err != nil {
-		impl.logger.Errorw("error while fetching user from db", "error", err)
+		impl.logger.Errorw("error while fetching user from db in GetAllWithFilters", "error", err)
 		return nil, err
 	}
 
-	query = impl.userListingRepositoryQueryBuilder.GetQueryForUserListingWithFilters(request, false)
+	// setting count check to false for getting data
+	request.CountCheck = false
+
+	query = impl.userListingRepositoryQueryBuilder.GetQueryForUserListingWithFilters(request)
 	models, err := impl.userRepository.GetAllExecutingQuery(query)
 	if err != nil {
-		impl.logger.Errorw("error while fetching user from db", "error", err)
+		impl.logger.Errorw("error while fetching user from db in GetAllWithFilters", "error", err)
 		return nil, err
 	}
 
 	listingResponse, err := impl.getUserResponse(models, totalCount)
 	if err != nil {
-		impl.logger.Errorw("error in getUserResponseWithLoginAudit", "err", err)
+		impl.logger.Errorw("error in GetAllWithFilters", "err", err)
 		return nil, err
 	}
 

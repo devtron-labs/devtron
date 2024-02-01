@@ -34,16 +34,16 @@ type UserInfo struct {
 	EmailId       string       `json:"emailId" validate:"required,not-system-admin-user"`
 	Roles         []string     `json:"roles,omitempty"`
 	AccessToken   string       `json:"access_token,omitempty"`
-	UserType      string       `json:"-"`
-	LastUsedAt    time.Time    `json:"-"`
-	LastUsedByIp  string       `json:"-"`
-	Exist         bool         `json:"-"`
-	UserId        int32        `json:"-"` // created or modified user id
 	RoleFilters   []RoleFilter `json:"roleFilters"`
 	Status        string       `json:"status,omitempty"`
 	Groups        []string     `json:"groups"` // this will be deprecated in future do not use
 	SuperAdmin    bool         `json:"superAdmin,notnull"`
 	LastLoginTime time.Time    `json:"lastLoginTime"`
+	UserType      string       `json:"-"`
+	LastUsedAt    time.Time    `json:"-"`
+	LastUsedByIp  string       `json:"-"`
+	Exist         bool         `json:"-"`
+	UserId        int32        `json:"-"` // created or modified user id
 }
 
 type RoleGroup struct {
@@ -131,10 +131,11 @@ type RoleGroupListingResponse struct {
 }
 
 type FetchListingRequest struct {
-	SearchKey string         `json:"searchKey"`
-	SortOrder bean.SortOrder `json:"sortOrder"`
-	SortBy    bean.SortBy    `json:"sortBy"`
-	Offset    int            `json:"offset"`
-	Size      int            `json:"size"`
-	ShowAll   bool           `json:"showAll"`
+	SearchKey  string         `json:"searchKey"`
+	SortOrder  bean.SortOrder `json:"sortOrder"`
+	SortBy     bean.SortBy    `json:"sortBy"`
+	Offset     int            `json:"offset"`
+	Size       int            `json:"size"`
+	ShowAll    bool           `json:"showAll"`
+	CountCheck bool           `json:"-"`
 }

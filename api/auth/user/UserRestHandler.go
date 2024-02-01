@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/gorilla/schema"
 	"net/http"
 	"strconv"
@@ -445,7 +444,7 @@ func (handler UserRestHandlerImpl) DeleteUser(w http.ResponseWriter, r *http.Req
 }
 
 func checkValidationForSystemOrAdminUser(userId int32) error {
-	if userId == constants.SystemUserId || userId == constants.AdminUserId {
+	if userId == bean2.SystemUserId || userId == bean2.AdminUserId {
 		return &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "cannot delete system or admin user"}
 	}
 	return nil
