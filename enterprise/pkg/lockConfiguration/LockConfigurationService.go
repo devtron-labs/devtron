@@ -353,16 +353,16 @@ func getDiffJson(savedConfigMap, currentConfigMap map[string]interface{}) (map[s
 			delete(currentConfigMap, key)
 			continue
 		}
-
 		switch reflect.TypeOf(currentConfigMap[key]).Kind() {
 		case reflect.Map:
 			if len(currentConfigMap[key].(map[string]interface{})) == 0 {
-				delete(currentConfigMap, key)
+				if len(currentConfigMap[key].(map[string]interface{})) == 0 {
+					delete(currentConfigMap, key)
+				}
 			}
 		default:
 			delete(currentConfigMap, key)
 		}
-
 	}
 	// Append for the new added keys
 	for key, val := range currentConfigMap {
