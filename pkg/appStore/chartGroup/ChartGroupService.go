@@ -606,6 +606,7 @@ func (impl *ChartGroupServiceImpl) DeployBulk(chartGroupInstallRequest *ChartGro
 	}
 	//nats event
 	impl.triggerDeploymentEvent(installAppVersions)
+	// TODO refactoring: why empty obj ??
 	return &ChartGroupInstallAppRes{}, nil
 }
 
@@ -870,7 +871,7 @@ func (impl *ChartGroupServiceImpl) deployDefaultComponent(chartGroupInstallReque
 			}
 		}
 	}
-
+	// TODO refactoring: why empty obj ??
 	return &ChartGroupInstallAppRes{}, nil
 }
 
