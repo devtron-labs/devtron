@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -35,17 +34,14 @@ import (
 	repository1 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
-	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/plugin"
-	repository2 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	repository4 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 
-	"github.com/devtron-labs/common-lib/blob-storage"
 	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -57,7 +53,7 @@ import (
 
 type CiService interface {
 	TriggerCiPipeline(trigger types.Trigger) (int, error)
-	GetCiMaterials(pipelineId int, ciMaterials []*pipelineConfig.CiPipelineMaterial) ([]*pipelineConfig.CiPipelineMaterial, error)
+	GetCiMaterials(pipelineId int, ciMaterials []*pipelineConfig.CiPipelineMaterialEntity) ([]*pipelineConfig.CiPipelineMaterialEntity, error)
 }
 
 type CiServiceImpl struct {
@@ -126,7 +122,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 	return cis
 }
 
-func (impl *CiServiceImpl) GetCiMaterials(pipelineId int, ciMaterials []*pipelineConfig.CiPipelineMaterial) ([]*pipelineConfig.CiPipelineMaterial, error) {
+func (impl *CiServiceImpl) GetCiMaterials(pipelineId int, ciMaterials []*pipelineConfig.CiPipelineMaterialEntity) ([]*pipelineConfig.CiPipelineMaterialEntity, error) {
 	if !(len(ciMaterials) == 0) {
 		return ciMaterials, nil
 	} else {
@@ -140,17 +136,20 @@ func (impl *CiServiceImpl) GetCiMaterials(pipelineId int, ciMaterials []*pipelin
 	}
 }
 
+// first fetches ci materials, ciPipelineScripts
 func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error) {
 	impl.Logger.Debug("ci pipeline manual trigger")
+	// Fetch Ci Materials - START
 	ciMaterials, err := impl.GetCiMaterials(trigger.PipelineId, trigger.CiMaterials)
 	if err != nil {
 		return 0, err
 	}
 	if trigger.PipelineType == bean2.CI_JOB && len(ciMaterials) != 0 {
-		ciMaterials = []*pipelineConfig.CiPipelineMaterial{ciMaterials[0]}
+		ciMaterials = []*pipelineConfig.CiPipelineMaterialEntity{ciMaterials[0]}
 		ciMaterials[0].GitMaterial = nil
 		ciMaterials[0].GitMaterialId = 0
 	}
+
 	ciPipelineScripts, err := impl.ciPipelineRepository.FindCiScriptsByCiPipelineId(trigger.PipelineId)
 	if err != nil && !util.IsErrNoRows(err) {
 		return 0, err
@@ -370,119 +369,122 @@ func (impl *CiServiceImpl) executeCiPipeline(workflowRequest *types.WorkflowRequ
 	return nil
 }
 
-func (impl *CiServiceImpl) buildS3ArtifactLocation(ciWorkflowConfig *pipelineConfig.CiWorkflowConfig, savedWf *pipelineConfig.CiWorkflow) (string, string, string) {
-	ciArtifactLocationFormat := ciWorkflowConfig.CiArtifactLocationFormat
-	if ciArtifactLocationFormat == "" {
-		ciArtifactLocationFormat = impl.config.GetArtifactLocationFormat()
-	}
-	ArtifactLocation := fmt.Sprintf("s3://%s/%s/"+ciArtifactLocationFormat, ciWorkflowConfig.LogsBucket, impl.config.GetDefaultArtifactKeyPrefix(), savedWf.Id, savedWf.Id)
-	artifactFileName := fmt.Sprintf(impl.config.GetDefaultArtifactKeyPrefix()+"/"+ciArtifactLocationFormat, savedWf.Id, savedWf.Id)
-	return ArtifactLocation, ciWorkflowConfig.LogsBucket, artifactFileName
-}
+//TODO KB: Refer these func in WorkflowTriggerRequest struct
+//func (impl *CiServiceImpl) buildS3ArtifactLocation(ciWorkflowConfig *pipelineConfig.CiWorkflowConfig, savedWf *pipelineConfig.CiWorkflow) (string, string, string) {
+//	ciArtifactLocationFormat := ciWorkflowConfig.CiArtifactLocationFormat
+//	if ciArtifactLocationFormat == "" {
+//		ciArtifactLocationFormat = impl.config.GetArtifactLocationFormat()
+//	}
+//	ArtifactLocation := fmt.Sprintf("s3://%s/%s/"+ciArtifactLocationFormat, ciWorkflowConfig.LogsBucket, impl.config.GetDefaultArtifactKeyPrefix(), savedWf.Id, savedWf.Id)
+//	artifactFileName := fmt.Sprintf(impl.config.GetDefaultArtifactKeyPrefix()+"/"+ciArtifactLocationFormat, savedWf.Id, savedWf.Id)
+//	return ArtifactLocation, ciWorkflowConfig.LogsBucket, artifactFileName
+//}
+//
+//func (impl *CiServiceImpl) buildDefaultArtifactLocation(ciWorkflowConfig *pipelineConfig.CiWorkflowConfig, savedWf *pipelineConfig.CiWorkflow) string {
+//	ciArtifactLocationFormat := ciWorkflowConfig.CiArtifactLocationFormat
+//	if ciArtifactLocationFormat == "" {
+//		ciArtifactLocationFormat = impl.config.GetArtifactLocationFormat()
+//	}
+//	ArtifactLocation := fmt.Sprintf("%s/"+ciArtifactLocationFormat, impl.config.GetDefaultArtifactKeyPrefix(), savedWf.Id, savedWf.Id)
+//	return ArtifactLocation
+//}
 
-func (impl *CiServiceImpl) buildDefaultArtifactLocation(ciWorkflowConfig *pipelineConfig.CiWorkflowConfig, savedWf *pipelineConfig.CiWorkflow) string {
-	ciArtifactLocationFormat := ciWorkflowConfig.CiArtifactLocationFormat
-	if ciArtifactLocationFormat == "" {
-		ciArtifactLocationFormat = impl.config.GetArtifactLocationFormat()
-	}
-	ArtifactLocation := fmt.Sprintf("%s/"+ciArtifactLocationFormat, impl.config.GetDefaultArtifactKeyPrefix(), savedWf.Id, savedWf.Id)
-	return ArtifactLocation
-}
+func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.CiPipeline, trigger types.Trigger, ciMaterials []*pipelineConfig.CiPipelineMaterialEntity, savedWf *pipelineConfig.CiWorkflow, ciWorkflowConfig *pipelineConfig.CiWorkflowConfig, ciPipelineScripts []*pipelineConfig.CiPipelineScript, preCiSteps []*bean2.StepObject, postCiSteps []*bean2.StepObject, refPluginsData []*bean2.RefPluginObject, isJob bool) (*types.WorkflowRequest, error) {
+	// Refer WorkflowRequest loadProjectDetails
+	//var ciProjectDetails []bean2.CiProjectDetails
+	//commitHashes := trigger.CommitHashes
+	//for _, ciMaterial := range ciMaterials {
+	//	// ignore those materials which have inactive git material
+	//	if ciMaterial == nil || ciMaterial.GitMaterial == nil || !ciMaterial.GitMaterial.Active {
+	//		continue
+	//	}
+	//	commitHashForPipelineId := commitHashes[ciMaterial.Id]
+	//	ciProjectDetail := bean2.CiProjectDetails{
+	//		GitRepository:   ciMaterial.GitMaterial.Url,
+	//		MaterialName:    ciMaterial.GitMaterial.Name,
+	//		CheckoutPath:    ciMaterial.GitMaterial.CheckoutPath,
+	//		FetchSubmodules: ciMaterial.GitMaterial.FetchSubmodules,
+	//		CommitHash:      commitHashForPipelineId.Commit,
+	//		Author:          commitHashForPipelineId.Author,
+	//		SourceType:      ciMaterial.Type,
+	//		SourceValue:     ciMaterial.Value,
+	//		GitTag:          ciMaterial.GitTag,
+	//		Message:         commitHashForPipelineId.Message,
+	//		Type:            string(ciMaterial.Type),
+	//		CommitTime:      commitHashForPipelineId.Date.Format(bean.LayoutRFC3339),
+	//		GitOptions: bean2.GitOptions{
+	//			UserName:      ciMaterial.GitMaterial.GitProvider.UserName,
+	//			Password:      ciMaterial.GitMaterial.GitProvider.Password,
+	//			SshPrivateKey: ciMaterial.GitMaterial.GitProvider.SshPrivateKey,
+	//			AccessToken:   ciMaterial.GitMaterial.GitProvider.AccessToken,
+	//			AuthMode:      ciMaterial.GitMaterial.GitProvider.AuthMode,
+	//		},
+	//	}
+	//
+	//	if ciMaterial.Type == pipelineConfig.SOURCE_TYPE_WEBHOOK {
+	//		webhookData := commitHashForPipelineId.WebhookData
+	//		ciProjectDetail.WebhookData = pipelineConfig.WebhookData{
+	//			Id:              webhookData.Id,
+	//			EventActionType: webhookData.EventActionType,
+	//			Data:            webhookData.Data,
+	//		}
+	//	}
+	//
+	//	ciProjectDetails = append(ciProjectDetails, ciProjectDetail)
+	//}
 
-func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.CiPipeline, trigger types.Trigger, ciMaterials []*pipelineConfig.CiPipelineMaterial, savedWf *pipelineConfig.CiWorkflow, ciWorkflowConfig *pipelineConfig.CiWorkflowConfig, ciPipelineScripts []*pipelineConfig.CiPipelineScript, preCiSteps []*bean2.StepObject, postCiSteps []*bean2.StepObject, refPluginsData []*bean2.RefPluginObject, isJob bool) (*types.WorkflowRequest, error) {
-	var ciProjectDetails []bean2.CiProjectDetails
-	commitHashes := trigger.CommitHashes
-	for _, ciMaterial := range ciMaterials {
-		// ignore those materials which have inactive git material
-		if ciMaterial == nil || ciMaterial.GitMaterial == nil || !ciMaterial.GitMaterial.Active {
-			continue
-		}
-		commitHashForPipelineId := commitHashes[ciMaterial.Id]
-		ciProjectDetail := bean2.CiProjectDetails{
-			GitRepository:   ciMaterial.GitMaterial.Url,
-			MaterialName:    ciMaterial.GitMaterial.Name,
-			CheckoutPath:    ciMaterial.GitMaterial.CheckoutPath,
-			FetchSubmodules: ciMaterial.GitMaterial.FetchSubmodules,
-			CommitHash:      commitHashForPipelineId.Commit,
-			Author:          commitHashForPipelineId.Author,
-			SourceType:      ciMaterial.Type,
-			SourceValue:     ciMaterial.Value,
-			GitTag:          ciMaterial.GitTag,
-			Message:         commitHashForPipelineId.Message,
-			Type:            string(ciMaterial.Type),
-			CommitTime:      commitHashForPipelineId.Date.Format(bean.LayoutRFC3339),
-			GitOptions: bean2.GitOptions{
-				UserName:      ciMaterial.GitMaterial.GitProvider.UserName,
-				Password:      ciMaterial.GitMaterial.GitProvider.Password,
-				SshPrivateKey: ciMaterial.GitMaterial.GitProvider.SshPrivateKey,
-				AccessToken:   ciMaterial.GitMaterial.GitProvider.AccessToken,
-				AuthMode:      ciMaterial.GitMaterial.GitProvider.AuthMode,
-			},
-		}
+	// TODO Refer UpdatePipelineScripts of WorkflowTriggerRequest
+	//var beforeDockerBuildScripts []*bean.CiScript
+	//var afterDockerBuildScripts []*bean.CiScript
+	//for _, ciPipelineScript := range ciPipelineScripts {
+	//	ciTask := &bean.CiScript{
+	//		Id:             ciPipelineScript.Id,
+	//		Index:          ciPipelineScript.Index,
+	//		Name:           ciPipelineScript.Name,
+	//		Script:         ciPipelineScript.Script,
+	//		OutputLocation: ciPipelineScript.OutputLocation,
+	//	}
+	//
+	//	if ciPipelineScript.Stage == BEFORE_DOCKER_BUILD {
+	//		beforeDockerBuildScripts = append(beforeDockerBuildScripts, ciTask)
+	//	} else if ciPipelineScript.Stage == AFTER_DOCKER_BUILD {
+	//		afterDockerBuildScripts = append(afterDockerBuildScripts, ciTask)
+	//	}
+	//}
+	//
+	//if !(len(beforeDockerBuildScripts) == 0 && len(afterDockerBuildScripts) == 0) {
+	//	//found beforeDockerBuildScripts/afterDockerBuildScripts
+	//	//building preCiSteps & postCiSteps from them, refPluginsData not needed
+	//	preCiSteps = buildCiStepsDataFromDockerBuildScripts(beforeDockerBuildScripts)
+	//	postCiSteps = buildCiStepsDataFromDockerBuildScripts(afterDockerBuildScripts)
+	//	refPluginsData = []*bean2.RefPluginObject{}
+	//}
 
-		if ciMaterial.Type == pipelineConfig.SOURCE_TYPE_WEBHOOK {
-			webhookData := commitHashForPipelineId.WebhookData
-			ciProjectDetail.WebhookData = pipelineConfig.WebhookData{
-				Id:              webhookData.Id,
-				EventActionType: webhookData.EventActionType,
-				Data:            webhookData.Data,
-			}
-		}
+	//if ciWorkflowConfig.CiCacheBucket == "" {
+	//	ciWorkflowConfig.CiCacheBucket = impl.config.DefaultCacheBucket
+	//}
+	//
+	//if ciWorkflowConfig.CiCacheRegion == "" {
+	//	ciWorkflowConfig.CiCacheRegion = impl.config.DefaultCacheBucketRegion
+	//}
+	//
+	//if ciWorkflowConfig.CiImage == "" {
+	//	ciWorkflowConfig.CiImage = impl.config.GetDefaultImage()
+	//}
+	//if ciWorkflowConfig.CiTimeout == 0 {
+	//	ciWorkflowConfig.CiTimeout = impl.config.GetDefaultTimeout()
+	//}
 
-		ciProjectDetails = append(ciProjectDetails, ciProjectDetail)
-	}
-
-	var beforeDockerBuildScripts []*bean.CiScript
-	var afterDockerBuildScripts []*bean.CiScript
-	for _, ciPipelineScript := range ciPipelineScripts {
-		ciTask := &bean.CiScript{
-			Id:             ciPipelineScript.Id,
-			Index:          ciPipelineScript.Index,
-			Name:           ciPipelineScript.Name,
-			Script:         ciPipelineScript.Script,
-			OutputLocation: ciPipelineScript.OutputLocation,
-		}
-
-		if ciPipelineScript.Stage == BEFORE_DOCKER_BUILD {
-			beforeDockerBuildScripts = append(beforeDockerBuildScripts, ciTask)
-		} else if ciPipelineScript.Stage == AFTER_DOCKER_BUILD {
-			afterDockerBuildScripts = append(afterDockerBuildScripts, ciTask)
-		}
-	}
-
-	if !(len(beforeDockerBuildScripts) == 0 && len(afterDockerBuildScripts) == 0) {
-		//found beforeDockerBuildScripts/afterDockerBuildScripts
-		//building preCiSteps & postCiSteps from them, refPluginsData not needed
-		preCiSteps = buildCiStepsDataFromDockerBuildScripts(beforeDockerBuildScripts)
-		postCiSteps = buildCiStepsDataFromDockerBuildScripts(afterDockerBuildScripts)
-		refPluginsData = []*bean2.RefPluginObject{}
-	}
-
-	if ciWorkflowConfig.CiCacheBucket == "" {
-		ciWorkflowConfig.CiCacheBucket = impl.config.DefaultCacheBucket
-	}
-
-	if ciWorkflowConfig.CiCacheRegion == "" {
-		ciWorkflowConfig.CiCacheRegion = impl.config.DefaultCacheBucketRegion
-	}
-
-	if ciWorkflowConfig.CiImage == "" {
-		ciWorkflowConfig.CiImage = impl.config.GetDefaultImage()
-	}
-	if ciWorkflowConfig.CiTimeout == 0 {
-		ciWorkflowConfig.CiTimeout = impl.config.GetDefaultTimeout()
-	}
-
-	ciTemplate := pipeline.CiTemplate
-	ciLevelArgs := pipeline.DockerArgs
-
-	if ciLevelArgs == "" {
-		ciLevelArgs = "{}"
-	}
-
-	if pipeline.CiTemplate.DockerBuildOptions == "" {
-		pipeline.CiTemplate.DockerBuildOptions = "{}"
-	}
+	//ciTemplate := pipeline.CiTemplate
+	//ciLevelArgs := pipeline.DockerArgs
+	//
+	//if ciLevelArgs == "" {
+	//	ciLevelArgs = "{}"
+	//}
+	//
+	//if pipeline.CiTemplate.DockerBuildOptions == "" {
+	//	pipeline.CiTemplate.DockerBuildOptions = "{}"
+	//}
 	userEmailId, err := impl.userService.GetEmailById(trigger.TriggeredBy)
 	if err != nil {
 		impl.Logger.Errorw("unable to find user email by id", "err", err, "id", trigger.TriggeredBy)
@@ -493,159 +495,159 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	var checkoutPath string
 	var ciBuildConfigBean *bean2.CiBuildConfigBean
 	dockerRegistry := &repository3.DockerArtifactStore{}
-	if !pipeline.IsExternal && pipeline.IsDockerConfigOverridden {
-		templateOverrideBean, err := impl.ciTemplateService.FindTemplateOverrideByCiPipelineId(pipeline.Id)
-		if err != nil {
-			return nil, err
-		}
-		ciBuildConfigBean = templateOverrideBean.CiBuildConfig
-		templateOverride := templateOverrideBean.CiTemplateOverride
-		checkoutPath = templateOverride.GitMaterial.CheckoutPath
-		dockerfilePath = templateOverride.DockerfilePath
-		dockerRepository = templateOverride.DockerRepository
-		dockerRegistry = templateOverride.DockerRegistry
-	} else {
-		checkoutPath = ciTemplate.GitMaterial.CheckoutPath
-		dockerfilePath = ciTemplate.DockerfilePath
-		dockerRegistry = ciTemplate.DockerRegistry
-		dockerRepository = ciTemplate.DockerRepository
-		ciBuildConfigEntity := ciTemplate.CiBuildConfig
-		ciBuildConfigBean, err = bean2.ConvertDbBuildConfigToBean(ciBuildConfigEntity)
-		if ciBuildConfigBean != nil {
-			ciBuildConfigBean.BuildContextGitMaterialId = ciTemplate.BuildContextGitMaterialId
-		}
-		if err != nil {
-			impl.Logger.Errorw("error occurred while converting buildconfig dbEntity to configBean", "ciBuildConfigEntity", ciBuildConfigEntity, "err", err)
-			return nil, errors.New("error while parsing ci build config")
-		}
-	}
-	if checkoutPath == "" {
-		checkoutPath = "./"
-	}
-	var dockerImageTag string
-	customTag, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(bean2.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id))
-	if err != nil && err != pg.ErrNoRows {
-		return nil, err
-	}
-	if customTag.Id != 0 && customTag.Enabled == true {
-		imagePathReservation, err := impl.customTagService.GenerateImagePath(bean2.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id), dockerRegistry.RegistryURL, dockerRepository)
-		if err != nil {
-			if errors.Is(err, bean2.ErrImagePathInUse) {
-				savedWf.Status = pipelineConfig.WorkflowFailed
-				savedWf.Message = bean2.ImageTagUnavailableMessage
-				err1 := impl.ciWorkflowRepository.UpdateWorkFlow(savedWf)
-				if err1 != nil {
-					impl.Logger.Errorw("could not save workflow, after failing due to conflicting image tag")
-				}
-				return nil, err
-			}
-			return nil, err
-		}
-		savedWf.ImagePathReservationIds = []int{imagePathReservation.Id}
-		//imagePath = docker.io/avd0/dashboard:fd23414b
-		imagePathSplit := strings.Split(imagePathReservation.ImagePath, ":")
-		if len(imagePathSplit) >= 1 {
-			dockerImageTag = imagePathSplit[len(imagePathSplit)-1]
-		}
-	} else {
-		dockerImageTag = impl.buildImageTag(commitHashes, pipeline.Id, savedWf.Id)
-	}
+	//if !pipeline.IsExternal && pipeline.IsDockerConfigOverridden {
+	//	templateOverrideBean, err := impl.ciTemplateService.FindTemplateOverrideByCiPipelineId(pipeline.Id)
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//	ciBuildConfigBean = templateOverrideBean.CiBuildConfig
+	//	templateOverride := templateOverrideBean.CiTemplateOverride
+	//	checkoutPath = templateOverride.GitMaterial.CheckoutPath
+	//	dockerfilePath = templateOverride.DockerfilePath
+	//	dockerRepository = templateOverride.DockerRepository
+	//	dockerRegistry = templateOverride.DockerRegistry
+	//} else {
+	//	checkoutPath = ciTemplate.GitMaterial.CheckoutPath
+	//	dockerfilePath = ciTemplate.DockerfilePath
+	//	dockerRegistry = ciTemplate.DockerRegistry
+	//	dockerRepository = ciTemplate.DockerRepository
+	//	ciBuildConfigEntity := ciTemplate.CiBuildConfig
+	//	ciBuildConfigBean, err = bean2.ConvertDbBuildConfigToBean(ciBuildConfigEntity)
+	//	if ciBuildConfigBean != nil {
+	//		ciBuildConfigBean.BuildContextGitMaterialId = ciTemplate.BuildContextGitMaterialId
+	//	}
+	//	if err != nil {
+	//		impl.Logger.Errorw("error occurred while converting buildconfig dbEntity to configBean", "ciBuildConfigEntity", ciBuildConfigEntity, "err", err)
+	//		return nil, errors.New("error while parsing ci build config")
+	//	}
+	//}
+	//if checkoutPath == "" {
+	//	checkoutPath = "./"
+	//}
+	//var dockerImageTag string
+	//customTag, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(bean2.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id))
+	//if err != nil && err != pg.ErrNoRows {
+	//	return nil, err
+	//}
+	//if customTag.Id != 0 && customTag.Enabled == true {
+	//	imagePathReservation, err := impl.customTagService.GenerateImagePath(bean2.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id), dockerRegistry.RegistryURL, dockerRepository)
+	//	if err != nil {
+	//		if errors.Is(err, bean2.ErrImagePathInUse) {
+	//			savedWf.Status = pipelineConfig.WorkflowFailed
+	//			savedWf.Message = bean2.ImageTagUnavailableMessage
+	//			err1 := impl.ciWorkflowRepository.UpdateWorkFlow(savedWf)
+	//			if err1 != nil {
+	//				impl.Logger.Errorw("could not save workflow, after failing due to conflicting image tag")
+	//			}
+	//			return nil, err
+	//		}
+	//		return nil, err
+	//	}
+	//	savedWf.ImagePathReservationIds = []int{imagePathReservation.Id}
+	//	//imagePath = docker.io/avd0/dashboard:fd23414b
+	//	imagePathSplit := strings.Split(imagePathReservation.ImagePath, ":")
+	//	if len(imagePathSplit) >= 1 {
+	//		dockerImageTag = imagePathSplit[len(imagePathSplit)-1]
+	//	}
+	//} else {
+	//	dockerImageTag = impl.buildImageTag(commitHashes, pipeline.Id, savedWf.Id)
+	//}
 
 	// copyContainerImage plugin specific logic
-	var registryDestinationImageMap map[string][]string
-	var registryCredentialMap map[string]plugin.RegistryCredentials
-	var pluginArtifactStage string
-	var imageReservationIds []int
-	if !isJob {
-		registryDestinationImageMap, registryCredentialMap, pluginArtifactStage, imageReservationIds, err = impl.GetWorkflowRequestVariablesForCopyContainerImagePlugin(preCiSteps, postCiSteps, dockerImageTag, customTag.Id,
-			fmt.Sprintf(bean2.ImagePathPattern,
-				dockerRegistry.RegistryURL,
-				dockerRepository,
-				dockerImageTag),
-			dockerRegistry.Id)
-		if err != nil {
-			impl.Logger.Errorw("error in getting env variables for copyContainerImage plugin")
-			savedWf.Status = pipelineConfig.WorkflowFailed
-			savedWf.Message = err.Error()
-			err1 := impl.ciWorkflowRepository.UpdateWorkFlow(savedWf)
-			if err1 != nil {
-				impl.Logger.Errorw("could not save workflow, after failing due to conflicting image tag")
-			}
-			return nil, err
-		}
-
-		savedWf.ImagePathReservationIds = append(savedWf.ImagePathReservationIds, imageReservationIds...)
-	}
+	//var registryDestinationImageMap map[string][]string
+	//var registryCredentialMap map[string]plugin.RegistryCredentials
+	//var pluginArtifactStage string
+	//var imageReservationIds []int
+	//if !isJob {
+	//	registryDestinationImageMap, registryCredentialMap, pluginArtifactStage, imageReservationIds, err = impl.loadCopyContainerImagePluginMetadata(preCiSteps, postCiSteps, dockerImageTag, customTag.Id,
+	//		fmt.Sprintf(bean2.ImagePathPattern,
+	//			dockerRegistry.RegistryURL,
+	//			dockerRepository,
+	//			dockerImageTag),
+	//		dockerRegistry.Id)
+	//	if err != nil {
+	//		impl.Logger.Errorw("error in getting env variables for copyContainerImage plugin")
+	//		savedWf.Status = pipelineConfig.WorkflowFailed
+	//		savedWf.Message = err.Error()
+	//		err1 := impl.ciWorkflowRepository.UpdateWorkFlow(savedWf)
+	//		if err1 != nil {
+	//			impl.Logger.Errorw("could not save workflow, after failing due to conflicting image tag")
+	//		}
+	//		return nil, err
+	//	}
+	//
+	//	savedWf.ImagePathReservationIds = append(savedWf.ImagePathReservationIds, imageReservationIds...)
+	//}
 	//mergedArgs := string(merged)
 	oldArgs := ciTemplate.Args
-	ciBuildConfigBean, err = bean2.OverrideCiBuildConfig(dockerfilePath, oldArgs, ciLevelArgs, ciTemplate.DockerBuildOptions, ciTemplate.TargetPlatform, ciBuildConfigBean)
-	if err != nil {
-		impl.Logger.Errorw("error occurred while overriding ci build config", "oldArgs", oldArgs, "ciLevelArgs", ciLevelArgs, "error", err)
-		return nil, errors.New("error while parsing ci build config")
-	}
-	buildContextCheckoutPath, err := impl.ciPipelineMaterialRepository.GetCheckoutPath(ciBuildConfigBean.BuildContextGitMaterialId)
-	if err != nil && err != pg.ErrNoRows {
-		impl.Logger.Errorw("error occurred while getting checkout path from git material", "gitMaterialId", ciBuildConfigBean.BuildContextGitMaterialId, "error", err)
-		return nil, err
-	}
-	if buildContextCheckoutPath == "" {
-		buildContextCheckoutPath = checkoutPath
-	}
-	if ciBuildConfigBean.UseRootBuildContext {
-		//use root build context i.e '.'
-		buildContextCheckoutPath = "."
-	}
+	//ciBuildConfigBean, err = bean2.OverrideCiBuildConfig(dockerfilePath, oldArgs, ciLevelArgs, ciTemplate.DockerBuildOptions, ciTemplate.TargetPlatform, ciBuildConfigBean)
+	//if err != nil {
+	//	impl.Logger.Errorw("error occurred while overriding ci build config", "oldArgs", oldArgs, "ciLevelArgs", ciLevelArgs, "error", err)
+	//	return nil, errors.New("error while parsing ci build config")
+	//}
+	//buildContextCheckoutPath, err := impl.ciPipelineMaterialRepository.GetCheckoutPath(ciBuildConfigBean.BuildContextGitMaterialId)
+	//if err != nil && err != pg.ErrNoRows {
+	//	impl.Logger.Errorw("error occurred while getting checkout path from git material", "gitMaterialId", ciBuildConfigBean.BuildContextGitMaterialId, "error", err)
+	//	return nil, err
+	//}
+	//if buildContextCheckoutPath == "" {
+	//	buildContextCheckoutPath = checkoutPath
+	//}
+	//if ciBuildConfigBean.UseRootBuildContext {
+	//	//use root build context i.e '.'
+	//	buildContextCheckoutPath = "."
+	//}
 
-	ciBuildConfigBean.PipelineType = trigger.PipelineType
+	//ciBuildConfigBean.PipelineType = trigger.PipelineType
 
-	if ciBuildConfigBean.CiBuildType == bean2.SELF_DOCKERFILE_BUILD_TYPE || ciBuildConfigBean.CiBuildType == bean2.MANAGED_DOCKERFILE_BUILD_TYPE {
-		ciBuildConfigBean.DockerBuildConfig.BuildContext = filepath.Join(buildContextCheckoutPath, ciBuildConfigBean.DockerBuildConfig.BuildContext)
-		dockerBuildConfig := ciBuildConfigBean.DockerBuildConfig
-		dockerfilePath = filepath.Join(checkoutPath, dockerBuildConfig.DockerfilePath)
-		dockerBuildConfig.DockerfilePath = dockerfilePath
-		checkoutPath = dockerfilePath[:strings.LastIndex(dockerfilePath, "/")+1]
-	} else if ciBuildConfigBean.CiBuildType == bean2.BUILDPACK_BUILD_TYPE {
-		buildPackConfig := ciBuildConfigBean.BuildPackConfig
-		checkoutPath = filepath.Join(checkoutPath, buildPackConfig.ProjectPath)
-	}
-
-	defaultTargetPlatform := impl.config.DefaultTargetPlatform
-	useBuildx := impl.config.UseBuildx
-
-	if ciBuildConfigBean.DockerBuildConfig != nil {
-		if ciBuildConfigBean.DockerBuildConfig.TargetPlatform == "" && useBuildx {
-			ciBuildConfigBean.DockerBuildConfig.TargetPlatform = defaultTargetPlatform
-			ciBuildConfigBean.DockerBuildConfig.UseBuildx = useBuildx
-		}
-		ciBuildConfigBean.DockerBuildConfig.BuildxProvenanceMode = impl.config.BuildxProvenanceMode
-	}
+	//if ciBuildConfigBean.CiBuildType == bean2.SELF_DOCKERFILE_BUILD_TYPE || ciBuildConfigBean.CiBuildType == bean2.MANAGED_DOCKERFILE_BUILD_TYPE {
+	//	ciBuildConfigBean.DockerBuildConfig.BuildContext = filepath.Join(buildContextCheckoutPath, ciBuildConfigBean.DockerBuildConfig.BuildContext)
+	//	dockerBuildConfig := ciBuildConfigBean.DockerBuildConfig
+	//	dockerfilePath = filepath.Join(checkoutPath, dockerBuildConfig.DockerfilePath)
+	//	dockerBuildConfig.DockerfilePath = dockerfilePath
+	//	checkoutPath = dockerfilePath[:strings.LastIndex(dockerfilePath, "/")+1]
+	//} else if ciBuildConfigBean.CiBuildType == bean2.BUILDPACK_BUILD_TYPE {
+	//	buildPackConfig := ciBuildConfigBean.BuildPackConfig
+	//	checkoutPath = filepath.Join(checkoutPath, buildPackConfig.ProjectPath)
+	//}
+	//
+	//defaultTargetPlatform := impl.config.DefaultTargetPlatform
+	//useBuildx := impl.config.UseBuildx
+	//
+	//if ciBuildConfigBean.DockerBuildConfig != nil {
+	//	if ciBuildConfigBean.DockerBuildConfig.TargetPlatform == "" && useBuildx {
+	//		ciBuildConfigBean.DockerBuildConfig.TargetPlatform = defaultTargetPlatform
+	//		ciBuildConfigBean.DockerBuildConfig.UseBuildx = useBuildx
+	//	}
+	//	ciBuildConfigBean.DockerBuildConfig.BuildxProvenanceMode = impl.config.BuildxProvenanceMode
+	//}
 
 	workflowRequest := &types.WorkflowRequest{
-		WorkflowNamePrefix:          strconv.Itoa(savedWf.Id) + "-" + savedWf.Name,
-		PipelineName:                pipeline.Name,
-		PipelineId:                  pipeline.Id,
-		CiCacheFileName:             pipeline.Name + "-" + strconv.Itoa(pipeline.Id) + ".tar.gz",
-		CiProjectDetails:            ciProjectDetails,
-		Namespace:                   ciWorkflowConfig.Namespace,
-		BlobStorageConfigured:       savedWf.BlobStorageEnabled,
-		CiImage:                     ciWorkflowConfig.CiImage,
-		ActiveDeadlineSeconds:       ciWorkflowConfig.CiTimeout,
-		WorkflowId:                  savedWf.Id,
-		TriggeredBy:                 savedWf.TriggeredBy,
-		CacheLimit:                  impl.config.CacheLimit,
-		ScanEnabled:                 pipeline.ScanEnabled,
-		CloudProvider:               impl.config.CloudProvider,
-		DefaultAddressPoolBaseCidr:  impl.config.GetDefaultAddressPoolBaseCidr(),
-		DefaultAddressPoolSize:      impl.config.GetDefaultAddressPoolSize(),
-		PreCiSteps:                  preCiSteps,
-		PostCiSteps:                 postCiSteps,
-		RefPlugins:                  refPluginsData,
-		AppName:                     pipeline.App.AppName,
-		TriggerByAuthor:             userEmailId,
-		CiBuildConfig:               ciBuildConfigBean,
-		CiBuildDockerMtuValue:       impl.config.CiRunnerDockerMTUValue,
-		IgnoreDockerCachePush:       impl.config.IgnoreDockerCacheForCI,
-		IgnoreDockerCachePull:       impl.config.IgnoreDockerCacheForCI,
+		WorkflowNamePrefix:    strconv.Itoa(savedWf.Id) + "-" + savedWf.Name,
+		PipelineName:          pipeline.Name,
+		PipelineId:            pipeline.Id,
+		CiCacheFileName:       pipeline.Name + "-" + strconv.Itoa(pipeline.Id) + ".tar.gz",
+		CiProjectDetails:      ciProjectDetails,
+		Namespace:             ciWorkflowConfig.Namespace,
+		BlobStorageConfigured: savedWf.BlobStorageEnabled,
+		CiImage:               ciWorkflowConfig.CiImage,
+		ActiveDeadlineSeconds: ciWorkflowConfig.CiTimeout,
+		WorkflowId:            savedWf.Id,
+		TriggeredBy:           savedWf.TriggeredBy,
+		//CacheLimit:                 impl.config.CacheLimit, //TODO KB:
+		ScanEnabled:                pipeline.ScanEnabled,
+		CloudProvider:              impl.config.CloudProvider,
+		DefaultAddressPoolBaseCidr: impl.config.GetDefaultAddressPoolBaseCidr(),
+		DefaultAddressPoolSize:     impl.config.GetDefaultAddressPoolSize(),
+		PreCiSteps:                 preCiSteps,
+		PostCiSteps:                postCiSteps,
+		RefPlugins:                 refPluginsData,
+		AppName:                    pipeline.App.AppName,
+		TriggerByAuthor:            userEmailId,
+		CiBuildConfig:              ciBuildConfigBean,
+		//CiBuildDockerMtuValue:       impl.config.CiRunnerDockerMTUValue, //TODO KB: refer this in new method
+		//IgnoreDockerCachePush:       impl.config.IgnoreDockerCacheForCI,
+		//IgnoreDockerCachePull:       impl.config.IgnoreDockerCacheForCI,
 		CacheInvalidate:             trigger.InvalidateCache,
 		ExtraEnvironmentVariables:   trigger.ExtraEnvironmentVariables,
 		EnableBuildContext:          impl.config.EnableBuildContext,
@@ -678,66 +680,67 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		workflowRequest.DockerCert = dockerRegistry.Cert
 
 	}
-	if ciWorkflowConfig.LogsBucket == "" {
-		ciWorkflowConfig.LogsBucket = impl.config.GetDefaultBuildLogsBucket()
-	}
 	if len(registryDestinationImageMap) > 0 {
 		workflowRequest.PushImageBeforePostCI = true
 	}
-	switch workflowRequest.CloudProvider {
-	case types.BLOB_STORAGE_S3:
-		//No AccessKey is used for uploading artifacts, instead IAM based auth is used
-		workflowRequest.CiCacheRegion = ciWorkflowConfig.CiCacheRegion
-		workflowRequest.CiCacheLocation = ciWorkflowConfig.CiCacheBucket
-		workflowRequest.CiArtifactLocation, workflowRequest.CiArtifactBucket, workflowRequest.CiArtifactFileName = impl.buildS3ArtifactLocation(ciWorkflowConfig, savedWf)
-		workflowRequest.BlobStorageS3Config = &blob_storage.BlobStorageS3Config{
-			AccessKey:                  impl.config.BlobStorageS3AccessKey,
-			Passkey:                    impl.config.BlobStorageS3SecretKey,
-			EndpointUrl:                impl.config.BlobStorageS3Endpoint,
-			IsInSecure:                 impl.config.BlobStorageS3EndpointInsecure,
-			CiCacheBucketName:          ciWorkflowConfig.CiCacheBucket,
-			CiCacheRegion:              ciWorkflowConfig.CiCacheRegion,
-			CiCacheBucketVersioning:    impl.config.BlobStorageS3BucketVersioned,
-			CiArtifactBucketName:       workflowRequest.CiArtifactBucket,
-			CiArtifactRegion:           impl.config.GetDefaultCdLogsBucketRegion(),
-			CiArtifactBucketVersioning: impl.config.BlobStorageS3BucketVersioned,
-			CiLogBucketName:            impl.config.GetDefaultBuildLogsBucket(),
-			CiLogRegion:                impl.config.GetDefaultCdLogsBucketRegion(),
-			CiLogBucketVersioning:      impl.config.BlobStorageS3BucketVersioned,
-		}
-	case types.BLOB_STORAGE_GCP:
-		workflowRequest.GcpBlobConfig = &blob_storage.GcpBlobConfig{
-			CredentialFileJsonData: impl.config.BlobStorageGcpCredentialJson,
-			CacheBucketName:        ciWorkflowConfig.CiCacheBucket,
-			LogBucketName:          ciWorkflowConfig.LogsBucket,
-			ArtifactBucketName:     ciWorkflowConfig.LogsBucket,
-		}
-		workflowRequest.CiArtifactLocation = impl.buildDefaultArtifactLocation(ciWorkflowConfig, savedWf)
-		workflowRequest.CiArtifactFileName = workflowRequest.CiArtifactLocation
-	case types.BLOB_STORAGE_AZURE:
-		workflowRequest.AzureBlobConfig = &blob_storage.AzureBlobConfig{
-			Enabled:               impl.config.CloudProvider == types.BLOB_STORAGE_AZURE,
-			AccountName:           impl.config.AzureAccountName,
-			BlobContainerCiCache:  impl.config.AzureBlobContainerCiCache,
-			AccountKey:            impl.config.AzureAccountKey,
-			BlobContainerCiLog:    impl.config.AzureBlobContainerCiLog,
-			BlobContainerArtifact: impl.config.AzureBlobContainerCiLog,
-		}
-		workflowRequest.BlobStorageS3Config = &blob_storage.BlobStorageS3Config{
-			EndpointUrl:           impl.config.AzureGatewayUrl,
-			IsInSecure:            impl.config.AzureGatewayConnectionInsecure,
-			CiLogBucketName:       impl.config.AzureBlobContainerCiLog,
-			CiLogRegion:           impl.config.DefaultCacheBucketRegion,
-			CiLogBucketVersioning: impl.config.BlobStorageS3BucketVersioned,
-			AccessKey:             impl.config.AzureAccountName,
-		}
-		workflowRequest.CiArtifactLocation = impl.buildDefaultArtifactLocation(ciWorkflowConfig, savedWf)
-		workflowRequest.CiArtifactFileName = workflowRequest.CiArtifactLocation
-	default:
-		if impl.config.BlobStorageEnabled {
-			return nil, fmt.Errorf("blob storage %s not supported", workflowRequest.CloudProvider)
-		}
-	}
+	// TODO moved this to UpdateFromEnvAndWorkflowConfig of WorkflowTriggerRequest
+	//if ciWorkflowConfig.LogsBucket == "" {
+	//	ciWorkflowConfig.LogsBucket = impl.config.GetDefaultBuildLogsBucket()
+	//}
+	//switch workflowRequest.CloudProvider {
+	//case types.BLOB_STORAGE_S3:
+	//	//No AccessKey is used for uploading artifacts, instead IAM based auth is used
+	//	workflowRequest.CiCacheRegion = ciWorkflowConfig.CiCacheRegion
+	//	workflowRequest.CiCacheLocation = ciWorkflowConfig.CiCacheBucket
+	//	workflowRequest.CiArtifactLocation, workflowRequest.CiArtifactBucket, workflowRequest.CiArtifactFileName = impl.buildS3ArtifactLocation(ciWorkflowConfig, savedWf)
+	//	workflowRequest.BlobStorageS3Config = &blob_storage.BlobStorageS3Config{
+	//		AccessKey:                  impl.config.BlobStorageS3AccessKey,
+	//		Passkey:                    impl.config.BlobStorageS3SecretKey,
+	//		EndpointUrl:                impl.config.BlobStorageS3Endpoint,
+	//		IsInSecure:                 impl.config.BlobStorageS3EndpointInsecure,
+	//		CiCacheBucketName:          ciWorkflowConfig.CiCacheBucket,
+	//		CiCacheRegion:              ciWorkflowConfig.CiCacheRegion,
+	//		CiCacheBucketVersioning:    impl.config.BlobStorageS3BucketVersioned,
+	//		CiArtifactBucketName:       workflowRequest.CiArtifactBucket,
+	//		CiArtifactRegion:           impl.config.GetDefaultCdLogsBucketRegion(),
+	//		CiArtifactBucketVersioning: impl.config.BlobStorageS3BucketVersioned,
+	//		CiLogBucketName:            impl.config.GetDefaultBuildLogsBucket(),
+	//		CiLogRegion:                impl.config.GetDefaultCdLogsBucketRegion(),
+	//		CiLogBucketVersioning:      impl.config.BlobStorageS3BucketVersioned,
+	//	}
+	//case types.BLOB_STORAGE_GCP:
+	//	workflowRequest.GcpBlobConfig = &blob_storage.GcpBlobConfig{
+	//		CredentialFileJsonData: impl.config.BlobStorageGcpCredentialJson,
+	//		CacheBucketName:        ciWorkflowConfig.CiCacheBucket,
+	//		LogBucketName:          ciWorkflowConfig.LogsBucket,
+	//		ArtifactBucketName:     ciWorkflowConfig.LogsBucket,
+	//	}
+	//	workflowRequest.CiArtifactLocation = impl.buildDefaultArtifactLocation(ciWorkflowConfig, savedWf)
+	//	workflowRequest.CiArtifactFileName = workflowRequest.CiArtifactLocation
+	//case types.BLOB_STORAGE_AZURE:
+	//	workflowRequest.AzureBlobConfig = &blob_storage.AzureBlobConfig{
+	//		Enabled:               impl.config.CloudProvider == types.BLOB_STORAGE_AZURE,
+	//		AccountName:           impl.config.AzureAccountName,
+	//		BlobContainerCiCache:  impl.config.AzureBlobContainerCiCache,
+	//		AccountKey:            impl.config.AzureAccountKey,
+	//		BlobContainerCiLog:    impl.config.AzureBlobContainerCiLog,
+	//		BlobContainerArtifact: impl.config.AzureBlobContainerCiLog,
+	//	}
+	//	workflowRequest.BlobStorageS3Config = &blob_storage.BlobStorageS3Config{
+	//		EndpointUrl:           impl.config.AzureGatewayUrl,
+	//		IsInSecure:            impl.config.AzureGatewayConnectionInsecure,
+	//		CiLogBucketName:       impl.config.AzureBlobContainerCiLog,
+	//		CiLogRegion:           impl.config.DefaultCacheBucketRegion,
+	//		CiLogBucketVersioning: impl.config.BlobStorageS3BucketVersioned,
+	//		AccessKey:             impl.config.AzureAccountName,
+	//	}
+	//	workflowRequest.CiArtifactLocation = impl.buildDefaultArtifactLocation(ciWorkflowConfig, savedWf)
+	//	workflowRequest.CiArtifactFileName = workflowRequest.CiArtifactLocation
+	//default:
+	//	if impl.config.BlobStorageEnabled {
+	//		return nil, fmt.Errorf("blob storage %s not supported", workflowRequest.CloudProvider)
+	//	}
+	//}
 	return workflowRequest, nil
 }
 
@@ -798,50 +801,50 @@ func (impl *CiServiceImpl) ReserveImagesGeneratedAtPlugin(customTagId int, regis
 	return imagePathReservationIds, nil
 }
 
-func buildCiStepsDataFromDockerBuildScripts(dockerBuildScripts []*bean.CiScript) []*bean2.StepObject {
-	//before plugin support, few variables were set as env vars in ci-runner
-	//these variables are now moved to global vars in plugin steps, but to avoid error in old scripts adding those variables in payload
-	inputVars := []*bean2.VariableObject{
-		{
-			Name:                  "DOCKER_IMAGE_TAG",
-			Format:                "STRING",
-			VariableType:          bean2.VARIABLE_TYPE_REF_GLOBAL,
-			ReferenceVariableName: "DOCKER_IMAGE_TAG",
-		},
-		{
-			Name:                  "DOCKER_REPOSITORY",
-			Format:                "STRING",
-			VariableType:          bean2.VARIABLE_TYPE_REF_GLOBAL,
-			ReferenceVariableName: "DOCKER_REPOSITORY",
-		},
-		{
-			Name:                  "DOCKER_REGISTRY_URL",
-			Format:                "STRING",
-			VariableType:          bean2.VARIABLE_TYPE_REF_GLOBAL,
-			ReferenceVariableName: "DOCKER_REGISTRY_URL",
-		},
-		{
-			Name:                  "DOCKER_IMAGE",
-			Format:                "STRING",
-			VariableType:          bean2.VARIABLE_TYPE_REF_GLOBAL,
-			ReferenceVariableName: "DOCKER_IMAGE",
-		},
-	}
-	var ciSteps []*bean2.StepObject
-	for _, dockerBuildScript := range dockerBuildScripts {
-		ciStep := &bean2.StepObject{
-			Name:          dockerBuildScript.Name,
-			Index:         dockerBuildScript.Index,
-			Script:        dockerBuildScript.Script,
-			ArtifactPaths: []string{dockerBuildScript.OutputLocation},
-			StepType:      string(repository.PIPELINE_STEP_TYPE_INLINE),
-			ExecutorType:  string(repository2.SCRIPT_TYPE_SHELL),
-			InputVars:     inputVars,
-		}
-		ciSteps = append(ciSteps, ciStep)
-	}
-	return ciSteps
-}
+//func buildCiStepsDataFromDockerBuildScripts(dockerBuildScripts []*bean.CiScript) []*bean2.StepObject {
+//	//before plugin support, few variables were set as env vars in ci-runner
+//	//these variables are now moved to global vars in plugin steps, but to avoid error in old scripts adding those variables in payload
+//	inputVars := []*bean2.VariableObject{
+//		{
+//			Name:                  "DOCKER_IMAGE_TAG",
+//			Format:                "STRING",
+//			VariableType:          bean2.VARIABLE_TYPE_REF_GLOBAL,
+//			ReferenceVariableName: "DOCKER_IMAGE_TAG",
+//		},
+//		{
+//			Name:                  "DOCKER_REPOSITORY",
+//			Format:                "STRING",
+//			VariableType:          bean2.VARIABLE_TYPE_REF_GLOBAL,
+//			ReferenceVariableName: "DOCKER_REPOSITORY",
+//		},
+//		{
+//			Name:                  "DOCKER_REGISTRY_URL",
+//			Format:                "STRING",
+//			VariableType:          bean2.VARIABLE_TYPE_REF_GLOBAL,
+//			ReferenceVariableName: "DOCKER_REGISTRY_URL",
+//		},
+//		{
+//			Name:                  "DOCKER_IMAGE",
+//			Format:                "STRING",
+//			VariableType:          bean2.VARIABLE_TYPE_REF_GLOBAL,
+//			ReferenceVariableName: "DOCKER_IMAGE",
+//		},
+//	}
+//	var ciSteps []*bean2.StepObject
+//	for _, dockerBuildScript := range dockerBuildScripts {
+//		ciStep := &bean2.StepObject{
+//			Name:          dockerBuildScript.Name,
+//			Index:         dockerBuildScript.Index,
+//			Script:        dockerBuildScript.Script,
+//			ArtifactPaths: []string{dockerBuildScript.OutputLocation},
+//			StepType:      string(repository.PIPELINE_STEP_TYPE_INLINE),
+//			ExecutorType:  string(repository2.SCRIPT_TYPE_SHELL),
+//			InputVars:     inputVars,
+//		}
+//		ciSteps = append(ciSteps, ciStep)
+//	}
+//	return ciSteps
+//}
 
 func (impl *CiServiceImpl) buildImageTag(commitHashes map[int]pipelineConfig.GitCommit, id int, wfId int) string {
 	dockerImageTag := ""

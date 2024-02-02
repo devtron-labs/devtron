@@ -27,6 +27,15 @@ type DockerArtifactStoreBean struct {
 	DockerRegistryIpsConfig *DockerRegistryIpsConfigBean `json:"ipsConfig,omitempty"`
 }
 
+func LoadFromEntity(dockerArtifactEntity *repository.DockerArtifactStore) *DockerArtifactStoreBean {
+	artifactBean := &DockerArtifactStoreBean{
+		Id:           dockerArtifactEntity.Id,
+		RegistryURL:  dockerArtifactEntity.RegistryURL,
+		RegistryType: dockerArtifactEntity.RegistryType,
+	}
+	return artifactBean
+}
+
 type DockerRegistryIpsConfigBean struct {
 	Id                   int                                        `json:"id"`
 	CredentialType       repository.DockerRegistryIpsCredentialType `json:"credentialType,omitempty" validate:"oneof=SAME_AS_REGISTRY NAME CUSTOM_CREDENTIAL"`

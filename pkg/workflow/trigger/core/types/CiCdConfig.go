@@ -9,6 +9,7 @@ import (
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	v12 "k8s.io/api/core/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -492,7 +493,7 @@ type GitTriggerInfoResponse struct {
 	EnvironmentId    int                                         `json:"environmentId"`
 	EnvironmentName  string                                      `json:"environmentName"`
 	Default          bool                                        `json:"default,omitempty"`
-	ImageTaggingData ImageTaggingResponseDTO                     `json:"imageTaggingData"`
+	ImageTaggingData types.ImageTaggingResponseDTO               `json:"imageTaggingData"`
 	Image            string                                      `json:"image"`
 }
 

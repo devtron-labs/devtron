@@ -12,7 +12,7 @@ import (
 )
 
 type CiPipelineHistoryService interface {
-	SaveHistory(pipeline *pipelineConfig.CiPipeline, CiPipelineMaterial []*pipelineConfig.CiPipelineMaterial, ciTemplateBean *bean.CiTemplateBean, Trigger string) error
+	SaveHistory(pipeline *pipelineConfig.CiPipeline, CiPipelineMaterial []*pipelineConfig.CiPipelineMaterialEntity, ciTemplateBean *bean.CiTemplateBean, Trigger string) error
 }
 
 type CiPipelineHistoryServiceImpl struct {
@@ -30,7 +30,7 @@ func NewCiPipelineHistoryServiceImpl(CiPipelineHistoryRepository repository.CiPi
 	}
 }
 
-func (impl *CiPipelineHistoryServiceImpl) SaveHistory(pipeline *pipelineConfig.CiPipeline, CiPipelineMaterial []*pipelineConfig.CiPipelineMaterial, CiTemplateBean *bean.CiTemplateBean, Trigger string) error {
+func (impl *CiPipelineHistoryServiceImpl) SaveHistory(pipeline *pipelineConfig.CiPipeline, CiPipelineMaterial []*pipelineConfig.CiPipelineMaterialEntity, CiTemplateBean *bean.CiTemplateBean, Trigger string) error {
 
 	CiPipelineMaterialJson, _ := json.Marshal(CiPipelineMaterial)
 

@@ -23,7 +23,7 @@ import (
 	"go.uber.org/zap"
 )
 
-type CiPipelineMaterial struct {
+type CiPipelineMaterialEntity struct {
 	tableName     struct{} `sql:"ci_pipeline_material" pg:",discard_unknown_columns"`
 	Id            int      `sql:"id"`
 	GitMaterialId int      `sql:"git_material_id"` //id stored in db GitMaterial( foreign key)
@@ -39,24 +39,24 @@ type CiPipelineMaterial struct {
 	Active       bool       `sql:"active,notnull"`
 	Regex        string     `json:"regex"`
 	GitTag       string     `sql:"-"`
-	CiPipeline   *CiPipeline
-	GitMaterial  *GitMaterial
+	//CiPipeline   *CiPipeline
+	GitMaterial *GitMaterial
 	sql.AuditLog
 }
 
 type CiPipelineMaterialRepository interface {
-	Save(tx *pg.Tx, pipeline ...*CiPipelineMaterial) error
-	Update(tx *pg.Tx, material ...*CiPipelineMaterial) error
-	UpdateNotNull(tx *pg.Tx, material ...*CiPipelineMaterial) error
-	FindByCiPipelineIdsIn(ids []int) ([]*CiPipelineMaterial, error)
-	GetById(id int) (*CiPipelineMaterial, error)
-	GetByIdsIncludeDeleted(ids []int) ([]*CiPipelineMaterial, error)
-	GetByPipelineId(id int) ([]*CiPipelineMaterial, error)
-	GetRegexByPipelineId(id int) ([]*CiPipelineMaterial, error)
+	Save(tx *pg.Tx, pipeline ...*CiPipelineMaterialEntity) error
+	Update(tx *pg.Tx, material ...*CiPipelineMaterialEntity) error
+	UpdateNotNull(tx *pg.Tx, material ...*CiPipelineMaterialEntity) error
+	FindByCiPipelineIdsIn(ids []int) ([]*CiPipelineMaterialEntity, error)
+	GetById(id int) (*CiPipelineMaterialEntity, error)
+	GetByIdsIncludeDeleted(ids []int) ([]*CiPipelineMaterialEntity, error)
+	GetByPipelineId(id int) ([]*CiPipelineMaterialEntity, error)
+	GetRegexByPipelineId(id int) ([]*CiPipelineMaterialEntity, error)
 	CheckRegexExistsForMaterial(id int) bool
-	GetByPipelineIdForRegexAndFixed(id int) ([]*CiPipelineMaterial, error)
+	GetByPipelineIdForRegexAndFixed(id int) ([]*CiPipelineMaterialEntity, error)
 	GetCheckoutPath(gitMaterialId int) (string, error)
-	GetByPipelineIdAndGitMaterialId(id int, gitMaterialId int) ([]*CiPipelineMaterial, error)
+	GetByPipelineIdAndGitMaterialId(id int, gitMaterialId int) ([]*CiPipelineMaterialEntity, error)
 }
 
 type CiPipelineMaterialRepositoryImpl struct {
@@ -71,8 +71,8 @@ func NewCiPipelineMaterialRepositoryImpl(dbConnection *pg.DB, logger *zap.Sugare
 	}
 }
 
-func (impl CiPipelineMaterialRepositoryImpl) GetById(id int) (*CiPipelineMaterial, error) {
-	ciPipelineMaterial := &CiPipelineMaterial{}
+func (impl CiPipelineMaterialRepositoryImpl) GetById(id int) (*CiPipelineMaterialEntity, error) {
+	ciPipelineMaterial := &CiPipelineMaterialEntity{}
 	err := impl.dbConnection.Model(ciPipelineMaterial).
 		Column("ci_pipeline_material.*", "CiPipeline", "GitMaterial").
 		Where("ci_pipeline_material.id = ?", id).
@@ -81,8 +81,8 @@ func (impl CiPipelineMaterialRepositoryImpl) GetById(id int) (*CiPipelineMateria
 	return ciPipelineMaterial, err
 }
 
-func (impl CiPipelineMaterialRepositoryImpl) GetByIdsIncludeDeleted(ids []int) ([]*CiPipelineMaterial, error) {
-	var ciPipelineMaterials []*CiPipelineMaterial
+func (impl CiPipelineMaterialRepositoryImpl) GetByIdsIncludeDeleted(ids []int) ([]*CiPipelineMaterialEntity, error) {
+	var ciPipelineMaterials []*CiPipelineMaterialEntity
 	if len(ids) == 0 {
 		return ciPipelineMaterials, nil
 	}
@@ -93,8 +93,8 @@ func (impl CiPipelineMaterialRepositoryImpl) GetByIdsIncludeDeleted(ids []int) (
 	return ciPipelineMaterials, err
 }
 
-func (impl CiPipelineMaterialRepositoryImpl) GetByPipelineId(id int) ([]*CiPipelineMaterial, error) {
-	var ciPipelineMaterials []*CiPipelineMaterial
+func (impl CiPipelineMaterialRepositoryImpl) GetByPipelineId(id int) ([]*CiPipelineMaterialEntity, error) {
+	var ciPipelineMaterials []*CiPipelineMaterialEntity
 	err := impl.dbConnection.Model(&ciPipelineMaterials).
 		Column("ci_pipeline_material.*", "CiPipeline", "CiPipeline.CiTemplate", "CiPipeline.CiTemplate.GitMaterial", "CiPipeline.App", "CiPipeline.CiTemplate.DockerRegistry", "CiPipeline.CiTemplate.CiBuildConfig", "GitMaterial", "GitMaterial.GitProvider").
 		Where("ci_pipeline_material.ci_pipeline_id = ?", id).
@@ -104,8 +104,8 @@ func (impl CiPipelineMaterialRepositoryImpl) GetByPipelineId(id int) ([]*CiPipel
 	return ciPipelineMaterials, err
 }
 
-func (impl CiPipelineMaterialRepositoryImpl) GetByPipelineIdAndGitMaterialId(id int, gitMaterialId int) ([]*CiPipelineMaterial, error) {
-	var ciPipelineMaterials []*CiPipelineMaterial
+func (impl CiPipelineMaterialRepositoryImpl) GetByPipelineIdAndGitMaterialId(id int, gitMaterialId int) ([]*CiPipelineMaterialEntity, error) {
+	var ciPipelineMaterials []*CiPipelineMaterialEntity
 	err := impl.dbConnection.Model(&ciPipelineMaterials).
 		Column("ci_pipeline_material.*", "CiPipeline", "CiPipeline.CiTemplate", "CiPipeline.CiTemplate.GitMaterial", "CiPipeline.App", "CiPipeline.CiTemplate.DockerRegistry", "CiPipeline.CiTemplate.CiBuildConfig", "GitMaterial", "GitMaterial.GitProvider").
 		Where("ci_pipeline_material.ci_pipeline_id = ?", id).
@@ -116,8 +116,8 @@ func (impl CiPipelineMaterialRepositoryImpl) GetByPipelineIdAndGitMaterialId(id 
 	return ciPipelineMaterials, err
 }
 
-func (impl CiPipelineMaterialRepositoryImpl) GetByPipelineIdForRegexAndFixed(id int) ([]*CiPipelineMaterial, error) {
-	var ciPipelineMaterials []*CiPipelineMaterial
+func (impl CiPipelineMaterialRepositoryImpl) GetByPipelineIdForRegexAndFixed(id int) ([]*CiPipelineMaterialEntity, error) {
+	var ciPipelineMaterials []*CiPipelineMaterialEntity
 	err := impl.dbConnection.Model(&ciPipelineMaterials).
 		Column("ci_pipeline_material.*", "CiPipeline", "CiPipeline.CiTemplate", "CiPipeline.CiTemplate.GitMaterial", "CiPipeline.App", "CiPipeline.CiTemplate.DockerRegistry", "CiPipeline.CiTemplate.CiBuildConfig", "GitMaterial", "GitMaterial.GitProvider").
 		Where("ci_pipeline_material.ci_pipeline_id = ?", id).
@@ -126,8 +126,8 @@ func (impl CiPipelineMaterialRepositoryImpl) GetByPipelineIdForRegexAndFixed(id 
 	return ciPipelineMaterials, err
 }
 
-func (impl CiPipelineMaterialRepositoryImpl) FindByCiPipelineIdsIn(ids []int) ([]*CiPipelineMaterial, error) {
-	var ciPipelineMaterials []*CiPipelineMaterial
+func (impl CiPipelineMaterialRepositoryImpl) FindByCiPipelineIdsIn(ids []int) ([]*CiPipelineMaterialEntity, error) {
+	var ciPipelineMaterials []*CiPipelineMaterialEntity
 	err := impl.dbConnection.Model(&ciPipelineMaterials).
 		Column("ci_pipeline_material.*", "CiPipeline", "CiPipeline.CiTemplate", "CiPipeline.CiTemplate.DockerRegistry", "GitMaterial", "GitMaterial.GitProvider").
 		Where("ci_pipeline_material.active = ?", true).
@@ -136,19 +136,19 @@ func (impl CiPipelineMaterialRepositoryImpl) FindByCiPipelineIdsIn(ids []int) ([
 	return ciPipelineMaterials, err
 }
 
-func (impl CiPipelineMaterialRepositoryImpl) Save(tx *pg.Tx, material ...*CiPipelineMaterial) error {
+func (impl CiPipelineMaterialRepositoryImpl) Save(tx *pg.Tx, material ...*CiPipelineMaterialEntity) error {
 	_, err := tx.Model(&material).Insert()
 	return err
 }
 
-func (impl CiPipelineMaterialRepositoryImpl) Update(tx *pg.Tx, materials ...*CiPipelineMaterial) error {
+func (impl CiPipelineMaterialRepositoryImpl) Update(tx *pg.Tx, materials ...*CiPipelineMaterialEntity) error {
 	_, err := tx.Model(&materials).Update()
 	if err != nil {
 		return err
 	}
 	return nil
 }
-func (impl CiPipelineMaterialRepositoryImpl) UpdateNotNull(tx *pg.Tx, materials ...*CiPipelineMaterial) error {
+func (impl CiPipelineMaterialRepositoryImpl) UpdateNotNull(tx *pg.Tx, materials ...*CiPipelineMaterialEntity) error {
 	/*err := tx.RunInTransaction(func(tx *pg.Tx) error {
 		for _, material := range materials {
 			r, err := tx.Model(material).WherePK().UpdateNotNull()
@@ -169,8 +169,8 @@ func (impl CiPipelineMaterialRepositoryImpl) UpdateNotNull(tx *pg.Tx, materials 
 
 	return nil
 }
-func (impl CiPipelineMaterialRepositoryImpl) GetRegexByPipelineId(id int) ([]*CiPipelineMaterial, error) {
-	var ciPipelineMaterials []*CiPipelineMaterial
+func (impl CiPipelineMaterialRepositoryImpl) GetRegexByPipelineId(id int) ([]*CiPipelineMaterialEntity, error) {
+	var ciPipelineMaterials []*CiPipelineMaterialEntity
 	err := impl.dbConnection.Model(&ciPipelineMaterials).
 		Column("ci_pipeline_material.*", "CiPipeline", "CiPipeline.CiTemplate", "CiPipeline.CiTemplate.GitMaterial", "CiPipeline.App", "CiPipeline.CiTemplate.DockerRegistry", "CiPipeline.CiTemplate.CiBuildConfig", "GitMaterial", "GitMaterial.GitProvider").
 		Where("ci_pipeline_material.ci_pipeline_id = ?", id).
@@ -181,7 +181,7 @@ func (impl CiPipelineMaterialRepositoryImpl) GetRegexByPipelineId(id int) ([]*Ci
 }
 
 func (impl CiPipelineMaterialRepositoryImpl) CheckRegexExistsForMaterial(id int) bool {
-	var ciPipelineMaterials []*CiPipelineMaterial
+	var ciPipelineMaterials []*CiPipelineMaterialEntity
 	exists, err := impl.dbConnection.Model(&ciPipelineMaterials).
 		Column("ci_pipeline_material.*", "CiPipeline", "CiPipeline.CiTemplate", "CiPipeline.CiTemplate.GitMaterial", "CiPipeline.App", "CiPipeline.CiTemplate.DockerRegistry", "CiPipeline.CiTemplate.CiBuildConfig", "GitMaterial", "GitMaterial.GitProvider").
 		Where("ci_pipeline_material.id = ?", id).

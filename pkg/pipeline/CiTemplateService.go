@@ -21,15 +21,18 @@ type CiTemplateServiceImpl struct {
 	CiBuildConfigService         CiBuildConfigService
 	CiTemplateRepository         pipelineConfig.CiTemplateRepository
 	CiTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository
+	ciPipelineConfigService      CiPipelineConfigService
 }
 
 func NewCiTemplateServiceImpl(logger *zap.SugaredLogger, ciBuildConfigService CiBuildConfigService,
-	ciTemplateRepository pipelineConfig.CiTemplateRepository, ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository) *CiTemplateServiceImpl {
+	ciTemplateRepository pipelineConfig.CiTemplateRepository, ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository,
+	ciPipelineConfigService CiPipelineConfigService) *CiTemplateServiceImpl {
 	return &CiTemplateServiceImpl{
 		Logger:                       logger,
 		CiBuildConfigService:         ciBuildConfigService,
 		CiTemplateRepository:         ciTemplateRepository,
 		CiTemplateOverrideRepository: ciTemplateOverrideRepository,
+		ciPipelineConfigService:      ciPipelineConfigService,
 	}
 }
 

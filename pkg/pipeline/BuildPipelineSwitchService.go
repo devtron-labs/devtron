@@ -287,9 +287,9 @@ func (impl *BuildPipelineSwitchServiceImpl) deleteExternalCi(tx *pg.Tx, external
 	return nil
 }
 
-func (impl *BuildPipelineSwitchServiceImpl) DeleteCiMaterial(tx *pg.Tx, ciPipeline *pipelineConfig.CiPipeline) ([]*pipelineConfig.CiPipelineMaterial, error) {
+func (impl *BuildPipelineSwitchServiceImpl) DeleteCiMaterial(tx *pg.Tx, ciPipeline *pipelineConfig.CiPipeline) ([]*pipelineConfig.CiPipelineMaterialEntity, error) {
 	materialDbObject, err := impl.ciPipelineMaterialRepository.GetByPipelineId(ciPipeline.Id)
-	var materials []*pipelineConfig.CiPipelineMaterial
+	var materials []*pipelineConfig.CiPipelineMaterialEntity
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting ci pipeline materials", "externalCiPipelineId", "ciPipelineId", ciPipeline.Id, "err", err)
 		return materials, err
@@ -309,7 +309,7 @@ func (impl *BuildPipelineSwitchServiceImpl) DeleteCiMaterial(tx *pg.Tx, ciPipeli
 	return materials, nil
 }
 
-func (impl *BuildPipelineSwitchServiceImpl) saveHistoryOfOverriddenTemplate(ciPipeline *pipelineConfig.CiPipeline, userId int32, materials []*pipelineConfig.CiPipelineMaterial) error {
+func (impl *BuildPipelineSwitchServiceImpl) saveHistoryOfOverriddenTemplate(ciPipeline *pipelineConfig.CiPipeline, userId int32, materials []*pipelineConfig.CiPipelineMaterialEntity) error {
 	ciTemplate, err := impl.ciTemplateOverrideRepository.FindByCiPipelineId(ciPipeline.Id)
 	if err != nil {
 		impl.logger.Errorw("error in getting ciTemplate ", "err", err, "ciTemplate", ciTemplate.Id)

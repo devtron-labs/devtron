@@ -60,7 +60,7 @@ func (impl *ReleaseDataServiceImpl) TriggerEventForAllRelease(appId, environment
 		impl.logger.Errorw("error in getting release pipeline", "app", appId, "env", environmentId, "err", err)
 		return err
 	}
-	var ciPipelineMaterials []*pipelineConfig.CiPipelineMaterial
+	var ciPipelineMaterials []*pipelineConfig.CiPipelineMaterialEntity
 	var deployments []*DeploymentEvent
 	for _, release := range releases {
 		deployment := &DeploymentEvent{

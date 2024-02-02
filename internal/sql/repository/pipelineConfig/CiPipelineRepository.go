@@ -46,7 +46,7 @@ type CiPipeline struct {
 	IsDockerConfigOverridden bool   `sql:"is_docker_config_overridden, notnull"`
 	PipelineType             string `sql:"ci_pipeline_type"`
 	sql.AuditLog
-	CiPipelineMaterials []*CiPipelineMaterial
+	CiPipelineMaterials []*CiPipelineMaterialEntity
 	CiTemplate          *CiTemplate
 }
 

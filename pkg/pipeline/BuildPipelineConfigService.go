@@ -39,6 +39,7 @@ import (
 	"github.com/juju/errors"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -104,6 +105,9 @@ type CiPipelineConfigService interface {
 	GetExternalCiByEnvironment(request resourceGroup2.ResourceGroupingRequest, token string) (ciConfig []*bean.ExternalCiConfig, err error)
 	DeleteCiPipeline(request *bean.CiPatchRequest) (*bean.CiPipeline, error)
 	CreateExternalCiAndAppWorkflowMapping(appId, appWorkflowId int, userId int32, tx *pg.Tx) (int, *appWorkflow.AppWorkflowMapping, error)
+	FindCiScriptsByCiPipelineId(ciPipelineId int) ([]*bean.CiScript, []*bean.CiScript, error)
+	GetCiPipelineMetadata(ciPipelineId int) (*types.CiPipelineMetadata, error)
+	GetCiTemplateMetadata(appId int, pipelineId int) (*bean3.CiTemplateMetadata, error)
 }
 
 type CiPipelineConfigServiceImpl struct {
@@ -645,6 +649,160 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipeline(appId int) (ciConfig *bea
 	return ciConfig, err
 }
 
+func (impl *CiPipelineConfigServiceImpl) FindCiScriptsByCiPipelineId(ciPipelineId int) ([]*bean.CiScript, []*bean.CiScript, error) {
+	ciPipelineScripts, err := impl.ciPipelineRepository.FindCiScriptsByCiPipelineId(ciPipelineId)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.logger.Errorw("error in fetching ci scripts", "ciPipelineId", ciPipelineId, "err", err)
+		return nil, nil, err
+	}
+
+	var beforeDockerBuildScripts []*bean.CiScript
+	var afterDockerBuildScripts []*bean.CiScript
+	for _, ciScript := range ciPipelineScripts {
+		ciScriptResp := &bean.CiScript{
+			Id:             ciScript.Id,
+			Index:          ciScript.Index,
+			Name:           ciScript.Name,
+			Script:         ciScript.Script,
+			OutputLocation: ciScript.OutputLocation,
+		}
+		if ciScript.Stage == BEFORE_DOCKER_BUILD {
+			beforeDockerBuildScripts = append(beforeDockerBuildScripts, ciScriptResp)
+		} else if ciScript.Stage == AFTER_DOCKER_BUILD {
+			afterDockerBuildScripts = append(afterDockerBuildScripts, ciScriptResp)
+		}
+	}
+	return beforeDockerBuildScripts, afterDockerBuildScripts, nil
+}
+
+func (impl *CiPipelineConfigServiceImpl) GetCiTemplateMetadata(appId int, pipelineId int) (*bean3.CiTemplateMetadata, error) {
+	var dockerfilePath string
+	var dockerRepository string
+	var checkoutPath string
+	var ciBuildConfigBean *bean3.CiBuildConfigBean
+	var err error
+	dockerRegistryEntity := &dockerRegistryRepository.DockerArtifactStore{}
+	ciPipelineMetadata, err := impl.GetCiPipelineMetadata(pipelineId)
+	if err != nil {
+		return nil, err
+	}
+	ciTemplateBean, err := impl.ciTemplateService.FindByAppId(appId)
+	if err != nil {
+		return nil, err
+	}
+	ciTemplate := ciTemplateBean.CiTemplate
+	oldArgs := ciTemplate.Args
+	ciLevelArgs := ciPipelineMetadata.DockerArgs
+	if ciLevelArgs == "" {
+		ciLevelArgs = "{}"
+	}
+	if ciTemplate.DockerBuildOptions == "" {
+		ciTemplate.DockerBuildOptions = "{}"
+	}
+	if !ciPipelineMetadata.IsExternal && ciPipelineMetadata.IsDockerConfigOverridden {
+		templateOverrideBean, err := impl.ciTemplateService.FindTemplateOverrideByCiPipelineId(ciPipelineMetadata.CiPipelineId)
+		if err != nil {
+			return nil, err
+		}
+		ciBuildConfigBean = templateOverrideBean.CiBuildConfig
+		templateOverride := templateOverrideBean.CiTemplateOverride
+		checkoutPath = templateOverride.GitMaterial.CheckoutPath
+		dockerfilePath = templateOverride.DockerfilePath
+		dockerRepository = templateOverride.DockerRepository
+		dockerRegistryEntity = templateOverride.DockerRegistry
+	} else {
+		checkoutPath = ciTemplate.GitMaterial.CheckoutPath
+		dockerfilePath = ciTemplate.DockerfilePath
+		dockerRegistryEntity = ciTemplate.DockerRegistry
+		dockerRepository = ciTemplate.DockerRepository
+		ciBuildConfigEntity := ciTemplate.CiBuildConfig
+		ciBuildConfigBean, err = bean3.ConvertDbBuildConfigToBean(ciBuildConfigEntity)
+		if err != nil {
+			impl.logger.Errorw("error occurred while converting buildconfig dbEntity to configBean", "ciBuildConfigEntity", ciBuildConfigEntity, "err", err)
+			return nil, errors.New("error while parsing ci build config")
+		}
+		if ciBuildConfigBean != nil {
+			ciBuildConfigBean.BuildContextGitMaterialId = ciTemplate.BuildContextGitMaterialId
+		}
+	}
+
+	ciBuildConfigBean, err = bean3.OverrideCiBuildConfig(dockerfilePath, oldArgs, ciLevelArgs, ciTemplate.DockerBuildOptions, ciTemplate.TargetPlatform, ciBuildConfigBean)
+	if err != nil {
+		impl.logger.Errorw("error occurred while overriding ci build config", "oldArgs", oldArgs, "ciLevelArgs", ciLevelArgs, "error", err)
+		return nil, errors.New("error while parsing ci build config")
+	}
+	buildContextCheckoutPath, err := impl.ciPipelineMaterialRepository.GetCheckoutPath(ciBuildConfigBean.BuildContextGitMaterialId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error occurred while getting checkout path from git material", "gitMaterialId", ciBuildConfigBean.BuildContextGitMaterialId, "error", err)
+		return nil, err
+	}
+	if buildContextCheckoutPath == "" {
+		buildContextCheckoutPath = checkoutPath
+	}
+	if ciBuildConfigBean.UseRootBuildContext {
+		//use root build context i.e '.'
+		buildContextCheckoutPath = "."
+	}
+
+	if ciBuildConfigBean.CiBuildType == bean3.SELF_DOCKERFILE_BUILD_TYPE || ciBuildConfigBean.CiBuildType == bean3.MANAGED_DOCKERFILE_BUILD_TYPE {
+		ciBuildConfigBean.DockerBuildConfig.BuildContext = filepath.Join(buildContextCheckoutPath, ciBuildConfigBean.DockerBuildConfig.BuildContext)
+		dockerBuildConfig := ciBuildConfigBean.DockerBuildConfig
+		dockerfilePath = filepath.Join(checkoutPath, dockerBuildConfig.DockerfilePath)
+		dockerBuildConfig.DockerfilePath = dockerfilePath
+		checkoutPath = dockerfilePath[:strings.LastIndex(dockerfilePath, "/")+1]
+	} else if ciBuildConfigBean.CiBuildType == bean3.BUILDPACK_BUILD_TYPE {
+		buildPackConfig := ciBuildConfigBean.BuildPackConfig
+		checkoutPath = filepath.Join(checkoutPath, buildPackConfig.ProjectPath)
+	}
+
+	defaultTargetPlatform := impl.ciConfig.DefaultTargetPlatform
+	useBuildx := impl.ciConfig.UseBuildx
+
+	if ciBuildConfigBean.DockerBuildConfig != nil {
+		if ciBuildConfigBean.DockerBuildConfig.TargetPlatform == "" && useBuildx {
+			ciBuildConfigBean.DockerBuildConfig.TargetPlatform = defaultTargetPlatform
+			ciBuildConfigBean.DockerBuildConfig.UseBuildx = useBuildx
+		}
+		ciBuildConfigBean.DockerBuildConfig.BuildxProvenanceMode = impl.ciConfig.BuildxProvenanceMode
+	}
+	if dockerBuildConfig := ciBuildConfigBean.DockerBuildConfig; dockerBuildConfig != nil {
+		buildxK8sDriverOptions := make([]map[string]string, 0)
+		err = json.Unmarshal([]byte(impl.ciConfig.BuildxK8sDriverOptions), &buildxK8sDriverOptions)
+		if err != nil {
+			errMsg := "error in parsing BUILDX_K8S_DRIVER_OPTIONS from the devtron-cm, "
+			err = errors.New(errMsg + "error : " + err.Error())
+			impl.logger.Errorw(errMsg, "err", err)
+			return nil, err
+		} else {
+			dockerBuildConfig.BuildxK8sDriverOptions = buildxK8sDriverOptions
+		}
+	}
+	ciBuildConfigBean.PipelineType = ciPipelineMetadata.PipelineType
+	if checkoutPath == "" {
+		checkoutPath = "./"
+	}
+
+	templateMetadata := &bean3.CiTemplateMetadata{
+		DockerfilePath:   dockerfilePath,
+		DockerRepository: dockerRepository,
+		CheckoutPath:     checkoutPath,
+		DockerRegistry:   types.LoadFromEntity(dockerRegistryEntity),
+		CiBuildConfig:    ciBuildConfigBean,
+	}
+	return templateMetadata, nil
+
+}
+
+func (impl *CiPipelineConfigServiceImpl) GetCiPipelineMetadata(ciPipelineId int) (*types.CiPipelineMetadata, error) {
+	pipeline, err := impl.ciPipelineRepository.FindById(ciPipelineId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching ci pipeline", "pipelineId", ciPipelineId, "err", err)
+		return nil, err
+	}
+	ciPipelineMetadata := types.InitFromPipelineEntity(pipeline)
+	return ciPipelineMetadata, nil
+}
+
 func (impl *CiPipelineConfigServiceImpl) GetCiPipelineById(pipelineId int) (ciPipeline *bean.CiPipeline, err error) {
 	pipeline, err := impl.ciPipelineRepository.FindById(pipelineId)
 	if err != nil && !util.IsErrNoRows(err) {
@@ -672,27 +830,31 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineById(pipelineId int) (ciPi
 
 	var externalCiConfig bean.ExternalCiConfig
 
-	ciPipelineScripts, err := impl.ciPipelineRepository.FindCiScriptsByCiPipelineId(pipeline.Id)
-	if err != nil && !util.IsErrNoRows(err) {
-		impl.logger.Errorw("error in fetching ci scripts")
+	//ciPipelineScripts, err := impl.ciPipelineRepository.FindCiScriptsByCiPipelineId(pipeline.Id)
+	//if err != nil && !util.IsErrNoRows(err) {
+	//	impl.logger.Errorw("error in fetching ci scripts")
+	//	return nil, err
+	//}
+	//
+	//var beforeDockerBuildScripts []*bean.CiScript
+	//var afterDockerBuildScripts []*bean.CiScript
+	//for _, ciScript := range ciPipelineScripts {
+	//	ciScriptResp := &bean.CiScript{
+	//		Id:             ciScript.Id,
+	//		Index:          ciScript.Index,
+	//		Name:           ciScript.Name,
+	//		Script:         ciScript.Script,
+	//		OutputLocation: ciScript.OutputLocation,
+	//	}
+	//	if ciScript.Stage == BEFORE_DOCKER_BUILD {
+	//		beforeDockerBuildScripts = append(beforeDockerBuildScripts, ciScriptResp)
+	//	} else if ciScript.Stage == AFTER_DOCKER_BUILD {
+	//		afterDockerBuildScripts = append(afterDockerBuildScripts, ciScriptResp)
+	//	}
+	//}
+	beforeDockerBuildScripts, afterDockerBuildScripts, err := impl.FindCiScriptsByCiPipelineId(pipeline.Id)
+	if err != nil {
 		return nil, err
-	}
-
-	var beforeDockerBuildScripts []*bean.CiScript
-	var afterDockerBuildScripts []*bean.CiScript
-	for _, ciScript := range ciPipelineScripts {
-		ciScriptResp := &bean.CiScript{
-			Id:             ciScript.Id,
-			Index:          ciScript.Index,
-			Name:           ciScript.Name,
-			Script:         ciScript.Script,
-			OutputLocation: ciScript.OutputLocation,
-		}
-		if ciScript.Stage == BEFORE_DOCKER_BUILD {
-			beforeDockerBuildScripts = append(beforeDockerBuildScripts, ciScriptResp)
-		} else if ciScript.Stage == AFTER_DOCKER_BUILD {
-			afterDockerBuildScripts = append(afterDockerBuildScripts, ciScriptResp)
-		}
 	}
 	parentCiPipeline, err := impl.ciPipelineRepository.FindById(pipeline.ParentCiPipeline)
 	if err != nil && !util.IsErrNoRows(err) {
@@ -1479,7 +1641,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineMin(appId int, envIds []in
 }
 
 func (impl *CiPipelineConfigServiceImpl) PatchRegexCiPipeline(request *bean.CiRegexPatchRequest) (err error) {
-	var materials []*pipelineConfig.CiPipelineMaterial
+	var materials []*pipelineConfig.CiPipelineMaterialEntity
 	for _, material := range request.CiPipelineMaterial {
 		materialDbObject, err := impl.ciPipelineMaterialRepository.GetById(material.Id)
 		if err != nil {
@@ -1492,7 +1654,7 @@ func (impl *CiPipelineConfigServiceImpl) PatchRegexCiPipeline(request *bean.CiRe
 				return errors.New("not matching given regex")
 			}
 		}
-		pipelineMaterial := &pipelineConfig.CiPipelineMaterial{
+		pipelineMaterial := &pipelineConfig.CiPipelineMaterialEntity{
 			Id:            material.Id,
 			Value:         material.Value,
 			CiPipelineId:  materialDbObject.CiPipelineId,

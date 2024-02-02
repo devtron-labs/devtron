@@ -43,7 +43,7 @@ func TestCiPipelineHistoryService(t *testing.T) {
 			AuditLog:                 sql.AuditLog{},
 		}
 
-		PipelineMaterialsObject := []*pipelineConfig.CiPipelineMaterial{&pipelineConfig.CiPipelineMaterial{
+		PipelineMaterialsObject := []*pipelineConfig.CiPipelineMaterialEntity{&pipelineConfig.CiPipelineMaterialEntity{
 			Id:            0,
 			GitMaterialId: 22,
 			CiPipelineId:  5,

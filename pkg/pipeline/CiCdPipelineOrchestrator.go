@@ -75,19 +75,19 @@ type CiCdPipelineOrchestrator interface {
 	UpdateCDPipeline(pipelineRequest *bean.CDPipelineConfigObject, userId int32, tx *pg.Tx) (pipeline *pipelineConfig.Pipeline, err error)
 	DeleteCiPipeline(pipeline *pipelineConfig.CiPipeline, request *bean.CiPatchRequest, tx *pg.Tx) error
 	DeleteCiPipelineAndCiEnvMappings(tx *pg.Tx, ciPipeline *pipelineConfig.CiPipeline, userId int32) error
-	SaveHistoryOfBaseTemplate(userId int32, pipeline *pipelineConfig.CiPipeline, materials []*pipelineConfig.CiPipelineMaterial) error
+	SaveHistoryOfBaseTemplate(userId int32, pipeline *pipelineConfig.CiPipeline, materials []*pipelineConfig.CiPipelineMaterialEntity) error
 	DeleteCdPipeline(pipelineId int, userId int32, tx *pg.Tx) error
 	PatchMaterialValue(createRequest *bean.CiPipeline, userId int32, oldPipeline *pipelineConfig.CiPipeline) (*bean.CiPipeline, error)
 	PatchCiMaterialSource(ciPipeline *bean.CiMaterialPatchRequest, userId int32) (*bean.CiMaterialPatchRequest, error)
-	PatchCiMaterialSourceValue(patchRequest *bean.CiMaterialValuePatchRequest, userId int32, value string, token string, checkAppSpecificAccess func(token, action string, appId int) (bool, error)) (*pipelineConfig.CiPipelineMaterial, error)
+	PatchCiMaterialSourceValue(patchRequest *bean.CiMaterialValuePatchRequest, userId int32, value string, token string, checkAppSpecificAccess func(token, action string, appId int) (bool, error)) (*pipelineConfig.CiPipelineMaterialEntity, error)
 	CreateCiTemplateBean(ciPipelineId int, dockerRegistryId string, dockerRepository string, gitMaterialId int, ciBuildConfig *bean2.CiBuildConfigBean, userId int32) bean2.CiTemplateBean
-	UpdateCiPipelineMaterials(materialsUpdate []*pipelineConfig.CiPipelineMaterial) error
+	UpdateCiPipelineMaterials(materialsUpdate []*pipelineConfig.CiPipelineMaterialEntity) error
 	PipelineExists(name string) (bool, error)
 	GetCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error)
 	GetCdPipelinesForAppAndEnv(appId int, envId int) (cdPipelines *bean.CdPipelines, err error)
 	GetByEnvOverrideId(envOverrideId int) (*bean.CdPipelines, error)
 	BuildCiPipelineScript(userId int32, ciScript *bean.CiScript, scriptStage string, ciPipeline *bean.CiPipeline) *pipelineConfig.CiPipelineScript
-	AddPipelineMaterialInGitSensor(pipelineMaterials []*pipelineConfig.CiPipelineMaterial) error
+	AddPipelineMaterialInGitSensor(pipelineMaterials []*pipelineConfig.CiPipelineMaterialEntity) error
 	CheckStringMatchRegex(regex string, value string) bool
 	CreateEcrRepo(dockerRepository, AWSRegion, AWSAccessKeyId, AWSSecretAccessKey string) error
 	GetCdPipelinesForEnv(envId int, requestedAppIds []int) (cdPipelines *bean.CdPipelines, err error)
@@ -197,13 +197,13 @@ func (impl CiCdPipelineOrchestratorImpl) PatchCiMaterialSource(patchRequest *bea
 	ciPipelineMaterial.Regex = patchRequest.Source.Regex
 	ciPipelineMaterial.AuditLog.UpdatedBy = userId
 	ciPipelineMaterial.AuditLog.UpdatedOn = time.Now()
-	if err = impl.saveUpdatedMaterial([]*pipelineConfig.CiPipelineMaterial{ciPipelineMaterial}); err != nil {
+	if err = impl.saveUpdatedMaterial([]*pipelineConfig.CiPipelineMaterialEntity{ciPipelineMaterial}); err != nil {
 		return nil, err
 	}
 	return patchRequest, nil
 }
 
-func (impl CiCdPipelineOrchestratorImpl) PatchCiMaterialSourceValue(patchRequest *bean.CiMaterialValuePatchRequest, userId int32, value string, token string, checkAppSpecificAccess func(token, action string, appId int) (bool, error)) (*pipelineConfig.CiPipelineMaterial, error) {
+func (impl CiCdPipelineOrchestratorImpl) PatchCiMaterialSourceValue(patchRequest *bean.CiMaterialValuePatchRequest, userId int32, value string, token string, checkAppSpecificAccess func(token, action string, appId int) (bool, error)) (*pipelineConfig.CiPipelineMaterialEntity, error) {
 	pipeline, err := impl.findUniquePipelineForAppIdAndEnvironmentId(patchRequest.AppId, patchRequest.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("Error in getting UniquePipelineForAppIdAndEnvironmentId", "appId", patchRequest.AppId, "envId", patchRequest.EnvironmentId, "err", err)
@@ -240,14 +240,14 @@ func (impl CiCdPipelineOrchestratorImpl) PatchCiMaterialSourceValue(patchRequest
 	return ciPipelineMaterial, nil
 }
 
-func (impl CiCdPipelineOrchestratorImpl) UpdateCiPipelineMaterials(materialsUpdate []*pipelineConfig.CiPipelineMaterial) error {
+func (impl CiCdPipelineOrchestratorImpl) UpdateCiPipelineMaterials(materialsUpdate []*pipelineConfig.CiPipelineMaterialEntity) error {
 	if err := impl.saveUpdatedMaterial(materialsUpdate); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (impl CiCdPipelineOrchestratorImpl) validateCiPipelineMaterial(ciPipelineMaterial *pipelineConfig.CiPipelineMaterial, value string, token string, checkAppSpecificAccess func(token, action string, appId int) (bool, error), appId int) error {
+func (impl CiCdPipelineOrchestratorImpl) validateCiPipelineMaterial(ciPipelineMaterial *pipelineConfig.CiPipelineMaterialEntity, value string, token string, checkAppSpecificAccess func(token, action string, appId int) (bool, error), appId int) error {
 	// Change branch source is supported for SOURCE_TYPE_BRANCH_FIXED and SOURCE_TYPE_BRANCH_REGEX
 	if ciPipelineMaterial.Type != pipelineConfig.SOURCE_TYPE_BRANCH_FIXED && ciPipelineMaterial.Type != pipelineConfig.SOURCE_TYPE_BRANCH_REGEX {
 		return errors.New(string(bean.CI_BRANCH_TYPE_ERROR))
@@ -301,7 +301,7 @@ func (impl CiCdPipelineOrchestratorImpl) findUniquePipelineForAppIdAndEnvironmen
 	return pipeline[0], nil
 }
 
-func (impl CiCdPipelineOrchestratorImpl) findUniqueCiPipelineMaterial(ciPipelineId int) (*pipelineConfig.CiPipelineMaterial, error) {
+func (impl CiCdPipelineOrchestratorImpl) findUniqueCiPipelineMaterial(ciPipelineId int) (*pipelineConfig.CiPipelineMaterialEntity, error) {
 	ciPipelineMaterials, err := impl.ciPipelineMaterialRepository.FindByCiPipelineIdsIn([]int{ciPipelineId})
 	if err != nil {
 		return nil, err
@@ -315,7 +315,7 @@ func (impl CiCdPipelineOrchestratorImpl) findUniqueCiPipelineMaterial(ciPipeline
 	return ciPipelineMaterials[0], nil
 }
 
-func (impl CiCdPipelineOrchestratorImpl) saveUpdatedMaterial(materialsUpdate []*pipelineConfig.CiPipelineMaterial) error {
+func (impl CiCdPipelineOrchestratorImpl) saveUpdatedMaterial(materialsUpdate []*pipelineConfig.CiPipelineMaterialEntity) error {
 	dbConnection := impl.pipelineRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -461,12 +461,12 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 			material.IsRegex = true
 		}
 	}
-	var materials []*pipelineConfig.CiPipelineMaterial
-	var materialsAdd []*pipelineConfig.CiPipelineMaterial
-	var materialsUpdate []*pipelineConfig.CiPipelineMaterial
+	var materials []*pipelineConfig.CiPipelineMaterialEntity
+	var materialsAdd []*pipelineConfig.CiPipelineMaterialEntity
+	var materialsUpdate []*pipelineConfig.CiPipelineMaterialEntity
 	var materialGitMap = make(map[int]string)
 	for _, material := range createRequest.CiMaterial {
-		pipelineMaterial := &pipelineConfig.CiPipelineMaterial{
+		pipelineMaterial := &pipelineConfig.CiPipelineMaterialEntity{
 			Id:            material.Id,
 			Value:         material.Source.Value,
 			Type:          material.Source.Type,
@@ -636,10 +636,10 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 		for _, material := range createRequest.CiMaterial {
 			parentMaterialsMap[material.GitMaterialId] = material
 		}
-		var linkedMaterials []*pipelineConfig.CiPipelineMaterial
+		var linkedMaterials []*pipelineConfig.CiPipelineMaterialEntity
 		for _, ciPipelineMaterial := range ciPipelineMaterials {
 			if parentMaterial, ok := parentMaterialsMap[ciPipelineMaterial.GitMaterialId]; ok {
-				pipelineMaterial := &pipelineConfig.CiPipelineMaterial{
+				pipelineMaterial := &pipelineConfig.CiPipelineMaterialEntity{
 					Id:            ciPipelineMaterial.Id,
 					Value:         parentMaterial.Source.Value,
 					Active:        createRequest.Active,
@@ -678,7 +678,7 @@ func (impl CiCdPipelineOrchestratorImpl) DeleteCiPipeline(pipeline *pipelineConf
 		impl.logger.Errorw("error in deleting ciPipeline and ci-env mappings", "err", err, "pipelineId", pipeline.Id)
 		return err
 	}
-	var materials []*pipelineConfig.CiPipelineMaterial
+	var materials []*pipelineConfig.CiPipelineMaterialEntity
 	for _, material := range pipeline.CiPipelineMaterials {
 		materialDbObject, err := impl.ciPipelineMaterialRepository.GetById(material.Id)
 		if err != nil {
@@ -760,7 +760,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiTemplateBean(ciPipelineId int, 
 	return CiTemplateBean
 }
 
-func (impl CiCdPipelineOrchestratorImpl) SaveHistoryOfBaseTemplate(userId int32, pipeline *pipelineConfig.CiPipeline, materials []*pipelineConfig.CiPipelineMaterial) error {
+func (impl CiCdPipelineOrchestratorImpl) SaveHistoryOfBaseTemplate(userId int32, pipeline *pipelineConfig.CiPipeline, materials []*pipelineConfig.CiPipelineMaterialEntity) error {
 	CiTemplateBean := bean2.CiTemplateBean{
 		CiTemplate:         nil,
 		CiTemplateOverride: &pipelineConfig.CiTemplateOverride{},
@@ -882,9 +882,9 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 			}
 		}
 
-		var pipelineMaterials []*pipelineConfig.CiPipelineMaterial
+		var pipelineMaterials []*pipelineConfig.CiPipelineMaterialEntity
 		for _, r := range ciPipeline.CiMaterial {
-			material := &pipelineConfig.CiPipelineMaterial{
+			material := &pipelineConfig.CiPipelineMaterialEntity{
 				GitMaterialId: r.GitMaterialId,
 				ScmId:         r.ScmId,
 				ScmVersion:    r.ScmVersion,
@@ -1092,7 +1092,7 @@ func (impl CiCdPipelineOrchestratorImpl) generateExternalCiPayload(ciPipeline *b
 	return ciPipeline
 }
 
-func (impl CiCdPipelineOrchestratorImpl) AddPipelineMaterialInGitSensor(pipelineMaterials []*pipelineConfig.CiPipelineMaterial) error {
+func (impl CiCdPipelineOrchestratorImpl) AddPipelineMaterialInGitSensor(pipelineMaterials []*pipelineConfig.CiPipelineMaterialEntity) error {
 	var materials []*gitSensor.CiPipelineMaterial
 	for _, ciPipelineMaterial := range pipelineMaterials {
 		if ciPipelineMaterial.Type != pipelineConfig.SOURCE_TYPE_BRANCH_REGEX {

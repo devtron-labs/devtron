@@ -50,10 +50,10 @@ func (mr *MockCiPipelineMaterialRepositoryMockRecorder) CheckRegexExistsForMater
 }
 
 // FindByCiPipelineIdsIn mocks base method.
-func (m *MockCiPipelineMaterialRepository) FindByCiPipelineIdsIn(ids []int) ([]*pipelineConfig.CiPipelineMaterial, error) {
+func (m *MockCiPipelineMaterialRepository) FindByCiPipelineIdsIn(ids []int) ([]*pipelineConfig.CiPipelineMaterialEntity, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "FindByCiPipelineIdsIn", ids)
-	ret0, _ := ret[0].([]*pipelineConfig.CiPipelineMaterial)
+	ret0, _ := ret[0].([]*pipelineConfig.CiPipelineMaterialEntity)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -65,10 +65,10 @@ func (mr *MockCiPipelineMaterialRepositoryMockRecorder) FindByCiPipelineIdsIn(id
 }
 
 // GetById mocks base method.
-func (m *MockCiPipelineMaterialRepository) GetById(id int) (*pipelineConfig.CiPipelineMaterial, error) {
+func (m *MockCiPipelineMaterialRepository) GetById(id int) (*pipelineConfig.CiPipelineMaterialEntity, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetById", id)
-	ret0, _ := ret[0].(*pipelineConfig.CiPipelineMaterial)
+	ret0, _ := ret[0].(*pipelineConfig.CiPipelineMaterialEntity)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -80,10 +80,10 @@ func (mr *MockCiPipelineMaterialRepositoryMockRecorder) GetById(id interface{}) 
 }
 
 // GetByPipelineId mocks base method.
-func (m *MockCiPipelineMaterialRepository) GetByPipelineId(id int) ([]*pipelineConfig.CiPipelineMaterial, error) {
+func (m *MockCiPipelineMaterialRepository) GetByPipelineId(id int) ([]*pipelineConfig.CiPipelineMaterialEntity, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetByPipelineId", id)
-	ret0, _ := ret[0].([]*pipelineConfig.CiPipelineMaterial)
+	ret0, _ := ret[0].([]*pipelineConfig.CiPipelineMaterialEntity)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -95,10 +95,10 @@ func (mr *MockCiPipelineMaterialRepositoryMockRecorder) GetByPipelineId(id inter
 }
 
 // GetByPipelineIdAndGitMaterialId mocks base method.
-func (m *MockCiPipelineMaterialRepository) GetByPipelineIdAndGitMaterialId(id, gitMaterialId int) ([]*pipelineConfig.CiPipelineMaterial, error) {
+func (m *MockCiPipelineMaterialRepository) GetByPipelineIdAndGitMaterialId(id, gitMaterialId int) ([]*pipelineConfig.CiPipelineMaterialEntity, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetByPipelineIdAndGitMaterialId", id, gitMaterialId)
-	ret0, _ := ret[0].([]*pipelineConfig.CiPipelineMaterial)
+	ret0, _ := ret[0].([]*pipelineConfig.CiPipelineMaterialEntity)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -110,10 +110,10 @@ func (mr *MockCiPipelineMaterialRepositoryMockRecorder) GetByPipelineIdAndGitMat
 }
 
 // GetByPipelineIdForRegexAndFixed mocks base method.
-func (m *MockCiPipelineMaterialRepository) GetByPipelineIdForRegexAndFixed(id int) ([]*pipelineConfig.CiPipelineMaterial, error) {
+func (m *MockCiPipelineMaterialRepository) GetByPipelineIdForRegexAndFixed(id int) ([]*pipelineConfig.CiPipelineMaterialEntity, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetByPipelineIdForRegexAndFixed", id)
-	ret0, _ := ret[0].([]*pipelineConfig.CiPipelineMaterial)
+	ret0, _ := ret[0].([]*pipelineConfig.CiPipelineMaterialEntity)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -140,10 +140,10 @@ func (mr *MockCiPipelineMaterialRepositoryMockRecorder) GetCheckoutPath(gitMater
 }
 
 // GetRegexByPipelineId mocks base method.
-func (m *MockCiPipelineMaterialRepository) GetRegexByPipelineId(id int) ([]*pipelineConfig.CiPipelineMaterial, error) {
+func (m *MockCiPipelineMaterialRepository) GetRegexByPipelineId(id int) ([]*pipelineConfig.CiPipelineMaterialEntity, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetRegexByPipelineId", id)
-	ret0, _ := ret[0].([]*pipelineConfig.CiPipelineMaterial)
+	ret0, _ := ret[0].([]*pipelineConfig.CiPipelineMaterialEntity)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -155,7 +155,7 @@ func (mr *MockCiPipelineMaterialRepositoryMockRecorder) GetRegexByPipelineId(id 
 }
 
 // Save mocks base method.
-func (m *MockCiPipelineMaterialRepository) Save(tx *pg.Tx, pipeline ...*pipelineConfig.CiPipelineMaterial) error {
+func (m *MockCiPipelineMaterialRepository) Save(tx *pg.Tx, pipeline ...*pipelineConfig.CiPipelineMaterialEntity) error {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{tx}
 	for _, a := range pipeline {
@@ -174,7 +174,7 @@ func (mr *MockCiPipelineMaterialRepositoryMockRecorder) Save(tx interface{}, pip
 }
 
 // Update mocks base method.
-func (m *MockCiPipelineMaterialRepository) Update(tx *pg.Tx, material ...*pipelineConfig.CiPipelineMaterial) error {
+func (m *MockCiPipelineMaterialRepository) Update(tx *pg.Tx, material ...*pipelineConfig.CiPipelineMaterialEntity) error {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{tx}
 	for _, a := range material {
@@ -193,7 +193,7 @@ func (mr *MockCiPipelineMaterialRepositoryMockRecorder) Update(tx interface{}, m
 }
 
 // UpdateNotNull mocks base method.
-func (m *MockCiPipelineMaterialRepository) UpdateNotNull(tx *pg.Tx, material ...*pipelineConfig.CiPipelineMaterial) error {
+func (m *MockCiPipelineMaterialRepository) UpdateNotNull(tx *pg.Tx, material ...*pipelineConfig.CiPipelineMaterialEntity) error {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{tx}
 	for _, a := range material {

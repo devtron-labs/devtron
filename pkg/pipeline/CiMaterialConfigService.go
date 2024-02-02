@@ -137,7 +137,7 @@ func (impl *CiMaterialConfigServiceImpl) DeleteMaterial(request *bean.UpdateMate
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
-	var materials []*pipelineConfig.CiPipelineMaterial
+	var materials []*pipelineConfig.CiPipelineMaterialEntity
 	for _, pipeline := range pipelines {
 		materialDbObject, err := impl.ciPipelineMaterialRepository.GetByPipelineIdAndGitMaterialId(pipeline.Id, request.Material.Id)
 		if err != nil {
@@ -169,7 +169,7 @@ func (impl *CiMaterialConfigServiceImpl) PatchCiMaterialSource(ciPipeline *bean.
 
 func (impl *CiMaterialConfigServiceImpl) BulkPatchCiMaterialSource(ciPipelines *bean.CiMaterialBulkPatchRequest, userId int32, token string, checkAppSpecificAccess func(token, action string, appId int) (bool, error)) (*bean.CiMaterialBulkPatchResponse, error) {
 	response := &bean.CiMaterialBulkPatchResponse{}
-	var ciPipelineMaterials []*pipelineConfig.CiPipelineMaterial
+	var ciPipelineMaterials []*pipelineConfig.CiPipelineMaterialEntity
 	for _, appId := range ciPipelines.AppIds {
 		ciPipeline := &bean.CiMaterialValuePatchRequest{
 			AppId:         appId,
