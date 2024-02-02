@@ -21,11 +21,15 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"time"
 )
 
 type RoleGroupRepository interface {
+	StartATransaction() (*pg.Tx, error)
+	CommitATransaction(tx *pg.Tx) error
 	CreateRoleGroup(model *RoleGroup, tx *pg.Tx) (*RoleGroup, error)
 	UpdateRoleGroup(model *RoleGroup, tx *pg.Tx) (*RoleGroup, error)
+	UpdateToInactiveByIds(ids []int32, tx *pg.Tx, loggedInUserId int32) error
 	GetRoleGroupById(id int32) (*RoleGroup, error)
 	GetRoleGroupByName(name string) (*RoleGroup, error)
 	GetRoleGroupListByName(name string) ([]*RoleGroup, error)
@@ -41,12 +45,15 @@ type RoleGroupRepository interface {
 	DeleteRoleGroupRoleMapping(model *RoleGroupRoleMapping, tx *pg.Tx) (bool, error)
 	GetConnection() (dbConnection *pg.DB)
 	GetRoleGroupListByNames(groupNames []string) ([]*RoleGroup, error)
-	GetRoleGroupRoleMappingByRoleGroupIds(roleGroupIds []int32) ([]*RoleModel, error)
+	GetRolesByRoleGroupIds(roleGroupIds []int32) ([]*RoleModel, error)
 	GetRolesByGroupCasbinName(groupName string) ([]*RoleModel, error)
 	GetRolesByGroupCasbinNames(groupCasbinNames []string) ([]*RoleModel, error)
 	GetRolesByGroupNames(groupNames []string) ([]*RoleModel, error)
 	GetRolesByGroupNamesAndEntity(groupNames []string, entity string) ([]*RoleModel, error)
 	UpdateRoleGroupIdForRoleGroupMappings(roleId int, newRoleId int) (*RoleGroupRoleMapping, error)
+	GetCasbinNamesById(ids []int32) ([]string, error)
+	GetRoleGroupRoleMappingIdsByGroupIds(groupIds []int32) ([]*RoleGroupRoleMapping, error)
+	DeleteRoleGroupRoleMappingByIds(ids []int, tx *pg.Tx) error
 }
 
 type RoleGroupRepositoryImpl struct {
@@ -99,6 +106,21 @@ func (impl RoleGroupRepositoryImpl) UpdateRoleGroup(model *RoleGroup, tx *pg.Tx)
 	//TODO - Create Entry In UserRole With Default Role for User
 
 	return model, nil
+}
+
+func (impl RoleGroupRepositoryImpl) UpdateToInactiveByIds(ids []int32, tx *pg.Tx, loggedInUserId int32) error {
+	var model []*RoleGroup
+	_, err := tx.Model(&model).
+		Set("active = ?", false).
+		Set("updated_on = ?", time.Now()).
+		Set("updated_by = ?", loggedInUserId).
+		Where("id IN (?)", pg.In(ids)).Update()
+	if err != nil {
+		impl.Logger.Error("error in UpdateToInactiveByIds", "err", err, "roleGroupIds", ids)
+		return err
+	}
+	return nil
+
 }
 func (impl RoleGroupRepositoryImpl) GetRoleGroupById(id int32) (*RoleGroup, error) {
 	var model RoleGroup
@@ -207,7 +229,7 @@ func (impl RoleGroupRepositoryImpl) GetRoleGroupListByNames(groupNames []string)
 	return model, err
 }
 
-func (impl RoleGroupRepositoryImpl) GetRoleGroupRoleMappingByRoleGroupIds(roleGroupIds []int32) ([]*RoleModel, error) {
+func (impl RoleGroupRepositoryImpl) GetRolesByRoleGroupIds(roleGroupIds []int32) ([]*RoleModel, error) {
 	var roleModels []*RoleModel
 	query := "SELECT r.* from roles r" +
 		" INNER JOIN role_group_role_mapping rgm on rgm.role_id=r.id" +
@@ -283,4 +305,61 @@ func (impl RoleGroupRepositoryImpl) UpdateRoleGroupIdForRoleGroupMappings(roleId
 
 	return &model, err
 
+}
+
+func (impl RoleGroupRepositoryImpl) StartATransaction() (*pg.Tx, error) {
+	tx, err := impl.dbConnection.Begin()
+	if err != nil {
+		impl.Logger.Errorw("error in beginning a transaction", "err", err)
+		return nil, err
+	}
+	return tx, nil
+}
+
+func (impl RoleGroupRepositoryImpl) CommitATransaction(tx *pg.Tx) error {
+	err := tx.Commit()
+	if err != nil {
+		impl.Logger.Errorw("error in commiting a transaction", "err", err)
+		return err
+	}
+	return nil
+}
+func (impl RoleGroupRepositoryImpl) GetCasbinNamesById(ids []int32) ([]string, error) {
+	type RoleGroup struct {
+		TableName  struct{} `sql:"role_group"`
+		CasbinName string   `json:"casbin_name"`
+	}
+	var models []RoleGroup
+	err := impl.dbConnection.Model(&models).Where("id in (?)", pg.In(ids)).
+		Where("active = ?", true).Select()
+	if err != nil {
+		impl.Logger.Errorw("error in GetCasbinNamesById", "ids", ids, "error", err)
+		return nil, err
+	}
+	casbinNames := make([]string, 0, len(models))
+	for _, mdl := range models {
+		casbinNames = append(casbinNames, mdl.CasbinName)
+	}
+	return casbinNames, nil
+}
+
+func (impl RoleGroupRepositoryImpl) GetRoleGroupRoleMappingIdsByGroupIds(groupIds []int32) ([]*RoleGroupRoleMapping, error) {
+	var models []*RoleGroupRoleMapping
+	err := impl.dbConnection.Model(&models).Where("role_group_id in (?)", pg.In(groupIds)).Select()
+	if err != nil {
+		impl.Logger.Errorw("error in GetRoleGroupRoleMappingIdsByGroupIds", "groupIds", groupIds, "error", err)
+		return nil, err
+	}
+	return models, nil
+}
+
+func (impl RoleGroupRepositoryImpl) DeleteRoleGroupRoleMappingByIds(ids []int, tx *pg.Tx) error {
+	var userRoleModel *RoleGroupRoleMapping
+	_, err := tx.Model(userRoleModel).
+		Where("id in (?)", pg.In(ids)).Delete()
+	if err != nil {
+		impl.Logger.Error("err encountered in DeleteRoleGroupRoleMappingByIds", "ids", ids, "err", err)
+		return err
+	}
+	return nil
 }

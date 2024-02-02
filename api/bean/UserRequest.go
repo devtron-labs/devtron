@@ -139,3 +139,9 @@ type FetchListingRequest struct {
 	ShowAll    bool           `json:"showAll"`
 	CountCheck bool           `json:"-"`
 }
+
+type BulkDeleteRequest struct {
+	Ids            []int32              `json:"ids"`
+	ListingRequest *FetchListingRequest `json:"listingRequest,omitempty"`
+	LoggedInUserId int32                `json:"-"`
+}
