@@ -29,6 +29,7 @@ type QualifiersMappingRepository interface {
 	GetActiveIdentifierCountPerResource(resourceType ResourceType, resourceIds []int, identifierKey int) ([]ResourceIdentifierCount, error)
 	GetActiveMappingsCount(resourceType ResourceType) (int, error)
 	GetIdentifierIdsByResourceTypeAndIds(resourceType ResourceType, resourceIds []int, identifierKey int) ([]int, error)
+	GetQualifierMappingsWithIdentifierFilter(resourceType ResourceType, resourceId, identifierKey int, identifierValueStringLike, identifierValueSortOrder string, limit, offset int, needTotalCount bool) ([]*QualifierMappingWithExtraColumns, error)
 }
 
 type QualifiersMappingRepositoryImpl struct {
@@ -255,4 +256,32 @@ func (repo *QualifiersMappingRepositoryImpl) GetActiveMappingsCount(resourceType
 		Where("resource_type = ?", resourceType).
 		Count()
 	return count, err
+}
+
+func (repo *QualifiersMappingRepositoryImpl) GetQualifierMappingsWithIdentifierFilter(resourceType ResourceType, resourceId, identifierKey int, identifierValueStringLike, identifierValueSortOrder string, limit, offset int, needTotalCount bool) ([]*QualifierMappingWithExtraColumns, error) {
+	query := "SELECT identifier_value_int , identifier_value_string , resource_id "
+	if needTotalCount {
+		query += ",COUNT(id) OVER() AS total_identifier_count "
+	}
+	query += " FROM resource_qualifier_mapping "
+	whereClause := fmt.Sprintf(" WHERE resource_type = %d AND resource_id = %d  AND identifier_key = %d AND active=true ", resourceType, resourceId, identifierKey)
+	if identifierValueStringLike != "" {
+		whereClause += " AND identifier_value_string LIKE '%" + identifierValueStringLike + "%' "
+	}
+	query += whereClause
+
+	if identifierValueSortOrder != "" {
+		query += fmt.Sprintf(" ORDER BY identifier_value_string %s ", identifierValueSortOrder)
+	}
+
+	if limit > 0 {
+		query += fmt.Sprintf(" LIMIT %d ", limit)
+	}
+	if offset > 0 {
+		query += fmt.Sprintf(" OFFSET %d ", offset)
+	}
+
+	var qualifierMappings []*QualifierMappingWithExtraColumns
+	_, err := repo.dbConnection.Query(&qualifierMappings, query)
+	return qualifierMappings, err
 }

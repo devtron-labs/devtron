@@ -53,3 +53,8 @@ type QualifierMapping struct {
 	// VariableData          *VariableData
 	sql.AuditLog
 }
+
+type QualifierMappingWithExtraColumns struct {
+	QualifierMapping
+	TotalCount int
+}

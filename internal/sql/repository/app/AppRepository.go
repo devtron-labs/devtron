@@ -41,6 +41,10 @@ type App struct {
 	sql.AuditLog
 }
 
+type AppWithExtraQueryFields struct {
+	App
+	TotalCount int
+}
 type AppRepository interface {
 	Save(pipelineGroup *App) error
 	SaveWithTxn(pipelineGroup *App, tx *pg.Tx) error
@@ -80,6 +84,7 @@ type AppRepository interface {
 	FindAppAndProjectByIdsOrderByTeam(ids []int) ([]*App, error)
 	FetchAppIdsByDisplayNamesForJobs(names []string) (map[int]string, []int, error)
 	GetActiveCiCdAppsCount(excludeAppIds []int) (int, error)
+	FindAppsWithFilter(appNameLike, sortOrder string, limit, offset int, excludeAppIds []int) ([]AppWithExtraQueryFields, error)
 }
 
 const DevtronApp = "DevtronApp"
@@ -502,4 +507,29 @@ func (repo AppRepositoryImpl) GetActiveCiCdAppsCount(excludeAppIds []int) (int, 
 		query = query.Where("id not in (?)", pg.In(excludeAppIds))
 	}
 	return query.Count()
+}
+
+func (repo AppRepositoryImpl) FindAppsWithFilter(appNameLike, sortOrder string, limit, offset int, excludeAppIds []int) ([]AppWithExtraQueryFields, error) {
+	query := "SELECT id, app_name,COUNT(id) OVER() AS total_count " +
+		" FROM app " +
+		" WHERE active=true "
+	if appNameLike != "" {
+		query += " AND app_name LIKE '%" + appNameLike + "%' "
+	}
+	if sortOrder != "" {
+		query += fmt.Sprintf(" ORDER BY name %s ", sortOrder)
+	}
+	if limit > 0 {
+		query += fmt.Sprintf(" LIMIT %d ", limit)
+	}
+	if offset > 0 {
+		query += fmt.Sprintf(" OFFSET %d ", offset)
+	}
+	if len(excludeAppIds) > 0 {
+		query += fmt.Sprintf(" AND id NOT IN (%s) ", helper.GetCommaSepratedString(excludeAppIds))
+	}
+
+	apps := make([]AppWithExtraQueryFields, 0)
+	_, err := repo.dbConnection.Query(&apps, query)
+	return apps, err
 }

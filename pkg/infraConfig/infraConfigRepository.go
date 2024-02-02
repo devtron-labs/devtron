@@ -28,9 +28,9 @@ type InfraConfigRepository interface {
 	GetConfigurationsByProfileIds(profileIds []int) ([]*InfraProfileConfigurationEntity, error)
 	GetConfigurationsByScope(scope Scope, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) ([]*InfraProfileConfigurationEntity, error)
 
-	GetIdentifierList(lisFilter IdentifierListFilter, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) ([]*Identifier, error)
 	// GetIdentifierCountForDefaultProfile(defaultProfileId int, identifierType int) (int, error)
-	GetProfilesWhichContainsAllDefaultConfigurationKeys(defaultProfileId int) ([]int, error)
+	GetProfilesWhichContainsAllDefaultConfigurationKeysWithProfileId(defaultProfileId int) ([]int, error)
+	GetProfilesWhichContainsAllDefaultConfigurationKeysUsingProfileName() ([]int, error)
 	CreateProfile(tx *pg.Tx, infraProfile *InfraProfileEntity) error
 	CreateConfigurations(tx *pg.Tx, configurations []*InfraProfileConfigurationEntity) error
 
@@ -72,7 +72,6 @@ func (impl *InfraConfigRepositoryImpl) GetProfileIdByName(name string) (int, err
 }
 
 func (impl *InfraConfigRepositoryImpl) GetProfileByName(name string) (*InfraProfileEntity, error) {
-	// todo: hanlde pg no rows
 	infraProfile := &InfraProfileEntity{}
 	err := impl.dbConnection.Model(infraProfile).
 		Where("name = ?", name).
@@ -191,7 +190,7 @@ func (impl *InfraConfigRepositoryImpl) GetConfigurationsByScope(scope Scope, sea
 	return configurations, err
 }
 
-func (impll *InfraConfigRepositoryImpl) GetProfilesWhichContainsAllDefaultConfigurationKeys(defaultProfileId int) ([]int, error) {
+func (impl *InfraConfigRepositoryImpl) GetProfilesWhichContainsAllDefaultConfigurationKeysWithProfileId(defaultProfileId int) ([]int, error) {
 	query := " 	SELECT profile_id " +
 		"   FROM infra_profile_configuration " +
 		"   WHERE active = true " +
@@ -201,7 +200,22 @@ func (impll *InfraConfigRepositoryImpl) GetProfilesWhichContainsAllDefaultConfig
 		" 	      WHERE active=true AND profile_id= ? " +
 		"   ) "
 	profileIds := make([]int, 0)
-	_, err := impll.dbConnection.Query(&profileIds, query, defaultProfileId)
+	_, err := impl.dbConnection.Query(&profileIds, query, defaultProfileId)
+	return profileIds, err
+}
+
+func (impl *InfraConfigRepositoryImpl) GetProfilesWhichContainsAllDefaultConfigurationKeysUsingProfileName() ([]int, error) {
+	query := " 	SELECT profile_id " +
+		"   FROM infra_profile_configuration " +
+		"   WHERE active = true " +
+		"   GROUP BY profile_id HAVING COUNT(profile_id) = ( " +
+		" 	      SELECT COUNT(ip.id) " +
+		" 	      FROM infra_profile_configuration ipc" +
+		"         INNER JOIN infra_profile ip ON ipc.profile_id = ip.id " +
+		" 	      WHERE ip.active=true AND ipc.active=true AND ip.name= ? " +
+		" ) "
+	profileIds := make([]int, 0)
+	_, err := impl.dbConnection.Query(&profileIds, query, DEFAULT_PROFILE_NAME)
 	return profileIds, err
 }
 
@@ -252,155 +266,4 @@ func (impl *InfraConfigRepositoryImpl) DeleteConfigurations(tx *pg.Tx, profileId
 		Where("profile_id = ? ", profileId).
 		Update()
 	return err
-}
-
-// todo: move this to service layer
-func (impl *InfraConfigRepositoryImpl) GetIdentifierList(listFilter IdentifierListFilter, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) ([]*Identifier, error) {
-	listFilter.IdentifierNameLike = "%" + listFilter.IdentifierNameLike + "%"
-	identifierType := GetIdentifierKey(listFilter.IdentifierType, searchableKeyNameIdMap)
-	// for empty profile name we have to get identifiers
-	if listFilter.ProfileName == ALL_PROFILES {
-		return impl.getIdentifiersListForMiscProfiles(listFilter, identifierType)
-	}
-
-	// for default profile
-	if listFilter.ProfileName == DEFAULT_PROFILE_NAME {
-		identifiers, err := impl.getIdentifiersListForDefaultProfile(listFilter, identifierType)
-		return identifiers, err
-	}
-
-	// for any other profile
-	identifiers, err := impl.getIdentifiersListForNonDefaultProfile(listFilter, identifierType)
-	return identifiers, err
-
-}
-
-// todo: move this to qualifier mapping service
-func (impl *InfraConfigRepositoryImpl) getIdentifiersListForNonDefaultProfile(listFilter IdentifierListFilter, identifierType int) ([]*Identifier, error) {
-	query := "SELECT identifier_value_int AS id, identifier_value_string AS name, resource_id as profile_id, COUNT(id) OVER() AS total_identifier_count " +
-		" FROM resource_qualifier_mapping "
-	query += fmt.Sprintf(" WHERE resource_type = %d ", resourceQualifiers.InfraProfile)
-	if listFilter.ProfileName != "" {
-		query += fmt.Sprintf(" AND resource_id IN (SELECT id FROM infra_profile WHERE name = '%s')", listFilter.ProfileName)
-	}
-
-	query += fmt.Sprintf(" AND identifier_key = %d ", identifierType) +
-		" AND active=true "
-
-	if listFilter.IdentifierNameLike != "" {
-		query += fmt.Sprintf(" AND identifier_value_string LIKE '%s' ", listFilter.IdentifierNameLike)
-	}
-	if listFilter.SortOrder != "" {
-		query += fmt.Sprintf(" ORDER BY name %s ", listFilter.SortOrder)
-	}
-	if listFilter.Limit > 0 {
-		query += fmt.Sprintf(" LIMIT %d ", listFilter.Limit)
-	}
-	if listFilter.Offset > 0 {
-		query += fmt.Sprintf(" OFFSET %d ", listFilter.Offset)
-	}
-
-	var identifiers []*Identifier
-	_, err := impl.dbConnection.Query(&identifiers, query)
-	return identifiers, err
-}
-
-// todo: move this to app service
-func (impl *InfraConfigRepositoryImpl) getIdentifiersListForMiscProfiles(listFilter IdentifierListFilter, identifierType int) ([]*Identifier, error) {
-	// get apps first and then get their respective profile Ids
-	// get apps using filters
-	query := "SELECT id," +
-		"app_name AS name," +
-		" COUNT(id) OVER() AS total_identifier_count " +
-		" FROM app " +
-		" WHERE active=true "
-	if listFilter.IdentifierNameLike != "" {
-		query += fmt.Sprintf(" AND app_name LIKE '%s' ", listFilter.IdentifierNameLike)
-	}
-	if listFilter.SortOrder != "" {
-		query += fmt.Sprintf(" ORDER BY name %s ", listFilter.SortOrder)
-	}
-	if listFilter.Limit > 0 {
-		query += fmt.Sprintf(" LIMIT %d ", listFilter.Limit)
-	}
-	if listFilter.Offset > 0 {
-		query += fmt.Sprintf(" OFFSET %d ", listFilter.Offset)
-	}
-	var identifiers []*Identifier
-	_, err := impl.dbConnection.Query(&identifiers, query)
-	if err != nil {
-		return nil, err
-	}
-	// get profileIds for the above identifiers
-	identifiers, err = impl.fillIdentifiersWithProfileId(identifierType, identifiers)
-	return identifiers, err
-}
-
-// todo: split this into different db calls
-func (impl *InfraConfigRepositoryImpl) getIdentifiersListForDefaultProfile(listFilter IdentifierListFilter, identifierType int) ([]*Identifier, error) {
-	queryToGetAppIdsWhichDoesNotInheritDefaultConfigurations := " SELECT identifier_value_int " +
-		" FROM resource_qualifier_mapping " +
-		" WHERE resource_type = %d AND resource_id IN ( " +
-		" 	SELECT profile_id " +
-		"   FROM infra_profile_configuration " +
-		"   GROUP BY profile_id HAVING COUNT(profile_id) = ( " +
-		" 	      SELECT COUNT(ip.id) " +
-		" 	      FROM infra_profile_configuration ipc" +
-		"         INNER JOIN infra_profile ip ON ipc.profile_id = ip.id " +
-		" 	      WHERE ip.active=true AND ipc.active=true AND ip.name='%s' ) " +
-		" ) AND identifier_key = %d AND active=true"
-	queryToGetAppIdsWhichDoesNotInheritDefaultConfigurations = fmt.Sprintf(queryToGetAppIdsWhichDoesNotInheritDefaultConfigurations, resourceQualifiers.InfraProfile, DEFAULT_PROFILE_NAME, identifierType)
-
-	query := "SELECT id," +
-		"app_name AS name," +
-		"COUNT(id) OVER() AS total_identifier_count " +
-		" FROM app " +
-		" WHERE active=true " +
-		" AND id NOT IN ( " + queryToGetAppIdsWhichDoesNotInheritDefaultConfigurations + " ) "
-	if listFilter.IdentifierNameLike != "" {
-		query += fmt.Sprintf(" AND app_name LIKE '%s' ", listFilter.IdentifierNameLike)
-	}
-	if listFilter.SortOrder != "" {
-		query += fmt.Sprintf(" ORDER BY name %s ", listFilter.SortOrder)
-	}
-	if listFilter.Limit > 0 {
-		query += fmt.Sprintf(" LIMIT %d ", listFilter.Limit)
-	}
-	if listFilter.Offset > 0 {
-		query += fmt.Sprintf(" OFFSET %d ", listFilter.Offset)
-	}
-
-	var identifiers []*Identifier
-	_, err := impl.dbConnection.Query(&identifiers, query)
-	if err != nil {
-		return nil, err
-	}
-	identifiers, err = impl.fillIdentifiersWithProfileId(identifierType, identifiers)
-	return identifiers, err
-}
-
-// todo: move this to qualifier mapping service
-func (impl *InfraConfigRepositoryImpl) fillIdentifiersWithProfileId(identifierType int, identifiers []*Identifier) ([]*Identifier, error) {
-	// get profileIds for the above identifiers
-	profileIdentifiersMappings := make([]*Identifier, 0)
-	profileIdentifiersMappingsQuery := "SELECT identifier_value_int AS id,resource_id AS profile_id " +
-		" FROM resource_qualifier_mapping " +
-		" WHERE resource_type = ? " +
-		" AND identifier_key = ? " +
-		" AND active = true "
-	_, err := impl.dbConnection.Query(&profileIdentifiersMappings, profileIdentifiersMappingsQuery, resourceQualifiers.InfraProfile, identifierType)
-	if err != nil {
-		return nil, err
-	}
-	identifiersMap := make(map[int]*Identifier)
-	for _, identifier := range identifiers {
-		identifiersMap[identifier.Id] = identifier
-	}
-	for _, profileIdentifierMapping := range profileIdentifiersMappings {
-		identifier, ok := identifiersMap[profileIdentifierMapping.Id]
-		if ok {
-			identifier.ProfileId = profileIdentifierMapping.ProfileId
-		}
-	}
-	return identifiers, nil
 }

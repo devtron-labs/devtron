@@ -128,7 +128,12 @@ func (handler *InfraConfigRestHandlerImpl) GetProfile(w http.ResponseWriter, r *
 
 	defaultProfile, err := handler.infraProfileService.GetProfileByName(infraConfig.DEFAULT_PROFILE_NAME)
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		statusCode := http.StatusBadRequest
+		if errors.Is(err, pg.ErrNoRows) {
+			err = errors.New(fmt.Sprintf("profile %s not found", infraConfig.DEFAULT_PROFILE_NAME))
+			statusCode = http.StatusNotFound
+		}
+		common.WriteJsonResp(w, err, nil, statusCode)
 		return
 	}
 	if profileName == infraConfig.DEFAULT_PROFILE_NAME {

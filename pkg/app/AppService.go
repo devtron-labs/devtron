@@ -198,6 +198,7 @@ type AppService interface {
 	IsDevtronAsyncInstallModeEnabled(deploymentAppType string) bool
 	FindAppByNames(names []string) ([]*app.App, error)
 	GetActiveCiCdAppsCount(excludeAppIds []int) (int, error)
+	FindAppsWithFilter(appNameLike, sortOrder string, limit, offset int, excludeAppIds []int) ([]app.AppWithExtraQueryFields, error)
 }
 
 func NewAppService(
@@ -1407,4 +1408,8 @@ func (impl *AppServiceImpl) FindAppByNames(names []string) ([]*app.App, error) {
 
 func (impl *AppServiceImpl) GetActiveCiCdAppsCount(excludeAppIds []int) (int, error) {
 	return impl.appRepository.GetActiveCiCdAppsCount(excludeAppIds)
+}
+
+func (impl *AppServiceImpl) FindAppsWithFilter(appNameLike, sortOrder string, limit, offset int, excludeAppIds []int) ([]app.AppWithExtraQueryFields, error) {
+	return impl.appRepository.FindAppsWithFilter(appNameLike, sortOrder, limit, offset, excludeAppIds)
 }

@@ -249,6 +249,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(infraConfigService.InfraConfigRepository), new(*infraConfigService.InfraConfigRepositoryImpl)),
 
 		units.NewUnits,
+		infraConfigService.NewValidatorImpl,
+		wire.Bind(new(infraConfigService.Validator), new(*infraConfigService.ValidatorImpl)),
 		infraConfigService.NewInfraConfigServiceImpl,
 		wire.Bind(new(infraConfigService.InfraConfigService), new(*infraConfigService.InfraConfigServiceImpl)),
 		infraConfigService.NewCiInfraGetter,

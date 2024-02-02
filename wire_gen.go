@@ -517,7 +517,8 @@ func InitializeApp() (*App, error) {
 	systemWorkflowExecutorImpl := executors.NewSystemWorkflowExecutorImpl(sugaredLogger, k8sUtilExtended)
 	infraConfigRepositoryImpl := infraConfig.NewInfraProfileRepositoryImpl(db)
 	unitsUnits := units.NewUnits()
-	infraConfigServiceImpl, err := infraConfig.NewInfraConfigServiceImpl(sugaredLogger, infraConfigRepositoryImpl, unitsUnits, appServiceImpl, devtronResourceSearchableKeyServiceImpl, qualifierMappingServiceImpl)
+	validatorImpl := infraConfig.NewValidatorImpl(unitsUnits)
+	infraConfigServiceImpl, err := infraConfig.NewInfraConfigServiceImpl(sugaredLogger, infraConfigRepositoryImpl, unitsUnits, appServiceImpl, validatorImpl, devtronResourceSearchableKeyServiceImpl, qualifierMappingServiceImpl)
 	if err != nil {
 		return nil, err
 	}
