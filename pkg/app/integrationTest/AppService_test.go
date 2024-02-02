@@ -140,7 +140,7 @@ func InitAppService() *app2.AppServiceImpl {
 	eventClient := client1.NewEventRESTClientImpl(logger, httpClient, eventClientConfig, pubSubClient, ciPipelineRepositoryImpl,
 		pipelineRepository, attributesRepositoryImpl, moduleService)
 	cdWorkflowRepository := pipelineConfig.NewCdWorkflowRepositoryImpl(dbConnection, logger)
-	ciWorkflowRepository := pipelineConfig.NewCiWorkflowRepositoryImpl(dbConnection, logger)
+	ciWorkflowRepository := pipelineConfig.NewCiWorkflowRunnerRepositoryImpl(dbConnection, logger)
 	ciPipelineMaterialRepository := pipelineConfig.NewCiPipelineMaterialRepositoryImpl(dbConnection, logger)
 	userRepository := repository2.NewUserRepositoryImpl(dbConnection, logger)
 	eventFactory := client1.NewEventSimpleFactoryImpl(logger, cdWorkflowRepository, pipelineOverrideRepository, ciWorkflowRepository,

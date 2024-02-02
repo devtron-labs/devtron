@@ -15,7 +15,7 @@ func TestCiWorkflowRepository(t *testing.T) {
 		logger, err := utils.NewSugardLogger()
 		con, _ := sql.NewDbConnection(cfg, logger)
 		assert.Nil(t, err)
-		workflowRepositoryImpl := NewCiWorkflowRepositoryImpl(con, logger)
+		workflowRepositoryImpl := NewCiWorkflowRunnerRepositoryImpl(con, logger)
 		statusData := workflowRepositoryImpl.FindBuildTypeAndStatusDataOfLast1Day()
 		for _, statusDatum := range statusData {
 			fmt.Println(statusDatum.Count)

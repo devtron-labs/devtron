@@ -71,7 +71,7 @@ type WebhookServiceImpl struct {
 	ciConfig                *types2.CiConfig
 	logger                  *zap.SugaredLogger
 	ciPipelineRepository    pipelineConfig.CiPipelineRepository
-	ciWorkflowRepository    pipelineConfig.CiWorkflowRepository
+	ciWorkflowRepository    pipelineConfig.CiWorkflowRunnerRepository
 	appService              app.AppService
 	eventClient             client.EventClient
 	eventFactory            client.EventFactory
@@ -88,7 +88,7 @@ func NewWebhookServiceImpl(
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	appService app.AppService, eventClient client.EventClient,
 	eventFactory client.EventFactory,
-	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
+	ciWorkflowRepository pipelineConfig.CiWorkflowRunnerRepository,
 	workflowDagExecutor WorkflowDagExecutor, ciHandler CiHandler,
 	pipelineStageRepository repository2.PipelineStageRepository,
 	globalPluginRepository repository3.GlobalPluginRepository,

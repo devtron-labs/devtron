@@ -23,8 +23,10 @@ func NewMaterialServiceImpl(logger *zap.SugaredLogger, repository pipelineConfig
 
 func (impl *MaterialServiceImpl) GetByPipelineId(pipelineId int) ([]*types.CiPipelineMaterialModel, error) {
 	materialEntities, err := impl.repository.GetByPipelineId(pipelineId)
+	var materials []*types.CiPipelineMaterialModel
 	if err != nil {
-		// TODO KB: log here
+		impl.logger.Errorw("error occurred while fetching pipeline by id", "pipelineId", pipelineId, "err", err)
+		return materials, err
 	}
 	return adapters.ConvertToPipelineMaterials(materialEntities), nil
 }

@@ -52,11 +52,11 @@ type AppArtifactManager interface {
 
 type AppArtifactManagerImpl struct {
 	logger                  *zap.SugaredLogger
-	cdWorkflowRepository pipelineConfig.CdWorkflowRepository
-	userService          user.UserService
-	imageTaggingService  ImageTaggingService
+	cdWorkflowRepository    pipelineConfig.CdWorkflowRepository
+	userService             user.UserService
+	imageTaggingService     ImageTaggingService
 	ciArtifactRepository    repository.CiArtifactRepository
-	ciWorkflowRepository    pipelineConfig.CiWorkflowRepository
+	ciWorkflowRepository    pipelineConfig.CiWorkflowRunnerRepository
 	pipelineStageService    PipelineStageService
 	config                  *types.CdConfig
 	cdPipelineConfigService CdPipelineConfigService
@@ -71,7 +71,7 @@ func NewAppArtifactManagerImpl(
 	userService user.UserService,
 	imageTaggingService ImageTaggingService,
 	ciArtifactRepository repository.CiArtifactRepository,
-	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
+	ciWorkflowRepository pipelineConfig.CiWorkflowRunnerRepository,
 	pipelineStageService PipelineStageService,
 	cdPipelineConfigService CdPipelineConfigService,
 	dockerArtifactRegistry dockerArtifactStoreRegistry.DockerArtifactStoreRepository,

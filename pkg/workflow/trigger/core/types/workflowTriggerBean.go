@@ -25,16 +25,17 @@ import (
 	"github.com/devtron-labs/common-lib/blob-storage"
 	bean3 "github.com/devtron-labs/devtron/api/bean"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
-	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/plugin"
 	repository5 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/workflow/pipeline/ci/materials/types"
+	types2 "github.com/devtron-labs/devtron/pkg/workflow/trigger/ci/types"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -52,18 +53,19 @@ type WorkflowContext struct {
 }
 
 type WorkflowTriggerRequest struct {
-	WorkflowNamePrefix string `json:"workflowNamePrefix"`
-	PipelineName       string `json:"pipelineName"`
-	PipelineId         int    `json:"pipelineId"`
-	AppId              int    `json:"appId"`
-	EnvironmentId      int    `json:"environmentId"`
-	OrchestratorHost   string `json:"orchestratorHost"`
-	OrchestratorToken  string `json:"orchestratorToken"`
-	AppName            string `json:"appName"`
-	TriggerByAuthor    string `json:"triggerByAuthor"`
-	WorkflowRunnerId   int    `json:"workflowRunnerId"`
-	CdPipelineId       int    `json:"cdPipelineId"`
-	CiPipelineType     string `json:"ciPipelineType"`
+	WorkflowNamePrefix string         `json:"workflowNamePrefix"`
+	PipelineName       string         `json:"pipelineName"`
+	PipelineId         int            `json:"pipelineId"`
+	AppId              int            `json:"appId"`
+	AppType            helper.AppType `json:"-"`
+	EnvironmentId      int            `json:"environmentId"`
+	OrchestratorHost   string         `json:"orchestratorHost"`
+	OrchestratorToken  string         `json:"orchestratorToken"`
+	AppName            string         `json:"appName"`
+	TriggerByAuthor    string         `json:"triggerByAuthor"`
+	WorkflowRunnerId   int            `json:"workflowRunnerId"`
+	CdPipelineId       int            `json:"cdPipelineId"`
+	CiPipelineType     string         `json:"ciPipelineType"`
 	// docker registry attributes start
 	DockerImageTag     string `json:"dockerImageTag"`
 	DockerRegistryId   string `json:"dockerRegistryId"`
@@ -144,10 +146,35 @@ type WorkflowTriggerRequest struct {
 	PushImageBeforePostCI       bool                                  `json:"pushImageBeforePostCI"`
 	Type                        bean.WorkflowPipelineType
 	Pipeline                    *pipelineConfig.Pipeline
-	Env                         *repository.Environment // needed cluster metadata rather than env
-	AppLabels                   map[string]string
-	Scope                       resourceQualifiers.Scope
-	ImagePathReservationIds     []int `json:"-"`
+	//Env                         *repository.Environment // needed cluster metadata rather than env
+	ClusterMetadata         bean3.ClusterInfo // TODO KB: set this in case of ext flag is true
+	AppLabels               map[string]string
+	Scope                   resourceQualifiers.Scope
+	ImagePathReservationIds []int `json:"-"`
+}
+
+func (workflowRequest *WorkflowTriggerRequest) LoadTriggerMetadata(triggerMetadata *types2.PipelineTriggerMetadata) {
+	appType := triggerMetadata.AppType
+	workflowRequest.AppType = appType
+	if appType == helper.Job {
+		workflowRequest.Type = bean.JOB_WORKFLOW_PIPELINE_TYPE
+	} else {
+		workflowRequest.Type = bean.CI_WORKFLOW_PIPELINE_TYPE
+	}
+	workflowRequest.AppId = triggerMetadata.AppId
+	workflowRequest.AppLabels = triggerMetadata.AppLabels
+	scope := resourceQualifiers.Scope{
+		AppId:     triggerMetadata.AppId,
+		EnvId:     triggerMetadata.EnvId,
+		ClusterId: triggerMetadata.ClusterId,
+		SystemMetadata: &resourceQualifiers.SystemMetadata{
+			EnvironmentName: triggerMetadata.EnvName,
+			ClusterName:     triggerMetadata.ClusterName,
+			Namespace:       triggerMetadata.Namespace,
+			AppName:         triggerMetadata.AppName,
+		},
+	}
+	workflowRequest.Scope = scope
 }
 
 func (workflowRequest *WorkflowTriggerRequest) LoadFromUserContext(userContext bean2.UserContext) {
@@ -539,10 +566,11 @@ func (workflowRequest *WorkflowTriggerRequest) UpdateProjectMaterials(commitHash
 	var ciProjectDetails []bean.CiProjectDetails
 	for _, ciMaterial := range materialModels {
 		// ignore those materials which have inactive git material
-		if ciMaterial == nil || ciMaterial.GitMaterial == nil || !ciMaterial.GitMaterial.Active {
+		if ciMaterial == nil || ciMaterial.GitMaterial == nil {
 			continue
 		}
-		commitHashForPipelineId := commitHashes[ciMaterial.Id]
+		commitHashForPipelineId := commitHashes[ciMaterial.CiMaterialId]
+		// TODO KB: Duplicate code in pre-cd & post-cd Workflow dag executor
 		ciProjectDetail := bean.CiProjectDetails{
 			GitRepository:   ciMaterial.GitMaterial.Url,
 			MaterialName:    ciMaterial.GitMaterial.Name,
@@ -555,14 +583,8 @@ func (workflowRequest *WorkflowTriggerRequest) UpdateProjectMaterials(commitHash
 			GitTag:          ciMaterial.GitTag,
 			Message:         commitHashForPipelineId.Message,
 			Type:            string(ciMaterial.Type),
-			CommitTime:      commitHashForPipelineId.Date.Format(bean.LayoutRFC3339),
-			GitOptions: bean2.GitOptions{
-				UserName:      ciMaterial.GitMaterial.GitProvider.UserName,
-				Password:      ciMaterial.GitMaterial.GitProvider.Password,
-				SshPrivateKey: ciMaterial.GitMaterial.GitProvider.SshPrivateKey,
-				AccessToken:   ciMaterial.GitMaterial.GitProvider.AccessToken,
-				AuthMode:      ciMaterial.GitMaterial.GitProvider.AuthMode,
-			},
+			CommitTime:      commitHashForPipelineId.Date.Format(bean2.LayoutRFC3339),
+			GitOptions:      ciMaterial.GitOptions,
 		}
 
 		if ciMaterial.Type == pipelineConfig.SOURCE_TYPE_WEBHOOK {
@@ -696,6 +718,10 @@ func (workflowRequest *WorkflowTriggerRequest) buildDefaultArtifactLocation(ciWo
 	}
 	ArtifactLocation := fmt.Sprintf("%s/"+ciArtifactLocationFormat, config.GetDefaultArtifactKeyPrefix(), uniqueId, uniqueId)
 	return ArtifactLocation
+}
+
+func (workflowRequest *WorkflowTriggerRequest) IsJob() bool {
+	return workflowRequest.AppType == helper.Job
 }
 
 func buildCiStepsDataFromDockerBuildScripts(dockerBuildScripts []*bean2.CiScript) []*bean.StepObject {

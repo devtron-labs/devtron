@@ -145,7 +145,7 @@ type WorkflowDagExecutorImpl struct {
 	cdPipelineStatusTimelineRepo  pipelineConfig.PipelineStatusTimelineRepository
 	pipelineStatusTimelineService status.PipelineStatusTimelineService
 	CiTemplateRepository          pipelineConfig.CiTemplateRepository
-	ciWorkflowRepository          pipelineConfig.CiWorkflowRepository
+	ciWorkflowRepository          pipelineConfig.CiWorkflowRunnerRepository
 	appLabelRepository            pipelineConfig.AppLabelRepository
 	gitSensorGrpcClient           gitSensorClient.Client
 	k8sCommonService              k8s.K8sCommonService
@@ -264,7 +264,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	cdPipelineStatusTimelineRepo pipelineConfig.PipelineStatusTimelineRepository,
 	pipelineStatusTimelineService status.PipelineStatusTimelineService,
 	CiTemplateRepository pipelineConfig.CiTemplateRepository,
-	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
+	ciWorkflowRepository pipelineConfig.CiWorkflowRunnerRepository,
 	appLabelRepository pipelineConfig.AppLabelRepository, gitSensorGrpcClient gitSensorClient.Client,
 	pipelineStageService PipelineStageService, k8sCommonService k8s.K8sCommonService,
 	variableSnapshotHistoryService variables.VariableSnapshotHistoryService,

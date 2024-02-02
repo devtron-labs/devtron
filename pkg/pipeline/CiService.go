@@ -60,7 +60,7 @@ type CiServiceImpl struct {
 	Logger                        *zap.SugaredLogger
 	workflowService               WorkflowService
 	ciPipelineMaterialRepository  pipelineConfig.CiPipelineMaterialRepository
-	ciWorkflowRepository          pipelineConfig.CiWorkflowRepository
+	ciWorkflowRepository          pipelineConfig.CiWorkflowRunnerRepository
 	ciConfig                      *types.CiConfig
 	eventClient                   client.EventClient
 	eventFactory                  client.EventFactory
@@ -82,7 +82,7 @@ type CiServiceImpl struct {
 
 func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
-	ciWorkflowRepository pipelineConfig.CiWorkflowRepository, eventClient client.EventClient,
+	ciWorkflowRepository pipelineConfig.CiWorkflowRunnerRepository, eventClient client.EventClient,
 	eventFactory client.EventFactory, mergeUtil *util.MergeUtil, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	prePostCiScriptHistoryService history.PrePostCiScriptHistoryService,
 	pipelineStageService PipelineStageService,

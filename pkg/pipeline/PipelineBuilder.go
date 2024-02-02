@@ -146,13 +146,13 @@ func formatDate(t time.Time, layout string) string {
 
 */
 
-func (impl *PipelineBuilderImpl) getGitMaterialsForApp(appId int) ([]*bean.GitMaterial, error) {
+func (impl *PipelineBuilderImpl) getGitMaterialsForApp(appId int) ([]*bean.GitMaterialModel, error) {
 	materials, err := impl.materialRepo.FindByAppId(appId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching materials for app", "appId", appId, "err", err)
 		return nil, err
 	}
-	var gitMaterials []*bean.GitMaterial
+	var gitMaterials []*bean.GitMaterialModel
 
 	for _, material := range materials {
 		gitUrl := material.Url
@@ -179,7 +179,7 @@ func (impl *PipelineBuilderImpl) getGitMaterialsForApp(appId int) ([]*bean.GitMa
 			u.User = url.UserPassword(userName, password)
 			gitUrl = u.String()
 		}
-		gitMaterial := &bean.GitMaterial{
+		gitMaterial := &bean.GitMaterialModel{
 			Id:            material.Id,
 			Url:           gitUrl,
 			GitProviderId: material.GitProviderId,

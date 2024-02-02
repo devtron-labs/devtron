@@ -46,16 +46,16 @@ type EventSimpleFactoryImpl struct {
 	logger                       *zap.SugaredLogger
 	cdWorkflowRepository         pipelineConfig.CdWorkflowRepository
 	pipelineOverrideRepository   chartConfig.PipelineOverrideRepository
-	ciWorkflowRepository         pipelineConfig.CiWorkflowRepository
+	ciWorkflowRepository         pipelineConfig.CiWorkflowRunnerRepository
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository
 	ciPipelineRepository         pipelineConfig.CiPipelineRepository
-	pipelineRepository   pipelineConfig.PipelineRepository
-	userRepository       repository.UserRepository
-	ciArtifactRepository repository2.CiArtifactRepository
+	pipelineRepository           pipelineConfig.PipelineRepository
+	userRepository               repository.UserRepository
+	ciArtifactRepository         repository2.CiArtifactRepository
 }
 
 func NewEventSimpleFactoryImpl(logger *zap.SugaredLogger, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
-	pipelineOverrideRepository chartConfig.PipelineOverrideRepository, ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
+	pipelineOverrideRepository chartConfig.PipelineOverrideRepository, ciWorkflowRepository pipelineConfig.CiWorkflowRunnerRepository,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository,
 	userRepository repository.UserRepository, ciArtifactRepository repository2.CiArtifactRepository) *EventSimpleFactoryImpl {

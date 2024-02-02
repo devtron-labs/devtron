@@ -1286,7 +1286,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateMaterials(createMaterialRequest *
 		impl.logger.Errorw("duplicate checkout paths", "err", err)
 		return nil, duplicatePathErr
 	}
-	var materials []*bean.GitMaterial
+	var materials []*bean.GitMaterialModel
 	for _, inputMaterial := range createMaterialRequest.Material {
 		m, err := impl.createMaterial(inputMaterial, createMaterialRequest.AppId, createMaterialRequest.UserId)
 		inputMaterial.Id = m.Id
@@ -1333,7 +1333,7 @@ func (impl CiCdPipelineOrchestratorImpl) updateRepositoryToGitSensor(material *p
 	return impl.GitSensorClient.UpdateRepo(context.Background(), sensorMaterial)
 }
 
-func (impl CiCdPipelineOrchestratorImpl) addRepositoryToGitSensor(materials []*bean.GitMaterial) error {
+func (impl CiCdPipelineOrchestratorImpl) addRepositoryToGitSensor(materials []*bean.GitMaterialModel) error {
 	var sensorMaterials []*gitSensor.GitMaterial
 	for _, material := range materials {
 		sensorMaterial := &gitSensor.GitMaterial{
@@ -1501,7 +1501,7 @@ func (impl CiCdPipelineOrchestratorImpl) updateMaterial(updateMaterialDTO *bean.
 	return currentMaterial, nil
 }
 
-func (impl CiCdPipelineOrchestratorImpl) createMaterial(inputMaterial *bean.GitMaterial, appId int, userId int32) (*pipelineConfig.GitMaterial, error) {
+func (impl CiCdPipelineOrchestratorImpl) createMaterial(inputMaterial *bean.GitMaterialModel, appId int, userId int32) (*pipelineConfig.GitMaterial, error) {
 	basePath := path.Base(inputMaterial.Url)
 	basePath = strings.TrimSuffix(basePath, ".git")
 	material := &pipelineConfig.GitMaterial{

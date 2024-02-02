@@ -20,6 +20,7 @@ package app
 import (
 	"encoding/json"
 	"fmt"
+	bean2 "github.com/devtron-labs/devtron/pkg/app/bean"
 	"regexp"
 	"strconv"
 	"strings"
@@ -53,7 +54,7 @@ type AppCrudOperationService interface {
 	UpdateApp(request *bean.CreateAppDTO) (*bean.CreateAppDTO, error)
 	UpdateProjectForApps(request *bean.UpdateProjectBulkAppsRequest) (*bean.UpdateProjectBulkAppsRequest, error)
 	GetAppMetaInfoByAppName(appName string) (*bean.AppMetaInfoDto, error)
-	GetAppListByTeamIds(teamIds []int, appType string) ([]*TeamAppBean, error)
+	GetAppListByTeamIds(teamIds []int, appType string) ([]*bean2.TeamAppBean, error)
 }
 
 type AppCrudOperationServiceImpl struct {
@@ -80,18 +81,6 @@ func NewAppCrudOperationServiceImpl(appLabelRepository pipelineConfig.AppLabelRe
 		genericNoteService:     genericNoteService,
 		gitMaterialRepository:  gitMaterialRepository,
 	}
-}
-
-type AppBean struct {
-	Id     int    `json:"id"`
-	Name   string `json:"name,notnull"`
-	TeamId int    `json:"teamId,omitempty"`
-}
-
-type TeamAppBean struct {
-	ProjectId   int        `json:"projectId"`
-	ProjectName string     `json:"projectName"`
-	AppList     []*AppBean `json:"appList"`
 }
 
 func (impl AppCrudOperationServiceImpl) UpdateApp(request *bean.CreateAppDTO) (*bean.CreateAppDTO, error) {
@@ -566,9 +555,9 @@ func (impl AppCrudOperationServiceImpl) GetAppMetaInfoByAppName(appName string) 
 	return info, nil
 }
 
-func (impl AppCrudOperationServiceImpl) GetAppListByTeamIds(teamIds []int, appType string) ([]*TeamAppBean, error) {
-	var appsRes []*TeamAppBean
-	teamMap := make(map[int]*TeamAppBean)
+func (impl AppCrudOperationServiceImpl) GetAppListByTeamIds(teamIds []int, appType string) ([]*bean2.TeamAppBean, error) {
+	var appsRes []*bean2.TeamAppBean
+	teamMap := make(map[int]*bean2.TeamAppBean)
 	if len(teamIds) == 0 {
 		return appsRes, nil
 	}
@@ -579,23 +568,23 @@ func (impl AppCrudOperationServiceImpl) GetAppListByTeamIds(teamIds []int, appTy
 	}
 	for _, app := range apps {
 		if _, ok := teamMap[app.TeamId]; ok {
-			teamMap[app.TeamId].AppList = append(teamMap[app.TeamId].AppList, &AppBean{Id: app.Id, Name: app.AppName})
+			teamMap[app.TeamId].AppList = append(teamMap[app.TeamId].AppList, &bean2.AppBean{Id: app.Id, Name: app.AppName})
 		} else {
 
-			teamMap[app.TeamId] = &TeamAppBean{ProjectId: app.Team.Id, ProjectName: app.Team.Name}
-			teamMap[app.TeamId].AppList = append(teamMap[app.TeamId].AppList, &AppBean{Id: app.Id, Name: app.AppName})
+			teamMap[app.TeamId] = &bean2.TeamAppBean{ProjectId: app.Team.Id, ProjectName: app.Team.Name}
+			teamMap[app.TeamId].AppList = append(teamMap[app.TeamId].AppList, &bean2.AppBean{Id: app.Id, Name: app.AppName})
 		}
 	}
 
 	for _, v := range teamMap {
 		if len(v.AppList) == 0 {
-			v.AppList = make([]*AppBean, 0)
+			v.AppList = make([]*bean2.AppBean, 0)
 		}
 		appsRes = append(appsRes, v)
 	}
 
 	if len(appsRes) == 0 {
-		appsRes = make([]*TeamAppBean, 0)
+		appsRes = make([]*bean2.TeamAppBean, 0)
 	}
 
 	return appsRes, err

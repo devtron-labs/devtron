@@ -75,9 +75,9 @@ type CoreAppRestHandler interface {
 }
 
 type CoreAppRestHandlerImpl struct {
-	logger          *zap.SugaredLogger
-	userAuthService user.UserService
-	validator       *validator.Validate
+	logger                  *zap.SugaredLogger
+	userAuthService         user.UserService
+	validator               *validator.Validate
 	enforcerUtil            rbac.EnforcerUtil
 	enforcer                casbin.Enforcer
 	appCrudOperationService app.AppCrudOperationService
@@ -1274,7 +1274,7 @@ func (handler CoreAppRestHandlerImpl) createGitMaterials(appId int, gitMaterials
 	for _, material := range gitMaterials {
 		err := handler.validator.Struct(material)
 		if err != nil {
-			handler.logger.Errorw("validation err, gitMaterial in CreateGitMaterials", "err", err, "GitMaterial", material)
+			handler.logger.Errorw("validation err, gitMaterial in CreateGitMaterials", "err", err, "GitMaterialModel", material)
 			return err, http.StatusBadRequest
 		}
 
@@ -1300,7 +1300,7 @@ func (handler CoreAppRestHandlerImpl) createGitMaterials(appId int, gitMaterials
 			return fmt.Errorf("validation for url failed, expected url prefix : %s", expectedUrlPrefix), http.StatusBadRequest
 		}
 
-		gitMaterialRequest := &bean.GitMaterial{
+		gitMaterialRequest := &bean.GitMaterialModel{
 			Url:             material.GitRepoUrl,
 			GitProviderId:   gitProvider.Id,
 			CheckoutPath:    material.CheckoutPath,

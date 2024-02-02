@@ -459,8 +459,8 @@ func InitializeApp() (*App, error) {
 		pipeline.NewCiServiceImpl,
 		wire.Bind(new(pipeline.CiService), new(*pipeline.CiServiceImpl)),
 
-		pipelineConfig.NewCiWorkflowRepositoryImpl,
-		wire.Bind(new(pipelineConfig.CiWorkflowRepository), new(*pipelineConfig.CiWorkflowRepositoryImpl)),
+		pipelineConfig.NewCiWorkflowRunnerRepositoryImpl,
+		wire.Bind(new(pipelineConfig.CiWorkflowRunnerRepository), new(*pipelineConfig.CiWorkflowRunnerRepositoryImpl)),
 
 		restHandler.NewGitWebhookRestHandlerImpl,
 		wire.Bind(new(restHandler.GitWebhookRestHandler), new(*restHandler.GitWebhookRestHandlerImpl)),

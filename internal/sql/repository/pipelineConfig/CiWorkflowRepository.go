@@ -25,7 +25,7 @@ import (
 	"time"
 )
 
-type CiWorkflowRepository interface {
+type CiWorkflowRunnerRepository interface {
 	SaveWorkFlowConfig(config *CiWorkflowConfig) error
 	FindConfigByPipelineId(pipelineId int) (*CiWorkflowConfig, error)
 
@@ -50,7 +50,7 @@ type CiWorkflowRepository interface {
 	FIndCiWorkflowStatusesByAppId(appId int) ([]*CiWorkflowStatus, error)
 }
 
-type CiWorkflowRepositoryImpl struct {
+type CiWorkflowRunnerRepositoryImpl struct {
 	dbConnection *pg.DB
 	logger       *zap.SugaredLogger
 }
@@ -160,14 +160,14 @@ type CiWorkflowConfig struct {
 	CiArtifactLocationFormat string   `sql:"ci_artifact_location_format"`
 }
 
-func NewCiWorkflowRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *CiWorkflowRepositoryImpl {
-	return &CiWorkflowRepositoryImpl{
+func NewCiWorkflowRunnerRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *CiWorkflowRunnerRepositoryImpl {
+	return &CiWorkflowRunnerRepositoryImpl{
 		dbConnection: dbConnection,
 		logger:       logger,
 	}
 }
 
-func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflow(pipelineId int) (ciWorkflow *CiWorkflow, err error) {
+func (impl *CiWorkflowRunnerRepositoryImpl) FindLastTriggeredWorkflow(pipelineId int) (ciWorkflow *CiWorkflow, err error) {
 	workflow := &CiWorkflow{}
 	err = impl.dbConnection.Model(workflow).
 		Column("ci_workflow.*", "CiPipeline").
@@ -178,7 +178,7 @@ func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflow(pipelineId int) 
 	return workflow, err
 }
 
-func (impl *CiWorkflowRepositoryImpl) FindByStatusesIn(activeStatuses []string) ([]*CiWorkflow, error) {
+func (impl *CiWorkflowRunnerRepositoryImpl) FindByStatusesIn(activeStatuses []string) ([]*CiWorkflow, error) {
 	var ciWorkFlows []*CiWorkflow
 	err := impl.dbConnection.Model(&ciWorkFlows).
 		Column("ci_workflow.*").
@@ -188,7 +188,7 @@ func (impl *CiWorkflowRepositoryImpl) FindByStatusesIn(activeStatuses []string) 
 }
 
 // FindByPipelineId gets only those workflowWithArtifact whose parent_ci_workflow_id is null, this is done to accommodate multiple ci_artifacts through a single workflow(parent), making child workflows for other ci_artifacts (this has been done due to design understanding and db constraint) single workflow single ci-artifact
-func (impl *CiWorkflowRepositoryImpl) FindByPipelineId(pipelineId int, offset int, limit int) ([]WorkflowWithArtifact, error) {
+func (impl *CiWorkflowRunnerRepositoryImpl) FindByPipelineId(pipelineId int, offset int, limit int) ([]WorkflowWithArtifact, error) {
 	var wfs []WorkflowWithArtifact
 	queryTemp := "select cia.id as ci_artifact_id, env.environment_name, cia.image, cia.is_artifact_uploaded, wf.*, u.email_id from ci_workflow wf left join users u on u.id = wf.triggered_by left join ci_artifact cia on wf.id = cia.ci_workflow_id left join environment env on env.id = wf.environment_id where wf.ci_pipeline_id = ? and parent_ci_workflow_id is null order by wf.started_on desc offset ? limit ?;"
 	_, err := impl.dbConnection.Query(&wfs, queryTemp, pipelineId, offset, limit)
@@ -198,7 +198,7 @@ func (impl *CiWorkflowRepositoryImpl) FindByPipelineId(pipelineId int, offset in
 	return wfs, err
 }
 
-func (impl *CiWorkflowRepositoryImpl) FindByName(name string) (*CiWorkflow, error) {
+func (impl *CiWorkflowRunnerRepositoryImpl) FindByName(name string) (*CiWorkflow, error) {
 	var ciWorkFlow *CiWorkflow
 	err := impl.dbConnection.Model(&ciWorkFlow).
 		Column("ci_workflow.*").
@@ -207,7 +207,7 @@ func (impl *CiWorkflowRepositoryImpl) FindByName(name string) (*CiWorkflow, erro
 	return ciWorkFlow, err
 }
 
-func (impl *CiWorkflowRepositoryImpl) FindById(id int) (*CiWorkflow, error) {
+func (impl *CiWorkflowRunnerRepositoryImpl) FindById(id int) (*CiWorkflow, error) {
 	workflow := &CiWorkflow{}
 	err := impl.dbConnection.Model(workflow).
 		Column("ci_workflow.*", "CiPipeline", "CiPipeline.App", "CiPipeline.CiTemplate", "CiPipeline.CiTemplate.DockerRegistry").
@@ -216,7 +216,7 @@ func (impl *CiWorkflowRepositoryImpl) FindById(id int) (*CiWorkflow, error) {
 	return workflow, err
 }
 
-func (impl *CiWorkflowRepositoryImpl) FindRetriedWorkflowCountByReferenceId(id int) (int, error) {
+func (impl *CiWorkflowRunnerRepositoryImpl) FindRetriedWorkflowCountByReferenceId(id int) (int, error) {
 	retryCount := 0
 	query := fmt.Sprintf("select count(*) "+
 		"from ci_workflow where ref_ci_workflow_id = %v", id)
@@ -225,7 +225,7 @@ func (impl *CiWorkflowRepositoryImpl) FindRetriedWorkflowCountByReferenceId(id i
 	return retryCount, err
 }
 
-func (impl *CiWorkflowRepositoryImpl) FindCiWorkflowGitTriggersById(id int) (ciWorkflow *CiWorkflow, err error) {
+func (impl *CiWorkflowRunnerRepositoryImpl) FindCiWorkflowGitTriggersById(id int) (ciWorkflow *CiWorkflow, err error) {
 	workflow := &CiWorkflow{}
 	err = impl.dbConnection.Model(workflow).
 		Column("ci_workflow.git_triggers").
@@ -235,7 +235,7 @@ func (impl *CiWorkflowRepositoryImpl) FindCiWorkflowGitTriggersById(id int) (ciW
 	return workflow, err
 }
 
-func (impl *CiWorkflowRepositoryImpl) FindCiWorkflowGitTriggersByIds(ids []int) ([]*CiWorkflow, error) {
+func (impl *CiWorkflowRunnerRepositoryImpl) FindCiWorkflowGitTriggersByIds(ids []int) ([]*CiWorkflow, error) {
 	workflows := make([]*CiWorkflow, 0)
 	if len(ids) == 0 {
 		return workflows, nil
@@ -247,28 +247,28 @@ func (impl *CiWorkflowRepositoryImpl) FindCiWorkflowGitTriggersByIds(ids []int) 
 
 	return workflows, err
 }
-func (impl *CiWorkflowRepositoryImpl) SaveWorkFlowConfig(config *CiWorkflowConfig) error {
+func (impl *CiWorkflowRunnerRepositoryImpl) SaveWorkFlowConfig(config *CiWorkflowConfig) error {
 	err := impl.dbConnection.Insert(config)
 	return err
 }
 
-func (impl *CiWorkflowRepositoryImpl) FindConfigByPipelineId(pipelineId int) (*CiWorkflowConfig, error) {
+func (impl *CiWorkflowRunnerRepositoryImpl) FindConfigByPipelineId(pipelineId int) (*CiWorkflowConfig, error) {
 	ciWorkflowConfig := &CiWorkflowConfig{}
 	err := impl.dbConnection.Model(ciWorkflowConfig).Where("ci_pipeline_id = ?", pipelineId).Select()
 	return ciWorkflowConfig, err
 }
 
-func (impl *CiWorkflowRepositoryImpl) SaveWorkFlow(wf *CiWorkflow) error {
+func (impl *CiWorkflowRunnerRepositoryImpl) SaveWorkFlow(wf *CiWorkflow) error {
 	err := impl.dbConnection.Insert(wf)
 	return err
 }
 
-func (impl *CiWorkflowRepositoryImpl) UpdateWorkFlow(wf *CiWorkflow) error {
+func (impl *CiWorkflowRunnerRepositoryImpl) UpdateWorkFlow(wf *CiWorkflow) error {
 	err := impl.dbConnection.Update(wf)
 	return err
 }
 
-func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowByCiIds(pipelineId []int) (ciWorkflow []*CiWorkflow, err error) {
+func (impl *CiWorkflowRunnerRepositoryImpl) FindLastTriggeredWorkflowByCiIds(pipelineId []int) (ciWorkflow []*CiWorkflow, err error) {
 	err = impl.dbConnection.Model(&ciWorkflow).
 		Column("ci_workflow.*", "CiPipeline").
 		Where("ci_workflow.ci_pipeline_id in (?) ", pg.In(pipelineId)).
@@ -277,7 +277,7 @@ func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowByCiIds(pipelineI
 	return ciWorkflow, err
 }
 
-func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowByArtifactId(ciArtifactId int) (ciWorkflow *CiWorkflow, err error) {
+func (impl *CiWorkflowRunnerRepositoryImpl) FindLastTriggeredWorkflowByArtifactId(ciArtifactId int) (ciWorkflow *CiWorkflow, err error) {
 	workflow := &CiWorkflow{}
 	err = impl.dbConnection.Model(workflow).
 		Column("ci_workflow.*", "CiPipeline").
@@ -287,7 +287,7 @@ func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowByArtifactId(ciAr
 	return workflow, err
 }
 
-func (impl *CiWorkflowRepositoryImpl) FindAllLastTriggeredWorkflowByArtifactId(ciArtifactIds []int) (ciWorkflows []*CiWorkflow, err error) {
+func (impl *CiWorkflowRunnerRepositoryImpl) FindAllLastTriggeredWorkflowByArtifactId(ciArtifactIds []int) (ciWorkflows []*CiWorkflow, err error) {
 	err = impl.dbConnection.Model(&ciWorkflows).
 		Column("ci_workflow.git_triggers", "ci_workflow.ci_pipeline_id", "CiPipeline", "cia.id").
 		Join("inner join ci_artifact cia on cia.ci_workflow_id = ci_workflow.id").
@@ -296,7 +296,7 @@ func (impl *CiWorkflowRepositoryImpl) FindAllLastTriggeredWorkflowByArtifactId(c
 	return ciWorkflows, err
 }
 
-func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowGitTriggersByArtifactId(ciArtifactId int) (ciWorkflow *CiWorkflow, err error) {
+func (impl *CiWorkflowRunnerRepositoryImpl) FindLastTriggeredWorkflowGitTriggersByArtifactId(ciArtifactId int) (ciWorkflow *CiWorkflow, err error) {
 	workflow := &CiWorkflow{}
 	err = impl.dbConnection.Model(workflow).
 		Column("ci_workflow.git_triggers").
@@ -307,7 +307,7 @@ func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowGitTriggersByArti
 	return workflow, err
 }
 
-func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowGitTriggersByArtifactIds(ciArtifactIds []int) ([]*WorkflowWithArtifact, error) {
+func (impl *CiWorkflowRunnerRepositoryImpl) FindLastTriggeredWorkflowGitTriggersByArtifactIds(ciArtifactIds []int) ([]*WorkflowWithArtifact, error) {
 	workflows := make([]*WorkflowWithArtifact, 0)
 	if len(ciArtifactIds) == 0 {
 		return workflows, nil
@@ -320,14 +320,14 @@ func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowGitTriggersByArti
 	return workflows, err
 }
 
-func (impl *CiWorkflowRepositoryImpl) ExistsByStatus(status string) (bool, error) {
+func (impl *CiWorkflowRunnerRepositoryImpl) ExistsByStatus(status string) (bool, error) {
 	exists, err := impl.dbConnection.Model(&CiWorkflow{}).
 		Where("status =?", status).
 		Exists()
 	return exists, err
 }
 
-func (impl *CiWorkflowRepositoryImpl) FindBuildTypeAndStatusDataOfLast1Day() []*BuildTypeCount {
+func (impl *CiWorkflowRunnerRepositoryImpl) FindBuildTypeAndStatusDataOfLast1Day() []*BuildTypeCount {
 	var buildTypeCounts []*BuildTypeCount
 	query := "select status,ci_build_type as type, count(*) from ci_workflow where status in ('Succeeded','Failed') and started_on > ? group by (ci_build_type, status)"
 	_, err := impl.dbConnection.Query(&buildTypeCounts, query, time.Now().AddDate(0, 0, -1))
@@ -337,7 +337,7 @@ func (impl *CiWorkflowRepositoryImpl) FindBuildTypeAndStatusDataOfLast1Day() []*
 	return buildTypeCounts
 }
 
-func (impl *CiWorkflowRepositoryImpl) FIndCiWorkflowStatusesByAppId(appId int) ([]*CiWorkflowStatus, error) {
+func (impl *CiWorkflowRunnerRepositoryImpl) FIndCiWorkflowStatusesByAppId(appId int) ([]*CiWorkflowStatus, error) {
 
 	ciworkflowStatuses := make([]*CiWorkflowStatus, 0)
 

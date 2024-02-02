@@ -1,6 +1,7 @@
 package types
 
 import (
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/workflow/pipeline/ci/materials/types"
 	"time"
@@ -38,5 +39,16 @@ func (obj CiTriggerRequest) BuildTriggerObject(refCiWorkflow *pipelineConfig.CiW
 	obj.InvalidateCache = invalidateCache
 	obj.ExtraEnvironmentVariables = extraEnvironmentVariables
 	obj.PipelineType = pipelineType
+}
 
+type PipelineTriggerMetadata struct {
+	AppId       int
+	AppName     string
+	AppType     helper.AppType
+	EnvId       int
+	EnvName     string
+	ClusterId   int
+	ClusterName string
+	Namespace   string
+	AppLabels   map[string]string
 }

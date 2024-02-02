@@ -117,7 +117,7 @@ type CiPipelineConfigServiceImpl struct {
 	ciPipelineRepository                pipelineConfig.CiPipelineRepository
 	ciConfig                            *types.CiCdConfig
 	attributesService                   attributes.AttributesService
-	ciWorkflowRepository                pipelineConfig.CiWorkflowRepository
+	ciWorkflowRepository                pipelineConfig.CiWorkflowRunnerRepository
 	appWorkflowRepository               appWorkflow.AppWorkflowRepository
 	pipelineStageService                PipelineStageService
 	pipelineRepository                  pipelineConfig.PipelineRepository
@@ -155,7 +155,7 @@ func NewCiPipelineConfigServiceImpl(logger *zap.SugaredLogger,
 	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository,
 	CiTemplateHistoryService history.CiTemplateHistoryService,
 	enforcerUtil rbac.EnforcerUtil,
-	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
+	ciWorkflowRepository pipelineConfig.CiWorkflowRunnerRepository,
 	resourceGroupService resourceGroup2.ResourceGroupService,
 	customTagService CustomTagService,
 	ciPipelineHistoryService history.CiPipelineHistoryService,

@@ -33,7 +33,7 @@ type BuildPipelineSwitchServiceImpl struct {
 	ciPipelineRepository         pipelineConfig.CiPipelineRepository
 	ciCdPipelineOrchestrator     CiCdPipelineOrchestrator
 	pipelineRepository           pipelineConfig.PipelineRepository
-	ciWorkflowRepository         pipelineConfig.CiWorkflowRepository
+	ciWorkflowRepository         pipelineConfig.CiWorkflowRunnerRepository
 	appWorkflowRepository        appWorkflow.AppWorkflowRepository
 	ciPipelineHistoryService     history.CiPipelineHistoryService
 	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository
@@ -44,7 +44,7 @@ func NewBuildPipelineSwitchServiceImpl(logger *zap.SugaredLogger,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	ciCdPipelineOrchestrator CiCdPipelineOrchestrator,
 	pipelineRepository pipelineConfig.PipelineRepository,
-	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
+	ciWorkflowRepository pipelineConfig.CiWorkflowRunnerRepository,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
 	ciPipelineHistoryService history.CiPipelineHistoryService,
 	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository,

@@ -683,10 +683,10 @@ func (mr *MockPipelineBuilderMockRecorder) GetExternalCiById(appId, externalCiId
 }
 
 // GetMaterialsForAppId mocks base method.
-func (m *MockPipelineBuilder) GetMaterialsForAppId(appId int) []*bean0.GitMaterial {
+func (m *MockPipelineBuilder) GetMaterialsForAppId(appId int) []*bean0.GitMaterialModel {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetMaterialsForAppId", appId)
-	ret0, _ := ret[0].([]*bean0.GitMaterial)
+	ret0, _ := ret[0].([]*bean0.GitMaterialModel)
 	return ret0
 }
 

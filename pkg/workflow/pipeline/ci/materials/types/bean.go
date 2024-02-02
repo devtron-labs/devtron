@@ -1,17 +1,19 @@
 package types
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 )
 
 type CiPipelineMaterialModel struct {
 	//TODO KB: check model bean would work or not ??
-	//CiPipeline *bean.CiPipeline // not needed
-
-	// fields needed are metadata along with GitProvider
+	CiMaterialId  int
+	Type          pipelineConfig.SourceType
+	Value         string
+	GitTag        string
 	GitMaterialId int
-	GitMaterial   *bean.GitMaterial
-	GitProvider   *repository.GitProvider //TODO KB: should not be sql struct
-
+	GitMaterial   *bean.GitMaterialModel
+	GitOptions    bean2.GitOptions
+	Active        bool
 }

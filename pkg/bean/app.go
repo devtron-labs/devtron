@@ -48,7 +48,7 @@ type CreateAppDTO struct {
 	AppName     string                         `json:"appName" validate:"name-component,max=100"`
 	Description string                         `json:"description"`
 	UserId      int32                          `json:"-"` //not exposed to UI
-	Material    []*GitMaterial                 `json:"material" validate:"dive,min=1"`
+	Material    []*GitMaterialModel            `json:"material" validate:"dive,min=1"`
 	TeamId      int                            `json:"teamId,omitempty" validate:"number,required"`
 	TemplateId  int                            `json:"templateId"`
 	AppLabels   []*Label                       `json:"labels,omitempty" validate:"dive"`
@@ -57,19 +57,19 @@ type CreateAppDTO struct {
 }
 
 type CreateMaterialDTO struct {
-	Id       int            `json:"id,omitempty" validate:"number"`
-	AppId    int            `json:"appId" validate:"number"`
-	Material []*GitMaterial `json:"material" validate:"dive,min=1"`
-	UserId   int32          `json:"-"` //not exposed to UI
+	Id       int                 `json:"id,omitempty" validate:"number"`
+	AppId    int                 `json:"appId" validate:"number"`
+	Material []*GitMaterialModel `json:"material" validate:"dive,min=1"`
+	UserId   int32               `json:"-"` //not exposed to UI
 }
 
 type UpdateMaterialDTO struct {
-	AppId    int          `json:"appId" validate:"number"`
-	Material *GitMaterial `json:"material" validate:"dive,min=1"`
-	UserId   int32        `json:"-"` //not exposed to UI
+	AppId    int               `json:"appId" validate:"number"`
+	Material *GitMaterialModel `json:"material" validate:"dive,min=1"`
+	UserId   int32             `json:"-"` //not exposed to UI
 }
 
-type GitMaterial struct {
+type GitMaterialModel struct {
 	Name             string   `json:"name,omitempty" ` //not null, //default format pipelineGroup.AppName + "-" + inputMaterial.Name,
 	Url              string   `json:"url,omitempty"`   //url of git repo
 	Id               int      `json:"id,omitempty" validate:"number"`
@@ -524,10 +524,10 @@ type ServiceExposeConfig struct {
 }
 
 type MaterialOperations interface {
-	MaterialExists(material *GitMaterial) (bool, error)
-	SaveMaterial(material *GitMaterial) error
-	GenerateMaterialMetaData(material *GitMaterial) (*MaterialMetadata, error)
-	ValidateMaterialMetaData(material *GitMaterial, metadata *MaterialMetadata) (bool, error)
+	MaterialExists(material *GitMaterialModel) (bool, error)
+	SaveMaterial(material *GitMaterialModel) error
+	GenerateMaterialMetaData(material *GitMaterialModel) (*MaterialMetadata, error)
+	ValidateMaterialMetaData(material *GitMaterialModel, metadata *MaterialMetadata) (bool, error)
 	SaveMaterialMetaData(metadata *MaterialMetadata) error
 }
 

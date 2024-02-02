@@ -40,7 +40,7 @@ type CiMaterialConfigService interface {
 	//BulkPatchCiMaterialSource : Delegating the request to ciCdPipelineOrchestrator for bulk updating source
 	BulkPatchCiMaterialSource(ciPipelines *bean.CiMaterialBulkPatchRequest, userId int32, token string, checkAppSpecificAccess func(token, action string, appId int) (bool, error)) (*bean.CiMaterialBulkPatchResponse, error)
 	//GetMaterialsForAppId : Retrieve material for given appId
-	GetMaterialsForAppId(appId int) []*bean.GitMaterial
+	GetMaterialsForAppId(appId int) []*bean.GitMaterialModel
 }
 
 type CiMaterialConfigServiceImpl struct {
@@ -196,7 +196,7 @@ func (impl *CiMaterialConfigServiceImpl) BulkPatchCiMaterialSource(ciPipelines *
 	return response, nil
 }
 
-func (impl *CiMaterialConfigServiceImpl) GetMaterialsForAppId(appId int) []*bean.GitMaterial {
+func (impl *CiMaterialConfigServiceImpl) GetMaterialsForAppId(appId int) []*bean.GitMaterialModel {
 	materials, err := impl.materialRepo.FindByAppId(appId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching materials", "appId", appId, "err", err)
@@ -207,9 +207,9 @@ func (impl *CiMaterialConfigServiceImpl) GetMaterialsForAppId(appId int) []*bean
 		impl.logger.Errorw("err in getting ci-template", "appId", appId, "err", err)
 	}
 
-	var gitMaterials []*bean.GitMaterial
+	var gitMaterials []*bean.GitMaterialModel
 	for _, material := range materials {
-		gitMaterial := &bean.GitMaterial{
+		gitMaterial := &bean.GitMaterialModel{
 			Url:             material.Url,
 			Name:            material.Name[strings.Index(material.Name, "-")+1:],
 			Id:              material.Id,

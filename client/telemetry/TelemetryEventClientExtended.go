@@ -38,7 +38,7 @@ type TelemetryEventClientImplExtended struct {
 	gitProviderRepository         repository.GitProviderRepository
 	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository
 	appRepository                 app.AppRepository
-	ciWorkflowRepository          pipelineConfig.CiWorkflowRepository
+	ciWorkflowRepository          pipelineConfig.CiWorkflowRunnerRepository
 	cdWorkflowRepository          pipelineConfig.CdWorkflowRepository
 	materialRepository            pipelineConfig.MaterialRepository
 	ciTemplateRepository          pipelineConfig.CiTemplateRepository
@@ -54,7 +54,7 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository,
 	gitOpsConfigRepository repository.GitOpsConfigRepository, gitProviderRepository repository.GitProviderRepository,
 	attributeRepo repository.AttributesRepository, ssoLoginService sso.SSOLoginService, appRepository app.AppRepository,
-	ciWorkflowRepository pipelineConfig.CiWorkflowRepository, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
+	ciWorkflowRepository pipelineConfig.CiWorkflowRunnerRepository, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository,
 	materialRepository pipelineConfig.MaterialRepository, ciTemplateRepository pipelineConfig.CiTemplateRepository,
 	chartRepository chartRepoRepository.ChartRepository, userAuditService user2.UserAuditService,
