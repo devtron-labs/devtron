@@ -1996,9 +1996,10 @@ func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentClone(appId int, cloneAp
 }
 func (impl ConfigMapServiceImpl) FetchCmCsNamesAppAndEnvLevel(appId int, envId int) ([]chartConfig.CMCSNames, []chartConfig.CMCSNames, error) {
 	var cMCSNamesEnvLevel []chartConfig.CMCSNames
+
 	cMCSNamesAppLevel, err := impl.configMapRepository.GetConfigNamesAppLevel(appId)
 	if err != nil {
-		impl.logger.Errorw("error in getting CM/CS nmaes at app level ", "appId", appId, "err", err)
+		impl.logger.Errorw("error in getting CM/CS names at app level ", "appId", appId, "err", err)
 		return nil, nil, err
 	}
 	if envId > 0 {
