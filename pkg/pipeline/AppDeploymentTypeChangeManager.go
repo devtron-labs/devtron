@@ -279,7 +279,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) ChangePipelineDeploymentType(ctx
 			"desired deployment type", request.DesiredDeploymentType,
 			"err", err)
 
-		return response, nil
+		return response, err
 	}
 
 	return response, nil

@@ -69,7 +69,8 @@ type InstalledAppRestHandler interface {
 	FetchResourceTreeForACDApp(w http.ResponseWriter, r *http.Request)
 	FetchNotesForArgoInstalledApp(w http.ResponseWriter, r *http.Request)
 
-	MigrateTypeAndTriggerDeployment(w http.ResponseWriter, r *http.Request)
+	MigrateDeploymentTypeForChartStore(w http.ResponseWriter, r *http.Request)
+	TriggerChartStoreAppAfterMigration(w http.ResponseWriter, r *http.Request)
 }
 
 type InstalledAppRestHandlerImpl struct {
@@ -838,7 +839,7 @@ func (handler *InstalledAppRestHandlerImpl) fetchResourceTreeWithHibernateForACD
 	handler.installedAppService.FetchResourceTreeWithHibernateForACD(ctx, cn, appDetail)
 }
 
-func (handler *InstalledAppRestHandlerImpl) MigrateTypeAndTriggerDeployment(w http.ResponseWriter, r *http.Request) {
+func (handler *InstalledAppRestHandlerImpl) MigrateDeploymentTypeForChartStore(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -849,7 +850,7 @@ func (handler *InstalledAppRestHandlerImpl) MigrateTypeAndTriggerDeployment(w ht
 	var migrateAndTriggerReq *bean.DeploymentAppTypeChangeRequest
 	err = decoder.Decode(&migrateAndTriggerReq)
 	if err != nil {
-		handler.Logger.Errorw("request err, MigrateTypeAndTriggerDeployment", "err", err, "payload", migrateAndTriggerReq)
+		handler.Logger.Errorw("request err, MigrateDeploymentTypeForChartStore", "err", err, "payload", migrateAndTriggerReq)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -857,7 +858,7 @@ func (handler *InstalledAppRestHandlerImpl) MigrateTypeAndTriggerDeployment(w ht
 
 	err = handler.validator.Struct(migrateAndTriggerReq)
 	if err != nil {
-		handler.Logger.Errorw("validation err, MigrateTypeAndTriggerDeployment", "err", err, "payload", migrateAndTriggerReq)
+		handler.Logger.Errorw("validation err, MigrateDeploymentTypeForChartStore", "err", err, "payload", migrateAndTriggerReq)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -877,7 +878,7 @@ func (handler *InstalledAppRestHandlerImpl) MigrateTypeAndTriggerDeployment(w ht
 	}
 
 	ctx := context.WithValue(r.Context(), "token", acdToken)
-	resp, err := handler.installedAppService.MigrateDeploymentTypeAndTrigger(ctx, migrateAndTriggerReq)
+	resp, err := handler.installedAppService.MigrateDeploymentType(ctx, migrateAndTriggerReq)
 	if err != nil {
 		handler.Logger.Errorw(err.Error(),
 			"payload", migrateAndTriggerReq,
@@ -888,4 +889,8 @@ func (handler *InstalledAppRestHandlerImpl) MigrateTypeAndTriggerDeployment(w ht
 	}
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 	return
+}
+
+func (handler *InstalledAppRestHandlerImpl) TriggerChartStoreAppAfterMigration(w http.ResponseWriter, r *http.Request) {
+
 }

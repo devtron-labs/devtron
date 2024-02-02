@@ -61,6 +61,7 @@ type AppStoreDeploymentFullModeService interface {
 	UpdateValuesYaml(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error)
 	UpdateRequirementYaml(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, appStoreAppVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) error
 	GetGitOpsRepoName(appName string, environmentName string) (string, error)
+	CreateInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context, envModel repository5.Environment, argocdAppName string) error
 }
 
 type AppStoreDeploymentFullModeServiceImpl struct {
@@ -125,7 +126,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationACD(ins
 		return nil, err
 	}
 	//STEP 5: createInArgo
-	err = impl.createInArgo(chartGitAttr, ctx, *installAppVersionRequest.Environment, installAppVersionRequest.ACDAppName)
+	err = impl.CreateInArgo(chartGitAttr, ctx, *installAppVersionRequest.Environment, installAppVersionRequest.ACDAppName)
 	if err != nil {
 		impl.logger.Errorw("error in create in argo", "err", err)
 		return nil, err
@@ -174,7 +175,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) RegisterInArgo(chartGitAttribu
 	return err
 }
 
-func (impl AppStoreDeploymentFullModeServiceImpl) createInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context, envModel repository5.Environment, argocdAppName string) error {
+func (impl AppStoreDeploymentFullModeServiceImpl) CreateInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context, envModel repository5.Environment, argocdAppName string) error {
 	appNamespace := envModel.Namespace
 	if appNamespace == "" {
 		appNamespace = "default"
