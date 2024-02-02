@@ -1678,6 +1678,7 @@ func (impl UserServiceImpl) DeleteUser(bean *bean.UserInfo) (bool, error) {
 	model.Active = false
 	model.UpdatedBy = bean.UserId
 	model.UpdatedOn = time.Now()
+	model.TimeoutWindowConfigurationId = 0
 	model, err = impl.userRepository.UpdateUser(model, tx)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
