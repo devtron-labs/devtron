@@ -517,7 +517,7 @@ func (repo AppRepositoryImpl) FindAppsWithFilter(appNameLike, sortOrder string, 
 		query += " AND app_name LIKE '%" + appNameLike + "%' "
 	}
 	if sortOrder != "" {
-		query += fmt.Sprintf(" ORDER BY name %s ", sortOrder)
+		query += fmt.Sprintf(" ORDER BY app_name %s ", sortOrder)
 	}
 	if limit > 0 {
 		query += fmt.Sprintf(" LIMIT %d ", limit)

@@ -725,13 +725,19 @@ func (impl *InfraConfigServiceImpl) getIdentifierList(listFilter IdentifierListF
 	}
 
 	// for any other profile
+
 	identifiers, err := impl.getIdentifiersListForNonDefaultProfile(listFilter, identifierType)
 	return identifiers, err
 
 }
 
 func (impl *InfraConfigServiceImpl) getIdentifiersListForNonDefaultProfile(listFilter IdentifierListFilter, identifierType int) ([]*Identifier, error) {
-	qualifierMappings, err := impl.qualifierMappingService.GetQualifierMappingsWithIdentifierFilter(resourceQualifiers.InfraProfile, identifierType, listFilter.IdentifierNameLike, listFilter.SortOrder, listFilter.Limit, listFilter.Offset, true)
+	pId, err := impl.infraProfileRepo.GetProfileIdByName(listFilter.ProfileName)
+	if err != nil {
+		impl.logger.Errorw("error in fetching profileId using profileName", "profileName", listFilter.ProfileName, "error", err)
+		return nil, err
+	}
+	qualifierMappings, err := impl.qualifierMappingService.GetQualifierMappingsWithIdentifierFilter(resourceQualifiers.InfraProfile, pId, identifierType, listFilter.IdentifierNameLike, listFilter.SortOrder, listFilter.Limit, listFilter.Offset, true)
 	if err != nil {
 		impl.logger.Errorw("error in fetching identifier mappings", "listFilter", listFilter, "error", err)
 		return nil, err
@@ -798,7 +804,7 @@ func (impl *InfraConfigServiceImpl) getIdentifiersListForDefaultProfile(listFilt
 }
 
 func (impl *InfraConfigServiceImpl) fetchIdentifiersWithProfileId(identifierType int) (map[int]int, error) {
-	qualifierMappings, err := impl.qualifierMappingService.GetQualifierMappingsWithIdentifierFilter(resourceQualifiers.InfraProfile, identifierType, "", "", 0, 0, false)
+	qualifierMappings, err := impl.qualifierMappingService.GetQualifierMappingsWithIdentifierFilter(resourceQualifiers.InfraProfile, 0, identifierType, "", "", 0, 0, false)
 	if err != nil {
 		impl.logger.Errorw("error in fetching identifier mappings for infra profile resource", "error", err)
 		return nil, err
