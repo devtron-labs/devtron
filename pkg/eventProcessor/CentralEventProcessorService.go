@@ -25,9 +25,9 @@ func NewCentralEventProcessor(workflowEventProcessor *in.WorkflowEventProcessorI
 
 func (impl *CentralEventProcessor) SubscribeAll() error {
 	var err error
-	err = impl.workflowEventProcessor.SubscribeCdStageCompleteEvent()
+	err = impl.workflowEventProcessor.SubscribeCDStageCompleteEvent()
 	if err != nil {
-		impl.logger.Errorw("error, SubscribeCdStageCompleteEvent", "err", err)
+		impl.logger.Errorw("error, SubscribeCDStageCompleteEvent", "err", err)
 		return err
 	}
 	err = impl.workflowEventProcessor.SubscribeTriggerBulkAction()
@@ -38,6 +38,16 @@ func (impl *CentralEventProcessor) SubscribeAll() error {
 	err = impl.workflowEventProcessor.SubscribeHibernateBulkAction()
 	if err != nil {
 		impl.logger.Errorw("error, SubscribeHibernateBulkAction", "err", err)
+		return err
+	}
+	err = impl.workflowEventProcessor.SubscribeCIWorkflowStatusUpdate()
+	if err != nil {
+		impl.logger.Errorw("error, SubscribeCIWorkflowStatusUpdate", "err", err)
+		return err
+	}
+	err = impl.workflowEventProcessor.SubscribeCDWorkflowStatusUpdate()
+	if err != nil {
+		impl.logger.Errorw("error, SubscribeCDWorkflowStatusUpdate", "err", err)
 		return err
 	}
 	return nil

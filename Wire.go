@@ -451,9 +451,6 @@ func InitializeApp() (*App, error) {
 		pubsub.NewGitWebhookHandler,
 		wire.Bind(new(pubsub.GitWebhookHandler), new(*pubsub.GitWebhookHandlerImpl)),
 
-		pubsub.NewWorkflowStatusUpdateHandlerImpl,
-		wire.Bind(new(pubsub.WorkflowStatusUpdateHandler), new(*pubsub.WorkflowStatusUpdateHandlerImpl)),
-
 		pubsub.NewApplicationStatusHandlerImpl,
 		wire.Bind(new(pubsub.ApplicationStatusHandler), new(*pubsub.ApplicationStatusHandlerImpl)),
 
