@@ -947,7 +947,6 @@ func (impl *InfraConfigServiceImpl) getProfilesWithConfigurations(profileIds []i
 	profilesMap := make(map[int]ProfileBean)
 	defaultProfileId := 0
 	for _, profile := range profiles {
-		profileIds = append(profileIds, profile.Id)
 		profilesMap[profile.Id] = profile.ConvertToProfileBean()
 		if profile.Name == DEFAULT_PROFILE_NAME {
 			defaultProfileId = profile.Id
