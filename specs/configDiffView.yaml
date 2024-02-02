@@ -27,7 +27,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/ResourceConfig"
+                  $ref: "#/components/schemas/ConfigProperty"
 
         '500':
           description: will get this response if any failure occurs at server side.
@@ -40,21 +40,34 @@ paths:
 
 components:
   schemas:
-    ResourceConfig:
+    ConfigDataResponse:
+      type: object
+      properties:
+        resourceConfig:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConfigProperty'
+
+    ConfigProperty:
       type: object
       properties:
         name:
           type: string
-          description: Name of config
+          description: Name of the config
           example: cm-1
           nullable: true
         configState:
-          type: integer
-          description: state of config{1 represent published state ,2 represents draft state , 3 represent approval pending state }
-          example: 1
-          nullable: false
+           $ref: '#/components/schemas/ConfigStateEnum'
         type:
-          type: string
-          description: describe the config type {possible values are ConfigMap, Secret, Deployment Template}
-          example: ConfigMap
-          nullable: true
+           $ref: '#/components/schemas/ResourceTypeEnum'
+
+    ConfigStateEnum:
+              type: integer
+              enum: [ 1, 2, 3 ]
+              description: State of config (1 represents published state, 2 represents draft state, 3 represents approval pending state)
+
+    ResourceTypeEnum:
+              type: string
+              enum: [ "ConfigMap", "Secret", "Deployment Template" ]
+              description: Describe the config type (possible values are ConfigMap, Secret, Deployment Template)
+

@@ -14,11 +14,11 @@ const (
 	DeploymentTemplate ResourceType = "Deployment Template"
 )
 
-type ConfigDefinition struct {
+type ConfigProperty struct {
 	Name        string       `json:"name"`
-	ConfigState ConfigState  `json:"draftState"`
+	ConfigState ConfigState  `json:"configState"`
 	Type        ResourceType `json:"type"`
 }
 type ConfigDataResponse struct {
-	ResourceConfig []ConfigDefinition `json:"resourceConfig"`
+	ResourceConfig []ConfigProperty `json:"resourceConfig"`
 }

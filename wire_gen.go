@@ -817,7 +817,7 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	proxyRouterImpl := proxy.NewProxyRouterImpl(sugaredLogger, proxyConfig, enforcerImpl)
-	deploymentConfigurationServiceImpl, err := config.NewDeploymentConfigurationServiceImpl(sugaredLogger, configMapRepositoryImpl)
+	deploymentConfigurationServiceImpl, err := config.NewDeploymentConfigurationServiceImpl(sugaredLogger, configMapServiceImpl)
 	if err != nil {
 		return nil, err
 	}

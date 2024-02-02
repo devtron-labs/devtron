@@ -2,6 +2,7 @@ package config
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
+	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"go.uber.org/zap"
 )
 
@@ -10,46 +11,57 @@ type DeploymentConfigurationService interface {
 }
 
 type DeploymentConfigurationServiceImpl struct {
-	logger              *zap.SugaredLogger
-	configMapRepository chartConfig.ConfigMapRepository
+	logger           *zap.SugaredLogger
+	configMapService pipeline.ConfigMapService
 }
 
-func NewDeploymentConfigurationServiceImpl(logger *zap.SugaredLogger, configMapRepository chartConfig.ConfigMapRepository) (*DeploymentConfigurationServiceImpl, error) {
+func NewDeploymentConfigurationServiceImpl(logger *zap.SugaredLogger,
+	configMapService pipeline.ConfigMapService,
+) (*DeploymentConfigurationServiceImpl, error) {
 	deploymentConfigurationService := &DeploymentConfigurationServiceImpl{
-		logger:              logger,
-		configMapRepository: configMapRepository,
+		logger:           logger,
+		configMapService: configMapService,
 	}
 
 	return deploymentConfigurationService, nil
 }
 
-func (impl DeploymentConfigurationServiceImpl) ConfigAutoComplete(appId int, envId int) (*ConfigDataResponse, error) {
+func (impl *DeploymentConfigurationServiceImpl) ConfigAutoComplete(appId int, envId int) (*ConfigDataResponse, error) {
 	var configDataResponse *ConfigDataResponse
-	var cMCSNamesEnvLevel []chartConfig.CMCSNames
-	cMCSNamesAppLevel, err := impl.configMapRepository.GetConfigNamesAppLevel(appId)
+	cMCSNamesAppLevel, cMCSNamesEnvLevel, err := impl.configMapService.FetchCmCsNamesAppAndEnvLevel(appId, envId)
 	if err != nil {
 		return nil, err
 	}
-	if envId > 0 {
-		cMCSNamesEnvLevel, err = impl.configMapRepository.GetConfigNamesEnvLevel(appId, envId)
-	}
-	configDataResponse = setConfigDataResponse(cMCSNamesAppLevel)
-	configDataResponse = setConfigDataResponse(cMCSNamesEnvLevel)
+	configDataResponse = setConfigDataResponse(cMCSNamesAppLevel, configDataResponse)
+	configDataResponse = setConfigDataResponse(cMCSNamesEnvLevel, configDataResponse)
 
 	return configDataResponse, nil
 }
 
-func setConfigDataResponse(cMCSNames []chartConfig.CMCSNames) *ConfigDataResponse {
-	var configDataResponse *ConfigDataResponse
-	for i, name := range cMCSNames {
-		configDataResponse.ResourceConfig[i].Name = name.CMName
-		configDataResponse.ResourceConfig[i].Type = CM
-		configDataResponse.ResourceConfig[i].ConfigState = PublishedConfigState
+func setConfigDataResponse(cMCSNames []chartConfig.CMCSNames, configDataResponse *ConfigDataResponse) *ConfigDataResponse {
+	if cMCSNames == nil {
+		return configDataResponse
 	}
-	for i, name := range cMCSNames {
-		configDataResponse.ResourceConfig[i].Name = name.CSName
-		configDataResponse.ResourceConfig[i].Type = CS
-		configDataResponse.ResourceConfig[i].ConfigState = PublishedConfigState
+	configDataResponse = &ConfigDataResponse{}
+	for _, name := range cMCSNames {
+		if name.CMName != "" {
+			// Fill in CM data if the CMName is not empty
+			cmConfig := setConfigProperty(name.CMName, CM, PublishedConfigState)
+			configDataResponse.ResourceConfig = append(configDataResponse.ResourceConfig, cmConfig)
+		}
+		if name.CSName != "" {
+			// Fill in CS data if the CSName is not empty
+			csConfig := setConfigProperty(name.CSName, CS, PublishedConfigState)
+			configDataResponse.ResourceConfig = append(configDataResponse.ResourceConfig, csConfig)
+		}
+
 	}
 	return configDataResponse
+}
+func setConfigProperty(name string, configType ResourceType, State ConfigState) ConfigProperty {
+	return ConfigProperty{
+		Name:        name,
+		Type:        configType,
+		ConfigState: State,
+	}
 }

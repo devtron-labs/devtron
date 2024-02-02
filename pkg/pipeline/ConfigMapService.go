@@ -82,6 +82,8 @@ type ConfigMapService interface {
 	ConfigSecretEnvironmentDelete(createJobEnvOverrideRequest *bean.CreateJobEnvOverridePayload) (*bean.CreateJobEnvOverridePayload, error)
 	ConfigSecretEnvironmentGet(appId int) ([]bean.JobEnvOverrideResponse, error)
 	ConfigSecretEnvironmentClone(appId int, cloneAppId int, userId int32) ([]chartConfig.ConfigMapEnvModel, error)
+
+	FetchCmCsNamesAppAndEnvLevel(appId int, envId int) ([]chartConfig.CMCSNames, []chartConfig.CMCSNames, error)
 }
 
 type ConfigMapServiceImpl struct {
@@ -1991,4 +1993,21 @@ func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentClone(appId int, cloneAp
 	}
 
 	return jobEnvOverrideResponse, nil
+}
+func (impl ConfigMapServiceImpl) FetchCmCsNamesAppAndEnvLevel(appId int, envId int) ([]chartConfig.CMCSNames, []chartConfig.CMCSNames, error) {
+	var cMCSNamesEnvLevel []chartConfig.CMCSNames
+	cMCSNamesAppLevel, err := impl.configMapRepository.GetConfigNamesAppLevel(appId)
+	if err != nil {
+		impl.logger.Errorw("error in getting CM/CS nmaes at app level ", "appId", appId, "err", err)
+		return nil, nil, err
+	}
+	if envId > 0 {
+		cMCSNamesEnvLevel, err = impl.configMapRepository.GetConfigNamesEnvLevel(appId, envId)
+		if err != nil {
+			impl.logger.Errorw("error in getting CM/CS names  at env level ", "appId", appId, "err", err)
+
+			return nil, nil, err
+		}
+	}
+	return cMCSNamesAppLevel, cMCSNamesEnvLevel, nil
 }

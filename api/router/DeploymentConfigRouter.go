@@ -25,5 +25,5 @@ func (router DeploymentConfigurationRouterImpl) initDeploymentConfigurationRoute
 		HandlerFunc(router.deploymentGroupRestHandler.ConfigAutoComplete).
 		Queries("appId", "{appId}").
 		Queries("envId", "{envId}").
-		Methods("POST")
+		Methods("GET")
 }

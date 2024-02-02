@@ -10,7 +10,6 @@ import (
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
-	"strconv"
 )
 
 type DeploymentConfigurationRestHandler interface {
@@ -46,21 +45,19 @@ func (handler *DeploymentConfigurationRestHandlerImpl) ConfigAutoComplete(w http
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	appIdQueryParam := r.URL.Query().Get("appId")
-	appId, err := strconv.Atoi(appIdQueryParam)
-	if appIdQueryParam == "" || err != nil {
+	appId, err := common.ExtractIntQueryParam(w, r, "appId", nil)
+	if err != nil {
 		common.WriteJsonResp(w, err, "invalid appId", http.StatusBadRequest)
 		return
 	}
-	envIdQueryParam := r.URL.Query().Get("appId")
-	envId, err := strconv.Atoi(appIdQueryParam)
-	if envIdQueryParam == "" || err != nil {
-		common.WriteJsonResp(w, err, "invalid appId", http.StatusBadRequest)
+	envId, err := common.ExtractIntQueryParam(w, r, "envId", nil)
+	if err != nil {
+		common.WriteJsonResp(w, err, "invalid envId", http.StatusBadRequest)
 		return
 	}
 
 	//RBAC START
-	token := r.Header.Get("token")
+	token := r.Header.Get(common.TokenHeaderKey)
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet)
 	if !ok {
@@ -71,7 +68,7 @@ func (handler *DeploymentConfigurationRestHandlerImpl) ConfigAutoComplete(w http
 
 	res, err := handler.deploymentConfigurationService.ConfigAutoComplete(appId, envId)
 	if err != nil {
-		handler.logger.Errorw("service err, CSEnvironmentFetch", "err", err, "appId", appId)
+		handler.logger.Errorw("service err, ConfigAutoComplete ", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
