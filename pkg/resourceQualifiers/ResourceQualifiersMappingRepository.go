@@ -261,7 +261,7 @@ func (repo *QualifiersMappingRepositoryImpl) GetActiveMappingsCount(resourceType
 func (repo *QualifiersMappingRepositoryImpl) GetQualifierMappingsWithIdentifierFilter(resourceType ResourceType, resourceId, identifierKey int, identifierValueStringLike, identifierValueSortOrder string, limit, offset int, needTotalCount bool) ([]*QualifierMappingWithExtraColumns, error) {
 	query := "SELECT identifier_value_int , identifier_value_string , resource_id "
 	if needTotalCount {
-		query += ",COUNT(id) OVER() AS total_identifier_count "
+		query += ",COUNT(id) OVER() AS total_count "
 	}
 	query += " FROM resource_qualifier_mapping "
 	whereClause := fmt.Sprintf(" WHERE resource_type = %d AND resource_id = %d  AND identifier_key = %d AND active=true ", resourceType, resourceId, identifierKey)

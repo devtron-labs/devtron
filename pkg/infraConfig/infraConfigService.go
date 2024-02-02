@@ -612,6 +612,7 @@ func (impl *InfraConfigServiceImpl) loadDefaultProfile() error {
 	return err
 }
 
+// getInfraConfigurationsByScope is a hot method as this will be called for every ci trigger
 func (impl *InfraConfigServiceImpl) getInfraConfigurationsByScope(scope Scope) (*InfraConfig, error) {
 
 	infraConfigurations, err := impl.infraProfileRepo.GetConfigurationsByScope(scope, impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap())

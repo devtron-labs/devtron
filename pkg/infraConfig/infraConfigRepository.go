@@ -173,7 +173,8 @@ func (impl *InfraConfigRepositoryImpl) GetConfigurationsByProfileIds(profileIds 
 	return configurations, err
 }
 
-// todo: can use qualifierMapping service but need 2 db calls
+// GetConfigurationsByScope , note: can use qualifierMapping service but need 2 db calls.
+// since it is being called for every ci trigger, trying get the configurations in single db call
 func (impl *InfraConfigRepositoryImpl) GetConfigurationsByScope(scope Scope, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) ([]*InfraProfileConfigurationEntity, error) {
 	var configurations []*InfraProfileConfigurationEntity
 	getProfileIdByScopeQuery := "SELECT resource_id " +
