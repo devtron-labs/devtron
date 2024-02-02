@@ -316,11 +316,20 @@ func getDiffJson(savedConfigMap, currentConfigMap map[string]interface{}) (map[s
 	lockedMap := make(map[string]interface{})
 	disableSaveEligibleChanges := false
 	for key, _ := range savedConfigMap {
-		// check for the deleted keys
-		if _, ok := currentConfigMap[key]; !ok {
-			lockedMap[key] = nil
+
+		currMapVal, ok := currentConfigMap[key]
+		if !ok || currMapVal == nil {
+			if savedConfigMap[key] != nil {
+				lockedMap[key] = nil
+			}
 			continue
 		}
+
+		if savedConfigMap[key] == nil {
+			lockedMap[key] = currentConfigMap[key]
+			continue
+		}
+
 		if !reflect.DeepEqual(savedConfigMap[key], currentConfigMap[key]) {
 			switch reflect.TypeOf(savedConfigMap[key]).Kind() {
 			case reflect.Map:
@@ -346,7 +355,7 @@ func getDiffJson(savedConfigMap, currentConfigMap map[string]interface{}) (map[s
 		}
 		switch reflect.TypeOf(currentConfigMap[key]).Kind() {
 		case reflect.Map:
-			if currentConfigMap[key] == nil || len(currentConfigMap[key].(map[string]interface{})) == 0 {
+			if len(currentConfigMap[key].(map[string]interface{})) == 0 {
 				delete(currentConfigMap, key)
 			}
 		default:
