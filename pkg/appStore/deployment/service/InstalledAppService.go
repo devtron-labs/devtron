@@ -919,9 +919,6 @@ func (impl *InstalledAppServiceImpl) FetchChartNotes(installedAppId int, envId i
 	installedApp, err := impl.installedAppRepository.FetchNotes(installedAppId)
 	if err != nil && err != pg.ErrNoRows {
 		return "", err
-	} else if err == pg.ErrNoRows {
-		impl.logger.Errorw("installed app not found or may have been deleted", "installedAppId", installedAppId, "envId", envId)
-		return "", &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: "400", UserMessage: "Installed app not found in database or may have been deleted", InternalMessage: err.Error()}
 	}
 	installedAppVerison, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppIdAndEnvId(installedAppId, envId)
 	if err != nil {
