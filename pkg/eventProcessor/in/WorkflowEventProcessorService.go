@@ -363,24 +363,6 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDWorkflowStatusUpdate() error 
 					impl.logger.Errorw("CD stage post fail or success event unable to sent", "error", evtErr)
 				}
 			}
-
-			if wfr.WorkflowType == bean2.CD_WORKFLOW_TYPE_PRE {
-				event := impl.eventFactory.Build(eventType, &wfr.CdWorkflow.PipelineId, wfr.CdWorkflow.Pipeline.AppId, &wfr.CdWorkflow.Pipeline.EnvironmentId, util.CD)
-				impl.logger.Debugw("event pre stage", "event", event)
-				event = impl.eventFactory.BuildExtraCDData(event, wfr, 0, bean2.CD_WORKFLOW_TYPE_PRE)
-				_, evtErr := impl.eventClient.WriteNotificationEvent(event)
-				if evtErr != nil {
-					impl.logger.Errorw("CD stage post fail or success event unable to sent", "error", evtErr)
-				}
-			} else if wfr.WorkflowType == bean2.CD_WORKFLOW_TYPE_POST {
-				event := impl.eventFactory.Build(eventType, &wfr.CdWorkflow.PipelineId, wfr.CdWorkflow.Pipeline.AppId, &wfr.CdWorkflow.Pipeline.EnvironmentId, util.CD)
-				impl.logger.Debugw("event post stage", "event", event)
-				event = impl.eventFactory.BuildExtraCDData(event, wfr, 0, bean2.CD_WORKFLOW_TYPE_POST)
-				_, evtErr := impl.eventClient.WriteNotificationEvent(event)
-				if evtErr != nil {
-					impl.logger.Errorw("CD stage post fail or success event not sent", "error", evtErr)
-				}
-			}
 		}
 	}
 
