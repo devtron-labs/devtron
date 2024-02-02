@@ -81,6 +81,7 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/env").HandlerFunc(router.restHandler.EnvConfigOverrideUpdate).Methods("PUT")
 	configRouter.Path("/env/{appId}/{environmentId}/{chartRefId}").HandlerFunc(router.restHandler.GetEnvConfigOverride).Methods("GET")
 
+	configRouter.Path("/ci-pipeline").HandlerFunc(router.restHandler.GetCIPipelineByPipelineId).Methods("GET")
 	configRouter.Path("/ci-pipeline").HandlerFunc(router.restHandler.CreateCiConfig).Methods("POST")
 	configRouter.Path("/ci-pipeline/{appId}").HandlerFunc(router.restHandler.GetCiPipeline).Methods("GET")
 	configRouter.Path("/external-ci/{appId}").HandlerFunc(router.restHandler.GetExternalCi).Methods("GET")
@@ -93,10 +94,6 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 
 	configRouter.Path("/cd-pipeline/{cd_pipeline_id}/material").HandlerFunc(router.restHandler.GetArtifactsByCDPipeline).Methods("GET")
 	configRouter.Path("/cd-pipeline/{cd_pipeline_id}/material/rollback").HandlerFunc(router.restHandler.GetArtifactsForRollback).Methods("GET")
-
-	configRouter.Path("/migrate/db").HandlerFunc(router.restHandler.CreateMigrationConfig).Methods("POST")
-	configRouter.Path("/migrate/db/update").HandlerFunc(router.restHandler.UpdateMigrationConfig).Methods("POST")
-	configRouter.Path("/migrate/db/{pipelineId}").HandlerFunc(router.restHandler.GetMigrationConfig).Methods("GET")
 
 	configRouter.Path("/team/by-id/{teamId}").HandlerFunc(router.restHandler.FindAppsByTeamId).Methods("GET")
 	configRouter.Path("/team/by-name/{teamName}").HandlerFunc(router.restHandler.FindAppsByTeamName).Methods("GET")

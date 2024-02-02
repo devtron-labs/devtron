@@ -70,6 +70,7 @@ func (impl *IdentifyAlibaba) IdentifyViaMetadataServer(detected chan<- string) {
 		}
 		if strings.HasPrefix(string(body), "ecs.") {
 			detected <- bean.Alibaba
+			return
 		}
 	} else {
 		detected <- bean.Unknown
