@@ -21,6 +21,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/deployment/deployedApp"
+	bean2 "github.com/devtron-labs/devtron/pkg/deployment/deployedApp/bean"
 	"net/http"
 	"strconv"
 
@@ -63,12 +65,14 @@ type PipelineTriggerRestHandlerImpl struct {
 	deploymentGroupService  deploymentGroup.DeploymentGroupService
 	argoUserService         argo.ArgoUserService
 	deploymentConfigService pipeline.DeploymentConfigService
+	deployedAppService      deployedApp.DeployedAppService
 }
 
 func NewPipelineRestHandler(appService app.AppService, userAuthService user.UserService, validator *validator.Validate,
 	enforcer casbin.Enforcer, teamService team.TeamService, logger *zap.SugaredLogger, enforcerUtil rbac.EnforcerUtil,
 	workflowDagExecutor pipeline.WorkflowDagExecutor, deploymentGroupService deploymentGroup.DeploymentGroupService,
-	argoUserService argo.ArgoUserService, deploymentConfigService pipeline.DeploymentConfigService) *PipelineTriggerRestHandlerImpl {
+	argoUserService argo.ArgoUserService, deploymentConfigService pipeline.DeploymentConfigService,
+	deployedAppService deployedApp.DeployedAppService) *PipelineTriggerRestHandlerImpl {
 	pipelineHandler := &PipelineTriggerRestHandlerImpl{
 		appService:              appService,
 		userAuthService:         userAuthService,
@@ -81,6 +85,7 @@ func NewPipelineRestHandler(appService app.AppService, userAuthService user.User
 		deploymentGroupService:  deploymentGroupService,
 		argoUserService:         argoUserService,
 		deploymentConfigService: deploymentConfigService,
+		deployedAppService:      deployedAppService,
 	}
 	return pipelineHandler
 }
@@ -150,7 +155,7 @@ func (handler PipelineTriggerRestHandlerImpl) RotatePods(w http.ResponseWriter, 
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var podRotateRequest pipeline.PodRotateRequest
+	var podRotateRequest bean2.PodRotateRequest
 	err = decoder.Decode(&podRotateRequest)
 	if err != nil {
 		handler.logger.Errorw("request err, RotatePods", "err", err, "payload", podRotateRequest)
@@ -176,7 +181,7 @@ func (handler PipelineTriggerRestHandlerImpl) RotatePods(w http.ResponseWriter, 
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	rotatePodResponse, err := handler.workflowDagExecutor.RotatePods(r.Context(), &podRotateRequest)
+	rotatePodResponse, err := handler.deployedAppService.RotatePods(r.Context(), &podRotateRequest)
 	if err != nil {
 		handler.logger.Errorw("service err, RotatePods", "err", err, "payload", podRotateRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

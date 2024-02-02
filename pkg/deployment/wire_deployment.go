@@ -1,9 +1,10 @@
 package deployment
 
 import (
+	"github.com/devtron-labs/devtron/pkg/deployment/deployedApp"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest"
-	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps"
+	"github.com/devtron-labs/devtron/pkg/deployment/trigger"
 	"github.com/google/wire"
 )
 
@@ -12,5 +13,6 @@ import (
 var DeploymentWireSet = wire.NewSet(
 	gitOps.GitOpsWireSet,
 	manifest.DeploymentManifestWireSet,
-	devtronApps.DevtronAppsDeployTriggerWireSet,
+	trigger.DeploymentTriggerWireSet,
+	deployedApp.DeployedAppWireSet,
 )

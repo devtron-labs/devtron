@@ -247,7 +247,8 @@ func (impl *K8sCommonServiceImpl) RotatePods(ctx context.Context, request *Rotat
 		namespace := resourceIdentifier.Namespace
 		resourceKind := groupVersionKind.Kind
 		// validate one of deployment, statefulset, daemonSet, Rollout
-		if resourceKind != k8sCommonBean.DeploymentKind && resourceKind != k8sCommonBean.StatefulSetKind && resourceKind != k8sCommonBean.DaemonSetKind && resourceKind != k8sCommonBean.K8sClusterResourceRolloutKind {
+		if resourceKind != k8sCommonBean.DeploymentKind && resourceKind != k8sCommonBean.StatefulSetKind &&
+			resourceKind != k8sCommonBean.DaemonSetKind && resourceKind != k8sCommonBean.K8sClusterResourceRolloutKind {
 			impl.logger.Errorf("restarting not supported for kind %s name %s", resourceKind, resourceIdentifier.Name)
 			containsError = true
 			resourceResponse.ErrorResponse = k8s.RestartingNotSupported

@@ -36,7 +36,6 @@ import (
 
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	"github.com/devtron-labs/common-lib/pubsub-lib/model"
-	util5 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	gitSensorClient "github.com/devtron-labs/devtron/client/gitSensor"
@@ -97,7 +96,6 @@ type WorkflowDagExecutor interface {
 
 	TriggerBulkHibernateAsync(request StopDeploymentGroupRequest, ctx context.Context) (interface{}, error)
 	StopStartApp(triggerContext TriggerContext, stopRequest *StopAppRequest) (int, error)
-	RotatePods(ctx context.Context, podRotateRequest *PodRotateRequest) (*k8s.RotatePodResponse, error)
 
 	MarkCurrentDeploymentFailed(runner *pipelineConfig.CdWorkflowRunner, releaseErr error, triggeredBy int32) error
 	UpdateWorkflowRunnerStatusForDeployment(appIdentifier *client2.AppIdentifier, wfr *pipelineConfig.CdWorkflowRunner, skipReleaseNotFound bool) bool
@@ -2097,39 +2095,6 @@ type StopDeploymentGroupRequest struct {
 	DeploymentGroupId int         `json:"deploymentGroupId" validate:"required"`
 	UserId            int32       `json:"userId"`
 	RequestType       RequestType `json:"requestType" validate:"oneof=START STOP"`
-}
-
-type PodRotateRequest struct {
-	AppId               int                        `json:"appId" validate:"required"`
-	EnvironmentId       int                        `json:"environmentId" validate:"required"`
-	UserId              int32                      `json:"-"`
-	ResourceIdentifiers []util5.ResourceIdentifier `json:"resources" validate:"required"`
-}
-
-func (impl *WorkflowDagExecutorImpl) RotatePods(ctx context.Context, podRotateRequest *PodRotateRequest) (*k8s.RotatePodResponse, error) {
-	impl.logger.Infow("rotate pod request", "payload", podRotateRequest)
-	//extract cluster id and namespace from env id
-	environmentId := podRotateRequest.EnvironmentId
-	environment, err := impl.envRepository.FindById(environmentId)
-	if err != nil {
-		impl.logger.Errorw("error occurred while fetching env details", "envId", environmentId, "err", err)
-		return nil, err
-	}
-	var resourceIdentifiers []util5.ResourceIdentifier
-	for _, resourceIdentifier := range podRotateRequest.ResourceIdentifiers {
-		resourceIdentifier.Namespace = environment.Namespace
-		resourceIdentifiers = append(resourceIdentifiers, resourceIdentifier)
-	}
-	rotatePodRequest := &k8s.RotatePodRequest{
-		ClusterId: environment.ClusterId,
-		Resources: resourceIdentifiers,
-	}
-	response, err := impl.k8sCommonService.RotatePods(ctx, rotatePodRequest)
-	if err != nil {
-		return nil, err
-	}
-	//TODO KB: make entry in cd workflow runner
-	return response, nil
 }
 
 func (impl *WorkflowDagExecutorImpl) StopStartApp(triggerContext TriggerContext, stopRequest *StopAppRequest) (int, error) {
