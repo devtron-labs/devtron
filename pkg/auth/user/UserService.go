@@ -29,6 +29,7 @@ import (
 	repository2 "github.com/devtron-labs/devtron/pkg/timeoutWindow/repository"
 	bean3 "github.com/devtron-labs/devtron/pkg/timeoutWindow/repository/bean"
 	jwt2 "github.com/golang-jwt/jwt/v4"
+	"golang.org/x/exp/slices"
 	"net/http"
 	"strings"
 	"sync"
@@ -1225,6 +1226,8 @@ func (impl UserServiceImpl) GetAll() ([]bean.UserInfo, error) {
 func (impl UserServiceImpl) GetAllWithFilters(request *bean.FetchListingRequest) (*bean.UserListingResponse, error) {
 	//  default values will be used if not provided
 	impl.userCommonService.SetDefaultValuesIfNotPresent(request, false)
+	// setting filter status type
+	impl.setStatusFilterType(request)
 	if request.ShowAll {
 		response, err := impl.getAllDetailedUsers()
 		if err != nil {
@@ -1273,6 +1276,28 @@ func (impl UserServiceImpl) getAllDetailedUsersAdapter(detailedUsers []bean.User
 		TotalCount: len(detailedUsers),
 	}
 	return listingResponse
+}
+
+func (impl UserServiceImpl) setStatusFilterType(request *bean.FetchListingRequest) {
+	if len(request.Status) == 0 {
+		return
+	}
+	statues := request.Status
+	if slices.Contains(statues, bean.Active) && slices.Contains(statues, bean.Inactive) && slices.Contains(statues, bean.TemporaryAccess) {
+		request.StatusType = bean2.Active_Inactive_TemporaryAccess
+	} else if slices.Contains(statues, bean.Active) && slices.Contains(statues, bean.Inactive) {
+		request.StatusType = bean2.Active_InActive
+	} else if slices.Contains(statues, bean.Active) && slices.Contains(statues, bean.TemporaryAccess) {
+		request.StatusType = bean2.Active_TemporaryAccess
+	} else if slices.Contains(statues, bean.Inactive) && slices.Contains(statues, bean.TemporaryAccess) {
+		request.StatusType = bean2.Inactive_TemporaryAccess
+	} else if slices.Contains(statues, bean.Active) {
+		request.StatusType = bean2.Active
+	} else if slices.Contains(statues, bean.Inactive) {
+		request.StatusType = bean2.Inactive
+	} else if slices.Contains(statues, bean.TemporaryAccess) {
+		request.StatusType = bean2.TemporaryAccess
+	}
 }
 
 func (impl UserServiceImpl) getUserResponse(model []repository.UserModel, recordedTime time.Time, totalCount int) (*bean.UserListingResponse, error) {

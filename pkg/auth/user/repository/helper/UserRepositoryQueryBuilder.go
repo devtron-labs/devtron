@@ -7,6 +7,7 @@ import (
 	bean3 "github.com/devtron-labs/devtron/pkg/timeoutWindow/repository/bean"
 	"go.uber.org/zap"
 	"strconv"
+	"time"
 )
 
 type UserRepositoryQueryBuilder struct {
@@ -29,16 +30,7 @@ const (
 func (impl UserRepositoryQueryBuilder) GetQueryForUserListingWithFilters(req *bean.FetchListingRequest) string {
 	whereCondition := fmt.Sprintf("where active = %t AND (user_type is NULL or user_type != '%s') ", true, bean.USER_TYPE_API_TOKEN)
 	orderCondition := ""
-	//formatted for query comparison
-	formattedTimeForQuery := req.CurrentTime.Format(QueryTimeFormat)
-	// Have handled both formats 1 and 2 in the query for user inactive status
-	if req.Status == bean.Active {
-		whereCondition += fmt.Sprintf("AND (user_model.timeout_window_configuration_id is null OR ( timeout_window_configuration.timeout_window_expression_format = %v AND timeout_window_configuration.timeout_window_expression > '%s' ) ) ", bean3.TimeStamp, formattedTimeForQuery)
-	} else if req.Status == bean.Inactive {
-		whereCondition += fmt.Sprintf("AND ( timeout_window_configuration.timeout_window_expression < '%s' ) ", formattedTimeForQuery)
-	} else if req.Status == bean.TemporaryAccess {
-		whereCondition += fmt.Sprintf(" AND (timeout_window_configuration.timeout_window_expression_format = %v AND timeout_window_configuration.timeout_window_expression > '%s' ) ", bean3.TimeStamp, formattedTimeForQuery)
-	}
+	whereCondition += impl.buildQueryForStatusFilter(req.StatusType, req.CurrentTime)
 	if len(req.SearchKey) > 0 {
 		emailIdLike := "%" + req.SearchKey + "%"
 		whereCondition += fmt.Sprintf("AND email_id ilike '%s' ", emailIdLike)
@@ -63,6 +55,27 @@ func (impl UserRepositoryQueryBuilder) GetQueryForUserListingWithFilters(req *be
 	}
 
 	return query
+}
+
+func (impl UserRepositoryQueryBuilder) buildQueryForStatusFilter(statusType bean2.StatusType, currentTime time.Time) string {
+	condition := ""
+	//formatted for query comparison
+	formattedTimeForQuery := currentTime.Format(QueryTimeFormat)
+
+	if statusType == bean2.Active {
+		condition += "AND (user_model.timeout_window_configuration_id is null ) "
+	} else if statusType == bean2.Inactive {
+		condition += fmt.Sprintf("AND (timeout_window_configuration.timeout_window_expression_format = %v AND timeout_window_configuration.timeout_window_expression < '%s' ) ", bean3.TimeZeroFormat, formattedTimeForQuery)
+	} else if statusType == bean2.TemporaryAccess {
+		condition += fmt.Sprintf(" AND (timeout_window_configuration.timeout_window_expression_format = %v AND timeout_window_configuration.timeout_window_expression > '%s' ) ", bean3.TimeStamp, formattedTimeForQuery)
+	} else if statusType == bean2.Active_TemporaryAccess {
+		condition += fmt.Sprintf("AND (user_model.timeout_window_configuration_id is null OR ( timeout_window_configuration.timeout_window_expression_format = %v AND timeout_window_configuration.timeout_window_expression > '%s' ) ) ", bean3.TimeStamp, formattedTimeForQuery)
+	} else if statusType == bean2.Active_InActive {
+		condition += fmt.Sprintf("AND (user_model.timeout_window_configuration_id is null OR (timeout_window_configuration.timeout_window_expression_format = %v AND timeout_window_configuration.timeout_window_expression < '%s') ) ", bean3.TimeZeroFormat, formattedTimeForQuery)
+	} else if statusType == bean2.Inactive_TemporaryAccess {
+		condition += fmt.Sprintf("AND ((timeout_window_configuration.timeout_window_expression_format = %v AND timeout_window_configuration.timeout_window_expression < '%s') OR ( timeout_window_configuration.timeout_window_expression_format = %v AND timeout_window_configuration.timeout_window_expression > '%s' ) ) ", bean3.TimeZeroFormat, formattedTimeForQuery, bean3.TimeStamp, formattedTimeForQuery)
+	}
+	return condition
 }
 
 func (impl UserRepositoryQueryBuilder) GetQueryForAllUserWithAudit() string {

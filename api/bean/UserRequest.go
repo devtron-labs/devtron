@@ -156,15 +156,16 @@ type ActionResponse struct {
 }
 
 type FetchListingRequest struct {
-	Status      Status         `json:"status"` // only being used for users
-	SearchKey   string         `json:"searchKey"`
-	SortOrder   bean.SortOrder `json:"sortOrder"`
-	SortBy      bean.SortBy    `json:"sortBy"`
-	Offset      int            `json:"offset"`
-	Size        int            `json:"size"`
-	ShowAll     bool           `json:"showAll"`
-	CurrentTime time.Time      `json:"-"` // for Internal Use
-	CountCheck  bool           `json:"-"` // for Internal Use
+	Status      []Status        `json:"status"` // only being used for users
+	SearchKey   string          `json:"searchKey"`
+	SortOrder   bean.SortOrder  `json:"sortOrder"`
+	SortBy      bean.SortBy     `json:"sortBy"`
+	Offset      int             `json:"offset"`
+	Size        int             `json:"size"`
+	ShowAll     bool            `json:"showAll"`
+	CurrentTime time.Time       `json:"-"` // for Internal Use
+	CountCheck  bool            `json:"-"` // for Internal Use
+	StatusType  bean.StatusType `json:"-"` // for Internal Use
 }
 
 type BulkDeleteRequest struct {
