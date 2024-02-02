@@ -612,12 +612,26 @@ func (impl *InfraConfigServiceImpl) loadDefaultProfile() error {
 	return err
 }
 
-// getInfraConfigurationsByScope is a hot method as this will be called for every ci trigger
-func (impl *InfraConfigServiceImpl) getInfraConfigurationsByScope(scope Scope) (*InfraConfig, error) {
-
-	infraConfigurations, err := impl.infraProfileRepo.GetConfigurationsByScope(scope, impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap())
+func (impl *InfraConfigServiceImpl) getInfraConfigurationsByScope(scope Scope) ([]*InfraProfileConfigurationEntity, error) {
+	searchableKeyNameIdMap := impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap()
+	profileIds, err := impl.qualifierMappingService.GetResourceIdsByIdentifier(resourceQualifiers.InfraProfile, GetIdentifierKey(APPLICATION, searchableKeyNameIdMap), scope.AppId)
 	if err != nil {
-		impl.logger.Errorw("error in fetching default configurations", "scope", scope, "error", err)
+		impl.logger.Errorw("error in fetching profileIds", "scope", scope, "error", err)
+		return nil, err
+	}
+	if len(profileIds) == 0 {
+		return nil, NO_PROPERTIES_FOUND_ERROR
+	}
+	infraConfigurations, err := impl.infraProfileRepo.GetConfigurationsByProfileIds(profileIds)
+	return infraConfigurations, err
+}
+
+// getInfraConfigurationsByScope is a hot method as this will be called for every ci trigger
+func (impl *InfraConfigServiceImpl) getInfraConfigurationByScope(scope Scope) (*InfraConfig, error) {
+
+	infraConfigurations, err := impl.getInfraConfigurationsByScope(scope)
+	if err != nil {
+		impl.logger.Errorw("error in fetching configurations", "scope", scope, "error", err)
 		return nil, err
 	}
 

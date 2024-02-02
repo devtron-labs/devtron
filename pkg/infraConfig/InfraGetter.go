@@ -1,7 +1,7 @@
 package infraConfig
 
 type InfraGetter interface {
-	GetInfraConfigurationsByScope(scope Scope) (*InfraConfig, error)
+	GetInfraConfigurationByScope(scope Scope) (*InfraConfig, error)
 }
 
 // CiInfraGetter gets infra config for ci workflows
@@ -16,6 +16,6 @@ func NewCiInfraGetter(infraConfigServiceImpl *InfraConfigServiceImpl) *CiInfraGe
 }
 
 // GetInfraConfigurationsByScope gets infra config for ci workflows using the scope
-func (ciInfraGetter CiInfraGetter) GetInfraConfigurationsByScope(scope Scope) (*InfraConfig, error) {
-	return ciInfraGetter.infraConfigServiceImpl.getInfraConfigurationsByScope(scope)
+func (ciInfraGetter CiInfraGetter) GetInfraConfigurationByScope(scope Scope) (*InfraConfig, error) {
+	return ciInfraGetter.infraConfigServiceImpl.getInfraConfigurationByScope(scope)
 }

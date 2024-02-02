@@ -172,7 +172,7 @@ func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *types.W
 		infraConfigScope := infraConfig.Scope{
 			AppId: workflowRequest.AppId,
 		}
-		infraConfiguration, err = impl.ciInfraGetter.GetInfraConfigurationsByScope(infraConfigScope)
+		infraConfiguration, err = impl.ciInfraGetter.GetInfraConfigurationByScope(infraConfigScope)
 		if err != nil {
 			impl.Logger.Errorw("error occurred while getting infra config", "infraConfigScope", infraConfigScope, "err", err)
 			return bean3.WorkflowTemplate{}, err

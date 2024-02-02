@@ -21,9 +21,6 @@ func NewValidatorImpl(units *units.Units) *ValidatorImpl {
 }
 
 func (impl *ValidatorImpl) ValidateCpuMem(profileBean *ProfileBean, defaultProfile *ProfileBean) error {
-
-	// currently validating cpu and memory limits and reqs only
-	// todo Gireesh: use UpdateProfileMissingConfigurationsWithDefault method for abstracting below logic
 	var (
 		cpuLimit *ConfigurationBean
 		cpuReq   *ConfigurationBean

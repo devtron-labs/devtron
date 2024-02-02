@@ -23,6 +23,7 @@ type QualifierMappingService interface {
 	DeleteAllByResourceTypeAndQualifierIds(resourceType ResourceType, resourceId int, qualifierIds []int, userId int32, tx *pg.Tx) error
 	DeleteAllByIds(qualifierMappingIds []int, userId int32, tx *pg.Tx) error
 	DeleteGivenQualifierMappingsByResourceType(resourceType ResourceType, identifierKey int, identifierValueInts []int, auditLog sql.AuditLog, tx *pg.Tx) error
+	GetResourceIdsByIdentifier(resourceType ResourceType, identifierKey int, identifierId int) ([]int, error)
 	GetQualifierMappingsWithIdentifierFilter(resourceType ResourceType, resourceId, identifierKey int, identifierValueStringLike, identifierValueSortOrder string, limit, offset int, needTotalCount bool) ([]*QualifierMappingWithExtraColumns, error)
 }
 
@@ -107,6 +108,10 @@ func (impl QualifierMappingServiceImpl) GetIdentifierIdsByResourceTypeAndIds(res
 
 func (impl QualifierMappingServiceImpl) GetActiveMappingsCount(resourceType ResourceType) (int, error) {
 	return impl.qualifierMappingRepository.GetActiveMappingsCount(resourceType)
+}
+
+func (impl QualifierMappingServiceImpl) GetResourceIdsByIdentifier(resourceType ResourceType, identifierKey int, identifierId int) ([]int, error) {
+	return impl.qualifierMappingRepository.GetResourceIdsByIdentifier(resourceType, identifierKey, identifierId)
 }
 
 func (impl QualifierMappingServiceImpl) GetQualifierMappingsWithIdentifierFilter(resourceType ResourceType, resourceId, identifierKey int, identifierValueStringLike, identifierValueSortOrder string, limit, offset int, needTotalCount bool) ([]*QualifierMappingWithExtraColumns, error) {

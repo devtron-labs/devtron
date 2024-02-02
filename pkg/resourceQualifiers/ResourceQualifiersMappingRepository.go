@@ -29,6 +29,7 @@ type QualifiersMappingRepository interface {
 	GetActiveIdentifierCountPerResource(resourceType ResourceType, resourceIds []int, identifierKey int) ([]ResourceIdentifierCount, error)
 	GetActiveMappingsCount(resourceType ResourceType) (int, error)
 	GetIdentifierIdsByResourceTypeAndIds(resourceType ResourceType, resourceIds []int, identifierKey int) ([]int, error)
+	GetResourceIdsByIdentifier(resourceType ResourceType, identifierKey int, identifierId int) ([]int, error)
 	GetQualifierMappingsWithIdentifierFilter(resourceType ResourceType, resourceId, identifierKey int, identifierValueStringLike, identifierValueSortOrder string, limit, offset int, needTotalCount bool) ([]*QualifierMappingWithExtraColumns, error)
 }
 
@@ -284,4 +285,15 @@ func (repo *QualifiersMappingRepositoryImpl) GetQualifierMappingsWithIdentifierF
 	var qualifierMappings []*QualifierMappingWithExtraColumns
 	_, err := repo.dbConnection.Query(&qualifierMappings, query)
 	return qualifierMappings, err
+}
+
+func (repo *QualifiersMappingRepositoryImpl) GetResourceIdsByIdentifier(resourceType ResourceType, identifierKey int, identifierId int) ([]int, error) {
+	resourceIds := make([]int, 0)
+	err := repo.dbConnection.Model((*QualifierMapping)(nil)).
+		Where("active=?", true).
+		Where("resource_type=?", resourceType).
+		Where("identifier_key=?", identifierKey).
+		Where("identifier_value_int=?", identifierId).
+		Select(&resourceIds)
+	return resourceIds, err
 }

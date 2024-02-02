@@ -1,9 +1,6 @@
 package infraConfig
 
 import (
-	"fmt"
-	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
-	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
@@ -26,9 +23,7 @@ type InfraConfigRepository interface {
 	GetProfileListByIds(profileIds []int, includeDefault bool) ([]*InfraProfileEntity, error)
 	GetConfigurationsByProfileName(profileName string) ([]*InfraProfileConfigurationEntity, error)
 	GetConfigurationsByProfileIds(profileIds []int) ([]*InfraProfileConfigurationEntity, error)
-	GetConfigurationsByScope(scope Scope, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) ([]*InfraProfileConfigurationEntity, error)
 
-	// GetIdentifierCountForDefaultProfile(defaultProfileId int, identifierType int) (int, error)
 	GetProfilesWhichContainsAllDefaultConfigurationKeysWithProfileId(defaultProfileId int) ([]int, error)
 	GetProfilesWhichContainsAllDefaultConfigurationKeysUsingProfileName() ([]int, error)
 	CreateProfile(tx *pg.Tx, infraProfile *InfraProfileEntity) error
@@ -157,33 +152,14 @@ func (impl *InfraConfigRepositoryImpl) GetConfigurationsByProfileName(profileNam
 }
 
 func (impl *InfraConfigRepositoryImpl) GetConfigurationsByProfileIds(profileIds []int) ([]*InfraProfileConfigurationEntity, error) {
-	// TODO Gireesh: use constants here
 	if len(profileIds) == 0 {
-		return nil, errors.New("profile ids cannot be empty")
+		return nil, errors.New(PROFILE_IDS_REQUIRED)
 	}
 
 	var configurations []*InfraProfileConfigurationEntity
 	err := impl.dbConnection.Model(&configurations).
 		Where("profile_id IN (?)", pg.In(profileIds)).
 		Where("active = ?", true).
-		Select()
-	if errors.Is(err, pg.ErrNoRows) {
-		return nil, NO_PROPERTIES_FOUND_ERROR
-	}
-	return configurations, err
-}
-
-// GetConfigurationsByScope , note: can use qualifierMapping service but need 2 db calls.
-// since it is being called for every ci trigger, trying get the configurations in single db call
-func (impl *InfraConfigRepositoryImpl) GetConfigurationsByScope(scope Scope, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) ([]*InfraProfileConfigurationEntity, error) {
-	var configurations []*InfraProfileConfigurationEntity
-	getProfileIdByScopeQuery := "SELECT resource_id " +
-		" FROM resource_qualifier_mapping " +
-		fmt.Sprintf(" WHERE resource_type = %d AND identifier_key = %d AND identifier_value_int = %d AND active=true", resourceQualifiers.InfraProfile, GetIdentifierKey(APPLICATION, searchableKeyNameIdMap), scope.AppId)
-
-	err := impl.dbConnection.Model(&configurations).
-		Where("active = ?", true).
-		Where("id IN (?)", getProfileIdByScopeQuery).
 		Select()
 	if errors.Is(err, pg.ErrNoRows) {
 		return nil, NO_PROPERTIES_FOUND_ERROR
@@ -219,28 +195,6 @@ func (impl *InfraConfigRepositoryImpl) GetProfilesWhichContainsAllDefaultConfigu
 	_, err := impl.dbConnection.Query(&profileIds, query, DEFAULT_PROFILE_NAME)
 	return profileIds, err
 }
-
-// func (impl *InfraConfigRepositoryImpl) GetIdentifierCountForDefaultProfile(defaultProfileId int, identifierKey int) (int, error) {
-// 	queryToGetAppIdsWhichDoesntInheritDefaultConfigurations := " SELECT identifier_value_int " +
-// 		" FROM resource_qualifier_mapping " +
-// 		" WHERE resource_type = %d AND resource_id IN ( " +
-// 		" 	SELECT profile_id " +
-// 		"   FROM infra_profile_configuration " +
-// 		"   GROUP BY profile_id HAVING COUNT(profile_id) = ( " +
-// 		" 	      SELECT COUNT(id) " +
-// 		" 	      FROM infra_profile_configuration " +
-// 		" 	      WHERE active=true AND profile_id=%d ) " +
-// 		" ) AND identifier_key = %d AND active=true"
-// 	queryToGetAppIdsWhichDoesntInheritDefaultConfigurations = fmt.Sprintf(queryToGetAppIdsWhichDoesntInheritDefaultConfigurations, resourceQualifiers.InfraProfile, defaultProfileId, identifierKey)
-//
-// 	// exclude appIds which inherit default configurations
-// 	query := " SELECT COUNT(id) " +
-// 		" FROM app WHERE Id NOT IN (%s) and active=true"
-// 	query = fmt.Sprintf(query, queryToGetAppIdsWhichDoesntInheritDefaultConfigurations)
-// 	count := 0
-// 	_, err := impl.dbConnection.Query(&count, query)
-// 	return count, err
-// }
 
 func (impl *InfraConfigRepositoryImpl) UpdateProfile(tx *pg.Tx, profileName string, profile *InfraProfileEntity) error {
 	_, err := tx.Model(profile).
