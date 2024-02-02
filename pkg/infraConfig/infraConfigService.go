@@ -163,35 +163,18 @@ func (impl *InfraConfigServiceImpl) GetProfileList(profileNameLike string) ([]Pr
 		impl.logger.Errorw("error in fetching profiles", "profileNameLike", profileNameLike, "error", err)
 		return nil, nil, err
 	}
-	defaultProfileId := 0
-	// extract out profileIds from the profiles
-	profileIds := make([]int, len(infraProfiles))
-	profilesMap := make(map[int]ProfileBean)
-	for i, _ := range infraProfiles {
-		profileBean := infraProfiles[i].ConvertToProfileBean()
-		if profileBean.Name == DEFAULT_PROFILE_NAME {
-			defaultProfileId = profileBean.Id
-		}
-		profileIds[i] = profileBean.Id
-		profilesMap[profileBean.Id] = profileBean
-	}
 
-	// fetch all the configurations matching the given profileIds
-	infraConfigurations, err := impl.infraProfileRepo.GetConfigurationsByProfileIds(profileIds)
+	profilesMap, defaultProfileId, err := impl.fillConfigurationsInProfiles(infraProfiles)
 	if err != nil {
-		impl.logger.Errorw("error in fetching configurations of profileIds", "profileIds", profileIds, "error", err)
+		impl.logger.Errorw("error in filling configuration in profile objects", "infraProfiles", infraProfiles, "error", err)
 		return nil, nil, err
 	}
-
-	// map the configurations to their respective profiles
-	for _, configuration := range infraConfigurations {
-		profileBean := profilesMap[configuration.ProfileId]
-		configurationBean := configuration.ConvertToConfigurationBean()
-		configurationBean.ProfileName = profileBean.Name
-		profileBean.Configurations = append(profileBean.Configurations, configurationBean)
-		profilesMap[configuration.ProfileId] = profileBean
+	defaultProfile := profilesMap[defaultProfileId]
+	// extract out profileIds from the profiles
+	profileIds := make([]int, len(infraProfiles))
+	for profileId, _ := range profilesMap {
+		profileIds = append(profileIds, profileId)
 	}
-
 	searchableKeyNameIdMap := impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap()
 	profileAppCount, err := impl.qualifierMappingService.GetActiveIdentifierCountPerResource(resourceQualifiers.InfraProfile, profileIds, GetIdentifierKey(APPLICATION, searchableKeyNameIdMap))
 	if err != nil {
@@ -212,26 +195,13 @@ func (impl *InfraConfigServiceImpl) GetProfileList(profileNameLike string) ([]Pr
 		profilesMap[profileAppCnt.ResourceId] = profileBean
 	}
 
-	// fill the default configurations for each profile if any of the default configuration is missing
-	defaultProfile := profilesMap[defaultProfileId]
 	defaultProfile.AppCount = defaultProfileIdentifierCount
 	profilesMap[defaultProfileId] = defaultProfile
-
-	defaultConfigurations := defaultProfile.Configurations
 	profiles := make([]ProfileBean, 0, len(profilesMap))
-	for profileId, profile := range profilesMap {
-		if profile.Name == DEFAULT_PROFILE_NAME {
-			profiles = append(profiles, profile)
-			// update map with updated profile
-			profilesMap[profileId] = profile
-			continue
-		}
-		profile = UpdateProfileMissingConfigurationsWithDefault(profile, defaultConfigurations)
+	for _, profile := range profilesMap {
 		profiles = append(profiles, profile)
-		// update map with updated profile
-		profilesMap[profileId] = profile
 	}
-	return profiles, defaultConfigurations, nil
+	return profiles, defaultProfile.Configurations, nil
 }
 
 func (impl *InfraConfigServiceImpl) getIdentifierCountForDefaultProfile(defaultProfileId int) (int, error) {
@@ -939,8 +909,16 @@ func (impl *InfraConfigServiceImpl) getProfilesWithConfigurations(profileIds []i
 		return nil, 0, err
 	}
 
+	profilesMap, defaultProfileId, err := impl.fillConfigurationsInProfiles(profiles)
+	if err != nil {
+		return nil, 0, err
+	}
+	return profilesMap, defaultProfileId, nil
+}
+
+func (impl *InfraConfigServiceImpl) fillConfigurationsInProfiles(profiles []*InfraProfileEntity) (map[int]ProfileBean, int, error) {
 	// override profileIds with the profiles fetched from db
-	profileIds = []int{}
+	profileIds := make([]int, 0, len(profiles))
 	for _, profile := range profiles {
 		profileIds = append(profileIds, profile.Id)
 	}
