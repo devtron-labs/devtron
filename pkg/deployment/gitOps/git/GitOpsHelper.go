@@ -66,7 +66,7 @@ func (impl *GitOpsHelper) Clone(url, targetDir string) (clonedDir string, err er
 	}()
 	impl.logger.Debugw("git checkout ", "url", url, "dir", targetDir)
 	clonedDir = filepath.Join(GIT_WORKING_DIR, targetDir)
-	//errorMsg, err := impl.Clone2(context.Background(), clonedDir, clonedDir, impl.Auth)
+
 	ctx := context.Background()
 	err = impl.init(ctx, clonedDir, url, false, impl.Auth)
 	if err != nil {
@@ -143,7 +143,7 @@ func (impl *GitOpsHelper) getBranch(ctx context.Context, rootDir string, usernam
 		return response, err
 	}
 	branches := strings.Split(response, "\n")
-	impl.logger.Infow("total branch available in git repo", "branches", branches)
+	impl.logger.Infow("total branch available in git repo", "branch length", len(branches))
 	branch := ""
 	for _, item := range branches {
 		if strings.TrimSpace(item) == git.ORIGIN_MASTER {

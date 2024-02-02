@@ -4,11 +4,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/devtron-labs/devtron/util"
-	"gopkg.in/src-d/go-billy.v4/osfs"
 	"os/exec"
 
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 )
@@ -25,29 +22,16 @@ func (impl *GitCliManagerImpl) AddRepo(ctx context.Context, rootDir string, remo
 	return impl.gitCreateRemote(ctx, rootDir, remoteUrl, auth.Username, auth.Password)
 }
 
-func (impl *GitCliManagerImpl) openRepoPlain(path string) error {
-
-	if _, err := filepath.Abs(path); err != nil {
-		return err
-	}
-	fst := osfs.New(path)
-	_, err := fst.Stat(".git")
-	if !os.IsNotExist(err) {
-		return err
-	}
-	return nil
-}
-
-func (impl GitCliManagerImpl) CommitAndPush(ctx context.Context, repoRoot, commitMsg, name, emailId string, auth *BasicAuth) (commitHash string, err error) {
+func (impl *GitCliManagerImpl) CommitAndPush(ctx context.Context, repoRoot, commitMsg, name, emailId string, auth *BasicAuth) (commitHash string, err error) {
 	start := time.Now()
 	defer func() {
 		util.TriggerGitOpsMetrics("CommitAndPushAllChanges", "GitService", start, err)
 	}()
-	err = impl.openRepoPlain(repoRoot)
+	err = LocateGitRepo(repoRoot)
 	if err != nil {
 		return "", err
 	}
-	impl.setConfig(repoRoot, auth.Username, emailId)
+	impl.setConfig(ctx, repoRoot, auth.Username, emailId)
 	_, _, err = impl.add(ctx, repoRoot, auth.Username, auth.Password)
 	if err != nil {
 		return "", err
@@ -73,7 +57,7 @@ func (impl *GitCliManagerImpl) Pull(ctx context.Context, repoRoot string, auth *
 		util.TriggerGitOpsMetrics("Pull", "GitService", start, err)
 	}()
 
-	err = impl.openRepoPlain(repoRoot)
+	err = LocateGitRepo(repoRoot)
 	if err != nil {
 		return err
 	}
@@ -95,10 +79,10 @@ func (impl *GitCliManagerImpl) gitInit(ctx context.Context, rootDir string, user
 	return err
 }
 
-func (impl *GitCliManagerImpl) setConfig(rootDir string, username string, email string) {
+func (impl *GitCliManagerImpl) setConfig(ctx context.Context, rootDir string, username string, email string) {
 	impl.logger.Debugw("git config ", "location", rootDir)
-	cmdUser := exec.Command("git", "-C", rootDir, "config", "user.name", username)
-	cmdEmail := exec.Command("git", "-C", rootDir, "config", "user.email", email)
+	cmdUser := exec.CommandContext(ctx, "git", "-C", rootDir, "config", "user.name", username)
+	cmdEmail := exec.CommandContext(ctx, "git", "-C", rootDir, "config", "user.email", email)
 	impl.runCommand(cmdUser)
 	impl.runCommand(cmdEmail)
 }

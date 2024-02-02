@@ -29,13 +29,13 @@ func NewGitCommandManager(logger *zap.SugaredLogger) GitCommandManager {
 	return &GoGitSDKManagerImpl{GitManagerBaseImpl: baseImpl}
 }
 
-type Configuration struct {
+type configuration struct {
 	UseGitCli           bool `env:"USE_GIT_CLI" envDefault:"false"`
 	CliCmdTimeoutGlobal int  `env:"CLI_CMD_TIMEOUT_GLOBAL_SECONDS" envDefault:"0"`
 }
 
-func ParseConfiguration() (*Configuration, error) {
-	cfg := &Configuration{}
+func ParseConfiguration() (*configuration, error) {
+	cfg := &configuration{}
 	err := env.Parse(cfg)
 	return cfg, err
 }

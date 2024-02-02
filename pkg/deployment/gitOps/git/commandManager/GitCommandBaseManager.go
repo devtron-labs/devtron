@@ -19,7 +19,7 @@ type GitCommandManagerBase interface {
 
 type GitManagerBaseImpl struct {
 	logger *zap.SugaredLogger
-	cfg    *Configuration
+	cfg    *configuration
 }
 
 func (impl *GitManagerBaseImpl) Fetch(ctx context.Context, rootDir string, username string, password string) (response, errMsg string, err error) {
