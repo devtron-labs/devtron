@@ -72,6 +72,11 @@ func (impl ConfigMapRepositoryImpl) GetConfigNamesAppLevel(appId int) ([]CMCSNam
 		"FROM config_map_app_level WHERE app_id = ?;"
 
 	_, err := impl.dbConnection.Query(&cMCSNames, query, appId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.Logger.Errorw("error occurred while fetching CM/CS names ", "appId", appId, "err", err)
+	} else {
+		err = nil //ignoring noRows Error
+	}
 	return cMCSNames, err
 }
 func (impl ConfigMapRepositoryImpl) GetConfigNamesEnvLevel(appId int, envId int) ([]CMCSNames, error) {
@@ -81,6 +86,11 @@ func (impl ConfigMapRepositoryImpl) GetConfigNamesEnvLevel(appId int, envId int)
 		"FROM config_map_env_level WHERE app_id = ? AND env_id=?;"
 
 	_, err := impl.dbConnection.Query(&cMCSNames, query, appId, envId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.Logger.Errorw("error occurred while fetching CM/CS names ", "appId", appId, "envId", envId, "err", err)
+	} else {
+		err = nil //ignoring noRows Error
+	}
 	return cMCSNames, err
 }
 
