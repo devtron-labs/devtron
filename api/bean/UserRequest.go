@@ -166,3 +166,9 @@ type FetchListingRequest struct {
 	CurrentTime time.Time      `json:"-"` // for Internal Use
 	CountCheck  bool           `json:"-"` // for Internal Use
 }
+
+type BulkDeleteRequest struct {
+	Ids            []int32              `json:"ids"`
+	ListingRequest *FetchListingRequest `json:"listingRequest,omitempty"`
+	LoggedInUserId int32                `json:"-"`
+}

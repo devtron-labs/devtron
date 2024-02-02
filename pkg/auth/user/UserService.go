@@ -72,6 +72,7 @@ type UserService interface {
 	GetByIds(ids []int32) ([]bean.UserInfo, error)
 	DeleteUser(userInfo *bean.UserInfo) (bool, error)
 	CheckUserRoles(id int32, token string) ([]string, error)
+	BulkDeleteUsers(request *bean.BulkDeleteRequest) (bool, error)
 	SyncOrchestratorToCasbin() (bool, error)
 	GetUserByToken(context context.Context, token string) (int32, string, error)
 	IsSuperAdminForDevtronManaged(userId int) (bool, error)
@@ -1668,16 +1669,21 @@ func (impl UserServiceImpl) DeleteUser(bean *bean.UserInfo) (bool, error) {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
 		return false, err
 	}
-	for _, item := range urm {
-		_, err = impl.userAuthRepository.DeleteUserRoleMapping(item, tx)
+	userRolesMappingIds := make([]int, 0, len(urm))
+	for _, urmModel := range urm {
+		userRolesMappingIds = append(userRolesMappingIds, urmModel.Id)
+	}
+	if len(userRolesMappingIds) > 0 {
+		err = impl.userAuthRepository.DeleteUserRoleMappingByIds(userRolesMappingIds, tx)
 		if err != nil {
-			impl.logger.Errorw("error while fetching user from db", "error", err)
+			impl.logger.Errorw("error in DeleteUser", "userRolesMappingIds", userRolesMappingIds, "err", err)
 			return false, err
 		}
 	}
 	model.Active = false
 	model.UpdatedBy = bean.UserId
 	model.UpdatedOn = time.Now()
+	model.TimeoutWindowConfigurationId = 0
 	model, err = impl.userRepository.UpdateUser(model, tx)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
@@ -1709,6 +1715,99 @@ func (impl UserServiceImpl) DeleteUser(bean *bean.UserInfo) (bool, error) {
 	return true, nil
 }
 
+// BulkDeleteUsers takes in BulkDeleteRequest and return success and error
+func (impl *UserServiceImpl) BulkDeleteUsers(request *bean.BulkDeleteRequest) (bool, error) {
+	err := impl.deleteUsersByIds(request)
+	if err != nil {
+		impl.logger.Errorw("error in BulkDeleteUsers", "err", err)
+		return false, err
+	}
+	return true, nil
+}
+
+// deleteUsersByIds bulk delete all the users with their user role mappings in orchestrator and user-role and user-group mappings from casbin, takes in BulkDeleteRequest request and return success and error in return
+func (impl *UserServiceImpl) deleteUsersByIds(request *bean.BulkDeleteRequest) error {
+	tx, err := impl.roleGroupRepository.StartATransaction()
+	if err != nil {
+		impl.logger.Errorw("error in starting a transaction", "err", err)
+		return err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+
+	emailIds, err := impl.userRepository.GetEmailByIds(request.Ids)
+	if err != nil {
+		impl.logger.Errorw("error in DeleteUsersForIds", "err", err)
+		return err
+	}
+
+	// operations in orchestrator and getting emails ids for corresponding user ids
+	err = impl.deleteMappingsFromOrchestrator(request.Ids, tx)
+	if err != nil {
+		impl.logger.Errorw("error encountered in deleteUsersByIds", "request", request, "err", err)
+		return err
+	}
+	// updating models to inactive
+	err = impl.userRepository.UpdateToInactiveByIds(request.Ids, tx, request.LoggedInUserId)
+	if err != nil {
+		impl.logger.Errorw("error encountered in DeleteUsersForIds", "err", err)
+		return err
+	}
+	// deleting from the group mappings from casbin
+	err = impl.deleteMappingsFromCasbin(emailIds, len(request.Ids))
+	if err != nil {
+		impl.logger.Errorw("error encountered in deleteUsersByIds", "request", request, "err", err)
+		return err
+	}
+
+	err = impl.roleGroupRepository.CommitATransaction(tx)
+	if err != nil {
+		impl.logger.Errorw("error in committing a transaction", "err", err)
+		return err
+	}
+
+	return nil
+}
+
+// deleteMappingsFromCasbin gets all mappings for all email ids and delete that mapping one by one as no bulk support from casbin library.
+func (impl *UserServiceImpl) deleteMappingsFromCasbin(emailIds []string, totalCount int) error {
+	emailIdVsCasbinRolesMap := make(map[string][]string, totalCount)
+	for _, email := range emailIds {
+		casbinRoles, err := casbin2.GetRolesForUser(email)
+		if err != nil {
+			impl.logger.Warnw("No Roles Found for user", "email", email, "err", err)
+			return err
+		}
+		emailIdVsCasbinRolesMap[email] = casbinRoles
+	}
+
+	success := impl.userCommonService.DeleteRoleForUserFromCasbin(emailIdVsCasbinRolesMap)
+	if !success {
+		impl.logger.Errorw("error in deleting from casbin in deleteMappingsFromCasbin ", "success", success)
+	}
+	return nil
+}
+
+// deleteMappingsFromOrchestrator takes in userIds to be deleted and transaction returns error in case of any issue else nil
+func (impl *UserServiceImpl) deleteMappingsFromOrchestrator(userIds []int32, tx *pg.Tx) error {
+	userRoleMapping, err := impl.userAuthRepository.GetUserRoleMappingIdsByUserIds(userIds)
+	if err != nil {
+		impl.logger.Errorw("error in DeleteUsersForIds", "err", err)
+		return err
+	}
+	urmIds := make([]int, 0, len(userRoleMapping))
+	for _, model := range userRoleMapping {
+		urmIds = append(urmIds, model.Id)
+	}
+	if len(urmIds) > 0 {
+		err = impl.userAuthRepository.DeleteUserRoleMappingByIds(urmIds, tx)
+		if err != nil {
+			impl.logger.Errorw("error encountered in DeleteUsersForIds", "urmIds", urmIds, "err", err)
+			return err
+		}
+	}
+	return nil
+}
 func (impl UserServiceImpl) CheckUserRoles(id int32, token string) ([]string, error) {
 	model, err := impl.userRepository.GetByIdIncludeDeleted(id)
 	if err != nil {

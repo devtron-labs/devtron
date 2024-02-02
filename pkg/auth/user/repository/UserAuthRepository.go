@@ -47,7 +47,9 @@ type UserAuthRepository interface {
 	GetRoleByFilterForAllTypes(entity, team, app, env, act string, approver bool, accessType, cluster, namespace, group, kind, resource, action string, oldValues bool, workflow string) (RoleModel, error)
 	CreateUserRoleMapping(userRoleModel *UserRoleModel, tx *pg.Tx) (*UserRoleModel, error)
 	GetUserRoleMappingByUserId(userId int32) ([]*UserRoleModel, error)
+	GetUserRoleMappingIdsByUserIds(userIds []int32) ([]*UserRoleModel, error)
 	DeleteUserRoleMapping(userRoleModel *UserRoleModel, tx *pg.Tx) (bool, error)
+	DeleteUserRoleMappingByIds(urmIds []int, tx *pg.Tx) error
 	DeleteUserRoleByRoleId(roleId int, tx *pg.Tx) error
 	DeleteUserRoleByRoleIds(roleIds []int, tx *pg.Tx) error
 	CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, approver bool, UserId int32) (bool, error, []casbin2.Policy)
@@ -296,6 +298,17 @@ func (impl UserAuthRepositoryImpl) GetUserRoleMappingByUserId(userId int32) ([]*
 	}
 	return userRoleModels, nil
 }
+
+func (impl UserAuthRepositoryImpl) GetUserRoleMappingIdsByUserIds(userIds []int32) ([]*UserRoleModel, error) {
+	var models []*UserRoleModel
+	err := impl.dbConnection.Model(&models).Where("user_id in (?)", pg.In(userIds)).Select()
+	if err != nil {
+		impl.Logger.Errorw("error in GetUserRoleMappingsForUserIds", "userIds", userIds, "err", err)
+		return nil, err
+	}
+	return models, nil
+}
+
 func (impl UserAuthRepositoryImpl) DeleteUserRoleMapping(userRoleModel *UserRoleModel, tx *pg.Tx) (bool, error) {
 	err := tx.Delete(userRoleModel)
 	if err != nil {
@@ -303,6 +316,16 @@ func (impl UserAuthRepositoryImpl) DeleteUserRoleMapping(userRoleModel *UserRole
 		return false, err
 	}
 	return true, nil
+}
+
+func (impl UserAuthRepositoryImpl) DeleteUserRoleMappingByIds(urmIds []int, tx *pg.Tx) error {
+	var userRoleModel *UserRoleModel
+	_, err := tx.Model(userRoleModel).Where("id in (?)", pg.In(urmIds)).Delete()
+	if err != nil {
+		impl.Logger.Error("err encountered in DeleteUserRoleMappingByIds", "urmIds", urmIds, "err", err)
+		return err
+	}
+	return nil
 }
 
 func (impl UserAuthRepositoryImpl) DeleteUserRoleByRoleId(roleId int, tx *pg.Tx) error {
