@@ -3,7 +3,7 @@ package config
 type ConfigState int
 
 const (
-	PublishedConfigState ConfigState = iota + 2
+	PublishedConfigState ConfigState = 3
 )
 
 type ResourceType string
