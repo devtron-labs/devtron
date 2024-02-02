@@ -23,6 +23,7 @@ import (
 	"fmt"
 	bean6 "github.com/devtron-labs/devtron/api/helm-app/bean"
 	client2 "github.com/devtron-labs/devtron/api/helm-app/service"
+	"github.com/devtron-labs/devtron/pkg/build/artifacts"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps"
@@ -42,7 +43,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
-	"github.com/devtron-labs/devtron/pkg/k8s"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
@@ -130,7 +130,6 @@ type WorkflowDagExecutorImpl struct {
 	ciWorkflowRepository          pipelineConfig.CiWorkflowRepository
 	appLabelRepository            pipelineConfig.AppLabelRepository
 	gitSensorGrpcClient           gitSensorClient.Client
-	k8sCommonService              k8s.K8sCommonService
 	pipelineStageService          PipelineStageService
 	config                        *types.CdConfig
 	appServiceConfig              *app.AppServiceConfig
@@ -155,6 +154,7 @@ type WorkflowDagExecutorImpl struct {
 	workflowEventPublishService         out.WorkflowEventPublishService
 	manifestCreationService             manifest.ManifestCreationService
 	deploymentTemplateService           deploymentTemplate.DeploymentTemplateService
+	commonArtifactService               artifacts.CommonArtifactService
 }
 
 const (
@@ -218,7 +218,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	CiTemplateRepository pipelineConfig.CiTemplateRepository,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	appLabelRepository pipelineConfig.AppLabelRepository, gitSensorGrpcClient gitSensorClient.Client,
-	pipelineStageService PipelineStageService, k8sCommonService k8s.K8sCommonService,
+	pipelineStageService PipelineStageService,
 	globalPluginService plugin.GlobalPluginService,
 	pluginInputVariableParser PluginInputVariableParser,
 	scopedVariableManager variables.ScopedVariableCMCSManager,
@@ -231,7 +231,8 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	deployedConfigurationHistoryService history2.DeployedConfigurationHistoryService,
 	workflowEventPublishService out.WorkflowEventPublishService,
 	manifestCreationService manifest.ManifestCreationService,
-	deploymentTemplateService deploymentTemplate.DeploymentTemplateService) *WorkflowDagExecutorImpl {
+	deploymentTemplateService deploymentTemplate.DeploymentTemplateService,
+	commonArtifactService artifacts.CommonArtifactService) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
 		cdWorkflowRepository:          cdWorkflowRepository,
@@ -258,7 +259,6 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		ciWorkflowRepository:          ciWorkflowRepository,
 		appLabelRepository:            appLabelRepository,
 		gitSensorGrpcClient:           gitSensorGrpcClient,
-		k8sCommonService:              k8sCommonService,
 		pipelineStageService:          pipelineStageService,
 		scopedVariableManager:         scopedVariableManager,
 		globalPluginService:           globalPluginService,
@@ -277,6 +277,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		workflowEventPublishService:         workflowEventPublishService,
 		manifestCreationService:             manifestCreationService,
 		deploymentTemplateService:           deploymentTemplateService,
+		commonArtifactService:               commonArtifactService,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -551,7 +552,7 @@ func (impl *WorkflowDagExecutorImpl) processDevtronAsyncHelmInstallRequest(CDAsy
 		return
 	}
 	// build merged values and save PCO history for the release
-	valuesOverrideResponse, builtChartPath, err := impl.BuildManifestForTrigger(overrideRequest, CDAsyncInstallNatsMessage.TriggeredAt, ctx)
+	valuesOverrideResponse, builtChartPath, err := impl.manifestCreationService.BuildManifestForTrigger(overrideRequest, CDAsyncInstallNatsMessage.TriggeredAt, ctx)
 	if err != nil {
 		return
 	}
@@ -796,7 +797,7 @@ func (impl *WorkflowDagExecutorImpl) HandlePreStageSuccessEvent(triggerContext T
 				impl.logger.Warnw("unable to migrate deprecated DataSource", "artifactId", ciArtifact.Id)
 			}
 		}
-		PreCDArtifacts, err := impl.SavePluginArtifacts(ciArtifact, cdStageCompleteEvent.PluginRegistryArtifactDetails, pipeline.Id, repository.PRE_CD, cdStageCompleteEvent.TriggeredBy)
+		PreCDArtifacts, err := impl.commonArtifactService.SavePluginArtifacts(ciArtifact, cdStageCompleteEvent.PluginRegistryArtifactDetails, pipeline.Id, repository.PRE_CD, cdStageCompleteEvent.TriggeredBy)
 		if err != nil {
 			impl.logger.Errorw("error in saving plugin artifacts", "err", err)
 			return err
@@ -830,57 +831,6 @@ func (impl *WorkflowDagExecutorImpl) HandlePreStageSuccessEvent(triggerContext T
 		}
 	}
 	return nil
-}
-
-func (impl *WorkflowDagExecutorImpl) SavePluginArtifacts(ciArtifact *repository.CiArtifact, pluginArtifactsDetail map[string][]string, pipelineId int, stage string, triggerdBy int32) ([]*repository.CiArtifact, error) {
-
-	saveArtifacts, err := impl.ciArtifactRepository.GetArtifactsByDataSourceAndComponentId(stage, pipelineId)
-	if err != nil {
-		return nil, err
-	}
-	PipelineArtifacts := make(map[string]bool)
-	for _, artifact := range saveArtifacts {
-		PipelineArtifacts[artifact.Image] = true
-	}
-	var parentCiArtifactId int
-	if ciArtifact.ParentCiArtifact > 0 {
-		parentCiArtifactId = ciArtifact.ParentCiArtifact
-	} else {
-		parentCiArtifactId = ciArtifact.Id
-	}
-	var CDArtifacts []*repository.CiArtifact
-	for registry, artifacts := range pluginArtifactsDetail {
-		// artifacts are list of images
-		for _, artifact := range artifacts {
-			_, artifactAlreadySaved := PipelineArtifacts[artifact]
-			if artifactAlreadySaved {
-				continue
-			}
-			pluginArtifact := &repository.CiArtifact{
-				Image:                 artifact,
-				ImageDigest:           ciArtifact.ImageDigest,
-				MaterialInfo:          ciArtifact.MaterialInfo,
-				DataSource:            stage,
-				ComponentId:           pipelineId,
-				CredentialsSourceType: repository.GLOBAL_CONTAINER_REGISTRY,
-				CredentialSourceValue: registry,
-				AuditLog: sql.AuditLog{
-					CreatedOn: time.Now(),
-					CreatedBy: triggerdBy,
-					UpdatedOn: time.Now(),
-					UpdatedBy: triggerdBy,
-				},
-				ParentCiArtifact: parentCiArtifactId,
-			}
-			CDArtifacts = append(CDArtifacts, pluginArtifact)
-		}
-	}
-	_, err = impl.ciArtifactRepository.SaveAll(CDArtifacts)
-	if err != nil {
-		impl.logger.Errorw("Error in saving artifacts metadata generated by plugin")
-		return CDArtifacts, err
-	}
-	return CDArtifacts, nil
 }
 
 func (impl *WorkflowDagExecutorImpl) TriggerPreStage(request TriggerRequest) error {
@@ -1856,7 +1806,7 @@ func (impl *WorkflowDagExecutorImpl) HandlePostStageSuccessEvent(triggerContext 
 		return err
 	}
 	if len(pluginRegistryImageDetails) > 0 {
-		PostCDArtifacts, err := impl.SavePluginArtifacts(ciArtifact, pluginRegistryImageDetails, cdPipelineId, repository.POST_CD, triggeredBy)
+		PostCDArtifacts, err := impl.commonArtifactService.SavePluginArtifacts(ciArtifact, pluginRegistryImageDetails, cdPipelineId, repository.POST_CD, triggeredBy)
 		if err != nil {
 			impl.logger.Errorw("error in saving plugin artifacts", "err", err)
 			return err
@@ -2488,7 +2438,7 @@ func (impl *WorkflowDagExecutorImpl) HandleCDTriggerRelease(overrideRequest *bea
 	}
 	// synchronous mode of installation starts
 
-	valuesOverrideResponse, builtChartPath, err := impl.BuildManifestForTrigger(overrideRequest, triggeredAt, ctx)
+	valuesOverrideResponse, builtChartPath, err := impl.manifestCreationService.BuildManifestForTrigger(overrideRequest, triggeredAt, ctx)
 	_, span := otel.Tracer("orchestrator").Start(ctx, "CreateHistoriesForDeploymentTrigger")
 	err1 := impl.deployedConfigurationHistoryService.CreateHistoriesForDeploymentTrigger(valuesOverrideResponse.Pipeline, valuesOverrideResponse.PipelineStrategy, valuesOverrideResponse.EnvOverride, triggeredAt, deployedBy)
 	if err1 != nil {
@@ -2577,21 +2527,6 @@ func (impl *WorkflowDagExecutorImpl) SetPipelineFieldsInOverrideRequest(override
 }
 
 // write integration/unit test for each function
-
-func (impl *WorkflowDagExecutorImpl) BuildManifestForTrigger(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (valuesOverrideResponse *app.ValuesOverrideResponse, builtChartPath string, err error) {
-	valuesOverrideResponse = &app.ValuesOverrideResponse{}
-	valuesOverrideResponse, err = impl.manifestCreationService.GetValuesOverrideForTrigger(overrideRequest, triggeredAt, ctx)
-	if err != nil {
-		impl.logger.Errorw("error in fetching values for trigger", "err", err)
-		return valuesOverrideResponse, "", err
-	}
-	builtChartPath, err = impl.deploymentTemplateService.BuildChartAndGetPath(overrideRequest.AppName, valuesOverrideResponse.EnvOverride, ctx)
-	if err != nil {
-		impl.logger.Errorw("error in parsing reference chart", "err", err)
-		return valuesOverrideResponse, "", err
-	}
-	return valuesOverrideResponse, builtChartPath, err
-}
 
 func (impl *WorkflowDagExecutorImpl) updatePipeline(pipeline *pipelineConfig.Pipeline, userId int32) (bool, error) {
 	err := impl.pipelineRepository.SetDeploymentAppCreatedInPipeline(true, pipeline.Id, userId)

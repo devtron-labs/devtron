@@ -21,6 +21,7 @@ import (
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/manifest/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
@@ -47,6 +48,10 @@ import (
 )
 
 type ManifestCreationService interface {
+	BuildManifestForTrigger(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time,
+		ctx context.Context) (valuesOverrideResponse *app.ValuesOverrideResponse, builtChartPath string, err error)
+
+	//TODO: remove below method
 	GetValuesOverrideForTrigger(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (*app.ValuesOverrideResponse, error)
 }
 
@@ -60,6 +65,7 @@ type ManifestCreationServiceImpl struct {
 	imageDigestPolicyService       imageDigestPolicy.ImageDigestPolicyService
 	mergeUtil                      *util.MergeUtil
 	appCrudOperationService        app.AppCrudOperationService
+	deploymentTemplateService      deploymentTemplate.DeploymentTemplateService
 
 	acdClient application2.ServiceClient //TODO: replace with argoClientWrapperService
 
@@ -85,6 +91,7 @@ func NewManifestCreationServiceImpl(logger *zap.SugaredLogger,
 	imageDigestPolicyService imageDigestPolicy.ImageDigestPolicyService,
 	mergeUtil *util.MergeUtil,
 	appCrudOperationService app.AppCrudOperationService,
+	deploymentTemplateService deploymentTemplate.DeploymentTemplateService,
 	acdClient application2.ServiceClient,
 	configMapHistoryRepository repository3.ConfigMapHistoryRepository,
 	configMapRepository chartConfig.ConfigMapRepository,
@@ -107,6 +114,7 @@ func NewManifestCreationServiceImpl(logger *zap.SugaredLogger,
 		imageDigestPolicyService:            imageDigestPolicyService,
 		mergeUtil:                           mergeUtil,
 		appCrudOperationService:             appCrudOperationService,
+		deploymentTemplateService:           deploymentTemplateService,
 		configMapRepository:                 configMapRepository,
 		acdClient:                           acdClient,
 		configMapHistoryRepository:          configMapHistoryRepository,
@@ -120,6 +128,22 @@ func NewManifestCreationServiceImpl(logger *zap.SugaredLogger,
 		pipelineConfigRepository:            pipelineConfigRepository,
 		deploymentTemplateHistoryRepository: deploymentTemplateHistoryRepository,
 	}
+}
+
+func (impl *ManifestCreationServiceImpl) BuildManifestForTrigger(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time,
+	ctx context.Context) (valuesOverrideResponse *app.ValuesOverrideResponse, builtChartPath string, err error) {
+	valuesOverrideResponse = &app.ValuesOverrideResponse{}
+	valuesOverrideResponse, err = impl.GetValuesOverrideForTrigger(overrideRequest, triggeredAt, ctx)
+	if err != nil {
+		impl.logger.Errorw("error in fetching values for trigger", "err", err)
+		return valuesOverrideResponse, "", err
+	}
+	builtChartPath, err = impl.deploymentTemplateService.BuildChartAndGetPath(overrideRequest.AppName, valuesOverrideResponse.EnvOverride, ctx)
+	if err != nil {
+		impl.logger.Errorw("error in parsing reference chart", "err", err)
+		return valuesOverrideResponse, "", err
+	}
+	return valuesOverrideResponse, builtChartPath, err
 }
 
 func (impl *ManifestCreationServiceImpl) GetValuesOverrideForTrigger(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (*app.ValuesOverrideResponse, error) {
