@@ -733,8 +733,12 @@ func (impl RoleGroupServiceImpl) DeleteRoleGroup(bean *bean.RoleGroup) (bool, er
 	if err != nil {
 		impl.logger.Errorw("error in getting all roles for groups", "err", err)
 	}
-	for _, roleGroupRoleMapping := range allRoleGroupRoleMappings {
-		err = impl.roleGroupRepository.DeleteRoleGroupRoleMappingByRoleId(roleGroupRoleMapping.RoleId, tx)
+	roleGroupRoleMappingIds := make([]int, 0, len(allRoleGroupRoleMappings))
+	for _, roleMapping := range allRoleGroupRoleMappings {
+		roleGroupRoleMappingIds = append(roleGroupRoleMappingIds, roleMapping.Id)
+	}
+	if len(roleGroupRoleMappingIds) > 0 {
+		err = impl.roleGroupRepository.DeleteRoleGroupRoleMappingByIds(roleGroupRoleMappingIds, tx)
 		if err != nil {
 			impl.logger.Errorw("error in deleting role group role mapping by role id", "err", err)
 			return false, err
