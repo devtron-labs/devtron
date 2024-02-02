@@ -20,6 +20,7 @@ package service
 import (
 	"bytes"
 	"context"
+	appStoreDeploymentTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool"
 	util5 "github.com/devtron-labs/devtron/pkg/appStore/util"
 
 	/* #nosec */
@@ -93,7 +94,7 @@ type InstalledAppService interface {
 	FetchChartNotes(installedAppId int, envId int, token string, checkNotesAuth func(token string, appName string, envId int) bool) (string, error)
 	// MigrateDeploymentTypeAndTrigger migrates the deployment type of installed app and then trigger in loop
 	MigrateDeploymentTypeAndTrigger(ctx context.Context, request *bean.DeploymentAppTypeChangeRequest) (*bean.DeploymentAppTypeChangeResponse, error)
-	DeleteInstalledApps(ctx context.Context, installedApps []*repository2.InstalledApps, userId int32) *bean.DeploymentAppTypeChangeResponse
+	//DeleteInstalledApps(ctx context.Context, installedApps []*repository2.InstalledApps, userId int32) *bean.DeploymentAppTypeChangeResponse
 }
 
 type InstalledAppServiceImpl struct {
@@ -125,6 +126,8 @@ type InstalledAppServiceImpl struct {
 	k8sCommonService                     k8s.K8sCommonService
 	k8sApplicationService                application3.K8sApplicationService
 	acdConfig                            *argocdServer.ACDConfig
+	appStoreDeploymentArgoCdService      appStoreDeploymentTool.AppStoreDeploymentArgoCdService
+	//appService                           app2.AppService
 }
 
 func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
@@ -146,7 +149,10 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 	pipelineStatusTimelineService status.PipelineStatusTimelineService,
 	appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
 	k8sCommonService k8s.K8sCommonService, k8sApplicationService application3.K8sApplicationService,
-	acdConfig *argocdServer.ACDConfig) (*InstalledAppServiceImpl, error) {
+	acdConfig *argocdServer.ACDConfig,
+	appStoreDeploymentArgoCdService appStoreDeploymentTool.AppStoreDeploymentArgoCdService,
+	// appService app2.AppService,
+) (*InstalledAppServiceImpl, error) {
 	impl := &InstalledAppServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -176,6 +182,8 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 		k8sCommonService:                     k8sCommonService,
 		k8sApplicationService:                k8sApplicationService,
 		acdConfig:                            acdConfig,
+		appStoreDeploymentArgoCdService:      appStoreDeploymentArgoCdService,
+		//appService:                           appService,
 	}
 	err := impl.Subscribe()
 	if err != nil {
@@ -1104,36 +1112,137 @@ func (impl InstalledAppServiceImpl) MigrateDeploymentTypeAndTrigger(ctx context.
 		return response, nil
 	}
 
-	deleteResponse := impl.DeleteInstalledApps(ctx, installedApps, request.UserId)
+	//deleteResponse := impl.DeleteInstalledApps(ctx, installedApps, request.UserId)
+	//
+	//response.SuccessfulPipelines = deleteResponse.SuccessfulPipelines
+	//response.FailedPipelines = deleteResponse.FailedPipelines
+	//
+	////instead of failed pipelines, mark successful pipelines
+	//var successfulPipelineIds []int
+	//for _, item := range response.SuccessfulPipelines {
+	//	successfulPipelineIds = append(successfulPipelineIds, item.PipelineId)
+	//}
 
-	response.SuccessfulPipelines = deleteResponse.SuccessfulPipelines
-	response.FailedPipelines = deleteResponse.FailedPipelines
-
-	//instead of failed pipelines, mark successful pipelines
-	var cdPipelineIds []int
-	for _, item := range response.FailedPipelines {
-		cdPipelineIds = append(cdPipelineIds, item.PipelineId)
-	}
-
-	if len(cdPipelineIds) == 0 {
-		return response, nil
-	}
-
-	err = impl.pipelineRepository.UpdateCdPipelineDeploymentAppInFilter(string(deleteDeploymentType),
-		cdPipelineIds, request.UserId, true, false)
-
-	if err != nil {
-		impl.logger.Errorw("failed to update deployment app type in db",
-			"pipeline ids", cdPipelineIds,
-			"desired deployment type", request.DesiredDeploymentType,
-			"err", err)
-
-		return response, nil
-	}
+	//err = impl.installedAppRepository.UpdateCdPipelineDeploymentAppInFilter(request.DesiredDeploymentType,
+	//	successfulPipelineIds, request.UserId, true, false)
+	//
+	//if err != nil {
+	//	impl.logger.Errorw("failed to update deployment app type in db",
+	//		"pipeline ids", cdPipelineIds,
+	//		"desired deployment type", request.DesiredDeploymentType,
+	//		"err", err)
+	//
+	//	return response, nil
+	//}
 
 	return response, nil
 }
 
-func (impl InstalledAppServiceImpl) DeleteInstalledApps(ctx context.Context, installedApps []*repository2.InstalledApps, userId int32) *bean.DeploymentAppTypeChangeResponse {
-
-}
+//func (impl InstalledAppServiceImpl) DeleteInstalledApps(ctx context.Context, installedApps []*repository2.InstalledApps, userId int32) *bean.DeploymentAppTypeChangeResponse {
+//	successfullyDeletedApps := make([]*bean.DeploymentChangeStatus, 0)
+//	failedDeletedApps := make([]*bean.DeploymentChangeStatus, 0)
+//
+//	isGitOpsConfigured, gitOpsConfigErr := impl.gitOpsRepository.IsGitOpsConfigured()
+//
+//	for _, installedApp := range installedApps {
+//
+//		var isValid bool
+//		// check if installed app info like app name and environment is empty or not
+//		if failedDeletedApps, isValid = impl.isInstalledAppInfoValid(installedApp, failedDeletedApps); !isValid {
+//			continue
+//		}
+//
+//		var healthChkErr error
+//		// check health of the app if it is argocd deployment type
+//		if _, healthChkErr = impl.handleNotDeployedAppsIfArgoDeploymentType(installedApp, failedDeletedApps); healthChkErr != nil {
+//			// cannot delete unhealthy app
+//			continue
+//		}
+//
+//		deploymentAppName := fmt.Sprintf("%s-%s", installedApp.App.AppName, installedApp.Environment.Name)
+//		var err error
+//
+//		// delete request
+//		if installedApp.DeploymentAppType == bean.ArgoCd {
+//			err = impl.appStoreDeploymentArgoCdService.DeleteACD(deploymentAppName, ctx, false)
+//		} else {
+//
+//			// For converting from Helm to ArgoCD, GitOps should be configured
+//			if gitOpsConfigErr != nil || !isGitOpsConfigured {
+//				err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: "200", UserMessage: errors.New("GitOps not configured or unable to fetch GitOps configuration")}
+//			} else {
+//				// Register app in ACD
+//				var AcdRegisterErr, RepoURLUpdateErr error
+//				gitopsRepoName, chartGitAttr, createGitRepoErr := impl.appService.CreateGitopsRepo(&app.App{Id: installedApp.AppId, AppName: installedApp.App.AppName}, userId)
+//				if createGitRepoErr != nil {
+//					impl.logger.Errorw("error in creating git repo", "err", err)
+//				}
+//				if createGitRepoErr == nil {
+//					AcdRegisterErr = impl.cdPipelineConfigService.RegisterInACD(gitopsRepoName,
+//						chartGitAttr,
+//						userId,
+//						ctx)
+//					if AcdRegisterErr != nil {
+//						impl.logger.Errorw("error in registering acd app", "err", err)
+//					}
+//					if AcdRegisterErr == nil {
+//						RepoURLUpdateErr = impl.chartTemplateService.UpdateGitRepoUrlInCharts(pipeline.AppId, chartGitAttr, userId)
+//						if RepoURLUpdateErr != nil {
+//							impl.logger.Errorw("error in updating git repo url in charts", "err", err)
+//						}
+//					}
+//				}
+//				if createGitRepoErr != nil {
+//					err = createGitRepoErr
+//				} else if AcdRegisterErr != nil {
+//					err = AcdRegisterErr
+//				} else if RepoURLUpdateErr != nil {
+//					err = RepoURLUpdateErr
+//				}
+//			}
+//			if err != nil {
+//				impl.logger.Errorw("error registering app on ACD with error: "+err.Error(),
+//					"deploymentAppName", deploymentAppName,
+//					"envId", pipeline.EnvironmentId,
+//					"appId", pipeline.AppId,
+//					"err", err)
+//
+//				// deletion failed, append to the list of failed pipelines
+//				failedPipelines = impl.handleFailedDeploymentAppChange(pipeline, failedPipelines,
+//					"failed to register app on ACD with error: "+err.Error())
+//
+//				continue
+//			}
+//			err = impl.deleteHelmApp(ctx, pipeline)
+//		}
+//
+//		if err != nil {
+//			impl.logger.Errorw("error deleting app on "+pipeline.DeploymentAppType,
+//				"deployment app name", deploymentAppName,
+//				"err", err)
+//
+//			// deletion failed, append to the list of failed pipelines
+//			failedPipelines = impl.handleFailedDeploymentAppChange(pipeline, failedPipelines,
+//				"error deleting app with error: "+err.Error())
+//
+//			continue
+//		}
+//
+//		// deletion successful, append to the list of successful pipelines
+//		successfulPipelines = impl.appendToDeploymentChangeStatusList(
+//			successfulPipelines,
+//			pipeline,
+//			"",
+//			bean.INITIATED)
+//
+//	}
+//	return &bean.DeploymentAppTypeChangeResponse{
+//		SuccessfulPipelines: successfulPipelines,
+//		FailedPipelines:     failedPipelines,
+//	}
+//}
+//
+//func (impl InstalledAppServiceImpl) isInstalledAppInfoValid(installedApps *repository2.InstalledApps,
+//	failedPipelines []*bean.DeploymentChangeStatus) ([]*bean.DeploymentChangeStatus, bool) {
+//
+//}
