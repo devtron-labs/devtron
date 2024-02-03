@@ -1249,14 +1249,7 @@ func (impl InstalledAppServiceImpl) deleteInstalledApps(ctx context.Context, ins
 		}
 
 		// deletion successful, append to the list of successful pipelines
-		successfullyDeletedApps = append(successfullyDeletedApps, &bean.DeploymentChangeStatus{
-			PipelineId: installedApp.Id,
-			AppId:      installedApp.AppId,
-			AppName:    installedApp.App.AppName,
-			EnvId:      installedApp.EnvironmentId,
-			EnvName:    installedApp.Environment.Name,
-			Status:     bean.INITIATED,
-		})
+		successfullyDeletedApps = appendToDeploymentChangeStatusList(successfullyDeletedApps, installedApp, "", bean.INITIATED)
 
 	}
 	return &bean.DeploymentAppTypeChangeResponse{
@@ -1318,17 +1311,150 @@ func (impl InstalledAppServiceImpl) handleNotDeployedAppsIfArgoDeploymentType(in
 func (impl InstalledAppServiceImpl) handleFailedInstalledAppChange(installedApp *repository2.InstalledApps,
 	failedPipelines []*bean.DeploymentChangeStatus, err string) []*bean.DeploymentChangeStatus {
 
-	return append(failedPipelines, &bean.DeploymentChangeStatus{
-		InstalledAppId: installedApp.Id,
-		AppId:          installedApp.AppId,
-		AppName:        installedApp.App.AppName,
-		EnvId:          installedApp.EnvironmentId,
-		EnvName:        installedApp.Environment.Name,
-		Error:          err,
-		Status:         bean.Failed,
-	})
+	return appendToDeploymentChangeStatusList(failedPipelines, installedApp, err, bean.Failed)
 }
 
 func (impl InstalledAppServiceImpl) TriggerAfterMigration(ctx context.Context, request *bean.DeploymentAppTypeChangeRequest) (*bean.DeploymentAppTypeChangeResponse, error) {
+	response := &bean.DeploymentAppTypeChangeResponse{
+		EnvId:                 request.EnvId,
+		DesiredDeploymentType: request.DesiredDeploymentType,
+	}
+	var err error
 
+	installedApps, err := impl.installedAppRepository.GetActiveInstalledAppByEnvIdAndDeploymentType(request.EnvId, request.DesiredDeploymentType,
+		util5.ConvertIntArrayToStringArray(request.ExcludeApps), util5.ConvertIntArrayToStringArray(request.IncludeApps))
+
+	if err != nil {
+		impl.logger.Errorw("Error fetching installed apps",
+			"environmentId", request.EnvId,
+			"desiredDeploymentAppType", request.DesiredDeploymentType,
+			"err", err)
+		return response, err
+	}
+
+	var installedAppIds []int
+	for _, item := range installedApps {
+		installedAppIds = append(installedAppIds, item.Id)
+	}
+
+	if len(installedAppIds) == 0 {
+		return response, nil
+	}
+
+	deleteResponse := impl.fetchDeletedInstalledApp(ctx, installedApps)
+
+	response.SuccessfulPipelines = deleteResponse.SuccessfulPipelines
+	response.FailedPipelines = deleteResponse.FailedPipelines
+
+	successfulInstalledAppIds := make([]int, 0, len(response.SuccessfulPipelines))
+	for _, item := range response.SuccessfulPipelines {
+		successfulInstalledAppIds = append(successfulInstalledAppIds, item.PipelineId)
+	}
+
+	successInstalledApps, err := impl.installedAppRepository.FindInstalledAppByIds(successfulInstalledAppIds)
+	if err != nil {
+		impl.logger.Errorw("failed to fetch installed app details",
+			"ids", successfulInstalledAppIds,
+			"err", err)
+
+		return response, nil
+	}
+	//var chartGroupRequestList []*chartGroup.ChartGroupInstallChartRequest
+	var installedAppVersionDTOList []*appStoreBean.InstallAppVersionDTO
+	for _, installedApp := range successInstalledApps {
+		installedAppVersion, err := impl.installedAppRepository.GetActiveInstalledAppVersionByInstalledAppId(installedApp.Id)
+		if err != nil {
+			impl.logger.Errorw("error in getting installedAppVersion from installedAppId",
+				"installedAppId", installedApp.Id,
+				"err", err)
+			return nil, err
+		}
+		installedAppVersionHistory, err := impl.installedAppRepositoryHistory.GetLatestInstalledAppVersionHistory(installedAppVersion.Id)
+		if err != nil {
+			impl.logger.Errorw("error in getting installedAppVersionHistory from installedAppVersionId",
+				"installedAppVersionId", installedAppVersion.Id,
+				"err", err)
+			return nil, err
+		}
+		installedAppVersionDTOList = append(installedAppVersionDTOList, &appStoreBean.InstallAppVersionDTO{
+			InstalledAppVersionId:        installedAppVersion.Id,
+			InstalledAppVersionHistoryId: installedAppVersionHistory.Id,
+		})
+		//chartGroupRequest := &chartGroup.ChartGroupInstallChartRequest{
+		//	AppName:            installedApp.App.AppName,
+		//	EnvironmentId:      installedApp.EnvironmentId,
+		//	AppStoreVersion:    installedAppVersion.AppStoreApplicationVersionId,
+		//	ValuesOverrideYaml: installedAppVersion.ValuesYaml,
+		//	ReferenceValueId:   installedAppVersion.ReferenceValueId,
+		//	ReferenceValueKind: installedAppVersion.ReferenceValueKind,
+		//}
+		//chartGroupRequestList = append(chartGroupRequestList, chartGroupRequest)
+	}
+
+	//for _, chartGroupInstall := range chartGroupRequestList {
+	//	installAppVersionDTO, err := impl.requestBuilderForBulkDeployment(chartGroupInstall, 0, request.UserId)
+	//	if err != nil {
+	//		impl.logger.Errorw("DeployBulk, error in request builder", "err", err)
+	//		return nil, err
+	//	}
+	//	installedAppVersionDTOList = append(installedAppVersionDTOList, installAppVersionDTO)
+	//}
+
+	impl.triggerDeploymentEvent(installedAppVersionDTOList)
+
+	return response, nil
+}
+
+func (impl InstalledAppServiceImpl) fetchDeletedInstalledApp(ctx context.Context,
+	installedApps []*repository2.InstalledApps) *bean.DeploymentAppTypeChangeResponse {
+
+	successfulInstalledApps := make([]*bean.DeploymentChangeStatus, 0)
+	failedInstalledApps := make([]*bean.DeploymentChangeStatus, 0)
+
+	for _, installedApp := range installedApps {
+
+		deploymentAppName := fmt.Sprintf("%s-%s", installedApp.App.AppName, installedApp.Environment.Name)
+		var err error
+		if installedApp.DeploymentAppType == bean.ArgoCd {
+			appIdentifier := &client.AppIdentifier{
+				ClusterId:   installedApp.Environment.ClusterId,
+				ReleaseName: deploymentAppName,
+				Namespace:   installedApp.Environment.Namespace,
+			}
+			_, err = impl.helmAppService.GetApplicationDetail(ctx, appIdentifier)
+		} else {
+			req := &application.ApplicationQuery{
+				Name: &deploymentAppName,
+			}
+			_, err = impl.acdClient.Get(ctx, req)
+		}
+		if err != nil {
+			impl.logger.Errorw("error in getting application detail", "err", err, "deploymentAppName", deploymentAppName)
+		}
+
+		if err != nil && util5.CheckAppReleaseNotExist(err) {
+			successfulInstalledApps = appendToDeploymentChangeStatusList(successfulInstalledApps, installedApp, "", bean.Success)
+		} else {
+			failedInstalledApps = appendToDeploymentChangeStatusList(failedInstalledApps, installedApp, appStoreBean.APP_NOT_DELETED_YET_ERROR, bean.NOT_YET_DELETED)
+		}
+	}
+
+	return &bean.DeploymentAppTypeChangeResponse{
+		SuccessfulPipelines: successfulInstalledApps,
+		FailedPipelines:     failedInstalledApps,
+	}
+}
+
+func appendToDeploymentChangeStatusList(installedApps []*bean.DeploymentChangeStatus,
+	installedApp *repository2.InstalledApps, error string, status bean.Status) []*bean.DeploymentChangeStatus {
+
+	return append(installedApps, &bean.DeploymentChangeStatus{
+		PipelineId: installedApp.Id,
+		AppId:      installedApp.AppId,
+		AppName:    installedApp.App.AppName,
+		EnvId:      installedApp.EnvironmentId,
+		EnvName:    installedApp.Environment.Name,
+		Error:      error,
+		Status:     status,
+	})
 }

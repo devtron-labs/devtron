@@ -373,4 +373,5 @@ const (
 	FAILED_TO_REGISTER_IN_ACD_ERROR             = "failed to register app on ACD with error: "
 	FAILED_TO_DELETE_APP_PREFIX_ERROR           = "error deleting app with error: "
 	COULD_NOT_FETCH_APP_NAME_AND_ENV_NAME_ERR   = "could not fetch app name or environment name"
+	APP_NOT_DELETED_YET_ERROR                   = "App Not Yet Deleted."
 )

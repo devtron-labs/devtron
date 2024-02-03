@@ -77,6 +77,7 @@ type InstalledAppRepository interface {
 
 	GetActiveInstalledAppByEnvIdAndDeploymentType(envId int, deploymentType string, excludeAppIds []string, includeAppIds []string) ([]*InstalledApps, error)
 	UpdateDeploymentAppTypeInInstalledApp(deploymentAppType string, installedAppIdIncludes []int, userId int32) error
+	FindInstalledAppByIds(ids []int) ([]*InstalledApps, error)
 }
 
 type InstalledAppRepositoryImpl struct {
@@ -892,4 +893,20 @@ func (impl InstalledAppRepositoryImpl) UpdateDeploymentAppTypeInInstalledApp(dep
 	_, err := impl.dbConnection.Query(installedApp, query, deploymentAppType, userId, time.Now(), pg.In(installedAppIdIncludes))
 
 	return err
+}
+
+func (impl InstalledAppRepositoryImpl) FindInstalledAppByIds(ids []int) ([]*InstalledApps, error) {
+	var installedApps []*InstalledApps
+	err := impl.dbConnection.Model(&installedApps).
+		Column("installed_apps.*", "App", "Environment", "Environment.Cluster").
+		Join("inner join app a on installed_apps.app_id = a.id").
+		Join("inner join environment e on installed_apps.environment_id = e.id").
+		Join("inner join cluster c on c.id = e.cluster_id").
+		Where("installed_apps.id in (?)", pg.In(ids)).
+		Where("installed_apps.deleted = false").
+		Select()
+	if err != nil {
+		impl.Logger.Errorw("error on fetching pipelines", "ids", ids)
+	}
+	return installedApps, err
 }
