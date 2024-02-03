@@ -402,6 +402,7 @@ func (impl *InfraConfigServiceImpl) ApplyProfileToIdentifiers(userId int32, appl
 	for identifierId, _ := range identifierIdNameMap {
 		identifierIds = append(identifierIds, identifierId)
 	}
+	applyIdentifiersRequest.IdentifierIds = identifierIds
 
 	// fetch default profile
 	defaultProfile, err := impl.infraProfileRepo.GetProfileByName(DEFAULT_PROFILE_NAME)

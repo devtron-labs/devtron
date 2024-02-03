@@ -290,7 +290,7 @@ func (handler *InfraConfigRestHandlerImpl) GetIdentifierList(w http.ResponseWrit
 		return
 	}
 	sizeStr := queryParams.Get("size")
-	size := 100
+	size := 20
 	if sizeStr != "" {
 		size, err = strconv.Atoi(sizeStr)
 		if err != nil || size < 0 {
