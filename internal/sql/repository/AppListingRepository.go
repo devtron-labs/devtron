@@ -27,7 +27,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/middleware"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"go.opentelemetry.io/otel"
-	"strconv"
 	"strings"
 	"time"
 
@@ -38,7 +37,6 @@ import (
 )
 
 type AppListingRepository interface {
-	FetchAppsByEnvironment(appListingFilter helper.AppListingFilter) ([]*bean.AppEnvironmentContainer, error)
 	FetchJobs(appIds []int, statuses []string, environmentIds []int, sortOrder string) ([]*bean.JobListingContainer, error)
 	FetchOverviewCiPipelines(jobId int) ([]*bean.JobListingContainer, error)
 	FetchJobsLastSucceededOn(ciPipelineIDs []int) ([]*bean.CiPipelineLastSucceededTime, error)
@@ -47,7 +45,7 @@ type AppListingRepository interface {
 	FetchAppTriggerView(appId int) ([]bean.TriggerView, error)
 	FetchAppStageStatus(appId int, appType int) ([]bean.AppStageStatus, error)
 
-	//Not in used
+	// Not in used
 	PrometheusApiByEnvId(id int) (*string, error)
 
 	FetchOtherEnvironment(appId int) ([]*bean.Environment, error)
@@ -193,81 +191,6 @@ func getRequiredAppIdsInSequence(appIds []int) []int {
 	return resIDs
 }
 
-func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter helper.AppListingFilter) ([]*bean.AppEnvironmentContainer, error) {
-	impl.Logger.Debug("reached at FetchAppsByEnvironment:")
-	var appEnvArr []*bean.AppEnvironmentContainer
-
-	query := impl.appListingRepositoryQueryBuilder.BuildAppListingQueryLastDeploymentTime()
-	impl.Logger.Debugw("basic app detail query: ", query)
-	var lastDeployedTimeDTO []*bean.AppEnvironmentContainer
-	lastDeployedTimeMap := map[int]*bean.AppEnvironmentContainer{}
-	start := time.Now()
-	_, err := impl.dbConnection.Query(&lastDeployedTimeDTO, query)
-	middleware.AppListingDuration.WithLabelValues("buildAppListingQueryLastDeploymentTime", "devtron").Observe(time.Since(start).Seconds())
-	if err != nil {
-		impl.Logger.Error(err)
-		return appEnvArr, err
-	}
-	for _, item := range lastDeployedTimeDTO {
-		if _, ok := lastDeployedTimeMap[item.PipelineId]; ok {
-			continue
-		}
-		lastDeployedTimeMap[item.PipelineId] = &bean.AppEnvironmentContainer{
-			LastDeployedTime: item.LastDeployedTime,
-			DataSource:       item.DataSource,
-			MaterialInfoJson: item.MaterialInfoJson,
-			CiArtifactId:     item.CiArtifactId,
-		}
-	}
-
-	var appEnvContainer []*bean.AppEnvironmentContainer
-	appsEnvquery := impl.appListingRepositoryQueryBuilder.BuildAppListingQuery(appListingFilter)
-	impl.Logger.Debugw("basic app detail query: ", appsEnvquery)
-	start = time.Now()
-	_, appsErr := impl.dbConnection.Query(&appEnvContainer, appsEnvquery)
-	middleware.AppListingDuration.WithLabelValues("buildAppListingQuery", "devtron").Observe(time.Since(start).Seconds())
-	if appsErr != nil {
-		impl.Logger.Error(appsErr)
-		return appEnvContainer, appsErr
-	}
-	latestDeploymentStatusMap := map[string]*bean.AppEnvironmentContainer{}
-	for _, item := range appEnvContainer {
-		if item.EnvironmentId > 0 && item.PipelineId > 0 && item.Active == false {
-			// skip adding apps which have linked with cd pipeline and that environment has marked as deleted.
-			continue
-		}
-		// include only apps which are not linked with any cd pipeline + those linked with cd pipeline and env has active.
-		key := strconv.Itoa(item.AppId) + "_" + strconv.Itoa(item.EnvironmentId)
-		if _, ok := latestDeploymentStatusMap[key]; ok {
-			continue
-		}
-
-		if lastDeployedTime, ok := lastDeployedTimeMap[item.PipelineId]; ok {
-			item.LastDeployedTime = lastDeployedTime.LastDeployedTime
-			item.DataSource = lastDeployedTime.DataSource
-			item.MaterialInfoJson = lastDeployedTime.MaterialInfoJson
-			item.CiArtifactId = lastDeployedTime.CiArtifactId
-		}
-
-		if len(item.DataSource) > 0 {
-			mInfo, err := parseMaterialInfo(item.MaterialInfoJson, item.DataSource)
-			if err == nil && len(mInfo) > 0 {
-				item.MaterialInfo = mInfo
-			} else {
-				item.MaterialInfo = []byte("[]")
-			}
-			item.MaterialInfoJson = ""
-		} else {
-			item.MaterialInfo = []byte("[]")
-			item.MaterialInfoJson = ""
-		}
-		appEnvArr = append(appEnvArr, item)
-		latestDeploymentStatusMap[key] = item
-	}
-
-	return appEnvArr, nil
-}
-
 func (impl AppListingRepositoryImpl) FetchAppsByEnvironmentV2(appListingFilter helper.AppListingFilter) ([]*bean.AppEnvironmentContainer, int, error) {
 	impl.Logger.Debugw("reached at FetchAppsByEnvironment ", "appListingFilter", appListingFilter)
 	var appEnvArr []*bean.AppEnvironmentContainer
@@ -306,7 +229,7 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironmentV2(appListingFilter h
 
 	} else {
 
-		//to get all the appIds in appEnvs allowed for user and filtered by the appListing filter and sorted by name
+		// to get all the appIds in appEnvs allowed for user and filtered by the appListing filter and sorted by name
 		appIdCountDtos := make([]*bean.AppEnvironmentContainer, 0)
 		appIdCountQuery := impl.appListingRepositoryQueryBuilder.GetAppIdsQueryWithPaginationForAppNameSearch(appListingFilter)
 		impl.Logger.Debug("GetAppIdsQueryWithPaginationForAppNameSearch query ", appIdCountQuery)
@@ -327,7 +250,7 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironmentV2(appListingFilter h
 			uniqueAppIds[i] = obj.AppId
 		}
 		appListingFilter.AppIds = uniqueAppIds
-		//set appids required for this page in the filter and get the appEnv containers of these apps
+		// set appids required for this page in the filter and get the appEnv containers of these apps
 		appListingFilter.AppIds = uniqueAppIds
 		appsEnvquery := impl.appListingRepositoryQueryBuilder.GetQueryForAppEnvContainerss(appListingFilter)
 		impl.Logger.Debug("GetQueryForAppEnvContainerss query: ", appsEnvquery)
@@ -341,8 +264,8 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironmentV2(appListingFilter h
 
 	}
 
-	//filter out unique pipelineIds from the above result and get the deployment times for them
-	//some items don't have pipelineId if no pipeline is configured for the app in the appEnv container
+	// filter out unique pipelineIds from the above result and get the deployment times for them
+	// some items don't have pipelineId if no pipeline is configured for the app in the appEnv container
 	pipelineIdsSet := make(map[int]bool)
 	pipelineIds := make([]int, 0)
 	for _, item := range appEnvContainer {
@@ -353,7 +276,7 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironmentV2(appListingFilter h
 		}
 	}
 
-	//if any pipeline found get the latest deployment time
+	// if any pipeline found get the latest deployment time
 	if len(pipelineIds) > 0 {
 		query := impl.appListingRepositoryQueryBuilder.BuildAppListingQueryLastDeploymentTimeV2(pipelineIds)
 		impl.Logger.Debugw("basic app detail query: ", query)
@@ -366,7 +289,7 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironmentV2(appListingFilter h
 		}
 	}
 
-	//get the last deployment time for all the items
+	// get the last deployment time for all the items
 	for _, item := range lastDeployedTimeDTO {
 		if _, ok := lastDeployedTimeMap[item.PipelineId]; ok {
 			continue
@@ -375,7 +298,7 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironmentV2(appListingFilter h
 
 	}
 
-	//set the time for corresponding appEnv container
+	// set the time for corresponding appEnv container
 	for _, item := range appEnvContainer {
 		if lastDeployedTime, ok := lastDeployedTimeMap[item.PipelineId]; ok {
 			item.LastDeployedTime = lastDeployedTime
@@ -483,7 +406,7 @@ func (impl AppListingRepositoryImpl) FetchAppDetail(ctx context.Context, appId i
 	var appDetailContainer bean.AppDetailContainer
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "DeploymentDetailsByAppIdAndEnvId")
 	defer span.End()
-	//Fetch deployment detail of cd pipeline latest triggered within env of any App.
+	// Fetch deployment detail of cd pipeline latest triggered within env of any App.
 	deploymentDetail, err := impl.deploymentDetailsByAppIdAndEnvId(newCtx, appId, envId)
 	if err != nil {
 		impl.Logger.Warn("unable to fetch deployment detail for app")
@@ -511,7 +434,7 @@ func (impl AppListingRepositoryImpl) PrometheusApiByEnvId(id int) (*string, erro
 	query := "SELECT env.prometheus_endpoint from environment env" +
 		" WHERE env.id = ? AND env.active = TRUE"
 	impl.Logger.Debugw("query", query)
-	//environments := []string{"QA"}
+	// environments := []string{"QA"}
 	_, err := impl.dbConnection.Query(&prometheusEndpoint, query, id)
 	if err != nil {
 		impl.Logger.Error("Exception caught:", err)
