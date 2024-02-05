@@ -1224,15 +1224,15 @@ func (impl K8sServiceImpl) GetPodLogs(ctx context.Context, restConfig *rest.Conf
 		Timestamps: true,
 		Previous:   isPrevContainerLogsEnabled,
 	}
+	startTime := metav1.Unix(0, 0)
 	if TailLines > 0 {
 		podLogOptions.TailLines = &TailLines
 	}
 	if SinceSeconds > 0 {
 		podLogOptions.SinceSeconds = &SinceSeconds
 	}
-	if sinceTime != nil && SinceSeconds == 0 {
+	if *sinceTime != startTime {
 		podLogOptions.SinceTime = sinceTime
-		podLogOptions.TailLines = &TailLines
 	}
 	podIf := podClient.Pods(namespace)
 	logsRequest := podIf.GetLogs(name, podLogOptions)
