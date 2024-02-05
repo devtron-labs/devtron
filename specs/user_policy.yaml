@@ -198,7 +198,6 @@ paths:
               type: object
               required:
                 - status
-                - userIds
               properties:
                 userIds:
                   type: array
@@ -213,6 +212,9 @@ paths:
                   type: string
                   format: date-time
                   example: "2009-11-10T23:00:00Z"
+                listingRequest:
+                  $ref: '#/components/schemas/FetchListingRequest'
+
       responses:
         '200':
           description: OK
