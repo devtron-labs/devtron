@@ -17,72 +17,23 @@ import (
 	"github.com/xanzy/go-gitlab"
 	"net/http"
 	"regexp"
-	"time"
 )
 
 type InstalledAppGitOpsService interface {
-	// CommitValues will commit git.ChartConfig and returns commitHash
-	CommitValues(chartGitAttr *git.ChartConfig) (commitHash string, commitTime time.Time, err error)
-	// ParseGitRepoErrorResponse will return noTargetFound (if git API returns 404 status)
-	ParseGitRepoErrorResponse(err error) (bool, error)
 	// GitOpsOperations performs git operations specific to helm app deployments
 	GitOpsOperations(manifestResponse *bean.AppStoreManifestResponse, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*bean.AppStoreGitOpsResponse, error)
 	// GenerateManifest returns bean.AppStoreManifestResponse required in GitOps
 	GenerateManifest(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (manifestResponse *bean.AppStoreManifestResponse, err error)
 	// GenerateManifestAndPerformGitOperations is a wrapper function for both GenerateManifest and GitOpsOperations
 	GenerateManifestAndPerformGitOperations(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*bean.AppStoreGitOpsResponse, error)
+	// UpdateAppGitOpsOperations internally uses
+	// GitOpsOperations (If Repo is deleted OR Repo migration is required) OR
+	// git.GitOperationService.CommitValues (If repo exists and Repo migration is not needed)
+	// functions to perform GitOps during upgrade deployments (GitOps based Helm Apps)
+	UpdateAppGitOpsOperations(manifest *bean.AppStoreManifestResponse, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, monoRepoMigrationRequired *bool, commitRequirements bool) (string, error)
 }
 
-func (impl *FullModeDeploymentServiceImpl) CommitValues(chartGitAttr *git.ChartConfig) (commitHash string, commitTime time.Time, err error) {
-	return impl.gitOperationService.CommitValues(chartGitAttr)
-}
-
-func (impl *FullModeDeploymentServiceImpl) ParseGitRepoErrorResponse(err error) (bool, error) {
-	//update values yaml in chart
-	noTargetFound := false
-	if err != nil {
-		if errorResponse, ok := err.(*github.ErrorResponse); ok && errorResponse.Response.StatusCode == http.StatusNotFound {
-			impl.Logger.Errorw("no content found while updating git repo on github, do auto fix", "error", err)
-			noTargetFound = true
-		}
-		if errorResponse, ok := err.(azuredevops.WrappedError); ok && *errorResponse.StatusCode == http.StatusNotFound {
-			impl.Logger.Errorw("no content found while updating git repo on azure, do auto fix", "error", err)
-			noTargetFound = true
-		}
-		if errorResponse, ok := err.(*azuredevops.WrappedError); ok && *errorResponse.StatusCode == http.StatusNotFound {
-			impl.Logger.Errorw("no content found while updating git repo on azure, do auto fix", "error", err)
-			noTargetFound = true
-		}
-		if errorResponse, ok := err.(*gitlab.ErrorResponse); ok && errorResponse.Response.StatusCode == http.StatusNotFound {
-			impl.Logger.Errorw("no content found while updating git repo gitlab, do auto fix", "error", err)
-			noTargetFound = true
-		}
-		if err.Error() == git.BITBUCKET_REPO_NOT_FOUND_ERROR {
-			impl.Logger.Errorw("no content found while updating git repo bitbucket, do auto fix", "error", err)
-			noTargetFound = true
-		}
-	}
-	return noTargetFound, err
-}
-
-func (impl *FullModeDeploymentServiceImpl) GenerateManifestAndPerformGitOperations(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*bean.AppStoreGitOpsResponse, error) {
-	appStoreGitOpsResponse := &bean.AppStoreGitOpsResponse{}
-	manifest, err := impl.GenerateManifest(installAppVersionRequest)
-	if err != nil {
-		impl.Logger.Errorw("error in performing manifest and git operations", "err", err)
-		return nil, err
-	}
-	gitOpsResponse, err := impl.GitOpsOperations(manifest, installAppVersionRequest)
-	if err != nil {
-		impl.Logger.Errorw("error in performing gitops operation", "err", err)
-		return nil, err
-	}
-	installAppVersionRequest.GitHash = gitOpsResponse.GitHash
-	appStoreGitOpsResponse.ChartGitAttribute = gitOpsResponse.ChartGitAttribute
-	return appStoreGitOpsResponse, nil
-}
-
-// GitOpsOperations handles all git operations for Helm App
+// GitOpsOperations handles all git operations for Helm App; and ensures that the return param bean.AppStoreGitOpsResponse is not nil
 func (impl *FullModeDeploymentServiceImpl) GitOpsOperations(manifestResponse *bean.AppStoreManifestResponse, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*bean.AppStoreGitOpsResponse, error) {
 	appStoreGitOpsResponse := &bean.AppStoreGitOpsResponse{}
 	chartGitAttribute, isNew, githash, err := impl.createGitOpsRepoAndPushChart(installAppVersionRequest, manifestResponse.ChartResponse.BuiltChartPath, manifestResponse.RequirementsConfig, manifestResponse.ValuesConfig)
@@ -127,6 +78,96 @@ func (impl *FullModeDeploymentServiceImpl) GenerateManifest(installAppVersionReq
 	manifestResponse.RequirementsConfig = dependencyConfig
 
 	return manifestResponse, nil
+}
+
+func (impl *FullModeDeploymentServiceImpl) GenerateManifestAndPerformGitOperations(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*bean.AppStoreGitOpsResponse, error) {
+	appStoreGitOpsResponse := &bean.AppStoreGitOpsResponse{}
+	manifest, err := impl.GenerateManifest(installAppVersionRequest)
+	if err != nil {
+		impl.Logger.Errorw("error in performing manifest and git operations", "err", err)
+		return nil, err
+	}
+	gitOpsResponse, err := impl.GitOpsOperations(manifest, installAppVersionRequest)
+	if err != nil {
+		impl.Logger.Errorw("error in performing gitops operation", "err", err)
+		return nil, err
+	}
+	installAppVersionRequest.GitHash = gitOpsResponse.GitHash
+	appStoreGitOpsResponse.ChartGitAttribute = gitOpsResponse.ChartGitAttribute
+	return appStoreGitOpsResponse, nil
+}
+
+func (impl *FullModeDeploymentServiceImpl) UpdateAppGitOpsOperations(manifest *bean.AppStoreManifestResponse, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, monoRepoMigrationRequired *bool, commitRequirements bool) (string, error) {
+	var requirementsCommitErr, valuesCommitErr error
+	var gitHash string
+
+	if *monoRepoMigrationRequired {
+		return impl.performGitOpsAutoFix(manifest, installAppVersionRequest)
+	}
+
+	if commitRequirements {
+		// update dependency if chart or chart version is changed
+		_, _, requirementsCommitErr = impl.gitOperationService.CommitValues(manifest.RequirementsConfig)
+		gitHash, _, valuesCommitErr = impl.gitOperationService.CommitValues(manifest.ValuesConfig)
+	} else {
+		// only values are changed in update, so commit values config
+		gitHash, _, valuesCommitErr = impl.gitOperationService.CommitValues(manifest.ValuesConfig)
+	}
+
+	if valuesCommitErr != nil || requirementsCommitErr != nil {
+		noTargetFoundForValues, _ := impl.parseGitRepoErrorResponse(valuesCommitErr)
+		noTargetFoundForRequirements, _ := impl.parseGitRepoErrorResponse(requirementsCommitErr)
+		if noTargetFoundForRequirements || noTargetFoundForValues {
+			//create repo again and try again  -  auto fix
+			*monoRepoMigrationRequired = true // since repo is created again, will use this flag to check if ACD patch operation required
+			return impl.performGitOpsAutoFix(manifest, installAppVersionRequest)
+		}
+		impl.Logger.Errorw("error in performing GitOps for upgrade deployment", "ValuesCommitErr", valuesCommitErr, "RequirementsCommitErr", requirementsCommitErr)
+		return "", fmt.Errorf("error in committing values and requirements to git repository")
+	}
+
+	return gitHash, nil
+}
+
+// performGitOpsAutoFix is used for
+// creating new repo (if not existing) and commit values and requirements in it.
+func (impl *FullModeDeploymentServiceImpl) performGitOpsAutoFix(manifest *bean.AppStoreManifestResponse, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (string, error) {
+	// create new git repo if repo name changed
+	gitOpsResponse, gitOpsRepoErr := impl.GitOpsOperations(manifest, installAppVersionRequest)
+	if gitOpsRepoErr != nil {
+		impl.Logger.Errorw("error in migrating GitOps repo", "err", gitOpsRepoErr)
+		return "", gitOpsRepoErr
+	}
+	return gitOpsResponse.GitHash, nil
+}
+
+// parseGitRepoErrorResponse will return noTargetFound (if git API returns 404 status)
+func (impl *FullModeDeploymentServiceImpl) parseGitRepoErrorResponse(err error) (bool, error) {
+	//update values yaml in chart
+	noTargetFound := false
+	if err != nil {
+		if errorResponse, ok := err.(*github.ErrorResponse); ok && errorResponse.Response.StatusCode == http.StatusNotFound {
+			impl.Logger.Errorw("no content found while updating git repo on github, do auto fix", "error", err)
+			noTargetFound = true
+		}
+		if errorResponse, ok := err.(azuredevops.WrappedError); ok && *errorResponse.StatusCode == http.StatusNotFound {
+			impl.Logger.Errorw("no content found while updating git repo on azure, do auto fix", "error", err)
+			noTargetFound = true
+		}
+		if errorResponse, ok := err.(*azuredevops.WrappedError); ok && *errorResponse.StatusCode == http.StatusNotFound {
+			impl.Logger.Errorw("no content found while updating git repo on azure, do auto fix", "error", err)
+			noTargetFound = true
+		}
+		if errorResponse, ok := err.(*gitlab.ErrorResponse); ok && errorResponse.Response.StatusCode == http.StatusNotFound {
+			impl.Logger.Errorw("no content found while updating git repo gitlab, do auto fix", "error", err)
+			noTargetFound = true
+		}
+		if err.Error() == git.BITBUCKET_REPO_NOT_FOUND_ERROR {
+			impl.Logger.Errorw("no content found while updating git repo bitbucket, do auto fix", "error", err)
+			noTargetFound = true
+		}
+	}
+	return noTargetFound, err
 }
 
 // createGitOpsRepoAndPushChart is a wrapper for creating GitOps repo and pushing chart to created repo

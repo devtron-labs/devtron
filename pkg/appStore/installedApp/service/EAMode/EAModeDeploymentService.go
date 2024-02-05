@@ -9,7 +9,6 @@ import (
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/bean"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
-	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"time"
 
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
@@ -344,10 +343,6 @@ func (impl *EAModeDeploymentServiceImpl) UpdateValuesDependencies(installAppVers
 	return errors.New("this is not implemented")
 }
 
-func (impl *EAModeDeploymentServiceImpl) ParseGitRepoErrorResponse(err error) (bool, error) {
-	return false, errors.New("this is not implemented")
-}
-
 func (impl *EAModeDeploymentServiceImpl) GitOpsOperations(manifestResponse *bean.AppStoreManifestResponse, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*bean.AppStoreGitOpsResponse, error) {
 	return nil, errors.New("this is not implemented")
 }
@@ -364,6 +359,6 @@ func (impl *EAModeDeploymentServiceImpl) CheckIfArgoAppExists(acdAppName string)
 	return isFound, errors.New("this is not implemented")
 }
 
-func (impl *EAModeDeploymentServiceImpl) CommitValues(chartGitAttr *git.ChartConfig) (commitHash string, commitTime time.Time, err error) {
-	return commitHash, commitTime, errors.New("this is not implemented")
+func (impl *EAModeDeploymentServiceImpl) UpdateAppGitOpsOperations(manifest *bean.AppStoreManifestResponse, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, monoRepoMigrationRequired *bool, commitRequirements bool) (string, error) {
+	return "", errors.New("this is not implemented")
 }

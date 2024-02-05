@@ -1199,43 +1199,11 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 		argocdAppName := installedApp.App.AppName + "-" + installedApp.Environment.Name
 		installAppVersionRequest.ACDAppName = argocdAppName
 
-		var createRepoErr, requirementsCommitErr, valuesCommitErr error
-		var gitHash string
-		// TODO refactoring: move this logic to AppStoreDeploymentGitService.go
-		if monoRepoMigrationRequired {
-			// create new git repo if repo name changed
-			gitOpsResponse, createRepoErr = impl.fullModeDeploymentService.GitOpsOperations(manifest, installAppVersionRequest)
-			gitHash = gitOpsResponse.GitHash
-
-		} else if isChartChanged || isVersionChanged {
-			// update dependency if chart or chart version is changed
-			_, _, requirementsCommitErr = impl.fullModeDeploymentService.CommitValues(manifest.RequirementsConfig)
-			gitHash, _, valuesCommitErr = impl.fullModeDeploymentService.CommitValues(manifest.ValuesConfig)
-
-		} else {
-			// only values are changed in update, so commit values config
-			gitHash, _, valuesCommitErr = impl.fullModeDeploymentService.CommitValues(manifest.ValuesConfig)
-		}
-
-		if valuesCommitErr != nil || requirementsCommitErr != nil {
-
-			noTargetFoundForValues, _ := impl.fullModeDeploymentService.ParseGitRepoErrorResponse(valuesCommitErr)
-			noTargetFoundForRequirements, _ := impl.fullModeDeploymentService.ParseGitRepoErrorResponse(requirementsCommitErr)
-
-			if noTargetFoundForRequirements || noTargetFoundForValues {
-				//create repo again and try again  -  auto fix
-				monoRepoMigrationRequired = true // since repo is created again, will use this flag to check if ACD patch operation required
-				gitOpsResponse, createRepoErr = impl.fullModeDeploymentService.GitOpsOperations(manifest, installAppVersionRequest)
-				gitHash = gitOpsResponse.GitHash
-			}
-
-		}
-
-		if createRepoErr != nil || requirementsCommitErr != nil || valuesCommitErr != nil {
-			impl.logger.Errorw("error in doing gitops operation", "err", err)
-			_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED, fmt.Sprintf("Git commit failed - %v", err), time.Now(), tx)
-			// TODO refactoring: return proper err object
-			return nil, err
+		gitHash, gitOpsErr := impl.fullModeDeploymentService.UpdateAppGitOpsOperations(manifest, installAppVersionRequest, &monoRepoMigrationRequired, isChartChanged || isVersionChanged)
+		if gitOpsErr != nil {
+			impl.logger.Errorw("error in performing GitOps operation", "err", gitOpsErr)
+			_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED, fmt.Sprintf("Git commit failed - %v", gitOpsErr), time.Now(), tx)
+			return nil, gitOpsErr
 		}
 
 		installAppVersionRequest.GitHash = gitHash
