@@ -1,7 +1,7 @@
 package cluster
 
 import (
-	util2 "github.com/devtron-labs/common-lib/utils/k8s"
+	util2 "github.com/devtron-labs/common-lib-private/utils/k8s"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/k8s/informer"
@@ -14,7 +14,7 @@ func TestClusterServiceImpl_CheckIfConfigIsValid(t *testing.T) {
 	type fields struct {
 		clusterRepository  repository.ClusterRepository
 		logger             *zap.SugaredLogger
-		K8sUtil            *util2.K8sServiceImpl
+		K8sUtil            *util2.K8sUtilExtended
 		K8sInformerFactory informer.K8sInformerFactory
 	}
 	type args struct {
@@ -63,8 +63,8 @@ func TestClusterServiceImpl_CheckIfConfigIsValid(t *testing.T) {
 				K8sUtil:            nil,
 				K8sInformerFactory: nil,
 			}
-			if err := impl.CheckIfConfigIsValid(tt.args.cluster); (err != nil) != tt.wantErr {
-				t.Errorf("ClusterServiceImpl.CheckIfConfigIsValid() error = %v, wantErr %v", err, tt.wantErr)
+			if err := impl.CheckIfConfigIsValidAndGetServerVersion(tt.args.cluster); (err != nil) != tt.wantErr {
+				t.Errorf("ClusterServiceImpl.CheckIfConfigIsValidAndGetServerVersion() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

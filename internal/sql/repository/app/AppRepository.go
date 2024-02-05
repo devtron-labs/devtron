@@ -51,6 +51,7 @@ type AppRepository interface {
 	FindJobByDisplayName(appName string) (pipelineGroup *App, err error)
 	FindActiveListByName(appName string) ([]*App, error)
 	FindById(id int) (pipelineGroup *App, err error)
+	FindAppAndTeamByAppId(id int) (*App, error)
 	FindActiveById(id int) (pipelineGroup *App, err error)
 	FindAppsByTeamId(teamId int) ([]*App, error)
 	FindAppsByTeamIds(teamId []int, appType string) ([]App, error)
@@ -76,6 +77,7 @@ type AppRepository interface {
 	FetchAppIdsWithFilter(jobListingFilter helper.AppListingFilter) ([]int, error)
 	FindAllActiveAppsWithTeamByAppNameMatch(appNameMatch string, appType helper.AppType) ([]*App, error)
 	FindAppAndProjectByIdsIn(ids []int) ([]*App, error)
+	FindAppAndProjectByIdsOrderByTeam(ids []int) ([]*App, error)
 	FetchAppIdsByDisplayNamesForJobs(names []string) (map[int]string, []int, error)
 }
 
@@ -176,6 +178,18 @@ func (repo AppRepositoryImpl) FindById(id int) (*App, error) {
 	pipelineGroup := &App{}
 	err := repo.dbConnection.Model(pipelineGroup).Where("id = ?", id).
 		Where("active = ?", true).Select()
+	return pipelineGroup, err
+}
+
+func (repo AppRepositoryImpl) FindAppAndTeamByAppId(id int) (*App, error) {
+	pipelineGroup := &App{}
+	err := repo.dbConnection.Model(pipelineGroup).
+		Column("Team").
+		Where("app.id = ?", id).
+		Where("app.active = ?", true).
+		Where("team.id = app.team_id").
+		Select()
+
 	return pipelineGroup, err
 }
 
@@ -463,4 +477,18 @@ func (repo AppRepositoryImpl) FetchAppIdsByDisplayNamesForJobs(names []string) (
 		jobIds = append(jobIds, id.Id)
 	}
 	return appResp, jobIds, err
+}
+
+func (repo AppRepositoryImpl) FindAppAndProjectByIdsOrderByTeam(ids []int) ([]*App, error) {
+	var apps []*App
+	if len(ids) == 0 {
+		return apps, nil
+	}
+	err := repo.dbConnection.Model(&apps).
+		Column("app.*", "Team").
+		Where("app.active = ?", true).
+		Where("app.id in (?)", pg.In(ids)).
+		Order("app.team_id").
+		Select()
+	return apps, err
 }

@@ -42,8 +42,8 @@ type RoleGroupRepository interface {
 	GetRoleGroupListByNames(groupNames []string) ([]*RoleGroup, error)
 	GetRoleGroupRoleMappingByRoleGroupIds(roleGroupIds []int32) ([]*RoleModel, error)
 	GetRolesByGroupCasbinName(groupName string) ([]*RoleModel, error)
-	GetRolesByGroupCasbinNames(groupCasbinNames []string) ([]*RoleModel, error)
 	GetRolesByGroupNames(groupNames []string) ([]*RoleModel, error)
+	GetRolesByGroupCasbinNames(groupCasbinNames []string) ([]*RoleModel, error)
 	GetRolesByGroupNamesAndEntity(groupNames []string, entity string) ([]*RoleModel, error)
 	UpdateRoleGroupIdForRoleGroupMappings(roleId int, newRoleId int) (*RoleGroupRoleMapping, error)
 }

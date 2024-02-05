@@ -82,6 +82,8 @@ type ConfigMapService interface {
 	ConfigSecretEnvironmentDelete(createJobEnvOverrideRequest *bean.CreateJobEnvOverridePayload) (*bean.CreateJobEnvOverridePayload, error)
 	ConfigSecretEnvironmentGet(appId int) ([]bean.JobEnvOverrideResponse, error)
 	ConfigSecretEnvironmentClone(appId int, cloneAppId int, userId int32) ([]chartConfig.ConfigMapEnvModel, error)
+	EncryptCSData(item *bean.ConfigData) error
+	ValidateConfigData(configData *bean.ConfigData) (bool, error)
 }
 
 type ConfigMapServiceImpl struct {
@@ -130,12 +132,19 @@ func (impl ConfigMapServiceImpl) CMGlobalAddUpdate(configMapRequest *bean.Config
 		return nil, fmt.Errorf("invalid request multiple config found for add or update")
 	}
 	configData := configMapRequest.ConfigData[0]
-	valid, err := impl.validateConfigData(configData)
+	valid, err := impl.ValidateConfigData(configData)
 	if err != nil && !valid {
 		impl.logger.Errorw("error in validating", "error", err)
 		return configMapRequest, err
 	}
 	var model *chartConfig.ConfigMapAppModel
+	requestId, err := impl.validateConfigRequest(configMapRequest.AppId)
+	if err != nil {
+		return configMapRequest, err
+	}
+	if requestId > 0 {
+		configMapRequest.Id = requestId
+	}
 	if configMapRequest.Id > 0 {
 		model, err = impl.configMapRepository.GetByIdAppLevel(configMapRequest.Id)
 		if err != nil {
@@ -221,6 +230,23 @@ func (impl ConfigMapServiceImpl) CMGlobalAddUpdate(configMapRequest *bean.Config
 	return configMapRequest, nil
 }
 
+func (impl ConfigMapServiceImpl) validateConfigRequest(appId int) (int, error) {
+	config, err := impl.configMapRepository.GetByAppIdAppLevel(appId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error while fetching from db", "error", err)
+		return 0, err
+	}
+	return config.Id, nil
+}
+func (impl ConfigMapServiceImpl) validateConfigRequestEnvLevel(appId int, envId int) (int, error) {
+	config, err := impl.configMapRepository.GetByAppIdAndEnvIdEnvLevel(appId, envId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error while fetching from db", "error", err)
+		return 0, err
+	}
+	return config.Id, nil
+}
+
 func (impl ConfigMapServiceImpl) CMGlobalFetch(appId int) (*bean.ConfigDataRequest, error) {
 	configMapGlobal, err := impl.configMapRepository.GetByAppIdAppLevel(appId)
 	if err != nil && pg.ErrNoRows != err {
@@ -262,10 +288,17 @@ func (impl ConfigMapServiceImpl) CMEnvironmentAddUpdate(configMapRequest *bean.C
 		return nil, fmt.Errorf("invalid request multiple config found for add or update")
 	}
 	configData := configMapRequest.ConfigData[0]
-	valid, err := impl.validateConfigData(configData)
+	valid, err := impl.ValidateConfigData(configData)
 	if err != nil && !valid {
 		impl.logger.Errorw("error in validating", "error", err)
 		return configMapRequest, err
+	}
+	requestId, err := impl.validateConfigRequestEnvLevel(configMapRequest.AppId, configMapRequest.EnvironmentId)
+	if err != nil {
+		return configMapRequest, err
+	}
+	if requestId > 0 {
+		configMapRequest.Id = requestId
 	}
 	var model *chartConfig.ConfigMapEnvModel
 	if configMapRequest.Id > 0 {
@@ -505,7 +538,7 @@ func (impl ConfigMapServiceImpl) CSGlobalAddUpdate(configMapRequest *bean.Config
 		return nil, fmt.Errorf("invalid request multiple config found for add or update")
 	}
 	configData := configMapRequest.ConfigData[0]
-	valid, err := impl.validateConfigData(configData)
+	valid, err := impl.ValidateConfigData(configData)
 	if err != nil && !valid {
 		impl.logger.Errorw("error in validating", "error", err)
 		return configMapRequest, err
@@ -515,6 +548,13 @@ func (impl ConfigMapServiceImpl) CSGlobalAddUpdate(configMapRequest *bean.Config
 	if err != nil && !valid {
 		impl.logger.Errorw("error in validating", "error", err)
 		return configMapRequest, err
+	}
+	requestId, err := impl.validateConfigRequest(configMapRequest.AppId)
+	if err != nil {
+		return configMapRequest, err
+	}
+	if requestId > 0 {
+		configMapRequest.Id = requestId
 	}
 	var model *chartConfig.ConfigMapAppModel
 	if configMapRequest.Id > 0 {
@@ -642,49 +682,10 @@ func (impl ConfigMapServiceImpl) CSGlobalFetch(appId int) (*bean.ConfigDataReque
 	//removing actual values
 	var configs []*bean.ConfigData
 	for _, item := range configDataRequest.ConfigData {
-		resultMap := make(map[string]string)
-		resultMapFinal := make(map[string]string)
-
-		if item.Data != nil {
-			err = json.Unmarshal(item.Data, &resultMap)
-			if err != nil {
-				impl.logger.Warnw("unmarshal failed: ", "error", err)
-				configs = append(configs, item)
-				continue
-			}
-			for k := range resultMap {
-				resultMapFinal[k] = ""
-			}
-			resultByte, err := json.Marshal(resultMapFinal)
-			if err != nil {
-				impl.logger.Errorw("error while marshaling request ", "err", err)
-				return nil, err
-			}
-			item.Data = resultByte
+		err = impl.EncryptCSData(item)
+		if err != nil {
+			return nil, err
 		}
-
-		var externalSecret []bean.ExternalSecret
-		if item.ExternalSecret != nil && len(item.ExternalSecret) > 0 {
-			for _, es := range item.ExternalSecret {
-				externalSecret = append(externalSecret, bean.ExternalSecret{Key: es.Key, Name: es.Name, Property: es.Property, IsBinary: es.IsBinary})
-			}
-		}
-		item.ExternalSecret = externalSecret
-
-		var esoData []bean.ESOData
-		if len(item.ESOSecretData.EsoData) > 0 {
-			for _, data := range item.ESOSecretData.EsoData {
-				esoData = append(esoData, bean.ESOData{Key: data.Key, SecretKey: data.SecretKey, Property: data.Property})
-			}
-		}
-
-		esoSecretData := bean.ESOSecretData{
-			SecretStore:     item.ESOSecretData.SecretStore,
-			SecretStoreRef:  item.ESOSecretData.SecretStoreRef,
-			EsoData:         esoData,
-			RefreshInterval: item.ESOSecretData.RefreshInterval,
-		}
-		item.ESOSecretData = esoSecretData
 		configs = append(configs, item)
 	}
 	configDataRequest.ConfigData = configs
@@ -699,13 +700,60 @@ func (impl ConfigMapServiceImpl) CSGlobalFetch(appId int) (*bean.ConfigDataReque
 	return configDataRequest, nil
 }
 
+func (impl ConfigMapServiceImpl) EncryptCSData(item *bean.ConfigData) error {
+	//removing actual values
+	resultMap := make(map[string]string)
+	resultMapFinal := make(map[string]string)
+
+	if item.Data != nil {
+		err := json.Unmarshal(item.Data, &resultMap)
+		if err != nil {
+			impl.logger.Warnw("unmarshal failed: ", "error", err)
+			return nil
+		}
+		for k := range resultMap {
+			resultMapFinal[k] = ""
+		}
+		resultByte, err := json.Marshal(resultMapFinal)
+		if err != nil {
+			impl.logger.Errorw("error while marshaling request ", "err", err)
+			return err
+		}
+		item.Data = resultByte
+	}
+
+	var externalSecret []bean.ExternalSecret
+	if item.ExternalSecret != nil && len(item.ExternalSecret) > 0 {
+		for _, es := range item.ExternalSecret {
+			externalSecret = append(externalSecret, bean.ExternalSecret{Key: es.Key, Name: es.Name, Property: es.Property, IsBinary: es.IsBinary})
+		}
+	}
+	item.ExternalSecret = externalSecret
+
+	var esoData []bean.ESOData
+	if len(item.ESOSecretData.EsoData) > 0 {
+		for _, data := range item.ESOSecretData.EsoData {
+			esoData = append(esoData, bean.ESOData{Key: data.Key, SecretKey: data.SecretKey, Property: data.Property})
+		}
+	}
+
+	esoSecretData := bean.ESOSecretData{
+		SecretStore:     item.ESOSecretData.SecretStore,
+		SecretStoreRef:  item.ESOSecretData.SecretStoreRef,
+		EsoData:         esoData,
+		RefreshInterval: item.ESOSecretData.RefreshInterval,
+	}
+	item.ESOSecretData = esoSecretData
+	return nil
+}
+
 func (impl ConfigMapServiceImpl) CSEnvironmentAddUpdate(configMapRequest *bean.ConfigDataRequest) (*bean.ConfigDataRequest, error) {
 	if len(configMapRequest.ConfigData) != 1 {
 		return nil, fmt.Errorf("invalid request multiple config found for add or update")
 	}
 
 	configData := configMapRequest.ConfigData[0]
-	valid, err := impl.validateConfigData(configData)
+	valid, err := impl.ValidateConfigData(configData)
 	if err != nil && !valid {
 		impl.logger.Errorw("error in validating", "error", err)
 		return configMapRequest, err
@@ -715,6 +763,13 @@ func (impl ConfigMapServiceImpl) CSEnvironmentAddUpdate(configMapRequest *bean.C
 	if err != nil && !valid {
 		impl.logger.Errorw("error in validating", "error", err)
 		return configMapRequest, err
+	}
+	requestId, err := impl.validateConfigRequestEnvLevel(configMapRequest.AppId, configMapRequest.EnvironmentId)
+	if err != nil {
+		return configMapRequest, err
+	}
+	if requestId > 0 {
+		configMapRequest.Id = requestId
 	}
 	var model *chartConfig.ConfigMapEnvModel
 	if configMapRequest.Id > 0 {
@@ -914,6 +969,7 @@ func (impl ConfigMapServiceImpl) CSEnvironmentFetch(appId int, envId int) (*bean
 			item.Global = true
 			item.Overridden = true
 			item.DefaultESOSecretData = kv1ESOSecret[item.Name]
+			item.Overridden = true
 			configDataRequest.ConfigData = append(configDataRequest.ConfigData, item)
 		} else {
 			configDataRequest.ConfigData = append(configDataRequest.ConfigData, item)
@@ -1528,7 +1584,7 @@ func (impl ConfigMapServiceImpl) CSEnvironmentFetchForEdit(name string, id int, 
 	return configDataRequest, nil
 }
 
-func (impl ConfigMapServiceImpl) validateConfigData(configData *bean.ConfigData) (bool, error) {
+func (impl ConfigMapServiceImpl) ValidateConfigData(configData *bean.ConfigData) (bool, error) {
 	dataMap := make(map[string]string)
 	if configData.Data != nil {
 		err := json.Unmarshal(configData.Data, &dataMap)

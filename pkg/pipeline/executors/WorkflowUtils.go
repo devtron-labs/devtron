@@ -7,6 +7,7 @@ import (
 	v1alpha12 "github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned/typed/workflow/v1alpha1"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/util"
@@ -14,6 +15,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 	"strconv"
+	"strings"
 )
 
 var ArgoWorkflowOwnerRef = v1.OwnerReference{APIVersion: "argoproj.io/v1alpha1", Kind: "Workflow", Name: "{{workflow.name}}", UID: "{{workflow.uid}}", BlockOwnerDeletion: &[]bool{true}[0]}
@@ -223,6 +225,16 @@ func AddTemplatesForGlobalSecretsInWorkflowTemplate(globalCmCsConfigs []*bean.Gl
 	return nil
 }
 
+func IsShallowClonePossible(ciMaterial *pipelineConfig.CiPipelineMaterial, gitProviders, cloningMode string) bool {
+	gitProvidersList := strings.Split(gitProviders, ",")
+	for _, gitProvider := range gitProvidersList {
+		if strings.Contains(strings.ToLower(ciMaterial.GitMaterial.Url), strings.ToLower(gitProvider)) && cloningMode == CloningModeShallow {
+			return true
+		}
+	}
+	return false
+}
+
 func GetClientInstance(config *rest.Config, namespace string) (v1alpha12.WorkflowInterface, error) {
 	clientSet, err := versioned.NewForConfig(config)
 	if err != nil {
@@ -237,6 +249,8 @@ func CheckIfReTriggerRequired(status, message, workflowRunnerStatus string) bool
 		message == POD_DELETED_MESSAGE) && workflowRunnerStatus != WorkflowCancel
 
 }
+
+const CloningModeShallow = "SHALLOW"
 
 const WorkflowCancel = "CANCELLED"
 const POD_DELETED_MESSAGE = "pod deleted"

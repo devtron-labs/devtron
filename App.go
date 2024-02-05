@@ -27,12 +27,14 @@ import (
 	"os"
 	"time"
 
+	"github.com/arl/statsviz"
+	"github.com/casbin/casbin"
+	casbinv2 "github.com/casbin/casbin/v2"
 	"github.com/devtron-labs/devtron/api/util"
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/otel"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 
-	"github.com/casbin/casbin"
 	authMiddleware "github.com/devtron-labs/authenticator/middleware"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/api/router"
@@ -49,6 +51,7 @@ type App struct {
 	Logger        *zap.SugaredLogger
 	SSE           *sse.SSE
 	Enforcer      *casbin.SyncedEnforcer
+	EnforcerV2    *casbinv2.SyncedEnforcer
 	server        *http.Server
 	db            *pg.DB
 	pubsubClient  *pubsub.PubSubClientServiceImpl
@@ -64,6 +67,7 @@ func NewApp(router *router.MuxRouter,
 	Logger *zap.SugaredLogger,
 	sse *sse.SSE,
 	enforcer *casbin.SyncedEnforcer,
+	enforcerV2 *casbinv2.SyncedEnforcer,
 	db *pg.DB,
 	pubsubClient *pubsub.PubSubClientServiceImpl,
 	sessionManager2 *authMiddleware.SessionManager,
@@ -77,6 +81,7 @@ func NewApp(router *router.MuxRouter,
 		Logger:             Logger,
 		SSE:                sse,
 		Enforcer:           enforcer,
+		EnforcerV2:         enforcerV2,
 		db:                 db,
 		pubsubClient:       pubsubClient,
 		serveTls:           false,
@@ -89,6 +94,9 @@ func NewApp(router *router.MuxRouter,
 }
 
 func (app *App) Start() {
+
+	app.checkAndSetupStatsviz()
+
 	port := 8080 //TODO: extract from environment variable
 	app.Logger.Debugw("starting server")
 	app.Logger.Infow("starting server on ", "port", port)
@@ -128,6 +136,22 @@ func (app *App) Start() {
 	if err != nil {
 		app.Logger.Errorw("error in startup", "err", err)
 		os.Exit(2)
+	}
+}
+
+func (app *App) checkAndSetupStatsviz() {
+	statsvizPort, present := os.LookupEnv("STATSVIZ_PORT")
+	if present && len(statsvizPort) > 0 {
+		mux := http.NewServeMux()
+		statsviz.Register(mux)
+		go func() {
+			app.Logger.Infow("statsviz server starting", "port", statsvizPort)
+			err := http.ListenAndServe(fmt.Sprintf(":%s", statsvizPort), mux)
+			if err != nil {
+				app.Logger.Errorw("error occurred while starting statsviz server", "err", err)
+			}
+
+		}()
 	}
 }
 

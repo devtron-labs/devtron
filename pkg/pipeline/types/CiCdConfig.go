@@ -95,9 +95,11 @@ type CiCdConfig struct {
 	UseBlobStorageConfigInCdWorkflow bool                                `env:"USE_BLOB_STORAGE_CONFIG_IN_CD_WORKFLOW" envDefault:"true"`
 	CdWorkflowExecutorType           pipelineConfig.WorkflowExecutorType `env:"CD_WORKFLOW_EXECUTOR_TYPE" envDefault:"AWF"`
 	TerminationGracePeriod           int                                 `env:"TERMINATION_GRACE_PERIOD_SECS" envDefault:"180"`
+	CloningMode                      string                              `env:"CLONING_MODE" envDefault:"SHALLOW"`
+	GitProviders                     string                              `env:"GIT_PROVIDERS" envDefault:"github,gitlab"`
 	MaxCdWorkflowRunnerRetries       int                                 `env:"MAX_CD_WORKFLOW_RUNNER_RETRIES" envDefault:"0"`
 
-	// common in both ciconfig and cd config
+	//common in both ciconfig and cd config
 	Type                                       string
 	Mode                                       string `env:"MODE" envDefault:"DEV"`
 	OrchestratorHost                           string `env:"ORCH_HOST" envDefault:"http://devtroncd-orchestrator-service-prod.devtroncd/webhook/msg/nats"`
@@ -120,9 +122,10 @@ type CiCdConfig struct {
 	BuildLogTTLValue                           int                          `env:"BUILD_LOG_TTL_VALUE_IN_SECS" envDefault:"3600"`
 	BaseLogLocationPath                        string                       `env:"BASE_LOG_LOCATION_PATH" envDefault:"/home/devtron/"`
 	InAppLoggingEnabled                        bool                         `env:"IN_APP_LOGGING_ENABLED" envDefault:"false"`
-	BuildxProvenanceMode                       string                       `env:"BUILDX_PROVENANCE_MODE" envDefault:""` // provenance is set to false if this flag is not set
+	BuildxProvenanceMode                       string                       `env:"BUILDX_PROVENANCE_MODE" envDefault:""` //provenance is set to false if this flag is not set
 	ExtBlobStorageCmName                       string                       `env:"EXTERNAL_BLOB_STORAGE_CM_NAME" envDefault:"blob-storage-cm"`
 	ExtBlobStorageSecretName                   string                       `env:"EXTERNAL_BLOB_STORAGE_SECRET_NAME" envDefault:"blob-storage-secret"`
+	CanApproverDeploy                          bool                         `env:"CAN_APPROVER_DEPLOY" envDefault:"false"`
 	UseArtifactListingQueryV2                  bool                         `env:"USE_ARTIFACT_LISTING_QUERY_V2" envDefault:"true"`
 	UseImageTagFromGitProviderForTagBasedBuild bool                         `env:"USE_IMAGE_TAG_FROM_GIT_PROVIDER_FOR_TAG_BASED_BUILD" envDefault:"false"` // this is being done for https://github.com/devtron-labs/devtron/issues/4263
 }

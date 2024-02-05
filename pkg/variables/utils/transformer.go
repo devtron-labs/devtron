@@ -13,7 +13,7 @@ func ManifestToPayload(manifest models.ScopedVariableManifest, userId int32) mod
 		for _, value := range spec.Values {
 			attribute := models.AttributeValue{
 				VariableValue: models.VariableValue{Value: value.Value},
-				AttributeType: models.Global,
+				AttributeType: value.Category,
 			}
 
 			if value.Selectors != nil && value.Selectors.AttributeSelectors != nil {

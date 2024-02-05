@@ -3,7 +3,7 @@ package executors
 import (
 	"context"
 	"fmt"
-	"github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	types2 "github.com/devtron-labs/devtron/pkg/pipeline/types"
@@ -30,10 +30,10 @@ type SystemWorkflowExecutor interface {
 
 type SystemWorkflowExecutorImpl struct {
 	logger  *zap.SugaredLogger
-	k8sUtil *k8s.K8sServiceImpl
+	k8sUtil *k8s.K8sUtilExtended
 }
 
-func NewSystemWorkflowExecutorImpl(logger *zap.SugaredLogger, k8sUtil *k8s.K8sServiceImpl) *SystemWorkflowExecutorImpl {
+func NewSystemWorkflowExecutorImpl(logger *zap.SugaredLogger, k8sUtil *k8s.K8sUtilExtended) *SystemWorkflowExecutorImpl {
 	return &SystemWorkflowExecutorImpl{logger: logger, k8sUtil: k8sUtil}
 }
 

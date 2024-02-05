@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	client2 "github.com/devtron-labs/authenticator/client"
-	"github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	mocks4 "github.com/devtron-labs/devtron/api/helm-app/mocks"
@@ -22,7 +22,7 @@ import (
 	"testing"
 )
 
-var K8sUtilObj *k8s.K8sServiceImpl
+var K8sUtilObj *k8s.K8sUtilExtended
 
 func TestDeploymentTemplateServiceImpl_FetchDeploymentsWithChartRefs(t *testing.T) {
 	defaultVersions := &chart.ChartRefResponse{
@@ -520,7 +520,7 @@ func InitEventSimpleFactoryImpl(t *testing.T) (*DeploymentTemplateServiceImpl, *
 	chartRepository := mocks5.NewChartRepository(t)
 	chartTemplateServiceImpl := mocks6.NewChartTemplateService(t)
 	helmAppClient := mocks4.NewHelmAppClient(t)
-	var k8sUtil *k8s.K8sServiceImpl
+	var k8sUtil *k8s.K8sUtilExtended
 	if K8sUtilObj != nil {
 		k8sUtil = K8sUtilObj
 	} else {

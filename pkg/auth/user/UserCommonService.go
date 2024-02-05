@@ -3,6 +3,7 @@ package user
 import (
 	"fmt"
 	"math"
+	"strconv"
 	"strings"
 	"time"
 
@@ -19,11 +20,15 @@ import (
 )
 
 type UserCommonService interface {
-	CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType, workflow string, userId int32) (bool, error, []casbin.Policy)
+	GetPValUpdateMap(team, entityName, env, entity, cluster, namespace, group, kind, resource string, approver bool, workflow string) map[repository.PValUpdateKey]string
+	GetRenderedRoleData(defaultRoleData repository.RoleCacheDetailObj, pValUpdateMap map[repository.PValUpdateKey]string) *repository.RoleModel
+	GetRenderedPolicy(defaultPolicy repository.PolicyCacheDetailObj, pValUpdateMap map[repository.PValUpdateKey]string) []casbin.Policy
+	CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, approver bool, workflow string, userId int32) (bool, error, []casbin.Policy)
 	RemoveRolesAndReturnEliminatedPolicies(userInfo *bean.UserInfo, existingRoleIds map[int]repository.UserRoleModel, eliminatedRoleIds map[int]*repository.UserRoleModel, tx *pg.Tx, token string, managerAuth func(resource, token, object string) bool) ([]casbin.Policy, error)
 	RemoveRolesAndReturnEliminatedPoliciesForGroups(request *bean.RoleGroup, existingRoles map[int]*repository.RoleGroupRoleMapping, eliminatedRoles map[int]*repository.RoleGroupRoleMapping, tx *pg.Tx, token string, managerAuth func(resource string, token string, object string) bool) ([]casbin.Policy, error)
 	CheckRbacForClusterEntity(cluster, namespace, group, kind, resource, token string, managerAuth func(resource, token, object string) bool) bool
 	GetCapacityForRoleFilter(roleFilters []bean.RoleFilter) (int, map[int]int)
+	MergeCustomRoleFilters(roleFilters []bean.RoleFilter) []bean.RoleFilter
 	BuildRoleFilterKeyForCluster(roleFilterMap map[string]*bean.RoleFilter, role repository.RoleModel, key string)
 	BuildRoleFilterKeyForJobs(roleFilterMap map[string]*bean.RoleFilter, role repository.RoleModel, key string)
 	BuildRoleFilterKeyForOtherEntity(roleFilterMap map[string]*bean.RoleFilter, role repository.RoleModel, key string)
@@ -71,20 +76,20 @@ type UserRbacConfig struct {
 	UseRbacCreationV2 bool `env:"USE_RBAC_CREATION_V2" envDefault:"true"`
 }
 
-func (impl UserCommonServiceImpl) CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType, workflow string, userId int32) (bool, error, []casbin.Policy) {
+func (impl UserCommonServiceImpl) CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, approver bool, workflow string, userId int32) (bool, error, []casbin.Policy) {
 	if impl.userRbacConfig.UseRbacCreationV2 {
 		impl.logger.Debugw("using rbac creation v2 for creating default policies")
-		return impl.CreateDefaultPoliciesForAllTypesV2(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType, workflow)
+		return impl.CreateDefaultPoliciesForAllTypesV2(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType, approver, workflow)
 	} else {
-		return impl.userAuthRepository.CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType, userId)
+		return impl.userAuthRepository.CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType, approver, userId)
 	}
 }
 
-func (impl UserCommonServiceImpl) CreateDefaultPoliciesForAllTypesV2(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType, workflow string) (bool, error, []casbin.Policy) {
+func (impl UserCommonServiceImpl) CreateDefaultPoliciesForAllTypesV2(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, approver bool, workflow string) (bool, error, []casbin.Policy) {
 	//TODO: below txn is making this process slow, need to do bulk operation for role creation.
 	//For detail - https://github.com/devtron-labs/devtron/blob/main/pkg/user/benchmarking-results
 
-	renderedRole, renderedPolicyDetails, err := impl.getRenderedRoleAndPolicy(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType, workflow)
+	renderedRole, renderedPolicyDetails, err := impl.getRenderedRoleAndPolicy(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType, approver, workflow)
 	if err != nil {
 		return false, err, nil
 	}
@@ -95,9 +100,9 @@ func (impl UserCommonServiceImpl) CreateDefaultPoliciesForAllTypesV2(team, entit
 	return true, nil, renderedPolicyDetails
 }
 
-func (impl UserCommonServiceImpl) getRenderedRoleAndPolicy(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType, workflow string) (*repository.RoleModel, []casbin.Policy, error) {
+func (impl UserCommonServiceImpl) getRenderedRoleAndPolicy(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, approver bool, workflow string) (*repository.RoleModel, []casbin.Policy, error) {
 	//getting map of values to be used for rendering
-	pValUpdateMap := getPValUpdateMap(team, entityName, env, entity, cluster, namespace, group, kind, resource, workflow)
+	pValUpdateMap := impl.GetPValUpdateMap(team, entityName, env, entity, cluster, namespace, group, kind, resource, approver, workflow)
 
 	//getting default role data and policy
 	defaultRoleData, defaultPolicy, err := impl.getDefaultRbacRoleAndPolicyByRoleFilter(entity, accessType, actionType)
@@ -105,8 +110,8 @@ func (impl UserCommonServiceImpl) getRenderedRoleAndPolicy(team, entityName, env
 		return nil, nil, err
 	}
 	//getting rendered role and policy data
-	renderedRoleData := getRenderedRoleData(defaultRoleData, pValUpdateMap)
-	renderedPolicy := getRenderedPolicy(defaultPolicy, pValUpdateMap)
+	renderedRoleData := impl.GetRenderedRoleData(defaultRoleData, pValUpdateMap)
+	renderedPolicy := impl.GetRenderedPolicy(defaultPolicy, pValUpdateMap)
 
 	return renderedRoleData, renderedPolicy, nil
 }
@@ -117,21 +122,22 @@ func (impl UserCommonServiceImpl) getDefaultRbacRoleAndPolicyByRoleFilter(entity
 		GetDefaultRoleDataAndPolicyByEntityAccessTypeAndRoleType(entity, accessType, action)
 }
 
-func getRenderedRoleData(defaultRoleData repository.RoleCacheDetailObj, pValUpdateMap map[repository.PValUpdateKey]string) *repository.RoleModel {
+func (impl UserCommonServiceImpl) GetRenderedRoleData(defaultRoleData repository.RoleCacheDetailObj, pValUpdateMap map[repository.PValUpdateKey]string) *repository.RoleModel {
 	renderedRoleData := &repository.RoleModel{
-		Role:        getResolvedValueFromPValDetailObject(defaultRoleData.Role, pValUpdateMap),
-		Entity:      getResolvedValueFromPValDetailObject(defaultRoleData.Entity, pValUpdateMap),
-		EntityName:  getResolvedValueFromPValDetailObject(defaultRoleData.EntityName, pValUpdateMap),
-		Team:        getResolvedValueFromPValDetailObject(defaultRoleData.Team, pValUpdateMap),
-		Environment: getResolvedValueFromPValDetailObject(defaultRoleData.Environment, pValUpdateMap),
-		AccessType:  getResolvedValueFromPValDetailObject(defaultRoleData.AccessType, pValUpdateMap),
-		Action:      getResolvedValueFromPValDetailObject(defaultRoleData.Action, pValUpdateMap),
-		Cluster:     getResolvedValueFromPValDetailObject(defaultRoleData.Cluster, pValUpdateMap),
-		Namespace:   getResolvedValueFromPValDetailObject(defaultRoleData.Namespace, pValUpdateMap),
-		Group:       getResolvedValueFromPValDetailObject(defaultRoleData.Group, pValUpdateMap),
-		Kind:        getResolvedValueFromPValDetailObject(defaultRoleData.Kind, pValUpdateMap),
-		Resource:    getResolvedValueFromPValDetailObject(defaultRoleData.Resource, pValUpdateMap),
-		Workflow:    getResolvedValueFromPValDetailObject(defaultRoleData.Workflow, pValUpdateMap),
+		Role:        getResolvedValueFromPValDetailObject(defaultRoleData.Role, pValUpdateMap).String(),
+		Entity:      getResolvedValueFromPValDetailObject(defaultRoleData.Entity, pValUpdateMap).String(),
+		EntityName:  getResolvedValueFromPValDetailObject(defaultRoleData.EntityName, pValUpdateMap).String(),
+		Team:        getResolvedValueFromPValDetailObject(defaultRoleData.Team, pValUpdateMap).String(),
+		Environment: getResolvedValueFromPValDetailObject(defaultRoleData.Environment, pValUpdateMap).String(),
+		AccessType:  getResolvedValueFromPValDetailObject(defaultRoleData.AccessType, pValUpdateMap).String(),
+		Action:      getResolvedValueFromPValDetailObject(defaultRoleData.Action, pValUpdateMap).String(),
+		Cluster:     getResolvedValueFromPValDetailObject(defaultRoleData.Cluster, pValUpdateMap).String(),
+		Namespace:   getResolvedValueFromPValDetailObject(defaultRoleData.Namespace, pValUpdateMap).String(),
+		Group:       getResolvedValueFromPValDetailObject(defaultRoleData.Group, pValUpdateMap).String(),
+		Kind:        getResolvedValueFromPValDetailObject(defaultRoleData.Kind, pValUpdateMap).String(),
+		Resource:    getResolvedValueFromPValDetailObject(defaultRoleData.Resource, pValUpdateMap).String(),
+		Approver:    getResolvedValueFromPValDetailObject(defaultRoleData.Approver, pValUpdateMap).Boolean(),
+		Workflow:    getResolvedValueFromPValDetailObject(defaultRoleData.Workflow, pValUpdateMap).String(),
 		AuditLog: sql.AuditLog{ //not storing user information because this role can be mapped to other users in future and hence can lead to confusion
 			CreatedOn: time.Now(),
 			UpdatedOn: time.Now(),
@@ -140,7 +146,7 @@ func getRenderedRoleData(defaultRoleData repository.RoleCacheDetailObj, pValUpda
 	return renderedRoleData
 }
 
-func getRenderedPolicy(defaultPolicy repository.PolicyCacheDetailObj, pValUpdateMap map[repository.PValUpdateKey]string) []casbin.Policy {
+func (impl UserCommonServiceImpl) GetRenderedPolicy(defaultPolicy repository.PolicyCacheDetailObj, pValUpdateMap map[repository.PValUpdateKey]string) []casbin.Policy {
 	renderedPolicies := make([]casbin.Policy, 0, len(defaultPolicy.ResActObjSet))
 	policyType := getResolvedValueFromPValDetailObject(defaultPolicy.Type, pValUpdateMap)
 	policySub := getResolvedValueFromPValDetailObject(defaultPolicy.Sub, pValUpdateMap)
@@ -149,20 +155,20 @@ func getRenderedPolicy(defaultPolicy repository.PolicyCacheDetailObj, pValUpdate
 		policyAct := getResolvedValueFromPValDetailObject(v.Act, pValUpdateMap)
 		policyObj := getResolvedValueFromPValDetailObject(v.Obj, pValUpdateMap)
 		renderedPolicy := casbin.Policy{
-			Type: casbin.PolicyType(policyType),
-			Sub:  casbin.Subject(policySub),
-			Res:  casbin.Resource(policyRes),
-			Act:  casbin.Action(policyAct),
-			Obj:  casbin.Object(policyObj),
+			Type: casbin.PolicyType(policyType.String()),
+			Sub:  casbin.Subject(policySub.String()),
+			Res:  casbin.Resource(policyRes.String()),
+			Act:  casbin.Action(policyAct.String()),
+			Obj:  casbin.Object(policyObj.String()),
 		}
 		renderedPolicies = append(renderedPolicies, renderedPolicy)
 	}
 	return renderedPolicies
 }
 
-func getResolvedValueFromPValDetailObject(pValDetailObj repository.PValDetailObj, pValUpdateMap map[repository.PValUpdateKey]string) string {
+func getResolvedValueFromPValDetailObject(pValDetailObj repository.PValDetailObj, pValUpdateMap map[repository.PValUpdateKey]string) repository.PValResolvedValue {
 	if len(pValDetailObj.IndexKeyMap) == 0 {
-		return pValDetailObj.Value
+		return repository.NewPValResolvedValue(pValDetailObj.Value)
 	}
 	pValBytes := []byte(pValDetailObj.Value)
 	var resolvedValueInBytes []byte
@@ -175,10 +181,11 @@ func getResolvedValueFromPValDetailObject(pValDetailObj repository.PValDetailObj
 			resolvedValueInBytes = append(resolvedValueInBytes, pValByte)
 		}
 	}
-	return string(resolvedValueInBytes)
+	return repository.NewPValResolvedValue(string(resolvedValueInBytes))
 }
 
-func getPValUpdateMap(team, entityName, env, entity, cluster, namespace, group, kind, resource, workflow string) map[repository.PValUpdateKey]string {
+func (impl UserCommonServiceImpl) GetPValUpdateMap(team, entityName, env, entity, cluster,
+	namespace, group, kind, resource string, approver bool, workflow string) map[repository.PValUpdateKey]string {
 	pValUpdateMap := make(map[repository.PValUpdateKey]string)
 	pValUpdateMap[repository.EntityPValUpdateKey] = entity
 	if entity == bean.CLUSTER_ENTITIY {
@@ -200,6 +207,7 @@ func getPValUpdateMap(team, entityName, env, entity, cluster, namespace, group, 
 		pValUpdateMap[repository.TeamObjPValUpdateKey] = getResolvedPValMapValue(team)
 		pValUpdateMap[repository.AppObjPValUpdateKey] = getResolvedPValMapValue(entityName)
 		pValUpdateMap[repository.EnvObjPValUpdateKey] = getResolvedPValMapValue(env)
+		pValUpdateMap[repository.ApproverPValUpdateKey] = strconv.FormatBool(approver)
 		if entity == bean2.EntityJobs {
 			pValUpdateMap[repository.WorkflowPValUpdateKey] = workflow
 			pValUpdateMap[repository.WorkflowObjPValUpdateKey] = getResolvedPValMapValue(workflow)
@@ -237,7 +245,7 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 							if !isValidAuth {
 								continue
 							}
-							roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, "", "", "", "", accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType, false, "")
+							roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, "", "", "", "", roleFilter.Approver, accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType, false, "")
 							if err != nil {
 								impl.logger.Errorw("Error in fetching roles by filter", "roleFilter", roleFilter)
 								return nil, err
@@ -269,7 +277,7 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 			for _, environment := range environments {
 				for _, entityName := range entityNames {
 					for _, workflow := range workflows {
-						roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", actionType, false, workflow)
+						roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, false, accessType, "", "", "", "", "", actionType, false, workflow)
 						if err != nil {
 							impl.logger.Errorw("Error in fetching roles by filter", "user", userInfo)
 							return nil, err
@@ -295,33 +303,34 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 			}
 			entityNames := strings.Split(roleFilter.EntityName, ",")
 			environments := strings.Split(roleFilter.Environment, ",")
-			actionType := roleFilter.Action
+			actions := strings.Split(roleFilter.Action, ",")
 			accessType := roleFilter.AccessType
 			for _, environment := range environments {
 				for _, entityName := range entityNames {
-					roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", actionType, false, "")
-					if err != nil {
-						impl.logger.Errorw("Error in fetching roles by filter", "user", userInfo)
-						return nil, err
+					for _, actionType := range actions {
+						roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, roleFilter.Approver, accessType, "", "", "", "", "", actionType, false, "")
+						if err != nil {
+							impl.logger.Errorw("Error in fetching roles by filter", "user", userInfo)
+							return nil, err
+						}
+						oldRoleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, roleFilter.Approver, accessType, "", "", "", "", "", actionType, true, "")
+						if err != nil {
+							return nil, err
+						}
+						if roleModel.Id == 0 {
+							impl.logger.Debugw("no role found for given filter", "filter", roleFilter)
+							userInfo.Status = "role not fount for any given filter: " + roleFilter.Team + "," + environment + "," + entityName + "," + roleFilter.Action
+							continue
+						}
+						if _, ok := existingRoleIds[roleModel.Id]; ok {
+							delete(eliminatedRoleIds, roleModel.Id)
+						}
+						isChartGroupEntity := roleFilter.Entity == bean.CHART_GROUP_ENTITY
+						if _, ok := existingRoleIds[oldRoleModel.Id]; ok && !isChartGroupEntity {
+							//delete old role mapping from existing but not from eliminated roles (so that it gets deleted)
+							delete(existingRoleIds, oldRoleModel.Id)
+						}
 					}
-					oldRoleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", actionType, true, "")
-					if err != nil {
-						return nil, err
-					}
-					if roleModel.Id == 0 {
-						impl.logger.Debugw("no role found for given filter", "filter", roleFilter)
-						userInfo.Status = "role not fount for any given filter: " + roleFilter.Team + "," + environment + "," + entityName + "," + roleFilter.Action
-						continue
-					}
-					if _, ok := existingRoleIds[roleModel.Id]; ok {
-						delete(eliminatedRoleIds, roleModel.Id)
-					}
-					isChartGroupEntity := roleFilter.Entity == bean.CHART_GROUP_ENTITY
-					if _, ok := existingRoleIds[oldRoleModel.Id]; ok && !isChartGroupEntity {
-						//delete old role mapping from existing but not from eliminated roles (so that it gets deleted)
-						delete(existingRoleIds, oldRoleModel.Id)
-					}
-
 				}
 			}
 		}
@@ -379,12 +388,12 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroup
 							if !isValidAuth {
 								continue
 							}
-							roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, "", "", "", "", accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType, false, "")
+							roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, "", "", "", "", roleFilter.Approver, accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType, false, "")
 							if err != nil {
 								impl.logger.Errorw("Error in fetching roles by filter", "user", request)
 								return nil, err
 							}
-							oldRoleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, "", "", "", "", accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType, true, "")
+							oldRoleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(entity, "", "", "", "", roleFilter.Approver, accessType, roleFilter.Cluster, namespace, group, kind, resource, actionType, true, "")
 							if err != nil {
 								impl.logger.Errorw("Error in fetching roles by filter", "user", request)
 								return nil, err
@@ -420,7 +429,7 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroup
 			for _, environment := range environments {
 				for _, entityName := range entityNames {
 					for _, workflow := range workflows {
-						roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "", false, workflow)
+						roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, false, accessType, "", "", "", "", "", "", false, workflow)
 						if err != nil {
 							impl.logger.Errorw("Error in fetching roles by filter", "user", request)
 							return nil, err
@@ -446,34 +455,35 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroup
 			}
 			entityNames := strings.Split(roleFilter.EntityName, ",")
 			environments := strings.Split(roleFilter.Environment, ",")
+			actions := strings.Split(roleFilter.Action, ",")
 			accessType := roleFilter.AccessType
-			actionType := roleFilter.Action
 			for _, environment := range environments {
 				for _, entityName := range entityNames {
-					roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "", false, "")
-					if err != nil {
-						impl.logger.Errorw("Error in fetching roles by filter", "user", request)
-						return nil, err
+					for _, actionType := range actions {
+						roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, roleFilter.Approver, accessType, "", "", "", "", "", "", false, "")
+						if err != nil {
+							impl.logger.Errorw("Error in fetching roles by filter", "user", request)
+							return nil, err
+						}
+						oldRoleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, roleFilter.Approver, accessType, "", "", "", "", "", "", true, "")
+						if err != nil {
+							impl.logger.Errorw("Error in fetching roles by filter by old values", "user", request)
+							return nil, err
+						}
+						if roleModel.Id == 0 && oldRoleModel.Id == 0 {
+							impl.logger.Warnw("no role found for given filter", "filter", roleFilter)
+							request.Status = "role not fount for any given filter: " + roleFilter.Team + "," + environment + "," + entityName + "," + actionType
+							continue
+						}
+						if _, ok := existingRoles[roleModel.Id]; ok {
+							delete(eliminatedRoles, roleModel.Id)
+						}
+						isChartGroupEntity := roleFilter.Entity == bean.CHART_GROUP_ENTITY
+						if _, ok := existingRoles[oldRoleModel.Id]; ok && !isChartGroupEntity {
+							//delete old role mapping from existing but not from eliminated roles (so that it gets deleted)
+							delete(existingRoles, oldRoleModel.Id)
+						}
 					}
-					oldRoleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "", true, "")
-					if err != nil {
-						impl.logger.Errorw("Error in fetching roles by filter by old values", "user", request)
-						return nil, err
-					}
-					if roleModel.Id == 0 && oldRoleModel.Id == 0 {
-						impl.logger.Warnw("no role found for given filter", "filter", roleFilter)
-						request.Status = "role not fount for any given filter: " + roleFilter.Team + "," + environment + "," + entityName + "," + actionType
-						continue
-					}
-					if _, ok := existingRoles[roleModel.Id]; ok {
-						delete(eliminatedRoles, roleModel.Id)
-					}
-					isChartGroupEntity := roleFilter.Entity == bean.CHART_GROUP_ENTITY
-					if _, ok := existingRoles[oldRoleModel.Id]; ok && !isChartGroupEntity {
-						//delete old role mapping from existing but not from eliminated roles (so that it gets deleted)
-						delete(existingRoles, oldRoleModel.Id)
-					}
-
 				}
 			}
 		}
@@ -575,12 +585,37 @@ func (impl UserCommonServiceImpl) GetCapacityForRoleFilter(roleFilters []bean.Ro
 		resources := strings.Split(roleFilter.Resource, ",")
 		entityNames := strings.Split(roleFilter.EntityName, ",")
 		environments := strings.Split(roleFilter.Environment, ",")
+		actions := strings.Split(roleFilter.Action, ",")
 		workflows := strings.Split(roleFilter.Workflow, ",")
-		value := math.Max(float64(len(namespaces)*len(groups)*len(kinds)*len(resources)*2), math.Max(float64(len(entityNames)*len(environments)*6), float64(len(entityNames)*len(environments)*len(workflows)*8)))
+		value := math.Max(float64(len(namespaces)*len(groups)*len(kinds)*len(resources)*2), math.Max(float64(len(entityNames)*len(environments)*len(actions)*6), float64(len(entityNames)*len(environments)*len(workflows)*8)))
 		m[index] = int(value)
 		capacity += int(value)
 	}
 	return capacity, m
+}
+
+func (impl UserCommonServiceImpl) MergeCustomRoleFilters(roleFilters []bean.RoleFilter) []bean.RoleFilter {
+	// it will merge custom roles belong to same team, env & app structure
+	var updatedRoleFilters []bean.RoleFilter
+	roleFilterMap := make(map[string]bean.RoleFilter)
+	for _, roleFilter := range roleFilters {
+		team := roleFilter.Team
+		if len(team) == 0 {
+			updatedRoleFilters = append(updatedRoleFilters, roleFilter)
+		} else {
+			roleKey := fmt.Sprintf("%s_%s_%s", roleFilter.Team, roleFilter.Environment, roleFilter.EntityName)
+			if filter, found := roleFilterMap[roleKey]; found {
+				filter.Action = fmt.Sprintf("%s,%s", filter.Action, roleFilter.Action)
+				roleFilterMap[roleKey] = filter
+			} else {
+				roleFilterMap[roleKey] = roleFilter
+			}
+		}
+	}
+	for _, roleFilter := range roleFilterMap {
+		updatedRoleFilters = append(updatedRoleFilters, roleFilter)
+	}
+	return updatedRoleFilters
 }
 
 func (impl UserCommonServiceImpl) BuildRoleFilterForAllTypes(roleFilterMap map[string]*bean.RoleFilter, role repository.RoleModel, key string) {
@@ -660,8 +695,8 @@ func (impl UserCommonServiceImpl) BuildRoleFilterKeyForOtherEntity(roleFilterMap
 }
 func (impl UserCommonServiceImpl) GetUniqueKeyForAllEntity(role repository.RoleModel) string {
 	key := ""
-	if len(role.Team) > 0 && role.Entity != bean2.EntityJobs {
-		key = fmt.Sprintf("%s_%s_%s", role.Team, role.Action, role.AccessType)
+	if len(role.Team) > 0 {
+		key = fmt.Sprintf("%s_%s_%s_%t", role.Team, role.Action, role.AccessType, role.Approver)
 	} else if role.Entity == bean2.EntityJobs {
 		key = fmt.Sprintf("%s_%s_%s_%s", role.Team, role.Action, role.AccessType, role.Entity)
 	} else if len(role.Entity) > 0 {
@@ -669,7 +704,7 @@ func (impl UserCommonServiceImpl) GetUniqueKeyForAllEntity(role repository.RoleM
 			key = fmt.Sprintf("%s_%s_%s_%s_%s_%s", role.Entity, role.Action, role.Cluster,
 				role.Namespace, role.Group, role.Kind)
 		} else {
-			key = fmt.Sprintf("%s_%s", role.Entity, role.Action)
+			key = fmt.Sprintf("%s_%s_%s", role.Entity, role.Action)
 		}
 	}
 	return key

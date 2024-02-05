@@ -198,6 +198,7 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelines(appId, envId, wfrI
 	var statusLastFetchedAt time.Time
 	var statusFetchCount int
 	if util.IsAcdApp(deploymentAppType) && showTimeline {
+		// ignoring 'ARGOCD_SYNC_INITIATED' in sql query as it is not handled at FE
 		timelines, err := impl.pipelineStatusTimelineRepository.FetchTimelinesByWfrId(wfrId)
 		if err != nil {
 			impl.logger.Errorw("error in getting timelines by wfrId", "err", err, "wfrId", wfrId)
@@ -233,6 +234,23 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelines(appId, envId, wfrI
 		statusLastFetchedAt, statusFetchCount, err = impl.pipelineStatusSyncDetailService.GetSyncTimeAndCountByCdWfrId(wfrId)
 		if err != nil {
 			impl.logger.Errorw("error in getting pipeline status fetchTime and fetchCount by cdWfrId", "err", err, "cdWfrId", wfrId)
+		}
+	} else if util.IsManifestDownload(deploymentAppType) || util.IsManifestPush(deploymentAppType) {
+		timelines, err := impl.pipelineStatusTimelineRepository.FetchTimelinesByWfrId(wfrId)
+		if err != nil {
+			impl.logger.Errorw("error in getting timelines by wfrId", "err", err, "wfrId", wfrId)
+			return nil, err
+		}
+		for _, timeline := range timelines {
+			timelineDto := &PipelineStatusTimelineDto{
+				Id:                 timeline.Id,
+				CdWorkflowRunnerId: timeline.CdWorkflowRunnerId,
+				Status:             timeline.Status,
+				StatusTime:         timeline.StatusTime,
+				StatusDetail:       timeline.StatusDetail,
+				ResourceDetails:    nil,
+			}
+			timelineDtos = append(timelineDtos, timelineDto)
 		}
 	}
 	timelineDetail := &PipelineTimelineDetailDto{
@@ -322,7 +340,25 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelinesForAppStore(install
 		if err != nil {
 			impl.logger.Errorw("error in getting pipeline status fetchTime and fetchCount by installedAppVersionHistoryId", "err", err, "installedAppVersionHistoryId", installedAppVersionHistoryId)
 		}
+	} else if util.IsManifestDownload(deploymentAppType) {
+		timelines, err := impl.pipelineStatusTimelineRepository.FetchTimelinesByInstalledAppVersionHistoryId(installedAppVersionHistoryId)
+		if err != nil {
+			impl.logger.Errorw("error in getting timelines by installedAppVersionHistoryId", "err", err, "wfrId", installedAppVersionHistoryId)
+			return nil, err
+		}
+		for _, timeline := range timelines {
+			timelineDto := &PipelineStatusTimelineDto{
+				Id:                           timeline.Id,
+				InstalledAppVersionHistoryId: timeline.InstalledAppVersionHistoryId,
+				Status:                       timeline.Status,
+				StatusTime:                   timeline.StatusTime,
+				StatusDetail:                 timeline.StatusDetail,
+				ResourceDetails:              nil,
+			}
+			timelineDtos = append(timelineDtos, timelineDto)
+		}
 	}
+
 	timelineDetail := &PipelineTimelineDetailDto{
 		TriggeredBy:                triggeredByUserEmailId,
 		DeploymentStartedOn:        deploymentStartedOn,

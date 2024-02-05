@@ -74,7 +74,7 @@ func (handler *ScopedVariableRestHandlerImpl) CreateVariables(w http.ResponseWri
 	err = handler.validator.Struct(request)
 	if err != nil {
 		handler.logger.Errorw("struct validation err in CreateVariables", "err", err, "request", request)
-		common.WriteJsonResp(w, err, nil, http.StatusNotAcceptable)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 

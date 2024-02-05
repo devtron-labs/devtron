@@ -10,6 +10,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/devtronResource"
+	bean6 "github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/go-pg/pg"
@@ -17,9 +19,10 @@ import (
 )
 
 type DeleteServiceExtendedImpl struct {
-	appRepository         app.AppRepository
-	environmentRepository repository.EnvironmentRepository
-	pipelineRepository    pipelineConfig.PipelineRepository
+	appRepository          app.AppRepository
+	environmentRepository  repository.EnvironmentRepository
+	pipelineRepository     pipelineConfig.PipelineRepository
+	devtronResourceService devtronResource.DevtronResourceService
 	*DeleteServiceImpl
 }
 
@@ -34,11 +37,12 @@ func NewDeleteServiceExtendedImpl(logger *zap.SugaredLogger,
 	installedAppRepository repository2.InstalledAppRepository,
 	dockerRegistryConfig pipeline.DockerRegistryConfig,
 	dockerRegistryRepository dockerRegistryRepository.DockerArtifactStoreRepository,
-) *DeleteServiceExtendedImpl {
+	devtronResourceService devtronResource.DevtronResourceService) *DeleteServiceExtendedImpl {
 	return &DeleteServiceExtendedImpl{
-		appRepository:         appRepository,
-		environmentRepository: environmentRepository,
-		pipelineRepository:    pipelineRepository,
+		appRepository:          appRepository,
+		environmentRepository:  environmentRepository,
+		pipelineRepository:     pipelineRepository,
+		devtronResourceService: devtronResourceService,
 		DeleteServiceImpl: &DeleteServiceImpl{
 			logger:                   logger,
 			teamService:              teamService,
@@ -68,6 +72,13 @@ func (impl DeleteServiceExtendedImpl) DeleteCluster(deleteRequest *cluster.Clust
 		impl.logger.Errorw("error im deleting cluster", "err", err, "deleteRequest", deleteRequest)
 		return err
 	}
+	go func() {
+		errInResourceDelete := impl.devtronResourceService.DeleteObjectAndItsDependency(deleteRequest.Id, bean6.DevtronResourceCluster,
+			"", bean6.DevtronResourceVersion1, userId)
+		if errInResourceDelete != nil {
+			impl.logger.Errorw("error in deleting cluster resource and dependency data", "err", err, "clusterId", deleteRequest.Id)
+		}
+	}()
 	return nil
 }
 
@@ -138,6 +149,25 @@ func (impl DeleteServiceExtendedImpl) DeleteChartRepo(deleteRequest *chartRepo.C
 	err = impl.chartRepositoryService.DeleteChartRepo(deleteRequest)
 	if err != nil {
 		impl.logger.Errorw("error in deleting chart repo", "err", err, "deleteRequest", deleteRequest)
+		return err
+	}
+	return nil
+}
+
+func (impl DeleteServiceExtendedImpl) DeleteVirtualCluster(deleteRequest *cluster.VirtualClusterBean, userId int32) error {
+	//finding if there are env in this cluster or not, if yes then will not delete
+	env, err := impl.environmentRepository.FindByClusterId(deleteRequest.Id)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("err in deleting cluster", "clusterName", deleteRequest.ClusterName, "err", err)
+		return err
+	}
+	if len(env) > 0 {
+		impl.logger.Errorw("err in deleting cluster, found env in this cluster", "clusterName", deleteRequest.ClusterName, "err", err)
+		return fmt.Errorf(" Please delete all related environments before deleting this cluster")
+	}
+	err = impl.clusterService.DeleteVirtualClusterFromDb(deleteRequest, userId)
+	if err != nil {
+		impl.logger.Errorw("error im deleting cluster", "err", err, "deleteRequest", deleteRequest)
 		return err
 	}
 	return nil

@@ -10,15 +10,18 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/caarlos0/env"
+	"github.com/devtron-labs/common-lib-private/utils/k8s"
+	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/auth/sso"
-	user2 "github.com/devtron-labs/devtron/pkg/auth/user"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/commonService"
 	module2 "github.com/devtron-labs/devtron/pkg/module"
 	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
 	serverDataStore "github.com/devtron-labs/devtron/pkg/server/store"
@@ -46,15 +49,15 @@ type TelemetryEventClientImpl struct {
 	logger                         *zap.SugaredLogger
 	client                         *http.Client
 	clusterService                 cluster.ClusterService
-	K8sUtil                        *k8s.K8sServiceImpl
+	K8sUtil                        *k8s.K8sUtilExtended
 	aCDAuthConfig                  *util3.ACDAuthConfig
-	userService                    user2.UserService
+	userService                    user.UserService
 	attributeRepo                  repository.AttributesRepository
 	ssoLoginService                sso.SSOLoginService
 	PosthogClient                  *PosthogClient
 	moduleRepository               moduleRepo.ModuleRepository
 	serverDataStore                *serverDataStore.ServerDataStore
-	userAuditService               user2.UserAuditService
+	userAuditService               user.UserAuditService
 	helmAppClient                  client.HelmAppClient
 	InstalledAppRepository         repository2.InstalledAppRepository
 	userAttributesRepository       repository.UserAttributesRepository
@@ -72,9 +75,9 @@ type TelemetryEventClient interface {
 }
 
 func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client, clusterService cluster.ClusterService,
-	K8sUtil *k8s.K8sServiceImpl, aCDAuthConfig *util3.ACDAuthConfig, userService user2.UserService,
+	K8sUtil *k8s.K8sUtilExtended, aCDAuthConfig *util3.ACDAuthConfig, userService user.UserService,
 	attributeRepo repository.AttributesRepository, ssoLoginService sso.SSOLoginService,
-	PosthogClient *PosthogClient, moduleRepository moduleRepo.ModuleRepository, serverDataStore *serverDataStore.ServerDataStore, userAuditService user2.UserAuditService, helmAppClient client.HelmAppClient, InstalledAppRepository repository2.InstalledAppRepository,
+	PosthogClient *PosthogClient, moduleRepository moduleRepo.ModuleRepository, serverDataStore *serverDataStore.ServerDataStore, userAuditService user.UserAuditService, helmAppClient client.HelmAppClient, InstalledAppRepository repository2.InstalledAppRepository,
 	cloudProviderIdentifierService cloudProviderIdentifier.ProviderIdentifierService, cronLogger *cron3.CronLoggerImpl) (*TelemetryEventClientImpl, error) {
 	cron := cron.New(
 		cron.WithChain(cron.Recover(cronLogger)))
@@ -242,16 +245,24 @@ func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cl
 	for _, clusterDetail := range clusters {
 		req := &client.AppListRequest{}
 		config := &client.ClusterConfig{
-			ApiServerUrl:          clusterDetail.ServerUrl,
-			Token:                 clusterDetail.Config[k8s.BearerToken],
-			ClusterId:             int32(clusterDetail.Id),
-			ClusterName:           clusterDetail.ClusterName,
-			InsecureSkipTLSVerify: clusterDetail.InsecureSkipTLSVerify,
+			ApiServerUrl:           clusterDetail.ServerUrl,
+			Token:                  clusterDetail.Config[k8s2.BearerToken],
+			ClusterId:              int32(clusterDetail.Id),
+			ClusterName:            clusterDetail.ClusterName,
+			InsecureSkipTLSVerify:  clusterDetail.InsecureSkipTLSVerify,
+			ProxyUrl:               clusterDetail.ProxyUrl,
+			ToConnectWithSSHTunnel: clusterDetail.ToConnectWithSSHTunnel,
+		}
+		if clusterDetail.SSHTunnelConfig != nil {
+			config.SshTunnelAuthKey = clusterDetail.SSHTunnelConfig.AuthKey
+			config.SshTunnelUser = clusterDetail.SSHTunnelConfig.User
+			config.SshTunnelPassword = clusterDetail.SSHTunnelConfig.Password
+			config.SshTunnelServerAddress = clusterDetail.SSHTunnelConfig.SSHServerAddress
 		}
 		if clusterDetail.InsecureSkipTLSVerify == false {
-			config.KeyData = clusterDetail.Config[k8s.TlsKey]
-			config.CertData = clusterDetail.Config[k8s.CertData]
-			config.CaData = clusterDetail.Config[k8s.CertificateAuthorityData]
+			config.KeyData = clusterDetail.Config[k8s2.TlsKey]
+			config.CertData = clusterDetail.Config[k8s2.CertData]
+			config.CaData = clusterDetail.Config[k8s2.CertificateAuthorityData]
 		}
 		req.Clusters = append(req.Clusters, config)
 		applicationStream, err := impl.helmAppClient.ListApplication(context.Background(), req)
@@ -398,7 +409,12 @@ func (impl *TelemetryEventClientImpl) EnqueueGenericPostHogEvent(ucid string, ev
 			impl.PosthogClient.Client = client
 		}
 	}
-	if impl.PosthogClient.Client != nil {
+	var environmentData commonService.EnvironmentVariableList
+	err := env.Parse(&environmentData)
+	if err != nil {
+		impl.logger.Errorw("Error in parsing environment data")
+	}
+	if impl.PosthogClient.Client != nil && !environmentData.IsAirGapEnvironment {
 		err := impl.PosthogClient.Client.Enqueue(posthog.Capture{
 			DistinctId: ucid,
 			Event:      eventType,

@@ -22,6 +22,7 @@ type DevtronAppAutoCompleteRestHandler interface {
 	TeamListAutocomplete(w http.ResponseWriter, r *http.Request)
 	EnvironmentListAutocomplete(w http.ResponseWriter, r *http.Request)
 	GetAppListForAutocomplete(w http.ResponseWriter, r *http.Request)
+	GetAppListAllWithoutRBAC(w http.ResponseWriter, r *http.Request)
 }
 
 func (handler PipelineConfigRestHandlerImpl) GetAppListForAutocomplete(w http.ResponseWriter, r *http.Request) {
@@ -105,6 +106,18 @@ func (handler PipelineConfigRestHandlerImpl) GetAppListForAutocomplete(w http.Re
 	span.End()
 	// RBAC
 	common.WriteJsonResp(w, err, accessedApps, http.StatusOK)
+}
+
+func (handler PipelineConfigRestHandlerImpl) GetAppListAllWithoutRBAC(w http.ResponseWriter, r *http.Request) {
+	//this api is used in dependency feature at UI
+	handler.Logger.Infow("request payload, GetAppListAllWithoutRBAC")
+	apps, err := handler.pipelineBuilder.FindAllMatchesByAppName("", helper.CustomApp)
+	if err != nil {
+		handler.Logger.Errorw("service err, FindAllMatchesByAppName", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, apps, http.StatusOK)
 }
 
 func (handler PipelineConfigRestHandlerImpl) EnvironmentListAutocomplete(w http.ResponseWriter, r *http.Request) {

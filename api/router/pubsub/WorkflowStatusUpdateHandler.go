@@ -32,7 +32,7 @@ import (
 )
 
 type WorkflowStatusUpdateHandler interface {
-	Subscribe() error
+	subscribe() error
 }
 
 type WorkflowStatusUpdateHandlerImpl struct {
@@ -56,7 +56,7 @@ func NewWorkflowStatusUpdateHandlerImpl(logger *zap.SugaredLogger, pubsubClient 
 		eventClient:          eventClient,
 		cdWorkflowRepository: cdWorkflowRepository,
 	}
-	err := workflowStatusUpdateHandlerImpl.Subscribe()
+	err := workflowStatusUpdateHandlerImpl.subscribe()
 	if err != nil {
 		logger.Error("err", err)
 		return nil
@@ -69,7 +69,7 @@ func NewWorkflowStatusUpdateHandlerImpl(logger *zap.SugaredLogger, pubsubClient 
 	return workflowStatusUpdateHandlerImpl
 }
 
-func (impl *WorkflowStatusUpdateHandlerImpl) Subscribe() error {
+func (impl *WorkflowStatusUpdateHandlerImpl) subscribe() error {
 	callback := func(msg *model.PubSubMsg) {
 		wfStatus := v1alpha1.WorkflowStatus{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &wfStatus)

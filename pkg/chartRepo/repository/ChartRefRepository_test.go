@@ -1,7 +1,7 @@
 package chartRepoRepository
 
 import (
-	"github.com/devtron-labs/common-lib/utils"
+	"github.com/devtron-labs/common-lib-private/utils"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/stretchr/testify/assert"
 	"testing"

@@ -2,8 +2,8 @@ package user
 
 import (
 	"fmt"
-	jwt2 "github.com/devtron-labs/authenticator/jwt"
 	"github.com/devtron-labs/devtron/api/bean"
+	auth "github.com/devtron-labs/devtron/pkg/auth/authorisation/globalConfig"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/golang-jwt/jwt/v4"
 	"go.uber.org/zap"
@@ -11,22 +11,25 @@ import (
 
 type UserSelfRegistrationService interface {
 	CheckSelfRegistrationRoles() (CheckResponse, error)
-	SelfRegister(emailId string) (*bean.UserInfo, error)
+	SelfRegister(emailId string, groups []string) (*bean.UserInfo, error)
 	CheckAndCreateUserIfConfigured(claims jwt.MapClaims) bool
 }
 
 type UserSelfRegistrationServiceImpl struct {
-	logger                          *zap.SugaredLogger
-	selfRegistrationRolesRepository repository.SelfRegistrationRolesRepository
-	userService                     UserService
+	logger                           *zap.SugaredLogger
+	selfRegistrationRolesRepository  repository.SelfRegistrationRolesRepository
+	userService                      UserService
+	globalAuthorisationConfigService auth.GlobalAuthorisationConfigService
 }
 
 func NewUserSelfRegistrationServiceImpl(logger *zap.SugaredLogger,
-	selfRegistrationRolesRepository repository.SelfRegistrationRolesRepository, userService UserService) *UserSelfRegistrationServiceImpl {
+	selfRegistrationRolesRepository repository.SelfRegistrationRolesRepository, userService UserService,
+	globalAuthorisationConfigService auth.GlobalAuthorisationConfigService) *UserSelfRegistrationServiceImpl {
 	return &UserSelfRegistrationServiceImpl{
-		logger:                          logger,
-		selfRegistrationRolesRepository: selfRegistrationRolesRepository,
-		userService:                     userService,
+		logger:                           logger,
+		selfRegistrationRolesRepository:  selfRegistrationRolesRepository,
+		userService:                      userService,
+		globalAuthorisationConfigService: globalAuthorisationConfigService,
 	}
 }
 
@@ -77,42 +80,53 @@ func (impl *UserSelfRegistrationServiceImpl) CheckSelfRegistrationRoles() (Check
 	return checkResponse, nil
 }
 
-func (impl *UserSelfRegistrationServiceImpl) SelfRegister(emailId string) (*bean.UserInfo, error) {
-	roles, err := impl.CheckSelfRegistrationRoles()
-	if err != nil || roles.Enabled == false {
-		return nil, err
-	}
-	impl.logger.Infow("self register start")
-	userInfo := &bean.UserInfo{
-		EmailId:    emailId,
-		Roles:      roles.Roles,
-		SuperAdmin: false,
-	}
-
-	userInfos, err := impl.userService.SelfRegisterUserIfNotExists(userInfo)
-	if err != nil {
-		impl.logger.Errorw("error while register user", "error", err)
-		return nil, err
-	}
-	impl.logger.Errorw("registerd user", "user", userInfos)
-	if len(userInfos) > 0 {
-		return userInfos[0], nil
+func (impl *UserSelfRegistrationServiceImpl) SelfRegister(emailId string, groups []string) (*bean.UserInfo, error) {
+	toSelfRegisterUser := false
+	var selfRegistrationRoles []string
+	groupClaimsConfigActive := impl.globalAuthorisationConfigService.IsGroupClaimsConfigActive()
+	if groupClaimsConfigActive {
+		toSelfRegisterUser = true
+		selfRegistrationRoles = nil //just for easy readability
 	} else {
-		return nil, fmt.Errorf("user not created")
+		roles, err := impl.CheckSelfRegistrationRoles()
+		if err != nil {
+			return nil, err
+		}
+		if roles.Enabled {
+			toSelfRegisterUser = true
+			selfRegistrationRoles = roles.Roles
+		}
+	}
+	if toSelfRegisterUser {
+		impl.logger.Infow("self register start")
+		userInfo := &bean.UserInfo{
+			EmailId:    emailId,
+			Roles:      selfRegistrationRoles,
+			SuperAdmin: false,
+		}
+		userInfos, err := impl.userService.SelfRegisterUserIfNotExists(userInfo, groups, groupClaimsConfigActive)
+		if err != nil {
+			impl.logger.Errorw("error while register user", "error", err)
+			return nil, err
+		}
+		impl.logger.Infow("self registered user", "user", userInfos)
+		if len(userInfos) > 0 {
+			return userInfos[0], nil
+		} else {
+			return nil, fmt.Errorf("user not created")
+		}
+	} else {
+		return nil, nil
 	}
 }
 
 func (impl *UserSelfRegistrationServiceImpl) CheckAndCreateUserIfConfigured(claims jwt.MapClaims) bool {
-	emailId := jwt2.GetField(claims, "email")
-	sub := jwt2.GetField(claims, "sub")
-	if emailId == "" && sub == "admin" {
-		emailId = sub
-	}
+	emailId, groups := impl.globalAuthorisationConfigService.GetEmailAndGroupsFromClaims(claims)
 	exists := impl.userService.UserExists(emailId)
 	var id int32
 	if !exists {
 		impl.logger.Infow("self registering user,  ", "email", emailId)
-		user, err := impl.SelfRegister(emailId)
+		user, err := impl.SelfRegister(emailId, groups)
 		if err != nil {
 			impl.logger.Errorw("error while register user", "error", err)
 		} else if user != nil && user.Id > 0 {
@@ -121,6 +135,16 @@ func (impl *UserSelfRegistrationServiceImpl) CheckAndCreateUserIfConfigured(clai
 		}
 	}
 	if exists {
+		groupClaimsConfigActive := impl.globalAuthorisationConfigService.IsGroupClaimsConfigActive()
+		//user is active, need to update group claim data if needed
+		if groupClaimsConfigActive {
+			err := impl.userService.UpdateUserGroupMappingIfActiveUser(emailId, groups)
+			if err != nil {
+				impl.logger.Errorw("error in updating data for user group claims map", "err", err, "emailId", emailId)
+				return exists
+			}
+		}
+
 		impl.userService.SaveLoginAudit(emailId, "localhost", id)
 	}
 	impl.logger.Infow("user status", "email", emailId, "status", exists)

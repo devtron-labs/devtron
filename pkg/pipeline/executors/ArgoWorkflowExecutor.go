@@ -196,7 +196,7 @@ func (impl *ArgoWorkflowExecutorImpl) updateBlobStorageConfig(workflowTemplate b
 		if blobStorageS3Config != nil {
 			s3CompatibleEndpointUrl := blobStorageS3Config.EndpointUrl
 			if s3CompatibleEndpointUrl == "" {
-				s3CompatibleEndpointUrl = "s3.amazonaws.com"
+				s3CompatibleEndpointUrl = S3_ENDPOINT_URL
 			} else {
 				parsedUrl, err := url.Parse(s3CompatibleEndpointUrl)
 				if err != nil {
@@ -209,18 +209,8 @@ func (impl *ArgoWorkflowExecutorImpl) updateBlobStorageConfig(workflowTemplate b
 			var accessKeySelector *v12.SecretKeySelector
 			var secretKeySelector *v12.SecretKeySelector
 			if blobStorageS3Config.AccessKey != "" {
-				accessKeySelector = &v12.SecretKeySelector{
-					Key: CRED_ACCESS_KEY,
-					LocalObjectReference: v12.LocalObjectReference{
-						Name: WORKFLOW_MINIO_CRED,
-					},
-				}
-				secretKeySelector = &v12.SecretKeySelector{
-					Key: CRED_SECRET_KEY,
-					LocalObjectReference: v12.LocalObjectReference{
-						Name: WORKFLOW_MINIO_CRED,
-					},
-				}
+				accessKeySelector = ACCESS_KEY_SELECTOR
+				secretKeySelector = SECRET_KEY_SELECTOR
 			}
 			s3Artifact = &v1alpha1.S3Artifact{
 				Key: cloudStorageKey,
@@ -240,13 +230,8 @@ func (impl *ArgoWorkflowExecutorImpl) updateBlobStorageConfig(workflowTemplate b
 			gcsArtifact = &v1alpha1.GCSArtifact{
 				Key: cloudStorageKey,
 				GCSBucket: v1alpha1.GCSBucket{
-					Bucket: gcpBlobConfig.LogBucketName,
-					ServiceAccountKeySecret: &v12.SecretKeySelector{
-						Key: CRED_SECRET_KEY,
-						LocalObjectReference: v12.LocalObjectReference{
-							Name: WORKFLOW_MINIO_CRED,
-						},
-					},
+					Bucket:                  gcpBlobConfig.LogBucketName,
+					ServiceAccountKeySecret: SECRET_KEY_SELECTOR,
 				},
 			}
 		}

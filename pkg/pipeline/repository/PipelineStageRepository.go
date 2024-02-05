@@ -63,6 +63,7 @@ type PipelineStageStep struct {
 	DependentOnStep          string           `sql:"dependent_on_step"`
 	Deleted                  bool             `sql:"deleted,notnull"`
 	TriggerIfParentStageFail bool             `sql:"trigger_if_parent_stage_fail"`
+	PipelineStage            *PipelineStage
 	sql.AuditLog
 }
 
@@ -195,6 +196,8 @@ type PipelineStageRepository interface {
 	GetConditionIdsByStepId(stepId int) ([]int, error)
 	MarkConditionsDeletedByStepId(stepId int, tx *pg.Tx) error
 	MarkConditionsDeletedExcludingActiveVariablesInUpdateReq(activeConditionIdsPresentInReq []int, stepId int, tx *pg.Tx) error
+
+	GetConfiguredPluginsForCIPipelines(ciPipelineIds []int) ([]*PipelineStageStep, error)
 }
 
 func NewPipelineStageRepository(logger *zap.SugaredLogger,
@@ -846,4 +849,19 @@ func (impl *PipelineStageRepositoryImpl) MarkConditionsDeletedExcludingActiveVar
 		return err
 	}
 	return nil
+}
+
+func (impl *PipelineStageRepositoryImpl) GetConfiguredPluginsForCIPipelines(ciPipelineIds []int) ([]*PipelineStageStep, error) {
+	var models []*PipelineStageStep
+	err := impl.dbConnection.Model(&models).Column("pipeline_stage_step.ref_plugin_id", "PipelineStage").
+		Join("inner join pipeline_stage ps on ps.id=pipeline_stage_step.pipeline_stage_id").
+		Where("pipeline_stage_step.step_type = ?", PIPELINE_STEP_TYPE_REF_PLUGIN).
+		Where("ps.ci_pipeline_id in (?)", pg.In(ciPipelineIds)).
+		Where("pipeline_stage_step.deleted = ?", false).
+		Where("ps.deleted = ?", false).Select()
+	if err != nil {
+		impl.logger.Errorw("error in getting configured pipelines for a ci pipeline", "err", err, "ciPipelineIds", ciPipelineIds)
+		return nil, err
+	}
+	return models, nil
 }

@@ -20,6 +20,7 @@ package casbin
 import (
 	"encoding/json"
 	"fmt"
+	auth "github.com/devtron-labs/devtron/pkg/auth/authorisation/globalConfig"
 	"log"
 	"math"
 	"strings"
@@ -29,6 +30,7 @@ import (
 
 	"github.com/caarlos0/env"
 	"github.com/casbin/casbin"
+	casbinv2 "github.com/casbin/casbin/v2"
 	"github.com/devtron-labs/authenticator/jwt"
 	"github.com/devtron-labs/authenticator/middleware"
 	"github.com/patrickmn/go-cache"
@@ -45,20 +47,32 @@ type Enforcer interface {
 	//EnforceByEmailInBatch(emailId string, resource string, action string, vals []string) map[string]bool
 	InvalidateCache(emailId string) bool
 	InvalidateCompleteCache()
-	ReloadPolicy() error
+	ReloadPolicy() (bool, error)
 	GetCacheDump() string
 }
 
 func NewEnforcerImpl(
 	enforcer *casbin.SyncedEnforcer,
+	enforcerV2 *casbinv2.SyncedEnforcer,
 	sessionManager *middleware.SessionManager,
-	logger *zap.SugaredLogger) *EnforcerImpl {
+	logger *zap.SugaredLogger, casbinService CasbinService,
+	globalAuthConfigService auth.GlobalAuthorisationConfigService) *EnforcerImpl {
 	lock := make(map[string]*CacheData)
 	batchRequestLock := make(map[string]*sync.Mutex)
 	enforcerConfig := getConfig()
-	enf := &EnforcerImpl{lockCacheData: lock, enforcerRWLock: &sync.RWMutex{}, batchRequestLock: batchRequestLock, enforcerConfig: enforcerConfig,
-		Cache: getEnforcerCache(logger, enforcerConfig), SyncedEnforcer: enforcer, logger: logger, SessionManager: sessionManager}
+	enf := &EnforcerImpl{lockCacheData: lock,
+		enforcerRWLock:          &sync.RWMutex{},
+		batchRequestLock:        batchRequestLock,
+		enforcerConfig:          enforcerConfig,
+		Cache:                   getEnforcerCache(logger, enforcerConfig),
+		Enforcer:                enforcer,
+		EnforcerV2:              enforcerV2,
+		Logger:                  logger,
+		SessionManager:          sessionManager,
+		globalAuthConfigService: globalAuthConfigService,
+	}
 	setEnforcerImpl(enf)
+	setCasbinService(casbinService)
 	return enf
 }
 
@@ -72,6 +86,7 @@ type EnforcerConfig struct {
 	CacheEnabled          bool `env:"ENFORCER_CACHE" envDefault:"false"`
 	CacheExpirationInSecs int  `env:"ENFORCER_CACHE_EXPIRATION_IN_SEC" envDefault:"86400"`
 	EnforcerBatchSize     int  `env:"ENFORCER_MAX_BATCH_SIZE" envDefault:"1"`
+	UseCasbinV2           bool `env:"USE_CASBIN_V2" envDefault:"false"`
 }
 
 func getConfig() *EnforcerConfig {
@@ -103,11 +118,13 @@ type EnforcerImpl struct {
 	lockCacheData    map[string]*CacheData
 	batchRequestLock map[string]*sync.Mutex
 	*cache.Cache
-	*casbin.SyncedEnforcer
+	Enforcer   *casbin.SyncedEnforcer
+	EnforcerV2 *casbinv2.SyncedEnforcer
 	*middleware.SessionManager
-	logger         *zap.SugaredLogger
-	enforcerConfig *EnforcerConfig
-	enforcerRWLock *sync.RWMutex
+	Logger                  *zap.SugaredLogger
+	enforcerConfig          *EnforcerConfig
+	enforcerRWLock          *sync.RWMutex
+	globalAuthConfigService auth.GlobalAuthorisationConfigService
 }
 
 // Enforce is a wrapper around casbin.Enforce to additionally enforce a default role and a custom
@@ -124,10 +141,13 @@ func (e *EnforcerImpl) EnforceInBatch(token string, resource string, action stri
 	return e.enforceInBatch(token, resource, action, vals)
 }
 
-func (e *EnforcerImpl) ReloadPolicy() error {
+func (e *EnforcerImpl) ReloadPolicy() (bool, error) {
 	//e.enforcerRWLock.Lock()
 	//defer e.enforcerRWLock.Unlock()
-	return e.SyncedEnforcer.LoadPolicy()
+	if e.enforcerConfig.UseCasbinV2 {
+		return true, e.EnforcerV2.LoadPolicy()
+	}
+	return false, e.Enforcer.LoadPolicy()
 }
 
 // EnforceErr is a convenience helper to wrap a failed enforcement with a detailed error about the request
@@ -225,7 +245,7 @@ func (e *EnforcerImpl) EnforceByEmailInBatch(emailId string, resource string, ac
 	if batchSize > 0 {
 		avgTimegap = float64(totalTimeGap / int64(batchSize))
 	}
-	e.logger.Infow("enforce request for batch with data", "emailId", emailId, "resource", resource,
+	e.Logger.Infow("enforce request for batch with data", "emailId", emailId, "resource", resource,
 		"action", action, "totalElapsedTime", totalTimeGap, "maxTimegap", maxTimegap, "minTimegap",
 		minTimegap, "avgTimegap", avgTimegap, "size", len(vals), "batchSize", batchSize, "cached", e.Cache != nil && dataCached)
 
@@ -337,7 +357,7 @@ func (e *EnforcerImpl) InvalidateCache(emailId string) bool {
 	cacheLock := e.getEnforcerCacheLock(emailId)
 	cacheLock.lock.Lock()
 	defer cacheLock.lock.Unlock()
-	e.logger.Debugw("invalidating cache & setting flag ", "emailId", emailId)
+	e.Logger.Debugw("invalidating cache & setting flag ", "emailId", emailId)
 	cacheLock.cacheCleaningFlag = true
 	if e.Cache != nil {
 		e.Cache.Delete(emailId)
@@ -362,7 +382,7 @@ func (e *EnforcerImpl) GetCacheDump() string {
 	items := e.Cache.Items()
 	cacheData, err := json.Marshal(items)
 	if err != nil {
-		e.logger.Infow("error occurred while taking cache dump", "reason", err)
+		e.Logger.Infow("error occurred while taking cache dump", "reason", err)
 		return ""
 	}
 	return string(cacheData)
@@ -397,7 +417,7 @@ func (e *EnforcerImpl) enforceAndUpdateCache(email string, resource string, acti
 		if returnVal == 0 {
 			cacheData.cacheCleaningFlag = false
 		}
-		e.logger.Debugw("not updating enforcer status for cache", "email", email, "resource", resource,
+		e.Logger.Debugw("not updating enforcer status for cache", "email", email, "resource", resource,
 			"action", action, "resourceItem", resourceItem, "enforceReqCounter", cacheData.enforceReqCounter, "err", err == nil)
 		return enforcedStatus
 	}
@@ -410,9 +430,9 @@ func (e *EnforcerImpl) enforceAndUpdateCache(email string, resource string, acti
 func (e *EnforcerImpl) enforcerEnforce(email string, resource string, action string, resourceItem string) (bool, error) {
 	//e.enforcerRWLock.RLock()
 	//defer e.enforcerRWLock.RUnlock()
-	response, err := e.SyncedEnforcer.EnforceSafe(email, resource, action, resourceItem)
+	response, err := e.Enforcer.EnforceSafe(email, resource, action, resourceItem)
 	if err != nil {
-		e.logger.Errorw("error occurred while enforcing safe", "email", email,
+		e.Logger.Errorw("error occurred while enforcing safe", "email", email,
 			"resource", resource, "action", action, "resourceItem", resourceItem, "reason", err)
 	}
 	return response, err
@@ -437,7 +457,7 @@ func (e *EnforcerImpl) VerifyTokenAndGetEmail(tokenString string) (string, bool)
 
 // enforce is a helper to additionally check a default role and invoke a custom claims enforcement function
 func (e *EnforcerImpl) enforceByEmail(emailId string, resource string, action string, resourceItem string) bool {
-	defer handlePanic()
+	defer HandlePanic()
 	response, found := e.enforceFromCache(emailId, resource, action, resourceItem)
 	if found {
 		cacheData := e.getEnforcerCacheLock(emailId)
@@ -485,6 +505,9 @@ func MatchKeyByPart(key1 string, key2 string) bool {
 		if key2Val == "" || key1Val == "" {
 			//empty values are not allowed in any key
 			return false
+		} else if key1Val == ResourceObjectIgnorePlaceholder {
+			//request contains ignore placeholder, ignoring this check and continuing on other
+			continue
 		} else {
 			// getting index of "*" in key2, will check values of key1 accordingly
 			//for example - key2Val = a/bc*/d & key1Val = a/bcd/d, in this case "bc" will be checked in key1Val(upto index of "*")

@@ -3,16 +3,21 @@ package cluster
 import (
 	"context"
 	"fmt"
+	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
+	auth "github.com/devtron-labs/devtron/pkg/auth/authorisation/globalConfig"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
+	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
 	"net/http"
 	"strings"
 	"time"
 
 	cluster3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/devtron-labs/common-lib/utils/k8s"
-	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
-	repository5 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
+	"github.com/devtron-labs/common-lib-private/utils/k8s"
+	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
+	repository4 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/devtron-labs/devtron/pkg/k8s/informer"
+	"github.com/go-pg/pg"
 
 	cluster2 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
 	"github.com/devtron-labs/devtron/client/grafana"
@@ -24,50 +29,92 @@ import (
 	"go.uber.org/zap"
 )
 
-// extends ClusterServiceImpl and enhances method of ClusterService with full mode specific errors
+// ClusterServiceImplExtended extends ClusterServiceImpl and enhances method of ClusterService with full mode specific errors
 type ClusterServiceImplExtended struct {
-	environmentRepository  repository.EnvironmentRepository
-	grafanaClient          grafana.GrafanaClient
-	installedAppRepository repository2.InstalledAppRepository
-	clusterServiceCD       cluster2.ServiceClient
-	K8sInformerFactory     informer.K8sInformerFactory
-	gitOpsRepository       repository3.GitOpsConfigRepository
+	environmentRepository    repository.EnvironmentRepository
+	grafanaClient            grafana.GrafanaClient
+	installedAppRepository   repository2.InstalledAppRepository
+	clusterServiceCD         cluster2.ServiceClient
+	K8sInformerFactory       informer.K8sInformerFactory
+	gitOpsRepository         repository3.GitOpsConfigRepository
+	sshTunnelWrapperService  k8s.SSHTunnelWrapperService
+	imageDigestPolicyService imageDigestPolicy.ImageDigestPolicyService
 	*ClusterServiceImpl
 }
 
 func NewClusterServiceImplExtended(repository repository.ClusterRepository, environmentRepository repository.EnvironmentRepository,
 	grafanaClient grafana.GrafanaClient, logger *zap.SugaredLogger, installedAppRepository repository2.InstalledAppRepository,
-	K8sUtil *k8s.K8sServiceImpl,
+	K8sUtil *k8s.K8sUtilExtended,
 	clusterServiceCD cluster2.ServiceClient, K8sInformerFactory informer.K8sInformerFactory,
-	gitOpsRepository repository3.GitOpsConfigRepository, userAuthRepository repository5.UserAuthRepository,
-	userRepository repository5.UserRepository, roleGroupRepository repository5.RoleGroupRepository) *ClusterServiceImplExtended {
+	gitOpsRepository repository3.GitOpsConfigRepository, userAuthRepository repository4.UserAuthRepository,
+	userRepository repository4.UserRepository, roleGroupRepository repository4.RoleGroupRepository,
+	sshTunnelWrapperService k8s.SSHTunnelWrapperService,
+	globalAuthorisationConfigService auth.GlobalAuthorisationConfigService,
+	userService user.UserService,
+	imageDigestPolicyService imageDigestPolicy.ImageDigestPolicyService) *ClusterServiceImplExtended {
 	clusterServiceExt := &ClusterServiceImplExtended{
-		environmentRepository:  environmentRepository,
-		grafanaClient:          grafanaClient,
-		installedAppRepository: installedAppRepository,
-		clusterServiceCD:       clusterServiceCD,
-		gitOpsRepository:       gitOpsRepository,
+		environmentRepository:    environmentRepository,
+		grafanaClient:            grafanaClient,
+		installedAppRepository:   installedAppRepository,
+		clusterServiceCD:         clusterServiceCD,
+		gitOpsRepository:         gitOpsRepository,
+		sshTunnelWrapperService:  sshTunnelWrapperService,
+		imageDigestPolicyService: imageDigestPolicyService,
 		ClusterServiceImpl: &ClusterServiceImpl{
-			clusterRepository:   repository,
-			logger:              logger,
-			K8sUtil:             K8sUtil,
-			K8sInformerFactory:  K8sInformerFactory,
-			userAuthRepository:  userAuthRepository,
-			userRepository:      userRepository,
-			roleGroupRepository: roleGroupRepository,
+			clusterRepository:                repository,
+			logger:                           logger,
+			K8sUtil:                          K8sUtil,
+			K8sInformerFactory:               K8sInformerFactory,
+			userAuthRepository:               userAuthRepository,
+			userRepository:                   userRepository,
+			roleGroupRepository:              roleGroupRepository,
+			globalAuthorisationConfigService: globalAuthorisationConfigService,
+			ClusterRbacServiceImpl: &ClusterRbacServiceImpl{
+				userService: userService,
+				logger:      logger,
+			},
 		},
 	}
+	go clusterServiceExt.updateClusterConnectionMap()
 	go clusterServiceExt.buildInformer()
 	return clusterServiceExt
 }
 
+func (impl *ClusterServiceImplExtended) updateClusterConnectionMap() {
+	//getting all clusters which have SSH Tunnel configured
+	clusters, err := impl.clusterRepository.GetAllSSHTunnelConfiguredClusters()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Error("error in getting all sshTunnel configured clusters", "err", err)
+		return
+	}
+	for _, cluster := range clusters {
+		clusterBean := GetClusterBean(*cluster)
+		clusterConfig := clusterBean.GetClusterConfig()
+		_, err = impl.sshTunnelWrapperService.StartUpdateConnectionForCluster(clusterConfig)
+		if err != nil {
+			impl.logger.Warnw("error in connecting with cluster through SSH tunnel", "err", err, "clusterId", cluster.Id)
+			//not returning here as at startup it might be possible that the cluster connection status is not updated,
+			//and we might be trying on an invalid cluster, so with one try we will move on
+			continue
+		}
+	}
+	return
+}
 func (impl *ClusterServiceImplExtended) FindAllWithoutConfig() ([]*ClusterBean, error) {
 	beans, err := impl.FindAll()
 	if err != nil {
 		return nil, err
 	}
 	for _, bean := range beans {
-		bean.Config = map[string]string{k8s.BearerToken: ""}
+		bean.Config = map[string]string{k8s2.BearerToken: ""}
+		if bean.SSHTunnelConfig != nil {
+			if len(bean.SSHTunnelConfig.Password) > 0 {
+				bean.SSHTunnelConfig.Password = SecretDataObfuscatePlaceholder
+			}
+			if len(bean.SSHTunnelConfig.AuthKey) > 0 {
+				bean.SSHTunnelConfig.AuthKey = SecretDataObfuscatePlaceholder
+			}
+		}
 	}
 	return beans, nil
 }
@@ -183,7 +230,7 @@ func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *Cluste
 			}
 			env.GrafanaDatasourceId = grafanaDatasourceId
 		}
-		//if the request doesn't have a non empty prometheus url and we don't have a GrafanaDataSourceId defined yet, no point in
+		//if the request doesn't have a non-empty prometheus url, and we don't have a GrafanaDataSourceId defined yet, no point in
 		//going to grafana client and trying to get data source
 		if bean.PrometheusUrl != "" && env.GrafanaDatasourceId != 0 {
 			promDatasource, err := impl.grafanaClient.GetDatasource(env.GrafanaDatasourceId)
@@ -234,22 +281,22 @@ func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *Cluste
 
 	}
 
-	// if git-ops configured, then only update cluster in ACD, otherwise ignore
-	if isGitOpsConfigured {
+	// if git-ops configured and no proxy is configured, then only update cluster in ACD, otherwise ignore
+	if isGitOpsConfigured && len(bean.ProxyUrl) == 0 && !bean.ToConnectWithSSHTunnel {
 		configMap := bean.Config
 		serverUrl := bean.ServerUrl
 		bearerToken := ""
-		if configMap[k8s.BearerToken] != "" {
-			bearerToken = configMap[k8s.BearerToken]
+		if configMap[k8s2.BearerToken] != "" {
+			bearerToken = configMap[k8s2.BearerToken]
 		}
 
 		tlsConfig := v1alpha1.TLSClientConfig{
 			Insecure: bean.InsecureSkipTLSVerify,
 		}
 		if !bean.InsecureSkipTLSVerify {
-			tlsConfig.KeyData = []byte(configMap[k8s.TlsKey])
-			tlsConfig.CertData = []byte(configMap[k8s.CertData])
-			tlsConfig.CAData = []byte(configMap[k8s.CertificateAuthorityData])
+			tlsConfig.KeyData = []byte(configMap[k8s2.TlsKey])
+			tlsConfig.CertData = []byte(configMap[k8s2.CertData])
+			tlsConfig.CAData = []byte(configMap[k8s2.CertificateAuthorityData])
 		}
 
 		cdClusterConfig := v1alpha1.ClusterConfig{
@@ -268,7 +315,7 @@ func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *Cluste
 		if err != nil {
 			impl.logger.Errorw("service err, Update", "error", err, "payload", cl)
 			userMsg := "failed to update on cluster via ACD"
-			if strings.Contains(err.Error(), k8s.DefaultClusterUrl) {
+			if strings.Contains(err.Error(), k8s2.DefaultClusterUrl) {
 				userMsg = fmt.Sprintf("%s, %s", err.Error(), ", successfully updated in ACD")
 			}
 			err = &util.ApiError{
@@ -347,8 +394,8 @@ func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *ClusterB
 		return nil, err
 	}
 
-	// if git-ops configured, then only add cluster in ACD, otherwise ignore
-	if isGitOpsConfigured {
+	// if git-ops configured and no proxy or ssh tunnel is configured, then only add cluster in ACD, otherwise ignore
+	if isGitOpsConfigured && len(clusterBean.ProxyUrl) == 0 && !clusterBean.ToConnectWithSSHTunnel {
 		//create it into argo cd as well
 		cl := impl.ConvertClusterBeanObjectToCluster(bean)
 
@@ -402,4 +449,16 @@ func (impl ClusterServiceImplExtended) DeleteFromDb(bean *ClusterBean, userId in
 	err = impl.K8sUtil.DeleteSecret("default", secretName, k8sClient)
 	impl.logger.Errorw("error in deleting secret", "error", err)
 	return nil
+}
+
+func (impl ClusterServiceImplExtended) IsPolicyConfiguredForCluster(envId, clusterId int) (bool, error) {
+
+	digestConfigurationRequest := imageDigestPolicy.DigestPolicyConfigurationRequest{ClusterId: clusterId, EnvironmentId: envId}
+	digestPolicyConfigurations, err := impl.imageDigestPolicyService.GetDigestPolicyConfigurations(digestConfigurationRequest)
+	if err != nil {
+		impl.logger.Errorw("error in checking if isImageDigestPolicyConfiguredForPipeline", "err", err, "clusterId", clusterId, "envId", envId)
+		return false, err
+	}
+	return digestPolicyConfigurations.DigestConfiguredForEnvOrCluster, nil
+
 }

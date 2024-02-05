@@ -39,7 +39,7 @@ func NewClusterRbacServiceImpl(environmentService EnvironmentService,
 
 func (impl *ClusterRbacServiceImpl) CheckAuthorization(clusterName string, clusterId int, token string, userId int32, rbacForClusterMappingsAlso bool) (authenticated bool, err error) {
 	if rbacForClusterMappingsAlso {
-		allowedClusterMap, err := impl.FetchAllowedClusterMap(userId)
+		allowedClusterMap, err := impl.FetchAllowedClusterMap(userId, token)
 
 		if err != nil {
 			impl.logger.Errorw("error in fetching allowedClusterMap ", "err", err, "clusterName", clusterName)
@@ -83,9 +83,9 @@ func (impl *ClusterRbacServiceImpl) CheckAuthorization(clusterName string, clust
 
 	return false, nil
 }
-func (impl *ClusterRbacServiceImpl) FetchAllowedClusterMap(userId int32) (map[string]bool, error) {
+func (impl *ClusterRbacServiceImpl) FetchAllowedClusterMap(userId int32, token string) (map[string]bool, error) {
 	allowedClustersMap := make(map[string]bool)
-	roles, err := impl.clusterService.FetchRolesFromGroup(userId)
+	roles, err := impl.clusterService.FetchRolesFromGroup(userId, token)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user roles from db", "error", err)
 		return nil, err

@@ -7,6 +7,7 @@ import (
 	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
 	appStoreDiscover "github.com/devtron-labs/devtron/api/appStore/discover"
 	appStoreValues "github.com/devtron-labs/devtron/api/appStore/values"
+	"github.com/devtron-labs/devtron/api/auth/authorisation/globalConfig"
 	"github.com/devtron-labs/devtron/api/auth/sso"
 	"github.com/devtron-labs/devtron/api/auth/user"
 	"github.com/devtron-labs/devtron/api/chartRepo"
@@ -49,20 +50,21 @@ type MuxRouter struct {
 	chartProviderRouter      chartProvider.ChartProviderRouter
 	dockerRegRouter          router.DockerRegRouter
 
-	dashboardTelemetryRouter dashboardEvent.DashboardTelemetryRouter
-	commonDeploymentRouter   appStoreDeployment.CommonDeploymentRouter
-	externalLinksRouter      externalLink.ExternalLinkRouter
-	moduleRouter             module.ModuleRouter
-	serverRouter             server.ServerRouter
-	apiTokenRouter           apiToken.ApiTokenRouter
-	k8sCapacityRouter        capacity.K8sCapacityRouter
-	webhookHelmRouter        webhookHelm.WebhookHelmRouter
-	userAttributesRouter     router.UserAttributesRouter
-	telemetryRouter          router.TelemetryRouter
-	userTerminalAccessRouter terminal.UserTerminalAccessRouter
-	attributesRouter         router.AttributesRouter
-	appRouter                router.AppRouter
-	rbacRoleRouter           user.RbacRoleRouter
+	dashboardTelemetryRouter        dashboardEvent.DashboardTelemetryRouter
+	commonDeploymentRouter          appStoreDeployment.CommonDeploymentRouter
+	externalLinksRouter             externalLink.ExternalLinkRouter
+	moduleRouter                    module.ModuleRouter
+	serverRouter                    server.ServerRouter
+	apiTokenRouter                  apiToken.ApiTokenRouter
+	k8sCapacityRouter               capacity.K8sCapacityRouter
+	webhookHelmRouter               webhookHelm.WebhookHelmRouter
+	userAttributesRouter            router.UserAttributesRouter
+	telemetryRouter                 router.TelemetryRouter
+	userTerminalAccessRouter        terminal.UserTerminalAccessRouter
+	attributesRouter                router.AttributesRouter
+	appRouter                       router.AppRouter
+	rbacRoleRouter                  user.RbacRoleRouter
+	globalAuthorisationConfigRouter globalConfig.AuthorisationConfigRouter
 }
 
 func NewMuxRouter(
@@ -95,39 +97,41 @@ func NewMuxRouter(
 	attributesRouter router.AttributesRouter,
 	appRouter router.AppRouter,
 	rbacRoleRouter user.RbacRoleRouter,
+	globalAuthorisationConfigRouter globalConfig.AuthorisationConfigRouter,
 ) *MuxRouter {
 	r := &MuxRouter{
-		Router:                   mux.NewRouter(),
-		logger:                   logger,
-		ssoLoginRouter:           ssoLoginRouter,
-		teamRouter:               teamRouter,
-		UserAuthRouter:           UserAuthRouter,
-		userRouter:               userRouter,
-		clusterRouter:            clusterRouter,
-		dashboardRouter:          dashboardRouter,
-		helmAppRouter:            helmAppRouter,
-		environmentRouter:        environmentRouter,
-		k8sApplicationRouter:     k8sApplicationRouter,
-		chartRepositoryRouter:    chartRepositoryRouter,
-		appStoreDiscoverRouter:   appStoreDiscoverRouter,
-		appStoreValuesRouter:     appStoreValuesRouter,
-		appStoreDeploymentRouter: appStoreDeploymentRouter,
-		chartProviderRouter:      chartProviderRouter,
-		dockerRegRouter:          dockerRegRouter,
-		dashboardTelemetryRouter: dashboardTelemetryRouter,
-		commonDeploymentRouter:   commonDeploymentRouter,
-		externalLinksRouter:      externalLinkRouter,
-		moduleRouter:             moduleRouter,
-		serverRouter:             serverRouter,
-		apiTokenRouter:           apiTokenRouter,
-		k8sCapacityRouter:        k8sCapacityRouter,
-		webhookHelmRouter:        webhookHelmRouter,
-		userAttributesRouter:     userAttributesRouter,
-		telemetryRouter:          telemetryRouter,
-		userTerminalAccessRouter: userTerminalAccessRouter,
-		attributesRouter:         attributesRouter,
-		appRouter:                appRouter,
-		rbacRoleRouter:           rbacRoleRouter,
+		Router:                          mux.NewRouter(),
+		logger:                          logger,
+		ssoLoginRouter:                  ssoLoginRouter,
+		teamRouter:                      teamRouter,
+		UserAuthRouter:                  UserAuthRouter,
+		userRouter:                      userRouter,
+		clusterRouter:                   clusterRouter,
+		dashboardRouter:                 dashboardRouter,
+		helmAppRouter:                   helmAppRouter,
+		environmentRouter:               environmentRouter,
+		k8sApplicationRouter:            k8sApplicationRouter,
+		chartRepositoryRouter:           chartRepositoryRouter,
+		appStoreDiscoverRouter:          appStoreDiscoverRouter,
+		appStoreValuesRouter:            appStoreValuesRouter,
+		appStoreDeploymentRouter:        appStoreDeploymentRouter,
+		chartProviderRouter:             chartProviderRouter,
+		dockerRegRouter:                 dockerRegRouter,
+		dashboardTelemetryRouter:        dashboardTelemetryRouter,
+		commonDeploymentRouter:          commonDeploymentRouter,
+		externalLinksRouter:             externalLinkRouter,
+		moduleRouter:                    moduleRouter,
+		serverRouter:                    serverRouter,
+		apiTokenRouter:                  apiTokenRouter,
+		k8sCapacityRouter:               k8sCapacityRouter,
+		webhookHelmRouter:               webhookHelmRouter,
+		userAttributesRouter:            userAttributesRouter,
+		telemetryRouter:                 telemetryRouter,
+		userTerminalAccessRouter:        userTerminalAccessRouter,
+		attributesRouter:                attributesRouter,
+		appRouter:                       appRouter,
+		rbacRoleRouter:                  rbacRoleRouter,
+		globalAuthorisationConfigRouter: globalAuthorisationConfigRouter,
 	}
 	return r
 }
@@ -260,4 +264,7 @@ func (r *MuxRouter) Init() {
 
 	attributeRouter := r.Router.PathPrefix("/orchestrator/attributes").Subrouter()
 	r.attributesRouter.InitAttributesRouter(attributeRouter)
+
+	globalAuthorisationConfigRouter := r.Router.PathPrefix("/orchestrator/authorisation").Subrouter()
+	r.globalAuthorisationConfigRouter.InitAuthorisationConfigRouter(globalAuthorisationConfigRouter)
 }

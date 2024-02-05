@@ -25,10 +25,13 @@ import (
 
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
+	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/apiToken"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	repository4 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/util/event"
 	"github.com/go-pg/pg"
 	"github.com/satori/go.uuid"
@@ -38,6 +41,8 @@ import (
 type EventFactory interface {
 	Build(eventType util.EventType, sourceId *int, appId int, envId *int, pipelineType util.PipelineType) Event
 	BuildExtraCDData(event Event, wfr *pipelineConfig.CdWorkflowRunner, pipelineOverrideId int, stage bean2.WorkflowType) Event
+	BuildExtraApprovalData(event Event, approvalActionRequest bean.UserApprovalActionRequest, pipeline *pipelineConfig.Pipeline, userId int32, imageTagNames []string, imageComment string) []Event
+	BuildExtraProtectConfigData(event Event, draftNotificationRequest ConfigDataForNotification, draftId int, DraftVersionId int) []Event
 	BuildExtraCIData(event Event, material *MaterialTriggerInfo, dockerImage string) Event
 	//BuildFinalData(event Event) *Payload
 }
@@ -52,13 +57,22 @@ type EventSimpleFactoryImpl struct {
 	pipelineRepository           pipelineConfig.PipelineRepository
 	userRepository               repository.UserRepository
 	ciArtifactRepository         repository2.CiArtifactRepository
+	DeploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository
+	sesNotificationRepository    repository2.SESNotificationRepository
+	smtpNotificationRepository   repository2.SMTPNotificationRepository
+	appRepo                      appRepository.AppRepository
+	envRepository                repository4.EnvironmentRepository
+	apiTokenServiceImpl          *apiToken.ApiTokenServiceImpl
 }
 
 func NewEventSimpleFactoryImpl(logger *zap.SugaredLogger, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository, ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository,
-	userRepository repository.UserRepository, ciArtifactRepository repository2.CiArtifactRepository) *EventSimpleFactoryImpl {
+	userRepository repository.UserRepository, ciArtifactRepository repository2.CiArtifactRepository, DeploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository,
+	sesNotificationRepository repository2.SESNotificationRepository, smtpNotificationRepository repository2.SMTPNotificationRepository,
+	appRepo appRepository.AppRepository, envRepository repository4.EnvironmentRepository, apiTokenServiceImpl *apiToken.ApiTokenServiceImpl,
+) *EventSimpleFactoryImpl {
 	return &EventSimpleFactoryImpl{
 		logger:                       logger,
 		cdWorkflowRepository:         cdWorkflowRepository,
@@ -69,8 +83,51 @@ func NewEventSimpleFactoryImpl(logger *zap.SugaredLogger, cdWorkflowRepository p
 		pipelineRepository:           pipelineRepository,
 		userRepository:               userRepository,
 		ciArtifactRepository:         ciArtifactRepository,
+		DeploymentApprovalRepository: DeploymentApprovalRepository,
+		sesNotificationRepository:    sesNotificationRepository,
+		smtpNotificationRepository:   smtpNotificationRepository,
+		appRepo:                      appRepo,
+		envRepository:                envRepository,
+		apiTokenServiceImpl:          apiTokenServiceImpl,
 	}
+
 }
+
+type ResourceType string
+
+const (
+	CM                 ResourceType = "ConfigMap"
+	CS                 ResourceType = "Secret"
+	DeploymentTemplate ResourceType = "Deployment Template"
+)
+const (
+	AppLevelBaseUrl        = "/dashboard/app/%d/edit/"
+	EnvLevelBaseUrl        = "/dashboard/app/%d/edit/env-override/%d/"
+	ImageApprovalLink      = "/dashboard/app/%d/trigger?approval-node=%d&search=%s&approval-state=pending"
+	DeploymentApprovalLink = "/dashboard/deployment/approve?token=%s"
+	DraftApprovalLink      = "/dashboard/config/approve?token=%s"
+)
+
+type ConfigDataForNotification struct {
+	AppId        int
+	EnvId        int
+	Resource     ResourceType
+	ResourceName string
+	UserComment  string
+	UserId       int32
+	EmailIds     []string
+}
+type Provider struct {
+	Destination util.Channel `json:"dest"`
+	Rule        string       `json:"rule"`
+	ConfigId    int          `json:"configId"`
+	Recipient   string       `json:"recipient"`
+}
+
+const (
+	SES_CONFIG_TYPE  = "ses"
+	SMTP_CONFIG_TYPE = "smtp"
+)
 
 func (impl *EventSimpleFactoryImpl) Build(eventType util.EventType, sourceId *int, appId int, envId *int, pipelineType util.PipelineType) Event {
 	correlationId := uuid.NewV4()
@@ -98,7 +155,32 @@ func (impl *EventSimpleFactoryImpl) BuildExtraCDData(event Event, wfr *pipelineC
 		payload.Stage = string(stage)
 		event.Payload = payload
 	}
-	if wfr != nil {
+	var emailIDs []string
+
+	if wfr != nil && wfr.DeploymentApprovalRequestId >= 0 {
+		deploymentUserData, err := impl.DeploymentApprovalRepository.FetchApprovedDataByApprovalId(wfr.DeploymentApprovalRequestId)
+		if err != nil {
+			impl.logger.Errorw("error in getting deploymentUserData", "err", err, "deploymentApprovalRequestId", wfr.DeploymentApprovalRequestId)
+		}
+		if deploymentUserData != nil {
+			userIDs := []int32{}
+			for _, userData := range deploymentUserData {
+				userIDs = append(userIDs, userData.UserId)
+			}
+			users, err := impl.userRepository.GetByIds(userIDs)
+			if err != nil {
+				impl.logger.Errorw("UserModel not found for users", err)
+			}
+			emailIDs = []string{}
+			for _, user := range users {
+				emailIDs = append(emailIDs, user.EmailId)
+			}
+
+		}
+	}
+
+	payload.ApprovedByEmail = emailIDs
+	if wfr != nil && wfr.WorkflowType != bean2.CD_WORKFLOW_TYPE_DEPLOY {
 		material, err := impl.getCiMaterialInfo(wfr.CdWorkflow.Pipeline.CiPipelineId, wfr.CdWorkflow.CiArtifactId)
 		if err != nil {
 			impl.logger.Errorw("found error on payload build for cd stages, skipping this error ", "event", event, "stage", stage, "workflow runner", wfr, "pipelineOverrideId", pipelineOverrideId)
@@ -154,6 +236,7 @@ func (impl *EventSimpleFactoryImpl) BuildExtraCDData(event Event, wfr *pipelineC
 
 	if event.UserId > 0 {
 		user, err := impl.userRepository.GetById(int32(event.UserId))
+
 		if err != nil {
 			impl.logger.Errorw("found error on payload build for cd stages, skipping this error ", "user", user)
 		}
@@ -247,4 +330,256 @@ func (impl *EventSimpleFactoryImpl) getCiMaterialInfo(ciPipelineId int, ciArtifa
 		}
 	}
 	return materialTriggerInfo, nil
+}
+func (impl *EventSimpleFactoryImpl) BuildExtraApprovalData(event Event, approvalActionRequest bean.UserApprovalActionRequest, cdPipeline *pipelineConfig.Pipeline, userId int32, imageTagNames []string, imageComment string) []Event {
+	defaultSesConfig, defaultSmtpConfig, err := impl.getDefaultSESOrSMTPConfig()
+	if err != nil {
+		impl.logger.Errorw("found error in getting defaultSesConfig or  defaultSmtpConfig data", "err", err)
+	}
+	var events []Event
+	if userId == 0 {
+		return events
+	}
+	user, err := impl.userRepository.GetById(userId)
+	if err != nil {
+		impl.logger.Errorw("found error on getting user data ", "userId", userId)
+	}
+	payload, err := impl.setApprovalEventPayload(event, approvalActionRequest, cdPipeline, imageTagNames, imageComment)
+	if err != nil {
+		impl.logger.Errorw("error in setting payload", "error", err)
+		return events
+	}
+	EmailIds := approvalActionRequest.ApprovalNotificationConfig.EmailIds
+	for _, emailId := range EmailIds {
+		newPayload := *payload
+		setProviderForNotification(emailId, defaultSesConfig, defaultSmtpConfig, &newPayload)
+		reqData := &ConfigDataForNotification{
+			AppId: cdPipeline.AppId,
+			EnvId: cdPipeline.EnvironmentId,
+		}
+		deploymentApprovalRequest := setDeploymentApprovalRequest(reqData, &approvalActionRequest, emailId)
+		err = impl.createAndSetToken(nil, deploymentApprovalRequest, &newPayload)
+		newPayload.TriggeredBy = user.EmailId
+		event.Payload = &newPayload
+		events = append(events, event)
+	}
+
+	return events
+}
+func (impl *EventSimpleFactoryImpl) setApprovalEventPayload(event Event, approvalActionRequest bean.UserApprovalActionRequest, cdPipeline *pipelineConfig.Pipeline, imageTagNames []string, imageComment string) (*Payload, error) {
+	payload := &Payload{}
+	payload.ImageComment = imageComment
+	payload.ImageTagNames = imageTagNames
+	ciArtifact, err := impl.ciArtifactRepository.Get(approvalActionRequest.ArtifactId)
+	if err != nil {
+		impl.logger.Errorw("error fetching ciArtifact", "ciArtifact", ciArtifact, "err", err)
+		return payload, err
+	}
+	payload.AppName = cdPipeline.App.AppName
+	payload.EnvName = cdPipeline.Environment.Name
+	payload.PipelineName = cdPipeline.Name
+	payload.DockerImageUrl = ciArtifact.Image
+	dockerImageTag := ""
+	split := strings.Split(ciArtifact.Image, ":")
+	if len(split) > 1 {
+		dockerImageTag = split[len(split)-1]
+	}
+	payload.ImageApprovalLink = fmt.Sprintf(ImageApprovalLink, event.AppId, cdPipeline.Id, dockerImageTag)
+	return payload, err
+}
+
+func (impl *EventSimpleFactoryImpl) BuildExtraProtectConfigData(event Event, request ConfigDataForNotification, draftId int, DraftVersionId int) []Event {
+	defaultSesConfig, defaultSmtpConfig, err := impl.getDefaultSESOrSMTPConfig()
+	if err != nil {
+		impl.logger.Errorw("found error in getting defaultSesConfig or  defaultSmtpConfig data", "err", err)
+	}
+	var events []Event
+	if request.UserId == 0 {
+		return events
+	}
+	user, err := impl.userRepository.GetById(request.UserId)
+	if err != nil {
+		impl.logger.Errorw("found error on getting user data ", "userId", request.UserId)
+	}
+	payload, err := impl.setEventPayload(request)
+	if err != nil {
+		impl.logger.Errorw("error in setting payload", "error", err)
+		return events
+	}
+	for _, email := range request.EmailIds {
+		newPayload := *payload
+		setProviderForNotification(email, defaultSesConfig, defaultSmtpConfig, &newPayload)
+		draftRequest := setDraftApprovalRequest(&request, draftId, DraftVersionId, email)
+		err = impl.createAndSetToken(draftRequest, nil, &newPayload)
+		if err != nil {
+			impl.logger.Errorw("error in generating token for draft approval request", "err", err)
+
+			return events
+		}
+		newPayload.TriggeredBy = user.EmailId
+		event.Payload = &newPayload
+		events = append(events, event)
+
+	}
+
+	return events
+}
+
+func (impl *EventSimpleFactoryImpl) createAndSetToken(draftRequest *apiToken.DraftApprovalRequest, deploymentApprovalRequest *apiToken.DeploymentApprovalRequest, payload *Payload) error {
+	var emailId string
+	if deploymentApprovalRequest != nil {
+		emailId = deploymentApprovalRequest.EmailId
+	} else {
+		emailId = draftRequest.EmailId
+	}
+	user, err := impl.userRepository.FetchActiveUserByEmail(emailId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching user", "emailId", emailId)
+		return err
+	}
+	if deploymentApprovalRequest != nil {
+		deploymentApprovalRequest.UserId = user.Id
+		token, err := impl.apiTokenServiceImpl.CreateApiJwtTokenForNotification(deploymentApprovalRequest.GetClaimsForDeploymentApprovalRequest(), impl.apiTokenServiceImpl.TokenVariableConfig.GetExpiryTimeInMs())
+		if err != nil {
+			impl.logger.Errorw("error in generating token for deployment approval request", "err", err)
+			return err
+		}
+		payload.ApprovalLink = fmt.Sprintf(DeploymentApprovalLink, token)
+
+	} else {
+		draftRequest.UserId = user.Id
+		token, err := impl.apiTokenServiceImpl.CreateApiJwtTokenForNotification(draftRequest.GetClaimsForDraftApprovalRequest(), impl.apiTokenServiceImpl.TokenVariableConfig.GetExpiryTimeInMs())
+		if err != nil {
+			impl.logger.Errorw("error in generating token for draft approval request", "err", err)
+			return err
+		}
+		payload.ApprovalLink = fmt.Sprintf(DraftApprovalLink, token)
+
+	}
+	return err
+}
+func setDraftApprovalRequest(request *ConfigDataForNotification, draftId int, DraftVersionId int, emailId string) *apiToken.DraftApprovalRequest {
+	draftRequest := &apiToken.DraftApprovalRequest{
+		DraftId:        draftId,
+		DraftVersionId: DraftVersionId,
+		NotificationApprovalRequest: apiToken.NotificationApprovalRequest{
+			AppId:   request.AppId,
+			EnvId:   request.EnvId,
+			EmailId: emailId,
+		},
+	}
+	return draftRequest
+}
+
+func setDeploymentApprovalRequest(request *ConfigDataForNotification, approvalActionRequest *bean.UserApprovalActionRequest, emailId string) *apiToken.DeploymentApprovalRequest {
+	deploymentApprovalRequest := &apiToken.DeploymentApprovalRequest{
+		ApprovalRequestId: approvalActionRequest.ApprovalRequestId,
+		ArtifactId:        approvalActionRequest.ArtifactId,
+		PipelineId:        approvalActionRequest.PipelineId,
+		NotificationApprovalRequest: apiToken.NotificationApprovalRequest{
+			AppId:   request.AppId,
+			EnvId:   request.EnvId,
+			EmailId: emailId,
+		},
+	}
+	return deploymentApprovalRequest
+}
+func setProviderForNotification(emailId string, defaultSesConfig *repository2.SESConfig, defaultSmtpConfig *repository2.SMTPConfig, payload *Payload) {
+	provider := &Provider{
+		ConfigId:  0,
+		Recipient: emailId,
+	}
+	if defaultSesConfig != nil && defaultSesConfig.Id != 0 {
+		provider.Destination = SES_CONFIG_TYPE
+	} else if defaultSmtpConfig != nil && defaultSmtpConfig.Id != 0 {
+		provider.Destination = SMTP_CONFIG_TYPE
+	}
+	payload.Providers = append(payload.Providers, provider)
+
+}
+
+func (impl *EventSimpleFactoryImpl) setEventPayload(request ConfigDataForNotification) (*Payload, error) {
+	payload := &Payload{}
+	protectConfigLink := setProtectConfigLink(request)
+	payload.ProtectConfigLink = protectConfigLink
+	application, err := impl.appRepo.FindById(request.AppId)
+	if err != nil {
+		impl.logger.Errorw("error occurred while fetching application", "err", err)
+		return payload, err
+	}
+	environment := &repository4.Environment{}
+	if request.EnvId != -1 {
+		environment, err = impl.envRepository.FindById(request.EnvId)
+		if err != nil {
+			impl.logger.Errorw("error occurred while fetching environment", "err", err)
+			return payload, err
+		}
+	}
+	payload.AppName = application.AppName
+	payload.EnvName = environment.Name
+	payload.ProtectConfigComment = request.UserComment
+	payload.ProtectConfigFileType = string(request.Resource)
+	if request.Resource == DeploymentTemplate {
+		payload.ProtectConfigFileName = string(DeploymentTemplate)
+	} else {
+		payload.ProtectConfigFileName = request.ResourceName
+	}
+
+	return payload, err
+}
+func setProtectConfigLink(request ConfigDataForNotification) string {
+	var ProtectConfigLink string
+	var isAppLevel bool
+	if request.EnvId == -1 {
+		isAppLevel = true
+	}
+	if isAppLevel {
+		ProtectConfigLink = getAppLevelUrl(request)
+	} else {
+		ProtectConfigLink = getEnvLevelUrl(request)
+	}
+	return ProtectConfigLink
+}
+
+func getEnvLevelUrl(request ConfigDataForNotification) (ProtectConfigLink string) {
+	switch request.Resource {
+	case CM:
+		ProtectConfigLink = fmt.Sprintf(EnvLevelBaseUrl+"configmap/%s", request.AppId, request.EnvId, request.ResourceName)
+	case CS:
+		ProtectConfigLink = fmt.Sprintf(EnvLevelBaseUrl+"secrets/%s", request.AppId, request.EnvId, request.ResourceName)
+	case DeploymentTemplate:
+		ProtectConfigLink = fmt.Sprintf(EnvLevelBaseUrl+"deployment-template", request.AppId, request.EnvId)
+
+	}
+	return ProtectConfigLink
+}
+
+func getAppLevelUrl(request ConfigDataForNotification) (ProtectConfigLink string) {
+	switch request.Resource {
+	case CM:
+		ProtectConfigLink = fmt.Sprintf(AppLevelBaseUrl+"configmap/%s", request.AppId, request.ResourceName)
+	case CS:
+		ProtectConfigLink = fmt.Sprintf(AppLevelBaseUrl+"secrets/%s", request.AppId, request.ResourceName)
+	case DeploymentTemplate:
+		ProtectConfigLink = fmt.Sprintf(AppLevelBaseUrl+"deployment-template", request.AppId)
+	}
+	return ProtectConfigLink
+}
+
+func (impl *EventSimpleFactoryImpl) getDefaultSESOrSMTPConfig() (*repository2.SESConfig, *repository2.SMTPConfig, error) {
+	defaultSesConfig, err := impl.sesNotificationRepository.FindDefault()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error fetching defaultSesConfig", "defaultSesConfig", defaultSesConfig, "err", err)
+		return defaultSesConfig, nil, nil
+
+	}
+	defaultSmtpConfig := &repository2.SMTPConfig{}
+	if err == pg.ErrNoRows {
+		defaultSmtpConfig, err = impl.smtpNotificationRepository.FindDefault()
+		if err != nil {
+			impl.logger.Errorw("error fetching defaultSmtpConfig", "defaultSmtpConfig", defaultSmtpConfig, "err", err)
+			return defaultSesConfig, defaultSmtpConfig, nil
+		}
+	}
+	return defaultSesConfig, defaultSmtpConfig, nil
 }

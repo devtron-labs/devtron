@@ -1,7 +1,8 @@
 package informer
 
 import (
-	"github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/common-lib-private/utils/k8s"
+	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
 	"sync"
 	"time"
 
@@ -24,7 +25,7 @@ type K8sInformerFactoryImpl struct {
 	mutex                     sync.Mutex
 	informerStopper           map[string]chan struct{}
 	runtimeConfig             *client.RuntimeConfig
-	k8sUtil                   *k8s.K8sServiceImpl
+	k8sUtil                   *k8s.K8sUtilExtended
 }
 
 type K8sInformerFactory interface {
@@ -33,7 +34,7 @@ type K8sInformerFactory interface {
 	CleanNamespaceInformer(clusterName string)
 }
 
-func NewK8sInformerFactoryImpl(logger *zap.SugaredLogger, globalMapClusterNamespace map[string]map[string]bool, runtimeConfig *client.RuntimeConfig, k8sUtil *k8s.K8sServiceImpl) *K8sInformerFactoryImpl {
+func NewK8sInformerFactoryImpl(logger *zap.SugaredLogger, globalMapClusterNamespace map[string]map[string]bool, runtimeConfig *client.RuntimeConfig, k8sUtil *k8s.K8sUtilExtended) *K8sInformerFactoryImpl {
 	informerFactory := &K8sInformerFactoryImpl{
 		logger:                    logger,
 		globalMapClusterNamespace: globalMapClusterNamespace,
@@ -64,21 +65,28 @@ func (impl *K8sInformerFactoryImpl) GetLatestNamespaceListGroupByCLuster() map[s
 
 func (impl *K8sInformerFactoryImpl) BuildInformer(clusterInfo []*bean.ClusterInfo) {
 	for _, info := range clusterInfo {
-		clusterConfig := &k8s.ClusterConfig{
-			ClusterName:           info.ClusterName,
-			BearerToken:           info.BearerToken,
-			Host:                  info.ServerUrl,
-			InsecureSkipTLSVerify: info.InsecureSkipTLSVerify,
-			KeyData:               info.KeyData,
-			CertData:              info.CertData,
-			CAData:                info.CAData,
+		clusterConfig := &k8s2.ClusterConfig{
+			ClusterId:              info.ClusterId,
+			ClusterName:            info.ClusterName,
+			BearerToken:            info.BearerToken,
+			Host:                   info.ServerUrl,
+			ProxyUrl:               info.ProxyUrl,
+			InsecureSkipTLSVerify:  info.InsecureSkipTLSVerify,
+			KeyData:                info.KeyData,
+			CertData:               info.CertData,
+			CAData:                 info.CAData,
+			ToConnectWithSSHTunnel: info.ToConnectWithSSHTunnel,
+			SSHTunnelServerAddress: info.SSHTunnelServerAddress,
+			SSHTunnelUser:          info.SSHTunnelUser,
+			SSHTunnelPassword:      info.SSHTunnelPassword,
+			SSHTunnelAuthKey:       info.SSHTunnelAuthKey,
 		}
 		impl.buildInformerAndNamespaceList(info.ClusterName, clusterConfig, &impl.mutex)
 	}
 	return
 }
 
-func (impl *K8sInformerFactoryImpl) buildInformerAndNamespaceList(clusterName string, clusterConfig *k8s.ClusterConfig, mutex *sync.Mutex) map[string]map[string]bool {
+func (impl *K8sInformerFactoryImpl) buildInformerAndNamespaceList(clusterName string, clusterConfig *k8s2.ClusterConfig, mutex *sync.Mutex) map[string]map[string]bool {
 	allNamespaces := make(map[string]bool)
 	impl.globalMapClusterNamespace[clusterName] = allNamespaces
 	_, _, clusterClient, err := impl.k8sUtil.GetK8sConfigAndClients(clusterConfig)

@@ -2,12 +2,13 @@ package delete
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
+
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -18,6 +19,7 @@ type DeleteService interface {
 	DeleteEnvironment(deleteRequest *cluster.EnvironmentBean, userId int32) error
 	DeleteTeam(deleteRequest *team.TeamRequest) error
 	DeleteChartRepo(deleteRequest *chartRepo.ChartRepoDto) error
+	DeleteVirtualCluster(bean *cluster.VirtualClusterBean, userId int32) error
 	DeleteDockerRegistryConfig(deleteRequest *types.DockerArtifactStoreBean) error
 	CanDeleteChartRegistryPullConfig(storeId string) bool
 }
@@ -97,6 +99,15 @@ func (impl DeleteServiceImpl) DeleteChartRepo(deleteRequest *chartRepo.ChartRepo
 		return err
 	}
 
+	return nil
+}
+
+func (impl DeleteServiceImpl) DeleteVirtualCluster(bean *cluster.VirtualClusterBean, userId int32) error {
+	err := impl.clusterService.DeleteVirtualClusterFromDb(bean, userId)
+	if err != nil {
+		impl.logger.Errorw("error im deleting cluster", "err", err, "deleteRequest", bean)
+		return err
+	}
 	return nil
 }
 

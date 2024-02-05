@@ -42,7 +42,7 @@ func BenchmarkCreateDefaultPoliciesForAllTypesV2(b *testing.B) {
 	action := fmt.Sprintf("manager")
 	b.Run(fmt.Sprintf("BenchmarkCreateDefaultPoliciesForAllTypesV2"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			userCommonService.CreateDefaultPoliciesForAllTypesV2(teams[i], apps[i], envs[i], entity, "", "", "", "", "", action, accessType, "")
+			userCommonService.CreateDefaultPoliciesForAllTypesV2(teams[i], apps[i], envs[i], entity, "", "", "", "", "", action, accessType, false, "")
 		}
 	})
 }
@@ -73,7 +73,7 @@ func BenchmarkCreateDefaultPoliciesForAllTypes(b *testing.B) {
 	action := fmt.Sprintf("manager")
 	b.Run(fmt.Sprintf("BenchmarkCreateDefaultPoliciesForAllTypes"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			userAuthRepository.CreateDefaultPoliciesForAllTypes(teams[i], apps[i], envs[i], entity, "", "", "", "", "", action, accessType, 1)
+			userAuthRepository.CreateDefaultPoliciesForAllTypes(teams[i], apps[i], envs[i], entity, "", "", "", "", "", action, accessType, false, 1)
 		}
 	})
 

@@ -7,6 +7,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/common-lib-private/utils"
+	"net/http"
+	"strconv"
+	"strings"
+
+	util4 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/common-lib/utils"
 	util3 "github.com/devtron-labs/common-lib/utils/k8s"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
@@ -807,17 +813,28 @@ func (handler *K8sApplicationRestHandlerImpl) GetTerminalSession(w http.Response
 	if resourceRequestBean.AppIdentifier != nil {
 		// RBAC enforcer applying For Helm App
 		rbacObject, rbacObject2 := handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(resourceRequestBean.AppIdentifier.ClusterId, resourceRequestBean.AppIdentifier.Namespace, resourceRequestBean.AppIdentifier.ReleaseName)
-		ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, "*", rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, "*", rbacObject2)
-
-		if !ok {
+		// Validating for custom exec role in build and deploy
+		isAuthorised := false
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceTerminal, casbin.ActionExec, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceTerminal, casbin.ActionExec, rbacObject2); ok {
+			isAuthorised = true
+		} else {
+			isAuthorised = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, "*", rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, "*", rbacObject2)
+		}
+		if !isAuthorised {
 			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
 		//RBAC enforcer Ends
 	} else if resourceRequestBean.DevtronAppIdentifier != nil {
 		// RBAC enforcer applying For Devtron App
+		teamEnvRbacObject := handler.enforcerUtil.GetTeamEnvRBACNameByAppId(resourceRequestBean.DevtronAppIdentifier.AppId, resourceRequestBean.DevtronAppIdentifier.EnvId)
 		envObject := handler.enforcerUtil.GetEnvRBACNameByAppId(resourceRequestBean.DevtronAppIdentifier.AppId, resourceRequestBean.DevtronAppIdentifier.EnvId)
-		if !handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, envObject) {
+		if teamEnvRbacObject == "" && envObject == "" {
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+			return
+		}
+		// Validating for custom exec role in build and deploy OR edit access
+		if !(handler.enforcer.Enforce(token, casbin.ResourceTerminal, casbin.ActionExec, teamEnvRbacObject) || handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, envObject)) {
 			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
@@ -906,7 +923,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetAllApiResources(w http.Response
 	}
 
 	// get data from service
-	response, err := handler.k8sApplicationService.GetAllApiResources(r.Context(), clusterId, isSuperAdmin, userId)
+	response, err := handler.k8sApplicationService.GetAllApiResources(r.Context(), clusterId, isSuperAdmin, userId, token)
 	if err != nil {
 		handler.logger.Errorw("error in getting api-resources", "clusterId", clusterId, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -946,7 +963,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetResourceList(w http.ResponseWri
 
 func (handler *K8sApplicationRestHandlerImpl) ApplyResources(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
-	var request util3.ApplyResourcesRequest
+	var request util4.ApplyResourcesRequest
 	token := r.Header.Get("token")
 	err := decoder.Decode(&request)
 	if err != nil {
@@ -964,13 +981,13 @@ func (handler *K8sApplicationRestHandlerImpl) ApplyResources(w http.ResponseWrit
 	common.WriteJsonResp(w, nil, response, http.StatusOK)
 }
 
-func (handler *K8sApplicationRestHandlerImpl) getRbacCallbackForResource(token string, casbinAction string) func(clusterName string, resourceIdentifier util3.ResourceIdentifier) bool {
-	return func(clusterName string, resourceIdentifier util3.ResourceIdentifier) bool {
+func (handler *K8sApplicationRestHandlerImpl) getRbacCallbackForResource(token string, casbinAction string) func(clusterName string, resourceIdentifier util4.ResourceIdentifier) bool {
+	return func(clusterName string, resourceIdentifier util4.ResourceIdentifier) bool {
 		return handler.verifyRbacForResource(token, clusterName, resourceIdentifier, casbinAction)
 	}
 }
 
-func (handler *K8sApplicationRestHandlerImpl) verifyRbacForResource(token string, clusterName string, resourceIdentifier util3.ResourceIdentifier, casbinAction string) bool {
+func (handler *K8sApplicationRestHandlerImpl) verifyRbacForResource(token string, clusterName string, resourceIdentifier util4.ResourceIdentifier, casbinAction string) bool {
 	resourceName, objectName := handler.enforcerUtil.GetRBACNameForClusterEntity(clusterName, resourceIdentifier)
 	return handler.enforcer.Enforce(token, strings.ToLower(resourceName), casbinAction, objectName)
 }

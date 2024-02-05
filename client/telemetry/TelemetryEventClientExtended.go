@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	util2 "github.com/devtron-labs/common-lib/utils/k8s"
+	util2 "github.com/devtron-labs/common-lib-private/utils/k8s"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -15,9 +15,10 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/auth/sso"
-	user2 "github.com/devtron-labs/devtron/pkg/auth/user"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
@@ -46,12 +47,13 @@ type TelemetryEventClientImplExtended struct {
 	ciTemplateRepository          pipelineConfig.CiTemplateRepository
 	chartRepository               chartRepoRepository.ChartRepository
 	ciBuildConfigService          pipeline.CiBuildConfigService
+	devtronResourceService        devtronResource.DevtronResourceService
 	*TelemetryEventClientImpl
 }
 
 func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http.Client, clusterService cluster.ClusterService,
-	K8sUtil *util2.K8sServiceImpl, aCDAuthConfig *util3.ACDAuthConfig,
-	environmentService cluster.EnvironmentService, userService user2.UserService,
+	K8sUtil *util2.K8sUtilExtended, aCDAuthConfig *util3.ACDAuthConfig,
+	environmentService cluster.EnvironmentService, userService user.UserService,
 	appListingRepository repository.AppListingRepository, PosthogClient *PosthogClient,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository,
 	gitOpsConfigRepository repository.GitOpsConfigRepository, gitProviderRepository repository.GitProviderRepository,
@@ -59,9 +61,10 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository,
 	materialRepository pipelineConfig.MaterialRepository, ciTemplateRepository pipelineConfig.CiTemplateRepository,
-	chartRepository chartRepoRepository.ChartRepository, userAuditService user2.UserAuditService,
+	chartRepository chartRepoRepository.ChartRepository, userAuditService user.UserAuditService,
 	ciBuildConfigService pipeline.CiBuildConfigService, moduleRepository moduleRepo.ModuleRepository, serverDataStore *serverDataStore.ServerDataStore,
 	helmAppClient client.HelmAppClient, InstalledAppRepository repository2.InstalledAppRepository, userAttributesRepository repository.UserAttributesRepository,
+	devtronResourceService devtronResource.DevtronResourceService,
 	cloudProviderIdentifierService cloudProviderIdentifier.ProviderIdentifierService, cronLogger *cron3.CronLoggerImpl) (*TelemetryEventClientImplExtended, error) {
 
 	cron := cron.New(
@@ -82,6 +85,7 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 		ciTemplateRepository:          ciTemplateRepository,
 		chartRepository:               chartRepository,
 		ciBuildConfigService:          ciBuildConfigService,
+		devtronResourceService:        devtronResourceService,
 
 		TelemetryEventClientImpl: &TelemetryEventClientImpl{
 			cron:                           cron,
@@ -101,7 +105,7 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 			InstalledAppRepository:         InstalledAppRepository,
 			userAttributesRepository:       userAttributesRepository,
 			cloudProviderIdentifierService: cloudProviderIdentifierService,
-			telemetryConfig: TelemetryConfig{},
+			telemetryConfig:                TelemetryConfig{},
 		},
 	}
 
@@ -121,58 +125,59 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 }
 
 type TelemetryEventDto struct {
-	UCID                                 string             `json:"ucid"` //unique client id
-	Timestamp                            time.Time          `json:"timestamp"`
-	EventMessage                         string             `json:"eventMessage,omitempty"`
-	EventType                            TelemetryEventType `json:"eventType"`
-	ProdAppCount                         int                `json:"prodAppCount,omitempty"`
-	NonProdAppCount                      int                `json:"nonProdAppCount,omitempty"`
-	UserCount                            int                `json:"userCount,omitempty"`
-	EnvironmentCount                     int                `json:"environmentCount,omitempty"`
-	ClusterCount                         int                `json:"clusterCount,omitempty"`
-	CiCountPerDay                        int                `json:"ciCountPerDay,omitempty"`
-	CdCountPerDay                        int                `json:"cdCountPerDay,omitempty"`
-	HelmChartCount                       int                `json:"helmChartCount,omitempty"`
-	SecurityScanCountPerDay              int                `json:"securityScanCountPerDay,omitempty"`
-	GitAccountsCount                     int                `json:"gitAccountsCount,omitempty"`
-	GitOpsCount                          int                `json:"gitOpsCount,omitempty"`
-	RegistryCount                        int                `json:"registryCount,omitempty"`
-	HostURL                              bool               `json:"hostURL,omitempty"`
-	SSOLogin                             bool               `json:"ssoLogin,omitempty"`
-	AppCount                             int                `json:"appCount,omitempty"`
-	AppsWithGitRepoConfigured            int                `json:"appsWithGitRepoConfigured,omitempty"`
-	AppsWithDockerConfigured             int                `json:"appsWithDockerConfigured,omitempty"`
-	AppsWithDeploymentTemplateConfigured int                `json:"appsWithDeploymentTemplateConfigured,omitempty"`
-	AppsWithCiPipelineConfigured         int                `json:"appsWithCiPipelineConfigured,omitempty"`
-	AppsWithCdPipelineConfigured         int                `json:"appsWithCdPipelineConfigured,omitempty"`
-	Build                                bool               `json:"build,omitempty"`
-	Deployment                           bool               `json:"deployment,omitempty"`
-	ServerVersion                        string             `json:"serverVersion,omitempty"`
-	DevtronGitVersion                    string             `json:"devtronGitVersion,omitempty"`
-	DevtronVersion                       string             `json:"devtronVersion,omitempty"`
-	DevtronMode                          string             `json:"devtronMode,omitempty"`
-	InstalledIntegrations                []string           `json:"installedIntegrations,omitempty"`
-	InstallFailedIntegrations            []string           `json:"installFailedIntegrations,omitempty"`
-	InstallTimedOutIntegrations          []string           `json:"installTimedOutIntegrations,omitempty"`
-	InstallingIntegrations               []string           `json:"installingIntegrations,omitempty"`
-	DevtronReleaseVersion                string             `json:"devtronReleaseVersion,omitempty"`
-	LastLoginTime                        time.Time          `json:"LastLoginTime,omitempty"`
-	SelfDockerfileCount                  int                `json:"selfDockerfileCount"`
-	ManagedDockerfileCount               int                `json:"managedDockerfileCount"`
-	BuildPackCount                       int                `json:"buildPackCount"`
-	SelfDockerfileSuccessCount           int                `json:"selfDockerfileSuccessCount"`
-	SelfDockerfileFailureCount           int                `json:"selfDockerfileFailureCount"`
-	ManagedDockerfileSuccessCount        int                `json:"managedDockerfileSuccessCount"`
-	ManagedDockerfileFailureCount        int                `json:"managedDockerfileFailureCount"`
-	BuildPackSuccessCount                int                `json:"buildPackSuccessCount"`
-	BuildPackFailureCount                int                `json:"buildPackFailureCount"`
-	HelmAppAccessCounter                 string             `json:"HelmAppAccessCounter,omitempty"`
-	ChartStoreVisitCount                 string             `json:"ChartStoreVisitCount,omitempty"`
-	SkippedOnboarding                    bool               `json:"SkippedOnboarding"`
-	HelmAppUpdateCounter                 string             `json:"HelmAppUpdateCounter,omitempty"`
-	HelmChartSuccessfulDeploymentCount   int                `json:"helmChartSuccessfulDeploymentCount,omitempty"`
-	ExternalHelmAppClusterCount          map[int32]int      `json:"ExternalHelmAppClusterCount"`
-	ClusterProvider                      string             `json:"clusterProvider,omitempty"`
+	UCID                                      string             `json:"ucid"` //unique client id
+	Timestamp                                 time.Time          `json:"timestamp"`
+	EventMessage                              string             `json:"eventMessage,omitempty"`
+	EventType                                 TelemetryEventType `json:"eventType"`
+	ProdAppCount                              int                `json:"prodAppCount,omitempty"`
+	NonProdAppCount                           int                `json:"nonProdAppCount,omitempty"`
+	UserCount                                 int                `json:"userCount,omitempty"`
+	EnvironmentCount                          int                `json:"environmentCount,omitempty"`
+	ClusterCount                              int                `json:"clusterCount,omitempty"`
+	CiCountPerDay                             int                `json:"ciCountPerDay,omitempty"`
+	CdCountPerDay                             int                `json:"cdCountPerDay,omitempty"`
+	HelmChartCount                            int                `json:"helmChartCount,omitempty"`
+	SecurityScanCountPerDay                   int                `json:"securityScanCountPerDay,omitempty"`
+	GitAccountsCount                          int                `json:"gitAccountsCount,omitempty"`
+	GitOpsCount                               int                `json:"gitOpsCount,omitempty"`
+	RegistryCount                             int                `json:"registryCount,omitempty"`
+	HostURL                                   bool               `json:"hostURL,omitempty"`
+	SSOLogin                                  bool               `json:"ssoLogin,omitempty"`
+	AppCount                                  int                `json:"appCount,omitempty"`
+	AppsWithGitRepoConfigured                 int                `json:"appsWithGitRepoConfigured,omitempty"`
+	AppsWithDockerConfigured                  int                `json:"appsWithDockerConfigured,omitempty"`
+	AppsWithDeploymentTemplateConfigured      int                `json:"appsWithDeploymentTemplateConfigured,omitempty"`
+	AppsWithCiPipelineConfigured              int                `json:"appsWithCiPipelineConfigured,omitempty"`
+	AppsWithCdPipelineConfigured              int                `json:"appsWithCdPipelineConfigured,omitempty"`
+	Build                                     bool               `json:"build,omitempty"`
+	Deployment                                bool               `json:"deployment,omitempty"`
+	ServerVersion                             string             `json:"serverVersion,omitempty"`
+	DevtronGitVersion                         string             `json:"devtronGitVersion,omitempty"`
+	DevtronVersion                            string             `json:"devtronVersion,omitempty"`
+	DevtronMode                               string             `json:"devtronMode,omitempty"`
+	InstalledIntegrations                     []string           `json:"installedIntegrations,omitempty"`
+	InstallFailedIntegrations                 []string           `json:"installFailedIntegrations,omitempty"`
+	InstallTimedOutIntegrations               []string           `json:"installTimedOutIntegrations,omitempty"`
+	InstallingIntegrations                    []string           `json:"installingIntegrations,omitempty"`
+	DevtronReleaseVersion                     string             `json:"devtronReleaseVersion,omitempty"`
+	LastLoginTime                             time.Time          `json:"LastLoginTime,omitempty"`
+	SelfDockerfileCount                       int                `json:"selfDockerfileCount"`
+	ManagedDockerfileCount                    int                `json:"managedDockerfileCount"`
+	BuildPackCount                            int                `json:"buildPackCount"`
+	SelfDockerfileSuccessCount                int                `json:"selfDockerfileSuccessCount"`
+	SelfDockerfileFailureCount                int                `json:"selfDockerfileFailureCount"`
+	ManagedDockerfileSuccessCount             int                `json:"managedDockerfileSuccessCount"`
+	ManagedDockerfileFailureCount             int                `json:"managedDockerfileFailureCount"`
+	BuildPackSuccessCount                     int                `json:"buildPackSuccessCount"`
+	BuildPackFailureCount                     int                `json:"buildPackFailureCount"`
+	HelmAppAccessCounter                      string             `json:"HelmAppAccessCounter,omitempty"`
+	ChartStoreVisitCount                      string             `json:"ChartStoreVisitCount,omitempty"`
+	SkippedOnboarding                         bool               `json:"SkippedOnboarding"`
+	HelmAppUpdateCounter                      string             `json:"HelmAppUpdateCounter,omitempty"`
+	HelmChartSuccessfulDeploymentCount        int                `json:"helmChartSuccessfulDeploymentCount,omitempty"`
+	ExternalHelmAppClusterCount               map[int32]int      `json:"ExternalHelmAppClusterCount"`
+	CountOfApplicationsWithDependenciesMapped int                `json:"countOfApplicationsWithDependenciesMapped,omitempty"`
+	ClusterProvider                           string             `json:"clusterProvider,omitempty"`
 }
 
 func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
@@ -253,6 +258,13 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
 		return err
 	}
+
+	countOfApplicationsWithDependenciesMapped, err := impl.devtronResourceService.FindNumberOfApplicationsWithDependenciesMapped()
+	if err != nil {
+		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+		return err
+	}
+	payload.CountOfApplicationsWithDependenciesMapped = countOfApplicationsWithDependenciesMapped
 
 	var appIds []int
 	for _, appInfo := range apps {

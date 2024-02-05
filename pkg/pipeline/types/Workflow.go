@@ -23,6 +23,7 @@ import (
 	"github.com/argoproj/argo-workflows/v3/workflow/common"
 	"github.com/devtron-labs/common-lib/blob-storage"
 	bean3 "github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -104,34 +105,35 @@ type WorkflowRequest struct {
 	ImageRetryCount            int                               `json:"imageRetryCount"`
 	ImageRetryInterval         int                               `json:"imageRetryInterval"`
 	// Data from CD Workflow service
-	WorkflowRunnerId            int                                   `json:"workflowRunnerId"`
-	CdPipelineId                int                                   `json:"cdPipelineId"`
-	StageYaml                   string                                `json:"stageYaml"`
-	ArtifactLocation            string                                `json:"artifactLocation"`
-	CiArtifactDTO               CiArtifactDTO                         `json:"ciArtifactDTO"`
-	CdImage                     string                                `json:"cdImage"`
-	StageType                   string                                `json:"stageType"`
-	CdCacheLocation             string                                `json:"cdCacheLocation"`
-	CdCacheRegion               string                                `json:"cdCacheRegion"`
-	WorkflowPrefixForLog        string                                `json:"workflowPrefixForLog"`
-	DeploymentTriggeredBy       string                                `json:"deploymentTriggeredBy,omitempty"`
-	DeploymentTriggerTime       time.Time                             `json:"deploymentTriggerTime,omitempty"`
-	DeploymentReleaseCounter    int                                   `json:"deploymentReleaseCounter,omitempty"`
-	WorkflowExecutor            pipelineConfig.WorkflowExecutorType   `json:"workflowExecutor"`
-	PrePostDeploySteps          []*bean.StepObject                    `json:"prePostDeploySteps"`
-	CiArtifactLastFetch         time.Time                             `json:"ciArtifactLastFetch"`
-	CiPipelineType              string                                `json:"ciPipelineType"`
-	UseExternalClusterBlob      bool                                  `json:"useExternalClusterBlob"`
+	WorkflowRunnerId            int                                 `json:"workflowRunnerId"`
+	CdPipelineId                int                                 `json:"cdPipelineId"`
+	StageYaml                   string                              `json:"stageYaml"`
+	ArtifactLocation            string                              `json:"artifactLocation"`
+	CiArtifactDTO               CiArtifactDTO                       `json:"ciArtifactDTO"`
+	CdImage                     string                              `json:"cdImage"`
+	StageType                   string                              `json:"stageType"`
+	CdCacheLocation             string                              `json:"cdCacheLocation"`
+	CdCacheRegion               string                              `json:"cdCacheRegion"`
+	WorkflowPrefixForLog        string                              `json:"workflowPrefixForLog"`
+	DeploymentTriggeredBy       string                              `json:"deploymentTriggeredBy,omitempty"`
+	DeploymentTriggerTime       time.Time                           `json:"deploymentTriggerTime,omitempty"`
+	DeploymentReleaseCounter    int                                 `json:"deploymentReleaseCounter,omitempty"`
+	WorkflowExecutor            pipelineConfig.WorkflowExecutorType `json:"workflowExecutor"`
+	PrePostDeploySteps          []*bean.StepObject                  `json:"prePostDeploySteps"`
+	CiArtifactLastFetch         time.Time                           `json:"ciArtifactLastFetch"`
+	CiPipelineType              string                              `json:"ciPipelineType"`
+	UseExternalClusterBlob      bool                                `json:"useExternalClusterBlob"`
+	Type                        bean.WorkflowPipelineType
+	Pipeline                    *pipelineConfig.Pipeline
+	Env                         *repository.Environment
+	AppLabels                   map[string]string
+	IsDryRun                    bool                                  `json:"isDryRun"`
 	RegistryDestinationImageMap map[string][]string                   `json:"registryDestinationImageMap"`
 	RegistryCredentialMap       map[string]plugin.RegistryCredentials `json:"registryCredentialMap"`
 	PluginArtifactStage         string                                `json:"pluginArtifactStage"`
 	PushImageBeforePostCI       bool                                  `json:"pushImageBeforePostCI"`
 	ImageScanMaxRetries         int                                   `json:"imageScanMaxRetries,omitempty"`
 	ImageScanRetryDelay         int                                   `json:"imageScanRetryDelay,omitempty"`
-	Type                        bean.WorkflowPipelineType
-	Pipeline                    *pipelineConfig.Pipeline
-	Env                         *repository.Environment
-	AppLabels                   map[string]string
 	Scope                       resourceQualifiers.Scope
 }
 
@@ -594,35 +596,41 @@ type ChildCdMetadata struct {
 }
 
 type WorkflowResponse struct {
-	Id                   int                                         `json:"id"`
-	Name                 string                                      `json:"name"`
-	Status               string                                      `json:"status"`
-	PodStatus            string                                      `json:"podStatus"`
-	Message              string                                      `json:"message"`
-	StartedOn            time.Time                                   `json:"startedOn"`
-	FinishedOn           time.Time                                   `json:"finishedOn"`
-	CiPipelineId         int                                         `json:"ciPipelineId"`
-	Namespace            string                                      `json:"namespace"`
-	LogLocation          string                                      `json:"logLocation"`
-	BlobStorageEnabled   bool                                        `json:"blobStorageEnabled"`
-	GitTriggers          map[int]pipelineConfig.GitCommit            `json:"gitTriggers"`
-	CiMaterials          []pipelineConfig.CiPipelineMaterialResponse `json:"ciMaterials"`
-	TriggeredBy          int32                                       `json:"triggeredBy"`
-	Artifact             string                                      `json:"artifact"`
-	TriggeredByEmail     string                                      `json:"triggeredByEmail"`
-	Stage                string                                      `json:"stage"`
-	ArtifactId           int                                         `json:"artifactId"`
-	IsArtifactUploaded   bool                                        `json:"isArtifactUploaded"`
-	IsVirtualEnvironment bool                                        `json:"isVirtualEnvironment"`
-	PodName              string                                      `json:"podName"`
-	EnvironmentId        int                                         `json:"environmentId"`
-	EnvironmentName      string                                      `json:"environmentName"`
-	ImageReleaseTags     []*repository3.ImageTag                     `json:"imageReleaseTags"`
-	ImageComment         *repository3.ImageComment                   `json:"imageComment"`
-	AppWorkflowId        int                                         `json:"appWorkflowId"`
-	CustomTag            *bean3.CustomTagErrorResponse               `json:"customTag,omitempty"`
-	PipelineType         string                                      `json:"pipelineType"`
-	ReferenceWorkflowId  int                                         `json:"referenceWorkflowId"`
+	Id                      int                                         `json:"id"`
+	Name                    string                                      `json:"name"`
+	Status                  string                                      `json:"status"`
+	PodStatus               string                                      `json:"podStatus"`
+	Message                 string                                      `json:"message"`
+	StartedOn               time.Time                                   `json:"startedOn"`
+	FinishedOn              time.Time                                   `json:"finishedOn"`
+	CiPipelineId            int                                         `json:"ciPipelineId"`
+	Namespace               string                                      `json:"namespace"`
+	LogLocation             string                                      `json:"logLocation"`
+	BlobStorageEnabled      bool                                        `json:"blobStorageEnabled"`
+	GitTriggers             map[int]pipelineConfig.GitCommit            `json:"gitTriggers"`
+	CiMaterials             []pipelineConfig.CiPipelineMaterialResponse `json:"ciMaterials"`
+	TriggeredBy             int32                                       `json:"triggeredBy"`
+	Artifact                string                                      `json:"artifact"`
+	TriggeredByEmail        string                                      `json:"triggeredByEmail"`
+	Stage                   string                                      `json:"stage"`
+	ArtifactId              int                                         `json:"artifactId"`
+	IsArtifactUploaded      bool                                        `json:"isArtifactUploaded"`
+	UserApprovalMetadata    *pipelineConfig.UserApprovalMetadata        `json:"userApprovalMetadata"`
+	IsVirtualEnvironment    bool                                        `json:"IsVirtualEnvironment"`
+	CdWorkflowId            int                                         `json:"cdWorkflowId"`
+	HelmPackageName         string                                      `json:"helmPackageName"`
+	PodName                 string                                      `json:"podName"`
+	EnvironmentId           int                                         `json:"environmentId"`
+	EnvironmentName         string                                      `json:"environmentName"`
+	ImageReleaseTags        []*repository3.ImageTag                     `json:"imageReleaseTags"`
+	ImageComment            *repository3.ImageComment                   `json:"imageComment"`
+	AppWorkflowId           int                                         `json:"appWorkflowId"`
+	CustomTag               *bean3.CustomTagErrorResponse               `json:"customTag,omitempty"`
+	PipelineType            string                                      `json:"pipelineType"`
+	ReferenceWorkflowId     int                                         `json:"referenceWorkflowId"`
+	AppliedFilters          []*resourceFilter.FilterMetaDataBean        `json:"appliedFilters"`
+	AppliedFiltersState     resourceFilter.FilterState                  `json:"appliedFiltersState"`
+	AppliedFiltersTimestamp time.Time                                   `json:"appliedFiltersTimestamp"`
 }
 
 type ConfigMapSecretDto struct {

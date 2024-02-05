@@ -104,7 +104,7 @@ func (impl PolicyRestHandlerImpl) SavePolicy(w http.ResponseWriter, r *http.Requ
 		}
 	} else {
 		// for global and cluster level check super admin access only
-		roles, err := impl.userService.CheckUserRoles(userId)
+		roles, err := impl.userService.CheckUserRoles(userId, token)
 		if err != nil {
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
@@ -174,7 +174,7 @@ func (impl PolicyRestHandlerImpl) UpdatePolicy(w http.ResponseWriter, r *http.Re
 		}
 	} else {
 		// for global and cluster level check super admin access only
-		roles, err := impl.userService.CheckUserRoles(userId)
+		roles, err := impl.userService.CheckUserRoles(userId, token)
 		if err != nil {
 			common.WriteJsonResp(w, err, "Failed to get user by id", http.StatusInternalServerError)
 			return

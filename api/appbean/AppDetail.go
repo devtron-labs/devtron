@@ -121,6 +121,7 @@ type CdPipelineDetails struct {
 	RunPreStageInEnv              bool                                   `json:"runPreStageInEnv"`
 	RunPostStageInEnv             bool                                   `json:"runPostStageInEnv"`
 	IsClusterCdActive             bool                                   `json:"isClusterCdActive"`
+	UserApprovalConf              *pipelineConfig.UserApprovalConfig     `json:"userApprovalConfig"`
 	PreDeployStage                *bean.PipelineStageDto                 `json:"preDeployStage,omitempty"`
 	PostDeployStage               *bean.PipelineStageDto                 `json:"postDeployStage,omitempty"`
 }

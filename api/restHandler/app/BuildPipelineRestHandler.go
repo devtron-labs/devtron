@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	resourceGroup "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	util2 "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/response"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
 	"go.opentelemetry.io/otel"
@@ -51,6 +52,7 @@ type DevtronAppBuildRestHandler interface {
 	TriggerCiPipeline(w http.ResponseWriter, r *http.Request)
 	GetCiPipelineMin(w http.ResponseWriter, r *http.Request)
 	GetCIPipelineById(w http.ResponseWriter, r *http.Request)
+	GetCIPipelineByPipelineId(w http.ResponseWriter, r *http.Request)
 	HandleWorkflowWebhook(w http.ResponseWriter, r *http.Request)
 	GetBuildLogs(w http.ResponseWriter, r *http.Request)
 	FetchWorkflowDetails(w http.ResponseWriter, r *http.Request)
@@ -350,6 +352,7 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiMaterialSourceWithAppIdsAndE
 }
 
 func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -390,14 +393,37 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 	}
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
 	workflowResourceName := handler.enforcerUtil.GetRbacObjectNameByAppAndWorkflow(app.AppName, appWorkflowName)
-	var ok bool
-	ok = handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceName)
-	if !ok {
+	ok := true
+	if app.AppType == helper.Job {
 		ok = handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionCreate, resourceName) && handler.enforcer.Enforce(token, casbin.ResourceWorkflow, casbin.ActionCreate, workflowResourceName)
+	} else {
+		haveAppLevelAccess := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceName)
+
+		if patchRequest.IsLinkedCdRequest() || patchRequest.IsSwitchCiPipelineRequest() {
+			ok = haveAppLevelAccess
+		} else if !haveAppLevelAccess {
+			//user doesn't have app level access, then checking for branch change
+			hasBranchChangeAccess := handler.checkIfHasBranchChangeAccess(token, app.AppName, patchRequest.CiPipeline.Id)
+			//user does not have app create permission but has branch change permission and request.action is update_pipeline
+			//downgrading the request to update source only
+			if patchRequest.Action == bean.UPDATE_PIPELINE && hasBranchChangeAccess {
+				patchRequest.Action = bean.UPDATE_SOURCE
+			} else {
+				ok = false
+			}
+		}
 	}
 	if !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
+	}
+
+	var cdPipeline *bean.CDPipelineConfigObject
+	if patchRequest.IsLinkedCdRequest() {
+		cdPipeline, err = handler.validateAndEnrichForLinkedCDRequest(w, &patchRequest, app, token)
+		if err != nil {
+			return
+		}
 	}
 
 	ciConf, err := handler.pipelineBuilder.GetCiPipeline(patchRequest.AppId)
@@ -441,9 +467,142 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 	if createResp != nil && app != nil {
 		createResp.AppName = app.AppName
 	}
+
+	if patchRequest.DeployEnvId > 0 {
+		err := handler.createCDPipeline(w, app, createResp, patchRequest, cdPipeline, ctx)
+		if err != nil {
+			return
+		}
+	}
 	common.WriteJsonResp(w, err, createResp, http.StatusOK)
 }
 
+func (handler PipelineConfigRestHandlerImpl) createCDPipeline(w http.ResponseWriter, app *bean.CreateAppDTO, createResp *bean.CiConfigRequest, patchRequest bean.CiPatchRequest, cdPipeline *bean.CDPipelineConfigObject, ctx context.Context) error {
+
+	env, err := handler.envService.FindById(patchRequest.DeployEnvId)
+	if err != nil {
+		handler.Logger.Errorw("error in getting env", "err", err, "envId", patchRequest.DeployEnvId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return err
+	}
+	triggerType := pipelineConfig.TRIGGER_TYPE_AUTOMATIC
+	if env.IsVirtualEnvironment {
+		triggerType = pipelineConfig.TRIGGER_TYPE_MANUAL
+	}
+	//RBAC
+	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		handler.Logger.Errorw("error in getting acd token", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return err
+	}
+	ctx = context.WithValue(ctx, "token", acdToken)
+	suggestedName := fmt.Sprintf("%s-%d-%s", "cd", app.Id, util2.Generate(4))
+	newCdPipeline := &bean.CdPipelines{
+		Pipelines: []*bean.CDPipelineConfigObject{{
+			Name:               suggestedName,
+			AppWorkflowId:      createResp.AppWorkflowId,
+			CiPipelineId:       createResp.CiPipelines[0].Id,
+			ParentPipelineType: "CI_PIPELINE",
+			ParentPipelineId:   createResp.CiPipelines[0].Id,
+			TriggerType:        triggerType,
+			EnvironmentId:      patchRequest.DeployEnvId,
+			Strategies:         cdPipeline.Strategies,
+		}},
+		AppId:  createResp.AppId,
+		UserId: createResp.UserId,
+	}
+
+	_, err = handler.pipelineBuilder.CreateCdPipelines(newCdPipeline, ctx)
+	if err != nil {
+		handler.Logger.Errorw("service err, CreateCdPipelines", "err", err, "CreateCdPipelines", patchRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return err
+	}
+	return nil
+}
+
+func (handler PipelineConfigRestHandlerImpl) validateAndEnrichForLinkedCDRequest(w http.ResponseWriter, patchRequest *bean.CiPatchRequest, app *bean.CreateAppDTO, token string) (*bean.CDPipelineConfigObject, error) {
+	cdPipeline, err := handler.pipelineBuilder.GetCdPipelineById(patchRequest.ParentCDPipeline)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return nil, err
+	}
+
+	var parentCi *bean.CiPipeline
+	if cdPipeline.CiPipelineId != 0 {
+		parentCi, err = handler.pipelineBuilder.GetCiPipelineById(cdPipeline.CiPipelineId)
+		if err != nil {
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return nil, err
+		}
+
+		if parentCi.PipelineType == bean.LINKED_CD {
+			common.WriteJsonResp(w, fmt.Errorf("invalid operation"), "cannot use linked cd as source for workflow", http.StatusBadRequest)
+			return nil, fmt.Errorf("invalid operation")
+		}
+	}
+
+	object := handler.enforcerUtil.GetAppRBACByAppNameAndEnvId(app.AppName, cdPipeline.EnvironmentId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return nil, fmt.Errorf("unauthorized user")
+	}
+
+	if patchRequest.DeployEnvId > 0 {
+		object := handler.enforcerUtil.GetAppRBACByAppNameAndEnvId(app.AppName, patchRequest.DeployEnvId)
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionCreate, object); !ok {
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+			return nil, fmt.Errorf("unauthorized user")
+		}
+	}
+
+	suggestedName := fmt.Sprintf("%s-%d-%d-%s", "linked-cd", app.Id, patchRequest.ParentCDPipeline, util2.Generate(4))
+
+	var ciMaterial []*bean.CiMaterial
+	if parentCi != nil {
+		ciMaterial = parentCi.CiMaterial
+	}
+	patchRequest.CiPipeline = &bean.CiPipeline{
+		ParentCiPipeline: cdPipeline.Id,
+		PipelineType:     bean.LINKED_CD,
+		Name:             suggestedName,
+		CiMaterial:       ciMaterial,
+		DockerArgs:       make(map[string]string),
+	}
+	return cdPipeline, nil
+}
+
+func (handler PipelineConfigRestHandlerImpl) checkIfHasBranchChangeAccess(token, appName string, ciPipelineId int) bool {
+	hasBranchChangeLevelAccess := true
+	//checking if user has branch change access by checking on cd pipelines
+	//checking rbac for cd cdPipelines
+	cdPipelines, err := handler.pipelineRepository.FindByCiPipelineId(ciPipelineId)
+	if err != nil && err != pg.ErrNoRows {
+		handler.Logger.Errorw("error in finding ccd cdPipelines by ciPipelineId", "ciPipelineId", ciPipelineId, "err", err)
+		return hasBranchChangeLevelAccess
+	}
+	if len(cdPipelines) != 0 {
+		rbacObjects := make([]string, len(cdPipelines))
+		for i, cdPipeline := range cdPipelines {
+			envObject := handler.enforcerUtil.GetTeamEnvRBACNameByAppId(cdPipeline.AppId, cdPipeline.EnvironmentId)
+			rbacObjects[i] = envObject
+		}
+		envRbacResultMap := handler.enforcer.EnforceInBatch(token, casbin.ResourceCiPipelineSourceValue, casbin.ActionUpdate, rbacObjects)
+		i := 0
+		for _, rbacResultOk := range envRbacResultMap {
+			if !rbacResultOk {
+				hasBranchChangeLevelAccess = false
+				break
+			}
+			i++
+		}
+	} else {
+		noEnvObject := handler.enforcerUtil.GetTeamNoEnvRBACNameByAppName(appName)
+		hasBranchChangeLevelAccess = handler.enforcer.Enforce(token, casbin.ResourceCiPipelineSourceValue, casbin.ActionUpdate, noEnvObject)
+	}
+	return hasBranchChangeLevelAccess
+}
 func (handler PipelineConfigRestHandlerImpl) GetCiPipeline(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])
@@ -1170,6 +1329,69 @@ func (handler PipelineConfigRestHandlerImpl) GetCIPipelineById(w http.ResponseWr
 	common.WriteJsonResp(w, err, ciPipeline, http.StatusOK)
 }
 
+func (handler PipelineConfigRestHandlerImpl) GetCIPipelineByPipelineId(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
+	var ciPipelineId int
+	var err error
+	v := r.URL.Query()
+	pipelineId := v.Get("pipelineId")
+	if len(pipelineId) != 0 {
+		ciPipelineId, err = strconv.Atoi(pipelineId)
+		if err != nil {
+			handler.Logger.Errorw("request err, GetCIPipelineByPipelineId", "err", err, "pipelineIdParam", pipelineId)
+			response.WriteResponse(http.StatusBadRequest, "please send valid pipelineId", w, errors.New("pipelineId id invalid"))
+			return
+		}
+	} else {
+		response.WriteResponse(http.StatusBadRequest, "please send valid pipelineId", w, errors.New("pipelineId id invalid"))
+		return
+	}
+
+	handler.Logger.Infow("request payload, GetCIPipelineByPipelineId", "pipelineId", pipelineId)
+
+	ciPipeline, err := handler.pipelineBuilder.GetCiPipelineById(ciPipelineId)
+	if err != nil {
+		handler.Logger.Infow("service error, GetCIPipelineById", "err", err, "pipelineId", pipelineId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	app, err := handler.pipelineBuilder.GetApp(ciPipeline.AppId)
+	if err != nil {
+		handler.Logger.Infow("service error, GetCIPipelineByPipelineId", "err", err, "appId", ciPipeline.AppId, "pipelineId", pipelineId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	ciPipeline.AppName = app.AppName
+	ciPipeline.AppType = app.AppType
+
+	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(app.Id)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+
+	pipelineData, err := handler.pipelineRepository.FindActiveByAppIdAndPipelineId(ciPipeline.AppId, ciPipelineId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	var environmentIds []int
+	for _, pipeline := range pipelineData {
+		environmentIds = append(environmentIds, pipeline.EnvironmentId)
+	}
+	if handler.appWorkflowService.CheckCdPipelineByCiPipelineId(ciPipelineId) {
+		for _, envId := range environmentIds {
+			envObject := handler.enforcerUtil.GetEnvRBACNameByCiPipelineIdAndEnvId(ciPipelineId, envId)
+			if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, envObject); !ok {
+				common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+				return
+			}
+		}
+	}
+	common.WriteJsonResp(w, err, ciPipeline, http.StatusOK)
+}
+
 func (handler PipelineConfigRestHandlerImpl) CreateMaterial(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	decoder := json.NewDecoder(r.Body)
@@ -1303,6 +1525,7 @@ func (handler PipelineConfigRestHandlerImpl) DeleteMaterial(w http.ResponseWrite
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
+
 	//rbac ends
 	err = handler.pipelineBuilder.DeleteMaterial(&deleteMaterial)
 	if err != nil {

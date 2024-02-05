@@ -1,0 +1,252 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Devtron Labs
+paths:
+  /orchestrator/filters:
+    put:
+      description: create resource filters
+      requestBody:
+        description: A JSON object containing the filter condition metadata
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FilterRequestBean'
+      responses:
+        '200':
+          description: successfully return filter response bean
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FilterResponseBean'
+        '400':
+          description: Bad Request. validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    get:
+      description: fetch all filter definitions
+      responses:
+        '200':
+          description: successfully return filter defns
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FilterResponseBean'
+        '400':
+          description: Bad Request. validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/filter/{filterId}:
+    get:
+      description: fetch filter detail bean
+      responses:
+        '200':
+          description: successfully return filter detail bean
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FilterRequestBean'
+        '400':
+          description: Bad Request. validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      description: update filter
+      requestBody:
+        description: A JSON object containing the filter condition metadata
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FilterRequestBean'
+      responses:
+        '200':
+          description: successfully return filter response bean
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FilterResponseBean'
+        '400':
+          description: Bad Request. validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      description: delete filter
+      responses:
+        '200':
+          description: successfully return filter detail bean
+        '400':
+          description: Bad Request. validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  schemas:
+    Error:
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          description: Error code
+        message:
+          type: string
+          description: Error message
+    QualifierCategory:
+      type: string
+      description: category could be Application, Env
+    FilterTargetObject:
+      type: integer
+      description: 0 for Artifacts and 1 for commits
+    ApplicationSelector:
+      type: object
+      properties:
+        projectName:
+          type: string
+        applications:
+          type: array
+          items:
+            type: string
+    EnvironmentSelector:
+      type: object
+      properties:
+        clusterName:
+          type: string
+        envNames:
+          type: array
+          items:
+            type: string
+    QualifierSelector:
+      type: object
+      properties:
+        applicationSelector:
+          $ref: '#/components/schemas/ApplicationSelector'
+        envSelector:
+          $ref: '#/components/schemas/EnvironmentSelector'
+    ResourceQualifier:
+      type: object
+      properties:
+        category:
+          $ref: '#/components/schemas/QualifierCategory'
+        selectors:
+          $ref: '#/components/schemas/QualifierSelector'
+    ResourceConditionType:
+      type: integer
+      description: 0 for Pass, 1 for fail
+    ResourceCondition:
+      type: object
+      properties:
+        conditionType:
+          $ref: '#/components/schemas/ResourceConditionType'
+        expression:
+          type: string
+          description: CEL expression
+    FilterRequestBean:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: filter id
+        name:
+          type: string
+          description: filter name
+        description:
+          type: string
+          description: description explaining filter
+        targetObject:
+          $ref: '#/components/schemas/FilterTargetObject'
+        conditions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResourceCondition'
+        qualifiers:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResourceQualifier'
+    FilterResponseBean:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: filter id
+        name:
+          type: string
+          description: filter name
+        description:
+          type: string
+          description: description of filter definition
+
+

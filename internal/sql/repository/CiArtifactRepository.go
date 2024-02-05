@@ -100,10 +100,10 @@ type CiArtifactRepository interface {
 	// Get returns the CiArtifact of the given id.
 	// Note: Use Get along with MigrateToWebHookDataSourceType. For webhook artifacts, migration is required for column DataSource from 'ext' to 'EXTERNAL'
 	Get(id int) (artifact *CiArtifact, err error)
-	GetArtifactParentCiAndWorkflowDetailsByIds(ids []int) ([]*CiArtifact, error)
+	GetArtifactParentCiAndWorkflowDetailsByIdsInDesc(ids []int) ([]*CiArtifact, error)
 	GetByWfId(wfId int) (artifact *CiArtifact, err error)
-	GetArtifactsByCDPipeline(cdPipelineId, limit int, parentId int, parentType bean.WorkflowType) ([]*CiArtifact, error)
-	GetArtifactsByCDPipelineV3(listingFilterOpts *bean.ArtifactsListFilterOptions) ([]*CiArtifact, int, error)
+	GetArtifactsByCDPipeline(cdPipelineId, limit int, parentId int, searchString string, parentType bean.WorkflowType) ([]*CiArtifact, error)
+	GetArtifactsByCDPipelineV3(listingFilterOpts *bean.ArtifactsListFilterOptions, isApprovalNode bool) ([]*CiArtifact, int, error)
 	GetLatestArtifactTimeByCiPipelineIds(ciPipelineIds []int) ([]*CiArtifact, error)
 	GetLatestArtifactTimeByCiPipelineId(ciPipelineId int) (*CiArtifact, error)
 	GetArtifactsByCDPipelineV2(cdPipelineId int) ([]CiArtifact, error)
@@ -118,7 +118,9 @@ type CiArtifactRepository interface {
 	GetArtifactByCdWorkflowId(cdWorkflowId int) (artifact *CiArtifact, err error)
 	GetArtifactsByParentCiWorkflowId(parentCiWorkflowId int) ([]string, error)
 	FetchArtifactsByCdPipelineIdV2(listingFilterOptions bean.ArtifactsListFilterOptions) ([]CiArtifactWithExtraData, int, error)
-	FindArtifactByListFilter(listingFilterOptions *bean.ArtifactsListFilterOptions) ([]*CiArtifact, int, error)
+	FindArtifactByListFilter(listingFilterOptions *bean.ArtifactsListFilterOptions, isApprovalNode bool) ([]*CiArtifact, int, error)
+	FetchApprovedArtifactsForRollback(listingFilterOptions bean.ArtifactsListFilterOptions) ([]CiArtifactWithExtraData, int, error)
+	FindApprovedArtifactsWithFilter(listingFilterOpts *bean.ArtifactsListFilterOptions) ([]*CiArtifact, int, error)
 	GetArtifactsByDataSourceAndComponentId(dataSource string, componentId int) ([]CiArtifact, error)
 	FindCiArtifactByImagePaths(images []string) ([]CiArtifact, error)
 
@@ -183,15 +185,16 @@ func (impl CiArtifactRepositoryImpl) Get(id int) (artifact *CiArtifact, err erro
 	return artifact, err
 }
 
-func (impl CiArtifactRepositoryImpl) GetArtifactParentCiAndWorkflowDetailsByIds(ids []int) ([]*CiArtifact, error) {
+func (impl CiArtifactRepositoryImpl) GetArtifactParentCiAndWorkflowDetailsByIdsInDesc(ids []int) ([]*CiArtifact, error) {
 	artifacts := make([]*CiArtifact, 0)
 	if len(ids) == 0 {
 		return artifacts, nil
 	}
 
 	err := impl.dbConnection.Model(&artifacts).
-		Column("ci_artifact.ci_workflow_id", "ci_artifact.parent_ci_artifact", "ci_artifact.external_ci_pipeline_id", "ci_artifact.id", "ci_artifact.pipeline_id").
+		Column("ci_artifact.id", "ci_artifact.ci_workflow_id", "ci_artifact.parent_ci_artifact", "ci_artifact.external_ci_pipeline_id", "ci_artifact.pipeline_id").
 		Where("ci_artifact.id in (?)", pg.In(ids)).
+		Order("ci_artifact.id DESC").
 		Select()
 
 	if err != nil {
@@ -213,14 +216,16 @@ func (impl CiArtifactRepositoryImpl) GetByWfId(wfId int) (*CiArtifact, error) {
 }
 
 // this method takes CD Pipeline id and Returns List of Artifacts Latest By last deployed
-func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipeline(cdPipelineId, limit int, parentId int, parentType bean.WorkflowType) ([]*CiArtifact, error) {
+func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipeline(cdPipelineId, limit int, parentId int, searchString string, parentType bean.WorkflowType) ([]*CiArtifact, error) {
 	artifacts := make([]*CiArtifact, 0, limit)
+	searchStringFinal := "%" + searchString + "%"
 
 	if parentType == bean.WEBHOOK_WORKFLOW_TYPE {
 		// WEBHOOK type parent
 		err := impl.dbConnection.Model(&artifacts).
 			Column("ci_artifact.id", "ci_artifact.material_info", "ci_artifact.data_source", "ci_artifact.image", "ci_artifact.image_digest", "ci_artifact.scan_enabled", "ci_artifact.scanned").
 			Where("ci_artifact.external_ci_pipeline_id = ?", parentId).
+			Where("ci_artifact.image LIKE ?", searchStringFinal).
 			Order("ci_artifact.id DESC").
 			Limit(limit).
 			Select()
@@ -241,6 +246,7 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipeline(cdPipelineId, limi
 			Join("INNER JOIN ci_pipeline cp on cp.id=ci_artifact.pipeline_id").
 			Join("INNER JOIN pipeline p on p.ci_pipeline_id = cp.id").
 			Where("p.id = ?", cdPipelineId).
+			Where("ci_artifact.image LIKE ?", searchStringFinal).
 			Order("ci_artifact.id DESC").
 			Limit(limit).
 			Select()
@@ -313,7 +319,7 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipeline(cdPipelineId, limi
 	return artifactsAll, err
 }
 
-func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineV3(listingFilterOpts *bean.ArtifactsListFilterOptions) ([]*CiArtifact, int, error) {
+func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineV3(listingFilterOpts *bean.ArtifactsListFilterOptions, isApprovalNode bool) ([]*CiArtifact, int, error) {
 
 	if listingFilterOpts.ParentStageType != bean.CI_WORKFLOW_TYPE && listingFilterOpts.ParentStageType != bean.WEBHOOK_WORKFLOW_TYPE {
 		return nil, 0, nil
@@ -322,7 +328,7 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineV3(listingFilterOpt
 	artifactsResp := make([]*CiArtifactWithExtraData, 0, listingFilterOpts.Limit)
 	var artifacts []*CiArtifact
 	totalCount := 0
-	finalQuery := BuildQueryForParentTypeCIOrWebhook(*listingFilterOpts)
+	finalQuery := BuildQueryForParentTypeCIOrWebhook(*listingFilterOpts, isApprovalNode)
 	_, err := impl.dbConnection.Query(&artifactsResp, finalQuery)
 	if err != nil {
 		return nil, totalCount, err
@@ -734,12 +740,12 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByParentCiWorkflowId(parentCiWo
 	return artifacts, err
 }
 
-func (impl CiArtifactRepositoryImpl) FindArtifactByListFilter(listingFilterOptions *bean.ArtifactsListFilterOptions) ([]*CiArtifact, int, error) {
+func (impl CiArtifactRepositoryImpl) FindArtifactByListFilter(listingFilterOptions *bean.ArtifactsListFilterOptions, isApprovalNode bool) ([]*CiArtifact, int, error) {
 
 	var ciArtifactsResp []CiArtifactWithExtraData
 	ciArtifacts := make([]*CiArtifact, 0)
 	totalCount := 0
-	finalQuery := BuildQueryForArtifactsForCdStage(*listingFilterOptions)
+	finalQuery := BuildQueryForArtifactsForCdStage(*listingFilterOptions, isApprovalNode)
 	_, err := impl.dbConnection.Query(&ciArtifactsResp, finalQuery)
 	if err == pg.ErrNoRows || len(ciArtifactsResp) == 0 {
 		return ciArtifacts, totalCount, nil
@@ -791,6 +797,34 @@ func (impl CiArtifactRepositoryImpl) FetchArtifactsByCdPipelineIdV2(listingFilte
 		totalCount = wfrList[0].TotalCount
 	}
 	return wfrList, totalCount, nil
+}
+
+func (impl CiArtifactRepositoryImpl) FindApprovedArtifactsWithFilter(listingFilterOpts *bean.ArtifactsListFilterOptions) ([]*CiArtifact, int, error) {
+	artifacts := make([]*CiArtifactWithExtraData, 0)
+	totalCount := 0
+
+	finalQuery := BuildApprovedOnlyArtifactsWithFilter(*listingFilterOpts)
+	_, err := impl.dbConnection.Query(&artifacts, finalQuery)
+	artifactsResp := make([]*CiArtifact, len(artifacts))
+	for i, _ := range artifacts {
+		artifactsResp[i] = &artifacts[i].CiArtifact
+		totalCount = artifacts[i].TotalCount
+	}
+	return artifactsResp, totalCount, err
+}
+
+func (impl CiArtifactRepositoryImpl) FetchApprovedArtifactsForRollback(listingFilterOpts bean.ArtifactsListFilterOptions) ([]CiArtifactWithExtraData, int, error) {
+	var results []CiArtifactWithExtraData
+	totalCount := 0
+	finalQuery := BuildQueryForApprovedArtifactsForRollback(listingFilterOpts)
+	_, err := impl.dbConnection.Query(&results, finalQuery)
+	if err != nil && err != pg.ErrNoRows {
+		return results, totalCount, err
+	}
+	if len(results) > 0 {
+		totalCount = results[0].TotalCount
+	}
+	return results, totalCount, nil
 }
 
 func (impl CiArtifactRepositoryImpl) GetArtifactsByDataSourceAndComponentId(dataSource string, componentId int) ([]CiArtifact, error) {

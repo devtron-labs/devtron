@@ -471,6 +471,12 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) GetDeploymentHistoryInfo(ctx con
 	appStoreApplicationVersionId, err := impl.installedAppRepositoryHistory.GetAppStoreApplicationVersionIdByInstalledAppVersionHistoryId(int(version))
 	appStoreVersionId := pointer.Int32(int32(appStoreApplicationVersionId))
 
+	// as virtual environment doesn't exist on actual cluster, we will use default cluster for running helm template command
+	if installedApp.IsVirtualEnvironment {
+		clusterId = appStoreBean.DEFAULT_CLUSTER_ID
+		installedApp.Namespace = appStoreBean.DEFAULT_NAMESPACE
+	}
+
 	manifestRequest := openapi2.TemplateChartRequest{
 		EnvironmentId:                &envId,
 		ClusterId:                    &clusterId,

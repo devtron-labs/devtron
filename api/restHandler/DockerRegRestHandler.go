@@ -428,7 +428,10 @@ func (impl DockerRegRestHandlerExtendedImpl) FetchAllDockerAccounts(w http.Respo
 				if isContainerEditable := impl.deleteServiceFullMode.CanDeleteContainerRegistryConfig(item.Id); !(isContainerEditable || item.IsPublic) {
 					item.DisabledFields = append(item.DisabledFields, pipeline.DISABLED_CONTAINER)
 				}
-				if isChartEditable := impl.DockerRegRestHandlerImpl.deleteService.CanDeleteChartRegistryPullConfig(item.Id); !(isChartEditable || item.IsPublic) {
+				if isChartPushEditable := impl.deleteServiceFullMode.CanDeleteChartRegistryPushConfig(item.Id); !(isChartPushEditable || item.IsPublic) {
+					item.DisabledFields = append(item.DisabledFields, pipeline.DISABLED_CHART_PUSH)
+				}
+				if isChartPullEditable := impl.DockerRegRestHandlerImpl.deleteService.CanDeleteChartRegistryPullConfig(item.Id); !(isChartPullEditable || item.IsPublic) {
 					item.DisabledFields = append(item.DisabledFields, pipeline.DISABLED_CHART_PULL)
 				}
 			}
@@ -450,7 +453,7 @@ func (impl DockerRegRestHandlerImpl) FetchOneDockerAccounts(w http.ResponseWrite
 	}
 	res.DisabledFields = make([]types.DisabledFields, 0)
 	if !res.IsPublic {
-		if isChartEditable := impl.deleteService.CanDeleteChartRegistryPullConfig(res.Id); !(isChartEditable || res.IsPublic) {
+		if isChartPullEditable := impl.deleteService.CanDeleteChartRegistryPullConfig(res.Id); !(isChartPullEditable || res.IsPublic) {
 			res.DisabledFields = append(res.DisabledFields, pipeline.DISABLED_CONTAINER)
 		}
 	}
@@ -480,7 +483,10 @@ func (impl DockerRegRestHandlerExtendedImpl) FetchOneDockerAccounts(w http.Respo
 		if isContainerEditable := impl.deleteServiceFullMode.CanDeleteContainerRegistryConfig(res.Id); !(isContainerEditable || res.IsPublic) {
 			res.DisabledFields = append(res.DisabledFields, pipeline.DISABLED_CONTAINER)
 		}
-		if isChartEditable := impl.DockerRegRestHandlerImpl.deleteService.CanDeleteChartRegistryPullConfig(res.Id); !(isChartEditable || res.IsPublic) {
+		if isChartPushEditable := impl.deleteServiceFullMode.CanDeleteChartRegistryPushConfig(res.Id); !(isChartPushEditable || res.IsPublic) {
+			res.DisabledFields = append(res.DisabledFields, pipeline.DISABLED_CHART_PUSH)
+		}
+		if isChartPullEditable := impl.DockerRegRestHandlerImpl.deleteService.CanDeleteChartRegistryPullConfig(res.Id); !(isChartPullEditable || res.IsPublic) {
 			res.DisabledFields = append(res.DisabledFields, pipeline.DISABLED_CHART_PULL)
 		}
 	}

@@ -56,6 +56,7 @@ type DockerRegistryConfig interface {
 const (
 	DISABLED_CONTAINER  types.DisabledFields = "CONTAINER"
 	DISABLED_CHART_PULL types.DisabledFields = "CHART_PULL"
+	DISABLED_CHART_PUSH types.DisabledFields = "CHART_PUSH"
 )
 
 type DockerRegistryConfigImpl struct {

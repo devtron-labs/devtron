@@ -22,23 +22,22 @@ import (
 	"strings"
 
 	"github.com/devtron-labs/common-lib/utils/k8s"
-	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
-	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
-	"github.com/devtron-labs/devtron/util"
-
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	helper2 "github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/team"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
 
 type EnforcerUtil interface {
 	GetAppRBACName(appName string) string
-	GetRbacObjectsForAllApps(appType helper.AppType) map[int]string
-	GetRbacObjectsForAllAppsWithTeamID(teamID int, appType helper.AppType) map[int]string
+	GetRbacObjectsForAllApps(appType helper2.AppType) map[int]string
+	GetRbacObjectsForAllAppsWithTeamID(teamID int, appType helper2.AppType) map[int]string
 	GetAppRBACNameByAppId(appId int) string
 	GetAppRBACByAppNameAndEnvId(appName string, envId int) string
 	GetAppRBACByAppIdAndPipelineId(appId int, pipelineId int) string
@@ -59,11 +58,13 @@ type EnforcerUtil interface {
 	GetRBACNameForClusterEntity(clusterName string, resourceIdentifier k8s.ResourceIdentifier) (resourceName, objectName string)
 	GetAppObjectByCiPipelineIds(ciPipelineIds []int) map[int]string
 	GetAppAndEnvObjectByPipelineIds(cdPipelineIds []int) map[int][]string
-	GetRbacObjectsForAllAppsWithMatchingAppName(appNameMatch string, appType helper.AppType) map[int]string
+	GetRbacObjectsForAllAppsWithMatchingAppName(appNameMatch string, appType helper2.AppType) map[int]string
 	GetAppAndEnvObjectByPipeline(cdPipelines []*bean.CDPipelineConfigObject) map[int][]string
 	GetAppAndEnvObjectByDbPipeline(cdPipelines []*pipelineConfig.Pipeline) map[int][]string
 	GetRbacObjectsByAppIds(appIds []int) map[int]string
 	GetAllActiveTeamNames() ([]string, error)
+	GetTeamNoEnvRBACNameByAppName(appName string) string
+	GetTeamNoEnvRBACNameByAppId(appId int) string
 	GetRbacObjectsByEnvIdsAndAppId(envIds []int, appId int) (map[int]string, map[string]string)
 	GetAppRBACNameByAppAndProjectName(projectName, appName string) string
 	GetRbacObjectNameByAppAndWorkflow(appName, workflowName string) string
@@ -73,8 +74,9 @@ type EnforcerUtil interface {
 	GetTeamEnvAppRbacObjectByAppIdEnvIdOrName(appId, envId int, envName string) string
 	GetAllWorkflowRBACObjectsByAppId(appId int, workflowNames []string, workflowIds []int) map[int]string
 	GetEnvRBACArrayByAppIdForJobs(appId int) []string
+	GetClusterNameRBACObjByClusterId(clusterId int) string
 	CheckAppRbacForAppOrJob(token, resourceName, action string) bool
-	CheckAppRbacForAppOrJobInBulk(token, action string, rbacObjects []string, appType helper.AppType) map[string]bool
+	CheckAppRbacForAppOrJobInBulk(token, action string, rbacObjects []string, appType helper2.AppType) map[string]bool
 }
 
 type EnforcerUtilImpl struct {
@@ -166,7 +168,7 @@ func (impl EnforcerUtilImpl) GetProjectAdminRBACNameBYAppName(appName string) st
 	return fmt.Sprintf("%s/%s", application.Team.Name, "*")
 }
 
-func (impl EnforcerUtilImpl) GetRbacObjectsForAllApps(appType helper.AppType) map[int]string {
+func (impl EnforcerUtilImpl) GetRbacObjectsForAllApps(appType helper2.AppType) map[int]string {
 	objects := make(map[int]string)
 	result, err := impl.appRepo.FindAllActiveAppsWithTeam(appType)
 	if err != nil {
@@ -180,7 +182,7 @@ func (impl EnforcerUtilImpl) GetRbacObjectsForAllApps(appType helper.AppType) ma
 	return objects
 }
 
-func (impl EnforcerUtilImpl) GetRbacObjectsForAllAppsWithTeamID(teamID int, appType helper.AppType) map[int]string {
+func (impl EnforcerUtilImpl) GetRbacObjectsForAllAppsWithTeamID(teamID int, appType helper2.AppType) map[int]string {
 	objects := make(map[int]string)
 	result, err := impl.appRepo.FindAllActiveAppsWithTeamWithTeamId(teamID, appType)
 	if err != nil {
@@ -251,6 +253,25 @@ func (impl EnforcerUtilImpl) GetTeamEnvRBACNameByAppId(appId int, envId int) str
 		return fmt.Sprintf("%s/%s/%s", teamName, "", appName)
 	}
 	return fmt.Sprintf("%s/%s/%s", teamName, env.EnvironmentIdentifier, appName)
+}
+
+func (impl EnforcerUtilImpl) GetTeamNoEnvRBACNameByAppId(appId int) string {
+	application, err := impl.appRepo.FindAppAndProjectByAppId(appId)
+	if err != nil {
+		return fmt.Sprintf("%s/%s/%s", "", "", "")
+	}
+	var appName = application.AppName
+	var teamName = application.Team.Name
+	return fmt.Sprintf("%s/%s/%s", teamName, casbin.ResourceObjectIgnorePlaceholder, appName)
+}
+
+func (impl EnforcerUtilImpl) GetTeamNoEnvRBACNameByAppName(appName string) string {
+	app, err := impl.appRepo.FindAppAndProjectByAppName(appName)
+	if err != nil {
+		return fmt.Sprintf("%s/%s", "", appName)
+	}
+	var teamName = app.Team.Name
+	return fmt.Sprintf("%s/%s/%s", teamName, casbin.ResourceObjectIgnorePlaceholder, appName)
 }
 
 func (impl EnforcerUtilImpl) GetTeamRBACByCiPipelineId(pipelineId int) string {
@@ -334,7 +355,7 @@ func (impl EnforcerUtilImpl) GetTeamAndEnvironmentRbacObjectByCDPipelineId(pipel
 func (impl EnforcerUtilImpl) GetRbacObjectsForAllAppsAndEnvironments() (map[int]string, map[string]string) {
 	appObjects := make(map[int]string)
 	envObjects := make(map[string]string)
-	apps, err := impl.appRepo.FindAllActiveAppsWithTeam(helper.CustomApp)
+	apps, err := impl.appRepo.FindAllActiveAppsWithTeam(helper2.CustomApp)
 	if err != nil {
 		impl.logger.Errorw("exception while fetching all active apps for rbac objects", "err", err)
 		return appObjects, envObjects
@@ -449,9 +470,6 @@ func (impl EnforcerUtilImpl) GetHelmObjectByProjectIdAndEnvId(teamId int, envId 
 		return fmt.Sprintf("%s/%s/%s", "", "", ""), fmt.Sprintf("%s/%s/%s", "", "", "")
 	}
 
-	clusterName := env.Cluster.ClusterName
-	namespace := env.Namespace
-
 	environmentIdentifier := env.EnvironmentIdentifier
 
 	// Fix for futuristic permissions, environmentIdentifier2 will return a string object with cluster name if futuristic permissions are given,
@@ -459,6 +477,8 @@ func (impl EnforcerUtilImpl) GetHelmObjectByProjectIdAndEnvId(teamId int, envId 
 
 	environmentIdentifier2 := ""
 	if !env.IsVirtualEnvironment {
+		clusterName := env.Cluster.ClusterName
+		namespace := env.Namespace
 		if environmentIdentifier != clusterName+"__"+namespace { // for futuristic permission cluster name is not present in environment identifier
 			environmentIdentifier2 = clusterName + "__" + namespace
 		}
@@ -541,7 +561,7 @@ func (impl EnforcerUtilImpl) GetAppAndEnvObjectByPipelineIds(cdPipelineIds []int
 	return objects
 }
 
-func (impl EnforcerUtilImpl) GetRbacObjectsForAllAppsWithMatchingAppName(appNameMatch string, appType helper.AppType) map[int]string {
+func (impl EnforcerUtilImpl) GetRbacObjectsForAllAppsWithMatchingAppName(appNameMatch string, appType helper2.AppType) map[int]string {
 	objects := make(map[int]string)
 	result, err := impl.appRepo.FindAllActiveAppsWithTeamByAppNameMatch(appNameMatch, appType)
 	if err != nil {
@@ -701,6 +721,16 @@ func (impl EnforcerUtilImpl) GetEnvRBACArrayByAppIdForJobs(appId int) []string {
 	return rbacObjects
 }
 
+func (impl EnforcerUtilImpl) GetClusterNameRBACObjByClusterId(clusterId int) string {
+	clusterObj := ""
+	cluster, err := impl.clusterRepository.FindById(clusterId)
+	if err != nil {
+		return clusterObj
+	}
+	clusterObj = strings.ToLower(cluster.ClusterName)
+	return clusterObj
+}
+
 func (impl EnforcerUtilImpl) CheckAppRbacForAppOrJob(token, resourceName, action string) bool {
 	ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, action, resourceName)
 	if !ok {
@@ -709,9 +739,9 @@ func (impl EnforcerUtilImpl) CheckAppRbacForAppOrJob(token, resourceName, action
 	return ok
 }
 
-func (impl EnforcerUtilImpl) CheckAppRbacForAppOrJobInBulk(token, action string, rbacObjects []string, appType helper.AppType) map[string]bool {
+func (impl EnforcerUtilImpl) CheckAppRbacForAppOrJobInBulk(token, action string, rbacObjects []string, appType helper2.AppType) map[string]bool {
 	var enforcedMap map[string]bool
-	if appType == helper.Job {
+	if appType == helper2.Job {
 		enforcedMap = impl.enforcer.EnforceInBatch(token, casbin.ResourceJobs, action, rbacObjects)
 	} else {
 		enforcedMap = impl.enforcer.EnforceInBatch(token, casbin.ResourceApplications, action, rbacObjects)

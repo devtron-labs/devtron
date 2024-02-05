@@ -3,7 +3,7 @@ package clusterTerminalAccess
 import (
 	"context"
 	"errors"
-	util2 "github.com/devtron-labs/common-lib/utils/k8s"
+	util2 "github.com/devtron-labs/common-lib-private/utils/k8s"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/mocks"
 	"github.com/devtron-labs/devtron/internal/util"

@@ -1,0 +1,1 @@
+{{ .Release.Name }} is deployed to {{ .Release.Namespace }} namespace.

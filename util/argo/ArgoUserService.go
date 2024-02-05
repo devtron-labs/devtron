@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
 	"github.com/devtron-labs/authenticator/client"
-	"github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/connection"
 	"github.com/devtron-labs/devtron/client/argocdServer/session"
@@ -51,10 +51,10 @@ type ArgoUserServiceImpl struct {
 	gitOpsRepository        repository.GitOpsConfigRepository
 	argoCDConnectionManager connection.ArgoCDConnectionManager
 	versionService          argocdServer.VersionService
-	k8sUtil                 *k8s.K8sServiceImpl
+	k8sUtil                 *k8s.K8sUtilExtended
 }
 
-func NewArgoUserServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.ClusterService, devtronSecretConfig *util2.DevtronSecretConfig, runTimeConfig *client.RuntimeConfig, gitOpsRepository repository.GitOpsConfigRepository, argoCDConnectionManager connection.ArgoCDConnectionManager, versionService argocdServer.VersionService, k8sUtil *k8s.K8sServiceImpl) (*ArgoUserServiceImpl, error) {
+func NewArgoUserServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.ClusterService, devtronSecretConfig *util2.DevtronSecretConfig, runTimeConfig *client.RuntimeConfig, gitOpsRepository repository.GitOpsConfigRepository, argoCDConnectionManager connection.ArgoCDConnectionManager, versionService argocdServer.VersionService, k8sUtil *k8s.K8sUtilExtended) (*ArgoUserServiceImpl, error) {
 	argoUserServiceImpl := &ArgoUserServiceImpl{
 		logger:                  Logger,
 		clusterService:          clusterService,

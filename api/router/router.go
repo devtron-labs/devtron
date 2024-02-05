@@ -24,13 +24,16 @@ import (
 	"github.com/devtron-labs/devtron/api/appStore"
 	"github.com/devtron-labs/devtron/api/appStore/chartGroup"
 	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
+	"github.com/devtron-labs/devtron/api/auth/authorisation/globalConfig"
 	"github.com/devtron-labs/devtron/api/auth/sso"
 	"github.com/devtron-labs/devtron/api/auth/user"
 	"github.com/devtron-labs/devtron/api/chartRepo"
 	"github.com/devtron-labs/devtron/api/cluster"
 	"github.com/devtron-labs/devtron/api/dashboardEvent"
 	"github.com/devtron-labs/devtron/api/deployment"
+	"github.com/devtron-labs/devtron/api/devtronResource"
 	"github.com/devtron-labs/devtron/api/externalLink"
+	"github.com/devtron-labs/devtron/api/globalPolicy"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/k8s/application"
 	"github.com/devtron-labs/devtron/api/k8s/capacity"
@@ -45,6 +48,10 @@ import (
 	"github.com/devtron-labs/devtron/client/dashboard"
 	"github.com/devtron-labs/devtron/client/proxy"
 	"github.com/devtron-labs/devtron/client/telemetry"
+	"github.com/devtron-labs/devtron/enterprise/api/drafts"
+	"github.com/devtron-labs/devtron/enterprise/api/globalTag"
+	"github.com/devtron-labs/devtron/enterprise/api/lockConfiguation"
+	"github.com/devtron-labs/devtron/enterprise/api/protect"
 	"github.com/devtron-labs/devtron/pkg/terminal"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/gorilla/mux"
@@ -119,9 +126,18 @@ type MuxRouter struct {
 	userTerminalAccessRouter           terminal2.UserTerminalAccessRouter
 	ciStatusUpdateCron                 cron.CiStatusUpdateCron
 	resourceGroupingRouter             ResourceGroupingRouter
+	globalTagRouter                    globalTag.GlobalTagRouter
 	rbacRoleRouter                     user.RbacRoleRouter
+	globalPolicyRouter                 globalPolicy.GlobalPolicyRouter
+	configDraftRouter                  drafts.ConfigDraftRouter
+	resourceProtectionRouter           protect.ResourceProtectionRouter
 	scopedVariableRouter               ScopedVariableRouter
 	ciTriggerCron                      cron.CiTriggerCron
+	resourceFilterRouter               ResourceFilterRouter
+	devtronResourceRouter              devtronResource.DevtronResourceRouter
+	globalAuthorisationConfigRouter    globalConfig.AuthorisationConfigRouter
+	lockConfigurationRouter            lockConfiguation.LockConfigurationRouter
+	imageDigestPolicyRouter            ImageDigestPolicyRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -151,10 +167,15 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 	webhookHelmRouter webhookHelm.WebhookHelmRouter, globalCMCSRouter GlobalCMCSRouter,
 	userTerminalAccessRouter terminal2.UserTerminalAccessRouter,
 	jobRouter JobRouter, ciStatusUpdateCron cron.CiStatusUpdateCron, resourceGroupingRouter ResourceGroupingRouter,
-	rbacRoleRouter user.RbacRoleRouter,
-	scopedVariableRouter ScopedVariableRouter,
-	ciTriggerCron cron.CiTriggerCron,
-	proxyRouter proxy.ProxyRouter) *MuxRouter {
+	globalTagRouter globalTag.GlobalTagRouter, rbacRoleRouter user.RbacRoleRouter,
+	globalPolicyRouter globalPolicy.GlobalPolicyRouter, configDraftRouter drafts.ConfigDraftRouter, resourceProtectionRouter protect.ResourceProtectionRouter,
+	scopedVariableRouter ScopedVariableRouter, ciTriggerCron cron.CiTriggerCron,
+	resourceFilterRouter ResourceFilterRouter,
+	devtronResourceRouter devtronResource.DevtronResourceRouter,
+	globalAuthorisationConfigRouter globalConfig.AuthorisationConfigRouter,
+	lockConfigurationRouter lockConfiguation.LockConfigurationRouter,
+	proxyRouter proxy.ProxyRouter,
+	imageDigestPolicyRouter ImageDigestPolicyRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
 		HelmRouter:                         HelmRouter,
@@ -221,9 +242,18 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 		ciStatusUpdateCron:                 ciStatusUpdateCron,
 		JobRouter:                          jobRouter,
 		resourceGroupingRouter:             resourceGroupingRouter,
+		globalTagRouter:                    globalTagRouter,
 		rbacRoleRouter:                     rbacRoleRouter,
+		globalPolicyRouter:                 globalPolicyRouter,
 		scopedVariableRouter:               scopedVariableRouter,
 		ciTriggerCron:                      ciTriggerCron,
+		configDraftRouter:                  configDraftRouter,
+		resourceProtectionRouter:           resourceProtectionRouter,
+		resourceFilterRouter:               resourceFilterRouter,
+		devtronResourceRouter:              devtronResourceRouter,
+		globalAuthorisationConfigRouter:    globalAuthorisationConfigRouter,
+		lockConfigurationRouter:            lockConfigurationRouter,
+		imageDigestPolicyRouter:            imageDigestPolicyRouter,
 	}
 	return r
 }
@@ -289,6 +319,12 @@ func (r MuxRouter) Init() {
 
 	rootRouter := r.Router.PathPrefix("/orchestrator").Subrouter()
 	r.UserAuthRouter.InitUserAuthRouter(rootRouter)
+
+	resourceFilterRouter := r.Router.PathPrefix("/orchestrator/filters").Subrouter()
+	r.resourceFilterRouter.InitResourceFilterRouter(resourceFilterRouter)
+
+	imageDigestPolicyRouter := r.Router.PathPrefix("/orchestrator/digest-policy").Subrouter()
+	r.imageDigestPolicyRouter.initImageDigestPolicyRouter(imageDigestPolicyRouter)
 
 	gitRouter := r.Router.PathPrefix("/orchestrator/git").Subrouter()
 	r.GitProviderRouter.InitGitProviderRouter(gitRouter)
@@ -426,6 +462,29 @@ func (r MuxRouter) Init() {
 	userTerminalAccessRouter := r.Router.PathPrefix("/orchestrator/user/terminal").Subrouter()
 	r.userTerminalAccessRouter.InitTerminalAccessRouter(userTerminalAccessRouter)
 
+	// global-tags router
+	globalTagSubRouter := r.Router.PathPrefix("/orchestrator/global-tag").Subrouter()
+	r.globalTagRouter.InitGlobalTagRouter(globalTagSubRouter)
+
+	// lock configuration
+	lockConfigurationRouter := r.Router.PathPrefix("/orchestrator/config/lock").Subrouter()
+	r.lockConfigurationRouter.InitLockConfigurationRouter(lockConfigurationRouter)
+
 	rbacRoleRouter := r.Router.PathPrefix("/orchestrator/rbac/role").Subrouter()
 	r.rbacRoleRouter.InitRbacRoleRouter(rbacRoleRouter)
+
+	globalPolicyRouter := r.Router.PathPrefix("/orchestrator/policy").Subrouter()
+	r.globalPolicyRouter.InitGlobalPolicyRouter(globalPolicyRouter)
+
+	draftRouter := r.Router.PathPrefix("/orchestrator/draft").Subrouter()
+	r.configDraftRouter.InitConfigDraftRouter(draftRouter)
+
+	protectRouter := r.Router.PathPrefix("/orchestrator/protect").Subrouter()
+	r.resourceProtectionRouter.InitResourceProtectionRouter(protectRouter)
+
+	devtronResourceRouter := r.Router.PathPrefix("/orchestrator/resource").Subrouter()
+	r.devtronResourceRouter.InitDevtronResourceRouter(devtronResourceRouter)
+
+	globalAuthorisationConfigRouter := r.Router.PathPrefix("/orchestrator/authorisation").Subrouter()
+	r.globalAuthorisationConfigRouter.InitAuthorisationConfigRouter(globalAuthorisationConfigRouter)
 }

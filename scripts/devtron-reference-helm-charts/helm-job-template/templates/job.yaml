@@ -1,0 +1,106 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{.Release.Name}}-{{ randAlphaNum 5 | lower }}
+  labels:
+    {{- include "helm-job.labels" . | nindent 4 }}
+spec:
+  ttlSecondsAfterFinished: {{ .Values.TTLSecondsAfterFinished }}
+  activeDeadlineSeconds: {{ .Values.ActiveDeadlineSeconds }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "helm-job.selectorLabels" . | nindent 8 }}
+    spec:
+      restartPolicy: Never
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "helm-job.serviceAccountName" . }}
+      containers:
+        - name: {{ .Values.Container.name }}
+          securityContext:
+            {{- toYaml .Values.Container.securityContext | nindent 12 }}
+          args:
+            {{- toYaml .Values.Container.args | nindent 12 }}
+          env:
+            {{- toYaml .Values.Container.env | nindent 12}}
+          image: {{ .Values.Container.image }}
+          imagePullPolicy: {{ .Values.Container.imagePullPolicy }}
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          envFrom:
+          {{- range .Values.ConfigMaps }}
+          {{- if eq .type "environment" }}
+          - configMapRef:
+              name: "{{ $.Release.Name }}-{{ .name}}"
+          {{- end }}
+          {{- end }}
+          {{- range .Values.ConfigSecrets }}
+          {{- if eq .type "environment" }}
+          - secretRef:
+              name: "{{ $.Release.Name }}-{{ .name}}"
+          {{- end }}
+          {{- end }}
+
+          volumeMounts:
+          {{- range .Values.ConfigMaps }}
+          {{- if eq .type "volume" }}
+          - name: {{ .name }}-vol
+            mountPath: {{ .mountPath }}
+          {{- end }}
+          {{- end }}
+
+          {{- range .Values.ConfigSecrets }}
+          {{- if eq .type "volume" }}
+          - name: {{ .name }}-vol
+            mountPath: {{ .mountPath }}
+          {{- end }}
+          {{- end }}
+
+      volumes:
+      {{- range .Values.ConfigMaps }}
+      {{- if eq .type "volume"}}
+        - name: {{ .name}}-vol
+          configMap:
+            name: "{{ $.Release.Name }}-{{ .name}}"
+      {{- end }}
+      {{- end }}
+
+      {{- range .Values.ConfigSecrets }}
+      {{- if eq .type "volume"}}
+        - name: {{ .name}}-vol
+          secret:
+            secretName: "{{ $.Release.Name }}-{{ .name}}"''
+      {{- end }}
+      {{- end }}
+
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.Toleration }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

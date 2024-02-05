@@ -131,6 +131,7 @@ const (
 	environmentIdKey         string = "environmentId"
 	environmentNameKey       string = "environmentName"
 	environmentIdentifierKey string = "environmentIdentifier"
+	SearchString                    = ""
 )
 
 func formatDate(t time.Time, layout string) string {

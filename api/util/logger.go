@@ -40,7 +40,7 @@ func (impl LoggingMiddlewareImpl) LoggingMiddleware(next http.Handler) http.Hand
 		d := middleware.NewDelegator(w, nil)
 
 		token := r.Header.Get("token")
-		userEmail, err := impl.userService.GetEmailFromToken(token)
+		userEmail, _, err := impl.userService.GetEmailAndGroupClaimsFromToken(token)
 		if err != nil {
 			log.Printf("AUDIT_LOG: user does not exists")
 		}

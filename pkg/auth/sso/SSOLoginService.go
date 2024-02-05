@@ -20,9 +20,10 @@ package sso
 import (
 	"encoding/json"
 	"fmt"
+	auth "github.com/devtron-labs/devtron/pkg/auth/authorisation/globalConfig"
 	"time"
 
-	"github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	"github.com/devtron-labs/devtron/pkg/auth/authentication"
 
 	"github.com/devtron-labs/devtron/api/bean"
@@ -41,11 +42,12 @@ type SSOLoginService interface {
 }
 
 type SSOLoginServiceImpl struct {
-	logger              *zap.SugaredLogger
-	ssoLoginRepository  SSOLoginRepository
-	K8sUtil             *k8s.K8sServiceImpl
-	devtronSecretConfig *util2.DevtronSecretConfig
-	userAuthOidcHelper  authentication.UserAuthOidcHelper
+	logger                  *zap.SugaredLogger
+	ssoLoginRepository      SSOLoginRepository
+	K8sUtil                 *k8s.K8sUtilExtended
+	devtronSecretConfig     *util2.DevtronSecretConfig
+	userAuthOidcHelper      authentication.UserAuthOidcHelper
+	globalAuthConfigService auth.GlobalAuthorisationConfigService
 }
 
 type Config struct {
@@ -61,13 +63,15 @@ const ClientSecret = "clientSecret"
 func NewSSOLoginServiceImpl(
 	logger *zap.SugaredLogger,
 	ssoLoginRepository SSOLoginRepository,
-	K8sUtil *k8s.K8sServiceImpl, devtronSecretConfig *util2.DevtronSecretConfig, userAuthOidcHelper authentication.UserAuthOidcHelper) *SSOLoginServiceImpl {
+	K8sUtil *k8s.K8sUtilExtended, devtronSecretConfig *util2.DevtronSecretConfig, userAuthOidcHelper authentication.UserAuthOidcHelper,
+	globalAuthConfigService auth.GlobalAuthorisationConfigService) *SSOLoginServiceImpl {
 	serviceImpl := &SSOLoginServiceImpl{
-		logger:              logger,
-		ssoLoginRepository:  ssoLoginRepository,
-		K8sUtil:             K8sUtil,
-		devtronSecretConfig: devtronSecretConfig,
-		userAuthOidcHelper:  userAuthOidcHelper,
+		logger:                  logger,
+		ssoLoginRepository:      ssoLoginRepository,
+		K8sUtil:                 K8sUtil,
+		devtronSecretConfig:     devtronSecretConfig,
+		userAuthOidcHelper:      userAuthOidcHelper,
+		globalAuthConfigService: globalAuthConfigService,
 	}
 	return serviceImpl
 }
@@ -118,6 +122,15 @@ func (impl SSOLoginServiceImpl) CreateSSOLogin(request *bean.SSOLoginDto) (*bean
 		return nil, err
 	}
 	request.Id = model.Id
+
+	//  updating/creating globalAuthConfig here, doing this here to improve user experience, but altogeather they are different components
+	if len(request.GlobalAuthConfigType) > 0 {
+		_, err = impl.globalAuthConfigService.CreateOrUpdateGroupClaimsAuthConfig(tx, request.GlobalAuthConfigType, request.UserId)
+		if err != nil {
+			impl.logger.Errorw("error in CreateOrUpdateGroupClaimsAuthConfig", "err", err)
+			return nil, err
+		}
+	}
 	_, err = impl.updateDexConfig(request)
 	if err != nil {
 		impl.logger.Errorw("error in creating new sso login config", "error", err)
@@ -131,7 +144,8 @@ func (impl SSOLoginServiceImpl) CreateSSOLogin(request *bean.SSOLoginDto) (*bean
 
 	// update in memory data on sso add-update
 	impl.userAuthOidcHelper.UpdateInMemoryDataOnSsoAddUpdate(request.Url)
-
+	// Updating cache for globalAuthConfig
+	impl.globalAuthConfigService.ReloadCache()
 	return request, nil
 }
 
@@ -204,6 +218,15 @@ func (impl SSOLoginServiceImpl) UpdateSSOLogin(request *bean.SSOLoginDto) (*bean
 		return nil, err
 	}
 	request.Config = newConfigString
+
+	//  updating/creating globalAuthConfig here, doing this here to improve user experience, but altogeather they are different components
+	if len(request.GlobalAuthConfigType) > 0 {
+		_, err = impl.globalAuthConfigService.CreateOrUpdateGroupClaimsAuthConfig(tx, request.GlobalAuthConfigType, request.UserId)
+		if err != nil {
+			impl.logger.Errorw("error in CreateOrUpdateGroupClaimsAuthConfig", "err", err, "globalAuthConfigType", request.GlobalAuthConfigType)
+			return nil, err
+		}
+	}
 	_, err = impl.updateDexConfig(request)
 	if err != nil {
 		impl.logger.Errorw("error in creating new sso login config", "error", err)
@@ -217,7 +240,8 @@ func (impl SSOLoginServiceImpl) UpdateSSOLogin(request *bean.SSOLoginDto) (*bean
 
 	// update in memory data on sso add-update
 	impl.userAuthOidcHelper.UpdateInMemoryDataOnSsoAddUpdate(request.Url)
-
+	// Updating cache for globalAuthConfig
+	impl.globalAuthConfigService.ReloadCache()
 	return request, nil
 }
 

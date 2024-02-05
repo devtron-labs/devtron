@@ -20,7 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/caarlos0/env"
-	"github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	errors1 "github.com/juju/errors"
@@ -288,7 +288,6 @@ func getExecutor(k8sClient kubernetes.Interface, cfg *rest.Config, podName, name
 		Stderr:    true,
 		TTY:       tty,
 	}, scheme.ParameterCodec)
-
 	exec, err := remotecommand.NewSPDYExecutor(cfg, "POST", req.URL())
 	return exec, err
 }
@@ -383,12 +382,12 @@ type TerminalSessionHandlerImpl struct {
 	environmentService        cluster.EnvironmentService
 	clusterService            cluster.ClusterService
 	logger                    *zap.SugaredLogger
-	k8sUtil                   *k8s.K8sServiceImpl
+	k8sUtil                   *k8s.K8sUtilExtended
 	ephemeralContainerService cluster.EphemeralContainerService
 }
 
 func NewTerminalSessionHandlerImpl(environmentService cluster.EnvironmentService, clusterService cluster.ClusterService,
-	logger *zap.SugaredLogger, k8sUtil *k8s.K8sServiceImpl, ephemeralContainerService cluster.EphemeralContainerService) *TerminalSessionHandlerImpl {
+	logger *zap.SugaredLogger, k8sUtil *k8s.K8sUtilExtended, ephemeralContainerService cluster.EphemeralContainerService) *TerminalSessionHandlerImpl {
 	return &TerminalSessionHandlerImpl{
 		environmentService:        environmentService,
 		clusterService:            clusterService,
@@ -466,11 +465,7 @@ func (impl *TerminalSessionHandlerImpl) getClientConfig(req *TerminalSessionRequ
 	} else {
 		return nil, nil, fmt.Errorf("not able to find cluster-config")
 	}
-	config, err := clusterBean.GetClusterConfig()
-	if err != nil {
-		impl.logger.Errorw("error in config", "err", err)
-		return nil, nil, err
-	}
+	config := clusterBean.GetClusterConfig()
 
 	cfg, _, clientSet, err := impl.k8sUtil.GetK8sConfigAndClients(config)
 	if err != nil {
@@ -551,11 +546,7 @@ func (impl *TerminalSessionHandlerImpl) saveEphemeralContainerTerminalAccessAudi
 		impl.logger.Errorw("error occurred in finding clusterBean by Id", "clusterId", req.ClusterId, "err", err)
 		return err
 	}
-	clusterConfig, err := clusterBean.GetClusterConfig()
-	if err != nil {
-		impl.logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterBean.Id)
-		return err
-	}
+	clusterConfig := clusterBean.GetClusterConfig()
 	v1Client, err := impl.k8sUtil.GetCoreV1Client(clusterConfig)
 	pod, err := impl.k8sUtil.GetPodByName(req.Namespace, req.PodName, v1Client)
 	if err != nil {

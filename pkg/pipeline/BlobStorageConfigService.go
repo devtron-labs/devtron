@@ -2,9 +2,11 @@ package pipeline
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
+	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
-	"github.com/devtron-labs/common-lib/utils/k8s"
+	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"go.uber.org/zap"
@@ -13,15 +15,15 @@ import (
 )
 
 type BlobStorageConfigService interface {
-	FetchCmAndSecretBlobConfigFromExternalCluster(clusterConfig *k8s.ClusterConfig, namespace string) (*bean2.CmBlobStorageConfig, *bean2.SecretBlobStorageConfig, error)
+	FetchCmAndSecretBlobConfigFromExternalCluster(clusterConfig *k8s2.ClusterConfig, namespace string) (*bean2.CmBlobStorageConfig, *bean2.SecretBlobStorageConfig, error)
 }
 type BlobStorageConfigServiceImpl struct {
 	Logger     *zap.SugaredLogger
-	k8sUtil    *k8s.K8sServiceImpl
+	k8sUtil    *k8s.K8sUtilExtended
 	ciCdConfig *types.CiCdConfig
 }
 
-func NewBlobStorageConfigServiceImpl(Logger *zap.SugaredLogger, k8sUtil *k8s.K8sServiceImpl, ciCdConfig *types.CiCdConfig) *BlobStorageConfigServiceImpl {
+func NewBlobStorageConfigServiceImpl(Logger *zap.SugaredLogger, k8sUtil *k8s.K8sUtilExtended, ciCdConfig *types.CiCdConfig) *BlobStorageConfigServiceImpl {
 	return &BlobStorageConfigServiceImpl{
 		Logger:     Logger,
 		k8sUtil:    k8sUtil,
@@ -29,7 +31,7 @@ func NewBlobStorageConfigServiceImpl(Logger *zap.SugaredLogger, k8sUtil *k8s.K8s
 	}
 }
 
-func (impl *BlobStorageConfigServiceImpl) FetchCmAndSecretBlobConfigFromExternalCluster(clusterConfig *k8s.ClusterConfig, namespace string) (*bean2.CmBlobStorageConfig, *bean2.SecretBlobStorageConfig, error) {
+func (impl *BlobStorageConfigServiceImpl) FetchCmAndSecretBlobConfigFromExternalCluster(clusterConfig *k8s2.ClusterConfig, namespace string) (*bean2.CmBlobStorageConfig, *bean2.SecretBlobStorageConfig, error) {
 	cmConfig := &bean2.CmBlobStorageConfig{}
 	secretConfig := &bean2.SecretBlobStorageConfig{}
 	_, _, kubeClient, err := impl.k8sUtil.GetK8sConfigAndClients(clusterConfig)
@@ -80,7 +82,7 @@ func updateRequestWithExtClusterCmAndSecret(request *blob_storage.BlobStorageReq
 
 	request.AwsS3BaseConfig.AccessKey = cmConfig.S3AccessKey
 	request.AwsS3BaseConfig.EndpointUrl = cmConfig.S3Endpoint
-	request.AwsS3BaseConfig.Passkey = types.DecodeSecretKey(secretConfig.S3SecretKey)
+	request.AwsS3BaseConfig.Passkey = decodeSecretKey(secretConfig.S3SecretKey)
 	isInSecure, _ := strconv.ParseBool(cmConfig.S3EndpointInsecure)
 	request.AwsS3BaseConfig.IsInSecure = isInSecure
 	request.AwsS3BaseConfig.BucketName = cmConfig.CdDefaultBuildLogsBucket
@@ -89,11 +91,19 @@ func updateRequestWithExtClusterCmAndSecret(request *blob_storage.BlobStorageReq
 	request.AwsS3BaseConfig.VersioningEnabled = s3BucketVersioned
 
 	request.AzureBlobBaseConfig.AccountName = cmConfig.AzureAccountName
-	request.AzureBlobBaseConfig.AccountKey = types.DecodeSecretKey(secretConfig.AzureAccountKey)
+	request.AzureBlobBaseConfig.AccountKey = decodeSecretKey(secretConfig.AzureAccountKey)
 	request.AzureBlobBaseConfig.BlobContainerName = cmConfig.AzureBlobContainerCiLog
 
-	request.GcpBlobBaseConfig.CredentialFileJsonData = types.DecodeSecretKey(secretConfig.GcpBlobStorageCredentialJson)
+	request.GcpBlobBaseConfig.CredentialFileJsonData = decodeSecretKey(secretConfig.GcpBlobStorageCredentialJson)
 	request.GcpBlobBaseConfig.BucketName = cmConfig.CdDefaultBuildLogsBucket
 
 	return request
+}
+
+func decodeSecretKey(secretKey string) string {
+	decodedKey, err := base64.StdEncoding.DecodeString(secretKey)
+	if err != nil {
+		fmt.Println("error decoding base64 key:", err)
+	}
+	return string(decodedKey)
 }

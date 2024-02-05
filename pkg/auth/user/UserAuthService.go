@@ -510,11 +510,12 @@ func (impl UserAuthServiceImpl) DeleteRoles(entityType string, entityName string
 		}
 
 		// removing all policies for the role
-		success := casbin2.RemovePoliciesByAllRoles(roles)
-		if !success {
-			impl.logger.Warnw("error in deleting casbin policy for roles", "roles", roles)
+		success, err := casbin2.RemovePoliciesByRoles(roles)
+		if !success || err != nil {
+			impl.logger.Warnw("error in deleting casbin policy for roles", "roles", roles, "err", err)
 			casbinDeleteFailed = append(casbinDeleteFailed, success)
 		}
+
 		//deleting user_roles for this role_id (foreign key constraint)
 		err = impl.userAuthRepository.DeleteUserRoleByRoleIds(roleIds, tx)
 		if err != nil {

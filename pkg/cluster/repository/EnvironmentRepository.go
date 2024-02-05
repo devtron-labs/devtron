@@ -28,10 +28,11 @@ import (
 )
 
 type EnvCluserInfo struct {
-	Id          int    `sql:"id"`
-	ClusterName string `sql:"cluster_name"`
-	Namespace   string `sql:"namespace"`
-	Name        string `sql:"name"`
+	Id                   int    `sql:"id"`
+	ClusterName          string `sql:"cluster_name"`
+	Namespace            string `sql:"namespace"`
+	Name                 string `sql:"name"`
+	IsVirtualEnvironment bool   `sql:"is_virtual_environment"`
 }
 type Environment struct {
 	tableName             struct{} `sql:"environment" pg:",discard_unknown_columns"`
@@ -79,6 +80,7 @@ type EnvironmentRepository interface {
 	FindAllActiveWithFilter() ([]*Environment, error)
 	FindEnvClusterInfosByIds([]int) ([]*EnvCluserInfo, error)
 	FindEnvLinkedWithCiPipelines(externalCi bool, ciPipelineIds []int) ([]*Environment, error)
+	FindByIdsOrderByCluster(ids []int) ([]*Environment, error)
 }
 
 func NewEnvironmentRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger, appStatusRepository appStatus.AppStatusRepository) *EnvironmentRepositoryImpl {
@@ -110,7 +112,7 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindOne(environment string) (*En
 }
 
 func (repositoryImpl EnvironmentRepositoryImpl) FindEnvClusterInfosByIds(envIds []int) ([]*EnvCluserInfo, error) {
-	query := "SELECT env.id as id,cluster.cluster_name,env.environment_name as name,env.namespace " +
+	query := "SELECT env.id as id,cluster.cluster_name,env.environment_name as name,env.namespace, env.is_virtual_environment" +
 		" FROM environment env INNER JOIN  cluster ON env.cluster_id = cluster.id "
 	if len(envIds) > 0 {
 		query += fmt.Sprintf(" WHERE env.id IN (%s)", helper.GetCommaSepratedString(envIds))
@@ -295,6 +297,21 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindByIds(ids []*int) ([]*Enviro
 	var apps []*Environment
 	err := repositoryImpl.dbConnection.Model(&apps).Where("active = ?", true).Where("id in (?)", pg.In(ids)).Select()
 	return apps, err
+}
+
+func (repositoryImpl EnvironmentRepositoryImpl) FindByIdsOrderByCluster(ids []int) ([]*Environment, error) {
+	var envs []*Environment
+	if len(ids) == 0 {
+		return envs, nil
+	}
+	err := repositoryImpl.dbConnection.
+		Model(&envs).
+		Column("environment.*", "Cluster").
+		Where("environment.active = ?", true).
+		Where("environment.id in (?)", pg.In(ids)).
+		Order("environment.cluster_id").
+		Select()
+	return envs, err
 }
 
 func (repo EnvironmentRepositoryImpl) MarkEnvironmentDeleted(deleteReq *Environment, tx *pg.Tx) error {

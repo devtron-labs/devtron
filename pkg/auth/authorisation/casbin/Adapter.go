@@ -20,19 +20,31 @@ package casbin
 import (
 	"fmt"
 	"log"
+	"os"
 	"strings"
 
-	xormadapter "github.com/casbin/xorm-adapter"
-
 	"github.com/casbin/casbin"
+	casbinv2 "github.com/casbin/casbin/v2"
+	xormadapter "github.com/casbin/xorm-adapter"
+	xormadapter2 "github.com/casbin/xorm-adapter/v2"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+type Version string
+
+const (
+	CasbinV1 Version = "V1"
+	CasbinV2 Version = "V2"
 )
 
 const CasbinDefaultDatabase = "casbin"
 
 var e *casbin.SyncedEnforcer
+var e2 *casbinv2.SyncedEnforcer
 var enforcerImplRef *EnforcerImpl
+var casbinService CasbinService
+var casbinVersion Version
 
 type Subject string
 type Resource string
@@ -40,15 +52,25 @@ type Action string
 type Object string
 type PolicyType string
 
-type Policy struct {
-	Type PolicyType `json:"type"`
-	Sub  Subject    `json:"sub"`
-	Res  Resource   `json:"res"`
-	Act  Action     `json:"act"`
-	Obj  Object     `json:"obj"`
+func isV2() bool {
+	return casbinVersion == CasbinV2
+}
+
+func setCasbinVersion() {
+	version := os.Getenv("USE_CASBIN_V2")
+	if version == "true" {
+		casbinVersion = CasbinV2
+		return
+	}
+	casbinVersion = CasbinV1
 }
 
 func Create() *casbin.SyncedEnforcer {
+	setCasbinVersion()
+	if isV2() {
+		return nil
+	}
+
 	metav1.Now()
 	config, err := sql.GetConfig() //FIXME: use this from wire
 	if err != nil {
@@ -64,6 +86,7 @@ func Create() *casbin.SyncedEnforcer {
 		log.Fatal(err)
 	}
 	auth, err1 := casbin.NewSyncedEnforcerSafe("./auth_model.conf", a)
+
 	if err1 != nil {
 		log.Fatal(err1)
 	}
@@ -78,125 +101,148 @@ func Create() *casbin.SyncedEnforcer {
 	return e
 }
 
+func CreateV2() *casbinv2.SyncedEnforcer {
+	setCasbinVersion()
+	if !isV2() {
+		return nil
+	}
+
+	metav1.Now()
+	config, err := sql.GetConfig() //FIXME: use this from wire
+	if err != nil {
+		log.Fatal(err)
+	}
+	dbSpecified := true
+	if config.CasbinDatabase == CasbinDefaultDatabase {
+		dbSpecified = false
+	}
+	dataSource := fmt.Sprintf("dbname=%s user=%s password=%s host=%s port=%s sslmode=disable", config.CasbinDatabase, config.User, config.Password, config.Addr, config.Port)
+	a, err := xormadapter2.NewAdapter("postgres", dataSource, dbSpecified) // Your driver and data source.
+	if err != nil {
+		log.Fatal(err)
+	}
+	//Adapter
+
+	auth, err1 := casbinv2.NewSyncedEnforcer("./auth_model.conf", a)
+	if err1 != nil {
+		log.Fatal(err1)
+	}
+	e2 = auth
+	err = e2.LoadPolicy()
+	log.Println("v2 casbin Policies Loaded Successfully")
+	if err != nil {
+		log.Fatal(err)
+	}
+	//adding our key matching func - MatchKeyFunc, to enforcer
+	e2.AddFunction("matchKeyByPart", MatchKeyByPartFunc)
+	return e2
+}
+
 func setEnforcerImpl(ref *EnforcerImpl) {
 	enforcerImplRef = ref
 }
+func setCasbinService(service CasbinService) {
+	casbinService = service
+}
 
-func AddPolicy(policies []Policy) []Policy {
-	defer handlePanic()
-	var failed = []Policy{}
-	emailIdList := map[string]struct{}{}
-	for _, p := range policies {
-		success := false
-		if strings.ToLower(string(p.Type)) == "p" && p.Sub != "" && p.Res != "" && p.Act != "" && p.Obj != "" {
-			sub := strings.ToLower(string(p.Sub))
-			res := strings.ToLower(string(p.Res))
-			act := strings.ToLower(string(p.Act))
-			obj := strings.ToLower(string(p.Obj))
-			success = e.AddPolicy([]string{sub, res, act, obj, "allow"})
-		} else if strings.ToLower(string(p.Type)) == "g" && p.Sub != "" && p.Obj != "" {
-			sub := strings.ToLower(string(p.Sub))
-			obj := strings.ToLower(string(p.Obj))
-			success = e.AddGroupingPolicy([]string{sub, obj})
-		}
-		if !success {
-			failed = append(failed, p)
-		}
-		if p.Sub != "" {
-			emailIdList[strings.ToLower(string(p.Sub))] = struct{}{}
-		}
+func AddPolicy(policies []Policy) error {
+	err := casbinService.AddPolicy(policies)
+	if err != nil {
+		log.Println("casbin policy addition failed", "err", err)
+		return err
 	}
-	if len(policies) != len(failed) {
-		for emailId := range emailIdList {
-			enforcerImplRef.InvalidateCache(emailId)
-		}
-	}
-	return failed
+	return nil
 }
 
 func LoadPolicy() {
-	defer handlePanic()
-	err := enforcerImplRef.ReloadPolicy()
+	defer HandlePanic()
+	isCasbinV2, err := enforcerImplRef.ReloadPolicy()
 	if err != nil {
 		fmt.Println("error in reloading policies", err)
 	} else {
-		fmt.Println("policy reloaded successfully")
+		if isCasbinV2 {
+			fmt.Println("V2 policy reloaded successfully")
+		} else {
+			fmt.Println("policy reloaded successfully")
+		}
 	}
 }
 
 func RemovePolicy(policies []Policy) []Policy {
-	defer handlePanic()
-	var failed = []Policy{}
-	emailIdList := map[string]struct{}{}
-	for _, p := range policies {
-		success := false
-		if strings.ToLower(string(p.Type)) == "p" && p.Sub != "" && p.Res != "" && p.Act != "" && p.Obj != "" {
-			success = e.RemovePolicy([]string{strings.ToLower(string(p.Sub)), strings.ToLower(string(p.Res)), strings.ToLower(string(p.Act)), strings.ToLower(string(p.Obj))})
-		} else if strings.ToLower(string(p.Type)) == "g" && p.Sub != "" && p.Obj != "" {
-			success = e.RemoveGroupingPolicy([]string{strings.ToLower(string(p.Sub)), strings.ToLower(string(p.Obj))})
-		}
-		if !success {
-			failed = append(failed, p)
-		}
-		if p.Sub != "" {
-			emailIdList[strings.ToLower(string(p.Sub))] = struct{}{}
-		}
+	policy, err := casbinService.RemovePolicy(policies)
+	if err != nil {
+		log.Println(err)
 	}
-	if len(policies) != len(failed) {
-		for emailId := range emailIdList {
-			enforcerImplRef.InvalidateCache(emailId)
-		}
-	}
-	return failed
+	return policy
 }
 
 func GetAllSubjects() []string {
+	if isV2() {
+		return e2.GetAllSubjects()
+	}
 	return e.GetAllSubjects()
 }
 
 func DeleteRoleForUser(user string, role string) bool {
 	user = strings.ToLower(user)
 	role = strings.ToLower(role)
-	response := e.DeleteRoleForUser(user, role)
+	var response bool
+	var err error
+	if isV2() {
+		response, err = e2.DeleteRoleForUser(user, role)
+		if err != nil {
+			log.Println(err)
+		}
+	} else {
+		response = e.DeleteRoleForUser(user, role)
+	}
 	enforcerImplRef.InvalidateCache(user)
 	return response
 }
 
 func GetRolesForUser(user string) ([]string, error) {
 	user = strings.ToLower(user)
+	if isV2() {
+		return e2.GetRolesForUser(user)
+	}
 	return e.GetRolesForUser(user)
 }
 
 func GetUserByRole(role string) ([]string, error) {
 	role = strings.ToLower(role)
+	if isV2() {
+		return e2.GetUsersForRole(role)
+	}
 	return e.GetUsersForRole(role)
 }
 
-func RemovePoliciesByRoles(roles string) bool {
-	roles = strings.ToLower(roles)
-	policyResponse := e.RemovePolicy([]string{roles})
+func RemovePoliciesByRole(role string) bool {
+	role = strings.ToLower(role)
+	policyResponse, err := casbinService.RemovePoliciesByRole(role)
+	if err != nil {
+		return false
+	}
 	enforcerImplRef.InvalidateCompleteCache()
 	return policyResponse
 }
 
-// TODO
-// RemovePoliciesByAllRoles this method is currently not working as in casbin v1 internally it matches whole string arrays but we are only using role to delete,this has to be fixed or casbin has to be upgraded to v2.
 // In v2 casbin, we first delete from adapter(database) and delete from model(cache) so it deletes from db but when deleting from cache it maintains a Policy Map whose key is combination of all v0,v1,v2 etc and we only have role, so it returns no error but false as output, but this is not blocking can be handled through Loading.
-func RemovePoliciesByAllRoles(roles []string) bool {
-	rolesLower := make([]string, 0, len(roles))
-	for _, role := range roles {
-		rolesLower = append(rolesLower, strings.ToLower(role))
-	}
-	var policyResponse bool
-	for _, role := range rolesLower {
-		policyResponse = e.RemovePolicy([]string{role})
-	}
+func RemovePoliciesByRoles(roles []string) (bool, error) {
+	policyResponse, err := casbinService.RemovePoliciesByRoles(roles)
 	enforcerImplRef.InvalidateCompleteCache()
-	return policyResponse
+	return policyResponse, err
 }
 
-func handlePanic() {
+func HandlePanic() {
 	if err := recover(); err != nil {
 		log.Println("panic occurred:", err)
 	}
+}
+
+type Policy struct {
+	Type PolicyType `json:"type"`
+	Sub  Subject    `json:"sub"`
+	Res  Resource   `json:"res"`
+	Act  Action     `json:"act"`
+	Obj  Object     `json:"obj"`
 }

@@ -33,6 +33,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/genericNotes"
+	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -62,14 +63,15 @@ type AppCrudOperationServiceImpl struct {
 	appRepository          appRepository.AppRepository
 	userRepository         repository.UserRepository
 	installedAppRepository repository2.InstalledAppRepository
+	teamRepository         team.TeamRepository
 	genericNoteService     genericNotes.GenericNoteService
 	gitMaterialRepository  pipelineConfig.MaterialRepository
 }
 
 func NewAppCrudOperationServiceImpl(appLabelRepository pipelineConfig.AppLabelRepository,
-	logger *zap.SugaredLogger, appRepository appRepository.AppRepository, userRepository repository.UserRepository,
-	installedAppRepository repository2.InstalledAppRepository,
-	genericNoteService genericNotes.GenericNoteService,
+	logger *zap.SugaredLogger, appRepository appRepository.AppRepository,
+	userRepository repository.UserRepository, installedAppRepository repository2.InstalledAppRepository,
+	teamRepository team.TeamRepository, genericNoteService genericNotes.GenericNoteService,
 	gitMaterialRepository pipelineConfig.MaterialRepository) *AppCrudOperationServiceImpl {
 	return &AppCrudOperationServiceImpl{
 		appLabelRepository:     appLabelRepository,
@@ -77,6 +79,7 @@ func NewAppCrudOperationServiceImpl(appLabelRepository pipelineConfig.AppLabelRe
 		appRepository:          appRepository,
 		userRepository:         userRepository,
 		installedAppRepository: installedAppRepository,
+		teamRepository:         teamRepository,
 		genericNoteService:     genericNoteService,
 		gitMaterialRepository:  gitMaterialRepository,
 	}
@@ -569,8 +572,14 @@ func (impl AppCrudOperationServiceImpl) GetAppMetaInfoByAppName(appName string) 
 func (impl AppCrudOperationServiceImpl) GetAppListByTeamIds(teamIds []int, appType string) ([]*TeamAppBean, error) {
 	var appsRes []*TeamAppBean
 	teamMap := make(map[int]*TeamAppBean)
+	var err error
 	if len(teamIds) == 0 {
-		return appsRes, nil
+		//no teamIds, getting all active teamIds
+		teamIds, err = impl.teamRepository.FindAllActiveTeamIds()
+		if err != nil {
+			impl.logger.Errorw("error in getting all active team ids", "err", err)
+			return nil, err
+		}
 	}
 	apps, err := impl.appRepository.FindAppsByTeamIds(teamIds, appType)
 	if err != nil {

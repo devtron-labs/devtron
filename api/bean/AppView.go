@@ -44,13 +44,14 @@ type JobContainerResponse struct {
 }
 
 type DeploymentGroupDTO struct {
-	Id             int             `json:"id"`
-	Name           string          `json:"name"`
-	AppCount       int             `json:"appCount"`
-	NoOfApps       string          `json:"noOfApps"`
-	EnvironmentId  int             `json:"environmentId"`
-	CiPipelineId   int             `json:"ciPipelineId"`
-	CiMaterialDTOs []CiMaterialDTO `json:"ciMaterialDTOs"`
+	Id                   int             `json:"id"`
+	Name                 string          `json:"name"`
+	AppCount             int             `json:"appCount"`
+	NoOfApps             string          `json:"noOfApps"`
+	EnvironmentId        int             `json:"environmentId"`
+	CiPipelineId         int             `json:"ciPipelineId"`
+	CiMaterialDTOs       []CiMaterialDTO `json:"ciMaterialDTOs"`
+	IsVirtualEnvironment bool            `json:"isVirtualEnvironment"`
 }
 
 type CiMaterialDTO struct {
@@ -136,6 +137,7 @@ type AppEnvironmentContainer struct {
 	TeamName                    string                    `json:"teamName"`
 	Description                 string                    `json:"description" validate:"max=40"`
 	TotalCount                  int                       `json:"-"`
+	IsVirtualEnvironment        bool                      `json:"isVirtualEnvironment"`
 }
 
 type DeploymentDetailContainer struct {
@@ -173,7 +175,11 @@ type DeploymentDetailContainer struct {
 	IpsAccessProvided             bool            `json:"ipsAccessProvided"`
 	DeploymentAppDeleteRequest    bool            `json:"deploymentAppDeleteRequest"`
 	Description                   string          `json:"description" validate:"max=40"`
+	UserApprovalConfig            string          `json:"userApprovalConfig"`
 	IsVirtualEnvironment          bool            `json:"isVirtualEnvironment"`
+	Image                         string          `json:"image"`
+	ImageTag                      string          `json:"imageTag"`
+	HelmPackageName               string          `json:"helmPackageName"`
 	HelmReleaseInstallStatus      string          `json:"-"`
 }
 
@@ -192,6 +198,26 @@ type AppDetailsContainer struct {
 }
 type Notes struct {
 	Notes string `json:"gitOpsNotes,omitempty"`
+}
+
+type EnvironmentForDependency struct {
+	AppStatus                  string `json:"appStatus"` //this is not the status of environment , this make sense with a specific app only
+	AppName                    string `json:"appName"`
+	AppId                      int    `json:"appId"`
+	EnvironmentId              int    `json:"environmentId"`
+	EnvironmentName            string `json:"environmentName"`
+	Prod                       bool   `json:"prod"`
+	ChartRefId                 int    `json:"chartRefId"`
+	LastDeployed               string `json:"lastDeployed"`
+	LastDeployedBy             string `json:"lastDeployedBy"`
+	LastDeployedImage          string `json:"lastDeployedImage"`
+	DeploymentAppDeleteRequest bool   `json:"deploymentAppDeleteRequest"`
+	Description                string `json:"description" validate:"max=40"`
+	IsVirtualEnvironment       bool   `json:"isVirtualEnvironment"`
+	ClusterId                  int    `json:"clusterId"`
+	PipelineId                 int    `json:"pipelineId"`
+	PipelineName               string `json:"pipelineName"`
+	LatestCdWorkflowRunnerId   int    `json:"latestCdWorkflowRunnerId,omitempty"`
 }
 
 type Environment struct {

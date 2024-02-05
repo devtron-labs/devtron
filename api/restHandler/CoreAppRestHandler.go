@@ -798,6 +798,7 @@ func (handler CoreAppRestHandlerImpl) buildCdPipelineResp(appId int, cdPipeline 
 		RunPreStageInEnv:       cdPipeline.RunPreStageInEnv,
 		RunPostStageInEnv:      cdPipeline.RunPostStageInEnv,
 		IsClusterCdActive:      cdPipeline.CdArgoSetup,
+		UserApprovalConf:       cdPipeline.UserApprovalConf,
 	}
 
 	//build DeploymentStrategies resp
@@ -1741,6 +1742,7 @@ func (handler CoreAppRestHandlerImpl) createCdPipelines(ctx context.Context, app
 			PostDeployStage:               cdPipeline.PostDeployStage,
 			PreStageConfigMapSecretNames:  convertCdPreStageCMorCSNames(cdPipeline.PreStageConfigMapSecretNames),
 			PostStageConfigMapSecretNames: convertCdPostStageCMorCSNames(cdPipeline.PostStageConfigMapSecretNames),
+			UserApprovalConf:              cdPipeline.UserApprovalConf,
 		}
 		convertedDeploymentStrategies, err := convertCdDeploymentStrategies(cdPipeline.DeploymentStrategies)
 		if err != nil {
@@ -1887,7 +1889,7 @@ func (handler CoreAppRestHandlerImpl) createEnvDeploymentTemplate(appId int, use
 	//updating env template override
 	envConfigProperties.Id = env.EnvironmentConfig.Id
 	envConfigProperties.Namespace = env.Namespace
-	_, err = handler.propertiesConfigService.UpdateEnvironmentProperties(appId, envConfigProperties, userId)
+	_, err = handler.propertiesConfigService.UpdateEnvironmentProperties(appId, envId, envConfigProperties, userId)
 	if err != nil {
 		handler.logger.Errorw("service err, EnvConfigOverrideUpdate", "err", err, "appId", appId, "envId", envId)
 		return err

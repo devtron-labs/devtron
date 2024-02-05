@@ -6,10 +6,35 @@ type ResourceType int
 
 const (
 	Variable              ResourceType = 0
-	Filter                             = 1
-	ImageDigest                        = 2
+	Filter                ResourceType = 1
+	ImageDigest           ResourceType = 2
 	ImageDigestResourceId              = -1 // for ImageDigest resource id will is constant unlike filter and variables
 )
+
+type QualifierSelector int
+
+const (
+	ApplicationSelector                  QualifierSelector = 0
+	EnvironmentSelectorQualifierSelector                   = 1
+)
+
+const (
+	AllProjectsValue                     = "-1"
+	AllProjectsInt                       = -1
+	AllExistingAndFutureProdEnvsValue    = "-2"
+	AllExistingAndFutureProdEnvsInt      = -2
+	AllExistingAndFutureNonProdEnvsValue = "-1"
+	AllExistingAndFutureNonProdEnvsInt   = -1
+	AllExistingAndFutureEnvsString       = "-3"
+	AllExistingAndFutureEnvsInt          = -3
+)
+
+func GetEnvIdentifierValue(scope Scope) int {
+	if scope.IsProdEnv {
+		return AllExistingAndFutureProdEnvsInt
+	}
+	return AllExistingAndFutureNonProdEnvsInt
+}
 
 type QualifierMapping struct {
 	tableName             struct{}     `sql:"resource_qualifier_mapping" pg:",discard_unknown_columns"`

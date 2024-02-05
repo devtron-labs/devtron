@@ -15,7 +15,7 @@ type Variables struct {
 }
 type AttributeValue struct {
 	VariableValue   VariableValue             `json:"variableValue" validate:"required,dive"`
-	AttributeType   AttributeType             `json:"attributeType" validate:"oneof=Global"`
+	AttributeType   AttributeType             `json:"attributeType" validate:"oneof=ApplicationEnv Application Env Cluster Global"`
 	AttributeParams map[IdentifierType]string `json:"attributeParams"`
 }
 
@@ -55,12 +55,22 @@ func (variableType VariableType) IsTypeSensitive() bool {
 type AttributeType string
 
 const (
-	Global AttributeType = "Global"
+	ApplicationEnv AttributeType = "ApplicationEnv"
+	Application    AttributeType = "Application"
+	Env            AttributeType = "Env"
+	Cluster        AttributeType = "Cluster"
+	Global         AttributeType = "Global"
 )
 
 type IdentifierType string
 
-var IdentifiersList []IdentifierType
+const (
+	EnvName         IdentifierType = "EnvName"
+	ClusterName     IdentifierType = "ClusterName"
+	ApplicationName IdentifierType = "ApplicationName"
+)
+
+var IdentifiersList = []IdentifierType{ApplicationName, EnvName, ClusterName}
 
 type VariableValue struct {
 	Value interface{} `json:"value" validate:"required"`

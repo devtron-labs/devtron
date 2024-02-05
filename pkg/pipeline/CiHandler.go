@@ -31,8 +31,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
-	"github.com/devtron-labs/common-lib/utils/k8s"
+	k8s3 "github.com/devtron-labs/common-lib/utils/k8s"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
@@ -43,7 +44,7 @@ import (
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
-	resourceGroup "github.com/devtron-labs/devtron/pkg/resourceGroup"
+	"github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/util/rbac"
 	errors2 "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/rest"
@@ -54,7 +55,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
-	util2 "github.com/devtron-labs/devtron/util/event"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -100,7 +100,7 @@ type CiHandlerImpl struct {
 	eventFactory                 client.EventFactory
 	ciPipelineRepository         pipelineConfig.CiPipelineRepository
 	appListingRepository         repository.AppListingRepository
-	K8sUtil                      *k8s.K8sServiceImpl
+	K8sUtil                      *k8s.K8sUtilExtended
 	cdPipelineRepository         pipelineConfig.PipelineRepository
 	enforcerUtil                 rbac.EnforcerUtil
 	resourceGroupService         resourceGroup.ResourceGroupService
@@ -117,7 +117,7 @@ type CiHandlerImpl struct {
 
 func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, gitSensorClient gitSensor.Client, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, workflowService WorkflowService,
 	ciLogService CiLogService, ciArtifactRepository repository.CiArtifactRepository, userService user.UserService, eventClient client.EventClient, eventFactory client.EventFactory, ciPipelineRepository pipelineConfig.CiPipelineRepository,
-	appListingRepository repository.AppListingRepository, K8sUtil *k8s.K8sServiceImpl, cdPipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil, resourceGroupService resourceGroup.ResourceGroupService, envRepository repository3.EnvironmentRepository,
+	appListingRepository repository.AppListingRepository, K8sUtil *k8s.K8sUtilExtended, cdPipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil, resourceGroupService resourceGroup.ResourceGroupService, envRepository repository3.EnvironmentRepository,
 	imageTaggingService ImageTaggingService, k8sCommonService k8s2.K8sCommonService, clusterService cluster.ClusterService, blobConfigStorageService BlobStorageConfigService, appWorkflowRepository appWorkflow.AppWorkflowRepository, customTagService CustomTagService,
 	envService cluster.EnvironmentService) *CiHandlerImpl {
 	cih := &CiHandlerImpl{
@@ -664,11 +664,7 @@ func (impl *CiHandlerImpl) getRestConfig(workflow *pipelineConfig.CiWorkflow) (*
 
 	clusterBean := cluster.GetClusterBean(*env.Cluster)
 
-	clusterConfig, err := clusterBean.GetClusterConfig()
-	if err != nil {
-		impl.Logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterBean.Id)
-		return nil, err
-	}
+	clusterConfig := clusterBean.GetClusterConfig()
 	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(clusterConfig)
 	if err != nil {
 		impl.Logger.Errorw("error in getting rest config by cluster id", "err", err)
@@ -784,7 +780,7 @@ func (impl *CiHandlerImpl) getWorkflowLogs(pipelineId int, ciWorkflow *pipelineC
 		Namespace: ciWorkflow.Namespace,
 	}
 	isExt := false
-	clusterConfig := &k8s.ClusterConfig{}
+	clusterConfig := &k8s3.ClusterConfig{}
 	if ciWorkflow.EnvironmentId != 0 {
 		env, err := impl.envRepository.FindById(ciWorkflow.EnvironmentId)
 		if err != nil {
@@ -794,11 +790,7 @@ func (impl *CiHandlerImpl) getWorkflowLogs(pipelineId int, ciWorkflow *pipelineC
 		if env != nil && env.Cluster != nil {
 			clusterBean = cluster.GetClusterBean(*env.Cluster)
 		}
-		clusterConfig, err = clusterBean.GetClusterConfig()
-		if err != nil {
-			impl.Logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterBean.Id)
-			return nil, nil, err
-		}
+		clusterConfig = clusterBean.GetClusterConfig()
 		isExt = true
 	}
 
@@ -817,7 +809,7 @@ func (impl *CiHandlerImpl) getWorkflowLogs(pipelineId int, ciWorkflow *pipelineC
 	return logReader, cleanUp, err
 }
 
-func (impl *CiHandlerImpl) getLogsFromRepository(pipelineId int, ciWorkflow *pipelineConfig.CiWorkflow, clusterConfig *k8s.ClusterConfig, isExt bool) (*bufio.Reader, func() error, error) {
+func (impl *CiHandlerImpl) getLogsFromRepository(pipelineId int, ciWorkflow *pipelineConfig.CiWorkflow, clusterConfig *k8s3.ClusterConfig, isExt bool) (*bufio.Reader, func() error, error) {
 	impl.Logger.Debug("getting historic logs")
 
 	ciConfig, err := impl.ciWorkflowRepository.FindConfigByPipelineId(pipelineId)
@@ -1187,7 +1179,7 @@ func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 			impl.Logger.Warnw("ci failed for workflow: ", "wfId", savedWorkflow.Id)
 
 			if extractErrorCode(savedWorkflow.Message) != CiStageFailErrorCode {
-				go impl.WriteCIFailEvent(savedWorkflow, ciWorkflowConfig.CiImage)
+				impl.ciService.WriteCIFailEvent(savedWorkflow, ciWorkflowConfig.CiImage)
 			} else {
 				impl.Logger.Infof("Step failed notification received for wfID %d with message %s", savedWorkflow.Id, savedWorkflow.Message)
 			}
@@ -1206,20 +1198,6 @@ func extractErrorCode(msg string) int {
 		}
 	}
 	return -1
-}
-
-func (impl *CiHandlerImpl) WriteCIFailEvent(ciWorkflow *pipelineConfig.CiWorkflow, ciImage string) {
-	event := impl.eventFactory.Build(util2.Fail, &ciWorkflow.CiPipelineId, ciWorkflow.CiPipeline.AppId, nil, util2.CI)
-	material := &client.MaterialTriggerInfo{}
-	material.GitTriggers = ciWorkflow.GitTriggers
-	event.CiWorkflowRunnerId = ciWorkflow.Id
-	event.UserId = int(ciWorkflow.TriggeredBy)
-	event = impl.eventFactory.BuildExtraCIData(event, material, ciImage)
-	event.CiArtifactId = 0
-	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
-	if evtErr != nil {
-		impl.Logger.Errorw("error in writing event", "err", evtErr)
-	}
 }
 
 func (impl *CiHandlerImpl) BuildPayload(ciWorkflow *pipelineConfig.CiWorkflow) *client.Payload {
@@ -1441,7 +1419,7 @@ func (impl *CiHandlerImpl) FetchCiStatusForTriggerView(appId int) ([]*pipelineCo
 	}
 	for _, pipeline := range pipelines {
 		pipelineId := 0
-		if pipeline.ParentCiPipeline == 0 {
+		if pipeline.ParentCiPipeline == 0 || pipeline.PipelineType == string(bean.LINKED_CD) {
 			pipelineId = pipeline.Id
 		} else {
 			pipelineId = pipeline.ParentCiPipeline
@@ -1756,7 +1734,7 @@ func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewForEnvironment(request res
 			continue
 		}
 		ciPipelineId := 0
-		if ciPipeline.ParentCiPipeline == 0 {
+		if ciPipeline.ParentCiPipeline == 0 || ciPipeline.PipelineType == string(bean.LINKED_CD) {
 			ciPipelineId = ciPipeline.Id
 		} else {
 			ciPipelineId = ciPipeline.ParentCiPipeline

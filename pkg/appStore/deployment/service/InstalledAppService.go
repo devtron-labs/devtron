@@ -32,10 +32,9 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	util4 "github.com/devtron-labs/common-lib-private/utils/k8s"
 	"github.com/devtron-labs/common-lib/pubsub-lib/model"
-	util4 "github.com/devtron-labs/common-lib/utils/k8s"
 	client "github.com/devtron-labs/devtron/api/helm-app"
-	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -75,7 +74,7 @@ import (
 
 // DB operation + chart group + nats msg consume(to be removed)
 type InstalledAppService interface {
-	GetAll(filter *appStoreBean.AppStoreFilter) (openapi.AppList, error)
+	GetAll(filter *appStoreBean.AppStoreFilter) (appStoreBean.AppListDetail, error)
 	DeployBulk(chartGroupInstallRequest *chartGroup.ChartGroupInstallRequest) (*chartGroup.ChartGroupInstallAppRes, error)
 	CheckAppExists(appNames []*appStoreBean.AppNames) ([]*appStoreBean.AppNames, error)
 	DeployDefaultChartOnCluster(bean *cluster2.ClusterBean, userId int32) (bool, error)
@@ -83,6 +82,8 @@ type InstalledAppService interface {
 	UpdateInstalledAppVersionStatus(application *v1alpha1.Application) (bool, error)
 	MarkGitOpsInstalledAppsDeletedIfArgoAppIsDeleted(installedAppId int, envId int) error
 	CheckAppExistsByInstalledAppId(installedAppId int) (*repository2.InstalledApps, error)
+	GetChartBytesForLatestDeployment(installedAppId int, installedAppVersionId int) ([]byte, error)
+	GetChartBytesForParticularDeployment(installedAppId int, installedAppVersionId int, installedAppVersionHistoryId int) ([]byte, error)
 
 	FetchResourceTreeWithHibernateForACD(rctx context.Context, cn http.CloseNotifier, appDetail *bean2.AppDetailContainer) bean2.AppDetailContainer
 	FetchResourceTree(rctx context.Context, cn http.CloseNotifier, appDetailsContainer *bean2.AppDetailsContainer, installedApp repository2.InstalledApps, helmReleaseInstallStatus string, status string) error
@@ -114,7 +115,7 @@ type InstalledAppServiceImpl struct {
 	helmAppClient                        client.HelmAppClient
 	helmAppService                       client.HelmAppService
 	appStatusService                     appStatus.AppStatusService
-	K8sUtil                              *util4.K8sServiceImpl
+	K8sUtil                              *util4.K8sUtilExtended
 	pipelineStatusTimelineService        status.PipelineStatusTimelineService
 	appStoreDeploymentCommonService      appStoreDeploymentCommon.AppStoreDeploymentCommonService
 	k8sCommonService                     k8s.K8sCommonService
@@ -137,7 +138,7 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 	appStoreDeploymentService AppStoreDeploymentService,
 	installedAppRepositoryHistory repository2.InstalledAppVersionHistoryRepository,
 	argoUserService argo.ArgoUserService, helmAppClient client.HelmAppClient, helmAppService client.HelmAppService,
-	appStatusService appStatus.AppStatusService, K8sUtil *util4.K8sServiceImpl,
+	appStatusService appStatus.AppStatusService, K8sUtil *util4.K8sUtilExtended,
 	pipelineStatusTimelineService status.PipelineStatusTimelineService,
 	appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
 	k8sCommonService k8s.K8sCommonService, k8sApplicationService application3.K8sApplicationService,
@@ -172,20 +173,20 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 		k8sApplicationService:                k8sApplicationService,
 		acdConfig:                            acdConfig,
 	}
-	err := impl.Subscribe()
+	err := impl.subscribe()
 	if err != nil {
 		return nil, err
 	}
 	return impl, nil
 }
 
-func (impl InstalledAppServiceImpl) GetAll(filter *appStoreBean.AppStoreFilter) (openapi.AppList, error) {
+func (impl InstalledAppServiceImpl) GetAll(filter *appStoreBean.AppStoreFilter) (appStoreBean.AppListDetail, error) {
 	applicationType := "DEVTRON-CHART-STORE"
 	var clusterIdsConverted []int32
 	for _, clusterId := range filter.ClusterIds {
 		clusterIdsConverted = append(clusterIdsConverted, int32(clusterId))
 	}
-	installedAppsResponse := openapi.AppList{
+	installedAppsResponse := appStoreBean.AppListDetail{
 		ApplicationType: &applicationType,
 		ClusterIds:      &clusterIdsConverted,
 	}
@@ -196,7 +197,7 @@ func (impl InstalledAppServiceImpl) GetAll(filter *appStoreBean.AppStoreFilter) 
 		impl.logger.Error(err)
 		return installedAppsResponse, err
 	}
-	var helmAppsResponse []openapi.HelmApp
+	var helmAppsResponse []appStoreBean.HelmAppDetails
 	for _, a := range installedApps {
 		appLocal := a // copied data from here because value is passed as reference
 		if appLocal.TeamId == 0 && appLocal.AppOfferingMode != util3.SERVER_MODE_HYPERION {
@@ -207,14 +208,15 @@ func (impl InstalledAppServiceImpl) GetAll(filter *appStoreBean.AppStoreFilter) 
 		projectId := int32(appLocal.TeamId)
 		envId := int32(appLocal.EnvironmentId)
 		clusterId := int32(appLocal.ClusterId)
-		environmentDetails := openapi.AppEnvironmentDetail{
-			EnvironmentName: &appLocal.EnvironmentName,
-			EnvironmentId:   &envId,
-			Namespace:       &appLocal.Namespace,
-			ClusterName:     &appLocal.ClusterName,
-			ClusterId:       &clusterId,
+		environmentDetails := appStoreBean.EnvironmentDetails{
+			EnvironmentName:      &appLocal.EnvironmentName,
+			EnvironmentId:        &envId,
+			Namespace:            &appLocal.Namespace,
+			ClusterName:          &appLocal.ClusterName,
+			ClusterId:            &clusterId,
+			IsVirtualEnvironment: &appLocal.IsVirtualEnvironment,
 		}
-		helmAppResp := openapi.HelmApp{
+		helmAppResp := appStoreBean.HelmAppDetails{
 			AppName:           &appLocal.AppName,
 			ChartName:         &appLocal.AppStoreApplicationName,
 			AppId:             &appId,
@@ -606,7 +608,7 @@ func (impl *InstalledAppServiceImpl) triggerDeploymentEvent(installAppVersions [
 	}
 }
 
-func (impl *InstalledAppServiceImpl) Subscribe() error {
+func (impl *InstalledAppServiceImpl) subscribe() error {
 	callback := func(msg *model.PubSubMsg) {
 		deployPayload := &appStoreBean.DeployPayload{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &deployPayload)
@@ -835,6 +837,9 @@ func (impl *InstalledAppServiceImpl) FindAppDetailsForAppstoreApplication(instal
 	} else {
 		chartName = installedAppVerison.AppStoreApplicationVersion.AppStore.DockerArtifactStore.Id
 	}
+	updateTime := installedAppVerison.InstalledApp.UpdatedOn
+	timeStampTag := updateTime.Format(bean.LayoutDDMMYY_HHMM12hr)
+
 	deploymentContainer := bean2.DeploymentDetailContainer{
 		InstalledAppId:                installedAppVerison.InstalledApp.Id,
 		AppId:                         installedAppVerison.InstalledApp.App.Id,
@@ -853,6 +858,7 @@ func (impl *InstalledAppServiceImpl) FindAppDetailsForAppstoreApplication(instal
 		DeploymentAppType:             installedAppVerison.InstalledApp.DeploymentAppType,
 		DeploymentAppDeleteRequest:    installedAppVerison.InstalledApp.DeploymentAppDeleteRequest,
 		IsVirtualEnvironment:          installedAppVerison.InstalledApp.Environment.IsVirtualEnvironment,
+		HelmPackageName:               fmt.Sprintf("%s-%s-%s (GMT)", installedAppVerison.InstalledApp.App.AppName, installedAppVerison.InstalledApp.Environment.Name, timeStampTag),
 		HelmReleaseInstallStatus:      helmReleaseInstallStatus,
 		Status:                        status,
 	}
@@ -1069,4 +1075,75 @@ func (impl InstalledAppServiceImpl) CheckAppExistsByInstalledAppId(installedAppI
 		return nil, err
 	}
 	return installedApp, err
+}
+
+func (impl InstalledAppServiceImpl) GetChartBytesForLatestDeployment(installedAppId int, installedAppVersionId int) ([]byte, error) {
+
+	chartBytes := make([]byte, 0)
+
+	installedApp, err := impl.installedAppRepository.GetInstalledApp(installedAppId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching installed app", "err", err, "installed_app_id", installedAppId)
+		return chartBytes, err
+	}
+	installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersion(installedAppVersionId)
+	if err != nil {
+		impl.logger.Errorw("Service err, BuildChartWithValuesAndRequirementsConfig", err, "installed_app_version_id", installedAppVersionId)
+		return chartBytes, err
+	}
+
+	valuesString, err := impl.appStoreDeploymentCommonService.GetValuesString(installedAppVersion.AppStoreApplicationVersion.AppStore.Name, installedAppVersion.ValuesYaml)
+	if err != nil {
+		return chartBytes, err
+	}
+	requirementsString, err := impl.appStoreDeploymentCommonService.GetRequirementsString(installedAppVersion.AppStoreApplicationVersionId)
+	if err != nil {
+		return chartBytes, err
+	}
+
+	updateTime := installedApp.UpdatedOn
+	timeStampTag := updateTime.Format(bean.LayoutDDMMYY_HHMM12hr)
+	chartName := fmt.Sprintf("%s-%s-%s (GMT)", installedApp.App.AppName, installedApp.Environment.Name, timeStampTag)
+	chartBytes, err = impl.appStoreDeploymentCommonService.BuildChartWithValuesAndRequirementsConfig(installedApp.App.AppName, valuesString, requirementsString, chartName, fmt.Sprint(installedApp.Id))
+
+	if err != nil {
+		return chartBytes, err
+	}
+	return chartBytes, nil
+}
+
+func (impl InstalledAppServiceImpl) GetChartBytesForParticularDeployment(installedAppId int, installedAppVersionId int, installedAppVersionHistoryId int) ([]byte, error) {
+
+	chartBytes := make([]byte, 0)
+
+	installedApp, err := impl.installedAppRepository.GetInstalledApp(installedAppId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching installed app", "err", err, "installed_app_id", installedAppId)
+		return chartBytes, err
+	}
+	installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersionAny(installedAppVersionId)
+	if err != nil {
+		impl.logger.Errorw("Service err, BuildChartWithValuesAndRequirementsConfig", err, "installed_app_version_id", installedAppVersionId)
+		return chartBytes, err
+	}
+	installedAppVersionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(installedAppVersionHistoryId)
+
+	valuesString, err := impl.appStoreDeploymentCommonService.GetValuesString(installedAppVersion.AppStoreApplicationVersion.AppStore.Name, installedAppVersionHistory.ValuesYamlRaw)
+	if err != nil {
+		return chartBytes, err
+	}
+	requirementsString, err := impl.appStoreDeploymentCommonService.GetRequirementsString(installedAppVersion.AppStoreApplicationVersionId)
+	if err != nil {
+		return chartBytes, err
+	}
+
+	updateTime := installedApp.UpdatedOn
+	timeStampTag := updateTime.Format(bean.LayoutDDMMYY_HHMM12hr)
+	chartName := fmt.Sprintf("%s-%s-%s (GMT)", installedApp.App.AppName, installedApp.Environment.Name, timeStampTag)
+
+	chartBytes, err = impl.appStoreDeploymentCommonService.BuildChartWithValuesAndRequirementsConfig(installedApp.App.AppName, valuesString, requirementsString, chartName, fmt.Sprint(installedApp.Id))
+	if err != nil {
+		return chartBytes, err
+	}
+	return chartBytes, nil
 }

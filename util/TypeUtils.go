@@ -34,6 +34,10 @@ func SplitCommaSeparatedIntValues(input string) ([]int, error) {
 	return items, nil
 }
 
+func XORBool(a, b bool) bool {
+	return (a || b) && !(a && b)
+}
+
 func GetBeansPtr[T any](beans ...*T) []*T {
 
 	finalBeans := make([]*T, 0)

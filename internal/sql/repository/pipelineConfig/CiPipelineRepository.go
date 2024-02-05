@@ -18,9 +18,12 @@
 package pipelineConfig
 
 import (
+	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
 	"go.uber.org/zap"
@@ -129,6 +132,12 @@ type CiPipelineRepository interface {
 	FindAppIdsForCiPipelineIds(pipelineIds []int) (map[int]int, error)
 	GetCiPipelineByArtifactId(artifactId int) (*CiPipeline, error)
 	GetExternalCiPipelineByArtifactId(artifactId int) (*ExternalCiPipeline, error)
+
+	GetAppAndProjectNameForParentAndAllLinkedCI(ciPipelineId int) ([]*CiPipelineAppProject, error)
+	GetAllCDsEnvAndClusterNameByCiPipelineIds(ciPipelineIds []int) ([]*CiPipelineEnvCluster, error)
+	GetAllCIAppAndProjectByProjectNames(projectNames []string) ([]*CiPipelineAppProject, error)
+	GetAllCIsClusterAndEnvByCDClusterNames(clusterNames []string, ciPipelineIds []int) ([]*CiPipelineEnvCluster, error)
+	GetAllCIsClusterAndEnvForAllProductionEnvCD(ciPipelineIds []int) ([]*CiPipelineEnvCluster, error)
 	FindLinkedCiCount(ciPipelineId int) (int, error)
 }
 type CiPipelineRepositoryImpl struct {
@@ -149,6 +158,7 @@ func (impl CiPipelineRepositoryImpl) FindByParentCiPipelineId(parentCiPipelineId
 	var ciPipelines []*CiPipeline
 	err := impl.dbConnection.Model(&ciPipelines).
 		Where("parent_ci_pipeline = ?", parentCiPipelineId).
+		Where("ci_pipeline_type != ?", "LINKED_CD").
 		Where("active = ?", true).
 		Select()
 	return ciPipelines, err
@@ -168,6 +178,7 @@ func (impl CiPipelineRepositoryImpl) FindByIdsIn(ids []int) ([]*CiPipeline, erro
 	var ciPipelines []*CiPipeline
 	err := impl.dbConnection.Model(&ciPipelines).
 		Where("id in (?)", pg.In(ids)).
+		Where("deleted = ?", false).
 		Select()
 	return ciPipelines, err
 }
@@ -349,13 +360,13 @@ func (impl CiPipelineRepositoryImpl) FindWithMinDataByCiPipelineId(id int) (pipe
 func (impl CiPipelineRepositoryImpl) FindParentCiPipelineMapByAppId(appId int) ([]*CiPipeline, []int, error) {
 	var parentCiPipelines []*CiPipeline
 	var linkedCiPipelineIds []int
-	queryLinked := `select * from ci_pipeline where id in (select parent_ci_pipeline from ci_pipeline where app_id=? and deleted=? and parent_ci_pipeline is not null) order by id asc;`
+	queryLinked := `select * from ci_pipeline where id in (select parent_ci_pipeline from ci_pipeline where app_id=? and deleted=? and parent_ci_pipeline is not null and ci_pipeline_type != 'LINKED_CD') order by id asc;`
 	_, err := impl.dbConnection.Query(&parentCiPipelines, queryLinked, appId, false)
 	if err != nil {
 		impl.logger.Error("error in fetching linked ci pipelines", "error", err)
 		return nil, nil, err
 	}
-	queryParent := `select id from ci_pipeline where app_id=? and deleted=? and parent_ci_pipeline is not null order by parent_ci_pipeline asc;`
+	queryParent := `select id from ci_pipeline where app_id=? and deleted=? and parent_ci_pipeline is not null and ci_pipeline_type != 'LINKED_CD' order by parent_ci_pipeline asc;`
 	_, err = impl.dbConnection.Query(&linkedCiPipelineIds, queryParent, appId, false)
 	if err != nil {
 		impl.logger.Error("error in fetching parent ci pipelines", "error", err)
@@ -416,7 +427,7 @@ func (impl CiPipelineRepositoryImpl) FetchParentCiPipelinesForDG() ([]*CiPipelin
 	var ciPipelinesMap []*CiPipelinesMap
 	query := "SELECT cip.id, cip.parent_ci_pipeline" +
 		" FROM ci_pipeline cip" +
-		" WHERE cip.external = TRUE and cip.parent_ci_pipeline > 0 and cip.parent_ci_pipeline IS NOT NULL and cip.deleted = FALSE"
+		" WHERE cip.external = TRUE and cip.parent_ci_pipeline > 0 and cip.ci_pipeline_type != 'LINKED_CD' and cip.parent_ci_pipeline IS NOT NULL and cip.deleted = FALSE"
 	impl.logger.Debugw("query:", query)
 	_, err := impl.dbConnection.Query(&ciPipelinesMap, query)
 	if err != nil {
@@ -479,6 +490,7 @@ func (impl *CiPipelineRepositoryImpl) FinDByParentCiPipelineAndAppId(parentCiPip
 			return q, nil
 		}).
 		Where("app_id in (?)", pg.In(appIds)).
+		Where("ci_pipeline_type != ?", "LINKED_CD").
 		Select()
 	return ciPipelines, err
 }
@@ -529,6 +541,7 @@ func (impl CiPipelineRepositoryImpl) FindByParentCiPipelineIds(parentCiPipelineI
 	var ciPipelines []*CiPipeline
 	err := impl.dbConnection.Model(&ciPipelines).
 		Where("parent_ci_pipeline in (?)", pg.In(parentCiPipelineIds)).
+		Where("ci_pipeline_type != ?", "LINKED_CD").
 		Where("active = ?", true).
 		Select()
 	return ciPipelines, err
@@ -575,6 +588,104 @@ func (impl CiPipelineRepositoryImpl) GetExternalCiPipelineByArtifactId(artifactI
 	return ciPipeline, err
 }
 
+type CiPipelineAppProject struct {
+	CiPipelineId   int    `pg:"ci_pipeline_id"`
+	CiPipelineName string `pg:"ci_pipeline_name"`
+	AppName        string `pg:"app_name"`
+	ProjectName    string `pg:"project_name"`
+}
+
+type CiPipelineEnvCluster struct {
+	CiPipelineId    int    `pg:"ci_pipeline_id"`
+	IsProductionEnv bool   `pg:"is_production_env"`
+	EnvName         string `pg:"env_name"`
+	ClusterName     string `pg:"cluster_name"`
+}
+
+func (impl CiPipelineRepositoryImpl) GetAppAndProjectNameForParentAndAllLinkedCI(ciPipelineId int) ([]*CiPipelineAppProject, error) {
+	var models []*CiPipelineAppProject
+	query := `select cp.id as ci_pipeline_id, cp.name as ci_pipeline_name,a.app_name, t.name as project_name from ci_pipeline cp 
+    				inner join app a on a.id=cp.app_id 
+    				inner join team t on t.id=a.team_id
+    					where cp.deleted=? and (cp.id=? or (cp.parent_ci_pipeline=? and cp.ci_pipeline_type != 'LINKED_CD'))
+    						and a.active=? and t.active=? and a.app_type=?`
+	_, err := impl.dbConnection.Query(&models, query, false, ciPipelineId, ciPipelineId, true, true, helper.CustomApp)
+	if err != nil {
+		impl.logger.Errorw("error, GetAppAndProjectNameForParentAndAllLinkedCI", "err", err, "ciPipelineId", ciPipelineId)
+		return nil, err
+	}
+	return models, nil
+}
+
+func (impl CiPipelineRepositoryImpl) GetAllCDsEnvAndClusterNameByCiPipelineIds(ciPipelineIds []int) ([]*CiPipelineEnvCluster, error) {
+	var models []*CiPipelineEnvCluster
+	query := `select cd.ci_pipeline_id, e.default as is_production_env, e.environment_name as env_name, c.cluster_name from pipeline cd 
+    				inner join environment e on e.id=cd.environment_id 
+    				inner join cluster c on c.id=e.cluster_id
+    					where cd.ci_pipeline_id in (?) and cd.deleted=?
+    						and e.active=? and c.active=?`
+	_, err := impl.dbConnection.Query(&models, query, pg.In(ciPipelineIds), false, true, true)
+	if err != nil {
+		impl.logger.Errorw("error, GetAllCDsEnvAndClusterNameByCiPipelineIds", "err", err, "ciPipelineIds", ciPipelineIds)
+		return nil, err
+	}
+	return models, nil
+}
+
+func (impl CiPipelineRepositoryImpl) GetAllCIAppAndProjectByProjectNames(projectNames []string) ([]*CiPipelineAppProject, error) {
+	var models []*CiPipelineAppProject
+	query := `select cp.id as ci_pipeline_id, cp.name as ci_pipeline_name, a.app_name, t.name as project_name from ci_pipeline cp 
+    				inner join app a on a.id=cp.app_id 
+    				inner join team t on t.id=a.team_id
+    					where t.name in (?) and cp.deleted=? and a.active=? and t.active=? and a.app_type=?`
+	_, err := impl.dbConnection.Query(&models, query, pg.In(projectNames), false, true, true, helper.CustomApp)
+	if err != nil {
+		impl.logger.Errorw("error, GetAllCIAppAndProjectByProjectNames", "err", err, "projectNames", projectNames)
+		return nil, err
+	}
+	return models, nil
+}
+
+func (impl CiPipelineRepositoryImpl) GetAllCIsClusterAndEnvForAllProductionEnvCD(ciPipelineIds []int) ([]*CiPipelineEnvCluster, error) {
+	var models []*CiPipelineEnvCluster
+	query := `select cd.ci_pipeline_id, e.default as is_production_env, e.environment_name as env_name, c.cluster_name from pipeline cd 
+					inner join app a on a.id=cd.app_id 
+    				inner join environment e on e.id=cd.environment_id 
+    				inner join cluster c on c.id=e.cluster_id
+    					where e.default=? and cd.deleted=?
+							and a.active=? and a.app_type=? 
+    						and e.active=? and c.active=? `
+	if len(ciPipelineIds) > 0 {
+		query += fmt.Sprintf(" and cd.ci_pipeline_id in (%s)", util.GetCommaSeparatedStringsFromIntArray(ciPipelineIds))
+	}
+	_, err := impl.dbConnection.Query(&models, query, true, false, true, helper.CustomApp, true, true)
+	if err != nil {
+		impl.logger.Errorw("error, GetAllCIsClusterAndEnvForAllProductionEnvCD", "err", err)
+		return nil, err
+	}
+	return models, nil
+}
+
+func (impl CiPipelineRepositoryImpl) GetAllCIsClusterAndEnvByCDClusterNames(clusterNames []string, ciPipelineIds []int) ([]*CiPipelineEnvCluster, error) {
+	var models []*CiPipelineEnvCluster
+	query := `select cd.ci_pipeline_id, e.default as is_production_env, e.environment_name as env_name, c.cluster_name from pipeline cd 
+					inner join app a on a.id=cd.app_id
+    				inner join environment e on e.id=cd.environment_id 
+    				inner join cluster c on c.id=e.cluster_id
+    					where c.cluster_name in (?) and cd.deleted=?
+							and a.active=? and a.app_type=? 
+    						and e.active=? and c.active=? `
+	if len(ciPipelineIds) > 0 {
+		query += fmt.Sprintf("and cd.ci_pipeline_id in (%s)", util.GetCommaSeparatedStringsFromIntArray(ciPipelineIds))
+	}
+	_, err := impl.dbConnection.Query(&models, query, pg.In(clusterNames), false, true, helper.CustomApp, true, true)
+	if err != nil {
+		impl.logger.Errorw("error, GetAllCIsClusterAndEnvByCDClusterNames", "err", err, "clusterNames", clusterNames)
+		return nil, err
+	}
+	return models, nil
+}
+
 func (impl CiPipelineRepositoryImpl) FindCiPipelineByAppIdAndEnvIds(appId int, envIds []int) ([]*CiPipeline, error) {
 	var pipelines []*CiPipeline
 	query := `SELECT DISTINCT ci_pipeline.* FROM ci_pipeline INNER JOIN pipeline ON pipeline.ci_pipeline_id = ci_pipeline.id WHERE ci_pipeline.app_id = ? 
@@ -588,6 +699,7 @@ func (impl CiPipelineRepositoryImpl) FindLinkedCiCount(ciPipelineId int) (int, e
 	cnt, err := impl.dbConnection.Model(pipeline).
 		Where("parent_ci_pipeline = ?", ciPipelineId).
 		Where("deleted = ?", false).
+		Where("ci_pipeline_type != ?", "LINKED_CD").
 		Count()
 	if err == pg.ErrNoRows {
 		return 0, nil

@@ -23,7 +23,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/common-lib/pubsub-lib/model"
-	"github.com/devtron-labs/devtron/pkg/app"
 	"k8s.io/utils/pointer"
 	"time"
 
@@ -35,6 +34,7 @@ import (
 
 	v1alpha12 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
+	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/go-pg/pg"
@@ -42,7 +42,7 @@ import (
 )
 
 type ApplicationStatusHandler interface {
-	Subscribe() error
+	subscribe() error
 	SubscribeDeleteStatus() error
 }
 
@@ -73,7 +73,7 @@ func NewApplicationStatusHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pu
 		pipelineRepository:        pipelineRepository,
 		installedAppRepository:    installedAppRepository,
 	}
-	err := appStatusUpdateHandlerImpl.Subscribe()
+	err := appStatusUpdateHandlerImpl.subscribe()
 	if err != nil {
 		// logger.Error("err", err)
 		return nil
@@ -90,7 +90,7 @@ type ApplicationDetail struct {
 	StatusTime  time.Time              `json:"statusTime"`
 }
 
-func (impl *ApplicationStatusHandlerImpl) Subscribe() error {
+func (impl *ApplicationStatusHandlerImpl) subscribe() error {
 	callback := func(msg *model.PubSubMsg) {
 		applicationDetail := ApplicationDetail{}
 		err := json.Unmarshal([]byte(msg.Data), &applicationDetail)

@@ -18,6 +18,7 @@
 package user
 
 import (
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/gorilla/mux"
 )
 
@@ -27,6 +28,7 @@ type UserRouter interface {
 
 type UserRouterImpl struct {
 	userRestHandler UserRestHandler
+	cleanUpPolicies user.CleanUpPoliciesService
 }
 
 func NewUserRouterImpl(userRestHandler UserRestHandler) *UserRouterImpl {
@@ -46,9 +48,10 @@ func (router UserRouterImpl) InitUserRouter(userAuthRouter *mux.Router) {
 		HandlerFunc(router.userRestHandler.GetAll).Methods("GET")
 	userAuthRouter.Path("").
 		HandlerFunc(router.userRestHandler.UpdateUser).Methods("PUT")
+	userAuthRouter.Path("/cleanup").
+		HandlerFunc(router.userRestHandler.CleanUpPolicies).Methods("DELETE")
 	userAuthRouter.Path("/{id}").
 		HandlerFunc(router.userRestHandler.DeleteUser).Methods("DELETE")
-
 	userAuthRouter.Path("/detail/get").
 		HandlerFunc(router.userRestHandler.GetAllDetailedUsers).Methods("GET")
 
@@ -72,8 +75,6 @@ func (router UserRouterImpl) InitUserRouter(userAuthRouter *mux.Router) {
 		HandlerFunc(router.userRestHandler.CheckUserRoles).Methods("GET")
 	userAuthRouter.Path("/sync/orchestratortocasbin").
 		HandlerFunc(router.userRestHandler.SyncOrchestratorToCasbin).Methods("GET")
-	userAuthRouter.Path("/update/trigger/terminal").
-		HandlerFunc(router.userRestHandler.UpdateTriggerPolicyForTerminalAccess).Methods("PUT")
 	userAuthRouter.Path("/role/cache").
 		HandlerFunc(router.userRestHandler.GetRoleCacheDump).Methods("GET")
 	userAuthRouter.Path("/role/cache/invalidate").

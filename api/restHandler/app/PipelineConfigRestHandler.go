@@ -31,6 +31,7 @@ import (
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/gitSensor"
+	"github.com/devtron-labs/devtron/enterprise/pkg/protect"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/chart"
@@ -128,6 +129,7 @@ type PipelineConfigRestHandlerImpl struct {
 	gitProviderRepo              repository.GitProviderRepository
 	argoUserService              argo.ArgoUserService
 	imageTaggingService          pipeline.ImageTaggingService
+	resourceProtectionService    protect.ResourceProtectionService
 	deploymentTemplateService    generateManifest.DeploymentTemplateService
 	pipelineRestHandlerEnvConfig *PipelineRestHandlerEnvConfig
 	ciArtifactRepository         repository.CiArtifactRepository
@@ -153,7 +155,7 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	materialRepository pipelineConfig.MaterialRepository, policyService security2.PolicyService,
 	scanResultRepository security.ImageScanResultRepository, gitProviderRepo repository.GitProviderRepository,
 	argoUserService argo.ArgoUserService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
-	imageTaggingService pipeline.ImageTaggingService,
+	imageTaggingService pipeline.ImageTaggingService, resourceProtectionService protect.ResourceProtectionService,
 	ciArtifactRepository repository.CiArtifactRepository) *PipelineConfigRestHandlerImpl {
 	envConfig := &PipelineRestHandlerEnvConfig{}
 	err := env.Parse(envConfig)
@@ -188,6 +190,7 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		argoUserService:              argoUserService,
 		ciPipelineMaterialRepository: ciPipelineMaterialRepository,
 		imageTaggingService:          imageTaggingService,
+		resourceProtectionService:    resourceProtectionService,
 		deploymentTemplateService:    deploymentTemplateService,
 		pipelineRestHandlerEnvConfig: envConfig,
 		ciArtifactRepository:         ciArtifactRepository,

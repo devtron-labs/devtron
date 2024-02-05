@@ -19,10 +19,11 @@ package dockerRegistry
 
 import (
 	"encoding/json"
-	"github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/go-pg/pg"
@@ -41,7 +42,7 @@ type DockerRegistryIpsConfigService interface {
 type DockerRegistryIpsConfigServiceImpl struct {
 	logger                            *zap.SugaredLogger
 	dockerRegistryIpsConfigRepository repository.DockerRegistryIpsConfigRepository
-	k8sUtil                           *k8s.K8sServiceImpl
+	k8sUtil                           *k8s.K8sUtilExtended
 	clusterService                    cluster.ClusterService
 	ciPipelineRepository              pipelineConfig.CiPipelineRepository
 	dockerArtifactStoreRepository     repository.DockerArtifactStoreRepository
@@ -49,7 +50,7 @@ type DockerRegistryIpsConfigServiceImpl struct {
 }
 
 func NewDockerRegistryIpsConfigServiceImpl(logger *zap.SugaredLogger, dockerRegistryIpsConfigRepository repository.DockerRegistryIpsConfigRepository,
-	k8sUtil *k8s.K8sServiceImpl, clusterService cluster.ClusterService, ciPipelineRepository pipelineConfig.CiPipelineRepository,
+	k8sUtil *k8s.K8sUtilExtended, clusterService cluster.ClusterService, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	dockerArtifactStoreRepository repository.DockerArtifactStoreRepository, ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository) *DockerRegistryIpsConfigServiceImpl {
 	return &DockerRegistryIpsConfigServiceImpl{
 		logger:                            logger,
@@ -172,7 +173,7 @@ func (impl DockerRegistryIpsConfigServiceImpl) getDockerRegistryIdForCiPipeline(
 		if ciPipeline.IsDockerConfigOverridden {
 			//set dockerRegistryId value with the DockerRegistryId of the overridden dockerRegistry
 			ciPipId := ciPipelineId
-			if ciPipeline.ParentCiPipeline != 0 {
+			if ciPipeline.ParentCiPipeline != 0 && ciPipeline.PipelineType != string(bean2.LINKED_CD) {
 				ciPipId = ciPipeline.ParentCiPipeline
 			}
 			ciTemplateOverride, err := impl.ciTemplateOverrideRepository.FindByCiPipelineId(ciPipId)
@@ -252,11 +253,7 @@ func (impl DockerRegistryIpsConfigServiceImpl) createOrUpdateDockerRegistryImage
 		impl.logger.Errorw("error in getting cluster", "clusterId", clusterId, "error", err)
 		return err
 	}
-	cfg, err := clusterBean.GetClusterConfig()
-	if err != nil {
-		impl.logger.Errorw("error in getting cluster config", "clusterId", clusterId, "error", err)
-		return err
-	}
+	cfg := clusterBean.GetClusterConfig()
 	k8sClient, err := impl.k8sUtil.GetCoreV1Client(cfg)
 	if err != nil {
 		impl.logger.Errorw("error in getting k8s client", "clusterId", clusterId, "error", err)

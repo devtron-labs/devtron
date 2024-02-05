@@ -4,6 +4,8 @@ type Scope struct {
 	AppId          int             `json:"appId"`
 	EnvId          int             `json:"envId"`
 	ClusterId      int             `json:"clusterId"`
+	ProjectId      int             `json:"projectId"`
+	IsProdEnv      bool            `json:"isProdEnv"`
 	PipelineId     int             `json:"pipelineId"`
 	SystemMetadata *SystemMetadata `json:"-"`
 }
@@ -38,12 +40,20 @@ func (metadata *SystemMetadata) GetDataFromSystemVariable(variable SystemVariabl
 type Qualifier int
 
 const (
-	GLOBAL_QUALIFIER   Qualifier = 5
-	PIPELINE_QUALIFIER Qualifier = 6
+	APP_AND_ENV_QUALIFIER Qualifier = 1
+	APP_QUALIFIER         Qualifier = 2
+	ENV_QUALIFIER         Qualifier = 3
+	CLUSTER_QUALIFIER     Qualifier = 4
+	GLOBAL_QUALIFIER      Qualifier = 5
+	PIPELINE_QUALIFIER    Qualifier = 6
 )
 
-var CompoundQualifiers []Qualifier
+var CompoundQualifiers = []Qualifier{APP_AND_ENV_QUALIFIER}
 
 func GetNumOfChildQualifiers(qualifier Qualifier) int {
+	switch qualifier {
+	case APP_AND_ENV_QUALIFIER:
+		return 1
+	}
 	return 0
 }

@@ -83,15 +83,16 @@ type DeploymentGroupService interface {
 }
 
 type DeploymentGroupDTO struct {
-	Id              int             `json:"id"`
-	Name            string          `json:"name"`
-	AppCount        int             `json:"appCount"`
-	NoOfApps        string          `json:"noOfApps"`
-	EnvironmentId   int             `json:"environmentId"`
-	CiPipelineId    int             `json:"ciPipelineId"`
-	CiPipelineName  string          `json:"ciPipelineName"`
-	CiMaterialDTOs  []CiMaterialDTO `json:"ciMaterialDTOs"`
-	EnvironmentName string          `json:"environmentName"`
+	Id                   int             `json:"id"`
+	Name                 string          `json:"name"`
+	AppCount             int             `json:"appCount"`
+	NoOfApps             string          `json:"noOfApps"`
+	EnvironmentId        int             `json:"environmentId"`
+	CiPipelineId         int             `json:"ciPipelineId"`
+	CiPipelineName       string          `json:"ciPipelineName"`
+	CiMaterialDTOs       []CiMaterialDTO `json:"ciMaterialDTOs"`
+	EnvironmentName      string          `json:"environmentName"`
+	IsVirtualEnvironment bool            `json:"isVirtualEnvironment"`
 }
 
 type CiMaterialDTO struct {
@@ -149,13 +150,14 @@ func (impl *DeploymentGroupServiceImpl) FindById(id int) (*DeploymentGroupDTO, e
 	}
 
 	dgResp := &DeploymentGroupDTO{
-		Id:              dg.Id,
-		Name:            dg.Name,
-		AppCount:        dg.AppCount,
-		NoOfApps:        dg.NoOfApps,
-		EnvironmentId:   dg.EnvironmentId,
-		EnvironmentName: environment.Name,
-		CiPipelineId:    dg.CiPipelineId,
+		Id:                   dg.Id,
+		Name:                 dg.Name,
+		AppCount:             dg.AppCount,
+		NoOfApps:             dg.NoOfApps,
+		EnvironmentId:        dg.EnvironmentId,
+		EnvironmentName:      environment.Name,
+		CiPipelineId:         dg.CiPipelineId,
+		IsVirtualEnvironment: environment.IsVirtualEnvironment,
 	}
 	ciPipeline, err := impl.ciPipelineRepository.FindById(dg.CiPipelineId)
 	if err != nil && !util.IsErrNoRows(err) {
@@ -488,9 +490,14 @@ func (impl *DeploymentGroupServiceImpl) TriggerReleaseForDeploymentGroup(trigger
 	}
 	for _, cdPipeline := range cdPipelines {
 		if val, ok := ciArtefactMapping[cdPipeline.CiPipelineId]; ok {
+			ciArtifactId := val.Id
+			if allowed := impl.checkForApprovalNode(cdPipeline, ciArtifactId); !allowed {
+				impl.logger.Warnw("artifact not allowed for deployment, so ignoring from deployment group", "ciArtifactId", ciArtifactId, "cdPipelineId", cdPipeline.Id)
+				continue
+			}
 			//do something here
 			req := &pipeline.BulkTriggerRequest{
-				CiArtifactId: val.Id,
+				CiArtifactId: ciArtifactId,
 				PipelineId:   cdPipeline.Id,
 			}
 			requests = append(requests, req)
@@ -684,4 +691,24 @@ func (impl *DeploymentGroupServiceImpl) GetDeploymentGroupById(deploymentGroupId
 	}
 	deploymentGroupRequest.AppIds = appIds
 	return deploymentGroupRequest, err
+}
+
+func (impl *DeploymentGroupServiceImpl) checkForApprovalNode(cdPipeline *pipelineConfig.Pipeline, ciArtifactId int) bool {
+	if cdPipeline.ApprovalNodeConfigured() {
+		approvalConfig, err := cdPipeline.GetApprovalConfig()
+		cdPipelineId := cdPipeline.Id
+		if err != nil {
+			impl.logger.Errorw("error occurred while fetching approval config",
+				"config", cdPipeline.UserApprovalConfig, "pipelineId", cdPipelineId, "err", err)
+			return false
+		}
+		artifacts, err := impl.workflowDagExecutor.FetchApprovalDataForArtifacts([]int{ciArtifactId}, cdPipelineId, approvalConfig.RequiredCount)
+		if err != nil {
+			impl.logger.Errorw("error occurred while fetching approval data for artifact", "ciArtifactId", ciArtifactId, "err", err)
+			return false
+		}
+		approvalMetadata, ok := artifacts[ciArtifactId]
+		return ok && approvalMetadata.ApprovalRuntimeState == pipelineConfig.ApprovedApprovalState
+	}
+	return true
 }

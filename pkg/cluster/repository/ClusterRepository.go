@@ -24,12 +24,20 @@ import (
 	"time"
 )
 
+const (
+	BearerToken              = "bearer_token"
+	CertificateAuthorityData = "cert_auth_data"
+	CertData                 = "cert_data"
+	TlsKey                   = "tls_key"
+)
+
 type Cluster struct {
 	tableName              struct{}          `sql:"cluster" pg:",discard_unknown_columns"`
 	Id                     int               `sql:"id,pk"`
 	ClusterName            string            `sql:"cluster_name"`
 	Description            string            `sql:"description"`
 	ServerUrl              string            `sql:"server_url"`
+	ProxyUrl               string            `sql:"proxy_url"`
 	PrometheusEndpoint     string            `sql:"prometheus_endpoint"`
 	Active                 bool              `sql:"active,notnull"`
 	CdArgoSetup            bool              `sql:"cd_argo_setup,notnull"`
@@ -43,6 +51,11 @@ type Cluster struct {
 	ErrorInConnecting      string            `sql:"error_in_connecting"`
 	IsVirtualCluster       bool              `sql:"is_virtual_cluster"`
 	InsecureSkipTlsVerify  bool              `sql:"insecure_skip_tls_verify"`
+	ToConnectWithSSHTunnel bool              `sql:"to_connect_with_ssh_tunnel"`
+	SSHTunnelUser          string            `sql:"ssh_tunnel_user"`
+	SSHTunnelPassword      string            `sql:"ssh_tunnel_password"`
+	SSHTunnelAuthKey       string            `sql:"ssh_tunnel_auth_key"`
+	SSHTunnelServerAddress string            `sql:"ssh_tunnel_server_address"`
 	sql.AuditLog
 }
 
@@ -62,6 +75,7 @@ type ClusterRepository interface {
 	UpdateClusterConnectionStatus(clusterId int, errorInConnecting string) error
 	FindActiveClusters() ([]Cluster, error)
 	SaveAll(models []*Cluster) error
+	GetAllSSHTunnelConfiguredClusters() ([]*Cluster, error)
 	FindByNames(clusterNames []string) ([]*Cluster, error)
 }
 
@@ -197,4 +211,13 @@ func (impl ClusterRepositoryImpl) UpdateClusterConnectionStatus(clusterId int, e
 		Set("error_in_connecting = ?", errorInConnecting).Where("id = ?", clusterId).
 		Update()
 	return err
+}
+
+func (impl ClusterRepositoryImpl) GetAllSSHTunnelConfiguredClusters() ([]*Cluster, error) {
+	var clusters []*Cluster
+	err := impl.dbConnection.Model(&clusters).
+		Where("active = ?", true).
+		Where("to_connect_with_ssh_tunnel = ?", true).
+		Select()
+	return clusters, err
 }

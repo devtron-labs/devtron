@@ -29,7 +29,7 @@ import (
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
-	user2 "github.com/devtron-labs/devtron/pkg/auth/user"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/gorilla/mux"
@@ -52,19 +52,19 @@ type TeamRestHandler interface {
 type TeamRestHandlerImpl struct {
 	logger          *zap.SugaredLogger
 	teamService     team.TeamService
-	userService     user2.UserService
+	userService     user.UserService
 	validator       *validator.Validate
 	enforcer        casbin.Enforcer
-	userAuthService user2.UserAuthService
+	userAuthService user.UserAuthService
 	deleteService   delete2.DeleteService
 	cfg             *bean.Config
 }
 
 func NewTeamRestHandlerImpl(logger *zap.SugaredLogger,
 	teamService team.TeamService,
-	userService user2.UserService,
+	userService user.UserService,
 	enforcer casbin.Enforcer,
-	validator *validator.Validate, userAuthService user2.UserAuthService,
+	validator *validator.Validate, userAuthService user.UserAuthService,
 	deleteService delete2.DeleteService,
 ) *TeamRestHandlerImpl {
 	cfg := &bean.Config{}

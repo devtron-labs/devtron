@@ -251,6 +251,7 @@ func (impl *AppStoreDeploymentHelmServiceImpl) GetGitOpsRepoName(appName string,
 }
 
 func (impl *AppStoreDeploymentHelmServiceImpl) UpdateValuesDependencies(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error {
+
 	appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)
 	if err != nil {
 		impl.Logger.Errorw("fetching error", "err", err)
@@ -272,6 +273,7 @@ func (impl *AppStoreDeploymentHelmServiceImpl) UpdateValuesDependencies(installA
 		return err
 	}
 	return nil
+	//return errors.New("method UpdateRequirementDependencies not implemented")
 }
 
 func (impl *AppStoreDeploymentHelmServiceImpl) updateApplicationWithChartInfo(ctx context.Context, installedAppId int, appStoreApplicationVersionId int, valuesOverrideYaml string, installAppVersionHistoryId int) error {

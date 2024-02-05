@@ -64,7 +64,7 @@ func TestChartTemplateService(t *testing.T) {
 
 		builtChartPath, err := impl.BuildChart(context.Background(), chartMetaData, refChartDir)
 
-		chartBytes, err := impl.LoadChartInBytes(builtChartPath, false)
+		chartBytes, err := impl.LoadChartInBytes(builtChartPath, false, "", "")
 		assert.Nil(t, err)
 
 		chartBytesLen := len(chartBytes)
@@ -88,7 +88,7 @@ func TestChartTemplateService(t *testing.T) {
 
 		builtChartPath, err := impl.BuildChart(context.Background(), chartMetaData, refChartDir)
 
-		chartBytes, err := impl.LoadChartInBytes(builtChartPath, true)
+		chartBytes, err := impl.LoadChartInBytes(builtChartPath, true, "", "")
 		assert.Nil(t, err)
 
 		assert.NoDirExists(t, builtChartPath)

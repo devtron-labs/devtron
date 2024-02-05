@@ -87,7 +87,17 @@ type Payload struct {
 	DownloadLink          string               `json:"downloadLink"`
 	BuildHistoryLink      string               `json:"buildHistoryLink"`
 	MaterialTriggerInfo   *MaterialTriggerInfo `json:"material"`
+	ApprovedByEmail       []string             `json:"approvedByEmail"`
 	FailureReason         string               `json:"failureReason"`
+	Providers             []*Provider          `json:"providers"`
+	ImageTagNames         []string             `json:"imageTagNames"`
+	ImageComment          string               `json:"imageComment"`
+	ImageApprovalLink     string               `json:"imageApprovalLink"`
+	ProtectConfigFileType string               `json:"protectConfigFileType"`
+	ProtectConfigFileName string               `json:"protectConfigFileName"`
+	ProtectConfigComment  string               `json:"protectConfigComment"`
+	ProtectConfigLink     string               `json:"protectConfigLink"`
+	ApprovalLink          string               `json:"approvalLink"`
 }
 
 type CiPipelineMaterialResponse struct {

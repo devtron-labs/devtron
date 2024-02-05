@@ -22,6 +22,14 @@ func FindMinWithComparator(variableScope []*resourceQualifiers.QualifierMapping,
 
 func GetPriority(qualifier resourceQualifiers.Qualifier) int {
 	switch qualifier {
+	case resourceQualifiers.APP_AND_ENV_QUALIFIER:
+		return 1
+	case resourceQualifiers.APP_QUALIFIER:
+		return 2
+	case resourceQualifiers.ENV_QUALIFIER:
+		return 3
+	case resourceQualifiers.CLUSTER_QUALIFIER:
+		return 4
 	case resourceQualifiers.GLOBAL_QUALIFIER:
 		return 5
 	default:

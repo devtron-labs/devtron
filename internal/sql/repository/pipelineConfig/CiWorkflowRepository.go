@@ -228,10 +228,12 @@ func (impl *CiWorkflowRepositoryImpl) FindRetriedWorkflowCountByReferenceId(id i
 func (impl *CiWorkflowRepositoryImpl) FindCiWorkflowGitTriggersById(id int) (ciWorkflow *CiWorkflow, err error) {
 	workflow := &CiWorkflow{}
 	err = impl.dbConnection.Model(workflow).
-		Column("ci_workflow.git_triggers").
+		Column("ci_workflow.git_triggers", "ci_workflow.triggered_by").
 		Where("ci_workflow.id = ? ", id).
 		Select()
-
+	if err == pg.ErrNoRows {
+		return workflow, nil
+	}
 	return workflow, err
 }
 
@@ -241,7 +243,6 @@ func (impl *CiWorkflowRepositoryImpl) FindCiWorkflowGitTriggersByIds(ids []int) 
 		return workflows, nil
 	}
 	err := impl.dbConnection.Model(&workflows).
-		Column("ci_workflow.git_triggers").
 		Where("ci_workflow.id IN (?)", pg.In(ids)).
 		Select()
 
@@ -299,7 +300,7 @@ func (impl *CiWorkflowRepositoryImpl) FindAllLastTriggeredWorkflowByArtifactId(c
 func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowGitTriggersByArtifactId(ciArtifactId int) (ciWorkflow *CiWorkflow, err error) {
 	workflow := &CiWorkflow{}
 	err = impl.dbConnection.Model(workflow).
-		Column("ci_workflow.git_triggers").
+		Column("ci_workflow.git_triggers", "ci_workflow.triggered_by").
 		Join("inner join ci_artifact cia on cia.ci_workflow_id = ci_workflow.id").
 		Where("cia.id = ? ", ciArtifactId).
 		Select()

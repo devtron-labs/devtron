@@ -4,7 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/common-lib-private/utils/k8s"
+	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/helm-app/models"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/go-pg/pg"
@@ -84,7 +85,7 @@ type HelmAppServiceImpl struct {
 	installedAppRepository               repository.InstalledAppRepository
 	appRepository                        app.AppRepository
 	clusterRepository                    clusterRepository.ClusterRepository
-	K8sUtil                              *k8s.K8sServiceImpl
+	K8sUtil                              *k8s.K8sUtilExtended
 	helmReleaseConfig                    *HelmReleaseConfig
 }
 
@@ -94,7 +95,7 @@ func NewHelmAppServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.Clu
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
 	environmentService cluster.EnvironmentService, pipelineRepository pipelineConfig.PipelineRepository,
 	installedAppRepository repository.InstalledAppRepository, appRepository app.AppRepository,
-	clusterRepository clusterRepository.ClusterRepository, K8sUtil *k8s.K8sServiceImpl,
+	clusterRepository clusterRepository.ClusterRepository, K8sUtil *k8s.K8sUtilExtended,
 	helmReleaseConfig *HelmReleaseConfig) *HelmAppServiceImpl {
 	return &HelmAppServiceImpl{
 		logger:                               Logger,
@@ -141,16 +142,24 @@ func (impl *HelmAppServiceImpl) listApplications(ctx context.Context, clusterIds
 	req := &AppListRequest{}
 	for _, clusterDetail := range clusters {
 		config := &ClusterConfig{
-			ApiServerUrl:          clusterDetail.ServerUrl,
-			Token:                 clusterDetail.Config[k8s.BearerToken],
-			ClusterId:             int32(clusterDetail.Id),
-			ClusterName:           clusterDetail.ClusterName,
-			InsecureSkipTLSVerify: clusterDetail.InsecureSkipTLSVerify,
+			ApiServerUrl:           clusterDetail.ServerUrl,
+			Token:                  clusterDetail.Config[k8s2.BearerToken],
+			ClusterId:              int32(clusterDetail.Id),
+			ClusterName:            clusterDetail.ClusterName,
+			InsecureSkipTLSVerify:  clusterDetail.InsecureSkipTLSVerify,
+			ProxyUrl:               clusterDetail.ProxyUrl,
+			ToConnectWithSSHTunnel: clusterDetail.ToConnectWithSSHTunnel,
+		}
+		if clusterDetail.SSHTunnelConfig != nil {
+			config.SshTunnelAuthKey = clusterDetail.SSHTunnelConfig.AuthKey
+			config.SshTunnelUser = clusterDetail.SSHTunnelConfig.User
+			config.SshTunnelPassword = clusterDetail.SSHTunnelConfig.Password
+			config.SshTunnelServerAddress = clusterDetail.SSHTunnelConfig.SSHServerAddress
 		}
 		if clusterDetail.InsecureSkipTLSVerify == false {
-			config.KeyData = clusterDetail.Config[k8s.TlsKey]
-			config.CertData = clusterDetail.Config[k8s.CertData]
-			config.CaData = clusterDetail.Config[k8s.CertificateAuthorityData]
+			config.KeyData = clusterDetail.Config[k8s2.TlsKey]
+			config.CertData = clusterDetail.Config[k8s2.CertData]
+			config.CaData = clusterDetail.Config[k8s2.CertificateAuthorityData]
 		}
 		req.Clusters = append(req.Clusters, config)
 	}
@@ -266,24 +275,43 @@ func (impl *HelmAppServiceImpl) UnHibernateApplication(ctx context.Context, app 
 }
 
 func (impl *HelmAppServiceImpl) GetClusterConf(clusterId int) (*ClusterConfig, error) {
-	cluster, err := impl.clusterService.FindById(clusterId)
+	clusterObj, err := impl.clusterService.FindById(clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cluster detail", "err", err)
 		return nil, err
 	}
-	config := &ClusterConfig{
-		ApiServerUrl:          cluster.ServerUrl,
-		Token:                 cluster.Config[k8s.BearerToken],
-		ClusterId:             int32(cluster.Id),
-		ClusterName:           cluster.ClusterName,
-		InsecureSkipTLSVerify: cluster.InsecureSkipTLSVerify,
+
+	var config ClusterConfig
+	// if virtual cluster run helm template command in default cluster as no real cluster is available in this case
+	if clusterObj.IsVirtualCluster {
+		config = ClusterConfig{
+			ClusterName: cluster.DEFAULT_CLUSTER,
+			Token:       "",
+		}
+	} else {
+		config = ClusterConfig{
+			ApiServerUrl:           clusterObj.ServerUrl,
+			Token:                  clusterObj.Config[k8s2.BearerToken],
+			ClusterId:              int32(clusterObj.Id),
+			ClusterName:            clusterObj.ClusterName,
+			ProxyUrl:               clusterObj.ProxyUrl,
+			ToConnectWithSSHTunnel: clusterObj.ToConnectWithSSHTunnel,
+			InsecureSkipTLSVerify:  clusterObj.InsecureSkipTLSVerify,
+		}
+		if clusterObj.SSHTunnelConfig != nil {
+			config.SshTunnelAuthKey = clusterObj.SSHTunnelConfig.AuthKey
+			config.SshTunnelUser = clusterObj.SSHTunnelConfig.User
+			config.SshTunnelPassword = clusterObj.SSHTunnelConfig.Password
+			config.SshTunnelServerAddress = clusterObj.SSHTunnelConfig.SSHServerAddress
+		}
+		if clusterObj.InsecureSkipTLSVerify == false {
+			config.KeyData = clusterObj.Config[k8s2.TlsKey]
+			config.CertData = clusterObj.Config[k8s2.CertData]
+			config.CaData = clusterObj.Config[k8s2.CertificateAuthorityData]
+		}
 	}
-	if cluster.InsecureSkipTLSVerify == false {
-		config.KeyData = cluster.Config[k8s.TlsKey]
-		config.CertData = cluster.Config[k8s.CertData]
-		config.CaData = cluster.Config[k8s.CertificateAuthorityData]
-	}
-	return config, nil
+
+	return &config, nil
 }
 
 func (impl *HelmAppServiceImpl) GetApplicationDetail(ctx context.Context, app *AppIdentifier) (*AppDetail, error) {
@@ -545,11 +573,7 @@ func (impl *HelmAppServiceImpl) checkIfNsExists(app *AppIdentifier) (bool, error
 		impl.logger.Errorw("error in getting cluster bean", "error", err, "clusterId", app.ClusterId)
 		return false, err
 	}
-	config, err := clusterBean.GetClusterConfig()
-	if err != nil {
-		impl.logger.Errorw("error in getting cluster config", "error", err, "clusterId", app.ClusterId)
-		return false, err
-	}
+	config := clusterBean.GetClusterConfig()
 	v12Client, err := impl.K8sUtil.GetCoreV1Client(config)
 	if err != nil {
 		impl.logger.Errorw("error in getting k8s client", "err", err, "clusterHost", config.Host)
@@ -845,12 +869,10 @@ func (impl *HelmAppServiceImpl) TemplateChart(ctx context.Context, templateChart
 	}
 
 	clusterId := int(*templateChartRequest.ClusterId)
-	clusterDetail, err := impl.clusterRepository.FindById(clusterId)
-	if err != nil {
-		impl.logger.Errorw("error in getting cluster by id", "err", err, "clusterId", clusterId)
-		return nil, err
-	}
-	if len(clusterDetail.ErrorInConnecting) > 0 || clusterDetail.Active == false {
+
+	clusterDetail, _ := impl.clusterRepository.FindById(clusterId)
+
+	if !clusterDetail.IsVirtualCluster && (len(clusterDetail.ErrorInConnecting) > 0 || clusterDetail.Active == false) {
 		clusterNotFoundErr := &util.ApiError{
 			HttpStatusCode:    http.StatusInternalServerError,
 			Code:              "",

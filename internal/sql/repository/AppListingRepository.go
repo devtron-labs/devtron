@@ -27,7 +27,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/middleware"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"go.opentelemetry.io/otel"
-	"strconv"
 	"strings"
 	"time"
 
@@ -38,7 +37,6 @@ import (
 )
 
 type AppListingRepository interface {
-	FetchAppsByEnvironment(appListingFilter helper.AppListingFilter) ([]*bean.AppEnvironmentContainer, error)
 	FetchJobs(appIds []int, statuses []string, environmentIds []int, sortOrder string) ([]*bean.JobListingContainer, error)
 	FetchOverviewCiPipelines(jobId int) ([]*bean.JobListingContainer, error)
 	FetchJobsLastSucceededOn(ciPipelineIDs []int) ([]*bean.CiPipelineLastSucceededTime, error)
@@ -47,9 +45,10 @@ type AppListingRepository interface {
 	FetchAppTriggerView(appId int) ([]bean.TriggerView, error)
 	FetchAppStageStatus(appId int, appType int) ([]bean.AppStageStatus, error)
 
-	//Not in used
+	// Not in used
 	PrometheusApiByEnvId(id int) (*string, error)
 
+	FetchDependencyMetadataByPipelineIds(pipelineIds []int) ([]*bean.EnvironmentForDependency, error)
 	FetchOtherEnvironment(appId int) ([]*bean.Environment, error)
 	FetchMinDetailOtherEnvironment(appId int) ([]*bean.Environment, error)
 	DeploymentDetailByArtifactId(ciArtifactId int, envId int) (bean.DeploymentDetailContainer, error)
@@ -193,81 +192,6 @@ func getRequiredAppIdsInSequence(appIds []int) []int {
 	return resIDs
 }
 
-func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter helper.AppListingFilter) ([]*bean.AppEnvironmentContainer, error) {
-	impl.Logger.Debug("reached at FetchAppsByEnvironment:")
-	var appEnvArr []*bean.AppEnvironmentContainer
-
-	query := impl.appListingRepositoryQueryBuilder.BuildAppListingQueryLastDeploymentTime()
-	impl.Logger.Debugw("basic app detail query: ", query)
-	var lastDeployedTimeDTO []*bean.AppEnvironmentContainer
-	lastDeployedTimeMap := map[int]*bean.AppEnvironmentContainer{}
-	start := time.Now()
-	_, err := impl.dbConnection.Query(&lastDeployedTimeDTO, query)
-	middleware.AppListingDuration.WithLabelValues("buildAppListingQueryLastDeploymentTime", "devtron").Observe(time.Since(start).Seconds())
-	if err != nil {
-		impl.Logger.Error(err)
-		return appEnvArr, err
-	}
-	for _, item := range lastDeployedTimeDTO {
-		if _, ok := lastDeployedTimeMap[item.PipelineId]; ok {
-			continue
-		}
-		lastDeployedTimeMap[item.PipelineId] = &bean.AppEnvironmentContainer{
-			LastDeployedTime: item.LastDeployedTime,
-			DataSource:       item.DataSource,
-			MaterialInfoJson: item.MaterialInfoJson,
-			CiArtifactId:     item.CiArtifactId,
-		}
-	}
-
-	var appEnvContainer []*bean.AppEnvironmentContainer
-	appsEnvquery := impl.appListingRepositoryQueryBuilder.BuildAppListingQuery(appListingFilter)
-	impl.Logger.Debugw("basic app detail query: ", appsEnvquery)
-	start = time.Now()
-	_, appsErr := impl.dbConnection.Query(&appEnvContainer, appsEnvquery)
-	middleware.AppListingDuration.WithLabelValues("buildAppListingQuery", "devtron").Observe(time.Since(start).Seconds())
-	if appsErr != nil {
-		impl.Logger.Error(appsErr)
-		return appEnvContainer, appsErr
-	}
-	latestDeploymentStatusMap := map[string]*bean.AppEnvironmentContainer{}
-	for _, item := range appEnvContainer {
-		if item.EnvironmentId > 0 && item.PipelineId > 0 && item.Active == false {
-			// skip adding apps which have linked with cd pipeline and that environment has marked as deleted.
-			continue
-		}
-		// include only apps which are not linked with any cd pipeline + those linked with cd pipeline and env has active.
-		key := strconv.Itoa(item.AppId) + "_" + strconv.Itoa(item.EnvironmentId)
-		if _, ok := latestDeploymentStatusMap[key]; ok {
-			continue
-		}
-
-		if lastDeployedTime, ok := lastDeployedTimeMap[item.PipelineId]; ok {
-			item.LastDeployedTime = lastDeployedTime.LastDeployedTime
-			item.DataSource = lastDeployedTime.DataSource
-			item.MaterialInfoJson = lastDeployedTime.MaterialInfoJson
-			item.CiArtifactId = lastDeployedTime.CiArtifactId
-		}
-
-		if len(item.DataSource) > 0 {
-			mInfo, err := parseMaterialInfo(item.MaterialInfoJson, item.DataSource)
-			if err == nil && len(mInfo) > 0 {
-				item.MaterialInfo = mInfo
-			} else {
-				item.MaterialInfo = []byte("[]")
-			}
-			item.MaterialInfoJson = ""
-		} else {
-			item.MaterialInfo = []byte("[]")
-			item.MaterialInfoJson = ""
-		}
-		appEnvArr = append(appEnvArr, item)
-		latestDeploymentStatusMap[key] = item
-	}
-
-	return appEnvArr, nil
-}
-
 func (impl AppListingRepositoryImpl) FetchAppsByEnvironmentV2(appListingFilter helper.AppListingFilter) ([]*bean.AppEnvironmentContainer, int, error) {
 	impl.Logger.Debugw("reached at FetchAppsByEnvironment ", "appListingFilter", appListingFilter)
 	var appEnvArr []*bean.AppEnvironmentContainer
@@ -306,7 +230,7 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironmentV2(appListingFilter h
 
 	} else {
 
-		//to get all the appIds in appEnvs allowed for user and filtered by the appListing filter and sorted by name
+		// to get all the appIds in appEnvs allowed for user and filtered by the appListing filter and sorted by name
 		appIdCountDtos := make([]*bean.AppEnvironmentContainer, 0)
 		appIdCountQuery := impl.appListingRepositoryQueryBuilder.GetAppIdsQueryWithPaginationForAppNameSearch(appListingFilter)
 		impl.Logger.Debug("GetAppIdsQueryWithPaginationForAppNameSearch query ", appIdCountQuery)
@@ -327,7 +251,7 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironmentV2(appListingFilter h
 			uniqueAppIds[i] = obj.AppId
 		}
 		appListingFilter.AppIds = uniqueAppIds
-		//set appids required for this page in the filter and get the appEnv containers of these apps
+		// set appids required for this page in the filter and get the appEnv containers of these apps
 		appListingFilter.AppIds = uniqueAppIds
 		appsEnvquery := impl.appListingRepositoryQueryBuilder.GetQueryForAppEnvContainerss(appListingFilter)
 		impl.Logger.Debug("GetQueryForAppEnvContainerss query: ", appsEnvquery)
@@ -341,8 +265,8 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironmentV2(appListingFilter h
 
 	}
 
-	//filter out unique pipelineIds from the above result and get the deployment times for them
-	//some items don't have pipelineId if no pipeline is configured for the app in the appEnv container
+	// filter out unique pipelineIds from the above result and get the deployment times for them
+	// some items don't have pipelineId if no pipeline is configured for the app in the appEnv container
 	pipelineIdsSet := make(map[int]bool)
 	pipelineIds := make([]int, 0)
 	for _, item := range appEnvContainer {
@@ -353,7 +277,7 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironmentV2(appListingFilter h
 		}
 	}
 
-	//if any pipeline found get the latest deployment time
+	// if any pipeline found get the latest deployment time
 	if len(pipelineIds) > 0 {
 		query := impl.appListingRepositoryQueryBuilder.BuildAppListingQueryLastDeploymentTimeV2(pipelineIds)
 		impl.Logger.Debugw("basic app detail query: ", query)
@@ -366,7 +290,7 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironmentV2(appListingFilter h
 		}
 	}
 
-	//get the last deployment time for all the items
+	// get the last deployment time for all the items
 	for _, item := range lastDeployedTimeDTO {
 		if _, ok := lastDeployedTimeMap[item.PipelineId]; ok {
 			continue
@@ -375,7 +299,7 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironmentV2(appListingFilter h
 
 	}
 
-	//set the time for corresponding appEnv container
+	// set the time for corresponding appEnv container
 	for _, item := range appEnvContainer {
 		if lastDeployedTime, ok := lastDeployedTimeMap[item.PipelineId]; ok {
 			item.LastDeployedTime = lastDeployedTime
@@ -399,13 +323,15 @@ func (impl AppListingRepositoryImpl) deploymentDetailsByAppIdAndEnvId(ctx contex
 		" p.deployment_app_type," +
 		" p.ci_pipeline_id," +
 		" p.deployment_app_delete_request," +
+		" p.user_approval_config," +
 		" cia.data_source," +
 		" cia.id as ci_artifact_id," +
 		" cia.parent_ci_artifact as parent_artifact_id," +
 		" cl.k8s_version," +
 		" env.cluster_id," +
 		" env.is_virtual_environment," +
-		" cl.cluster_name" +
+		" cl.cluster_name," +
+		" cia.image" +
 		" FROM pipeline p" +
 		" INNER JOIN pipeline_config_override pco on pco.pipeline_id=p.id" +
 		" INNER JOIN environment env ON env.id=p.environment_id" +
@@ -483,7 +409,7 @@ func (impl AppListingRepositoryImpl) FetchAppDetail(ctx context.Context, appId i
 	var appDetailContainer bean.AppDetailContainer
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "DeploymentDetailsByAppIdAndEnvId")
 	defer span.End()
-	//Fetch deployment detail of cd pipeline latest triggered within env of any App.
+	// Fetch deployment detail of cd pipeline latest triggered within env of any App.
 	deploymentDetail, err := impl.deploymentDetailsByAppIdAndEnvId(newCtx, appId, envId)
 	if err != nil {
 		impl.Logger.Warn("unable to fetch deployment detail for app")
@@ -511,7 +437,7 @@ func (impl AppListingRepositoryImpl) PrometheusApiByEnvId(id int) (*string, erro
 	query := "SELECT env.prometheus_endpoint from environment env" +
 		" WHERE env.id = ? AND env.active = TRUE"
 	impl.Logger.Debugw("query", query)
-	//environments := []string{"QA"}
+	// environments := []string{"QA"}
 	_, err := impl.dbConnection.Query(&prometheusEndpoint, query, id)
 	if err != nil {
 		impl.Logger.Error("Exception caught:", err)
@@ -660,11 +586,38 @@ func (impl AppListingRepositoryImpl) makeAppStageStatus(stage int, stageName str
 	}
 }
 
+func (impl AppListingRepositoryImpl) FetchDependencyMetadataByPipelineIds(pipelineIds []int) ([]*bean.EnvironmentForDependency, error) {
+	// other environment tab
+	var otherEnvironments []*bean.EnvironmentForDependency
+	query := `select pcwr.pipeline_id, pcwr.pipeline_name, pcwr.last_deployed, pcwr.latest_cd_workflow_runner_id, pcwr.environment_id, pcwr.deployment_app_delete_request,   
+       			e.cluster_id, e.environment_name, e.default as prod, e.description, e.is_virtual_environment, ca.image as last_deployed_image, 
+      			u.email_id as last_deployed_by, ap.status as app_status, a.id as app_id, a.app_name 
+    			from (select * 
+      				from (select p.id as pipeline_id, p.pipeline_name, p.app_id, cwr.started_on as last_deployed, cwr.triggered_by, cwr.id as latest_cd_workflow_runner_id,  
+                  	 	cw.ci_artifact_id, p.environment_id, p.deployment_app_delete_request, 
+                  		row_number() over (partition by p.id order by cwr.started_on desc) as max_started_on_rank  
+            			from (select * from pipeline where id in (?) and deleted=?) as p 
+                     	left join cd_workflow cw on cw.pipeline_id = p.id 
+                     	left join cd_workflow_runner cwr on cwr.cd_workflow_id = cw.id and (cwr.workflow_type = ? or cwr.workflow_type is null)) pcwrraw  
+      				where max_started_on_rank = 1) pcwr 
+    			INNER JOIN app a on a.id=pcwr.app_id 
+         		INNER JOIN environment e on e.id = pcwr.environment_id 
+         		LEFT JOIN ci_artifact ca on ca.id = pcwr.ci_artifact_id 
+         		LEFT JOIN users u on u.id = pcwr.triggered_by 
+        		LEFT JOIN app_status ap ON pcwr.environment_id = ap.env_id and pcwr.app_id=ap.app_id;`
+	_, err := impl.dbConnection.Query(&otherEnvironments, query, pg.In(pipelineIds), false, "DEPLOY")
+	if err != nil {
+		impl.Logger.Error("error, FetchDependencyMetadataByPipelineIds", "error", err, "pipelineIds", pipelineIds)
+		return nil, err
+	}
+	return otherEnvironments, nil
+}
+
 func (impl AppListingRepositoryImpl) FetchOtherEnvironment(appId int) ([]*bean.Environment, error) {
 	// other environment tab
 	var otherEnvironments []*bean.Environment
 	query := `select pcwr.pipeline_id, pcwr.last_deployed, pcwr.latest_cd_workflow_runner_id, pcwr.environment_id, pcwr.deployment_app_delete_request,   
-       			e.cluster_id, e.environment_name, e.default as prod, e.description, ca.image as last_deployed_image, 
+       			e.cluster_id, e.environment_name, e.default as prod, e.description, e.is_virtual_environment, ca.image as last_deployed_image, 
       			u.email_id as last_deployed_by, elam.app_metrics, elam.infra_metrics, ap.status as app_status 
     			from (select * 
       				from (select p.id as pipeline_id, p.app_id, cwr.started_on as last_deployed, cwr.triggered_by, cwr.id as latest_cd_workflow_runner_id,  

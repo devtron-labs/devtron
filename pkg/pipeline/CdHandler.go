@@ -30,14 +30,16 @@ import (
 
 	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
+	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	pubub "github.com/devtron-labs/common-lib/pubsub-lib"
-	"github.com/devtron-labs/common-lib/utils/k8s"
+	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	client2 "github.com/devtron-labs/devtron/client/events"
+	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
@@ -48,6 +50,7 @@ import (
 	app_status "github.com/devtron-labs/devtron/pkg/appStatus"
 	repository3 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
+	bean3 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
@@ -57,6 +60,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
+	util2 "github.com/devtron-labs/devtron/util/event"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
@@ -74,11 +78,11 @@ const (
 type CdHandler interface {
 	HandleCdStageReTrigger(runner *pipelineConfig.CdWorkflowRunner) error
 	UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus) (int, string, error)
-	GetCdBuildHistory(appId int, environmentId int, pipelineId int, offset int, size int) ([]pipelineConfig.CdWorkflowWithArtifact, error)
+	GetCdBuildHistory(appId int, environmentId int, pipelineId int, offset int, size int) ([]bean2.CdWorkflowWithArtifact, error)
 	GetRunningWorkflowLogs(environmentId int, pipelineId int, workflowId int) (*bufio.Reader, func() error, error)
-	FetchCdWorkflowDetails(appId int, environmentId int, pipelineId int, buildId int) (types.WorkflowResponse, error)
+	FetchCdWorkflowDetails(appId int, environmentId int, pipelineId int, buildId int, showAppliedFilters bool) (types.WorkflowResponse, error)
 	DownloadCdWorkflowArtifacts(pipelineId int, buildId int) (*os.File, error)
-	FetchCdPrePostStageStatus(pipelineId int) ([]pipelineConfig.CdWorkflowWithArtifact, error)
+	FetchCdPrePostStageStatus(pipelineId int) ([]bean2.CdWorkflowWithArtifact, error)
 	CancelStage(workflowRunnerId int, userId int32) (int, error)
 	FetchAppWorkflowStatusForTriggerView(appId int) ([]*pipelineConfig.CdWorkflowStatus, error)
 	CheckHelmAppStatusPeriodicallyAndUpdateInDb(helmPipelineStatusCheckEligibleTime int, getPipelineDeployedWithinHours int) error
@@ -88,6 +92,7 @@ type CdHandler interface {
 	CheckAndSendArgoPipelineStatusSyncEventIfNeeded(pipelineId int, installedAppVersionId int, userId int32, isAppStoreApplication bool)
 	FetchAppWorkflowStatusForTriggerViewForEnvironment(request resourceGroup2.ResourceGroupingRequest, token string) ([]*pipelineConfig.CdWorkflowStatus, error)
 	FetchAppDeploymentStatusForEnvironments(request resourceGroup2.ResourceGroupingRequest, token string) ([]*pipelineConfig.AppDeploymentStatus, error)
+	PerformDeploymentApprovalAction(triggerContext TriggerContext, userId int32, approvalActionRequest bean3.UserApprovalActionRequest) error
 	DeactivateImageReservationPathsOnFailure(imagePathReservationIds []int) error
 }
 
@@ -121,9 +126,12 @@ type CdHandlerImpl struct {
 	installedAppVersionHistoryRepository   repository3.InstalledAppVersionHistoryRepository
 	appRepository                          app2.AppRepository
 	resourceGroupService                   resourceGroup2.ResourceGroupService
+	deploymentApprovalRepository           pipelineConfig.DeploymentApprovalRepository
 	imageTaggingService                    ImageTaggingService
-	k8sUtil                                *k8s.K8sServiceImpl
+	eventFactory                           client2.EventFactory
+	k8sUtil                                *k8s.K8sUtilExtended
 	workflowService                        WorkflowService
+	resourceFilterService                  resourceFilter.ResourceFilterService
 	config                                 *types.CdConfig
 	clusterService                         cluster.ClusterService
 	blobConfigStorageService               BlobStorageConfigService
@@ -131,9 +139,19 @@ type CdHandlerImpl struct {
 	argocdClientWrapperService             argocdServer.ArgoClientWrapperService
 	AppConfig                              *app.AppServiceConfig
 	acdConfig                              *argocdServer.ACDConfig
+	appArtifactManager                     AppArtifactManager
 }
 
-func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService, cdWorkflowRepository pipelineConfig.CdWorkflowRepository, ciLogService CiLogService, ciArtifactRepository repository.CiArtifactRepository, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, pipelineRepository pipelineConfig.PipelineRepository, envRepository repository2.EnvironmentRepository, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, helmAppService client.HelmAppService, pipelineOverrideRepository chartConfig.PipelineOverrideRepository, workflowDagExecutor WorkflowDagExecutor, appListingService app.AppListingService, appListingRepository repository.AppListingRepository, pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository, application application.ServiceClient, argoUserService argo.ArgoUserService, deploymentEventHandler app.DeploymentEventHandler, eventClient client2.EventClient, pipelineStatusTimelineResourcesService status.PipelineStatusTimelineResourcesService, pipelineStatusSyncDetailService status.PipelineStatusSyncDetailService, pipelineStatusTimelineService status.PipelineStatusTimelineService, appService app.AppService, appStatusService app_status.AppStatusService, enforcerUtil rbac.EnforcerUtil, installedAppRepository repository3.InstalledAppRepository, installedAppVersionHistoryRepository repository3.InstalledAppVersionHistoryRepository, appRepository app2.AppRepository, resourceGroupService resourceGroup2.ResourceGroupService, imageTaggingService ImageTaggingService, k8sUtil *k8s.K8sServiceImpl, workflowService WorkflowService, clusterService cluster.ClusterService, blobConfigStorageService BlobStorageConfigService, customTagService CustomTagService, argocdClientWrapperService argocdServer.ArgoClientWrapperService, AppConfig *app.AppServiceConfig, acdConfig *argocdServer.ACDConfig) *CdHandlerImpl {
+func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService, cdWorkflowRepository pipelineConfig.CdWorkflowRepository, ciLogService CiLogService, ciArtifactRepository repository.CiArtifactRepository, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, pipelineRepository pipelineConfig.PipelineRepository, envRepository repository2.EnvironmentRepository, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, helmAppService client.HelmAppService, pipelineOverrideRepository chartConfig.PipelineOverrideRepository, workflowDagExecutor WorkflowDagExecutor, appListingService app.AppListingService, appListingRepository repository.AppListingRepository, pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository, application application.ServiceClient, argoUserService argo.ArgoUserService, deploymentEventHandler app.DeploymentEventHandler, eventClient client2.EventClient, pipelineStatusTimelineResourcesService status.PipelineStatusTimelineResourcesService, pipelineStatusSyncDetailService status.PipelineStatusSyncDetailService, pipelineStatusTimelineService status.PipelineStatusTimelineService, appService app.AppService, appStatusService app_status.AppStatusService, enforcerUtil rbac.EnforcerUtil, installedAppRepository repository3.InstalledAppRepository, installedAppVersionHistoryRepository repository3.InstalledAppVersionHistoryRepository, appRepository app2.AppRepository, resourceGroupService resourceGroup2.ResourceGroupService, imageTaggingService ImageTaggingService, k8sUtil *k8s.K8sUtilExtended, workflowService WorkflowService, clusterService cluster.ClusterService, blobConfigStorageService BlobStorageConfigService,
+	deploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository,
+	eventFactory client2.EventFactory,
+	resourceFilterService resourceFilter.ResourceFilterService,
+	customTagService CustomTagService,
+	argocdClientWrapperService argocdServer.ArgoClientWrapperService,
+	AppConfig *app.AppServiceConfig,
+	acdConfig *argocdServer.ACDConfig,
+	appArtifactManager AppArtifactManager,
+) *CdHandlerImpl {
 	cdh := &CdHandlerImpl{
 		Logger:                                 Logger,
 		userService:                            userService,
@@ -164,15 +182,19 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService, c
 		installedAppVersionHistoryRepository:   installedAppVersionHistoryRepository,
 		appRepository:                          appRepository,
 		resourceGroupService:                   resourceGroupService,
+		deploymentApprovalRepository:           deploymentApprovalRepository,
 		imageTaggingService:                    imageTaggingService,
+		eventFactory:                           eventFactory,
 		k8sUtil:                                k8sUtil,
 		workflowService:                        workflowService,
 		clusterService:                         clusterService,
 		blobConfigStorageService:               blobConfigStorageService,
+		resourceFilterService:                  resourceFilterService,
 		customTagService:                       customTagService,
 		argocdClientWrapperService:             argocdClientWrapperService,
 		AppConfig:                              AppConfig,
 		acdConfig:                              acdConfig,
+		appArtifactManager:                     appArtifactManager,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -194,6 +216,7 @@ const NotDeployed = "Not Deployed"
 const WorklowTypeDeploy = "DEPLOY"
 const WorklowTypePre = "PRE"
 const WorklowTypePost = "POST"
+const WorkflowApprovalNode = "APPROVAL"
 
 func (impl *CdHandlerImpl) HandleCdStageReTrigger(runner *pipelineConfig.CdWorkflowRunner) error {
 	// do not re-trigger if retries = 0
@@ -597,7 +620,7 @@ func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb(helmPipel
 				impl.Logger.Errorw("error in getting latest pipeline override by cdWorkflowId", "err", err, "cdWorkflowId", wfr.CdWorkflowId)
 				return err
 			}
-			go impl.appService.WriteCDSuccessEvent(pipelineOverride.Pipeline.AppId, pipelineOverride.Pipeline.EnvironmentId, pipelineOverride)
+			go impl.appService.WriteCDSuccessEvent(pipelineOverride.Pipeline.AppId, pipelineOverride.Pipeline.EnvironmentId, wfr, pipelineOverride)
 			err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent(TriggerContext{}, pipelineOverride)
 			if err != nil {
 				impl.Logger.Errorw("error on handling deployment success event", "wfr", wfr, "err", err)
@@ -634,11 +657,7 @@ func (impl *CdHandlerImpl) CancelStage(workflowRunnerId int, userId int32) (int,
 	if env != nil && env.Cluster != nil {
 		clusterBean = cluster.GetClusterBean(*env.Cluster)
 	}
-	clusterConfig, err := clusterBean.GetClusterConfig()
-	if err != nil {
-		impl.Logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterBean.Id)
-		return 0, err
-	}
+	clusterConfig := clusterBean.GetClusterConfig()
 	var isExtCluster bool
 	if workflowRunner.WorkflowType == types.PRE {
 		isExtCluster = pipeline.RunPreStageInEnv
@@ -784,9 +803,32 @@ func (impl *CdHandlerImpl) stateChanged(status string, podStatus string, msg str
 	return savedWorkflow.Status != status || savedWorkflow.PodStatus != podStatus || savedWorkflow.Message != msg || savedWorkflow.FinishedOn != finishedAt
 }
 
-func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipelineId int, offset int, size int) ([]pipelineConfig.CdWorkflowWithArtifact, error) {
+func (impl *CdHandlerImpl) fillAppliedFiltersData(cdWorkflowArtifacts []bean2.CdWorkflowWithArtifact) []bean2.CdWorkflowWithArtifact {
+	artifactIds := make([]int, len(cdWorkflowArtifacts))
+	workflowRunnerIds := make([]int, len(cdWorkflowArtifacts))
+	for i, cdWorkflowArtifact := range cdWorkflowArtifacts {
+		artifactIds[i] = cdWorkflowArtifact.CiArtifactId
+		workflowRunnerIds[i] = cdWorkflowArtifact.Id
+	}
+	appliedFiltersMap, appliedFiltersTimeStampMap, err := impl.resourceFilterService.GetEvaluatedFiltersForSubjectsAndReferenceIds(resourceFilter.Artifact, artifactIds, workflowRunnerIds, resourceFilter.CdWorkflowRunner)
+	if err != nil {
+		// not returning error by choice
+		impl.Logger.Errorw("error in fetching applied filters when this image was born", "cdWorkflowRunnerIds", workflowRunnerIds, "artifactIds", artifactIds, "err", err)
+		return cdWorkflowArtifacts
+	}
+	for i, cdWorkflowArtifact := range cdWorkflowArtifacts {
+		artifactWfrKey := fmt.Sprintf("%v-%v", cdWorkflowArtifact.CiArtifactId, cdWorkflowArtifact.Id)
+		cdWorkflowArtifacts[i].AppliedFilters = appliedFiltersMap[artifactWfrKey]
+		cdWorkflowArtifacts[i].AppliedFiltersTimestamp = appliedFiltersTimeStampMap[artifactWfrKey]
+		// we are setting this data in workflow runner list, which means these got triggered because filters are allowed or no filters configured at all
+		cdWorkflowArtifact.AppliedFiltersState = resourceFilter.ALLOW
+	}
+	return cdWorkflowArtifacts
+}
 
-	var cdWorkflowArtifact []pipelineConfig.CdWorkflowWithArtifact
+func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipelineId int, offset int, size int) ([]bean2.CdWorkflowWithArtifact, error) {
+
+	var cdWorkflowArtifact []bean2.CdWorkflowWithArtifact
 	// this map contains artifactId -> array of tags of that artifact
 	imageTagsDataMap, err := impl.imageTaggingService.GetTagsDataMapByAppId(appId)
 	if err != nil {
@@ -814,7 +856,7 @@ func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipel
 		}
 		parentCiArtifact := make(map[int]int)
 		isLinked := false
-		ciArtifacts, err := impl.ciArtifactRepository.GetArtifactParentCiAndWorkflowDetailsByIds(ciArtifactIds)
+		ciArtifacts, err := impl.ciArtifactRepository.GetArtifactParentCiAndWorkflowDetailsByIdsInDesc(ciArtifactIds)
 		if err != nil || len(ciArtifacts) == 0 {
 			impl.Logger.Errorw("error fetching artifact data", "err", err)
 			return cdWorkflowArtifact, err
@@ -868,7 +910,7 @@ func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipel
 			}
 			ciMaterialsArr = append(ciMaterialsArr, res)
 		}
-		var newCdWorkflowArtifact []pipelineConfig.CdWorkflowWithArtifact
+		var newCdWorkflowArtifact []bean2.CdWorkflowWithArtifact
 		for _, cdWfA := range cdWorkflowArtifact {
 
 			gitTriggers := make(map[int]pipelineConfig.GitCommit)
@@ -909,6 +951,7 @@ func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipel
 		}
 		cdWorkflowArtifact[i] = item
 	}
+	cdWorkflowArtifact = impl.fillAppliedFiltersData(cdWorkflowArtifact)
 	return cdWorkflowArtifact, nil
 }
 
@@ -934,11 +977,7 @@ func (impl *CdHandlerImpl) GetRunningWorkflowLogs(environmentId int, pipelineId 
 	if env != nil && env.Cluster != nil {
 		clusterBean = cluster.GetClusterBean(*env.Cluster)
 	}
-	clusterConfig, err := clusterBean.GetClusterConfig()
-	if err != nil {
-		impl.Logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterBean.Id)
-		return nil, nil, err
-	}
+	clusterConfig := clusterBean.GetClusterConfig()
 	var isExtCluster bool
 	if cdWorkflow.WorkflowType == types.PRE {
 		isExtCluster = pipeline.RunPreStageInEnv
@@ -948,7 +987,7 @@ func (impl *CdHandlerImpl) GetRunningWorkflowLogs(environmentId int, pipelineId 
 	return impl.getWorkflowLogs(pipelineId, cdWorkflow, clusterConfig, isExtCluster)
 }
 
-func (impl *CdHandlerImpl) getWorkflowLogs(pipelineId int, cdWorkflow *pipelineConfig.CdWorkflowRunner, clusterConfig *k8s.ClusterConfig, runStageInEnv bool) (*bufio.Reader, func() error, error) {
+func (impl *CdHandlerImpl) getWorkflowLogs(pipelineId int, cdWorkflow *pipelineConfig.CdWorkflowRunner, clusterConfig *k8s2.ClusterConfig, runStageInEnv bool) (*bufio.Reader, func() error, error) {
 	cdLogRequest := types.BuildLogRequest{
 		PodName:   cdWorkflow.PodName,
 		Namespace: cdWorkflow.Namespace,
@@ -969,7 +1008,7 @@ func (impl *CdHandlerImpl) getWorkflowLogs(pipelineId int, cdWorkflow *pipelineC
 	return logReader, cleanUp, err
 }
 
-func (impl *CdHandlerImpl) getLogsFromRepository(pipelineId int, cdWorkflow *pipelineConfig.CdWorkflowRunner, clusterConfig *k8s.ClusterConfig, isExt bool) (*bufio.Reader, func() error, error) {
+func (impl *CdHandlerImpl) getLogsFromRepository(pipelineId int, cdWorkflow *pipelineConfig.CdWorkflowRunner, clusterConfig *k8s2.ClusterConfig, isExt bool) (*bufio.Reader, func() error, error) {
 	impl.Logger.Debug("getting historic logs", "pipelineId", pipelineId)
 
 	cdConfig, err := impl.cdWorkflowRepository.FindConfigByPipelineId(pipelineId)
@@ -1038,7 +1077,7 @@ func isExternalBlobStorageEnabled(isExternalRun bool, useBlobStorageConfigInCdWo
 	return isExternalRun && !useBlobStorageConfigInCdWorkflow
 }
 
-func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, pipelineId int, buildId int) (types.WorkflowResponse, error) {
+func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, pipelineId int, buildId int, showAppliedFilters bool) (types.WorkflowResponse, error) {
 	workflowR, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(buildId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.Logger.Errorw("err", "err", err)
@@ -1046,16 +1085,42 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 	} else if err == pg.ErrNoRows {
 		return types.WorkflowResponse{}, nil
 	}
-	workflow := impl.converterWFR(*workflowR)
 
-	triggeredByUserEmailId, err := impl.userService.GetEmailById(workflow.TriggeredBy)
+	var userIds []int32
+	var approvalRequestedUserId int32
+	approvalRequest := workflowR.DeploymentApprovalRequest
+	if approvalRequest != nil {
+		approvalReqId := workflowR.DeploymentApprovalRequestId
+		approvalUserData, err := impl.deploymentApprovalRepository.FetchApprovalDataForRequests([]int{approvalReqId})
+		if err != nil {
+			return types.WorkflowResponse{}, err
+		}
+		approvalRequest.DeploymentApprovalUserData = approvalUserData
+		approvalRequestedUserId = approvalRequest.CreatedBy
+		userIds = append(userIds, approvalRequestedUserId)
+	}
+
+	triggeredBy := workflowR.TriggeredBy
+
+	triggeredByUserEmailId := "anonymous"
+
+	userIds = append(userIds, triggeredBy)
+	userInfos, err := impl.userService.GetByIds(userIds)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.Logger.Errorw("err", "err", err)
 		return types.WorkflowResponse{}, err
 	}
-	if len(triggeredByUserEmailId) == 0 {
-		triggeredByUserEmailId = "anonymous"
+	for _, userInfo := range userInfos {
+		if userInfo.Id == triggeredBy {
+			triggeredByUserEmailId = userInfo.EmailId
+		}
+		if userInfo.Id == approvalRequestedUserId {
+			approvalRequest.UserEmail = userInfo.EmailId
+		}
 	}
+
+	workflow := impl.converterWFR(*workflowR)
+
 	ciArtifactId := workflow.CiArtifactId
 	if ciArtifactId > 0 {
 		ciArtifact, err := impl.ciArtifactRepository.Get(ciArtifactId)
@@ -1098,6 +1163,21 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 		gitTriggers = ciWf.GitTriggers
 	}
 
+	var imageTag string
+	if len(workflow.Image) > 0 {
+		imageTag = strings.Split(workflow.Image, ":")[1]
+	}
+	appName := workflowR.CdWorkflow.Pipeline.App.AppName
+	if workflowR.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
+		appName = fmt.Sprintf("%s-%s", bean.CD_WORKFLOW_TYPE_PRE, appName)
+	} else if workflowR.WorkflowType == bean.CD_WORKFLOW_TYPE_POST {
+		appName = fmt.Sprintf("%s-%s", bean.CD_WORKFLOW_TYPE_POST, appName)
+	}
+	helmPackageName := fmt.Sprintf("%s-%s-%s",
+		appName,
+		workflowR.CdWorkflow.Pipeline.Environment.Name,
+		imageTag)
+
 	workflowResponse := types.WorkflowResponse{
 		Id:                   workflow.Id,
 		Name:                 workflow.Name,
@@ -1114,10 +1194,25 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 		Stage:                workflow.WorkflowType,
 		GitTriggers:          gitTriggers,
 		BlobStorageEnabled:   workflow.BlobStorageEnabled,
+		UserApprovalMetadata: workflow.UserApprovalMetadata,
 		IsVirtualEnvironment: workflowR.CdWorkflow.Pipeline.Environment.IsVirtualEnvironment,
 		PodName:              workflowR.PodName,
+		CdWorkflowId:         workflowR.CdWorkflowId,
+		HelmPackageName:      helmPackageName,
 		ArtifactId:           workflow.CiArtifactId,
 		CiPipelineId:         ciWf.CiPipelineId,
+	}
+
+	if showAppliedFilters {
+
+		appliedFiltersMap, appliedFiltersTimeStampMap, err := impl.resourceFilterService.GetEvaluatedFiltersForSubjects(resourceFilter.Artifact, []int{workflow.CiArtifactId}, workflow.Id, resourceFilter.CdWorkflowRunner)
+		if err != nil {
+			// not returning error by choice
+			impl.Logger.Errorw("error in fetching applied filters when this image was born", "cdWorkflowRunnerId", workflow.Id, "err", err)
+		}
+		workflowResponse.AppliedFiltersState = resourceFilter.ALLOW
+		workflowResponse.AppliedFilters = appliedFiltersMap[workflow.CiArtifactId]
+		workflowResponse.AppliedFiltersTimestamp = appliedFiltersTimeStampMap[workflow.CiArtifactId]
 	}
 	return workflowResponse, nil
 
@@ -1210,8 +1305,8 @@ func (impl *CdHandlerImpl) DownloadCdWorkflowArtifacts(pipelineId int, buildId i
 	return file, nil
 }
 
-func (impl *CdHandlerImpl) converterWFR(wfr pipelineConfig.CdWorkflowRunner) pipelineConfig.CdWorkflowWithArtifact {
-	workflow := pipelineConfig.CdWorkflowWithArtifact{}
+func (impl *CdHandlerImpl) converterWFR(wfr pipelineConfig.CdWorkflowRunner) bean2.CdWorkflowWithArtifact {
+	workflow := bean2.CdWorkflowWithArtifact{}
 	if wfr.Id > 0 {
 		workflow.Name = wfr.Name
 		workflow.Id = wfr.Id
@@ -1228,14 +1323,17 @@ func (impl *CdHandlerImpl) converterWFR(wfr pipelineConfig.CdWorkflowRunner) pip
 		workflow.PipelineId = wfr.CdWorkflow.PipelineId
 		workflow.CiArtifactId = wfr.CdWorkflow.CiArtifactId
 		workflow.BlobStorageEnabled = wfr.BlobStorageEnabled
+		if wfr.DeploymentApprovalRequest != nil {
+			workflow.UserApprovalMetadata = wfr.DeploymentApprovalRequest.ConvertToApprovalMetadata()
+		}
 		workflow.RefCdWorkflowRunnerId = wfr.RefCdWorkflowRunnerId
 	}
 	return workflow
 }
 
-func (impl *CdHandlerImpl) converterWFRList(wfrList []pipelineConfig.CdWorkflowRunner) []pipelineConfig.CdWorkflowWithArtifact {
-	var workflowList []pipelineConfig.CdWorkflowWithArtifact
-	var results []pipelineConfig.CdWorkflowWithArtifact
+func (impl *CdHandlerImpl) converterWFRList(wfrList []pipelineConfig.CdWorkflowRunner) []bean2.CdWorkflowWithArtifact {
+	var workflowList []bean2.CdWorkflowWithArtifact
+	var results []bean2.CdWorkflowWithArtifact
 	var ids []int32
 	for _, item := range wfrList {
 		ids = append(ids, item.TriggeredBy)
@@ -1256,8 +1354,8 @@ func (impl *CdHandlerImpl) converterWFRList(wfrList []pipelineConfig.CdWorkflowR
 	return results
 }
 
-func (impl *CdHandlerImpl) FetchCdPrePostStageStatus(pipelineId int) ([]pipelineConfig.CdWorkflowWithArtifact, error) {
-	var results []pipelineConfig.CdWorkflowWithArtifact
+func (impl *CdHandlerImpl) FetchCdPrePostStageStatus(pipelineId int) ([]bean2.CdWorkflowWithArtifact, error) {
+	var results []bean2.CdWorkflowWithArtifact
 	wfrPre, err := impl.cdWorkflowRepository.FindLastStatusByPipelineIdAndRunnerType(pipelineId, bean.CD_WORKFLOW_TYPE_PRE)
 	if err != nil && err != pg.ErrNoRows {
 		return results, err
@@ -1266,7 +1364,7 @@ func (impl *CdHandlerImpl) FetchCdPrePostStageStatus(pipelineId int) ([]pipeline
 		workflowPre := impl.converterWFR(wfrPre)
 		results = append(results, workflowPre)
 	} else {
-		workflowPre := pipelineConfig.CdWorkflowWithArtifact{Status: "Notbuilt", WorkflowType: string(bean.CD_WORKFLOW_TYPE_PRE), PipelineId: pipelineId}
+		workflowPre := bean2.CdWorkflowWithArtifact{Status: "Notbuilt", WorkflowType: string(bean.CD_WORKFLOW_TYPE_PRE), PipelineId: pipelineId}
 		results = append(results, workflowPre)
 	}
 
@@ -1278,7 +1376,7 @@ func (impl *CdHandlerImpl) FetchCdPrePostStageStatus(pipelineId int) ([]pipeline
 		workflowPost := impl.converterWFR(wfrPost)
 		results = append(results, workflowPost)
 	} else {
-		workflowPost := pipelineConfig.CdWorkflowWithArtifact{Status: "Notbuilt", WorkflowType: string(bean.CD_WORKFLOW_TYPE_POST), PipelineId: pipelineId}
+		workflowPost := bean2.CdWorkflowWithArtifact{Status: "Notbuilt", WorkflowType: string(bean.CD_WORKFLOW_TYPE_POST), PipelineId: pipelineId}
 		results = append(results, workflowPost)
 	}
 	return results, nil
@@ -1654,6 +1752,150 @@ func (impl *CdHandlerImpl) FetchAppDeploymentStatusForEnvironments(request resou
 	}
 
 	return deploymentStatuses, err
+
+}
+
+func (impl *CdHandlerImpl) PerformDeploymentApprovalAction(triggerContext TriggerContext, userId int32, approvalActionRequest bean3.UserApprovalActionRequest) error {
+	approvalActionType := approvalActionRequest.ActionType
+	artifactId := approvalActionRequest.ArtifactId
+	approvalRequestId := approvalActionRequest.ApprovalRequestId
+	if approvalActionType == bean3.APPROVAL_APPROVE_ACTION {
+		// fetch approval request data, same user should not be Approval requester
+		approvalRequest, err := impl.deploymentApprovalRepository.FetchWithPipelineAndArtifactDetails(approvalRequestId)
+		if err != nil {
+			return &bean3.DeploymentApprovalValidationError{
+				Err:           errors.New("failed to fetch approval request data"),
+				ApprovalState: bean3.RequestCancelled,
+			}
+
+		}
+		if approvalRequest.ArtifactDeploymentTriggered == true {
+			return &bean3.DeploymentApprovalValidationError{
+				Err:           errors.New("deployment has already been triggered for this request"),
+				ApprovalState: bean3.AlreadyApproved,
+			}
+		}
+		if approvalRequest.CreatedBy == userId {
+			return errors.New("requester cannot be an approver")
+		}
+
+		// fetch artifact metadata, who triggered this build
+		ciArtifact, err := impl.ciArtifactRepository.Get(artifactId)
+		if err != nil {
+			impl.Logger.Errorw("error occurred while fetching workflow data for artifact", "artifactId", artifactId, "userId", userId, "err", err)
+			return errors.New("failed to fetch workflow for artifact data")
+		}
+		if ciArtifact.CreatedBy == userId {
+			return errors.New("user who triggered the build cannot be an approver")
+		}
+		deploymentApprovalData := &pipelineConfig.DeploymentApprovalUserData{
+			ApprovalRequestId: approvalRequestId,
+			UserId:            userId,
+			UserResponse:      pipelineConfig.APPROVED,
+		}
+		deploymentApprovalData.CreatedBy = userId
+		deploymentApprovalData.UpdatedBy = userId
+		err = impl.deploymentApprovalRepository.SaveDeploymentUserData(deploymentApprovalData)
+		if err != nil {
+			impl.Logger.Errorw("error occurred while saving user approval data", "approvalRequestId", approvalRequestId, "err", err)
+			return &bean3.DeploymentApprovalValidationError{
+				Err:           err,
+				ApprovalState: bean3.AlreadyApproved,
+			}
+		}
+		// trigger deployment if approved and pipeline type is automatic
+		pipeline := approvalRequest.Pipeline
+		if pipeline.TriggerType == pipelineConfig.TRIGGER_TYPE_AUTOMATIC {
+			pipelineId := approvalRequest.PipelineId
+			approvalConfig, err := pipeline.GetApprovalConfig()
+			if err != nil {
+				impl.Logger.Errorw("error occurred while fetching approval config", "pipelineId", pipelineId, "config", pipeline.UserApprovalConfig, "err", err)
+				return nil
+			}
+			approvalDataForArtifacts, err := impl.workflowDagExecutor.FetchApprovalDataForArtifacts([]int{artifactId}, pipelineId, approvalConfig.RequiredCount)
+			if err != nil {
+				impl.Logger.Errorw("error occurred while fetching approval data for artifacts", "artifactId", artifactId, "pipelineId", pipelineId, "config", pipeline.UserApprovalConfig, "err", err)
+				return nil
+			}
+			if approvedData, ok := approvalDataForArtifacts[artifactId]; ok && approvedData.ApprovalRuntimeState == pipelineConfig.ApprovedApprovalState {
+				// trigger deployment
+				triggerRequest := TriggerRequest{
+					CdWf:           nil,
+					Pipeline:       pipeline,
+					Artifact:       approvalRequest.CiArtifact,
+					TriggeredBy:    1,
+					TriggerContext: triggerContext,
+				}
+				err = impl.workflowDagExecutor.TriggerDeployment(triggerRequest)
+				if err != nil {
+					impl.Logger.Errorw("error occurred while triggering deployment", "pipelineId", pipelineId, "artifactId", artifactId, "err", err)
+					return errors.New("auto deployment failed, please try manually")
+				}
+			}
+		}
+
+	} else if approvalActionType == bean3.APPROVAL_REQUEST_ACTION {
+		pipelineId := approvalActionRequest.PipelineId
+		deploymentApprovalRequest := &pipelineConfig.DeploymentApprovalRequest{
+			PipelineId: pipelineId,
+			ArtifactId: artifactId,
+			Active:     true,
+		}
+		deploymentApprovalRequest.CreatedBy = userId
+		deploymentApprovalRequest.UpdatedBy = userId
+		err := impl.deploymentApprovalRepository.Save(deploymentApprovalRequest)
+		if err != nil {
+			impl.Logger.Errorw("error occurred while submitting approval request", "pipelineId", pipelineId, "artifactId", artifactId, "err", err)
+			return err
+		}
+		approvalActionRequest.ApprovalRequestId = deploymentApprovalRequest.Id
+		go impl.performNotificationApprovalAction(approvalActionRequest, userId)
+
+	} else {
+		// fetch if cd wf runner is present then user cannot cancel the request, as deployment has been triggered already
+		approvalRequest, err := impl.deploymentApprovalRepository.FetchById(approvalRequestId)
+		if err != nil {
+			return errors.New("failed to fetch approval request data")
+		}
+		if approvalRequest.CreatedBy != userId {
+			return errors.New("request cannot be cancelled as not initiated by the same")
+		}
+		if approvalRequest.ArtifactDeploymentTriggered {
+			return errors.New("request cannot be cancelled as deployment is already been made for this request")
+		}
+		approvalRequest.Active = false
+		err = impl.deploymentApprovalRepository.Update(approvalRequest)
+		if err != nil {
+			impl.Logger.Errorw("error occurred while updating approval request", "pipelineId", approvalRequest.PipelineId, "artifactId", artifactId, "err", err)
+			return err
+		}
+	}
+	return nil
+}
+
+func (impl *CdHandlerImpl) performNotificationApprovalAction(approvalActionRequest bean3.UserApprovalActionRequest, userId int32) {
+	if len(approvalActionRequest.ApprovalNotificationConfig.EmailIds) == 0 {
+		return
+	}
+	eventType := util2.Approval
+	var events []client2.Event
+	pipeline, err := impl.pipelineRepository.FindById(approvalActionRequest.PipelineId)
+	if err != nil {
+		impl.Logger.Errorw("error occurred while updating approval request", "pipelineId", pipeline, "pipeline", pipeline, "err", err)
+	}
+	event := impl.eventFactory.Build(eventType, &approvalActionRequest.PipelineId, approvalActionRequest.AppId, &pipeline.EnvironmentId, "")
+	imageComment, imageTagNames, err := impl.appArtifactManager.GetImageTagsAndComment(approvalActionRequest.ArtifactId)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching tags and comment", "artifactId", approvalActionRequest.ArtifactId)
+	}
+	events = impl.eventFactory.BuildExtraApprovalData(event, approvalActionRequest, pipeline, userId, imageTagNames, imageComment.Comment)
+	for _, evnt := range events {
+		_, evtErr := impl.eventClient.WriteNotificationEvent(evnt)
+		if evtErr != nil {
+			impl.Logger.Errorw("unable to send approval event", "error", evtErr)
+		}
+	}
+
 }
 
 func (impl *CdHandlerImpl) DeactivateImageReservationPathsOnFailure(imagePathReservationIds []int) error {

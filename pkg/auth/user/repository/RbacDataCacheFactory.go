@@ -3,6 +3,7 @@ package repository
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"sync"
 
 	"go.uber.org/zap"
@@ -42,6 +43,7 @@ type RoleCacheDetailObj struct {
 	Group       PValDetailObj `json:"group"`
 	Kind        PValDetailObj `json:"kind"`
 	Resource    PValDetailObj `json:"resource"`
+	Approver    PValDetailObj `json:"approver"`
 	Workflow    PValDetailObj `json:"workflow"`
 }
 
@@ -54,6 +56,26 @@ type ResActObj struct {
 type PValDetailObj struct {
 	Value       string                `json:"value"`
 	IndexKeyMap map[int]PValUpdateKey `json:"indexKeyMap"` //map of index at which replacement is to be done and name of key that is to for updating value
+}
+
+type PValResolvedValue struct {
+	object string
+}
+
+func NewPValResolvedValue(obj string) PValResolvedValue {
+	return PValResolvedValue{object: obj}
+}
+
+func (value PValResolvedValue) String() string {
+	return value.object
+}
+
+func (value PValResolvedValue) Boolean() bool {
+	parsedVal, err := strconv.ParseBool(value.object)
+	if err != nil {
+		return false
+	}
+	return parsedVal
 }
 
 func NewRbacDataCacheFactoryImpl(logger *zap.SugaredLogger,

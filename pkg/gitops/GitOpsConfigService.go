@@ -21,7 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	util4 "github.com/devtron-labs/common-lib/utils/k8s"
+	util4 "github.com/devtron-labs/common-lib-private/utils/k8s"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -92,7 +92,7 @@ type GitOpsConfigServiceImpl struct {
 	logger               *zap.SugaredLogger
 	globalEnvVariables   *util2.GlobalEnvVariables
 	gitOpsRepository     repository.GitOpsConfigRepository
-	K8sUtil              *util4.K8sServiceImpl
+	K8sUtil              *util4.K8sUtilExtended
 	aCDAuthConfig        *util3.ACDAuthConfig
 	clusterService       cluster.ClusterService
 	envService           cluster.EnvironmentService
@@ -105,7 +105,7 @@ type GitOpsConfigServiceImpl struct {
 
 func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger,
 	globalEnvVariables *util2.GlobalEnvVariables,
-	gitOpsRepository repository.GitOpsConfigRepository, K8sUtil *util4.K8sServiceImpl, aCDAuthConfig *util3.ACDAuthConfig,
+	gitOpsRepository repository.GitOpsConfigRepository, K8sUtil *util4.K8sUtilExtended, aCDAuthConfig *util3.ACDAuthConfig,
 	clusterService cluster.ClusterService, envService cluster.EnvironmentService, versionService argocdServer.VersionService,
 	gitFactory *util.GitFactory, chartTemplateService util.ChartTemplateService, argoUserService argo.ArgoUserService, clusterServiceCD cluster2.ServiceClient) *GitOpsConfigServiceImpl {
 	return &GitOpsConfigServiceImpl{
@@ -224,11 +224,7 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(ctx context.Context, req
 	if err != nil {
 		return nil, err
 	}
-	cfg, err := clusterBean.GetClusterConfig()
-	if err != nil {
-		return nil, err
-	}
-
+	cfg := clusterBean.GetClusterConfig()
 	client, err := impl.K8sUtil.GetCoreV1Client(cfg)
 	if err != nil {
 		return nil, err
@@ -335,6 +331,10 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(ctx context.Context, req
 			return nil, err
 		}
 		for _, cluster := range clusters {
+			//if cluster is configured with proxy or with ssh tunnel then gitOps is not supported so skipping such clusters
+			if len(cluster.ProxyUrl) > 0 || cluster.ToConnectWithSSHTunnel {
+				continue
+			}
 			cl := impl.clusterService.ConvertClusterBeanObjectToCluster(&cluster)
 			_, err = impl.clusterServiceCD.Create(ctx, &cluster3.ClusterCreateRequest{Upsert: true, Cluster: cl})
 			if err != nil {
@@ -424,11 +424,7 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *bean2.GitOpsCon
 	if err != nil {
 		return err
 	}
-	cfg, err := clusterBean.GetClusterConfig()
-	if err != nil {
-		return err
-	}
-
+	cfg := clusterBean.GetClusterConfig()
 	client, err := impl.K8sUtil.GetCoreV1Client(cfg)
 	if err != nil {
 		return err

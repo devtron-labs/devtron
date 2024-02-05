@@ -44,6 +44,9 @@ func (impl NotificationRouterImpl) InitNotificationRegRouter(configRouter *mux.R
 		Queries("offset", "{offset}").
 		HandlerFunc(impl.notificationRestHandler.GetAllNotificationSettings).
 		Methods("GET")
+	configRouter.Path("/channel/config").
+		HandlerFunc(impl.notificationRestHandler.IsSesOrSmtpConfigured).
+		Methods("GET")
 	configRouter.Path("").
 		HandlerFunc(impl.notificationRestHandler.DeleteNotificationSettings).
 		Methods("DELETE")
@@ -83,6 +86,12 @@ func (impl NotificationRouterImpl) InitNotificationRegRouter(configRouter *mux.R
 		Methods("GET")
 	configRouter.Path("/search").
 		HandlerFunc(impl.notificationRestHandler.GetOptionsForNotificationSettings).
+		Methods("POST")
+	configRouter.Path("/channel/config/approve").
+		HandlerFunc(impl.notificationRestHandler.ApproveConfigDraftForNotification).
+		Methods("POST")
+	configRouter.Path("/channel/deployment/approve").
+		HandlerFunc(impl.notificationRestHandler.ApproveDeploymentConfigForNotification).
 		Methods("POST")
 
 }

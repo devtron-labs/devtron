@@ -109,6 +109,7 @@ type CiProjectDetails struct {
 	SourceType  pipelineConfig.SourceType `json:"sourceType"`
 	SourceValue string                    `json:"sourceValue"`
 	WebhookData pipelineConfig.WebhookData
+	CloningMode string `json:"cloningMode"`
 }
 type GitOptions struct {
 	UserName      string               `json:"userName"`

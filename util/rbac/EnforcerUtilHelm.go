@@ -15,6 +15,8 @@ type EnforcerUtilHelm interface {
 	GetHelmObjectByTeamIdAndClusterId(teamId int, clusterId int, namespace string, appName string) string
 	GetHelmObjectByClusterIdNamespaceAndAppName(clusterId int, namespace string, appName string) (string, string)
 	GetAppRBACNameByInstalledAppId(installedAppId int) (string, string)
+	GetAppRBACNameByInstalledAppIdAndTeamId(installedAppId, teamId int) string
+	GetAppRBACNameByAppId(appId int) (string, string)
 }
 type EnforcerUtilHelmImpl struct {
 	logger                 *zap.SugaredLogger
@@ -53,7 +55,6 @@ func (impl EnforcerUtilHelmImpl) GetHelmObjectByClusterId(clusterId int, namespa
 func (impl EnforcerUtilHelmImpl) GetHelmObjectByTeamIdAndClusterId(teamId int, clusterId int, namespace string, appName string) string {
 
 	cluster, err := impl.clusterRepository.FindById(clusterId)
-
 	teamObj, err := impl.teamRepository.FindOne(teamId)
 
 	if err != nil {
@@ -85,7 +86,6 @@ func (impl EnforcerUtilHelmImpl) GetHelmObjectByClusterIdNamespaceAndAppName(clu
 			impl.logger.Errorw("error in fetching app details", "err", err)
 			return "", ""
 		}
-
 		if app.TeamId == 0 {
 			// case if project is not assigned to cli app
 			return fmt.Sprintf("%s/%s__%s/%s", team.UNASSIGNED_PROJECT, cluster.ClusterName, namespace, appName), ""
@@ -106,6 +106,7 @@ func (impl EnforcerUtilHelmImpl) GetHelmObjectByClusterIdNamespaceAndAppName(clu
 			// for apps in EA mode, initally env can be 0.
 			return fmt.Sprintf("%s/%s__%s/%s", installedApp.App.Team.Name, cluster.ClusterName, namespace, appName), ""
 		}
+
 		// for apps which are assigned to a project and have env ID
 		rbacOne := fmt.Sprintf("%s/%s/%s", installedApp.App.Team.Name, installedApp.Environment.EnvironmentIdentifier, appName)
 		rbacTwo := fmt.Sprintf("%s/%s__%s/%s", installedApp.App.Team.Name, cluster.ClusterName, namespace, appName)
@@ -114,12 +115,11 @@ func (impl EnforcerUtilHelmImpl) GetHelmObjectByClusterIdNamespaceAndAppName(clu
 		}
 		return rbacOne, rbacTwo
 	}
-
 }
 
-func (impl EnforcerUtilHelmImpl) GetAppRBACNameByInstalledAppId(installedAppVersionId int) (string, string) {
+func (impl EnforcerUtilHelmImpl) GetAppRBACNameByInstalledAppId(InstalledAppId int) (string, string) {
 
-	InstalledApp, err := impl.InstalledAppRepository.GetInstalledApp(installedAppVersionId)
+	InstalledApp, err := impl.InstalledAppRepository.GetInstalledApp(InstalledAppId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching installed app version data", "err", err)
 		return fmt.Sprintf("%s/%s/%s", "", "", ""), fmt.Sprintf("%s/%s/%s", "", "", "")
@@ -139,4 +139,43 @@ func (impl EnforcerUtilHelmImpl) GetAppRBACNameByInstalledAppId(installedAppVers
 	}
 
 	return rbacOne, ""
+}
+
+func (impl EnforcerUtilHelmImpl) GetAppRBACNameByAppId(appId int) (string, string) {
+
+	InstalledApp, err := impl.InstalledAppRepository.GetInstalledAppsByAppId(appId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching installed app version data", "err", err)
+		return fmt.Sprintf("%s/%s/%s", "", "", ""), fmt.Sprintf("%s/%s/%s", "", "", "")
+	}
+	rbacOne := fmt.Sprintf("%s/%s/%s", InstalledApp.App.Team.Name, InstalledApp.Environment.EnvironmentIdentifier, InstalledApp.App.AppName)
+
+	if InstalledApp.Environment.IsVirtualEnvironment {
+		return rbacOne, ""
+	}
+
+	var rbacTwo string
+	if !InstalledApp.Environment.IsVirtualEnvironment {
+		if InstalledApp.Environment.EnvironmentIdentifier != fmt.Sprintf("%s__%s", InstalledApp.Environment.Cluster.ClusterName, InstalledApp.Environment.Namespace) {
+			rbacTwo = fmt.Sprintf("%s/%s/%s", InstalledApp.App.Team.Name, fmt.Sprintf("%s__%s", InstalledApp.Environment.Cluster.ClusterName, InstalledApp.Environment.Namespace), InstalledApp.App.AppName)
+			return rbacOne, rbacTwo
+		}
+	}
+
+	return rbacOne, ""
+}
+
+func (impl EnforcerUtilHelmImpl) GetAppRBACNameByInstalledAppIdAndTeamId(installedAppId, teamId int) string {
+	installedApp, err := impl.InstalledAppRepository.GetInstalledApp(installedAppId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching installed app version data", "err", err)
+		return fmt.Sprintf("%s/%s/%s", "", "", "")
+	}
+	project, err := impl.teamRepository.FindOne(teamId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching project by teamID", "err", err)
+		return fmt.Sprintf("%s/%s/%s", "", "", "")
+	}
+	rbac := fmt.Sprintf("%s/%s/%s", project.Name, installedApp.Environment.EnvironmentIdentifier, installedApp.App.AppName)
+	return rbac
 }

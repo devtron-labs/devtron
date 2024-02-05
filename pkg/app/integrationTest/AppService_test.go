@@ -129,7 +129,7 @@ func InitAppService() *app2.AppServiceImpl {
 	moduleRepositoryImpl := moduleRepo.NewModuleRepositoryImpl(dbConnection)
 	moduleActionAuditLogRepository := module.NewModuleActionAuditLogRepositoryImpl(dbConnection)
 	clusterRepository := repository1.NewClusterRepositoryImpl(dbConnection, logger)
-	clusterService := cluster.NewClusterServiceImplExtended(clusterRepository, nil, nil, logger, nil, nil, nil, nil, nil, nil, nil, nil)
+	clusterService := cluster.NewClusterServiceImplExtended(clusterRepository, nil, nil, logger, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	helmClientConfig, err := client.GetConfig()
 	if err != nil {
 		log.Fatal("error in getting server helm client config, AppService_test", "err", err)
@@ -144,7 +144,7 @@ func InitAppService() *app2.AppServiceImpl {
 	ciPipelineMaterialRepository := pipelineConfig.NewCiPipelineMaterialRepositoryImpl(dbConnection, logger)
 	userRepository := repository2.NewUserRepositoryImpl(dbConnection, logger)
 	eventFactory := client1.NewEventSimpleFactoryImpl(logger, cdWorkflowRepository, pipelineOverrideRepository, ciWorkflowRepository,
-		ciPipelineMaterialRepository, ciPipelineRepositoryImpl, pipelineRepository, userRepository, nil)
+		ciPipelineMaterialRepository, ciPipelineRepositoryImpl, pipelineRepository, userRepository, nil, nil, nil, nil, nil)
 	appListingRepositoryQueryBuilder := helper.NewAppListingRepositoryQueryBuilder(logger)
 	appListingRepository := repository.NewAppListingRepositoryImpl(logger, dbConnection, appListingRepositoryQueryBuilder, nil)
 	appRepository := app.NewAppRepositoryImpl(dbConnection, logger)
@@ -163,7 +163,7 @@ func InitAppService() *app2.AppServiceImpl {
 		nil, nil, nil, nil, nil, refChartDir, nil,
 		nil, nil, nil, pipelineStatusTimelineRepository, nil, nil, nil,
 		nil, nil, pipelineStatusTimelineResourcesService, pipelineStatusSyncDetailService, pipelineStatusTimelineService,
-		nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil,
 		nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	return appService
 }

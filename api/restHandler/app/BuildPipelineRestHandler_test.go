@@ -9,7 +9,7 @@ import (
 
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/pkg/auth/user/mocks"
+	mock_user "github.com/devtron-labs/devtron/pkg/auth/user/mocks"
 	"github.com/devtron-labs/devtron/pkg/auth/user/mocks/casbin"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/mock_pipeline"

@@ -106,4 +106,10 @@ func (router AppStoreRouterImpl) Init(configRouter *mux.Router) {
 		HandlerFunc(router.deployRestHandler.GetAllInstalledApp).Methods("GET")
 	configRouter.Path("/cluster-component/install/{clusterId}").
 		HandlerFunc(router.deployRestHandler.DefaultComponentInstallation).Methods("POST")
+
+	configRouter.Path("/helm/manifest/download/{installedAppId}/{envId}").
+		HandlerFunc(router.deployRestHandler.GetChartForLatestDeployment).Methods("GET")
+
+	configRouter.Path("/helm/manifest/download/{installedAppId}/{envId}/{installedAppVersionHistoryId}").
+		HandlerFunc(router.deployRestHandler.GetChartForParticularTrigger).Methods("GET")
 }
