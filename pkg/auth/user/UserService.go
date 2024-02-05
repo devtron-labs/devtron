@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	auth "github.com/devtron-labs/devtron/pkg/auth/authorisation/globalConfig"
 	"github.com/devtron-labs/devtron/pkg/auth/user/adapter"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository/helper"
@@ -83,6 +84,7 @@ type UserService interface {
 	GetApprovalUsersByEnv(appName, envName string) ([]string, error)
 	CheckForApproverAccess(appName, envName string, userId int32) bool
 	GetConfigApprovalUsersByEnv(appName, envName, team string) ([]string, error)
+	IsUserAdminOrManagerForAnyApp(userId int32, token string) (bool, error)
 	GetFieldValuesFromToken(token string) ([]byte, error)
 	BulkUpdateStatusForUsers(request *bean.BulkStatusUpdateRequest, userId int32) (*bean.ActionResponse, error)
 	CheckUserStatusAndUpdateLoginAudit(token string) (bool, int32, error)
@@ -93,17 +95,18 @@ type UserServiceImpl struct {
 	userReqLock sync.RWMutex
 	//map of userId and current lock-state of their serving ability;
 	//if TRUE then it means that some request is ongoing & unable to serve and FALSE then it is open to serve
-	userReqState                      map[int32]bool
-	userAuthRepository                repository.UserAuthRepository
-	logger                            *zap.SugaredLogger
-	userRepository                    repository.UserRepository
-	roleGroupRepository               repository.RoleGroupRepository
-	sessionManager2                   *middleware.SessionManager
-	userCommonService                 UserCommonService
-	userAuditService                  UserAuditService
-	globalAuthorisationConfigService  auth.GlobalAuthorisationConfigService
-	roleGroupService                  RoleGroupService
-	userGroupMapRepository            repository.UserGroupMapRepository
+	userReqState                     map[int32]bool
+	userAuthRepository               repository.UserAuthRepository
+	logger                           *zap.SugaredLogger
+	userRepository                   repository.UserRepository
+	roleGroupRepository              repository.RoleGroupRepository
+	sessionManager2                  *middleware.SessionManager
+	userCommonService                UserCommonService
+	userAuditService                 UserAuditService
+	globalAuthorisationConfigService auth.GlobalAuthorisationConfigService
+	roleGroupService                 RoleGroupService
+	userGroupMapRepository           repository.UserGroupMapRepository
+	enforcer                         casbin.Enforcer
 	userListingRepositoryQueryBuilder helper.UserRepositoryQueryBuilder
 	timeoutWindowService              timeoutWindow.TimeoutWindowService
 }
@@ -115,21 +118,23 @@ func NewUserServiceImpl(userAuthRepository repository.UserAuthRepository,
 	sessionManager2 *middleware.SessionManager, userCommonService UserCommonService, userAuditService UserAuditService,
 	globalAuthorisationConfigService auth.GlobalAuthorisationConfigService,
 	roleGroupService RoleGroupService, userGroupMapRepository repository.UserGroupMapRepository,
+	enforcer casbin.Enforcer,
 	userListingRepositoryQueryBuilder helper.UserRepositoryQueryBuilder,
 	timeoutWindowService timeoutWindow.TimeoutWindowService,
 ) *UserServiceImpl {
 	serviceImpl := &UserServiceImpl{
-		userReqState:                      make(map[int32]bool),
-		userAuthRepository:                userAuthRepository,
-		logger:                            logger,
-		userRepository:                    userRepository,
-		roleGroupRepository:               userGroupRepository,
-		sessionManager2:                   sessionManager2,
-		userCommonService:                 userCommonService,
-		userAuditService:                  userAuditService,
-		globalAuthorisationConfigService:  globalAuthorisationConfigService,
-		roleGroupService:                  roleGroupService,
-		userGroupMapRepository:            userGroupMapRepository,
+		userReqState:                     make(map[int32]bool),
+		userAuthRepository:               userAuthRepository,
+		logger:                           logger,
+		userRepository:                   userRepository,
+		roleGroupRepository:              userGroupRepository,
+		sessionManager2:                  sessionManager2,
+		userCommonService:                userCommonService,
+		userAuditService:                 userAuditService,
+		globalAuthorisationConfigService: globalAuthorisationConfigService,
+		roleGroupService:                 roleGroupService,
+		userGroupMapRepository:           userGroupMapRepository,
+		enforcer:                         enforcer,
 		userListingRepositoryQueryBuilder: userListingRepositoryQueryBuilder,
 		timeoutWindowService:              timeoutWindowService,
 	}
@@ -2151,6 +2156,64 @@ func (impl UserServiceImpl) getRolefiltersForDevtronManaged(model *repository.Us
 		}
 	}
 	return roleFilters, nil
+}
+
+func (impl UserServiceImpl) IsUserAdminOrManagerForAnyApp(userId int32, token string) (bool, error) {
+
+	isAuthorised := false
+
+	//checking superAdmin access
+	isAuthorised, err := impl.IsSuperAdminForDevtronManaged(int(userId))
+	if err != nil {
+		impl.logger.Errorw("error in checking superAdmin access of user", "err", err, "userId", userId)
+		return false, err
+	}
+	if !isAuthorised {
+		user, err := impl.GetRoleFiltersForAUserById(userId)
+		if err != nil {
+			impl.logger.Errorw("error in getting user by id", "err", err, "userId", userId)
+			return false, err
+		}
+		// ApplicationResource pe Create
+		var roleFilters []bean.RoleFilter
+		if user.RoleFilters != nil && len(user.RoleFilters) > 0 {
+			roleFilters = append(roleFilters, user.RoleFilters...)
+		}
+		if len(roleFilters) > 0 {
+			resourceObjects := impl.getProjectsOrAppAdminRBACNamesByAppNamesAndTeamNames(roleFilters)
+			resourceObjectsMap := impl.enforcer.EnforceInBatch(token, casbin.ResourceApplications, casbin.ActionCreate, resourceObjects)
+			for _, value := range resourceObjectsMap {
+				if value {
+					isAuthorised = true
+					break
+				}
+			}
+		}
+	}
+	return isAuthorised, nil
+}
+
+func (impl UserServiceImpl) getProjectOrAppAdminRBACNameByAppNameAndTeamName(appName, teamName string) string {
+	if appName == "" {
+		return fmt.Sprintf("%s/%s", teamName, "*")
+	}
+	return fmt.Sprintf("%s/%s", teamName, appName)
+}
+
+func (impl UserServiceImpl) getProjectsOrAppAdminRBACNamesByAppNamesAndTeamNames(roleFilters []bean.RoleFilter) []string {
+	var resourceObjects []string
+	for _, filter := range roleFilters {
+		if len(filter.Team) > 0 {
+			entityNames := strings.Split(filter.EntityName, ",")
+			if len(entityNames) > 0 {
+				for _, val := range entityNames {
+					resourceName := impl.getProjectOrAppAdminRBACNameByAppNameAndTeamName(val, filter.Team)
+					resourceObjects = append(resourceObjects, resourceName)
+				}
+			}
+		}
+	}
+	return resourceObjects
 }
 
 func (impl UserServiceImpl) BulkUpdateStatusForUsers(request *bean.BulkStatusUpdateRequest, userId int32) (*bean.ActionResponse, error) {

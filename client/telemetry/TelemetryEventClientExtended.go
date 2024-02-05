@@ -105,7 +105,7 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 			InstalledAppRepository:         InstalledAppRepository,
 			userAttributesRepository:       userAttributesRepository,
 			cloudProviderIdentifierService: cloudProviderIdentifierService,
-			telemetryConfig: TelemetryConfig{},
+			telemetryConfig:                TelemetryConfig{},
 		},
 	}
 
