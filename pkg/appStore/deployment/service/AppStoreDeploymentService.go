@@ -276,6 +276,7 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 			impl.logger.Errorw("invalid installAppVersionRequest", "error", "gitRepoURL is required")
 			err = &util.ApiError{
 				HttpStatusCode:  http.StatusBadRequest,
+				Code:            constants.GitOpsConfigValidationConflict,
 				InternalMessage: "Invalid request payload! gitRepoURL key is required.",
 				UserMessage:     "Invalid request payload! gitRepoURL key is required.",
 			}

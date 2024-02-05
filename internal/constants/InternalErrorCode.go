@@ -47,15 +47,18 @@ const (
 	ClusterUpdateACDFailed     string = "1005"
 	ClusterCreateBadRequestACD string = "1006"
 	ClusterUpdateBadRequestACD string = "1007"
+
 	//Environment Errors
 	EnvironmentCreateDBFailed          string = "2001"
 	EnvironmentUpdateDBFailed          string = "2002"
 	EnvironmentUpdateEnvOverrideFailed string = "2003"
-	//Global Config Errors
-	DockerRegCreateFailedInDb            string = "3001"
-	DockerRegCreateFailedInGocd          string = "3002"
-	DockerRegUpdateFailedInDb            string = "3003"
-	DockerRegUpdateFailedInGocd          string = "3004"
+
+	//Global Config Errors Constants; use 3000
+	DockerRegCreateFailedInDb   string = "3001"
+	DockerRegCreateFailedInGocd string = "3002"
+	DockerRegUpdateFailedInDb   string = "3003"
+	DockerRegUpdateFailedInGocd string = "3004"
+
 	GitProviderCreateFailedAlreadyExists string = "3005"
 	GitProviderCreateFailedInDb          string = "3006"
 	GitProviderUpdateProviderNotExists   string = "3007"
@@ -63,16 +66,20 @@ const (
 	DockerRegDeleteFailedInDb            string = "3009"
 	DockerRegDeleteFailedInGocd          string = "3010"
 	GitProviderUpdateFailedInSync        string = "3011"
-	ChartCreatedAlreadyExists            string = "5001"
-	ChartNameAlreadyReserved             string = "5002"
-	UserCreateDBFailed                   string = "6001"
-	UserCreatePolicyFailed               string = "6002"
-	UserUpdateDBFailed                   string = "6003"
-	UserUpdatePolicyFailed               string = "6004"
-	UserNoTokenProvided                  string = "6005"
-	UserNotFoundForToken                 string = "6006"
-	UserCreateFetchRoleFailed            string = "6007"
-	UserUpdateFetchRoleFailed            string = "6008"
+	// For conflicts use 900 series
+	GitOpsConfigValidationConflict string = "3900"
+
+	ChartCreatedAlreadyExists string = "5001"
+	ChartNameAlreadyReserved  string = "5002"
+
+	UserCreateDBFailed        string = "6001"
+	UserCreatePolicyFailed    string = "6002"
+	UserUpdateDBFailed        string = "6003"
+	UserUpdatePolicyFailed    string = "6004"
+	UserNoTokenProvided       string = "6005"
+	UserNotFoundForToken      string = "6006"
+	UserCreateFetchRoleFailed string = "6007"
+	UserUpdateFetchRoleFailed string = "6008"
 
 	AppDetailResourceTreeNotFound string = "7000"
 	HelmReleaseNotFound           string = "7001"
