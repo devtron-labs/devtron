@@ -1743,13 +1743,16 @@ func (impl UserServiceImpl) DeleteUser(bean *bean.UserInfo) (bool, error) {
 // BulkDeleteUsers takes in BulkDeleteRequest and return success and error
 func (impl *UserServiceImpl) BulkDeleteUsers(request *bean.BulkDeleteRequest) (bool, error) {
 	// it handles FetchListingRequest if filters are applied will delete those users or will consider the given user ids.
-	err := impl.setUserIdsHonoringFilters(request)
-	if err != nil {
-		impl.logger.Errorw("error in BulkDeleteUsers", "request", request, "err", err)
-		return false, err
+	if request.ListingRequest != nil {
+		filteredUserIds, err := impl.getUserIdsHonoringFilters(request.ListingRequest)
+		if err != nil {
+			impl.logger.Errorw("error in BulkDeleteUsers", "request", request, "err", err)
+			return false, err
+		}
+		// setting the filtered user ids here for further processing
+		request.Ids = filteredUserIds
 	}
-
-	err = impl.deleteUsersByIds(request)
+	err := impl.deleteUsersByIds(request)
 	if err != nil {
 		impl.logger.Errorw("error in BulkDeleteUsers", "err", err)
 		return false, err
@@ -1757,27 +1760,23 @@ func (impl *UserServiceImpl) BulkDeleteUsers(request *bean.BulkDeleteRequest) (b
 	return true, nil
 }
 
-// setUserIdsHonoringFilters set the filtered user ids according to the request filters and returns error if any exception is caught.
-func (impl *UserServiceImpl) setUserIdsHonoringFilters(request *bean.BulkDeleteRequest) error {
-	if request.ListingRequest != nil {
-		//query to get particular models respecting filters
-		query := impl.userListingRepositoryQueryBuilder.GetQueryForUserListingWithFilters(request.ListingRequest)
-		models, err := impl.userRepository.GetAllExecutingQuery(query)
-		if err != nil {
-			impl.logger.Errorw("error while fetching user from db in GetAllWithFilters", "error", err)
-			return err
-		}
-		// collecting the required user ids from filtered models
-		filteredUserIds := make([]int32, len(models))
-		for i, model := range models {
-			if model.EmailId != bean2.AdminUser || model.EmailId != bean2.SystemUser {
-				filteredUserIds[i] = model.Id
-			}
-		}
-		// setting the filtered user ids here for further processing
-		request.Ids = filteredUserIds
+// getUserIdsHonoringFilters get the filtered user ids according to the request filters and returns userIds and error(not nil) if any exception is caught.
+func (impl *UserServiceImpl) getUserIdsHonoringFilters(request *bean.FetchListingRequest) ([]int32, error) {
+	//query to get particular models respecting filters
+	query := impl.userListingRepositoryQueryBuilder.GetQueryForUserListingWithFilters(request)
+	models, err := impl.userRepository.GetAllExecutingQuery(query)
+	if err != nil {
+		impl.logger.Errorw("error while fetching user from db in GetAllWithFilters", "error", err)
+		return nil, err
 	}
-	return nil
+	// collecting the required user ids from filtered models
+	filteredUserIds := make([]int32, len(models))
+	for i, model := range models {
+		if model.EmailId != bean2.AdminUser || model.EmailId != bean2.SystemUser {
+			filteredUserIds[i] = model.Id
+		}
+	}
+	return filteredUserIds, nil
 }
 
 // deleteUsersByIds bulk delete all the users with their user role mappings in orchestrator and user-role and user-group mappings from casbin, takes in BulkDeleteRequest request and return success and error in return
