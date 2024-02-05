@@ -182,18 +182,6 @@ func (impl AppListingRepositoryImpl) FetchJobsLastSucceededOn(CiPipelineIDs []in
 	return lastSucceededTimeArray, nil
 }
 
-func getRequiredAppIdsInSequence(appIds []int) []int {
-	resIDs := make([]int, 0)
-	appIdsSet := make(map[int]bool)
-	for _, appId := range appIds {
-		if _, ok := appIdsSet[appId]; !ok {
-			resIDs = append(resIDs, appId)
-			appIdsSet[appId] = true
-		}
-	}
-	return resIDs
-}
-
 func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter helper.AppListingFilter) ([]*bean.AppEnvironmentContainer, error) {
 	impl.Logger.Debug("reached at FetchAppsByEnvironment:")
 	var appEnvArr []*bean.AppEnvironmentContainer
@@ -495,19 +483,6 @@ func (impl AppListingRepositoryImpl) FetchAppDetail(ctx context.Context, appId i
 	return appDetailContainer, nil
 }
 
-func (impl AppListingRepositoryImpl) fetchLinkOutsByAppIdAndEnvId(appId int, envId int) ([]string, error) {
-	impl.Logger.Debug("reached at AppListingRepository:")
-
-	var linkOuts []string
-	query := "SELECT ael.link from app_env_linkouts ael where ael.app_id=? and ael.environment_id=?"
-	impl.Logger.Debugw("lingOut query:", query)
-	_, err := impl.dbConnection.Query(&linkOuts, query, appId, envId)
-	if err != nil {
-		impl.Logger.Errorw("err", err)
-	}
-	return linkOuts, err
-}
-
 func (impl AppListingRepositoryImpl) PrometheusApiByEnvId(id int) (*string, error) {
 	impl.Logger.Debug("reached at PrometheusApiByEnvId:")
 	var prometheusEndpoint string
@@ -693,6 +668,7 @@ func (impl AppListingRepositoryImpl) FetchDependencyMetadataByPipelineIds(pipeli
 func (impl AppListingRepositoryImpl) FetchOtherEnvironment(appId int) ([]*bean.Environment, error) {
 	// other environment tab
 	var otherEnvironments []*bean.Environment
+	//TODO: remove infra metrics from query as it is not being used from here
 	query := `select pcwr.pipeline_id, pcwr.last_deployed, pcwr.latest_cd_workflow_runner_id, pcwr.environment_id, pcwr.deployment_app_delete_request,   
        			e.cluster_id, e.environment_name, e.default as prod, e.description, e.is_virtual_environment, ca.image as last_deployed_image, 
       			u.email_id as last_deployed_by, elam.app_metrics, elam.infra_metrics, ap.status as app_status 
@@ -721,6 +697,7 @@ func (impl AppListingRepositoryImpl) FetchOtherEnvironment(appId int) ([]*bean.E
 func (impl AppListingRepositoryImpl) FetchMinDetailOtherEnvironment(appId int) ([]*bean.Environment, error) {
 	impl.Logger.Debug("reached at FetchMinDetailOtherEnvironment:")
 	var otherEnvironments []*bean.Environment
+	//TODO: remove infra metrics from query as it is not being used from here
 	query := `SELECT p.environment_id,env.environment_name,env.description,env.is_virtual_environment, env.cluster_id, env.default as prod, p.deployment_app_delete_request,
        			env_app_m.app_metrics,env_app_m.infra_metrics from 
  				(SELECT pl.id,pl.app_id,pl.environment_id,pl.deleted, pl.deployment_app_delete_request from pipeline pl 

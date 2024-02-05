@@ -24,12 +24,12 @@ import (
 )
 
 type EnvLevelAppMetrics struct {
-	tableName    struct{} `sql:"env_level_app_metrics" pg:",discard_unknown_columns"`
-	Id           int      `sql:"id,pk"`
-	AppId        int      `sql:"app_id,notnull"`
-	EnvId        int      `sql:"env_id,notnull"`
-	AppMetrics   *bool    `sql:"app_metrics,notnull"`
-	InfraMetrics *bool    `sql:"infra_metrics,notnull"`
+	tableName  struct{} `sql:"env_level_app_metrics" pg:",discard_unknown_columns"`
+	Id         int      `sql:"id,pk"`
+	AppId      int      `sql:"app_id,notnull"`
+	EnvId      int      `sql:"env_id,notnull"`
+	AppMetrics bool     `sql:"app_metrics,notnull"`
+	//InfraMetrics *bool    `sql:"infra_metrics,notnull"` not being used
 	sql.AuditLog
 }
 
@@ -57,7 +57,8 @@ func (impl *EnvLevelAppMetricsRepositoryImpl) Save(metrics *EnvLevelAppMetrics) 
 
 func (impl *EnvLevelAppMetricsRepositoryImpl) FindByAppIdAndEnvId(appId int, envId int) (*EnvLevelAppMetrics, error) {
 	envAppLevelMetrics := &EnvLevelAppMetrics{}
-	err := impl.dbConnection.Model(envAppLevelMetrics).Where("env_level_app_metrics.app_id = ? ", appId).Where("env_level_app_metrics.env_id = ? ", envId).Select()
+	err := impl.dbConnection.Model(envAppLevelMetrics).Where("env_level_app_metrics.app_id = ? ", appId).
+		Where("env_level_app_metrics.env_id = ? ", envId).Select()
 	return envAppLevelMetrics, err
 }
 func (impl *EnvLevelAppMetricsRepositoryImpl) FindByAppId(appId int) ([]*EnvLevelAppMetrics, error) {

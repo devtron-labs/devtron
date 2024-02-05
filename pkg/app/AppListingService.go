@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"net/http"
 	"strconv"
 	"strings"
@@ -160,8 +161,6 @@ type AppListingServiceImpl struct {
 	pipelineRepository             pipelineConfig.PipelineRepository
 	cdWorkflowRepository           pipelineConfig.CdWorkflowRepository
 	linkoutsRepository             repository.LinkoutsRepository
-	appLevelMetricsRepository      repository.AppLevelMetricsRepository
-	envLevelMetricsRepository      repository.EnvLevelAppMetricsRepository
 	pipelineOverrideRepository     chartConfig.PipelineOverrideRepository
 	environmentRepository          repository2.EnvironmentRepository
 	argoUserService                argo.ArgoUserService
@@ -170,17 +169,18 @@ type AppListingServiceImpl struct {
 	ciPipelineRepository           pipelineConfig.CiPipelineRepository
 	dockerRegistryIpsConfigService dockerRegistry.DockerRegistryIpsConfigService
 	userRepository                 userrepository.UserRepository
+	deployedAppMetricsService      deployedAppMetrics.DeployedAppMetricsService
 }
 
 func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository repository.AppListingRepository,
 	application application2.ServiceClient, appRepository app.AppRepository,
 	appListingViewBuilder AppListingViewBuilder, pipelineRepository pipelineConfig.PipelineRepository,
-	linkoutsRepository repository.LinkoutsRepository, appLevelMetricsRepository repository.AppLevelMetricsRepository,
-	envLevelMetricsRepository repository.EnvLevelAppMetricsRepository, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
+	linkoutsRepository repository.LinkoutsRepository, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository, environmentRepository repository2.EnvironmentRepository,
 	argoUserService argo.ArgoUserService, envOverrideRepository chartConfig.EnvConfigOverrideRepository,
 	chartRepository chartRepoRepository.ChartRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository,
-	dockerRegistryIpsConfigService dockerRegistry.DockerRegistryIpsConfigService, userRepository userrepository.UserRepository) *AppListingServiceImpl {
+	dockerRegistryIpsConfigService dockerRegistry.DockerRegistryIpsConfigService, userRepository userrepository.UserRepository,
+	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService) *AppListingServiceImpl {
 	serviceImpl := &AppListingServiceImpl{
 		Logger:                         Logger,
 		appListingRepository:           appListingRepository,
@@ -189,8 +189,6 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 		appListingViewBuilder:          appListingViewBuilder,
 		pipelineRepository:             pipelineRepository,
 		linkoutsRepository:             linkoutsRepository,
-		appLevelMetricsRepository:      appLevelMetricsRepository,
-		envLevelMetricsRepository:      envLevelMetricsRepository,
 		cdWorkflowRepository:           cdWorkflowRepository,
 		pipelineOverrideRepository:     pipelineOverrideRepository,
 		environmentRepository:          environmentRepository,
@@ -200,6 +198,7 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 		ciPipelineRepository:           ciPipelineRepository,
 		dockerRegistryIpsConfigService: dockerRegistryIpsConfigService,
 		userRepository:                 userRepository,
+		deployedAppMetricsService:      deployedAppMetricsService,
 	}
 	return serviceImpl
 }
@@ -888,52 +887,6 @@ func (impl AppListingServiceImpl) FetchAppDetails(ctx context.Context, appId int
 		return appDetailContainer, err
 	}
 
-	return appDetailContainer, nil
-}
-
-func (impl AppListingServiceImpl) fetchAppAndEnvLevelMatrics(ctx context.Context, appId int, appDetailContainer bean.AppDetailContainer) (bean.AppDetailContainer, error) {
-	var appMetrics bool
-	var infraMetrics bool
-	_, span := otel.Tracer("orchestrator").Start(ctx, "appLevelMetricsRepository.FindByAppId")
-	appLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(appId)
-	span.End()
-	if err != nil && err != pg.ErrNoRows {
-		impl.Logger.Errorw("error in app metrics app level flag", "error", err)
-		return bean.AppDetailContainer{}, err
-	} else if appLevelMetrics != nil {
-		appMetrics = appLevelMetrics.AppMetrics
-		infraMetrics = appLevelMetrics.InfraMetrics
-	}
-	i := 0
-	var envIds []int
-	for _, env := range appDetailContainer.Environments {
-		envIds = append(envIds, env.EnvironmentId)
-	}
-	envLevelAppMetricsMap := make(map[int]*repository.EnvLevelAppMetrics)
-	_, span = otel.Tracer("orchestrator").Start(ctx, "appLevelMetricsRepository.FindByAppIdAndEnvIds")
-	envLevelAppMetrics, err := impl.envLevelMetricsRepository.FindByAppIdAndEnvIds(appId, envIds)
-	span.End()
-	for _, envLevelAppMetric := range envLevelAppMetrics {
-		envLevelAppMetricsMap[envLevelAppMetric.EnvId] = envLevelAppMetric
-	}
-	for _, env := range appDetailContainer.Environments {
-		var envLevelMetrics *bool
-		var envLevelInfraMetrics *bool
-		envLevelAppMetrics := envLevelAppMetricsMap[env.EnvironmentId]
-		if envLevelAppMetrics != nil && envLevelAppMetrics.Id != 0 && envLevelAppMetrics.AppMetrics != nil {
-			envLevelMetrics = envLevelAppMetrics.AppMetrics
-		} else {
-			envLevelMetrics = &appMetrics
-		}
-		if envLevelAppMetrics != nil && envLevelAppMetrics.Id != 0 && envLevelAppMetrics.InfraMetrics != nil {
-			envLevelInfraMetrics = envLevelAppMetrics.InfraMetrics
-		} else {
-			envLevelInfraMetrics = &infraMetrics
-		}
-		appDetailContainer.Environments[i].AppMetrics = envLevelMetrics
-		appDetailContainer.Environments[i].InfraMetrics = envLevelInfraMetrics
-		i++
-	}
 	return appDetailContainer, nil
 }
 
@@ -1724,21 +1677,13 @@ func (impl AppListingServiceImpl) FetchOtherEnvironment(ctx context.Context, app
 		impl.Logger.Errorw("err", err)
 		return envs, err
 	}
-	appLevelAppMetrics := false  //default value
-	appLevelInfraMetrics := true //default val
-	newCtx, span = otel.Tracer("appLevelMetricsRepository").Start(newCtx, "FindByAppId")
-	appLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(appId)
+	appLevelInfraMetrics := true //default val, not being derived from DB. TODO: remove this from FE since this is derived from prometheus config at cluster level and this logic is already present at FE
+	newCtx, span = otel.Tracer("deployedAppMetricsService").Start(newCtx, "GetMetricsFlagByAppId")
+	appLevelAppMetrics, err := impl.deployedAppMetricsService.GetMetricsFlagByAppId(appId)
 	span.End()
-	if err != nil && !util.IsErrNoRows(err) {
-		impl.Logger.Errorw("error in fetching app metrics", "err", err)
+	if err != nil {
+		impl.Logger.Errorw("error, GetMetricsFlagByAppId", "err", err, "appId", appId)
 		return envs, err
-	} else if util.IsErrNoRows(err) {
-		//populate default val
-		appLevelAppMetrics = false  //default value
-		appLevelInfraMetrics = true //default val
-	} else {
-		appLevelAppMetrics = appLevelMetrics.AppMetrics
-		appLevelInfraMetrics = appLevelMetrics.InfraMetrics
 	}
 	newCtx, span = otel.Tracer("chartRepository").Start(newCtx, "FindLatestChartForAppByAppId")
 	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
@@ -1763,9 +1708,7 @@ func (impl AppListingServiceImpl) FetchOtherEnvironment(ctx context.Context, app
 		if env.AppMetrics == nil {
 			env.AppMetrics = &appLevelAppMetrics
 		}
-		if env.InfraMetrics == nil {
-			env.InfraMetrics = &appLevelInfraMetrics
-		}
+		env.InfraMetrics = &appLevelInfraMetrics //using default value, discarding value got from query
 	}
 	return envs, nil
 }
@@ -1776,19 +1719,11 @@ func (impl AppListingServiceImpl) FetchMinDetailOtherEnvironment(appId int) ([]*
 		impl.Logger.Errorw("err", err)
 		return envs, err
 	}
-	appLevelAppMetrics := false  //default value
-	appLevelInfraMetrics := true //default val
-	appLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(appId)
-	if err != nil && !util.IsErrNoRows(err) {
-		impl.Logger.Errorw("error in fetching app metrics", "err", err)
-		return envs, err
-	} else if util.IsErrNoRows(err) {
-		//populate default val
-		appLevelAppMetrics = false  //default value
-		appLevelInfraMetrics = true //default val
-	} else {
-		appLevelAppMetrics = appLevelMetrics.AppMetrics
-		appLevelInfraMetrics = appLevelMetrics.InfraMetrics
+	appLevelInfraMetrics := true //default val, not being derived from DB. TODO: remove this from FE since this is derived from prometheus config at cluster level and this logic is already present at FE
+	appLevelAppMetrics, err := impl.deployedAppMetricsService.GetMetricsFlagByAppId(appId)
+	if err != nil {
+		impl.Logger.Errorw("error, GetMetricsFlagByAppId", "err", err, "appId", appId)
+		return nil, err
 	}
 
 	chartRefId, err := impl.chartRepository.FindChartRefIdForLatestChartForAppByAppId(appId)
@@ -1818,9 +1753,7 @@ func (impl AppListingServiceImpl) FetchMinDetailOtherEnvironment(appId int) ([]*
 		if env.AppMetrics == nil {
 			env.AppMetrics = &appLevelAppMetrics
 		}
-		if env.InfraMetrics == nil {
-			env.InfraMetrics = &appLevelInfraMetrics
-		}
+		env.InfraMetrics = &appLevelInfraMetrics //using default value, discarding value got from query
 	}
 	return envs, nil
 }

@@ -155,12 +155,11 @@ func InitAppService() *app2.AppServiceImpl {
 	pipelineStatusSyncDetailRepository := pipelineConfig.NewPipelineStatusSyncDetailRepositoryImpl(dbConnection, logger)
 	pipelineStatusSyncDetailService := status.NewPipelineStatusSyncDetailServiceImpl(logger, pipelineStatusSyncDetailRepository)
 	pipelineStatusTimelineService := status.NewPipelineStatusTimelineServiceImpl(logger, pipelineStatusTimelineRepository, cdWorkflowRepository, nil, pipelineStatusTimelineResourcesService, pipelineStatusSyncDetailService, nil, nil)
-	refChartDir := chartRepoRepository.RefChartDir("scripts/devtron-reference-helm-charts")
 	appService := app2.NewAppService(nil, pipelineOverrideRepository, nil, logger, nil,
 		pipelineRepository, nil, eventClient, eventFactory, nil, nil, nil, nil, nil, nil,
 		appListingRepository, appRepository, nil, nil, nil, nil, nil,
 		chartRepository, nil, cdWorkflowRepository, nil, nil, nil, nil,
-		nil, nil, nil, nil, nil, refChartDir, nil,
+		nil, nil, nil, nil, nil, nil,
 		nil, nil, nil, pipelineStatusTimelineRepository, nil, nil, nil,
 		nil, nil, pipelineStatusTimelineResourcesService, pipelineStatusSyncDetailService, pipelineStatusTimelineService,
 		nil, nil, nil, nil, nil, nil, nil, nil, nil,

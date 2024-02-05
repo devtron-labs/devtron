@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
 	"time"
 
 	bean2 "github.com/devtron-labs/devtron/api/bean"
@@ -48,21 +49,22 @@ type ConfigDraftService interface {
 }
 
 type ConfigDraftServiceImpl struct {
-	logger                    *zap.SugaredLogger
-	configDraftRepository     ConfigDraftRepository
-	configMapService          pipeline.ConfigMapService
-	chartService              chart.ChartService
-	propertiesConfigService   pipeline.PropertiesConfigService
-	resourceProtectionService protect.ResourceProtectionService
-	userService               user.UserService
-	appRepo                   app.AppRepository
-	envRepository             repository2.EnvironmentRepository
-	chartRepository           chartRepoRepository.ChartRepository
-	lockedConfigService       lockConfiguration.LockConfigurationService
-	envConfigRepo             chartConfig.EnvConfigOverrideRepository
-	mergeUtil                 util.MergeUtil
-	eventFactory              client.EventFactory
-	eventClient               client.EventClient
+	logger                              *zap.SugaredLogger
+	configDraftRepository               ConfigDraftRepository
+	configMapService                    pipeline.ConfigMapService
+	chartService                        chart.ChartService
+	propertiesConfigService             pipeline.PropertiesConfigService
+	resourceProtectionService           protect.ResourceProtectionService
+	userService                         user.UserService
+	appRepo                             app.AppRepository
+	envRepository                       repository2.EnvironmentRepository
+	chartRepository                     chartRepoRepository.ChartRepository
+	lockedConfigService                 lockConfiguration.LockConfigurationService
+	envConfigRepo                       chartConfig.EnvConfigOverrideRepository
+	mergeUtil                           util.MergeUtil
+	eventFactory                        client.EventFactory
+	eventClient                         client.EventClient
+	deploymentTemplateValidationService deploymentTemplate.DeploymentTemplateValidationService
 }
 
 func NewConfigDraftServiceImpl(logger *zap.SugaredLogger, configDraftRepository ConfigDraftRepository, configMapService pipeline.ConfigMapService, chartService chart.ChartService,
@@ -71,25 +73,26 @@ func NewConfigDraftServiceImpl(logger *zap.SugaredLogger, configDraftRepository 
 	chartRepository chartRepoRepository.ChartRepository,
 	lockedConfigService lockConfiguration.LockConfigurationService,
 	envConfigRepo chartConfig.EnvConfigOverrideRepository,
-	mergeUtil util.MergeUtil,
-	eventFactory client.EventFactory, eventClient client.EventClient,
+	mergeUtil util.MergeUtil, eventFactory client.EventFactory, eventClient client.EventClient,
+	deploymentTemplateValidationService deploymentTemplate.DeploymentTemplateValidationService,
 ) *ConfigDraftServiceImpl {
 	draftServiceImpl := &ConfigDraftServiceImpl{
-		logger:                    logger,
-		configDraftRepository:     configDraftRepository,
-		configMapService:          configMapService,
-		chartService:              chartService,
-		propertiesConfigService:   propertiesConfigService,
-		resourceProtectionService: resourceProtectionService,
-		userService:               userService,
-		appRepo:                   appRepo,
-		envRepository:             envRepository,
-		eventFactory:              eventFactory,
-		eventClient:               eventClient,
-		chartRepository:           chartRepository,
-		lockedConfigService:       lockedConfigService,
-		envConfigRepo:             envConfigRepo,
-		mergeUtil:                 mergeUtil,
+		logger:                              logger,
+		configDraftRepository:               configDraftRepository,
+		configMapService:                    configMapService,
+		chartService:                        chartService,
+		propertiesConfigService:             propertiesConfigService,
+		resourceProtectionService:           resourceProtectionService,
+		userService:                         userService,
+		appRepo:                             appRepo,
+		envRepository:                       envRepository,
+		eventFactory:                        eventFactory,
+		eventClient:                         eventClient,
+		chartRepository:                     chartRepository,
+		lockedConfigService:                 lockedConfigService,
+		envConfigRepo:                       envConfigRepo,
+		mergeUtil:                           mergeUtil,
+		deploymentTemplateValidationService: deploymentTemplateValidationService,
 	}
 	resourceProtectionService.RegisterListener(draftServiceImpl)
 	return draftServiceImpl
@@ -536,7 +539,7 @@ func (impl *ConfigDraftServiceImpl) handleBaseDeploymentTemplate(appId int, envI
 	}
 
 	if !templateRequest.SaveEligibleChanges {
-		templateValidated, err = impl.chartService.DeploymentTemplateValidate(ctx, templateRequest.ValuesOverride, templateRequest.ChartRefId, scope)
+		templateValidated, err = impl.deploymentTemplateValidationService.DeploymentTemplateValidate(ctx, templateRequest.ValuesOverride, templateRequest.ChartRefId, scope)
 		if err != nil {
 			return nil, err
 		}
@@ -581,7 +584,7 @@ func (impl *ConfigDraftServiceImpl) handleEnvLevelTemplate(appId int, envId int,
 			ClusterId: env.ClusterId,
 		}
 		if !envConfigProperties.SaveEligibleChanges {
-			templateValidated, err = impl.chartService.DeploymentTemplateValidate(ctx, envConfigProperties.EnvOverrideValues, chartRefId, scope)
+			templateValidated, err = impl.deploymentTemplateValidationService.DeploymentTemplateValidate(ctx, envConfigProperties.EnvOverrideValues, chartRefId, scope)
 			if err != nil {
 				return nil, err
 			}
@@ -798,7 +801,7 @@ func (impl *ConfigDraftServiceImpl) validateDeploymentTemplate(appId int, envId 
 			EnvId:     envId,
 			ClusterId: env.ClusterId,
 		}
-		templateValidated, err = impl.chartService.DeploymentTemplateValidate(context.Background(), templateRequest.ValuesOverride, templateRequest.ChartRefId, scope)
+		templateValidated, err = impl.deploymentTemplateValidationService.DeploymentTemplateValidate(context.Background(), templateRequest.ValuesOverride, templateRequest.ChartRefId, scope)
 		if err != nil {
 			return nil, draftData, err
 		}
@@ -859,7 +862,7 @@ func (impl *ConfigDraftServiceImpl) validateDeploymentTemplate(appId int, envId 
 			}
 
 			chartRefId := envConfigProperties.ChartRefId
-			templateValidated, err := impl.chartService.DeploymentTemplateValidate(context.Background(), envConfigProperties.EnvOverrideValues, chartRefId, scope)
+			templateValidated, err := impl.deploymentTemplateValidationService.DeploymentTemplateValidate(context.Background(), envConfigProperties.EnvOverrideValues, chartRefId, scope)
 			if err != nil {
 				return nil, draftData, err
 			}
