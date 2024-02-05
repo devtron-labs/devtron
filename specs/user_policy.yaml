@@ -304,35 +304,35 @@ components:
             type: integer
             format: int32
           description: Array of user IDs to be deleted
-        ListingRequest:
+        listingRequest:
           $ref: '#/components/schemas/FetchListingRequest'
     FetchListingRequest:
       type: object
       properties:
-        SearchKey:
+        searchKey:
           type: string
           description: Search key for filtering
-        SortOrder:
+        sortOrder:
           type: string
           enum:
             - ASC
             - DESC
           description: Sorting order
-        SortBy:
+        sortBy:
           type: string
           enum:
             - email_id
             - last_login
           description: Attribute to sort by
-        Offset:
+        offset:
           type: integer
           format: int32
           description: Starting index for fetching listings
-        Size:
+        size:
           type: integer
           format: int32
           description: Number of listings to fetch
-        ShowAll:
+        showAll:
           type: boolean
           description: Show all listings
 
