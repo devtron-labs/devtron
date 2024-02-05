@@ -93,6 +93,7 @@ func (impl *InfraConfigRepositoryImpl) GetActiveProfileNames() ([]string, error)
 	err := impl.dbConnection.Model((*InfraProfileEntity)(nil)).
 		Column("name").
 		Where("active = ?", true).
+		Order("name ASC").
 		Select(&profileNames)
 	return profileNames, err
 }
