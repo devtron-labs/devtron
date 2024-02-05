@@ -1302,13 +1302,29 @@ func (impl *UserServiceImpl) DeleteUser(bean *bean.UserInfo) (bool, error) {
 // BulkDeleteUsers takes in BulkDeleteRequest and return success and error
 func (impl *UserServiceImpl) BulkDeleteUsers(request *bean.BulkDeleteRequest) (bool, error) {
 	// it handles FetchListingRequest if filters are applied will delete those users or will consider the given user ids.
+	err := impl.setUserIdsHonoringFilters(request)
+	if err != nil {
+		impl.logger.Errorw("error in BulkDeleteUsers", "request", request, "err", err)
+		return false, err
+	}
+
+	err = impl.deleteUsersByIds(request)
+	if err != nil {
+		impl.logger.Errorw("error in BulkDeleteUsers", "err", err)
+		return false, err
+	}
+	return true, nil
+}
+
+// setUserIdsHonoringFilters set the filtered user ids according to the request filters and returns error if any exception is caught.
+func (impl *UserServiceImpl) setUserIdsHonoringFilters(request *bean.BulkDeleteRequest) error {
 	if request.ListingRequest != nil {
 		//query to get particular models respecting filters
 		query := impl.userListingRepositoryQueryBuilder.GetQueryForUserListingWithFilters(request.ListingRequest)
 		models, err := impl.userRepository.GetAllExecutingQuery(query)
 		if err != nil {
 			impl.logger.Errorw("error while fetching user from db in GetAllWithFilters", "error", err)
-			return false, err
+			return err
 		}
 		// collecting the required user ids from filtered models
 		filteredUserIds := make([]int32, len(models))
@@ -1320,13 +1336,7 @@ func (impl *UserServiceImpl) BulkDeleteUsers(request *bean.BulkDeleteRequest) (b
 		// setting the filtered user ids here for further processing
 		request.Ids = filteredUserIds
 	}
-
-	err := impl.deleteUsersByIds(request)
-	if err != nil {
-		impl.logger.Errorw("error in BulkDeleteUsers", "err", err)
-		return false, err
-	}
-	return true, nil
+	return nil
 }
 
 // deleteUsersByIds bulk delete all the users with their user role mappings in orchestrator and user-role and user-group mappings from casbin, takes in BulkDeleteRequest request and return success and error in return
