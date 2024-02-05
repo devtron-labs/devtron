@@ -167,6 +167,7 @@ func (handler *InfraConfigRestHandlerImpl) CreateProfile(w http.ResponseWriter, 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	payload.Name = strings.ToLower(payload.Name)
 	err = handler.validator.Struct(payload)
 	if err != nil {
 		err = errors.Wrap(err, infraConfig.PayloadValidationError)
