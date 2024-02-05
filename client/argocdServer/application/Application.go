@@ -641,7 +641,7 @@ func parseResult(resp *v1alpha1.ApplicationTree, query *application.ResourcesQue
 				}
 			}
 		}
-		if node.Kind == "Pod" {
+		if node.Kind == "Pod" && node.NetworkingInfo != nil && node.NetworkingInfo.Labels != nil {
 			relevantCR[prefix+"-"+node.NetworkingInfo.Labels["controller-revision-hash"]] = true
 		}
 	}
