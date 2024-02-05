@@ -3,5 +3,6 @@
 - fix: new api added for getting ciPipelineDetails by only ciPipelineId for CLI (#3708)
 ## Enhancements
 ## Documentation
+- doc: Revamped Security Feature Doc (#4349)
 ## Others
 - chore: clean appListing api (#4628)
