@@ -99,6 +99,8 @@
     * [Deploying MongoDB Helm Chart](user-guide/deploy-chart/examples/deploying-mongodb-helm-chart.md)
   * [Chart Group](user-guide/deploy-chart/chart-group.md)
 * [Security](user-guide/security-features.md)
+  * [Security Scans](user-guide/security-features/security-scans.md)
+  * [Security Policies](user-guide/security-features/security-policies.md)
 * [Clusters](user-guide/clusters.md)
 * [Bulk Edit](user-guide/bulk-update.md)
 * [Integrations](user-guide/integrations/README.md)
