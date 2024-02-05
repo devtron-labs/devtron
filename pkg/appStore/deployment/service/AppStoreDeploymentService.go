@@ -288,7 +288,8 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 			UserId:         installAppVersionRequest.UserId,
 			GitOpsProvider: gitOpsConfig.Provider,
 		}
-		if installAppVersionRequest.GitOpsRepoURL != bean2.GIT_REPO_DEFAULT {
+		if len(installAppVersionRequest.GitOpsRepoURL) != 0 &&
+			installAppVersionRequest.GitOpsRepoURL != bean2.GIT_REPO_DEFAULT {
 			installedAppModel.IsCustomRepository = true
 		}
 		gitopsRepoURL, isNew, gitRepoErr = impl.appStoreDeploymentArgoCdService.ValidateCustomGitRepoURL(validateCustomGitRepoURLRequest)

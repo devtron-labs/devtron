@@ -856,7 +856,7 @@ func (impl GitOpsConfigServiceImpl) getValidationErrorForNonOrganisationalURL(ac
 
 func (impl GitOpsConfigServiceImpl) ValidateCustomGitRepoURL(request ValidateCustomGitRepoURLRequest) (string, bool, error) {
 	gitOpsRepoName := ""
-	if request.GitRepoURL == bean2.GIT_REPO_DEFAULT {
+	if request.GitRepoURL == bean2.GIT_REPO_DEFAULT || len(request.GitRepoURL) == 0 {
 		gitOpsRepoName = impl.chartTemplateService.GetGitOpsRepoName(request.AppName)
 	} else {
 		gitOpsRepoName = gitUtil.GetGitRepoNameFromGitRepoUrl(request.GitRepoURL)
