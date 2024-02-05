@@ -35,7 +35,7 @@ func (impl UserRepositoryQueryBuilder) GetQueryForUserListingWithFilters(req *be
 		}
 	}
 
-	if req.Size > 0 && !req.CountCheck {
+	if req.Size > 0 && !req.ShowAll && !req.CountCheck {
 		orderCondition += " limit " + strconv.Itoa(req.Size) + " offset " + strconv.Itoa(req.Offset) + ""
 	}
 	var query string

@@ -954,7 +954,7 @@ func (impl UserServiceImpl) GetAllWithFilters(request *bean.FetchListingRequest)
 	//  default values will be used if not provided
 	impl.userCommonService.SetDefaultValuesIfNotPresent(request, false)
 	if request.ShowAll {
-		response, err := impl.getAllDetailedUsers()
+		response, err := impl.getAllDetailedUsers(request)
 		if err != nil {
 			impl.logger.Errorw("error in GetAllWithFilters", "err", err)
 			return nil, err
@@ -1022,8 +1022,8 @@ func (impl UserServiceImpl) getUserResponse(model []repository.UserModel, totalC
 	return listingResponse, nil
 }
 
-func (impl *UserServiceImpl) getAllDetailedUsers() ([]bean.UserInfo, error) {
-	query := impl.userListingRepositoryQueryBuilder.GetQueryForAllUserWithAudit()
+func (impl *UserServiceImpl) getAllDetailedUsers(req *bean.FetchListingRequest) ([]bean.UserInfo, error) {
+	query := impl.userListingRepositoryQueryBuilder.GetQueryForUserListingWithFilters(req)
 	models, err := impl.userRepository.GetAllExecutingQuery(query)
 	if err != nil {
 		impl.logger.Errorw("error in GetAllDetailedUsers", "err", err)
