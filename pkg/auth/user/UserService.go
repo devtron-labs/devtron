@@ -86,7 +86,7 @@ type UserService interface {
 	CheckForApproverAccess(appName, envName string, userId int32) bool
 	GetConfigApprovalUsersByEnv(appName, envName, team string) ([]string, error)
 	GetFieldValuesFromToken(token string) ([]byte, error)
-	BulkUpdateStatusForUsers(request *bean.BulkStatusUpdateRequest, userId int32) (*bean.ActionResponse, error)
+	BulkUpdateStatus(request *bean.BulkStatusUpdateRequest) (*bean.ActionResponse, error)
 	CheckUserStatusAndUpdateLoginAudit(token string) (bool, int32, error)
 	GetUserBasicDataByEmailId(emailId string) (*bean.UserInfo, error)
 }
@@ -2305,36 +2305,57 @@ func (impl UserServiceImpl) getRolefiltersForDevtronManaged(model *repository.Us
 	return roleFilters, nil
 }
 
-func (impl UserServiceImpl) BulkUpdateStatusForUsers(request *bean.BulkStatusUpdateRequest, userId int32) (*bean.ActionResponse, error) {
+// BulkUpdateStatus updates the status for the users or filters given in bulk , return ActionResponse and error in response
+func (impl UserServiceImpl) BulkUpdateStatus(request *bean.BulkStatusUpdateRequest) (*bean.ActionResponse, error) {
+	// it handles FetchListingRequest if filters are applied will delete those users or will consider the given user ids.
+	if request.ListingRequest != nil {
+		filteredUserIds, err := impl.getUserIdsHonoringFilters(request.ListingRequest)
+		if err != nil {
+			impl.logger.Errorw("error in BulkDeleteUsers", "request", request, "err", err)
+			return nil, err
+		}
+		// setting the filtered user ids here for further processing
+		request.UserIds = filteredUserIds
+	}
+	err := impl.bulkUpdateStatusForIds(request)
+	if err != nil {
+		impl.logger.Errorw("error in BulkUpdateStatus", "request", request, "err", err)
+		return nil, err
+	}
+	resp := &bean.ActionResponse{
+		Suceess: true,
+	}
+	return resp, nil
+
+}
+
+func (impl UserServiceImpl) bulkUpdateStatusForIds(request *bean.BulkStatusUpdateRequest) error {
 	activeStatus := request.Status == bean.Active && request.TimeoutWindowExpression.IsZero()
 	inactiveStatus := request.Status == bean.Inactive
 	timeExpressionStatus := request.Status == bean.Active && !request.TimeoutWindowExpression.IsZero()
 	if activeStatus {
 		// active case
 		// set foreign key to null for every user
-		err := impl.userRepository.UpdateWindowIdToNull(request.UserIds, userId)
+		err := impl.userRepository.UpdateWindowIdToNull(request.UserIds, request.LoggedInUserId)
 		if err != nil {
 			impl.logger.Errorw("error in BulkUpdateStatusForUsers", "err", err, "status", request.Status)
-			return nil, err
+			return err
 		}
 	} else if timeExpressionStatus || inactiveStatus {
 		// case: time out expression or inactive
 
 		// getting expression from request configuration
 		timeOutExpression, expressionFormat := getTimeoutExpressionAndFormatforReq(timeExpressionStatus, inactiveStatus, request.TimeoutWindowExpression)
-		err := impl.createAndUpdateWindowID(request.UserIds, timeOutExpression, expressionFormat, userId)
+		err := impl.createAndUpdateWindowID(request.UserIds, timeOutExpression, expressionFormat, request.LoggedInUserId)
 		if err != nil {
 			impl.logger.Errorw("error in BulkUpdateStatusForUsers", "err", err, "status", request.Status)
-			return nil, err
+			return err
 		}
 	} else {
-		return nil, &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "status not supported"}
+		return &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "status not supported"}
 	}
 
-	resp := &bean.ActionResponse{
-		Suceess: true,
-	}
-	return resp, nil
+	return nil
 }
 
 func (impl UserServiceImpl) createAndUpdateWindowID(userIds []int32, timeoutExpression string, expressionFormat bean3.ExpressionFormat, loggedInUserId int32) error {

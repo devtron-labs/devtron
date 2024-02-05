@@ -461,6 +461,8 @@ func (handler UserRestHandlerImpl) BulkUpdateStatus(w http.ResponseWriter, r *ht
 		return
 	}
 	handler.logger.Infow("request payload, BulkUpdateStatus", "payload", request)
+	// setting logged in user Id for audit logs
+	request.LoggedInUserId = userId
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
@@ -482,7 +484,7 @@ func (handler UserRestHandlerImpl) BulkUpdateStatus(w http.ResponseWriter, r *ht
 		return
 	}
 	// service call
-	res, err := handler.userService.BulkUpdateStatusForUsers(&request, userId)
+	res, err := handler.userService.BulkUpdateStatus(&request)
 	if err != nil {
 		handler.logger.Errorw("service err, BulkUpdateStatus", "payload", request, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

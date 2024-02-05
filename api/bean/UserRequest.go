@@ -146,9 +146,11 @@ const (
 )
 
 type BulkStatusUpdateRequest struct {
-	UserIds                 []int32   `json:"userIds",validate:"required"`
-	Status                  Status    `json:"status",validate:"required"'`
-	TimeoutWindowExpression time.Time `json:"timeoutWindowExpression"`
+	UserIds                 []int32              `json:"userIds",validate:"required"`
+	Status                  Status               `json:"status",validate:"required"'`
+	TimeoutWindowExpression time.Time            `json:"timeoutWindowExpression"`
+	ListingRequest          *FetchListingRequest `json:"listingRequest,omitempty"`
+	LoggedInUserId          int32                `json:"-"`
 }
 
 type ActionResponse struct {
