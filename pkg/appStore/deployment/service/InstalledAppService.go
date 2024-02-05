@@ -20,9 +20,13 @@ package service
 import (
 	"bytes"
 	"context"
+	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
+	appStoreDeploymentTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
-	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
+	util2 "github.com/devtron-labs/devtron/pkg/util"
 
 	/* #nosec */
 	"crypto/sha1"
@@ -38,7 +42,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	util4 "github.com/devtron-labs/common-lib-private/utils/k8s"
 	"github.com/devtron-labs/common-lib/pubsub-lib/model"
-	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -48,8 +51,6 @@ import (
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/appStore/chartGroup"
 	repository6 "github.com/devtron-labs/devtron/pkg/appStore/chartGroup/repository"
-	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
-	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/values/service"
@@ -59,7 +60,6 @@ import (
 	application3 "github.com/devtron-labs/devtron/pkg/k8s/application"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	repository4 "github.com/devtron-labs/devtron/pkg/team"
-	util2 "github.com/devtron-labs/devtron/pkg/util"
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 
@@ -104,16 +104,15 @@ type InstalledAppServiceImpl struct {
 	appRepository                        app.AppRepository
 	acdClient                            application2.ServiceClient
 	appStoreValuesService                service.AppStoreValuesService
-	pubsubClient                         *pubsub.PubSubClientServiceImpl
+	pubSubClient                         *pubsub.PubSubClientServiceImpl
 	chartGroupDeploymentRepository       repository6.ChartGroupDeploymentRepository
 	envService                           cluster2.EnvironmentService
 	aCDAuthConfig                        *util2.ACDAuthConfig
 	userService                          user.UserService
 	appStoreDeploymentService            AppStoreDeploymentService
-	appStoreDeploymentFullModeService    appStoreDeploymentFullMode.AppStoreDeploymentFullModeService
 	installedAppRepositoryHistory        repository2.InstalledAppVersionHistoryRepository
 	argoUserService                      argo.ArgoUserService
-	helmAppClient                        client.HelmAppClient
+	helmAppClient                        gRPC.HelmAppClient
 	helmAppService                       client.HelmAppService
 	appStatusService                     appStatus.AppStatusService
 	K8sUtil                              *util4.K8sUtilExtended
@@ -122,7 +121,7 @@ type InstalledAppServiceImpl struct {
 	k8sCommonService                     k8s.K8sCommonService
 	k8sApplicationService                application3.K8sApplicationService
 	acdConfig                            *argocdServer.ACDConfig
-	gitOpsConfigReadService              config.GitOpsConfigReadService
+	appStoreDeploymentArgoCdService      appStoreDeploymentTool.AppStoreDeploymentArgoCdService
 	gitOperationService                  git.GitOperationService
 }
 
@@ -133,17 +132,17 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 	appRepository app.AppRepository, acdClient application2.ServiceClient,
 	appStoreValuesService service.AppStoreValuesService, pubsubClient *pubsub.PubSubClientServiceImpl,
 	chartGroupDeploymentRepository repository6.ChartGroupDeploymentRepository,
-	envService cluster2.EnvironmentService, aCDAuthConfig *util2.ACDAuthConfig, userService user.UserService,
-	appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService,
+	envService cluster2.EnvironmentService,
+	userService user.UserService, aCDAuthConfig *util2.ACDAuthConfig,
 	appStoreDeploymentService AppStoreDeploymentService,
 	installedAppRepositoryHistory repository2.InstalledAppVersionHistoryRepository,
-	argoUserService argo.ArgoUserService, helmAppClient client.HelmAppClient, helmAppService client.HelmAppService,
+	argoUserService argo.ArgoUserService, helmAppClient gRPC.HelmAppClient, helmAppService client.HelmAppService,
 	appStatusService appStatus.AppStatusService, K8sUtil *util4.K8sUtilExtended,
 	pipelineStatusTimelineService status.PipelineStatusTimelineService,
 	appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
 	k8sCommonService k8s.K8sCommonService, k8sApplicationService application3.K8sApplicationService,
-	acdConfig *argocdServer.ACDConfig, gitOpsConfigReadService config.GitOpsConfigReadService,
-	gitOperationService git.GitOperationService) (*InstalledAppServiceImpl, error) {
+	acdConfig *argocdServer.ACDConfig, gitOperationService git.GitOperationService,
+	appStoreDeploymentArgoCdService appStoreDeploymentTool.AppStoreDeploymentArgoCdService) (*InstalledAppServiceImpl, error) {
 	impl := &InstalledAppServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -153,13 +152,12 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 		appRepository:                        appRepository,
 		acdClient:                            acdClient,
 		appStoreValuesService:                appStoreValuesService,
-		pubsubClient:                         pubsubClient,
+		pubSubClient:                         pubsubClient,
 		chartGroupDeploymentRepository:       chartGroupDeploymentRepository,
 		envService:                           envService,
 		aCDAuthConfig:                        aCDAuthConfig,
 		userService:                          userService,
 		appStoreDeploymentService:            appStoreDeploymentService,
-		appStoreDeploymentFullModeService:    appStoreDeploymentFullModeService,
 		installedAppRepositoryHistory:        installedAppRepositoryHistory,
 		argoUserService:                      argoUserService,
 		helmAppClient:                        helmAppClient,
@@ -171,14 +169,63 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 		k8sCommonService:                     k8sCommonService,
 		k8sApplicationService:                k8sApplicationService,
 		acdConfig:                            acdConfig,
-		gitOpsConfigReadService:              gitOpsConfigReadService,
 		gitOperationService:                  gitOperationService,
+		appStoreDeploymentArgoCdService:      appStoreDeploymentArgoCdService,
 	}
 	err := impl.subscribe()
 	if err != nil {
 		return nil, err
 	}
+	err = impl.subscribeHelmInstallStatus()
+	if err != nil {
+		return nil, err
+	}
 	return impl, nil
+}
+func (impl InstalledAppServiceImpl) subscribeHelmInstallStatus() error {
+
+	callback := func(msg *model.PubSubMsg) {
+
+		helmInstallNatsMessage := &appStoreBean.HelmReleaseStatusConfig{}
+		err := json.Unmarshal([]byte(msg.Data), helmInstallNatsMessage)
+		if err != nil {
+			impl.logger.Errorw("error in unmarshalling helm install status nats message", "err", err)
+			return
+		}
+
+		installedAppVersionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(helmInstallNatsMessage.InstallAppVersionHistoryId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching installed app by installed app id in subscribe helm status callback", "err", err)
+			return
+		}
+		if helmInstallNatsMessage.ErrorInInstallation {
+			installedAppVersionHistory.Status = pipelineConfig.WorkflowFailed
+		} else {
+			installedAppVersionHistory.Status = pipelineConfig.WorkflowSucceeded
+		}
+		installedAppVersionHistory.HelmReleaseStatusConfig = msg.Data
+		_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(installedAppVersionHistory, nil)
+		if err != nil {
+			impl.logger.Errorw("error in updating helm release status data in installedAppVersionHistoryRepository", "err", err)
+			return
+		}
+	}
+	// add required logging here
+	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) (string, []interface{}) {
+		helmInstallNatsMessage := &appStoreBean.HelmReleaseStatusConfig{}
+		err := json.Unmarshal([]byte(msg.Data), helmInstallNatsMessage)
+		if err != nil {
+			return "error in unmarshalling helm install status nats message", []interface{}{"err", err}
+		}
+		return "got nats msg for helm chart install status", []interface{}{"InstallAppVersionHistoryId", helmInstallNatsMessage.InstallAppVersionHistoryId, "ErrorInInstallation", helmInstallNatsMessage.ErrorInInstallation, "IsReleaseInstalled", helmInstallNatsMessage.IsReleaseInstalled}
+	}
+
+	err := impl.pubSubClient.Subscribe(pubsub.HELM_CHART_INSTALL_STATUS_TOPIC, callback, loggerFunc)
+	if err != nil {
+		impl.logger.Error(err)
+		return err
+	}
+	return nil
 }
 
 func (impl InstalledAppServiceImpl) GetAll(filter *appStoreBean.AppStoreFilter) (appStoreBean.AppListDetail, error) {
@@ -359,7 +406,7 @@ func (impl InstalledAppServiceImpl) performDeployStageOnAcd(installedAppVersion 
 		installedAppVersion.Status == appStoreBean.GIT_ERROR {
 		//step 2 git operation pull push
 		//TODO: save git Timeline here
-		appStoreGitOpsResponse, err := impl.appStoreDeploymentCommonService.GenerateManifestAndPerformGitOperations(installedAppVersion)
+		appStoreGitOpsResponse, err := impl.appStoreDeploymentArgoCdService.GenerateManifestAndPerformGitOperations(installedAppVersion)
 		if err != nil {
 			impl.logger.Errorw(" error", "err", err)
 			_, err = impl.appStoreDeploymentService.AppStoreDeployOperationStatusUpdate(installedAppVersion.InstalledAppId, appStoreBean.GIT_ERROR)
@@ -461,7 +508,7 @@ func (impl InstalledAppServiceImpl) performDeployStageOnAcd(installedAppVersion 
 		installedAppVersion.Status == appStoreBean.GIT_SUCCESS ||
 		installedAppVersion.Status == appStoreBean.ACD_ERROR {
 		//step 3 acd operation register, sync
-		_, err := impl.appStoreDeploymentFullModeService.AppStoreDeployOperationACD(installedAppVersion, chartGitAttr, ctx, nil)
+		_, err := impl.appStoreDeploymentArgoCdService.InstallApp(installedAppVersion, chartGitAttr, ctx, nil)
 		if err != nil {
 			impl.logger.Errorw("error", "chartGitAttr", chartGitAttr, "err", err)
 			_, err = impl.appStoreDeploymentService.AppStoreDeployOperationStatusUpdate(installedAppVersion.InstalledAppId, appStoreBean.ACD_ERROR)
@@ -578,7 +625,7 @@ func (impl *InstalledAppServiceImpl) triggerDeploymentEvent(installAppVersions [
 		if err != nil {
 			status = appStoreBean.QUE_ERROR
 		} else {
-			err = impl.pubsubClient.Publish(pubsub.BULK_APPSTORE_DEPLOY_TOPIC, string(data))
+			err = impl.pubSubClient.Publish(pubsub.BULK_APPSTORE_DEPLOY_TOPIC, string(data))
 			if err != nil {
 				impl.logger.Errorw("err while publishing msg for app-store bulk deploy", "msg", data, "err", err)
 				status = appStoreBean.QUE_ERROR
@@ -623,7 +670,7 @@ func (impl *InstalledAppServiceImpl) subscribe() error {
 		return "got message for deploy app-store apps in bulk", []interface{}{"installedAppVersionId", deployPayload.InstalledAppVersionId, "installedAppVersionHistoryId", deployPayload.InstalledAppVersionHistoryId}
 	}
 
-	err := impl.pubsubClient.Subscribe(pubsub.BULK_APPSTORE_DEPLOY_TOPIC, callback, loggerFunc)
+	err := impl.pubSubClient.Subscribe(pubsub.BULK_APPSTORE_DEPLOY_TOPIC, callback, loggerFunc)
 	if err != nil {
 		impl.logger.Error("err", err)
 		return err
@@ -972,9 +1019,9 @@ func (impl InstalledAppServiceImpl) GetInstalledAppVersionHistoryValues(installe
 	return values, err
 }
 
-func (impl InstalledAppServiceImpl) getReleaseStatusFromHelmReleaseInstallStatus(helmReleaseInstallStatus string, status string) *client.ReleaseStatus {
+func (impl InstalledAppServiceImpl) getReleaseStatusFromHelmReleaseInstallStatus(helmReleaseInstallStatus string, status string) *gRPC.ReleaseStatus {
 	//release status is sent in resource tree call and is shown on UI as helm config apply status
-	releaseStatus := &client.ReleaseStatus{}
+	releaseStatus := &gRPC.ReleaseStatus{}
 	if len(helmReleaseInstallStatus) > 0 {
 		helmInstallStatus := &appStoreBean.HelmReleaseStatusConfig{}
 		err := json.Unmarshal([]byte(helmReleaseInstallStatus), helmInstallStatus)
@@ -1004,6 +1051,7 @@ func (impl InstalledAppServiceImpl) getReleaseStatusFromHelmReleaseInstallStatus
 	return releaseStatus
 }
 
+// TODO fix me next
 func (impl InstalledAppServiceImpl) MarkGitOpsInstalledAppsDeletedIfArgoAppIsDeleted(installedAppId int, envId int) error {
 	apiError := &util.ApiError{}
 	installedApp, err := impl.installedAppRepository.GetGitOpsInstalledAppsWhereArgoAppDeletedIsTrue(installedAppId, envId)
@@ -1013,6 +1061,7 @@ func (impl InstalledAppServiceImpl) MarkGitOpsInstalledAppsDeletedIfArgoAppIsDel
 		apiError.InternalMessage = "error in fetching partially deleted argoCd apps from installed app repo"
 		return apiError
 	}
+	// TODO refactoring: move the below logic to AppStoreDeploymentArgoCdService.go
 	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
 	if err != nil {
 		impl.logger.Errorw("error in getting acd token", "err", err)

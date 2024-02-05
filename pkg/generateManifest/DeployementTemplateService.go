@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"github.com/devtron-labs/common-lib-private/utils/k8s"
-	client "github.com/devtron-labs/devtron/api/helm-app"
+	"github.com/devtron-labs/devtron/api/helm-app/bean"
+	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -46,14 +48,14 @@ const (
 	Manifest RequestDataMode = 2
 )
 
-var ChartRepository = &client.ChartRepository{
+var ChartRepository = &gRPC.ChartRepository{
 	Name:     "repo",
 	Url:      "http://localhost:8080/",
 	Username: "admin",
 	Password: "password",
 }
 
-var ReleaseIdentifier = &client.ReleaseIdentifier{
+var ReleaseIdentifier = &gRPC.ReleaseIdentifier{
 	ReleaseNamespace: "devtron-demo",
 	ReleaseName:      "release-name",
 }
@@ -79,7 +81,7 @@ type DeploymentTemplateServiceImpl struct {
 	chartRepository                  chartRepoRepository.ChartRepository
 	chartTemplateServiceImpl         util.ChartTemplateService
 	K8sUtil                          *k8s.K8sUtilExtended
-	helmAppClient                    client.HelmAppClient
+	helmAppClient                    gRPC.HelmAppClient
 	propertiesConfigService          pipeline.PropertiesConfigService
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
 	environmentRepository            repository3.EnvironmentRepository
@@ -95,7 +97,7 @@ func NewDeploymentTemplateServiceImpl(Logger *zap.SugaredLogger, chartService ch
 	helmAppService client.HelmAppService,
 	chartRepository chartRepoRepository.ChartRepository,
 	chartTemplateServiceImpl util.ChartTemplateService,
-	helmAppClient client.HelmAppClient,
+	helmAppClient gRPC.HelmAppClient,
 	K8sUtil *k8s.K8sUtilExtended,
 	propertiesConfigService pipeline.PropertiesConfigService,
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
@@ -339,18 +341,18 @@ func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, 
 		impl.Logger.Errorw("exception caught in getting k8sServerVersion", "err", err)
 		return nil, err
 	}
-	installReleaseRequest := &client.InstallReleaseRequest{
+	installReleaseRequest := &gRPC.InstallReleaseRequest{
 		ChartName:         template,
 		ChartVersion:      version,
 		ValuesYaml:        valuesYaml,
 		K8SVersion:        k8sServerVersion.String(),
 		ChartRepository:   ChartRepository,
 		ReleaseIdentifier: ReleaseIdentifier,
-		ChartContent: &client.ChartContent{
+		ChartContent: &gRPC.ChartContent{
 			Content: chartBytes,
 		},
 	}
-	config, err := impl.helmAppService.GetClusterConf(client.DEFAULT_CLUSTER_ID)
+	config, err := impl.helmAppService.GetClusterConf(bean.DEFAULT_CLUSTER_ID)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching cluster detail", "clusterId", 1, "err", err)
 		return nil, err

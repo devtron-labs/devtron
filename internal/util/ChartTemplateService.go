@@ -451,6 +451,7 @@ func IsAcdApp(deploymentAppType string) bool {
 	return deploymentAppType == PIPELINE_DEPLOYMENT_TYPE_ACD
 }
 
+// TODO refactoring: This feature belongs to enterprise only
 func IsManifestDownload(deploymentAppType string) bool {
 	return deploymentAppType == PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD
 }

@@ -8,7 +8,7 @@ import (
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/api/helm-app"
+	"github.com/devtron-labs/devtron/api/helm-app/service"
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	bean3 "github.com/devtron-labs/devtron/pkg/k8s/application/bean"
@@ -45,7 +45,7 @@ type K8sCommonService interface {
 type K8sCommonServiceImpl struct {
 	logger                      *zap.SugaredLogger
 	K8sUtil                     *k8s.K8sUtilExtended
-	helmAppService              client.HelmAppService
+	helmAppService              service.HelmAppService
 	K8sResourceHistoryService   kubernetesResourceAuditLogs.K8sResourceHistoryService
 	clusterService              cluster.ClusterService
 	K8sApplicationServiceConfig *K8sApplicationServiceConfig
@@ -56,7 +56,7 @@ type K8sApplicationServiceConfig struct {
 	TimeOutInSeconds int `env:"TIMEOUT_IN_SECONDS" envDefault:"5"`
 }
 
-func NewK8sCommonServiceImpl(Logger *zap.SugaredLogger, k8sUtils *k8s.K8sUtilExtended, helmAppService client.HelmAppService,
+func NewK8sCommonServiceImpl(Logger *zap.SugaredLogger, k8sUtils *k8s.K8sUtilExtended, helmAppService service.HelmAppService,
 	K8sResourceHistoryService kubernetesResourceAuditLogs.K8sResourceHistoryService, clusterService cluster.ClusterService) *K8sCommonServiceImpl {
 	cfg := &K8sApplicationServiceConfig{}
 	err := env.Parse(cfg)
@@ -180,7 +180,7 @@ func (impl *K8sCommonServiceImpl) FilterK8sResources(ctx context.Context, resour
 			req := ResourceRequestBean{
 				AppId:     appId,
 				ClusterId: appDetail.ClusterId,
-				AppIdentifier: &client.AppIdentifier{
+				AppIdentifier: &service.AppIdentifier{
 					ClusterId: appDetail.ClusterId,
 				},
 				K8sRequest: &k8s2.K8sRequestBean{

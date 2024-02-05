@@ -1,11 +1,9 @@
-package client
+package gRPC
 
 import (
 	"context"
 	"fmt"
 	"github.com/caarlos0/env"
-	"github.com/devtron-labs/devtron/internal/constants"
-	"github.com/devtron-labs/devtron/internal/util"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -159,13 +157,6 @@ func (impl *HelmAppClientImpl) GetDeploymentHistory(ctx context.Context, in *App
 	}
 	history, err := applicationClient.GetDeploymentHistory(ctx, in)
 	if err != nil {
-		if util.GetGRPCErrorDetailedMessage(err) == ErrReleaseNotFound {
-			err = &util.ApiError{
-				Code:            constants.HelmReleaseNotFound,
-				InternalMessage: ErrReleaseNotFound,
-				UserMessage:     fmt.Sprintf("no release found with release name '%s'", in.ReleaseName),
-			}
-		}
 		return nil, err
 	}
 	return history, nil

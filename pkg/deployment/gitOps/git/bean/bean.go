@@ -19,3 +19,12 @@ type GitConfig struct {
 	BitbucketWorkspaceId string
 	BitbucketProjectKey  string
 }
+
+type PushChartToGitRequestDTO struct {
+	AppName           string
+	EnvName           string
+	ChartAppStoreName string
+	RepoURL           string
+	TempChartRefDir   string
+	UserId            int32
+}

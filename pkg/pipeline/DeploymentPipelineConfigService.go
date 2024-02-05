@@ -24,8 +24,8 @@ import (
 	"fmt"
 	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
-	client "github.com/devtron-labs/devtron/api/helm-app"
 	models2 "github.com/devtron-labs/devtron/api/helm-app/models"
+	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/sql/models"
@@ -42,12 +42,12 @@ import (
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"github.com/devtron-labs/devtron/pkg/devtronResource"
-	bean5 "github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
+	"github.com/devtron-labs/devtron/pkg/devtronResource"
+	bean5 "github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
@@ -149,16 +149,16 @@ type CdPipelineConfigServiceImpl struct {
 	application                      application.ServiceClient
 	manifestPushConfigRepository     repository5.ManifestPushConfigRepository
 	pipelineConfigListenerService    PipelineConfigListenerService
-	devtronAppCMCSService      DevtronAppCMCSService
-	customTagService           CustomTagService
-	ciPipelineConfigService    CiPipelineConfigService
-	buildPipelineSwitchService BuildPipelineSwitchService
-	devtronResourceService devtronResource.DevtronResourceService
+	devtronAppCMCSService            DevtronAppCMCSService
+	customTagService                 CustomTagService
+	ciPipelineConfigService          CiPipelineConfigService
+	buildPipelineSwitchService       BuildPipelineSwitchService
+	devtronResourceService           devtronResource.DevtronResourceService
 	argoClientWrapperService         argocdServer.ArgoClientWrapperService
 	deployedAppMetricsService        deployedAppMetrics.DeployedAppMetricsService
 	gitOpsConfigReadService          config.GitOpsConfigReadService
 	gitOperationService              git.GitOperationService
-	imageDigestPolicyService   imageDigestPolicy.ImageDigestPolicyService
+	imageDigestPolicyService         imageDigestPolicy.ImageDigestPolicyService
 }
 
 func NewCdPipelineConfigServiceImpl(
@@ -1684,7 +1684,6 @@ func (impl *CdPipelineConfigServiceImpl) GetEnvironmentListForAutocompleteFilter
 	result.EnvCount = envCount
 	return result, nil
 }
-
 
 func (impl *CdPipelineConfigServiceImpl) GetVirtualEnvironmentMap(pipelineCreateRequest *bean.CdPipelines) (map[int]bool, error) {
 	var envIds []*int

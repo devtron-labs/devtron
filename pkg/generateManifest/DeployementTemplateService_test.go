@@ -6,7 +6,7 @@ import (
 	client2 "github.com/devtron-labs/authenticator/client"
 	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	"github.com/devtron-labs/devtron/api/bean"
-	client "github.com/devtron-labs/devtron/api/helm-app"
+	client "github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	mocks4 "github.com/devtron-labs/devtron/api/helm-app/mocks"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	mocks3 "github.com/devtron-labs/devtron/internal/sql/repository/mocks"

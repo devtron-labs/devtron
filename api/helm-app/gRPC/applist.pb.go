@@ -4,7 +4,7 @@
 // 	protoc        v3.9.1
 // source: api/helm-app/applist.proto
 
-package client
+package gRPC
 
 import (
 	timestamp "github.com/golang/protobuf/ptypes/timestamp"

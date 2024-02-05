@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"io"
 	"net/http"
 	"strconv"
@@ -17,7 +19,6 @@ import (
 	k8sObjectUtils "github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
 	yamlUtil "github.com/devtron-labs/common-lib/utils/yaml"
 	"github.com/devtron-labs/devtron/api/connector"
-	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
@@ -390,7 +391,7 @@ func (impl *K8sApplicationServiceImpl) ValidateResourceRequest(ctx context.Conte
 	return impl.validateContainerNameIfReqd(valid, request, app), nil
 }
 
-func (impl *K8sApplicationServiceImpl) validateContainerNameIfReqd(valid bool, request *k8s3.K8sRequestBean, app *client.AppDetail) bool {
+func (impl *K8sApplicationServiceImpl) validateContainerNameIfReqd(valid bool, request *k8s3.K8sRequestBean, app *gRPC.AppDetail) bool {
 	if !valid {
 		requestContainerName := request.PodLogsRequest.ContainerName
 		podName := request.ResourceIdentifier.Name
