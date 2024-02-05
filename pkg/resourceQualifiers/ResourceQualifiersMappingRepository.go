@@ -265,7 +265,11 @@ func (repo *QualifiersMappingRepositoryImpl) GetQualifierMappingsWithIdentifierF
 		query += ",COUNT(id) OVER() AS total_count "
 	}
 	query += " FROM resource_qualifier_mapping "
-	whereClause := fmt.Sprintf(" WHERE resource_type = %d AND resource_id = %d  AND identifier_key = %d AND active=true ", resourceType, resourceId, identifierKey)
+
+	whereClause := fmt.Sprintf("WHERE resource_type = %d AND identifier_key = %d AND active=true ", resourceType, identifierKey)
+	if resourceId > 0 {
+		whereClause += fmt.Sprintf(" AND resource_id = %d ", resourceId)
+	}
 	if identifierValueStringLike != "" {
 		whereClause += " AND identifier_value_string LIKE '%" + identifierValueStringLike + "%' "
 	}

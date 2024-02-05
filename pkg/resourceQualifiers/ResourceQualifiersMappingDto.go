@@ -9,7 +9,7 @@ const (
 	Filter                ResourceType = 1
 	ImageDigest           ResourceType = 2
 	ImageDigestResourceId              = -1 // for ImageDigest resource id will is constant unlike filter and variables
-	InfraProfile                       = 3
+	InfraProfile          ResourceType = 3
 )
 
 type QualifierSelector int
