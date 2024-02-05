@@ -76,5 +76,5 @@ With this capability, Devtron empowers users to stay informed about the security
 
 Clicking the 'Details' link in the security vulnerabilities report (shown above) reveals detailed information about those found within the deployed image.
 
-![Figure 7: Detailed List of Vulnerabilities](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/security-features/new/detailed+vulnerability-app-details-v2.jpg)
+![Figure 7: Detailed List of Vulnerabilities](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/security-features/new/detailed-vulnerability-app-details-v2.jpg)
 
