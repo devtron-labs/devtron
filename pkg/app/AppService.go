@@ -25,7 +25,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
-	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	bean4 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"io/ioutil"
 	"net/url"
@@ -112,10 +111,8 @@ type AppServiceImpl struct {
 	appStatusService                       appStatus.AppStatusService
 	installedAppRepository                 repository4.InstalledAppRepository
 	installedAppVersionHistoryRepository   repository4.InstalledAppVersionHistoryRepository
-	globalEnvVariables                     *util2.GlobalEnvVariables
 	scopedVariableManager                  variables.ScopedVariableCMCSManager
 	acdConfig                              *argocdServer.ACDConfig
-	chartRefService                        chartRef.ChartRefService
 	gitOpsConfigReadService                config.GitOpsConfigReadService
 	gitOperationService                    git.GitOperationService
 	deploymentTemplateService              deploymentTemplate.DeploymentTemplateService
@@ -145,31 +142,24 @@ type AppService interface {
 func NewAppService(
 	environmentConfigRepository chartConfig.EnvConfigOverrideRepository,
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository,
-	mergeUtil *MergeUtil,
-	logger *zap.SugaredLogger,
+	mergeUtil *MergeUtil, logger *zap.SugaredLogger,
 	pipelineRepository pipelineConfig.PipelineRepository,
-	eventClient client.EventClient,
-	eventFactory client.EventFactory, acdClient application.ServiceClient,
-	appRepository app.AppRepository,
+	eventClient client.EventClient, eventFactory client.EventFactory,
+	acdClient application.ServiceClient, appRepository app.AppRepository,
 	configMapRepository chartConfig.ConfigMapRepository,
 	chartRepository chartRepoRepository.ChartRepository,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	commonService commonService.CommonService,
-	chartTemplateService ChartTemplateService,
-	argoUserService argo.ArgoUserService,
+	chartTemplateService ChartTemplateService, argoUserService argo.ArgoUserService,
 	cdPipelineStatusTimelineRepo pipelineConfig.PipelineStatusTimelineRepository,
 	pipelineStatusTimelineResourcesService status2.PipelineStatusTimelineResourcesService,
 	pipelineStatusSyncDetailService status2.PipelineStatusSyncDetailService,
 	pipelineStatusTimelineService status2.PipelineStatusTimelineService,
-	appStatusConfig *AppServiceConfig,
-	appStatusService appStatus.AppStatusService,
+	appStatusConfig *AppServiceConfig, appStatusService appStatus.AppStatusService,
 	installedAppRepository repository4.InstalledAppRepository,
 	installedAppVersionHistoryRepository repository4.InstalledAppVersionHistoryRepository,
-	globalEnvVariables *util2.GlobalEnvVariables,
-	scopedVariableManager variables.ScopedVariableCMCSManager,
-	acdConfig *argocdServer.ACDConfig, chartRefService chartRef.ChartRefService,
-	gitOpsConfigReadService config.GitOpsConfigReadService,
-	gitOperationService git.GitOperationService,
+	scopedVariableManager variables.ScopedVariableCMCSManager, acdConfig *argocdServer.ACDConfig,
+	gitOpsConfigReadService config.GitOpsConfigReadService, gitOperationService git.GitOperationService,
 	deploymentTemplateService deploymentTemplate.DeploymentTemplateService) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:            environmentConfigRepository,
@@ -195,21 +185,14 @@ func NewAppService(
 		appStatusService:                       appStatusService,
 		installedAppRepository:                 installedAppRepository,
 		installedAppVersionHistoryRepository:   installedAppVersionHistoryRepository,
-		globalEnvVariables:                     globalEnvVariables,
 		scopedVariableManager:                  scopedVariableManager,
 		acdConfig:                              acdConfig,
-		chartRefService:                        chartRefService,
 		gitOpsConfigReadService:                gitOpsConfigReadService,
 		gitOperationService:                    gitOperationService,
 		deploymentTemplateService:              deploymentTemplateService,
 	}
 	return appServiceImpl
 }
-
-const (
-	Success = "SUCCESS"
-	Failure = "FAILURE"
-)
 
 func (impl *AppServiceImpl) UpdateReleaseStatus(updateStatusRequest *bean.ReleaseStatusUpdateRequest) (bool, error) {
 	count, err := impl.pipelineOverrideRepository.UpdateStatusByRequestIdentifier(updateStatusRequest.RequestId, updateStatusRequest.NewStatus)

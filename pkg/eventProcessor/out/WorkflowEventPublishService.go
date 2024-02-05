@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	bean3 "github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest"
@@ -21,6 +22,7 @@ import (
 )
 
 type WorkflowEventPublishService interface {
+	TriggerBulkHibernateAsync(request bean.StopDeploymentGroupRequest) (interface{}, error)
 	TriggerHelmAsyncRelease(overrideRequest *bean3.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time,
 		triggeredBy int32) (releaseNo int, manifest []byte, err error)
 	TriggerBulkDeploymentAsync(requests []*bean.BulkTriggerRequest, UserId int32) (interface{}, error)
@@ -37,6 +39,7 @@ type WorkflowEventPublishServiceImpl struct {
 
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository
 	pipelineRepository   pipelineConfig.PipelineRepository
+	groupRepository      repository.DeploymentGroupRepository
 }
 
 func NewWorkflowEventPublishServiceImpl(logger *zap.SugaredLogger,
@@ -47,7 +50,8 @@ func NewWorkflowEventPublishServiceImpl(logger *zap.SugaredLogger,
 	pipelineStatusTimelineService status.PipelineStatusTimelineService,
 
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
-	pipelineRepository pipelineConfig.PipelineRepository) (*WorkflowEventPublishServiceImpl, error) {
+	pipelineRepository pipelineConfig.PipelineRepository,
+	groupRepository repository.DeploymentGroupRepository) (*WorkflowEventPublishServiceImpl, error) {
 	config, err := types.GetCdConfig()
 	if err != nil {
 		return nil, err
@@ -63,8 +67,39 @@ func NewWorkflowEventPublishServiceImpl(logger *zap.SugaredLogger,
 
 		cdWorkflowRepository: cdWorkflowRepository,
 		pipelineRepository:   pipelineRepository,
+		groupRepository:      groupRepository,
 	}
 	return impl, nil
+}
+
+func (impl *WorkflowEventPublishServiceImpl) TriggerBulkHibernateAsync(request bean.StopDeploymentGroupRequest) (interface{}, error) {
+	dg, err := impl.groupRepository.FindByIdWithApp(request.DeploymentGroupId)
+	if err != nil {
+		impl.logger.Errorw("error while fetching dg", "err", err)
+		return nil, err
+	}
+
+	for _, app := range dg.DeploymentGroupApps {
+		deploymentGroupAppWithEnv := &bean.DeploymentGroupAppWithEnv{
+			AppId:             app.AppId,
+			EnvironmentId:     dg.EnvironmentId,
+			DeploymentGroupId: dg.Id,
+			Active:            dg.Active,
+			UserId:            request.UserId,
+			RequestType:       request.RequestType,
+		}
+
+		data, err := json.Marshal(deploymentGroupAppWithEnv)
+		if err != nil {
+			impl.logger.Errorw("error while writing app stop event to nats ", "app", app.AppId, "deploymentGroup", app.DeploymentGroupId, "err", err)
+		} else {
+			err = impl.pubSubClient.Publish(pubsub.BULK_HIBERNATE_TOPIC, string(data))
+			if err != nil {
+				impl.logger.Errorw("Error while publishing request", "topic", pubsub.BULK_HIBERNATE_TOPIC, "error", err)
+			}
+		}
+	}
+	return nil, nil
 }
 
 // TriggerHelmAsyncRelease will publish async helm Install/Upgrade request event for Devtron App releases

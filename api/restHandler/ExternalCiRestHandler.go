@@ -19,15 +19,14 @@ package restHandler
 
 import (
 	"encoding/json"
+	"github.com/devtron-labs/devtron/pkg/workflow/dag"
 	"net/http"
 	"strconv"
 
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"github.com/devtron-labs/devtron/api/router/pubsub"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
@@ -38,27 +37,22 @@ type ExternalCiRestHandler interface {
 }
 
 type ExternalCiRestHandlerImpl struct {
-	logger         *zap.SugaredLogger
-	webhookService pipeline.WebhookService
-	ciEventHandler pubsub.CiEventHandler
-	validator      *validator.Validate
-	userService    user.UserService
-	enforcer       casbin.Enforcer
-	enforcerUtil   rbac.EnforcerUtil
+	logger              *zap.SugaredLogger
+	validator           *validator.Validate
+	userService         user.UserService
+	enforcer            casbin.Enforcer
+	workflowDagExecutor dag.WorkflowDagExecutor
 }
 
-func NewExternalCiRestHandlerImpl(logger *zap.SugaredLogger, webhookService pipeline.WebhookService,
-	ciEventHandler pubsub.CiEventHandler, validator *validator.Validate, userService user.UserService,
-	enforcer casbin.Enforcer,
-	enforcerUtil rbac.EnforcerUtil) *ExternalCiRestHandlerImpl {
+func NewExternalCiRestHandlerImpl(logger *zap.SugaredLogger, validator *validator.Validate,
+	userService user.UserService, enforcer casbin.Enforcer,
+	workflowDagExecutor dag.WorkflowDagExecutor) *ExternalCiRestHandlerImpl {
 	return &ExternalCiRestHandlerImpl{
-		webhookService: webhookService,
-		logger:         logger,
-		ciEventHandler: ciEventHandler,
-		validator:      validator,
-		userService:    userService,
-		enforcer:       enforcer,
-		enforcerUtil:   enforcerUtil,
+		logger:              logger,
+		validator:           validator,
+		userService:         userService,
+		enforcer:            enforcer,
+		workflowDagExecutor: workflowDagExecutor,
 	}
 }
 
@@ -77,7 +71,7 @@ func (impl ExternalCiRestHandlerImpl) HandleExternalCiWebhook(w http.ResponseWri
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	var req pubsub.CiCompleteEvent
+	var req pipeline.ExternalCiWebhookDto
 	err = decoder.Decode(&req)
 	if err != nil {
 		impl.logger.Errorw("request err, HandleExternalCiWebhook", "err", err, "payload", req)
@@ -94,7 +88,7 @@ func (impl ExternalCiRestHandlerImpl) HandleExternalCiWebhook(w http.ResponseWri
 		return
 	}
 	//fetching request
-	ciArtifactReq, err := impl.ciEventHandler.BuildCiArtifactRequestForWebhook(req)
+	ciArtifactReq, err := impl.workflowDagExecutor.BuildCiArtifactRequestForWebhook(req)
 	if err != nil {
 		impl.logger.Errorw("service err, HandleExternalCiWebhook", "err", err, "payload", req)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -107,7 +101,7 @@ func (impl ExternalCiRestHandlerImpl) HandleExternalCiWebhook(w http.ResponseWri
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	_, err = impl.webhookService.HandleExternalCiWebhook(externalCiId, ciArtifactReq, impl.checkExternalCiDeploymentAuth, token)
+	_, err = impl.workflowDagExecutor.HandleExternalCiWebhook(externalCiId, ciArtifactReq, impl.checkExternalCiDeploymentAuth, token)
 	if err != nil {
 		impl.logger.Errorw("service err, HandleExternalCiWebhook", "err", err, "payload", req)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

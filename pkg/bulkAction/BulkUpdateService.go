@@ -23,15 +23,20 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/deployment/deployedApp"
+	bean5 "github.com/devtron-labs/devtron/pkg/deployment/deployedApp/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
+	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps"
+	bean4 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	pipeline1 "github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
+	"github.com/devtron-labs/devtron/pkg/workflow/cd"
+	"github.com/devtron-labs/devtron/pkg/workflow/dag"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
 	jsonpatch "github.com/evanphx/json-patch"
@@ -65,14 +70,13 @@ type BulkUpdateService interface {
 
 type BulkUpdateServiceImpl struct {
 	bulkUpdateRepository             bulkUpdate.BulkUpdateRepository
-	chartRepository                  chartRepoRepository.ChartRepository
 	logger                           *zap.SugaredLogger
 	environmentRepository            repository2.EnvironmentRepository
 	pipelineRepository               pipelineConfig.PipelineRepository
 	appRepository                    app.AppRepository
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
 	configMapHistoryService          history.ConfigMapHistoryService
-	workflowDagExecutor              pipeline.WorkflowDagExecutor
+	workflowDagExecutor              dag.WorkflowDagExecutor
 	pipelineBuilder                  pipeline.PipelineBuilder
 	enforcerUtil                     rbac.EnforcerUtil
 	ciHandler                        pipeline.CiHandler
@@ -84,16 +88,18 @@ type BulkUpdateServiceImpl struct {
 	scopedVariableManager            variables.ScopedVariableManager
 	deployedAppMetricsService        deployedAppMetrics.DeployedAppMetricsService
 	chartRefService                  chartRef.ChartRefService
+	cdTriggerService                 devtronApps.TriggerService
+	deployedAppService               deployedApp.DeployedAppService
+	cdWorkflowCommonService          cd.CdWorkflowCommonService
 }
 
 func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateRepository,
-	chartRepository chartRepoRepository.ChartRepository,
 	logger *zap.SugaredLogger,
 	environmentRepository repository2.EnvironmentRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	appRepository app.AppRepository,
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
-	configMapHistoryService history.ConfigMapHistoryService, workflowDagExecutor pipeline.WorkflowDagExecutor,
+	configMapHistoryService history.ConfigMapHistoryService, workflowDagExecutor dag.WorkflowDagExecutor,
 	pipelineBuilder pipeline.PipelineBuilder,
 	enforcerUtil rbac.EnforcerUtil,
 	ciHandler pipeline.CiHandler,
@@ -104,10 +110,12 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 	argoUserService argo.ArgoUserService,
 	scopedVariableManager variables.ScopedVariableManager,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
-	chartRefService chartRef.ChartRefService) (*BulkUpdateServiceImpl, error) {
+	chartRefService chartRef.ChartRefService,
+	cdTriggerService devtronApps.TriggerService,
+	deployedAppService deployedApp.DeployedAppService,
+	cdWorkflowCommonService cd.CdWorkflowCommonService) (*BulkUpdateServiceImpl, error) {
 	impl := &BulkUpdateServiceImpl{
 		bulkUpdateRepository:             bulkUpdateRepository,
-		chartRepository:                  chartRepository,
 		logger:                           logger,
 		environmentRepository:            environmentRepository,
 		pipelineRepository:               pipelineRepository,
@@ -126,6 +134,9 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 		scopedVariableManager:            scopedVariableManager,
 		deployedAppMetricsService:        deployedAppMetricsService,
 		chartRefService:                  chartRefService,
+		cdTriggerService:                 cdTriggerService,
+		deployedAppService:               deployedAppService,
+		cdWorkflowCommonService:          cdWorkflowCommonService,
 	}
 
 	err := impl.SubscribeToCdBulkTriggerTopic()
@@ -1016,16 +1027,13 @@ func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvir
 		}
 		var hibernateReqError error
 		//if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
-		stopRequest := &pipeline1.StopAppRequest{
+		stopRequest := &bean5.StopAppRequest{
 			AppId:         pipeline.AppId,
 			EnvironmentId: pipeline.EnvironmentId,
 			UserId:        request.UserId,
-			RequestType:   pipeline1.STOP,
+			RequestType:   bean5.STOP,
 		}
-		triggerContext := pipeline1.TriggerContext{
-			Context: ctx,
-		}
-		_, hibernateReqError = impl.workflowDagExecutor.StopStartApp(triggerContext, stopRequest)
+		_, hibernateReqError = impl.deployedAppService.StopStartApp(ctx, stopRequest)
 		if hibernateReqError != nil {
 			impl.logger.Errorw("error in hibernating application", "err", hibernateReqError, "pipeline", pipeline)
 			pipelineResponse := response[appKey]
@@ -1175,16 +1183,13 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 		}
 		var hibernateReqError error
 		//if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
-		stopRequest := &pipeline1.StopAppRequest{
+		stopRequest := &bean5.StopAppRequest{
 			AppId:         pipeline.AppId,
 			EnvironmentId: pipeline.EnvironmentId,
 			UserId:        request.UserId,
-			RequestType:   pipeline1.START,
+			RequestType:   bean5.START,
 		}
-		triggerContext := pipeline1.TriggerContext{
-			Context: ctx,
-		}
-		_, hibernateReqError = impl.workflowDagExecutor.StopStartApp(triggerContext, stopRequest)
+		_, hibernateReqError = impl.deployedAppService.StopStartApp(ctx, stopRequest)
 		if hibernateReqError != nil {
 			impl.logger.Errorw("error in un-hibernating application", "err", hibernateReqError, "pipeline", pipeline)
 			pipelineResponse := response[appKey]
@@ -1402,12 +1407,12 @@ func (impl BulkUpdateServiceImpl) SubscribeToCdBulkTriggerTopic() error {
 			return
 		}
 
-		triggerContext := pipeline1.TriggerContext{
+		triggerContext := bean4.TriggerContext{
 			ReferenceId: pointer.String(msg.MsgId),
 			Context:     ctx,
 		}
 
-		_, err = impl.workflowDagExecutor.ManualCdTrigger(triggerContext, event.ValuesOverrideRequest)
+		_, err = impl.cdTriggerService.ManualCdTrigger(triggerContext, event.ValuesOverrideRequest)
 		if err != nil {
 			impl.logger.Errorw("Error triggering CD",
 				"topic", pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC,
@@ -1426,7 +1431,7 @@ func (impl BulkUpdateServiceImpl) SubscribeToCdBulkTriggerTopic() error {
 		return "got message for trigger cd in bulk", []interface{}{"pipelineId", event.ValuesOverrideRequest.PipelineId, "appId", event.ValuesOverrideRequest.AppId, "cdWorkflowType", event.ValuesOverrideRequest.CdWorkflowType, "ciArtifactId", event.ValuesOverrideRequest.CiArtifactId}
 	}
 
-	validations := impl.workflowDagExecutor.GetTriggerValidateFuncs()
+	validations := impl.cdWorkflowCommonService.GetTriggerValidateFuncs()
 	err := impl.pubsubClient.Subscribe(pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC, callback, loggerFunc, validations...)
 	if err != nil {
 		impl.logger.Error("failed to subscribe to NATS topic",
