@@ -13,10 +13,6 @@ func CheckIfUserDevtronManaged(userId int32) bool {
 	return true
 }
 func CheckValidationForAdminAndSystemUserId(userIds []int32) error {
-	if len(userIds) == 0 {
-		err := &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "no user ids provided"}
-		return err
-	}
 	validated := CheckIfUserDevtronManagedOnly(userIds)
 	if !validated {
 		err := &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "cannot update status for system or admin user"}
@@ -29,4 +25,13 @@ func CheckIfUserDevtronManagedOnly(userIds []int32) bool {
 		return false
 	}
 	return true
+}
+
+func CheckIfUserIdsExists(userIds []int32) error {
+	var err error
+	if len(userIds) == 0 {
+		err = &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "no user ids provided"}
+		return err
+	}
+	return nil
 }
