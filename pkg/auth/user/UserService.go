@@ -1772,7 +1772,7 @@ func (impl *UserServiceImpl) getUserIdsHonoringFilters(request *bean.FetchListin
 	// collecting the required user ids from filtered models
 	filteredUserIds := make([]int32, len(models))
 	for i, model := range models {
-		if model.EmailId != bean2.AdminUser || model.EmailId != bean2.SystemUser {
+		if !(model.EmailId == bean2.AdminUser || model.EmailId == bean2.SystemUser) {
 			filteredUserIds[i] = model.Id
 		}
 	}
