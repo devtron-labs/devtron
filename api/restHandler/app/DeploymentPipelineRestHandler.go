@@ -915,6 +915,11 @@ func (handler PipelineConfigRestHandlerImpl) GetEnvConfigOverride(w http.Respons
 
 func (handler PipelineConfigRestHandlerImpl) GetTemplateComparisonMetadata(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
 	token := r.Header.Get("token")
 	appId, err := strconv.Atoi(vars["appId"])
 	if err != nil {
@@ -929,10 +934,23 @@ func (handler PipelineConfigRestHandlerImpl) GetTemplateComparisonMetadata(w htt
 	}
 
 	// RBAC enforcer applying
-	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
-		common.WriteJsonResp(w, err, "unauthorized user", http.StatusForbidden)
-		return
+
+	if appId == -1 {
+		isAuthorised, err := handler.userAuthService.IsUserAdminOrManagerForAnyApp(userId, token)
+		if err != nil {
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		if !isAuthorised {
+			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+			return
+		}
+	} else {
+		object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+			common.WriteJsonResp(w, err, "unauthorized user", http.StatusForbidden)
+			return
+		}
 	}
 	// RBAC enforcer Ends
 
