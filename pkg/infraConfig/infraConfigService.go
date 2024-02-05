@@ -751,6 +751,9 @@ func (impl *InfraConfigServiceImpl) getIdentifiersListForNonDefaultProfile(listF
 	pId, err := impl.infraProfileRepo.GetProfileIdByName(listFilter.ProfileName)
 	if err != nil {
 		impl.logger.Errorw("error in fetching profileId using profileName", "profileName", listFilter.ProfileName, "error", err)
+		if errors.Is(err, pg.ErrNoRows) {
+			err = errors.Wrap(err, fmt.Sprintf("profile with name %s not found", listFilter.ProfileName))
+		}
 		return nil, err
 	}
 	qualifierMappings, err := impl.qualifierMappingService.GetQualifierMappingsWithIdentifierFilter(resourceQualifiers.InfraProfile, pId, identifierType, listFilter.IdentifierNameLike, listFilter.SortOrder, listFilter.Limit, listFilter.Offset, true)
