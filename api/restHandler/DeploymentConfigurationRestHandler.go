@@ -20,21 +20,18 @@ type DeploymentConfigurationRestHandlerImpl struct {
 	userAuthService                user.UserService
 	validator                      *validator.Validate
 	enforcerUtil                   rbac.EnforcerUtil
-	enforcer                       casbin.Enforcer
 	deploymentConfigurationService config.DeploymentConfigurationService
 }
 
 func NewDeploymentConfigurationRestHandlerImpl(logger *zap.SugaredLogger,
 	userAuthService user.UserService,
 	enforcerUtil rbac.EnforcerUtil,
-	enforcer casbin.Enforcer,
 	deploymentConfigurationService config.DeploymentConfigurationService,
 ) *DeploymentConfigurationRestHandlerImpl {
 	return &DeploymentConfigurationRestHandlerImpl{
 		logger:                         logger,
 		userAuthService:                userAuthService,
 		enforcerUtil:                   enforcerUtil,
-		enforcer:                       enforcer,
 		deploymentConfigurationService: deploymentConfigurationService,
 	}
 }

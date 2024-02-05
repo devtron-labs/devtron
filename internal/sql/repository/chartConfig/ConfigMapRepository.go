@@ -61,37 +61,44 @@ type ConfigMapAppModel struct {
 	sql.AuditLog
 }
 type CMCSNames struct {
+	//TableName struct{} `sql:"config_map_app_level" pg:",discard_unknown_columns"`
 	CMName string `json:"cm_name"`
 	CSName string `json:"cs_name"`
 }
 
 func (impl ConfigMapRepositoryImpl) GetConfigNamesAppLevel(appId int) ([]CMCSNames, error) {
 	var cMCSNames []CMCSNames
-	query := "SELECT json_array_elements(config_map_data::json->'maps')->>'name' AS cm_name,    " +
-		"json_array_elements(secret_data::json->'secrets')->>'name' AS cs_name " +
-		"FROM config_map_app_level WHERE app_id = ?;"
+	query := impl.dbConnection.
+		Model().
+		Table("config_map_app_level").
+		ColumnExpr("json_array_elements(config_map_data::json->'maps')->>'name' AS cm_name").
+		ColumnExpr("json_array_elements(secret_data::json->'secrets')->>'name' AS cs_name").
+		Where("app_id = ?", appId)
 
-	_, err := impl.dbConnection.Query(&cMCSNames, query, appId)
-	if err != nil && err != pg.ErrNoRows {
-		impl.Logger.Errorw("error occurred while fetching CM/CS names ", "appId", appId, "err", err)
-	} else {
-		err = nil //ignoring noRows Error
+	if err := query.Select(&cMCSNames); err != nil {
+		if err != pg.ErrNoRows {
+			impl.Logger.Errorw("error occurred while fetching CM/CS names", "appId", appId, "err", err)
+		}
+		return cMCSNames, err
 	}
-	return cMCSNames, err
+	return cMCSNames, nil
 }
 func (impl ConfigMapRepositoryImpl) GetConfigNamesEnvLevel(appId int, envId int) ([]CMCSNames, error) {
 	var cMCSNames []CMCSNames
-	query := "SELECT json_array_elements(config_map_data::json->'maps')->>'name' AS cm_name,    " +
-		"json_array_elements(secret_data::json->'secrets')->>'name' AS cs_name " +
-		"FROM config_map_env_level WHERE app_id = ? AND env_id=?;"
+	query := impl.dbConnection.
+		Model().
+		Table("config_map_env_level").
+		ColumnExpr("json_array_elements(config_map_data::json->'maps')->>'name' AS cm_name").
+		ColumnExpr("json_array_elements(secret_data::json->'secrets')->>'name' AS cs_name").
+		Where("app_id = ?", appId)
 
-	_, err := impl.dbConnection.Query(&cMCSNames, query, appId, envId)
-	if err != nil && err != pg.ErrNoRows {
-		impl.Logger.Errorw("error occurred while fetching CM/CS names ", "appId", appId, "envId", envId, "err", err)
-	} else {
-		err = nil //ignoring noRows Error
+	if err := query.Select(&cMCSNames); err != nil {
+		if err != pg.ErrNoRows {
+			impl.Logger.Errorw("error occurred while fetching CM/CS names", "appId", appId, "err", err)
+		}
+		return cMCSNames, err
 	}
-	return cMCSNames, err
+	return cMCSNames, nil
 }
 
 func (impl ConfigMapRepositoryImpl) CreateAppLevel(model *ConfigMapAppModel) (*ConfigMapAppModel, error) {

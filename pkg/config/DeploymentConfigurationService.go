@@ -27,38 +27,40 @@ func NewDeploymentConfigurationServiceImpl(logger *zap.SugaredLogger,
 }
 
 func (impl *DeploymentConfigurationServiceImpl) ConfigAutoComplete(appId int, envId int) (*ConfigDataResponse, error) {
-	var configDataResponse *ConfigDataResponse
 	cMCSNamesAppLevel, cMCSNamesEnvLevel, err := impl.configMapService.FetchCmCsNamesAppAndEnvLevel(appId, envId)
 	if err != nil {
 		return nil, err
 	}
-	configDataResponse = setConfigDataResponse(cMCSNamesAppLevel, configDataResponse)
-	configDataResponse = setConfigDataResponse(cMCSNamesEnvLevel, configDataResponse)
+	combinedProperties := make([]ConfigProperty, 0)
+	//App level cm/cs
+	combinedProperties = append(combinedProperties, getConfigPropertyList(cMCSNamesAppLevel)...)
+	//env level cm/cs
+	combinedProperties = append(combinedProperties, getConfigPropertyList(cMCSNamesEnvLevel)...)
+	//DT
+	combinedProperties = append(combinedProperties, getConfigProperty("", DeploymentTemplate, PublishedConfigState))
+	combinedProperties = append(combinedProperties)
 
-	return configDataResponse, nil
+	return &ConfigDataResponse{ResourceConfig: combinedProperties}, nil
 }
-
-func setConfigDataResponse(cMCSNames []chartConfig.CMCSNames, configDataResponse *ConfigDataResponse) *ConfigDataResponse {
-	if cMCSNames == nil {
-		return configDataResponse
+func getConfigPropertyList(cMCSNames []chartConfig.CMCSNames) []ConfigProperty {
+	properties := make([]ConfigProperty, 0)
+	if len(cMCSNames) == 0 {
+		return properties
 	}
-	configDataResponse = &ConfigDataResponse{}
 	for _, name := range cMCSNames {
+		// Fill in CM property if the CMName is not empty
 		if name.CMName != "" {
-			// Fill in CM data if the CMName is not empty
-			cmConfig := setConfigProperty(name.CMName, CM, PublishedConfigState)
-			configDataResponse.ResourceConfig = append(configDataResponse.ResourceConfig, cmConfig)
+			properties = append(properties, getConfigProperty(name.CMName, CM, PublishedConfigState))
 		}
+		// Fill in CS property if the CSName is not empty
 		if name.CSName != "" {
-			// Fill in CS data if the CSName is not empty
-			csConfig := setConfigProperty(name.CSName, CS, PublishedConfigState)
-			configDataResponse.ResourceConfig = append(configDataResponse.ResourceConfig, csConfig)
-		}
+			properties = append(properties, getConfigProperty(name.CSName, CS, PublishedConfigState))
 
+		}
 	}
-	return configDataResponse
+	return properties
 }
-func setConfigProperty(name string, configType ResourceType, State ConfigState) ConfigProperty {
+func getConfigProperty(name string, configType ResourceType, State ConfigState) ConfigProperty {
 	return ConfigProperty{
 		Name:        name,
 		Type:        configType,
