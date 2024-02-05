@@ -1,8 +1,10 @@
 UPDATE plugin_pipeline_script SET script=E'#!/bin/bash
     set -eo pipefail
-echo $GoogleServiceAccount > output.txt
-cat output.txt| base64 -d > gcloud.json    
-
+if [[ $GoogleServiceAccount ]] 
+then   
+    echo $GoogleServiceAccount > output.txt
+    cat output.txt| base64 -d > gcloud.json    
+fi
 export platform=$(echo $CI_CD_EVENT | jq --raw-output .commonWorkflowRequest.ciBuildConfig.dockerBuildConfig.targetPlatform)
 echo $platform
 arch
@@ -56,7 +58,7 @@ if [ $CloudProvider == "aws" ]
 then
     echo "aws command"
     docker run --network=host --rm -v $(pwd):/data -e AWS_ACCESS_KEY_ID=$AwsAccessKey -e AWS_SECRET_ACCESS_KEY=$AwsSecretKey amazon/aws-cli:latest  s3 cp /data/$file s3://$BucketName --region $AwsRegion
-    link=$(docker --network=host run --rm -v $(pwd):/data -e AWS_ACCESS_KEY_ID=$AwsAccessKey -e AWS_SECRET_ACCESS_KEY=$AwsSecretKey amazon/aws-cli:latest s3 presign s3://$BucketName/$file --region $AwsRegion --expires-in $aws_secs )
+    link=$(docker  run  --network=host --rm -v $(pwd):/data -e AWS_ACCESS_KEY_ID=$AwsAccessKey -e AWS_SECRET_ACCESS_KEY=$AwsSecretKey amazon/aws-cli:latest s3 presign s3://$BucketName/$file --region $AwsRegion --expires-in $aws_secs )
 fi
 if [ $CloudProvider == "gcp" ]
 then
@@ -70,7 +72,7 @@ echo $link
 
 
 INSERT INTO "plugin_step_variable" ("id", "plugin_step_id", "name", "format", "description", "is_exposed", "allow_empty_value", "variable_type", "value_type", "variable_step_index", "deleted", "created_on", "created_by", "updated_on", "updated_by") VALUES
-(nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Container Image Exporter v1.0.0' and ps."index"=1 and ps.deleted=false), 'GoogleServiceAccount','STRING','Provide Google service account Creds/Use Scope Variable ',true,false,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1),
-(nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Container Image Exporter v1.0.0' and ps."index"=1 and ps.deleted=false), 'GcpProjectName','STRING','Specify Google Account Project Name',true,false,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1);
+(nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Container Image Exporter v1.0.0' and ps."index"=1 and ps.deleted=false), 'GoogleServiceAccount','STRING','Provide Google service account Creds/Use Scope Variable ',true,true,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1),
+(nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Container Image Exporter v1.0.0' and ps."index"=1 and ps.deleted=false), 'GcpProjectName','STRING','Specify Google Account Project Name',true,true,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1);
 
 UPDATE plugin_step_variable SET description='Provide which cloud storage provider you want to use: "aws" for Amazon S3 or "azure" for Azure Blob Storage or "gcp" for Google Cloud Storage' WHERE name='CloudProvider';
