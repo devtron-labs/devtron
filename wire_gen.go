@@ -287,7 +287,19 @@ func InitializeApp() (*App, error) {
 	userAuditServiceImpl := user.NewUserAuditServiceImpl(sugaredLogger, userAuditRepositoryImpl)
 	roleGroupServiceImpl := user.NewRoleGroupServiceImpl(userAuthRepositoryImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, userCommonServiceImpl)
 	userGroupMapRepositoryImpl := repository4.NewUserGroupMapRepositoryImpl(db, sugaredLogger)
-	userServiceImpl := user.NewUserServiceImpl(userAuthRepositoryImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, sessionManager, userCommonServiceImpl, userAuditServiceImpl, globalAuthorisationConfigServiceImpl, roleGroupServiceImpl, userGroupMapRepositoryImpl)
+	syncedEnforcer := casbin.Create()
+	casbinSyncedEnforcer := casbin.CreateV2()
+	casbinClientConfig, err := client3.GetConfig()
+	if err != nil {
+		return nil, err
+	}
+	casbinClientImpl := client3.NewCasbinClientImpl(sugaredLogger, casbinClientConfig)
+	casbinServiceImpl := casbin.NewCasbinServiceImpl(sugaredLogger, casbinClientImpl)
+	enterpriseEnforcerImpl, err := casbin.NewEnterpriseEnforcerImpl(syncedEnforcer, casbinSyncedEnforcer, sessionManager, sugaredLogger, casbinServiceImpl, globalAuthorisationConfigServiceImpl)
+	if err != nil {
+		return nil, err
+	}
+	userServiceImpl := user.NewUserServiceImpl(userAuthRepositoryImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, sessionManager, userCommonServiceImpl, userAuditServiceImpl, globalAuthorisationConfigServiceImpl, roleGroupServiceImpl, userGroupMapRepositoryImpl, enterpriseEnforcerImpl)
 	gitOpsConfigRepositoryImpl := repository.NewGitOpsConfigRepositoryImpl(sugaredLogger, db)
 	globalEnvVariables, err := util2.GetGlobalEnvVariables()
 	if err != nil {
@@ -387,18 +399,6 @@ func InitializeApp() (*App, error) {
 	installedAppVersionHistoryRepositoryImpl := repository3.NewInstalledAppVersionHistoryRepositoryImpl(sugaredLogger, db)
 	pipelineStatusTimelineServiceImpl := status.NewPipelineStatusTimelineServiceImpl(sugaredLogger, pipelineStatusTimelineRepositoryImpl, cdWorkflowRepositoryImpl, userServiceImpl, pipelineStatusTimelineResourcesServiceImpl, pipelineStatusSyncDetailServiceImpl, installedAppRepositoryImpl, installedAppVersionHistoryRepositoryImpl)
 	appServiceConfig, err := app2.GetAppServiceConfig()
-	if err != nil {
-		return nil, err
-	}
-	syncedEnforcer := casbin.Create()
-	casbinSyncedEnforcer := casbin.CreateV2()
-	casbinClientConfig, err := client3.GetConfig()
-	if err != nil {
-		return nil, err
-	}
-	casbinClientImpl := client3.NewCasbinClientImpl(sugaredLogger, casbinClientConfig)
-	casbinServiceImpl := casbin.NewCasbinServiceImpl(sugaredLogger, casbinClientImpl)
-	enterpriseEnforcerImpl, err := casbin.NewEnterpriseEnforcerImpl(syncedEnforcer, casbinSyncedEnforcer, sessionManager, sugaredLogger, casbinServiceImpl, globalAuthorisationConfigServiceImpl)
 	if err != nil {
 		return nil, err
 	}
@@ -912,7 +912,7 @@ func InitializeApp() (*App, error) {
 	devtronResourceRouterImpl := devtronResource2.NewDevtronResourceRouterImpl(devtronResourceRestHandlerImpl)
 	authorisationConfigRestHandlerImpl := globalConfig.NewGlobalAuthorisationConfigRestHandlerImpl(validate, sugaredLogger, enterpriseEnforcerImpl, userServiceImpl, globalAuthorisationConfigServiceImpl, userCommonServiceImpl)
 	authorisationConfigRouterImpl := globalConfig.NewGlobalConfigAuthorisationConfigRouterImpl(authorisationConfigRestHandlerImpl)
-	lockConfigRestHandlerImpl := lockConfiguation.NewLockConfigRestHandlerImpl(sugaredLogger, userServiceImpl, enterpriseEnforcerImpl, validate, lockConfigurationServiceImpl)
+	lockConfigRestHandlerImpl := lockConfiguation.NewLockConfigRestHandlerImpl(sugaredLogger, userServiceImpl, enterpriseEnforcerImpl, validate, lockConfigurationServiceImpl, userCommonServiceImpl, enforcerUtilImpl)
 	lockConfigurationRouterImpl := lockConfiguation.NewLockConfigurationRouterImpl(lockConfigRestHandlerImpl)
 	proxyConfig, err := proxy.GetProxyConfig()
 	if err != nil {
