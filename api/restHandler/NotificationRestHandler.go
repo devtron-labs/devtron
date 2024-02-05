@@ -75,21 +75,21 @@ type NotificationRestHandler interface {
 	ApproveDeploymentConfigForNotification(w http.ResponseWriter, r *http.Request)
 }
 type NotificationRestHandlerImpl struct {
-	dockerRegistryConfig       pipeline.DockerRegistryConfig
-	logger                     *zap.SugaredLogger
-	gitRegistryConfig          pipeline.GitRegistryConfig
-	userAuthService            user.UserService
-	validator                  *validator.Validate
-	notificationService        notifier.NotificationConfigService
-	slackService               notifier.SlackNotificationService
-	webhookService             notifier.WebhookNotificationService
-	sesService                 notifier.SESNotificationService
-	smtpService                notifier.SMTPNotificationService
-	enforcer                   casbin.Enforcer
-	teamService                team.TeamService
-	environmentService         cluster.EnvironmentService
-	pipelineBuilder            pipeline.PipelineBuilder
-	enforcerUtil               rbac.EnforcerUtil
+	dockerRegistryConfig pipeline.DockerRegistryConfig
+	logger               *zap.SugaredLogger
+	gitRegistryConfig    pipeline.GitRegistryConfig
+	userAuthService      user.UserService
+	validator            *validator.Validate
+	notificationService  notifier.NotificationConfigService
+	slackService         notifier.SlackNotificationService
+	webhookService       notifier.WebhookNotificationService
+	sesService           notifier.SESNotificationService
+	smtpService          notifier.SMTPNotificationService
+	enforcer             casbin.Enforcer
+	teamService          team.TeamService
+	environmentService   cluster.EnvironmentService
+	pipelineBuilder      pipeline.PipelineBuilder
+	enforcerUtil         rbac.EnforcerUtil
 	configDraftRestHandlerImpl *drafts.ConfigDraftRestHandlerImpl
 }
 
