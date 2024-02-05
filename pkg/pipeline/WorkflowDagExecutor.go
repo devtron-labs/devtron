@@ -22,6 +22,9 @@ import (
 	"encoding/json"
 	errors3 "errors"
 	"fmt"
+	bean6 "github.com/devtron-labs/devtron/api/helm-app/bean"
+	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	client2 "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
@@ -40,7 +43,6 @@ import (
 	"github.com/devtron-labs/common-lib/pubsub-lib/model"
 	util5 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
-	client2 "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
@@ -184,15 +186,16 @@ type WorkflowDagExecutorImpl struct {
 	configMapRepository                 chartConfig.ConfigMapRepository
 	configMapHistoryRepository          repository3.ConfigMapHistoryRepository
 	helmAppService                      client2.HelmAppService
-	helmAppClient                       client2.HelmAppClient
-	environmentConfigRepository         chartConfig.EnvConfigOverrideRepository
-	mergeUtil                           *util.MergeUtil
-	acdClient                           application2.ServiceClient
-	argoClientWrapperService            argocdServer.ArgoClientWrapperService
-	customTagService                    CustomTagService
-	ACDConfig                           *argocdServer.ACDConfig
-	deployedAppMetricsService           deployedAppMetrics.DeployedAppMetricsService
-	chartRefService                     chartRef.ChartRefService
+	//TODO fix me next
+	helmAppClient                		gRPC.HelmAppClient //TODO refactoring: use helm app service instead
+	environmentConfigRepository  		chartConfig.EnvConfigOverrideRepository
+	mergeUtil                    		*util.MergeUtil
+	acdClient                    		application2.ServiceClient
+	argoClientWrapperService     		argocdServer.ArgoClientWrapperService
+	customTagService             		CustomTagService
+	ACDConfig                    		*argocdServer.ACDConfig
+	deployedAppMetricsService    		deployedAppMetrics.DeployedAppMetricsService
+	chartRefService              		chartRef.ChartRefService
 	gitOpsConfigReadService             config.GitOpsConfigReadService
 	gitOperationService                 git.GitOperationService
 	imageDigestPolicyService            imageDigestPolicy.ImageDigestPolicyService
@@ -305,7 +308,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	configMapRepository chartConfig.ConfigMapRepository,
 	configMapHistoryRepository repository3.ConfigMapHistoryRepository,
 	helmAppService client2.HelmAppService,
-	helmAppClient client2.HelmAppClient,
+	helmAppClient gRPC.HelmAppClient,
 	environmentConfigRepository chartConfig.EnvConfigOverrideRepository,
 	mergeUtil *util.MergeUtil,
 	acdClient application2.ServiceClient,
@@ -502,7 +505,7 @@ func (impl *WorkflowDagExecutorImpl) UpdateWorkflowRunnerStatusForDeployment(app
 	if err != nil {
 		impl.logger.Errorw("error in getting helm app release status", "appIdentifier", appIdentifier, "err", err)
 		// Handle release not found errors
-		if skipReleaseNotFound && util.GetGRPCErrorDetailedMessage(err) != client2.ErrReleaseNotFound {
+		if skipReleaseNotFound && util.GetGRPCErrorDetailedMessage(err) != bean6.ErrReleaseNotFound {
 			// skip this error and continue for next workflow status
 			impl.logger.Warnw("found error, skipping helm apps status update for this trigger", "appIdentifier", appIdentifier, "err", err)
 			return false
@@ -3693,7 +3696,7 @@ func (impl *WorkflowDagExecutorImpl) createHelmAppForCdPipeline(overrideRequest 
 		releaseName := pipeline.DeploymentAppName
 		cluster := envOverride.Environment.Cluster
 		bearerToken := cluster.Config[util5.BearerToken]
-		clusterConfig := &client2.ClusterConfig{
+		clusterConfig := &gRPC.ClusterConfig{
 			ClusterName:           cluster.ClusterName,
 			Token:                 bearerToken,
 			ApiServerUrl:          cluster.ServerUrl,
@@ -3704,18 +3707,18 @@ func (impl *WorkflowDagExecutorImpl) createHelmAppForCdPipeline(overrideRequest 
 			clusterConfig.CertData = cluster.Config[util5.CertData]
 			clusterConfig.CaData = cluster.Config[util5.CertificateAuthorityData]
 		}
-		releaseIdentifier := &client2.ReleaseIdentifier{
+		releaseIdentifier := &gRPC.ReleaseIdentifier{
 			ReleaseName:      releaseName,
 			ReleaseNamespace: envOverride.Namespace,
 			ClusterConfig:    clusterConfig,
 		}
 
 		if pipeline.DeploymentAppCreated {
-			req := &client2.UpgradeReleaseRequest{
+			req := &gRPC.UpgradeReleaseRequest{
 				ReleaseIdentifier: releaseIdentifier,
 				ValuesYaml:        mergeAndSave,
-				HistoryMax:        impl.helmAppService.GetRevisionHistoryMaxValue(client2.SOURCE_DEVTRON_APP),
-				ChartContent:      &client2.ChartContent{Content: referenceChartByte},
+				HistoryMax:        impl.helmAppService.GetRevisionHistoryMaxValue(bean6.SOURCE_DEVTRON_APP),
+				ChartContent:      &gRPC.ChartContent{Content: referenceChartByte},
 			}
 			if impl.appService.IsDevtronAsyncInstallModeEnabled(bean2.Helm) {
 				req.RunInCtx = true
@@ -4435,11 +4438,11 @@ func (impl *WorkflowDagExecutorImpl) updatePipeline(pipeline *pipelineConfig.Pip
 }
 
 // helmInstallReleaseWithCustomChart performs helm install with custom chart
-func (impl *WorkflowDagExecutorImpl) helmInstallReleaseWithCustomChart(ctx context.Context, releaseIdentifier *client2.ReleaseIdentifier, referenceChartByte []byte, valuesYaml string) (*client2.HelmInstallCustomResponse, error) {
+func (impl *WorkflowDagExecutorImpl) helmInstallReleaseWithCustomChart(ctx context.Context, releaseIdentifier *gRPC.ReleaseIdentifier, referenceChartByte []byte, valuesYaml string) (*gRPC.HelmInstallCustomResponse, error) {
 
-	helmInstallRequest := client2.HelmInstallCustomRequest{
+	helmInstallRequest := gRPC.HelmInstallCustomRequest{
 		ValuesYaml:        valuesYaml,
-		ChartContent:      &client2.ChartContent{Content: referenceChartByte},
+		ChartContent:      &gRPC.ChartContent{Content: referenceChartByte},
 		ReleaseIdentifier: releaseIdentifier,
 	}
 	if impl.appService.IsDevtronAsyncInstallModeEnabled(bean2.Helm) {

@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"github.com/caarlos0/env/v6"
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
-	client "github.com/devtron-labs/devtron/api/helm-app"
+	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	utils1 "github.com/devtron-labs/devtron/pkg/clusterTerminalAccess/clusterTerminalUtils"

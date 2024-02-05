@@ -2,7 +2,7 @@ package k8s
 
 import (
 	"github.com/devtron-labs/common-lib/utils/k8s"
-	client "github.com/devtron-labs/devtron/api/helm-app"
+	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/pkg/k8s/application/bean"
 )
 
