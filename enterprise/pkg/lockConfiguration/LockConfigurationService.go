@@ -336,13 +336,23 @@ func getDiffJson(savedConfigMap, currentConfigMap map[string]interface{}, path s
 	var allDeletedPaths []string
 	disableSaveEligibleChanges := false
 	for key, _ := range savedConfigMap {
-		// check for the deleted keys
-		if _, ok := currentConfigMap[key]; !ok {
-			lockedMap[key] = nil
-			deletedMap[key] = savedConfigMap[key]
-			allDeletedPaths = append(allDeletedPaths, path+"/"+key)
+
+		currMapVal, ok := currentConfigMap[key]
+		if !ok || currMapVal == nil {
+			if savedConfigMap[key] != nil {
+				lockedMap[key] = nil
+				deletedMap[key] = savedConfigMap[key]
+				allDeletedPaths = append(allDeletedPaths, path+"/"+key)
+
+			}
 			continue
 		}
+
+		if savedConfigMap[key] == nil {
+			lockedMap[key] = currentConfigMap[key]
+			continue
+		}
+
 		if !reflect.DeepEqual(savedConfigMap[key], currentConfigMap[key]) {
 			switch reflect.TypeOf(savedConfigMap[key]).Kind() {
 			case reflect.Map:
@@ -378,20 +388,13 @@ func getDiffJson(savedConfigMap, currentConfigMap map[string]interface{}, path s
 			delete(currentConfigMap, key)
 			continue
 		}
-		if val, ok := currentConfigMap[key]; ok {
-			if val == nil {
-				delete(currentConfigMap, key)
-				continue
-			}
-
-			switch reflect.TypeOf(currentConfigMap[key]).Kind() {
-			case reflect.Map:
-				if currentConfigMap[key] == nil || len(currentConfigMap[key].(map[string]interface{})) == 0 {
-					delete(currentConfigMap, key)
-				}
-			default:
+		switch reflect.TypeOf(currentConfigMap[key]).Kind() {
+		case reflect.Map:
+			if len(currentConfigMap[key].(map[string]interface{})) == 0 {
 				delete(currentConfigMap, key)
 			}
+		default:
+			delete(currentConfigMap, key)
 		}
 	}
 	// Append for the new added keys
