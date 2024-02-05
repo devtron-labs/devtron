@@ -32,17 +32,16 @@ func (impl *DeploymentConfigurationServiceImpl) ConfigAutoComplete(appId int, en
 		return nil, err
 	}
 	combinedProperties := make([]*ConfigProperty, 0)
-	//App level cm/cs
-	combinedProperties = append(combinedProperties, getConfigPropertyList(cMCSNamesAppLevel, combinedProperties)...)
-	//env level cm/cs
-	combinedProperties = append(combinedProperties, getConfigPropertyList(cMCSNamesEnvLevel, combinedProperties)...)
-	//DT
-	combinedProperties = append(combinedProperties, getConfigProperty("", DeploymentTemplate, PublishedConfigState))
+	combinedProperties = append(combinedProperties,
+		getUniqueConfigPropertyList(cMCSNamesAppLevel, combinedProperties)...)
+	combinedProperties = append(combinedProperties,
+		getUniqueConfigPropertyList(cMCSNamesEnvLevel, combinedProperties)...)
+	combinedProperties = append(combinedProperties,
+		getConfigProperty("", DeploymentTemplate, PublishedConfigState))
 	combinedProperties = append(combinedProperties)
-
 	return &ConfigDataResponse{ResourceConfig: combinedProperties}, nil
 }
-func getConfigPropertyList(cMCSNames []chartConfig.CMCSNames, combinedProperties []*ConfigProperty) []*ConfigProperty {
+func getUniqueConfigPropertyList(cMCSNames []chartConfig.CMCSNames, combinedProperties []*ConfigProperty) []*ConfigProperty {
 	properties := make([]*ConfigProperty, 0)
 	if len(cMCSNames) == 0 {
 		return properties
@@ -59,7 +58,6 @@ func getConfigPropertyList(cMCSNames []chartConfig.CMCSNames, combinedProperties
 		// Fill in CS property if the CSName is not empty
 		if name.CSName != "" && !combinedNames[name.CSName] {
 			properties = append(properties, getConfigProperty(name.CSName, CS, PublishedConfigState))
-
 		}
 	}
 	return properties
