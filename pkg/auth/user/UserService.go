@@ -1301,6 +1301,26 @@ func (impl *UserServiceImpl) DeleteUser(bean *bean.UserInfo) (bool, error) {
 
 // BulkDeleteUsers takes in BulkDeleteRequest and return success and error
 func (impl *UserServiceImpl) BulkDeleteUsers(request *bean.BulkDeleteRequest) (bool, error) {
+	// it handles FetchListingRequest if filters are applied will delete those users or will consider the given user ids.
+	if request.ListingRequest != nil {
+		//query to get particular models respecting filters
+		query := impl.userListingRepositoryQueryBuilder.GetQueryForUserListingWithFilters(request.ListingRequest)
+		models, err := impl.userRepository.GetAllExecutingQuery(query)
+		if err != nil {
+			impl.logger.Errorw("error while fetching user from db in GetAllWithFilters", "error", err)
+			return false, err
+		}
+		// collecting the required user ids from filtered models
+		filteredUserIds := make([]int32, len(models))
+		for i, model := range models {
+			if model.EmailId != bean2.AdminUser || model.EmailId != bean2.SystemUser {
+				filteredUserIds[i] = model.Id
+			}
+		}
+		// setting the filtered user ids here for further processing
+		request.Ids = filteredUserIds
+	}
+
 	err := impl.deleteUsersByIds(request)
 	if err != nil {
 		impl.logger.Errorw("error in BulkDeleteUsers", "err", err)

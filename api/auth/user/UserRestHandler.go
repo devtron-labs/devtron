@@ -480,8 +480,9 @@ func (handler UserRestHandlerImpl) BulkDeleteUsers(w http.ResponseWriter, r *htt
 		return
 	}
 	// validations for system and admin user
-	err = helper.CheckValidationForAdminAndSystemUserId(request.Ids)
-	if err != nil {
+	validated := helper.CheckIfUserDevtronManagedOnly(request.Ids)
+	if !validated {
+		err := &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "cannot update status for system or admin user"}
 		handler.logger.Errorw("request err, BulkDeleteUsers, validation failed", "payload", request, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return

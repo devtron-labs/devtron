@@ -784,6 +784,24 @@ func (impl RoleGroupServiceImpl) DeleteRoleGroup(bean *bean.RoleGroup) (bool, er
 
 // BulkDeleteRoleGroups takes in bulk delete request and return error
 func (impl RoleGroupServiceImpl) BulkDeleteRoleGroups(request *bean.BulkDeleteRequest) (bool, error) {
+	// it handles FetchListingRequest if filters are applied will delete those users or will consider the given user ids.
+	if request.ListingRequest != nil {
+		//query to get particular models respecting filters
+		query := impl.userRepositoryQueryBuilder.GetQueryForGroupListingWithFilters(request.ListingRequest)
+		models, err := impl.userRepository.GetAllExecutingQuery(query)
+		if err != nil {
+			impl.logger.Errorw("error while fetching user from db in GetAllWithFilters", "error", err)
+			return false, err
+		}
+		// collecting the required user ids from filtered models
+		filteredGroupIds := make([]int32, len(models))
+		for i, model := range models {
+			filteredGroupIds[i] = model.Id
+		}
+		// setting the filtered user ids here for further processing
+		request.Ids = filteredGroupIds
+	}
+
 	err := impl.deleteRoleGroupsByIds(request)
 	if err != nil {
 		impl.logger.Errorw("error in BulkDeleteRoleGroups", "request", request, "error", err)
