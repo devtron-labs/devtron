@@ -176,6 +176,29 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /orchestrator/user/bulk:
+    delete:
+      summary: Delete multiple users in bulk
+      description: Deletes user entities in bulk based on the provided criteria.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkDeleteRequest'
+      responses:
+        '200':
+          description: Successfully deleted users
+          content:
+            application/json:
+              schema:
+                type: boolean
+        '400':
+          description: Bad request, invalid input
+        '404':
+          description: Users not found
+        '500':
+          description: Internal server error
 
 
 components:
@@ -272,6 +295,46 @@ components:
           type: string
           enum: ["", "helm-app"]
           description: accessType difine permission type "devtron-app"=devtron app work flow, "helm-app"=helm app work flow. based on this flag data categoriesed into devtron and helm permission tabs in user auth section.
+    BulkDeleteRequest:
+      type: object
+      properties:
+        ids:
+          type: array
+          items:
+            type: integer
+            format: int32
+          description: Array of user IDs to be deleted
+        ListingRequest:
+          $ref: '#/components/schemas/FetchListingRequest'
+    FetchListingRequest:
+      type: object
+      properties:
+        SearchKey:
+          type: string
+          description: Search key for filtering
+        SortOrder:
+          type: string
+          enum:
+            - ASC
+            - DESC
+          description: Sorting order
+        SortBy:
+          type: string
+          enum:
+            - email_id
+            - last_login
+          description: Attribute to sort by
+        Offset:
+          type: integer
+          format: int32
+          description: Starting index for fetching listings
+        Size:
+          type: integer
+          format: int32
+          description: Number of listings to fetch
+        ShowAll:
+          type: boolean
+          description: Show all listings
 
 
 
