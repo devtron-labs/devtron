@@ -50,5 +50,10 @@ func (impl *CentralEventProcessor) SubscribeAll() error {
 		impl.logger.Errorw("error, SubscribeCDWorkflowStatusUpdate", "err", err)
 		return err
 	}
+	err = impl.workflowEventProcessor.SubscribeCICompleteEvent()
+	if err != nil {
+		impl.logger.Errorw("error, SubscribeCICompleteEvent", "err", err)
+		return err
+	}
 	return nil
 }

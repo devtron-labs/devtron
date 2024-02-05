@@ -23,6 +23,8 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/deployment/deployedApp"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/deployedApp/bean"
+	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps"
+	bean3 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"net/http"
 	"strconv"
 
@@ -66,13 +68,15 @@ type PipelineTriggerRestHandlerImpl struct {
 	argoUserService         argo.ArgoUserService
 	deploymentConfigService pipeline.DeploymentConfigService
 	deployedAppService      deployedApp.DeployedAppService
+	cdTriggerService        devtronApps.TriggerService
 }
 
 func NewPipelineRestHandler(appService app.AppService, userAuthService user.UserService, validator *validator.Validate,
 	enforcer casbin.Enforcer, teamService team.TeamService, logger *zap.SugaredLogger, enforcerUtil rbac.EnforcerUtil,
 	workflowDagExecutor pipeline.WorkflowDagExecutor, deploymentGroupService deploymentGroup.DeploymentGroupService,
 	argoUserService argo.ArgoUserService, deploymentConfigService pipeline.DeploymentConfigService,
-	deployedAppService deployedApp.DeployedAppService) *PipelineTriggerRestHandlerImpl {
+	deployedAppService deployedApp.DeployedAppService,
+	cdTriggerService devtronApps.TriggerService) *PipelineTriggerRestHandlerImpl {
 	pipelineHandler := &PipelineTriggerRestHandlerImpl{
 		appService:              appService,
 		userAuthService:         userAuthService,
@@ -86,6 +90,7 @@ func NewPipelineRestHandler(appService app.AppService, userAuthService user.User
 		argoUserService:         argoUserService,
 		deploymentConfigService: deploymentConfigService,
 		deployedAppService:      deployedAppService,
+		cdTriggerService:        cdTriggerService,
 	}
 	return pipelineHandler
 }
@@ -134,10 +139,10 @@ func (handler PipelineTriggerRestHandlerImpl) OverrideConfig(w http.ResponseWrit
 	}
 	ctx := context.WithValue(r.Context(), "token", acdToken)
 	_, span := otel.Tracer("orchestrator").Start(ctx, "workflowDagExecutor.ManualCdTrigger")
-	triggerContext := pipeline.TriggerContext{
+	triggerContext := bean3.TriggerContext{
 		Context: ctx,
 	}
-	mergeResp, err := handler.workflowDagExecutor.ManualCdTrigger(triggerContext, &overrideRequest)
+	mergeResp, err := handler.cdTriggerService.ManualCdTrigger(triggerContext, &overrideRequest)
 	span.End()
 	if err != nil {
 		handler.logger.Errorw("request err, OverrideConfig", "err", err, "payload", overrideRequest)
@@ -197,7 +202,7 @@ func (handler PipelineTriggerRestHandlerImpl) StartStopApp(w http.ResponseWriter
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var overrideRequest pipeline.StopAppRequest
+	var overrideRequest bean2.StopAppRequest
 	err = decoder.Decode(&overrideRequest)
 	if err != nil {
 		handler.logger.Errorw("request err, StartStopApp", "err", err, "payload", overrideRequest)
@@ -232,10 +237,7 @@ func (handler PipelineTriggerRestHandlerImpl) StartStopApp(w http.ResponseWriter
 		return
 	}
 	ctx := context.WithValue(r.Context(), "token", acdToken)
-	triggerContext := pipeline.TriggerContext{
-		Context: ctx,
-	}
-	mergeResp, err := handler.workflowDagExecutor.StopStartApp(triggerContext, &overrideRequest)
+	mergeResp, err := handler.deployedAppService.StopStartApp(ctx, &overrideRequest)
 	if err != nil {
 		handler.logger.Errorw("service err, StartStopApp", "err", err, "payload", overrideRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

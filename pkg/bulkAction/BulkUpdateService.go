@@ -23,11 +23,14 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/deployment/deployedApp"
+	bean5 "github.com/devtron-labs/devtron/pkg/deployment/deployedApp/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
+	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps"
+	bean4 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	pipeline1 "github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/variables"
@@ -65,7 +68,6 @@ type BulkUpdateService interface {
 
 type BulkUpdateServiceImpl struct {
 	bulkUpdateRepository             bulkUpdate.BulkUpdateRepository
-	chartRepository                  chartRepoRepository.ChartRepository
 	logger                           *zap.SugaredLogger
 	environmentRepository            repository2.EnvironmentRepository
 	pipelineRepository               pipelineConfig.PipelineRepository
@@ -84,6 +86,8 @@ type BulkUpdateServiceImpl struct {
 	scopedVariableManager            variables.ScopedVariableManager
 	deployedAppMetricsService        deployedAppMetrics.DeployedAppMetricsService
 	chartRefService                  chartRef.ChartRefService
+	cdTriggerService                 devtronApps.TriggerService
+	deployedAppService               deployedApp.DeployedAppService
 }
 
 func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateRepository,
@@ -104,7 +108,9 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 	argoUserService argo.ArgoUserService,
 	scopedVariableManager variables.ScopedVariableManager,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
-	chartRefService chartRef.ChartRefService) (*BulkUpdateServiceImpl, error) {
+	chartRefService chartRef.ChartRefService,
+	cdTriggerService devtronApps.TriggerService,
+	deployedAppService deployedApp.DeployedAppService) (*BulkUpdateServiceImpl, error) {
 	impl := &BulkUpdateServiceImpl{
 		bulkUpdateRepository:             bulkUpdateRepository,
 		chartRepository:                  chartRepository,
@@ -126,6 +132,8 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 		scopedVariableManager:            scopedVariableManager,
 		deployedAppMetricsService:        deployedAppMetricsService,
 		chartRefService:                  chartRefService,
+		cdTriggerService:                 cdTriggerService,
+		deployedAppService:               deployedAppService,
 	}
 
 	err := impl.SubscribeToCdBulkTriggerTopic()
@@ -1016,16 +1024,13 @@ func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvir
 		}
 		var hibernateReqError error
 		//if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
-		stopRequest := &pipeline1.StopAppRequest{
+		stopRequest := &bean5.StopAppRequest{
 			AppId:         pipeline.AppId,
 			EnvironmentId: pipeline.EnvironmentId,
 			UserId:        request.UserId,
-			RequestType:   pipeline1.STOP,
+			RequestType:   bean5.STOP,
 		}
-		triggerContext := pipeline1.TriggerContext{
-			Context: ctx,
-		}
-		_, hibernateReqError = impl.workflowDagExecutor.StopStartApp(triggerContext, stopRequest)
+		_, hibernateReqError = impl.deployedAppService.StopStartApp(ctx, stopRequest)
 		if hibernateReqError != nil {
 			impl.logger.Errorw("error in hibernating application", "err", hibernateReqError, "pipeline", pipeline)
 			pipelineResponse := response[appKey]
@@ -1175,16 +1180,13 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 		}
 		var hibernateReqError error
 		//if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
-		stopRequest := &pipeline1.StopAppRequest{
+		stopRequest := &bean5.StopAppRequest{
 			AppId:         pipeline.AppId,
 			EnvironmentId: pipeline.EnvironmentId,
 			UserId:        request.UserId,
-			RequestType:   pipeline1.START,
+			RequestType:   bean5.START,
 		}
-		triggerContext := pipeline1.TriggerContext{
-			Context: ctx,
-		}
-		_, hibernateReqError = impl.workflowDagExecutor.StopStartApp(triggerContext, stopRequest)
+		_, hibernateReqError = impl.deployedAppService.StopStartApp(ctx, stopRequest)
 		if hibernateReqError != nil {
 			impl.logger.Errorw("error in un-hibernating application", "err", hibernateReqError, "pipeline", pipeline)
 			pipelineResponse := response[appKey]
@@ -1402,12 +1404,12 @@ func (impl BulkUpdateServiceImpl) SubscribeToCdBulkTriggerTopic() error {
 			return
 		}
 
-		triggerContext := pipeline1.TriggerContext{
+		triggerContext := bean4.TriggerContext{
 			ReferenceId: pointer.String(msg.MsgId),
 			Context:     ctx,
 		}
 
-		_, err = impl.workflowDagExecutor.ManualCdTrigger(triggerContext, event.ValuesOverrideRequest)
+		_, err = impl.cdTriggerService.ManualCdTrigger(triggerContext, event.ValuesOverrideRequest)
 		if err != nil {
 			impl.logger.Errorw("Error triggering CD",
 				"topic", pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC,

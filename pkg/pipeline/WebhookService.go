@@ -30,6 +30,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
+	bean3 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
@@ -61,7 +62,7 @@ type CiArtifactWebhookRequest struct {
 
 type WebhookService interface {
 	AuthenticateExternalCiWebhook(apiKey string) (int, error)
-	HandleCiSuccessEvent(triggerContext TriggerContext, ciPipelineId int, request *CiArtifactWebhookRequest, imagePushedAt *time.Time) (id int, err error)
+	HandleCiSuccessEvent(triggerContext bean3.TriggerContext, ciPipelineId int, request *CiArtifactWebhookRequest, imagePushedAt *time.Time) (id int, err error)
 	HandleExternalCiWebhook(externalCiId int, request *CiArtifactWebhookRequest, auth func(token string, projectObject string, envObject string) bool, token string) (id int, err error)
 	HandleCiStepFailedEvent(ciPipelineId int, request *CiArtifactWebhookRequest) (err error)
 	HandleMultipleImagesFromEvent(imageDetails []types.ImageDetail, ciWorkflowId int) (map[string]*pipelineConfig.CiWorkflow, error)
@@ -172,7 +173,7 @@ func (impl WebhookServiceImpl) HandleCiStepFailedEvent(ciPipelineId int, request
 	return nil
 }
 
-func (impl WebhookServiceImpl) HandleCiSuccessEvent(triggerContext TriggerContext, ciPipelineId int, request *CiArtifactWebhookRequest, imagePushedAt *time.Time) (id int, err error) {
+func (impl WebhookServiceImpl) HandleCiSuccessEvent(triggerContext bean3.TriggerContext, ciPipelineId int, request *CiArtifactWebhookRequest, imagePushedAt *time.Time) (id int, err error) {
 	impl.logger.Infow("webhook for artifact save", "req", request)
 	if request.WorkflowId != nil {
 		savedWorkflow, err := impl.ciWorkflowRepository.FindById(*request.WorkflowId)

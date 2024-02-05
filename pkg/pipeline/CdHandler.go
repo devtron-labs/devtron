@@ -23,6 +23,8 @@ import (
 	"errors"
 	"fmt"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps"
+	bean3 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -84,7 +86,7 @@ type CdHandler interface {
 	CheckHelmAppStatusPeriodicallyAndUpdateInDb(helmPipelineStatusCheckEligibleTime int, getPipelineDeployedWithinHours int) error
 	CheckArgoAppStatusPeriodicallyAndUpdateInDb(getPipelineDeployedBeforeMinutes int, getPipelineDeployedWithinHours int) error
 	CheckArgoPipelineTimelineStatusPeriodicallyAndUpdateInDb(pendingSinceSeconds int, timeForDegradation int) error
-	UpdatePipelineTimelineAndStatusByLiveApplicationFetch(triggerContext TriggerContext, pipeline *pipelineConfig.Pipeline, installedApp repository3.InstalledApps, userId int32) (err error, isTimelineUpdated bool)
+	UpdatePipelineTimelineAndStatusByLiveApplicationFetch(triggerContext bean3.TriggerContext, pipeline *pipelineConfig.Pipeline, installedApp repository3.InstalledApps, userId int32) (err error, isTimelineUpdated bool)
 	CheckAndSendArgoPipelineStatusSyncEventIfNeeded(pipelineId int, installedAppVersionId int, userId int32, isAppStoreApplication bool)
 	FetchAppWorkflowStatusForTriggerViewForEnvironment(request resourceGroup2.ResourceGroupingRequest, token string) ([]*pipelineConfig.CdWorkflowStatus, error)
 	FetchAppDeploymentStatusForEnvironments(request resourceGroup2.ResourceGroupingRequest, token string) ([]*pipelineConfig.AppDeploymentStatus, error)
@@ -131,9 +133,32 @@ type CdHandlerImpl struct {
 	argocdClientWrapperService             argocdServer.ArgoClientWrapperService
 	AppConfig                              *app.AppServiceConfig
 	acdConfig                              *argocdServer.ACDConfig
+	cdTriggerService                       devtronApps.TriggerService
 }
 
-func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService, cdWorkflowRepository pipelineConfig.CdWorkflowRepository, ciLogService CiLogService, ciArtifactRepository repository.CiArtifactRepository, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, pipelineRepository pipelineConfig.PipelineRepository, envRepository repository2.EnvironmentRepository, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, helmAppService client.HelmAppService, pipelineOverrideRepository chartConfig.PipelineOverrideRepository, workflowDagExecutor WorkflowDagExecutor, appListingService app.AppListingService, appListingRepository repository.AppListingRepository, pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository, application application.ServiceClient, argoUserService argo.ArgoUserService, deploymentEventHandler app.DeploymentEventHandler, eventClient client2.EventClient, pipelineStatusTimelineResourcesService status.PipelineStatusTimelineResourcesService, pipelineStatusSyncDetailService status.PipelineStatusSyncDetailService, pipelineStatusTimelineService status.PipelineStatusTimelineService, appService app.AppService, appStatusService app_status.AppStatusService, enforcerUtil rbac.EnforcerUtil, installedAppRepository repository3.InstalledAppRepository, installedAppVersionHistoryRepository repository3.InstalledAppVersionHistoryRepository, appRepository app2.AppRepository, resourceGroupService resourceGroup2.ResourceGroupService, imageTaggingService ImageTaggingService, k8sUtil *k8s.K8sServiceImpl, workflowService WorkflowService, clusterService cluster.ClusterService, blobConfigStorageService BlobStorageConfigService, customTagService CustomTagService, argocdClientWrapperService argocdServer.ArgoClientWrapperService, AppConfig *app.AppServiceConfig, acdConfig *argocdServer.ACDConfig) *CdHandlerImpl {
+func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService,
+	cdWorkflowRepository pipelineConfig.CdWorkflowRepository, ciLogService CiLogService,
+	ciArtifactRepository repository.CiArtifactRepository,
+	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
+	pipelineRepository pipelineConfig.PipelineRepository, envRepository repository2.EnvironmentRepository,
+	ciWorkflowRepository pipelineConfig.CiWorkflowRepository, helmAppService client.HelmAppService,
+	pipelineOverrideRepository chartConfig.PipelineOverrideRepository, workflowDagExecutor WorkflowDagExecutor,
+	appListingService app.AppListingService, appListingRepository repository.AppListingRepository,
+	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository,
+	application application.ServiceClient, argoUserService argo.ArgoUserService,
+	deploymentEventHandler app.DeploymentEventHandler, eventClient client2.EventClient,
+	pipelineStatusTimelineResourcesService status.PipelineStatusTimelineResourcesService,
+	pipelineStatusSyncDetailService status.PipelineStatusSyncDetailService,
+	pipelineStatusTimelineService status.PipelineStatusTimelineService, appService app.AppService,
+	appStatusService app_status.AppStatusService, enforcerUtil rbac.EnforcerUtil,
+	installedAppRepository repository3.InstalledAppRepository,
+	installedAppVersionHistoryRepository repository3.InstalledAppVersionHistoryRepository,
+	appRepository app2.AppRepository, resourceGroupService resourceGroup2.ResourceGroupService,
+	imageTaggingService ImageTaggingService, k8sUtil *k8s.K8sServiceImpl,
+	workflowService WorkflowService, clusterService cluster.ClusterService,
+	blobConfigStorageService BlobStorageConfigService, customTagService CustomTagService,
+	argocdClientWrapperService argocdServer.ArgoClientWrapperService, AppConfig *app.AppServiceConfig,
+	acdConfig *argocdServer.ACDConfig, cdTriggerService devtronApps.TriggerService) *CdHandlerImpl {
 	cdh := &CdHandlerImpl{
 		Logger:                                 Logger,
 		userService:                            userService,
@@ -173,6 +198,7 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService, c
 		argocdClientWrapperService:             argocdClientWrapperService,
 		AppConfig:                              AppConfig,
 		acdConfig:                              acdConfig,
+		cdTriggerService:                       cdTriggerService,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -223,26 +249,26 @@ func (impl *CdHandlerImpl) HandleCdStageReTrigger(runner *pipelineConfig.CdWorkf
 		return nil
 	}
 
-	triggerRequest := TriggerRequest{
+	triggerRequest := bean3.TriggerRequest{
 		CdWf:                  runner.CdWorkflow,
 		Pipeline:              runner.CdWorkflow.Pipeline,
 		Artifact:              runner.CdWorkflow.CiArtifact,
 		TriggeredBy:           1,
 		ApplyAuth:             false,
 		RefCdWorkflowRunnerId: runner.Id,
-		TriggerContext: TriggerContext{
+		TriggerContext: bean3.TriggerContext{
 			Context: context.Background(),
 		},
 	}
 
 	if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
-		err = impl.workflowDagExecutor.TriggerPreStage(triggerRequest)
+		err = impl.cdTriggerService.TriggerPreStage(triggerRequest)
 		if err != nil {
 			impl.Logger.Errorw("error in TriggerPreStage ", "err", err, "cdWorkflowRunnerId", runner.Id)
 			return err
 		}
 	} else if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_POST {
-		err = impl.workflowDagExecutor.TriggerPostStage(triggerRequest)
+		err = impl.cdTriggerService.TriggerPostStage(triggerRequest)
 		if err != nil {
 			impl.Logger.Errorw("error in TriggerPostStage ", "err", err, "cdWorkflowRunnerId", runner.Id)
 			return err
@@ -350,7 +376,7 @@ func (impl *CdHandlerImpl) CheckAndSendArgoPipelineStatusSyncEventIfNeeded(pipel
 	}
 }
 
-func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveApplicationFetch(triggerContext TriggerContext, pipeline *pipelineConfig.Pipeline, installedApp repository3.InstalledApps, userId int32) (error, bool) {
+func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveApplicationFetch(triggerContext bean3.TriggerContext, pipeline *pipelineConfig.Pipeline, installedApp repository3.InstalledApps, userId int32) (error, bool) {
 	isTimelineUpdated := false
 	isSucceeded := false
 	var pipelineOverride *chartConfig.PipelineOverride
@@ -598,7 +624,7 @@ func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb(helmPipel
 				return err
 			}
 			go impl.appService.WriteCDSuccessEvent(pipelineOverride.Pipeline.AppId, pipelineOverride.Pipeline.EnvironmentId, pipelineOverride)
-			err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent(TriggerContext{}, pipelineOverride)
+			err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent(bean3.TriggerContext{}, pipelineOverride)
 			if err != nil {
 				impl.Logger.Errorw("error on handling deployment success event", "wfr", wfr, "err", err)
 				return err
