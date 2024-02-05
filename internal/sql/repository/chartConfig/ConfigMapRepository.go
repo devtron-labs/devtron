@@ -90,7 +90,8 @@ func (impl ConfigMapRepositoryImpl) GetConfigNamesEnvLevel(appId int, envId int)
 		Table("config_map_env_level").
 		ColumnExpr("json_array_elements(config_map_data::json->'maps')->>'name' AS cm_name").
 		ColumnExpr("json_array_elements(secret_data::json->'secrets')->>'name' AS cs_name").
-		Where("app_id = ?", appId)
+		Where("app_id = ?", appId).
+		Where("environment_id=?", envId)
 
 	if err := query.Select(&cMCSNames); err != nil {
 		if err != pg.ErrNoRows {
