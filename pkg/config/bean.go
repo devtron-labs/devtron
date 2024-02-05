@@ -20,5 +20,5 @@ type ConfigProperty struct {
 	Type        ResourceType `json:"type"`
 }
 type ConfigDataResponse struct {
-	ResourceConfig []ConfigProperty `json:"resourceConfig"`
+	ResourceConfig []*ConfigProperty `json:"resourceConfig"`
 }
