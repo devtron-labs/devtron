@@ -42,13 +42,13 @@ import (
 	security2 "github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
-	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
-	repository3 "github.com/devtron-labs/devtron/pkg/appStore/chartGroup/repository"
+	repository4 "github.com/devtron-labs/devtron/pkg/appStore/chartGroup/repository"
 	appStoreDeploymentTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	client2 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
-	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	repository2 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -88,7 +88,7 @@ func InitializeApp() (*App, error) {
 		terminal.TerminalWireSet,
 		client2.CasbinWireSet,
 		globalConfig.GlobalConfigWireSet,
-
+		gitOps.GitOpsWireSet,
 		NewApp,
 		NewMuxRouter,
 		util3.GetGlobalEnvVariables,
@@ -152,8 +152,6 @@ func InitializeApp() (*App, error) {
 		// binding gitops to helm (for hyperion)
 		wire.Bind(new(appStoreDeploymentTool.AppStoreDeploymentArgoCdService), new(*appStoreDeploymentTool.AppStoreDeploymentHelmServiceImpl)),
 
-		wire.Value(chartRepoRepository.RefChartDir("scripts/devtron-reference-helm-charts")),
-
 		router.NewTelemetryRouterImpl,
 		wire.Bind(new(router.TelemetryRouter), new(*router.TelemetryRouterImpl)),
 		restHandler.NewTelemetryRestHandlerImpl,
@@ -165,9 +163,6 @@ func InitializeApp() (*App, error) {
 		dashboardEvent.NewDashboardTelemetryRouterImpl,
 		wire.Bind(new(dashboardEvent.DashboardTelemetryRouter),
 			new(*dashboardEvent.DashboardTelemetryRouterImpl)),
-
-		repository.NewGitOpsConfigRepositoryImpl,
-		wire.Bind(new(repository.GitOpsConfigRepository), new(*repository.GitOpsConfigRepositoryImpl)),
 
 		//binding argoUserService to helm via dummy implementation(HelmUserServiceImpl)
 		argo.NewHelmUserServiceImpl,
@@ -191,10 +186,8 @@ func InitializeApp() (*App, error) {
 
 		util.NewChartTemplateServiceImpl,
 		wire.Bind(new(util.ChartTemplateService), new(*util.ChartTemplateServiceImpl)),
-		wire.Value(util.ChartWorkingDir("/tmp/charts/")),
-		wire.Value(appStoreBean.RefChartProxyDir("scripts/devtron-reference-helm-charts")),
-		util.NewGitFactory,
-		util.NewGitCliUtil,
+		git.NewGitFactory,
+		git.NewGitCliUtil,
 
 		security2.NewScanToolMetadataRepositoryImpl,
 		wire.Bind(new(security2.ScanToolMetadataRepository), new(*security2.ScanToolMetadataRepositoryImpl)),
@@ -215,8 +208,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(dockerRegistryRepository.OCIRegistryConfigRepository), new(*dockerRegistryRepository.OCIRegistryConfigRepositoryImpl)),
 
 		// chart group repository layer wire injection started
-		repository3.NewChartGroupDeploymentRepositoryImpl,
-		wire.Bind(new(repository3.ChartGroupDeploymentRepository), new(*repository3.ChartGroupDeploymentRepositoryImpl)),
+		repository4.NewChartGroupDeploymentRepositoryImpl,
+		wire.Bind(new(repository4.ChartGroupDeploymentRepository), new(*repository4.ChartGroupDeploymentRepositoryImpl)),
 		// chart group repository layer wire injection ended
 
 		// end: docker registry wire set injection

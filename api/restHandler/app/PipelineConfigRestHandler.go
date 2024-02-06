@@ -22,6 +22,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	"io"
 	"net/http"
 	"strconv"
@@ -42,8 +45,6 @@ import (
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
 
-	bean2 "github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
@@ -58,10 +59,7 @@ import (
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
-	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"go.uber.org/zap"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"gopkg.in/go-playground/validator.v9"
 )
 
@@ -109,7 +107,6 @@ type PipelineConfigRestHandlerImpl struct {
 	Logger                       *zap.SugaredLogger
 	chartService                 chart.ChartService
 	propertiesConfigService      pipeline.PropertiesConfigService
-	application                  application.ServiceClient
 	userAuthService              user.UserService
 	validator                    *validator.Validate
 	teamService                  team.TeamService
@@ -133,12 +130,15 @@ type PipelineConfigRestHandlerImpl struct {
 	deploymentTemplateService    generateManifest.DeploymentTemplateService
 	pipelineRestHandlerEnvConfig *PipelineRestHandlerEnvConfig
 	ciArtifactRepository         repository.CiArtifactRepository
+	deploymentTemplateValidationService deploymentTemplate.DeploymentTemplateValidationService
+	deployedAppMetricsService           deployedAppMetrics.DeployedAppMetricsService
+	chartRefService                     chartRef.ChartRefService
 }
 
 func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
+	deploymentTemplateValidationService deploymentTemplate.DeploymentTemplateValidationService,
 	chartService chart.ChartService,
 	propertiesConfigService pipeline.PropertiesConfigService,
-	application application.ServiceClient,
 	userAuthService user.UserService,
 	teamService team.TeamService,
 	enforcer casbin.Enforcer,
@@ -156,7 +156,9 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	scanResultRepository security.ImageScanResultRepository, gitProviderRepo repository.GitProviderRepository,
 	argoUserService argo.ArgoUserService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	imageTaggingService pipeline.ImageTaggingService, resourceProtectionService protect.ResourceProtectionService,
-	ciArtifactRepository repository.CiArtifactRepository) *PipelineConfigRestHandlerImpl {
+	ciArtifactRepository repository.CiArtifactRepository,
+	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
+	chartRefService chartRef.ChartRefService) *PipelineConfigRestHandlerImpl {
 	envConfig := &PipelineRestHandlerEnvConfig{}
 	err := env.Parse(envConfig)
 	if err != nil {
@@ -167,7 +169,6 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		Logger:                       Logger,
 		chartService:                 chartService,
 		propertiesConfigService:      propertiesConfigService,
-		application:                  application,
 		userAuthService:              userAuthService,
 		validator:                    validator,
 		teamService:                  teamService,
@@ -194,6 +195,9 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		deploymentTemplateService:    deploymentTemplateService,
 		pipelineRestHandlerEnvConfig: envConfig,
 		ciArtifactRepository:         ciArtifactRepository,
+		deploymentTemplateValidationService: deploymentTemplateValidationService,
+		deployedAppMetricsService:           deployedAppMetricsService,
+		chartRefService:                     chartRefService,
 	}
 }
 
@@ -561,31 +565,6 @@ func (handler *PipelineConfigRestHandlerImpl) sendData(event []byte, w http.Resp
 	res = append(res, '\n', '\n')
 	if _, err := w.Write(res); err != nil {
 		handler.Logger.Errorw("Failed to send response chunk, sendData", "err", err)
-		return
-	}
-}
-
-func (handler *PipelineConfigRestHandlerImpl) handleForwardResponseStreamError(wroteHeader bool, w http.ResponseWriter, err error) {
-	code := "000"
-	if !wroteHeader {
-		s, ok := status.FromError(err)
-		if !ok {
-			s = status.New(codes.Unknown, err.Error())
-		}
-		w.WriteHeader(runtime.HTTPStatusFromCode(s.Code()))
-		code = fmt.Sprint(s.Code())
-	}
-	response := bean2.Response{}
-	apiErr := bean2.ApiError{}
-	apiErr.Code = code // 000=unknown
-	apiErr.InternalMessage = err.Error()
-	response.Errors = []bean2.ApiError{apiErr}
-	buf, err2 := json.Marshal(response)
-	if err2 != nil {
-		handler.Logger.Errorw("marshal err, handleForwardResponseStreamError", "err", err2, "response", response)
-	}
-	if _, err3 := w.Write(buf); err3 != nil {
-		handler.Logger.Errorw("Failed to notify error to client, handleForwardResponseStreamError", "err", err3, "response", response)
 		return
 	}
 }

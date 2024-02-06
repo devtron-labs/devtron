@@ -16,7 +16,7 @@ const (
 )
 
 type DeploymentTemplateComparisonMetadata struct {
-	ChartId                     int                    `json:"chartRefId"`
+	ChartRefId                  int                    `json:"chartRefId"`
 	ChartVersion                string                 `json:"chartVersion,omitempty"`
 	ChartType                   string                 `json:"chartType,omitempty"`
 	EnvironmentId               int                    `json:"environmentId,omitempty"`
@@ -78,7 +78,7 @@ func (impl DeploymentTemplateRepositoryImpl) FetchLatestDeploymentWithChartRefs(
                 p.id as pipeline_id,
                 p.environment_id, 
                 dth.id as deployment_template_history_id, 
-                ceco.chart_id, 
+                c.chart_ref_id, 
                 c.chart_version, 
                 ROW_NUMBER() OVER (PARTITION BY p.environment_id ORDER BY pco.id DESC) AS row_num
             FROM 
@@ -100,7 +100,7 @@ func (impl DeploymentTemplateRepositoryImpl) FetchLatestDeploymentWithChartRefs(
             rr.pipeline_id, 
             rr.environment_id, 
             rr.deployment_template_history_id, 
-            rr.chart_id, 
+            rr.chart_ref_id, 
             rr.chart_version, 
             e.environment_name
         FROM 

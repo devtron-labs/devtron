@@ -19,7 +19,8 @@ package restHandler
 
 import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"github.com/devtron-labs/devtron/pkg/chart"
+	chartService "github.com/devtron-labs/devtron/pkg/chart"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"net/http"
@@ -34,17 +35,19 @@ type ChartRefRestHandler interface {
 }
 
 type ChartRefRestHandlerImpl struct {
-	chartService chart.ChartService
-	logger       *zap.SugaredLogger
+	logger          *zap.SugaredLogger
+	chartRefService chartRef.ChartRefService
+	chartService    chartService.ChartService
 }
 
-func NewChartRefRestHandlerImpl(chartService chart.ChartService, logger *zap.SugaredLogger) *ChartRefRestHandlerImpl {
-	handler := &ChartRefRestHandlerImpl{chartService: chartService, logger: logger}
+func NewChartRefRestHandlerImpl(logger *zap.SugaredLogger, chartRefService chartRef.ChartRefService,
+	chartService chartService.ChartService) *ChartRefRestHandlerImpl {
+	handler := &ChartRefRestHandlerImpl{logger: logger, chartRefService: chartRefService, chartService: chartService}
 	return handler
 }
 
 func (handler ChartRefRestHandlerImpl) ChartRefAutocomplete(w http.ResponseWriter, r *http.Request) {
-	result, err := handler.chartService.ChartRefAutocomplete()
+	result, err := handler.chartRefService.ChartRefAutocomplete()
 	if err != nil {
 		handler.logger.Errorw("service err, ChartRefAutocomplete", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -104,7 +107,7 @@ func (handler ChartRefRestHandlerImpl) ChartRefAutocompleteByChartId(w http.Resp
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	result, _, err := handler.chartService.GetAppOverrideForDefaultTemplate(chartRefId)
+	result, _, err := handler.chartRefService.GetAppOverrideForDefaultTemplate(chartRefId)
 	if err != nil {
 		handler.logger.Errorw("service err, ChartRefAutocompleteByChartId", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
