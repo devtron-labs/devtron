@@ -81,6 +81,7 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/env").HandlerFunc(router.restHandler.EnvConfigOverrideUpdate).Methods("PUT")
 	configRouter.Path("/env/{appId}/{environmentId}/{chartRefId}").HandlerFunc(router.restHandler.GetEnvConfigOverride).Methods("GET")
 
+	configRouter.Path("/ci-pipeline").HandlerFunc(router.restHandler.GetCIPipelineByPipelineId).Methods("GET")
 	configRouter.Path("/ci-pipeline").HandlerFunc(router.restHandler.CreateCiConfig).Methods("POST")
 	configRouter.Path("/ci-pipeline/{appId}").HandlerFunc(router.restHandler.GetCiPipeline).Methods("GET")
 	configRouter.Path("/external-ci/{appId}").HandlerFunc(router.restHandler.GetExternalCi).Methods("GET")
@@ -129,9 +130,6 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 
 	configRouter.Path("/env/reset/{appId}/{environmentId}/{id}").HandlerFunc(router.restHandler.EnvConfigOverrideReset).Methods("DELETE")
 	configRouter.Path("/env/namespace/{appId}/{environmentId}").HandlerFunc(router.restHandler.EnvConfigOverrideCreateNamespace).Methods("POST")
-
-	configRouter.Path("/template/metrics/{appId}").HandlerFunc(router.restHandler.AppMetricsEnableDisable).Methods("POST")
-	configRouter.Path("/env/metrics/{appId}/{environmentId}").HandlerFunc(router.restHandler.EnvMetricsEnableDisable).Methods("POST")
 
 	configRouter.Path("/app-wf").
 		HandlerFunc(router.appWorkflowRestHandler.CreateAppWorkflow).Methods("POST")

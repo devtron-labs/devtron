@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	service2 "github.com/devtron-labs/devtron/api/helm-app/service"
 	"net/http"
 	"strconv"
 	"strings"
@@ -67,7 +68,7 @@ type AppStoreDeploymentRestHandlerImpl struct {
 	appStoreDeploymentService  service.AppStoreDeploymentService
 	appStoreDeploymentServiceC appStoreDeploymentCommon.AppStoreDeploymentCommonService
 	validator                  *validator.Validate
-	helmAppService             client.HelmAppService
+	helmAppService             service2.HelmAppService
 	helmAppRestHandler         client.HelmAppRestHandler
 	argoUserService            argo.ArgoUserService
 	attributesService          attributes.AttributesService
@@ -75,7 +76,7 @@ type AppStoreDeploymentRestHandlerImpl struct {
 
 func NewAppStoreDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService,
 	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, enforcerUtilHelm rbac.EnforcerUtilHelm, appStoreDeploymentService service.AppStoreDeploymentService,
-	validator *validator.Validate, helmAppService client.HelmAppService, appStoreDeploymentServiceC appStoreDeploymentCommon.AppStoreDeploymentCommonService,
+	validator *validator.Validate, helmAppService service2.HelmAppService, appStoreDeploymentServiceC appStoreDeploymentCommon.AppStoreDeploymentCommonService,
 	argoUserService argo.ArgoUserService, attributesService attributes.AttributesService) *AppStoreDeploymentRestHandlerImpl {
 	return &AppStoreDeploymentRestHandlerImpl{
 		Logger:                     Logger,
