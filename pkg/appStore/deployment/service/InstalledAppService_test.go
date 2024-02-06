@@ -1,18 +1,14 @@
 package service
 
 import (
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"testing"
 
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
-	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
-	repository2 "github.com/devtron-labs/devtron/client/argocdServer/repository"
-	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/util"
-	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	repository5 "github.com/devtron-labs/devtron/pkg/appStore/chartGroup/repository"
-	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
 	repository4 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/values/service"
@@ -29,8 +25,6 @@ func TestInstalledAppServiceImpl_DeployDefaultChartOnCluster(t *testing.T) {
 		logger                               *zap.SugaredLogger
 		installedAppRepository               repository4.InstalledAppRepository
 		chartTemplateService                 util.ChartTemplateService
-		refChartDir                          appStoreBean.RefChartProxyDir
-		repositoryService                    repository2.ServiceClient
 		appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository
 		environmentRepository                repository.EnvironmentRepository
 		teamRepository                       team.TeamRepository
@@ -38,16 +32,12 @@ func TestInstalledAppServiceImpl_DeployDefaultChartOnCluster(t *testing.T) {
 		acdClient                            application.ServiceClient
 		appStoreValuesService                service.AppStoreValuesService
 		pubsubClient                         *pubsub.PubSubClientServiceImpl
-		tokenCache                           *util2.TokenCache
 		chartGroupDeploymentRepository       repository5.ChartGroupDeploymentRepository
 		envService                           cluster.EnvironmentService
-		ArgoK8sClient                        argocdServer.ArgoK8sClient
-		gitFactory                           *util.GitFactory
+		gitFactory                           *git.GitFactory
 		aCDAuthConfig                        *util2.ACDAuthConfig
-		gitOpsRepository                     repository3.GitOpsConfigRepository
 		userService                          user.UserService
 		appStoreDeploymentService            AppStoreDeploymentService
-		appStoreDeploymentFullModeService    appStoreDeploymentFullMode.AppStoreDeploymentFullModeService
 	}
 	type args struct {
 		bean   *cluster.ClusterBean
@@ -67,26 +57,18 @@ func TestInstalledAppServiceImpl_DeployDefaultChartOnCluster(t *testing.T) {
 			impl := &InstalledAppServiceImpl{
 				logger:                               tt.fields.logger,
 				installedAppRepository:               tt.fields.installedAppRepository,
-				chartTemplateService:                 tt.fields.chartTemplateService,
-				refChartDir:                          tt.fields.refChartDir,
-				repositoryService:                    tt.fields.repositoryService,
 				appStoreApplicationVersionRepository: tt.fields.appStoreApplicationVersionRepository,
 				environmentRepository:                tt.fields.environmentRepository,
 				teamRepository:                       tt.fields.teamRepository,
 				appRepository:                        tt.fields.appRepository,
 				acdClient:                            tt.fields.acdClient,
 				appStoreValuesService:                tt.fields.appStoreValuesService,
-				pubsubClient:                         tt.fields.pubsubClient,
-				tokenCache:                           tt.fields.tokenCache,
+				pubSubClient:                         tt.fields.pubsubClient,
 				chartGroupDeploymentRepository:       tt.fields.chartGroupDeploymentRepository,
 				envService:                           tt.fields.envService,
-				ArgoK8sClient:                        tt.fields.ArgoK8sClient,
-				gitFactory:                           tt.fields.gitFactory,
 				aCDAuthConfig:                        tt.fields.aCDAuthConfig,
-				gitOpsRepository:                     tt.fields.gitOpsRepository,
 				userService:                          tt.fields.userService,
 				appStoreDeploymentService:            tt.fields.appStoreDeploymentService,
-				appStoreDeploymentFullModeService:    tt.fields.appStoreDeploymentFullModeService,
 			}
 			got, err := impl.DeployDefaultChartOnCluster(tt.args.bean, tt.args.userId)
 			if (err != nil) != tt.wantErr {

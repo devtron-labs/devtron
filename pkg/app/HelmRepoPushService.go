@@ -3,7 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
-	client "github.com/devtron-labs/devtron/api/helm-app"
+	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/app/bean"
 	status2 "github.com/devtron-labs/devtron/pkg/app/status"
@@ -18,13 +18,13 @@ type HelmRepoPushService interface {
 
 type HelmRepoPushServiceImpl struct {
 	logger                        *zap.SugaredLogger
-	helmAppClient                 client.HelmAppClient
+	helmAppClient                 gRPC.HelmAppClient
 	pipelineStatusTimelineService status2.PipelineStatusTimelineService
 }
 
 func NewHelmRepoPushServiceImpl(
 	logger *zap.SugaredLogger,
-	helmAppClient client.HelmAppClient,
+	helmAppClient gRPC.HelmAppClient,
 	pipelineStatusTimelineService status2.PipelineStatusTimelineService,
 ) *HelmRepoPushServiceImpl {
 	return &HelmRepoPushServiceImpl{
@@ -71,13 +71,13 @@ func (impl *HelmRepoPushServiceImpl) PushChart(manifestPushTemplate *bean.Manife
 
 }
 
-func getOciPushTemplate(manifestPushTemplate *bean.ManifestPushTemplate) *client.OCIRegistryRequest {
-	return &client.OCIRegistryRequest{
+func getOciPushTemplate(manifestPushTemplate *bean.ManifestPushTemplate) *gRPC.OCIRegistryRequest {
+	return &gRPC.OCIRegistryRequest{
 		Chart:        *manifestPushTemplate.BuiltChartBytes,
 		ChartName:    manifestPushTemplate.ChartName,
 		ChartVersion: manifestPushTemplate.ChartVersion,
 		IsInsecure:   true,
-		RegistryCredential: &client.RegistryCredential{
+		RegistryCredential: &gRPC.RegistryCredential{
 			Username:     manifestPushTemplate.ContainerRegistryConfig.Username,
 			Password:     manifestPushTemplate.ContainerRegistryConfig.Password,
 			AwsRegion:    manifestPushTemplate.ContainerRegistryConfig.AwsRegion,

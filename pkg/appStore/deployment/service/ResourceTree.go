@@ -8,7 +8,7 @@ import (
 	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
 	"github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/api/helm-app"
+	bean2 "github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appStatus"
@@ -35,7 +35,7 @@ func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn h
 		if err != nil {
 			impl.logger.Errorw("error in fetching cluster detail", "err", err)
 		}
-		req := &client.AppDetailRequest{
+		req := &bean2.AppDetailRequest{
 			ClusterConfig: config,
 			Namespace:     installedApp.Environment.Namespace,
 			ReleaseName:   installedApp.App.AppName,

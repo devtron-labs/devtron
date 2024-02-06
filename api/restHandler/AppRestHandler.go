@@ -19,11 +19,11 @@ package restHandler
 
 import (
 	"encoding/json"
+	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"net/http"
 	"strconv"
 	"strings"
 
-	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/app"

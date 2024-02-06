@@ -3,9 +3,9 @@ package cluster
 import (
 	"context"
 	"fmt"
-	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	auth "github.com/devtron-labs/devtron/pkg/auth/authorisation/globalConfig"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
 	"net/http"
 	"strings"
@@ -15,7 +15,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
-	repository4 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
+	repository5 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/devtron-labs/devtron/pkg/k8s/informer"
 	"github.com/go-pg/pg"
 
@@ -36,7 +36,7 @@ type ClusterServiceImplExtended struct {
 	installedAppRepository   repository2.InstalledAppRepository
 	clusterServiceCD         cluster2.ServiceClient
 	K8sInformerFactory       informer.K8sInformerFactory
-	gitOpsRepository         repository3.GitOpsConfigRepository
+	gitOpsConfigReadService  config.GitOpsConfigReadService
 	sshTunnelWrapperService  k8s.SSHTunnelWrapperService
 	imageDigestPolicyService imageDigestPolicy.ImageDigestPolicyService
 	*ClusterServiceImpl
@@ -46,19 +46,20 @@ func NewClusterServiceImplExtended(repository repository.ClusterRepository, envi
 	grafanaClient grafana.GrafanaClient, logger *zap.SugaredLogger, installedAppRepository repository2.InstalledAppRepository,
 	K8sUtil *k8s.K8sUtilExtended,
 	clusterServiceCD cluster2.ServiceClient, K8sInformerFactory informer.K8sInformerFactory,
-	gitOpsRepository repository3.GitOpsConfigRepository, userAuthRepository repository4.UserAuthRepository,
-	userRepository repository4.UserRepository, roleGroupRepository repository4.RoleGroupRepository,
+	userAuthRepository repository5.UserAuthRepository,
+	userRepository repository5.UserRepository, roleGroupRepository repository5.RoleGroupRepository,
 	sshTunnelWrapperService k8s.SSHTunnelWrapperService,
 	globalAuthorisationConfigService auth.GlobalAuthorisationConfigService,
 	userService user.UserService,
+	gitOpsConfigReadService config.GitOpsConfigReadService,
 	imageDigestPolicyService imageDigestPolicy.ImageDigestPolicyService) *ClusterServiceImplExtended {
 	clusterServiceExt := &ClusterServiceImplExtended{
 		environmentRepository:    environmentRepository,
 		grafanaClient:            grafanaClient,
 		installedAppRepository:   installedAppRepository,
 		clusterServiceCD:         clusterServiceCD,
-		gitOpsRepository:         gitOpsRepository,
 		sshTunnelWrapperService:  sshTunnelWrapperService,
+		gitOpsConfigReadService:  gitOpsConfigReadService,
 		imageDigestPolicyService: imageDigestPolicyService,
 		ClusterServiceImpl: &ClusterServiceImpl{
 			clusterRepository:                repository,
@@ -204,7 +205,7 @@ func (impl *ClusterServiceImplExtended) FindAllExceptVirtual() ([]*ClusterBean, 
 }
 
 func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {
-	isGitOpsConfigured, err1 := impl.gitOpsRepository.IsGitOpsConfigured()
+	isGitOpsConfigured, err1 := impl.gitOpsConfigReadService.IsGitOpsConfigured()
 	if err1 != nil {
 		return nil, err1
 	}
@@ -384,7 +385,7 @@ func (impl *ClusterServiceImplExtended) CreateGrafanaDataSource(clusterBean *Clu
 }
 
 func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {
-	isGitOpsConfigured, err := impl.gitOpsRepository.IsGitOpsConfigured()
+	isGitOpsConfigured, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
 	if err != nil {
 		return nil, err
 	}
