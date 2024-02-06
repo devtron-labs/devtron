@@ -18,6 +18,7 @@
 package chartConfig
 
 import (
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
@@ -39,7 +40,7 @@ type ConfigMapRepository interface {
 	GetByAppIdAppLevel(appId int) (*ConfigMapAppModel, error)
 	GetByAppIdAndEnvIdEnvLevel(appId int, envId int) (*ConfigMapEnvModel, error)
 	GetEnvLevelByAppId(appId int) ([]*ConfigMapEnvModel, error)
-	GetConfigNamesForAppAndEnvLevel(appId int, envId int) ([]CMCSNames, error)
+	GetConfigNamesForAppAndEnvLevel(appId int, envId int) ([]bean.CMCSNames, error)
 }
 
 type ConfigMapRepositoryImpl struct {
@@ -59,13 +60,9 @@ type ConfigMapAppModel struct {
 	SecretData    string   `sql:"secret_data"`
 	sql.AuditLog
 }
-type CMCSNames struct {
-	CMName string `json:"cm_name"`
-	CSName string `json:"cs_name"`
-}
 
-func (impl ConfigMapRepositoryImpl) GetConfigNamesForAppAndEnvLevel(appId int, envId int) ([]CMCSNames, error) {
-	var cMCSNames []CMCSNames
+func (impl ConfigMapRepositoryImpl) GetConfigNamesForAppAndEnvLevel(appId int, envId int) ([]bean.CMCSNames, error) {
+	var cMCSNames []bean.CMCSNames
 	tableName := "config_map_env_level"
 	if envId == -1 {
 		tableName = "config_map_app_level"

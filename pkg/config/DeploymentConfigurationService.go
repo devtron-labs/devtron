@@ -1,8 +1,8 @@
 package config
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"go.uber.org/zap"
 )
 
@@ -41,7 +41,7 @@ func (impl *DeploymentConfigurationServiceImpl) ConfigAutoComplete(appId int, en
 	return &ConfigDataResponse{ResourceConfig: combinedProperties}, nil
 }
 
-func getUniqueConfigPropertyList(cMCSNames []chartConfig.CMCSNames, combinedProperties []*ConfigProperty) []*ConfigProperty {
+func getUniqueConfigPropertyList(cMCSNames []bean.CMCSNames, combinedProperties []*ConfigProperty) []*ConfigProperty {
 	properties := make([]*ConfigProperty, 0)
 	if len(cMCSNames) == 0 {
 		return properties

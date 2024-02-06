@@ -83,7 +83,7 @@ type ConfigMapService interface {
 	ConfigSecretEnvironmentGet(appId int) ([]bean.JobEnvOverrideResponse, error)
 	ConfigSecretEnvironmentClone(appId int, cloneAppId int, userId int32) ([]chartConfig.ConfigMapEnvModel, error)
 
-	FetchCmCsNamesAppAndEnvLevel(appId int, envId int) ([]chartConfig.CMCSNames, []chartConfig.CMCSNames, error)
+	FetchCmCsNamesAppAndEnvLevel(appId int, envId int) ([]bean.CMCSNames, []bean.CMCSNames, error)
 }
 
 type ConfigMapServiceImpl struct {
@@ -1994,8 +1994,8 @@ func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentClone(appId int, cloneAp
 
 	return jobEnvOverrideResponse, nil
 }
-func (impl ConfigMapServiceImpl) FetchCmCsNamesAppAndEnvLevel(appId int, envId int) ([]chartConfig.CMCSNames, []chartConfig.CMCSNames, error) {
-	var cMCSNamesEnvLevel []chartConfig.CMCSNames
+func (impl ConfigMapServiceImpl) FetchCmCsNamesAppAndEnvLevel(appId int, envId int) ([]bean.CMCSNames, []bean.CMCSNames, error) {
+	var cMCSNamesEnvLevel []bean.CMCSNames
 
 	cMCSNamesAppLevel, err := impl.configMapRepository.GetConfigNamesForAppAndEnvLevel(appId, -1)
 	if err != nil {

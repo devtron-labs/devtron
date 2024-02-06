@@ -91,3 +91,7 @@ type CreateJobEnvOverridePayload struct {
 type SecretsList struct {
 	ConfigData []*ConfigData `json:"secrets"`
 }
+type CMCSNames struct {
+	CMName string `json:"cm_name"`
+	CSName string `json:"cs_name"`
+}
