@@ -803,7 +803,7 @@ func (impl RoleGroupServiceImpl) BulkDeleteRoleGroups(request *bean.BulkDeleteRe
 	return true, nil
 }
 
-// getGroupIdsHonoringFilters get the filtered user ids according to the request filters and returns userIds and error(not nil) if any exception is caught.
+// getGroupIdsHonoringFilters get the filtered group ids according to the request filters and returns groupIds and error(not nil) if any exception is caught.
 func (impl *RoleGroupServiceImpl) getGroupIdsHonoringFilters(request *bean.FetchListingRequest) ([]int32, error) {
 	//query to get particular models respecting filters
 	query := impl.userRepositoryQueryBuilder.GetQueryForGroupListingWithFilters(request)
