@@ -6,13 +6,13 @@ import (
 	"encoding/json"
 	"fmt"
 	cloudProviderIdentifier "github.com/devtron-labs/common-lib/cloud-provider-identifier"
+	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	cron3 "github.com/devtron-labs/devtron/util/cron"
 	"net/http"
 	"time"
 
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/bean"
-	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/attributes"
@@ -55,7 +55,7 @@ type TelemetryEventClientImpl struct {
 	moduleRepository               moduleRepo.ModuleRepository
 	serverDataStore                *serverDataStore.ServerDataStore
 	userAuditService               user2.UserAuditService
-	helmAppClient                  client.HelmAppClient
+	helmAppClient                  gRPC.HelmAppClient
 	InstalledAppRepository         repository2.InstalledAppRepository
 	userAttributesRepository       repository.UserAttributesRepository
 	cloudProviderIdentifierService cloudProviderIdentifier.ProviderIdentifierService
@@ -74,7 +74,7 @@ type TelemetryEventClient interface {
 func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client, clusterService cluster.ClusterService,
 	K8sUtil *k8s.K8sServiceImpl, aCDAuthConfig *util3.ACDAuthConfig, userService user2.UserService,
 	attributeRepo repository.AttributesRepository, ssoLoginService sso.SSOLoginService,
-	PosthogClient *PosthogClient, moduleRepository moduleRepo.ModuleRepository, serverDataStore *serverDataStore.ServerDataStore, userAuditService user2.UserAuditService, helmAppClient client.HelmAppClient, InstalledAppRepository repository2.InstalledAppRepository,
+	PosthogClient *PosthogClient, moduleRepository moduleRepo.ModuleRepository, serverDataStore *serverDataStore.ServerDataStore, userAuditService user2.UserAuditService, helmAppClient gRPC.HelmAppClient, InstalledAppRepository repository2.InstalledAppRepository,
 	cloudProviderIdentifierService cloudProviderIdentifier.ProviderIdentifierService, cronLogger *cron3.CronLoggerImpl) (*TelemetryEventClientImpl, error) {
 	cron := cron.New(
 		cron.WithChain(cron.Recover(cronLogger)))
@@ -240,8 +240,8 @@ func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cl
 	ExternalHelmAppClusterCount = make(map[int32]int)
 
 	for _, clusterDetail := range clusters {
-		req := &client.AppListRequest{}
-		config := &client.ClusterConfig{
+		req := &gRPC.AppListRequest{}
+		config := &gRPC.ClusterConfig{
 			ApiServerUrl:          clusterDetail.ServerUrl,
 			Token:                 clusterDetail.Config[k8s.BearerToken],
 			ClusterId:             int32(clusterDetail.Id),
