@@ -103,7 +103,7 @@ type GitOpsConfigServiceImpl struct {
 }
 
 func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger,
-	globalEnvVariables *util2.GlobalEnvVariables,
+	envVariables *util2.EnvironmentVariables,
 	gitOpsRepository repository.GitOpsConfigRepository, K8sUtil *util4.K8sServiceImpl, aCDAuthConfig *util3.ACDAuthConfig,
 	clusterService cluster.ClusterService,
 	gitFactory *git.GitFactory, argoUserService argo.ArgoUserService,
@@ -111,7 +111,7 @@ func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger,
 	return &GitOpsConfigServiceImpl{
 		randSource:              rand.NewSource(time.Now().UnixNano()),
 		logger:                  Logger,
-		globalEnvVariables:      globalEnvVariables,
+		globalEnvVariables:      envVariables.GlobalEnvVariables,
 		gitOpsRepository:        gitOpsRepository,
 		K8sUtil:                 K8sUtil,
 		aCDAuthConfig:           aCDAuthConfig,

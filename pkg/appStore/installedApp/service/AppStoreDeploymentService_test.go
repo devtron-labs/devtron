@@ -5,7 +5,6 @@ import (
 
 	"github.com/devtron-labs/authenticator/client"
 	util2 "github.com/devtron-labs/common-lib/utils/k8s"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
@@ -51,7 +50,6 @@ func TestAppStoreDeploymentService(t *testing.T) {
 			ACDAppName:                "",
 			Environment:               nil,
 			ChartGroupEntryId:         0,
-			DefaultClusterComponent:   false,
 			Status:                    appStoreBean.WF_UNKNOWN,
 			AppStoreId:                0,
 			AppStoreName:              "",
@@ -68,7 +66,7 @@ func TestAppStoreDeploymentService(t *testing.T) {
 			DeploymentAppType:         "helm",
 		}
 
-		installedAppVersion, err := AppStoreDeploymentService.AppStoreDeployOperationDB(&InstallAppVersionDTO, tx, false)
+		installedAppVersion, err := AppStoreDeploymentService.AppStoreDeployOperationDB(&InstallAppVersionDTO, tx)
 
 		assert.Nil(t, err)
 		assert.Equal(t, installedAppVersion.DeploymentAppType, "helm")
@@ -101,7 +99,6 @@ func TestAppStoreDeploymentService(t *testing.T) {
 			ACDAppName:                "",
 			Environment:               nil,
 			ChartGroupEntryId:         0,
-			DefaultClusterComponent:   false,
 			Status:                    appStoreBean.WF_UNKNOWN,
 			AppStoreId:                0,
 			AppStoreName:              "",
@@ -118,7 +115,7 @@ func TestAppStoreDeploymentService(t *testing.T) {
 			DeploymentAppType:         "helm",
 		}
 
-		installedAppVersion, err := AppStoreDeploymentService.AppStoreDeployOperationDB(&InstallAppVersionDTO, tx, false)
+		installedAppVersion, err := AppStoreDeploymentService.AppStoreDeployOperationDB(&InstallAppVersionDTO, tx)
 
 		assert.Nil(t, err)
 		assert.Equal(t, installedAppVersion.DeploymentAppType, "argo_cd")
@@ -133,7 +130,6 @@ func initAppStoreDeploymentService(t *testing.T, internalUse bool) *AppStoreDepl
 	config, _ := sql.GetConfig()
 	db, _ := sql.NewDbConnection(config, sugaredLogger)
 
-	gitOpsRepository := repository.NewGitOpsConfigRepositoryImpl(sugaredLogger, db)
 	chartGroupDeploymentRepository := repository6.NewChartGroupDeploymentRepositoryImpl(db, sugaredLogger)
 
 	appStoreDiscoverRepository := appStoreDiscoverRepository.NewAppStoreApplicationVersionRepositoryImpl(sugaredLogger, db)
@@ -172,9 +168,7 @@ func initAppStoreDeploymentService(t *testing.T, internalUse bool) *AppStoreDepl
 		nil,
 		nil,
 		InstalledAppVersionHistoryRepository,
-		gitOpsRepository,
-		&DeploymentServiceTypeConfig{IsInternalUse: internalUse},
-		nil,
+		&DeploymentServiceTypeConfig{ExternallyManagedDeploymentType: internalUse},
 		nil,
 		nil)
 

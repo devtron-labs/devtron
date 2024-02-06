@@ -4,6 +4,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/mocks"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -15,16 +16,10 @@ func TestGitopsOrHelmOption(t *testing.T) {
 		sugaredLogger, err := util.NewSugardLogger()
 		assert.Nil(t, err)
 
-		pipelineBuilderService := NewPipelineBuilderImpl(sugaredLogger, nil, nil, nil, nil,
+		pipelineBuilderService := NewPipelineBuilderImpl(sugaredLogger, nil, nil,
 			nil, nil, nil,
-			nil, nil, nil, nil, nil,
-			nil, nil, nil, nil, util.MergeUtil{Logger: sugaredLogger}, nil,
-			nil, nil, nil, nil, nil,
-			nil, nil, nil, nil, nil,
-			nil, nil, nil,
-			nil, nil, nil, nil,
-			nil, nil, nil, nil,
-			nil, nil, nil, nil, nil, nil, nil, nil, &DeploymentServiceTypeConfig{IsInternalUse: false}, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+			nil, nil,
+			util.MergeUtil{Logger: sugaredLogger}, &util2.DeploymentServiceTypeConfig{ExternallyManagedDeploymentType: false}, nil)
 
 		pipelineCreateRequest := &bean.CdPipelines{
 			Pipelines: []*bean.CDPipelineConfigObject{
@@ -79,7 +74,7 @@ func TestGitopsOrHelmOption(t *testing.T) {
 			nil, nil, nil,
 			nil, nil, nil, nil,
 			nil, nil, nil, nil,
-			nil, nil, nil, nil, nil, nil, nil, nil, &DeploymentServiceTypeConfig{IsInternalUse: false}, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+			nil, nil, nil, nil, nil, nil, nil, nil, &util2.DeploymentServiceTypeConfig{IsInternalUse: false}, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 
 		pipelineCreateRequest := &bean.CdPipelines{
 			Pipelines: []*bean.CDPipelineConfigObject{
@@ -135,7 +130,7 @@ func TestGitopsOrHelmOption(t *testing.T) {
 			nil, nil, nil,
 			nil, nil, nil, nil,
 			nil, nil, nil, nil,
-			nil, nil, nil, nil, nil, nil, nil, nil, &DeploymentServiceTypeConfig{IsInternalUse: false}, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+			nil, nil, nil, nil, nil, nil, nil, nil, &util2.DeploymentServiceTypeConfig{IsInternalUse: false}, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 
 		pipelineCreateRequest := &bean.CdPipelines{
 			Pipelines: []*bean.CDPipelineConfigObject{
@@ -190,7 +185,7 @@ func TestGitopsOrHelmOption(t *testing.T) {
 			nil, nil, nil,
 			nil, nil, nil, nil,
 			nil, nil, nil, nil,
-			nil, nil, nil, nil, nil, nil, nil, nil, &DeploymentServiceTypeConfig{IsInternalUse: true}, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+			nil, nil, nil, nil, nil, nil, nil, nil, &util2.DeploymentServiceTypeConfig{IsInternalUse: true}, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 
 		pipelineCreateRequestHelm := &bean.CdPipelines{
 			Pipelines: []*bean.CDPipelineConfigObject{
@@ -284,7 +279,7 @@ func TestGitopsOrHelmOption(t *testing.T) {
 			nil, nil, nil,
 			nil, nil, nil, nil,
 			nil, nil, nil, nil,
-			nil, nil, nil, nil, nil, nil, nil, nil, &DeploymentServiceTypeConfig{IsInternalUse: false}, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+			nil, nil, nil, nil, nil, nil, nil, nil, &util2.DeploymentServiceTypeConfig{IsInternalUse: false}, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 
 		pipelineCreateRequest := &bean.CdPipelines{
 			Pipelines: []*bean.CDPipelineConfigObject{
@@ -341,7 +336,7 @@ func TestGitopsOrHelmOption(t *testing.T) {
 			nil, nil, nil,
 			nil, nil, nil, nil,
 			nil, nil, nil, nil,
-			nil, nil, nil, nil, nil, nil, nil, nil, &DeploymentServiceTypeConfig{IsInternalUse: true}, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+			nil, nil, nil, nil, nil, nil, nil, nil, &util2.DeploymentServiceTypeConfig{IsInternalUse: true}, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 
 		pipelineCreateRequest := &bean.CdPipelines{
 			Pipelines: []*bean.CDPipelineConfigObject{

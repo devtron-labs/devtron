@@ -33,12 +33,12 @@ type GitOpsConfigReadServiceImpl struct {
 func NewGitOpsConfigReadServiceImpl(logger *zap.SugaredLogger,
 	gitOpsRepository repository.GitOpsConfigRepository,
 	userService user.UserService,
-	globalEnvVariables *util.GlobalEnvVariables) *GitOpsConfigReadServiceImpl {
+	envVariables *util.EnvironmentVariables) *GitOpsConfigReadServiceImpl {
 	return &GitOpsConfigReadServiceImpl{
 		logger:             logger,
 		gitOpsRepository:   gitOpsRepository,
 		userService:        userService,
-		globalEnvVariables: globalEnvVariables,
+		globalEnvVariables: envVariables.GlobalEnvVariables,
 	}
 }
 

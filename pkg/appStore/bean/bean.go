@@ -81,7 +81,6 @@ type InstallAppVersionDTO struct {
 	ACDAppName                   string                         `json:"-"`
 	Environment                  *repository2.Environment       `json:"-"`
 	ChartGroupEntryId            int                            `json:"-"`
-	DefaultClusterComponent      bool                           `json:"-"`
 	Status                       AppstoreDeploymentStatus       `json:"-"`
 	AppStoreId                   int                            `json:"appStoreId"`
 	AppStoreName                 string                         `json:"appStoreName"`

@@ -2,7 +2,6 @@ package util
 
 import (
 	"context"
-	"github.com/devtron-labs/devtron/util"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/helm/pkg/chartutil"
 	chart2 "k8s.io/helm/pkg/proto/hapi/chart"
@@ -29,9 +28,8 @@ func TestChartTemplateService(t *testing.T) {
 		logger, err := NewSugardLogger()
 		assert.Nil(t, err)
 		impl := ChartTemplateServiceImpl{
-			logger:          logger,
-			randSource:      rand.NewSource(0),
-			chartWorkingDir: "/tmp/charts/",
+			logger:     logger,
+			randSource: rand.NewSource(0),
 		}
 		chartMetaData := &chart2.Metadata{
 			Name:    "sample-app",
@@ -52,9 +50,8 @@ func TestChartTemplateService(t *testing.T) {
 		logger, err := NewSugardLogger()
 		assert.Nil(t, err)
 		impl := ChartTemplateServiceImpl{
-			logger:          logger,
-			randSource:      rand.NewSource(0),
-			chartWorkingDir: "/tmp/charts/",
+			logger:     logger,
+			randSource: rand.NewSource(0),
 		}
 		chartMetaData := &chart2.Metadata{
 			Name:    "sample-app",
@@ -76,9 +73,8 @@ func TestChartTemplateService(t *testing.T) {
 		logger, err := NewSugardLogger()
 		assert.Nil(t, err)
 		impl := ChartTemplateServiceImpl{
-			logger:          logger,
-			randSource:      rand.NewSource(0),
-			chartWorkingDir: "/tmp/charts/",
+			logger:     logger,
+			randSource: rand.NewSource(0),
 		}
 		chartMetaData := &chart2.Metadata{
 			Name:    "sample-app",
@@ -97,20 +93,4 @@ func TestChartTemplateService(t *testing.T) {
 		assert.NotEqual(t, chartBytesLen, 0)
 
 	})
-
-	t.Run("GetGitOpsRepoName", func(t *testing.T) {
-		logger, err := NewSugardLogger()
-		assert.Nil(t, err)
-		globalEnvVariables, err := util.GetGlobalEnvVariables()
-		globalEnvVariables.GitOpsRepoPrefix = "devtron"
-		impl := ChartTemplateServiceImpl{
-			logger:             logger,
-			globalEnvVariables: globalEnvVariables,
-		}
-		appName := "sample"
-		wantedRepoName := "devtron-sample"
-		gitOpsRepoName := impl.GetGitOpsRepoName(appName)
-		assert.Equal(t, wantedRepoName, gitOpsRepoName)
-	})
-
 }

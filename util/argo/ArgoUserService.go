@@ -54,13 +54,13 @@ type ArgoUserServiceImpl struct {
 }
 
 func NewArgoUserServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.ClusterService,
-	devtronSecretConfig *util2.DevtronSecretConfig, runTimeConfig *client.RuntimeConfig,
+	envVariables *util2.EnvironmentVariables, runTimeConfig *client.RuntimeConfig,
 	argoCDConnectionManager connection.ArgoCDConnectionManager, versionService argocdServer.VersionService,
 	k8sUtil *k8s.K8sServiceImpl, gitOpsConfigReadService config.GitOpsConfigReadService) (*ArgoUserServiceImpl, error) {
 	argoUserServiceImpl := &ArgoUserServiceImpl{
 		logger:                  Logger,
 		clusterService:          clusterService,
-		devtronSecretConfig:     devtronSecretConfig,
+		devtronSecretConfig:     envVariables.DevtronSecretConfig,
 		runTimeConfig:           runTimeConfig,
 		argoCDConnectionManager: argoCDConnectionManager,
 		versionService:          versionService,

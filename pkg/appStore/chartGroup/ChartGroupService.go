@@ -30,6 +30,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app/status"
+	"github.com/devtron-labs/devtron/pkg/appStore/adapter"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	service2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/service"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deployment"
@@ -68,6 +69,7 @@ type ChartGroupServiceImpl struct {
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository
 	environmentRepository                repository5.EnvironmentRepository
 	teamRepository                       repository4.TeamRepository
+	clusterInstalledAppsRepository       repository.ClusterInstalledAppsRepository
 	appStoreValuesService                service.AppStoreValuesService
 	pubSubClient                         *pubsub.PubSubClientServiceImpl
 	envService                           cluster2.EnvironmentService
@@ -89,6 +91,7 @@ func NewChartGroupServiceImpl(logger *zap.SugaredLogger,
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
 	environmentRepository repository5.EnvironmentRepository,
 	teamRepository repository4.TeamRepository,
+	clusterInstalledAppsRepository repository.ClusterInstalledAppsRepository,
 	appStoreValuesService service.AppStoreValuesService,
 	pubSubClient *pubsub.PubSubClientServiceImpl,
 	envService cluster2.EnvironmentService,
@@ -109,6 +112,7 @@ func NewChartGroupServiceImpl(logger *zap.SugaredLogger,
 		appStoreApplicationVersionRepository: appStoreApplicationVersionRepository,
 		environmentRepository:                environmentRepository,
 		teamRepository:                       teamRepository,
+		clusterInstalledAppsRepository:       clusterInstalledAppsRepository,
 		appStoreValuesService:                appStoreValuesService,
 		pubSubClient:                         pubSubClient,
 		envService:                           envService,
@@ -577,7 +581,7 @@ func (impl *ChartGroupServiceImpl) DeployBulk(chartGroupInstallRequest *ChartGro
 	// Rollback tx on error.
 	defer tx.Rollback()
 	for _, installAppVersionDTO := range installAppVersionDTOList {
-		installAppVersionDTO, err = impl.appStoreDeploymentService.AppStoreDeployOperationDB(installAppVersionDTO, tx, false)
+		installAppVersionDTO, err = impl.appStoreDeploymentService.AppStoreDeployOperationDB(installAppVersionDTO, tx)
 		if err != nil {
 			impl.logger.Errorw("DeployBulk, error while app store deploy db operation", "err", err)
 			return nil, err
@@ -620,16 +624,15 @@ func (impl *ChartGroupServiceImpl) requestBuilderForBulkDeployment(installReques
 		valYaml = valVersion.Values
 	}
 	req := &appStoreBean.InstallAppVersionDTO{
-		AppName:                 installRequest.AppName,
-		TeamId:                  projectId,
-		EnvironmentId:           installRequest.EnvironmentId,
-		AppStoreVersion:         installRequest.AppStoreVersion,
-		ValuesOverrideYaml:      valYaml,
-		UserId:                  userId,
-		ReferenceValueId:        installRequest.ReferenceValueId,
-		ReferenceValueKind:      installRequest.ReferenceValueKind,
-		ChartGroupEntryId:       installRequest.ChartGroupEntryId,
-		DefaultClusterComponent: installRequest.DefaultClusterComponent,
+		AppName:            installRequest.AppName,
+		TeamId:             projectId,
+		EnvironmentId:      installRequest.EnvironmentId,
+		AppStoreVersion:    installRequest.AppStoreVersion,
+		ValuesOverrideYaml: valYaml,
+		UserId:             userId,
+		ReferenceValueId:   installRequest.ReferenceValueId,
+		ReferenceValueKind: installRequest.ReferenceValueKind,
+		ChartGroupEntryId:  installRequest.ChartGroupEntryId,
 	}
 	return req, nil
 }
@@ -785,13 +788,12 @@ func (impl *ChartGroupServiceImpl) DeployDefaultChartOnCluster(bean *cluster2.Cl
 					return false, err
 				}
 				chartGroupInstallChartRequest := &ChartGroupInstallChartRequest{
-					AppName:                 fmt.Sprintf("%d-%d-%s", bean.Id, env.Id, item.Name),
-					EnvironmentId:           env.Id,
-					ValuesOverrideYaml:      item.Values,
-					AppStoreVersion:         appStore.AppStoreApplicationVersionId,
-					ReferenceValueId:        appStore.AppStoreApplicationVersionId,
-					ReferenceValueKind:      appStoreBean.REFERENCE_TYPE_DEFAULT,
-					DefaultClusterComponent: true,
+					AppName:            fmt.Sprintf("%d-%d-%s", bean.Id, env.Id, item.Name),
+					EnvironmentId:      env.Id,
+					ValuesOverrideYaml: item.Values,
+					AppStoreVersion:    appStore.AppStoreApplicationVersionId,
+					ReferenceValueId:   appStore.AppStoreApplicationVersionId,
+					ReferenceValueKind: appStoreBean.REFERENCE_TYPE_DEFAULT,
 				}
 				chartGroupInstallChartRequests = append(chartGroupInstallChartRequests, chartGroupInstallChartRequest)
 			}
@@ -832,9 +834,16 @@ func (impl *ChartGroupServiceImpl) deployDefaultComponent(chartGroupInstallReque
 	// Rollback tx on error.
 	defer tx.Rollback()
 	for _, installAppVersionDTO := range installAppVersionDTOList {
-		installAppVersionDTO, err = impl.appStoreDeploymentService.AppStoreDeployOperationDB(installAppVersionDTO, tx, false)
+		installAppVersionDTO, err = impl.appStoreDeploymentService.AppStoreDeployOperationDB(installAppVersionDTO, tx)
 		if err != nil {
 			impl.logger.Errorw("DeployBulk, error while app store deploy db operation", "err", err)
+			return nil, err
+		}
+		// save installed_app and cluster_id mapping for default chart installation requests
+		clusterInstalledAppsModel := adapter.NewClusterInstalledAppsModel(installAppVersionDTO, installAppVersionDTO.Environment.ClusterId)
+		err = impl.clusterInstalledAppsRepository.Save(clusterInstalledAppsModel, tx)
+		if err != nil {
+			impl.logger.Errorw("error while creating cluster install app", "error", err)
 			return nil, err
 		}
 		installAppVersions = append(installAppVersions, installAppVersionDTO)

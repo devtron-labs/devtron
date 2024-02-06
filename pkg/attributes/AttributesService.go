@@ -22,8 +22,10 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"net/http"
 	"strconv"
 	"time"
 )
@@ -36,6 +38,8 @@ type AttributesService interface {
 	GetByKey(key string) (*AttributesDto, error)
 	UpdateKeyValueByOne(key string) error
 	AddDeploymentEnforcementConfig(request *AttributesDto) (*AttributesDto, error)
+	// GetDeploymentEnforcementConfig : Retrieves the deployment config values from the attributes table
+	GetDeploymentEnforcementConfig(environmentId int) (map[string]bool, error)
 }
 
 const (
@@ -310,4 +314,26 @@ func (impl AttributesServiceImpl) AddDeploymentEnforcementConfig(request *Attrib
 	}
 	tx.Commit()
 	return request, nil
+}
+
+func (impl AttributesServiceImpl) GetDeploymentEnforcementConfig(environmentId int) (map[string]bool, error) {
+	var deploymentConfig map[string]map[string]bool
+	var deploymentConfigEnv map[string]bool
+	deploymentConfigValues, err := impl.attributesRepository.FindByKey(ENFORCE_DEPLOYMENT_TYPE_CONFIG)
+	if util.IsErrNoRows(err) {
+		return deploymentConfigEnv, nil
+	}
+	//if empty config received(doesn't exist in table) which can't be parsed
+	if deploymentConfigValues.Value != "" {
+		if err := json.Unmarshal([]byte(deploymentConfigValues.Value), &deploymentConfig); err != nil {
+			apiError := &util.ApiError{
+				HttpStatusCode:  http.StatusInternalServerError,
+				InternalMessage: err.Error(),
+				UserMessage:     "Failed to fetch deployment config values from the attributes table",
+			}
+			return deploymentConfigEnv, apiError
+		}
+		deploymentConfigEnv, _ = deploymentConfig[fmt.Sprintf("%d", environmentId)]
+	}
+	return deploymentConfigEnv, nil
 }

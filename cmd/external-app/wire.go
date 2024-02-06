@@ -50,6 +50,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps"
+	"github.com/devtron-labs/devtron/pkg/deployment/providerConfig"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	repository2 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -81,6 +82,7 @@ func InitializeApp() (*App, error) {
 		appStoreDiscover.AppStoreDiscoverWireSet,
 		chartProvider.AppStoreChartProviderWireSet,
 		appStoreValues.AppStoreValuesWireSet,
+		util3.GetEnvironmentVariables,
 		appStoreDeployment.AppStoreDeploymentWireSet,
 		server.ServerWireSet,
 		module.ModuleWireSet,
@@ -88,9 +90,9 @@ func InitializeApp() (*App, error) {
 		webhookHelm.WebhookHelmWireSet,
 		terminal.TerminalWireSet,
 		gitOps.GitOpsEAWireSet,
+		providerConfig.DeploymentProviderConfigWireSet,
 		NewApp,
 		NewMuxRouter,
-		util3.GetGlobalEnvVariables,
 		util.NewHttpClient,
 		util.NewSugardLogger,
 		util.IntValidator,
@@ -180,7 +182,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(attributes.UserAttributesService), new(*attributes.UserAttributesServiceImpl)),
 		repository.NewUserAttributesRepositoryImpl,
 		wire.Bind(new(repository.UserAttributesRepository), new(*repository.UserAttributesRepositoryImpl)),
-		util3.GetDevtronSecretName,
+		//util3.GetEnvironmentVariables,
 
 		repository2.NewK8sResourceHistoryRepositoryImpl,
 		wire.Bind(new(repository2.K8sResourceHistoryRepository), new(*repository2.K8sResourceHistoryRepositoryImpl)),

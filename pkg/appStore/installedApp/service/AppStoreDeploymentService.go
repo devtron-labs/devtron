@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/caarlos0/env/v6"
 	bean3 "github.com/devtron-labs/devtron/api/helm-app/bean"
 	bean4 "github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
@@ -48,6 +47,7 @@ import (
 	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
+	"github.com/devtron-labs/devtron/pkg/deployment/providerConfig"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
@@ -59,7 +59,7 @@ import (
 )
 
 type AppStoreDeploymentService interface {
-	AppStoreDeployOperationDB(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx, skipAppCreation bool) (*appStoreBean.InstallAppVersionDTO, error)
+	AppStoreDeployOperationDB(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error)
 	AppStoreDeployOperationStatusUpdate(installAppId int, status appStoreBean.AppstoreDeploymentStatus) (bool, error)
 	IsChartRepoActive(appStoreVersionId int) (bool, error)
 	InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error)
@@ -81,17 +81,6 @@ type AppStoreDeploymentService interface {
 	MarkGitOpsInstalledAppsDeletedIfArgoAppIsDeleted(installedAppId, envId int) error
 }
 
-type DeploymentServiceTypeConfig struct {
-	IsInternalUse        bool `env:"IS_INTERNAL_USE" envDefault:"false"`
-	HelmInstallASyncMode bool `env:"RUN_HELM_INSTALL_IN_ASYNC_MODE_HELM_APPS" envDefault:"false"`
-}
-
-func GetDeploymentServiceTypeConfig() (*DeploymentServiceTypeConfig, error) {
-	cfg := &DeploymentServiceTypeConfig{}
-	err := env.Parse(cfg)
-	return cfg, err
-}
-
 type AppStoreDeploymentServiceImpl struct {
 	logger                               *zap.SugaredLogger
 	installedAppRepository               repository.InstalledAppRepository
@@ -107,20 +96,22 @@ type AppStoreDeploymentServiceImpl struct {
 	helmAppService                       service.HelmAppService
 	appStoreDeploymentCommonService      appStoreDeploymentCommon.AppStoreDeploymentCommonService
 	installedAppRepositoryHistory        repository.InstalledAppVersionHistoryRepository
-	deploymentTypeConfig                 *DeploymentServiceTypeConfig
+	deploymentTypeConfig                 *util2.DeploymentServiceTypeConfig
 	aCDConfig                            *argocdServer.ACDConfig
 	gitOpsConfigReadService              config.GitOpsConfigReadService
+	deploymentTypeOverrideService        providerConfig.DeploymentTypeOverrideService
 }
 
 func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRepository repository.InstalledAppRepository,
-	chartGroupDeploymentRepository repository3.ChartGroupDeploymentRepository, appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository, environmentRepository clusterRepository.EnvironmentRepository,
-	clusterInstalledAppsRepository repository.ClusterInstalledAppsRepository, appRepository app.AppRepository,
-	eaModeDeploymentService EAMode.EAModeDeploymentService,
-	fullModeDeploymentService deployment.FullModeDeploymentService, environmentService cluster.EnvironmentService,
-	clusterService cluster.ClusterService, helmAppService service.HelmAppService, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
+	chartGroupDeploymentRepository repository3.ChartGroupDeploymentRepository, appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
+	environmentRepository clusterRepository.EnvironmentRepository, clusterInstalledAppsRepository repository.ClusterInstalledAppsRepository, appRepository app.AppRepository,
+	eaModeDeploymentService EAMode.EAModeDeploymentService, fullModeDeploymentService deployment.FullModeDeploymentService,
+	environmentService cluster.EnvironmentService, clusterService cluster.ClusterService, helmAppService service.HelmAppService,
+	appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
 	installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository,
-	deploymentTypeConfig *DeploymentServiceTypeConfig, aCDConfig *argocdServer.ACDConfig,
-	gitOpsConfigReadService config.GitOpsConfigReadService) *AppStoreDeploymentServiceImpl {
+	envVariables *util2.EnvironmentVariables, aCDConfig *argocdServer.ACDConfig,
+	gitOpsConfigReadService config.GitOpsConfigReadService,
+	deploymentTypeOverrideService providerConfig.DeploymentTypeOverrideService) *AppStoreDeploymentServiceImpl {
 	return &AppStoreDeploymentServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -136,9 +127,10 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRep
 		helmAppService:                       helmAppService,
 		appStoreDeploymentCommonService:      appStoreDeploymentCommonService,
 		installedAppRepositoryHistory:        installedAppRepositoryHistory,
-		deploymentTypeConfig:                 deploymentTypeConfig,
+		deploymentTypeConfig:                 envVariables.DeploymentServiceTypeConfig,
 		aCDConfig:                            aCDConfig,
 		gitOpsConfigReadService:              gitOpsConfigReadService,
+		deploymentTypeOverrideService:        deploymentTypeOverrideService,
 	}
 }
 
@@ -166,7 +158,7 @@ func (impl *AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *
 	// Rollback tx on error.
 	defer tx.Rollback()
 	//step 1 db operation initiated
-	installAppVersionRequest, err = impl.AppStoreDeployOperationDB(installAppVersionRequest, tx, false)
+	installAppVersionRequest, err = impl.AppStoreDeployOperationDB(installAppVersionRequest, tx)
 	if err != nil {
 		impl.logger.Errorw(" error", "err", err)
 		return nil, err
@@ -301,7 +293,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledAppVersionHistoryWithG
 	return nil
 }
 
-func (impl *AppStoreDeploymentServiceImpl) createAppForAppStore(createRequest *bean.CreateAppDTO, tx *pg.Tx, appInstallationMode string, skipAppCreation bool) (*bean.CreateAppDTO, error) {
+func (impl *AppStoreDeploymentServiceImpl) createAppForAppStore(createRequest *bean.CreateAppDTO, tx *pg.Tx, appInstallationMode string) (*bean.CreateAppDTO, error) {
 	app1, err := impl.appRepository.FindActiveByName(createRequest.AppName)
 	if err != nil && err != pg.ErrNoRows {
 		return nil, err
@@ -313,15 +305,9 @@ func (impl *AppStoreDeploymentServiceImpl) createAppForAppStore(createRequest *b
 			InternalMessage: "app already exists",
 			UserMessage:     fmt.Sprintf("app already exists with name %s", createRequest.AppName),
 		}
-
-		if !skipAppCreation {
-			return nil, err
-		} else {
-			createRequest.Id = app1.Id
-			return createRequest, nil
-		}
+		return nil, err
 	}
-	pg := &app.App{
+	appModel := &app.App{
 		Active:          true,
 		AppName:         createRequest.AppName,
 		TeamId:          createRequest.TeamId,
@@ -329,9 +315,9 @@ func (impl *AppStoreDeploymentServiceImpl) createAppForAppStore(createRequest *b
 		AppOfferingMode: appInstallationMode,
 		AuditLog:        sql.AuditLog{UpdatedBy: createRequest.UserId, CreatedBy: createRequest.UserId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 	}
-	err = impl.appRepository.SaveWithTxn(pg, tx)
+	err = impl.appRepository.SaveWithTxn(appModel, tx)
 	if err != nil {
-		impl.logger.Errorw("error in saving entity ", "entity", pg)
+		impl.logger.Errorw("error in saving entity ", "entity", appModel)
 		return nil, err
 	}
 
@@ -343,11 +329,11 @@ func (impl *AppStoreDeploymentServiceImpl) createAppForAppStore(createRequest *b
 	appLen := len(apps)
 	if appLen > 1 {
 		firstElement := apps[0]
-		if firstElement.Id != pg.Id {
-			pg.Active = false
-			err = impl.appRepository.UpdateWithTxn(pg, tx)
+		if firstElement.Id != appModel.Id {
+			appModel.Active = false
+			err = impl.appRepository.UpdateWithTxn(appModel, tx)
 			if err != nil {
-				impl.logger.Errorw("error in saving entity ", "entity", pg)
+				impl.logger.Errorw("error in saving entity ", "entity", appModel)
 				return nil, err
 			}
 			err = &util.ApiError{
@@ -355,14 +341,10 @@ func (impl *AppStoreDeploymentServiceImpl) createAppForAppStore(createRequest *b
 				InternalMessage: "app already exists",
 				UserMessage:     fmt.Sprintf("app already exists with name %s", createRequest.AppName),
 			}
-
-			if !skipAppCreation {
-				return nil, err
-			}
 		}
 	}
 
-	createRequest.Id = pg.Id
+	createRequest.Id = appModel.Id
 	return createRequest, nil
 }
 
@@ -710,7 +692,16 @@ func (impl *AppStoreDeploymentServiceImpl) linkHelmApplicationToChartStore(insta
 	// skipAppCreation - This flag will skip app creation if app already exists.
 
 	//step 1 db operation initiated
-	installAppVersionRequest, err = impl.AppStoreDeployOperationDB(installAppVersionRequest, tx, true)
+	appModel, err := impl.appRepository.FindActiveByName(installAppVersionRequest.AppName)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.logger.Errorw("error in getting app", "appName", installAppVersionRequest.AppName)
+		return nil, err
+	}
+	if appModel != nil && appModel.Id > 0 {
+		impl.logger.Infow(" app already exists", "name", installAppVersionRequest.AppName)
+		installAppVersionRequest.AppId = appModel.Id
+	}
+	installAppVersionRequest, err = impl.AppStoreDeployOperationDB(installAppVersionRequest, tx)
 	if err != nil {
 		impl.logger.Errorw(" error", "err", err)
 		return nil, err
@@ -1363,7 +1354,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateProjectHelmApp(updateAppRequest
 			UserId:  updateAppRequest.UserId,
 			TeamId:  updateAppRequest.TeamId,
 		}
-		_, err := impl.createAppForAppStore(&createAppRequest, tx, appInstallationMode, false)
+		_, err := impl.createAppForAppStore(&createAppRequest, tx, appInstallationMode)
 		if err != nil {
 			impl.logger.Errorw("error while creating app", "error", err)
 			return err
