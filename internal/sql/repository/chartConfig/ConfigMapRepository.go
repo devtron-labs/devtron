@@ -60,7 +60,6 @@ type ConfigMapAppModel struct {
 	sql.AuditLog
 }
 type CMCSNames struct {
-	//TableName struct{} `sql:"config_map_app_level" pg:",discard_unknown_columns"`
 	CMName string `json:"cm_name"`
 	CSName string `json:"cs_name"`
 }
