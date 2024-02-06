@@ -313,13 +313,13 @@ type GitCiTriggerRequest struct {
 type SourceType string
 
 type CiPipelineMaterial struct {
-	Id            int                      `json:"Id"`
-	GitMaterialId int                      `json:"GitMaterialId"`
-	Type          string                   `json:"Type"`
-	Value         string                   `json:"Value"`
-	Active        bool                     `json:"Active"`
-	GitCommit     pipelineConfig.GitCommit `json:"GitCommit"`
-	GitTag        string                   `json:"GitTag"`
+	Id            int                             `json:"Id"`
+	GitMaterialId int                             `json:"GitMaterialId"`
+	Type          string                          `json:"Type"`
+	Value         string                          `json:"Value"`
+	Active        bool                            `json:"Active"`
+	GitCommit     pipelineConfig.GitCommitDetails `json:"GitCommit"`
+	GitTag        string                          `json:"GitTag"`
 }
 
 type CiTriggerRequest struct {

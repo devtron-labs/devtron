@@ -39,6 +39,7 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
+	"github.com/devtron-labs/devtron/client/gitSensor"
 	gitSensorClient "github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -1597,7 +1598,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			// set webhook data
 			if m.Type == pipelineConfig.SOURCE_TYPE_WEBHOOK && len(ciMaterialCurrent.Modifications) > 0 {
 				webhookData := ciMaterialCurrent.Modifications[0].WebhookData
-				ciProjectDetail.WebhookData = pipelineConfig.WebhookData{
+				ciProjectDetail.WebhookData = gitSensor.WebhookData{
 					Id:              webhookData.Id,
 					EventActionType: webhookData.EventActionType,
 					Data:            webhookData.Data,
@@ -1767,7 +1768,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			})
 
 			// CODE-BLOCK starts - store extra environment variables if webhook
-			if gitTrigger.CiConfigureSourceType == pipelineConfig.SOURCE_TYPE_WEBHOOK {
+			if gitTrigger.CiConfigureSourceType == pipelineConfig.SOURCE_TYPE_WEBHOOK && gitTrigger.WebhookData != nil {
 				webhookDataId := gitTrigger.WebhookData.Id
 				if webhookDataId > 0 {
 					webhookDataRequest := &gitSensorClient.WebhookDataRequest{

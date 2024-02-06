@@ -108,8 +108,8 @@ type CiPipelineMaterialResponse struct {
 }
 
 type MaterialTriggerInfo struct {
-	GitTriggers map[int]pipelineConfig.GitCommit `json:"gitTriggers"`
-	CiMaterials []CiPipelineMaterialResponse     `json:"ciMaterials"`
+	GitTriggers map[int]pipelineConfig.GitCommitDetails `json:"gitTriggers"`
+	CiMaterials []CiPipelineMaterialResponse            `json:"ciMaterials"`
 }
 
 type EventRESTClientImpl struct {

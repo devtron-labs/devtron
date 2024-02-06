@@ -333,7 +333,7 @@ func (impl *CiServiceImpl) BuildPayload(trigger types.Trigger, pipeline *pipelin
 }
 
 func (impl *CiServiceImpl) saveNewWorkflow(pipeline *pipelineConfig.CiPipeline, wfConfig *pipelineConfig.CiWorkflowConfig,
-	commitHashes map[int]pipelineConfig.GitCommit, userId int32, EnvironmentId int, isJob bool, refCiWorkflowId int) (wf *pipelineConfig.CiWorkflow, error error) {
+	commitHashes map[int]pipelineConfig.GitCommitDetails, userId int32, EnvironmentId int, isJob bool, refCiWorkflowId int) (wf *pipelineConfig.CiWorkflow, error error) {
 
 	ciWorkflow := &pipelineConfig.CiWorkflow{
 		Name:                  pipeline.Name + "-" + strconv.Itoa(pipeline.Id),
@@ -423,10 +423,8 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 
 		if ciMaterial.Type == pipelineConfig.SOURCE_TYPE_WEBHOOK {
 			webhookData := commitHashForPipelineId.WebhookData
-			ciProjectDetail.WebhookData = pipelineConfig.WebhookData{
-				Id:              webhookData.Id,
-				EventActionType: webhookData.EventActionType,
-				Data:            webhookData.Data,
+			if webhookData != nil {
+				ciProjectDetail.WebhookData = *webhookData
 			}
 		}
 
@@ -846,11 +844,11 @@ func buildCiStepsDataFromDockerBuildScripts(dockerBuildScripts []*bean.CiScript)
 	return ciSteps
 }
 
-func (impl *CiServiceImpl) buildImageTag(commitHashes map[int]pipelineConfig.GitCommit, id int, wfId int) string {
+func (impl *CiServiceImpl) buildImageTag(commitHashes map[int]pipelineConfig.GitCommitDetails, id int, wfId int) string {
 	dockerImageTag := ""
 	toAppendDevtronParamInTag := true
 	for _, v := range commitHashes {
-		if v.WebhookData.Id == 0 {
+		if v.WebhookData == nil || v.WebhookData.Id == 0 {
 			if v.Commit == "" {
 				continue
 			}
