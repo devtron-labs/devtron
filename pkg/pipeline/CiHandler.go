@@ -163,6 +163,7 @@ const Starting = "Starting"
 const POD_DELETED_MESSAGE = "pod deleted"
 const TERMINATE_MESSAGE = "workflow shutdown with strategy: Terminate"
 const ABORT_MESSAGE_AFTER_STARTING_STAGE = "workflow shutdown with strategy: Force Abort"
+const commitTimeLayout = "2006-01-02T15:04:05Z07:00"
 
 func (impl *CiHandlerImpl) CheckAndReTriggerCI(workflowStatus v1alpha1.WorkflowStatus) error {
 
@@ -1503,6 +1504,7 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int, envId
 			println("unmarshal error for material info", "err", err)
 			return &types.GitTriggerInfoResponse{}, err
 		}
+
 		for _, m := range ciMaterials {
 
 			var history []*gitSensor.GitCommit
@@ -1518,8 +1520,7 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int, envId
 				continue
 			}
 
-			const timeLayout = "2024-02-02 11:04:31.555718+00"
-			commitDate, err := time.Parse(timeLayout, modification.ModifiedTime)
+			commitDate, err := time.Parse(commitTimeLayout, modification.ModifiedTime)
 			if err != nil {
 				impl.Logger.Errorw("error in parsing commit time", "commitTimeString", commitDate, "err", err)
 			}
