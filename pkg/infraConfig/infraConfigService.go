@@ -751,8 +751,9 @@ func (impl *InfraConfigServiceImpl) getIdentifiersListForNonDefaultProfile(listF
 	pId, err := impl.infraProfileRepo.GetProfileIdByName(listFilter.ProfileName)
 	if err != nil {
 		impl.logger.Errorw("error in fetching profileId using profileName", "profileName", listFilter.ProfileName, "error", err)
+		// note: need to send empty list for non-existing profile.
 		if errors.Is(err, pg.ErrNoRows) {
-			err = errors.Wrap(err, fmt.Sprintf("profile with name %s not found", listFilter.ProfileName))
+			return []*Identifier{}, nil
 		}
 		return nil, err
 	}
@@ -811,7 +812,7 @@ func (impl *InfraConfigServiceImpl) getIdentifiersListForDefaultProfile(listFilt
 	}
 
 	excludeIdentifierIds := make([]int, 0)
-	if len(profileIds) == 0 {
+	if len(profileIds) > 0 {
 		excludeIdentifierIds, err = impl.qualifierMappingService.GetIdentifierIdsByResourceTypeAndIds(resourceQualifiers.InfraProfile, profileIds, GetIdentifierKey(APPLICATION, impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap()))
 		if err != nil {
 			impl.logger.Errorw("error in fetching identifierIds for profileIds", "profileIds", profileIds, "error", err)
