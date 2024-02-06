@@ -6,4 +6,5 @@
 ## Documentation
 - doc: Revamped Security Feature Doc (#4349)
 ## Others
+- chore: Refactoring deployment template GitOps & AppStore (#4616)
 - chore: clean appListing api (#4628)
