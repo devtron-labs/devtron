@@ -812,7 +812,7 @@ func (impl *RoleGroupServiceImpl) getGroupIdsHonoringFilters(request *bean.Fetch
 		impl.logger.Errorw("error while fetching user from db in getGroupIdsHonoringFilters", "error", err)
 		return nil, err
 	}
-	// collecting the required user ids from filtered models
+	// collecting the required group ids from filtered models
 	filteredGroupIds := make([]int32, len(models))
 	for i, model := range models {
 		filteredGroupIds[i] = model.Id
