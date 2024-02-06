@@ -381,7 +381,7 @@ func (impl *InfraConfigServiceImpl) ApplyProfileToIdentifiers(userId int32, appl
 	if err != nil {
 		impl.logger.Errorw("error in checking profile exists ", "profileId", applyIdentifiersRequest.UpdateToProfile, "error", err)
 		if errors.Is(err, pg.ErrNoRows) {
-			return errors.New("cannot apply profile that does not exists")
+			return errors.New(fmt.Sprintf("'%s' profile does not exist", applyIdentifiersRequest.UpdateToProfile))
 		}
 		return err
 	}
