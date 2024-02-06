@@ -16,6 +16,11 @@ type ResourceRequestBean struct {
 	ClusterId            int                        `json:"clusterId"` // clusterId is used when request is for direct cluster (not for helm release)
 }
 
+type LogsDownloadBean struct {
+	FileName string `json:"fileName"`
+	LogsData string `json:"data"`
+}
+
 type BatchResourceResponse struct {
 	ManifestResponse *k8s2.ManifestResponse
 	Err              error
