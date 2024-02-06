@@ -35,6 +35,7 @@ import (
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
+	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"go.uber.org/zap"
 	"io/ioutil"
@@ -73,7 +74,7 @@ type WorkflowServiceImpl struct {
 	refChartDir            chartRepoRepository.RefChartDir
 	chartTemplateService   util2.ChartTemplateService
 	mergeUtil              *util2.MergeUtil
-	ciInfraGetter          infraConfig.InfraGetter
+	infraProvider          infraProviders.InfraProvider
 }
 
 // TODO: Move to bean
@@ -83,7 +84,7 @@ func NewWorkflowServiceImpl(Logger *zap.SugaredLogger, envRepository repository.
 	k8sUtil *k8s.K8sUtilExtended,
 	systemWorkflowExecutor executors.SystemWorkflowExecutor, k8sCommonService k8s2.K8sCommonService, refChartDir chartRepoRepository.RefChartDir, chartTemplateService util2.ChartTemplateService,
 	mergeUtil *util2.MergeUtil,
-	infraGetter infraConfig.InfraGetter) (*WorkflowServiceImpl, error) {
+	infraProvider infraProviders.InfraProvider) (*WorkflowServiceImpl, error) {
 	commonWorkflowService := &WorkflowServiceImpl{
 		Logger:                 Logger,
 		ciCdConfig:             ciCdConfig,
@@ -97,7 +98,7 @@ func NewWorkflowServiceImpl(Logger *zap.SugaredLogger, envRepository repository.
 		refChartDir:            refChartDir,
 		chartTemplateService:   chartTemplateService,
 		mergeUtil:              mergeUtil,
-		ciInfraGetter:          infraGetter,
+		infraProvider:          infraProvider,
 	}
 	restConfig, err := k8sUtil.GetK8sInClusterRestConfig()
 	if err != nil {
@@ -168,11 +169,12 @@ func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *types.W
 
 	workflowRequest.AddNodeConstraintsFromConfig(&workflowTemplate, impl.ciCdConfig)
 	infraConfiguration := &infraConfig.InfraConfig{}
-	if workflowRequest.Type == bean3.CI_WORKFLOW_PIPELINE_TYPE {
-		infraConfigScope := infraConfig.Scope{
+	if workflowRequest.Type == bean3.CI_WORKFLOW_PIPELINE_TYPE || workflowRequest.Type == bean3.JOB_WORKFLOW_PIPELINE_TYPE {
+		infraConfigScope := &infraConfig.Scope{
 			AppId: workflowRequest.AppId,
 		}
-		infraConfiguration, err = impl.ciInfraGetter.GetInfraConfigurationByScope(infraConfigScope)
+		infraGetter, _ := impl.infraProvider.GetInfraProvider(workflowRequest.Type)
+		infraConfiguration, err = infraGetter.GetInfraConfigurationsByScope(infraConfigScope)
 		if err != nil {
 			impl.Logger.Errorw("error occurred while getting infra config", "infraConfigScope", infraConfigScope, "err", err)
 			return bean3.WorkflowTemplate{}, err

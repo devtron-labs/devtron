@@ -129,6 +129,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	history3 "github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
+	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders"
 	repository5 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/plugin"
@@ -253,8 +254,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(infraConfigService.Validator), new(*infraConfigService.ValidatorImpl)),
 		infraConfigService.NewInfraConfigServiceImpl,
 		wire.Bind(new(infraConfigService.InfraConfigService), new(*infraConfigService.InfraConfigServiceImpl)),
-		infraConfigService.NewCiInfraGetter,
-		wire.Bind(new(infraConfigService.InfraGetter), new(*infraConfigService.CiInfraGetter)),
+		infraProviders.NewInfraProviderImpl,
+		wire.Bind(new(infraProviders.InfraProvider), new(*infraProviders.InfraProviderImpl)),
 
 		infraConfig.NewInfraConfigRestHandlerImpl,
 		wire.Bind(new(infraConfig.InfraConfigRestHandler), new(*infraConfig.InfraConfigRestHandlerImpl)),
