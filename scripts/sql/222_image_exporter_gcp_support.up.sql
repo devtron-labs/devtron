@@ -5,6 +5,7 @@ then
     echo $GoogleServiceAccount > output.txt
     cat output.txt| base64 -d > gcloud.json    
 fi
+architecture=$(uname -m)
 export platform=$(echo $CI_CD_EVENT | jq --raw-output .commonWorkflowRequest.ciBuildConfig.dockerBuildConfig.targetPlatform)
 echo $platform
 arch
@@ -17,7 +18,7 @@ elif [[ $platform == "linux/amd64" ]]
 then
     platform="amd64"
 else
-    if [[ arch == "x86_64" ]]
+    if [[ $architecture == "x86_64" ]]
     then
         platform="amd64"
     else
@@ -57,8 +58,8 @@ fi
 if [ $CloudProvider == "aws" ]
 then
     echo "aws command"
-    docker run --network=host --rm -v $(pwd):/data -e AWS_ACCESS_KEY_ID=$AwsAccessKey -e AWS_SECRET_ACCESS_KEY=$AwsSecretKey amazon/aws-cli:latest  s3 cp /data/$file s3://$BucketName --region $AwsRegion
-    link=$(docker  run  --network=host --rm -v $(pwd):/data -e AWS_ACCESS_KEY_ID=$AwsAccessKey -e AWS_SECRET_ACCESS_KEY=$AwsSecretKey amazon/aws-cli:latest s3 presign s3://$BucketName/$file --region $AwsRegion --expires-in $aws_secs )
+    docker run --network=host --rm -v $(pwd):/data -e AWS_ACCESS_KEY_ID=$AwsAccessKey -e AWS_SECRET_ACCESS_KEY=$AwsSecretKey public.ecr.aws/aws-cli/aws-cli:latest  s3 cp /data/$file s3://$BucketName --region $AwsRegion
+    link=$(docker  run  --network=host --rm -v $(pwd):/data -e AWS_ACCESS_KEY_ID=$AwsAccessKey -e AWS_SECRET_ACCESS_KEY=$AwsSecretKey public.ecr.aws/aws-cli/aws-cli:latest s3 presign s3://$BucketName/$file --region $AwsRegion --expires-in $aws_secs )
 fi
 if [ $CloudProvider == "gcp" ]
 then
