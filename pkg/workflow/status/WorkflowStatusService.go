@@ -27,7 +27,7 @@ import (
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"slices"
+	"k8s.io/utils/strings/slices"
 	"time"
 )
 
