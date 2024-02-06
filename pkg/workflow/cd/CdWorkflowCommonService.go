@@ -16,7 +16,7 @@ import (
 	util4 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"slices"
+	"k8s.io/utils/strings/slices"
 	"time"
 )
 
