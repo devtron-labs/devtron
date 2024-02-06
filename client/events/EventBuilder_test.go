@@ -16,11 +16,6 @@ import (
 	repository3 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	mocks3 "github.com/devtron-labs/devtron/pkg/auth/user/repository/mocks"
 	"github.com/devtron-labs/devtron/pkg/bean"
-	"github.com/devtron-labs/devtron/pkg/notifier"
-	repository3 "github.com/devtron-labs/devtron/pkg/user/repository"
-	mocks3 "github.com/devtron-labs/devtron/pkg/user/repository/mocks"
-	"reflect"
-	"testing"
 )
 
 func TestEventSimpleFactoryImpl_BuildExtraApprovalData(t *testing.T) {

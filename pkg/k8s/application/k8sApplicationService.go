@@ -116,10 +116,32 @@ func (impl *K8sApplicationServiceImpl) ValidatePodLogsRequestQuery(r *http.Reque
 	v, vars := r.URL.Query(), mux.Vars(r)
 	request := &k8s.ResourceRequestBean{}
 	podName := vars["podName"]
-	/*sinceSeconds, err := strconv.Atoi(v.Get("sinceSeconds"))
-	if err != nil {
-		sinceSeconds = 0
-	}*/
+	sinceSecondsParam := v.Get("sinceSeconds")
+	var sinceSeconds int
+	var err error
+	if len(sinceSecondsParam) > 0 {
+		sinceSeconds, err = strconv.Atoi(sinceSecondsParam)
+		if err != nil || sinceSeconds <= 0 {
+			return nil, &util.ApiError{
+				Code:            "400",
+				HttpStatusCode:  400,
+				UserMessage:     "invalid value provided for sinceSeconds",
+				InternalMessage: "invalid value provided for sinceSeconds"}
+		}
+	}
+	sinceTimeParam := v.Get("sinceTime")
+	sinceTime := metav1.Unix(0, 0)
+	if len(sinceTimeParam) > 0 {
+		sinceTimeVar, err := strconv.ParseInt(sinceTimeParam, 10, 64)
+		if err != nil || sinceTimeVar <= 0 {
+			return nil, &util.ApiError{
+				Code:            "400",
+				HttpStatusCode:  400,
+				UserMessage:     "invalid value provided for sinceTime",
+				InternalMessage: "invalid value provided for sinceTime"}
+		}
+		sinceTime = metav1.Unix(sinceTimeVar, 0)
+	}
 	containerName, clusterIdString := v.Get("containerName"), v.Get("clusterId")
 	prevContainerLogs := v.Get("previous")
 	isPrevLogs, err := strconv.ParseBool(prevContainerLogs)
@@ -131,9 +153,17 @@ func (impl *K8sApplicationServiceImpl) ValidatePodLogsRequestQuery(r *http.Reque
 	if err != nil {
 		follow = false
 	}
-	tailLines, err := strconv.Atoi(v.Get("tailLines"))
-	if err != nil {
-		tailLines = 0
+	tailLinesParam := v.Get("tailLines")
+	var tailLines int
+	if len(tailLinesParam) > 0 {
+		tailLines, err = strconv.Atoi(tailLinesParam)
+		if err != nil || tailLines <= 0 {
+			return nil, &util.ApiError{
+				Code:            "400",
+				HttpStatusCode:  400,
+				UserMessage:     "invalid value provided for tailLines",
+				InternalMessage: "invalid value provided for tailLines"}
+		}
 	}
 	k8sRequest := &k8s3.K8sRequestBean{
 		ResourceIdentifier: k8s3.ResourceIdentifier{
@@ -141,7 +171,8 @@ func (impl *K8sApplicationServiceImpl) ValidatePodLogsRequestQuery(r *http.Reque
 			GroupVersionKind: schema.GroupVersionKind{},
 		},
 		PodLogsRequest: k8s3.PodLogsRequest{
-			//SinceTime:     sinceSeconds,
+			SinceSeconds:               sinceSeconds,
+			SinceTime:                  &sinceTime,
 			TailLines:                  tailLines,
 			Follow:                     follow,
 			ContainerName:              containerName,
@@ -316,7 +347,7 @@ func (impl *K8sApplicationServiceImpl) GetPodLogs(ctx context.Context, request *
 
 	resourceIdentifier := request.K8sRequest.ResourceIdentifier
 	podLogsRequest := request.K8sRequest.PodLogsRequest
-	resp, err := impl.K8sUtil.GetPodLogs(ctx, restConfig, resourceIdentifier.Name, resourceIdentifier.Namespace, podLogsRequest.SinceTime, podLogsRequest.TailLines, podLogsRequest.Follow, podLogsRequest.ContainerName, podLogsRequest.IsPrevContainerLogsEnabled)
+	resp, err := impl.K8sUtil.GetPodLogs(ctx, restConfig, resourceIdentifier.Name, resourceIdentifier.Namespace, podLogsRequest.SinceTime, podLogsRequest.TailLines, podLogsRequest.SinceSeconds, podLogsRequest.Follow, podLogsRequest.ContainerName, podLogsRequest.IsPrevContainerLogsEnabled)
 	if err != nil {
 		impl.logger.Errorw("error in getting pod logs", "err", err, "clusterId", clusterId)
 		return nil, err
