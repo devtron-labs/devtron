@@ -1134,7 +1134,7 @@ func (impl InstalledAppServiceImpl) MigrateDeploymentType(ctx context.Context, r
 	//instead of failed pipelines, mark successful pipelines
 	var successInstalledAppIds []int
 	for _, item := range response.SuccessfulPipelines {
-		successInstalledAppIds = append(successInstalledAppIds, item.PipelineId)
+		successInstalledAppIds = append(successInstalledAppIds, item.InstalledAppId)
 	}
 	err = impl.installedAppRepository.UpdateDeploymentAppTypeInInstalledApp(request.DesiredDeploymentType, successInstalledAppIds, request.UserId)
 	if err != nil {
@@ -1348,7 +1348,7 @@ func (impl InstalledAppServiceImpl) TriggerAfterMigration(ctx context.Context, r
 
 	successfulInstalledAppIds := make([]int, 0, len(response.SuccessfulPipelines))
 	for _, item := range response.SuccessfulPipelines {
-		successfulInstalledAppIds = append(successfulInstalledAppIds, item.PipelineId)
+		successfulInstalledAppIds = append(successfulInstalledAppIds, item.InstalledAppId)
 	}
 
 	successInstalledApps, err := impl.installedAppRepository.FindInstalledAppByIds(successfulInstalledAppIds)
@@ -1449,12 +1449,12 @@ func appendToDeploymentChangeStatusList(installedApps []*bean.DeploymentChangeSt
 	installedApp *repository2.InstalledApps, error string, status bean.Status) []*bean.DeploymentChangeStatus {
 
 	return append(installedApps, &bean.DeploymentChangeStatus{
-		PipelineId: installedApp.Id,
-		AppId:      installedApp.AppId,
-		AppName:    installedApp.App.AppName,
-		EnvId:      installedApp.EnvironmentId,
-		EnvName:    installedApp.Environment.Name,
-		Error:      error,
-		Status:     status,
+		InstalledAppId: installedApp.Id,
+		AppId:          installedApp.AppId,
+		AppName:        installedApp.App.AppName,
+		EnvId:          installedApp.EnvironmentId,
+		EnvName:        installedApp.Environment.Name,
+		Error:          error,
+		Status:         status,
 	})
 }
