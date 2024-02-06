@@ -140,43 +140,47 @@ func (impl DeploymentTemplateServiceImpl) FetchDeploymentsWithChartRefs(appId in
 		responseList = append(responseList, res)
 	}
 
-	publishedOnEnvs, err := impl.appListingService.FetchMinDetailOtherEnvironment(appId)
-	if err != nil {
-		impl.Logger.Errorw("error in getting publishedOnEnvs", "err", err, "appId", appId, "envId", envId)
-		return nil, err
-	}
+	// when the app id is -1 , then it is only used to get the default versions
+	if appId > 0 {
 
-	for _, env := range publishedOnEnvs {
-		item := &repository.DeploymentTemplateComparisonMetadata{
-			ChartId:         env.ChartRefId,
-			EnvironmentId:   env.EnvironmentId,
-			EnvironmentName: env.EnvironmentName,
-			Type:            repository.PublishedOnEnvironments,
+		publishedOnEnvs, err := impl.appListingService.FetchMinDetailOtherEnvironment(appId)
+		if err != nil {
+			impl.Logger.Errorw("error in getting publishedOnEnvs", "err", err, "appId", appId, "envId", envId)
+			return nil, err
 		}
-		responseList = append(responseList, item)
-	}
 
-	deployedOnEnv, err := impl.deploymentTemplateRepository.FetchDeploymentHistoryWithChartRefs(appId, envId)
-	if err != nil && !util.IsErrNoRows(err) {
-		impl.Logger.Errorw("error in getting deployedOnEnv", "err", err, "appId", appId, "envId", envId)
-		return nil, err
-	}
+		for _, env := range publishedOnEnvs {
+			item := &repository.DeploymentTemplateComparisonMetadata{
+				ChartId:         env.ChartRefId,
+				EnvironmentId:   env.EnvironmentId,
+				EnvironmentName: env.EnvironmentName,
+				Type:            repository.PublishedOnEnvironments,
+			}
+			responseList = append(responseList, item)
+		}
 
-	for _, deployedItem := range deployedOnEnv {
-		deployedItem.Type = repository.DeployedOnSelfEnvironment
-		deployedItem.EnvironmentId = envId
-		responseList = append(responseList, deployedItem)
-	}
+		deployedOnEnv, err := impl.deploymentTemplateRepository.FetchDeploymentHistoryWithChartRefs(appId, envId)
+		if err != nil && !util.IsErrNoRows(err) {
+			impl.Logger.Errorw("error in getting deployedOnEnv", "err", err, "appId", appId, "envId", envId)
+			return nil, err
+		}
 
-	deployedOnOtherEnvs, err := impl.deploymentTemplateRepository.FetchLatestDeploymentWithChartRefs(appId, envId)
-	if err != nil && !util.IsErrNoRows(err) {
-		impl.Logger.Errorw("error in getting deployedOnOtherEnvs", "err", err, "appId", appId, "envId", envId)
-		return nil, err
-	}
+		for _, deployedItem := range deployedOnEnv {
+			deployedItem.Type = repository.DeployedOnSelfEnvironment
+			deployedItem.EnvironmentId = envId
+			responseList = append(responseList, deployedItem)
+		}
 
-	for _, deployedItem := range deployedOnOtherEnvs {
-		deployedItem.Type = repository.DeployedOnOtherEnvironment
-		responseList = append(responseList, deployedItem)
+		deployedOnOtherEnvs, err := impl.deploymentTemplateRepository.FetchLatestDeploymentWithChartRefs(appId, envId)
+		if err != nil && !util.IsErrNoRows(err) {
+			impl.Logger.Errorw("error in getting deployedOnOtherEnvs", "err", err, "appId", appId, "envId", envId)
+			return nil, err
+		}
+
+		for _, deployedItem := range deployedOnOtherEnvs {
+			deployedItem.Type = repository.DeployedOnOtherEnvironment
+			responseList = append(responseList, deployedItem)
+		}
 	}
 
 	return responseList, nil
