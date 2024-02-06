@@ -673,15 +673,17 @@ type DeploymentAppTypeChangeRequest struct {
 }
 
 type DeploymentChangeStatus struct {
-	Id      int    `json:"id,omitempty"`
-	AppId   int    `json:"appId,omitempty"`
-	AppName string `json:"appName,omitempty"`
-	EnvId   int    `json:"envId,omitempty"`
-	EnvName string `json:"envName,omitempty"`
-	Error   string `json:"error,omitempty"`
-	Status  Status `json:"status,omitempty"`
+	PipelineId     int    `json:"pipelineId,omitempty"`
+	InstalledAppId int    `json:"installedAppId,omitempty"`
+	AppId          int    `json:"appId,omitempty"`
+	AppName        string `json:"appName,omitempty"`
+	EnvId          int    `json:"envId,omitempty"`
+	EnvName        string `json:"envName,omitempty"`
+	Error          string `json:"error,omitempty"`
+	Status         Status `json:"status,omitempty"`
 }
 
+// DeploymentAppTypeChangeResponse is used as response obj for migrating devtron apps as well as chart store apps
 type DeploymentAppTypeChangeResponse struct {
 	EnvId                 int                       `json:"envId,omitempty"`
 	DesiredDeploymentType DeploymentType            `json:"desiredDeploymentType,omitempty"`

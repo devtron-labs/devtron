@@ -50,6 +50,7 @@ type AppStoreDeploymentArgoCdService interface {
 	UpdateInstalledAppAndPipelineStatusForFailedDeploymentStatus(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, triggeredAt time.Time, err error) error
 	SaveTimelineForACDHelmApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, status string, statusDetail string, statusTime time.Time, tx *pg.Tx) error
 	UpdateAndSyncACDApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *util.ChartGitAttribute, isMonoRepoMigrationRequired bool, ctx context.Context, tx *pg.Tx) error
+	DeleteACD(acdAppName string, ctx context.Context, isNonCascade bool) error
 }
 
 type AppStoreDeploymentArgoCdServiceImpl struct {
@@ -362,7 +363,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) RollbackRelease(ctx context.Cont
 	return installedApp, true, nil
 }
 
-func (impl AppStoreDeploymentArgoCdServiceImpl) deleteACD(acdAppName string, ctx context.Context, isNonCascade bool) error {
+func (impl AppStoreDeploymentArgoCdServiceImpl) DeleteACD(acdAppName string, ctx context.Context, isNonCascade bool) error {
 	req := new(application.ApplicationDeleteRequest)
 	req.Name = &acdAppName
 	cascadeDelete := !isNonCascade
@@ -557,7 +558,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) updateValuesYaml(environment *cl
 func (impl AppStoreDeploymentArgoCdServiceImpl) DeleteDeploymentApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error {
 	acdAppName := appName + "-" + environmentName
 	var err error
-	err = impl.deleteACD(acdAppName, ctx, installAppVersionRequest.NonCascadeDelete)
+	err = impl.DeleteACD(acdAppName, ctx, installAppVersionRequest.NonCascadeDelete)
 	if err != nil {
 		impl.Logger.Errorw("error in deleting ACD ", "name", acdAppName, "err", err)
 		if installAppVersionRequest.ForceDelete {

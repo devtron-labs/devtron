@@ -122,7 +122,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) ChangeDeploymentType(ctx context
 	// Update the deployment app type to Helm and toggle deployment_app_created to false in db
 	var cdPipelineIds []int
 	for _, item := range response.SuccessfulPipelines {
-		cdPipelineIds = append(cdPipelineIds, item.Id)
+		cdPipelineIds = append(cdPipelineIds, item.PipelineId)
 	}
 
 	// If nothing to update in db
@@ -152,7 +152,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) ChangeDeploymentType(ctx context
 
 	pipelineIds := make([]int, 0, len(response.SuccessfulPipelines))
 	for _, item := range response.SuccessfulPipelines {
-		pipelineIds = append(pipelineIds, item.Id)
+		pipelineIds = append(pipelineIds, item.PipelineId)
 	}
 
 	// Get all pipelines
@@ -263,7 +263,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) ChangePipelineDeploymentType(ctx
 
 	var cdPipelineIds []int
 	for _, item := range response.FailedPipelines {
-		cdPipelineIds = append(cdPipelineIds, item.Id)
+		cdPipelineIds = append(cdPipelineIds, item.PipelineId)
 	}
 
 	if len(cdPipelineIds) == 0 {
@@ -279,7 +279,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) ChangePipelineDeploymentType(ctx
 			"desired deployment type", request.DesiredDeploymentType,
 			"err", err)
 
-		return response, nil
+		return response, err
 	}
 
 	return response, nil
@@ -322,14 +322,14 @@ func (impl *AppDeploymentTypeChangeManagerImpl) TriggerDeploymentAfterTypeChange
 
 	var successPipelines []int
 	for _, item := range response.SuccessfulPipelines {
-		successPipelines = append(successPipelines, item.Id)
+		successPipelines = append(successPipelines, item.PipelineId)
 	}
 
 	bulkTriggerRequest := make([]*BulkTriggerRequest, 0)
 
 	pipelineIds := make([]int, 0, len(response.SuccessfulPipelines))
 	for _, item := range response.SuccessfulPipelines {
-		pipelineIds = append(pipelineIds, item.Id)
+		pipelineIds = append(pipelineIds, item.PipelineId)
 	}
 
 	pipelines, err := impl.pipelineRepository.FindByIdsIn(pipelineIds)
@@ -692,13 +692,13 @@ func (impl *AppDeploymentTypeChangeManagerImpl) appendToDeploymentChangeStatusLi
 	pipeline *pipelineConfig.Pipeline, error string, status bean.Status) []*bean.DeploymentChangeStatus {
 
 	return append(pipelines, &bean.DeploymentChangeStatus{
-		Id:      pipeline.Id,
-		AppId:   pipeline.AppId,
-		AppName: pipeline.App.AppName,
-		EnvId:   pipeline.EnvironmentId,
-		EnvName: pipeline.Environment.Name,
-		Error:   error,
-		Status:  status,
+		PipelineId: pipeline.Id,
+		AppId:      pipeline.AppId,
+		AppName:    pipeline.App.AppName,
+		EnvId:      pipeline.EnvironmentId,
+		EnvName:    pipeline.Environment.Name,
+		Error:      error,
+		Status:     status,
 	})
 }
 
