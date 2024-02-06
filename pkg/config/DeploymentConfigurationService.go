@@ -38,9 +38,9 @@ func (impl *DeploymentConfigurationServiceImpl) ConfigAutoComplete(appId int, en
 		getUniqueConfigPropertyList(cMCSNamesEnvLevel, combinedProperties)...)
 	combinedProperties = append(combinedProperties,
 		getConfigProperty("", DeploymentTemplate, PublishedConfigState))
-	combinedProperties = append(combinedProperties)
 	return &ConfigDataResponse{ResourceConfig: combinedProperties}, nil
 }
+
 func getUniqueConfigPropertyList(cMCSNames []chartConfig.CMCSNames, combinedProperties []*ConfigProperty) []*ConfigProperty {
 	properties := make([]*ConfigProperty, 0)
 	if len(cMCSNames) == 0 {
@@ -62,6 +62,7 @@ func getUniqueConfigPropertyList(cMCSNames []chartConfig.CMCSNames, combinedProp
 	}
 	return properties
 }
+
 func getConfigProperty(name string, configType ResourceType, State ConfigState) *ConfigProperty {
 	return &ConfigProperty{
 		Name:        name,

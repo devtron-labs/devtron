@@ -39,8 +39,7 @@ type ConfigMapRepository interface {
 	GetByAppIdAppLevel(appId int) (*ConfigMapAppModel, error)
 	GetByAppIdAndEnvIdEnvLevel(appId int, envId int) (*ConfigMapEnvModel, error)
 	GetEnvLevelByAppId(appId int) ([]*ConfigMapEnvModel, error)
-	GetConfigNamesAppLevel(appId int) ([]CMCSNames, error)
-	GetConfigNamesEnvLevel(appId int, envId int) ([]CMCSNames, error)
+	GetConfigNamesForAppAndEnvLevel(appId int, envId int) ([]CMCSNames, error)
 }
 
 type ConfigMapRepositoryImpl struct {
@@ -66,33 +65,22 @@ type CMCSNames struct {
 	CSName string `json:"cs_name"`
 }
 
-func (impl ConfigMapRepositoryImpl) GetConfigNamesAppLevel(appId int) ([]CMCSNames, error) {
+func (impl ConfigMapRepositoryImpl) GetConfigNamesForAppAndEnvLevel(appId int, envId int) ([]CMCSNames, error) {
 	var cMCSNames []CMCSNames
+	tableName := "config_map_env_level"
+	if envId == -1 {
+		tableName = "config_map_app_level"
+	}
 	query := impl.dbConnection.
 		Model().
-		Table("config_map_app_level").
+		Table(tableName).
 		ColumnExpr("json_array_elements(config_map_data::json->'maps')->>'name' AS cm_name").
 		ColumnExpr("json_array_elements(secret_data::json->'secrets')->>'name' AS cs_name").
 		Where("app_id = ?", appId)
 
-	if err := query.Select(&cMCSNames); err != nil {
-		if err != pg.ErrNoRows {
-			impl.Logger.Errorw("error occurred while fetching CM/CS names", "appId", appId, "err", err)
-		}
-		return cMCSNames, err
+	if envId > 0 {
+		query = query.Where("environment_id=?", envId)
 	}
-	return cMCSNames, nil
-}
-func (impl ConfigMapRepositoryImpl) GetConfigNamesEnvLevel(appId int, envId int) ([]CMCSNames, error) {
-	var cMCSNames []CMCSNames
-	query := impl.dbConnection.
-		Model().
-		Table("config_map_env_level").
-		ColumnExpr("json_array_elements(config_map_data::json->'maps')->>'name' AS cm_name").
-		ColumnExpr("json_array_elements(secret_data::json->'secrets')->>'name' AS cs_name").
-		Where("app_id = ?", appId).
-		Where("environment_id=?", envId)
-
 	if err := query.Select(&cMCSNames); err != nil {
 		if err != pg.ErrNoRows {
 			impl.Logger.Errorw("error occurred while fetching CM/CS names", "appId", appId, "err", err)
