@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
+	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -83,7 +84,7 @@ type CiServiceImpl struct {
 	scopedVariableManager         variables.ScopedVariableManager
 	pluginInputVariableParser     PluginInputVariableParser
 	globalPluginService           plugin.GlobalPluginService
-	infraGetter                   infraConfig.InfraGetter
+	infraProvider                 infraProviders.InfraProvider
 }
 
 func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
@@ -98,7 +99,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 	customTagService CustomTagService,
 	pluginInputVariableParser PluginInputVariableParser,
 	globalPluginService plugin.GlobalPluginService,
-	infraGetter infraConfig.InfraGetter,
+	infraProvider infraProviders.InfraProvider,
 ) *CiServiceImpl {
 	cis := &CiServiceImpl{
 		Logger:                        Logger,
@@ -120,7 +121,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 		customTagService:              customTagService,
 		pluginInputVariableParser:     pluginInputVariableParser,
 		globalPluginService:           globalPluginService,
-		infraGetter:                   infraGetter,
+		infraProvider:                 infraProvider,
 	}
 	config, err := types.GetCiConfig()
 	if err != nil {
@@ -463,10 +464,22 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		refPluginsData = []*bean2.RefPluginObject{}
 	}
 
-	infraConfigScope := infraConfig.Scope{
+	infraConfigScope := &infraConfig.Scope{
 		AppId: pipeline.AppId,
 	}
-	infraConfiguration, err := impl.infraGetter.GetInfraConfigurationsByScope(infraConfigScope)
+	infraGetter, err := impl.infraProvider.GetInfraProvider(bean2.CI_WORKFLOW_PIPELINE_TYPE)
+	if err != nil {
+		impl.Logger.Errorw("error in getting infra provider", "err", err, "infraProviderType", bean2.CI_WORKFLOW_PIPELINE_TYPE)
+		return nil, err
+	}
+	if isJob {
+		infraGetter, err = impl.infraProvider.GetInfraProvider(bean2.JOB_WORKFLOW_PIPELINE_TYPE)
+		if err != nil {
+			impl.Logger.Errorw("error in getting infra provider", "err", err, "infraProviderType", bean2.JOB_WORKFLOW_PIPELINE_TYPE)
+			return nil, err
+		}
+	}
+	infraConfiguration, err := infraGetter.GetInfraConfigurationsByScope(infraConfigScope)
 	if err != nil {
 		impl.Logger.Errorw("error in getting infra configuration using scope ", "ciPipelineId", pipeline.Id, "scope", infraConfigScope, "err", err)
 		return nil, err

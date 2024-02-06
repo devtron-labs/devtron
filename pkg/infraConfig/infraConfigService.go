@@ -22,6 +22,8 @@ type InfraConfigService interface {
 	// UpdateProfile updates the profile and its configurations matching the given profileName.
 	// If profileName is empty, it will return an error.
 	UpdateProfile(userId int32, profileName string, profileBean *ProfileBean) error
+
+	GetInfraConfigurationsByScope(scope Scope) (*InfraConfig, error)
 }
 
 type InfraConfigServiceImpl struct {
@@ -213,7 +215,7 @@ func (impl *InfraConfigServiceImpl) loadDefaultProfile() error {
 	return err
 }
 
-func (impl *InfraConfigServiceImpl) getInfraConfigurationsByScope(scope Scope) (*InfraConfig, error) {
+func (impl *InfraConfigServiceImpl) GetInfraConfigurationsByScope(scope Scope) (*InfraConfig, error) {
 	infraConfiguration := &InfraConfig{}
 	overrideInfraConfigFunc := func(config ConfigurationBean) {
 		switch config.Key {
