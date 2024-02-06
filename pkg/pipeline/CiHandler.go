@@ -20,6 +20,7 @@ package pipeline
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -1478,12 +1479,6 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int, envId
 		return &types.GitTriggerInfoResponse{}, err
 	}
 
-	ciMaterials, err := impl.ciPipelineMaterialRepository.GetByPipelineId(ciPipeline.Id)
-	if err != nil {
-		impl.Logger.Errorw("err", "err", err)
-		return &types.GitTriggerInfoResponse{}, err
-	}
-
 	deployDetail, err := impl.appListingRepository.DeploymentDetailByArtifactId(ciArtifactId, envId)
 	if err != nil {
 		impl.Logger.Errorw("err", "err", err)
@@ -1494,67 +1489,80 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int, envId
 	var triggeredByUserEmailId string
 	//check workflow data only for non external builds
 	if !ciPipeline.IsExternal {
-		var workflow *pipelineConfig.CiWorkflow
-		if ciArtifact.ParentCiArtifact > 0 {
-			workflow, err = impl.ciWorkflowRepository.FindLastTriggeredWorkflowByArtifactId(ciArtifact.ParentCiArtifact)
-			if err != nil {
-				impl.Logger.Errorw("err", "ciArtifactId", ciArtifact.ParentCiArtifact, "err", err)
-				return &types.GitTriggerInfoResponse{}, err
-			}
-		} else {
-			workflow, err = impl.ciWorkflowRepository.FindLastTriggeredWorkflowByArtifactId(ciArtifactId)
-			if err != nil {
-				impl.Logger.Errorw("err", "ciArtifactId", ciArtifactId, "err", err)
-				return &types.GitTriggerInfoResponse{}, err
-			}
-		}
 
-		triggeredByUserEmailId, err = impl.userService.GetEmailById(workflow.TriggeredBy)
+		triggeredByUserEmailId, err = impl.userService.GetEmailById(deployDetail.DeployedBy)
 		if err != nil && !util.IsErrNoRows(err) {
 			impl.Logger.Errorw("err", "err", err)
 			return &types.GitTriggerInfoResponse{}, err
 		}
 
+		var ciMaterials []repository.CiMaterialInfo
+		err := json.Unmarshal([]byte(ciArtifact.MaterialInfo), &ciMaterials)
+		if err != nil {
+			println("material info", ciArtifact.MaterialInfo)
+			println("unmarshal error for material info", "err", err)
+			return &types.GitTriggerInfoResponse{}, err
+		}
 		for _, m := range ciMaterials {
-			var history []*gitSensor.GitCommit
-			_gitTrigger := workflow.GitTriggers[m.Id]
 
-			// ignore git trigger which have commit and webhook both data nil
-			if len(_gitTrigger.Commit) == 0 && _gitTrigger.WebhookData.Id == 0 {
+			var history []*gitSensor.GitCommit
+
+			var modification repository.Modification
+			if len(m.Modifications) > 0 {
+				modification = m.Modifications[0]
+			} else {
 				continue
 			}
 
-			_gitCommit := &gitSensor.GitCommit{
-				Message: _gitTrigger.Message,
-				Author:  _gitTrigger.Author,
-				Date:    _gitTrigger.Date,
-				Changes: _gitTrigger.Changes,
-				Commit:  _gitTrigger.Commit,
+			if len(modification.Revision) == 0 && modification.WebhookData.Id == 0 {
+				continue
 			}
 
-			// set webhook data
-			_webhookData := _gitTrigger.WebhookData
-			if _webhookData.Id > 0 {
-				_gitCommit.WebhookData = &gitSensor.WebhookData{
-					Id:              _webhookData.Id,
-					EventActionType: _webhookData.EventActionType,
-					Data:            _webhookData.Data,
+			const timeLayout = "2024-02-02 11:04:31.555718+00"
+			commitDate, err := time.Parse(timeLayout, modification.ModifiedTime)
+			if err != nil {
+				impl.Logger.Errorw("error in parsing commit time", "commitTimeString", commitDate, "err", err)
+			}
+			gitCommit := &gitSensor.GitCommit{
+				Message: modification.Message,
+				Author:  modification.Author,
+				Date:    commitDate,
+				Commit:  modification.Revision,
+			}
+			if modification.WebhookData.Id > 0 {
+				gitCommit.WebhookData = &gitSensor.WebhookData{
+					Id:              modification.WebhookData.Id,
+					EventActionType: modification.WebhookData.EventActionType,
+					Data:            modification.WebhookData.Data,
 				}
 			}
+			history = append(history, gitCommit)
 
-			history = append(history, _gitCommit)
+			var url string
+			if m.Material.Type == "git" {
+				url = m.Material.GitConfiguration.URL
+			} else if m.Material.Type == "scm" {
+				url = m.Material.ScmConfiguration.URL
+			} else {
+				continue
+			}
+
+			// urlFormat := https://github.com/foo/<repoName>.git, https://github.com/foo/<repoName>
+			var gitMaterialName string
+			urlSplit := strings.Split(url, "/")
+			repoName := urlSplit[len(urlSplit)-1]
+			repoNameSplit := strings.Split(repoName, ".")
+			gitMaterialName = repoNameSplit[0]
 
 			res := pipelineConfig.CiPipelineMaterialResponse{
-				Id:              m.Id,
-				GitMaterialId:   m.GitMaterialId,
-				GitMaterialName: m.GitMaterial.Name[strings.Index(m.GitMaterial.Name, "-")+1:],
-				Type:            string(m.Type),
-				Value:           m.Value,
-				Active:          m.Active,
-				Url:             m.GitMaterial.Url,
+				GitMaterialName: gitMaterialName,
+				Type:            m.Material.Type,
+				Value:           modification.Branch,
+				Url:             url,
 				History:         history,
 			}
 			ciMaterialsArr = append(ciMaterialsArr, res)
+
 		}
 	}
 	imageTaggingData, err := impl.imageTaggingService.GetTagsData(ciPipeline.Id, ciPipeline.AppId, ciArtifactId, false)

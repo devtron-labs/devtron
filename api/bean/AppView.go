@@ -175,6 +175,7 @@ type DeploymentDetailContainer struct {
 	Description                   string          `json:"description" validate:"max=40"`
 	IsVirtualEnvironment          bool            `json:"isVirtualEnvironment"`
 	HelmReleaseInstallStatus      string          `json:"-"`
+	DeployedBy                    int32           `json:"deployedBy"`
 }
 
 type AppDetailContainer struct {
