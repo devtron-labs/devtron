@@ -2,9 +2,12 @@ name: ent-repo-sync
 
 # Controls when the workflow will run
 on:
-  push:
+  pull_request:
+    types:
+      - closed
     branches:
-      - main
+      - 'main'
+      - 'release-v**'
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -12,26 +15,34 @@ on:
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   sync:
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
     - run: |
          export GIT_USERNAME="${GIT_CONFIG_NAME}"
          export GIT_PASSWORD="${GH_TOKEN}"
          export ENTERPRISE_REPO="https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/devtron-labs/devtron-enterprise.git"
-         git clone https://github.com/devtron-labs/devtron
+         git clone https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/devtron-labs/devtron
          git clone $ENTERPRISE_REPO
 
-         cd devtron && export GIT_COMMIT_ID=`git log --format="%H" -n 1`
+         cd devtron
+         # Get last branch matching release-v*
+         LAST_RELEASE_BRANCH=$(git branch -a | grep release-v | tail -n 1)
+         LAST_RELEASE_BRANCH=$(echo ${LAST_RELEASE_BRANCH##*( remotes/origin/)})
+         git checkout $LAST_RELEASE_BRANCH
+         # Merge hotfixes from main if any
+         git pull origin main
+         export GIT_COMMIT_ID=`git log --format="%H" -n 1`
 
          export GIT_COMMIT=${GIT_COMMIT_ID:0:8}
          echo $GIT_COMMIT
          git config --global user.email $GIT_CONFIG_EMAIL
          git config --global user.name $GIT_USERNAME
+         # Push all hotfixes merged to release-branch
+         git status && git push origin $LAST_RELEASE_BRANCH
 
-         git status && git checkout main && git pull
-
-         cd ../devtron-enterprise && git status && git checkout main && git pull
-         git remote add oss-devtron ../devtron && git remote -v && git remote update && git merge oss-devtron/main
+         cd ../devtron-enterprise && git status && git checkout release-candidate && git pull
+         git remote add oss-devtron ../devtron && git remote -v && git remote update && git merge oss-devtron/main --no-commit --no-ff && git reset -- .github/workflows/ 
          export WIRE_GEN_FILE_NAME="wire_gen.go"
          export CONFLICT_FILES=`git diff --name-only --diff-filter=U --relative`
 
