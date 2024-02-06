@@ -12,11 +12,7 @@ CREATE TABLE IF NOT EXISTS public.infra_profile
     PRIMARY KEY ("id")
     );
 
-<<<<<<<< HEAD:scripts/sql/222_infra_configuration.up.sql
-CREATE UNIQUE INDEX idx_unique_name
-========
 CREATE UNIQUE INDEX idx_unique_profile_name
->>>>>>>> build-infra-profile:scripts/sql/222_infra_configuration.up.sql
     ON infra_profile (name)
     WHERE active = true;
 
