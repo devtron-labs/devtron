@@ -63,7 +63,7 @@ func (infraProfileConfiguration *InfraProfileConfigurationEntity) ConvertToConfi
 
 type ProfileBean struct {
 	Id             int                 `json:"id"`
-	Name           string              `json:"name" validate:"required,min=1,max=50"`
+	Name           string              `json:"name" validate:"required max=50 name-component"`
 	Description    string              `json:"description" validate:"max=300"`
 	Active         bool                `json:"active"`
 	Configurations []ConfigurationBean `json:"configurations" validate:"dive"`
