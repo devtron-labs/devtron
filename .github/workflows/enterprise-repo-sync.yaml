@@ -28,7 +28,8 @@ jobs:
          git config --global user.email $GIT_CONFIG_EMAIL
          git config --global user.name $GIT_USERNAME
 
-         git status && git checkout main && git pull
+         git status && git checkout main && git pull && rm -rf .github
+         git add .  && git commit -m "removal of .github"
 
          cd ../devtron-enterprise && git status && git checkout main && git pull
          git remote add oss-devtron ../devtron && git remote -v && git remote update && git merge oss-devtron/main
