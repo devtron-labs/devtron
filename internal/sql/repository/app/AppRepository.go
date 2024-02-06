@@ -516,6 +516,9 @@ func (repo AppRepositoryImpl) FindAppsWithFilter(appNameLike, sortOrder string, 
 	if appNameLike != "" {
 		query += " AND app_name LIKE '%" + appNameLike + "%' "
 	}
+	if len(excludeAppIds) > 0 {
+		query += fmt.Sprintf(" AND id NOT IN (%s) ", helper.GetCommaSepratedString(excludeAppIds))
+	}
 	if sortOrder != "" {
 		query += fmt.Sprintf(" ORDER BY app_name %s ", sortOrder)
 	}
@@ -524,9 +527,6 @@ func (repo AppRepositoryImpl) FindAppsWithFilter(appNameLike, sortOrder string, 
 	}
 	if offset > 0 {
 		query += fmt.Sprintf(" OFFSET %d ", offset)
-	}
-	if len(excludeAppIds) > 0 {
-		query += fmt.Sprintf(" AND id NOT IN (%s) ", helper.GetCommaSepratedString(excludeAppIds))
 	}
 
 	apps := make([]AppWithExtraQueryFields, 0)
