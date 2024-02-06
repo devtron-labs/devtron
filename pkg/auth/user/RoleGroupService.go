@@ -798,17 +798,10 @@ func (impl RoleGroupServiceImpl) DeleteRoleGroup(bean *bean.RoleGroup) (bool, er
 func (impl RoleGroupServiceImpl) BulkDeleteRoleGroups(request *bean.BulkDeleteRequest) (bool, error) {
 	// it handles FetchListingRequest if filters are applied will delete those users or will consider the given user ids.
 	if request.ListingRequest != nil {
-		//query to get particular models respecting filters
-		query := impl.userRepositoryQueryBuilder.GetQueryForGroupListingWithFilters(request.ListingRequest)
-		models, err := impl.userRepository.GetAllExecutingQuery(query)
+		filteredGroupIds, err := impl.getGroupIdsHonoringFilters(request.ListingRequest)
 		if err != nil {
-			impl.logger.Errorw("error while fetching user from db in GetAllWithFilters", "error", err)
+			impl.logger.Errorw("error in BulkDeleteRoleGroups", "request", request, "err", err)
 			return false, err
-		}
-		// collecting the required user ids from filtered models
-		filteredGroupIds := make([]int32, len(models))
-		for i, model := range models {
-			filteredGroupIds[i] = model.Id
 		}
 		// setting the filtered user ids here for further processing
 		request.Ids = filteredGroupIds
@@ -820,6 +813,23 @@ func (impl RoleGroupServiceImpl) BulkDeleteRoleGroups(request *bean.BulkDeleteRe
 		return false, err
 	}
 	return true, nil
+}
+
+// getGroupIdsHonoringFilters get the filtered user ids according to the request filters and returns userIds and error(not nil) if any exception is caught.
+func (impl *RoleGroupServiceImpl) getGroupIdsHonoringFilters(request *bean.FetchListingRequest) ([]int32, error) {
+	//query to get particular models respecting filters
+	query := impl.userRepositoryQueryBuilder.GetQueryForGroupListingWithFilters(request)
+	models, err := impl.userRepository.GetAllExecutingQuery(query)
+	if err != nil {
+		impl.logger.Errorw("error while fetching user from db in getGroupIdsHonoringFilters", "error", err)
+		return nil, err
+	}
+	// collecting the required user ids from filtered models
+	filteredGroupIds := make([]int32, len(models))
+	for i, model := range models {
+		filteredGroupIds[i] = model.Id
+	}
+	return filteredGroupIds, nil
 }
 
 // deleteRoleGroupsByIds delete role groups by ids takes in bulk delete request and return error
