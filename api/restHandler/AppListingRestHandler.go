@@ -21,6 +21,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"net/http"
 	"strconv"
 	"strings"
@@ -33,7 +35,6 @@ import (
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	k8sObjectUtils "github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
 	"github.com/devtron-labs/devtron/api/bean"
-	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/cron"
@@ -87,16 +88,17 @@ type AppListingRestHandler interface {
 }
 
 type AppListingRestHandlerImpl struct {
-	application                       application.ServiceClient
-	appListingService                 app.AppListingService
-	teamService                       team.TeamService
-	enforcer                          casbin.Enforcer
-	pipeline                          pipeline.PipelineBuilder
-	logger                            *zap.SugaredLogger
-	enforcerUtil                      rbac.EnforcerUtil
-	deploymentGroupService            deploymentGroup.DeploymentGroupService
-	userService                       user.UserService
-	helmAppClient                     client.HelmAppClient
+	application            application.ServiceClient
+	appListingService      app.AppListingService
+	teamService            team.TeamService
+	enforcer               casbin.Enforcer
+	pipeline               pipeline.PipelineBuilder
+	logger                 *zap.SugaredLogger
+	enforcerUtil           rbac.EnforcerUtil
+	deploymentGroupService deploymentGroup.DeploymentGroupService
+	userService            user.UserService
+	// TODO fix me next
+	helmAppClient                     gRPC.HelmAppClient // TODO refactoring: use HelmAppService
 	clusterService                    cluster.ClusterService
 	helmAppService                    client.HelmAppService
 	argoUserService                   argo.ArgoUserService
@@ -134,7 +136,7 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 	pipeline pipeline.PipelineBuilder,
 	logger *zap.SugaredLogger, enforcerUtil rbac.EnforcerUtil,
 	deploymentGroupService deploymentGroup.DeploymentGroupService, userService user.UserService,
-	helmAppClient client.HelmAppClient, clusterService cluster.ClusterService, helmAppService client.HelmAppService,
+	helmAppClient gRPC.HelmAppClient, clusterService cluster.ClusterService, helmAppService client.HelmAppService,
 	argoUserService argo.ArgoUserService, k8sCommonService k8s.K8sCommonService, installedAppService service1.InstalledAppService,
 	cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler,
 	pipelineRepository pipelineConfig.PipelineRepository,
@@ -1204,7 +1206,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		if err != nil {
 			handler.logger.Errorw("error in fetching cluster detail", "err", err)
 		}
-		req := &client.AppDetailRequest{
+		req := &gRPC.AppDetailRequest{
 			ClusterConfig: config,
 			Namespace:     cdPipeline.Environment.Namespace,
 			ReleaseName:   cdPipeline.DeploymentAppName,

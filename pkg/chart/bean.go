@@ -5,11 +5,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/models"
 )
 
-const (
-	CHART_ALREADY_EXISTS_INTERNAL_ERROR = "Chart exists already, try uploading another chart"
-	CHART_NAME_RESERVED_INTERNAL_ERROR  = "Change the name of the chart and try uploading again"
-)
-
 var ReservedChartRefNamesList *[]ReservedChartList
 
 type ReservedChartList struct {
@@ -33,13 +28,6 @@ type TemplateRequest struct {
 	IsBasicViewLocked       bool                        `json:"isBasicViewLocked"`
 	CurrentViewEditor       models.ChartsViewEditorType `json:"currentViewEditor"` //default "UNDEFINED" in db
 	UserId                  int32                       `json:"-"`
-}
-
-type AppMetricEnableDisableRequest struct {
-	AppId               int   `json:"appId,omitempty"`
-	EnvironmentId       int   `json:"environmentId,omitempty"`
-	IsAppMetricsEnabled bool  `json:"isAppMetricsEnabled"`
-	UserId              int32 `json:"-"`
 }
 
 type ChartUpgradeRequest struct {

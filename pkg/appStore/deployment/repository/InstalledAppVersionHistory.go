@@ -46,6 +46,18 @@ type InstalledAppVersionHistory struct {
 	sql.AuditLog
 }
 
+func (model *InstalledAppVersionHistory) SetStartedOn() {
+	model.StartedOn = time.Now()
+}
+
+func (model *InstalledAppVersionHistory) SetFinishedOn() {
+	model.FinishedOn = time.Now()
+}
+
+func (model *InstalledAppVersionHistory) SetStatus(status string) {
+	model.Status = status
+}
+
 func (impl InstalledAppVersionHistoryRepositoryImpl) CreateInstalledAppVersionHistory(model *InstalledAppVersionHistory, tx *pg.Tx) (*InstalledAppVersionHistory, error) {
 	err := tx.Insert(model)
 	if err != nil {

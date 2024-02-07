@@ -20,7 +20,9 @@ package webhookHelm
 import (
 	"context"
 	"fmt"
-	client "github.com/devtron-labs/devtron/api/helm-app"
+	"github.com/devtron-labs/devtron/api/helm-app/bean"
+	bean2 "github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/chartRepo"
@@ -119,15 +121,15 @@ func (impl WebhookHelmServiceImpl) CreateOrUpdateHelmApplication(ctx context.Con
 	// STEP-6 install/update release
 	chart := request.Chart
 	chartRepo := request.Chart.Repo
-	installReleaseRequest := &client.InstallReleaseRequest{
-		ReleaseIdentifier: &client.ReleaseIdentifier{
+	installReleaseRequest := &bean2.InstallReleaseRequest{
+		ReleaseIdentifier: &bean2.ReleaseIdentifier{
 			ReleaseName:      appIdentifier.ReleaseName,
 			ReleaseNamespace: appIdentifier.Namespace,
 		},
 		ChartName:    chart.ChartName,
 		ChartVersion: chart.ChartVersion,
 		ValuesYaml:   request.ValuesOverrideYaml,
-		ChartRepository: &client.ChartRepository{
+		ChartRepository: &bean2.ChartRepository{
 			Name:     chartRepo.Name,
 			Url:      chartRepo.Identifier.Url,
 			Username: chartRepo.Identifier.Username,
@@ -135,9 +137,9 @@ func (impl WebhookHelmServiceImpl) CreateOrUpdateHelmApplication(ctx context.Con
 		},
 	}
 	if isInstalled {
-		updateReleaseRequest := &client.UpdateApplicationWithChartInfoRequestDto{
+		updateReleaseRequest := &bean.UpdateApplicationWithChartInfoRequestDto{
 			InstallReleaseRequest: installReleaseRequest,
-			SourceAppType:         client.SOURCE_HELM_APP,
+			SourceAppType:         bean.SOURCE_HELM_APP,
 		}
 		res, err := impl.helmAppService.UpdateApplicationWithChartInfo(ctx, clusterId, updateReleaseRequest)
 		if err != nil {

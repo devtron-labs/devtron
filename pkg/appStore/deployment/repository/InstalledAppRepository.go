@@ -31,8 +31,61 @@ import (
 	"github.com/go-pg/pg/orm"
 	"go.uber.org/zap"
 	"strconv"
-	"time"
 )
+
+type InstalledApps struct {
+	TableName                  struct{}                              `sql:"installed_apps" pg:",discard_unknown_columns"`
+	Id                         int                                   `sql:"id,pk"`
+	AppId                      int                                   `sql:"app_id,notnull"`
+	EnvironmentId              int                                   `sql:"environment_id,notnull"`
+	Active                     bool                                  `sql:"active, notnull"`
+	GitOpsRepoName             string                                `sql:"git_ops_repo_name"`
+	DeploymentAppType          string                                `sql:"deployment_app_type"` // TODO: instead of string, use enum
+	Status                     appStoreBean.AppstoreDeploymentStatus `sql:"status"`
+	DeploymentAppDeleteRequest bool                                  `sql:"deployment_app_delete_request"`
+	Notes                      string                                `json:"notes"`
+	App                        app.App
+	Environment                repository.Environment
+	sql.AuditLog
+}
+
+func (model *InstalledApps) MarkActive() {
+	model.Active = true
+}
+
+func (model *InstalledApps) MarkInActive() {
+	model.Active = false
+}
+
+func (model *InstalledApps) UpdateStatus(status appStoreBean.AppstoreDeploymentStatus) {
+	model.Status = status
+}
+
+func (model *InstalledApps) UpdateGitOpsRepoName(gitOpsRepoName string) {
+	model.GitOpsRepoName = gitOpsRepoName
+}
+
+type InstalledAppVersions struct {
+	TableName                    struct{} `sql:"installed_app_versions" pg:",discard_unknown_columns"`
+	Id                           int      `sql:"id,pk"`
+	InstalledAppId               int      `sql:"installed_app_id,notnull"`
+	AppStoreApplicationVersionId int      `sql:"app_store_application_version_id,notnull"`
+	ValuesYaml                   string   `sql:"values_yaml_raw"`
+	Active                       bool     `sql:"active, notnull"`
+	ReferenceValueId             int      `sql:"reference_value_id"`
+	ReferenceValueKind           string   `sql:"reference_value_kind"`
+	sql.AuditLog
+	InstalledApp               InstalledApps
+	AppStoreApplicationVersion appStoreDiscoverRepository.AppStoreApplicationVersion
+}
+
+func (model *InstalledAppVersions) MarkActive() {
+	model.Active = true
+}
+
+func (model *InstalledAppVersions) MarkInActive() {
+	model.Active = false
+}
 
 type InstalledAppRepository interface {
 	CreateInstalledApp(model *InstalledApps, tx *pg.Tx) (*InstalledApps, error)
@@ -43,7 +96,7 @@ type InstalledAppRepository interface {
 	GetInstalledAppVersion(id int) (*InstalledAppVersions, error)
 	GetInstalledAppVersionAny(id int) (*InstalledAppVersions, error)
 	GetAllInstalledApps(filter *appStoreBean.AppStoreFilter) ([]InstalledAppsWithChartDetails, error)
-	GetAllIntalledAppsByAppStoreId(appStoreId int) ([]InstalledAppAndEnvDetails, error)
+	GetAllInstalledAppsByAppStoreId(appStoreId int) ([]InstalledAppAndEnvDetails, error)
 	GetAllInstalledAppsByChartRepoId(chartRepoId int) ([]InstalledAppAndEnvDetails, error)
 	GetInstalledAppVersionByInstalledAppIdAndEnvId(installedAppId int, envId int) (*InstalledAppVersions, error)
 	FetchNotes(installedAppId int) (*InstalledApps, error)
@@ -81,92 +134,8 @@ type InstalledAppRepositoryImpl struct {
 	Logger       *zap.SugaredLogger
 }
 
-type InstallAppDeleteRequest struct {
-	InstalledAppId  int    `json:"installed_app_id,omitempty,notnull"`
-	AppName         string `json:"app_name,omitempty"`
-	AppId           int    `json:"app_id,omitempty"`
-	EnvironmentId   int    `json:"environment_id,omitempty"`
-	AppOfferingMode string `json:"app_offering_mode"`
-	ClusterId       int    `json:"cluster_id"`
-	Namespace       string `json:"namespace"`
-}
-
 func NewInstalledAppRepositoryImpl(Logger *zap.SugaredLogger, dbConnection *pg.DB) *InstalledAppRepositoryImpl {
 	return &InstalledAppRepositoryImpl{dbConnection: dbConnection, Logger: Logger}
-}
-
-type InstalledApps struct {
-	TableName                  struct{}                              `sql:"installed_apps" pg:",discard_unknown_columns"`
-	Id                         int                                   `sql:"id,pk"`
-	AppId                      int                                   `sql:"app_id,notnull"`
-	EnvironmentId              int                                   `sql:"environment_id,notnull"`
-	Active                     bool                                  `sql:"active, notnull"`
-	GitOpsRepoName             string                                `sql:"git_ops_repo_name"`
-	DeploymentAppType          string                                `sql:"deployment_app_type"`
-	Status                     appStoreBean.AppstoreDeploymentStatus `sql:"status"`
-	DeploymentAppDeleteRequest bool                                  `sql:"deployment_app_delete_request"`
-	Notes                      string                                `json:"notes"`
-	App                        app.App
-	Environment                repository.Environment
-	sql.AuditLog
-}
-
-type InstalledAppVersions struct {
-	TableName                    struct{} `sql:"installed_app_versions" pg:",discard_unknown_columns"`
-	Id                           int      `sql:"id,pk"`
-	InstalledAppId               int      `sql:"installed_app_id,notnull"`
-	AppStoreApplicationVersionId int      `sql:"app_store_application_version_id,notnull"`
-	ValuesYaml                   string   `sql:"values_yaml_raw"`
-	Active                       bool     `sql:"active, notnull"`
-	ReferenceValueId             int      `sql:"reference_value_id"`
-	ReferenceValueKind           string   `sql:"reference_value_kind"`
-	sql.AuditLog
-	InstalledApp               InstalledApps
-	AppStoreApplicationVersion appStoreDiscoverRepository.AppStoreApplicationVersion
-}
-
-type GitOpsAppDetails struct {
-	GitOpsAppName  string `sql:"git_ops_app_name"`
-	InstalledAppId int    `sql:"installed_app_id"`
-}
-
-type InstalledAppsWithChartDetails struct {
-	AppStoreApplicationName      string    `json:"app_store_application_name"`
-	ChartRepoName                string    `json:"chart_repo_name"`
-	DockerArtifactStoreId        string    `json:"docker_artifact_store_id"`
-	AppName                      string    `json:"app_name"`
-	EnvironmentName              string    `json:"environment_name"`
-	InstalledAppVersionId        int       `json:"installed_app_version_id"`
-	AppStoreApplicationVersionId int       `json:"app_store_application_version_id"`
-	Icon                         string    `json:"icon"`
-	Readme                       string    `json:"readme"`
-	CreatedOn                    time.Time `json:"created_on"`
-	UpdatedOn                    time.Time `json:"updated_on"`
-	Id                           int       `json:"id"`
-	EnvironmentId                int       `json:"environment_id"`
-	Deprecated                   bool      `json:"deprecated"`
-	ClusterName                  string    `json:"clusterName"`
-	Namespace                    string    `json:"namespace"`
-	TeamId                       int       `json:"teamId"`
-	ClusterId                    int       `json:"clusterId"`
-	AppOfferingMode              string    `json:"app_offering_mode"`
-	AppStatus                    string    `json:"app_status"`
-	DeploymentAppDeleteRequest   bool      `json:"deploymentAppDeleteRequest"`
-}
-
-type InstalledAppAndEnvDetails struct {
-	EnvironmentName              string    `json:"environment_name"`
-	EnvironmentId                int       `json:"environment_id"`
-	AppName                      string    `json:"app_name"`
-	AppOfferingMode              string    `json:"appOfferingMode"`
-	UpdatedOn                    time.Time `json:"updated_on"`
-	EmailId                      string    `json:"email_id"`
-	InstalledAppVersionId        int       `json:"installed_app_version_id"`
-	AppId                        int       `json:"app_id"`
-	InstalledAppId               int       `json:"installed_app_id"`
-	AppStoreApplicationVersionId int       `json:"app_store_application_version_id"`
-	AppStatus                    string    `json:"app_status"`
-	DeploymentAppType            string    `json:"-"`
 }
 
 func (impl InstalledAppRepositoryImpl) CreateInstalledApp(model *InstalledApps, tx *pg.Tx) (*InstalledApps, error) {
@@ -427,7 +396,7 @@ func (impl InstalledAppRepositoryImpl) GetAllInstalledApps(filter *appStoreBean.
 	return installedAppsWithChartDetails, err
 }
 
-func (impl InstalledAppRepositoryImpl) GetAllIntalledAppsByAppStoreId(appStoreId int) ([]InstalledAppAndEnvDetails, error) {
+func (impl InstalledAppRepositoryImpl) GetAllInstalledAppsByAppStoreId(appStoreId int) ([]InstalledAppAndEnvDetails, error) {
 	var installedAppAndEnvDetails []InstalledAppAndEnvDetails
 	var queryTemp = "select env.environment_name, env.id as environment_id, a.app_name, a.app_offering_mode, ia.updated_on, u.email_id," +
 		" asav.id as app_store_application_version_id, iav.id as installed_app_version_id, ia.id as installed_app_id, ia.app_id, ia.deployment_app_type, app_status.status as app_status" +
