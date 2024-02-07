@@ -36,3 +36,17 @@ func NewDefaultAuditLog(userId int32) AuditLog {
 		UpdatedBy: userId,
 	}
 }
+
+// CreateAuditLog can be used by any repository to create AuditLog for insert operation
+func (model *AuditLog) CreateAuditLog(userId int32) {
+	model.CreatedOn = time.Now()
+	model.UpdatedOn = time.Now()
+	model.CreatedBy = userId
+	model.UpdatedBy = userId
+}
+
+// UpdateAuditLog can be used by any repository to update AuditLog for update operation
+func (model *AuditLog) UpdateAuditLog(userId int32) {
+	model.UpdatedOn = time.Now()
+	model.UpdatedBy = userId
+}

@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
-	"github.com/devtron-labs/devtron/api/helm-app"
+	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/go-pg/pg"
 	"net/http"
@@ -82,18 +82,18 @@ func (impl *InstalledAppServiceImpl) findNotesForArgoApplication(installedAppId,
 			return notes, appName, err
 		}
 
-		installReleaseRequest := &client.InstallReleaseRequest{
+		installReleaseRequest := &gRPC.InstallReleaseRequest{
 			ChartName:    appStoreAppVersion.Name,
 			ChartVersion: appStoreAppVersion.Version,
 			ValuesYaml:   installedAppVerison.ValuesYaml,
 			K8SVersion:   k8sServerVersion.String(),
-			ChartRepository: &client.ChartRepository{
+			ChartRepository: &gRPC.ChartRepository{
 				Name:     appStoreAppVersion.AppStore.ChartRepo.Name,
 				Url:      appStoreAppVersion.AppStore.ChartRepo.Url,
 				Username: appStoreAppVersion.AppStore.ChartRepo.UserName,
 				Password: appStoreAppVersion.AppStore.ChartRepo.Password,
 			},
-			ReleaseIdentifier: &client.ReleaseIdentifier{
+			ReleaseIdentifier: &gRPC.ReleaseIdentifier{
 				ReleaseNamespace: installedAppVerison.InstalledApp.Environment.Namespace,
 				ReleaseName:      installedAppVerison.InstalledApp.App.AppName,
 			},
@@ -112,7 +112,7 @@ func (impl *InstalledAppServiceImpl) findNotesForArgoApplication(installedAppId,
 			impl.logger.Errorw("error in fetching notes", "err", err)
 			return notes, appName, err
 		}
-		_, err = impl.appStoreDeploymentService.UpdateNotesForInstalledApp(installedAppId, notes)
+		_, err = impl.updateNotesForInstalledApp(installedAppId, notes)
 		if err != nil {
 			impl.logger.Errorw("error in updating notes in db ", "err", err)
 			return notes, appName, err
@@ -120,4 +120,32 @@ func (impl *InstalledAppServiceImpl) findNotesForArgoApplication(installedAppId,
 	}
 
 	return notes, appName, nil
+}
+
+// updateNotesForInstalledApp will update the notes in repository.InstalledApps table
+func (impl *InstalledAppServiceImpl) updateNotesForInstalledApp(installAppId int, notes string) (bool, error) {
+	dbConnection := impl.installedAppRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return false, err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+	installedApp, err := impl.installedAppRepository.GetInstalledApp(installAppId)
+	if err != nil {
+		impl.logger.Errorw("error while fetching from db", "error", err)
+		return false, err
+	}
+	installedApp.Notes = notes
+	_, err = impl.installedAppRepository.UpdateInstalledApp(installedApp, tx)
+	if err != nil {
+		impl.logger.Errorw("error while fetching from db", "error", err)
+		return false, err
+	}
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("error while commit db transaction to db", "error", err)
+		return false, err
+	}
+	return true, nil
 }

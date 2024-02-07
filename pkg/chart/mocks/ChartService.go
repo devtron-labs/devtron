@@ -680,7 +680,6 @@ func (_m *ChartService) ReadChartMetaDataForLocation(chartDir string, fileName s
 	return r0, r1
 }
 
-
 // UpdateAppOverride provides a mock function with given fields: ctx, templateRequest
 func (_m *ChartService) UpdateAppOverride(ctx context.Context, templateRequest *chart.TemplateRequest) (*chart.TemplateRequest, error) {
 	ret := _m.Called(ctx, templateRequest)

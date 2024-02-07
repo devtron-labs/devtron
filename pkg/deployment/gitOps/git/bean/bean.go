@@ -24,6 +24,15 @@ type GitConfig struct {
 	BitbucketProjectKey  string
 }
 
+type PushChartToGitRequestDTO struct {
+	AppName           string
+	EnvName           string
+	ChartAppStoreName string
+	RepoURL           string
+	TempChartRefDir   string
+	UserId            int32
+}
+
 func (cfg GitConfig) GetAuth() *git.BasicAuth {
 	return &git.BasicAuth{
 		Username: cfg.GitUserName,
