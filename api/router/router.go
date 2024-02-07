@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/api/appStore/chartGroup"
 	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
 	"github.com/devtron-labs/devtron/api/auth/authorisation/globalConfig"
+	"github.com/devtron-labs/devtron/api/argoApplication"
 	"github.com/devtron-labs/devtron/api/auth/sso"
 	"github.com/devtron-labs/devtron/api/auth/user"
 	"github.com/devtron-labs/devtron/api/chartRepo"
@@ -138,6 +139,7 @@ type MuxRouter struct {
 	globalAuthorisationConfigRouter    globalConfig.AuthorisationConfigRouter
 	lockConfigurationRouter            lockConfiguation.LockConfigurationRouter
 	imageDigestPolicyRouter            ImageDigestPolicyRouter
+	argoApplicationRouter              argoApplication.ArgoApplicationRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -175,7 +177,8 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 	globalAuthorisationConfigRouter globalConfig.AuthorisationConfigRouter,
 	lockConfigurationRouter lockConfiguation.LockConfigurationRouter,
 	proxyRouter proxy.ProxyRouter,
-	imageDigestPolicyRouter ImageDigestPolicyRouter) *MuxRouter {
+	imageDigestPolicyRouter ImageDigestPolicyRouter,
+	argoApplicationRouter argoApplication.ArgoApplicationRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
 		HelmRouter:                         HelmRouter,
@@ -254,6 +257,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 		globalAuthorisationConfigRouter:    globalAuthorisationConfigRouter,
 		lockConfigurationRouter:            lockConfigurationRouter,
 		imageDigestPolicyRouter:            imageDigestPolicyRouter,
+		argoApplicationRouter:              argoApplicationRouter,
 	}
 	return r
 }
@@ -487,4 +491,7 @@ func (r MuxRouter) Init() {
 
 	globalAuthorisationConfigRouter := r.Router.PathPrefix("/orchestrator/authorisation").Subrouter()
 	r.globalAuthorisationConfigRouter.InitAuthorisationConfigRouter(globalAuthorisationConfigRouter)
+
+	argoApplicationRouter := r.Router.PathPrefix("/orchestrator/argo-application").Subrouter()
+	r.argoApplicationRouter.InitArgoApplicationRouter(argoApplicationRouter)
 }
