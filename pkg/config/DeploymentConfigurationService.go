@@ -29,6 +29,7 @@ func NewDeploymentConfigurationServiceImpl(logger *zap.SugaredLogger,
 func (impl *DeploymentConfigurationServiceImpl) ConfigAutoComplete(appId int, envId int) (*ConfigDataResponse, error) {
 	cMCSNamesAppLevel, cMCSNamesEnvLevel, err := impl.configMapService.FetchCmCsNamesAppAndEnvLevel(appId, envId)
 	if err != nil {
+		impl.logger.Errorw("error in fetching CM and CS names at app or env level", "appId", appId, "envId", envId)
 		return nil, err
 	}
 	combinedProperties := make([]*ConfigProperty, 0)

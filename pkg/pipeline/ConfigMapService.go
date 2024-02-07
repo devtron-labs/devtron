@@ -1999,13 +1999,13 @@ func (impl ConfigMapServiceImpl) FetchCmCsNamesAppAndEnvLevel(appId int, envId i
 
 	cMCSNamesAppLevel, err := impl.configMapRepository.GetConfigNamesForAppAndEnvLevel(appId, -1)
 	if err != nil {
-		impl.logger.Errorw("error in getting CM/CS names at app level ", "appId", appId, "err", err)
+		impl.logger.Errorw("error in fetching CM/CS names at app level ", "appId", appId, "err", err)
 		return nil, nil, err
 	}
 	if envId > 0 {
 		cMCSNamesEnvLevel, err = impl.configMapRepository.GetConfigNamesForAppAndEnvLevel(appId, envId)
 		if err != nil {
-			impl.logger.Errorw("error in getting CM/CS names  at env level ", "appId", appId, "envId", envId, "err", err)
+			impl.logger.Errorw("error in fetching CM/CS names  at env level ", "appId", appId, "envId", envId, "err", err)
 			return nil, nil, err
 		}
 	}
