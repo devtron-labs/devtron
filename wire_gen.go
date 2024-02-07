@@ -20,6 +20,7 @@ import (
 	"github.com/devtron-labs/devtron/api/appStore/deployment"
 	"github.com/devtron-labs/devtron/api/appStore/discover"
 	"github.com/devtron-labs/devtron/api/appStore/values"
+	argoApplication2 "github.com/devtron-labs/devtron/api/argoApplication"
 	sso2 "github.com/devtron-labs/devtron/api/auth/sso"
 	user2 "github.com/devtron-labs/devtron/api/auth/user"
 	chartRepo2 "github.com/devtron-labs/devtron/api/chartRepo"
@@ -90,6 +91,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/values/repository"
 	service2 "github.com/devtron-labs/devtron/pkg/appStore/values/service"
 	appWorkflow2 "github.com/devtron-labs/devtron/pkg/appWorkflow"
+	"github.com/devtron-labs/devtron/pkg/argoApplication"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/auth/authentication"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
@@ -395,7 +397,8 @@ func InitializeApp() (*App, error) {
 	globalCMCSServiceImpl := pipeline.NewGlobalCMCSServiceImpl(sugaredLogger, globalCMCSRepositoryImpl)
 	argoWorkflowExecutorImpl := executors.NewArgoWorkflowExecutorImpl(sugaredLogger)
 	systemWorkflowExecutorImpl := executors.NewSystemWorkflowExecutorImpl(sugaredLogger, k8sServiceImpl)
-	k8sCommonServiceImpl := k8s2.NewK8sCommonServiceImpl(sugaredLogger, k8sServiceImpl, clusterServiceImplExtended)
+	argoApplicationServiceImpl := argoApplication.NewArgoApplicationServiceImpl(sugaredLogger, clusterRepositoryImpl, k8sServiceImpl, argoUserServiceImpl, helmAppServiceImpl)
+	k8sCommonServiceImpl := k8s2.NewK8sCommonServiceImpl(sugaredLogger, k8sServiceImpl, clusterServiceImplExtended, argoApplicationServiceImpl)
 	workflowServiceImpl, err := pipeline.NewWorkflowServiceImpl(sugaredLogger, environmentRepositoryImpl, ciCdConfig, appServiceImpl, globalCMCSServiceImpl, argoWorkflowExecutorImpl, k8sServiceImpl, systemWorkflowExecutorImpl, k8sCommonServiceImpl)
 	if err != nil {
 		return nil, err
@@ -556,8 +559,8 @@ func InitializeApp() (*App, error) {
 	k8sResourceHistoryServiceImpl := kubernetesResourceAuditLogs.Newk8sResourceHistoryServiceImpl(k8sResourceHistoryRepositoryImpl, sugaredLogger, appRepositoryImpl, environmentRepositoryImpl)
 	ephemeralContainersRepositoryImpl := repository2.NewEphemeralContainersRepositoryImpl(db)
 	ephemeralContainerServiceImpl := cluster2.NewEphemeralContainerServiceImpl(ephemeralContainersRepositoryImpl, sugaredLogger)
-	terminalSessionHandlerImpl := terminal.NewTerminalSessionHandlerImpl(environmentServiceImpl, clusterServiceImplExtended, sugaredLogger, k8sServiceImpl, ephemeralContainerServiceImpl)
-	k8sApplicationServiceImpl, err := application2.NewK8sApplicationServiceImpl(sugaredLogger, clusterServiceImplExtended, pumpImpl, helmAppServiceImpl, k8sServiceImpl, acdAuthConfig, k8sResourceHistoryServiceImpl, k8sCommonServiceImpl, terminalSessionHandlerImpl, ephemeralContainerServiceImpl, ephemeralContainersRepositoryImpl)
+	terminalSessionHandlerImpl := terminal.NewTerminalSessionHandlerImpl(environmentServiceImpl, clusterServiceImplExtended, sugaredLogger, k8sServiceImpl, ephemeralContainerServiceImpl, argoApplicationServiceImpl)
+	k8sApplicationServiceImpl, err := application2.NewK8sApplicationServiceImpl(sugaredLogger, clusterServiceImplExtended, pumpImpl, helmAppServiceImpl, k8sServiceImpl, acdAuthConfig, k8sResourceHistoryServiceImpl, k8sCommonServiceImpl, terminalSessionHandlerImpl, ephemeralContainerServiceImpl, ephemeralContainersRepositoryImpl, argoApplicationServiceImpl)
 	if err != nil {
 		return nil, err
 	}
@@ -820,7 +823,9 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	proxyRouterImpl := proxy.NewProxyRouterImpl(sugaredLogger, proxyConfig, enforcerImpl)
-	muxRouter := router.NewMuxRouter(sugaredLogger, pipelineTriggerRouterImpl, pipelineConfigRouterImpl, appListingRouterImpl, environmentRouterImpl, clusterRouterImpl, webhookRouterImpl, userAuthRouterImpl, applicationRouterImpl, cdRouterImpl, gitProviderRouterImpl, gitHostRouterImpl, dockerRegRouterImpl, notificationRouterImpl, teamRouterImpl, gitWebhookHandlerImpl, workflowStatusUpdateHandlerImpl, applicationStatusHandlerImpl, ciEventHandlerImpl, pubSubClientServiceImpl, userRouterImpl, chartRefRouterImpl, configMapRouterImpl, appStoreRouterImpl, chartRepositoryRouterImpl, releaseMetricsRouterImpl, deploymentGroupRouterImpl, batchOperationRouterImpl, chartGroupRouterImpl, imageScanRouterImpl, policyRouterImpl, gitOpsConfigRouterImpl, dashboardRouterImpl, attributesRouterImpl, userAttributesRouterImpl, commonRouterImpl, grafanaRouterImpl, ssoLoginRouterImpl, telemetryRouterImpl, telemetryEventClientImplExtended, bulkUpdateRouterImpl, webhookListenerRouterImpl, appRouterImpl, coreAppRouterImpl, helmAppRouterImpl, k8sApplicationRouterImpl, pProfRouterImpl, deploymentConfigRouterImpl, dashboardTelemetryRouterImpl, commonDeploymentRouterImpl, externalLinkRouterImpl, globalPluginRouterImpl, moduleRouterImpl, serverRouterImpl, apiTokenRouterImpl, cdApplicationStatusUpdateHandlerImpl, k8sCapacityRouterImpl, webhookHelmRouterImpl, globalCMCSRouterImpl, userTerminalAccessRouterImpl, jobRouterImpl, ciStatusUpdateCronImpl, resourceGroupingRouterImpl, rbacRoleRouterImpl, scopedVariableRouterImpl, ciTriggerCronImpl, proxyRouterImpl)
+	argoApplicationArgoApplicationRestHandlerImpl := argoApplication2.NewArgoApplicationRestHandlerImpl(argoApplicationServiceImpl, sugaredLogger)
+	argoApplicationRouterImpl := argoApplication2.NewArgoApplicationRouterImpl(argoApplicationArgoApplicationRestHandlerImpl)
+	muxRouter := router.NewMuxRouter(sugaredLogger, pipelineTriggerRouterImpl, pipelineConfigRouterImpl, appListingRouterImpl, environmentRouterImpl, clusterRouterImpl, webhookRouterImpl, userAuthRouterImpl, applicationRouterImpl, cdRouterImpl, gitProviderRouterImpl, gitHostRouterImpl, dockerRegRouterImpl, notificationRouterImpl, teamRouterImpl, gitWebhookHandlerImpl, workflowStatusUpdateHandlerImpl, applicationStatusHandlerImpl, ciEventHandlerImpl, pubSubClientServiceImpl, userRouterImpl, chartRefRouterImpl, configMapRouterImpl, appStoreRouterImpl, chartRepositoryRouterImpl, releaseMetricsRouterImpl, deploymentGroupRouterImpl, batchOperationRouterImpl, chartGroupRouterImpl, imageScanRouterImpl, policyRouterImpl, gitOpsConfigRouterImpl, dashboardRouterImpl, attributesRouterImpl, userAttributesRouterImpl, commonRouterImpl, grafanaRouterImpl, ssoLoginRouterImpl, telemetryRouterImpl, telemetryEventClientImplExtended, bulkUpdateRouterImpl, webhookListenerRouterImpl, appRouterImpl, coreAppRouterImpl, helmAppRouterImpl, k8sApplicationRouterImpl, pProfRouterImpl, deploymentConfigRouterImpl, dashboardTelemetryRouterImpl, commonDeploymentRouterImpl, externalLinkRouterImpl, globalPluginRouterImpl, moduleRouterImpl, serverRouterImpl, apiTokenRouterImpl, cdApplicationStatusUpdateHandlerImpl, k8sCapacityRouterImpl, webhookHelmRouterImpl, globalCMCSRouterImpl, userTerminalAccessRouterImpl, jobRouterImpl, ciStatusUpdateCronImpl, resourceGroupingRouterImpl, rbacRoleRouterImpl, scopedVariableRouterImpl, ciTriggerCronImpl, proxyRouterImpl, argoApplicationRouterImpl)
 	loggingMiddlewareImpl := util4.NewLoggingMiddlewareImpl(userServiceImpl)
 	mainApp := NewApp(muxRouter, sugaredLogger, sseSSE, syncedEnforcer, db, pubSubClientServiceImpl, sessionManager, posthogClient, loggingMiddlewareImpl)
 	return mainApp, nil

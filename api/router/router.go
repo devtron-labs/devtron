@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/api/appStore"
 	"github.com/devtron-labs/devtron/api/appStore/chartGroup"
 	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
+	"github.com/devtron-labs/devtron/api/argoApplication"
 	"github.com/devtron-labs/devtron/api/auth/sso"
 	"github.com/devtron-labs/devtron/api/auth/user"
 	"github.com/devtron-labs/devtron/api/chartRepo"
@@ -122,6 +123,7 @@ type MuxRouter struct {
 	rbacRoleRouter                     user.RbacRoleRouter
 	scopedVariableRouter               ScopedVariableRouter
 	ciTriggerCron                      cron.CiTriggerCron
+	argoApplicationRouter              argoApplication.ArgoApplicationRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -154,7 +156,8 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 	rbacRoleRouter user.RbacRoleRouter,
 	scopedVariableRouter ScopedVariableRouter,
 	ciTriggerCron cron.CiTriggerCron,
-	proxyRouter proxy.ProxyRouter) *MuxRouter {
+	proxyRouter proxy.ProxyRouter,
+	argoApplicationRouter argoApplication.ArgoApplicationRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
 		HelmRouter:                         HelmRouter,
@@ -224,6 +227,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 		rbacRoleRouter:                     rbacRoleRouter,
 		scopedVariableRouter:               scopedVariableRouter,
 		ciTriggerCron:                      ciTriggerCron,
+		argoApplicationRouter:              argoApplicationRouter,
 	}
 	return r
 }
@@ -428,4 +432,7 @@ func (r MuxRouter) Init() {
 
 	rbacRoleRouter := r.Router.PathPrefix("/orchestrator/rbac/role").Subrouter()
 	r.rbacRoleRouter.InitRbacRoleRouter(rbacRoleRouter)
+
+	argoApplicationRouter := r.Router.PathPrefix("/orchestrator/argo-application").Subrouter()
+	r.argoApplicationRouter.InitArgoApplicationRouter(argoApplicationRouter)
 }
