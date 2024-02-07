@@ -60,6 +60,7 @@ type ResourceListResponse struct {
 
 type PodLogsRequest struct {
 	SinceTime                  *v12.Time `json:"sinceTime,omitempty"`
+	SinceSeconds               int       `json:"sinceSeconds,omitempty"`
 	TailLines                  int       `json:"tailLines"`
 	Follow                     bool      `json:"follow"`
 	ContainerName              string    `json:"containerName"`
@@ -76,7 +77,7 @@ type K8sRequestBean struct {
 	ResourceIdentifier ResourceIdentifier `json:"resourceIdentifier"`
 	Patch              string             `json:"patch,omitempty"`
 	PodLogsRequest     PodLogsRequest     `json:"podLogsRequest,omitempty"`
-	ForceDelete        bool               `json:"forceDelete,omitempty"`
+	ForceDelete        bool               `json:"-"`
 }
 
 type GetAllApiResourcesResponse struct {

@@ -141,7 +141,6 @@ type NodeUpdateRequestDto struct {
 	ManifestPatch    string            `json:"manifestPatch"`
 	Version          string            `json:"version"`
 	Kind             string            `json:"kind"`
-	ForceDelete      bool              `json:"forceDelete"`
 	Taints           []corev1.Taint    `json:"taints"`
 	NodeCordonHelper *NodeCordonHelper `json:"nodeCordonOptions"`
 	NodeDrainHelper  *NodeDrainHelper  `json:"nodeDrainOptions"`
