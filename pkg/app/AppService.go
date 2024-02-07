@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
@@ -39,7 +40,7 @@ import (
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	status2 "github.com/devtron-labs/devtron/pkg/app/status"
-	repository4 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
+	repository4 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/variables"
@@ -553,7 +554,7 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForPipeline(app *v1alpha1.Appl
 		impl.logger.Errorw("error on update cd workflow runner", "CdWorkflowId", pipelineOverride.CdWorkflowId, "app", app, "err", err)
 		return isSucceeded, err
 	}
-	if application.Healthy == app.Status.Health.Status {
+	if argoApplication.Healthy == app.Status.Health.Status {
 		isSucceeded = true
 	}
 	return isSucceeded, nil
@@ -567,7 +568,7 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForAppStore(app *v1alpha1.Appl
 		impl.logger.Errorw("error on update installed version history", "installedVersionHistoryId", installedVersionHistoryId, "app", app, "err", err)
 		return isSucceeded, err
 	}
-	if application.Healthy == app.Status.Health.Status {
+	if argoApplication.Healthy == app.Status.Health.Status {
 		isSucceeded = true
 	}
 	return isSucceeded, nil

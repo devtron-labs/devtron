@@ -2,10 +2,10 @@ package appStoreDeployment
 
 import (
 	"github.com/devtron-labs/devtron/client/argocdServer"
-	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
-	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
-	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
-	appStoreDeploymentTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/common"
 	"github.com/google/wire"
 )
 
@@ -15,8 +15,8 @@ var AppStoreDeploymentWireSet = wire.NewSet(
 	wire.Bind(new(repository.ClusterInstalledAppsRepository), new(*repository.ClusterInstalledAppsRepositoryImpl)),
 	appStoreDeploymentCommon.NewAppStoreDeploymentCommonServiceImpl,
 	wire.Bind(new(appStoreDeploymentCommon.AppStoreDeploymentCommonService), new(*appStoreDeploymentCommon.AppStoreDeploymentCommonServiceImpl)),
-	appStoreDeploymentTool.NewAppStoreDeploymentHelmServiceImpl,
-	wire.Bind(new(appStoreDeploymentTool.AppStoreDeploymentHelmService), new(*appStoreDeploymentTool.AppStoreDeploymentHelmServiceImpl)),
+	EAMode.NewEAModeDeploymentServiceImpl,
+	wire.Bind(new(EAMode.EAModeDeploymentService), new(*EAMode.EAModeDeploymentServiceImpl)),
 	service.NewAppStoreDeploymentServiceImpl,
 	wire.Bind(new(service.AppStoreDeploymentService), new(*service.AppStoreDeploymentServiceImpl)),
 	NewAppStoreDeploymentRestHandlerImpl,
@@ -31,4 +31,7 @@ var AppStoreDeploymentWireSet = wire.NewSet(
 	NewCommonDeploymentRouterImpl,
 	wire.Bind(new(CommonDeploymentRouter), new(*CommonDeploymentRouterImpl)),
 	argocdServer.GetACDDeploymentConfig,
+
+	EAMode.NewInstalledAppDBServiceImpl,
+	wire.Bind(new(EAMode.InstalledAppDBService), new(*EAMode.InstalledAppDBServiceImpl)),
 )
