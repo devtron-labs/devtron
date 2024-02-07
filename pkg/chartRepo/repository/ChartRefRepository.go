@@ -7,7 +7,6 @@ import (
 	"strings"
 )
 
-type RefChartDir string
 type ChartRef struct {
 	tableName              struct{} `sql:"chart_ref" pg:",discard_unknown_columns"`
 	Id                     int      `sql:"id,pk"`
@@ -41,7 +40,7 @@ type ChartRefRepository interface {
 	CheckIfDataExists(location string) (bool, error)
 	FetchChart(name string) ([]*ChartRef, error)
 	FetchInfoOfChartConfiguredInApp(appId int) (*ChartRef, error)
-	FetchAllChartInfoByUploadFlag(userUploaded bool) ([]*ChartRef, error)
+	FetchAllNonUserUploadedChartInfo() ([]*ChartRef, error)
 }
 type ChartRefRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -121,10 +120,10 @@ func (impl ChartRefRepositoryImpl) FetchChart(name string) ([]*ChartRef, error) 
 	return chartRefs, err
 }
 
-func (impl ChartRefRepositoryImpl) FetchAllChartInfoByUploadFlag(userUploaded bool) ([]*ChartRef, error) {
+func (impl ChartRefRepositoryImpl) FetchAllNonUserUploadedChartInfo() ([]*ChartRef, error) {
 	var repo []*ChartRef
 	err := impl.dbConnection.Model(&repo).
-		Where("user_uploaded = ?", userUploaded).
+		Where("user_uploaded = ?", false).
 		Select()
 	if err != nil {
 		return repo, err

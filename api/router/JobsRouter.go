@@ -1,8 +1,8 @@
 package router
 
 import (
-	"github.com/devtron-labs/devtron/api/restHandler"
-	"github.com/devtron-labs/devtron/api/restHandler/app"
+	"github.com/devtron-labs/devtron/api/restHandler/app/appList"
+	"github.com/devtron-labs/devtron/api/restHandler/app/pipeline/configure"
 	"github.com/gorilla/mux"
 )
 
@@ -10,11 +10,11 @@ type JobRouter interface {
 	InitJobRouter(router *mux.Router)
 }
 type JobRouterImpl struct {
-	pipelineConfigRestHandler app.PipelineConfigRestHandler
-	appListingRestHandler     restHandler.AppListingRestHandler
+	pipelineConfigRestHandler configure.PipelineConfigRestHandler
+	appListingRestHandler     appList.AppListingRestHandler
 }
 
-func NewJobRouterImpl(pipelineConfigRestHandler app.PipelineConfigRestHandler, appListingRestHandler restHandler.AppListingRestHandler) *JobRouterImpl {
+func NewJobRouterImpl(pipelineConfigRestHandler configure.PipelineConfigRestHandler, appListingRestHandler appList.AppListingRestHandler) *JobRouterImpl {
 	return &JobRouterImpl{
 		appListingRestHandler:     appListingRestHandler,
 		pipelineConfigRestHandler: pipelineConfigRestHandler,

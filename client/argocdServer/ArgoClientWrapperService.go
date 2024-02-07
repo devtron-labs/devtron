@@ -3,10 +3,12 @@ package argocdServer
 import (
 	"context"
 	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	repository2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/argocdServer/bean"
+	"github.com/devtron-labs/devtron/client/argocdServer/repository"
 	"go.uber.org/zap"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -34,22 +36,25 @@ type ArgoClientWrapperService interface {
 
 	// UpdateArgoCDSyncModeIfNeeded - if ARGO_AUTO_SYNC_ENABLED=true and app is in manual sync mode or vice versa update app
 	UpdateArgoCDSyncModeIfNeeded(ctx context.Context, argoApplication *v1alpha1.Application) (err error)
+
+	//RegisterGitOpsRepoInArgo - register a repository in argo-cd
+	RegisterGitOpsRepoInArgo(ctx context.Context, repoUrl string) (err error)
 }
 
 type ArgoClientWrapperServiceImpl struct {
-	logger    *zap.SugaredLogger
-	acdClient application.ServiceClient
-	ACDConfig *ACDConfig
+	logger            *zap.SugaredLogger
+	acdClient         application.ServiceClient
+	ACDConfig         *ACDConfig
+	repositoryService repository.ServiceClient
 }
 
-func NewArgoClientWrapperServiceImpl(logger *zap.SugaredLogger,
-	acdClient application.ServiceClient,
-	ACDConfig *ACDConfig,
-) *ArgoClientWrapperServiceImpl {
+func NewArgoClientWrapperServiceImpl(logger *zap.SugaredLogger, acdClient application.ServiceClient,
+	ACDConfig *ACDConfig, repositoryService repository.ServiceClient) *ArgoClientWrapperServiceImpl {
 	return &ArgoClientWrapperServiceImpl{
-		logger:    logger,
-		acdClient: acdClient,
-		ACDConfig: ACDConfig,
+		logger:            logger,
+		acdClient:         acdClient,
+		ACDConfig:         ACDConfig,
+		repositoryService: repositoryService,
 	}
 }
 
@@ -129,4 +134,16 @@ func (impl *ArgoClientWrapperServiceImpl) CreateRequestForArgoCDSyncModeUpdateRe
 				SyncOptions: argoApplication.Spec.SyncPolicy.SyncOptions,
 				Retry:       argoApplication.Spec.SyncPolicy.Retry,
 			}}}
+}
+
+func (impl *ArgoClientWrapperServiceImpl) RegisterGitOpsRepoInArgo(ctx context.Context, repoUrl string) (err error) {
+	repo := &v1alpha1.Repository{
+		Repo: repoUrl,
+	}
+	repo, err = impl.repositoryService.Create(ctx, &repository2.RepoCreateRequest{Repo: repo, Upsert: true})
+	if err != nil {
+		impl.logger.Errorw("error in creating argo Repository ", "err", err)
+	}
+	impl.logger.Infow("gitOps repo registered in argo", "name", repoUrl)
+	return err
 }

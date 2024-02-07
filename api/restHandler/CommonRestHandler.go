@@ -21,12 +21,9 @@ import (
 	"net/http"
 
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/commonService"
-	"github.com/devtron-labs/devtron/pkg/gitops"
 	"go.uber.org/zap"
-	"gopkg.in/go-playground/validator.v9"
 )
 
 type CommonRestHandler interface {
@@ -36,23 +33,17 @@ type CommonRestHandler interface {
 
 type CommonRestHandlerImpl struct {
 	logger              *zap.SugaredLogger
-	gitOpsConfigService gitops.GitOpsConfigService
 	userAuthService     user.UserService
-	validator           *validator.Validate
-	enforcer            casbin.Enforcer
 	commonService       commonService.CommonService
 }
 
 func NewCommonRestHandlerImpl(
 	logger *zap.SugaredLogger,
-	gitOpsConfigService gitops.GitOpsConfigService, userAuthService user.UserService,
-	validator *validator.Validate, enforcer casbin.Enforcer, commonService commonService.CommonService) *CommonRestHandlerImpl {
+	userAuthService user.UserService,
+	commonService commonService.CommonService) *CommonRestHandlerImpl {
 	return &CommonRestHandlerImpl{
 		logger:              logger,
-		gitOpsConfigService: gitOpsConfigService,
 		userAuthService:     userAuthService,
-		validator:           validator,
-		enforcer:            enforcer,
 		commonService:       commonService,
 	}
 }

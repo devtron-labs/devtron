@@ -20,7 +20,8 @@ package pipeline
 import (
 	"context"
 	"fmt"
-	client "github.com/devtron-labs/devtron/api/helm-app"
+	bean2 "github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
@@ -864,7 +865,7 @@ func (impl DockerRegistryConfigImpl) ValidateRegistryCredentials(bean *types.Doc
 		bean.RegistryType == repository.REGISTRYTYPE_OTHER {
 		return true
 	}
-	request := &client.RegistryCredential{
+	request := &bean2.RegistryCredential{
 		RegistryUrl:  bean.RegistryURL,
 		Username:     bean.Username,
 		Password:     bean.Password,

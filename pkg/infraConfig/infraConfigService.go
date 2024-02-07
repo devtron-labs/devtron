@@ -622,9 +622,12 @@ func (impl *InfraConfigServiceImpl) getInfraConfigurationsByScope(scope Scope) (
 		return nil, err
 	}
 	if len(profileIds) == 0 {
-		return nil, NO_PROPERTIES_FOUND_ERROR
+		return nil, nil
 	}
 	infraConfigurations, err := impl.infraProfileRepo.GetConfigurationsByProfileIds(profileIds)
+	if errors.Is(err, NO_PROPERTIES_FOUND_ERROR) {
+		return infraConfigurations, nil
+	}
 	return infraConfigurations, err
 }
 

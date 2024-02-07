@@ -22,6 +22,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	bean6 "github.com/devtron-labs/devtron/api/helm-app/bean"
+	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	client2 "github.com/devtron-labs/devtron/api/helm-app/service"
+	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
+	bean5 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 	"io/ioutil"
 	"path"
 	"strconv"
@@ -36,9 +45,7 @@ import (
 	"github.com/devtron-labs/common-lib/pubsub-lib/model"
 	util5 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
-	client2 "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/client/argocdServer"
-	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	gitSensorClient "github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
@@ -47,7 +54,6 @@ import (
 	repository6 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	bean4 "github.com/devtron-labs/devtron/pkg/app/bean"
 	"github.com/devtron-labs/devtron/pkg/app/status"
-	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
@@ -139,7 +145,6 @@ type WorkflowDagExecutorImpl struct {
 	pipelineOverrideRepository    chartConfig.PipelineOverrideRepository
 	ciArtifactRepository          repository.CiArtifactRepository
 	user                          user.UserService
-	enforcer                      casbin.Enforcer
 	enforcerUtil                  rbac.EnforcerUtil
 	groupRepository               repository.DeploymentGroupRepository
 	envRepository                 repository2.EnvironmentRepository
@@ -161,7 +166,6 @@ type WorkflowDagExecutorImpl struct {
 	chartTemplateService          util.ChartTemplateService
 	appRepository                 appRepository.AppRepository
 	helmRepoPushService           app.HelmRepoPushService
-	pipelineStageRepository       repository4.PipelineStageRepository
 	pipelineStageService          PipelineStageService
 	config                        *types.CdConfig
 	appServiceConfig              *app.AppServiceConfig
@@ -192,26 +196,24 @@ type WorkflowDagExecutorImpl struct {
 	argoK8sClient                       argocdServer.ArgoK8sClient
 	configMapRepository                 chartConfig.ConfigMapRepository
 	configMapHistoryRepository          repository3.ConfigMapHistoryRepository
-	refChartDir                         chartRepoRepository.RefChartDir
 	helmAppService                      client2.HelmAppService
-	helmAppClient                       client2.HelmAppClient
-	chartRefRepository                  chartRepoRepository.ChartRefRepository
-	environmentConfigRepository         chartConfig.EnvConfigOverrideRepository
-	appLevelMetricsRepository           repository.AppLevelMetricsRepository
-	envLevelMetricsRepository           repository.EnvLevelAppMetricsRepository
-	mergeUtil                           *util.MergeUtil
-	gitOpsConfigRepository              repository.GitOpsConfigRepository
-	gitFactory                          *util.GitFactory
-	acdClient                           application2.ServiceClient
-	argoClientWrapperService            argocdServer.ArgoClientWrapperService
-	scopedVariableService               variables.ScopedVariableService
-	dockerArtifactStoreRepository       repository6.DockerArtifactStoreRepository
-	imageTaggingService                 ImageTaggingService
-	globalPluginService                 plugin.GlobalPluginService
-	pipelineConfigListenerService       PipelineConfigListenerService
-	customTagService                    CustomTagService
-	ACDConfig                           *argocdServer.ACDConfig
-	imageDigestPolicyService            imageDigestPolicy.ImageDigestPolicyService
+	//TODO fix me next
+	helmAppClient                 gRPC.HelmAppClient //TODO refactoring: use helm app service instead
+	environmentConfigRepository   chartConfig.EnvConfigOverrideRepository
+	mergeUtil                     *util.MergeUtil
+	acdClient                     application2.ServiceClient
+	argoClientWrapperService      argocdServer.ArgoClientWrapperService
+	scopedVariableService         variables.ScopedVariableService
+	dockerArtifactStoreRepository repository6.DockerArtifactStoreRepository
+	imageTaggingService           ImageTaggingService
+	globalPluginService           plugin.GlobalPluginService
+	customTagService              CustomTagService
+	ACDConfig                     *argocdServer.ACDConfig
+	deployedAppMetricsService     deployedAppMetrics.DeployedAppMetricsService
+	chartRefService               chartRef.ChartRefService
+	gitOpsConfigReadService       config.GitOpsConfigReadService
+	gitOperationService           git.GitOperationService
+	imageDigestPolicyService      imageDigestPolicy.ImageDigestPolicyService
 }
 
 const kedaAutoscaling = "kedaAutoscaling"
@@ -286,7 +288,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	user user.UserService,
 	groupRepository repository.DeploymentGroupRepository,
 	envRepository repository2.EnvironmentRepository,
-	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, eventFactory client.EventFactory,
+	enforcerUtil rbac.EnforcerUtil, eventFactory client.EventFactory,
 	eventClient client.EventClient, cvePolicyRepository security.CvePolicyRepository,
 	scanResultRepository security.ImageScanResultRepository,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
@@ -301,7 +303,6 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	chartTemplateService util.ChartTemplateService,
 	appRepository appRepository.AppRepository,
 	helmRepoPushService app.HelmRepoPushService,
-	pipelineStageRepository repository4.PipelineStageRepository,
 	pipelineStageService PipelineStageService, k8sCommonService k8s.K8sCommonService,
 	globalPluginService plugin.GlobalPluginService,
 	pluginInputVariableParser PluginInputVariableParser,
@@ -324,16 +325,10 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	ArgoK8sClient argocdServer.ArgoK8sClient,
 	configMapRepository chartConfig.ConfigMapRepository,
 	configMapHistoryRepository repository3.ConfigMapHistoryRepository,
-	refChartDir chartRepoRepository.RefChartDir,
 	helmAppService client2.HelmAppService,
-	helmAppClient client2.HelmAppClient,
-	chartRefRepository chartRepoRepository.ChartRefRepository,
+	helmAppClient gRPC.HelmAppClient,
 	environmentConfigRepository chartConfig.EnvConfigOverrideRepository,
-	appLevelMetricsRepository repository.AppLevelMetricsRepository,
-	envLevelMetricsRepository repository.EnvLevelAppMetricsRepository,
 	mergeUtil *util.MergeUtil,
-	gitOpsConfigRepository repository.GitOpsConfigRepository,
-	gitFactory *util.GitFactory,
 	acdClient application2.ServiceClient,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
 	scopedVariableService variables.ScopedVariableService,
@@ -342,8 +337,11 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	customTagService CustomTagService,
 	pipelineConfigListenerService PipelineConfigListenerService,
 	ACDConfig *argocdServer.ACDConfig,
-	imageDigestPolicyService imageDigestPolicy.ImageDigestPolicyService,
-) *WorkflowDagExecutorImpl {
+	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
+	chartRefService chartRef.ChartRefService,
+	gitOpsConfigReadService config.GitOpsConfigReadService,
+	gitOperationService git.GitOperationService,
+	imageDigestPolicyService imageDigestPolicy.ImageDigestPolicyService) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
 		cdWorkflowRepository:          cdWorkflowRepository,
@@ -355,7 +353,6 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		materialRepository:            materialRepository,
 		pipelineOverrideRepository:    pipelineOverrideRepository,
 		user:                          user,
-		enforcer:                      enforcer,
 		enforcerUtil:                  enforcerUtil,
 		groupRepository:               groupRepository,
 		envRepository:                 envRepository,
@@ -377,7 +374,6 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		appRepository:                 appRepository,
 		helmRepoPushService:           helmRepoPushService,
 		k8sCommonService:              k8sCommonService,
-		pipelineStageRepository:       pipelineStageRepository,
 		pipelineStageService:          pipelineStageService,
 		scopedVariableManager:         scopedVariableManager,
 		globalPluginService:           globalPluginService,
@@ -406,24 +402,21 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		argoK8sClient:                       ArgoK8sClient,
 		configMapRepository:                 configMapRepository,
 		configMapHistoryRepository:          configMapHistoryRepository,
-		refChartDir:                         refChartDir,
 		helmAppService:                      helmAppService,
 		helmAppClient:                       helmAppClient,
-		chartRefRepository:                  chartRefRepository,
 		environmentConfigRepository:         environmentConfigRepository,
-		appLevelMetricsRepository:           appLevelMetricsRepository,
-		envLevelMetricsRepository:           envLevelMetricsRepository,
 		mergeUtil:                           mergeUtil,
-		gitOpsConfigRepository:              gitOpsConfigRepository,
-		gitFactory:                          gitFactory,
 		acdClient:                           acdClient,
 		argoClientWrapperService:            argoClientWrapperService,
 		scopedVariableService:               scopedVariableService,
 		dockerArtifactStoreRepository:       dockerArtifactStoreRepository,
 		imageTaggingService:                 imageTaggingService,
 		customTagService:                    customTagService,
-		pipelineConfigListenerService:       pipelineConfigListenerService,
 		ACDConfig:                           ACDConfig,
+		deployedAppMetricsService:           deployedAppMetricsService,
+		chartRefService:                     chartRefService,
+		gitOpsConfigReadService:             gitOpsConfigReadService,
+		gitOperationService:                 gitOperationService,
 		imageDigestPolicyService:            imageDigestPolicyService,
 	}
 	config, err := types.GetCdConfig()
@@ -539,7 +532,7 @@ func (impl *WorkflowDagExecutorImpl) UpdateWorkflowRunnerStatusForDeployment(app
 	if err != nil {
 		impl.logger.Errorw("error in getting helm app release status", "appIdentifier", appIdentifier, "err", err)
 		// Handle release not found errors
-		if skipReleaseNotFound && util.GetGRPCErrorDetailedMessage(err) != client2.ErrReleaseNotFound {
+		if skipReleaseNotFound && util.GetGRPCErrorDetailedMessage(err) != bean6.ErrReleaseNotFound {
 			// skip this error and continue for next workflow status
 			impl.logger.Warnw("found error, skipping helm apps status update for this trigger", "appIdentifier", appIdentifier, "err", err)
 			return false
@@ -571,7 +564,7 @@ func (impl *WorkflowDagExecutorImpl) UpdateWorkflowRunnerStatusForDeployment(app
 			return false
 		}
 
-		if helmInstalledDevtronApp.GetApplicationStatus() == application.Healthy {
+		if helmInstalledDevtronApp.GetApplicationStatus() == argoApplication.Healthy {
 			// mark the deployment as succeed
 			wfr.Status = pipelineConfig.WorkflowSucceeded
 			wfr.FinishedOn = time.Now()
@@ -3131,7 +3124,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(triggerContext TriggerConte
 		overrideRequest.CdWorkflowId = cdWorkflowId
 		// creating cd pipeline status timeline for deployment initialisation
 		timeline := impl.pipelineStatusTimelineService.GetTimelineDbObjectByTimelineStatusAndTimelineDescription(savedWfr.Id, 0, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_INITIATED, pipelineConfig.TIMELINE_DESCRIPTION_DEPLOYMENT_INITIATED, overrideRequest.UserId, time.Now())
-		_, span = otel.Tracer("orchestrator").Start(ctx, "cdPipelineStatusTimelineRepo.SaveTimelineForACDHelmApps")
+		_, span = otel.Tracer("orchestrator").Start(ctx, "cdPipelineStatusTimelineRepo.SaveTimelineForHelmApps")
 		err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, false)
 
 		span.End()
@@ -4466,7 +4459,7 @@ func (impl *WorkflowDagExecutorImpl) createHelmAppForCdPipeline(overrideRequest 
 		Name:    pipeline.App.AppName,
 		Version: envOverride.Chart.ChartVersion,
 	}
-	referenceTemplatePath := path.Join(string(impl.refChartDir), envOverride.Chart.ReferenceTemplate)
+	referenceTemplatePath := path.Join(bean5.RefChartDirPath, envOverride.Chart.ReferenceTemplate)
 
 	if util.IsHelmApp(pipeline.DeploymentAppType) {
 		referenceChartByte := envOverride.Chart.ReferenceChart
@@ -4492,7 +4485,7 @@ func (impl *WorkflowDagExecutorImpl) createHelmAppForCdPipeline(overrideRequest 
 		releaseName := pipeline.DeploymentAppName
 		cluster := envOverride.Environment.Cluster
 		bearerToken := cluster.Config[util5.BearerToken]
-		clusterConfig := &client2.ClusterConfig{
+		clusterConfig := &gRPC.ClusterConfig{
 			ClusterId:              int32(cluster.Id),
 			ClusterName:            cluster.ClusterName,
 			Token:                  bearerToken,
@@ -4510,18 +4503,18 @@ func (impl *WorkflowDagExecutorImpl) createHelmAppForCdPipeline(overrideRequest 
 			clusterConfig.CertData = cluster.Config[util5.CertData]
 			clusterConfig.CaData = cluster.Config[util5.CertificateAuthorityData]
 		}
-		releaseIdentifier := &client2.ReleaseIdentifier{
+		releaseIdentifier := &gRPC.ReleaseIdentifier{
 			ReleaseName:      releaseName,
 			ReleaseNamespace: envOverride.Namespace,
 			ClusterConfig:    clusterConfig,
 		}
 
 		if pipeline.DeploymentAppCreated {
-			req := &client2.UpgradeReleaseRequest{
+			req := &gRPC.UpgradeReleaseRequest{
 				ReleaseIdentifier: releaseIdentifier,
 				ValuesYaml:        mergeAndSave,
-				HistoryMax:        impl.helmAppService.GetRevisionHistoryMaxValue(client2.SOURCE_DEVTRON_APP),
-				ChartContent:      &client2.ChartContent{Content: referenceChartByte},
+				HistoryMax:        impl.helmAppService.GetRevisionHistoryMaxValue(bean6.SOURCE_DEVTRON_APP),
+				ChartContent:      &gRPC.ChartContent{Content: referenceChartByte},
 			}
 			if impl.appService.IsDevtronAsyncInstallModeEnabled(bean2.Helm) {
 				req.RunInCtx = true
@@ -4655,7 +4648,7 @@ func (impl *WorkflowDagExecutorImpl) GetEnvOverrideByTriggerType(overrideRequest
 		}
 		// getting chart_ref by id
 		_, span = otel.Tracer("orchestrator").Start(ctx, "chartRefRepository.FindByVersionAndName")
-		chartRef, err := impl.chartRefRepository.FindByVersionAndName(templateName, templateVersion)
+		chartRefDto, err := impl.chartRefService.FindByVersionAndName(templateName, templateVersion)
 		span.End()
 		if err != nil {
 			impl.logger.Errorw("error in getting chartRef by version and name", "err", err, "version", templateVersion, "name", templateName)
@@ -4663,10 +4656,10 @@ func (impl *WorkflowDagExecutorImpl) GetEnvOverrideByTriggerType(overrideRequest
 		}
 		// assuming that if a chartVersion is deployed then it's envConfigOverride will be available
 		_, span = otel.Tracer("orchestrator").Start(ctx, "environmentConfigRepository.GetByAppIdEnvIdAndChartRefId")
-		envOverride, err = impl.environmentConfigRepository.GetByAppIdEnvIdAndChartRefId(overrideRequest.AppId, overrideRequest.EnvId, chartRef.Id)
+		envOverride, err = impl.environmentConfigRepository.GetByAppIdEnvIdAndChartRefId(overrideRequest.AppId, overrideRequest.EnvId, chartRefDto.Id)
 		span.End()
 		if err != nil {
-			impl.logger.Errorw("error in getting envConfigOverride for pipeline for specific chartVersion", "err", err, "appId", overrideRequest.AppId, "envId", overrideRequest.EnvId, "chartRefId", chartRef.Id)
+			impl.logger.Errorw("error in getting envConfigOverride for pipeline for specific chartVersion", "err", err, "appId", overrideRequest.AppId, "envId", overrideRequest.EnvId, "chartRefId", chartRefDto.Id)
 			return nil, err
 		}
 
@@ -4808,25 +4801,14 @@ func (impl *WorkflowDagExecutorImpl) GetAppMetricsByTriggerType(overrideRequest 
 		appMetrics = deploymentTemplateHistory.IsAppMetricsEnabled
 
 	} else if overrideRequest.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED {
-		_, span := otel.Tracer("orchestrator").Start(ctx, "appLevelMetricsRepository.FindByAppId")
-		appLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(overrideRequest.AppId)
+		_, span := otel.Tracer("orchestrator").Start(ctx, "deployedAppMetricsService.GetMetricsFlagForAPipelineByAppIdAndEnvId")
+		isAppMetricsEnabled, err := impl.deployedAppMetricsService.GetMetricsFlagForAPipelineByAppIdAndEnvId(overrideRequest.AppId, overrideRequest.EnvId)
+		if err != nil {
+			impl.logger.Errorw("error, GetMetricsFlagForAPipelineByAppIdAndEnvId", "err", err, "appId", overrideRequest.AppId, "envId", overrideRequest.EnvId)
+			return appMetrics, err
+		}
 		span.End()
-		if err != nil && !util.IsErrNoRows(err) {
-			impl.logger.Errorw("err", err)
-			return appMetrics, &util.ApiError{InternalMessage: "unable to fetch app level metrics flag"}
-		}
-		appMetrics = appLevelMetrics.AppMetrics
-
-		_, span = otel.Tracer("orchestrator").Start(ctx, "envLevelMetricsRepository.FindByAppIdAndEnvId")
-		envLevelMetrics, err := impl.envLevelMetricsRepository.FindByAppIdAndEnvId(overrideRequest.AppId, overrideRequest.EnvId)
-		span.End()
-		if err != nil && !util.IsErrNoRows(err) {
-			impl.logger.Errorw("err", err)
-			return appMetrics, &util.ApiError{InternalMessage: "unable to fetch env level metrics flag"}
-		}
-		if envLevelMetrics.Id != 0 && envLevelMetrics.AppMetrics != nil {
-			appMetrics = *envLevelMetrics.AppMetrics
-		}
+		appMetrics = isAppMetricsEnabled
 	}
 	return appMetrics, nil
 }
@@ -5256,11 +5238,11 @@ func (impl *WorkflowDagExecutorImpl) updatePipeline(pipeline *pipelineConfig.Pip
 }
 
 // helmInstallReleaseWithCustomChart performs helm install with custom chart
-func (impl *WorkflowDagExecutorImpl) helmInstallReleaseWithCustomChart(ctx context.Context, releaseIdentifier *client2.ReleaseIdentifier, referenceChartByte []byte, valuesYaml string) (*client2.HelmInstallCustomResponse, error) {
+func (impl *WorkflowDagExecutorImpl) helmInstallReleaseWithCustomChart(ctx context.Context, releaseIdentifier *gRPC.ReleaseIdentifier, referenceChartByte []byte, valuesYaml string) (*gRPC.HelmInstallCustomResponse, error) {
 
-	helmInstallRequest := client2.HelmInstallCustomRequest{
+	helmInstallRequest := gRPC.HelmInstallCustomRequest{
 		ValuesYaml:        valuesYaml,
-		ChartContent:      &client2.ChartContent{Content: referenceChartByte},
+		ChartContent:      &gRPC.ChartContent{Content: referenceChartByte},
 		ReleaseIdentifier: releaseIdentifier,
 	}
 	if impl.appService.IsDevtronAsyncInstallModeEnabled(bean2.Helm) {

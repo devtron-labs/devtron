@@ -29,8 +29,8 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
-	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	bean2 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
@@ -71,7 +71,6 @@ type WorkflowServiceImpl struct {
 	systemWorkflowExecutor executors.SystemWorkflowExecutor
 	k8sUtil                *k8s.K8sUtilExtended
 	k8sCommonService       k8s2.K8sCommonService
-	refChartDir            chartRepoRepository.RefChartDir
 	chartTemplateService   util2.ChartTemplateService
 	mergeUtil              *util2.MergeUtil
 	infraProvider          infraProviders.InfraProvider
@@ -82,7 +81,7 @@ type WorkflowServiceImpl struct {
 func NewWorkflowServiceImpl(Logger *zap.SugaredLogger, envRepository repository.EnvironmentRepository, ciCdConfig *types.CiCdConfig,
 	appService app.AppService, globalCMCSService GlobalCMCSService, argoWorkflowExecutor executors.ArgoWorkflowExecutor,
 	k8sUtil *k8s.K8sUtilExtended,
-	systemWorkflowExecutor executors.SystemWorkflowExecutor, k8sCommonService k8s2.K8sCommonService, refChartDir chartRepoRepository.RefChartDir, chartTemplateService util2.ChartTemplateService,
+	systemWorkflowExecutor executors.SystemWorkflowExecutor, k8sCommonService k8s2.K8sCommonService, chartTemplateService util2.ChartTemplateService,
 	mergeUtil *util2.MergeUtil,
 	infraProvider infraProviders.InfraProvider) (*WorkflowServiceImpl, error) {
 	commonWorkflowService := &WorkflowServiceImpl{
@@ -95,7 +94,6 @@ func NewWorkflowServiceImpl(Logger *zap.SugaredLogger, envRepository repository.
 		k8sUtil:                k8sUtil,
 		systemWorkflowExecutor: systemWorkflowExecutor,
 		k8sCommonService:       k8sCommonService,
-		refChartDir:            refChartDir,
 		chartTemplateService:   chartTemplateService,
 		mergeUtil:              mergeUtil,
 		infraProvider:          infraProvider,
@@ -430,7 +428,7 @@ func (impl *WorkflowServiceImpl) TriggerDryRun(jobManifestTemplate *bean3.JobMan
 		impl.Logger.Errorw("error in converting to json", "err", err)
 		return builtChartPath, err
 	}
-	jobHelmChartPath := path.Join(string(impl.refChartDir), bean3.HELM_JOB_REF_TEMPLATE_NAME)
+	jobHelmChartPath := path.Join(bean2.RefChartDirPath, bean3.HELM_JOB_REF_TEMPLATE_NAME)
 	builtChartPath, err = impl.chartTemplateService.BuildChart(context.Background(),
 		&chart.Metadata{ApiVersion: bean3.JOB_CHART_API_VERSION, Name: bean3.JOB_CHART_NAME, Version: bean3.JOB_CHART_VERSION},
 		jobHelmChartPath)

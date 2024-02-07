@@ -294,6 +294,7 @@ func (repo *QualifiersMappingRepositoryImpl) GetQualifierMappingsWithIdentifierF
 func (repo *QualifiersMappingRepositoryImpl) GetResourceIdsByIdentifier(resourceType ResourceType, identifierKey int, identifierId int) ([]int, error) {
 	resourceIds := make([]int, 0)
 	err := repo.dbConnection.Model((*QualifierMapping)(nil)).
+		Column("resource_id").
 		Where("active=?", true).
 		Where("resource_type=?", resourceType).
 		Where("identifier_key=?", identifierKey).

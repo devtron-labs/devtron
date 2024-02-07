@@ -22,6 +22,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	service2 "github.com/devtron-labs/devtron/api/helm-app/service"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/common"
 	"net/http"
 	"strconv"
 	"strings"
@@ -32,8 +34,7 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
-	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
-	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
@@ -67,7 +68,7 @@ type AppStoreDeploymentRestHandlerImpl struct {
 	appStoreDeploymentService  service.AppStoreDeploymentService
 	appStoreDeploymentServiceC appStoreDeploymentCommon.AppStoreDeploymentCommonService
 	validator                  *validator.Validate
-	helmAppService             client.HelmAppService
+	helmAppService             service2.HelmAppService
 	helmAppRestHandler         client.HelmAppRestHandler
 	argoUserService            argo.ArgoUserService
 	attributesService          attributes.AttributesService
@@ -75,7 +76,7 @@ type AppStoreDeploymentRestHandlerImpl struct {
 
 func NewAppStoreDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService,
 	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, enforcerUtilHelm rbac.EnforcerUtilHelm, appStoreDeploymentService service.AppStoreDeploymentService,
-	validator *validator.Validate, helmAppService client.HelmAppService, appStoreDeploymentServiceC appStoreDeploymentCommon.AppStoreDeploymentCommonService,
+	validator *validator.Validate, helmAppService service2.HelmAppService, appStoreDeploymentServiceC appStoreDeploymentCommon.AppStoreDeploymentCommonService,
 	argoUserService argo.ArgoUserService, attributesService attributes.AttributesService) *AppStoreDeploymentRestHandlerImpl {
 	return &AppStoreDeploymentRestHandlerImpl{
 		Logger:                     Logger,
