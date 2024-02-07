@@ -99,10 +99,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appClone"
 	"github.com/devtron-labs/devtron/pkg/appClone/batch"
 	"github.com/devtron-labs/devtron/pkg/appStatus"
-	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/appStore/chartGroup"
 	repository4 "github.com/devtron-labs/devtron/pkg/appStore/chartGroup/repository"
-	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
 	appStoreDeploymentGitopsTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
@@ -113,6 +111,8 @@ import (
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/commonService"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
+	deployment2 "github.com/devtron-labs/devtron/pkg/deployment"
+	git2 "github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
 	"github.com/devtron-labs/devtron/pkg/generateManifest"
@@ -182,6 +182,8 @@ func InitializeApp() (*App, error) {
 		devtronResource.DevtronResourceWireSet,
 		globalConfig.GlobalConfigWireSet,
 		lockConfiguation.LockConfigWireSet,
+		deployment2.DeploymentWireSet,
+
 		// -------wireset end ----------
 		//-------
 		gitSensor.GetConfig,
@@ -195,10 +197,6 @@ func InitializeApp() (*App, error) {
 		//sql.NewDbConnection,
 		//app.GetACDAuthConfig,
 		util3.GetACDAuthConfig,
-		wire.Value(chartRepoRepository.RefChartDir("scripts/devtron-reference-helm-charts")),
-		wire.Value(appStoreBean.RefChartProxyDir("scripts/devtron-reference-helm-charts")),
-		wire.Value(chart.DefaultChart("reference-app-rolling")),
-		wire.Value(util.ChartWorkingDir("/tmp/charts/")),
 		connection.SettingsManager,
 		//auth.GetConfig,
 
@@ -286,8 +284,6 @@ func InitializeApp() (*App, error) {
 
 		util.NewChartTemplateServiceImpl,
 		wire.Bind(new(util.ChartTemplateService), new(*util.ChartTemplateServiceImpl)),
-		util.NewChartDeploymentServiceImpl,
-		wire.Bind(new(util.ChartDeploymentService), new(*util.ChartDeploymentServiceImpl)),
 
 		//scoped variables start
 		variables.NewScopedVariableServiceImpl,
@@ -356,8 +352,6 @@ func InitializeApp() (*App, error) {
 		eClient.NewEventRESTClientImpl,
 		wire.Bind(new(eClient.EventClient), new(*eClient.EventRESTClientImpl)),
 
-		util3.NewTokenCache,
-
 		eClient.NewEventSimpleFactoryImpl,
 		wire.Bind(new(eClient.EventFactory), new(*eClient.EventSimpleFactoryImpl)),
 
@@ -374,7 +368,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipelineConfig.CiPipelineRepository), new(*pipelineConfig.CiPipelineRepositoryImpl)),
 		pipelineConfig.NewCiPipelineMaterialRepositoryImpl,
 		wire.Bind(new(pipelineConfig.CiPipelineMaterialRepository), new(*pipelineConfig.CiPipelineMaterialRepositoryImpl)),
-		util.NewGitFactory,
+		git2.NewGitFactory,
 
 		application.NewApplicationClientImpl,
 		wire.Bind(new(application.ServiceClient), new(*application.ServiceClientImpl)),
@@ -548,11 +542,6 @@ func InitializeApp() (*App, error) {
 
 		restHandler.NewExternalCiRestHandlerImpl,
 		wire.Bind(new(restHandler.ExternalCiRestHandler), new(*restHandler.ExternalCiRestHandlerImpl)),
-		repository.NewAppLevelMetricsRepositoryImpl,
-		wire.Bind(new(repository.AppLevelMetricsRepository), new(*repository.AppLevelMetricsRepositoryImpl)),
-
-		repository.NewEnvLevelAppMetricsRepositoryImpl,
-		wire.Bind(new(repository.EnvLevelAppMetricsRepository), new(*repository.EnvLevelAppMetricsRepositoryImpl)),
 
 		grafana.GetGrafanaClientConfig,
 		grafana.NewGrafanaClientImpl,
@@ -670,8 +659,6 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(restHandler.GitOpsConfigRestHandler), new(*restHandler.GitOpsConfigRestHandlerImpl)),
 		gitops.NewGitOpsConfigServiceImpl,
 		wire.Bind(new(gitops.GitOpsConfigService), new(*gitops.GitOpsConfigServiceImpl)),
-		repository.NewGitOpsConfigRepositoryImpl,
-		wire.Bind(new(repository.GitOpsConfigRepository), new(*repository.GitOpsConfigRepositoryImpl)),
 
 		router.NewAttributesRouterImpl,
 		wire.Bind(new(router.AttributesRouter), new(*router.AttributesRouterImpl)),
@@ -692,7 +679,7 @@ func InitializeApp() (*App, error) {
 		scopedVariable.NewScopedVariableRestHandlerImpl,
 		wire.Bind(new(scopedVariable.ScopedVariableRestHandler), new(*scopedVariable.ScopedVariableRestHandlerImpl)),
 
-		util.NewGitCliUtil,
+		git2.NewGitCliUtil,
 
 		router.NewTelemetryRouterImpl,
 		wire.Bind(new(router.TelemetryRouter), new(*router.TelemetryRouterImpl)),
@@ -753,8 +740,6 @@ func InitializeApp() (*App, error) {
 		delete2.NewDeleteServiceFullModeImpl,
 		wire.Bind(new(delete2.DeleteServiceFullMode), new(*delete2.DeleteServiceFullModeImpl)),
 
-		appStoreDeploymentFullMode.NewAppStoreDeploymentFullModeServiceImpl,
-		wire.Bind(new(appStoreDeploymentFullMode.AppStoreDeploymentFullModeService), new(*appStoreDeploymentFullMode.AppStoreDeploymentFullModeServiceImpl)),
 		appStoreDeploymentGitopsTool.NewAppStoreDeploymentArgoCdServiceImpl,
 		wire.Bind(new(appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdService), new(*appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdServiceImpl)),
 		//	util2.NewGoJsonSchemaCustomFormatChecker,
