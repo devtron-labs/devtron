@@ -70,8 +70,8 @@ func (impl ConfigMapRepositoryImpl) GetConfigNamesForAppAndEnvLevel(appId int, e
 	query := impl.dbConnection.
 		Model().
 		Table(tableName).
-		ColumnExpr("json_array_elements(config_map_data::json->'maps')->>'name' AS cm_name").
-		ColumnExpr("json_array_elements(secret_data::json->'secrets')->>'name' AS cs_name").
+		ColumnExpr("json_array_elements(CASE WHEN (config_map_data::json->'maps')::TEXT != 'null' THEN (config_map_data::json->'maps') ELSE '[]' END )->>'name' AS cm_name").
+		ColumnExpr("json_array_elements(CASE WHEN (secret_data::json->'secrets')::TEXT != 'null' THEN (secret_data::json->'secrets') ELSE '[]' END )->>'name' AS cs_name").
 		Where("app_id = ?", appId)
 
 	if envId > 0 {
