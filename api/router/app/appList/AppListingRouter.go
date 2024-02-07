@@ -38,17 +38,15 @@ func NewAppListingRouterImpl(appListingRestHandler appList.AppListingRestHandler
 }
 
 func (router AppListingRouterImpl) InitAppListingRouter(appListingRouter *mux.Router) {
-
 	appListingRouter.Path("").
-		HandlerFunc(router.appListingRestHandler.FetchAppsByEnvironment).
+		HandlerFunc(router.appListingRestHandler.FetchAppsByEnvironmentV2).
 		Methods("POST")
 
-	appListingRouter.Path("/{version}").
-		HandlerFunc(router.appListingRestHandler.FetchAppsByEnvironmentVersioned).
+	appListingRouter.Path("/v2").
+		HandlerFunc(router.appListingRestHandler.FetchAppsByEnvironmentV2).
 		Methods("POST")
 
 	appListingRouter.Path("/group/{env-id}").
-		Queries("size", "{size}", "offset", "{offset}").
 		HandlerFunc(router.appListingRestHandler.FetchOverviewAppsByEnvironment).
 		Methods("GET")
 }

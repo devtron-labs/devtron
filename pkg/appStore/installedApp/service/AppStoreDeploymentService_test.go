@@ -1,6 +1,7 @@
 package service
 
 import (
+	util3 "github.com/devtron-labs/devtron/util"
 	"testing"
 
 	"github.com/devtron-labs/authenticator/client"
@@ -168,7 +169,12 @@ func initAppStoreDeploymentService(t *testing.T, internalUse bool) *AppStoreDepl
 		nil,
 		nil,
 		InstalledAppVersionHistoryRepository,
-		&DeploymentServiceTypeConfig{ExternallyManagedDeploymentType: internalUse},
+		&util3.EnvironmentVariables{
+			DeploymentServiceTypeConfig: &util3.DeploymentServiceTypeConfig{
+				ExternallyManagedDeploymentType: internalUse
+			},
+		},
+		nil,
 		nil,
 		nil)
 
