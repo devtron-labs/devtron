@@ -65,7 +65,7 @@ if [ $CloudProvider == "gcp" ]
 then
     echo "gcp command"
     docker run  --rm  -v $(pwd):/data  quay.io/devtron/test:69a6cb4fb76e  /bin/bash -c "gcloud auth activate-service-account --key-file=data/gcloud.json;gcloud config set project $GcpProjectName; gcloud storage ls;gsutil cp data/$file gs://$BucketName/ ; gcloud storage ls gs://$BucketName/;"
-    link=$(docker run  --rm  -v $(pwd):/data  quay.io/devtron/test:69a6cb4fb76e  /bin/bash -c "gcloud auth activate-service-account --key-file=data/gcloud.json;gcloud config set project $GcpProjectName; gsutil signurl -d $gcp_secs data/gcloud.json gs://$BucketName/$file " )
+    link=$(docker run  --rm  -v $(pwd):/data  quay.io/devtron/test:69a6cb4fb76e  /bin/bash -c "gcloud auth activate-service-account --key-file=data/gcloud.json;gcloud config set project $GcpProjectName; gsutil signurl -d $gcp_secs data/gcloud.json gs://$BucketName/$file "| awk \'{print $NF}\' )
 fi
 echo "***Copy the below link to download the tar file***"
 echo $link
