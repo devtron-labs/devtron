@@ -132,6 +132,7 @@ type InstalledAppServiceImpl struct {
 	appStoreDeploymentArgoCdService      appStoreDeploymentTool.AppStoreDeploymentArgoCdService
 	appStatusRepository                  appStatus2.AppStatusRepository
 	appStoreDeploymentHelmService        appStoreDeploymentTool.AppStoreDeploymentHelmService
+	clusterRepository                    repository5.ClusterRepository
 }
 
 func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
@@ -156,6 +157,7 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 	acdConfig *argocdServer.ACDConfig,
 	appStoreDeploymentArgoCdService appStoreDeploymentTool.AppStoreDeploymentArgoCdService,
 	appStatusRepository appStatus2.AppStatusRepository, appStoreDeploymentHelmService appStoreDeploymentTool.AppStoreDeploymentHelmService,
+	clusterRepository repository5.ClusterRepository,
 ) (*InstalledAppServiceImpl, error) {
 	impl := &InstalledAppServiceImpl{
 		logger:                               logger,
@@ -189,6 +191,7 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 		appStoreDeploymentArgoCdService:      appStoreDeploymentArgoCdService,
 		appStatusRepository:                  appStatusRepository,
 		appStoreDeploymentHelmService:        appStoreDeploymentHelmService,
+		clusterRepository:                    clusterRepository,
 	}
 	err := impl.Subscribe()
 	if err != nil {
@@ -1126,8 +1129,10 @@ func (impl InstalledAppServiceImpl) MigrateDeploymentType(ctx context.Context, r
 		return response, nil
 	}
 
-	deleteResponse := impl.deleteInstalledApps(ctx, installedApps, request.UserId)
-
+	deleteResponse, err := impl.deleteInstalledApps(ctx, installedApps, request.UserId)
+	if err != nil {
+		return response, err
+	}
 	response.SuccessfulPipelines = deleteResponse.SuccessfulPipelines
 	response.FailedPipelines = deleteResponse.FailedPipelines
 
@@ -1150,7 +1155,7 @@ func (impl InstalledAppServiceImpl) MigrateDeploymentType(ctx context.Context, r
 	return response, nil
 }
 
-func (impl InstalledAppServiceImpl) deleteInstalledApps(ctx context.Context, installedApps []*repository2.InstalledApps, userId int32) *bean.DeploymentAppTypeChangeResponse {
+func (impl InstalledAppServiceImpl) deleteInstalledApps(ctx context.Context, installedApps []*repository2.InstalledApps, userId int32) (*bean.DeploymentAppTypeChangeResponse, error) {
 	successfullyDeletedApps := make([]*bean.DeploymentChangeStatus, 0)
 	failedToDeleteApps := make([]*bean.DeploymentChangeStatus, 0)
 
@@ -1176,7 +1181,7 @@ func (impl InstalledAppServiceImpl) deleteInstalledApps(ctx context.Context, ins
 
 		// delete request
 		if installedApp.DeploymentAppType == bean.ArgoCd {
-			err = impl.appStoreDeploymentArgoCdService.DeleteACD(deploymentAppName, ctx, true)
+			err = impl.appStoreDeploymentArgoCdService.DeleteACD(deploymentAppName, ctx, false)
 		} else {
 			// For converting from Helm to ArgoCD, GitOps should be configured
 			if gitOpsConfigErr != nil || !isGitOpsConfigured {
@@ -1232,7 +1237,7 @@ func (impl InstalledAppServiceImpl) deleteInstalledApps(ctx context.Context, ins
 			}
 			installAppVersionRequest := &appStoreBean.InstallAppVersionDTO{
 				ClusterId: installedApp.Environment.ClusterId,
-				AppName:   deploymentAppName,
+				AppName:   installedApp.App.AppName,
 				Namespace: installedApp.Environment.Namespace,
 			}
 			err = impl.appStoreDeploymentHelmService.DeleteInstalledApp(ctx, "", "", installAppVersionRequest, nil, nil)
@@ -1255,7 +1260,7 @@ func (impl InstalledAppServiceImpl) deleteInstalledApps(ctx context.Context, ins
 	return &bean.DeploymentAppTypeChangeResponse{
 		SuccessfulPipelines: successfullyDeletedApps,
 		FailedPipelines:     failedToDeleteApps,
-	}
+	}, nil
 }
 
 func (impl InstalledAppServiceImpl) isClusterReachable(envId int) (bool, error) {

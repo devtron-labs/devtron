@@ -316,7 +316,7 @@ func InitializeApp() (*App, error) {
 	commonServiceImpl := commonService.NewCommonServiceImpl(sugaredLogger, chartRepositoryImpl, envConfigOverrideRepositoryImpl, gitOpsConfigRepositoryImpl, dockerArtifactStoreRepositoryImpl, attributesRepositoryImpl, gitProviderRepositoryImpl, environmentRepositoryImpl, teamRepositoryImpl, appRepositoryImpl)
 	imageScanDeployInfoRepositoryImpl := security.NewImageScanDeployInfoRepositoryImpl(db, sugaredLogger)
 	imageScanHistoryRepositoryImpl := security.NewImageScanHistoryRepositoryImpl(db, sugaredLogger)
-	argoK8sClientImpl := argocdServer.NewArgoK8sClientImpl(sugaredLogger)
+	argoK8sClientImpl := argocdServer.NewArgoK8sClientImpl(sugaredLogger, k8sServiceImpl)
 	gitCliUtil := util.NewGitCliUtil(sugaredLogger)
 	gitFactory, err := util.NewGitFactory(sugaredLogger, gitOpsConfigRepositoryImpl, gitCliUtil)
 	if err != nil {
@@ -557,7 +557,7 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	installedAppServiceImpl, err := service.NewInstalledAppServiceImpl(sugaredLogger, installedAppRepositoryImpl, appStoreApplicationVersionRepositoryImpl, environmentRepositoryImpl, teamRepositoryImpl, appRepositoryImpl, applicationServiceClientImpl, appStoreValuesServiceImpl, pubSubClientServiceImpl, chartGroupDeploymentRepositoryImpl, environmentServiceImpl, gitFactory, acdAuthConfig, gitOpsConfigRepositoryImpl, userServiceImpl, appStoreDeploymentFullModeServiceImpl, appStoreDeploymentServiceImpl, installedAppVersionHistoryRepositoryImpl, argoUserServiceImpl, helmAppClientImpl, helmAppServiceImpl, appStatusServiceImpl, k8sServiceImpl, pipelineStatusTimelineServiceImpl, appStoreDeploymentCommonServiceImpl, k8sCommonServiceImpl, k8sApplicationServiceImpl, acdConfig, appStoreDeploymentArgoCdServiceImpl, appStatusRepositoryImpl, appStoreDeploymentHelmServiceImpl)
+	installedAppServiceImpl, err := service.NewInstalledAppServiceImpl(sugaredLogger, installedAppRepositoryImpl, appStoreApplicationVersionRepositoryImpl, environmentRepositoryImpl, teamRepositoryImpl, appRepositoryImpl, applicationServiceClientImpl, appStoreValuesServiceImpl, pubSubClientServiceImpl, chartGroupDeploymentRepositoryImpl, environmentServiceImpl, gitFactory, acdAuthConfig, gitOpsConfigRepositoryImpl, userServiceImpl, appStoreDeploymentFullModeServiceImpl, appStoreDeploymentServiceImpl, installedAppVersionHistoryRepositoryImpl, argoUserServiceImpl, helmAppClientImpl, helmAppServiceImpl, appStatusServiceImpl, k8sServiceImpl, pipelineStatusTimelineServiceImpl, appStoreDeploymentCommonServiceImpl, k8sCommonServiceImpl, k8sApplicationServiceImpl, acdConfig, appStoreDeploymentArgoCdServiceImpl, appStatusRepositoryImpl, appStoreDeploymentHelmServiceImpl, clusterRepositoryImpl)
 	if err != nil {
 		return nil, err
 	}

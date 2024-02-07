@@ -871,11 +871,11 @@ func (impl InstalledAppRepositoryImpl) GetActiveInstalledAppByEnvIdAndDeployment
 		Where("installed_apps.active = ?", true)
 
 	if len(excludeAppIds) > 0 {
-		query.Where("pipeline.app_id not in (?)", pg.In(excludeAppIds))
+		query.Where("installed_apps.app_id not in (?)", pg.In(excludeAppIds))
 	}
 
 	if len(includeAppIds) > 0 {
-		query.Where("pipeline.app_id in (?)", pg.In(includeAppIds))
+		query.Where("installed_apps.app_id in (?)", pg.In(includeAppIds))
 	}
 
 	err := query.Select()
@@ -903,10 +903,10 @@ func (impl InstalledAppRepositoryImpl) FindInstalledAppByIds(ids []int) ([]*Inst
 		Join("inner join environment e on installed_apps.environment_id = e.id").
 		Join("inner join cluster c on c.id = e.cluster_id").
 		Where("installed_apps.id in (?)", pg.In(ids)).
-		Where("installed_apps.deleted = false").
+		Where("installed_apps.active = true").
 		Select()
 	if err != nil {
-		impl.Logger.Errorw("error on fetching pipelines", "ids", ids)
+		impl.Logger.Errorw("error on fetching installed apps by ids", "ids", ids)
 	}
 	return installedApps, err
 }
