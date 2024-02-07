@@ -1,11 +1,14 @@
 package application
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/common-lib/utils"
+	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"net/http"
 	"strconv"
 	"strings"
@@ -15,7 +18,6 @@ import (
 	"github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/connector"
-	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
@@ -27,12 +29,16 @@ import (
 	"github.com/devtron-labs/devtron/pkg/terminal"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	errors2 "github.com/juju/errors"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
+	"io"
 	errors3 "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"regexp"
+	"time"
 )
 
 type K8sApplicationRestHandler interface {
@@ -42,6 +48,7 @@ type K8sApplicationRestHandler interface {
 	DeleteResource(w http.ResponseWriter, r *http.Request)
 	ListEvents(w http.ResponseWriter, r *http.Request)
 	GetPodLogs(w http.ResponseWriter, r *http.Request)
+	DownloadPodLogs(w http.ResponseWriter, r *http.Request)
 	GetTerminalSession(w http.ResponseWriter, r *http.Request)
 	GetResourceInfo(w http.ResponseWriter, r *http.Request)
 	GetHostUrlsByBatch(w http.ResponseWriter, r *http.Request)
@@ -620,11 +627,127 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	handler.requestValidationAndRBAC(w, r, token, request)
+	lastEventId := r.Header.Get(bean2.LastEventID)
+	isReconnect := false
+	if len(lastEventId) > 0 {
+		lastSeenMsgId, err := strconv.ParseInt(lastEventId, bean2.IntegerBase, bean2.IntegerBitSize)
+		if err != nil {
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+		lastSeenMsgId = lastSeenMsgId + bean2.TimestampOffsetToAvoidDuplicateLogs //increased by one ns to avoid duplicate
+		t := v1.Unix(0, lastSeenMsgId)
+		request.K8sRequest.PodLogsRequest.SinceTime = &t
+		isReconnect = true
+	}
+	stream, err := handler.k8sApplicationService.GetPodLogs(r.Context(), request)
+	//err is handled inside StartK8sStreamWithHeartBeat method
+	ctx, cancel := context.WithCancel(r.Context())
+	if cn, ok := w.(http.CloseNotifier); ok {
+		go func(done <-chan struct{}, closed <-chan bool) {
+			select {
+			case <-done:
+			case <-closed:
+				cancel()
+			}
+		}(ctx.Done(), cn.CloseNotify())
+	}
+	defer cancel()
+	defer util.Close(stream, handler.logger)
+	handler.pump.StartK8sStreamWithHeartBeat(w, isReconnect, stream, err)
+}
+
+func (handler *K8sApplicationRestHandlerImpl) DownloadPodLogs(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
+	request, err := handler.k8sApplicationService.ValidatePodLogsRequestQuery(r)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	handler.requestValidationAndRBAC(w, r, token, request)
+
+	// just to make sure follow flag is set to false when downloading logs
+	request.K8sRequest.PodLogsRequest.Follow = false
+
+	stream, err := handler.k8sApplicationService.GetPodLogs(r.Context(), request)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	ctx, cancel := context.WithCancel(r.Context())
+	if cn, ok := w.(http.CloseNotifier); ok {
+		go func(done <-chan struct{}, closed <-chan bool) {
+			select {
+			case <-done:
+			case <-closed:
+				cancel()
+			}
+		}(ctx.Done(), cn.CloseNotify())
+	}
+	defer cancel()
+	defer util.Close(stream, handler.logger)
+
+	var dataBuffer bytes.Buffer
+	bufReader := bufio.NewReader(stream)
+	eof := false
+	for !eof {
+		log, err := bufReader.ReadString('\n')
+		log = strings.TrimSpace(log) // Remove trailing line ending
+		a := regexp.MustCompile(" ")
+		var res []byte
+		splitLog := a.Split(log, 2)
+		if len(splitLog[0]) > 0 {
+			parsedTime, err := time.Parse(time.RFC3339, splitLog[0])
+			if err != nil {
+				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+				return
+			}
+			gmtTimeLoc := time.FixedZone(bean2.LocalTimezoneInGMT, bean2.LocalTimeOffset)
+			humanReadableTime := parsedTime.In(gmtTimeLoc).Format(time.RFC1123)
+			res = append(res, humanReadableTime...)
+		}
+
+		if len(splitLog) == 2 {
+			res = append(res, " "...)
+			res = append(res, splitLog[1]...)
+		}
+		res = append(res, "\n"...)
+		if err == io.EOF {
+			eof = true
+			// stop if we reached end of stream and the next line is empty
+			if log == "" {
+				break
+			}
+		} else if err != nil && err != io.EOF {
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		_, err = dataBuffer.Write(res)
+		if err != nil {
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+	}
+	if len(dataBuffer.Bytes()) == 0 {
+		common.WriteJsonResp(w, nil, nil, http.StatusNoContent)
+		return
+	}
+	podLogsFilename := generatePodLogsFilename(request.K8sRequest.ResourceIdentifier.Name)
+	common.WriteOctetStreamResp(w, r, dataBuffer.Bytes(), podLogsFilename)
+	return
+}
+
+func generatePodLogsFilename(filename string) string {
+	return fmt.Sprintf("podlogs-%s-%s.log", filename, uuid.New().String())
+}
+
+func (handler *K8sApplicationRestHandlerImpl) requestValidationAndRBAC(w http.ResponseWriter, r *http.Request, token string, request *k8s.ResourceRequestBean) {
 	if request.AppIdentifier != nil {
 		if request.DeploymentType == bean2.HelmInstalledType {
 			valid, err := handler.k8sApplicationService.ValidateResourceRequest(r.Context(), request.AppIdentifier, request.K8sRequest)
 			if err != nil || !valid {
-				handler.logger.Errorw("error in validating resource request", "err", err)
+				handler.logger.Errorw("error in validating resource request", "err", err, "request.AppIdentifier", request.AppIdentifier, "request.K8sRequest", request.K8sRequest)
 				apiError := util2.ApiError{
 					InternalMessage: "failed to validate the resource with error " + err.Error(),
 					UserMessage:     "Failed to validate resource",
@@ -671,34 +794,6 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 		common.WriteJsonResp(w, errors.New("can not get pod logs as target cluster is not provided"), nil, http.StatusBadRequest)
 		return
 	}
-	lastEventId := r.Header.Get("Last-Event-ID")
-	isReconnect := false
-	if len(lastEventId) > 0 {
-		lastSeenMsgId, err := strconv.ParseInt(lastEventId, 10, 64)
-		if err != nil {
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-			return
-		}
-		lastSeenMsgId = lastSeenMsgId + 1 //increased by one ns to avoid duplicate
-		t := v1.Unix(0, lastSeenMsgId)
-		request.K8sRequest.PodLogsRequest.SinceTime = &t
-		isReconnect = true
-	}
-	stream, err := handler.k8sApplicationService.GetPodLogs(r.Context(), request)
-	//err is handled inside StartK8sStreamWithHeartBeat method
-	ctx, cancel := context.WithCancel(r.Context())
-	if cn, ok := w.(http.CloseNotifier); ok {
-		go func(done <-chan struct{}, closed <-chan bool) {
-			select {
-			case <-done:
-			case <-closed:
-				cancel()
-			}
-		}(ctx.Done(), cn.CloseNotify())
-	}
-	defer cancel()
-	defer util.Close(stream, handler.logger)
-	handler.pump.StartK8sStreamWithHeartBeat(w, isReconnect, stream, err)
 }
 
 func (handler *K8sApplicationRestHandlerImpl) GetTerminalSession(w http.ResponseWriter, r *http.Request) {

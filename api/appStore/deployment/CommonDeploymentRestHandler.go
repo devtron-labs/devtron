@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	service2 "github.com/devtron-labs/devtron/api/helm-app/service"
 	"net/http"
 	"strconv"
 	"time"
@@ -31,7 +32,6 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
-	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
@@ -51,35 +51,33 @@ type CommonDeploymentRestHandler interface {
 }
 
 type CommonDeploymentRestHandlerImpl struct {
-	Logger                     *zap.SugaredLogger
-	userAuthService            user.UserService
-	enforcer                   casbin.Enforcer
-	enforcerUtil               rbac.EnforcerUtil
-	enforcerUtilHelm           rbac.EnforcerUtilHelm
-	appStoreDeploymentService  service.AppStoreDeploymentService
-	appStoreDeploymentServiceC appStoreDeploymentCommon.AppStoreDeploymentCommonService
-	validator                  *validator.Validate
-	helmAppService             client.HelmAppService
-	helmAppRestHandler         client.HelmAppRestHandler
-	argoUserService            argo.ArgoUserService
+	Logger                    *zap.SugaredLogger
+	userAuthService           user.UserService
+	enforcer                  casbin.Enforcer
+	enforcerUtil              rbac.EnforcerUtil
+	enforcerUtilHelm          rbac.EnforcerUtilHelm
+	appStoreDeploymentService service.AppStoreDeploymentService
+	validator                 *validator.Validate
+	helmAppService            service2.HelmAppService
+	helmAppRestHandler        client.HelmAppRestHandler
+	argoUserService           argo.ArgoUserService
 }
 
 func NewCommonDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService,
 	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, enforcerUtilHelm rbac.EnforcerUtilHelm, appStoreDeploymentService service.AppStoreDeploymentService,
-	validator *validator.Validate, helmAppService client.HelmAppService, appStoreDeploymentServiceC appStoreDeploymentCommon.AppStoreDeploymentCommonService,
+	validator *validator.Validate, helmAppService service2.HelmAppService,
 	helmAppRestHandler client.HelmAppRestHandler, argoUserService argo.ArgoUserService) *CommonDeploymentRestHandlerImpl {
 	return &CommonDeploymentRestHandlerImpl{
-		Logger:                     Logger,
-		userAuthService:            userAuthService,
-		enforcer:                   enforcer,
-		enforcerUtil:               enforcerUtil,
-		enforcerUtilHelm:           enforcerUtilHelm,
-		appStoreDeploymentService:  appStoreDeploymentService,
-		validator:                  validator,
-		helmAppService:             helmAppService,
-		appStoreDeploymentServiceC: appStoreDeploymentServiceC,
-		helmAppRestHandler:         helmAppRestHandler,
-		argoUserService:            argoUserService,
+		Logger:                    Logger,
+		userAuthService:           userAuthService,
+		enforcer:                  enforcer,
+		enforcerUtil:              enforcerUtil,
+		enforcerUtilHelm:          enforcerUtilHelm,
+		appStoreDeploymentService: appStoreDeploymentService,
+		validator:                 validator,
+		helmAppService:            helmAppService,
+		helmAppRestHandler:        helmAppRestHandler,
+		argoUserService:           argoUserService,
 	}
 }
 func (handler *CommonDeploymentRestHandlerImpl) getAppOfferingMode(installedAppId string, appId string) (string, *appStoreBean.InstallAppVersionDTO, error) {
@@ -91,7 +89,7 @@ func (handler *CommonDeploymentRestHandlerImpl) getAppOfferingMode(installedAppI
 			err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "invalid app id"}
 			return appOfferingMode, installedAppDto, err
 		}
-		installedAppDto, err = handler.appStoreDeploymentServiceC.GetInstalledAppByClusterNamespaceAndName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
+		installedAppDto, err = handler.appStoreDeploymentService.GetInstalledAppByClusterNamespaceAndName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
 		if err != nil {
 			err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "unable to find app in database"}
 			return appOfferingMode, installedAppDto, err
@@ -117,7 +115,7 @@ func (handler *CommonDeploymentRestHandlerImpl) getAppOfferingMode(installedAppI
 			err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "invalid installed app id"}
 			return appOfferingMode, installedAppDto, err
 		}
-		installedAppDto, err = handler.appStoreDeploymentServiceC.GetInstalledAppByInstalledAppId(installedAppId)
+		installedAppDto, err = handler.appStoreDeploymentService.GetInstalledAppByInstalledAppId(installedAppId)
 		if err != nil {
 			err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "unable to find app in database"}
 			return appOfferingMode, installedAppDto, err
