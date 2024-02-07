@@ -22,6 +22,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"github.com/devtron-labs/common-lib/middlewares"
+	"github.com/devtron-labs/devtron/pkg/eventProcessor"
 	"log"
 	"net/http"
 	"os"
@@ -56,6 +57,7 @@ type App struct {
 	db            *pg.DB
 	pubsubClient  *pubsub.PubSubClientServiceImpl
 	posthogClient *telemetry.PosthogClient
+	centralEventProcessor *eventProcessor.CentralEventProcessor
 	// used for local dev only
 	serveTls           bool
 	sessionManager2    *authMiddleware.SessionManager
@@ -73,6 +75,7 @@ func NewApp(router *router.MuxRouter,
 	sessionManager2 *authMiddleware.SessionManager,
 	posthogClient *telemetry.PosthogClient,
 	loggingMiddleware util.LoggingMiddleware,
+	centralEventProcessor *eventProcessor.CentralEventProcessor,
 ) *App {
 	//check argo connection
 	//todo - check argo-cd version on acd integration installation
@@ -89,6 +92,7 @@ func NewApp(router *router.MuxRouter,
 		posthogClient:      posthogClient,
 		OtelTracingService: otel.NewOtelTracingServiceImpl(Logger),
 		loggingMiddleware:  loggingMiddleware,
+		centralEventProcessor: centralEventProcessor,
 	}
 	return app
 }

@@ -23,6 +23,11 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/common-lib/pubsub-lib/model"
+	"github.com/devtron-labs/devtron/pkg/app"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
+	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
+	"github.com/devtron-labs/devtron/pkg/workflow/cd"
+	"github.com/devtron-labs/devtron/pkg/workflow/dag"
 	"k8s.io/utils/pointer"
 	"time"
 
@@ -34,7 +39,6 @@ import (
 
 	v1alpha12 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
-	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/go-pg/pg"
@@ -50,18 +54,22 @@ type ApplicationStatusHandlerImpl struct {
 	logger                    *zap.SugaredLogger
 	pubsubClient              *pubsub.PubSubClientServiceImpl
 	appService                app.AppService
-	workflowDagExecutor       pipeline.WorkflowDagExecutor
+	workflowDagExecutor       dag.WorkflowDagExecutor
 	installedAppService       service.InstalledAppService
 	appStoreDeploymentService service.AppStoreDeploymentService
 	pipelineBuilder           pipeline.PipelineBuilder
 	pipelineRepository        pipelineConfig.PipelineRepository
 	installedAppRepository    repository4.InstalledAppRepository
+	gitOpsConfigReadService   config.GitOpsConfigReadService
+	cdWorkflowCommonService   cd.CdWorkflowCommonService
 }
 
 func NewApplicationStatusHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSubClientServiceImpl, appService app.AppService,
-	workflowDagExecutor pipeline.WorkflowDagExecutor, installedAppService service.InstalledAppService,
+	workflowDagExecutor dag.WorkflowDagExecutor, installedAppService service.InstalledAppService,
 	appStoreDeploymentService service.AppStoreDeploymentService, pipelineBuilder pipeline.PipelineBuilder,
-	pipelineRepository pipelineConfig.PipelineRepository, installedAppRepository repository4.InstalledAppRepository) *ApplicationStatusHandlerImpl {
+	pipelineRepository pipelineConfig.PipelineRepository, installedAppRepository repository4.InstalledAppRepository,
+	gitOpsConfigReadService config.GitOpsConfigReadService,
+	cdWorkflowCommonService cd.CdWorkflowCommonService) *ApplicationStatusHandlerImpl {
 	appStatusUpdateHandlerImpl := &ApplicationStatusHandlerImpl{
 		logger:                    logger,
 		pubsubClient:              pubsubClient,
@@ -72,6 +80,8 @@ func NewApplicationStatusHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pu
 		pipelineBuilder:           pipelineBuilder,
 		pipelineRepository:        pipelineRepository,
 		installedAppRepository:    installedAppRepository,
+		gitOpsConfigReadService:   gitOpsConfigReadService,
+		cdWorkflowCommonService:   cdWorkflowCommonService,
 	}
 	err := appStatusUpdateHandlerImpl.subscribe()
 	if err != nil {
@@ -119,13 +129,7 @@ func (impl *ApplicationStatusHandlerImpl) subscribe() error {
 				impl.logger.Errorw("error in getting all gitops deployment app names from installed_apps ", "err", err)
 				return
 			}
-			var devtronGitOpsAppName string
-			gitOpsRepoPrefix := impl.appService.GetGitOpsRepoPrefix()
-			if len(gitOpsRepoPrefix) > 0 {
-				devtronGitOpsAppName = fmt.Sprintf("%s-%s", gitOpsRepoPrefix, app.ObjectMeta.Name)
-			} else {
-				devtronGitOpsAppName = app.ObjectMeta.Name
-			}
+			devtronGitOpsAppName := impl.gitOpsConfigReadService.GetGitOpsRepoName(app.ObjectMeta.Name)
 			if slices.Contains(gitOpsDeployedAppNames, devtronGitOpsAppName) {
 				// app found in installed_apps table hence setting flag to true
 				isAppStoreApplication = true
@@ -153,7 +157,7 @@ func (impl *ApplicationStatusHandlerImpl) subscribe() error {
 		// invoke DagExecutor, for cd success which will trigger post stage if exist.
 		if isSucceeded {
 			impl.logger.Debugw("git hash history", "list", app.Status.History)
-			triggerContext := pipeline.TriggerContext{
+			triggerContext := bean2.TriggerContext{
 				ReferenceId: pointer.String(msg.MsgId),
 			}
 			err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent(triggerContext, pipelineOverride)
@@ -170,7 +174,7 @@ func (impl *ApplicationStatusHandlerImpl) subscribe() error {
 		return "", nil
 	}
 
-	validations := impl.workflowDagExecutor.GetTriggerValidateFuncs()
+	validations := impl.cdWorkflowCommonService.GetTriggerValidateFuncs()
 	err := impl.pubsubClient.Subscribe(pubsub.APPLICATION_STATUS_UPDATE_TOPIC, callback, loggerFunc, validations...)
 	if err != nil {
 		impl.logger.Error(err)

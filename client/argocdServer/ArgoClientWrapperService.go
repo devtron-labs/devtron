@@ -2,10 +2,12 @@ package argocdServer
 
 import (
 	"context"
+	"encoding/json"
 	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	repository2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/caarlos0/env"
+	"github.com/devtron-labs/devtron/client/argocdServer/adapter"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/repository"
@@ -28,17 +30,23 @@ func GetACDDeploymentConfig() (*ACDConfig, error) {
 
 type ArgoClientWrapperService interface {
 
-	//GetArgoAppWithNormalRefresh - refresh app at argocd side
+	// GetArgoAppWithNormalRefresh - refresh app at argocd side
 	GetArgoAppWithNormalRefresh(context context.Context, argoAppName string) error
 
-	//SyncArgoCDApplicationIfNeededAndRefresh - if ARGO_AUTO_SYNC_ENABLED=true, app will be refreshed to initiate refresh at argoCD side or else it will be synced and refreshed
+	// SyncArgoCDApplicationIfNeededAndRefresh - if ARGO_AUTO_SYNC_ENABLED=true, app will be refreshed to initiate refresh at argoCD side or else it will be synced and refreshed
 	SyncArgoCDApplicationIfNeededAndRefresh(context context.Context, argoAppName string) error
 
 	// UpdateArgoCDSyncModeIfNeeded - if ARGO_AUTO_SYNC_ENABLED=true and app is in manual sync mode or vice versa update app
 	UpdateArgoCDSyncModeIfNeeded(ctx context.Context, argoApplication *v1alpha1.Application) (err error)
 
-	//RegisterGitOpsRepoInArgo - register a repository in argo-cd
+	// RegisterGitOpsRepoInArgo - register a repository in argo-cd
 	RegisterGitOpsRepoInArgo(ctx context.Context, repoUrl string) (err error)
+
+	// GetArgoAppByName fetches an argoCd app by its name
+	GetArgoAppByName(ctx context.Context, appName string) (*v1alpha1.Application, error)
+
+	// PatchArgoCdApp performs a patch operation on an argoCd app
+	PatchArgoCdApp(ctx context.Context, dto *bean.ArgoCdAppPatchReqDto) error
 }
 
 type ArgoClientWrapperServiceImpl struct {
@@ -146,4 +154,29 @@ func (impl *ArgoClientWrapperServiceImpl) RegisterGitOpsRepoInArgo(ctx context.C
 	}
 	impl.logger.Infow("gitOps repo registered in argo", "name", repoUrl)
 	return err
+}
+
+func (impl *ArgoClientWrapperServiceImpl) GetArgoAppByName(ctx context.Context, appName string) (*v1alpha1.Application, error) {
+	argoApplication, err := impl.acdClient.Get(ctx, &application2.ApplicationQuery{Name: &appName})
+	if err != nil {
+		impl.logger.Errorw("err in getting argo app by name", "app", appName)
+		return nil, err
+	}
+	return argoApplication, nil
+}
+
+func (impl *ArgoClientWrapperServiceImpl) PatchArgoCdApp(ctx context.Context, dto *bean.ArgoCdAppPatchReqDto) error {
+	patchReq := adapter.GetArgoCdPatchReqFromDto(dto)
+	reqbyte, err := json.Marshal(patchReq)
+	if err != nil {
+		impl.logger.Errorw("error in creating patch", "err", err)
+		return err
+	}
+	reqString := string(reqbyte)
+	_, err = impl.acdClient.Patch(ctx, &application2.ApplicationPatchRequest{Patch: &reqString, Name: &dto.ArgoAppName, PatchType: &dto.PatchType})
+	if err != nil {
+		impl.logger.Errorw("error in patching argo pipeline ", "name", dto.ArgoAppName, "patch", reqString, "err", err)
+		return err
+	}
+	return nil
 }

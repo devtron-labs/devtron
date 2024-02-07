@@ -21,6 +21,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/deployment/deployedApp"
+	bean2 "github.com/devtron-labs/devtron/pkg/deployment/deployedApp/bean"
+	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps"
+	bean3 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
+	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
+	bean4 "github.com/devtron-labs/devtron/pkg/eventProcessor/out/bean"
+	"github.com/devtron-labs/devtron/pkg/workflow/dag"
 	"net/http"
 	"strconv"
 
@@ -54,35 +61,44 @@ type PipelineTriggerRestHandler interface {
 }
 
 type PipelineTriggerRestHandlerImpl struct {
-	appService              app.AppService
-	userAuthService         user.UserService
-	validator               *validator.Validate
-	enforcer                casbin.Enforcer
-	teamService             team.TeamService
-	logger                  *zap.SugaredLogger
-	workflowDagExecutor     pipeline.WorkflowDagExecutor
-	enforcerUtil            rbac.EnforcerUtil
-	deploymentGroupService  deploymentGroup.DeploymentGroupService
-	argoUserService         argo.ArgoUserService
-	deploymentConfigService pipeline.DeploymentConfigService
+	appService                  app.AppService
+	userAuthService             user.UserService
+	validator                   *validator.Validate
+	enforcer                    casbin.Enforcer
+	teamService                 team.TeamService
+	logger                      *zap.SugaredLogger
+	workflowDagExecutor         dag.WorkflowDagExecutor
+	enforcerUtil                rbac.EnforcerUtil
+	deploymentGroupService      deploymentGroup.DeploymentGroupService
+	argoUserService             argo.ArgoUserService
+	deploymentConfigService     pipeline.DeploymentConfigService
+	deployedAppService          deployedApp.DeployedAppService
+	cdTriggerService            devtronApps.TriggerService
+	workflowEventPublishService out.WorkflowEventPublishService
 }
 
 func NewPipelineRestHandler(appService app.AppService, userAuthService user.UserService, validator *validator.Validate,
 	enforcer casbin.Enforcer, teamService team.TeamService, logger *zap.SugaredLogger, enforcerUtil rbac.EnforcerUtil,
-	workflowDagExecutor pipeline.WorkflowDagExecutor, deploymentGroupService deploymentGroup.DeploymentGroupService,
-	argoUserService argo.ArgoUserService, deploymentConfigService pipeline.DeploymentConfigService) *PipelineTriggerRestHandlerImpl {
+	workflowDagExecutor dag.WorkflowDagExecutor, deploymentGroupService deploymentGroup.DeploymentGroupService,
+	argoUserService argo.ArgoUserService, deploymentConfigService pipeline.DeploymentConfigService,
+	deployedAppService deployedApp.DeployedAppService,
+	cdTriggerService devtronApps.TriggerService,
+	workflowEventPublishService out.WorkflowEventPublishService) *PipelineTriggerRestHandlerImpl {
 	pipelineHandler := &PipelineTriggerRestHandlerImpl{
-		appService:              appService,
-		userAuthService:         userAuthService,
-		validator:               validator,
-		enforcer:                enforcer,
-		teamService:             teamService,
-		logger:                  logger,
-		workflowDagExecutor:     workflowDagExecutor,
-		enforcerUtil:            enforcerUtil,
-		deploymentGroupService:  deploymentGroupService,
-		argoUserService:         argoUserService,
-		deploymentConfigService: deploymentConfigService,
+		appService:                  appService,
+		userAuthService:             userAuthService,
+		validator:                   validator,
+		enforcer:                    enforcer,
+		teamService:                 teamService,
+		logger:                      logger,
+		workflowDagExecutor:         workflowDagExecutor,
+		enforcerUtil:                enforcerUtil,
+		deploymentGroupService:      deploymentGroupService,
+		argoUserService:             argoUserService,
+		deploymentConfigService:     deploymentConfigService,
+		deployedAppService:          deployedAppService,
+		cdTriggerService:            cdTriggerService,
+		workflowEventPublishService: workflowEventPublishService,
 	}
 	return pipelineHandler
 }
@@ -131,10 +147,10 @@ func (handler PipelineTriggerRestHandlerImpl) OverrideConfig(w http.ResponseWrit
 	}
 	ctx := context.WithValue(r.Context(), "token", acdToken)
 	_, span := otel.Tracer("orchestrator").Start(ctx, "workflowDagExecutor.ManualCdTrigger")
-	triggerContext := pipeline.TriggerContext{
+	triggerContext := bean3.TriggerContext{
 		Context: ctx,
 	}
-	mergeResp, helmPackageName, err := handler.workflowDagExecutor.ManualCdTrigger(triggerContext, &overrideRequest)
+	mergeResp, helmPackageName, err := handler.cdTriggerService.ManualCdTrigger(triggerContext, &overrideRequest)
 	span.End()
 	if err != nil {
 		handler.logger.Errorw("request err, OverrideConfig", "err", err, "payload", overrideRequest)
@@ -152,7 +168,7 @@ func (handler PipelineTriggerRestHandlerImpl) RotatePods(w http.ResponseWriter, 
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var podRotateRequest pipeline.PodRotateRequest
+	var podRotateRequest bean2.PodRotateRequest
 	err = decoder.Decode(&podRotateRequest)
 	if err != nil {
 		handler.logger.Errorw("request err, RotatePods", "err", err, "payload", podRotateRequest)
@@ -178,7 +194,7 @@ func (handler PipelineTriggerRestHandlerImpl) RotatePods(w http.ResponseWriter, 
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	rotatePodResponse, err := handler.workflowDagExecutor.RotatePods(r.Context(), &podRotateRequest)
+	rotatePodResponse, err := handler.deployedAppService.RotatePods(r.Context(), &podRotateRequest)
 	if err != nil {
 		handler.logger.Errorw("service err, RotatePods", "err", err, "payload", podRotateRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -194,7 +210,7 @@ func (handler PipelineTriggerRestHandlerImpl) StartStopApp(w http.ResponseWriter
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var overrideRequest pipeline.StopAppRequest
+	var overrideRequest bean2.StopAppRequest
 	err = decoder.Decode(&overrideRequest)
 	if err != nil {
 		handler.logger.Errorw("request err, StartStopApp", "err", err, "payload", overrideRequest)
@@ -229,10 +245,7 @@ func (handler PipelineTriggerRestHandlerImpl) StartStopApp(w http.ResponseWriter
 		return
 	}
 	ctx := context.WithValue(r.Context(), "token", acdToken)
-	triggerContext := pipeline.TriggerContext{
-		Context: ctx,
-	}
-	mergeResp, err := handler.workflowDagExecutor.StopStartApp(triggerContext, &overrideRequest)
+	mergeResp, err := handler.deployedAppService.StopStartApp(ctx, &overrideRequest)
 	if err != nil {
 		handler.logger.Errorw("service err, StartStopApp", "err", err, "payload", overrideRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -250,7 +263,7 @@ func (handler PipelineTriggerRestHandlerImpl) StartStopDeploymentGroup(w http.Re
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var stopDeploymentGroupRequest pipeline.StopDeploymentGroupRequest
+	var stopDeploymentGroupRequest bean4.StopDeploymentGroupRequest
 	err = decoder.Decode(&stopDeploymentGroupRequest)
 	if err != nil {
 		handler.logger.Errorw("request err, StartStopDeploymentGroup", "err", err, "payload", stopDeploymentGroupRequest)
@@ -286,14 +299,7 @@ func (handler PipelineTriggerRestHandlerImpl) StartStopDeploymentGroup(w http.Re
 		return
 	}
 	//rback block ends here
-	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		handler.logger.Errorw("error in getting acd token", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	ctx := context.WithValue(r.Context(), "token", acdToken)
-	res, err := handler.workflowDagExecutor.TriggerBulkHibernateAsync(stopDeploymentGroupRequest, ctx)
+	res, err := handler.workflowEventPublishService.TriggerBulkHibernateAsync(stopDeploymentGroupRequest)
 	if err != nil {
 		handler.logger.Errorw("service err, StartStopDeploymentGroup", "err", err, "payload", stopDeploymentGroupRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
