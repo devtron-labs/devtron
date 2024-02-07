@@ -3,6 +3,9 @@ package capacity
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"github.com/devtron-labs/common-lib/utils"
+	"github.com/devtron-labs/devtron/pkg/k8s"
 	"net/http"
 	"strconv"
 
@@ -311,6 +314,15 @@ func (handler *K8sCapacityRestHandlerImpl) DeleteNode(w http.ResponseWriter, r *
 	}
 	updatedManifest, err := handler.k8sCapacityService.DeleteNode(r.Context(), &nodeDelReq)
 	if err != nil {
+		errCode := http.StatusInternalServerError
+		if apiErr, ok := err.(*utils.ApiError); ok {
+			errCode = apiErr.HttpStatusCode
+			switch errCode {
+			case http.StatusNotFound:
+				errorMessage := k8s.ResourceNotFoundErr
+				err = fmt.Errorf("%s: %w", errorMessage, err)
+			}
+		}
 		handler.logger.Errorw("error in deleting node", "err", err, "deleteRequest", nodeDelReq)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
