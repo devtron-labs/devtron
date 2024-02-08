@@ -172,6 +172,7 @@ func (handler *InfraConfigRestHandlerImpl) CreateProfile(w http.ResponseWriter, 
 	if err != nil {
 		err = errors.Wrap(err, infraConfig.PayloadValidationError)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
 	}
 
 	err = handler.infraProfileService.CreateProfile(userId, payload)
