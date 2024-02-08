@@ -77,3 +77,6 @@ INSERT INTO "plugin_step_variable" ("id", "plugin_step_id", "name", "format", "d
 (nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Container Image Exporter v1.0.0' and ps."index"=1 and ps.deleted=false), 'GcpProjectName','STRING','Specify Google Account Project Name',true,true,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1);
 
 UPDATE plugin_step_variable SET description='Provide which cloud storage provider you want to use: "aws" for Amazon S3 or "azure" for Azure Blob Storage or "gcp" for Google Cloud Storage' WHERE name='CloudProvider';
+
+UPDATE plugin_step_variable SET description='If you would like to add a prefix to the exported image files name,  enter it here.' WHERE name='FilePrefix';
+'
