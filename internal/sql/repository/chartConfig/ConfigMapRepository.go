@@ -54,7 +54,7 @@ func NewConfigMapRepositoryImpl(Logger *zap.SugaredLogger, dbConnection *pg.DB) 
 
 const (
 	ConfigMapAppLevel string = "config_map_app_level"
-	ConfigMapEnvLevel string = "config_map_app_level"
+	ConfigMapEnvLevel string = "config_map_env_level"
 )
 
 type ConfigMapAppModel struct {
