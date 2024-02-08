@@ -14,9 +14,9 @@ type QualifierMappingService interface {
 	GetQualifierMappingsForFilterById(resourceId int) ([]*QualifierMapping, error)
 	GetQualifierMappings(resourceType ResourceType, scope *Scope, resourceIds []int) ([]*QualifierMapping, error)
 	GetQualifierMappingsByResourceType(resourceType ResourceType) ([]*QualifierMapping, error)
-	GetActiveIdentifierCountPerResource(resourceType ResourceType, resourceIds []int, identifierKey int) ([]ResourceIdentifierCount, error)
+	GetActiveIdentifierCountPerResource(resourceType ResourceType, resourceIds []int, identifierKey int, identifierValueIntSpaceQuery string) ([]ResourceIdentifierCount, error)
 	GetIdentifierIdsByResourceTypeAndIds(resourceType ResourceType, resourceIds []int, identifierKey int) ([]int, error)
-	GetActiveMappingsCount(resourceType ResourceType) (int, error)
+	GetActiveMappingsCount(resourceType ResourceType, excludeIdentifiersQuery string, identifierKey int) (int, error)
 	DeleteAllQualifierMappings(resourceType ResourceType, auditLog sql.AuditLog, tx *pg.Tx) error
 	DeleteAllQualifierMappingsByResourceTypeAndId(resourceType ResourceType, resourceId int, auditLog sql.AuditLog, tx *pg.Tx) error
 	DeleteByIdentifierKeyAndValue(resourceType ResourceType, identifierKey int, identifierValue int, auditLog sql.AuditLog, tx *pg.Tx) error
@@ -24,7 +24,7 @@ type QualifierMappingService interface {
 	DeleteAllByIds(qualifierMappingIds []int, userId int32, tx *pg.Tx) error
 	DeleteGivenQualifierMappingsByResourceType(resourceType ResourceType, identifierKey int, identifierValueInts []int, auditLog sql.AuditLog, tx *pg.Tx) error
 	GetResourceIdsByIdentifier(resourceType ResourceType, identifierKey int, identifierId int) ([]int, error)
-	GetQualifierMappingsWithIdentifierFilter(resourceType ResourceType, resourceId, identifierKey int, identifierValueStringLike, identifierValueSortOrder string, limit, offset int, needTotalCount bool) ([]*QualifierMappingWithExtraColumns, error)
+	GetQualifierMappingsWithIdentifierFilter(resourceType ResourceType, resourceId, identifierKey int, identifierValueStringLike, identifierValueSortOrder, excludeActiveIdentifiersQuery string, limit, offset int, needTotalCount bool) ([]*QualifierMappingWithExtraColumns, error)
 }
 
 type QualifierMappingServiceImpl struct {
@@ -98,22 +98,22 @@ func (impl QualifierMappingServiceImpl) DeleteGivenQualifierMappingsByResourceTy
 	return impl.qualifierMappingRepository.DeleteGivenQualifierMappingsByResourceType(resourceType, identifierKey, identifierValueInts, auditLog, tx)
 }
 
-func (impl QualifierMappingServiceImpl) GetActiveIdentifierCountPerResource(resourceType ResourceType, resourceIds []int, identifierKey int) ([]ResourceIdentifierCount, error) {
-	return impl.qualifierMappingRepository.GetActiveIdentifierCountPerResource(resourceType, resourceIds, identifierKey)
+func (impl QualifierMappingServiceImpl) GetActiveIdentifierCountPerResource(resourceType ResourceType, resourceIds []int, identifierKey int, identifierValueIntSpaceQuery string) ([]ResourceIdentifierCount, error) {
+	return impl.qualifierMappingRepository.GetActiveIdentifierCountPerResource(resourceType, resourceIds, identifierKey, identifierValueIntSpaceQuery)
 }
 
 func (impl QualifierMappingServiceImpl) GetIdentifierIdsByResourceTypeAndIds(resourceType ResourceType, resourceIds []int, identifierKey int) ([]int, error) {
 	return impl.qualifierMappingRepository.GetIdentifierIdsByResourceTypeAndIds(resourceType, resourceIds, identifierKey)
 }
 
-func (impl QualifierMappingServiceImpl) GetActiveMappingsCount(resourceType ResourceType) (int, error) {
-	return impl.qualifierMappingRepository.GetActiveMappingsCount(resourceType)
+func (impl QualifierMappingServiceImpl) GetActiveMappingsCount(resourceType ResourceType, excludeIdentifiersQuery string, identifierKey int) (int, error) {
+	return impl.qualifierMappingRepository.GetActiveMappingsCount(resourceType, excludeIdentifiersQuery, identifierKey)
 }
 
 func (impl QualifierMappingServiceImpl) GetResourceIdsByIdentifier(resourceType ResourceType, identifierKey int, identifierId int) ([]int, error) {
 	return impl.qualifierMappingRepository.GetResourceIdsByIdentifier(resourceType, identifierKey, identifierId)
 }
 
-func (impl QualifierMappingServiceImpl) GetQualifierMappingsWithIdentifierFilter(resourceType ResourceType, resourceId, identifierKey int, identifierValueStringLike, identifierValueSortOrder string, limit, offset int, needTotalCount bool) ([]*QualifierMappingWithExtraColumns, error) {
-	return impl.qualifierMappingRepository.GetQualifierMappingsWithIdentifierFilter(resourceType, resourceId, identifierKey, identifierValueStringLike, identifierValueSortOrder, limit, offset, needTotalCount)
+func (impl QualifierMappingServiceImpl) GetQualifierMappingsWithIdentifierFilter(resourceType ResourceType, resourceId, identifierKey int, identifierValueStringLike, identifierValueSortOrder string, excludeActiveIdentifiersQuery string, limit, offset int, needTotalCount bool) ([]*QualifierMappingWithExtraColumns, error) {
+	return impl.qualifierMappingRepository.GetQualifierMappingsWithIdentifierFilter(resourceType, resourceId, identifierKey, identifierValueStringLike, identifierValueSortOrder, excludeActiveIdentifiersQuery, limit, offset, needTotalCount)
 }

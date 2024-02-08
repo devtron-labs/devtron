@@ -13,6 +13,8 @@ const profileApplyErr = "selected filter does not match any apps, cannot apply t
 const APPLICATION IdentifierType = "application"
 const InvalidIdentifierType = "identifier %s is not valid"
 const PROFILE_IDS_REQUIRED = "profile ids cannot be empty"
+const ActiveAppIdsQuery = "SELECT id " +
+	"FROM app WHERE active=true"
 
 const NORMAL ProfileType = "NORMAL"
 const InvalidUnit = "invalid %s unit found in %s "

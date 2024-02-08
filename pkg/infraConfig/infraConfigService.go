@@ -177,7 +177,7 @@ func (impl *InfraConfigServiceImpl) GetProfileList(profileNameLike string) ([]Pr
 		profileIds = append(profileIds, profileId)
 	}
 	searchableKeyNameIdMap := impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap()
-	profileAppCount, err := impl.qualifierMappingService.GetActiveIdentifierCountPerResource(resourceQualifiers.InfraProfile, profileIds, GetIdentifierKey(APPLICATION, searchableKeyNameIdMap))
+	profileAppCount, err := impl.qualifierMappingService.GetActiveIdentifierCountPerResource(resourceQualifiers.InfraProfile, profileIds, GetIdentifierKey(APPLICATION, searchableKeyNameIdMap), ActiveAppIdsQuery)
 	if err != nil {
 		impl.logger.Errorw("error in fetching app count for non default profiles", "profileIds", profileIds, "error", err)
 		return nil, nil, err
@@ -328,8 +328,9 @@ func (impl *InfraConfigServiceImpl) GetIdentifierList(listFilter *IdentifierList
 
 	// case-2 : if profile name is provided get those apps which are found in resource_qualifier_mapping table.
 
+	searchableKeyNameIdMap := impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap()
 	identifierListResponse := &IdentifierProfileResponse{}
-	identifiers, err := impl.getIdentifierList(*listFilter, impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap())
+	identifiers, err := impl.getIdentifierList(*listFilter, searchableKeyNameIdMap)
 	if err != nil {
 		impl.logger.Errorw("error in fetching identifiers", "listFilter", listFilter, "error", err)
 		return nil, err
@@ -360,7 +361,7 @@ func (impl *InfraConfigServiceImpl) GetIdentifierList(listFilter *IdentifierList
 		}
 	}
 
-	overriddenIdentifiersCount, err := impl.qualifierMappingService.GetActiveMappingsCount(resourceQualifiers.InfraProfile)
+	overriddenIdentifiersCount, err := impl.qualifierMappingService.GetActiveMappingsCount(resourceQualifiers.InfraProfile, ActiveAppIdsQuery, GetIdentifierKey(APPLICATION, searchableKeyNameIdMap))
 	if err != nil {
 		impl.logger.Errorw("error in fetching total overridden count", "listFilter", listFilter, "error", err)
 		return nil, err
@@ -761,7 +762,7 @@ func (impl *InfraConfigServiceImpl) getIdentifiersListForNonDefaultProfile(listF
 		}
 		return nil, err
 	}
-	qualifierMappings, err := impl.qualifierMappingService.GetQualifierMappingsWithIdentifierFilter(resourceQualifiers.InfraProfile, pId, identifierType, listFilter.IdentifierNameLike, listFilter.SortOrder, listFilter.Limit, listFilter.Offset, true)
+	qualifierMappings, err := impl.qualifierMappingService.GetQualifierMappingsWithIdentifierFilter(resourceQualifiers.InfraProfile, pId, identifierType, listFilter.IdentifierNameLike, listFilter.SortOrder, ActiveAppIdsQuery, listFilter.Limit, listFilter.Offset, true)
 	if err != nil {
 		impl.logger.Errorw("error in fetching identifier mappings", "listFilter", listFilter, "error", err)
 		return nil, err
@@ -817,7 +818,7 @@ func (impl *InfraConfigServiceImpl) getIdentifiersListForDefaultProfile(listFilt
 
 	excludeIdentifierIds := make([]int, 0)
 	if len(profileIds) > 0 {
-		excludeIdentifierIds, err = impl.qualifierMappingService.GetIdentifierIdsByResourceTypeAndIds(resourceQualifiers.InfraProfile, profileIds, GetIdentifierKey(APPLICATION, impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap()))
+		excludeIdentifierIds, err = impl.qualifierMappingService.GetIdentifierIdsByResourceTypeAndIds(resourceQualifiers.InfraProfile, profileIds, identifierType)
 		if err != nil {
 			impl.logger.Errorw("error in fetching identifierIds for profileIds", "profileIds", profileIds, "error", err)
 			return nil, err
@@ -828,7 +829,7 @@ func (impl *InfraConfigServiceImpl) getIdentifiersListForDefaultProfile(listFilt
 }
 
 func (impl *InfraConfigServiceImpl) fetchIdentifiersWithProfileId(identifierType int) (map[int]int, error) {
-	qualifierMappings, err := impl.qualifierMappingService.GetQualifierMappingsWithIdentifierFilter(resourceQualifiers.InfraProfile, 0, identifierType, "", "", 0, 0, false)
+	qualifierMappings, err := impl.qualifierMappingService.GetQualifierMappingsWithIdentifierFilter(resourceQualifiers.InfraProfile, 0, identifierType, "", "", ActiveAppIdsQuery, 0, 0, false)
 	if err != nil {
 		impl.logger.Errorw("error in fetching identifier mappings for infra profile resource", "error", err)
 		return nil, err
@@ -865,9 +866,9 @@ func (impl *InfraConfigServiceImpl) sanitizeAndGetUpdatableAndCreatableConfigura
 		return updatableInfraConfigurations, creatableInfraConfigurations, errors.New(CREATION_BLOCKED_FOR_DEFAULT_PROFILE_CONFIGURATIONS)
 	}
 	existingConfigurations, err := impl.infraProfileRepo.GetConfigurationsByProfileName(profileName)
-	if err != nil {
+	if err != nil && !errors.Is(err, NO_PROPERTIES_FOUND_ERROR) {
 		impl.logger.Errorw("error in fetching existing configuration ids", "profileName", profileName, "error", err)
-
+		return updatableInfraConfigurations, creatableInfraConfigurations, err
 	}
 
 	if len(updatableInfraConfigurations) > 0 {

@@ -26,11 +26,11 @@ type QualifiersMappingRepository interface {
 	DeleteAllByIds(qualifierMappingIds []int, auditLog sql.AuditLog, tx *pg.Tx) error
 	GetDbConnection() *pg.DB
 	DeleteGivenQualifierMappingsByResourceType(resourceType ResourceType, identifierKey int, identifierValueInts []int, auditLog sql.AuditLog, tx *pg.Tx) error
-	GetActiveIdentifierCountPerResource(resourceType ResourceType, resourceIds []int, identifierKey int) ([]ResourceIdentifierCount, error)
-	GetActiveMappingsCount(resourceType ResourceType) (int, error)
+	GetActiveIdentifierCountPerResource(resourceType ResourceType, resourceIds []int, identifierKey int, identifierValueIntSpaceQuery string) ([]ResourceIdentifierCount, error)
+	GetActiveMappingsCount(resourceType ResourceType, excludeIdentifiersQuery string, identifierKey int) (int, error)
 	GetIdentifierIdsByResourceTypeAndIds(resourceType ResourceType, resourceIds []int, identifierKey int) ([]int, error)
 	GetResourceIdsByIdentifier(resourceType ResourceType, identifierKey int, identifierId int) ([]int, error)
-	GetQualifierMappingsWithIdentifierFilter(resourceType ResourceType, resourceId, identifierKey int, identifierValueStringLike, identifierValueSortOrder string, limit, offset int, needTotalCount bool) ([]*QualifierMappingWithExtraColumns, error)
+	GetQualifierMappingsWithIdentifierFilter(resourceType ResourceType, resourceId, identifierKey int, identifierValueStringLike, identifierValueSortOrder string, includeIdentifiersQuery string, limit, offset int, needTotalCount bool) ([]*QualifierMappingWithExtraColumns, error)
 }
 
 type QualifiersMappingRepositoryImpl struct {
@@ -221,10 +221,13 @@ func (repo *QualifiersMappingRepositoryImpl) DeleteGivenQualifierMappingsByResou
 	return err
 }
 
-func (repo *QualifiersMappingRepositoryImpl) GetActiveIdentifierCountPerResource(resourceType ResourceType, resourceIds []int, identifierKey int) ([]ResourceIdentifierCount, error) {
+func (repo *QualifiersMappingRepositoryImpl) GetActiveIdentifierCountPerResource(resourceType ResourceType, resourceIds []int, identifierKey int, identifierValueIntSpaceQuery string) ([]ResourceIdentifierCount, error) {
 	query := " SELECT COUNT(DISTINCT identifier_value_int) as identifier_count, resource_id" +
 		" FROM resource_qualifier_mapping " +
 		" WHERE resource_type = ? AND identifier_key = ? AND active=true "
+	if identifierValueIntSpaceQuery != "" {
+		query += " AND identifier_value_int IN (" + identifierValueIntSpaceQuery + ") "
+	}
 	if len(resourceIds) > 0 {
 		query += fmt.Sprintf(" AND resource_id IN (%s) ", helper2.GetCommaSepratedString(resourceIds))
 	}
@@ -251,15 +254,17 @@ func (repo *QualifiersMappingRepositoryImpl) GetIdentifierIdsByResourceTypeAndId
 	return identifierIds, err
 }
 
-func (repo *QualifiersMappingRepositoryImpl) GetActiveMappingsCount(resourceType ResourceType) (int, error) {
+func (repo *QualifiersMappingRepositoryImpl) GetActiveMappingsCount(resourceType ResourceType, includeIdentifiersQuery string, identifierKey int) (int, error) {
 	count, err := repo.dbConnection.Model(&QualifierMapping{}).
 		Where("active = ?", true).
 		Where("resource_type = ?", resourceType).
+		Where("identifier_key = ?", identifierKey).
+		Where("identifier_value_int IN (" + includeIdentifiersQuery + ")").
 		Count()
 	return count, err
 }
 
-func (repo *QualifiersMappingRepositoryImpl) GetQualifierMappingsWithIdentifierFilter(resourceType ResourceType, resourceId, identifierKey int, identifierValueStringLike, identifierValueSortOrder string, limit, offset int, needTotalCount bool) ([]*QualifierMappingWithExtraColumns, error) {
+func (repo *QualifiersMappingRepositoryImpl) GetQualifierMappingsWithIdentifierFilter(resourceType ResourceType, resourceId, identifierKey int, identifierValueStringLike, identifierValueSortOrder string, includeIdentifiersQuery string, limit, offset int, needTotalCount bool) ([]*QualifierMappingWithExtraColumns, error) {
 	query := "SELECT identifier_value_int , identifier_value_string , resource_id "
 	if needTotalCount {
 		query += ",COUNT(id) OVER() AS total_count "
@@ -273,6 +278,11 @@ func (repo *QualifiersMappingRepositoryImpl) GetQualifierMappingsWithIdentifierF
 	if identifierValueStringLike != "" {
 		whereClause += " AND identifier_value_string LIKE '%" + identifierValueStringLike + "%' "
 	}
+
+	if includeIdentifiersQuery != "" {
+		whereClause += " AND identifier_value_int IN (" + includeIdentifiersQuery + ") "
+	}
+
 	query += whereClause
 
 	if identifierValueSortOrder != "" {
