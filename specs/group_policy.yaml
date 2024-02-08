@@ -1,31 +1,68 @@
 openapi: "3.0.0"
 info:
   version: 1.0.0
-  title: Swagger Petstore
-  description: A sample API that uses a petstore as an example to demonstrate features in the OpenAPI 3.0 specification
-  termsOfService: http://swagger.io/terms/
-  contact:
-    name: Swagger API Team
-    email: apiteam@swagger.io
-    url: http://swagger.io
-  license:
-    name: Apache 2.0
-    url: https://www.apache.org/licenses/LICENSE-2.0.html
-servers:
-  - url: http://petstore.swagger.io/api
+  title: Devtron
 paths:
   /user/role/group:
     get:
-      summary: Returns all group policies
+      summary: Returns all role groups
       description: all the template group policies
       operationId: findGroupPolicy
+      parameters:
+        - name: searchKey
+          in: query
+          description: Search key for group listing
+          required: false
+          schema:
+            type: string
+
+        - name: sortOrder
+          in: query
+          description: Sorting order (ASC or DESC)
+          required: false
+          schema:
+            type: string
+            enum:
+              - ASC
+              - DESC
+
+        - name: sortBy
+          in: query
+          description: Sorting by name
+          required: false
+          schema:
+            type: string
+            enum:
+              - name
+
+        - name: offset
+          in: query
+          description: Offset for paginating the results
+          required: false
+          schema:
+            type: integer
+
+        - name: size
+          in: query
+          description: Size of the result set
+          required: false
+          schema:
+            type: integer
+
+        - name: showAll
+          in: query
+          description: Show all Role groups (boolean)
+          required: false
+          schema:
+            type: boolean
+
       responses:
         '200':
           description: list response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/RoleGroup'
+                $ref: '#/components/schemas/RoleGroupListingResponse'
         default:
           description: unexpected error
           content:
@@ -33,7 +70,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
     post:
-      summary: Creates a new Group Policy
+      summary: Creates a new Role Group
       description: create chart group api, with multiple environment in one row of policy, plus chart group additional type of policy.
       operationId: addGroupPolicy
       requestBody:
@@ -57,8 +94,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
     put:
-      summary: update a new pet
-      description: Creates a new pet in the store. Duplicates are allowed
+      summary: update a role group
+      description: update a role group in the system.
       operationId: updateGroupPolicy
       requestBody:
         description: json as request body
@@ -98,8 +135,8 @@ paths:
 
   /user/role/group/search:
     get:
-      summary: search a group policies by NAME
-      description: search group policy by group name
+      summary: search a role group by NAME
+      description: search role group by group name
       operationId: findRoleGroupByName
       parameters:
         - name: name
@@ -212,3 +249,14 @@ components:
         message:
           type: string
           description: Error message
+
+    RoleGroupListingResponse:
+      type: object
+      properties:
+        roleGroups:
+          items:
+            $ref: '#/components/schemas/RoleGroup'
+          description: role groups listing
+        totalCount:
+          type: integer
+          description: total number of results satisfying the conditions
