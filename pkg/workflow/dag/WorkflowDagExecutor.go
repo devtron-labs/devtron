@@ -25,6 +25,7 @@ import (
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	bean6 "github.com/devtron-labs/devtron/api/helm-app/bean"
 	client2 "github.com/devtron-labs/devtron/api/helm-app/service"
+	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/pkg/build/artifacts"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest"
@@ -42,7 +43,6 @@ import (
 	"time"
 
 	"github.com/devtron-labs/common-lib/pubsub-lib/model"
-	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
@@ -308,7 +308,7 @@ func (impl *WorkflowDagExecutorImpl) UpdateWorkflowRunnerStatusForDeployment(app
 			return false
 		}
 
-		if helmInstalledDevtronApp.GetApplicationStatus() == application.Healthy {
+		if helmInstalledDevtronApp.GetApplicationStatus() == argoApplication.Healthy {
 			// mark the deployment as succeed
 			wfr.Status = pipelineConfig.WorkflowSucceeded
 			wfr.FinishedOn = time.Now()

@@ -20,6 +20,7 @@ package restHandler
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/pkg/workflow/dag"
+	util3 "github.com/devtron-labs/devtron/api/util"
 	"net/http"
 	"strconv"
 
@@ -57,7 +58,7 @@ func NewExternalCiRestHandlerImpl(logger *zap.SugaredLogger, validator *validato
 }
 
 func (impl ExternalCiRestHandlerImpl) HandleExternalCiWebhook(w http.ResponseWriter, r *http.Request) {
-	setupResponse(&w, r)
+	util3.SetupCorsOriginHeader(&w)
 	vars := mux.Vars(r)
 	token := r.Header.Get("api-token")
 	userId, err := impl.userService.GetLoggedInUser(r)
