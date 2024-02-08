@@ -25,6 +25,7 @@ import (
 	bean6 "github.com/devtron-labs/devtron/api/helm-app/bean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client2 "github.com/devtron-labs/devtron/api/helm-app/service"
+	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
@@ -44,7 +45,6 @@ import (
 	util5 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	"github.com/devtron-labs/devtron/client/argocdServer"
-	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	gitSensorClient "github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/middleware"
@@ -187,18 +187,18 @@ type WorkflowDagExecutorImpl struct {
 	configMapHistoryRepository          repository3.ConfigMapHistoryRepository
 	helmAppService                      client2.HelmAppService
 	//TODO fix me next
-	helmAppClient                		gRPC.HelmAppClient //TODO refactoring: use helm app service instead
-	environmentConfigRepository  		chartConfig.EnvConfigOverrideRepository
-	mergeUtil                    		*util.MergeUtil
-	acdClient                    		application2.ServiceClient
-	argoClientWrapperService     		argocdServer.ArgoClientWrapperService
-	customTagService             		CustomTagService
-	ACDConfig                    		*argocdServer.ACDConfig
-	deployedAppMetricsService    		deployedAppMetrics.DeployedAppMetricsService
-	chartRefService              		chartRef.ChartRefService
-	gitOpsConfigReadService             config.GitOpsConfigReadService
-	gitOperationService                 git.GitOperationService
-	imageDigestPolicyService            imageDigestPolicy.ImageDigestPolicyService
+	helmAppClient               gRPC.HelmAppClient //TODO refactoring: use helm app service instead
+	environmentConfigRepository chartConfig.EnvConfigOverrideRepository
+	mergeUtil                   *util.MergeUtil
+	acdClient                   application2.ServiceClient
+	argoClientWrapperService    argocdServer.ArgoClientWrapperService
+	customTagService            CustomTagService
+	ACDConfig                   *argocdServer.ACDConfig
+	deployedAppMetricsService   deployedAppMetrics.DeployedAppMetricsService
+	chartRefService             chartRef.ChartRefService
+	gitOpsConfigReadService     config.GitOpsConfigReadService
+	gitOperationService         git.GitOperationService
+	imageDigestPolicyService    imageDigestPolicy.ImageDigestPolicyService
 }
 
 const kedaAutoscaling = "kedaAutoscaling"
@@ -537,7 +537,7 @@ func (impl *WorkflowDagExecutorImpl) UpdateWorkflowRunnerStatusForDeployment(app
 			return false
 		}
 
-		if helmInstalledDevtronApp.GetApplicationStatus() == application.Healthy {
+		if helmInstalledDevtronApp.GetApplicationStatus() == argoApplication.Healthy {
 			// mark the deployment as succeed
 			wfr.Status = pipelineConfig.WorkflowSucceeded
 			wfr.FinishedOn = time.Now()
@@ -2489,7 +2489,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(triggerContext TriggerConte
 		overrideRequest.CdWorkflowId = cdWorkflowId
 		// creating cd pipeline status timeline for deployment initialisation
 		timeline := impl.pipelineStatusTimelineService.GetTimelineDbObjectByTimelineStatusAndTimelineDescription(savedWfr.Id, 0, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_INITIATED, pipelineConfig.TIMELINE_DESCRIPTION_DEPLOYMENT_INITIATED, overrideRequest.UserId, time.Now())
-		_, span = otel.Tracer("orchestrator").Start(ctx, "cdPipelineStatusTimelineRepo.SaveTimelineForACDHelmApps")
+		_, span = otel.Tracer("orchestrator").Start(ctx, "cdPipelineStatusTimelineRepo.SaveTimelineForHelmApps")
 		err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, false)
 
 		span.End()

@@ -23,7 +23,12 @@ import (
 	"github.com/devtron-labs/devtron/api/k8s"
 	"github.com/devtron-labs/devtron/api/module"
 	"github.com/devtron-labs/devtron/api/restHandler"
+	"github.com/devtron-labs/devtron/api/restHandler/app/appInfo"
+	appList2 "github.com/devtron-labs/devtron/api/restHandler/app/appList"
 	"github.com/devtron-labs/devtron/api/router"
+	app3 "github.com/devtron-labs/devtron/api/router/app"
+	appInfo2 "github.com/devtron-labs/devtron/api/router/app/appInfo"
+	"github.com/devtron-labs/devtron/api/router/app/appList"
 	"github.com/devtron-labs/devtron/api/server"
 	"github.com/devtron-labs/devtron/api/team"
 	"github.com/devtron-labs/devtron/api/terminal"
@@ -40,11 +45,11 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	repository4 "github.com/devtron-labs/devtron/pkg/appStore/chartGroup/repository"
-	appStoreDeploymentTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deployment"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps"
-	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	repository2 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -82,7 +87,7 @@ func InitializeApp() (*App, error) {
 		apiToken.ApiTokenWireSet,
 		webhookHelm.WebhookHelmWireSet,
 		terminal.TerminalWireSet,
-		gitOps.GitOpsWireSet,
+		gitOps.GitOpsEAWireSet,
 		NewApp,
 		NewMuxRouter,
 		util3.GetGlobalEnvVariables,
@@ -102,10 +107,18 @@ func InitializeApp() (*App, error) {
 		rbac.NewEnforcerUtilImpl,
 		wire.Bind(new(rbac.EnforcerUtil), new(*rbac.EnforcerUtilImpl)),
 
-		router.NewAppRouterImpl,
-		wire.Bind(new(router.AppRouter), new(*router.AppRouterImpl)),
-		restHandler.NewAppRestHandlerImpl,
-		wire.Bind(new(restHandler.AppRestHandler), new(*restHandler.AppRestHandlerImpl)),
+		appInfo2.NewAppInfoRouterImpl,
+		wire.Bind(new(appInfo2.AppInfoRouter), new(*appInfo2.AppInfoRouterImpl)),
+		appInfo.NewAppInfoRestHandlerImpl,
+		wire.Bind(new(appInfo.AppInfoRestHandler), new(*appInfo.AppInfoRestHandlerImpl)),
+
+		appList.NewAppFilteringRouterImpl,
+		wire.Bind(new(appList.AppFilteringRouter), new(*appList.AppFilteringRouterImpl)),
+		appList2.NewAppFilteringRestHandlerImpl,
+		wire.Bind(new(appList2.AppFilteringRestHandler), new(*appList2.AppFilteringRestHandlerImpl)),
+
+		app3.NewAppRouterEAModeImpl,
+		wire.Bind(new(app3.AppRouterEAMode), new(*app3.AppRouterEAModeImpl)),
 
 		app.NewAppCrudOperationServiceImpl,
 		wire.Bind(new(app.AppCrudOperationService), new(*app.AppCrudOperationServiceImpl)),
@@ -141,7 +154,7 @@ func InitializeApp() (*App, error) {
 		// // needed for enforcer util ends
 
 		// binding gitops to helm (for hyperion)
-		wire.Bind(new(appStoreDeploymentTool.AppStoreDeploymentArgoCdService), new(*appStoreDeploymentTool.AppStoreDeploymentHelmServiceImpl)),
+		wire.Bind(new(deployment.FullModeDeploymentService), new(*EAMode.EAModeDeploymentServiceImpl)),
 
 		router.NewTelemetryRouterImpl,
 		wire.Bind(new(router.TelemetryRouter), new(*router.TelemetryRouterImpl)),
@@ -177,8 +190,6 @@ func InitializeApp() (*App, error) {
 
 		util.NewChartTemplateServiceImpl,
 		wire.Bind(new(util.ChartTemplateService), new(*util.ChartTemplateServiceImpl)),
-		git.NewGitFactory,
-		git.NewGitCliUtil,
 
 		security2.NewScanToolMetadataRepositoryImpl,
 		wire.Bind(new(security2.ScanToolMetadataRepository), new(*security2.ScanToolMetadataRepositoryImpl)),
