@@ -63,8 +63,8 @@ components:
 
     ConfigStateEnum:
               type: integer
-              enum: [ 1, 2, 3 ]
-              description: State of config (1 represents published state, 2 represents draft state, 3 represents approval pending state)
+              enum: [ 3 ]
+              description: State of config (3 represents published state)
 
     ResourceTypeEnum:
               type: string
