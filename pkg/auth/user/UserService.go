@@ -23,7 +23,12 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	auth "github.com/devtron-labs/devtron/pkg/auth/authorisation/globalConfig"
+	"github.com/devtron-labs/devtron/pkg/auth/user/adapter"
+	"github.com/devtron-labs/devtron/pkg/auth/user/repository/helper"
 	util3 "github.com/devtron-labs/devtron/pkg/auth/user/util"
+	"github.com/devtron-labs/devtron/pkg/timeoutWindow"
+	repository2 "github.com/devtron-labs/devtron/pkg/timeoutWindow/repository"
+	bean3 "github.com/devtron-labs/devtron/pkg/timeoutWindow/repository/bean"
 	jwt2 "github.com/golang-jwt/jwt/v4"
 	"net/http"
 	"strings"
@@ -60,8 +65,8 @@ type UserService interface {
 	GetByIdWithoutGroupClaims(id int32) (*bean.UserInfo, error)
 	GetRoleFiltersForAUserById(id int32) (*bean.UserInfo, error)
 	GetByIdForGroupClaims(id int32) (*bean.UserInfo, error)
-	GetAll() ([]bean.UserInfo, error)
-	GetAllDetailedUsers() ([]bean.UserInfo, error)
+	GetAll() ([]bean.UserInfo, error) //this is only being used for summary event for now , in use is GetAllWithFilters
+	GetAllWithFilters(request *bean.FetchListingRequest) (*bean.UserListingResponse, error)
 	GetEmailById(userId int32) (string, error)
 	GetEmailAndGroupClaimsFromToken(token string) (string, []string, error)
 	GetLoggedInUser(r *http.Request) (int32, error)
@@ -81,6 +86,9 @@ type UserService interface {
 	GetConfigApprovalUsersByEnv(appName, envName, team string) ([]string, error)
 	IsUserAdminOrManagerForAnyApp(userId int32, token string) (bool, error)
 	GetFieldValuesFromToken(token string) ([]byte, error)
+	BulkUpdateStatusForUsers(request *bean.BulkStatusUpdateRequest, userId int32) (*bean.ActionResponse, error)
+	CheckUserStatusAndUpdateLoginAudit(token string) (bool, int32, error)
+	GetUserBasicDataByEmailId(emailId string) (*bean.UserInfo, error)
 }
 
 type UserServiceImpl struct {
@@ -99,6 +107,8 @@ type UserServiceImpl struct {
 	roleGroupService                 RoleGroupService
 	userGroupMapRepository           repository.UserGroupMapRepository
 	enforcer                         casbin.Enforcer
+	userListingRepositoryQueryBuilder helper.UserRepositoryQueryBuilder
+	timeoutWindowService              timeoutWindow.TimeoutWindowService
 }
 
 func NewUserServiceImpl(userAuthRepository repository.UserAuthRepository,
@@ -109,6 +119,8 @@ func NewUserServiceImpl(userAuthRepository repository.UserAuthRepository,
 	globalAuthorisationConfigService auth.GlobalAuthorisationConfigService,
 	roleGroupService RoleGroupService, userGroupMapRepository repository.UserGroupMapRepository,
 	enforcer casbin.Enforcer,
+	userListingRepositoryQueryBuilder helper.UserRepositoryQueryBuilder,
+	timeoutWindowService timeoutWindow.TimeoutWindowService,
 ) *UserServiceImpl {
 	serviceImpl := &UserServiceImpl{
 		userReqState:                     make(map[int32]bool),
@@ -123,6 +135,8 @@ func NewUserServiceImpl(userAuthRepository repository.UserAuthRepository,
 		roleGroupService:                 roleGroupService,
 		userGroupMapRepository:           userGroupMapRepository,
 		enforcer:                         enforcer,
+		userListingRepositoryQueryBuilder: userListingRepositoryQueryBuilder,
+		timeoutWindowService:              timeoutWindowService,
 	}
 	cStore = sessions.NewCookieStore(randKey())
 	return serviceImpl
@@ -1211,27 +1225,131 @@ func (impl UserServiceImpl) GetAll() ([]bean.UserInfo, error) {
 	return response, nil
 }
 
-func (impl UserServiceImpl) GetAllDetailedUsers() ([]bean.UserInfo, error) {
-	models, err := impl.userRepository.GetAllExcludingApiTokenUser()
+// GetAllWithFilters takes filter request  gives UserListingResponse as output with some operations like filter, sorting, searching,pagination support inbuilt
+func (impl UserServiceImpl) GetAllWithFilters(request *bean.FetchListingRequest) (*bean.UserListingResponse, error) {
+	//  default values will be used if not provided
+	impl.userCommonService.SetDefaultValuesIfNotPresent(request, false)
+	if request.ShowAll {
+		response, err := impl.getAllDetailedUsers()
+		if err != nil {
+			impl.logger.Errorw("error in GetAllWithFilters", "err", err)
+			return nil, err
+		}
+		return impl.getAllDetailedUsersAdapter(response), nil
+	}
+
+	// Recording time here for overall consistency
+	request.CurrentTime = time.Now()
+
+	// setting count check to true for only count
+	request.CountCheck = true
+	// Build query from query builder
+	query := impl.userListingRepositoryQueryBuilder.GetQueryForUserListingWithFilters(request)
+	totalCount, err := impl.userRepository.GetCountExecutingQuery(query)
 	if err != nil {
-		impl.logger.Errorw("error while fetching user from db", "error", err)
+		impl.logger.Errorw("error while fetching user from db in GetAllWithFilters", "error", err)
 		return nil, err
 	}
+
+	// setting count check to false for getting data
+	request.CountCheck = false
+
+	query = impl.userListingRepositoryQueryBuilder.GetQueryForUserListingWithFilters(request)
+	models, err := impl.userRepository.GetAllExecutingQuery(query)
+	if err != nil {
+		impl.logger.Errorw("error while fetching user from db in GetAllWithFilters", "error", err)
+		return nil, err
+	}
+
+	listingResponse, err := impl.getUserResponse(models, request.CurrentTime, totalCount)
+	if err != nil {
+		impl.logger.Errorw("error in GetAllWithFilters", "err", err)
+		return nil, err
+	}
+
+	return listingResponse, nil
+
+}
+
+func (impl UserServiceImpl) getAllDetailedUsersAdapter(detailedUsers []bean.UserInfo) *bean.UserListingResponse {
+	listingResponse := &bean.UserListingResponse{
+		Users:      detailedUsers,
+		TotalCount: len(detailedUsers),
+	}
+	return listingResponse
+}
+
+func (impl UserServiceImpl) getUserResponse(model []repository.UserModel, recordedTime time.Time, totalCount int) (*bean.UserListingResponse, error) {
 	var response []bean.UserInfo
-	for _, model := range models {
-		isSuperAdmin, roleFilters, filterGroups := impl.getUserMetadata(&model)
+	for _, m := range model {
+		lastLoginTime := adapter.GetLastLoginTime(m)
+		userStatus, ttlTime := getStatusAndTTL(m, recordedTime)
 		response = append(response, bean.UserInfo{
-			Id:          model.Id,
-			EmailId:     model.EmailId,
-			RoleFilters: roleFilters,
-			Groups:      filterGroups,
-			SuperAdmin:  isSuperAdmin,
+			Id:                      m.Id,
+			EmailId:                 m.EmailId,
+			RoleFilters:             make([]bean.RoleFilter, 0),
+			Groups:                  make([]string, 0),
+			LastLoginTime:           lastLoginTime,
+			UserStatus:              userStatus,
+			TimeoutWindowExpression: ttlTime,
 		})
 	}
 	if len(response) == 0 {
 		response = make([]bean.UserInfo, 0)
 	}
+
+	listingResponse := &bean.UserListingResponse{
+		Users:      response,
+		TotalCount: totalCount,
+	}
+	return listingResponse, nil
+}
+
+func (impl UserServiceImpl) getAllDetailedUsers() ([]bean.UserInfo, error) {
+	query := impl.userListingRepositoryQueryBuilder.GetQueryForAllUserWithAudit()
+	models, err := impl.userRepository.GetAllExecutingQuery(query)
+	if err != nil {
+		impl.logger.Errorw("error in GetAllDetailedUsers", "err", err)
+		return nil, err
+	}
+
+	var response []bean.UserInfo
+	// recording time here for overall status consistency
+	recordedTime := time.Now()
+
+	for _, model := range models {
+		isSuperAdmin, roleFilters, filterGroups := impl.getUserMetadata(&model)
+		userStatus, ttlTime := getStatusAndTTL(model, recordedTime)
+		lastLoginTime := adapter.GetLastLoginTime(model)
+		userResp := getUserInfoAdapter(model.Id, model.EmailId, roleFilters, filterGroups, isSuperAdmin, lastLoginTime, ttlTime, userStatus)
+		response = append(response, userResp)
+	}
+	if len(response) == 0 {
+		response = make([]bean.UserInfo, 0)
+	}
 	return response, nil
+}
+
+func getUserInfoAdapter(id int32, emailId string, roleFilters []bean.RoleFilter, filterGroups []string, isSuperAdmin bool, lastLoginTime, ttlTime time.Time, userStatus bean.Status) bean.UserInfo {
+	user := bean.UserInfo{
+		Id:                      id,
+		EmailId:                 emailId,
+		RoleFilters:             roleFilters,
+		Groups:                  filterGroups,
+		SuperAdmin:              isSuperAdmin,
+		LastLoginTime:           lastLoginTime,
+		UserStatus:              userStatus,
+		TimeoutWindowExpression: ttlTime,
+	}
+	return user
+}
+
+func (impl UserServiceImpl) getLastLoginTime(model repository.UserModel) time.Time {
+	lastLoginTime := time.Time{}
+	if model.UserAudit != nil {
+		lastLoginTime = model.UserAudit.UpdatedOn
+	}
+	return lastLoginTime
 }
 
 func (impl UserServiceImpl) UserExists(emailId string) bool {
@@ -1319,7 +1437,7 @@ func (impl UserServiceImpl) extractEmailIds(permissionGroupNames []string, email
 func (impl UserServiceImpl) SaveLoginAudit(emailId, clientIp string, id int32) {
 
 	if emailId != "" && id <= 0 {
-		user, err := impl.GetUserByEmail(emailId)
+		user, err := impl.GetUserBasicDataByEmailId(emailId)
 		if err != nil {
 			impl.logger.Errorw("error in getting userInfo by emailId", "err", err, "emailId", emailId)
 			return
@@ -1338,6 +1456,33 @@ func (impl UserServiceImpl) SaveLoginAudit(emailId, clientIp string, id int32) {
 	if err != nil {
 		impl.logger.Errorw("error occurred while saving user audit", "err", err)
 	}
+}
+
+func (impl UserServiceImpl) getUserWithTimeoutWindowConfiguration(emailId string) (int32, bool, error) {
+	isInactive := true
+	user, err := impl.userRepository.GetUserWithTimeoutWindowConfiguration(emailId)
+	if err != nil {
+		err = &util.ApiError{HttpStatusCode: 401, UserMessage: "Invalid User", InternalMessage: "failed to fetch user by email id"}
+		impl.logger.Errorw("error while fetching user from db", "error", err)
+		return 0, isInactive, err
+	}
+
+	if user.TimeoutWindowConfigurationId == 0 {
+		//no timeout window configuration available refer infinite active
+		isInactive = false
+		return user.Id, isInactive, nil
+	} else {
+		expiryDate, err := time.Parse(helper.TimeFormatForParsing, user.TimeoutWindowConfiguration.TimeoutWindowExpression)
+		if err != nil {
+			err = &util.ApiError{HttpStatusCode: 401, UserMessage: "Invalid User", InternalMessage: "failed to parse TimeoutWindowExpression"}
+			impl.logger.Errorw("error while parsing date time", "error", err)
+			return user.Id, isInactive, err
+		}
+		if expiryDate.After(time.Now()) {
+			isInactive = false
+		}
+	}
+	return user.Id, isInactive, nil
 }
 
 func (impl UserServiceImpl) GetUserByEmail(emailId string) (*bean.UserInfo, error) {
@@ -1416,7 +1561,7 @@ func (impl UserServiceImpl) GetUserByToken(context context.Context, token string
 	if err != nil {
 		return http.StatusUnauthorized, "", err
 	}
-	userInfo, err := impl.GetUserByEmail(email)
+	userInfo, err := impl.GetUserBasicDataByEmailId(email)
 	if err != nil {
 		impl.logger.Errorw("unable to fetch user from db", "error", err)
 		err := &util.ApiError{
@@ -1428,6 +1573,7 @@ func (impl UserServiceImpl) GetUserByToken(context context.Context, token string
 	}
 	return userInfo.Id, userInfo.UserType, nil
 }
+
 func (impl UserServiceImpl) GetFieldValuesFromToken(token string) ([]byte, error) {
 	var claimBytes []byte
 	mapClaims, err := impl.getMapClaims(token)
@@ -1537,6 +1683,7 @@ func (impl UserServiceImpl) DeleteUser(bean *bean.UserInfo) (bool, error) {
 	model.Active = false
 	model.UpdatedBy = bean.UserId
 	model.UpdatedOn = time.Now()
+	model.TimeoutWindowConfigurationId = 0
 	model, err = impl.userRepository.UpdateUser(model, tx)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
@@ -1720,6 +1867,7 @@ func (impl UserServiceImpl) saveUserAudit(r *http.Request, userId int32) {
 		UserId:    userId,
 		ClientIp:  clientIp,
 		CreatedOn: time.Now(),
+		UpdatedOn: time.Now(),
 	}
 	impl.userAuditService.Save(userAudit)
 }
@@ -2066,4 +2214,227 @@ func (impl UserServiceImpl) getProjectsOrAppAdminRBACNamesByAppNamesAndTeamNames
 		}
 	}
 	return resourceObjects
+}
+
+func (impl UserServiceImpl) BulkUpdateStatusForUsers(request *bean.BulkStatusUpdateRequest, userId int32) (*bean.ActionResponse, error) {
+	activeStatus := request.Status == bean.Active && request.TimeoutWindowExpression.IsZero()
+	inactiveStatus := request.Status == bean.Inactive
+	timeExpressionStatus := request.Status == bean.Active && !request.TimeoutWindowExpression.IsZero()
+	if activeStatus {
+		// active case
+		// set foreign key to null for every user
+		err := impl.userRepository.UpdateWindowIdToNull(request.UserIds, userId)
+		if err != nil {
+			impl.logger.Errorw("error in BulkUpdateStatusForUsers", "err", err, "status", request.Status)
+			return nil, err
+		}
+	} else if timeExpressionStatus || inactiveStatus {
+		// case: time out expression or inactive
+
+		// getting expression from request configuration
+		timeOutExpression, expressionFormat := getTimeoutExpressionAndFormatforReq(timeExpressionStatus, inactiveStatus, request.TimeoutWindowExpression)
+		err := impl.createAndUpdateWindowID(request.UserIds, timeOutExpression, expressionFormat, userId)
+		if err != nil {
+			impl.logger.Errorw("error in BulkUpdateStatusForUsers", "err", err, "status", request.Status)
+			return nil, err
+		}
+	} else {
+		return nil, &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "status not supported"}
+	}
+
+	resp := &bean.ActionResponse{
+		Suceess: true,
+	}
+	return resp, nil
+}
+
+func (impl UserServiceImpl) createAndUpdateWindowID(userIds []int32, timeoutExpression string, expressionFormat bean3.ExpressionFormat, loggedInUserId int32) error {
+	idsWithWindowId, idsWithoutWindowId, windowIds, err := impl.getIdsWithAndWithoutWindowId(userIds)
+	if err != nil {
+		impl.logger.Errorw("error in updateOrCreateAndUpdateWindowID", "err", err, "userIds", userIds)
+		return err
+	}
+	tx, err := impl.userRepository.StartATransaction()
+	if err != nil {
+		impl.logger.Errorw("error in starting a transaction", "err", err)
+		return err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+	// case when fk exist , just update the configuration in the timeout window for fks
+	if len(idsWithWindowId) > 0 && len(windowIds) > 0 {
+		err = impl.timeoutWindowService.UpdateTimeoutExpressionAndFormatForIds(tx, timeoutExpression, windowIds, expressionFormat, loggedInUserId)
+		if err != nil {
+			impl.logger.Errorw("error in updateOrCreateAndUpdateWindowID", "err", err, "userIds", userIds)
+			return err
+		}
+
+	}
+	countWithoutWindowId := len(idsWithoutWindowId)
+	// case when no fk exist , will create it and update the fk constraint for user
+	if countWithoutWindowId > 0 {
+		err = impl.createAndMapTimeoutWindow(tx, timeoutExpression, countWithoutWindowId, idsWithoutWindowId, expressionFormat, loggedInUserId)
+		if err != nil {
+			impl.logger.Errorw("error in updateOrCreateAndUpdateWindowID", "err", err, "userIds", userIds, "timeoutExpression", timeoutExpression)
+			return err
+		}
+	}
+	err = impl.userRepository.CommitATransaction(tx)
+	if err != nil {
+		impl.logger.Errorw("error in committing a transaction", "err", err)
+		return err
+	}
+	return nil
+
+}
+
+func (impl UserServiceImpl) createAndMapTimeoutWindow(tx *pg.Tx, timeoutExpression string, countWithoutWindowId int, idsWithoutWindowId []int32, expressionFormat bean3.ExpressionFormat, loggedInUserId int32) error {
+	models, err := impl.timeoutWindowService.CreateWithTimeoutExpressionAndFormat(tx, timeoutExpression, countWithoutWindowId, expressionFormat, loggedInUserId)
+	if err != nil {
+		impl.logger.Errorw("error in updateOrCreateAndUpdateWindowID", "err", err)
+		return err
+	}
+	// user id vs windowId map
+	windowMapping, err := impl.getUserIdVsWindowIdMapping(idsWithoutWindowId, models)
+	if err != nil {
+		impl.logger.Errorw("error in updateOrCreateAndUpdateWindowID", "err", err)
+		return err
+	}
+	err = impl.userRepository.UpdateTimeWindowIdInBatch(tx, idsWithoutWindowId, windowMapping, loggedInUserId)
+	if err != nil {
+		impl.logger.Errorw("error in updateOrCreateAndUpdateWindowID", "err", err)
+		return err
+	}
+	return nil
+}
+
+func (impl UserServiceImpl) getUserIdVsWindowIdMapping(userIds []int32, models []*repository2.TimeoutWindowConfiguration) (map[int32]int, error) {
+	length := len(userIds)
+	if length != len(models) {
+		impl.logger.Errorw("created time models differ with what was required to be created")
+		return nil, &util.ApiError{Code: "500", HttpStatusCode: 500, UserMessage: "something went wrong, length does not match for userIds given and db users"}
+	}
+	mapping := make(map[int32]int, len(userIds))
+	for i := 0; i < length; i++ {
+		mapping[userIds[i]] = models[i].Id
+	}
+	return mapping, nil
+
+}
+
+func (impl UserServiceImpl) getIdsWithAndWithoutWindowId(userIds []int32) ([]int32, []int32, []int, error) {
+	// Get all users with users ids to check for which users fk exist
+	users, err := impl.userRepository.GetByIds(userIds)
+	if err != nil {
+		impl.logger.Errorw("error in statusUpdateToActiveWithTimeExpression ", "err", err, "userIds", userIds)
+		return []int32{}, []int32{}, []int{}, err
+	}
+	idsWithWindowId, idsWithoutWindowId, windowIds := getUserIdsAndWindowIds(users)
+	return idsWithWindowId, idsWithoutWindowId, windowIds, nil
+
+}
+
+func getUserIdsAndWindowIds(users []repository.UserModel) ([]int32, []int32, []int) {
+	totalLen := len(users)
+	idsWithWindowId := make([]int32, 0, totalLen)
+	idsWithoutWindowId := make([]int32, 0, totalLen)
+	windowIds := make([]int, 0, totalLen)
+	for _, user := range users {
+		if user.TimeoutWindowConfigurationId != 0 {
+			idsWithWindowId = append(idsWithWindowId, user.Id)
+			windowIds = append(windowIds, user.TimeoutWindowConfigurationId)
+		} else {
+			idsWithoutWindowId = append(idsWithoutWindowId, user.Id)
+		}
+	}
+	return idsWithWindowId, idsWithoutWindowId, windowIds
+}
+
+func getTimeoutExpressionAndFormatforReq(timeExpressionStatus, inactiveStatus bool, requestTime time.Time) (string, bean3.ExpressionFormat) {
+	if timeExpressionStatus {
+		return requestTime.String(), bean3.TimeStamp
+	} else if inactiveStatus {
+		return time.Time{}.String(), bean3.TimeZeroFormat
+	}
+	return "", bean3.TimeStamp
+}
+
+func getStatusAndTTL(model repository.UserModel, recordedTime time.Time) (bean.Status, time.Time) {
+	status := bean.Active
+	var ttlTime time.Time
+	if model.TimeoutWindowConfiguration != nil && len(model.TimeoutWindowConfiguration.TimeoutWindowExpression) > 0 {
+		status, ttlTime = getUserStatusFromTimeoutWindowExpression(model.TimeoutWindowConfiguration.TimeoutWindowExpression, recordedTime, model.TimeoutWindowConfiguration.ExpressionFormat)
+	}
+	return status, ttlTime
+}
+
+func getUserStatusFromTimeoutWindowExpression(expression string, recordedTime time.Time, expressionFormat bean3.ExpressionFormat) (bean.Status, time.Time) {
+	parsedTime, err := getParsedTimeFromExpression(expression, expressionFormat)
+	if err != nil {
+		return bean.Inactive, parsedTime
+	}
+	if parsedTime.IsZero() || parsedTime.Before(recordedTime) {
+		// sending time zero in case of inactive status,ignoring time expression in db,in automatic expire case
+		return bean.Inactive, time.Time{}
+	}
+	return bean.Active, parsedTime
+}
+
+func getParsedTimeFromExpression(expression string, format bean3.ExpressionFormat) (time.Time, error) {
+	// considering default to timestamp , will add support for other formats here in future
+	switch format {
+	case bean3.TimeStamp:
+		return parseExpressionToTime(expression)
+	case bean3.TimeZeroFormat:
+		// Considering format timeZeroFormat for extremities, kept it in other format but represents UTC time
+		return parseExpressionToTime(expression)
+	default:
+		return parseExpressionToTime(expression)
+	}
+
+	return time.Time{}, &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "expression format not supported"}
+
+}
+
+func parseExpressionToTime(expression string) (time.Time, error) {
+	parsedTime, err := time.Parse(helper.TimeFormatForParsing, expression)
+	if err != nil {
+		return parsedTime, err
+	}
+	return parsedTime, err
+}
+
+func (impl UserServiceImpl) GetUserBasicDataByEmailId(emailId string) (*bean.UserInfo, error) {
+	model, err := impl.userRepository.FetchActiveUserByEmail(emailId)
+	if err != nil {
+		impl.logger.Errorw("error while fetching user from db", "error", err)
+		return nil, err
+	}
+	response := &bean.UserInfo{
+		Id:       model.Id,
+		EmailId:  model.EmailId,
+		UserType: model.UserType,
+	}
+	return response, nil
+}
+
+func (impl UserServiceImpl) CheckUserStatusAndUpdateLoginAudit(token string) (bool, int32, error) {
+	emailId, _, err := impl.GetEmailAndGroupClaimsFromToken(token)
+	if err != nil {
+		impl.logger.Error("unable to fetch user by token")
+		err = &util.ApiError{HttpStatusCode: 401, UserMessage: "Invalid User", InternalMessage: "unable to fetch user by token"}
+		return false, 0, err
+	}
+	userId, isInactive, err := impl.getUserWithTimeoutWindowConfiguration(emailId)
+	if err != nil {
+		impl.logger.Errorw("unable to fetch user by email, %s", token)
+		return isInactive, userId, err
+	}
+
+	//if user is inactive, no need to store audit log
+	if !isInactive {
+		impl.SaveLoginAudit(emailId, "localhost", userId)
+	}
+
+	return isInactive, userId, nil
 }
