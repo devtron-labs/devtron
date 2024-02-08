@@ -494,7 +494,7 @@ func (impl *TerminalSessionHandlerImpl) getClientConfig(req *TerminalSessionRequ
 			return nil, nil, err
 		}
 	}
-
+	impl.logger.Infow("got clusterConfig", "clusterConfig", clusterConfig, "req", req)
 	cfg, _, clientSet, err := impl.k8sUtil.GetK8sConfigAndClients(clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("error in clientSet", "err", err)
