@@ -23,7 +23,7 @@ import (
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/common-lib/utils"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/client/argocdServer/application"
+	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
@@ -1457,7 +1457,7 @@ func (impl *CiPipelineConfigServiceImpl) PatchCiPipeline(request *bean.CiPatchRe
 
 func (impl *CiPipelineConfigServiceImpl) setArtifactForLinkedCDCreate(request *bean.CiPatchRequest, ciConfig *bean.CiConfigRequest) (*bean.CiConfigRequest, error) {
 
-	runners, err := impl.cdWorkflowRepository.FindArtifactByPipelineIdAndRunnerType(request.ParentCDPipeline, bean2.CD_WORKFLOW_TYPE_DEPLOY, "", 1, []string{application.Healthy, application.SUCCEEDED})
+	runners, err := impl.cdWorkflowRepository.FindArtifactByPipelineIdAndRunnerType(request.ParentCDPipeline, bean2.CD_WORKFLOW_TYPE_DEPLOY, "", 1, []string{argoApplication.Healthy, argoApplication.SUCCEEDED})
 	if err != nil && err != pg.ErrNoRows {
 		return nil, err
 	}
