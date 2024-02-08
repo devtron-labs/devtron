@@ -18,11 +18,11 @@
 package app
 
 import (
+	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"strings"
 	"time"
 
 	"github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	util "github.com/devtron-labs/devtron/util/event"
@@ -71,5 +71,5 @@ func (impl *DeploymentEventHandlerImpl) BuildPayload(appName string, deploymentF
 }
 
 func (impl *DeploymentEventHandlerImpl) isDeploymentFailed(ds repository.DeploymentStatus) bool {
-	return ds.Status == application.Degraded && time.Since(ds.UpdatedOn) > 5*time.Minute
+	return ds.Status == argoApplication.Degraded && time.Since(ds.UpdatedOn) > 5*time.Minute
 }

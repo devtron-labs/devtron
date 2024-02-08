@@ -1,6 +1,8 @@
 package util
 
-import "os"
+import (
+	"os"
+)
 
 func MoveFileToDestination(filePath, destinationPath string) error {
 	err := os.Rename(filePath, destinationPath)
@@ -8,4 +10,17 @@ func MoveFileToDestination(filePath, destinationPath string) error {
 		return err
 	}
 	return nil
+}
+
+func CreateFileAtFilePathAndWrite(filePath, fileContent string) (string, error) {
+	file, err := os.Create(filePath)
+	defer file.Close()
+	if err != nil {
+		return filePath, err
+	}
+	_, err = file.Write([]byte(fileContent))
+	if err != nil {
+		return filePath, err
+	}
+	return filePath, err
 }
