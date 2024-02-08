@@ -65,15 +65,15 @@ func (impl UserRepositoryQueryBuilder) buildQueryForStatusFilter(statusType bean
 	if statusType == bean2.Active {
 		condition += "AND (user_model.timeout_window_configuration_id is null ) "
 	} else if statusType == bean2.Inactive {
-		condition += fmt.Sprintf("AND (timeout_window_configuration.timeout_window_expression_format = %v AND timeout_window_configuration.timeout_window_expression < '%s' ) ", bean3.TimeZeroFormat, formattedTimeForQuery)
+		condition += fmt.Sprintf("AND ((timeout_window_configuration.timeout_window_expression_format = %v AND timeout_window_configuration.timeout_window_expression < '%s' ) OR (timeout_window_configuration.timeout_window_expression_format = %v AND timeout_window_configuration.timeout_window_expression < '%s')) ", bean3.TimeZeroFormat, formattedTimeForQuery, bean3.TimeStamp, formattedTimeForQuery)
 	} else if statusType == bean2.TemporaryAccess {
 		condition += fmt.Sprintf(" AND (timeout_window_configuration.timeout_window_expression_format = %v AND timeout_window_configuration.timeout_window_expression > '%s' ) ", bean3.TimeStamp, formattedTimeForQuery)
 	} else if statusType == bean2.Active_TemporaryAccess {
 		condition += fmt.Sprintf("AND (user_model.timeout_window_configuration_id is null OR ( timeout_window_configuration.timeout_window_expression_format = %v AND timeout_window_configuration.timeout_window_expression > '%s' ) ) ", bean3.TimeStamp, formattedTimeForQuery)
 	} else if statusType == bean2.Active_InActive {
-		condition += fmt.Sprintf("AND (user_model.timeout_window_configuration_id is null OR (timeout_window_configuration.timeout_window_expression_format = %v AND timeout_window_configuration.timeout_window_expression < '%s') ) ", bean3.TimeZeroFormat, formattedTimeForQuery)
+		condition += fmt.Sprintf("AND (user_model.timeout_window_configuration_id is null OR ((timeout_window_configuration.timeout_window_expression_format = %v AND timeout_window_configuration.timeout_window_expression < '%s') OR (timeout_window_configuration.timeout_window_expression_format = %v AND timeout_window_configuration.timeout_window_expression < '%s')) ) ", bean3.TimeZeroFormat, formattedTimeForQuery, bean3.TimeStamp, formattedTimeForQuery)
 	} else if statusType == bean2.Inactive_TemporaryAccess {
-		condition += fmt.Sprintf("AND ((timeout_window_configuration.timeout_window_expression_format = %v AND timeout_window_configuration.timeout_window_expression < '%s') OR ( timeout_window_configuration.timeout_window_expression_format = %v AND timeout_window_configuration.timeout_window_expression > '%s' ) ) ", bean3.TimeZeroFormat, formattedTimeForQuery, bean3.TimeStamp, formattedTimeForQuery)
+		condition += fmt.Sprintf("AND (((timeout_window_configuration.timeout_window_expression_format = %v AND timeout_window_configuration.timeout_window_expression < '%s') OR ( timeout_window_configuration.timeout_window_expression_format = %v AND timeout_window_configuration.timeout_window_expression < '%s' ) ) OR ( timeout_window_configuration.timeout_window_expression_format = %v AND timeout_window_configuration.timeout_window_expression > '%s' ) ) ", bean3.TimeZeroFormat, formattedTimeForQuery, bean3.TimeStamp, formattedTimeForQuery, bean3.TimeStamp, formattedTimeForQuery)
 	}
 	return condition
 }
