@@ -19,12 +19,13 @@ package chartConfig
 
 import (
 	"github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/client/argocdServer/application"
+	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	deploymentStatus "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"github.com/juju/errors"
 	"time"
@@ -231,7 +232,7 @@ func (impl PipelineOverrideRepositoryImpl) FetchHelmTypePipelineOverridesForStat
 		Join("inner join cd_workflow cdwf on cdwf.pipeline_id = p.id").
 		Join("inner join cd_workflow_runner cdwfr on cdwfr.cd_workflow_id = cdwf.id").
 		Where("p.deployment_app_type = ?", util.PIPELINE_DEPLOYMENT_TYPE_HELM).
-		Where("cdwfr.status not in (?)", pg.In([]string{application.Degraded, application.HIBERNATING, application.Healthy, "Failed", "Aborted"})).
+		Where("cdwfr.status not in (?)", pg.In([]string{argoApplication.Degraded, argoApplication.HIBERNATING, argoApplication.Healthy, deploymentStatus.WorkflowFailed, deploymentStatus.WorkflowAborted})).
 		Where("cdwfr.workflow_type = ?", bean.CD_WORKFLOW_TYPE_DEPLOY).
 		Where("p.deleted = ?", false).
 		Select()

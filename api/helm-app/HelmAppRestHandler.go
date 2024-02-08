@@ -6,7 +6,8 @@ import (
 	"errors"
 	"github.com/devtron-labs/devtron/api/helm-app/bean"
 	service2 "github.com/devtron-labs/devtron/api/helm-app/service"
-	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
 	"net/http"
 	"strconv"
 	"strings"
@@ -50,6 +51,7 @@ type HelmAppRestHandlerImpl struct {
 	clusterService            cluster.ClusterService
 	enforcerUtil              rbac.EnforcerUtilHelm
 	appStoreDeploymentService service.AppStoreDeploymentService
+	installedAppService       EAMode.InstalledAppDBService
 	userAuthService           user.UserService
 	attributesService         attributes.AttributesService
 	serverEnvConfig           *serverEnvConfig.ServerEnvConfig
@@ -58,7 +60,7 @@ type HelmAppRestHandlerImpl struct {
 func NewHelmAppRestHandlerImpl(logger *zap.SugaredLogger,
 	helmAppService service2.HelmAppService, enforcer casbin.Enforcer,
 	clusterService cluster.ClusterService, enforcerUtil rbac.EnforcerUtilHelm,
-	appStoreDeploymentService service.AppStoreDeploymentService,
+	appStoreDeploymentService service.AppStoreDeploymentService, installedAppService EAMode.InstalledAppDBService,
 	userAuthService user.UserService, attributesService attributes.AttributesService, serverEnvConfig *serverEnvConfig.ServerEnvConfig) *HelmAppRestHandlerImpl {
 	return &HelmAppRestHandlerImpl{
 		logger:                    logger,
@@ -67,6 +69,7 @@ func NewHelmAppRestHandlerImpl(logger *zap.SugaredLogger,
 		clusterService:            clusterService,
 		enforcerUtil:              enforcerUtil,
 		appStoreDeploymentService: appStoreDeploymentService,
+		installedAppService:       installedAppService,
 		userAuthService:           userAuthService,
 		attributesService:         attributesService,
 		serverEnvConfig:           serverEnvConfig,
@@ -120,7 +123,7 @@ func (handler *HelmAppRestHandlerImpl) GetApplicationDetail(w http.ResponseWrite
 		return
 	}
 
-	installedApp, err := handler.appStoreDeploymentService.GetInstalledAppByClusterNamespaceAndName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
+	installedApp, err := handler.installedAppService.GetInstalledAppByClusterNamespaceAndName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -221,7 +224,7 @@ func (handler *HelmAppRestHandlerImpl) GetReleaseInfo(w http.ResponseWriter, r *
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	installedApp, err := handler.appStoreDeploymentService.GetInstalledAppByClusterNamespaceAndName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
+	installedApp, err := handler.installedAppService.GetInstalledAppByClusterNamespaceAndName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
