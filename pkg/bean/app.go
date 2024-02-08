@@ -705,6 +705,9 @@ const (
 	ManifestDownload        DeploymentType = "manifest_download"
 	GitOpsWithoutDeployment DeploymentType = "git_ops_without_deployment"
 )
+const (
+	K8sAnnotationAddJson = `{"op": "add", "path": "/metadata/annotations", "value": {"%s":"%s"}}`
+)
 
 func IsAcdApp(deploymentType string) bool {
 	return deploymentType == ArgoCd

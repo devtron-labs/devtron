@@ -21,9 +21,14 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/devtron-labs/devtron/internal/constants"
 	appStatus2 "github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
 	appStoreDeploymentTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool"
 	util5 "github.com/devtron-labs/devtron/pkg/appStore/util"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
+
 	/* #nosec */
 	"crypto/sha1"
 	"encoding/json"
@@ -1127,6 +1132,18 @@ func (impl InstalledAppServiceImpl) MigrateDeploymentType(ctx context.Context, r
 	if len(installedAppIds) == 0 {
 		return response, nil
 	}
+	if request.DesiredDeploymentType == bean.Helm {
+		//before deleting the installed app we'll first annotate CRD's manifest created by argo-cd with helm supported
+		//annotations so that helm install doesn't throw crd already exist error while migrating from argo-cd to helm.
+		for _, installedApp := range installedApps {
+			deploymentAppName := fmt.Sprintf("%s-%s", installedApp.App.AppName, installedApp.Environment.Name)
+			err = impl.annotateCRDsInManifestIfExist(ctx, deploymentAppName, installedApp.Environment.ClusterId)
+			if err != nil {
+				impl.logger.Errorw("error in annotating CRDs in manifest for argo-cd deployed installed apps", "installedAppId", installedApp.Id, "appId", installedApp.AppId)
+				return response, err
+			}
+		}
+	}
 
 	deleteResponse, err := impl.deleteInstalledApps(ctx, installedApps, request.UserId)
 	if err != nil {
@@ -1152,6 +1169,51 @@ func (impl InstalledAppServiceImpl) MigrateDeploymentType(ctx context.Context, r
 	}
 
 	return response, nil
+}
+func (impl InstalledAppServiceImpl) annotateCRDsInManifestIfExist(ctx context.Context, deploymentAppName string, clusterId int) error {
+	query := &application.ResourcesQuery{
+		ApplicationName: &deploymentAppName,
+	}
+	resp, err := impl.acdClient.ResourceTree(ctx, query)
+	if err != nil {
+		impl.logger.Errorw("error in fetching resource tree", "err", err)
+		err = &util.ApiError{
+			HttpStatusCode:  http.StatusNotFound,
+			Code:            constants.AppDetailResourceTreeNotFound,
+			InternalMessage: "failed to get resource tree from acd",
+			UserMessage:     "failed to get resource tree from acd",
+		}
+		return err
+	}
+	crdsList := make([]v1alpha1.ResourceNode, 0)
+	for _, node := range resp.ApplicationTree.Nodes {
+		if node.ResourceRef.Kind == kube.CustomResourceDefinitionKind {
+			crdsList = append(crdsList, node)
+		}
+	}
+	restConfig, err, _ := impl.k8sCommonService.GetRestConfigByClusterId(ctx, clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", clusterId)
+		return err
+	}
+	for _, crd := range crdsList {
+		gvk := schema.GroupVersionKind{
+			Group:   crd.ResourceRef.Group,
+			Version: crd.ResourceRef.Version,
+			Kind:    crd.ResourceRef.Kind,
+		}
+		//resp, err := impl.K8sUtil.GetResource(ctx, "", crd.ResourceRef.Name, gvk, restConfig)
+		//if err != nil {
+		//	impl.logger.Errorw("error in getting crd ", "err", err, "resourceName", crd.ResourceRef.Name)
+		//	return err
+		//}
+		_, err := impl.K8sUtil.PatchResourceRequest(ctx, restConfig, types.JSONPatchType, bean.K8sAnnotationAddJson, crd.ResourceRef.Name, crd.ResourceRef.Namespace, gvk)
+		if err != nil {
+			impl.logger.Errorw("error in patching resource request", "err", err, "clusterId", clusterId)
+			return err
+		}
+	}
+	return nil
 }
 
 func (impl InstalledAppServiceImpl) deleteInstalledApps(ctx context.Context, installedApps []*repository2.InstalledApps, userId int32) (*bean.DeploymentAppTypeChangeResponse, error) {
