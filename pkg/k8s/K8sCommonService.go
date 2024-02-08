@@ -475,22 +475,13 @@ func (impl *K8sCommonServiceImpl) GetCoreClientByClusterIdForExternalArgoApps(re
 		impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", req.ClusterId, "externalArgoApplicationName", req.ExternalArgoApplicationName)
 	}
 
-	clusterConfig := &k8s2.ClusterConfig{
-		Host:                  restConfig.Host,
-		InsecureSkipTLSVerify: restConfig.TLSClientConfig.Insecure,
-		BearerToken:           restConfig.BearerToken,
-		KeyData:               restConfig.TLSClientConfig.KeyFile,
-		CertData:              restConfig.TLSClientConfig.CertFile,
-		CAData:                restConfig.TLSClientConfig.CAFile,
-	}
-
-	v1Client, err := impl.K8sUtil.GetCoreV1Client(clusterConfig)
+	v1Client, err := impl.K8sUtil.GetCoreV1ClientByRestConfig(restConfig)
 	if err != nil {
 		//not logging clusterConfig as it contains sensitive data
 		impl.logger.Errorw("error occurred in getting v1Client with cluster config", "err", err, "clusterId", req.ClusterId)
 		return nil, nil, err
 	}
-	_, _, clientSet, err := impl.K8sUtil.GetK8sConfigAndClients(clusterConfig)
+	_, clientSet, err := impl.K8sUtil.GetK8sConfigAndClientsByRestConfig(restConfig)
 	if err != nil {
 		//not logging clusterConfig as it contains sensitive data
 		impl.logger.Errorw("error occurred in getting clientSet with cluster config", "err", err, "clusterId", req.ClusterId)

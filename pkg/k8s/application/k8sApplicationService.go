@@ -121,10 +121,24 @@ type EphemeralContainerConfig struct {
 func (impl *K8sApplicationServiceImpl) ValidatePodLogsRequestQuery(r *http.Request) (*k8s.ResourceRequestBean, error) {
 	v, vars := r.URL.Query(), mux.Vars(r)
 	request := &k8s.ResourceRequestBean{}
+	var err error
+	request.ExternalArgoApplicationName = v.Get("externalArgoApplicationName")
+	appTypeStr := v.Get("appType")
+	var appType int
+	appType, err = strconv.Atoi(appTypeStr)
+	if err != nil {
+		return nil, &util.ApiError{
+			Code:            "400",
+			HttpStatusCode:  400,
+			UserMessage:     "invalid param: appType",
+			InternalMessage: "invalid param: appType",
+		}
+	}
+
+	request.AppType = appType
 	podName := vars["podName"]
 	sinceSecondsParam := v.Get("sinceSeconds")
 	var sinceSeconds int
-	var err error
 	if len(sinceSecondsParam) > 0 {
 		sinceSeconds, err = strconv.Atoi(sinceSecondsParam)
 		if err != nil || sinceSeconds <= 0 {
@@ -187,13 +201,10 @@ func (impl *K8sApplicationServiceImpl) ValidatePodLogsRequestQuery(r *http.Reque
 	}
 	request.K8sRequest = k8sRequest
 	if appId != "" {
-		// Validate App Type
-		appType, err := strconv.Atoi(v.Get("appType"))
-		if err != nil || !(appType == bean3.DevtronAppType || appType == bean3.HelmAppType) {
+		if err != nil || !(appType == bean3.DevtronAppType || appType == bean3.HelmAppType || appType == bean3.ArgoAppType) {
 			impl.logger.Errorw("Invalid appType", "err", err, "appType", appType)
 			return nil, err
 		}
-		request.AppType = appType
 		// Validate Deployment Type
 		deploymentType, err := strconv.Atoi(v.Get("deploymentType"))
 		if err != nil || !(deploymentType == bean3.HelmInstalledType || deploymentType == bean3.ArgoInstalledType) {

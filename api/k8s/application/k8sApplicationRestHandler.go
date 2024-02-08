@@ -631,18 +631,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	vars := r.URL.Query()
-	request.ExternalArgoApplicationName = vars.Get("externalArgoApplicationName")
-	appTypeStr := vars.Get("appType")
-	var appType int
-	if len(appTypeStr) > 0 { //appType var is needed in case of Argo Apps and since this var is not expected for devtron apps/helm apps/resource browser only parsing if present
-		appType, err = strconv.Atoi(appTypeStr)
-		if err != nil {
-			handler.logger.Errorw("error in parsing appType param", "err", err)
-			common.WriteJsonResp(w, errors.New("invalid param: appType"), nil, http.StatusBadRequest)
-		}
-	}
-	handler.requestValidationAndRBAC(w, r, token, request, appType)
+	handler.requestValidationAndRBAC(w, r, token, request)
 	lastEventId := r.Header.Get(bean2.LastEventID)
 	isReconnect := false
 	if len(lastEventId) > 0 {
@@ -680,17 +669,7 @@ func (handler *K8sApplicationRestHandlerImpl) DownloadPodLogs(w http.ResponseWri
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	vars := r.URL.Query()
-	appTypeStr := vars.Get("appType")
-	var appType int
-	if len(appTypeStr) > 0 { //appType var is needed in case of Argo Apps and since this var is not expected for devtron apps/helm apps/resource browser only parsing if present
-		appType, err = strconv.Atoi(appTypeStr)
-		if err != nil {
-			handler.logger.Errorw("error in parsing appType param", "err", err)
-			common.WriteJsonResp(w, errors.New("invalid param: appType"), nil, http.StatusBadRequest)
-		}
-	}
-	handler.requestValidationAndRBAC(w, r, token, request, appType)
+	handler.requestValidationAndRBAC(w, r, token, request)
 
 	// just to make sure follow flag is set to false when downloading logs
 	request.K8sRequest.PodLogsRequest.Follow = false
@@ -767,8 +746,7 @@ func generatePodLogsFilename(filename string) string {
 	return fmt.Sprintf("podlogs-%s-%s.log", filename, uuid.New().String())
 }
 
-func (handler *K8sApplicationRestHandlerImpl) requestValidationAndRBAC(w http.ResponseWriter, r *http.Request, token string,
-	request *k8s.ResourceRequestBean, appType int) {
+func (handler *K8sApplicationRestHandlerImpl) requestValidationAndRBAC(w http.ResponseWriter, r *http.Request, token string, request *k8s.ResourceRequestBean) {
 	if request.AppIdentifier != nil {
 		if request.DeploymentType == bean2.HelmInstalledType {
 			valid, err := handler.k8sApplicationService.ValidateResourceRequest(r.Context(), request.AppIdentifier, request.K8sRequest)
@@ -810,7 +788,7 @@ func (handler *K8sApplicationRestHandlerImpl) requestValidationAndRBAC(w http.Re
 			return
 		}
 		//RBAC enforcer Ends
-	} else if request.AppIdentifier == nil && request.DevtronAppIdentifier == nil && request.ClusterId > 0 && appType != bean2.ArgoAppType {
+	} else if request.AppIdentifier == nil && request.DevtronAppIdentifier == nil && request.ClusterId > 0 && request.AppType != bean2.ArgoAppType {
 		//RBAC enforcer applying For Resource Browser
 		if !handler.handleRbac(r, w, *request, token, casbin.ActionGet) {
 			return

@@ -457,20 +457,13 @@ func (impl *TerminalSessionHandlerImpl) GetTerminalSession(req *TerminalSessionR
 func (impl *TerminalSessionHandlerImpl) getClientConfig(req *TerminalSessionRequest) (*rest.Config, *kubernetes.Clientset, error) {
 	var clusterBean *cluster.ClusterBean
 	var clusterConfig *k8s2.ClusterConfig
+	var restConfig *rest.Config
 	var err error
 	if len(req.ExternalArgoApplicationName) > 0 {
-		restConfig, err := impl.argoApplicationService.GetRestConfigForExternalArgo(context.Background(), req.ClusterId, req.ExternalArgoApplicationName)
+		restConfig, err = impl.argoApplicationService.GetRestConfigForExternalArgo(context.Background(), req.ClusterId, req.ExternalArgoApplicationName)
 		if err != nil {
 			impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", req.ClusterId, "externalArgoApplicationName", req.ExternalArgoApplicationName)
-		}
-
-		clusterConfig = &k8s2.ClusterConfig{
-			Host:                  restConfig.Host,
-			InsecureSkipTLSVerify: restConfig.TLSClientConfig.Insecure,
-			BearerToken:           restConfig.BearerToken,
-			KeyData:               restConfig.TLSClientConfig.KeyFile,
-			CertData:              restConfig.TLSClientConfig.CertFile,
-			CAData:                restConfig.TLSClientConfig.CAFile,
+			return nil, nil, err
 		}
 	} else {
 		if req.ClusterId != 0 {
@@ -493,14 +486,18 @@ func (impl *TerminalSessionHandlerImpl) getClientConfig(req *TerminalSessionRequ
 			impl.logger.Errorw("error in config", "err", err, "clusterId", req.ClusterId)
 			return nil, nil, err
 		}
+		restConfig, err = impl.k8sUtil.GetRestConfigByCluster(clusterConfig)
+		if err != nil {
+			impl.logger.Errorw("error in getting rest config by cluster", "err", err, "clusterName", clusterConfig.ClusterName)
+			return nil, nil, err
+		}
 	}
-
-	cfg, _, clientSet, err := impl.k8sUtil.GetK8sConfigAndClients(clusterConfig)
+	_, clientSet, err := impl.k8sUtil.GetK8sConfigAndClientsByRestConfig(restConfig)
 	if err != nil {
 		impl.logger.Errorw("error in clientSet", "err", err)
 		return nil, nil, err
 	}
-	return cfg, clientSet, nil
+	return restConfig, clientSet, nil
 }
 func (impl *TerminalSessionHandlerImpl) AutoSelectShell(req *TerminalSessionRequest) (string, error) {
 	var err1 error
@@ -569,20 +566,13 @@ func (impl *TerminalSessionHandlerImpl) RunCmdInRemotePod(req *TerminalSessionRe
 }
 
 func (impl *TerminalSessionHandlerImpl) saveEphemeralContainerTerminalAccessAudit(req *TerminalSessionRequest) error {
-	var clusterConfig *k8s2.ClusterConfig
+	var restConfig *rest.Config
+	var err error
 	if len(req.ExternalArgoApplicationName) > 0 {
-		restConfig, err := impl.argoApplicationService.GetRestConfigForExternalArgo(context.Background(), req.ClusterId, req.ExternalArgoApplicationName)
+		restConfig, err = impl.argoApplicationService.GetRestConfigForExternalArgo(context.Background(), req.ClusterId, req.ExternalArgoApplicationName)
 		if err != nil {
 			impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", req.ClusterId, "externalArgoApplicationName", req.ExternalArgoApplicationName)
-		}
-
-		clusterConfig = &k8s2.ClusterConfig{
-			Host:                  restConfig.Host,
-			InsecureSkipTLSVerify: restConfig.TLSClientConfig.Insecure,
-			BearerToken:           restConfig.BearerToken,
-			KeyData:               restConfig.TLSClientConfig.KeyFile,
-			CertData:              restConfig.TLSClientConfig.CertFile,
-			CAData:                restConfig.TLSClientConfig.CAFile,
+			return err
 		}
 	} else {
 		clusterBean, err := impl.clusterService.FindById(req.ClusterId)
@@ -590,14 +580,23 @@ func (impl *TerminalSessionHandlerImpl) saveEphemeralContainerTerminalAccessAudi
 			impl.logger.Errorw("error occurred in finding clusterBean by Id", "clusterId", req.ClusterId, "err", err)
 			return err
 		}
-		clusterConfig = clusterBean.GetClusterConfig()
+		clusterConfig := clusterBean.GetClusterConfig()
 		if err != nil {
 			impl.logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterBean.Id)
 			return err
 		}
+		restConfig, err = impl.k8sUtil.GetRestConfigByCluster(clusterConfig)
+		if err != nil {
+			impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", req.ClusterId, "externalArgoApplicationName", req.ExternalArgoApplicationName)
+			return err
+		}
 	}
 
-	v1Client, err := impl.k8sUtil.GetCoreV1Client(clusterConfig)
+	v1Client, err := impl.k8sUtil.GetCoreV1ClientByRestConfig(restConfig)
+	if err != nil {
+		impl.logger.Errorw("error, GetCoreV1ClientByRestConfig", "err", err)
+		return err
+	}
 	pod, err := impl.k8sUtil.GetPodByName(req.Namespace, req.PodName, v1Client)
 	if err != nil {
 		impl.logger.Errorw("error in getting pod", "clusterId", req.ClusterId, "namespace", req.Namespace, "podName", req.PodName, "err", err)
