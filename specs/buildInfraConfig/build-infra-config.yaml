@@ -42,7 +42,7 @@ paths:
                   schema:
                     $ref: "#/components/schemas/Profile"
 
-  /orchestrator/infra-config/profile:
+  /orchestrator/infra-config/list/profile:
     get:
       description: Get Infra Profiles
       responses:
@@ -52,6 +52,7 @@ paths:
             application/json:
               schema:
                   $ref: "#/components/schemas/ProfilesResponse"
+  /orchestrator/infra-config/profile:
     post:
       description: Create Infra Profile
       requestBody:
@@ -68,7 +69,7 @@ paths:
                 schema:
                     $ref: "#/components/schemas/Profile"
 
-  /orchestrator/infra-config/{identifier}/list?search={search}&sort={sort}&profileId={profileId}&size={size}&offset={offset}:
+  /orchestrator/infra-config/list/identifier/{identifier}?search={search}&sort={sort}&profileId={profileId}&size={size}&offset={offset}:
     get:
       description: Get identifiers and their Infra Profiles
       example: "/orchestrator/infra-config/APP/list?search=java&sort=0&profileId=1&size=10&offset=0"
