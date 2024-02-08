@@ -457,23 +457,15 @@ func (impl *TerminalSessionHandlerImpl) GetTerminalSession(req *TerminalSessionR
 func (impl *TerminalSessionHandlerImpl) getClientConfig(req *TerminalSessionRequest) (*rest.Config, *kubernetes.Clientset, error) {
 	var clusterBean *cluster.ClusterBean
 	var clusterConfig *k8s.ClusterConfig
+	var restConfig *rest.Config
 	var err error
 	impl.logger.Errorw("getClientConfig request", "req", req)
 	if len(req.ExternalArgoApplicationName) > 0 {
-		restConfig, err := impl.argoApplicationService.GetRestConfigForExternalArgo(context.Background(), req.ClusterId, req.ExternalArgoApplicationName)
+		restConfig, err = impl.argoApplicationService.GetRestConfigForExternalArgo(context.Background(), req.ClusterId, req.ExternalArgoApplicationName)
 		if err != nil {
 			impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", req.ClusterId, "externalArgoApplicationName", req.ExternalArgoApplicationName)
 		}
 		impl.logger.Errorw("got restConfig, GetRestConfigForExternalArgo", "restConfig", restConfig)
-		clusterConfig = &k8s.ClusterConfig{
-			Host:                  restConfig.Host,
-			InsecureSkipTLSVerify: restConfig.TLSClientConfig.Insecure,
-			BearerToken:           restConfig.BearerToken,
-			KeyData:               restConfig.TLSClientConfig.KeyFile,
-			CertData:              restConfig.TLSClientConfig.CertFile,
-			CAData:                restConfig.TLSClientConfig.CAFile,
-		}
-		impl.logger.Infow("got clusterConfig from restConfig of external argo", "clusterConfig", clusterConfig)
 	} else {
 		if req.ClusterId != 0 {
 			clusterBean, err = impl.clusterService.FindById(req.ClusterId)
@@ -496,15 +488,20 @@ func (impl *TerminalSessionHandlerImpl) getClientConfig(req *TerminalSessionRequ
 			impl.logger.Errorw("error in config", "err", err, "clusterId", req.ClusterId)
 			return nil, nil, err
 		}
+		restConfig, err = impl.k8sUtil.GetRestConfigByCluster(clusterConfig)
+		if err != nil {
+			impl.logger.Errorw("error in getting rest config by cluster", "err", err, "clusterName", clusterConfig.ClusterName)
+			return nil, nil, err
+		}
 		impl.logger.Infow("got ClusterConfig", "clusterConfig", clusterConfig, "clusterBean", clusterBean)
 	}
 	impl.logger.Infow("got clusterConfig", "clusterConfig", clusterConfig, "req", req)
-	cfg, _, clientSet, err := impl.k8sUtil.GetK8sConfigAndClients(clusterConfig)
+	_, clientSet, err := impl.k8sUtil.GetK8sConfigAndClientsByRestConfig(restConfig)
 	if err != nil {
 		impl.logger.Errorw("error in clientSet", "err", err)
 		return nil, nil, err
 	}
-	return cfg, clientSet, nil
+	return restConfig, clientSet, nil
 }
 func (impl *TerminalSessionHandlerImpl) AutoSelectShell(req *TerminalSessionRequest) (string, error) {
 	var err1 error
