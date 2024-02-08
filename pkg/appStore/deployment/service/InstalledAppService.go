@@ -24,7 +24,6 @@ import (
 	appStatus2 "github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
 	appStoreDeploymentTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool"
 	util5 "github.com/devtron-labs/devtron/pkg/appStore/util"
-
 	/* #nosec */
 	"crypto/sha1"
 	"encoding/json"
@@ -1364,7 +1363,6 @@ func (impl InstalledAppServiceImpl) TriggerAfterMigration(ctx context.Context, r
 
 		return response, nil
 	}
-	//var chartGroupRequestList []*chartGroup.ChartGroupInstallChartRequest
 	var installedAppVersionDTOList []*appStoreBean.InstallAppVersionDTO
 	for _, installedApp := range successInstalledApps {
 		installedAppVersion, err := impl.installedAppRepository.GetActiveInstalledAppVersionByInstalledAppId(installedApp.Id)
@@ -1385,25 +1383,7 @@ func (impl InstalledAppServiceImpl) TriggerAfterMigration(ctx context.Context, r
 			InstalledAppVersionId:        installedAppVersion.Id,
 			InstalledAppVersionHistoryId: installedAppVersionHistory.Id,
 		})
-		//chartGroupRequest := &chartGroup.ChartGroupInstallChartRequest{
-		//	AppName:            installedApp.App.AppName,
-		//	EnvironmentId:      installedApp.EnvironmentId,
-		//	AppStoreVersion:    installedAppVersion.AppStoreApplicationVersionId,
-		//	ValuesOverrideYaml: installedAppVersion.ValuesYaml,
-		//	ReferenceValueId:   installedAppVersion.ReferenceValueId,
-		//	ReferenceValueKind: installedAppVersion.ReferenceValueKind,
-		//}
-		//chartGroupRequestList = append(chartGroupRequestList, chartGroupRequest)
 	}
-
-	//for _, chartGroupInstall := range chartGroupRequestList {
-	//	installAppVersionDTO, err := impl.requestBuilderForBulkDeployment(chartGroupInstall, 0, request.UserId)
-	//	if err != nil {
-	//		impl.logger.Errorw("DeployBulk, error in request builder", "err", err)
-	//		return nil, err
-	//	}
-	//	installedAppVersionDTOList = append(installedAppVersionDTOList, installAppVersionDTO)
-	//}
 
 	impl.triggerDeploymentEvent(installedAppVersionDTOList)
 
