@@ -87,7 +87,7 @@ func (impl *ArgoUserServiceImpl) GetOrUpdateArgoCdUserDetail() string {
 	if err != nil {
 		impl.logger.Errorw("error in getting k8s client for default cluster", "err", err)
 	}
-	devtronSecret, err := getSecret(DEVTRONCD_NAMESPACE, impl.devtronSecretConfig.DevtronSecretName, k8sClient)
+	devtronSecret, err := getSecret(impl.devtronSecretConfig.DevtronDexSecretNamespace, impl.devtronSecretConfig.DevtronSecretName, k8sClient)
 	if err != nil {
 		impl.logger.Errorw("error in getting devtron secret", "err", err)
 	}
@@ -179,7 +179,7 @@ func (impl *ArgoUserServiceImpl) GetLatestDevtronArgoCdUserToken() (string, erro
 		impl.logger.Errorw("error in getting k8s client for default cluster", "err", err)
 		return "", err
 	}
-	devtronSecret, err := getSecret(DEVTRONCD_NAMESPACE, impl.devtronSecretConfig.DevtronSecretName, k8sClient)
+	devtronSecret, err := getSecret(impl.devtronSecretConfig.DevtronDexSecretNamespace, impl.devtronSecretConfig.DevtronSecretName, k8sClient)
 	if err != nil {
 		impl.logger.Errorw("error in getting devtron secret", "err", err)
 		return "", err
@@ -219,7 +219,7 @@ func (impl *ArgoUserServiceImpl) GetLatestDevtronArgoCdUserToken() (string, erro
 }
 
 func (impl *ArgoUserServiceImpl) updateArgoCdUserInfoInDevtronSecret(userinfo map[string]string, k8sClient *v1.CoreV1Client) error {
-	devtronSecret, err := getSecret(DEVTRONCD_NAMESPACE, impl.devtronSecretConfig.DevtronSecretName, k8sClient)
+	devtronSecret, err := getSecret(impl.devtronSecretConfig.DevtronDexSecretNamespace, impl.devtronSecretConfig.DevtronSecretName, k8sClient)
 	if err != nil {
 		impl.logger.Errorw("error in getting devtron secret", "err", err)
 		return err
@@ -232,7 +232,7 @@ func (impl *ArgoUserServiceImpl) updateArgoCdUserInfoInDevtronSecret(userinfo ma
 		secretData[key] = []byte(value)
 	}
 	devtronSecret.Data = secretData
-	_, err = updateSecret(DEVTRONCD_NAMESPACE, devtronSecret, k8sClient)
+	_, err = updateSecret(impl.devtronSecretConfig.DevtronDexSecretNamespace, devtronSecret, k8sClient)
 	if err != nil {
 		impl.logger.Errorw("error in updating devtron secret", "err", err)
 		return err
