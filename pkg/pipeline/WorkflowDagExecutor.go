@@ -2615,9 +2615,9 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(triggerContext TriggerConte
 			_, span = otel.Tracer("orchestrator").Start(ctx, "updatePreviousDeploymentStatus")
 			err1 := impl.updatePreviousDeploymentStatus(runner, cdPipeline.Id, triggeredAt, overrideRequest.UserId)
 			span.End()
-			if releaseErr != nil || err1 != nil {
+			if err1 != nil {
 				impl.logger.Errorw("error while update previous cd workflow runners, ManualCdTrigger", "err", err, "runner", runner, "pipelineId", cdPipeline.Id)
-				return 0, releaseErr
+				return 0, err1
 			}
 		}
 
