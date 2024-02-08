@@ -124,16 +124,17 @@ func (impl *K8sApplicationServiceImpl) ValidatePodLogsRequestQuery(r *http.Reque
 	request.ExternalArgoApplicationName = v.Get("externalArgoApplicationName")
 	appTypeStr := v.Get("appType")
 	var appType int
-	appType, err = strconv.Atoi(appTypeStr)
-	if err != nil {
-		return nil, &util.ApiError{
-			Code:            "400",
-			HttpStatusCode:  400,
-			UserMessage:     "invalid param: appType",
-			InternalMessage: "invalid param: appType",
+	if len(appTypeStr) > 0 {
+		appType, err = strconv.Atoi(appTypeStr)
+		if err != nil {
+			return nil, &util.ApiError{
+				Code:            "400",
+				HttpStatusCode:  400,
+				UserMessage:     "invalid param: appType",
+				InternalMessage: "invalid param: appType",
+			}
 		}
 	}
-
 	request.AppType = appType
 	podName := vars["podName"]
 	sinceSecondsParam := v.Get("sinceSeconds")
@@ -200,7 +201,7 @@ func (impl *K8sApplicationServiceImpl) ValidatePodLogsRequestQuery(r *http.Reque
 	}
 	request.K8sRequest = k8sRequest
 	if appId != "" {
-		if err != nil || !(appType == bean3.DevtronAppType || appType == bean3.HelmAppType || appType == bean3.ArgoAppType) {
+		if len(appTypeStr) > 0 && !(appType == bean3.DevtronAppType || appType == bean3.HelmAppType || appType == bean3.ArgoAppType) {
 			impl.logger.Errorw("Invalid appType", "err", err, "appType", appType)
 			return nil, err
 		}
