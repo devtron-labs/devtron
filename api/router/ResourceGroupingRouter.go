@@ -2,7 +2,8 @@ package router
 
 import (
 	"github.com/devtron-labs/devtron/api/restHandler"
-	"github.com/devtron-labs/devtron/api/restHandler/app"
+	"github.com/devtron-labs/devtron/api/restHandler/app/pipeline/configure"
+	"github.com/devtron-labs/devtron/api/restHandler/app/workflow"
 	"github.com/gorilla/mux"
 )
 
@@ -10,13 +11,13 @@ type ResourceGroupingRouter interface {
 	InitResourceGroupingRouter(router *mux.Router)
 }
 type ResourceGroupingRouterImpl struct {
-	pipelineConfigRestHandler app.PipelineConfigRestHandler
-	appWorkflowRestHandler    restHandler.AppWorkflowRestHandler
+	pipelineConfigRestHandler configure.PipelineConfigRestHandler
+	appWorkflowRestHandler    workflow.AppWorkflowRestHandler
 	resourceGroupRestHandler  restHandler.ResourceGroupRestHandler
 }
 
-func NewResourceGroupingRouterImpl(restHandler app.PipelineConfigRestHandler,
-	appWorkflowRestHandler restHandler.AppWorkflowRestHandler,
+func NewResourceGroupingRouterImpl(restHandler configure.PipelineConfigRestHandler,
+	appWorkflowRestHandler workflow.AppWorkflowRestHandler,
 	resourceGroupRestHandler restHandler.ResourceGroupRestHandler) *ResourceGroupingRouterImpl {
 	return &ResourceGroupingRouterImpl{
 		pipelineConfigRestHandler: restHandler,

@@ -17,3 +17,11 @@ var GitOpsWireSet = wire.NewSet(
 	git.NewGitOperationServiceImpl,
 	wire.Bind(new(git.GitOperationService), new(*git.GitOperationServiceImpl)),
 )
+
+var GitOpsEAWireSet = wire.NewSet(
+	repository.NewGitOpsConfigRepositoryImpl,
+	wire.Bind(new(repository.GitOpsConfigRepository), new(*repository.GitOpsConfigRepositoryImpl)),
+
+	config.NewGitOpsConfigReadServiceImpl,
+	wire.Bind(new(config.GitOpsConfigReadService), new(*config.GitOpsConfigReadServiceImpl)),
+)
