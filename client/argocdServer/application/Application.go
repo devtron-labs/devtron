@@ -21,100 +21,35 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
-	k8sObjectUtils "github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
-	"github.com/devtron-labs/devtron/client/argocdServer/connection"
-	"strings"
-	"time"
-
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
+	"github.com/devtron-labs/devtron/client/argocdServer/connection"
 	"github.com/devtron-labs/devtron/util"
 	"go.uber.org/zap"
-	"google.golang.org/grpc"
-	v12 "k8s.io/api/apps/v1"
-	v1 "k8s.io/api/core/v1"
-)
-
-const (
-	Degraded    = "Degraded"
-	Healthy     = "Healthy"
-	Progressing = "Progressing"
-	Suspended   = "Suspended"
-	TimeoutFast = 10 * time.Second
-	TimeoutSlow = 30 * time.Second
-	TimeoutLazy = 60 * time.Second
-	HIBERNATING = "HIBERNATING"
-	SUCCEEDED   = "Succeeded"
 )
 
 type ServiceClient interface {
-	List(ctxt context.Context, query *application.ApplicationQuery) (*v1alpha1.ApplicationList, error)
-	PodLogs(ctxt context.Context, query *application.ApplicationPodLogsQuery) (application.ApplicationService_PodLogsClient, *grpc.ClientConn, error)
-	ListResourceEvents(ctx context.Context, query *application.ApplicationResourceEventsQuery) (*v1.EventList, error)
-	ResourceTree(ctx context.Context, query *application.ResourcesQuery) (*ResourceTreeResponse, error)
-	// Watch returns stream of application change events.
-	Watch(ctx context.Context, in *application.ApplicationQuery) (application.ApplicationService_WatchClient, *grpc.ClientConn, error)
-	ManagedResources(ctx context.Context, query *application.ResourcesQuery) (*application.ManagedResourcesResponse, error)
-	// Rollback syncs an application to its target state
-	Rollback(ctx context.Context, query *application.ApplicationRollbackRequest) (*v1alpha1.Application, error)
-	// Patch patch an application
+	// ResourceTree	returns the status for all Apps deployed via ArgoCd
+	ResourceTree(ctx context.Context, query *application.ResourcesQuery) (*argoApplication.ResourceTreeResponse, error)
+
+	// Patch an ArgoCd application
 	Patch(ctx context.Context, query *application.ApplicationPatchRequest) (*v1alpha1.Application, error)
-	// GetManifests returns application manifests
-	GetManifests(ctx context.Context, query *application.ApplicationManifestQuery) (*apiclient.ManifestResponse, error)
+
 	// GetResource returns single application resource
 	GetResource(ctxt context.Context, query *application.ApplicationResourceRequest) (*application.ApplicationResourceResponse, error)
+
 	// Get returns an application by name
 	Get(ctx context.Context, query *application.ApplicationQuery) (*v1alpha1.Application, error)
-	// Create creates an application
-	Create(ctx context.Context, query *application.ApplicationCreateRequest) (*v1alpha1.Application, error)
+
 	// Update updates an application
 	Update(ctx context.Context, query *application.ApplicationUpdateRequest) (*v1alpha1.Application, error)
+
 	// Sync syncs an application to its target state
 	Sync(ctx context.Context, query *application.ApplicationSyncRequest) (*v1alpha1.Application, error)
-	// TerminateOperation terminates the currently running operation
-	TerminateOperation(ctx context.Context, query *application.OperationTerminateRequest) (*application.OperationTerminateResponse, error)
-	// PatchResource patch single application resource
-	PatchResource(ctx context.Context, query *application.ApplicationResourcePatchRequest) (*application.ApplicationResourceResponse, error)
-	// DeleteResource deletes a single application resource
-	DeleteResource(ctx context.Context, query *application.ApplicationResourceDeleteRequest) (*application.ApplicationResponse, error)
+
 	// Delete deletes an application
 	Delete(ctx context.Context, query *application.ApplicationDeleteRequest) (*application.ApplicationResponse, error)
-}
-
-type Result struct {
-	Response *application.ApplicationResourceResponse
-	Error    error
-	Request  *application.ApplicationResourceRequest
-}
-
-type ResourceTreeResponse struct {
-	*v1alpha1.ApplicationTree
-	NewGenerationReplicaSets []string                        `json:"newGenerationReplicaSets"`
-	Status                   string                          `json:"status"`
-	RevisionHash             string                          `json:"revisionHash"`
-	PodMetadata              []*PodMetadata                  `json:"podMetadata"`
-	Conditions               []v1alpha1.ApplicationCondition `json:"conditions"`
-}
-
-type PodMetadata struct {
-	Name           string    `json:"name"`
-	UID            string    `json:"uid"`
-	Containers     []*string `json:"containers"`
-	InitContainers []*string `json:"initContainers"`
-	IsNew          bool      `json:"isNew"`
-	// EphemeralContainers are set for Pod kind manifest response only
-	// will always contain running ephemeral containers
-	// +optional
-	EphemeralContainers []*k8sObjectUtils.EphemeralContainerData `json:"ephemeralContainers"`
-}
-
-type Manifests struct {
-	rolloutManifest     map[string]interface{}
-	deploymentManifest  map[string]interface{}
-	replicaSetManifests []map[string]interface{}
-	serviceManifests    []map[string]interface{}
 }
 
 type ServiceClientImpl struct {
@@ -123,44 +58,16 @@ type ServiceClientImpl struct {
 }
 
 func NewApplicationClientImpl(
-	logger *zap.SugaredLogger, argoCDConnectionManager connection.ArgoCDConnectionManager,
-) *ServiceClientImpl {
+	logger *zap.SugaredLogger,
+	argoCDConnectionManager connection.ArgoCDConnectionManager) *ServiceClientImpl {
 	return &ServiceClientImpl{
 		logger:                  logger,
 		argoCDConnectionManager: argoCDConnectionManager,
 	}
 }
 
-func (c ServiceClientImpl) ManagedResources(ctxt context.Context, query *application.ResourcesQuery) (*application.ManagedResourcesResponse, error) {
-	ctx, cancel := context.WithTimeout(ctxt, TimeoutFast)
-	defer cancel()
-	token, ok := ctxt.Value("token").(string)
-	if !ok {
-		return nil, errors.New("Unauthorized")
-	}
-	conn := c.argoCDConnectionManager.GetConnection(token)
-	defer util.Close(conn, c.logger)
-	asc := application.NewApplicationServiceClient(conn)
-	resp, err := asc.ManagedResources(ctx, query)
-	return resp, err
-}
-
-func (c ServiceClientImpl) Rollback(ctxt context.Context, query *application.ApplicationRollbackRequest) (*v1alpha1.Application, error) {
-	ctx, cancel := context.WithTimeout(ctxt, TimeoutFast)
-	defer cancel()
-	token, ok := ctxt.Value("token").(string)
-	if !ok {
-		return nil, errors.New("Unauthorized")
-	}
-	conn := c.argoCDConnectionManager.GetConnection(token)
-	defer util.Close(conn, c.logger)
-	asc := application.NewApplicationServiceClient(conn)
-	resp, err := asc.Rollback(ctx, query)
-	return resp, err
-}
-
 func (c ServiceClientImpl) Patch(ctxt context.Context, query *application.ApplicationPatchRequest) (*v1alpha1.Application, error) {
-	ctx, cancel := context.WithTimeout(ctxt, TimeoutLazy)
+	ctx, cancel := context.WithTimeout(ctxt, argoApplication.TimeoutLazy)
 	defer cancel()
 	token, ok := ctxt.Value("token").(string)
 	if !ok {
@@ -173,22 +80,8 @@ func (c ServiceClientImpl) Patch(ctxt context.Context, query *application.Applic
 	return resp, err
 }
 
-func (c ServiceClientImpl) GetManifests(ctxt context.Context, query *application.ApplicationManifestQuery) (*apiclient.ManifestResponse, error) {
-	ctx, cancel := context.WithTimeout(ctxt, TimeoutFast)
-	defer cancel()
-	token, ok := ctxt.Value("token").(string)
-	if !ok {
-		return nil, errors.New("Unauthorized")
-	}
-	conn := c.argoCDConnectionManager.GetConnection(token)
-	defer util.Close(conn, c.logger)
-	asc := application.NewApplicationServiceClient(conn)
-	resp, err := asc.GetManifests(ctx, query)
-	return resp, err
-}
-
 func (c ServiceClientImpl) Get(ctxt context.Context, query *application.ApplicationQuery) (*v1alpha1.Application, error) {
-	ctx, cancel := context.WithTimeout(ctxt, TimeoutFast)
+	ctx, cancel := context.WithTimeout(ctxt, argoApplication.TimeoutFast)
 	defer cancel()
 	token, ok := ctxt.Value("token").(string)
 	if !ok {
@@ -202,7 +95,7 @@ func (c ServiceClientImpl) Get(ctxt context.Context, query *application.Applicat
 }
 
 func (c ServiceClientImpl) Update(ctxt context.Context, query *application.ApplicationUpdateRequest) (*v1alpha1.Application, error) {
-	ctx, cancel := context.WithTimeout(ctxt, TimeoutFast)
+	ctx, cancel := context.WithTimeout(ctxt, argoApplication.TimeoutFast)
 	defer cancel()
 	token, ok := ctxt.Value("token").(string)
 	if !ok {
@@ -215,25 +108,12 @@ func (c ServiceClientImpl) Update(ctxt context.Context, query *application.Appli
 	return resp, err
 }
 
-type ErrUnauthorized struct {
-	message string
-}
-
-func NewErrUnauthorized(message string) *ErrUnauthorized {
-	return &ErrUnauthorized{
-		message: message,
-	}
-}
-func (e *ErrUnauthorized) Error() string {
-	return e.message
-}
-
 func (c ServiceClientImpl) Sync(ctxt context.Context, query *application.ApplicationSyncRequest) (*v1alpha1.Application, error) {
-	ctx, cancel := context.WithTimeout(ctxt, TimeoutFast)
+	ctx, cancel := context.WithTimeout(ctxt, argoApplication.TimeoutFast)
 	defer cancel()
 	token, ok := ctxt.Value("token").(string)
 	if !ok {
-		return nil, NewErrUnauthorized("Unauthorized")
+		return nil, argoApplication.NewErrUnauthorized("Unauthorized")
 	}
 	conn := c.argoCDConnectionManager.GetConnection(token)
 	defer util.Close(conn, c.logger)
@@ -242,82 +122,8 @@ func (c ServiceClientImpl) Sync(ctxt context.Context, query *application.Applica
 	return resp, err
 }
 
-func (c ServiceClientImpl) TerminateOperation(ctxt context.Context, query *application.OperationTerminateRequest) (*application.OperationTerminateResponse, error) {
-	ctx, cancel := context.WithTimeout(ctxt, TimeoutSlow)
-	defer cancel()
-	token, ok := ctxt.Value("token").(string)
-	if !ok {
-		return nil, errors.New("Unauthorized")
-	}
-	conn := c.argoCDConnectionManager.GetConnection(token)
-	defer util.Close(conn, c.logger)
-	asc := application.NewApplicationServiceClient(conn)
-	resp, err := asc.TerminateOperation(ctx, query)
-	return resp, err
-}
-
-func (c ServiceClientImpl) PatchResource(ctxt context.Context, query *application.ApplicationResourcePatchRequest) (*application.ApplicationResourceResponse, error) {
-	ctx, cancel := context.WithTimeout(ctxt, TimeoutFast)
-	defer cancel()
-	token, ok := ctxt.Value("token").(string)
-	if !ok {
-		return nil, errors.New("Unauthorized")
-	}
-	conn := c.argoCDConnectionManager.GetConnection(token)
-	defer util.Close(conn, c.logger)
-	asc := application.NewApplicationServiceClient(conn)
-	resp, err := asc.PatchResource(ctx, query)
-	return resp, err
-}
-
-func (c ServiceClientImpl) DeleteResource(ctxt context.Context, query *application.ApplicationResourceDeleteRequest) (*application.ApplicationResponse, error) {
-	ctx, cancel := context.WithTimeout(ctxt, TimeoutSlow)
-	defer cancel()
-	token, ok := ctxt.Value("token").(string)
-	if !ok {
-		return nil, errors.New("Unauthorized")
-	}
-	conn := c.argoCDConnectionManager.GetConnection(token)
-	defer util.Close(conn, c.logger)
-	asc := application.NewApplicationServiceClient(conn)
-	resp, err := asc.DeleteResource(ctx, query)
-	return resp, err
-}
-
-func (c ServiceClientImpl) List(ctxt context.Context, query *application.ApplicationQuery) (*v1alpha1.ApplicationList, error) {
-	ctx, cancel := context.WithTimeout(ctxt, TimeoutFast)
-	defer cancel()
-	token, ok := ctxt.Value("token").(string)
-	if !ok {
-		return nil, errors.New("Unauthorized")
-	}
-	conn := c.argoCDConnectionManager.GetConnection(token)
-	defer util.Close(conn, c.logger)
-	asc := application.NewApplicationServiceClient(conn)
-	resp, err := asc.List(ctx, query)
-	return resp, err
-}
-
-func (c ServiceClientImpl) PodLogs(ctx context.Context, query *application.ApplicationPodLogsQuery) (application.ApplicationService_PodLogsClient, *grpc.ClientConn, error) {
-	token, _ := ctx.Value("token").(string)
-	conn := c.argoCDConnectionManager.GetConnection(token)
-	//defer conn.Close()
-	asc := application.NewApplicationServiceClient(conn)
-	logs, err := asc.PodLogs(ctx, query)
-	return logs, conn, err
-}
-
-func (c ServiceClientImpl) Watch(ctx context.Context, query *application.ApplicationQuery) (application.ApplicationService_WatchClient, *grpc.ClientConn, error) {
-	token, _ := ctx.Value("token").(string)
-	conn := c.argoCDConnectionManager.GetConnection(token)
-	//defer conn.Close()
-	asc := application.NewApplicationServiceClient(conn)
-	logs, err := asc.Watch(ctx, query)
-	return logs, conn, err
-}
-
 func (c ServiceClientImpl) GetResource(ctxt context.Context, query *application.ApplicationResourceRequest) (*application.ApplicationResourceResponse, error) {
-	ctx, cancel := context.WithTimeout(ctxt, TimeoutFast)
+	ctx, cancel := context.WithTimeout(ctxt, argoApplication.TimeoutFast)
 	defer cancel()
 	token, ok := ctxt.Value("token").(string)
 	if !ok {
@@ -330,7 +136,7 @@ func (c ServiceClientImpl) GetResource(ctxt context.Context, query *application.
 }
 
 func (c ServiceClientImpl) Delete(ctxt context.Context, query *application.ApplicationDeleteRequest) (*application.ApplicationResponse, error) {
-	ctx, cancel := context.WithTimeout(ctxt, TimeoutSlow)
+	ctx, cancel := context.WithTimeout(ctxt, argoApplication.TimeoutSlow)
 	defer cancel()
 	token, ok := ctxt.Value("token").(string)
 	if !ok {
@@ -342,37 +148,9 @@ func (c ServiceClientImpl) Delete(ctxt context.Context, query *application.Appli
 	return asc.Delete(ctx, query)
 }
 
-func (c ServiceClientImpl) ListResourceEvents(ctxt context.Context, query *application.ApplicationResourceEventsQuery) (*v1.EventList, error) {
-	ctx, cancel := context.WithTimeout(ctxt, TimeoutFast)
-	defer cancel()
-	token, ok := ctxt.Value("token").(string)
-	if !ok {
-		return nil, errors.New("Unauthorized")
-	}
-	conn := c.argoCDConnectionManager.GetConnection(token)
-	defer util.Close(conn, c.logger)
-	asc := application.NewApplicationServiceClient(conn)
-	resp, err := asc.ListResourceEvents(ctx, query)
-	return resp, err
-}
-
-func (c ServiceClientImpl) Create(ctxt context.Context, query *application.ApplicationCreateRequest) (*v1alpha1.Application, error) {
-	ctx, cancel := context.WithTimeout(ctxt, TimeoutSlow)
-	defer cancel()
-	token, ok := ctxt.Value("token").(string)
-	if !ok {
-		return nil, errors.New("Unauthorized")
-	}
-	conn := c.argoCDConnectionManager.GetConnection(token)
-	defer util.Close(conn, c.logger)
-	asc := application.NewApplicationServiceClient(conn)
-	resp, err := asc.Create(ctx, query)
-	return resp, err
-}
-
-func (c ServiceClientImpl) ResourceTree(ctxt context.Context, query *application.ResourcesQuery) (*ResourceTreeResponse, error) {
+func (c ServiceClientImpl) ResourceTree(ctxt context.Context, query *application.ResourcesQuery) (*argoApplication.ResourceTreeResponse, error) {
 	//all the apps deployed via argo are fetching status from here
-	ctx, cancel := context.WithTimeout(ctxt, TimeoutSlow)
+	ctx, cancel := context.WithTimeout(ctxt, argoApplication.TimeoutSlow)
 	defer cancel()
 	token, ok := ctxt.Value("token").(string)
 	if !ok {
@@ -399,7 +177,7 @@ func (c ServiceClientImpl) ResourceTree(ctxt context.Context, query *application
 		appResp, err := app.Recv()
 		if err == nil {
 			// https://github.com/argoproj/argo-cd/issues/11234 workaround
-			c.updateNodeHealthStatus(resp, appResp)
+			updateNodeHealthStatus(resp, appResp)
 
 			status = string(appResp.Application.Status.Health.Status)
 			hash = appResp.Application.Status.Sync.Revision
@@ -414,40 +192,10 @@ func (c ServiceClientImpl) ResourceTree(ctxt context.Context, query *application
 			}
 		}
 	}
-	return &ResourceTreeResponse{resp, newReplicaSets, status, hash, podMetadata, conditions}, err
+	return &argoApplication.ResourceTreeResponse{resp, newReplicaSets, status, hash, podMetadata, conditions}, err
 }
 
-// fill the health status in node from app resources
-func (c ServiceClientImpl) updateNodeHealthStatus(resp *v1alpha1.ApplicationTree, appResp *v1alpha1.ApplicationWatchEvent) {
-	if resp == nil || len(resp.Nodes) == 0 || appResp == nil || len(appResp.Application.Status.Resources) == 0 {
-		return
-	}
-
-	for index, node := range resp.Nodes {
-		if node.Health != nil {
-			continue
-		}
-		for _, resource := range appResp.Application.Status.Resources {
-			if node.Group != resource.Group || node.Version != resource.Version || node.Kind != resource.Kind ||
-				node.Name != resource.Name || node.Namespace != resource.Namespace {
-				continue
-			}
-			resourceHealth := resource.Health
-			if resourceHealth != nil {
-				node.Health = &v1alpha1.HealthStatus{
-					Message: resourceHealth.Message,
-					Status:  resourceHealth.Status,
-				}
-				// updating the element in slice
-				// https://medium.com/@xcoulon/3-ways-to-update-elements-in-a-slice-d5df54c9b2f8
-				resp.Nodes[index] = node
-			}
-			break
-		}
-	}
-}
-
-func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, responses []*Result) (podMetaData []*PodMetadata, newReplicaSets []string) {
+func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, responses []*argoApplication.Result) (podMetaData []*argoApplication.PodMetadata, newReplicaSets []string) {
 	rolloutManifests := make([]map[string]interface{}, 0)
 	statefulSetManifest := make(map[string]interface{})
 	deploymentManifests := make([]map[string]interface{}, 0)
@@ -520,7 +268,7 @@ func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, resp
 	// for rollout we compare pod hash
 	for _, rolloutManifest := range rolloutManifests {
 		if _, ok := rolloutManifest["kind"]; ok {
-			newReplicaSet := c.getRolloutNewReplicaSetName(rolloutManifest, replicaSetManifests)
+			newReplicaSet := getRolloutNewReplicaSetName(rolloutManifest, replicaSetManifests)
 			if len(newReplicaSet) > 0 {
 				newReplicaSets = append(newReplicaSets, newReplicaSet)
 			}
@@ -529,7 +277,7 @@ func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, resp
 
 	for _, deploymentManifest := range deploymentManifests {
 		if _, ok := deploymentManifest["kind"]; ok {
-			newReplicaSet := c.getDeploymentNewReplicaSetName(deploymentManifest, replicaSetManifests)
+			newReplicaSet := getDeploymentNewReplicaSetName(deploymentManifest, replicaSetManifests)
 			if len(newReplicaSet) > 0 {
 				newReplicaSets = append(newReplicaSets, newReplicaSet)
 			}
@@ -537,15 +285,15 @@ func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, resp
 	}
 
 	if _, ok := statefulSetManifest["kind"]; ok {
-		newPodNames = c.getStatefulSetNewPods(statefulSetManifest, podManifests)
+		newPodNames = getStatefulSetNewPods(statefulSetManifest, podManifests)
 	}
 
 	if _, ok := daemonSetManifest["kind"]; ok {
-		newPodNames = c.getDaemonSetNewPods(daemonSetManifest, podManifests, controllerRevisionManifests)
+		newPodNames = getDaemonSetNewPods(daemonSetManifest, podManifests, controllerRevisionManifests)
 	}
 
 	if _, ok := jobsManifest["kind"]; ok {
-		newPodNames = c.getJobsNewPods(jobsManifest, podManifests)
+		newPodNames = getJobsNewPods(jobsManifest, podManifests)
 	}
 
 	for _, node := range resp.Nodes {
@@ -565,7 +313,7 @@ func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, resp
 	//podMetaData := make([]*PodMetadata, 0)
 	duplicateCheck := make(map[string]bool)
 	if len(newReplicaSets) > 0 {
-		results := c.buildPodMetadataFromReplicaSet(resp, newReplicaSets, replicaSetManifests)
+		results := buildPodMetadataFromReplicaSet(resp, newReplicaSets, replicaSetManifests)
 		for _, meta := range results {
 			duplicateCheck[meta.Name] = true
 			podMetaData = append(podMetaData, meta)
@@ -579,473 +327,5 @@ func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, resp
 			}
 		}
 	}
-	return
-}
-
-func parseResult(resp *v1alpha1.ApplicationTree, query *application.ResourcesQuery, ctx context.Context, asc application.ApplicationServiceClient, err error, c ServiceClientImpl) []*Result {
-	var responses = make([]*Result, 0)
-	qCount := 0
-	response := make(chan Result)
-	if err != nil || resp == nil || len(resp.Nodes) == 0 {
-		return responses
-	}
-	needPods := false
-	queryNodes := make([]v1alpha1.ResourceNode, 0)
-	podParents := make([]string, 0)
-	for _, node := range resp.Nodes {
-		if node.Kind == "Pod" {
-			for _, pr := range node.ParentRefs {
-				podParents = append(podParents, pr.Name)
-			}
-		}
-	}
-	for _, node := range resp.Nodes {
-		if node.Kind == "Rollout" || node.Kind == "Deployment" || node.Kind == "StatefulSet" || node.Kind == "DaemonSet" {
-			queryNodes = append(queryNodes, node)
-		}
-		if node.Kind == "ReplicaSet" {
-			for _, pr := range podParents {
-				if pr == node.Name {
-					queryNodes = append(queryNodes, node)
-					break
-				}
-			}
-		}
-		if node.Kind == "StatefulSet" || node.Kind == "DaemonSet" || node.Kind == "Workflow" {
-			needPods = true
-		}
-
-		if node.Kind == "CronJob" || node.Kind == "Job" {
-			queryNodes = append(queryNodes, node)
-			needPods = true
-		}
-	}
-
-	c.logger.Debugw("needPods", "pods", needPods)
-
-	if needPods {
-		for _, node := range resp.Nodes {
-			if node.Kind == "Pod" {
-				queryNodes = append(queryNodes, node)
-			}
-		}
-	}
-
-	relevantCR := make(map[string]bool)
-	for _, node := range resp.Nodes {
-		prefix := ""
-		if len(node.ParentRefs) > 0 {
-			for _, p := range node.ParentRefs {
-				if p.Kind == "DaemonSet" {
-					prefix = p.Name
-				}
-			}
-		}
-		if node.Kind == "Pod" && node.NetworkingInfo != nil && node.NetworkingInfo.Labels != nil {
-			relevantCR[prefix+"-"+node.NetworkingInfo.Labels["controller-revision-hash"]] = true
-		}
-	}
-
-	for _, node := range resp.Nodes {
-		if node.Kind == "ControllerRevision" {
-			if ok := relevantCR[node.Name]; ok {
-				queryNodes = append(queryNodes, node)
-			}
-		}
-	}
-
-	for _, node := range queryNodes {
-		rQuery := transform(node, query.ApplicationName)
-		qCount++
-		go func(request application.ApplicationResourceRequest) {
-			ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
-			defer cancel()
-			startTime := time.Now()
-			res, err := asc.GetResource(ctx, &request)
-			if err != nil {
-				c.logger.Errorw("GRPC_GET_RESOURCE", "data", request, "timeTaken", time.Since(startTime), "err", err)
-			} else {
-				c.logger.Debugw("GRPC_GET_RESOURCE", "data", request, "timeTaken", time.Since(startTime))
-			}
-			if res != nil || err != nil {
-				response <- Result{Response: res, Error: err, Request: &request}
-			} else {
-				response <- Result{Response: nil, Error: fmt.Errorf("connection closed by client"), Request: &request}
-			}
-		}(*rQuery)
-	}
-
-	if qCount == 0 {
-		return responses
-	}
-
-	rCount := 0
-	for {
-		select {
-		case msg, ok := <-response:
-			if ok {
-				if msg.Error == nil {
-					responses = append(responses, &msg)
-				}
-			}
-			rCount++
-		}
-		if qCount == rCount {
-			break
-		}
-	}
-	return responses
-}
-
-func (c ServiceClientImpl) getDeploymentNewReplicaSetName(deploymentManifest map[string]interface{}, replicaSetManifests []map[string]interface{}) (newReplicaSet string) {
-	d, err := json.Marshal(deploymentManifest)
-	if err != nil {
-		return
-	}
-	deployment := &v12.Deployment{}
-	err = json.Unmarshal(d, deployment)
-	if err != nil {
-		return
-	}
-	dPodHash := util.ComputeHash(&deployment.Spec.Template, deployment.Status.CollisionCount)
-	for _, rs := range replicaSetManifests {
-		r, err := json.Marshal(rs)
-		if err != nil {
-			return
-		}
-		replicaset := &v12.ReplicaSet{}
-		err = json.Unmarshal(r, replicaset)
-		if err != nil {
-			continue
-		}
-		rsCopy := replicaset.Spec.DeepCopy()
-		labels := make(map[string]string)
-		for k, v := range rsCopy.Template.Labels {
-			if k != "pod-template-hash" {
-				labels[k] = v
-			}
-		}
-		rsCopy.Template.Labels = labels
-		podHash := util.ComputeHash(&rsCopy.Template, deployment.Status.CollisionCount)
-		if podHash == dPodHash {
-			newReplicaSet = getResourceName(rs)
-		}
-	}
-	return
-}
-
-func (c ServiceClientImpl) getDaemonSetNewPods(daemonSetManifest map[string]interface{}, podManifests []map[string]interface{}, controllerRevisionManifests []map[string]interface{}) (newPodNames map[string]bool) {
-	d, err := json.Marshal(daemonSetManifest)
-	if err != nil {
-		return
-	}
-	daemonSet := &v12.DaemonSet{}
-	err = json.Unmarshal(d, daemonSet)
-	if err != nil {
-		return
-	}
-	latestRevision := ""
-	latestGen := 0
-	newPodNames = make(map[string]bool, 0)
-	for _, crm := range controllerRevisionManifests {
-		rev := int(crm["revision"].(float64))
-		if latestGen < rev {
-			latestGen = rev
-			latestRevision = getDaemonSetPodControllerRevisionHash(crm)
-		}
-	}
-	for _, pod := range podManifests {
-		podRevision := getDaemonSetPodControllerRevisionHash(pod)
-		if latestRevision == podRevision {
-			newPodNames[getResourceName(pod)] = true
-		}
-	}
-	return
-}
-
-func getDaemonSetPodControllerRevisionHash(pod map[string]interface{}) string {
-	if md, ok := pod["metadata"]; ok {
-		if mdm, ok := md.(map[string]interface{}); ok {
-			if l, ok := mdm["labels"]; ok {
-				if lm, ok := l.(map[string]interface{}); ok {
-					if h, ok := lm["controller-revision-hash"]; ok {
-						if hs, ok := h.(string); ok {
-							return hs
-						}
-					}
-				}
-			}
-		}
-	}
-	return ""
-}
-
-func (c ServiceClientImpl) getStatefulSetNewPods(statefulSetManifest map[string]interface{}, podManifests []map[string]interface{}) (newPodNames map[string]bool) {
-	newPodNames = make(map[string]bool, 0)
-	updateRevision := getStatefulSetUpdateRevision(statefulSetManifest)
-	for _, pod := range podManifests {
-		podRevision := getStatefulSetPodControllerRevisionHash(pod)
-		if updateRevision == podRevision {
-			newPodNames[getResourceName(pod)] = true
-		}
-	}
-	return
-}
-
-func getStatefulSetUpdateRevision(statefulSet map[string]interface{}) string {
-	if s, ok := statefulSet["status"]; ok {
-		if sm, ok := s.(map[string]interface{}); ok {
-			if cph, ok := sm["updateRevision"]; ok {
-				if cphs, ok := cph.(string); ok {
-					return cphs
-				}
-			}
-		}
-	}
-	return ""
-}
-
-func getStatefulSetPodControllerRevisionHash(pod map[string]interface{}) string {
-	if md, ok := pod["metadata"]; ok {
-		if mdm, ok := md.(map[string]interface{}); ok {
-			if l, ok := mdm["labels"]; ok {
-				if lm, ok := l.(map[string]interface{}); ok {
-					if h, ok := lm["controller-revision-hash"]; ok {
-						if hs, ok := h.(string); ok {
-							return hs
-						}
-					}
-				}
-			}
-		}
-	}
-	return ""
-}
-
-func (c ServiceClientImpl) getRolloutNewReplicaSetName(rManifest map[string]interface{}, replicaSetManifests []map[string]interface{}) (newReplicaSet string) {
-	rPodHash := getRolloutPodHash(rManifest)
-	for _, rs := range replicaSetManifests {
-		podHash := getRolloutPodTemplateHash(rs)
-		if podHash == rPodHash {
-			newReplicaSet = getResourceName(rs)
-		}
-	}
-	return newReplicaSet
-}
-
-func getRolloutPodHash(rollout map[string]interface{}) string {
-	if s, ok := rollout["status"]; ok {
-		if sm, ok := s.(map[string]interface{}); ok {
-			if cph, ok := sm["currentPodHash"]; ok {
-				if cphs, ok := cph.(string); ok {
-					return cphs
-				}
-			}
-		}
-	}
-	return ""
-}
-
-func getRolloutPodTemplateHash(pod map[string]interface{}) string {
-	if md, ok := pod["metadata"]; ok {
-		if mdm, ok := md.(map[string]interface{}); ok {
-			if l, ok := mdm["labels"]; ok {
-				if lm, ok := l.(map[string]interface{}); ok {
-					if h, ok := lm["rollouts-pod-template-hash"]; ok {
-						if hs, ok := h.(string); ok {
-							return hs
-						}
-					}
-				}
-			}
-		}
-	}
-	return ""
-}
-
-func buildPodMetadataFromPod(resp *v1alpha1.ApplicationTree, podManifests []map[string]interface{}, newPodNames map[string]bool) (podMetadata []*PodMetadata) {
-	containerMapping := make(map[string][]*string)
-	initContainerMapping := make(map[string][]*string)
-	for _, pod := range podManifests {
-		containerMapping[getResourceName(pod)] = getPodContainers(pod)
-	}
-
-	for _, pod := range podManifests {
-		initContainerMapping[getResourceName(pod)] = getPodInitContainers(pod)
-	}
-
-	for _, node := range resp.Nodes {
-		if node.Kind == "Pod" {
-			isNew := newPodNames[node.Name]
-			metadata := PodMetadata{Name: node.Name, UID: node.UID, Containers: containerMapping[node.Name], InitContainers: initContainerMapping[node.Name], IsNew: isNew}
-			podMetadata = append(podMetadata, &metadata)
-		}
-	}
-	return
-}
-
-func contains(elems []string, v string) bool {
-	for _, s := range elems {
-		if strings.HasPrefix(v, s) {
-			return true
-		}
-	}
-	return false
-}
-
-func getPodContainers(resource map[string]interface{}) []*string {
-	containers := make([]*string, 0)
-	if s, ok := resource["spec"]; ok {
-		if sm, ok := s.(map[string]interface{}); ok {
-			if c, ok := sm["containers"]; ok {
-				if cas, ok := c.([]interface{}); ok {
-					for _, ca := range cas {
-						if cam, ok := ca.(map[string]interface{}); ok {
-							if n, ok := cam["name"]; ok {
-								if cn, ok := n.(string); ok {
-									containers = append(containers, &cn)
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-	return containers
-}
-func getPodInitContainers(resource map[string]interface{}) []*string {
-	containers := make([]*string, 0)
-	if s, ok := resource["spec"]; ok {
-		if sm, ok := s.(map[string]interface{}); ok {
-			if c, ok := sm["initContainers"]; ok {
-				if cas, ok := c.([]interface{}); ok {
-					for _, ca := range cas {
-						if cam, ok := ca.(map[string]interface{}); ok {
-							if n, ok := cam["name"]; ok {
-								if cn, ok := n.(string); ok {
-									containers = append(containers, &cn)
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-	return containers
-}
-
-func (c ServiceClientImpl) buildPodMetadataFromReplicaSet(resp *v1alpha1.ApplicationTree, newReplicaSets []string, replicaSetManifests []map[string]interface{}) (podMetadata []*PodMetadata) {
-	replicaSets := make(map[string]map[string]interface{})
-	for _, replicaSet := range replicaSetManifests {
-		replicaSets[getResourceName(replicaSet)] = replicaSet
-	}
-	for _, node := range resp.Nodes {
-		if node.Kind == "Pod" {
-			parentName := ""
-			for _, p := range node.ParentRefs {
-				if p.Kind == "ReplicaSet" {
-					parentName = p.Name
-				}
-			}
-			if parentName != "" {
-				isNew := false
-				for _, newReplicaSet := range newReplicaSets {
-					if parentName == newReplicaSet {
-						isNew = true
-						break
-					}
-				}
-				replicaSet := replicaSets[parentName]
-				containers, intContainers := getReplicaSetContainers(replicaSet)
-				metadata := PodMetadata{Name: node.Name, UID: node.UID, Containers: containers, InitContainers: intContainers, IsNew: isNew}
-				podMetadata = append(podMetadata, &metadata)
-			}
-		}
-	}
-	return
-}
-
-func getReplicaSetContainers(resource map[string]interface{}) (containers []*string, intContainers []*string) {
-	if s, ok := resource["spec"]; ok {
-		if sm, ok := s.(map[string]interface{}); ok {
-			if t, ok := sm["template"]; ok {
-				if tm, ok := t.(map[string]interface{}); ok {
-					if tms, ok := tm["spec"]; ok {
-						if tmsm, ok := tms.(map[string]interface{}); ok {
-							if c, ok := tmsm["containers"]; ok {
-								if cas, ok := c.([]interface{}); ok {
-									for _, ca := range cas {
-										if cam, ok := ca.(map[string]interface{}); ok {
-											if n, ok := cam["name"]; ok {
-												if cn, ok := n.(string); ok {
-													containers = append(containers, &cn)
-												}
-											}
-										}
-									}
-								}
-							}
-							///initContainers.name
-							if c, ok := tmsm["initContainers"]; ok {
-								if cas, ok := c.([]interface{}); ok {
-									for _, ca := range cas {
-										if cam, ok := ca.(map[string]interface{}); ok {
-											if n, ok := cam["name"]; ok {
-												if cn, ok := n.(string); ok {
-													intContainers = append(intContainers, &cn)
-												}
-											}
-										}
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-	return containers, intContainers
-}
-
-func getResourceName(resource map[string]interface{}) string {
-	if md, ok := resource["metadata"]; ok {
-		if mdm, ok := md.(map[string]interface{}); ok {
-			if h, ok := mdm["name"]; ok {
-				if hs, ok := h.(string); ok {
-					return hs
-				}
-			}
-		}
-	}
-	return ""
-}
-
-func transform(resource v1alpha1.ResourceNode, name *string) *application.ApplicationResourceRequest {
-	resourceName := resource.Name
-	kind := resource.Kind
-	group := resource.Group
-	version := resource.Version
-	namespace := resource.Namespace
-	request := &application.ApplicationResourceRequest{
-		Name:         name,
-		ResourceName: &resourceName,
-		Kind:         &kind,
-		Group:        &group,
-		Version:      &version,
-		Namespace:    &namespace,
-	}
-	return request
-}
-
-func (c ServiceClientImpl) getJobsNewPods(jobManifest map[string]interface{}, podManifests []map[string]interface{}) (newPodNames map[string]bool) {
-	newPodNames = make(map[string]bool, 0)
-	for _, pod := range podManifests {
-		newPodNames[getResourceName(pod)] = true
-	}
-
-	//TODO - new or old logic
 	return
 }

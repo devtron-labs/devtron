@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
-	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 )
 
 // NewInstallAppModel is used to generate new repository.InstalledApps model to be saved;
