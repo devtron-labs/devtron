@@ -1277,10 +1277,7 @@ func (handler PipelineConfigRestHandlerImpl) PerformDeploymentApprovalAction(w h
 		}
 		// rback block ends here
 	}
-	triggerContext := pipeline.TriggerContext{
-		Context: context.Background(),
-	}
-	err = handler.cdHandler.PerformDeploymentApprovalAction(triggerContext, userId, approvalActionRequest)
+	err = handler.deploymentApprovalService.PerformDeploymentApprovalAction(userId, approvalActionRequest)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
