@@ -28,7 +28,6 @@ import (
 	util5 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-
 	/* #nosec */
 	"crypto/sha1"
 	"encoding/json"
@@ -1136,8 +1135,7 @@ func (impl InstalledAppServiceImpl) MigrateDeploymentType(ctx context.Context, r
 		//before deleting the installed app we'll first annotate CRD's manifest created by argo-cd with helm supported
 		//annotations so that helm install doesn't throw crd already exist error while migrating from argo-cd to helm.
 		for _, installedApp := range installedApps {
-			deploymentAppName := fmt.Sprintf("%s-%s", installedApp.App.AppName, installedApp.Environment.Name)
-			err = impl.annotateCRDsInManifestIfExist(ctx, deploymentAppName, installedApp.Environment.ClusterId)
+			err = impl.annotateCRDsInManifestIfExist(ctx, installedApp.App.AppName, installedApp.Environment.Name, installedApp.Environment.Namespace, installedApp.Environment.ClusterId)
 			if err != nil {
 				impl.logger.Errorw("error in annotating CRDs in manifest for argo-cd deployed installed apps", "installedAppId", installedApp.Id, "appId", installedApp.AppId)
 				return response, err
@@ -1170,7 +1168,8 @@ func (impl InstalledAppServiceImpl) MigrateDeploymentType(ctx context.Context, r
 
 	return response, nil
 }
-func (impl InstalledAppServiceImpl) annotateCRDsInManifestIfExist(ctx context.Context, deploymentAppName string, clusterId int) error {
+func (impl InstalledAppServiceImpl) annotateCRDsInManifestIfExist(ctx context.Context, appName, envName, namespace string, clusterId int) error {
+	deploymentAppName := fmt.Sprintf("%s-%s", appName, envName)
 	query := &application.ResourcesQuery{
 		ApplicationName: &deploymentAppName,
 	}
@@ -1202,14 +1201,10 @@ func (impl InstalledAppServiceImpl) annotateCRDsInManifestIfExist(ctx context.Co
 			Version: crd.ResourceRef.Version,
 			Kind:    crd.ResourceRef.Kind,
 		}
-		//resp, err := impl.K8sUtil.GetResource(ctx, "", crd.ResourceRef.Name, gvk, restConfig)
-		//if err != nil {
-		//	impl.logger.Errorw("error in getting crd ", "err", err, "resourceName", crd.ResourceRef.Name)
-		//	return err
-		//}
-		_, err := impl.K8sUtil.PatchResourceRequest(ctx, restConfig, types.JSONPatchType, bean.K8sAnnotationAddJson, crd.ResourceRef.Name, crd.ResourceRef.Namespace, gvk)
+		helmAnnotation := fmt.Sprintf(bean.K8sAnnotationAddJson, bean.HelmReleaseNameAnnotationKey, appName, bean.HelmReleaseNamespaceAnnotationKey, namespace)
+		_, err = impl.K8sUtil.PatchResourceRequest(ctx, restConfig, types.JSONPatchType, helmAnnotation, crd.ResourceRef.Name, "", gvk)
 		if err != nil {
-			impl.logger.Errorw("error in patching resource request", "err", err, "clusterId", clusterId)
+			impl.logger.Errorw("error in patching release-name annotation in manifest", "err", err, "appName", appName)
 			return err
 		}
 	}
