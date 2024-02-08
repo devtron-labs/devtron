@@ -1,16 +1,7 @@
 openapi: "3.0.0"
 info:
   version: 1.0.0
-  title: Swagger Petstore
-  description: A sample API that uses a petstore as an example to demonstrate features in the OpenAPI 3.0 specification
-  termsOfService: http://swagger.io/terms/
-  contact:
-    name: Swagger API Team
-    email: apiteam@swagger.io
-    url: http://swagger.io
-  license:
-    name: Apache 2.0
-    url: https://www.apache.org/licenses/LICENSE-2.0.html
+  title: Devtron
 servers:
   - url: http://petstore.swagger.io/api
 paths:
@@ -19,14 +10,63 @@ paths:
       summary: Returns all users
       description: all the template users
       operationId: findAllUsers
+      parameters:
+
+        - name: searchKey
+          in: query
+          description: Search key for user listing
+          required: false
+          schema:
+            type: string
+
+        - name: sortOrder
+          in: query
+          description: Sorting order (ASC or DESC)
+          required: false
+          schema:
+            type: string
+            enum:
+              - ASC
+              - DESC
+
+        - name: sortBy
+          in: query
+          description: Sorting by email_id or last_login
+          required: false
+          schema:
+            type: string
+            enum:
+              - email_id
+              - last_login
+
+        - name: offset
+          in: query
+          description: Offset for paginating the results
+          required: false
+          schema:
+            type: integer
+
+        - name: size
+          in: query
+          description: Size of the result set
+          required: false
+          schema:
+            type: integer
+
+        - name: showAll
+          in: query
+          description: Show all users (boolean)
+          required: false
+          schema:
+            type: boolean
+
       responses:
         '200':
           description: list response
           content:
             application/json:
               schema:
-                items:
-                  $ref: '#/components/schemas/User'
+                $ref: '#/components/schemas/UserListingResponse'
         default:
           description: unexpected error
           content:
@@ -58,8 +98,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
     put:
-      summary: update a new pet
-      description: Creates a new pet in the store. Duplicates are allowed
+      summary: update a user
+      description: Updates a new user in the system
       operationId: updateUser
       requestBody:
         description: json as request body
@@ -160,6 +200,46 @@ components:
           items:
             $ref: '#/components/schemas/roleFilter'
           description: role filters objects
+    UserListingResponse:
+      type: object
+      properties:
+        users:
+          items:
+            $ref: '#/components/schemas/AllUsers'
+          description: role filters objects
+        totalCount:
+          type: integer
+          description: total number of results satisfying the conditions
+
+    AllUsers:
+      type: object
+      required:
+        - emailId
+      properties:
+        id:
+          type: integer
+          description: Unique id of user
+        emailId:
+          type: string
+          description: Unique valid email-id of user, comma separated emails ids for multiple users
+        groups:
+          type: array
+          items:
+            type: string
+        roleFilters:
+          type: array
+          items:
+            $ref: '#/components/schemas/emptyRoleFilter'
+          description: role filters objects
+        lastLogin:
+          type: string
+          format: date-time
+          description: user last login time
+
+    emptyRoleFilter:
+      type: object
+      required:
+        - action
 
 
     roleFilter:

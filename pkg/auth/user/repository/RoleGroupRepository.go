@@ -30,6 +30,7 @@ type RoleGroupRepository interface {
 	GetRoleGroupByName(name string) (*RoleGroup, error)
 	GetRoleGroupListByName(name string) ([]*RoleGroup, error)
 	GetAllRoleGroup() ([]*RoleGroup, error)
+	GetAllExecutingQuery(query string) ([]*RoleGroup, error)
 	GetRoleGroupListByCasbinNames(name []string) ([]*RoleGroup, error)
 	CheckRoleGroupExistByCasbinName(name string) (bool, error)
 	CreateRoleGroupRoleMapping(model *RoleGroupRoleMapping, tx *pg.Tx) (*RoleGroupRoleMapping, error)
@@ -117,6 +118,16 @@ func (impl RoleGroupRepositoryImpl) GetRoleGroupListByName(name string) ([]*Role
 func (impl RoleGroupRepositoryImpl) GetAllRoleGroup() ([]*RoleGroup, error) {
 	var model []*RoleGroup
 	err := impl.dbConnection.Model(&model).Where("active = ?", true).Order("updated_on desc").Select()
+	return model, err
+}
+
+func (impl RoleGroupRepositoryImpl) GetAllExecutingQuery(query string) ([]*RoleGroup, error) {
+	var model []*RoleGroup
+	_, err := impl.dbConnection.Query(&model, query)
+	if err != nil {
+		impl.Logger.Error("error in GetAllExecutingQuery", "err", err)
+		return nil, err
+	}
 	return model, err
 }
 
