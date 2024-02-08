@@ -1489,7 +1489,7 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int, envId
 	ciMaterialsArr := make([]pipelineConfig.CiPipelineMaterialResponse, 0)
 	var triggeredByUserEmailId string
 	//check workflow data only for non external builds
-	if !ciPipeline.IsExternal {
+	if !ciPipeline.IsExternal || ciPipeline.ParentCiPipeline > 0 {
 
 		triggeredByUserEmailId, err = impl.userService.GetEmailById(deployDetail.DeployedBy)
 		if err != nil && !util.IsErrNoRows(err) {
@@ -1500,8 +1500,7 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int, envId
 		var ciMaterials []repository.CiMaterialInfo
 		err := json.Unmarshal([]byte(ciArtifact.MaterialInfo), &ciMaterials)
 		if err != nil {
-			println("material info", ciArtifact.MaterialInfo)
-			println("unmarshal error for material info", "err", err)
+			impl.Logger.Info("error in unmarshalling material info", ciArtifact.MaterialInfo, "err", err)
 			return &types.GitTriggerInfoResponse{}, err
 		}
 
