@@ -19,6 +19,7 @@ package bean
 
 import (
 	"encoding/json"
+	bean4 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
@@ -26,8 +27,8 @@ import (
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
-	bean2 "github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
+	bean2 "github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"time"
@@ -55,7 +56,7 @@ type CreateAppDTO struct {
 	TeamId      int                            `json:"teamId,omitempty" validate:"number,required"`
 	TemplateId  int                            `json:"templateId"`
 	AppLabels   []*Label                       `json:"labels,omitempty" validate:"dive"`
-	GenericNote *bean3.GenericNoteResponseBean `json:"genericNote,omitempty"`
+	GenericNote *bean4.GenericNoteResponseBean `json:"genericNote,omitempty"`
 	AppType     helper.AppType                 `json:"appType" validate:"gt=-1,lt=3"` //TODO: Change Validation if new AppType is introduced
 }
 
@@ -860,7 +861,7 @@ type AppMetaInfoDto struct {
 	CreatedOn   time.Time                      `json:"createdOn"`
 	Active      bool                           `json:"active,notnull"`
 	Labels      []*Label                       `json:"labels"`
-	Note        *bean3.GenericNoteResponseBean `json:"note"`
+	Note        *bean4.GenericNoteResponseBean `json:"note"`
 	UserId      int32                          `json:"-"`
 	//below field is only valid for helm apps
 	ChartUsed    *ChartUsedDto         `json:"chartUsed,omitempty"`

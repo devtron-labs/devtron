@@ -121,6 +121,7 @@ type TriggerServiceImpl struct {
 	helmRepoPushService                 app.HelmRepoPushService
 	helmAppService                      client2.HelmAppService
 	imageTaggingService                 pipeline.ImageTaggingService
+	deploymentApprovalService           pipeline.DeploymentApprovalService
 
 	mergeUtil     util.MergeUtil
 	enforcerUtil  rbac.EnforcerUtil
@@ -169,6 +170,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 	userService user.UserService,
 	gitSensorGrpcClient gitSensorClient.Client,
 	helmAppService client2.HelmAppService,
+	deploymentApprovalService pipeline.DeploymentApprovalService,
 	mergeUtil util.MergeUtil,
 	enforcerUtil rbac.EnforcerUtil,
 	helmAppClient gRPC.HelmAppClient,
@@ -223,6 +225,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 		userService:                         userService,
 		gitSensorGrpcClient:                 gitSensorGrpcClient,
 		helmAppService:                      helmAppService,
+		deploymentApprovalService:           deploymentApprovalService,
 		mergeUtil:                           mergeUtil,
 		enforcerUtil:                        enforcerUtil,
 		eventFactory:                        eventFactory,
@@ -1744,7 +1747,7 @@ func (impl *TriggerServiceImpl) checkApprovalNodeForDeployment(requestedUserId i
 			impl.logger.Errorw("error occurred while fetching approval node config", "approvalConfig", pipeline.UserApprovalConfig, "err", err)
 			return 0, err
 		}
-		userApprovalMetadata, err := impl.FetchApprovalDataForArtifacts([]int{artifactId}, pipelineId, approvalConfig.RequiredCount)
+		userApprovalMetadata, err := impl.deploymentApprovalService.FetchApprovalDataForArtifacts([]int{artifactId}, pipelineId, approvalConfig.RequiredCount)
 		if err != nil {
 			return 0, err
 		}
@@ -1767,46 +1770,5 @@ func (impl *TriggerServiceImpl) checkApprovalNodeForDeployment(requestedUserId i
 		}
 	}
 	return 0, nil
-
-}
-
-func (impl *TriggerServiceImpl) FetchApprovalDataForArtifacts(artifactIds []int, pipelineId int, requiredApprovals int) (map[int]*pipelineConfig.UserApprovalMetadata, error) {
-	artifactIdVsApprovalMetadata := make(map[int]*pipelineConfig.UserApprovalMetadata)
-	deploymentApprovalRequests, err := impl.deploymentApprovalRepository.FetchApprovalDataForArtifacts(artifactIds, pipelineId)
-	if err != nil {
-		return artifactIdVsApprovalMetadata, err
-	}
-
-	var requestedUserIds []int32
-	for _, approvalRequest := range deploymentApprovalRequests {
-		requestedUserIds = append(requestedUserIds, approvalRequest.CreatedBy)
-	}
-
-	userInfos, err := impl.userService.GetByIds(requestedUserIds)
-	if err != nil {
-		impl.logger.Errorw("error occurred while fetching users", "requestedUserIds", requestedUserIds, "err", err)
-		return artifactIdVsApprovalMetadata, err
-	}
-	userInfoMap := make(map[int32]bean3.UserInfo)
-	for _, userInfo := range userInfos {
-		userId := userInfo.Id
-		userInfoMap[userId] = userInfo
-	}
-
-	for _, approvalRequest := range deploymentApprovalRequests {
-		artifactId := approvalRequest.ArtifactId
-		requestedUserId := approvalRequest.CreatedBy
-		if userInfo, ok := userInfoMap[requestedUserId]; ok {
-			approvalRequest.UserEmail = userInfo.EmailId
-		}
-		approvalMetadata := approvalRequest.ConvertToApprovalMetadata()
-		if approvalRequest.GetApprovedCount() >= requiredApprovals {
-			approvalMetadata.ApprovalRuntimeState = pipelineConfig.ApprovedApprovalState
-		} else {
-			approvalMetadata.ApprovalRuntimeState = pipelineConfig.RequestedApprovalState
-		}
-		artifactIdVsApprovalMetadata[artifactId] = approvalMetadata
-	}
-	return artifactIdVsApprovalMetadata, nil
 
 }

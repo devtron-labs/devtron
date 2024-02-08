@@ -970,6 +970,9 @@ func InitializeApp() (*App, error) {
 
 		imageDigestPolicy2.NewImageDigestPolicyRestHandlerImpl,
 		wire.Bind(new(imageDigestPolicy2.ImageDigestPolicyRestHandler), new(*imageDigestPolicy2.ImageDigestPolicyRestHandlerImpl)),
+
+		pipeline.NewDeploymentApprovalServiceImpl,
+		wire.Bind(new(pipeline.DeploymentApprovalService), wire.Bind(*pipeline.DeploymentApprovalServiceImpl)),
 		cron2.NewCronLoggerImpl,
 	)
 	return &App{}, nil

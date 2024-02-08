@@ -39,7 +39,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/workflow/cd"
 	bean2 "github.com/devtron-labs/devtron/pkg/workflow/dag/bean"
 	util2 "github.com/devtron-labs/devtron/util/event"
-	"strings"
 	"sync"
 	"time"
 
@@ -1162,106 +1161,18 @@ func (impl *WorkflowDagExecutorImpl) HandleExternalCiWebhook(externalCiId int, r
 	return artifact.Id, err
 }
 
-// TODO: move in adapter
-func (impl *WorkflowDagExecutorImpl) BuildCiArtifactRequestForWebhook(event pipeline.ExternalCiWebhookDto) (*bean2.CiArtifactWebhookRequest, error) {
-	ciMaterialInfos := make([]repository.CiMaterialInfo, 0)
-	if event.MaterialType == "" {
-		event.MaterialType = "git"
+func (impl *WorkflowDagExecutorImpl) processLinkedCDPipelines(cdPipelineId int, ciArtifact *repository.CiArtifact, triggeredBy int32) ([]*appWorkflow.AppWorkflowMapping, map[int]*repository.CiArtifact, error) {
+	linkedArtifactsMap := make(map[int]*repository.CiArtifact)
+	linkedMappings, linkedCIPipelineIds, err := impl.getLinkedCDPipelines(cdPipelineId)
+	if err != nil || len(linkedMappings) == 0 {
+		return linkedMappings, linkedArtifactsMap, err
 	}
-	for _, p := range event.CiProjectDetails {
-		var modifications []repository.Modification
-
-		var branch string
-		var tag string
-		var webhookData repository.WebhookData
-		if p.SourceType == pipelineConfig.SOURCE_TYPE_BRANCH_FIXED {
-			branch = p.SourceValue
-		} else if p.SourceType == pipelineConfig.SOURCE_TYPE_WEBHOOK {
-			webhookData = repository.WebhookData{
-				Id:              p.WebhookData.Id,
-				EventActionType: p.WebhookData.EventActionType,
-				Data:            p.WebhookData.Data,
-			}
-		}
-
-		modification := repository.Modification{
-			Revision:     p.CommitHash,
-			ModifiedTime: p.CommitTime,
-			Author:       p.Author,
-			Branch:       branch,
-			Tag:          tag,
-			WebhookData:  webhookData,
-			Message:      p.Message,
-		}
-
-		modifications = append(modifications, modification)
-		ciMaterialInfo := repository.CiMaterialInfo{
-			Material: repository.Material{
-				GitConfiguration: repository.GitConfiguration{
-					URL: p.GitRepository,
-				},
-				Type: event.MaterialType,
-			},
-			Changed:       true,
-			Modifications: modifications,
-		}
-		ciMaterialInfos = append(ciMaterialInfos, ciMaterialInfo)
-	}
-
-	materialBytes, err := json.Marshal(ciMaterialInfos)
-	if err != nil {
-		impl.logger.Errorw("cannot build ci artifact req", "err", err)
-		return nil, err
-	}
-	rawMaterialInfo := json.RawMessage(materialBytes)
-	fmt.Printf("Raw Message : %s\n", rawMaterialInfo)
-
-	if event.TriggeredBy == 0 {
-		event.TriggeredBy = 1 // system triggered event
-	}
-
-	request := &bean2.CiArtifactWebhookRequest{
-		Image:              event.DockerImage,
-		ImageDigest:        event.Digest,
-		DataSource:         event.DataSource,
-		PipelineName:       event.PipelineName,
-		MaterialInfo:       rawMaterialInfo,
-		UserId:             event.TriggeredBy,
-		WorkflowId:         event.WorkflowId,
-		IsArtifactUploaded: event.IsArtifactUploaded,
-	}
-	// if DataSource is empty, repository.WEBHOOK is considered as default
-	if request.DataSource == "" {
-		request.DataSource = repository.WEBHOOK
-	}
-	return request, nil
+	linkedArtifactsMap, err = impl.saveArtifactsForLinkedCDPipelines(linkedCIPipelineIds, ciArtifact, triggeredBy)
+	return linkedMappings, linkedArtifactsMap, err
 }
 
-//TO check where to put, got from oss enterprise diff
-
-func getCopiedArtifact(ciArtifact *repository.CiArtifact, pipelineId int, userId int32) *repository.CiArtifact {
-	artifact := &repository.CiArtifact{
-		Image:              ciArtifact.Image,
-		ImageDigest:        ciArtifact.ImageDigest,
-		MaterialInfo:       ciArtifact.MaterialInfo,
-		DataSource:         ciArtifact.DataSource,
-		ScanEnabled:        ciArtifact.ScanEnabled,
-		Scanned:            ciArtifact.Scanned,
-		IsArtifactUploaded: ciArtifact.IsArtifactUploaded,
-		ParentCiArtifact:   ciArtifact.Id,
-		PipelineId:         pipelineId,
-		AuditLog:           sql.AuditLog{CreatedBy: userId, UpdatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now()},
-	}
-	if ciArtifact.ParentCiArtifact > 0 {
-		artifact.ParentCiArtifact = ciArtifact.ParentCiArtifact
-	}
-	if ciArtifact.ExternalCiPipelineId > 0 {
-		artifact.ExternalCiPipelineId = ciArtifact.ExternalCiPipelineId
-	}
-	return artifact
-}
-
-func (impl *WorkflowDagExecutorImpl) saveArtifactsForLinkedCDPipelines(linkedCiPipelineIds []int, ciArtifact *repository.CiArtifact, triggeredBy int32) (map[int]*repository.CiArtifact, error) {
+func (impl *WorkflowDagExecutorImpl) saveArtifactsForLinkedCDPipelines(linkedCiPipelineIds []int, ciArtifact *repository.CiArtifact,
+	triggeredBy int32) (map[int]*repository.CiArtifact, error) {
 
 	ciPipelineIdToArtifacts := make(map[int]*repository.CiArtifact)
 	// existingArtifacts are for rollback/redeployment cases, where artifacts already exits
@@ -1341,145 +1252,99 @@ func (impl *WorkflowDagExecutorImpl) getLinkedCDPipelines(cdPipelineId int) ([]*
 	return linkedCDMappings, linkedCiPipelineIds, nil
 }
 
-func (impl *WorkflowDagExecutorImpl) processLinkedCDPipelines(cdPipelineId int, ciArtifact *repository.CiArtifact, triggeredBy int32) ([]*appWorkflow.AppWorkflowMapping, map[int]*repository.CiArtifact, error) {
-	linkedArtifactsMap := make(map[int]*repository.CiArtifact)
-	linkedMappings, linkedCIPipelineIds, err := impl.getLinkedCDPipelines(cdPipelineId)
-	if err != nil || len(linkedMappings) == 0 {
-		return linkedMappings, linkedArtifactsMap, err
+func getCopiedArtifact(ciArtifact *repository.CiArtifact, pipelineId int, userId int32) *repository.CiArtifact {
+	artifact := &repository.CiArtifact{
+		Image:              ciArtifact.Image,
+		ImageDigest:        ciArtifact.ImageDigest,
+		MaterialInfo:       ciArtifact.MaterialInfo,
+		DataSource:         ciArtifact.DataSource,
+		ScanEnabled:        ciArtifact.ScanEnabled,
+		Scanned:            ciArtifact.Scanned,
+		IsArtifactUploaded: ciArtifact.IsArtifactUploaded,
+		ParentCiArtifact:   ciArtifact.Id,
+		PipelineId:         pipelineId,
+		AuditLog:           sql.AuditLog{CreatedBy: userId, UpdatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now()},
 	}
-	linkedArtifactsMap, err = impl.saveArtifactsForLinkedCDPipelines(linkedCIPipelineIds, ciArtifact, triggeredBy)
-	return linkedMappings, linkedArtifactsMap, err
+	if ciArtifact.ParentCiArtifact > 0 {
+		artifact.ParentCiArtifact = ciArtifact.ParentCiArtifact
+	}
+	if ciArtifact.ExternalCiPipelineId > 0 {
+		artifact.ExternalCiPipelineId = ciArtifact.ExternalCiPipelineId
+	}
+	return artifact
 }
 
-func (impl *WorkflowDagExecutorImpl) FetchApprovalPendingArtifacts(pipelineId, limit, offset, requiredApprovals int, searchString string) ([]bean4.CiArtifactBean, int, error) {
-
-	var ciArtifacts []bean4.CiArtifactBean
-	deploymentApprovalRequests, totalCount, err := impl.deploymentApprovalRepository.FetchApprovalPendingArtifacts(pipelineId, limit, offset, requiredApprovals, searchString)
-	if err != nil {
-		impl.logger.Errorw("error occurred while fetching approval request data", "pipelineId", pipelineId, "err", err)
-		return ciArtifacts, 0, err
+// TODO: move in adapter
+func (impl *WorkflowDagExecutorImpl) BuildCiArtifactRequestForWebhook(event pipeline.ExternalCiWebhookDto) (*bean2.CiArtifactWebhookRequest, error) {
+	ciMaterialInfos := make([]repository.CiMaterialInfo, 0)
+	if event.MaterialType == "" {
+		event.MaterialType = "git"
 	}
+	for _, p := range event.CiProjectDetails {
+		var modifications []repository.Modification
 
-	var artifactIds []int
-	for _, request := range deploymentApprovalRequests {
-		artifactIds = append(artifactIds, request.ArtifactId)
-	}
-
-	if len(artifactIds) > 0 {
-		deploymentApprovalRequests, err = impl.getLatestDeploymentByArtifactIds(pipelineId, deploymentApprovalRequests, artifactIds)
-		if err != nil {
-			impl.logger.Errorw("error occurred while fetching FetchLatestDeploymentByArtifactIds", "pipelineId", pipelineId, "artifactIds", artifactIds, "err", err)
-			return nil, 0, err
-		}
-	}
-
-	for _, request := range deploymentApprovalRequests {
-
-		mInfo, err := parseMaterialInfo([]byte(request.CiArtifact.MaterialInfo), request.CiArtifact.DataSource)
-		if err != nil {
-			mInfo = []byte("[]")
-			impl.logger.Errorw("Error in parsing artifact material info", "err", err)
-		}
-
-		var artifact bean4.CiArtifactBean
-		ciArtifact := request.CiArtifact
-		artifact.Id = ciArtifact.Id
-		artifact.Image = ciArtifact.Image
-		artifact.ImageDigest = ciArtifact.ImageDigest
-		artifact.MaterialInfo = mInfo
-		artifact.DataSource = ciArtifact.DataSource
-		artifact.Deployed = ciArtifact.Deployed
-		artifact.Scanned = ciArtifact.Scanned
-		artifact.ScanEnabled = ciArtifact.ScanEnabled
-		artifact.CiPipelineId = ciArtifact.PipelineId
-		artifact.DeployedTime = formatDate(ciArtifact.DeployedTime, bean4.LayoutRFC3339)
-		if ciArtifact.WorkflowId != nil {
-			artifact.WfrId = *ciArtifact.WorkflowId
-		}
-		artifact.CiPipelineId = ciArtifact.PipelineId
-		ciArtifacts = append(ciArtifacts, artifact)
-	}
-
-	return ciArtifacts, totalCount, err
-}
-
-func parseMaterialInfo(materialInfo json.RawMessage, source string) (json.RawMessage, error) {
-	if source != repository.GOCD && source != repository.CI_RUNNER && source != repository.WEBHOOK && source != repository.EXT && source != repository.PRE_CD && source != repository.POST_CD && source != repository.POST_CI {
-		return nil, fmt.Errorf("datasource: %s not supported", source)
-	}
-	var ciMaterials []repository.CiMaterialInfo
-	err := json.Unmarshal(materialInfo, &ciMaterials)
-	if err != nil {
-		println("material info", materialInfo)
-		println("unmarshal error for material info", "err", err)
-	}
-	var scmMapList []map[string]string
-
-	for _, material := range ciMaterials {
-		scmMap := map[string]string{}
-		var url string
-		if material.Material.Type == "git" {
-			url = material.Material.GitConfiguration.URL
-		} else if material.Material.Type == "scm" {
-			url = material.Material.ScmConfiguration.URL
-		} else {
-			return nil, fmt.Errorf("unknown material type:%s ", material.Material.Type)
-		}
-		if material.Modifications != nil && len(material.Modifications) > 0 {
-			_modification := material.Modifications[0]
-
-			revision := _modification.Revision
-			url = strings.TrimSpace(url)
-
-			_webhookDataStr := ""
-			_webhookDataByteArr, err := json.Marshal(_modification.WebhookData)
-			if err == nil {
-				_webhookDataStr = string(_webhookDataByteArr)
+		var branch string
+		var tag string
+		var webhookData repository.WebhookData
+		if p.SourceType == pipelineConfig.SOURCE_TYPE_BRANCH_FIXED {
+			branch = p.SourceValue
+		} else if p.SourceType == pipelineConfig.SOURCE_TYPE_WEBHOOK {
+			webhookData = repository.WebhookData{
+				Id:              p.WebhookData.Id,
+				EventActionType: p.WebhookData.EventActionType,
+				Data:            p.WebhookData.Data,
 			}
-
-			scmMap["url"] = url
-			scmMap["revision"] = revision
-			scmMap["modifiedTime"] = _modification.ModifiedTime
-			scmMap["author"] = _modification.Author
-			scmMap["message"] = _modification.Message
-			scmMap["tag"] = _modification.Tag
-			scmMap["webhookData"] = _webhookDataStr
-			scmMap["branch"] = _modification.Branch
 		}
-		scmMapList = append(scmMapList, scmMap)
-	}
-	mInfo, err := json.Marshal(scmMapList)
-	return mInfo, err
-}
 
-func formatDate(t time.Time, layout string) string {
-	if t.IsZero() {
-		return ""
-	}
-	return t.Format(layout)
-}
-
-func (impl *WorkflowDagExecutorImpl) getLatestDeploymentByArtifactIds(pipelineId int, deploymentApprovalRequests []*pipelineConfig.DeploymentApprovalRequest, artifactIds []int) ([]*pipelineConfig.DeploymentApprovalRequest, error) {
-	var latestDeployedArtifacts []*pipelineConfig.DeploymentApprovalRequest
-	var err error
-	if len(artifactIds) > 0 {
-		latestDeployedArtifacts, err = impl.deploymentApprovalRepository.FetchLatestDeploymentByArtifactIds(pipelineId, artifactIds)
-		if err != nil {
-			impl.logger.Errorw("error occurred while fetching FetchLatestDeploymentByArtifactIds", "pipelineId", pipelineId, "artifactIds", artifactIds, "err", err)
-			return nil, err
+		modification := repository.Modification{
+			Revision:     p.CommitHash,
+			ModifiedTime: p.CommitTime,
+			Author:       p.Author,
+			Branch:       branch,
+			Tag:          tag,
+			WebhookData:  webhookData,
+			Message:      p.Message,
 		}
-	}
-	latestDeployedArtifactsMap := make(map[int]time.Time, 0)
-	for _, artifact := range latestDeployedArtifacts {
-		latestDeployedArtifactsMap[artifact.ArtifactId] = artifact.AuditLog.CreatedOn
-	}
 
-	for _, request := range deploymentApprovalRequests {
-		if deployedTime, ok := latestDeployedArtifactsMap[request.ArtifactId]; ok {
-			request.CiArtifact.Deployed = true
-			request.CiArtifact.DeployedTime = deployedTime
+		modifications = append(modifications, modification)
+		ciMaterialInfo := repository.CiMaterialInfo{
+			Material: repository.Material{
+				GitConfiguration: repository.GitConfiguration{
+					URL: p.GitRepository,
+				},
+				Type: event.MaterialType,
+			},
+			Changed:       true,
+			Modifications: modifications,
 		}
+		ciMaterialInfos = append(ciMaterialInfos, ciMaterialInfo)
 	}
 
-	return deploymentApprovalRequests, nil
+	materialBytes, err := json.Marshal(ciMaterialInfos)
+	if err != nil {
+		impl.logger.Errorw("cannot build ci artifact req", "err", err)
+		return nil, err
+	}
+	rawMaterialInfo := json.RawMessage(materialBytes)
+	fmt.Printf("Raw Message : %s\n", rawMaterialInfo)
+
+	if event.TriggeredBy == 0 {
+		event.TriggeredBy = 1 // system triggered event
+	}
+
+	request := &bean2.CiArtifactWebhookRequest{
+		Image:              event.DockerImage,
+		ImageDigest:        event.Digest,
+		DataSource:         event.DataSource,
+		PipelineName:       event.PipelineName,
+		MaterialInfo:       rawMaterialInfo,
+		UserId:             event.TriggeredBy,
+		WorkflowId:         event.WorkflowId,
+		IsArtifactUploaded: event.IsArtifactUploaded,
+	}
+	// if DataSource is empty, repository.WEBHOOK is considered as default
+	if request.DataSource == "" {
+		request.DataSource = repository.WEBHOOK
+	}
+	return request, nil
 }
