@@ -22,7 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	apiBean "github.com/devtron-labs/devtron/api/bean"
+	apiGitOpsBean "github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
@@ -38,7 +38,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	variablesRepository "github.com/devtron-labs/devtron/pkg/variables/repository"
-	"github.com/devtron-labs/devtron/util/ChartsUtil"
 	"github.com/go-pg/pg"
 	"github.com/juju/errors"
 	"go.opentelemetry.io/otel"
@@ -163,7 +162,7 @@ func (impl *ChartServiceImpl) Create(templateRequest TemplateRequest, ctx contex
 	if err != nil && pg.ErrNoRows != err {
 		return nil, err
 	}
-	gitRepoUrl := apiBean.GIT_REPO_NOT_CONFIGURED
+	gitRepoUrl := apiGitOpsBean.GIT_REPO_NOT_CONFIGURED
 	impl.logger.Debugw("current latest chart in db", "chartId", currentLatestChart.Id)
 	if currentLatestChart.Id > 0 {
 		impl.logger.Debugw("updating env and pipeline config which are currently latest in db", "chartId", currentLatestChart.Id)
@@ -336,7 +335,7 @@ func (impl *ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Templat
 		return nil, err
 	}
 	chartLocation := filepath.Join(templateName, version)
-	gitRepoUrl := apiBean.GIT_REPO_NOT_CONFIGURED
+	gitRepoUrl := apiGitOpsBean.GIT_REPO_NOT_CONFIGURED
 	if currentLatestChart.Id > 0 && currentLatestChart.GitRepoUrl != "" {
 		gitRepoUrl = currentLatestChart.GitRepoUrl
 	}
@@ -411,7 +410,7 @@ func (impl *ChartServiceImpl) chartAdaptor(chart *chartRepoRepository.Chart, isA
 		return &TemplateRequest{}, &util.ApiError{UserMessage: "no chart found"}
 	}
 	gitRepoUrl := ""
-	if !ChartsUtil.IsGitOpsRepoNotConfigured(chart.GitRepoUrl) {
+	if !apiGitOpsBean.IsGitOpsRepoNotConfigured(chart.GitRepoUrl) {
 		gitRepoUrl = chart.GitRepoUrl
 	}
 	return &TemplateRequest{
@@ -507,7 +506,7 @@ func (impl *ChartServiceImpl) IsGitOpsRepoConfiguredForDevtronApps(appId int) (b
 		impl.logger.Errorw("error in fetching latest chart for app by appId")
 		return false, err
 	}
-	if ChartsUtil.IsGitOpsRepoNotConfigured(latestChartConfiguredInApp.GitRepoUrl) {
+	if apiGitOpsBean.IsGitOpsRepoNotConfigured(latestChartConfiguredInApp.GitRepoUrl) {
 		return false, nil
 	}
 	return true, nil
@@ -862,7 +861,7 @@ func (impl *ChartServiceImpl) UpdateGitRepoUrlInCharts(appId int, repoUrl, chart
 		return err
 	}
 	for _, ch := range charts {
-		if ChartsUtil.IsGitOpsRepoNotConfigured(ch.GitRepoUrl) {
+		if apiGitOpsBean.IsGitOpsRepoNotConfigured(ch.GitRepoUrl) {
 			ch.GitRepoUrl = repoUrl
 			ch.ChartLocation = chartLocation
 			ch.UpdatedOn = time.Now()
@@ -887,16 +886,4 @@ func (impl *ChartServiceImpl) IsGitOpsRepoAlreadyRegistered(gitOpsRepoUrl string
 	}
 	impl.logger.Errorw("repository is already in use for devtron app", "repoUrl", gitOpsRepoUrl, "appId", chartModel.AppId)
 	return true, nil
-}
-
-func (impl *ChartServiceImpl) isGitRepoUrlPresent(appId int) bool {
-	fetchedChart, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
-	if err != nil {
-		impl.logger.Errorw("error fetching git repo url from the latest chart")
-		return false
-	}
-	if ChartsUtil.IsGitOpsRepoNotConfigured(fetchedChart.GitRepoUrl) {
-		return false
-	}
-	return true
 }

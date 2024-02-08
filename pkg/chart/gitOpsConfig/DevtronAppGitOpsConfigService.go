@@ -20,14 +20,13 @@ package gitOpsConfig
 import (
 	"context"
 	"fmt"
-	apiBean "github.com/devtron-labs/devtron/api/bean"
+	apiGitOpsBean "github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/pkg/chart/gitOpsConfig/bean"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/validation"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/gitOps/validation/bean"
-	"github.com/devtron-labs/devtron/util/ChartsUtil"
 	"net/http"
 
 	//"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -124,7 +123,7 @@ func (impl *DevtronAppGitOpConfigServiceImpl) SaveAppLevelGitOpsConfiguration(ap
 		chart.GitRepoUrl = repoUrl
 		chart.UpdatedOn = time.Now()
 		chart.UpdatedBy = appGitOpsRequest.UserId
-		chart.IsCustomGitRepository = gitOpsConfigurationStatus.AllowCustomRepository && appGitOpsRequest.GitOpsRepoURL != apiBean.GIT_REPO_DEFAULT
+		chart.IsCustomGitRepository = gitOpsConfigurationStatus.AllowCustomRepository && appGitOpsRequest.GitOpsRepoURL != apiGitOpsBean.GIT_REPO_DEFAULT
 		err = impl.chartRepository.Update(chart)
 		if err != nil {
 			impl.logger.Errorw("error in updating git repo url in charts while saving git repo url", "err", err, "appGitOpsRequest", appGitOpsRequest)
@@ -159,7 +158,7 @@ func (impl *DevtronAppGitOpConfigServiceImpl) GetAppLevelGitOpsConfiguration(app
 	appGitOpsConfigResponse := &bean.AppGitOpsConfigResponse{
 		IsEditable: true,
 	}
-	isGitOpsRepoConfigured := !ChartsUtil.IsGitOpsRepoNotConfigured(chart.GitRepoUrl)
+	isGitOpsRepoConfigured := !apiGitOpsBean.IsGitOpsRepoNotConfigured(chart.GitRepoUrl)
 	if isGitOpsRepoConfigured {
 		appGitOpsConfigResponse.GitRepoURL = chart.GitRepoUrl
 		appGitOpsConfigResponse.IsEditable = false
@@ -174,7 +173,7 @@ func (impl *DevtronAppGitOpConfigServiceImpl) isGitRepoUrlPresent(appId int) boo
 		impl.logger.Errorw("error fetching git repo url from the latest chart")
 		return false
 	}
-	if ChartsUtil.IsGitOpsRepoNotConfigured(fetchedChart.GitRepoUrl) {
+	if apiGitOpsBean.IsGitOpsRepoNotConfigured(fetchedChart.GitRepoUrl) {
 		return false
 	}
 	return true

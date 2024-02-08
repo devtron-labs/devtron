@@ -1,4 +1,4 @@
-package bean
+package gitOps
 
 import "time"
 
@@ -17,9 +17,9 @@ type GitOpsConfigDto struct {
 	AllowCustomRepository bool   `json:"allowCustomRepository"`
 
 	// TODO refactoring: create different struct for internal fields
-	GitRepoName string `json:"gitRepoName"`
-	UserEmailId string `json:"userEmailId"`
-	Description string `json:"description"`
+	GitRepoName string `json:"-"`
+	UserEmailId string `json:"-"`
+	Description string `json:"-"`
 	UserId      int32  `json:"-"`
 }
 
@@ -49,3 +49,7 @@ const (
 	GIT_REPO_DEFAULT        = "Default"
 	GIT_REPO_NOT_CONFIGURED = "NOT_CONFIGURED" // The value of the constant has been used in the migration script for `custom_gitops_repo_url`; Need to add another migration script if the value is updated.
 )
+
+func IsGitOpsRepoNotConfigured(gitRepoUrl string) bool {
+	return len(gitRepoUrl) == 0 || gitRepoUrl == GIT_REPO_NOT_CONFIGURED
+}

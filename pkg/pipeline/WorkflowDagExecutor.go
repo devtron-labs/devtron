@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	errors3 "errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/api/bean/gitOps"
 	bean6 "github.com/devtron-labs/devtron/api/helm-app/bean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client2 "github.com/devtron-labs/devtron/api/helm-app/service"
@@ -66,7 +67,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	util4 "github.com/devtron-labs/devtron/util"
-	"github.com/devtron-labs/devtron/util/ChartsUtil"
 	"github.com/devtron-labs/devtron/util/argo"
 	errors2 "github.com/juju/errors"
 	"github.com/pkg/errors"
@@ -1082,7 +1082,7 @@ func (impl *WorkflowDagExecutorImpl) handleCustomGitOpsRepoValidation(runner *pi
 			impl.logger.Errorw("error in fetching latest chart for app by appId", "err", err, "appId", pipeline.AppId)
 			return err
 		}
-		if ChartsUtil.IsGitOpsRepoNotConfigured(chart.GitRepoUrl) {
+		if gitOps.IsGitOpsRepoNotConfigured(chart.GitRepoUrl) {
 			// if image vulnerable, update timeline status and return
 			runner.Status = pipelineConfig.WorkflowFailed
 			runner.Message = pipelineConfig.GITOPS_REPO_NOT_CONFIGURED
@@ -4450,7 +4450,7 @@ func (impl *WorkflowDagExecutorImpl) autoscalingCheckBeforeTrigger(ctx context.C
 // CheckIfRepoMigrationRequired checks if gitOps repo name is changed
 func (impl *WorkflowDagExecutorImpl) CheckIfRepoMigrationRequired(manifestPushTemplate *bean4.ManifestPushTemplate) bool {
 	monoRepoMigrationRequired := false
-	if ChartsUtil.IsGitOpsRepoNotConfigured(manifestPushTemplate.RepoUrl) || manifestPushTemplate.IsCustomGitRepository {
+	if gitOps.IsGitOpsRepoNotConfigured(manifestPushTemplate.RepoUrl) || manifestPushTemplate.IsCustomGitRepository {
 		return false
 	}
 	var err error

@@ -19,7 +19,7 @@ package validation
 
 import (
 	"fmt"
-	apiBean "github.com/devtron-labs/devtron/api/bean"
+	apiBean "github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode"
 	chartService "github.com/devtron-labs/devtron/pkg/chart"

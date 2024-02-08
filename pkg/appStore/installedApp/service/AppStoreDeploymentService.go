@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/caarlos0/env/v6"
+	"github.com/devtron-labs/devtron/api/bean/gitOps"
 	bean3 "github.com/devtron-labs/devtron/api/helm-app/bean"
 	bean4 "github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
@@ -50,7 +51,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/util"
-	"github.com/devtron-labs/devtron/util/ChartsUtil"
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
@@ -1053,7 +1053,7 @@ func (impl *AppStoreDeploymentServiceImpl) CreateInstalledAppVersion(installAppV
 // CheckIfMonoRepoMigrationRequired checks if gitOps repo name is changed
 func (impl *AppStoreDeploymentServiceImpl) CheckIfMonoRepoMigrationRequired(installedApp *repository.InstalledApps) bool {
 	monoRepoMigrationRequired := false
-	if !util.IsAcdApp(installedApp.DeploymentAppType) || ChartsUtil.IsGitOpsRepoNotConfigured(installedApp.GitOpsRepoUrl) || installedApp.IsCustomRepository {
+	if !util.IsAcdApp(installedApp.DeploymentAppType) || gitOps.IsGitOpsRepoNotConfigured(installedApp.GitOpsRepoUrl) || installedApp.IsCustomRepository {
 		return false
 	}
 	var err error

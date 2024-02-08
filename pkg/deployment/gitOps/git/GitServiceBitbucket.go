@@ -2,7 +2,7 @@ package git
 
 import (
 	"fmt"
-	bean2 "github.com/devtron-labs/devtron/api/bean"
+	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/ktrysmt/go-bitbucket"
 	"go.uber.org/zap"
 	"io/ioutil"

@@ -2,7 +2,7 @@ package git
 
 import (
 	"fmt"
-	bean2 "github.com/devtron-labs/devtron/api/bean"
+	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
 	"github.com/xanzy/go-gitlab"
 	"go.uber.org/zap"

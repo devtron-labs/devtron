@@ -24,9 +24,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"github.com/devtron-labs/devtron/util/ChartsUtil"
 	"go.opentelemetry.io/otel"
 	"strings"
 	"time"
@@ -564,7 +564,7 @@ func (impl AppListingRepositoryImpl) FetchAppStageStatus(appId int, appType int)
 	if model != nil && model.Id > 0 && model.AllowCustomRepository {
 		isCustomGitopsRepoUrl = true
 	}
-	if ChartsUtil.IsGitOpsRepoNotConfigured(stages.ChartGitRepoUrl) && stages.CiPipelineId == 0 {
+	if gitOps.IsGitOpsRepoNotConfigured(stages.ChartGitRepoUrl) && stages.CiPipelineId == 0 {
 		stages.ChartGitRepoUrl = ""
 	}
 	appStageStatus = append(appStageStatus, impl.makeAppStageStatus(0, "APP", stages.AppId, true),

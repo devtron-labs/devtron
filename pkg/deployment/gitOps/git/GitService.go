@@ -20,6 +20,7 @@ package git
 import (
 	"context"
 	"fmt"
+	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/adapter"
@@ -29,7 +30,6 @@ import (
 	"strings"
 	"time"
 
-	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/go-pg/pg"
 	"github.com/xanzy/go-gitlab"
 	"go.uber.org/zap"

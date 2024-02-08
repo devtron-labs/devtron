@@ -19,6 +19,7 @@ package appStoreBean
 
 import (
 	"encoding/json"
+	apiBean "github.com/devtron-labs/devtron/api/bean/gitOps"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"time"
 )
@@ -114,6 +115,14 @@ type InstallAppVersionDTO struct {
 
 func (chart *InstallAppVersionDTO) UpdateDeploymentAppType(deploymentAppType string) {
 	chart.DeploymentAppType = deploymentAppType
+}
+
+func (chart *InstallAppVersionDTO) UpdateCustomGitOpsRepoUrl(allowCustomRepository bool, installAppVersionRequestType InstallAppVersionRequestType) {
+	// Handling for chart-group deployment request
+	if allowCustomRepository && len(chart.GitOpsRepoURL) == 0 &&
+		(installAppVersionRequestType == BULK_DEPLOY_REQUEST || installAppVersionRequestType == DEFAULT_COMPONENT_DEPLOYMENT_REQUEST) {
+		chart.GitOpsRepoURL = apiBean.GIT_REPO_DEFAULT
+	}
 }
 
 // InstalledAppDeploymentAction is an internal struct for Helm App deployment; used to decide the deployment steps to be performed

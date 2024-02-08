@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	"github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/api/helm-app/service"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -32,7 +33,6 @@ import (
 	chartService "github.com/devtron-labs/devtron/pkg/chart"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
-	"github.com/devtron-labs/devtron/util/ChartsUtil"
 	"github.com/juju/errors"
 	"go.uber.org/zap"
 	"strconv"
@@ -448,7 +448,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentApps(ctx context
 					impl.logger.Errorw("Error in fetching latest chart for pipeline", "err", err, "appId", pipeline.AppId)
 				}
 				if chartServiceErr == nil {
-					if ChartsUtil.IsGitOpsRepoNotConfigured(chart.GitRepoUrl) {
+					if gitOps.IsGitOpsRepoNotConfigured(chart.GitRepoUrl) {
 						if gitOpsConfigurationStatus.AllowCustomRepository || chart.IsCustomGitRepository {
 							gitOpsRepoNotFound = fmt.Errorf(pipelineConfig.GITOPS_REPO_NOT_CONFIGURED)
 						} else {

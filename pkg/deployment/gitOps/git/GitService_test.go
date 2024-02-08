@@ -1,7 +1,7 @@
 package git
 
 import (
-	"github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/internal/util"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
 	"testing"
@@ -41,7 +41,7 @@ func TestGitHubClient_CreateRepository(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			impl := getTestGithubClient()
-			gitOpsConfigDTO := &bean.GitOpsConfigDto{
+			gitOpsConfigDTO := &gitOps.GitOpsConfigDto{
 				Username:             tt.args.name,
 				Description:          tt.args.description,
 				BitBucketWorkspaceId: tt.args.bitbucketWorkspaceId,

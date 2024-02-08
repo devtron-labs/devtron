@@ -20,10 +20,10 @@ package restHandler
 import (
 	"encoding/json"
 	"errors"
+	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
 	"net/http"
 	"strconv"
 
-	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
