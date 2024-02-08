@@ -418,11 +418,13 @@ func (impl *ArgoApplicationServiceImpl) GetRestConfigForExternalArgo(ctx context
 		impl.logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterId)
 		return nil, err
 	}
+	impl.logger.Infow("GetRestConfigForExternalArgo, GetClusterConfigFromAllClusters", "clusterConfig", clusterConfig, "clusterWithApplicationObject", clusterWithApplicationObject, "clusterServerUrlIdMap", clusterServerUrlIdMap)
 	restConfig, err := impl.k8sUtil.GetRestConfigByCluster(clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", clusterId)
 		return nil, err
 	}
+	impl.logger.Infow("GetRestConfigByCluster", "restConfig", restConfig)
 	resourceResp, err := impl.k8sUtil.GetResource(ctx, bean.DevtronCDNamespae, externalArgoApplicationName, bean.GvkForArgoApplication, restConfig)
 	if err != nil {
 		impl.logger.Errorw("not on external cluster", "err", err, "externalArgoApplicationName", externalArgoApplicationName)
@@ -433,5 +435,6 @@ func (impl *ArgoApplicationServiceImpl) GetRestConfigForExternalArgo(ctx context
 		impl.logger.Errorw("error in getting server config", "err", err, "cluster with application object", clusterWithApplicationObject)
 		return nil, err
 	}
+	impl.logger.Infow("GetServerConfigIfClusterIsNotAddedOnDevtron", "restConfig", restConfig)
 	return restConfig, nil
 }
