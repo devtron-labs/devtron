@@ -337,6 +337,8 @@ func getHealthSyncStatusDestinationServerAndManagedResourcesForArgoK8sRawObject(
 
 func (impl *ArgoApplicationServiceImpl) GetServerConfigIfClusterIsNotAddedOnDevtron(resourceResp *k8s.ManifestResponse, restConfig *rest.Config,
 	clusterWithApplicationObject clusterRepository.Cluster, clusterServerUrlIdMap map[string]int) (*rest.Config, error) {
+	impl.logger.Infow("request GetServerConfigIfClusterIsNotAddedOnDevtron", "resourceResp", resourceResp, "restConfig", restConfig,
+		"clusterWithApplicationObject", clusterWithApplicationObject, "clusterServerUrlIdMap", clusterServerUrlIdMap)
 	var destinationServer string
 	if resourceResp != nil && resourceResp.Manifest.Object != nil {
 		_, _, destinationServer, _ =
@@ -359,6 +361,7 @@ func (impl *ArgoApplicationServiceImpl) GetServerConfigIfClusterIsNotAddedOnDevt
 			impl.logger.Errorw("error in getting resource list, secrets", "err", err)
 			return nil, err
 		}
+		impl.logger.Infow("secrets got by argocd app", "err", err, "secrets", secrets)
 		for _, secret := range secrets.Items {
 			if secret.Data != nil {
 				if val, ok := secret.Data[bean.Server]; ok {
@@ -375,7 +378,7 @@ func (impl *ArgoApplicationServiceImpl) GetServerConfigIfClusterIsNotAddedOnDevt
 				}
 			}
 		}
-
+		impl.logger.Infow("configOfClusterWhereAppIsDeployed", configOfClusterWhereAppIsDeployed)
 		if configOfClusterWhereAppIsDeployed != nil {
 			restConfig.Host = destinationServer
 			restConfig.TLSClientConfig = rest.TLSClientConfig{
