@@ -1,7 +1,5 @@
 package bean
 
-const GitOpsSecretName = "devtron-gitops-secret"
-
 type RepositoryCredentialsDto struct {
 	Url            string  `json:"url,omitempty"`
 	UsernameSecret *KeyDto `json:"usernameSecret,omitempty"`
