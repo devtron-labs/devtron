@@ -62,6 +62,14 @@ type InstalledAppDto struct {
 	EnvironmentId   int    `json:"environmentId"`
 }
 
+type InstallAppVersionRequestType int
+
+const (
+	INSTALL_APP_REQUEST InstallAppVersionRequestType = iota
+	BULK_DEPLOY_REQUEST
+	DEFAULT_COMPONENT_DEPLOYMENT_REQUEST
+)
+
 type InstallAppVersionDTO struct {
 	Id                           int                            `json:"id,omitempty"` // TODO: redundant data; refers to InstalledAppVersionId
 	AppId                        int                            `json:"appId,omitempty"`
@@ -75,30 +83,32 @@ type InstallAppVersionDTO struct {
 	AppStoreVersion              int                            `json:"appStoreVersion,omitempty,notnull"`
 	ValuesOverrideYaml           string                         `json:"valuesOverrideYaml,omitempty"`
 	Readme                       string                         `json:"readme,omitempty"`
-	UserId                       int32                          `json:"-"`
 	ReferenceValueId             int                            `json:"referenceValueId, omitempty" validate:"required,number"`                            // TODO: ineffective usage of omitempty; can be removed
 	ReferenceValueKind           string                         `json:"referenceValueKind, omitempty" validate:"oneof=DEFAULT TEMPLATE DEPLOYED EXISTING"` // TODO: ineffective usage of omitempty; can be removed
+	AppStoreId                   int                            `json:"appStoreId"`
+	AppStoreName                 string                         `json:"appStoreName"`
+	Deprecated                   bool                           `json:"deprecated"`
+	ClusterId                    int                            `json:"clusterId"` // needed for hyperion mode
+	Namespace                    string                         `json:"namespace"` // needed for hyperion mode
+	AppOfferingMode              string                         `json:"appOfferingMode"`
+	GitOpsPath                   string                         `json:"gitOpsPath"`
+	GitHash                      string                         `json:"gitHash"`
+	DeploymentAppType            string                         `json:"deploymentAppType"` // TODO: instead of string, use enum
+	AcdPartialDelete             bool                           `json:"acdPartialDelete"`
+	InstalledAppDeleteResponse   *InstalledAppDeleteResponseDTO `json:"deleteResponse,omitempty"`
+	GitOpsRepoURL                string                         `json:"gitRepoURL"`
+	IsCustomRepository           bool                           `json:"-"`
+	IsNewGitOpsRepo              bool                           `json:"-"`
 	ACDAppName                   string                         `json:"-"`
 	Environment                  *repository2.Environment       `json:"-"`
 	ChartGroupEntryId            int                            `json:"-"`
 	DefaultClusterComponent      bool                           `json:"-"`
 	Status                       AppstoreDeploymentStatus       `json:"-"`
-	AppStoreId                   int                            `json:"appStoreId"`
-	AppStoreName                 string                         `json:"appStoreName"`
-	Deprecated                   bool                           `json:"deprecated"`
+	UserId                       int32                          `json:"-"`
 	ForceDelete                  bool                           `json:"-"`
 	NonCascadeDelete             bool                           `json:"-"`
-	ClusterId                    int                            `json:"clusterId"` // needed for hyperion mode
-	Namespace                    string                         `json:"namespace"` // needed for hyperion mode
-	AppOfferingMode              string                         `json:"appOfferingMode"`
-	GitOpsRepoName               string                         `json:"gitOpsRepoName"`
-	GitOpsPath                   string                         `json:"gitOpsPath"`
-	GitHash                      string                         `json:"gitHash"`
 	EnvironmentName              string                         `json:"-"`
 	InstallAppVersionChartDTO    *InstallAppVersionChartDTO     `json:"-"`
-	DeploymentAppType            string                         `json:"deploymentAppType"` // TODO: instead of string, use enum
-	AcdPartialDelete             bool                           `json:"acdPartialDelete"`
-	InstalledAppDeleteResponse   *InstalledAppDeleteResponseDTO `json:"deleteResponse,omitempty"`
 	AppStoreApplicationVersionId int
 }
 

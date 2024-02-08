@@ -9,6 +9,8 @@ import (
 
 const RefreshTypeNormal = "normal"
 
+const RegisterRepoMaxRetryCount = 3
+
 const (
 	Degraded    = "Degraded"
 	Healthy     = "Healthy"

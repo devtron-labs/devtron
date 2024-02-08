@@ -100,7 +100,8 @@ func NewInstalledAppRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService u
 	helmAppClient client.HelmAppClient, argoUserService argo.ArgoUserService,
 	cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler,
 	installedAppRepository repository.InstalledAppRepository,
-	appCrudOperationService app2.AppCrudOperationService) *InstalledAppRestHandlerImpl {
+	appCrudOperationService app2.AppCrudOperationService,
+) *InstalledAppRestHandlerImpl {
 	return &InstalledAppRestHandlerImpl{
 		Logger:                           Logger,
 		userAuthService:                  userAuthService,

@@ -7,8 +7,7 @@ import (
 )
 
 type GlobalEnvVariables struct {
-	GitOpsRepoPrefix     string `env:"GITOPS_REPO_PREFIX" envDefault:""`
-	SkipGitOpsValidation bool   `env:"SKIP_GITOPS_VALIDATION" envDefault:"false"`
+	GitOpsRepoPrefix string `env:"GITOPS_REPO_PREFIX" envDefault:""`
 }
 
 func GetGlobalEnvVariables() (*GlobalEnvVariables, error) {

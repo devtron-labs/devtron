@@ -59,7 +59,7 @@ func TestAppStoreDeploymentService(t *testing.T) {
 			ClusterId:                 0,
 			Namespace:                 "devtron-demo",
 			AppOfferingMode:           "",
-			GitOpsRepoName:            "",
+			GitOpsRepoURL:             "",
 			GitOpsPath:                "",
 			GitHash:                   "",
 			EnvironmentName:           "",
@@ -67,7 +67,7 @@ func TestAppStoreDeploymentService(t *testing.T) {
 			DeploymentAppType:         "helm",
 		}
 
-		installedAppVersion, err := AppStoreDeploymentService.AppStoreDeployOperationDB(&InstallAppVersionDTO, tx, false)
+		installedAppVersion, err := AppStoreDeploymentService.AppStoreDeployOperationDB(&InstallAppVersionDTO, tx, false, appStoreBean.INSTALL_APP_REQUEST)
 
 		assert.Nil(t, err)
 		assert.Equal(t, installedAppVersion.DeploymentAppType, "helm")
@@ -109,7 +109,7 @@ func TestAppStoreDeploymentService(t *testing.T) {
 			ClusterId:                 0,
 			Namespace:                 "devtron-demo",
 			AppOfferingMode:           "",
-			GitOpsRepoName:            "",
+			GitOpsRepoURL:             "",
 			GitOpsPath:                "",
 			GitHash:                   "",
 			EnvironmentName:           "",
@@ -117,7 +117,7 @@ func TestAppStoreDeploymentService(t *testing.T) {
 			DeploymentAppType:         "helm",
 		}
 
-		installedAppVersion, err := AppStoreDeploymentService.AppStoreDeployOperationDB(&InstallAppVersionDTO, tx, false)
+		installedAppVersion, err := AppStoreDeploymentService.AppStoreDeployOperationDB(&InstallAppVersionDTO, tx, false, appStoreBean.INSTALL_APP_REQUEST)
 
 		assert.Nil(t, err)
 		assert.Equal(t, installedAppVersion.DeploymentAppType, "argo_cd")

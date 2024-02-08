@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/common-lib/pubsub-lib/model"
 	"github.com/devtron-labs/devtron/pkg/app"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode"
 	"k8s.io/utils/pointer"
 	"time"
@@ -31,12 +32,10 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	repository4 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
-	"github.com/devtron-labs/devtron/pkg/bean"
-	"k8s.io/utils/strings/slices"
 
 	v1alpha12 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
-	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service"
+	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -110,25 +109,19 @@ func (impl *ApplicationStatusHandlerImpl) Subscribe() error {
 		_, err = impl.pipelineRepository.GetArgoPipelineByArgoAppName(app.ObjectMeta.Name)
 		if err != nil && err == pg.ErrNoRows {
 			impl.logger.Infow("this app not found in pipeline table looking in installed_apps table", "appName", app.ObjectMeta.Name)
-			// if not found in pipeline table then search in installed_apps table
-			gitOpsDeployedAppNames, err := impl.installedAppRepository.GetAllGitOpsDeploymentAppName()
-			if err != nil && err == pg.ErrNoRows {
-				// no installed_apps found
+			//if not found in pipeline table then search in installed_apps table
+			installedAppModel, err := impl.installedAppRepository.GetInstalledAppByGitOpsAppName(app.ObjectMeta.Name)
+			if err == pg.ErrNoRows {
+				//no installed_apps found
 				impl.logger.Errorw("no installed apps found", "err", err)
 				return
-			} else if err != nil {
+			}
+			if err != nil {
 				impl.logger.Errorw("error in getting all gitops deployment app names from installed_apps ", "err", err)
 				return
 			}
-			var devtronGitOpsAppName string
-			gitOpsRepoPrefix := impl.appService.GetGitOpsRepoPrefix()
-			if len(gitOpsRepoPrefix) > 0 {
-				devtronGitOpsAppName = fmt.Sprintf("%s-%s", gitOpsRepoPrefix, app.ObjectMeta.Name)
-			} else {
-				devtronGitOpsAppName = app.ObjectMeta.Name
-			}
-			if slices.Contains(gitOpsDeployedAppNames, devtronGitOpsAppName) {
-				// app found in installed_apps table hence setting flag to true
+			if installedAppModel.Id > 0 {
+				//app found in installed_apps table hence setting flag to true
 				isAppStoreApplication = true
 			} else {
 				// app neither found in installed_apps nor in pipeline table hence returning

@@ -247,6 +247,10 @@ func (impl GitLabClient) CreateReadme(config *bean2.GitOpsConfigDto) (string, er
 	}
 	gitRepoName := fmt.Sprintf("%s/%s", impl.config.GitlabGroupPath, config.GitRepoName)
 	c, _, err := impl.client.Commits.CreateCommit(gitRepoName, actions)
+	if err != nil {
+		impl.logger.Errorw("gitlab commit readme file err", "gitRepoName", gitRepoName, "err", err)
+		return "", err
+	}
 	return c.ID, err
 }
 

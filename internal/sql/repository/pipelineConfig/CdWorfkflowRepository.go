@@ -155,6 +155,7 @@ const (
 	WORKFLOW_EXECUTOR_TYPE_SYSTEM = "SYSTEM"
 	NEW_DEPLOYMENT_INITIATED      = "A new deployment was initiated before this deployment completed"
 	FOUND_VULNERABILITY           = "Found vulnerability on image"
+	GITOPS_REPO_NOT_CONFIGURED    = "GitOps repository is not configured for the app"
 )
 
 type CdWorkflowRunnerWithExtraFields struct {

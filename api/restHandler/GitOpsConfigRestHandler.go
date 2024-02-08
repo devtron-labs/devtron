@@ -84,15 +84,15 @@ func (impl GitOpsConfigRestHandlerImpl) CreateGitOpsConfig(w http.ResponseWriter
 	var bean bean2.GitOpsConfigDto
 	err = decoder.Decode(&bean)
 	if err != nil {
-		impl.logger.Errorw("request err, CreateGitOpsConfig", "err", err, "payload", bean)
+		impl.logger.Errorw("request err, createGitOpsConfig", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	bean.UserId = userId
-	impl.logger.Infow("request payload, CreateGitOpsConfig", "err", err, "payload", bean)
+	impl.logger.Infow("request payload, createGitOpsConfig", "err", err, "payload", bean)
 	err = impl.validator.Struct(bean)
 	if err != nil {
-		impl.logger.Errorw("validation err, CreateGitOpsConfig", "err", err, "payload", bean)
+		impl.logger.Errorw("validation err, createGitOpsConfig", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -100,9 +100,10 @@ func (impl GitOpsConfigRestHandlerImpl) CreateGitOpsConfig(w http.ResponseWriter
 	if err != nil {
 		impl.logger.Errorw("service err, SaveGitRepoConfig", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
 	}
 	common.WriteJsonResp(w, nil, detailedErrorGitOpsConfigResponse, http.StatusOK)
-
+	return
 }
 
 func (impl GitOpsConfigRestHandlerImpl) UpdateGitOpsConfig(w http.ResponseWriter, r *http.Request) {
@@ -131,25 +132,26 @@ func (impl GitOpsConfigRestHandlerImpl) UpdateGitOpsConfig(w http.ResponseWriter
 		bean.Token = res.Token
 	}
 	if err != nil {
-		impl.logger.Errorw("request err, UpdateGitOpsConfig", "err", err, "payload", bean)
+		impl.logger.Errorw("request err, updateGitOpsConfig", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	bean.UserId = userId
-	impl.logger.Infow("request payload, UpdateGitOpsConfig", "payload", bean)
+	impl.logger.Infow("request payload, updateGitOpsConfig", "payload", bean)
 	err = impl.validator.Struct(bean)
 	if err != nil {
-		impl.logger.Errorw("validation err, UpdateGitOpsConfig", "err", err, "payload", bean)
+		impl.logger.Errorw("validation err, updateGitOpsConfig", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	detailedErrorGitOpsConfigResponse, err := impl.gitOpsConfigService.ValidateAndUpdateGitOpsConfig(&bean)
 	if err != nil {
-		impl.logger.Errorw("service err, UpdateGitOpsConfig", "err", err, "payload", bean)
+		impl.logger.Errorw("service err, updateGitOpsConfig", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
 	}
 	common.WriteJsonResp(w, nil, detailedErrorGitOpsConfigResponse, http.StatusOK)
-
+	return
 }
 
 func (impl GitOpsConfigRestHandlerImpl) GetGitOpsConfigById(w http.ResponseWriter, r *http.Request) {
@@ -196,15 +198,19 @@ func (impl GitOpsConfigRestHandlerImpl) GitOpsConfigured(w http.ResponseWriter, 
 		return
 	}
 	gitopsConfigured := false
+	allowCustomRepository := false
 	if len(result) > 0 {
 		for _, gitopsConf := range result {
 			if gitopsConf.Active {
 				gitopsConfigured = true
+				allowCustomRepository = gitopsConf.AllowCustomRepository
+
 			}
 		}
 	}
 	res := make(map[string]bool)
 	res["exists"] = gitopsConfigured
+	res["allowCustomRepository"] = allowCustomRepository
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 

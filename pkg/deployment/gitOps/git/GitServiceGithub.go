@@ -54,6 +54,7 @@ func NewGithubClient(host string, token string, org string, logger *zap.SugaredL
 		gitService: gitService,
 	}, err
 }
+
 func (impl GitHubClient) DeleteRepository(config *bean2.GitOpsConfigDto) error {
 	_, err := impl.client.Repositories.Delete(context.Background(), config.GitHubOrgId, config.GitRepoName)
 	if err != nil {
@@ -62,6 +63,7 @@ func (impl GitHubClient) DeleteRepository(config *bean2.GitOpsConfigDto) error {
 	}
 	return nil
 }
+
 func (impl GitHubClient) CreateRepository(config *bean2.GitOpsConfigDto) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
 	ctx := context.Background()

@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/chart/gitOpsConfig"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
@@ -104,6 +105,7 @@ type PipelineConfigRestHandlerImpl struct {
 	Logger                              *zap.SugaredLogger
 	deploymentTemplateValidationService deploymentTemplate.DeploymentTemplateValidationService
 	chartService                        chart.ChartService
+	devtronAppGitOpConfigService        gitOpsConfig.DevtronAppGitOpConfigService
 	propertiesConfigService             pipeline.PropertiesConfigService
 	userAuthService                     user.UserService
 	validator                           *validator.Validate
@@ -132,6 +134,7 @@ type PipelineConfigRestHandlerImpl struct {
 func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
 	deploymentTemplateValidationService deploymentTemplate.DeploymentTemplateValidationService,
 	chartService chart.ChartService,
+	devtronAppGitOpConfigService gitOpsConfig.DevtronAppGitOpConfigService,
 	propertiesConfigService pipeline.PropertiesConfigService,
 	userAuthService user.UserService,
 	teamService team.TeamService,
@@ -163,6 +166,7 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		Logger:                              Logger,
 		deploymentTemplateValidationService: deploymentTemplateValidationService,
 		chartService:                        chartService,
+		devtronAppGitOpConfigService:        devtronAppGitOpConfigService,
 		propertiesConfigService:             propertiesConfigService,
 		userAuthService:                     userAuthService,
 		validator:                           validator,

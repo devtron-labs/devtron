@@ -9,8 +9,12 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/repository"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"go.uber.org/zap"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"strings"
+	"time"
 )
 
 type ACDConfig struct {
@@ -37,24 +41,29 @@ type ArgoClientWrapperService interface {
 	// UpdateArgoCDSyncModeIfNeeded - if ARGO_AUTO_SYNC_ENABLED=true and app is in manual sync mode or vice versa update app
 	UpdateArgoCDSyncModeIfNeeded(ctx context.Context, argoApplication *v1alpha1.Application) (err error)
 
-	//RegisterGitOpsRepoInArgo - register a repository in argo-cd
-	RegisterGitOpsRepoInArgo(ctx context.Context, repoUrl string) (err error)
+	//RegisterGitOpsRepoInArgo - register a repository in argo-cd with retry mechanism
+	RegisterGitOpsRepoInArgo(ctx context.Context, gitOpsRepoUrl string, userId int32) error
 }
 
 type ArgoClientWrapperServiceImpl struct {
-	logger            *zap.SugaredLogger
-	acdClient         application.ServiceClient
-	ACDConfig         *ACDConfig
-	repositoryService repository.ServiceClient
+	logger                  *zap.SugaredLogger
+	acdClient               application.ServiceClient
+	ACDConfig               *ACDConfig
+	repositoryService       repository.ServiceClient
+	gitOpsConfigReadService config.GitOpsConfigReadService
+	gitOperationService     git.GitOperationService
 }
 
 func NewArgoClientWrapperServiceImpl(logger *zap.SugaredLogger, acdClient application.ServiceClient,
-	ACDConfig *ACDConfig, repositoryService repository.ServiceClient) *ArgoClientWrapperServiceImpl {
+	ACDConfig *ACDConfig, repositoryService repository.ServiceClient, gitOpsConfigReadService config.GitOpsConfigReadService,
+	gitOperationService git.GitOperationService) *ArgoClientWrapperServiceImpl {
 	return &ArgoClientWrapperServiceImpl{
-		logger:            logger,
-		acdClient:         acdClient,
-		ACDConfig:         ACDConfig,
-		repositoryService: repositoryService,
+		logger:                  logger,
+		acdClient:               acdClient,
+		ACDConfig:               ACDConfig,
+		repositoryService:       repositoryService,
+		gitOpsConfigReadService: gitOpsConfigReadService,
+		gitOperationService:     gitOperationService,
 	}
 }
 
@@ -136,14 +145,61 @@ func (impl *ArgoClientWrapperServiceImpl) CreateRequestForArgoCDSyncModeUpdateRe
 			}}}
 }
 
-func (impl *ArgoClientWrapperServiceImpl) RegisterGitOpsRepoInArgo(ctx context.Context, repoUrl string) (err error) {
+func (impl *ArgoClientWrapperServiceImpl) RegisterGitOpsRepoInArgo(ctx context.Context, gitOpsRepoUrl string, userId int32) error {
+
+	retryCount := 0
+	// label to register git repository in ArgoCd
+	// ArgoCd requires approx 80 to 120 sec after the last commit to allow create-repository action
+	// hence this operation needed to be perform with retry
+CreateArgoRepositoryWithRetry:
 	repo := &v1alpha1.Repository{
-		Repo: repoUrl,
+		Repo: gitOpsRepoUrl,
 	}
-	repo, err = impl.repositoryService.Create(ctx, &repository2.RepoCreateRequest{Repo: repo, Upsert: true})
+	repo, err := impl.repositoryService.Create(ctx, &repository2.RepoCreateRequest{Repo: repo, Upsert: true})
 	if err != nil {
-		impl.logger.Errorw("error in creating argo Repository ", "err", err)
+		impl.logger.Errorw("error in creating argo Repository", "err", err)
+		retryCount, err = impl.handleArgoRepoCreationError(retryCount, gitOpsRepoUrl, userId, err)
+		if err != nil {
+			impl.logger.Errorw("error in RegisterGitOpsRepoInArgo with retry operation", "err", err)
+			return err
+		}
+		impl.logger.Errorw("retrying RegisterGitOpsRepoInArgo operation", "retry count", retryCount)
+		time.Sleep(10 * time.Second)
+		goto CreateArgoRepositoryWithRetry
 	}
-	impl.logger.Infow("gitOps repo registered in argo", "name", repoUrl)
+	impl.logger.Infow("gitOps repo registered in argo", "name", gitOpsRepoUrl)
 	return err
+}
+
+func (impl *ArgoClientWrapperServiceImpl) handleArgoRepoCreationError(retryCount int, repoUrl string, userId int32, argoCdErr error) (int, error) {
+	// retry limit exhausted
+	if retryCount >= bean.RegisterRepoMaxRetryCount {
+		return 0, argoCdErr
+	}
+	// This error occurs inconsistently; ArgoCD requires 80-120s after last commit for create repository operation
+	argoRepoSyncDelayErrMessage := "Unable to resolve 'HEAD' to a commit SHA"
+	isSyncDelayError := strings.Contains(argoCdErr.Error(), argoRepoSyncDelayErrMessage)
+
+	// ArgoCD can't register empty repo and throws these error message in such cases
+	emptyRepoErrorMessages := []string{"failed to get index: 404 Not Found", "remote repository is empty"}
+	isEmptyRepoError := false
+	for _, errMsg := range emptyRepoErrorMessages {
+		if strings.Contains(argoCdErr.Error(), errMsg) {
+			isEmptyRepoError = true
+		}
+	}
+	// unknown error handling
+	if !isSyncDelayError && !isEmptyRepoError {
+		return 0, argoCdErr
+	}
+	if isEmptyRepoError {
+		// - found empty repository, create some file in repository
+		gitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoNameFromUrl(repoUrl)
+		err := impl.gitOperationService.CreateReadmeInGitRepo(gitOpsRepoName, userId)
+		if err != nil {
+			impl.logger.Errorw("error in creating file in git repo", "err", err)
+			return 0, err
+		}
+	}
+	return retryCount + 1, nil
 }

@@ -31,6 +31,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	bean5 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
+	"net/http"
 	"path"
 	"strconv"
 	"strings"
@@ -65,6 +66,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	util4 "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/ChartsUtil"
 	"github.com/devtron-labs/devtron/util/argo"
 	errors2 "github.com/juju/errors"
 	"github.com/pkg/errors"
@@ -1062,6 +1064,47 @@ func (impl *WorkflowDagExecutorImpl) SavePluginArtifacts(ciArtifact *repository.
 	return CDArtifacts, nil
 }
 
+func (impl *WorkflowDagExecutorImpl) handleCustomGitOpsRepoValidation(runner *pipelineConfig.CdWorkflowRunner, pipeline *pipelineConfig.Pipeline, triggeredBy int32) error {
+	if !util.IsAcdApp(pipeline.DeploymentAppName) {
+		return nil
+	}
+	isGitOpsConfigured := false
+	gitOpsConfig, err := impl.gitOpsConfigReadService.GetGitOpsConfigActive()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error while getting active GitOpsConfig", "err", err)
+	}
+	if gitOpsConfig != nil && gitOpsConfig.Id > 0 {
+		isGitOpsConfigured = true
+	}
+	if isGitOpsConfigured && gitOpsConfig.AllowCustomRepository {
+		chart, err := impl.chartRepository.FindLatestChartForAppByAppId(pipeline.AppId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching latest chart for app by appId", "err", err, "appId", pipeline.AppId)
+			return err
+		}
+		if ChartsUtil.IsGitOpsRepoNotConfigured(chart.GitRepoUrl) {
+			// if image vulnerable, update timeline status and return
+			runner.Status = pipelineConfig.WorkflowFailed
+			runner.Message = pipelineConfig.GITOPS_REPO_NOT_CONFIGURED
+			runner.FinishedOn = time.Now()
+			runner.UpdatedOn = time.Now()
+			runner.UpdatedBy = triggeredBy
+			err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
+			if err != nil {
+				impl.logger.Errorw("error in updating wfr status due to vulnerable image", "err", err)
+				return err
+			}
+			apiErr := &util.ApiError{
+				HttpStatusCode:  http.StatusConflict,
+				UserMessage:     pipelineConfig.GITOPS_REPO_NOT_CONFIGURED,
+				InternalMessage: pipelineConfig.GITOPS_REPO_NOT_CONFIGURED,
+			}
+			return apiErr
+		}
+	}
+	return nil
+}
+
 func (impl *WorkflowDagExecutorImpl) TriggerPreStage(request TriggerRequest) error {
 	//setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
 	triggeredAt := time.Now()
@@ -1117,6 +1160,14 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(request TriggerRequest) err
 	if err != nil {
 		return err
 	}
+
+	// custom gitops repo url validation --> Start
+	err = impl.handleCustomGitOpsRepoValidation(runner, pipeline, triggeredBy)
+	if err != nil {
+		impl.logger.Errorw("custom GitOps repository validation error, TriggerPreStage", "err", err)
+		return err
+	}
+	// custom gitops repo url validation --> Ends
 
 	//checking vulnerability for the selected image
 	isVulnerable, err := impl.GetArtifactVulnerabilityStatus(artifact, pipeline, ctx)
@@ -1347,6 +1398,15 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(request TriggerRequest) er
 			impl.logger.Warnw("unable to migrate deprecated DataSource", "artifactId", cdWf.CiArtifact.Id)
 		}
 	}
+
+	// custom gitops repo url validation --> Start
+	err = impl.handleCustomGitOpsRepoValidation(runner, pipeline, triggeredBy)
+	if err != nil {
+		impl.logger.Errorw("custom GitOps repository validation error, TriggerPreStage", "err", err)
+		return err
+	}
+	// custom gitops repo url validation --> Ends
+
 	//checking vulnerability for the selected image
 	isVulnerable, err := impl.GetArtifactVulnerabilityStatus(cdWf.CiArtifact, pipeline, context.Background())
 	if err != nil {
@@ -2132,6 +2192,15 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(request TriggerRequest) e
 	if err != nil {
 		impl.logger.Errorw("error in creating timeline status for deployment initiation", "err", err, "timeline", timeline)
 	}
+
+	// custom gitops repo url validation --> Start
+	err = impl.handleCustomGitOpsRepoValidation(runner, pipeline, triggeredBy)
+	if err != nil {
+		impl.logger.Errorw("custom GitOps repository validation error, TriggerPreStage", "err", err)
+		return err
+	}
+	// custom gitops repo url validation --> Ends
+
 	//checking vulnerability for deploying image
 	isVulnerable := false
 	if len(artifact.ImageDigest) > 0 {
@@ -2546,9 +2615,9 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(triggerContext TriggerConte
 			_, span = otel.Tracer("orchestrator").Start(ctx, "updatePreviousDeploymentStatus")
 			err1 := impl.updatePreviousDeploymentStatus(runner, cdPipeline.Id, triggeredAt, overrideRequest.UserId)
 			span.End()
-			if err1 != nil {
+			if releaseErr != nil || err1 != nil {
 				impl.logger.Errorw("error while update previous cd workflow runners, ManualCdTrigger", "err", err, "runner", runner, "pipelineId", cdPipeline.Id)
-				return 0, err1
+				return 0, releaseErr
 			}
 		}
 
@@ -3152,10 +3221,10 @@ func (impl *WorkflowDagExecutorImpl) TriggerPipeline(overrideRequest *bean.Value
 	}
 
 	if triggerEvent.PerformDeploymentOnCluster {
-		err = impl.DeployApp(overrideRequest, valuesOverrideResponse, triggerEvent.TriggerdAt, ctx)
-		if err != nil {
+		releaseErr := impl.DeployApp(overrideRequest, valuesOverrideResponse, triggerEvent.TriggerdAt, ctx)
+		if releaseErr != nil {
 			impl.logger.Errorw("error in deploying app", "err", err)
-			return releaseNo, manifest, err
+			return releaseNo, manifest, releaseErr
 		}
 	}
 
@@ -3253,6 +3322,7 @@ func (impl *WorkflowDagExecutorImpl) BuildManifestPushTemplate(overrideRequest *
 		AppId:                 overrideRequest.AppId,
 		ChartRefId:            valuesOverrideResponse.EnvOverride.Chart.ChartRefId,
 		EnvironmentId:         valuesOverrideResponse.EnvOverride.Environment.Id,
+		EnvironmentName:       valuesOverrideResponse.EnvOverride.Environment.Namespace,
 		UserId:                overrideRequest.UserId,
 		PipelineOverrideId:    valuesOverrideResponse.PipelineOverride.Id,
 		AppName:               overrideRequest.AppName,
@@ -3279,6 +3349,8 @@ func (impl *WorkflowDagExecutorImpl) BuildManifestPushTemplate(overrideRequest *
 		manifestPushTemplate.ChartVersion = valuesOverrideResponse.EnvOverride.Chart.ChartVersion
 		manifestPushTemplate.ChartLocation = valuesOverrideResponse.EnvOverride.Chart.ChartLocation
 		manifestPushTemplate.RepoUrl = valuesOverrideResponse.EnvOverride.Chart.GitRepoUrl
+		manifestPushTemplate.IsCustomGitRepository = valuesOverrideResponse.EnvOverride.Chart.IsCustomGitRepository
+		manifestPushTemplate.GitOpsRepoMigrationRequired = impl.CheckIfRepoMigrationRequired(manifestPushTemplate)
 	}
 	return manifestPushTemplate, err
 }
@@ -3643,7 +3715,7 @@ func (impl *WorkflowDagExecutorImpl) createArgoApplicationIfRequired(appId int, 
 			Project:         "default",
 			ValuesFile:      impl.getValuesFileForEnv(envModel.Id),
 			RepoPath:        chart.ChartLocation,
-			RepoUrl:         chart.GitRepoUrl,
+			RepoUrl:         chart.GitRepoUrl, //The custom repository url is handled at build manifest level
 			AutoSyncEnabled: impl.ACDConfig.ArgoCDAutoSyncEnabled,
 		}
 		argoAppName, err := impl.argoK8sClient.CreateAcdApp(appRequest, envModel.Cluster, argocdServer.ARGOCD_APPLICATION_TEMPLATE)
@@ -4373,6 +4445,52 @@ func (impl *WorkflowDagExecutorImpl) autoscalingCheckBeforeTrigger(ctx context.C
 	}
 
 	return merged
+}
+
+// CheckIfRepoMigrationRequired checks if gitOps repo name is changed
+func (impl *WorkflowDagExecutorImpl) CheckIfRepoMigrationRequired(manifestPushTemplate *bean4.ManifestPushTemplate) bool {
+	monoRepoMigrationRequired := false
+	if ChartsUtil.IsGitOpsRepoNotConfigured(manifestPushTemplate.RepoUrl) || manifestPushTemplate.IsCustomGitRepository {
+		return false
+	}
+	var err error
+	gitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoNameFromUrl(manifestPushTemplate.RepoUrl)
+	if len(gitOpsRepoName) == 0 {
+		gitOpsRepoName, err = impl.GetGitOpsRepoName(manifestPushTemplate.AppName, manifestPushTemplate.EnvironmentName)
+		if err != nil || gitOpsRepoName == "" {
+			return false
+		}
+	}
+	//here will set new git repo name if required to migrate
+	newGitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoName(manifestPushTemplate.AppName)
+	//checking weather git repo migration needed or not, if existing git repo and new independent git repo is not same than go ahead with migration
+	if newGitOpsRepoName != gitOpsRepoName {
+		monoRepoMigrationRequired = true
+	}
+	return monoRepoMigrationRequired
+}
+
+func (impl *WorkflowDagExecutorImpl) GetGitOpsRepoName(appName string, environmentName string) (string, error) {
+	gitOpsRepoName := ""
+	//this method should only call in case of argo-integration and gitops configured
+	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		impl.logger.Errorw("error in getting acd token", "err", err)
+		return "", err
+	}
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, "token", acdToken)
+	acdAppName := fmt.Sprintf("%s-%s", appName, environmentName)
+	application, err := impl.acdClient.Get(ctx, &application3.ApplicationQuery{Name: &acdAppName})
+	if err != nil {
+		impl.logger.Errorw("no argo app exists", "acdAppName", acdAppName, "err", err)
+		return "", err
+	}
+	if application != nil {
+		gitOpsRepoUrl := application.Spec.Source.RepoURL
+		gitOpsRepoName = impl.gitOpsConfigReadService.GetGitOpsRepoNameFromUrl(gitOpsRepoUrl)
+	}
+	return gitOpsRepoName, nil
 }
 
 // update repoUrl, revision and argo app sync mode (auto/manual) if needed

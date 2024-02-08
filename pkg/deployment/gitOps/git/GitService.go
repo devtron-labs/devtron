@@ -20,14 +20,16 @@ package git
 import (
 	"context"
 	"fmt"
+	util2 "github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/adapter"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
 	"github.com/devtron-labs/devtron/util"
 	"path/filepath"
+	"strings"
 	"time"
 
 	bean2 "github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/go-pg/pg"
 	"github.com/xanzy/go-gitlab"
 	"go.uber.org/zap"
@@ -73,14 +75,14 @@ type DetailedErrorGitOpsConfigActions struct {
 	DeleteRepoFailed bool             `json:"deleteRepoFailed"`
 }
 
-func (factory *GitFactory) Reload(gitOpsRepository repository.GitOpsConfigRepository) error {
+func (factory *GitFactory) Reload(gitOpsConfigReadService config.GitOpsConfigReadService) error {
 	var err error
 	start := time.Now()
 	defer func() {
 		util.TriggerGitOpsMetrics("Reload", "GitService", start, err)
 	}()
 	factory.logger.Infow("reloading gitops details")
-	cfg, err := GetGitConfig(gitOpsRepository)
+	cfg, err := GetGitConfig(gitOpsConfigReadService)
 	if err != nil {
 		return err
 	}
@@ -137,8 +139,8 @@ func (factory *GitFactory) NewClientForValidation(gitOpsConfig *bean2.GitOpsConf
 	return client, gitService, nil
 }
 
-func NewGitFactory(logger *zap.SugaredLogger, gitOpsRepository repository.GitOpsConfigRepository, gitCliUtil *GitCliUtil) (*GitFactory, error) {
-	cfg, err := GetGitConfig(gitOpsRepository)
+func NewGitFactory(logger *zap.SugaredLogger, gitOpsConfigReadService config.GitOpsConfigReadService, gitCliUtil *GitCliUtil) (*GitFactory, error) {
+	cfg, err := GetGitConfig(gitOpsConfigReadService)
 	if err != nil {
 		return nil, err
 	}
@@ -155,11 +157,11 @@ func NewGitFactory(logger *zap.SugaredLogger, gitOpsRepository repository.GitOps
 	}, nil
 }
 
-func GetGitConfig(gitOpsRepository repository.GitOpsConfigRepository) (*bean.GitConfig, error) {
-	gitOpsConfig, err := gitOpsRepository.GetGitOpsConfigActive()
+func GetGitConfig(gitOpsConfigReadService config.GitOpsConfigReadService) (*bean.GitConfig, error) {
+	gitOpsConfig, err := gitOpsConfigReadService.GetGitOpsConfigActive()
 	if err != nil && err != pg.ErrNoRows {
 		return nil, err
-	} else if err == pg.ErrNoRows {
+	} else if util2.IsErrNoRows(err) {
 		// adding this block for backward compatibility,TODO: remove in next  iteration
 		// cfg := &GitConfig{}
 		// err := env.Parse(cfg)
@@ -178,7 +180,7 @@ func GetGitConfig(gitOpsRepository repository.GitOpsConfigRepository) (*bean.Git
 		GitProvider:          gitOpsConfig.Provider,
 		GitHost:              gitOpsConfig.Host,
 		AzureToken:           gitOpsConfig.Token,
-		AzureProject:         gitOpsConfig.AzureProject,
+		AzureProject:         gitOpsConfig.AzureProjectName,
 		BitbucketWorkspaceId: gitOpsConfig.BitBucketWorkspaceId,
 		BitbucketProjectKey:  gitOpsConfig.BitBucketProjectKey,
 	}
@@ -335,4 +337,19 @@ func (impl GitServiceImpl) Pull(repoRoot string) (err error) {
 		return nil
 	}
 	return err
+}
+
+func SanitiseCustomGitRepoURL(activeGitOpsConfig bean2.GitOpsConfigDto, gitRepoURL string) (sanitisedGitRepoURL string) {
+	sanitisedGitRepoURL = gitRepoURL
+	if activeGitOpsConfig.Provider == BITBUCKET_PROVIDER && strings.Contains(gitRepoURL, fmt.Sprintf("://%s@%s", activeGitOpsConfig.Username, "bitbucket.org/")) {
+		sanitisedGitRepoURL = strings.ReplaceAll(gitRepoURL, fmt.Sprintf("://%s@%s", activeGitOpsConfig.Username, "bitbucket.org/"), "://bitbucket.org/")
+	}
+	if activeGitOpsConfig.Provider == AZURE_DEVOPS_PROVIDER {
+		azureDevopsOrgName := activeGitOpsConfig.Host[strings.LastIndex(activeGitOpsConfig.Host, "/")+1:]
+		invalidBaseUrlFormat := fmt.Sprintf("://%s@%s", azureDevopsOrgName, "dev.azure.com/")
+		if invalidBaseUrlFormat != "" && strings.Contains(gitRepoURL, invalidBaseUrlFormat) {
+			sanitisedGitRepoURL = strings.ReplaceAll(gitRepoURL, invalidBaseUrlFormat, "://dev.azure.com/")
+		}
+	}
+	return sanitisedGitRepoURL
 }

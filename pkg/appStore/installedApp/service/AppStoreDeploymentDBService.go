@@ -2,27 +2,54 @@ package service
 
 import (
 	"fmt"
+	apiBean "github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appStore/adapter"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/bean"
-	util2 "github.com/devtron-labs/devtron/util"
+	gitOpsBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/config/bean"
+	validationBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/validation/bean"
+	globalUtil "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/ChartsUtil"
 	"github.com/go-pg/pg"
 	"net/http"
 )
 
-func (impl *AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx, skipAppCreation bool) (*appStoreBean.InstallAppVersionDTO, error) {
+func (impl *AppStoreDeploymentServiceImpl) validateCustomGitOpsRepoURL(gitOpsConfigurationStatus *gitOpsBean.GitOpsConfigurationStatus, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (string, bool, error) {
+	validateCustomGitRepoURLRequest := validationBean.ValidateCustomGitRepoURLRequest{
+		GitRepoURL:     installAppVersionRequest.GitOpsRepoURL,
+		AppName:        installAppVersionRequest.AppName,
+		UserId:         installAppVersionRequest.UserId,
+		GitOpsProvider: gitOpsConfigurationStatus.Provider,
+	}
+	gitopsRepoURL, isNew, gitRepoErr := impl.fullModeDeploymentService.ValidateCustomGitRepoURL(validateCustomGitRepoURLRequest)
+	if gitRepoErr != nil {
+		// Found validation err
+		impl.logger.Errorw("found validation error in custom GitOps repo", "repo url", installAppVersionRequest.GitOpsRepoURL, "err", gitRepoErr)
+		apiErr := &util.ApiError{
+			HttpStatusCode:  http.StatusBadRequest,
+			UserMessage:     gitRepoErr.Error(),
+			InternalMessage: gitRepoErr.Error(),
+		}
+		return gitopsRepoURL, isNew, apiErr
+	}
+	return gitopsRepoURL, isNew, nil
+}
+
+func (impl *AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx,
+	skipAppCreation bool, installAppVersionRequestType appStoreBean.InstallAppVersionRequestType) (*appStoreBean.InstallAppVersionDTO, error) {
 
 	var isInternalUse = impl.deploymentTypeConfig.IsInternalUse
 
-	isGitOpsConfigured, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
+	gitOpsConfigurationStatus, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
 	if err != nil {
 		impl.logger.Errorw("error while checking IsGitOpsConfigured", "err", err)
 		return nil, err
 	}
 
-	if isInternalUse && !isGitOpsConfigured && installAppVersionRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
+	if isInternalUse && !gitOpsConfigurationStatus.IsGitOpsConfigured && util.IsAcdApp(installAppVersionRequest.DeploymentAppType) {
 		impl.logger.Errorw("gitops not configured but selected for CD")
 		err := &util.ApiError{
 			HttpStatusCode:  http.StatusBadRequest,
@@ -38,22 +65,20 @@ func (impl *AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppV
 		return nil, err
 	}
 
-	var isOCIRepo bool
+	isOCIRepo := false
 	if appStoreAppVersion.AppStore.DockerArtifactStore != nil {
 		isOCIRepo = true
-	} else {
-		isOCIRepo = false
 	}
 
 	var appInstallationMode string
-	if util2.IsBaseStack() || util2.IsHelmApp(installAppVersionRequest.AppOfferingMode) {
-		appInstallationMode = util2.SERVER_MODE_HYPERION
+	if globalUtil.IsBaseStack() || globalUtil.IsHelmApp(installAppVersionRequest.AppOfferingMode) {
+		appInstallationMode = globalUtil.SERVER_MODE_HYPERION
 	} else {
-		appInstallationMode = util2.SERVER_MODE_FULL
+		appInstallationMode = globalUtil.SERVER_MODE_FULL
 	}
 
 	// create env if env not exists for clusterId and namespace for hyperion mode
-	if util2.IsHelmApp(appInstallationMode) {
+	if globalUtil.IsHelmApp(appInstallationMode) {
 		envId, err := impl.createEnvironmentIfNotExists(installAppVersionRequest)
 		if err != nil {
 			return nil, err
@@ -84,24 +109,70 @@ func (impl *AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppV
 	installAppVersionRequest.AppId = appCreateRequest.Id
 
 	if !isInternalUse {
-		if isGitOpsConfigured && appInstallationMode == util2.SERVER_MODE_FULL && !isOCIRepo {
+		installAppVersionRequest.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
+		if gitOpsConfigurationStatus.IsGitOpsConfigured && appInstallationMode == globalUtil.SERVER_MODE_FULL && !isOCIRepo {
 			installAppVersionRequest.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
-		} else {
-			installAppVersionRequest.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
+			// Handling for chart-group deployment request
+			if (installAppVersionRequestType == appStoreBean.BULK_DEPLOY_REQUEST ||
+				installAppVersionRequestType == appStoreBean.DEFAULT_COMPONENT_DEPLOYMENT_REQUEST) &&
+				gitOpsConfigurationStatus.AllowCustomRepository &&
+				len(installAppVersionRequest.GitOpsRepoURL) == 0 {
+				installAppVersionRequest.GitOpsRepoURL = apiBean.GIT_REPO_DEFAULT
+			}
 		}
 	}
 	if installAppVersionRequest.DeploymentAppType == "" {
-		if isGitOpsConfigured && !isOCIRepo {
+		installAppVersionRequest.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
+		if gitOpsConfigurationStatus.IsGitOpsConfigured && !isOCIRepo {
 			installAppVersionRequest.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
-		} else {
-			installAppVersionRequest.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
+			// Handling for chart-group deployment request
+			if (installAppVersionRequestType == appStoreBean.BULK_DEPLOY_REQUEST ||
+				installAppVersionRequestType == appStoreBean.DEFAULT_COMPONENT_DEPLOYMENT_REQUEST) &&
+				gitOpsConfigurationStatus.AllowCustomRepository &&
+				len(installAppVersionRequest.GitOpsRepoURL) == 0 {
+				installAppVersionRequest.GitOpsRepoURL = apiBean.GIT_REPO_DEFAULT
+			}
 		}
 	}
 
-	if util2.IsFullStack() {
-		installAppVersionRequest.GitOpsRepoName = impl.gitOpsConfigReadService.GetGitOpsRepoName(installAppVersionRequest.AppName)
+	if globalUtil.IsFullStack() && util.IsAcdApp(installAppVersionRequest.DeploymentAppType) {
+		if !gitOpsConfigurationStatus.AllowCustomRepository && (len(installAppVersionRequest.GitOpsRepoURL) != 0 && installAppVersionRequest.GitOpsRepoURL != apiBean.GIT_REPO_DEFAULT) {
+			impl.logger.Errorw("invalid installAppVersionRequest", "error", "custom repo url is not valid, as the global configuration is updated")
+			err = &util.ApiError{
+				HttpStatusCode:  http.StatusConflict,
+				UserMessage:     "Invalid request! Please configure GitOps with 'Allow changing git repository for application'.",
+				InternalMessage: "Invalid request! Custom repository is not valid, as the global configuration is updated",
+			}
+			return nil, err
+		}
+		if gitOpsConfigurationStatus.AllowCustomRepository && len(installAppVersionRequest.GitOpsRepoURL) == 0 {
+			impl.logger.Errorw("invalid installAppVersionRequest", "error", "gitRepoURL is required")
+			err = &util.ApiError{
+				HttpStatusCode:  http.StatusBadRequest,
+				Code:            constants.GitOpsConfigValidationConflict,
+				InternalMessage: "Invalid request payload! gitRepoURL key is required.",
+				UserMessage:     "Invalid request payload! gitRepoURL key is required.",
+			}
+			return nil, err
+		}
+		// This should be set before to validateCustomGitOpsRepoURL,
+		// as validateCustomGitOpsRepoURL will override installAppVersionRequest.GitOpsRepoURL
+		if !ChartsUtil.IsGitOpsRepoNotConfigured(installAppVersionRequest.GitOpsRepoURL) &&
+			installAppVersionRequest.GitOpsRepoURL != apiBean.GIT_REPO_DEFAULT {
+			// If GitOps repo is configured and not configured to bean.GIT_REPO_DEFAULT
+			installAppVersionRequest.IsCustomRepository = true
+		}
+		// validating the git repository configured for GitOps deployments
+		gitopsRepoURL, isNew, gitRepoErr := impl.validateCustomGitOpsRepoURL(gitOpsConfigurationStatus, installAppVersionRequest)
+		if gitRepoErr != nil {
+			// Found validation err
+			impl.logger.Errorw("validation failed for GitOps repository", "repo url", installAppVersionRequest.GitOpsRepoURL, "err", gitRepoErr)
+			return nil, gitRepoErr
+		}
+		// ValidateCustomGitRepoURL returns sanitized repo url after validation
+		installAppVersionRequest.GitOpsRepoURL = gitopsRepoURL
+		installAppVersionRequest.IsNewGitOpsRepo = isNew
 	}
-
 	installedAppModel := adapter.NewInstallAppModel(installAppVersionRequest, appStoreBean.DEPLOY_INIT)
 	installedApp, err := impl.installedAppRepository.CreateInstalledApp(installedAppModel, tx)
 	if err != nil {

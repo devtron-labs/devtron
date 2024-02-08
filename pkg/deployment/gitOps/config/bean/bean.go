@@ -12,3 +12,9 @@ type BitbucketProviderMetadata struct {
 }
 
 const BITBUCKET_PROVIDER = "BITBUCKET_CLOUD"
+
+type GitOpsConfigurationStatus struct {
+	IsGitOpsConfigured    bool
+	AllowCustomRepository bool
+	Provider              string
+}

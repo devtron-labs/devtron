@@ -589,6 +589,7 @@ type CDPipelineConfigObject struct {
 	CustomTagObject               *CustomTagData                         `json:"customTag"`
 	CustomTagStage                *repository.PipelineStageType          `json:"customTagStage"`
 	EnableCustomTag               bool                                   `json:"enableCustomTag"`
+	IsGitOpsRepoNotConfigured     bool                                   `json:"isGitOpsRepoNotConfigured"`
 	SwitchFromCiPipelineId        int                                    `json:"switchFromCiPipelineId"`
 	CDPipelineAddType             CDPipelineAddType                      `json:"addType"`
 	ChildPipelineId               int                                    `json:"childPipelineId"`
@@ -636,6 +637,7 @@ type CdPipelines struct {
 	Pipelines         []*CDPipelineConfigObject `json:"pipelines,omitempty" validate:"dive"`
 	AppId             int                       `json:"appId,omitempty"  validate:"number,required" `
 	UserId            int32                     `json:"-"`
+	IsCloneAppReq     bool                      `json:"-"`
 	AppDeleteResponse *AppDeleteResponseDTO     `json:"deleteResponse,omitempty"`
 }
 

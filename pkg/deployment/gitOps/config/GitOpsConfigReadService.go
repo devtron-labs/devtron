@@ -7,6 +7,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config/bean"
 	"github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/gitUtil"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"regexp"
@@ -14,7 +15,7 @@ import (
 )
 
 type GitOpsConfigReadService interface {
-	IsGitOpsConfigured() (bool, error)
+	IsGitOpsConfigured() (*bean.GitOpsConfigurationStatus, error)
 	GetUserEmailIdAndNameForGitOpsCommit(userId int32) (string, string)
 	GetGitOpsRepoName(appName string) string
 	GetGitOpsRepoNameFromUrl(gitRepoUrl string) string
@@ -42,17 +43,19 @@ func NewGitOpsConfigReadServiceImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (impl *GitOpsConfigReadServiceImpl) IsGitOpsConfigured() (bool, error) {
-	isGitOpsConfigured := false
+func (impl *GitOpsConfigReadServiceImpl) IsGitOpsConfigured() (*bean.GitOpsConfigurationStatus, error) {
+	gitOpsConfigurationStatus := &bean.GitOpsConfigurationStatus{}
 	gitOpsConfig, err := impl.gitOpsRepository.GetGitOpsConfigActive()
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("GetGitOpsConfigActive, error while getting", "err", err)
-		return false, err
+		return gitOpsConfigurationStatus, err
 	}
 	if gitOpsConfig != nil && gitOpsConfig.Id > 0 {
-		isGitOpsConfigured = true
+		gitOpsConfigurationStatus.IsGitOpsConfigured = true
+		gitOpsConfigurationStatus.AllowCustomRepository = gitOpsConfig.AllowCustomRepository
+		gitOpsConfigurationStatus.Provider = gitOpsConfig.Provider
 	}
-	return isGitOpsConfigured, nil
+	return gitOpsConfigurationStatus, nil
 }
 
 func (impl *GitOpsConfigReadServiceImpl) GetUserEmailIdAndNameForGitOpsCommit(userId int32) (string, string) {
@@ -94,9 +97,7 @@ func (impl *GitOpsConfigReadServiceImpl) GetGitOpsRepoName(appName string) strin
 }
 
 func (impl *GitOpsConfigReadServiceImpl) GetGitOpsRepoNameFromUrl(gitRepoUrl string) string {
-	gitRepoUrl = gitRepoUrl[strings.LastIndex(gitRepoUrl, "/")+1:]
-	gitRepoUrl = strings.ReplaceAll(gitRepoUrl, ".git", "")
-	return gitRepoUrl
+	return gitUtil.GetGitRepoNameFromGitRepoUrl(gitRepoUrl)
 }
 
 func (impl *GitOpsConfigReadServiceImpl) GetBitbucketMetadata() (*bean.BitbucketProviderMetadata, error) {
@@ -125,6 +126,9 @@ func (impl *GitOpsConfigReadServiceImpl) GetGitOpsConfigActive() (*bean2.GitOpsC
 		GitHubOrgId:          model.GitHubOrgId,
 		GitLabGroupId:        model.GitLabGroupId,
 		Active:               model.Active,
+		Token:                model.Token,
+		Host:                 model.Host,
+		Username:             model.Username,
 		UserId:               model.CreatedBy,
 		AzureProjectName:     model.AzureProject,
 		BitBucketWorkspaceId: model.BitBucketWorkspaceId,

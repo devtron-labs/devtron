@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/util/ChartsUtil"
 	"go.opentelemetry.io/otel"
 	"strings"
 	"time"
@@ -84,10 +85,22 @@ type AppListingRepositoryImpl struct {
 	Logger                           *zap.SugaredLogger
 	appListingRepositoryQueryBuilder helper.AppListingRepositoryQueryBuilder
 	environmentRepository            repository2.EnvironmentRepository
+	gitOpsRepository                 GitOpsConfigRepository
 }
 
-func NewAppListingRepositoryImpl(Logger *zap.SugaredLogger, dbConnection *pg.DB, appListingRepositoryQueryBuilder helper.AppListingRepositoryQueryBuilder, environmentRepository repository2.EnvironmentRepository) *AppListingRepositoryImpl {
-	return &AppListingRepositoryImpl{dbConnection: dbConnection, Logger: Logger, appListingRepositoryQueryBuilder: appListingRepositoryQueryBuilder, environmentRepository: environmentRepository}
+func NewAppListingRepositoryImpl(
+	Logger *zap.SugaredLogger,
+	dbConnection *pg.DB,
+	appListingRepositoryQueryBuilder helper.AppListingRepositoryQueryBuilder,
+	environmentRepository repository2.EnvironmentRepository,
+	gitOpsRepository GitOpsConfigRepository) *AppListingRepositoryImpl {
+	return &AppListingRepositoryImpl{
+		dbConnection:                     dbConnection,
+		Logger:                           Logger,
+		appListingRepositoryQueryBuilder: appListingRepositoryQueryBuilder,
+		environmentRepository:            environmentRepository,
+		gitOpsRepository:                 gitOpsRepository,
+	}
 }
 
 func (impl AppListingRepositoryImpl) FetchJobs(appIds []int, statuses []string, environmentIds []int, sortOrder string) ([]*bean.JobListingContainer, error) {
@@ -500,17 +513,18 @@ func (impl AppListingRepositoryImpl) FetchAppStageStatus(appId int, appType int)
 	var appStageStatus []bean.AppStageStatus
 
 	var stages struct {
-		AppId        int  `json:"app_id,omitempty"`
-		CiTemplateId int  `json:"ci_template_id,omitempty"`
-		CiPipelineId int  `json:"ci_pipeline_id,omitempty"`
-		ChartId      int  `json:"chart_id,omitempty"`
-		PipelineId   int  `json:"pipeline_id,omitempty"`
-		YamlStatus   int  `json:"yaml_status,omitempty"`
-		YamlReviewed bool `json:"yaml_reviewed,omitempty"`
+		AppId           int    `json:"app_id,omitempty"`
+		CiTemplateId    int    `json:"ci_template_id,omitempty"`
+		CiPipelineId    int    `json:"ci_pipeline_id,omitempty"`
+		ChartId         int    `json:"chart_id,omitempty"`
+		ChartGitRepoUrl string `json:"chart_git_repo_url,omitempty"`
+		PipelineId      int    `json:"pipeline_id,omitempty"`
+		YamlStatus      int    `json:"yaml_status,omitempty"`
+		YamlReviewed    bool   `json:"yaml_reviewed,omitempty"`
 	}
 
 	query := "SELECT " +
-		" app.id as app_id, ct.id as ci_template_id, cp.id as ci_pipeline_id, ch.id as chart_id," +
+		" app.id as app_id, ct.id as ci_template_id, cp.id as ci_pipeline_id, ch.id as chart_id, ch.git_repo_url as chart_git_repo_url," +
 		" p.id as pipeline_id, ceco.status as yaml_status, ceco.reviewed as yaml_reviewed " +
 		" FROM app app" +
 		" LEFT JOIN ci_template ct on ct.app_id=app.id" +
@@ -541,19 +555,36 @@ func (impl AppListingRepositoryImpl) FetchAppStageStatus(appId int, appType int)
 	if isMaterialExists {
 		materialExists = 1
 	}
-
-	appStageStatus = append(appStageStatus, impl.makeAppStageStatus(0, "APP", stages.AppId), impl.makeAppStageStatus(1, "MATERIAL", materialExists), impl.makeAppStageStatus(2, "TEMPLATE", stages.CiTemplateId), impl.makeAppStageStatus(3, "CI_PIPELINE", stages.CiPipelineId), impl.makeAppStageStatus(4, "CHART", stages.ChartId), impl.makeAppStageStatus(5, "CD_PIPELINE", stages.PipelineId), bean.AppStageStatus{Stage: 6, StageName: "CHART_ENV_CONFIG", Status: func() bool {
-		if stages.YamlStatus == 3 && stages.YamlReviewed == true {
-			return true
-		} else {
-			return false
-		}
-	}(), Required: true})
+	isCustomGitopsRepoUrl := false
+	model, err := impl.gitOpsRepository.GetGitOpsConfigActive()
+	if err != nil && err != pg.ErrNoRows {
+		impl.Logger.Errorw("error while getting GetGitOpsConfigActive", "err", err)
+		return appStageStatus, err
+	}
+	if model != nil && model.Id > 0 && model.AllowCustomRepository {
+		isCustomGitopsRepoUrl = true
+	}
+	if ChartsUtil.IsGitOpsRepoNotConfigured(stages.ChartGitRepoUrl) && stages.CiPipelineId == 0 {
+		stages.ChartGitRepoUrl = ""
+	}
+	appStageStatus = append(appStageStatus, impl.makeAppStageStatus(0, "APP", stages.AppId, true),
+		impl.makeAppStageStatus(1, "MATERIAL", materialExists, true),
+		impl.makeAppStageStatus(2, "TEMPLATE", stages.CiTemplateId, true),
+		impl.makeAppStageStatus(3, "CI_PIPELINE", stages.CiPipelineId, true),
+		impl.makeAppStageStatus(4, "CHART", stages.ChartId, true),
+		impl.makeAppStageStatus(5, "GITOPS_CONFIG", len(stages.ChartGitRepoUrl), isCustomGitopsRepoUrl),
+		impl.makeAppStageStatus(6, "CD_PIPELINE", stages.PipelineId, true),
+		impl.makeAppStageChartEnvConfigStatus(7, "CHART_ENV_CONFIG", stages.YamlStatus == 3 && stages.YamlReviewed),
+	)
 
 	return appStageStatus, nil
 }
 
-func (impl AppListingRepositoryImpl) makeAppStageStatus(stage int, stageName string, id int) bean.AppStageStatus {
+func (impl AppListingRepositoryImpl) makeAppStageChartEnvConfigStatus(stage int, stageName string, status bool) bean.AppStageStatus {
+	return bean.AppStageStatus{Stage: stage, StageName: stageName, Status: status, Required: true}
+}
+
+func (impl AppListingRepositoryImpl) makeAppStageStatus(stage int, stageName string, id int, isRequired bool) bean.AppStageStatus {
 	return bean.AppStageStatus{
 		Stage:     stage,
 		StageName: stageName,
@@ -564,7 +595,7 @@ func (impl AppListingRepositoryImpl) makeAppStageStatus(stage int, stageName str
 				return false
 			}
 		}(),
-		Required: true,
+		Required: isRequired,
 	}
 }
 
