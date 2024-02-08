@@ -32,7 +32,12 @@ import (
 	capacity2 "github.com/devtron-labs/devtron/api/k8s/capacity"
 	module2 "github.com/devtron-labs/devtron/api/module"
 	"github.com/devtron-labs/devtron/api/restHandler"
+	"github.com/devtron-labs/devtron/api/restHandler/app/appInfo"
+	"github.com/devtron-labs/devtron/api/restHandler/app/appList"
 	"github.com/devtron-labs/devtron/api/router"
+	app3 "github.com/devtron-labs/devtron/api/router/app"
+	appInfo2 "github.com/devtron-labs/devtron/api/router/app/appInfo"
+	appList2 "github.com/devtron-labs/devtron/api/router/app/appList"
 	server2 "github.com/devtron-labs/devtron/api/server"
 	team2 "github.com/devtron-labs/devtron/api/team"
 	terminal2 "github.com/devtron-labs/devtron/api/terminal"
@@ -52,12 +57,12 @@ import (
 	app2 "github.com/devtron-labs/devtron/pkg/app"
 	repository8 "github.com/devtron-labs/devtron/pkg/appStore/chartGroup/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/chartProvider"
-	"github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
-	repository5 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
-	service2 "github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
-	"github.com/devtron-labs/devtron/pkg/appStore/deployment/tool"
 	"github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	service3 "github.com/devtron-labs/devtron/pkg/appStore/discover/service"
+	repository5 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
+	service2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/service"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/common"
 	"github.com/devtron-labs/devtron/pkg/appStore/values/repository"
 	service4 "github.com/devtron-labs/devtron/pkg/appStore/values/service"
 	"github.com/devtron-labs/devtron/pkg/attributes"
@@ -76,7 +81,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/clusterTerminalAccess"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
-	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	repository9 "github.com/devtron-labs/devtron/pkg/devtronResource/repository"
 	"github.com/devtron-labs/devtron/pkg/externalLink"
@@ -264,7 +268,7 @@ func InitializeApp() (*App, error) {
 	dashboardRouterImpl := dashboard.NewDashboardRouterImpl(sugaredLogger, dashboardConfig)
 	chartGroupDeploymentRepositoryImpl := repository8.NewChartGroupDeploymentRepositoryImpl(db, sugaredLogger)
 	clusterInstalledAppsRepositoryImpl := repository5.NewClusterInstalledAppsRepositoryImpl(db, sugaredLogger)
-	appStoreDeploymentHelmServiceImpl := appStoreDeploymentTool.NewAppStoreDeploymentHelmServiceImpl(sugaredLogger, helmAppServiceImpl, appStoreApplicationVersionRepositoryImpl, helmAppClientImpl, installedAppRepositoryImpl, ociRegistryConfigRepositoryImpl)
+	eaModeDeploymentServiceImpl := EAMode.NewEAModeDeploymentServiceImpl(sugaredLogger, helmAppServiceImpl, appStoreApplicationVersionRepositoryImpl, helmAppClientImpl, installedAppRepositoryImpl, ociRegistryConfigRepositoryImpl)
 	chartTemplateServiceImpl := util.NewChartTemplateServiceImpl(sugaredLogger)
 	appStoreDeploymentCommonServiceImpl := appStoreDeploymentCommon.NewAppStoreDeploymentCommonServiceImpl(sugaredLogger, appStoreApplicationVersionRepositoryImpl, chartTemplateServiceImpl)
 	installedAppVersionHistoryRepositoryImpl := repository5.NewInstalledAppVersionHistoryRepositoryImpl(sugaredLogger, db)
@@ -293,15 +297,10 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	gitOpsConfigReadServiceImpl := config.NewGitOpsConfigReadServiceImpl(sugaredLogger, gitOpsConfigRepositoryImpl, userServiceImpl, globalEnvVariables)
-	gitCliUtil := git.NewGitCliUtil(sugaredLogger)
-	gitFactory, err := git.NewGitFactory(sugaredLogger, gitOpsConfigRepositoryImpl, gitCliUtil)
-	if err != nil {
-		return nil, err
-	}
-	gitOperationServiceImpl := git.NewGitOperationServiceImpl(sugaredLogger, gitFactory, gitOpsConfigReadServiceImpl, chartTemplateServiceImpl)
-	appStoreDeploymentServiceImpl := service2.NewAppStoreDeploymentServiceImpl(sugaredLogger, installedAppRepositoryImpl, chartGroupDeploymentRepositoryImpl, appStoreApplicationVersionRepositoryImpl, environmentRepositoryImpl, clusterInstalledAppsRepositoryImpl, appRepositoryImpl, appStoreDeploymentHelmServiceImpl, appStoreDeploymentHelmServiceImpl, environmentServiceImpl, clusterServiceImpl, helmAppServiceImpl, appStoreDeploymentCommonServiceImpl, installedAppVersionHistoryRepositoryImpl, deploymentServiceTypeConfig, chartTemplateServiceImpl, devtronResourceServiceImpl, acdConfig, gitOpsConfigReadServiceImpl, gitOperationServiceImpl)
+	appStoreDeploymentServiceImpl := service2.NewAppStoreDeploymentServiceImpl(sugaredLogger, installedAppRepositoryImpl, chartGroupDeploymentRepositoryImpl, appStoreApplicationVersionRepositoryImpl, environmentRepositoryImpl, clusterInstalledAppsRepositoryImpl, appRepositoryImpl, eaModeDeploymentServiceImpl, eaModeDeploymentServiceImpl, environmentServiceImpl, clusterServiceImpl, helmAppServiceImpl, appStoreDeploymentCommonServiceImpl, installedAppVersionHistoryRepositoryImpl, deploymentServiceTypeConfig, devtronResourceServiceImpl, acdConfig, gitOpsConfigReadServiceImpl)
+	installedAppDBServiceImpl := EAMode.NewInstalledAppDBServiceImpl(sugaredLogger, installedAppRepositoryImpl, appRepositoryImpl, userServiceImpl, installedAppVersionHistoryRepositoryImpl)
 	attributesServiceImpl := attributes.NewAttributesServiceImpl(sugaredLogger, attributesRepositoryImpl)
-	helmAppRestHandlerImpl := client3.NewHelmAppRestHandlerImpl(sugaredLogger, helmAppServiceImpl, enterpriseEnforcerImpl, clusterServiceImpl, enforcerUtilHelmImpl, appStoreDeploymentServiceImpl, userServiceImpl, attributesServiceImpl, serverEnvConfigServerEnvConfig)
+	helmAppRestHandlerImpl := client3.NewHelmAppRestHandlerImpl(sugaredLogger, helmAppServiceImpl, enterpriseEnforcerImpl, clusterServiceImpl, enforcerUtilHelmImpl, appStoreDeploymentServiceImpl, installedAppDBServiceImpl, userServiceImpl, attributesServiceImpl, serverEnvConfigServerEnvConfig)
 	helmAppRouterImpl := client3.NewHelmAppRouterImpl(helmAppRestHandlerImpl)
 	k8sResourceHistoryRepositoryImpl := repository10.NewK8sResourceHistoryRepositoryImpl(db, sugaredLogger)
 	k8sResourceHistoryServiceImpl := kubernetesResourceAuditLogs.Newk8sResourceHistoryServiceImpl(k8sResourceHistoryRepositoryImpl, sugaredLogger, appRepositoryImpl, environmentRepositoryImpl)
@@ -347,7 +346,7 @@ func InitializeApp() (*App, error) {
 	}
 	dashboardTelemetryRestHandlerImpl := dashboardEvent.NewDashboardTelemetryRestHandlerImpl(sugaredLogger, telemetryEventClientImpl)
 	dashboardTelemetryRouterImpl := dashboardEvent.NewDashboardTelemetryRouterImpl(dashboardTelemetryRestHandlerImpl)
-	commonDeploymentRestHandlerImpl := appStoreDeployment.NewCommonDeploymentRestHandlerImpl(sugaredLogger, userServiceImpl, enterpriseEnforcerImpl, enforcerUtilImpl, enforcerUtilHelmImpl, appStoreDeploymentServiceImpl, validate, helmAppServiceImpl, helmAppRestHandlerImpl, helmUserServiceImpl)
+	commonDeploymentRestHandlerImpl := appStoreDeployment.NewCommonDeploymentRestHandlerImpl(sugaredLogger, userServiceImpl, enterpriseEnforcerImpl, enforcerUtilImpl, enforcerUtilHelmImpl, appStoreDeploymentServiceImpl, installedAppDBServiceImpl, validate, helmAppServiceImpl, helmAppRestHandlerImpl, helmUserServiceImpl)
 	commonDeploymentRouterImpl := appStoreDeployment.NewCommonDeploymentRouterImpl(commonDeploymentRestHandlerImpl)
 	externalLinkMonitoringToolRepositoryImpl := externalLink.NewExternalLinkMonitoringToolRepositoryImpl(db)
 	externalLinkIdentifierMappingRepositoryImpl := externalLink.NewExternalLinkIdentifierMappingRepositoryImpl(db)
@@ -420,8 +419,11 @@ func InitializeApp() (*App, error) {
 	appLabelRepositoryImpl := pipelineConfig.NewAppLabelRepositoryImpl(db)
 	materialRepositoryImpl := pipelineConfig.NewMaterialRepositoryImpl(db)
 	appCrudOperationServiceImpl := app2.NewAppCrudOperationServiceImpl(appLabelRepositoryImpl, sugaredLogger, appRepositoryImpl, userRepositoryImpl, installedAppRepositoryImpl, teamRepositoryImpl, genericNoteServiceImpl, materialRepositoryImpl)
-	appRestHandlerImpl := restHandler.NewAppRestHandlerImpl(sugaredLogger, appCrudOperationServiceImpl, userServiceImpl, validate, enforcerUtilImpl, enterpriseEnforcerImpl, helmAppServiceImpl, enforcerUtilHelmImpl, genericNoteServiceImpl)
-	appRouterImpl := router.NewAppRouterImpl(sugaredLogger, appRestHandlerImpl)
+	appInfoRestHandlerImpl := appInfo.NewAppInfoRestHandlerImpl(sugaredLogger, appCrudOperationServiceImpl, userServiceImpl, validate, enforcerUtilImpl, enterpriseEnforcerImpl, helmAppServiceImpl, enforcerUtilHelmImpl, genericNoteServiceImpl)
+	appInfoRouterImpl := appInfo2.NewAppInfoRouterImpl(sugaredLogger, appInfoRestHandlerImpl)
+	appFilteringRestHandlerImpl := appList.NewAppFilteringRestHandlerImpl(sugaredLogger, teamServiceImpl, enterpriseEnforcerImpl, userServiceImpl, clusterServiceImpl, environmentServiceImpl)
+	appFilteringRouterImpl := appList2.NewAppFilteringRouterImpl(appFilteringRestHandlerImpl)
+	appRouterEAModeImpl := app3.NewAppRouterEAModeImpl(appInfoRouterImpl, appFilteringRouterImpl)
 	rbacPolicyResourceDetailRepositoryImpl := repository2.NewRbacPolicyResourceDetailRepositoryImpl(sugaredLogger, db)
 	rbacRoleResourceDetailRepositoryImpl := repository2.NewRbacRoleResourceDetailRepositoryImpl(sugaredLogger, db)
 	rbacRoleServiceImpl := user.NewRbacRoleServiceImpl(sugaredLogger, rbacPolicyResourceDetailRepositoryImpl, rbacRoleResourceDetailRepositoryImpl, rbacRoleDataRepositoryImpl, rbacPolicyDataRepositoryImpl, rbacDataCacheFactoryImpl, userAuthRepositoryImpl, userCommonServiceImpl)
@@ -431,7 +433,7 @@ func InitializeApp() (*App, error) {
 	rbacRoleRouterImpl := user2.NewRbacRoleRouterImpl(sugaredLogger, validate, rbacRoleRestHandlerImpl)
 	authorisationConfigRestHandlerImpl := globalConfig.NewGlobalAuthorisationConfigRestHandlerImpl(validate, sugaredLogger, enterpriseEnforcerImpl, userServiceImpl, globalAuthorisationConfigServiceImpl, userCommonServiceImpl)
 	authorisationConfigRouterImpl := globalConfig.NewGlobalConfigAuthorisationConfigRouterImpl(authorisationConfigRestHandlerImpl)
-	muxRouter := NewMuxRouter(sugaredLogger, ssoLoginRouterImpl, teamRouterImpl, userAuthRouterImpl, userRouterImpl, clusterRouterImpl, dashboardRouterImpl, helmAppRouterImpl, environmentRouterImpl, k8sApplicationRouterImpl, chartRepositoryRouterImpl, appStoreDiscoverRouterImpl, appStoreValuesRouterImpl, appStoreDeploymentRouterImpl, chartProviderRouterImpl, dockerRegRouterImpl, dashboardTelemetryRouterImpl, commonDeploymentRouterImpl, externalLinkRouterImpl, moduleRouterImpl, serverRouterImpl, apiTokenRouterImpl, k8sCapacityRouterImpl, webhookHelmRouterImpl, userAttributesRouterImpl, telemetryRouterImpl, userTerminalAccessRouterImpl, attributesRouterImpl, appRouterImpl, rbacRoleRouterImpl, authorisationConfigRouterImpl)
+	muxRouter := NewMuxRouter(sugaredLogger, ssoLoginRouterImpl, teamRouterImpl, userAuthRouterImpl, userRouterImpl, clusterRouterImpl, dashboardRouterImpl, helmAppRouterImpl, environmentRouterImpl, k8sApplicationRouterImpl, chartRepositoryRouterImpl, appStoreDiscoverRouterImpl, appStoreValuesRouterImpl, appStoreDeploymentRouterImpl, chartProviderRouterImpl, dockerRegRouterImpl, dashboardTelemetryRouterImpl, commonDeploymentRouterImpl, externalLinkRouterImpl, moduleRouterImpl, serverRouterImpl, apiTokenRouterImpl, k8sCapacityRouterImpl, webhookHelmRouterImpl, userAttributesRouterImpl, telemetryRouterImpl, userTerminalAccessRouterImpl, attributesRouterImpl, appRouterEAModeImpl, rbacRoleRouterImpl, authorisationConfigRouterImpl)
 	mainApp := NewApp(db, sessionManager, muxRouter, telemetryEventClientImpl, posthogClient, sugaredLogger)
 	return mainApp, nil
 }

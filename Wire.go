@@ -47,11 +47,28 @@ import (
 	"github.com/devtron-labs/devtron/api/k8s"
 	"github.com/devtron-labs/devtron/api/module"
 	"github.com/devtron-labs/devtron/api/restHandler"
-	pipeline2 "github.com/devtron-labs/devtron/api/restHandler/app"
+	"github.com/devtron-labs/devtron/api/restHandler/app/appInfo"
+	appList2 "github.com/devtron-labs/devtron/api/restHandler/app/appList"
+	"github.com/devtron-labs/devtron/api/restHandler/app/pipeline"
+	"github.com/devtron-labs/devtron/api/restHandler/app/pipeline/configure"
+	"github.com/devtron-labs/devtron/api/restHandler/app/pipeline/history"
+	status2 "github.com/devtron-labs/devtron/api/restHandler/app/pipeline/status"
+	"github.com/devtron-labs/devtron/api/restHandler/app/pipeline/trigger"
+	"github.com/devtron-labs/devtron/api/restHandler/app/pipeline/webhook"
+	"github.com/devtron-labs/devtron/api/restHandler/app/workflow"
 	imageDigestPolicy2 "github.com/devtron-labs/devtron/api/restHandler/imageDigestPolicy"
 	resourceFilter2 "github.com/devtron-labs/devtron/api/restHandler/resourceFilter"
 	"github.com/devtron-labs/devtron/api/restHandler/scopedVariable"
 	"github.com/devtron-labs/devtron/api/router"
+	app2 "github.com/devtron-labs/devtron/api/router/app"
+	appInfo2 "github.com/devtron-labs/devtron/api/router/app/appInfo"
+	"github.com/devtron-labs/devtron/api/router/app/appList"
+	pipeline2 "github.com/devtron-labs/devtron/api/router/app/pipeline"
+	configure2 "github.com/devtron-labs/devtron/api/router/app/pipeline/configure"
+	history2 "github.com/devtron-labs/devtron/api/router/app/pipeline/history"
+	status3 "github.com/devtron-labs/devtron/api/router/app/pipeline/status"
+	trigger2 "github.com/devtron-labs/devtron/api/router/app/pipeline/trigger"
+	workflow2 "github.com/devtron-labs/devtron/api/router/app/workflow"
 	"github.com/devtron-labs/devtron/api/router/pubsub"
 	"github.com/devtron-labs/devtron/api/server"
 	"github.com/devtron-labs/devtron/api/sse"
@@ -81,7 +98,7 @@ import (
 	pipeline3 "github.com/devtron-labs/devtron/enterprise/pkg/pipeline"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
-	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
+	app4 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	appStatusRepo "github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
 	appWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/bulkUpdate"
@@ -93,7 +110,6 @@ import (
 	resourceGroup "github.com/devtron-labs/devtron/internal/sql/repository/resourceGroup"
 	security2 "github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/internal/util/ArgoUtil"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	"github.com/devtron-labs/devtron/pkg/appClone"
@@ -101,8 +117,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStatus"
 	"github.com/devtron-labs/devtron/pkg/appStore/chartGroup"
 	repository4 "github.com/devtron-labs/devtron/pkg/appStore/chartGroup/repository"
-	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
-	appStoreDeploymentGitopsTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode"
+	deployment3 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deployment"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/resource"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	client2 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
@@ -122,7 +139,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	repository7 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
 	"github.com/devtron-labs/devtron/pkg/notifier"
-	"github.com/devtron-labs/devtron/pkg/pipeline"
+	pipeline4 "github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	history3 "github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
@@ -202,8 +219,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(session2.ServiceClient), new(*middleware.LoginService)),
 
 		sse.NewSSE,
-		router.NewPipelineTriggerRouter,
-		wire.Bind(new(router.PipelineTriggerRouter), new(*router.PipelineTriggerRouterImpl)),
+		trigger2.NewPipelineTriggerRouter,
+		wire.Bind(new(trigger2.PipelineTriggerRouter), new(*trigger2.PipelineTriggerRouterImpl)),
 
 		//---- pprof start ----
 		restHandler.NewPProfRestHandler,
@@ -213,8 +230,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(router.PProfRouter), new(*router.PProfRouterImpl)),
 		//---- pprof end ----
 
-		restHandler.NewPipelineRestHandler,
-		wire.Bind(new(restHandler.PipelineTriggerRestHandler), new(*restHandler.PipelineTriggerRestHandlerImpl)),
+		trigger.NewPipelineRestHandler,
+		wire.Bind(new(trigger.PipelineTriggerRestHandler), new(*trigger.PipelineTriggerRestHandlerImpl)),
 		app.GetAppServiceConfig,
 		app.NewAppService,
 		wire.Bind(new(app.AppService), new(*app.AppServiceImpl)),
@@ -242,41 +259,54 @@ func InitializeApp() (*App, error) {
 
 		router.NewMuxRouter,
 
-		app2.NewAppRepositoryImpl,
-		wire.Bind(new(app2.AppRepository), new(*app2.AppRepositoryImpl)),
+		app4.NewAppRepositoryImpl,
+		wire.Bind(new(app4.AppRepository), new(*app4.AppRepositoryImpl)),
 
-		pipeline.GetDeploymentServiceTypeConfig,
+		pipeline4.GetDeploymentServiceTypeConfig,
 
-		pipeline.NewPipelineBuilderImpl,
-		wire.Bind(new(pipeline.PipelineBuilder), new(*pipeline.PipelineBuilderImpl)),
-		pipeline.NewBuildPipelineSwitchServiceImpl,
-		wire.Bind(new(pipeline.BuildPipelineSwitchService), new(*pipeline.BuildPipelineSwitchServiceImpl)),
-		pipeline.NewCiPipelineConfigServiceImpl,
-		wire.Bind(new(pipeline.CiPipelineConfigService), new(*pipeline.CiPipelineConfigServiceImpl)),
-		pipeline.NewCiMaterialConfigServiceImpl,
-		wire.Bind(new(pipeline.CiMaterialConfigService), new(*pipeline.CiMaterialConfigServiceImpl)),
+		pipeline4.NewPipelineBuilderImpl,
+		wire.Bind(new(pipeline4.PipelineBuilder), new(*pipeline4.PipelineBuilderImpl)),
+		pipeline4.NewBuildPipelineSwitchServiceImpl,
+		wire.Bind(new(pipeline4.BuildPipelineSwitchService), new(*pipeline4.BuildPipelineSwitchServiceImpl)),
+		pipeline4.NewCiPipelineConfigServiceImpl,
+		wire.Bind(new(pipeline4.CiPipelineConfigService), new(*pipeline4.CiPipelineConfigServiceImpl)),
+		pipeline4.NewCiMaterialConfigServiceImpl,
+		wire.Bind(new(pipeline4.CiMaterialConfigService), new(*pipeline4.CiMaterialConfigServiceImpl)),
 
-		pipeline.NewAppArtifactManagerImpl,
-		wire.Bind(new(pipeline.AppArtifactManager), new(*pipeline.AppArtifactManagerImpl)),
-		pipeline.NewDevtronAppCMCSServiceImpl,
-		wire.Bind(new(pipeline.DevtronAppCMCSService), new(*pipeline.DevtronAppCMCSServiceImpl)),
-		pipeline.NewDevtronAppStrategyServiceImpl,
-		wire.Bind(new(pipeline.DevtronAppStrategyService), new(*pipeline.DevtronAppStrategyServiceImpl)),
-		pipeline.NewAppDeploymentTypeChangeManagerImpl,
-		wire.Bind(new(pipeline.AppDeploymentTypeChangeManager), new(*pipeline.AppDeploymentTypeChangeManagerImpl)),
-		pipeline.NewCdPipelineConfigServiceImpl,
-		wire.Bind(new(pipeline.CdPipelineConfigService), new(*pipeline.CdPipelineConfigServiceImpl)),
-		pipeline.NewDevtronAppConfigServiceImpl,
-		wire.Bind(new(pipeline.DevtronAppConfigService), new(*pipeline.DevtronAppConfigServiceImpl)),
+		pipeline4.NewAppArtifactManagerImpl,
+		wire.Bind(new(pipeline4.AppArtifactManager), new(*pipeline4.AppArtifactManagerImpl)),
+		pipeline4.NewDevtronAppCMCSServiceImpl,
+		wire.Bind(new(pipeline4.DevtronAppCMCSService), new(*pipeline4.DevtronAppCMCSServiceImpl)),
+		pipeline4.NewDevtronAppStrategyServiceImpl,
+		wire.Bind(new(pipeline4.DevtronAppStrategyService), new(*pipeline4.DevtronAppStrategyServiceImpl)),
+		pipeline4.NewAppDeploymentTypeChangeManagerImpl,
+		wire.Bind(new(pipeline4.AppDeploymentTypeChangeManager), new(*pipeline4.AppDeploymentTypeChangeManagerImpl)),
+		pipeline4.NewCdPipelineConfigServiceImpl,
+		wire.Bind(new(pipeline4.CdPipelineConfigService), new(*pipeline4.CdPipelineConfigServiceImpl)),
+		pipeline4.NewDevtronAppConfigServiceImpl,
+		wire.Bind(new(pipeline4.DevtronAppConfigService), new(*pipeline4.DevtronAppConfigServiceImpl)),
+		pipeline.NewDevtronAppAutoCompleteRestHandlerImpl,
+		wire.Bind(new(pipeline.DevtronAppAutoCompleteRestHandler), new(*pipeline.DevtronAppAutoCompleteRestHandlerImpl)),
 
 		util5.NewLoggingMiddlewareImpl,
 		wire.Bind(new(util5.LoggingMiddleware), new(*util5.LoggingMiddlewareImpl)),
-		pipeline2.NewPipelineRestHandlerImpl,
-		wire.Bind(new(pipeline2.PipelineConfigRestHandler), new(*pipeline2.PipelineConfigRestHandlerImpl)),
-		router.NewPipelineRouterImpl,
-		wire.Bind(new(router.PipelineConfigRouter), new(*router.PipelineConfigRouterImpl)),
+		configure.NewPipelineRestHandlerImpl,
+		wire.Bind(new(configure.PipelineConfigRestHandler), new(*configure.PipelineConfigRestHandlerImpl)),
+		// -----------
+		configure2.NewPipelineRouterImpl,
+		wire.Bind(new(configure2.PipelineConfigRouter), new(*configure2.PipelineConfigRouterImpl)),
+		history2.NewPipelineHistoryRouterImpl,
+		wire.Bind(new(history2.PipelineHistoryRouter), new(*history2.PipelineHistoryRouterImpl)),
+		status3.NewPipelineStatusRouterImpl,
+		wire.Bind(new(status3.PipelineStatusRouter), new(*status3.PipelineStatusRouterImpl)),
+		pipeline2.NewDevtronAppAutoCompleteRouterImpl,
+		wire.Bind(new(pipeline2.DevtronAppAutoCompleteRouter), new(*pipeline2.DevtronAppAutoCompleteRouterImpl)),
+		workflow2.NewAppWorkflowRouterImpl,
+		wire.Bind(new(workflow2.AppWorkflowRouter), new(*workflow2.AppWorkflowRouterImpl)),
+
 		pipeline3.NewCiCdPipelineOrchestratorEnterpriseImpl,
-		wire.Bind(new(pipeline.CiCdPipelineOrchestrator), new(*pipeline3.CiCdPipelineOrchestratorEnterpriseImpl)),
+		wire.Bind(new(pipeline4.CiCdPipelineOrchestrator), new(*pipeline3.CiCdPipelineOrchestratorEnterpriseImpl)),
+		// ------------
 		pipelineConfig.NewMaterialRepositoryImpl,
 		wire.Bind(new(pipelineConfig.MaterialRepository), new(*pipelineConfig.MaterialRepositoryImpl)),
 
@@ -315,18 +345,23 @@ func InitializeApp() (*App, error) {
 		repository.NewImageTagRepository,
 		wire.Bind(new(repository.ImageTagRepository), new(*repository.ImageTagRepositoryImpl)),
 
-		pipeline.NewCustomTagService,
-		wire.Bind(new(pipeline.CustomTagService), new(*pipeline.CustomTagServiceImpl)),
+		pipeline4.NewCustomTagService,
+		wire.Bind(new(pipeline4.CustomTagService), new(*pipeline4.CustomTagServiceImpl)),
 
 		repository.NewGitProviderRepositoryImpl,
 		wire.Bind(new(repository.GitProviderRepository), new(*repository.GitProviderRepositoryImpl)),
-		pipeline.NewGitRegistryConfigImpl,
-		wire.Bind(new(pipeline.GitRegistryConfig), new(*pipeline.GitRegistryConfigImpl)),
+		pipeline4.NewGitRegistryConfigImpl,
+		wire.Bind(new(pipeline4.GitRegistryConfig), new(*pipeline4.GitRegistryConfigImpl)),
 
-		router.NewAppListingRouterImpl,
-		wire.Bind(new(router.AppListingRouter), new(*router.AppListingRouterImpl)),
-		restHandler.NewAppListingRestHandlerImpl,
-		wire.Bind(new(restHandler.AppListingRestHandler), new(*restHandler.AppListingRestHandlerImpl)),
+		appList.NewAppFilteringRouterImpl,
+		wire.Bind(new(appList.AppFilteringRouter), new(*appList.AppFilteringRouterImpl)),
+		appList2.NewAppFilteringRestHandlerImpl,
+		wire.Bind(new(appList2.AppFilteringRestHandler), new(*appList2.AppFilteringRestHandlerImpl)),
+
+		appList.NewAppListingRouterImpl,
+		wire.Bind(new(appList.AppListingRouter), new(*appList.AppListingRouterImpl)),
+		appList2.NewAppListingRestHandlerImpl,
+		wire.Bind(new(appList2.AppListingRestHandler), new(*appList2.AppListingRestHandlerImpl)),
 		app.NewAppListingServiceImpl,
 		wire.Bind(new(app.AppListingService), new(*app.AppListingServiceImpl)),
 		repository.NewAppListingRepositoryImpl,
@@ -342,8 +377,8 @@ func InitializeApp() (*App, error) {
 
 		pipelineConfig.NewPipelineRepositoryImpl,
 		wire.Bind(new(pipelineConfig.PipelineRepository), new(*pipelineConfig.PipelineRepositoryImpl)),
-		pipeline.NewPropertiesConfigServiceImpl,
-		wire.Bind(new(pipeline.PropertiesConfigService), new(*pipeline.PropertiesConfigServiceImpl)),
+		pipeline4.NewPropertiesConfigServiceImpl,
+		wire.Bind(new(pipeline4.PropertiesConfigService), new(*pipeline4.PropertiesConfigServiceImpl)),
 
 		util.NewHttpClient,
 
@@ -355,8 +390,8 @@ func InitializeApp() (*App, error) {
 
 		repository.NewCiArtifactRepositoryImpl,
 		wire.Bind(new(repository.CiArtifactRepository), new(*repository.CiArtifactRepositoryImpl)),
-		pipeline.NewWebhookServiceImpl,
-		wire.Bind(new(pipeline.WebhookService), new(*pipeline.WebhookServiceImpl)),
+		pipeline4.NewWebhookServiceImpl,
+		wire.Bind(new(pipeline4.WebhookService), new(*pipeline4.WebhookServiceImpl)),
 
 		router.NewWebhookRouterImpl,
 		wire.Bind(new(router.WebhookRouter), new(*router.WebhookRouterImpl)),
@@ -376,37 +411,18 @@ func InitializeApp() (*App, error) {
 		repository2.NewServiceClientImpl,
 		wire.Bind(new(repository2.ServiceClient), new(*repository2.ServiceClientImpl)),
 		wire.Bind(new(connector.Pump), new(*connector.PumpImpl)),
-		restHandler.NewArgoApplicationRestHandlerImpl,
-		wire.Bind(new(restHandler.ArgoApplicationRestHandler), new(*restHandler.ArgoApplicationRestHandlerImpl)),
-		router.NewApplicationRouterImpl,
-		wire.Bind(new(router.ApplicationRouter), new(*router.ApplicationRouterImpl)),
+
 		//app.GetConfig,
 
-		router.NewCDRouterImpl,
-		wire.Bind(new(router.CDRouter), new(*router.CDRouterImpl)),
-		restHandler.NewCDRestHandlerImpl,
-		wire.Bind(new(restHandler.CDRestHandler), new(*restHandler.CDRestHandlerImpl)),
-
-		ArgoUtil.GetArgoConfig,
-		ArgoUtil.NewArgoSession,
-		ArgoUtil.NewResourceServiceImpl,
-		wire.Bind(new(ArgoUtil.ResourceService), new(*ArgoUtil.ResourceServiceImpl)),
-		//ArgoUtil.NewApplicationServiceImpl,
-		//wire.Bind(new(ArgoUtil.ApplicationService), new(ArgoUtil.ApplicationServiceImpl)),
-		//ArgoUtil.NewRepositoryService,
-		//wire.Bind(new(ArgoUtil.RepositoryService), new(ArgoUtil.RepositoryServiceImpl)),
-
-		//ArgoUtil.NewClusterServiceImpl,
-		//wire.Bind(new(ArgoUtil.ClusterService), new(ArgoUtil.ClusterServiceImpl)),
-		pipeline.GetEcrConfig,
+		pipeline4.GetEcrConfig,
 		//otel.NewOtelTracingServiceImpl,
 		//wire.Bind(new(otel.OtelTracingService), new(*otel.OtelTracingServiceImpl)),
 		NewApp,
 		//session.NewK8sClient,
 		repository8.NewImageTaggingRepositoryImpl,
 		wire.Bind(new(repository8.ImageTaggingRepository), new(*repository8.ImageTaggingRepositoryImpl)),
-		pipeline.NewImageTaggingServiceImpl,
-		wire.Bind(new(pipeline.ImageTaggingService), new(*pipeline.ImageTaggingServiceImpl)),
+		pipeline4.NewImageTaggingServiceImpl,
+		wire.Bind(new(pipeline4.ImageTaggingService), new(*pipeline4.ImageTaggingServiceImpl)),
 		argocdServer.NewVersionServiceImpl,
 		wire.Bind(new(argocdServer.VersionService), new(*argocdServer.VersionServiceImpl)),
 
@@ -438,11 +454,11 @@ func InitializeApp() (*App, error) {
 		util.IntValidator,
 		types.GetCiCdConfig,
 
-		pipeline.NewWorkflowServiceImpl,
-		wire.Bind(new(pipeline.WorkflowService), new(*pipeline.WorkflowServiceImpl)),
+		pipeline4.NewWorkflowServiceImpl,
+		wire.Bind(new(pipeline4.WorkflowService), new(*pipeline4.WorkflowServiceImpl)),
 
-		pipeline.NewCiServiceImpl,
-		wire.Bind(new(pipeline.CiService), new(*pipeline.CiServiceImpl)),
+		pipeline4.NewCiServiceImpl,
+		wire.Bind(new(pipeline4.CiService), new(*pipeline4.CiServiceImpl)),
 
 		pipelineConfig.NewCiWorkflowRepositoryImpl,
 		wire.Bind(new(pipelineConfig.CiWorkflowRepository), new(*pipelineConfig.CiWorkflowRepositoryImpl)),
@@ -456,11 +472,11 @@ func InitializeApp() (*App, error) {
 		repository.NewGitWebhookRepositoryImpl,
 		wire.Bind(new(repository.GitWebhookRepository), new(*repository.GitWebhookRepositoryImpl)),
 
-		pipeline.NewCiHandlerImpl,
-		wire.Bind(new(pipeline.CiHandler), new(*pipeline.CiHandlerImpl)),
+		pipeline4.NewCiHandlerImpl,
+		wire.Bind(new(pipeline4.CiHandler), new(*pipeline4.CiHandlerImpl)),
 
-		pipeline.NewCiLogServiceImpl,
-		wire.Bind(new(pipeline.CiLogService), new(*pipeline.CiLogServiceImpl)),
+		pipeline4.NewCiLogServiceImpl,
+		wire.Bind(new(pipeline4.CiLogService), new(*pipeline4.CiLogServiceImpl)),
 
 		pubsub1.NewPubSubClientServiceImpl,
 
@@ -500,8 +516,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(router.ConfigMapRouter), new(*router.ConfigMapRouterImpl)),
 		restHandler.NewConfigMapRestHandlerImpl,
 		wire.Bind(new(restHandler.ConfigMapRestHandler), new(*restHandler.ConfigMapRestHandlerImpl)),
-		pipeline.NewConfigMapServiceImpl,
-		wire.Bind(new(pipeline.ConfigMapService), new(*pipeline.ConfigMapServiceImpl)),
+		pipeline4.NewConfigMapServiceImpl,
+		wire.Bind(new(pipeline4.ConfigMapService), new(*pipeline4.ConfigMapServiceImpl)),
 		chartConfig.NewConfigMapRepositoryImpl,
 		wire.Bind(new(chartConfig.ConfigMapRepository), new(*chartConfig.ConfigMapRepositoryImpl)),
 
@@ -523,14 +539,16 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(appStoreRestHandler.AppStoreStatusTimelineRestHandler), new(*appStoreRestHandler.AppStoreStatusTimelineRestHandlerImpl)),
 		appStoreRestHandler.NewInstalledAppRestHandlerImpl,
 		wire.Bind(new(appStoreRestHandler.InstalledAppRestHandler), new(*appStoreRestHandler.InstalledAppRestHandlerImpl)),
-		service.NewInstalledAppServiceImpl,
-		wire.Bind(new(service.InstalledAppService), new(*service.InstalledAppServiceImpl)),
+		FullMode.NewInstalledAppDBExtendedServiceImpl,
+		wire.Bind(new(FullMode.InstalledAppDBExtendedService), new(*FullMode.InstalledAppDBExtendedServiceImpl)),
+		resource.NewInstalledAppResourceServiceImpl,
+		wire.Bind(new(resource.InstalledAppResourceService), new(*resource.InstalledAppResourceServiceImpl)),
 
 		appStoreRestHandler.NewAppStoreRouterImpl,
 		wire.Bind(new(appStoreRestHandler.AppStoreRouter), new(*appStoreRestHandler.AppStoreRouterImpl)),
 
-		restHandler.NewAppWorkflowRestHandlerImpl,
-		wire.Bind(new(restHandler.AppWorkflowRestHandler), new(*restHandler.AppWorkflowRestHandlerImpl)),
+		workflow.NewAppWorkflowRestHandlerImpl,
+		wire.Bind(new(workflow.AppWorkflowRestHandler), new(*workflow.AppWorkflowRestHandlerImpl)),
 
 		appWorkflow.NewAppWorkflowServiceImpl,
 		wire.Bind(new(appWorkflow.AppWorkflowService), new(*appWorkflow.AppWorkflowServiceImpl)),
@@ -558,14 +576,14 @@ func InitializeApp() (*App, error) {
 		pipelineConfig.NewCdWorkflowRepositoryImpl,
 		wire.Bind(new(pipelineConfig.CdWorkflowRepository), new(*pipelineConfig.CdWorkflowRepositoryImpl)),
 
-		pipeline.NewCdHandlerImpl,
-		wire.Bind(new(pipeline.CdHandler), new(*pipeline.CdHandlerImpl)),
+		pipeline4.NewCdHandlerImpl,
+		wire.Bind(new(pipeline4.CdHandler), new(*pipeline4.CdHandlerImpl)),
 
-		pipeline.NewBlobStorageConfigServiceImpl,
-		wire.Bind(new(pipeline.BlobStorageConfigService), new(*pipeline.BlobStorageConfigServiceImpl)),
+		pipeline4.NewBlobStorageConfigServiceImpl,
+		wire.Bind(new(pipeline4.BlobStorageConfigService), new(*pipeline4.BlobStorageConfigServiceImpl)),
 
-		pipeline.NewWorkflowDagExecutorImpl,
-		wire.Bind(new(pipeline.WorkflowDagExecutor), new(*pipeline.WorkflowDagExecutorImpl)),
+		pipeline4.NewWorkflowDagExecutorImpl,
+		wire.Bind(new(pipeline4.WorkflowDagExecutor), new(*pipeline4.WorkflowDagExecutorImpl)),
 		appClone.NewAppCloneServiceImpl,
 		wire.Bind(new(appClone.AppCloneService), new(*appClone.AppCloneServiceImpl)),
 
@@ -701,6 +719,11 @@ func InitializeApp() (*App, error) {
 		restHandler.NewCoreAppRestHandlerImpl,
 		wire.Bind(new(restHandler.CoreAppRestHandler), new(*restHandler.CoreAppRestHandlerImpl)),
 
+		app3.NewAppCrudOperationServiceEnterpriseImpl,
+		wire.Bind(new(app.AppCrudOperationService), new(*app3.AppCrudOperationServiceEnterpriseImpl)),
+		pipelineConfig.NewAppLabelRepositoryImpl,
+		wire.Bind(new(pipelineConfig.AppLabelRepository), new(*pipelineConfig.AppLabelRepositoryImpl)),
+
 		// Webhook
 		repository.NewGitHostRepositoryImpl,
 		wire.Bind(new(repository.GitHostRepository), new(*repository.GitHostRepositoryImpl)),
@@ -714,37 +737,34 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(router.WebhookListenerRouter), new(*router.WebhookListenerRouterImpl)),
 		git.NewWebhookSecretValidatorImpl,
 		wire.Bind(new(git.WebhookSecretValidator), new(*git.WebhookSecretValidatorImpl)),
-		pipeline.NewGitHostConfigImpl,
-		wire.Bind(new(pipeline.GitHostConfig), new(*pipeline.GitHostConfigImpl)),
+		pipeline4.NewGitHostConfigImpl,
+		wire.Bind(new(pipeline4.GitHostConfig), new(*pipeline4.GitHostConfigImpl)),
 		repository.NewWebhookEventDataRepositoryImpl,
 		wire.Bind(new(repository.WebhookEventDataRepository), new(*repository.WebhookEventDataRepositoryImpl)),
-		pipeline.NewWebhookEventDataConfigImpl,
-		wire.Bind(new(pipeline.WebhookEventDataConfig), new(*pipeline.WebhookEventDataConfigImpl)),
-		restHandler.NewWebhookDataRestHandlerImpl,
-		wire.Bind(new(restHandler.WebhookDataRestHandler), new(*restHandler.WebhookDataRestHandlerImpl)),
+		pipeline4.NewWebhookEventDataConfigImpl,
+		wire.Bind(new(pipeline4.WebhookEventDataConfig), new(*pipeline4.WebhookEventDataConfigImpl)),
+		webhook.NewWebhookDataRestHandlerImpl,
+		wire.Bind(new(webhook.WebhookDataRestHandler), new(*webhook.WebhookDataRestHandlerImpl)),
 
-		router.NewAppRouterImpl,
-		wire.Bind(new(router.AppRouter), new(*router.AppRouterImpl)),
-		restHandler.NewAppRestHandlerImpl,
-		wire.Bind(new(restHandler.AppRestHandler), new(*restHandler.AppRestHandlerImpl)),
-
-		app3.NewAppCrudOperationServiceEnterpriseImpl,
-		wire.Bind(new(app.AppCrudOperationService), new(*app3.AppCrudOperationServiceEnterpriseImpl)),
-		pipelineConfig.NewAppLabelRepositoryImpl,
-		wire.Bind(new(pipelineConfig.AppLabelRepository), new(*pipelineConfig.AppLabelRepositoryImpl)),
+		app2.NewAppRouterImpl,
+		wire.Bind(new(app2.AppRouter), new(*app2.AppRouterImpl)),
+		appInfo2.NewAppInfoRouterImpl,
+		wire.Bind(new(appInfo2.AppInfoRouter), new(*appInfo2.AppInfoRouterImpl)),
+		appInfo.NewAppInfoRestHandlerImpl,
+		wire.Bind(new(appInfo.AppInfoRestHandler), new(*appInfo.AppInfoRestHandlerImpl)),
 
 		delete2.NewDeleteServiceExtendedImpl,
 		wire.Bind(new(delete2.DeleteService), new(*delete2.DeleteServiceExtendedImpl)),
 		delete2.NewDeleteServiceFullModeImpl,
 		wire.Bind(new(delete2.DeleteServiceFullMode), new(*delete2.DeleteServiceFullModeImpl)),
 
-		appStoreDeploymentGitopsTool.NewAppStoreDeploymentArgoCdServiceImpl,
-		wire.Bind(new(appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdService), new(*appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdServiceImpl)),
+		deployment3.NewFullModeDeploymentServiceImpl,
+		wire.Bind(new(deployment3.FullModeDeploymentService), new(*deployment3.FullModeDeploymentServiceImpl)),
 		//	util2.NewGoJsonSchemaCustomFormatChecker,
 
 		//history starts
-		restHandler.NewPipelineHistoryRestHandlerImpl,
-		wire.Bind(new(restHandler.PipelineHistoryRestHandler), new(*restHandler.PipelineHistoryRestHandlerImpl)),
+		history.NewPipelineHistoryRestHandlerImpl,
+		wire.Bind(new(history.PipelineHistoryRestHandler), new(*history.PipelineHistoryRestHandlerImpl)),
 
 		repository3.NewConfigMapHistoryRepositoryImpl,
 		wire.Bind(new(repository3.ConfigMapHistoryRepository), new(*repository3.ConfigMapHistoryRepositoryImpl)),
@@ -804,8 +824,8 @@ func InitializeApp() (*App, error) {
 		repository5.NewPipelineStageRepository,
 		wire.Bind(new(repository5.PipelineStageRepository), new(*repository5.PipelineStageRepositoryImpl)),
 
-		pipeline.NewPipelineStageService,
-		wire.Bind(new(pipeline.PipelineStageService), new(*pipeline.PipelineStageServiceImpl)),
+		pipeline4.NewPipelineStageService,
+		wire.Bind(new(pipeline4.PipelineStageService), new(*pipeline4.PipelineStageServiceImpl)),
 		//plugin ends
 
 		connection.NewArgoCDConnectionManagerImpl,
@@ -833,8 +853,8 @@ func InitializeApp() (*App, error) {
 		cron.NewCiTriggerCronImpl,
 		wire.Bind(new(cron.CiTriggerCron), new(*cron.CiTriggerCronImpl)),
 
-		restHandler.NewPipelineStatusTimelineRestHandlerImpl,
-		wire.Bind(new(restHandler.PipelineStatusTimelineRestHandler), new(*restHandler.PipelineStatusTimelineRestHandlerImpl)),
+		status2.NewPipelineStatusTimelineRestHandlerImpl,
+		wire.Bind(new(status2.PipelineStatusTimelineRestHandler), new(*status2.PipelineStatusTimelineRestHandlerImpl)),
 
 		status.NewPipelineStatusTimelineServiceImpl,
 		wire.Bind(new(status.PipelineStatusTimelineService), new(*status.PipelineStatusTimelineServiceImpl)),
@@ -849,14 +869,14 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(repository.UserAttributesRepository), new(*repository.UserAttributesRepositoryImpl)),
 		pipelineConfig.NewPipelineStatusTimelineRepositoryImpl,
 		wire.Bind(new(pipelineConfig.PipelineStatusTimelineRepository), new(*pipelineConfig.PipelineStatusTimelineRepositoryImpl)),
-		wire.Bind(new(pipeline.DeploymentConfigService), new(*pipeline.DeploymentConfigServiceImpl)),
-		pipeline.NewDeploymentConfigServiceImpl,
+		wire.Bind(new(pipeline4.DeploymentConfigService), new(*pipeline4.DeploymentConfigServiceImpl)),
+		pipeline4.NewDeploymentConfigServiceImpl,
 		pipelineConfig.NewCiTemplateOverrideRepositoryImpl,
 		wire.Bind(new(pipelineConfig.CiTemplateOverrideRepository), new(*pipelineConfig.CiTemplateOverrideRepositoryImpl)),
 		pipelineConfig.NewCiBuildConfigRepositoryImpl,
 		wire.Bind(new(pipelineConfig.CiBuildConfigRepository), new(*pipelineConfig.CiBuildConfigRepositoryImpl)),
-		pipeline.NewCiBuildConfigServiceImpl,
-		wire.Bind(new(pipeline.CiBuildConfigService), new(*pipeline.CiBuildConfigServiceImpl)),
+		pipeline4.NewCiBuildConfigServiceImpl,
+		wire.Bind(new(pipeline4.CiBuildConfigService), new(*pipeline4.CiBuildConfigServiceImpl)),
 		resourceFilter.NewCELServiceImpl,
 		wire.Bind(new(resourceFilter.CELEvaluatorService), new(*resourceFilter.CELServiceImpl)),
 		resourceFilter.NewResourceFilterRepositoryImpl,
@@ -875,14 +895,14 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(resourceFilter2.ResourceFilterRestHandler), new(*resourceFilter2.ResourceFilterRestHandlerImpl)),
 		router.NewResourceFilterRouterImpl,
 		wire.Bind(new(router.ResourceFilterRouter), new(*router.ResourceFilterRouterImpl)),
-		pipeline.NewCiTemplateServiceImpl,
-		wire.Bind(new(pipeline.CiTemplateService), new(*pipeline.CiTemplateServiceImpl)),
+		pipeline4.NewCiTemplateServiceImpl,
+		wire.Bind(new(pipeline4.CiTemplateService), new(*pipeline4.CiTemplateServiceImpl)),
 		router.NewGlobalCMCSRouterImpl,
 		wire.Bind(new(router.GlobalCMCSRouter), new(*router.GlobalCMCSRouterImpl)),
 		restHandler.NewGlobalCMCSRestHandlerImpl,
 		wire.Bind(new(restHandler.GlobalCMCSRestHandler), new(*restHandler.GlobalCMCSRestHandlerImpl)),
-		pipeline.NewGlobalCMCSServiceImpl,
-		wire.Bind(new(pipeline.GlobalCMCSService), new(*pipeline.GlobalCMCSServiceImpl)),
+		pipeline4.NewGlobalCMCSServiceImpl,
+		wire.Bind(new(pipeline4.GlobalCMCSService), new(*pipeline4.GlobalCMCSServiceImpl)),
 		repository.NewGlobalCMCSRepositoryImpl,
 		wire.Bind(new(repository.GlobalCMCSRepository), new(*repository.GlobalCMCSRepositoryImpl)),
 
@@ -936,8 +956,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(router.DockerRegRouter), new(*router.DockerRegRouterImpl)),
 		restHandler.NewDockerRegRestHandlerExtendedImpl,
 		wire.Bind(new(restHandler.DockerRegRestHandler), new(*restHandler.DockerRegRestHandlerExtendedImpl)),
-		pipeline.NewDockerRegistryConfigImpl,
-		wire.Bind(new(pipeline.DockerRegistryConfig), new(*pipeline.DockerRegistryConfigImpl)),
+		pipeline4.NewDockerRegistryConfigImpl,
+		wire.Bind(new(pipeline4.DockerRegistryConfig), new(*pipeline4.DockerRegistryConfigImpl)),
 		dockerRegistry.NewDockerRegistryIpsConfigServiceImpl,
 		wire.Bind(new(dockerRegistry.DockerRegistryIpsConfigService), new(*dockerRegistry.DockerRegistryIpsConfigServiceImpl)),
 		dockerRegistryRepository.NewDockerArtifactStoreRepositoryImpl,
@@ -959,11 +979,11 @@ func InitializeApp() (*App, error) {
 		argocdServer.NewArgoClientWrapperServiceImpl,
 		wire.Bind(new(argocdServer.ArgoClientWrapperService), new(*argocdServer.ArgoClientWrapperServiceImpl)),
 
-		pipeline.NewPluginInputVariableParserImpl,
-		wire.Bind(new(pipeline.PluginInputVariableParser), new(*pipeline.PluginInputVariableParserImpl)),
+		pipeline4.NewPluginInputVariableParserImpl,
+		wire.Bind(new(pipeline4.PluginInputVariableParser), new(*pipeline4.PluginInputVariableParserImpl)),
 
-		pipeline.NewPipelineConfigListenerServiceImpl,
-		wire.Bind(new(pipeline.PipelineConfigListenerService), new(*pipeline.PipelineConfigListenerServiceImpl)),
+		pipeline4.NewPipelineConfigListenerServiceImpl,
+		wire.Bind(new(pipeline4.PipelineConfigListenerService), new(*pipeline4.PipelineConfigListenerServiceImpl)),
 
 		imageDigestPolicy.NewImageDigestPolicyServiceImpl,
 		wire.Bind(new(imageDigestPolicy.ImageDigestPolicyService), new(*imageDigestPolicy.ImageDigestPolicyServiceImpl)),

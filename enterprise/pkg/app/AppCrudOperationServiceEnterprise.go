@@ -22,7 +22,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	app2 "github.com/devtron-labs/devtron/pkg/app"
-	repository2 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
+	repository2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/genericNotes"
