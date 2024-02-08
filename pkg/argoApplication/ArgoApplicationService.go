@@ -337,8 +337,6 @@ func getHealthSyncStatusDestinationServerAndManagedResourcesForArgoK8sRawObject(
 
 func (impl *ArgoApplicationServiceImpl) GetServerConfigIfClusterIsNotAddedOnDevtron(resourceResp *k8s.ManifestResponse, restConfig *rest.Config,
 	clusterWithApplicationObject clusterRepository.Cluster, clusterServerUrlIdMap map[string]int) (*rest.Config, error) {
-	impl.logger.Infow("request GetServerConfigIfClusterIsNotAddedOnDevtron", "resourceResp", resourceResp, "restConfig", restConfig,
-		"clusterWithApplicationObject", clusterWithApplicationObject, "clusterServerUrlIdMap", clusterServerUrlIdMap)
 	var destinationServer string
 	if resourceResp != nil && resourceResp.Manifest.Object != nil {
 		_, _, destinationServer, _ =
@@ -361,7 +359,6 @@ func (impl *ArgoApplicationServiceImpl) GetServerConfigIfClusterIsNotAddedOnDevt
 			impl.logger.Errorw("error in getting resource list, secrets", "err", err)
 			return nil, err
 		}
-		impl.logger.Infow("secrets got by argocd app", "err", err, "secrets", secrets)
 		for _, secret := range secrets.Items {
 			if secret.Data != nil {
 				if val, ok := secret.Data[bean.Server]; ok {
@@ -378,7 +375,6 @@ func (impl *ArgoApplicationServiceImpl) GetServerConfigIfClusterIsNotAddedOnDevt
 				}
 			}
 		}
-		impl.logger.Infow("configOfClusterWhereAppIsDeployed", configOfClusterWhereAppIsDeployed)
 		if configOfClusterWhereAppIsDeployed != nil {
 			restConfig.Host = destinationServer
 			restConfig.TLSClientConfig = rest.TLSClientConfig{
@@ -421,13 +417,11 @@ func (impl *ArgoApplicationServiceImpl) GetRestConfigForExternalArgo(ctx context
 		impl.logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterId)
 		return nil, err
 	}
-	impl.logger.Infow("GetRestConfigForExternalArgo, GetClusterConfigFromAllClusters", "clusterConfig", clusterConfig, "clusterWithApplicationObject", clusterWithApplicationObject, "clusterServerUrlIdMap", clusterServerUrlIdMap)
 	restConfig, err := impl.k8sUtil.GetRestConfigByCluster(clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", clusterId)
 		return nil, err
 	}
-	impl.logger.Infow("GetRestConfigByCluster", "restConfig", restConfig)
 	resourceResp, err := impl.k8sUtil.GetResource(ctx, bean.DevtronCDNamespae, externalArgoApplicationName, bean.GvkForArgoApplication, restConfig)
 	if err != nil {
 		impl.logger.Errorw("not on external cluster", "err", err, "externalArgoApplicationName", externalArgoApplicationName)
@@ -438,6 +432,5 @@ func (impl *ArgoApplicationServiceImpl) GetRestConfigForExternalArgo(ctx context
 		impl.logger.Errorw("error in getting server config", "err", err, "cluster with application object", clusterWithApplicationObject)
 		return nil, err
 	}
-	impl.logger.Infow("GetServerConfigIfClusterIsNotAddedOnDevtron", "restConfig", restConfig)
 	return restConfig, nil
 }
