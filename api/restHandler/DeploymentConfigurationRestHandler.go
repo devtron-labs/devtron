@@ -44,12 +44,10 @@ func (handler *DeploymentConfigurationRestHandlerImpl) ConfigAutoComplete(w http
 	}
 	appId, err := common.ExtractIntQueryParam(w, r, "appId", nil)
 	if err != nil {
-		common.WriteJsonResp(w, err, "invalid appId", http.StatusBadRequest)
 		return
 	}
 	envId, err := common.ExtractIntQueryParam(w, r, "envId", nil)
 	if err != nil {
-		common.WriteJsonResp(w, err, "invalid envId", http.StatusBadRequest)
 		return
 	}
 

@@ -52,6 +52,11 @@ func NewConfigMapRepositoryImpl(Logger *zap.SugaredLogger, dbConnection *pg.DB) 
 	return &ConfigMapRepositoryImpl{dbConnection: dbConnection, Logger: Logger}
 }
 
+const (
+	ConfigMapAppLevel string = "config_map_app_level"
+	ConfigMapEnvLevel string = "config_map_app_level"
+)
+
 type ConfigMapAppModel struct {
 	TableName     struct{} `sql:"config_map_app_level" pg:",discard_unknown_columns"`
 	Id            int      `sql:"id,pk"`
@@ -63,9 +68,9 @@ type ConfigMapAppModel struct {
 
 func (impl ConfigMapRepositoryImpl) GetConfigNamesForAppAndEnvLevel(appId int, envId int) ([]bean.CMCSNames, error) {
 	var cMCSNames []bean.CMCSNames
-	tableName := "config_map_env_level"
+	tableName := ConfigMapEnvLevel
 	if envId == -1 {
-		tableName = "config_map_app_level"
+		tableName = ConfigMapAppLevel
 	}
 	query := impl.dbConnection.
 		Model().
