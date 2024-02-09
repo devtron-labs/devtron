@@ -69,7 +69,7 @@ type UserModel struct {
 }
 
 type UserRoleModel struct {
-	TableName struct{} `sql:"user_roles"`
+	TableName struct{} `sql:"user_roles" pg:",discard_unknown_columns"`
 	Id        int      `sql:"id,pk"`
 	UserId    int32    `sql:"user_id,notnull"`
 	RoleId    int      `sql:"role_id,notnull"`
