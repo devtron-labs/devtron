@@ -234,7 +234,8 @@ func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) er
 			return err
 		}
 		// Auto Trigger after Post Stage Success Event
-		go impl.HandlePostStageSuccessEvent(request.TriggerContext, runner.CdWorkflowId, pipeline.Id, 1, nil)
+		//TODO: update
+		//go impl.HandlePostStageSuccessEvent(request.TriggerContext, runner.CdWorkflowId, pipeline.Id, 1, nil)
 	}
 
 	wfr, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(context.Background(), cdWf.Id, bean2.CD_WORKFLOW_TYPE_POST)

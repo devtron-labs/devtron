@@ -45,6 +45,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/plugin"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactApproval/read"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/variables"
@@ -121,7 +122,7 @@ type TriggerServiceImpl struct {
 	helmRepoPushService                 app.HelmRepoPushService
 	helmAppService                      client2.HelmAppService
 	imageTaggingService                 pipeline.ImageTaggingService
-	deploymentApprovalService           pipeline.DeploymentApprovalService
+	artifactApprovalDataReadService     read.ArtifactApprovalDataReadService
 
 	mergeUtil     util.MergeUtil
 	enforcerUtil  rbac.EnforcerUtil
@@ -170,7 +171,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 	userService user.UserService,
 	gitSensorGrpcClient gitSensorClient.Client,
 	helmAppService client2.HelmAppService,
-	deploymentApprovalService pipeline.DeploymentApprovalService,
+	artifactApprovalDataReadService read.ArtifactApprovalDataReadService,
 	mergeUtil util.MergeUtil,
 	enforcerUtil rbac.EnforcerUtil,
 	helmAppClient gRPC.HelmAppClient,
@@ -225,7 +226,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 		userService:                         userService,
 		gitSensorGrpcClient:                 gitSensorGrpcClient,
 		helmAppService:                      helmAppService,
-		deploymentApprovalService:           deploymentApprovalService,
+		artifactApprovalDataReadService:     artifactApprovalDataReadService,
 		mergeUtil:                           mergeUtil,
 		enforcerUtil:                        enforcerUtil,
 		eventFactory:                        eventFactory,
@@ -539,7 +540,9 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 					impl.logger.Errorw("error in getting latest pipeline override by cdWorkflowId", "err", err, "cdWorkflowId", cdWf.Id)
 					return 0, "", err
 				}
-				go impl.HandleDeploymentSuccessEvent(triggerContext, pipelineOverride)
+				fmt.Println(pipelineOverride)
+				//TODO: update
+				//go impl.HandleDeploymentSuccessEvent(triggerContext, pipelineOverride)
 			}
 		}
 
@@ -791,7 +794,9 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 			impl.logger.Errorw("error in getting latest pipeline override by cdWorkflowId", "err", err, "cdWorkflowId", cdWf.Id)
 			return err
 		}
-		go impl.HandleDeploymentSuccessEvent(request.TriggerContext, pipelineOverride)
+		fmt.Println(pipelineOverride)
+		//TODO: update
+		//go impl.HandleDeploymentSuccessEvent(request.TriggerContext, pipelineOverride)
 	}
 	return nil
 }
@@ -1747,7 +1752,7 @@ func (impl *TriggerServiceImpl) checkApprovalNodeForDeployment(requestedUserId i
 			impl.logger.Errorw("error occurred while fetching approval node config", "approvalConfig", pipeline.UserApprovalConfig, "err", err)
 			return 0, err
 		}
-		userApprovalMetadata, err := impl.deploymentApprovalService.FetchApprovalDataForArtifacts([]int{artifactId}, pipelineId, approvalConfig.RequiredCount)
+		userApprovalMetadata, err := impl.artifactApprovalDataReadService.FetchApprovalDataForArtifacts([]int{artifactId}, pipelineId, approvalConfig.RequiredCount)
 		if err != nil {
 			return 0, err
 		}

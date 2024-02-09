@@ -47,7 +47,7 @@ func NewDeployedAppServiceImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (impl *DeployedAppServiceImpl) StopStartApp(triggerContext bean3.TriggerContext, stopRequest *bean.StopAppRequest) (int, error) {
+func (impl *DeployedAppServiceImpl) StopStartApp(ctx context.Context, stopRequest *bean.StopAppRequest) (int, error) {
 	pipelines, err := impl.pipelineRepository.FindActiveByAppIdAndEnvironmentId(stopRequest.AppId, stopRequest.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching pipeline", "app", stopRequest.AppId, "env", stopRequest.EnvironmentId, "err", err)
@@ -90,6 +90,9 @@ func (impl *DeployedAppServiceImpl) StopStartApp(triggerContext bean3.TriggerCon
 		overrideRequest.DeploymentType = models.DEPLOYMENTTYPE_START
 	} else {
 		return 0, fmt.Errorf("unsupported operation %s", stopRequest.RequestType)
+	}
+	triggerContext := bean3.TriggerContext{
+		Context: ctx,
 	}
 	id, _, err := impl.cdTriggerService.ManualCdTrigger(triggerContext, overrideRequest)
 	if err != nil {

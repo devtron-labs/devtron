@@ -18,6 +18,7 @@
 package pipeline
 
 import (
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactApproval/read"
 	"sort"
 	"strings"
 
@@ -57,22 +58,22 @@ type AppArtifactManager interface {
 }
 
 type AppArtifactManagerImpl struct {
-	logger                    *zap.SugaredLogger
-	cdWorkflowRepository      pipelineConfig.CdWorkflowRepository
-	userService               user.UserService
-	imageTaggingService       ImageTaggingService
-	ciArtifactRepository      repository.CiArtifactRepository
-	ciWorkflowRepository      pipelineConfig.CiWorkflowRepository
-	pipelineStageService      PipelineStageService
-	celService                resourceFilter.CELEvaluatorService
-	resourceFilterService     resourceFilter.ResourceFilterService
-	config                    *types.CdConfig
-	cdPipelineConfigService   CdPipelineConfigService
-	dockerArtifactRegistry    dockerArtifactStoreRegistry.DockerArtifactStoreRepository
-	CiPipelineRepository      pipelineConfig.CiPipelineRepository
-	ciTemplateService         CiTemplateService
-	imageTaggingRepository    repository3.ImageTaggingRepository
-	deploymentApprovalService DeploymentApprovalService
+	logger                          *zap.SugaredLogger
+	cdWorkflowRepository            pipelineConfig.CdWorkflowRepository
+	userService                     user.UserService
+	imageTaggingService             ImageTaggingService
+	ciArtifactRepository            repository.CiArtifactRepository
+	ciWorkflowRepository            pipelineConfig.CiWorkflowRepository
+	pipelineStageService            PipelineStageService
+	celService                      resourceFilter.CELEvaluatorService
+	resourceFilterService           resourceFilter.ResourceFilterService
+	config                          *types.CdConfig
+	cdPipelineConfigService         CdPipelineConfigService
+	dockerArtifactRegistry          dockerArtifactStoreRegistry.DockerArtifactStoreRepository
+	CiPipelineRepository            pipelineConfig.CiPipelineRepository
+	ciTemplateService               CiTemplateService
+	imageTaggingRepository          repository3.ImageTaggingRepository
+	artifactApprovalDataReadService read.ArtifactApprovalDataReadService
 }
 
 func NewAppArtifactManagerImpl(
@@ -90,29 +91,29 @@ func NewAppArtifactManagerImpl(
 	CiPipelineRepository pipelineConfig.CiPipelineRepository,
 	ciTemplateService CiTemplateService,
 	imageTaggingRepository repository3.ImageTaggingRepository,
-	deploymentApprovalService DeploymentApprovalService,
+	artifactApprovalDataReadService read.ArtifactApprovalDataReadService,
 ) *AppArtifactManagerImpl {
 	cdConfig, err := types.GetCdConfig()
 	if err != nil {
 		return nil
 	}
 	return &AppArtifactManagerImpl{
-		logger:                    logger,
-		cdWorkflowRepository:      cdWorkflowRepository,
-		userService:               userService,
-		imageTaggingService:       imageTaggingService,
-		ciArtifactRepository:      ciArtifactRepository,
-		ciWorkflowRepository:      ciWorkflowRepository,
-		celService:                celService,
-		resourceFilterService:     resourceFilterService,
-		cdPipelineConfigService:   cdPipelineConfigService,
-		pipelineStageService:      pipelineStageService,
-		config:                    cdConfig,
-		dockerArtifactRegistry:    dockerArtifactRegistry,
-		CiPipelineRepository:      CiPipelineRepository,
-		ciTemplateService:         ciTemplateService,
-		imageTaggingRepository:    imageTaggingRepository,
-		deploymentApprovalService: deploymentApprovalService,
+		logger:                          logger,
+		cdWorkflowRepository:            cdWorkflowRepository,
+		userService:                     userService,
+		imageTaggingService:             imageTaggingService,
+		ciArtifactRepository:            ciArtifactRepository,
+		ciWorkflowRepository:            ciWorkflowRepository,
+		celService:                      celService,
+		resourceFilterService:           resourceFilterService,
+		cdPipelineConfigService:         cdPipelineConfigService,
+		pipelineStageService:            pipelineStageService,
+		config:                          cdConfig,
+		dockerArtifactRegistry:          dockerArtifactRegistry,
+		CiPipelineRepository:            CiPipelineRepository,
+		ciTemplateService:               ciTemplateService,
+		imageTaggingRepository:          imageTaggingRepository,
+		artifactApprovalDataReadService: artifactApprovalDataReadService,
 	}
 }
 
@@ -700,7 +701,7 @@ func (impl *AppArtifactManagerImpl) FetchApprovalPendingArtifacts(pipeline *pipe
 		}
 		requiredApprovals := approvalConfig.RequiredCount
 
-		ciArtifacts, totalCount, err := impl.deploymentApprovalService.FetchApprovalPendingArtifacts(pipeline.Id, artifactListingFilterOpts.Limit, artifactListingFilterOpts.Offset, requiredApprovals, artifactListingFilterOpts.SearchString)
+		ciArtifacts, totalCount, err := impl.artifactApprovalDataReadService.FetchApprovalPendingArtifacts(pipeline.Id, artifactListingFilterOpts.Limit, artifactListingFilterOpts.Offset, requiredApprovals, artifactListingFilterOpts.SearchString)
 		if err != nil {
 			impl.logger.Errorw("failed to fetch approval request artifacts", "err", err, "cdPipelineId", pipeline.Id)
 			return ciArtifactsResponse, err
@@ -720,7 +721,7 @@ func (impl *AppArtifactManagerImpl) FetchApprovalPendingArtifacts(pipeline *pipe
 			for _, item := range ciArtifacts {
 				artifactIds = append(artifactIds, item.Id)
 			}
-			userApprovalMetadata, err := impl.deploymentApprovalService.FetchApprovalDataForArtifacts(artifactIds, pipeline.Id, requiredApprovals) // it will fetch all the request data with nil cd_wfr_rnr_id
+			userApprovalMetadata, err := impl.artifactApprovalDataReadService.FetchApprovalDataForArtifacts(artifactIds, pipeline.Id, requiredApprovals) // it will fetch all the request data with nil cd_wfr_rnr_id
 			if err != nil {
 				impl.logger.Errorw("error occurred while fetching approval data for artifacts", "cdPipelineId", pipeline.Id, "artifactIds", artifactIds, "err", err)
 				return ciArtifactsResponse, err
@@ -768,7 +769,7 @@ func (impl *AppArtifactManagerImpl) overrideArtifactsWithUserApprovalData(pipeli
 
 	var userApprovalMetadata map[int]*pipelineConfig.UserApprovalMetadata
 	requiredApprovals := approvalConfig.RequiredCount
-	userApprovalMetadata, err = impl.deploymentApprovalService.FetchApprovalDataForArtifacts(artifactIds, cdPipelineId, requiredApprovals) // it will fetch all the request data with nil cd_wfr_rnr_id
+	userApprovalMetadata, err = impl.artifactApprovalDataReadService.FetchApprovalDataForArtifacts(artifactIds, cdPipelineId, requiredApprovals) // it will fetch all the request data with nil cd_wfr_rnr_id
 	if err != nil {
 		impl.logger.Errorw("error occurred while fetching approval data for artifacts", "cdPipelineId", cdPipelineId, "artifactIds", artifactIds, "err", err)
 		return ciArtifactsFinal, approvalConfig, err
@@ -1176,7 +1177,7 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 			for i, artifact := range ciArtifacts {
 				artifactIds[i] = artifact.Id
 			}
-			userApprovalMetadata, err = impl.deploymentApprovalService.FetchApprovalDataForArtifacts(artifactIds, listingFilterOpts.PipelineId, listingFilterOpts.ApproversCount) // it will fetch all the request data with nil cd_wfr_rnr_id
+			userApprovalMetadata, err = impl.artifactApprovalDataReadService.FetchApprovalDataForArtifacts(artifactIds, listingFilterOpts.PipelineId, listingFilterOpts.ApproversCount) // it will fetch all the request data with nil cd_wfr_rnr_id
 			if err != nil {
 				impl.logger.Errorw("error occurred while fetching approval data for artifacts", "cdPipelineId", listingFilterOpts.PipelineId, "artifactIds", artifactIds, "err", err)
 				return ciArtifacts, 0, "", totalCount, err
@@ -1327,7 +1328,7 @@ func (impl *AppArtifactManagerImpl) fetchApprovedArtifacts(listingFilterOpts *be
 	}
 
 	var userApprovalMetadata map[int]*pipelineConfig.UserApprovalMetadata
-	userApprovalMetadata, err = impl.deploymentApprovalService.FetchApprovalDataForArtifacts(artifactIds, listingFilterOpts.PipelineId, listingFilterOpts.ApproversCount) // it will fetch all the request data with nil cd_wfr_rnr_id
+	userApprovalMetadata, err = impl.artifactApprovalDataReadService.FetchApprovalDataForArtifacts(artifactIds, listingFilterOpts.PipelineId, listingFilterOpts.ApproversCount) // it will fetch all the request data with nil cd_wfr_rnr_id
 	if err != nil {
 		impl.logger.Errorw("error occurred while fetching approval data for artifacts", "cdPipelineId", listingFilterOpts.PipelineId, "artifactIds", artifactIds, "err", err)
 		return ciArtifacts, totalCount, err

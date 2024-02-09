@@ -1277,7 +1277,7 @@ func (handler PipelineConfigRestHandlerImpl) PerformDeploymentApprovalAction(w h
 		}
 		// rback block ends here
 	}
-	err = handler.deploymentApprovalService.PerformDeploymentApprovalAction(userId, approvalActionRequest)
+	err = handler.artifactApprovalActionService.PerformDeploymentApprovalAction(userId, approvalActionRequest)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return

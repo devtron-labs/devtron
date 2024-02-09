@@ -24,6 +24,7 @@ import (
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	bean2 "github.com/devtron-labs/devtron/pkg/eventProcessor/out/bean"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactApproval/read"
 	"strings"
 	"time"
 
@@ -104,16 +105,17 @@ type CiMaterialDTO struct {
 }
 
 type DeploymentGroupServiceImpl struct {
-	appRepository                app.AppRepository
-	logger                       *zap.SugaredLogger
-	pipelineRepository           pipelineConfig.PipelineRepository
-	ciPipelineRepository         pipelineConfig.CiPipelineRepository
-	deploymentGroupRepository    repository.DeploymentGroupRepository
-	environmentRepository        repository2.EnvironmentRepository
-	deploymentGroupAppRepository repository.DeploymentGroupAppRepository
-	ciArtifactRepository         repository.CiArtifactRepository
-	appWorkflowRepository        appWorkflow.AppWorkflowRepository
-	workflowEventPublishService  out.WorkflowEventPublishService
+	appRepository                   app.AppRepository
+	logger                          *zap.SugaredLogger
+	pipelineRepository              pipelineConfig.PipelineRepository
+	ciPipelineRepository            pipelineConfig.CiPipelineRepository
+	deploymentGroupRepository       repository.DeploymentGroupRepository
+	environmentRepository           repository2.EnvironmentRepository
+	deploymentGroupAppRepository    repository.DeploymentGroupAppRepository
+	ciArtifactRepository            repository.CiArtifactRepository
+	appWorkflowRepository           appWorkflow.AppWorkflowRepository
+	workflowEventPublishService     out.WorkflowEventPublishService
+	artifactApprovalDataReadService read.ArtifactApprovalDataReadService
 }
 
 func NewDeploymentGroupServiceImpl(appRepository app.AppRepository, logger *zap.SugaredLogger,
@@ -122,18 +124,20 @@ func NewDeploymentGroupServiceImpl(appRepository app.AppRepository, logger *zap.
 	deploymentGroupAppRepository repository.DeploymentGroupAppRepository,
 	ciArtifactRepository repository.CiArtifactRepository,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
-	workflowEventPublishService out.WorkflowEventPublishService) *DeploymentGroupServiceImpl {
+	workflowEventPublishService out.WorkflowEventPublishService,
+	artifactApprovalDataReadService read.ArtifactApprovalDataReadService) *DeploymentGroupServiceImpl {
 	return &DeploymentGroupServiceImpl{
-		appRepository:                appRepository,
-		logger:                       logger,
-		pipelineRepository:           pipelineRepository,
-		ciPipelineRepository:         ciPipelineRepository,
-		deploymentGroupRepository:    deploymentGroupRepository,
-		environmentRepository:        environmentRepository,
-		deploymentGroupAppRepository: deploymentGroupAppRepository,
-		ciArtifactRepository:         ciArtifactRepository,
-		appWorkflowRepository:        appWorkflowRepository,
-		workflowEventPublishService:  workflowEventPublishService,
+		appRepository:                   appRepository,
+		logger:                          logger,
+		pipelineRepository:              pipelineRepository,
+		ciPipelineRepository:            ciPipelineRepository,
+		deploymentGroupRepository:       deploymentGroupRepository,
+		environmentRepository:           environmentRepository,
+		deploymentGroupAppRepository:    deploymentGroupAppRepository,
+		ciArtifactRepository:            ciArtifactRepository,
+		appWorkflowRepository:           appWorkflowRepository,
+		workflowEventPublishService:     workflowEventPublishService,
+		artifactApprovalDataReadService: artifactApprovalDataReadService,
 	}
 }
 
@@ -704,7 +708,7 @@ func (impl *DeploymentGroupServiceImpl) checkForApprovalNode(cdPipeline *pipelin
 				"config", cdPipeline.UserApprovalConfig, "pipelineId", cdPipelineId, "err", err)
 			return false
 		}
-		artifacts, err := impl.workflowDagExecutor.FetchApprovalDataForArtifacts([]int{ciArtifactId}, cdPipelineId, approvalConfig.RequiredCount)
+		artifacts, err := impl.artifactApprovalDataReadService.FetchApprovalDataForArtifacts([]int{ciArtifactId}, cdPipelineId, approvalConfig.RequiredCount)
 		if err != nil {
 			impl.logger.Errorw("error occurred while fetching approval data for artifact", "ciArtifactId", ciArtifactId, "err", err)
 			return false

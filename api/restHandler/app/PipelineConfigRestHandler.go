@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactApproval/action"
 	"io"
 	"net/http"
 	"strconv"
@@ -133,7 +134,7 @@ type PipelineConfigRestHandlerImpl struct {
 	deploymentTemplateValidationService deploymentTemplate.DeploymentTemplateValidationService
 	deployedAppMetricsService           deployedAppMetrics.DeployedAppMetricsService
 	chartRefService                     chartRef.ChartRefService
-	deploymentApprovalService           pipeline.DeploymentApprovalService
+	artifactApprovalActionService       action.ArtifactApprovalActionService
 }
 
 func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
@@ -160,7 +161,7 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	ciArtifactRepository repository.CiArtifactRepository,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
 	chartRefService chartRef.ChartRefService,
-	deploymentApprovalService pipeline.DeploymentApprovalService) *PipelineConfigRestHandlerImpl {
+	artifactApprovalActionService action.ArtifactApprovalActionService) *PipelineConfigRestHandlerImpl {
 	envConfig := &PipelineRestHandlerEnvConfig{}
 	err := env.Parse(envConfig)
 	if err != nil {
@@ -200,7 +201,7 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		deploymentTemplateValidationService: deploymentTemplateValidationService,
 		deployedAppMetricsService:           deployedAppMetricsService,
 		chartRefService:                     chartRefService,
-		deploymentApprovalService:           deploymentApprovalService,
+		artifactApprovalActionService:       artifactApprovalActionService,
 	}
 }
 

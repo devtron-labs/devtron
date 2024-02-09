@@ -132,6 +132,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/plugin"
 	repository6 "github.com/devtron-labs/devtron/pkg/plugin/repository"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/security"
@@ -188,6 +189,7 @@ func InitializeApp() (*App, error) {
 		deployment2.DeploymentWireSet,
 		eventProcessor.EventProcessorWireSet,
 		workflow.WorkflowWireSet,
+		policyGovernance.PolicyGovernanceWireSet,
 		// -------wireset end ----------
 		//-------
 		gitSensor.GetConfig,
@@ -971,8 +973,6 @@ func InitializeApp() (*App, error) {
 		imageDigestPolicy2.NewImageDigestPolicyRestHandlerImpl,
 		wire.Bind(new(imageDigestPolicy2.ImageDigestPolicyRestHandler), new(*imageDigestPolicy2.ImageDigestPolicyRestHandlerImpl)),
 
-		pipeline.NewDeploymentApprovalServiceImpl,
-		wire.Bind(new(pipeline.DeploymentApprovalService), wire.Bind(*pipeline.DeploymentApprovalServiceImpl)),
 		cron2.NewCronLoggerImpl,
 	)
 	return &App{}, nil
