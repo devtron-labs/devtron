@@ -705,10 +705,9 @@ const (
 	ManifestDownload        DeploymentType = "manifest_download"
 	GitOpsWithoutDeployment DeploymentType = "git_ops_without_deployment"
 )
+
 const (
-	K8sAnnotationAddJson              = `[{"op": "replace", "path": "/metadata/annotations", "value": {"%s":"%s", "%s":"%s"}}]`
-	HelmReleaseNameAnnotationKey      = "meta.helm.sh/release-name"
-	HelmReleaseNamespaceAnnotationKey = "meta.helm.sh/release-namespace"
+	HelmReleaseMetadataAnnotation = `[{"op": "add", "path": "/metadata/annotations/meta.helm.sh~1release-name", "value": "%s"},{"op": "add", "path": "/metadata/annotations/meta.helm.sh~1release-namespace", "value": "%s"}]`
 )
 
 func IsAcdApp(deploymentType string) bool {

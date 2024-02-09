@@ -1180,7 +1180,7 @@ func (impl InstalledAppServiceImpl) annotateCRDsIfExist(ctx context.Context, app
 		err = &util.ApiError{
 			HttpStatusCode:  http.StatusNotFound,
 			Code:            constants.AppDetailResourceTreeNotFound,
-			InternalMessage: "failed to get resource tree from acd",
+			InternalMessage: err.Error(),
 			UserMessage:     "failed to get resource tree from acd",
 		}
 		return err
@@ -1202,7 +1202,7 @@ func (impl InstalledAppServiceImpl) annotateCRDsIfExist(ctx context.Context, app
 			Version: crd.ResourceRef.Version,
 			Kind:    crd.ResourceRef.Kind,
 		}
-		helmAnnotation := fmt.Sprintf(bean.K8sAnnotationAddJson, bean.HelmReleaseNameAnnotationKey, appName, bean.HelmReleaseNamespaceAnnotationKey, namespace)
+		helmAnnotation := fmt.Sprintf(bean.HelmReleaseMetadataAnnotation, appName, namespace)
 		_, err = impl.K8sUtil.PatchResourceRequest(ctx, restConfig, types.JSONPatchType, helmAnnotation, crd.ResourceRef.Name, "", gvk)
 		if err != nil {
 			impl.logger.Errorw("error in patching release-name annotation in manifest", "err", err, "appName", appName)
