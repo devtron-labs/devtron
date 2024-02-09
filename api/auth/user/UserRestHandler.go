@@ -21,6 +21,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/auth/user/helper"
+	"github.com/gorilla/schema"
 	"net/http"
 	"strconv"
 	"strings"
@@ -44,12 +46,10 @@ type UserRestHandler interface {
 	GetById(w http.ResponseWriter, r *http.Request)
 	GetAll(w http.ResponseWriter, r *http.Request)
 	DeleteUser(w http.ResponseWriter, r *http.Request)
-	GetAllDetailedUsers(w http.ResponseWriter, r *http.Request)
 	FetchRoleGroupById(w http.ResponseWriter, r *http.Request)
 	CreateRoleGroup(w http.ResponseWriter, r *http.Request)
 	UpdateRoleGroup(w http.ResponseWriter, r *http.Request)
 	FetchRoleGroups(w http.ResponseWriter, r *http.Request)
-	FetchDetailedRoleGroups(w http.ResponseWriter, r *http.Request)
 	FetchRoleGroupsByName(w http.ResponseWriter, r *http.Request)
 	DeleteRoleGroup(w http.ResponseWriter, r *http.Request)
 	CheckUserRoles(w http.ResponseWriter, r *http.Request)
@@ -210,18 +210,11 @@ func (handler UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Req
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
 
-	if userInfo.EmailId == "admin" {
-		userInfo.EmailId = "admin@github.com/devtron-labs"
-	}
 	err = handler.validator.Struct(userInfo)
 	if err != nil {
 		handler.logger.Errorw("validation err, UpdateUser", "err", err, "payload", userInfo)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
-	}
-
-	if userInfo.EmailId == "admin@github.com/devtron-labs" {
-		userInfo.EmailId = "admin"
 	}
 
 	res, rolesChanged, groupsModified, restrictedGroups, err := handler.userService.UpdateUser(&userInfo, token, handler.CheckManagerAuth)
@@ -309,6 +302,7 @@ func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Reques
 }
 
 func (handler UserRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Request) {
+	var decoder = schema.NewDecoder()
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -362,35 +356,16 @@ func (handler UserRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Request
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	res, err := handler.userService.GetAll()
+	req := &bean.FetchListingRequest{}
+	err = decoder.Decode(req, r.URL.Query())
+	if err != nil {
+		handler.logger.Errorw("request err, GetAll", "err", err, "payload", req)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	res, err := handler.userService.GetAllWithFilters(req)
 	if err != nil {
 		handler.logger.Errorw("service err, GetAll", "err", err)
-		common.WriteJsonResp(w, err, "Failed to Get", http.StatusInternalServerError)
-		return
-	}
-
-	common.WriteJsonResp(w, err, res, http.StatusOK)
-}
-
-func (handler UserRestHandlerImpl) GetAllDetailedUsers(w http.ResponseWriter, r *http.Request) {
-	userId, err := handler.userService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-
-	token := r.Header.Get("token")
-	isActionUserSuperAdmin := false
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); ok {
-		isActionUserSuperAdmin = true
-	}
-	if !isActionUserSuperAdmin {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
-	}
-	res, err := handler.userService.GetAllDetailedUsers()
-	if err != nil {
-		handler.logger.Errorw("service err, GetAllDetailedUsers", "err", err)
 		common.WriteJsonResp(w, err, "Failed to Get", http.StatusInternalServerError)
 		return
 	}
@@ -451,7 +426,15 @@ func (handler UserRestHandlerImpl) DeleteUser(w http.ResponseWriter, r *http.Req
 		}
 	}
 	//RBAC enforcer Ends
-
+	//validation
+	validated := helper.CheckIfUserDevtronManaged(int32(id))
+	if !validated {
+		err = &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "cannot delete system or admin user"}
+		handler.logger.Errorw("request err, DeleteUser, validation failed", "id", id, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	//service call
 	res, err := handler.userService.DeleteUser(user)
 	if err != nil {
 		handler.logger.Errorw("service err, DeleteUser", "err", err, "id", id)
@@ -639,6 +622,7 @@ func (handler UserRestHandlerImpl) UpdateRoleGroup(w http.ResponseWriter, r *htt
 }
 
 func (handler UserRestHandlerImpl) FetchRoleGroups(w http.ResponseWriter, r *http.Request) {
+	var decoder = schema.NewDecoder()
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -692,32 +676,15 @@ func (handler UserRestHandlerImpl) FetchRoleGroups(w http.ResponseWriter, r *htt
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	res, err := handler.roleGroupService.FetchRoleGroups()
+
+	req := &bean.FetchListingRequest{}
+	err = decoder.Decode(req, r.URL.Query())
 	if err != nil {
-		handler.logger.Errorw("service err, FetchRoleGroups", "err", err)
-		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+		handler.logger.Errorw("request err, FetchRoleGroups", "err", err, "payload", req)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	common.WriteJsonResp(w, err, res, http.StatusOK)
-}
-
-func (handler UserRestHandlerImpl) FetchDetailedRoleGroups(w http.ResponseWriter, r *http.Request) {
-	userId, err := handler.userService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	token := r.Header.Get("token")
-	isActionUserSuperAdmin := false
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); ok {
-		isActionUserSuperAdmin = true
-	}
-	if !isActionUserSuperAdmin {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
-	}
-
-	res, err := handler.roleGroupService.FetchDetailedRoleGroups()
+	res, err := handler.roleGroupService.FetchRoleGroupsWithFilters(req)
 	if err != nil {
 		handler.logger.Errorw("service err, FetchRoleGroups", "err", err)
 		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)

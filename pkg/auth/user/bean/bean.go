@@ -50,3 +50,31 @@ type RbacPolicyEntityGroupDto struct {
 	Entity     string `json:"entity" validate:"oneof=apps cluster chart-group jobs"`
 	AccessType string `json:"accessType,omitempty"`
 }
+
+type SortBy string
+type SortOrder string
+
+const (
+	Asc  SortOrder = "ASC"
+	Desc SortOrder = "DESC"
+)
+
+const (
+	Email     SortBy = "email_id"
+	LastLogin SortBy = "last_login"
+	GroupName SortBy = "name"
+)
+
+const (
+	DefaultSize int = 20
+)
+
+const (
+	AdminUser  string = "admin"
+	SystemUser string = "system"
+)
+
+const (
+	AdminUserId  = 2 // we have established Admin user as 2 while setting up devtron
+	SystemUserId = 1 // we have established System user as 1 while setting up devtron, which are being used for auto-trigger operations
+)
