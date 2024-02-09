@@ -719,17 +719,21 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsCo
 		detailedErrorGitOpsConfigResponse := impl.convertDetailedErrorToResponse(detailedErrorGitOpsConfigActions)
 		return detailedErrorGitOpsConfigResponse
 	}
+	impl.logger.Infow("received clients for validation", "client", client, "gitService", gitService)
 	appName := DryrunRepoName + util2.Generate(6)
 	//getting user name & emailId for commit author data
 	userEmailId, userName := impl.chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit(config.UserId)
 	config.UserEmailId = userEmailId
 	config.GitRepoName = appName
+	impl.logger.Infow("received email and userName for gitOps commit", "userEmailId", userEmailId, "userName", userName,
+		"config", config)
 	repoUrl, _, detailedErrorCreateRepo := client.CreateRepository(config)
-
+	impl.logger.Infow("created repository", "repoUrl", repoUrl, "detailedErrorCreateRepo", detailedErrorCreateRepo)
 	detailedErrorGitOpsConfigActions.StageErrorMap = detailedErrorCreateRepo.StageErrorMap
 	detailedErrorGitOpsConfigActions.SuccessfulStages = detailedErrorCreateRepo.SuccessfulStages
 
 	for stage, stageErr := range detailedErrorGitOpsConfigActions.StageErrorMap {
+		impl.logger.Infow("detailedErrorGitOpsConfigActions iteration", "stage", stage, "stageErr", stageErr)
 		if stage == CreateRepoStage || stage == GetRepoUrlStage {
 			_, ok := detailedErrorGitOpsConfigActions.StageErrorMap[GetRepoUrlStage]
 			if ok {
@@ -746,9 +750,13 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsCo
 		}
 	}
 	chartDir := fmt.Sprintf("%s-%s", appName, impl.getDir())
+	impl.logger.Infow("chartDir", chartDir)
 	clonedDir := gitService.GetCloneDirectory(chartDir)
+	impl.logger.Infow("getting clone directory", "clonedDir", clonedDir)
 	if _, err := os.Stat(clonedDir); os.IsNotExist(err) {
+		impl.logger.Infow("clone directory err", "err", err)
 		clonedDir, err = gitService.Clone(repoUrl, chartDir)
+		impl.logger.Infow("cloning", "repourl", repoUrl, "chartDir", chartDir, "clonedDir", clonedDir, "err", err)
 		if err != nil {
 			impl.logger.Errorw("error in cloning repo", "url", repoUrl, "err", err)
 			detailedErrorGitOpsConfigActions.StageErrorMap[CloneStage] = err
@@ -758,6 +766,7 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsCo
 	}
 
 	commit, err := gitService.CommitAndPushAllChanges(clonedDir, "first commit", userName, userEmailId)
+	impl.logger.Infow("CommitAndPushAllChanges", "commit", commit, "err", err)
 	if err != nil {
 		impl.logger.Errorw("error in commit and pushing git", "err", err)
 		if commit == "" {
@@ -770,6 +779,7 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsCo
 	}
 
 	err = client.DeleteRepository(config)
+	impl.logger.Infow("DeleteRepository", "config", config, "err", err)
 	if err != nil {
 		impl.logger.Errorw("error in deleting repo", "err", err)
 		//here below the assignment of delete is removed for making this stage optional, and it's failure not preventing it from saving/updating gitOps config
@@ -798,6 +808,7 @@ func (impl *GitOpsConfigServiceImpl) getDir() string {
 }
 
 func (impl *GitOpsConfigServiceImpl) extractErrorMessageByProvider(err error, provider string) error {
+	impl.logger.Infow("extractErrorByProvider", "err", err, "provider", provider)
 	if provider == GITLAB_PROVIDER {
 		errorResponse, ok := err.(*gitlab.ErrorResponse)
 		if ok {
@@ -817,6 +828,7 @@ func (impl *GitOpsConfigServiceImpl) extractErrorMessageByProvider(err error, pr
 }
 
 func (impl *GitOpsConfigServiceImpl) convertDetailedErrorToResponse(detailedErrorGitOpsConfigActions util.DetailedErrorGitOpsConfigActions) (detailedErrorResponse DetailedErrorGitOpsConfigResponse) {
+	impl.logger.Infow("convertDetailedErrorToResponse", "detailedErrorGitOpsConfigActions", detailedErrorGitOpsConfigActions)
 	detailedErrorResponse.StageErrorMap = make(map[string]string)
 	detailedErrorResponse.SuccessfulStages = detailedErrorGitOpsConfigActions.SuccessfulStages
 	for stage, err := range detailedErrorGitOpsConfigActions.StageErrorMap {
