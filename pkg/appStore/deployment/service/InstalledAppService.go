@@ -1135,7 +1135,7 @@ func (impl InstalledAppServiceImpl) MigrateDeploymentType(ctx context.Context, r
 		//before deleting the installed app we'll first annotate CRD's manifest created by argo-cd with helm supported
 		//annotations so that helm install doesn't throw crd already exist error while migrating from argo-cd to helm.
 		for _, installedApp := range installedApps {
-			err = impl.annotateCRDsInManifestIfExist(ctx, installedApp.App.AppName, installedApp.Environment.Name, installedApp.Environment.Namespace, installedApp.Environment.ClusterId)
+			err = impl.annotateCRDsIfExist(ctx, installedApp.App.AppName, installedApp.Environment.Name, installedApp.Environment.Namespace, installedApp.Environment.ClusterId)
 			if err != nil {
 				impl.logger.Errorw("error in annotating CRDs in manifest for argo-cd deployed installed apps", "installedAppId", installedApp.Id, "appId", installedApp.AppId)
 				return response, err
@@ -1168,7 +1168,8 @@ func (impl InstalledAppServiceImpl) MigrateDeploymentType(ctx context.Context, r
 
 	return response, nil
 }
-func (impl InstalledAppServiceImpl) annotateCRDsInManifestIfExist(ctx context.Context, appName, envName, namespace string, clusterId int) error {
+
+func (impl InstalledAppServiceImpl) annotateCRDsIfExist(ctx context.Context, appName, envName, namespace string, clusterId int) error {
 	deploymentAppName := fmt.Sprintf("%s-%s", appName, envName)
 	query := &application.ResourcesQuery{
 		ApplicationName: &deploymentAppName,
