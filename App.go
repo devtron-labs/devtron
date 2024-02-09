@@ -63,6 +63,7 @@ type App struct {
 	sessionManager2    *authMiddleware.SessionManager
 	OtelTracingService *otel.OtelTracingServiceImpl
 	loggingMiddleware  util.LoggingMiddleware
+	userService        user.UserService
 }
 
 func NewApp(router *router.MuxRouter,
@@ -75,6 +76,7 @@ func NewApp(router *router.MuxRouter,
 	sessionManager2 *authMiddleware.SessionManager,
 	posthogClient *telemetry.PosthogClient,
 	loggingMiddleware util.LoggingMiddleware,
+	userService user.UserService,
 	centralEventProcessor *eventProcessor.CentralEventProcessor,
 ) *App {
 	//check argo connection
@@ -92,6 +94,7 @@ func NewApp(router *router.MuxRouter,
 		posthogClient:      posthogClient,
 		OtelTracingService: otel.NewOtelTracingServiceImpl(Logger),
 		loggingMiddleware:  loggingMiddleware,
+		userService:        userService,
 		centralEventProcessor: centralEventProcessor,
 	}
 	return app
@@ -111,7 +114,7 @@ func (app *App) Start() {
 	app.MuxRouter.Init()
 	//authEnforcer := casbin2.Create()
 
-	server := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: authMiddleware.Authorizer(app.sessionManager2, user.WhitelistChecker)(app.MuxRouter.Router)}
+	server := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: authMiddleware.Authorizer(app.sessionManager2, user.WhitelistChecker, app.userService.CheckUserStatusAndUpdateLoginAudit)(app.MuxRouter.Router)}
 	app.MuxRouter.Router.Use(app.loggingMiddleware.LoggingMiddleware)
 	app.MuxRouter.Router.Use(middleware.PrometheusMiddleware)
 	app.MuxRouter.Router.Use(middlewares.Recovery)

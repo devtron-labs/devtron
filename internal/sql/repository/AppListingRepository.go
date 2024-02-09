@@ -80,9 +80,6 @@ type LastDeployed struct {
 	LastDeployedImage string `sql:"last_deployed_image"`
 }
 
-const NewDeployment string = "Deployment Initiated"
-const Hibernating string = "HIBERNATING"
-
 type AppListingRepositoryImpl struct {
 	dbConnection                     *pg.DB
 	Logger                           *zap.SugaredLogger
@@ -110,6 +107,7 @@ func (impl AppListingRepositoryImpl) FetchJobs(appIds []int, statuses []string, 
 	jobContainers = impl.extractEnvironmentNameFromId(jobContainers)
 	return jobContainers, nil
 }
+
 func (impl AppListingRepositoryImpl) FetchOverviewCiPipelines(jobId int) ([]*bean.JobListingContainer, error) {
 	var jobContainers []*bean.JobListingContainer
 	jobsQuery := impl.appListingRepositoryQueryBuilder.OverviewCiPipelineQuery()

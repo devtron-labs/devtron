@@ -12,8 +12,8 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
-	repository2 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
-	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
+	repository2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd"
@@ -44,7 +44,7 @@ type CdApplicationStatusUpdateHandlerImpl struct {
 	cron                                 *cron.Cron
 	appService                           app.AppService
 	workflowDagExecutor                  dag.WorkflowDagExecutor
-	installedAppService                  service.InstalledAppService
+	installedAppService                  EAMode.InstalledAppDBService
 	AppStatusConfig                      *app.AppServiceConfig
 	pubsubClient                         *pubsub.PubSubClientServiceImpl
 	pipelineStatusTimelineRepository     pipelineConfig.PipelineStatusTimelineRepository
@@ -59,7 +59,7 @@ type CdApplicationStatusUpdateHandlerImpl struct {
 }
 
 func NewCdApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, appService app.AppService,
-	workflowDagExecutor dag.WorkflowDagExecutor, installedAppService service.InstalledAppService,
+	workflowDagExecutor dag.WorkflowDagExecutor, installedAppService EAMode.InstalledAppDBService,
 	AppStatusConfig *app.AppServiceConfig, pubsubClient *pubsub.PubSubClientServiceImpl,
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository,
 	eventClient client2.EventClient, appListingRepository repository.AppListingRepository,

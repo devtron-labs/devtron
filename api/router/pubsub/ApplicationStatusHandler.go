@@ -28,18 +28,19 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd"
 	"github.com/devtron-labs/devtron/pkg/workflow/dag"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode"
 	"k8s.io/utils/pointer"
 	"time"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
-	repository4 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
+	repository4 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"k8s.io/utils/strings/slices"
 
 	v1alpha12 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
-	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -55,7 +56,7 @@ type ApplicationStatusHandlerImpl struct {
 	pubsubClient              *pubsub.PubSubClientServiceImpl
 	appService                app.AppService
 	workflowDagExecutor       dag.WorkflowDagExecutor
-	installedAppService       service.InstalledAppService
+	installedAppService       FullMode.InstalledAppDBExtendedService
 	appStoreDeploymentService service.AppStoreDeploymentService
 	pipelineBuilder           pipeline.PipelineBuilder
 	pipelineRepository        pipelineConfig.PipelineRepository
@@ -65,7 +66,7 @@ type ApplicationStatusHandlerImpl struct {
 }
 
 func NewApplicationStatusHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSubClientServiceImpl, appService app.AppService,
-	workflowDagExecutor dag.WorkflowDagExecutor, installedAppService service.InstalledAppService,
+	workflowDagExecutor dag.WorkflowDagExecutor, installedAppService FullMode.InstalledAppDBExtendedService,
 	appStoreDeploymentService service.AppStoreDeploymentService, pipelineBuilder pipeline.PipelineBuilder,
 	pipelineRepository pipelineConfig.PipelineRepository, installedAppRepository repository4.InstalledAppRepository,
 	gitOpsConfigReadService config.GitOpsConfigReadService,

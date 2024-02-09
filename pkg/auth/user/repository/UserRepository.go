@@ -21,10 +21,14 @@
 package repository
 
 import (
+	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/pkg/timeoutWindow/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"strings"
+	"time"
 )
 
 type UserRepository interface {
@@ -33,6 +37,7 @@ type UserRepository interface {
 	GetById(id int32) (*UserModel, error)
 	GetByIdIncludeDeleted(id int32) (*UserModel, error)
 	GetAllExcludingApiTokenUser() ([]UserModel, error)
+	GetAllExecutingQuery(query string) ([]UserModel, error)
 	GetAllActiveUsers() ([]UserModel, error)
 	//GetAllUserRoleMappingsForRoleId(roleId int) ([]UserRoleModel, error)
 	FetchActiveUserByEmail(email string) (bean.UserInfo, error)
@@ -42,6 +47,13 @@ type UserRepository interface {
 	FetchUserMatchesByEmailIdExcludingApiTokenUser(email string) ([]UserModel, error)
 	FetchActiveOrDeletedUserByEmail(email string) (*UserModel, error)
 	UpdateRoleIdForUserRolesMappings(roleId int, newRoleId int) (*UserRoleModel, error)
+	GetCountExecutingQuery(query string) (int, error)
+	UpdateWindowIdToNull(userIds []int32, loggedInUserID int32) error
+	UpdateTimeWindowId(tx *pg.Tx, userid int32, windowId int) error
+	UpdateTimeWindowIdInBatch(tx *pg.Tx, userIds []int32, userWindowIdMap map[int32]int, loggedInUserId int32) error
+	StartATransaction() (*pg.Tx, error)
+	CommitATransaction(tx *pg.Tx) error
+	GetUserWithTimeoutWindowConfiguration(emailId string) (*UserModel, error)
 }
 
 type UserRepositoryImpl struct {
@@ -54,12 +66,15 @@ func NewUserRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *User
 }
 
 type UserModel struct {
-	TableName   struct{} `sql:"users"`
-	Id          int32    `sql:"id,pk"`
-	EmailId     string   `sql:"email_id,notnull"`
-	AccessToken string   `sql:"access_token"`
-	Active      bool     `sql:"active,notnull"`
-	UserType    string   `sql:"user_type"`
+	TableName                    struct{} `sql:"users" pg:",discard_unknown_columns"`
+	Id                           int32    `sql:"id,pk"`
+	EmailId                      string   `sql:"email_id,notnull"`
+	AccessToken                  string   `sql:"access_token"`
+	Active                       bool     `sql:"active,notnull"`
+	UserType                     string   `sql:"user_type"`
+	TimeoutWindowConfigurationId int      `sql:"timeout_window_configuration_id"`
+	TimeoutWindowConfiguration   *repository.TimeoutWindowConfiguration
+	UserAudit                    *UserAudit `sql:"-"`
 	sql.AuditLog
 }
 
@@ -113,6 +128,17 @@ func (impl UserRepositoryImpl) GetAllExcludingApiTokenUser() ([]UserModel, error
 	return userModel, err
 }
 
+func (impl UserRepositoryImpl) GetAllExecutingQuery(query string) ([]UserModel, error) {
+	var userModel []UserModel
+	_, err := impl.dbConnection.Query(&userModel, query)
+	if err != nil {
+		impl.Logger.Error("error in GetAllExecutingQuery", "err", err, "query", query)
+		return nil, err
+	}
+	return userModel, err
+
+}
+
 func (impl UserRepositoryImpl) GetAllActiveUsers() ([]UserModel, error) {
 	var userModel []UserModel
 	err := impl.dbConnection.Model(&userModel).
@@ -128,7 +154,7 @@ func (impl UserRepositoryImpl) FetchActiveUserByEmail(email string) (bean.UserIn
 		"WHERE u.active = true and u.email_id ILIKE ? order by u.updated_on desc"
 	_, err := impl.dbConnection.Query(&users, query, email)
 	if err != nil {
-		impl.Logger.Error("Exception caught:", err)
+		impl.Logger.Errorw("Exception caught:", "err", err)
 		return users, err
 	}
 
@@ -190,4 +216,95 @@ func (impl UserRepositoryImpl) UpdateRoleIdForUserRolesMappings(roleId int, newR
 	_, err := impl.dbConnection.Model(&model).Set("role_id = ? ", newRoleId).Where("role_id = ? ", roleId).Update()
 	return &model, err
 
+}
+
+func (impl UserRepositoryImpl) GetCountExecutingQuery(query string) (int, error) {
+	var totalCount int
+	_, err := impl.dbConnection.Query(&totalCount, query)
+	if err != nil {
+		impl.Logger.Error("Exception caught: GetCountExecutingQuery", err)
+		return totalCount, err
+	}
+	return totalCount, err
+}
+
+func (impl UserRepositoryImpl) UpdateWindowIdToNull(userIds []int32, loggedInUserID int32) error {
+	var model []UserModel
+	_, err := impl.dbConnection.Model(&model).Set("timeout_window_configuration_id = null").
+		Set("updated_on = ?", time.Now()).
+		Set("updated_by = ?", loggedInUserID).
+		Where("id in (?)", pg.In(userIds)).Update()
+	if err != nil {
+		impl.Logger.Error("error in UpdateFKtoNull", "err", err, "userIds", userIds)
+		return err
+	}
+	return nil
+}
+
+func (impl UserRepositoryImpl) UpdateTimeWindowId(tx *pg.Tx, userid int32, windowId int) error {
+	var model []UserModel
+	_, err := tx.Model(&model).Set("timeout_window_configuration_id = ? ", windowId).
+		Where("id = ? ", userid).Update()
+	if err != nil {
+		impl.Logger.Error("error in UpdateTimeWindowId", "err", err, "userid", userid, "windowId", windowId)
+		return err
+	}
+	return nil
+}
+
+func (impl UserRepositoryImpl) UpdateTimeWindowIdInBatch(tx *pg.Tx, userIds []int32, userWindowIdMap map[int32]int, loggedInUserId int32) error {
+
+	var model []UserModel
+	var cases []string
+	// Constructing the SQL expression with a loop
+	for userID, windowId := range userWindowIdMap {
+		cases = append(cases, fmt.Sprintf("WHEN id = %d THEN %d", userID, windowId))
+	}
+
+	// Constructing the complete SQL expression
+	sqlExpression := fmt.Sprintf("CASE %s ELSE timeout_window_configuration_id END", strings.Join(cases, " "))
+	// Bulk update using Updates with the dynamically generated SQL expression
+	_, err := tx.Model(&model).
+		Set("timeout_window_configuration_id = "+sqlExpression).
+		Set("updated_on = ?", time.Now()).
+		Set("updated_by = ?", loggedInUserId).
+		Where("id IN (?)", pg.In(userIds)).Update()
+	if err != nil {
+		impl.Logger.Error("error in UpdateTimeWindowIdInBatch", "err", err, "userIds", userIds)
+		return err
+	}
+	return nil
+
+}
+
+func (impl UserRepositoryImpl) StartATransaction() (*pg.Tx, error) {
+	tx, err := impl.dbConnection.Begin()
+	if err != nil {
+		impl.Logger.Errorw("error in beginning a transaction", "err", err)
+		return nil, err
+	}
+	return tx, nil
+}
+
+func (impl UserRepositoryImpl) CommitATransaction(tx *pg.Tx) error {
+	err := tx.Commit()
+	if err != nil {
+		impl.Logger.Errorw("error in commiting a transaction", "err", err)
+		return err
+	}
+	return nil
+}
+
+func (impl UserRepositoryImpl) GetUserWithTimeoutWindowConfiguration(emailId string) (*UserModel, error) {
+	var model UserModel
+	err := impl.dbConnection.Model(&model).
+		Column("user_model.*", "TimeoutWindowConfiguration").
+		Where("user_model.email_id like (?) ", emailId).
+		Where("user_model.active = ? ", true).
+		Select()
+	if err != nil {
+		impl.Logger.Errorw("error in GetUserWithTimeoutWindowConfiguration", "err", err, "emailId", emailId)
+		return &model, err
+	}
+	return &model, nil
 }
