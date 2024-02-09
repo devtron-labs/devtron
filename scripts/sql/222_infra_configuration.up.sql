@@ -2,7 +2,7 @@ CREATE SEQUENCE IF NOT EXISTS id_seq_infra_profile;
 CREATE TABLE IF NOT EXISTS public.infra_profile
 (
     "id"                           int          NOT NULL DEFAULT nextval('id_seq_infra_profile'::regclass),
-    "name"                         VARCHAR(50)  UNIQUE NOT NULL,
+    "name"                         VARCHAR(50)  NOT NULL,
     "description"                  VARCHAR(300),
     "active"                       bool         NOT NULL,
     "created_on"                   timestamptz  NOT NULL,
