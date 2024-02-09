@@ -438,13 +438,6 @@ func (handler UserRestHandlerImpl) DeleteUser(w http.ResponseWriter, r *http.Req
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func checkValidationForSystemOrAdminUser(userId int32) error {
-	if userId == bean2.SystemUserId || userId == bean2.AdminUserId {
-		return &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "cannot delete system or admin user"}
-	}
-	return nil
-}
-
 func (handler UserRestHandlerImpl) BulkUpdateStatus(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
