@@ -19,7 +19,8 @@ package appStoreBean
 
 import (
 	"encoding/json"
-	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"fmt"
+	"github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
 	"time"
 )
 
@@ -79,7 +80,7 @@ type InstallAppVersionDTO struct {
 	ReferenceValueId             int                            `json:"referenceValueId, omitempty" validate:"required,number"`                            // TODO: ineffective usage of omitempty; can be removed
 	ReferenceValueKind           string                         `json:"referenceValueKind, omitempty" validate:"oneof=DEFAULT TEMPLATE DEPLOYED EXISTING"` // TODO: ineffective usage of omitempty; can be removed
 	ACDAppName                   string                         `json:"-"`
-	Environment                  *repository2.Environment       `json:"-"`
+	Environment                  *bean.EnvironmentBean          `json:"-"`
 	ChartGroupEntryId            int                            `json:"-"`
 	Status                       AppstoreDeploymentStatus       `json:"-"`
 	AppStoreId                   int                            `json:"appStoreId"`
@@ -101,8 +102,20 @@ type InstallAppVersionDTO struct {
 	AppStoreApplicationVersionId int
 }
 
+// UpdateDeploymentAppType updates deploymentAppType to InstallAppVersionDTO
 func (chart *InstallAppVersionDTO) UpdateDeploymentAppType(deploymentAppType string) {
+	if chart == nil {
+		return
+	}
 	chart.DeploymentAppType = deploymentAppType
+}
+
+// UpdateACDAppName updates ArgoCd app object name to InstallAppVersionDTO
+func (chart *InstallAppVersionDTO) UpdateACDAppName() {
+	if chart == nil || chart.Environment == nil {
+		return
+	}
+	chart.ACDAppName = fmt.Sprintf("%s-%s", chart.AppName, chart.Environment.Environment)
 }
 
 // InstalledAppDeploymentAction is an internal struct for Helm App deployment; used to decide the deployment steps to be performed

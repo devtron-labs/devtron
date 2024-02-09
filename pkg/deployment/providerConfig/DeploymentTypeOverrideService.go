@@ -9,8 +9,8 @@ import (
 )
 
 type DeploymentTypeOverrideService interface {
-	// SetAndValidateDeploymentAppType : Set deployment application (helm/argo) types based on the enforcement configurations
-	SetAndValidateDeploymentAppType(deploymentType *string, isGitOpsConfigured bool, environmentId int) error
+	// ValidateAndOverrideDeploymentAppType : Set deployment application (helm/argo) types based on the enforcement configurations
+	ValidateAndOverrideDeploymentAppType(deploymentType string, isGitOpsConfigured bool, environmentId int) (overrideDeploymentType string, err error)
 }
 
 type DeploymentTypeOverrideServiceImpl struct {
@@ -29,12 +29,14 @@ func NewDeploymentTypeOverrideServiceImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (impl *DeploymentTypeOverrideServiceImpl) SetAndValidateDeploymentAppType(deploymentType *string, isGitOpsConfigured bool, environmentId int) error {
+func (impl *DeploymentTypeOverrideServiceImpl) ValidateAndOverrideDeploymentAppType(deploymentType string, isGitOpsConfigured bool, environmentId int) (overrideDeploymentType string, err error) {
+	// initialise OverrideDeploymentType to the given DeploymentType
+	overrideDeploymentType = deploymentType
 	// if no deployment app type sent from user then we'll not validate
 	deploymentTypeValidationConfig, err := impl.attributesService.GetDeploymentEnforcementConfig(environmentId)
 	if err != nil {
 		impl.logger.Errorw("error in getting enforcement config for deployment", "err", err)
-		return err
+		return overrideDeploymentType, err
 	}
 	// by default both deployment app type are allowed
 	AllowedDeploymentAppTypes := map[string]bool{
@@ -47,32 +49,32 @@ func (impl *DeploymentTypeOverrideServiceImpl) SetAndValidateDeploymentAppType(d
 	}
 	if !impl.deploymentConfig.ExternallyManagedDeploymentType {
 		if isGitOpsConfigured && AllowedDeploymentAppTypes[util2.PIPELINE_DEPLOYMENT_TYPE_ACD] {
-			*deploymentType = util2.PIPELINE_DEPLOYMENT_TYPE_ACD
+			overrideDeploymentType = util2.PIPELINE_DEPLOYMENT_TYPE_ACD
 		} else if AllowedDeploymentAppTypes[util2.PIPELINE_DEPLOYMENT_TYPE_HELM] {
-			*deploymentType = util2.PIPELINE_DEPLOYMENT_TYPE_HELM
+			overrideDeploymentType = util2.PIPELINE_DEPLOYMENT_TYPE_HELM
 		}
 	}
-	if *deploymentType == "" {
+	if deploymentType == "" {
 		if isGitOpsConfigured && AllowedDeploymentAppTypes[util2.PIPELINE_DEPLOYMENT_TYPE_ACD] {
-			*deploymentType = util2.PIPELINE_DEPLOYMENT_TYPE_ACD
+			overrideDeploymentType = util2.PIPELINE_DEPLOYMENT_TYPE_ACD
 		} else if AllowedDeploymentAppTypes[util2.PIPELINE_DEPLOYMENT_TYPE_HELM] {
-			*deploymentType = util2.PIPELINE_DEPLOYMENT_TYPE_HELM
+			overrideDeploymentType = util2.PIPELINE_DEPLOYMENT_TYPE_HELM
 		}
 	}
-	if err := impl.validateDeploymentAppType(*deploymentType, deploymentTypeValidationConfig); err != nil {
-		impl.logger.Errorw("validation error for the given deployment type", "deploymentType", *deploymentType, "err", err)
-		return err
+	if err = impl.validateDeploymentAppType(overrideDeploymentType, deploymentTypeValidationConfig); err != nil {
+		impl.logger.Errorw("validation error for the given deployment type", "deploymentType", deploymentType, "err", err)
+		return overrideDeploymentType, err
 	}
-	if !isGitOpsConfigured && util2.IsAcdApp(*deploymentType) {
+	if !isGitOpsConfigured && util2.IsAcdApp(overrideDeploymentType) {
 		impl.logger.Errorw("GitOps not configured but selected as a deployment app type")
 		err = &util2.ApiError{
 			HttpStatusCode:  http.StatusBadRequest,
 			InternalMessage: "GitOps integration is not installed/configured. Please install/configure GitOps or use helm option.",
 			UserMessage:     "GitOps integration is not installed/configured. Please install/configure GitOps or use helm option.",
 		}
-		return err
+		return overrideDeploymentType, err
 	}
-	return nil
+	return overrideDeploymentType, nil
 }
 
 func (impl *DeploymentTypeOverrideServiceImpl) validateDeploymentAppType(deploymentType string, deploymentConfig map[string]bool) error {

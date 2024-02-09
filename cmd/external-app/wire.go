@@ -102,10 +102,10 @@ func InitializeApp() (*App, error) {
 
 		pipelineConfig.NewMaterialRepositoryImpl,
 		wire.Bind(new(pipelineConfig.MaterialRepository), new(*pipelineConfig.MaterialRepositoryImpl)),
-		//appStatus
+		// appStatus
 		appStatus.NewAppStatusRepositoryImpl,
 		wire.Bind(new(appStatus.AppStatusRepository), new(*appStatus.AppStatusRepositoryImpl)),
-		//appStatus ends
+		// appStatus ends
 		rbac.NewEnforcerUtilImpl,
 		wire.Bind(new(rbac.EnforcerUtil), new(*rbac.EnforcerUtilImpl)),
 
@@ -126,7 +126,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(app.AppCrudOperationService), new(*app.AppCrudOperationServiceImpl)),
 		pipelineConfig.NewAppLabelRepositoryImpl,
 		wire.Bind(new(pipelineConfig.AppLabelRepository), new(*pipelineConfig.AppLabelRepositoryImpl)),
-		//acd session client bind with authenticator login
+		// acd session client bind with authenticator login
 		wire.Bind(new(session.ServiceClient), new(*middleware.LoginService)),
 		connector.NewPumpImpl,
 		wire.Bind(new(connector.Pump), new(*connector.PumpImpl)),
@@ -153,7 +153,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(repository.AttributesRepository), new(*repository.AttributesRepositoryImpl)),
 		pipelineConfig.NewCiPipelineRepositoryImpl,
 		wire.Bind(new(pipelineConfig.CiPipelineRepository), new(*pipelineConfig.CiPipelineRepositoryImpl)),
-		// // needed for enforcer util ends
+		// needed for enforcer util ends
 
 		// binding gitops to helm (for hyperion)
 		wire.Bind(new(deployment.FullModeDeploymentService), new(*EAMode.EAModeDeploymentServiceImpl)),
@@ -189,12 +189,8 @@ func InitializeApp() (*App, error) {
 		kubernetesResourceAuditLogs.Newk8sResourceHistoryServiceImpl,
 		wire.Bind(new(kubernetesResourceAuditLogs.K8sResourceHistoryService), new(*kubernetesResourceAuditLogs.K8sResourceHistoryServiceImpl)),
 
-		util.NewChartTemplateServiceImpl,
-		wire.Bind(new(util.ChartTemplateService), new(*util.ChartTemplateServiceImpl)),
-
 		security2.NewScanToolMetadataRepositoryImpl,
 		wire.Bind(new(security2.ScanToolMetadataRepository), new(*security2.ScanToolMetadataRepositoryImpl)),
-		//pubsub_lib.NewPubSubClientServiceImpl,
 
 		// start: docker registry wire set injection
 		router.NewDockerRegRouterImpl,

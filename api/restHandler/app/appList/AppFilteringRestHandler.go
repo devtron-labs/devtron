@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	bean2 "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"go.uber.org/zap"
 	"net/http"
@@ -133,7 +134,7 @@ func (handler AppFilteringRestHandlerImpl) GetClusterTeamAndEnvListForAutocomple
 	start = time.Now()
 	println(dbElapsedTime, grantedEnvironment)
 	if !handler.cfg.IgnoreAuthCheck {
-		grantedEnvironment = make([]cluster.EnvironmentBean, 0)
+		grantedEnvironment = make([]bean2.EnvironmentBean, 0)
 		// RBAC enforcer applying
 		var envIdentifierList []string
 		for index, item := range environments {

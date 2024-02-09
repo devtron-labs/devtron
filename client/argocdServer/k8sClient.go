@@ -35,7 +35,7 @@ const (
 )
 
 type ArgoK8sClient interface {
-	CreateAcdApp(appRequest *AppTemplate, cluster *repository.Cluster, applicationTemplatePath string) (string, error)
+	CreateAcdApp(appRequest *AppTemplate, applicationTemplatePath string) (string, error)
 	GetArgoApplication(namespace string, appName string, cluster *repository.Cluster) (map[string]interface{}, error)
 }
 type ArgoK8sClientImpl struct {
@@ -62,7 +62,7 @@ func (impl ArgoK8sClientImpl) tprintf(tmpl string, data interface{}) (string, er
 	return buf.String(), nil
 }
 
-func (impl ArgoK8sClientImpl) CreateAcdApp(appRequest *AppTemplate, cluster *repository.Cluster, applicationTemplatePath string) (string, error) {
+func (impl ArgoK8sClientImpl) CreateAcdApp(appRequest *AppTemplate, applicationTemplatePath string) (string, error) {
 	chartYamlContent, err := ioutil.ReadFile(filepath.Clean(applicationTemplatePath))
 	if err != nil {
 		impl.logger.Errorw("err in reading template", "err", err)

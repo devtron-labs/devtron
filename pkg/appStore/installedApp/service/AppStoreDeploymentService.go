@@ -19,7 +19,6 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	bean3 "github.com/devtron-labs/devtron/api/helm-app/bean"
@@ -28,9 +27,7 @@ import (
 	"github.com/devtron-labs/devtron/api/helm-app/service"
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/client/argocdServer"
-	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
-	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appStore/adapter"
@@ -41,14 +38,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deployment"
 	bean2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/bean"
-	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/common"
-	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster"
-	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
-	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
-	"github.com/devtron-labs/devtron/pkg/deployment/providerConfig"
-	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
@@ -59,93 +50,69 @@ import (
 )
 
 type AppStoreDeploymentService interface {
-	AppStoreDeployOperationDB(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error)
-	AppStoreDeployOperationStatusUpdate(installAppId int, status appStoreBean.AppstoreDeploymentStatus) (bool, error)
-	IsChartRepoActive(appStoreVersionId int) (bool, error)
 	InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error)
-	GetInstalledApp(id int) (*appStoreBean.InstallAppVersionDTO, error)
-	GetAllInstalledAppsByAppStoreId(w http.ResponseWriter, r *http.Request, token string, appStoreId int) ([]appStoreBean.InstalledAppsResponse, error)
+	UpdateInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error)
 	DeleteInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error)
 	LinkHelmApplicationToChartStore(ctx context.Context, request *openapi.UpdateReleaseWithChartLinkingRequest, appIdentifier *service.AppIdentifier, userId int32) (*openapi.UpdateReleaseResponse, bool, error)
+	UpdateProjectHelmApp(updateAppRequest *appStoreBean.UpdateProjectHelmAppDTO) error
 	RollbackApplication(ctx context.Context, request *openapi2.RollbackReleaseRequest, installedApp *appStoreBean.InstallAppVersionDTO, userId int32) (bool, error)
-	UpdateInstallAppVersionHistory(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*repository.InstalledAppVersionHistory, error)
 	GetDeploymentHistory(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO) (*bean3.DeploymentHistoryAndInstalledAppInfo, error)
 	GetDeploymentHistoryInfo(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, installedAppVersionHistoryId int) (*openapi.HelmAppDeploymentManifestDetail, error)
-	UpdateInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error)
-	UpdateInstalledAppVersionHistoryWithGitHash(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx) error
-	GetInstalledAppVersion(id int, userId int32) (*appStoreBean.InstallAppVersionDTO, error)
 	InstallAppByHelm(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error)
-	UpdateProjectHelmApp(updateAppRequest *appStoreBean.UpdateProjectHelmAppDTO) error
 	UpdatePreviousDeploymentStatusForAppStore(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, triggeredAt time.Time, err error) error
-	UpdateInstallAppVersionHistoryStatus(installedAppVersionHistoryId int, status string) error
 	MarkGitOpsInstalledAppsDeletedIfArgoAppIsDeleted(installedAppId, envId int) error
 }
 
 type AppStoreDeploymentServiceImpl struct {
 	logger                               *zap.SugaredLogger
 	installedAppRepository               repository.InstalledAppRepository
+	installedAppService                  EAMode.InstalledAppDBService
+	appStoreDeploymentDBService          AppStoreDeploymentDBService
 	chartGroupDeploymentRepository       repository3.ChartGroupDeploymentRepository
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository
-	environmentRepository                clusterRepository.EnvironmentRepository
-	clusterInstalledAppsRepository       repository.ClusterInstalledAppsRepository
 	appRepository                        app.AppRepository
 	eaModeDeploymentService              EAMode.EAModeDeploymentService
 	fullModeDeploymentService            deployment.FullModeDeploymentService
 	environmentService                   cluster.EnvironmentService
-	clusterService                       cluster.ClusterService
 	helmAppService                       service.HelmAppService
-	appStoreDeploymentCommonService      appStoreDeploymentCommon.AppStoreDeploymentCommonService
 	installedAppRepositoryHistory        repository.InstalledAppVersionHistoryRepository
 	deploymentTypeConfig                 *util2.DeploymentServiceTypeConfig
 	aCDConfig                            *argocdServer.ACDConfig
 	gitOpsConfigReadService              config.GitOpsConfigReadService
-	deploymentTypeOverrideService        providerConfig.DeploymentTypeOverrideService
 }
 
-func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRepository repository.InstalledAppRepository,
-	chartGroupDeploymentRepository repository3.ChartGroupDeploymentRepository, appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
-	environmentRepository clusterRepository.EnvironmentRepository, clusterInstalledAppsRepository repository.ClusterInstalledAppsRepository, appRepository app.AppRepository,
-	eaModeDeploymentService EAMode.EAModeDeploymentService, fullModeDeploymentService deployment.FullModeDeploymentService,
-	environmentService cluster.EnvironmentService, clusterService cluster.ClusterService, helmAppService service.HelmAppService,
-	appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
+func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger,
+	installedAppRepository repository.InstalledAppRepository,
+	installedAppService EAMode.InstalledAppDBService,
+	appStoreDeploymentDBService AppStoreDeploymentDBService,
+	chartGroupDeploymentRepository repository3.ChartGroupDeploymentRepository,
+	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
+	appRepository app.AppRepository,
+	eaModeDeploymentService EAMode.EAModeDeploymentService,
+	fullModeDeploymentService deployment.FullModeDeploymentService,
+	environmentService cluster.EnvironmentService,
+	helmAppService service.HelmAppService,
 	installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository,
-	envVariables *util2.EnvironmentVariables, aCDConfig *argocdServer.ACDConfig,
-	gitOpsConfigReadService config.GitOpsConfigReadService,
-	deploymentTypeOverrideService providerConfig.DeploymentTypeOverrideService) *AppStoreDeploymentServiceImpl {
+	envVariables *util2.EnvironmentVariables,
+	aCDConfig *argocdServer.ACDConfig,
+	gitOpsConfigReadService config.GitOpsConfigReadService) *AppStoreDeploymentServiceImpl {
 	return &AppStoreDeploymentServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
+		installedAppService:                  installedAppService,
+		appStoreDeploymentDBService:          appStoreDeploymentDBService,
 		chartGroupDeploymentRepository:       chartGroupDeploymentRepository,
 		appStoreApplicationVersionRepository: appStoreApplicationVersionRepository,
-		environmentRepository:                environmentRepository,
-		clusterInstalledAppsRepository:       clusterInstalledAppsRepository,
 		appRepository:                        appRepository,
 		eaModeDeploymentService:              eaModeDeploymentService,
 		fullModeDeploymentService:            fullModeDeploymentService,
 		environmentService:                   environmentService,
-		clusterService:                       clusterService,
 		helmAppService:                       helmAppService,
-		appStoreDeploymentCommonService:      appStoreDeploymentCommonService,
 		installedAppRepositoryHistory:        installedAppRepositoryHistory,
 		deploymentTypeConfig:                 envVariables.DeploymentServiceTypeConfig,
 		aCDConfig:                            aCDConfig,
 		gitOpsConfigReadService:              gitOpsConfigReadService,
-		deploymentTypeOverrideService:        deploymentTypeOverrideService,
 	}
-}
-
-func (impl *AppStoreDeploymentServiceImpl) IsChartRepoActive(appStoreVersionId int) (bool, error) {
-	appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(appStoreVersionId)
-	if err != nil {
-		impl.logger.Errorw("fetching error", "err", err)
-		return false, err
-	}
-	if appStoreAppVersion.AppStore.ChartRepo != nil {
-		return appStoreAppVersion.AppStore.ChartRepo.Active, nil
-	} else if appStoreAppVersion.AppStore.DockerArtifactStore.OCIRegistryConfig != nil {
-		return appStoreAppVersion.AppStore.DockerArtifactStore.OCIRegistryConfig[0].IsChartPullActive, err
-	}
-	return false, nil
 }
 
 func (impl *AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error) {
@@ -158,7 +125,7 @@ func (impl *AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *
 	// Rollback tx on error.
 	defer tx.Rollback()
 	//step 1 db operation initiated
-	installAppVersionRequest, err = impl.AppStoreDeployOperationDB(installAppVersionRequest, tx)
+	installAppVersionRequest, err = impl.appStoreDeploymentDBService.AppStoreDeployOperationDB(installAppVersionRequest, tx)
 	if err != nil {
 		impl.logger.Errorw(" error", "err", err)
 		return nil, err
@@ -217,183 +184,12 @@ func (impl *AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *
 	}
 	err = tx.Commit()
 
-	err = impl.installAppPostDbOperation(installAppVersionRequest)
+	err = impl.appStoreDeploymentDBService.InstallAppPostDbOperation(installAppVersionRequest)
 	if err != nil {
 		return nil, err
 	}
 
 	return installAppVersionRequest, nil
-}
-
-func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledAppVersionHistoryStatus(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, status string) error {
-	dbConnection := impl.installedAppRepository.GetConnection()
-	tx, err := dbConnection.Begin()
-	if err != nil {
-		return err
-	}
-	// Rollback tx on error.
-	defer tx.Rollback()
-	savedInstalledAppVersionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(installAppVersionRequest.InstalledAppVersionHistoryId)
-	savedInstalledAppVersionHistory.Status = status
-
-	_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(savedInstalledAppVersionHistory, tx)
-	if err != nil {
-		impl.logger.Errorw("error while fetching from db", "error", err)
-		return err
-	}
-	err = tx.Commit()
-	if err != nil {
-		impl.logger.Errorw("error while committing transaction to db", "error", err)
-		return err
-	}
-	return nil
-}
-
-func (impl *AppStoreDeploymentServiceImpl) UpdateInstallAppVersionHistory(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*repository.InstalledAppVersionHistory, error) {
-	dbConnection := impl.installedAppRepository.GetConnection()
-	tx, err := dbConnection.Begin()
-	if err != nil {
-		return nil, err
-	}
-	// Rollback tx on error.
-	defer tx.Rollback()
-	installedAppVersionHistory := &repository.InstalledAppVersionHistory{
-		InstalledAppVersionId: installAppVersionRequest.Id,
-	}
-	installedAppVersionHistory.ValuesYamlRaw = installAppVersionRequest.ValuesOverrideYaml
-	installedAppVersionHistory.CreatedBy = installAppVersionRequest.UserId
-	installedAppVersionHistory.CreatedOn = time.Now()
-	installedAppVersionHistory.UpdatedBy = installAppVersionRequest.UserId
-	installedAppVersionHistory.UpdatedOn = time.Now()
-	installedAppVersionHistory.GitHash = installAppVersionRequest.GitHash
-	installedAppVersionHistory.Status = "Unknown"
-	installedAppVersionHistory, err = impl.installedAppRepositoryHistory.CreateInstalledAppVersionHistory(installedAppVersionHistory, tx)
-	if err != nil {
-		impl.logger.Errorw("error while creating installed app version history", "error", err)
-		return nil, err
-	}
-	err = tx.Commit()
-	if err != nil {
-		impl.logger.Errorw("error while committing transaction to db", "error", err)
-		return nil, err
-	}
-	return installedAppVersionHistory, nil
-}
-
-func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledAppVersionHistoryWithGitHash(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx) error {
-	savedInstalledAppVersionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(installAppVersionRequest.InstalledAppVersionHistoryId)
-	savedInstalledAppVersionHistory.GitHash = installAppVersionRequest.GitHash
-	savedInstalledAppVersionHistory.UpdatedOn = time.Now()
-	savedInstalledAppVersionHistory.UpdatedBy = installAppVersionRequest.UserId
-	_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(savedInstalledAppVersionHistory, tx)
-	if err != nil {
-		impl.logger.Errorw("error while fetching from db", "error", err)
-		return err
-	}
-	return nil
-}
-
-func (impl *AppStoreDeploymentServiceImpl) createAppForAppStore(createRequest *bean.CreateAppDTO, tx *pg.Tx, appInstallationMode string) (*bean.CreateAppDTO, error) {
-	app1, err := impl.appRepository.FindActiveByName(createRequest.AppName)
-	if err != nil && err != pg.ErrNoRows {
-		return nil, err
-	}
-	if app1 != nil && app1.Id > 0 {
-		impl.logger.Infow(" app already exists", "name", createRequest.AppName)
-		err = &util.ApiError{
-			Code:            constants.AppAlreadyExists.Code,
-			InternalMessage: "app already exists",
-			UserMessage:     fmt.Sprintf("app already exists with name %s", createRequest.AppName),
-		}
-		return nil, err
-	}
-	appModel := &app.App{
-		Active:          true,
-		AppName:         createRequest.AppName,
-		TeamId:          createRequest.TeamId,
-		AppType:         helper.ChartStoreApp,
-		AppOfferingMode: appInstallationMode,
-		AuditLog:        sql.AuditLog{UpdatedBy: createRequest.UserId, CreatedBy: createRequest.UserId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
-	}
-	err = impl.appRepository.SaveWithTxn(appModel, tx)
-	if err != nil {
-		impl.logger.Errorw("error in saving entity ", "entity", appModel)
-		return nil, err
-	}
-
-	// if found more than 1 application, soft delete all except first item
-	apps, err := impl.appRepository.FindActiveListByName(createRequest.AppName)
-	if err != nil {
-		return nil, err
-	}
-	appLen := len(apps)
-	if appLen > 1 {
-		firstElement := apps[0]
-		if firstElement.Id != appModel.Id {
-			appModel.Active = false
-			err = impl.appRepository.UpdateWithTxn(appModel, tx)
-			if err != nil {
-				impl.logger.Errorw("error in saving entity ", "entity", appModel)
-				return nil, err
-			}
-			err = &util.ApiError{
-				Code:            constants.AppAlreadyExists.Code,
-				InternalMessage: "app already exists",
-				UserMessage:     fmt.Sprintf("app already exists with name %s", createRequest.AppName),
-			}
-		}
-	}
-
-	createRequest.Id = appModel.Id
-	return createRequest, nil
-}
-
-func (impl *AppStoreDeploymentServiceImpl) GetInstalledApp(id int) (*appStoreBean.InstallAppVersionDTO, error) {
-	app, err := impl.installedAppRepository.GetInstalledApp(id)
-	if err != nil {
-		impl.logger.Errorw("error while fetching from db", "error", err)
-		return nil, err
-	}
-	chartTemplate := adapter.GenerateInstallAppVersionMinDTO(app)
-	return chartTemplate, nil
-}
-
-func (impl *AppStoreDeploymentServiceImpl) GetAllInstalledAppsByAppStoreId(w http.ResponseWriter, r *http.Request, token string, appStoreId int) ([]appStoreBean.InstalledAppsResponse, error) {
-	installedApps, err := impl.installedAppRepository.GetAllInstalledAppsByAppStoreId(appStoreId)
-	if err != nil && !util.IsErrNoRows(err) {
-		impl.logger.Error(err)
-		return nil, err
-	}
-	var installedAppsEnvResponse []appStoreBean.InstalledAppsResponse
-	for _, a := range installedApps {
-		installedAppRes := appStoreBean.InstalledAppsResponse{
-			EnvironmentName:              a.EnvironmentName,
-			AppName:                      a.AppName,
-			DeployedAt:                   a.UpdatedOn,
-			DeployedBy:                   a.EmailId,
-			Status:                       a.AppStatus,
-			AppStoreApplicationVersionId: a.AppStoreApplicationVersionId,
-			InstalledAppVersionId:        a.InstalledAppVersionId,
-			InstalledAppsId:              a.InstalledAppId,
-			EnvironmentId:                a.EnvironmentId,
-			AppOfferingMode:              a.AppOfferingMode,
-			DeploymentAppType:            a.DeploymentAppType,
-		}
-
-		// if hyperion mode app, then fill clusterId and namespace
-		if util2.IsHelmApp(a.AppOfferingMode) {
-			environment, err := impl.environmentRepository.FindById(a.EnvironmentId)
-			if err != nil {
-				impl.logger.Errorw("fetching environment error", "err", err)
-				return nil, err
-			}
-			installedAppRes.ClusterId = environment.ClusterId
-			installedAppRes.Namespace = environment.Namespace
-		}
-
-		installedAppsEnvResponse = append(installedAppsEnvResponse, installedAppRes)
-	}
-	return installedAppsEnvResponse, nil
 }
 
 func (impl *AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error) {
@@ -409,14 +205,14 @@ func (impl *AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Contex
 	// Rollback tx on error.
 	defer tx.Rollback()
 
-	environment, err := impl.environmentRepository.FindById(installAppVersionRequest.EnvironmentId)
+	environment, err := impl.environmentService.GetExtendedEnvBeanById(installAppVersionRequest.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("fetching error", "err", err)
 		return nil, err
 	}
-	if len(environment.Cluster.ErrorInConnecting) > 0 {
+	if len(environment.ErrorInConnecting) > 0 {
 		installAppVersionRequest.InstalledAppDeleteResponse.ClusterReachable = false
-		installAppVersionRequest.InstalledAppDeleteResponse.ClusterName = environment.Cluster.ClusterName
+		installAppVersionRequest.InstalledAppDeleteResponse.ClusterName = environment.ClusterName
 	}
 
 	app, err := impl.appRepository.FindById(installAppVersionRequest.AppId)
@@ -435,12 +231,12 @@ func (impl *AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Contex
 	if installAppVersionRequest.AcdPartialDelete == true {
 		if !util2.IsBaseStack() && !util2.IsHelmApp(app.AppOfferingMode) && !util.IsHelmApp(model.DeploymentAppType) {
 			if !installAppVersionRequest.InstalledAppDeleteResponse.ClusterReachable {
-				impl.logger.Errorw("cluster connection error", "err", environment.Cluster.ErrorInConnecting)
+				impl.logger.Errorw("cluster connection error", "err", environment.ErrorInConnecting)
 				if !installAppVersionRequest.NonCascadeDelete {
 					return installAppVersionRequest, nil
 				}
 			}
-			err = impl.fullModeDeploymentService.DeleteACDAppObject(ctx, app.AppName, environment.Name, installAppVersionRequest)
+			err = impl.fullModeDeploymentService.DeleteACDAppObject(ctx, app.AppName, environment.Environment, installAppVersionRequest)
 		}
 		if err != nil {
 			impl.logger.Errorw("error on delete installed app", "err", err)
@@ -511,9 +307,9 @@ func (impl *AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Contex
 			// there might be a case if helm release gets uninstalled from helm cli.
 			//in this case on deleting the app from API, it should not give error as it should get deleted from db, otherwise due to delete error, db does not get clean
 			// so in helm, we need to check first if the release exists or not, if exists then only delete
-			err = impl.eaModeDeploymentService.DeleteInstalledApp(ctx, app.AppName, environment.Name, installAppVersionRequest, model, tx)
+			err = impl.eaModeDeploymentService.DeleteInstalledApp(ctx, app.AppName, environment.Environment, installAppVersionRequest, model, tx)
 		} else {
-			err = impl.fullModeDeploymentService.DeleteInstalledApp(ctx, app.AppName, environment.Name, installAppVersionRequest, model, tx)
+			err = impl.fullModeDeploymentService.DeleteInstalledApp(ctx, app.AppName, environment.Environment, installAppVersionRequest, model, tx)
 		}
 		if err != nil {
 			impl.logger.Errorw("error on delete installed app", "err", err)
@@ -535,7 +331,7 @@ func (impl *AppStoreDeploymentServiceImpl) LinkHelmApplicationToChartStore(ctx c
 	impl.logger.Infow("Linking helm application to chart store", "appId", request.GetAppId())
 
 	// check if chart repo is active starts
-	isChartRepoActive, err := impl.IsChartRepoActive(int(request.GetAppStoreApplicationVersionId()))
+	isChartRepoActive, err := impl.appStoreDeploymentDBService.IsChartProviderActive(int(request.GetAppStoreApplicationVersionId()))
 	if err != nil {
 		impl.logger.Errorw("Error in checking if chart repo is active or not", "err", err)
 		return nil, isChartRepoActive, err
@@ -582,38 +378,24 @@ func (impl *AppStoreDeploymentServiceImpl) LinkHelmApplicationToChartStore(ctx c
 	return res, isChartRepoActive, nil
 }
 
-func (impl *AppStoreDeploymentServiceImpl) createEnvironmentIfNotExists(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (int, error) {
-	clusterId := installAppVersionRequest.ClusterId
-	namespace := installAppVersionRequest.Namespace
-	env, err := impl.environmentRepository.FindOneByNamespaceAndClusterId(namespace, clusterId)
+func (impl *AppStoreDeploymentServiceImpl) UpdateProjectHelmApp(updateAppRequest *appStoreBean.UpdateProjectHelmAppDTO) error {
 
-	if err == nil {
-		return env.Id, nil
+	appIdSplitted := strings.Split(updateAppRequest.AppId, "|")
+
+	appName := updateAppRequest.AppName
+
+	if len(appIdSplitted) > 1 {
+		// app id is zero for CLI apps
+		appIdentifier, _ := impl.helmAppService.DecodeAppId(updateAppRequest.AppId)
+		appName = appIdentifier.ReleaseName
 	}
-
-	if err != pg.ErrNoRows {
-		return 0, err
-	}
-
-	// create env
-	cluster, err := impl.clusterService.FindById(clusterId)
+	impl.logger.Infow("update helm project request", updateAppRequest)
+	err := impl.appStoreDeploymentDBService.UpdateProjectForHelmApp(appName, updateAppRequest.TeamId, updateAppRequest.UserId)
 	if err != nil {
-		return 0, err
+		impl.logger.Errorw("error in linking project to helm app", "appName", appName, "err", err)
+		return err
 	}
-
-	environmentBean := &cluster2.EnvironmentBean{
-		Environment: cluster2.BuildEnvironmentName(cluster.ClusterName, namespace),
-		ClusterId:   clusterId,
-		Namespace:   namespace,
-		Default:     false,
-		Active:      true,
-	}
-	envCreateRes, err := impl.environmentService.Create(environmentBean, installAppVersionRequest.UserId)
-	if err != nil {
-		return 0, err
-	}
-
-	return envCreateRes.Id, nil
+	return nil
 }
 
 func (impl *AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Context, request *openapi2.RollbackReleaseRequest,
@@ -679,142 +461,6 @@ func (impl *AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Conte
 	return success, nil
 }
 
-func (impl *AppStoreDeploymentServiceImpl) linkHelmApplicationToChartStore(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) (*openapi.UpdateReleaseResponse, error) {
-	dbConnection := impl.installedAppRepository.GetConnection()
-	tx, err := dbConnection.Begin()
-	if err != nil {
-		return nil, err
-	}
-	// Rollback tx on error.
-	defer tx.Rollback()
-
-	// skipAppCreation flag is set for CLI apps because for CLI Helm apps if project is created first before linking to chart store then app is created during project update time.
-	// skipAppCreation - This flag will skip app creation if app already exists.
-
-	//step 1 db operation initiated
-	appModel, err := impl.appRepository.FindActiveByName(installAppVersionRequest.AppName)
-	if err != nil && !util.IsErrNoRows(err) {
-		impl.logger.Errorw("error in getting app", "appName", installAppVersionRequest.AppName)
-		return nil, err
-	}
-	if appModel != nil && appModel.Id > 0 {
-		impl.logger.Infow(" app already exists", "name", installAppVersionRequest.AppName)
-		installAppVersionRequest.AppId = appModel.Id
-	}
-	installAppVersionRequest, err = impl.AppStoreDeployOperationDB(installAppVersionRequest, tx)
-	if err != nil {
-		impl.logger.Errorw(" error", "err", err)
-		return nil, err
-	}
-
-	// fetch app store application version from DB
-	appStoreApplicationVersionId := installAppVersionRequest.AppStoreVersion
-	appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(appStoreApplicationVersionId)
-	if err != nil {
-		impl.logger.Errorw("Error in fetching app store application version", "err", err, "appStoreApplicationVersionId", appStoreApplicationVersionId)
-		return nil, err
-	}
-
-	// STEP-2 update APP with chart info
-	chartRepoInfo := appStoreAppVersion.AppStore.ChartRepo
-	updateReleaseRequest := &bean3.UpdateApplicationWithChartInfoRequestDto{
-		InstallReleaseRequest: &bean4.InstallReleaseRequest{
-			ValuesYaml:   installAppVersionRequest.ValuesOverrideYaml,
-			ChartName:    appStoreAppVersion.Name,
-			ChartVersion: appStoreAppVersion.Version,
-			ReleaseIdentifier: &bean4.ReleaseIdentifier{
-				ReleaseNamespace: installAppVersionRequest.Namespace,
-				ReleaseName:      installAppVersionRequest.AppName,
-			},
-		},
-		SourceAppType: bean3.SOURCE_HELM_APP,
-	}
-	if chartRepoInfo != nil {
-		updateReleaseRequest.ChartRepository = &bean4.ChartRepository{
-			Name:     chartRepoInfo.Name,
-			Url:      chartRepoInfo.Url,
-			Username: chartRepoInfo.UserName,
-			Password: chartRepoInfo.Password,
-		}
-	}
-	res, err := impl.helmAppService.UpdateApplicationWithChartInfo(ctx, installAppVersionRequest.ClusterId, updateReleaseRequest)
-	if err != nil {
-		return nil, err
-	}
-	// STEP-2 ends
-
-	// tx commit here because next operation will be process after this commit.
-	err = tx.Commit()
-	if err != nil {
-		return nil, err
-	}
-	// STEP-3 install app DB post operations
-	installAppVersionRequest.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
-	err = impl.installAppPostDbOperation(installAppVersionRequest)
-	if err != nil {
-		return nil, err
-	}
-	// STEP-3 ends
-
-	return res, nil
-}
-
-func (impl *AppStoreDeploymentServiceImpl) installAppPostDbOperation(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error {
-	//step 4 db operation status update to deploy success
-	_, err := impl.AppStoreDeployOperationStatusUpdate(installAppVersionRequest.InstalledAppId, appStoreBean.DEPLOY_SUCCESS)
-	if err != nil {
-		impl.logger.Errorw(" error", "err", err)
-		return err
-	}
-
-	//step 5 create build history first entry for install app version for argocd or helm type deployments
-	if !impl.deploymentTypeConfig.HelmInstallASyncMode {
-		err = impl.updateInstalledAppVersionHistoryWithSync(installAppVersionRequest)
-		if err != nil {
-			impl.logger.Errorw("error in updating installedApp History with sync ", "err", err)
-			return err
-		}
-	}
-	return nil
-}
-
-func (impl *AppStoreDeploymentServiceImpl) updateInstalledAppVersionHistoryWithSync(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error {
-	if installAppVersionRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD {
-		err := impl.UpdateInstalledAppVersionHistoryStatus(installAppVersionRequest, pipelineConfig.WorkflowSucceeded)
-		if err != nil {
-			impl.logger.Errorw("error on creating history for chart deployment", "error", err)
-			return err
-		}
-	}
-
-	if installAppVersionRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
-		installedAppVersionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(installAppVersionRequest.InstalledAppVersionHistoryId)
-		if err != nil {
-			impl.logger.Errorw("error in fetching installed app by installed app id in subscribe helm status callback", "err", err)
-			return err
-		}
-		installedAppVersionHistory.Status = pipelineConfig.WorkflowSucceeded
-		helmInstallStatus := &appStoreBean.HelmReleaseStatusConfig{
-			InstallAppVersionHistoryId: installedAppVersionHistory.Id,
-			Message:                    "Release Installed",
-			IsReleaseInstalled:         true,
-			ErrorInInstallation:        false,
-		}
-		data, err := json.Marshal(helmInstallStatus)
-		if err != nil {
-			impl.logger.Errorw("error in marshalling helmInstallStatus message")
-			return err
-		}
-		installedAppVersionHistory.HelmReleaseStatusConfig = string(data)
-		_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(installedAppVersionHistory, nil)
-		if err != nil {
-			impl.logger.Errorw("error in updating helm release status data in installedAppVersionHistoryRepository", "err", err)
-			return err
-		}
-	}
-	return nil
-}
-
 func (impl *AppStoreDeploymentServiceImpl) GetDeploymentHistory(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO) (*bean3.DeploymentHistoryAndInstalledAppInfo, error) {
 	result := &bean3.DeploymentHistoryAndInstalledAppInfo{}
 	var err error
@@ -875,178 +521,7 @@ func (impl *AppStoreDeploymentServiceImpl) GetDeploymentHistoryInfo(ctx context.
 	return result, err
 }
 
-func (impl *AppStoreDeploymentServiceImpl) updateInstalledAppVersion(installedAppVersion *repository.InstalledAppVersions, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx, installedApp *repository.InstalledApps) (*repository.InstalledAppVersions, *appStoreBean.InstallAppVersionDTO, error) {
-	var err error
-	if installAppVersionRequest.Id == 0 {
-		installedAppVersions, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppId(installAppVersionRequest.InstalledAppId)
-		if err != nil {
-			impl.logger.Errorw("error while fetching installed version", "error", err)
-			return installedAppVersion, installAppVersionRequest, err
-		}
-		for _, installedAppVersionModel := range installedAppVersions {
-			installedAppVersionModel.Active = false
-			installedAppVersionModel.UpdatedOn = time.Now()
-			installedAppVersionModel.UpdatedBy = installAppVersionRequest.UserId
-			_, err = impl.installedAppRepository.UpdateInstalledAppVersion(installedAppVersionModel, tx)
-			if err != nil {
-				impl.logger.Errorw("error while update installed chart", "error", err)
-				return installedAppVersion, installAppVersionRequest, err
-			}
-		}
-
-		appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)
-		if err != nil {
-			impl.logger.Errorw("fetching error", "err", err)
-			return installedAppVersion, installAppVersionRequest, err
-		}
-		installedAppVersion = &repository.InstalledAppVersions{
-			InstalledAppId:               installAppVersionRequest.InstalledAppId,
-			AppStoreApplicationVersionId: installAppVersionRequest.AppStoreVersion,
-			ValuesYaml:                   installAppVersionRequest.ValuesOverrideYaml,
-		}
-		installedAppVersion.CreatedBy = installAppVersionRequest.UserId
-		installedAppVersion.UpdatedBy = installAppVersionRequest.UserId
-		installedAppVersion.CreatedOn = time.Now()
-		installedAppVersion.UpdatedOn = time.Now()
-		installedAppVersion.Active = true
-		installedAppVersion.ReferenceValueId = installAppVersionRequest.ReferenceValueId
-		installedAppVersion.ReferenceValueKind = installAppVersionRequest.ReferenceValueKind
-		_, err = impl.installedAppRepository.CreateInstalledAppVersion(installedAppVersion, tx)
-		if err != nil {
-			impl.logger.Errorw("error while fetching from db", "error", err)
-			return installedAppVersion, installAppVersionRequest, err
-		}
-		installedAppVersion.AppStoreApplicationVersion = *appStoreAppVersion
-		installedAppVersion.InstalledApp = *installedApp
-		installAppVersionRequest.InstalledAppVersionId = installedAppVersion.Id
-	} else {
-		installedAppVersionModel, err := impl.installedAppRepository.GetInstalledAppVersion(installAppVersionRequest.Id)
-		if err != nil {
-			impl.logger.Errorw("error while fetching chart installed version", "error", err)
-			return installedAppVersion, installAppVersionRequest, err
-		}
-		if installedAppVersionModel.AppStoreApplicationVersionId != installAppVersionRequest.AppStoreVersion {
-			// upgrade to new version of same chart
-			installedAppVersionModel.Active = false
-			installedAppVersionModel.UpdatedOn = time.Now()
-			installedAppVersionModel.UpdatedBy = installAppVersionRequest.UserId
-			_, err = impl.installedAppRepository.UpdateInstalledAppVersion(installedAppVersionModel, tx)
-			if err != nil {
-				impl.logger.Errorw("error while fetching from db", "error", err)
-				return installedAppVersion, installAppVersionRequest, err
-			}
-			appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)
-			if err != nil {
-				impl.logger.Errorw("fetching error", "err", err)
-				return installedAppVersion, installAppVersionRequest, err
-			}
-			installedAppVersion = &repository.InstalledAppVersions{
-				InstalledAppId:               installAppVersionRequest.InstalledAppId,
-				AppStoreApplicationVersionId: installAppVersionRequest.AppStoreVersion,
-				ValuesYaml:                   installAppVersionRequest.ValuesOverrideYaml,
-			}
-			installedAppVersion.CreatedBy = installAppVersionRequest.UserId
-			installedAppVersion.UpdatedBy = installAppVersionRequest.UserId
-			installedAppVersion.CreatedOn = time.Now()
-			installedAppVersion.UpdatedOn = time.Now()
-			installedAppVersion.Active = true
-			installedAppVersion.ReferenceValueId = installAppVersionRequest.ReferenceValueId
-			installedAppVersion.ReferenceValueKind = installAppVersionRequest.ReferenceValueKind
-			_, err = impl.installedAppRepository.CreateInstalledAppVersion(installedAppVersion, tx)
-			if err != nil {
-				impl.logger.Errorw("error while fetching from db", "error", err)
-				return installedAppVersion, installAppVersionRequest, err
-			}
-			installedAppVersion.AppStoreApplicationVersion = *appStoreAppVersion
-		} else {
-			installedAppVersion = installedAppVersionModel
-		}
-
-	}
-	return installedAppVersion, installAppVersionRequest, err
-}
-
-func (impl *AppStoreDeploymentServiceImpl) MarkInstalledAppVersionsInactiveByInstalledAppId(installedAppId int, UserId int32, tx *pg.Tx) error {
-	installedAppVersions, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppId(installedAppId)
-	if err != nil {
-		impl.logger.Errorw("error while fetching installed version", "error", err)
-		return err
-	}
-	for _, installedAppVersionModel := range installedAppVersions {
-		installedAppVersionModel.Active = false
-		installedAppVersionModel.UpdatedOn = time.Now()
-		installedAppVersionModel.UpdatedBy = UserId
-		_, err = impl.installedAppRepository.UpdateInstalledAppVersion(installedAppVersionModel, tx)
-		if err != nil {
-			impl.logger.Errorw("error while update installed chart", "error", err)
-			return err
-		}
-	}
-	return nil
-}
-
-func (impl *AppStoreDeploymentServiceImpl) MarkInstalledAppVersionModelInActive(installedAppVersionModel *repository.InstalledAppVersions, UserId int32, tx *pg.Tx) error {
-	installedAppVersionModel.Active = false
-	installedAppVersionModel.UpdatedOn = time.Now()
-	installedAppVersionModel.UpdatedBy = UserId
-	_, err := impl.installedAppRepository.UpdateInstalledAppVersion(installedAppVersionModel, tx)
-	if err != nil {
-		impl.logger.Errorw("error while fetching from db", "error", err)
-		return err
-	}
-	return nil
-}
-
-func (impl *AppStoreDeploymentServiceImpl) CreateInstalledAppVersion(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx) (*repository.InstalledAppVersions, error) {
-	// TODO fix me next
-	// TODO refactoring: move this to adapter
-	installedAppVersion := &repository.InstalledAppVersions{
-		InstalledAppId:               installAppVersionRequest.InstalledAppId,
-		AppStoreApplicationVersionId: installAppVersionRequest.AppStoreVersion,
-		ValuesYaml:                   installAppVersionRequest.ValuesOverrideYaml,
-	}
-	installedAppVersion.CreatedBy = installAppVersionRequest.UserId
-	installedAppVersion.UpdatedBy = installAppVersionRequest.UserId
-	installedAppVersion.CreatedOn = time.Now()
-	installedAppVersion.UpdatedOn = time.Now()
-	installedAppVersion.Active = true
-	installedAppVersion.ReferenceValueId = installAppVersionRequest.ReferenceValueId
-	installedAppVersion.ReferenceValueKind = installAppVersionRequest.ReferenceValueKind
-	_, err := impl.installedAppRepository.CreateInstalledAppVersion(installedAppVersion, tx)
-	if err != nil {
-		impl.logger.Errorw("error while fetching from db", "error", err)
-		return nil, err
-	}
-	return installedAppVersion, nil
-}
-
-// CheckIfMonoRepoMigrationRequired checks if gitOps repo name is changed
-func (impl *AppStoreDeploymentServiceImpl) CheckIfMonoRepoMigrationRequired(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApp *repository.InstalledApps) bool {
-
-	monoRepoMigrationRequired := false
-	var err error
-	gitOpsRepoName := installedApp.GitOpsRepoName
-	if len(gitOpsRepoName) == 0 {
-		if util.IsAcdApp(installAppVersionRequest.DeploymentAppType) {
-			gitOpsRepoName, err = impl.fullModeDeploymentService.GetAcdAppGitOpsRepoName(installAppVersionRequest.AppName, installAppVersionRequest.EnvironmentName)
-			if err != nil {
-				return false
-			}
-		} else {
-			gitOpsRepoName = impl.gitOpsConfigReadService.GetGitOpsRepoName(installAppVersionRequest.AppName)
-		}
-	}
-	//here will set new git repo name if required to migrate
-	newGitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoName(installedApp.App.AppName)
-	//checking weather git repo migration needed or not, if existing git repo and new independent git repo is not same than go ahead with migration
-	if newGitOpsRepoName != gitOpsRepoName {
-		monoRepoMigrationRequired = true
-	}
-	return monoRepoMigrationRequired
-}
-
 func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error) {
-
 	// db operations
 	dbConnection := impl.installedAppRepository.GetConnection()
 	tx, err := dbConnection.Begin()
@@ -1056,7 +531,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 	// Rollback tx on error.
 	defer tx.Rollback()
 
-	installedApp, err := impl.installedAppRepository.GetInstalledApp(installAppVersionRequest.InstalledAppId)
+	installedApp, err := impl.installedAppService.GetInstalledAppById(installAppVersionRequest.InstalledAppId)
 	if err != nil {
 		return nil, err
 	}
@@ -1067,14 +542,13 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 	var installedAppVersion *repository.InstalledAppVersions
 
 	// mark previous versions of chart as inactive if chart or version is updated
-
 	isChartChanged := false   // flag for keeping track if chart is updated by user or not
 	isVersionChanged := false // flag for keeping track if version of chart is upgraded
 
 	//if chart is changed, then installedAppVersion id is sent as 0 from front-end
 	if installAppVersionRequest.Id == 0 {
 		isChartChanged = true
-		err = impl.MarkInstalledAppVersionsInactiveByInstalledAppId(installAppVersionRequest.InstalledAppId, installAppVersionRequest.UserId, tx)
+		err = impl.appStoreDeploymentDBService.MarkInstalledAppVersionsInactiveByInstalledAppId(installAppVersionRequest.InstalledAppId, installAppVersionRequest.UserId, tx)
 		if err != nil {
 			return nil, err
 		}
@@ -1087,7 +561,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 		// version is upgraded if appStoreApplication version from request payload is not equal to installed app version saved in DB
 		if installedAppVersion.AppStoreApplicationVersionId != installAppVersionRequest.AppStoreVersion {
 			isVersionChanged = true
-			err = impl.MarkInstalledAppVersionModelInActive(installedAppVersion, installAppVersionRequest.UserId, tx)
+			err = impl.appStoreDeploymentDBService.MarkInstalledAppVersionModelInActive(installedAppVersion, installAppVersionRequest.UserId, tx)
 		}
 	}
 
@@ -1098,51 +572,43 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 	}
 	// create new entry for installed app version if chart or version is changed
 	if isChartChanged || isVersionChanged {
-		installedAppVersion, err = impl.CreateInstalledAppVersion(installAppVersionRequest, tx)
+		installedAppVersion, err = impl.installedAppService.CreateInstalledAppVersion(installAppVersionRequest, tx)
 		if err != nil {
+			impl.logger.Errorw("error in creating installed app version", "err", err)
 			return nil, err
 		}
-		installedAppVersion.Id = installedAppVersion.Id
-	} else {
-		// TODO fix me next
-		// TODO refactoring: move this to adapter
-		installedAppVersion.ValuesYaml = installAppVersionRequest.ValuesOverrideYaml
-		installedAppVersion.UpdatedOn = time.Now()
-		installedAppVersion.UpdatedBy = installAppVersionRequest.UserId
-		installedAppVersion.ReferenceValueId = installAppVersionRequest.ReferenceValueId
-		installedAppVersion.ReferenceValueKind = installAppVersionRequest.ReferenceValueKind
-		_, err = impl.installedAppRepository.UpdateInstalledAppVersion(installedAppVersion, tx)
+	} else if installedAppVersion != nil && installedAppVersion.Id != 0 {
+		adapter.UpdateInstalledAppVersionModel(installedAppVersion, installAppVersionRequest)
+		installedAppVersion, err = impl.installedAppService.UpdateInstalledAppVersion(installedAppVersion, installAppVersionRequest, tx)
 		if err != nil {
-			impl.logger.Errorw("error while fetching from db", "error", err)
+			impl.logger.Errorw("error in creating installed app version", "err", err)
 			return nil, err
 		}
 	}
-
+	// populate the related model data into repository.InstalledAppVersions
+	// related tables: repository.InstalledApps AND appStoreDiscoverRepository.AppStoreApplicationVersion
 	installedAppVersion.AppStoreApplicationVersion = *appStoreAppVersion
 	installedAppVersion.InstalledApp = *installedApp
 
-	installAppVersionRequest.InstalledAppVersionId = installedAppVersion.Id
+	// populate appStoreBean.InstallAppVersionDTO from the DB models
 	installAppVersionRequest.Id = installedAppVersion.Id
-	installAppVersionRequest.EnvironmentId = installedApp.EnvironmentId
-	installAppVersionRequest.AppName = installedApp.App.AppName
-	installAppVersionRequest.EnvironmentName = installedApp.Environment.Name
-	installAppVersionRequest.Environment = &installedApp.Environment
-
-	installAppVersionHistoryStatus := pipelineConfig.WorkflowInProgress
-	// TODO fix me next
-	// TODO refactoring: move this to adapter
-	installedAppVersionHistory := &repository.InstalledAppVersionHistory{
-		InstalledAppVersionId: installedAppVersion.Id,
-		ValuesYamlRaw:         installAppVersionRequest.ValuesOverrideYaml,
-		StartedOn:             time.Now(),
-		Status:                installAppVersionHistoryStatus,
-		AuditLog: sql.AuditLog{
-			CreatedOn: time.Now(),
-			CreatedBy: installAppVersionRequest.UserId,
-			UpdatedOn: time.Now(),
-			UpdatedBy: installAppVersionRequest.UserId,
-		},
+	installAppVersionRequest.InstalledAppVersionId = installedAppVersion.Id
+	adapter.UpdateInstallAppDetails(installAppVersionRequest, installedApp)
+	adapter.UpdateAppDetails(installAppVersionRequest, &installedApp.App)
+	environment, err := impl.environmentService.GetExtendedEnvBeanById(installedApp.EnvironmentId)
+	if err != nil {
+		impl.logger.Errorw("fetching environment error", "envId", installedApp.EnvironmentId, "err", err)
+		return nil, err
 	}
+	adapter.UpdateAdditionalEnvDetails(installAppVersionRequest, environment)
+
+	helmInstallConfigDTO := appStoreBean.HelmReleaseStatusConfig{
+		InstallAppVersionHistoryId: 0,
+		Message:                    "Install initiated",
+		IsReleaseInstalled:         false,
+		ErrorInInstallation:        false,
+	}
+	installedAppVersionHistory, err := adapter.NewInstallAppVersionHistoryModel(installAppVersionRequest, pipelineConfig.WorkflowInProgress, helmInstallConfigDTO)
 	_, err = impl.installedAppRepositoryHistory.CreateInstalledAppVersionHistory(installedAppVersionHistory, tx)
 	if err != nil {
 		impl.logger.Errorw("error while creating installed app version history for updating installed app", "error", err)
@@ -1162,7 +628,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 		manifest, err := impl.fullModeDeploymentService.GenerateManifest(installAppVersionRequest)
 		if err != nil {
 			impl.logger.Errorw("error in generating manifest for helm apps", "err", err)
-			_ = impl.UpdateInstalledAppVersionHistoryStatus(installAppVersionRequest, pipelineConfig.WorkflowFailed)
+			_ = impl.appStoreDeploymentDBService.UpdateInstalledAppVersionHistoryStatus(installAppVersionRequest.InstalledAppVersionHistoryId, pipelineConfig.WorkflowFailed)
 			return nil, err
 		}
 		// required if gitOps repo name is changed, gitOps repo name will change if env variable which we use as suffix changes
@@ -1243,13 +709,13 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 	}
 
 	if util.IsManifestDownload(installAppVersionRequest.DeploymentAppType) {
-		err = impl.UpdateInstalledAppVersionHistoryStatus(installAppVersionRequest, pipelineConfig.WorkflowSucceeded)
+		err = impl.appStoreDeploymentDBService.UpdateInstalledAppVersionHistoryStatus(installAppVersionRequest.InstalledAppVersionHistoryId, pipelineConfig.WorkflowSucceeded)
 		if err != nil {
 			impl.logger.Errorw("error on creating history for chart deployment", "error", err)
 			return nil, err
 		}
 	} else if util.IsHelmApp(installAppVersionRequest.DeploymentAppType) && !impl.deploymentTypeConfig.HelmInstallASyncMode {
-		err = impl.updateInstalledAppVersionHistoryWithSync(installAppVersionRequest)
+		err = impl.appStoreDeploymentDBService.MarkInstalledAppVersionHistorySucceeded(installAppVersionRequest.InstalledAppVersionHistoryId, installAppVersionRequest.DeploymentAppType)
 		if err != nil {
 			impl.logger.Errorw("error in updating install app version history on sync", "err", err)
 			return nil, err
@@ -1259,43 +725,6 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 	return installAppVersionRequest, nil
 }
 
-func (impl *AppStoreDeploymentServiceImpl) GetInstalledAppVersion(id int, userId int32) (*appStoreBean.InstallAppVersionDTO, error) {
-	app, err := impl.installedAppRepository.GetInstalledAppVersion(id)
-	if err != nil {
-		if err == pg.ErrNoRows {
-			return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: "400", UserMessage: "values are outdated. please fetch the latest version and try again", InternalMessage: err.Error()}
-		}
-		impl.logger.Errorw("error while fetching from db", "error", err)
-		return nil, err
-	}
-	installAppVersion := &appStoreBean.InstallAppVersionDTO{
-		InstalledAppId:     app.InstalledAppId,
-		AppName:            app.InstalledApp.App.AppName,
-		AppId:              app.InstalledApp.App.Id,
-		Id:                 app.Id,
-		TeamId:             app.InstalledApp.App.TeamId,
-		EnvironmentId:      app.InstalledApp.EnvironmentId,
-		ValuesOverrideYaml: app.ValuesYaml,
-		Readme:             app.AppStoreApplicationVersion.Readme,
-		ReferenceValueKind: app.ReferenceValueKind,
-		ReferenceValueId:   app.ReferenceValueId,
-		AppStoreVersion:    app.AppStoreApplicationVersionId, //check viki
-		Status:             app.InstalledApp.Status,
-		AppStoreId:         app.AppStoreApplicationVersion.AppStoreId,
-		AppStoreName:       app.AppStoreApplicationVersion.AppStore.Name,
-		Deprecated:         app.AppStoreApplicationVersion.Deprecated,
-		GitOpsRepoName:     app.InstalledApp.GitOpsRepoName,
-		UserId:             userId,
-		AppOfferingMode:    app.InstalledApp.App.AppOfferingMode,
-		ClusterId:          app.InstalledApp.Environment.ClusterId,
-		Namespace:          app.InstalledApp.Environment.Namespace,
-		DeploymentAppType:  app.InstalledApp.DeploymentAppType,
-		Environment:        &app.InstalledApp.Environment,
-		ACDAppName:         fmt.Sprintf("%s-%s", app.InstalledApp.App.AppName, app.InstalledApp.Environment.Name),
-	}
-	return installAppVersion, err
-}
-
 func (impl *AppStoreDeploymentServiceImpl) InstallAppByHelm(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error) {
 	installAppVersionRequest, err := impl.eaModeDeploymentService.InstallApp(installAppVersionRequest, nil, ctx, nil)
 	if err != nil {
@@ -1303,77 +732,13 @@ func (impl *AppStoreDeploymentServiceImpl) InstallAppByHelm(installAppVersionReq
 		return installAppVersionRequest, err
 	}
 	if !impl.deploymentTypeConfig.HelmInstallASyncMode {
-		err = impl.updateInstalledAppVersionHistoryWithSync(installAppVersionRequest)
+		err = impl.appStoreDeploymentDBService.MarkInstalledAppVersionHistorySucceeded(installAppVersionRequest.InstalledAppVersionHistoryId, installAppVersionRequest.DeploymentAppType)
 		if err != nil {
 			impl.logger.Errorw("error in updating installed app version history with sync", "err", err)
 			return installAppVersionRequest, err
 		}
 	}
 	return installAppVersionRequest, nil
-}
-
-func (impl *AppStoreDeploymentServiceImpl) UpdateProjectHelmApp(updateAppRequest *appStoreBean.UpdateProjectHelmAppDTO) error {
-
-	appIdSplitted := strings.Split(updateAppRequest.AppId, "|")
-
-	appName := updateAppRequest.AppName
-
-	if len(appIdSplitted) > 1 {
-		// app id is zero for CLI apps
-		appIdentifier, _ := impl.helmAppService.DecodeAppId(updateAppRequest.AppId)
-		appName = appIdentifier.ReleaseName
-	}
-
-	app, err := impl.appRepository.FindActiveByName(appName)
-
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in fetching app", "err", err)
-		return err
-	}
-
-	var appInstallationMode string
-
-	dbConnection := impl.appRepository.GetConnection()
-	tx, err := dbConnection.Begin()
-	if err != nil {
-		return err
-	}
-
-	defer tx.Rollback()
-
-	impl.logger.Infow("update helm project request", updateAppRequest)
-	if app.Id == 0 {
-		// for cli Helm app, if app is not yet created
-		if util2.IsBaseStack() {
-			appInstallationMode = util2.SERVER_MODE_HYPERION
-		} else {
-			appInstallationMode = util2.SERVER_MODE_FULL
-		}
-		createAppRequest := bean.CreateAppDTO{
-			AppName: appName,
-			UserId:  updateAppRequest.UserId,
-			TeamId:  updateAppRequest.TeamId,
-		}
-		_, err := impl.createAppForAppStore(&createAppRequest, tx, appInstallationMode)
-		if err != nil {
-			impl.logger.Errorw("error while creating app", "error", err)
-			return err
-		}
-	} else {
-		// update team id if app exist
-		app.TeamId = updateAppRequest.TeamId
-		app.UpdatedOn = time.Now()
-		app.UpdatedBy = updateAppRequest.UserId
-		err = impl.appRepository.UpdateWithTxn(app, tx)
-
-		if err != nil {
-			impl.logger.Errorw("error in updating project", "err", err)
-			return err
-		}
-	}
-	tx.Commit()
-	return nil
-
 }
 
 func (impl *AppStoreDeploymentServiceImpl) UpdatePreviousDeploymentStatusForAppStore(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, triggeredAt time.Time, err error) error {
@@ -1385,29 +750,6 @@ func (impl *AppStoreDeploymentServiceImpl) UpdatePreviousDeploymentStatusForAppS
 	if err1 != nil {
 		impl.logger.Errorw("error in updating previous deployment status for appStore", "err", err1, "installAppVersionRequest", installAppVersionRequest)
 		return err1
-	}
-	return nil
-}
-
-func (impl *AppStoreDeploymentServiceImpl) UpdateInstallAppVersionHistoryStatus(installedAppVersionHistoryId int, status string) error {
-	dbConnection := impl.installedAppRepository.GetConnection()
-	tx, err := dbConnection.Begin()
-	if err != nil {
-		return err
-	}
-	// Rollback tx on error.
-	defer tx.Rollback()
-	savedInstalledAppVersionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(installedAppVersionHistoryId)
-	savedInstalledAppVersionHistory.Status = status
-	_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(savedInstalledAppVersionHistory, tx)
-	if err != nil {
-		impl.logger.Errorw("error while fetching from db", "error", err)
-		return err
-	}
-	err = tx.Commit()
-	if err != nil {
-		impl.logger.Errorw("error while committing transaction to db", "error", err)
-		return err
 	}
 	return nil
 }
@@ -1463,4 +805,84 @@ func (impl *AppStoreDeploymentServiceImpl) MarkGitOpsInstalledAppsDeletedIfArgoA
 	}
 	apiError.HttpStatusCode = http.StatusNotFound
 	return apiError
+}
+
+func (impl *AppStoreDeploymentServiceImpl) linkHelmApplicationToChartStore(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) (*openapi.UpdateReleaseResponse, error) {
+	dbConnection := impl.installedAppRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return nil, err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+
+	// skipAppCreation flag is set for CLI apps because for CLI Helm apps if project is created first before linking to chart store then app is created during project update time.
+	// skipAppCreation - This flag will skip app creation if app already exists.
+
+	//step 1 db operation initiated
+	appModel, err := impl.appRepository.FindActiveByName(installAppVersionRequest.AppName)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.logger.Errorw("error in getting app", "appName", installAppVersionRequest.AppName)
+		return nil, err
+	}
+	if appModel != nil && appModel.Id > 0 {
+		impl.logger.Infow(" app already exists", "name", installAppVersionRequest.AppName)
+		installAppVersionRequest.AppId = appModel.Id
+	}
+	installAppVersionRequest, err = impl.appStoreDeploymentDBService.AppStoreDeployOperationDB(installAppVersionRequest, tx)
+	if err != nil {
+		impl.logger.Errorw(" error", "err", err)
+		return nil, err
+	}
+
+	// fetch app store application version from DB
+	appStoreApplicationVersionId := installAppVersionRequest.AppStoreVersion
+	appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(appStoreApplicationVersionId)
+	if err != nil {
+		impl.logger.Errorw("Error in fetching app store application version", "err", err, "appStoreApplicationVersionId", appStoreApplicationVersionId)
+		return nil, err
+	}
+
+	// STEP-2 update APP with chart info
+	chartRepoInfo := appStoreAppVersion.AppStore.ChartRepo
+	updateReleaseRequest := &bean3.UpdateApplicationWithChartInfoRequestDto{
+		InstallReleaseRequest: &bean4.InstallReleaseRequest{
+			ValuesYaml:   installAppVersionRequest.ValuesOverrideYaml,
+			ChartName:    appStoreAppVersion.Name,
+			ChartVersion: appStoreAppVersion.Version,
+			ReleaseIdentifier: &bean4.ReleaseIdentifier{
+				ReleaseNamespace: installAppVersionRequest.Namespace,
+				ReleaseName:      installAppVersionRequest.AppName,
+			},
+		},
+		SourceAppType: bean3.SOURCE_HELM_APP,
+	}
+	if chartRepoInfo != nil {
+		updateReleaseRequest.ChartRepository = &bean4.ChartRepository{
+			Name:     chartRepoInfo.Name,
+			Url:      chartRepoInfo.Url,
+			Username: chartRepoInfo.UserName,
+			Password: chartRepoInfo.Password,
+		}
+	}
+	res, err := impl.helmAppService.UpdateApplicationWithChartInfo(ctx, installAppVersionRequest.ClusterId, updateReleaseRequest)
+	if err != nil {
+		return nil, err
+	}
+	// STEP-2 ends
+
+	// tx commit here because next operation will be process after this commit.
+	err = tx.Commit()
+	if err != nil {
+		return nil, err
+	}
+	// STEP-3 install app DB post operations
+	installAppVersionRequest.UpdateDeploymentAppType(util.PIPELINE_DEPLOYMENT_TYPE_HELM)
+	err = impl.appStoreDeploymentDBService.InstallAppPostDbOperation(installAppVersionRequest)
+	if err != nil {
+		return nil, err
+	}
+	// STEP-3 ends
+
+	return res, nil
 }

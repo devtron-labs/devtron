@@ -11,7 +11,7 @@ import (
 func ParseChartGitPushRequest(installAppRequestDTO *appStoreBean.InstallAppVersionDTO, repoURl string, tempRefChart string) *bean.PushChartToGitRequestDTO {
 	return &bean.PushChartToGitRequestDTO{
 		AppName:           installAppRequestDTO.AppName,
-		EnvName:           installAppRequestDTO.Environment.Name,
+		EnvName:           installAppRequestDTO.Environment.Environment,
 		ChartAppStoreName: installAppRequestDTO.AppStoreName,
 		RepoURL:           repoURl,
 		TempChartRefDir:   tempRefChart,
