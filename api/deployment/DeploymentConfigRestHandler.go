@@ -62,17 +62,17 @@ func (handler *DeploymentConfigRestHandlerImpl) CreateChartFromFile(w http.Respo
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
-		return
-	}
-
-	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
-	}
-
-	file, fileHeader, err := r.FormFile("BinaryFile")
-	if err != nil {
+		//	return
+		//}
+		//
+		//token := r.Header.Get("token")
+		//if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
+		//	common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		//	return
+		//}
+		//
+		//file, fileHeader, err := r.FormFile("BinaryFile")
+		//if err != nil {
 		handler.Logger.Errorw("request err, File parsing error", "err", err, "payload", file)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
