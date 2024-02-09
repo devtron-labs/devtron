@@ -59,84 +59,84 @@ func NewDeploymentConfigRestHandlerImpl(Logger *zap.SugaredLogger, userAuthServi
 }
 
 func (handler *DeploymentConfigRestHandlerImpl) CreateChartFromFile(w http.ResponseWriter, r *http.Request) {
-	userId, err := handler.userAuthService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
-		return
-	}
+	//userId, err := handler.userAuthService.GetLoggedInUser(r)
+	//if userId == 0 || err != nil {
+	//	common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
+	//	return
+	//}
+	//
+	//token := r.Header.Get("token")
+	//if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
+	//	common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+	//	return
+	//}
+	//
+	//file, fileHeader, err := r.FormFile("BinaryFile")
+	//if err != nil {
+	//	handler.Logger.Errorw("request err, File parsing error", "err", err, "payload", file)
+	//	common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+	//	return
+	//}
+	//
+	//if err := r.ParseForm(); err != nil {
+	//	handler.Logger.Errorw("request err, Corrupted form data", "err", err, "payload", file)
+	//	common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+	//	return
+	//}
+	//
+	//err = handler.chartRefService.ValidateCustomChartUploadedFileFormat(fileHeader.Filename)
+	//if err != nil {
+	//	handler.Logger.Errorw("request err, Unsupported format", "err", err, "payload", file)
+	//	common.WriteJsonResp(w, errors.New("Unsupported format file is uploaded, please upload file with .tgz extension"), nil, http.StatusBadRequest)
+	//	return
+	//}
+	//
+	//fileBytes, err := ioutil.ReadAll(file)
+	//if err != nil {
+	//	handler.Logger.Errorw("request err, File parsing error", "err", err, "payload", file)
+	//	common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+	//	return
+	//}
+	//
+	//chartInfo, err := handler.chartRefService.ExtractChartIfMissing(fileBytes, bean.RefChartDirPath, "")
+	//
+	//if err != nil {
+	//	if chartInfo != nil && chartInfo.TemporaryFolder != "" {
+	//		err1 := os.RemoveAll(chartInfo.TemporaryFolder)
+	//		if err1 != nil {
+	//			handler.Logger.Errorw("error in deleting temp dir ", "err", err1)
+	//		}
+	//	}
+	//	if err.Error() == bean.ChartAlreadyExistsInternalError || err.Error() == bean.ChartNameReservedInternalError {
+	//		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+	//		return
+	//	}
+	//	common.WriteJsonResp(w, fmt.Errorf(err.Error()), nil, http.StatusBadRequest)
+	//	return
+	//}
 
-	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
-	}
-
-	file, fileHeader, err := r.FormFile("BinaryFile")
-	if err != nil {
-		handler.Logger.Errorw("request err, File parsing error", "err", err, "payload", file)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	if err := r.ParseForm(); err != nil {
-		handler.Logger.Errorw("request err, Corrupted form data", "err", err, "payload", file)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	err = handler.chartRefService.ValidateCustomChartUploadedFileFormat(fileHeader.Filename)
-	if err != nil {
-		handler.Logger.Errorw("request err, Unsupported format", "err", err, "payload", file)
-		common.WriteJsonResp(w, errors.New("Unsupported format file is uploaded, please upload file with .tgz extension"), nil, http.StatusBadRequest)
-		return
-	}
-
-	fileBytes, err := ioutil.ReadAll(file)
-	if err != nil {
-		handler.Logger.Errorw("request err, File parsing error", "err", err, "payload", file)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	chartInfo, err := handler.chartRefService.ExtractChartIfMissing(fileBytes, bean.RefChartDirPath, "")
-
-	if err != nil {
-		if chartInfo != nil && chartInfo.TemporaryFolder != "" {
-			err1 := os.RemoveAll(chartInfo.TemporaryFolder)
-			if err1 != nil {
-				handler.Logger.Errorw("error in deleting temp dir ", "err", err1)
-			}
-		}
-		if err.Error() == bean.ChartAlreadyExistsInternalError || err.Error() == bean.ChartNameReservedInternalError {
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-			return
-		}
-		common.WriteJsonResp(w, fmt.Errorf(err.Error()), nil, http.StatusBadRequest)
-		return
-	}
-
-	chartRefs := &bean.CustomChartRefDto{
-		Name:             chartInfo.ChartName,
-		Version:          chartInfo.ChartVersion,
-		Location:         chartInfo.ChartLocation,
-		Active:           true,
-		Default:          false,
-		ChartData:        fileBytes,
-		ChartDescription: chartInfo.Description,
-		UserUploaded:     true,
-		AuditLog: sql.AuditLog{
-			CreatedBy: userId,
-			CreatedOn: time.Now(),
-			UpdatedOn: time.Now(),
-			UpdatedBy: userId,
-		},
-	}
+	//chartRefs := &bean.CustomChartRefDto{
+	//	Name:             chartInfo.ChartName,
+	//	Version:          chartInfo.ChartVersion,
+	//	Location:         chartInfo.ChartLocation,
+	//	Active:           true,
+	//	Default:          false,
+	//	ChartData:        fileBytes,
+	//	ChartDescription: chartInfo.Description,
+	//	UserUploaded:     true,
+	//	AuditLog: sql.AuditLog{
+	//		CreatedBy: userId,
+	//		CreatedOn: time.Now(),
+	//		UpdatedOn: time.Now(),
+	//		UpdatedBy: userId,
+	//	},
+	//}
 
 	chartsJson, _ := json.Marshal(chartRefs)
-	err = ioutil.WriteFile(filepath.Join(chartInfo.TemporaryFolder, "output.json"), chartsJson, 0644)
-	if err != nil {
-		common.WriteJsonResp(w, fmt.Errorf(err.Error()), nil, http.StatusInternalServerError)
-		return
+	//err = ioutil.WriteFile(filepath.Join(chartInfo.TemporaryFolder, "output.json"), chartsJson, 0644)
+	//if err != nil {
+	//	common.WriteJsonResp(w, fmt.Errorf(err.Error()), nil, http.StatusInternalServerError)
+	//	return
 	}
 
 	pathList := strings.Split(chartInfo.TemporaryFolder, "/")
