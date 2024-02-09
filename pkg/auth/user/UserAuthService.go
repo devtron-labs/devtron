@@ -258,11 +258,12 @@ func (impl UserAuthServiceImpl) HandleRefresh(w http.ResponseWriter, r *http.Req
 }
 
 func (impl UserAuthServiceImpl) HandleLoginWithClientIp(ctx context.Context, username, password, clientIp string) (string, error) {
+	impl.logger.Info("login with client ip")
 	token, err := impl.HandleLogin(username, password)
 	if err == nil {
 		id, _, err := impl.userService.GetUserByToken(ctx, token)
 		if err != nil {
-			impl.logger.Infow("error occured while getting user by token", "err", err)
+			impl.logger.Errorw("error occurred while getting user by token", "err", err)
 		} else {
 			impl.userService.SaveLoginAudit("", clientIp, id)
 		}
@@ -469,7 +470,24 @@ func (impl UserAuthServiceImpl) AuthVerification(r *http.Request) (bool, error) 
 			HttpStatusCode:  http.StatusUnauthorized,
 			Code:            constants.UserNoTokenProvided,
 			InternalMessage: "failed to verify token",
-			UserMessage:     fmt.Sprintf("token verification failed while getting logged in user: %s", token),
+			UserMessage:     "token verification failed while getting logged in user",
+		}
+		return false, err
+	}
+
+	isInactive, _, err := impl.userService.CheckUserStatusAndUpdateLoginAudit(token)
+	if err != nil {
+		err := &util.ApiError{
+			HttpStatusCode:  http.StatusUnauthorized,
+			InternalMessage: bean2.InvalidUserError,
+			UserMessage:     bean2.InvalidUserError,
+		}
+		return false, err
+	} else if isInactive {
+		err := &util.ApiError{
+			HttpStatusCode:  http.StatusUnauthorized,
+			InternalMessage: bean2.InactiveUserError,
+			UserMessage:     bean2.InactiveUserError,
 		}
 		return false, err
 	}

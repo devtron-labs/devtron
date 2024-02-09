@@ -20,6 +20,7 @@ package user
 import (
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/auth/user/repository/helper"
 	"strings"
 	"time"
 
@@ -39,9 +40,9 @@ import (
 type RoleGroupService interface {
 	CreateRoleGroup(request *bean.RoleGroup) (*bean.RoleGroup, error)
 	UpdateRoleGroup(request *bean.RoleGroup, token string, managerAuth func(resource, token string, object string) bool) (*bean.RoleGroup, error)
-	FetchDetailedRoleGroups() ([]*bean.RoleGroup, error)
 	FetchRoleGroupsById(id int32) (*bean.RoleGroup, error)
-	FetchRoleGroups() ([]*bean.RoleGroup, error)
+	FetchRoleGroups() (*bean.RoleGroupListingResponse, error)
+	FetchRoleGroupsWithFilters(request *bean.FetchListingRequest) (*bean.RoleGroupListingResponse, error)
 	FetchRoleGroupsByName(name string) ([]*bean.RoleGroup, error)
 	DeleteRoleGroup(model *bean.RoleGroup) (bool, error)
 	FetchRoleGroupsWithRolesByGroupNames(groupNames []string) ([]*bean.RoleFilter, []bean.RoleGroup, error)
@@ -49,22 +50,25 @@ type RoleGroupService interface {
 }
 
 type RoleGroupServiceImpl struct {
-	userAuthRepository  repository.UserAuthRepository
-	logger              *zap.SugaredLogger
-	userRepository      repository.UserRepository
-	roleGroupRepository repository.RoleGroupRepository
-	userCommonService   UserCommonService
+	userAuthRepository         repository.UserAuthRepository
+	logger                     *zap.SugaredLogger
+	userRepository             repository.UserRepository
+	roleGroupRepository        repository.RoleGroupRepository
+	userCommonService          UserCommonService
+	userRepositoryQueryBuilder helper.UserRepositoryQueryBuilder
 }
 
 func NewRoleGroupServiceImpl(userAuthRepository repository.UserAuthRepository,
 	logger *zap.SugaredLogger, userRepository repository.UserRepository,
-	roleGroupRepository repository.RoleGroupRepository, userCommonService UserCommonService) *RoleGroupServiceImpl {
+	roleGroupRepository repository.RoleGroupRepository, userCommonService UserCommonService,
+	userRepositoryQueryBuilder helper.UserRepositoryQueryBuilder) *RoleGroupServiceImpl {
 	serviceImpl := &RoleGroupServiceImpl{
-		userAuthRepository:  userAuthRepository,
-		logger:              logger,
-		userRepository:      userRepository,
-		roleGroupRepository: roleGroupRepository,
-		userCommonService:   userCommonService,
+		userAuthRepository:         userAuthRepository,
+		logger:                     logger,
+		userRepository:             userRepository,
+		roleGroupRepository:        roleGroupRepository,
+		userCommonService:          userCommonService,
+		userRepositoryQueryBuilder: userRepositoryQueryBuilder,
 	}
 	cStore = sessions.NewCookieStore(randKey())
 	return serviceImpl
@@ -598,7 +602,7 @@ func (impl RoleGroupServiceImpl) getRoleGroupMetadata(roleGroup *repository.Role
 	return roleFilters, isSuperAdmin
 }
 
-func (impl RoleGroupServiceImpl) FetchDetailedRoleGroups() ([]*bean.RoleGroup, error) {
+func (impl RoleGroupServiceImpl) fetchDetailedRoleGroups() ([]*bean.RoleGroup, error) {
 	roleGroups, err := impl.roleGroupRepository.GetAllRoleGroup()
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
@@ -631,12 +635,50 @@ func (impl RoleGroupServiceImpl) FetchDetailedRoleGroups() ([]*bean.RoleGroup, e
 	return list, nil
 }
 
-func (impl RoleGroupServiceImpl) FetchRoleGroups() ([]*bean.RoleGroup, error) {
-	roleGroup, err := impl.roleGroupRepository.GetAllRoleGroup()
+func (impl RoleGroupServiceImpl) FetchRoleGroups() (*bean.RoleGroupListingResponse, error) {
+	list, err := impl.fetchDetailedRoleGroups()
 	if err != nil {
-		impl.logger.Errorw("error while fetching user from db", "error", err)
+		impl.logger.Errorw("error in FetchDetailedRoleGroups", "err", err)
 		return nil, err
 	}
+	response := &bean.RoleGroupListingResponse{
+		RoleGroups: list,
+		TotalCount: len(list),
+	}
+	return response, nil
+}
+
+// FetchRoleGroupsWithFilters takes listing request as input and outputs RoleGroupListingResponse based on the request filters.
+func (impl RoleGroupServiceImpl) FetchRoleGroupsWithFilters(request *bean.FetchListingRequest) (*bean.RoleGroupListingResponse, error) {
+	// default values will be used if not provided
+	impl.userCommonService.SetDefaultValuesIfNotPresent(request, true)
+	if request.ShowAll {
+		return impl.FetchRoleGroups()
+	}
+
+	// setting count check to true for getting only count
+	request.CountCheck = true
+	query := impl.userRepositoryQueryBuilder.GetQueryForGroupListingWithFilters(request)
+	totalCount, err := impl.userRepository.GetCountExecutingQuery(query)
+	if err != nil {
+		impl.logger.Errorw("error in FetchRoleGroupsWithFilters", "err", err, "query", query)
+		return nil, err
+	}
+	// setting count check to false for getting data
+	request.CountCheck = false
+
+	query = impl.userRepositoryQueryBuilder.GetQueryForGroupListingWithFilters(request)
+	roleGroup, err := impl.roleGroupRepository.GetAllExecutingQuery(query)
+	if err != nil {
+		impl.logger.Errorw("error while FetchRoleGroupsWithFilters", "error", err, "query", query)
+		return nil, err
+	}
+
+	response := impl.fetchRoleGroupResponseFromModel(roleGroup, totalCount)
+	return response, nil
+}
+
+func (impl RoleGroupServiceImpl) fetchRoleGroupResponseFromModel(roleGroup []*repository.RoleGroup, totalCount int) *bean.RoleGroupListingResponse {
 	var list []*bean.RoleGroup
 	for _, item := range roleGroup {
 		bean := &bean.RoleGroup{
@@ -651,7 +693,12 @@ func (impl RoleGroupServiceImpl) FetchRoleGroups() ([]*bean.RoleGroup, error) {
 	if len(list) == 0 {
 		list = make([]*bean.RoleGroup, 0)
 	}
-	return list, nil
+
+	response := &bean.RoleGroupListingResponse{
+		RoleGroups: list,
+		TotalCount: totalCount,
+	}
+	return response
 }
 
 func (impl RoleGroupServiceImpl) FetchRoleGroupsByName(name string) ([]*bean.RoleGroup, error) {

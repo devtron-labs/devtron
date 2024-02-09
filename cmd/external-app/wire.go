@@ -58,6 +58,8 @@ import (
 	repository2 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/pkg/timeoutWindow"
+	repository5 "github.com/devtron-labs/devtron/pkg/timeoutWindow/repository"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
@@ -227,6 +229,12 @@ func InitializeApp() (*App, error) {
 		util4.NewSSHTunnelWrapperServiceImpl,
 		wire.Bind(new(util4.SSHTunnelWrapperService), new(*util4.SSHTunnelWrapperServiceImpl)),
 		cron.NewCronLoggerImpl,
+
+		timeoutWindow.NewTimeWindowServiceImpl,
+		wire.Bind(new(timeoutWindow.TimeoutWindowService), new(*timeoutWindow.TimeWindowServiceImpl)),
+
+		repository5.NewTimeWindowRepositoryImpl,
+		wire.Bind(new(repository5.TimeWindowRepository), new(*repository5.TimeWindowRepositoryImpl)),
 	)
 	return &App{}, nil
 }
