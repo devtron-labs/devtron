@@ -22,7 +22,7 @@ import (
 	"strings"
 	"sync"
 	"time"
-
+	"net/http/httputil"
 	"github.com/google/go-querystring/query"
 )
 
@@ -329,6 +329,11 @@ func (c *Client) NewRequest(method, urlStr string, body interface{}) (*http.Requ
 	if c.UserAgent != "" {
 		req.Header.Set("User-Agent", c.UserAgent)
 	}
+	reqDump, err := httputil.DumpRequestOut(req, true)
+	if err != nil {
+		fmt.Println("request dump error","err",err)
+	}
+	fmt.Printf("Get REQUEST:\n%s", string(reqDump))
 	return req, nil
 }
 
