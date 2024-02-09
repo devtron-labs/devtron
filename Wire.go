@@ -155,6 +155,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/pkg/timeoutWindow"
+	repository9 "github.com/devtron-labs/devtron/pkg/timeoutWindow/repository"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
@@ -1015,6 +1017,13 @@ func InitializeApp() (*App, error) {
 		imageDigestPolicy2.NewImageDigestPolicyRestHandlerImpl,
 		wire.Bind(new(imageDigestPolicy2.ImageDigestPolicyRestHandler), new(*imageDigestPolicy2.ImageDigestPolicyRestHandlerImpl)),
 		cron2.NewCronLoggerImpl,
+
+		timeoutWindow.NewTimeWindowServiceImpl,
+		wire.Bind(new(timeoutWindow.TimeoutWindowService), new(*timeoutWindow.TimeWindowServiceImpl)),
+
+		repository9.NewTimeWindowRepositoryImpl,
+		wire.Bind(new(repository9.TimeWindowRepository), new(*repository9.TimeWindowRepositoryImpl)),
+
 	)
 	return &App{}, nil
 }
