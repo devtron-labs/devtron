@@ -512,7 +512,7 @@ func (repo AppRepositoryImpl) GetActiveCiCdAppsCount(excludeAppIds []int) (int, 
 func (repo AppRepositoryImpl) FindAppsWithFilter(appNameLike, sortOrder string, limit, offset int, excludeAppIds []int) ([]AppWithExtraQueryFields, error) {
 	query := "SELECT id, app_name,COUNT(id) OVER() AS total_count " +
 		" FROM app " +
-		" WHERE active=true "
+		fmt.Sprintf(" WHERE active=true AND app_type = %d", helper.CustomApp)
 	if appNameLike != "" {
 		query += " AND app_name LIKE '%" + appNameLike + "%' "
 	}
