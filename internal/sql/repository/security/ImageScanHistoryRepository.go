@@ -36,7 +36,7 @@ type ImageScanHistoryRepository interface {
 	Save(model *ImageScanExecutionHistory) error
 	FindAll() ([]*ImageScanExecutionHistory, error)
 	FindOne(id int) (*ImageScanExecutionHistory, error)
-	FindByImageDigest(imageHash string, image string) (*ImageScanExecutionHistory, error)
+	FindByImageAndDigest(imageDigest string, image string) (*ImageScanExecutionHistory, error)
 	FindByImageDigests(digest []string) ([]*ImageScanExecutionHistory, error)
 	Update(model *ImageScanExecutionHistory) error
 	FindByImage(image string) (*ImageScanExecutionHistory, error)
@@ -72,10 +72,12 @@ func (impl ImageScanHistoryRepositoryImpl) FindOne(id int) (*ImageScanExecutionH
 	return &model, err
 }
 
-func (impl ImageScanHistoryRepositoryImpl) FindByImageDigest(imageHash string, image string) (*ImageScanExecutionHistory, error) {
+func (impl ImageScanHistoryRepositoryImpl) FindByImageAndDigest(imageDigest string, image string) (*ImageScanExecutionHistory, error) {
 	var model ImageScanExecutionHistory
 	err := impl.dbConnection.Model(&model).
-		Where("image_hash = ? and image = ? ", imageHash, image).Order("execution_time desc").Limit(1).Select()
+		Where("image_hash = ?", imageDigest).
+		Where("image = ?", image).
+		Order("execution_time desc").Limit(1).Select()
 	return &model, err
 }
 

@@ -321,7 +321,7 @@ func (impl ImageScanServiceImpl) FetchExecutionDetailResult(request *ImageScanRe
 			impl.Logger.Errorw("error while fetching scan execution result", "err", err)
 			return nil, err
 		}
-		scanExecution, err := impl.scanHistoryRepository.FindByImageDigest(ciArtifact.ImageDigest, ciArtifact.Image)
+		scanExecution, err := impl.scanHistoryRepository.FindByImageAndDigest(ciArtifact.ImageDigest, ciArtifact.Image)
 		if err != nil {
 			impl.Logger.Errorw("error while fetching scan execution result", "err", err)
 			return nil, err

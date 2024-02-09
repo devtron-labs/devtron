@@ -3353,7 +3353,7 @@ func (impl *WorkflowDagExecutorImpl) WriteCDTriggerEvent(overrideRequest *bean.V
 
 func (impl *WorkflowDagExecutorImpl) MarkImageScanDeployed(appId int, envId int, imageDigest string, clusterId int, isScanEnabled bool, image string) error {
 	impl.logger.Debugw("mark image scan deployed for normal app, from cd auto or manual trigger", "imageDigest", imageDigest)
-	executionHistory, err := impl.imageScanHistoryRepository.FindByImageDigest(imageDigest, image)
+	executionHistory, err := impl.imageScanHistoryRepository.FindByImageAndDigest(imageDigest, image)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching execution history", "err", err)
 		return err
