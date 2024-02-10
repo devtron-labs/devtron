@@ -1135,15 +1135,19 @@ func (impl InstalledAppServiceImpl) MigrateDeploymentType(ctx context.Context, r
 		//before deleting the installed app we'll first annotate CRD's manifest created by argo-cd with helm supported
 		//annotations so that helm install doesn't throw crd already exist error while migrating from argo-cd to helm.
 		for _, installedApp := range installedApps {
-			err = impl.annotateCRDsIfExist(ctx, installedApp.App.AppName, installedApp.Environment.Name, installedApp.Environment.Namespace, installedApp.Environment.ClusterId)
+			err = impl.AnnotateCRDsIfExist(ctx, installedApp.App.AppName, installedApp.Environment.Name, installedApp.Environment.Namespace, installedApp.Environment.ClusterId)
 			if err != nil {
 				impl.logger.Errorw("error in annotating CRDs in manifest for argo-cd deployed installed apps", "installedAppId", installedApp.Id, "appId", installedApp.AppId)
 				return response, err
 			}
 		}
 	}
-
-	deleteResponse, err := impl.deleteInstalledApps(ctx, installedApps, request.UserId)
+	envBean, err := impl.environmentRepository.FindById(request.EnvId)
+	if err != nil {
+		impl.logger.Errorw("error in registering acd app", "err", err)
+		return response, err
+	}
+	deleteResponse, err := impl.deleteInstalledApps(ctx, installedApps, request.UserId, envBean.Cluster)
 	if err != nil {
 		return response, err
 	}
@@ -1169,7 +1173,7 @@ func (impl InstalledAppServiceImpl) MigrateDeploymentType(ctx context.Context, r
 	return response, nil
 }
 
-func (impl InstalledAppServiceImpl) annotateCRDsIfExist(ctx context.Context, appName, envName, namespace string, clusterId int) error {
+func (impl InstalledAppServiceImpl) AnnotateCRDsIfExist(ctx context.Context, appName, envName, namespace string, clusterId int) error {
 	deploymentAppName := fmt.Sprintf("%s-%s", appName, envName)
 	query := &application.ResourcesQuery{
 		ApplicationName: &deploymentAppName,
@@ -1202,8 +1206,9 @@ func (impl InstalledAppServiceImpl) annotateCRDsIfExist(ctx context.Context, app
 			Version: crd.ResourceRef.Version,
 			Kind:    crd.ResourceRef.Kind,
 		}
+		//fetch annotation and labels keys if not exist then do something to add those labels with these keys
 		helmAnnotation := fmt.Sprintf(bean.HelmReleaseMetadataAnnotation, appName, namespace)
-		_, err = impl.K8sUtil.PatchResourceRequest(ctx, restConfig, types.JSONPatchType, helmAnnotation, crd.ResourceRef.Name, "", gvk)
+		_, err = impl.K8sUtil.PatchResourceRequest(ctx, restConfig, types.StrategicMergePatchType, helmAnnotation, crd.ResourceRef.Name, "", gvk)
 		if err != nil {
 			impl.logger.Errorw("error in patching release-name annotation in manifest", "err", err, "appName", appName)
 			return err
@@ -1212,7 +1217,7 @@ func (impl InstalledAppServiceImpl) annotateCRDsIfExist(ctx context.Context, app
 	return nil
 }
 
-func (impl InstalledAppServiceImpl) deleteInstalledApps(ctx context.Context, installedApps []*repository2.InstalledApps, userId int32) (*bean.DeploymentAppTypeChangeResponse, error) {
+func (impl InstalledAppServiceImpl) deleteInstalledApps(ctx context.Context, installedApps []*repository2.InstalledApps, userId int32, cluster *repository5.Cluster) (*bean.DeploymentAppTypeChangeResponse, error) {
 	successfullyDeletedApps := make([]*bean.DeploymentChangeStatus, 0)
 	failedToDeleteApps := make([]*bean.DeploymentChangeStatus, 0)
 
@@ -1264,6 +1269,7 @@ func (impl InstalledAppServiceImpl) deleteInstalledApps(ctx context.Context, ins
 						impl.logger.Errorw("error in registering acd app", "err", err)
 					}
 					if acdRegisterErr == nil {
+						installedApp.Environment.Cluster = cluster
 						createInArgoErr = impl.appStoreDeploymentFullModeService.CreateInArgo(chartGitAttr, ctx, installedApp.Environment, deploymentAppName)
 						if createInArgoErr != nil {
 							impl.logger.Errorw("error in creating acd app", "err", err)

@@ -707,7 +707,7 @@ const (
 )
 
 const (
-	HelmReleaseMetadataAnnotation = `[{"op": "add", "path": "/metadata/annotations/meta.helm.sh~1release-name", "value": "%s"},{"op": "add", "path": "/metadata/annotations/meta.helm.sh~1release-namespace", "value": "%s"}]`
+	HelmReleaseMetadataAnnotation = `{"metadata": {"annotations": {"meta.helm.sh/release-name": "%s","meta.helm.sh/release-namespace": "%s"},"labels": {"app.kubernetes.io/managed-by": "Helm"}}}`
 )
 
 func IsAcdApp(deploymentType string) bool {
