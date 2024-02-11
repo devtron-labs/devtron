@@ -73,10 +73,9 @@ echo $link
 
 
 INSERT INTO "plugin_step_variable" ("id", "plugin_step_id", "name", "format", "description", "is_exposed", "allow_empty_value", "variable_type", "value_type", "variable_step_index", "deleted", "created_on", "created_by", "updated_on", "updated_by") VALUES
-(nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Container Image Exporter v1.0.0' and ps."index"=1 and ps.deleted=false), 'GoogleServiceAccount','STRING','Provide Google service account Creds/Use Scope Variable ',true,true,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1),
+(nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Container Image Exporter v1.0.0' and ps."index"=1 and ps.deleted=false), 'GoogleServiceAccount','STRING','Provide Google service account Creds/Use Scoped Variables ',true,true,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1),
 (nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Container Image Exporter v1.0.0' and ps."index"=1 and ps.deleted=false), 'GcpProjectName','STRING','Specify Google Account Project Name',true,true,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1);
 
 UPDATE plugin_step_variable SET description='Provide which cloud storage provider you want to use: "aws" for Amazon S3 or "azure" for Azure Blob Storage or "gcp" for Google Cloud Storage' WHERE name='CloudProvider';
 
 UPDATE plugin_step_variable SET description='If you would like to add a prefix to the exported image files name,  enter it here.' WHERE name='FilePrefix';
-'
