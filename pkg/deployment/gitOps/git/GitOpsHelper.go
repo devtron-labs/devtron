@@ -67,15 +67,15 @@ func (impl *GitOpsHelper) Clone(url, targetDir string) (clonedDir string, err er
 	impl.logger.Debugw("git checkout ", "url", url, "dir", targetDir)
 	clonedDir = filepath.Join(GIT_WORKING_DIR, targetDir)
 
-	ctx := context.Background()
-	err = impl.init(ctx, clonedDir, url, false, impl.Auth)
+	ctx := git.BuildGitContext(context.Background()).WithCredentials(impl.Auth)
+	err = impl.init(ctx, clonedDir, url, false)
 	if err != nil {
 		return "", err
 	}
-	_, errMsg, err := impl.gitCommandManager.Fetch(ctx, clonedDir, impl.Auth.Username, impl.Auth.Password)
+	_, errMsg, err := impl.gitCommandManager.Fetch(ctx, clonedDir)
 	if err == nil && errMsg == "" {
 		impl.logger.Warn("git fetch completed, pulling master branch data from remote origin")
-		_, errMsg, err := impl.pullFromBranch(ctx, clonedDir, impl.Auth.Username, impl.Auth.Password)
+		_, errMsg, err := impl.pullFromBranch(ctx, clonedDir)
 		if err != nil {
 			impl.logger.Errorw("error on git pull", "err", err)
 			return errMsg, err
@@ -92,7 +92,8 @@ func (impl *GitOpsHelper) Pull(repoRoot string) (err error) {
 	defer func() {
 		util.TriggerGitOpsMetrics("Pull", "GitService", start, err)
 	}()
-	return impl.gitCommandManager.Pull(context.Background(), repoRoot, impl.Auth)
+	ctx := git.BuildGitContext(context.Background()).WithCredentials(impl.Auth)
+	return impl.gitCommandManager.Pull(ctx, repoRoot)
 }
 
 func (impl GitOpsHelper) CommitAndPushAllChanges(repoRoot, commitMsg, name, emailId string) (commitHash string, err error) {
@@ -100,16 +101,17 @@ func (impl GitOpsHelper) CommitAndPushAllChanges(repoRoot, commitMsg, name, emai
 	defer func() {
 		util.TriggerGitOpsMetrics("CommitAndPushAllChanges", "GitService", start, err)
 	}()
-	return impl.gitCommandManager.CommitAndPush(context.Background(), repoRoot, commitMsg, name, emailId, impl.Auth)
+	ctx := git.BuildGitContext(context.Background()).WithCredentials(impl.Auth)
+	return impl.gitCommandManager.CommitAndPush(ctx, repoRoot, commitMsg, name, emailId)
 }
 
-func (impl *GitOpsHelper) pullFromBranch(ctx context.Context, rootDir string, username string, password string) (string, string, error) {
-	branch, err := impl.getBranch(ctx, rootDir, username, password)
+func (impl *GitOpsHelper) pullFromBranch(ctx git.GitContext, rootDir string) (string, string, error) {
+	branch, err := impl.getBranch(ctx, rootDir)
 	if err != nil || branch == "" {
 		impl.logger.Warnw("no branch found in git repo", "rootDir", rootDir)
 		return "", "", err
 	}
-	response, errMsg, err := impl.gitCommandManager.PullCli(ctx, rootDir, username, password, branch)
+	response, errMsg, err := impl.gitCommandManager.PullCli(ctx, rootDir, branch)
 	if err != nil {
 		impl.logger.Errorw("error on git pull", "branch", branch, "err", err)
 		return response, errMsg, err
@@ -117,7 +119,7 @@ func (impl *GitOpsHelper) pullFromBranch(ctx context.Context, rootDir string, us
 	return response, errMsg, err
 }
 
-func (impl *GitOpsHelper) init(ctx context.Context, rootDir string, remoteUrl string, isBare bool, auth *git.BasicAuth) error {
+func (impl *GitOpsHelper) init(ctx git.GitContext, rootDir string, remoteUrl string, isBare bool) error {
 	//-----------------
 	start := time.Now()
 	var err error
@@ -133,11 +135,12 @@ func (impl *GitOpsHelper) init(ctx context.Context, rootDir string, remoteUrl st
 	if err != nil {
 		return err
 	}
-	return impl.gitCommandManager.AddRepo(ctx, rootDir, remoteUrl, isBare, auth)
+
+	return impl.gitCommandManager.AddRepo(ctx, rootDir, remoteUrl, isBare)
 }
 
-func (impl *GitOpsHelper) getBranch(ctx context.Context, rootDir string, username string, password string) (string, error) {
-	response, errMsg, err := impl.gitCommandManager.ListBranch(ctx, rootDir, username, password)
+func (impl *GitOpsHelper) getBranch(ctx git.GitContext, rootDir string) (string, error) {
+	response, errMsg, err := impl.gitCommandManager.ListBranch(ctx, rootDir)
 	if err != nil {
 		impl.logger.Errorw("error on git pull", "response", response, "errMsg", errMsg, "err", err)
 		return response, err

@@ -12,9 +12,9 @@ import (
 )
 
 type GitCommandManagerBase interface {
-	Fetch(ctx context.Context, rootDir string, username string, password string) (response, errMsg string, err error)
-	ListBranch(ctx context.Context, rootDir string, username string, password string) (response, errMsg string, err error)
-	PullCli(ctx context.Context, rootDir string, username string, password string, branch string) (response, errMsg string, err error)
+	Fetch(ctx GitContext, rootDir string) (response, errMsg string, err error)
+	ListBranch(ctx GitContext, rootDir string) (response, errMsg string, err error)
+	PullCli(ctx GitContext, rootDir string, branch string) (response, errMsg string, err error)
 }
 
 type GitManagerBaseImpl struct {
@@ -22,7 +22,7 @@ type GitManagerBaseImpl struct {
 	cfg    *configuration
 }
 
-func (impl *GitManagerBaseImpl) Fetch(ctx context.Context, rootDir string, username string, password string) (response, errMsg string, err error) {
+func (impl *GitManagerBaseImpl) Fetch(ctx GitContext, rootDir string) (response, errMsg string, err error) {
 	start := time.Now()
 	defer func() {
 		util.TriggerGitOpsMetrics("Fetch", "GitCli", start, err)
@@ -30,12 +30,12 @@ func (impl *GitManagerBaseImpl) Fetch(ctx context.Context, rootDir string, usern
 	impl.logger.Debugw("git fetch ", "location", rootDir)
 	cmd, cancel := impl.createCmdWithContext(ctx, "git", "-C", rootDir, "fetch", "origin", "--tags", "--force")
 	defer cancel()
-	output, errMsg, err := impl.runCommandWithCred(cmd, username, password)
+	output, errMsg, err := impl.runCommandWithCred(cmd, ctx.auth)
 	impl.logger.Debugw("fetch output", "root", rootDir, "opt", output, "errMsg", errMsg, "error", err)
 	return output, errMsg, err
 }
 
-func (impl *GitManagerBaseImpl) ListBranch(ctx context.Context, rootDir string, username string, password string) (response, errMsg string, err error) {
+func (impl *GitManagerBaseImpl) ListBranch(ctx GitContext, rootDir string) (response, errMsg string, err error) {
 	start := time.Now()
 	defer func() {
 		util.TriggerGitOpsMetrics("ListBranch", "GitCli", start, err)
@@ -43,12 +43,12 @@ func (impl *GitManagerBaseImpl) ListBranch(ctx context.Context, rootDir string, 
 	impl.logger.Debugw("git branch ", "location", rootDir)
 	cmd, cancel := impl.createCmdWithContext(ctx, "git", "-C", rootDir, "branch", "-r")
 	defer cancel()
-	output, errMsg, err := impl.runCommandWithCred(cmd, username, password)
+	output, errMsg, err := impl.runCommandWithCred(cmd, ctx.auth)
 	impl.logger.Debugw("branch output", "root", rootDir, "opt", output, "errMsg", errMsg, "error", err)
 	return output, errMsg, err
 }
 
-func (impl *GitManagerBaseImpl) PullCli(ctx context.Context, rootDir string, username string, password string, branch string) (response, errMsg string, err error) {
+func (impl *GitManagerBaseImpl) PullCli(ctx GitContext, rootDir string, branch string) (response, errMsg string, err error) {
 	start := time.Now()
 	defer func() {
 		util.TriggerGitOpsMetrics("Pull", "GitCli", start, err)
@@ -56,16 +56,16 @@ func (impl *GitManagerBaseImpl) PullCli(ctx context.Context, rootDir string, use
 	impl.logger.Debugw("git pull ", "location", rootDir)
 	cmd, cancel := impl.createCmdWithContext(ctx, "git", "-C", rootDir, "pull", "origin", branch, "--force")
 	defer cancel()
-	output, errMsg, err := impl.runCommandWithCred(cmd, username, password)
+	output, errMsg, err := impl.runCommandWithCred(cmd, ctx.auth)
 	impl.logger.Debugw("pull output", "root", rootDir, "opt", output, "errMsg", errMsg, "error", err)
 	return output, errMsg, err
 }
 
-func (impl *GitManagerBaseImpl) runCommandWithCred(cmd *exec.Cmd, userName, password string) (response, errMsg string, err error) {
+func (impl *GitManagerBaseImpl) runCommandWithCred(cmd *exec.Cmd, auth *BasicAuth) (response, errMsg string, err error) {
 	cmd.Env = append(os.Environ(),
 		fmt.Sprintf("GIT_ASKPASS=%s", GIT_ASK_PASS),
-		fmt.Sprintf("GIT_USERNAME=%s", userName),
-		fmt.Sprintf("GIT_PASSWORD=%s", password),
+		fmt.Sprintf("GIT_USERNAME=%s", auth.Username),
+		fmt.Sprintf("GIT_PASSWORD=%s", auth.Password),
 	)
 	return impl.runCommand(cmd)
 }
@@ -86,13 +86,13 @@ func (impl *GitManagerBaseImpl) runCommand(cmd *exec.Cmd) (response, errMsg stri
 	return output, "", nil
 }
 
-func (impl *GitManagerBaseImpl) createCmdWithContext(ctx context.Context, name string, arg ...string) (*exec.Cmd, context.CancelFunc) {
+func (impl *GitManagerBaseImpl) createCmdWithContext(ctx GitContext, name string, arg ...string) (*exec.Cmd, context.CancelFunc) {
 	newCtx := ctx
 	cancel := func() {}
 
 	timeout := impl.cfg.CliCmdTimeoutGlobal
 	if _, ok := ctx.Deadline(); !ok && timeout > 0 {
-		newCtx, cancel = context.WithTimeout(ctx, time.Duration(timeout)*time.Second)
+		newCtx, cancel = ctx.WithTimeout(timeout)
 	}
 	cmd := exec.CommandContext(newCtx, name, arg...)
 	return cmd, cancel

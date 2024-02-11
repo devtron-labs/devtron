@@ -1,16 +1,15 @@
 package commandManager
 
 import (
-	"context"
 	"github.com/caarlos0/env/v6"
 	"go.uber.org/zap"
 )
 
 type GitCommandManager interface {
 	GitCommandManagerBase
-	AddRepo(ctx context.Context, rootDir string, remoteUrl string, isBare bool, auth *BasicAuth) error
-	CommitAndPush(ctx context.Context, repoRoot, commitMsg, name, emailId string, auth *BasicAuth) (string, error)
-	Pull(ctx context.Context, repoRoot string, auth *BasicAuth) (err error)
+	AddRepo(ctx GitContext, rootDir string, remoteUrl string, isBare bool) error
+	CommitAndPush(ctx GitContext, repoRoot, commitMsg, name, emailId string) (string, error)
+	Pull(ctx GitContext, repoRoot string) (err error)
 }
 
 func NewGitCommandManager(logger *zap.SugaredLogger) GitCommandManager {
@@ -38,11 +37,6 @@ func ParseConfiguration() (*configuration, error) {
 	cfg := &configuration{}
 	err := env.Parse(cfg)
 	return cfg, err
-}
-
-// BasicAuth represent a HTTP basic auth
-type BasicAuth struct {
-	Username, Password string
 }
 
 const GIT_ASK_PASS = "/git-ask-pass.sh"

@@ -1,7 +1,6 @@
 package commandManager
 
 import (
-	"context"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
@@ -14,7 +13,7 @@ type GoGitSDKManagerImpl struct {
 	*GitManagerBaseImpl
 }
 
-func (impl *GoGitSDKManagerImpl) AddRepo(ctx context.Context, rootDir string, remoteUrl string, isBare bool, auth *BasicAuth) error {
+func (impl *GoGitSDKManagerImpl) AddRepo(ctx GitContext, rootDir string, remoteUrl string, isBare bool) error {
 	repo, err := git.PlainInit(rootDir, isBare)
 	if err != nil {
 		return err
@@ -26,7 +25,7 @@ func (impl *GoGitSDKManagerImpl) AddRepo(ctx context.Context, rootDir string, re
 	return err
 }
 
-func (impl GoGitSDKManagerImpl) Pull(ctx context.Context, repoRoot string, auth *BasicAuth) (err error) {
+func (impl GoGitSDKManagerImpl) Pull(ctx GitContext, repoRoot string) (err error) {
 
 	_, workTree, err := impl.getRepoAndWorktree(repoRoot)
 	if err != nil {
@@ -34,7 +33,7 @@ func (impl GoGitSDKManagerImpl) Pull(ctx context.Context, repoRoot string, auth 
 	}
 	//-----------pull
 	err = workTree.PullContext(ctx, &git.PullOptions{
-		Auth: auth.ToBasicAuth(),
+		Auth: ctx.auth.ToBasicAuth(),
 	})
 	if err != nil && err.Error() == "already up-to-date" {
 		err = nil
@@ -57,7 +56,7 @@ func (impl GoGitSDKManagerImpl) getRepoAndWorktree(repoRoot string) (*git.Reposi
 	return r, w, err
 }
 
-func (impl GoGitSDKManagerImpl) CommitAndPush(ctx context.Context, repoRoot, commitMsg, name, emailId string, auth *BasicAuth) (string, error) {
+func (impl GoGitSDKManagerImpl) CommitAndPush(ctx GitContext, repoRoot, commitMsg, name, emailId string) (string, error) {
 	repo, workTree, err := impl.getRepoAndWorktree(repoRoot)
 	if err != nil {
 		return "", err
@@ -85,7 +84,7 @@ func (impl GoGitSDKManagerImpl) CommitAndPush(ctx context.Context, repoRoot, com
 	impl.logger.Debugw("git hash", "repo", repoRoot, "hash", commit.String())
 	//-----------push
 	err = repo.PushContext(ctx, &git.PushOptions{
-		Auth: auth.ToBasicAuth(),
+		Auth: ctx.auth.ToBasicAuth(),
 	})
 	return commit.String(), err
 }
