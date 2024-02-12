@@ -13,10 +13,17 @@ func CheckIfUserDevtronManaged(userId int32) bool {
 	return true
 }
 
+func CheckIfUserDevtronManagedByEmail(email string) bool {
+	if email == bean.AdminUser || email == bean.SystemUser {
+		return false
+	}
+	return true
+}
+
 func CheckValidationForAdminAndSystemUserId(userIds []int32) error {
 	validated := CheckIfUserDevtronManagedOnly(userIds)
 	if !validated {
-		err := &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "cannot update status for system or admin user"}
+		err := &util.ApiError{Code: "406", HttpStatusCode: 406, UserMessage: "cannot update status for system or admin user"}
 		return err
 	}
 	return nil

@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/auth/user/adapter"
+	helper2 "github.com/devtron-labs/devtron/pkg/auth/user/helper"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository/helper"
 	"net/http"
 	"strings"
@@ -1331,7 +1332,7 @@ func (impl *UserServiceImpl) getUserIdsHonoringFilters(request *bean.FetchListin
 	// collecting the required user ids from filtered models
 	filteredUserIds := make([]int32, len(models))
 	for i, model := range models {
-		if !(model.EmailId == bean2.AdminUser || model.EmailId == bean2.SystemUser) {
+		if helper2.CheckIfUserDevtronManagedByEmail(model.EmailId) {
 			filteredUserIds[i] = model.Id
 		}
 	}
@@ -1350,7 +1351,7 @@ func (impl *UserServiceImpl) deleteUsersByIds(request *bean.BulkDeleteRequest) e
 
 	emailIds, err := impl.userRepository.GetEmailByIds(request.Ids)
 	if err != nil {
-		impl.logger.Errorw("error in DeleteUsersForIds", "err", err)
+		impl.logger.Errorw("error in DeleteUsersForIds", "userIds", request.Ids, "err", err)
 		return err
 	}
 
@@ -1396,22 +1397,19 @@ func (impl *UserServiceImpl) deleteMappingsFromCasbin(emailIds []string, totalCo
 
 	success := impl.userCommonService.DeleteRoleForUserFromCasbin(emailIdVsCasbinRolesMap)
 	if !success {
-		impl.logger.Errorw("error in deleting from casbin in deleteMappingsFromCasbin ", "success", success)
+		impl.logger.Errorw("error in deleting from casbin in deleteMappingsFromCasbin ", "emailIds", emailIds)
 	}
 	return nil
 }
 
 // deleteMappingsFromOrchestrator takes in userIds to be deleted and transaction returns error in case of any issue else nil
 func (impl *UserServiceImpl) deleteMappingsFromOrchestrator(userIds []int32, tx *pg.Tx) error {
-	userRoleMapping, err := impl.userAuthRepository.GetUserRoleMappingIdsByUserIds(userIds)
+	urmIds, err := impl.userAuthRepository.GetUserRoleMappingIdsByUserIds(userIds)
 	if err != nil {
 		impl.logger.Errorw("error in DeleteUsersForIds", "err", err)
 		return err
 	}
-	urmIds := make([]int, 0, len(userRoleMapping))
-	for _, model := range userRoleMapping {
-		urmIds = append(urmIds, model.Id)
-	}
+
 	if len(urmIds) > 0 {
 		err = impl.userAuthRepository.DeleteUserRoleMappingByIds(urmIds, tx)
 		if err != nil {

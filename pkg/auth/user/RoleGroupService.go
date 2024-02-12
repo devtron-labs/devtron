@@ -726,17 +726,13 @@ func (impl RoleGroupServiceImpl) DeleteRoleGroup(bean *bean.RoleGroup) (bool, er
 		impl.logger.Errorw("error while fetching user from db", "error", err)
 		return false, err
 	}
-	allRoleGroupRoleMappings, err := impl.roleGroupRepository.GetRoleGroupRoleMappingByRoleGroupId(model.Id)
+	roleGroupRoleMappingIds, err := impl.roleGroupRepository.GetRoleGroupRoleMappingIdsByRoleGroupId(model.Id)
 	if err != nil {
 		impl.logger.Errorw("error in getting all role group role mappings or not found", "err", err)
 	}
 	allRolesForGroup, err := casbin2.GetRolesForUser(model.CasbinName)
 	if err != nil {
 		impl.logger.Errorw("error in getting all roles for groups", "err", err)
-	}
-	roleGroupRoleMappingIds := make([]int, 0, len(allRoleGroupRoleMappings))
-	for _, roleMapping := range allRoleGroupRoleMappings {
-		roleGroupRoleMappingIds = append(roleGroupRoleMappingIds, roleMapping.Id)
 	}
 	if len(roleGroupRoleMappingIds) > 0 {
 		err = impl.roleGroupRepository.DeleteRoleGroupRoleMappingByIds(roleGroupRoleMappingIds, tx)
@@ -808,7 +804,7 @@ func (impl RoleGroupServiceImpl) BulkDeleteRoleGroups(request *bean.BulkDeleteRe
 func (impl *RoleGroupServiceImpl) getGroupIdsHonoringFilters(request *bean.FetchListingRequest) ([]int32, error) {
 	//query to get particular models respecting filters
 	query := impl.userRepositoryQueryBuilder.GetQueryForGroupListingWithFilters(request)
-	models, err := impl.userRepository.GetAllExecutingQuery(query)
+	models, err := impl.roleGroupRepository.GetAllExecutingQuery(query)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db in getGroupIdsHonoringFilters", "error", err)
 		return nil, err
@@ -868,15 +864,10 @@ func (impl RoleGroupServiceImpl) deleteRoleGroupsByIds(request *bean.BulkDeleteR
 
 // deleteMappingsFromOrchestrator deletes role group role mapping from orchestrator only, takes in ids and returns error
 func (impl RoleGroupServiceImpl) deleteMappingsFromOrchestrator(roleGroupIds []int32, tx *pg.Tx) error {
-	roleGroupRoleMappings, err := impl.roleGroupRepository.GetRoleGroupRoleMappingIdsByGroupIds(roleGroupIds)
+	mappingIds, err := impl.roleGroupRepository.GetRoleGroupRoleMappingIdsByGroupIds(roleGroupIds)
 	if err != nil {
 		impl.logger.Errorw("error in deleteMappingsFromOrchestrator", "err", err)
 		return err
-	}
-
-	mappingIds := make([]int, 0, len(roleGroupRoleMappings))
-	for _, model := range roleGroupRoleMappings {
-		mappingIds = append(mappingIds, model.Id)
 	}
 
 	if len(mappingIds) > 0 {
@@ -911,13 +902,15 @@ func (impl RoleGroupServiceImpl) deleteMappingsFromCasbin(groupCasbinNames []str
 	// GROUP-POLICY mapping deletion from casbin
 	success := impl.userCommonService.DeleteRoleForUserFromCasbin(groupNameVsCasbinRolesMap)
 	if !success {
-		impl.logger.Errorw("error in deleteMappingsFromCasbin, not all mappings removed ", "success", success)
+		impl.logger.Errorw("error in deleteMappingsFromCasbin, not all mappings removed ", "groupCasbinNames", groupCasbinNames)
+		return &util.ApiError{Code: "500", HttpStatusCode: 500, InternalMessage: "Not able to delete mappings from casbin", UserMessage: "Not able to delete mappings from casbin"}
 	}
 
 	// USER-GROUP mapping deletion from casbin
 	success = impl.userCommonService.DeleteUserForRoleFromCasbin(groupVsUsersMap)
 	if !success {
-		impl.logger.Errorw("error in deleteMappingsFromCasbin, not all mappings removed ", "success", success)
+		impl.logger.Errorw("error in deleteMappingsFromCasbin, not all mappings removed ", "groupCasbinNames", groupCasbinNames)
+		return &util.ApiError{Code: "500", HttpStatusCode: 500, InternalMessage: "Not able to delete mappings from casbin", UserMessage: "Not able to delete mappings from casbin"}
 	}
 
 	return nil
