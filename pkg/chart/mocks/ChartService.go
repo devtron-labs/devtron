@@ -322,8 +322,8 @@ func (_m *ChartService) UpdateAppOverride(ctx context.Context, templateRequest *
 	return r0, r1
 }
 
-// UpdateGitRepoUrlInCharts provides a mock function with given fields: appId, repoUrl, chartLocation, userId
-func (_m *ChartService) UpdateGitRepoUrlInCharts(appId int, repoUrl string, chartLocation string, userId int32) error {
+// ConfigureGitOpsRepoUrl provides a mock function with given fields: appId, repoUrl, chartLocation, userId
+func (_m *ChartService) ConfigureGitOpsRepoUrl(appId int, repoUrl string, chartLocation string, userId int32) error {
 	ret := _m.Called(appId, repoUrl, chartLocation, userId)
 
 	var r0 error

@@ -421,7 +421,7 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 				return nil, err
 			}
 			// below function will update gitRepoUrl for charts if user has not already provided gitOps repoURL
-			err = impl.chartService.UpdateGitRepoUrlInCharts(pipelineCreateRequest.AppId, chartGitAttr.RepoUrl, chartGitAttr.ChartLocation, pipelineCreateRequest.UserId)
+			err = impl.chartService.ConfigureGitOpsRepoUrl(pipelineCreateRequest.AppId, chartGitAttr.RepoUrl, chartGitAttr.ChartLocation, pipelineCreateRequest.UserId)
 			if err != nil {
 				impl.logger.Errorw("error in updating git repo url in charts", "err", err)
 				return nil, err

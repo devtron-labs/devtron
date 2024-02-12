@@ -64,7 +64,8 @@ type ChartService interface {
 
 	ChartRefAutocompleteForAppOrEnv(appId int, envId int) (*chartRefBean.ChartRefAutocompleteResponse, error)
 
-	UpdateGitRepoUrlInCharts(appId int, repoUrl, chartLocation string, userId int32) error
+	ConfigureGitOpsRepoUrl(appId int, repoUrl, chartLocation string, userId int32) error
+	OverrideGitOpsRepoUrl(appId int, repoUrl, chartLocation string, userId int32) error
 
 	IsGitOpsRepoConfiguredForDevtronApps(appId int) (bool, error)
 	IsGitOpsRepoAlreadyRegistered(gitOpsRepoUrl string) (bool, error)
@@ -855,21 +856,37 @@ func (impl *ChartServiceImpl) CheckIfChartRefUserUploadedByAppId(id int) (bool, 
 	return chartData.UserUploaded, err
 }
 
-func (impl *ChartServiceImpl) UpdateGitRepoUrlInCharts(appId int, repoUrl, chartLocation string, userId int32) error {
+func (impl *ChartServiceImpl) ConfigureGitOpsRepoUrl(appId int, repoUrl, chartLocation string, userId int32) error {
 	charts, err := impl.chartRepository.FindActiveChartsByAppId(appId)
-	if err != nil && pg.ErrNoRows != err {
+	if err != nil && util.IsErrNoRows(err) {
 		return err
 	}
 	for _, ch := range charts {
 		if apiGitOpsBean.IsGitOpsRepoNotConfigured(ch.GitRepoUrl) {
 			ch.GitRepoUrl = repoUrl
 			ch.ChartLocation = chartLocation
-			ch.UpdatedOn = time.Now()
-			ch.UpdatedBy = userId
+			ch.UpdateAuditLog(userId)
 			err = impl.chartRepository.Update(ch)
 			if err != nil {
 				return err
 			}
+		}
+	}
+	return nil
+}
+
+func (impl *ChartServiceImpl) OverrideGitOpsRepoUrl(appId int, repoUrl, chartLocation string, userId int32) error {
+	charts, err := impl.chartRepository.FindActiveChartsByAppId(appId)
+	if err != nil && util.IsErrNoRows(err) {
+		return err
+	}
+	for _, ch := range charts {
+		ch.GitRepoUrl = repoUrl
+		ch.ChartLocation = chartLocation
+		ch.UpdateAuditLog(userId)
+		err = impl.chartRepository.Update(ch)
+		if err != nil {
+			return err
 		}
 	}
 	return nil

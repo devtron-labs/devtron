@@ -90,7 +90,8 @@ func (impl *GitOpsManifestPushServiceImpl) ValidateRepoForGitOperation(manifestP
 		}
 		manifestPushTemplate.RepoUrl = chartGitAttr.RepoUrl
 		chartGitAttr.ChartLocation = manifestPushTemplate.ChartLocation
-		err = impl.chartService.UpdateGitRepoUrlInCharts(manifestPushTemplate.AppId, chartGitAttr.RepoUrl, chartGitAttr.ChartLocation, manifestPushTemplate.UserId)
+		// below function will override gitRepoUrl for charts even if user has already configured gitOps repoURL
+		err = impl.chartService.OverrideGitOpsRepoUrl(manifestPushTemplate.AppId, chartGitAttr.RepoUrl, chartGitAttr.ChartLocation, manifestPushTemplate.UserId)
 		if err != nil {
 			impl.logger.Errorw("error in updating git repo url in charts", "err", err)
 			return fmt.Errorf("No repository configured for Gitops! Error while creating git repository: '%s'", gitOpsRepoName)

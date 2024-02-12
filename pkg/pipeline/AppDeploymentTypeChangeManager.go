@@ -459,7 +459,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentApps(ctx context
 									impl.logger.Errorw("error in registering acd app", "err", AcdRegisterErr)
 								}
 								if AcdRegisterErr == nil {
-									RepoURLUpdateErr = impl.chartService.UpdateGitRepoUrlInCharts(pipeline.AppId, chartGitAttr.RepoUrl, chartGitAttr.ChartLocation, userId)
+									RepoURLUpdateErr = impl.chartService.ConfigureGitOpsRepoUrl(pipeline.AppId, chartGitAttr.RepoUrl, chartGitAttr.ChartLocation, userId)
 									if RepoURLUpdateErr != nil {
 										impl.logger.Errorw("error in updating git repo url in charts", "err", RepoURLUpdateErr)
 									}
