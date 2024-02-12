@@ -100,7 +100,7 @@ func (impl UserRepositoryQueryBuilder) GetQueryForGroupListingWithFilters(req *b
 		}
 	}
 
-	if req.Size > 0 && !req.CountCheck {
+	if req.Size > 0 && !req.CountCheck && !req.ShowAll {
 		orderCondition += " limit " + strconv.Itoa(req.Size) + " offset " + strconv.Itoa(req.Offset) + ""
 	}
 	var query string

@@ -41,7 +41,7 @@ type RoleGroupService interface {
 	CreateRoleGroup(request *bean.RoleGroup) (*bean.RoleGroup, error)
 	UpdateRoleGroup(request *bean.RoleGroup, token string, managerAuth func(resource, token string, object string) bool) (*bean.RoleGroup, error)
 	FetchRoleGroupsById(id int32) (*bean.RoleGroup, error)
-	FetchRoleGroups() (*bean.RoleGroupListingResponse, error)
+	FetchRoleGroups(req *bean.FetchListingRequest) (*bean.RoleGroupListingResponse, error)
 	FetchRoleGroupsWithFilters(request *bean.FetchListingRequest) (*bean.RoleGroupListingResponse, error)
 	FetchRoleGroupsByName(name string) ([]*bean.RoleGroup, error)
 	DeleteRoleGroup(model *bean.RoleGroup) (bool, error)
@@ -603,8 +603,9 @@ func (impl RoleGroupServiceImpl) getRoleGroupMetadata(roleGroup *repository.Role
 	return roleFilters, isSuperAdmin
 }
 
-func (impl RoleGroupServiceImpl) fetchDetailedRoleGroups() ([]*bean.RoleGroup, error) {
-	roleGroups, err := impl.roleGroupRepository.GetAllRoleGroup()
+func (impl RoleGroupServiceImpl) fetchDetailedRoleGroups(req *bean.FetchListingRequest) ([]*bean.RoleGroup, error) {
+	query := impl.userRepositoryQueryBuilder.GetQueryForGroupListingWithFilters(req)
+	roleGroups, err := impl.roleGroupRepository.GetAllExecutingQuery(query)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
 		return nil, err
@@ -636,8 +637,8 @@ func (impl RoleGroupServiceImpl) fetchDetailedRoleGroups() ([]*bean.RoleGroup, e
 	return list, nil
 }
 
-func (impl RoleGroupServiceImpl) FetchRoleGroups() (*bean.RoleGroupListingResponse, error) {
-	list, err := impl.fetchDetailedRoleGroups()
+func (impl RoleGroupServiceImpl) FetchRoleGroups(req *bean.FetchListingRequest) (*bean.RoleGroupListingResponse, error) {
+	list, err := impl.fetchDetailedRoleGroups(req)
 	if err != nil {
 		impl.logger.Errorw("error in FetchDetailedRoleGroups", "err", err)
 		return nil, err
@@ -654,7 +655,7 @@ func (impl RoleGroupServiceImpl) FetchRoleGroupsWithFilters(request *bean.FetchL
 	// default values will be used if not provided
 	impl.userCommonService.SetDefaultValuesIfNotPresent(request, true)
 	if request.ShowAll {
-		return impl.FetchRoleGroups()
+		return impl.FetchRoleGroups(request)
 	}
 
 	// setting count check to true for getting only count
