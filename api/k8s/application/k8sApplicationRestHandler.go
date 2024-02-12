@@ -526,7 +526,7 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWrit
 			errCode = apiErr.HttpStatusCode
 			switch errCode {
 			case http.StatusNotFound:
-				errorMessage := "resource not found"
+				errorMessage := k8s.ResourceNotFoundErr
 				err = fmt.Errorf("%s: %w", errorMessage, err)
 			}
 		}
