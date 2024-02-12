@@ -8,12 +8,12 @@ import (
 	"path"
 )
 
-func ParseChartGitPushRequest(installAppRequestDTO *appStoreBean.InstallAppVersionDTO, repoURl string, tempRefChart string) *bean.PushChartToGitRequestDTO {
+func ParseChartGitPushRequest(installAppRequestDTO *appStoreBean.InstallAppVersionDTO, tempRefChart string) *bean.PushChartToGitRequestDTO {
 	return &bean.PushChartToGitRequestDTO{
 		AppName:           installAppRequestDTO.AppName,
 		EnvName:           installAppRequestDTO.Environment.Name,
 		ChartAppStoreName: installAppRequestDTO.AppStoreName,
-		RepoURL:           repoURl,
+		RepoURL:           installAppRequestDTO.GitOpsRepoURL,
 		TempChartRefDir:   tempRefChart,
 		UserId:            installAppRequestDTO.UserId,
 	}

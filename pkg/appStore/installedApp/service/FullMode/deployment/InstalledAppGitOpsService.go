@@ -167,8 +167,7 @@ func (impl *FullModeDeploymentServiceImpl) parseGitRepoErrorResponse(err error) 
 
 // createGitOpsRepoAndPushChart is a wrapper for creating GitOps repo and pushing chart to created repo
 func (impl *FullModeDeploymentServiceImpl) createGitOpsRepoAndPushChart(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, builtChartPath string, requirementsConfig *git.ChartConfig, valuesConfig *git.ChartConfig) (*commonBean.ChartGitAttribute, string, error) {
-	repoURL := installAppVersionRequest.GitOpsRepoURL
-	if len(repoURL) == 0 {
+	if len(installAppVersionRequest.GitOpsRepoURL) == 0 {
 		gitOpsConfigStatus, err := impl.gitOpsConfigReadService.GetGitOpsConfigActive()
 		if err != nil {
 			return nil, "", err
@@ -209,7 +208,7 @@ func (impl *FullModeDeploymentServiceImpl) createGitOpsRepoAndPushChart(installA
 			return nil, "", err
 		}
 	}
-	pushChartToGitRequest := adapter.ParseChartGitPushRequest(installAppVersionRequest, repoURL, builtChartPath)
+	pushChartToGitRequest := adapter.ParseChartGitPushRequest(installAppVersionRequest, builtChartPath)
 	chartGitAttribute, commitHash, err := impl.gitOperationService.PushChartToGitOpsRepoForHelmApp(pushChartToGitRequest, requirementsConfig, valuesConfig)
 	if err != nil {
 		impl.Logger.Errorw("error in pushing chart to git", "err", err)
