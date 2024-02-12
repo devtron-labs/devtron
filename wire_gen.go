@@ -547,7 +547,11 @@ func InitializeApp() (*App, error) {
 	devtronAppConfigServiceImpl := pipeline.NewDevtronAppConfigServiceImpl(sugaredLogger, ciCdPipelineOrchestratorImpl, appRepositoryImpl, pipelineRepositoryImpl, resourceGroupServiceImpl, enforcerUtilImpl, ciMaterialConfigServiceImpl)
 	pipelineBuilderImpl := pipeline.NewPipelineBuilderImpl(sugaredLogger, materialRepositoryImpl, chartRepositoryImpl, ciPipelineConfigServiceImpl, ciMaterialConfigServiceImpl, appArtifactManagerImpl, devtronAppCMCSServiceImpl, devtronAppStrategyServiceImpl, appDeploymentTypeChangeManagerImpl, cdPipelineConfigServiceImpl, devtronAppConfigServiceImpl)
 	deploymentTemplateValidationServiceImpl := deploymentTemplate.NewDeploymentTemplateValidationServiceImpl(sugaredLogger, chartRefServiceImpl, scopedVariableManagerImpl)
-	gitOpsValidationServiceImpl := validation.NewGitOpsValidationServiceImpl(sugaredLogger, gitFactory, gitOperationServiceImpl, gitOpsConfigReadServiceImpl, chartTemplateServiceImpl)
+	installedAppDBExtendedServiceImpl, err := FullMode.NewInstalledAppDBExtendedServiceImpl(sugaredLogger, installedAppRepositoryImpl, appRepositoryImpl, userServiceImpl, installedAppVersionHistoryRepositoryImpl, appStatusServiceImpl, pubSubClientServiceImpl, gitOpsConfigReadServiceImpl)
+	if err != nil {
+		return nil, err
+	}
+	gitOpsValidationServiceImpl := validation.NewGitOpsValidationServiceImpl(sugaredLogger, gitFactory, gitOperationServiceImpl, gitOpsConfigReadServiceImpl, chartTemplateServiceImpl, chartServiceImpl, installedAppDBExtendedServiceImpl)
 	devtronAppGitOpConfigServiceImpl := gitOpsConfig.NewDevtronAppGitOpConfigServiceImpl(sugaredLogger, chartRepositoryImpl, gitOpsConfigReadServiceImpl, gitOpsValidationServiceImpl, argoClientWrapperServiceImpl)
 	appListingViewBuilderImpl := app2.NewAppListingViewBuilderImpl(sugaredLogger)
 	linkoutsRepositoryImpl := repository2.NewLinkoutsRepositoryImpl(sugaredLogger, db)
@@ -607,10 +611,6 @@ func InitializeApp() (*App, error) {
 	teamRouterImpl := team2.NewTeamRouterImpl(teamRestHandlerImpl)
 	gitWebhookHandlerImpl := pubsub.NewGitWebhookHandler(sugaredLogger, pubSubClientServiceImpl, gitWebhookServiceImpl)
 	workflowStatusUpdateHandlerImpl := pubsub.NewWorkflowStatusUpdateHandlerImpl(sugaredLogger, pubSubClientServiceImpl, ciHandlerImpl, cdHandlerImpl, eventSimpleFactoryImpl, eventRESTClientImpl, cdWorkflowRepositoryImpl)
-	installedAppDBExtendedServiceImpl, err := FullMode.NewInstalledAppDBExtendedServiceImpl(sugaredLogger, installedAppRepositoryImpl, appRepositoryImpl, userServiceImpl, installedAppVersionHistoryRepositoryImpl, appStatusServiceImpl, pubSubClientServiceImpl, gitOpsConfigReadServiceImpl)
-	if err != nil {
-		return nil, err
-	}
 	chartGroupDeploymentRepositoryImpl := repository15.NewChartGroupDeploymentRepositoryImpl(db, sugaredLogger)
 	clusterInstalledAppsRepositoryImpl := repository3.NewClusterInstalledAppsRepositoryImpl(db, sugaredLogger)
 	eaModeDeploymentServiceImpl := EAMode.NewEAModeDeploymentServiceImpl(sugaredLogger, helmAppServiceImpl, appStoreApplicationVersionRepositoryImpl, helmAppClientImpl, installedAppRepositoryImpl, ociRegistryConfigRepositoryImpl)
