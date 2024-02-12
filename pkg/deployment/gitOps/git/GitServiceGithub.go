@@ -24,7 +24,7 @@ type GitHubClient struct {
 func NewGithubClient(host string, token string, org string, logger *zap.SugaredLogger,
 	gitService GitService) (GitHubClient, error) {
 	ctx := context.Background()
-	httpTransport := &http2.Transport{}
+	httpTransport := &http2.Transport{Proxy: http2.ProxyFromEnvironment}
 	httpClient := &http2.Client{Transport: httpTransport}
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: token},
