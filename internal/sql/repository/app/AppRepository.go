@@ -30,7 +30,7 @@ import (
 type App struct {
 	tableName       struct{}       `sql:"app" pg:",discard_unknown_columns"`
 	Id              int            `sql:"id,pk"`
-	AppName         string         `sql:"app_name,notnull"` //same as app name
+	AppName         string         `sql:"app_name,notnull"` // same as app name
 	DisplayName     string         `sql:"display_name"`
 	Active          bool           `sql:"active, notnull"`
 	TeamId          int            `sql:"team_id"`
@@ -41,6 +41,10 @@ type App struct {
 	sql.AuditLog
 }
 
+type AppWithExtraQueryFields struct {
+	App
+	TotalCount int
+}
 type AppRepository interface {
 	Save(pipelineGroup *App) error
 	SaveWithTxn(pipelineGroup *App, tx *pg.Tx) error
@@ -79,6 +83,8 @@ type AppRepository interface {
 	FindAppAndProjectByIdsIn(ids []int) ([]*App, error)
 	FindAppAndProjectByIdsOrderByTeam(ids []int) ([]*App, error)
 	FetchAppIdsByDisplayNamesForJobs(names []string) (map[int]string, []int, error)
+	GetActiveCiCdAppsCount(excludeAppIds []int) (int, error)
+	FindAppsWithFilter(appNameLike, sortOrder string, limit, offset int, excludeAppIds []int) ([]AppWithExtraQueryFields, error)
 }
 
 const DevtronApp = "DevtronApp"
@@ -490,5 +496,40 @@ func (repo AppRepositoryImpl) FindAppAndProjectByIdsOrderByTeam(ids []int) ([]*A
 		Where("app.id in (?)", pg.In(ids)).
 		Order("app.team_id").
 		Select()
+	return apps, err
+}
+
+func (repo AppRepositoryImpl) GetActiveCiCdAppsCount(excludeAppIds []int) (int, error) {
+	query := repo.dbConnection.Model(&App{}).
+		Where("active=?", true).
+		Where("app_type=?", helper.CustomApp)
+	if len(excludeAppIds) > 0 {
+		query = query.Where("id not in (?)", pg.In(excludeAppIds))
+	}
+	return query.Count()
+}
+
+func (repo AppRepositoryImpl) FindAppsWithFilter(appNameLike, sortOrder string, limit, offset int, excludeAppIds []int) ([]AppWithExtraQueryFields, error) {
+	query := "SELECT id, app_name,COUNT(id) OVER() AS total_count " +
+		" FROM app " +
+		fmt.Sprintf(" WHERE active=true AND app_type = %d", helper.CustomApp)
+	if appNameLike != "" {
+		query += " AND app_name LIKE '%" + appNameLike + "%' "
+	}
+	if len(excludeAppIds) > 0 {
+		query += fmt.Sprintf(" AND id NOT IN (%s) ", helper.GetCommaSepratedString(excludeAppIds))
+	}
+	if sortOrder != "" {
+		query += fmt.Sprintf(" ORDER BY app_name %s ", sortOrder)
+	}
+	if limit > 0 {
+		query += fmt.Sprintf(" LIMIT %d ", limit)
+	}
+	if offset > 0 {
+		query += fmt.Sprintf(" OFFSET %d ", offset)
+	}
+
+	apps := make([]AppWithExtraQueryFields, 0)
+	_, err := repo.dbConnection.Query(&apps, query)
 	return apps, err
 }
