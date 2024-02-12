@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/auth/user/adapter"
+	helper2 "github.com/devtron-labs/devtron/pkg/auth/user/helper"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository/helper"
 	"net/http"
 	"strings"
@@ -54,7 +55,7 @@ type UserService interface {
 	UpdateUser(userInfo *bean.UserInfo, token string, managerAuth func(resource, token string, object string) bool) (*bean.UserInfo, bool, bool, []string, error)
 	GetById(id int32) (*bean.UserInfo, error)
 	GetAll() ([]bean.UserInfo, error)
-	GetAllWithFilters(request *bean.FetchListingRequest) (*bean.UserListingResponse, error)
+	GetAllWithFilters(request *bean.ListingRequest) (*bean.UserListingResponse, error)
 	GetEmailFromToken(token string) (string, error)
 	GetEmailById(userId int32) (string, error)
 	GetLoggedInUser(r *http.Request) (int32, error)
@@ -76,33 +77,30 @@ type UserServiceImpl struct {
 	userReqLock sync.RWMutex
 	//map of userId and current lock-state of their serving ability;
 	//if TRUE then it means that some request is ongoing & unable to serve and FALSE then it is open to serve
-	userReqState                      map[int32]bool
-	userAuthRepository                repository.UserAuthRepository
-	logger                            *zap.SugaredLogger
-	userRepository                    repository.UserRepository
-	roleGroupRepository               repository.RoleGroupRepository
-	sessionManager2                   *middleware.SessionManager
-	userCommonService                 UserCommonService
-	userAuditService                  UserAuditService
-	userListingRepositoryQueryBuilder helper.UserRepositoryQueryBuilder
+	userReqState        map[int32]bool
+	userAuthRepository  repository.UserAuthRepository
+	logger              *zap.SugaredLogger
+	userRepository      repository.UserRepository
+	roleGroupRepository repository.RoleGroupRepository
+	sessionManager2     *middleware.SessionManager
+	userCommonService   UserCommonService
+	userAuditService    UserAuditService
 }
 
 func NewUserServiceImpl(userAuthRepository repository.UserAuthRepository,
 	logger *zap.SugaredLogger,
 	userRepository repository.UserRepository,
 	userGroupRepository repository.RoleGroupRepository,
-	sessionManager2 *middleware.SessionManager, userCommonService UserCommonService, userAuditService UserAuditService,
-	userListingRepositoryQueryBuilder helper.UserRepositoryQueryBuilder) *UserServiceImpl {
+	sessionManager2 *middleware.SessionManager, userCommonService UserCommonService, userAuditService UserAuditService) *UserServiceImpl {
 	serviceImpl := &UserServiceImpl{
-		userReqState:                      make(map[int32]bool),
-		userAuthRepository:                userAuthRepository,
-		logger:                            logger,
-		userRepository:                    userRepository,
-		roleGroupRepository:               userGroupRepository,
-		sessionManager2:                   sessionManager2,
-		userCommonService:                 userCommonService,
-		userAuditService:                  userAuditService,
-		userListingRepositoryQueryBuilder: userListingRepositoryQueryBuilder,
+		userReqState:        make(map[int32]bool),
+		userAuthRepository:  userAuthRepository,
+		logger:              logger,
+		userRepository:      userRepository,
+		roleGroupRepository: userGroupRepository,
+		sessionManager2:     sessionManager2,
+		userCommonService:   userCommonService,
+		userAuditService:    userAuditService,
 	}
 	cStore = sessions.NewCookieStore(randKey())
 	return serviceImpl
@@ -951,7 +949,7 @@ func (impl *UserServiceImpl) GetAll() ([]bean.UserInfo, error) {
 }
 
 // GetAllWithFilters takes filter request  gives UserListingResponse as output with some operations like filter, sorting, searching,pagination support inbuilt
-func (impl UserServiceImpl) GetAllWithFilters(request *bean.FetchListingRequest) (*bean.UserListingResponse, error) {
+func (impl UserServiceImpl) GetAllWithFilters(request *bean.ListingRequest) (*bean.UserListingResponse, error) {
 	//  default values will be used if not provided
 	impl.userCommonService.SetDefaultValuesIfNotPresent(request, false)
 	if request.ShowAll {
@@ -965,7 +963,7 @@ func (impl UserServiceImpl) GetAllWithFilters(request *bean.FetchListingRequest)
 	// setting count check to true for only count
 	request.CountCheck = true
 	// Build query from query builder
-	query := impl.userListingRepositoryQueryBuilder.GetQueryForUserListingWithFilters(request)
+	query := helper.GetQueryForUserListingWithFilters(request)
 	totalCount, err := impl.userRepository.GetCountExecutingQuery(query)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db in GetAllWithFilters", "error", err)
@@ -975,7 +973,7 @@ func (impl UserServiceImpl) GetAllWithFilters(request *bean.FetchListingRequest)
 	// setting count check to false for getting data
 	request.CountCheck = false
 
-	query = impl.userListingRepositoryQueryBuilder.GetQueryForUserListingWithFilters(request)
+	query = helper.GetQueryForUserListingWithFilters(request)
 	models, err := impl.userRepository.GetAllExecutingQuery(query)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db in GetAllWithFilters", "error", err)
@@ -1023,8 +1021,8 @@ func (impl UserServiceImpl) getUserResponse(model []repository.UserModel, totalC
 	return listingResponse, nil
 }
 
-func (impl *UserServiceImpl) getAllDetailedUsers(req *bean.FetchListingRequest) ([]bean.UserInfo, error) {
-	query := impl.userListingRepositoryQueryBuilder.GetQueryForUserListingWithFilters(req)
+func (impl *UserServiceImpl) getAllDetailedUsers(req *bean.ListingRequest) ([]bean.UserInfo, error) {
+	query := helper.GetQueryForUserListingWithFilters(req)
 	models, err := impl.userRepository.GetAllExecutingQuery(query)
 	if err != nil {
 		impl.logger.Errorw("error in GetAllDetailedUsers", "err", err)
@@ -1256,14 +1254,10 @@ func (impl *UserServiceImpl) DeleteUser(bean *bean.UserInfo) (bool, error) {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
 		return false, err
 	}
-	urm, err := impl.userAuthRepository.GetUserRoleMappingByUserId(bean.Id)
+	userRolesMappingIds, err := impl.userAuthRepository.GetUserRoleMappingIdsByUserId(bean.Id)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
 		return false, err
-	}
-	userRolesMappingIds := make([]int, 0, len(urm))
-	for _, urmModel := range urm {
-		userRolesMappingIds = append(userRolesMappingIds, urmModel.Id)
 	}
 	if len(userRolesMappingIds) > 0 {
 		err = impl.userAuthRepository.DeleteUserRoleMappingByIds(userRolesMappingIds, tx)
@@ -1301,7 +1295,7 @@ func (impl *UserServiceImpl) DeleteUser(bean *bean.UserInfo) (bool, error) {
 
 // BulkDeleteUsers takes in BulkDeleteRequest and return success and error
 func (impl *UserServiceImpl) BulkDeleteUsers(request *bean.BulkDeleteRequest) (bool, error) {
-	// it handles FetchListingRequest if filters are applied will delete those users or will consider the given user ids.
+	// it handles ListingRequest if filters are applied will delete those users or will consider the given user ids.
 	if request.ListingRequest != nil {
 		filteredUserIds, err := impl.getUserIdsHonoringFilters(request.ListingRequest)
 		if err != nil {
@@ -1320,9 +1314,9 @@ func (impl *UserServiceImpl) BulkDeleteUsers(request *bean.BulkDeleteRequest) (b
 }
 
 // getUserIdsHonoringFilters get the filtered user ids according to the request filters and returns userIds and error(not nil) if any exception is caught.
-func (impl *UserServiceImpl) getUserIdsHonoringFilters(request *bean.FetchListingRequest) ([]int32, error) {
+func (impl *UserServiceImpl) getUserIdsHonoringFilters(request *bean.ListingRequest) ([]int32, error) {
 	//query to get particular models respecting filters
-	query := impl.userListingRepositoryQueryBuilder.GetQueryForUserListingWithFilters(request)
+	query := helper.GetQueryForUserListingWithFilters(request)
 	models, err := impl.userRepository.GetAllExecutingQuery(query)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db in GetAllWithFilters", "error", err)
@@ -1331,7 +1325,7 @@ func (impl *UserServiceImpl) getUserIdsHonoringFilters(request *bean.FetchListin
 	// collecting the required user ids from filtered models
 	filteredUserIds := make([]int32, len(models))
 	for i, model := range models {
-		if !(model.EmailId == bean2.AdminUser || model.EmailId == bean2.SystemUser) {
+		if helper2.CheckIfUserDevtronManagedByEmail(model.EmailId) {
 			filteredUserIds[i] = model.Id
 		}
 	}
@@ -1350,7 +1344,7 @@ func (impl *UserServiceImpl) deleteUsersByIds(request *bean.BulkDeleteRequest) e
 
 	emailIds, err := impl.userRepository.GetEmailByIds(request.Ids)
 	if err != nil {
-		impl.logger.Errorw("error in DeleteUsersForIds", "err", err)
+		impl.logger.Errorw("error in DeleteUsersForIds", "userIds", request.Ids, "err", err)
 		return err
 	}
 
@@ -1396,22 +1390,20 @@ func (impl *UserServiceImpl) deleteMappingsFromCasbin(emailIds []string, totalCo
 
 	success := impl.userCommonService.DeleteRoleForUserFromCasbin(emailIdVsCasbinRolesMap)
 	if !success {
-		impl.logger.Errorw("error in deleting from casbin in deleteMappingsFromCasbin ", "success", success)
+		impl.logger.Errorw("error in deleting from casbin in deleteMappingsFromCasbin ", "emailIds", emailIds)
+		return &util.ApiError{Code: "500", HttpStatusCode: 500, InternalMessage: "Not able to delete mappings from casbin", UserMessage: "Not able to delete mappings from casbin"}
 	}
 	return nil
 }
 
 // deleteMappingsFromOrchestrator takes in userIds to be deleted and transaction returns error in case of any issue else nil
 func (impl *UserServiceImpl) deleteMappingsFromOrchestrator(userIds []int32, tx *pg.Tx) error {
-	userRoleMapping, err := impl.userAuthRepository.GetUserRoleMappingIdsByUserIds(userIds)
+	urmIds, err := impl.userAuthRepository.GetUserRoleMappingIdsByUserIds(userIds)
 	if err != nil {
 		impl.logger.Errorw("error in DeleteUsersForIds", "err", err)
 		return err
 	}
-	urmIds := make([]int, 0, len(userRoleMapping))
-	for _, model := range userRoleMapping {
-		urmIds = append(urmIds, model.Id)
-	}
+
 	if len(urmIds) > 0 {
 		err = impl.userAuthRepository.DeleteUserRoleMappingByIds(urmIds, tx)
 		if err != nil {
