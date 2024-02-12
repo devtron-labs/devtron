@@ -77,33 +77,30 @@ type UserServiceImpl struct {
 	userReqLock sync.RWMutex
 	//map of userId and current lock-state of their serving ability;
 	//if TRUE then it means that some request is ongoing & unable to serve and FALSE then it is open to serve
-	userReqState                      map[int32]bool
-	userAuthRepository                repository.UserAuthRepository
-	logger                            *zap.SugaredLogger
-	userRepository                    repository.UserRepository
-	roleGroupRepository               repository.RoleGroupRepository
-	sessionManager2                   *middleware.SessionManager
-	userCommonService                 UserCommonService
-	userAuditService                  UserAuditService
-	userListingRepositoryQueryBuilder helper.UserRepositoryQueryBuilder
+	userReqState        map[int32]bool
+	userAuthRepository  repository.UserAuthRepository
+	logger              *zap.SugaredLogger
+	userRepository      repository.UserRepository
+	roleGroupRepository repository.RoleGroupRepository
+	sessionManager2     *middleware.SessionManager
+	userCommonService   UserCommonService
+	userAuditService    UserAuditService
 }
 
 func NewUserServiceImpl(userAuthRepository repository.UserAuthRepository,
 	logger *zap.SugaredLogger,
 	userRepository repository.UserRepository,
 	userGroupRepository repository.RoleGroupRepository,
-	sessionManager2 *middleware.SessionManager, userCommonService UserCommonService, userAuditService UserAuditService,
-	userListingRepositoryQueryBuilder helper.UserRepositoryQueryBuilder) *UserServiceImpl {
+	sessionManager2 *middleware.SessionManager, userCommonService UserCommonService, userAuditService UserAuditService) *UserServiceImpl {
 	serviceImpl := &UserServiceImpl{
-		userReqState:                      make(map[int32]bool),
-		userAuthRepository:                userAuthRepository,
-		logger:                            logger,
-		userRepository:                    userRepository,
-		roleGroupRepository:               userGroupRepository,
-		sessionManager2:                   sessionManager2,
-		userCommonService:                 userCommonService,
-		userAuditService:                  userAuditService,
-		userListingRepositoryQueryBuilder: userListingRepositoryQueryBuilder,
+		userReqState:        make(map[int32]bool),
+		userAuthRepository:  userAuthRepository,
+		logger:              logger,
+		userRepository:      userRepository,
+		roleGroupRepository: userGroupRepository,
+		sessionManager2:     sessionManager2,
+		userCommonService:   userCommonService,
+		userAuditService:    userAuditService,
 	}
 	cStore = sessions.NewCookieStore(randKey())
 	return serviceImpl
@@ -966,7 +963,7 @@ func (impl UserServiceImpl) GetAllWithFilters(request *bean.FetchListingRequest)
 	// setting count check to true for only count
 	request.CountCheck = true
 	// Build query from query builder
-	query := impl.userListingRepositoryQueryBuilder.GetQueryForUserListingWithFilters(request)
+	query := helper.GetQueryForUserListingWithFilters(request)
 	totalCount, err := impl.userRepository.GetCountExecutingQuery(query)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db in GetAllWithFilters", "error", err)
@@ -976,7 +973,7 @@ func (impl UserServiceImpl) GetAllWithFilters(request *bean.FetchListingRequest)
 	// setting count check to false for getting data
 	request.CountCheck = false
 
-	query = impl.userListingRepositoryQueryBuilder.GetQueryForUserListingWithFilters(request)
+	query = helper.GetQueryForUserListingWithFilters(request)
 	models, err := impl.userRepository.GetAllExecutingQuery(query)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db in GetAllWithFilters", "error", err)
@@ -1025,7 +1022,7 @@ func (impl UserServiceImpl) getUserResponse(model []repository.UserModel, totalC
 }
 
 func (impl *UserServiceImpl) getAllDetailedUsers(req *bean.FetchListingRequest) ([]bean.UserInfo, error) {
-	query := impl.userListingRepositoryQueryBuilder.GetQueryForUserListingWithFilters(req)
+	query := helper.GetQueryForUserListingWithFilters(req)
 	models, err := impl.userRepository.GetAllExecutingQuery(query)
 	if err != nil {
 		impl.logger.Errorw("error in GetAllDetailedUsers", "err", err)
@@ -1323,7 +1320,7 @@ func (impl *UserServiceImpl) BulkDeleteUsers(request *bean.BulkDeleteRequest) (b
 // getUserIdsHonoringFilters get the filtered user ids according to the request filters and returns userIds and error(not nil) if any exception is caught.
 func (impl *UserServiceImpl) getUserIdsHonoringFilters(request *bean.FetchListingRequest) ([]int32, error) {
 	//query to get particular models respecting filters
-	query := impl.userListingRepositoryQueryBuilder.GetQueryForUserListingWithFilters(request)
+	query := helper.GetQueryForUserListingWithFilters(request)
 	models, err := impl.userRepository.GetAllExecutingQuery(query)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db in GetAllWithFilters", "error", err)
