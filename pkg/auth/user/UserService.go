@@ -55,7 +55,7 @@ type UserService interface {
 	UpdateUser(userInfo *bean.UserInfo, token string, managerAuth func(resource, token string, object string) bool) (*bean.UserInfo, bool, bool, []string, error)
 	GetById(id int32) (*bean.UserInfo, error)
 	GetAll() ([]bean.UserInfo, error)
-	GetAllWithFilters(request *bean.FetchListingRequest) (*bean.UserListingResponse, error)
+	GetAllWithFilters(request *bean.ListingRequest) (*bean.UserListingResponse, error)
 	GetEmailFromToken(token string) (string, error)
 	GetEmailById(userId int32) (string, error)
 	GetLoggedInUser(r *http.Request) (int32, error)
@@ -949,7 +949,7 @@ func (impl *UserServiceImpl) GetAll() ([]bean.UserInfo, error) {
 }
 
 // GetAllWithFilters takes filter request  gives UserListingResponse as output with some operations like filter, sorting, searching,pagination support inbuilt
-func (impl UserServiceImpl) GetAllWithFilters(request *bean.FetchListingRequest) (*bean.UserListingResponse, error) {
+func (impl UserServiceImpl) GetAllWithFilters(request *bean.ListingRequest) (*bean.UserListingResponse, error) {
 	//  default values will be used if not provided
 	impl.userCommonService.SetDefaultValuesIfNotPresent(request, false)
 	if request.ShowAll {
@@ -1021,7 +1021,7 @@ func (impl UserServiceImpl) getUserResponse(model []repository.UserModel, totalC
 	return listingResponse, nil
 }
 
-func (impl *UserServiceImpl) getAllDetailedUsers(req *bean.FetchListingRequest) ([]bean.UserInfo, error) {
+func (impl *UserServiceImpl) getAllDetailedUsers(req *bean.ListingRequest) ([]bean.UserInfo, error) {
 	query := helper.GetQueryForUserListingWithFilters(req)
 	models, err := impl.userRepository.GetAllExecutingQuery(query)
 	if err != nil {
@@ -1299,7 +1299,7 @@ func (impl *UserServiceImpl) DeleteUser(bean *bean.UserInfo) (bool, error) {
 
 // BulkDeleteUsers takes in BulkDeleteRequest and return success and error
 func (impl *UserServiceImpl) BulkDeleteUsers(request *bean.BulkDeleteRequest) (bool, error) {
-	// it handles FetchListingRequest if filters are applied will delete those users or will consider the given user ids.
+	// it handles ListingRequest if filters are applied will delete those users or will consider the given user ids.
 	if request.ListingRequest != nil {
 		filteredUserIds, err := impl.getUserIdsHonoringFilters(request.ListingRequest)
 		if err != nil {
@@ -1318,7 +1318,7 @@ func (impl *UserServiceImpl) BulkDeleteUsers(request *bean.BulkDeleteRequest) (b
 }
 
 // getUserIdsHonoringFilters get the filtered user ids according to the request filters and returns userIds and error(not nil) if any exception is caught.
-func (impl *UserServiceImpl) getUserIdsHonoringFilters(request *bean.FetchListingRequest) ([]int32, error) {
+func (impl *UserServiceImpl) getUserIdsHonoringFilters(request *bean.ListingRequest) ([]int32, error) {
 	//query to get particular models respecting filters
 	query := helper.GetQueryForUserListingWithFilters(request)
 	models, err := impl.userRepository.GetAllExecutingQuery(query)

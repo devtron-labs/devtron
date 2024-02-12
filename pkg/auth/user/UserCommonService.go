@@ -29,7 +29,7 @@ type UserCommonService interface {
 	BuildRoleFilterKeyForOtherEntity(roleFilterMap map[string]*bean.RoleFilter, role repository.RoleModel, key string)
 	BuildRoleFilterForAllTypes(roleFilterMap map[string]*bean.RoleFilter, role repository.RoleModel, key string)
 	GetUniqueKeyForAllEntity(role repository.RoleModel) string
-	SetDefaultValuesIfNotPresent(request *bean.FetchListingRequest, isRoleGroup bool)
+	SetDefaultValuesIfNotPresent(request *bean.ListingRequest, isRoleGroup bool)
 	DeleteRoleForUserFromCasbin(mappings map[string][]string) bool
 	DeleteUserForRoleFromCasbin(mappings map[string][]string) bool
 }
@@ -678,7 +678,7 @@ func (impl UserCommonServiceImpl) GetUniqueKeyForAllEntity(role repository.RoleM
 	return key
 }
 
-func (impl UserCommonServiceImpl) SetDefaultValuesIfNotPresent(request *bean.FetchListingRequest, isRoleGroup bool) {
+func (impl UserCommonServiceImpl) SetDefaultValuesIfNotPresent(request *bean.ListingRequest, isRoleGroup bool) {
 	if len(request.SortBy) == 0 {
 		if isRoleGroup {
 			request.SortBy = bean2.GroupName

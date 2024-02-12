@@ -358,7 +358,7 @@ func (handler UserRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Request
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	req := &bean.FetchListingRequest{}
+	req := &bean.ListingRequest{}
 	err = decoder.Decode(req, r.URL.Query())
 	if err != nil {
 		handler.logger.Errorw("request err, GetAll", "err", err, "payload", req)
@@ -729,7 +729,7 @@ func (handler UserRestHandlerImpl) FetchRoleGroups(w http.ResponseWriter, r *htt
 		return
 	}
 
-	req := &bean.FetchListingRequest{}
+	req := &bean.ListingRequest{}
 	err = decoder.Decode(req, r.URL.Query())
 	if err != nil {
 		handler.logger.Errorw("request err, FetchRoleGroups", "err", err, "payload", req)

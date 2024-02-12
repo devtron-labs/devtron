@@ -40,8 +40,8 @@ type RoleGroupService interface {
 	CreateRoleGroup(request *bean.RoleGroup) (*bean.RoleGroup, error)
 	UpdateRoleGroup(request *bean.RoleGroup, token string, managerAuth func(resource, token string, object string) bool) (*bean.RoleGroup, error)
 	FetchRoleGroupsById(id int32) (*bean.RoleGroup, error)
-	FetchRoleGroups(req *bean.FetchListingRequest) (*bean.RoleGroupListingResponse, error)
-	FetchRoleGroupsWithFilters(request *bean.FetchListingRequest) (*bean.RoleGroupListingResponse, error)
+	FetchRoleGroups(req *bean.ListingRequest) (*bean.RoleGroupListingResponse, error)
+	FetchRoleGroupsWithFilters(request *bean.ListingRequest) (*bean.RoleGroupListingResponse, error)
 	FetchRoleGroupsByName(name string) ([]*bean.RoleGroup, error)
 	DeleteRoleGroup(model *bean.RoleGroup) (bool, error)
 	BulkDeleteRoleGroups(request *bean.BulkDeleteRequest) (bool, error)
@@ -588,7 +588,7 @@ func (impl RoleGroupServiceImpl) getRoleGroupMetadata(roleGroup *repository.Role
 	return roleFilters, isSuperAdmin
 }
 
-func (impl RoleGroupServiceImpl) fetchDetailedRoleGroups(req *bean.FetchListingRequest) ([]*bean.RoleGroup, error) {
+func (impl RoleGroupServiceImpl) fetchDetailedRoleGroups(req *bean.ListingRequest) ([]*bean.RoleGroup, error) {
 	query := helper.GetQueryForGroupListingWithFilters(req)
 	roleGroups, err := impl.roleGroupRepository.GetAllExecutingQuery(query)
 	if err != nil {
@@ -622,7 +622,7 @@ func (impl RoleGroupServiceImpl) fetchDetailedRoleGroups(req *bean.FetchListingR
 	return list, nil
 }
 
-func (impl RoleGroupServiceImpl) FetchRoleGroups(req *bean.FetchListingRequest) (*bean.RoleGroupListingResponse, error) {
+func (impl RoleGroupServiceImpl) FetchRoleGroups(req *bean.ListingRequest) (*bean.RoleGroupListingResponse, error) {
 	list, err := impl.fetchDetailedRoleGroups(req)
 	if err != nil {
 		impl.logger.Errorw("error in FetchDetailedRoleGroups", "err", err)
@@ -636,7 +636,7 @@ func (impl RoleGroupServiceImpl) FetchRoleGroups(req *bean.FetchListingRequest) 
 }
 
 // FetchRoleGroupsWithFilters takes listing request as input and outputs RoleGroupListingResponse based on the request filters.
-func (impl RoleGroupServiceImpl) FetchRoleGroupsWithFilters(request *bean.FetchListingRequest) (*bean.RoleGroupListingResponse, error) {
+func (impl RoleGroupServiceImpl) FetchRoleGroupsWithFilters(request *bean.ListingRequest) (*bean.RoleGroupListingResponse, error) {
 	// default values will be used if not provided
 	impl.userCommonService.SetDefaultValuesIfNotPresent(request, true)
 	if request.ShowAll {
@@ -778,7 +778,7 @@ func (impl RoleGroupServiceImpl) DeleteRoleGroup(bean *bean.RoleGroup) (bool, er
 
 // BulkDeleteRoleGroups takes in bulk delete request and return error
 func (impl RoleGroupServiceImpl) BulkDeleteRoleGroups(request *bean.BulkDeleteRequest) (bool, error) {
-	// it handles FetchListingRequest if filters are applied will delete those users or will consider the given user ids.
+	// it handles ListingRequest if filters are applied will delete those users or will consider the given user ids.
 	if request.ListingRequest != nil {
 		filteredGroupIds, err := impl.getGroupIdsHonoringFilters(request.ListingRequest)
 		if err != nil {
@@ -798,7 +798,7 @@ func (impl RoleGroupServiceImpl) BulkDeleteRoleGroups(request *bean.BulkDeleteRe
 }
 
 // getGroupIdsHonoringFilters get the filtered group ids according to the request filters and returns groupIds and error(not nil) if any exception is caught.
-func (impl *RoleGroupServiceImpl) getGroupIdsHonoringFilters(request *bean.FetchListingRequest) ([]int32, error) {
+func (impl *RoleGroupServiceImpl) getGroupIdsHonoringFilters(request *bean.ListingRequest) ([]int32, error) {
 	//query to get particular models respecting filters
 	query := helper.GetQueryForGroupListingWithFilters(request)
 	models, err := impl.roleGroupRepository.GetAllExecutingQuery(query)
