@@ -697,8 +697,6 @@ func InitializeApp() (*App, error) {
 		scopedVariable.NewScopedVariableRestHandlerImpl,
 		wire.Bind(new(scopedVariable.ScopedVariableRestHandler), new(*scopedVariable.ScopedVariableRestHandlerImpl)),
 
-		git2.NewGitCliUtil,
-
 		router.NewTelemetryRouterImpl,
 		wire.Bind(new(router.TelemetryRouter), new(*router.TelemetryRouterImpl)),
 		restHandler.NewTelemetryRestHandlerImpl,
