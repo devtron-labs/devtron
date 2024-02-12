@@ -12,7 +12,7 @@ import (
 )
 
 type GitFactory struct {
-	Client       GitClient
+	Client       GitOpsClient
 	GitOpsHelper *GitOpsHelper
 	logger       *zap.SugaredLogger
 }
@@ -61,7 +61,7 @@ func (factory *GitFactory) GetGitLabGroupPath(gitOpsConfig *bean2.GitOpsConfigDt
 	return group.FullPath, nil
 }
 
-func (factory *GitFactory) NewClientForValidation(gitOpsConfig *bean2.GitOpsConfigDto) (GitClient, *GitOpsHelper, error) {
+func (factory *GitFactory) NewClientForValidation(gitOpsConfig *bean2.GitOpsConfigDto) (GitOpsClient, *GitOpsHelper, error) {
 	start := time.Now()
 	var err error
 	defer func() {

@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-type GitClient interface {
+type GitOpsClient interface {
 	CreateRepository(config *bean2.GitOpsConfigDto) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions)
 	CommitValues(config *ChartConfig, gitOpsConfig *bean2.GitOpsConfigDto) (commitHash string, commitTime time.Time, err error)
 	GetRepoUrl(config *bean2.GitOpsConfigDto) (repoUrl string, err error)
@@ -47,7 +47,7 @@ func GetGitConfig(gitOpsRepository repository.GitOpsConfigRepository) (*bean.Git
 	return cfg, err
 }
 
-func NewGitOpsClient(config *bean.GitConfig, logger *zap.SugaredLogger, gitOpsHelper *GitOpsHelper) (GitClient, error) {
+func NewGitOpsClient(config *bean.GitConfig, logger *zap.SugaredLogger, gitOpsHelper *GitOpsHelper) (GitOpsClient, error) {
 	if config.GitProvider == GITLAB_PROVIDER {
 		gitLabClient, err := NewGitLabClient(config, logger, gitOpsHelper)
 		return gitLabClient, err

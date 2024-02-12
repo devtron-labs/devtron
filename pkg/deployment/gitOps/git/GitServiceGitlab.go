@@ -19,7 +19,7 @@ type GitLabClient struct {
 	gitOpsHelper *GitOpsHelper
 }
 
-func NewGitLabClient(config *bean.GitConfig, logger *zap.SugaredLogger, gitOpsHelper *GitOpsHelper) (GitClient, error) {
+func NewGitLabClient(config *bean.GitConfig, logger *zap.SugaredLogger, gitOpsHelper *GitOpsHelper) (GitOpsClient, error) {
 	gitLabClient, err := CreateGitlabClient(config.GitHost, config.GitToken)
 	if err != nil {
 		logger.Errorw("error in creating gitlab client", "err", err)
