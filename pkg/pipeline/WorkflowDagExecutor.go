@@ -3204,6 +3204,8 @@ func (impl *WorkflowDagExecutorImpl) TriggerPipeline(overrideRequest *bean.Value
 			impl.logger.Errorw("Error in pushing manifest to git", "err", err, "git_repo_url", manifestPushTemplate.RepoUrl)
 			return releaseNo, manifest, manifestPushResponse.Error
 		}
+		// Update GitOps repo url after repo migration
+		valuesOverrideResponse.EnvOverride.Chart.GitRepoUrl = manifestPushResponse.OverRiddenRepoUrl
 		pipelineOverrideUpdateRequest := &chartConfig.PipelineOverride{
 			Id:                     valuesOverrideResponse.PipelineOverride.Id,
 			GitHash:                manifestPushResponse.CommitHash,

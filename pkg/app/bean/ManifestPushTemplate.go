@@ -28,9 +28,10 @@ type ManifestPushTemplate struct {
 }
 
 type ManifestPushResponse struct {
-	CommitHash string
-	CommitTime time.Time
-	Error      error
+	OverRiddenRepoUrl string
+	CommitHash        string
+	CommitTime        time.Time
+	Error             error
 }
 
 type HelmRepositoryConfig struct {

@@ -65,7 +65,7 @@ type ChartService interface {
 	ChartRefAutocompleteForAppOrEnv(appId int, envId int) (*chartRefBean.ChartRefAutocompleteResponse, error)
 
 	ConfigureGitOpsRepoUrl(appId int, repoUrl, chartLocation string, userId int32) error
-	OverrideGitOpsRepoUrl(appId int, repoUrl, chartLocation string, userId int32) error
+	OverrideGitOpsRepoUrl(appId int, repoUrl string, userId int32) error
 
 	IsGitOpsRepoConfiguredForDevtronApps(appId int) (bool, error)
 	IsGitOpsRepoAlreadyRegistered(gitOpsRepoUrl string) (bool, error)
@@ -875,14 +875,13 @@ func (impl *ChartServiceImpl) ConfigureGitOpsRepoUrl(appId int, repoUrl, chartLo
 	return nil
 }
 
-func (impl *ChartServiceImpl) OverrideGitOpsRepoUrl(appId int, repoUrl, chartLocation string, userId int32) error {
+func (impl *ChartServiceImpl) OverrideGitOpsRepoUrl(appId int, repoUrl string, userId int32) error {
 	charts, err := impl.chartRepository.FindActiveChartsByAppId(appId)
 	if err != nil && util.IsErrNoRows(err) {
 		return err
 	}
 	for _, ch := range charts {
 		ch.GitRepoUrl = repoUrl
-		ch.ChartLocation = chartLocation
 		ch.UpdateAuditLog(userId)
 		err = impl.chartRepository.Update(ch)
 		if err != nil {

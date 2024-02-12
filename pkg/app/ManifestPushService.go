@@ -6,11 +6,11 @@ import (
 	"github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app/bean"
 	status2 "github.com/devtron-labs/devtron/pkg/app/status"
 	chartService "github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
+	gitOpsBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/config/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	"go.opentelemetry.io/otel"
@@ -60,59 +60,72 @@ func NewGitOpsManifestPushServiceImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (impl *GitOpsManifestPushServiceImpl) ValidateRepoForGitOperation(manifestPushTemplate *bean.ManifestPushTemplate, ctx context.Context) error {
-	// 1. Fetch Global GitOps Details
-	activeGlobalGitOpsConfig, err := impl.gitOpsConfigReadService.GetGitOpsConfigActive()
+func (impl *GitOpsManifestPushServiceImpl) migrateRepoForGitOperation(manifestPushTemplate bean.ManifestPushTemplate, ctx context.Context) (string, error) {
+	gitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoName(manifestPushTemplate.AppName)
+	chartGitAttr, err := impl.gitOperationService.CreateGitRepositoryForApp(gitOpsRepoName, manifestPushTemplate.UserId)
 	if err != nil {
-		impl.logger.Errorw("error in fetching active gitOps config", "err", err)
-		if util.IsErrNoRows(err) {
-			return fmt.Errorf("Gitops integration is not installed/configured. Please install/configure gitops.")
-		}
-		return err
+		impl.logger.Errorw("error in pushing chart to git ", "gitOpsRepoName", gitOpsRepoName, "err", err)
+		return "", fmt.Errorf("No repository configured for Gitops! Error while creating git repository: '%s'", gitOpsRepoName)
 	}
+	chartGitAttr.ChartLocation = manifestPushTemplate.ChartLocation
+	err = impl.argoClientWrapperService.RegisterGitOpsRepoInArgo(ctx, chartGitAttr.RepoUrl, manifestPushTemplate.UserId)
+	if err != nil {
+		impl.logger.Errorw("error in registering app in acd", "err", err)
+		return "", fmt.Errorf("Error in registering repository '%s' in ArgoCd", gitOpsRepoName)
+	}
+	// below function will override gitRepoUrl for charts even if user has already configured gitOps repoURL
+	err = impl.chartService.OverrideGitOpsRepoUrl(manifestPushTemplate.AppId, chartGitAttr.RepoUrl, manifestPushTemplate.UserId)
+	if err != nil {
+		impl.logger.Errorw("error in updating git repo url in charts", "err", err)
+		return "", fmt.Errorf("No repository configured for Gitops! Error while creating git repository: '%s'", gitOpsRepoName)
+	}
+	return chartGitAttr.RepoUrl, nil
+}
 
-	// 2. Create Git Repo if required
+func (impl *GitOpsManifestPushServiceImpl) validateManifestPushRequest(globalGitOpsConfigStatus gitOpsBean.GitOpsConfigurationStatus, manifestPushTemplate bean.ManifestPushTemplate) error {
+	if !globalGitOpsConfigStatus.IsGitOpsConfigured {
+		return fmt.Errorf("Gitops integration is not installed/configured. Please install/configure gitops.")
+	}
 	if gitOps.IsGitOpsRepoNotConfigured(manifestPushTemplate.RepoUrl) || manifestPushTemplate.GitOpsRepoMigrationRequired {
-		if activeGlobalGitOpsConfig.AllowCustomRepository || manifestPushTemplate.IsCustomGitRepository {
+		if globalGitOpsConfigStatus.AllowCustomRepository || manifestPushTemplate.IsCustomGitRepository {
 			return fmt.Errorf("GitOps repository is not configured! Please configure gitops repository for application first.")
-		}
-
-		gitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoName(manifestPushTemplate.AppName)
-		chartGitAttr, err := impl.gitOperationService.CreateGitRepositoryForApp(gitOpsRepoName, manifestPushTemplate.UserId)
-		if err != nil {
-			impl.logger.Errorw("error in pushing chart to git ", "gitOpsRepoName", gitOpsRepoName, "err", err)
-			return fmt.Errorf("No repository configured for Gitops! Error while creating git repository: '%s'", gitOpsRepoName)
-		}
-		err = impl.argoClientWrapperService.RegisterGitOpsRepoInArgo(ctx, chartGitAttr.RepoUrl, manifestPushTemplate.UserId)
-		if err != nil {
-			impl.logger.Errorw("error in registering app in acd", "err", err)
-			return fmt.Errorf("Error in registering repository '%s' in ArgoCd", gitOpsRepoName)
-		}
-		manifestPushTemplate.RepoUrl = chartGitAttr.RepoUrl
-		chartGitAttr.ChartLocation = manifestPushTemplate.ChartLocation
-		// below function will override gitRepoUrl for charts even if user has already configured gitOps repoURL
-		err = impl.chartService.OverrideGitOpsRepoUrl(manifestPushTemplate.AppId, chartGitAttr.RepoUrl, chartGitAttr.ChartLocation, manifestPushTemplate.UserId)
-		if err != nil {
-			impl.logger.Errorw("error in updating git repo url in charts", "err", err)
-			return fmt.Errorf("No repository configured for Gitops! Error while creating git repository: '%s'", gitOpsRepoName)
 		}
 	}
 	return nil
 }
 
 func (impl *GitOpsManifestPushServiceImpl) PushChart(manifestPushTemplate *bean.ManifestPushTemplate, ctx context.Context) bean.ManifestPushResponse {
-	manifestPushResponse := bean.ManifestPushResponse{}
-
-	// 1. Validate Repository for Git Operation
-	errMsg := impl.ValidateRepoForGitOperation(manifestPushTemplate, ctx)
+	manifestPushResponse := bean.ManifestPushResponse{
+		OverRiddenRepoUrl: manifestPushTemplate.RepoUrl,
+	}
+	// 1. Fetch Global GitOps Details
+	globalGitOpsConfigStatus, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
+	if err != nil {
+		impl.logger.Errorw("error in fetching active gitOps config", "err", err)
+		manifestPushResponse.Error = err
+		impl.SaveTimelineForError(manifestPushTemplate, err)
+		return manifestPushResponse
+	}
+	// 2. Validate Repository for Git Operation
+	errMsg := impl.validateManifestPushRequest(*globalGitOpsConfigStatus, *manifestPushTemplate)
 	if errMsg != nil {
 		manifestPushResponse.Error = errMsg
 		impl.SaveTimelineForError(manifestPushTemplate, errMsg)
 		return manifestPushResponse
 	}
-
-	// 2. Push Chart to Git Repository
-	err := impl.PushChartToGitRepo(manifestPushTemplate, ctx)
+	// 3. Create Git Repo if required
+	if gitOps.IsGitOpsRepoNotConfigured(manifestPushTemplate.RepoUrl) || manifestPushTemplate.GitOpsRepoMigrationRequired {
+		overRiddenGitRepoUrl, errMsg := impl.migrateRepoForGitOperation(*manifestPushTemplate, ctx)
+		if errMsg != nil {
+			manifestPushResponse.Error = errMsg
+			impl.SaveTimelineForError(manifestPushTemplate, errMsg)
+			return manifestPushResponse
+		}
+		manifestPushTemplate.RepoUrl = overRiddenGitRepoUrl
+		manifestPushResponse.OverRiddenRepoUrl = overRiddenGitRepoUrl
+	}
+	// 4. Push Chart to Git Repository
+	err = impl.PushChartToGitRepo(manifestPushTemplate, ctx)
 	if err != nil {
 		impl.logger.Errorw("error in pushing chart to git", "err", err)
 		manifestPushResponse.Error = err
@@ -120,7 +133,7 @@ func (impl *GitOpsManifestPushServiceImpl) PushChart(manifestPushTemplate *bean.
 		return manifestPushResponse
 	}
 
-	// 3. Commit chart values to Git Repository
+	// 5. Commit chart values to Git Repository
 	commitHash, commitTime, err := impl.CommitValuesToGit(manifestPushTemplate, ctx)
 	if err != nil {
 		impl.logger.Errorw("error in committing values to git", "err", err)
@@ -131,7 +144,7 @@ func (impl *GitOpsManifestPushServiceImpl) PushChart(manifestPushTemplate *bean.
 	manifestPushResponse.CommitHash = commitHash
 	manifestPushResponse.CommitTime = commitTime
 
-	// 4. Update Deployment Status Timeline
+	// 6. Update Deployment Status Timeline
 	dbConnection := impl.pipelineStatusTimelineRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
