@@ -5,6 +5,7 @@
 - fix: resource tree bad gateway handle (#4613)
 - fix: new api added for getting ciPipelineDetails by only ciPipelineId for CLI (#3708)
 ## Enhancements
+- feat: added support for external argocd apps (#4643)
 - feat: support build infra configurations properties configurable from ui (#4583)
 - perf: adding  support for git cli operations for existing go-git flows (#4602)
 - feat: added proxy in github transport (#4652)
