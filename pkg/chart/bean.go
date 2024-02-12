@@ -57,8 +57,9 @@ type PipelineConfigRequest struct {
 }
 
 type PipelineConfigRequestResponse struct {
-	LatestPipelineConfigRequest   PipelineConfigRequest `json:"latestPipelineConfigRequest"`
-	PreviousPipelineConfigRequest PipelineConfigRequest `json:"previousPipelineConfigRequest"`
+	LatestPipelineConfigRequest    PipelineConfigRequest `json:"latestPipelineConfigRequest"`
+	PreviousPipelineConfigRequest  PipelineConfigRequest `json:"previousPipelineConfigRequest"`
+	PreviousPipelineConfigRequests PipelineConfigRequest `json:"previousPipelineConfigRequests"`
 }
 
 type AppConfigResponse struct {
