@@ -734,7 +734,7 @@ func (impl UserCommonServiceImpl) DeleteRoleForUserFromCasbin(mappings map[strin
 			if flag == false {
 				impl.logger.Warnw("unable to delete role:", "v0", v0, "v1", v1)
 				successful = false
-				//TODO check if need to handle error
+				return successful
 			}
 		}
 	}
@@ -749,7 +749,7 @@ func (impl UserCommonServiceImpl) DeleteUserForRoleFromCasbin(mappings map[strin
 			if flag == false {
 				impl.logger.Warnw("unable to delete role:", "v0", v0, "v1", v1)
 				successful = false
-				//TODO check if need to handle error
+				return successful
 			}
 		}
 	}
