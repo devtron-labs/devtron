@@ -826,7 +826,7 @@ func (impl RoleGroupServiceImpl) deleteRoleGroupsByIds(request *bean.BulkDeleteR
 	tx, err := impl.roleGroupRepository.StartATransaction()
 	if err != nil {
 		impl.logger.Errorw("error in starting a transaction", "err", err)
-		return err
+		return &util.ApiError{Code: "500", HttpStatusCode: 500, UserMessage: "error starting a transaction in db", InternalMessage: "error starting a transaction in db"}
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
@@ -860,7 +860,7 @@ func (impl RoleGroupServiceImpl) deleteRoleGroupsByIds(request *bean.BulkDeleteR
 	err = impl.roleGroupRepository.CommitATransaction(tx)
 	if err != nil {
 		impl.logger.Errorw("error in committing a transaction in deleteRoleGroupsByIds", "err", err)
-		return err
+		return &util.ApiError{Code: "500", HttpStatusCode: 500, UserMessage: "error committing a transaction in db", InternalMessage: "error committing a transaction in db"}
 	}
 	return nil
 
