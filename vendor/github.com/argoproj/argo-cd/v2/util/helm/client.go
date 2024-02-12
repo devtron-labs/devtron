@@ -132,7 +132,7 @@ func untarChart(tempDir string, cachedChartPath string, manifestMaxExtractedSize
 	if err != nil {
 		return err
 	}
-	return files.Untgz(tempDir, reader, manifestMaxExtractedSize)
+	return files.Untgz(tempDir, reader, manifestMaxExtractedSize, false)
 }
 
 func (c *nativeHelmChart) ExtractChart(chart string, version string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, argoio.Closer, error) {
@@ -299,7 +299,7 @@ func (c *nativeHelmChart) loadRepoIndex() ([]byte, error) {
 		return nil, err
 	}
 
-	req, err := http.NewRequest("GET", indexURL, nil)
+	req, err := http.NewRequest(http.MethodGet, indexURL, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -314,8 +314,8 @@ func (c *nativeHelmChart) loadRepoIndex() ([]byte, error) {
 	}
 
 	tr := &http.Transport{
-		Proxy:             proxy.GetCallback(c.proxy),
-		TLSClientConfig:   tlsConf,
+		Proxy:           proxy.GetCallback(c.proxy),
+		TLSClientConfig: tlsConf,
 		DisableKeepAlives: true,
 	}
 	client := http.Client{Transport: tr}
@@ -325,7 +325,7 @@ func (c *nativeHelmChart) loadRepoIndex() ([]byte, error) {
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		return nil, errors.New("failed to get index: " + resp.Status)
 	}
 	return io.ReadAll(resp.Body)
@@ -467,7 +467,7 @@ func sanitizeLog(input string) string {
 }
 
 func (c *nativeHelmChart) getTagsFromUrl(tagsURL string) ([]byte, string, error) {
-	req, err := http.NewRequest("GET", tagsURL, nil)
+	req, err := http.NewRequest(http.MethodGet, tagsURL, nil)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed create request: %v", err)
 	}
@@ -483,8 +483,8 @@ func (c *nativeHelmChart) getTagsFromUrl(tagsURL string) ([]byte, string, error)
 	}
 
 	tr := &http.Transport{
-		Proxy:             proxy.GetCallback(c.proxy),
-		TLSClientConfig:   tlsConf,
+		Proxy:           proxy.GetCallback(c.proxy),
+		TLSClientConfig: tlsConf,
 		DisableKeepAlives: true,
 	}
 	client := http.Client{Transport: tr}
@@ -501,7 +501,7 @@ func (c *nativeHelmChart) getTagsFromUrl(tagsURL string) ([]byte, string, error)
 		}
 	}()
 
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		data, err := io.ReadAll(resp.Body)
 		var responseExcerpt string
 		if err != nil {
