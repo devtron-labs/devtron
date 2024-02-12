@@ -85,15 +85,15 @@ const ExternalApp = "ExternalApp"
 
 type AppRepositoryImpl struct {
 	dbConnection *pg.DB
-	logger       *zap.SugaredLogger
-}
-
-func NewAppRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *AppRepositoryImpl {
-	return &AppRepositoryImpl{
-		dbConnection: dbConnection,
-		logger:       logger,
-	}
-}
+//	logger       *zap.SugaredLogger
+//}
+//
+//func NewAppRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *AppRepositoryImpl {
+//	return &AppRepositoryImpl{
+//		dbConnection: dbConnection,
+//		logger:       logger,
+//	}
+//}
 
 func (repo AppRepositoryImpl) GetConnection() *pg.DB {
 	return repo.dbConnection
