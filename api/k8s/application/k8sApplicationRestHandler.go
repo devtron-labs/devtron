@@ -141,6 +141,8 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	vars := r.URL.Query()
+	request.ExternalArgoApplicationName = vars.Get("externalArgoApplicationName")
 	rbacObject := ""
 	rbacObject2 := ""
 	envObject := ""
@@ -220,7 +222,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 
 	canUpdate := false
 	// Obfuscate secret if user does not have edit access
-	if request.AppIdentifier == nil && request.DevtronAppIdentifier == nil && request.ClusterId > 0 {
+	if request.AppIdentifier == nil && request.DevtronAppIdentifier == nil && request.AppType != bean2.ArgoAppType && request.ClusterId > 0 { // if the appType is not argoAppType,then verify logic w.r.t resource browser, when rbac for argoApp is introduced, handle rbac accordingly
 		// Verify update access for Resource Browser
 		canUpdate = handler.k8sApplicationService.ValidateClusterResourceBean(r.Context(), request.ClusterId, resource.ManifestResponse.Manifest, request.K8sRequest.ResourceIdentifier.GroupVersionKind, handler.getRbacCallbackForResource(token, casbin.ActionUpdate))
 		if !canUpdate {
@@ -547,6 +549,8 @@ func (handler *K8sApplicationRestHandlerImpl) ListEvents(w http.ResponseWriter, 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	vars := r.URL.Query()
+	request.ExternalArgoApplicationName = vars.Get("externalArgoApplicationName")
 	if request.AppId != "" && request.AppType == bean2.HelmAppType {
 		// For Helm app resource
 		appIdentifier, err := handler.helmAppService.DecodeAppId(request.AppId)
@@ -600,13 +604,13 @@ func (handler *K8sApplicationRestHandlerImpl) ListEvents(w http.ResponseWriter, 
 			return
 		}
 		//RBAC enforcer Ends
-	} else if request.ClusterId > 0 {
+	} else if request.ClusterId > 0 && request.AppType != bean2.ArgoAppType {
 		// RBAC enforcer applying for resource Browser
 		if ok := handler.handleRbac(r, w, request, token, casbin.ActionGet); !ok {
 			return
 		}
 		// RBAC enforcer Ends
-	} else {
+	} else if request.ClusterId <= 0 {
 		common.WriteJsonResp(w, errors.New("can not get resource as target cluster is not provided"), nil, http.StatusBadRequest)
 		return
 	}
@@ -783,13 +787,13 @@ func (handler *K8sApplicationRestHandlerImpl) requestValidationAndRBAC(w http.Re
 			return
 		}
 		//RBAC enforcer Ends
-	} else if request.AppIdentifier == nil && request.DevtronAppIdentifier == nil && request.ClusterId > 0 {
+	} else if request.AppIdentifier == nil && request.DevtronAppIdentifier == nil && request.ClusterId > 0 && request.AppType != bean2.ArgoAppType {
 		//RBAC enforcer applying For Resource Browser
 		if !handler.handleRbac(r, w, *request, token, casbin.ActionGet) {
 			return
 		}
 		//RBAC enforcer Ends
-	} else {
+	} else if request.ClusterId <= 0 {
 		common.WriteJsonResp(w, errors.New("can not get pod logs as target cluster is not provided"), nil, http.StatusBadRequest)
 		return
 	}
@@ -802,11 +806,15 @@ func (handler *K8sApplicationRestHandlerImpl) GetTerminalSession(w http.Response
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
+	vars := r.URL.Query()
+	appTypeStr := vars.Get("appType")
+	appType, _ := strconv.Atoi(appTypeStr) //ignore error as this var is not expected for devtron apps/helm apps/resource bowser. appType var is needed in case of Argo Apps
 	request, resourceRequestBean, err := handler.k8sApplicationService.ValidateTerminalRequestQuery(r)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	request.ExternalArgoApplicationName = vars.Get("externalArgoApplicationName")
 	if resourceRequestBean.AppIdentifier != nil {
 		// RBAC enforcer applying For Helm App
 		rbacObject, rbacObject2 := handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(resourceRequestBean.AppIdentifier.ClusterId, resourceRequestBean.AppIdentifier.Namespace, resourceRequestBean.AppIdentifier.ReleaseName)
@@ -825,13 +833,13 @@ func (handler *K8sApplicationRestHandlerImpl) GetTerminalSession(w http.Response
 			return
 		}
 		//RBAC enforcer Ends
-	} else if resourceRequestBean.AppIdentifier == nil && resourceRequestBean.DevtronAppIdentifier == nil && resourceRequestBean.ClusterId > 0 {
+	} else if resourceRequestBean.AppIdentifier == nil && resourceRequestBean.DevtronAppIdentifier == nil && resourceRequestBean.ClusterId > 0 && appType != bean2.ArgoAppType {
 		//RBAC enforcer applying for Resource Browser
 		if !handler.handleRbac(r, w, *resourceRequestBean, token, casbin.ActionUpdate) {
 			return
 		}
 		//RBAC enforcer Ends
-	} else {
+	} else if resourceRequestBean.ClusterId <= 0 {
 		common.WriteJsonResp(w, errors.New("can not get terminal session as target cluster is not provided"), nil, http.StatusBadRequest)
 		return
 	}
@@ -1015,6 +1023,8 @@ func (handler *K8sApplicationRestHandlerImpl) CreateEphemeralContainer(w http.Re
 		return
 	}
 	request.UserId = userId
+	vars := r.URL.Query()
+	request.ExternalArgoApplicationName = vars.Get("externalArgoApplicationName")
 	err = handler.k8sApplicationService.CreatePodEphemeralContainers(&request)
 	if err != nil {
 		handler.logger.Errorw("error occurred in creating ephemeral container", "err", err, "requestPayload", request)
@@ -1057,6 +1067,8 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteEphemeralContainer(w http.Re
 		return
 	}
 	request.UserId = userId
+	vars := r.URL.Query()
+	request.ExternalArgoApplicationName = vars.Get("externalArgoApplicationName")
 	_, err = handler.k8sApplicationService.TerminatePodEphemeralContainer(request)
 	if err != nil {
 		handler.logger.Errorw("error occurred in terminating ephemeral container", "err", err, "requestPayload", request)
@@ -1075,6 +1087,10 @@ func (handler *K8sApplicationRestHandlerImpl) handleEphemeralRBAC(podName, names
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return resourceRequestBean
 	}
+	vars := r.URL.Query()
+	appTypeStr := vars.Get("appType")
+	resourceRequestBean.ExternalArgoApplicationName = vars.Get("externalArgoApplicationName")
+	appType, _ := strconv.Atoi(appTypeStr) //ignore error as this var is not expected for devtron apps/helm apps/resource bowser. appType var is needed in case of Argo Apps
 	if resourceRequestBean.AppIdentifier != nil {
 		// RBAC enforcer applying For Helm App
 		rbacObject, rbacObject2 := handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(resourceRequestBean.AppIdentifier.ClusterId, resourceRequestBean.AppIdentifier.Namespace, resourceRequestBean.AppIdentifier.ReleaseName)
@@ -1093,7 +1109,7 @@ func (handler *K8sApplicationRestHandlerImpl) handleEphemeralRBAC(podName, names
 			return resourceRequestBean
 		}
 		//RBAC enforcer Ends
-	} else if resourceRequestBean.AppIdentifier == nil && resourceRequestBean.DevtronAppIdentifier == nil && resourceRequestBean.ClusterId > 0 {
+	} else if resourceRequestBean.AppIdentifier == nil && resourceRequestBean.DevtronAppIdentifier == nil && resourceRequestBean.ClusterId > 0 && appType != bean2.ArgoAppType {
 		//RBAC enforcer applying for Resource Browser
 		resourceRequestBean.K8sRequest.ResourceIdentifier.Name = podName
 		resourceRequestBean.K8sRequest.ResourceIdentifier.Namespace = namespace
@@ -1101,7 +1117,7 @@ func (handler *K8sApplicationRestHandlerImpl) handleEphemeralRBAC(podName, names
 			return resourceRequestBean
 		}
 		//RBAC enforcer Ends
-	} else {
+	} else if resourceRequestBean.ClusterId <= 0 {
 		common.WriteJsonResp(w, errors.New("can not create/terminate ephemeral containers as target cluster is not provided"), nil, http.StatusBadRequest)
 		return resourceRequestBean
 	}
