@@ -40,6 +40,7 @@ type RoleGroupRepository interface {
 	CreateRoleGroupRoleMapping(model *RoleGroupRoleMapping, tx *pg.Tx) (*RoleGroupRoleMapping, error)
 	GetRoleGroupRoleMapping(model int32) (*RoleGroupRoleMapping, error)
 	GetRoleGroupRoleMappingByRoleGroupId(roleGroupId int32) ([]*RoleGroupRoleMapping, error)
+	GetRoleGroupRoleMappingIdsByRoleGroupId(roleGroupId int32) ([]int, error)
 	DeleteRoleGroupRoleMappingByRoleId(roleId int, tx *pg.Tx) error
 	DeleteRoleGroupRoleMappingByRoleIds(roleId []int, tx *pg.Tx) error
 	DeleteRoleGroupRoleMapping(model *RoleGroupRoleMapping, tx *pg.Tx) (bool, error)
@@ -52,7 +53,7 @@ type RoleGroupRepository interface {
 	GetRolesByGroupNamesAndEntity(groupNames []string, entity string) ([]*RoleModel, error)
 	UpdateRoleGroupIdForRoleGroupMappings(roleId int, newRoleId int) (*RoleGroupRoleMapping, error)
 	GetCasbinNamesById(ids []int32) ([]string, error)
-	GetRoleGroupRoleMappingIdsByGroupIds(groupIds []int32) ([]*RoleGroupRoleMapping, error)
+	GetRoleGroupRoleMappingIdsByGroupIds(groupIds []int32) ([]int, error)
 	DeleteRoleGroupRoleMappingByIds(ids []int, tx *pg.Tx) error
 }
 
@@ -192,6 +193,19 @@ func (impl RoleGroupRepositoryImpl) GetRoleGroupRoleMappingByRoleGroupId(roleGro
 		return userRoleModels, err
 	}
 	return userRoleModels, nil
+}
+
+func (impl RoleGroupRepositoryImpl) GetRoleGroupRoleMappingIdsByRoleGroupId(roleGroupId int32) ([]int, error) {
+	var Id []int
+	err := impl.dbConnection.Model().
+		Table("role_group_role_mapping").
+		Column("role_group_role_mapping.id").
+		Where("role_group_id = ?", roleGroupId).Select(&Id)
+	if err != nil {
+		impl.Logger.Error(err)
+		return nil, err
+	}
+	return Id, nil
 }
 
 func (impl RoleGroupRepositoryImpl) DeleteRoleGroupRoleMappingByRoleId(roleId int, tx *pg.Tx) error {
@@ -343,14 +357,17 @@ func (impl RoleGroupRepositoryImpl) GetCasbinNamesById(ids []int32) ([]string, e
 	return casbinNames, nil
 }
 
-func (impl RoleGroupRepositoryImpl) GetRoleGroupRoleMappingIdsByGroupIds(groupIds []int32) ([]*RoleGroupRoleMapping, error) {
-	var models []*RoleGroupRoleMapping
-	err := impl.dbConnection.Model(&models).Where("role_group_id in (?)", pg.In(groupIds)).Select()
+func (impl RoleGroupRepositoryImpl) GetRoleGroupRoleMappingIdsByGroupIds(groupIds []int32) ([]int, error) {
+	var Id []int
+	err := impl.dbConnection.Model().
+		Table("role_group_role_mapping").
+		Column("role_group_role_mapping.id").
+		Where("role_group_id in (?)", pg.In(groupIds)).Select(&Id)
 	if err != nil {
 		impl.Logger.Errorw("error in GetRoleGroupRoleMappingIdsByGroupIds", "groupIds", groupIds, "error", err)
 		return nil, err
 	}
-	return models, nil
+	return Id, nil
 }
 
 func (impl RoleGroupRepositoryImpl) DeleteRoleGroupRoleMappingByIds(ids []int, tx *pg.Tx) error {

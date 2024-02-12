@@ -41,8 +41,8 @@ type RoleGroupService interface {
 	CreateRoleGroup(request *bean.RoleGroup) (*bean.RoleGroup, error)
 	UpdateRoleGroup(request *bean.RoleGroup, token string, managerAuth func(resource, token string, object string) bool) (*bean.RoleGroup, error)
 	FetchRoleGroupsById(id int32) (*bean.RoleGroup, error)
-	FetchRoleGroups(req *bean.FetchListingRequest) (*bean.RoleGroupListingResponse, error)
-	FetchRoleGroupsWithFilters(request *bean.FetchListingRequest) (*bean.RoleGroupListingResponse, error)
+	FetchRoleGroups(req *bean.ListingRequest) (*bean.RoleGroupListingResponse, error)
+	FetchRoleGroupsWithFilters(request *bean.ListingRequest) (*bean.RoleGroupListingResponse, error)
 	FetchRoleGroupsByName(name string) ([]*bean.RoleGroup, error)
 	DeleteRoleGroup(model *bean.RoleGroup) (bool, error)
 	FetchRoleGroupsWithRolesByGroupNames(groupNames []string) ([]*bean.RoleFilter, []bean.RoleGroup, error)
@@ -51,25 +51,22 @@ type RoleGroupService interface {
 }
 
 type RoleGroupServiceImpl struct {
-	userAuthRepository         repository.UserAuthRepository
-	logger                     *zap.SugaredLogger
-	userRepository             repository.UserRepository
-	roleGroupRepository        repository.RoleGroupRepository
-	userCommonService          UserCommonService
-	userRepositoryQueryBuilder helper.UserRepositoryQueryBuilder
+	userAuthRepository  repository.UserAuthRepository
+	logger              *zap.SugaredLogger
+	userRepository      repository.UserRepository
+	roleGroupRepository repository.RoleGroupRepository
+	userCommonService   UserCommonService
 }
 
 func NewRoleGroupServiceImpl(userAuthRepository repository.UserAuthRepository,
 	logger *zap.SugaredLogger, userRepository repository.UserRepository,
-	roleGroupRepository repository.RoleGroupRepository, userCommonService UserCommonService,
-	userRepositoryQueryBuilder helper.UserRepositoryQueryBuilder) *RoleGroupServiceImpl {
+	roleGroupRepository repository.RoleGroupRepository, userCommonService UserCommonService) *RoleGroupServiceImpl {
 	serviceImpl := &RoleGroupServiceImpl{
-		userAuthRepository:         userAuthRepository,
-		logger:                     logger,
-		userRepository:             userRepository,
-		roleGroupRepository:        roleGroupRepository,
-		userCommonService:          userCommonService,
-		userRepositoryQueryBuilder: userRepositoryQueryBuilder,
+		userAuthRepository:  userAuthRepository,
+		logger:              logger,
+		userRepository:      userRepository,
+		roleGroupRepository: roleGroupRepository,
+		userCommonService:   userCommonService,
 	}
 	cStore = sessions.NewCookieStore(randKey())
 	return serviceImpl
@@ -603,8 +600,8 @@ func (impl RoleGroupServiceImpl) getRoleGroupMetadata(roleGroup *repository.Role
 	return roleFilters, isSuperAdmin
 }
 
-func (impl RoleGroupServiceImpl) fetchDetailedRoleGroups(req *bean.FetchListingRequest) ([]*bean.RoleGroup, error) {
-	query := impl.userRepositoryQueryBuilder.GetQueryForGroupListingWithFilters(req)
+func (impl RoleGroupServiceImpl) fetchDetailedRoleGroups(req *bean.ListingRequest) ([]*bean.RoleGroup, error) {
+	query := helper.GetQueryForGroupListingWithFilters(req)
 	roleGroups, err := impl.roleGroupRepository.GetAllExecutingQuery(query)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
@@ -637,7 +634,7 @@ func (impl RoleGroupServiceImpl) fetchDetailedRoleGroups(req *bean.FetchListingR
 	return list, nil
 }
 
-func (impl RoleGroupServiceImpl) FetchRoleGroups(req *bean.FetchListingRequest) (*bean.RoleGroupListingResponse, error) {
+func (impl RoleGroupServiceImpl) FetchRoleGroups(req *bean.ListingRequest) (*bean.RoleGroupListingResponse, error) {
 	list, err := impl.fetchDetailedRoleGroups(req)
 	if err != nil {
 		impl.logger.Errorw("error in FetchDetailedRoleGroups", "err", err)
@@ -651,7 +648,7 @@ func (impl RoleGroupServiceImpl) FetchRoleGroups(req *bean.FetchListingRequest) 
 }
 
 // FetchRoleGroupsWithFilters takes listing request as input and outputs RoleGroupListingResponse based on the request filters.
-func (impl RoleGroupServiceImpl) FetchRoleGroupsWithFilters(request *bean.FetchListingRequest) (*bean.RoleGroupListingResponse, error) {
+func (impl RoleGroupServiceImpl) FetchRoleGroupsWithFilters(request *bean.ListingRequest) (*bean.RoleGroupListingResponse, error) {
 	// default values will be used if not provided
 	impl.userCommonService.SetDefaultValuesIfNotPresent(request, true)
 	if request.ShowAll {
@@ -660,7 +657,7 @@ func (impl RoleGroupServiceImpl) FetchRoleGroupsWithFilters(request *bean.FetchL
 
 	// setting count check to true for getting only count
 	request.CountCheck = true
-	query := impl.userRepositoryQueryBuilder.GetQueryForGroupListingWithFilters(request)
+	query := helper.GetQueryForGroupListingWithFilters(request)
 	totalCount, err := impl.userRepository.GetCountExecutingQuery(query)
 	if err != nil {
 		impl.logger.Errorw("error in FetchRoleGroupsWithFilters", "err", err, "query", query)
@@ -669,7 +666,7 @@ func (impl RoleGroupServiceImpl) FetchRoleGroupsWithFilters(request *bean.FetchL
 	// setting count check to false for getting data
 	request.CountCheck = false
 
-	query = impl.userRepositoryQueryBuilder.GetQueryForGroupListingWithFilters(request)
+	query = helper.GetQueryForGroupListingWithFilters(request)
 	roleGroup, err := impl.roleGroupRepository.GetAllExecutingQuery(query)
 	if err != nil {
 		impl.logger.Errorw("error while FetchRoleGroupsWithFilters", "error", err, "query", query)
@@ -738,17 +735,13 @@ func (impl RoleGroupServiceImpl) DeleteRoleGroup(bean *bean.RoleGroup) (bool, er
 		impl.logger.Errorw("error while fetching user from db", "error", err)
 		return false, err
 	}
-	allRoleGroupRoleMappings, err := impl.roleGroupRepository.GetRoleGroupRoleMappingByRoleGroupId(model.Id)
+	roleGroupRoleMappingIds, err := impl.roleGroupRepository.GetRoleGroupRoleMappingIdsByRoleGroupId(model.Id)
 	if err != nil {
 		impl.logger.Errorw("error in getting all role group role mappings or not found", "err", err)
 	}
 	allRolesForGroup, err := casbin2.GetRolesForUser(model.CasbinName)
 	if err != nil {
 		impl.logger.Errorw("error in getting all roles for groups", "err", err)
-	}
-	roleGroupRoleMappingIds := make([]int, 0, len(allRoleGroupRoleMappings))
-	for _, roleMapping := range allRoleGroupRoleMappings {
-		roleGroupRoleMappingIds = append(roleGroupRoleMappingIds, roleMapping.Id)
 	}
 	if len(roleGroupRoleMappingIds) > 0 {
 		err = impl.roleGroupRepository.DeleteRoleGroupRoleMappingByIds(roleGroupRoleMappingIds, tx)
@@ -797,7 +790,7 @@ func (impl RoleGroupServiceImpl) DeleteRoleGroup(bean *bean.RoleGroup) (bool, er
 
 // BulkDeleteRoleGroups takes in bulk delete request and return error
 func (impl RoleGroupServiceImpl) BulkDeleteRoleGroups(request *bean.BulkDeleteRequest) (bool, error) {
-	// it handles FetchListingRequest if filters are applied will delete those users or will consider the given user ids.
+	// it handles ListingRequest if filters are applied will delete those users or will consider the given user ids.
 	if request.ListingRequest != nil {
 		filteredGroupIds, err := impl.getGroupIdsHonoringFilters(request.ListingRequest)
 		if err != nil {
@@ -817,10 +810,10 @@ func (impl RoleGroupServiceImpl) BulkDeleteRoleGroups(request *bean.BulkDeleteRe
 }
 
 // getGroupIdsHonoringFilters get the filtered group ids according to the request filters and returns groupIds and error(not nil) if any exception is caught.
-func (impl *RoleGroupServiceImpl) getGroupIdsHonoringFilters(request *bean.FetchListingRequest) ([]int32, error) {
+func (impl *RoleGroupServiceImpl) getGroupIdsHonoringFilters(request *bean.ListingRequest) ([]int32, error) {
 	//query to get particular models respecting filters
-	query := impl.userRepositoryQueryBuilder.GetQueryForGroupListingWithFilters(request)
-	models, err := impl.userRepository.GetAllExecutingQuery(query)
+	query := helper.GetQueryForGroupListingWithFilters(request)
+	models, err := impl.roleGroupRepository.GetAllExecutingQuery(query)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db in getGroupIdsHonoringFilters", "error", err)
 		return nil, err
@@ -838,7 +831,7 @@ func (impl RoleGroupServiceImpl) deleteRoleGroupsByIds(request *bean.BulkDeleteR
 	tx, err := impl.roleGroupRepository.StartATransaction()
 	if err != nil {
 		impl.logger.Errorw("error in starting a transaction", "err", err)
-		return err
+		return &util.ApiError{Code: "500", HttpStatusCode: 500, UserMessage: "error starting a transaction in db", InternalMessage: "error starting a transaction in db"}
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
@@ -872,7 +865,7 @@ func (impl RoleGroupServiceImpl) deleteRoleGroupsByIds(request *bean.BulkDeleteR
 	err = impl.roleGroupRepository.CommitATransaction(tx)
 	if err != nil {
 		impl.logger.Errorw("error in committing a transaction in deleteRoleGroupsByIds", "err", err)
-		return err
+		return &util.ApiError{Code: "500", HttpStatusCode: 500, UserMessage: "error committing a transaction in db", InternalMessage: "error committing a transaction in db"}
 	}
 	return nil
 
@@ -880,15 +873,10 @@ func (impl RoleGroupServiceImpl) deleteRoleGroupsByIds(request *bean.BulkDeleteR
 
 // deleteMappingsFromOrchestrator deletes role group role mapping from orchestrator only, takes in ids and returns error
 func (impl RoleGroupServiceImpl) deleteMappingsFromOrchestrator(roleGroupIds []int32, tx *pg.Tx) error {
-	roleGroupRoleMappings, err := impl.roleGroupRepository.GetRoleGroupRoleMappingIdsByGroupIds(roleGroupIds)
+	mappingIds, err := impl.roleGroupRepository.GetRoleGroupRoleMappingIdsByGroupIds(roleGroupIds)
 	if err != nil {
 		impl.logger.Errorw("error in deleteMappingsFromOrchestrator", "err", err)
 		return err
-	}
-
-	mappingIds := make([]int, 0, len(roleGroupRoleMappings))
-	for _, model := range roleGroupRoleMappings {
-		mappingIds = append(mappingIds, model.Id)
 	}
 
 	if len(mappingIds) > 0 {
@@ -923,13 +911,15 @@ func (impl RoleGroupServiceImpl) deleteMappingsFromCasbin(groupCasbinNames []str
 	// GROUP-POLICY mapping deletion from casbin
 	success := impl.userCommonService.DeleteRoleForUserFromCasbin(groupNameVsCasbinRolesMap)
 	if !success {
-		impl.logger.Errorw("error in deleteMappingsFromCasbin, not all mappings removed ", "success", success)
+		impl.logger.Errorw("error in deleteMappingsFromCasbin, not all mappings removed ", "groupCasbinNames", groupCasbinNames)
+		return &util.ApiError{Code: "500", HttpStatusCode: 500, InternalMessage: "Not able to delete mappings from casbin", UserMessage: "Not able to delete mappings from casbin"}
 	}
 
 	// USER-GROUP mapping deletion from casbin
 	success = impl.userCommonService.DeleteUserForRoleFromCasbin(groupVsUsersMap)
 	if !success {
-		impl.logger.Errorw("error in deleteMappingsFromCasbin, not all mappings removed ", "success", success)
+		impl.logger.Errorw("error in deleteMappingsFromCasbin, not all mappings removed ", "groupCasbinNames", groupCasbinNames)
+		return &util.ApiError{Code: "500", HttpStatusCode: 500, InternalMessage: "Not able to delete mappings from casbin", UserMessage: "Not able to delete mappings from casbin"}
 	}
 
 	return nil
