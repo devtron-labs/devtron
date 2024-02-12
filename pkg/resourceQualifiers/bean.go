@@ -14,7 +14,7 @@ type SystemMetadata struct {
 	//Namespace       string
 	//ImageTag        string
 	//Image           string
-	//AppName         string
+	AppName string
 }
 
 func (metadata *SystemMetadata) GetDataFromSystemVariable(variable SystemVariableName) string {
