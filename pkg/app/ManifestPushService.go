@@ -61,6 +61,10 @@ func NewGitOpsManifestPushServiceImpl(logger *zap.SugaredLogger,
 }
 
 func (impl *GitOpsManifestPushServiceImpl) migrateRepoForGitOperation(manifestPushTemplate bean.ManifestPushTemplate, ctx context.Context) (string, error) {
+	// custom GitOps repo url doesn't support migration
+	if manifestPushTemplate.IsCustomGitRepository {
+		return manifestPushTemplate.RepoUrl, nil
+	}
 	gitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoName(manifestPushTemplate.AppName)
 	chartGitAttr, err := impl.gitOperationService.CreateGitRepositoryForApp(gitOpsRepoName, manifestPushTemplate.UserId)
 	if err != nil {
@@ -86,8 +90,8 @@ func (impl *GitOpsManifestPushServiceImpl) validateManifestPushRequest(globalGit
 	if !globalGitOpsConfigStatus.IsGitOpsConfigured {
 		return fmt.Errorf("Gitops integration is not installed/configured. Please install/configure gitops.")
 	}
-	if gitOps.IsGitOpsRepoNotConfigured(manifestPushTemplate.RepoUrl) || manifestPushTemplate.GitOpsRepoMigrationRequired {
-		if globalGitOpsConfigStatus.AllowCustomRepository || manifestPushTemplate.IsCustomGitRepository {
+	if gitOps.IsGitOpsRepoNotConfigured(manifestPushTemplate.RepoUrl) {
+		if globalGitOpsConfigStatus.AllowCustomRepository {
 			return fmt.Errorf("GitOps repository is not configured! Please configure gitops repository for application first.")
 		}
 	}
