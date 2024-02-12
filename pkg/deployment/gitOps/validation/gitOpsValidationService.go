@@ -59,13 +59,17 @@ func NewGitOpsValidationServiceImpl(Logger *zap.SugaredLogger,
 	gitFactory *git.GitFactory,
 	gitOperationService git.GitOperationService,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
-	chartTemplateService util.ChartTemplateService) *GitOpsValidationServiceImpl {
+	chartTemplateService util.ChartTemplateService,
+	chartService chartService.ChartService,
+	installedAppService FullMode.InstalledAppDBExtendedService) *GitOpsValidationServiceImpl {
 	return &GitOpsValidationServiceImpl{
 		logger:                  Logger,
 		gitFactory:              gitFactory,
 		gitOpsConfigReadService: gitOpsConfigReadService,
 		gitOperationService:     gitOperationService,
 		chartTemplateService:    chartTemplateService,
+		chartService:            chartService,
+		installedAppService:     installedAppService,
 	}
 }
 
