@@ -68,7 +68,7 @@ type UserService interface {
 	GetRoleFiltersForAUserById(id int32) (*bean.UserInfo, error)
 	GetByIdForGroupClaims(id int32) (*bean.UserInfo, error)
 	GetAll() ([]bean.UserInfo, error) //this is only being used for summary event for now , in use is GetAllWithFilters
-	GetAllWithFilters(request *bean.FetchListingRequest) (*bean.UserListingResponse, error)
+	GetAllWithFilters(request *bean.ListingRequest) (*bean.UserListingResponse, error)
 	GetEmailById(userId int32) (string, error)
 	GetEmailAndGroupClaimsFromToken(token string) (string, []string, error)
 	GetLoggedInUser(r *http.Request) (int32, error)
@@ -1226,7 +1226,7 @@ func (impl UserServiceImpl) GetAll() ([]bean.UserInfo, error) {
 }
 
 // GetAllWithFilters takes filter request  gives UserListingResponse as output with some operations like filter, sorting, searching,pagination support inbuilt
-func (impl UserServiceImpl) GetAllWithFilters(request *bean.FetchListingRequest) (*bean.UserListingResponse, error) {
+func (impl UserServiceImpl) GetAllWithFilters(request *bean.ListingRequest) (*bean.UserListingResponse, error) {
 	//  default values will be used if not provided
 	impl.userCommonService.SetDefaultValuesIfNotPresent(request, false)
 	// setting filter status type
@@ -1281,7 +1281,7 @@ func (impl UserServiceImpl) getAllDetailedUsersAdapter(detailedUsers []bean.User
 	return listingResponse
 }
 
-func (impl UserServiceImpl) setStatusFilterType(request *bean.FetchListingRequest) {
+func (impl UserServiceImpl) setStatusFilterType(request *bean.ListingRequest) {
 	if len(request.Status) == 0 {
 		return
 	}
@@ -1329,7 +1329,7 @@ func (impl UserServiceImpl) getUserResponse(model []repository.UserModel, record
 	return listingResponse, nil
 }
 
-func (impl UserServiceImpl) getAllDetailedUsers(req *bean.FetchListingRequest) ([]bean.UserInfo, error) {
+func (impl UserServiceImpl) getAllDetailedUsers(req *bean.ListingRequest) ([]bean.UserInfo, error) {
 	query := helper.GetQueryForUserListingWithFilters(req)
 	models, err := impl.userRepository.GetAllExecutingQuery(query)
 	if err != nil {
@@ -1745,7 +1745,7 @@ func (impl UserServiceImpl) DeleteUser(bean *bean.UserInfo) (bool, error) {
 
 // BulkDeleteUsers takes in BulkDeleteRequest and return success and error
 func (impl *UserServiceImpl) BulkDeleteUsers(request *bean.BulkDeleteRequest) (bool, error) {
-	// it handles FetchListingRequest if filters are applied will delete those users or will consider the given user ids.
+	// it handles ListingRequest if filters are applied will delete those users or will consider the given user ids.
 	if request.ListingRequest != nil {
 		filteredUserIds, err := impl.getUserIdsHonoringFilters(request.ListingRequest)
 		if err != nil {
@@ -1764,7 +1764,7 @@ func (impl *UserServiceImpl) BulkDeleteUsers(request *bean.BulkDeleteRequest) (b
 }
 
 // getUserIdsHonoringFilters get the filtered user ids according to the request filters and returns userIds and error(not nil) if any exception is caught.
-func (impl *UserServiceImpl) getUserIdsHonoringFilters(request *bean.FetchListingRequest) ([]int32, error) {
+func (impl *UserServiceImpl) getUserIdsHonoringFilters(request *bean.ListingRequest) ([]int32, error) {
 	//query to get particular models respecting filters
 	query := helper.GetQueryForUserListingWithFilters(request)
 	models, err := impl.userRepository.GetAllExecutingQuery(query)
@@ -2365,7 +2365,7 @@ func (impl UserServiceImpl) getProjectsOrAppAdminRBACNamesByAppNamesAndTeamNames
 
 // BulkUpdateStatus updates the status for the users or filters given in bulk , return ActionResponse and error in response
 func (impl UserServiceImpl) BulkUpdateStatus(request *bean.BulkStatusUpdateRequest) (*bean.ActionResponse, error) {
-	// it handles FetchListingRequest if filters are applied will delete those users or will consider the given user ids.
+	// it handles ListingRequest if filters are applied will delete those users or will consider the given user ids.
 	if request.ListingRequest != nil {
 		filteredUserIds, err := impl.getUserIdsHonoringFilters(request.ListingRequest)
 		if err != nil {

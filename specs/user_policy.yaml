@@ -389,8 +389,8 @@ components:
             format: int32
           description: Array of user IDs to be deleted
         listingRequest:
-          $ref: '#/components/schemas/FetchListingRequest'
-    FetchListingRequest:
+          $ref: '#/components/schemas/ListingRequest'
+    ListingRequest:
       type: object
       properties:
         status:

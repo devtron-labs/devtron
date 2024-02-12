@@ -15,7 +15,7 @@ const (
 	TimeFormatForParsing string = "2006-01-02 15:04:05 -0700 MST"
 )
 
-func GetQueryForUserListingWithFilters(req *bean.FetchListingRequest) string {
+func GetQueryForUserListingWithFilters(req *bean.ListingRequest) string {
 	whereCondition := fmt.Sprintf("where active = %t AND (user_type is NULL or user_type != '%s') ", true, bean.USER_TYPE_API_TOKEN)
 	orderCondition := ""
 	whereCondition += buildQueryForStatusFilter(req.StatusType, req.CurrentTime)
@@ -73,7 +73,7 @@ func GetQueryForAllUserWithAudit() string {
 	return query
 }
 
-func GetQueryForGroupListingWithFilters(req *bean.FetchListingRequest) string {
+func GetQueryForGroupListingWithFilters(req *bean.ListingRequest) string {
 	whereCondition := fmt.Sprintf("where active = %t ", true)
 	orderCondition := ""
 	if len(req.SearchKey) > 0 {

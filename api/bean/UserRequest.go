@@ -146,18 +146,18 @@ const (
 )
 
 type BulkStatusUpdateRequest struct {
-	UserIds                 []int32              `json:"userIds",validate:"required"`
-	Status                  Status               `json:"status",validate:"required"'`
-	TimeoutWindowExpression time.Time            `json:"timeoutWindowExpression"`
-	ListingRequest          *FetchListingRequest `json:"listingRequest,omitempty"`
-	LoggedInUserId          int32                `json:"-"`
+	UserIds                 []int32         `json:"userIds",validate:"required"`
+	Status                  Status          `json:"status",validate:"required"'`
+	TimeoutWindowExpression time.Time       `json:"timeoutWindowExpression"`
+	ListingRequest          *ListingRequest `json:"listingRequest,omitempty"`
+	LoggedInUserId          int32           `json:"-"`
 }
 
 type ActionResponse struct {
 	Suceess bool `json:"suceess"`
 }
 
-type FetchListingRequest struct {
+type ListingRequest struct {
 	Status      []Status        `json:"status"`    // only being used for users
 	SearchKey   string          `json:"searchKey"` // this is used for searching groupName or email matching search key.
 	SortOrder   bean.SortOrder  `json:"sortOrder"`
@@ -171,7 +171,7 @@ type FetchListingRequest struct {
 }
 
 type BulkDeleteRequest struct {
-	Ids            []int32              `json:"ids"`
-	ListingRequest *FetchListingRequest `json:"listingRequest,omitempty"`
-	LoggedInUserId int32                `json:"-"`
+	Ids            []int32         `json:"ids"`
+	ListingRequest *ListingRequest `json:"listingRequest,omitempty"`
+	LoggedInUserId int32           `json:"-"`
 }
