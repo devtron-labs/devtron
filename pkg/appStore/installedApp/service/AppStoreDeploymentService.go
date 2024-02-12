@@ -693,9 +693,8 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 			}
 		}
 	}
-	installedApp.Status = appStoreBean.DEPLOY_SUCCESS
-	installedApp.UpdatedOn = time.Now()
-	installedAppVersion.UpdatedBy = installAppVersionRequest.UserId
+	installedApp.UpdateStatus(appStoreBean.DEPLOY_SUCCESS)
+	installedApp.UpdateAuditLog(installAppVersionRequest.UserId)
 	installedApp, err = impl.installedAppRepository.UpdateInstalledApp(installedApp, tx)
 	if err != nil {
 		impl.logger.Errorw("error in updating installed app", "err", err)
