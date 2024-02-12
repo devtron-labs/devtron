@@ -38,6 +38,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/helper"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
+	bean9 "github.com/devtron-labs/devtron/pkg/eventProcessor/out/bean"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	bean8 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
@@ -542,7 +543,10 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 				}
 				fmt.Println(pipelineOverride)
 				//TODO: update
-				//go impl.HandleDeploymentSuccessEvent(triggerContext, pipelineOverride)
+				cdSuccessEvent := bean9.DeployStageSuccessEventReq{
+					PipelineOverride: pipelineOverride,
+				}
+				go impl.workflowEventPublishService.PublishDeployStageSuccessEvent(cdSuccessEvent)
 			}
 		}
 
@@ -796,7 +800,10 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 		}
 		fmt.Println(pipelineOverride)
 		//TODO: update
-		//go impl.HandleDeploymentSuccessEvent(request.TriggerContext, pipelineOverride)
+		cdSuccessEvent := bean9.DeployStageSuccessEventReq{
+			PipelineOverride: pipelineOverride,
+		}
+		go impl.workflowEventPublishService.PublishDeployStageSuccessEvent(cdSuccessEvent)
 	}
 	return nil
 }

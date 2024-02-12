@@ -25,6 +25,11 @@ func NewCentralEventProcessor(workflowEventProcessor *in.WorkflowEventProcessorI
 
 func (impl *CentralEventProcessor) SubscribeAll() error {
 	var err error
+	err = impl.workflowEventProcessor.SubscribeDeployStageSuccessEvent()
+	if err != nil {
+		impl.logger.Errorw("error, SubscribeDeployStageSuccessEvent", "err", err)
+		return err
+	}
 	err = impl.workflowEventProcessor.SubscribeCDStageCompleteEvent()
 	if err != nil {
 		impl.logger.Errorw("error, SubscribeCDStageCompleteEvent", "err", err)

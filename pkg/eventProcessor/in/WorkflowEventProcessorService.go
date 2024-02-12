@@ -99,6 +99,59 @@ func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
 	return impl, nil
 }
 
+// SubscribeDeployStageSuccessEvent is used to subscribe success events of any cd stage[pre, deploy, post].
+// this event is published and subscribed by orchestrator and that's why cd_stage_complete (part of ci runner stream) event was not used.
+func (impl *WorkflowEventProcessorImpl) SubscribeDeployStageSuccessEvent() error {
+	callback := func(msg *model.PubSubMsg) {
+		event := bean7.DeployStageSuccessEventReq{}
+		err := json.Unmarshal([]byte(msg.Data), &event)
+		if err != nil {
+			impl.logger.Errorw("error while unmarshalling cdStageCompleteEvent object", "err", err, "msg", msg.Data)
+			return
+		}
+		triggerContext := bean5.TriggerContext{
+			ReferenceId: pointer.String(msg.MsgId),
+		}
+		switch event.DeployStageType {
+		case bean2.CD_WORKFLOW_TYPE_PRE:
+			//currently not being used, to implement if needed after refactoring current usages
+		case bean2.CD_WORKFLOW_TYPE_DEPLOY:
+			err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent(triggerContext, event.PipelineOverride)
+			if err != nil {
+				impl.logger.Errorw("error in handling deployment success event, SubscribeDeployStageSuccessEvent", "err", err, "event", event)
+				return
+			}
+		case bean2.CD_WORKFLOW_TYPE_POST:
+			err = impl.workflowDagExecutor.HandlePostStageSuccessEvent(triggerContext, event.CdWorkflowId, event.PipelineId, 1, event.PluginRegistryImageDetails)
+			if err != nil {
+				impl.logger.Errorw("error in handling post deployment success event, SubscribeDeployStageSuccessEvent", "err", err, "event", event)
+				return
+			}
+		default:
+			impl.logger.Errorw("invalid cd stage type found, SubscribeDeployStageSuccessEvent", "err", err)
+			return
+		}
+	}
+
+	// add required logging here
+	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) (string, []interface{}) {
+		cdStageCompleteEvent := bean7.DeployStageSuccessEventReq{}
+		err := json.Unmarshal([]byte(msg.Data), &cdStageCompleteEvent)
+		if err != nil {
+			return "error while unmarshalling cdStageCompleteEvent object", []interface{}{"err", err, "msg", msg.Data}
+		}
+		return "got message for cd stage success", []interface{}{"cdStage", cdStageCompleteEvent.DeployStageType, "event", cdStageCompleteEvent}
+	}
+
+	validations := impl.cdWorkflowCommonService.GetTriggerValidateFuncs()
+	err := impl.pubSubClient.Subscribe(pubsub.CD_STAGE_SUCCESS_EVENT_TOPIC, callback, loggerFunc, validations...)
+	if err != nil {
+		impl.logger.Error("error", "err", err)
+		return err
+	}
+	return nil
+}
+
 func (impl *WorkflowEventProcessorImpl) SubscribeCDStageCompleteEvent() error {
 	callback := func(msg *model.PubSubMsg) {
 		cdStageCompleteEvent := bean.CdStageCompleteEvent{}

@@ -9,6 +9,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
+	bean9 "github.com/devtron-labs/devtron/pkg/eventProcessor/out/bean"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
@@ -235,7 +236,12 @@ func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) er
 		}
 		// Auto Trigger after Post Stage Success Event
 		//TODO: update
-		//go impl.HandlePostStageSuccessEvent(request.TriggerContext, runner.CdWorkflowId, pipeline.Id, 1, nil)
+		cdSuccessEvent := bean9.DeployStageSuccessEventReq{
+			CdWorkflowId:               runner.CdWorkflowId,
+			PipelineId:                 pipeline.CiPipelineId,
+			PluginRegistryImageDetails: nil,
+		}
+		go impl.workflowEventPublishService.PublishDeployStageSuccessEvent(cdSuccessEvent)
 	}
 
 	wfr, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(context.Background(), cdWf.Id, bean2.CD_WORKFLOW_TYPE_POST)

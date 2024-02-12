@@ -22,6 +22,7 @@ import (
 )
 
 type WorkflowEventPublishService interface {
+	PublishDeployStageSuccessEvent(request bean.DeployStageSuccessEventReq) error
 	TriggerBulkHibernateAsync(request bean.StopDeploymentGroupRequest) (interface{}, error)
 	TriggerHelmAsyncRelease(overrideRequest *bean3.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time,
 		triggeredBy int32) (releaseNo int, manifest []byte, err error)
@@ -70,6 +71,20 @@ func NewWorkflowEventPublishServiceImpl(logger *zap.SugaredLogger,
 		groupRepository:      groupRepository,
 	}
 	return impl, nil
+}
+
+func (impl *WorkflowEventPublishServiceImpl) PublishDeployStageSuccessEvent(request bean.DeployStageSuccessEventReq) error {
+	reqInBytes, err := json.Marshal(request)
+	if err != nil {
+		impl.logger.Errorw("error in marshaling  HandleDeployStageSuccessEvent request", "err", err, "request", request)
+		return err
+	}
+	err = impl.pubSubClient.Publish(pubsub.CD_STAGE_SUCCESS_EVENT_TOPIC, string(reqInBytes))
+	if err != nil {
+		impl.logger.Errorw("Error while publishing request", "topic", pubsub.CD_STAGE_SUCCESS_EVENT_TOPIC, "error", err)
+		return err
+	}
+	return nil
 }
 
 func (impl *WorkflowEventPublishServiceImpl) TriggerBulkHibernateAsync(request bean.StopDeploymentGroupRequest) (interface{}, error) {
