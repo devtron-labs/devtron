@@ -47,6 +47,7 @@ type UserAuthRepository interface {
 	GetRoleByFilterForAllTypes(entity, team, app, env, act string, approver bool, accessType, cluster, namespace, group, kind, resource, action string, oldValues bool, workflow string) (RoleModel, error)
 	CreateUserRoleMapping(userRoleModel *UserRoleModel, tx *pg.Tx) (*UserRoleModel, error)
 	GetUserRoleMappingByUserId(userId int32) ([]*UserRoleModel, error)
+	GetUserRoleMappingIdsByUserId(userId int32) ([]int, error)
 	GetUserRoleMappingIdsByUserIds(userIds []int32) ([]int, error)
 	DeleteUserRoleMapping(userRoleModel *UserRoleModel, tx *pg.Tx) (bool, error)
 	DeleteUserRoleMappingByIds(urmIds []int, tx *pg.Tx) error
@@ -297,6 +298,19 @@ func (impl UserAuthRepositoryImpl) GetUserRoleMappingByUserId(userId int32) ([]*
 		return userRoleModels, err
 	}
 	return userRoleModels, nil
+}
+
+func (impl UserAuthRepositoryImpl) GetUserRoleMappingIdsByUserId(userId int32) ([]int, error) {
+	var Id []int
+	err := impl.dbConnection.Model().
+		Table("user_roles").
+		Column("user_roles.id").
+		Where("user_id = ?", userId).Select(&Id)
+	if err != nil {
+		impl.Logger.Errorw("error in GetUserRoleMappingIdsByUserId", "userId", userId, "err", err)
+		return nil, err
+	}
+	return Id, nil
 }
 
 func (impl UserAuthRepositoryImpl) GetUserRoleMappingIdsByUserIds(userIds []int32) ([]int, error) {
