@@ -9,12 +9,12 @@ type Scope struct {
 }
 
 type SystemMetadata struct {
-	EnvironmentName string
-	ClusterName     string
-	Namespace       string
-	ImageTag        string
-	Image           string
-	AppName         string
+	//EnvironmentName string
+	//ClusterName     string
+	//Namespace       string
+	//ImageTag        string
+	//Image           string
+	//AppName         string
 }
 
 func (metadata *SystemMetadata) GetDataFromSystemVariable(variable SystemVariableName) string {
