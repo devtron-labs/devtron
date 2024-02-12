@@ -18,14 +18,14 @@ type CmAndSecretTask struct {
 	Spec *CmAndSecretSpec `json:"spec"`
 }
 type BulkUpdatePayload struct {
-	Includes           *NameIncludesExcludes   `json:"includes"`
-	Excludes           *NameIncludesExcludes   `json:"excludes"`
-	EnvIds             []int                   `json:"envIds"`
-	Global             bool                    `json:"global"`
-	DeploymentTemplate *DeploymentTemplateTask `json:"deploymentTemplate"`
-	ConfigMap          *CmAndSecretTask        `json:"configMap"`
-	Secret             *CmAndSecretTask        `json:"secret"`
-}
+//	Includes           *NameIncludesExcludes   `json:"includes"`
+//	Excludes           *NameIncludesExcludes   `json:"excludes"`
+//	EnvIds             []int                   `json:"envIds"`
+//	Global             bool                    `json:"global"`
+//	DeploymentTemplate *DeploymentTemplateTask `json:"deploymentTemplate"`
+//	ConfigMap          *CmAndSecretTask        `json:"configMap"`
+//	Secret             *CmAndSecretTask        `json:"secret"`
+//}
 type BulkUpdateScript struct {
 	ApiVersion string             `json:"apiVersion" validate:"required"`
 	Kind       string             `json:"kind" validate:"required"`
