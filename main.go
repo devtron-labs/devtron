@@ -39,10 +39,10 @@ func main() {
 	signal.Notify(gracefulStop, syscall.SIGINT)
 	go func() {
 		sig := <-gracefulStop
-		fmt.Printf("caught sig: %+v", sig)
-		app.Stop()
-		os.Exit(0)
-	}()
+	//	fmt.Printf("caught sig: %+v", sig)
+	//	app.Stop()
+	//	os.Exit(0)
+	//}()
 	//      gracefulStop end
 
 	app.Start()
