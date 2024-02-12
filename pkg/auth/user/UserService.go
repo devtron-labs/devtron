@@ -1391,6 +1391,7 @@ func (impl *UserServiceImpl) deleteMappingsFromCasbin(emailIds []string, totalCo
 	success := impl.userCommonService.DeleteRoleForUserFromCasbin(emailIdVsCasbinRolesMap)
 	if !success {
 		impl.logger.Errorw("error in deleting from casbin in deleteMappingsFromCasbin ", "emailIds", emailIds)
+		return &util.ApiError{Code: "500", HttpStatusCode: 500, InternalMessage: "Not able to delete mappings from casbin", UserMessage: "Not able to delete mappings from casbin"}
 	}
 	return nil
 }
