@@ -1254,14 +1254,10 @@ func (impl *UserServiceImpl) DeleteUser(bean *bean.UserInfo) (bool, error) {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
 		return false, err
 	}
-	urm, err := impl.userAuthRepository.GetUserRoleMappingByUserId(bean.Id)
+	userRolesMappingIds, err := impl.userAuthRepository.GetUserRoleMappingIdsByUserId(bean.Id)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
 		return false, err
-	}
-	userRolesMappingIds := make([]int, 0, len(urm))
-	for _, urmModel := range urm {
-		userRolesMappingIds = append(userRolesMappingIds, urmModel.Id)
 	}
 	if len(userRolesMappingIds) > 0 {
 		err = impl.userAuthRepository.DeleteUserRoleMappingByIds(userRolesMappingIds, tx)
