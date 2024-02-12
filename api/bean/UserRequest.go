@@ -158,8 +158,8 @@ type ActionResponse struct {
 }
 
 type FetchListingRequest struct {
-	Status      []Status        `json:"status"` // only being used for users
-	SearchKey   string          `json:"searchKey"`
+	Status      []Status        `json:"status"`    // only being used for users
+	SearchKey   string          `json:"searchKey"` // this is used for searching groupName or email matching search key.
 	SortOrder   bean.SortOrder  `json:"sortOrder"`
 	SortBy      bean.SortBy     `json:"sortBy"`
 	Offset      int             `json:"offset"`

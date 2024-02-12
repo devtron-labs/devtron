@@ -507,6 +507,14 @@ func (handler UserRestHandlerImpl) BulkDeleteUsers(w http.ResponseWriter, r *htt
 	// setting logged in user Id for audit logs
 	request.LoggedInUserId = userId
 
+	// validations for system and admin user
+	err = helper.CheckValidationForAdminAndSystemUserId(request.Ids)
+	if err != nil {
+		handler.logger.Errorw("request err, BulkDeleteUsers, validation failed", "payload", request, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
@@ -517,13 +525,6 @@ func (handler UserRestHandlerImpl) BulkDeleteUsers(w http.ResponseWriter, r *htt
 	err = handler.validator.Struct(request)
 	if err != nil {
 		handler.logger.Errorw("validation err, BulkDeleteUsers", "payload", request, "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	// validations for system and admin user
-	err = helper.CheckValidationForAdminAndSystemUserId(request.Ids)
-	if err != nil {
-		handler.logger.Errorw("request err, BulkDeleteUsers, validation failed", "payload", request, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -868,17 +869,18 @@ func (handler UserRestHandlerImpl) BulkDeleteRoleGroups(w http.ResponseWriter, r
 	// setting logged in user Id for audit logs
 	request.LoggedInUserId = userId
 
-	// RBAC enforcer applying
-	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
-	}
 	// struct validation
 	err = handler.validator.Struct(request)
 	if err != nil {
 		handler.logger.Errorw("validation err, BulkDeleteRoleGroups", "payload", request, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 

@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	auth "github.com/devtron-labs/devtron/pkg/auth/authorisation/globalConfig"
 	"github.com/devtron-labs/devtron/pkg/auth/user/adapter"
+	helper2 "github.com/devtron-labs/devtron/pkg/auth/user/helper"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository/helper"
 	util3 "github.com/devtron-labs/devtron/pkg/auth/user/util"
 	"github.com/devtron-labs/devtron/pkg/timeoutWindow"
@@ -97,20 +98,19 @@ type UserServiceImpl struct {
 	userReqLock sync.RWMutex
 	//map of userId and current lock-state of their serving ability;
 	//if TRUE then it means that some request is ongoing & unable to serve and FALSE then it is open to serve
-	userReqState                      map[int32]bool
-	userAuthRepository                repository.UserAuthRepository
-	logger                            *zap.SugaredLogger
-	userRepository                    repository.UserRepository
-	roleGroupRepository               repository.RoleGroupRepository
-	sessionManager2                   *middleware.SessionManager
-	userCommonService                 UserCommonService
-	userAuditService                  UserAuditService
-	globalAuthorisationConfigService  auth.GlobalAuthorisationConfigService
-	roleGroupService                  RoleGroupService
-	userGroupMapRepository            repository.UserGroupMapRepository
-	enforcer                          casbin.Enforcer
-	userListingRepositoryQueryBuilder helper.UserRepositoryQueryBuilder
-	timeoutWindowService              timeoutWindow.TimeoutWindowService
+	userReqState                     map[int32]bool
+	userAuthRepository               repository.UserAuthRepository
+	logger                           *zap.SugaredLogger
+	userRepository                   repository.UserRepository
+	roleGroupRepository              repository.RoleGroupRepository
+	sessionManager2                  *middleware.SessionManager
+	userCommonService                UserCommonService
+	userAuditService                 UserAuditService
+	globalAuthorisationConfigService auth.GlobalAuthorisationConfigService
+	roleGroupService                 RoleGroupService
+	userGroupMapRepository           repository.UserGroupMapRepository
+	enforcer                         casbin.Enforcer
+	timeoutWindowService             timeoutWindow.TimeoutWindowService
 }
 
 func NewUserServiceImpl(userAuthRepository repository.UserAuthRepository,
@@ -121,24 +121,22 @@ func NewUserServiceImpl(userAuthRepository repository.UserAuthRepository,
 	globalAuthorisationConfigService auth.GlobalAuthorisationConfigService,
 	roleGroupService RoleGroupService, userGroupMapRepository repository.UserGroupMapRepository,
 	enforcer casbin.Enforcer,
-	userListingRepositoryQueryBuilder helper.UserRepositoryQueryBuilder,
 	timeoutWindowService timeoutWindow.TimeoutWindowService,
 ) *UserServiceImpl {
 	serviceImpl := &UserServiceImpl{
-		userReqState:                      make(map[int32]bool),
-		userAuthRepository:                userAuthRepository,
-		logger:                            logger,
-		userRepository:                    userRepository,
-		roleGroupRepository:               userGroupRepository,
-		sessionManager2:                   sessionManager2,
-		userCommonService:                 userCommonService,
-		userAuditService:                  userAuditService,
-		globalAuthorisationConfigService:  globalAuthorisationConfigService,
-		roleGroupService:                  roleGroupService,
-		userGroupMapRepository:            userGroupMapRepository,
-		enforcer:                          enforcer,
-		userListingRepositoryQueryBuilder: userListingRepositoryQueryBuilder,
-		timeoutWindowService:              timeoutWindowService,
+		userReqState:                     make(map[int32]bool),
+		userAuthRepository:               userAuthRepository,
+		logger:                           logger,
+		userRepository:                   userRepository,
+		roleGroupRepository:              userGroupRepository,
+		sessionManager2:                  sessionManager2,
+		userCommonService:                userCommonService,
+		userAuditService:                 userAuditService,
+		globalAuthorisationConfigService: globalAuthorisationConfigService,
+		roleGroupService:                 roleGroupService,
+		userGroupMapRepository:           userGroupMapRepository,
+		enforcer:                         enforcer,
+		timeoutWindowService:             timeoutWindowService,
 	}
 	cStore = sessions.NewCookieStore(randKey())
 	return serviceImpl
@@ -1248,7 +1246,7 @@ func (impl UserServiceImpl) GetAllWithFilters(request *bean.FetchListingRequest)
 	// setting count check to true for only count
 	request.CountCheck = true
 	// Build query from query builder
-	query := impl.userListingRepositoryQueryBuilder.GetQueryForUserListingWithFilters(request)
+	query := helper.GetQueryForUserListingWithFilters(request)
 	totalCount, err := impl.userRepository.GetCountExecutingQuery(query)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db in GetAllWithFilters", "error", err)
@@ -1258,7 +1256,7 @@ func (impl UserServiceImpl) GetAllWithFilters(request *bean.FetchListingRequest)
 	// setting count check to false for getting data
 	request.CountCheck = false
 
-	query = impl.userListingRepositoryQueryBuilder.GetQueryForUserListingWithFilters(request)
+	query = helper.GetQueryForUserListingWithFilters(request)
 	models, err := impl.userRepository.GetAllExecutingQuery(query)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db in GetAllWithFilters", "error", err)
@@ -1332,7 +1330,7 @@ func (impl UserServiceImpl) getUserResponse(model []repository.UserModel, record
 }
 
 func (impl UserServiceImpl) getAllDetailedUsers(req *bean.FetchListingRequest) ([]bean.UserInfo, error) {
-	query := impl.userListingRepositoryQueryBuilder.GetQueryForUserListingWithFilters(req)
+	query := helper.GetQueryForUserListingWithFilters(req)
 	models, err := impl.userRepository.GetAllExecutingQuery(query)
 	if err != nil {
 		impl.logger.Errorw("error in GetAllDetailedUsers", "err", err)
@@ -1768,7 +1766,7 @@ func (impl *UserServiceImpl) BulkDeleteUsers(request *bean.BulkDeleteRequest) (b
 // getUserIdsHonoringFilters get the filtered user ids according to the request filters and returns userIds and error(not nil) if any exception is caught.
 func (impl *UserServiceImpl) getUserIdsHonoringFilters(request *bean.FetchListingRequest) ([]int32, error) {
 	//query to get particular models respecting filters
-	query := impl.userListingRepositoryQueryBuilder.GetQueryForUserListingWithFilters(request)
+	query := helper.GetQueryForUserListingWithFilters(request)
 	models, err := impl.userRepository.GetAllExecutingQuery(query)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db in GetAllWithFilters", "error", err)
@@ -1777,7 +1775,7 @@ func (impl *UserServiceImpl) getUserIdsHonoringFilters(request *bean.FetchListin
 	// collecting the required user ids from filtered models
 	filteredUserIds := make([]int32, len(models))
 	for i, model := range models {
-		if !(model.EmailId == bean2.AdminUser || model.EmailId == bean2.SystemUser) {
+		if helper2.CheckIfUserDevtronManagedByEmail(model.EmailId) {
 			filteredUserIds[i] = model.Id
 		}
 	}
@@ -1796,7 +1794,7 @@ func (impl *UserServiceImpl) deleteUsersByIds(request *bean.BulkDeleteRequest) e
 
 	emailIds, err := impl.userRepository.GetEmailByIds(request.Ids)
 	if err != nil {
-		impl.logger.Errorw("error in DeleteUsersForIds", "err", err)
+		impl.logger.Errorw("error in DeleteUsersForIds", "userIds", request.Ids, "err", err)
 		return err
 	}
 
@@ -1842,22 +1840,19 @@ func (impl *UserServiceImpl) deleteMappingsFromCasbin(emailIds []string, totalCo
 
 	success := impl.userCommonService.DeleteRoleForUserFromCasbin(emailIdVsCasbinRolesMap)
 	if !success {
-		impl.logger.Errorw("error in deleting from casbin in deleteMappingsFromCasbin ", "success", success)
+		impl.logger.Errorw("error in deleting from casbin in deleteMappingsFromCasbin ", "emailIds", emailIds)
 	}
 	return nil
 }
 
 // deleteMappingsFromOrchestrator takes in userIds to be deleted and transaction returns error in case of any issue else nil
 func (impl *UserServiceImpl) deleteMappingsFromOrchestrator(userIds []int32, tx *pg.Tx) error {
-	userRoleMapping, err := impl.userAuthRepository.GetUserRoleMappingIdsByUserIds(userIds)
+	urmIds, err := impl.userAuthRepository.GetUserRoleMappingIdsByUserIds(userIds)
 	if err != nil {
 		impl.logger.Errorw("error in DeleteUsersForIds", "err", err)
 		return err
 	}
-	urmIds := make([]int, 0, len(userRoleMapping))
-	for _, model := range userRoleMapping {
-		urmIds = append(urmIds, model.Id)
-	}
+
 	if len(urmIds) > 0 {
 		err = impl.userAuthRepository.DeleteUserRoleMappingByIds(urmIds, tx)
 		if err != nil {
