@@ -145,9 +145,16 @@ Select **Create Pipeline**.
 
 ##### Scan for Vulnerabilities
 
+{% hint style="info" %}
+### Prerequisite
+Install any one of the following integrations from Devtron Stack Manager:
+* [Clair](../../../user-guide/integrations/clair.md)
+* Trivy
+{% endhint %}
+
 To perform the security scan after the container image is built, enable the **Scan for vulnerabilities** toggle in the build stage.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-ci-pipeline/scan-for-vulnerabilities-v2.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-ci-pipeline/scan-for-vulnerabilities-v2.jpg)
 
 ##### Custom Image Tag Pattern
 

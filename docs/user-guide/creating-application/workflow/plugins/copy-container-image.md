@@ -1,6 +1,6 @@
 ## Copy Container Image
 
-This plugin copies a container image from the source to destination. The pushing of image can be between repositories of the same container registry or between repositories of different container registry.
+This plugin copies a container image to a desired container [repository](../../../../reference/glossary.md#repo). The pushing of image can be between repositories of the same container [registry](../../../../reference/glossary.md#containeroci-registry) or between repositories of different container registry.
 
 The plugin can be used at any stage, i.e., pre & post CI, job, pre & post CD. This is especially useful when unique repositories are maintained for production builds (using the same CI pipeline).
 
