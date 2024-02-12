@@ -41,6 +41,7 @@ import (
 	"github.com/devtron-labs/devtron/api/deployment"
 	"github.com/devtron-labs/devtron/api/externalLink"
 	client "github.com/devtron-labs/devtron/api/helm-app"
+	"github.com/devtron-labs/devtron/api/infraConfig"
 	"github.com/devtron-labs/devtron/api/k8s"
 	"github.com/devtron-labs/devtron/api/module"
 	"github.com/devtron-labs/devtron/api/restHandler"
@@ -125,6 +126,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/git"
 	"github.com/devtron-labs/devtron/pkg/gitops"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
+	infraConfigService "github.com/devtron-labs/devtron/pkg/infraConfig"
+	"github.com/devtron-labs/devtron/pkg/infraConfig/units"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	repository7 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
 	"github.com/devtron-labs/devtron/pkg/notifier"
@@ -132,6 +135,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	history3 "github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
+	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders"
 	repository5 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/plugin"
@@ -181,20 +185,20 @@ func InitializeApp() (*App, error) {
 		deployment2.DeploymentWireSet,
 
 		// -------wireset end ----------
-		//-------
+		// -------
 		gitSensor.GetConfig,
 		gitSensor.NewGitSensorClient,
 		wire.Bind(new(gitSensor.Client), new(*gitSensor.ClientImpl)),
-		//-------
+		// -------
 		helper.NewAppListingRepositoryQueryBuilder,
-		//sql.GetConfig,
+		// sql.GetConfig,
 		eClient.GetEventClientConfig,
 		util2.GetGlobalEnvVariables,
-		//sql.NewDbConnection,
-		//app.GetACDAuthConfig,
+		// sql.NewDbConnection,
+		// app.GetACDAuthConfig,
 		util3.GetACDAuthConfig,
 		connection.SettingsManager,
-		//auth.GetConfig,
+		// auth.GetConfig,
 
 		connection.GetConfig,
 		wire.Bind(new(session2.ServiceClient), new(*middleware.LoginService)),
@@ -203,13 +207,13 @@ func InitializeApp() (*App, error) {
 		trigger2.NewPipelineTriggerRouter,
 		wire.Bind(new(trigger2.PipelineTriggerRouter), new(*trigger2.PipelineTriggerRouterImpl)),
 
-		//---- pprof start ----
+		// ---- pprof start ----
 		restHandler.NewPProfRestHandler,
 		wire.Bind(new(restHandler.PProfRestHandler), new(*restHandler.PProfRestHandlerImpl)),
 
 		router.NewPProfRouter,
 		wire.Bind(new(router.PProfRouter), new(*router.PProfRouterImpl)),
-		//---- pprof end ----
+		// ---- pprof end ----
 
 		trigger.NewPipelineRestHandler,
 		wire.Bind(new(trigger.PipelineTriggerRestHandler), new(*trigger.PipelineTriggerRestHandlerImpl)),
@@ -237,6 +241,20 @@ func InitializeApp() (*App, error) {
 		dashboardEvent.NewDashboardTelemetryRouterImpl,
 		wire.Bind(new(dashboardEvent.DashboardTelemetryRouter),
 			new(*dashboardEvent.DashboardTelemetryRouterImpl)),
+
+		infraConfigService.NewInfraProfileRepositoryImpl,
+		wire.Bind(new(infraConfigService.InfraConfigRepository), new(*infraConfigService.InfraConfigRepositoryImpl)),
+
+		units.NewUnits,
+		infraConfigService.NewInfraConfigServiceImpl,
+		wire.Bind(new(infraConfigService.InfraConfigService), new(*infraConfigService.InfraConfigServiceImpl)),
+		infraProviders.NewInfraProviderImpl,
+		wire.Bind(new(infraProviders.InfraProvider), new(*infraProviders.InfraProviderImpl)),
+		infraConfig.NewInfraConfigRestHandlerImpl,
+		wire.Bind(new(infraConfig.InfraConfigRestHandler), new(*infraConfig.InfraConfigRestHandlerImpl)),
+
+		infraConfig.NewInfraProfileRouterImpl,
+		wire.Bind(new(infraConfig.InfraConfigRouter), new(*infraConfig.InfraConfigRouterImpl)),
 
 		router.NewMuxRouter,
 
@@ -293,7 +311,7 @@ func InitializeApp() (*App, error) {
 		util.NewChartTemplateServiceImpl,
 		wire.Bind(new(util.ChartTemplateService), new(*util.ChartTemplateServiceImpl)),
 
-		//scoped variables start
+		// scoped variables start
 		variables.NewScopedVariableServiceImpl,
 		wire.Bind(new(variables.ScopedVariableService), new(*variables.ScopedVariableServiceImpl)),
 
@@ -315,7 +333,7 @@ func InitializeApp() (*App, error) {
 		variables.NewScopedVariableCMCSManagerImpl,
 		wire.Bind(new(variables.ScopedVariableCMCSManager), new(*variables.ScopedVariableCMCSManagerImpl)),
 
-		//end
+		// end
 
 		chart.NewChartServiceImpl,
 		wire.Bind(new(chart.ChartService), new(*chart.ChartServiceImpl)),
@@ -395,10 +413,10 @@ func InitializeApp() (*App, error) {
 		//app.GetConfig,
 
 		pipeline.GetEcrConfig,
-		//otel.NewOtelTracingServiceImpl,
-		//wire.Bind(new(otel.OtelTracingService), new(*otel.OtelTracingServiceImpl)),
+		// otel.NewOtelTracingServiceImpl,
+		// wire.Bind(new(otel.OtelTracingService), new(*otel.OtelTracingServiceImpl)),
 		NewApp,
-		//session.NewK8sClient,
+		// session.NewK8sClient,
 		repository8.NewImageTaggingRepositoryImpl,
 		wire.Bind(new(repository8.ImageTaggingRepository), new(*repository8.ImageTaggingRepositoryImpl)),
 		pipeline.NewImageTaggingServiceImpl,
@@ -581,7 +599,7 @@ func InitializeApp() (*App, error) {
 		restHandler.NewPubSubClientRestHandlerImpl,
 		wire.Bind(new(restHandler.PubSubClientRestHandler), new(*restHandler.PubSubClientRestHandlerImpl)),
 
-		//Batch actions
+		// Batch actions
 		batch.NewWorkflowActionImpl,
 		wire.Bind(new(batch.WorkflowAction), new(*batch.WorkflowActionImpl)),
 		batch.NewDeploymentActionImpl,
@@ -784,9 +802,9 @@ func InitializeApp() (*App, error) {
 
 		history3.NewDeployedConfigurationHistoryServiceImpl,
 		wire.Bind(new(history3.DeployedConfigurationHistoryService), new(*history3.DeployedConfigurationHistoryServiceImpl)),
-		//history ends
+		// history ends
 
-		//plugin starts
+		// plugin starts
 		repository6.NewGlobalPluginRepository,
 		wire.Bind(new(repository6.GlobalPluginRepository), new(*repository6.GlobalPluginRepositoryImpl)),
 
@@ -804,7 +822,7 @@ func InitializeApp() (*App, error) {
 
 		pipeline.NewPipelineStageService,
 		wire.Bind(new(pipeline.PipelineStageService), new(*pipeline.PipelineStageServiceImpl)),
-		//plugin ends
+		// plugin ends
 
 		connection.NewArgoCDConnectionManagerImpl,
 		wire.Bind(new(connection.ArgoCDConnectionManager), new(*connection.ArgoCDConnectionManagerImpl)),
@@ -816,12 +834,12 @@ func InitializeApp() (*App, error) {
 		cron.NewCdApplicationStatusUpdateHandlerImpl,
 		wire.Bind(new(cron.CdApplicationStatusUpdateHandler), new(*cron.CdApplicationStatusUpdateHandlerImpl)),
 
-		//app_status
+		// app_status
 		appStatusRepo.NewAppStatusRepositoryImpl,
 		wire.Bind(new(appStatusRepo.AppStatusRepository), new(*appStatusRepo.AppStatusRepositoryImpl)),
 		appStatus.NewAppStatusServiceImpl,
 		wire.Bind(new(appStatus.AppStatusService), new(*appStatus.AppStatusServiceImpl)),
-		//app_status ends
+		// app_status ends
 
 		cron.GetCiWorkflowStatusUpdateConfig,
 		cron.NewCiStatusUpdateCronImpl,
@@ -866,8 +884,8 @@ func InitializeApp() (*App, error) {
 		repository.NewGlobalCMCSRepositoryImpl,
 		wire.Bind(new(repository.GlobalCMCSRepository), new(*repository.GlobalCMCSRepositoryImpl)),
 
-		//chartRepoRepository.NewGlobalStrategyMetadataRepositoryImpl,
-		//wire.Bind(new(chartRepoRepository.GlobalStrategyMetadataRepository), new(*chartRepoRepository.GlobalStrategyMetadataRepositoryImpl)),
+		// chartRepoRepository.NewGlobalStrategyMetadataRepositoryImpl,
+		// wire.Bind(new(chartRepoRepository.GlobalStrategyMetadataRepository), new(*chartRepoRepository.GlobalStrategyMetadataRepositoryImpl)),
 		chartRepoRepository.NewGlobalStrategyMetadataChartRefMappingRepositoryImpl,
 		wire.Bind(new(chartRepoRepository.GlobalStrategyMetadataChartRefMappingRepository), new(*chartRepoRepository.GlobalStrategyMetadataChartRefMappingRepositoryImpl)),
 
