@@ -27,7 +27,7 @@ components:
         GLOBAL_API_TIMEOUT: "60000"
         TRIGGER_API_TIMEOUT: "60000"
   devtron:
-    image: "quay.io/devtron/hyperion:488f9559-280-21091"
+    image: "quay.io/devtron/hyperion:704b8838-280-21118"
     cicdImage: "quay.io/devtron/devtron:704b8838-434-21119"
     customOverrides:
       DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:84554651-138-21116"
