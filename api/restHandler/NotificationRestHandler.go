@@ -75,21 +75,21 @@ type NotificationRestHandler interface {
 	ApproveDeploymentConfigForNotification(w http.ResponseWriter, r *http.Request)
 }
 type NotificationRestHandlerImpl struct {
-	dockerRegistryConfig pipeline.DockerRegistryConfig
-	logger               *zap.SugaredLogger
-	gitRegistryConfig    pipeline.GitRegistryConfig
-	userAuthService      user.UserService
-	validator            *validator.Validate
-	notificationService  notifier.NotificationConfigService
-	slackService         notifier.SlackNotificationService
-	webhookService       notifier.WebhookNotificationService
-	sesService           notifier.SESNotificationService
-	smtpService          notifier.SMTPNotificationService
-	enforcer             casbin.Enforcer
-	teamService          team.TeamService
-	environmentService   cluster.EnvironmentService
-	pipelineBuilder      pipeline.PipelineBuilder
-	enforcerUtil         rbac.EnforcerUtil
+	dockerRegistryConfig       pipeline.DockerRegistryConfig
+	logger                     *zap.SugaredLogger
+	gitRegistryConfig          pipeline.GitRegistryConfig
+	userAuthService            user.UserService
+	validator                  *validator.Validate
+	notificationService        notifier.NotificationConfigService
+	slackService               notifier.SlackNotificationService
+	webhookService             notifier.WebhookNotificationService
+	sesService                 notifier.SESNotificationService
+	smtpService                notifier.SMTPNotificationService
+	enforcer                   casbin.Enforcer
+	teamService                team.TeamService
+	environmentService         cluster.EnvironmentService
+	pipelineBuilder            pipeline.PipelineBuilder
+	enforcerUtil               rbac.EnforcerUtil
 	configDraftRestHandlerImpl *drafts.ConfigDraftRestHandlerImpl
 }
 
@@ -107,21 +107,21 @@ func NewNotificationRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistry
 	configDraftRestHandlerImpl *drafts.ConfigDraftRestHandlerImpl,
 ) *NotificationRestHandlerImpl {
 	return &NotificationRestHandlerImpl{
-		dockerRegistryConfig: dockerRegistryConfig,
-		logger:               logger,
-		gitRegistryConfig:    gitRegistryConfig,
-		userAuthService:      userAuthService,
-		validator:            validator,
-		notificationService:  notificationService,
-		slackService:         slackService,
-		webhookService:       webhookService,
-		sesService:           sesService,
-		smtpService:          smtpService,
-		enforcer:             enforcer,
-		teamService:          teamService,
-		environmentService:   environmentService,
-		pipelineBuilder:      pipelineBuilder,
-		enforcerUtil:         enforcerUtil,
+		dockerRegistryConfig:       dockerRegistryConfig,
+		logger:                     logger,
+		gitRegistryConfig:          gitRegistryConfig,
+		userAuthService:            userAuthService,
+		validator:                  validator,
+		notificationService:        notificationService,
+		slackService:               slackService,
+		webhookService:             webhookService,
+		sesService:                 sesService,
+		smtpService:                smtpService,
+		enforcer:                   enforcer,
+		teamService:                teamService,
+		environmentService:         environmentService,
+		pipelineBuilder:            pipelineBuilder,
+		enforcerUtil:               enforcerUtil,
 		configDraftRestHandlerImpl: configDraftRestHandlerImpl,
 	}
 }

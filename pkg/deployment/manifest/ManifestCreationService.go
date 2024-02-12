@@ -340,7 +340,7 @@ func (impl *ManifestCreationServiceImpl) getEnvOverrideByTriggerType(overrideReq
 		}
 		//getting chart_ref by id
 		_, span = otel.Tracer("orchestrator").Start(ctx, "chartRefRepository.FindByVersionAndName")
-		chartRefDto, err := impl.chartRefService.FindByVersionAndName(templateName, templateVersion)
+		chartRefDto, err := impl.chartRefService.FindByVersionAndName(templateVersion, templateName)
 		span.End()
 		if err != nil {
 			impl.logger.Errorw("error in getting chartRef by version and name", "err", err, "version", templateVersion, "name", templateName)

@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/api/appStore/chartGroup"
 	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
 	"github.com/devtron-labs/devtron/api/auth/authorisation/globalConfig"
+	"github.com/devtron-labs/devtron/api/argoApplication"
 	"github.com/devtron-labs/devtron/api/auth/sso"
 	"github.com/devtron-labs/devtron/api/auth/user"
 	"github.com/devtron-labs/devtron/api/chartRepo"
@@ -35,6 +36,7 @@ import (
 	"github.com/devtron-labs/devtron/api/externalLink"
 	"github.com/devtron-labs/devtron/api/globalPolicy"
 	client "github.com/devtron-labs/devtron/api/helm-app"
+	"github.com/devtron-labs/devtron/api/infraConfig"
 	"github.com/devtron-labs/devtron/api/k8s/application"
 	"github.com/devtron-labs/devtron/api/k8s/capacity"
 	"github.com/devtron-labs/devtron/api/module"
@@ -132,6 +134,8 @@ type MuxRouter struct {
 	globalAuthorisationConfigRouter    globalConfig.AuthorisationConfigRouter
 	lockConfigurationRouter            lockConfiguation.LockConfigurationRouter
 	imageDigestPolicyRouter            ImageDigestPolicyRouter
+	infraConfigRouter                  infraConfig.InfraConfigRouter
+	argoApplicationRouter              argoApplication.ArgoApplicationRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger,
@@ -166,7 +170,10 @@ func NewMuxRouter(logger *zap.SugaredLogger,
 	globalAuthorisationConfigRouter globalConfig.AuthorisationConfigRouter,
 	lockConfigurationRouter lockConfiguation.LockConfigurationRouter,
 	proxyRouter proxy.ProxyRouter,
-	imageDigestPolicyRouter ImageDigestPolicyRouter) *MuxRouter {
+	imageDigestPolicyRouter ImageDigestPolicyRouter,
+	infraConfigRouter infraConfig.InfraConfigRouter,
+	argoApplicationRouter argoApplication.ArgoApplicationRouter) *MuxRouter {
+
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
 		EnvironmentClusterMappingsRouter:   EnvironmentClusterMappingsRouter,
@@ -238,6 +245,8 @@ func NewMuxRouter(logger *zap.SugaredLogger,
 		globalAuthorisationConfigRouter:    globalAuthorisationConfigRouter,
 		lockConfigurationRouter:            lockConfigurationRouter,
 		imageDigestPolicyRouter:            imageDigestPolicyRouter,
+		infraConfigRouter:                  infraConfigRouter,
+		argoApplicationRouter:              argoApplicationRouter,
 	}
 	return r
 }
@@ -247,8 +256,8 @@ func (r MuxRouter) Init() {
 
 	r.Router.StrictSlash(true)
 	r.Router.Handle("/metrics", promhttp.Handler())
-	//prometheus.MustRegister(pipeline.CiTriggerCounter)
-	//prometheus.MustRegister(app.CdTriggerCounter)
+	// prometheus.MustRegister(pipeline.CiTriggerCounter)
+	// prometheus.MustRegister(app.CdTriggerCounter)
 	r.Router.Path("/health").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		writer.Header().Set("Content-Type", "application/json")
 		writer.WriteHeader(200)
@@ -406,10 +415,10 @@ func (r MuxRouter) Init() {
 	r.dashboardTelemetryRouter.Init(dashboardTelemetryRouter)
 	// dashboard event router ends
 
-	//GitOps,Acd + HelmCLi both apps deployment related api's
+	// GitOps,Acd + HelmCLi both apps deployment related api's
 	applicationSubRouter := r.Router.PathPrefix("/orchestrator/application").Subrouter()
 	r.commonDeploymentRouter.Init(applicationSubRouter)
-	//this router must placed after commonDeploymentRouter
+	// this router must placed after commonDeploymentRouter
 	r.helmAppRouter.InitAppListRouter(applicationSubRouter)
 
 	externalLinkRouter := r.Router.PathPrefix("/orchestrator/external-links").Subrouter()
@@ -465,4 +474,10 @@ func (r MuxRouter) Init() {
 
 	globalAuthorisationConfigRouter := r.Router.PathPrefix("/orchestrator/authorisation").Subrouter()
 	r.globalAuthorisationConfigRouter.InitAuthorisationConfigRouter(globalAuthorisationConfigRouter)
+
+	infraConfigRouter := r.Router.PathPrefix("/orchestrator/infra-config").Subrouter()
+	r.infraConfigRouter.InitInfraConfigRouter(infraConfigRouter)
+
+	argoApplicationRouter := r.Router.PathPrefix("/orchestrator/argo-application").Subrouter()
+	r.argoApplicationRouter.InitArgoApplicationRouter(argoApplicationRouter)
 }
