@@ -13,6 +13,7 @@ import (
 type HelmAppClient interface {
 	ListApplication(ctx context.Context, req *AppListRequest) (ApplicationService_ListApplicationsClient, error)
 	GetAppDetail(ctx context.Context, in *AppDetailRequest) (*AppDetail, error)
+	GetResourceTreeForExternalResources(ctx context.Context, in *ExternalResourceTreeRequest) (*ResourceTreeResponse, error)
 	GetAppStatus(ctx context.Context, in *AppDetailRequest) (*AppStatus, error)
 	Hibernate(ctx context.Context, in *HibernateRequest) (*HibernateResponse, error)
 	UnHibernate(ctx context.Context, in *HibernateRequest) (*HibernateResponse, error)
@@ -108,6 +109,18 @@ func (impl *HelmAppClientImpl) GetAppDetail(ctx context.Context, in *AppDetailRe
 		return nil, err
 	}
 	detail, err := applicationClient.GetAppDetail(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return detail, nil
+}
+
+func (impl *HelmAppClientImpl) GetResourceTreeForExternalResources(ctx context.Context, in *ExternalResourceTreeRequest) (*ResourceTreeResponse, error) {
+	applicationClient, err := impl.getApplicationClient()
+	if err != nil {
+		return nil, err
+	}
+	detail, err := applicationClient.GetResourceTreeForExternalResources(ctx, in)
 	if err != nil {
 		return nil, err
 	}
