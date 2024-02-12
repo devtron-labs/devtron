@@ -10,6 +10,7 @@ var ReservedChartRefNamesList *[]ReservedChartList
 type ReservedChartList struct {
 	LocationPrefix string
 	Name           string
+	hjbjhjk
 }
 
 type TemplateRequest struct {
