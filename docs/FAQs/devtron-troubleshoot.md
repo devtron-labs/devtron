@@ -534,4 +534,4 @@ kubectl delete po -n devtroncd -l app=git-sensor
 
 3. **Try to clone the git repository with the token you have added for Git Account**
 
-If you fail to clone with the token generate the token and and try to save the git repository again
+If you fail to clone with the token generate the token, update the Git account in Global Configuration and try to save the git repository again.
