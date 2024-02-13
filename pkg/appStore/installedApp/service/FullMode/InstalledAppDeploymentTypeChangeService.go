@@ -20,6 +20,7 @@ import (
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/appStore/chartGroup"
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deployment"
 	util2 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
@@ -57,6 +58,7 @@ type InstalledAppDeploymentTypeChangeServiceImpl struct {
 	k8sCommonService              k8s.K8sCommonService
 	k8sUtil                       *k8s2.K8sServiceImpl
 	fullModeDeploymentService     deployment.FullModeDeploymentService
+	eaModeDeploymentService       EAMode.EAModeDeploymentService
 	argoClientWrapperService      argocdServer.ArgoClientWrapperService
 	chartGroupService             chartGroup.ChartGroupService
 	helmAppService                client.HelmAppService
@@ -75,6 +77,7 @@ func NewInstalledAppDeploymentTypeChangeServiceImpl(logger *zap.SugaredLogger,
 	environmentRepository repository5.EnvironmentRepository,
 	acdClient application2.ServiceClient, k8sCommonService k8s.K8sCommonService,
 	k8sUtil *k8s2.K8sServiceImpl, fullModeDeploymentService deployment.FullModeDeploymentService,
+	eaModeDeploymentService EAMode.EAModeDeploymentService,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
 	chartGroupService chartGroup.ChartGroupService, helmAppService client.HelmAppService) *InstalledAppDeploymentTypeChangeServiceImpl {
 	return &InstalledAppDeploymentTypeChangeServiceImpl{
@@ -93,6 +96,7 @@ func NewInstalledAppDeploymentTypeChangeServiceImpl(logger *zap.SugaredLogger,
 		k8sCommonService:              k8sCommonService,
 		k8sUtil:                       k8sUtil,
 		fullModeDeploymentService:     fullModeDeploymentService,
+		eaModeDeploymentService:       eaModeDeploymentService,
 		argoClientWrapperService:      argoClientWrapperService,
 		chartGroupService:             chartGroupService,
 		helmAppService:                helmAppService,
@@ -305,7 +309,7 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) deleteInstalledApps(ctx
 				AppName:   installedApp.App.AppName,
 				Namespace: installedApp.Environment.Namespace,
 			}
-			err = impl.fullModeDeploymentService.DeleteInstalledApp(ctx, "", "", installAppVersionRequest, installedApp, nil)
+			err = impl.eaModeDeploymentService.DeleteInstalledApp(ctx, "", "", installAppVersionRequest, nil, nil)
 		}
 
 		if err != nil {
