@@ -97,7 +97,7 @@ To deploy an approved image, follow these steps:
 
 3. You can view the status of current deployment in the `App Details` tab. 
 
-    ![Figure 16: 'App Details' Screen](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-cd/app-status.jpg)
+    ![Figure 16: 'App Details' Screen](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-cd/app-status-v2.jpg)
 
 The status initially appears as `Progressing` for approximately 1-2 minutes, and then gradually transitions to `Healthy` state based on the deployment strategy.
 

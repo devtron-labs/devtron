@@ -138,9 +138,7 @@ Select the appropriate filter and pass the matching condition as a regular expre
 Select **Create Pipeline**.
 
 {% hint style="info" %}
-**(a)** You can provide pre-build and post-build stages via the Devtron tool’s console or can also provide these details by creating a file `devtron-ci.yaml` inside your repository. There is a pre-defined format to write this file. And we will run these stages using this YAML file. You can also provide some stages on the Devtron tool’s console and some stages in the devtron-ci.yaml file. But stages defined through the `Devtron` dashboard are first executed then the stages defined in the `devtron-ci.yaml` file.
-
-**(b)** The total timeout for the execution of the CI pipeline is by default set as 3600 seconds. This default timeout is configurable according to the use case. The timeout can be edited in the configmap of the orchestrator service in the env variable as `env:"DEFAULT_TIMEOUT" envDefault:"3600"`
+The total timeout for the execution of the CI pipeline is by default set as 3600 seconds. This default timeout is configurable according to the use case. The timeout can be edited in the configmap of the orchestrator service in the env variable as `env:"DEFAULT_TIMEOUT" envDefault:"3600"`
 {% endhint %}
 
 ##### Scan for Vulnerabilities
@@ -194,7 +192,7 @@ This feature helps you append custom tags (e.g., `v1.0.0`) to readily distinguis
 
     * **CD Pipeline (Image Selection)**
 
-    ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-ci-pipeline/build-history.jpg)
+    ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-ci-pipeline/select-ci-image.jpg)
 
 
 {% hint style="info" %}
@@ -242,7 +240,7 @@ You can use Devtron for deployments on Kubernetes while using an external CI too
 
 | Fields | Description |
 | --- | --- |
-| **Deploy to environment** | <ul><li>`Environment`: Provide the name of the [environment](../../global-configurations/cluster-and-environments#add-environment).</ul></li><ul><li>`Namepsace`: Provide the [namespace](../../global-configurations/cluster-and-environments#add-environment).</ul></li> |
+| **Deploy to environment** | <ul><li>`Environment`: Provide the name of the [environment](../../global-configurations/cluster-and-environments#add-environment).</ul></li><ul><li>`Namespace`: Provide the [namespace](../../global-configurations/cluster-and-environments#add-environment).</ul></li> |
 | **When do you want to deploy** | You can deploy either in one of the following ways: <ul><li>`Automatic`: If you select automatic, your application will be deployed automatically everytime a new image is received.</ul></li> <ul><li>`Manual`: In case of manual, you have to select the image and deploy manually. </ul></li>|
 | **Deployment Strategy** | Configure the deployment preferences for this pipeline. |
 
