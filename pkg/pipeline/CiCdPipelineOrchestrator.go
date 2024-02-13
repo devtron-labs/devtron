@@ -809,8 +809,8 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 		// Rollback tx on error.
 		defer tx.Rollback()
 		if !ciPipeline.PipelineType.IsValidPipelineType() {
-			impl.logger.Errorw("please provide valid PipelineType", "err", err)
-			return nil, err
+			impl.logger.Debugw("please provide valid PipelineType", "ciPipeline.PipelineType", ciPipeline.PipelineType)
+			return nil, errors.New("PipelineType is not valid")
 		}
 		ciPipelineObject := &pipelineConfig.CiPipeline{
 			AppId:                    createRequest.AppId,

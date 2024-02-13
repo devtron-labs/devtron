@@ -181,8 +181,8 @@ type ExternalCiConfigRole struct {
 type PatchAction int
 type PipelineType string
 
-func (p PipelineType) IsValidPipelineType() bool {
-	switch p {
+func (pType PipelineType) IsValidPipelineType() bool {
+	switch pType {
 	case NORMAL, LINKED, EXTERNAL, CI_JOB, LINKED_CD:
 		return true
 	default:
