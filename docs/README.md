@@ -84,4 +84,4 @@ We, at Devtron, take security and our users' trust very seriously. If you believ
  
 ## License
  
-Devtron is available under the [Apache License, Version 2.0](https://github.com/devtron-labs/devtron/blob/main/LICENSE.md).
+Devtron is available under the Apache License, Version 2.0
