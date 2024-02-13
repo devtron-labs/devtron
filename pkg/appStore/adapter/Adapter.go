@@ -196,6 +196,7 @@ func UpdateAdditionalEnvDetails(request *appStoreBean.InstallAppVersionDTO, envB
 		return
 	}
 	request.Environment = envBean
+	request.EnvironmentName = envBean.Environment
 	request.ClusterId = envBean.ClusterId
 	request.Namespace = envBean.Namespace
 	request.UpdateACDAppName()

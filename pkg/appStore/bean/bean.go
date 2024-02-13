@@ -112,10 +112,10 @@ func (chart *InstallAppVersionDTO) UpdateDeploymentAppType(deploymentAppType str
 
 // UpdateACDAppName updates ArgoCd app object name to InstallAppVersionDTO
 func (chart *InstallAppVersionDTO) UpdateACDAppName() {
-	if chart == nil || chart.Environment == nil {
+	if chart == nil {
 		return
 	}
-	chart.ACDAppName = fmt.Sprintf("%s-%s", chart.AppName, chart.Environment.Environment)
+	chart.ACDAppName = fmt.Sprintf("%s-%s", chart.AppName, chart.EnvironmentName)
 }
 
 // InstalledAppDeploymentAction is an internal struct for Helm App deployment; used to decide the deployment steps to be performed

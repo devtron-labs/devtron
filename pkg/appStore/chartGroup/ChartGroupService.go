@@ -1081,7 +1081,7 @@ func (impl *ChartGroupServiceImpl) performDeployStageOnAcd(installedAppVersion *
 			impl.logger.Errorw("error, GetRepoUrlByRepoName", "err", err)
 		}
 		chartGitAttr.RepoUrl = repoUrl
-		chartGitAttr.ChartLocation = fmt.Sprintf("%s-%s", installedAppVersion.AppName, installedAppVersion.Environment.Environment)
+		chartGitAttr.ChartLocation = fmt.Sprintf("%s-%s", installedAppVersion.AppName, installedAppVersion.EnvironmentName)
 	}
 
 	if installedAppVersion.Status == appStoreBean.DEPLOY_INIT ||
