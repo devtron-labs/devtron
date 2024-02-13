@@ -31,9 +31,11 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
+	"github.com/devtron-labs/devtron/pkg/infraConfig"
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
+	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"go.uber.org/zap"
 	"io/ioutil"
@@ -50,11 +52,11 @@ import (
 
 type WorkflowService interface {
 	SubmitWorkflow(workflowRequest *types.WorkflowRequest) (*unstructured.UnstructuredList, string, error)
-	//DeleteWorkflow(wfName string, namespace string) error
+	// DeleteWorkflow(wfName string, namespace string) error
 	GetWorkflow(executorType pipelineConfig.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config) (*unstructured.UnstructuredList, error)
 	GetWorkflowStatus(executorType pipelineConfig.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config) (*types.WorkflowStatus, error)
-	//ListAllWorkflows(namespace string) (*v1alpha1.WorkflowList, error)
-	//UpdateWorkflow(wf *v1alpha1.Workflow) (*v1alpha1.Workflow, error)
+	// ListAllWorkflows(namespace string) (*v1alpha1.WorkflowList, error)
+	// UpdateWorkflow(wf *v1alpha1.Workflow) (*v1alpha1.Workflow, error)
 	TerminateWorkflow(executorType pipelineConfig.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config, isExt bool, environment *repository.Environment) error
 }
 
@@ -71,6 +73,7 @@ type WorkflowServiceImpl struct {
 	k8sCommonService       k8s2.K8sCommonService
 	chartTemplateService   util2.ChartTemplateService
 	mergeUtil              *util2.MergeUtil
+	infraProvider          infraProviders.InfraProvider
 }
 
 // TODO: Move to bean
@@ -79,8 +82,10 @@ func NewWorkflowServiceImpl(Logger *zap.SugaredLogger, envRepository repository.
 	appService app.AppService, globalCMCSService GlobalCMCSService, argoWorkflowExecutor executors.ArgoWorkflowExecutor,
 	k8sUtil *k8s.K8sUtilExtended,
 	systemWorkflowExecutor executors.SystemWorkflowExecutor, k8sCommonService k8s2.K8sCommonService, chartTemplateService util2.ChartTemplateService,
-	mergeUtil *util2.MergeUtil) (*WorkflowServiceImpl, error) {
-	commonWorkflowService := &WorkflowServiceImpl{Logger: Logger,
+	mergeUtil *util2.MergeUtil,
+	infraProvider infraProviders.InfraProvider) (*WorkflowServiceImpl, error) {
+	commonWorkflowService := &WorkflowServiceImpl{
+		Logger:                 Logger,
 		ciCdConfig:             ciCdConfig,
 		appService:             appService,
 		envRepository:          envRepository,
@@ -91,6 +96,7 @@ func NewWorkflowServiceImpl(Logger *zap.SugaredLogger, envRepository repository.
 		k8sCommonService:       k8sCommonService,
 		chartTemplateService:   chartTemplateService,
 		mergeUtil:              mergeUtil,
+		infraProvider:          infraProvider,
 	}
 	restConfig, err := k8sUtil.GetK8sInClusterRestConfig()
 	if err != nil {
@@ -160,7 +166,20 @@ func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *types.W
 	workflowTemplate.Volumes = executors.ExtractVolumesFromCmCs(workflowConfigMaps, workflowSecrets)
 
 	workflowRequest.AddNodeConstraintsFromConfig(&workflowTemplate, impl.ciCdConfig)
-	workflowMainContainer, err := workflowRequest.GetWorkflowMainContainer(impl.ciCdConfig, workflowJson, &workflowTemplate, workflowConfigMaps, workflowSecrets)
+	infraConfiguration := &infraConfig.InfraConfig{}
+	if workflowRequest.Type == bean3.CI_WORKFLOW_PIPELINE_TYPE || workflowRequest.Type == bean3.JOB_WORKFLOW_PIPELINE_TYPE {
+		infraConfigScope := &infraConfig.Scope{
+			AppId: workflowRequest.AppId,
+		}
+		infraGetter, _ := impl.infraProvider.GetInfraProvider(workflowRequest.Type)
+		infraConfiguration, err = infraGetter.GetInfraConfigurationsByScope(infraConfigScope)
+		if err != nil {
+			impl.Logger.Errorw("error occurred while getting infra config", "infraConfigScope", infraConfigScope, "err", err)
+			return bean3.WorkflowTemplate{}, err
+		}
+	}
+
+	workflowMainContainer, err := workflowRequest.GetWorkflowMainContainer(impl.ciCdConfig, infraConfiguration, workflowJson, &workflowTemplate, workflowConfigMaps, workflowSecrets)
 
 	if err != nil {
 		impl.Logger.Errorw("error occurred while getting workflow main container", "err", err)
@@ -266,8 +285,8 @@ func (impl *WorkflowServiceImpl) addExistingCmCsInWorkflow(workflowRequest *type
 		}
 	}
 
-	//internally inducing BlobStorageCmName and BlobStorageSecretName for getting logs, caches and artifacts from
-	//in-cluster configured blob storage, if USE_BLOB_STORAGE_CONFIG_IN_CD_WORKFLOW = false and isExt = true
+	// internally inducing BlobStorageCmName and BlobStorageSecretName for getting logs, caches and artifacts from
+	// in-cluster configured blob storage, if USE_BLOB_STORAGE_CONFIG_IN_CD_WORKFLOW = false and isExt = true
 	if workflowRequest.UseExternalClusterBlob {
 		workflowConfigMaps, workflowSecrets = impl.addExtBlobStorageCmCsInResponse(workflowConfigMaps, workflowSecrets)
 	}
@@ -414,7 +433,7 @@ func (impl *WorkflowServiceImpl) TriggerDryRun(jobManifestTemplate *bean3.JobMan
 		&chart.Metadata{ApiVersion: bean3.JOB_CHART_API_VERSION, Name: bean3.JOB_CHART_NAME, Version: bean3.JOB_CHART_VERSION},
 		jobHelmChartPath)
 
-	valuesFilePath := path.Join(builtChartPath, "values.yaml") //default values of helm chart
+	valuesFilePath := path.Join(builtChartPath, "values.yaml") // default values of helm chart
 	defaultValues, err := ioutil.ReadFile(valuesFilePath)
 	if err != nil {
 		return builtChartPath, err

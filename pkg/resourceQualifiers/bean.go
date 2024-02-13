@@ -57,3 +57,8 @@ func GetNumOfChildQualifiers(qualifier Qualifier) int {
 	}
 	return 0
 }
+
+type ResourceIdentifierCount struct {
+	ResourceId      int
+	IdentifierCount int
+}

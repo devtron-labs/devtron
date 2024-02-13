@@ -47,7 +47,22 @@ service ApplicationService {
   rpc UpgradeReleaseWithCustomChart(UpgradeReleaseRequest) returns(UpgradeReleaseResponse){}
   rpc PushHelmChartToOCIRegistry(OCIRegistryRequest) returns(OCIRegistryResponse) {}
   rpc ValidateOCIRegistry(RegistryCredential) returns(OCIRegistryResponse) {}
+  rpc GetResourceTreeForExternalResources(ExternalResourceTreeRequest) returns(ResourceTreeResponse){}
 }
+
+message ExternalResourceTreeRequest{
+  ClusterConfig clusterConfig = 1;
+  repeated ExternalResourceDetail externalResourceDetail = 2;
+}
+
+message ExternalResourceDetail {
+  string group = 1;
+  string kind = 2;
+  string version = 3;
+  string name = 4;
+  string namespace = 5;
+}
+
 
 message DeployedAppList {
   repeated DeployedAppDetail DeployedAppDetail = 1;

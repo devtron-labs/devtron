@@ -5,9 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/common-lib/utils"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"io"
+	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"net/http"
 	"strconv"
 	"strings"
@@ -22,7 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/api/connector"
 	"github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/argoApplication"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/k8s"
@@ -81,12 +84,14 @@ type K8sApplicationServiceImpl struct {
 	ephemeralContainerService    cluster.EphemeralContainerService
 	ephemeralContainerRepository repository.EphemeralContainersRepository
 	ephemeralContainerConfig     *EphemeralContainerConfig
+	argoApplicationService       argoApplication.ArgoApplicationService
 }
 
 func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.ClusterService, pump connector.Pump, helmAppService client.HelmAppService, K8sUtil *k8s2.K8sUtilExtended, aCDAuthConfig *util3.ACDAuthConfig, K8sResourceHistoryService kubernetesResourceAuditLogs.K8sResourceHistoryService,
 	k8sCommonService k8s.K8sCommonService, terminalSession terminal.TerminalSessionHandler,
 	ephemeralContainerService cluster.EphemeralContainerService,
-	ephemeralContainerRepository repository.EphemeralContainersRepository) (*K8sApplicationServiceImpl, error) {
+	ephemeralContainerRepository repository.EphemeralContainersRepository,
+	argoApplicationService argoApplication.ArgoApplicationService) (*K8sApplicationServiceImpl, error) {
 	ephemeralContainerConfig := &EphemeralContainerConfig{}
 	err := env.Parse(ephemeralContainerConfig)
 	if err != nil {
@@ -106,6 +111,7 @@ func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger, clusterService clus
 		ephemeralContainerService:    ephemeralContainerService,
 		ephemeralContainerRepository: ephemeralContainerRepository,
 		ephemeralContainerConfig:     ephemeralContainerConfig,
+		argoApplicationService:       argoApplicationService,
 	}, nil
 }
 
@@ -116,10 +122,25 @@ type EphemeralContainerConfig struct {
 func (impl *K8sApplicationServiceImpl) ValidatePodLogsRequestQuery(r *http.Request) (*k8s.ResourceRequestBean, error) {
 	v, vars := r.URL.Query(), mux.Vars(r)
 	request := &k8s.ResourceRequestBean{}
+	var err error
+	request.ExternalArgoApplicationName = v.Get("externalArgoApplicationName")
+	appTypeStr := v.Get("appType")
+	var appType int
+	if len(appTypeStr) > 0 {
+		appType, err = strconv.Atoi(appTypeStr)
+		if err != nil {
+			return nil, &util.ApiError{
+				Code:            "400",
+				HttpStatusCode:  400,
+				UserMessage:     "invalid param: appType",
+				InternalMessage: "invalid param: appType",
+			}
+		}
+	}
+	request.AppType = appType
 	podName := vars["podName"]
 	sinceSecondsParam := v.Get("sinceSeconds")
 	var sinceSeconds int
-	var err error
 	if len(sinceSecondsParam) > 0 {
 		sinceSeconds, err = strconv.Atoi(sinceSecondsParam)
 		if err != nil || sinceSeconds <= 0 {
@@ -182,13 +203,10 @@ func (impl *K8sApplicationServiceImpl) ValidatePodLogsRequestQuery(r *http.Reque
 	}
 	request.K8sRequest = k8sRequest
 	if appId != "" {
-		// Validate App Type
-		appType, err := strconv.Atoi(v.Get("appType"))
-		if err != nil || !(appType == bean3.DevtronAppType || appType == bean3.HelmAppType) {
+		if len(appTypeStr) > 0 && !(appType == bean3.DevtronAppType || appType == bean3.HelmAppType || appType == bean3.ArgoAppType) {
 			impl.logger.Errorw("Invalid appType", "err", err, "appType", appType)
 			return nil, err
 		}
-		request.AppType = appType
 		// Validate Deployment Type
 		deploymentType, err := strconv.Atoi(v.Get("deploymentType"))
 		if err != nil || !(deploymentType == bean3.HelmInstalledType || deploymentType == bean3.ArgoInstalledType) {
@@ -257,6 +275,7 @@ func (impl *K8sApplicationServiceImpl) ValidateTerminalRequestQuery(r *http.Requ
 	request.PodName = vars["pod"]
 	request.Shell = vars["shell"]
 	resourceRequestBean := &k8s.ResourceRequestBean{}
+	resourceRequestBean.ExternalArgoApplicationName = v.Get("externalArgoApplicationName")
 	identifier := vars["identifier"]
 	if strings.Contains(identifier, "|") {
 		// Validate App Type
@@ -339,16 +358,24 @@ func (impl *K8sApplicationServiceImpl) DecodeDevtronAppId(applicationId string) 
 
 func (impl *K8sApplicationServiceImpl) GetPodLogs(ctx context.Context, request *k8s.ResourceRequestBean) (io.ReadCloser, error) {
 	clusterId := request.ClusterId
-	//getting rest config by clusterId
-	restConfig, err, _ := impl.k8sCommonService.GetRestConfigByClusterId(ctx, clusterId)
-	if err != nil {
-		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", clusterId)
-		return nil, err
-	}
-
 	resourceIdentifier := request.K8sRequest.ResourceIdentifier
 	podLogsRequest := request.K8sRequest.PodLogsRequest
-	resp, err := impl.K8sUtil.GetPodLogs(ctx, restConfig, resourceIdentifier.Name, resourceIdentifier.Namespace, podLogsRequest.SinceTime, podLogsRequest.TailLines, podLogsRequest.SinceSeconds, podLogsRequest.Follow, podLogsRequest.ContainerName, podLogsRequest.IsPrevContainerLogsEnabled)
+	var restConfigFinal *rest.Config
+	if len(request.ExternalArgoApplicationName) > 0 {
+		restConfig, err := impl.argoApplicationService.GetRestConfigForExternalArgo(ctx, clusterId, request.ExternalArgoApplicationName)
+		if err != nil {
+			impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", clusterId, "externalArgoApplicationName", request.ExternalArgoApplicationName)
+		}
+		restConfigFinal = restConfig
+	} else {
+		restConfig, err, _ := impl.k8sCommonService.GetRestConfigByClusterId(ctx, clusterId)
+		if err != nil {
+			impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", clusterId)
+			return nil, err
+		}
+		restConfigFinal = restConfig
+	}
+	resp, err := impl.K8sUtil.GetPodLogs(ctx, restConfigFinal, resourceIdentifier.Name, resourceIdentifier.Namespace, podLogsRequest.SinceTime, podLogsRequest.TailLines, podLogsRequest.SinceSeconds, podLogsRequest.Follow, podLogsRequest.ContainerName, podLogsRequest.IsPrevContainerLogsEnabled)
 	if err != nil {
 		impl.logger.Errorw("error in getting pod logs", "err", err, "clusterId", clusterId)
 		return nil, err
@@ -731,11 +758,21 @@ func (impl *K8sApplicationServiceImpl) applyResourceFromManifest(ctx context.Con
 	return isUpdateResource, nil
 }
 func (impl *K8sApplicationServiceImpl) CreatePodEphemeralContainers(req *cluster.EphemeralContainerRequest) error {
-
-	clientSet, v1Client, err := impl.k8sCommonService.GetCoreClientByClusterId(req.ClusterId)
-	if err != nil {
-		impl.logger.Errorw("error in getting coreV1 client by clusterId", "clusterId", req.ClusterId, "err", err)
-		return err
+	var clientSet *kubernetes.Clientset
+	var v1Client *v1.CoreV1Client
+	var err error
+	if len(req.ExternalArgoApplicationName) > 0 {
+		clientSet, v1Client, err = impl.k8sCommonService.GetCoreClientByClusterIdForExternalArgoApps(req)
+		if err != nil {
+			impl.logger.Errorw("error in getting coreV1 client by clusterId", "err", err, "req", req)
+			return err
+		}
+	} else {
+		clientSet, v1Client, err = impl.k8sCommonService.GetCoreClientByClusterId(req.ClusterId)
+		if err != nil {
+			impl.logger.Errorw("error in getting coreV1 client by clusterId", "clusterId", req.ClusterId, "err", err)
+			return err
+		}
 	}
 	compatible, err := impl.K8sServerVersionCheckForEphemeralContainers(clientSet)
 	if err != nil {
@@ -870,10 +907,11 @@ func (impl *K8sApplicationServiceImpl) generateDebugContainer(pod *corev1.Pod, r
 
 func (impl *K8sApplicationServiceImpl) TerminatePodEphemeralContainer(req cluster.EphemeralContainerRequest) (bool, error) {
 	terminalReq := &terminal.TerminalSessionRequest{
-		PodName:       req.PodName,
-		ClusterId:     req.ClusterId,
-		Namespace:     req.Namespace,
-		ContainerName: req.BasicData.ContainerName,
+		PodName:                     req.PodName,
+		ClusterId:                   req.ClusterId,
+		Namespace:                   req.Namespace,
+		ContainerName:               req.BasicData.ContainerName,
+		ExternalArgoApplicationName: req.ExternalArgoApplicationName,
 	}
 	container, err := impl.ephemeralContainerRepository.FindContainerByName(terminalReq.ClusterId, terminalReq.Namespace, terminalReq.PodName, terminalReq.ContainerName)
 	if err != nil {
@@ -1003,6 +1041,12 @@ func (impl *K8sApplicationServiceImpl) RecreateResource(ctx context.Context, req
 func (impl *K8sApplicationServiceImpl) DeleteResourceWithAudit(ctx context.Context, request *k8s.ResourceRequestBean, userId int32) (*k8s3.ManifestResponse, error) {
 	resp, err := impl.k8sCommonService.DeleteResource(ctx, request)
 	if err != nil {
+		if k8s.IsResourceNotFoundErr(err) {
+			return nil, &utils.ApiError{Code: "404",
+				HttpStatusCode:  http.StatusNotFound,
+				InternalMessage: err.Error(),
+				UserMessage:     k8s.ResourceNotFoundErr}
+		}
 		impl.logger.Errorw("error in deleting resource", "err", err)
 		return nil, err
 	}

@@ -3,6 +3,7 @@ package resourceQualifiers
 import (
 	"errors"
 	"fmt"
+	helper2 "github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
@@ -11,7 +12,7 @@ import (
 )
 
 type QualifiersMappingRepository interface {
-	//transaction util funcs
+	// transaction util funcs
 	sql.TransactionWrapper
 	CreateQualifierMappings(qualifierMappings []*QualifierMapping, tx *pg.Tx) ([]*QualifierMapping, error)
 	GetQualifierMappings(resourceType ResourceType, scope *Scope, searchableIdMap map[bean.DevtronResourceSearchableKeyName]int, resourceIds []int) ([]*QualifierMapping, error)
@@ -24,6 +25,12 @@ type QualifiersMappingRepository interface {
 	DeleteAllByResourceTypeAndQualifierId(resourceType ResourceType, resourceId int, qualifierIds []int, auditLog sql.AuditLog, tx *pg.Tx) error
 	DeleteAllByIds(qualifierMappingIds []int, auditLog sql.AuditLog, tx *pg.Tx) error
 	GetDbConnection() *pg.DB
+	DeleteGivenQualifierMappingsByResourceType(resourceType ResourceType, identifierKey int, identifierValueInts []int, auditLog sql.AuditLog, tx *pg.Tx) error
+	GetActiveIdentifierCountPerResource(resourceType ResourceType, resourceIds []int, identifierKey int, identifierValueIntSpaceQuery string) ([]ResourceIdentifierCount, error)
+	GetActiveMappingsCount(resourceType ResourceType, excludeIdentifiersQuery string, identifierKey int) (int, error)
+	GetIdentifierIdsByResourceTypeAndIds(resourceType ResourceType, resourceIds []int, identifierKey int) ([]int, error)
+	GetResourceIdsByIdentifier(resourceType ResourceType, identifierKey int, identifierId int) ([]int, error)
+	GetQualifierMappingsWithIdentifierFilter(resourceType ResourceType, resourceId, identifierKey int, identifierValueStringLike, identifierValueSortOrder string, includeIdentifiersQuery string, limit, offset int, needTotalCount bool) ([]*QualifierMappingWithExtraColumns, error)
 }
 
 type QualifiersMappingRepositoryImpl struct {
@@ -199,4 +206,109 @@ func (repo *QualifiersMappingRepositoryImpl) getQualifierMappingDeleteQuery(reso
 
 func (repo *QualifiersMappingRepositoryImpl) GetDbConnection() *pg.DB {
 	return repo.dbConnection
+}
+
+func (repo *QualifiersMappingRepositoryImpl) DeleteGivenQualifierMappingsByResourceType(resourceType ResourceType, identifierKey int, identifierValueInts []int, auditLog sql.AuditLog, tx *pg.Tx) error {
+	_, err := tx.Model(&QualifierMapping{}).
+		Set("updated_by=?", auditLog.UpdatedBy).
+		Set("updated_on=?", auditLog.UpdatedOn).
+		Set("active=?", false).
+		Where("active=?", true).
+		Where("resource_type=?", resourceType).
+		Where("identifier_value_int IN (?)", pg.In(identifierValueInts)).
+		Where("identifier_key=?", identifierKey).
+		Update()
+	return err
+}
+
+func (repo *QualifiersMappingRepositoryImpl) GetActiveIdentifierCountPerResource(resourceType ResourceType, resourceIds []int, identifierKey int, identifierValueIntSpaceQuery string) ([]ResourceIdentifierCount, error) {
+	query := " SELECT COUNT(DISTINCT identifier_value_int) as identifier_count, resource_id" +
+		" FROM resource_qualifier_mapping " +
+		" WHERE resource_type = ? AND identifier_key = ? AND active=true "
+	if identifierValueIntSpaceQuery != "" {
+		query += " AND identifier_value_int IN (" + identifierValueIntSpaceQuery + ") "
+	}
+	if len(resourceIds) > 0 {
+		query += fmt.Sprintf(" AND resource_id IN (%s) ", helper2.GetCommaSepratedString(resourceIds))
+	}
+
+	query += " GROUP BY resource_id"
+	counts := make([]ResourceIdentifierCount, 0)
+	_, err := repo.dbConnection.Query(&counts, query, resourceType, identifierKey)
+	return counts, err
+}
+
+func (repo *QualifiersMappingRepositoryImpl) GetIdentifierIdsByResourceTypeAndIds(resourceType ResourceType, resourceIds []int, identifierKey int) ([]int, error) {
+	if len(resourceIds) == 0 {
+		return nil, nil
+	}
+
+	var identifierIds []int
+	query := "SELECT DISTINCT identifier_value_int " +
+		" FROM resource_qualifier_mapping " +
+		" WHERE resource_type = ? " +
+		" AND identifier_key = ? " +
+		" AND resource_id IN (?) " +
+		" AND active=true"
+	_, err := repo.dbConnection.Query(&identifierIds, query, resourceType, identifierKey, pg.In(resourceIds))
+	return identifierIds, err
+}
+
+func (repo *QualifiersMappingRepositoryImpl) GetActiveMappingsCount(resourceType ResourceType, includeIdentifiersQuery string, identifierKey int) (int, error) {
+	count, err := repo.dbConnection.Model(&QualifierMapping{}).
+		Where("active = ?", true).
+		Where("resource_type = ?", resourceType).
+		Where("identifier_key = ?", identifierKey).
+		Where("identifier_value_int IN (" + includeIdentifiersQuery + ")").
+		Count()
+	return count, err
+}
+
+func (repo *QualifiersMappingRepositoryImpl) GetQualifierMappingsWithIdentifierFilter(resourceType ResourceType, resourceId, identifierKey int, identifierValueStringLike, identifierValueSortOrder string, includeIdentifiersQuery string, limit, offset int, needTotalCount bool) ([]*QualifierMappingWithExtraColumns, error) {
+	query := "SELECT identifier_value_int , identifier_value_string , resource_id "
+	if needTotalCount {
+		query += ",COUNT(id) OVER() AS total_count "
+	}
+	query += " FROM resource_qualifier_mapping "
+
+	whereClause := fmt.Sprintf("WHERE resource_type = %d AND identifier_key = %d AND active=true ", resourceType, identifierKey)
+	if resourceId > 0 {
+		whereClause += fmt.Sprintf(" AND resource_id = %d ", resourceId)
+	}
+	if identifierValueStringLike != "" {
+		whereClause += " AND identifier_value_string LIKE '%" + identifierValueStringLike + "%' "
+	}
+
+	if includeIdentifiersQuery != "" {
+		whereClause += " AND identifier_value_int IN (" + includeIdentifiersQuery + ") "
+	}
+
+	query += whereClause
+
+	if identifierValueSortOrder != "" {
+		query += fmt.Sprintf(" ORDER BY identifier_value_string %s ", identifierValueSortOrder)
+	}
+
+	if limit > 0 {
+		query += fmt.Sprintf(" LIMIT %d ", limit)
+	}
+	if offset > 0 {
+		query += fmt.Sprintf(" OFFSET %d ", offset)
+	}
+
+	var qualifierMappings []*QualifierMappingWithExtraColumns
+	_, err := repo.dbConnection.Query(&qualifierMappings, query)
+	return qualifierMappings, err
+}
+
+func (repo *QualifiersMappingRepositoryImpl) GetResourceIdsByIdentifier(resourceType ResourceType, identifierKey int, identifierId int) ([]int, error) {
+	resourceIds := make([]int, 0)
+	err := repo.dbConnection.Model((*QualifierMapping)(nil)).
+		Column("resource_id").
+		Where("active=?", true).
+		Where("resource_type=?", resourceType).
+		Where("identifier_key=?", identifierKey).
+		Where("identifier_value_int=?", identifierId).
+		Select(&resourceIds)
+	return resourceIds, err
 }
