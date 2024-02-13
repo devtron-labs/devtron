@@ -1286,19 +1286,30 @@ func (impl UserServiceImpl) setStatusFilterType(request *bean.ListingRequest) {
 		return
 	}
 	statues := request.Status
-	if slices.Contains(statues, bean.Active) && slices.Contains(statues, bean.Inactive) && slices.Contains(statues, bean.TemporaryAccess) {
+	containsActive := slices.Contains(statues, bean.Active)
+	containsInactive := slices.Contains(statues, bean.Inactive)
+	containsTemporaryAccess := slices.Contains(statues, bean.TemporaryAccess)
+	// setting status type for all cases
+	if containsActive && containsInactive && containsTemporaryAccess {
+		// case when all three filters are selected
 		request.StatusType = bean2.Active_Inactive_TemporaryAccess
-	} else if slices.Contains(statues, bean.Active) && slices.Contains(statues, bean.Inactive) {
+	} else if containsActive && containsInactive {
+		// case when all two filters are selected, active and inactive
 		request.StatusType = bean2.Active_InActive
-	} else if slices.Contains(statues, bean.Active) && slices.Contains(statues, bean.TemporaryAccess) {
+	} else if containsActive && containsTemporaryAccess {
+		// case when all two filters are selected, active and temporaryAccess
 		request.StatusType = bean2.Active_TemporaryAccess
-	} else if slices.Contains(statues, bean.Inactive) && slices.Contains(statues, bean.TemporaryAccess) {
+	} else if containsInactive && containsTemporaryAccess {
+		// case when all two filters are selected, inactive and temporaryAccess
 		request.StatusType = bean2.Inactive_TemporaryAccess
-	} else if slices.Contains(statues, bean.Active) {
+	} else if containsActive {
+		//case when active filter is selected
 		request.StatusType = bean2.Active
-	} else if slices.Contains(statues, bean.Inactive) {
+	} else if containsInactive {
+		//case when inactive filter is selected
 		request.StatusType = bean2.Inactive
-	} else if slices.Contains(statues, bean.TemporaryAccess) {
+	} else if containsTemporaryAccess {
+		//case when temporaryAccess filter is selected
 		request.StatusType = bean2.TemporaryAccess
 	}
 }
@@ -1769,10 +1780,10 @@ func (impl *UserServiceImpl) getUserIdsHonoringFilters(request *bean.ListingRequ
 		return nil, err
 	}
 	// collecting the required user ids from filtered models
-	filteredUserIds := make([]int32, len(models))
-	for i, model := range models {
-		if helper2.CheckIfUserDevtronManagedByEmail(model.EmailId) {
-			filteredUserIds[i] = model.Id
+	filteredUserIds := make([]int32, 0, len(models))
+	for _, model := range models {
+		if !helper2.CheckIfUserDevtronManagedByEmail(model.EmailId) {
+			filteredUserIds = append(filteredUserIds, model.Id)
 		}
 	}
 	return filteredUserIds, nil

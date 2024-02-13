@@ -15,9 +15,9 @@ func CheckIfUserDevtronManaged(userId int32) bool {
 
 func CheckIfUserDevtronManagedByEmail(email string) bool {
 	if email == bean.AdminUser || email == bean.SystemUser {
-		return false
+		return true
 	}
-	return true
+	return false
 }
 
 func CheckValidationForAdminAndSystemUserId(userIds []int32) error {
