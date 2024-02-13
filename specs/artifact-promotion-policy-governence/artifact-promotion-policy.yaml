@@ -1,0 +1,491 @@
+openapi: 3.0.3
+info:
+  title: Artifact Promotion Policy
+  description: Api Spec for Artifact Promotion Policy
+  version: 1.0.0
+servers:
+  - url: 'https'
+paths:
+  /orchestrator/app/app-wf/view:
+    get:
+      summary: Retrieve workflows
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                  status:
+                    type: string
+                  result:
+                    type: object
+                    properties:
+                      workflows:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Workflow"
+                      ciConfig:
+                        $ref: "#/components/schemas/CiConfig"
+                      cdConfig:
+                        $ref: "#/components/schemas/CdConfig"
+                      externalCiConfig:
+                        type: array
+                        items:
+                         $ref: "#/components/schemas/ExternalCiConfig"
+
+  orchestrator/app/artifact-promotion/approve
+  /orchestrator/app/artifact-promotion/promote:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                artifactId:
+                  type: integer
+                  description: "artifact id"
+                appName:
+                  type: string
+                  description: "app name"
+                environmentNames:
+                  type: array
+                  items:
+                    type: string
+                    description: "environment name"
+      responses:
+        "200":
+          description: "attempts promoting the artifact to the given environments of the given app"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Environment"
+                description: " environments with detailed message"
+
+  /orchestrator/app/artifact-promotion/env/list:
+    get:
+      parameters:
+        - name: workflowId
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: "workflow id"
+        - name: artifactId
+          in: query
+          schema:
+              type: integer
+          description: "artifact id"
+
+      responses:
+            "200":
+                description: gets the list of environments for the given app.
+                content:
+                  application/json:
+                    schema:
+                        type: array
+                        items:
+                            $ref: "#/components/schemas/Environment"
+                        description: "list of environments"
+  /orchestrator/app/artifact-promotion/material:
+    get:
+      parameters:
+        - name: resource
+          in: query
+          required: true
+          schema:
+            type: string
+          description: "resource type, eg: CI,CD,WEBHOOK,PROMOTION_APPROVAL_PENDING_NODE"
+        - name: resourceName
+          in: query
+          required: true
+          schema:
+            type: string
+          description: "Name of the resource, for CI or WEBHOOK case resourceName will be name of the ci-pipeline, for other resource types it will be name of the environment"
+        - name: appName
+          in: query
+          required: true
+          schema:
+            type: string
+          description: "app Name"
+        - name: workflowId
+          in: query
+          schema:
+            type: integer
+          description: "workflow id, this is required if fetchUserApprovableRequests is true"
+        - name: fetchUserApprovableRequests
+          in: query
+          schema:
+            type: boolean
+          description: "if this is set to true we will fetch the list of artifacts which are pending for approval of current user"
+      responses:
+            "200":
+                description: gets the material for the given resource.
+                content:
+                  application/json:
+                    schema:
+                        $ref: "#/components/schemas/MaterialResponse"
+
+
+components:
+  schemas:
+    ExternalCiConfig:
+      type: object
+      properties:
+        id:
+          type: integer
+        webhookUrl:
+          type: string
+        payload:
+          type: string
+        accessKey:
+          type: string
+        payloadOption:
+          type: string
+        schema:
+          type: string
+        responses:
+          type: string
+        projectId:
+          type: integer
+        projectName:
+          type: string
+        environmentId:
+          type: string
+        environmentName:
+          type: string
+        environmentIdentifier:
+          type: string
+        appId:
+          type: integer
+        appName:
+          type: string
+        role:
+          type: string
+    CdConfig:
+      type: object
+      properties:
+        pipelines:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              environmentId:
+                type: integer
+              environmentName:
+                type: string
+              description:
+                type: string
+              triggerType:
+                type: string
+              name:
+                type: string
+              deploymentTemplate:
+                type: string
+              preStage:
+                type: object
+              postStage:
+                type: object
+              preStageConfigMapSecretNames:
+                type: object
+              postStageConfigMapSecretNames:
+                type: object
+              isClusterCdActive:
+                type: boolean
+              parentPipelineId:
+                type: integer
+              parentPipelineType:
+                type: string
+              deploymentAppType:
+                type: string
+              userApprovalConfig:
+                type: object
+              appName:
+                type: string
+              deploymentAppDeleteRequest:
+                type: boolean
+              deploymentAppCreated:
+                type: boolean
+              appId:
+                type: integer
+              isVirtualEnvironment:
+                type: boolean
+              helmPackageName:
+                type: string
+              chartName:
+                type: string
+              chartBaseVersion:
+                type: string
+              containerRegistryName:
+                type: string
+              repoName:
+                type: string
+              manifestStorageType:
+                type: string
+              customTag:
+                type: object
+              customTagStage:
+                type: object
+              enableCustomTag:
+                type: boolean
+              isProdEnv:
+                type: boolean
+              switchFromCiPipelineId:
+                type: integer
+              addType:
+                type: string
+              childPipelineId:
+                type: integer
+              isDigestEnforcedForPipeline:
+                type: boolean
+              isDigestEnforcedForEnv:
+                type: boolean
+    CiConfig:
+      type: object
+      properties:
+        ciGitConfiguredId:
+          type: integer
+        ciPipelines:
+          type: array
+          items:
+            type: object
+            properties:
+              isManual:
+                type: boolean
+              dockerArgs:
+                type: object
+              isExternal:
+                type: boolean
+              parentCiPipeline:
+                type: integer
+              parentAppId:
+                type: integer
+              appId:
+                type: integer
+              externalCiConfig:
+                type: object
+              ciMaterial:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    source:
+                      type: object
+                      properties:
+                        type:
+                          type: string
+                        value:
+                          type: string
+                        regex:
+                          type: string
+                    gitMaterialId:
+                      type: integer
+                    id:
+                      type: integer
+                    gitMaterialName:
+                      type: string
+                    isRegex:
+                      type: boolean
+              name:
+                type: string
+              id:
+                type: integer
+              active:
+                type: boolean
+              linkedCount:
+                type: integer
+              pipelineType:
+                type: string
+              scanEnabled:
+                type: boolean
+              isDockerConfigOverridden:
+                type: boolean
+              dockerConfigOverride:
+                type: object
+              isCITriggerBlocked:
+                type: boolean
+              lastTriggeredEnvId:
+                type: integer
+              enableCustomTag:
+                type: boolean
+    Workflow:
+      type: object
+      properties:
+          id:
+            type: integer
+          name:
+            type: string
+          appId:
+            type: integer
+          # newly added property in the workflow object
+          artifactPromotionConfigured:
+            type: boolean
+          tree:
+            type: array
+            items:
+              type: object
+              properties:
+                id:
+                  type: integer
+                appWorkflowId:
+                  type: integer
+                type:
+                  type: string
+                componentId:
+                  type: integer
+                parentId:
+                  type: integer
+                parentType:
+                  type: string
+                deploymentAppDeleteRequest:
+                  type: boolean
+                environmentName:
+                  type: string
+                helmPackageName:
+                  type: string
+                isLast:
+                  type: boolean
+    Environment:
+      type: object
+      properties:
+        name:
+          type: string
+          description: "environment name"
+        promotionPossible:
+          type: boolean
+          description: "promotion possible or not"
+        promotionEvaluationMessage:
+          type: string
+          description: "promotion evaluation message, detailed evaluation message for respective state"
+        promotionEvaluationState:
+            type: string
+            description: "promotion evaluation state, eg: imagePromoted,imageSentForApproval,imageAlreadyPromoted,errored"
+
+    PromotionApprovalMetaData:
+      type: object
+      properties:
+        approvalRequestId:
+            type: integer
+            description: "approval request id"
+        approvalRuntimeState:
+            type: integer
+            description: "approval runtime state"
+
+    ImageComment:
+      type: object
+      properties:
+          id:
+            type: integer
+            description: "id"
+          comment:
+            type: string
+            description: "comment"
+          artifactId:
+            type: integer
+            description: "artifact id"
+    ReleaseTag:
+        type: object
+        properties:
+            id:
+                type: integer
+                description: "id"
+            tag:
+                type: string
+                description: "tag"
+            appId:
+                type: integer
+                description: "app id"
+            artifactId:
+                type: integer
+                description: "artifact id"
+            deleted:
+                type: boolean
+                description: "deleted"
+    Artifact:
+       type: object
+       properties:
+         id:
+           type: integer
+           description: "id"
+         image:
+              type: string
+              description: "image"
+         image_digest:
+              type: string
+              description: "image digest"
+         material_info:
+              type: string
+              description: "material info"
+         data_source:
+              type: string
+              description: "data source"
+         vulnerable:
+              type: boolean
+              description: "vulnerable"
+         scanEnabled:
+                type: boolean
+                description: "scan enabled"
+         scanned:
+                type: boolean
+                description: "scanned"
+         promotionApprovalMetaData:
+           $ref: "#/components/schemas/PromotionApprovalMetaData"
+         deployed:
+              type: boolean
+              description: "deployed"
+         deployed_time:
+                type: string
+                description: "deployed time"
+         promotedFrom:
+                type: string
+                description: "promoted from env or ci pipeline"
+         promoteFromType:
+           type: string
+           description: "promote from type eg: CI, ENVIRONMENT"
+         imageComment:
+           $ref: "#/components/schemas/ImageComment"
+         imageReleaseTags:
+           type: array
+           items:
+             $ref: "#/components/schemas/ReleaseTag"
+           description: "image release tags"
+
+
+    MaterialResponse:
+        type: object
+        properties:
+          approverUsers:
+            type: array
+            items:
+              type: string
+            description: " user emails who can approve the artifact promotion for the given pipeline(derived from appName and envName)"
+          hideImageTaggingHardDelete:
+               required: true
+               type: boolean
+               description: "imageTags can be hard deleted or not"
+          tagsEditable:
+                type: boolean
+                description: "imageTags can be editable or not"
+          appReleaseTagNames:
+                type: array
+                items:
+                    type: string
+                description: "app release tag names"
+          ciArtifacts:
+                type: array
+                items:
+                    $ref: "#/components/schemas/Artifact"
+                description: "ci artifacts"
+          totalCount:
+                 type: integer
+                 description: "total count of the tags"
+
