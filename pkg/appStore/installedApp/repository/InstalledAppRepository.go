@@ -31,6 +31,7 @@ import (
 	"github.com/go-pg/pg/orm"
 	"go.uber.org/zap"
 	"strconv"
+	"time"
 )
 
 type InstalledApps struct {
@@ -127,6 +128,10 @@ type InstalledAppRepository interface {
 	GetArgoPipelinesHavingLatestTriggerStuckInNonTerminalStatusesForAppStore(getPipelineDeployedBeforeMinutes int, getPipelineDeployedWithinHours int) ([]*InstalledAppVersions, error)
 	GetArgoPipelinesHavingTriggersStuckInLastPossibleNonTerminalTimelinesForAppStore(pendingSinceSeconds int, timeForDegradation int) ([]*InstalledAppVersions, error)
 	GetHelmReleaseStatusConfigByInstalledAppId(installedAppVersionHistoryId int) (string, string, error)
+
+	GetActiveInstalledAppByEnvIdAndDeploymentType(envId int, deploymentType string, excludeAppIds []string, includeAppIds []string) ([]*InstalledApps, error)
+	UpdateDeploymentAppTypeInInstalledApp(deploymentAppType string, installedAppIdIncludes []int, userId int32) error
+	FindInstalledAppByIds(ids []int) ([]*InstalledApps, error)
 }
 
 type InstalledAppRepositoryImpl struct {
@@ -821,4 +826,57 @@ func (impl InstalledAppRepositoryImpl) GetHelmReleaseStatusConfigByInstalledAppI
 		return installStatus.HelmReleaseStatusConfig, "", err
 	}
 	return installStatus.HelmReleaseStatusConfig, installStatus.Status, nil
+}
+
+func (impl InstalledAppRepositoryImpl) GetActiveInstalledAppByEnvIdAndDeploymentType(envId int, deploymentType string,
+	excludeAppIds []string, includeAppIds []string) ([]*InstalledApps, error) {
+	var installedApps []*InstalledApps
+
+	query := impl.dbConnection.
+		Model(&installedApps).
+		Column("installed_apps.*", "App", "Environment").
+		Join("inner join app a on installed_apps.app_id = a.id").
+		Where("installed_apps.environment_id = ?", envId).
+		Where("installed_apps.deployment_app_type = ?", deploymentType).
+		Where("installed_apps.active = ?", true)
+
+	if len(excludeAppIds) > 0 {
+		query.Where("installed_apps.app_id not in (?)", pg.In(excludeAppIds))
+	}
+
+	if len(includeAppIds) > 0 {
+		query.Where("installed_apps.app_id in (?)", pg.In(includeAppIds))
+	}
+
+	err := query.Select()
+	if err != nil {
+		return nil, err
+	}
+	return installedApps, nil
+}
+
+// UpdateDeploymentAppTypeInInstalledApp takes in deploymentAppType and list of installedAppIds and
+// updates the deployment_app_type in the table for given ids.
+func (impl InstalledAppRepositoryImpl) UpdateDeploymentAppTypeInInstalledApp(deploymentAppType string, installedAppIdIncludes []int, userId int32) error {
+	query := "update installed_apps set deployment_app_type = ?,updated_by = ?, updated_on = ? where id in (?);"
+	var installedApp *InstalledApps
+	_, err := impl.dbConnection.Query(installedApp, query, deploymentAppType, userId, time.Now(), pg.In(installedAppIdIncludes))
+
+	return err
+}
+
+func (impl InstalledAppRepositoryImpl) FindInstalledAppByIds(ids []int) ([]*InstalledApps, error) {
+	var installedApps []*InstalledApps
+	err := impl.dbConnection.Model(&installedApps).
+		Column("installed_apps.*", "App", "Environment", "Environment.Cluster").
+		Join("inner join app a on installed_apps.app_id = a.id").
+		Join("inner join environment e on installed_apps.environment_id = e.id").
+		Join("inner join cluster c on c.id = e.cluster_id").
+		Where("installed_apps.id in (?)", pg.In(ids)).
+		Where("installed_apps.active = true").
+		Select()
+	if err != nil {
+		impl.Logger.Errorw("error on fetching installed apps by ids", "ids", ids)
+	}
+	return installedApps, err
 }

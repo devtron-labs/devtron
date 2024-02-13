@@ -543,6 +543,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(FullMode.InstalledAppDBExtendedService), new(*FullMode.InstalledAppDBExtendedServiceImpl)),
 		resource.NewInstalledAppResourceServiceImpl,
 		wire.Bind(new(resource.InstalledAppResourceService), new(*resource.InstalledAppResourceServiceImpl)),
+		FullMode.NewInstalledAppDeploymentTypeChangeServiceImpl,
+		wire.Bind(new(FullMode.InstalledAppDeploymentTypeChangeService), new(*FullMode.InstalledAppDeploymentTypeChangeServiceImpl)),
 
 		appStoreRestHandler.NewAppStoreRouterImpl,
 		wire.Bind(new(appStoreRestHandler.AppStoreRouter), new(*appStoreRestHandler.AppStoreRouterImpl)),

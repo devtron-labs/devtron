@@ -137,7 +137,7 @@ func (impl *FullModeDeploymentServiceImpl) InstallApp(installAppVersionRequest *
 		return nil, err
 	}
 	//STEP 5: createInArgo
-	err = impl.createInArgo(chartGitAttr, *installAppVersionRequest.Environment, installAppVersionRequest.ACDAppName)
+	err = impl.CreateInArgo(chartGitAttr, *installAppVersionRequest.Environment, installAppVersionRequest.ACDAppName)
 	if err != nil {
 		impl.Logger.Errorw("error in create in argo", "err", err)
 		return nil, err
