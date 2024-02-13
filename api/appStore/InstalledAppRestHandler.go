@@ -865,7 +865,7 @@ func (handler *InstalledAppRestHandlerImpl) MigrateDeploymentTypeForChartStore(w
 
 	token := r.Header.Get("token")
 
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionDelete, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionDelete, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -921,7 +921,7 @@ func (handler *InstalledAppRestHandlerImpl) TriggerChartStoreAppAfterMigration(w
 
 	token := r.Header.Get("token")
 
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionDelete, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionDelete, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
