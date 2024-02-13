@@ -136,7 +136,7 @@ components:
       secretName: postgresql-postgresql
       keyName: postgresql-password
   lens: 
-    image: "quay.io/devtron/lens:70577aaa-333-20988"
+    image: "quay.io/devtron/lens:70577aaa-333-21179"
     imagePullPolicy: IfNotPresent
     configs:
       GIT_SENSOR_PROTOCOL: GRPC
