@@ -181,6 +181,15 @@ type ExternalCiConfigRole struct {
 type PatchAction int
 type PipelineType string
 
+func (p PipelineType) IsValidPipelineType() bool {
+	switch p {
+	case NORMAL, LINKED, EXTERNAL, CI_JOB, LINKED_CD:
+		return true
+	default:
+		return false
+	}
+}
+
 const (
 	CREATE        PatchAction = iota
 	UPDATE_SOURCE             //update value of SourceTypeConfig
