@@ -7,23 +7,19 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/constants"
-	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	appStatus2 "github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
 	"github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/pkg/appStatus"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/appStore/chartGroup"
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deployment"
 	util2 "github.com/devtron-labs/devtron/pkg/appStore/util"
-	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	repository5 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
@@ -45,13 +41,8 @@ type InstalledAppDeploymentTypeChangeService interface {
 type InstalledAppDeploymentTypeChangeServiceImpl struct {
 	logger                        *zap.SugaredLogger
 	installedAppRepository        repository2.InstalledAppRepository
-	appRepository                 app.AppRepository
-	userService                   user.UserService
 	installedAppRepositoryHistory repository2.InstalledAppVersionHistoryRepository
-	appStatusService              appStatus.AppStatusService
-	pubSubClient                  *pubsub.PubSubClientServiceImpl
 	appStatusRepository           appStatus2.AppStatusRepository
-	clusterRepository             repository5.ClusterRepository
 	gitOpsConfigReadService       config.GitOpsConfigReadService
 	environmentRepository         repository5.EnvironmentRepository
 	acdClient                     application2.ServiceClient
@@ -66,13 +57,8 @@ type InstalledAppDeploymentTypeChangeServiceImpl struct {
 
 func NewInstalledAppDeploymentTypeChangeServiceImpl(logger *zap.SugaredLogger,
 	installedAppRepository repository2.InstalledAppRepository,
-	appRepository app.AppRepository,
-	userService user.UserService,
 	installedAppRepositoryHistory repository2.InstalledAppVersionHistoryRepository,
-	appStatusService appStatus.AppStatusService,
-	pubSubClient *pubsub.PubSubClientServiceImpl,
 	appStatusRepository appStatus2.AppStatusRepository,
-	clusterRepository repository5.ClusterRepository,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
 	environmentRepository repository5.EnvironmentRepository,
 	acdClient application2.ServiceClient, k8sCommonService k8s.K8sCommonService,
@@ -83,13 +69,8 @@ func NewInstalledAppDeploymentTypeChangeServiceImpl(logger *zap.SugaredLogger,
 	return &InstalledAppDeploymentTypeChangeServiceImpl{
 		logger:                        logger,
 		installedAppRepository:        installedAppRepository,
-		appRepository:                 appRepository,
-		userService:                   userService,
 		installedAppRepositoryHistory: installedAppRepositoryHistory,
-		appStatusService:              appStatusService,
-		pubSubClient:                  pubSubClient,
 		appStatusRepository:           appStatusRepository,
-		clusterRepository:             clusterRepository,
 		gitOpsConfigReadService:       gitOpsConfigReadService,
 		environmentRepository:         environmentRepository,
 		acdClient:                     acdClient,
