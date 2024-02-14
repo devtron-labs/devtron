@@ -1,4 +1,5 @@
 ## Bugs
+- fix: add milli unit in memory (#4671)
 - fix: resource terminal update api (#4641)
 - fix: chartRef fetch in historical deployment triggers (#4654)
 - fix:version upgrade (#4557)
