@@ -19,6 +19,7 @@ const Main = "main"
 const UniquePlaceHolderForAppName = "$etron"
 
 const PIPELINE_NAME_ALREADY_EXISTS_ERROR = "pipeline name already exist"
+const PIPELINE_TYPE_IS_NOT_VALID = "PipelineType is not valid"
 
 type CiBuildConfigBean struct {
 	Id                        int                `json:"id"`
