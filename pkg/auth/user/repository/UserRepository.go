@@ -299,7 +299,7 @@ func (impl UserRepositoryImpl) GetUserWithTimeoutWindowConfiguration(emailId str
 	var model UserModel
 	err := impl.dbConnection.Model(&model).
 		Column("user_model.*", "TimeoutWindowConfiguration").
-		Where("user_model.email_id like (?) ", emailId).
+		Where("user_model.email_id ilike (?) ", emailId).
 		Where("user_model.active = ? ", true).
 		Select()
 	if err != nil {
