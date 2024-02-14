@@ -8,10 +8,10 @@ servers:
 paths:
   /orchestrator/app/app-wf/view:
     get:
-      summary: Retrieve workflows
+      summary: "Retrieve workflows"
       responses:
         '200':
-          description: Successful response
+          description: "Successful response"
           content:
             application/json:
               schema:
@@ -35,10 +35,12 @@ paths:
                       externalCiConfig:
                         type: array
                         items:
-                         $ref: "#/components/schemas/ExternalCiConfig"
+                          $ref: "#/components/schemas/ExternalCiConfig"
 
-  orchestrator/app/artifact-promotion/approve
-  /orchestrator/app/artifact-promotion/promote:
+  #      this api can be used to attempt promotion of an artifact on a selected environments of a given app. using action as PROMOTE
+  #      can be used to cancel the promotion request using action as CANCEL by sending promotionRequestId in the payload.
+  #      can be used to approve the promotion request using action as APPROVE by sending promotionRequestId in the payload.
+  /orchestrator/app/artifact-promotion/request:
     post:
       requestBody:
         required: true
@@ -47,6 +49,18 @@ paths:
             schema:
               type: object
               properties:
+                sourceId:
+                  type: integer
+                  description: "source id"
+                sourceType:
+                  type: string
+                  description: "source type"
+                action:
+                  type: string
+                  description: "action can be one of PROMOTE or CANCEL or APPROVE"
+                promotionRequestId:
+                  type: integer
+                  description: "promotion request id, this is optional, required for CANCEL and APPROVE action"
                 artifactId:
                   type: integer
                   description: "artifact id"
@@ -57,7 +71,7 @@ paths:
                   type: array
                   items:
                     type: string
-                    description: "environment name"
+                    description: "environment names"
       responses:
         "200":
           description: "attempts promoting the artifact to the given environments of the given app"
@@ -69,6 +83,8 @@ paths:
                   $ref: "#/components/schemas/Environment"
                 description: " environments with detailed message"
 
+  #    this api can be used to get the list of environments present in the given workflowId.
+  #    if artifactId is provided then we will evaluate the environments policies on the given artifact.
   /orchestrator/app/artifact-promotion/env/list:
     get:
       parameters:
@@ -81,19 +97,32 @@ paths:
         - name: artifactId
           in: query
           schema:
-              type: integer
+            type: integer
           description: "artifact id"
 
       responses:
-            "200":
-                description: gets the list of environments for the given app.
-                content:
-                  application/json:
-                    schema:
-                        type: array
-                        items:
-                            $ref: "#/components/schemas/Environment"
-                        description: "list of environments"
+        "200":
+          description: "gets the list of environments for the given app."
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ciSource:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        description: "ci source id"
+                      type:
+                        type: string
+                        description: "source type like CI, WEBHOOK"
+                  environments:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Environment"
+                    description: "list of environments"
+
   /orchestrator/app/artifact-promotion/material:
     get:
       parameters:
@@ -119,23 +148,275 @@ paths:
           in: query
           schema:
             type: integer
-          description: "workflow id, this is required if fetchUserApprovableRequests is true"
-        - name: fetchUserApprovableRequests
+          description: "workflow id, this is required if fetchRequestsForMe is true"
+        - name: fetchRequestsForMe
           in: query
           schema:
             type: boolean
           description: "if this is set to true we will fetch the list of artifacts which are pending for approval of current user"
       responses:
-            "200":
-                description: gets the material for the given resource.
-                content:
-                  application/json:
-                    schema:
-                        $ref: "#/components/schemas/MaterialResponse"
+        "200":
+          description: "gets the material for the given resource."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MaterialResponse"
+
+  /orchestrator/artifact-promotion/policy/{name}:
+    get:
+      description: "get artifact promotion policy by its name"
+      responses:
+        "200":
+          description: "gets the artifact promotion policy by its name successfully."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PromotionPolicy"
+    put:
+      description: "update promotion policy"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PromotionPolicy'
+      responses:
+        "200":
+          description: "successfully updated the policy."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PromotionPolicy"
+    delete:
+      description: "Delete the promotion policy"
+      responses:
+        "204":
+          description: "deletes the promotion policy by its name successfully."
+
+  /orchestrator/artifact-promotion/list/min/policy:
+    get:
+      description: "gets the active policy names"
+      responses:
+        "200":
+          description: "successfully fetched the policies"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  code:
+                    type: string
+                  result:
+                    type: array
+                    items:
+                      type: string
+
+  /orchestrator/artifact-promotion/list/policy:
+    get:
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+            description: "search string is used fetch the polices by matching their names with search string"
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            description: "sort by policyName or approverCount configured in that policy, default to policyName"
+        - name: sortOrder
+          in: query
+          schema:
+            type: string
+            description: "ASC or DESC, default to ASC"
+      description: Get promotion policies list
+      responses:
+        "200":
+          description: gets the promotion by search param.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PromotionPolicy"
+
+  /orchestrator/artifact-promotion/policy:
+    post:
+      description: Create promotion policy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PromotionPolicy'
+      responses:
+        "200":
+          description: policy created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PromotionPolicy"
+
+  /orchestrator/artifact-promotion/app-env/list:
+    post:
+      description: get app and env list with respective policy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppEnvPolicyMappingsListFilter'
+
+      responses:
+        "200":
+          description: "successfully fetched filtered app-env-policy mappings"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  code:
+                    type: integer
+                  result:
+                    type: object
+                    properties:
+                      totalCount:
+                        type: integer
+                      # can be named as appEnvironmentPolicyMappings
+                      environmentPolicyMappings:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/AppEnvPolicyContainer'
+
+  /orchestrator/artifact-promotion/app-env/apply:
+    post:
+      description: "used to apply a policy on the selected app-envs or using filtered app-env"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                applicationEnvironments:
+                  type: object
+                  properties:
+                    appName:
+                      type: string
+                    environmentName:
+                      type: string
+                applyToPolicyName:
+                  type: string
+                appEnvPolicyListFilter:
+                  $ref: '#/components/schemas/AppEnvPolicyMappingsListFilter'
+      responses:
+        "200":
+          description: "successfully applied the profile on the given app-envs or filtered app-envs"
+
+
+# this is an util API which fetches the supported filter criteria params supported in CEL expression
+  /orchestrator/resource-filter/metadata:
+    get:
+      description: "fetches the filter conditions param meta data used in CEL expression"
+      responses:
+        "200":
+          description: "successfully fetched filter condition CEL params"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  code:
+                    type: string
+                  result:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/FilterCriteria'
 
 
 components:
   schemas:
+    FilterCriteria:
+      type: object
+      properties:
+        type:
+          type: string
+        label:
+          type: string
+        tooltip:
+          type: string
+
+    PromotionPolicy:
+      type: object
+      properties:
+        name:
+          required: true
+          type: string
+        description:
+          type: string
+        conditions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResourceCondition'
+        approverCount:
+          type: integer
+        identifierCount:
+          type: integer
+          description: "this is an optional key"
+    ResourceCondition:
+      type: object
+      properties:
+        conditionType:
+          description: "PASS or FAIL condition"
+          type: string
+        expression:
+          type: string
+        errorMsg:
+          type: string
+
+
+    AppEnvPolicyMappingsListFilter:
+      type: object
+      properties:
+        appNames:
+          type: array
+          items:
+            type: string
+        envNames:
+          type: array
+          items:
+            type: string
+        policyNames:
+          type: array
+          items:
+            type: string
+        sortBy:
+          type: string
+          description: "sort by applicationName or environmentName, defaults to applicationName"
+        sortOrder:
+          type: string
+          description: "sorting order ASC or DESC , defaults to ASC"
+        offset:
+          type: integer
+          description: "offset on the filtered result defaults to 0"
+        size:
+          type: integer
+          description: "max size of the filtered result set , defaults to 20"
+    AppEnvPolicyContainer:
+      type: object
+      properties:
+        appName:
+          type: string
+        envName:
+          type: string
+        policyName:
+          type: string
+
+
     ExternalCiConfig:
       type: object
       properties:
@@ -320,172 +601,180 @@ components:
     Workflow:
       type: object
       properties:
-          id:
-            type: integer
-          name:
-            type: string
-          appId:
-            type: integer
-          # newly added property in the workflow object
-          artifactPromotionConfigured:
-            type: boolean
-          tree:
-            type: array
-            items:
-              type: object
-              properties:
-                id:
-                  type: integer
-                appWorkflowId:
-                  type: integer
-                type:
-                  type: string
-                componentId:
-                  type: integer
-                parentId:
-                  type: integer
-                parentType:
-                  type: string
-                deploymentAppDeleteRequest:
-                  type: boolean
-                environmentName:
-                  type: string
-                helmPackageName:
-                  type: string
-                isLast:
-                  type: boolean
+        id:
+          type: integer
+        name:
+          type: string
+        appId:
+          type: integer
+        # newly added property in the workflow object
+        artifactPromotionConfigured:
+          type: boolean
+        tree:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              appWorkflowId:
+                type: integer
+              type:
+                type: string
+              componentId:
+                type: integer
+              parentId:
+                type: integer
+              parentType:
+                type: string
+              deploymentAppDeleteRequest:
+                type: boolean
+              environmentName:
+                type: string
+              helmPackageName:
+                type: string
+              isLast:
+                type: boolean
     Environment:
       type: object
       properties:
+        #       environment name
         name:
           type: string
           description: "environment name"
+        #       total approval count configured by the policy on this environment
+        approvalCount:
+          type: integer
+          description: "total approval count configured by the policy on this environment"
+        #       will be true only if this environment is governed by some promotion policy.
         promotionPossible:
           type: boolean
           description: "promotion possible or not"
+        #       if requested this api with evaluation, then the detailed evaluation message will be sent in this field
         promotionEvaluationMessage:
           type: string
           description: "promotion evaluation message, detailed evaluation message for respective state"
+        #       if requested this api with evaluation, then the evaluation state will be sent in this field
         promotionEvaluationState:
-            type: string
-            description: "promotion evaluation state, eg: imagePromoted,imageSentForApproval,imageAlreadyPromoted,errored"
+          type: string
+          description: "promotion evaluation state, eg: imagePromoted,imageSentForApproval,imageAlreadyPromoted,errored"
 
     PromotionApprovalMetaData:
       type: object
       properties:
         approvalRequestId:
-            type: integer
-            description: "approval request id"
+          type: integer
+          description: "approval request id"
         approvalRuntimeState:
-            type: integer
-            description: "approval runtime state"
+          type: integer
+          description: "approval runtime state"
 
     ImageComment:
       type: object
       properties:
-          id:
-            type: integer
-            description: "id"
-          comment:
-            type: string
-            description: "comment"
-          artifactId:
-            type: integer
-            description: "artifact id"
+        id:
+          type: integer
+          description: "id"
+        comment:
+          type: string
+          description: "comment"
+        artifactId:
+          type: integer
+          description: "artifact id"
     ReleaseTag:
-        type: object
-        properties:
-            id:
-                type: integer
-                description: "id"
-            tag:
-                type: string
-                description: "tag"
-            appId:
-                type: integer
-                description: "app id"
-            artifactId:
-                type: integer
-                description: "artifact id"
-            deleted:
-                type: boolean
-                description: "deleted"
+      type: object
+      properties:
+        id:
+          type: integer
+          description: "id"
+        tag:
+          type: string
+          description: "tag"
+        appId:
+          type: integer
+          description: "app id"
+        artifactId:
+          type: integer
+          description: "artifact id"
+        deleted:
+          type: boolean
+          description: "deleted"
     Artifact:
-       type: object
-       properties:
-         id:
-           type: integer
-           description: "id"
-         image:
-              type: string
-              description: "image"
-         image_digest:
-              type: string
-              description: "image digest"
-         material_info:
-              type: string
-              description: "material info"
-         data_source:
-              type: string
-              description: "data source"
-         vulnerable:
-              type: boolean
-              description: "vulnerable"
-         scanEnabled:
-                type: boolean
-                description: "scan enabled"
-         scanned:
-                type: boolean
-                description: "scanned"
-         promotionApprovalMetaData:
-           $ref: "#/components/schemas/PromotionApprovalMetaData"
-         deployed:
-              type: boolean
-              description: "deployed"
-         deployed_time:
-                type: string
-                description: "deployed time"
-         promotedFrom:
-                type: string
-                description: "promoted from env or ci pipeline"
-         promoteFromType:
-           type: string
-           description: "promote from type eg: CI, ENVIRONMENT"
-         imageComment:
-           $ref: "#/components/schemas/ImageComment"
-         imageReleaseTags:
-           type: array
-           items:
-             $ref: "#/components/schemas/ReleaseTag"
-           description: "image release tags"
+      type: object
+      properties:
+        id:
+          type: integer
+          description: "id"
+        image:
+          type: string
+          description: "image"
+        image_digest:
+          type: string
+          description: "image digest"
+        material_info:
+          type: string
+          description: "material info"
+        data_source:
+          type: string
+          description: "data source"
+        vulnerable:
+          type: boolean
+          description: "vulnerable"
+        scanEnabled:
+          type: boolean
+          description: "scan enabled"
+        scanned:
+          type: boolean
+          description: "scanned"
+        promotionApprovalMetaData:
+          $ref: "#/components/schemas/PromotionApprovalMetaData"
+        deployed:
+          type: boolean
+          description: "deployed"
+        deployed_time:
+          type: string
+          description: "deployed time"
+        promotedFrom:
+          type: string
+          description: "promoted from env or ci pipeline"
+        promoteFromType:
+          type: string
+          description: "promote from type eg: CI, ENVIRONMENT"
+        imageComment:
+          $ref: "#/components/schemas/ImageComment"
+        imageReleaseTags:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReleaseTag"
+          description: "image release tags"
 
 
     MaterialResponse:
-        type: object
-        properties:
-          approverUsers:
-            type: array
-            items:
-              type: string
-            description: " user emails who can approve the artifact promotion for the given pipeline(derived from appName and envName)"
-          hideImageTaggingHardDelete:
-               required: true
-               type: boolean
-               description: "imageTags can be hard deleted or not"
-          tagsEditable:
-                type: boolean
-                description: "imageTags can be editable or not"
-          appReleaseTagNames:
-                type: array
-                items:
-                    type: string
-                description: "app release tag names"
-          ciArtifacts:
-                type: array
-                items:
-                    $ref: "#/components/schemas/Artifact"
-                description: "ci artifacts"
-          totalCount:
-                 type: integer
-                 description: "total count of the tags"
+      type: object
+      properties:
+        approverUsers:
+          type: array
+          items:
+            type: string
+          description: " user emails who can approve the artifact promotion for the given pipeline(derived from appName and envName)"
+        hideImageTaggingHardDelete:
+          required: true
+          type: boolean
+          description: "imageTags can be hard deleted or not"
+        tagsEditable:
+          type: boolean
+          description: "imageTags can be editable or not"
+        appReleaseTagNames:
+          type: array
+          items:
+            type: string
+          description: "app release tag names"
+        ciArtifacts:
+          type: array
+          items:
+            $ref: "#/components/schemas/Artifact"
+          description: "ci artifacts"
+        totalCount:
+          type: integer
+          description: "total count of the tags"
 
