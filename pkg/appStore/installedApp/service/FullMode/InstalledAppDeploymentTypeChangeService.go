@@ -56,7 +56,7 @@ type InstalledAppDeploymentTypeChangeServiceImpl struct {
 	chartGroupService             chartGroup.ChartGroupService
 	helmAppService                client.HelmAppService
 	argoUserService               argo.ArgoUserService
-	environmentService            cluster.EnvironmentService
+	clusterService                cluster.ClusterService
 }
 
 func NewInstalledAppDeploymentTypeChangeServiceImpl(logger *zap.SugaredLogger,
@@ -70,7 +70,7 @@ func NewInstalledAppDeploymentTypeChangeServiceImpl(logger *zap.SugaredLogger,
 	eaModeDeploymentService EAMode.EAModeDeploymentService,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
 	chartGroupService chartGroup.ChartGroupService, helmAppService client.HelmAppService,
-	argoUserService argo.ArgoUserService, environmentService cluster.EnvironmentService) *InstalledAppDeploymentTypeChangeServiceImpl {
+	argoUserService argo.ArgoUserService, clusterService cluster.ClusterService) *InstalledAppDeploymentTypeChangeServiceImpl {
 	return &InstalledAppDeploymentTypeChangeServiceImpl{
 		logger:                        logger,
 		installedAppRepository:        installedAppRepository,
@@ -87,7 +87,7 @@ func NewInstalledAppDeploymentTypeChangeServiceImpl(logger *zap.SugaredLogger,
 		chartGroupService:             chartGroupService,
 		helmAppService:                helmAppService,
 		argoUserService:               argoUserService,
-		environmentService:            environmentService,
+		clusterService:                clusterService,
 	}
 }
 
@@ -111,9 +111,14 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) MigrateDeploymentType(c
 	} else {
 		deleteDeploymentType = bean.ArgoCd
 	}
+	envBean, err := impl.environmentRepository.FindById(request.EnvId)
+	if err != nil {
+		impl.logger.Errorw("error in getting environment by envId", "envId", request.EnvId, "err", err)
+		return response, err
+	}
 	//if cluster unreachable return with error, this is done to handle the case when cluster is unreachable and
 	//delete req sent to argo cd the app deletion is stuck in deleting state
-	isClusterReachable, err := impl.environmentService.IsClusterReachable(request.EnvId)
+	isClusterReachable, err := impl.clusterService.IsClusterReachable(envBean.ClusterId)
 	if err != nil {
 		return response, err
 	}
@@ -146,11 +151,7 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) MigrateDeploymentType(c
 			}
 		}
 	}
-	envBean, err := impl.environmentRepository.FindById(request.EnvId)
-	if err != nil {
-		impl.logger.Errorw("error in registering acd app", "err", err)
-		return response, err
-	}
+
 	deleteResponse, err := impl.deleteInstalledApps(ctx, installedApps, request.UserId, envBean.Cluster)
 	if err != nil {
 		return response, err
