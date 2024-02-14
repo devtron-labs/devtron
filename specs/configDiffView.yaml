@@ -62,9 +62,9 @@ components:
            $ref: '#/components/schemas/ResourceTypeEnum'
 
     ConfigStateEnum:
-              type: integer
-              enum: [ 3 ]
-              description: State of config (3 represents published state)
+      type: integer
+      enum: [ 1, 2, 3 ]
+      description: State of config (1 represents draft state , 2 represents approval pending state,3 represents published state)
 
     ResourceTypeEnum:
               type: string

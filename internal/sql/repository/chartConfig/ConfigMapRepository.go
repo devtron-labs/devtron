@@ -40,7 +40,7 @@ type ConfigMapRepository interface {
 	GetByAppIdAppLevel(appId int) (*ConfigMapAppModel, error)
 	GetByAppIdAndEnvIdEnvLevel(appId int, envId int) (*ConfigMapEnvModel, error)
 	GetEnvLevelByAppId(appId int) ([]*ConfigMapEnvModel, error)
-	GetConfigNamesForAppAndEnvLevel(appId int, envId int) ([]bean.CMCSNames, error)
+	GetConfigNamesForAppAndEnvLevel(appId int, envId int) ([]bean.ConfigNameAndType, error)
 }
 
 type ConfigMapRepositoryImpl struct {
@@ -65,9 +65,13 @@ type ConfigMapAppModel struct {
 	SecretData    string   `sql:"secret_data"`
 	sql.AuditLog
 }
+type cMCSNames struct {
+	CMName string `json:"cm_name"`
+	CSName string `json:"cs_name"`
+}
 
-func (impl ConfigMapRepositoryImpl) GetConfigNamesForAppAndEnvLevel(appId int, envId int) ([]bean.CMCSNames, error) {
-	var cMCSNames []bean.CMCSNames
+func (impl ConfigMapRepositoryImpl) GetConfigNamesForAppAndEnvLevel(appId int, envId int) ([]bean.ConfigNameAndType, error) {
+	var cMCSNames []cMCSNames
 	tableName := ConfigMapEnvLevel
 	if envId == -1 {
 		tableName = ConfigMapAppLevel
@@ -85,10 +89,25 @@ func (impl ConfigMapRepositoryImpl) GetConfigNamesForAppAndEnvLevel(appId int, e
 	if err := query.Select(&cMCSNames); err != nil {
 		if err != pg.ErrNoRows {
 			impl.Logger.Errorw("error occurred while fetching CM/CS names", "appId", appId, "err", err)
+			return nil, err
 		}
-		return cMCSNames, err
 	}
-	return cMCSNames, nil
+	var configNameAndType []bean.ConfigNameAndType
+	for _, name := range cMCSNames {
+		if name.CMName != "" {
+			configNameAndType = append(configNameAndType, bean.ConfigNameAndType{
+				Name: name.CMName,
+				Type: bean.CM,
+			})
+		}
+		if name.CSName != "" {
+			configNameAndType = append(configNameAndType, bean.ConfigNameAndType{
+				Name: name.CSName,
+				Type: bean.CS,
+			})
+		}
+	}
+	return configNameAndType, nil
 }
 
 func (impl ConfigMapRepositoryImpl) CreateAppLevel(model *ConfigMapAppModel) (*ConfigMapAppModel, error) {

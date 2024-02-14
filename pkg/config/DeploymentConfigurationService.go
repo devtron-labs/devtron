@@ -29,7 +29,7 @@ func NewDeploymentConfigurationServiceImpl(logger *zap.SugaredLogger,
 func (impl *DeploymentConfigurationServiceImpl) ConfigAutoComplete(appId int, envId int) (*ConfigDataResponse, error) {
 	cMCSNamesAppLevel, cMCSNamesEnvLevel, err := impl.configMapService.FetchCmCsNamesAppAndEnvLevel(appId, envId)
 	if err != nil {
-		impl.logger.Errorw("error in fetching CM and CS names at app or env level", "appId", appId, "envId", envId)
+		impl.logger.Errorw("error in fetching CM and CS names at app or env level", "appId", appId, "envId", envId, "err", err)
 		return nil, err
 	}
 	combinedProperties := make([]*ConfigProperty, 0)
@@ -38,33 +38,30 @@ func (impl *DeploymentConfigurationServiceImpl) ConfigAutoComplete(appId int, en
 	combinedProperties = append(combinedProperties,
 		getUniqueConfigPropertyList(cMCSNamesEnvLevel, combinedProperties)...)
 	combinedProperties = append(combinedProperties,
-		getConfigProperty("", DeploymentTemplate, PublishedConfigState))
+		getConfigProperty("", bean.DeploymentTemplate, PublishedConfigState))
 	return &ConfigDataResponse{ResourceConfig: combinedProperties}, nil
 }
 
-func getUniqueConfigPropertyList(cMCSNames []bean.CMCSNames, combinedProperties []*ConfigProperty) []*ConfigProperty {
+func getUniqueConfigPropertyList(cMCSNames []bean.ConfigNameAndType, combinedProperties []*ConfigProperty) []*ConfigProperty {
 	properties := make([]*ConfigProperty, 0)
 	if len(cMCSNames) == 0 {
 		return properties
 	}
 	combinedNames := make(map[string]bool)
 	for _, config := range combinedProperties {
-		combinedNames[config.Name] = true
+		combinedNames[config.getKey()] = true
 	}
-	for _, name := range cMCSNames {
-		// Fill in CM property if the CMName is not empty
-		if name.CMName != "" && !combinedNames[name.CMName] {
-			properties = append(properties, getConfigProperty(name.CMName, CM, PublishedConfigState))
-		}
-		// Fill in CS property if the CSName is not empty
-		if name.CSName != "" && !combinedNames[name.CSName] {
-			properties = append(properties, getConfigProperty(name.CSName, CS, PublishedConfigState))
+	for _, config := range cMCSNames {
+		// Fill in CM and CS property
+		property := getConfigProperty(config.Name, config.Type, PublishedConfigState)
+		if !combinedNames[property.getKey()] {
+			properties = append(properties, property)
 		}
 	}
 	return properties
 }
 
-func getConfigProperty(name string, configType ResourceType, State ConfigState) *ConfigProperty {
+func getConfigProperty(name string, configType bean.ResourceType, State ConfigState) *ConfigProperty {
 	return &ConfigProperty{
 		Name:        name,
 		Type:        configType,

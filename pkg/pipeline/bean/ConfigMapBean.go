@@ -91,7 +91,16 @@ type CreateJobEnvOverridePayload struct {
 type SecretsList struct {
 	ConfigData []*ConfigData `json:"secrets"`
 }
-type CMCSNames struct {
-	CMName string `json:"cm_name"`
-	CSName string `json:"cs_name"`
+
+type ConfigNameAndType struct {
+	Name string
+	Type ResourceType
 }
+
+type ResourceType string
+
+const (
+	CM                 ResourceType = "ConfigMap"
+	CS                 ResourceType = "Secret"
+	DeploymentTemplate ResourceType = "Deployment Template"
+)
