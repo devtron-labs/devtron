@@ -34,6 +34,7 @@
   * [Notifications](user-guide/global-configurations/manage-notification.md)
   * [External Links](user-guide/global-configurations/external-links.md)
   * [Scoped Variables](user-guide/global-configurations/scoped-variables.md)
+  * [Pull Image Digest](user-guide/global-configurations/pull-image-digest.md)
   * [Tags Policy](user-guide/global-configurations/tags-policy.md)
   * [Filter Condition](user-guide/global-configurations/filter-condition.md)
 * [Devtron Upgrade](setup/upgrade/README.md)

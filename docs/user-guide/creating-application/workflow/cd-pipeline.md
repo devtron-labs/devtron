@@ -152,13 +152,20 @@ To know how and where this image tag would appear, refer [Copy Container Image P
 
 ##### Pull Container Image with Image Digest
 
-Although Devtron ensures that image tags remain unique, the same cannot be said if images are pushed with the same tag to the same container registry from outside Devtron. 
+Although Devtron ensures that [image tags](#custom-image-tag-pattern) remain unique, the same cannot be said if images are pushed with the same tag to the same container registry from outside Devtron. 
 
-Therefore, to eliminate the possibility of pulling an unintended image, Devtron offers the option to pull container images using digest. Here, image digest is a unique and immutable SHA-256 string returned by the container registry when you push an image. So the image referenced by the digest will never change.
+Therefore, to eliminate the possibility of pulling an unintended image, Devtron offers the option to pull container images using digest and image tag.
+
+![Figure 10: Pull with Image Digest](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/image-digest/pull-with-digest.jpg)
+
+An image digest is a unique and immutable SHA-256 string returned by the container registry when you push an image. So the image referenced by the digest will never change.
+
+![Figure 11: Tag@Digest](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/image-digest/tag-digest.jpg)
+
 
 {% hint style="warning" %}
 ### Who Can Perform This Action?
-Users need to have Admin permission or above (along with access to the environment and application) to enable this option. However, this option will be non-editable in case the super-admin has enabled pull image digest globally or for the given environment.
+Users need to have Admin permission or above (along with access to the environment and application) to enable this option. However, this option will be non-editable in case the super-admin has enabled [pull image digest in Global Configurations](../../global-configurations/pull-image-digest.md).
 {% endhint %}
 
 #### Post-Deployment Stage
@@ -169,7 +176,7 @@ Post-deployment stages are similar to pre-deployment stages. The difference is, 
 
 Similar to Pre-Deployment stage, you can use [ConfigMap and Secrets](#configmaps--secrets) in post deployments as well. [Execute tasks in application environment](#execute-in-application-environment) option is available too.
 
-![Figure 10: Post-deployment Stage](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/cd_post_build.jpg)
+![Figure 12: Post-deployment Stage](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/cd_post_build.jpg)
 
 ---
 
@@ -179,7 +186,7 @@ You can update the deployment stages and the deployment strategy of the CD Pipel
 
 To update a CD Pipeline, go to the `App Configurations` section, Click on `Workflow editor` and then click on the CD Pipeline you want to Update.
 
-![Figure 11: Updating CD Pipeline](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/ca-workflow-update.gif)
+![Figure 13: Updating CD Pipeline](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/ca-workflow-update.gif)
 
 
 Make changes as needed and click on `Update Pipeline` to update this CD Pipeline.
@@ -212,7 +219,7 @@ To enable the `Execute tasks in application environment` option, follow these st
 
 1. Go to the chart store and search for the devtron-in-clustercd chart.
 
-  ![Figure 12: 'devtron-in-clustercd' Chart](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/devtron-incluster-chart.jpg)
+  ![Figure 14: 'devtron-in-clustercd' Chart](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/devtron-incluster-chart.jpg)
 
 2. Configure the chart according to your requirements and deploy it in the target cluster.
 
@@ -229,7 +236,7 @@ To enable the `Execute tasks in application environment` option, follow these st
 
   `ORCH_HOST` value should be same as of `CD_EXTERNAL_LISTENER_URL` value which is passed in values.yaml.
 
-  ![Figure 13: Configuration](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/incluster-configuration.jpg)
+  ![Figure 15: Configuration](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/incluster-configuration.jpg)
 
 4. Delete the Devtron pod using the following command:
 
@@ -239,11 +246,11 @@ To enable the `Execute tasks in application environment` option, follow these st
 
 5. Again navigate to the chart store and search for the "migration-incluster-cd" chart.
 
-  ![Figure 14: 'migration-incluster-cd' chart](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/migration-incluster-chart.jpg)
+  ![Figure 16: 'migration-incluster-cd' chart](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/migration-incluster-chart.jpg)
 
 6. Edit the `cluster-name` and `secret name` values within the chart. The `cluster name` refers to the name used when adding the cluster in the global configuration and for which you are going to enable `Execute tasks in application environment` option.
 
-  ![Figure 15: Configuration](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/migration-incluster.jpg)
+  ![Figure 17: Configuration](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/migration-incluster.jpg)
 
 7. Deploy the chart in any environment within the Devtron cluster. Now you should be able to enable `Execute tasks in application environment` option for an environment of target cluster.
 
@@ -338,7 +345,7 @@ Please follow the steps mentioned below to create sequential pipelines:
 2. To add another CD Pipeline sequentially after previous one, again click on + sign on the last CD pipeline.
 3. Similarly, you can add multiple CD pipelines by clicking + sign of the last CD pipeline, each deploying in different environments.
 
-![Figure 16: Adding Multiple CD Pipelines](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/sequential-workflow.jpg)
+![Figure 18: Adding Multiple CD Pipelines](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/sequential-workflow.jpg)
 
 
 
