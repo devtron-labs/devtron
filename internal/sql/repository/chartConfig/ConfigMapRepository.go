@@ -92,22 +92,22 @@ func (impl ConfigMapRepositoryImpl) GetConfigNamesForAppAndEnvLevel(appId int, e
 			return nil, err
 		}
 	}
-	var configNameAndType []bean.ConfigNameAndType
+	var configNames []bean.ConfigNameAndType
 	for _, name := range cMCSNames {
 		if name.CMName != "" {
-			configNameAndType = append(configNameAndType, bean.ConfigNameAndType{
+			configNames = append(configNames, bean.ConfigNameAndType{
 				Name: name.CMName,
 				Type: bean.CM,
 			})
 		}
 		if name.CSName != "" {
-			configNameAndType = append(configNameAndType, bean.ConfigNameAndType{
+			configNames = append(configNames, bean.ConfigNameAndType{
 				Name: name.CSName,
 				Type: bean.CS,
 			})
 		}
 	}
-	return configNameAndType, nil
+	return configNames, nil
 }
 
 func (impl ConfigMapRepositoryImpl) CreateAppLevel(model *ConfigMapAppModel) (*ConfigMapAppModel, error) {
