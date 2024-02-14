@@ -6,14 +6,14 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-func CheckIfUserDevtronManaged(userId int32) bool {
+func IsSystemOrAdminUser(userId int32) bool {
 	if userId == bean.SystemUserId || userId == bean.AdminUserId {
-		return false
+		return true
 	}
-	return true
+	return false
 }
 
-func CheckIfUserDevtronManagedByEmail(email string) bool {
+func IsSystemOrAdminUserByEmail(email string) bool {
 	if email == bean.AdminUser || email == bean.SystemUser {
 		return true
 	}

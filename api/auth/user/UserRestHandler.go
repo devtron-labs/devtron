@@ -420,8 +420,8 @@ func (handler UserRestHandlerImpl) DeleteUser(w http.ResponseWriter, r *http.Req
 	}
 	//RBAC enforcer Ends
 	//validation
-	validated := helper.CheckIfUserDevtronManaged(int32(id))
-	if !validated {
+	validated := helper.IsSystemOrAdminUser(int32(id))
+	if validated {
 		err = &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "cannot delete system or admin user"}
 		handler.logger.Errorw("request err, DeleteUser, validation failed", "id", id, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
