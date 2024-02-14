@@ -25,10 +25,10 @@ To access the comprehensive security scan reports, follow these steps:
 
 1. In the left sidebar, click **Security** and go to the `Security Scans` tab.
 
-    {% hint style="warning" %}
-    ### Who Can Perform This Action?
-    Users need to have super-admin permission to view the 'Security Scans' page.
-    {% endhint %}
+{% hint style="warning" %}
+### Who Can Perform This Action?
+Users need to have super-admin permission to view the 'Security Scans' page.
+{% endhint %}
 
 2. Select the desired application from the available list.
 
