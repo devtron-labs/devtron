@@ -95,6 +95,7 @@ type EnvironmentService interface {
 	GetCombinedEnvironmentListForDropDown(token string, isActionUserSuperAdmin bool, auth func(email string, object []string) map[string]bool) ([]*ClusterEnvDto, error)
 	GetCombinedEnvironmentListForDropDownByClusterIds(token string, clusterIds []int, auth func(token string, object string) bool) ([]*ClusterEnvDto, error)
 	HandleErrorInClusterConnections(clusters []*ClusterBean, respMap map[int]error, clusterExistInDb bool)
+	IsClusterReachable(envId int) (bool, error)
 }
 
 type EnvironmentServiceImpl struct {
@@ -761,4 +762,17 @@ func (impl EnvironmentServiceImpl) Delete(deleteReq *EnvironmentBean, userId int
 
 func (impl EnvironmentServiceImpl) HandleErrorInClusterConnections(clusters []*ClusterBean, respMap map[int]error, clusterExistInDb bool) {
 	impl.clusterService.HandleErrorInClusterConnections(clusters, respMap, clusterExistInDb)
+}
+
+func (impl EnvironmentServiceImpl) IsClusterReachable(envId int) (bool, error) {
+	env, err := impl.environmentRepository.FindById(envId)
+	if err != nil {
+		impl.logger.Errorw("error in finding env from envId", "envId", envId)
+		return false, err
+	}
+	if len(env.Cluster.ErrorInConnecting) > 0 {
+		return false, nil
+	}
+	return true, nil
+
 }

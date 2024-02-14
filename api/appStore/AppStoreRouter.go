@@ -107,8 +107,8 @@ func (router AppStoreRouterImpl) Init(configRouter *mux.Router) {
 	configRouter.Path("/cluster-component/install/{clusterId}").
 		HandlerFunc(router.deployRestHandler.DefaultComponentInstallation).Methods("POST")
 
-	configRouter.Path("/patch/migrate").
+	configRouter.Path("/installed-app/migrate").
 		HandlerFunc(router.deployRestHandler.MigrateDeploymentTypeForChartStore).Methods("POST")
-	configRouter.Path("/patch/trigger").
+	configRouter.Path("/installed-app/trigger").
 		HandlerFunc(router.deployRestHandler.TriggerChartStoreAppAfterMigration).Methods("POST")
 }

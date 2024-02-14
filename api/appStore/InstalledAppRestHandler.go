@@ -861,7 +861,7 @@ func (handler *InstalledAppRestHandlerImpl) MigrateDeploymentTypeForChartStore(w
 	var migrateAndTriggerReq *bean.DeploymentAppTypeChangeRequest
 	err = decoder.Decode(&migrateAndTriggerReq)
 	if err != nil {
-		handler.Logger.Errorw("request err, MigrateDeploymentTypeForChartStore", "err", err, "payload", migrateAndTriggerReq)
+		handler.Logger.Errorw("request err, MigrateDeploymentTypeForChartStore", "payload", migrateAndTriggerReq, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -869,7 +869,7 @@ func (handler *InstalledAppRestHandlerImpl) MigrateDeploymentTypeForChartStore(w
 
 	err = handler.validator.Struct(migrateAndTriggerReq)
 	if err != nil {
-		handler.Logger.Errorw("validation err, MigrateDeploymentTypeForChartStore", "err", err, "payload", migrateAndTriggerReq)
+		handler.Logger.Errorw("validation err, MigrateDeploymentTypeForChartStore", "payload", migrateAndTriggerReq, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -881,15 +881,7 @@ func (handler *InstalledAppRestHandlerImpl) MigrateDeploymentTypeForChartStore(w
 		return
 	}
 
-	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		handler.Logger.Errorw("error in getting acd token", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-
-	ctx := context.WithValue(r.Context(), "token", acdToken)
-	resp, err := handler.installedAppDeploymentTypeChangeService.MigrateDeploymentType(ctx, migrateAndTriggerReq)
+	resp, err := handler.installedAppDeploymentTypeChangeService.MigrateDeploymentType(r.Context(), migrateAndTriggerReq)
 	if err != nil {
 		handler.Logger.Errorw(err.Error(),
 			"payload", migrateAndTriggerReq,
@@ -913,8 +905,7 @@ func (handler *InstalledAppRestHandlerImpl) TriggerChartStoreAppAfterMigration(w
 	var deploymentAppTriggerRequest *bean.DeploymentAppTypeChangeRequest
 	err = decoder.Decode(&deploymentAppTriggerRequest)
 	if err != nil {
-		handler.Logger.Errorw("request err, TriggerChartStoreAppAfterMigration", "err", err, "payload",
-			deploymentAppTriggerRequest)
+		handler.Logger.Errorw("request err, TriggerChartStoreAppAfterMigration", "payload", deploymentAppTriggerRequest, "err", err)
 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
@@ -923,8 +914,7 @@ func (handler *InstalledAppRestHandlerImpl) TriggerChartStoreAppAfterMigration(w
 
 	err = handler.validator.Struct(deploymentAppTriggerRequest)
 	if err != nil {
-		handler.Logger.Errorw("validation err, TriggerChartStoreAppAfterMigration", "err", err, "payload",
-			deploymentAppTriggerRequest)
+		handler.Logger.Errorw("validation err, TriggerChartStoreAppAfterMigration", "payload", deploymentAppTriggerRequest, "err", err)
 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
@@ -932,21 +922,12 @@ func (handler *InstalledAppRestHandlerImpl) TriggerChartStoreAppAfterMigration(w
 
 	token := r.Header.Get("token")
 
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionDelete, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionCreate, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 
-	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		handler.Logger.Errorw("error in getting acd token", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-
-	ctx := context.WithValue(r.Context(), "token", acdToken)
-
-	resp, err := handler.installedAppDeploymentTypeChangeService.TriggerAfterMigration(ctx, deploymentAppTriggerRequest)
+	resp, err := handler.installedAppDeploymentTypeChangeService.TriggerAfterMigration(r.Context(), deploymentAppTriggerRequest)
 	if err != nil {
 		handler.Logger.Errorw(err.Error(),
 			"payload", deploymentAppTriggerRequest,

@@ -21,10 +21,12 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deployment"
 	util2 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository5 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/k8s"
+	"github.com/devtron-labs/devtron/util/argo"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -53,6 +55,8 @@ type InstalledAppDeploymentTypeChangeServiceImpl struct {
 	argoClientWrapperService      argocdServer.ArgoClientWrapperService
 	chartGroupService             chartGroup.ChartGroupService
 	helmAppService                client.HelmAppService
+	argoUserService               argo.ArgoUserService
+	environmentService            cluster.EnvironmentService
 }
 
 func NewInstalledAppDeploymentTypeChangeServiceImpl(logger *zap.SugaredLogger,
@@ -65,7 +69,8 @@ func NewInstalledAppDeploymentTypeChangeServiceImpl(logger *zap.SugaredLogger,
 	k8sUtil *k8s2.K8sServiceImpl, fullModeDeploymentService deployment.FullModeDeploymentService,
 	eaModeDeploymentService EAMode.EAModeDeploymentService,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
-	chartGroupService chartGroup.ChartGroupService, helmAppService client.HelmAppService) *InstalledAppDeploymentTypeChangeServiceImpl {
+	chartGroupService chartGroup.ChartGroupService, helmAppService client.HelmAppService,
+	argoUserService argo.ArgoUserService, environmentService cluster.EnvironmentService) *InstalledAppDeploymentTypeChangeServiceImpl {
 	return &InstalledAppDeploymentTypeChangeServiceImpl{
 		logger:                        logger,
 		installedAppRepository:        installedAppRepository,
@@ -81,6 +86,8 @@ func NewInstalledAppDeploymentTypeChangeServiceImpl(logger *zap.SugaredLogger,
 		argoClientWrapperService:      argoClientWrapperService,
 		chartGroupService:             chartGroupService,
 		helmAppService:                helmAppService,
+		argoUserService:               argoUserService,
+		environmentService:            environmentService,
 	}
 }
 
@@ -89,6 +96,14 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) MigrateDeploymentType(c
 		EnvId:                 request.EnvId,
 		DesiredDeploymentType: request.DesiredDeploymentType,
 	}
+	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		impl.logger.Errorw("error in getting acd token", "err", err)
+		return response, err
+	}
+
+	ctx = context.WithValue(ctx, "token", acdToken)
+
 	var deleteDeploymentType bean.DeploymentType
 
 	if request.DesiredDeploymentType == bean.ArgoCd {
@@ -98,12 +113,12 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) MigrateDeploymentType(c
 	}
 	//if cluster unreachable return with error, this is done to handle the case when cluster is unreachable and
 	//delete req sent to argo cd the app deletion is stuck in deleting state
-	isClusterReachable, err := impl.isClusterReachable(request.EnvId)
+	isClusterReachable, err := impl.environmentService.IsClusterReachable(request.EnvId)
 	if err != nil {
 		return response, err
 	}
 	if !isClusterReachable {
-		return response, &util.ApiError{HttpStatusCode: http.StatusNotFound, InternalMessage: "cluster unreachable", UserMessage: "cluster unreachable"}
+		return response, &util.ApiError{HttpStatusCode: http.StatusUnprocessableEntity, InternalMessage: err.Error(), UserMessage: "cluster unreachable"}
 	}
 
 	installedApps, err := impl.installedAppRepository.GetActiveInstalledAppByEnvIdAndDeploymentType(request.EnvId,
@@ -186,7 +201,7 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) AnnotateCRDsIfExist(ctx
 	}
 	restConfig, err, _ := impl.k8sCommonService.GetRestConfigByClusterId(ctx, clusterId)
 	if err != nil {
-		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", clusterId)
+		impl.logger.Errorw("error in getting rest config by cluster Id", "clusterId", clusterId, "err", err)
 		return err
 	}
 	for _, crd := range crdsList {
@@ -195,11 +210,10 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) AnnotateCRDsIfExist(ctx
 			Version: crd.ResourceRef.Version,
 			Kind:    crd.ResourceRef.Kind,
 		}
-		//fetch annotation and labels keys if not exist then do something to add those labels with these keys
 		helmAnnotation := fmt.Sprintf(bean.HelmReleaseMetadataAnnotation, appName, namespace)
 		_, err = impl.k8sUtil.PatchResourceRequest(ctx, restConfig, types.StrategicMergePatchType, helmAnnotation, crd.ResourceRef.Name, "", gvk)
 		if err != nil {
-			impl.logger.Errorw("error in patching release-name annotation in manifest", "err", err, "appName", appName)
+			impl.logger.Errorw("error in patching release-name annotation in manifest", "appName", appName, "err", err)
 			return err
 		}
 	}
@@ -313,19 +327,6 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) deleteInstalledApps(ctx
 	}, nil
 }
 
-func (impl *InstalledAppDeploymentTypeChangeServiceImpl) isClusterReachable(envId int) (bool, error) {
-	env, err := impl.environmentRepository.FindById(envId)
-	if err != nil {
-		impl.logger.Errorw("error in finding env from envId", "envId", envId)
-		return false, err
-	}
-	if len(env.Cluster.ErrorInConnecting) > 0 {
-		return false, nil
-	}
-	return true, nil
-
-}
-
 func (impl *InstalledAppDeploymentTypeChangeServiceImpl) isInstalledAppInfoValid(installedApp *repository2.InstalledApps,
 	failedToDeleteApps []*bean.DeploymentChangeStatus) ([]*bean.DeploymentChangeStatus, bool) {
 
@@ -375,6 +376,13 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) TriggerAfterMigration(c
 		DesiredDeploymentType: request.DesiredDeploymentType,
 	}
 	var err error
+	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		impl.logger.Errorw("error in getting acd token", "err", err)
+		return response, err
+	}
+
+	ctx = context.WithValue(ctx, "token", acdToken)
 
 	installedApps, err := impl.installedAppRepository.GetActiveInstalledAppByEnvIdAndDeploymentType(request.EnvId, request.DesiredDeploymentType,
 		util2.ConvertIntArrayToStringArray(request.ExcludeApps), util2.ConvertIntArrayToStringArray(request.IncludeApps))
@@ -465,7 +473,7 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) fetchDeletedInstalledAp
 			_, err = impl.acdClient.Get(ctx, req)
 		}
 		if err != nil {
-			impl.logger.Errorw("error in getting application detail", "err", err, "deploymentAppName", deploymentAppName)
+			impl.logger.Errorw("error in getting application detail", "deploymentAppName", deploymentAppName, "err", err)
 		}
 
 		if err != nil && util2.CheckAppReleaseNotExist(err) {
