@@ -6,18 +6,18 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-func IsUserManagedByDevtron(userId int32) bool {
+func IsSystemOrAdminUser(userId int32) bool {
 	if userId == bean.SystemUserId || userId == bean.AdminUserId {
-		return false
+		return true
 	}
-	return true
+	return false
 }
 
-func IsUserManagedByDevtronByEmail(email string) bool {
+func IsSystemOrAdminUserByEmail(email string) bool {
 	if email == bean.AdminUser || email == bean.SystemUser {
-		return false
+		return true
 	}
-	return true
+	return false
 }
 
 func CheckValidationForAdminAndSystemUserId(userIds []int32) error {
