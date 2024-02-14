@@ -128,11 +128,10 @@ func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) err
 			return err
 		}
 	}
-	cdWorkflowExecutorType := impl.config.GetWorkflowExecutorType()
 	runner := &pipelineConfig.CdWorkflowRunner{
 		Name:                  pipeline.Name,
 		WorkflowType:          bean2.CD_WORKFLOW_TYPE_PRE,
-		ExecutorType:          cdWorkflowExecutorType,
+		ExecutorType:          impl.config.GetWorkflowExecutorType(),
 		Status:                pipelineConfig.WorkflowStarting, // starting PreStage
 		TriggeredBy:           triggeredBy,
 		StartedOn:             triggeredAt,
@@ -165,26 +164,11 @@ func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) err
 	}
 
 	// checking vulnerability for the selected image
-	isVulnerable, err := impl.GetArtifactVulnerabilityStatus(artifact, pipeline, ctx)
+	err = impl.checkVulnerabilityStatusAndFailWfIfNeeded(ctx, artifact, pipeline, runner, triggeredBy)
 	if err != nil {
-		impl.logger.Errorw("error in getting Artifact vulnerability status, TriggerPreStage", "err", err)
+		impl.logger.Errorw("error, checkVulnerabilityStatusAndFailWfIfNeeded", "err", err, "runner", runner)
 		return err
 	}
-	if isVulnerable {
-		// if image vulnerable, update timeline status and return
-		runner.Status = pipelineConfig.WorkflowFailed
-		runner.Message = pipelineConfig.FOUND_VULNERABILITY
-		runner.FinishedOn = time.Now()
-		runner.UpdatedOn = time.Now()
-		runner.UpdatedBy = triggeredBy
-		err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
-		if err != nil {
-			impl.logger.Errorw("error in updating wfr status due to vulnerable image", "err", err)
-			return err
-		}
-		return fmt.Errorf("found vulnerability for image digest %s", artifact.ImageDigest)
-	}
-
 	_, span = otel.Tracer("orchestrator").Start(ctx, "buildWFRequest")
 	cdStageWorkflowRequest, err := impl.buildWFRequest(runner, cdWf, pipeline, triggeredBy)
 	span.End()
@@ -277,6 +261,31 @@ func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) err
 	if err != nil {
 		impl.logger.Errorw("error in creating pre cd script entry", "err", err, "pipeline", pipeline)
 		return err
+	}
+	return nil
+}
+
+func (impl *TriggerServiceImpl) checkVulnerabilityStatusAndFailWfIfNeeded(ctx context.Context, artifact *repository.CiArtifact,
+	cdPipeline *pipelineConfig.Pipeline, runner *pipelineConfig.CdWorkflowRunner, triggeredBy int32) error {
+	//checking vulnerability for the selected image
+	isVulnerable, err := impl.GetArtifactVulnerabilityStatus(artifact, cdPipeline, ctx)
+	if err != nil {
+		impl.logger.Errorw("error in getting Artifact vulnerability status, TriggerPreStage", "err", err)
+		return err
+	}
+	if isVulnerable {
+		// if image vulnerable, update timeline status and return
+		runner.Status = pipelineConfig.WorkflowFailed
+		runner.Message = pipelineConfig.FOUND_VULNERABILITY
+		runner.FinishedOn = time.Now()
+		runner.UpdatedOn = time.Now()
+		runner.UpdatedBy = triggeredBy
+		err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
+		if err != nil {
+			impl.logger.Errorw("error in updating wfr status due to vulnerable image", "err", err)
+			return err
+		}
+		return fmt.Errorf("found vulnerability for image digest %s", artifact.ImageDigest)
 	}
 	return nil
 }
