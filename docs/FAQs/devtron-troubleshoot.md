@@ -520,18 +520,18 @@ Following these steps should allow you to refresh the ArgoCD certificates when t
 
 ### 26. Not able to see commits, throwing exit status 128
 1. **Save the Git Repository Again**
-Wait for few minutes and check the build pipeline if commits are visibe or not
+Wait for few minutes and check the build pipeline if commits are visible or not
 
 2. **Check git sensor pod logs**
 
 ```yaml
 kubectl logs -n devtroncd -l app=git-sensor
 ```
-If you still get the same issue try to bounce the pod and save the git repository again
+If you still get the same issue, try to bounce the pod and save the git repository again
 ```yaml
 kubectl delete po -n devtroncd -l app=git-sensor
 ```
 
 3. **Try to clone the git repository with the token you have added for Git Account**
 
-If you fail to clone with the token generate the token, update the Git account in Global Configuration and try to save the git repository again.
+In case the cloning fails, you can generate the token, update the Git account in Global Configurations, and try to save the git repository again.
