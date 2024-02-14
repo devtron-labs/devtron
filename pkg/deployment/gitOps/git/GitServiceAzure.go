@@ -12,10 +12,10 @@ import (
 )
 
 type GitAzureClient struct {
-	client     *git.Client
-	logger     *zap.SugaredLogger
-	project    string
-	gitService GitService
+	client       *git.Client
+	logger       *zap.SugaredLogger
+	project      string
+	gitOpsHelper *GitOpsHelper
 }
 
 func (impl GitAzureClient) GetRepoUrl(config *bean2.GitOpsConfigDto) (repoUrl string, err error) {
@@ -29,7 +29,7 @@ func (impl GitAzureClient) GetRepoUrl(config *bean2.GitOpsConfigDto) (repoUrl st
 	}
 }
 
-func NewGitAzureClient(token string, host string, project string, logger *zap.SugaredLogger, gitService GitService) (GitAzureClient, error) {
+func NewGitAzureClient(token string, host string, project string, logger *zap.SugaredLogger, gitOpsHelper *GitOpsHelper) (GitAzureClient, error) {
 	ctx := context.Background()
 	// Create a connection to your organization
 	connection := azuredevops.NewPatConnection(host, token)
@@ -39,10 +39,10 @@ func NewGitAzureClient(token string, host string, project string, logger *zap.Su
 		logger.Errorw("error in creating azure gitops client, gitops related operation might fail", "err", err)
 	}
 	return GitAzureClient{
-		client:     &coreClient,
-		project:    project,
-		logger:     logger,
-		gitService: gitService,
+		client:       &coreClient,
+		project:      project,
+		logger:       logger,
+		gitOpsHelper: gitOpsHelper,
 	}, err
 }
 
@@ -286,7 +286,7 @@ func (impl GitAzureClient) ensureProjectAvailabilityOnHttp(repoName string) (boo
 
 func (impl GitAzureClient) ensureProjectAvailabilityOnSsh(projectName string, repoUrl string) (bool, error) {
 	for count := 0; count < 8; count++ {
-		_, err := impl.gitService.Clone(repoUrl, fmt.Sprintf("/ensure-clone/%s", projectName))
+		_, err := impl.gitOpsHelper.Clone(repoUrl, fmt.Sprintf("/ensure-clone/%s", projectName))
 		if err == nil {
 			impl.logger.Infow("ensureProjectAvailability clone passed azure", "try count", count, "repoUrl", repoUrl)
 			return true, nil

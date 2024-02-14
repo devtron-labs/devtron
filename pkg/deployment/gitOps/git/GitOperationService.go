@@ -140,7 +140,7 @@ func (impl *GitOperationServiceImpl) PushChartToGitRepo(gitOpsRepoName, referenc
 	// if push needed, then only push
 	if performFirstCommitPush {
 		userEmailId, userName := impl.gitOpsConfigReadService.GetUserEmailIdAndNameForGitOpsCommit(userId)
-		commit, err := impl.gitFactory.GitService.CommitAndPushAllChanges(clonedDir, "first commit", userName, userEmailId)
+		commit, err := impl.gitFactory.GitOpsHelper.CommitAndPushAllChanges(clonedDir, "first commit", userName, userEmailId)
 		if err != nil {
 			impl.logger.Errorw("error in pushing git", "err", err)
 			impl.logger.Warn("re-trying, taking pull and then push again")
@@ -153,7 +153,7 @@ func (impl *GitOperationServiceImpl) PushChartToGitRepo(gitOpsRepoName, referenc
 				impl.logger.Errorw("error copying dir", "err", err)
 				return err
 			}
-			commit, err = impl.gitFactory.GitService.CommitAndPushAllChanges(clonedDir, "first commit", userName, userEmailId)
+			commit, err = impl.gitFactory.GitOpsHelper.CommitAndPushAllChanges(clonedDir, "first commit", userName, userEmailId)
 			if err != nil {
 				impl.logger.Errorw("error in pushing git", "err", err)
 				return err
@@ -190,10 +190,10 @@ func (impl *GitOperationServiceImpl) GitPull(clonedDir string, repoUrl string, a
 	//TODO refactoring: remove invalid param appStoreName
 	//TODO check for local repo exists before clone
 	//TODO verify remote has repoUrl; or delete and clone
-	err := impl.gitFactory.GitService.Pull(clonedDir)
+	err := impl.gitFactory.GitOpsHelper.Pull(clonedDir)
 	if err != nil {
 		impl.logger.Errorw("error in pulling git", "clonedDir", clonedDir, "err", err)
-		_, err := impl.gitFactory.GitService.Clone(repoUrl, appStoreName)
+		_, err := impl.gitFactory.GitOpsHelper.Clone(repoUrl, appStoreName)
 		if err != nil {
 			impl.logger.Errorw("error in cloning repo", "url", repoUrl, "err", err)
 			return err
@@ -219,7 +219,7 @@ func (impl *GitOperationServiceImpl) CommitValues(chartGitAttr *ChartConfig) (co
 }
 
 func (impl *GitOperationServiceImpl) CommitAndPushAllChanges(clonedDir, commitMsg, userName, userEmailId string) (commitHash string, err error) {
-	commitHash, err = impl.gitFactory.GitService.CommitAndPushAllChanges(clonedDir, commitMsg, userName, userEmailId)
+	commitHash, err = impl.gitFactory.GitOpsHelper.CommitAndPushAllChanges(clonedDir, commitMsg, userName, userEmailId)
 	if err != nil {
 		impl.logger.Errorw("error in pushing git", "err", err)
 		return commitHash, err
@@ -270,9 +270,9 @@ func (impl *GitOperationServiceImpl) PushChartToGitOpsRepoForHelmApp(PushChartTo
 	space := regexp.MustCompile(`\s+`)
 	appStoreName := space.ReplaceAllString(PushChartToGitRequest.ChartAppStoreName, "-")
 	chartDir := fmt.Sprintf("%s-%s", PushChartToGitRequest.AppName, impl.chartTemplateService.GetDir())
-	clonedDir := impl.gitFactory.GitService.GetCloneDirectory(chartDir)
+	clonedDir := impl.gitFactory.GitOpsHelper.GetCloneDirectory(chartDir)
 	if _, err := os.Stat(clonedDir); os.IsNotExist(err) {
-		clonedDir, err = impl.gitFactory.GitService.Clone(PushChartToGitRequest.RepoURL, chartDir)
+		clonedDir, err = impl.gitFactory.GitOpsHelper.Clone(PushChartToGitRequest.RepoURL, chartDir)
 		if err != nil {
 			impl.logger.Errorw("error in cloning repo", "url", PushChartToGitRequest.RepoURL, "err", err)
 			return nil, "", err
@@ -306,7 +306,7 @@ func (impl *GitOperationServiceImpl) PushChartToGitOpsRepoForHelmApp(PushChartTo
 		return nil, "", err
 	}
 	userEmailId, userName := impl.gitOpsConfigReadService.GetUserEmailIdAndNameForGitOpsCommit(PushChartToGitRequest.UserId)
-	commit, err := impl.gitFactory.GitService.CommitAndPushAllChanges(clonedDir, "first commit", userName, userEmailId)
+	commit, err := impl.gitFactory.GitOpsHelper.CommitAndPushAllChanges(clonedDir, "first commit", userName, userEmailId)
 	if err != nil {
 		impl.logger.Errorw("error in pushing git", "err", err)
 		impl.logger.Warn("re-trying, taking pull and then push again")
@@ -320,7 +320,7 @@ func (impl *GitOperationServiceImpl) PushChartToGitOpsRepoForHelmApp(PushChartTo
 			impl.logger.Errorw("error copying dir", "err", err)
 			return nil, "", err
 		}
-		commit, err = impl.gitFactory.GitService.CommitAndPushAllChanges(clonedDir, "first commit", userName, userEmailId)
+		commit, err = impl.gitFactory.GitOpsHelper.CommitAndPushAllChanges(clonedDir, "first commit", userName, userEmailId)
 		if err != nil {
 			impl.logger.Errorw("error in pushing git", "err", err)
 			return nil, "", err
@@ -358,7 +358,7 @@ func (impl *GitOperationServiceImpl) CommitRequirementsAndValues(appStoreName, r
 }
 
 func (impl *GitOperationServiceImpl) GetClonedDir(chartDir, repoUrl string) (string, error) {
-	clonedDir := impl.gitFactory.GitService.GetCloneDirectory(chartDir)
+	clonedDir := impl.gitFactory.GitOpsHelper.GetCloneDirectory(chartDir)
 	if _, err := os.Stat(clonedDir); os.IsNotExist(err) {
 		return impl.CloneInDir(repoUrl, chartDir)
 	} else if err != nil {
@@ -369,7 +369,7 @@ func (impl *GitOperationServiceImpl) GetClonedDir(chartDir, repoUrl string) (str
 }
 
 func (impl *GitOperationServiceImpl) CloneInDir(repoUrl, chartDir string) (string, error) {
-	clonedDir, err := impl.gitFactory.GitService.Clone(repoUrl, chartDir)
+	clonedDir, err := impl.gitFactory.GitOpsHelper.Clone(repoUrl, chartDir)
 	if err != nil {
 		impl.logger.Errorw("error in cloning repo", "url", repoUrl, "err", err)
 		return "", err
