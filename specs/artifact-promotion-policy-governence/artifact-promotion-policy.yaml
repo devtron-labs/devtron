@@ -6,6 +6,12 @@ info:
 servers:
   - url: 'https'
 paths:
+#  existing APIs
+
+
+#  this api is used to fetch app workflows.
+#  we are adding new field artifactPromotionConfigured in workflows ,
+#  this will indicate if certain workflow contain atleast one environment with promotion policy
   /orchestrator/app/app-wf/view:
     get:
       summary: "Retrieve workflows"
@@ -37,9 +43,15 @@ paths:
                         items:
                           $ref: "#/components/schemas/ExternalCiConfig"
 
-  #      this api can be used to attempt promotion of an artifact on a selected environments of a given app. using action as PROMOTE
-  #      can be used to cancel the promotion request using action as CANCEL by sending promotionRequestId in the payload.
-  #      can be used to approve the promotion request using action as APPROVE by sending promotionRequestId in the payload.
+  /orchestrator/cd-pipeline/{cd-pipeline}/material:
+    get:
+
+
+  #  NEW APIs
+
+  #  this api can be used to attempt promotion of an artifact on a selected environments of a given app. using action as PROMOTE
+  #  can be used to cancel the promotion request using action as CANCEL by sending promotionRequestId in the payload.
+  #  can be used to approve the promotion request using action as APPROVE by sending promotionRequestId in the payload.
   /orchestrator/app/artifact-promotion/request:
     post:
       requestBody:
@@ -123,6 +135,14 @@ paths:
                       $ref: "#/components/schemas/Environment"
                     description: "list of environments"
 
+#  this will fetch the artifacts for artifact promotion,
+#  if the resource is CD this will fetch the images that are successfully deployed in that node.(expecting environment name in resourceName param)
+#  for CI | WEBHOOK this will fetch the images that were created on these source.(expecting CI|WEBHOOK pipeline name in resourceName param)
+
+#  also can be used to fetch pending promotion artifacts for a selected environment.
+#  if resource is PROMOTION_APPROVAL_PENDING_NODE, then this api will fetch the pending promotion requests for the given environment (in resourceName).
+#  also can be used to fetch pending requests waiting for approval on requested user for given workflowId(required)
+#  appName is required param
   /orchestrator/app/artifact-promotion/material:
     get:
       parameters:
