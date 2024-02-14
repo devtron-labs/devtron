@@ -1325,7 +1325,7 @@ func (impl *UserServiceImpl) getUserIdsHonoringFilters(request *bean.ListingRequ
 	// collecting the required user ids from filtered models
 	filteredUserIds := make([]int32, len(models))
 	for i, model := range models {
-		if helper2.CheckIfUserDevtronManagedByEmail(model.EmailId) {
+		if helper2.IsUserManagedByDevtronByEmail(model.EmailId) {
 			filteredUserIds[i] = model.Id
 		}
 	}
