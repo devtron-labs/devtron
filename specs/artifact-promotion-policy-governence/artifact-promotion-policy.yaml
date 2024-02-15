@@ -432,11 +432,14 @@ components:
           properties:
             approverCount:
               type: integer
-            restrictImageBuilderFromApprove:
+            allowImageBuilderFromApprove:
               type: boolean
-            restrictPromoterFromApprove:
+              default: false
+            allowPromoterFromApprove:
               type: boolean
-            restrictApproverFromDeploy:
+              default: false
+            allowApproverFromDeploy:
+              default: false
               type: boolean
         identifierCount:
           type: integer
