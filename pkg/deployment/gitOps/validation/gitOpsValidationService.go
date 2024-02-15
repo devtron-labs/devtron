@@ -184,8 +184,9 @@ func (impl *GitOpsValidationServiceImpl) ValidateCustomGitRepoURL(request gitOps
 			impl.logger.Errorw("error in fetching active gitOps config", "err", err)
 			return "", false, err
 		}
-		repoUrl := strings.ReplaceAll(git.SanitiseCustomGitRepoURL(*activeGitOpsConfig, request.GitRepoURL), ".git", "")
-		if !strings.Contains(chartGitAttribute.RepoUrl, repoUrl) {
+		repoUrl := git.SanitiseCustomGitRepoURL(*activeGitOpsConfig, request.GitRepoURL)
+		orgRepoUrl := strings.TrimSuffix(chartGitAttribute.RepoUrl, ".git")
+		if !strings.Contains(repoUrl, orgRepoUrl) {
 			impl.logger.Errorw("non-organisational custom gitops repo", "expected repo", chartGitAttribute.RepoUrl, "user given repo", repoUrl)
 			nonOrgErr := impl.getValidationErrorForNonOrganisationalURL(*activeGitOpsConfig)
 			if nonOrgErr != nil {
