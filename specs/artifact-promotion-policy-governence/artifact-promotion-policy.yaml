@@ -6,12 +6,11 @@ info:
 servers:
   - url: 'https'
 paths:
-#  existing APIs
+#  EXISTING APIs
 
-
-#  this api is used to fetch app workflows.
-#  we are adding new field artifactPromotionConfigured in workflows ,
-#  this will indicate if certain workflow contain atleast one environment with promotion policy
+  #  this api is used to fetch app workflows.
+  #  we are adding new field artifactPromotionConfigured in workflows ,
+  #  this will indicate if certain workflow contain atleast one environment with promotion policy
   /orchestrator/app/app-wf/view:
     get:
       summary: "Retrieve workflows"
@@ -47,9 +46,6 @@ paths:
   # will be adding new flag in the artifact object i.e PromotionDetails
   # /orchestrator/app/cd-pipeline/workflow/list
 
-
-  #
-
   #
   # NEW APIs
 
@@ -58,7 +54,7 @@ paths:
   # this API is used to fetch the promotion details for a particular promoted artifact
     get:
       parameters:
-        - name: approvalRequestId
+        - name: promotionRequestId
           in: query
           required: true
           schema:
@@ -163,14 +159,14 @@ paths:
                       $ref: "#/components/schemas/Environment"
                     description: "list of environments"
 
-#  this will fetch the artifacts for artifact promotion,
-#  if the resource is CD this will fetch the images that are successfully deployed in that node.(expecting environment name in resourceName param)
-#  for CI | WEBHOOK this will fetch the images that were created on these source.(expecting CI|WEBHOOK pipeline name in resourceName param)
+  #  this will fetch the artifacts for artifact promotion,
+  #  if the resource is CD this will fetch the images that are successfully deployed in that node.(expecting environment name in resourceName param)
+  #  for CI | WEBHOOK this will fetch the images that were created on these source.(expecting CI|WEBHOOK pipeline name in resourceName param)
 
-#  also can be used to fetch pending promotion artifacts for a selected environment.
-#  if resource is PROMOTION_APPROVAL_PENDING_NODE, then this api will fetch the pending promotion requests for the given environment (in resourceName).
-#  also can be used to fetch pending requests waiting for approval on requested user for given workflowId(required)
-#  appName is required param
+  #  also can be used to fetch pending promotion artifacts for a selected environment.
+  #  if resource is PROMOTION_APPROVAL_PENDING_NODE, then this api will fetch the pending promotion requests for the given environment (in resourceName).
+  #  also can be used to fetch pending requests waiting for approval on requested user for given workflowId(required)
+  #  appName is required param
   /orchestrator/app/artifact-promotion/material:
     get:
       parameters:
@@ -363,7 +359,7 @@ paths:
         "200":
           description: "successfully applied the profile on the given app-envs or filtered app-envs"
 
-# this is an util API which fetches the supported filter criteria params supported in CEL expression
+  # this is an util API which fetches the supported filter criteria params supported in CEL expression
   /orchestrator/resource-filter/metadata:
     get:
       description: "fetches the filter conditions param meta data used in CEL expression"
