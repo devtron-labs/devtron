@@ -58,17 +58,7 @@ paths:
   # this API is used to fetch the promotion details for a particular promoted artifact
     get:
       parameters:
-        - name: artifactId
-          in: query
-          required: true
-          schema:
-            type: integer
-        - name: appName
-          in: query
-          required: true
-          schema:
-            type: integer
-        - name: enviromentName
+        - name: approvalRequestId
           in: query
           required: true
           schema:
@@ -406,12 +396,14 @@ components:
           type: string
         destination:
           type: string
-        promotedBy:
+        requestedBy:
           type: string
         approvedUsers:
           type: array
           items:
             type: string
+        requestedOn:
+          type: string
         promotedOn:
           type: string
         promotionPolicy:
