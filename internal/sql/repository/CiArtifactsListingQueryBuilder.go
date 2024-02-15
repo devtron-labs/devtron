@@ -90,7 +90,7 @@ func BuildQueryForArtifactsForCdStage(listingFilterOptions bean.ArtifactsListFil
 }
 
 func buildQueryForArtifactsForCdStageV2(listingFilterOptions bean.ArtifactsListFilterOptions, isApprovalNode bool) string {
-	whereCondition := fmt.Sprintf(" WHERE (id IN ("+
+	whereCondition := fmt.Sprintf(" WHERE ( id IN ("+
 		" SELECT DISTINCT(cd_workflow.ci_artifact_id) as ci_artifact_id "+
 		" FROM cd_workflow_runner"+
 		" INNER JOIN cd_workflow ON cd_workflow.id = cd_workflow_runner.cd_workflow_id "+
@@ -104,7 +104,12 @@ func buildQueryForArtifactsForCdStageV2(listingFilterOptions bean.ArtifactsListF
 		"           )"+
 		"      )   ) ", listingFilterOptions.PipelineId, listingFilterOptions.ParentId, listingFilterOptions.PipelineId, listingFilterOptions.StageType, listingFilterOptions.ParentId, listingFilterOptions.ParentStageType)
 
-	whereCondition = fmt.Sprintf(" %s OR (ci_artifact.component_id = %d  AND ci_artifact.data_source= '%s' ))", whereCondition, listingFilterOptions.ParentId, listingFilterOptions.PluginStage)
+	// plugin artifacts
+	whereCondition = fmt.Sprintf(" %s OR (ci_artifact.component_id = %d  AND ci_artifact.data_source= '%s' )", whereCondition, listingFilterOptions.ParentId, listingFilterOptions.PluginStage)
+
+	// promoted artifacts
+	whereCondition = fmt.Sprintf(" %s OR id in (select artifact_id from artifact_promotion_approval_request where promoted=true and destination_pipeline_id = %d ) )", whereCondition, listingFilterOptions.PipelineId)
+
 	if listingFilterOptions.SearchString != EmptyLikeRegex {
 		whereCondition = whereCondition + fmt.Sprintf(" AND ci_artifact.image LIKE '%s' ", listingFilterOptions.SearchString)
 	}

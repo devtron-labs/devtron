@@ -81,3 +81,41 @@ CONSTRAINT "artifact_promotion_approval_request_policy_evaluation_audit_id_fkey"
 CREATE UNIQUE INDEX "idx_unique_artifact_promoted_to_destination"
     ON artifact_promotion_approval_request(artifact_id,destination_pipeline_id)
     WHERE promoted = true;
+
+
+-- custom role queries
+insert into rbac_policy_resource_detail
+(resource,
+ policy_resource_value,
+ allowed_actions,
+ resource_object,
+ eligible_entity_access_types,
+ deleted,created_on,
+ created_by,
+ updated_on,
+ updated_by)
+values ('config/artifact',
+        '{"value": "config/artifact", "indexKeyMap": {}}','{promoter}','{"value": "%/%/%", "indexKeyMap": {"0": "TeamObj", "2": "EnvObj", "4": "AppObj"}}','{apps/devtron-app}',
+        false,
+        now(),
+        1,
+        now(),
+        1);
+
+
+
+insert into default_rbac_role_data (role,
+                                    default_role_data,
+                                    created_on,
+                                    created_by,
+                                    updated_on,
+                                    updated_by,
+                                    enabled)
+VALUES ('imagePromoter',
+        '{"entity": "apps", "roleName": "artifactPromoter", "accessType": "devtron-app", "roleDescription": "can promote artifact for a particular CD Pipeline", "roleDisplayName": "Image Promoter", "policyResourceList": [{"actions": ["promoter"],
+"resource": "config/artifact"}], "updatePoliciesForExistingProvidedRoles": false}',
+        now(),
+        1,
+        now(),
+        1,
+        true);
