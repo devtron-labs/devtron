@@ -15,21 +15,20 @@ import (
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
-	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/util/event"
 	"github.com/go-pg/pg"
-	"strconv"
 	"strings"
 	"time"
 )
 
 func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) error {
+	request.WorkflowType = bean2.CD_WORKFLOW_TYPE_POST
 	// setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
 	triggeredAt := time.Now()
 	triggeredBy := request.TriggeredBy
 	pipeline := request.Pipeline
 	cdWf := request.CdWf
-
+	ctx := context.Background() //before there was only one context. To check why here we are not using ctx from request.TriggerContext
 	var env *repository2.Environment
 	var err error
 	env, err = impl.envRepository.FindById(pipeline.EnvironmentId)
@@ -37,6 +36,12 @@ func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) er
 		impl.logger.Errorw(" unable to find env ", "err", err)
 		return err
 	}
+	env, namespace, err := impl.getEnvAndNsIfRunStageInEnv(ctx, request)
+	if err != nil {
+		impl.logger.Errorw("error, getEnvAndNsIfRunStageInEnv", "err", err, "pipeline", pipeline, "stage", request.WorkflowType)
+		return nil
+	}
+	request.RunStageInEnvNamespace = namespace
 
 	// Todo - optimize
 	app, err := impl.appRepository.FindById(pipeline.AppId)
@@ -100,28 +105,9 @@ func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) er
 	if filterState != resourceFilter.ALLOW {
 		return fmt.Errorf("the artifact does not pass filtering condition")
 	}
-
-	runner := &pipelineConfig.CdWorkflowRunner{
-		Name:                  pipeline.Name,
-		WorkflowType:          bean2.CD_WORKFLOW_TYPE_POST,
-		ExecutorType:          impl.config.GetWorkflowExecutorType(),
-		Status:                pipelineConfig.WorkflowStarting, // starting PostStage
-		TriggeredBy:           triggeredBy,
-		StartedOn:             triggeredAt,
-		Namespace:             impl.config.GetDefaultNamespace(),
-		BlobStorageEnabled:    impl.config.BlobStorageEnabled,
-		CdWorkflowId:          cdWf.Id,
-		LogLocation:           fmt.Sprintf("%s/%s%s-%s/main.log", impl.config.GetDefaultBuildLogsKeyPrefix(), strconv.Itoa(cdWf.Id), string(bean2.CD_WORKFLOW_TYPE_POST), pipeline.Name),
-		AuditLog:              sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: triggeredBy, UpdatedOn: triggeredAt, UpdatedBy: triggeredBy},
-		RefCdWorkflowRunnerId: request.RefCdWorkflowRunnerId,
-		ReferenceId:           request.TriggerContext.ReferenceId,
-	}
-	if pipeline.RunPostStageInEnv {
-		runner.Namespace = env.Namespace
-	}
-
-	_, err = impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
+	cdWf, runner, err := impl.createStartingWfAndRunner(request, triggeredAt)
 	if err != nil {
+		impl.logger.Errorw("error in creating wf starting and runner entry", "err", err, "request", request)
 		return err
 	}
 
