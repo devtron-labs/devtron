@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS public.artifact_promotion_approval_request
 (
     "active"                       bool         NOT NULL,
     --     foreign key to user, promoted_by
-    "promoted_by"                  int4         NOT NULL,
+    "requested_by"                 int4         NOT NULL,
     "id"                           int          NOT NULL DEFAULT nextval('id_artifact_promotion_approval_request'::regclass),
 --     foreign key to artifact_promotion_policy
     "policy_id"                    int          NOT NULL,
@@ -64,13 +64,13 @@ CREATE TABLE IF NOT EXISTS public.artifact_promotion_approval_request
 --     CI_PIPELINE(0) or WEBHOOK(1) or CD_PIPELINE(2)
     "source_type"                  int          NOT NULL,
     "destination_pipeline_id"      int          NOT NULL,
---     CD_PIPELINE(2) , currently not defining this column as destination is always CD_PIPELINE
---     "destination_type"             int          NOT NULL,
+--  CD_PIPELINE(2) , currently not defining this column as destination is always CD_PIPELINE
+--  "destination_type"             int          NOT NULL,
     "status"                       int          NOT NULL,
---     promoted_on time
-    "created_on"                   timestamptz  NOT NULL,
---     promoted_on time
-    "updated_on"                   timestamptz  NOT NULL,
+--  promoted_on time
+    "promoted_on"                  timestamptz  NOT NULL,
+--  promoted_on time
+    "requested_on"                 timestamptz  NOT NULL,
 
     PRIMARY KEY ("id")
     );
