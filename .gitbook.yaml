@@ -72,8 +72,8 @@ redirects:
     getting-started/global-configurations/container-registries: user-guide/global-configurations/container-registries.md
     getting-started/global-configurations/sso-login: user-guide/global-configurations/sso-login.md
     getting-started/global-configurations/docker-registries: user-guide/global-configurations/container-registries.md
-    global-configurations/sso-login: user-guide/global-configurations/sso-login
+    global-configurations/sso-login: user-guide/global-configurations/sso-login.md
     user-guide/use-cases/untitled-3: user-guide/use-cases/connect-django-with-mysql-database.md
     global-configurations/api-token: user-guide/global-configurations/authorization/api-tokens.md
-    user-guide/creating-application/workflow/ci-pipeline2: user-guide/creating-application/workflow/ci-pipeline
+    user-guide/creating-application/workflow/ci-pipeline2: user-guide/creating-application/workflow/ci-pipeline.md
 
