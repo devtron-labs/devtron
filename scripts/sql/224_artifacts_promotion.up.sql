@@ -80,8 +80,7 @@ CONSTRAINT "artifact_promotion_approval_request_artifact_id_fkey" FOREIGN KEY ("
 CONSTRAINT "artifact_promotion_approval_request_policy_evaluation_audit_id_fkey" FOREIGN KEY ("policy_evaluation_audit_id") REFERENCES "public"."resource_filter_evaluation_audit" ("id");
 CREATE UNIQUE INDEX "idx_unique_artifact_promoted_to_destination"
     ON artifact_promotion_approval_request(artifact_id,destination_pipeline_id)
-    WHERE promoted = true;
-
+    WHERE status = 'PROMOTED';
 
 -- custom role queries
 insert into rbac_policy_resource_detail
