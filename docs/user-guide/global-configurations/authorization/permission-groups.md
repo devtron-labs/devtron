@@ -5,7 +5,7 @@ Using the `Permission groups`, you can assign a user to a particular group and a
 The advantage of the `Permission groups` is to define a set of privileges like create, edit, or delete for the given set of resources that can be shared among the users within the group.
 
 {% hint style="info" %}
-The [User permissions](../../global-configurations/authorization/user-access) section for `Specific permissions` contains a drop-down list of all existing groups for which a user has an access. This is an optional field and more than one groups can be selected for a user.
+The [User permissions](../../global-configurations/authorization/user-access.md) section for `Specific permissions` contains a drop-down list of all existing groups for which a user has an access. This is an optional field and more than one groups can be selected for a user.
 {% endhint %}
 
 ## Add Group
