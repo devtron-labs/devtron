@@ -423,6 +423,8 @@ components:
           type: string
         description:
           type: string
+        approverCount:
+          type: integer
         conditions:
           type: array
           items:
@@ -430,8 +432,6 @@ components:
         approvalMetadata:
           type: object
           properties:
-            approverCount:
-              type: integer
             allowImageBuilderFromApprove:
               type: boolean
               default: false

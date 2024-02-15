@@ -15,12 +15,13 @@ CREATE TABLE IF NOT EXISTS public.artifact_promotion_policy
     "created_by"                   int4         NOT NULL,
     "updated_by"                   int4         NOT NULL,
     "id"                           int          NOT NULL DEFAULT nextval('id_artifact_promotion_policy'::regclass),
+    approval_count                 int          NOT NULL,
     "name"                         VARCHAR(50)  NOT NULL,
     "description"                  VARCHAR(300),
     "created_on"                   timestamptz  NOT NULL,
     "updated_on"                   timestamptz  NOT NULL,
     "condition_expression"         text         NOT NULL,
---  this column contains {"approvalCount": 0, "restrictImageBuilderFromApprove": false, "restrictPromoterFromApprove": false, "restrictApproverFromDeploy": false}
+--  this column contains {"restrictImageBuilderFromApprove": false, "restrictPromoterFromApprove": false, "restrictApproverFromDeploy": false}
     "approval_metadata"            json         NOT NULL,
 
     PRIMARY KEY ("id")
