@@ -435,7 +435,7 @@ components:
             allowImageBuilderFromApprove:
               type: boolean
               default: false
-            allowPromoterFromApprove:
+            allowRequesterFromApprove:
               type: boolean
               default: false
             allowApproverFromDeploy:

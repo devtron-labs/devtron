@@ -1,11 +1,13 @@
-ALTER TABLE deployment_approval_user_data ADD COLUMN "resource_type" integer DEFAULT 0;
 -- 0 for  deployment approval request, 1 for artifact promotion approval request
+ALTER TABLE deployment_approval_user_data ADD COLUMN "resource_ type" integer DEFAULT 0;
+
 ALTER TABLE deployment_approval_user_data RENAME COLUMN "approval_request_id" TO "resource_approval_request_id";
 -- rename deployment_approval_user_data table to resource_approval_user_data
 ALTER TABLE deployment_approval_user_data RENAME TO resource_approval_user_data;
-
-ALTER TABLE  resource_filter_evaluation_audit ADD COLUMN "resource_type" integer DEFAULT 0;
+--  drop the constraint as this is no longer valid
+ALTER TABLE deployment_approval_user_data DROP CONSTRAINT deployment_approval_user_data_approval_request_id_fkey;
 -- 0 for  resource_filter, 1 for artifact promotion policy filter evaluation
+ALTER TABLE  resource_filter_evaluation_audit ADD COLUMN "resource_type" integer DEFAULT 0;
 
 -- create artifact promotion policy table
 CREATE SEQUENCE IF NOT EXISTS id_artifact_promotion_policy;
@@ -21,7 +23,7 @@ CREATE TABLE IF NOT EXISTS public.artifact_promotion_policy
     "created_on"                   timestamptz  NOT NULL,
     "updated_on"                   timestamptz  NOT NULL,
     "condition_expression"         text         NOT NULL,
---  this column contains {"restrictImageBuilderFromApprove": false, "restrictPromoterFromApprove": false, "restrictApproverFromDeploy": false}
+--  this column contains {"allowImageBuilderFromApprove": false, "allowRequesterFromApprove": false, "allowApproverFromDeploy": false}
     "approval_metadata"            json         NOT NULL,
 
     PRIMARY KEY ("id")
