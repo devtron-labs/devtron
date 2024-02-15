@@ -166,14 +166,14 @@ func (impl *TriggerServiceImpl) getEnvAndNsIfRunStageInEnv(ctx context.Context, 
 	} else if workflowStage == bean2.CD_WORKFLOW_TYPE_POST {
 		runStageInEnv = pipeline.RunPostStageInEnv
 	}
+	_, span := otel.Tracer("orchestrator").Start(ctx, "envRepository.FindById")
+	env, err = impl.envRepository.FindById(pipeline.EnvironmentId)
+	span.End()
+	if err != nil {
+		impl.logger.Errorw(" unable to find env ", "err", err)
+		return nil, namespace, err
+	}
 	if runStageInEnv {
-		_, span := otel.Tracer("orchestrator").Start(ctx, "envRepository.FindById")
-		env, err = impl.envRepository.FindById(pipeline.EnvironmentId)
-		span.End()
-		if err != nil {
-			impl.logger.Errorw(" unable to find env ", "err", err)
-			return nil, namespace, err
-		}
 		namespace = env.Namespace
 	}
 	return env, namespace, nil
