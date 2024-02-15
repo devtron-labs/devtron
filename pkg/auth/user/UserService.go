@@ -1461,7 +1461,7 @@ func (impl UserServiceImpl) extractEmailIds(permissionGroupNames []string, email
 func (impl UserServiceImpl) SaveLoginAudit(emailId, clientIp string, id int32) {
 
 	if emailId != "" && id <= 0 {
-		user, err := impl.GetUserByEmail(emailId)
+		user, err := impl.GetUserBasicDataByEmailId(emailId)
 		if err != nil {
 			impl.logger.Errorw("error in getting userInfo by emailId", "err", err, "emailId", emailId)
 			return
@@ -1585,7 +1585,7 @@ func (impl UserServiceImpl) GetUserByToken(context context.Context, token string
 	if err != nil {
 		return http.StatusUnauthorized, "", err
 	}
-	userInfo, err := impl.GetUserByEmail(email)
+	userInfo, err := impl.GetUserBasicDataByEmailId(email)
 	if err != nil {
 		impl.logger.Errorw("unable to fetch user from db", "error", err)
 		err := &util.ApiError{
