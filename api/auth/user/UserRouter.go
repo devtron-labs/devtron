@@ -38,12 +38,12 @@ func NewUserRouterImpl(userRestHandler UserRestHandler) *UserRouterImpl {
 
 func (router UserRouterImpl) InitUserRouter(userAuthRouter *mux.Router) {
 	//User management
+	userAuthRouter.Path("/v2").
+		HandlerFunc(router.userRestHandler.GetAll).Methods("GET")
 	userAuthRouter.Path("/{id}").
 		HandlerFunc(router.userRestHandler.GetById).Methods("GET")
 	userAuthRouter.Path("").
 		HandlerFunc(router.userRestHandler.CreateUser).Methods("POST")
-	userAuthRouter.Path("/v2").
-		HandlerFunc(router.userRestHandler.GetAll).Methods("GET")
 	userAuthRouter.Path("").
 		HandlerFunc(router.userRestHandler.GetAll).Methods("GET")
 	userAuthRouter.Path("").
@@ -53,14 +53,14 @@ func (router UserRouterImpl) InitUserRouter(userAuthRouter *mux.Router) {
 	userAuthRouter.Path("/detail/get").
 		HandlerFunc(router.userRestHandler.GetAllDetailedUsers).Methods("GET")
 
+	userAuthRouter.Path("/role/group/v2").
+		HandlerFunc(router.userRestHandler.GetAll).Methods("GET")
 	userAuthRouter.Path("/role/group/{id}").
 		HandlerFunc(router.userRestHandler.FetchRoleGroupById).Methods("GET")
 	userAuthRouter.Path("/role/group").
 		HandlerFunc(router.userRestHandler.CreateRoleGroup).Methods("POST")
 	userAuthRouter.Path("/role/group").
 		HandlerFunc(router.userRestHandler.UpdateRoleGroup).Methods("PUT")
-	userAuthRouter.Path("/role/group/v2").
-		HandlerFunc(router.userRestHandler.GetAll).Methods("GET")
 	userAuthRouter.Path("/role/group").
 		HandlerFunc(router.userRestHandler.FetchRoleGroups).Methods("GET")
 	userAuthRouter.Path("/role/group/detailed/get").
