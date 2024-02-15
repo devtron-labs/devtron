@@ -121,18 +121,19 @@ func (impl *GitOpsConfigReadServiceImpl) GetGitOpsConfigActive() (*bean2.GitOpsC
 		return nil, err
 	}
 	config := &bean2.GitOpsConfigDto{
-		Id:                   model.Id,
-		Provider:             model.Provider,
-		GitHubOrgId:          model.GitHubOrgId,
-		GitLabGroupId:        model.GitLabGroupId,
-		Active:               model.Active,
-		Token:                model.Token,
-		Host:                 model.Host,
-		Username:             model.Username,
-		UserId:               model.CreatedBy,
-		AzureProjectName:     model.AzureProject,
-		BitBucketWorkspaceId: model.BitBucketWorkspaceId,
-		BitBucketProjectKey:  model.BitBucketProjectKey,
+		Id:                    model.Id,
+		Provider:              model.Provider,
+		GitHubOrgId:           model.GitHubOrgId,
+		GitLabGroupId:         model.GitLabGroupId,
+		Active:                model.Active,
+		Token:                 model.Token,
+		Host:                  model.Host,
+		Username:              model.Username,
+		UserId:                model.CreatedBy,
+		AzureProjectName:      model.AzureProject,
+		BitBucketWorkspaceId:  model.BitBucketWorkspaceId,
+		BitBucketProjectKey:   model.BitBucketProjectKey,
+		AllowCustomRepository: model.AllowCustomRepository,
 	}
 	return config, err
 }

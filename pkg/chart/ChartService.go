@@ -491,7 +491,7 @@ func (impl *ChartServiceImpl) getNewVersion(chartRepo, chartName, refChartLocati
 }
 
 func (impl *ChartServiceImpl) IsGitOpsRepoConfiguredForDevtronApps(appId int) (bool, error) {
-	activeGitOpsConfig, err := impl.gitOpsConfigReadService.GetGitOpsConfigActive()
+	gitOpsConfigStatus, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
 	if util.IsErrNoRows(err) {
 		return false, nil
 	}
@@ -499,7 +499,7 @@ func (impl *ChartServiceImpl) IsGitOpsRepoConfiguredForDevtronApps(appId int) (b
 		impl.logger.Errorw("error in fetching latest chart for app by appId")
 		return false, err
 	}
-	if !activeGitOpsConfig.AllowCustomRepository {
+	if !gitOpsConfigStatus.AllowCustomRepository {
 		return true, nil
 	}
 	latestChartConfiguredInApp, err := impl.FindLatestChartForAppByAppId(appId)
