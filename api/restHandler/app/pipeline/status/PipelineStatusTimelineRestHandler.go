@@ -33,13 +33,18 @@ type PipelineStatusTimelineRestHandlerImpl struct {
 }
 
 func NewPipelineStatusTimelineRestHandlerImpl(logger *zap.SugaredLogger,
+	userService user.UserService,
 	pipelineStatusTimelineService status.PipelineStatusTimelineService, enforcerUtil rbac.EnforcerUtil,
-	enforcer casbin.Enforcer) *PipelineStatusTimelineRestHandlerImpl {
+	enforcer casbin.Enforcer, cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler,
+	pipeline pipeline.PipelineBuilder) *PipelineStatusTimelineRestHandlerImpl {
 	return &PipelineStatusTimelineRestHandlerImpl{
-		logger:                        logger,
-		pipelineStatusTimelineService: pipelineStatusTimelineService,
-		enforcerUtil:                  enforcerUtil,
-		enforcer:                      enforcer,
+		logger:                           logger,
+		userService:                      userService,
+		pipelineStatusTimelineService:    pipelineStatusTimelineService,
+		enforcerUtil:                     enforcerUtil,
+		enforcer:                         enforcer,
+		cdApplicationStatusUpdateHandler: cdApplicationStatusUpdateHandler,
+		pipeline:                         pipeline,
 	}
 }
 
