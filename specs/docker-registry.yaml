@@ -1,0 +1,135 @@
+openapi: 3.0.3
+info:
+  title: Title
+  description: Title
+  version: 1.0.0
+
+paths:
+  /orchestrator/docker/registry:
+    post:
+      description: Save Docker Registry
+      operationId: SaveDockerRegistryConfig
+      requestBody:
+        description: A JSON object containing the registry config
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DockerArtifactStoreBean'
+      responses:
+        '200':
+          description: Successfully save the registry
+          content:
+            application/json:
+              schema:
+                type: string
+                example: "Container Registry deleted successfully."
+        '400':
+          description: Bad Request. Input Validation(decode) error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    Error:
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          description: Error code
+        message:
+          type: string
+          description: Error message
+    DockerArtifactStoreBean:
+      type: object
+      properties:
+        id:
+          type: integer
+        pluginId:
+          type: string
+        registryUrl:
+          type: string
+        registryType:
+          type: string
+        isOCICompliantRegistry:
+          type: boolean
+        ociRegistryConfig:
+          type: object
+        isPublic:
+          type: boolean
+        repositoryList:
+          type: array
+          items:
+            type: string
+        awsAccessKeyId:
+          type: string
+        awsSecretAccessKey:
+          type: string
+        awsRegion:
+          type: string
+        username:
+          type: string
+        password:
+          type: string
+        isDefault:
+          type: boolean
+        active:
+          type: boolean
+        connection:
+          type: string
+        cert:
+          type: string
+        disabledFields:
+          type: array
+          items:
+            type: string
+        ipsConfig:
+          $ref: '#/components/schemas/DockerRegistryIpsConfigBean'
+        airGappedConfig:
+          $ref: '#/components/schemas/DockerRegistryAirGappedConfig'
+    DockerRegistryAirGappedConfig:
+      type: object
+      properties:
+        proxyUrl:
+          type: string
+        toConnectWithSSHTunnel:
+          type: boolean
+        SSHTunnelUser:
+          type: string
+        SSHTunnelPassword:
+          type: string
+        SSHTunnelAuthKey:
+          type: string
+        SSHTunnelServerAddress:
+          type: string
+    DockerRegistryIpsConfigBean:
+      type: object
+      properties:
+        id:
+          type: integer
+        credentialType:
+          type: string
+        credentialValue:
+          type: string
+        appliedClusterIdsCsv:
+          type: string
+        ignoredClusterIdsCsv:
+          type: string
+        active:
+          type: boolean
