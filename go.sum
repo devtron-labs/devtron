@@ -219,8 +219,8 @@ github.com/deckarep/golang-set v1.8.0 h1:sk9/l/KqpunDwP7pSjUg0keiOOLEnOBHzykLrsP
 github.com/deckarep/golang-set v1.8.0/go.mod h1:5nI87KwE7wgsBU1F4GKAw2Qod7p5kyS383rP6+o6qqo=
 github.com/denisenkom/go-mssqldb v0.0.0-20190707035753-2be1aa521ff4 h1:YcpmyvADGYw5LqMnHqSkyIELsHCGF6PkrmM31V8rF7o=
 github.com/denisenkom/go-mssqldb v0.0.0-20190707035753-2be1aa521ff4/go.mod h1:zAg7JM8CkOJ43xKXIj7eRO9kmWm/TW578qo+oDO6tuM=
-github.com/devtron-labs/authenticator v0.4.34-0.20240208084114-6e2552488da8 h1:1vUwC7qRUpMK2G4uL3u6sOr6WCgzWit/8kBuUsqb0Ys=
-github.com/devtron-labs/authenticator v0.4.34-0.20240208084114-6e2552488da8/go.mod h1:a5gxST+HNmJReXE2TkCicFQFWtlhp8eqBRwS23GydNE=
+github.com/devtron-labs/authenticator v0.4.35-0.20240213065325-94085b564bfa h1:cF1CPAtqUDBRtLL4pTn4Eh8jWGBq/mHEeAMCkGv+GCs=
+github.com/devtron-labs/authenticator v0.4.35-0.20240213065325-94085b564bfa/go.mod h1:a5gxST+HNmJReXE2TkCicFQFWtlhp8eqBRwS23GydNE=
 github.com/devtron-labs/common-lib v0.0.14 h1:7P0Z87Des8Bni+aVHhPITjzKITuCVOjwAHOgElrh/rk=
 github.com/devtron-labs/common-lib v0.0.14/go.mod h1:95/DizzVXu1kHap/VwEvdxwgd+BvPVYc0bJzt8yqGDU=
 github.com/devtron-labs/protos v0.0.3-0.20240130061723-7b2e12ab0abb h1:CkfQQgZc950/hTPqtQSiHV2RmZgkBLGCzwR02FZYjAU=
