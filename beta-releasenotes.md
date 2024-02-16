@@ -1,4 +1,5 @@
 ## Bugs
+- fix: updated rbac for argo apps listing and detail fetch apis (#4678)
 - fix: nil pointer issue in manual sync api (#4681)
 - fix: add milli unit in memory (#4671)
 - fix: resource terminal update api (#4641)
