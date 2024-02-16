@@ -174,7 +174,7 @@ func (impl *GitOpsValidationServiceImpl) ValidateCustomGitRepoURL(request gitOps
 		return "", false, impl.extractErrorMessageByProvider(err, request.GitOpsProvider)
 	}
 
-	if request.GitRepoURL != apiBean.GIT_REPO_DEFAULT {
+	if request.GitRepoURL != apiBean.GIT_REPO_DEFAULT && len(request.GitRepoURL) != 0 {
 		// For custom git repo; we expect the chart is not present hence setting isNew flag to be true.
 		chartGitAttribute.IsNewRepo = true
 
