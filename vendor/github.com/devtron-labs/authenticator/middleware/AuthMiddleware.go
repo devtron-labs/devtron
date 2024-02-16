@@ -68,18 +68,22 @@ func Authorizer(sessionManager *SessionManager, whitelistChecker func(url string
 				}
 				pass = true
 
-				// checking user status in db
-				isInactive, userId, err := userStatusCheckInDb(token)
-				if err != nil {
-					writeResponse(http.StatusUnauthorized, "Invalid User", w, err)
-					return
-				} else if isInactive {
-					writeResponse(http.StatusUnauthorized, "Inactive User", w, fmt.Errorf("inactive User"))
-					return
-				}
+				// this function only supplied in case of enterprise build. handled here for all other case.
+				if userStatusCheckInDb != nil {
 
-				//setting user id in context
-				context.WithValue(r.Context(), "userId", userId)
+					// checking user status in db
+					isInactive, userId, err := userStatusCheckInDb(token)
+					if err != nil {
+						writeResponse(http.StatusUnauthorized, "Invalid User", w, err)
+						return
+					} else if isInactive {
+						writeResponse(http.StatusUnauthorized, "Inactive User", w, fmt.Errorf("inactive User"))
+						return
+					}
+
+					//setting user id in context
+					context.WithValue(r.Context(), "userId", userId)
+				}
 			}
 			if pass {
 				next.ServeHTTP(w, r)
