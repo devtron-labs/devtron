@@ -19,6 +19,7 @@ package bean
 
 import (
 	"encoding/json"
+	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"time"
 )
 
@@ -29,19 +30,20 @@ type UserRole struct {
 }
 
 type UserInfo struct {
-	Id           int32        `json:"id" validate:"number"`
-	EmailId      string       `json:"email_id" validate:"required"`
-	Roles        []string     `json:"roles,omitempty"`
-	AccessToken  string       `json:"access_token,omitempty"`
-	UserType     string       `json:"-"`
-	LastUsedAt   time.Time    `json:"-"`
-	LastUsedByIp string       `json:"-"`
-	Exist        bool         `json:"-"`
-	UserId       int32        `json:"-"` // created or modified user id
-	RoleFilters  []RoleFilter `json:"roleFilters"`
-	Status       string       `json:"status,omitempty"`
-	Groups       []string     `json:"groups"`
-	SuperAdmin   bool         `json:"superAdmin,notnull"`
+	Id            int32        `json:"id" validate:"number,not-system-admin-userid"`
+	EmailId       string       `json:"emailId" validate:"required,not-system-admin-user"`
+	Roles         []string     `json:"roles,omitempty"`
+	AccessToken   string       `json:"access_token,omitempty"`
+	RoleFilters   []RoleFilter `json:"roleFilters"`
+	Status        string       `json:"status,omitempty"`
+	Groups        []string     `json:"groups"` // this will be deprecated in future do not use
+	SuperAdmin    bool         `json:"superAdmin,notnull"`
+	LastLoginTime time.Time    `json:"lastLoginTime"`
+	UserType      string       `json:"-"`
+	LastUsedAt    time.Time    `json:"-"`
+	LastUsedByIp  string       `json:"-"`
+	Exist         bool         `json:"-"`
+	UserId        int32        `json:"-"` // created or modified user id
 }
 
 type RoleGroup struct {
@@ -117,3 +119,23 @@ const (
 	CHART_GROUP_ENTITY              = "chart-group"
 	CLUSTER_ENTITIY                 = "cluster"
 )
+
+type UserListingResponse struct {
+	Users      []UserInfo `json:"users"`
+	TotalCount int        `json:"totalCount"`
+}
+
+type RoleGroupListingResponse struct {
+	RoleGroups []*RoleGroup `json:"roleGroups"`
+	TotalCount int          `json:"totalCount"`
+}
+
+type FetchListingRequest struct {
+	SearchKey  string         `json:"searchKey"`
+	SortOrder  bean.SortOrder `json:"sortOrder"`
+	SortBy     bean.SortBy    `json:"sortBy"`
+	Offset     int            `json:"offset"`
+	Size       int            `json:"size"`
+	ShowAll    bool           `json:"showAll"`
+	CountCheck bool           `json:"-"`
+}

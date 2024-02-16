@@ -3,6 +3,7 @@
 
 #DOCS
 docs/ @ashokdevtron @uxarya-d @prakarsh-dt
+.gitbook.yaml @uxarya-d @prakarsh-dt
 
 #Helm Charts
 charts/devtron/ @prakarsh-dt @pawan-mehta-dt @nishant-d

@@ -63,7 +63,7 @@ type InstalledAppDto struct {
 }
 
 type InstallAppVersionDTO struct {
-	Id                           int                            `json:"id,omitempty"`
+	Id                           int                            `json:"id,omitempty"` // TODO: redundant data; refers to InstalledAppVersionId
 	AppId                        int                            `json:"appId,omitempty"`
 	AppName                      string                         `json:"appName,omitempty"`
 	TeamId                       int                            `json:"teamId,omitempty"`
@@ -76,8 +76,8 @@ type InstallAppVersionDTO struct {
 	ValuesOverrideYaml           string                         `json:"valuesOverrideYaml,omitempty"`
 	Readme                       string                         `json:"readme,omitempty"`
 	UserId                       int32                          `json:"-"`
-	ReferenceValueId             int                            `json:"referenceValueId, omitempty" validate:"required,number"`
-	ReferenceValueKind           string                         `json:"referenceValueKind, omitempty" validate:"oneof=DEFAULT TEMPLATE DEPLOYED EXISTING"`
+	ReferenceValueId             int                            `json:"referenceValueId, omitempty" validate:"required,number"`                            // TODO: ineffective usage of omitempty; can be removed
+	ReferenceValueKind           string                         `json:"referenceValueKind, omitempty" validate:"oneof=DEFAULT TEMPLATE DEPLOYED EXISTING"` // TODO: ineffective usage of omitempty; can be removed
 	ACDAppName                   string                         `json:"-"`
 	Environment                  *repository2.Environment       `json:"-"`
 	ChartGroupEntryId            int                            `json:"-"`
@@ -96,14 +96,22 @@ type InstallAppVersionDTO struct {
 	GitHash                      string                         `json:"gitHash"`
 	EnvironmentName              string                         `json:"-"`
 	InstallAppVersionChartDTO    *InstallAppVersionChartDTO     `json:"-"`
-	DeploymentAppType            string                         `json:"deploymentAppType"`
+	DeploymentAppType            string                         `json:"deploymentAppType"` // TODO: instead of string, use enum
 	AcdPartialDelete             bool                           `json:"acdPartialDelete"`
 	InstalledAppDeleteResponse   *InstalledAppDeleteResponseDTO `json:"deleteResponse,omitempty"`
 	AppStoreApplicationVersionId int
-	PerformGitOpsForHelmApp      bool `json:"performGitOpsForHelmApp"`
-	PerformGitOps                bool `json:"performGitOps"`
-	PerformACDDeployment         bool `json:"performACDDeployment"`
-	PerformHelmDeployment        bool `json:"performHelmDeployment"`
+}
+
+func (chart *InstallAppVersionDTO) UpdateDeploymentAppType(deploymentAppType string) {
+	chart.DeploymentAppType = deploymentAppType
+}
+
+// InstalledAppDeploymentAction is an internal struct for Helm App deployment; used to decide the deployment steps to be performed
+type InstalledAppDeploymentAction struct {
+	PerformGitOpsForHelmApp bool
+	PerformGitOps           bool
+	PerformACDDeployment    bool
+	PerformHelmDeployment   bool
 }
 
 type InstalledAppDeleteResponseDTO struct {
@@ -129,6 +137,10 @@ type InstallAppVersionChartRepoDTO struct {
 // /
 type RefChartProxyDir string
 
+const (
+	RefChartProxyDirPath = "scripts/devtron-reference-helm-charts"
+)
+
 var CHART_PROXY_TEMPLATE = "reference-chart-proxy"
 var REQUIREMENTS_YAML_FILE = "requirements.yaml"
 var VALUES_YAML_FILE = "values.yaml"
@@ -144,7 +156,7 @@ type InstalledAppsResponse struct {
 	EnvironmentName              string    `json:"environmentName"`
 	DeployedAt                   time.Time `json:"deployedAt"`
 	DeployedBy                   string    `json:"deployedBy"`
-	DeploymentAppType            string    `json:"deploymentAppType,omitempty"`
+	DeploymentAppType            string    `json:"deploymentAppType,omitempty"` // TODO: instead of string, use enum
 	InstalledAppsId              int       `json:"installedAppId"`
 	Readme                       string    `json:"readme"`
 	EnvironmentId                int       `json:"environmentId"`
@@ -337,15 +349,6 @@ const (
 func (a AppstoreDeploymentStatus) String() string {
 	return [...]string{"WF_UNKNOWN", "REQUEST_ACCEPTED", "ENQUEUED", "QUE_ERROR", "DEQUE_ERROR", "TRIGGER_ERROR", "DEPLOY_SUCCESS", "DEPLOY_INIT", "GIT_ERROR", "GIT_SUCCESS", "ACD_ERROR", "ACD_SUCCESS", "HELM_ERROR",
 		"HELM_SUCCESS"}[a]
-}
-
-type PushChartToGitRequestDTO struct {
-	AppName           string
-	EnvName           string
-	ChartAppStoreName string
-	RepoURL           string
-	TempChartRefDir   string
-	UserId            int32
 }
 
 type HelmReleaseStatusConfig struct {

@@ -10,7 +10,7 @@ There are two main steps in executing Job:
 
 * [Configurations](configuration-job.md)
 
-* [Trigger Job](triggering-cd.md)
+* [Trigger Job](triggering-job.md)
 
 In the next section, we will learn on how to create, configure, trigger a job. You can also view the details on the [Overview](overview-job.md) tab and `Run History`.
 
