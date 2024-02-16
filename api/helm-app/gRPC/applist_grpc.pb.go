@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.2.0
 // - protoc             v3.9.1
-// source: api/helm-app/applist.proto
+// source: api/helm-app/gRPC/applist.proto
 
 package gRPC
 
@@ -42,6 +42,7 @@ type ApplicationServiceClient interface {
 	GetNotes(ctx context.Context, in *InstallReleaseRequest, opts ...grpc.CallOption) (*ChartNotesResponse, error)
 	UpgradeReleaseWithCustomChart(ctx context.Context, in *UpgradeReleaseRequest, opts ...grpc.CallOption) (*UpgradeReleaseResponse, error)
 	ValidateOCIRegistry(ctx context.Context, in *RegistryCredential, opts ...grpc.CallOption) (*OCIRegistryResponse, error)
+	GetResourceTreeForExternalResources(ctx context.Context, in *ExternalResourceTreeRequest, opts ...grpc.CallOption) (*ResourceTreeResponse, error)
 }
 
 type applicationServiceClient struct {
@@ -255,6 +256,15 @@ func (c *applicationServiceClient) ValidateOCIRegistry(ctx context.Context, in *
 	return out, nil
 }
 
+func (c *applicationServiceClient) GetResourceTreeForExternalResources(ctx context.Context, in *ExternalResourceTreeRequest, opts ...grpc.CallOption) (*ResourceTreeResponse, error) {
+	out := new(ResourceTreeResponse)
+	err := c.cc.Invoke(ctx, "/ApplicationService/GetResourceTreeForExternalResources", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ApplicationServiceServer is the server API for ApplicationService service.
 // All implementations must embed UnimplementedApplicationServiceServer
 // for forward compatibility
@@ -279,6 +289,7 @@ type ApplicationServiceServer interface {
 	GetNotes(context.Context, *InstallReleaseRequest) (*ChartNotesResponse, error)
 	UpgradeReleaseWithCustomChart(context.Context, *UpgradeReleaseRequest) (*UpgradeReleaseResponse, error)
 	ValidateOCIRegistry(context.Context, *RegistryCredential) (*OCIRegistryResponse, error)
+	GetResourceTreeForExternalResources(context.Context, *ExternalResourceTreeRequest) (*ResourceTreeResponse, error)
 	mustEmbedUnimplementedApplicationServiceServer()
 }
 
@@ -345,6 +356,9 @@ func (UnimplementedApplicationServiceServer) UpgradeReleaseWithCustomChart(conte
 }
 func (UnimplementedApplicationServiceServer) ValidateOCIRegistry(context.Context, *RegistryCredential) (*OCIRegistryResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ValidateOCIRegistry not implemented")
+}
+func (UnimplementedApplicationServiceServer) GetResourceTreeForExternalResources(context.Context, *ExternalResourceTreeRequest) (*ResourceTreeResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetResourceTreeForExternalResources not implemented")
 }
 func (UnimplementedApplicationServiceServer) mustEmbedUnimplementedApplicationServiceServer() {}
 
@@ -722,6 +736,24 @@ func _ApplicationService_ValidateOCIRegistry_Handler(srv interface{}, ctx contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ApplicationService_GetResourceTreeForExternalResources_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ExternalResourceTreeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ApplicationServiceServer).GetResourceTreeForExternalResources(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/ApplicationService/GetResourceTreeForExternalResources",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ApplicationServiceServer).GetResourceTreeForExternalResources(ctx, req.(*ExternalResourceTreeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ApplicationService_ServiceDesc is the grpc.ServiceDesc for ApplicationService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -805,6 +837,10 @@ var ApplicationService_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "ValidateOCIRegistry",
 			Handler:    _ApplicationService_ValidateOCIRegistry_Handler,
 		},
+		{
+			MethodName: "GetResourceTreeForExternalResources",
+			Handler:    _ApplicationService_GetResourceTreeForExternalResources_Handler,
+		},
 	},
 	Streams: []grpc.StreamDesc{
 		{
@@ -813,5 +849,5 @@ var ApplicationService_ServiceDesc = grpc.ServiceDesc{
 			ServerStreams: true,
 		},
 	},
-	Metadata: "api/helm-app/applist.proto",
+	Metadata: "api/helm-app/gRPC/applist.proto",
 }
