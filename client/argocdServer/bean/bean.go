@@ -34,6 +34,7 @@ type ResourceTreeResponse struct {
 	RevisionHash             string                          `json:"revisionHash"`
 	PodMetadata              []*PodMetadata                  `json:"podMetadata"`
 	Conditions               []v1alpha1.ApplicationCondition `json:"conditions"`
+	ResourcesSyncResultMap   map[string]string               `json:"resourcesSyncResult"`
 }
 
 type PodMetadata struct {

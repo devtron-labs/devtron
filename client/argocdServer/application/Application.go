@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
@@ -171,6 +172,7 @@ func (c ServiceClientImpl) ResourceTree(ctxt context.Context, query *application
 	appQuery := application.ApplicationQuery{Name: query.ApplicationName}
 	app, err := asc.Watch(ctxt, &appQuery)
 	var conditions = make([]v1alpha1.ApplicationCondition, 0)
+	resourcesSyncResultMap := make(map[string]string)
 	status := "Unknown"
 	hash := ""
 	if app != nil {
@@ -178,13 +180,23 @@ func (c ServiceClientImpl) ResourceTree(ctxt context.Context, query *application
 		if err == nil {
 			// https://github.com/argoproj/argo-cd/issues/11234 workaround
 			updateNodeHealthStatus(resp, appResp)
-
-			status = string(appResp.Application.Status.Health.Status)
-			hash = appResp.Application.Status.Sync.Revision
-			conditions = appResp.Application.Status.Conditions
+			argoApplicationStatus := appResp.Application.Status
+			status = string(argoApplicationStatus.Health.Status)
+			hash = argoApplicationStatus.Sync.Revision
+			conditions = argoApplicationStatus.Conditions
 			for _, condition := range conditions {
 				if condition.Type != v1alpha1.ApplicationConditionSharedResourceWarning {
 					status = "Degraded"
+				}
+			}
+			if argoApplicationStatus.OperationState != nil && argoApplicationStatus.OperationState.SyncResult != nil {
+				resourcesSyncResults := argoApplicationStatus.OperationState.SyncResult.Resources
+				for _, resourcesSyncResult := range resourcesSyncResults {
+					if resourcesSyncResult == nil {
+						continue
+					}
+					resourceIdentifier := fmt.Sprintf("%s/%s", resourcesSyncResult.Kind, resourcesSyncResult.Name)
+					resourcesSyncResultMap[resourceIdentifier] = resourcesSyncResult.Message
 				}
 			}
 			if status == "" {
@@ -192,7 +204,15 @@ func (c ServiceClientImpl) ResourceTree(ctxt context.Context, query *application
 			}
 		}
 	}
-	return &argoApplication.ResourceTreeResponse{resp, newReplicaSets, status, hash, podMetadata, conditions}, err
+	return &argoApplication.ResourceTreeResponse{
+		ApplicationTree:          resp,
+		Status:                   status,
+		RevisionHash:             hash,
+		PodMetadata:              podMetadata,
+		Conditions:               conditions,
+		NewGenerationReplicaSets: newReplicaSets,
+		ResourcesSyncResultMap:   resourcesSyncResultMap,
+	}, err
 }
 
 func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, responses []*argoApplication.Result) (podMetaData []*argoApplication.PodMetadata, newReplicaSets []string) {
