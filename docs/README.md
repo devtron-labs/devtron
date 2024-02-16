@@ -81,7 +81,3 @@ Get updates on Devtron's development and chat with the project maintainers, cont
 ## Vulnerability Reporting
  
 We, at Devtron, take security and our users' trust very seriously. If you believe you have found a security issue in Devtron, please responsibly disclose it by contacting us at **security@devtron.ai**.
- 
-## License
- 
-Devtron is available under the [Apache License, Version 2.0](https://github.com/devtron-labs/devtron/blob/main/LICENSE).
