@@ -1,4 +1,4 @@
-package client
+package service
 
 import (
 	"strings"
