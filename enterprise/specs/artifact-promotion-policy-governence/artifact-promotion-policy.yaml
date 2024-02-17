@@ -684,9 +684,15 @@ components:
           type: string
         appId:
           type: integer
-        # newly added property in the workflow object
-        artifactPromotionConfigured:
-          type: boolean
+        artifactPromotionMetaData:  # Nesting meta info related to image promotion object
+          type: object
+          properties:
+            isConfigured:
+              type: boolean
+              description: "Indicates if a promotion policy is attached to this workflow"
+            approvalPendingCount:
+              type: integer
+              description: "Number of images pending for approval(image-promotion) for this workflow"
         tree:
           type: array
           items:
