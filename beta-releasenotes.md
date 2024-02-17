@@ -16,6 +16,7 @@
 - feat: added support for multiple gitops configurations on shared clusters (#4622)
 - feat: added support for downloading pod logs (#4539)
 ## Documentation
+- doc: Added Build Infra Doc (#4686)
 - doc: added troubleshooting guide for exit status 128 (#4657)
 - doc: Added redirection with file type (#4675)
 - doc: Fixed Redirections and Broken Links (#4634)
