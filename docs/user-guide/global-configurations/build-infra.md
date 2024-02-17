@@ -2,11 +2,11 @@
 
 ## Introduction
 
-The [CI process](../creating-application/workflow/ci-pipeline.md) involves activities that require infra resources such as CPU, memory (RAM), and many more. The amount of resources depends on the complexity of the application. In other words, large applications require more resources compared to small applications.
+The [CI process](../creating-application/workflow/ci-pipeline.md) involves activities that require infra resources such as CPU, memory (RAM), and many more. The amount of resources required depends on the complexity of the application. In other words, large applications require more resources compared to small applications.
 
-Therefore, applying a common infra configuration to all applications is not optimal. Since resources incur heavy costs, it's wise to efficiently allocate resources (*not more, not less*).
+Therefore, applying a common infra configuration to all applications is not optimal. Since resources incur heavy costs, it's wise to efficiently allocate resources (*not more, not less*). 
 
-With the 'Build Infra' feature, Devtron makes it possible for you to tweak the resources as per the needs of your applications.
+With the 'Build Infra' feature, Devtron makes it possible for you to tweak the resources as per the needs of your applications. The build (ci-runner) pod will be scheduled on an available node (considering applied taints and tolerations) in the cluster on which 'Devtron' is installed.
 
 {% hint style="warning" %}
 ### Who Can Perform This Action?
@@ -115,7 +115,7 @@ If you delete a profile attached to one or more applications, the [default profi
 
 ### Need More Options?
 
-If you need extra control on the build infra configuration apart from CPU and memory, feel free to open a [GitHub issue](https://github.com/devtron-labs/devtron/issues) for us to help you.
+If you need extra control on the build infra configuration apart from CPU, memory, and build timeout, feel free to open a [GitHub issue](https://github.com/devtron-labs/devtron/issues) for us to help you.
 
 ---
 
