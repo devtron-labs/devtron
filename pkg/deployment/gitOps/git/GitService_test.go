@@ -10,7 +10,7 @@ import (
 func getTestGithubClient() GitHubClient {
 	logger, err := util.NewSugardLogger()
 	gitCliUtl := NewGitCliUtil(logger)
-	gitService := NewGitServiceImpl(&bean2.GitConfig{GitToken: "", GitUserName: "nishant"}, logger, gitCliUtl)
+	gitService := NewGitOpsHelperImpl(&bean2.GitConfig{GitToken: "", GitUserName: "nishant"}, logger, gitCliUtl)
 
 	githubClient, err := NewGithubClient("", "", "test-org", logger, gitService)
 	if err != nil {

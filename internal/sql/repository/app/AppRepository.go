@@ -30,7 +30,7 @@ import (
 type App struct {
 	tableName       struct{}       `sql:"app" pg:",discard_unknown_columns"`
 	Id              int            `sql:"id,pk"`
-	AppName         string         `sql:"app_name,notnull"` //same as app name
+	AppName         string         `sql:"app_name,notnull"` // same as app name
 	DisplayName     string         `sql:"display_name"`
 	Active          bool           `sql:"active, notnull"`
 	TeamId          int            `sql:"team_id"`
@@ -77,6 +77,7 @@ type AppRepository interface {
 	FindAllActiveAppsWithTeamByAppNameMatch(appNameMatch string, appType helper.AppType) ([]*App, error)
 	FindAppAndProjectByIdsIn(ids []int) ([]*App, error)
 	FetchAppIdsByDisplayNamesForJobs(names []string) (map[int]string, []int, error)
+	GetActiveCiCdAppsCount() (int, error)
 }
 
 const DevtronApp = "DevtronApp"
@@ -463,4 +464,11 @@ func (repo AppRepositoryImpl) FetchAppIdsByDisplayNamesForJobs(names []string) (
 		jobIds = append(jobIds, id.Id)
 	}
 	return appResp, jobIds, err
+}
+
+func (repo AppRepositoryImpl) GetActiveCiCdAppsCount() (int, error) {
+	return repo.dbConnection.Model(&App{}).
+		Where("active=?", true).
+		Where("app_type=?", helper.CustomApp).
+		Count()
 }
