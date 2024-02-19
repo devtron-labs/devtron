@@ -44,6 +44,7 @@
   * [Scoped Variables](user-guide/global-configurations/scoped-variables.md)
   * [Tags Policy](user-guide/global-configurations/tags-policy.md)
   * [Filter Condition](user-guide/global-configurations/filter-condition.md)
+  * [Build Infra](user-guide/global-configurations/build-infra.md)
 * [Devtron Upgrade](setup/upgrade/README.md)
   * [Update Devtron from Devtron UI](setup/upgrade/upgrade-devtron-ui.md)
   * [0.5.x-0.6.x](setup/upgrade/devtron-upgrade-0.5.x-0.6.x.md)
