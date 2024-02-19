@@ -5,6 +5,45 @@ info:
   version: 1.0.0
 
 paths:
+  /orchestrator/docker/registry/validate:
+    post:
+      description: Validate Docker Registry
+      operationId: ValidateDockerRegistryConfig
+      requestBody:
+        description: A JSON object containing the registry config
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DockerArtifactStoreBean'
+      responses:
+        '200':
+          description: Successfully validate the registry
+        '400':
+          description: Bad Request. Input Validation(decode) error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /orchestrator/docker/registry:
     post:
       description: Save Docker Registry
@@ -19,6 +58,90 @@ paths:
       responses:
         '200':
           description: Successfully save the registry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DockerArtifactStoreBean'
+        '400':
+          description: Bad Request. Input Validation(decode) error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      description: Update Docker Registry
+      operationId: UpdateDockerRegistryConfig
+      requestBody:
+        description: A JSON object containing the registry config
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DockerArtifactStoreBean'
+      responses:
+        '200':
+          description: Successfully updated the registry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DockerArtifactStoreBean'
+        '400':
+          description: Bad Request. Input Validation(decode) error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      description: Delete Docker Registry
+      operationId: DeleteDockerRegistryConfig
+      requestBody:
+        description: A JSON object containing the registry config
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DockerArtifactStoreBean'
+      responses:
+        '200':
+          description: Successfully deleted the registry
           content:
             application/json:
               schema:
@@ -42,6 +165,97 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/docker/registry/active:
+    get:
+      description: Get all active Docker Registry
+      operationId: GetDockerArtifactStore
+      responses:
+        '200':
+          description: Successfully fetched all active registries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DockerArtifactStoreBean'
+        '400':
+          description: Bad Request. Input Validation(decode) error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/docker/registry/configure/status:
+    get:
+      description: Check registry status
+      operationId: IsDockerRegConfigured
+      parameters:
+        - name: storageType
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: storageAction
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully fetched configured registry status
+          content:
+            application/json:
+              schema:
+                type: boolean
+        '400':
+          description: Bad Request. Input Validation(decode) error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
 components:
   schemas:
@@ -58,6 +272,7 @@ components:
           description: Error message
     DockerArtifactStoreBean:
       type: object
+      description: ""
       properties:
         id:
           type: integer
@@ -104,6 +319,7 @@ components:
         airGappedConfig:
           $ref: '#/components/schemas/DockerRegistryAirGappedConfig'
     DockerRegistryAirGappedConfig:
+      description: "holds the air gapped config for registry"
       type: object
       properties:
         proxyUrl:
