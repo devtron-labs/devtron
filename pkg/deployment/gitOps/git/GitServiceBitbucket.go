@@ -20,18 +20,18 @@ const (
 )
 
 type GitBitbucketClient struct {
-	client     *bitbucket.Client
-	logger     *zap.SugaredLogger
-	gitService GitService
+	client       *bitbucket.Client
+	logger       *zap.SugaredLogger
+	gitOpsHelper *GitOpsHelper
 }
 
-func NewGitBitbucketClient(username, token, host string, logger *zap.SugaredLogger, gitService GitService) GitBitbucketClient {
+func NewGitBitbucketClient(username, token, host string, logger *zap.SugaredLogger, gitOpsHelper *GitOpsHelper) GitBitbucketClient {
 	coreClient := bitbucket.NewBasicAuth(username, token)
 	logger.Infow("bitbucket client created", "clientDetails", coreClient)
 	return GitBitbucketClient{
-		client:     coreClient,
-		logger:     logger,
-		gitService: gitService,
+		client:       coreClient,
+		logger:       logger,
+		gitOpsHelper: gitOpsHelper,
 	}
 }
 
@@ -181,7 +181,7 @@ func (impl GitBitbucketClient) CreateReadme(config *bean2.GitOpsConfigDto) (stri
 func (impl GitBitbucketClient) ensureProjectAvailabilityOnSsh(repoOptions *bitbucket.RepositoryOptions) (bool, error) {
 	repoUrl := fmt.Sprintf(BITBUCKET_CLONE_BASE_URL+"%s/%s.git", repoOptions.Owner, repoOptions.RepoSlug)
 	for count := 0; count < 5; count++ {
-		_, err := impl.gitService.Clone(repoUrl, fmt.Sprintf("/ensure-clone/%s", repoOptions.RepoSlug))
+		_, err := impl.gitOpsHelper.Clone(repoUrl, fmt.Sprintf("/ensure-clone/%s", repoOptions.RepoSlug))
 		if err == nil {
 			impl.logger.Infow("ensureProjectAvailability clone passed bitbucket", "try count", count, "repoUrl", repoUrl)
 			return true, nil

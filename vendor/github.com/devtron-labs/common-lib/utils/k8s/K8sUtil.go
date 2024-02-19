@@ -130,7 +130,7 @@ type K8sService interface {
 	PatchResourceRequest(ctx context.Context, restConfig *rest.Config, pt types.PatchType, manifest string, name string, namespace string, gvk schema.GroupVersionKind) (*ManifestResponse, error)
 	GetResourceList(ctx context.Context, restConfig *rest.Config, gvk schema.GroupVersionKind, namespace string) (*ResourceListResponse, bool, error)
 	GetResourceIfWithAcceptHeader(restConfig *rest.Config, groupVersionKind schema.GroupVersionKind) (resourceIf dynamic.NamespaceableResourceInterface, namespaced bool, err error)
-	GetPodLogs(ctx context.Context, restConfig *rest.Config, name string, namespace string, sinceTime *metav1.Time, tailLines int, follow bool, containerName string, isPrevContainerLogsEnabled bool) (io.ReadCloser, error)
+	GetPodLogs(ctx context.Context, restConfig *rest.Config, name string, namespace string, sinceTime *metav1.Time, tailLines int, sinceSeconds int, follow bool, containerName string, isPrevContainerLogsEnabled bool) (io.ReadCloser, error)
 	ListEvents(restConfig *rest.Config, namespace string, groupVersionKind schema.GroupVersionKind, ctx context.Context, name string) (*v1.EventList, error)
 	GetResourceIf(restConfig *rest.Config, groupVersionKind schema.GroupVersionKind) (resourceIf dynamic.NamespaceableResourceInterface, namespaced bool, err error)
 	FetchConnectionStatusForCluster(k8sClientSet *kubernetes.Clientset) error
@@ -1490,7 +1490,6 @@ func (impl *K8sServiceImpl) DeleteResource(ctx context.Context, restConfig *rest
 	if len(namespace) > 0 && namespaced {
 		obj, err = resourceIf.Namespace(namespace).Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
-			err = &utils.ApiError{Code: "404", HttpStatusCode: 404, UserMessage: "error on getting resource"}
 			impl.logger.Errorw("error in getting resource", "err", err, "resource", name, "namespace", namespace)
 			return nil, err
 		}
@@ -1498,7 +1497,6 @@ func (impl *K8sServiceImpl) DeleteResource(ctx context.Context, restConfig *rest
 	} else {
 		obj, err = resourceIf.Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
-			err = &utils.ApiError{Code: "404", HttpStatusCode: 404, UserMessage: "error on getting resource"}
 			impl.logger.Errorw("error in getting resource", "err", err, "resource", name, "namespace", namespace)
 			return nil, err
 		}

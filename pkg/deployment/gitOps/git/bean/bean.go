@@ -1,5 +1,9 @@
 package bean
 
+import (
+	git "github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/commandManager"
+)
+
 type ChartProxyReqDto struct {
 	GitOpsRepoName string `json:"gitOpsRepoName"`
 	AppName        string `json:"appName,omitempty"`
@@ -27,4 +31,11 @@ type PushChartToGitRequestDTO struct {
 	RepoURL           string
 	TempChartRefDir   string
 	UserId            int32
+}
+
+func (cfg GitConfig) GetAuth() *git.BasicAuth {
+	return &git.BasicAuth{
+		Username: cfg.GitUserName,
+		Password: cfg.GitToken,
+	}
 }

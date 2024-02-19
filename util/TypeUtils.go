@@ -1,6 +1,7 @@
 package util
 
 import (
+	"math"
 	"strconv"
 	"strings"
 )
@@ -55,4 +56,29 @@ func GetMapValuesPtr[T any](valueMap map[string]*T) []*T {
 		values = append(values, valueMap[key])
 	}
 	return values
+}
+
+func Transform[T any, K any](input []T, transform func(inp T) K) []K {
+
+	res := make([]K, len(input))
+	for i, _ := range input {
+		res[i] = transform(input[i])
+	}
+	return res
+
+}
+
+func Contains[T any](input []T, check func(inp T) bool) bool {
+	for i, _ := range input {
+		if check(input[i]) {
+			return true
+		}
+	}
+	return false
+}
+
+// TruncateFloat truncates a float64 value to n decimal points using the math package.
+func TruncateFloat(value float64, decimals int) float64 {
+	pow10 := math.Pow10(decimals)
+	return math.Trunc(value*pow10) / pow10
 }

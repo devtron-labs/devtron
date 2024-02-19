@@ -3,6 +3,7 @@ package capacity
 import (
 	"context"
 	"fmt"
+	"github.com/devtron-labs/common-lib/utils"
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/k8s"
@@ -569,6 +570,12 @@ func (impl *K8sCapacityServiceImpl) DeleteNode(ctx context.Context, request *bea
 	// Here Sending userId as 0 as appIdentifier is being sent nil so user id is not used in method. Update userid if appIdentifier is used
 	manifestResponse, err := impl.k8sCommonService.DeleteResource(ctx, resourceRequest)
 	if err != nil {
+		if k8s.IsResourceNotFoundErr(err) {
+			return nil, &utils.ApiError{Code: "404",
+				HttpStatusCode:  http.StatusNotFound,
+				InternalMessage: err.Error(),
+				UserMessage:     k8s.ResourceNotFoundErr}
+		}
 		impl.logger.Errorw("error in deleting node", "err", err)
 		return nil, err
 	}

@@ -71,6 +71,7 @@ type HelmAppService interface {
 	GetNotes(ctx context.Context, request *gRPC.InstallReleaseRequest) (string, error)
 	ValidateOCIRegistry(ctx context.Context, OCIRegistryRequest *gRPC.RegistryCredential) bool
 	GetRevisionHistoryMaxValue(appType bean.SourceAppType) int32
+	GetResourceTreeForExternalResources(ctx context.Context, clusterId int, clusterConfig *gRPC.ClusterConfig, resources []*gRPC.ExternalResourceDetail) (*gRPC.ResourceTreeResponse, error)
 }
 
 type HelmAppServiceImpl struct {
@@ -335,6 +336,26 @@ func (impl *HelmAppServiceImpl) getApplicationDetail(ctx context.Context, app *A
 		}
 	}
 	return appdetail, err
+}
+
+func (impl *HelmAppServiceImpl) GetResourceTreeForExternalResources(ctx context.Context, clusterId int,
+	clusterConfig *gRPC.ClusterConfig, resources []*gRPC.ExternalResourceDetail) (*gRPC.ResourceTreeResponse, error) {
+	var config *gRPC.ClusterConfig
+	var err error
+	if clusterId > 0 {
+		config, err = impl.GetClusterConf(clusterId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching cluster detail", "err", err)
+			return nil, err
+		}
+	} else {
+		config = clusterConfig
+	}
+	req := &gRPC.ExternalResourceTreeRequest{
+		ClusterConfig:          config,
+		ExternalResourceDetail: resources,
+	}
+	return impl.helmAppClient.GetResourceTreeForExternalResources(ctx, req)
 }
 
 func (impl *HelmAppServiceImpl) getApplicationAndReleaseStatus(ctx context.Context, app *AppIdentifier) (*gRPC.AppStatus, error) {
