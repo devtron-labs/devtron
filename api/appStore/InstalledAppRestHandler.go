@@ -24,7 +24,6 @@ import (
 	"fmt"
 	client "github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode"
-	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deployment"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/resource"
 	"net/http"
 	"strconv"
@@ -78,7 +77,6 @@ type InstalledAppRestHandlerImpl struct {
 	enforcerUtil                     rbac.EnforcerUtil
 	enforcerUtilHelm                 rbac.EnforcerUtilHelm
 	installedAppService              FullMode.InstalledAppDBExtendedService
-	fullModeDeploymentService        deployment.FullModeDeploymentService
 	installedAppResourceService      resource.InstalledAppResourceService
 	chartGroupService                chartGroup.ChartGroupService
 	validator                        *validator.Validate
@@ -95,8 +93,7 @@ type InstalledAppRestHandlerImpl struct {
 
 func NewInstalledAppRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService,
 	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, enforcerUtilHelm rbac.EnforcerUtilHelm,
-	installedAppService FullMode.InstalledAppDBExtendedService, fullModeDeploymentService deployment.FullModeDeploymentService,
-	installedAppResourceService resource.InstalledAppResourceService,
+	installedAppService FullMode.InstalledAppDBExtendedService, installedAppResourceService resource.InstalledAppResourceService,
 	chartGroupService chartGroup.ChartGroupService, validator *validator.Validate, clusterService cluster.ClusterService,
 	acdServiceClient application.ServiceClient, appStoreDeploymentService service.AppStoreDeploymentService,
 	helmAppClient client.HelmAppClient, argoUserService argo.ArgoUserService,
@@ -110,7 +107,6 @@ func NewInstalledAppRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService u
 		enforcerUtil:                     enforcerUtil,
 		enforcerUtilHelm:                 enforcerUtilHelm,
 		installedAppService:              installedAppService,
-		fullModeDeploymentService:        fullModeDeploymentService,
 		installedAppResourceService:      installedAppResourceService,
 		chartGroupService:                chartGroupService,
 		validator:                        validator,
