@@ -216,6 +216,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PromotionPolicy"
+        "404":
+          description: "If policy with the given name does not exist"
     put:
       description: "update promotion policy"
       requestBody:
@@ -684,9 +686,16 @@ components:
           type: string
         appId:
           type: integer
-        # newly added property in the workflow object
-        artifactPromotionConfigured:
-          type: boolean
+        artifactPromotionMetaData:  # Nesting meta info related to image promotion object
+          type: object
+          properties:
+            # Can also derive isConfigured through approvalPendingCount but kept separate key since it seems more readable.
+            isConfigured:
+              type: boolean
+              description: "Indicates if a promotion policy is attached to this workflow"
+            pendingApprovalCount:
+              type: integer
+              description: "Number of images pending for approval(image-promotion) for this workflow"
         tree:
           type: array
           items:
@@ -735,6 +744,9 @@ components:
         promotionEvaluationState:
           type: string
           description: "promotion evaluation state, eg: imagePromoted,imageSentForApproval,imageAlreadyPromoted,errored"
+        isVirtualEnvironment:
+          type: boolean
+          description: "If true then this environment is a virtual environment"
 
     PromotionApprovalMetaData:
       type: object
