@@ -1,13 +1,13 @@
 openapi: 3.0.3
 info:
-  title: Title
-  description: Title
+  title: Docker Registry
+  description: Docker CRUD Operations
   version: 1.0.0
 
 paths:
   /orchestrator/docker/registry/validate:
     post:
-      description: Validate Docker Registry
+      description: Validates docker registry credentials
       operationId: ValidateDockerRegistryConfig
       requestBody:
         description: A JSON object containing the registry config
@@ -46,7 +46,7 @@ paths:
 
   /orchestrator/docker/registry:
     post:
-      description: Save Docker Registry
+      description: Saves docker registry configuration
       operationId: SaveDockerRegistryConfig
       requestBody:
         description: A JSON object containing the registry config
@@ -88,7 +88,7 @@ paths:
                 $ref: '#/components/schemas/Error'
 
     put:
-      description: Update Docker Registry
+      description: Updates docker registry configurations
       operationId: UpdateDockerRegistryConfig
       requestBody:
         description: A JSON object containing the registry config
@@ -130,7 +130,7 @@ paths:
                 $ref: '#/components/schemas/Error'
 
     delete:
-      description: Delete Docker Registry
+      description: Deletes docker registry configurations
       operationId: DeleteDockerRegistryConfig
       requestBody:
         description: A JSON object containing the registry config
@@ -174,7 +174,7 @@ paths:
 
   /orchestrator/docker/registry/active:
     get:
-      description: Get all active Docker Registry
+      description: Fetches all docker registry accounts
       operationId: GetDockerArtifactStore
       responses:
         '200':
@@ -212,7 +212,7 @@ paths:
 
   /orchestrator/docker/registry/configure/status:
     get:
-      description: Check registry status
+      description: Checks if atleast one of the active registries have container push/pull access
       operationId: IsDockerRegConfigured
       parameters:
         - name: storageType
@@ -232,6 +232,48 @@ paths:
             application/json:
               schema:
                 type: boolean
+        '400':
+          description: Bad Request. Input Validation(decode) error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/docker/registry/{id}:
+    get:
+      description: Fetches one specific docker account based on the id provided in path param
+      operationId: FetchOneDockerAccounts
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successfully fetched one docker account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DockerArtifactStoreBean'
         '400':
           description: Bad Request. Input Validation(decode) error/wrong request body.
           content:
