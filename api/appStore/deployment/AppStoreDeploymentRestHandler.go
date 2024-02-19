@@ -57,6 +57,7 @@ type AppStoreDeploymentRestHandler interface {
 	UpdateInstalledApp(w http.ResponseWriter, r *http.Request)
 	GetInstalledAppVersion(w http.ResponseWriter, r *http.Request)
 	UpdateProjectHelmApp(w http.ResponseWriter, r *http.Request)
+	CheckAndUpdatePermissions(token string, installedApp *appStoreBean.InstallAppVersionDTO, request appStoreBean.UpdateProjectHelmAppDTO) bool
 }
 
 type AppStoreDeploymentRestHandlerImpl struct {
@@ -592,10 +593,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateProjectHelmApp(w http.Res
 			handler.Logger.Errorw("service err, InstalledAppId", "err", err, "InstalledAppId", request.InstalledAppId)
 			common.WriteJsonResp(w, fmt.Errorf("Unable to fetch installed app details"), nil, http.StatusBadRequest)
 		}
-		rbacObjectForCurrentProject, rbacObjectForCurrentProject2 := handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(installedApp.ClusterId, installedApp.Namespace, installedApp.AppName)
-		ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObjectForCurrentProject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObjectForCurrentProject2)
-		rbacObjectForRequestedProject := handler.enforcerUtilHelm.GetHelmObjectByTeamIdAndClusterId(request.TeamId, installedApp.ClusterId, installedApp.Namespace, installedApp.AppName)
-		ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObjectForRequestedProject)
+		ok := handler.CheckAndUpdatePermissions(token, installedApp, request, false)
 		if !ok {
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 			return
@@ -609,4 +607,12 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateProjectHelmApp(w http.Res
 		handler.Logger.Errorw("Helm App project update")
 		common.WriteJsonResp(w, nil, "Project Updated", http.StatusOK)
 	}
+}
+
+func (handler AppStoreDeploymentRestHandlerImpl) CheckAndUpdatePermissions(token string, installedApp *appStoreBean.InstallAppVersionDTO, request appStoreBean.UpdateProjectHelmAppDTO, IsVirtualEnvironment bool) bool {
+	rbacObjectForCurrentProject, rbacObjectForCurrentProject2 := handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(installedApp.ClusterId, installedApp.Namespace, installedApp.AppName)
+	ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObjectForCurrentProject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObjectForCurrentProject2)
+	rbacObjectForRequestedProject := handler.enforcerUtilHelm.GetHelmObjectByTeamIdAndClusterId(request.TeamId, installedApp.ClusterId, installedApp.Namespace, installedApp.AppName)
+	ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObjectForRequestedProject)
+	return ok
 }
