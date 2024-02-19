@@ -68,6 +68,7 @@ type UserService interface {
 	GetRoleFiltersForAUserById(id int32) (*bean.UserInfo, error)
 	GetByIdForGroupClaims(id int32) (*bean.UserInfo, error)
 	GetAll() ([]bean.UserInfo, error) //this is only being used for summary event for now , in use is GetAllWithFilters
+	GetAllDetailedUsers() ([]bean.UserInfo, error)
 	GetAllWithFilters(request *bean.ListingRequest) (*bean.UserListingResponse, error)
 	GetEmailById(userId int32) (string, error)
 	GetEmailAndGroupClaimsFromToken(token string) (string, []string, error)
@@ -1387,6 +1388,29 @@ func (impl UserServiceImpl) getLastLoginTime(model repository.UserModel) time.Ti
 	return lastLoginTime
 }
 
+func (impl UserServiceImpl) GetAllDetailedUsers() ([]bean.UserInfo, error) {
+	models, err := impl.userRepository.GetAllExcludingApiTokenUser()
+	if err != nil {
+		impl.logger.Errorw("error while fetching user from db", "error", err)
+		return nil, err
+	}
+	var response []bean.UserInfo
+	for _, model := range models {
+		isSuperAdmin, roleFilters, filterGroups := impl.getUserMetadata(&model)
+		response = append(response, bean.UserInfo{
+			Id:          model.Id,
+			EmailId:     model.EmailId,
+			RoleFilters: roleFilters,
+			Groups:      filterGroups,
+			SuperAdmin:  isSuperAdmin,
+		})
+	}
+	if len(response) == 0 {
+		response = make([]bean.UserInfo, 0)
+	}
+	return response, nil
+}
+
 func (impl UserServiceImpl) UserExists(emailId string) bool {
 	model, err := impl.userRepository.FetchActiveUserByEmail(emailId)
 	if err != nil {
@@ -1608,7 +1632,6 @@ func (impl UserServiceImpl) GetUserByToken(context context.Context, token string
 	}
 	return userInfo.Id, userInfo.UserType, nil
 }
-
 func (impl UserServiceImpl) GetFieldValuesFromToken(token string) ([]byte, error) {
 	var claimBytes []byte
 	mapClaims, err := impl.getMapClaims(token)

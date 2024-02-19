@@ -10,29 +10,30 @@ import (
 
 // memory units
 // Ei, Pi, Ti, Gi, Mi, Ki
-// E, P, T, G, M, k
+// E, P, T, G, M, k, m
 
 type UnitSuffix int
 
 const (
-	Byte   UnitSuffix = 1
-	KiByte UnitSuffix = 2 // 1024
-	MiByte UnitSuffix = 3
-	GiByte UnitSuffix = 4
-	TiByte UnitSuffix = 5
-	PiByte UnitSuffix = 6
-	EiByte UnitSuffix = 7
-	K      UnitSuffix = 8 // 1000
-	M      UnitSuffix = 9
-	G      UnitSuffix = 10
-	T      UnitSuffix = 11
-	P      UnitSuffix = 12
-	E      UnitSuffix = 13
-	Core   UnitSuffix = 14 // CPU cores
-	Milli  UnitSuffix = 15
-	Second UnitSuffix = 16
-	Minute UnitSuffix = 17
-	Hour   UnitSuffix = 18
+	Byte      UnitSuffix = 1
+	KiByte    UnitSuffix = 2 // 1024
+	MiByte    UnitSuffix = 3
+	GiByte    UnitSuffix = 4
+	TiByte    UnitSuffix = 5
+	PiByte    UnitSuffix = 6
+	EiByte    UnitSuffix = 7
+	K         UnitSuffix = 8 // 1000
+	M         UnitSuffix = 9
+	G         UnitSuffix = 10
+	T         UnitSuffix = 11
+	P         UnitSuffix = 12
+	E         UnitSuffix = 13
+	Core      UnitSuffix = 14 // CPU cores
+	Milli     UnitSuffix = 15
+	Second    UnitSuffix = 16
+	Minute    UnitSuffix = 17
+	Hour      UnitSuffix = 18
+	MilliByte UnitSuffix = 19
 )
 
 type UnitStr interface {
@@ -71,23 +72,26 @@ const (
 type MemoryUnitStr string
 
 const (
-	BYTE   MemoryUnitStr = "byte"
-	KIBYTE MemoryUnitStr = "Ki"
-	MIBYTE MemoryUnitStr = "Mi"
-	GIBYTE MemoryUnitStr = "Gi"
-	TIBYTE MemoryUnitStr = "Ti"
-	PIBYTE MemoryUnitStr = "Pi"
-	EIBYTE MemoryUnitStr = "Ei"
-	KBYTE  MemoryUnitStr = "k"
-	MBYTE  MemoryUnitStr = "M"
-	GBYTE  MemoryUnitStr = "G"
-	TBYTE  MemoryUnitStr = "T"
-	PBYTE  MemoryUnitStr = "P"
-	EBYTE  MemoryUnitStr = "E"
+	MILLIBYTE MemoryUnitStr = "m"
+	BYTE      MemoryUnitStr = "byte"
+	KIBYTE    MemoryUnitStr = "Ki"
+	MIBYTE    MemoryUnitStr = "Mi"
+	GIBYTE    MemoryUnitStr = "Gi"
+	TIBYTE    MemoryUnitStr = "Ti"
+	PIBYTE    MemoryUnitStr = "Pi"
+	EIBYTE    MemoryUnitStr = "Ei"
+	KBYTE     MemoryUnitStr = "k"
+	MBYTE     MemoryUnitStr = "M"
+	GBYTE     MemoryUnitStr = "G"
+	TBYTE     MemoryUnitStr = "T"
+	PBYTE     MemoryUnitStr = "P"
+	EBYTE     MemoryUnitStr = "E"
 )
 
 func (memoryUnit UnitSuffix) GetMemoryUnitStr() MemoryUnitStr {
 	switch memoryUnit {
+	case MilliByte:
+		return MILLIBYTE
 	case Byte:
 		return BYTE
 	case KiByte:
@@ -205,6 +209,10 @@ func NewUnits() *Units {
 	}
 
 	memoryUnits := map[MemoryUnitStr]Unit{
+		MILLIBYTE: {
+			Name:             string(MILLIBYTE),
+			ConversionFactor: 1e-3,
+		},
 		BYTE: {
 			Name:             string(BYTE),
 			ConversionFactor: 1,
