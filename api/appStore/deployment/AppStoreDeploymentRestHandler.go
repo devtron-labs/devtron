@@ -593,7 +593,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateProjectHelmApp(w http.Res
 			handler.Logger.Errorw("service err, InstalledAppId", "err", err, "InstalledAppId", request.InstalledAppId)
 			common.WriteJsonResp(w, fmt.Errorf("Unable to fetch installed app details"), nil, http.StatusBadRequest)
 		}
-		ok := handler.CheckAndUpdatePermissions(token, installedApp, request, false)
+		ok := handler.CheckAndUpdatePermissions(token, installedApp, request, installedApp.IsVirtualEnvironment)
 		if !ok {
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 			return
