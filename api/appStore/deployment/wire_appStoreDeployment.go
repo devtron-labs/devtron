@@ -32,5 +32,4 @@ var AppStoreDeploymentWireSet = wire.NewSet(
 
 	EAMode.NewInstalledAppDBServiceImpl,
 	wire.Bind(new(EAMode.InstalledAppDBService), new(*EAMode.InstalledAppDBServiceImpl)),
-	TestAppStoreDeploymentWireSet,
 )
