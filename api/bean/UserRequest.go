@@ -30,23 +30,24 @@ type UserRole struct {
 }
 
 type UserInfo struct {
-	Id                      int32        `json:"id" validate:"number,not-system-admin-userid"`
-	EmailId                 string       `json:"email_id" validate:"required,not-system-admin-user-email"` // TODO : have to migrate json key to emailId and also handle backward compatibility
-	Roles                   []string     `json:"roles,omitempty"`
-	AccessToken             string       `json:"access_token,omitempty"`
-	RoleFilters             []RoleFilter `json:"roleFilters"`
-	Status                  string       `json:"status,omitempty"`
-	Groups                  []string     `json:"groups"` // this will be deprecated in future do not use
-	SuperAdmin              bool         `json:"superAdmin,notnull"`
-	RoleGroups              []RoleGroup  `json:"roleGroups,omitempty"` // role group with metadata, currently using for group claims
-	LastLoginTime           time.Time    `json:"lastLoginTime"`
-	TimeoutWindowExpression time.Time    `json:"timeoutWindowExpression"`
-	UserStatus              Status       `json:"userStatus"`
-	UserType                string       `json:"-"`
-	LastUsedAt              time.Time    `json:"-"`
-	LastUsedByIp            string       `json:"-"`
-	Exist                   bool         `json:"-"`
-	UserId                  int32        `json:"-"` // created or modified user id
+	Id                      int32           `json:"id" validate:"number,not-system-admin-userid"`
+	EmailId                 string          `json:"email_id" validate:"required,not-system-admin-user-email"`
+	Roles                   []string        `json:"roles,omitempty"`
+	AccessToken             string          `json:"access_token,omitempty"`
+	RoleFilters             []RoleFilter    `json:"roleFilters"`
+	Status                  string          `json:"status,omitempty"`
+	Groups                  []string        `json:"groups"` // this will be deprecated in future do not use
+	SuperAdmin              bool            `json:"superAdmin,notnull"`
+	RoleGroups              []RoleGroup     `json:"roleGroups,omitempty"` // role group with metadata, currently using for group claims
+	UserRoleGroup           []UserRoleGroup `json:"userRoleGroup,omitempty"`
+	LastLoginTime           time.Time       `json:"lastLoginTime"`
+	TimeoutWindowExpression time.Time       `json:"timeoutWindowExpression"`
+	UserStatus              Status          `json:"userStatus"`
+	UserType                string          `json:"-"`
+	LastUsedAt              time.Time       `json:"-"`
+	LastUsedByIp            string          `json:"-"`
+	Exist                   bool            `json:"-"`
+	UserId                  int32           `json:"-"` // created or modified user id
 }
 
 type RoleGroup struct {
@@ -74,6 +75,9 @@ type RoleFilter struct {
 	Kind      string `json:"kind"`
 	Resource  string `json:"resource"`
 	Workflow  string `json:"workflow"`
+
+	TimeoutWindowExpression time.Time `json:"timeoutWindowExpression"`
+	Status                  Status    `json:"status"`
 }
 
 type Role struct {
@@ -174,4 +178,10 @@ type BulkDeleteRequest struct {
 	Ids            []int32         `json:"ids"`
 	ListingRequest *ListingRequest `json:"listingRequest,omitempty"`
 	LoggedInUserId int32           `json:"-"`
+}
+
+type UserRoleGroup struct {
+	RoleGroup               RoleGroup `json:"roleGroups"`
+	Status                  Status    `json:"status"`
+	TimeoutWindowExpression time.Time `json:"timeoutWindowExpression"`
 }

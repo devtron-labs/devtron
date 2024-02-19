@@ -2,6 +2,9 @@ package user
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/auth/user/adapter"
+	"github.com/devtron-labs/devtron/pkg/auth/user/helper"
+	helper2 "github.com/devtron-labs/devtron/pkg/auth/user/repository/helper"
 	"math"
 	"strconv"
 	"strings"
@@ -34,6 +37,8 @@ type UserCommonService interface {
 	BuildRoleFilterKeyForOtherEntity(roleFilterMap map[string]*bean.RoleFilter, role repository.RoleModel, key string)
 	BuildRoleFilterForAllTypes(roleFilterMap map[string]*bean.RoleFilter, role repository.RoleModel, key string)
 	GetUniqueKeyForAllEntity(role repository.RoleModel) string
+	GetUniqueKeyForAllEntityWithTimeAndStatus(role repository.RoleModel, status bean.Status, timeout time.Time) string
+	GetUniqueKeyForRoleFilter(roleFilter bean.RoleFilter) string
 	SetDefaultValuesIfNotPresent(request *bean.ListingRequest, isRoleGroup bool)
 	DeleteRoleForUserFromCasbin(mappings map[string][]string) bool
 	DeleteUserForRoleFromCasbin(mappings map[string][]string) bool
@@ -231,8 +236,12 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 	existingRoleIds map[int]repository.UserRoleModel, eliminatedRoleIds map[int]*repository.UserRoleModel,
 	tx *pg.Tx, token string, managerAuth func(resource, token, object string) bool) ([]casbin.Policy, error) {
 	var eliminatedPolicies []casbin.Policy
+	// this map keeps the role id vs bool value for storing if existing role is given with different timeoutWindowConfiguration, handling multiple same rows.
+	// for eg . user has (p1,e1,a1,admin ,active) combination  and multiple rows come in request for (p1,e1,a1,admin, inactive) so this maps handles this.
+	timeoutChangedMap := make(map[int]bool)
 	// DELETE Removed Items
 	for _, roleFilter := range userInfo.RoleFilters {
+		roleFilterStatus := helper.GetActualStatusFromExpressionAndStatus(roleFilter.Status, roleFilter.TimeoutWindowExpression)
 		if roleFilter.Entity == bean.CLUSTER_ENTITIY {
 			namespaces := strings.Split(roleFilter.Namespace, ",")
 			groups := strings.Split(roleFilter.Group, ",")
@@ -257,8 +266,14 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 								impl.logger.Warnw("no role found for given filter", "filter", roleFilter)
 								continue
 							}
-							if _, ok := existingRoleIds[roleModel.Id]; ok {
-								delete(eliminatedRoleIds, roleModel.Id)
+							if val, ok := existingRoleIds[roleModel.Id]; ok {
+								hasTimeChanged := helper.HasTimeWindowChanged(roleFilterStatus, roleFilter.TimeoutWindowExpression, val.TimeoutWindowConfiguration)
+								if hasTimeChanged {
+									timeoutChangedMap[roleModel.Id] = true
+									//delete(existingRoleIds, roleModel.Id)
+								} else {
+									delete(eliminatedRoleIds, roleModel.Id)
+								}
 							}
 						}
 					}
@@ -290,8 +305,14 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 							userInfo.Status = "role not fount for any given filter: " + roleFilter.Team + "," + environment + "," + entityName + "," + roleFilter.Action
 							continue
 						}
-						if _, ok := existingRoleIds[roleModel.Id]; ok {
-							delete(eliminatedRoleIds, roleModel.Id)
+						if val, ok := existingRoleIds[roleModel.Id]; ok {
+							hasTimeChanged := helper.HasTimeWindowChanged(roleFilterStatus, roleFilter.TimeoutWindowExpression, val.TimeoutWindowConfiguration)
+							if hasTimeChanged {
+								timeoutChangedMap[roleModel.Id] = true
+								//delete(existingRoleIds, roleModel.Id)
+							} else {
+								delete(eliminatedRoleIds, roleModel.Id)
+							}
 						}
 					}
 				}
@@ -325,8 +346,14 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 							userInfo.Status = "role not fount for any given filter: " + roleFilter.Team + "," + environment + "," + entityName + "," + roleFilter.Action
 							continue
 						}
-						if _, ok := existingRoleIds[roleModel.Id]; ok {
-							delete(eliminatedRoleIds, roleModel.Id)
+						if val, ok := existingRoleIds[roleModel.Id]; ok {
+							hasTimeChanged := helper.HasTimeWindowChanged(roleFilterStatus, roleFilter.TimeoutWindowExpression, val.TimeoutWindowConfiguration)
+							if hasTimeChanged {
+								timeoutChangedMap[roleModel.Id] = true
+								//delete(existingRoleIds, roleModel.Id)
+							} else {
+								delete(eliminatedRoleIds, roleModel.Id)
+							}
 						}
 						isChartGroupEntity := roleFilter.Entity == bean.CHART_GROUP_ENTITY
 						if _, ok := existingRoleIds[oldRoleModel.Id]; ok && !isChartGroupEntity {
@@ -337,6 +364,10 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 				}
 			}
 		}
+	}
+	// deleting from existingRoleIds map if timeout has changed
+	for id, _ := range timeoutChangedMap {
+		delete(existingRoleIds, id)
 	}
 
 	// delete remaining Ids from casbin role mapping table in orchestrator and casbin policy db
@@ -365,7 +396,14 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 			impl.logger.Errorw("Error in delete user role mapping", "user", userInfo)
 			return nil, err
 		}
-		eliminatedPolicies = append(eliminatedPolicies, casbin.Policy{Type: "g", Sub: casbin.Subject(userInfo.EmailId), Obj: casbin.Object(role.Role)})
+		timeExpression, expressionFormat, err := helper2.GetCasbinFormattedTimeAndFormat(userRoleModel.TimeoutWindowConfiguration)
+		if err != nil {
+			impl.logger.Errorw("error encountered in createOrUpdateUserRolesForClusterEntity", "err", err, "expression", userRoleModel.TimeoutWindowConfiguration.TimeoutWindowExpression)
+			return nil, err
+		}
+
+		casbinPolicy := adapter.GetCasbinGroupPolicy(userInfo.EmailId, role.Role, timeExpression, expressionFormat)
+		eliminatedPolicies = append(eliminatedPolicies, casbinPolicy)
 	}
 	// DELETE ENDS
 	return eliminatedPolicies, nil
@@ -696,9 +734,15 @@ func (impl UserCommonServiceImpl) BuildRoleFilterKeyForOtherEntity(roleFilterMap
 		roleFilterMap[key].EntityName = fmt.Sprintf("%s,%s", roleFilterMap[key].EntityName, role.EntityName)
 	}
 }
+
+func (impl UserCommonServiceImpl) GetUniqueKeyForAllEntityWithTimeAndStatus(role repository.RoleModel, status bean.Status, timeout time.Time) string {
+	key := impl.GetUniqueKeyForAllEntity(role)
+	return fmt.Sprintf("%s_%s_%s", key, status, timeout)
+}
+
 func (impl UserCommonServiceImpl) GetUniqueKeyForAllEntity(role repository.RoleModel) string {
 	key := ""
-	if len(role.Team) > 0 {
+	if len(role.Team) > 0 && role.Entity != bean2.EntityJobs {
 		key = fmt.Sprintf("%s_%s_%s_%t", role.Team, role.Action, role.AccessType, role.Approver)
 	} else if role.Entity == bean2.EntityJobs {
 		key = fmt.Sprintf("%s_%s_%s_%s", role.Team, role.Action, role.AccessType, role.Entity)
@@ -754,4 +798,10 @@ func (impl UserCommonServiceImpl) DeleteUserForRoleFromCasbin(mappings map[strin
 		}
 	}
 	return successful
+}
+
+func (impl UserCommonServiceImpl) GetUniqueKeyForRoleFilter(roleFilter bean.RoleFilter) string {
+	key := fmt.Sprintf("%s-%s-%s-%s-%s-%s-%t-%s-%s-%s-%s-%s-%s", roleFilter.Entity, roleFilter.Team, roleFilter.Environment,
+		roleFilter.EntityName, roleFilter.Action, roleFilter.AccessType, roleFilter.Approver, roleFilter.Cluster, roleFilter.Namespace, roleFilter.Group, roleFilter.Kind, roleFilter.Resource, roleFilter.Workflow)
+	return key
 }

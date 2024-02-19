@@ -292,9 +292,11 @@ func (impl UserAuthRepositoryImpl) CreateUserRoleMapping(userRoleModel *UserRole
 }
 func (impl UserAuthRepositoryImpl) GetUserRoleMappingByUserId(userId int32) ([]*UserRoleModel, error) {
 	var userRoleModels []*UserRoleModel
-	err := impl.dbConnection.Model(&userRoleModels).Where("user_id = ?", userId).Select()
+	err := impl.dbConnection.Model(&userRoleModels).
+		Column("user_role_model.*", "TimeoutWindowConfiguration").
+		Where("user_id = ?", userId).Select()
 	if err != nil {
-		impl.Logger.Error(err)
+		impl.Logger.Errorw("error in GetUserRoleMappingByUserId", "err", err, "userId", userId)
 		return userRoleModels, err
 	}
 	return userRoleModels, nil

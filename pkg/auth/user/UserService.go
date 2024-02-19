@@ -179,7 +179,17 @@ func (impl UserServiceImpl) validateUserRequest(userInfo *bean.UserInfo) (bool, 
 		//skip
 	} else {
 		invalid := false
+		conflictingRolefilters := false
+		roleFilterKeyMap := make(map[string]bean.RoleFilter)
 		for _, roleFilter := range userInfo.RoleFilters {
+			key := impl.userCommonService.GetUniqueKeyForRoleFilter(roleFilter)
+			if filter, ok := roleFilterKeyMap[key]; ok {
+				hasTimeoutConfigChanged := !(roleFilter.TimeoutWindowExpression == filter.TimeoutWindowExpression && roleFilter.Status == filter.Status)
+				if hasTimeoutConfigChanged {
+					conflictingRolefilters = true
+					break
+				}
+			}
 			if len(roleFilter.Team) > 0 && len(roleFilter.Action) > 0 {
 				//
 			} else if len(roleFilter.Entity) > 0 { //this will pass roleFilter for clusterEntity as well as chart-group
@@ -187,9 +197,14 @@ func (impl UserServiceImpl) validateUserRequest(userInfo *bean.UserInfo) (bool, 
 			} else {
 				invalid = true
 			}
+			roleFilterKeyMap[key] = roleFilter
 		}
 		if invalid {
-			err := &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "Invalid request, please provide role filters"}
+			err := &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "Invalid request, please provide role filters, "}
+			return false, err
+		}
+		if conflictingRolefilters {
+			err := &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "Invalid request, please provide non-conflicting role filters "}
 			return false, err
 		}
 	}
@@ -382,7 +397,7 @@ func (impl UserServiceImpl) saveUser(userInfo *bean.UserInfo, emailId string) (*
 
 	_, err = impl.validateUserRequest(userInfo)
 	if err != nil {
-		err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "Invalid request, please provide role filters"}
+		impl.logger.Errorw("error in saveUser", "request", userInfo, "err", err)
 		return nil, err
 	}
 
@@ -485,7 +500,7 @@ func (impl UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, email
 
 	_, err = impl.validateUserRequest(userInfo)
 	if err != nil {
-		err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "Invalid request, please provide role filters"}
+		impl.logger.Errorw("error in createUserIfNotExists", "request", userInfo, "err", err)
 		return nil, err
 	}
 
@@ -500,6 +515,18 @@ func (impl UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, email
 	model.UpdatedBy = userInfo.UserId
 	model.CreatedOn = time.Now()
 	model.UpdatedOn = time.Now()
+
+	timeoutWindowConfig, err := impl.getOrCreateTimeoutWindowConfiguration(userInfo.UserStatus, userInfo.TimeoutWindowExpression, tx, userInfo.UserId)
+	if err != nil {
+		impl.logger.Errorw("error encountered in createUserIfNotExists", "userStatus", userInfo.UserStatus, "TimeoutWindowExpression", userInfo.TimeoutWindowExpression, "err", err)
+		return nil, err
+	}
+
+	var timeoutWindowConfigId int
+	if timeoutWindowConfig != nil {
+		timeoutWindowConfigId = timeoutWindowConfig.Id
+	}
+	model.TimeoutWindowConfigurationId = timeoutWindowConfigId
 	model, err = impl.userRepository.CreateUser(model, tx)
 	if err != nil {
 		impl.logger.Errorw("error in creating new user", "error", err)
@@ -643,6 +670,21 @@ func (impl UserServiceImpl) createOrUpdateUserRolesForClusterEntity(roleFilter b
 	actionType := roleFilter.Action
 	accessType := roleFilter.AccessType
 	var policiesToBeAdded = make([]casbin2.Policy, 0, capacity)
+	timeoutWindowConfig, err := impl.getOrCreateTimeoutWindowConfiguration(roleFilter.Status, roleFilter.TimeoutWindowExpression, tx, userId)
+	if err != nil {
+		impl.logger.Errorw("error encountered in createOrUpdateUserRolesForClusterEntity", "roleFilter", roleFilter, "err", err)
+		return policiesToBeAdded, rolesChanged, err
+	}
+	timeExpression, expressionFormat, err := helper.GetCasbinFormattedTimeAndFormat(timeoutWindowConfig)
+	if err != nil {
+		impl.logger.Errorw("error encountered in createOrUpdateUserRolesForClusterEntity", "err", err, "expression", timeoutWindowConfig.TimeoutWindowExpression)
+		return nil, rolesChanged, err
+	}
+	var timeoutWindowConfigId int
+	if timeoutWindowConfig != nil {
+		timeoutWindowConfigId = timeoutWindowConfig.Id
+	}
+
 	for _, namespace := range namespaces {
 		for _, group := range groups {
 			for _, kind := range kinds {
@@ -676,13 +718,16 @@ func (impl UserServiceImpl) createOrUpdateUserRolesForClusterEntity(roleFilter b
 					}
 					if _, ok := existingRoles[roleModel.Id]; ok {
 						//Adding policies which are removed
-						policiesToBeAdded = append(policiesToBeAdded, casbin2.Policy{Type: "g", Sub: casbin2.Subject(model.EmailId), Obj: casbin2.Object(roleModel.Role)})
+						casbinPolicy := adapter.GetCasbinGroupPolicy(model.EmailId, roleModel.Role, timeExpression, expressionFormat)
+						policiesToBeAdded = append(policiesToBeAdded, casbinPolicy)
+
 					} else {
 						if roleModel.Id > 0 {
 							rolesChanged = true
 							userRoleModel := &repository.UserRoleModel{
-								UserId: model.Id,
-								RoleId: roleModel.Id,
+								UserId:                       model.Id,
+								RoleId:                       roleModel.Id,
+								TimeoutWindowConfigurationId: timeoutWindowConfigId,
 								AuditLog: sql.AuditLog{
 									CreatedBy: userId,
 									CreatedOn: time.Now(),
@@ -691,9 +736,12 @@ func (impl UserServiceImpl) createOrUpdateUserRolesForClusterEntity(roleFilter b
 								}}
 							userRoleModel, err = impl.userAuthRepository.CreateUserRoleMapping(userRoleModel, tx)
 							if err != nil {
+								impl.logger.Errorw("error in createOrUpdateUserRolesForClusterEntity", "userId", model.Id, "roleModelId", roleModel.Id, "err", err)
 								return nil, rolesChanged, err
 							}
-							policiesToBeAdded = append(policiesToBeAdded, casbin2.Policy{Type: "g", Sub: casbin2.Subject(model.EmailId), Obj: casbin2.Object(roleModel.Role)})
+
+							casbinPolicy := adapter.GetCasbinGroupPolicy(model.EmailId, roleModel.Role, timeExpression, expressionFormat)
+							policiesToBeAdded = append(policiesToBeAdded, casbinPolicy)
 						}
 					}
 				}
@@ -708,42 +756,46 @@ func (impl UserServiceImpl) mergeRoleFilter(oldR []bean.RoleFilter, newR []bean.
 	keysMap := make(map[string]bool)
 	for _, role := range oldR {
 		roleFilters = append(roleFilters, bean.RoleFilter{
-			Entity:      role.Entity,
-			Team:        role.Team,
-			Environment: role.Environment,
-			EntityName:  role.EntityName,
-			Action:      role.Action,
-			AccessType:  role.AccessType,
-			Cluster:     role.Cluster,
-			Namespace:   role.Namespace,
-			Group:       role.Group,
-			Kind:        role.Kind,
-			Resource:    role.Resource,
-			Approver:    role.Approver,
-			Workflow:    role.Workflow,
+			Entity:                  role.Entity,
+			Team:                    role.Team,
+			Environment:             role.Environment,
+			EntityName:              role.EntityName,
+			Action:                  role.Action,
+			AccessType:              role.AccessType,
+			Cluster:                 role.Cluster,
+			Namespace:               role.Namespace,
+			Group:                   role.Group,
+			Kind:                    role.Kind,
+			Resource:                role.Resource,
+			Approver:                role.Approver,
+			Workflow:                role.Workflow,
+			Status:                  role.Status,
+			TimeoutWindowExpression: role.TimeoutWindowExpression,
 		})
-		key := fmt.Sprintf("%s-%s-%s-%s-%s-%s-%t-%s-%s-%s-%s-%s-%s", role.Entity, role.Team, role.Environment,
-			role.EntityName, role.Action, role.AccessType, role.Approver, role.Cluster, role.Namespace, role.Group, role.Kind, role.Resource, role.Workflow)
+		key := fmt.Sprintf("%s-%s-%s-%s-%s-%s-%t-%s-%s-%s-%s-%s-%s-%s-%s", role.Entity, role.Team, role.Environment,
+			role.EntityName, role.Action, role.AccessType, role.Approver, role.Cluster, role.Namespace, role.Group, role.Kind, role.Resource, role.Workflow, role.Status, role.TimeoutWindowExpression)
 		keysMap[key] = true
 	}
 	for _, role := range newR {
-		key := fmt.Sprintf("%s-%s-%s-%s-%s-%s-%t-%s-%s-%s-%s-%s-%s", role.Entity, role.Team, role.Environment,
-			role.EntityName, role.Action, role.AccessType, role.Approver, role.Cluster, role.Namespace, role.Group, role.Kind, role.Resource, role.Workflow)
+		key := fmt.Sprintf("%s-%s-%s-%s-%s-%s-%t-%s-%s-%s-%s-%s-%s-%s-%s", role.Entity, role.Team, role.Environment,
+			role.EntityName, role.Action, role.AccessType, role.Approver, role.Cluster, role.Namespace, role.Group, role.Kind, role.Resource, role.Workflow, role.Status, role.TimeoutWindowExpression)
 		if _, ok := keysMap[key]; !ok {
 			roleFilters = append(roleFilters, bean.RoleFilter{
-				Entity:      role.Entity,
-				Team:        role.Team,
-				Environment: role.Environment,
-				EntityName:  role.EntityName,
-				Action:      role.Action,
-				AccessType:  role.AccessType,
-				Cluster:     role.Cluster,
-				Namespace:   role.Namespace,
-				Group:       role.Group,
-				Kind:        role.Kind,
-				Resource:    role.Resource,
-				Approver:    role.Approver,
-				Workflow:    role.Workflow,
+				Entity:                  role.Entity,
+				Team:                    role.Team,
+				Environment:             role.Environment,
+				EntityName:              role.EntityName,
+				Action:                  role.Action,
+				AccessType:              role.AccessType,
+				Cluster:                 role.Cluster,
+				Namespace:               role.Namespace,
+				Group:                   role.Group,
+				Kind:                    role.Kind,
+				Resource:                role.Resource,
+				Approver:                role.Approver,
+				Workflow:                role.Workflow,
+				Status:                  role.Status,
+				TimeoutWindowExpression: role.TimeoutWindowExpression,
 			})
 		}
 	}
@@ -804,12 +856,18 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, ma
 	// Rollback tx on error.
 	defer tx.Rollback()
 
+	timeoutWindowConfigId, err := impl.getTimeoutWindowID(userInfo.UserStatus, userInfo.TimeoutWindowExpression, tx, userInfo.UserId)
+	if err != nil {
+		impl.logger.Errorw("error in UpdateUser ", "status", userInfo.UserStatus, "timeoutExpression", userInfo.TimeoutWindowExpression, "err", err)
+		return nil, false, false, nil, err
+	}
+
 	isSystemManagedActive := impl.globalAuthorisationConfigService.IsDevtronSystemManagedConfigActive()
 	isUserActive := model.Active
 	isApiToken := util3.CheckIfApiToken(userInfo.EmailId)
-	// case: system managed permissions is not active and user is inActive , mark user as active
+	// case: system managed permissions is not active and user is inActive , mark user as active and update user timeWindowConfig id
 	if !isSystemManagedActive && !isUserActive && !isApiToken {
-		err = impl.UpdateUserToActive(model, tx, userInfo.EmailId, userInfo.UserId)
+		err = impl.UpdateUserToActive(model, tx, userInfo.EmailId, userInfo.UserId, timeoutWindowConfigId)
 		if err != nil {
 			impl.logger.Errorw("error in updating user to active", "err", err, "EmailId", userInfo.EmailId)
 			return userInfo, false, false, nil, err
@@ -873,7 +931,7 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, ma
 		//validate role filters
 		_, err = impl.validateUserRequest(userInfo)
 		if err != nil {
-			err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "Invalid request, please provide role filters"}
+			impl.logger.Errorw("error in UpdateUser", "request", userInfo, "err", err)
 			return nil, false, false, nil, err
 		}
 
@@ -993,6 +1051,7 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, ma
 	model.UpdatedOn = time.Now()
 	model.UpdatedBy = userInfo.UserId
 	model.Active = true
+	model.TimeoutWindowConfigurationId = timeoutWindowConfigId
 	model, err = impl.userRepository.UpdateUser(model, tx)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
@@ -1006,12 +1065,28 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, ma
 	casbin2.LoadPolicy()
 	return userInfo, rolesChanged, groupsModified, restrictedGroups, nil
 }
-func (impl UserServiceImpl) UpdateUserToActive(model *repository.UserModel, tx *pg.Tx, emailId string, userId int32) error {
+func (impl UserServiceImpl) getTimeoutWindowID(status bean.Status, timeoutWindowExpression time.Time, tx *pg.Tx, loggedInUserId int32) (int, error) {
+	var timeoutWindowConfigId int
+	timeoutWindowConfig, err := impl.getOrCreateTimeoutWindowConfiguration(status, timeoutWindowExpression, tx, loggedInUserId)
+	if err != nil {
+		impl.logger.Errorw("error encountered in createUserIfNotExists", "Status", status, "TimeoutWindowExpression", timeoutWindowExpression, "err", err)
+		return timeoutWindowConfigId, err
+	}
+
+	if timeoutWindowConfig != nil {
+		timeoutWindowConfigId = timeoutWindowConfig.Id
+	}
+	return timeoutWindowConfigId, nil
+
+}
+
+func (impl UserServiceImpl) UpdateUserToActive(model *repository.UserModel, tx *pg.Tx, emailId string, userId int32, twcId int) error {
 
 	model.EmailId = emailId // override case sensitivity
 	model.UpdatedOn = time.Now()
 	model.UpdatedBy = userId
 	model.Active = true
+	model.TimeoutWindowConfigurationId = twcId
 	model, err := impl.userRepository.UpdateUser(model, tx)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
@@ -1121,42 +1196,46 @@ func (impl UserServiceImpl) fetchRoleGroupsByGroupClaims(groupClaims []string) (
 }
 
 func (impl UserServiceImpl) getUserMetadata(model *repository.UserModel) (bool, []bean.RoleFilter, []string) {
-	roles, err := impl.userAuthRepository.GetRolesByUserId(model.Id)
+	userRoles, err := impl.userRepository.GetRolesWithTimeoutWindowConfigurationByUserId(model.Id)
 	if err != nil {
 		impl.logger.Debugw("No Roles Found for user", "id", model.Id)
 	}
-
+	// recording time here for overall consistency
+	recordedTime := time.Now()
 	isSuperAdmin := false
 	var roleFilters []bean.RoleFilter
 	roleFilterMap := make(map[string]*bean.RoleFilter)
-	for _, role := range roles {
-		key := impl.userCommonService.GetUniqueKeyForAllEntity(role)
+	for _, userRole := range userRoles {
+		status, timeoutExpression := getStatusAndTTL(userRole.TimeoutWindowConfiguration, recordedTime)
+		key := impl.userCommonService.GetUniqueKeyForAllEntityWithTimeAndStatus(userRole.Role, status, timeoutExpression)
 		if _, ok := roleFilterMap[key]; ok {
-			impl.userCommonService.BuildRoleFilterForAllTypes(roleFilterMap, role, key)
+			impl.userCommonService.BuildRoleFilterForAllTypes(roleFilterMap, userRole.Role, key)
 		} else {
 			roleFilterMap[key] = &bean.RoleFilter{
-				Entity:      role.Entity,
-				Team:        role.Team,
-				Environment: role.Environment,
-				EntityName:  role.EntityName,
-				Action:      role.Action,
-				AccessType:  role.AccessType,
-				Cluster:     role.Cluster,
-				Namespace:   role.Namespace,
-				Group:       role.Group,
-				Kind:        role.Kind,
-				Resource:    role.Resource,
-				Approver:    role.Approver,
-				Workflow:    role.Workflow,
+				Entity:                  userRole.Role.Entity,
+				Team:                    userRole.Role.Team,
+				Environment:             userRole.Role.Environment,
+				EntityName:              userRole.Role.EntityName,
+				Action:                  userRole.Role.Action,
+				AccessType:              userRole.Role.AccessType,
+				Cluster:                 userRole.Role.Cluster,
+				Namespace:               userRole.Role.Namespace,
+				Group:                   userRole.Role.Group,
+				Kind:                    userRole.Role.Kind,
+				Resource:                userRole.Role.Resource,
+				Approver:                userRole.Role.Approver,
+				Workflow:                userRole.Role.Workflow,
+				Status:                  status,
+				TimeoutWindowExpression: timeoutExpression,
 			}
 
 		}
-		if role.Role == bean.SUPERADMIN {
+		if userRole.Role.Role == bean.SUPERADMIN {
 			isSuperAdmin = true
 		}
 	}
 	for _, v := range roleFilterMap {
-		if v.Action == "super-admin" {
+		if v.Action == bean2.SUPER_ADMIN {
 			continue
 		}
 		roleFilters = append(roleFilters, *v)
@@ -1319,7 +1398,7 @@ func (impl UserServiceImpl) getUserResponse(model []repository.UserModel, record
 	var response []bean.UserInfo
 	for _, m := range model {
 		lastLoginTime := adapter.GetLastLoginTime(m)
-		userStatus, ttlTime := getStatusAndTTL(m, recordedTime)
+		userStatus, ttlTime := getStatusAndTTL(m.TimeoutWindowConfiguration, recordedTime)
 		response = append(response, bean.UserInfo{
 			Id:                      m.Id,
 			EmailId:                 m.EmailId,
@@ -1355,7 +1434,7 @@ func (impl UserServiceImpl) getAllDetailedUsers(req *bean.ListingRequest) ([]bea
 
 	for _, model := range models {
 		isSuperAdmin, roleFilters, filterGroups := impl.getUserMetadata(&model)
-		userStatus, ttlTime := getStatusAndTTL(model, recordedTime)
+		userStatus, ttlTime := getStatusAndTTL(model.TimeoutWindowConfiguration, recordedTime)
 		lastLoginTime := adapter.GetLastLoginTime(model)
 		userResp := getUserInfoAdapter(model.Id, model.EmailId, roleFilters, filterGroups, isSuperAdmin, lastLoginTime, ttlTime, userStatus)
 		response = append(response, userResp)
@@ -2149,6 +2228,20 @@ func (impl *UserServiceImpl) createOrUpdateUserRolesForOtherEntity(roleFilter be
 	entityNames := strings.Split(roleFilter.EntityName, ",")
 	environments := strings.Split(roleFilter.Environment, ",")
 	actions := strings.Split(roleFilter.Action, ",")
+	timeoutWindowConfig, err := impl.getOrCreateTimeoutWindowConfiguration(roleFilter.Status, roleFilter.TimeoutWindowExpression, tx, userId)
+	if err != nil {
+		impl.logger.Errorw("error encountered in createOrUpdateUserRolesForOtherEntity", "roleFilter", roleFilter, "err", err)
+		return policiesToBeAdded, rolesChanged, err
+	}
+	timeExpression, expressionFormat, err := helper.GetCasbinFormattedTimeAndFormat(timeoutWindowConfig)
+	if err != nil {
+		impl.logger.Errorw("error encountered in createOrUpdateUserRolesForOtherEntity", "err", err, "expression", timeoutWindowConfig.TimeoutWindowExpression)
+		return nil, rolesChanged, err
+	}
+	var timeoutWindowConfigId int
+	if timeoutWindowConfig != nil {
+		timeoutWindowConfigId = timeoutWindowConfig.Id
+	}
 	for _, environment := range environments {
 		for _, entityName := range entityNames {
 			for _, actionType := range actions {
@@ -2182,12 +2275,14 @@ func (impl *UserServiceImpl) createOrUpdateUserRolesForOtherEntity(roleFilter be
 				}
 				if _, ok := existingRoles[roleModel.Id]; ok {
 					//Adding policies which is removed
-					policiesToBeAdded = append(policiesToBeAdded, casbin2.Policy{Type: "g", Sub: casbin2.Subject(model.EmailId), Obj: casbin2.Object(roleModel.Role)})
+					casbinPolicy := adapter.GetCasbinGroupPolicy(model.EmailId, roleModel.Role, timeExpression, expressionFormat)
+					policiesToBeAdded = append(policiesToBeAdded, casbinPolicy)
 				} else if roleModel.Id > 0 {
 					rolesChanged = true
 					userRoleModel := &repository.UserRoleModel{
-						UserId: model.Id,
-						RoleId: roleModel.Id,
+						UserId:                       model.Id,
+						RoleId:                       roleModel.Id,
+						TimeoutWindowConfigurationId: timeoutWindowConfigId,
 						AuditLog: sql.AuditLog{
 							CreatedBy: userId,
 							CreatedOn: time.Now(),
@@ -2196,9 +2291,11 @@ func (impl *UserServiceImpl) createOrUpdateUserRolesForOtherEntity(roleFilter be
 						}}
 					userRoleModel, err = impl.userAuthRepository.CreateUserRoleMapping(userRoleModel, tx)
 					if err != nil {
+						impl.logger.Errorw("error in createOrUpdateUserRolesForOtherEntity", "userId", model.Id, "roleModelId", roleModel.Id, "err", err)
 						return nil, rolesChanged, err
 					}
-					policiesToBeAdded = append(policiesToBeAdded, casbin2.Policy{Type: "g", Sub: casbin2.Subject(model.EmailId), Obj: casbin2.Object(roleModel.Role)})
+					casbinPolicy := adapter.GetCasbinGroupPolicy(model.EmailId, roleModel.Role, timeExpression, expressionFormat)
+					policiesToBeAdded = append(policiesToBeAdded, casbinPolicy)
 				}
 			}
 		}
@@ -2215,6 +2312,20 @@ func (impl *UserServiceImpl) createOrUpdateUserRolesForJobsEntity(roleFilter bea
 	entityNames := strings.Split(roleFilter.EntityName, ",")
 	environments := strings.Split(roleFilter.Environment, ",")
 	workflows := strings.Split(roleFilter.Workflow, ",")
+	timeoutWindowConfig, err := impl.getOrCreateTimeoutWindowConfiguration(roleFilter.Status, roleFilter.TimeoutWindowExpression, tx, userId)
+	if err != nil {
+		impl.logger.Errorw("error encountered in createOrUpdateUserRolesForJobsEntity", "roleFilter", roleFilter, "err", err)
+		return policiesToBeAdded, rolesChanged, err
+	}
+	timeExpression, expressionFormat, err := helper.GetCasbinFormattedTimeAndFormat(timeoutWindowConfig)
+	if err != nil {
+		impl.logger.Errorw("error encountered in createOrUpdateUserRolesForJobsEntity", "err", err, "expression", timeoutWindowConfig.TimeoutWindowExpression)
+		return nil, rolesChanged, err
+	}
+	var timeoutWindowConfigId int
+	if timeoutWindowConfig != nil {
+		timeoutWindowConfigId = timeoutWindowConfig.Id
+	}
 	for _, environment := range environments {
 		for _, entityName := range entityNames {
 			for _, workflow := range workflows {
@@ -2248,12 +2359,14 @@ func (impl *UserServiceImpl) createOrUpdateUserRolesForJobsEntity(roleFilter bea
 				}
 				if _, ok := existingRoles[roleModel.Id]; ok {
 					//Adding policies which is removed
-					policiesToBeAdded = append(policiesToBeAdded, casbin2.Policy{Type: "g", Sub: casbin2.Subject(model.EmailId), Obj: casbin2.Object(roleModel.Role)})
+					casbinPolicy := adapter.GetCasbinGroupPolicy(model.EmailId, roleModel.Role, timeExpression, expressionFormat)
+					policiesToBeAdded = append(policiesToBeAdded, casbinPolicy)
 				} else if roleModel.Id > 0 {
 					rolesChanged = true
 					userRoleModel := &repository.UserRoleModel{
-						UserId: model.Id,
-						RoleId: roleModel.Id,
+						UserId:                       model.Id,
+						RoleId:                       roleModel.Id,
+						TimeoutWindowConfigurationId: timeoutWindowConfigId,
 						AuditLog: sql.AuditLog{
 							CreatedBy: userId,
 							CreatedOn: time.Now(),
@@ -2262,9 +2375,11 @@ func (impl *UserServiceImpl) createOrUpdateUserRolesForJobsEntity(roleFilter bea
 						}}
 					userRoleModel, err = impl.userAuthRepository.CreateUserRoleMapping(userRoleModel, tx)
 					if err != nil {
+						impl.logger.Errorw("error in createOrUpdateUserRolesForJobsEntity ", "userId", model.Id, "roleModelId", roleModel.Id, "err", err)
 						return nil, rolesChanged, err
 					}
-					policiesToBeAdded = append(policiesToBeAdded, casbin2.Policy{Type: "g", Sub: casbin2.Subject(model.EmailId), Obj: casbin2.Object(roleModel.Role)})
+					casbinPolicy := adapter.GetCasbinGroupPolicy(model.EmailId, roleModel.Role, timeExpression, expressionFormat)
+					policiesToBeAdded = append(policiesToBeAdded, casbinPolicy)
 				}
 			}
 		}
@@ -2417,11 +2532,15 @@ func (impl UserServiceImpl) BulkUpdateStatus(request *bean.BulkStatusUpdateReque
 	return resp, nil
 
 }
+func (impl UserServiceImpl) getStatusFromExpression(status bean.Status, timeoutWindowExpression time.Time) (activeStatus, inactiveStatus, timeExpressionStatus bool) {
+	activeStatus = (status == bean.Active && timeoutWindowExpression.IsZero()) || len(status) == 0
+	inactiveStatus = status == bean.Inactive
+	timeExpressionStatus = status == bean.Active && !timeoutWindowExpression.IsZero()
+	return activeStatus, inactiveStatus, timeExpressionStatus
+}
 
 func (impl UserServiceImpl) bulkUpdateStatusForIds(request *bean.BulkStatusUpdateRequest) error {
-	activeStatus := request.Status == bean.Active && request.TimeoutWindowExpression.IsZero()
-	inactiveStatus := request.Status == bean.Inactive
-	timeExpressionStatus := request.Status == bean.Active && !request.TimeoutWindowExpression.IsZero()
+	activeStatus, inactiveStatus, timeExpressionStatus := impl.getStatusFromExpression(request.Status, request.TimeoutWindowExpression)
 	if activeStatus {
 		// active case
 		// set foreign key to null for every user
@@ -2488,7 +2607,7 @@ func (impl UserServiceImpl) createAndUpdateWindowID(userIds []int32, timeoutExpr
 }
 
 func (impl UserServiceImpl) createAndMapTimeoutWindow(tx *pg.Tx, timeoutExpression string, countWithoutWindowId int, idsWithoutWindowId []int32, expressionFormat bean3.ExpressionFormat, loggedInUserId int32) error {
-	models, err := impl.timeoutWindowService.CreateWithTimeoutExpressionAndFormat(tx, timeoutExpression, countWithoutWindowId, expressionFormat, loggedInUserId)
+	models, err := impl.timeoutWindowService.BulkCreateWithTimeoutExpressionAndFormat(tx, timeoutExpression, countWithoutWindowId, expressionFormat, loggedInUserId)
 	if err != nil {
 		impl.logger.Errorw("error in updateOrCreateAndUpdateWindowID", "err", err)
 		return err
@@ -2558,11 +2677,11 @@ func getTimeoutExpressionAndFormatforReq(timeExpressionStatus, inactiveStatus bo
 	return "", bean3.TimeStamp
 }
 
-func getStatusAndTTL(model repository.UserModel, recordedTime time.Time) (bean.Status, time.Time) {
+func getStatusAndTTL(twcModel *repository2.TimeoutWindowConfiguration, recordedTime time.Time) (bean.Status, time.Time) {
 	status := bean.Active
 	var ttlTime time.Time
-	if model.TimeoutWindowConfiguration != nil && len(model.TimeoutWindowConfiguration.TimeoutWindowExpression) > 0 {
-		status, ttlTime = getUserStatusFromTimeoutWindowExpression(model.TimeoutWindowConfiguration.TimeoutWindowExpression, recordedTime, model.TimeoutWindowConfiguration.ExpressionFormat)
+	if twcModel != nil && len(twcModel.TimeoutWindowExpression) > 0 {
+		status, ttlTime = getUserStatusFromTimeoutWindowExpression(twcModel.TimeoutWindowExpression, recordedTime, twcModel.ExpressionFormat)
 	}
 	return status, ttlTime
 }
@@ -2636,4 +2755,22 @@ func (impl UserServiceImpl) CheckUserStatusAndUpdateLoginAudit(token string) (bo
 	}
 
 	return isInactive, userId, nil
+}
+
+func (impl UserServiceImpl) getOrCreateTimeoutWindowConfiguration(status bean.Status, timeoutWindowExpression time.Time, tx *pg.Tx, loggedInUserId int32) (*repository2.TimeoutWindowConfiguration, error) {
+	active, inactive, timeExpressionStatus := impl.getStatusFromExpression(status, timeoutWindowExpression)
+	if active {
+		return nil, nil
+	} else if inactive || timeExpressionStatus {
+		// getting expression from request configuration
+		timeOutExpressionString, expressionFormat := getTimeoutExpressionAndFormatforReq(timeExpressionStatus, inactive, timeoutWindowExpression)
+		model, err := impl.timeoutWindowService.GetOrCreateWithExpressionAndFormat(tx, timeOutExpressionString, expressionFormat, loggedInUserId)
+		if err != nil {
+			impl.logger.Errorw("error in createTimeoutWindowConfiguration", "status", status, "timeoutExpression", timeoutWindowExpression, "err", err)
+			return nil, err
+		}
+		return model, nil
+	}
+	return nil, &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "not able to identify status", InternalMessage: "status not supported"}
+
 }

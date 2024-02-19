@@ -56,6 +56,7 @@ type UserRepository interface {
 	StartATransaction() (*pg.Tx, error)
 	CommitATransaction(tx *pg.Tx) error
 	GetUserWithTimeoutWindowConfiguration(emailId string) (*UserModel, error)
+	GetRolesWithTimeoutWindowConfigurationByUserId(userId int32) ([]*UserRoleModel, error)
 }
 
 type UserRepositoryImpl struct {
@@ -81,11 +82,14 @@ type UserModel struct {
 }
 
 type UserRoleModel struct {
-	TableName struct{} `sql:"user_roles" pg:",discard_unknown_columns"`
-	Id        int      `sql:"id,pk"`
-	UserId    int32    `sql:"user_id,notnull"`
-	RoleId    int      `sql:"role_id,notnull"`
-	User      UserModel
+	TableName                    struct{} `sql:"user_roles" pg:",discard_unknown_columns"`
+	Id                           int      `sql:"id,pk"`
+	UserId                       int32    `sql:"user_id,notnull"`
+	RoleId                       int      `sql:"role_id,notnull"`
+	TimeoutWindowConfigurationId int      `sql:"timeout_window_configuration_id"`
+	User                         UserModel
+	Role                         RoleModel
+	TimeoutWindowConfiguration   *repository.TimeoutWindowConfiguration
 	sql.AuditLog
 }
 
@@ -344,4 +348,16 @@ func (impl UserRepositoryImpl) GetUserWithTimeoutWindowConfiguration(emailId str
 		return &model, err
 	}
 	return &model, nil
+}
+
+func (impl UserRepositoryImpl) GetRolesWithTimeoutWindowConfigurationByUserId(userId int32) ([]*UserRoleModel, error) {
+	var model []*UserRoleModel
+	err := impl.dbConnection.Model(&model).
+		Column("user_role_model.*", "Role", "TimeoutWindowConfiguration").
+		Where("user_role_model.user_id = ?", userId).Select()
+	if err != nil {
+		impl.Logger.Errorw("error in GetUserWithTimeoutWindowConfiguration", "err", err, "userId", userId)
+		return model, err
+	}
+	return model, nil
 }
