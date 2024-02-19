@@ -609,7 +609,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateProjectHelmApp(w http.Res
 	}
 }
 
-func (handler AppStoreDeploymentRestHandlerImpl) CheckAndUpdatePermissions(token string, installedApp *appStoreBean.InstallAppVersionDTO, request appStoreBean.UpdateProjectHelmAppDTO, IsVirtualEnvironment bool) bool {
+func (handler AppStoreDeploymentRestHandlerImpl) CheckAndUpdatePermissions(token string, installedApp *appStoreBean.InstallAppVersionDTO, request appStoreBean.UpdateProjectHelmAppDTO) bool {
 	rbacObjectForCurrentProject, rbacObjectForCurrentProject2 := handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(installedApp.ClusterId, installedApp.Namespace, installedApp.AppName)
 	ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObjectForCurrentProject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObjectForCurrentProject2)
 	rbacObjectForRequestedProject := handler.enforcerUtilHelm.GetHelmObjectByTeamIdAndClusterId(request.TeamId, installedApp.ClusterId, installedApp.Namespace, installedApp.AppName)
