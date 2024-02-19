@@ -24,6 +24,7 @@
 - doc: Fixed Redirections and Broken Links (#4634)
 - doc: Revamped Security Feature Doc (#4349)
 ## Others
+- misc: Changed PR template (#4698)
 - chore: AppStore Refactoring v3 (#4621)
 - chore: Update CODEOWNERS (#4630)
 - chore: Refactoring deployment template GitOps & AppStore (#4616)
