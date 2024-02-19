@@ -55,6 +55,7 @@ type UserService interface {
 	GetById(id int32) (*bean.UserInfo, error)
 	GetAll() ([]bean.UserInfo, error)
 	GetAllWithFilters(request *bean.FetchListingRequest) (*bean.UserListingResponse, error)
+	GetAllDetailedUsers() ([]bean.UserInfo, error)
 	GetEmailFromToken(token string) (string, error)
 	GetEmailById(userId int32) (string, error)
 	GetLoggedInUser(r *http.Request) (int32, error)
@@ -1048,6 +1049,37 @@ func (impl *UserServiceImpl) getAllDetailedUsers() ([]bean.UserInfo, error) {
 			Groups:        filterGroups,
 			SuperAdmin:    isSuperAdmin,
 			LastLoginTime: lastLoginTime,
+		})
+	}
+	if len(response) == 0 {
+		response = make([]bean.UserInfo, 0)
+	}
+	return response, nil
+}
+
+func (impl *UserServiceImpl) GetAllDetailedUsers() ([]bean.UserInfo, error) {
+	models, err := impl.userRepository.GetAllExcludingApiTokenUser()
+	if err != nil {
+		impl.logger.Errorw("error while fetching user from db", "error", err)
+		return nil, err
+	}
+	var response []bean.UserInfo
+	for _, model := range models {
+		isSuperAdmin, roleFilters, filterGroups := impl.getUserMetadata(&model)
+		for index, roleFilter := range roleFilters {
+			if roleFilter.Entity == "" {
+				roleFilters[index].Entity = bean2.ENTITY_APPS
+			}
+			if roleFilter.Entity == bean2.ENTITY_APPS && roleFilter.AccessType == "" {
+				roleFilters[index].AccessType = bean2.DEVTRON_APP
+			}
+		}
+		response = append(response, bean.UserInfo{
+			Id:          model.Id,
+			EmailId:     model.EmailId,
+			RoleFilters: roleFilters,
+			Groups:      filterGroups,
+			SuperAdmin:  isSuperAdmin,
 		})
 	}
 	if len(response) == 0 {
