@@ -1,5 +1,5 @@
 -- 0 for  deployment approval request, 1 for artifact promotion approval request
-ALTER TABLE deployment_approval_user_data ADD COLUMN "resource_ type" integer DEFAULT 0;
+ALTER TABLE deployment_approval_user_data ADD COLUMN "request_type" integer DEFAULT 0;
 
 ALTER TABLE deployment_approval_user_data RENAME COLUMN "approval_request_id" TO "resource_approval_request_id";
 -- rename deployment_approval_user_data table to resource_approval_user_data
@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS public.artifact_promotion_policy
     "created_by"                   int4         NOT NULL,
     "updated_by"                   int4         NOT NULL,
     "id"                           int          NOT NULL DEFAULT nextval('id_artifact_promotion_policy'::regclass),
-    approval_count                 int          NOT NULL,
+    "approval_count"               int          NOT NULL,
     "name"                         VARCHAR(50)  NOT NULL,
     "description"                  VARCHAR(300),
     "created_on"                   timestamptz  NOT NULL,
@@ -71,7 +71,7 @@ CREATE TABLE IF NOT EXISTS public.artifact_promotion_approval_request
 --  "destination_type"             int          NOT NULL,
     "status"                       int          NOT NULL,
 --  promoted_on time
-    "promoted_on"                  timestamptz  NOT NULL,
+    "promoted_on"                  timestamptz,
 --  promoted_on time
     "requested_on"                 timestamptz  NOT NULL,
 

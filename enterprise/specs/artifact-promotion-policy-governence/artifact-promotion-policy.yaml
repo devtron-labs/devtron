@@ -53,13 +53,19 @@ paths:
   /orchestrator/app/artifact-promotion/request:
   # this API is used to fetch the promotion details for a particular promoted artifact
     get:
+      description: "this API is used to fetch the promotion details for a particular promoted artifact for the given promotionRequestId"
       parameters:
         - name: promotionRequestId
+          description: "id of the request that user has raised"
           in: query
           required: true
           schema:
             type: integer
       responses:
+        "400":
+          description: "this response is for any un acceptable request payload or query params"
+        "404":
+          description: "this status code is returned when no request is found against given request id"
         "200":
           description: "successfully fetched artifact promotion meta data"
           content:
@@ -78,7 +84,11 @@ paths:
     #  can be used to cancel the promotion request using action as CANCEL by sending promotionRequestId in the payload.
     #  can be used to approve the promotion request using action as APPROVE by sending promotionRequestId in the payload.
     post:
+      description: "this api can be used to attempt promotion of an artifact on a selected environments of a given app. using action as PROMOTE. \n 
+      can be used to cancel the promotion request using action as CANCEL by sending promotionRequestId in the payload. \n 
+      can be used to approve the promotion request using action as APPROVE by sending promotionRequestId in the payload."
       requestBody:
+        description: " this is the request payload, "
         required: true
         content:
           application/json:
@@ -91,9 +101,11 @@ paths:
                 sourceType:
                   type: string
                   description: "source type"
+                  example: "CI or WEBHOOK or CD"
                 action:
                   type: string
                   description: "action can be one of PROMOTE or CANCEL or APPROVE"
+                  example: "CANCEL"
                 promotionRequestId:
                   type: integer
                   description: "promotion request id, this is optional, required for CANCEL and APPROVE action"
@@ -103,12 +115,16 @@ paths:
                 appName:
                   type: string
                   description: "app name"
+                  example: "order-service"
                 environmentNames:
                   type: array
                   items:
                     type: string
                     description: "environment names"
+                    example: "[UAT,QA,PROD]"
       responses:
+        "400":
+          description: "this response is for any un acceptable request payload"
         "200":
           description: "attempts promoting the artifact to the given environments of the given app"
           content:
@@ -117,12 +133,13 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Environment"
-                description: " environments with detailed message"
+                description: " environments with detailed message about the action that user has requested"
 
   #    this api can be used to get the list of environments present in the given workflowId.
   #    if artifactId is provided then we will evaluate the environments policies on the given artifact.
   /orchestrator/app/artifact-promotion/env/list:
     get:
+      description: "this api can be used to get the list of environments present in the given workflowId. /n if artifactId is provided then this will evaluate the environment policies on the given artifact."
       parameters:
         - name: workflowId
           in: query
@@ -169,6 +186,12 @@ paths:
   #  appName is required param
   /orchestrator/app/artifact-promotion/material:
     get:
+      description: "this api will fetch the artifacts for artifact promotion. \n 
+      case1 : if the resource param is 'CD' this will fetch the images that are successfully deployed in the CD node of the provided environment name in the resourceName param. /n 
+      case2 : if the resource is 'CI' or 'WEBHOOK' this will fetch the images that are created from the ci source node using the ci-pipeline name given in the resourceName param. \n 
+      case3 : if the resource is PROMOTION_APPROVAL_PENDING_NODE then this API will fetch the pending promotion requests that are in pending state for the given environment name passed in resourceName param. /n
+      case4: if fetchRequestsForMe param is set to true,then  workflowId param is required. in this case the API will fetch the promotion requests that can be approved by the requested user. /n
+      Note: for any ambiguous request params the prioritization of the response is w.r.t to the above cases i.e case1 > case2 > case3"
       parameters:
         - name: resource
           in: query
@@ -199,8 +222,10 @@ paths:
             type: boolean
           description: "if this is set to true we will fetch the list of artifacts which are pending for approval of current user"
       responses:
+        "400":
+          description: "this response is for any un acceptable request payload or query params"
         "200":
-          description: "gets the material for the given resource."
+          description: "gets the materials for the request"
           content:
             application/json:
               schema:
@@ -210,14 +235,14 @@ paths:
     get:
       description: "get artifact promotion policy by its name"
       responses:
+        "404":
+          description: "if the policy is not found with the given name"
         "200":
           description: "gets the artifact promotion policy by its name successfully."
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/PromotionPolicy"
-        "404":
-          description: "If policy with the given name does not exist"
     put:
       description: "update promotion policy"
       requestBody:
@@ -227,6 +252,10 @@ paths:
             schema:
               $ref: '#/components/schemas/PromotionPolicy'
       responses:
+        "400":
+          description: "this response is for any un acceptable request payload or query params"
+        "404":
+          description: "if the policy is not found with the given name"
         "200":
           description: "successfully updated the policy."
           content:
@@ -236,6 +265,8 @@ paths:
     delete:
       description: "Delete the promotion policy"
       responses:
+        "404":
+          description: "if the policy is not found with the given name"
         "204":
           description: "deletes the promotion policy by its name successfully."
 
@@ -279,6 +310,8 @@ paths:
             description: "ASC or DESC, default to ASC"
       description: Get promotion policies list
       responses:
+        "400":
+          description: "this response is for any un acceptable request payload or query params"
         "200":
           description: gets the promotion by search param.
           content:
@@ -296,6 +329,8 @@ paths:
             schema:
               $ref: '#/components/schemas/PromotionPolicy'
       responses:
+        "400":
+          description: "this response is for any un acceptable request payload or query params"
         "200":
           description: policy created successfully
           content:
@@ -314,6 +349,8 @@ paths:
               $ref: '#/components/schemas/AppEnvPolicyMappingsListFilter'
 
       responses:
+        "400":
+          description: "this response is for any un acceptable request payload or query params"
         "200":
           description: "successfully fetched filtered app-env-policy mappings"
           content:
@@ -728,9 +765,11 @@ components:
         name:
           type: string
           description: "environment name"
+          example: "PROD"
         #       total approval count configured by the policy on this environment
         approvalCount:
           type: integer
+          example: "3"
           description: "total approval count configured by the policy on this environment"
         #       will be true only if this environment is governed by some promotion policy.
         promotionPossible:
@@ -739,10 +778,12 @@ components:
         #       if requested this api with evaluation, then the detailed evaluation message will be sent in this field
         promotionEvaluationMessage:
           type: string
+          example: "promotion unsuccessful as the artifact is blocked by the promotion policy"
           description: "promotion evaluation message, detailed evaluation message for respective state"
         #       if requested this api with evaluation, then the evaluation state will be sent in this field
         promotionEvaluationState:
           type: string
+          example: "PROMOTION-SUCCESSFUL or PROMOTION-BLOCKED or CD-PIPELINE-DELETED"
           description: "promotion evaluation state, eg: imagePromoted,imageSentForApproval,imageAlreadyPromoted,errored"
         isVirtualEnvironment:
           type: boolean
@@ -756,6 +797,7 @@ components:
           description: "approval request id"
         approvalRuntimeState:
           type: integer
+          example: "AWAITING or PROMOTED or CANCELLED or STALE"
           description: "approval runtime state"
 
     ImageComment:
@@ -836,6 +878,11 @@ components:
           items:
             $ref: "#/components/schemas/ReleaseTag"
           description: "image release tags"
+        deployedOnEnvironments:
+          description: "this will contain the list of environments that this artifact is currently been deployed and successfully completed the post cd if configured in their respective environments."
+          type: array
+          items:
+            type: string
 
 
     MaterialResponse:
