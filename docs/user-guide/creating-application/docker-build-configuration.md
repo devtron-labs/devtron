@@ -22,7 +22,7 @@ The following fields are provided on the **Store Container Image** section:
 
 | Field | Description |
 | --- | --- |
-| **Container Registry** | Select the container registry from the drop-down list or you can click **Add Container Registry**. This registry will be used to [store docker images](../global-configurations/docker-registries.md). |
+| **Container Registry** | Select the container registry from the drop-down list or you can click **Add Container Registry**. This registry will be used to [store docker images](../global-configurations/container-registries.md). |
 | **Container Repository** | Enter the name of your container repository, preferably in the format `username/repo-name`. The repository that you specify here will store a collection of related docker images. Whenever an image is added here, it will be stored with a new tag version. |
 
 **If you are using docker hub account, you need to enter the repository name along with your username. For example - If my username is *kartik579* and repo name is *devtron-trial*, then enter kartik579/devtron-trial instead of only devtron-trial.**

@@ -3,7 +3,7 @@ info:
   version: 1.0.0
   title: Devtron
 paths:
-  /user/role/group:
+  /user/role/group/v2:
     get:
       summary: Returns all role groups
       description: all the template group policies
@@ -63,6 +63,26 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RoleGroupListingResponse'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /user/role/group:
+    get:
+      summary: Returns all role groups
+      description: all the template group policies
+      operationId: findGroupPolicy
+      deprecated: true   # Marking the operation as deprecated
+      responses:
+        '200':
+          description: list response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleGroup'
         default:
           description: unexpected error
           content:
