@@ -67,6 +67,7 @@ type UserService interface {
 	GetByIdForGroupClaims(id int32) (*bean.UserInfo, error)
 	GetAll() ([]bean.UserInfo, error) //this is only being used for summary event for now , in use is GetAllWithFilters
 	GetAllWithFilters(request *bean.FetchListingRequest) (*bean.UserListingResponse, error)
+	GetAllDetailedUsers() ([]bean.UserInfo, error)
 	GetEmailById(userId int32) (string, error)
 	GetEmailAndGroupClaimsFromToken(token string) (string, []string, error)
 	GetLoggedInUser(r *http.Request) (int32, error)
@@ -95,18 +96,18 @@ type UserServiceImpl struct {
 	userReqLock sync.RWMutex
 	//map of userId and current lock-state of their serving ability;
 	//if TRUE then it means that some request is ongoing & unable to serve and FALSE then it is open to serve
-	userReqState                     map[int32]bool
-	userAuthRepository               repository.UserAuthRepository
-	logger                           *zap.SugaredLogger
-	userRepository                   repository.UserRepository
-	roleGroupRepository              repository.RoleGroupRepository
-	sessionManager2                  *middleware.SessionManager
-	userCommonService                UserCommonService
-	userAuditService                 UserAuditService
-	globalAuthorisationConfigService auth.GlobalAuthorisationConfigService
-	roleGroupService                 RoleGroupService
-	userGroupMapRepository           repository.UserGroupMapRepository
-	enforcer                         casbin.Enforcer
+	userReqState                      map[int32]bool
+	userAuthRepository                repository.UserAuthRepository
+	logger                            *zap.SugaredLogger
+	userRepository                    repository.UserRepository
+	roleGroupRepository               repository.RoleGroupRepository
+	sessionManager2                   *middleware.SessionManager
+	userCommonService                 UserCommonService
+	userAuditService                  UserAuditService
+	globalAuthorisationConfigService  auth.GlobalAuthorisationConfigService
+	roleGroupService                  RoleGroupService
+	userGroupMapRepository            repository.UserGroupMapRepository
+	enforcer                          casbin.Enforcer
 	userListingRepositoryQueryBuilder helper.UserRepositoryQueryBuilder
 	timeoutWindowService              timeoutWindow.TimeoutWindowService
 }
@@ -123,18 +124,18 @@ func NewUserServiceImpl(userAuthRepository repository.UserAuthRepository,
 	timeoutWindowService timeoutWindow.TimeoutWindowService,
 ) *UserServiceImpl {
 	serviceImpl := &UserServiceImpl{
-		userReqState:                     make(map[int32]bool),
-		userAuthRepository:               userAuthRepository,
-		logger:                           logger,
-		userRepository:                   userRepository,
-		roleGroupRepository:              userGroupRepository,
-		sessionManager2:                  sessionManager2,
-		userCommonService:                userCommonService,
-		userAuditService:                 userAuditService,
-		globalAuthorisationConfigService: globalAuthorisationConfigService,
-		roleGroupService:                 roleGroupService,
-		userGroupMapRepository:           userGroupMapRepository,
-		enforcer:                         enforcer,
+		userReqState:                      make(map[int32]bool),
+		userAuthRepository:                userAuthRepository,
+		logger:                            logger,
+		userRepository:                    userRepository,
+		roleGroupRepository:               userGroupRepository,
+		sessionManager2:                   sessionManager2,
+		userCommonService:                 userCommonService,
+		userAuditService:                  userAuditService,
+		globalAuthorisationConfigService:  globalAuthorisationConfigService,
+		roleGroupService:                  roleGroupService,
+		userGroupMapRepository:            userGroupMapRepository,
+		enforcer:                          enforcer,
 		userListingRepositoryQueryBuilder: userListingRepositoryQueryBuilder,
 		timeoutWindowService:              timeoutWindowService,
 	}
@@ -1352,6 +1353,29 @@ func (impl UserServiceImpl) getLastLoginTime(model repository.UserModel) time.Ti
 	return lastLoginTime
 }
 
+func (impl UserServiceImpl) GetAllDetailedUsers() ([]bean.UserInfo, error) {
+	models, err := impl.userRepository.GetAllExcludingApiTokenUser()
+	if err != nil {
+		impl.logger.Errorw("error while fetching user from db", "error", err)
+		return nil, err
+	}
+	var response []bean.UserInfo
+	for _, model := range models {
+		isSuperAdmin, roleFilters, filterGroups := impl.getUserMetadata(&model)
+		response = append(response, bean.UserInfo{
+			Id:          model.Id,
+			EmailId:     model.EmailId,
+			RoleFilters: roleFilters,
+			Groups:      filterGroups,
+			SuperAdmin:  isSuperAdmin,
+		})
+	}
+	if len(response) == 0 {
+		response = make([]bean.UserInfo, 0)
+	}
+	return response, nil
+}
+
 func (impl UserServiceImpl) UserExists(emailId string) bool {
 	model, err := impl.userRepository.FetchActiveUserByEmail(emailId)
 	if err != nil {
@@ -1573,7 +1597,6 @@ func (impl UserServiceImpl) GetUserByToken(context context.Context, token string
 	}
 	return userInfo.Id, userInfo.UserType, nil
 }
-
 func (impl UserServiceImpl) GetFieldValuesFromToken(token string) ([]byte, error) {
 	var claimBytes []byte
 	mapClaims, err := impl.getMapClaims(token)
