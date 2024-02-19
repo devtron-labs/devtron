@@ -19,8 +19,6 @@ var AppStoreDeploymentWireSet = wire.NewSet(
 	wire.Bind(new(EAMode.EAModeDeploymentService), new(*EAMode.EAModeDeploymentServiceImpl)),
 	service.NewAppStoreDeploymentServiceImpl,
 	wire.Bind(new(service.AppStoreDeploymentService), new(*service.AppStoreDeploymentServiceImpl)),
-	NewAppStoreDeploymentRestHandlerImpl,
-	wire.Bind(new(AppStoreDeploymentRestHandler), new(*AppStoreDeploymentRestHandlerImpl)),
 	NewAppStoreDeploymentRouterImpl,
 	wire.Bind(new(AppStoreDeploymentRouter), new(*AppStoreDeploymentRouterImpl)),
 	repository.NewInstalledAppVersionHistoryRepositoryImpl,
@@ -34,4 +32,5 @@ var AppStoreDeploymentWireSet = wire.NewSet(
 
 	EAMode.NewInstalledAppDBServiceImpl,
 	wire.Bind(new(EAMode.InstalledAppDBService), new(*EAMode.InstalledAppDBServiceImpl)),
+	TestAppStoreDeploymentWireSet,
 )
