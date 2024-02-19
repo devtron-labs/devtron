@@ -30,7 +30,7 @@ type AppStoreRouter interface {
 }
 
 type AppStoreRouterImpl struct {
-	deployRestHandler                 InstalledAppRestHandler
+	DeployRestHandler                 InstalledAppRestHandler
 	appStoreValuesRouter              appStoreValues.AppStoreValuesRouter
 	appStoreDiscoverRouter            appStoreDiscover.AppStoreDiscoverRouter
 	appStoreDeploymentRouter          appStoreDeployment.AppStoreDeploymentRouter
@@ -45,7 +45,7 @@ func NewAppStoreRouterImpl(restHandler InstalledAppRestHandler,
 	appStoreDeploymentRouter appStoreDeployment.AppStoreDeploymentRouter,
 	appStoreStatusTimelineRestHandler AppStoreStatusTimelineRestHandler) *AppStoreRouterImpl {
 	return &AppStoreRouterImpl{
-		deployRestHandler:                 restHandler,
+		DeployRestHandler:                 restHandler,
 		appStoreValuesRouter:              appStoreValuesRouter,
 		appStoreDiscoverRouter:            appStoreDiscoverRouter,
 		chartProviderRouter:               chartProviderRouter,
@@ -79,31 +79,31 @@ func (router AppStoreRouterImpl) Init(configRouter *mux.Router) {
 	router.chartProviderRouter.Init(chartProviderSubRouter)
 	// chart provider router ends
 	configRouter.Path("/overview").Queries("installedAppId", "{installedAppId}").
-		HandlerFunc(router.deployRestHandler.FetchAppOverview).Methods("GET")
+		HandlerFunc(router.DeployRestHandler.FetchAppOverview).Methods("GET")
 	configRouter.Path("/application/exists").
-		HandlerFunc(router.deployRestHandler.CheckAppExists).Methods("POST")
+		HandlerFunc(router.DeployRestHandler.CheckAppExists).Methods("POST")
 	configRouter.Path("/group/install").
-		HandlerFunc(router.deployRestHandler.DeployBulk).Methods("POST")
+		HandlerFunc(router.DeployRestHandler.DeployBulk).Methods("POST")
 	configRouter.Path("/installed-app/detail").Queries("installed-app-id", "{installed-app-id}").Queries("env-id", "{env-id}").
-		HandlerFunc(router.deployRestHandler.FetchAppDetailsForInstalledApp).
+		HandlerFunc(router.DeployRestHandler.FetchAppDetailsForInstalledApp).
 		Methods("GET")
 	configRouter.Path("/installed-app/delete/{installedAppId}/non-cascade").
-		HandlerFunc(router.deployRestHandler.DeleteArgoInstalledAppWithNonCascade).
+		HandlerFunc(router.DeployRestHandler.DeleteArgoInstalledAppWithNonCascade).
 		Methods("DELETE")
 	configRouter.Path("/installed-app/detail/v2").Queries("installed-app-id", "{installed-app-id}").Queries("env-id", "{env-id}").
-		HandlerFunc(router.deployRestHandler.FetchAppDetailsForInstalledAppV2).
+		HandlerFunc(router.DeployRestHandler.FetchAppDetailsForInstalledAppV2).
 		Methods("GET")
 	configRouter.Path("/installed-app/detail/resource-tree").Queries("installed-app-id", "{installed-app-id}").Queries("env-id", "{env-id}").
-		HandlerFunc(router.deployRestHandler.FetchResourceTree).
+		HandlerFunc(router.DeployRestHandler.FetchResourceTree).
 		Methods("GET")
 	configRouter.Path("/installed-app/resource/hibernate").Queries("installed-app-id", "{installed-app-id}").Queries("env-id", "{env-id}").
-		HandlerFunc(router.deployRestHandler.FetchResourceTreeForACDApp).
+		HandlerFunc(router.DeployRestHandler.FetchResourceTreeForACDApp).
 		Methods("GET")
 	configRouter.Path("/installed-app/notes").Queries("installed-app-id", "{installed-app-id}").Queries("env-id", "{env-id}").
-		HandlerFunc(router.deployRestHandler.FetchNotesForArgoInstalledApp).
+		HandlerFunc(router.DeployRestHandler.FetchNotesForArgoInstalledApp).
 		Methods("GET")
 	configRouter.Path("/installed-app").
-		HandlerFunc(router.deployRestHandler.GetAllInstalledApp).Methods("GET")
+		HandlerFunc(router.DeployRestHandler.GetAllInstalledApp).Methods("GET")
 	configRouter.Path("/cluster-component/install/{clusterId}").
-		HandlerFunc(router.deployRestHandler.DefaultComponentInstallation).Methods("POST")
+		HandlerFunc(router.DeployRestHandler.DefaultComponentInstallation).Methods("POST")
 }
