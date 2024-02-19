@@ -123,6 +123,8 @@ paths:
                     description: "environment names"
                     example: "[UAT,QA,PROD]"
       responses:
+        "403":
+          description: "if user does not have permission to approve permission, OR does not have build and deploy permission to request for promotion, OR user is trying to cancel the request that was not created by him."
         "400":
           description: "this response is for any un acceptable request payload"
         "200":
@@ -235,6 +237,8 @@ paths:
     get:
       description: "get artifact promotion policy by its name"
       responses:
+        "403":
+          description: "gets this response if user is not a super admin"
         "404":
           description: "if the policy is not found with the given name"
         "200":
@@ -254,6 +258,8 @@ paths:
       responses:
         "400":
           description: "this response is for any un acceptable request payload or query params"
+        "403":
+          description: "gets this response if user is not a super admin"
         "404":
           description: "if the policy is not found with the given name"
         "200":
@@ -265,6 +271,8 @@ paths:
     delete:
       description: "Delete the promotion policy"
       responses:
+        "403":
+          description: "gets this response if user is not a super admin"
         "404":
           description: "if the policy is not found with the given name"
         "204":
@@ -274,6 +282,8 @@ paths:
     get:
       description: "gets the active policy names"
       responses:
+        "403":
+          description: "gets this response if user is not a super admin"
         "200":
           description: "successfully fetched the policies"
           content:
@@ -312,6 +322,8 @@ paths:
       responses:
         "400":
           description: "this response is for any un acceptable request payload or query params"
+        "403":
+          description: "gets this response if user is not a super admin"
         "200":
           description: gets the promotion by search param.
           content:
@@ -331,6 +343,8 @@ paths:
       responses:
         "400":
           description: "this response is for any un acceptable request payload or query params"
+        "403":
+          description: "gets this response if user is not a super admin"
         "200":
           description: policy created successfully
           content:
@@ -351,6 +365,8 @@ paths:
       responses:
         "400":
           description: "this response is for any un acceptable request payload or query params"
+        "403":
+          description: "gets this response if user is not a super admin"
         "200":
           description: "successfully fetched filtered app-env-policy mappings"
           content:
@@ -395,6 +411,10 @@ paths:
                 appEnvPolicyListFilter:
                   $ref: '#/components/schemas/AppEnvPolicyMappingsListFilter'
       responses:
+        "400":
+          description: "this response is for any un acceptable request payload or query params"
+        "403":
+          description: "gets this response if user is not a super admin"
         "200":
           description: "successfully applied the profile on the given app-envs or filtered app-envs"
 
@@ -403,6 +423,8 @@ paths:
     get:
       description: "fetches the filter conditions param meta data used in CEL expression"
       responses:
+        "400":
+          description: "this response is for any un acceptable request payload or query params"
         "200":
           description: "successfully fetched filter condition CEL params"
           content:
