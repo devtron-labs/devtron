@@ -1456,7 +1456,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineMin(appId int, envIds []in
 	var ciPipelineResp []*bean.CiPipelineMin
 	for _, pipeline := range pipelines {
 		parentCiPipeline := pipelineConfig.CiPipeline{}
-		pipelineType := bean.NORMAL
+		pipelineType := bean.CI_BUILD
 
 		if pipelineParentCiMap[pipeline.Id] != nil {
 			parentCiPipeline = *pipelineParentCiMap[pipeline.Id]
