@@ -40,8 +40,10 @@ import (
 type RoleGroupService interface {
 	CreateRoleGroup(request *bean.RoleGroup) (*bean.RoleGroup, error)
 	UpdateRoleGroup(request *bean.RoleGroup, token string, managerAuth func(resource, token string, object string) bool) (*bean.RoleGroup, error)
+	FetchDetailedRoleGroups() ([]*bean.RoleGroup, error)
 	FetchRoleGroupsById(id int32) (*bean.RoleGroup, error)
-	FetchRoleGroups() (*bean.RoleGroupListingResponse, error)
+	FetchRoleGroups() ([]*bean.RoleGroup, error)
+	FetchRoleGroupsV2() (*bean.RoleGroupListingResponse, error)
 	FetchRoleGroupsWithFilters(request *bean.FetchListingRequest) (*bean.RoleGroupListingResponse, error)
 	FetchRoleGroupsByName(name string) ([]*bean.RoleGroup, error)
 	DeleteRoleGroup(model *bean.RoleGroup) (bool, error)
@@ -602,7 +604,7 @@ func (impl RoleGroupServiceImpl) getRoleGroupMetadata(roleGroup *repository.Role
 	return roleFilters, isSuperAdmin
 }
 
-func (impl RoleGroupServiceImpl) fetchDetailedRoleGroups() ([]*bean.RoleGroup, error) {
+func (impl RoleGroupServiceImpl) FetchDetailedRoleGroups() ([]*bean.RoleGroup, error) {
 	roleGroups, err := impl.roleGroupRepository.GetAllRoleGroup()
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
@@ -635,8 +637,31 @@ func (impl RoleGroupServiceImpl) fetchDetailedRoleGroups() ([]*bean.RoleGroup, e
 	return list, nil
 }
 
-func (impl RoleGroupServiceImpl) FetchRoleGroups() (*bean.RoleGroupListingResponse, error) {
-	list, err := impl.fetchDetailedRoleGroups()
+func (impl RoleGroupServiceImpl) FetchRoleGroups() ([]*bean.RoleGroup, error) {
+	roleGroup, err := impl.roleGroupRepository.GetAllRoleGroup()
+	if err != nil {
+		impl.logger.Errorw("error while fetching user from db", "error", err)
+		return nil, err
+	}
+	var list []*bean.RoleGroup
+	for _, item := range roleGroup {
+		bean := &bean.RoleGroup{
+			Id:          item.Id,
+			Name:        item.Name,
+			Description: item.Description,
+			RoleFilters: make([]bean.RoleFilter, 0),
+		}
+		list = append(list, bean)
+	}
+
+	if len(list) == 0 {
+		list = make([]*bean.RoleGroup, 0)
+	}
+	return list, nil
+}
+
+func (impl RoleGroupServiceImpl) FetchRoleGroupsV2() (*bean.RoleGroupListingResponse, error) {
+	list, err := impl.FetchDetailedRoleGroups()
 	if err != nil {
 		impl.logger.Errorw("error in FetchDetailedRoleGroups", "err", err)
 		return nil, err
@@ -653,7 +678,7 @@ func (impl RoleGroupServiceImpl) FetchRoleGroupsWithFilters(request *bean.FetchL
 	// default values will be used if not provided
 	impl.userCommonService.SetDefaultValuesIfNotPresent(request, true)
 	if request.ShowAll {
-		return impl.FetchRoleGroups()
+		return impl.FetchRoleGroupsV2()
 	}
 
 	// setting count check to true for getting only count
