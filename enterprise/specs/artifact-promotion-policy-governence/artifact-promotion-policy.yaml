@@ -300,7 +300,7 @@ paths:
                     items:
                       type: string
 
-  /orchestrator/artifact-promotion/list/policy:
+  /orchestrator/artifact-promotion/policy:
     get:
       parameters:
         - name: search
@@ -330,8 +330,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PromotionPolicy"
-
-  /orchestrator/artifact-promotion/policy:
     post:
       description: Create promotion policy
       requestBody:
