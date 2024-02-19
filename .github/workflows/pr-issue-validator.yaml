@@ -51,8 +51,8 @@ jobs:
           export forked=true
         fi
         echo "forked: $forked"
-        if [[ "$TITLE" == *"doc:"* || "$TITLE" == *"docs:"* || "$TITLE" == *"chore:"* || "$TITLE" == *"release:"* || "$TITLE" == *"Release:"*  ]]; then
-          echo "Skipping validation as this is a PR for documentation or chore."
+        if [[ "$TITLE" == *"doc:"* || "$TITLE" == *"docs:"* || "$TITLE" == *"misc:"* || "$TITLE" == *"release:"* || "$TITLE" == *"Release:"*  ]]; then
+          echo "Skipping validation as this is a PR for documentation or misc."
           if [[ $forked == true ]]; then
             echo "PR:Ready-to-Review, exiting gracefully"
             exit 0
