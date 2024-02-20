@@ -56,6 +56,7 @@ import (
 	"google.golang.org/grpc/codes"
 	status2 "google.golang.org/grpc/status"
 	"k8s.io/helm/pkg/proto/hapi/chart"
+	"net/http"
 	"path"
 	"strconv"
 	"strings"
@@ -1317,4 +1318,45 @@ func (impl *TriggerServiceImpl) deleteCorruptedPipelineStage(pipelineStage *repo
 		return nil, deleted
 	}
 	return nil, false
+}
+
+func (impl *TriggerServiceImpl) handleCustomGitOpsRepoValidation(runner *pipelineConfig.CdWorkflowRunner, pipeline *pipelineConfig.Pipeline, triggeredBy int32) error {
+	if !util.IsAcdApp(pipeline.DeploymentAppName) {
+		return nil
+	}
+	isGitOpsConfigured := false
+	gitOpsConfig, err := impl.gitOpsConfigReadService.GetGitOpsConfigActive()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error while getting active GitOpsConfig", "err", err)
+	}
+	if gitOpsConfig != nil && gitOpsConfig.Id > 0 {
+		isGitOpsConfigured = true
+	}
+	if isGitOpsConfigured && gitOpsConfig.AllowCustomRepository {
+		chart, err := impl.chartRepository.FindLatestChartForAppByAppId(pipeline.AppId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching latest chart for app by appId", "err", err, "appId", pipeline.AppId)
+			return err
+		}
+		if gitOps.IsGitOpsRepoNotConfigured(chart.GitRepoUrl) {
+			// if image vulnerable, update timeline status and return
+			runner.Status = pipelineConfig.WorkflowFailed
+			runner.Message = pipelineConfig.GITOPS_REPO_NOT_CONFIGURED
+			runner.FinishedOn = time.Now()
+			runner.UpdatedOn = time.Now()
+			runner.UpdatedBy = triggeredBy
+			err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
+			if err != nil {
+				impl.logger.Errorw("error in updating wfr status due to vulnerable image", "err", err)
+				return err
+			}
+			apiErr := &util.ApiError{
+				HttpStatusCode:  http.StatusConflict,
+				UserMessage:     pipelineConfig.GITOPS_REPO_NOT_CONFIGURED,
+				InternalMessage: pipelineConfig.GITOPS_REPO_NOT_CONFIGURED,
+			}
+			return apiErr
+		}
+	}
+	return nil
 }

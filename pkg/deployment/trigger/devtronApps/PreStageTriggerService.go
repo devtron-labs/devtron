@@ -6,7 +6,6 @@ import (
 	"fmt"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/api/bean/gitOps"
 	gitSensorClient "github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -29,7 +28,6 @@ import (
 	util2 "github.com/devtron-labs/devtron/util/event"
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
-	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -47,47 +45,6 @@ const (
 	CHILD_CD_CLUSTER_NAME_PREFIX = "CHILD_CD_CLUSTER_NAME"
 	CHILD_CD_COUNT               = "CHILD_CD_COUNT"
 )
-
-func (impl *TriggerServiceImpl) handleCustomGitOpsRepoValidation(runner *pipelineConfig.CdWorkflowRunner, pipeline *pipelineConfig.Pipeline, triggeredBy int32) error {
-	if !util.IsAcdApp(pipeline.DeploymentAppName) {
-		return nil
-	}
-	isGitOpsConfigured := false
-	gitOpsConfig, err := impl.gitOpsConfigReadService.GetGitOpsConfigActive()
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error while getting active GitOpsConfig", "err", err)
-	}
-	if gitOpsConfig != nil && gitOpsConfig.Id > 0 {
-		isGitOpsConfigured = true
-	}
-	if isGitOpsConfigured && gitOpsConfig.AllowCustomRepository {
-		chart, err := impl.chartRepository.FindLatestChartForAppByAppId(pipeline.AppId)
-		if err != nil {
-			impl.logger.Errorw("error in fetching latest chart for app by appId", "err", err, "appId", pipeline.AppId)
-			return err
-		}
-		if gitOps.IsGitOpsRepoNotConfigured(chart.GitRepoUrl) {
-			// if image vulnerable, update timeline status and return
-			runner.Status = pipelineConfig.WorkflowFailed
-			runner.Message = pipelineConfig.GITOPS_REPO_NOT_CONFIGURED
-			runner.FinishedOn = time.Now()
-			runner.UpdatedOn = time.Now()
-			runner.UpdatedBy = triggeredBy
-			err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
-			if err != nil {
-				impl.logger.Errorw("error in updating wfr status due to vulnerable image", "err", err)
-				return err
-			}
-			apiErr := &util.ApiError{
-				HttpStatusCode:  http.StatusConflict,
-				UserMessage:     pipelineConfig.GITOPS_REPO_NOT_CONFIGURED,
-				InternalMessage: pipelineConfig.GITOPS_REPO_NOT_CONFIGURED,
-			}
-			return apiErr
-		}
-	}
-	return nil
-}
 
 func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) error {
 	//setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
