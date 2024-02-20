@@ -396,11 +396,7 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 			impl.logger.Errorw("Error in delete user role mapping", "user", userInfo)
 			return nil, err
 		}
-		timeExpression, expressionFormat, err := helper2.GetCasbinFormattedTimeAndFormat(userRoleModel.TimeoutWindowConfiguration)
-		if err != nil {
-			impl.logger.Errorw("error encountered in createOrUpdateUserRolesForClusterEntity", "err", err, "expression", userRoleModel.TimeoutWindowConfiguration.TimeoutWindowExpression)
-			return nil, err
-		}
+		timeExpression, expressionFormat := helper2.GetCasbinFormattedTimeAndFormat(userRoleModel.TimeoutWindowConfiguration)
 
 		casbinPolicy := adapter.GetCasbinGroupPolicy(userInfo.EmailId, role.Role, timeExpression, expressionFormat)
 		eliminatedPolicies = append(eliminatedPolicies, casbinPolicy)

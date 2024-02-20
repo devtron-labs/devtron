@@ -33,6 +33,7 @@ import (
 	jwt2 "github.com/golang-jwt/jwt/v4"
 	"golang.org/x/exp/slices"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -476,6 +477,7 @@ func (impl UserServiceImpl) updateUserIfExists(userInfo *bean.UserInfo, dbUser *
 		updateUserInfo.SuperAdmin = userInfo.SuperAdmin
 	}
 	updateUserInfo.RoleFilters = impl.mergeRoleFilter(updateUserInfo.RoleFilters, userInfo.RoleFilters)
+	// TODO:(V3) Will need to change this merging group status
 	updateUserInfo.Groups = impl.mergeGroups(updateUserInfo.Groups, userInfo.Groups)
 	updateUserInfo.UserId = userInfo.UserId
 	updateUserInfo.EmailId = emailId // override case sensitivity
@@ -675,11 +677,7 @@ func (impl UserServiceImpl) createOrUpdateUserRolesForClusterEntity(roleFilter b
 		impl.logger.Errorw("error encountered in createOrUpdateUserRolesForClusterEntity", "roleFilter", roleFilter, "err", err)
 		return policiesToBeAdded, rolesChanged, err
 	}
-	timeExpression, expressionFormat, err := helper.GetCasbinFormattedTimeAndFormat(timeoutWindowConfig)
-	if err != nil {
-		impl.logger.Errorw("error encountered in createOrUpdateUserRolesForClusterEntity", "err", err, "expression", timeoutWindowConfig.TimeoutWindowExpression)
-		return nil, rolesChanged, err
-	}
+	timeExpression, expressionFormat := helper.GetCasbinFormattedTimeAndFormat(timeoutWindowConfig)
 	var timeoutWindowConfigId int
 	if timeoutWindowConfig != nil {
 		timeoutWindowConfigId = timeoutWindowConfig.Id
@@ -1103,13 +1101,14 @@ func (impl UserServiceImpl) GetByIdWithoutGroupClaims(id int32) (*bean.UserInfo,
 		return nil, err
 	}
 
-	isSuperAdmin, roleFilters, filterGroups := impl.getUserMetadata(model)
+	isSuperAdmin, roleFilters, filterGroups, userRoleGroups := impl.getUserMetadata(model)
 	response := &bean.UserInfo{
-		Id:          model.Id,
-		EmailId:     model.EmailId,
-		RoleFilters: roleFilters,
-		Groups:      filterGroups,
-		SuperAdmin:  isSuperAdmin,
+		Id:            model.Id,
+		EmailId:       model.EmailId,
+		RoleFilters:   roleFilters,
+		Groups:        filterGroups,
+		SuperAdmin:    isSuperAdmin,
+		UserRoleGroup: userRoleGroups,
 	}
 
 	return response, nil
@@ -1162,40 +1161,45 @@ func (impl UserServiceImpl) GetByIdForGroupClaims(id int32) (*bean.UserInfo, err
 	var roleFilters []bean.RoleFilter
 	var filterGroups []string
 	var isSuperAdmin bool
-	var roleGroups []bean.RoleGroup
+	var userRoleGroups []bean.UserRoleGroup
 	isGroupClaimsActive := impl.globalAuthorisationConfigService.IsGroupClaimsConfigActive()
 	if isGroupClaimsActive {
-		roleGroups, err = impl.getRoleGroupsForGroupClaims(id)
+		userRoleGroups, err = impl.getRoleGroupsForGroupClaims(id)
 		if err != nil {
 			impl.logger.Errorw("error in getRoleGroupsForGroupClaims ", "err", err, "id", id)
 			return nil, err
 		}
 	} else {
 		// Intentionally considering ad or devtron managed here to avoid conflicts
-		isSuperAdmin, roleFilters, filterGroups = impl.getUserMetadata(model)
+		isSuperAdmin, roleFilters, filterGroups, userRoleGroups = impl.getUserMetadata(model)
 	}
 	response := &bean.UserInfo{
-		Id:          model.Id,
-		EmailId:     model.EmailId,
-		RoleFilters: roleFilters,
-		Groups:      filterGroups,
-		SuperAdmin:  isSuperAdmin,
-		RoleGroups:  roleGroups,
+		Id:            model.Id,
+		EmailId:       model.EmailId,
+		RoleFilters:   roleFilters,
+		Groups:        filterGroups,
+		SuperAdmin:    isSuperAdmin,
+		UserRoleGroup: userRoleGroups,
 	}
 
 	return response, nil
 }
 
-func (impl UserServiceImpl) fetchRoleGroupsByGroupClaims(groupClaims []string) ([]bean.RoleGroup, error) {
+func (impl UserServiceImpl) fetchUserRoleGroupsByGroupClaims(groupClaims []string) ([]bean.UserRoleGroup, error) {
 	_, roleGroups, err := impl.roleGroupService.FetchRoleGroupsWithRolesByGroupCasbinNames(groupClaims)
 	if err != nil {
 		impl.logger.Errorw("error in fetchRoleGroupsByGroupClaims", "err", err, "groupClaims", groupClaims)
 		return nil, err
 	}
-	return roleGroups, err
+	var userRoleGroups []bean.UserRoleGroup
+	for _, roleGroup := range roleGroups {
+		// Sending hardcoded status active and time zero here in case of Active directory
+		userRoleGroups = append(userRoleGroups, adapter.GetUserRoleGroupAdapter(roleGroup, bean.Active, time.Time{}))
+	}
+	return userRoleGroups, err
 }
 
-func (impl UserServiceImpl) getUserMetadata(model *repository.UserModel) (bool, []bean.RoleFilter, []string) {
+func (impl UserServiceImpl) getUserMetadata(model *repository.UserModel) (bool, []bean.RoleFilter, []string, []bean.UserRoleGroup) {
 	userRoles, err := impl.userRepository.GetRolesWithTimeoutWindowConfigurationByUserId(model.Id)
 	if err != nil {
 		impl.logger.Debugw("No Roles Found for user", "id", model.Id)
@@ -1241,29 +1245,17 @@ func (impl UserServiceImpl) getUserMetadata(model *repository.UserModel) (bool, 
 		roleFilters = append(roleFilters, *v)
 	}
 	roleFilters = impl.userCommonService.MergeCustomRoleFilters(roleFilters)
-	groups, err := casbin2.GetRolesForUser(model.EmailId)
+	groupPolicy, err := casbin2.GetGroupsAttachedToUser(model.EmailId)
 	if err != nil {
 		impl.logger.Warnw("No Roles Found for user", "id", model.Id)
 	}
-
 	var filterGroups []string
-	for _, item := range groups {
-		if strings.Contains(item, "group:") {
-			filterGroups = append(filterGroups, item)
-		}
-	}
-
-	if len(filterGroups) > 0 {
-		filterGroupsModels, err := impl.roleGroupRepository.GetRoleGroupListByCasbinNames(filterGroups)
+	var userRoleGroups []bean.UserRoleGroup
+	if len(groupPolicy) > 0 {
+		userRoleGroups, filterGroups, err = impl.getUserRoleGroupAndActiveGroups(groupPolicy, recordedTime)
 		if err != nil {
-			impl.logger.Warnw("No Roles Found for user", "id", model.Id)
+			impl.logger.Errorw("error in getUserMetadata", "err", err)
 		}
-		filterGroups = nil
-		for _, item := range filterGroupsModels {
-			filterGroups = append(filterGroups, item.Name)
-		}
-	} else {
-		impl.logger.Warnw("no roles found for user", "email", model.EmailId)
 	}
 
 	if len(filterGroups) == 0 {
@@ -1271,6 +1263,9 @@ func (impl UserServiceImpl) getUserMetadata(model *repository.UserModel) (bool, 
 	}
 	if len(roleFilters) == 0 {
 		roleFilters = make([]bean.RoleFilter, 0)
+	}
+	if len(userRoleGroups) == 0 {
+		userRoleGroups = make([]bean.UserRoleGroup, 0)
 	}
 	for index, roleFilter := range roleFilters {
 		if roleFilter.Entity == "" {
@@ -1280,7 +1275,38 @@ func (impl UserServiceImpl) getUserMetadata(model *repository.UserModel) (bool, 
 			}
 		}
 	}
-	return isSuperAdmin, roleFilters, filterGroups
+	return isSuperAdmin, roleFilters, filterGroups, userRoleGroups
+}
+
+func (impl UserServiceImpl) getUserRoleGroupAndActiveGroups(groupPolicy []casbin2.GroupPolicy, recordedTime time.Time) ([]bean.UserRoleGroup, []string, error) {
+	var userRoleGroup []bean.UserRoleGroup
+	var activeGroup []string
+	var casbinGroupName []string
+	groupCasbinNameVsStatusMap := make(map[string]casbin2.GroupPolicy)
+	for _, policy := range groupPolicy {
+		groupCasbinNameVsStatusMap[policy.Role] = policy
+		casbinGroupName = append(casbinGroupName, policy.Role)
+	}
+	filterGroupsModels, err := impl.roleGroupRepository.GetRoleGroupListByCasbinNames(casbinGroupName)
+	if err != nil {
+		impl.logger.Errorw("error in getUserRoleGroupAndActiveGroups", "casbinGroupName", casbinGroupName, "err", err)
+		return userRoleGroup, activeGroup, err
+	}
+
+	for _, roleGroup := range filterGroupsModels {
+		group := adapter.GetBasicRoleGroupDetailsAdapter(roleGroup.Name, roleGroup.Description, roleGroup.Id)
+		status, timeWindowExpression, err := getStatusAndTimeoutExpressionFromCasbinValues(groupCasbinNameVsStatusMap[roleGroup.CasbinName].TimeoutWindowExpression, groupCasbinNameVsStatusMap[roleGroup.CasbinName].ExpressionFormat, recordedTime)
+		if err != nil {
+			impl.logger.Errorw("error in getUserRoleGroup", "groupPolicy", groupPolicy, "err", err)
+			return userRoleGroup, activeGroup, err
+		}
+		userRoleGroup = append(userRoleGroup, bean.UserRoleGroup{RoleGroup: group, Status: status, TimeoutWindowExpression: timeWindowExpression})
+		if status != bean.Inactive {
+			activeGroup = append(activeGroup, roleGroup.Name)
+		}
+	}
+
+	return userRoleGroup, activeGroup, nil
 }
 
 // GetAll excluding API token user
@@ -1433,10 +1459,10 @@ func (impl UserServiceImpl) getAllDetailedUsers(req *bean.ListingRequest) ([]bea
 	recordedTime := time.Now()
 
 	for _, model := range models {
-		isSuperAdmin, roleFilters, filterGroups := impl.getUserMetadata(&model)
+		isSuperAdmin, roleFilters, filterGroups, userRoleGroups := impl.getUserMetadata(&model)
 		userStatus, ttlTime := getStatusAndTTL(model.TimeoutWindowConfiguration, recordedTime)
 		lastLoginTime := adapter.GetLastLoginTime(model)
-		userResp := getUserInfoAdapter(model.Id, model.EmailId, roleFilters, filterGroups, isSuperAdmin, lastLoginTime, ttlTime, userStatus)
+		userResp := getUserInfoAdapter(model.Id, model.EmailId, roleFilters, filterGroups, isSuperAdmin, lastLoginTime, ttlTime, userStatus, userRoleGroups)
 		response = append(response, userResp)
 	}
 	if len(response) == 0 {
@@ -1445,7 +1471,7 @@ func (impl UserServiceImpl) getAllDetailedUsers(req *bean.ListingRequest) ([]bea
 	return response, nil
 }
 
-func getUserInfoAdapter(id int32, emailId string, roleFilters []bean.RoleFilter, filterGroups []string, isSuperAdmin bool, lastLoginTime, ttlTime time.Time, userStatus bean.Status) bean.UserInfo {
+func getUserInfoAdapter(id int32, emailId string, roleFilters []bean.RoleFilter, filterGroups []string, isSuperAdmin bool, lastLoginTime, ttlTime time.Time, userStatus bean.Status, userRoleGroups []bean.UserRoleGroup) bean.UserInfo {
 	user := bean.UserInfo{
 		Id:                      id,
 		EmailId:                 emailId,
@@ -1455,6 +1481,7 @@ func getUserInfoAdapter(id int32, emailId string, roleFilters []bean.RoleFilter,
 		LastLoginTime:           lastLoginTime,
 		UserStatus:              userStatus,
 		TimeoutWindowExpression: ttlTime,
+		UserRoleGroup:           userRoleGroups,
 	}
 	return user
 }
@@ -1475,7 +1502,7 @@ func (impl UserServiceImpl) GetAllDetailedUsers() ([]bean.UserInfo, error) {
 	}
 	var response []bean.UserInfo
 	for _, model := range models {
-		isSuperAdmin, roleFilters, filterGroups := impl.getUserMetadata(&model)
+		isSuperAdmin, roleFilters, filterGroups, _ := impl.getUserMetadata(&model)
 		response = append(response, bean.UserInfo{
 			Id:          model.Id,
 			EmailId:     model.EmailId,
@@ -2233,11 +2260,7 @@ func (impl *UserServiceImpl) createOrUpdateUserRolesForOtherEntity(roleFilter be
 		impl.logger.Errorw("error encountered in createOrUpdateUserRolesForOtherEntity", "roleFilter", roleFilter, "err", err)
 		return policiesToBeAdded, rolesChanged, err
 	}
-	timeExpression, expressionFormat, err := helper.GetCasbinFormattedTimeAndFormat(timeoutWindowConfig)
-	if err != nil {
-		impl.logger.Errorw("error encountered in createOrUpdateUserRolesForOtherEntity", "err", err, "expression", timeoutWindowConfig.TimeoutWindowExpression)
-		return nil, rolesChanged, err
-	}
+	timeExpression, expressionFormat := helper.GetCasbinFormattedTimeAndFormat(timeoutWindowConfig)
 	var timeoutWindowConfigId int
 	if timeoutWindowConfig != nil {
 		timeoutWindowConfigId = timeoutWindowConfig.Id
@@ -2317,11 +2340,7 @@ func (impl *UserServiceImpl) createOrUpdateUserRolesForJobsEntity(roleFilter bea
 		impl.logger.Errorw("error encountered in createOrUpdateUserRolesForJobsEntity", "roleFilter", roleFilter, "err", err)
 		return policiesToBeAdded, rolesChanged, err
 	}
-	timeExpression, expressionFormat, err := helper.GetCasbinFormattedTimeAndFormat(timeoutWindowConfig)
-	if err != nil {
-		impl.logger.Errorw("error encountered in createOrUpdateUserRolesForJobsEntity", "err", err, "expression", timeoutWindowConfig.TimeoutWindowExpression)
-		return nil, rolesChanged, err
-	}
+	timeExpression, expressionFormat := helper.GetCasbinFormattedTimeAndFormat(timeoutWindowConfig)
 	var timeoutWindowConfigId int
 	if timeoutWindowConfig != nil {
 		timeoutWindowConfigId = timeoutWindowConfig.Id
@@ -2413,7 +2432,7 @@ func (impl UserServiceImpl) getRoleFiltersForGroupClaims(id int32) ([]bean.RoleF
 	return roleFilters, nil
 }
 
-func (impl UserServiceImpl) getRoleGroupsForGroupClaims(id int32) ([]bean.RoleGroup, error) {
+func (impl UserServiceImpl) getRoleGroupsForGroupClaims(id int32) ([]bean.UserRoleGroup, error) {
 	userGroups, err := impl.userGroupMapRepository.GetActiveByUserId(id)
 	if err != nil {
 		impl.logger.Errorw("error in GetActiveByUserId", "err", err, "userId", id)
@@ -2424,20 +2443,20 @@ func (impl UserServiceImpl) getRoleGroupsForGroupClaims(id int32) ([]bean.RoleGr
 		groupClaims = append(groupClaims, userGroup.GroupName)
 	}
 	// checking by group casbin name (considering case insensitivity here)
-	var roleGroups []bean.RoleGroup
+	var userRoleGroups []bean.UserRoleGroup
 	if len(groupClaims) > 0 {
 		groupCasbinNames := util3.GetGroupCasbinName(groupClaims)
-		roleGroups, err = impl.fetchRoleGroupsByGroupClaims(groupCasbinNames)
+		userRoleGroups, err = impl.fetchUserRoleGroupsByGroupClaims(groupCasbinNames)
 		if err != nil {
 			impl.logger.Errorw("error in fetchRoleGroupsByGroupClaims ", "err", err, "groupClaims", groupClaims)
 			return nil, err
 		}
 	}
-	return roleGroups, nil
+	return userRoleGroups, nil
 }
 
 func (impl UserServiceImpl) getRolefiltersForDevtronManaged(model *repository.UserModel) ([]bean.RoleFilter, error) {
-	_, roleFilters, filterGroups := impl.getUserMetadata(model)
+	_, roleFilters, filterGroups, _ := impl.getUserMetadata(model)
 	if len(filterGroups) > 0 {
 		groupRoleFilters, err := impl.GetRoleFiltersByGroupNames(filterGroups)
 		if err != nil {
@@ -2681,12 +2700,27 @@ func getStatusAndTTL(twcModel *repository2.TimeoutWindowConfiguration, recordedT
 	status := bean.Active
 	var ttlTime time.Time
 	if twcModel != nil && len(twcModel.TimeoutWindowExpression) > 0 {
-		status, ttlTime = getUserStatusFromTimeoutWindowExpression(twcModel.TimeoutWindowExpression, recordedTime, twcModel.ExpressionFormat)
+		status, ttlTime = getStatusFromTimeoutWindowExpression(twcModel.TimeoutWindowExpression, recordedTime, twcModel.ExpressionFormat)
 	}
 	return status, ttlTime
 }
 
-func getUserStatusFromTimeoutWindowExpression(expression string, recordedTime time.Time, expressionFormat bean3.ExpressionFormat) (bean.Status, time.Time) {
+func getStatusAndTimeoutExpressionFromCasbinValues(expression, format string, recordedTime time.Time) (bean.Status, time.Time, error) {
+	status := bean.Active
+	var timeoutExpression time.Time
+	if len(expression) > 0 && len(format) > 0 {
+		expressionFormat, err := strconv.Atoi(format)
+		if err != nil {
+			fmt.Println("error in parsing casbin expression format", "err", err)
+			return status, timeoutExpression, err
+		}
+		status, timeoutExpression = getStatusFromTimeoutWindowExpression(expression, recordedTime, bean3.ExpressionFormat(expressionFormat))
+	}
+	return status, timeoutExpression, nil
+
+}
+
+func getStatusFromTimeoutWindowExpression(expression string, recordedTime time.Time, expressionFormat bean3.ExpressionFormat) (bean.Status, time.Time) {
 	parsedTime, err := getParsedTimeFromExpression(expression, expressionFormat)
 	if err != nil {
 		return bean.Inactive, parsedTime

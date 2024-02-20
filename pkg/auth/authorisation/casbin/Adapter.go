@@ -52,6 +52,12 @@ type Action string
 type Object string
 type PolicyType string
 
+type GroupPolicy struct {
+	Role                    string
+	TimeoutWindowExpression string
+	ExpressionFormat        string
+}
+
 func isV2() bool {
 	return casbinVersion == CasbinV2
 }
@@ -200,14 +206,14 @@ func DeleteRoleForUser(user string, role string) bool {
 	return response
 }
 
-func GetGroupsAttachedToUser(user string) ([]string, error) {
+func GetGroupsAttachedToUser(user string) ([]GroupPolicy, error) {
 	roleMappings := make([][]string, 0)
 	if isV2() {
 		roleMappings = e2.GetModel()["g"]["g"].Policy
 	} else {
 		roleMappings = e.GetModel()["g"]["g"].Policy
 	}
-	groupRoles := make([]string, 0)
+	groupRoles := make([]GroupPolicy, 0)
 	for _, roleMappingDetail := range roleMappings {
 		lenOfRoleMapping := len(roleMappingDetail)
 		if lenOfRoleMapping < 2 {
@@ -219,17 +225,19 @@ func GetGroupsAttachedToUser(user string) ([]string, error) {
 				role := roleMappingDetail[1]
 				if strings.HasPrefix(role, "group:") {
 					isExpressionValid := true
+					expression := ""
+					format := ""
 					if lenOfRoleMapping == 4 {
 						//expression details present
-						expression := roleMappingDetail[2]
-						format := roleMappingDetail[3]
+						expression = roleMappingDetail[2]
+						format = roleMappingDetail[3]
 						//parse and check if expression is correct
 						if !(len(expression) > 0 && len(format) == 1) { //TODO: update correct parser checks
 							isExpressionValid = false
 						}
 					}
 					if isExpressionValid {
-						groupRoles = append(groupRoles, strings.TrimPrefix(role, "group:"))
+						groupRoles = append(groupRoles, GroupPolicy{Role: role, ExpressionFormat: format, TimeoutWindowExpression: strings.ToUpper(expression)})
 					}
 				}
 			}

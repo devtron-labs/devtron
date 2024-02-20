@@ -38,8 +38,7 @@ type UserInfo struct {
 	Status                  string          `json:"status,omitempty"`
 	Groups                  []string        `json:"groups"` // this will be deprecated in future do not use
 	SuperAdmin              bool            `json:"superAdmin,notnull"`
-	RoleGroups              []RoleGroup     `json:"roleGroups,omitempty"` // role group with metadata, currently using for group claims
-	UserRoleGroup           []UserRoleGroup `json:"userRoleGroup,omitempty"`
+	UserRoleGroup           []UserRoleGroup `json:"userRoleGroup,omitempty"` // role group with metadata , status and timeoutWindowExpression
 	LastLoginTime           time.Time       `json:"lastLoginTime"`
 	TimeoutWindowExpression time.Time       `json:"timeoutWindowExpression"`
 	UserStatus              Status          `json:"userStatus"`
@@ -181,7 +180,7 @@ type BulkDeleteRequest struct {
 }
 
 type UserRoleGroup struct {
-	RoleGroup               RoleGroup `json:"roleGroups"`
-	Status                  Status    `json:"status"`
-	TimeoutWindowExpression time.Time `json:"timeoutWindowExpression"`
+	RoleGroup               *RoleGroup `json:"roleGroups"`
+	Status                  Status     `json:"status"`
+	TimeoutWindowExpression time.Time  `json:"timeoutWindowExpression"`
 }

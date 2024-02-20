@@ -1,6 +1,7 @@
 package adapter
 
 import (
+	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"time"
@@ -21,5 +22,22 @@ func GetCasbinGroupPolicy(emailId string, role string, expression string, expres
 		Res:  casbin.Resource(expression),
 		Act:  casbin.Action(expressionFormat),
 		Obj:  casbin.Object(role),
+	}
+}
+
+func GetBasicRoleGroupDetailsAdapter(name, description string, id int32) *bean.RoleGroup {
+	roleGroup := &bean.RoleGroup{
+		Id:          id,
+		Name:        name,
+		Description: description,
+	}
+	return roleGroup
+}
+
+func GetUserRoleGroupAdapter(group *bean.RoleGroup, status bean.Status, timeoutExpression time.Time) bean.UserRoleGroup {
+	return bean.UserRoleGroup{
+		RoleGroup:               group,
+		Status:                  status,
+		TimeoutWindowExpression: timeoutExpression,
 	}
 }
