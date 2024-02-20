@@ -29,6 +29,7 @@ import (
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	util4 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
@@ -184,6 +185,17 @@ type CdWorkflowRunner struct {
 	ReferenceId             *string              `sql:"reference_id"`
 	CdWorkflow              *CdWorkflow
 	sql.AuditLog
+}
+
+// TODO: move from here to adapter
+func GetTriggerMetricsFromRunnerObj(runner *CdWorkflowRunner) util4.CDMetrics {
+	return util4.CDMetrics{
+		AppName:         runner.CdWorkflow.Pipeline.DeploymentAppName,
+		Status:          runner.Status,
+		DeploymentType:  runner.CdWorkflow.Pipeline.DeploymentAppType,
+		EnvironmentName: runner.CdWorkflow.Pipeline.Environment.Name,
+		Time:            time.Since(runner.StartedOn).Seconds() - time.Since(runner.FinishedOn).Seconds(),
+	}
 }
 
 func (c *CdWorkflowRunner) IsExternalRun() bool {

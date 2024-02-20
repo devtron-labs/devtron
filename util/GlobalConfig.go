@@ -7,8 +7,10 @@ import (
 )
 
 type GlobalEnvVariables struct {
-	GitOpsRepoPrefix     string `env:"GITOPS_REPO_PREFIX" envDefault:""`
-	SkipGitOpsValidation bool   `env:"SKIP_GITOPS_VALIDATION" envDefault:"false"`
+	GitOpsRepoPrefix               string `env:"GITOPS_REPO_PREFIX" envDefault:""`
+	SkipGitOpsValidation           bool   `env:"SKIP_GITOPS_VALIDATION" envDefault:"false"`
+	EnableAsyncInstallDevtronChart bool   `env:"ENABLE_ASYNC_INSTALL_DEVTRON_CHART" envDefault:"false"`
+	ExposeCiMetrics                bool   `env:"EXPOSE_CI_METRICS" envDefault:"false"`
 }
 
 func GetGlobalEnvVariables() (*GlobalEnvVariables, error) {
