@@ -1,4 +1,5 @@
 ## Bugs
+- fix: 5xx 3.0 (#4578)
 - fix: chart repo delete routing (#4692)
 - fix: job workflow req volume mount (#4693)
 - fix: User api version for old apis (#4685)
