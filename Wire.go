@@ -125,6 +125,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	client2 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/build"
 	"github.com/devtron-labs/devtron/pkg/bulkAction"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
@@ -134,6 +135,7 @@ import (
 	git2 "github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
+	"github.com/devtron-labs/devtron/pkg/eventProcessor"
 	"github.com/devtron-labs/devtron/pkg/generateManifest"
 	"github.com/devtron-labs/devtron/pkg/git"
 	"github.com/devtron-labs/devtron/pkg/gitops"
@@ -152,6 +154,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/plugin"
 	repository6 "github.com/devtron-labs/devtron/pkg/plugin/repository"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/security"
@@ -162,6 +165,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	repository10 "github.com/devtron-labs/devtron/pkg/variables/repository"
+	workflow3 "github.com/devtron-labs/devtron/pkg/workflow"
+	"github.com/devtron-labs/devtron/pkg/workflow/dag"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	cron2 "github.com/devtron-labs/devtron/util/cron"
@@ -204,9 +209,13 @@ func InitializeApp() (*App, error) {
 		devtronResource.DevtronResourceWireSet,
 		globalConfig.GlobalConfigWireSet,
 		lockConfiguation.LockConfigWireSet,
+		build.BuildWireSet,
 		deployment2.DeploymentWireSet,
 		argoApplication.ArgoApplicationWireSet,
 
+		eventProcessor.EventProcessorWireSet,
+		workflow3.WorkflowWireSet,
+		policyGovernance.PolicyGovernanceWireSet,
 		// -------wireset end ----------
 		// -------
 		gitSensor.GetConfig,
@@ -508,21 +517,12 @@ func InitializeApp() (*App, error) {
 		pubsub.NewGitWebhookHandler,
 		wire.Bind(new(pubsub.GitWebhookHandler), new(*pubsub.GitWebhookHandlerImpl)),
 
-		pubsub.NewWorkflowStatusUpdateHandlerImpl,
-		wire.Bind(new(pubsub.WorkflowStatusUpdateHandler), new(*pubsub.WorkflowStatusUpdateHandlerImpl)),
-
 		pubsub.NewApplicationStatusHandlerImpl,
 		wire.Bind(new(pubsub.ApplicationStatusHandler), new(*pubsub.ApplicationStatusHandlerImpl)),
-
-		pubsub.GetCiEventConfig,
-		pubsub.NewCiEventHandlerImpl,
-		wire.Bind(new(pubsub.CiEventHandler), new(*pubsub.CiEventHandlerImpl)),
 
 		rbac.NewEnforcerUtilImpl,
 		wire.Bind(new(rbac.EnforcerUtil), new(*rbac.EnforcerUtilImpl)),
 
-		app.NewDeploymentEventHandlerImpl,
-		wire.Bind(new(app.DeploymentEventHandler), new(*app.DeploymentEventHandlerImpl)),
 		chartConfig.NewPipelineConfigRepository,
 		wire.Bind(new(chartConfig.PipelineConfigRepository), new(*chartConfig.PipelineConfigRepositoryImpl)),
 
@@ -607,8 +607,8 @@ func InitializeApp() (*App, error) {
 		pipeline4.NewBlobStorageConfigServiceImpl,
 		wire.Bind(new(pipeline4.BlobStorageConfigService), new(*pipeline4.BlobStorageConfigServiceImpl)),
 
-		pipeline4.NewWorkflowDagExecutorImpl,
-		wire.Bind(new(pipeline4.WorkflowDagExecutor), new(*pipeline4.WorkflowDagExecutorImpl)),
+		dag.NewWorkflowDagExecutorImpl,
+		wire.Bind(new(dag.WorkflowDagExecutor), new(*dag.WorkflowDagExecutorImpl)),
 		appClone.NewAppCloneServiceImpl,
 		wire.Bind(new(appClone.AppCloneService), new(*appClone.AppCloneServiceImpl)),
 
@@ -1016,6 +1016,7 @@ func InitializeApp() (*App, error) {
 
 		imageDigestPolicy2.NewImageDigestPolicyRestHandlerImpl,
 		wire.Bind(new(imageDigestPolicy2.ImageDigestPolicyRestHandler), new(*imageDigestPolicy2.ImageDigestPolicyRestHandlerImpl)),
+
 		cron2.NewCronLoggerImpl,
 
 		timeoutWindow.NewTimeWindowServiceImpl,
@@ -1023,7 +1024,6 @@ func InitializeApp() (*App, error) {
 
 		repository9.NewTimeWindowRepositoryImpl,
 		wire.Bind(new(repository9.TimeWindowRepository), new(*repository9.TimeWindowRepositoryImpl)),
-
 	)
 	return &App{}, nil
 }
