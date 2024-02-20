@@ -29,7 +29,9 @@ type UserCommonService interface {
 	BuildRoleFilterKeyForOtherEntity(roleFilterMap map[string]*bean.RoleFilter, role repository.RoleModel, key string)
 	BuildRoleFilterForAllTypes(roleFilterMap map[string]*bean.RoleFilter, role repository.RoleModel, key string)
 	GetUniqueKeyForAllEntity(role repository.RoleModel) string
-	SetDefaultValuesIfNotPresent(request *bean.FetchListingRequest, isRoleGroup bool)
+	SetDefaultValuesIfNotPresent(request *bean.ListingRequest, isRoleGroup bool)
+	DeleteRoleForUserFromCasbin(mappings map[string][]string) bool
+	DeleteUserForRoleFromCasbin(mappings map[string][]string) bool
 }
 
 type UserCommonServiceImpl struct {
@@ -676,7 +678,7 @@ func (impl UserCommonServiceImpl) GetUniqueKeyForAllEntity(role repository.RoleM
 	return key
 }
 
-func (impl UserCommonServiceImpl) SetDefaultValuesIfNotPresent(request *bean.FetchListingRequest, isRoleGroup bool) {
+func (impl UserCommonServiceImpl) SetDefaultValuesIfNotPresent(request *bean.ListingRequest, isRoleGroup bool) {
 	if len(request.SortBy) == 0 {
 		if isRoleGroup {
 			request.SortBy = bean2.GroupName
@@ -687,4 +689,34 @@ func (impl UserCommonServiceImpl) SetDefaultValuesIfNotPresent(request *bean.Fet
 	if request.Size == 0 {
 		request.Size = bean2.DefaultSize
 	}
+}
+
+func (impl UserCommonServiceImpl) DeleteRoleForUserFromCasbin(mappings map[string][]string) bool {
+	successful := true
+	for v0, v1s := range mappings {
+		for _, v1 := range v1s {
+			flag := casbin.DeleteRoleForUser(v0, v1)
+			if flag == false {
+				impl.logger.Warnw("unable to delete role:", "v0", v0, "v1", v1)
+				successful = false
+				return successful
+			}
+		}
+	}
+	return successful
+}
+
+func (impl UserCommonServiceImpl) DeleteUserForRoleFromCasbin(mappings map[string][]string) bool {
+	successful := true
+	for v1, v0s := range mappings {
+		for _, v0 := range v0s {
+			flag := casbin.DeleteRoleForUser(v0, v1)
+			if flag == false {
+				impl.logger.Warnw("unable to delete role:", "v0", v0, "v1", v1)
+				successful = false
+				return successful
+			}
+		}
+	}
+	return successful
 }

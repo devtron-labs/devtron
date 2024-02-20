@@ -48,6 +48,8 @@ func (router UserRouterImpl) InitUserRouter(userAuthRouter *mux.Router) {
 		HandlerFunc(router.userRestHandler.GetAll).Methods("GET")
 	userAuthRouter.Path("").
 		HandlerFunc(router.userRestHandler.UpdateUser).Methods("PUT")
+	userAuthRouter.Path("/bulk").
+		HandlerFunc(router.userRestHandler.BulkDeleteUsers).Methods("DELETE")
 	userAuthRouter.Path("/{id}").
 		HandlerFunc(router.userRestHandler.DeleteUser).Methods("DELETE")
 	userAuthRouter.Path("/detail/get").
@@ -68,6 +70,8 @@ func (router UserRouterImpl) InitUserRouter(userAuthRouter *mux.Router) {
 	userAuthRouter.Path("/role/group/search").
 		Queries("name", "{name}").
 		HandlerFunc(router.userRestHandler.FetchRoleGroupsByName).Methods("GET")
+	userAuthRouter.Path("/role/group/bulk").
+		HandlerFunc(router.userRestHandler.BulkDeleteRoleGroups).Methods("DELETE")
 	userAuthRouter.Path("/role/group/{id}").
 		HandlerFunc(router.userRestHandler.DeleteRoleGroup).Methods("DELETE")
 
