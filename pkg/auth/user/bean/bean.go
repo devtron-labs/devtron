@@ -100,3 +100,15 @@ const (
 	AdminUserId  = 2 // we have established Admin user as 2 while setting up devtron
 	SystemUserId = 1 // we have established System user as 1 while setting up devtron, which are being used for auto-trigger operations
 )
+
+type StatusType int
+
+const (
+	Active                          StatusType = 1
+	Inactive                        StatusType = 2
+	TemporaryAccess                 StatusType = 3
+	Active_InActive                 StatusType = 4
+	Active_TemporaryAccess          StatusType = 5
+	Inactive_TemporaryAccess        StatusType = 6
+	Active_Inactive_TemporaryAccess StatusType = 7
+)
