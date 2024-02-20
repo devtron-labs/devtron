@@ -135,6 +135,9 @@ func (impl *AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installRequ
 		// validateCustomGitOpsRepoURL returns sanitized repo url after validation
 		installRequest.GitOpsRepoURL = gitOpsRepoURL
 		installRequest.IsNewGitOpsRepo = isNew
+	} else {
+		// overriding gitOps repository url -> empty (for Helm installation)
+		installRequest.GitOpsRepoURL = ""
 	}
 	installedAppModel := adapter.NewInstallAppModel(installRequest, appStoreBean.DEPLOY_INIT)
 	installedApp, err := impl.installedAppRepository.CreateInstalledApp(installedAppModel, tx)
