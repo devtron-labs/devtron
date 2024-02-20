@@ -178,6 +178,7 @@ func InitializeApp() (*App, error) {
 		chartProvider.AppStoreChartProviderWireSet,
 		appStoreValues.AppStoreValuesWireSet,
 		appStoreDeployment.AppStoreDeploymentWireSet,
+		appStoreDeployment.TestAppStoreDeploymentWireSet,
 		server.ServerWireSet,
 		module.ModuleWireSet,
 		apiToken.ApiTokenWireSet,
