@@ -1,4 +1,5 @@
 ## Bugs
+- fix: chart repo delete routing (#4692)
 - fix: job workflow req volume mount (#4693)
 - fix: User api version for old apis (#4685)
 - fix: updated rbac for argo apps listing and detail fetch apis (#4678)
