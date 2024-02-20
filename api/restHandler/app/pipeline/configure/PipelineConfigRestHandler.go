@@ -26,6 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactApproval/action"
 	"io"
 	"net/http"
 	"strconv"
@@ -104,7 +105,6 @@ type PipelineConfigRestHandlerImpl struct {
 	ciPipelineMaterialRepository        pipelineConfig.CiPipelineMaterialRepository
 	ciHandler                           pipeline.CiHandler
 	Logger                              *zap.SugaredLogger
-	deploymentTemplateValidationService deploymentTemplate.DeploymentTemplateValidationService
 	chartService                        chart.ChartService
 	propertiesConfigService             pipeline.PropertiesConfigService
 	userAuthService                     user.UserService
@@ -129,8 +129,10 @@ type PipelineConfigRestHandlerImpl struct {
 	deploymentTemplateService           generateManifest.DeploymentTemplateService
 	pipelineRestHandlerEnvConfig        *PipelineRestHandlerEnvConfig
 	ciArtifactRepository                repository.CiArtifactRepository
+	deploymentTemplateValidationService deploymentTemplate.DeploymentTemplateValidationService
 	deployedAppMetricsService           deployedAppMetrics.DeployedAppMetricsService
 	chartRefService                     chartRef.ChartRefService
+	artifactApprovalActionService       action.ArtifactApprovalActionService
 }
 
 func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
@@ -157,7 +159,8 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	imageTaggingService pipeline.ImageTaggingService, resourceProtectionService protect.ResourceProtectionService,
 	ciArtifactRepository repository.CiArtifactRepository,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
-	chartRefService chartRef.ChartRefService) *PipelineConfigRestHandlerImpl {
+	chartRefService chartRef.ChartRefService,
+	artifactApprovalActionService action.ArtifactApprovalActionService) *PipelineConfigRestHandlerImpl {
 	envConfig := &PipelineRestHandlerEnvConfig{}
 	err := env.Parse(envConfig)
 	if err != nil {
@@ -166,7 +169,6 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	return &PipelineConfigRestHandlerImpl{
 		pipelineBuilder:                     pipelineBuilder,
 		Logger:                              Logger,
-		deploymentTemplateValidationService: deploymentTemplateValidationService,
 		chartService:                        chartService,
 		propertiesConfigService:             propertiesConfigService,
 		userAuthService:                     userAuthService,
@@ -194,8 +196,10 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		deploymentTemplateService:           deploymentTemplateService,
 		pipelineRestHandlerEnvConfig:        envConfig,
 		ciArtifactRepository:                ciArtifactRepository,
+		deploymentTemplateValidationService: deploymentTemplateValidationService,
 		deployedAppMetricsService:           deployedAppMetricsService,
 		chartRefService:                     chartRefService,
+		artifactApprovalActionService:       artifactApprovalActionService,
 	}
 }
 
