@@ -130,7 +130,7 @@ type RoleGroupListingResponse struct {
 	TotalCount int          `json:"totalCount"`
 }
 
-type FetchListingRequest struct {
+type ListingRequest struct {
 	SearchKey  string         `json:"searchKey"`
 	SortOrder  bean.SortOrder `json:"sortOrder"`
 	SortBy     bean.SortBy    `json:"sortBy"`
@@ -138,4 +138,10 @@ type FetchListingRequest struct {
 	Size       int            `json:"size"`
 	ShowAll    bool           `json:"showAll"`
 	CountCheck bool           `json:"-"`
+}
+
+type BulkDeleteRequest struct {
+	Ids            []int32         `json:"ids"`
+	ListingRequest *ListingRequest `json:"listingRequest,omitempty"`
+	LoggedInUserId int32           `json:"-"`
 }
