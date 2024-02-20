@@ -2,10 +2,12 @@ package argocdServer
 
 import (
 	"context"
+	"encoding/json"
 	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	repository2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/caarlos0/env"
+	"github.com/devtron-labs/devtron/client/argocdServer/adapter"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/repository"
@@ -32,17 +34,26 @@ func GetACDDeploymentConfig() (*ACDConfig, error) {
 
 type ArgoClientWrapperService interface {
 
-	//GetArgoAppWithNormalRefresh - refresh app at argocd side
+	// GetArgoAppWithNormalRefresh - refresh app at argocd side
 	GetArgoAppWithNormalRefresh(context context.Context, argoAppName string) error
 
-	//SyncArgoCDApplicationIfNeededAndRefresh - if ARGO_AUTO_SYNC_ENABLED=true, app will be refreshed to initiate refresh at argoCD side or else it will be synced and refreshed
+	// SyncArgoCDApplicationIfNeededAndRefresh - if ARGO_AUTO_SYNC_ENABLED=true, app will be refreshed to initiate refresh at argoCD side or else it will be synced and refreshed
 	SyncArgoCDApplicationIfNeededAndRefresh(context context.Context, argoAppName string) error
 
 	// UpdateArgoCDSyncModeIfNeeded - if ARGO_AUTO_SYNC_ENABLED=true and app is in manual sync mode or vice versa update app
 	UpdateArgoCDSyncModeIfNeeded(ctx context.Context, argoApplication *v1alpha1.Application) (err error)
 
-	//RegisterGitOpsRepoInArgo - register a repository in argo-cd with retry mechanism
+	// RegisterGitOpsRepoInArgo - register a repository in argo-cd with retry mechanism
 	RegisterGitOpsRepoInArgo(ctx context.Context, gitOpsRepoUrl string, userId int32) error
+
+	// GetArgoAppByName fetches an argoCd app by its name
+	GetArgoAppByName(ctx context.Context, appName string) (*v1alpha1.Application, error)
+
+	// PatchArgoCdApp performs a patch operation on an argoCd app
+	PatchArgoCdApp(ctx context.Context, dto *bean.ArgoCdAppPatchReqDto) error
+
+	// GetGitOpsRepoName returns the GitOps repository name, configured for the argoCd app
+	GetGitOpsRepoName(ctx context.Context, appName string) (gitOpsRepoName string, err error)
 }
 
 type ArgoClientWrapperServiceImpl struct {
@@ -202,4 +213,42 @@ func (impl *ArgoClientWrapperServiceImpl) handleArgoRepoCreationError(retryCount
 		}
 	}
 	return retryCount + 1, nil
+}
+
+func (impl *ArgoClientWrapperServiceImpl) GetArgoAppByName(ctx context.Context, appName string) (*v1alpha1.Application, error) {
+	argoApplication, err := impl.acdClient.Get(ctx, &application2.ApplicationQuery{Name: &appName})
+	if err != nil {
+		impl.logger.Errorw("err in getting argo app by name", "app", appName)
+		return nil, err
+	}
+	return argoApplication, nil
+}
+
+func (impl *ArgoClientWrapperServiceImpl) PatchArgoCdApp(ctx context.Context, dto *bean.ArgoCdAppPatchReqDto) error {
+	patchReq := adapter.GetArgoCdPatchReqFromDto(dto)
+	reqbyte, err := json.Marshal(patchReq)
+	if err != nil {
+		impl.logger.Errorw("error in creating patch", "err", err)
+		return err
+	}
+	reqString := string(reqbyte)
+	_, err = impl.acdClient.Patch(ctx, &application2.ApplicationPatchRequest{Patch: &reqString, Name: &dto.ArgoAppName, PatchType: &dto.PatchType})
+	if err != nil {
+		impl.logger.Errorw("error in patching argo pipeline ", "name", dto.ArgoAppName, "patch", reqString, "err", err)
+		return err
+	}
+	return nil
+}
+
+func (impl *ArgoClientWrapperServiceImpl) GetGitOpsRepoName(ctx context.Context, appName string) (gitOpsRepoName string, err error) {
+	acdApplication, err := impl.acdClient.Get(ctx, &application2.ApplicationQuery{Name: &appName})
+	if err != nil {
+		impl.logger.Errorw("no argo app exists", "acdAppName", appName, "err", err)
+		return gitOpsRepoName, err
+	}
+	if acdApplication != nil {
+		gitOpsRepoUrl := acdApplication.Spec.Source.RepoURL
+		gitOpsRepoName = impl.gitOpsConfigReadService.GetGitOpsRepoNameFromUrl(gitOpsRepoUrl)
+	}
+	return gitOpsRepoName, nil
 }

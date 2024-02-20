@@ -108,31 +108,29 @@ type CiPipelineConfigService interface {
 }
 
 type CiPipelineConfigServiceImpl struct {
-	logger                              *zap.SugaredLogger
-	ciTemplateService                   CiTemplateService
-	materialRepo                        pipelineConfig.MaterialRepository
-	ciPipelineRepository                pipelineConfig.CiPipelineRepository
-	ciConfig                            *types.CiCdConfig
-	attributesService                   attributes.AttributesService
-	ciWorkflowRepository                pipelineConfig.CiWorkflowRepository
-	appWorkflowRepository               appWorkflow.AppWorkflowRepository
-	pipelineStageService                PipelineStageService
-	pipelineRepository                  pipelineConfig.PipelineRepository
-	appRepo                             app2.AppRepository
-	dockerArtifactStoreRepository       dockerRegistryRepository.DockerArtifactStoreRepository
-	ciCdPipelineOrchestrator            CiCdPipelineOrchestrator
-	ciTemplateOverrideRepository        pipelineConfig.CiTemplateOverrideRepository
-	CiTemplateHistoryService            history.CiTemplateHistoryService
-	securityConfig                      *SecurityConfig
-	ecrConfig                           *EcrConfig
-	ciPipelineMaterialRepository        pipelineConfig.CiPipelineMaterialRepository
-	resourceGroupService                resourceGroup2.ResourceGroupService
-	enforcerUtil                        rbac.EnforcerUtil
-	customTagService                    CustomTagService
-	deployedConfigurationHistoryService history.DeployedConfigurationHistoryService
-	ciPipelineHistoryService            history.CiPipelineHistoryService
-	cdWorkflowRepository                pipelineConfig.CdWorkflowRepository
-	buildPipelineSwitchService          BuildPipelineSwitchService
+	logger                        *zap.SugaredLogger
+	ciTemplateService             CiTemplateService
+	materialRepo                  pipelineConfig.MaterialRepository
+	ciPipelineRepository          pipelineConfig.CiPipelineRepository
+	ciConfig                      *types.CiCdConfig
+	attributesService             attributes.AttributesService
+	ciWorkflowRepository          pipelineConfig.CiWorkflowRepository
+	appWorkflowRepository         appWorkflow.AppWorkflowRepository
+	pipelineStageService          PipelineStageService
+	pipelineRepository            pipelineConfig.PipelineRepository
+	appRepo                       app2.AppRepository
+	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository
+	ciCdPipelineOrchestrator      CiCdPipelineOrchestrator
+	ciTemplateOverrideRepository  pipelineConfig.CiTemplateOverrideRepository
+	CiTemplateHistoryService      history.CiTemplateHistoryService
+	securityConfig                *SecurityConfig
+	ecrConfig                     *EcrConfig
+	ciPipelineMaterialRepository  pipelineConfig.CiPipelineMaterialRepository
+	resourceGroupService          resourceGroup2.ResourceGroupService
+	enforcerUtil                  rbac.EnforcerUtil
+	customTagService              CustomTagService
+	cdWorkflowRepository          pipelineConfig.CdWorkflowRepository
+	buildPipelineSwitchService    BuildPipelineSwitchService
 }
 
 func NewCiPipelineConfigServiceImpl(logger *zap.SugaredLogger,
@@ -155,7 +153,6 @@ func NewCiPipelineConfigServiceImpl(logger *zap.SugaredLogger,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	resourceGroupService resourceGroup2.ResourceGroupService,
 	customTagService CustomTagService,
-	ciPipelineHistoryService history.CiPipelineHistoryService,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	buildPipelineSwitchService BuildPipelineSwitchService,
 ) *CiPipelineConfigServiceImpl {
@@ -187,7 +184,6 @@ func NewCiPipelineConfigServiceImpl(logger *zap.SugaredLogger,
 		resourceGroupService:          resourceGroupService,
 		securityConfig:                securityConfig,
 		customTagService:              customTagService,
-		ciPipelineHistoryService:      ciPipelineHistoryService,
 		cdWorkflowRepository:          cdWorkflowRepository,
 		buildPipelineSwitchService:    buildPipelineSwitchService,
 	}

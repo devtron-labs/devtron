@@ -26,6 +26,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode"
+	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
+	"github.com/devtron-labs/devtron/pkg/workflow/cd"
+	"github.com/devtron-labs/devtron/pkg/workflow/dag"
 	"k8s.io/utils/pointer"
 	"time"
 
@@ -50,18 +53,20 @@ type ApplicationStatusHandlerImpl struct {
 	logger                    *zap.SugaredLogger
 	pubsubClient              *pubsub.PubSubClientServiceImpl
 	appService                app.AppService
-	workflowDagExecutor       pipeline.WorkflowDagExecutor
+	workflowDagExecutor       dag.WorkflowDagExecutor
 	installedAppService       FullMode.InstalledAppDBExtendedService
 	appStoreDeploymentService service.AppStoreDeploymentService
 	pipelineBuilder           pipeline.PipelineBuilder
 	pipelineRepository        pipelineConfig.PipelineRepository
 	installedAppRepository    repository4.InstalledAppRepository
+	cdWorkflowCommonService   cd.CdWorkflowCommonService
 }
 
 func NewApplicationStatusHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSubClientServiceImpl, appService app.AppService,
-	workflowDagExecutor pipeline.WorkflowDagExecutor, installedAppService FullMode.InstalledAppDBExtendedService,
+	workflowDagExecutor dag.WorkflowDagExecutor, installedAppService FullMode.InstalledAppDBExtendedService,
 	appStoreDeploymentService service.AppStoreDeploymentService, pipelineBuilder pipeline.PipelineBuilder,
-	pipelineRepository pipelineConfig.PipelineRepository, installedAppRepository repository4.InstalledAppRepository) *ApplicationStatusHandlerImpl {
+	pipelineRepository pipelineConfig.PipelineRepository, installedAppRepository repository4.InstalledAppRepository,
+	cdWorkflowCommonService cd.CdWorkflowCommonService) *ApplicationStatusHandlerImpl {
 	appStatusUpdateHandlerImpl := &ApplicationStatusHandlerImpl{
 		logger:                    logger,
 		pubsubClient:              pubsubClient,
@@ -72,6 +77,7 @@ func NewApplicationStatusHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pu
 		pipelineBuilder:           pipelineBuilder,
 		pipelineRepository:        pipelineRepository,
 		installedAppRepository:    installedAppRepository,
+		cdWorkflowCommonService:   cdWorkflowCommonService,
 	}
 	err := appStatusUpdateHandlerImpl.Subscribe()
 	if err != nil {
@@ -147,7 +153,7 @@ func (impl *ApplicationStatusHandlerImpl) Subscribe() error {
 		// invoke DagExecutor, for cd success which will trigger post stage if exist.
 		if isSucceeded {
 			impl.logger.Debugw("git hash history", "list", app.Status.History)
-			triggerContext := pipeline.TriggerContext{
+			triggerContext := bean2.TriggerContext{
 				ReferenceId: pointer.String(msg.MsgId),
 			}
 			err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent(triggerContext, pipelineOverride)
@@ -164,7 +170,7 @@ func (impl *ApplicationStatusHandlerImpl) Subscribe() error {
 		return "", nil
 	}
 
-	validations := impl.workflowDagExecutor.GetTriggerValidateFuncs()
+	validations := impl.cdWorkflowCommonService.GetTriggerValidateFuncs()
 	err := impl.pubsubClient.Subscribe(pubsub.APPLICATION_STATUS_UPDATE_TOPIC, callback, loggerFunc, validations...)
 	if err != nil {
 		impl.logger.Error(err)
