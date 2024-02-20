@@ -146,23 +146,32 @@ const (
 )
 
 type BulkStatusUpdateRequest struct {
-	UserIds                 []int32   `json:"userIds",validate:"required"`
-	Status                  Status    `json:"status",validate:"required"'`
-	TimeoutWindowExpression time.Time `json:"timeoutWindowExpression"`
+	UserIds                 []int32         `json:"userIds",validate:"required"`
+	Status                  Status          `json:"status",validate:"required"'`
+	TimeoutWindowExpression time.Time       `json:"timeoutWindowExpression"`
+	ListingRequest          *ListingRequest `json:"listingRequest,omitempty"`
+	LoggedInUserId          int32           `json:"-"`
 }
 
 type ActionResponse struct {
 	Suceess bool `json:"suceess"`
 }
 
-type FetchListingRequest struct {
-	Status      Status         `json:"status"` // only being used for users
-	SearchKey   string         `json:"searchKey"`
-	SortOrder   bean.SortOrder `json:"sortOrder"`
-	SortBy      bean.SortBy    `json:"sortBy"`
-	Offset      int            `json:"offset"`
-	Size        int            `json:"size"`
-	ShowAll     bool           `json:"showAll"`
-	CurrentTime time.Time      `json:"-"` // for Internal Use
-	CountCheck  bool           `json:"-"` // for Internal Use
+type ListingRequest struct {
+	Status      []Status        `json:"status"`    // only being used for users
+	SearchKey   string          `json:"searchKey"` // this is used for searching groupName or email matching search key.
+	SortOrder   bean.SortOrder  `json:"sortOrder"`
+	SortBy      bean.SortBy     `json:"sortBy"`
+	Offset      int             `json:"offset"`
+	Size        int             `json:"size"`
+	ShowAll     bool            `json:"showAll"`
+	CurrentTime time.Time       `json:"-"` // for Internal Use
+	CountCheck  bool            `json:"-"` // for Internal Use
+	StatusType  bean.StatusType `json:"-"` // for Internal Use
+}
+
+type BulkDeleteRequest struct {
+	Ids            []int32         `json:"ids"`
+	ListingRequest *ListingRequest `json:"listingRequest,omitempty"`
+	LoggedInUserId int32           `json:"-"`
 }
