@@ -200,6 +200,44 @@ func DeleteRoleForUser(user string, role string) bool {
 	return response
 }
 
+func GetGroupsAttachedToUser(user string) ([]string, error) {
+	roleMappings := make([][]string, 0)
+	if isV2() {
+		roleMappings = e2.GetModel()["g"]["g"].Policy
+	} else {
+		roleMappings = e.GetModel()["g"]["g"].Policy
+	}
+	groupRoles := make([]string, 0)
+	for _, roleMappingDetail := range roleMappings {
+		lenOfRoleMapping := len(roleMappingDetail)
+		if lenOfRoleMapping < 2 {
+			//invalid case
+			return nil, fmt.Errorf("invalid role mapping found")
+		} else {
+			userInRole := roleMappingDetail[0]
+			if userInRole == user { //checking user
+				role := roleMappingDetail[1]
+				if strings.HasPrefix(role, "group:") {
+					isExpressionValid := true
+					if lenOfRoleMapping == 4 {
+						//expression details present
+						expression := roleMappingDetail[2]
+						format := roleMappingDetail[3]
+						//parse and check if expression is correct
+						if !(len(expression) > 0 && len(format) == 1) { //TODO: update correct parser checks
+							isExpressionValid = false
+						}
+					}
+					if isExpressionValid {
+						groupRoles = append(groupRoles, strings.TrimPrefix(role, "group:"))
+					}
+				}
+			}
+		}
+	}
+	return groupRoles, nil
+}
+
 func GetRolesForUser(user string) ([]string, error) {
 	user = strings.ToLower(user)
 	if isV2() {
