@@ -4,6 +4,7 @@ import (
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/approvalFlows"
 	"time"
 )
 
@@ -28,7 +29,7 @@ type CdWorkflowWithArtifact struct {
 	WorkflowType            string                                      `json:"workflow_type,omitempty"`
 	ExecutorType            string                                      `json:"executor_type,omitempty"`
 	BlobStorageEnabled      bool                                        `json:"blobStorageEnabled"`
-	UserApprovalMetadata    *pipelineConfig.UserApprovalMetadata        `json:"userApprovalMetadata"`
+	UserApprovalMetadata    *approvalFlows.UserApprovalMetadata         `json:"userApprovalMetadata"`
 	GitTriggers             map[int]pipelineConfig.GitCommit            `json:"gitTriggers"`
 	CiMaterials             []pipelineConfig.CiPipelineMaterialResponse `json:"ciMaterials"`
 	ImageReleaseTags        []*repository.ImageTag                      `json:"imageReleaseTags"`

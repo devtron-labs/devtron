@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/approvalFlows"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -126,7 +127,7 @@ type CdHandlerImpl struct {
 	installedAppVersionHistoryRepository   repository3.InstalledAppVersionHistoryRepository
 	appRepository                          app2.AppRepository
 	resourceGroupService                   resourceGroup2.ResourceGroupService
-	deploymentApprovalRepository           pipelineConfig.DeploymentApprovalRepository
+	deploymentApprovalRepository           approvalFlows.DeploymentApprovalRepository
 	imageTaggingService                    ImageTaggingService
 	eventFactory                           client2.EventFactory
 	k8sUtil                                *k8s.K8sUtilExtended
@@ -143,7 +144,7 @@ type CdHandlerImpl struct {
 }
 
 func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService, cdWorkflowRepository pipelineConfig.CdWorkflowRepository, ciLogService CiLogService, ciArtifactRepository repository.CiArtifactRepository, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, pipelineRepository pipelineConfig.PipelineRepository, envRepository repository2.EnvironmentRepository, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, helmAppService client.HelmAppService, pipelineOverrideRepository chartConfig.PipelineOverrideRepository, workflowDagExecutor WorkflowDagExecutor, appListingService app.AppListingService, appListingRepository repository.AppListingRepository, pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository, application application.ServiceClient, argoUserService argo.ArgoUserService, deploymentEventHandler app.DeploymentEventHandler, eventClient client2.EventClient, pipelineStatusTimelineResourcesService status.PipelineStatusTimelineResourcesService, pipelineStatusSyncDetailService status.PipelineStatusSyncDetailService, pipelineStatusTimelineService status.PipelineStatusTimelineService, appService app.AppService, appStatusService app_status.AppStatusService, enforcerUtil rbac.EnforcerUtil, installedAppRepository repository3.InstalledAppRepository, installedAppVersionHistoryRepository repository3.InstalledAppVersionHistoryRepository, appRepository app2.AppRepository, resourceGroupService resourceGroup2.ResourceGroupService, imageTaggingService ImageTaggingService, k8sUtil *k8s.K8sUtilExtended, workflowService WorkflowService, clusterService cluster.ClusterService, blobConfigStorageService BlobStorageConfigService,
-	deploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository,
+	deploymentApprovalRepository approvalFlows.DeploymentApprovalRepository,
 	eventFactory client2.EventFactory,
 	resourceFilterService resourceFilter.ResourceFilterService,
 	customTagService CustomTagService,
@@ -1091,7 +1092,7 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 	approvalRequest := workflowR.DeploymentApprovalRequest
 	if approvalRequest != nil {
 		approvalReqId := workflowR.DeploymentApprovalRequestId
-		approvalUserData, err := impl.deploymentApprovalRepository.FetchApprovalDataForRequests([]int{approvalReqId})
+		approvalUserData, err := impl.deploymentApprovalRepository.FetchApprovalDataForRequests([]int{approvalReqId}, approvalFlows.DEPLOYMENT_APPROVAL)
 		if err != nil {
 			return types.WorkflowResponse{}, err
 		}
@@ -1788,10 +1789,10 @@ func (impl *CdHandlerImpl) PerformDeploymentApprovalAction(triggerContext Trigge
 		if ciArtifact.CreatedBy == userId {
 			return errors.New("user who triggered the build cannot be an approver")
 		}
-		deploymentApprovalData := &pipelineConfig.DeploymentApprovalUserData{
+		deploymentApprovalData := &approvalFlows.ResourceApprovalUserData{
 			ApprovalRequestId: approvalRequestId,
 			UserId:            userId,
-			UserResponse:      pipelineConfig.APPROVED,
+			UserResponse:      approvalFlows.APPROVED,
 		}
 		deploymentApprovalData.CreatedBy = userId
 		deploymentApprovalData.UpdatedBy = userId
@@ -1817,7 +1818,7 @@ func (impl *CdHandlerImpl) PerformDeploymentApprovalAction(triggerContext Trigge
 				impl.Logger.Errorw("error occurred while fetching approval data for artifacts", "artifactId", artifactId, "pipelineId", pipelineId, "config", pipeline.UserApprovalConfig, "err", err)
 				return nil
 			}
-			if approvedData, ok := approvalDataForArtifacts[artifactId]; ok && approvedData.ApprovalRuntimeState == pipelineConfig.ApprovedApprovalState {
+			if approvedData, ok := approvalDataForArtifacts[artifactId]; ok && approvedData.ApprovalRuntimeState == approvalFlows.ApprovedApprovalState {
 				// trigger deployment
 				triggerRequest := TriggerRequest{
 					CdWf:           nil,
@@ -1836,7 +1837,7 @@ func (impl *CdHandlerImpl) PerformDeploymentApprovalAction(triggerContext Trigge
 
 	} else if approvalActionType == bean3.APPROVAL_REQUEST_ACTION {
 		pipelineId := approvalActionRequest.PipelineId
-		deploymentApprovalRequest := &pipelineConfig.DeploymentApprovalRequest{
+		deploymentApprovalRequest := &approvalFlows.DeploymentApprovalRequest{
 			PipelineId: pipelineId,
 			ArtifactId: artifactId,
 			Active:     true,

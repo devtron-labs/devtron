@@ -1,4 +1,4 @@
-package pipelineConfig
+package approvalFlows
 
 import "time"
 

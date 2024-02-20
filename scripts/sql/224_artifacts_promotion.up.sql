@@ -1,7 +1,6 @@
 -- 0 for  deployment approval request, 1 for artifact promotion approval request
 ALTER TABLE deployment_approval_user_data ADD COLUMN "request_type" integer DEFAULT 0;
 
-ALTER TABLE deployment_approval_user_data RENAME COLUMN "approval_request_id" TO "resource_approval_request_id";
 -- rename deployment_approval_user_data table to resource_approval_user_data
 ALTER TABLE deployment_approval_user_data RENAME TO resource_approval_user_data;
 --  drop the constraint as this is no longer valid

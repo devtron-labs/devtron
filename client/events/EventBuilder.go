@@ -20,6 +20,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/approvalFlows"
 	"strings"
 	"time"
 
@@ -44,7 +45,7 @@ type EventFactory interface {
 	BuildExtraApprovalData(event Event, approvalActionRequest bean.UserApprovalActionRequest, pipeline *pipelineConfig.Pipeline, userId int32, imageTagNames []string, imageComment string) []Event
 	BuildExtraProtectConfigData(event Event, draftNotificationRequest ConfigDataForNotification, draftId int, DraftVersionId int) []Event
 	BuildExtraCIData(event Event, material *MaterialTriggerInfo, dockerImage string) Event
-	//BuildFinalData(event Event) *Payload
+	// BuildFinalData(event Event) *Payload
 }
 
 type EventSimpleFactoryImpl struct {
@@ -57,7 +58,7 @@ type EventSimpleFactoryImpl struct {
 	pipelineRepository           pipelineConfig.PipelineRepository
 	userRepository               repository.UserRepository
 	ciArtifactRepository         repository2.CiArtifactRepository
-	DeploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository
+	DeploymentApprovalRepository approvalFlows.DeploymentApprovalRepository
 	sesNotificationRepository    repository2.SESNotificationRepository
 	smtpNotificationRepository   repository2.SMTPNotificationRepository
 	appRepo                      appRepository.AppRepository
@@ -69,7 +70,7 @@ func NewEventSimpleFactoryImpl(logger *zap.SugaredLogger, cdWorkflowRepository p
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository, ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository,
-	userRepository repository.UserRepository, ciArtifactRepository repository2.CiArtifactRepository, DeploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository,
+	userRepository repository.UserRepository, ciArtifactRepository repository2.CiArtifactRepository, DeploymentApprovalRepository approvalFlows.DeploymentApprovalRepository,
 	sesNotificationRepository repository2.SESNotificationRepository, smtpNotificationRepository repository2.SMTPNotificationRepository,
 	appRepo appRepository.AppRepository, envRepository repository4.EnvironmentRepository, apiTokenServiceImpl *apiToken.ApiTokenServiceImpl,
 ) *EventSimpleFactoryImpl {
@@ -147,7 +148,7 @@ func (impl *EventSimpleFactoryImpl) Build(eventType util.EventType, sourceId *in
 }
 
 func (impl *EventSimpleFactoryImpl) BuildExtraCDData(event Event, wfr *pipelineConfig.CdWorkflowRunner, pipelineOverrideId int, stage bean2.WorkflowType) Event {
-	//event.CdWorkflowRunnerId =
+	// event.CdWorkflowRunnerId =
 	event.CdWorkflowType = stage
 	payload := event.Payload
 	if payload == nil {
@@ -158,7 +159,7 @@ func (impl *EventSimpleFactoryImpl) BuildExtraCDData(event Event, wfr *pipelineC
 	var emailIDs []string
 
 	if wfr != nil && wfr.DeploymentApprovalRequestId >= 0 {
-		deploymentUserData, err := impl.DeploymentApprovalRepository.FetchApprovedDataByApprovalId(wfr.DeploymentApprovalRequestId)
+		deploymentUserData, err := impl.DeploymentApprovalRepository.FetchApprovedDataByApprovalId(wfr.DeploymentApprovalRequestId, approvalFlows.DEPLOYMENT_APPROVAL)
 		if err != nil {
 			impl.logger.Errorw("error in getting deploymentUserData", "err", err, "deploymentApprovalRequestId", wfr.DeploymentApprovalRequestId)
 		}

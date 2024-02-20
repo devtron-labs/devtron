@@ -26,6 +26,7 @@ import (
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/approvalFlows"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
@@ -166,8 +167,8 @@ type CdWorkflowRunner struct {
 	tableName                   struct{}             `sql:"cd_workflow_runner" pg:",discard_unknown_columns"`
 	Id                          int                  `sql:"id,pk"`
 	Name                        string               `sql:"name"`
-	WorkflowType                bean.WorkflowType    `sql:"workflow_type"` //pre,post,deploy
-	ExecutorType                WorkflowExecutorType `sql:"executor_type"` //awf, system
+	WorkflowType                bean.WorkflowType    `sql:"workflow_type"` // pre,post,deploy
+	ExecutorType                WorkflowExecutorType `sql:"executor_type"` // awf, system
 	Status                      string               `sql:"status"`
 	PodStatus                   string               `sql:"pod_status"`
 	Message                     string               `sql:"message"`
@@ -185,7 +186,7 @@ type CdWorkflowRunner struct {
 	ImagePathReservationIds     []int                `sql:"image_path_reservation_ids" pg:",array,notnull"`
 	ReferenceId                 *string              `sql:"reference_id"`
 	CdWorkflow                  *CdWorkflow
-	DeploymentApprovalRequest   *DeploymentApprovalRequest
+	DeploymentApprovalRequest   *approvalFlows.DeploymentApprovalRequest
 	sql.AuditLog
 }
 

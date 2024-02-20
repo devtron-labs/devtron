@@ -3,7 +3,7 @@
 package mocks
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/approvalFlows"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -27,19 +27,19 @@ func (_m *DeploymentApprovalRepository) ConsumeApprovalRequest(requestId int) er
 }
 
 // FetchApprovalDataForArtifacts provides a mock function with given fields: artifactIds, pipelineId
-func (_m *DeploymentApprovalRepository) FetchApprovalDataForArtifacts(artifactIds []int, pipelineId int) ([]*pipelineConfig.DeploymentApprovalRequest, error) {
+func (_m *DeploymentApprovalRepository) FetchApprovalDataForArtifacts(artifactIds []int, pipelineId int) ([]*approvalFlows.DeploymentApprovalRequest, error) {
 	ret := _m.Called(artifactIds, pipelineId)
 
-	var r0 []*pipelineConfig.DeploymentApprovalRequest
+	var r0 []*approvalFlows.DeploymentApprovalRequest
 	var r1 error
-	if rf, ok := ret.Get(0).(func([]int, int) ([]*pipelineConfig.DeploymentApprovalRequest, error)); ok {
+	if rf, ok := ret.Get(0).(func([]int, int) ([]*approvalFlows.DeploymentApprovalRequest, error)); ok {
 		return rf(artifactIds, pipelineId)
 	}
-	if rf, ok := ret.Get(0).(func([]int, int) []*pipelineConfig.DeploymentApprovalRequest); ok {
+	if rf, ok := ret.Get(0).(func([]int, int) []*approvalFlows.DeploymentApprovalRequest); ok {
 		r0 = rf(artifactIds, pipelineId)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*pipelineConfig.DeploymentApprovalRequest)
+			r0 = ret.Get(0).([]*approvalFlows.DeploymentApprovalRequest)
 		}
 	}
 
@@ -53,19 +53,19 @@ func (_m *DeploymentApprovalRepository) FetchApprovalDataForArtifacts(artifactId
 }
 
 // FetchApprovalDataForRequests provides a mock function with given fields: requestIds
-func (_m *DeploymentApprovalRepository) FetchApprovalDataForRequests(requestIds []int) ([]*pipelineConfig.DeploymentApprovalUserData, error) {
+func (_m *DeploymentApprovalRepository) FetchApprovalDataForRequests(requestIds []int) ([]*approvalFlows.ResourceApprovalUserData, error) {
 	ret := _m.Called(requestIds)
 
-	var r0 []*pipelineConfig.DeploymentApprovalUserData
+	var r0 []*approvalFlows.ResourceApprovalUserData
 	var r1 error
-	if rf, ok := ret.Get(0).(func([]int) ([]*pipelineConfig.DeploymentApprovalUserData, error)); ok {
+	if rf, ok := ret.Get(0).(func([]int) ([]*approvalFlows.ResourceApprovalUserData, error)); ok {
 		return rf(requestIds)
 	}
-	if rf, ok := ret.Get(0).(func([]int) []*pipelineConfig.DeploymentApprovalUserData); ok {
+	if rf, ok := ret.Get(0).(func([]int) []*approvalFlows.ResourceApprovalUserData); ok {
 		r0 = rf(requestIds)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*pipelineConfig.DeploymentApprovalUserData)
+			r0 = ret.Get(0).([]*approvalFlows.ResourceApprovalUserData)
 		}
 	}
 
@@ -79,19 +79,19 @@ func (_m *DeploymentApprovalRepository) FetchApprovalDataForRequests(requestIds 
 }
 
 // FetchApprovedDataByApprovalId provides a mock function with given fields: approvalRequestId
-func (_m *DeploymentApprovalRepository) FetchApprovedDataByApprovalId(approvalRequestId int) ([]*pipelineConfig.DeploymentApprovalUserData, error) {
+func (_m *DeploymentApprovalRepository) FetchApprovedDataByApprovalId(approvalRequestId int) ([]*approvalFlows.ResourceApprovalUserData, error) {
 	ret := _m.Called(approvalRequestId)
 
-	var r0 []*pipelineConfig.DeploymentApprovalUserData
+	var r0 []*approvalFlows.ResourceApprovalUserData
 	var r1 error
-	if rf, ok := ret.Get(0).(func(int) ([]*pipelineConfig.DeploymentApprovalUserData, error)); ok {
+	if rf, ok := ret.Get(0).(func(int) ([]*approvalFlows.ResourceApprovalUserData, error)); ok {
 		return rf(approvalRequestId)
 	}
-	if rf, ok := ret.Get(0).(func(int) []*pipelineConfig.DeploymentApprovalUserData); ok {
+	if rf, ok := ret.Get(0).(func(int) []*approvalFlows.ResourceApprovalUserData); ok {
 		r0 = rf(approvalRequestId)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*pipelineConfig.DeploymentApprovalUserData)
+			r0 = ret.Get(0).([]*approvalFlows.ResourceApprovalUserData)
 		}
 	}
 
@@ -105,19 +105,19 @@ func (_m *DeploymentApprovalRepository) FetchApprovedDataByApprovalId(approvalRe
 }
 
 // FetchById provides a mock function with given fields: requestId
-func (_m *DeploymentApprovalRepository) FetchById(requestId int) (*pipelineConfig.DeploymentApprovalRequest, error) {
+func (_m *DeploymentApprovalRepository) FetchById(requestId int) (*approvalFlows.DeploymentApprovalRequest, error) {
 	ret := _m.Called(requestId)
 
-	var r0 *pipelineConfig.DeploymentApprovalRequest
+	var r0 *approvalFlows.DeploymentApprovalRequest
 	var r1 error
-	if rf, ok := ret.Get(0).(func(int) (*pipelineConfig.DeploymentApprovalRequest, error)); ok {
+	if rf, ok := ret.Get(0).(func(int) (*approvalFlows.DeploymentApprovalRequest, error)); ok {
 		return rf(requestId)
 	}
-	if rf, ok := ret.Get(0).(func(int) *pipelineConfig.DeploymentApprovalRequest); ok {
+	if rf, ok := ret.Get(0).(func(int) *approvalFlows.DeploymentApprovalRequest); ok {
 		r0 = rf(requestId)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*pipelineConfig.DeploymentApprovalRequest)
+			r0 = ret.Get(0).(*approvalFlows.DeploymentApprovalRequest)
 		}
 	}
 
@@ -131,19 +131,19 @@ func (_m *DeploymentApprovalRepository) FetchById(requestId int) (*pipelineConfi
 }
 
 // FetchWithPipelineAndArtifactDetails provides a mock function with given fields: requestId
-func (_m *DeploymentApprovalRepository) FetchWithPipelineAndArtifactDetails(requestId int) (*pipelineConfig.DeploymentApprovalRequest, error) {
+func (_m *DeploymentApprovalRepository) FetchWithPipelineAndArtifactDetails(requestId int) (*approvalFlows.DeploymentApprovalRequest, error) {
 	ret := _m.Called(requestId)
 
-	var r0 *pipelineConfig.DeploymentApprovalRequest
+	var r0 *approvalFlows.DeploymentApprovalRequest
 	var r1 error
-	if rf, ok := ret.Get(0).(func(int) (*pipelineConfig.DeploymentApprovalRequest, error)); ok {
+	if rf, ok := ret.Get(0).(func(int) (*approvalFlows.DeploymentApprovalRequest, error)); ok {
 		return rf(requestId)
 	}
-	if rf, ok := ret.Get(0).(func(int) *pipelineConfig.DeploymentApprovalRequest); ok {
+	if rf, ok := ret.Get(0).(func(int) *approvalFlows.DeploymentApprovalRequest); ok {
 		r0 = rf(requestId)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*pipelineConfig.DeploymentApprovalRequest)
+			r0 = ret.Get(0).(*approvalFlows.DeploymentApprovalRequest)
 		}
 	}
 
@@ -157,11 +157,11 @@ func (_m *DeploymentApprovalRepository) FetchWithPipelineAndArtifactDetails(requ
 }
 
 // Save provides a mock function with given fields: deploymentApprovalRequest
-func (_m *DeploymentApprovalRepository) Save(deploymentApprovalRequest *pipelineConfig.DeploymentApprovalRequest) error {
+func (_m *DeploymentApprovalRepository) Save(deploymentApprovalRequest *approvalFlows.DeploymentApprovalRequest) error {
 	ret := _m.Called(deploymentApprovalRequest)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(*pipelineConfig.DeploymentApprovalRequest) error); ok {
+	if rf, ok := ret.Get(0).(func(*approvalFlows.DeploymentApprovalRequest) error); ok {
 		r0 = rf(deploymentApprovalRequest)
 	} else {
 		r0 = ret.Error(0)
@@ -171,11 +171,11 @@ func (_m *DeploymentApprovalRepository) Save(deploymentApprovalRequest *pipeline
 }
 
 // SaveDeploymentUserData provides a mock function with given fields: userData
-func (_m *DeploymentApprovalRepository) SaveDeploymentUserData(userData *pipelineConfig.DeploymentApprovalUserData) error {
+func (_m *DeploymentApprovalRepository) SaveDeploymentUserData(userData *approvalFlows.ResourceApprovalUserData) error {
 	ret := _m.Called(userData)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(*pipelineConfig.DeploymentApprovalUserData) error); ok {
+	if rf, ok := ret.Get(0).(func(*approvalFlows.ResourceApprovalUserData) error); ok {
 		r0 = rf(userData)
 	} else {
 		r0 = ret.Error(0)
@@ -185,11 +185,11 @@ func (_m *DeploymentApprovalRepository) SaveDeploymentUserData(userData *pipelin
 }
 
 // Update provides a mock function with given fields: deploymentApprovalRequest
-func (_m *DeploymentApprovalRepository) Update(deploymentApprovalRequest *pipelineConfig.DeploymentApprovalRequest) error {
+func (_m *DeploymentApprovalRepository) Update(deploymentApprovalRequest *approvalFlows.DeploymentApprovalRequest) error {
 	ret := _m.Called(deploymentApprovalRequest)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(*pipelineConfig.DeploymentApprovalRequest) error); ok {
+	if rf, ok := ret.Get(0).(func(*approvalFlows.DeploymentApprovalRequest) error); ok {
 		r0 = rf(deploymentApprovalRequest)
 	} else {
 		r0 = ret.Error(0)

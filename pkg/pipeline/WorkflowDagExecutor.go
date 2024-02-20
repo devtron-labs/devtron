@@ -26,6 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client2 "github.com/devtron-labs/devtron/api/helm-app/service"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/approvalFlows"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
@@ -122,7 +123,7 @@ type WorkflowDagExecutor interface {
 	TriggerBulkDeploymentAsync(requests []*BulkTriggerRequest, UserId int32) (interface{}, error)
 	StopStartApp(triggerContext TriggerContext, stopRequest *StopAppRequest) (int, error)
 	TriggerBulkHibernateAsync(request StopDeploymentGroupRequest, ctx context.Context) (interface{}, error)
-	FetchApprovalDataForArtifacts(artifactIds []int, pipelineId int, requiredApprovals int) (map[int]*pipelineConfig.UserApprovalMetadata, error)
+	FetchApprovalDataForArtifacts(artifactIds []int, pipelineId int, requiredApprovals int) (map[int]*approvalFlows.UserApprovalMetadata, error)
 	FetchApprovalPendingArtifacts(pipelineId, limit, offset, requiredApprovals int, searchString string) ([]bean2.CiArtifactBean, int, error)
 	RotatePods(ctx context.Context, podRotateRequest *PodRotateRequest) (*k8s.RotatePodResponse, error)
 	MarkCurrentDeploymentFailed(runner *pipelineConfig.CdWorkflowRunner, releaseErr error, triggeredBy int32) error
@@ -162,7 +163,7 @@ type WorkflowDagExecutorImpl struct {
 	appLabelRepository            pipelineConfig.AppLabelRepository
 	gitSensorGrpcClient           gitSensorClient.Client
 	k8sCommonService              k8s.K8sCommonService
-	deploymentApprovalRepository  pipelineConfig.DeploymentApprovalRepository
+	deploymentApprovalRepository  approvalFlows.DeploymentApprovalRepository
 	chartTemplateService          util.ChartTemplateService
 	appRepository                 appRepository.AppRepository
 	helmRepoPushService           app.HelmRepoPushService
@@ -197,8 +198,8 @@ type WorkflowDagExecutorImpl struct {
 	configMapRepository                 chartConfig.ConfigMapRepository
 	configMapHistoryRepository          repository3.ConfigMapHistoryRepository
 	helmAppService                      client2.HelmAppService
-	//TODO fix me next
-	helmAppClient                 gRPC.HelmAppClient //TODO refactoring: use helm app service instead
+	// TODO fix me next
+	helmAppClient                 gRPC.HelmAppClient // TODO refactoring: use helm app service instead
 	environmentConfigRepository   chartConfig.EnvConfigOverrideRepository
 	mergeUtil                     *util.MergeUtil
 	acdClient                     application2.ServiceClient
@@ -299,7 +300,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	CiTemplateRepository pipelineConfig.CiTemplateRepository,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	appLabelRepository pipelineConfig.AppLabelRepository, gitSensorGrpcClient gitSensorClient.Client,
-	deploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository,
+	deploymentApprovalRepository approvalFlows.DeploymentApprovalRepository,
 	chartTemplateService util.ChartTemplateService,
 	appRepository appRepository.AppRepository,
 	helmRepoPushService app.HelmRepoPushService,
@@ -2723,7 +2724,7 @@ func (impl *WorkflowDagExecutorImpl) checkApprovalNodeForDeployment(requestedUse
 			return 0, err
 		}
 		approvalMetadata, ok := userApprovalMetadata[artifactId]
-		if ok && approvalMetadata.ApprovalRuntimeState != pipelineConfig.ApprovedApprovalState {
+		if ok && approvalMetadata.ApprovalRuntimeState != approvalFlows.ApprovedApprovalState {
 			impl.logger.Errorw("not triggering deployment since artifact is not approved", "pipelineId", pipelineId, "artifactId", artifactId)
 			return 0, errors.New("not triggering deployment since artifact is not approved")
 		} else if ok {
@@ -3372,8 +3373,8 @@ func (impl *WorkflowDagExecutorImpl) FetchApprovalPendingArtifacts(pipelineId, l
 	return ciArtifacts, totalCount, err
 }
 
-func (impl *WorkflowDagExecutorImpl) getLatestDeploymentByArtifactIds(pipelineId int, deploymentApprovalRequests []*pipelineConfig.DeploymentApprovalRequest, artifactIds []int) ([]*pipelineConfig.DeploymentApprovalRequest, error) {
-	var latestDeployedArtifacts []*pipelineConfig.DeploymentApprovalRequest
+func (impl *WorkflowDagExecutorImpl) getLatestDeploymentByArtifactIds(pipelineId int, deploymentApprovalRequests []*approvalFlows.DeploymentApprovalRequest, artifactIds []int) ([]*approvalFlows.DeploymentApprovalRequest, error) {
+	var latestDeployedArtifacts []*approvalFlows.DeploymentApprovalRequest
 	var err error
 	if len(artifactIds) > 0 {
 		latestDeployedArtifacts, err = impl.deploymentApprovalRepository.FetchLatestDeploymentByArtifactIds(pipelineId, artifactIds)
@@ -3397,8 +3398,8 @@ func (impl *WorkflowDagExecutorImpl) getLatestDeploymentByArtifactIds(pipelineId
 	return deploymentApprovalRequests, nil
 }
 
-func (impl *WorkflowDagExecutorImpl) FetchApprovalDataForArtifacts(artifactIds []int, pipelineId int, requiredApprovals int) (map[int]*pipelineConfig.UserApprovalMetadata, error) {
-	artifactIdVsApprovalMetadata := make(map[int]*pipelineConfig.UserApprovalMetadata)
+func (impl *WorkflowDagExecutorImpl) FetchApprovalDataForArtifacts(artifactIds []int, pipelineId int, requiredApprovals int) (map[int]*approvalFlows.UserApprovalMetadata, error) {
+	artifactIdVsApprovalMetadata := make(map[int]*approvalFlows.UserApprovalMetadata)
 	deploymentApprovalRequests, err := impl.deploymentApprovalRepository.FetchApprovalDataForArtifacts(artifactIds, pipelineId)
 	if err != nil {
 		return artifactIdVsApprovalMetadata, err
@@ -3428,9 +3429,9 @@ func (impl *WorkflowDagExecutorImpl) FetchApprovalDataForArtifacts(artifactIds [
 		}
 		approvalMetadata := approvalRequest.ConvertToApprovalMetadata()
 		if approvalRequest.GetApprovedCount() >= requiredApprovals {
-			approvalMetadata.ApprovalRuntimeState = pipelineConfig.ApprovedApprovalState
+			approvalMetadata.ApprovalRuntimeState = approvalFlows.ApprovedApprovalState
 		} else {
-			approvalMetadata.ApprovalRuntimeState = pipelineConfig.RequestedApprovalState
+			approvalMetadata.ApprovalRuntimeState = approvalFlows.RequestedApprovalState
 		}
 		artifactIdVsApprovalMetadata[artifactId] = approvalMetadata
 	}

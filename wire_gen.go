@@ -102,6 +102,7 @@ import (
 	helper2 "github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	repository17 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/approvalFlows"
 	"github.com/devtron-labs/devtron/internal/sql/repository/resourceGroup"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -444,7 +445,7 @@ func InitializeApp() (*App, error) {
 	ciWorkflowRepositoryImpl := pipelineConfig.NewCiWorkflowRepositoryImpl(db, sugaredLogger)
 	ciPipelineMaterialRepositoryImpl := pipelineConfig.NewCiPipelineMaterialRepositoryImpl(db, sugaredLogger)
 	ciArtifactRepositoryImpl := repository2.NewCiArtifactRepositoryImpl(db, sugaredLogger)
-	deploymentApprovalRepositoryImpl := pipelineConfig.NewDeploymentApprovalRepositoryImpl(db, sugaredLogger)
+	deploymentApprovalRepositoryImpl := approvalFlows.NewDeploymentApprovalRepositoryImpl(db, sugaredLogger)
 	sesNotificationRepositoryImpl := repository2.NewSESNotificationRepositoryImpl(db)
 	smtpNotificationRepositoryImpl := repository2.NewSMTPNotificationRepositoryImpl(db)
 	apiTokenSecretServiceImpl, err := apiToken.NewApiTokenSecretServiceImpl(sugaredLogger, attributesServiceImpl, apiTokenSecretStore)

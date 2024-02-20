@@ -108,6 +108,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	repository8 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/approvalFlows"
 	resourceGroup "github.com/devtron-labs/devtron/internal/sql/repository/resourceGroup"
 	security2 "github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -435,11 +436,11 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(repository2.ServiceClient), new(*repository2.ServiceClientImpl)),
 		wire.Bind(new(connector.Pump), new(*connector.PumpImpl)),
 
-		//app.GetConfig,
+		// app.GetConfig,
 
 		pipeline4.GetEcrConfig,
-		//otel.NewOtelTracingServiceImpl,
-		//wire.Bind(new(otel.OtelTracingService), new(*otel.OtelTracingServiceImpl)),
+		// otel.NewOtelTracingServiceImpl,
+		// wire.Bind(new(otel.OtelTracingService), new(*otel.OtelTracingServiceImpl)),
 		NewApp,
 		// session.NewK8sClient,
 		repository8.NewImageTaggingRepositoryImpl,
@@ -783,7 +784,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(deployment3.FullModeDeploymentService), new(*deployment3.FullModeDeploymentServiceImpl)),
 		//	util2.NewGoJsonSchemaCustomFormatChecker,
 
-		//history starts
+		// history starts
 		history.NewPipelineHistoryRestHandlerImpl,
 		wire.Bind(new(history.PipelineHistoryRestHandler), new(*history.PipelineHistoryRestHandlerImpl)),
 
@@ -847,7 +848,7 @@ func InitializeApp() (*App, error) {
 
 		pipeline4.NewPipelineStageService,
 		wire.Bind(new(pipeline4.PipelineStageService), new(*pipeline4.PipelineStageServiceImpl)),
-		//plugin ends
+		// plugin ends
 
 		connection.NewArgoCDConnectionManagerImpl,
 		wire.Bind(new(connection.ArgoCDConnectionManager), new(*connection.ArgoCDConnectionManagerImpl)),
@@ -948,8 +949,8 @@ func InitializeApp() (*App, error) {
 		kubernetesResourceAuditLogs.Newk8sResourceHistoryServiceImpl,
 		wire.Bind(new(kubernetesResourceAuditLogs.K8sResourceHistoryService), new(*kubernetesResourceAuditLogs.K8sResourceHistoryServiceImpl)),
 
-		pipelineConfig.NewDeploymentApprovalRepositoryImpl,
-		wire.Bind(new(pipelineConfig.DeploymentApprovalRepository), new(*pipelineConfig.DeploymentApprovalRepositoryImpl)),
+		approvalFlows.NewDeploymentApprovalRepositoryImpl,
+		wire.Bind(new(approvalFlows.DeploymentApprovalRepository), new(*approvalFlows.DeploymentApprovalRepositoryImpl)),
 		router.NewResourceGroupingRouterImpl,
 		wire.Bind(new(router.ResourceGroupingRouter), new(*router.ResourceGroupingRouterImpl)),
 		restHandler.NewResourceGroupRestHandlerImpl,
@@ -1021,7 +1022,6 @@ func InitializeApp() (*App, error) {
 
 		repository9.NewTimeWindowRepositoryImpl,
 		wire.Bind(new(repository9.TimeWindowRepository), new(*repository9.TimeWindowRepositoryImpl)),
-
 	)
 	return &App{}, nil
 }

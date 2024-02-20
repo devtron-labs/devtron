@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/approvalFlows"
 )
 
 const EmptyLikeRegex = "%%"
@@ -64,7 +65,7 @@ func BuildQueryForArtifactsForCdStage(listingFilterOptions bean.ArtifactsListFil
 		return buildQueryForArtifactsForCdStageV2(listingFilterOptions, isApprovalNode)
 	}
 
-	//TODO: revisit this condition (cd_workflow.pipeline_id= %v and cd_workflow_runner.workflow_type = '%v' )
+	// TODO: revisit this condition (cd_workflow.pipeline_id= %v and cd_workflow_runner.workflow_type = '%v' )
 	commonQuery := " from ci_artifact LEFT JOIN cd_workflow ON ci_artifact.id = cd_workflow.ci_artifact_id" +
 		" LEFT JOIN cd_workflow_runner ON cd_workflow_runner.cd_workflow_id=cd_workflow.id " +
 		" Where (((cd_workflow_runner.id in (select MAX(cd_workflow_runner.id) OVER (PARTITION BY cd_workflow.ci_artifact_id) FROM cd_workflow_runner inner join cd_workflow on cd_workflow.id=cd_workflow_runner.cd_workflow_id))" +
@@ -81,10 +82,10 @@ func BuildQueryForArtifactsForCdStage(listingFilterOptions bean.ArtifactsListFil
 
 	totalCountQuery := "SELECT COUNT(DISTINCT ci_artifact.id) as total_count " + commonQuery
 	selectQuery := fmt.Sprintf("SELECT DISTINCT(ci_artifact.id) , (%v) ", totalCountQuery)
-	//GroupByQuery := " GROUP BY cia.id "
+	// GroupByQuery := " GROUP BY cia.id "
 	limitOffSetQuery := fmt.Sprintf(" order by ci_artifact.id desc LIMIT %v OFFSET %v", listingFilterOptions.Limit, listingFilterOptions.Offset)
 
-	//finalQuery := selectQuery + commonQuery + GroupByQuery + limitOffSetQuery
+	// finalQuery := selectQuery + commonQuery + GroupByQuery + limitOffSetQuery
 	finalQuery := selectQuery + commonQuery + limitOffSetQuery
 	return finalQuery
 }
@@ -151,8 +152,8 @@ func BuildApprovedOnlyArtifactsWithFilter(listingFilterOpts bean.ArtifactsListFi
 		" approved_images AS " +
 		" ( " +
 		" SELECT approval_request_id,count(approval_request_id) AS approval_count " +
-		" FROM deployment_approval_user_data daud " +
-		" WHERE user_response is NULL " +
+		" FROM resource_approval_user_data daud " +
+		fmt.Sprintf(" WHERE user_response is NULL AND request_type=%d", approvalFlows.DEPLOYMENT_APPROVAL) +
 		" GROUP BY approval_request_id " +
 		" ) "
 	countQuery := " SELECT count(cia.created_on) as total_count"
@@ -181,8 +182,8 @@ func BuildApprovedOnlyArtifactsWithFilter(listingFilterOpts bean.ArtifactsListFi
 func BuildQueryForApprovedArtifactsForRollback(listingFilterOpts bean.ArtifactsListFilterOptions) string {
 	subQuery := "WITH approved_requests AS " +
 		" (SELECT approval_request_id,count(approval_request_id) AS approval_count " +
-		" FROM deployment_approval_user_data " +
-		" WHERE user_response is NULL " +
+		" FROM resource_approval_user_data " +
+		fmt.Sprintf(" WHERE user_response is NULL AND request_id = %d", approvalFlows.DEPLOYMENT_APPROVAL) +
 		" GROUP BY approval_request_id ) " +
 		" SELECT approval_request_id " +
 		" FROM approved_requests WHERE approval_count >= %v "

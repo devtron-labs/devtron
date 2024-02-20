@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/approvalFlows"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"strings"
 	"time"
@@ -66,7 +67,7 @@ type DeploymentGroupTriggerRequest struct {
 type DeploymentGroupHibernateRequest struct {
 	DeploymentGroupId int   `json:"deploymentGroupId"`
 	UserId            int32 `json:"userId"`
-	//CiArtifactId      int   `json:"ciArtifactId"`
+	// CiArtifactId      int   `json:"ciArtifactId"`
 }
 
 type DeploymentGroupService interface {
@@ -182,7 +183,7 @@ func (impl *DeploymentGroupServiceImpl) FindById(id int) (*DeploymentGroupDTO, e
 
 func (impl *DeploymentGroupServiceImpl) CreateDeploymentGroup(deploymentGroupRequest *DeploymentGroupRequest) (*DeploymentGroupRequest, error) {
 
-	//TODO - WIRING
+	// TODO - WIRING
 	model := &repository.DeploymentGroup{}
 	model.Name = deploymentGroupRequest.Name
 	model.EnvironmentId = deploymentGroupRequest.EnvironmentId
@@ -446,7 +447,7 @@ func (impl *DeploymentGroupServiceImpl) TriggerReleaseForDeploymentGroup(trigger
 		return nil, err
 	}
 	impl.logger.Debugw("ci pipelines identified", "pipeline", ciPipelines)
-	//get artifact ids
+	// get artifact ids
 	var ciPipelineIds []int
 	for _, ci := range ciPipelines {
 		ciPipelineIds = append(ciPipelineIds, ci.Id)
@@ -460,7 +461,7 @@ func (impl *DeploymentGroupServiceImpl) TriggerReleaseForDeploymentGroup(trigger
 		impl.logger.Errorw("error in getting ci artifacts", "err", err, "parent", triggerRequest.CiArtifactId)
 		return nil, err
 	}
-	//get cd pipeline id
+	// get cd pipeline id
 	appwfMappings, err := impl.appWorkflowRepository.FindWFCDMappingByCIPipelineIds(ciPipelineIds)
 	if err != nil {
 		impl.logger.Errorw("error in getting wf mappings", "err", err, "ciPipelineIds", ciPipelineIds)
@@ -495,7 +496,7 @@ func (impl *DeploymentGroupServiceImpl) TriggerReleaseForDeploymentGroup(trigger
 				impl.logger.Warnw("artifact not allowed for deployment, so ignoring from deployment group", "ciArtifactId", ciArtifactId, "cdPipelineId", cdPipeline.Id)
 				continue
 			}
-			//do something here
+			// do something here
 			req := &pipeline.BulkTriggerRequest{
 				CiArtifactId: ciArtifactId,
 				PipelineId:   cdPipeline.Id,
@@ -505,7 +506,7 @@ func (impl *DeploymentGroupServiceImpl) TriggerReleaseForDeploymentGroup(trigger
 			impl.logger.Warnw("no artifact found", "cdPipeline", cdPipeline)
 		}
 	}
-	//trigger
+	// trigger
 	// apply mapping
 	_, err = impl.workflowDagExecutor.TriggerBulkDeploymentAsync(requests, triggerRequest.UserId)
 	if err != nil {
@@ -547,7 +548,7 @@ func (impl *DeploymentGroupServiceImpl) UpdateDeploymentGroup(deploymentGroupReq
 	}
 
 	existingAppIds := make(map[int]bool)
-	//var existingAppIds []int
+	// var existingAppIds []int
 	for _, item := range dgMapping {
 		existingAppIds[item.AppId] = true
 		if _, ok := appIds[item.AppId]; ok {
@@ -566,7 +567,7 @@ func (impl *DeploymentGroupServiceImpl) UpdateDeploymentGroup(deploymentGroupReq
 		if _, ok := existingAppIds[item]; ok {
 			// DO NOTHING, ALREADY PROCESSED
 		} else {
-			//CREATE NEW MAP
+			// CREATE NEW MAP
 			modelMap := &repository.DeploymentGroupApp{}
 			modelMap.DeploymentGroupId = model.Id
 			modelMap.AppId = item
@@ -708,7 +709,7 @@ func (impl *DeploymentGroupServiceImpl) checkForApprovalNode(cdPipeline *pipelin
 			return false
 		}
 		approvalMetadata, ok := artifacts[ciArtifactId]
-		return ok && approvalMetadata.ApprovalRuntimeState == pipelineConfig.ApprovedApprovalState
+		return ok && approvalMetadata.ApprovalRuntimeState == approvalFlows.ApprovedApprovalState
 	}
 	return true
 }
