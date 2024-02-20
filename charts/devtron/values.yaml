@@ -59,7 +59,7 @@ components:
         ENABLE_CI_JOB: "true"
         GLOBAL_API_TIMEOUT: "60000"
         TRIGGER_API_TIMEOUT: "60000"
-    image: "quay.io/devtron/dashboard:4ee7597e-325-21241"
+    image: "quay.io/devtron/dashboard:d5fb17a4-325-21258"
     imagePullPolicy: IfNotPresent
 
   devtron:
