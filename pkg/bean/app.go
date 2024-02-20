@@ -26,7 +26,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/approvalFlows"
 	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	bean2 "github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
@@ -812,7 +811,7 @@ type CiArtifactBean struct {
 	TriggeredBy             int32                                `json:"triggeredBy"`
 	CiConfigureSourceType   pipelineConfig.SourceType            `json:"ciConfigureSourceType"`
 	CiConfigureSourceValue  string                               `json:"ciConfigureSourceValue"`
-	UserApprovalMetadata    *approvalFlows.UserApprovalMetadata  `json:"userApprovalMetadata"`
+	UserApprovalMetadata    *pipelineConfig.UserApprovalMetadata `json:"userApprovalMetadata"`
 	ImageReleaseTags        []*repository2.ImageTag              `json:"imageReleaseTags"`
 	ImageComment            *repository2.ImageComment            `json:"imageComment"`
 	FilterState             resourceFilter.FilterState           `json:"filterState"`

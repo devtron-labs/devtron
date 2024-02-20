@@ -20,7 +20,6 @@ package client
 import (
 	"context"
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/approvalFlows"
 	"strings"
 	"time"
 
@@ -58,7 +57,7 @@ type EventSimpleFactoryImpl struct {
 	pipelineRepository           pipelineConfig.PipelineRepository
 	userRepository               repository.UserRepository
 	ciArtifactRepository         repository2.CiArtifactRepository
-	DeploymentApprovalRepository approvalFlows.DeploymentApprovalRepository
+	resourceApprovalRepository   pipelineConfig.ResourceApprovalRepository
 	sesNotificationRepository    repository2.SESNotificationRepository
 	smtpNotificationRepository   repository2.SMTPNotificationRepository
 	appRepo                      appRepository.AppRepository
@@ -70,7 +69,7 @@ func NewEventSimpleFactoryImpl(logger *zap.SugaredLogger, cdWorkflowRepository p
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository, ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository,
-	userRepository repository.UserRepository, ciArtifactRepository repository2.CiArtifactRepository, DeploymentApprovalRepository approvalFlows.DeploymentApprovalRepository,
+	userRepository repository.UserRepository, ciArtifactRepository repository2.CiArtifactRepository, resourceApprovalRepository pipelineConfig.ResourceApprovalRepository,
 	sesNotificationRepository repository2.SESNotificationRepository, smtpNotificationRepository repository2.SMTPNotificationRepository,
 	appRepo appRepository.AppRepository, envRepository repository4.EnvironmentRepository, apiTokenServiceImpl *apiToken.ApiTokenServiceImpl,
 ) *EventSimpleFactoryImpl {
@@ -84,7 +83,7 @@ func NewEventSimpleFactoryImpl(logger *zap.SugaredLogger, cdWorkflowRepository p
 		pipelineRepository:           pipelineRepository,
 		userRepository:               userRepository,
 		ciArtifactRepository:         ciArtifactRepository,
-		DeploymentApprovalRepository: DeploymentApprovalRepository,
+		resourceApprovalRepository:   resourceApprovalRepository,
 		sesNotificationRepository:    sesNotificationRepository,
 		smtpNotificationRepository:   smtpNotificationRepository,
 		appRepo:                      appRepo,
@@ -159,7 +158,7 @@ func (impl *EventSimpleFactoryImpl) BuildExtraCDData(event Event, wfr *pipelineC
 	var emailIDs []string
 
 	if wfr != nil && wfr.DeploymentApprovalRequestId >= 0 {
-		deploymentUserData, err := impl.DeploymentApprovalRepository.FetchApprovedDataByApprovalId(wfr.DeploymentApprovalRequestId, approvalFlows.DEPLOYMENT_APPROVAL)
+		deploymentUserData, err := impl.resourceApprovalRepository.FetchApprovedDataByApprovalId(wfr.DeploymentApprovalRequestId, repository2.DEPLOYMENT_APPROVAL)
 		if err != nil {
 			impl.logger.Errorw("error in getting deploymentUserData", "err", err, "deploymentApprovalRequestId", wfr.DeploymentApprovalRequestId)
 		}

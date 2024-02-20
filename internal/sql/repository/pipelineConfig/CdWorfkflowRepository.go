@@ -26,7 +26,6 @@ import (
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/approvalFlows"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
@@ -186,7 +185,7 @@ type CdWorkflowRunner struct {
 	ImagePathReservationIds     []int                `sql:"image_path_reservation_ids" pg:",array,notnull"`
 	ReferenceId                 *string              `sql:"reference_id"`
 	CdWorkflow                  *CdWorkflow
-	DeploymentApprovalRequest   *approvalFlows.DeploymentApprovalRequest
+	DeploymentApprovalRequest   *DeploymentApprovalRequest
 	sql.AuditLog
 }
 

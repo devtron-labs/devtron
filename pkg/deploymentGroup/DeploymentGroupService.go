@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/approvalFlows"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"strings"
 	"time"
@@ -709,7 +708,7 @@ func (impl *DeploymentGroupServiceImpl) checkForApprovalNode(cdPipeline *pipelin
 			return false
 		}
 		approvalMetadata, ok := artifacts[ciArtifactId]
-		return ok && approvalMetadata.ApprovalRuntimeState == approvalFlows.ApprovedApprovalState
+		return ok && approvalMetadata.ApprovalRuntimeState == pipelineConfig.ApprovedApprovalState
 	}
 	return true
 }

@@ -1,9 +1,8 @@
-package approvalFlows
+package pipelineConfig
 
 import (
 	"errors"
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"time"
 
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
@@ -16,24 +15,23 @@ import (
 type DeploymentApprovalRepository interface {
 	FetchApprovalDataForArtifacts(artifactIds []int, pipelineId int) ([]*DeploymentApprovalRequest, error)
 	FetchApprovalPendingArtifacts(pipelineId, limit, offset, requiredApproval int, searchString string) ([]*DeploymentApprovalRequest, int, error)
-	FetchApprovalDataForRequests(requestIds []int, requestType RequestType) ([]*ResourceApprovalUserData, error)
 	FetchById(requestId int) (*DeploymentApprovalRequest, error)
 	FetchWithPipelineAndArtifactDetails(requestId int) (*DeploymentApprovalRequest, error)
 	Save(deploymentApprovalRequest *DeploymentApprovalRequest) error
 	Update(deploymentApprovalRequest *DeploymentApprovalRequest) error
 	SaveDeploymentUserData(userData *ResourceApprovalUserData) error
 	ConsumeApprovalRequest(requestId int) error
-	FetchApprovedDataByApprovalId(approvalRequestId int, requestType RequestType) ([]*ResourceApprovalUserData, error)
 	FetchLatestDeploymentByArtifactIds(pipelineId int, artifactIds []int) ([]*DeploymentApprovalRequest, error)
 }
 
 type DeploymentApprovalRepositoryImpl struct {
-	dbConnection *pg.DB
-	logger       *zap.SugaredLogger
+	dbConnection               *pg.DB
+	logger                     *zap.SugaredLogger
+	resourceApprovalRepository ResourceApprovalRepository
 }
 
-func NewDeploymentApprovalRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *DeploymentApprovalRepositoryImpl {
-	return &DeploymentApprovalRepositoryImpl{dbConnection: dbConnection, logger: logger}
+func NewDeploymentApprovalRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger, resourceApprovalRepository ResourceApprovalRepository) *DeploymentApprovalRepositoryImpl {
+	return &DeploymentApprovalRepositoryImpl{dbConnection: dbConnection, logger: logger, resourceApprovalRepository: resourceApprovalRepository}
 }
 
 type DeploymentApprovalRequest struct {
@@ -43,7 +41,7 @@ type DeploymentApprovalRequest struct {
 	ArtifactId                  int      `sql:"ci_artifact_id"`
 	Active                      bool     `sql:"active,notnull"` // user can cancel request anytime
 	ArtifactDeploymentTriggered bool     `sql:"artifact_deployment_triggered"`
-	Pipeline                    *pipelineConfig.Pipeline
+	Pipeline                    *Pipeline
 	CiArtifact                  *repository2.CiArtifact
 	UserEmail                   string                      `sql:"-"` // used for internal purpose
 	DeploymentApprovalUserData  []*ResourceApprovalUserData `sql:"-"`
@@ -53,29 +51,13 @@ type DeploymentApprovalRequest struct {
 type ResourceApprovalUserData struct {
 	tableName         struct{}                   `sql:"resource_approval_user_data" pg:",discard_unknown_columns"`
 	Id                int                        `sql:"id,pk"`
-	RequestType       RequestType                `sql:"request_type"`
+	RequestType       repository2.RequestType    `sql:"request_type"`
 	ApprovalRequestId int                        `sql:"approval_request_id"` // keep in mind foreign key constraint
 	UserId            int32                      `sql:"user_id"`             // keep in mid foreign key constraint
 	UserResponse      DeploymentApprovalResponse `sql:"user_response"`
 	Comments          string                     `sql:"comments"`
 	User              *repository.UserModel
 	sql.AuditLog
-}
-
-func (impl *DeploymentApprovalRepositoryImpl) FetchApprovedDataByApprovalId(approvalRequestId int, requestType RequestType) ([]*ResourceApprovalUserData, error) {
-	var results []*ResourceApprovalUserData
-	err := impl.dbConnection.
-		Model(&results).
-		Column("resource_approval_user_data.*", "User").
-		Where("resource_approval_user_data.approval_request_id = ? ", approvalRequestId).
-		Where("resource_approval_user_data.request_type = ?", requestType).
-		Select()
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error occurred while fetching artifacts", "results", results, "err", err)
-		return nil, err
-	}
-	return results, nil
-
 }
 
 func (impl *DeploymentApprovalRepositoryImpl) FetchApprovalPendingArtifacts(pipelineId, limit, offset, requiredApprovals int, searchString string) ([]*DeploymentApprovalRequest, int, error) {
@@ -87,7 +69,7 @@ func (impl *DeploymentApprovalRepositoryImpl) FetchApprovalPendingArtifacts(pipe
 	subQuery := "WITH approval_requests AS " +
 		" (SELECT approval_request_id,count(approval_request_id) AS approval_count " +
 		" FROM resource_approval_user_data " +
-		fmt.Sprintf(" WHERE user_response is NULL AND request_type = %d", DEPLOYMENT_APPROVAL) +
+		fmt.Sprintf(" WHERE user_response is NULL AND request_type = %d", repository2.DEPLOYMENT_APPROVAL) +
 		" GROUP BY approval_request_id ) " +
 		" SELECT approval_request_id " +
 		" FROM approval_requests WHERE approval_count >= %v "
@@ -165,7 +147,7 @@ func (impl *DeploymentApprovalRepositoryImpl) FetchApprovalDataForArtifacts(arti
 		requestIds = append(requestIds, requestId)
 	}
 	if len(requestIds) > 0 {
-		usersData, err := impl.FetchApprovalDataForRequests(requestIds, DEPLOYMENT_APPROVAL)
+		usersData, err := impl.resourceApprovalRepository.FetchApprovalDataForRequests(requestIds, repository2.DEPLOYMENT_APPROVAL)
 		if err != nil {
 			return requests, err
 		}
@@ -178,24 +160,6 @@ func (impl *DeploymentApprovalRepositoryImpl) FetchApprovalDataForArtifacts(arti
 		}
 	}
 	return requests, nil
-}
-
-func (impl *DeploymentApprovalRepositoryImpl) FetchApprovalDataForRequests(requestIds []int, requestType RequestType) ([]*ResourceApprovalUserData, error) {
-	var usersData []*ResourceApprovalUserData
-	if len(requestIds) == 0 {
-		return usersData, nil
-	}
-	err := impl.dbConnection.
-		Model(&usersData).
-		Column("resource_approval_user_data.*", "User").
-		Where("approval_request_id in (?) ", pg.In(requestIds)).
-		Where("request_type = ?", requestType).
-		Select()
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error occurred while fetching artifacts", "requestIds", requestIds, "err", err)
-		return nil, err
-	}
-	return usersData, nil
 }
 
 func (impl *DeploymentApprovalRepositoryImpl) FetchWithPipelineAndArtifactDetails(requestId int) (*DeploymentApprovalRequest, error) {

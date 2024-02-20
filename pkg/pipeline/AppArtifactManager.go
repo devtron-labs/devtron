@@ -19,7 +19,6 @@ package pipeline
 
 import (
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/approvalFlows"
 	"sort"
 	"strings"
 
@@ -767,7 +766,7 @@ func (impl *AppArtifactManagerImpl) overrideArtifactsWithUserApprovalData(pipeli
 		artifactIds = append(artifactIds, item.Id)
 	}
 
-	var userApprovalMetadata map[int]*approvalFlows.UserApprovalMetadata
+	var userApprovalMetadata map[int]*pipelineConfig.UserApprovalMetadata
 	requiredApprovals := approvalConfig.RequiredCount
 	userApprovalMetadata, err = impl.workflowDagExecutor.FetchApprovalDataForArtifacts(artifactIds, cdPipelineId, requiredApprovals) // it will fetch all the request data with nil cd_wfr_rnr_id
 	if err != nil {
@@ -775,20 +774,20 @@ func (impl *AppArtifactManagerImpl) overrideArtifactsWithUserApprovalData(pipeli
 		return ciArtifactsFinal, approvalConfig, err
 	}
 	for _, artifact := range inputArtifacts {
-		approvalRuntimeState := approvalFlows.InitApprovalState
+		approvalRuntimeState := pipelineConfig.InitApprovalState
 		approvalMetadataForArtifact, ok := userApprovalMetadata[artifact.Id]
 		if ok { // either approved or requested
 			approvalRuntimeState = approvalMetadataForArtifact.ApprovalRuntimeState
 			artifact.UserApprovalMetadata = approvalMetadataForArtifact
 		} else if artifact.Deployed {
-			approvalRuntimeState = approvalFlows.ConsumedApprovalState
+			approvalRuntimeState = pipelineConfig.ConsumedApprovalState
 		}
 
 		allowed := false
 		if isApprovalNode { // return all the artifacts with state in init, requested or consumed
-			allowed = approvalRuntimeState == approvalFlows.InitApprovalState || approvalRuntimeState == approvalFlows.RequestedApprovalState || approvalRuntimeState == approvalFlows.ConsumedApprovalState
+			allowed = approvalRuntimeState == pipelineConfig.InitApprovalState || approvalRuntimeState == pipelineConfig.RequestedApprovalState || approvalRuntimeState == pipelineConfig.ConsumedApprovalState
 		} else { // return only approved state artifacts
-			allowed = approvalRuntimeState == approvalFlows.ApprovedApprovalState || artifact.Latest || artifact.Id == latestArtifactId
+			allowed = approvalRuntimeState == pipelineConfig.ApprovedApprovalState || artifact.Latest || artifact.Id == latestArtifactId
 		}
 		if allowed {
 			ciArtifactsFinal = append(ciArtifactsFinal, artifact)
@@ -1171,7 +1170,7 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 			}
 		}
 
-		var userApprovalMetadata map[int]*approvalFlows.UserApprovalMetadata
+		var userApprovalMetadata map[int]*pipelineConfig.UserApprovalMetadata
 		if isApprovalNode {
 			artifactIds := make([]int, len(ciArtifacts))
 			for i, artifact := range ciArtifacts {
@@ -1328,7 +1327,7 @@ func (impl *AppArtifactManagerImpl) fetchApprovedArtifacts(listingFilterOpts *be
 		artifactIds = append(artifactIds, currentRunningArtifactBean.Id)
 	}
 
-	var userApprovalMetadata map[int]*approvalFlows.UserApprovalMetadata
+	var userApprovalMetadata map[int]*pipelineConfig.UserApprovalMetadata
 	userApprovalMetadata, err = impl.workflowDagExecutor.FetchApprovalDataForArtifacts(artifactIds, listingFilterOpts.PipelineId, listingFilterOpts.ApproversCount) // it will fetch all the request data with nil cd_wfr_rnr_id
 	if err != nil {
 		impl.logger.Errorw("error occurred while fetching approval data for artifacts", "cdPipelineId", listingFilterOpts.PipelineId, "artifactIds", artifactIds, "err", err)

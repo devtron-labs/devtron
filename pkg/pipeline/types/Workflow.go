@@ -27,7 +27,6 @@ import (
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/approvalFlows"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
@@ -617,7 +616,7 @@ type WorkflowResponse struct {
 	Stage                   string                                      `json:"stage"`
 	ArtifactId              int                                         `json:"artifactId"`
 	IsArtifactUploaded      bool                                        `json:"isArtifactUploaded"`
-	UserApprovalMetadata    *approvalFlows.UserApprovalMetadata         `json:"userApprovalMetadata"`
+	UserApprovalMetadata    *pipelineConfig.UserApprovalMetadata        `json:"userApprovalMetadata"`
 	IsVirtualEnvironment    bool                                        `json:"IsVirtualEnvironment"`
 	CdWorkflowId            int                                         `json:"cdWorkflowId"`
 	HelmPackageName         string                                      `json:"helmPackageName"`

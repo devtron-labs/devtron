@@ -108,7 +108,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	repository8 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/approvalFlows"
 	resourceGroup "github.com/devtron-labs/devtron/internal/sql/repository/resourceGroup"
 	security2 "github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -948,9 +947,10 @@ func InitializeApp() (*App, error) {
 
 		kubernetesResourceAuditLogs.Newk8sResourceHistoryServiceImpl,
 		wire.Bind(new(kubernetesResourceAuditLogs.K8sResourceHistoryService), new(*kubernetesResourceAuditLogs.K8sResourceHistoryServiceImpl)),
-
-		approvalFlows.NewDeploymentApprovalRepositoryImpl,
-		wire.Bind(new(approvalFlows.DeploymentApprovalRepository), new(*approvalFlows.DeploymentApprovalRepositoryImpl)),
+		pipelineConfig.NewResourceApprovalRepositoryImpl,
+		wire.Bind(new(pipelineConfig.ResourceApprovalRepository), new(*pipelineConfig.ResourceApprovalRepositoryImpl)),
+		pipelineConfig.NewDeploymentApprovalRepositoryImpl,
+		wire.Bind(new(pipelineConfig.DeploymentApprovalRepository), new(*pipelineConfig.DeploymentApprovalRepositoryImpl)),
 		router.NewResourceGroupingRouterImpl,
 		wire.Bind(new(router.ResourceGroupingRouter), new(*router.ResourceGroupingRouterImpl)),
 		restHandler.NewResourceGroupRestHandlerImpl,

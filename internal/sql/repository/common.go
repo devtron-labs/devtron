@@ -1,4 +1,4 @@
-package approvalFlows
+package repository
 
 type RequestType int
 
