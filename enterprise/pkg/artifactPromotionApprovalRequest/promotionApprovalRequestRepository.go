@@ -18,7 +18,7 @@ type ArtifactPromotionApprovalRequest struct {
 	Status                  int       `sql:"status"`
 	PromotedOn              time.Time `sql:"promoted_on"`
 	RequestedOn             time.Time `sql:"requested_on"`
-	RequestedBy             time.Time `sql:"requested_by"`
+	RequestedBy             int32     `sql:"requested_by"`
 	Active                  bool      `sql:"active"`
 	sql.AuditLog
 }
