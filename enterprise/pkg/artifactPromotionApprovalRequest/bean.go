@@ -2,10 +2,10 @@ package artifactPromotionApprovalRequest
 
 import "time"
 
-type ArtifactPromotionRequestAction = int
+type ArtifactPromotionRequestStatus = int
 
 const (
-	PROMOTE ArtifactPromotionRequestAction = iota
+	PROMOTE ArtifactPromotionRequestStatus = iota
 	CANCEL
 	APPROVE
 )
