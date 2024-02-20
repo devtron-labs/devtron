@@ -15,7 +15,7 @@ type ArtifactPromotionApprovalService interface {
 }
 
 type ArtifactPromotionApprovalServiceImpl struct {
-	ArtifactPromotionApprovalRequestRepository ArtifactPromotionApprovalRequestRepository
+	artifactPromotionApprovalRequestRepository ArtifactPromotionApprovalRequestRepository
 	logger                                     *zap.SugaredLogger
 	CiPipelineRepository                       pipelineConfig.CiPipelineRepository
 	pipelineRepository                         pipelineConfig.PipelineRepository
@@ -30,7 +30,7 @@ func NewArtifactPromotionApprovalServiceImpl(
 	userService user.UserService,
 ) *ArtifactPromotionApprovalServiceImpl {
 	return &ArtifactPromotionApprovalServiceImpl{
-		ArtifactPromotionApprovalRequestRepository: ArtifactPromotionApprovalRequestRepository,
+		artifactPromotionApprovalRequestRepository: ArtifactPromotionApprovalRequestRepository,
 		logger:               logger,
 		CiPipelineRepository: CiPipelineRepository,
 		pipelineRepository:   pipelineRepository,
@@ -64,7 +64,7 @@ func (impl ArtifactPromotionApprovalRequest) promoteArtifact(request *ArtifactPr
 }
 
 func (impl ArtifactPromotionApprovalServiceImpl) cancelPromotionApprovalRequest(request *ArtifactPromotionRequest) (*ArtifactPromotionRequest, error) {
-	artifactPromotionDao, err := impl.ArtifactPromotionApprovalRequestRepository.FindById(request.PromotionRequestId)
+	artifactPromotionDao, err := impl.artifactPromotionApprovalRequestRepository.FindById(request.PromotionRequestId)
 	if err == pg.ErrNoRows {
 		impl.logger.Errorw("artifact promotion approval request not found for given id", "promotionRequestId", request.PromotionRequestId, "err", err)
 		return nil, &util.ApiError{
@@ -78,8 +78,8 @@ func (impl ArtifactPromotionApprovalServiceImpl) cancelPromotionApprovalRequest(
 		return nil, err
 	}
 	artifactPromotionDao.Active = false
-	artifactPromotionDao.Status = CANCEL
-	_, err = impl.ArtifactPromotionApprovalRequestRepository.Update(artifactPromotionDao)
+	artifactPromotionDao.Status = CANCELED
+	_, err = impl.artifactPromotionApprovalRequestRepository.Update(artifactPromotionDao)
 	if err != nil {
 		impl.logger.Errorw("error in updating artifact promotion approval request", "artifactPromotionRequestId", request.PromotionRequestId, "err", err)
 		return nil, err
@@ -89,7 +89,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) cancelPromotionApprovalRequest(
 
 func (impl ArtifactPromotionApprovalServiceImpl) GetByPromotionRequestId(artifactPromotionApprovalRequestId int) (*ArtifactPromotionApprovalResponse, error) {
 
-	artifactPromotionDao, err := impl.ArtifactPromotionApprovalRequestRepository.FindById(artifactPromotionApprovalRequestId)
+	artifactPromotionDao, err := impl.artifactPromotionApprovalRequestRepository.FindById(artifactPromotionApprovalRequestId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching artifact promotion request by id", "artifactPromotionRequestId", artifactPromotionApprovalRequestId, "err", err)
 		return nil, err
@@ -113,9 +113,9 @@ func (impl ArtifactPromotionApprovalServiceImpl) GetByPromotionRequestId(artifac
 		return nil, err
 	}
 
-	artifactPromotionRequestUser, err := impl.userService.GetByIdWithoutGroupClaims(artifactPromotionDao.RequestedBy)
+	artifactPromotionRequestUser, err := impl.userService.GetByIdWithoutGroupClaims(artifactPromotionDao.CreatedBy)
 	if err != nil {
-		impl.logger.Errorw("error in fetching user details by id", "userId", artifactPromotionDao.RequestedBy, "err", err)
+		impl.logger.Errorw("error in fetching user details by id", "userId", artifactPromotionDao.CreatedBy, "err", err)
 		return nil, err
 	}
 
@@ -125,9 +125,9 @@ func (impl ArtifactPromotionApprovalServiceImpl) GetByPromotionRequestId(artifac
 		Destination:     destCDPipeline.Environment.Name,
 		RequestedBy:     artifactPromotionRequestUser.EmailId,
 		ApprovedUsers:   make([]string, 0), // get by deployment_approval_user_data
-		RequestedOn:     artifactPromotionDao.RequestedOn,
-		PromotedOn:      artifactPromotionDao.PromotedOn,
-		PromotionPolicy: "",
+		RequestedOn:     artifactPromotionDao.CreatedOn,
+		PromotedOn:      artifactPromotionDao.UpdatedOn,
+		PromotionPolicy: "", // todo
 	}
 
 	return artifactPromotionApprovalResponse, nil

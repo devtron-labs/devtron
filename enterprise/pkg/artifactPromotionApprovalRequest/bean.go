@@ -5,9 +5,9 @@ import "time"
 type ArtifactPromotionRequestStatus = int
 
 const (
-	PROMOTE ArtifactPromotionRequestStatus = iota
-	CANCEL
-	APPROVE
+	PROMOTED ArtifactPromotionRequestStatus = iota
+	CANCELED
+	AWAITING_APPROVAL
 )
 
 type SourceType = int
@@ -48,6 +48,7 @@ type ArtifactPromotionRequest struct {
 	ArtifactId         int      `json:"artifactId"`
 	AppName            string   `json:"appName"`
 	EnvironmentNames   []string `json:"environmentNames"`
+	UserId             int32    `json:"-"`
 }
 
 type ArtifactPromotionApprovalResponse struct {

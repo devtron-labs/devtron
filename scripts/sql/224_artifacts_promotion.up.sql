@@ -39,12 +39,12 @@ CREATE TABLE IF NOT EXISTS "public"."artifact_promotion_policy_audit"
     "id"  integer not null default nextval('resource_filter_audit_seq' :: regclass),
     "policy_data" text     NOT NULL,
     "policy_id"   int      NOT NULL,
+    "created_by"  int4     NOT NULL,
+    "updated_by"  int4     NOT NULL,
 --     action is either create, update ,delete
     "action"      int      NOT NULL,
-    "created_on"        timestamptz,
-    "created_by"        integer,
-    "updated_on"        timestamptz,
-    "updated_by"        integer,
+    "created_on"                   timestamptz  NOT NULL,
+    "updated_on"                   timestamptz  NOT NULL,
     CONSTRAINT "artifact_promotion_policy_audit_policy_id_fkey" FOREIGN KEY ("policy_id") REFERENCES "public"."artifact_promotion_policy" ("id"),
     PRIMARY KEY ("id")
     );
@@ -54,8 +54,8 @@ CREATE SEQUENCE IF NOT EXISTS id_artifact_promotion_approval_request;
 CREATE TABLE IF NOT EXISTS public.artifact_promotion_approval_request
 (
     "active"                       bool         NOT NULL,
-    --     foreign key to user, promoted_by
-    "requested_by"                 int4         NOT NULL,
+    "created_by"                   int4         NOT NULL,
+    "updated_by"                   int4         NOT NULL,
     "id"                           int          NOT NULL DEFAULT nextval('id_artifact_promotion_approval_request'::regclass),
 --     foreign key to artifact_promotion_policy
     "policy_id"                    int          NOT NULL,
@@ -70,11 +70,8 @@ CREATE TABLE IF NOT EXISTS public.artifact_promotion_approval_request
 --  CD_PIPELINE(2) , currently not defining this column as destination is always CD_PIPELINE
 --  "destination_type"             int          NOT NULL,
     "status"                       int          NOT NULL,
---  promoted_on time
-    "promoted_on"                  timestamptz,
---  promoted_on time
-    "requested_on"                 timestamptz  NOT NULL,
-
+    "created_on"                   timestamptz  NOT NULL,
+    "updated_on"                   timestamptz  NOT NULL,
     PRIMARY KEY ("id")
     );
 
