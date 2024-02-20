@@ -10,15 +10,16 @@ type ApiTokenCustomClaims struct {
 	jwt.RegisteredClaims
 }
 type TokenCustomClaimsForNotification struct {
-	DraftId           int                         `json:"draftId"`
-	DraftVersionId    int                         `json:"draftVersionId"`
-	ApprovalRequestId int                         `json:"approvalRequestId"`
-	ArtifactId        int                         `json:"artifactId"`
-	PipelineId        int                         `json:"pipelineId"`
-	ActionType        bean.UserApprovalActionType `json:"actionType" validate:"required"`
-	AppId             int                         `json:"appId" validate:"required"`
-	EnvId             int                         `json:"envId"`
-	UserId            int32                       `json:"userId"`
+	DraftId                    int                         `json:"draftId"`
+	DraftVersionId             int                         `json:"draftVersionId"`
+	ApprovalRequestId          int                         `json:"approvalRequestId"`
+	ArtifactPromotionRequestId int                         `json:"ArtifactPromotionRequestId"`
+	ArtifactId                 int                         `json:"artifactId"`
+	PipelineId                 int                         `json:"pipelineId"`
+	ActionType                 bean.UserApprovalActionType `json:"actionType" validate:"required"`
+	AppId                      int                         `json:"appId" validate:"required"`
+	EnvId                      int                         `json:"envId"`
+	UserId                     int32                       `json:"userId"`
 	ApiTokenCustomClaims
 }
 type DraftApprovalRequest struct {

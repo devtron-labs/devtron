@@ -96,6 +96,7 @@ import (
 	"github.com/devtron-labs/devtron/enterprise/api/lockConfiguation"
 	"github.com/devtron-labs/devtron/enterprise/api/protect"
 	app3 "github.com/devtron-labs/devtron/enterprise/pkg/app"
+	"github.com/devtron-labs/devtron/enterprise/pkg/artifactPromotionApprovalRequest"
 	pipeline3 "github.com/devtron-labs/devtron/enterprise/pkg/pipeline"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -1022,6 +1023,8 @@ func InitializeApp() (*App, error) {
 		repository9.NewTimeWindowRepositoryImpl,
 		wire.Bind(new(repository9.TimeWindowRepository), new(*repository9.TimeWindowRepositoryImpl)),
 
+		artifactPromotionApprovalRequest.NewArtifactPromotionApprovalRequestImpl,
+		wire.Bind(new(artifactPromotionApprovalRequest.ArtifactPromotionApprovalRequestRepository), new(*artifactPromotionApprovalRequest.ArtifactPromotionApprovalRequestRepoImpl)),
 	)
 	return &App{}, nil
 }
