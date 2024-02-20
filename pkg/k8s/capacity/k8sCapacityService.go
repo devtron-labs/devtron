@@ -6,6 +6,8 @@ import (
 	k8s2 "github.com/devtron-labs/common-lib-private/utils/k8s"
 	"github.com/devtron-labs/common-lib/utils"
 	k8s3 "github.com/devtron-labs/common-lib/utils/k8s"
+	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	application2 "github.com/devtron-labs/devtron/pkg/k8s/application"
@@ -96,6 +98,10 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetail(ctx context.Context
 	clusterDetail := &bean.ClusterCapacityDetail{}
 	nodeList, err := impl.K8sUtil.GetNodesList(ctx, k8sClientSet)
 	if err != nil {
+		if client.IsClusterUnReachableError(err) {
+			impl.logger.Errorw("k8s cluster unreachable", "err", err)
+			return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: err.Error()}
+		}
 		impl.logger.Errorw("error in getting node list", "err", err, "clusterId", cluster.Id)
 		return nil, err
 	}
@@ -235,6 +241,10 @@ func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailsListByCluster(ctx cont
 	}
 	nodeList, err := impl.K8sUtil.GetNodesList(ctx, k8sClientSet)
 	if err != nil {
+		if client.IsClusterUnReachableError(err) {
+			impl.logger.Errorw("k8s cluster unreachable", "err", err)
+			return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: err.Error()}
+		}
 		impl.logger.Errorw("error in getting node list", "err", err, "clusterId", cluster.Id)
 		return nil, err
 	}
@@ -629,6 +639,10 @@ func (impl *K8sCapacityServiceImpl) DrainNode(ctx context.Context, request *bean
 	//get node
 	node, err := impl.K8sUtil.GetNodeByName(context.Background(), k8sClientSet, request.Name)
 	if err != nil {
+		if client.IsNodeNotFoundError(err) {
+			impl.logger.Errorw("node not found", "err", err, "nodeName", request.Name)
+			return respMessage, &util.ApiError{HttpStatusCode: http.StatusNotFound, UserMessage: err.Error()}
+		}
 		impl.logger.Errorw("error in getting node", "err", err)
 		return respMessage, err
 	}
@@ -643,6 +657,10 @@ func (impl *K8sCapacityServiceImpl) DrainNode(ctx context.Context, request *bean
 	request.NodeDrainHelper.K8sClientSet = k8sClientSet
 	err = impl.deleteOrEvictPods(request.Name, request.NodeDrainHelper)
 	if err != nil {
+		if client.IsDaemonSetPodDeleteError(err) {
+			impl.logger.Errorw("daemonSet-managed pods can't be deleted", "err", err, "nodeName", request.Name)
+			return respMessage, &util.ApiError{HttpStatusCode: http.StatusNotFound, UserMessage: err.Error()}
+		}
 		impl.logger.Errorw("error in deleting/evicting pods", "err", err, "nodeName", request.Name)
 		return respMessage, err
 	}
