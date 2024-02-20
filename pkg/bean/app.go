@@ -183,7 +183,7 @@ type PipelineType string
 
 func (pType PipelineType) IsValidPipelineType() bool {
 	switch pType {
-	case CI_BUILD, LINKED, EXTERNAL, CI_JOB, LINKED_CD:
+	case CI_BUILD, LINKED, EXTERNAL, CI_JOB, LINKED_CD, "":
 		return true
 	default:
 		return false
