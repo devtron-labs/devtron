@@ -3,6 +3,7 @@ package informer
 import (
 	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
+	bean3 "github.com/devtron-labs/common-lib/utils/serverConnection/bean"
 	"sync"
 	"time"
 
@@ -66,20 +67,27 @@ func (impl *K8sInformerFactoryImpl) GetLatestNamespaceListGroupByCLuster() map[s
 func (impl *K8sInformerFactoryImpl) BuildInformer(clusterInfo []*bean.ClusterInfo) {
 	for _, info := range clusterInfo {
 		clusterConfig := &k8s2.ClusterConfig{
-			ClusterId:              info.ClusterId,
-			ClusterName:            info.ClusterName,
-			BearerToken:            info.BearerToken,
-			Host:                   info.ServerUrl,
-			ProxyUrl:               info.ProxyUrl,
-			InsecureSkipTLSVerify:  info.InsecureSkipTLSVerify,
-			KeyData:                info.KeyData,
-			CertData:               info.CertData,
-			CAData:                 info.CAData,
-			ToConnectWithSSHTunnel: info.ToConnectWithSSHTunnel,
-			SSHTunnelServerAddress: info.SSHTunnelServerAddress,
-			SSHTunnelUser:          info.SSHTunnelUser,
-			SSHTunnelPassword:      info.SSHTunnelPassword,
-			SSHTunnelAuthKey:       info.SSHTunnelAuthKey,
+			ClusterId:             info.ClusterId,
+			ClusterName:           info.ClusterName,
+			BearerToken:           info.BearerToken,
+			Host:                  info.ServerUrl,
+			InsecureSkipTLSVerify: info.InsecureSkipTLSVerify,
+			KeyData:               info.KeyData,
+			CertData:              info.CertData,
+			CAData:                info.CAData,
+		}
+		if info.ClusterConnectionConfig != nil {
+			clusterConfig.ClusterConnectionConfig.ServerConnectionConfigId = info.ClusterConnectionConfig.ServerConnectionConfigId
+			clusterConfig.ClusterConnectionConfig.ConnectionMethod = bean3.ServerConnectionMethod(info.ClusterConnectionConfig.ConnectionMethod)
+			if info.ClusterConnectionConfig.ProxyConfig != nil {
+				clusterConfig.ClusterConnectionConfig.ProxyConfig.ProxyUrl = info.ClusterConnectionConfig.ProxyConfig.ProxyUrl
+			}
+			if info.ClusterConnectionConfig.SSHTunnelConfig != nil {
+				clusterConfig.ClusterConnectionConfig.SSHTunnelConfig.SSHServerAddress = info.ClusterConnectionConfig.SSHTunnelConfig.SSHServerAddress
+				clusterConfig.ClusterConnectionConfig.SSHTunnelConfig.SSHUsername = info.ClusterConnectionConfig.SSHTunnelConfig.SSHUsername
+				clusterConfig.ClusterConnectionConfig.SSHTunnelConfig.SSHPassword = info.ClusterConnectionConfig.SSHTunnelConfig.SSHPassword
+				clusterConfig.ClusterConnectionConfig.SSHTunnelConfig.SSHAuthKey = info.ClusterConnectionConfig.SSHTunnelConfig.SSHAuthKey
+			}
 		}
 		impl.buildInformerAndNamespaceList(info.ClusterName, clusterConfig, &impl.mutex)
 	}

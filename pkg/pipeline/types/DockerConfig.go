@@ -2,29 +2,31 @@ package types
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
+	"github.com/devtron-labs/devtron/pkg/serverConnection/bean"
 )
 
 type DockerArtifactStoreBean struct {
-	Id                      string                       `json:"id" validate:"required"`
-	PluginId                string                       `json:"pluginId,omitempty" validate:"required"`
-	RegistryURL             string                       `json:"registryUrl" validate:"required"`
-	RegistryType            repository.RegistryType      `json:"registryType" validate:"required"`
-	IsOCICompliantRegistry  bool                         `json:"isOCICompliantRegistry"`
-	OCIRegistryConfig       map[string]string            `json:"ociRegistryConfig,omitempty"`
-	IsPublic                bool                         `json:"isPublic"`
-	RepositoryList          []string                     `json:"repositoryList,omitempty"`
-	AWSAccessKeyId          string                       `json:"awsAccessKeyId,omitempty"`
-	AWSSecretAccessKey      string                       `json:"awsSecretAccessKey,omitempty"`
-	AWSRegion               string                       `json:"awsRegion,omitempty"`
-	Username                string                       `json:"username,omitempty"`
-	Password                string                       `json:"password,omitempty"`
-	IsDefault               bool                         `json:"isDefault"`
-	Connection              string                       `json:"connection"`
-	Cert                    string                       `json:"cert"`
-	Active                  bool                         `json:"active"`
-	DisabledFields          []DisabledFields             `json:"disabledFields"`
-	User                    int32                        `json:"-"`
-	DockerRegistryIpsConfig *DockerRegistryIpsConfigBean `json:"ipsConfig,omitempty"`
+	Id                       string                           `json:"id" validate:"required"`
+	PluginId                 string                           `json:"pluginId,omitempty" validate:"required"`
+	RegistryURL              string                           `json:"registryUrl" validate:"required"`
+	RegistryType             repository.RegistryType          `json:"registryType" validate:"required"`
+	IsOCICompliantRegistry   bool                             `json:"isOCICompliantRegistry"`
+	OCIRegistryConfig        map[string]string                `json:"ociRegistryConfig,omitempty"`
+	IsPublic                 bool                             `json:"isPublic"`
+	RepositoryList           []string                         `json:"repositoryList,omitempty"`
+	AWSAccessKeyId           string                           `json:"awsAccessKeyId,omitempty"`
+	AWSSecretAccessKey       string                           `json:"awsSecretAccessKey,omitempty"`
+	AWSRegion                string                           `json:"awsRegion,omitempty"`
+	Username                 string                           `json:"username,omitempty"`
+	Password                 string                           `json:"password,omitempty"`
+	IsDefault                bool                             `json:"isDefault"`
+	Connection               string                           `json:"connection"`
+	Cert                     string                           `json:"cert"`
+	Active                   bool                             `json:"active"`
+	DisabledFields           []DisabledFields                 `json:"disabledFields"`
+	User                     int32                            `json:"-"`
+	DockerRegistryIpsConfig  *DockerRegistryIpsConfigBean     `json:"ipsConfig,omitempty"`
+	RegistryConnectionConfig *bean.ServerConnectionConfigBean `json:"registryConnectionConfig,omitempty"`
 }
 
 type DockerRegistryIpsConfigBean struct {

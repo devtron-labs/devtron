@@ -32,6 +32,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
+	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest"
 	bean5 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
@@ -124,6 +125,7 @@ type TriggerServiceImpl struct {
 	helmAppService                      client2.HelmAppService
 	imageTaggingService                 pipeline.ImageTaggingService
 	artifactApprovalDataReadService     read.ArtifactApprovalDataReadService
+	clusterService                      cluster2.ClusterServiceImpl
 
 	mergeUtil     util.MergeUtil
 	enforcerUtil  rbac.EnforcerUtil
@@ -173,6 +175,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 	gitSensorGrpcClient gitSensorClient.Client,
 	helmAppService client2.HelmAppService,
 	artifactApprovalDataReadService read.ArtifactApprovalDataReadService,
+	clusterService cluster2.ClusterServiceImpl,
 	mergeUtil util.MergeUtil,
 	enforcerUtil rbac.EnforcerUtil,
 	helmAppClient gRPC.HelmAppClient,
@@ -228,6 +231,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 		gitSensorGrpcClient:                 gitSensorGrpcClient,
 		helmAppService:                      helmAppService,
 		artifactApprovalDataReadService:     artifactApprovalDataReadService,
+		clusterService:                      clusterService,
 		mergeUtil:                           mergeUtil,
 		enforcerUtil:                        enforcerUtil,
 		eventFactory:                        eventFactory,
@@ -1202,24 +1206,10 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean
 		releaseName := pipeline.DeploymentAppName
 		cluster := envOverride.Environment.Cluster
 		bearerToken := cluster.Config[util5.BearerToken]
-		clusterConfig := &gRPC.ClusterConfig{
-			ClusterId:              int32(cluster.Id),
-			ClusterName:            cluster.ClusterName,
-			Token:                  bearerToken,
-			ApiServerUrl:           cluster.ServerUrl,
-			InsecureSkipTLSVerify:  cluster.InsecureSkipTlsVerify,
-			ProxyUrl:               cluster.ProxyUrl,
-			ToConnectWithSSHTunnel: cluster.ToConnectWithSSHTunnel,
-			SshTunnelAuthKey:       cluster.SSHTunnelAuthKey,
-			SshTunnelUser:          cluster.SSHTunnelUser,
-			SshTunnelPassword:      cluster.SSHTunnelPassword,
-			SshTunnelServerAddress: cluster.SSHTunnelServerAddress,
-		}
-		if cluster.InsecureSkipTlsVerify == false {
-			clusterConfig.KeyData = cluster.Config[util5.TlsKey]
-			clusterConfig.CertData = cluster.Config[util5.CertData]
-			clusterConfig.CaData = cluster.Config[util5.CertificateAuthorityData]
-		}
+		clusterBean := impl.clusterService.GetClusterBean(*cluster)
+		clusterConfig := client2.ConvertClusterBeanToClusterConfig(&clusterBean)
+		clusterConfig.Token = bearerToken
+
 		releaseIdentifier := &gRPC.ReleaseIdentifier{
 			ReleaseName:      releaseName,
 			ReleaseNamespace: envOverride.Namespace,

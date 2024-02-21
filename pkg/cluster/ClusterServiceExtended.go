@@ -7,6 +7,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
+	bean4 "github.com/devtron-labs/devtron/pkg/serverConnection/bean"
 	"net/http"
 	"strings"
 	"time"
@@ -89,7 +90,7 @@ func (impl *ClusterServiceImplExtended) updateClusterConnectionMap() {
 		return
 	}
 	for _, cluster := range clusters {
-		clusterBean := GetClusterBean(*cluster)
+		clusterBean := impl.GetClusterBean(*cluster)
 		clusterConfig := clusterBean.GetClusterConfig()
 		_, err = impl.sshTunnelWrapperService.StartUpdateConnectionForCluster(clusterConfig)
 		if err != nil {
@@ -108,12 +109,15 @@ func (impl *ClusterServiceImplExtended) FindAllWithoutConfig() ([]*ClusterBean, 
 	}
 	for _, bean := range beans {
 		bean.Config = map[string]string{k8s2.BearerToken: ""}
-		if bean.SSHTunnelConfig != nil {
-			if len(bean.SSHTunnelConfig.Password) > 0 {
-				bean.SSHTunnelConfig.Password = SecretDataObfuscatePlaceholder
-			}
-			if len(bean.SSHTunnelConfig.AuthKey) > 0 {
-				bean.SSHTunnelConfig.AuthKey = SecretDataObfuscatePlaceholder
+		if bean.ClusterConnectionConfig != nil && bean.ClusterConnectionConfig.SSHTunnelConfig != nil {
+			sshTunnelConfig := bean.ClusterConnectionConfig.SSHTunnelConfig
+			if bean.ClusterConnectionConfig.ConnectionMethod == bean4.ServerConnectionMethodSSH {
+				if len(sshTunnelConfig.SSHPassword) > 0 {
+					sshTunnelConfig.SSHPassword = SecretDataObfuscatePlaceholder
+				}
+				if len(sshTunnelConfig.SSHAuthKey) > 0 {
+					sshTunnelConfig.SSHAuthKey = SecretDataObfuscatePlaceholder
+				}
 			}
 		}
 	}
@@ -283,7 +287,8 @@ func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *Cluste
 	}
 
 	// if git-ops configured and no proxy is configured, then only update cluster in ACD, otherwise ignore
-	if isGitOpsConfigured && len(bean.ProxyUrl) == 0 && !bean.ToConnectWithSSHTunnel {
+	if isGitOpsConfigured && bean.ClusterConnectionConfig.ConnectionMethod != bean4.ServerConnectionMethodProxy &&
+		bean.ClusterConnectionConfig.ConnectionMethod != bean4.ServerConnectionMethodSSH {
 		configMap := bean.Config
 		serverUrl := bean.ServerUrl
 		bearerToken := ""
@@ -396,7 +401,8 @@ func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *ClusterB
 	}
 
 	// if git-ops configured and no proxy or ssh tunnel is configured, then only add cluster in ACD, otherwise ignore
-	if isGitOpsConfigured && len(clusterBean.ProxyUrl) == 0 && !clusterBean.ToConnectWithSSHTunnel {
+	if isGitOpsConfigured && bean.ClusterConnectionConfig.ConnectionMethod != bean4.ServerConnectionMethodProxy &&
+		bean.ClusterConnectionConfig.ConnectionMethod != bean4.ServerConnectionMethodSSH {
 		//create it into argo cd as well
 		cl := impl.ConvertClusterBeanObjectToCluster(bean)
 

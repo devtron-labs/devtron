@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
+	bean4 "github.com/devtron-labs/devtron/pkg/serverConnection/bean"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -331,7 +332,8 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(ctx context.Context, req
 		}
 		for _, cluster := range clusters {
 			//if cluster is configured with proxy or with ssh tunnel then gitOps is not supported so skipping such clusters
-			if len(cluster.ProxyUrl) > 0 || cluster.ToConnectWithSSHTunnel {
+			if cluster.ClusterConnectionConfig.ConnectionMethod != bean4.ServerConnectionMethodProxy &&
+				cluster.ClusterConnectionConfig.ConnectionMethod != bean4.ServerConnectionMethodSSH {
 				continue
 			}
 			cl := impl.clusterService.ConvertClusterBeanObjectToCluster(&cluster)
