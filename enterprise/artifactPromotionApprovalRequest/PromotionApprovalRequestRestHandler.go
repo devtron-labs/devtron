@@ -82,7 +82,7 @@ func (handler PromotionApprovalRequestRestHandlerImpl) HandleArtifactPromotionRe
 		return
 	}
 
-	envAuthorized := make(map[string]bool)
+	authorizedEnvironments := make(map[string]bool)
 
 	switch promotionRequest.Action {
 	case artifactPromotionApprovalRequest.ACTION_PROMOTE:
@@ -105,7 +105,7 @@ func (handler PromotionApprovalRequestRestHandlerImpl) HandleArtifactPromotionRe
 		for _, env := range environmentNames {
 			rbacObject := envRbacObjectMap[env]
 			isAuthorised = results[rbacObject]
-			envAuthorized[env] = isAuthorised
+			authorizedEnvironments[env] = isAuthorised
 		}
 
 	case artifactPromotionApprovalRequest.ACTION_APPROVE:
@@ -120,12 +120,32 @@ func (handler PromotionApprovalRequestRestHandlerImpl) HandleArtifactPromotionRe
 		for _, env := range promotionRequest.EnvironmentNames {
 			rbacObject := teamEnvRbacObjectMap[env]
 			isAuthorised = results[rbacObject]
-			envAuthorized[env] = isAuthorised
+			authorizedEnvironments[env] = isAuthorised
 		}
 
+	case artifactPromotionApprovalRequest.ACTION_CANCEL:
+		artifactPromotionDao, err := handler.artifactPromotionApprovalRequestRepository.FindById(promotionRequest.PromotionRequestId)
+		if err == pg.ErrNoRows {
+			handler.logger.Errorw("promotion request for given id does not exist", "promotionRequestId", promotionRequest.PromotionRequestId, "err", err)
+			common.WriteJsonResp(w, errors.New("promotion request for given id does not exist"), nil, http.StatusNotFound)
+			return
+		}
+		if err != nil {
+			handler.logger.Errorw("error in fetching artifact promotion request by id", "artifactPromotionRequestId", promotionRequest.PromotionRequestId, "err", err)
+			return
+		}
+		appRbacObj, envRbacObj := handler.getAppAndEnvObjectByCdPipelineId(artifactPromotionDao.DestinationPipelineId)
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, appRbacObj); !ok {
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+			return
+		}
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionTrigger, envRbacObj); !ok {
+			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+			return
+		}
 	}
 
-	_, err = handler.promotionApprovalRequestService.HandleArtifactPromotionRequest(&promotionRequest, envAuthorized)
+	_, err = handler.promotionApprovalRequestService.HandleArtifactPromotionRequest(&promotionRequest, authorizedEnvironments)
 	if err != nil {
 		handler.logger.Errorw("error in handling promotion artifact request", "promotionRequest", promotionRequest, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -171,20 +191,11 @@ func (handler PromotionApprovalRequestRestHandlerImpl) GetByPromotionRequestId(w
 	}
 
 	// rbac block starts from here
-	object := handler.enforcerUtil.GetAppAndEnvObjectByPipelineIds([]int{artifactPromotionDao.DestinationPipelineId})
-	if len(object) == 0 {
-		common.WriteJsonResp(w, errors.New("unable to perform authorization check for given resource"), nil, http.StatusInternalServerError)
-	}
-
-	rbacObjects := object[artifactPromotionDao.DestinationPipelineId]
-	appRbacObj := rbacObjects[0]
-	envRbacObj := rbacObjects[1]
-
+	appRbacObj, envRbacObj := handler.getAppAndEnvObjectByCdPipelineId(artifactPromotionDao.DestinationPipelineId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, appRbacObj); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, envRbacObj); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
@@ -198,4 +209,10 @@ func (handler PromotionApprovalRequestRestHandlerImpl) GetByPromotionRequestId(w
 	}
 
 	common.WriteJsonResp(w, nil, nil, http.StatusOK)
+}
+
+func (handler PromotionApprovalRequestRestHandlerImpl) getAppAndEnvObjectByCdPipelineId(cdPipelineId int) (string, string) {
+	object := handler.enforcerUtil.GetAppAndEnvObjectByPipelineIds([]int{cdPipelineId})
+	rbacObjects := object[cdPipelineId]
+	return rbacObjects[0], rbacObjects[1]
 }

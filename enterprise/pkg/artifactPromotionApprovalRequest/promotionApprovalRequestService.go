@@ -10,7 +10,7 @@ import (
 )
 
 type ArtifactPromotionApprovalService interface {
-	HandleArtifactPromotionRequest(request *ArtifactPromotionRequest, envAuthorized map[string]bool) (*ArtifactPromotionRequest, error)
+	HandleArtifactPromotionRequest(request *ArtifactPromotionRequest, authorizedEnvironments map[string]bool) (*ArtifactPromotionRequest, error)
 	GetByPromotionRequestId(artifactPromotionApprovalRequest *ArtifactPromotionApprovalRequest) (*ArtifactPromotionApprovalResponse, error)
 }
 
@@ -38,7 +38,7 @@ func NewArtifactPromotionApprovalServiceImpl(
 	}
 }
 
-func (impl ArtifactPromotionApprovalServiceImpl) HandleArtifactPromotionRequest(request *ArtifactPromotionRequest, envAuthorized map[string]bool) (*ArtifactPromotionRequest, error) {
+func (impl ArtifactPromotionApprovalServiceImpl) HandleArtifactPromotionRequest(request *ArtifactPromotionRequest, authorizedEnvironments map[string]bool) (*ArtifactPromotionRequest, error) {
 	switch request.Action {
 
 	case ACTION_PROMOTE:
