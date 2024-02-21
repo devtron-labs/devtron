@@ -588,6 +588,10 @@ func (impl *HelmAppServiceImpl) checkIfNsExists(app *AppIdentifier) (bool, error
 	}
 	exists, err := impl.K8sUtil.CheckIfNsExists(app.Namespace, v12Client)
 	if err != nil {
+		if IsClusterUnReachableError(err) {
+			impl.logger.Errorw("k8s cluster unreachable", "err", err)
+			return false, &util.ApiError{HttpStatusCode: http.StatusUnprocessableEntity, UserMessage: err.Error()}
+		}
 		impl.logger.Errorw("error in checking if namespace exists or not", "error", err, "clusterConfig", config)
 		return false, err
 	}

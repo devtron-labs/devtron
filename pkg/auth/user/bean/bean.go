@@ -3,6 +3,7 @@ package bean
 type RoleType string
 
 const (
+	SYSTEM_USER_ID                              = 1
 	PROJECT_TYPE                                = "team"
 	ENV_TYPE                                    = "environment"
 	APP_TYPE                                    = "app"
