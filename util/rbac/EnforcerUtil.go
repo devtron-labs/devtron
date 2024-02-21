@@ -77,6 +77,8 @@ type EnforcerUtil interface {
 	GetClusterNameRBACObjByClusterId(clusterId int) string
 	CheckAppRbacForAppOrJob(token, resourceName, action string) bool
 	CheckAppRbacForAppOrJobInBulk(token, action string, rbacObjects []string, appType helper2.AppType) map[string]bool
+	GetEnvRBACByAppNameAndEnvNames(appName string, envNames []string) map[string]string
+	GetTeamEnvRbacObjByAppAndEnvNames(appName string, envNames []string) map[string]string
 }
 
 type EnforcerUtilImpl struct {
@@ -748,4 +750,35 @@ func (impl EnforcerUtilImpl) CheckAppRbacForAppOrJobInBulk(token, action string,
 	}
 
 	return enforcedMap
+}
+
+func (impl EnforcerUtilImpl) GetEnvRBACByAppNameAndEnvNames(appName string, envNames []string) map[string]string {
+	envRbacObjects := make(map[string]string)
+	envs, err := impl.environmentRepository.FindByNames(envNames)
+	if err != nil {
+		impl.logger.Errorw("error in fetching environments by name", "envName", envNames, "err", err)
+		return envRbacObjects
+	}
+	for _, env := range envs {
+		envRbacObjects[env.Name] = fmt.Sprintf("%s/%s", env.EnvironmentIdentifier, appName)
+	}
+	return envRbacObjects
+}
+
+func (impl EnforcerUtilImpl) GetTeamEnvRbacObjByAppAndEnvNames(appName string, envNames []string) map[string]string {
+	teamEnvRbacObjects := make(map[string]string)
+	app, err := impl.appRepository.FindAppAndProjectByAppName(appName)
+	if err != nil {
+		impl.logger.Errorw("error in fetching app by app name", "appName", appName, "err", err)
+		return teamEnvRbacObjects
+	}
+	envs, err := impl.environmentRepository.FindByNames(envNames)
+	if err != nil {
+		impl.logger.Errorw("error in fetching environments by name", "envName", envNames, "err", err)
+		return teamEnvRbacObjects
+	}
+	for _, env := range envs {
+		teamEnvRbacObjects[env.Name] = fmt.Sprintf("%s/%s/%s", app.Team.Name, env.EnvironmentIdentifier, appName)
+	}
+	return teamEnvRbacObjects
 }

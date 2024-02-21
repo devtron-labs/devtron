@@ -10,8 +10,8 @@ import (
 )
 
 type ArtifactPromotionApprovalService interface {
-	HandleArtifactPromotionRequest(request *ArtifactPromotionRequest) (*ArtifactPromotionRequest, error)
-	GetByPromotionRequestId(artifactPromotionApprovalRequestId int) (*ArtifactPromotionApprovalResponse, error)
+	HandleArtifactPromotionRequest(request *ArtifactPromotionRequest, envAuthorized map[string]bool) (*ArtifactPromotionRequest, error)
+	GetByPromotionRequestId(artifactPromotionApprovalRequest *ArtifactPromotionApprovalRequest) (*ArtifactPromotionApprovalResponse, error)
 }
 
 type ArtifactPromotionApprovalServiceImpl struct {
@@ -38,7 +38,7 @@ func NewArtifactPromotionApprovalServiceImpl(
 	}
 }
 
-func (impl ArtifactPromotionApprovalServiceImpl) HandleArtifactPromotionRequest(request *ArtifactPromotionRequest) (*ArtifactPromotionRequest, error) {
+func (impl ArtifactPromotionApprovalServiceImpl) HandleArtifactPromotionRequest(request *ArtifactPromotionRequest, envAuthorized map[string]bool) (*ArtifactPromotionRequest, error) {
 	switch request.Action {
 
 	case ACTION_PROMOTE:
@@ -87,35 +87,29 @@ func (impl ArtifactPromotionApprovalServiceImpl) cancelPromotionApprovalRequest(
 	return nil, err
 }
 
-func (impl ArtifactPromotionApprovalServiceImpl) GetByPromotionRequestId(artifactPromotionApprovalRequestId int) (*ArtifactPromotionApprovalResponse, error) {
+func (impl ArtifactPromotionApprovalServiceImpl) GetByPromotionRequestId(artifactPromotionApprovalRequest *ArtifactPromotionApprovalRequest) (*ArtifactPromotionApprovalResponse, error) {
 
-	artifactPromotionDao, err := impl.artifactPromotionApprovalRequestRepository.FindById(artifactPromotionApprovalRequestId)
-	if err != nil {
-		impl.logger.Errorw("error in fetching artifact promotion request by id", "artifactPromotionRequestId", artifactPromotionApprovalRequestId, "err", err)
-		return nil, err
-	}
-
-	sourceType := getSourceType(artifactPromotionDao.SourceType)
+	sourceType := getSourceType(artifactPromotionApprovalRequest.SourceType)
 
 	var source string
-	if artifactPromotionDao.SourceType == CD {
-		cdPipeline, err := impl.pipelineRepository.FindById(artifactPromotionDao.SourcePipelineId)
+	if artifactPromotionApprovalRequest.SourceType == CD {
+		cdPipeline, err := impl.pipelineRepository.FindById(artifactPromotionApprovalRequest.SourcePipelineId)
 		if err != nil {
-			impl.logger.Errorw("error in fetching cdPipeline by Id", "cdPipelineId", artifactPromotionDao.SourcePipelineId, "err", err)
+			impl.logger.Errorw("error in fetching cdPipeline by Id", "cdPipelineId", artifactPromotionApprovalRequest.SourcePipelineId, "err", err)
 			return nil, err
 		}
 		source = cdPipeline.Environment.Name
 	}
 
-	destCDPipeline, err := impl.pipelineRepository.FindById(artifactPromotionDao.DestinationPipelineId)
+	destCDPipeline, err := impl.pipelineRepository.FindById(artifactPromotionApprovalRequest.DestinationPipelineId)
 	if err != nil {
-		impl.logger.Errorw("error in fetching cdPipeline by Id", "cdPipelineId", artifactPromotionDao.DestinationPipelineId, "err", err)
+		impl.logger.Errorw("error in fetching cdPipeline by Id", "cdPipelineId", artifactPromotionApprovalRequest.DestinationPipelineId, "err", err)
 		return nil, err
 	}
 
-	artifactPromotionRequestUser, err := impl.userService.GetByIdWithoutGroupClaims(artifactPromotionDao.CreatedBy)
+	artifactPromotionRequestUser, err := impl.userService.GetByIdWithoutGroupClaims(artifactPromotionApprovalRequest.CreatedBy)
 	if err != nil {
-		impl.logger.Errorw("error in fetching user details by id", "userId", artifactPromotionDao.CreatedBy, "err", err)
+		impl.logger.Errorw("error in fetching user details by id", "userId", artifactPromotionApprovalRequest.CreatedBy, "err", err)
 		return nil, err
 	}
 
@@ -125,8 +119,8 @@ func (impl ArtifactPromotionApprovalServiceImpl) GetByPromotionRequestId(artifac
 		Destination:     destCDPipeline.Environment.Name,
 		RequestedBy:     artifactPromotionRequestUser.EmailId,
 		ApprovedUsers:   make([]string, 0), // get by deployment_approval_user_data
-		RequestedOn:     artifactPromotionDao.CreatedOn,
-		PromotedOn:      artifactPromotionDao.UpdatedOn,
+		RequestedOn:     artifactPromotionApprovalRequest.CreatedOn,
+		PromotedOn:      artifactPromotionApprovalRequest.UpdatedOn,
 		PromotionPolicy: "", // todo
 	}
 
