@@ -46,6 +46,7 @@ import (
 	repository4 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
+	"net/http"
 
 	"github.com/devtron-labs/common-lib/blob-storage"
 	client "github.com/devtron-labs/devtron/client/events"
@@ -209,9 +210,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 	variableSnapshot := prePostAndRefPluginResponse.VariableSnapshot
 
 	if len(preCiSteps) == 0 && isJob {
-		return 0, &util.ApiError{
-			UserMessage: "No tasks are configured in this job pipeline",
-		}
+		return 0, &util.ApiError{HttpStatusCode: http.StatusNotFound, UserMessage: "No tasks are configured in this job pipeline"}
 	}
 	savedCiWf, err := impl.saveNewWorkflow(pipeline, ciWorkflowConfig, trigger.CommitHashes, trigger.TriggeredBy, trigger.EnvironmentId, isJob, trigger.ReferenceCiWorkflowId)
 	if err != nil {
