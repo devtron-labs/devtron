@@ -9,7 +9,7 @@ const (
 	Filter                             = 1
 	ImageDigest                        = 2
 	ImageDigestResourceId              = -1 // for ImageDigest resource id will is constant unlike filter and variables
-	InfraProfile              = 3
+	InfraProfile                       = 3
 )
 
 type QualifierMapping struct {
