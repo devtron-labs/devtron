@@ -13,6 +13,7 @@
 - fix: resource tree bad gateway handle (#4613)
 - fix: new api added for getting ciPipelineDetails by only ciPipelineId for CLI (#3708)
 ## Enhancements
+- feat:version upgrade for authenticator (#4651)
 - feat: active inactive user phase 2 (#4624)
 - feat: added support for external argocd apps (#4643)
 - feat: support build infra configurations properties configurable from ui (#4583)
