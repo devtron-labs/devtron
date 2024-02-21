@@ -60,7 +60,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) HandleArtifactPromotionRequest(
 
 func (impl ArtifactPromotionApprovalRequest) promoteArtifact(request *ArtifactPromotionRequest) (*ArtifactPromotionRequest, error) {
 	// TODO: add validations on artifactId, sourceId and destinationId
-
+	return nil, nil
 }
 
 func (impl ArtifactPromotionApprovalServiceImpl) cancelPromotionApprovalRequest(request *ArtifactPromotionRequest) (*ArtifactPromotionRequest, error) {
