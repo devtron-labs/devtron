@@ -785,20 +785,14 @@ func (impl *ClusterServiceImpl) buildInformer() {
 		if !model.IsVirtualCluster {
 			bearerToken := model.Config[k8s2.BearerToken]
 			clusterInfo = append(clusterInfo, &bean2.ClusterInfo{
-				ClusterId:   model.Id,
-				ClusterName: model.ClusterName,
-				BearerToken: bearerToken,
-				ServerUrl:   model.ServerUrl,
-				//ProxyUrl:               model.ProxyUrl,
+				ClusterId:             model.Id,
+				ClusterName:           model.ClusterName,
+				BearerToken:           bearerToken,
+				ServerUrl:             model.ServerUrl,
 				InsecureSkipTLSVerify: model.InsecureSkipTlsVerify,
 				KeyData:               model.Config[k8s2.TlsKey],
 				CertData:              model.Config[k8s2.CertData],
 				CAData:                model.Config[k8s2.CertificateAuthorityData],
-				//ToConnectWithSSHTunnel: model.ToConnectWithSSHTunnel,
-				//SSHTunnelServerAddress: model.SSHTunnelServerAddress,
-				//SSHTunnelUser:          model.SSHTunnelUser,
-				//SSHTunnelPassword:      model.SSHTunnelPassword,
-				//SSHTunnelAuthKey:       model.SSHTunnelAuthKey,
 				ClusterConnectionConfig: &bean4.ServerConnectionConfigBean{
 					ServerConnectionConfigId: model.ClusterConnectionConfigId,
 					ConnectionMethod:         model.ClusterConnectionConfig.ConnectionMethod,
