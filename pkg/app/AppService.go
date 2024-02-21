@@ -1156,7 +1156,6 @@ func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Appl
 	return nil
 }
 
-
 func (impl *AppServiceImpl) FindAppByNames(names []string) ([]*app.App, error) {
 	return impl.appRepository.FindByNames(names)
 }

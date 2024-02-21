@@ -48,15 +48,15 @@ import (
 )
 
 type App struct {
-	MuxRouter     *router.MuxRouter
-	Logger        *zap.SugaredLogger
-	SSE           *sse.SSE
-	Enforcer      *casbin.SyncedEnforcer
-	EnforcerV2    *casbinv2.SyncedEnforcer
-	server        *http.Server
-	db            *pg.DB
-	pubsubClient  *pubsub.PubSubClientServiceImpl
-	posthogClient *telemetry.PosthogClient
+	MuxRouter             *router.MuxRouter
+	Logger                *zap.SugaredLogger
+	SSE                   *sse.SSE
+	Enforcer              *casbin.SyncedEnforcer
+	EnforcerV2            *casbinv2.SyncedEnforcer
+	server                *http.Server
+	db                    *pg.DB
+	pubsubClient          *pubsub.PubSubClientServiceImpl
+	posthogClient         *telemetry.PosthogClient
 	centralEventProcessor *eventProcessor.CentralEventProcessor
 	// used for local dev only
 	serveTls           bool
@@ -82,19 +82,19 @@ func NewApp(router *router.MuxRouter,
 	//check argo connection
 	//todo - check argo-cd version on acd integration installation
 	app := &App{
-		MuxRouter:          router,
-		Logger:             Logger,
-		SSE:                sse,
-		Enforcer:           enforcer,
-		EnforcerV2:         enforcerV2,
-		db:                 db,
-		pubsubClient:       pubsubClient,
-		serveTls:           false,
-		sessionManager2:    sessionManager2,
-		posthogClient:      posthogClient,
-		OtelTracingService: otel.NewOtelTracingServiceImpl(Logger),
-		loggingMiddleware:  loggingMiddleware,
-		userService:        userService,
+		MuxRouter:             router,
+		Logger:                Logger,
+		SSE:                   sse,
+		Enforcer:              enforcer,
+		EnforcerV2:            enforcerV2,
+		db:                    db,
+		pubsubClient:          pubsubClient,
+		serveTls:              false,
+		sessionManager2:       sessionManager2,
+		posthogClient:         posthogClient,
+		OtelTracingService:    otel.NewOtelTracingServiceImpl(Logger),
+		loggingMiddleware:     loggingMiddleware,
+		userService:           userService,
 		centralEventProcessor: centralEventProcessor,
 	}
 	return app
