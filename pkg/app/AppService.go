@@ -1132,7 +1132,6 @@ func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Appl
 	return nil
 }
 
-
 func (impl *AppServiceImpl) GetActiveCiCdAppsCount() (int, error) {
 	return impl.appRepository.GetActiveCiCdAppsCount()
 }
