@@ -11,6 +11,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
+	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
@@ -150,11 +151,10 @@ func (handler PromotionApprovalRequestRestHandlerImpl) GetByPromotionRequestId(w
 		return
 	}
 
-	queryParams := r.URL.Query()
-	promotionRequestIdStr := queryParams.Get("promotionRequestId")
-	promotionRequestId, err := strconv.Atoi(promotionRequestIdStr)
+	vars := mux.Vars(r)
+	promotionRequestId, err := strconv.Atoi(vars["promotionRequestId"])
 	if err != nil {
-		handler.logger.Errorw("error in parsing promotionRequestId from string to int", "promotionRequestId", promotionRequestId)
+		handler.logger.Errorw("error in parsing promotionRequestId from string to int", "promotionRequestId", vars["promotionRequestId"])
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
