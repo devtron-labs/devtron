@@ -218,8 +218,8 @@ paths:
           in: query
           schema:
             type: integer
-          description: "workflow id, this is required if fetchRequestsForMe is true"
-        - name: selfPendingOnly
+          description: "workflow id, this is required if pendingForCurrentUser is true"
+        - name: pendingForCurrentUser
           in: query
           schema:
             type: boolean
