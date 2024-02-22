@@ -196,13 +196,6 @@ func (impl PubSubClientServiceImpl) TryCatchCallBack(msg *nats.Msg, callback fun
 	// call loggersFunc
 	impl.Log(loggerFunc, msg.Subject, *subMsg)
 
-	// run validations
-	for _, validation := range validations {
-		if !validation(*subMsg) {
-			impl.Logger.Warnw("nats: message validation failed, not processing the message...", "subject", msg.Subject, "msg", string(msg.Data))
-			return
-		}
-	}
 	defer func() {
 		// Acknowledge the message delivery
 		err := msg.Ack()
@@ -227,6 +220,15 @@ func (impl PubSubClientServiceImpl) TryCatchCallBack(msg *nats.Msg, callback fun
 			return
 		}
 	}()
+
+	// run validations
+	for _, validation := range validations {
+		if !validation(*subMsg) {
+			impl.Logger.Warnw("nats: message validation failed, not processing the message...", "subject", msg.Subject, "msg", string(msg.Data))
+			return
+		}
+	}
+
 	// Process the event message
 	callback(subMsg)
 }
