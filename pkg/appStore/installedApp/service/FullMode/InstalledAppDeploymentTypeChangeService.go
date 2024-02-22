@@ -426,35 +426,13 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) TriggerAfterMigration(c
 
 		return response, nil
 	}
-	var installedAppVersionDTOList []*appStoreBean.InstallAppVersionDTO
-	for _, installedApp := range successInstalledApps {
-		installedAppVersion, err := impl.installedAppRepository.GetActiveInstalledAppVersionByInstalledAppId(installedApp.Id)
-		if err != nil {
-			impl.logger.Errorw("error in getting installedAppVersion from installedAppId",
-				"installedAppId", installedApp.Id,
-				"err", err)
-			return nil, err
-		}
-		installedAppVersionHistory, err := impl.installedAppRepositoryHistory.GetLatestInstalledAppVersionHistory(installedAppVersion.Id)
-		if err != nil {
-			impl.logger.Errorw("error in getting installedAppVersionHistory from installedAppVersionId",
-				"installedAppVersionId", installedAppVersion.Id,
-				"err", err)
-			return nil, err
-		}
-		err = impl.updateDeployedOnDataForTrigger(request.DesiredDeploymentType, installedAppVersion, installedAppVersionHistory)
-		if err != nil {
-			impl.logger.Errorw("error in updating deployment on data for trigger",
-				"environmentId", request.EnvId,
-				"desiredDeploymentAppType", request.DesiredDeploymentType,
-				"err", err)
-			return nil, err
-		}
-		installedAppVersionDTOList = append(installedAppVersionDTOList, &appStoreBean.InstallAppVersionDTO{
-			InstalledAppVersionId:        installedAppVersion.Id,
-			InstalledAppVersionHistoryId: installedAppVersionHistory.Id,
-			Status:                       appStoreBean.DEPLOY_INIT,
-		})
+	installedAppVersionDTOList, err := impl.getDtoListForTriggerDeploymentEvent(request.DesiredDeploymentType, successInstalledApps)
+	if err != nil {
+		impl.logger.Errorw("error in getting Dto list for trigger deployment event",
+			"environmentId", request.EnvId,
+			"desiredDeploymentAppType", request.DesiredDeploymentType,
+			"err", err)
+		return response, err
 	}
 
 	impl.chartGroupService.TriggerDeploymentEvent(installedAppVersionDTOList)
@@ -471,6 +449,35 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) TriggerAfterMigration(c
 	}
 
 	return response, nil
+}
+
+func (impl *InstalledAppDeploymentTypeChangeServiceImpl) getDtoListForTriggerDeploymentEvent(desiredDeploymentType bean.DeploymentType, successInstalledApps []*repository2.InstalledApps) ([]*appStoreBean.InstallAppVersionDTO, error) {
+	var installedAppVersionDTOList []*appStoreBean.InstallAppVersionDTO
+	for _, installedApp := range successInstalledApps {
+		installedAppVersion, err := impl.installedAppRepository.GetActiveInstalledAppVersionByInstalledAppId(installedApp.Id)
+		if err != nil {
+			impl.logger.Errorw("error in getting installedAppVersion from installedAppId", "installedAppId", installedApp.Id,
+				"err", err)
+			return nil, err
+		}
+		installedAppVersionHistory, err := impl.installedAppRepositoryHistory.GetLatestInstalledAppVersionHistory(installedAppVersion.Id)
+		if err != nil {
+			impl.logger.Errorw("error in getting installedAppVersionHistory from installedAppVersionId", "installedAppVersionId", installedAppVersion.Id,
+				"err", err)
+			return nil, err
+		}
+		err = impl.updateDeployedOnDataForTrigger(desiredDeploymentType, installedAppVersion, installedAppVersionHistory)
+		if err != nil {
+			impl.logger.Errorw("error in updating deployment on data for trigger", "err", err)
+			return nil, err
+		}
+		installedAppVersionDTOList = append(installedAppVersionDTOList, &appStoreBean.InstallAppVersionDTO{
+			InstalledAppVersionId:        installedAppVersion.Id,
+			InstalledAppVersionHistoryId: installedAppVersionHistory.Id,
+			Status:                       appStoreBean.DEPLOY_INIT,
+		})
+	}
+	return installedAppVersionDTOList, nil
 }
 
 func (impl *InstalledAppDeploymentTypeChangeServiceImpl) updateDeployedOnDataForTrigger(desiredDeploymentType bean.DeploymentType, installedAppVersion *repository2.InstalledAppVersions, installedAppVersionHistory *repository2.InstalledAppVersionHistory) error {
