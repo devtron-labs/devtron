@@ -21,6 +21,6 @@ type SSHTunnelConfig struct {
 type ServerConnectionConfigBean struct {
 	ServerConnectionConfigId int                    `json:"serverConnectionConfigId"`
 	ConnectionMethod         ServerConnectionMethod `json:"connectionMethod,omitempty"`
-	ProxyConfig              *ProxyConfig            `json:"proxyConfig,omitempty"`
-	SSHTunnelConfig          *SSHTunnelConfig        `json:"SSHConfig,omitempty"`
+	ProxyConfig              *ProxyConfig           `json:"proxyConfig,omitempty"`
+	SSHTunnelConfig          *SSHTunnelConfig       `json:"SSHConfig,omitempty"`
 }
