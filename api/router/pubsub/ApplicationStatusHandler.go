@@ -24,11 +24,11 @@ import (
 	"fmt"
 	"github.com/devtron-labs/common-lib/pubsub-lib/model"
 	"github.com/devtron-labs/devtron/pkg/app"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd"
 	"github.com/devtron-labs/devtron/pkg/workflow/dag"
-	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode"
 	"k8s.io/utils/pointer"
 	"time"
 

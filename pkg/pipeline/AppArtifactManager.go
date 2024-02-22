@@ -18,8 +18,8 @@
 package pipeline
 
 import (
-	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactApproval/read"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactApproval/read"
 	"sort"
 	"strings"
 
