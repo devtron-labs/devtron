@@ -130,8 +130,9 @@ type InstalledAppRepository interface {
 	GetHelmReleaseStatusConfigByInstalledAppId(installedAppVersionHistoryId int) (string, string, error)
 
 	GetActiveInstalledAppByEnvIdAndDeploymentType(envId int, deploymentType string, excludeAppIds []string, includeAppIds []string) ([]*InstalledApps, error)
-	UpdateDeploymentAppTypeInInstalledApp(deploymentAppType string, installedAppIdIncludes []int, userId int32) error
+	UpdateDeploymentAppTypeInInstalledApp(deploymentAppType string, installedAppIdIncludes []int, userId int32, deployStatus int) error
 	FindInstalledAppByIds(ids []int) ([]*InstalledApps, error)
+	GetInstalledAppVersionsByInstalledAppIds(installedAppIds []int) ([]*InstalledAppVersions, error)
 }
 
 type InstalledAppRepositoryImpl struct {
@@ -511,6 +512,16 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionByInstalledAppId(in
 	return model, err
 }
 
+func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionsByInstalledAppIds(installedAppIds []int) ([]*InstalledAppVersions, error) {
+	model := make([]*InstalledAppVersions, 0)
+	err := impl.dbConnection.Model(&model).
+		Column("installed_app_versions.*").
+		Where("installed_app_versions.installed_app_id in (?) ", pg.In(installedAppIds)).
+		Where("installed_app_versions.active = true").Select()
+
+	return model, err
+}
+
 func (impl *InstalledAppRepositoryImpl) GetConnection() (dbConnection *pg.DB) {
 	return impl.dbConnection
 }
@@ -857,10 +868,10 @@ func (impl InstalledAppRepositoryImpl) GetActiveInstalledAppByEnvIdAndDeployment
 
 // UpdateDeploymentAppTypeInInstalledApp takes in deploymentAppType and list of installedAppIds and
 // updates the deployment_app_type in the table for given ids.
-func (impl InstalledAppRepositoryImpl) UpdateDeploymentAppTypeInInstalledApp(deploymentAppType string, installedAppIdIncludes []int, userId int32) error {
-	query := "update installed_apps set deployment_app_type = ?,updated_by = ?, updated_on = ? where id in (?);"
+func (impl InstalledAppRepositoryImpl) UpdateDeploymentAppTypeInInstalledApp(deploymentAppType string, installedAppIdIncludes []int, userId int32, deployStatus int) error {
+	query := "update installed_apps set deployment_app_type = ?,updated_by = ?, updated_on = ?, status = ? where id in (?);"
 	var installedApp *InstalledApps
-	_, err := impl.dbConnection.Query(installedApp, query, deploymentAppType, userId, time.Now(), pg.In(installedAppIdIncludes))
+	_, err := impl.dbConnection.Query(installedApp, query, deploymentAppType, userId, time.Now(), deployStatus, pg.In(installedAppIdIncludes))
 
 	return err
 }

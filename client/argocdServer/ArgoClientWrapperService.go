@@ -16,7 +16,7 @@ import (
 )
 
 type ACDConfig struct {
-	ArgoCDAutoSyncEnabled bool `env:"ARGO_AUTO_SYNC_ENABLED" envDefault:"true"` //will gradually switch this flag to false in enterprise
+	ArgoCDAutoSyncEnabled bool `env:"ARGO_AUTO_SYNC_ENABLED" envDefault:"false"` //will gradually switch this flag to false in enterprise
 }
 
 func GetACDDeploymentConfig() (*ACDConfig, error) {

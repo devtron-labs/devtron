@@ -31,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"net/http"
+	"time"
 )
 
 type InstalledAppDeploymentTypeChangeService interface {
@@ -105,11 +106,13 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) MigrateDeploymentType(c
 	ctx = context.WithValue(ctx, "token", acdToken)
 
 	var deleteDeploymentType bean.DeploymentType
-
+	var deployStatus appStoreBean.AppstoreDeploymentStatus
 	if request.DesiredDeploymentType == bean.ArgoCd {
 		deleteDeploymentType = bean.Helm
+		deployStatus = appStoreBean.DEPLOY_INIT
 	} else {
 		deleteDeploymentType = bean.ArgoCd
+		deployStatus = appStoreBean.DEPLOY_SUCCESS
 	}
 	envBean, err := impl.environmentRepository.FindById(request.EnvId)
 	if err != nil {
@@ -164,7 +167,7 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) MigrateDeploymentType(c
 	for _, item := range response.SuccessfulPipelines {
 		successInstalledAppIds = append(successInstalledAppIds, item.InstalledAppId)
 	}
-	err = impl.installedAppRepository.UpdateDeploymentAppTypeInInstalledApp(request.DesiredDeploymentType, successInstalledAppIds, request.UserId)
+	err = impl.installedAppRepository.UpdateDeploymentAppTypeInInstalledApp(request.DesiredDeploymentType, successInstalledAppIds, request.UserId, int(deployStatus))
 	if err != nil {
 		impl.logger.Errorw("failed to update deployment app type for successfully deleted installed apps in db",
 			"envId", request.EnvId,
@@ -443,6 +446,20 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) TriggerAfterMigration(c
 			InstalledAppVersionId:        installedAppVersion.Id,
 			InstalledAppVersionHistoryId: installedAppVersionHistory.Id,
 		})
+	}
+
+	installedAppVersions, err := impl.installedAppRepository.GetInstalledAppVersionsByInstalledAppIds(installedAppIds)
+	if err != nil {
+		impl.logger.Errorw("error in getting installed app version by installedAppId", "installedAppIds", installedAppIds, "err", err)
+	}
+	for _, installedAppVersion := range installedAppVersions {
+		installedAppVersion.UpdatedOn = time.Now()
+		_, err = impl.installedAppRepository.UpdateInstalledAppVersion(installedAppVersion, nil)
+		if err != nil {
+			impl.logger.Errorw("failed to update last deployed time in installed app version",
+				"installedAppVersionId", installedAppVersion.Id,
+				"err", err)
+		}
 	}
 
 	impl.chartGroupService.TriggerDeploymentEvent(installedAppVersionDTOList)
