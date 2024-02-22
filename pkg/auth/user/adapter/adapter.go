@@ -25,11 +25,12 @@ func GetCasbinGroupPolicy(emailId string, role string, expression string, expres
 	}
 }
 
-func GetBasicRoleGroupDetailsAdapter(name, description string, id int32) *bean.RoleGroup {
+func GetBasicRoleGroupDetailsAdapter(name, description string, id int32, casbinName string) *bean.RoleGroup {
 	roleGroup := &bean.RoleGroup{
 		Id:          id,
 		Name:        name,
 		Description: description,
+		CasbinName:  casbinName,
 	}
 	return roleGroup
 }
