@@ -207,11 +207,11 @@ paths:
           schema:
             type: string
           description: "Name of the resource, for CI or WEBHOOK case resourceName will be name of the ci-pipeline, for other resource types it will be name of the environment"
-        - name: appName
+        - name: appId
           in: query
           required: true
           schema:
-            type: string
+            type: integer
           description: "app Name"
         - name: workflowId
           in: query
@@ -819,7 +819,14 @@ components:
           type: string
           example: "AWAITING or PROMOTED or CANCELLED or STALE"
           description: "approval runtime state"
-
+        approvedUserData:
+          type: array
+          items:
+            type: string
+          example: ["test@devtron.ai"]
+        requestedUserData:
+          type: string
+          example: "test1@devtron.ai"
     ImageComment:
       type: object
       properties:
@@ -908,7 +915,7 @@ components:
     MaterialResponse:
       type: object
       properties:
-        approverUsers:
+        imagePromotionApproverEmails:
           type: array
           items:
             type: string
@@ -933,4 +940,7 @@ components:
         totalCount:
           type: integer
           description: "total count of the tags"
+        isApprovalPendingForPromotion:
+          type: boolean
+          description: "if true, one or more artifact promotion request is pending for approval by user"
 

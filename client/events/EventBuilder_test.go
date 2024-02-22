@@ -280,7 +280,7 @@ func TestEventSimpleFactoryImpl_BuildExtraApprovalData(t *testing.T) {
 
 			}
 			if tt.name == "Valid case with all data available" {
-				//smtpNotificationRepository.On("FindDefault").Return(defaultSmtpConfig, nil)
+				// smtpNotificationRepository.On("FindDefault").Return(defaultSmtpConfig, nil)
 				sesNotificationRepository.On("FindDefault").Return(defaultSesConfig, nil)
 				imageTaggingRepository.On("GetImageComment", approvalActionRequest.ArtifactId).Return(imageComment, nil)
 				imageTaggingRepository.On("GetTagsByArtifactId", approvalActionRequest.ArtifactId).Return(imageTags, nil)
@@ -330,7 +330,7 @@ func InitEventSimpleFactoryImpl(t *testing.T) (*EventSimpleFactoryImpl, *mocks4.
 		pipelineRepository:           pipelineRepository,
 		userRepository:               userRepository,
 		ciArtifactRepository:         ciArtifactRepository,
-		DeploymentApprovalRepository: DeploymentApprovalRepository,
+		deploymentApprovalRepository: DeploymentApprovalRepository,
 		sesNotificationRepository:    sesNotificationRepository,
 		smtpNotificationRepository:   smtpNotificationRepository,
 		imageTaggingRepository:       imageTaggingRepository,

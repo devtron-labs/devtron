@@ -127,6 +127,7 @@ type CdHandlerImpl struct {
 	appRepository                          app2.AppRepository
 	resourceGroupService                   resourceGroup2.ResourceGroupService
 	deploymentApprovalRepository           pipelineConfig.DeploymentApprovalRepository
+	resourceApprovalRepository             pipelineConfig.ResourceApprovalRepository
 	imageTaggingService                    ImageTaggingService
 	eventFactory                           client2.EventFactory
 	k8sUtil                                *k8s.K8sUtilExtended
@@ -144,6 +145,7 @@ type CdHandlerImpl struct {
 
 func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService, cdWorkflowRepository pipelineConfig.CdWorkflowRepository, ciLogService CiLogService, ciArtifactRepository repository.CiArtifactRepository, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, pipelineRepository pipelineConfig.PipelineRepository, envRepository repository2.EnvironmentRepository, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, helmAppService client.HelmAppService, pipelineOverrideRepository chartConfig.PipelineOverrideRepository, workflowDagExecutor WorkflowDagExecutor, appListingService app.AppListingService, appListingRepository repository.AppListingRepository, pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository, application application.ServiceClient, argoUserService argo.ArgoUserService, deploymentEventHandler app.DeploymentEventHandler, eventClient client2.EventClient, pipelineStatusTimelineResourcesService status.PipelineStatusTimelineResourcesService, pipelineStatusSyncDetailService status.PipelineStatusSyncDetailService, pipelineStatusTimelineService status.PipelineStatusTimelineService, appService app.AppService, appStatusService app_status.AppStatusService, enforcerUtil rbac.EnforcerUtil, installedAppRepository repository3.InstalledAppRepository, installedAppVersionHistoryRepository repository3.InstalledAppVersionHistoryRepository, appRepository app2.AppRepository, resourceGroupService resourceGroup2.ResourceGroupService, imageTaggingService ImageTaggingService, k8sUtil *k8s.K8sUtilExtended, workflowService WorkflowService, clusterService cluster.ClusterService, blobConfigStorageService BlobStorageConfigService,
 	deploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository,
+	resourceApprovalRepository pipelineConfig.ResourceApprovalRepository,
 	eventFactory client2.EventFactory,
 	resourceFilterService resourceFilter.ResourceFilterService,
 	customTagService CustomTagService,
@@ -183,6 +185,7 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService, c
 		appRepository:                          appRepository,
 		resourceGroupService:                   resourceGroupService,
 		deploymentApprovalRepository:           deploymentApprovalRepository,
+		resourceApprovalRepository:             resourceApprovalRepository,
 		imageTaggingService:                    imageTaggingService,
 		eventFactory:                           eventFactory,
 		k8sUtil:                                k8sUtil,
@@ -1091,7 +1094,7 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 	approvalRequest := workflowR.DeploymentApprovalRequest
 	if approvalRequest != nil {
 		approvalReqId := workflowR.DeploymentApprovalRequestId
-		approvalUserData, err := impl.deploymentApprovalRepository.FetchApprovalDataForRequests([]int{approvalReqId})
+		approvalUserData, err := impl.resourceApprovalRepository.FetchApprovalDataForRequests([]int{approvalReqId}, repository.DEPLOYMENT_APPROVAL)
 		if err != nil {
 			return types.WorkflowResponse{}, err
 		}
@@ -1788,7 +1791,7 @@ func (impl *CdHandlerImpl) PerformDeploymentApprovalAction(triggerContext Trigge
 		if ciArtifact.CreatedBy == userId {
 			return errors.New("user who triggered the build cannot be an approver")
 		}
-		deploymentApprovalData := &pipelineConfig.DeploymentApprovalUserData{
+		deploymentApprovalData := &pipelineConfig.ResourceApprovalUserData{
 			ApprovalRequestId: approvalRequestId,
 			UserId:            userId,
 			UserResponse:      pipelineConfig.APPROVED,

@@ -197,8 +197,8 @@ type WorkflowDagExecutorImpl struct {
 	configMapRepository                 chartConfig.ConfigMapRepository
 	configMapHistoryRepository          repository3.ConfigMapHistoryRepository
 	helmAppService                      client2.HelmAppService
-	//TODO fix me next
-	helmAppClient                 gRPC.HelmAppClient //TODO refactoring: use helm app service instead
+	// TODO fix me next
+	helmAppClient                 gRPC.HelmAppClient // TODO refactoring: use helm app service instead
 	environmentConfigRepository   chartConfig.EnvConfigOverrideRepository
 	mergeUtil                     *util.MergeUtil
 	acdClient                     application2.ServiceClient

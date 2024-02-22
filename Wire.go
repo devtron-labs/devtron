@@ -436,11 +436,11 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(repository2.ServiceClient), new(*repository2.ServiceClientImpl)),
 		wire.Bind(new(connector.Pump), new(*connector.PumpImpl)),
 
-		//app.GetConfig,
+		// app.GetConfig,
 
 		pipeline4.GetEcrConfig,
-		//otel.NewOtelTracingServiceImpl,
-		//wire.Bind(new(otel.OtelTracingService), new(*otel.OtelTracingServiceImpl)),
+		// otel.NewOtelTracingServiceImpl,
+		// wire.Bind(new(otel.OtelTracingService), new(*otel.OtelTracingServiceImpl)),
 		NewApp,
 		// session.NewK8sClient,
 		repository8.NewImageTaggingRepositoryImpl,
@@ -784,7 +784,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(deployment3.FullModeDeploymentService), new(*deployment3.FullModeDeploymentServiceImpl)),
 		//	util2.NewGoJsonSchemaCustomFormatChecker,
 
-		//history starts
+		// history starts
 		history.NewPipelineHistoryRestHandlerImpl,
 		wire.Bind(new(history.PipelineHistoryRestHandler), new(*history.PipelineHistoryRestHandlerImpl)),
 
@@ -848,7 +848,7 @@ func InitializeApp() (*App, error) {
 
 		pipeline4.NewPipelineStageService,
 		wire.Bind(new(pipeline4.PipelineStageService), new(*pipeline4.PipelineStageServiceImpl)),
-		//plugin ends
+		// plugin ends
 
 		connection.NewArgoCDConnectionManagerImpl,
 		wire.Bind(new(connection.ArgoCDConnectionManager), new(*connection.ArgoCDConnectionManagerImpl)),
@@ -948,7 +948,8 @@ func InitializeApp() (*App, error) {
 
 		kubernetesResourceAuditLogs.Newk8sResourceHistoryServiceImpl,
 		wire.Bind(new(kubernetesResourceAuditLogs.K8sResourceHistoryService), new(*kubernetesResourceAuditLogs.K8sResourceHistoryServiceImpl)),
-
+		pipelineConfig.NewResourceApprovalRepositoryImpl,
+		wire.Bind(new(pipelineConfig.ResourceApprovalRepository), new(*pipelineConfig.ResourceApprovalRepositoryImpl)),
 		pipelineConfig.NewDeploymentApprovalRepositoryImpl,
 		wire.Bind(new(pipelineConfig.DeploymentApprovalRepository), new(*pipelineConfig.DeploymentApprovalRepositoryImpl)),
 		router.NewResourceGroupingRouterImpl,

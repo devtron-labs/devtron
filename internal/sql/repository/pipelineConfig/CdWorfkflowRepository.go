@@ -166,8 +166,8 @@ type CdWorkflowRunner struct {
 	tableName                   struct{}             `sql:"cd_workflow_runner" pg:",discard_unknown_columns"`
 	Id                          int                  `sql:"id,pk"`
 	Name                        string               `sql:"name"`
-	WorkflowType                bean.WorkflowType    `sql:"workflow_type"` //pre,post,deploy
-	ExecutorType                WorkflowExecutorType `sql:"executor_type"` //awf, system
+	WorkflowType                bean.WorkflowType    `sql:"workflow_type"` // pre,post,deploy
+	ExecutorType                WorkflowExecutorType `sql:"executor_type"` // awf, system
 	Status                      string               `sql:"status"`
 	PodStatus                   string               `sql:"pod_status"`
 	Message                     string               `sql:"message"`
