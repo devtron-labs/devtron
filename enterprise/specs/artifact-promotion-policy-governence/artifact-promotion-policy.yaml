@@ -6,7 +6,7 @@ info:
 servers:
   - url: 'https'
 paths:
-#  EXISTING APIs
+
 
   #  this api is used to fetch app workflows.
   #  we are adding new field artifactPromotionConfigured in workflows ,
@@ -46,12 +46,9 @@ paths:
   # will be adding new flag in the artifact object i.e PromotionDetails
   # /orchestrator/app/cd-pipeline/workflow/list
 
-  #
-  # NEW APIs
 
-
-  /orchestrator/app/artifact-promotion/request:
-  # this API is used to fetch the promotion details for a particular promoted artifact
+  /orchestrator/app/artifact/promote:
+    # this API is used to fetch the promotion details for a particular promoted artifact
     get:
       description: "this API is used to fetch the promotion details for a particular promoted artifact for the given promotionRequestId"
       parameters:
@@ -95,11 +92,12 @@ paths:
             schema:
               type: object
               properties:
-                sourceId:
-                  type: integer
-                  description: "source id"
+                sourceName:
+                  type: string
+                  description: "source name(ci source name for CI/WEBHOOK and envName for CD)"
                 sourceType:
                   type: string
+                  enum: ["CI","WEBHOOK","CD"]
                   description: "source type"
                   example: "CI or WEBHOOK or CD"
                 action:
@@ -116,11 +114,11 @@ paths:
                   type: string
                   description: "app name"
                   example: "order-service"
-                environmentNames:
+                destinationObjectNames:
                   type: array
                   items:
                     type: string
-                    description: "environment names"
+                    description: "environment names(supported envs only)"
                     example: "[UAT,QA,PROD]"
       responses:
         "403":
@@ -134,12 +132,12 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/Environment"
+                  $ref: "#/components/schemas/EnvironmentPromotionMetaData"
                 description: " environments with detailed message about the action that user has requested"
 
   #    this api can be used to get the list of environments present in the given workflowId.
   #    if artifactId is provided then we will evaluate the environments policies on the given artifact.
-  /orchestrator/app/artifact-promotion/env/list:
+  /orchestrator/app/artifact/promote/env/list:
     get:
       description: "this api can be used to get the list of environments present in the given workflowId. /n if artifactId is provided then this will evaluate the environment policies on the given artifact."
       parameters:
@@ -169,13 +167,17 @@ paths:
                       id:
                         type: integer
                         description: "ci source id"
+                      name:
+                        type: string
+                        description: "ci source name"
                       type:
                         type: string
+                        enum: ["CI","WEBHOOK"]
                         description: "source type like CI, WEBHOOK"
                   environments:
                     type: array
                     items:
-                      $ref: "#/components/schemas/Environment"
+                      $ref: "#/components/schemas/EnvironmentPromotionMetaData"
                     description: "list of environments"
 
   #  this will fetch the artifacts for artifact promotion,
@@ -186,7 +188,7 @@ paths:
   #  if resource is PROMOTION_APPROVAL_PENDING_NODE, then this api will fetch the pending promotion requests for the given environment (in resourceName).
   #  also can be used to fetch pending requests waiting for approval on requested user for given workflowId(required)
   #  appName is required param
-  /orchestrator/app/artifact-promotion/material:
+  /orchestrator/app/artifact/promote/material:
     get:
       description: "this api will fetch the artifacts for artifact promotion. \n 
       case1 : if the resource param is 'CD' this will fetch the images that are successfully deployed in the CD node of the provided environment name in the resourceName param. /n 
@@ -200,16 +202,15 @@ paths:
           required: true
           schema:
             type: string
+            enum: ["CI","CD","WEBHOOK","PROMOTION_APPROVAL_PENDING_NODE"]
           description: "resource type, eg: CI,CD,WEBHOOK,PROMOTION_APPROVAL_PENDING_NODE"
         - name: resourceName
           in: query
-          required: true
           schema:
             type: string
           description: "Name of the resource, for CI or WEBHOOK case resourceName will be name of the ci-pipeline, for other resource types it will be name of the environment"
         - name: appId
           in: query
-          required: true
           schema:
             type: integer
           description: "app Name"
@@ -218,7 +219,7 @@ paths:
           schema:
             type: integer
           description: "workflow id, this is required if fetchRequestsForMe is true"
-        - name: fetchRequestsForMe
+        - name: selfPendingOnly
           in: query
           schema:
             type: boolean
@@ -231,9 +232,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/MaterialResponse"
+                $ref: "#/components/schemas/ArtifactPromotionMaterialResponse"
 
-  /orchestrator/artifact-promotion/policy/{name}:
+  /orchestrator/policy/artifact-promotion/{name}:
     get:
       description: "get artifact promotion policy by its name"
       responses:
@@ -278,7 +279,7 @@ paths:
         "204":
           description: "deletes the promotion policy by its name successfully."
 
-  /orchestrator/artifact-promotion/list/min/policy:
+  /orchestrator/policy/artifact-promotion/autocomplete:
     get:
       description: "gets the active policy names"
       responses:
@@ -300,7 +301,7 @@ paths:
                     items:
                       type: string
 
-  /orchestrator/artifact-promotion/policy:
+  /orchestrator/policy/artifact-promotion:
     get:
       parameters:
         - name: search
@@ -350,7 +351,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/PromotionPolicy"
 
-  /orchestrator/artifact-promotion/app-env/list:
+  /orchestrator/policy/artifact-promotion/app-env/list:
     post:
       description: get app and env list with respective policy
       requestBody:
@@ -387,7 +388,7 @@ paths:
                         items:
                           $ref: '#/components/schemas/AppEnvPolicyContainer'
 
-  /orchestrator/artifact-promotion/app-env/apply:
+  /orchestrator/policy/artifact-promotion/bulk/apply:
     post:
       description: "used to apply a policy on the selected app-envs or using filtered app-env"
       requestBody:
@@ -399,6 +400,10 @@ paths:
               properties:
                 applicationEnvironments:
                   type: object
+                  # assumptions: always app and env combination is required.
+                  # if clusterName is to be added in-future, we will accept it along with envName and appName,
+                  # then get all the envs in that cluster and apply the profile to app*envs.
+                  # for teamName , get all the apps and apply on all apps*envs
                   properties:
                     appName:
                       type: string
@@ -449,6 +454,7 @@ components:
           type: string
         sourceType:
           type: string
+          enum: ["CI","WEBHOOK","CD"]
         destination:
           type: string
         requestedBy:
@@ -474,6 +480,18 @@ components:
         tooltip:
           type: string
 
+    # separate detailed object and meta data object in PromotionPolicy
+    PromotionPolicyMeta:
+      type: object
+      properties:
+        name:
+          required: true
+          type: string
+        description:
+          type: string
+        identifierCount:
+          type: integer
+          description: "this is an optional key"
     PromotionPolicy:
       type: object
       properties:
@@ -482,8 +500,6 @@ components:
           type: string
         description:
           type: string
-        approverCount:
-          type: integer
         conditions:
           type: array
           items:
@@ -491,6 +507,8 @@ components:
         approvalMetadata:
           type: object
           properties:
+            approverCount:
+              type: integer
             allowImageBuilderFromApprove:
               type: boolean
               default: false
@@ -500,9 +518,6 @@ components:
             allowApproverFromDeploy:
               default: false
               type: boolean
-        identifierCount:
-          type: integer
-          description: "this is an optional key"
     ResourceCondition:
       type: object
       properties:
@@ -778,7 +793,7 @@ components:
                 type: string
               isLast:
                 type: boolean
-    Environment:
+    EnvironmentPromotionMetaData:
       type: object
       properties:
         #       environment name
@@ -786,7 +801,8 @@ components:
           type: string
           description: "environment name"
           example: "PROD"
-        #       total approval count configured by the policy on this environment
+        #  total approval count configured by the policy on this environment.
+        #  need this to show no of approvals configured on this environment.
         approvalCount:
           type: integer
           example: "3"
@@ -796,12 +812,12 @@ components:
           type: boolean
           description: "promotion possible or not"
         #       if requested this api with evaluation, then the detailed evaluation message will be sent in this field
-        promotionEvaluationMessage:
+        promotionValidationMessage:
           type: string
           example: "promotion unsuccessful as the artifact is blocked by the promotion policy"
           description: "promotion evaluation message, detailed evaluation message for respective state"
         #       if requested this api with evaluation, then the evaluation state will be sent in this field
-        promotionEvaluationState:
+        promotionValidationState:
           type: string
           example: "PROMOTION-SUCCESSFUL or PROMOTION-BLOCKED or CD-PIPELINE-DELETED"
           description: "promotion evaluation state, eg: imagePromoted,imageSentForApproval,imageAlreadyPromoted,errored"
@@ -912,7 +928,7 @@ components:
             type: string
 
 
-    MaterialResponse:
+    ArtifactPromotionMaterialResponse:
       type: object
       properties:
         imagePromotionApproverEmails:
