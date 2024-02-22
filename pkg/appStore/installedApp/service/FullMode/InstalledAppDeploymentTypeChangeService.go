@@ -525,6 +525,11 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) deleteAppStatusEntryAft
 			return err
 		}
 	}
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("error in committing db transaction", "err", err)
+		return err
+	}
 	return nil
 }
 
