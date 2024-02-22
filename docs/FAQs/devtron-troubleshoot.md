@@ -541,3 +541,30 @@ kubectl delete po -n devtroncd -l app=git-sensor
 3. **Try to clone the git repository with the token you have added for Git Account**
 
 In case the cloning fails, you can generate the token, update the Git account in Global Configurations, and try to save the git repository again.
+
+
+### 27. Git-sensor PVC- disk full 
+**Need to increase the PVC size if you are getting following error:**
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/devtron-troubleshooting/git-sensor-pvc.png)
+
+**Need to check the `Storageclass` by which PVC was provisioned.**
+Run the following command:
+```yaml
+kubectl get storageclass
+```
+Check for the field: `allowVolumeExpansion: ` if it is set to `true` then run the following command and increase the size of the PVC.
+If the field is `allowVolumeExpansion: false` then set it to true and then run the command.
+```yaml
+kubectl edit pvc git-volume-git-sensor-0 -n devtroncd
+```
+Edit the following field:
+```yaml
+spec:
+    capacity:
+        storage: 10Gi # increase as per convinience
+```
+
+**Increase the PVC size as per your requirement. This will resolve the issue. If not, then try to bounce the pod using the following command.**
+```yaml
+kubectl delete po -n devtroncd git-sensor-0
+```
