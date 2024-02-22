@@ -18,11 +18,11 @@
 package commonService
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/repository"
-	"github.com/devtron-labs/devtron/internal/sql/repository/app"
-	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
-	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
-	helper2 "github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	"github.com/devtron-labs/devtron/internals/sql/repository"
+	"github.com/devtron-labs/devtron/internals/sql/repository/app"
+	"github.com/devtron-labs/devtron/internals/sql/repository/chartConfig"
+	dockerRegistryRepository "github.com/devtron-labs/devtron/internals/sql/repository/dockerRegistry"
+	helper2 "github.com/devtron-labs/devtron/internals/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"

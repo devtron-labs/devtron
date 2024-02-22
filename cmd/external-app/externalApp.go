@@ -8,7 +8,7 @@ import (
 	authMiddleware "github.com/devtron-labs/authenticator/middleware"
 	"github.com/devtron-labs/common-lib/middlewares"
 	"github.com/devtron-labs/devtron/client/telemetry"
-	"github.com/devtron-labs/devtron/internal/middleware"
+	"github.com/devtron-labs/devtron/internals/middleware"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"

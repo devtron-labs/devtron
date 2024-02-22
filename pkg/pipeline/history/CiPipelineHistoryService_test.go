@@ -2,9 +2,9 @@ package history
 
 import (
 	"encoding/json"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	mocks2 "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/mocks"
-	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/internals/sql/repository/pipelineConfig"
+	mocks2 "github.com/devtron-labs/devtron/internals/sql/repository/pipelineConfig/mocks"
+	"github.com/devtron-labs/devtron/internals/util"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository/mocks"

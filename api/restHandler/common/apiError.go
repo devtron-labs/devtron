@@ -20,7 +20,7 @@ package common
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/internals/util"
 	"github.com/hashicorp/go-multierror"
 	"github.com/juju/errors"
 	"gopkg.in/go-playground/validator.v9"

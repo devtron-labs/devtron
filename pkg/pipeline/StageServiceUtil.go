@@ -2,7 +2,7 @@ package pipeline
 
 import (
 	"errors"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internals/sql/repository/pipelineConfig"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/repository"

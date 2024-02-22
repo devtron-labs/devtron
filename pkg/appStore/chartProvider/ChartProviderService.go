@@ -18,8 +18,8 @@
 package chartProvider
 
 import (
-	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
-	"github.com/devtron-labs/devtron/internal/util"
+	dockerRegistryRepository "github.com/devtron-labs/devtron/internals/sql/repository/dockerRegistry"
+	"github.com/devtron-labs/devtron/internals/util"
 	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/go-pg/pg"

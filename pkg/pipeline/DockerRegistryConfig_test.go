@@ -5,14 +5,14 @@ import (
 	"fmt"
 	client "github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	"github.com/devtron-labs/devtron/api/helm-app/mocks"
-	repository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
+	repository "github.com/devtron-labs/devtron/internals/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"log"
 	"testing"
 
 	"github.com/caarlos0/env"
-	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/internals/util"
 	"github.com/go-pg/pg"
 	"github.com/stretchr/testify/assert"
 )

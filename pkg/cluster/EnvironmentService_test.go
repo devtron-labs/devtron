@@ -1,8 +1,8 @@
 package cluster
 
 import (
-	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
-	mocks2 "github.com/devtron-labs/devtron/internal/sql/repository/mocks"
+	repository2 "github.com/devtron-labs/devtron/internals/sql/repository"
+	mocks2 "github.com/devtron-labs/devtron/internals/sql/repository/mocks"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository/mocks"
 	"github.com/devtron-labs/devtron/pkg/sql"

@@ -2,7 +2,7 @@ package mocks
 
 import (
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/internals/util"
 	"github.com/devtron-labs/devtron/pkg/externalLink"
 	"github.com/stretchr/testify/assert"
 	"testing"

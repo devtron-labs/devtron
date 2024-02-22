@@ -1,8 +1,8 @@
 package repository
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/repository/app"
-	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
+	"github.com/devtron-labs/devtron/internals/sql/repository/app"
+	repository2 "github.com/devtron-labs/devtron/internals/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"

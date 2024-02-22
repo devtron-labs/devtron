@@ -18,7 +18,7 @@
 package sql
 
 import (
-	"github.com/devtron-labs/devtron/internal/middleware"
+	"github.com/devtron-labs/devtron/internals/middleware"
 	"go.uber.org/zap"
 	"reflect"
 	"time"

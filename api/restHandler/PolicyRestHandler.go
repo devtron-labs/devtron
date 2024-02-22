@@ -26,7 +26,7 @@ import (
 
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	security2 "github.com/devtron-labs/devtron/internal/sql/repository/security"
+	security2 "github.com/devtron-labs/devtron/internals/sql/repository/security"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	user2 "github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/cluster"

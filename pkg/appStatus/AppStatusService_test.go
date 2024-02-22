@@ -3,9 +3,9 @@ package appStatus
 import (
 	"fmt"
 	"github.com/caarlos0/env"
-	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
-	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus/mocks"
-	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/internals/sql/repository/appStatus"
+	"github.com/devtron-labs/devtron/internals/sql/repository/appStatus/mocks"
+	"github.com/devtron-labs/devtron/internals/util"
 	"github.com/go-pg/pg"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"

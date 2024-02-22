@@ -1,6 +1,6 @@
 package types
 
-import "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
+import "github.com/devtron-labs/devtron/internals/sql/repository/imageTagging"
 
 type ImageTaggingResponseDTO struct {
 	ImageReleaseTags           []*repository.ImageTag   `json:"imageReleaseTags"`
