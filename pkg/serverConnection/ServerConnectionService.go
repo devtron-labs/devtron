@@ -67,11 +67,11 @@ func (impl *ServerConnectionServiceImpl) ConvertServerConnectionConfigBeanToServ
 				UpdatedOn: time.Now(),
 			},
 		}
-		if configBean.ConnectionMethod == bean.ServerConnectionMethodProxy {
+		if configBean.ProxyConfig != nil && configBean.ConnectionMethod == bean.ServerConnectionMethodProxy {
 			proxyConfig := configBean.ProxyConfig
 			model.ProxyUrl = proxyConfig.ProxyUrl
 		}
-		if configBean.ConnectionMethod == bean.ServerConnectionMethodSSH {
+		if configBean.SSHTunnelConfig != nil && configBean.ConnectionMethod == bean.ServerConnectionMethodSSH {
 			sshTunnelConfig := configBean.SSHTunnelConfig
 			model.SSHServerAddress = sshTunnelConfig.SSHServerAddress
 			model.SSHUsername = sshTunnelConfig.SSHUsername

@@ -150,13 +150,13 @@ func ConvertClusterBeanToClusterConfig(clusterBean *cluster.ClusterBean) *gRPC.C
 		clusterConnectionConfig := &gRPC.ServerConnectionConfig{
 			ConnectionMethod: gRPC.ServerConnectionMethod(connectionMethod),
 		}
-		if clusterBean.ClusterConnectionConfig.ConnectionMethod == bean2.ServerConnectionMethodProxy {
+		if clusterBean.ClusterConnectionConfig.ProxyConfig != nil && clusterBean.ClusterConnectionConfig.ConnectionMethod == bean2.ServerConnectionMethodProxy {
 			proxyConfig := clusterBean.ClusterConnectionConfig.ProxyConfig
 			clusterConnectionConfig.ProxyConfig = &gRPC.ProxyConfig{
 				ProxyUrl: proxyConfig.ProxyUrl,
 			}
 		}
-		if clusterBean.ClusterConnectionConfig.ConnectionMethod == bean2.ServerConnectionMethodSSH {
+		if clusterBean.ClusterConnectionConfig.SSHTunnelConfig != nil && clusterBean.ClusterConnectionConfig.ConnectionMethod == bean2.ServerConnectionMethodSSH {
 			sshTunnelConfig := clusterBean.ClusterConnectionConfig.SSHTunnelConfig
 			clusterConnectionConfig.SSHTunnelConfig = &gRPC.SSHTunnelConfig{
 				SSHServerAddress: sshTunnelConfig.SSHServerAddress,

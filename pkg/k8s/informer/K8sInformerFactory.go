@@ -4,6 +4,7 @@ import (
 	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
 	bean3 "github.com/devtron-labs/common-lib/utils/serverConnection/bean"
+	bean2 "github.com/devtron-labs/devtron/pkg/serverConnection/bean"
 	"sync"
 	"time"
 
@@ -79,10 +80,10 @@ func (impl *K8sInformerFactoryImpl) BuildInformer(clusterInfo []*bean.ClusterInf
 		if info.ClusterConnectionConfig != nil {
 			clusterConfig.ClusterConnectionConfig.ServerConnectionConfigId = info.ClusterConnectionConfig.ServerConnectionConfigId
 			clusterConfig.ClusterConnectionConfig.ConnectionMethod = bean3.ServerConnectionMethod(info.ClusterConnectionConfig.ConnectionMethod)
-			if info.ClusterConnectionConfig.ProxyConfig != nil {
+			if info.ClusterConnectionConfig.ProxyConfig != nil && info.ClusterConnectionConfig.ConnectionMethod == bean2.ServerConnectionMethodProxy {
 				clusterConfig.ClusterConnectionConfig.ProxyConfig.ProxyUrl = info.ClusterConnectionConfig.ProxyConfig.ProxyUrl
 			}
-			if info.ClusterConnectionConfig.SSHTunnelConfig != nil {
+			if info.ClusterConnectionConfig.SSHTunnelConfig != nil && info.ClusterConnectionConfig.ConnectionMethod == bean2.ServerConnectionMethodSSH {
 				clusterConfig.ClusterConnectionConfig.SSHTunnelConfig.SSHServerAddress = info.ClusterConnectionConfig.SSHTunnelConfig.SSHServerAddress
 				clusterConfig.ClusterConnectionConfig.SSHTunnelConfig.SSHUsername = info.ClusterConnectionConfig.SSHTunnelConfig.SSHUsername
 				clusterConfig.ClusterConnectionConfig.SSHTunnelConfig.SSHPassword = info.ClusterConnectionConfig.SSHTunnelConfig.SSHPassword

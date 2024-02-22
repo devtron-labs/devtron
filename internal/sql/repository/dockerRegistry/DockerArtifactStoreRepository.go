@@ -149,7 +149,7 @@ func (impl DockerArtifactStoreRepositoryImpl) FindActiveDefaultStore() (*DockerA
 func (impl DockerArtifactStoreRepositoryImpl) FindAllActiveForAutocomplete() ([]DockerArtifactStore, error) {
 	var providers []DockerArtifactStore
 	err := impl.dbConnection.Model(&providers).
-		Column("docker_artifact_store.id", "registry_url", "registry_type", "is_default", "is_oci_compliant_registry", "OCIRegistryConfig").
+		Column("docker_artifact_store.id", "registry_url", "registry_type", "is_default", "is_oci_compliant_registry", "OCIRegistryConfig", "RegistryConnectionConfig").
 		Where("active = ?", true).
 		Relation("OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {
 			return q.Where("deleted IS FALSE"), nil
@@ -162,7 +162,7 @@ func (impl DockerArtifactStoreRepositoryImpl) FindAllActiveForAutocomplete() ([]
 func (impl DockerArtifactStoreRepositoryImpl) FindAll() ([]DockerArtifactStore, error) {
 	var providers []DockerArtifactStore
 	err := impl.dbConnection.Model(&providers).
-		Column("docker_artifact_store.*", "IpsConfig", "OCIRegistryConfig").
+		Column("docker_artifact_store.*", "IpsConfig", "OCIRegistryConfig", "RegistryConnectionConfig").
 		Where("docker_artifact_store.active = ?", true).
 		Relation("OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {
 			return q.Where("deleted IS FALSE"), nil
@@ -229,7 +229,7 @@ func (impl DockerArtifactStoreRepositoryImpl) FindOneWithChartDeploymentCount(st
 func (impl DockerArtifactStoreRepositoryImpl) FindOneInactive(storeId string) (*DockerArtifactStore, error) {
 	var provider DockerArtifactStore
 	err := impl.dbConnection.Model(&provider).
-		Column("docker_artifact_store.*", "IpsConfig", "OCIRegistryConfig").
+		Column("docker_artifact_store.*", "IpsConfig", "OCIRegistryConfig", "RegistryConnectionConfig").
 		Where("docker_artifact_store.id = ?", storeId).
 		Where("docker_artifact_store.active = ?", false).
 		Relation("OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {

@@ -924,13 +924,13 @@ func (impl DockerRegistryConfigImpl) ValidateRegistryCredentials(bean *types.Doc
 		registryConnectionConfig = &bean2.ServerConnectionConfig{
 			ConnectionMethod: bean2.ServerConnectionMethod(connectionMethod),
 		}
-		if bean.RegistryConnectionConfig.ConnectionMethod == bean3.ServerConnectionMethodProxy {
+		if bean.RegistryConnectionConfig.ProxyConfig != nil && bean.RegistryConnectionConfig.ConnectionMethod == bean3.ServerConnectionMethodProxy {
 			proxyConfig := bean.RegistryConnectionConfig.ProxyConfig
 			registryConnectionConfig.ProxyConfig = &bean2.ProxyConfig{
 				ProxyUrl: proxyConfig.ProxyUrl,
 			}
 		}
-		if bean.RegistryConnectionConfig.ConnectionMethod == bean3.ServerConnectionMethodSSH {
+		if bean.RegistryConnectionConfig.SSHTunnelConfig != nil && bean.RegistryConnectionConfig.ConnectionMethod == bean3.ServerConnectionMethodSSH {
 			sshTunnelConfig := bean.RegistryConnectionConfig.SSHTunnelConfig
 			registryConnectionConfig.SSHTunnelConfig = &bean2.SSHTunnelConfig{
 				SSHServerAddress: sshTunnelConfig.SSHServerAddress,

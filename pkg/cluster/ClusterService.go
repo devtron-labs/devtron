@@ -154,10 +154,10 @@ func (bean ClusterBean) GetClusterConfig() *k8s2.ClusterConfig {
 	if bean.ClusterConnectionConfig != nil {
 		clusterCfg.ClusterConnectionConfig.ServerConnectionConfigId = bean.ClusterConnectionConfig.ServerConnectionConfigId
 		clusterCfg.ClusterConnectionConfig.ConnectionMethod = bean3.ServerConnectionMethod(bean.ClusterConnectionConfig.ConnectionMethod)
-		if bean.ClusterConnectionConfig.ProxyConfig != nil {
+		if bean.ClusterConnectionConfig.ProxyConfig != nil && bean.ClusterConnectionConfig.ConnectionMethod == bean4.ServerConnectionMethodProxy {
 			clusterCfg.ClusterConnectionConfig.ProxyConfig.ProxyUrl = bean.ClusterConnectionConfig.ProxyConfig.ProxyUrl
 		}
-		if bean.ClusterConnectionConfig.SSHTunnelConfig != nil {
+		if bean.ClusterConnectionConfig.SSHTunnelConfig != nil && bean.ClusterConnectionConfig.ConnectionMethod == bean4.ServerConnectionMethodSSH {
 			clusterCfg.ClusterConnectionConfig.SSHTunnelConfig.SSHServerAddress = bean.ClusterConnectionConfig.SSHTunnelConfig.SSHServerAddress
 			clusterCfg.ClusterConnectionConfig.SSHTunnelConfig.SSHUsername = bean.ClusterConnectionConfig.SSHTunnelConfig.SSHUsername
 			clusterCfg.ClusterConnectionConfig.SSHTunnelConfig.SSHPassword = bean.ClusterConnectionConfig.SSHTunnelConfig.SSHPassword
