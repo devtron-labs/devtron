@@ -19,4 +19,5 @@ func (router *PromotionApprovalRequestRouterImpl) InitPromotionApprovalRequestRo
 		Methods("POST")
 	promotionApprovalRequest.Path("/request").HandlerFunc(router.promotionApprovalRequestRestHandler.GetByPromotionRequestId).Queries("promotionRequestId", "{promotionRequestId}").
 		Methods("GET")
+	//promotionApprovalRequest.Path("/material").
 }

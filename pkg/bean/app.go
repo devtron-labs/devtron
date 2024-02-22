@@ -845,6 +845,16 @@ type CiArtifactResponse struct {
 	ResourceFilters            []*resourceFilter.FilterMetaDataBean `json:"resourceFilters"`
 	TotalCount                 int                                  `json:"totalCount"`
 	CanApproverDeploy          bool                                 `json:"canApproverDeploy"`
+	DeployedOnEnvironments     []string                             `json:"deployedOnEnvironments"`
+}
+
+type ArtifactPromotionMaterialResponse struct {
+	ApproverUsers              []string           `json:"approverUsers"`
+	HideImageTaggingHardDelete bool               `json:"hideImageTaggingHardDelete"`
+	TagsEditable               bool               `json:"tagsEditable"`
+	AppReleaseTagNames         []string           `json:"appReleaseTagNames"`
+	CiArtifacts                CiArtifactResponse `json:"ciArtifacts"`
+	TotalCount                 int                `json:"totalCount"`
 }
 
 type AppLabelsDto struct {

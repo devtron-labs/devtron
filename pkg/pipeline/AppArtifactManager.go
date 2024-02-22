@@ -54,6 +54,7 @@ type AppArtifactManager interface {
 
 	BuildArtifactsForParentStage(cdPipelineId int, parentId int, parentType bean.WorkflowType, ciArtifacts []bean2.CiArtifactBean, artifactMap map[int]int, searchString string, limit int, parentCdId int) ([]bean2.CiArtifactBean, error)
 	GetImageTagsAndComment(artifactId int) (repository3.ImageComment, []string, error)
+	FetchMaterialForArtifactPromotion(resource, resourceName, appName string, workflowId int, fetchRequestsForMe bool)
 }
 
 type AppArtifactManagerImpl struct {
@@ -1414,4 +1415,8 @@ func (impl *AppArtifactManagerImpl) GetImageTagsAndComment(artifactId int) (repo
 		}
 	}
 	return imageComment, imageTagNames, nil
+}
+
+func (impl *AppArtifactManagerImpl) FetchMaterialForArtifactPromotion() {
+
 }

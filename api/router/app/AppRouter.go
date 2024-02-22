@@ -28,7 +28,7 @@ import (
 	"github.com/devtron-labs/devtron/api/router/app/pipeline/status"
 	"github.com/devtron-labs/devtron/api/router/app/pipeline/trigger"
 	"github.com/devtron-labs/devtron/api/router/app/workflow"
-	"github.com/devtron-labs/devtron/enterprise/artifactPromotionApprovalRequest"
+	"github.com/devtron-labs/devtron/enterprise/api/artifactPromotionApprovalRequest"
 	"github.com/gorilla/mux"
 )
 

@@ -816,7 +816,7 @@ components:
           type: integer
           description: "approval request id"
         approvalRuntimeState:
-          type: integer
+          type: string
           example: "AWAITING or PROMOTED or CANCELLED or STALE"
           description: "approval runtime state"
 

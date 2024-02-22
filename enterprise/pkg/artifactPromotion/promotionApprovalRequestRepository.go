@@ -1,4 +1,4 @@
-package artifactPromotionApprovalRequest
+package artifactPromotion
 
 import (
 	"github.com/devtron-labs/devtron/pkg/sql"

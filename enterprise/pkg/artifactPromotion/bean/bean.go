@@ -1,6 +1,8 @@
-package artifactPromotionApprovalRequest
+package bean
 
-import "time"
+import (
+	"time"
+)
 
 type ArtifactPromotionRequestStatus = int
 
@@ -28,7 +30,7 @@ const (
 	ACTION_APPROVE                             = "APPROVE"
 )
 
-func getSourceType(sourceType int) string {
+func GetSourceType(sourceType int) string {
 	switch sourceType {
 	case CI:
 		return SOURCE_TYPE_CI
@@ -60,4 +62,9 @@ type ArtifactPromotionApprovalResponse struct {
 	RequestedOn     time.Time `json:"requestedOn"`
 	PromotedOn      time.Time `json:"promotedOn"`
 	PromotionPolicy string    `json:"promotionPolicy"`
+}
+
+type PromotionApprovalMetaData struct {
+	ApprovalRequestId    int    `json:"approvalRequestId"`
+	ApprovalRuntimeState string `json:"approvalRuntimeState"`
 }

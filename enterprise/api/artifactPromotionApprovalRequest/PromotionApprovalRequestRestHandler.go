@@ -5,7 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"github.com/devtron-labs/devtron/enterprise/pkg/artifactPromotionApprovalRequest"
+	"github.com/devtron-labs/devtron/enterprise/pkg/artifactPromotion"
+	"github.com/devtron-labs/devtron/enterprise/pkg/artifactPromotion/bean"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -24,7 +25,7 @@ type PromotionApprovalRequestRestHandler interface {
 }
 
 type PromotionApprovalRequestRestHandlerImpl struct {
-	promotionApprovalRequestService            artifactPromotionApprovalRequest.ArtifactPromotionApprovalService
+	promotionApprovalRequestService            artifactPromotion.ArtifactPromotionApprovalService
 	logger                                     *zap.SugaredLogger
 	userService                                user.UserService
 	enforcer                                   casbin.Enforcer
@@ -32,18 +33,18 @@ type PromotionApprovalRequestRestHandlerImpl struct {
 	userCommonService                          user.UserCommonService
 	enforcerUtil                               rbac.EnforcerUtil
 	environmentRepository                      repository.EnvironmentRepository
-	artifactPromotionApprovalRequestRepository artifactPromotionApprovalRequest.ArtifactPromotionApprovalRequestRepository
+	artifactPromotionApprovalRequestRepository artifactPromotion.ArtifactPromotionApprovalRequestRepository
 }
 
 func NewArtifactPromotionApprovalServiceImpl(
-	promotionApprovalRequestService artifactPromotionApprovalRequest.ArtifactPromotionApprovalService,
+	promotionApprovalRequestService artifactPromotion.ArtifactPromotionApprovalService,
 	logger *zap.SugaredLogger,
 	userService user.UserService,
 	validator *validator.Validate,
 	userCommonService user.UserCommonService,
 	enforcerUtil rbac.EnforcerUtil,
 	environmentRepository repository.EnvironmentRepository,
-	artifactPromotionApprovalRequestRepository artifactPromotionApprovalRequest.ArtifactPromotionApprovalRequestRepository,
+	artifactPromotionApprovalRequestRepository artifactPromotion.ArtifactPromotionApprovalRequestRepository,
 ) *PromotionApprovalRequestRestHandlerImpl {
 	return &PromotionApprovalRequestRestHandlerImpl{
 		promotionApprovalRequestService: promotionApprovalRequestService,
@@ -73,7 +74,7 @@ func (handler PromotionApprovalRequestRestHandlerImpl) HandleArtifactPromotionRe
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	var promotionRequest artifactPromotionApprovalRequest.ArtifactPromotionRequest
+	var promotionRequest bean.ArtifactPromotionRequest
 	decoder := json.NewDecoder(r.Body)
 	err = decoder.Decode(&promotionRequest)
 	if err != nil {
@@ -85,7 +86,7 @@ func (handler PromotionApprovalRequestRestHandlerImpl) HandleArtifactPromotionRe
 	authorizedEnvironments := make(map[string]bool)
 
 	switch promotionRequest.Action {
-	case artifactPromotionApprovalRequest.ACTION_PROMOTE:
+	case bean.ACTION_PROMOTE:
 
 		appName := promotionRequest.AppName
 		appRbacObject := handler.enforcerUtil.GetAppRBACName(appName)
@@ -108,7 +109,7 @@ func (handler PromotionApprovalRequestRestHandlerImpl) HandleArtifactPromotionRe
 			authorizedEnvironments[env] = isAuthorised
 		}
 
-	case artifactPromotionApprovalRequest.ACTION_APPROVE:
+	case bean.ACTION_APPROVE:
 		appName := promotionRequest.AppName
 		environmentNames := promotionRequest.EnvironmentNames
 		teamEnvRbacObjectMap := handler.enforcerUtil.GetTeamEnvRbacObjByAppAndEnvNames(appName, environmentNames)
@@ -123,7 +124,7 @@ func (handler PromotionApprovalRequestRestHandlerImpl) HandleArtifactPromotionRe
 			authorizedEnvironments[env] = isAuthorised
 		}
 
-	case artifactPromotionApprovalRequest.ACTION_CANCEL:
+	case bean.ACTION_CANCEL:
 		artifactPromotionDao, err := handler.artifactPromotionApprovalRequestRepository.FindById(promotionRequest.PromotionRequestId)
 		if err == pg.ErrNoRows {
 			handler.logger.Errorw("promotion request for given id does not exist", "promotionRequestId", promotionRequest.PromotionRequestId, "err", err)

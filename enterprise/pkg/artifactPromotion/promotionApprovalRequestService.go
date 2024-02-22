@@ -1,6 +1,7 @@
-package artifactPromotionApprovalRequest
+package artifactPromotion
 
 import (
+	"github.com/devtron-labs/devtron/enterprise/pkg/artifactPromotion/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
@@ -10,8 +11,8 @@ import (
 )
 
 type ArtifactPromotionApprovalService interface {
-	HandleArtifactPromotionRequest(request *ArtifactPromotionRequest, authorizedEnvironments map[string]bool) (*ArtifactPromotionRequest, error)
-	GetByPromotionRequestId(artifactPromotionApprovalRequest *ArtifactPromotionApprovalRequest) (*ArtifactPromotionApprovalResponse, error)
+	HandleArtifactPromotionRequest(request *bean.ArtifactPromotionRequest, authorizedEnvironments map[string]bool) (*bean.ArtifactPromotionRequest, error)
+	GetByPromotionRequestId(artifactPromotionApprovalRequest *ArtifactPromotionApprovalRequest) (*bean.ArtifactPromotionApprovalResponse, error)
 }
 
 type ArtifactPromotionApprovalServiceImpl struct {
@@ -38,14 +39,14 @@ func NewArtifactPromotionApprovalServiceImpl(
 	}
 }
 
-func (impl ArtifactPromotionApprovalServiceImpl) HandleArtifactPromotionRequest(request *ArtifactPromotionRequest, authorizedEnvironments map[string]bool) (*ArtifactPromotionRequest, error) {
+func (impl ArtifactPromotionApprovalServiceImpl) HandleArtifactPromotionRequest(request *bean.ArtifactPromotionRequest, authorizedEnvironments map[string]bool) (*bean.ArtifactPromotionRequest, error) {
 	switch request.Action {
 
-	case ACTION_PROMOTE:
+	case bean.ACTION_PROMOTE:
 
-	case ACTION_APPROVE:
+	case bean.ACTION_APPROVE:
 
-	case ACTION_CANCEL:
+	case bean.ACTION_CANCEL:
 
 		artifactPromotionRequest, err := impl.cancelPromotionApprovalRequest(request)
 		if err != nil {
@@ -58,19 +59,19 @@ func (impl ArtifactPromotionApprovalServiceImpl) HandleArtifactPromotionRequest(
 	return nil, nil
 }
 
-func (impl ArtifactPromotionApprovalRequest) promoteArtifact(request *ArtifactPromotionRequest) (*ArtifactPromotionRequest, error) {
+func (impl ArtifactPromotionApprovalRequest) promoteArtifact(request *bean.ArtifactPromotionRequest) (*bean.ArtifactPromotionRequest, error) {
 	// TODO: add validations on artifactId, sourceId and destinationId
 	return nil, nil
 }
 
-func (impl ArtifactPromotionApprovalServiceImpl) cancelPromotionApprovalRequest(request *ArtifactPromotionRequest) (*ArtifactPromotionRequest, error) {
+func (impl ArtifactPromotionApprovalServiceImpl) cancelPromotionApprovalRequest(request *bean.ArtifactPromotionRequest) (*bean.ArtifactPromotionRequest, error) {
 	artifactPromotionDao, err := impl.artifactPromotionApprovalRequestRepository.FindById(request.PromotionRequestId)
 	if err == pg.ErrNoRows {
 		impl.logger.Errorw("artifact promotion approval request not found for given id", "promotionRequestId", request.PromotionRequestId, "err", err)
 		return nil, &util.ApiError{
 			HttpStatusCode:  http.StatusNotFound,
-			InternalMessage: ArtifactPromotionRequestNotFoundErr,
-			UserMessage:     ArtifactPromotionRequestNotFoundErr,
+			InternalMessage: bean.ArtifactPromotionRequestNotFoundErr,
+			UserMessage:     bean.ArtifactPromotionRequestNotFoundErr,
 		}
 	}
 	if err != nil {
@@ -78,7 +79,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) cancelPromotionApprovalRequest(
 		return nil, err
 	}
 	artifactPromotionDao.Active = false
-	artifactPromotionDao.Status = CANCELED
+	artifactPromotionDao.Status = bean.CANCELED
 	_, err = impl.artifactPromotionApprovalRequestRepository.Update(artifactPromotionDao)
 	if err != nil {
 		impl.logger.Errorw("error in updating artifact promotion approval request", "artifactPromotionRequestId", request.PromotionRequestId, "err", err)
@@ -87,12 +88,12 @@ func (impl ArtifactPromotionApprovalServiceImpl) cancelPromotionApprovalRequest(
 	return nil, err
 }
 
-func (impl ArtifactPromotionApprovalServiceImpl) GetByPromotionRequestId(artifactPromotionApprovalRequest *ArtifactPromotionApprovalRequest) (*ArtifactPromotionApprovalResponse, error) {
+func (impl ArtifactPromotionApprovalServiceImpl) GetByPromotionRequestId(artifactPromotionApprovalRequest *ArtifactPromotionApprovalRequest) (*bean.ArtifactPromotionApprovalResponse, error) {
 
-	sourceType := getSourceType(artifactPromotionApprovalRequest.SourceType)
+	sourceType := bean.GetSourceType(artifactPromotionApprovalRequest.SourceType)
 
 	var source string
-	if artifactPromotionApprovalRequest.SourceType == CD {
+	if artifactPromotionApprovalRequest.SourceType == bean.CD {
 		cdPipeline, err := impl.pipelineRepository.FindById(artifactPromotionApprovalRequest.SourcePipelineId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching cdPipeline by Id", "cdPipelineId", artifactPromotionApprovalRequest.SourcePipelineId, "err", err)
@@ -113,7 +114,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) GetByPromotionRequestId(artifac
 		return nil, err
 	}
 
-	artifactPromotionApprovalResponse := &ArtifactPromotionApprovalResponse{
+	artifactPromotionApprovalResponse := &bean.ArtifactPromotionApprovalResponse{
 		SourceType:      sourceType,
 		Source:          source,
 		Destination:     destCDPipeline.Environment.Name,
