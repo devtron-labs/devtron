@@ -50,8 +50,9 @@ type UserRepository interface {
 	FetchActiveOrDeletedUserByEmail(email string) (*UserModel, error)
 	UpdateRoleIdForUserRolesMappings(roleId int, newRoleId int) (*UserRoleModel, error)
 	GetCountExecutingQuery(query string) (int, error)
-	UpdateWindowIdToNull(userIds []int32, loggedInUserID int32) error
+	UpdateWindowIdToNull(userIds []int32, loggedInUserID int32, tx *pg.Tx) error
 	UpdateTimeWindowId(tx *pg.Tx, userid int32, windowId int) error
+	UpdateWindowIdForIds(userIds []int32, loggedInUserID int32, twcId int) error
 	UpdateTimeWindowIdInBatch(tx *pg.Tx, userIds []int32, userWindowIdMap map[int32]int, loggedInUserId int32) error
 	StartATransaction() (*pg.Tx, error)
 	CommitATransaction(tx *pg.Tx) error
@@ -269,9 +270,33 @@ func (impl UserRepositoryImpl) GetCountExecutingQuery(query string) (int, error)
 	return totalCount, err
 }
 
-func (impl UserRepositoryImpl) UpdateWindowIdToNull(userIds []int32, loggedInUserID int32) error {
+func (impl UserRepositoryImpl) UpdateWindowIdToNull(userIds []int32, loggedInUserID int32, tx *pg.Tx) error {
 	var model []UserModel
-	_, err := impl.dbConnection.Model(&model).Set("timeout_window_configuration_id = null").
+	if tx == nil {
+		_, err := impl.dbConnection.Model(&model).Set("timeout_window_configuration_id = null").
+			Set("updated_on = ?", time.Now()).
+			Set("updated_by = ?", loggedInUserID).
+			Where("id in (?)", pg.In(userIds)).Update()
+		if err != nil {
+			impl.Logger.Error("error in UpdateFKtoNull", "err", err, "userIds", userIds)
+			return err
+		}
+	} else {
+		_, err := tx.Model(&model).Set("timeout_window_configuration_id = null").
+			Set("updated_on = ?", time.Now()).
+			Set("updated_by = ?", loggedInUserID).
+			Where("id in (?)", pg.In(userIds)).Update()
+		if err != nil {
+			impl.Logger.Error("error in UpdateFKtoNull", "err", err, "userIds", userIds)
+			return err
+		}
+	}
+	return nil
+}
+
+func (impl UserRepositoryImpl) UpdateWindowIdForIds(userIds []int32, loggedInUserID int32, twcId int) error {
+	var model []UserModel
+	_, err := impl.dbConnection.Model(&model).Set("timeout_window_configuration_id = ?", twcId).
 		Set("updated_on = ?", time.Now()).
 		Set("updated_by = ?", loggedInUserID).
 		Where("id in (?)", pg.In(userIds)).Update()

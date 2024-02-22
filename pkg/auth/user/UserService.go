@@ -2793,7 +2793,7 @@ func (impl UserServiceImpl) BulkUpdateStatus(request *bean.BulkStatusUpdateReque
 		// setting the filtered user ids here for further processing
 		request.UserIds = filteredUserIds
 	}
-	err := impl.bulkUpdateStatusForIds(request)
+	err := impl.bulkUpdateTimeoutWindowConfigForIds(request)
 	if err != nil {
 		impl.logger.Errorw("error in BulkUpdateStatus", "request", request, "err", err)
 		return nil, err
@@ -2816,7 +2816,7 @@ func (impl UserServiceImpl) bulkUpdateStatusForIds(request *bean.BulkStatusUpdat
 	if activeStatus {
 		// active case
 		// set foreign key to null for every user
-		err := impl.userRepository.UpdateWindowIdToNull(request.UserIds, request.LoggedInUserId)
+		err := impl.userRepository.UpdateWindowIdToNull(request.UserIds, request.LoggedInUserId, nil)
 		if err != nil {
 			impl.logger.Errorw("error in BulkUpdateStatusForUsers", "err", err, "status", request.Status)
 			return err
@@ -2876,6 +2876,43 @@ func (impl UserServiceImpl) createAndUpdateWindowID(userIds []int32, timeoutExpr
 	}
 	return nil
 
+}
+
+// bulkUpdateTimeoutWindowConfigForIds getOrCreates timeout Config for request and bulk update timeoutConfigId for given userIds
+func (impl UserServiceImpl) bulkUpdateTimeoutWindowConfigForIds(request *bean.BulkStatusUpdateRequest) error {
+	tx, err := impl.userRepository.StartATransaction()
+	if err != nil {
+		impl.logger.Errorw("error in starting a transaction", "err", err)
+		return err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+	twcModel, err := impl.getOrCreateTimeoutWindowConfiguration(request.Status, request.TimeoutWindowExpression, tx, request.LoggedInUserId)
+	if err != nil {
+		impl.logger.Errorw("error in updateTimeoutWindowConfigIdForUserIds", "userIds", request.UserIds, "status", request.Status, "timeoutExpression", request.TimeoutWindowExpression, "err", err)
+		return err
+	}
+	// case: for active twcModel will always be null, mapping to 0(nil) foreign key to null
+	if twcModel == nil {
+		err = impl.userRepository.UpdateWindowIdToNull(request.UserIds, request.LoggedInUserId, tx)
+		if err != nil {
+			impl.logger.Errorw("error in updateTimeoutWindowConfigIdForUserIds", "userIds", request.UserIds, "status", request.Status, "err", err)
+			return err
+		}
+	} else {
+		// case for inactive and temporary access will be updating window id in bulk.
+		err = impl.userRepository.UpdateWindowIdForIds(request.UserIds, request.LoggedInUserId, twcModel.Id)
+		if err != nil {
+			impl.logger.Errorw("error in updateTimeoutWindowConfigIdForUserIds", "userIds", request.UserIds, "status", request.Status, "timeoutConfigurationId", twcModel.Id, "err", err)
+			return err
+		}
+	}
+	err = impl.userRepository.CommitATransaction(tx)
+	if err != nil {
+		impl.logger.Errorw("error in committing a transaction", "err", err)
+		return err
+	}
+	return nil
 }
 
 func (impl UserServiceImpl) createAndMapTimeoutWindow(tx *pg.Tx, timeoutExpression string, countWithoutWindowId int, idsWithoutWindowId []int32, expressionFormat bean3.ExpressionFormat, loggedInUserId int32) error {
