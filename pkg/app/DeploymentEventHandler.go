@@ -29,6 +29,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// DeploymentEventHandler is not being used, TODO: find reason for creation and then remove
 type DeploymentEventHandler interface {
 	WriteCDDeploymentEvent(pipelineId, appId, envId int, eventType util.EventType)
 }
