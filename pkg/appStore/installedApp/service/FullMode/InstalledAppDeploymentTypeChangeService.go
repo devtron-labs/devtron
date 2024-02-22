@@ -442,29 +442,83 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) TriggerAfterMigration(c
 				"err", err)
 			return nil, err
 		}
+		err = impl.updateDeployedOnDataForTrigger(request.DesiredDeploymentType, installedAppVersion, installedAppVersionHistory)
+		if err != nil {
+			impl.logger.Errorw("error in updating deployment on data for trigger",
+				"environmentId", request.EnvId,
+				"desiredDeploymentAppType", request.DesiredDeploymentType,
+				"err", err)
+			return nil, err
+		}
 		installedAppVersionDTOList = append(installedAppVersionDTOList, &appStoreBean.InstallAppVersionDTO{
 			InstalledAppVersionId:        installedAppVersion.Id,
 			InstalledAppVersionHistoryId: installedAppVersionHistory.Id,
+			Status:                       appStoreBean.DEPLOY_INIT,
 		})
-	}
-
-	installedAppVersions, err := impl.installedAppRepository.GetInstalledAppVersionsByInstalledAppIds(installedAppIds)
-	if err != nil {
-		impl.logger.Errorw("error in getting installed app version by installedAppId", "installedAppIds", installedAppIds, "err", err)
-	}
-	for _, installedAppVersion := range installedAppVersions {
-		installedAppVersion.UpdatedOn = time.Now()
-		_, err = impl.installedAppRepository.UpdateInstalledAppVersion(installedAppVersion, nil)
-		if err != nil {
-			impl.logger.Errorw("failed to update last deployed time in installed app version",
-				"installedAppVersionId", installedAppVersion.Id,
-				"err", err)
-		}
 	}
 
 	impl.chartGroupService.TriggerDeploymentEvent(installedAppVersionDTOList)
 
+	if request.DesiredDeploymentType == bean.Helm {
+		err = impl.deleteAppStatusEntryAfterTrigger(successInstalledApps)
+		if err != nil {
+			impl.logger.Errorw("error in getting deleting app status entry from db after trigger and migration from argo-cd to helm",
+				"environmentId", request.EnvId,
+				"desiredDeploymentAppType", request.DesiredDeploymentType,
+				"err", err)
+			return nil, err
+		}
+	}
+
 	return response, nil
+}
+
+func (impl *InstalledAppDeploymentTypeChangeServiceImpl) updateDeployedOnDataForTrigger(desiredDeploymentType bean.DeploymentType, installedAppVersion *repository2.InstalledAppVersions, installedAppVersionHistory *repository2.InstalledAppVersionHistory) error {
+	if desiredDeploymentType == bean.Helm {
+		//for helm, on ui we show  last deployed installed app versions table
+		installedAppVersion.UpdatedOn = time.Now()
+		_, err := impl.installedAppRepository.UpdateInstalledAppVersion(installedAppVersion, nil)
+		if err != nil {
+			impl.logger.Errorw("failed to update last deployed time in installed app version",
+				"installedAppVersionId", installedAppVersion.Id,
+				"err", err)
+			return err
+		}
+	} else if desiredDeploymentType == bean.ArgoCd {
+		//for argo-cd deployments, on ui we show last deployed time from installed app version history table
+		installedAppVersionHistory.StartedOn, installedAppVersionHistory.UpdatedOn = time.Now(), time.Now()
+
+		_, err := impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(installedAppVersionHistory, nil)
+		if err != nil {
+			impl.logger.Errorw("failed to update deployed on time in installed app version history",
+				"installedAppVersionHistoryId", installedAppVersionHistory.Id,
+				"err", err)
+			return err
+		}
+	}
+	return nil
+}
+
+func (impl *InstalledAppDeploymentTypeChangeServiceImpl) deleteAppStatusEntryAfterTrigger(successInstalledApps []*repository2.InstalledApps) error {
+	dbConnection := impl.appStatusRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		impl.logger.Errorw("error in getting dbConnection", "err", err)
+		return err
+	}
+	defer tx.Rollback()
+	for _, installedApp := range successInstalledApps {
+		//delete entry from app_status table
+		err = impl.appStatusRepository.Delete(tx, installedApp.AppId, installedApp.EnvironmentId)
+		if err != nil {
+			impl.logger.Errorw("error in deleting appStatus for installed app",
+				"appId", installedApp.AppId,
+				"installedAppId", installedApp.Id,
+				"err", err)
+			return err
+		}
+	}
+	return nil
 }
 
 func (impl *InstalledAppDeploymentTypeChangeServiceImpl) fetchDeletedInstalledApp(ctx context.Context,

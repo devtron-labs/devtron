@@ -132,7 +132,6 @@ type InstalledAppRepository interface {
 	GetActiveInstalledAppByEnvIdAndDeploymentType(envId int, deploymentType string, excludeAppIds []string, includeAppIds []string) ([]*InstalledApps, error)
 	UpdateDeploymentAppTypeInInstalledApp(deploymentAppType string, installedAppIdIncludes []int, userId int32, deployStatus int) error
 	FindInstalledAppByIds(ids []int) ([]*InstalledApps, error)
-	GetInstalledAppVersionsByInstalledAppIds(installedAppIds []int) ([]*InstalledAppVersions, error)
 }
 
 type InstalledAppRepositoryImpl struct {
@@ -507,16 +506,6 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionByInstalledAppId(in
 	err := impl.dbConnection.Model(&model).
 		Column("installed_app_versions.*").
 		Where("installed_app_versions.installed_app_id = ?", installedAppId).
-		Where("installed_app_versions.active = true").Select()
-
-	return model, err
-}
-
-func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionsByInstalledAppIds(installedAppIds []int) ([]*InstalledAppVersions, error) {
-	model := make([]*InstalledAppVersions, 0)
-	err := impl.dbConnection.Model(&model).
-		Column("installed_app_versions.*").
-		Where("installed_app_versions.installed_app_id in (?) ", pg.In(installedAppIds)).
 		Where("installed_app_versions.active = true").Select()
 
 	return model, err
