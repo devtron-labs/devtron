@@ -38,7 +38,7 @@ type UserInfo struct {
 	Status                  string          `json:"status,omitempty"`
 	Groups                  []string        `json:"groups"` // this will be deprecated in future do not use
 	SuperAdmin              bool            `json:"superAdmin,notnull"`
-	UserRoleGroup           []UserRoleGroup `json:"userRoleGroup"` // role group with metadata , status and timeoutWindowExpression
+	UserRoleGroup           []UserRoleGroup `json:"userRoleGroups"` // role group with metadata , status and timeoutWindowExpression
 	LastLoginTime           time.Time       `json:"lastLoginTime"`
 	TimeoutWindowExpression time.Time       `json:"timeoutWindowExpression"`
 	UserStatus              Status          `json:"userStatus"`
