@@ -172,14 +172,10 @@ var CommonWireSet = wire.NewSet(
 	wire.Bind(new(gitSensor.Client), new(*gitSensor.ClientImpl)),
 	// -------
 	helper.NewAppListingRepositoryQueryBuilder,
-	// sql.GetConfig,
 	eClient.GetEventClientConfig,
 	util2.GetGlobalEnvVariables,
-	// sql.NewDbConnection,
-	// app.GetACDAuthConfig,
 	util3.GetACDAuthConfig,
 	connection.SettingsManager,
-	// auth.GetConfig,
 	middleware.NewSessionManager,
 	middleware.NewUserLogin,
 	connection.GetConfig,
@@ -211,7 +207,6 @@ var CommonWireSet = wire.NewSet(
 	chartConfig.NewPipelineOverrideRepository,
 	wire.Bind(new(chartConfig.PipelineOverrideRepository), new(*chartConfig.PipelineOverrideRepositoryImpl)),
 	wire.Struct(new(util.MergeUtil), "*"),
-	//util.NewSugardLogger,
 
 	deployment.NewDeploymentConfigRestHandlerImpl,
 	wire.Bind(new(deployment.DeploymentConfigRestHandler), new(*deployment.DeploymentConfigRestHandlerImpl)),
@@ -360,8 +355,6 @@ var CommonWireSet = wire.NewSet(
 	pipeline.NewPropertiesConfigServiceImpl,
 	wire.Bind(new(pipeline.PropertiesConfigService), new(*pipeline.PropertiesConfigServiceImpl)),
 
-	//util.NewHttpClient,
-
 	eClient.NewEventRESTClientImpl,
 	wire.Bind(new(eClient.EventClient), new(*eClient.EventRESTClientImpl)),
 
@@ -425,7 +418,6 @@ var CommonWireSet = wire.NewSet(
 	wire.Bind(new(app.AppListingViewBuilder), new(*app.AppListingViewBuilderImpl)),
 	repository.NewNotificationSettingsRepositoryImpl,
 	wire.Bind(new(repository.NotificationSettingsRepository), new(*repository.NotificationSettingsRepositoryImpl)),
-	//util.IntValidator,
 	types.GetCiCdConfig,
 
 	pipeline.NewWorkflowServiceImpl,
@@ -451,8 +443,6 @@ var CommonWireSet = wire.NewSet(
 
 	pipeline.NewCiLogServiceImpl,
 	wire.Bind(new(pipeline.CiLogService), new(*pipeline.CiLogServiceImpl)),
-
-	//pubsub1.NewPubSubClientServiceImpl,
 
 	pubsub.NewGitWebhookHandler,
 	wire.Bind(new(pubsub.GitWebhookHandler), new(*pubsub.GitWebhookHandlerImpl)),
@@ -720,7 +710,6 @@ var CommonWireSet = wire.NewSet(
 
 	deployment3.NewFullModeDeploymentServiceImpl,
 	wire.Bind(new(deployment3.FullModeDeploymentService), new(*deployment3.FullModeDeploymentServiceImpl)),
-	//	util2.NewGoJsonSchemaCustomFormatChecker,
 
 	//history starts
 	history.NewPipelineHistoryRestHandlerImpl,
@@ -793,7 +782,6 @@ var CommonWireSet = wire.NewSet(
 	argo.NewArgoUserServiceImpl,
 	wire.Bind(new(argo.ArgoUserService), new(*argo.ArgoUserServiceImpl)),
 	util2.GetDevtronSecretName,
-	//	AuthWireSet,
 
 	cron.NewCdApplicationStatusUpdateHandlerImpl,
 	wire.Bind(new(cron.CdApplicationStatusUpdateHandler), new(*cron.CdApplicationStatusUpdateHandlerImpl)),
