@@ -3,7 +3,7 @@ info:
   version: 1.0.0
   title: Devtron
 paths:
-  /user/role/group:
+  /user/role/group/v2:
     get:
       summary: Returns all role groups
       description: all the template group policies
@@ -63,6 +63,26 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RoleGroupListingResponse'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /user/role/group:
+    get:
+      summary: Returns all role groups
+      description: all the template group policies
+      operationId: findGroupPolicy
+      deprecated: true   # Marking the operation as deprecated
+      responses:
+        '200':
+          description: list response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleGroup'
         default:
           description: unexpected error
           content:
@@ -181,6 +201,29 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /user/role/group/bulk:
+    delete:
+      summary: Delete multiple permission groups in bulk
+      description: Deletes permission groups entities in bulk based on the provided criteria.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkDeleteRequest'
+      responses:
+        '200':
+          description: Successfully deleted groups
+          content:
+            application/json:
+              schema:
+                type: boolean
+        '400':
+          description: Bad request, invalid input
+        '404':
+          description: groups not found
+        '500':
+          description: Internal server error
 
 components:
   schemas:
@@ -260,3 +303,43 @@ components:
         totalCount:
           type: integer
           description: total number of results satisfying the conditions
+
+    BulkDeleteRequest:
+      type: object
+      properties:
+        ids:
+          type: array
+          items:
+            type: integer
+            format: int32
+          description: Array of group IDs to be deleted
+        listingRequest:
+          $ref: '#/components/schemas/ListingRequest'
+    ListingRequest:
+      type: object
+      properties:
+        searchKey:
+          type: string
+          description: Search key for filtering
+        sortOrder:
+          type: string
+          enum:
+            - ASC
+            - DESC
+          description: Sorting order
+        sortBy:
+          type: string
+          enum:
+            - name
+          description: Attribute to sort by
+        offset:
+          type: integer
+          format: int32
+          description: Starting index for fetching listings
+        size:
+          type: integer
+          format: int32
+          description: Number of listings to fetch
+        showAll:
+          type: boolean
+          description: Show all listings

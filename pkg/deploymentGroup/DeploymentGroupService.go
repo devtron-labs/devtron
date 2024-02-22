@@ -22,6 +22,8 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
+	bean2 "github.com/devtron-labs/devtron/pkg/eventProcessor/out/bean"
 	"strings"
 	"time"
 
@@ -110,7 +112,7 @@ type DeploymentGroupServiceImpl struct {
 	deploymentGroupAppRepository repository.DeploymentGroupAppRepository
 	ciArtifactRepository         repository.CiArtifactRepository
 	appWorkflowRepository        appWorkflow.AppWorkflowRepository
-	workflowDagExecutor          pipeline.WorkflowDagExecutor
+	workflowEventPublishService  out.WorkflowEventPublishService
 }
 
 func NewDeploymentGroupServiceImpl(appRepository app.AppRepository, logger *zap.SugaredLogger,
@@ -119,7 +121,7 @@ func NewDeploymentGroupServiceImpl(appRepository app.AppRepository, logger *zap.
 	deploymentGroupAppRepository repository.DeploymentGroupAppRepository,
 	ciArtifactRepository repository.CiArtifactRepository,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
-	workflowDagExecutor pipeline.WorkflowDagExecutor) *DeploymentGroupServiceImpl {
+	workflowEventPublishService out.WorkflowEventPublishService) *DeploymentGroupServiceImpl {
 	return &DeploymentGroupServiceImpl{
 		appRepository:                appRepository,
 		logger:                       logger,
@@ -130,7 +132,7 @@ func NewDeploymentGroupServiceImpl(appRepository app.AppRepository, logger *zap.
 		deploymentGroupAppRepository: deploymentGroupAppRepository,
 		ciArtifactRepository:         ciArtifactRepository,
 		appWorkflowRepository:        appWorkflowRepository,
-		workflowDagExecutor:          workflowDagExecutor,
+		workflowEventPublishService:  workflowEventPublishService,
 	}
 }
 
@@ -481,7 +483,7 @@ func (impl *DeploymentGroupServiceImpl) TriggerReleaseForDeploymentGroup(trigger
 		impl.logger.Errorw("no cdPipelines found", "req", triggerRequest)
 		return nil, fmt.Errorf("no cdPipelines found corresponding to deployment group %d", triggerRequest.DeploymentGroupId)
 	}
-	var requests []*pipeline.BulkTriggerRequest
+	var requests []*bean2.BulkTriggerRequest
 	ciArtefactMapping := make(map[int]*repository.CiArtifact)
 	for _, ciArtefact := range ciArtifacts {
 		ciArtefactMapping[ciArtefact.PipelineId] = ciArtefact
@@ -489,7 +491,7 @@ func (impl *DeploymentGroupServiceImpl) TriggerReleaseForDeploymentGroup(trigger
 	for _, cdPipeline := range cdPipelines {
 		if val, ok := ciArtefactMapping[cdPipeline.CiPipelineId]; ok {
 			//do something here
-			req := &pipeline.BulkTriggerRequest{
+			req := &bean2.BulkTriggerRequest{
 				CiArtifactId: val.Id,
 				PipelineId:   cdPipeline.Id,
 			}
@@ -500,7 +502,7 @@ func (impl *DeploymentGroupServiceImpl) TriggerReleaseForDeploymentGroup(trigger
 	}
 	//trigger
 	// apply mapping
-	_, err = impl.workflowDagExecutor.TriggerBulkDeploymentAsync(requests, triggerRequest.UserId)
+	_, err = impl.workflowEventPublishService.TriggerBulkDeploymentAsync(requests, triggerRequest.UserId)
 	if err != nil {
 		return nil, err
 	}
