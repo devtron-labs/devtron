@@ -2901,7 +2901,7 @@ func (impl UserServiceImpl) bulkUpdateTimeoutWindowConfigForIds(request *bean.Bu
 		}
 	} else {
 		// case for inactive and temporary access will be updating window id in bulk.
-		err = impl.userRepository.UpdateWindowIdForIds(request.UserIds, request.LoggedInUserId, twcModel.Id)
+		err = impl.userRepository.UpdateWindowIdForIds(request.UserIds, request.LoggedInUserId, twcModel.Id, tx)
 		if err != nil {
 			impl.logger.Errorw("error in updateTimeoutWindowConfigIdForUserIds", "userIds", request.UserIds, "status", request.Status, "timeoutConfigurationId", twcModel.Id, "err", err)
 			return err
