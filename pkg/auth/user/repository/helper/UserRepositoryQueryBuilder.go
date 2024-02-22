@@ -26,7 +26,11 @@ func GetQueryForUserListingWithFilters(req *bean.ListingRequest) string {
 
 	if len(req.SortBy) > 0 && !req.CountCheck {
 		orderCondition += fmt.Sprintf("order by %s ", req.SortBy)
-		if req.SortOrder == bean2.Desc {
+		// Handling it for last login as it is time and show order differs on UI.
+		if req.SortBy == bean2.LastLogin && req.SortOrder == bean2.Asc {
+			orderCondition += string(bean2.Desc)
+		}
+		if req.SortBy == bean2.Email && req.SortOrder == bean2.Desc {
 			orderCondition += string(req.SortOrder)
 		}
 	}
