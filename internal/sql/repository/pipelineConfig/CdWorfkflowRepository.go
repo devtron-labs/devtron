@@ -479,7 +479,7 @@ func (impl *CdWorkflowRepositoryImpl) FindLatestWfrByAppIdAndEnvironmentId(appId
 
 func (impl *CdWorkflowRepositoryImpl) IsLatestCDWfr(pipelineId, wfrId int) (bool, error) {
 	wfr := &CdWorkflowRunner{}
-	exists, err := impl.dbConnection.
+	ifAnySuccessorWfrExists, err := impl.dbConnection.
 		Model(wfr).
 		Column("cd_workflow_runner.*", "CdWorkflow").
 		Where("wf.pipeline_id = ?", pipelineId).
@@ -488,7 +488,7 @@ func (impl *CdWorkflowRepositoryImpl) IsLatestCDWfr(pipelineId, wfrId int) (bool
 		Join("inner join cd_workflow wf on wf.id = cd_workflow_runner.cd_workflow_id").
 		Where("cd_workflow_runner.id > ?", wfrId).
 		Exists()
-	return exists, err
+	return !ifAnySuccessorWfrExists, err
 }
 
 func (impl *CdWorkflowRepositoryImpl) FindLastPreOrPostTriggeredByEnvironmentId(appId int, environmentId int) (CdWorkflowRunner, error) {
