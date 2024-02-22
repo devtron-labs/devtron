@@ -941,6 +941,7 @@ func (impl DockerRegistryConfigImpl) ValidateRegistryCredentials(bean *types.Doc
 		}
 	}
 	request := &bean2.RegistryCredential{
+		RegistryId:               bean.Id,
 		RegistryUrl:              bean.RegistryURL,
 		Username:                 bean.Username,
 		Password:                 bean.Password,
