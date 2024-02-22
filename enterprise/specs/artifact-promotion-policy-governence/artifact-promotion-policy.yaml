@@ -213,7 +213,7 @@ paths:
           in: query
           schema:
             type: integer
-          description: "app Name"
+          description: "app Id"
         - name: workflowId
           in: query
           schema:
