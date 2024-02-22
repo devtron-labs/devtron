@@ -36,6 +36,7 @@ type UserRepository interface {
 	UpdateUser(userModel *UserModel, tx *pg.Tx) (*UserModel, error)
 	UpdateToInactiveByIds(ids []int32, tx *pg.Tx, loggedInUserId int32) error
 	GetById(id int32) (*UserModel, error)
+	GetByIdWithTimeoutWindowConfig(id int32) (*UserModel, error)
 	GetEmailByIds(ids []int32) ([]string, error)
 	GetByIdIncludeDeleted(id int32) (*UserModel, error)
 	GetAllExcludingApiTokenUser() ([]UserModel, error)
@@ -134,6 +135,14 @@ func (impl UserRepositoryImpl) UpdateToInactiveByIds(ids []int32, tx *pg.Tx, log
 func (impl UserRepositoryImpl) GetById(id int32) (*UserModel, error) {
 	var model UserModel
 	err := impl.dbConnection.Model(&model).Where("id = ?", id).Where("active = ?", true).Select()
+	return &model, err
+}
+
+func (impl UserRepositoryImpl) GetByIdWithTimeoutWindowConfig(id int32) (*UserModel, error) {
+	var model UserModel
+	err := impl.dbConnection.Model(&model).
+		Column("user_model.*", "TimeoutWindowConfiguration").
+		Where("user_model.id = ?", id).Where("user_model.active = ?", true).Select()
 	return &model, err
 }
 

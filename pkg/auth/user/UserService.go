@@ -1341,7 +1341,7 @@ func (impl UserServiceImpl) GetByIdWithoutGroupClaims(id int32) (*bean.UserInfo,
 		return nil, err
 	}
 
-	isSuperAdmin, roleFilters, filterGroups, userRoleGroups := impl.getUserMetadata(model)
+	isSuperAdmin, roleFilters, filterGroups, userRoleGroups := impl.getUserMetadata(model, time.Now())
 	response := &bean.UserInfo{
 		Id:            model.Id,
 		EmailId:       model.EmailId,
@@ -1393,7 +1393,7 @@ func (impl UserServiceImpl) GetRoleFiltersForAUserById(id int32) (*bean.UserInfo
 }
 
 func (impl UserServiceImpl) GetByIdForGroupClaims(id int32) (*bean.UserInfo, error) {
-	model, err := impl.userRepository.GetById(id)
+	model, err := impl.userRepository.GetByIdWithTimeoutWindowConfig(id)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
 		return nil, err
@@ -1402,6 +1402,7 @@ func (impl UserServiceImpl) GetByIdForGroupClaims(id int32) (*bean.UserInfo, err
 	var filterGroups []string
 	var isSuperAdmin bool
 	var userRoleGroups []bean.UserRoleGroup
+	recordedTime := time.Now()
 	isGroupClaimsActive := impl.globalAuthorisationConfigService.IsGroupClaimsConfigActive()
 	if isGroupClaimsActive {
 		userRoleGroups, err = impl.getRoleGroupsForGroupClaims(id)
@@ -1411,15 +1412,18 @@ func (impl UserServiceImpl) GetByIdForGroupClaims(id int32) (*bean.UserInfo, err
 		}
 	} else {
 		// Intentionally considering ad or devtron managed here to avoid conflicts
-		isSuperAdmin, roleFilters, filterGroups, userRoleGroups = impl.getUserMetadata(model)
+		isSuperAdmin, roleFilters, filterGroups, userRoleGroups = impl.getUserMetadata(model, recordedTime)
 	}
+	status, timeoutWindowExpression := getStatusAndTTL(model.TimeoutWindowConfiguration, recordedTime)
 	response := &bean.UserInfo{
-		Id:            model.Id,
-		EmailId:       model.EmailId,
-		RoleFilters:   roleFilters,
-		Groups:        filterGroups,
-		SuperAdmin:    isSuperAdmin,
-		UserRoleGroup: userRoleGroups,
+		Id:                      model.Id,
+		EmailId:                 model.EmailId,
+		RoleFilters:             roleFilters,
+		Groups:                  filterGroups,
+		SuperAdmin:              isSuperAdmin,
+		UserRoleGroup:           userRoleGroups,
+		UserStatus:              status,
+		TimeoutWindowExpression: timeoutWindowExpression,
 	}
 
 	return response, nil
@@ -1439,13 +1443,11 @@ func (impl UserServiceImpl) fetchUserRoleGroupsByGroupClaims(groupClaims []strin
 	return userRoleGroups, err
 }
 
-func (impl UserServiceImpl) getUserMetadata(model *repository.UserModel) (bool, []bean.RoleFilter, []string, []bean.UserRoleGroup) {
+func (impl UserServiceImpl) getUserMetadata(model *repository.UserModel, recordedTime time.Time) (bool, []bean.RoleFilter, []string, []bean.UserRoleGroup) {
 	userRoles, err := impl.userRepository.GetRolesWithTimeoutWindowConfigurationByUserId(model.Id)
 	if err != nil {
 		impl.logger.Debugw("No Roles Found for user", "id", model.Id)
 	}
-	// recording time here for overall consistency
-	recordedTime := time.Now()
 	isSuperAdmin := false
 	var roleFilters []bean.RoleFilter
 	roleFilterMap := make(map[string]*bean.RoleFilter)
@@ -1712,7 +1714,7 @@ func (impl UserServiceImpl) getAllDetailedUsers(req *bean.ListingRequest) ([]bea
 	recordedTime := time.Now()
 
 	for _, model := range models {
-		isSuperAdmin, roleFilters, filterGroups, userRoleGroups := impl.getUserMetadata(&model)
+		isSuperAdmin, roleFilters, filterGroups, userRoleGroups := impl.getUserMetadata(&model, recordedTime)
 		userStatus, ttlTime := getStatusAndTTL(model.TimeoutWindowConfiguration, recordedTime)
 		lastLoginTime := adapter.GetLastLoginTime(model)
 		userResp := getUserInfoAdapter(model.Id, model.EmailId, roleFilters, filterGroups, isSuperAdmin, lastLoginTime, ttlTime, userStatus, userRoleGroups)
@@ -1755,7 +1757,7 @@ func (impl UserServiceImpl) GetAllDetailedUsers() ([]bean.UserInfo, error) {
 	}
 	var response []bean.UserInfo
 	for _, model := range models {
-		isSuperAdmin, roleFilters, filterGroups, _ := impl.getUserMetadata(&model)
+		isSuperAdmin, roleFilters, filterGroups, _ := impl.getUserMetadata(&model, time.Now())
 		response = append(response, bean.UserInfo{
 			Id:          model.Id,
 			EmailId:     model.EmailId,
@@ -2709,7 +2711,7 @@ func (impl UserServiceImpl) getRoleGroupsForGroupClaims(id int32) ([]bean.UserRo
 }
 
 func (impl UserServiceImpl) getRolefiltersForDevtronManaged(model *repository.UserModel) ([]bean.RoleFilter, error) {
-	_, roleFilters, filterGroups, _ := impl.getUserMetadata(model)
+	_, roleFilters, filterGroups, _ := impl.getUserMetadata(model, time.Now())
 	if len(filterGroups) > 0 {
 		groupRoleFilters, err := impl.GetRoleFiltersByGroupNames(filterGroups)
 		if err != nil {
