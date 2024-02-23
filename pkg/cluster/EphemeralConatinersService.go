@@ -8,12 +8,13 @@ import (
 )
 
 type EphemeralContainerRequest struct {
-	BasicData    *EphemeralContainerBasicData    `json:"basicData"`
-	AdvancedData *EphemeralContainerAdvancedData `json:"advancedData"`
-	Namespace    string                          `json:"namespace" validate:"required"`
-	ClusterId    int                             `json:"clusterId" validate:"gt=0"`
-	PodName      string                          `json:"podName"   validate:"required"`
-	UserId       int32                           `json:"-"`
+	BasicData                   *EphemeralContainerBasicData    `json:"basicData"`
+	AdvancedData                *EphemeralContainerAdvancedData `json:"advancedData"`
+	Namespace                   string                          `json:"namespace" validate:"required"`
+	ClusterId                   int                             `json:"clusterId" validate:"gt=0"`
+	PodName                     string                          `json:"podName"   validate:"required"`
+	ExternalArgoApplicationName string                          `json:"externalArgoApplicationName,omitempty"`
+	UserId                      int32                           `json:"-"`
 }
 
 type EphemeralContainerAdvancedData struct {

@@ -19,7 +19,7 @@ package bean
 
 import (
 	"encoding/json"
-	bean3 "github.com/devtron-labs/devtron/api/bean"
+	bean4 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
@@ -27,6 +27,7 @@ import (
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
+	bean3 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
@@ -55,8 +56,8 @@ type CreateAppDTO struct {
 	TeamId      int                            `json:"teamId,omitempty" validate:"number,required"`
 	TemplateId  int                            `json:"templateId"`
 	AppLabels   []*Label                       `json:"labels,omitempty" validate:"dive"`
-	GenericNote *bean3.GenericNoteResponseBean `json:"genericNote,omitempty"`
-	AppType     helper.AppType                 `json:"appType" validate:"gt=-1,lt=3"` // TODO: Change Validation if new AppType is introduced
+	GenericNote *bean4.GenericNoteResponseBean `json:"genericNote,omitempty"`
+	AppType     helper.AppType                 `json:"appType" validate:"gt=-1,lt=3"` //TODO: Change Validation if new AppType is introduced
 }
 
 type CreateMaterialDTO struct {
@@ -704,12 +705,12 @@ type ApprovalNotificationConfig struct {
 }
 
 type DeploymentAppTypeChangeRequest struct {
-	EnvId                 int            `json:"envId,omitempty" validate:"required"`
-	DesiredDeploymentType DeploymentType `json:"desiredDeploymentType,omitempty" validate:"required"`
-	ExcludeApps           []int          `json:"excludeApps"`
-	IncludeApps           []int          `json:"includeApps"`
-	AutoTriggerDeployment bool           `json:"autoTriggerDeployment"`
-	UserId                int32          `json:"-"`
+	EnvId                 int                  `json:"envId,omitempty" validate:"required"`
+	DesiredDeploymentType bean3.DeploymentType `json:"desiredDeploymentType,omitempty" validate:"required"`
+	ExcludeApps           []int                `json:"excludeApps"`
+	IncludeApps           []int                `json:"includeApps"`
+	AutoTriggerDeployment bool                 `json:"autoTriggerDeployment"`
+	UserId                int32                `json:"-"`
 }
 
 type DeploymentChangeStatus struct {
@@ -724,7 +725,7 @@ type DeploymentChangeStatus struct {
 
 type DeploymentAppTypeChangeResponse struct {
 	EnvId                 int                       `json:"envId,omitempty"`
-	DesiredDeploymentType DeploymentType            `json:"desiredDeploymentType,omitempty"`
+	DesiredDeploymentType bean3.DeploymentType      `json:"desiredDeploymentType,omitempty"`
 	SuccessfulPipelines   []*DeploymentChangeStatus `json:"successfulPipelines"`
 	FailedPipelines       []*DeploymentChangeStatus `json:"failedPipelines"`
 	TriggeredPipelines    []*CdPipelineTrigger      `json:"-"` // Disabling auto-trigger until bulk trigger API is fixed
@@ -733,23 +734,6 @@ type DeploymentAppTypeChangeResponse struct {
 type CdPipelineTrigger struct {
 	CiArtifactId int `json:"ciArtifactId"`
 	PipelineId   int `json:"pipelineId"`
-}
-
-type DeploymentType = string
-
-const (
-	Helm             DeploymentType = "helm"
-	ArgoCd           DeploymentType = "argo_cd"
-	ManifestDownload DeploymentType = "manifest_download"
-	ManifestPush     DeploymentType = "manifest_push"
-)
-
-func IsAcdApp(deploymentType string) bool {
-	return deploymentType == ArgoCd
-}
-
-func IsHelmApp(deploymentType string) bool {
-	return deploymentType == Helm
 }
 
 type Status string
@@ -910,7 +894,7 @@ type AppMetaInfoDto struct {
 	CreatedOn   time.Time                      `json:"createdOn"`
 	Active      bool                           `json:"active,notnull"`
 	Labels      []*Label                       `json:"labels"`
-	Note        *bean3.GenericNoteResponseBean `json:"note"`
+	Note        *bean4.GenericNoteResponseBean `json:"note"`
 	UserId      int32                          `json:"-"`
 	// below field is only valid for helm apps
 	ChartUsed    *ChartUsedDto         `json:"chartUsed,omitempty"`
