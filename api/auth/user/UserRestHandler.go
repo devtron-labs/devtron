@@ -143,8 +143,8 @@ func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Req
 	}
 
 	// auth check inside groups
-	if len(userInfo.Groups) > 0 {
-		groupRoles, err := handler.roleGroupService.FetchRolesForGroups(userInfo.Groups)
+	if len(userInfo.UserRoleGroup) > 0 {
+		groupRoles, err := handler.roleGroupService.FetchRolesForGroups(userInfo.UserRoleGroup)
 		if err != nil && err != pg.ErrNoRows {
 			handler.logger.Errorw("service err, UpdateUser", "err", err, "payload", userInfo)
 			common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
@@ -327,10 +327,10 @@ func (handler UserRestHandlerImpl) GetAllV2(w http.ResponseWriter, r *http.Reque
 			return
 		}
 		var roleFilters []bean.RoleFilter
-		if len(user.Groups) > 0 {
-			groupRoleFilters, err := handler.userService.GetRoleFiltersByGroupNames(user.Groups)
+		if len(user.UserRoleGroup) > 0 {
+			groupRoleFilters, err := handler.userService.GetRoleFiltersByGroupNames(user.UserRoleGroup)
 			if err != nil {
-				handler.logger.Errorw("Error in getting role filters by group names", "err", err, "groupNames", user.Groups)
+				handler.logger.Errorw("Error in getting role filters by group names", "err", err, "UserRoleGroup", user.UserRoleGroup)
 				common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
 				return
 			}
@@ -397,10 +397,10 @@ func (handler UserRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Request
 			return
 		}
 		var roleFilters []bean.RoleFilter
-		if len(user.Groups) > 0 {
-			groupRoleFilters, err := handler.userService.GetRoleFiltersByGroupNames(user.Groups)
+		if len(user.UserRoleGroup) > 0 {
+			groupRoleFilters, err := handler.userService.GetRoleFiltersByGroupNames(user.UserRoleGroup)
 			if err != nil {
-				handler.logger.Errorw("Error in getting role filters by group names", "err", err, "groupNames", user.Groups)
+				handler.logger.Errorw("Error in getting role filters by group names", "err", err, "UserRoleGroup", user.UserRoleGroup)
 				common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
 				return
 			}
@@ -784,10 +784,10 @@ func (handler UserRestHandlerImpl) FetchRoleGroupsV2(w http.ResponseWriter, r *h
 			return
 		}
 		var roleFilters []bean.RoleFilter
-		if len(user.Groups) > 0 {
-			groupRoleFilters, err := handler.userService.GetRoleFiltersByGroupNames(user.Groups)
+		if len(user.UserRoleGroup) > 0 {
+			groupRoleFilters, err := handler.userService.GetRoleFiltersByGroupNames(user.UserRoleGroup)
 			if err != nil {
-				handler.logger.Errorw("Error in getting role filters by group names", "err", err, "groupNames", user.Groups)
+				handler.logger.Errorw("Error in getting role filters by group names", "err", err, "UserRoleGroup", user.UserRoleGroup)
 				common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
 				return
 			}
@@ -855,10 +855,10 @@ func (handler UserRestHandlerImpl) FetchRoleGroups(w http.ResponseWriter, r *htt
 			return
 		}
 		var roleFilters []bean.RoleFilter
-		if len(user.Groups) > 0 {
-			groupRoleFilters, err := handler.userService.GetRoleFiltersByGroupNames(user.Groups)
+		if len(user.UserRoleGroup) > 0 {
+			groupRoleFilters, err := handler.userService.GetRoleFiltersByGroupNames(user.UserRoleGroup)
 			if err != nil {
-				handler.logger.Errorw("Error in getting role filters by group names", "err", err, "groupNames", user.Groups)
+				handler.logger.Errorw("Error in getting role filters by group names", "err", err, "UserRoleGroup", user.UserRoleGroup)
 				common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
 				return
 			}

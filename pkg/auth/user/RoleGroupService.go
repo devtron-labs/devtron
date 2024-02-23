@@ -47,7 +47,7 @@ type RoleGroupService interface {
 	FetchRoleGroupsByName(name string) ([]*bean.RoleGroup, error)
 	DeleteRoleGroup(model *bean.RoleGroup) (bool, error)
 	BulkDeleteRoleGroups(request *bean.BulkDeleteRequest) (bool, error)
-	FetchRolesForGroups(groupNames []string) ([]*bean.RoleFilter, error)
+	FetchRolesForGroups(userRoleGroups []bean.UserRoleGroup) ([]*bean.RoleFilter, error)
 }
 
 type RoleGroupServiceImpl struct {
@@ -938,7 +938,11 @@ func (impl RoleGroupServiceImpl) deleteMappingsFromCasbin(groupCasbinNames []str
 	return nil
 }
 
-func (impl RoleGroupServiceImpl) FetchRolesForGroups(groupNames []string) ([]*bean.RoleFilter, error) {
+func (impl RoleGroupServiceImpl) FetchRolesForGroups(userRoleGroups []bean.UserRoleGroup) ([]*bean.RoleFilter, error) {
+	groupNames := make([]string, 0)
+	for _, userRoleGroup := range userRoleGroups {
+		groupNames = append(groupNames, userRoleGroup.RoleGroup.Name)
+	}
 	if len(groupNames) == 0 {
 		return nil, nil
 	}
