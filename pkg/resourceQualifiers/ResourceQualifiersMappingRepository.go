@@ -97,42 +97,35 @@ func (repo *QualifiersMappingRepositoryImpl) GetQualifierMappingsForFilterById(r
 	return qualifierMappings, nil
 }
 
-func (repo *QualifiersMappingRepositoryImpl) addScopeWhereClauseBatch(q *orm.Query, valuesMap map[Qualifier][][]int, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) *orm.Query {
+const appEnvCondition = "(((identifier_key = ? AND identifier_value_int in (?)) OR (identifier_key = ? AND identifier_value_int in (?))) AND qualifier_id = ?)"
+const condition = "(qualifier_id = ? AND identifier_key = ? AND identifier_value_int in (?))"
+
+func addCond(query *orm.Query, qualifier Qualifier, valuesMap map[Qualifier][][]int, identifierKey int) *orm.Query {
+	if len(valuesMap[qualifier][0]) > 0 {
+		query = query.WhereOr(condition,
+			qualifier, identifierKey, pg.In(valuesMap[qualifier][0]),
+		)
+	}
+	return query
+}
+
+func (repo *QualifiersMappingRepositoryImpl) addScopeWhereClauseBatch(q *orm.Query, valuesMap map[Qualifier][][]int, drs map[bean.DevtronResourceSearchableKeyName]int) *orm.Query {
 
 	q = q.WhereGroup(func(query *orm.Query) (*orm.Query, error) {
 		if len(valuesMap[APP_AND_ENV_QUALIFIER][0]) > 0 && len(valuesMap[APP_AND_ENV_QUALIFIER][1]) > 0 {
-			q = q.WhereOr("(((identifier_key = ? AND identifier_value_int in (?)) OR (identifier_key = ? AND identifier_value_int in (?))) AND qualifier_id = ?)",
-				searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID], pg.In(valuesMap[APP_AND_ENV_QUALIFIER][0]),
-				searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID], pg.In(valuesMap[APP_AND_ENV_QUALIFIER][1]),
+			query = query.WhereOr(appEnvCondition,
+				drs[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID], pg.In(valuesMap[APP_AND_ENV_QUALIFIER][0]),
+				drs[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID], pg.In(valuesMap[APP_AND_ENV_QUALIFIER][1]),
 				APP_AND_ENV_QUALIFIER,
 			)
 		}
-		if len(valuesMap[APP_QUALIFIER][0]) > 0 {
-			query = query.WhereOr("(qualifier_id = ? AND identifier_key = ? AND identifier_value_int in (?))",
-				APP_QUALIFIER, searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID], pg.In(valuesMap[APP_QUALIFIER][0]),
-			)
-		}
-		if len(valuesMap[ENV_QUALIFIER][0]) > 0 {
-			query = query.WhereOr("(qualifier_id = ? AND identifier_key = ? AND identifier_value_int in (?))",
-				ENV_QUALIFIER, searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID], pg.In(valuesMap[ENV_QUALIFIER][0]),
-			)
-		}
-
-		if len(valuesMap[CLUSTER_QUALIFIER][0]) > 0 {
-			query = query.WhereOr("(qualifier_id = ? AND identifier_key = ? AND identifier_value_int in (?))",
-				CLUSTER_QUALIFIER, searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ID], pg.In(valuesMap[CLUSTER_QUALIFIER][0]),
-			)
-		}
-
-		if len(valuesMap[PIPELINE_QUALIFIER][0]) > 0 {
-			query = query.WhereOr("(qualifier_id = ? AND identifier_key = ? AND identifier_value_int in (?))",
-				PIPELINE_QUALIFIER, searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_PIPELINE_ID], pg.In(valuesMap[PIPELINE_QUALIFIER][0]),
-			)
-		}
+		query = addCond(query, APP_QUALIFIER, valuesMap, drs[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID])
+		query = addCond(query, ENV_QUALIFIER, valuesMap, drs[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID])
+		query = addCond(query, CLUSTER_QUALIFIER, valuesMap, drs[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ID])
+		query = addCond(query, PIPELINE_QUALIFIER, valuesMap, drs[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_PIPELINE_ID])
 		query = query.WhereOr("(qualifier_id = ?)", GLOBAL_QUALIFIER)
 		return query, nil
 	})
-
 	return q
 }
 
