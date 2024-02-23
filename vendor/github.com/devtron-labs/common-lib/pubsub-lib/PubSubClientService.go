@@ -15,6 +15,7 @@ import (
 )
 
 const NATS_MSG_LOG_PREFIX = "NATS_LOG"
+const NATS_PANIC_MSG_LOG_PREFIX = "NATS_PANIC_LOG"
 
 type ValidateMsg func(msg model.PubSubMsg) bool
 
@@ -196,13 +197,6 @@ func (impl PubSubClientServiceImpl) TryCatchCallBack(msg *nats.Msg, callback fun
 	// call loggersFunc
 	impl.Log(loggerFunc, msg.Subject, *subMsg)
 
-	// run validations
-	for _, validation := range validations {
-		if !validation(*subMsg) {
-			impl.Logger.Warnw("nats: message validation failed, not processing the message...", "subject", msg.Subject, "msg", string(msg.Data))
-			return
-		}
-	}
 	defer func() {
 		// Acknowledge the message delivery
 		err := msg.Ack()
@@ -217,7 +211,7 @@ func (impl PubSubClientServiceImpl) TryCatchCallBack(msg *nats.Msg, callback fun
 
 		// Panic recovery handling
 		if panicInfo := recover(); panicInfo != nil {
-			impl.Logger.Warnw("nats: found panic error", "subject", msg.Subject, "payload", string(msg.Data), "logs", string(debug.Stack()))
+			impl.Logger.Warnw(fmt.Sprintf("%s: found panic error", NATS_PANIC_MSG_LOG_PREFIX), "subject", msg.Subject, "payload", string(msg.Data), "logs", string(debug.Stack()))
 			err = fmt.Errorf("%v\nPanic Logs:\n%s", panicInfo, string(debug.Stack()))
 			// Publish the panic info to PANIC_ON_PROCESSING_TOPIC
 			publishErr := impl.publishPanicError(msg, err)
@@ -227,6 +221,15 @@ func (impl PubSubClientServiceImpl) TryCatchCallBack(msg *nats.Msg, callback fun
 			return
 		}
 	}()
+
+	// run validations
+	for _, validation := range validations {
+		if !validation(*subMsg) {
+			impl.Logger.Warnw("nats: message validation failed, not processing the message...", "subject", msg.Subject, "msg", string(msg.Data))
+			return
+		}
+	}
+
 	// Process the event message
 	callback(subMsg)
 }

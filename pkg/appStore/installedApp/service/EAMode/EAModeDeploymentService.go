@@ -9,6 +9,7 @@ import (
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/bean"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
+	"net/http"
 	"time"
 
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
@@ -142,6 +143,10 @@ func (impl *EAModeDeploymentServiceImpl) DeleteInstalledApp(ctx context.Context,
 
 	isInstalled, err := impl.helmAppService.IsReleaseInstalled(ctx, appIdentifier)
 	if err != nil {
+		if client.IsClusterUnReachableError(err) {
+			impl.Logger.Errorw("k8s cluster unreachable", "err", err)
+			return &util.ApiError{HttpStatusCode: http.StatusUnprocessableEntity, UserMessage: err.Error()}
+		}
 		impl.Logger.Errorw("error in checking if helm release is installed or not", "error", err, "appIdentifier", appIdentifier)
 		return err
 	}
