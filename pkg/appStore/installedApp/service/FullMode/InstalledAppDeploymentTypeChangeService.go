@@ -103,13 +103,12 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) MigrateDeploymentType(c
 		EnvId:                 request.EnvId,
 		DesiredDeploymentType: request.DesiredDeploymentType,
 	}
-	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
+	var err error
+	ctx, err = impl.argoUserService.SetAcdTokenInContext(ctx)
 	if err != nil {
-		impl.logger.Errorw("error in getting acd token", "err", err)
+		impl.logger.Errorw("error in setting acd token in context", "err", err)
 		return response, err
 	}
-
-	ctx = context.WithValue(ctx, "token", acdToken)
 
 	var deleteDeploymentType bean.DeploymentType
 	var deployStatus appStoreBean.AppstoreDeploymentStatus
@@ -296,40 +295,7 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) deleteInstalledApps(ctx
 				err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: "200", UserMessage: errors.New("GitOps not configured or unable to fetch GitOps configuration")}
 			} else {
 				// Register app in ACD
-				var acdRegisterErr, repoNameUpdateErr, createInArgoErr error
-				installAppVersionRequest := &appStoreBean.InstallAppVersionDTO{
-					AppName:        installedApp.App.AppName,
-					GitOpsRepoName: installedApp.GitOpsRepoName,
-					UserId:         userId,
-				}
-				repoUrl, _, createGitRepoErr := impl.fullModeDeploymentService.CreateGitOpsRepo(installAppVersionRequest)
-				if createGitRepoErr != nil {
-					impl.logger.Errorw("error in creating git repo", "err", err)
-				}
-				if createGitRepoErr == nil {
-					chartGitAttr := &bean2.ChartGitAttribute{RepoUrl: repoUrl, ChartLocation: deploymentAppName}
-					acdRegisterErr = impl.argoClientWrapperService.RegisterGitOpsRepoInArgo(ctx, chartGitAttr.RepoUrl)
-					if acdRegisterErr != nil {
-						impl.logger.Errorw("error in registering acd app", "err", err)
-					}
-					if acdRegisterErr == nil {
-						installedApp.Environment.Cluster = cluster
-						createInArgoErr = impl.fullModeDeploymentService.CreateInArgo(chartGitAttr, installedApp.Environment, deploymentAppName)
-						if createInArgoErr != nil {
-							impl.logger.Errorw("error in creating acd app", "err", err)
-						}
-					}
-
-				}
-				if createGitRepoErr != nil {
-					err = createGitRepoErr
-				} else if acdRegisterErr != nil {
-					err = acdRegisterErr
-				} else if createInArgoErr != nil {
-					err = createInArgoErr
-				} else if repoNameUpdateErr != nil {
-					err = repoNameUpdateErr
-				}
+				err = impl.createGitOpsRepoAndRegisterInArgo(ctx, installedApp, deploymentAppName, cluster, userId)
 			}
 			if err != nil {
 				impl.logger.Errorw("error registering app on ACD with error: "+err.Error(),
@@ -368,6 +334,45 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) deleteInstalledApps(ctx
 		SuccessfulPipelines: successfullyDeletedApps,
 		FailedPipelines:     failedToDeleteApps,
 	}, nil
+}
+
+func (impl *InstalledAppDeploymentTypeChangeServiceImpl) createGitOpsRepoAndRegisterInArgo(ctx context.Context, installedApp *repository2.InstalledApps, deploymentAppName string, cluster *repository5.Cluster, userId int32) error {
+
+	var err, acdRegisterErr, repoNameUpdateErr, createInArgoErr error
+	installAppVersionRequest := &appStoreBean.InstallAppVersionDTO{
+		AppName:        installedApp.App.AppName,
+		GitOpsRepoName: installedApp.GitOpsRepoName,
+		UserId:         userId,
+	}
+	repoUrl, _, createGitRepoErr := impl.fullModeDeploymentService.CreateGitOpsRepo(installAppVersionRequest)
+	if createGitRepoErr != nil {
+		impl.logger.Errorw("error in creating git repo", "err", err)
+	}
+	if createGitRepoErr == nil {
+		chartGitAttr := &bean2.ChartGitAttribute{RepoUrl: repoUrl, ChartLocation: deploymentAppName}
+		acdRegisterErr = impl.argoClientWrapperService.RegisterGitOpsRepoInArgo(ctx, chartGitAttr.RepoUrl)
+		if acdRegisterErr != nil {
+			impl.logger.Errorw("error in registering acd app", "err", err)
+		}
+		if acdRegisterErr == nil {
+			installedApp.Environment.Cluster = cluster
+			createInArgoErr = impl.fullModeDeploymentService.CreateInArgo(chartGitAttr, installedApp.Environment, deploymentAppName)
+			if createInArgoErr != nil {
+				impl.logger.Errorw("error in creating acd app", "err", err)
+			}
+		}
+
+	}
+	if createGitRepoErr != nil {
+		err = createGitRepoErr
+	} else if acdRegisterErr != nil {
+		err = acdRegisterErr
+	} else if createInArgoErr != nil {
+		err = createInArgoErr
+	} else if repoNameUpdateErr != nil {
+		err = repoNameUpdateErr
+	}
+	return err
 }
 
 func (impl *InstalledAppDeploymentTypeChangeServiceImpl) isInstalledAppInfoValid(installedApp *repository2.InstalledApps,
@@ -419,13 +424,11 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) TriggerAfterMigration(c
 		DesiredDeploymentType: request.DesiredDeploymentType,
 	}
 	var err error
-	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
+	ctx, err = impl.argoUserService.SetAcdTokenInContext(ctx)
 	if err != nil {
-		impl.logger.Errorw("error in getting acd token", "err", err)
+		impl.logger.Errorw("error in setting acd token in context", "err", err)
 		return response, err
 	}
-
-	ctx = context.WithValue(ctx, "token", acdToken)
 
 	installedApps, err := impl.installedAppRepository.GetActiveInstalledAppByEnvIdAndDeploymentType(request.EnvId, request.DesiredDeploymentType,
 		util2.ConvertIntArrayToStringArray(request.ExcludeApps), util2.ConvertIntArrayToStringArray(request.IncludeApps))
@@ -476,22 +479,34 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) TriggerAfterMigration(c
 
 	impl.chartGroupService.TriggerDeploymentEvent(installedAppVersionDTOList)
 
-	if request.DesiredDeploymentType == bean.Helm {
-		err = impl.deleteAppStatusEntryAfterTrigger(successInstalledApps)
-		if err != nil && err == pg.ErrNoRows {
-			impl.logger.Infow("app status already deleted or not found after trigger and migration from argo-cd to helm",
-				"environmentId", request.EnvId,
-				"desiredDeploymentAppType", request.DesiredDeploymentType)
-		} else if err != nil {
-			impl.logger.Errorw("error in getting deleting app status entry from db after trigger and migration from argo-cd to helm",
-				"environmentId", request.EnvId,
-				"desiredDeploymentAppType", request.DesiredDeploymentType,
-				"err", err)
-			return nil, err
-		}
+	err = impl.performDbOperationsAfterTrigger(request.DesiredDeploymentType, successInstalledApps)
+	if err != nil {
+		impl.logger.Errorw("error in performing db operations for successful installed apps after trigger",
+			"envId", request.EnvId,
+			"successfully deleted installedApp ids", successfulInstalledAppIds,
+			"desired deployment type", request.DesiredDeploymentType,
+			"err", err)
+
+		return response, err
 	}
 
 	return response, nil
+}
+
+func (impl *InstalledAppDeploymentTypeChangeServiceImpl) performDbOperationsAfterTrigger(desiredDeploymentType bean.DeploymentType, successInstalledApps []*repository2.InstalledApps) error {
+	if desiredDeploymentType == bean.Helm {
+		err := impl.deleteAppStatusEntryAfterTrigger(successInstalledApps)
+		if err != nil && err == pg.ErrNoRows {
+			impl.logger.Infow("app status already deleted or not found after trigger and migration from argo-cd to helm",
+				"desiredDeploymentAppType", desiredDeploymentType)
+		} else if err != nil {
+			impl.logger.Errorw("error in getting deleting app status entry from db after trigger and migration from argo-cd to helm",
+				"desiredDeploymentAppType", desiredDeploymentType,
+				"err", err)
+			return err
+		}
+	}
+	return nil
 }
 
 func (impl *InstalledAppDeploymentTypeChangeServiceImpl) getDtoListForTriggerDeploymentEvent(desiredDeploymentType bean.DeploymentType, successInstalledApps []*repository2.InstalledApps) ([]*appStoreBean.InstallAppVersionDTO, error) {
@@ -558,6 +573,14 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) deleteAppStatusEntryAft
 	}
 	defer tx.Rollback()
 	for _, installedApp := range successInstalledApps {
+		_, err := impl.appStatusRepository.Get(installedApp.AppId, installedApp.EnvironmentId)
+		if err != nil && err == pg.ErrNoRows {
+			impl.logger.Errorw("app status for installed already deleted or not found",
+				"appId", installedApp.AppId,
+				"installedAppId", installedApp.Id,
+				"err", err)
+			continue
+		}
 		//delete entry from app_status table
 		err = impl.appStatusRepository.Delete(tx, installedApp.AppId, installedApp.EnvironmentId)
 		if err != nil {
