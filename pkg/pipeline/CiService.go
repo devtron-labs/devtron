@@ -752,6 +752,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		workflowRequest.DockerRegistryType = string(dockerRegistry.RegistryType)
 		workflowRequest.DockerImageTag = dockerImageTag
 		workflowRequest.DockerRegistryURL = dockerRegistry.RegistryURL
+		workflowRequest.DockerRegistryConnectionConfigId = dockerRegistry.RegistryConnectionConfigId
 		workflowRequest.DockerRepository = dockerRepository
 		workflowRequest.CheckoutPath = checkoutPath
 		workflowRequest.DockerUsername = dockerRegistry.Username
