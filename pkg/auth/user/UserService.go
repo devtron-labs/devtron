@@ -2263,18 +2263,26 @@ func (impl UserServiceImpl) CheckUserRoles(id int32, token string) ([]string, er
 	}
 	isGroupClaimsActive := impl.globalAuthorisationConfigService.IsGroupClaimsConfigActive()
 	isDevtronSystemActive := impl.globalAuthorisationConfigService.IsDevtronSystemManagedConfigActive()
+	recordedTime := time.Now()
 	var groups []string
 	if isDevtronSystemActive || util3.CheckIfAdminOrApiToken(model.EmailId) {
-		groupsCasbin, err := casbin2.GetRolesForUser(model.EmailId)
+		activeRoles, err := impl.getActiveRolesAttachedToUser(model.EmailId, recordedTime)
 		if err != nil {
-			impl.logger.Errorw("No Roles Found for user", "id", model.Id)
+			impl.logger.Errorw("error encountered in getActiveRolesAttachedToUser", "id", model.Id, "err", err)
 			return nil, err
 		}
-		if len(groupsCasbin) > 0 {
-			groups = append(groups, groupsCasbin...)
-			grps, err := impl.getUniquesRolesByGroupCasbinNames(groups)
+		groups = append(groups, activeRoles...)
+		_, activeGroups, err := impl.getUserRoleGroupsForEmail(model.EmailId, recordedTime)
+		if err != nil {
+			impl.logger.Errorw("error encountered in CheckUserRoles", "err", err, "emailId", model.EmailId)
+			return nil, err
+		}
+		if len(activeGroups) > 0 {
+			groupsCasbinNames := util3.GetGroupCasbinName(activeGroups)
+			groups = append(groups, groupsCasbinNames...)
+			grps, err := impl.getUniquesRolesByGroupCasbinNames(groupsCasbinNames)
 			if err != nil {
-				impl.logger.Errorw("error in getUniquesRolesByGroupCasbinNames", "err", err)
+				impl.logger.Errorw("error in getUniquesRolesByGroupCasbinNames", "err", err, "groupsCasbinNames", groupsCasbinNames)
 				return nil, err
 			}
 			groups = append(groups, grps...)
@@ -2299,6 +2307,27 @@ func (impl UserServiceImpl) CheckUserRoles(id int32, token string) ([]string, er
 	}
 
 	return groups, nil
+}
+
+// getActiveRolesAttachedToUser returns only active roles attached to user in casbin
+func (impl UserServiceImpl) getActiveRolesAttachedToUser(emailId string, recordedTime time.Time) ([]string, error) {
+	groupPolicies, err := casbin2.GetRolesAttachedToUserWithTimeoutExpressionAndFormat(emailId)
+	if err != nil {
+		impl.logger.Warnw("error in getUserRoleGroupsForEmail", "emailId", emailId)
+		return nil, err
+	}
+	var filterRoles []string
+	for _, groupPolicy := range groupPolicies {
+		status, _, err := getStatusAndTimeoutExpressionFromCasbinValues(groupPolicy.TimeoutWindowExpression, groupPolicy.ExpressionFormat, recordedTime)
+		if err != nil {
+			impl.logger.Errorw("error in getActiveRolesAttachedToUser", "groupPolicy", groupPolicy, "err", err)
+			return nil, err
+		}
+		if status != bean.Inactive {
+			filterRoles = append(filterRoles, groupPolicy.Role)
+		}
+	}
+	return filterRoles, nil
 }
 
 func (impl UserServiceImpl) getUniquesRolesByGroupCasbinNames(groupCasbinNames []string) ([]string, error) {
