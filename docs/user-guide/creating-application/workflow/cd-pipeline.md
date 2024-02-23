@@ -26,7 +26,7 @@ This section expects three inputs from you:
 | ----------- | ---------------------------------------------------------- | ------------------------- |
 | Environment | Select the environment where you want to deploy your application | (List of available environments)  |
 | Namespace   | Automatically populated based on the selected environment | Not Applicable                           |
-| Trigger     | When to execute the deployment pipeline                   | **Automatic**: Deployment triggers automatically when a new image is available at the previous stage (build pipeline or another deployment pipeline) <br /> **Manual**: Deployment is not initiated automatically. You will have to trigger deployment with a desired image. |
+| Trigger     | When to execute the deployment pipeline                   | **Automatic**: Deployment triggers automatically when a new image completes the previous stage (build pipeline or another deployment pipeline) <br /> **Manual**: Deployment is not initiated automatically. You can trigger deployment with a desired image. |
 
 ### 2. Deployment Strategy
 
@@ -73,10 +73,7 @@ Here you can add one or more tasks. The tasks can be re-arranged using drag-and-
 
 2. **Trigger Pre-Deployment Stage**
 
-Pre-deployment stages can be configured to be executed automatically or manually.
-
-* **Automatic** - Deployment triggers automatically when a new image is available at the previous stage (build pipeline or another deployment pipeline)
-* **Manual** - Deployment is not initiated automatically. You will have to trigger deployment with a desired image.
+Refer the trigger types from [here](#1-deploy-to-environment).
 
 3. **ConfigMaps & Secrets**
 
@@ -87,14 +84,54 @@ Make sure you have added [ConfigMaps](../config-maps.md) and [Secrets](../secret
 
 If you want to use some configuration files and secrets in pre-deployment stages or post-deployment stages, then you can use the `ConfigMaps` & `Secrets` options. You will get them as a drop-down in the pre-deployment stage.
 
-* **ConfigMaps** - Used to define configuration files.
-* **Secrets** - Used to store the private data of your application.
-
 4. **Execute tasks in application environment**
 
-These `Pre-deployment CD / Post-deployment CD` pods can be created in your deployment cluster or the devtron build cluster. It is recommended that you run these pods in the Deployment cluster so that your scripts \(if any\) can interact with the cluster services that may not be publicly exposed.
+These `Pre-deployment CD / Post-deployment CD` pods can be created in your deployment cluster or the devtron build cluster. If your scripts/tasks has some dependency on the deployment environment, you may run these pods in the deployment cluster. Thus, your scripts \(if any\) can interact with the cluster services that may not be publicly exposed.
 
-If you want to run it within your application, tick the `Execute tasks in application environment` checkbox. Otherwise, leave it unchecked to run it within the Devtron build cluster. By default, this option is disabled, so refer [Executing in Application Environment](#enabling-execution-in-application-environment) to know the process of enabling it.
+Some tasks require extra permissions for the node where Devtron is installed. However, if the node already has the necessary permissions for deploying applications, there is no need to assign them again. Instead, you can enable the **Execute tasks in application environment** option for the pre-CD or post-CD steps. By default, this option is disabled.
+
+To enable the `Execute tasks in application environment` option, follow these steps:
+
+{% hint style="info" %}
+Make sure your cluster has [devtron-agent](../../global-configurations/cluster-and-environments.md#installing-devtron-agent) installed.
+{% endhint %}
+
+* Go to the chart store and search for the devtron-in-clustercd chart.
+
+  ![Figure 14: 'devtron-in-clustercd' Chart](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/devtron-incluster-chart.jpg)
+
+* Configure the chart according to your requirements and deploy it in the target cluster.
+
+* After the deployment, edit the devtron-cm configmap and add the following key-value pair:
+
+  ```bash
+  ORCH_HOST: <host_url>/orchestrator/webhook/msg/nats
+
+  Example:
+
+  ORCH_HOST: http://xyz.devtron.com/orchestrator/webhook/msg/nats
+
+  ```
+
+  `ORCH_HOST` value should be same as of `CD_EXTERNAL_LISTENER_URL` value which is passed in values.yaml.
+
+  ![Figure 15: Configuration](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/incluster-configuration.jpg)
+
+* Delete the Devtron pod using the following command:
+
+  ```bash
+  kubectl delete pod -l app=devtron -n devtroncd
+  ```
+
+* Again navigate to the chart store and search for the "migration-incluster-cd" chart.
+
+  ![Figure 16: 'migration-incluster-cd' chart](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/migration-incluster-chart.jpg)
+
+* Edit the `cluster-name` and `secret name` values within the chart. The `cluster name` refers to the name used when adding the cluster in the global configuration and for which you are going to enable `Execute tasks in application environment` option.
+
+  ![Figure 17: Configuration](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/migration-incluster.jpg)
+
+* Deploy the chart in any environment within the Devtron cluster. Now you should be able to enable `Execute tasks in application environment` option for an environment of target cluster.
 
 #### Deployment Stage
 
@@ -123,8 +160,6 @@ To enable manual approval for deployment, follow these steps:
 To know more about the approval process, refer [Triggering CD](../../deploying-application/triggering-cd.md#manual-approval-for-deployment). 
 
 ##### Custom Image Tag Pattern
-
-This feature helps you append custom tags (e.g., `v1.0.0`) to readily distinguish container images within your repository. 
 
 {% hint style="warning" %}
 This will be utilized only when an existing container image is copied to another repository using the [Copy Container Image Plugin](../workflow/plugins/copy-container-image.md). The image will be copied with the tag generated by the Image Tag Pattern you defined.
@@ -170,11 +205,11 @@ Users need to have Admin permission or above (along with access to the environme
 
 #### Post-Deployment Stage
 
-If you need to run any actions for e.g., run actions like closure of Jira ticket or provide secrets after the deployment, you can configure such actions in the post-deployment stages.
+If you need to run any actions for e.g., closure of Jira ticket, load testing or performance testing, you can configure such actions in the post-deployment stages.
 
-Post-deployment stages are similar to pre-deployment stages. The difference is, pre-deployment executes before the CD pipeline execution and post-deployment executes after the CD pipeline execution. The configuration of post-deployment stages is similar to the pre-deployment stages.
+Post-deployment stages are similar to pre-deployment stages. The difference is, pre-deployment executes before the deployment, while post-deployment occurs after.
 
-Similar to Pre-Deployment stage, you can use [ConfigMap and Secrets](#configmaps--secrets) in post deployments as well. [Execute tasks in application environment](#execute-in-application-environment) option is available too.
+You can use [ConfigMap and Secrets](#configmaps--secrets) in post deployments as well. The option to execute tasks in application environment is available too.
 
 ![Figure 12: Post-deployment Stage](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/cd_post_build.jpg)
 
@@ -206,53 +241,6 @@ Deleting a CD pipeline also deletes all the K8s resources associated with it and
 ---
 
 ## Extras
-
-### Enabling Execution in Application Environment
-
-{% hint style="info" %}
-Make sure your cluster has [devtron-agent](../../global-configurations/cluster-and-environments.md#installing-devtron-agent) installed.
-{% endhint %}
-
-Some tasks require extra permissions for the node where Devtron is installed. However, if the node already has the necessary permissions for deploying applications, there is no need to assign them again. Instead, you can enable the **Execute tasks in application environment** option for the pre-CD or post-CD steps.
-
-To enable the `Execute tasks in application environment` option, follow these steps:
-
-1. Go to the chart store and search for the devtron-in-clustercd chart.
-
-  ![Figure 14: 'devtron-in-clustercd' Chart](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/devtron-incluster-chart.jpg)
-
-2. Configure the chart according to your requirements and deploy it in the target cluster.
-
-3. After the deployment, edit the devtron-cm configmap and add the following key-value pair:
-
-  ```bash
-  ORCH_HOST: <host_url>/orchestrator/webhook/msg/nats
-
-  Example:
-
-  ORCH_HOST: http://xyz.devtron.com/orchestrator/webhook/msg/nats
-
-  ```
-
-  `ORCH_HOST` value should be same as of `CD_EXTERNAL_LISTENER_URL` value which is passed in values.yaml.
-
-  ![Figure 15: Configuration](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/incluster-configuration.jpg)
-
-4. Delete the Devtron pod using the following command:
-
-  ```bash
-  kubectl delete pod -l app=devtron -n devtroncd
-  ```
-
-5. Again navigate to the chart store and search for the "migration-incluster-cd" chart.
-
-  ![Figure 16: 'migration-incluster-cd' chart](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/migration-incluster-chart.jpg)
-
-6. Edit the `cluster-name` and `secret name` values within the chart. The `cluster name` refers to the name used when adding the cluster in the global configuration and for which you are going to enable `Execute tasks in application environment` option.
-
-  ![Figure 17: Configuration](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/migration-incluster.jpg)
-
-7. Deploy the chart in any environment within the Devtron cluster. Now you should be able to enable `Execute tasks in application environment` option for an environment of target cluster.
 
 ### Deployment Strategies
 

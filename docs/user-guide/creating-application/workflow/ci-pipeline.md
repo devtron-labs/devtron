@@ -11,6 +11,8 @@ A CI Workflow can be created in one of the following ways:
 * [Build and Deploy from Source Code](#1.-build-and-deploy-from-source-code)
 * [Linked Build Pipeline](#2.-linked-build-pipeline)
 * [Deploy Image from External Service](#3.-deploy-image-from-external-service)
+* Sync with Environment
+* Create a Job
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-ci-pipeline/workflow-ci-1.jpg)
 
@@ -82,7 +84,7 @@ For example if the user sets the Branch Regex as `feature-*`, then users can tri
 
 ###### Pull Request
 
-This allows you to configure the CI Pipeline using the PR raised in your repository.
+This allows you to trigger the CI build when a pull request is created in your repository.
 
 {% hint style="info" %}
 **Prerequisites**
@@ -116,7 +118,7 @@ Select **Create Pipeline**.
 
 ###### Tag Creation
 
-This allows you to build the CI pipeline from a tag.
+This allows you to trigger the CI build whenever a new tag is created.
 
 {% hint style="info" %}
 **Prerequisites**
@@ -138,7 +140,7 @@ Select the appropriate filter and pass the matching condition as a regular expre
 Select **Create Pipeline**.
 
 {% hint style="info" %}
-The total timeout for the execution of the CI pipeline is by default set as 3600 seconds. This default timeout is configurable according to the use case. The timeout can be edited in the configmap of the orchestrator service in the env variable as `env:"DEFAULT_TIMEOUT" envDefault:"3600"`
+The total timeout for the execution of the CI pipeline is by default set as 3600 seconds. This default timeout is configurable according to the use case (refer [Build Infra](https://docs.devtron.ai/global-configurations/build-infra)). The timeout can be edited in the configmap of the orchestrator service in the env variable as `env:"DEFAULT_TIMEOUT" envDefault:"3600"`
 {% endhint %}
 
 ##### Scan for Vulnerabilities
@@ -150,13 +152,13 @@ Install any one of the following integrations from Devtron Stack Manager:
 * Trivy
 {% endhint %}
 
-To perform the security scan after the container image is built, enable the **Scan for vulnerabilities** toggle in the build stage.
+To perform the security scan after the container image is built, enable the **Scan for vulnerabilities** toggle in the build stage. Refer [Security features](../../../user-guide/security-features.md) to know more.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-ci-pipeline/scan-for-vulnerabilities-v2.jpg)
 
 ##### Custom Image Tag Pattern
 
-This feature helps you append custom tags (e.g., `v1.0.0`) to readily distinguish container images within your repository.
+This feature helps you apply custom tags (e.g., `v1.0.0`) to readily distinguish container images within your repository.
 
 1. Enable the toggle button as shown below.
 

@@ -2,7 +2,9 @@
 
 ## Introduction
 
-Devtron offers the option to [pull container images using digest](../creating-application/workflow/cd-pipeline.md#pull-container-image-with-image-digest). Though it can be enabled by an application-admin for a given CD Pipeline, Devtron also allows super-admins to enable pull image digest at environment level.
+Devtron offers the option to pull container images using digest. Refer [CD Pipeline - Image Digest](../creating-application/workflow/cd-pipeline.md#pull-container-image-with-image-digest) to know the purpose it serves. 
+
+Though it can be enabled by an application-admin for a given CD Pipeline, Devtron also allows super-admins to enable pull image digest at environment level.
 
 This helps in better governance and less repetitiveness if you wish to manage pull image digest for multiple applications across environments.
 
