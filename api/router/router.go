@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/api/appStore"
 	"github.com/devtron-labs/devtron/api/appStore/chartGroup"
 	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
+	"github.com/devtron-labs/devtron/api/argoApplication"
 	"github.com/devtron-labs/devtron/api/auth/authorisation/globalConfig"
 	"github.com/devtron-labs/devtron/api/auth/sso"
 	"github.com/devtron-labs/devtron/api/auth/user"
@@ -78,9 +79,7 @@ type MuxRouter struct {
 	pubsubClient                       *pubsub2.PubSubClientServiceImpl
 	UserRouter                         user.UserRouter
 	gitWebhookHandler                  pubsub.GitWebhookHandler
-	workflowUpdateHandler              pubsub.WorkflowStatusUpdateHandler
 	appUpdateHandler                   pubsub.ApplicationStatusHandler
-	ciEventHandler                     pubsub.CiEventHandler
 	ChartRefRouter                     ChartRefRouter
 	ConfigMapRouter                    ConfigMapRouter
 	AppStoreRouter                     appStore.AppStoreRouter
@@ -136,6 +135,7 @@ type MuxRouter struct {
 	lockConfigurationRouter            lockConfiguation.LockConfigurationRouter
 	imageDigestPolicyRouter            ImageDigestPolicyRouter
 	infraConfigRouter                  infraConfig.InfraConfigRouter
+	argoApplicationRouter              argoApplication.ArgoApplicationRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger,
@@ -146,9 +146,8 @@ func NewMuxRouter(logger *zap.SugaredLogger,
 	NotificationRouter NotificationRouter,
 	TeamRouter team.TeamRouter,
 	gitWebhookHandler pubsub.GitWebhookHandler,
-	workflowUpdateHandler pubsub.WorkflowStatusUpdateHandler,
 	appUpdateHandler pubsub.ApplicationStatusHandler,
-	ciEventHandler pubsub.CiEventHandler, pubsubClient *pubsub2.PubSubClientServiceImpl, UserRouter user.UserRouter,
+	pubsubClient *pubsub2.PubSubClientServiceImpl, UserRouter user.UserRouter,
 	ChartRefRouter ChartRefRouter, ConfigMapRouter ConfigMapRouter, AppStoreRouter appStore.AppStoreRouter, chartRepositoryRouter chartRepo.ChartRepositoryRouter,
 	ReleaseMetricsRouter ReleaseMetricsRouter, deploymentGroupRouter DeploymentGroupRouter, batchOperationRouter BatchOperationRouter,
 	chartGroupRouter chartGroup.ChartGroupRouter, imageScanRouter ImageScanRouter,
@@ -172,7 +171,9 @@ func NewMuxRouter(logger *zap.SugaredLogger,
 	lockConfigurationRouter lockConfiguation.LockConfigurationRouter,
 	proxyRouter proxy.ProxyRouter,
 	imageDigestPolicyRouter ImageDigestPolicyRouter,
-	infraConfigRouter infraConfig.InfraConfigRouter) *MuxRouter {
+	infraConfigRouter infraConfig.InfraConfigRouter,
+	argoApplicationRouter argoApplication.ArgoApplicationRouter) *MuxRouter {
+
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
 		EnvironmentClusterMappingsRouter:   EnvironmentClusterMappingsRouter,
@@ -186,9 +187,7 @@ func NewMuxRouter(logger *zap.SugaredLogger,
 		TeamRouter:                         TeamRouter,
 		logger:                             logger,
 		gitWebhookHandler:                  gitWebhookHandler,
-		workflowUpdateHandler:              workflowUpdateHandler,
 		appUpdateHandler:                   appUpdateHandler,
-		ciEventHandler:                     ciEventHandler,
 		pubsubClient:                       pubsubClient,
 		UserRouter:                         UserRouter,
 		ChartRefRouter:                     ChartRefRouter,
@@ -247,6 +246,7 @@ func NewMuxRouter(logger *zap.SugaredLogger,
 		lockConfigurationRouter:            lockConfigurationRouter,
 		imageDigestPolicyRouter:            imageDigestPolicyRouter,
 		infraConfigRouter:                  infraConfigRouter,
+		argoApplicationRouter:              argoApplicationRouter,
 	}
 	return r
 }
@@ -477,4 +477,7 @@ func (r MuxRouter) Init() {
 
 	infraConfigRouter := r.Router.PathPrefix("/orchestrator/infra-config").Subrouter()
 	r.infraConfigRouter.InitInfraConfigRouter(infraConfigRouter)
+
+	argoApplicationRouter := r.Router.PathPrefix("/orchestrator/argo-application").Subrouter()
+	r.argoApplicationRouter.InitArgoApplicationRouter(argoApplicationRouter)
 }

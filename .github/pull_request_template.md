@@ -18,10 +18,19 @@ Please include a summary of the change and which issue is fixed. Please also inc
 -->
 
 Fixes #
+<!--
+For example:
+Fixes https://github.com/devtron-labs/devtron/issues/00001
+Fixes devtron-labs/devtron#0001
 
+PS: Please ensure that you've attached a valid issue that is OPEN
+-->
+
+
+<!--test-cases
 ## How Has This Been Tested?
 Please describe the tests that you ran to verify your changes. Provide instructions so we can reproduce. Please also list any relevant details for your test configuration
-<!--test-cases
+
 - [ ] Test case A
 - [ ] Test case B
 -->

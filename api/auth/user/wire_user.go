@@ -5,7 +5,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	user2 "github.com/devtron-labs/devtron/pkg/auth/user"
 	repository2 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
-	helper "github.com/devtron-labs/devtron/pkg/auth/user/repository/helper"
 	"github.com/google/wire"
 )
 
@@ -14,7 +13,6 @@ import (
 var UserWireSet = wire.NewSet(
 	UserAuditWireSet,
 
-	helper.NewUserRepositoryQueryBuilder,
 	NewUserAuthRouterImpl,
 	wire.Bind(new(UserAuthRouter), new(*UserAuthRouterImpl)),
 	NewUserAuthHandlerImpl,
