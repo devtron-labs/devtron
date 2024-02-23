@@ -346,19 +346,19 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) createGitOpsRepoAndRegi
 	}
 	repoUrl, _, createGitRepoErr := impl.fullModeDeploymentService.CreateGitOpsRepo(installAppVersionRequest)
 	if createGitRepoErr != nil {
-		impl.logger.Errorw("error in creating git repo", "err", err)
+		impl.logger.Errorw("error in creating git repo", "installedAppId", installedApp.Id, "appId", installedApp.AppId, "err", err)
 	}
 	if createGitRepoErr == nil {
 		chartGitAttr := &bean2.ChartGitAttribute{RepoUrl: repoUrl, ChartLocation: deploymentAppName}
 		acdRegisterErr = impl.argoClientWrapperService.RegisterGitOpsRepoInArgo(ctx, chartGitAttr.RepoUrl)
 		if acdRegisterErr != nil {
-			impl.logger.Errorw("error in registering acd app", "err", err)
+			impl.logger.Errorw("error in registering acd app", "installedAppId", installedApp.Id, "appId", installedApp.AppId, "err", err)
 		}
 		if acdRegisterErr == nil {
 			installedApp.Environment.Cluster = cluster
 			createInArgoErr = impl.fullModeDeploymentService.CreateInArgo(chartGitAttr, installedApp.Environment, deploymentAppName)
 			if createInArgoErr != nil {
-				impl.logger.Errorw("error in creating acd app", "err", err)
+				impl.logger.Errorw("error in creating acd app", "installedAppId", installedApp.Id, "appId", installedApp.AppId, "err", err)
 			}
 		}
 
