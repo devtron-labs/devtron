@@ -147,7 +147,7 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) MigrateDeploymentType(c
 	}
 
 	if len(installedAppIds) == 0 {
-		return response, nil
+		return response, &util.ApiError{HttpStatusCode: http.StatusNotFound, UserMessage: fmt.Sprintf("no installed apps found for this desired deployment type %s", request.DesiredDeploymentType)}
 	}
 	if request.DesiredDeploymentType == bean.Helm {
 		//before deleting the installed app we'll first annotate CRD's manifest created by argo-cd with helm supported
