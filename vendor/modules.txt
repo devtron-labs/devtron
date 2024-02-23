@@ -419,12 +419,14 @@ github.com/devtron-labs/common-lib/utils/k8s/health
 github.com/devtron-labs/common-lib/utils/k8sObjectsUtil
 github.com/devtron-labs/common-lib/utils/serverConnection/bean
 github.com/devtron-labs/common-lib/utils/yaml
-# github.com/devtron-labs/common-lib-private v0.0.13
+# github.com/devtron-labs/common-lib-private v0.0.14-0.20240222090919-0571c404cd59
 ## explicit; go 1.20
 github.com/devtron-labs/common-lib-private/sshTunnel
 github.com/devtron-labs/common-lib-private/sshTunnel/bean
 github.com/devtron-labs/common-lib-private/utils
 github.com/devtron-labs/common-lib-private/utils/k8s
+github.com/devtron-labs/common-lib-private/utils/registry
+github.com/devtron-labs/common-lib-private/utils/ssh
 # github.com/devtron-labs/protos v0.0.3-0.20240130061723-7b2e12ab0abb
 ## explicit; go 1.17
 github.com/devtron-labs/protos/gitSensor

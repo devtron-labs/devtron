@@ -1,9 +1,10 @@
-package k8s
+package ssh
 
 import (
 	"context"
 	"fmt"
 	"github.com/devtron-labs/common-lib-private/sshTunnel"
+	"github.com/devtron-labs/common-lib-private/utils/registry"
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
 	"go.uber.org/zap"
 	"net/url"
@@ -16,7 +17,9 @@ import (
 
 type SSHTunnelWrapperService interface {
 	StartUpdateConnectionForCluster(cluster *k8s2.ClusterConfig) (int, error)
+	StartUpdateConnectionForRegistry(registry *registry.RegistryConfig) (int, error)
 	GetPortUsedForACluster(clusterConfig *k8s2.ClusterConfig) (int, error)
+	GetPortUsedForARegistry(registry *registry.RegistryConfig) (int, error)
 	CleanupForVerificationCluster(clusterName string)
 }
 
@@ -27,6 +30,8 @@ type SSHTunnelWrapperServiceImpl struct {
 	clusterMapMutex                  *sync.Mutex
 	clusterConnectionMap             map[int]*ConnectionDetail    //map of clusterId and connection detail
 	verificationClusterConnectionMap map[string]*ConnectionDetail //map of cluster name and connection detail
+	registryConnectionMap            map[string]*ConnectionDetail // map of registryId and connection detail
+	registryMapMutex                 *sync.Mutex
 }
 
 func NewSSHTunnelWrapperServiceImpl(logger *zap.SugaredLogger) (*SSHTunnelWrapperServiceImpl, error) {
@@ -37,6 +42,8 @@ func NewSSHTunnelWrapperServiceImpl(logger *zap.SugaredLogger) (*SSHTunnelWrappe
 		clusterMapMutex:                  &sync.Mutex{},
 		clusterConnectionMap:             make(map[int]*ConnectionDetail),
 		verificationClusterConnectionMap: make(map[string]*ConnectionDetail),
+		registryConnectionMap:            make(map[string]*ConnectionDetail),
+		registryMapMutex:                 &sync.Mutex{},
 	}
 	return impl, nil
 }
@@ -44,6 +51,12 @@ func NewSSHTunnelWrapperServiceImpl(logger *zap.SugaredLogger) (*SSHTunnelWrappe
 type ConnectionDetail struct {
 	portUsed   int
 	connection *sshTunnel.SSHTunnel
+}
+
+func (impl *SSHTunnelWrapperServiceImpl) GetPortMapForReuse() map[int]bool {
+	impl.portMapMutex.Lock()
+	defer impl.portMapMutex.Unlock()
+	return impl.portMap
 }
 
 // StartUpdateConnectionForCluster takes clusterId and returns the port being used for connection and error if an
@@ -67,13 +80,14 @@ func (impl *SSHTunnelWrapperServiceImpl) StartUpdateConnectionForCluster(cluster
 		impl.logger.Errorw("error in extracting host and port from cluster host address", "err", err, "clusterHost", cluster.Host)
 		return portUsed, err
 	}
-	serverAddress, _, err := impl.extractHostAndPostFromUrl(cluster.SSHTunnelServerAddress)
+	sshTunnelConfig := cluster.ClusterConnectionConfig.SSHTunnelConfig
+	serverAddress, _, err := impl.extractHostAndPostFromUrl(sshTunnelConfig.SSHServerAddress)
 	if err != nil {
 		impl.logger.Errorw("error in extracting host and port from cluster host address", "err", err, "clusterHost", cluster.Host)
 		return portUsed, err
 	}
 	//blocking is successful now we can initialise connection
-	tunnel := sshTunnel.NewSSHTunnel(cluster.SSHTunnelUser, cluster.SSHTunnelPassword, cluster.SSHTunnelAuthKey,
+	tunnel := sshTunnel.NewSSHTunnel(sshTunnelConfig.SSHUsername, sshTunnelConfig.SSHPassword, sshTunnelConfig.SSHAuthKey,
 		serverAddress, remoteAddress, remotePort, portUsed, DefaultTimeoutDuration)
 
 	connectionDetail := &ConnectionDetail{
@@ -131,9 +145,78 @@ func (impl *SSHTunnelWrapperServiceImpl) StartUpdateConnectionForCluster(cluster
 	return portUsed, nil
 }
 
+func (impl *SSHTunnelWrapperServiceImpl) StartUpdateConnectionForRegistry(registry *registry.RegistryConfig) (int, error) {
+	portUsed := 0
+	availablePort, err := impl.getAvailablePort()
+	if err != nil {
+		impl.logger.Errorw("error in getting port for SSH Tunnel connection", "err", err)
+		return portUsed, err
+	}
+	// using port so that it gets blocked for us
+	blockSuccess := impl.usePort(availablePort)
+	if !blockSuccess {
+		return portUsed, fmt.Errorf("error in getting port for connecting tunnel")
+	} else {
+		portUsed = availablePort
+	}
+	// our server url is actually the remote we are trying to connect, splitting it to get host and port
+	remoteAddress, remotePort, err := impl.extractHostAndPostFromUrl(registry.RegistryUrl)
+	if err != nil {
+		impl.logger.Errorw("error in extracting host and port from registry host address", "err", err)
+		return portUsed, err
+	}
+	sshTunnelConfig := registry.SSHConfig
+	serverAddress, _, err := impl.extractHostAndPostFromUrl(sshTunnelConfig.SSHServerAddress)
+	if err != nil {
+		impl.logger.Errorw("error in extracting host and port from registry host address", "err", err)
+		return portUsed, err
+	}
+	//blocking is successful now we can initialise connection
+	tunnel := sshTunnel.NewSSHTunnel(sshTunnelConfig.SSHUsername, sshTunnelConfig.SSHPassword, sshTunnelConfig.SSHAuthKey,
+		serverAddress, remoteAddress, remotePort, portUsed, DefaultTimeoutDuration)
+
+	connectionDetail := &ConnectionDetail{
+		portUsed:   portUsed,
+		connection: tunnel,
+	}
+	impl.registryMapMutex.Lock()
+	if oldConnectionDetail := impl.registryConnectionMap[registry.RegistryId]; oldConnectionDetail != nil {
+		previousPort := oldConnectionDetail.portUsed
+		oldConnectionDetail.connection.Stop()
+		impl.freePort(previousPort)
+	}
+	impl.registryConnectionMap[registry.RegistryId] = connectionDetail
+	defer impl.deferForStartUpdateConnectionForRegistry()
+
+	go func() {
+		err = tunnel.Start(context.Background())
+		if err != nil {
+			impl.logger.Errorw("error in starting tunnel", "err", err, "registryId", registry.RegistryId)
+			impl.registryMapMutex.Lock()
+			//need to free port
+			if currentConnection := impl.registryConnectionMap[registry.RegistryId]; currentConnection != nil {
+				portToBeFreed := currentConnection.portUsed
+				if portToBeFreed == portUsed {
+					currentConnection.connection.Stop()
+					impl.freePort(portToBeFreed)
+					impl.registryConnectionMap[registry.RegistryId] = nil
+				}
+			}
+			impl.registryMapMutex.Unlock()
+		}
+	}()
+	time.Sleep(10 * time.Second)
+
+	return portUsed, nil
+}
+
 // created a method to remove the confusion of defer LIFO nature, if more defer statements are added in future
 func (impl *SSHTunnelWrapperServiceImpl) deferForStartUpdateConnectionForCluster() {
 	impl.clusterMapMutex.Unlock()
+}
+
+func (impl *SSHTunnelWrapperServiceImpl) deferForStartUpdateConnectionForRegistry() {
+	impl.registryMapMutex.Unlock()
 }
 
 func (impl *SSHTunnelWrapperServiceImpl) GetPortUsedForACluster(clusterConfig *k8s2.ClusterConfig) (int, error) {
@@ -155,6 +238,23 @@ func (impl *SSHTunnelWrapperServiceImpl) GetPortUsedForACluster(clusterConfig *k
 		portUsed, err = impl.StartUpdateConnectionForCluster(clusterConfig)
 		if err != nil {
 			impl.logger.Errorw("error in connecting with cluster through SSH tunnel", "err", err, "clusterId")
+			return portUsed, err
+		}
+	}
+	return portUsed, nil
+}
+
+func (impl *SSHTunnelWrapperServiceImpl) GetPortUsedForARegistry(registry *registry.RegistryConfig) (int, error) {
+	portUsed := 0
+	connectionDetail := impl.registryConnectionMap[registry.RegistryId]
+	if connectionDetail != nil {
+		portUsed = connectionDetail.portUsed
+	}
+	if portUsed == 0 {
+		var err error
+		portUsed, err = impl.StartUpdateConnectionForRegistry(registry)
+		if err != nil {
+			impl.logger.Errorw("error in connecting with registry through SSH tunnel", "err", err)
 			return portUsed, err
 		}
 	}
