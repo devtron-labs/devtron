@@ -1,6 +1,8 @@
 package resourceQualifiers
 
-import "github.com/devtron-labs/devtron/pkg/sql"
+import (
+	"github.com/devtron-labs/devtron/pkg/sql"
+)
 
 type ResourceType int
 
@@ -10,13 +12,6 @@ const (
 	ImageDigest           ResourceType = 2
 	ImageDigestResourceId              = -1 // for ImageDigest resource id will is constant unlike filter and variables
 	InfraProfile          ResourceType = 3
-)
-
-type QualifierSelector int
-
-const (
-	ApplicationSelector                  QualifierSelector = 0
-	EnvironmentSelectorQualifierSelector                   = 1
 )
 
 const (
@@ -35,6 +30,13 @@ func GetEnvIdentifierValue(scope Scope) int {
 		return AllExistingAndFutureProdEnvsInt
 	}
 	return AllExistingAndFutureNonProdEnvsInt
+}
+
+type ResourceQualifierMappings struct {
+	ResourceId   int
+	ResourceType ResourceType
+	scope        *Scope
+	//qualifierSelector QualifierSelector
 }
 
 type QualifierMapping struct {
@@ -57,4 +59,12 @@ type QualifierMapping struct {
 type QualifierMappingWithExtraColumns struct {
 	QualifierMapping
 	TotalCount int
+}
+
+type ResourceMappingSelection struct {
+	ResourceType      ResourceType
+	ResourceId        int
+	QualifierSelector QualifierSelector
+	Scope             *Scope
+	Id                int
 }

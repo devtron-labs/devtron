@@ -29,8 +29,10 @@ type QualifiersMappingRepository interface {
 	GetActiveIdentifierCountPerResource(resourceType ResourceType, resourceIds []int, identifierKey int, identifierValueIntSpaceQuery string) ([]ResourceIdentifierCount, error)
 	GetActiveMappingsCount(resourceType ResourceType, excludeIdentifiersQuery string, identifierKey int) (int, error)
 	GetIdentifierIdsByResourceTypeAndIds(resourceType ResourceType, resourceIds []int, identifierKey int) ([]int, error)
+	GetMappingsByResourceTypeAndIdsAndQualifierId(resourceType ResourceType, resourceIds []int, qualifier int) ([]*QualifierMapping, error)
 	GetResourceIdsByIdentifier(resourceType ResourceType, identifierKey int, identifierId int) ([]int, error)
 	GetQualifierMappingsWithIdentifierFilter(resourceType ResourceType, resourceId, identifierKey int, identifierValueStringLike, identifierValueSortOrder string, includeIdentifiersQuery string, limit, offset int, needTotalCount bool) ([]*QualifierMappingWithExtraColumns, error)
+	GetQualifierMappingsForListOfQualifierValues(resourceType ResourceType, valuesMap map[Qualifier][][]int, searchableIdMap map[bean.DevtronResourceSearchableKeyName]int, resourceIds []int) ([]*QualifierMapping, error)
 }
 
 type QualifiersMappingRepositoryImpl struct {
@@ -95,6 +97,45 @@ func (repo *QualifiersMappingRepositoryImpl) GetQualifierMappingsForFilterById(r
 	return qualifierMappings, nil
 }
 
+func (repo *QualifiersMappingRepositoryImpl) addScopeWhereClauseBatch(q *orm.Query, valuesMap map[Qualifier][][]int, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) *orm.Query {
+
+	q = q.WhereGroup(func(query *orm.Query) (*orm.Query, error) {
+		if len(valuesMap[APP_AND_ENV_QUALIFIER][0]) > 0 && len(valuesMap[APP_AND_ENV_QUALIFIER][1]) > 0 {
+			q = q.WhereOr("(((identifier_key = ? AND identifier_value_int in (?)) OR (identifier_key = ? AND identifier_value_int in (?))) AND qualifier_id = ?)",
+				searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID], pg.In(valuesMap[APP_AND_ENV_QUALIFIER][0]),
+				searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID], pg.In(valuesMap[APP_AND_ENV_QUALIFIER][1]),
+				APP_AND_ENV_QUALIFIER,
+			)
+		}
+		if len(valuesMap[APP_QUALIFIER][0]) > 0 {
+			query = query.WhereOr("(qualifier_id = ? AND identifier_key = ? AND identifier_value_int in (?))",
+				APP_QUALIFIER, searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID], pg.In(valuesMap[APP_QUALIFIER][0]),
+			)
+		}
+		if len(valuesMap[ENV_QUALIFIER][0]) > 0 {
+			query = query.WhereOr("(qualifier_id = ? AND identifier_key = ? AND identifier_value_int in (?))",
+				ENV_QUALIFIER, searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID], pg.In(valuesMap[ENV_QUALIFIER][0]),
+			)
+		}
+
+		if len(valuesMap[CLUSTER_QUALIFIER][0]) > 0 {
+			query = query.WhereOr("(qualifier_id = ? AND identifier_key = ? AND identifier_value_int in (?))",
+				CLUSTER_QUALIFIER, searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_CLUSTER_ID], pg.In(valuesMap[CLUSTER_QUALIFIER][0]),
+			)
+		}
+
+		if len(valuesMap[PIPELINE_QUALIFIER][0]) > 0 {
+			query = query.WhereOr("(qualifier_id = ? AND identifier_key = ? AND identifier_value_int in (?))",
+				PIPELINE_QUALIFIER, searchableKeyNameIdMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_PIPELINE_ID], pg.In(valuesMap[PIPELINE_QUALIFIER][0]),
+			)
+		}
+		query = query.WhereOr("(qualifier_id = ?)", GLOBAL_QUALIFIER)
+		return query, nil
+	})
+
+	return q
+}
+
 func (repo *QualifiersMappingRepositoryImpl) addScopeWhereClause(query *orm.Query, scope *Scope, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int) *orm.Query {
 	return query.Where(
 		"(((identifier_key = ? AND identifier_value_int = ?) OR (identifier_key = ? AND identifier_value_int = ?)) AND qualifier_id = ?) "+
@@ -125,6 +166,28 @@ func (repo *QualifiersMappingRepositoryImpl) GetQualifierMappings(resourceType R
 	// Enterprise Only
 	if scope != nil {
 		query = repo.addScopeWhereClause(query, scope, searchableIdMap)
+	}
+
+	err := query.Select()
+	if err != nil {
+		return nil, err
+	}
+	return qualifierMappings, nil
+}
+
+func (repo *QualifiersMappingRepositoryImpl) GetQualifierMappingsForListOfQualifierValues(resourceType ResourceType, valuesMap map[Qualifier][][]int, searchableIdMap map[bean.DevtronResourceSearchableKeyName]int, resourceIds []int) ([]*QualifierMapping, error) {
+	var qualifierMappings []*QualifierMapping
+	query := repo.dbConnection.Model(&qualifierMappings).
+		Where("active = ?", true).
+		Where("resource_type = ?", resourceType)
+
+	if len(resourceIds) > 0 {
+		query = query.Where("resource_id IN (?)", pg.In(resourceIds))
+	}
+
+	// Enterprise Only
+	if valuesMap != nil {
+		query = repo.addScopeWhereClauseBatch(query, valuesMap, searchableIdMap)
 	}
 
 	err := query.Select()
@@ -236,6 +299,23 @@ func (repo *QualifiersMappingRepositoryImpl) GetActiveIdentifierCountPerResource
 	counts := make([]ResourceIdentifierCount, 0)
 	_, err := repo.dbConnection.Query(&counts, query, resourceType, identifierKey)
 	return counts, err
+}
+
+func (repo *QualifiersMappingRepositoryImpl) GetMappingsByResourceTypeAndIdsAndQualifierId(resourceType ResourceType, resourceIds []int, qualifier int) ([]*QualifierMapping, error) {
+	mappings := make([]*QualifierMapping, 0)
+	if len(resourceIds) == 0 {
+		return mappings, nil
+	}
+	err := repo.dbConnection.Model(&mappings).
+		Where("active = ?", true).
+		Where("resource_type = ?", resourceType).
+		Where("resource_id IN (?)", pg.In(resourceIds)).
+		Where("qualifier_id = ?", qualifier).
+		Select()
+	if err == pg.ErrNoRows {
+		err = nil
+	}
+	return mappings, err
 }
 
 func (repo *QualifiersMappingRepositoryImpl) GetIdentifierIdsByResourceTypeAndIds(resourceType ResourceType, resourceIds []int, identifierKey int) ([]int, error) {

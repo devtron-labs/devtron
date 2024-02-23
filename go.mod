@@ -58,6 +58,7 @@ require (
 	github.com/posthog/posthog-go v0.0.0-20210610161230-cd4408afb35a
 	github.com/prometheus/client_golang v1.14.0
 	github.com/robfig/cron/v3 v3.0.1
+	github.com/samber/lo v1.39.0
 	github.com/satori/go.uuid v1.2.0
 	github.com/stretchr/testify v1.8.4
 	github.com/tidwall/gjson v1.17.0
