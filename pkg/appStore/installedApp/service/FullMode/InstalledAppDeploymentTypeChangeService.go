@@ -27,6 +27,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	"github.com/devtron-labs/devtron/util/argo"
+	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -439,7 +440,11 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) TriggerAfterMigration(c
 
 	if request.DesiredDeploymentType == bean.Helm {
 		err = impl.deleteAppStatusEntryAfterTrigger(successInstalledApps)
-		if err != nil {
+		if err != nil && err == pg.ErrNoRows {
+			impl.logger.Infow("app status already deleted or not found after trigger and migration from argo-cd to helm",
+				"environmentId", request.EnvId,
+				"desiredDeploymentAppType", request.DesiredDeploymentType)
+		} else if err != nil {
 			impl.logger.Errorw("error in getting deleting app status entry from db after trigger and migration from argo-cd to helm",
 				"environmentId", request.EnvId,
 				"desiredDeploymentAppType", request.DesiredDeploymentType,
