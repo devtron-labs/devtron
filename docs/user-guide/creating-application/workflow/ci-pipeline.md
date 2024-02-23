@@ -140,7 +140,7 @@ Select the appropriate filter and pass the matching condition as a regular expre
 Select **Create Pipeline**.
 
 {% hint style="info" %}
-The total timeout for the execution of the CI pipeline is by default set as 3600 seconds. This default timeout is configurable according to the use case (refer [Build Infra](https://docs.devtron.ai/global-configurations/build-infra)). The timeout can be edited in the configmap of the orchestrator service in the env variable as `env:"DEFAULT_TIMEOUT" envDefault:"3600"`
+The total timeout for the execution of the CI pipeline is by default set as 3600 seconds. This default timeout is configurable according to the use case (refer [Build Infra](https://docs.devtron.ai/global-configurations/build-infra)).
 {% endhint %}
 
 ##### Scan for Vulnerabilities
