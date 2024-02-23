@@ -56,7 +56,7 @@ type AppArtifactManager interface {
 
 	BuildArtifactsForParentStage(cdPipelineId int, parentId int, parentType bean.WorkflowType, ciArtifacts []bean2.CiArtifactBean, artifactMap map[int]int, searchString string, limit int, parentCdId int) ([]bean2.CiArtifactBean, error)
 	GetImageTagsAndComment(artifactId int) (repository3.ImageComment, []string, error)
-	FetchMaterialForArtifactPromotion(artifactPromotionMaterialRequest bean2.ArtifactPromotionMaterialRequest)
+	FetchMaterialForArtifactPromotion(artifactPromotionMaterialRequest bean2.ArtifactPromotionMaterialRequest) ([]bean2.CiArtifactResponse, error)
 }
 
 type AppArtifactManagerImpl struct {
