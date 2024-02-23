@@ -63,8 +63,3 @@ type ArtifactPromotionApprovalResponse struct {
 	PromotedOn      time.Time `json:"promotedOn"`
 	PromotionPolicy string    `json:"promotionPolicy"`
 }
-
-type PromotionApprovalMetaData struct {
-	ApprovalRequestId    int    `json:"approvalRequestId"`
-	ApprovalRuntimeState string `json:"approvalRuntimeState"`
-}

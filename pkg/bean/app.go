@@ -808,25 +808,29 @@ type CiArtifactBean struct {
 	WfrId                         int             `json:"wfrId"`
 	DeployedBy                    string          `json:"deployedBy"`
 	// TriggeredByEmail              string                               `json:"triggeredByEmail"`
-	TriggeredBy             int32                                `json:"triggeredBy"`
-	CiConfigureSourceType   pipelineConfig.SourceType            `json:"ciConfigureSourceType"`
-	CiConfigureSourceValue  string                               `json:"ciConfigureSourceValue"`
-	UserApprovalMetadata    *pipelineConfig.UserApprovalMetadata `json:"userApprovalMetadata"`
-	ImageReleaseTags        []*repository2.ImageTag              `json:"imageReleaseTags"`
-	ImageComment            *repository2.ImageComment            `json:"imageComment"`
-	FilterState             resourceFilter.FilterState           `json:"filterState"`
-	AppliedFilters          []*resourceFilter.FilterMetaDataBean `json:"appliedFilters"`
-	AppliedFiltersState     resourceFilter.FilterState           `json:"appliedFiltersState"`
-	AppliedFiltersTimestamp time.Time                            `json:"appliedFiltersTimestamp"`
-	CreatedTime             string                               `json:"createdTime"`
-	ExternalCiPipelineId    int                                  `json:"-"`
-	ParentCiArtifact        int                                  `json:"-"`
-	CiWorkflowId            int                                  `json:"-"`
-	RegistryType            string                               `json:"registryType"`
-	RegistryName            string                               `json:"registryName"`
-	CiPipelineId            int                                  `json:"-"`
-	CredentialsSourceType   string                               `json:"-"`
-	CredentialsSourceValue  string                               `json:"-"`
+	TriggeredBy               int32                                `json:"triggeredBy"`
+	CiConfigureSourceType     pipelineConfig.SourceType            `json:"ciConfigureSourceType"`
+	CiConfigureSourceValue    string                               `json:"ciConfigureSourceValue"`
+	UserApprovalMetadata      *pipelineConfig.UserApprovalMetadata `json:"userApprovalMetadata"`
+	ImageReleaseTags          []*repository2.ImageTag              `json:"imageReleaseTags"`
+	ImageComment              *repository2.ImageComment            `json:"imageComment"`
+	FilterState               resourceFilter.FilterState           `json:"filterState"`
+	AppliedFilters            []*resourceFilter.FilterMetaDataBean `json:"appliedFilters"`
+	AppliedFiltersState       resourceFilter.FilterState           `json:"appliedFiltersState"`
+	AppliedFiltersTimestamp   time.Time                            `json:"appliedFiltersTimestamp"`
+	CreatedTime               string                               `json:"createdTime"`
+	ExternalCiPipelineId      int                                  `json:"-"`
+	ParentCiArtifact          int                                  `json:"-"`
+	CiWorkflowId              int                                  `json:"-"`
+	RegistryType              string                               `json:"registryType"`
+	RegistryName              string                               `json:"registryName"`
+	CiPipelineId              int                                  `json:"-"`
+	CredentialsSourceType     string                               `json:"-"`
+	CredentialsSourceValue    string                               `json:"-"`
+	PromotionApprovalMetadata PromotionApprovalMetaData            `json:"promotionApprovalMetadata"`
+	PromotedFrom              string                               `json:"promotedFrom"`
+	PromotedFromType          string                               `json:"promotedFromType"`
+	DeployedOnEnvironments    []string                             `json:"deployedOnEnvironments"`
 }
 
 type CiArtifactResponse struct {
@@ -848,13 +852,32 @@ type CiArtifactResponse struct {
 	DeployedOnEnvironments     []string                             `json:"deployedOnEnvironments"`
 }
 
+type ArtifactPromotionMaterialRequest struct {
+	Resource              string // CI, CD, WEBHOOK, PROMOTION_APPROVAL_PENDING_NODE
+	ResourceName          string
+	AppId                 int
+	WorkflowId            int
+	PendingForCurrentUser bool
+	Limit                 int
+	Offset                int
+	ImageSearchString     string
+}
+
 type ArtifactPromotionMaterialResponse struct {
-	ApproverUsers              []string           `json:"approverUsers"`
-	HideImageTaggingHardDelete bool               `json:"hideImageTaggingHardDelete"`
-	TagsEditable               bool               `json:"tagsEditable"`
-	AppReleaseTagNames         []string           `json:"appReleaseTagNames"`
-	CiArtifacts                CiArtifactResponse `json:"ciArtifacts"`
-	TotalCount                 int                `json:"totalCount"`
+	ImagePromotionApproverEmails  []string           `json:"imagePromotionApproverEmails"`
+	HideImageTaggingHardDelete    bool               `json:"hideImageTaggingHardDelete"`
+	TagsEditable                  bool               `json:"tagsEditable"`
+	AppReleaseTagNames            []string           `json:"appReleaseTagNames"`
+	CiArtifacts                   CiArtifactResponse `json:"ciArtifacts"`
+	TotalCount                    int                `json:"totalCount"`
+	IsApprovalPendingForPromotion bool               `json:"isApprovalPendingForPromotion"`
+}
+
+type PromotionApprovalMetaData struct {
+	ApprovalRequestId    int    `json:"approvalRequestId"`
+	ApprovalRuntimeState string `json:"approvalRuntimeState"`
+	ApprovalUsersData    string `json:"approvalUsersData"`
+	RequestedUserData    string `json:"requestedUserData"`
 }
 
 type AppLabelsDto struct {
