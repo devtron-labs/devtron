@@ -553,10 +553,10 @@ Run the following command:
 kubectl get storageclass
 ```
 Check for the field: `allowVolumeExpansion: ` if it is set to `true` then run the following command and increase the size of the PVC.
-If the field is `allowVolumeExpansion: false` then set it to true and then run the command.
 ```yaml
 kubectl edit pvc git-volume-git-sensor-0 -n devtroncd
 ```
+However, if the field is `allowVolumeExpansion: false`, set it to `true` and run the above command.
 Edit the following field:
 ```yaml
 spec:
