@@ -626,6 +626,7 @@ func (impl UserServiceImpl) checkAndPerformOperationsForGroupClaims(tx *pg.Tx, u
 	if !isSystemManagedActive && isGroupClaimsActive {
 		userInfo.RoleFilters = []bean.RoleFilter{}
 		userInfo.Groups = []string{}
+		userInfo.UserRoleGroup = []bean.UserRoleGroup{}
 		userInfo.SuperAdmin = false
 		err := tx.Commit()
 		if err != nil {

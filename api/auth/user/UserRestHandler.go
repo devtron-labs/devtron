@@ -146,8 +146,8 @@ func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Req
 	}
 
 	// auth check inside groups
-	if len(userInfo.Groups) > 0 {
-		groupRoles, _, err := handler.roleGroupService.FetchRoleGroupsWithRolesByGroupNames(userInfo.Groups)
+	if len(userInfo.UserRoleGroup) > 0 {
+		groupRoles, _, err := handler.roleGroupService.FetchRoleGroupsWithRolesByGroupNames(userInfo.UserRoleGroup)
 		if err != nil && err != pg.ErrNoRows {
 			handler.logger.Errorw("service err, UpdateUser", "err", err, "payload", userInfo)
 			common.WriteJsonResp(w, err, "", http.StatusInternalServerError)

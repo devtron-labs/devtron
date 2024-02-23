@@ -47,7 +47,7 @@ type RoleGroupService interface {
 	FetchRoleGroupsWithFilters(request *bean.ListingRequest) (*bean.RoleGroupListingResponse, error)
 	FetchRoleGroupsByName(name string) ([]*bean.RoleGroup, error)
 	DeleteRoleGroup(model *bean.RoleGroup) (bool, error)
-	FetchRoleGroupsWithRolesByGroupNames(groupNames []string) ([]*bean.RoleFilter, []*bean.RoleGroup, error)
+	FetchRoleGroupsWithRolesByGroupNames(userRoleGroups []bean.UserRoleGroup) ([]*bean.RoleFilter, []*bean.RoleGroup, error)
 	FetchRoleGroupsWithRolesByGroupCasbinNames(groupCasbinNames []string) ([]*bean.RoleFilter, []*bean.RoleGroup, error)
 	BulkDeleteRoleGroups(request *bean.BulkDeleteRequest) (bool, error)
 	GetGroupIdVsRoleGroupMapForIds(ids []int32) (map[int32]*repository.RoleGroup, error)
@@ -951,7 +951,11 @@ func (impl RoleGroupServiceImpl) deleteMappingsFromCasbin(groupCasbinNames []str
 	return nil
 }
 
-func (impl RoleGroupServiceImpl) FetchRoleGroupsWithRolesByGroupNames(groupNames []string) ([]*bean.RoleFilter, []*bean.RoleGroup, error) {
+func (impl RoleGroupServiceImpl) FetchRoleGroupsWithRolesByGroupNames(userRoleGroups []bean.UserRoleGroup) ([]*bean.RoleFilter, []*bean.RoleGroup, error) {
+	groupNames := make([]string, 0)
+	for _, userRoleGroup := range userRoleGroups {
+		groupNames = append(groupNames, userRoleGroup.RoleGroup.Name)
+	}
 	if len(groupNames) == 0 {
 		return nil, nil, nil
 	}
