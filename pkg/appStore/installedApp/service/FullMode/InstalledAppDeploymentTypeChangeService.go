@@ -12,6 +12,7 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/constants"
+	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	appStatus2 "github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
@@ -26,6 +27,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/k8s"
+	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -47,6 +49,7 @@ type InstalledAppDeploymentTypeChangeServiceImpl struct {
 	installedAppRepository        repository2.InstalledAppRepository
 	installedAppRepositoryHistory repository2.InstalledAppVersionHistoryRepository
 	appStatusRepository           appStatus2.AppStatusRepository
+	appRepository                 appRepository.AppRepository
 	gitOpsConfigReadService       config.GitOpsConfigReadService
 	environmentRepository         repository5.EnvironmentRepository
 	acdClient                     application2.ServiceClient
@@ -72,7 +75,8 @@ func NewInstalledAppDeploymentTypeChangeServiceImpl(logger *zap.SugaredLogger,
 	eaModeDeploymentService EAMode.EAModeDeploymentService,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
 	chartGroupService chartGroup.ChartGroupService, helmAppService client.HelmAppService,
-	argoUserService argo.ArgoUserService, clusterService cluster.ClusterService) *InstalledAppDeploymentTypeChangeServiceImpl {
+	argoUserService argo.ArgoUserService, clusterService cluster.ClusterService,
+	appRepository appRepository.AppRepository) *InstalledAppDeploymentTypeChangeServiceImpl {
 	return &InstalledAppDeploymentTypeChangeServiceImpl{
 		logger:                        logger,
 		installedAppRepository:        installedAppRepository,
@@ -90,6 +94,7 @@ func NewInstalledAppDeploymentTypeChangeServiceImpl(logger *zap.SugaredLogger,
 		helmAppService:                helmAppService,
 		argoUserService:               argoUserService,
 		clusterService:                clusterService,
+		appRepository:                 appRepository,
 	}
 }
 
@@ -163,14 +168,19 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) MigrateDeploymentType(c
 	response.SuccessfulPipelines = deleteResponse.SuccessfulPipelines
 	response.FailedPipelines = deleteResponse.FailedPipelines
 
-	//instead of failed pipelines, mark successful pipelines
 	var successInstalledAppIds []int
 	for _, item := range response.SuccessfulPipelines {
 		successInstalledAppIds = append(successInstalledAppIds, item.InstalledAppId)
 	}
-	err = impl.installedAppRepository.UpdateDeploymentAppTypeInInstalledApp(request.DesiredDeploymentType, successInstalledAppIds, request.UserId, int(deployStatus))
+
+	var successAppIds []*int
+	for _, item := range response.SuccessfulPipelines {
+		successAppIds = append(successAppIds, &item.AppId)
+	}
+
+	err = impl.performDbOperationsAfterMigrations(request.DesiredDeploymentType, successInstalledAppIds, successAppIds, request.UserId, int(deployStatus))
 	if err != nil {
-		impl.logger.Errorw("failed to update deployment app type for successfully deleted installed apps in db",
+		impl.logger.Errorw("error in performing db operations for successful installed apps after migration",
 			"envId", request.EnvId,
 			"successfully deleted installedApp ids", successInstalledAppIds,
 			"desired deployment type", request.DesiredDeploymentType,
@@ -180,6 +190,34 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) MigrateDeploymentType(c
 	}
 
 	return response, nil
+}
+
+func (impl *InstalledAppDeploymentTypeChangeServiceImpl) performDbOperationsAfterMigrations(desiredDeploymentType bean.DeploymentType,
+	successInstalledAppIds []int, successAppIds []*int, userId int32, deployStatus int) error {
+
+	err := impl.installedAppRepository.UpdateDeploymentAppTypeInInstalledApp(desiredDeploymentType, successInstalledAppIds, userId, deployStatus)
+	if err != nil {
+		impl.logger.Errorw("failed to update deployment app type for successfully deleted installed apps in db",
+			"successfully deleted installedApp ids", successInstalledAppIds,
+			"desired deployment type", desiredDeploymentType,
+			"err", err)
+
+		return err
+	}
+	if desiredDeploymentType == bean.ArgoCd {
+		//this is to handle the case when an external helm app linked to devtron is being
+		//migrated to argo_cd then it's app offering mode should be full mode
+		err = impl.appRepository.UpdateAppOfferingModeForAppIds(successAppIds, util3.SERVER_MODE_FULL, userId)
+		if err != nil {
+			impl.logger.Errorw("error in updating app offering mode for successful migrated appIds",
+				"successAppIds", successAppIds,
+				"desired deployment type", desiredDeploymentType,
+				"err", err)
+
+			return err
+		}
+	}
+	return nil
 }
 
 func (impl *InstalledAppDeploymentTypeChangeServiceImpl) AnnotateCRDsIfExist(ctx context.Context, appName, envName, namespace string, clusterId int) error {
