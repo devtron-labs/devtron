@@ -23,6 +23,7 @@
 - feat: added support for multiple gitops configurations on shared clusters (#4622)
 - feat: added support for downloading pod logs (#4539)
 ## Documentation
+- docs: Added the FAQ for the issue:Git-sensor PVC- disk full  (#4714)
 - doc: Updated PR Validator (#4697)
 - doc: Added Build Infra Doc (#4686)
 - doc: added troubleshooting guide for exit status 128 (#4657)
