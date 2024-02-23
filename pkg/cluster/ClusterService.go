@@ -307,6 +307,16 @@ func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, 
 		}
 		return nil, err
 	}
+	// initiate DB transaction
+	dbConnection := impl.clusterRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		impl.logger.Errorw("error in initiating db tx", "err", err)
+		return nil, err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+
 	existingModel, err := impl.clusterRepository.FindOne(bean.ClusterName)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Error(err)
@@ -318,7 +328,7 @@ func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, 
 	}
 	model := impl.ConvertClusterBeanToCluster(bean, userId)
 	model.K8sVersion = k8sServerVersion.String()
-	err = impl.clusterRepository.Save(model)
+	err = impl.clusterRepository.Save(model, tx)
 	if err != nil {
 		impl.logger.Errorw("error in saving cluster in db", "err", err)
 		err = &util.ApiError{
@@ -328,6 +338,24 @@ func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, 
 		}
 	}
 	bean.Id = model.Id
+
+	// save clusterConnectionConfig
+	err = impl.serverConnectionService.CreateOrUpdateServerConnectionConfig(bean.ClusterConnectionConfig, userId, tx)
+	if err != nil {
+		impl.logger.Errorw("error in saving clusterConnectionConfig in db", "err", err)
+		err = &util.ApiError{
+			Code:            constants.ClusterCreateDBFailed,
+			InternalMessage: "cluster creation failed in db",
+			UserMessage:     fmt.Sprintf("requested by %d", userId),
+		}
+	}
+
+	// now commit transaction
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("error in committing transaction", "err", err)
+		return nil, err
+	}
 
 	//on successful creation of new cluster, update informer cache for namespace group by cluster
 	//here sync for ea mode only
@@ -376,11 +404,30 @@ func (impl *ClusterServiceImpl) SaveVirtualCluster(bean *VirtualClusterBean, use
 	model.UpdatedBy = userId
 	model.CreatedOn = time.Now()
 	model.UpdatedOn = time.Now()
-	err = impl.clusterRepository.Save(model)
+
+	// initiate DB transaction
+	dbConnection := impl.clusterRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		impl.logger.Errorw("error in initiating db tx", "err", err)
+		return nil, err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+
+	err = impl.clusterRepository.Save(model, tx)
 	if err != nil {
 		impl.logger.Errorw("error in saving cluster in db")
 		return nil, err
 	}
+
+	// now commit transaction
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("error in committing transaction", "err", err)
+		return nil, err
+	}
+
 	return bean, err
 }
 
@@ -638,7 +685,17 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 		}
 		model.K8sVersion = k8sServerVersion.String()
 	}
-	err = impl.clusterRepository.Update(model)
+	// initiate DB transaction
+	dbConnection := impl.clusterRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		impl.logger.Errorw("error in initiating db tx", "err", err)
+		return nil, err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+
+	err = impl.clusterRepository.Update(model, tx)
 	if err != nil {
 		err = &util.ApiError{
 			Code:            constants.ClusterUpdateDBFailed,
@@ -648,6 +705,23 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 		return bean, err
 	}
 	bean.Id = model.Id
+
+	err = impl.serverConnectionService.CreateOrUpdateServerConnectionConfig(bean.ClusterConnectionConfig, userId, tx)
+	if err != nil {
+		err = &util.ApiError{
+			Code:            constants.ClusterUpdateDBFailed,
+			InternalMessage: "clusterConnectionConfig update failed in db",
+			UserMessage:     fmt.Sprintf("requested by %d", userId),
+		}
+		return bean, err
+	}
+
+	// now commit transaction
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("error in committing transaction", "err", err)
+		return nil, err
+	}
 
 	//here sync for ea mode only
 	if bean.HasConfigOrUrlChanged && util2.IsBaseStack() {
@@ -703,13 +777,32 @@ func (impl *ClusterServiceImpl) UpdateVirtualCluster(bean *VirtualClusterBean, u
 		return nil, err
 	}
 	model.ClusterName = bean.ClusterName
-	err = impl.clusterRepository.Update(model)
+
+	// initiate DB transaction
+	dbConnection := impl.clusterRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		impl.logger.Errorw("error in initiating db tx", "err", err)
+		return nil, err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+
+	err = impl.clusterRepository.Update(model, tx)
 	model.UpdatedBy = userId
 	model.UpdatedOn = time.Now()
 	if err != nil {
 		impl.logger.Errorw("error in updating cluster", "err", err)
 		return bean, err
 	}
+
+	// now commit transaction
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("error in committing transaction", "err", err)
+		return nil, err
+	}
+
 	return nil, err
 }
 

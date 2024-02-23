@@ -4,13 +4,14 @@ import (
 	"github.com/devtron-labs/devtron/pkg/serverConnection/bean"
 	"github.com/devtron-labs/devtron/pkg/serverConnection/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
 )
 
 type ServerConnectionService interface {
 	// methods
-	CreateOrUpdateServerConnectionConfig(reqBean *bean.ServerConnectionConfigBean, userId int32) error
+	CreateOrUpdateServerConnectionConfig(reqBean *bean.ServerConnectionConfigBean, userId int32, tx *pg.Tx) error
 	GetServerConnectionConfigById(id int) (*bean.ServerConnectionConfigBean, error)
 	ConvertServerConnectionConfigBeanToServerConnectionConfig(configBean *bean.ServerConnectionConfigBean, userId int32) *repository.ServerConnectionConfig
 	GetServerConnectionConfigBean(model *repository.ServerConnectionConfig) *bean.ServerConnectionConfigBean
@@ -82,7 +83,7 @@ func (impl *ServerConnectionServiceImpl) ConvertServerConnectionConfigBeanToServ
 	return &model
 }
 
-func (impl *ServerConnectionServiceImpl) CreateOrUpdateServerConnectionConfig(reqBean *bean.ServerConnectionConfigBean, userId int32) error {
+func (impl *ServerConnectionServiceImpl) CreateOrUpdateServerConnectionConfig(reqBean *bean.ServerConnectionConfigBean, userId int32, tx *pg.Tx) error {
 	existingConfig, err := impl.serverConnectionRepository.GetById(reqBean.ServerConnectionConfigId)
 	if err != nil {
 		impl.logger.Errorw("error occurred while fetching existing server connection config", "err", err, "id", reqBean.ServerConnectionConfigId)
@@ -92,14 +93,14 @@ func (impl *ServerConnectionServiceImpl) CreateOrUpdateServerConnectionConfig(re
 	if existingConfig == nil {
 		config.AuditLog.CreatedOn = time.Now()
 		config.AuditLog.CreatedBy = userId
-		err = impl.serverConnectionRepository.Save(config)
+		err = impl.serverConnectionRepository.Save(config, tx)
 		if err != nil {
 			impl.logger.Errorw("error occurred while saving server connection config", "err", err)
 			return err
 		}
 	} else {
 		config.Id = existingConfig.Id
-		err = impl.serverConnectionRepository.Update(config)
+		err = impl.serverConnectionRepository.Update(config, tx)
 		if err != nil {
 			impl.logger.Errorw("error occurred while updating server connection config", "err", err)
 			return err

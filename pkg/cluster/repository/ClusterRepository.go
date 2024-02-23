@@ -57,7 +57,8 @@ type Cluster struct {
 }
 
 type ClusterRepository interface {
-	Save(model *Cluster) error
+	GetConnection() *pg.DB
+	Save(model *Cluster, tx *pg.Tx) error
 	FindOne(clusterName string) (*Cluster, error)
 	FindOneActive(clusterName string) (*Cluster, error)
 	FindAll() ([]Cluster, error)
@@ -65,7 +66,7 @@ type ClusterRepository interface {
 	FindAllActiveExceptVirtual() ([]Cluster, error)
 	FindById(id int) (*Cluster, error)
 	FindByIds(id []int) ([]Cluster, error)
-	Update(model *Cluster) error
+	Update(model *Cluster, tx *pg.Tx) error
 	SetDescription(id int, description string, userId int32) error
 	Delete(model *Cluster) error
 	MarkClusterDeleted(model *Cluster) error
@@ -88,14 +89,19 @@ type ClusterRepositoryImpl struct {
 	logger       *zap.SugaredLogger
 }
 
-func (impl ClusterRepositoryImpl) Save(model *Cluster) error {
-	return impl.dbConnection.Insert(model)
+func (impl ClusterRepositoryImpl) GetConnection() *pg.DB {
+	return impl.dbConnection
+}
+
+func (impl ClusterRepositoryImpl) Save(model *Cluster, tx *pg.Tx) error {
+	return tx.Insert(model)
 }
 
 func (impl ClusterRepositoryImpl) FindOne(clusterName string) (*Cluster, error) {
 	cluster := &Cluster{}
 	err := impl.dbConnection.
 		Model(cluster).
+		Column("cluster.*", "ClusterConnectionConfig").
 		Where("cluster_name =?", clusterName).
 		Where("active =?", true).
 		Limit(1).
@@ -183,8 +189,8 @@ func (impl ClusterRepositoryImpl) FindByIds(id []int) ([]Cluster, error) {
 	return cluster, err
 }
 
-func (impl ClusterRepositoryImpl) Update(model *Cluster) error {
-	return impl.dbConnection.Update(model)
+func (impl ClusterRepositoryImpl) Update(model *Cluster, tx *pg.Tx) error {
+	return tx.Update(model)
 }
 
 func (impl ClusterRepositoryImpl) SetDescription(id int, description string, userId int32) error {

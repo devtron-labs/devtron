@@ -8,8 +8,8 @@ import (
 )
 
 type ServerConnectionRepository interface {
-	Save(model *ServerConnectionConfig) error
-	Update(model *ServerConnectionConfig) error
+	Save(model *ServerConnectionConfig, tx *pg.Tx) error
+	Update(model *ServerConnectionConfig, tx *pg.Tx) error
 	GetById(id int) (*ServerConnectionConfig, error)
 	MarkServerConnectionConfigDeleted(deleteReq *ServerConnectionConfig, tx *pg.Tx) error
 }
@@ -39,12 +39,12 @@ type ServerConnectionConfig struct {
 	sql.AuditLog
 }
 
-func (repo *ServerConnectionRepositoryImpl) Save(model *ServerConnectionConfig) error {
-	return repo.dbConnection.Insert(model)
+func (repo *ServerConnectionRepositoryImpl) Save(model *ServerConnectionConfig, tx *pg.Tx) error {
+	return tx.Insert(model)
 }
 
-func (repo *ServerConnectionRepositoryImpl) Update(model *ServerConnectionConfig) error {
-	return repo.dbConnection.Update(model)
+func (repo *ServerConnectionRepositoryImpl) Update(model *ServerConnectionConfig, tx *pg.Tx) error {
+	return tx.Update(model)
 }
 
 func (repo *ServerConnectionRepositoryImpl) GetById(id int) (*ServerConnectionConfig, error) {

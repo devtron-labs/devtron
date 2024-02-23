@@ -356,7 +356,7 @@ func (impl DockerRegistryConfigImpl) Create(bean *types.DockerArtifactStoreBean)
 
 	if bean.RegistryConnectionConfig != nil {
 		// 5 - insert air-gapped connection config for this docker registry
-		err = impl.serverConnectionService.CreateOrUpdateServerConnectionConfig(bean.RegistryConnectionConfig, bean.User)
+		err = impl.serverConnectionService.CreateOrUpdateServerConnectionConfig(bean.RegistryConnectionConfig, bean.User, tx)
 		if err != nil {
 			impl.logger.Errorw("error occurred while inserting server connection config in db", "err", err)
 			return nil, err
@@ -655,7 +655,7 @@ func (impl DockerRegistryConfigImpl) Update(bean *types.DockerArtifactStoreBean)
 
 	// 6- update registryConnectionConfig in server_connection_config table for this docker registry
 	if bean.RegistryConnectionConfig != nil {
-		err = impl.serverConnectionService.CreateOrUpdateServerConnectionConfig(bean.RegistryConnectionConfig, bean.User)
+		err = impl.serverConnectionService.CreateOrUpdateServerConnectionConfig(bean.RegistryConnectionConfig, bean.User, tx)
 		if err != nil {
 			impl.logger.Errorw("error occurred while inserting server connection config in db", "err", err)
 			return nil, err
@@ -798,7 +798,7 @@ func (impl DockerRegistryConfigImpl) UpdateInactive(bean *types.DockerArtifactSt
 	// 6- update registryConnectionConfig for this docker registry
 	if bean.RegistryConnectionConfig != nil {
 		registryConnectionConfig := bean.RegistryConnectionConfig
-		err = impl.serverConnectionService.CreateOrUpdateServerConnectionConfig(registryConnectionConfig, bean.User)
+		err = impl.serverConnectionService.CreateOrUpdateServerConnectionConfig(registryConnectionConfig, bean.User, tx)
 		if err != nil {
 			return nil, err
 		}
