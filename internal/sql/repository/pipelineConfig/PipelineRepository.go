@@ -35,7 +35,7 @@ import (
 )
 
 type PipelineType string
-type TriggerType string //HOW pipeline should be triggered
+type TriggerType string // HOW pipeline should be triggered
 
 const TRIGGER_TYPE_AUTOMATIC TriggerType = "AUTOMATIC"
 const TRIGGER_TYPE_MANUAL TriggerType = "MANUAL"
@@ -59,7 +59,7 @@ type Pipeline struct {
 	RunPreStageInEnv              bool        `sql:"run_pre_stage_in_env"`               // secret names
 	RunPostStageInEnv             bool        `sql:"run_post_stage_in_env"`              // secret names
 	DeploymentAppCreated          bool        `sql:"deployment_app_created,notnull"`
-	DeploymentAppType             string      `sql:"deployment_app_type,notnull"` //helm, acd
+	DeploymentAppType             string      `sql:"deployment_app_type,notnull"` // helm, acd
 	DeploymentAppName             string      `sql:"deployment_app_name"`
 	DeploymentAppDeleteRequest    bool        `sql:"deployment_app_delete_request,notnull"`
 	UserApprovalConfig            string      `sql:"user_approval_config"`
@@ -135,6 +135,7 @@ type PipelineRepository interface {
 	GetArgoPipelinesHavingTriggersStuckInLastPossibleNonTerminalTimelines(pendingSinceSeconds int, timeForDegradation int) ([]*Pipeline, error)
 	GetArgoPipelinesHavingLatestTriggerStuckInNonTerminalStatuses(deployedBeforeMinutes int, getPipelineDeployedWithinHours int) ([]*Pipeline, error)
 	FindIdsByAppIdsAndEnvironmentIds(appIds, environmentIds []int) (ids []int, err error)
+	FindByAppIdsAndEnvironmentIds(appIds, environmentIds []int) ([]*Pipeline, error)
 	FindIdsByProjectIdsAndEnvironmentIds(projectIds, environmentIds []int) ([]int, error)
 
 	GetArgoPipelineByArgoAppName(argoAppName string) (Pipeline, error)
@@ -148,10 +149,10 @@ type PipelineRepository interface {
 
 type CiArtifactDTO struct {
 	Id           int    `json:"id"`
-	PipelineId   int    `json:"pipelineId"` //id of the ci pipeline from which this webhook was triggered
+	PipelineId   int    `json:"pipelineId"` // id of the ci pipeline from which this webhook was triggered
 	Image        string `json:"image"`
 	ImageDigest  string `json:"imageDigest"`
-	MaterialInfo string `json:"materialInfo"` //git material metadata json array string
+	MaterialInfo string `json:"materialInfo"` // git material metadata json array string
 	DataSource   string `json:"dataSource"`
 	WorkflowId   *int   `json:"workflowId"`
 }
@@ -648,6 +649,16 @@ func (impl PipelineRepositoryImpl) GetArgoPipelinesHavingLatestTriggerStuckInNon
 		return nil, err
 	}
 	return pipelines, nil
+}
+
+func (impl PipelineRepositoryImpl) FindByAppIdsAndEnvironmentIds(appIds, environmentIds []int) ([]*Pipeline, error) {
+	var pipelines []*Pipeline
+	err := impl.dbConnection.Model(&pipelines).
+		Where("app_id IN (?)", pg.In(appIds)).
+		Where("environment_id IN (?)", pg.In(environmentIds)).
+		Where("deleted = ?", false).
+		Select()
+	return pipelines, err
 }
 
 func (impl PipelineRepositoryImpl) FindIdsByAppIdsAndEnvironmentIds(appIds, environmentIds []int) ([]int, error) {

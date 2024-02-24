@@ -12,7 +12,7 @@ const (
 	AWAITING_APPROVAL
 )
 
-type SourceType = int
+type SourceType int
 
 const (
 	CI SourceType = iota
@@ -30,7 +30,7 @@ const (
 	ACTION_APPROVE                             = "APPROVE"
 )
 
-func GetSourceType(sourceType int) string {
+func (sourceType SourceType) GetSourceType() string {
 	switch sourceType {
 	case CI:
 		return SOURCE_TYPE_CI
@@ -43,14 +43,18 @@ func GetSourceType(sourceType int) string {
 }
 
 type ArtifactPromotionRequest struct {
-	SourceId           int      `json:"sourceId"`
-	SourceType         string   `json:"sourceType"`
-	Action             string   `json:"action"`
-	PromotionRequestId int      `json:"promotionRequestId"`
-	ArtifactId         int      `json:"artifactId"`
-	AppName            string   `json:"appName"`
-	EnvironmentNames   []string `json:"environmentNames"`
-	UserId             int32    `json:"-"`
+	SourceName         string         `json:"sourceName"`
+	SourceType         string         `json:"sourceType"`
+	Action             string         `json:"action"`
+	PromotionRequestId int            `json:"promotionRequestId"`
+	ArtifactId         int            `json:"artifactId"`
+	AppName            string         `json:"appName"`
+	EnvironmentNames   []string       `json:"environmentNames"`
+	UserId             int32          `json:"-"`
+	AppId              int            `json:"-"`
+	EnvNameIdMap       map[string]int `json:"-"`
+	EnvIdNameMap       map[int]string `json:"-"`
+	SourcePipelineId   int            `json:"-"`
 }
 
 type ArtifactPromotionApprovalResponse struct {
@@ -63,3 +67,25 @@ type ArtifactPromotionApprovalResponse struct {
 	PromotedOn      time.Time `json:"promotedOn"`
 	PromotionPolicy string    `json:"promotionPolicy"`
 }
+
+type EnvironmentResponse struct {
+	Name                       string                   `json:"name"` // environment name
+	ApprovalCount              int                      `json:"approvalCount"`
+	PromotionPossible          bool                     `json:"promotionPossible"`
+	PromotionEvaluationMessage string                   `json:"promotionEvaluationMessage""`
+	PromotionEvaluationState   PromotionEvaluationState `json:"promotionEvaluationState"`
+	IsVirtualEnvironment       bool                     `json:"isVirtualEnvironment"`
+}
+
+type PromotionEvaluationState string
+
+const ARTIFACT_ALREADY_PROMOTED = "already promoted"
+const ALREADY_REQUEST_RAISED = "promotion request already raised"
+const ERRORED PromotionEvaluationState = "error occurred"
+const EMPTY PromotionEvaluationState = ""
+const PIPELINE_NOT_FOUND PromotionEvaluationState = "pipeline Not Found"
+const POLICY_NOT_CONFIGURED PromotionEvaluationState = "policy not configured"
+const NO_PERMISSION PromotionEvaluationState = "no permission"
+const PROMOTION_SUCCESSFUL PromotionEvaluationState = "image promoted"
+const SENT_FOR_APPROVAL PromotionEvaluationState = "sent for approval"
+const SOURCE_AND_DESTINATION_PIPELINE_MISMATCH PromotionEvaluationState = "source and destination pipeline order mismatch"

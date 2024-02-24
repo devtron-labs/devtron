@@ -1,21 +1,22 @@
 package artifactPromotion
 
 import (
+	"github.com/devtron-labs/devtron/enterprise/pkg/artifactPromotion/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 )
 
 type ArtifactPromotionApprovalRequest struct {
-	tableName               struct{} `sql:"artifact_promotion_approval_request" pg:",discard_unknown_columns"`
-	Id                      int      `sql:"id"`
-	PolicyId                int      `sql:"policy_id"`
-	PolicyEvaluationAuditId int      `sql:"policy_evaluation_audit_id"`
-	ArtifactId              int      `sql:"artifact_id"`
-	SourceType              int      `sql:"source_type"`
-	SourcePipelineId        int      `sql:"source_pipeline_id"`
-	DestinationPipelineId   int      `sql:"destination_pipeline_id"`
-	Status                  int      `sql:"status"`
-	Active                  bool     `sql:"active"`
+	tableName               struct{}        `sql:"artifact_promotion_approval_request" pg:",discard_unknown_columns"`
+	Id                      int             `sql:"id"`
+	PolicyId                int             `sql:"policy_id"`
+	PolicyEvaluationAuditId int             `sql:"policy_evaluation_audit_id"`
+	ArtifactId              int             `sql:"artifact_id"`
+	SourceType              bean.SourceType `sql:"source_type"`
+	SourcePipelineId        int             `sql:"source_pipeline_id"`
+	DestinationPipelineId   int             `sql:"destination_pipeline_id"`
+	Status                  int             `sql:"status"`
+	Active                  bool            `sql:"active"`
 	sql.AuditLog
 }
 
@@ -34,6 +35,8 @@ type ArtifactPromotionApprovalRequestRepository interface {
 	Update(PromotionRequest *ArtifactPromotionApprovalRequest) (*ArtifactPromotionApprovalRequest, error)
 	FindById(id int) (*ArtifactPromotionApprovalRequest, error)
 	FindPendingByDestinationPipelineId(destinationPipelineId int) ([]*ArtifactPromotionApprovalRequest, error)
+	FindAwaitedRequestByPipelineIdAndArtifactId(pipelineId, artifactId int) ([]*ArtifactPromotionApprovalRequest, error)
+	FindPromotedRequestByPipelineIdAndArtifactId(pipelineId, artifactId int) (*ArtifactPromotionApprovalRequest, error)
 }
 
 func (repo *ArtifactPromotionApprovalRequestRepoImpl) Create(PromotionRequest *ArtifactPromotionApprovalRequest) (*ArtifactPromotionApprovalRequest, error) {
@@ -62,8 +65,30 @@ func (repo *ArtifactPromotionApprovalRequestRepoImpl) FindPendingByDestinationPi
 	models := make([]*ArtifactPromotionApprovalRequest, 0)
 	err := repo.dbConnection.Model(&models).
 		Where("destination_pipeline_id = ? ", destinationPipelineId).
-		Where("promoted = ? ", false).
+		Where("status = ? ", bean.PROMOTED).
 		Where("active = ?", true).
 		Select()
 	return models, err
+}
+
+func (repo *ArtifactPromotionApprovalRequestRepoImpl) FindAwaitedRequestByPipelineIdAndArtifactId(pipelineId, artifactId int) ([]*ArtifactPromotionApprovalRequest, error) {
+	models := make([]*ArtifactPromotionApprovalRequest, 0)
+	err := repo.dbConnection.Model(&models).
+		Where("destination_pipeline_id = ? ", pipelineId).
+		Where("status = ? ", bean.AWAITING_APPROVAL).
+		Where("active = ?", true).
+		Where("artifact_id = ?", artifactId).
+		Select()
+	return models, err
+}
+
+func (repo *ArtifactPromotionApprovalRequestRepoImpl) FindPromotedRequestByPipelineIdAndArtifactId(pipelineId, artifactId int) (*ArtifactPromotionApprovalRequest, error) {
+	model := &ArtifactPromotionApprovalRequest{}
+	err := repo.dbConnection.Model(model).
+		Where("destination_pipeline_id = ? ", pipelineId).
+		Where("status = ? ", bean.PROMOTED).
+		Where("active = ?", true).
+		Where("artifact_id = ?", artifactId).
+		Select()
+	return model, err
 }
