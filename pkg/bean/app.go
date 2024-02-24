@@ -41,6 +41,9 @@ const (
 	LayoutDDMMYY_HHMM12hr = "2 January,2006 15.04PM"
 )
 
+// TODO: update variables
+var ReservedCIEnvVariables = map[string]string{}
+
 type SourceTypeConfig struct {
 	Type  pipelineConfig.SourceType `json:"type,omitempty" validate:"oneof=SOURCE_TYPE_BRANCH_FIXED SOURCE_TYPE_BRANCH_REGEX SOURCE_TYPE_TAG_ANY WEBHOOK"`
 	Value string                    `json:"value,omitempty" `
@@ -342,6 +345,12 @@ type CiTriggerRequest struct {
 	EnvironmentId       int                  `json:"environmentId"`
 	PipelineType        string               `json:"pipelineType"`
 	CiArtifactLastFetch time.Time            `json:"ciArtifactLastFetch"`
+	RuntimeParams       *RuntimeParameters   `json:"runtimeParams"`
+}
+
+// RuntimeParameters holds values that needed to be injected/used in ci build process. Currently, only present in enteprise version.
+type RuntimeParameters struct {
+	EnvVariables map[string]string `json:"envVariables"`
 }
 
 type CiTrigger struct {

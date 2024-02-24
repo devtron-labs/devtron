@@ -1256,13 +1256,11 @@ func (impl *CiHandlerImpl) buildManualTriggerCommitHashes(ciTriggerRequest bean.
 	commitHashes := map[int]pipelineConfig.GitCommit{}
 	extraEnvironmentVariables := make(map[string]string)
 	for _, ciPipelineMaterial := range ciTriggerRequest.CiPipelineMaterial {
-
 		pipeLineMaterialFromDb, err := impl.ciPipelineMaterialRepository.GetById(ciPipelineMaterial.Id)
 		if err != nil {
 			impl.Logger.Errorw("err in fetching pipeline material by id", "err", err)
 			return map[int]pipelineConfig.GitCommit{}, nil, err
 		}
-
 		pipelineType := pipeLineMaterialFromDb.Type
 		if pipelineType == pipelineConfig.SOURCE_TYPE_BRANCH_FIXED {
 			gitCommit, err := impl.BuildManualTriggerCommitHashesForSourceTypeBranchFix(ciPipelineMaterial, pipeLineMaterialFromDb)
@@ -1281,7 +1279,16 @@ func (impl *CiHandlerImpl) buildManualTriggerCommitHashes(ciTriggerRequest bean.
 			commitHashes[ciPipelineMaterial.Id] = gitCommit
 			extraEnvironmentVariables = extraEnvVariables
 		}
-
+	}
+	if ciTriggerRequest.RuntimeParams != nil {
+		runTimeEnvVars := ciTriggerRequest.RuntimeParams.EnvVariables
+		if extraEnvironmentVariables == nil {
+			extraEnvironmentVariables = make(map[string]string, len(runTimeEnvVars))
+		}
+		//updating runtime env variables present in request. FYI, if any key of these vars is present already it's value will be overridden
+		for key, value := range runTimeEnvVars {
+			extraEnvironmentVariables[key] = value
+		}
 	}
 	return commitHashes, extraEnvironmentVariables, nil
 }
