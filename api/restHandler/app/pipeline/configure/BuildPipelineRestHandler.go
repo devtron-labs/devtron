@@ -735,6 +735,12 @@ func (handler PipelineConfigRestHandlerImpl) GetCIRuntimeParams(w http.ResponseW
 		return
 	}
 
+	runtimeParams, err := handler.pipelineBuilder.GetCIRuntimeParams(ciPipelineId)
+	if err != nil {
+		handler.Logger.Errorw("error in getting ci runtime params", "err", err, "ciPipelineId", ciPipelineId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+	}
+	common.WriteJsonResp(w, nil, runtimeParams, http.StatusOK)
 }
 
 func (handler PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWriter, r *http.Request) {
