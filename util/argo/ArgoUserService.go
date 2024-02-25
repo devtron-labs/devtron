@@ -42,6 +42,7 @@ type ArgoUserService interface {
 	GetOrUpdateArgoCdUserDetail() string
 
 	BuildACDContext() (acdContext context.Context, err error)
+	SetAcdTokenInContext(ctx context.Context) (context.Context, error)
 }
 
 type ArgoUserServiceImpl struct {
@@ -83,6 +84,16 @@ func (impl *ArgoUserServiceImpl) BuildACDContext() (acdContext context.Context, 
 		return nil, err
 	}
 	ctx := context.Background()
+	ctx = context.WithValue(ctx, "token", acdToken)
+	return ctx, nil
+}
+
+func (impl *ArgoUserServiceImpl) SetAcdTokenInContext(ctx context.Context) (context.Context, error) {
+	acdToken, err := impl.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		impl.logger.Errorw("error in getting acd token", "err", err)
+		return nil, err
+	}
 	ctx = context.WithValue(ctx, "token", acdToken)
 	return ctx, nil
 }
