@@ -112,4 +112,9 @@ func (router AppStoreRouterImpl) Init(configRouter *mux.Router) {
 
 	configRouter.Path("/helm/manifest/download/{installedAppId}/{envId}/{installedAppVersionHistoryId}").
 		HandlerFunc(router.deployRestHandler.GetChartForParticularTrigger).Methods("GET")
+
+	configRouter.Path("/installed-app/migrate").
+		HandlerFunc(router.deployRestHandler.MigrateDeploymentTypeForChartStore).Methods("POST")
+	configRouter.Path("/installed-app/trigger").
+		HandlerFunc(router.deployRestHandler.TriggerChartStoreAppAfterMigration).Methods("POST")
 }
