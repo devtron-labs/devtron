@@ -216,14 +216,14 @@ func (handler PromotionApprovalRestHandlerImpl) GetByPromotionRequestId(w http.R
 		return
 	}
 
-	_, err = handler.promotionApprovalRequestService.GetByPromotionRequestId(artifactPromotionDao)
+	resp, err := handler.promotionApprovalRequestService.GetByPromotionRequestId(artifactPromotionDao)
 	if err != nil {
 		handler.logger.Errorw("error in getting data for promotion request id", "promotionRequestId", promotionRequestId, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
-	common.WriteJsonResp(w, nil, nil, http.StatusOK)
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
 
 func (handler PromotionApprovalRestHandlerImpl) getAppAndEnvObjectByCdPipelineId(cdPipelineId int) (string, string) {

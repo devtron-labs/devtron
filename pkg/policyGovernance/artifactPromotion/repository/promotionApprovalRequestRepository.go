@@ -4,29 +4,32 @@ import (
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
+	"time"
 )
 
 type ArtifactPromotionApprovalRequest struct {
-	tableName               struct{}        `sql:"artifact_promotion_approval_request" pg:",discard_unknown_columns"`
-	Id                      int             `sql:"id"`
-	PolicyId                int             `sql:"policy_id"`
-	PolicyEvaluationAuditId int             `sql:"policy_evaluation_audit_id"`
-	ArtifactId              int             `sql:"artifact_id"`
-	SourceType              bean.SourceType `sql:"source_type"`
-	SourcePipelineId        int             `sql:"source_pipeline_id"`
-	DestinationPipelineId   int             `sql:"destination_pipeline_id"`
-	Status                  int             `sql:"status"`
-	Active                  bool            `sql:"active"`
+	tableName               struct{}                            `sql:"artifact_promotion_approval_request" pg:",discard_unknown_columns"`
+	Id                      int                                 `sql:"id"`
+	PolicyId                int                                 `sql:"policy_id"`
+	PolicyEvaluationAuditId int                                 `sql:"policy_evaluation_audit_id"`
+	ArtifactId              int                                 `sql:"artifact_id"`
+	SourceType              bean.SourceType                     `sql:"source_type"`
+	SourcePipelineId        int                                 `sql:"source_pipeline_id"`
+	DestinationPipelineId   int                                 `sql:"destination_pipeline_id"`
+	Status                  bean.ArtifactPromotionRequestStatus `sql:"status"`
+	Active                  bool                                `sql:"active"`
 	sql.AuditLog
 }
 
 type ArtifactPromotionApprovalRequestRepoImpl struct {
 	dbConnection *pg.DB
+	*sql.TransactionUtilImpl
 }
 
 func NewArtifactPromotionApprovalRequestImpl(dbConnection *pg.DB) *ArtifactPromotionApprovalRequestRepoImpl {
 	return &ArtifactPromotionApprovalRequestRepoImpl{
-		dbConnection: dbConnection,
+		dbConnection:        dbConnection,
+		TransactionUtilImpl: sql.NewTransactionUtilImpl(dbConnection),
 	}
 }
 
@@ -34,10 +37,14 @@ type ArtifactPromotionApprovalRequestRepository interface {
 	Create(PromotionRequest *ArtifactPromotionApprovalRequest) (*ArtifactPromotionApprovalRequest, error)
 	Update(PromotionRequest *ArtifactPromotionApprovalRequest) (*ArtifactPromotionApprovalRequest, error)
 	FindById(id int) (*ArtifactPromotionApprovalRequest, error)
+	FindByDestinationPipelineIds(destinationPipelineId []int) ([]*ArtifactPromotionApprovalRequest, error)
 	FindPendingByDestinationPipelineId(destinationPipelineId int) ([]*ArtifactPromotionApprovalRequest, error)
 	FindAwaitedRequestByPipelineIdAndArtifactId(pipelineId, artifactId int) ([]*ArtifactPromotionApprovalRequest, error)
 	FindPromotedRequestByPipelineIdAndArtifactId(pipelineId, artifactId int) (*ArtifactPromotionApprovalRequest, error)
 	FindAwaitedRequestsByArtifactId(artifactId int) ([]*ArtifactPromotionApprovalRequest, error)
+	MarkStale(requestIds []int) error
+	MarkPromoted(tx *pg.Tx, requestIds []int) error
+	sql.TransactionWrapper
 }
 
 func (repo *ArtifactPromotionApprovalRequestRepoImpl) Create(PromotionRequest *ArtifactPromotionApprovalRequest) (*ArtifactPromotionApprovalRequest, error) {
@@ -66,6 +73,16 @@ func (repo *ArtifactPromotionApprovalRequestRepoImpl) FindPendingByDestinationPi
 	models := make([]*ArtifactPromotionApprovalRequest, 0)
 	err := repo.dbConnection.Model(&models).
 		Where("destination_pipeline_id = ? ", destinationPipelineId).
+		Where("status = ? ", bean.PROMOTED).
+		Where("active = ?", true).
+		Select()
+	return models, err
+}
+
+func (repo *ArtifactPromotionApprovalRequestRepoImpl) FindByDestinationPipelineIds(destinationPipelineIds []int) ([]*ArtifactPromotionApprovalRequest, error) {
+	models := make([]*ArtifactPromotionApprovalRequest, 0)
+	err := repo.dbConnection.Model(&models).
+		Where("destination_pipeline_id IN (?) ", pg.In(destinationPipelineIds)).
 		Where("status = ? ", bean.PROMOTED).
 		Where("active = ?", true).
 		Select()
@@ -102,4 +119,25 @@ func (repo *ArtifactPromotionApprovalRequestRepoImpl) FindAwaitedRequestsByArtif
 		Where("artifact_id = ?", artifactId).
 		Select()
 	return models, err
+}
+
+func (repo *ArtifactPromotionApprovalRequestRepoImpl) MarkStale(requestIds []int) error {
+	_, err := repo.dbConnection.Model(&ArtifactPromotionApprovalRequest{}).
+		Set("status = ?", bean.STALE).
+		Set("updated_on = ?", time.Now()).
+		Set("active=?", false).
+		Where("id IN (?)", pg.In(requestIds)).
+		Update()
+	return err
+}
+
+func (repo *ArtifactPromotionApprovalRequestRepoImpl) MarkPromoted(tx *pg.Tx, requestIds []int) error {
+	_, err := tx.Model(&ArtifactPromotionApprovalRequest{}).
+		Set("status = ?", bean.PROMOTED).
+		Set("updated_on = ?", time.Now()).
+		Set("active=?", false).
+		Where("id IN (?)", pg.In(requestIds)).
+		Where("active = ?", true).
+		Update()
+	return err
 }

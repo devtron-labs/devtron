@@ -27,7 +27,7 @@ type ArtifactApprovalActionServiceImpl struct {
 	eventFactory                    client2.EventFactory
 	appArtifactManager              pipeline.AppArtifactManager
 	deploymentApprovalRepository    pipelineConfig.DeploymentApprovalRepository
-	requestApprovalRepository       pipelineConfig.RequestApprovalRepository
+	requestApprovalRepository       pipelineConfig.RequestApprovalUserdataRepository
 	ciArtifactRepository            repository.CiArtifactRepository
 	pipelineRepository              pipelineConfig.PipelineRepository
 }
@@ -37,7 +37,7 @@ func NewArtifactApprovalActionServiceImpl(logger *zap.SugaredLogger,
 	cdTriggerService devtronApps.TriggerService, eventClient client2.EventClient,
 	eventFactory client2.EventFactory, appArtifactManager pipeline.AppArtifactManager,
 	deploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository,
-	requestApprovalRepository pipelineConfig.RequestApprovalRepository,
+	requestApprovalRepository pipelineConfig.RequestApprovalUserdataRepository,
 	ciArtifactRepository repository.CiArtifactRepository,
 	pipelineRepository pipelineConfig.PipelineRepository) *ArtifactApprovalActionServiceImpl {
 	return &ArtifactApprovalActionServiceImpl{

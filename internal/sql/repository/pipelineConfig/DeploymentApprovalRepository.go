@@ -26,10 +26,10 @@ type DeploymentApprovalRepository interface {
 type DeploymentApprovalRepositoryImpl struct {
 	dbConnection               *pg.DB
 	logger                     *zap.SugaredLogger
-	resourceApprovalRepository RequestApprovalRepository
+	resourceApprovalRepository RequestApprovalUserdataRepository
 }
 
-func NewDeploymentApprovalRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger, resourceApprovalRepository RequestApprovalRepository) *DeploymentApprovalRepositoryImpl {
+func NewDeploymentApprovalRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger, resourceApprovalRepository RequestApprovalUserdataRepository) *DeploymentApprovalRepositoryImpl {
 	return &DeploymentApprovalRepositoryImpl{dbConnection: dbConnection, logger: logger, resourceApprovalRepository: resourceApprovalRepository}
 }
 
