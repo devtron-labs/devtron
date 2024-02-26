@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders"
-	"net/http"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -50,6 +49,7 @@ import (
 	repository4 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
+	"net/http"
 
 	"github.com/devtron-labs/common-lib/blob-storage"
 	client "github.com/devtron-labs/devtron/client/events"

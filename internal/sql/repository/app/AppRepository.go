@@ -85,6 +85,8 @@ type AppRepository interface {
 	FetchAppIdsByDisplayNamesForJobs(names []string) (map[int]string, []int, error)
 	GetActiveCiCdAppsCount(excludeAppIds []int) (int, error)
 	FindAppsWithFilter(appNameLike, sortOrder string, limit, offset int, excludeAppIds []int) ([]AppWithExtraQueryFields, error)
+
+	UpdateAppOfferingModeForAppIds(successAppIds []*int, appOfferingMode string, userId int32) error
 }
 
 const DevtronApp = "DevtronApp"
@@ -532,4 +534,11 @@ func (repo AppRepositoryImpl) FindAppsWithFilter(appNameLike, sortOrder string, 
 	apps := make([]AppWithExtraQueryFields, 0)
 	_, err := repo.dbConnection.Query(&apps, query)
 	return apps, err
+}
+
+func (repo AppRepositoryImpl) UpdateAppOfferingModeForAppIds(successAppIds []*int, appOfferingMode string, userId int32) error {
+	query := "update app set app_offering_mode = ?,updated_by = ?, updated_on = ? where id in (?);"
+	var app *App
+	_, err := repo.dbConnection.Query(app, query, appOfferingMode, userId, time.Now(), pg.In(successAppIds))
+	return err
 }
