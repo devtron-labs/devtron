@@ -121,6 +121,10 @@ func (impl *CELServiceImpl) ValidateCELRequest(request ValidateRequestResponse) 
 			ParamName: "imageLabels",
 			Type:      ParamTypeList,
 		},
+		{
+			ParamName: "commitDetailsMap",
+			Type:      ParamTypeCommitDetailsMap,
+		},
 	}
 
 	for i, e := range request.Conditions {
@@ -149,6 +153,8 @@ func getDeclarationType(paramType ParamValuesType) (*expr.Type, error) {
 		return decls.Int, nil
 	case ParamTypeList:
 		return decls.NewListType(decls.String), nil
+	case ParamTypeCommitDetailsMap:
+		return decls.NewMapType(decls.String, decls.Dyn), nil
 	default:
 		return nil, fmt.Errorf("unsupported parameter type: %s", paramType)
 	}

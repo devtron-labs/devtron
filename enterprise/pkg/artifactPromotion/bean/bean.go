@@ -1,6 +1,7 @@
 package bean
 
 import (
+	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"time"
 )
 
@@ -71,22 +72,35 @@ type ArtifactPromotionApprovalResponse struct {
 
 type EnvironmentResponse struct {
 	Name                       string                   `json:"name"` // environment name
-	ApprovalCount              int                      `json:"approvalCount"`
+	ApprovalCount              int                      `json:"approvalCount,omitempty"`
 	PromotionPossible          bool                     `json:"promotionPossible"`
-	PromotionEvaluationMessage string                   `json:"promotionEvaluationMessage""`
-	PromotionEvaluationState   PromotionEvaluationState `json:"promotionEvaluationState"`
-	IsVirtualEnvironment       bool                     `json:"isVirtualEnvironment"`
+	PromotionValidationMessage string                   `json:"promotionEvaluationMessage"`
+	PromotionValidationState   PromotionValidationState `json:"promotionEvaluationState"`
+	IsVirtualEnvironment       bool                     `json:"isVirtualEnvironment,omitempty"`
 }
 
-type PromotionEvaluationState string
+type PromotionPolicy struct {
+	Conditions       []resourceFilter.ResourceCondition `json:"conditions"`
+	ApprovalMetaData ApprovalMetaData                   `json:"approvalMetadata"`
+}
 
-const ARTIFACT_ALREADY_PROMOTED = "already promoted"
-const ALREADY_REQUEST_RAISED = "promotion request already raised"
-const ERRORED PromotionEvaluationState = "error occurred"
-const EMPTY PromotionEvaluationState = ""
-const PIPELINE_NOT_FOUND PromotionEvaluationState = "pipeline Not Found"
-const POLICY_NOT_CONFIGURED PromotionEvaluationState = "policy not configured"
-const NO_PERMISSION PromotionEvaluationState = "no permission"
-const PROMOTION_SUCCESSFUL PromotionEvaluationState = "image promoted"
-const SENT_FOR_APPROVAL PromotionEvaluationState = "sent for approval"
-const SOURCE_AND_DESTINATION_PIPELINE_MISMATCH PromotionEvaluationState = "source and destination pipeline order mismatch"
+type ApprovalMetaData struct {
+	ApprovalCount                int    `json:"approverCount"`
+	AllowImageBuilderFromApprove string `json:"allowImageBuilderFromApprove"`
+	AllowRequesterFromApprove    string `json:"allowRequesterFromApprove"`
+	AllowApproverFromDeploy      string `json:"allowApproverFromDeploy"`
+}
+type PromotionValidationState string
+
+const ARTIFACT_ALREADY_PROMOTED PromotionValidationState = "already promoted"
+const ALREADY_REQUEST_RAISED PromotionValidationState = "promotion request already raised"
+const ERRORED PromotionValidationState = "error occurred"
+const EMPTY PromotionValidationState = ""
+const PIPELINE_NOT_FOUND PromotionValidationState = "pipeline Not Found"
+const POLICY_NOT_CONFIGURED PromotionValidationState = "policy not configured"
+const NO_PERMISSION PromotionValidationState = "no permission"
+const PROMOTION_SUCCESSFUL PromotionValidationState = "image promoted"
+const SENT_FOR_APPROVAL PromotionValidationState = "sent for approval"
+const SOURCE_AND_DESTINATION_PIPELINE_MISMATCH PromotionValidationState = "source and destination pipeline order mismatch"
+const POLICY_EVALUATION_ERRORED PromotionValidationState = "server unable to evaluate the policy"
+const BLOCKED_BY_POLICY PromotionValidationState = "blocked by the policy "

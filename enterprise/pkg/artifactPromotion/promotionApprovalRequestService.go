@@ -1,14 +1,18 @@
 package artifactPromotion
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/enterprise/pkg/artifactPromotion/bean"
+	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
+	repository1 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"net/http"
@@ -16,8 +20,9 @@ import (
 )
 
 type ArtifactPromotionApprovalService interface {
-	HandleArtifactPromotionRequest(request *bean.ArtifactPromotionRequest, authorizedEnvironments map[string]bool) (*bean.ArtifactPromotionRequest, error)
+	HandleArtifactPromotionRequest(request *bean.ArtifactPromotionRequest, authorizedEnvironments map[string]bool) ([]bean.EnvironmentResponse, error)
 	GetByPromotionRequestId(artifactPromotionApprovalRequest *ArtifactPromotionApprovalRequest) (*bean.ArtifactPromotionApprovalResponse, error)
+	FetchEnvironmentsList(workflowId, artifactId int) ([]bean.EnvironmentResponse, error)
 }
 
 type ArtifactPromotionApprovalServiceImpl struct {
@@ -29,6 +34,8 @@ type ArtifactPromotionApprovalServiceImpl struct {
 	ciArtifactRepository                       repository.CiArtifactRepository
 	appWorkflowRepository                      appWorkflow.AppWorkflowRepository
 	cdWorkflowRepository                       pipelineConfig.CdWorkflowRepository
+	resourceFilterConditionsEvaluator          resourceFilter.ResourceFilterEvaluator
+	imageTaggingService                        pipeline.ImageTaggingService
 }
 
 func NewArtifactPromotionApprovalServiceImpl(
@@ -40,37 +47,201 @@ func NewArtifactPromotionApprovalServiceImpl(
 	ciArtifactRepository repository.CiArtifactRepository,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
+	resourceFilterConditionsEvaluator resourceFilter.ResourceFilterEvaluator,
+	imageTaggingService pipeline.ImageTaggingService,
 ) *ArtifactPromotionApprovalServiceImpl {
 	return &ArtifactPromotionApprovalServiceImpl{
 		artifactPromotionApprovalRequestRepository: ArtifactPromotionApprovalRequestRepository,
-		logger:                logger,
-		ciPipelineRepository:  CiPipelineRepository,
-		pipelineRepository:    pipelineRepository,
-		userService:           userService,
-		ciArtifactRepository:  ciArtifactRepository,
-		appWorkflowRepository: appWorkflowRepository,
-		cdWorkflowRepository:  cdWorkflowRepository,
+		logger:                            logger,
+		ciPipelineRepository:              CiPipelineRepository,
+		pipelineRepository:                pipelineRepository,
+		userService:                       userService,
+		ciArtifactRepository:              ciArtifactRepository,
+		appWorkflowRepository:             appWorkflowRepository,
+		cdWorkflowRepository:              cdWorkflowRepository,
+		resourceFilterConditionsEvaluator: resourceFilterConditionsEvaluator,
+		imageTaggingService:               imageTaggingService,
 	}
 }
 
-func (impl ArtifactPromotionApprovalServiceImpl) HandleArtifactPromotionRequest(request *bean.ArtifactPromotionRequest, authorizedEnvironments map[string]bool) (*bean.ArtifactPromotionRequest, error) {
+func (impl ArtifactPromotionApprovalServiceImpl) FetchEnvironmentsList(workflowId, artifactId int) ([]bean.EnvironmentResponse, error) {
+	allAppWorkflowMappings, err := impl.appWorkflowRepository.FindWFAllMappingByWorkflowId(workflowId)
+	if err != nil {
+		impl.logger.Errorw("error in finding the app workflow mappings using appWorkflowId", "workflowId", workflowId, "err", err)
+		return nil, err
+	}
+
+	pipelineIds := make([]int, 0, len(allAppWorkflowMappings))
+	for _, mapping := range allAppWorkflowMappings {
+		if mapping.Type == appWorkflow.CDPIPELINE {
+			pipelineIds = append(pipelineIds, mapping.ComponentId)
+		}
+	}
+
+	pipelines, err := impl.pipelineRepository.FindByIdsIn(pipelineIds)
+	if err != nil {
+		return nil, err
+	}
+	envMap := make(map[string]repository1.Environment)
+	for _, pipeline := range pipelines {
+		envMap[pipeline.Name] = pipeline.Environment
+	}
+
+	// todo: fetch the policies by appId and envIds.
+	policiesMap := make(map[string]bean.PromotionPolicy)
+	if artifactId != 0 {
+		ciArtifact, err := impl.ciArtifactRepository.Get(artifactId)
+		if err != nil {
+			impl.logger.Errorw("error in finding the artifact using id", "artifactId", artifactId, "err", err)
+			errorResp := &util.ApiError{
+				HttpStatusCode:  http.StatusInternalServerError,
+				InternalMessage: fmt.Sprintf("error in finding artifact , err : %s", err.Error()),
+				UserMessage:     "error in finding artifact",
+			}
+			if errors.Is(err, pg.ErrNoRows) {
+				errorResp.UserMessage = "artifact not found"
+				errorResp.HttpStatusCode = http.StatusConflict
+			}
+
+			return nil, errorResp
+		}
+		return impl.evaluatePoliciesOnArtifact(ciArtifact, envMap, policiesMap)
+	}
+
+	responseMap := make(map[string]bean.EnvironmentResponse)
+	for envName, _ := range envMap {
+		responseMap[envName] = bean.EnvironmentResponse{
+			Name:                       envName,
+			PromotionPossible:          false,
+			PromotionValidationMessage: string(bean.POLICY_NOT_CONFIGURED),
+			PromotionValidationState:   bean.POLICY_NOT_CONFIGURED,
+			IsVirtualEnvironment:       envMap[envName].IsVirtualEnvironment,
+		}
+	}
+	for envName, policy := range policiesMap {
+		responseMap[envName] = bean.EnvironmentResponse{
+			Name:                       envName,
+			ApprovalCount:              policy.ApprovalMetaData.ApprovalCount,
+			IsVirtualEnvironment:       envMap[envName].IsVirtualEnvironment,
+			PromotionValidationMessage: "",
+			PromotionValidationState:   bean.EMPTY,
+		}
+	}
+
+	result := make([]bean.EnvironmentResponse, 0, len(responseMap))
+	for _, envResponse := range responseMap {
+		result = append(result, envResponse)
+	}
+
+	return result, nil
+
+}
+
+func (impl ArtifactPromotionApprovalServiceImpl) computeFilterParams(ciArtifact *repository.CiArtifact) ([]resourceFilter.ExpressionParam, error) {
+	var ciMaterials []repository.CiMaterialInfo
+	err := json.Unmarshal([]byte(ciArtifact.MaterialInfo), &ciMaterials)
+	if err != nil {
+		impl.logger.Errorw("error in parsing ci artifact material info")
+		return nil, err
+	}
+
+	commitDetailsList := make([]resourceFilter.CommitDetails, 0, len(ciMaterials))
+	for _, ciMaterial := range ciMaterials {
+		repoUrl := ciMaterial.Material.ScmConfiguration.URL
+		commitMessage := ""
+		branch := ""
+		if ciMaterial.Material.Type == "git" {
+			repoUrl = ciMaterial.Material.GitConfiguration.URL
+		}
+		if ciMaterial.Modifications != nil && len(ciMaterial.Modifications) > 0 {
+			modification := ciMaterial.Modifications[0]
+			commitMessage = modification.Message
+			branch = modification.Branch
+		}
+		commitDetailsList = append(commitDetailsList, resourceFilter.CommitDetails{
+			Repo:          repoUrl,
+			CommitMessage: commitMessage,
+			Branch:        branch,
+		})
+	}
+
+	imageTags, err := impl.imageTaggingService.GetTagsByArtifactId(ciArtifact.Id)
+	if err != nil {
+		impl.logger.Errorw("error in fetching the image tags using artifact id", "artifactId", ciArtifact.Id, "err", err)
+		return nil, err
+	}
+
+	releaseTags := make([]string, 0, len(imageTags))
+	for _, imageTag := range imageTags {
+		releaseTags = append(releaseTags, imageTag.TagName)
+	}
+	params := resourceFilter.GetParamsFromArtifact(ciArtifact.Image, releaseTags, commitDetailsList...)
+	return params, nil
+}
+
+func (impl ArtifactPromotionApprovalServiceImpl) evaluatePoliciesOnArtifact(ciArtifact *repository.CiArtifact, envMap map[string]repository1.Environment, policiesMap map[string]bean.PromotionPolicy) ([]bean.EnvironmentResponse, error) {
+	params, err := impl.computeFilterParams(ciArtifact)
+	if err != nil {
+		impl.logger.Errorw("error in finding the required CEL expression parameters for using ciArtifact", "err", err)
+		return nil, err
+	}
+	responseMap := make(map[string]bean.EnvironmentResponse)
+	for envName, _ := range envMap {
+		responseMap[envName] = bean.EnvironmentResponse{
+			Name:                       envName,
+			PromotionPossible:          false,
+			PromotionValidationMessage: string(bean.POLICY_NOT_CONFIGURED),
+			PromotionValidationState:   bean.POLICY_NOT_CONFIGURED,
+			IsVirtualEnvironment:       envMap[envName].IsVirtualEnvironment,
+		}
+	}
+
+	for envName, policy := range policiesMap {
+		evaluationResult, err := impl.resourceFilterConditionsEvaluator.EvaluateFilter(policy.Conditions, resourceFilter.ExpressionMetadata{Params: params})
+		if err != nil {
+			impl.logger.Errorw("evaluation failed with error", "policyConditions", policy.Conditions, "envName", envName, policy.Conditions, "params", params, "err", err)
+			responseMap[envName] = bean.EnvironmentResponse{
+				ApprovalCount:            policy.ApprovalMetaData.ApprovalCount,
+				PromotionPossible:        false,
+				PromotionValidationState: bean.POLICY_EVALUATION_ERRORED,
+			}
+			continue
+		}
+		envResp := bean.EnvironmentResponse{
+			ApprovalCount:     policy.ApprovalMetaData.ApprovalCount,
+			PromotionPossible: evaluationResult,
+		}
+		if !evaluationResult {
+			envResp.PromotionValidationMessage = string(bean.BLOCKED_BY_POLICY)
+			envResp.PromotionValidationState = bean.BLOCKED_BY_POLICY
+		}
+		responseMap[envName] = envResp
+	}
+	result := make([]bean.EnvironmentResponse, 0, len(responseMap))
+	for _, envResponse := range responseMap {
+		result = append(result, envResponse)
+	}
+	return result, nil
+}
+
+func (impl ArtifactPromotionApprovalServiceImpl) HandleArtifactPromotionRequest(request *bean.ArtifactPromotionRequest, authorizedEnvironments map[string]bool) ([]bean.EnvironmentResponse, error) {
 	switch request.Action {
 
 	case bean.ACTION_PROMOTE:
-
+		return impl.promoteArtifact(request)
 	case bean.ACTION_APPROVE:
-
+		// todo
 	case bean.ACTION_CANCEL:
 
-		artifactPromotionRequest, err := impl.cancelPromotionApprovalRequest(request)
+		_, err := impl.cancelPromotionApprovalRequest(request)
 		if err != nil {
 			impl.logger.Errorw("error in canceling artifact promotion approval request", "promotionRequestId", request.PromotionRequestId, "err", err)
 			return nil, err
 		}
-		return artifactPromotionRequest, nil
+		return nil, nil
 
 	}
-	return nil, nil
+	return nil, errors.New("unknown action")
 }
 
 func (impl ArtifactPromotionApprovalServiceImpl) validateSourceAndFetchAppWorkflow(request *bean.ArtifactPromotionRequest) (*appWorkflow.AppWorkflow, error) {
@@ -137,11 +308,10 @@ func (impl ArtifactPromotionApprovalServiceImpl) validateSourceAndFetchAppWorkfl
 
 	return workflow, nil
 }
-func (impl ArtifactPromotionApprovalServiceImpl) promoteArtifact(request *bean.ArtifactPromotionRequest) (*bean.ArtifactPromotionRequest, error) {
+func (impl ArtifactPromotionApprovalServiceImpl) promoteArtifact(request *bean.ArtifactPromotionRequest) ([]bean.EnvironmentResponse, error) {
 	// 	step1: validate if artifact is deployed/created at the source pipeline.
 	//      step1: if source is cd , check if this artifact is deployed on these environments
-	//  step2: validate if destination pipeline is in the same workflow of the artifact source.
-	//  step2.1: check if destination pipeline is topologically downwards from the source pipeline and also source and destination are on the same subtree.
+	//  step2: check if destination pipeline is topologically downwards from the source pipeline and also source and destination are on the same subtree.
 	// 	step3: check if promotion request for this artifact on this destination pipeline has already been raised.
 	//  step4: check if this artifact on this destination pipeline has already been promoted
 	//  step5: raise request.
@@ -151,8 +321,8 @@ func (impl ArtifactPromotionApprovalServiceImpl) promoteArtifact(request *bean.A
 	for _, env := range request.EnvironmentNames {
 		envResponse := bean.EnvironmentResponse{
 			Name:                       env,
-			PromotionEvaluationState:   bean.PIPELINE_NOT_FOUND,
-			PromotionEvaluationMessage: string(bean.PIPELINE_NOT_FOUND),
+			PromotionValidationState:   bean.PIPELINE_NOT_FOUND,
+			PromotionValidationMessage: string(bean.PIPELINE_NOT_FOUND),
 		}
 		response[env] = envResponse
 	}
@@ -223,7 +393,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) promoteArtifact(request *bean.A
 		pipelineIds = append(pipelineIds, pipeline.Id)
 		pipelineIdVsEnvNameMap[pipeline.Id] = request.EnvIdNameMap[pipeline.EnvironmentId]
 		EnvResponse := response[pipelineIdVsEnvNameMap[pipeline.Id]]
-		EnvResponse.PromotionEvaluationState = bean.EMPTY
+		EnvResponse.PromotionValidationState = bean.EMPTY
 		response[pipelineIdVsEnvNameMap[pipeline.Id]] = EnvResponse
 	}
 
@@ -276,7 +446,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) promoteArtifact(request *bean.A
 		for _, pipelineId := range pipelineIds {
 			if !util.IsAncestor(tree, sourcePipelineId, pipelineId) {
 				EnvResponse := response[pipelineIdVsEnvNameMap[pipelineId]]
-				EnvResponse.PromotionEvaluationState = bean.SOURCE_AND_DESTINATION_PIPELINE_MISMATCH
+				EnvResponse.PromotionValidationState = bean.SOURCE_AND_DESTINATION_PIPELINE_MISMATCH
 			}
 		}
 	}
@@ -286,21 +456,25 @@ func (impl ArtifactPromotionApprovalServiceImpl) promoteArtifact(request *bean.A
 
 		EnvResponse := response[pipelineIdVsEnvNameMap[pipelineId]]
 		// these
-		if EnvResponse.PromotionEvaluationState == bean.EMPTY {
+		if EnvResponse.PromotionValidationState == bean.EMPTY {
 			// todo send policy of this pipeline
 			state, msg, err := impl.raisePromoteRequest(request, pipelineId, nil)
 			if err != nil {
 				impl.logger.Errorw("error in raising promotion request for the pipeline", "pipelineId", pipelineId, "artifactId", ciArtifact.Id, "err", err)
-				EnvResponse.PromotionEvaluationState = bean.ERRORED
-				EnvResponse.PromotionEvaluationMessage = err.Error()
+				EnvResponse.PromotionValidationState = bean.ERRORED
+				EnvResponse.PromotionValidationMessage = err.Error()
 			}
-			EnvResponse.PromotionEvaluationState = state
-			EnvResponse.PromotionEvaluationMessage = msg
+			EnvResponse.PromotionValidationState = state
+			EnvResponse.PromotionValidationMessage = msg
 		}
 
 		response[pipelineIdVsEnvNameMap[pipelineId]] = EnvResponse
 	}
-	return nil, nil
+	envResponses := make([]bean.EnvironmentResponse, len(response))
+	for _, resp := range response {
+		envResponses = append(envResponses, resp)
+	}
+	return envResponses, nil
 }
 
 func (impl ArtifactPromotionApprovalServiceImpl) checkPromotionPolicyGovernance(appId int, envIds []int) map[int]interface{} {
@@ -308,7 +482,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) checkPromotionPolicyGovernance(
 	return nil
 }
 
-func (impl ArtifactPromotionApprovalServiceImpl) raisePromoteRequest(request *bean.ArtifactPromotionRequest, pipelineId int, promotionPolicyMetadata interface{}) (bean.PromotionEvaluationState, string, error) {
+func (impl ArtifactPromotionApprovalServiceImpl) raisePromoteRequest(request *bean.ArtifactPromotionRequest, pipelineId int, promotionPolicyMetadata interface{}) (bean.PromotionValidationState, string, error) {
 	requests, err := impl.artifactPromotionApprovalRequestRepository.FindAwaitedRequestByPipelineIdAndArtifactId(pipelineId, request.ArtifactId)
 	if err != nil {
 		impl.logger.Errorw("error in finding the pending promotion request using pipelineId and artifactId", "pipelineId", pipelineId, "artifactId", request.ArtifactId)
@@ -316,7 +490,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) raisePromoteRequest(request *be
 	}
 
 	if len(requests) >= 1 {
-		return bean.ALREADY_REQUEST_RAISED, bean.ALREADY_REQUEST_RAISED, nil
+		return bean.ALREADY_REQUEST_RAISED, string(bean.ALREADY_REQUEST_RAISED), nil
 	}
 
 	promotedRequest, err := impl.artifactPromotionApprovalRequestRepository.FindPromotedRequestByPipelineIdAndArtifactId(pipelineId, request.ArtifactId)
@@ -326,7 +500,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) raisePromoteRequest(request *be
 	}
 
 	if promotedRequest.Id > 0 {
-		return bean.ARTIFACT_ALREADY_PROMOTED, bean.ARTIFACT_ALREADY_PROMOTED, nil
+		return bean.ARTIFACT_ALREADY_PROMOTED, string(bean.ARTIFACT_ALREADY_PROMOTED), nil
 	}
 
 	promotionRequest := &ArtifactPromotionApprovalRequest{

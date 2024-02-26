@@ -76,7 +76,7 @@ func (o QualifierSelector) BuildQualifierMappings(resourceFilterId int, projectN
 func (o QualifierSelector) buildApplicationQualifierMappings(resourceFilterId int, projectNameToIdMap, appNameToIdMap map[string]int, searchableKeyNameIdMap map[bean.DevtronResourceSearchableKeyName]int, auditLog sql.AuditLog) []*resourceQualifiers.QualifierMapping {
 	qualifierMappings := make([]*resourceQualifiers.QualifierMapping, 0)
 	applicationSelectors := o.ApplicationSelectors
-	//case-1) all existing and future applications -> will get empty ApplicationSelector , db entry (proj,0,"0")
+	// case-1) all existing and future applications -> will get empty ApplicationSelector , db entry (proj,0,"0")
 	if len(applicationSelectors) == 1 && applicationSelectors[0].ProjectName == resourceQualifiers.AllProjectsValue {
 		allExistingAndFutureAppsQualifierMapping := &resourceQualifiers.QualifierMapping{
 			ResourceId:            resourceFilterId,
@@ -92,7 +92,7 @@ func (o QualifierSelector) buildApplicationQualifierMappings(resourceFilterId in
 	} else {
 
 		for _, appSelector := range applicationSelectors {
-			//case-2) all existing and future apps in a project ->  will get projectName and empty applications array
+			// case-2) all existing and future apps in a project ->  will get projectName and empty applications array
 			if len(appSelector.Applications) == 0 {
 				allExistingAppsQualifierMapping := &resourceQualifiers.QualifierMapping{
 					ResourceId:            resourceFilterId,
@@ -106,9 +106,9 @@ func (o QualifierSelector) buildApplicationQualifierMappings(resourceFilterId in
 				}
 				qualifierMappings = append(qualifierMappings, allExistingAppsQualifierMapping)
 			}
-			//case-3) all existing applications -> will get all apps in payload
-			//case-4) particular apps -> will get ApplicationSelectors array
-			//case-5) all existing apps in a project -> will get projectName and all applications array
+			// case-3) all existing applications -> will get all apps in payload
+			// case-4) particular apps -> will get ApplicationSelectors array
+			// case-5) all existing apps in a project -> will get projectName and all applications array
 			for _, appName := range appSelector.Applications {
 				appQualifierMapping := &resourceQualifiers.QualifierMapping{
 					ResourceId:            resourceFilterId,
@@ -134,8 +134,8 @@ func (o QualifierSelector) buildEnvironmentQualifierMappings(resourceFilterId in
 		return qualifierMappings, err
 	}
 
-	//1) all existing and future prod envs -> get single EnvironmentSelector with clusterName as "0"(prod) (cluster,0,"0")
-	//2) all existing and future non-prod envs -> get single EnvironmentSelector with clusterName as "-1"(non-prod) (cluster,-1,"-1")
+	// 1) all existing and future prod envs -> get single EnvironmentSelector with clusterName as "0"(prod) (cluster,0,"0")
+	// 2) all existing and future non-prod envs -> get single EnvironmentSelector with clusterName as "-1"(non-prod) (cluster,-1,"-1")
 	for _, envSelector := range allClusterEnvSelectors {
 		allExistingAndFutureEnvQualifierMapping := &resourceQualifiers.QualifierMapping{
 			ResourceId:    resourceFilterId,
@@ -156,7 +156,7 @@ func (o QualifierSelector) buildEnvironmentQualifierMappings(resourceFilterId in
 	}
 
 	for _, envSelector := range otherEnvSelectors {
-		//3) all existing and future envs of a cluster ->  get clusterName and empty environments list (cluster,clusterId,clusterName)
+		// 3) all existing and future envs of a cluster ->  get clusterName and empty environments list (cluster,clusterId,clusterName)
 		if len(envSelector.Environments) == 0 {
 			allCurrentAndFutureEnvsInClusterQualifierMapping := &resourceQualifiers.QualifierMapping{
 				ResourceId:            resourceFilterId,
@@ -170,8 +170,8 @@ func (o QualifierSelector) buildEnvironmentQualifierMappings(resourceFilterId in
 			}
 			qualifierMappings = append(qualifierMappings, allCurrentAndFutureEnvsInClusterQualifierMapping)
 		}
-		//4) all existing envs of a cluster -> get clusterName and all the envs list
-		//5) particular envs , will get EnvironmentSelector array
+		// 4) all existing envs of a cluster -> get clusterName and all the envs list
+		// 5) particular envs , will get EnvironmentSelector array
 		for _, env := range envSelector.Environments {
 			envQualifierMapping := &resourceQualifiers.QualifierMapping{
 				ResourceId:            resourceFilterId,
@@ -190,24 +190,24 @@ func (o QualifierSelector) buildEnvironmentQualifierMappings(resourceFilterId in
 }
 
 func (o QualifierSelector) validateAndSplitEnvSelectors() ([]EnvironmentSelector, []EnvironmentSelector, error) {
-	//type1: allExistingFutureProdEnvs
-	//type2: allExistingFutureNonProdEnvs
-	//type3: allExistingFutureEnvsOfACluster
-	//type4: remaining types
+	// type1: allExistingFutureProdEnvs
+	// type2: allExistingFutureNonProdEnvs
+	// type3: allExistingFutureEnvsOfACluster
+	// type4: remaining types
 	envSelectors := o.EnvironmentSelectors
 	allExistingFutureProdEnvSelectors := make([]EnvironmentSelector, 0)
 	allExistingFutureNonProdEnvSelectors := make([]EnvironmentSelector, 0)
 	allExistingFutureEnvsOfACluster := make([]EnvironmentSelector, 0)
 	otherEnvSelectors := make([]EnvironmentSelector, 0)
 
-	//ValidCases:
+	// ValidCases:
 	//   case1 : type1 + type4(nonProdEnvs),
 	//   case2 : type2 + type4(prodEnvs),
 	//   case3 : type1 + type2
 	//   case4 : (type1 or type2) + type3
 
 	for _, envSelector := range envSelectors {
-		//order of these cases are **IMPORTANT**
+		// order of these cases are **IMPORTANT**
 		if envSelector.ClusterName == resourceQualifiers.AllExistingAndFutureProdEnvsValue {
 			allExistingFutureProdEnvSelectors = append(allExistingFutureProdEnvSelectors, envSelector)
 		} else if envSelector.ClusterName == resourceQualifiers.AllExistingAndFutureNonProdEnvsValue {
@@ -219,7 +219,7 @@ func (o QualifierSelector) validateAndSplitEnvSelectors() ([]EnvironmentSelector
 		}
 	}
 
-	//InValidCases:
+	// InValidCases:
 	//   case1: multiple type1 or multiple type2
 	if len(allExistingFutureProdEnvSelectors) > 1 || len(allExistingFutureNonProdEnvSelectors) > 1 {
 		return nil, nil, errors.New("multiple selectors of type allExistingFutureProdEnvSelector or allExistingFutureNonProdEnvSelector found, invalid selectors request")
@@ -230,7 +230,7 @@ func (o QualifierSelector) validateAndSplitEnvSelectors() ([]EnvironmentSelector
 		return nil, nil, errors.New("some other selectors found along with allExistingFutureProdEnvSelector and allExistingFutureNonProdEnvSelector found, invalid selectors request")
 	}
 
-	//TODO: handle(requires db call and then validate)
+	// TODO: handle(requires db call and then validate)
 	//   case3: type1 + type4(prodEnvs)
 	//   case4: type2 + type4(nonProdEnvs)
 
@@ -239,13 +239,29 @@ func (o QualifierSelector) validateAndSplitEnvSelectors() ([]EnvironmentSelector
 	return allClusterEnvSelectors, otherEnvSelectors, nil
 }
 
+type CommitDetails struct {
+	Repo          string `json:"repo"`
+	CommitMessage string `json:"commitMessage"`
+	Branch        string `json:"branch"`
+}
+
+func (cd CommitDetails) ConvertToMap() map[string]string {
+	return map[string]string{
+		"commitMessage": cd.CommitMessage,
+		"branch":        cd.Branch,
+		"repo":          cd.Repo,
+	}
+}
+
 type ParamValuesType string
 
 const (
-	ParamTypeString  ParamValuesType = "string"
-	ParamTypeObject  ParamValuesType = "object"
-	ParamTypeInteger ParamValuesType = "integer"
-	ParamTypeList    ParamValuesType = "list"
+	ParamTypeString           ParamValuesType = "string"
+	ParamTypeObject           ParamValuesType = "object"
+	ParamTypeInteger          ParamValuesType = "integer"
+	ParamTypeList             ParamValuesType = "list"
+	ParamTypeCommitDetails    ParamValuesType = "CommitDetails"
+	ParamTypeCommitDetailsMap ParamValuesType = "commitDetailsMap"
 )
 
 type ExpressionParam struct {
@@ -254,10 +270,14 @@ type ExpressionParam struct {
 	Type      ParamValuesType `json:"type"`
 }
 
-func getParamsFromArtifact(artifact string, imageLabels []string) []ExpressionParam {
+func GetParamsFromArtifact(artifact string, imageLabels []string, commitDetails ...CommitDetails) []ExpressionParam {
 
 	lastColonIndex := strings.LastIndex(artifact, ":")
 
+	commitDetailsMap := make(map[string]map[string]string)
+	for _, commitDetail := range commitDetails {
+		commitDetailsMap[commitDetail.Repo] = commitDetail.ConvertToMap()
+	}
 	containerRepository := artifact[:lastColonIndex]
 	containerImageTag := artifact[lastColonIndex+1:]
 	containerImage := artifact
@@ -281,6 +301,11 @@ func getParamsFromArtifact(artifact string, imageLabels []string) []ExpressionPa
 			ParamName: "imageLabels",
 			Value:     imageLabels,
 			Type:      ParamTypeList,
+		},
+		{
+			ParamName: "commitDetailsMap",
+			Value:     commitDetailsMap,
+			Type:      ParamTypeCommitDetailsMap,
 		},
 	}
 
