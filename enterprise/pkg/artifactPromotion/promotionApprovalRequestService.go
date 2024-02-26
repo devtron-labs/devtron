@@ -224,13 +224,19 @@ func (impl ArtifactPromotionApprovalServiceImpl) evaluatePoliciesOnArtifact(ciAr
 	return result, nil
 }
 
+func (impl ArtifactPromotionApprovalServiceImpl) approveArtifactPromotion(request *bean.ArtifactPromotionRequest) ([]bean.EnvironmentResponse, error) {
+	// get request and check if it is promoted already.
+	// attempt approving this by creating new resource_approval_user_data
+	return nil, nil
+}
+
 func (impl ArtifactPromotionApprovalServiceImpl) HandleArtifactPromotionRequest(request *bean.ArtifactPromotionRequest, authorizedEnvironments map[string]bool) ([]bean.EnvironmentResponse, error) {
 	switch request.Action {
 
 	case bean.ACTION_PROMOTE:
 		return impl.promoteArtifact(request)
 	case bean.ACTION_APPROVE:
-		// todo
+		return impl.approveArtifactPromotion(request)
 	case bean.ACTION_CANCEL:
 
 		_, err := impl.cancelPromotionApprovalRequest(request)

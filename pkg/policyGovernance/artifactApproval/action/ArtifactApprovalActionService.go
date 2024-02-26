@@ -27,6 +27,7 @@ type ArtifactApprovalActionServiceImpl struct {
 	eventFactory                    client2.EventFactory
 	appArtifactManager              pipeline.AppArtifactManager
 	deploymentApprovalRepository    pipelineConfig.DeploymentApprovalRepository
+	requestApprovalRepository       pipelineConfig.RequestApprovalRepository
 	ciArtifactRepository            repository.CiArtifactRepository
 	pipelineRepository              pipelineConfig.PipelineRepository
 }
@@ -36,6 +37,7 @@ func NewArtifactApprovalActionServiceImpl(logger *zap.SugaredLogger,
 	cdTriggerService devtronApps.TriggerService, eventClient client2.EventClient,
 	eventFactory client2.EventFactory, appArtifactManager pipeline.AppArtifactManager,
 	deploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository,
+	requestApprovalRepository pipelineConfig.RequestApprovalRepository,
 	ciArtifactRepository repository.CiArtifactRepository,
 	pipelineRepository pipelineConfig.PipelineRepository) *ArtifactApprovalActionServiceImpl {
 	return &ArtifactApprovalActionServiceImpl{
@@ -46,6 +48,7 @@ func NewArtifactApprovalActionServiceImpl(logger *zap.SugaredLogger,
 		eventFactory:                    eventFactory,
 		appArtifactManager:              appArtifactManager,
 		deploymentApprovalRepository:    deploymentApprovalRepository,
+		requestApprovalRepository:       requestApprovalRepository,
 		ciArtifactRepository:            ciArtifactRepository,
 		pipelineRepository:              pipelineRepository,
 	}
@@ -84,14 +87,14 @@ func (impl *ArtifactApprovalActionServiceImpl) PerformDeploymentApprovalAction(u
 		if ciArtifact.CreatedBy == userId {
 			return errors.New("user who triggered the build cannot be an approver")
 		}
-		deploymentApprovalData := &pipelineConfig.ResourceApprovalUserData{
+		deploymentApprovalData := &pipelineConfig.RequestApprovalUserData{
 			ApprovalRequestId: approvalRequestId,
 			UserId:            userId,
 			UserResponse:      pipelineConfig.APPROVED,
 		}
 		deploymentApprovalData.CreatedBy = userId
 		deploymentApprovalData.UpdatedBy = userId
-		err = impl.deploymentApprovalRepository.SaveDeploymentUserData(deploymentApprovalData)
+		err = impl.requestApprovalRepository.SaveDeploymentUserData(deploymentApprovalData)
 		if err != nil {
 			impl.logger.Errorw("error occurred while saving user approval data", "approvalRequestId", approvalRequestId, "err", err)
 			return &bean4.DeploymentApprovalValidationError{

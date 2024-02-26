@@ -19,7 +19,6 @@ type DeploymentApprovalRepository interface {
 	FetchWithPipelineAndArtifactDetails(requestId int) (*DeploymentApprovalRequest, error)
 	Save(deploymentApprovalRequest *DeploymentApprovalRequest) error
 	Update(deploymentApprovalRequest *DeploymentApprovalRequest) error
-	SaveDeploymentUserData(userData *ResourceApprovalUserData) error
 	ConsumeApprovalRequest(requestId int) error
 	FetchLatestDeploymentByArtifactIds(pipelineId int, artifactIds []int) ([]*DeploymentApprovalRequest, error)
 }
@@ -27,10 +26,10 @@ type DeploymentApprovalRepository interface {
 type DeploymentApprovalRepositoryImpl struct {
 	dbConnection               *pg.DB
 	logger                     *zap.SugaredLogger
-	resourceApprovalRepository ResourceApprovalRepository
+	resourceApprovalRepository RequestApprovalRepository
 }
 
-func NewDeploymentApprovalRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger, resourceApprovalRepository ResourceApprovalRepository) *DeploymentApprovalRepositoryImpl {
+func NewDeploymentApprovalRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger, resourceApprovalRepository RequestApprovalRepository) *DeploymentApprovalRepositoryImpl {
 	return &DeploymentApprovalRepositoryImpl{dbConnection: dbConnection, logger: logger, resourceApprovalRepository: resourceApprovalRepository}
 }
 
@@ -43,12 +42,12 @@ type DeploymentApprovalRequest struct {
 	ArtifactDeploymentTriggered bool     `sql:"artifact_deployment_triggered"`
 	Pipeline                    *Pipeline
 	CiArtifact                  *repository2.CiArtifact
-	UserEmail                   string                      `sql:"-"` // used for internal purpose
-	DeploymentApprovalUserData  []*ResourceApprovalUserData `sql:"-"`
+	UserEmail                   string                     `sql:"-"` // used for internal purpose
+	DeploymentApprovalUserData  []*RequestApprovalUserData `sql:"-"`
 	sql.AuditLog
 }
 
-type ResourceApprovalUserData struct {
+type RequestApprovalUserData struct {
 	tableName         struct{}                   `sql:"resource_approval_user_data" pg:",discard_unknown_columns"`
 	Id                int                        `sql:"id,pk"`
 	RequestType       repository2.RequestType    `sql:"request_type"`
@@ -68,7 +67,7 @@ func (impl *DeploymentApprovalRepositoryImpl) FetchApprovalPendingArtifacts(pipe
 
 	subQuery := "WITH approval_requests AS " +
 		" (SELECT approval_request_id,count(approval_request_id) AS approval_count " +
-		" FROM resource_approval_user_data " +
+		" FROM request_approval_user_data " +
 		fmt.Sprintf(" WHERE user_response is NULL AND request_type = %d", repository2.DEPLOYMENT_APPROVAL) +
 		" GROUP BY approval_request_id ) " +
 		" SELECT approval_request_id " +
@@ -129,7 +128,7 @@ func (impl *DeploymentApprovalRepositoryImpl) FetchApprovalDataForArtifacts(arti
 	var requests []*DeploymentApprovalRequest
 	err := impl.dbConnection.
 		Model(&requests).
-		// Column("deployment_approval_request.*", /*"ResourceApprovalUserData", "ResourceApprovalUserData.User"*/).
+		// Column("deployment_approval_request.*", /*"RequestApprovalUserData", "RequestApprovalUserData.User"*/).
 		Where("ci_artifact_id in (?) ", pg.In(artifactIds)).
 		Where("pipeline_id = ?", pipelineId).
 		Where("artifact_deployment_triggered = ?", false).
@@ -208,13 +207,6 @@ func (impl *DeploymentApprovalRepositoryImpl) Save(deploymentApprovalRequest *De
 func (impl *DeploymentApprovalRepositoryImpl) Update(deploymentApprovalRequest *DeploymentApprovalRequest) error {
 	deploymentApprovalRequest.UpdatedOn = time.Now()
 	return impl.dbConnection.Update(deploymentApprovalRequest)
-}
-
-func (impl *DeploymentApprovalRepositoryImpl) SaveDeploymentUserData(userData *ResourceApprovalUserData) error {
-	currentTime := time.Now()
-	userData.CreatedOn = currentTime
-	userData.UpdatedOn = currentTime
-	return impl.dbConnection.Insert(userData)
 }
 
 func (request *DeploymentApprovalRequest) ConvertToApprovalMetadata() *UserApprovalMetadata {
