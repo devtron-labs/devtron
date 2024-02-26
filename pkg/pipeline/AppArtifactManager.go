@@ -21,6 +21,9 @@ import (
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	repository4 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactApproval/read"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion"
+	repository5 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/repository"
 	"sort"
 	"strings"
 
@@ -60,23 +63,26 @@ type AppArtifactManager interface {
 }
 
 type AppArtifactManagerImpl struct {
-	logger                          *zap.SugaredLogger
-	cdWorkflowRepository            pipelineConfig.CdWorkflowRepository
-	userService                     user.UserService
-	imageTaggingService             ImageTaggingService
-	ciArtifactRepository            repository.CiArtifactRepository
-	ciWorkflowRepository            pipelineConfig.CiWorkflowRepository
-	pipelineStageService            PipelineStageService
-	celService                      resourceFilter.CELEvaluatorService
-	resourceFilterService           resourceFilter.ResourceFilterService
-	config                          *types.CdConfig
-	cdPipelineConfigService         CdPipelineConfigService
-	dockerArtifactRegistry          dockerArtifactStoreRegistry.DockerArtifactStoreRepository
-	CiPipelineRepository            pipelineConfig.CiPipelineRepository
-	ciTemplateService               CiTemplateService
-	imageTaggingRepository          repository3.ImageTaggingRepository
-	artifactApprovalDataReadService read.ArtifactApprovalDataReadService
-	environmentRepository   repository4.EnvironmentRepository
+	logger                                     *zap.SugaredLogger
+	cdWorkflowRepository                       pipelineConfig.CdWorkflowRepository
+	userService                                user.UserService
+	imageTaggingService                        ImageTaggingService
+	ciArtifactRepository                       repository.CiArtifactRepository
+	ciWorkflowRepository                       pipelineConfig.CiWorkflowRepository
+	pipelineStageService                       PipelineStageService
+	celService                                 resourceFilter.CELEvaluatorService
+	resourceFilterService                      resourceFilter.ResourceFilterService
+	config                                     *types.CdConfig
+	cdPipelineConfigService                    CdPipelineConfigService
+	dockerArtifactRegistry                     dockerArtifactStoreRegistry.DockerArtifactStoreRepository
+	CiPipelineRepository                       pipelineConfig.CiPipelineRepository
+	ciTemplateService                          CiTemplateService
+	imageTaggingRepository                     repository3.ImageTaggingRepository
+	artifactApprovalDataReadService            read.ArtifactApprovalDataReadService
+	environmentRepository                      repository4.EnvironmentRepository
+	appWorkflowRepository                      appWorkflow.AppWorkflowRepository
+	promotionPolicy                            artifactPromotion.PromotionPolicy
+	artifactPromotionApprovalRequestRepository repository5.ArtifactPromotionApprovalRequestRepository
 }
 
 func NewAppArtifactManagerImpl(
@@ -96,29 +102,35 @@ func NewAppArtifactManagerImpl(
 	imageTaggingRepository repository3.ImageTaggingRepository,
 	artifactApprovalDataReadService read.ArtifactApprovalDataReadService,
 	environmentRepository repository4.EnvironmentRepository,
+	appWorkflowRepository appWorkflow.AppWorkflowRepository,
+	promotionPolicy artifactPromotion.PromotionPolicy,
+	artifactPromotionApprovalRequestRepository repository5.ArtifactPromotionApprovalRequestRepository,
 ) *AppArtifactManagerImpl {
 	cdConfig, err := types.GetCdConfig()
 	if err != nil {
 		return nil
 	}
 	return &AppArtifactManagerImpl{
-		logger:                          logger,
-		cdWorkflowRepository:            cdWorkflowRepository,
-		userService:                     userService,
-		imageTaggingService:             imageTaggingService,
-		ciArtifactRepository:            ciArtifactRepository,
-		ciWorkflowRepository:            ciWorkflowRepository,
-		celService:                      celService,
-		resourceFilterService:           resourceFilterService,
-		cdPipelineConfigService:         cdPipelineConfigService,
-		pipelineStageService:            pipelineStageService,
-		config:                          cdConfig,
-		dockerArtifactRegistry:          dockerArtifactRegistry,
-		CiPipelineRepository:            CiPipelineRepository,
-		ciTemplateService:               ciTemplateService,
-		imageTaggingRepository:          imageTaggingRepository,
-		artifactApprovalDataReadService: artifactApprovalDataReadService,
-		environmentRepository:   environmentRepository,
+		logger:                                     logger,
+		cdWorkflowRepository:                       cdWorkflowRepository,
+		userService:                                userService,
+		imageTaggingService:                        imageTaggingService,
+		ciArtifactRepository:                       ciArtifactRepository,
+		ciWorkflowRepository:                       ciWorkflowRepository,
+		celService:                                 celService,
+		resourceFilterService:                      resourceFilterService,
+		cdPipelineConfigService:                    cdPipelineConfigService,
+		pipelineStageService:                       pipelineStageService,
+		config:                                     cdConfig,
+		dockerArtifactRegistry:                     dockerArtifactRegistry,
+		CiPipelineRepository:                       CiPipelineRepository,
+		ciTemplateService:                          ciTemplateService,
+		imageTaggingRepository:                     imageTaggingRepository,
+		artifactApprovalDataReadService:            artifactApprovalDataReadService,
+		environmentRepository:                      environmentRepository,
+		appWorkflowRepository:                      appWorkflowRepository,
+		promotionPolicy:                            promotionPolicy,
+		artifactPromotionApprovalRequestRepository: artifactPromotionApprovalRequestRepository,
 	}
 }
 
@@ -1531,8 +1543,7 @@ func (impl AppArtifactManagerImpl) getBuiltArtifactsByCIPipeline(artifactPromoti
 		return ciArtifactsDao, totalCount, err
 	}
 
-	listingFilterOptions := bean.ArtifactsListFilterOptions{
-		Limit:        artifactPromotionMaterialRequest.Limit,
+	listingFilterOptions := bean.ArtifactsListFilterOptions{Limit: artifactPromotionMaterialRequest.Limit,
 		Offset:       artifactPromotionMaterialRequest.Offset,
 		SearchString: "%" + artifactPromotionMaterialRequest.ImageSearchString + "%",
 		CiPipelineId: ciPipeline.Id,
@@ -1563,7 +1574,7 @@ func (impl AppArtifactManagerImpl) getArtifactsPendingForPromotion(artifactPromo
 		impl.logger.Errorw("error in fetching cd-pipeline by appId and envId", "appId", appId, "environmentId", environment.Id, "err", err)
 		return ciArtifactsDao, totalCount, err
 	}
-	ciArtifactsDao, _, err = impl.ciArtifactRepository.FindArtifactsPendingForPromotion([]int{cdPipeline.Pipelines[0].Id}, artifactPromotionMaterialRequest.Limit, artifactPromotionMaterialRequest.Offset, artifactPromotionMaterialRequest.ImageSearchString)
+	ciArtifactsDao, _, err = impl.ciArtifactRepository.FindArtifactsPendingForPromotion([]int{cdPipeline.Pipelines[0].Id}, artifactPromotionMaterialRequest.Limit, artifactPromotionMaterialRequest.Offset, "%"+artifactPromotionMaterialRequest.ImageSearchString+"%")
 	if err != nil {
 		impl.logger.Errorw("error in finding deployed artifacts on pipeline", "pipelineId", cdPipeline.Pipelines[0].Id, "err", err)
 		return ciArtifactsDao, totalCount, err
@@ -1577,7 +1588,7 @@ func (impl AppArtifactManagerImpl) getPendingArtifactsForCurrentUser(artifactPro
 	totalCount := 0
 	workflowId := artifactPromotionMaterialRequest.WorkflowId
 
-	wfMappings, err := impl.AppWorkflowRepository.FindWFAllMappingByWorkflowId(workflowId)
+	wfMappings, err := impl.appWorkflowRepository.FindWFAllMappingByWorkflowId(workflowId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching all workflow mappings by workflowId", "workflowId", workflowId, "err", err)
 		return ciArtifactsDao, totalCount, err

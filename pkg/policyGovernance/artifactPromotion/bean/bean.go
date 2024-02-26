@@ -63,3 +63,10 @@ type ArtifactPromotionApprovalResponse struct {
 	PromotedOn      time.Time `json:"promotedOn"`
 	PromotionPolicy string    `json:"promotionPolicy"`
 }
+
+type PromotionPolicy struct {
+	ApprovalCount                int  `json:"approvalCount"`
+	AllowImageBuilderFromApprove bool `json:"AllowImageBuilderFromApprove"`
+	AllowRequesterFromApprove    bool `json:"AllowRequesterFromApprove"`
+	AllowApproverFromDeploy      bool `json:"AllowApproverFromDeploy"`
+}

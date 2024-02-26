@@ -12,6 +12,7 @@ const (
 	ImageDigest           ResourceType = 2
 	ImageDigestResourceId              = -1 // for ImageDigest resource id will is constant unlike filter and variables
 	InfraProfile          ResourceType = 3
+	ImagePromotionPolicy  ResourceType = 4
 )
 
 const (

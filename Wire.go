@@ -97,7 +97,6 @@ import (
 	"github.com/devtron-labs/devtron/enterprise/api/lockConfiguation"
 	"github.com/devtron-labs/devtron/enterprise/api/protect"
 	app3 "github.com/devtron-labs/devtron/enterprise/pkg/app"
-	"github.com/devtron-labs/devtron/enterprise/pkg/artifactPromotion"
 	pipeline3 "github.com/devtron-labs/devtron/enterprise/pkg/pipeline"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -156,6 +155,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/plugin"
 	repository6 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance"
+	repository11 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/repository"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/security"
@@ -1027,8 +1027,8 @@ func InitializeApp() (*App, error) {
 		repository9.NewTimeWindowRepositoryImpl,
 		wire.Bind(new(repository9.TimeWindowRepository), new(*repository9.TimeWindowRepositoryImpl)),
 
-		artifactPromotion.NewArtifactPromotionApprovalRequestImpl,
-		wire.Bind(new(artifactPromotion.ArtifactPromotionApprovalRequestRepository), new(*artifactPromotion.ArtifactPromotionApprovalRequestRepoImpl)),
+		repository11.NewArtifactPromotionApprovalRequestImpl,
+		wire.Bind(new(repository11.ArtifactPromotionApprovalRequestRepository), new(*repository11.ArtifactPromotionApprovalRequestRepoImpl)),
 	)
 	return &App{}, nil
 }

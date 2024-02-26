@@ -925,14 +925,9 @@ func (impl CiArtifactRepositoryImpl) FindArtifactsPendingForPromotion(cdPipeline
 	var ciArtifacts []CiArtifact
 	var ciArtifactsResp []CiArtifactWithExtraData
 
-	var cdPipelineIdString string
-	for _, pipelineId := range cdPipelineIds {
-		cdPipelineIdString = cdPipelineIdString + "," + fmt.Sprintf("%v", pipelineId)
-	}
-
 	query := fmt.Sprintf("SELECT cia.*, COUNT(id) OVER() AS total_count FROM ci_artifact cia "+
 		"INNER JOIN artifact_promotion_approval_request apar ON cia.id = apar.artifact_id AND apar.status != 'PROMOTED' AND apar.active = true"+
-		" AND apar.destination_pipeline_id IN (%s) ", cdPipelineIdString)
+		" AND apar.destination_pipeline_id IN (%s) ", convertIdsToString(cdPipelineIds))
 
 	if imageSearchPattern != EmptyLikeRegex {
 		query = query + fmt.Sprintf(" and ci_artifact.image like %s ", imageSearchPattern)
@@ -954,4 +949,12 @@ func (impl CiArtifactRepositoryImpl) FindArtifactsPendingForPromotion(cdPipeline
 		ciArtifacts = append(ciArtifacts, ciArtifact.CiArtifact)
 	}
 	return ciArtifacts, totalCount, nil
+}
+
+func convertIdsToString(ids []int) string {
+	idString := ""
+	for _, id := range ids {
+		idString = idString + "," + fmt.Sprintf("%v", id)
+	}
+	return idString
 }

@@ -1,10 +1,11 @@
 package artifactPromotion
 
 import (
-	"github.com/devtron-labs/devtron/enterprise/pkg/artifactPromotion/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"net/http"
@@ -12,11 +13,11 @@ import (
 
 type ArtifactPromotionApprovalService interface {
 	HandleArtifactPromotionRequest(request *bean.ArtifactPromotionRequest, authorizedEnvironments map[string]bool) (*bean.ArtifactPromotionRequest, error)
-	GetByPromotionRequestId(artifactPromotionApprovalRequest *ArtifactPromotionApprovalRequest) (*bean.ArtifactPromotionApprovalResponse, error)
+	GetByPromotionRequestId(artifactPromotionApprovalRequest *repository.ArtifactPromotionApprovalRequest) (*bean.ArtifactPromotionApprovalResponse, error)
 }
 
 type ArtifactPromotionApprovalServiceImpl struct {
-	artifactPromotionApprovalRequestRepository ArtifactPromotionApprovalRequestRepository
+	artifactPromotionApprovalRequestRepository repository.ArtifactPromotionApprovalRequestRepository
 	logger                                     *zap.SugaredLogger
 	CiPipelineRepository                       pipelineConfig.CiPipelineRepository
 	pipelineRepository                         pipelineConfig.PipelineRepository
@@ -24,7 +25,7 @@ type ArtifactPromotionApprovalServiceImpl struct {
 }
 
 func NewArtifactPromotionApprovalServiceImpl(
-	ArtifactPromotionApprovalRequestRepository ArtifactPromotionApprovalRequestRepository,
+	ArtifactPromotionApprovalRequestRepository repository.ArtifactPromotionApprovalRequestRepository,
 	logger *zap.SugaredLogger,
 	CiPipelineRepository pipelineConfig.CiPipelineRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
@@ -59,7 +60,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) HandleArtifactPromotionRequest(
 	return nil, nil
 }
 
-func (impl ArtifactPromotionApprovalRequest) promoteArtifact(request *bean.ArtifactPromotionRequest) (*bean.ArtifactPromotionRequest, error) {
+func (impl ArtifactPromotionApprovalServiceImpl) promoteArtifact(request *bean.ArtifactPromotionRequest) (*bean.ArtifactPromotionRequest, error) {
 	// TODO: add validations on artifactId, sourceId and destinationId
 	return nil, nil
 }
@@ -88,7 +89,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) cancelPromotionApprovalRequest(
 	return nil, err
 }
 
-func (impl ArtifactPromotionApprovalServiceImpl) GetByPromotionRequestId(artifactPromotionApprovalRequest *ArtifactPromotionApprovalRequest) (*bean.ArtifactPromotionApprovalResponse, error) {
+func (impl ArtifactPromotionApprovalServiceImpl) GetByPromotionRequestId(artifactPromotionApprovalRequest *repository.ArtifactPromotionApprovalRequest) (*bean.ArtifactPromotionApprovalResponse, error) {
 
 	sourceType := bean.GetSourceType(artifactPromotionApprovalRequest.SourceType)
 

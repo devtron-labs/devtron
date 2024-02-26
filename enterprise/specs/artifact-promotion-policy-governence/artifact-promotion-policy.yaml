@@ -188,6 +188,35 @@ paths:
   #  if resource is PROMOTION_APPROVAL_PENDING_NODE, then this api will fetch the pending promotion requests for the given environment (in resourceName).
   #  also can be used to fetch pending requests waiting for approval on requested user for given workflowId(required)
   #  appName is required param
+  /orchestrator/app/artifact/promote/env/metadata:
+    get:
+      description: "This api is used to get list of envs on which artifact promotion request is raised for given artifact and also if user is allowed to approve promotion request on that environment"
+      parameters:
+        - name: envName
+          in: query
+          required: true
+          example: "all, <name of environment>"
+          schema:
+            type: string
+          description: "environment name"
+        - name: artifactId
+          in: query
+          schema:
+            type: integer
+          description: "artifact id"
+      responses:
+        "200":
+          description: "gets the list of environments for the given app."
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  environments:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/EnvironmentApprovalMetaData"
+                    description: "list of environments"
   /orchestrator/app/artifact/promote/material:
     get:
       description: "this api will fetch the artifacts for artifact promotion. \n 
@@ -819,12 +848,25 @@ components:
         #       if requested this api with evaluation, then the evaluation state will be sent in this field
         promotionValidationState:
           type: string
-          example: "PROMOTION-SUCCESSFUL or PROMOTION-BLOCKED or CD-PIPELINE-DELETED"
+          example: "PROMOTION-SUCCESSFUL or PROMOTION-APPROVAL-PENDING or PROMOTION-BLOCKED or CD-PIPELINE-DELETED"
           description: "promotion evaluation state, eg: imagePromoted,imageSentForApproval,imageAlreadyPromoted,errored"
         isVirtualEnvironment:
           type: boolean
           description: "If true then this environment is a virtual environment"
-
+    EnvironmentApprovalMetaData:
+      type: object
+      properties:
+        #       environment name
+        name:
+          type: string
+          description: "environment name"
+          example: "PROD"
+        approvalAllowed:
+          type: boolean
+          description: "If user have permission to approve on this environment. User will not have access if he is not an image promoter or configured global image promotion policy restricts him to do so"
+        reason:
+          type: string
+          description: "if approval is not allowed, this field will contain reason that why user cannot approve artifact on this env"
     PromotionApprovalMetaData:
       type: object
       properties:
