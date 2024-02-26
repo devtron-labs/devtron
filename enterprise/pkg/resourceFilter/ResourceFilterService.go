@@ -18,7 +18,7 @@ import (
 )
 
 type ResourceFilterService interface {
-	//CRUD methods
+	// CRUD methods
 	ListFilters() ([]*FilterMetaDataBean, error)
 	GetFilterById(id int) (*FilterRequestResponseBean, error)
 	UpdateFilter(userId int32, filterRequest *FilterRequestResponseBean) (*FilterRequestResponseBean, error)
@@ -28,7 +28,7 @@ type ResourceFilterService interface {
 	GetFiltersByScope(scope resourceQualifiers.Scope) ([]*FilterMetaDataBean, error)
 	CheckForResource(filters []*FilterMetaDataBean, artifactImage string, imageLabels []string) (FilterState, map[int]FilterState, error)
 
-	//filter evaluation audit
+	// filter evaluation audit
 	CreateFilterEvaluationAudit(subjectType SubjectType, subjectId int, refType ReferenceType, refId int, filters []*FilterMetaDataBean, filterIdVsState map[int]FilterState) (*ResourceFilterEvaluationAudit, error)
 	UpdateFilterEvaluationAuditRef(id int, refType ReferenceType, refId int) error
 	GetEvaluatedFiltersForSubjects(subjectType SubjectType, subjectIds []int, referenceId int, referenceType ReferenceType) (map[int][]*FilterMetaDataBean, map[int]time.Time, error)
@@ -151,16 +151,16 @@ func (impl *ResourceFilterServiceImpl) CreateFilter(userId int32, filterRequest 
 		return filterRequest, errors.New("invalid qualifier selectors")
 	}
 
-	//validating given condition expressions
+	// validating given condition expressions
 	validateResp, errored := impl.ceLEvaluatorService.ValidateCELRequest(ValidateRequestResponse{Conditions: filterRequest.Conditions})
 	if errored {
 		filterRequest.Conditions = validateResp.Conditions
 		impl.logger.Errorw("error in validating expression", "Conditions", validateResp.Conditions)
 		return filterRequest, errors.New(InvalidExpressions)
 	}
-	//validation done
+	// validation done
 
-	//unique name validation
+	// unique name validation
 	filterNames, err := impl.resourceFilterRepository.GetDistinctFilterNames()
 	if err != nil && err != pg.ErrNoRows {
 		return nil, err
@@ -171,7 +171,7 @@ func (impl *ResourceFilterServiceImpl) CreateFilter(userId int32, filterRequest 
 			return nil, errors.New("filter already exists with this name")
 		}
 	}
-	//unique name validation done
+	// unique name validation done
 
 	tx, err := impl.resourceFilterRepository.StartTx()
 	if err != nil {
@@ -229,20 +229,20 @@ func (impl *ResourceFilterServiceImpl) UpdateFilter(userId int32, filterRequest 
 	if util.XORBool(appSelectorsExist, envSelectorExist) {
 		return filterRequest, errors.New("invalid qualifier selectors")
 	}
-	//validating given condition expressions
+	// validating given condition expressions
 	validateResp, errored := impl.ceLEvaluatorService.ValidateCELRequest(ValidateRequestResponse{Conditions: filterRequest.Conditions})
 	if errored {
 		filterRequest.Conditions = validateResp.Conditions
 		impl.logger.Errorw("error in validating expression", "Conditions", validateResp.Conditions)
 		return filterRequest, errors.New(InvalidExpressions)
 	}
-	//validation done
+	// validation done
 
 	if strings.Contains(filterRequest.Name, " ") {
 		return filterRequest, errors.New("spaces are not allowed in name")
 	}
 
-	//if mappings are edited delete all the existing mappings and create new mappings
+	// if mappings are edited delete all the existing mappings and create new mappings
 	conditionExpression, err := getJsonStringFromResourceCondition(filterRequest.Conditions)
 	if err != nil {
 		impl.logger.Errorw("error in converting resourceFilterConditions to json string", "err", err, "resourceFilterConditions", filterRequest.Conditions)
@@ -264,9 +264,9 @@ func (impl *ResourceFilterServiceImpl) UpdateFilter(userId int32, filterRequest 
 		return filterRequest, err
 	}
 
-	//validate if update request have different name stored in db
+	// validate if update request have different name stored in db
 	if resourceFilter.Name != filterRequest.Name {
-		//unique name validation
+		// unique name validation
 		filterNames, err := impl.resourceFilterRepository.GetDistinctFilterNames()
 		if err != nil && err != pg.ErrNoRows {
 			return filterRequest, err
@@ -277,7 +277,7 @@ func (impl *ResourceFilterServiceImpl) UpdateFilter(userId int32, filterRequest 
 				return filterRequest, errors.New("filter already exists with this name")
 			}
 		}
-		//unique name validation done
+		// unique name validation done
 	}
 
 	currentTime := time.Now()
@@ -353,20 +353,20 @@ func (impl *ResourceFilterServiceImpl) DeleteFilter(userId int32, id int) error 
 }
 
 func (impl *ResourceFilterServiceImpl) CheckForResource(filters []*FilterMetaDataBean, artifactImage string, imageLabels []string) (FilterState, map[int]FilterState, error) {
-	params := getParamsFromArtifact(artifactImage, imageLabels)
+	params := GetParamsFromArtifact(artifactImage, imageLabels)
 	filterIdVsState := make(map[int]FilterState)
 	finalState := ALLOW
 	for _, filter := range filters {
-		allowed, err := impl.resourceFilterEvaluator.EvaluateFilter(filter, ExpressionMetadata{Params: params})
+		allowed, err := impl.resourceFilterEvaluator.EvaluateFilter(filter.Conditions, ExpressionMetadata{Params: params})
 		if err != nil {
 			finalState = ERROR
 			filterIdVsState[filter.Id] = ERROR
-			//return ERROR, nil
+			// return ERROR, nil
 		}
 		if !allowed {
 			finalState = BLOCK
 			filterIdVsState[filter.Id] = BLOCK
-			//return BLOCK, nil
+			// return BLOCK, nil
 		}
 	}
 	return finalState, filterIdVsState, nil
@@ -398,12 +398,12 @@ func (impl *ResourceFilterServiceImpl) validateOwnershipAndGetIdMaps(qualifierSe
 	envs := make([]string, 0)
 	clusters := make([]string, 0)
 
-	//stores requested app to team mappings
+	// stores requested app to team mappings
 	appToTeamMap := make(map[string]string)
-	//stores requested env to cluster mappings
+	// stores requested env to cluster mappings
 	envToClusterMap := make(map[string]string)
 
-	//stores name vs id maps
+	// stores name vs id maps
 	teamsMap := make(map[string]int)
 	appsMap := make(map[string]int)
 	envsMap := make(map[string]int)
@@ -543,7 +543,7 @@ func (impl *ResourceFilterServiceImpl) extractEligibleFilters(scope resourceQual
 
 func (impl *ResourceFilterServiceImpl) checkForFilterEligibility(scope resourceQualifiers.Scope, filterMappings []*resourceQualifiers.QualifierMapping) bool {
 
-	//club app qualifiers, shortlist project qualifiers or app qualifiers, if not found, return false
+	// club app qualifiers, shortlist project qualifiers or app qualifiers, if not found, return false
 	appAllowed := impl.checkForAppQualifier(scope, filterMappings)
 	// club env qualifiers, shortlist cluster qualifiers or env qualifiers, if not found, return false
 	envAllowed := impl.checkForEnvQualifier(scope, filterMappings)
@@ -736,14 +736,14 @@ func (impl *ResourceFilterServiceImpl) UpdateFilterEvaluationAuditRef(id int, re
 
 func (impl *ResourceFilterServiceImpl) GetEvaluatedFiltersForSubjects(subjectType SubjectType, subjectIds []int, referenceId int, referenceType ReferenceType) (map[int][]*FilterMetaDataBean, map[int]time.Time, error) {
 
-	//fetch filter history objects
+	// fetch filter history objects
 	subjectIdVsFilterHistoryVsEvaluatedTimes, err := impl.resourceFilterEvaluationAuditService.GetLastEvaluationFilterHistoryDataBySubjects(subjectType, subjectIds, referenceId, referenceType)
 	if err != nil {
 		impl.logger.Errorw("error in finding filter history objects ", "subjectType", subjectType, "subjectId", referenceId, "referenceType", referenceType, "err", err)
 		return nil, nil, err
 	}
 
-	//if no filters were evaluated just return
+	// if no filters were evaluated just return
 	if len(subjectIdVsFilterHistoryVsEvaluatedTimes) == 0 {
 		return nil, nil, nil
 	}
@@ -807,14 +807,14 @@ func evaluatedFilterResponseGroupedBySubjectId[K int | string](logger *zap.Sugar
 
 func (impl *ResourceFilterServiceImpl) GetEvaluatedFiltersForSubjectsAndReferenceIds(subjectType SubjectType, subjectIds []int, referenceIds []int, referenceType ReferenceType) (map[string][]*FilterMetaDataBean, map[string]time.Time, error) {
 
-	//fetch filter history objects
+	// fetch filter history objects
 	subjectIdReferenceIdKeyVsFilterHistoryVsEvaluatedTimes, err := impl.resourceFilterEvaluationAuditService.GetLastEvaluationFilterHistoryDataBySubjectsAndReferences(subjectType, subjectIds, referenceIds, referenceType)
 	if err != nil {
 		impl.logger.Errorw("error in finding filter history objects ", "subjectType", subjectType, "subjectIds", referenceIds, "referenceType", referenceType, "err", err)
 		return nil, nil, err
 	}
 
-	//if no filters were evaluated just return
+	// if no filters were evaluated just return
 	if len(subjectIdReferenceIdKeyVsFilterHistoryVsEvaluatedTimes) == 0 {
 		return nil, nil, nil
 	}

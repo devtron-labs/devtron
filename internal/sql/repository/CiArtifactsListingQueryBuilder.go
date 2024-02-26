@@ -151,7 +151,7 @@ func BuildApprovedOnlyArtifactsWithFilter(listingFilterOpts bean.ArtifactsListFi
 		" approved_images AS " +
 		" ( " +
 		" SELECT approval_request_id,count(approval_request_id) AS approval_count " +
-		" FROM resource_approval_user_data daud " +
+		" FROM request_approval_user_data daud " +
 		fmt.Sprintf(" WHERE user_response is NULL AND request_type=%d", DEPLOYMENT_APPROVAL) +
 		" GROUP BY approval_request_id " +
 		" ) "
@@ -181,7 +181,7 @@ func BuildApprovedOnlyArtifactsWithFilter(listingFilterOpts bean.ArtifactsListFi
 func BuildQueryForApprovedArtifactsForRollback(listingFilterOpts bean.ArtifactsListFilterOptions) string {
 	subQuery := "WITH approved_requests AS " +
 		" (SELECT approval_request_id,count(approval_request_id) AS approval_count " +
-		" FROM resource_approval_user_data " +
+		" FROM request_approval_user_data " +
 		fmt.Sprintf(" WHERE user_response is NULL AND request_id = %d", DEPLOYMENT_APPROVAL) +
 		" GROUP BY approval_request_id ) " +
 		" SELECT approval_request_id " +

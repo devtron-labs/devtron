@@ -90,7 +90,7 @@ type CdHandlerImpl struct {
 	clusterService               cluster.ClusterService
 	blobConfigStorageService     BlobStorageConfigService
 	customTagService             CustomTagService
-	resourceApprovalRepository             pipelineConfig.ResourceApprovalRepository
+	resourceApprovalRepository   pipelineConfig.RequestApprovalRepository
 	resourceFilterService        resourceFilter.ResourceFilterService
 }
 
@@ -104,7 +104,7 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService,
 	imageTaggingService ImageTaggingService, k8sUtil *k8s.K8sUtilExtended,
 	workflowService WorkflowService, clusterService cluster.ClusterService,
 	blobConfigStorageService BlobStorageConfigService, customTagService CustomTagService,
-	resourceApprovalRepository             pipelineConfig.ResourceApprovalRepository,
+	resourceApprovalRepository pipelineConfig.RequestApprovalRepository,
 	resourceFilterService resourceFilter.ResourceFilterService) *CdHandlerImpl {
 	cdh := &CdHandlerImpl{
 		Logger:                       Logger,
@@ -124,7 +124,7 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService,
 		clusterService:               clusterService,
 		blobConfigStorageService:     blobConfigStorageService,
 		customTagService:             customTagService,
-		resourceApprovalRepository: resourceApprovalRepository,
+		resourceApprovalRepository:   resourceApprovalRepository,
 		resourceFilterService:        resourceFilterService,
 	}
 	config, err := types.GetCdConfig()

@@ -53,19 +53,19 @@ func (_m *DeploymentApprovalRepository) FetchApprovalDataForArtifacts(artifactId
 }
 
 // FetchApprovalDataForRequests provides a mock function with given fields: requestIds
-func (_m *DeploymentApprovalRepository) FetchApprovalDataForRequests(requestIds []int) ([]*pipelineConfig.ResourceApprovalUserData, error) {
+func (_m *DeploymentApprovalRepository) FetchApprovalDataForRequests(requestIds []int) ([]*pipelineConfig.RequestApprovalUserData, error) {
 	ret := _m.Called(requestIds)
 
-	var r0 []*pipelineConfig.ResourceApprovalUserData
+	var r0 []*pipelineConfig.RequestApprovalUserData
 	var r1 error
-	if rf, ok := ret.Get(0).(func([]int) ([]*pipelineConfig.ResourceApprovalUserData, error)); ok {
+	if rf, ok := ret.Get(0).(func([]int) ([]*pipelineConfig.RequestApprovalUserData, error)); ok {
 		return rf(requestIds)
 	}
-	if rf, ok := ret.Get(0).(func([]int) []*pipelineConfig.ResourceApprovalUserData); ok {
+	if rf, ok := ret.Get(0).(func([]int) []*pipelineConfig.RequestApprovalUserData); ok {
 		r0 = rf(requestIds)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*pipelineConfig.ResourceApprovalUserData)
+			r0 = ret.Get(0).([]*pipelineConfig.RequestApprovalUserData)
 		}
 	}
 
@@ -79,19 +79,19 @@ func (_m *DeploymentApprovalRepository) FetchApprovalDataForRequests(requestIds 
 }
 
 // FetchApprovedDataByApprovalId provides a mock function with given fields: approvalRequestId
-func (_m *DeploymentApprovalRepository) FetchApprovedDataByApprovalId(approvalRequestId int) ([]*pipelineConfig.ResourceApprovalUserData, error) {
+func (_m *DeploymentApprovalRepository) FetchApprovedDataByApprovalId(approvalRequestId int) ([]*pipelineConfig.RequestApprovalUserData, error) {
 	ret := _m.Called(approvalRequestId)
 
-	var r0 []*pipelineConfig.ResourceApprovalUserData
+	var r0 []*pipelineConfig.RequestApprovalUserData
 	var r1 error
-	if rf, ok := ret.Get(0).(func(int) ([]*pipelineConfig.ResourceApprovalUserData, error)); ok {
+	if rf, ok := ret.Get(0).(func(int) ([]*pipelineConfig.RequestApprovalUserData, error)); ok {
 		return rf(approvalRequestId)
 	}
-	if rf, ok := ret.Get(0).(func(int) []*pipelineConfig.ResourceApprovalUserData); ok {
+	if rf, ok := ret.Get(0).(func(int) []*pipelineConfig.RequestApprovalUserData); ok {
 		r0 = rf(approvalRequestId)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*pipelineConfig.ResourceApprovalUserData)
+			r0 = ret.Get(0).([]*pipelineConfig.RequestApprovalUserData)
 		}
 	}
 
@@ -171,11 +171,11 @@ func (_m *DeploymentApprovalRepository) Save(deploymentApprovalRequest *pipeline
 }
 
 // SaveDeploymentUserData provides a mock function with given fields: userData
-func (_m *DeploymentApprovalRepository) SaveDeploymentUserData(userData *pipelineConfig.ResourceApprovalUserData) error {
+func (_m *DeploymentApprovalRepository) SaveDeploymentUserData(userData *pipelineConfig.RequestApprovalUserData) error {
 	ret := _m.Called(userData)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(*pipelineConfig.ResourceApprovalUserData) error); ok {
+	if rf, ok := ret.Get(0).(func(*pipelineConfig.RequestApprovalUserData) error); ok {
 		r0 = rf(userData)
 	} else {
 		r0 = ret.Error(0)
