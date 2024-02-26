@@ -31,6 +31,7 @@ type InstalledAppGitOpsService interface {
 	// git.GitOperationService.CommitValues (If repo exists and Repo migration is not needed)
 	// functions to perform GitOps during upgrade deployments (GitOps based Helm Apps)
 	UpdateAppGitOpsOperations(manifest *bean.AppStoreManifestResponse, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, monoRepoMigrationRequired *bool, commitRequirements bool) (*bean.AppStoreGitOpsResponse, error)
+	CreateGitOpsRepo(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (string, bool, error)
 }
 
 // GitOpsOperations handles all git operations for Helm App; and ensures that the return param bean.AppStoreGitOpsResponse is not nil
@@ -160,7 +161,7 @@ func (impl *FullModeDeploymentServiceImpl) parseGitRepoErrorResponse(err error) 
 
 // createGitOpsRepoAndPushChart is a wrapper for creating GitOps repo and pushing chart to created repo
 func (impl *FullModeDeploymentServiceImpl) createGitOpsRepoAndPushChart(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, builtChartPath string, requirementsConfig *git.ChartConfig, valuesConfig *git.ChartConfig) (*commonBean.ChartGitAttribute, bool, string, error) {
-	repoURL, isNew, err := impl.createGitOpsRepo(installAppVersionRequest)
+	repoURL, isNew, err := impl.CreateGitOpsRepo(installAppVersionRequest)
 	if err != nil {
 		impl.Logger.Errorw("Error in creating gitops repo for ", "appName", installAppVersionRequest.AppName, "err", err)
 		return nil, false, "", err
@@ -175,7 +176,7 @@ func (impl *FullModeDeploymentServiceImpl) createGitOpsRepoAndPushChart(installA
 }
 
 // createGitOpsRepo creates a gitOps repo with readme
-func (impl *FullModeDeploymentServiceImpl) createGitOpsRepo(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (string, bool, error) {
+func (impl *FullModeDeploymentServiceImpl) CreateGitOpsRepo(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (string, bool, error) {
 	if len(installAppVersionRequest.GitOpsRepoName) == 0 {
 		//here gitops repo will be the app name, to breaking the mono repo structure
 		gitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoName(installAppVersionRequest.AppName)
