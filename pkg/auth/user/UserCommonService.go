@@ -2,6 +2,7 @@ package user
 
 import (
 	"fmt"
+	bean3 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin/bean"
 	"github.com/devtron-labs/devtron/pkg/auth/user/adapter"
 	"github.com/devtron-labs/devtron/pkg/auth/user/helper"
 	helper2 "github.com/devtron-labs/devtron/pkg/auth/user/repository/helper"
@@ -25,10 +26,10 @@ import (
 type UserCommonService interface {
 	GetPValUpdateMap(team, entityName, env, entity, cluster, namespace, group, kind, resource string, approver bool, workflow string) map[repository.PValUpdateKey]string
 	GetRenderedRoleData(defaultRoleData repository.RoleCacheDetailObj, pValUpdateMap map[repository.PValUpdateKey]string) *repository.RoleModel
-	GetRenderedPolicy(defaultPolicy repository.PolicyCacheDetailObj, pValUpdateMap map[repository.PValUpdateKey]string) []casbin.Policy
-	CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, approver bool, workflow string, userId int32) (bool, error, []casbin.Policy)
-	RemoveRolesAndReturnEliminatedPolicies(userInfo *bean.UserInfo, existingRoleIds map[int]repository.UserRoleModel, eliminatedRoleIds map[int]*repository.UserRoleModel, tx *pg.Tx, token string, managerAuth func(resource, token, object string) bool) ([]casbin.Policy, error)
-	RemoveRolesAndReturnEliminatedPoliciesForGroups(request *bean.RoleGroup, existingRoles map[int]*repository.RoleGroupRoleMapping, eliminatedRoles map[int]*repository.RoleGroupRoleMapping, tx *pg.Tx, token string, managerAuth func(resource string, token string, object string) bool) ([]casbin.Policy, error)
+	GetRenderedPolicy(defaultPolicy repository.PolicyCacheDetailObj, pValUpdateMap map[repository.PValUpdateKey]string) []bean3.Policy
+	CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, approver bool, workflow string, userId int32) (bool, error, []bean3.Policy)
+	RemoveRolesAndReturnEliminatedPolicies(userInfo *bean.UserInfo, existingRoleIds map[int]repository.UserRoleModel, eliminatedRoleIds map[int]*repository.UserRoleModel, tx *pg.Tx, token string, managerAuth func(resource, token, object string) bool) ([]bean3.Policy, error)
+	RemoveRolesAndReturnEliminatedPoliciesForGroups(request *bean.RoleGroup, existingRoles map[int]*repository.RoleGroupRoleMapping, eliminatedRoles map[int]*repository.RoleGroupRoleMapping, tx *pg.Tx, token string, managerAuth func(resource string, token string, object string) bool) ([]bean3.Policy, error)
 	CheckRbacForClusterEntity(cluster, namespace, group, kind, resource, token string, managerAuth func(resource, token, object string) bool) bool
 	GetCapacityForRoleFilter(roleFilters []bean.RoleFilter) (int, map[int]int)
 	MergeCustomRoleFilters(roleFilters []bean.RoleFilter) []bean.RoleFilter
@@ -84,7 +85,7 @@ type UserRbacConfig struct {
 	UseRbacCreationV2 bool `env:"USE_RBAC_CREATION_V2" envDefault:"true"`
 }
 
-func (impl UserCommonServiceImpl) CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, approver bool, workflow string, userId int32) (bool, error, []casbin.Policy) {
+func (impl UserCommonServiceImpl) CreateDefaultPoliciesForAllTypes(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, approver bool, workflow string, userId int32) (bool, error, []bean3.Policy) {
 	if impl.userRbacConfig.UseRbacCreationV2 {
 		impl.logger.Debugw("using rbac creation v2 for creating default policies")
 		return impl.CreateDefaultPoliciesForAllTypesV2(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType, approver, workflow)
@@ -93,7 +94,7 @@ func (impl UserCommonServiceImpl) CreateDefaultPoliciesForAllTypes(team, entityN
 	}
 }
 
-func (impl UserCommonServiceImpl) CreateDefaultPoliciesForAllTypesV2(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, approver bool, workflow string) (bool, error, []casbin.Policy) {
+func (impl UserCommonServiceImpl) CreateDefaultPoliciesForAllTypesV2(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, approver bool, workflow string) (bool, error, []bean3.Policy) {
 	//TODO: below txn is making this process slow, need to do bulk operation for role creation.
 	//For detail - https://github.com/devtron-labs/devtron/blob/main/pkg/user/benchmarking-results
 
@@ -108,7 +109,7 @@ func (impl UserCommonServiceImpl) CreateDefaultPoliciesForAllTypesV2(team, entit
 	return true, nil, renderedPolicyDetails
 }
 
-func (impl UserCommonServiceImpl) getRenderedRoleAndPolicy(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, approver bool, workflow string) (*repository.RoleModel, []casbin.Policy, error) {
+func (impl UserCommonServiceImpl) getRenderedRoleAndPolicy(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, approver bool, workflow string) (*repository.RoleModel, []bean3.Policy, error) {
 	//getting map of values to be used for rendering
 	pValUpdateMap := impl.GetPValUpdateMap(team, entityName, env, entity, cluster, namespace, group, kind, resource, approver, workflow)
 
@@ -154,20 +155,20 @@ func (impl UserCommonServiceImpl) GetRenderedRoleData(defaultRoleData repository
 	return renderedRoleData
 }
 
-func (impl UserCommonServiceImpl) GetRenderedPolicy(defaultPolicy repository.PolicyCacheDetailObj, pValUpdateMap map[repository.PValUpdateKey]string) []casbin.Policy {
-	renderedPolicies := make([]casbin.Policy, 0, len(defaultPolicy.ResActObjSet))
+func (impl UserCommonServiceImpl) GetRenderedPolicy(defaultPolicy repository.PolicyCacheDetailObj, pValUpdateMap map[repository.PValUpdateKey]string) []bean3.Policy {
+	renderedPolicies := make([]bean3.Policy, 0, len(defaultPolicy.ResActObjSet))
 	policyType := getResolvedValueFromPValDetailObject(defaultPolicy.Type, pValUpdateMap)
 	policySub := getResolvedValueFromPValDetailObject(defaultPolicy.Sub, pValUpdateMap)
 	for _, v := range defaultPolicy.ResActObjSet {
 		policyRes := getResolvedValueFromPValDetailObject(v.Res, pValUpdateMap)
 		policyAct := getResolvedValueFromPValDetailObject(v.Act, pValUpdateMap)
 		policyObj := getResolvedValueFromPValDetailObject(v.Obj, pValUpdateMap)
-		renderedPolicy := casbin.Policy{
-			Type: casbin.PolicyType(policyType.String()),
-			Sub:  casbin.Subject(policySub.String()),
-			Res:  casbin.Resource(policyRes.String()),
-			Act:  casbin.Action(policyAct.String()),
-			Obj:  casbin.Object(policyObj.String()),
+		renderedPolicy := bean3.Policy{
+			Type: bean3.PolicyType(policyType.String()),
+			Sub:  bean3.Subject(policySub.String()),
+			Res:  bean3.Resource(policyRes.String()),
+			Act:  bean3.Action(policyAct.String()),
+			Obj:  bean3.Object(policyObj.String()),
 		}
 		renderedPolicies = append(renderedPolicies, renderedPolicy)
 	}
@@ -234,8 +235,8 @@ func getResolvedPValMapValue(rawValue string) string {
 
 func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInfo *bean.UserInfo,
 	existingRoleIds map[int]repository.UserRoleModel, eliminatedRoleIds map[int]*repository.UserRoleModel,
-	tx *pg.Tx, token string, managerAuth func(resource, token, object string) bool) ([]casbin.Policy, error) {
-	var eliminatedPolicies []casbin.Policy
+	tx *pg.Tx, token string, managerAuth func(resource, token, object string) bool) ([]bean3.Policy, error) {
+	var eliminatedPolicies []bean3.Policy
 	// this map keeps the role id vs bool value for storing if existing role is given with different timeoutWindowConfiguration, handling multiple same rows.
 	// for eg . user has (p1,e1,a1,admin ,active) combination  and multiple rows come in request for (p1,e1,a1,admin, inactive) so this maps handles this.
 	timeoutChangedMap := make(map[int]bool)
@@ -405,7 +406,7 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 	return eliminatedPolicies, nil
 }
 
-func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroups(request *bean.RoleGroup, existingRoles map[int]*repository.RoleGroupRoleMapping, eliminatedRoles map[int]*repository.RoleGroupRoleMapping, tx *pg.Tx, token string, managerAuth func(resource string, token string, object string) bool) ([]casbin.Policy, error) {
+func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroups(request *bean.RoleGroup, existingRoles map[int]*repository.RoleGroupRoleMapping, eliminatedRoles map[int]*repository.RoleGroupRoleMapping, tx *pg.Tx, token string, managerAuth func(resource string, token string, object string) bool) ([]bean3.Policy, error) {
 	// Filter out removed items in current request
 	//var policies []casbin.Policy
 	for _, roleFilter := range request.RoleFilters {
@@ -528,7 +529,7 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroup
 
 	//delete remaining Ids from casbin role mapping table in orchestrator and casbin policy db
 	// which are existing but not provided in this request
-	var eliminatedPolicies []casbin.Policy
+	var eliminatedPolicies []bean3.Policy
 	for _, model := range eliminatedRoles {
 		role, err := impl.userAuthRepository.GetRoleById(model.RoleId)
 		if err != nil {
@@ -555,7 +556,7 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroup
 		if err != nil {
 			return nil, err
 		}
-		eliminatedPolicies = append(eliminatedPolicies, casbin.Policy{Type: "g", Sub: casbin.Subject(policyGroup.CasbinName), Obj: casbin.Object(role.Role)})
+		eliminatedPolicies = append(eliminatedPolicies, bean3.Policy{Type: "g", Sub: bean3.Subject(policyGroup.CasbinName), Obj: bean3.Object(role.Role)})
 	}
 	return eliminatedPolicies, nil
 }

@@ -2,7 +2,7 @@ package adapter
 
 import (
 	"github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	bean2 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin/bean"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"time"
 )
@@ -15,13 +15,13 @@ func GetLastLoginTime(model repository.UserModel) time.Time {
 	return lastLoginTime
 }
 
-func GetCasbinGroupPolicy(emailId string, role string, expression string, expressionFormat string) casbin.Policy {
-	return casbin.Policy{
+func GetCasbinGroupPolicy(emailId string, role string, expression string, expressionFormat string) bean2.Policy {
+	return bean2.Policy{
 		Type: "g",
-		Sub:  casbin.Subject(emailId),
-		Res:  casbin.Resource(expression),
-		Act:  casbin.Action(expressionFormat),
-		Obj:  casbin.Object(role),
+		Sub:  bean2.Subject(emailId),
+		Res:  bean2.Resource(expression),
+		Act:  bean2.Action(expressionFormat),
+		Obj:  bean2.Object(role),
 	}
 }
 
