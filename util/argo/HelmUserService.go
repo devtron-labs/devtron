@@ -33,3 +33,7 @@ func (impl *HelmUserServiceImpl) GetOrUpdateArgoCdUserDetail() string {
 func (impl *HelmUserServiceImpl) BuildACDContext() (acdContext context.Context, err error) {
 	return context.Background(), nil
 }
+
+func (impl *HelmUserServiceImpl) SetAcdTokenInContext(ctx context.Context) (context.Context, error) {
+	return context.Background(), nil
+}

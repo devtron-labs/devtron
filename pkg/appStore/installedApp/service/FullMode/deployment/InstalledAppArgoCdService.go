@@ -26,6 +26,8 @@ type InstalledAppArgoCdService interface {
 	CheckIfArgoAppExists(acdAppName string) (isFound bool, err error)
 	// UpdateAndSyncACDApps this will update chart info in acd app if required in case of mono repo migration and will refresh argo app
 	UpdateAndSyncACDApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *commonBean.ChartGitAttribute, isMonoRepoMigrationRequired bool, ctx context.Context, tx *pg.Tx) error
+	DeleteACD(acdAppName string, ctx context.Context, isNonCascade bool) error
+	CreateInArgo(chartGitAttribute *commonBean.ChartGitAttribute, envModel repository5.Environment, argocdAppName string) error
 }
 
 func (impl *FullModeDeploymentServiceImpl) GetAcdAppGitOpsRepoName(appName string, environmentName string) (string, error) {
@@ -54,7 +56,7 @@ func (impl *FullModeDeploymentServiceImpl) GetAcdAppGitOpsRepoName(appName strin
 func (impl *FullModeDeploymentServiceImpl) DeleteACDAppObject(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error {
 	acdAppName := appName + "-" + environmentName
 	var err error
-	err = impl.deleteACD(acdAppName, ctx, installAppVersionRequest.NonCascadeDelete)
+	err = impl.DeleteACD(acdAppName, ctx, installAppVersionRequest.NonCascadeDelete)
 	if err != nil {
 		impl.Logger.Errorw("error in deleting ACD ", "name", acdAppName, "err", err)
 		if installAppVersionRequest.ForceDelete {
@@ -141,7 +143,7 @@ func (impl *FullModeDeploymentServiceImpl) UpgradeDeployment(installAppVersionRe
 	return err
 }
 
-func (impl *FullModeDeploymentServiceImpl) deleteACD(acdAppName string, ctx context.Context, isNonCascade bool) error {
+func (impl *FullModeDeploymentServiceImpl) DeleteACD(acdAppName string, ctx context.Context, isNonCascade bool) error {
 	req := new(application.ApplicationDeleteRequest)
 	req.Name = &acdAppName
 	cascadeDelete := !isNonCascade
@@ -157,7 +159,7 @@ func (impl *FullModeDeploymentServiceImpl) deleteACD(acdAppName string, ctx cont
 	return nil
 }
 
-func (impl *FullModeDeploymentServiceImpl) createInArgo(chartGitAttribute *commonBean.ChartGitAttribute, envModel repository5.Environment, argocdAppName string) error {
+func (impl *FullModeDeploymentServiceImpl) CreateInArgo(chartGitAttribute *commonBean.ChartGitAttribute, envModel repository5.Environment, argocdAppName string) error {
 	appNamespace := envModel.Namespace
 	if appNamespace == "" {
 		appNamespace = "default"
