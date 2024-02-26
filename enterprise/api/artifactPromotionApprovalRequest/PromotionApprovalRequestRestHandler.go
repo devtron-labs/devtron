@@ -5,9 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
+	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/pipeline"
 	artifactPromotion2 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/repository"
@@ -25,7 +28,11 @@ type PromotionApprovalRequestRestHandler interface {
 	GetByPromotionRequestId(w http.ResponseWriter, r *http.Request)
 }
 
-type PromotionApprovalRequestRestHandlerImpl struct {
+type PromotionApprovalMaterialRestHandler interface {
+	GetArtifactsForPromotion(w http.ResponseWriter, r *http.Request)
+}
+
+type PromotionApprovalRestHandlerImpl struct {
 	promotionApprovalRequestService            artifactPromotion2.ArtifactPromotionApprovalService
 	logger                                     *zap.SugaredLogger
 	userService                                user.UserService
@@ -35,9 +42,11 @@ type PromotionApprovalRequestRestHandlerImpl struct {
 	enforcerUtil                               rbac.EnforcerUtil
 	environmentRepository                      repository.EnvironmentRepository
 	artifactPromotionApprovalRequestRepository repository2.ArtifactPromotionApprovalRequestRepository
+	appArtifactManager                         pipeline.AppArtifactManager
+	CiArtifactRepository                       repository3.CiArtifactRepository
 }
 
-func NewArtifactPromotionApprovalServiceImpl(
+func NewArtifactPromotionApprovalRestHandlerImpl(
 	promotionApprovalRequestService artifactPromotion2.ArtifactPromotionApprovalService,
 	logger *zap.SugaredLogger,
 	userService user.UserService,
@@ -46,8 +55,9 @@ func NewArtifactPromotionApprovalServiceImpl(
 	enforcerUtil rbac.EnforcerUtil,
 	environmentRepository repository.EnvironmentRepository,
 	artifactPromotionApprovalRequestRepository repository2.ArtifactPromotionApprovalRequestRepository,
-) *PromotionApprovalRequestRestHandlerImpl {
-	return &PromotionApprovalRequestRestHandlerImpl{
+	appArtifactManager pipeline.AppArtifactManager,
+) *PromotionApprovalRestHandlerImpl {
+	return &PromotionApprovalRestHandlerImpl{
 		promotionApprovalRequestService: promotionApprovalRequestService,
 		logger:                          logger,
 		userService:                     userService,
@@ -56,10 +66,11 @@ func NewArtifactPromotionApprovalServiceImpl(
 		enforcerUtil:                    enforcerUtil,
 		environmentRepository:           environmentRepository,
 		artifactPromotionApprovalRequestRepository: artifactPromotionApprovalRequestRepository,
+		appArtifactManager:                         appArtifactManager,
 	}
 }
 
-func (handler PromotionApprovalRequestRestHandlerImpl) HandleArtifactPromotionRequest(w http.ResponseWriter, r *http.Request) {
+func (handler PromotionApprovalRestHandlerImpl) HandleArtifactPromotionRequest(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if err != nil || userId == 0 {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -156,7 +167,7 @@ func (handler PromotionApprovalRequestRestHandlerImpl) HandleArtifactPromotionRe
 	common.WriteJsonResp(w, nil, nil, http.StatusOK)
 }
 
-func (handler PromotionApprovalRequestRestHandlerImpl) GetByPromotionRequestId(w http.ResponseWriter, r *http.Request) {
+func (handler PromotionApprovalRestHandlerImpl) GetByPromotionRequestId(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if err != nil || userId == 0 {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -213,8 +224,99 @@ func (handler PromotionApprovalRequestRestHandlerImpl) GetByPromotionRequestId(w
 	common.WriteJsonResp(w, nil, nil, http.StatusOK)
 }
 
-func (handler PromotionApprovalRequestRestHandlerImpl) getAppAndEnvObjectByCdPipelineId(cdPipelineId int) (string, string) {
+func (handler PromotionApprovalRestHandlerImpl) getAppAndEnvObjectByCdPipelineId(cdPipelineId int) (string, string) {
 	object := handler.enforcerUtil.GetAppAndEnvObjectByPipelineIds([]int{cdPipelineId})
 	rbacObjects := object[cdPipelineId]
 	return rbacObjects[0], rbacObjects[1]
+}
+
+func (handler PromotionApprovalRestHandlerImpl) GetArtifactsForPromotion(w http.ResponseWriter, r *http.Request) {
+
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if err != nil || userId == 0 {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	token := r.Header.Get("token")
+	isAuthorised, err := handler.userService.IsUserAdminOrManagerForAnyApp(userId, token)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	if !isAuthorised {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+
+	queryParams := r.URL.Query()
+
+	resource := queryParams.Get("resource")
+	resourceName := queryParams.Get("resourceName")
+
+	appId, err := strconv.Atoi(queryParams.Get("appId"))
+	if err != nil {
+		handler.logger.Errorw("error in parsing appId from string to int", "appId", queryParams.Get("appId"))
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	pendingForCurrentUser, err := strconv.ParseBool(queryParams.Get("pendingForCurrentUser"))
+	if err != nil {
+		handler.logger.Errorw("error in parsing pendingForCurrentUser from string to bool", "pendingForCurrentUser", queryParams.Get("pendingForCurrentUser"))
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	workflowId, err := strconv.Atoi(queryParams.Get("workflowId"))
+	if err != nil {
+		handler.logger.Errorw("error in parsing workflowId from string to int", "workflowId", queryParams.Get("workflowId"))
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	offset := 0
+	limit := 10
+	offsetQueryParam := queryParams.Get("offset")
+	if offsetQueryParam != "" {
+		offset, err = strconv.Atoi(offsetQueryParam)
+		if err != nil || offset < 0 {
+			handler.logger.Errorw("error in parsing ", "err", err, "offsetQueryParam", offsetQueryParam)
+			common.WriteJsonResp(w, err, "invalid offset", http.StatusBadRequest)
+			return
+		}
+	}
+
+	sizeQueryParam := r.URL.Query().Get("size")
+	if sizeQueryParam != "" {
+		limit, err = strconv.Atoi(sizeQueryParam)
+		if err != nil {
+			handler.logger.Errorw("request err, GetArtifactsForRollback", "err", err, "sizeQueryParam", sizeQueryParam)
+			common.WriteJsonResp(w, err, "invalid size", http.StatusBadRequest)
+			return
+		}
+	}
+
+	if resourceName == "CI" {
+
+	}
+
+	artifactPromotionMaterialRequest := bean2.ArtifactPromotionMaterialRequest{}
+	artifactPromotionMaterialRequest.Resource = resource
+	artifactPromotionMaterialRequest.ResourceName = resourceName
+	artifactPromotionMaterialRequest.AppId = appId
+	artifactPromotionMaterialRequest.WorkflowId = workflowId
+	artifactPromotionMaterialRequest.Offset = offset
+	artifactPromotionMaterialRequest.Limit = limit
+
+	artifactPromotionMaterialRequest.PendingForCurrentUser = pendingForCurrentUser
+	artifactPromotionMaterialRequest.UserId = userId
+
+	artifactPromotionMaterialResponse, err := handler.appArtifactManager.FetchMaterialForArtifactPromotion(artifactPromotionMaterialRequest)
+	if err != nil {
+		handler.logger.Errorw("error in fetching artifacts for given promotion request parameters", "artifactPromotionRequest", artifactPromotionMaterialRequest, "err", err)
+		common.WriteJsonResp(w, errors.New("error in fetching artifacts response for given request parameters"), nil, http.StatusInternalServerError)
+		return
+	}
+
+	common.WriteJsonResp(w, nil, artifactPromotionMaterialResponse, http.StatusOK)
 }

@@ -811,7 +811,7 @@ type CiArtifactBean struct {
 	CiPipelineId              int                                  `json:"-"`
 	CredentialsSourceType     string                               `json:"-"`
 	CredentialsSourceValue    string                               `json:"-"`
-	PromotionApprovalMetadata PromotionApprovalMetaData            `json:"promotionApprovalMetadata"`
+	PromotionApprovalMetadata *PromotionApprovalMetaData           `json:"promotionApprovalMetadata,omitempty"`
 	PromotedFrom              string                               `json:"promotedFrom"`
 	PromotedFromType          string                               `json:"promotedFromType"`
 	DeployedOnEnvironments    []string                             `json:"deployedOnEnvironments"`
