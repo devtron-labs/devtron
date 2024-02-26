@@ -1,52 +1,15 @@
 -- 0 for  deployment approval request, 1 for artifact promotion approval request
 ALTER TABLE deployment_approval_user_data ADD COLUMN "request_type" integer DEFAULT 0;
 
--- rename deployment_approval_user_data table to resource_approval_user_data
-ALTER TABLE deployment_approval_user_data RENAME TO resource_approval_user_data;
 --  drop the constraint as this is no longer valid
 ALTER TABLE deployment_approval_user_data DROP CONSTRAINT deployment_approval_user_data_approval_request_id_fkey;
+
+-- rename deployment_approval_user_data table to resource_approval_user_data
+ALTER TABLE deployment_approval_user_data RENAME TO resource_approval_user_data;
+
 -- 0 for  resource_filter, 1 for artifact promotion policy filter evaluation
 ALTER TABLE  resource_filter_evaluation_audit ADD COLUMN "resource_type" integer DEFAULT 0;
 
--- create artifact promotion policy table
-CREATE SEQUENCE IF NOT EXISTS id_artifact_promotion_policy;
-CREATE TABLE IF NOT EXISTS public.artifact_promotion_policy
-(
-    "active"                       bool         NOT NULL,
-    "created_by"                   int4         NOT NULL,
-    "updated_by"                   int4         NOT NULL,
-    "id"                           int          NOT NULL DEFAULT nextval('id_artifact_promotion_policy'::regclass),
-    "approval_count"               int          NOT NULL,
-    "name"                         VARCHAR(50)  NOT NULL,
-    "description"                  VARCHAR(300),
-    "created_on"                   timestamptz  NOT NULL,
-    "updated_on"                   timestamptz  NOT NULL,
-    "condition_expression"         text         NOT NULL,
---  this column contains {"allowImageBuilderFromApprove": false, "allowRequesterFromApprove": false, "allowApproverFromDeploy": false}
-    "approval_metadata"            json         NOT NULL,
-
-    PRIMARY KEY ("id")
-    );
-CREATE UNIQUE INDEX idx_unique_promotion_policy_name
-    ON artifact_promotion_policy(name)
-    WHERE active = true;
-
--- promotion policies audit table, stores the auditing for delete,create and update actions
-CREATE SEQUENCE IF NOT EXISTS artifact_promotion_policy_audit_seq;
-CREATE TABLE IF NOT EXISTS "public"."artifact_promotion_policy_audit"
-(
-    "id"  integer not null default nextval('resource_filter_audit_seq' :: regclass),
-    "policy_data" text     NOT NULL,
-    "policy_id"   int      NOT NULL,
-    "created_by"  int4     NOT NULL,
-    "updated_by"  int4     NOT NULL,
---     action is either create, update ,delete
-    "action"      int      NOT NULL,
-    "created_on"                   timestamptz  NOT NULL,
-    "updated_on"                   timestamptz  NOT NULL,
-    CONSTRAINT "artifact_promotion_policy_audit_policy_id_fkey" FOREIGN KEY ("policy_id") REFERENCES "public"."artifact_promotion_policy" ("id"),
-    PRIMARY KEY ("id")
-    );
 
 -- create artifact promotion approval request table
 CREATE SEQUENCE IF NOT EXISTS id_artifact_promotion_approval_request;
@@ -74,7 +37,7 @@ CREATE TABLE IF NOT EXISTS public.artifact_promotion_approval_request
     PRIMARY KEY ("id")
     );
 
-CONSTRAINT "artifact_promotion_approval_request_policy_id_fkey" FOREIGN KEY ("policy_id") REFERENCES "public"."artifact_promotion_policy" ("id");
+CONSTRAINT "artifact_promotion_approval_request_policy_id_fkey" FOREIGN KEY ("policy_id") REFERENCES "public"."global_policy" ("id");
 CONSTRAINT "artifact_promotion_approval_request_artifact_id_fkey" FOREIGN KEY ("artifact_id") REFERENCES "public"."ci_artifact" ("id");
 CONSTRAINT "artifact_promotion_approval_request_policy_evaluation_audit_id_fkey" FOREIGN KEY ("policy_evaluation_audit_id") REFERENCES "public"."resource_filter_evaluation_audit" ("id");
 CREATE UNIQUE INDEX "idx_unique_artifact_promoted_to_destination"
