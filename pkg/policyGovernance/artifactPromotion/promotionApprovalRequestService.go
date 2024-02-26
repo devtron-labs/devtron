@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/devtron-labs/devtron/enterprise/pkg/artifactPromotion/bean"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
@@ -181,7 +180,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) computeFilterParams(ciArtifact 
 	return params, nil
 }
 
-func (impl ArtifactPromotionApprovalServiceImpl) evaluatePoliciesOnArtifact(ciArtifact *repository.CiArtifact, envMap map[string]repository1.Environment, policiesMap map[string]bean.PromotionPolicy) ([]bean.EnvironmentResponse, error) {
+func (impl ArtifactPromotionApprovalServiceImpl) evaluatePoliciesOnArtifact(ciArtifact *repository2.CiArtifact, envMap map[string]repository1.Environment, policiesMap map[string]bean.PromotionPolicy) ([]bean.EnvironmentResponse, error) {
 	params, err := impl.computeFilterParams(ciArtifact)
 	if err != nil {
 		impl.logger.Errorw("error in finding the required CEL expression parameters for using ciArtifact", "err", err)
@@ -490,7 +489,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) checkPromotionPolicyGovernance(
 	return nil
 }
 
-func (impl ArtifactPromotionApprovalServiceImpl) raisePromoteRequest(request *repository2.ArtifactPromotionRequest, pipelineId int, promotionPolicyMetadata interface{}) (bean.PromotionValidationState, string, error) {
+func (impl ArtifactPromotionApprovalServiceImpl) raisePromoteRequest(request *bean.ArtifactPromotionRequest, pipelineId int, promotionPolicyMetadata interface{}) (bean.PromotionValidationState, string, error) {
 	requests, err := impl.artifactPromotionApprovalRequestRepository.FindAwaitedRequestByPipelineIdAndArtifactId(pipelineId, request.ArtifactId)
 	if err != nil {
 		impl.logger.Errorw("error in finding the pending promotion request using pipelineId and artifactId", "pipelineId", pipelineId, "artifactId", request.ArtifactId)
@@ -511,7 +510,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) raisePromoteRequest(request *re
 		return bean.ARTIFACT_ALREADY_PROMOTED, string(bean.ARTIFACT_ALREADY_PROMOTED), nil
 	}
 
-	promotionRequest := &ArtifactPromotionApprovalRequest{
+	promotionRequest := &repository.ArtifactPromotionApprovalRequest{
 		SourceType:            bean.CI,
 		SourcePipelineId:      request.SourcePipelineId,
 		DestinationPipelineId: pipelineId,

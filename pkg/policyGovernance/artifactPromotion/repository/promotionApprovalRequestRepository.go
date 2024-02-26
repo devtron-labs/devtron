@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"github.com/devtron-labs/devtron/enterprise/pkg/artifactPromotion/bean"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 )
