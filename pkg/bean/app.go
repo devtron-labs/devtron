@@ -845,6 +845,7 @@ type ArtifactPromotionMaterialRequest struct {
 	Limit                 int
 	Offset                int
 	ImageSearchString     string
+	UserId                int32
 }
 
 type ArtifactPromotionMaterialResponse struct {

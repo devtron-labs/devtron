@@ -6,13 +6,15 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/enterprise/pkg/artifactPromotion/bean"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
+	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	repository1 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"net/http"
@@ -21,17 +23,17 @@ import (
 
 type ArtifactPromotionApprovalService interface {
 	HandleArtifactPromotionRequest(request *bean.ArtifactPromotionRequest, authorizedEnvironments map[string]bool) ([]bean.EnvironmentResponse, error)
-	GetByPromotionRequestId(artifactPromotionApprovalRequest *ArtifactPromotionApprovalRequest) (*bean.ArtifactPromotionApprovalResponse, error)
+	GetByPromotionRequestId(artifactPromotionApprovalRequest *repository.ArtifactPromotionApprovalRequest) (*bean.ArtifactPromotionApprovalResponse, error)
 	FetchEnvironmentsList(workflowId, artifactId int) ([]bean.EnvironmentResponse, error)
 }
 
 type ArtifactPromotionApprovalServiceImpl struct {
-	artifactPromotionApprovalRequestRepository ArtifactPromotionApprovalRequestRepository
+	artifactPromotionApprovalRequestRepository repository.ArtifactPromotionApprovalRequestRepository
 	logger                                     *zap.SugaredLogger
 	ciPipelineRepository                       pipelineConfig.CiPipelineRepository
 	pipelineRepository                         pipelineConfig.PipelineRepository
 	userService                                user.UserService
-	ciArtifactRepository                       repository.CiArtifactRepository
+	ciArtifactRepository                       repository2.CiArtifactRepository
 	appWorkflowRepository                      appWorkflow.AppWorkflowRepository
 	cdWorkflowRepository                       pipelineConfig.CdWorkflowRepository
 	resourceFilterConditionsEvaluator          resourceFilter.ResourceFilterEvaluator
@@ -39,12 +41,12 @@ type ArtifactPromotionApprovalServiceImpl struct {
 }
 
 func NewArtifactPromotionApprovalServiceImpl(
-	ArtifactPromotionApprovalRequestRepository ArtifactPromotionApprovalRequestRepository,
+	ArtifactPromotionApprovalRequestRepository repository.ArtifactPromotionApprovalRequestRepository,
 	logger *zap.SugaredLogger,
 	CiPipelineRepository pipelineConfig.CiPipelineRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	userService user.UserService,
-	ciArtifactRepository repository.CiArtifactRepository,
+	ciArtifactRepository repository2.CiArtifactRepository,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	resourceFilterConditionsEvaluator resourceFilter.ResourceFilterEvaluator,
@@ -137,8 +139,8 @@ func (impl ArtifactPromotionApprovalServiceImpl) FetchEnvironmentsList(workflowI
 
 }
 
-func (impl ArtifactPromotionApprovalServiceImpl) computeFilterParams(ciArtifact *repository.CiArtifact) ([]resourceFilter.ExpressionParam, error) {
-	var ciMaterials []repository.CiMaterialInfo
+func (impl ArtifactPromotionApprovalServiceImpl) computeFilterParams(ciArtifact *repository2.CiArtifact) ([]resourceFilter.ExpressionParam, error) {
+	var ciMaterials []repository2.CiMaterialInfo
 	err := json.Unmarshal([]byte(ciArtifact.MaterialInfo), &ciMaterials)
 	if err != nil {
 		impl.logger.Errorw("error in parsing ci artifact material info")
@@ -488,7 +490,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) checkPromotionPolicyGovernance(
 	return nil
 }
 
-func (impl ArtifactPromotionApprovalServiceImpl) raisePromoteRequest(request *bean.ArtifactPromotionRequest, pipelineId int, promotionPolicyMetadata interface{}) (bean.PromotionValidationState, string, error) {
+func (impl ArtifactPromotionApprovalServiceImpl) raisePromoteRequest(request *repository2.ArtifactPromotionRequest, pipelineId int, promotionPolicyMetadata interface{}) (bean.PromotionValidationState, string, error) {
 	requests, err := impl.artifactPromotionApprovalRequestRepository.FindAwaitedRequestByPipelineIdAndArtifactId(pipelineId, request.ArtifactId)
 	if err != nil {
 		impl.logger.Errorw("error in finding the pending promotion request using pipelineId and artifactId", "pipelineId", pipelineId, "artifactId", request.ArtifactId)
@@ -569,7 +571,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) cancelPromotionApprovalRequest(
 	return nil, err
 }
 
-func (impl ArtifactPromotionApprovalServiceImpl) GetByPromotionRequestId(artifactPromotionApprovalRequest *ArtifactPromotionApprovalRequest) (*bean.ArtifactPromotionApprovalResponse, error) {
+func (impl ArtifactPromotionApprovalServiceImpl) GetByPromotionRequestId(artifactPromotionApprovalRequest *repository.ArtifactPromotionApprovalRequest) (*bean.ArtifactPromotionApprovalResponse, error) {
 
 	sourceType := artifactPromotionApprovalRequest.SourceType.GetSourceType()
 

@@ -120,6 +120,7 @@ type CdPipelineConfigService interface {
 	//GetEnvironmentListForAutocompleteFilter : lists environment for given configuration
 	GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, offset int, size int, token string, checkAuthBatch func(token string, appObject []string, envObject []string) (map[string]bool, map[string]bool), ctx context.Context) (*cluster.ResourceGroupingResponse, error)
 	RegisterInACD(gitOpsRepoName string, chartGitAttr *commonBean.ChartGitAttribute, userId int32, ctx context.Context) error
+	FindCdPipelinesByIds(cdPipelineIds []int) (cdPipeline []*bean.CDPipelineConfigObject, err error)
 }
 
 type CdPipelineConfigServiceImpl struct {
@@ -2503,5 +2504,33 @@ func (impl *CdPipelineConfigServiceImpl) BulkDeleteCdPipelines(impactedPipelines
 		respDtos = append(respDtos, respDto)
 	}
 	return respDtos
+
+}
+
+func (impl *CdPipelineConfigServiceImpl) FindCdPipelinesByIds(cdPipelineIds []int) (cdPipelines []*bean.CDPipelineConfigObject, err error) {
+
+	Pipelines, err := impl.pipelineRepository.FindByIdsIn(cdPipelineIds)
+	if err != nil {
+		impl.logger.Errorw("error in fetching cdPipeline by id", "cdPipelineIds", cdPipelineIds, "err", err)
+		return nil, err
+	}
+
+	for _, pipeline := range Pipelines {
+		cdPipeline := &bean.CDPipelineConfigObject{
+			Id:                         pipeline.Id,
+			EnvironmentId:              pipeline.EnvironmentId,
+			EnvironmentName:            pipeline.Environment.Name,
+			CiPipelineId:               pipeline.CiPipelineId,
+			Name:                       pipeline.Name,
+			Namespace:                  pipeline.Environment.Namespace,
+			DeploymentAppType:          pipeline.DeploymentAppType,
+			DeploymentAppDeleteRequest: pipeline.DeploymentAppDeleteRequest,
+			DeploymentAppCreated:       pipeline.DeploymentAppCreated,
+			AppId:                      pipeline.AppId,
+		}
+		cdPipelines = append(cdPipelines, cdPipeline)
+
+	}
+	return cdPipelines, nil
 
 }

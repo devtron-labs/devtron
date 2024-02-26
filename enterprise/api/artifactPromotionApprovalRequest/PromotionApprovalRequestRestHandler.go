@@ -5,11 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"github.com/devtron-labs/devtron/enterprise/pkg/artifactPromotion"
-	"github.com/devtron-labs/devtron/enterprise/pkg/artifactPromotion/bean"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	artifactPromotion2 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
+	repository2 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/repository"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
@@ -25,7 +26,7 @@ type PromotionApprovalRequestRestHandler interface {
 }
 
 type PromotionApprovalRequestRestHandlerImpl struct {
-	promotionApprovalRequestService            artifactPromotion.ArtifactPromotionApprovalService
+	promotionApprovalRequestService            artifactPromotion2.ArtifactPromotionApprovalService
 	logger                                     *zap.SugaredLogger
 	userService                                user.UserService
 	enforcer                                   casbin.Enforcer
@@ -33,18 +34,18 @@ type PromotionApprovalRequestRestHandlerImpl struct {
 	userCommonService                          user.UserCommonService
 	enforcerUtil                               rbac.EnforcerUtil
 	environmentRepository                      repository.EnvironmentRepository
-	artifactPromotionApprovalRequestRepository artifactPromotion.ArtifactPromotionApprovalRequestRepository
+	artifactPromotionApprovalRequestRepository repository2.ArtifactPromotionApprovalRequestRepository
 }
 
 func NewArtifactPromotionApprovalServiceImpl(
-	promotionApprovalRequestService artifactPromotion.ArtifactPromotionApprovalService,
+	promotionApprovalRequestService artifactPromotion2.ArtifactPromotionApprovalService,
 	logger *zap.SugaredLogger,
 	userService user.UserService,
 	validator *validator.Validate,
 	userCommonService user.UserCommonService,
 	enforcerUtil rbac.EnforcerUtil,
 	environmentRepository repository.EnvironmentRepository,
-	artifactPromotionApprovalRequestRepository artifactPromotion.ArtifactPromotionApprovalRequestRepository,
+	artifactPromotionApprovalRequestRepository repository2.ArtifactPromotionApprovalRequestRepository,
 ) *PromotionApprovalRequestRestHandlerImpl {
 	return &PromotionApprovalRequestRestHandlerImpl{
 		promotionApprovalRequestService: promotionApprovalRequestService,
