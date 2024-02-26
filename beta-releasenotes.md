@@ -1,4 +1,5 @@
 ## Bugs
+- fix: Added argo app stream API response to resource tree API (#4715)
 - fix: wrong image scan execution result (#4691)
 - fix: 5xx 3.0 (#4578)
 - fix: chart repo delete routing (#4692)
