@@ -99,6 +99,9 @@ type InstallAppVersionDTO struct {
 	DeploymentAppType            string                         `json:"deploymentAppType"` // TODO: instead of string, use enum
 	AcdPartialDelete             bool                           `json:"acdPartialDelete"`
 	InstalledAppDeleteResponse   *InstalledAppDeleteResponseDTO `json:"deleteResponse,omitempty"`
+	UpdatedOn                    time.Time                      `json:"updatedOn"`
+	IsVirtualEnvironment         bool                           `json:"isVirtualEnvironment"`
+	HelmPackageName              string                         `json:"helmPackageName"`
 	AppStoreApplicationVersionId int
 }
 
