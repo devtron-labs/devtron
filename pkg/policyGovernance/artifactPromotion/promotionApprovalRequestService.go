@@ -81,7 +81,6 @@ func (impl ArtifactPromotionApprovalServiceImpl) FetchEnvironmentsList(workflowI
 		return nil, err
 	}
 
-	//TODO: fix this repetitive logic
 	pipelineIds := make([]int, 0, len(allAppWorkflowMappings))
 	for _, mapping := range allAppWorkflowMappings {
 		if mapping.Type == appWorkflow.CDPIPELINE {
