@@ -129,6 +129,7 @@ type CiArtifactRepository interface {
 	UpdateLatestTimestamp(artifactIds []int) error
 	FindDeployedArtifactsOnPipeline(artifactsListingFilterOps bean.ArtifactsListFilterOptions) ([]CiArtifact, int, error)
 	FindArtifactsByCIPipelineId(artifactsListingFilterOps bean.ArtifactsListFilterOptions) ([]CiArtifact, int, error)
+	FindArtifactsByExternalCIPipelineId(artifactsListingFilterOps bean.ArtifactsListFilterOptions) ([]CiArtifact, int, error)
 	FindArtifactsPendingForPromotion(cdPipelineIds []int, limit, offset int, imageSearchPattern string) ([]CiArtifact, int, error)
 }
 
@@ -920,6 +921,37 @@ func (impl CiArtifactRepositoryImpl) FindArtifactsByCIPipelineId(artifactsListin
 	return ciArtifacts, totalCount, nil
 }
 
+func (impl CiArtifactRepositoryImpl) FindArtifactsByExternalCIPipelineId(artifactsListingFilterOps bean.ArtifactsListFilterOptions) ([]CiArtifact, int, error) {
+
+	var ciArtifacts []CiArtifact
+	var ciArtifactsResp []CiArtifactWithExtraData
+
+	query := fmt.Sprintf("SELECT cia.*, COUNT(id) OVER() AS total_count FROM ci_artifact cia "+
+		"INNER JOIN external_ci_pipeline excp ON excp.id = cia.external_ci_pipeline_id "+
+		"WHERE excp.active=true and excp.id = %v ORDER BY cia.id DESC", artifactsListingFilterOps.CiPipelineId)
+
+	if artifactsListingFilterOps.SearchString != EmptyLikeRegex {
+		query = query + fmt.Sprintf(" and ci_artifact.image like %s ", artifactsListingFilterOps.SearchString)
+	}
+	limitOffSetQuery := fmt.Sprintf(" order by ci_artifact.id desc LIMIT %v OFFSET %v", artifactsListingFilterOps.Limit, artifactsListingFilterOps.Offset)
+	query = query + limitOffSetQuery
+
+	_, err := impl.dbConnection.Query(&ciArtifactsResp, query)
+	if err != nil {
+		impl.logger.Errorw("error in fetching deployed artifacts for cd pipeline node", "cdPipelineId", artifactsListingFilterOps.PipelineId, "err", err)
+		return ciArtifacts, 0, err
+	}
+
+	var totalCount int
+	if len(ciArtifactsResp) > 0 {
+		totalCount = ciArtifactsResp[0].TotalCount
+	}
+	for _, ciArtifact := range ciArtifactsResp {
+		ciArtifacts = append(ciArtifacts, ciArtifact.CiArtifact)
+	}
+	return ciArtifacts, totalCount, nil
+}
+
 func (impl CiArtifactRepositoryImpl) FindArtifactsPendingForPromotion(cdPipelineIds []int, limit, offset int, imageSearchPattern string) ([]CiArtifact, int, error) {
 
 	var ciArtifacts []CiArtifact
@@ -927,7 +959,7 @@ func (impl CiArtifactRepositoryImpl) FindArtifactsPendingForPromotion(cdPipeline
 
 	query := fmt.Sprintf("SELECT cia.*, COUNT(id) OVER() AS total_count FROM ci_artifact cia "+
 		"INNER JOIN artifact_promotion_approval_request apar ON cia.id = apar.artifact_id AND apar.status != 'PROMOTED' AND apar.active = true"+
-		" AND apar.destination_pipeline_id IN (%s) ", convertIdsToString(cdPipelineIds))
+		" AND apar.destination_pipeline_id IN (%s) ", helper.GetCommaSepratedString(cdPipelineIds))
 
 	if imageSearchPattern != EmptyLikeRegex {
 		query = query + fmt.Sprintf(" and ci_artifact.image like %s ", imageSearchPattern)
@@ -949,12 +981,4 @@ func (impl CiArtifactRepositoryImpl) FindArtifactsPendingForPromotion(cdPipeline
 		ciArtifacts = append(ciArtifacts, ciArtifact.CiArtifact)
 	}
 	return ciArtifacts, totalCount, nil
-}
-
-func convertIdsToString(ids []int) string {
-	idString := ""
-	for _, id := range ids {
-		idString = idString + "," + fmt.Sprintf("%v", id)
-	}
-	return idString
 }

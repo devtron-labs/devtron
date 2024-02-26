@@ -52,7 +52,7 @@ type AppRouterImpl struct {
 	appListingRestHandler   appList.AppListingRestHandler
 	appFilteringRestHandler appList.AppFilteringRestHandler
 
-	promotionApprovalRequestRouter artifactPromotionApprovalRequest.PromotionApprovalRequestRouter
+	promotionApprovalRequestRouter artifactPromotionApprovalRequest.PromotionApprovalRouter
 }
 
 func NewAppRouterImpl(appFilteringRouter appList2.AppFilteringRouter,
@@ -67,7 +67,7 @@ func NewAppRouterImpl(appFilteringRouter appList2.AppFilteringRouter,
 	appWorkflowRestHandler workflow2.AppWorkflowRestHandler,
 	appListingRestHandler appList.AppListingRestHandler,
 	appFilteringRestHandler appList.AppFilteringRestHandler,
-	promotionApprovalRequestRouter artifactPromotionApprovalRequest.PromotionApprovalRequestRouter) *AppRouterImpl {
+	promotionApprovalRequestRouter artifactPromotionApprovalRequest.PromotionApprovalRouter) *AppRouterImpl {
 	router := &AppRouterImpl{
 		appInfoRouter:                  appInfoRouter,
 		helmRouter:                     helmRouter,
@@ -109,7 +109,7 @@ func (router AppRouterImpl) InitAppRouter(AppRouter *mux.Router) {
 
 	// artifact promotion approval request
 	artifactPromotionApprovalRouter := AppRouter.PathPrefix("/artifact-promotion").Subrouter()
-	router.promotionApprovalRequestRouter.InitPromotionApprovalRequestRouter(artifactPromotionApprovalRouter)
+	router.promotionApprovalRequestRouter.InitPromotionApprovalRouter(artifactPromotionApprovalRouter)
 
 	// TODO refactoring: categorise and move to respective folders
 	AppRouter.Path("/allApps").
