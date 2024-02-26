@@ -2,7 +2,6 @@ package main
 
 import (
 	"github.com/devtron-labs/authenticator/client"
-	"github.com/devtron-labs/authenticator/middleware"
 	"github.com/devtron-labs/devtron/api/apiToken"
 	"github.com/google/wire"
 )
@@ -14,6 +13,4 @@ var AuthWireSet = wire.NewSet(
 	client.BuildDexConfig,
 	client.GetSettings,
 	apiToken.ApiTokenSecretWireSet,
-	middleware.NewSessionManager,
-	middleware.NewUserLogin,
 )
