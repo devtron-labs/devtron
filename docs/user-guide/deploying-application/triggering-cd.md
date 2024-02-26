@@ -1,107 +1,70 @@
 # Triggering CD Pipelines
 
-After the [CI pipeline](./triggering-ci.md) is complete, you can trigger the CD pipeline.
+After CI pipeline is complete, CD pipeline can be triggered by clicking `Select Image`.
 
-1. Go to the `Build & Deploy` tab of your application and click **Select Image** in the CD pipeline.
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-cd/select-image.jpg)
 
-    ![Figure 1: 'Select Image' Button](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-cd/select-image.jpg)
+Select an image to deploy and then click `Deploy` to trigger the CD pipeline.
 
-2. Select an image to deploy and then click **Deploy** to trigger the CD pipeline.
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-cd/deploy.jpg)
 
-    ![Figure 2: Selecting an Image for Deployment](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-cd/deploy-v2.jpg)
-
-However, if an image is already deployed, you can identify it by the tag `Active on <Environment name>`.
-
-![Figure 3: Currently Deployed Image](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-cd/active-tag.jpg)
+The currently deployed images are tagged as `Active on <Environment name>`.
 
 ## Manual Approval for Deployment
 
-When [manual approval is enabled](../creating-application/workflow/cd-pipeline.md#4-manual-approval-for-deployment) for the deployment pipeline configured in the workflow, you are expected to request for an image approval before each deployment. Alternatively, you can deploy images that have already been approved once.
+When manual approval is enabled for the deployment pipeline, you are required to request image approval before each deployment. Alternatively, you can only deploy images that have already been approved once.
 
-If no approved images are available or the current image is already deployed, you won't see any images for deployment when clicking **Select Image**.
+When no approved image is available or if the image is already deployed, you will not see any image available for deployment upon clicking the `Select Image` button.
 
-![Figure 3: No Approved Image](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-cd/no-approved-image-v2.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-cd/no-approved-image.jpg)
 
-### Requesting for Image Approval
+### Request For Image Approval
 
-Users need to have [Build & deploy permission](../user-guide/global-configurations/authorization/user-access.md#role-based-access-levels) or above (along with access to the environment and application) to request for an image approval.
+To request for image approval, please follow these steps:
 
-To request an image approval, follow these steps:
+1. Navigate to `Build & Deploy` page, and click on the `Approval for deployment` button.
 
-1. Navigate to the `Build & Deploy` page, and click the **Approval for deployment** icon.
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-cd/deployment-approval-button.jpg)
 
-    ![Figure 4: Approval Button](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-cd/deployment-approval-button-v2.jpg)
+2. Click on `Request Approval` button present on the image for which you want to request approval and the click on `Submit Request`.
 
-2. Click the **Request Approval** button present on the image for which you want to request an approval and click **Submit Request**.
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-cd/request-approval.jpg)
 
-    ![Figure 5: Requesting Approval](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-cd/request-approval-v2.jpg)
+**NOTE**: You have the option to cancel the approval request from the `Approval Pending` section.
 
-    In case you have configured [SES or SMTP on Devtron](../global-configurations/manage-notification.md#notification-configurations), you can directly choose the approver(s) from the list of approvers as shown below.
+### Approve Image Approval Request
 
-    ![Figure 6: Choosing Approvers](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-cd/approver-list-v2.jpg)
+To approve an image approval request, please follow these steps:
 
-    The users you selected will receive an approval request via email. Any user with 'Image approver' permission alongwith access to the given application and given environment would be able to approve the image.
+1. Go to the `Build & Deploy` page and click the **Approval for deployment** button.
 
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-cd/deployment-approval-button.jpg)
 
-#### Extras
+2. Switch to the `Approval Pending` tab. Here, you will find all the images that are awaiting approval.
 
-* In case you wish to cancel the image approval request, you can do so from the `Approval pending` tab as shown in the below image.
+3. Click the **Approve** button, and then **Approve Request** to grant approval to the request.
 
-    ![Figure 7: Cancelling Request](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-cd/cancel-approval.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-cd/approve-request.png)
 
-* If you've received an approval but no longer want the image to be deployable, you can let the approval expire.
+### Approvers for Deployment
 
-    ![Figure 8: Expiring an Approval](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-cd/expire-approval.jpg)
+By default, super admin users are considered as the default approvers. However, any user can be granted approver permission from the user-access section.
 
-### Accepting Image Approval Request
+All users with `Approver` permission for the specific application and environment are authorized to approve deployments.
 
-By default, super-admin users are considered as the default approvers. Users who build the image and/or request for its approval, cannot self-approve it even if they have super-admin privileges.
+Please note that the user who built the image and/or requested approval cannot self-approve, even if they have super-admin privileges.
 
-Users with `Approver` permission (for the specific application and environment) can also approve a deployment. This permission can be granted to users from [`User Permissions`](../global-configurations/authorization/user-access.md#role-based-access-levels) present in [Global Configurations](../global-configurations/README.md).
+`Approver` role can be provided to users via [`User Permissions`](../global-configurations/authorization/user-access.md#role-based-access-levels)
 
-In case [SES](../global-configurations/manage-notification.md#manage-ses-configurations) or [SMTP](../global-configurations/manage-notification.md#manage-smtp-configurations) was configured in Devtron, and the user chose the approvers while raising an image approval request, the approvers would receive an email notification as shown below:
+After the images have been approved, navigate to the `Build and Deploy` tab and click on `Select Image`. You will find all the approved images listed under the `Approved Images` section. From this section, you can select the desired approved image and deploy it to the environment.
 
-![Figure 9: Email Notification to the Approver](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-cd/email-notification.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-cd/approved-images.jpg)
 
-To approve an image approval request, follow these steps:
+The status of the current deployment can be viewed by clicking **App Details** that will show the `Progressing`state for 1-2 minutes and then gradually shows `Healthy` state, based on the deployment strategy.
 
-1. Go to the `Build & Deploy` page and click the `Approval for deployment` button.
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-cd/app-status.jpg)
 
-    ![Figure 10: Approval Button](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-cd/deployment-approval-button-v2.jpg)
+Here, triggering CD pipeline is successful and the deployment is in "Healthy" state.
 
-2. Switch to the `Approval pending` tab. Here, you will get a list of images that are awaiting approval.
-
-    ![Figure 11: List of Pending Approvals](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-cd/approval-pending-tab.jpg)
-
-3. Click **Approve** followed by **Approve Request** button.
-
-    ![Figure 12: Approving a Request](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-cd/approve-request-v2.jpg)
-
-### Deploying Approved Image
-
-Users need to have [Build & deploy permission](../user-guide/global-configurations/authorization/user-access.md#role-based-access-levels) or above (along with access to the respective environment and application) to select and deploy an approved image.
-
-In case the super-admin has set the minimum number of approval to more than 1 (in [workflow](../creating-application/workflow/cd-pipeline.md#4-manual-approval-for-deployment)), you must wait for all approvals before deploying the image. In other words, partially approved image will not be eligible for deployment.
-
-![Figure 13: Approval Count](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-cd/approval-count-v2.jpg)
-
-To deploy an approved image, follow these steps:
-
-1. Navigate to the `Build & Deploy` tab and click **Select Image**. 
-
-    ![Figure 14: Select Image Button](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-cd/select-image.jpg)
-
-2. You will find all the approved images listed under the `Approved images` section. From the list, you can select the desired image and deploy it to your environment.
-
-    ![Figure 15: List of Approved Images](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-cd/approved-images-v2.jpg)
-
-3. You can view the status of current deployment in the `App Details` tab. 
-
-    ![Figure 16: 'App Details' Screen](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-cd/app-status-v2.jpg)
-
-The status initially appears as `Progressing` for approximately 1-2 minutes, and then gradually transitions to `Healthy` state based on the deployment strategy.
-
-Here, our CD pipeline trigger was successful and the deployment is in `Healthy` state.
-
-To further diagnose the deployments, [click here](../debugging-deployment-and-monitoring.md)
+[To further diagnose deployments, Click here](../debugging-deployment-and-monitoring.md)
 

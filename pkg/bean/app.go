@@ -741,11 +741,10 @@ type CdPipelineTrigger struct {
 type DeploymentType = string
 
 const (
-	Helm                    DeploymentType = "helm"
-	ArgoCd                  DeploymentType = "argo_cd"
-	ManifestDownload        DeploymentType = "manifest_download"
-	ManifestPush            DeploymentType = "manifest_push"
-	GitOpsWithoutDeployment DeploymentType = "git_ops_without_deployment"
+	Helm             DeploymentType = "helm"
+	ArgoCd           DeploymentType = "argo_cd"
+	ManifestDownload DeploymentType = "manifest_download"
+	ManifestPush     DeploymentType = "manifest_push"
 )
 
 const (

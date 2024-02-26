@@ -42,7 +42,6 @@
   * [External Links](user-guide/global-configurations/external-links.md)
   * [Catalog Framework](user-guide/global-configurations/catalog-framework.md)
   * [Scoped Variables](user-guide/global-configurations/scoped-variables.md)
-  * [Pull Image Digest](user-guide/global-configurations/pull-image-digest.md)
   * [Tags Policy](user-guide/global-configurations/tags-policy.md)
   * [Filter Condition](user-guide/global-configurations/filter-condition.md)
   * [Build Infra](user-guide/global-configurations/build-infra.md)
