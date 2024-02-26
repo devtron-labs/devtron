@@ -6,6 +6,8 @@ import (
 	"github.com/devtron-labs/devtron/internals/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
+	"github.com/devtron-labs/devtron/pkg/bean"
+	"time"
 )
 
 // NewInstallAppModel is used to generate new repository.InstalledApps model to be saved;
@@ -138,6 +140,8 @@ func GenerateInstallAppVersionDTO(chart *repository.InstalledApps, installedAppV
 			},
 		},
 		AppStoreApplicationVersionId: installedAppVersion.AppStoreApplicationVersionId,
+		UpdatedOn:                    installedAppVersion.UpdatedOn,
+		IsVirtualEnvironment:         chart.Environment.IsVirtualEnvironment,
 	}
 }
 
@@ -145,16 +149,29 @@ func GenerateInstallAppVersionDTO(chart *repository.InstalledApps, installedAppV
 // Note: It only generates a minimal DTO and doesn't include repository.InstalledAppVersions data
 func GenerateInstallAppVersionMinDTO(chart *repository.InstalledApps) *appStoreBean.InstallAppVersionDTO {
 	return &appStoreBean.InstallAppVersionDTO{
-		EnvironmentId:     chart.EnvironmentId,
-		InstalledAppId:    chart.Id,
-		AppId:             chart.AppId,
-		AppOfferingMode:   chart.App.AppOfferingMode,
-		ClusterId:         chart.Environment.ClusterId,
-		Namespace:         chart.Environment.Namespace,
-		AppName:           chart.App.AppName,
-		EnvironmentName:   chart.Environment.Name,
-		TeamId:            chart.App.TeamId,
-		TeamName:          chart.App.Team.Name,
-		DeploymentAppType: chart.DeploymentAppType,
+		EnvironmentId:        chart.EnvironmentId,
+		InstalledAppId:       chart.Id,
+		AppId:                chart.AppId,
+		AppOfferingMode:      chart.App.AppOfferingMode,
+		ClusterId:            chart.Environment.ClusterId,
+		Namespace:            chart.Environment.Namespace,
+		AppName:              chart.App.AppName,
+		EnvironmentName:      chart.Environment.Name,
+		TeamId:               chart.App.TeamId,
+		TeamName:             chart.App.Team.Name,
+		DeploymentAppType:    chart.DeploymentAppType,
+		IsVirtualEnvironment: chart.Environment.IsVirtualEnvironment,
 	}
+}
+
+func SetGeneratedHelmPackageName(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, updatedOn time.Time) {
+	if installAppVersionRequest == nil || installAppVersionRequest.Environment == nil {
+		return
+	}
+	timeStampTag := updatedOn.Format(bean.LayoutDDMMYY_HHMM12hr)
+	installAppVersionRequest.HelmPackageName = fmt.Sprintf(
+		"%s-%s-%s (GMT)",
+		installAppVersionRequest.AppName,
+		installAppVersionRequest.Environment.Name,
+		timeStampTag)
 }

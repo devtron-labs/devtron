@@ -46,8 +46,9 @@ const (
 )
 
 type ChartCreateRequest struct {
-	ChartMetaData *chart.Metadata
-	ChartPath     string
+	ChartMetaData       *chart.Metadata
+	ChartPath           string
+	IncludePackageChart bool
 }
 
 type ChartCreateResponse struct {
