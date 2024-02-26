@@ -1,6 +1,7 @@
 package history
 
 import (
+	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -33,7 +34,7 @@ func (impl CiTemplateHistoryServiceImpl) SaveHistory(ciTemplateBean *bean.CiTemp
 	ciTemplateId := 0
 	ciTemplateOverrideId := 0
 
-	ciBuildConfigDbEntity, err := bean.ConvertBuildConfigBeanToDbEntity(ciTemplateId, ciTemplateOverrideId, ciBuildConfig, ciTemplateBean.UserId)
+	ciBuildConfigDbEntity, err := adapter.ConvertBuildConfigBeanToDbEntity(ciTemplateId, ciTemplateOverrideId, ciBuildConfig, ciTemplateBean.UserId)
 
 	materialHistory := &repository.CiTemplateHistory{
 		CiTemplateId:       ciTemplate.Id,

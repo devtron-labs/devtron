@@ -570,7 +570,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipeline(appId int) (ciConfig *bea
 			AfterDockerBuildScripts:  afterDockerBuildScripts,
 			ScanEnabled:              pipeline.ScanEnabled,
 			IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
-			PipelineType:             bean.PipelineType(pipeline.PipelineType),
+			PipelineType:             bean3.PipelineType(pipeline.PipelineType),
 		}
 		ciEnvMapping, err := impl.ciPipelineRepository.FindCiEnvMappingByCiPipelineId(pipeline.Id)
 		if err != nil && err != pg.ErrNoRows {
@@ -714,7 +714,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineById(pipelineId int) (ciPi
 		AfterDockerBuildScripts:  afterDockerBuildScripts,
 		ScanEnabled:              pipeline.ScanEnabled,
 		IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
-		PipelineType:             bean.PipelineType(pipeline.PipelineType),
+		PipelineType:             bean3.PipelineType(pipeline.PipelineType),
 	}
 	customTag, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(bean3.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id))
 	if err != nil && err != pg.ErrNoRows {
@@ -838,7 +838,7 @@ func (impl *CiPipelineConfigServiceImpl) GetTriggerViewCiPipeline(appId int) (*b
 			ParentCiPipeline:         pipeline.ParentCiPipeline,
 			ScanEnabled:              pipeline.ScanEnabled,
 			IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
-			PipelineType:             bean.PipelineType(pipeline.PipelineType),
+			PipelineType:             bean3.PipelineType(pipeline.PipelineType),
 		}
 		if ciTemplateBean, ok := ciOverrideTemplateMap[pipeline.Id]; ok {
 			templateOverride := ciTemplateBean.CiTemplateOverride
@@ -1204,7 +1204,7 @@ func (impl *CiPipelineConfigServiceImpl) UpdateCiTemplate(updateRequest *bean.Ci
 	}
 	for _, ciTemplateOverride := range ciTemplateOverrides {
 		if _, ok := ciPipelineIdsMap[ciTemplateOverride.CiPipelineId]; ok {
-			if ciPipelineIdsMap[ciTemplateOverride.CiPipelineId].PipelineType == string(bean.CI_JOB) {
+			if ciPipelineIdsMap[ciTemplateOverride.CiPipelineId].PipelineType == string(bean3.CI_JOB) {
 				ciTemplateOverride.DockerRepository = updateRequest.DockerRepository
 				ciTemplateOverride.DockerRegistryId = updateRequest.DockerRegistry
 				_, err = impl.ciTemplateOverrideRepository.Update(ciTemplateOverride)
@@ -1260,7 +1260,7 @@ func (impl *CiPipelineConfigServiceImpl) PatchCiPipeline(request *bean.CiPatchRe
 		impl.logger.Errorw("err in fetching template for pipeline patch, ", "err", err, "appId", request.AppId)
 		return nil, err
 	}
-	if request.CiPipeline.PipelineType == bean.CI_JOB {
+	if request.CiPipeline.PipelineType == bean3.CI_JOB {
 		request.CiPipeline.IsDockerConfigOverridden = true
 		request.CiPipeline.DockerConfigOverride = bean.DockerConfigOverride{
 			DockerRegistry:   ciConfig.DockerRegistry,
@@ -1453,15 +1453,15 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineMin(appId int, envIds []in
 	var ciPipelineResp []*bean.CiPipelineMin
 	for _, pipeline := range pipelines {
 		parentCiPipeline := pipelineConfig.CiPipeline{}
-		pipelineType := bean.NORMAL
+		pipelineType := bean3.NORMAL
 
 		if pipelineParentCiMap[pipeline.Id] != nil {
 			parentCiPipeline = *pipelineParentCiMap[pipeline.Id]
-			pipelineType = bean.LINKED
+			pipelineType = bean3.LINKED
 		} else if pipeline.IsExternal == true {
-			pipelineType = bean.EXTERNAL
-		} else if pipeline.PipelineType == string(bean.CI_JOB) {
-			pipelineType = bean.CI_JOB
+			pipelineType = bean3.EXTERNAL
+		} else if pipeline.PipelineType == string(bean3.CI_JOB) {
+			pipelineType = bean3.CI_JOB
 		}
 
 		ciPipeline := &bean.CiPipelineMin{
@@ -1678,7 +1678,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineByEnvironment(request reso
 				ExternalCiConfig:         externalCiConfig,
 				ScanEnabled:              pipeline.ScanEnabled,
 				IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
-				PipelineType:             bean.PipelineType(pipeline.PipelineType),
+				PipelineType:             bean3.PipelineType(pipeline.PipelineType),
 			}
 			parentPipelineAppId, ok := pipelineIdVsAppId[parentCiPipelineId]
 			if ok {

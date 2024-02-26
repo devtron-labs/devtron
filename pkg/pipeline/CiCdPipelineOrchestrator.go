@@ -283,7 +283,7 @@ func (impl CiCdPipelineOrchestratorImpl) validateCiPipelineMaterial(ciPipelineMa
 
 func (impl CiCdPipelineOrchestratorImpl) getSkipMessage(ciPipeline *pipelineConfig.CiPipeline) string {
 	switch ciPipeline.PipelineType {
-	case string(bean.LINKED_CD):
+	case string(bean2.LINKED_CD):
 		return "“Sync with Environment”"
 	default:
 		return "“Linked Build Pipeline”"

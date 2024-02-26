@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
+	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders"
 	"path/filepath"
 	"strconv"
@@ -152,7 +153,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 	if err != nil {
 		return 0, err
 	}
-	if trigger.PipelineType == bean2.CI_JOB && len(ciMaterials) != 0 {
+	if trigger.PipelineType == string(bean2.CI_JOB) && len(ciMaterials) != 0 {
 		ciMaterials = []*pipelineConfig.CiPipelineMaterial{ciMaterials[0]}
 		ciMaterials[0].GitMaterial = nil
 		ciMaterials[0].GitMaterialId = 0
@@ -538,7 +539,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		dockerRegistry = ciTemplate.DockerRegistry
 		dockerRepository = ciTemplate.DockerRepository
 		ciBuildConfigEntity := ciTemplate.CiBuildConfig
-		ciBuildConfigBean, err = bean2.ConvertDbBuildConfigToBean(ciBuildConfigEntity)
+		ciBuildConfigBean, err = adapter.ConvertDbBuildConfigToBean(ciBuildConfigEntity)
 		if ciBuildConfigBean != nil {
 			ciBuildConfigBean.BuildContextGitMaterialId = ciTemplate.BuildContextGitMaterialId
 		}
@@ -606,7 +607,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	}
 	// mergedArgs := string(merged)
 	oldArgs := ciTemplate.Args
-	ciBuildConfigBean, err = bean2.OverrideCiBuildConfig(dockerfilePath, oldArgs, ciLevelArgs, ciTemplate.DockerBuildOptions, ciTemplate.TargetPlatform, ciBuildConfigBean)
+	ciBuildConfigBean, err = adapter.OverrideCiBuildConfig(dockerfilePath, oldArgs, ciLevelArgs, ciTemplate.DockerBuildOptions, ciTemplate.TargetPlatform, ciBuildConfigBean)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while overriding ci build config", "oldArgs", oldArgs, "ciLevelArgs", ciLevelArgs, "error", err)
 		return nil, errors.New("error while parsing ci build config")

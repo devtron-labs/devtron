@@ -935,7 +935,7 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(triggerContext bean5.T
 	var pluginArtifacts []*repository.CiArtifact
 	for registry, artifacts := range request.PluginRegistryArtifactDetails {
 		for _, image := range artifacts {
-			if pipeline.PipelineType == bean3.CI_JOB && image == "" {
+			if pipeline.PipelineType == string(bean3.CI_JOB) && image == "" {
 				continue
 			}
 			pluginArtifact := &repository.CiArtifact{

@@ -115,7 +115,7 @@ type CiPipeline struct {
 	BeforeDockerBuildScripts []*CiScript            `json:"beforeDockerBuildScripts,omitempty" validate:"dive"`
 	AfterDockerBuildScripts  []*CiScript            `json:"afterDockerBuildScripts,omitempty" validate:"dive"`
 	LinkedCount              int                    `json:"linkedCount"`
-	PipelineType             PipelineType           `json:"pipelineType,omitempty"`
+	PipelineType             bean.PipelineType      `json:"pipelineType,omitempty"`
 	ScanEnabled              bool                   `json:"scanEnabled,notnull"`
 	AppWorkflowId            int                    `json:"appWorkflowId,omitempty"`
 	PreBuildStage            *bean.PipelineStageDto `json:"preBuildStage,omitempty"`
@@ -138,14 +138,14 @@ type DockerConfigOverride struct {
 }
 
 type CiPipelineMin struct {
-	Name             string       `json:"name,omitempty" validate:"name-component,max=100"` //name suffix of corresponding pipeline. required, unique, validation corresponding to gocd pipelineName will be applicable
-	Id               int          `json:"id,omitempty" `
-	Version          string       `json:"version,omitempty"` //matchIf token version in gocd . used for update request
-	IsExternal       bool         `json:"isExternal,omitempty"`
-	ParentCiPipeline int          `json:"parentCiPipeline"`
-	ParentAppId      int          `json:"parentAppId"`
-	PipelineType     PipelineType `json:"pipelineType,omitempty"`
-	ScanEnabled      bool         `json:"scanEnabled,notnull"`
+	Name             string            `json:"name,omitempty" validate:"name-component,max=100"` //name suffix of corresponding pipeline. required, unique, validation corresponding to gocd pipelineName will be applicable
+	Id               int               `json:"id,omitempty" `
+	Version          string            `json:"version,omitempty"` //matchIf token version in gocd . used for update request
+	IsExternal       bool              `json:"isExternal,omitempty"`
+	ParentCiPipeline int               `json:"parentCiPipeline"`
+	ParentAppId      int               `json:"parentAppId"`
+	PipelineType     bean.PipelineType `json:"pipelineType,omitempty"`
+	ScanEnabled      bool              `json:"scanEnabled,notnull"`
 }
 
 type CiScript struct {
@@ -187,14 +187,6 @@ const (
 	UPDATE_SOURCE             //update value of SourceTypeConfig
 	DELETE                    //delete this pipeline
 	//DEACTIVATE     //pause/deactivate this pipeline
-)
-
-const (
-	NORMAL    PipelineType = "NORMAL"
-	LINKED    PipelineType = "LINKED"
-	EXTERNAL  PipelineType = "EXTERNAL"
-	CI_JOB    PipelineType = "CI_JOB"
-	LINKED_CD PipelineType = "LINKED_CD"
 )
 
 const (
@@ -286,12 +278,12 @@ type CiPatchRequest struct {
 	IsJob         bool        `json:"-"`
 	IsCloneJob    bool        `json:"isCloneJob,omitempty"`
 
-	ParentCDPipeline               int          `json:"parentCDPipeline"`
-	DeployEnvId                    int          `json:"deployEnvId"`
-	SwitchFromCiPipelineId         int          `json:"switchFromCiPipelineId"`
-	SwitchFromExternalCiPipelineId int          `json:"switchFromExternalCiPipelineId"`
-	SwitchFromCiPipelineType       PipelineType `json:"-"`
-	SwitchToCiPipelineType         PipelineType `json:"-"`
+	ParentCDPipeline               int               `json:"parentCDPipeline"`
+	DeployEnvId                    int               `json:"deployEnvId"`
+	SwitchFromCiPipelineId         int               `json:"switchFromCiPipelineId"`
+	SwitchFromExternalCiPipelineId int               `json:"switchFromExternalCiPipelineId"`
+	SwitchFromCiPipelineType       bean.PipelineType `json:"-"`
+	SwitchToCiPipelineType         bean.PipelineType `json:"-"`
 }
 
 func (ciPatchRequest CiPatchRequest) IsSwitchCiPipelineRequest() bool {

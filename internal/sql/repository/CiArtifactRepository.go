@@ -85,12 +85,19 @@ type CiArtifact struct {
 	sql.AuditLog
 }
 
-func (c *CiArtifact) IsMigrationRequired() bool {
+func (artifact *CiArtifact) IsMigrationRequired() bool {
 	validDataSourceTypeList := []string{CI_RUNNER, WEBHOOK, PRE_CD, POST_CD, POST_CI, GOCD}
-	if slices.Contains(validDataSourceTypeList, c.DataSource) {
+	if slices.Contains(validDataSourceTypeList, artifact.DataSource) {
 		return false
 	}
 	return true
+}
+
+func (artifact *CiArtifact) IsRegistryCredentialMapped() bool {
+	if artifact.CredentialsSourceType == GLOBAL_CONTAINER_REGISTRY {
+		return true
+	}
+	return false
 }
 
 type CiArtifactRepository interface {
@@ -502,12 +509,12 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineAndRunnerType(cdPip
 }
 
 // return map of gitUrl:hash
-func (info *CiArtifact) ParseMaterialInfo() (map[string]string, error) {
-	if info.DataSource != GOCD && info.DataSource != CI_RUNNER && info.DataSource != WEBHOOK && info.DataSource != EXT {
-		return nil, fmt.Errorf("datasource: %s not supported", info.DataSource)
+func (artifact *CiArtifact) ParseMaterialInfo() (map[string]string, error) {
+	if artifact.DataSource != GOCD && artifact.DataSource != CI_RUNNER && artifact.DataSource != WEBHOOK && artifact.DataSource != EXT {
+		return nil, fmt.Errorf("datasource: %s not supported", artifact.DataSource)
 	}
 	var ciMaterials []*CiMaterialInfo
-	err := json.Unmarshal([]byte(info.MaterialInfo), &ciMaterials)
+	err := json.Unmarshal([]byte(artifact.MaterialInfo), &ciMaterials)
 	scmMap := map[string]string{}
 	for _, material := range ciMaterials {
 		var url string
