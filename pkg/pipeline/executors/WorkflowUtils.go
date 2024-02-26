@@ -252,5 +252,15 @@ func CheckIfReTriggerRequired(status, message, workflowRunnerStatus string) bool
 
 const CloningModeShallow = "SHALLOW"
 
+func AreKnowsErrors(err error) bool {
+	if strings.Contains(err.Error(), "Kubernetes cluster unreachable") || strings.Contains(err.Error(), "ensure CRDs are installed first") ||
+		(strings.Contains(err.Error(), "namespaces") && strings.Contains(err.Error(), "not found")) ||
+		strings.Contains(err.Error(), "got array expected string") || strings.Contains(err.Error(), "Invalid value") ||
+		strings.Contains(err.Error(), "another operation (install/upgrade/rollback) is in progress") {
+		return true
+	}
+	return false
+}
+
 const WorkflowCancel = "CANCELLED"
 const POD_DELETED_MESSAGE = "pod deleted"

@@ -6,6 +6,7 @@ import (
 	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	"github.com/devtron-labs/devtron/api/helm-app/bean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	"github.com/devtron-labs/devtron/api/helm-app/models"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -24,6 +25,7 @@ import (
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"net/http"
 	"os"
 	"strconv"
 	"time"
@@ -366,6 +368,9 @@ func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, 
 
 	templateChartResponse, err := impl.helmAppClient.TemplateChart(ctx, installReleaseRequest)
 	if err != nil {
+		if models.IsErrorWhileGeneratingManifest(err) {
+			return nil, &util.ApiError{HttpStatusCode: http.StatusOK, Code: string(http.StatusOK), InternalMessage: err.Error(), UserMessage: err.Error()}
+		}
 		impl.Logger.Errorw("error in templating chart", "err", err)
 		return nil, err
 	}

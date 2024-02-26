@@ -42,6 +42,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	bean8 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
@@ -63,6 +64,7 @@ import (
 	status2 "google.golang.org/grpc/status"
 	"io/ioutil"
 	"k8s.io/helm/pkg/proto/hapi/chart"
+	"net/http"
 	"path"
 	"sigs.k8s.io/yaml"
 	"strconv"
@@ -1239,6 +1241,9 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean
 			// For cases where helm release was not found, kubelink will install the same configuration
 			updateApplicationResponse, err := impl.helmAppClient.UpdateApplication(ctx, req)
 			if err != nil {
+				if executors.AreKnowsErrors(err) {
+					return false, &util.ApiError{HttpStatusCode: http.StatusOK, Code: "200", InternalMessage: err.Error(), UserMessage: err.Error()}
+				}
 				impl.logger.Errorw("error in updating helm application for cd pipeline", "err", err)
 				if util.GetGRPCErrorDetailedMessage(err) == context.Canceled.Error() {
 					err = errors.New(pipelineConfig.NEW_DEPLOYMENT_INITIATED)
@@ -1268,9 +1273,11 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean
 
 			if err != nil {
 				impl.logger.Errorw("error in helm install custom chart", "err", err)
-
 				if pgErr != nil {
 					impl.logger.Errorw("failed to update deployment app created flag in pipeline table", "err", err)
+				}
+				if executors.AreKnowsErrors(err) {
+					return false, &util.ApiError{HttpStatusCode: http.StatusOK, Code: "200", InternalMessage: err.Error(), UserMessage: err.Error()}
 				}
 				return false, err
 			}
