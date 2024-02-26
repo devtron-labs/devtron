@@ -41,8 +41,15 @@ const (
 	LayoutDDMMYY_HHMM12hr = "2 January,2006 15.04PM"
 )
 
-// TODO: update variables
-var ReservedCIEnvVariables = map[string]string{}
+var ReservedCIEnvVariables = map[string]bool{
+	"DOCKER_IMAGE_TAG": true, "DOCKER_REPOSITORY": true, "DOCKER_REGISTRY_URL": true, "APP_NAME": true,
+	"TRIGGER_BY_AUTHOR": true, "DOCKER_IMAGE": true, "GIT_MATERIAL_REQUEST": true,
+	"ACCESS_KEY": true, "SECRET_KEY": true, "AWS_REGION": true,
+	"LAST_FETCHED_TIME": true, "PIPELINE_ID": true, "TRIGGERED_BY": true,
+	"DOCKER_REGISTRY_ID": true, "IMAGE_SCANNER_ENDPOINT": true, "IMAGE_SCAN_MAX_RETRIES": true,
+	"IMAGE_SCAN_RETRY_DELAY": true, "REGISTRY_DESTINATION_IMAGE_MAP": true, "REGISTRY_CREDENTIALS": true,
+	"NATS_SERVER_HOST": true, "CI_CD_EVENT": true, "IN_APP_LOGGING": true,
+}
 
 type SourceTypeConfig struct {
 	Type  pipelineConfig.SourceType `json:"type,omitempty" validate:"oneof=SOURCE_TYPE_BRANCH_FIXED SOURCE_TYPE_BRANCH_REGEX SOURCE_TYPE_TAG_ANY WEBHOOK"`
