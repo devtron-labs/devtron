@@ -31,6 +31,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
+	bean5 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
 	"time"
 )
 
@@ -811,7 +812,7 @@ type CiArtifactBean struct {
 	CiPipelineId              int                                  `json:"-"`
 	CredentialsSourceType     string                               `json:"-"`
 	CredentialsSourceValue    string                               `json:"-"`
-	PromotionApprovalMetadata *PromotionApprovalMetaData           `json:"promotionApprovalMetadata,omitempty"`
+	PromotionApprovalMetadata *bean5.PromotionApprovalMetaData     `json:"promotionApprovalMetadata,omitempty"`
 	PromotedFrom              string                               `json:"promotedFrom"`
 	PromotedFromType          string                               `json:"promotedFromType"`
 	DeployedOnEnvironments    []string                             `json:"deployedOnEnvironments"`
@@ -856,13 +857,6 @@ type ArtifactPromotionMaterialResponse struct {
 	CiArtifacts                   CiArtifactResponse `json:"ciArtifacts"`
 	TotalCount                    int                `json:"totalCount"`
 	IsApprovalPendingForPromotion bool               `json:"isApprovalPendingForPromotion"`
-}
-
-type PromotionApprovalMetaData struct {
-	ApprovalRequestId    int      `json:"approvalRequestId"`
-	ApprovalRuntimeState string   `json:"approvalRuntimeState"`
-	ApprovalUsersData    []string `json:"approvalUsersData"`
-	RequestedUserData    string   `json:"requestedUserData"`
 }
 
 type AppLabelsDto struct {

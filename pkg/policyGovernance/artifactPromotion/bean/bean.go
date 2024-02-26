@@ -85,6 +85,19 @@ type ArtifactPromotionApprovalResponse struct {
 	PromotionPolicy string    `json:"promotionPolicy"`
 }
 
+type PromotionApprovalMetaData struct {
+	ApprovalRequestId    int                         `json:"approvalRequestId"`
+	ApprovalRuntimeState string                      `json:"approvalRuntimeState"`
+	ApprovalUsersData    []PromotionApprovalUserData `json:"approvalUsersData"`
+	RequestedUserData    PromotionApprovalUserData   `json:"requestedUserData"`
+}
+
+type PromotionApprovalUserData struct {
+	UserId         int32     `json:"userId"`
+	UserEmail      string    `json:"userEmail"`
+	UserActionTime time.Time `json:"userActionTime"`
+}
+
 type EnvironmentResponse struct {
 	Name                       string                   `json:"name"` // environment name
 	ApprovalCount              int                      `json:"approvalCount,omitempty"`
@@ -114,6 +127,7 @@ type ApprovalMetaData struct {
 	AllowRequesterFromApprove    bool `json:"allowRequesterFromApprove"`
 	AllowApproverFromDeploy      bool `json:"allowApproverFromDeploy"`
 }
+
 type PromotionValidationState string
 
 const ARTIFACT_ALREADY_PROMOTED PromotionValidationState = "already promoted"

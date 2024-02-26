@@ -24,7 +24,7 @@ import (
 	repository4 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactApproval/read"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion"
-	repository5 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/repository"
+	read2 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/read"
 	"net/http"
 	"sort"
 	"strconv"
@@ -66,26 +66,26 @@ type AppArtifactManager interface {
 }
 
 type AppArtifactManagerImpl struct {
-	logger                                     *zap.SugaredLogger
-	cdWorkflowRepository                       pipelineConfig.CdWorkflowRepository
-	userService                                user.UserService
-	imageTaggingService                        ImageTaggingService
-	ciArtifactRepository                       repository.CiArtifactRepository
-	ciWorkflowRepository                       pipelineConfig.CiWorkflowRepository
-	pipelineStageService                       PipelineStageService
-	celService                                 resourceFilter.CELEvaluatorService
-	resourceFilterService                      resourceFilter.ResourceFilterService
-	config                                     *types.CdConfig
-	cdPipelineConfigService                    CdPipelineConfigService
-	dockerArtifactRegistry                     dockerArtifactStoreRegistry.DockerArtifactStoreRepository
-	CiPipelineRepository                       pipelineConfig.CiPipelineRepository
-	ciTemplateService                          CiTemplateService
-	imageTaggingRepository                     repository3.ImageTaggingRepository
-	artifactApprovalDataReadService            read.ArtifactApprovalDataReadService
-	environmentRepository                      repository4.EnvironmentRepository
-	appWorkflowRepository                      appWorkflow.AppWorkflowRepository
-	promotionPolicy                            artifactPromotion.PromotionPolicyService
-	artifactPromotionApprovalRequestRepository repository5.ArtifactPromotionApprovalRequestRepository
+	logger                           *zap.SugaredLogger
+	cdWorkflowRepository             pipelineConfig.CdWorkflowRepository
+	userService                      user.UserService
+	imageTaggingService              ImageTaggingService
+	ciArtifactRepository             repository.CiArtifactRepository
+	ciWorkflowRepository             pipelineConfig.CiWorkflowRepository
+	pipelineStageService             PipelineStageService
+	celService                       resourceFilter.CELEvaluatorService
+	resourceFilterService            resourceFilter.ResourceFilterService
+	config                           *types.CdConfig
+	cdPipelineConfigService          CdPipelineConfigService
+	dockerArtifactRegistry           dockerArtifactStoreRegistry.DockerArtifactStoreRepository
+	CiPipelineRepository             pipelineConfig.CiPipelineRepository
+	ciTemplateService                CiTemplateService
+	imageTaggingRepository           repository3.ImageTaggingRepository
+	artifactApprovalDataReadService  read.ArtifactApprovalDataReadService
+	environmentRepository            repository4.EnvironmentRepository
+	appWorkflowRepository            appWorkflow.AppWorkflowRepository
+	promotionPolicy                  artifactPromotion.PromotionPolicyService
+	artifactPromotionDataReadService read2.ArtifactPromotionDataReadService
 }
 
 func NewAppArtifactManagerImpl(
@@ -107,33 +107,33 @@ func NewAppArtifactManagerImpl(
 	environmentRepository repository4.EnvironmentRepository,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
 	promotionPolicy artifactPromotion.PromotionPolicyService,
-	artifactPromotionApprovalRequestRepository repository5.ArtifactPromotionApprovalRequestRepository,
+	artifactPromotionDataReadService read2.ArtifactPromotionDataReadService,
 ) *AppArtifactManagerImpl {
 	cdConfig, err := types.GetCdConfig()
 	if err != nil {
 		return nil
 	}
 	return &AppArtifactManagerImpl{
-		logger:                                     logger,
-		cdWorkflowRepository:                       cdWorkflowRepository,
-		userService:                                userService,
-		imageTaggingService:                        imageTaggingService,
-		ciArtifactRepository:                       ciArtifactRepository,
-		ciWorkflowRepository:                       ciWorkflowRepository,
-		celService:                                 celService,
-		resourceFilterService:                      resourceFilterService,
-		cdPipelineConfigService:                    cdPipelineConfigService,
-		pipelineStageService:                       pipelineStageService,
-		config:                                     cdConfig,
-		dockerArtifactRegistry:                     dockerArtifactRegistry,
-		CiPipelineRepository:                       CiPipelineRepository,
-		ciTemplateService:                          ciTemplateService,
-		imageTaggingRepository:                     imageTaggingRepository,
-		artifactApprovalDataReadService:            artifactApprovalDataReadService,
-		environmentRepository:                      environmentRepository,
-		appWorkflowRepository:                      appWorkflowRepository,
-		promotionPolicy:                            promotionPolicy,
-		artifactPromotionApprovalRequestRepository: artifactPromotionApprovalRequestRepository,
+		logger:                           logger,
+		cdWorkflowRepository:             cdWorkflowRepository,
+		userService:                      userService,
+		imageTaggingService:              imageTaggingService,
+		ciArtifactRepository:             ciArtifactRepository,
+		ciWorkflowRepository:             ciWorkflowRepository,
+		celService:                       celService,
+		resourceFilterService:            resourceFilterService,
+		cdPipelineConfigService:          cdPipelineConfigService,
+		pipelineStageService:             pipelineStageService,
+		config:                           cdConfig,
+		dockerArtifactRegistry:           dockerArtifactRegistry,
+		CiPipelineRepository:             CiPipelineRepository,
+		ciTemplateService:                ciTemplateService,
+		imageTaggingRepository:           imageTaggingRepository,
+		artifactApprovalDataReadService:  artifactApprovalDataReadService,
+		environmentRepository:            environmentRepository,
+		appWorkflowRepository:            appWorkflowRepository,
+		promotionPolicy:                  promotionPolicy,
+		artifactPromotionDataReadService: artifactPromotionDataReadService,
 	}
 }
 
@@ -1190,13 +1190,13 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 				return ciArtifacts, 0, "", totalCount, err
 			}
 		}
+		artifactIds := make([]int, len(ciArtifacts))
+		for i, artifact := range ciArtifacts {
+			artifactIds[i] = artifact.Id
+		}
 
 		var userApprovalMetadata map[int]*pipelineConfig.UserApprovalMetadata
 		if isApprovalNode {
-			artifactIds := make([]int, len(ciArtifacts))
-			for i, artifact := range ciArtifacts {
-				artifactIds[i] = artifact.Id
-			}
 			userApprovalMetadata, err = impl.artifactApprovalDataReadService.FetchApprovalDataForArtifacts(artifactIds, listingFilterOpts.PipelineId, listingFilterOpts.ApproversCount) // it will fetch all the request data with nil cd_wfr_rnr_id
 			if err != nil {
 				impl.logger.Errorw("error occurred while fetching approval data for artifacts", "cdPipelineId", listingFilterOpts.PipelineId, "artifactIds", artifactIds, "err", err)
@@ -1212,6 +1212,17 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 				if approvalMetadataForArtifact, ok := userApprovalMetadata[artifact.Id]; ok {
 					ciArtifacts[i].UserApprovalMetadata = approvalMetadataForArtifact
 				}
+			}
+		}
+
+		promotionApprovalArtifactIdToMetadataMap, err := impl.artifactPromotionDataReadService.FetchPromotionApprovalDataForArtifacts(artifactIds, listingFilterOpts.PipelineId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching promotion approval metadata for given artifactIds", "err", err)
+			return nil, 0, "", 0, err
+		}
+		for i, artifact := range ciArtifacts {
+			if promotionApprovalMetadata, ok := promotionApprovalArtifactIdToMetadataMap[artifact.Id]; ok {
+				ciArtifacts[i].PromotionApprovalMetadata = promotionApprovalMetadata
 			}
 		}
 
