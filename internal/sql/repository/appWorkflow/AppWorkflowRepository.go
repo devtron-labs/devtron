@@ -65,6 +65,7 @@ type AppWorkflowRepository interface {
 	UpdateParentComponentDetails(tx *pg.Tx, oldComponentId int, oldComponentType string, newComponentId int, newComponentType string, componentIdsFilter []int) error
 	FindWFMappingByComponent(componentType string, componentId int) (*AppWorkflowMapping, error)
 	FindByComponentId(componentId int) ([]*AppWorkflowMapping, error)
+	FindByWorkflowIdAndCiSource(workflowId int) (*AppWorkflowMapping, error)
 }
 
 type AppWorkflowRepositoryImpl struct {
@@ -96,6 +97,16 @@ type AppWorkflow struct {
 type WorkflowDAG struct {
 	CiPipelines []int `json:"ciPipelines"`
 	CdPipelines []int `json:"cdPipelines"`
+}
+
+func (impl AppWorkflowRepositoryImpl) FindByWorkflowIdAndCiSource(workflowId int) (*AppWorkflowMapping, error) {
+	appWorkflowMapping := AppWorkflowMapping{}
+	err := impl.dbConnection.Model(&appWorkflowMapping).
+		Where("app_workflow_id = ?", workflowId).
+		Where("active = ?", true).
+		Where("parent_id IS NULL").
+		Select()
+	return &appWorkflowMapping, err
 }
 
 func (impl AppWorkflowRepositoryImpl) SaveAppWorkflow(wf *AppWorkflow) (*AppWorkflow, error) {
@@ -190,7 +201,7 @@ func (impl AppWorkflowRepositoryImpl) DeleteAppWorkflow(appWorkflow *AppWorkflow
 	return nil
 }
 
-//---------------------AppWorkflowMapping-----------------------------------
+// ---------------------AppWorkflowMapping-----------------------------------
 
 type AppWorkflowMapping struct {
 	TableName     struct{} `sql:"app_workflow_mapping" pg:",discard_unknown_columns"`

@@ -73,8 +73,71 @@ func (impl ArtifactPromotionApprovalServiceImpl) HandleArtifactPromotionRequest(
 	return nil, nil
 }
 
+func (impl ArtifactPromotionApprovalServiceImpl) validateSourceAndFetchAppWorkflow(request *bean.ArtifactPromotionRequest) (*appWorkflow.AppWorkflow, error) {
+	// ciArtifact, err := impl.ciArtifactRepository.Get(request.ArtifactId)
+	// if err != nil {
+	// 	impl.logger.Errorw("error in finding the artifact using id", "artifactId", request.ArtifactId, "err", err)
+	// 	errorResp := &util.ApiError{
+	// 		HttpStatusCode:  http.StatusInternalServerError,
+	// 		InternalMessage: fmt.Sprintf("error in finding artifact , err : %s", err.Error()),
+	// 		UserMessage:     "error in finding artifact",
+	// 	}
+	// 	if errors.Is(err, pg.ErrNoRows) {
+	// 		errorResp.UserMessage = "artifact not found"
+	// 		errorResp.HttpStatusCode = http.StatusConflict
+	// 	}
+	//
+	// 	return nil, errorResp
+	// }
+	appWorkflowMapping := &appWorkflow.AppWorkflowMapping{}
+	var err error
+	if request.SourceType == bean.SOURCE_TYPE_CI || request.SourceType == bean.SOURCE_TYPE_WEBHOOK {
+		appWorkflowMapping, err = impl.appWorkflowRepository.FindByWorkflowIdAndCiSource(request.WorkflowId)
+		if err != nil {
+			// log
+			return nil, err
+		}
+	} else {
+		// source type will be cd and source name will be envName.
+		// get pipeline using appId and env name and get the workflowMapping
+		pipelines, err := impl.pipelineRepository.FindActiveByAppIdAndEnvironmentId(request.AppId, request.SourcePipelineId)
+		if err != nil {
+			// log
+			return nil, err
+		}
+		if len(pipelines) == 0 {
+			//  throw error that source is not found
+			return nil, err
+		}
+
+		pipeline := pipelines[0]
+		appWorkflowMapping, err = impl.appWorkflowRepository.FindWFMappingByComponent(appWorkflow.CDPIPELINE, pipeline.Id)
+		if err != nil {
+			if errors.Is(err, pg.ErrNoRows) {
+				// log that could not find pipeline for env in the given app.
+			}
+			// log
+			return nil, err
+		}
+	}
+
+	if request.WorkflowId != appWorkflowMapping.AppWorkflowId {
+		// log evaluation failed
+		return nil, errors.New("source is not in the given workflow")
+	}
+	workflow, err := impl.appWorkflowRepository.FindById(appWorkflowMapping.Id)
+	if err != nil {
+		if errors.Is(err, pg.ErrNoRows) {
+			// log workflow not exists error
+			return nil, err
+		}
+
+		// log error
+	}
+
+	return workflow, nil
+}
 func (impl ArtifactPromotionApprovalServiceImpl) promoteArtifact(request *bean.ArtifactPromotionRequest) (*bean.ArtifactPromotionRequest, error) {
-	//  step0: check if the artifact belongs to the current app.
 	// 	step1: validate if artifact is deployed/created at the source pipeline.
 	//      step1: if source is cd , check if this artifact is deployed on these environments
 	//  step2: validate if destination pipeline is in the same workflow of the artifact source.
@@ -114,27 +177,31 @@ func (impl ArtifactPromotionApprovalServiceImpl) promoteArtifact(request *bean.A
 
 		return nil, errorResp
 	}
-	componentId := ciArtifact.PipelineId
-	componentType := appWorkflow.CIPIPELINE
-	if ciArtifact.ExternalCiPipelineId != 0 {
-		componentType = appWorkflow.WEBHOOK
-		componentId = ciArtifact.ExternalCiPipelineId
-	}
-	workflowMapping, err := impl.appWorkflowRepository.FindWFMappingByComponent(componentType, componentId)
-	if err != nil {
-		impl.logger.Errorw("error in finding the app workflow mapping using componentId and componentType", "componentType", componentType, "componentId", componentId, "err", err)
-		errorResp := &util.ApiError{
-			HttpStatusCode:  http.StatusInternalServerError,
-			InternalMessage: fmt.Sprintf("error in finding app worlflow mapping , err : %s", err.Error()),
-			UserMessage:     "error occurred in promoting artifact, could not resolve workflow",
-		}
-		if errors.Is(err, pg.ErrNoRows) {
-			errorResp.UserMessage = "workflow not found"
-			errorResp.HttpStatusCode = http.StatusConflict
-		}
-		return nil, errorResp
-	}
+	// componentId := ciArtifact.PipelineId
+	// componentType := appWorkflow.CIPIPELINE
+	// if ciArtifact.ExternalCiPipelineId != 0 {
+	// 	componentType = appWorkflow.WEBHOOK
+	// 	componentId = ciArtifact.ExternalCiPipelineId
+	// }
+	// workflowMapping, err := impl.appWorkflowRepository.FindWFMappingByComponent(componentType, componentId)
+	// if err != nil {
+	// 	impl.logger.Errorw("error in finding the app workflow mapping using componentId and componentType", "componentType", componentType, "componentId", componentId, "err", err)
+	// 	errorResp := &util.ApiError{
+	// 		HttpStatusCode:  http.StatusInternalServerError,
+	// 		InternalMessage: fmt.Sprintf("error in finding app worlflow mapping , err : %s", err.Error()),
+	// 		UserMessage:     "error occurred in promoting artifact, could not resolve workflow",
+	// 	}
+	// 	if errors.Is(err, pg.ErrNoRows) {
+	// 		errorResp.UserMessage = "workflow not found"
+	// 		errorResp.HttpStatusCode = http.StatusConflict
+	// 	}
+	// 	return nil, errorResp
+	// }
 
+	workflow, err := impl.validateSourceAndFetchAppWorkflow(request)
+	if err != nil {
+		return nil, err
+	}
 	pipelines, err := impl.pipelineRepository.FindByAppIdsAndEnvironmentIds([]int{request.AppId}, allowedEnvs)
 	if err != nil {
 		impl.logger.Errorw("error in finding the pipelines for the app on given environments", "appId", request.AppId, "envIds", allowedEnvs, "err", err)
@@ -161,7 +228,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) promoteArtifact(request *bean.A
 	}
 
 	sourcePipelineId := 0
-	allAppWorkflowMappings, err := impl.appWorkflowRepository.FindWFAllMappingByWorkflowId(workflowMapping.AppWorkflowId)
+	allAppWorkflowMappings, err := impl.appWorkflowRepository.FindWFAllMappingByWorkflowId(workflow.Id)
 	if err != nil {
 		impl.logger.Errorw("error in finding the app workflow mappings", "err", err)
 		return nil, err
@@ -176,9 +243,9 @@ func (impl ArtifactPromotionApprovalServiceImpl) promoteArtifact(request *bean.A
 					// setting sourcePipelineId here
 					sourcePipelineId = appWorkflowMapping.ComponentId
 				}
-			} else if appWorkflowMapping.Type == componentType {
-				sourcePipelineId = appWorkflowMapping.ComponentId
 			}
+
+			// create the tree from the DAG excluding the ci source
 			if appWorkflowMapping.Type == appWorkflow.CDPIPELINE && appWorkflowMapping.ParentType == appWorkflow.CDPIPELINE {
 				tree[appWorkflowMapping.ParentId] = append(tree[appWorkflowMapping.ParentId], appWorkflowMapping.ComponentId)
 			}

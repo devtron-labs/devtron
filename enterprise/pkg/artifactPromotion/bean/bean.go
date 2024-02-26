@@ -51,7 +51,8 @@ type ArtifactPromotionRequest struct {
 	AppName            string         `json:"appName"`
 	EnvironmentNames   []string       `json:"environmentNames"`
 	UserId             int32          `json:"-"`
-	AppId              int            `json:"-"`
+	WorkflowId         int            `json:"workflowId"`
+	AppId              int            `json:"appId"`
 	EnvNameIdMap       map[string]int `json:"-"`
 	EnvIdNameMap       map[int]string `json:"-"`
 	SourcePipelineId   int            `json:"-"`
