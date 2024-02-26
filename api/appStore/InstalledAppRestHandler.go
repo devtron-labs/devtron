@@ -33,7 +33,6 @@ import (
 	"time"
 
 	bean2 "github.com/devtron-labs/devtron/api/bean"
-	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/cron"
@@ -270,7 +269,7 @@ func (handler InstalledAppRestHandlerImpl) GetAllInstalledApp(w http.ResponseWri
 		return
 	}
 
-	appIdToAppMap := make(map[string]openapi.HelmApp)
+	appIdToAppMap := make(map[string]appStoreBean.HelmAppDetails)
 
 	//the value of this map is array of strings because the GetHelmObjectByAppNameAndEnvId method may return "//" for error cases
 	//so different apps may contain same object, to handle that we are using (map[string] []string)
@@ -326,7 +325,7 @@ func (handler InstalledAppRestHandlerImpl) GetAllInstalledApp(w http.ResponseWri
 		}
 	}
 
-	authorizedApps := make([]openapi.HelmApp, 0)
+	authorizedApps := make([]appStoreBean.HelmAppDetails, 0)
 	for appId, _ := range authorizedAppIdSet {
 		authorizedApp := appIdToAppMap[appId]
 		authorizedApps = append(authorizedApps, authorizedApp)
@@ -726,6 +725,10 @@ func (handler *InstalledAppRestHandlerImpl) FetchResourceTree(w http.ResponseWri
 		common.WriteJsonResp(w, err, "App not found in database", http.StatusBadRequest)
 		return
 	}
+	if installedApp.Environment.IsVirtualEnvironment {
+		common.WriteJsonResp(w, nil, nil, http.StatusOK)
+		return
+	}
 	token := r.Header.Get("token")
 	object, object2 := handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(installedApp.App.AppName, installedApp.EnvironmentId)
 	var ok bool
@@ -756,7 +759,7 @@ func (handler *InstalledAppRestHandlerImpl) FetchResourceTree(w http.ResponseWri
 			apiError, ok := err.(*util2.ApiError)
 			if ok && apiError != nil {
 				if apiError.Code == constants.AppDetailResourceTreeNotFound && installedApp.DeploymentAppDeleteRequest == true {
-					// TODO refactoring: should be performed in go routine
+					// TODO refactoring: should be performed through nats
 					err = handler.appStoreDeploymentService.MarkGitOpsInstalledAppsDeletedIfArgoAppIsDeleted(installedAppId, envId)
 					appDeleteErr, appDeleteErrOk := err.(*util2.ApiError)
 					if appDeleteErrOk && appDeleteErr != nil {
