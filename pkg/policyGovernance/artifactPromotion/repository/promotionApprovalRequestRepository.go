@@ -37,6 +37,7 @@ type ArtifactPromotionApprovalRequestRepository interface {
 	FindPendingByDestinationPipelineId(destinationPipelineId int) ([]*ArtifactPromotionApprovalRequest, error)
 	FindAwaitedRequestByPipelineIdAndArtifactId(pipelineId, artifactId int) ([]*ArtifactPromotionApprovalRequest, error)
 	FindPromotedRequestByPipelineIdAndArtifactId(pipelineId, artifactId int) (*ArtifactPromotionApprovalRequest, error)
+	FindAwaitedRequestsByArtifactId(artifactId int) ([]*ArtifactPromotionApprovalRequest, error)
 }
 
 func (repo *ArtifactPromotionApprovalRequestRepoImpl) Create(PromotionRequest *ArtifactPromotionApprovalRequest) (*ArtifactPromotionApprovalRequest, error) {
@@ -91,4 +92,14 @@ func (repo *ArtifactPromotionApprovalRequestRepoImpl) FindPromotedRequestByPipel
 		Where("artifact_id = ?", artifactId).
 		Select()
 	return model, err
+}
+
+func (repo *ArtifactPromotionApprovalRequestRepoImpl) FindAwaitedRequestsByArtifactId(artifactId int) ([]*ArtifactPromotionApprovalRequest, error) {
+	models := make([]*ArtifactPromotionApprovalRequest, 0)
+	err := repo.dbConnection.Model(models).
+		Where("status = ? ", bean.AWAITING_APPROVAL).
+		Where("active = ?", true).
+		Where("artifact_id = ?", artifactId).
+		Select()
+	return models, err
 }

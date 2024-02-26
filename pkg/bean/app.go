@@ -859,10 +859,10 @@ type ArtifactPromotionMaterialResponse struct {
 }
 
 type PromotionApprovalMetaData struct {
-	ApprovalRequestId    int    `json:"approvalRequestId"`
-	ApprovalRuntimeState string `json:"approvalRuntimeState"`
-	ApprovalUsersData    string `json:"approvalUsersData"`
-	RequestedUserData    string `json:"requestedUserData"`
+	ApprovalRequestId    int      `json:"approvalRequestId"`
+	ApprovalRuntimeState string   `json:"approvalRuntimeState"`
+	ApprovalUsersData    []string `json:"approvalUsersData"`
+	RequestedUserData    string   `json:"requestedUserData"`
 }
 
 type AppLabelsDto struct {

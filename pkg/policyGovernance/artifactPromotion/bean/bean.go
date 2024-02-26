@@ -79,16 +79,22 @@ type EnvironmentResponse struct {
 	IsVirtualEnvironment       bool                     `json:"isVirtualEnvironment,omitempty"`
 }
 
+type EnvironmentApprovalMetadata struct {
+	Name            string   `json:"name"` // environment name
+	ApprovalAllowed bool     `json:"approvalAllowed"`
+	Reasons         []string `json:"reason"`
+}
+
 type PromotionPolicy struct {
 	Conditions       []resourceFilter.ResourceCondition `json:"conditions"`
 	ApprovalMetaData ApprovalMetaData                   `json:"approvalMetadata"`
 }
 
 type ApprovalMetaData struct {
-	ApprovalCount                int    `json:"approverCount"`
-	AllowImageBuilderFromApprove string `json:"allowImageBuilderFromApprove"`
-	AllowRequesterFromApprove    string `json:"allowRequesterFromApprove"`
-	AllowApproverFromDeploy      string `json:"allowApproverFromDeploy"`
+	ApprovalCount                int  `json:"approverCount"`
+	AllowImageBuilderFromApprove bool `json:"allowImageBuilderFromApprove"`
+	AllowRequesterFromApprove    bool `json:"allowRequesterFromApprove"`
+	AllowApproverFromDeploy      bool `json:"allowApproverFromDeploy"`
 }
 type PromotionValidationState string
 

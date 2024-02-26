@@ -19,4 +19,7 @@ func (router *PromotionApprovalRouterImpl) InitPromotionApprovalRouter(promotion
 		Methods("POST")
 	promotionApprovalRouter.Path("").HandlerFunc(router.promotionApprovalRequestRestHandler.GetByPromotionRequestId).Queries("promotionRequestId", "{promotionRequestId}").
 		Methods("GET")
+	promotionApprovalRouter.Path("/env/metadata").HandlerFunc(router.promotionApprovalRequestRestHandler.FetchAwaitingApprovalEnvListForArtifact).
+		Methods("GET")
+
 }

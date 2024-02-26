@@ -959,7 +959,7 @@ func (impl CiArtifactRepositoryImpl) FindArtifactsPendingForPromotion(cdPipeline
 
 	query := fmt.Sprintf("SELECT cia.*, COUNT(id) OVER() AS total_count FROM ci_artifact cia "+
 		"INNER JOIN artifact_promotion_approval_request apar ON cia.id = apar.artifact_id AND apar.status != 'PROMOTED' AND apar.active = true"+
-		" AND apar.destination_pipeline_id IN (%s) ", helper.GetCommaSepratedString(cdPipelineIds))
+		" AND apar.destination_pipeline_id IN (%s)", helper.GetCommaSepratedString(cdPipelineIds))
 
 	if imageSearchPattern != EmptyLikeRegex {
 		query = query + fmt.Sprintf(" and ci_artifact.image like %s ", imageSearchPattern)

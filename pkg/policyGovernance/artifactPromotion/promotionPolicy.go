@@ -7,28 +7,28 @@ import (
 	"go.uber.org/zap"
 )
 
-type PromotionPolicy interface {
+type PromotionPolicyService interface {
 	GetByAppAndEnvId(appId, envId int) (*bean.PromotionPolicy, error)
 }
 
-type PromotionPolicyImpl struct {
+type PromotionPolicyServiceImpl struct {
 	globalPolicyService             globalPolicy.GlobalPolicyService
 	resourceQualifierMappingService resourceQualifiers.QualifierMappingService
 	logger                          *zap.SugaredLogger
 }
 
-func NewPromotionPolicyImpl(globalPolicyService globalPolicy.GlobalPolicyService,
+func NewPromotionPolicyServiceImpl(globalPolicyService globalPolicy.GlobalPolicyService,
 	resourceQualifierMappingService resourceQualifiers.QualifierMappingService,
 	logger *zap.SugaredLogger,
-) *PromotionPolicyImpl {
-	return &PromotionPolicyImpl{
+) *PromotionPolicyServiceImpl {
+	return &PromotionPolicyServiceImpl{
 		globalPolicyService:             globalPolicyService,
 		resourceQualifierMappingService: resourceQualifierMappingService,
 		logger:                          logger,
 	}
 }
 
-func (impl PromotionPolicyImpl) GetByAppAndEnvId(appId, envId int) (*bean.PromotionPolicy, error) {
+func (impl PromotionPolicyServiceImpl) GetByAppAndEnvId(appId, envId int) (*bean.PromotionPolicy, error) {
 
 	//scope := &resourceQualifiers.Scope{AppId: appId, EnvId: envId}
 	//

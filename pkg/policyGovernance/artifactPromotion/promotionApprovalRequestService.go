@@ -24,6 +24,7 @@ type ArtifactPromotionApprovalService interface {
 	HandleArtifactPromotionRequest(request *bean.ArtifactPromotionRequest, authorizedEnvironments map[string]bool) ([]bean.EnvironmentResponse, error)
 	GetByPromotionRequestId(artifactPromotionApprovalRequest *repository.ArtifactPromotionApprovalRequest) (*bean.ArtifactPromotionApprovalResponse, error)
 	FetchEnvironmentsList(workflowId, artifactId int) ([]bean.EnvironmentResponse, error)
+	FetchApprovalAllowedEnvList(artifactId int, userId int32, token string, promotionApproverAuth func(string, string) bool) ([]bean.EnvironmentApprovalMetadata, error)
 }
 
 type ArtifactPromotionApprovalServiceImpl struct {
@@ -37,6 +38,7 @@ type ArtifactPromotionApprovalServiceImpl struct {
 	cdWorkflowRepository                       pipelineConfig.CdWorkflowRepository
 	resourceFilterConditionsEvaluator          resourceFilter.ResourceFilterEvaluator
 	imageTaggingService                        pipeline.ImageTaggingService
+	promotionPolicyService                     PromotionPolicyService
 }
 
 func NewArtifactPromotionApprovalServiceImpl(
@@ -50,6 +52,7 @@ func NewArtifactPromotionApprovalServiceImpl(
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	resourceFilterConditionsEvaluator resourceFilter.ResourceFilterEvaluator,
 	imageTaggingService pipeline.ImageTaggingService,
+	promotionPolicyService PromotionPolicyService,
 ) *ArtifactPromotionApprovalServiceImpl {
 	return &ArtifactPromotionApprovalServiceImpl{
 		artifactPromotionApprovalRequestRepository: ArtifactPromotionApprovalRequestRepository,
@@ -62,6 +65,7 @@ func NewArtifactPromotionApprovalServiceImpl(
 		cdWorkflowRepository:              cdWorkflowRepository,
 		resourceFilterConditionsEvaluator: resourceFilterConditionsEvaluator,
 		imageTaggingService:               imageTaggingService,
+		promotionPolicyService:            promotionPolicyService,
 	}
 }
 
@@ -72,6 +76,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) FetchEnvironmentsList(workflowI
 		return nil, err
 	}
 
+	//TODO: fix this repetitive logic
 	pipelineIds := make([]int, 0, len(allAppWorkflowMappings))
 	for _, mapping := range allAppWorkflowMappings {
 		if mapping.Type == appWorkflow.CDPIPELINE {
@@ -558,6 +563,15 @@ func (impl ArtifactPromotionApprovalServiceImpl) cancelPromotionApprovalRequest(
 		impl.logger.Errorw("error in fetching artifact promotion request by id", "artifactPromotionRequestId", request.PromotionRequestId, "err", err)
 		return nil, err
 	}
+
+	if artifactPromotionDao.CreatedBy != request.UserId {
+		return nil, &util.ApiError{
+			HttpStatusCode:  http.StatusUnprocessableEntity,
+			InternalMessage: "only user who has raised the promotion request can cancel it",
+			UserMessage:     "only user who has raised the promotion request can cancel it",
+		}
+	}
+
 	artifactPromotionDao.Active = false
 	artifactPromotionDao.Status = bean.CANCELED
 	artifactPromotionDao.UpdatedOn = time.Now()
@@ -609,4 +623,78 @@ func (impl ArtifactPromotionApprovalServiceImpl) GetByPromotionRequestId(artifac
 
 	return artifactPromotionApprovalResponse, nil
 
+}
+
+func (impl ArtifactPromotionApprovalServiceImpl) FetchApprovalAllowedEnvList(artifactId int, userId int32, token string, promotionApproverAuth func(string, string) bool) ([]bean.EnvironmentApprovalMetadata, error) {
+
+	artifact, err := impl.ciArtifactRepository.Get(artifactId)
+	if err != nil {
+		impl.logger.Errorw("artifact not found for given id", "artifactId", artifactId, "err", err)
+		return nil, &util.ApiError{
+			HttpStatusCode:  http.StatusUnprocessableEntity,
+			InternalMessage: "artifact not found for given id",
+			UserMessage:     "artifact not found for given id",
+		}
+	}
+
+	promotionRequests, err := impl.artifactPromotionApprovalRequestRepository.FindAwaitedRequestsByArtifactId(artifactId)
+	if err != nil {
+		impl.logger.Errorw("error in finding promotion requests in awaiting state for given artifactId ")
+	}
+
+	environmentApprovalMetadata := make([]bean.EnvironmentApprovalMetadata, 0)
+
+	if len(promotionRequests) == 0 {
+		return environmentApprovalMetadata, nil
+	}
+
+	destinationPipelineIds := make([]int, 0)
+	for _, request := range promotionRequests {
+		destinationPipelineIds = append(destinationPipelineIds, request.Id)
+	}
+
+	pipelines, err := impl.pipelineRepository.FindAppAndEnvironmentAndProjectByPipelineIds(destinationPipelineIds)
+	if err != nil {
+		impl.logger.Errorw("error in fetching pipelines by ids", "pipelineIds", destinationPipelineIds, "err", err)
+		return nil, err
+	}
+
+	pipelineIdMap := make(map[int]*pipelineConfig.Pipeline)
+	for _, pipelineDao := range pipelines {
+		pipelineIdMap[pipelineDao.Id] = pipelineDao
+	}
+
+	for _, request := range promotionRequests {
+
+		pipelineDao := pipelineIdMap[request.DestinationPipelineId]
+
+		environmentMetadata := bean.EnvironmentApprovalMetadata{
+			Name:            pipelineDao.Environment.Name,
+			ApprovalAllowed: true,
+			Reasons:         make([]string, 0),
+		}
+
+		policy, err := impl.promotionPolicyService.GetByAppAndEnvId(pipelineDao.AppId, pipelineDao.EnvironmentId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching promotion policy for given appId and envId", "appId", pipelineDao.AppId, "envId", pipelineDao.EnvironmentId, "err", err)
+			return nil, err
+		}
+
+		if !policy.ApprovalMetaData.AllowImageBuilderFromApprove && request.CreatedBy == artifact.CreatedBy {
+			environmentMetadata.ApprovalAllowed = false
+			environmentMetadata.Reasons = append(environmentMetadata.Reasons, "User who has built the image cannot approve promotion request for this environment")
+		}
+
+		if !policy.ApprovalMetaData.AllowRequesterFromApprove && request.CreatedBy == userId {
+			environmentMetadata.ApprovalAllowed = false
+			environmentMetadata.Reasons = append(environmentMetadata.Reasons, "User who has raised the image cannot approve promotion request for this environment")
+		}
+
+		rbacObject := fmt.Sprintf("%s/%s/%s", pipelineDao.App.Team.Name, pipelineDao.Environment.EnvironmentIdentifier, pipelineDao.App.AppName)
+		if ok := promotionApproverAuth(token, rbacObject); !ok {
+			environmentMetadata.ApprovalAllowed = false
+			environmentMetadata.Reasons = append(environmentMetadata.Reasons, "user does not have image promoter access for given app and env")
+		}
+	}
+	return environmentApprovalMetadata, nil
 }

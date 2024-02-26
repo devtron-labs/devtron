@@ -108,7 +108,7 @@ func (router AppRouterImpl) InitAppRouter(AppRouter *mux.Router) {
 	router.appWorkflowRouter.InitAppWorkflowRouter(appWorkflowRouter)
 
 	// artifact promotion approval request
-	artifactPromotionApprovalRouter := AppRouter.PathPrefix("/artifact-promotion").Subrouter()
+	artifactPromotionApprovalRouter := AppRouter.PathPrefix("/artifact/promote").Subrouter()
 	router.promotionApprovalRequestRouter.InitPromotionApprovalRouter(artifactPromotionApprovalRouter)
 
 	// TODO refactoring: categorise and move to respective folders
