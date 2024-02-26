@@ -184,7 +184,7 @@ func (repo *QualifiersMappingRepositoryImpl) GetQualifierMappingsForListOfQualif
 	}
 
 	err := query.Select()
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		return nil, err
 	}
 	return qualifierMappings, nil

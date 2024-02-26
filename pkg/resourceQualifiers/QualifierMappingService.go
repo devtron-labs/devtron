@@ -2,10 +2,12 @@ package resourceQualifiers
 
 import (
 	"fmt"
+	mapset "github.com/deckarep/golang-set"
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
+	"github.com/pkg/errors"
 	"github.com/samber/lo"
 	"go.uber.org/zap"
 	"golang.org/x/exp/slices"
@@ -108,7 +110,15 @@ func (impl QualifierMappingServiceImpl) CreateMappings(tx *pg.Tx, userId int32, 
 	return err
 }
 
-func (impl *QualifierMappingServiceImpl) filterAndGroupMappings(mappings []*QualifierMapping, selector QualifierSelector) [][]*QualifierMapping {
+func getCompositeStringsAppEnvScopes(scopes []*Scope) mapset.Set {
+	compositeSet := mapset.NewSet()
+	for _, scope := range scopes {
+		compositeSet.Add(fmt.Sprintf("%v-%v", scope.AppId, scope.EnvId))
+	}
+	return compositeSet
+}
+
+func (impl *QualifierMappingServiceImpl) filterAndGroupMappings(mappings []*QualifierMapping, selector QualifierSelector, composites mapset.Set) [][]*QualifierMapping {
 
 	numQualifiers := GetNumOfChildQualifiers(selector.toQualifier())
 	parentIdToChildScopes := make(map[int][]*QualifierMapping)
@@ -132,13 +142,14 @@ func (impl *QualifierMappingServiceImpl) filterAndGroupMappings(mappings []*Qual
 		}
 	}
 
-	//selectedParentScopes :=  make([]*QualifierMapping,0)
 	groupedMappings := make([][]*QualifierMapping, 0)
 	for parentScopeId, childScopes := range parentIdToChildScopes {
 		if len(childScopes) == numQualifiers {
 			selectedParentScope := parentScopeIdToScope[parentScopeId]
-			//selectedParentScopes = append(selectedParentScopes, selectedParentScope)
-
+			composite := fmt.Sprintf("%v-%v", selectedParentScope.IdentifierValueInt, childScopes[0].IdentifierValueInt)
+			if !composites.Contains(composite) {
+				break
+			}
 			mappingsGroup := []*QualifierMapping{selectedParentScope}
 			mappingsGroup = append(mappingsGroup, childScopes...)
 			groupedMappings = append(groupedMappings, mappingsGroup)
@@ -203,12 +214,12 @@ func (impl QualifierMappingServiceImpl) GetResourceMappingsForScopes(resourceTyp
 		envIds = append(envIds, scope.EnvId)
 	}
 	valuesMap[qualifierSelector.toQualifier()] = [][]int{appIds, envIds}
-	mappings, err := impl.qualifierMappingRepository.GetQualifierMappingsForListOfQualifierValues(resourceType, nil, keyMap, []int{})
+	mappings, err := impl.qualifierMappingRepository.GetQualifierMappingsForListOfQualifierValues(resourceType, valuesMap, keyMap, []int{})
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, fmt.Sprintf("error fetching resource mappings %v %v", resourceType, valuesMap))
 	}
 
-	return impl.processMappings(resourceType, mappings, qualifierSelector)
+	return impl.processMappings(resourceType, mappings, qualifierSelector, getCompositeStringsAppEnvScopes(scopes))
 }
 func (impl QualifierMappingServiceImpl) GetResourceMappingsForResources(resourceType ResourceType, resourceIds []int, qualifierSelector QualifierSelector) ([]ResourceQualifierMappings, error) {
 	mappings, err := impl.qualifierMappingRepository.GetMappingsByResourceTypeAndIdsAndQualifierId(resourceType, resourceIds, int(qualifierSelector.toQualifier()))
@@ -216,11 +227,11 @@ func (impl QualifierMappingServiceImpl) GetResourceMappingsForResources(resource
 		return nil, err
 	}
 
-	return impl.processMappings(resourceType, mappings, qualifierSelector)
+	return impl.processMappings(resourceType, mappings, qualifierSelector, mapset.NewSet())
 }
 
-func (impl QualifierMappingServiceImpl) processMappings(resourceType ResourceType, mappings []*QualifierMapping, qualifierSelector QualifierSelector) ([]ResourceQualifierMappings, error) {
-	groups := impl.filterAndGroupMappings(mappings, qualifierSelector)
+func (impl QualifierMappingServiceImpl) processMappings(resourceType ResourceType, mappings []*QualifierMapping, qualifierSelector QualifierSelector, composites mapset.Set) ([]ResourceQualifierMappings, error) {
+	groups := impl.filterAndGroupMappings(mappings, qualifierSelector, composites)
 	if qualifierSelector != ApplicationEnvironmentSelector {
 		return nil, fmt.Errorf("selector currently not implemented")
 	}
