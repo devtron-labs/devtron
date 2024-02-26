@@ -81,7 +81,7 @@ type AppArtifactManagerImpl struct {
 	artifactApprovalDataReadService            read.ArtifactApprovalDataReadService
 	environmentRepository                      repository4.EnvironmentRepository
 	appWorkflowRepository                      appWorkflow.AppWorkflowRepository
-	promotionPolicy                            artifactPromotion.PromotionPolicy
+	promotionPolicy                            artifactPromotion.PromotionPolicyService
 	artifactPromotionApprovalRequestRepository repository5.ArtifactPromotionApprovalRequestRepository
 }
 
@@ -103,7 +103,7 @@ func NewAppArtifactManagerImpl(
 	artifactApprovalDataReadService read.ArtifactApprovalDataReadService,
 	environmentRepository repository4.EnvironmentRepository,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
-	promotionPolicy artifactPromotion.PromotionPolicy,
+	promotionPolicy artifactPromotion.PromotionPolicyService,
 	artifactPromotionApprovalRequestRepository repository5.ArtifactPromotionApprovalRequestRepository,
 ) *AppArtifactManagerImpl {
 	cdConfig, err := types.GetCdConfig()

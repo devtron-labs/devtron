@@ -950,8 +950,8 @@ func InitializeApp() (*App, error) {
 
 		kubernetesResourceAuditLogs.Newk8sResourceHistoryServiceImpl,
 		wire.Bind(new(kubernetesResourceAuditLogs.K8sResourceHistoryService), new(*kubernetesResourceAuditLogs.K8sResourceHistoryServiceImpl)),
-		pipelineConfig.NewResourceApprovalRepositoryImpl,
-		wire.Bind(new(pipelineConfig.RequestApprovalRepository), new(*pipelineConfig.RequestApprovalRepositoryImpl)),
+		pipelineConfig.NewRequestApprovalUserDataRepositoryImpl,
+		wire.Bind(new(pipelineConfig.RequestApprovalUserdataRepository), new(*pipelineConfig.RequestApprovalUserDataRepositoryImpl)),
 		pipelineConfig.NewDeploymentApprovalRepositoryImpl,
 		wire.Bind(new(pipelineConfig.DeploymentApprovalRepository), new(*pipelineConfig.DeploymentApprovalRepositoryImpl)),
 		router.NewResourceGroupingRouterImpl,

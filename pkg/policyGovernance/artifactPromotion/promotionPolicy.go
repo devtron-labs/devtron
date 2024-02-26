@@ -7,49 +7,59 @@ import (
 	"go.uber.org/zap"
 )
 
-type PromotionPolicy interface {
-	GetByAppAndEnvId(appId, envId int) (*bean.PromotionPolicy, error)
+type PromotionPolicyService interface {
+	GetByAppNameAndEnvName(appName string, envNames []string) (map[string]*bean.PromotionPolicy, error)
+	GetById(id int) (*bean.PromotionPolicy, error)
+	GetByIds(ids []int) ([]*bean.PromotionPolicy, error)
 }
 
-type PromotionPolicyImpl struct {
+type PromotionPolicyServiceImpl struct {
 	globalPolicyService             globalPolicy.GlobalPolicyService
 	resourceQualifierMappingService resourceQualifiers.QualifierMappingService
 	logger                          *zap.SugaredLogger
 }
 
-func NewPromotionPolicyImpl(globalPolicyService globalPolicy.GlobalPolicyService,
+func NewPromotionPolicyServiceImpl(globalPolicyService globalPolicy.GlobalPolicyService,
 	resourceQualifierMappingService resourceQualifiers.QualifierMappingService,
 	logger *zap.SugaredLogger,
-) *PromotionPolicyImpl {
-	return &PromotionPolicyImpl{
+) *PromotionPolicyServiceImpl {
+	return &PromotionPolicyServiceImpl{
 		globalPolicyService:             globalPolicyService,
 		resourceQualifierMappingService: resourceQualifierMappingService,
 		logger:                          logger,
 	}
 }
 
-func (impl PromotionPolicyImpl) GetByAppAndEnvId(appId, envId int) (*bean.PromotionPolicy, error) {
+func (impl PromotionPolicyServiceImpl) GetByAppNameAndEnvName(appName string, envNames []string) (map[string]*bean.PromotionPolicy, error) {
 
-	//scope := &resourceQualifiers.Scope{AppId: appId, EnvId: envId}
+	// scope := &resourceQualifiers.Scope{AppId: appId, EnvId: envId}
 	//
-	//qualifierMapping, err := impl.resourceQualifierMappingService.GetResourceMappingsForScopes(
+	// qualifierMapping, err := impl.resourceQualifierMappingService.GetResourceMappingsForScopes(
 	//	resourceQualifiers.ImagePromotionPolicy,
 	//	resourceQualifiers.ApplicationEnvironmentSelector,
 	//	[]*resourceQualifiers.Scope{scope},
-	//)
-	//if err != nil {
+	// )
+	// if err != nil {
 	//	impl.logger.Errorw("error in fetching resource qualifier mapping by scope", "resource", resourceQualifiers.ImagePromotionPolicy, "scope", scope, "err", err)
 	//	return nil, err
-	//}
+	// }
 	//
-	//policyId := qualifierMapping[0].ResourceId
+	// policyId := qualifierMapping[0].ResourceId
 	//
-	////TODO; get from new service
-	//promotionPolicyDao, err := impl.globalPolicyService.GetById(policyId)
-	//if err!=nil{
+	// //TODO; get from new service
+	// promotionPolicyDao, err := impl.globalPolicyService.GetById(policyId)
+	// if err!=nil{
 	//	impl.logger.Errorw("error in fetching policy by id", "policyId", policyId)
 	//	return nil, err
-	//}
+	// }
 	//
-	return &bean.PromotionPolicy{}, nil
+	return nil, nil
+}
+
+func (impl PromotionPolicyServiceImpl) GetById(id int) (*bean.PromotionPolicy, error) {
+	return nil, nil
+}
+
+func (impl PromotionPolicyServiceImpl) GetByIds(ids []int) ([]*bean.PromotionPolicy, error) {
+	return nil, nil
 }

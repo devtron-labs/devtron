@@ -5,13 +5,28 @@ import (
 	"time"
 )
 
-type ArtifactPromotionRequestStatus = int
+type ArtifactPromotionRequestStatus int
 
 const (
 	PROMOTED ArtifactPromotionRequestStatus = iota
 	CANCELED
 	AWAITING_APPROVAL
+	STALE = 3
 )
+
+func (status ArtifactPromotionRequestStatus) Status() string {
+	switch status {
+	case PROMOTED:
+		return "promoted"
+	case CANCELED:
+		return "cancelled"
+	case STALE:
+		return "stale"
+	case AWAITING_APPROVAL:
+		return "awaiting for approval"
+	}
+	return "deleted"
+}
 
 type SourceType int
 
@@ -73,15 +88,18 @@ type ArtifactPromotionApprovalResponse struct {
 type EnvironmentResponse struct {
 	Name                       string                   `json:"name"` // environment name
 	ApprovalCount              int                      `json:"approvalCount,omitempty"`
-	PromotionPossible          bool                     `json:"promotionPossible"`
+	PromotionPossible          *bool                    `json:"promotionPossible"`
 	PromotionValidationMessage string                   `json:"promotionEvaluationMessage"`
 	PromotionValidationState   PromotionValidationState `json:"promotionEvaluationState"`
-	IsVirtualEnvironment       bool                     `json:"isVirtualEnvironment,omitempty"`
+	IsVirtualEnvironment       *bool                    `json:"isVirtualEnvironment,omitempty"`
 }
 
 type PromotionPolicy struct {
-	Conditions       []resourceFilter.ResourceCondition `json:"conditions"`
-	ApprovalMetaData ApprovalMetaData                   `json:"approvalMetadata"`
+	Id                 int                                `json:"-"`
+	Name               string                             `json:"-"`
+	PolicyEvaluationId int                                `json:"-"`
+	Conditions         []resourceFilter.ResourceCondition `json:"conditions"`
+	ApprovalMetaData   ApprovalMetaData                   `json:"approvalMetadata"`
 }
 
 type ApprovalMetaData struct {
@@ -104,3 +122,4 @@ const SENT_FOR_APPROVAL PromotionValidationState = "sent for approval"
 const SOURCE_AND_DESTINATION_PIPELINE_MISMATCH PromotionValidationState = "source and destination pipeline order mismatch"
 const POLICY_EVALUATION_ERRORED PromotionValidationState = "server unable to evaluate the policy"
 const BLOCKED_BY_POLICY PromotionValidationState = "blocked by the policy "
+const APPROVED PromotionValidationState = "approved"

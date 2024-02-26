@@ -7,22 +7,22 @@ import (
 	"time"
 )
 
-type RequestApprovalRepository interface {
+type RequestApprovalUserdataRepository interface {
 	SaveDeploymentUserData(userData *RequestApprovalUserData) error
 	FetchApprovalDataForRequests(requestIds []int, requestType repository.RequestType) ([]*RequestApprovalUserData, error)
 	FetchApprovedDataByApprovalId(approvalRequestId int, requestType repository.RequestType) ([]*RequestApprovalUserData, error)
 }
 
-type RequestApprovalRepositoryImpl struct {
+type RequestApprovalUserDataRepositoryImpl struct {
 	dbConnection *pg.DB
 	logger       *zap.SugaredLogger
 }
 
-func NewResourceApprovalRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *RequestApprovalRepositoryImpl {
-	return &RequestApprovalRepositoryImpl{dbConnection: dbConnection, logger: logger}
+func NewRequestApprovalUserDataRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *RequestApprovalUserDataRepositoryImpl {
+	return &RequestApprovalUserDataRepositoryImpl{dbConnection: dbConnection, logger: logger}
 }
 
-func (impl *RequestApprovalRepositoryImpl) FetchApprovalDataForRequests(requestIds []int, requestType repository.RequestType) ([]*RequestApprovalUserData, error) {
+func (impl *RequestApprovalUserDataRepositoryImpl) FetchApprovalDataForRequests(requestIds []int, requestType repository.RequestType) ([]*RequestApprovalUserData, error) {
 	var usersData []*RequestApprovalUserData
 	if len(requestIds) == 0 {
 		return usersData, nil
@@ -40,7 +40,7 @@ func (impl *RequestApprovalRepositoryImpl) FetchApprovalDataForRequests(requestI
 	return usersData, nil
 }
 
-func (impl *RequestApprovalRepositoryImpl) FetchApprovedDataByApprovalId(approvalRequestId int, requestType repository.RequestType) ([]*RequestApprovalUserData, error) {
+func (impl *RequestApprovalUserDataRepositoryImpl) FetchApprovedDataByApprovalId(approvalRequestId int, requestType repository.RequestType) ([]*RequestApprovalUserData, error) {
 	var results []*RequestApprovalUserData
 	err := impl.dbConnection.
 		Model(&results).
@@ -56,7 +56,7 @@ func (impl *RequestApprovalRepositoryImpl) FetchApprovedDataByApprovalId(approva
 
 }
 
-func (impl *RequestApprovalRepositoryImpl) SaveDeploymentUserData(userData *RequestApprovalUserData) error {
+func (impl *RequestApprovalUserDataRepositoryImpl) SaveDeploymentUserData(userData *RequestApprovalUserData) error {
 	currentTime := time.Now()
 	userData.CreatedOn = currentTime
 	userData.UpdatedOn = currentTime
