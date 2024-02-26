@@ -53,7 +53,7 @@ func NewUserAuditServiceImpl(logger *zap.SugaredLogger, userAuditRepository repo
 
 func (impl UserAuditServiceImpl) Update(userAudit *UserAudit) error {
 	userId := userAudit.UserId
-	impl.logger.Infow("Saving user audit", "userId", userId)
+	impl.logger.Infow("Update user audit", "userId", userId)
 	userAuditDb := &repository2.UserAudit{
 		UserId:   userId,
 		ClientIp: userAudit.ClientIp,
@@ -73,6 +73,7 @@ func (impl UserAuditServiceImpl) Save(userAudit *UserAudit) error {
 		UserId:    userId,
 		ClientIp:  userAudit.ClientIp,
 		CreatedOn: userAudit.CreatedOn,
+		UpdatedOn: userAudit.CreatedOn, // setting updated same as created first time
 	}
 	err := impl.userAuditRepository.Save(userAuditDb)
 	if err != nil {

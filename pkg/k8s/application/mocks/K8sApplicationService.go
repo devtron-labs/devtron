@@ -3,11 +3,11 @@
 package mocks
 
 import (
+	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	bean "github.com/devtron-labs/devtron/api/bean"
-	client "github.com/devtron-labs/devtron/api/helm-app"
+	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	bean2 "github.com/devtron-labs/devtron/pkg/k8s/application/bean"
-	"github.com/devtron-labs/common-lib-private/utils/k8s"
 
 	cluster "github.com/devtron-labs/devtron/pkg/cluster"
 

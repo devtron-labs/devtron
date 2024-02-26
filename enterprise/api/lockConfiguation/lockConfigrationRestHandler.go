@@ -8,6 +8,7 @@ import (
 	"github.com/devtron-labs/devtron/enterprise/pkg/lockConfiguration/bean"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
+	"github.com/devtron-labs/devtron/util/rbac"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
@@ -25,31 +26,46 @@ type LockConfigRestHandlerImpl struct {
 	enforcer                 casbin.Enforcer
 	validator                *validator.Validate
 	lockConfigurationService lockConfiguration.LockConfigurationService
+	userCommonService        user.UserCommonService
+	enforcerUtil             rbac.EnforcerUtil
 }
 
 func NewLockConfigRestHandlerImpl(logger *zap.SugaredLogger,
 	userService user.UserService,
 	enforcer casbin.Enforcer,
 	validator *validator.Validate,
-	lockConfigurationService lockConfiguration.LockConfigurationService) *LockConfigRestHandlerImpl {
+	lockConfigurationService lockConfiguration.LockConfigurationService,
+	userCommonService user.UserCommonService,
+	enforcerUtil rbac.EnforcerUtil) *LockConfigRestHandlerImpl {
 	return &LockConfigRestHandlerImpl{
 		logger:                   logger,
 		userService:              userService,
 		enforcer:                 enforcer,
 		validator:                validator,
 		lockConfigurationService: lockConfigurationService,
+		userCommonService:        userCommonService,
+		enforcerUtil:             enforcerUtil,
 	}
+
 }
 
-func (impl LockConfigRestHandlerImpl) GetLockConfig(w http.ResponseWriter, r *http.Request) {
-	userId, err := impl.userService.GetLoggedInUser(r)
-
+func (handler LockConfigRestHandlerImpl) GetLockConfig(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
 	if err != nil || userId == 0 {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-
-	resp, err := impl.lockConfigurationService.GetLockConfiguration()
+	token := r.Header.Get("token")
+	isAuthorised, err := handler.userService.IsUserAdminOrManagerForAnyApp(userId, token)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	if !isAuthorised {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	resp, err := handler.lockConfigurationService.GetLockConfiguration()
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -57,8 +73,8 @@ func (impl LockConfigRestHandlerImpl) GetLockConfig(w http.ResponseWriter, r *ht
 	common.WriteJsonResp(w, err, resp, http.StatusOK)
 }
 
-func (impl LockConfigRestHandlerImpl) CreateLockConfig(w http.ResponseWriter, r *http.Request) {
-	userId, err := impl.userService.GetLoggedInUser(r)
+func (handler LockConfigRestHandlerImpl) CreateLockConfig(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
@@ -66,7 +82,7 @@ func (impl LockConfigRestHandlerImpl) CreateLockConfig(w http.ResponseWriter, r 
 
 	// handle super-admin RBAC
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -76,47 +92,54 @@ func (impl LockConfigRestHandlerImpl) CreateLockConfig(w http.ResponseWriter, r 
 	var request *bean.LockConfigRequest
 	err = decoder.Decode(&request)
 	if err != nil {
-		impl.logger.Errorw("err in decoding request in LockConfigRequest", "err", err, "body", r.Body)
+		handler.logger.Errorw("err in decoding request in LockConfigRequest", "err", err, "body", r.Body)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
 	// validate request
-	err = impl.validator.Struct(request)
+	err = handler.validator.Struct(request)
 	if err != nil {
-		impl.logger.Errorw("validation err in LockConfigRequest", "err", err, "request", request)
+		handler.logger.Errorw("validation err in LockConfigRequest", "err", err, "request", request)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
 	// service call
-	err = impl.lockConfigurationService.SaveLockConfiguration(request, userId)
+	err = handler.lockConfigurationService.SaveLockConfiguration(request, userId)
 	if err != nil {
-		impl.logger.Errorw("service err, SaveLockConfiguration", "err", err, "payload", request)
+		handler.logger.Errorw("service err, SaveLockConfiguration", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w, err, request, http.StatusOK)
 }
 
-func (impl LockConfigRestHandlerImpl) DeleteLockConfig(w http.ResponseWriter, r *http.Request) {
-	userId, err := impl.userService.GetLoggedInUser(r)
+func (handler LockConfigRestHandlerImpl) DeleteLockConfig(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	// handle super-admin RBAC
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 	// service call
-	err = impl.lockConfigurationService.DeleteActiveLockConfiguration(userId)
+	err = handler.lockConfigurationService.DeleteActiveLockConfiguration(userId)
 	if err != nil {
-		impl.logger.Errorw("service err, DeleteActiveLockConfiguration", "err", err, "userId", userId)
+		handler.logger.Errorw("service err, DeleteActiveLockConfiguration", "err", err, "userId", userId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w, err, nil, http.StatusOK)
+}
+
+func (handler LockConfigRestHandlerImpl) CheckAdminAuth(resource, token string, object string) bool {
+	if ok := handler.enforcer.Enforce(token, resource, casbin.ActionCreate, object); !ok {
+		return false
+	}
+	return true
 }

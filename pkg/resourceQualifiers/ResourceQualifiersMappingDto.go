@@ -5,8 +5,11 @@ import "github.com/devtron-labs/devtron/pkg/sql"
 type ResourceType int
 
 const (
-	Variable ResourceType = 0
-	Filter                = 1
+	Variable              ResourceType = 0
+	Filter                ResourceType = 1
+	ImageDigest           ResourceType = 2
+	ImageDigestResourceId              = -1 // for ImageDigest resource id will is constant unlike filter and variables
+	InfraProfile          ResourceType = 3
 )
 
 type QualifierSelector int
@@ -23,6 +26,8 @@ const (
 	AllExistingAndFutureProdEnvsInt      = -2
 	AllExistingAndFutureNonProdEnvsValue = "-1"
 	AllExistingAndFutureNonProdEnvsInt   = -1
+	AllExistingAndFutureEnvsString       = "-3"
+	AllExistingAndFutureEnvsInt          = -3
 )
 
 func GetEnvIdentifierValue(scope Scope) int {
@@ -44,7 +49,12 @@ type QualifierMapping struct {
 	IdentifierValueString string       `sql:"identifier_value_string"`
 	ParentIdentifier      int          `sql:"parent_identifier"`
 	CompositeKey          string       `sql:"-"`
-	//Data                  string   `sql:"-"`
-	//VariableData          *VariableData
+	// Data                  string   `sql:"-"`
+	// VariableData          *VariableData
 	sql.AuditLog
+}
+
+type QualifierMappingWithExtraColumns struct {
+	QualifierMapping
+	TotalCount int
 }

@@ -18,7 +18,6 @@
 package notifier
 
 import (
-	"context"
 	"encoding/json"
 	"github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/enterprise/pkg/drafts"
@@ -28,6 +27,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/bean"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactApproval/action"
 	repository2 "github.com/devtron-labs/devtron/pkg/team"
 
 	util "github.com/devtron-labs/devtron/util/event"
@@ -72,7 +72,7 @@ type NotificationConfigServiceImpl struct {
 	configDraftRepository          drafts.ConfigDraftRepository
 	ciArtifactRepository           repository.CiArtifactRepository
 	appArtifactManager             pipeline.AppArtifactManager
-	cdHandler                      pipeline.CdHandler
+	artifactApprovalActionService  action.ArtifactApprovalActionService
 }
 
 type NotificationSettingRequest struct {
@@ -185,7 +185,7 @@ func NewNotificationConfigServiceImpl(logger *zap.SugaredLogger, notificationSet
 	configDraftRepository drafts.ConfigDraftRepository,
 	ciArtifactRepository repository.CiArtifactRepository,
 	appArtifactManager pipeline.AppArtifactManager,
-	cdHandler pipeline.CdHandler,
+	artifactApprovalActionService action.ArtifactApprovalActionService,
 ) *NotificationConfigServiceImpl {
 	return &NotificationConfigServiceImpl{
 		logger:                         logger,
@@ -205,7 +205,7 @@ func NewNotificationConfigServiceImpl(logger *zap.SugaredLogger, notificationSet
 		configDraftRepository:          configDraftRepository,
 		ciArtifactRepository:           ciArtifactRepository,
 		appArtifactManager:             appArtifactManager,
-		cdHandler:                      cdHandler,
+		artifactApprovalActionService:  artifactApprovalActionService,
 	}
 }
 
@@ -998,7 +998,7 @@ func (impl *NotificationConfigServiceImpl) getEnvAndAppName(envId int, appId int
 func (impl *NotificationConfigServiceImpl) PerformApprovalActionAndGetMetadata(deploymentApprovalRequest apiToken.DeploymentApprovalRequest, approvalActionRequest bean.UserApprovalActionRequest, pipelineInfo *pipelineConfig.Pipeline) (*client.DeploymentApprovalResponse, error) {
 	var approvalState bean.ApprovalState
 	var resp *client.DeploymentApprovalResponse
-	err := impl.cdHandler.PerformDeploymentApprovalAction(pipeline.TriggerContext{Context: context.Background()}, deploymentApprovalRequest.UserId, approvalActionRequest)
+	err := impl.artifactApprovalActionService.PerformDeploymentApprovalAction(deploymentApprovalRequest.UserId, approvalActionRequest)
 	if err != nil {
 		validationErr, ok := err.(*bean.DeploymentApprovalValidationError)
 		if ok {

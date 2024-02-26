@@ -6,7 +6,7 @@ import (
 
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
@@ -22,6 +22,8 @@ type PipelineStatusTimelineService interface {
 	GetArgoAppSyncStatus(cdWfrId int) bool
 	GetArgoAppSyncStatusForAppStore(installedAppVersionHistoryId int) bool
 	SaveTimelines(timeline []*pipelineConfig.PipelineStatusTimeline, tx *pg.Tx) error
+
+	MarkPipelineStatusTimelineFailed(cdWfrId int, statusDetailMessage string) error
 }
 
 type PipelineStatusTimelineServiceImpl struct {
@@ -436,4 +438,33 @@ func (impl *PipelineStatusTimelineServiceImpl) SaveTimelines(timeline []*pipelin
 		return err
 	}
 	return err
+}
+
+func (impl *PipelineStatusTimelineServiceImpl) MarkPipelineStatusTimelineFailed(cdWfrId int, statusDetailMessage string) error {
+	//creating cd pipeline status timeline for deployment failed
+	terminalStatusExists, timelineErr := impl.pipelineStatusTimelineRepository.CheckIfTerminalStatusTimelinePresentByWfrId(cdWfrId)
+	if timelineErr != nil {
+		impl.logger.Errorw("error in checking if terminal status timeline exists by wfrId", "err", timelineErr, "wfrId", cdWfrId)
+		return timelineErr
+	}
+	if !terminalStatusExists {
+		timeline := &pipelineConfig.PipelineStatusTimeline{
+			CdWorkflowRunnerId: cdWfrId,
+			Status:             pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_FAILED,
+			StatusDetail:       statusDetailMessage,
+			StatusTime:         time.Now(),
+			AuditLog: sql.AuditLog{
+				CreatedBy: 1,
+				CreatedOn: time.Now(),
+				UpdatedBy: 1,
+				UpdatedOn: time.Now(),
+			},
+		}
+		impl.logger.Infow("marking pipeline deployment failed", "cdWfrId", cdWfrId, "statusDetail", statusDetailMessage)
+		timelineErr = impl.SaveTimeline(timeline, nil, false)
+		if timelineErr != nil {
+			impl.logger.Errorw("error in creating timeline status for deployment fail", "err", timelineErr, "timeline", timeline)
+		}
+	}
+	return nil
 }

@@ -19,6 +19,7 @@ package bean
 
 import (
 	"encoding/json"
+	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"time"
 )
 
@@ -29,20 +30,23 @@ type UserRole struct {
 }
 
 type UserInfo struct {
-	Id           int32        `json:"id" validate:"number"`
-	EmailId      string       `json:"email_id" validate:"required"`
-	Roles        []string     `json:"roles,omitempty"`
-	AccessToken  string       `json:"access_token,omitempty"`
-	UserType     string       `json:"-"`
-	LastUsedAt   time.Time    `json:"-"`
-	LastUsedByIp string       `json:"-"`
-	Exist        bool         `json:"-"`
-	UserId       int32        `json:"-"` // created or modified user id
-	RoleFilters  []RoleFilter `json:"roleFilters"`
-	Status       string       `json:"status,omitempty"`
-	Groups       []string     `json:"groups"` // this will be deprecated in future do not use
-	SuperAdmin   bool         `json:"superAdmin,notnull"`
-	RoleGroups   []RoleGroup  `json:"roleGroups,omitempty"` // role group with metadata, currently using for group claims
+	Id                      int32        `json:"id" validate:"number,not-system-admin-userid"`
+	EmailId                 string       `json:"email_id" validate:"required,not-system-admin-user-email"` // TODO : have to migrate json key to emailId and also handle backward compatibility
+	Roles                   []string     `json:"roles,omitempty"`
+	AccessToken             string       `json:"access_token,omitempty"`
+	RoleFilters             []RoleFilter `json:"roleFilters"`
+	Status                  string       `json:"status,omitempty"`
+	Groups                  []string     `json:"groups"` // this will be deprecated in future do not use
+	SuperAdmin              bool         `json:"superAdmin,notnull"`
+	RoleGroups              []RoleGroup  `json:"roleGroups,omitempty"` // role group with metadata, currently using for group claims
+	LastLoginTime           time.Time    `json:"lastLoginTime"`
+	TimeoutWindowExpression time.Time    `json:"timeoutWindowExpression"`
+	UserStatus              Status       `json:"userStatus"`
+	UserType                string       `json:"-"`
+	LastUsedAt              time.Time    `json:"-"`
+	LastUsedByIp            string       `json:"-"`
+	Exist                   bool         `json:"-"`
+	UserId                  int32        `json:"-"` // created or modified user id
 }
 
 type RoleGroup struct {
@@ -121,3 +125,53 @@ const (
 	CHART_GROUP_ENTITY              = "chart-group"
 	CLUSTER_ENTITIY                 = "cluster"
 )
+
+type UserListingResponse struct {
+	Users      []UserInfo `json:"users"`
+	TotalCount int        `json:"totalCount"`
+}
+
+type RoleGroupListingResponse struct {
+	RoleGroups []*RoleGroup `json:"roleGroups"`
+	TotalCount int          `json:"totalCount"`
+}
+
+type Status string
+
+const (
+	Active          Status = "active"
+	Inactive        Status = "inactive"
+	TemporaryAccess Status = "temporaryAccess"
+	Unknown         Status = "unknown"
+)
+
+type BulkStatusUpdateRequest struct {
+	UserIds                 []int32         `json:"userIds",validate:"required"`
+	Status                  Status          `json:"status",validate:"required"'`
+	TimeoutWindowExpression time.Time       `json:"timeoutWindowExpression"`
+	ListingRequest          *ListingRequest `json:"listingRequest,omitempty"`
+	LoggedInUserId          int32           `json:"-"`
+}
+
+type ActionResponse struct {
+	Suceess bool `json:"suceess"`
+}
+
+type ListingRequest struct {
+	Status      []Status        `json:"status"`    // only being used for users
+	SearchKey   string          `json:"searchKey"` // this is used for searching groupName or email matching search key.
+	SortOrder   bean.SortOrder  `json:"sortOrder"`
+	SortBy      bean.SortBy     `json:"sortBy"`
+	Offset      int             `json:"offset"`
+	Size        int             `json:"size"`
+	ShowAll     bool            `json:"showAll"`
+	CurrentTime time.Time       `json:"-"` // for Internal Use
+	CountCheck  bool            `json:"-"` // for Internal Use
+	StatusType  bean.StatusType `json:"-"` // for Internal Use
+}
+
+type BulkDeleteRequest struct {
+	Ids            []int32         `json:"ids"`
+	ListingRequest *ListingRequest `json:"listingRequest,omitempty"`
+	LoggedInUserId int32           `json:"-"`
+}

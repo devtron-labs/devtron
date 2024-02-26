@@ -37,6 +37,7 @@ type LockValidateErrorResponse struct {
 	DeletedOverride            json.RawMessage `json:"deletedOverride"`
 	IsLockConfigError          bool            `json:"isLockConfigError"`
 	DisableSaveEligibleChanges bool            `json:"disableSaveEligibleChanges"`
+	DeletedPaths               []string        `json:"deletedPaths"`
 }
 
 type LockConfig struct {
@@ -154,7 +155,7 @@ func CheckForLockedKeyInModifiedJson(lockConfig *LockConfigResponse, configJson 
 	return isLockConfigError
 }
 
-func GetLockConfigErrorResponse(lockedOverride, modifiedOverride, addedOverride, deletedOverride string, disableSaveEligibleChanges bool) *LockValidateErrorResponse {
+func GetLockConfigErrorResponse(lockedOverride, modifiedOverride, addedOverride, deletedOverride string, disableSaveEligibleChanges bool, deletedPaths []string) *LockValidateErrorResponse {
 	lockedOverrideJson := getJsonValForString(lockedOverride)
 	modifiedOverrideJson := getJsonValForString(modifiedOverride)
 	addedOverrideJson := getJsonValForString(addedOverride)
@@ -166,6 +167,7 @@ func GetLockConfigErrorResponse(lockedOverride, modifiedOverride, addedOverride,
 		DeletedOverride:            deletedOverrideJson,
 		IsLockConfigError:          true,
 		DisableSaveEligibleChanges: disableSaveEligibleChanges,
+		DeletedPaths:               deletedPaths,
 	}
 }
 

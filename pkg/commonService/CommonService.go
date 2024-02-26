@@ -42,7 +42,6 @@ type CommonServiceImpl struct {
 	logger                      *zap.SugaredLogger
 	chartRepository             chartRepoRepository.ChartRepository
 	environmentConfigRepository chartConfig.EnvConfigOverrideRepository
-	gitOpsRepository            repository.GitOpsConfigRepository
 	dockerReg                   dockerRegistryRepository.DockerArtifactStoreRepository
 	attributeRepo               repository.AttributesRepository
 	gitProviderRepository       repository.GitProviderRepository
@@ -54,7 +53,6 @@ type CommonServiceImpl struct {
 func NewCommonServiceImpl(logger *zap.SugaredLogger,
 	chartRepository chartRepoRepository.ChartRepository,
 	environmentConfigRepository chartConfig.EnvConfigOverrideRepository,
-	gitOpsRepository repository.GitOpsConfigRepository,
 	dockerReg dockerRegistryRepository.DockerArtifactStoreRepository,
 	attributeRepo repository.AttributesRepository,
 	gitProviderRepository repository.GitProviderRepository,
@@ -64,7 +62,6 @@ func NewCommonServiceImpl(logger *zap.SugaredLogger,
 		logger:                      logger,
 		chartRepository:             chartRepository,
 		environmentConfigRepository: environmentConfigRepository,
-		gitOpsRepository:            gitOpsRepository,
 		dockerReg:                   dockerReg,
 		attributeRepo:               attributeRepo,
 		gitProviderRepository:       gitProviderRepository,

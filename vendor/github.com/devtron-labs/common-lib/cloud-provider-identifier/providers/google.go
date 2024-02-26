@@ -41,6 +41,7 @@ func (impl *IdentifyGoogle) IdentifyViaMetadataServer(detected chan<- string) {
 	}
 	if resp.StatusCode == http.StatusOK {
 		detected <- bean.Google
+		return
 	} else {
 		detected <- bean.Unknown
 		return

@@ -1,0 +1,38 @@
+{{- if $.Values.installer }}
+{{- if $.Values.installer.openshift }}
+apiVersion: security.openshift.io/v1
+fsGroup:
+  type: RunAsAny
+kind: SecurityContextConstraints
+metadata:
+  annotations:
+    kubernetes.io/description: 'This SCC provides devtron components required permissions to run flawlessly on top of openshift'
+  name: devtron-scc
+readOnlyRootFilesystem: false
+allowPrivilegedContainer: true
+runAsUser:
+  type: RunAsAny
+seLinuxContext:
+  type: RunAsAny
+seccompProfiles:
+- '*'
+supplementalGroups:
+  type: RunAsAny
+users:
+- system:serviceaccount:argo:argo
+- system:serviceaccount:devtroncd:default
+- system:serviceaccount:devtroncd:devtron
+- system:serviceaccount:devtroncd:argocd-dex-server
+- system:serviceaccount:devtroncd:kubewatch
+- system:serviceaccount:devtroncd:devtron-grafana
+- system:serviceaccount:devtroncd:devtron-grafana-test
+- system:serviceaccount:devtroncd:devtron-minio
+- system:serviceaccount:devtroncd:argocd-application-controller
+- system:serviceaccount:devtroncd:argocd-repo-server
+- system:serviceaccount:devtroncd:argocd-server
+- system:serviceaccount:devtron-ci:ci-runner
+- system:serviceaccount:devtron-cd:cd-runner
+volumes:
+- '*'
+{{- end }}
+{{- end }}

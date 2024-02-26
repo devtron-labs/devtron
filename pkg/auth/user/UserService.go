@@ -21,9 +21,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	auth "github.com/devtron-labs/devtron/pkg/auth/authorisation/globalConfig"
+	"github.com/devtron-labs/devtron/pkg/auth/user/adapter"
+	helper2 "github.com/devtron-labs/devtron/pkg/auth/user/helper"
+	"github.com/devtron-labs/devtron/pkg/auth/user/repository/helper"
 	util3 "github.com/devtron-labs/devtron/pkg/auth/user/util"
+	"github.com/devtron-labs/devtron/pkg/timeoutWindow"
+	repository2 "github.com/devtron-labs/devtron/pkg/timeoutWindow/repository"
+	bean3 "github.com/devtron-labs/devtron/pkg/timeoutWindow/repository/bean"
 	jwt2 "github.com/golang-jwt/jwt/v4"
+	"golang.org/x/exp/slices"
 	"net/http"
 	"strings"
 	"sync"
@@ -59,14 +67,16 @@ type UserService interface {
 	GetByIdWithoutGroupClaims(id int32) (*bean.UserInfo, error)
 	GetRoleFiltersForAUserById(id int32) (*bean.UserInfo, error)
 	GetByIdForGroupClaims(id int32) (*bean.UserInfo, error)
-	GetAll() ([]bean.UserInfo, error)
+	GetAll() ([]bean.UserInfo, error) //this is only being used for summary event for now , in use is GetAllWithFilters
 	GetAllDetailedUsers() ([]bean.UserInfo, error)
+	GetAllWithFilters(request *bean.ListingRequest) (*bean.UserListingResponse, error)
 	GetEmailById(userId int32) (string, error)
 	GetEmailAndGroupClaimsFromToken(token string) (string, []string, error)
 	GetLoggedInUser(r *http.Request) (int32, error)
 	GetByIds(ids []int32) ([]bean.UserInfo, error)
 	DeleteUser(userInfo *bean.UserInfo) (bool, error)
 	CheckUserRoles(id int32, token string) ([]string, error)
+	BulkDeleteUsers(request *bean.BulkDeleteRequest) (bool, error)
 	SyncOrchestratorToCasbin() (bool, error)
 	GetUserByToken(context context.Context, token string) (int32, string, error)
 	IsSuperAdminForDevtronManaged(userId int) (bool, error)
@@ -78,7 +88,11 @@ type UserService interface {
 	GetApprovalUsersByEnv(appName, envName string) ([]string, error)
 	CheckForApproverAccess(appName, envName string, userId int32) bool
 	GetConfigApprovalUsersByEnv(appName, envName, team string) ([]string, error)
+	IsUserAdminOrManagerForAnyApp(userId int32, token string) (bool, error)
 	GetFieldValuesFromToken(token string) ([]byte, error)
+	BulkUpdateStatus(request *bean.BulkStatusUpdateRequest) (*bean.ActionResponse, error)
+	CheckUserStatusAndUpdateLoginAudit(token string) (bool, int32, error)
+	GetUserBasicDataByEmailId(emailId string) (*bean.UserInfo, error)
 }
 
 type UserServiceImpl struct {
@@ -96,6 +110,8 @@ type UserServiceImpl struct {
 	globalAuthorisationConfigService auth.GlobalAuthorisationConfigService
 	roleGroupService                 RoleGroupService
 	userGroupMapRepository           repository.UserGroupMapRepository
+	enforcer                         casbin.Enforcer
+	timeoutWindowService             timeoutWindow.TimeoutWindowService
 }
 
 func NewUserServiceImpl(userAuthRepository repository.UserAuthRepository,
@@ -105,6 +121,8 @@ func NewUserServiceImpl(userAuthRepository repository.UserAuthRepository,
 	sessionManager2 *middleware.SessionManager, userCommonService UserCommonService, userAuditService UserAuditService,
 	globalAuthorisationConfigService auth.GlobalAuthorisationConfigService,
 	roleGroupService RoleGroupService, userGroupMapRepository repository.UserGroupMapRepository,
+	enforcer casbin.Enforcer,
+	timeoutWindowService timeoutWindow.TimeoutWindowService,
 ) *UserServiceImpl {
 	serviceImpl := &UserServiceImpl{
 		userReqState:                     make(map[int32]bool),
@@ -118,6 +136,8 @@ func NewUserServiceImpl(userAuthRepository repository.UserAuthRepository,
 		globalAuthorisationConfigService: globalAuthorisationConfigService,
 		roleGroupService:                 roleGroupService,
 		userGroupMapRepository:           userGroupMapRepository,
+		enforcer:                         enforcer,
+		timeoutWindowService:             timeoutWindowService,
 	}
 	cStore = sessions.NewCookieStore(randKey())
 	return serviceImpl
@@ -1206,6 +1226,168 @@ func (impl UserServiceImpl) GetAll() ([]bean.UserInfo, error) {
 	return response, nil
 }
 
+// GetAllWithFilters takes filter request  gives UserListingResponse as output with some operations like filter, sorting, searching,pagination support inbuilt
+func (impl UserServiceImpl) GetAllWithFilters(request *bean.ListingRequest) (*bean.UserListingResponse, error) {
+	//  default values will be used if not provided
+	impl.userCommonService.SetDefaultValuesIfNotPresent(request, false)
+	// setting filter status type
+	impl.setStatusFilterType(request)
+	if request.ShowAll {
+		response, err := impl.getAllDetailedUsers(request)
+		if err != nil {
+			impl.logger.Errorw("error in GetAllWithFilters", "err", err)
+			return nil, err
+		}
+		return impl.getAllDetailedUsersAdapter(response), nil
+	}
+
+	// Recording time here for overall consistency
+	request.CurrentTime = time.Now()
+
+	// setting count check to true for only count
+	request.CountCheck = true
+	// Build query from query builder
+	query := helper.GetQueryForUserListingWithFilters(request)
+	totalCount, err := impl.userRepository.GetCountExecutingQuery(query)
+	if err != nil {
+		impl.logger.Errorw("error while fetching user from db in GetAllWithFilters", "error", err)
+		return nil, err
+	}
+
+	// setting count check to false for getting data
+	request.CountCheck = false
+
+	query = helper.GetQueryForUserListingWithFilters(request)
+	models, err := impl.userRepository.GetAllExecutingQuery(query)
+	if err != nil {
+		impl.logger.Errorw("error while fetching user from db in GetAllWithFilters", "error", err)
+		return nil, err
+	}
+
+	listingResponse, err := impl.getUserResponse(models, request.CurrentTime, totalCount)
+	if err != nil {
+		impl.logger.Errorw("error in GetAllWithFilters", "err", err)
+		return nil, err
+	}
+
+	return listingResponse, nil
+
+}
+
+func (impl UserServiceImpl) getAllDetailedUsersAdapter(detailedUsers []bean.UserInfo) *bean.UserListingResponse {
+	listingResponse := &bean.UserListingResponse{
+		Users:      detailedUsers,
+		TotalCount: len(detailedUsers),
+	}
+	return listingResponse
+}
+
+func (impl UserServiceImpl) setStatusFilterType(request *bean.ListingRequest) {
+	if len(request.Status) == 0 {
+		return
+	}
+	statues := request.Status
+	containsActive := slices.Contains(statues, bean.Active)
+	containsInactive := slices.Contains(statues, bean.Inactive)
+	containsTemporaryAccess := slices.Contains(statues, bean.TemporaryAccess)
+	// setting status type for all cases
+	if containsActive && containsInactive && containsTemporaryAccess {
+		// case when all three filters are selected
+		request.StatusType = bean2.Active_Inactive_TemporaryAccess
+	} else if containsActive && containsInactive {
+		// case when all two filters are selected, active and inactive
+		request.StatusType = bean2.Active_InActive
+	} else if containsActive && containsTemporaryAccess {
+		// case when all two filters are selected, active and temporaryAccess
+		request.StatusType = bean2.Active_TemporaryAccess
+	} else if containsInactive && containsTemporaryAccess {
+		// case when all two filters are selected, inactive and temporaryAccess
+		request.StatusType = bean2.Inactive_TemporaryAccess
+	} else if containsActive {
+		//case when active filter is selected
+		request.StatusType = bean2.Active
+	} else if containsInactive {
+		//case when inactive filter is selected
+		request.StatusType = bean2.Inactive
+	} else if containsTemporaryAccess {
+		//case when temporaryAccess filter is selected
+		request.StatusType = bean2.TemporaryAccess
+	}
+}
+
+func (impl UserServiceImpl) getUserResponse(model []repository.UserModel, recordedTime time.Time, totalCount int) (*bean.UserListingResponse, error) {
+	var response []bean.UserInfo
+	for _, m := range model {
+		lastLoginTime := adapter.GetLastLoginTime(m)
+		userStatus, ttlTime := getStatusAndTTL(m, recordedTime)
+		response = append(response, bean.UserInfo{
+			Id:                      m.Id,
+			EmailId:                 m.EmailId,
+			RoleFilters:             make([]bean.RoleFilter, 0),
+			Groups:                  make([]string, 0),
+			LastLoginTime:           lastLoginTime,
+			UserStatus:              userStatus,
+			TimeoutWindowExpression: ttlTime,
+		})
+	}
+	if len(response) == 0 {
+		response = make([]bean.UserInfo, 0)
+	}
+
+	listingResponse := &bean.UserListingResponse{
+		Users:      response,
+		TotalCount: totalCount,
+	}
+	return listingResponse, nil
+}
+
+func (impl UserServiceImpl) getAllDetailedUsers(req *bean.ListingRequest) ([]bean.UserInfo, error) {
+	query := helper.GetQueryForUserListingWithFilters(req)
+	models, err := impl.userRepository.GetAllExecutingQuery(query)
+	if err != nil {
+		impl.logger.Errorw("error in GetAllDetailedUsers", "err", err)
+		return nil, err
+	}
+
+	var response []bean.UserInfo
+	// recording time here for overall status consistency
+	recordedTime := time.Now()
+
+	for _, model := range models {
+		isSuperAdmin, roleFilters, filterGroups := impl.getUserMetadata(&model)
+		userStatus, ttlTime := getStatusAndTTL(model, recordedTime)
+		lastLoginTime := adapter.GetLastLoginTime(model)
+		userResp := getUserInfoAdapter(model.Id, model.EmailId, roleFilters, filterGroups, isSuperAdmin, lastLoginTime, ttlTime, userStatus)
+		response = append(response, userResp)
+	}
+	if len(response) == 0 {
+		response = make([]bean.UserInfo, 0)
+	}
+	return response, nil
+}
+
+func getUserInfoAdapter(id int32, emailId string, roleFilters []bean.RoleFilter, filterGroups []string, isSuperAdmin bool, lastLoginTime, ttlTime time.Time, userStatus bean.Status) bean.UserInfo {
+	user := bean.UserInfo{
+		Id:                      id,
+		EmailId:                 emailId,
+		RoleFilters:             roleFilters,
+		Groups:                  filterGroups,
+		SuperAdmin:              isSuperAdmin,
+		LastLoginTime:           lastLoginTime,
+		UserStatus:              userStatus,
+		TimeoutWindowExpression: ttlTime,
+	}
+	return user
+}
+
+func (impl UserServiceImpl) getLastLoginTime(model repository.UserModel) time.Time {
+	lastLoginTime := time.Time{}
+	if model.UserAudit != nil {
+		lastLoginTime = model.UserAudit.UpdatedOn
+	}
+	return lastLoginTime
+}
+
 func (impl UserServiceImpl) GetAllDetailedUsers() ([]bean.UserInfo, error) {
 	models, err := impl.userRepository.GetAllExcludingApiTokenUser()
 	if err != nil {
@@ -1314,7 +1496,7 @@ func (impl UserServiceImpl) extractEmailIds(permissionGroupNames []string, email
 func (impl UserServiceImpl) SaveLoginAudit(emailId, clientIp string, id int32) {
 
 	if emailId != "" && id <= 0 {
-		user, err := impl.GetUserByEmail(emailId)
+		user, err := impl.GetUserBasicDataByEmailId(emailId)
 		if err != nil {
 			impl.logger.Errorw("error in getting userInfo by emailId", "err", err, "emailId", emailId)
 			return
@@ -1333,6 +1515,33 @@ func (impl UserServiceImpl) SaveLoginAudit(emailId, clientIp string, id int32) {
 	if err != nil {
 		impl.logger.Errorw("error occurred while saving user audit", "err", err)
 	}
+}
+
+func (impl UserServiceImpl) getUserWithTimeoutWindowConfiguration(emailId string) (int32, bool, error) {
+	isInactive := true
+	user, err := impl.userRepository.GetUserWithTimeoutWindowConfiguration(emailId)
+	if err != nil {
+		err = &util.ApiError{HttpStatusCode: 401, UserMessage: "Invalid User", InternalMessage: "failed to fetch user by email id"}
+		impl.logger.Errorw("error while fetching user from db", "error", err)
+		return 0, isInactive, err
+	}
+
+	if user.TimeoutWindowConfigurationId == 0 {
+		//no timeout window configuration available refer infinite active
+		isInactive = false
+		return user.Id, isInactive, nil
+	} else {
+		expiryDate, err := time.Parse(helper.TimeFormatForParsing, user.TimeoutWindowConfiguration.TimeoutWindowExpression)
+		if err != nil {
+			err = &util.ApiError{HttpStatusCode: 401, UserMessage: "Invalid User", InternalMessage: "failed to parse TimeoutWindowExpression"}
+			impl.logger.Errorw("error while parsing date time", "error", err)
+			return user.Id, isInactive, err
+		}
+		if expiryDate.After(time.Now()) {
+			isInactive = false
+		}
+	}
+	return user.Id, isInactive, nil
 }
 
 func (impl UserServiceImpl) GetUserByEmail(emailId string) (*bean.UserInfo, error) {
@@ -1411,7 +1620,7 @@ func (impl UserServiceImpl) GetUserByToken(context context.Context, token string
 	if err != nil {
 		return http.StatusUnauthorized, "", err
 	}
-	userInfo, err := impl.GetUserByEmail(email)
+	userInfo, err := impl.GetUserBasicDataByEmailId(email)
 	if err != nil {
 		impl.logger.Errorw("unable to fetch user from db", "error", err)
 		err := &util.ApiError{
@@ -1517,21 +1726,22 @@ func (impl UserServiceImpl) DeleteUser(bean *bean.UserInfo) (bool, error) {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
 		return false, err
 	}
-	urm, err := impl.userAuthRepository.GetUserRoleMappingByUserId(bean.Id)
+	userRolesMappingIds, err := impl.userAuthRepository.GetUserRoleMappingIdsByUserId(bean.Id)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
 		return false, err
 	}
-	for _, item := range urm {
-		_, err = impl.userAuthRepository.DeleteUserRoleMapping(item, tx)
+	if len(userRolesMappingIds) > 0 {
+		err = impl.userAuthRepository.DeleteUserRoleMappingByIds(userRolesMappingIds, tx)
 		if err != nil {
-			impl.logger.Errorw("error while fetching user from db", "error", err)
+			impl.logger.Errorw("error in DeleteUser", "userRolesMappingIds", userRolesMappingIds, "err", err)
 			return false, err
 		}
 	}
 	model.Active = false
 	model.UpdatedBy = bean.UserId
 	model.UpdatedOn = time.Now()
+	model.TimeoutWindowConfigurationId = 0
 	model, err = impl.userRepository.UpdateUser(model, tx)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
@@ -1563,6 +1773,126 @@ func (impl UserServiceImpl) DeleteUser(bean *bean.UserInfo) (bool, error) {
 	return true, nil
 }
 
+// BulkDeleteUsers takes in BulkDeleteRequest and return success and error
+func (impl *UserServiceImpl) BulkDeleteUsers(request *bean.BulkDeleteRequest) (bool, error) {
+	// it handles ListingRequest if filters are applied will delete those users or will consider the given user ids.
+	if request.ListingRequest != nil {
+		filteredUserIds, err := impl.getUserIdsHonoringFilters(request.ListingRequest)
+		if err != nil {
+			impl.logger.Errorw("error in BulkDeleteUsers", "request", request, "err", err)
+			return false, err
+		}
+		// setting the filtered user ids here for further processing
+		request.Ids = filteredUserIds
+	}
+	err := impl.deleteUsersByIds(request)
+	if err != nil {
+		impl.logger.Errorw("error in BulkDeleteUsers", "err", err)
+		return false, err
+	}
+	return true, nil
+}
+
+// getUserIdsHonoringFilters get the filtered user ids according to the request filters and returns userIds and error(not nil) if any exception is caught.
+func (impl *UserServiceImpl) getUserIdsHonoringFilters(request *bean.ListingRequest) ([]int32, error) {
+	//query to get particular models respecting filters
+	query := helper.GetQueryForUserListingWithFilters(request)
+	models, err := impl.userRepository.GetAllExecutingQuery(query)
+	if err != nil {
+		impl.logger.Errorw("error while fetching user from db in GetAllWithFilters", "error", err)
+		return nil, err
+	}
+	// collecting the required user ids from filtered models
+	filteredUserIds := make([]int32, 0, len(models))
+	for _, model := range models {
+		if !helper2.IsSystemOrAdminUserByEmail(model.EmailId) {
+			filteredUserIds = append(filteredUserIds, model.Id)
+		}
+	}
+	return filteredUserIds, nil
+}
+
+// deleteUsersByIds bulk delete all the users with their user role mappings in orchestrator and user-role and user-group mappings from casbin, takes in BulkDeleteRequest request and return success and error in return
+func (impl *UserServiceImpl) deleteUsersByIds(request *bean.BulkDeleteRequest) error {
+	tx, err := impl.roleGroupRepository.StartATransaction()
+	if err != nil {
+		impl.logger.Errorw("error in starting a transaction", "err", err)
+		return err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+
+	emailIds, err := impl.userRepository.GetEmailByIds(request.Ids)
+	if err != nil {
+		impl.logger.Errorw("error in DeleteUsersForIds", "userIds", request.Ids, "err", err)
+		return err
+	}
+
+	// operations in orchestrator and getting emails ids for corresponding user ids
+	err = impl.deleteMappingsFromOrchestrator(request.Ids, tx)
+	if err != nil {
+		impl.logger.Errorw("error encountered in deleteUsersByIds", "request", request, "err", err)
+		return err
+	}
+	// updating models to inactive
+	err = impl.userRepository.UpdateToInactiveByIds(request.Ids, tx, request.LoggedInUserId)
+	if err != nil {
+		impl.logger.Errorw("error encountered in DeleteUsersForIds", "err", err)
+		return err
+	}
+	// deleting from the group mappings from casbin
+	err = impl.deleteMappingsFromCasbin(emailIds, len(request.Ids))
+	if err != nil {
+		impl.logger.Errorw("error encountered in deleteUsersByIds", "request", request, "err", err)
+		return err
+	}
+
+	err = impl.roleGroupRepository.CommitATransaction(tx)
+	if err != nil {
+		impl.logger.Errorw("error in committing a transaction", "err", err)
+		return err
+	}
+
+	return nil
+}
+
+// deleteMappingsFromCasbin gets all mappings for all email ids and delete that mapping one by one as no bulk support from casbin library.
+func (impl *UserServiceImpl) deleteMappingsFromCasbin(emailIds []string, totalCount int) error {
+	emailIdVsCasbinRolesMap := make(map[string][]string, totalCount)
+	for _, email := range emailIds {
+		casbinRoles, err := casbin2.GetRolesForUser(email)
+		if err != nil {
+			impl.logger.Warnw("No Roles Found for user", "email", email, "err", err)
+			return err
+		}
+		emailIdVsCasbinRolesMap[email] = casbinRoles
+	}
+
+	success := impl.userCommonService.DeleteRoleForUserFromCasbin(emailIdVsCasbinRolesMap)
+	if !success {
+		impl.logger.Errorw("error in deleting from casbin in deleteMappingsFromCasbin ", "emailIds", emailIds)
+		return &util.ApiError{Code: "500", HttpStatusCode: 500, InternalMessage: "Not able to delete mappings from casbin", UserMessage: "Not able to delete mappings from casbin"}
+	}
+	return nil
+}
+
+// deleteMappingsFromOrchestrator takes in userIds to be deleted and transaction returns error in case of any issue else nil
+func (impl *UserServiceImpl) deleteMappingsFromOrchestrator(userIds []int32, tx *pg.Tx) error {
+	urmIds, err := impl.userAuthRepository.GetUserRoleMappingIdsByUserIds(userIds)
+	if err != nil {
+		impl.logger.Errorw("error in DeleteUsersForIds", "err", err)
+		return err
+	}
+
+	if len(urmIds) > 0 {
+		err = impl.userAuthRepository.DeleteUserRoleMappingByIds(urmIds, tx)
+		if err != nil {
+			impl.logger.Errorw("error encountered in DeleteUsersForIds", "urmIds", urmIds, "err", err)
+			return err
+		}
+	}
+	return nil
+}
 func (impl UserServiceImpl) CheckUserRoles(id int32, token string) ([]string, error) {
 	model, err := impl.userRepository.GetByIdIncludeDeleted(id)
 	if err != nil {
@@ -1715,6 +2045,7 @@ func (impl UserServiceImpl) saveUserAudit(r *http.Request, userId int32) {
 		UserId:    userId,
 		ClientIp:  clientIp,
 		CreatedOn: time.Now(),
+		UpdatedOn: time.Now(),
 	}
 	impl.userAuditService.Save(userAudit)
 }
@@ -2003,4 +2334,306 @@ func (impl UserServiceImpl) getRolefiltersForDevtronManaged(model *repository.Us
 		}
 	}
 	return roleFilters, nil
+}
+
+func (impl UserServiceImpl) IsUserAdminOrManagerForAnyApp(userId int32, token string) (bool, error) {
+
+	isAuthorised := false
+
+	//checking superAdmin access
+	isAuthorised, err := impl.IsSuperAdminForDevtronManaged(int(userId))
+	if err != nil {
+		impl.logger.Errorw("error in checking superAdmin access of user", "err", err, "userId", userId)
+		return false, err
+	}
+	if !isAuthorised {
+		user, err := impl.GetRoleFiltersForAUserById(userId)
+		if err != nil {
+			impl.logger.Errorw("error in getting user by id", "err", err, "userId", userId)
+			return false, err
+		}
+		// ApplicationResource pe Create
+		var roleFilters []bean.RoleFilter
+		if user.RoleFilters != nil && len(user.RoleFilters) > 0 {
+			roleFilters = append(roleFilters, user.RoleFilters...)
+		}
+		if len(roleFilters) > 0 {
+			resourceObjects := impl.getProjectsOrAppAdminRBACNamesByAppNamesAndTeamNames(roleFilters)
+			resourceObjectsMap := impl.enforcer.EnforceInBatch(token, casbin.ResourceApplications, casbin.ActionCreate, resourceObjects)
+			for _, value := range resourceObjectsMap {
+				if value {
+					isAuthorised = true
+					break
+				}
+			}
+		}
+	}
+	return isAuthorised, nil
+}
+
+func (impl UserServiceImpl) getProjectOrAppAdminRBACNameByAppNameAndTeamName(appName, teamName string) string {
+	if appName == "" {
+		return fmt.Sprintf("%s/%s", teamName, "*")
+	}
+	return fmt.Sprintf("%s/%s", teamName, appName)
+}
+
+func (impl UserServiceImpl) getProjectsOrAppAdminRBACNamesByAppNamesAndTeamNames(roleFilters []bean.RoleFilter) []string {
+	var resourceObjects []string
+	for _, filter := range roleFilters {
+		if len(filter.Team) > 0 {
+			entityNames := strings.Split(filter.EntityName, ",")
+			if len(entityNames) > 0 {
+				for _, val := range entityNames {
+					resourceName := impl.getProjectOrAppAdminRBACNameByAppNameAndTeamName(val, filter.Team)
+					resourceObjects = append(resourceObjects, resourceName)
+				}
+			}
+		}
+	}
+	return resourceObjects
+}
+
+// BulkUpdateStatus updates the status for the users or filters given in bulk , return ActionResponse and error in response
+func (impl UserServiceImpl) BulkUpdateStatus(request *bean.BulkStatusUpdateRequest) (*bean.ActionResponse, error) {
+	// it handles ListingRequest if filters are applied will delete those users or will consider the given user ids.
+	if request.ListingRequest != nil {
+		filteredUserIds, err := impl.getUserIdsHonoringFilters(request.ListingRequest)
+		if err != nil {
+			impl.logger.Errorw("error in BulkDeleteUsers", "request", request, "err", err)
+			return nil, err
+		}
+		// setting the filtered user ids here for further processing
+		request.UserIds = filteredUserIds
+	}
+	err := impl.bulkUpdateStatusForIds(request)
+	if err != nil {
+		impl.logger.Errorw("error in BulkUpdateStatus", "request", request, "err", err)
+		return nil, err
+	}
+	resp := &bean.ActionResponse{
+		Suceess: true,
+	}
+	return resp, nil
+
+}
+
+func (impl UserServiceImpl) bulkUpdateStatusForIds(request *bean.BulkStatusUpdateRequest) error {
+	activeStatus := request.Status == bean.Active && request.TimeoutWindowExpression.IsZero()
+	inactiveStatus := request.Status == bean.Inactive
+	timeExpressionStatus := request.Status == bean.Active && !request.TimeoutWindowExpression.IsZero()
+	if activeStatus {
+		// active case
+		// set foreign key to null for every user
+		err := impl.userRepository.UpdateWindowIdToNull(request.UserIds, request.LoggedInUserId)
+		if err != nil {
+			impl.logger.Errorw("error in BulkUpdateStatusForUsers", "err", err, "status", request.Status)
+			return err
+		}
+	} else if timeExpressionStatus || inactiveStatus {
+		// case: time out expression or inactive
+
+		// getting expression from request configuration
+		timeOutExpression, expressionFormat := getTimeoutExpressionAndFormatforReq(timeExpressionStatus, inactiveStatus, request.TimeoutWindowExpression)
+		err := impl.createAndUpdateWindowID(request.UserIds, timeOutExpression, expressionFormat, request.LoggedInUserId)
+		if err != nil {
+			impl.logger.Errorw("error in BulkUpdateStatusForUsers", "err", err, "status", request.Status)
+			return err
+		}
+	} else {
+		return &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "status not supported"}
+	}
+
+	return nil
+}
+
+func (impl UserServiceImpl) createAndUpdateWindowID(userIds []int32, timeoutExpression string, expressionFormat bean3.ExpressionFormat, loggedInUserId int32) error {
+	idsWithWindowId, idsWithoutWindowId, windowIds, err := impl.getIdsWithAndWithoutWindowId(userIds)
+	if err != nil {
+		impl.logger.Errorw("error in updateOrCreateAndUpdateWindowID", "err", err, "userIds", userIds)
+		return err
+	}
+	tx, err := impl.userRepository.StartATransaction()
+	if err != nil {
+		impl.logger.Errorw("error in starting a transaction", "err", err)
+		return err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+	// case when fk exist , just update the configuration in the timeout window for fks
+	if len(idsWithWindowId) > 0 && len(windowIds) > 0 {
+		err = impl.timeoutWindowService.UpdateTimeoutExpressionAndFormatForIds(tx, timeoutExpression, windowIds, expressionFormat, loggedInUserId)
+		if err != nil {
+			impl.logger.Errorw("error in updateOrCreateAndUpdateWindowID", "err", err, "userIds", userIds)
+			return err
+		}
+
+	}
+	countWithoutWindowId := len(idsWithoutWindowId)
+	// case when no fk exist , will create it and update the fk constraint for user
+	if countWithoutWindowId > 0 {
+		err = impl.createAndMapTimeoutWindow(tx, timeoutExpression, countWithoutWindowId, idsWithoutWindowId, expressionFormat, loggedInUserId)
+		if err != nil {
+			impl.logger.Errorw("error in updateOrCreateAndUpdateWindowID", "err", err, "userIds", userIds, "timeoutExpression", timeoutExpression)
+			return err
+		}
+	}
+	err = impl.userRepository.CommitATransaction(tx)
+	if err != nil {
+		impl.logger.Errorw("error in committing a transaction", "err", err)
+		return err
+	}
+	return nil
+
+}
+
+func (impl UserServiceImpl) createAndMapTimeoutWindow(tx *pg.Tx, timeoutExpression string, countWithoutWindowId int, idsWithoutWindowId []int32, expressionFormat bean3.ExpressionFormat, loggedInUserId int32) error {
+	models, err := impl.timeoutWindowService.CreateWithTimeoutExpressionAndFormat(tx, timeoutExpression, countWithoutWindowId, expressionFormat, loggedInUserId)
+	if err != nil {
+		impl.logger.Errorw("error in updateOrCreateAndUpdateWindowID", "err", err)
+		return err
+	}
+	// user id vs windowId map
+	windowMapping, err := impl.getUserIdVsWindowIdMapping(idsWithoutWindowId, models)
+	if err != nil {
+		impl.logger.Errorw("error in updateOrCreateAndUpdateWindowID", "err", err)
+		return err
+	}
+	err = impl.userRepository.UpdateTimeWindowIdInBatch(tx, idsWithoutWindowId, windowMapping, loggedInUserId)
+	if err != nil {
+		impl.logger.Errorw("error in updateOrCreateAndUpdateWindowID", "err", err)
+		return err
+	}
+	return nil
+}
+
+func (impl UserServiceImpl) getUserIdVsWindowIdMapping(userIds []int32, models []*repository2.TimeoutWindowConfiguration) (map[int32]int, error) {
+	length := len(userIds)
+	if length != len(models) {
+		impl.logger.Errorw("created time models differ with what was required to be created")
+		return nil, &util.ApiError{Code: "500", HttpStatusCode: 500, UserMessage: "something went wrong, length does not match for userIds given and db users"}
+	}
+	mapping := make(map[int32]int, len(userIds))
+	for i := 0; i < length; i++ {
+		mapping[userIds[i]] = models[i].Id
+	}
+	return mapping, nil
+
+}
+
+func (impl UserServiceImpl) getIdsWithAndWithoutWindowId(userIds []int32) ([]int32, []int32, []int, error) {
+	// Get all users with users ids to check for which users fk exist
+	users, err := impl.userRepository.GetByIds(userIds)
+	if err != nil {
+		impl.logger.Errorw("error in statusUpdateToActiveWithTimeExpression ", "err", err, "userIds", userIds)
+		return []int32{}, []int32{}, []int{}, err
+	}
+	idsWithWindowId, idsWithoutWindowId, windowIds := getUserIdsAndWindowIds(users)
+	return idsWithWindowId, idsWithoutWindowId, windowIds, nil
+
+}
+
+func getUserIdsAndWindowIds(users []repository.UserModel) ([]int32, []int32, []int) {
+	totalLen := len(users)
+	idsWithWindowId := make([]int32, 0, totalLen)
+	idsWithoutWindowId := make([]int32, 0, totalLen)
+	windowIds := make([]int, 0, totalLen)
+	for _, user := range users {
+		if user.TimeoutWindowConfigurationId != 0 {
+			idsWithWindowId = append(idsWithWindowId, user.Id)
+			windowIds = append(windowIds, user.TimeoutWindowConfigurationId)
+		} else {
+			idsWithoutWindowId = append(idsWithoutWindowId, user.Id)
+		}
+	}
+	return idsWithWindowId, idsWithoutWindowId, windowIds
+}
+
+func getTimeoutExpressionAndFormatforReq(timeExpressionStatus, inactiveStatus bool, requestTime time.Time) (string, bean3.ExpressionFormat) {
+	if timeExpressionStatus {
+		return requestTime.String(), bean3.TimeStamp
+	} else if inactiveStatus {
+		return time.Time{}.String(), bean3.TimeZeroFormat
+	}
+	return "", bean3.TimeStamp
+}
+
+func getStatusAndTTL(model repository.UserModel, recordedTime time.Time) (bean.Status, time.Time) {
+	status := bean.Active
+	var ttlTime time.Time
+	if model.TimeoutWindowConfiguration != nil && len(model.TimeoutWindowConfiguration.TimeoutWindowExpression) > 0 {
+		status, ttlTime = getUserStatusFromTimeoutWindowExpression(model.TimeoutWindowConfiguration.TimeoutWindowExpression, recordedTime, model.TimeoutWindowConfiguration.ExpressionFormat)
+	}
+	return status, ttlTime
+}
+
+func getUserStatusFromTimeoutWindowExpression(expression string, recordedTime time.Time, expressionFormat bean3.ExpressionFormat) (bean.Status, time.Time) {
+	parsedTime, err := getParsedTimeFromExpression(expression, expressionFormat)
+	if err != nil {
+		return bean.Inactive, parsedTime
+	}
+	if parsedTime.IsZero() || parsedTime.Before(recordedTime) {
+		// sending time zero in case of inactive status,ignoring time expression in db,in automatic expire case
+		return bean.Inactive, time.Time{}
+	}
+	return bean.Active, parsedTime
+}
+
+func getParsedTimeFromExpression(expression string, format bean3.ExpressionFormat) (time.Time, error) {
+	// considering default to timestamp , will add support for other formats here in future
+	switch format {
+	case bean3.TimeStamp:
+		return parseExpressionToTime(expression)
+	case bean3.TimeZeroFormat:
+		// Considering format timeZeroFormat for extremities, kept it in other format but represents UTC time
+		return parseExpressionToTime(expression)
+	default:
+		return parseExpressionToTime(expression)
+	}
+
+	return time.Time{}, &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "expression format not supported"}
+
+}
+
+func parseExpressionToTime(expression string) (time.Time, error) {
+	parsedTime, err := time.Parse(helper.TimeFormatForParsing, expression)
+	if err != nil {
+		return parsedTime, err
+	}
+	return parsedTime, err
+}
+
+func (impl UserServiceImpl) GetUserBasicDataByEmailId(emailId string) (*bean.UserInfo, error) {
+	model, err := impl.userRepository.FetchActiveUserByEmail(emailId)
+	if err != nil {
+		impl.logger.Errorw("error while fetching user from db", "error", err)
+		return nil, err
+	}
+	response := &bean.UserInfo{
+		Id:       model.Id,
+		EmailId:  model.EmailId,
+		UserType: model.UserType,
+	}
+	return response, nil
+}
+
+func (impl UserServiceImpl) CheckUserStatusAndUpdateLoginAudit(token string) (bool, int32, error) {
+	emailId, _, err := impl.GetEmailAndGroupClaimsFromToken(token)
+	if err != nil {
+		impl.logger.Error("unable to fetch user by token")
+		err = &util.ApiError{HttpStatusCode: 401, UserMessage: "Invalid User", InternalMessage: "unable to fetch user by token"}
+		return false, 0, err
+	}
+	userId, isInactive, err := impl.getUserWithTimeoutWindowConfiguration(emailId)
+	if err != nil {
+		impl.logger.Errorw("unable to fetch user by email, %s", token)
+		return isInactive, userId, err
+	}
+
+	//if user is inactive, no need to store audit log
+	if !isInactive {
+		impl.SaveLoginAudit(emailId, "localhost", userId)
+	}
+
+	return isInactive, userId, nil
 }

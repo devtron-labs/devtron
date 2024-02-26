@@ -15,10 +15,22 @@ const (
 	// App Type Identifiers
 	DevtronAppType = 0 // Identifier for Devtron Apps
 	HelmAppType    = 1 // Identifier for Helm Apps
-
+	ArgoAppType    = 2
 	// Deployment Type Identifiers
 	HelmInstalledType = 0 // Identifier for Helm deployment
 	ArgoInstalledType = 1 // Identifier for ArgoCD deployment
+)
+
+const (
+	LastEventID                         = "Last-Event-ID"
+	TimestampOffsetToAvoidDuplicateLogs = 1
+	IntegerBase                         = 10
+	IntegerBitSize                      = 64
+)
+
+const (
+	LocalTimezoneInGMT = "GMT+0530"
+	LocalTimeOffset    = 5*60*60 + 30*60
 )
 
 type ResourceInfo struct {

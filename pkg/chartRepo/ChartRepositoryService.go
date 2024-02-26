@@ -195,6 +195,14 @@ func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (
 		secretData := impl.CreateSecretDataForHelmChart(request, isPrivateChart)
 		_, err = impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, nil, chartRepo.Name, "", client, secretLabel, secretData)
 		if err != nil {
+			// TODO refactoring:  Implement the below error handling if secret name already exists
+			//if statusError, ok := err.(*k8sErrors.StatusError); ok &&
+			//	statusError != nil &&
+			//	statusError.Status().Code == http.StatusConflict &&
+			//	statusError.ErrStatus.Reason == metav1.StatusReasonAlreadyExists {
+			//	impl.logger.Errorw("secret already exists", "err", statusError.Error())
+			//	return nil, fmt.Errorf(statusError.Error())
+			//}
 			continue
 		}
 		if err == nil {

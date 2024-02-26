@@ -4,6 +4,7 @@ import (
 	"github.com/devtron-labs/common-lib/cloud-provider-identifier/bean"
 	"github.com/devtron-labs/common-lib/cloud-provider-identifier/providers"
 	"go.uber.org/zap"
+	"sync"
 )
 
 type Identifier interface {
@@ -49,19 +50,26 @@ func (impl *ProviderIdentifierServiceImpl) IdentifyProvider() (string, error) {
 		}
 	}
 
-	detected := make(chan string)
-	defer close(detected)
+	detected := make(chan string, len(identifiers))
 
-	provs := make([]func(chan<- string), 0)
+	provs := make([]func(chan<- string), 0, len(identifiers))
+	var wg sync.WaitGroup
 	for _, prov := range identifiers {
 		provs = append(provs, prov.IdentifyViaMetadataServer)
 	}
 
-	for _, functions := range provs {
-		go functions(detected)
+	wg.Add(len(provs))
+	for _, function := range provs {
+		go func(f func(chan<- string)) {
+			defer wg.Done()
+			f(detected)
+		}(function)
 	}
-	for range provs {
-		d := <-detected
+	wg.Wait()
+	// closing the channel when all tasks are done
+	close(detected)
+
+	for d := range detected {
 		if d != bean.Unknown {
 			return d, nil
 		}

@@ -21,6 +21,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/auth/user/helper"
+	"github.com/gorilla/schema"
 	"net/http"
 	"strconv"
 	"strings"
@@ -43,15 +45,20 @@ type UserRestHandler interface {
 	UpdateUser(w http.ResponseWriter, r *http.Request)
 	GetById(w http.ResponseWriter, r *http.Request)
 	GetAll(w http.ResponseWriter, r *http.Request)
+	GetAllV2(w http.ResponseWriter, r *http.Request)
 	DeleteUser(w http.ResponseWriter, r *http.Request)
+	BulkUpdateStatus(w http.ResponseWriter, r *http.Request)
+	BulkDeleteUsers(w http.ResponseWriter, r *http.Request)
 	GetAllDetailedUsers(w http.ResponseWriter, r *http.Request)
 	FetchRoleGroupById(w http.ResponseWriter, r *http.Request)
 	CreateRoleGroup(w http.ResponseWriter, r *http.Request)
 	UpdateRoleGroup(w http.ResponseWriter, r *http.Request)
 	FetchRoleGroups(w http.ResponseWriter, r *http.Request)
+	FetchRoleGroupsV2(w http.ResponseWriter, r *http.Request)
 	FetchDetailedRoleGroups(w http.ResponseWriter, r *http.Request)
 	FetchRoleGroupsByName(w http.ResponseWriter, r *http.Request)
 	DeleteRoleGroup(w http.ResponseWriter, r *http.Request)
+	BulkDeleteRoleGroups(w http.ResponseWriter, r *http.Request)
 	CheckUserRoles(w http.ResponseWriter, r *http.Request)
 	SyncOrchestratorToCasbin(w http.ResponseWriter, r *http.Request)
 	GetRoleCacheDump(w http.ResponseWriter, r *http.Request)
@@ -211,19 +218,11 @@ func (handler UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Req
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-
-	if userInfo.EmailId == "admin" {
-		userInfo.EmailId = "admin@github.com/devtron-labs"
-	}
 	err = handler.validator.Struct(userInfo)
 	if err != nil {
 		handler.logger.Errorw("validation err, UpdateUser", "err", err, "payload", userInfo)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
-	}
-
-	if userInfo.EmailId == "admin@github.com/devtron-labs" {
-		userInfo.EmailId = "admin"
 	}
 
 	res, rolesChanged, groupsModified, restrictedGroups, err := handler.userService.UpdateUser(&userInfo, token, handler.CheckManagerAuth)
@@ -310,6 +309,66 @@ func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Reques
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
+func (handler UserRestHandlerImpl) GetAllV2(w http.ResponseWriter, r *http.Request) {
+	var decoder = schema.NewDecoder()
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	//checking superAdmin access
+	isAuthorised := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
+	if !isAuthorised {
+		user, err := handler.userService.GetRoleFiltersForAUserById(userId)
+		if err != nil {
+			handler.logger.Errorw("error in getting user by id", "err", err)
+			common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+			return
+		}
+		var roleFilters []bean.RoleFilter
+		if user.RoleFilters != nil && len(user.RoleFilters) > 0 {
+			roleFilters = append(roleFilters, user.RoleFilters...)
+		}
+		if len(roleFilters) > 0 {
+			for _, filter := range roleFilters {
+				if len(filter.Team) > 0 {
+					if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionGet, filter.Team); ok {
+						isAuthorised = true
+						break
+					}
+				}
+				if filter.Entity == bean.CLUSTER_ENTITIY {
+					if ok := handler.userCommonService.CheckRbacForClusterEntity(filter.Cluster, filter.Namespace, filter.Group, filter.Kind, filter.Resource, token, handler.CheckManagerAuth); ok {
+						isAuthorised = true
+						break
+					}
+				}
+			}
+		}
+	}
+	if !isAuthorised {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	req := &bean.ListingRequest{}
+	err = decoder.Decode(req, r.URL.Query())
+	if err != nil {
+		handler.logger.Errorw("request err, GetAll", "err", err, "payload", req)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	res, err := handler.userService.GetAllWithFilters(req)
+	if err != nil {
+		handler.logger.Errorw("service err, GetAll", "err", err)
+		common.WriteJsonResp(w, err, "Failed to Get", http.StatusInternalServerError)
+		return
+	}
+
+	common.WriteJsonResp(w, nil, res, http.StatusOK)
+}
 func (handler UserRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -442,7 +501,15 @@ func (handler UserRestHandlerImpl) DeleteUser(w http.ResponseWriter, r *http.Req
 		}
 	}
 	//RBAC enforcer Ends
-
+	//validation
+	validated := helper.IsSystemOrAdminUser(int32(id))
+	if validated {
+		err = &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "cannot delete system or admin user"}
+		handler.logger.Errorw("request err, DeleteUser, validation failed", "id", id, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	//service call
 	res, err := handler.userService.DeleteUser(user)
 	if err != nil {
 		handler.logger.Errorw("service err, DeleteUser", "err", err, "id", id)
@@ -451,6 +518,106 @@ func (handler UserRestHandlerImpl) DeleteUser(w http.ResponseWriter, r *http.Req
 	}
 
 	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+
+func (handler UserRestHandlerImpl) BulkUpdateStatus(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	decoder := json.NewDecoder(r.Body)
+	// request decoding
+	var request bean.BulkStatusUpdateRequest
+	err = decoder.Decode(&request)
+	if err != nil {
+		handler.logger.Errorw("request err, BulkUpdateStatus", "payload", request, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	handler.logger.Infow("request payload, BulkUpdateStatus", "payload", request)
+	// setting logged in user Id for audit logs
+	request.LoggedInUserId = userId
+
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	// struct validation
+	err = handler.validator.Struct(request)
+	if err != nil {
+		handler.logger.Errorw("validation err, BulkUpdateStatus", "payload", request, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	err = helper.CheckValidationForAdminAndSystemUserId(request.UserIds)
+	if err != nil {
+		handler.logger.Errorw("request err, BulkUpdateStatus, validation failed", "payload", request, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	// service call
+	res, err := handler.userService.BulkUpdateStatus(&request)
+	if err != nil {
+		handler.logger.Errorw("service err, BulkUpdateStatus", "payload", request, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	common.WriteJsonResp(w, nil, res, http.StatusOK)
+
+}
+
+func (handler UserRestHandlerImpl) BulkDeleteUsers(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	decoder := json.NewDecoder(r.Body)
+	// request decoding
+	var request *bean.BulkDeleteRequest
+	err = decoder.Decode(&request)
+	if err != nil {
+		handler.logger.Errorw("request err, BulkDeleteUsers", "payload", request, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	handler.logger.Debugw("request payload, BulkDeleteUsers", "payload", request)
+	// setting logged in user Id for audit logs
+	request.LoggedInUserId = userId
+
+	// validations for system and admin user
+	err = helper.CheckValidationForAdminAndSystemUserId(request.Ids)
+	if err != nil {
+		handler.logger.Errorw("request err, BulkDeleteUsers, validation failed", "payload", request, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	// struct validation
+	err = handler.validator.Struct(request)
+	if err != nil {
+		handler.logger.Errorw("validation err, BulkDeleteUsers", "payload", request, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	// service call
+	res, err := handler.userService.BulkDeleteUsers(request)
+	if err != nil {
+		handler.logger.Errorw("service err, BulkDeleteUsers", "payload", request, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, res, http.StatusOK)
 }
 
 func (handler UserRestHandlerImpl) FetchRoleGroupById(w http.ResponseWriter, r *http.Request) {
@@ -627,6 +794,67 @@ func (handler UserRestHandlerImpl) UpdateRoleGroup(w http.ResponseWriter, r *htt
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
+func (handler UserRestHandlerImpl) FetchRoleGroupsV2(w http.ResponseWriter, r *http.Request) {
+	var decoder = schema.NewDecoder()
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	//checking superAdmin access
+	isAuthorised := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
+	if !isAuthorised {
+		user, err := handler.userService.GetRoleFiltersForAUserById(userId)
+		if err != nil {
+			handler.logger.Errorw("error in getting user by id", "err", err)
+			common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+			return
+		}
+		var roleFilters []bean.RoleFilter
+		if user.RoleFilters != nil && len(user.RoleFilters) > 0 {
+			roleFilters = append(roleFilters, user.RoleFilters...)
+		}
+		if len(roleFilters) > 0 {
+			for _, filter := range roleFilters {
+				if len(filter.Team) > 0 {
+					if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionGet, filter.Team); ok {
+						isAuthorised = true
+						break
+					}
+				}
+				if filter.Entity == bean.CLUSTER_ENTITIY {
+					if isValidAuth := handler.userCommonService.CheckRbacForClusterEntity(filter.Cluster, filter.Namespace, filter.Group, filter.Kind, filter.Resource, token, handler.CheckManagerAuth); isValidAuth {
+						isAuthorised = true
+						break
+					}
+				}
+
+			}
+		}
+	}
+	if !isAuthorised {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+
+	req := &bean.ListingRequest{}
+	err = decoder.Decode(req, r.URL.Query())
+	if err != nil {
+		handler.logger.Errorw("request err, FetchRoleGroups", "err", err, "payload", req)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	res, err := handler.roleGroupService.FetchRoleGroupsWithFilters(req)
+	if err != nil {
+		handler.logger.Errorw("service err, FetchRoleGroups", "err", err)
+		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+
 func (handler UserRestHandlerImpl) FetchRoleGroups(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -694,8 +922,8 @@ func (handler UserRestHandlerImpl) FetchDetailedRoleGroups(w http.ResponseWriter
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-
-	res, err := handler.roleGroupService.FetchDetailedRoleGroups()
+	req := &bean.ListingRequest{ShowAll: true}
+	res, err := handler.roleGroupService.FetchDetailedRoleGroups(req)
 	if err != nil {
 		handler.logger.Errorw("service err, FetchRoleGroups", "err", err)
 		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
@@ -779,6 +1007,50 @@ func (handler UserRestHandlerImpl) DeleteRoleGroup(w http.ResponseWriter, r *htt
 	}
 
 	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+
+func (handler UserRestHandlerImpl) BulkDeleteRoleGroups(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	decoder := json.NewDecoder(r.Body)
+	// request decoding
+	var request *bean.BulkDeleteRequest
+	err = decoder.Decode(&request)
+	if err != nil {
+		handler.logger.Errorw("request err, BulkDeleteRoleGroups", "payload", request, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	handler.logger.Debugw("request payload, BulkDeleteRoleGroups", "payload", request)
+	// setting logged in user Id for audit logs
+	request.LoggedInUserId = userId
+
+	// struct validation
+	err = handler.validator.Struct(request)
+	if err != nil {
+		handler.logger.Errorw("validation err, BulkDeleteRoleGroups", "payload", request, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+
+	// service call
+	res, err := handler.roleGroupService.BulkDeleteRoleGroups(request)
+	if err != nil {
+		handler.logger.Errorw("service err, BulkDeleteRoleGroups", "payload", request, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, res, http.StatusOK)
 }
 
 func (handler UserRestHandlerImpl) CheckUserRoles(w http.ResponseWriter, r *http.Request) {

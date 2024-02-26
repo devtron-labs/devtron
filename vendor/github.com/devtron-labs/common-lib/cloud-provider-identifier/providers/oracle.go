@@ -76,6 +76,7 @@ func (impl *IdentifyOracle) IdentifyViaMetadataServer(detected chan<- string) {
 		}
 		if strings.Contains(r.OkeTM, "oke") {
 			detected <- bean.Oracle
+			return
 		}
 	} else {
 		detected <- bean.Unknown

@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	k8s2 "github.com/devtron-labs/common-lib-private/utils/k8s"
-	client "github.com/devtron-labs/devtron/api/helm-app"
+	k8sUtil "github.com/devtron-labs/common-lib/utils/k8s"
+	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/k8s"
@@ -144,7 +144,7 @@ func (n NewClusterServiceMock) CreateGrafanaDataSource(clusterBean *cluster.Clus
 	panic("implement me")
 }
 
-func (n NewClusterServiceMock) GetClusterConfig(cluster *cluster.ClusterBean) (*k8s2.ClusterConfig, error) {
+func (n NewClusterServiceMock) GetClusterConfig(cluster *cluster.ClusterBean) (*k8sUtil.ClusterConfig, error) {
 	//TODO implement me
 	panic("implement me")
 }
@@ -154,33 +154,33 @@ func (n NewClusterServiceMock) GetK8sClient() (*v1.CoreV1Client, error) {
 	panic("implement me")
 }
 
-func (n NewK8sClientServiceImplMock) GetResource(restConfig *rest.Config, request *k8s2.K8sRequestBean) (resp *k8s2.ManifestResponse, err error) {
+func (n NewK8sClientServiceImplMock) GetResource(restConfig *rest.Config, request *k8sUtil.K8sRequestBean) (resp *k8sUtil.ManifestResponse, err error) {
 	kind := request.ResourceIdentifier.GroupVersionKind.Kind
 	man := generateTestManifest(kind)
 	return &man, nil
 }
 
-func (n NewK8sClientServiceImplMock) CreateResource(restConfig *rest.Config, request *k8s2.K8sRequestBean, manifest string) (resp *k8s2.ManifestResponse, err error) {
+func (n NewK8sClientServiceImplMock) CreateResource(restConfig *rest.Config, request *k8sUtil.K8sRequestBean, manifest string) (resp *k8sUtil.ManifestResponse, err error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (n NewK8sClientServiceImplMock) UpdateResource(restConfig *rest.Config, request *k8s2.K8sRequestBean) (resp *k8s2.ManifestResponse, err error) {
+func (n NewK8sClientServiceImplMock) UpdateResource(restConfig *rest.Config, request *k8sUtil.K8sRequestBean) (resp *k8sUtil.ManifestResponse, err error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (n NewK8sClientServiceImplMock) DeleteResource(restConfig *rest.Config, request *k8s2.K8sRequestBean) (resp *k8s2.ManifestResponse, err error) {
+func (n NewK8sClientServiceImplMock) DeleteResource(restConfig *rest.Config, request *k8sUtil.K8sRequestBean) (resp *k8sUtil.ManifestResponse, err error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (n NewK8sClientServiceImplMock) ListEvents(restConfig *rest.Config, request *k8s2.K8sRequestBean) (*k8s2.EventsResponse, error) {
+func (n NewK8sClientServiceImplMock) ListEvents(restConfig *rest.Config, request *k8sUtil.K8sRequestBean) (*k8sUtil.EventsResponse, error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-//	func (n NewK8sClientServiceImplMock) GetPodLogs(restConfig *rest.Config, request *k8s2.K8sRequestBean) (io.ReadCloser, error) {
+//	func (n NewK8sClientServiceImplMock) GetPodLogs(restConfig *rest.Config, request *k8sUtil.K8sRequestBean) (io.ReadCloser, error) {
 //		//TODO implement me
 //		panic("implement me")
 //	}
@@ -227,8 +227,8 @@ func (n NewK8sClientServiceImplMock) ListEvents(restConfig *rest.Config, request
 func generateTestResourceRequest(kind string) k8s.ResourceRequestBean {
 	return k8s.ResourceRequestBean{
 		AppIdentifier: &client.AppIdentifier{},
-		K8sRequest: &k8s2.K8sRequestBean{
-			ResourceIdentifier: k8s2.ResourceIdentifier{
+		K8sRequest: &k8sUtil.K8sRequestBean{
+			ResourceIdentifier: k8sUtil.ResourceIdentifier{
 				GroupVersionKind: schema.GroupVersionKind{
 					Kind: kind,
 				},
@@ -238,7 +238,7 @@ func generateTestResourceRequest(kind string) k8s.ResourceRequestBean {
 }
 
 type test struct {
-	inp k8s2.ManifestResponse
+	inp k8sUtil.ManifestResponse
 	out bean.Response
 }
 
@@ -282,8 +282,8 @@ type test struct {
 //	}
 //}
 
-func generateTestManifest(kind string) k8s2.ManifestResponse {
-	return k8s2.ManifestResponse{
+func generateTestManifest(kind string) k8sUtil.ManifestResponse {
+	return k8sUtil.ManifestResponse{
 		Manifest: unstructured.Unstructured{
 			Object: getObj(kind),
 		},

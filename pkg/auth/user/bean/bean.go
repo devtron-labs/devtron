@@ -3,6 +3,7 @@ package bean
 type RoleType string
 
 const (
+	SYSTEM_USER_ID                              = 1
 	PROJECT_TYPE                                = "team"
 	ENV_TYPE                                    = "environment"
 	APP_TYPE                                    = "app"
@@ -37,6 +38,9 @@ const (
 
 const (
 	VALIDATION_FAILED_ERROR_MSG string = "validation failed: group name with , is not allowed"
+	NoUserIdsProvidedError             = "bad request ,no user Ids provided"
+	InvalidUserError                   = "inactive user"
+	InactiveUserError                  = "inactive user"
 )
 
 // custom role const set
@@ -69,3 +73,43 @@ type RbacPolicyResource struct {
 	Resource string   `json:"resource"`
 	Actions  []string `json:"actions"`
 }
+
+type SortBy string
+type SortOrder string
+
+const (
+	Asc  SortOrder = "ASC"
+	Desc SortOrder = "DESC"
+)
+
+const (
+	Email     SortBy = "email_id"
+	LastLogin SortBy = "last_login"
+	GroupName SortBy = "name"
+)
+
+const (
+	DefaultSize int = 20
+)
+
+const (
+	AdminUser  string = "admin"
+	SystemUser string = "system"
+)
+
+const (
+	AdminUserId  = 2 // we have established Admin user as 2 while setting up devtron
+	SystemUserId = 1 // we have established System user as 1 while setting up devtron, which are being used for auto-trigger operations
+)
+
+type StatusType int
+
+const (
+	Active                          StatusType = 1
+	Inactive                        StatusType = 2
+	TemporaryAccess                 StatusType = 3
+	Active_InActive                 StatusType = 4
+	Active_TemporaryAccess          StatusType = 5
+	Inactive_TemporaryAccess        StatusType = 6
+	Active_Inactive_TemporaryAccess StatusType = 7
+)

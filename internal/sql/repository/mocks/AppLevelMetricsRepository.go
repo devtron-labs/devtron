@@ -3,7 +3,7 @@
 package mocks
 
 import (
-	repository "github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics/repository"
 	mock "github.com/stretchr/testify/mock"
 )
 

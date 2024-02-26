@@ -18,6 +18,7 @@
 package util
 
 import (
+	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"regexp"
 	"strings"
 
@@ -94,6 +95,18 @@ func IntValidator() (*validator.Validate, error) {
 	if err != nil {
 		return v, err
 	}
+	err = v.RegisterValidation("global-entity-name", validateGlobalEntityName)
+	if err != nil {
+		return v, err
+	}
+	err = v.RegisterValidation("not-system-admin-user-email", validateForSystemOrAdminUserEmail)
+	if err != nil {
+		return v, err
+	}
+	err = v.RegisterValidation("not-system-admin-userid", validateForSystemOrAdminUserById)
+	if err != nil {
+		return v, err
+	}
 	return v, err
 }
 
@@ -103,4 +116,27 @@ func validateDockerImage(fl validator.FieldLevel) bool {
 		return true
 	}
 	return false
+}
+
+func validateGlobalEntityName(fl validator.FieldLevel) bool {
+	// ^[a-z0-9]+(?:[-._]+[a-z0-9]+)*$
+	hostnameRegexString := `^[a-z0-9]+(?:[-._]+[a-z0-9]+)*$`
+	hostnameRegexRFC952 := regexp.MustCompile(hostnameRegexString)
+	return hostnameRegexRFC952.MatchString(fl.Field().String())
+}
+
+func validateForSystemOrAdminUserEmail(fl validator.FieldLevel) bool {
+	value := fl.Field().String()
+	if value == bean.AdminUser || value == bean.SystemUser {
+		return false
+	}
+	return true
+}
+
+func validateForSystemOrAdminUserById(fl validator.FieldLevel) bool {
+	value := fl.Field().Int()
+	if value == bean.AdminUserId || value == bean.SystemUserId {
+		return false
+	}
+	return true
 }

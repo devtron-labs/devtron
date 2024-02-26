@@ -20,6 +20,7 @@ import (
 	"github.com/devtron-labs/devtron/api/module"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/api/router"
+	"github.com/devtron-labs/devtron/api/router/app"
 	"github.com/devtron-labs/devtron/api/server"
 	"github.com/devtron-labs/devtron/api/team"
 	"github.com/devtron-labs/devtron/api/terminal"
@@ -50,20 +51,20 @@ type MuxRouter struct {
 	chartProviderRouter      chartProvider.ChartProviderRouter
 	dockerRegRouter          router.DockerRegRouter
 
-	dashboardTelemetryRouter        dashboardEvent.DashboardTelemetryRouter
-	commonDeploymentRouter          appStoreDeployment.CommonDeploymentRouter
-	externalLinksRouter             externalLink.ExternalLinkRouter
-	moduleRouter                    module.ModuleRouter
-	serverRouter                    server.ServerRouter
-	apiTokenRouter                  apiToken.ApiTokenRouter
-	k8sCapacityRouter               capacity.K8sCapacityRouter
-	webhookHelmRouter               webhookHelm.WebhookHelmRouter
-	userAttributesRouter            router.UserAttributesRouter
-	telemetryRouter                 router.TelemetryRouter
-	userTerminalAccessRouter        terminal.UserTerminalAccessRouter
-	attributesRouter                router.AttributesRouter
-	appRouter                       router.AppRouter
-	rbacRoleRouter                  user.RbacRoleRouter
+	dashboardTelemetryRouter dashboardEvent.DashboardTelemetryRouter
+	commonDeploymentRouter   appStoreDeployment.CommonDeploymentRouter
+	externalLinksRouter      externalLink.ExternalLinkRouter
+	moduleRouter             module.ModuleRouter
+	serverRouter             server.ServerRouter
+	apiTokenRouter           apiToken.ApiTokenRouter
+	k8sCapacityRouter        capacity.K8sCapacityRouter
+	webhookHelmRouter        webhookHelm.WebhookHelmRouter
+	userAttributesRouter     router.UserAttributesRouter
+	telemetryRouter          router.TelemetryRouter
+	userTerminalAccessRouter terminal.UserTerminalAccessRouter
+	attributesRouter         router.AttributesRouter
+	appRouter                app.AppRouterEAMode
+	rbacRoleRouter           user.RbacRoleRouter
 	globalAuthorisationConfigRouter globalConfig.AuthorisationConfigRouter
 }
 
@@ -95,7 +96,7 @@ func NewMuxRouter(
 	telemetryRouter router.TelemetryRouter,
 	userTerminalAccessRouter terminal.UserTerminalAccessRouter,
 	attributesRouter router.AttributesRouter,
-	appRouter router.AppRouter,
+	appRouter app.AppRouterEAMode,
 	rbacRoleRouter user.RbacRoleRouter,
 	globalAuthorisationConfigRouter globalConfig.AuthorisationConfigRouter,
 ) *MuxRouter {
@@ -190,8 +191,8 @@ func (r *MuxRouter) Init() {
 	r.helmAppRouter.InitAppListRouter(HelmApplicationSubRouter)
 	r.commonDeploymentRouter.Init(HelmApplicationSubRouter)
 
-	ApplicationSubRouter := r.Router.PathPrefix("/orchestrator/app").Subrouter()
-	r.appRouter.InitAppRouter(ApplicationSubRouter)
+	applicationSubRouter := r.Router.PathPrefix("/orchestrator/app").Subrouter()
+	r.appRouter.InitAppRouterEAMode(applicationSubRouter)
 
 	k8sApp := r.Router.PathPrefix("/orchestrator/k8s").Subrouter()
 	r.k8sApplicationRouter.InitK8sApplicationRouter(k8sApp)

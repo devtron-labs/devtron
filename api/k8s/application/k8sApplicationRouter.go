@@ -42,12 +42,12 @@ func (impl *K8sApplicationRouterImpl) InitK8sApplicationRouter(k8sAppRouter *mux
 
 	k8sAppRouter.Path("/pods/logs/{podName}").
 		Queries("containerName", "{containerName}").
-		//Queries("containerName", "{containerName}", "appId", "{appId}").
-		//Queries("clusterId", "{clusterId}", "namespace", "${namespace}").
-		//Queries("sinceSeconds", "{sinceSeconds}").
 		Queries("follow", "{follow}").
-		Queries("tailLines", "{tailLines}").
 		HandlerFunc(impl.k8sApplicationRestHandler.GetPodLogs).Methods("GET")
+
+	k8sAppRouter.Path("/pods/logs/download/{podName}").
+		Queries("containerName", "{containerName}").
+		HandlerFunc(impl.k8sApplicationRestHandler.DownloadPodLogs).Methods("GET")
 
 	k8sAppRouter.Path("/pod/exec/session/{identifier}/{namespace}/{pod}/{shell}/{container}").
 		HandlerFunc(impl.k8sApplicationRestHandler.GetTerminalSession).Methods("GET")

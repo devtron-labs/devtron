@@ -19,7 +19,7 @@ package bean
 
 import (
 	"encoding/json"
-	bean3 "github.com/devtron-labs/devtron/api/bean"
+	bean4 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
@@ -27,6 +27,7 @@ import (
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
+	bean3 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
@@ -55,7 +56,7 @@ type CreateAppDTO struct {
 	TeamId      int                            `json:"teamId,omitempty" validate:"number,required"`
 	TemplateId  int                            `json:"templateId"`
 	AppLabels   []*Label                       `json:"labels,omitempty" validate:"dive"`
-	GenericNote *bean3.GenericNoteResponseBean `json:"genericNote,omitempty"`
+	GenericNote *bean4.GenericNoteResponseBean `json:"genericNote,omitempty"`
 	AppType     helper.AppType                 `json:"appType" validate:"gt=-1,lt=3"` //TODO: Change Validation if new AppType is introduced
 }
 
@@ -103,6 +104,8 @@ type CiPipeline struct {
 	ParentCiPipeline           int                    `json:"parentCiPipeline"`
 	ParentAppId                int                    `json:"parentAppId"`
 	AppId                      int                    `json:"appId"`
+	AppName                    string                 `json:"appName,omitempty"`
+	AppType                    helper.AppType         `json:"appType,omitempty"`
 	ExternalCiConfig           ExternalCiConfig       `json:"externalCiConfig"`
 	CiMaterial                 []*CiMaterial          `json:"ciMaterial,omitempty" validate:"dive,min=1"`
 	Name                       string                 `json:"name,omitempty" validate:"name-component,max=100"` //name suffix of corresponding pipeline. required, unique, validation corresponding to gocd pipelineName will be applicable
@@ -603,6 +606,8 @@ type CDPipelineConfigObject struct {
 	SwitchFromCiPipelineId        int                                    `json:"switchFromCiPipelineId"`
 	CDPipelineAddType             CDPipelineAddType                      `json:"addType"`
 	ChildPipelineId               int                                    `json:"childPipelineId"`
+	IsDigestEnforcedForPipeline   bool                                   `json:"isDigestEnforcedForPipeline"`
+	IsDigestEnforcedForEnv        bool                                   `json:"isDigestEnforcedForEnv"`
 }
 
 type CDPipelineAddType string
@@ -700,27 +705,29 @@ type ApprovalNotificationConfig struct {
 }
 
 type DeploymentAppTypeChangeRequest struct {
-	EnvId                 int            `json:"envId,omitempty" validate:"required"`
-	DesiredDeploymentType DeploymentType `json:"desiredDeploymentType,omitempty" validate:"required"`
-	ExcludeApps           []int          `json:"excludeApps"`
-	IncludeApps           []int          `json:"includeApps"`
-	AutoTriggerDeployment bool           `json:"autoTriggerDeployment"`
-	UserId                int32          `json:"-"`
+	EnvId                 int                  `json:"envId,omitempty" validate:"required"`
+	DesiredDeploymentType bean3.DeploymentType `json:"desiredDeploymentType,omitempty" validate:"required"`
+	ExcludeApps           []int                `json:"excludeApps"`
+	IncludeApps           []int                `json:"includeApps"`
+	AutoTriggerDeployment bool                 `json:"autoTriggerDeployment"`
+	UserId                int32                `json:"-"`
 }
 
 type DeploymentChangeStatus struct {
-	Id      int    `json:"id,omitempty"`
-	AppId   int    `json:"appId,omitempty"`
-	AppName string `json:"appName,omitempty"`
-	EnvId   int    `json:"envId,omitempty"`
-	EnvName string `json:"envName,omitempty"`
-	Error   string `json:"error,omitempty"`
-	Status  Status `json:"status,omitempty"`
+	PipelineId     int    `json:"pipelineId,omitempty"`
+	InstalledAppId int    `json:"installedAppId,omitempty"`
+	AppId          int    `json:"appId,omitempty"`
+	AppName        string `json:"appName,omitempty"`
+	EnvId          int    `json:"envId,omitempty"`
+	EnvName        string `json:"envName,omitempty"`
+	Error          string `json:"error,omitempty"`
+	Status         Status `json:"status,omitempty"`
 }
 
+// DeploymentAppTypeChangeResponse is used as response obj for migrating devtron apps as well as chart store apps
 type DeploymentAppTypeChangeResponse struct {
 	EnvId                 int                       `json:"envId,omitempty"`
-	DesiredDeploymentType DeploymentType            `json:"desiredDeploymentType,omitempty"`
+	DesiredDeploymentType bean3.DeploymentType      `json:"desiredDeploymentType,omitempty"`
 	SuccessfulPipelines   []*DeploymentChangeStatus `json:"successfulPipelines"`
 	FailedPipelines       []*DeploymentChangeStatus `json:"failedPipelines"`
 	TriggeredPipelines    []*CdPipelineTrigger      `json:"-"` // Disabling auto-trigger until bulk trigger API is fixed
@@ -738,6 +745,10 @@ const (
 	ArgoCd           DeploymentType = "argo_cd"
 	ManifestDownload DeploymentType = "manifest_download"
 	ManifestPush     DeploymentType = "manifest_push"
+)
+
+const (
+	HelmReleaseMetadataAnnotation = `{"metadata": {"annotations": {"meta.helm.sh/release-name": "%s","meta.helm.sh/release-namespace": "%s"},"labels": {"app.kubernetes.io/managed-by": "Helm"}}}`
 )
 
 func IsAcdApp(deploymentType string) bool {
@@ -873,7 +884,7 @@ type AppMetaInfoDto struct {
 	CreatedOn   time.Time                      `json:"createdOn"`
 	Active      bool                           `json:"active,notnull"`
 	Labels      []*Label                       `json:"labels"`
-	Note        *bean3.GenericNoteResponseBean `json:"note"`
+	Note        *bean4.GenericNoteResponseBean `json:"note"`
 	UserId      int32                          `json:"-"`
 	//below field is only valid for helm apps
 	ChartUsed    *ChartUsedDto         `json:"chartUsed,omitempty"`
