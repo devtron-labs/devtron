@@ -1,0 +1,14 @@
+{
+    "server": {
+        "deployment": {
+            "image_tag": "{{.Tag}}",
+            "image": "{{.Name}}"
+        }
+    },
+    "pipelineName": "{{.PipelineName}}",
+    "releaseVersion": "{{.ReleaseVersion}}",
+    "deploymentType": "{{.DeploymentType}}",
+    "app": "{{.App}}",
+    "env": "{{.Env}}",
+    "appMetrics": "{{.AppMetrics}}"
+}

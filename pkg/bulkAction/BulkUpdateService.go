@@ -9,12 +9,10 @@ import (
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/common-lib/pubsub-lib/model"
 	"github.com/devtron-labs/devtron/api/bean"
-	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
-	"github.com/devtron-labs/devtron/client/argocdServer/application"
-	"github.com/devtron-labs/devtron/client/argocdServer/repository"
+	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/internal/sql/models"
-	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/bulkUpdate"
@@ -23,15 +21,22 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	appWorkflow2 "github.com/devtron-labs/devtron/pkg/appWorkflow"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
-	"github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/deployment/deployedApp"
+	bean5 "github.com/devtron-labs/devtron/pkg/deployment/deployedApp/bean"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
+	bean3 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
+	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps"
+	bean4 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	pipeline1 "github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
+	"github.com/devtron-labs/devtron/pkg/workflow/cd"
+	"github.com/devtron-labs/devtron/pkg/workflow/dag"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
 	jsonpatch "github.com/evanphx/json-patch"
@@ -65,31 +70,15 @@ type BulkUpdateService interface {
 
 type BulkUpdateServiceImpl struct {
 	bulkUpdateRepository             bulkUpdate.BulkUpdateRepository
-	chartRepository                  chartRepoRepository.ChartRepository
 	logger                           *zap.SugaredLogger
-	repoRepository                   chartRepoRepository.ChartRepoRepository
-	chartTemplateService             util.ChartTemplateService
-	mergeUtil                        util.MergeUtil
-	repositoryService                repository.ServiceClient
-	defaultChart                     chart.DefaultChart
-	chartRefRepository               chartRepoRepository.ChartRefRepository
-	envOverrideRepository            chartConfig.EnvConfigOverrideRepository
-	pipelineConfigRepository         chartConfig.PipelineConfigRepository
-	configMapRepository              chartConfig.ConfigMapRepository
 	environmentRepository            repository2.EnvironmentRepository
 	pipelineRepository               pipelineConfig.PipelineRepository
-	appLevelMetricsRepository        repository3.AppLevelMetricsRepository
-	envLevelAppMetricsRepository     repository3.EnvLevelAppMetricsRepository
-	client                           *http.Client
 	appRepository                    app.AppRepository
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
 	configMapHistoryService          history.ConfigMapHistoryService
-	workflowDagExecutor              pipeline.WorkflowDagExecutor
-	cdWorkflowRepository             pipelineConfig.CdWorkflowRepository
+	workflowDagExecutor              dag.WorkflowDagExecutor
 	pipelineBuilder                  pipeline.PipelineBuilder
-	helmAppService                   client.HelmAppService
 	enforcerUtil                     rbac.EnforcerUtil
-	enforcerUtilHelm                 rbac.EnforcerUtilHelm
 	ciHandler                        pipeline.CiHandler
 	ciPipelineRepository             pipelineConfig.CiPipelineRepository
 	appWorkflowRepository            appWorkflow.AppWorkflowRepository
@@ -97,65 +86,45 @@ type BulkUpdateServiceImpl struct {
 	pubsubClient                     *pubsub.PubSubClientServiceImpl
 	argoUserService                  argo.ArgoUserService
 	scopedVariableManager            variables.ScopedVariableManager
+	deployedAppMetricsService        deployedAppMetrics.DeployedAppMetricsService
+	chartRefService                  chartRef.ChartRefService
+	cdTriggerService                 devtronApps.TriggerService
+	deployedAppService               deployedApp.DeployedAppService
+	cdWorkflowCommonService          cd.CdWorkflowCommonService
 }
 
 func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateRepository,
-	chartRepository chartRepoRepository.ChartRepository,
 	logger *zap.SugaredLogger,
-	chartTemplateService util.ChartTemplateService,
-	repoRepository chartRepoRepository.ChartRepoRepository,
-	defaultChart chart.DefaultChart,
-	mergeUtil util.MergeUtil,
-	repositoryService repository.ServiceClient,
-	chartRefRepository chartRepoRepository.ChartRefRepository,
-	envOverrideRepository chartConfig.EnvConfigOverrideRepository,
-	pipelineConfigRepository chartConfig.PipelineConfigRepository,
-	configMapRepository chartConfig.ConfigMapRepository,
 	environmentRepository repository2.EnvironmentRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
-	appLevelMetricsRepository repository3.AppLevelMetricsRepository,
-	envLevelAppMetricsRepository repository3.EnvLevelAppMetricsRepository,
-	client *http.Client,
 	appRepository app.AppRepository,
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
-	configMapHistoryService history.ConfigMapHistoryService, workflowDagExecutor pipeline.WorkflowDagExecutor,
-	cdWorkflowRepository pipelineConfig.CdWorkflowRepository, pipelineBuilder pipeline.PipelineBuilder,
-	helmAppService client.HelmAppService, enforcerUtil rbac.EnforcerUtil,
-	enforcerUtilHelm rbac.EnforcerUtilHelm, ciHandler pipeline.CiHandler,
+	configMapHistoryService history.ConfigMapHistoryService, workflowDagExecutor dag.WorkflowDagExecutor,
+	pipelineBuilder pipeline.PipelineBuilder,
+	enforcerUtil rbac.EnforcerUtil,
+	ciHandler pipeline.CiHandler,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
 	appWorkflowService appWorkflow2.AppWorkflowService,
 	pubsubClient *pubsub.PubSubClientServiceImpl,
 	argoUserService argo.ArgoUserService,
 	scopedVariableManager variables.ScopedVariableManager,
-) (*BulkUpdateServiceImpl, error) {
+	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
+	chartRefService chartRef.ChartRefService,
+	cdTriggerService devtronApps.TriggerService,
+	deployedAppService deployedApp.DeployedAppService,
+	cdWorkflowCommonService cd.CdWorkflowCommonService) (*BulkUpdateServiceImpl, error) {
 	impl := &BulkUpdateServiceImpl{
 		bulkUpdateRepository:             bulkUpdateRepository,
-		chartRepository:                  chartRepository,
 		logger:                           logger,
-		chartTemplateService:             chartTemplateService,
-		repoRepository:                   repoRepository,
-		mergeUtil:                        mergeUtil,
-		defaultChart:                     defaultChart,
-		repositoryService:                repositoryService,
-		chartRefRepository:               chartRefRepository,
-		envOverrideRepository:            envOverrideRepository,
-		pipelineConfigRepository:         pipelineConfigRepository,
-		configMapRepository:              configMapRepository,
 		environmentRepository:            environmentRepository,
 		pipelineRepository:               pipelineRepository,
-		appLevelMetricsRepository:        appLevelMetricsRepository,
-		envLevelAppMetricsRepository:     envLevelAppMetricsRepository,
-		client:                           client,
 		appRepository:                    appRepository,
 		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
 		configMapHistoryService:          configMapHistoryService,
 		workflowDagExecutor:              workflowDagExecutor,
-		cdWorkflowRepository:             cdWorkflowRepository,
 		pipelineBuilder:                  pipelineBuilder,
-		helmAppService:                   helmAppService,
 		enforcerUtil:                     enforcerUtil,
-		enforcerUtilHelm:                 enforcerUtilHelm,
 		ciHandler:                        ciHandler,
 		ciPipelineRepository:             ciPipelineRepository,
 		appWorkflowRepository:            appWorkflowRepository,
@@ -163,6 +132,11 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 		pubsubClient:                     pubsubClient,
 		argoUserService:                  argoUserService,
 		scopedVariableManager:            scopedVariableManager,
+		deployedAppMetricsService:        deployedAppMetricsService,
+		chartRefService:                  chartRefService,
+		cdTriggerService:                 cdTriggerService,
+		deployedAppService:               deployedAppService,
+		cdWorkflowCommonService:          cdWorkflowCommonService,
 	}
 
 	err := impl.SubscribeToCdBulkTriggerTopic()
@@ -458,12 +432,10 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 							deploymentTemplateBulkUpdateResponse.Successful = append(deploymentTemplateBulkUpdateResponse.Successful, bulkUpdateSuccessResponse)
 
 							//creating history entry for deployment template
-							appLevelAppMetricsEnabled := false
-							appLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(chart.AppId)
-							if err != nil && err != pg.ErrNoRows {
-								impl.logger.Errorw("error in getting app level metrics app level", "error", err)
-							} else if err == nil {
-								appLevelAppMetricsEnabled = appLevelMetrics.AppMetrics
+							appLevelAppMetricsEnabled, err := impl.deployedAppMetricsService.GetMetricsFlagByAppId(chart.AppId)
+							if err != nil {
+								impl.logger.Errorw("error in getting app level metrics app level", "error", err, "appId", chart.AppId)
+								return nil
 							}
 							chart.GlobalOverride = modified
 							chart.Values = modified
@@ -526,22 +498,13 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 							deploymentTemplateBulkUpdateResponse.Successful = append(deploymentTemplateBulkUpdateResponse.Successful, bulkUpdateSuccessResponse)
 
 							//creating history entry for deployment template
-							envLevelAppMetricsEnabled := false
-							envLevelAppMetrics, err := impl.envLevelAppMetricsRepository.FindByAppIdAndEnvId(chartEnv.Chart.AppId, chartEnv.TargetEnvironment)
-							if err != nil && err != pg.ErrNoRows {
-								impl.logger.Errorw("error in getting env level app metrics", "err", err, "appId", chartEnv.Chart.AppId, "envId", chartEnv.TargetEnvironment)
-							} else if err == pg.ErrNoRows {
-								appLevelAppMetrics, err := impl.appLevelMetricsRepository.FindByAppId(chartEnv.Chart.AppId)
-								if err != nil && err != pg.ErrNoRows {
-									impl.logger.Errorw("error in getting app level app metrics", "err", err, "appId", chartEnv.Chart.AppId)
-								} else if err == nil {
-									envLevelAppMetricsEnabled = appLevelAppMetrics.AppMetrics
-								}
-							} else {
-								envLevelAppMetricsEnabled = *envLevelAppMetrics.AppMetrics
+							isAppMetricsEnabled, err := impl.deployedAppMetricsService.GetMetricsFlagForAPipelineByAppIdAndEnvId(chartEnv.Chart.AppId, chartEnv.TargetEnvironment)
+							if err != nil {
+								impl.logger.Errorw("error, GetMetricsFlagForAPipelineByAppIdAndEnvId", "err", err, "appId", chartEnv.Chart.AppId, "envId", chartEnv.TargetEnvironment)
+								return nil
 							}
 							chartEnv.EnvOverrideValues = modified
-							err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(chartEnv, nil, envLevelAppMetricsEnabled, 0)
+							err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(chartEnv, nil, isAppMetricsEnabled, 0)
 							if err != nil {
 								impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", chartEnv)
 							}
@@ -1054,7 +1017,7 @@ func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvir
 			impl.logger.Infow("application already hibernated", "app_id", pipeline.AppId)
 			pipelineResponse := response[appKey]
 			pipelineResponse[pipelineKey] = false
-			if deploymentHistory.Status == application.HIBERNATING {
+			if deploymentHistory.Status == argoApplication.HIBERNATING {
 				pipelineResponse[Skipped] = "Application is already hibernated"
 			} else {
 				pipelineResponse[Skipped] = "Hibernation already in progress"
@@ -1064,16 +1027,13 @@ func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvir
 		}
 		var hibernateReqError error
 		//if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
-		stopRequest := &pipeline1.StopAppRequest{
+		stopRequest := &bean5.StopAppRequest{
 			AppId:         pipeline.AppId,
 			EnvironmentId: pipeline.EnvironmentId,
 			UserId:        request.UserId,
-			RequestType:   pipeline1.STOP,
+			RequestType:   bean5.STOP,
 		}
-		triggerContext := pipeline1.TriggerContext{
-			Context: ctx,
-		}
-		_, hibernateReqError = impl.workflowDagExecutor.StopStartApp(triggerContext, stopRequest)
+		_, hibernateReqError = impl.deployedAppService.StopStartApp(ctx, stopRequest)
 		if hibernateReqError != nil {
 			impl.logger.Errorw("error in hibernating application", "err", hibernateReqError, "pipeline", pipeline)
 			pipelineResponse := response[appKey]
@@ -1118,14 +1078,14 @@ func (impl BulkUpdateServiceImpl) buildHibernateUnHibernateRequestForHelmPipelin
 	}
 
 	hibernateRequest := &openapi.HibernateRequest{}
-	chartInfo, err := impl.chartRefRepository.FetchInfoOfChartConfiguredInApp(pipeline.AppId)
+	chartInfo, err := impl.chartRefService.FetchInfoOfChartConfiguredInApp(pipeline.AppId)
 	if err != nil {
 		impl.logger.Errorw("error in getting chart info for chart configured in app", "err", err, "appId", pipeline.AppId)
 		return nil, nil, err
 	}
 	var group, kind, version, name string
 	name = fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
-	if chartInfo.Name == "" && chartInfo.UserUploaded == false {
+	if chartInfo.Name == bean3.RolloutChartType && chartInfo.UserUploaded == false {
 		// rollout type chart
 		group = "argoproj.io"
 		kind = "Rollout"
@@ -1141,7 +1101,7 @@ func (impl BulkUpdateServiceImpl) buildHibernateUnHibernateRequestForHelmPipelin
 				},
 			},
 		}
-	} else if chartInfo.Name == "Deployment" {
+	} else if chartInfo.Name == bean3.DeploymentChartType {
 		//deployment type chart
 		group = "apps"
 		kind = "Deployment"
@@ -1213,7 +1173,7 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 			impl.logger.Infow("application already UnHibernated", "app_id", pipeline.AppId)
 			pipelineResponse := response[appKey]
 			pipelineResponse[pipelineKey] = false
-			if deploymentHistory.Status == application.Healthy {
+			if deploymentHistory.Status == argoApplication.Healthy {
 				pipelineResponse[Skipped] = "Application is already un-hibernated"
 			} else {
 				pipelineResponse[Skipped] = "Un-hibernation already in progress"
@@ -1223,16 +1183,13 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 		}
 		var hibernateReqError error
 		//if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
-		stopRequest := &pipeline1.StopAppRequest{
+		stopRequest := &bean5.StopAppRequest{
 			AppId:         pipeline.AppId,
 			EnvironmentId: pipeline.EnvironmentId,
 			UserId:        request.UserId,
-			RequestType:   pipeline1.START,
+			RequestType:   bean5.START,
 		}
-		triggerContext := pipeline1.TriggerContext{
-			Context: ctx,
-		}
-		_, hibernateReqError = impl.workflowDagExecutor.StopStartApp(triggerContext, stopRequest)
+		_, hibernateReqError = impl.deployedAppService.StopStartApp(ctx, stopRequest)
 		if hibernateReqError != nil {
 			impl.logger.Errorw("error in un-hibernating application", "err", hibernateReqError, "pipeline", pipeline)
 			pipelineResponse := response[appKey]
@@ -1450,12 +1407,12 @@ func (impl BulkUpdateServiceImpl) SubscribeToCdBulkTriggerTopic() error {
 			return
 		}
 
-		triggerContext := pipeline1.TriggerContext{
+		triggerContext := bean4.TriggerContext{
 			ReferenceId: pointer.String(msg.MsgId),
 			Context:     ctx,
 		}
 
-		_, err = impl.workflowDagExecutor.ManualCdTrigger(triggerContext, event.ValuesOverrideRequest)
+		_, err = impl.cdTriggerService.ManualCdTrigger(triggerContext, event.ValuesOverrideRequest)
 		if err != nil {
 			impl.logger.Errorw("Error triggering CD",
 				"topic", pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC,
@@ -1474,7 +1431,7 @@ func (impl BulkUpdateServiceImpl) SubscribeToCdBulkTriggerTopic() error {
 		return "got message for trigger cd in bulk", []interface{}{"pipelineId", event.ValuesOverrideRequest.PipelineId, "appId", event.ValuesOverrideRequest.AppId, "cdWorkflowType", event.ValuesOverrideRequest.CdWorkflowType, "ciArtifactId", event.ValuesOverrideRequest.CiArtifactId}
 	}
 
-	validations := impl.workflowDagExecutor.GetTriggerValidateFuncs()
+	validations := impl.cdWorkflowCommonService.GetTriggerValidateFuncs()
 	err := impl.pubsubClient.Subscribe(pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC, callback, loggerFunc, validations...)
 	if err != nil {
 		impl.logger.Error("failed to subscribe to NATS topic",

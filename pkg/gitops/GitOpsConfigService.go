@@ -22,6 +22,9 @@ import (
 	"encoding/json"
 	"fmt"
 	util4 "github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config/bean"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -33,7 +36,6 @@ import (
 
 	cluster3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/client/argocdServer"
 	cluster2 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -59,23 +61,22 @@ type GitOpsConfigService interface {
 	GetGitOpsConfigById(id int) (*bean2.GitOpsConfigDto, error)
 	GetAllGitOpsConfig() ([]*bean2.GitOpsConfigDto, error)
 	GetGitOpsConfigByProvider(provider string) (*bean2.GitOpsConfigDto, error)
-	GetGitOpsConfigActive() (*bean2.GitOpsConfigDto, error)
 }
 
 const (
-	GitOpsSecretName      = "devtron-gitops-secret"
-	DryrunRepoName        = "devtron-sample-repo-dryrun-"
-	DeleteRepoStage       = "Delete Repo"
-	CommitOnRestStage     = "Commit On Rest"
-	PushStage             = "Push"
-	CloneStage            = "Clone"
-	GetRepoUrlStage       = "Get Repo RedirectionUrl"
-	CreateRepoStage       = "Create Repo"
-	CloneHttp             = "Clone Http"
-	CreateReadmeStage     = "Create Readme"
-	GITHUB_PROVIDER       = "GITHUB"
-	GITLAB_PROVIDER       = "GITLAB"
-	BITBUCKET_PROVIDER    = "BITBUCKET_CLOUD"
+	GitOpsSecretName  = "devtron-gitops-secret"
+	DryrunRepoName    = "devtron-sample-repo-dryrun-"
+	DeleteRepoStage   = "Delete Repo"
+	CommitOnRestStage = "Commit On Rest"
+	PushStage         = "Push"
+	CloneStage        = "Clone"
+	GetRepoUrlStage   = "Get Repo RedirectionUrl"
+	CreateRepoStage   = "Create Repo"
+	CloneHttp         = "Clone Http"
+	CreateReadmeStage = "Create Readme"
+	GITHUB_PROVIDER   = "GITHUB"
+	GITLAB_PROVIDER   = "GITLAB"
+
 	AZURE_DEVOPS_PROVIDER = "AZURE_DEVOPS"
 	BITBUCKET_API_HOST    = "https://api.bitbucket.org/2.0/"
 )
@@ -88,40 +89,37 @@ type DetailedErrorGitOpsConfigResponse struct {
 }
 
 type GitOpsConfigServiceImpl struct {
-	randSource           rand.Source
-	logger               *zap.SugaredLogger
-	globalEnvVariables   *util2.GlobalEnvVariables
-	gitOpsRepository     repository.GitOpsConfigRepository
-	K8sUtil              *util4.K8sServiceImpl
-	aCDAuthConfig        *util3.ACDAuthConfig
-	clusterService       cluster.ClusterService
-	envService           cluster.EnvironmentService
-	versionService       argocdServer.VersionService
-	gitFactory           *util.GitFactory
-	chartTemplateService util.ChartTemplateService
-	argoUserService      argo.ArgoUserService
-	clusterServiceCD     cluster2.ServiceClient
+	randSource              rand.Source
+	logger                  *zap.SugaredLogger
+	globalEnvVariables      *util2.GlobalEnvVariables
+	gitOpsRepository        repository.GitOpsConfigRepository
+	K8sUtil                 *util4.K8sServiceImpl
+	aCDAuthConfig           *util3.ACDAuthConfig
+	clusterService          cluster.ClusterService
+	gitFactory              *git.GitFactory
+	argoUserService         argo.ArgoUserService
+	clusterServiceCD        cluster2.ServiceClient
+	gitOpsConfigReadService config.GitOpsConfigReadService
 }
 
 func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger,
 	globalEnvVariables *util2.GlobalEnvVariables,
 	gitOpsRepository repository.GitOpsConfigRepository, K8sUtil *util4.K8sServiceImpl, aCDAuthConfig *util3.ACDAuthConfig,
-	clusterService cluster.ClusterService, envService cluster.EnvironmentService, versionService argocdServer.VersionService,
-	gitFactory *util.GitFactory, chartTemplateService util.ChartTemplateService, argoUserService argo.ArgoUserService, clusterServiceCD cluster2.ServiceClient) *GitOpsConfigServiceImpl {
+	clusterService cluster.ClusterService,
+	gitFactory *git.GitFactory, argoUserService argo.ArgoUserService,
+	clusterServiceCD cluster2.ServiceClient, gitOpsConfigReadService config.GitOpsConfigReadService) *GitOpsConfigServiceImpl {
 	return &GitOpsConfigServiceImpl{
-		randSource:           rand.NewSource(time.Now().UnixNano()),
-		logger:               Logger,
-		globalEnvVariables:   globalEnvVariables,
-		gitOpsRepository:     gitOpsRepository,
-		K8sUtil:              K8sUtil,
-		aCDAuthConfig:        aCDAuthConfig,
-		clusterService:       clusterService,
-		envService:           envService,
-		versionService:       versionService,
-		gitFactory:           gitFactory,
-		chartTemplateService: chartTemplateService,
-		argoUserService:      argoUserService,
-		clusterServiceCD:     clusterServiceCD,
+		randSource:              rand.NewSource(time.Now().UnixNano()),
+		logger:                  Logger,
+		globalEnvVariables:      globalEnvVariables,
+		gitOpsRepository:        gitOpsRepository,
+		K8sUtil:                 K8sUtil,
+		aCDAuthConfig:           aCDAuthConfig,
+		clusterService:          clusterService,
+		gitFactory:              gitFactory,
+		argoUserService:         argoUserService,
+		clusterServiceCD:        clusterServiceCD,
+		gitOpsConfigReadService: gitOpsConfigReadService,
 	}
 }
 
@@ -233,7 +231,7 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(ctx context.Context, req
 	if err != nil {
 		return nil, err
 	}
-	secret, err := impl.K8sUtil.GetSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, GitOpsSecretName, client)
+	secret, err := impl.K8sUtil.GetSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.GitOpsSecretName, client)
 	statusError, _ := err.(*errors.StatusError)
 	if err != nil && statusError.Status().Code != http.StatusNotFound {
 		impl.logger.Errorw("secret not found", "err", err)
@@ -243,7 +241,7 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(ctx context.Context, req
 	data["username"] = []byte(request.Username)
 	data["password"] = []byte(request.Token)
 	if secret == nil {
-		secret, err = impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, data, GitOpsSecretName, "", client, nil, nil)
+		secret, err = impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, data, impl.aCDAuthConfig.GitOpsSecretName, "", client, nil, nil)
 		if err != nil {
 			impl.logger.Errorw("err on creating secret", "err", err)
 			return nil, err
@@ -256,7 +254,7 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(ctx context.Context, req
 			retryCount := 0
 			for !operationComplete && retryCount < 3 {
 				retryCount = retryCount + 1
-				secret, err := impl.K8sUtil.GetSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, GitOpsSecretName, client)
+				secret, err := impl.K8sUtil.GetSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.GitOpsSecretName, client)
 				if err != nil {
 					impl.logger.Errorw("secret not found", "err", err)
 					return nil, err
@@ -292,8 +290,8 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(ctx context.Context, req
 			request.Host = fmt.Sprintf(request.Host+"/%s", groupName)
 		}
 	}
-	if strings.ToUpper(request.Provider) == BITBUCKET_PROVIDER {
-		request.Host = util.BITBUCKET_CLONE_BASE_URL + request.BitBucketWorkspaceId
+	if strings.ToUpper(request.Provider) == bean.BITBUCKET_PROVIDER {
+		request.Host = git.BITBUCKET_CLONE_BASE_URL + request.BitBucketWorkspaceId
 	}
 	operationComplete := false
 	retryCount := 0
@@ -304,7 +302,8 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(ctx context.Context, req
 		if err != nil {
 			return nil, err
 		}
-		updatedData := impl.updateData(cm.Data, request, GitOpsSecretName, existingModel.Host)
+		currentHost := request.Host
+		updatedData := impl.updateData(cm.Data, request, impl.aCDAuthConfig.GitOpsSecretName, currentHost)
 		data := cm.Data
 		if data == nil {
 			data = make(map[string]string, 0)
@@ -324,7 +323,7 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(ctx context.Context, req
 	}
 
 	// if git-ops config is created/saved successfully (just before transaction commit) and this was first git-ops config, then upsert clusters in acd
-	isGitOpsConfigured, err := impl.gitOpsRepository.IsGitOpsConfigured()
+	isGitOpsConfigured, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
 	if err != nil {
 		return nil, err
 	}
@@ -350,7 +349,7 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(ctx context.Context, req
 		return nil, err
 	}
 
-	err = impl.gitFactory.Reload()
+	err = impl.gitFactory.Reload(impl.gitOpsRepository)
 	if err != nil {
 		return nil, err
 	}
@@ -434,7 +433,7 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *bean2.GitOpsCon
 		return err
 	}
 
-	secret, err := impl.K8sUtil.GetSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, GitOpsSecretName, client)
+	secret, err := impl.K8sUtil.GetSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.GitOpsSecretName, client)
 	statusError, _ := err.(*errors.StatusError)
 	if err != nil && statusError.Status().Code != http.StatusNotFound {
 		impl.logger.Errorw("secret not found", "err", err)
@@ -444,7 +443,7 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *bean2.GitOpsCon
 	data["username"] = []byte(request.Username)
 	data["password"] = []byte(request.Token)
 	if secret == nil {
-		secret, err = impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, data, GitOpsSecretName, "", client, nil, nil)
+		secret, err = impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, data, impl.aCDAuthConfig.GitOpsSecretName, "", client, nil, nil)
 		if err != nil {
 			impl.logger.Errorw("err on creating secret", "err", err)
 			return err
@@ -457,7 +456,7 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *bean2.GitOpsCon
 			retryCount := 0
 			for !operationComplete && retryCount < 3 {
 				retryCount = retryCount + 1
-				secret, err := impl.K8sUtil.GetSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, GitOpsSecretName, client)
+				secret, err := impl.K8sUtil.GetSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.GitOpsSecretName, client)
 				if err != nil {
 					impl.logger.Errorw("secret not found", "err", err)
 					return err
@@ -493,8 +492,8 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *bean2.GitOpsCon
 			request.Host = fmt.Sprintf(request.Host+"/%s", groupName)
 		}
 	}
-	if strings.ToUpper(request.Provider) == BITBUCKET_PROVIDER {
-		request.Host = util.BITBUCKET_CLONE_BASE_URL + request.BitBucketWorkspaceId
+	if strings.ToUpper(request.Provider) == bean.BITBUCKET_PROVIDER {
+		request.Host = git.BITBUCKET_CLONE_BASE_URL + request.BitBucketWorkspaceId
 	}
 	operationComplete := false
 	retryCount := 0
@@ -505,7 +504,8 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *bean2.GitOpsCon
 		if err != nil {
 			return err
 		}
-		updatedData := impl.updateData(cm.Data, request, GitOpsSecretName, existingModel.Host)
+		currentHost := request.Host
+		updatedData := impl.updateData(cm.Data, request, impl.aCDAuthConfig.GitOpsSecretName, currentHost)
 		data := cm.Data
 		data["repository.credentials"] = updatedData["repository.credentials"]
 		cm.Data = data
@@ -525,7 +525,7 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *bean2.GitOpsCon
 	if err != nil {
 		return err
 	}
-	err = impl.gitFactory.Reload()
+	err = impl.gitFactory.Reload(impl.gitOpsRepository)
 	if err != nil {
 		return err
 	}
@@ -607,7 +607,7 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigByProvider(provider string) 
 	return config, err
 }
 
-func (impl *GitOpsConfigServiceImpl) updateData(data map[string]string, request *bean2.GitOpsConfigDto, secretName string, existingHost string) map[string]string {
+func (impl *GitOpsConfigServiceImpl) updateData(data map[string]string, request *bean2.GitOpsConfigDto, secretName string, currentHost string) map[string]string {
 	var newRepositories []*RepositoryCredentialsDto
 	var existingRepositories []*RepositoryCredentialsDto
 	repoStr := data["repository.credentials"]
@@ -623,7 +623,7 @@ func (impl *GitOpsConfigServiceImpl) updateData(data map[string]string, request 
 	}
 
 	for _, item := range existingRepositories {
-		if item.Url != existingHost {
+		if item.Url != currentHost {
 			newRepositories = append(newRepositories, item)
 		}
 	}
@@ -666,26 +666,6 @@ type KeyDto struct {
 	Key  string `json:"key,omitempty"`
 }
 
-func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigActive() (*bean2.GitOpsConfigDto, error) {
-	model, err := impl.gitOpsRepository.GetGitOpsConfigActive()
-	if err != nil {
-		impl.logger.Errorw("GetGitOpsConfigActive, error while getting error", "err", err)
-		return nil, err
-	}
-	config := &bean2.GitOpsConfigDto{
-		Id:                   model.Id,
-		Provider:             model.Provider,
-		GitHubOrgId:          model.GitHubOrgId,
-		GitLabGroupId:        model.GitLabGroupId,
-		Active:               model.Active,
-		UserId:               model.CreatedBy,
-		AzureProjectName:     model.AzureProject,
-		BitBucketWorkspaceId: model.BitBucketWorkspaceId,
-		BitBucketProjectKey:  model.BitBucketProjectKey,
-	}
-	return config, err
-}
-
 func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsConfigDto) DetailedErrorGitOpsConfigResponse {
 	if impl.globalEnvVariables.SkipGitOpsValidation {
 		return DetailedErrorGitOpsConfigResponse{}
@@ -702,13 +682,13 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsCo
 		}
 		config.Token = model.Token
 	}
-	detailedErrorGitOpsConfigActions := util.DetailedErrorGitOpsConfigActions{}
+	detailedErrorGitOpsConfigActions := git.DetailedErrorGitOpsConfigActions{}
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
 	/*if strings.ToUpper(config.Provider) == GITHUB_PROVIDER {
 		config.Host = GITHUB_HOST
 	}*/
-	if strings.ToUpper(config.Provider) == BITBUCKET_PROVIDER {
-		config.Host = util.BITBUCKET_CLONE_BASE_URL
+	if strings.ToUpper(config.Provider) == bean.BITBUCKET_PROVIDER {
+		config.Host = git.BITBUCKET_CLONE_BASE_URL
 		config.BitBucketProjectKey = strings.ToUpper(config.BitBucketProjectKey)
 	}
 	client, gitService, err := impl.gitFactory.NewClientForValidation(config)
@@ -721,7 +701,7 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsCo
 	}
 	appName := DryrunRepoName + util2.Generate(6)
 	//getting user name & emailId for commit author data
-	userEmailId, userName := impl.chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit(config.UserId)
+	userEmailId, userName := impl.gitOpsConfigReadService.GetUserEmailIdAndNameForGitOpsCommit(config.UserId)
 	config.UserEmailId = userEmailId
 	config.GitRepoName = appName
 	repoUrl, _, detailedErrorCreateRepo := client.CreateRepository(config)
@@ -816,7 +796,7 @@ func (impl *GitOpsConfigServiceImpl) extractErrorMessageByProvider(err error, pr
 	return err
 }
 
-func (impl *GitOpsConfigServiceImpl) convertDetailedErrorToResponse(detailedErrorGitOpsConfigActions util.DetailedErrorGitOpsConfigActions) (detailedErrorResponse DetailedErrorGitOpsConfigResponse) {
+func (impl *GitOpsConfigServiceImpl) convertDetailedErrorToResponse(detailedErrorGitOpsConfigActions git.DetailedErrorGitOpsConfigActions) (detailedErrorResponse DetailedErrorGitOpsConfigResponse) {
 	detailedErrorResponse.StageErrorMap = make(map[string]string)
 	detailedErrorResponse.SuccessfulStages = detailedErrorGitOpsConfigActions.SuccessfulStages
 	for stage, err := range detailedErrorGitOpsConfigActions.StageErrorMap {

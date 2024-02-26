@@ -4,8 +4,9 @@ package mocks
 
 import (
 	context "context"
-
-	client "github.com/devtron-labs/devtron/api/helm-app"
+	"github.com/devtron-labs/devtron/api/helm-app/bean"
+	bean2 "github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	client "github.com/devtron-labs/devtron/api/helm-app/service"
 
 	http "net/http"
 
@@ -88,19 +89,19 @@ func (_m *HelmAppService) EncodeAppId(appIdentifier *client.AppIdentifier) strin
 }
 
 // GetApplicationDetail provides a mock function with given fields: ctx, app
-func (_m *HelmAppService) GetApplicationDetail(ctx context.Context, app *client.AppIdentifier) (*client.AppDetail, error) {
+func (_m *HelmAppService) GetApplicationDetail(ctx context.Context, app *client.AppIdentifier) (*bean2.AppDetail, error) {
 	ret := _m.Called(ctx, app)
 
-	var r0 *client.AppDetail
+	var r0 *bean2.AppDetail
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *client.AppIdentifier) (*client.AppDetail, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *client.AppIdentifier) (*bean2.AppDetail, error)); ok {
 		return rf(ctx, app)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *client.AppIdentifier) *client.AppDetail); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *client.AppIdentifier) *bean2.AppDetail); ok {
 		r0 = rf(ctx, app)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*client.AppDetail)
+			r0 = ret.Get(0).(*bean2.AppDetail)
 		}
 	}
 
@@ -114,23 +115,23 @@ func (_m *HelmAppService) GetApplicationDetail(ctx context.Context, app *client.
 }
 
 // GetApplicationDetailWithFilter provides a mock function with given fields: ctx, app, resourceTreeFilter
-func (_m *HelmAppService) GetApplicationDetailWithFilter(ctx context.Context, app *client.AppIdentifier, resourceTreeFilter *client.ResourceTreeFilter) (*client.AppDetail, error) {
+func (_m *HelmAppService) GetApplicationDetailWithFilter(ctx context.Context, app *client.AppIdentifier, resourceTreeFilter *bean2.ResourceTreeFilter) (*bean2.AppDetail, error) {
 	ret := _m.Called(ctx, app, resourceTreeFilter)
 
-	var r0 *client.AppDetail
+	var r0 *bean2.AppDetail
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *client.AppIdentifier, *client.ResourceTreeFilter) (*client.AppDetail, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *client.AppIdentifier, *bean2.ResourceTreeFilter) (*bean2.AppDetail, error)); ok {
 		return rf(ctx, app, resourceTreeFilter)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *client.AppIdentifier, *client.ResourceTreeFilter) *client.AppDetail); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *client.AppIdentifier, *bean2.ResourceTreeFilter) *bean2.AppDetail); ok {
 		r0 = rf(ctx, app, resourceTreeFilter)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*client.AppDetail)
+			r0 = ret.Get(0).(*bean2.AppDetail)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *client.AppIdentifier, *client.ResourceTreeFilter) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *client.AppIdentifier, *bean2.ResourceTreeFilter) error); ok {
 		r1 = rf(ctx, app, resourceTreeFilter)
 	} else {
 		r1 = ret.Error(1)
@@ -164,19 +165,19 @@ func (_m *HelmAppService) GetApplicationStatus(ctx context.Context, app *client.
 }
 
 // GetClusterConf provides a mock function with given fields: clusterId
-func (_m *HelmAppService) GetClusterConf(clusterId int) (*client.ClusterConfig, error) {
+func (_m *HelmAppService) GetClusterConf(clusterId int) (*bean2.ClusterConfig, error) {
 	ret := _m.Called(clusterId)
 
-	var r0 *client.ClusterConfig
+	var r0 *bean2.ClusterConfig
 	var r1 error
-	if rf, ok := ret.Get(0).(func(int) (*client.ClusterConfig, error)); ok {
+	if rf, ok := ret.Get(0).(func(int) (*bean2.ClusterConfig, error)); ok {
 		return rf(clusterId)
 	}
-	if rf, ok := ret.Get(0).(func(int) *client.ClusterConfig); ok {
+	if rf, ok := ret.Get(0).(func(int) *bean2.ClusterConfig); ok {
 		r0 = rf(clusterId)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*client.ClusterConfig)
+			r0 = ret.Get(0).(*bean2.ClusterConfig)
 		}
 	}
 
@@ -216,19 +217,19 @@ func (_m *HelmAppService) GetDeploymentDetail(ctx context.Context, app *client.A
 }
 
 // GetDeploymentHistory provides a mock function with given fields: ctx, app
-func (_m *HelmAppService) GetDeploymentHistory(ctx context.Context, app *client.AppIdentifier) (*client.HelmAppDeploymentHistory, error) {
+func (_m *HelmAppService) GetDeploymentHistory(ctx context.Context, app *client.AppIdentifier) (*bean2.HelmAppDeploymentHistory, error) {
 	ret := _m.Called(ctx, app)
 
-	var r0 *client.HelmAppDeploymentHistory
+	var r0 *bean2.HelmAppDeploymentHistory
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *client.AppIdentifier) (*client.HelmAppDeploymentHistory, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *client.AppIdentifier) (*bean2.HelmAppDeploymentHistory, error)); ok {
 		return rf(ctx, app)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *client.AppIdentifier) *client.HelmAppDeploymentHistory); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *client.AppIdentifier) *bean2.HelmAppDeploymentHistory); ok {
 		r0 = rf(ctx, app)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*client.HelmAppDeploymentHistory)
+			r0 = ret.Get(0).(*bean2.HelmAppDeploymentHistory)
 		}
 	}
 
@@ -284,21 +285,21 @@ func (_m *HelmAppService) GetDevtronHelmAppIdentifier() *client.AppIdentifier {
 }
 
 // GetNotes provides a mock function with given fields: ctx, request
-func (_m *HelmAppService) GetNotes(ctx context.Context, request *client.InstallReleaseRequest) (string, error) {
+func (_m *HelmAppService) GetNotes(ctx context.Context, request *bean2.InstallReleaseRequest) (string, error) {
 	ret := _m.Called(ctx, request)
 
 	var r0 string
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *client.InstallReleaseRequest) (string, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *bean2.InstallReleaseRequest) (string, error)); ok {
 		return rf(ctx, request)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *client.InstallReleaseRequest) string); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *bean2.InstallReleaseRequest) string); ok {
 		r0 = rf(ctx, request)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *client.InstallReleaseRequest) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *bean2.InstallReleaseRequest) error); ok {
 		r1 = rf(ctx, request)
 	} else {
 		r1 = ret.Error(1)
@@ -308,11 +309,11 @@ func (_m *HelmAppService) GetNotes(ctx context.Context, request *client.InstallR
 }
 
 // GetRevisionHistoryMaxValue provides a mock function with given fields: appType
-func (_m *HelmAppService) GetRevisionHistoryMaxValue(appType client.SourceAppType) int32 {
+func (_m *HelmAppService) GetRevisionHistoryMaxValue(appType bean.SourceAppType) int32 {
 	ret := _m.Called(appType)
 
 	var r0 int32
-	if rf, ok := ret.Get(0).(func(client.SourceAppType) int32); ok {
+	if rf, ok := ret.Get(0).(func(bean.SourceAppType) int32); ok {
 		r0 = rf(appType)
 	} else {
 		r0 = ret.Get(0).(int32)
@@ -322,19 +323,19 @@ func (_m *HelmAppService) GetRevisionHistoryMaxValue(appType client.SourceAppTyp
 }
 
 // GetValuesYaml provides a mock function with given fields: ctx, app
-func (_m *HelmAppService) GetValuesYaml(ctx context.Context, app *client.AppIdentifier) (*client.ReleaseInfo, error) {
+func (_m *HelmAppService) GetValuesYaml(ctx context.Context, app *client.AppIdentifier) (*bean2.ReleaseInfo, error) {
 	ret := _m.Called(ctx, app)
 
-	var r0 *client.ReleaseInfo
+	var r0 *bean2.ReleaseInfo
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *client.AppIdentifier) (*client.ReleaseInfo, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *client.AppIdentifier) (*bean2.ReleaseInfo, error)); ok {
 		return rf(ctx, app)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *client.AppIdentifier) *client.ReleaseInfo); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *client.AppIdentifier) *bean2.ReleaseInfo); ok {
 		r0 = rf(ctx, app)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*client.ReleaseInfo)
+			r0 = ret.Get(0).(*bean2.ReleaseInfo)
 		}
 	}
 
@@ -374,23 +375,23 @@ func (_m *HelmAppService) HibernateApplication(ctx context.Context, app *client.
 }
 
 // InstallRelease provides a mock function with given fields: ctx, clusterId, installReleaseRequest
-func (_m *HelmAppService) InstallRelease(ctx context.Context, clusterId int, installReleaseRequest *client.InstallReleaseRequest) (*client.InstallReleaseResponse, error) {
+func (_m *HelmAppService) InstallRelease(ctx context.Context, clusterId int, installReleaseRequest *bean2.InstallReleaseRequest) (*bean2.InstallReleaseResponse, error) {
 	ret := _m.Called(ctx, clusterId, installReleaseRequest)
 
-	var r0 *client.InstallReleaseResponse
+	var r0 *bean2.InstallReleaseResponse
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, int, *client.InstallReleaseRequest) (*client.InstallReleaseResponse, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, int, *bean2.InstallReleaseRequest) (*bean2.InstallReleaseResponse, error)); ok {
 		return rf(ctx, clusterId, installReleaseRequest)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, int, *client.InstallReleaseRequest) *client.InstallReleaseResponse); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, int, *bean2.InstallReleaseRequest) *bean2.InstallReleaseResponse); ok {
 		r0 = rf(ctx, clusterId, installReleaseRequest)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*client.InstallReleaseResponse)
+			r0 = ret.Get(0).(*bean2.InstallReleaseResponse)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, int, *client.InstallReleaseRequest) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, int, *bean2.InstallReleaseRequest) error); ok {
 		r1 = rf(ctx, clusterId, installReleaseRequest)
 	} else {
 		r1 = ret.Error(1)
@@ -505,15 +506,15 @@ func (_m *HelmAppService) UnHibernateApplication(ctx context.Context, app *clien
 }
 
 // UpdateApplication provides a mock function with given fields: ctx, app, request
-func (_m *HelmAppService) UpdateApplication(ctx context.Context, app *client.AppIdentifier, request *client.UpdateApplicationRequestDto) (*openapi.UpdateReleaseResponse, error) {
+func (_m *HelmAppService) UpdateApplication(ctx context.Context, app *client.AppIdentifier, request *bean.UpdateApplicationRequestDto) (*openapi.UpdateReleaseResponse, error) {
 	ret := _m.Called(ctx, app, request)
 
 	var r0 *openapi.UpdateReleaseResponse
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *client.AppIdentifier, *client.UpdateApplicationRequestDto) (*openapi.UpdateReleaseResponse, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *client.AppIdentifier, *bean.UpdateApplicationRequestDto) (*openapi.UpdateReleaseResponse, error)); ok {
 		return rf(ctx, app, request)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *client.AppIdentifier, *client.UpdateApplicationRequestDto) *openapi.UpdateReleaseResponse); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *client.AppIdentifier, *bean.UpdateApplicationRequestDto) *openapi.UpdateReleaseResponse); ok {
 		r0 = rf(ctx, app, request)
 	} else {
 		if ret.Get(0) != nil {
@@ -521,7 +522,7 @@ func (_m *HelmAppService) UpdateApplication(ctx context.Context, app *client.App
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *client.AppIdentifier, *client.UpdateApplicationRequestDto) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *client.AppIdentifier, *bean.UpdateApplicationRequestDto) error); ok {
 		r1 = rf(ctx, app, request)
 	} else {
 		r1 = ret.Error(1)
@@ -531,15 +532,15 @@ func (_m *HelmAppService) UpdateApplication(ctx context.Context, app *client.App
 }
 
 // UpdateApplicationWithChartInfo provides a mock function with given fields: ctx, clusterId, request
-func (_m *HelmAppService) UpdateApplicationWithChartInfo(ctx context.Context, clusterId int, request *client.UpdateApplicationWithChartInfoRequestDto) (*openapi.UpdateReleaseResponse, error) {
+func (_m *HelmAppService) UpdateApplicationWithChartInfo(ctx context.Context, clusterId int, request *bean.UpdateApplicationWithChartInfoRequestDto) (*openapi.UpdateReleaseResponse, error) {
 	ret := _m.Called(ctx, clusterId, request)
 
 	var r0 *openapi.UpdateReleaseResponse
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, int, *client.UpdateApplicationWithChartInfoRequestDto) (*openapi.UpdateReleaseResponse, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, int, *bean.UpdateApplicationWithChartInfoRequestDto) (*openapi.UpdateReleaseResponse, error)); ok {
 		return rf(ctx, clusterId, request)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, int, *client.UpdateApplicationWithChartInfoRequestDto) *openapi.UpdateReleaseResponse); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, int, *bean.UpdateApplicationWithChartInfoRequestDto) *openapi.UpdateReleaseResponse); ok {
 		r0 = rf(ctx, clusterId, request)
 	} else {
 		if ret.Get(0) != nil {
@@ -547,7 +548,7 @@ func (_m *HelmAppService) UpdateApplicationWithChartInfo(ctx context.Context, cl
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, int, *client.UpdateApplicationWithChartInfoRequestDto) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, int, *bean.UpdateApplicationWithChartInfoRequestDto) error); ok {
 		r1 = rf(ctx, clusterId, request)
 	} else {
 		r1 = ret.Error(1)
@@ -557,15 +558,15 @@ func (_m *HelmAppService) UpdateApplicationWithChartInfo(ctx context.Context, cl
 }
 
 // UpdateApplicationWithChartInfoWithExtraValues provides a mock function with given fields: ctx, appIdentifier, chartRepository, extraValues, extraValuesYamlUrl, useLatestChartVersion
-func (_m *HelmAppService) UpdateApplicationWithChartInfoWithExtraValues(ctx context.Context, appIdentifier *client.AppIdentifier, chartRepository *client.ChartRepository, extraValues map[string]interface{}, extraValuesYamlUrl string, useLatestChartVersion bool) (*openapi.UpdateReleaseResponse, error) {
+func (_m *HelmAppService) UpdateApplicationWithChartInfoWithExtraValues(ctx context.Context, appIdentifier *client.AppIdentifier, chartRepository *bean2.ChartRepository, extraValues map[string]interface{}, extraValuesYamlUrl string, useLatestChartVersion bool) (*openapi.UpdateReleaseResponse, error) {
 	ret := _m.Called(ctx, appIdentifier, chartRepository, extraValues, extraValuesYamlUrl, useLatestChartVersion)
 
 	var r0 *openapi.UpdateReleaseResponse
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *client.AppIdentifier, *client.ChartRepository, map[string]interface{}, string, bool) (*openapi.UpdateReleaseResponse, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *client.AppIdentifier, *bean2.ChartRepository, map[string]interface{}, string, bool) (*openapi.UpdateReleaseResponse, error)); ok {
 		return rf(ctx, appIdentifier, chartRepository, extraValues, extraValuesYamlUrl, useLatestChartVersion)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *client.AppIdentifier, *client.ChartRepository, map[string]interface{}, string, bool) *openapi.UpdateReleaseResponse); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *client.AppIdentifier, *bean2.ChartRepository, map[string]interface{}, string, bool) *openapi.UpdateReleaseResponse); ok {
 		r0 = rf(ctx, appIdentifier, chartRepository, extraValues, extraValuesYamlUrl, useLatestChartVersion)
 	} else {
 		if ret.Get(0) != nil {
@@ -573,7 +574,7 @@ func (_m *HelmAppService) UpdateApplicationWithChartInfoWithExtraValues(ctx cont
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *client.AppIdentifier, *client.ChartRepository, map[string]interface{}, string, bool) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *client.AppIdentifier, *bean2.ChartRepository, map[string]interface{}, string, bool) error); ok {
 		r1 = rf(ctx, appIdentifier, chartRepository, extraValues, extraValuesYamlUrl, useLatestChartVersion)
 	} else {
 		r1 = ret.Error(1)
@@ -583,11 +584,11 @@ func (_m *HelmAppService) UpdateApplicationWithChartInfoWithExtraValues(ctx cont
 }
 
 // ValidateOCIRegistry provides a mock function with given fields: ctx, OCIRegistryRequest
-func (_m *HelmAppService) ValidateOCIRegistry(ctx context.Context, OCIRegistryRequest *client.RegistryCredential) bool {
+func (_m *HelmAppService) ValidateOCIRegistry(ctx context.Context, OCIRegistryRequest *bean2.RegistryCredential) bool {
 	ret := _m.Called(ctx, OCIRegistryRequest)
 
 	var r0 bool
-	if rf, ok := ret.Get(0).(func(context.Context, *client.RegistryCredential) bool); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *bean2.RegistryCredential) bool); ok {
 		r0 = rf(ctx, OCIRegistryRequest)
 	} else {
 		r0 = ret.Get(0).(bool)

@@ -73,6 +73,7 @@ func (impl UserAuditServiceImpl) Save(userAudit *UserAudit) error {
 		UserId:    userId,
 		ClientIp:  userAudit.ClientIp,
 		CreatedOn: userAudit.CreatedOn,
+		UpdatedOn: userAudit.UpdatedOn,
 	}
 	err := impl.userAuditRepository.Save(userAuditDb)
 	if err != nil {

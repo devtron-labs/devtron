@@ -52,11 +52,11 @@ func WriteApiJsonResponseStructured(w http.ResponseWriter, apiResponse *ApiRespo
 }
 
 func WriteOctetStreamResp(w http.ResponseWriter, r *http.Request, byteArr []byte, defaultFilename string) {
-	w.WriteHeader(http.StatusOK)
+	w.Header().Set(CONTENT_TYPE, "application/octet-stream")
 	if defaultFilename != "" {
 		w.Header().Set(CONTENT_DISPOSITION, "attachment; filename="+defaultFilename)
 	}
-	w.Header().Set(CONTENT_TYPE, "application/octet-stream")
 	w.Header().Set(CONTENT_LENGTH, r.Header.Get(CONTENT_LENGTH))
+	w.WriteHeader(http.StatusOK)
 	w.Write(byteArr)
 }
