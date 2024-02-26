@@ -213,6 +213,7 @@ func (impl *ArgoUserServiceImpl) GetLatestDevtronArgoCdUserToken() (string, erro
 	username := secretData[DEVTRON_ARGOCD_USERNAME_KEY]
 	password := secretData[DEVTRON_ARGOCD_USER_PASSWORD_KEY]
 	latestTokenNo := 1
+	// TODO: Variable isTokenAvailable is redundant
 	isTokenAvailable := true
 	var token string
 	for key, value := range secretData {
