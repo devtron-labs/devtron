@@ -202,7 +202,7 @@ func (impl *FullModeDeploymentServiceImpl) createGitOpsRepo(installAppVersionReq
 }
 
 func (impl *FullModeDeploymentServiceImpl) updateValuesYamlInGit(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error) {
-	valuesString, err := impl.appStoreDeploymentCommonService.GetValuesString(installAppVersionRequest.AppStoreName, installAppVersionRequest.ValuesOverrideYaml)
+	valuesString, err := impl.AppStoreDeploymentCommonService.GetValuesString(installAppVersionRequest.AppStoreName, installAppVersionRequest.ValuesOverrideYaml)
 	if err != nil {
 		impl.Logger.Errorw("error in getting values string", "err", err)
 		return nil, err
@@ -224,7 +224,7 @@ func (impl *FullModeDeploymentServiceImpl) updateValuesYamlInGit(installAppVersi
 }
 
 func (impl *FullModeDeploymentServiceImpl) updateRequirementYamlInGit(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, appStoreAppVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) error {
-	requirementsString, err := impl.appStoreDeploymentCommonService.GetRequirementsString(appStoreAppVersion.Id)
+	requirementsString, err := impl.AppStoreDeploymentCommonService.GetRequirementsString(appStoreAppVersion.Id)
 	if err != nil {
 		impl.Logger.Errorw("error in getting requirements string", "err", err)
 		return err
@@ -248,7 +248,7 @@ func (impl *FullModeDeploymentServiceImpl) updateRequirementYamlInGit(installApp
 // createChartProxyAndGetPath parse chart in local directory and returns path of local dir and values.yaml
 func (impl *FullModeDeploymentServiceImpl) createChartProxyAndGetPath(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*util.ChartCreateResponse, error) {
 	chartCreateRequest := adapter.ParseChartCreateRequest(installAppVersionRequest.AppName, true)
-	chartCreateResponse, err := impl.appStoreDeploymentCommonService.CreateChartProxyAndGetPath(chartCreateRequest)
+	chartCreateResponse, err := impl.AppStoreDeploymentCommonService.CreateChartProxyAndGetPath(chartCreateRequest)
 	if err != nil {
 		impl.Logger.Errorw("Error in building chart proxy", "err", err)
 		return chartCreateResponse, err
@@ -293,12 +293,12 @@ func (impl *FullModeDeploymentServiceImpl) getValuesAndRequirementForGitConfig(i
 		impl.Logger.Errorw("fetching error", "err", err)
 		return nil, nil, err
 	}
-	values, err := impl.appStoreDeploymentCommonService.GetValuesString(appStoreAppVersion.AppStore.Name, installAppVersionRequest.ValuesOverrideYaml)
+	values, err := impl.AppStoreDeploymentCommonService.GetValuesString(appStoreAppVersion.AppStore.Name, installAppVersionRequest.ValuesOverrideYaml)
 	if err != nil {
 		impl.Logger.Errorw("error in getting values fot installedAppVersionRequest", "err", err)
 		return nil, nil, err
 	}
-	dependency, err := impl.appStoreDeploymentCommonService.GetRequirementsString(installAppVersionRequest.AppStoreVersion)
+	dependency, err := impl.AppStoreDeploymentCommonService.GetRequirementsString(installAppVersionRequest.AppStoreVersion)
 	if err != nil {
 		impl.Logger.Errorw("error in getting dependency array fot installedAppVersionRequest", "err", err)
 		return nil, nil, err
