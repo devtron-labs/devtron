@@ -53,7 +53,7 @@ func (impl DeploymentTemplateRepositoryImpl) FetchDeploymentHistoryWithChartRefs
 	limit := 15
 
 	query := "select p.id as pipeline_id, dth.id as deployment_template_history_id," +
-		"  wfr.finished_on, wfr.status, ceco.chart_id, c.chart_version FROM cd_workflow_runner wfr" +
+		"  wfr.finished_on, wfr.status, c.chart_ref_id, c.chart_version FROM cd_workflow_runner wfr" +
 		" JOIN cd_workflow wf ON wf.id = wfr.cd_workflow_id JOIN pipeline p ON p.id = wf.pipeline_id" +
 		" JOIN deployment_template_history dth ON dth.deployed_on = wfr.started_on " +
 		"JOIN pipeline_config_override pco ON pco.cd_workflow_id = wf.id " +

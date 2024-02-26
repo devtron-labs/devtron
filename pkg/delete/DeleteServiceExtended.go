@@ -5,6 +5,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/devtron-labs/devtron/pkg/chartRepo"
@@ -15,6 +16,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"net/http"
 )
 
 type DeleteServiceExtendedImpl struct {
@@ -62,7 +64,7 @@ func (impl DeleteServiceExtendedImpl) DeleteCluster(deleteRequest *cluster.Clust
 	}
 	if len(env) > 0 {
 		impl.logger.Errorw("err in deleting cluster, found env in this cluster", "clusterName", deleteRequest.ClusterName, "err", err)
-		return fmt.Errorf(" Please delete all related environments before deleting this cluster")
+		return &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: " Please delete all related environments before deleting this cluster"}
 	}
 	err = impl.clusterService.DeleteFromDb(deleteRequest, userId)
 	if err != nil {
@@ -90,13 +92,13 @@ func (impl DeleteServiceExtendedImpl) DeleteEnvironment(deleteRequest *bean.Envi
 	}
 	if len(installedApps) > 0 && len(pipelines) > 0 {
 		impl.logger.Errorw("err in deleting env, found cd pipelines and helm apps in this env", "envName", deleteRequest.Environment, "err", err)
-		return fmt.Errorf(" Please delete all related cd pipelines and helm apps before deleting this environment")
+		return &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: " Please delete all related cd pipelines and helm apps before deleting this environment"}
 	} else if len(installedApps) > 0 {
 		impl.logger.Errorw("err in deleting env, found helm apps in this env", "envName", deleteRequest.Environment, "err", err)
-		return fmt.Errorf(" Please delete all related helm apps before deleting this environment")
+		return &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: " Please delete all related helm apps before deleting this environment"}
 	} else if len(pipelines) > 0 {
 		impl.logger.Errorw("err in deleting env, found cd pipelines in this env", "envName", deleteRequest.Environment, "err", err)
-		return fmt.Errorf(" Please delete all related cd pipelines before deleting this environment")
+		return &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: " Please delete all related cd pipelines before deleting this environment"}
 	}
 
 	err = impl.environmentService.Delete(deleteRequest, userId)

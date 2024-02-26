@@ -146,6 +146,7 @@ type ChartGroupService interface {
 
 	DeployBulk(chartGroupInstallRequest *ChartGroupInstallRequest) (*ChartGroupInstallAppRes, error)
 	DeployDefaultChartOnCluster(bean *cluster2.ClusterBean, userId int32) (bool, error)
+	TriggerDeploymentEvent(installAppVersions []*appStoreBean.InstallAppVersionDTO)
 }
 
 type ChartGroupList struct {
@@ -611,7 +612,7 @@ func (impl *ChartGroupServiceImpl) DeployBulk(chartGroupInstallRequest *ChartGro
 		return nil, err
 	}
 	//nats event
-	impl.triggerDeploymentEvent(installAppVersions)
+	impl.TriggerDeploymentEvent(installAppVersions)
 	// TODO refactoring: why empty obj ??
 	return &ChartGroupInstallAppRes{}, nil
 }
@@ -675,7 +676,7 @@ func createChartGroupEntryObject(installAppVersionDTO *appStoreBean.InstallAppVe
 	}
 }
 
-func (impl *ChartGroupServiceImpl) triggerDeploymentEvent(installAppVersions []*appStoreBean.InstallAppVersionDTO) {
+func (impl *ChartGroupServiceImpl) TriggerDeploymentEvent(installAppVersions []*appStoreBean.InstallAppVersionDTO) {
 	for _, versions := range installAppVersions {
 		var installedAppDeploymentStatus appStoreBean.AppstoreDeploymentStatus
 		payload := &appStoreBean.DeployPayload{InstalledAppVersionId: versions.InstalledAppVersionId, InstalledAppVersionHistoryId: versions.InstalledAppVersionHistoryId}
