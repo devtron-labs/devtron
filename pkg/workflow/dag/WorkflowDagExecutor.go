@@ -78,7 +78,6 @@ type WorkflowDagExecutor interface {
 		ctx context.Context) error
 
 	UpdateWorkflowRunnerStatusForDeployment(appIdentifier *client2.AppIdentifier, wfr *pipelineConfig.CdWorkflowRunner, skipReleaseNotFound bool) bool
-	OnDeleteCdPipelineEvent(pipelineId int, triggeredBy int32)
 
 	BuildCiArtifactRequestForWebhook(event pipeline.ExternalCiWebhookDto) (*bean2.CiArtifactWebhookRequest, error)
 }
@@ -126,7 +125,6 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	eventClient client.EventClient,
 	eventFactory client.EventFactory,
 	helmAppService client2.HelmAppService,
-	pipelineConfigListenerService pipeline.PipelineConfigListenerService,
 	cdWorkflowCommonService cd.CdWorkflowCommonService,
 	cdTriggerService devtronApps.TriggerService,
 	manifestCreationService manifest.ManifestCreationService,
@@ -166,7 +164,6 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		return nil
 	}
 	wde.appServiceConfig = appServiceConfig
-	pipelineConfigListenerService.RegisterPipelineDeleteListener(wde)
 	return wde
 }
 
@@ -354,32 +351,6 @@ func (impl *WorkflowDagExecutorImpl) handleIfPreviousRunnerTriggerRequest(curren
 		return false, err
 	}
 	return exists, nil
-}
-
-func (impl *WorkflowDagExecutorImpl) RemoveReleaseContextForPipeline(pipelineId int, triggeredBy int32) {
-	//TODO: handle this case with new topic in nats which will be complete background task handling(active across services and independent of async flag) for pipeline delete
-	//impl.devtronAppReleaseContextMapLock.Lock()
-	//defer impl.devtronAppReleaseContextMapLock.Unlock()
-	//if releaseContext, ok := impl.devtronAppReleaseContextMap[pipelineId]; ok {
-	//	//Abort previous running release
-	//	impl.logger.Infow("CD pipeline has been deleted with a running deployment in progress!", "aborting deployment for pipelineId", pipelineId)
-	//	cdWfr, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(releaseContext.RunnerId)
-	//	if err != nil {
-	//		impl.logger.Errorw("err on fetching cd workflow runner, RemoveReleaseContextForPipeline", "err", err)
-	//	}
-	//	if err = impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(cdWfr, errors.New("CD pipeline has been deleted"), triggeredBy); err != nil {
-	//		impl.logger.Errorw("error while updating current runner status to failed, RemoveReleaseContextForPipeline", "cdWfr", cdWfr.Id, "err", err)
-	//	}
-	//	releaseContext.CancelContext()
-	//	delete(impl.devtronAppReleaseContextMap, pipelineId)
-	//}
-	return
-}
-
-func (impl *WorkflowDagExecutorImpl) OnDeleteCdPipelineEvent(pipelineId int, triggeredBy int32) {
-	impl.logger.Debugw("CD pipeline delete event received", "pipelineId", pipelineId, "deletedBy", triggeredBy)
-	impl.RemoveReleaseContextForPipeline(pipelineId, triggeredBy)
-	return
 }
 
 func (impl *WorkflowDagExecutorImpl) ProcessDevtronAsyncHelmInstallRequest(CDAsyncInstallNatsMessage *bean7.AsyncCdDeployEvent, appIdentifier *client2.AppIdentifier,

@@ -960,8 +960,6 @@ func InitializeApp() (*App, error) {
 		pipeline.NewPluginInputVariableParserImpl,
 		wire.Bind(new(pipeline.PluginInputVariableParser), new(*pipeline.PluginInputVariableParserImpl)),
 
-		pipeline.NewPipelineConfigListenerServiceImpl,
-		wire.Bind(new(pipeline.PipelineConfigListenerService), new(*pipeline.PipelineConfigListenerServiceImpl)),
 		cron2.NewCronLoggerImpl,
 
 		imageDigestPolicy.NewImageDigestPolicyServiceImpl,

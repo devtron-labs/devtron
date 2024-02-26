@@ -55,5 +55,15 @@ func (impl *CentralEventProcessor) SubscribeAll() error {
 		impl.logger.Errorw("error, SubscribeCICompleteEvent", "err", err)
 		return err
 	}
+	err = impl.workflowEventProcessor.SubscribeDevtronAsyncHelmInstallRequest()
+	if err != nil {
+		impl.logger.Errorw("error, SubscribeDevtronAsyncHelmInstallRequest", "err", err)
+		return err
+	}
+	err = impl.workflowEventProcessor.SubscribeCDPipelineDeleteEvent()
+	if err != nil {
+		impl.logger.Errorw("error, SubscribeCDPipelineDeleteEvent", "err", err)
+		return err
+	}
 	return nil
 }

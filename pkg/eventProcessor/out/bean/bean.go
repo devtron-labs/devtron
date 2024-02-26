@@ -21,3 +21,8 @@ type DeploymentGroupAppWithEnv struct {
 	UserId            int32             `json:"userId"`
 	RequestType       bean4.RequestType `json:"requestType" validate:"oneof=START STOP"`
 }
+
+type CdPipelineDeleteEvent struct {
+	PipelineId  int   `json:"pipelineId"`
+	TriggeredBy int32 `json:"triggeredBy"`
+}
