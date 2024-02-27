@@ -77,7 +77,7 @@ func (router PipelineConfigRouterImpl) InitPipelineConfigRouter(configRouter *mu
 
 	configRouter.Path("/ci-pipeline").HandlerFunc(router.restHandler.GetCIPipelineByPipelineId).Methods("GET")
 	configRouter.Path("/ci-pipeline").HandlerFunc(router.restHandler.CreateCiConfig).Methods("POST")
-	configRouter.Path("/ci-pipeline/runtimeParams").HandlerFunc(router.restHandler.GetCIRuntimeParams).Methods("GET")
+	configRouter.Path("/ci-pipeline/runtime-params").HandlerFunc(router.restHandler.GetCIRuntimeParams).Methods("GET")
 	configRouter.Path("/ci-pipeline/{appId}").HandlerFunc(router.restHandler.GetCiPipeline).Methods("GET")
 	configRouter.Path("/external-ci/{appId}").HandlerFunc(router.restHandler.GetExternalCi).Methods("GET")
 	configRouter.Path("/external-ci/{appId}/{externalCiId}").HandlerFunc(router.restHandler.GetExternalCiById).Methods("GET")
