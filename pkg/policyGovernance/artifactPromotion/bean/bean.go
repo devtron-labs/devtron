@@ -266,7 +266,7 @@ type AppEnvPolicyMappingsListFilter struct {
 type AppEnvPolicyContainer struct {
 	AppName    string `json:"appName"`
 	EnvName    string `json:"envName"`
-	PolicyName string `json:"policyName omitempty"`
+	PolicyName string `json:"policyName,omitempty"`
 }
 
 type BulkPromotionPolicyApplyRequest struct {
