@@ -25,7 +25,8 @@ import (
 type ArtifactPromotionApprovalService interface {
 	HandleArtifactPromotionRequest(request *bean.ArtifactPromotionRequest, authorizedEnvironments map[string]bool) ([]bean.EnvironmentResponse, error)
 	GetByPromotionRequestId(artifactPromotionApprovalRequest *repository.ArtifactPromotionApprovalRequest) (*bean.ArtifactPromotionApprovalResponse, error)
-	FetchEnvironmentsList(workflowId, artifactId int) ([]bean.EnvironmentResponse, error)
+	FetchEnvironmentsList(envMap map[string]repository1.Environment, appName string, authorizedEnvironments map[string]bool, artifactId int) ([]bean.EnvironmentResponse, error)
+	GetAppAndEnvsMapByWorkflowId(workflowId int) (map[string]repository1.Environment, string, error)
 }
 
 type ArtifactPromotionApprovalServiceImpl struct {
@@ -73,11 +74,11 @@ func NewArtifactPromotionApprovalServiceImpl(
 	}
 }
 
-func (impl ArtifactPromotionApprovalServiceImpl) FetchEnvironmentsList(workflowId, artifactId int) ([]bean.EnvironmentResponse, error) {
+func (impl ArtifactPromotionApprovalServiceImpl) GetAppAndEnvsMapByWorkflowId(workflowId int) (map[string]repository1.Environment, string, error) {
 	allAppWorkflowMappings, err := impl.appWorkflowRepository.FindWFAllMappingByWorkflowId(workflowId)
 	if err != nil {
 		impl.logger.Errorw("error in finding the app workflow mappings using appWorkflowId", "workflowId", workflowId, "err", err)
-		return nil, err
+		return nil, "", err
 	}
 
 	pipelineIds := make([]int, 0, len(allAppWorkflowMappings))
@@ -90,17 +91,23 @@ func (impl ArtifactPromotionApprovalServiceImpl) FetchEnvironmentsList(workflowI
 	pipelines, err := impl.pipelineRepository.FindByIdsIn(pipelineIds)
 	if err != nil {
 		impl.logger.Errorw("error in finding pipelines", "pipelineIds", pipelineIds, "err", err)
-		return nil, err
+		return nil, "", err
 	}
 	envMap := make(map[string]repository1.Environment)
-	envNames := make([]string, 0, len(envMap))
+
 	appName := ""
 	for _, pipeline := range pipelines {
 		envMap[pipeline.Environment.Name] = pipeline.Environment
-		envNames = append(envNames, pipeline.Environment.Name)
 		appName = pipeline.App.AppName
 	}
+	return envMap, appName, nil
+}
 
+func (impl ArtifactPromotionApprovalServiceImpl) FetchEnvironmentsList(envMap map[string]repository1.Environment, appName string, authorizedEnvironments map[string]bool, artifactId int) ([]bean.EnvironmentResponse, error) {
+	envNames := make([]string, 0, len(envMap))
+	for envName, _ := range envMap {
+		envNames = append(envNames, envName)
+	}
 	policiesMap, err := impl.promotionPolicyService.GetByAppNameAndEnvName(appName, envNames)
 	if err != nil {
 		impl.logger.Errorw("error in getting the policies", "appId", appName, "envIds", envNames, "err", err)
@@ -122,19 +129,25 @@ func (impl ArtifactPromotionApprovalServiceImpl) FetchEnvironmentsList(workflowI
 
 			return nil, errorResp
 		}
-		return impl.evaluatePoliciesOnArtifact(ciArtifact, envMap, policiesMap)
+		return impl.evaluatePoliciesOnArtifact(ciArtifact, envMap, authorizedEnvironments, policiesMap)
 	}
 
 	responseMap := make(map[string]bean.EnvironmentResponse)
 	for envName, _ := range envMap {
-		responseMap[envName] = bean.EnvironmentResponse{
+		resp := bean.EnvironmentResponse{
 			Name:                       envName,
 			PromotionPossible:          pointer.Bool(false),
 			PromotionValidationMessage: string(bean.POLICY_NOT_CONFIGURED),
 			PromotionValidationState:   bean.POLICY_NOT_CONFIGURED,
 			IsVirtualEnvironment:       pointer.Bool(envMap[envName].IsVirtualEnvironment),
 		}
+		if !authorizedEnvironments[envName] {
+			resp.PromotionValidationState = bean.NO_PERMISSION
+			resp.PromotionValidationMessage = string(bean.NO_PERMISSION)
+		}
+		responseMap[envName] = resp
 	}
+
 	for envName, policy := range policiesMap {
 		responseMap[envName] = bean.EnvironmentResponse{
 			Name:                       envName,
@@ -196,7 +209,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) computeFilterParams(ciArtifact 
 	return params, nil
 }
 
-func (impl ArtifactPromotionApprovalServiceImpl) evaluatePoliciesOnArtifact(ciArtifact *repository2.CiArtifact, envMap map[string]repository1.Environment, policiesMap map[string]*bean.PromotionPolicy) ([]bean.EnvironmentResponse, error) {
+func (impl ArtifactPromotionApprovalServiceImpl) evaluatePoliciesOnArtifact(ciArtifact *repository2.CiArtifact, envMap map[string]repository1.Environment, authorizedEnvironments map[string]bool, policiesMap map[string]*bean.PromotionPolicy) ([]bean.EnvironmentResponse, error) {
 	params, err := impl.computeFilterParams(ciArtifact)
 	if err != nil {
 		impl.logger.Errorw("error in finding the required CEL expression parameters for using ciArtifact", "err", err)
@@ -204,13 +217,18 @@ func (impl ArtifactPromotionApprovalServiceImpl) evaluatePoliciesOnArtifact(ciAr
 	}
 	responseMap := make(map[string]bean.EnvironmentResponse)
 	for envName, _ := range envMap {
-		responseMap[envName] = bean.EnvironmentResponse{
+		resp := bean.EnvironmentResponse{
 			Name:                       envName,
 			PromotionPossible:          pointer.Bool(false),
 			PromotionValidationMessage: string(bean.POLICY_NOT_CONFIGURED),
 			PromotionValidationState:   bean.POLICY_NOT_CONFIGURED,
 			IsVirtualEnvironment:       pointer.Bool(envMap[envName].IsVirtualEnvironment),
 		}
+		if !authorizedEnvironments[envName] {
+			resp.PromotionValidationState = bean.NO_PERMISSION
+			resp.PromotionValidationMessage = string(bean.NO_PERMISSION)
+		}
+		responseMap[envName] = resp
 	}
 
 	for envName, policy := range policiesMap {
