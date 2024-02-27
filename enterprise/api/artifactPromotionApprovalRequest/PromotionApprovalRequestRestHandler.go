@@ -160,13 +160,13 @@ func (handler PromotionApprovalRestHandlerImpl) HandleArtifactPromotionRequest(w
 		}
 	}
 
-	_, err = handler.promotionApprovalRequestService.HandleArtifactPromotionRequest(&promotionRequest, authorizedEnvironments)
+	resp, err := handler.promotionApprovalRequestService.HandleArtifactPromotionRequest(&promotionRequest, authorizedEnvironments)
 	if err != nil {
 		handler.logger.Errorw("error in handling promotion artifact request", "promotionRequest", promotionRequest, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	common.WriteJsonResp(w, nil, nil, http.StatusOK)
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
 
 func (handler PromotionApprovalRestHandlerImpl) GetByPromotionRequestId(w http.ResponseWriter, r *http.Request) {
@@ -449,25 +449,25 @@ func (handler PromotionApprovalRestHandlerImpl) FetchEnvironmentsList(w http.Res
 		}
 	}
 
-	envsMap, appName, err := handler.promotionApprovalRequestService.GetAppAndEnvsMapByWorkflowId(workflowId)
+	wfMeta, err := handler.promotionApprovalRequestService.GetAppAndEnvsMapByWorkflowId(workflowId)
 	if err != nil {
 		handler.logger.Errorw("error in finding app and env details using workflowId", "workflowId", workflowId, "err", err)
 		common.WriteJsonResp(w, errors.New("error in finding application and environment details for the workflow"), nil, http.StatusInternalServerError)
 		return
 	}
 
-	appRbacObject := handler.enforcerUtil.GetAppRBACName(appName)
+	appRbacObject := handler.enforcerUtil.GetAppRBACName(wfMeta.AppName)
 	ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, appRbacObject)
 	if !ok {
 		common.WriteJsonResp(w, err, nil, http.StatusForbidden)
 		return
 	}
 
-	environmentNames := make([]string, 0, len(envsMap))
-	for envName, _ := range envsMap {
+	environmentNames := make([]string, 0, len(wfMeta.EnvMap))
+	for envName, _ := range wfMeta.EnvMap {
 		environmentNames = append(environmentNames, envName)
 	}
-	envRbacObjectMap := handler.enforcerUtil.GetEnvRBACByAppNameAndEnvNames(appName, environmentNames)
+	envRbacObjectMap := handler.enforcerUtil.GetEnvRBACByAppNameAndEnvNames(wfMeta.AppName, environmentNames)
 	envObjectArr := make([]string, 0)
 	for _, obj := range envObjectArr {
 		envObjectArr = append(envObjectArr, obj)
@@ -479,12 +479,12 @@ func (handler PromotionApprovalRestHandlerImpl) FetchEnvironmentsList(w http.Res
 		authorizedEnvironments[env] = results[rbacObject]
 	}
 
-	resp, err := handler.promotionApprovalRequestService.FetchEnvironmentsList(envsMap, appName, authorizedEnvironments, artifactId)
+	resp, err := handler.promotionApprovalRequestService.FetchEnvironmentsList(wfMeta.EnvMap, wfMeta.AppId, wfMeta.AppName, authorizedEnvironments, artifactId)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-
+	resp.CiSource = wfMeta.CiSourceData
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 
 }

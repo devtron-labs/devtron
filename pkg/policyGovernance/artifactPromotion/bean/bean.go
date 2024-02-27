@@ -1,7 +1,12 @@
 package bean
 
 import (
+	"encoding/json"
+	"errors"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
+	repository1 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
+	"log"
 	"time"
 )
 
@@ -36,18 +41,32 @@ const (
 	CD
 )
 
+type SourceTypeStr string
+
 const (
-	SOURCE_TYPE_CI                      string = "CI"
-	SOURCE_TYPE_WEBHOOK                 string = "WEBHOOK"
-	SOURCE_TYPE_CD                      string = "CD"
-	ArtifactPromotionRequestNotFoundErr        = "artifact promotion request not found"
-	ACTION_PROMOTE                             = "PROMOTE"
-	ACTION_CANCEL                              = "CANCEL"
-	ACTION_APPROVE                             = "APPROVE"
-	PROMOTION_APPROVAL_PENDING_NODE            = "PROMOTION_APPROVAL_PENDING_NODE"
+	SOURCE_TYPE_CI                      SourceTypeStr = "CI"
+	SOURCE_TYPE_WEBHOOK                 SourceTypeStr = "WEBHOOK"
+	SOURCE_TYPE_CD                      SourceTypeStr = "ENVIRONMENT"
+	ArtifactPromotionRequestNotFoundErr               = "artifact promotion request not found"
+	ACTION_PROMOTE                                    = "PROMOTE"
+	ACTION_CANCEL                                     = "CANCEL"
+	ACTION_APPROVE                                    = "APPROVE"
+	PROMOTION_APPROVAL_PENDING_NODE                   = "PROMOTION_APPROVAL_PENDING_NODE"
 )
 
-func (sourceType SourceType) GetSourceType() string {
+func (sourceType SourceTypeStr) GetSourceType() SourceType {
+	switch sourceType {
+	case SOURCE_TYPE_CI:
+		return CI
+	case SOURCE_TYPE_WEBHOOK:
+		return WEBHOOK
+	case SOURCE_TYPE_CD:
+		return CD
+	}
+	return CI
+}
+
+func (sourceType SourceType) GetSourceTypeStr() SourceTypeStr {
 	switch sourceType {
 	case CI:
 		return SOURCE_TYPE_CI
@@ -56,12 +75,12 @@ func (sourceType SourceType) GetSourceType() string {
 	case CD:
 		return SOURCE_TYPE_CD
 	}
-	return ""
+	return SOURCE_TYPE_CI
 }
 
 type ArtifactPromotionRequest struct {
 	SourceName         string         `json:"sourceName"`
-	SourceType         string         `json:"sourceType"`
+	SourceType         SourceTypeStr  `json:"sourceType"`
 	Action             string         `json:"action"`
 	PromotionRequestId int            `json:"promotionRequestId"`
 	ArtifactId         int            `json:"artifactId"`
@@ -76,14 +95,14 @@ type ArtifactPromotionRequest struct {
 }
 
 type ArtifactPromotionApprovalResponse struct {
-	Source          string    `json:"source"`
-	SourceType      string    `json:"sourceType"`
-	Destination     string    `json:"destination"`
-	RequestedBy     string    `json:"requestedBy"`
-	ApprovedUsers   []string  `json:"approvedUsers"`
-	RequestedOn     time.Time `json:"requestedOn"`
-	PromotedOn      time.Time `json:"promotedOn"`
-	PromotionPolicy string    `json:"promotionPolicy"`
+	Source          string        `json:"source"`
+	SourceType      SourceTypeStr `json:"sourceType"`
+	Destination     string        `json:"destination"`
+	RequestedBy     string        `json:"requestedBy"`
+	ApprovedUsers   []string      `json:"approvedUsers"`
+	RequestedOn     time.Time     `json:"requestedOn"`
+	PromotedOn      time.Time     `json:"promotedOn"`
+	PromotionPolicy string        `json:"promotionPolicy"`
 }
 
 type PromotionApprovalMetaData struct {
@@ -117,11 +136,24 @@ type EnvironmentApprovalMetadata struct {
 }
 
 type PromotionPolicy struct {
-	Id                 int                                `json:"-"`
-	Name               string                             `json:"-"`
+	Id                 int                                `json:"id"`
+	Name               string                             `json:"name"`
+	Description        string                             `json:"description"`
 	PolicyEvaluationId int                                `json:"-"`
 	Conditions         []resourceFilter.ResourceCondition `json:"conditions"`
 	ApprovalMetaData   ApprovalMetaData                   `json:"approvalMetadata"`
+}
+
+func (policy *PromotionPolicy) UpdateWithGlobalPolicy(rawPolicy *bean.GlobalPolicyBaseModel) error {
+	err := json.Unmarshal([]byte(rawPolicy.JsonData), policy)
+	if err != nil {
+		log.Printf("error in unmarshalling global policy json into promotionPolicy object, globalPolicy:%v,  err:%v", rawPolicy, err)
+		return errors.New("unable to extract promotion policies")
+	}
+	policy.Name = rawPolicy.Name
+	policy.Id = rawPolicy.Id
+	policy.Description = rawPolicy.Description
+	return nil
 }
 
 type ApprovalMetaData struct {
@@ -146,3 +178,22 @@ const SOURCE_AND_DESTINATION_PIPELINE_MISMATCH PromotionValidationState = "sourc
 const POLICY_EVALUATION_ERRORED PromotionValidationState = "server unable to evaluate the policy"
 const BLOCKED_BY_POLICY PromotionValidationState = "blocked by the policy "
 const APPROVED PromotionValidationState = "approved"
+
+type EnvironmentListingResponse struct {
+	CiSource     CiSourceMetaData      `json:"ciSource"`
+	Environments []EnvironmentResponse `json:"environments"`
+}
+
+type CiSourceMetaData struct {
+	Id   int           `json:"id"`
+	Name string        `json:"name"`
+	Type SourceTypeStr `json:"type"`
+}
+
+type WorkflowMetaData struct {
+	WorkflowId   int
+	AppName      string
+	AppId        int
+	EnvMap       map[string]repository1.Environment
+	CiSourceData CiSourceMetaData
+}

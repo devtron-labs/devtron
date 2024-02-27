@@ -25,9 +25,9 @@ import (
 type ArtifactPromotionApprovalService interface {
 	HandleArtifactPromotionRequest(request *bean.ArtifactPromotionRequest, authorizedEnvironments map[string]bool) ([]bean.EnvironmentResponse, error)
 	GetByPromotionRequestId(artifactPromotionApprovalRequest *repository.ArtifactPromotionApprovalRequest) (*bean.ArtifactPromotionApprovalResponse, error)
-	FetchEnvironmentsList(envMap map[string]repository1.Environment, appName string, authorizedEnvironments map[string]bool, artifactId int) ([]bean.EnvironmentResponse, error)
+	FetchEnvironmentsList(envMap map[string]repository1.Environment, appId int, appName string, authorizedEnvironments map[string]bool, artifactId int) (*bean.EnvironmentListingResponse, error)
 	FetchApprovalAllowedEnvList(artifactId int, userId int32, token string, promotionApproverAuth func(string, string) bool) ([]bean.EnvironmentApprovalMetadata, error)
-	GetAppAndEnvsMapByWorkflowId(workflowId int) (map[string]repository1.Environment, string, error)
+	GetAppAndEnvsMapByWorkflowId(workflowId int) (*bean.WorkflowMetaData, error)
 }
 
 type ArtifactPromotionApprovalServiceImpl struct {
@@ -75,41 +75,61 @@ func NewArtifactPromotionApprovalServiceImpl(
 	}
 }
 
-func (impl ArtifactPromotionApprovalServiceImpl) GetAppAndEnvsMapByWorkflowId(workflowId int) (map[string]repository1.Environment, string, error) {
+func (impl ArtifactPromotionApprovalServiceImpl) GetAppAndEnvsMapByWorkflowId(workflowId int) (*bean.WorkflowMetaData, error) {
 	allAppWorkflowMappings, err := impl.appWorkflowRepository.FindWFAllMappingByWorkflowId(workflowId)
 	if err != nil {
 		impl.logger.Errorw("error in finding the app workflow mappings using appWorkflowId", "workflowId", workflowId, "err", err)
-		return nil, "", err
+		return nil, err
 	}
 
+	sourcePipelineMapping := &appWorkflow.AppWorkflowMapping{}
 	pipelineIds := make([]int, 0, len(allAppWorkflowMappings))
 	for _, mapping := range allAppWorkflowMappings {
 		if mapping.Type == appWorkflow.CDPIPELINE {
 			pipelineIds = append(pipelineIds, mapping.ComponentId)
 		}
+		if mapping.ParentId == 0 {
+			sourcePipelineMapping = mapping
+		}
 	}
 
+	sourceType := sourcePipelineMapping.Type
+	sourceId := sourcePipelineMapping.Id
 	pipelines, err := impl.pipelineRepository.FindByIdsIn(pipelineIds)
 	if err != nil {
 		impl.logger.Errorw("error in finding pipelines", "pipelineIds", pipelineIds, "err", err)
-		return nil, "", err
+		return nil, err
 	}
 	envMap := make(map[string]repository1.Environment)
-
 	appName := ""
+	appId := 0
 	for _, pipeline := range pipelines {
 		envMap[pipeline.Environment.Name] = pipeline.Environment
 		appName = pipeline.App.AppName
+		appId = pipeline.AppId
 	}
-	return envMap, appName, nil
+	wfMeta := &bean.WorkflowMetaData{
+		WorkflowId: workflowId,
+		AppId:      appId,
+		AppName:    appName,
+		EnvMap:     envMap,
+		CiSourceData: bean.CiSourceMetaData{
+			Id:   sourceId,
+			Type: bean.SourceTypeStr(sourceType),
+		},
+	}
+	return wfMeta, nil
 }
 
-func (impl ArtifactPromotionApprovalServiceImpl) FetchEnvironmentsList(envMap map[string]repository1.Environment, appName string, authorizedEnvironments map[string]bool, artifactId int) ([]bean.EnvironmentResponse, error) {
+func (impl ArtifactPromotionApprovalServiceImpl) FetchEnvironmentsList(envMap map[string]repository1.Environment, appId int, appName string, authorizedEnvironments map[string]bool, artifactId int) (*bean.EnvironmentListingResponse, error) {
 	envNames := make([]string, 0, len(envMap))
-	for envName, _ := range envMap {
+	envIds := make([]int, 0, len(envMap))
+	for envName, env := range envMap {
+		envIds = append(envIds, env.Id)
 		envNames = append(envNames, envName)
 	}
-	policiesMap, err := impl.promotionPolicyService.GetByAppNameAndEnvName(appName, envNames)
+	result := &bean.EnvironmentListingResponse{}
+	policiesMap, err := impl.promotionPolicyService.GetByAppIdAndEnvIds(appId, envIds)
 	if err != nil {
 		impl.logger.Errorw("error in getting the policies", "appId", appName, "envIds", envNames, "err", err)
 		return nil, err
@@ -130,7 +150,12 @@ func (impl ArtifactPromotionApprovalServiceImpl) FetchEnvironmentsList(envMap ma
 
 			return nil, errorResp
 		}
-		return impl.evaluatePoliciesOnArtifact(ciArtifact, envMap, authorizedEnvironments, policiesMap)
+		responses, err := impl.evaluatePoliciesOnArtifact(ciArtifact, envMap, authorizedEnvironments, policiesMap)
+		if err != nil {
+			return nil, err
+		}
+		result.Environments = responses
+		return result, nil
 	}
 
 	responseMap := make(map[string]bean.EnvironmentResponse)
@@ -159,13 +184,13 @@ func (impl ArtifactPromotionApprovalServiceImpl) FetchEnvironmentsList(envMap ma
 		}
 	}
 
-	result := make([]bean.EnvironmentResponse, 0, len(responseMap))
+	responses := make([]bean.EnvironmentResponse, 0, len(responseMap))
 	for _, envResponse := range responseMap {
-		result = append(result, envResponse)
+		responses = append(responses, envResponse)
 	}
 
+	result.Environments = responses
 	return result, nil
-
 }
 
 func (impl ArtifactPromotionApprovalServiceImpl) computeFilterParams(ciArtifact *repository2.CiArtifact) ([]resourceFilter.ExpressionParam, error) {
@@ -635,7 +660,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) promoteArtifact(request *bean.A
 		}
 	}
 
-	policiesMap, err := impl.promotionPolicyService.GetByAppNameAndEnvName(request.AppName, allowedEnvNames)
+	policiesMap, err := impl.promotionPolicyService.GetByAppIdAndEnvIds(request.AppId, allowedEnvs)
 	if err != nil {
 		impl.logger.Errorw("error in getting policies for some environments in an app", "appName", request.AppName, "envNames", allowedEnvNames, "err", err)
 		return nil, err
@@ -687,7 +712,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) raisePromoteRequest(request *be
 	}
 
 	promotionRequest := &repository.ArtifactPromotionApprovalRequest{
-		SourceType:              bean.CI,
+		SourceType:              request.SourceType.GetSourceType(),
 		SourcePipelineId:        request.SourcePipelineId,
 		DestinationPipelineId:   pipelineId,
 		Status:                  bean.AWAITING_APPROVAL,
@@ -754,7 +779,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) cancelPromotionApprovalRequest(
 
 func (impl ArtifactPromotionApprovalServiceImpl) GetByPromotionRequestId(artifactPromotionApprovalRequest *repository.ArtifactPromotionApprovalRequest) (*bean.ArtifactPromotionApprovalResponse, error) {
 
-	sourceType := artifactPromotionApprovalRequest.SourceType.GetSourceType()
+	sourceType := artifactPromotionApprovalRequest.SourceType.GetSourceTypeStr()
 
 	var source string
 	if artifactPromotionApprovalRequest.SourceType == bean.CD {
@@ -778,7 +803,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) GetByPromotionRequestId(artifac
 		return nil, err
 	}
 
-	policyMap, err := impl.promotionPolicyService.GetByAppNameAndEnvName(destCDPipeline.App.AppName, []string{destCDPipeline.Environment.Name})
+	policyMap, err := impl.promotionPolicyService.GetByAppIdAndEnvIds(destCDPipeline.AppId, []int{destCDPipeline.EnvironmentId})
 	if err != nil {
 		impl.logger.Errorw("error in fetching policies", "appName", destCDPipeline.App.AppName, "envName", destCDPipeline.Environment.Name, "err", err)
 		return nil, err

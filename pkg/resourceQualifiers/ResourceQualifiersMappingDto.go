@@ -36,8 +36,8 @@ func GetEnvIdentifierValue(scope Scope) int {
 type ResourceQualifierMappings struct {
 	ResourceId   int
 	ResourceType ResourceType
-	scope        *Scope
-	//qualifierSelector QualifierSelector
+	Scope        *Scope
+	// qualifierSelector QualifierSelector
 }
 
 type QualifierMapping struct {
