@@ -49,6 +49,7 @@ type AppStoreDeploymentDBService interface {
 	MarkInstalledAppVersionHistorySucceeded(versionHistoryId int, deploymentAppType string) error
 	// UpdateInstalledAppVersionHistoryStatus will update the Status in the repository.InstalledAppVersionHistory
 	UpdateInstalledAppVersionHistoryStatus(versionHistoryId int, status string) error
+	GetEnvironmentForInstallAppRequest(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*clutserBean.EnvironmentBean, error)
 }
 
 type AppStoreDeploymentDBServiceImpl struct {
@@ -89,7 +90,7 @@ func NewAppStoreDeploymentDBServiceImpl(logger *zap.SugaredLogger,
 }
 
 func (impl *AppStoreDeploymentDBServiceImpl) AppStoreDeployOperationDB(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error) {
-	environment, err := impl.getEnvironmentForInstallAppRequest(installAppVersionRequest)
+	environment, err := impl.GetEnvironmentForInstallAppRequest(installAppVersionRequest)
 	if err != nil {
 		impl.logger.Errorw("error in getting environment for install helm chart", "envId", installAppVersionRequest.EnvironmentId, "err", err)
 		return nil, err
@@ -492,7 +493,7 @@ func (impl *AppStoreDeploymentDBServiceImpl) validateAndGetOverrideDeploymentApp
 	return overrideDeploymentType, nil
 }
 
-func (impl *AppStoreDeploymentDBServiceImpl) getEnvironmentForInstallAppRequest(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*clutserBean.EnvironmentBean, error) {
+func (impl *AppStoreDeploymentDBServiceImpl) GetEnvironmentForInstallAppRequest(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*clutserBean.EnvironmentBean, error) {
 
 	// create env if env not exists for clusterId and namespace for hyperion mode
 	if globalUtil.IsHelmApp(getAppInstallationMode(installAppVersionRequest.AppOfferingMode)) {
