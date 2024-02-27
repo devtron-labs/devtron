@@ -39,6 +39,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deployment"
 	bean2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
@@ -61,6 +62,7 @@ type AppStoreDeploymentService interface {
 	InstallAppByHelm(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error)
 	UpdatePreviousDeploymentStatusForAppStore(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, triggeredAt time.Time, err error) error
 	MarkGitOpsInstalledAppsDeletedIfArgoAppIsDeleted(installedAppId, envId int) error
+	SoftDeleteApp(app *app.App, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, model *repository.InstalledApps, tx *pg.Tx, ctx context.Context, environment *bean.EnvironmentBean) error
 }
 
 type AppStoreDeploymentServiceImpl struct {
@@ -251,68 +253,8 @@ func (impl *AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Contex
 			return nil, err
 		}
 	} else {
-		//soft delete app
-		app.Active = false
-		app.UpdatedBy = installAppVersionRequest.UserId
-		app.UpdatedOn = time.Now()
-		err = impl.appRepository.UpdateWithTxn(app, tx)
+		err := impl.SoftDeleteApp(app, installAppVersionRequest, model, tx, ctx, environment)
 		if err != nil {
-			impl.logger.Errorw("error in update entity ", "entity", app)
-			return nil, err
-		}
-
-		// soft delete install app
-		model.Active = false
-		model.UpdatedBy = installAppVersionRequest.UserId
-		model.UpdatedOn = time.Now()
-		_, err = impl.installedAppRepository.UpdateInstalledApp(model, tx)
-		if err != nil {
-			impl.logger.Errorw("error while creating install app", "error", err)
-			return nil, err
-		}
-		models, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppId(installAppVersionRequest.InstalledAppId)
-		if err != nil {
-			impl.logger.Errorw("error while fetching install app versions", "error", err)
-			return nil, err
-		}
-
-		// soft delete install app versions
-		for _, item := range models {
-			item.Active = false
-			item.UpdatedBy = installAppVersionRequest.UserId
-			item.UpdatedOn = time.Now()
-			_, err = impl.installedAppRepository.UpdateInstalledAppVersion(item, tx)
-			if err != nil {
-				impl.logger.Errorw("error while fetching from db", "error", err)
-				return nil, err
-			}
-		}
-
-		// soft delete chart-group deployment
-		chartGroupDeployment, err := impl.chartGroupDeploymentRepository.FindByInstalledAppId(model.Id)
-		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Errorw("error while fetching chart group deployment", "error", err)
-			return nil, err
-		}
-		if chartGroupDeployment.Id != 0 {
-			chartGroupDeployment.Deleted = true
-			_, err = impl.chartGroupDeploymentRepository.Update(chartGroupDeployment, tx)
-			if err != nil {
-				impl.logger.Errorw("error while updating chart group deployment", "error", err)
-				return nil, err
-			}
-		}
-
-		if util2.IsBaseStack() || util2.IsHelmApp(app.AppOfferingMode) || util.IsHelmApp(model.DeploymentAppType) {
-			// there might be a case if helm release gets uninstalled from helm cli.
-			//in this case on deleting the app from API, it should not give error as it should get deleted from db, otherwise due to delete error, db does not get clean
-			// so in helm, we need to check first if the release exists or not, if exists then only delete
-			err = impl.eaModeDeploymentService.DeleteInstalledApp(ctx, app.AppName, environment.Environment, installAppVersionRequest, model, tx)
-		} else {
-			err = impl.fullModeDeploymentService.DeleteInstalledApp(ctx, app.AppName, environment.Environment, installAppVersionRequest, model, tx)
-		}
-		if err != nil {
-			impl.logger.Errorw("error on delete installed app", "err", err)
 			return nil, err
 		}
 	}
@@ -323,6 +265,74 @@ func (impl *AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Contex
 	}
 	installAppVersionRequest.InstalledAppDeleteResponse.DeleteInitiated = true
 	return installAppVersionRequest, nil
+}
+
+func (impl *AppStoreDeploymentServiceImpl) SoftDeleteApp(app *app.App, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, model *repository.InstalledApps, tx *pg.Tx, ctx context.Context, environment *bean.EnvironmentBean) error {
+	//soft delete app
+	app.Active = false
+	app.UpdatedBy = installAppVersionRequest.UserId
+	app.UpdatedOn = time.Now()
+	err := impl.appRepository.UpdateWithTxn(app, tx)
+	if err != nil {
+		impl.logger.Errorw("error in update entity ", "entity", app)
+		return err
+	}
+
+	// soft delete install app
+	model.Active = false
+	model.UpdatedBy = installAppVersionRequest.UserId
+	model.UpdatedOn = time.Now()
+	_, err = impl.installedAppRepository.UpdateInstalledApp(model, tx)
+	if err != nil {
+		impl.logger.Errorw("error while creating install app", "error", err)
+		return err
+	}
+	models, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppId(installAppVersionRequest.InstalledAppId)
+	if err != nil {
+		impl.logger.Errorw("error while fetching install app versions", "error", err)
+		return err
+	}
+
+	// soft delete install app versions
+	for _, item := range models {
+		item.Active = false
+		item.UpdatedBy = installAppVersionRequest.UserId
+		item.UpdatedOn = time.Now()
+		_, err = impl.installedAppRepository.UpdateInstalledAppVersion(item, tx)
+		if err != nil {
+			impl.logger.Errorw("error while fetching from db", "error", err)
+			return err
+		}
+	}
+
+	// soft delete chart-group deployment
+	chartGroupDeployment, err := impl.chartGroupDeploymentRepository.FindByInstalledAppId(model.Id)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error while fetching chart group deployment", "error", err)
+		return err
+	}
+	if chartGroupDeployment.Id != 0 {
+		chartGroupDeployment.Deleted = true
+		_, err = impl.chartGroupDeploymentRepository.Update(chartGroupDeployment, tx)
+		if err != nil {
+			impl.logger.Errorw("error while updating chart group deployment", "error", err)
+			return err
+		}
+	}
+
+	if util2.IsBaseStack() || util2.IsHelmApp(app.AppOfferingMode) || util.IsHelmApp(model.DeploymentAppType) {
+		// there might be a case if helm release gets uninstalled from helm cli.
+		//in this case on deleting the app from API, it should not give error as it should get deleted from db, otherwise due to delete error, db does not get clean
+		// so in helm, we need to check first if the release exists or not, if exists then only delete
+		err = impl.eaModeDeploymentService.DeleteInstalledApp(ctx, app.AppName, environment.Environment, installAppVersionRequest, model, tx)
+	} else {
+		err = impl.fullModeDeploymentService.DeleteInstalledApp(ctx, app.AppName, environment.Environment, installAppVersionRequest, model, tx)
+	}
+	if err != nil {
+		impl.logger.Errorw("error on delete installed app", "err", err)
+		return err
+	}
+	return nil
 }
 
 func (impl *AppStoreDeploymentServiceImpl) LinkHelmApplicationToChartStore(ctx context.Context, request *openapi.UpdateReleaseWithChartLinkingRequest,
