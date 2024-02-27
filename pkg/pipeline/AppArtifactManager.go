@@ -24,7 +24,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	repository4 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactApproval/read"
-	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion"
 	bean3 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
 	read2 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/read"
 	"github.com/devtron-labs/devtron/pkg/team"
@@ -87,7 +86,6 @@ type AppArtifactManagerImpl struct {
 	artifactApprovalDataReadService  read.ArtifactApprovalDataReadService
 	environmentRepository            repository4.EnvironmentRepository
 	appWorkflowRepository            appWorkflow.AppWorkflowRepository
-	promotionPolicy                  artifactPromotion.PromotionPolicyReadService
 	artifactPromotionDataReadService read2.ArtifactPromotionDataReadService
 	teamRepository                   team.TeamRepository
 }
@@ -110,7 +108,6 @@ func NewAppArtifactManagerImpl(
 	artifactApprovalDataReadService read.ArtifactApprovalDataReadService,
 	environmentRepository repository4.EnvironmentRepository,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
-	promotionPolicy artifactPromotion.PromotionPolicyReadService,
 	artifactPromotionDataReadService read2.ArtifactPromotionDataReadService,
 	teamRepository team.TeamRepository,
 ) *AppArtifactManagerImpl {
@@ -137,7 +134,6 @@ func NewAppArtifactManagerImpl(
 		artifactApprovalDataReadService:  artifactApprovalDataReadService,
 		environmentRepository:            environmentRepository,
 		appWorkflowRepository:            appWorkflowRepository,
-		promotionPolicy:                  promotionPolicy,
 		artifactPromotionDataReadService: artifactPromotionDataReadService,
 		teamRepository:                   teamRepository,
 	}
@@ -399,6 +395,18 @@ func (impl *AppArtifactManagerImpl) FetchArtifactForRollbackV2(cdPipelineId, app
 	if err != nil {
 		impl.logger.Errorw("error in building ci artifacts for rollback", "err", err, "cdPipelineId", cdPipelineId)
 		return deployedCiArtifactsResponse, err
+	}
+
+	promotionApprovalArtifactIdToMetadataMap, err := impl.artifactPromotionDataReadService.FetchPromotionApprovalDataForArtifacts(artifactIds, cdPipelineId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching promotion approval metadata for given artifactIds", "err", err)
+		return deployedCiArtifactsResponse, err
+	}
+
+	for i, artifact := range deployedCiArtifacts {
+		if promotionApprovalMetadata, ok := promotionApprovalArtifactIdToMetadataMap[artifact.Id]; ok {
+			deployedCiArtifacts[i].PromotionApprovalMetadata = promotionApprovalMetadata
+		}
 	}
 
 	imageCommentsDataMap, err := impl.imageTaggingService.GetImageCommentsDataMapByArtifactIds(artifactIds)

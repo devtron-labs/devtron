@@ -84,7 +84,7 @@ func (repo *ArtifactPromotionApprovalRequestRepoImpl) FindByDestinationPipelineI
 	models := make([]*ArtifactPromotionApprovalRequest, 0)
 	err := repo.dbConnection.Model(&models).
 		Where("destination_pipeline_id IN (?) ", pg.In(destinationPipelineIds)).
-		Where("status = ? ", bean.PROMOTED).
+		Where("status = ? ", bean.AWAITING_APPROVAL).
 		Where("active = ?", true).
 		Select()
 	return models, err

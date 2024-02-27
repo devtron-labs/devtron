@@ -1,6 +1,7 @@
 package artifactPromotion
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,6 +12,8 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	repository1 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps"
+	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/repository"
@@ -43,6 +46,7 @@ type ArtifactPromotionApprovalServiceImpl struct {
 	imageTaggingService                        pipeline.ImageTaggingService
 	promotionPolicyService                     PromotionPolicyReadService
 	requestApprovalUserdataRepo                pipelineConfig.RequestApprovalUserdataRepository
+	cdTriggerService                           devtronApps.TriggerService
 }
 
 func NewArtifactPromotionApprovalServiceImpl(
@@ -58,6 +62,7 @@ func NewArtifactPromotionApprovalServiceImpl(
 	imageTaggingService pipeline.ImageTaggingService,
 	promotionPolicyService PromotionPolicyReadService,
 	requestApprovalUserdataRepo pipelineConfig.RequestApprovalUserdataRepository,
+	cdTriggerService devtronApps.TriggerService,
 ) *ArtifactPromotionApprovalServiceImpl {
 	return &ArtifactPromotionApprovalServiceImpl{
 		artifactPromotionApprovalRequestRepository: ArtifactPromotionApprovalRequestRepository,
@@ -72,6 +77,7 @@ func NewArtifactPromotionApprovalServiceImpl(
 		imageTaggingService:               imageTaggingService,
 		promotionPolicyService:            promotionPolicyService,
 		requestApprovalUserdataRepo:       requestApprovalUserdataRepo,
+		cdTriggerService:                  cdTriggerService,
 	}
 }
 
@@ -312,10 +318,12 @@ func (impl ArtifactPromotionApprovalServiceImpl) approveArtifactPromotion(reques
 	}
 
 	pipelineIdVsEnvMap := make(map[int]string)
+	pipelineIdToDaoMap := make(map[int]*pipelineConfig.Pipeline)
 	pipelineIds := make([]int, 0, len(pipelines))
 	for _, pipeline := range pipelines {
 		pipelineIdVsEnvMap[pipeline.Id] = pipeline.Environment.Name
 		pipelineIds = append(pipelineIds, pipeline.Id)
+		pipelineIdToDaoMap[pipeline.Id] = pipeline
 	}
 
 	promotionRequests, err := impl.artifactPromotionApprovalRequestRepository.FindByDestinationPipelineIds(pipelineIds)
@@ -447,6 +455,45 @@ func (impl ArtifactPromotionApprovalServiceImpl) approveArtifactPromotion(reques
 	if err != nil {
 		impl.logger.Errorw("error in promoting the approval requests", "promotableRequestIds", promotableRequestIds, "err", err)
 		return nil, err
+	}
+
+	promotionRequestIdToDaoMap := make(map[int]*repository.ArtifactPromotionApprovalRequest)
+	for _, promotionRequest := range promotionRequests {
+		promotionRequestIdToDaoMap[promotionRequest.Id] = promotionRequest
+	}
+
+	if len(promotableRequestIds) > 0 {
+
+		promotedCiArtifactIds := make([]int, 0)
+		for _, id := range promotableRequestIds {
+			promotableRequest := promotionRequestIdToDaoMap[id]
+			promotedCiArtifactIds = append(promotedCiArtifactIds, promotableRequest.ArtifactId)
+		}
+
+		ciArtifact, err := impl.ciArtifactRepository.Get(request.ArtifactId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching promoted ci artifact by artifact id", "artifactId", request.ArtifactId, "err", err)
+			return nil, err
+		}
+
+		for _, id := range promotableRequestIds {
+			promotableRequest := promotionRequestIdToDaoMap[id]
+			pipelineDao := pipelineIdToDaoMap[promotableRequest.DestinationPipelineId]
+			triggerRequest := bean2.TriggerRequest{
+				CdWf:        nil,
+				Pipeline:    pipelineDao,
+				Artifact:    ciArtifact,
+				TriggeredBy: 1,
+				TriggerContext: bean2.TriggerContext{
+					Context: context.Background(),
+				},
+			}
+			err = impl.cdTriggerService.TriggerAutomaticDeployment(triggerRequest)
+			if err != nil {
+				impl.logger.Errorw("error occurred while triggering deployment", "pipelineId", pipelineDao.Id, "artifactId", promotableRequest.ArtifactId, "err", err)
+				return nil, errors.New("auto deployment failed, please try manually")
+			}
+		}
 	}
 
 	err = impl.artifactPromotionApprovalRequestRepository.CommitTx(tx)
@@ -601,12 +648,14 @@ func (impl ArtifactPromotionApprovalServiceImpl) promoteArtifact(request *bean.A
 
 	pipelineIdVsEnvNameMap := make(map[int]string)
 	pipelineIds := make([]int, 0, len(pipelines))
+	pipelineIdToDaoMap := make(map[int]*pipelineConfig.Pipeline)
 	for _, pipeline := range pipelines {
 		pipelineIds = append(pipelineIds, pipeline.Id)
 		pipelineIdVsEnvNameMap[pipeline.Id] = request.EnvIdNameMap[pipeline.EnvironmentId]
 		EnvResponse := response[pipelineIdVsEnvNameMap[pipeline.Id]]
 		EnvResponse.PromotionValidationState = bean.EMPTY
 		response[pipelineIdVsEnvNameMap[pipeline.Id]] = EnvResponse
+		pipelineIdToDaoMap[pipeline.Id] = pipeline
 	}
 
 	sourcePipelineId := 0
@@ -675,7 +724,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) promoteArtifact(request *bean.A
 		// these
 		if EnvResponse.PromotionValidationState == bean.EMPTY {
 			policy := policiesMap[pipelineIdVsEnvNameMap[pipelineId]]
-			state, msg, err := impl.raisePromoteRequest(request, pipelineId, policy)
+			state, msg, err := impl.raisePromoteRequest(request, pipelineId, policy, ciArtifact, pipelineIdToDaoMap[pipelineId])
 			if err != nil {
 				impl.logger.Errorw("error in raising promotion request for the pipeline", "pipelineId", pipelineId, "artifactId", ciArtifact.Id, "err", err)
 				EnvResponse.PromotionValidationState = bean.ERRORED
@@ -694,7 +743,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) promoteArtifact(request *bean.A
 	return envResponses, nil
 }
 
-func (impl ArtifactPromotionApprovalServiceImpl) raisePromoteRequest(request *bean.ArtifactPromotionRequest, pipelineId int, promotionPolicy *bean.PromotionPolicy) (bean.PromotionValidationState, string, error) {
+func (impl ArtifactPromotionApprovalServiceImpl) raisePromoteRequest(request *bean.ArtifactPromotionRequest, pipelineId int, promotionPolicy *bean.PromotionPolicy, ciArtifact *repository2.CiArtifact, cdPipeline *pipelineConfig.Pipeline) (bean.PromotionValidationState, string, error) {
 	requests, err := impl.artifactPromotionApprovalRequestRepository.FindAwaitedRequestByPipelineIdAndArtifactId(pipelineId, request.ArtifactId)
 	if err != nil {
 		impl.logger.Errorw("error in finding the pending promotion request using pipelineId and artifactId", "pipelineId", pipelineId, "artifactId", request.ArtifactId)
@@ -726,10 +775,12 @@ func (impl ArtifactPromotionApprovalServiceImpl) raisePromoteRequest(request *be
 		PolicyEvaluationAuditId: promotionPolicy.PolicyEvaluationId,
 	}
 
-	status := bean.SENT_FOR_APPROVAL
+	var status bean.PromotionValidationState
 	if promotionPolicy.ApprovalMetaData.ApprovalCount == 0 {
 		promotionRequest.Status = bean.PROMOTED
 		status = bean.PROMOTION_SUCCESSFUL
+	} else {
+		status = bean.SENT_FOR_APPROVAL
 	}
 	_, err = impl.artifactPromotionApprovalRequestRepository.Create(promotionRequest)
 	if err != nil {
@@ -738,6 +789,20 @@ func (impl ArtifactPromotionApprovalServiceImpl) raisePromoteRequest(request *be
 	}
 
 	if promotionRequest.Status == bean.PROMOTED {
+		triggerRequest := bean2.TriggerRequest{
+			CdWf:        nil,
+			Pipeline:    cdPipeline,
+			Artifact:    ciArtifact,
+			TriggeredBy: 1,
+			TriggerContext: bean2.TriggerContext{
+				Context: context.Background(),
+			},
+		}
+		err = impl.cdTriggerService.TriggerAutomaticDeployment(triggerRequest)
+		if err != nil {
+			impl.logger.Errorw("error occurred while triggering deployment", "pipelineId", cdPipeline.Id, "artifactId", ciArtifact.Id, "err", err)
+			return bean.ERRORED, err.Error(), errors.New("auto deployment failed, please try manually")
+		}
 		// todo: trigger release on the target pipeline
 	}
 	return status, string(status), nil
