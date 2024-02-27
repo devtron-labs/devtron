@@ -90,6 +90,8 @@ type PromotionApprovalMetaData struct {
 	ApprovalRuntimeState string                      `json:"approvalRuntimeState"`
 	ApprovalUsersData    []PromotionApprovalUserData `json:"approvalUsersData"`
 	RequestedUserData    PromotionApprovalUserData   `json:"requestedUserData"`
+	PromotedFrom         string                      `json:"promotedFrom"`
+	PromotedFromType     string                      `json:"promotedFromType"`
 }
 
 type PromotionApprovalUserData struct {

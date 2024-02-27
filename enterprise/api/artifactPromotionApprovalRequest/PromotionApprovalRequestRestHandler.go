@@ -341,12 +341,9 @@ func (handler PromotionApprovalRestHandlerImpl) GetArtifactsForPromotion(w http.
 			return
 		}
 
-	} else if resource == "PROMOTION_APPROVAL_PENDING_NODE" || pendingForCurrentUser {
+	} else if resource == "PROMOTION_APPROVAL_PENDING_NODE" {
+
 		appRbacObj := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, appRbacObj); !ok {
-			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-			return
-		}
 		env, err := handler.environmentRepository.FindByName(resourceName)
 		if err != nil {
 			handler.logger.Errorw("env not found for given envName", "envName", env.Name, "err", err)
@@ -355,6 +352,18 @@ func (handler PromotionApprovalRestHandlerImpl) GetArtifactsForPromotion(w http.
 		}
 		envObjectMap, _ := handler.enforcerUtil.GetRbacObjectsByEnvIdsAndAppId([]int{env.Id}, appId)
 		if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, envObjectMap[env.Id]); !ok {
+			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+			return
+		}
+
+		triggerAccess := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, appRbacObj) &&
+			handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionTrigger, envObjectMap[env.Id])
+
+		teamRbac := handler.enforcerUtil.GetTeamEnvRBACNameByAppId(appId, env.Id)
+
+		approverAccess := handler.enforcer.Enforce(token, casbin.ResourceApprovalPolicy, casbin.ActionArtifactPromote, teamRbac)
+
+		if !triggerAccess && !approverAccess {
 			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 			return
 		}
@@ -370,8 +379,9 @@ func (handler PromotionApprovalRestHandlerImpl) GetArtifactsForPromotion(w http.
 
 	artifactPromotionMaterialRequest.PendingForCurrentUser = pendingForCurrentUser
 	artifactPromotionMaterialRequest.UserId = userId
+	artifactPromotionMaterialRequest.Token = token
 
-	artifactPromotionMaterialResponse, err := handler.appArtifactManager.FetchMaterialForArtifactPromotion(artifactPromotionMaterialRequest)
+	artifactPromotionMaterialResponse, err := handler.appArtifactManager.FetchMaterialForArtifactPromotion(artifactPromotionMaterialRequest, handler.CheckImagePromoterAuth)
 	if err != nil {
 		handler.logger.Errorw("error in fetching artifacts for given promotion request parameters", "artifactPromotionRequest", artifactPromotionMaterialRequest, "err", err)
 		common.WriteJsonResp(w, errors.New("error in fetching artifacts response for given request parameters"), nil, http.StatusInternalServerError)

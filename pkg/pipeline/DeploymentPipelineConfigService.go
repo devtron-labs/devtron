@@ -408,6 +408,8 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelineById(pipelineId int) (cdPi
 		AppId:                         dbPipeline.AppId,
 		IsDigestEnforcedForPipeline:   digestPolicyConfigurations.DigestConfiguredForPipeline,
 		IsDigestEnforcedForEnv:        digestPolicyConfigurations.DigestConfiguredForEnvOrCluster,
+		TeamId:                        dbPipeline.App.TeamId,
+		EnvironmentIdentifier:         environment.EnvironmentIdentifier,
 	}
 	var preDeployStage *bean3.PipelineStageDto
 	var postDeployStage *bean3.PipelineStageDto

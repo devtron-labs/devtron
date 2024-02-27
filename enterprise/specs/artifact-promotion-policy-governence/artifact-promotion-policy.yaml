@@ -94,10 +94,10 @@ paths:
               properties:
                 sourceName:
                   type: string
-                  description: "source name(ci source name for CI/WEBHOOK and envName for CD)"
+                  description: "source name(ci source name for CI/WEBHOOK and envName )"
                 sourceType:
                   type: string
-                  enum: ["CI","WEBHOOK","CD"]
+                  enum: ["CI","WEBHOOK","ENVIRONMENT"]
                   description: "source type"
                   example: "CI or WEBHOOK or CD"
                 action:
@@ -878,6 +878,12 @@ components:
         requestedUserData:
           type: string
           example: "test1@devtron.ai"
+        promotedFrom:
+          type: string
+          description: "promoted from env or ci pipeline"
+        promotedFromType:
+          type: string
+          description: "promote from type eg: CI, ENVIRONMENT"
     ImageComment:
       type: object
       properties:
@@ -943,12 +949,6 @@ components:
         deployed_time:
           type: string
           description: "deployed time"
-        promotedFrom:
-          type: string
-          description: "promoted from env or ci pipeline"
-        promoteFromType:
-          type: string
-          description: "promote from type eg: CI, ENVIRONMENT"
         imageComment:
           $ref: "#/components/schemas/ImageComment"
         imageReleaseTags:

@@ -2070,6 +2070,8 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForAppAndEnv(appId int, e
 			RunPostStageInEnv:             dbPipeline.RunPostStageInEnv,
 			CdArgoSetup:                   env.Cluster.CdArgoSetup,
 			UserApprovalConf:              approvalConfig,
+			AppName:                       dbPipeline.App.AppName,
+			TeamId:                        dbPipeline.App.TeamId,
 		}
 		if pipelineStages, ok := pipelineIdAndPrePostStageMapping[dbPipeline.Id]; ok {
 			pipeline.PreDeployStage = pipelineStages[0]

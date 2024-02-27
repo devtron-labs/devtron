@@ -73,6 +73,7 @@ type UserAuthRepository interface {
 	GetRoleForJobsEntity(entity, team, app, env, act string, workflow string) (RoleModel, error)
 	GetRoleForOtherEntity(team, app, env, act, accessType string, oldValues, approver bool) (RoleModel, error)
 	GetRoleForChartGroupEntity(entity, app, act, accessType string) (RoleModel, error)
+	GetImagePromoterUsersByEnv(appName, envName, team string) ([]string, []string, error)
 }
 
 type UserAuthRepositoryImpl struct {
@@ -986,4 +987,32 @@ func (impl UserAuthRepositoryImpl) GetRoleForOtherEntity(team, app, env, act, ac
 		return model, nil
 	}
 	return model, err
+}
+
+func (impl UserAuthRepositoryImpl) GetImagePromoterUsersByEnv(appName, envName, team string) ([]string, []string, error) {
+	var emailIds []string
+	var roleGroups []string
+
+	query := "select distinct(email_id) from users us inner join user_roles ur on us.id=ur.user_id inner join roles on ur.role_id = roles.id " +
+		"where ((roles.action = ? and (roles.environment=? OR roles.environment is null) and (entity_name=? OR entity_name is null)) OR roles.role = ?) " +
+		"and us.id not in (1);"
+	_, err := impl.dbConnection.Query(&emailIds, query, "promoter/artifact", envName, appName, "role:super-admin___")
+	if err != nil && err != pg.ErrNoRows {
+		return emailIds, roleGroups, err
+	}
+
+	roleGroupQuery := "SELECT rg.casbin_name " +
+		"FROM role_group rg " +
+		"INNER JOIN role_group_role_mapping rgrm ON rg.id = rgrm.role_group_id " +
+		"INNER JOIN roles r ON rgrm.role_id = r.id " +
+		"WHERE (r.action = 'promoter/artifact') " +
+		"AND (r.environment IS NULL OR r.environment = ?) " +
+		"AND (r.entity_name IS NULL OR r.entity_name = ?) AND r.team = ? ;"
+
+	_, err = impl.dbConnection.Query(&roleGroups, roleGroupQuery, envName, appName, team)
+	if err != nil && err != pg.ErrNoRows {
+		return emailIds, roleGroups, err
+	}
+
+	return emailIds, roleGroups, nil
 }

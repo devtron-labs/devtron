@@ -93,6 +93,7 @@ type UserService interface {
 	BulkUpdateStatus(request *bean.BulkStatusUpdateRequest) (*bean.ActionResponse, error)
 	CheckUserStatusAndUpdateLoginAudit(token string) (bool, int32, error)
 	GetUserBasicDataByEmailId(emailId string) (*bean.UserInfo, error)
+	GetImagePromoterUserByEnv(appName, envName, team string) ([]string, error)
 }
 
 type UserServiceImpl struct {
@@ -2636,4 +2637,16 @@ func (impl UserServiceImpl) CheckUserStatusAndUpdateLoginAudit(token string) (bo
 	}
 
 	return isInactive, userId, nil
+}
+
+func (impl UserServiceImpl) GetImagePromoterUserByEnv(appName, envName, team string) ([]string, error) {
+	emailIds, permissionGroupNames, err := impl.userAuthRepository.GetImagePromoterUsersByEnv(appName, envName, team)
+	if err != nil {
+		return emailIds, err
+	}
+	finalEmails, err := impl.extractEmailIds(permissionGroupNames, emailIds)
+	if err != nil {
+		return emailIds, err
+	}
+	return finalEmails, nil
 }

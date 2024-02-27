@@ -20,6 +20,7 @@ type ArtifactPromotionDataReadServiceImpl struct {
 	artifactPromotionApprovalRequestRepository repository.ArtifactPromotionApprovalRequestRepository
 	requestApprovalUserdataRepo                pipelineConfig.RequestApprovalUserdataRepository
 	userService                                user.UserService
+	pipelineRepository                         pipelineConfig.PipelineRepository
 }
 
 func NewArtifactPromotionDataReadServiceImpl(
@@ -27,12 +28,14 @@ func NewArtifactPromotionDataReadServiceImpl(
 	logger *zap.SugaredLogger,
 	requestApprovalUserdataRepo pipelineConfig.RequestApprovalUserdataRepository,
 	userService user.UserService,
+	pipelineRepository pipelineConfig.PipelineRepository,
 ) *ArtifactPromotionDataReadServiceImpl {
 	return &ArtifactPromotionDataReadServiceImpl{
 		artifactPromotionApprovalRequestRepository: ArtifactPromotionApprovalRequestRepository,
 		logger:                      logger,
 		requestApprovalUserdataRepo: requestApprovalUserdataRepo,
 		userService:                 userService,
+		pipelineRepository:          pipelineRepository,
 	}
 }
 
@@ -66,9 +69,27 @@ func (impl ArtifactPromotionDataReadServiceImpl) FetchPromotionApprovalDataForAr
 
 		for _, approvalRequest := range promotionApprovalRequest {
 
+			var promotedFrom string
+
+			switch approvalRequest.SourceType {
+			case bean.CI:
+				promotedFrom = bean.SOURCE_TYPE_CI
+			case bean.WEBHOOK:
+				promotedFrom = bean.SOURCE_TYPE_CI
+			case bean.CD:
+				pipeline, err := impl.pipelineRepository.FindById(pipelineId)
+				if err != nil {
+					impl.logger.Errorw("error in fetching pipeline by id", "pipelineId", pipelineId, "err", err)
+					return nil, err
+				}
+				promotedFrom = pipeline.Environment.Name
+			}
+
 			approvalMetadata := &bean.PromotionApprovalMetaData{
 				ApprovalRequestId:    approvalRequest.Id,
 				ApprovalRuntimeState: approvalRequest.Status.Status(),
+				PromotedFrom:         promotedFrom,
+				PromotedFromType:     approvalRequest.SourceType.GetSourceType(),
 			}
 
 			artifactId := approvalRequest.ArtifactId
