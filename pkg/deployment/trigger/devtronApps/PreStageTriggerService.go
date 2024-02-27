@@ -587,12 +587,13 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 
 		extraEnvVariables[CHILD_CD_COUNT] = strconv.Itoa(len(childPipelines))
 	}
-	sourceCiPipeline, err := impl.getSourceCiPipelineForArtifact(*ciPipeline)
-	if err != nil {
-		impl.logger.Errorw("error in getting source ciPipeline for artifact", "err", err)
-		return nil, err
-	}
-	if sourceCiPipeline != nil && sourceCiPipeline.Id > 0 {
+
+	if ciPipeline != nil && ciPipeline.Id > 0 {
+		sourceCiPipeline, err := impl.getSourceCiPipelineForArtifact(*ciPipeline)
+		if err != nil {
+			impl.logger.Errorw("error in getting source ciPipeline for artifact", "err", err)
+			return nil, err
+		}
 		extraEnvVariables["APP_NAME"] = sourceCiPipeline.App.AppName
 		cdStageWorkflowRequest.CiPipelineType = sourceCiPipeline.PipelineType
 		buildRegistryConfig, dbErr := impl.getBuildRegistryConfigForArtifact(*sourceCiPipeline, *artifact)

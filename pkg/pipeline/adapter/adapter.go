@@ -166,14 +166,19 @@ func mergeMap(oldDockerArgs map[string]string, ciLevelDockerArgs map[string]stri
 	return dockerArgs
 }
 
+// IsLinkedCD will return if the pipelineConfig.CiPipeline is a Linked CD
 func IsLinkedCD(ci pipelineConfig.CiPipeline) bool {
 	return ci.ParentCiPipeline != 0 && ci.PipelineType == string(pipelineConfigBean.LINKED_CD)
 }
 
+// IsLinkedCI will return if the pipelineConfig.CiPipeline is a Linked CI
+// Currently there are inconsistent values present in PipelineType ("CI_EXTERNAL", "", "LINKED")
+// TODO migrate the deprecated values and maintain a consistent PipelineType
 func IsLinkedCI(ci pipelineConfig.CiPipeline) bool {
 	return ci.ParentCiPipeline != 0 && ci.PipelineType != string(pipelineConfigBean.LINKED_CD)
 }
 
+// IsCIJob will return if the pipelineConfig.CiPipeline is a CI JOB
 func IsCIJob(ci pipelineConfig.CiPipeline) bool {
 	return ci.PipelineType == string(pipelineConfigBean.CI_JOB)
 }
