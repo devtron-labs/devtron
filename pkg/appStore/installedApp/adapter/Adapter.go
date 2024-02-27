@@ -19,14 +19,15 @@ func ParseChartGitPushRequest(installAppRequestDTO *appStoreBean.InstallAppVersi
 	}
 }
 
-func ParseChartCreateRequest(appName string) *util.ChartCreateRequest {
+func ParseChartCreateRequest(appName string, includePackageChart bool) *util.ChartCreateRequest {
 	chartPath := getRefProxyChartPath()
 	return &util.ChartCreateRequest{
 		ChartMetaData: &chart.Metadata{
 			Name:    appName,
 			Version: "1.0.1",
 		},
-		ChartPath: chartPath,
+		ChartPath:           chartPath,
+		IncludePackageChart: includePackageChart,
 	}
 }
 
