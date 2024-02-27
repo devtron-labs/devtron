@@ -114,6 +114,12 @@ type PromotionApprovalMetaData struct {
 	PromotedFromType     string                      `json:"promotedFromType"`
 }
 
+type PromotionPolicyMetaRequest struct {
+	Search    string
+	SortBy    string
+	SortOrder string
+}
+
 type PromotionApprovalUserData struct {
 	UserId         int32     `json:"userId"`
 	UserEmail      string    `json:"userEmail"`

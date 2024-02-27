@@ -23,6 +23,7 @@ type PromotionPolicyReadService interface {
 	GetByAppAndEnvId(appId, envId int) (*bean.PromotionPolicy, error)
 	GetByAppIdAndEnvIds(appId int, envIds []int) (map[string]*bean.PromotionPolicy, error)
 	GetByIds(ids []int) ([]*bean.PromotionPolicy, error)
+	GetPoliciesMetadata(policyMetadataRequest bean.PromotionPolicyMetaRequest) ([]*bean.PromotionPolicy, error)
 }
 
 type PromotionPolicyCUDService interface {
@@ -47,10 +48,6 @@ func NewPromotionPolicyServiceImpl(globalPolicyDataManager globalPolicy.GlobalPo
 		resourceQualifierMappingService: resourceQualifierMappingService,
 		logger:                          logger,
 	}
-}
-
-func (impl PromotionPolicyServiceImpl) GetByIds(ids []int) ([]*bean.PromotionPolicy, error) {
-	return nil, nil
 }
 
 func (impl PromotionPolicyServiceImpl) GetByAppAndEnvId(appId, envId int) (*bean.PromotionPolicy, error) {
@@ -125,6 +122,14 @@ func (impl PromotionPolicyServiceImpl) GetByAppIdAndEnvIds(appId int, envIds []i
 	}
 
 	return policiesMap, err
+}
+
+func (impl PromotionPolicyServiceImpl) GetByIds(ids []int) ([]*bean.PromotionPolicy, error) {
+	return nil, nil
+}
+
+func (impl PromotionPolicyServiceImpl) GetPoliciesMetadata(policyMetadataRequest bean.PromotionPolicyMetaRequest) ([]*bean.PromotionPolicy, error) {
+	return nil, nil
 }
 
 func (impl PromotionPolicyServiceImpl) UpdatePolicy(userId int32, policyName string, policyBean *bean.PromotionPolicy) error {

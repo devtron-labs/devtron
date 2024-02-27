@@ -73,9 +73,9 @@ func (impl ArtifactPromotionDataReadServiceImpl) FetchPromotionApprovalDataForAr
 
 			switch approvalRequest.SourceType {
 			case bean.CI:
-				promotedFrom = bean.SOURCE_TYPE_CI
+				promotedFrom = string(bean.SOURCE_TYPE_CI)
 			case bean.WEBHOOK:
-				promotedFrom = bean.SOURCE_TYPE_CI
+				promotedFrom = string(bean.SOURCE_TYPE_CI)
 			case bean.CD:
 				pipeline, err := impl.pipelineRepository.FindById(pipelineId)
 				if err != nil {
@@ -89,7 +89,7 @@ func (impl ArtifactPromotionDataReadServiceImpl) FetchPromotionApprovalDataForAr
 				ApprovalRequestId:    approvalRequest.Id,
 				ApprovalRuntimeState: approvalRequest.Status.Status(),
 				PromotedFrom:         promotedFrom,
-				PromotedFromType:     approvalRequest.SourceType.GetSourceType(),
+				PromotedFromType:     string(approvalRequest.SourceType.GetSourceTypeStr()),
 			}
 
 			artifactId := approvalRequest.ArtifactId
