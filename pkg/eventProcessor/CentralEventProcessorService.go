@@ -6,15 +6,18 @@ import (
 )
 
 type CentralEventProcessor struct {
-	logger                 *zap.SugaredLogger
-	workflowEventProcessor *in.WorkflowEventProcessorImpl
+	logger                   *zap.SugaredLogger
+	workflowEventProcessor   *in.WorkflowEventProcessorImpl
+	ciPipelineEventProcessor *in.CIPipelineEventProcessorImpl
 }
 
-func NewCentralEventProcessor(workflowEventProcessor *in.WorkflowEventProcessorImpl,
-	logger *zap.SugaredLogger) (*CentralEventProcessor, error) {
+func NewCentralEventProcessor(logger *zap.SugaredLogger,
+	workflowEventProcessor *in.WorkflowEventProcessorImpl,
+	ciPipelineEventProcessor *in.CIPipelineEventProcessorImpl) (*CentralEventProcessor, error) {
 	cep := &CentralEventProcessor{
-		workflowEventProcessor: workflowEventProcessor,
-		logger:                 logger,
+		logger:                   logger,
+		workflowEventProcessor:   workflowEventProcessor,
+		ciPipelineEventProcessor: ciPipelineEventProcessor,
 	}
 	err := cep.SubscribeAll()
 	if err != nil {
@@ -25,6 +28,17 @@ func NewCentralEventProcessor(workflowEventProcessor *in.WorkflowEventProcessorI
 
 func (impl *CentralEventProcessor) SubscribeAll() error {
 	var err error
+
+	//CI pipeline event starts
+	err = impl.ciPipelineEventProcessor.SubscribeNewCIMaterialEvent()
+	if err != nil {
+		impl.logger.Errorw("error, SubscribeNewCIMaterialEvent", "err", err)
+		return err
+	}
+	//CI pipeline event ends
+
+	//Workflow event starts
+
 	err = impl.workflowEventProcessor.SubscribeCDStageCompleteEvent()
 	if err != nil {
 		impl.logger.Errorw("error, SubscribeCDStageCompleteEvent", "err", err)
@@ -65,5 +79,7 @@ func (impl *CentralEventProcessor) SubscribeAll() error {
 		impl.logger.Errorw("error, SubscribeCDPipelineDeleteEvent", "err", err)
 		return err
 	}
+
+	//Workflow event ends
 	return nil
 }

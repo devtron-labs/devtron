@@ -633,7 +633,6 @@ func InitializeApp() (*App, error) {
 	notificationRouterImpl := router.NewNotificationRouterImpl(notificationRestHandlerImpl)
 	teamRestHandlerImpl := team2.NewTeamRestHandlerImpl(sugaredLogger, teamServiceImpl, userServiceImpl, enforcerImpl, validate, userAuthServiceImpl, deleteServiceExtendedImpl)
 	teamRouterImpl := team2.NewTeamRouterImpl(teamRestHandlerImpl)
-	gitWebhookHandlerImpl := pubsub.NewGitWebhookHandler(sugaredLogger, pubSubClientServiceImpl, gitWebhookServiceImpl)
 	installedAppDBExtendedServiceImpl, err := FullMode.NewInstalledAppDBExtendedServiceImpl(sugaredLogger, installedAppRepositoryImpl, appRepositoryImpl, userServiceImpl, installedAppVersionHistoryRepositoryImpl, appStatusServiceImpl, pubSubClientServiceImpl)
 	if err != nil {
 		return nil, err
@@ -880,7 +879,7 @@ func InitializeApp() (*App, error) {
 	infraConfigRouterImpl := infraConfig2.NewInfraProfileRouterImpl(infraConfigRestHandlerImpl)
 	argoApplicationRestHandlerImpl := argoApplication2.NewArgoApplicationRestHandlerImpl(argoApplicationServiceImpl, sugaredLogger)
 	argoApplicationRouterImpl := argoApplication2.NewArgoApplicationRouterImpl(argoApplicationRestHandlerImpl)
-	muxRouter := router.NewMuxRouter(sugaredLogger, environmentRouterImpl, clusterRouterImpl, webhookRouterImpl, userAuthRouterImpl, gitProviderRouterImpl, gitHostRouterImpl, dockerRegRouterImpl, notificationRouterImpl, teamRouterImpl, gitWebhookHandlerImpl, applicationStatusHandlerImpl, pubSubClientServiceImpl, userRouterImpl, chartRefRouterImpl, configMapRouterImpl, appStoreRouterImpl, chartRepositoryRouterImpl, releaseMetricsRouterImpl, deploymentGroupRouterImpl, batchOperationRouterImpl, chartGroupRouterImpl, imageScanRouterImpl, policyRouterImpl, gitOpsConfigRouterImpl, dashboardRouterImpl, attributesRouterImpl, userAttributesRouterImpl, commonRouterImpl, grafanaRouterImpl, ssoLoginRouterImpl, telemetryRouterImpl, telemetryEventClientImplExtended, bulkUpdateRouterImpl, webhookListenerRouterImpl, appRouterImpl, coreAppRouterImpl, helmAppRouterImpl, k8sApplicationRouterImpl, pProfRouterImpl, deploymentConfigRouterImpl, dashboardTelemetryRouterImpl, commonDeploymentRouterImpl, externalLinkRouterImpl, globalPluginRouterImpl, moduleRouterImpl, serverRouterImpl, apiTokenRouterImpl, cdApplicationStatusUpdateHandlerImpl, k8sCapacityRouterImpl, webhookHelmRouterImpl, globalCMCSRouterImpl, userTerminalAccessRouterImpl, jobRouterImpl, ciStatusUpdateCronImpl, resourceGroupingRouterImpl, rbacRoleRouterImpl, scopedVariableRouterImpl, ciTriggerCronImpl, proxyRouterImpl, infraConfigRouterImpl, argoApplicationRouterImpl)
+	muxRouter := router.NewMuxRouter(sugaredLogger, environmentRouterImpl, clusterRouterImpl, webhookRouterImpl, userAuthRouterImpl, gitProviderRouterImpl, gitHostRouterImpl, dockerRegRouterImpl, notificationRouterImpl, teamRouterImpl, applicationStatusHandlerImpl, pubSubClientServiceImpl, userRouterImpl, chartRefRouterImpl, configMapRouterImpl, appStoreRouterImpl, chartRepositoryRouterImpl, releaseMetricsRouterImpl, deploymentGroupRouterImpl, batchOperationRouterImpl, chartGroupRouterImpl, imageScanRouterImpl, policyRouterImpl, gitOpsConfigRouterImpl, dashboardRouterImpl, attributesRouterImpl, userAttributesRouterImpl, commonRouterImpl, grafanaRouterImpl, ssoLoginRouterImpl, telemetryRouterImpl, telemetryEventClientImplExtended, bulkUpdateRouterImpl, webhookListenerRouterImpl, appRouterImpl, coreAppRouterImpl, helmAppRouterImpl, k8sApplicationRouterImpl, pProfRouterImpl, deploymentConfigRouterImpl, dashboardTelemetryRouterImpl, commonDeploymentRouterImpl, externalLinkRouterImpl, globalPluginRouterImpl, moduleRouterImpl, serverRouterImpl, apiTokenRouterImpl, cdApplicationStatusUpdateHandlerImpl, k8sCapacityRouterImpl, webhookHelmRouterImpl, globalCMCSRouterImpl, userTerminalAccessRouterImpl, jobRouterImpl, ciStatusUpdateCronImpl, resourceGroupingRouterImpl, rbacRoleRouterImpl, scopedVariableRouterImpl, ciTriggerCronImpl, proxyRouterImpl, infraConfigRouterImpl, argoApplicationRouterImpl)
 	loggingMiddlewareImpl := util4.NewLoggingMiddlewareImpl(userServiceImpl)
 	cdWorkflowServiceImpl := cd.NewCdWorkflowServiceImpl(sugaredLogger, cdWorkflowRepositoryImpl)
 	cdWorkflowRunnerServiceImpl := cd.NewCdWorkflowRunnerServiceImpl(sugaredLogger, cdWorkflowRepositoryImpl)
@@ -889,7 +888,8 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	centralEventProcessor, err := eventProcessor.NewCentralEventProcessor(workflowEventProcessorImpl, sugaredLogger)
+	ciPipelineEventProcessorImpl := in.NewCIPipelineEventProcessorImpl(sugaredLogger, pubSubClientServiceImpl, gitWebhookServiceImpl)
+	centralEventProcessor, err := eventProcessor.NewCentralEventProcessor(sugaredLogger, workflowEventProcessorImpl, ciPipelineEventProcessorImpl)
 	if err != nil {
 		return nil, err
 	}
