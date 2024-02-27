@@ -25,6 +25,7 @@
 - feat: added support for multiple gitops configurations on shared clusters (#4622)
 - feat: added support for downloading pod logs (#4539)
 ## Documentation
+- doc: Navigation and Scaffolding Fixes (#4716)
 - docs: Workflow + Skopeo + Approval + Image Tag at CI + Image Tag + Image Digest at CD (#4507)
 - docs: Added the FAQ for the issue:Git-sensor PVC- disk full  (#4714)
 - doc: Updated PR Validator (#4697)
