@@ -41,6 +41,8 @@ type ArtifactPromotionApprovalRequestRepository interface {
 	FindPendingByDestinationPipelineId(destinationPipelineId int) ([]*ArtifactPromotionApprovalRequest, error)
 	FindAwaitedRequestByPipelineIdAndArtifactId(pipelineId, artifactId int) ([]*ArtifactPromotionApprovalRequest, error)
 	FindPromotedRequestByPipelineIdAndArtifactId(pipelineId, artifactId int) (*ArtifactPromotionApprovalRequest, error)
+	FindByPipelineIdAndArtifactIds(pipelineId int, artifactIds []int) ([]*ArtifactPromotionApprovalRequest, error)
+	FindAwaitedRequestsByArtifactId(artifactId int) ([]*ArtifactPromotionApprovalRequest, error)
 	MarkStale(requestIds []int) error
 	MarkPromoted(tx *pg.Tx, requestIds []int) error
 	sql.TransactionWrapper
@@ -108,6 +110,26 @@ func (repo *ArtifactPromotionApprovalRequestRepoImpl) FindPromotedRequestByPipel
 		Where("artifact_id = ?", artifactId).
 		Select()
 	return model, err
+}
+
+func (repo *ArtifactPromotionApprovalRequestRepoImpl) FindByPipelineIdAndArtifactIds(pipelineId int, artifactIds []int) ([]*ArtifactPromotionApprovalRequest, error) {
+	var model []*ArtifactPromotionApprovalRequest
+	err := repo.dbConnection.Model(model).
+		Where("destination_pipeline_id = ? ", pipelineId).
+		Where("active = ?", true).
+		Where("artifact_id in (?) ", artifactIds).
+		Select()
+	return model, err
+}
+
+func (repo *ArtifactPromotionApprovalRequestRepoImpl) FindAwaitedRequestsByArtifactId(artifactId int) ([]*ArtifactPromotionApprovalRequest, error) {
+	models := make([]*ArtifactPromotionApprovalRequest, 0)
+	err := repo.dbConnection.Model(models).
+		Where("status = ? ", bean.AWAITING_APPROVAL).
+		Where("active = ?", true).
+		Where("artifact_id = ?", artifactId).
+		Select()
+	return models, err
 }
 
 func (repo *ArtifactPromotionApprovalRequestRepoImpl) MarkStale(requestIds []int) error {

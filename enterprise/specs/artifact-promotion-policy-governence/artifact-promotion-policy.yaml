@@ -192,13 +192,6 @@ paths:
     get:
       description: "This api is used to get list of envs on which artifact promotion request is raised for given artifact and also if user is allowed to approve promotion request on that environment"
       parameters:
-        - name: envName
-          in: query
-          required: true
-          example: "all, <name of environment>"
-          schema:
-            type: string
-          description: "environment name"
         - name: artifactId
           in: query
           schema:

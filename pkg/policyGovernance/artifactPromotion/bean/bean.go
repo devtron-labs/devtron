@@ -85,6 +85,19 @@ type ArtifactPromotionApprovalResponse struct {
 	PromotionPolicy string    `json:"promotionPolicy"`
 }
 
+type PromotionApprovalMetaData struct {
+	ApprovalRequestId    int                         `json:"approvalRequestId"`
+	ApprovalRuntimeState string                      `json:"approvalRuntimeState"`
+	ApprovalUsersData    []PromotionApprovalUserData `json:"approvalUsersData"`
+	RequestedUserData    PromotionApprovalUserData   `json:"requestedUserData"`
+}
+
+type PromotionApprovalUserData struct {
+	UserId         int32     `json:"userId"`
+	UserEmail      string    `json:"userEmail"`
+	UserActionTime time.Time `json:"userActionTime"`
+}
+
 type EnvironmentResponse struct {
 	Name                       string                   `json:"name"` // environment name
 	ApprovalCount              int                      `json:"approvalCount,omitempty"`
@@ -92,6 +105,12 @@ type EnvironmentResponse struct {
 	PromotionValidationMessage string                   `json:"promotionEvaluationMessage"`
 	PromotionValidationState   PromotionValidationState `json:"promotionEvaluationState"`
 	IsVirtualEnvironment       *bool                    `json:"isVirtualEnvironment,omitempty"`
+}
+
+type EnvironmentApprovalMetadata struct {
+	Name            string   `json:"name"` // environment name
+	ApprovalAllowed bool     `json:"approvalAllowed"`
+	Reasons         []string `json:"reason"`
 }
 
 type PromotionPolicy struct {
@@ -103,11 +122,12 @@ type PromotionPolicy struct {
 }
 
 type ApprovalMetaData struct {
-	ApprovalCount                int    `json:"approverCount"`
-	AllowImageBuilderFromApprove string `json:"allowImageBuilderFromApprove"`
-	AllowRequesterFromApprove    string `json:"allowRequesterFromApprove"`
-	AllowApproverFromDeploy      string `json:"allowApproverFromDeploy"`
+	ApprovalCount                int  `json:"approverCount"`
+	AllowImageBuilderFromApprove bool `json:"allowImageBuilderFromApprove"`
+	AllowRequesterFromApprove    bool `json:"allowRequesterFromApprove"`
+	AllowApproverFromDeploy      bool `json:"allowApproverFromDeploy"`
 }
+
 type PromotionValidationState string
 
 const ARTIFACT_ALREADY_PROMOTED PromotionValidationState = "already promoted"
