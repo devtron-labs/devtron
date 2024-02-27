@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"time"
@@ -38,16 +38,16 @@ func UpdateRegistryDetailsToWrfReq(cdStageWorkflowRequest *types.WorkflowRequest
 	cdStageWorkflowRequest.DockerRegistryId = dockerRegistry.Id
 }
 
-func ConvertBuildConfigBeanToDbEntity(templateId int, overrideTemplateId int, ciBuildConfigBean *bean.CiBuildConfigBean, userId int32) (*pipelineConfig.CiBuildConfig, error) {
+func ConvertBuildConfigBeanToDbEntity(templateId int, overrideTemplateId int, ciBuildConfigBean *pipelineConfigBean.CiBuildConfigBean, userId int32) (*pipelineConfig.CiBuildConfig, error) {
 	buildMetadata := ""
 	ciBuildType := ciBuildConfigBean.CiBuildType
-	if ciBuildType == bean.BUILDPACK_BUILD_TYPE {
+	if ciBuildType == pipelineConfigBean.BUILDPACK_BUILD_TYPE {
 		buildPackConfigMetadataBytes, err := json.Marshal(ciBuildConfigBean.BuildPackConfig)
 		if err != nil {
 			return nil, err
 		}
 		buildMetadata = string(buildPackConfigMetadataBytes)
-	} else if ciBuildType == bean.SELF_DOCKERFILE_BUILD_TYPE || ciBuildType == bean.MANAGED_DOCKERFILE_BUILD_TYPE {
+	} else if ciBuildType == pipelineConfigBean.SELF_DOCKERFILE_BUILD_TYPE || ciBuildType == pipelineConfigBean.MANAGED_DOCKERFILE_BUILD_TYPE {
 		dockerBuildMetadataBytes, err := json.Marshal(ciBuildConfigBean.DockerBuildConfig)
 		if err != nil {
 			return nil, err
@@ -66,20 +66,20 @@ func ConvertBuildConfigBeanToDbEntity(templateId int, overrideTemplateId int, ci
 	return ciBuildConfigEntity, nil
 }
 
-func ConvertDbBuildConfigToBean(dbBuildConfig *pipelineConfig.CiBuildConfig) (*bean.CiBuildConfigBean, error) {
-	var buildPackConfig *bean.BuildPackConfig
-	var dockerBuildConfig *bean.DockerBuildConfig
+func ConvertDbBuildConfigToBean(dbBuildConfig *pipelineConfig.CiBuildConfig) (*pipelineConfigBean.CiBuildConfigBean, error) {
+	var buildPackConfig *pipelineConfigBean.BuildPackConfig
+	var dockerBuildConfig *pipelineConfigBean.DockerBuildConfig
 	var err error
 	if dbBuildConfig == nil {
 		return nil, nil
 	}
-	ciBuildType := bean.CiBuildType(dbBuildConfig.Type)
-	if ciBuildType == bean.BUILDPACK_BUILD_TYPE {
+	ciBuildType := pipelineConfigBean.CiBuildType(dbBuildConfig.Type)
+	if ciBuildType == pipelineConfigBean.BUILDPACK_BUILD_TYPE {
 		buildPackConfig, err = convertMetadataToBuildPackConfig(dbBuildConfig.BuildMetadata)
 		if err != nil {
 			return nil, err
 		}
-	} else if ciBuildType == bean.SELF_DOCKERFILE_BUILD_TYPE || ciBuildType == bean.MANAGED_DOCKERFILE_BUILD_TYPE {
+	} else if ciBuildType == pipelineConfigBean.SELF_DOCKERFILE_BUILD_TYPE || ciBuildType == pipelineConfigBean.MANAGED_DOCKERFILE_BUILD_TYPE {
 		dockerBuildConfig, err = convertMetadataToDockerBuildConfig(dbBuildConfig.BuildMetadata)
 		if err != nil {
 			return nil, err
@@ -90,7 +90,7 @@ func ConvertDbBuildConfigToBean(dbBuildConfig *pipelineConfig.CiBuildConfig) (*b
 	if dbBuildConfig.UseRootContext == nil || *(dbBuildConfig.UseRootContext) {
 		useRootBuildContext = true
 	}
-	ciBuildConfigBean := &bean.CiBuildConfigBean{
+	ciBuildConfigBean := &pipelineConfigBean.CiBuildConfigBean{
 		Id:                  dbBuildConfig.Id,
 		CiBuildType:         ciBuildType,
 		BuildPackConfig:     buildPackConfig,
@@ -100,19 +100,19 @@ func ConvertDbBuildConfigToBean(dbBuildConfig *pipelineConfig.CiBuildConfig) (*b
 	return ciBuildConfigBean, nil
 }
 
-func convertMetadataToBuildPackConfig(buildConfMetadata string) (*bean.BuildPackConfig, error) {
-	buildPackConfig := &bean.BuildPackConfig{}
+func convertMetadataToBuildPackConfig(buildConfMetadata string) (*pipelineConfigBean.BuildPackConfig, error) {
+	buildPackConfig := &pipelineConfigBean.BuildPackConfig{}
 	err := json.Unmarshal([]byte(buildConfMetadata), buildPackConfig)
 	return buildPackConfig, err
 }
 
-func convertMetadataToDockerBuildConfig(dockerBuildMetadata string) (*bean.DockerBuildConfig, error) {
-	dockerBuildConfig := &bean.DockerBuildConfig{}
+func convertMetadataToDockerBuildConfig(dockerBuildMetadata string) (*pipelineConfigBean.DockerBuildConfig, error) {
+	dockerBuildConfig := &pipelineConfigBean.DockerBuildConfig{}
 	err := json.Unmarshal([]byte(dockerBuildMetadata), dockerBuildConfig)
 	return dockerBuildConfig, err
 }
 
-func OverrideCiBuildConfig(dockerfilePath string, oldArgs string, ciLevelArgs string, dockerBuildOptions string, targetPlatform string, ciBuildConfigBean *bean.CiBuildConfigBean) (*bean.CiBuildConfigBean, error) {
+func OverrideCiBuildConfig(dockerfilePath string, oldArgs string, ciLevelArgs string, dockerBuildOptions string, targetPlatform string, ciBuildConfigBean *pipelineConfigBean.CiBuildConfigBean) (*pipelineConfigBean.CiBuildConfigBean, error) {
 	oldDockerArgs := map[string]string{}
 	ciLevelDockerArgs := map[string]string{}
 	dockerBuildOptionsMap := map[string]string{}
@@ -134,9 +134,9 @@ func OverrideCiBuildConfig(dockerfilePath string, oldArgs string, ciLevelArgs st
 	//no entry found in ci_build_config table, construct with requested data
 	if ciBuildConfigBean == nil {
 		dockerArgs := mergeMap(oldDockerArgs, ciLevelDockerArgs)
-		ciBuildConfigBean = &bean.CiBuildConfigBean{
-			CiBuildType: bean.SELF_DOCKERFILE_BUILD_TYPE,
-			DockerBuildConfig: &bean.DockerBuildConfig{
+		ciBuildConfigBean = &pipelineConfigBean.CiBuildConfigBean{
+			CiBuildType: pipelineConfigBean.SELF_DOCKERFILE_BUILD_TYPE,
+			DockerBuildConfig: &pipelineConfigBean.DockerBuildConfig{
 				DockerfilePath:     dockerfilePath,
 				Args:               dockerArgs,
 				TargetPlatform:     targetPlatform,
@@ -146,7 +146,7 @@ func OverrideCiBuildConfig(dockerfilePath string, oldArgs string, ciLevelArgs st
 			//setting true as default
 			UseRootBuildContext: true,
 		}
-	} else if ciBuildConfigBean.CiBuildType == bean.SELF_DOCKERFILE_BUILD_TYPE || ciBuildConfigBean.CiBuildType == bean.MANAGED_DOCKERFILE_BUILD_TYPE {
+	} else if ciBuildConfigBean.CiBuildType == pipelineConfigBean.SELF_DOCKERFILE_BUILD_TYPE || ciBuildConfigBean.CiBuildType == pipelineConfigBean.MANAGED_DOCKERFILE_BUILD_TYPE {
 		dockerBuildConfig := ciBuildConfigBean.DockerBuildConfig
 		dockerArgs := mergeMap(dockerBuildConfig.Args, ciLevelDockerArgs)
 		//dockerBuildConfig.DockerfilePath = dockerfilePath
@@ -167,13 +167,13 @@ func mergeMap(oldDockerArgs map[string]string, ciLevelDockerArgs map[string]stri
 }
 
 func IsLinkedCD(ci pipelineConfig.CiPipeline) bool {
-	return ci.ParentCiPipeline != 0 && ci.PipelineType == string(bean.LINKED_CD)
+	return ci.ParentCiPipeline != 0 && ci.PipelineType == string(pipelineConfigBean.LINKED_CD)
 }
 
 func IsLinkedCI(ci pipelineConfig.CiPipeline) bool {
-	return ci.ParentCiPipeline != 0 && ci.PipelineType != string(bean.LINKED_CD)
+	return ci.ParentCiPipeline != 0 && ci.PipelineType != string(pipelineConfigBean.LINKED_CD)
 }
 
 func IsCIJob(ci pipelineConfig.CiPipeline) bool {
-	return ci.PipelineType == string(bean.CI_JOB)
+	return ci.PipelineType == string(pipelineConfigBean.CI_JOB)
 }

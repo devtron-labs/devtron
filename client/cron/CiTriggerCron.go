@@ -6,7 +6,7 @@ import (
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	repository3 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 	cron2 "github.com/devtron-labs/devtron/util/cron"
@@ -84,7 +84,7 @@ func (impl *CiTriggerCronImpl) TriggerCiCron() {
 			CiPipelineMaterial: ciPipelineMaterials,
 			TriggeredBy:        1,
 			InvalidateCache:    false,
-			PipelineType:       string(bean3.CI_JOB),
+			PipelineType:       string(pipelineConfigBean.CI_JOB),
 		}
 		_, err = impl.ciHandler.HandleCIManual(ciTriggerRequest)
 		if err != nil {
