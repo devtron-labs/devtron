@@ -44,7 +44,7 @@ func NewGlobalPolicyDataManagerImpl(logger *zap.SugaredLogger, globalPolicyRepos
 
 func (impl *GlobalPolicyDataManagerImpl) CreatePolicy(globalPolicyDataModel *bean.GlobalPolicyDataModel, tx *pg.Tx) (*bean.GlobalPolicyDataModel, error) {
 	var err error
-	if tx != nil {
+	if tx == nil {
 		tx, err = impl.globalPolicyRepository.GetDbTransaction()
 		if err != nil {
 			impl.logger.Errorw("error in initiating transaction", "err", err)
@@ -121,7 +121,7 @@ func (impl *GlobalPolicyDataManagerImpl) getSearchableKeyEntries(globalPolicyDat
 	for _, field := range globalPolicyDataModel.SearchableFields {
 		searchableKeyEntries := &repository.GlobalPolicySearchableField{
 			GlobalPolicyId: globalPolicyDataModel.Id,
-			IsRegex:        false,
+			FieldName:      field.FieldName,
 		}
 		switch field.FieldType {
 		case bean.NumericType:
