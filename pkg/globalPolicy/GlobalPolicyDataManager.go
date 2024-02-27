@@ -67,6 +67,7 @@ func (impl *GlobalPolicyDataManagerImpl) CreatePolicy(globalPolicyDataModel *bea
 	err = impl.globalPolicySearchableFieldRepository.CreateInBatchWithTxn(searchableKeyEntriesTotal, tx)
 	if err != nil {
 		impl.logger.Errorw("error in creating global policy searchable fields entry", "err", err, "searchableKeyEntriesTotal", searchableKeyEntriesTotal)
+		// TODO KB: Why are not we returning from here ??
 	}
 	err = impl.globalPolicyRepository.CommitTransaction(tx)
 	if err != nil {
@@ -122,6 +123,7 @@ func (impl *GlobalPolicyDataManagerImpl) getSearchableKeyEntries(globalPolicyDat
 		searchableKeyEntries := &repository.GlobalPolicySearchableField{
 			GlobalPolicyId: globalPolicyDataModel.Id,
 			IsRegex:        false,
+			FieldName:      field.FieldName,
 		}
 		switch field.FieldType {
 		case bean.NumericType:
