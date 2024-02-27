@@ -748,7 +748,7 @@ func (impl UserCommonServiceImpl) GetUniqueKeyForAllEntity(role repository.RoleM
 			key = fmt.Sprintf("%s_%s_%s_%s_%s_%s", role.Entity, role.Action, role.Cluster,
 				role.Namespace, role.Group, role.Kind)
 		} else {
-			key = fmt.Sprintf("%s_%s_%s", role.Entity, role.Action)
+			key = fmt.Sprintf("%s_%s", role.Entity, role.Action)
 		}
 	}
 	return key

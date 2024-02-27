@@ -275,6 +275,45 @@ func GetRolesAttachedToUserWithTimeoutExpressionAndFormat(user string) ([]bean.G
 	return userRoles, nil
 }
 
+func GetUserAttachedToRoleWithTimeoutExpressionAndFormat(role string) ([]bean.GroupPolicy, error) {
+	roleMappings := make([][]string, 0)
+	if isV2() {
+		roleMappings = e2.GetModel()["g"]["g"].Policy
+	} else {
+		roleMappings = e.GetModel()["g"]["g"].Policy
+	}
+	userRoles := make([]bean.GroupPolicy, 0)
+	for _, roleMappingDetail := range roleMappings {
+		lenOfRoleMapping := len(roleMappingDetail)
+		if lenOfRoleMapping < 2 {
+			//invalid case
+			return nil, fmt.Errorf("invalid role mapping found")
+		} else {
+			roleInPolicy := roleMappingDetail[1]
+			if roleInPolicy == role { //checking user
+				user := roleMappingDetail[0]
+				isExpressionValid := true
+				expression := ""
+				format := ""
+				if lenOfRoleMapping == 4 {
+					//expression details present
+					expression = roleMappingDetail[2]
+					format = roleMappingDetail[3]
+					//parse and check if expression is correct
+					if !(len(expression) > 0 && len(format) == 1) {
+						isExpressionValid = false
+					}
+				}
+				if isExpressionValid {
+					userRoles = append(userRoles, bean.GroupPolicy{Role: role, User: user, ExpressionFormat: format, TimeoutWindowExpression: strings.ToUpper(expression)})
+				}
+
+			}
+		}
+	}
+	return userRoles, nil
+}
+
 func GetRolesForUser(user string) ([]string, error) {
 	user = strings.ToLower(user)
 	if isV2() {

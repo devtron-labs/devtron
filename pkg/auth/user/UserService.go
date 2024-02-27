@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	bean4 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin/bean"
+	util4 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin/util"
 	auth "github.com/devtron-labs/devtron/pkg/auth/authorisation/globalConfig"
 	helper3 "github.com/devtron-labs/devtron/pkg/auth/common/helper"
 	"github.com/devtron-labs/devtron/pkg/auth/user/adapter"
@@ -1838,10 +1839,12 @@ func (impl UserServiceImpl) GetApprovalUsersByEnv(appName, envName string) ([]st
 
 func (impl UserServiceImpl) extractEmailIds(permissionGroupNames []string, emailIds []string) ([]string, error) {
 	for _, groupName := range permissionGroupNames {
-		userEmails, err := casbin2.GetUserByRole(groupName)
+		polices, err := casbin2.GetUserAttachedToRoleWithTimeoutExpressionAndFormat(groupName)
 		if err != nil {
+			impl.logger.Errorw("error in extractEmailIds", "err", err, "groupName", groupName)
 			return emailIds, err
 		}
+		userEmails := util4.GetUsersForActivePolicy(polices)
 		emailIds = append(emailIds, userEmails...)
 	}
 	uniqueEmails := make(map[string]bool)

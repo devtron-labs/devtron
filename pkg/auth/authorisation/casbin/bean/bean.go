@@ -16,6 +16,7 @@ type PolicyType string
 
 type GroupPolicy struct {
 	Role                    string
+	User                    string
 	TimeoutWindowExpression string
 	ExpressionFormat        string
 }
