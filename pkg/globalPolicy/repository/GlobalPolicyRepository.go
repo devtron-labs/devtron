@@ -179,6 +179,9 @@ func (repo *GlobalPolicyRepositoryImpl) MarkDeletedById(id int, userId int32, tx
 
 func (repo *GlobalPolicyRepositoryImpl) GetByIds(ids []int) ([]*GlobalPolicy, error) {
 	var models []*GlobalPolicy
+	if len(ids) == 0 {
+		return models, nil
+	}
 	err := repo.dbConnection.Model(&models).Where("id in (?)", pg.In(ids)).
 		Where("deleted = ?", false).Select()
 	if err != nil {
