@@ -44,6 +44,7 @@ const (
 	ACTION_PROMOTE                             = "PROMOTE"
 	ACTION_CANCEL                              = "CANCEL"
 	ACTION_APPROVE                             = "APPROVE"
+	PROMOTION_APPROVAL_PENDING_NODE            = "PROMOTION_APPROVAL_PENDING_NODE"
 )
 
 func (sourceType SourceType) GetSourceType() string {

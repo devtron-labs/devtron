@@ -334,14 +334,14 @@ func (handler PromotionApprovalRestHandlerImpl) GetArtifactsForPromotion(w http.
 		}
 	}
 
-	if resource == "CI" || resource == "CD" {
+	if resource == bean.SOURCE_TYPE_CI || resource == bean.SOURCE_TYPE_CD {
 		// check if he has trigger access for any one env for this app
 		if isAuthorised := handler.checkTriggerAccessForAnyEnv(token, appId); !isAuthorised {
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 			return
 		}
 
-	} else if resource == "PROMOTION_APPROVAL_PENDING_NODE" {
+	} else if resource == bean.PROMOTION_APPROVAL_PENDING_NODE {
 
 		appRbacObj := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 		env, err := handler.environmentRepository.FindByName(resourceName)
