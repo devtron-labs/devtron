@@ -362,7 +362,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) approveArtifactPromotion(reques
 			// mark it stale
 			staleRequestIds = append(staleRequestIds, promotionRequest.Id)
 
-			// also set the reponse messages
+			// also set the response messages
 			resp.PromotionPossible = pointer.Bool(false)
 			resp.PromotionValidationMessage = "request is no longer valid, state: stale"
 			resp.PromotionValidationState = bean.PromotionValidationState(resp.PromotionValidationMessage)
@@ -453,6 +453,10 @@ func (impl ArtifactPromotionApprovalServiceImpl) approveArtifactPromotion(reques
 	if err != nil {
 		impl.logger.Errorw("error in committing the transaction", "promotableRequestIds", promotableRequestIds, "err", err)
 		return nil, err
+	}
+
+	if len(promotableRequestIds) > 0 {
+		// todo: trigger release
 	}
 	return nil, nil
 }
@@ -733,6 +737,9 @@ func (impl ArtifactPromotionApprovalServiceImpl) raisePromoteRequest(request *be
 		return bean.ERRORED, err.Error(), err
 	}
 
+	if promotionRequest.Status == bean.PROMOTED {
+		// todo: trigger release on the target pipeline
+	}
 	return status, string(status), nil
 
 }
