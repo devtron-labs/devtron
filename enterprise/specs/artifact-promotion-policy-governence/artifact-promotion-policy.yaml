@@ -188,7 +188,7 @@ paths:
   #  if resource is PROMOTION_APPROVAL_PENDING_NODE, then this api will fetch the pending promotion requests for the given environment (in resourceName).
   #  also can be used to fetch pending requests waiting for approval on requested user for given workflowId(required)
   #  appName is required param
-  /orchestrator/app/artifact/promote/env/metadata:
+  /orchestrator/app/artifact/promote/env/approval-metadata:
     get:
       description: "This api is used to get list of envs on which artifact promotion request is raised for given artifact and also if user is allowed to approve promotion request on that environment"
       parameters:

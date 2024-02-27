@@ -7,11 +7,17 @@ type PromotionApprovalRouter interface {
 }
 
 type PromotionApprovalRouterImpl struct {
-	promotionApprovalRequestRestHandler PromotionApprovalRequestRestHandler
+	promotionApprovalRequestRestHandler  PromotionApprovalRequestRestHandler
+	promotionApprovalMaterialRestHandler PromotionApprovalMaterialRestHandler
 }
 
-func NewPromotionApprovalRequestRouterImpl(promotionApprovalRequestRestHandler PromotionApprovalRequestRestHandler) *PromotionApprovalRouterImpl {
-	return &PromotionApprovalRouterImpl{promotionApprovalRequestRestHandler: promotionApprovalRequestRestHandler}
+func NewPromotionApprovalRequestRouterImpl(promotionApprovalRequestRestHandler PromotionApprovalRequestRestHandler,
+	promotionApprovalMaterialRestHandler PromotionApprovalMaterialRestHandler,
+) *PromotionApprovalRouterImpl {
+	return &PromotionApprovalRouterImpl{
+		promotionApprovalRequestRestHandler:  promotionApprovalRequestRestHandler,
+		promotionApprovalMaterialRestHandler: promotionApprovalMaterialRestHandler,
+	}
 }
 
 func (router *PromotionApprovalRouterImpl) InitPromotionApprovalRouter(promotionApprovalRouter *mux.Router) {
@@ -19,7 +25,9 @@ func (router *PromotionApprovalRouterImpl) InitPromotionApprovalRouter(promotion
 		Methods("POST")
 	promotionApprovalRouter.Path("").HandlerFunc(router.promotionApprovalRequestRestHandler.GetByPromotionRequestId).Queries("promotionRequestId", "{promotionRequestId}").
 		Methods("GET")
-	promotionApprovalRouter.Path("/env/metadata").HandlerFunc(router.promotionApprovalRequestRestHandler.FetchAwaitingApprovalEnvListForArtifact).
+	promotionApprovalRouter.Path("/env/approval-metadata").HandlerFunc(router.promotionApprovalRequestRestHandler.FetchAwaitingApprovalEnvListForArtifact).
+		Methods("GET")
+	promotionApprovalRouter.Path("/material").HandlerFunc(router.promotionApprovalMaterialRestHandler.GetArtifactsForPromotion).
 		Methods("GET")
 
 }
