@@ -765,6 +765,7 @@ func (handler PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWr
 	if err := handler.validateCIRuntimeParams(ciTriggerRequest); err != nil {
 		handler.Logger.Errorw("invalid ci trigger req, reserved env vars present in request", "err", err, "payload", ciTriggerRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
 	}
 	ciTriggerRequest.TriggeredBy = userId
 	token := r.Header.Get("token")
@@ -1623,9 +1624,11 @@ func (handler PipelineConfigRestHandlerImpl) validateCIRuntimeParams(request bea
 				invalidVars = append(invalidVars, key)
 			}
 		}
-		return &util.ApiError{
-			HttpStatusCode: http.StatusBadRequest,
-			UserMessage:    fmt.Sprintf("found reserved vars in env variables : %v", invalidVars),
+		if len(invalidVars) > 0 {
+			return &util.ApiError{
+				HttpStatusCode: http.StatusBadRequest,
+				UserMessage:    fmt.Sprintf("found reserved vars in env variables : %v", invalidVars),
+			}
 		}
 	}
 	return nil
