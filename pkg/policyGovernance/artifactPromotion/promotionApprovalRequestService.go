@@ -418,7 +418,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) HandleArtifactPromotionRequest(
 	switch request.Action {
 
 	case bean.ACTION_PROMOTE:
-		return impl.promoteArtifact(request)
+		return impl.promoteArtifact(request, authorizedEnvironments)
 	case bean.ACTION_APPROVE:
 		return impl.approveArtifactPromotion(request, authorizedEnvironments)
 	case bean.ACTION_CANCEL:
@@ -484,7 +484,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) validateSourceAndFetchAppWorkfl
 	return workflow, nil
 }
 
-func (impl ArtifactPromotionApprovalServiceImpl) promoteArtifact(request *bean.ArtifactPromotionRequest) ([]bean.EnvironmentResponse, error) {
+func (impl ArtifactPromotionApprovalServiceImpl) promoteArtifact(request *bean.ArtifactPromotionRequest, authorizedEnvironments map[string]bool) ([]bean.EnvironmentResponse, error) {
 	// 	step1: validate if artifact is deployed/created at the source pipeline.
 	//      step1: if source is cd , check if this artifact is deployed on these environments
 	//  step2: check if destination pipeline is topologically downwards from the source pipeline and also source and destination are on the same subtree.
@@ -500,14 +500,20 @@ func (impl ArtifactPromotionApprovalServiceImpl) promoteArtifact(request *bean.A
 			PromotionValidationState:   bean.PIPELINE_NOT_FOUND,
 			PromotionValidationMessage: string(bean.PIPELINE_NOT_FOUND),
 		}
+		if !authorizedEnvironments[env] {
+			envResponse.PromotionValidationState = bean.NO_PERMISSION
+			envResponse.PromotionValidationMessage = string(bean.NO_PERMISSION)
+		}
 		response[env] = envResponse
 	}
 
 	allowedEnvs := make([]int, 0, len(request.EnvNameIdMap))
 	allowedEnvNames := make([]string, 0, len(request.EnvNameIdMap))
 	for envName, envId := range request.EnvNameIdMap {
-		allowedEnvs = append(allowedEnvs, envId)
-		allowedEnvNames = append(allowedEnvNames, envName)
+		if authorizedEnvironments[envName] {
+			allowedEnvs = append(allowedEnvs, envId)
+			allowedEnvNames = append(allowedEnvNames, envName)
+		}
 	}
 
 	ciArtifact, err := impl.ciArtifactRepository.Get(request.ArtifactId)
