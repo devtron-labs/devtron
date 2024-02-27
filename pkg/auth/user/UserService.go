@@ -70,7 +70,7 @@ type UserService interface {
 	GetByIdIncludeDeleted(id int32) (*bean.UserInfo, error)
 	UserExists(emailId string) bool
 	UpdateTriggerPolicyForTerminalAccess() (err error)
-	GetRoleFiltersByGroupNames(userRoleGroups []bean.UserRoleGroup) ([]bean.RoleFilter, error)
+	GetRoleFiltersByUserRoleGroups(userRoleGroups []bean.UserRoleGroup) ([]bean.RoleFilter, error)
 	SaveLoginAudit(emailId, clientIp string, id int32)
 }
 
@@ -1629,7 +1629,7 @@ func (impl *UserServiceImpl) checkGroupAuth(groupName string, token string, mana
 	return hasAccessToGroup
 }
 
-func (impl *UserServiceImpl) GetRoleFiltersByGroupNames(userRoleGroups []bean.UserRoleGroup) ([]bean.RoleFilter, error) {
+func (impl *UserServiceImpl) GetRoleFiltersByUserRoleGroups(userRoleGroups []bean.UserRoleGroup) ([]bean.RoleFilter, error) {
 	groupNames := make([]string, 0)
 	for _, userRoleGroup := range userRoleGroups {
 		groupNames = append(groupNames, userRoleGroup.RoleGroup.Name)
