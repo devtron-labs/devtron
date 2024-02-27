@@ -34,7 +34,8 @@ const (
 type GlobalPolicyType string
 
 const (
-	GLOBAL_POLICY_TYPE_PLUGIN GlobalPolicyType = "PLUGIN"
+	GLOBAL_POLICY_TYPE_PLUGIN            GlobalPolicyType = "PLUGIN"
+	GLOBAL_POLICY_TYPE_DEPLOYMENT_WINDOW GlobalPolicyType = "DEPLOYMENT_WINDOW"
 )
 
 func (t GlobalPolicyType) ToString() string {
@@ -225,3 +226,31 @@ func (consequence1 *ConsequenceDto) GetSeverity(consequence2 *ConsequenceDto) Se
 	}
 	return SEVERITY_LESS_SEVERE
 }
+
+type GlobalPolicyBaseModel struct {
+	Id            int
+	Name          string
+	Description   string
+	Enabled       bool
+	PolicyOf      GlobalPolicyType
+	PolicyVersion GlobalPolicyVersion
+	JsonData      string
+	Active        bool
+	UserId        int32
+}
+
+type GlobalPolicyDataModel struct {
+	GlobalPolicyBaseModel
+	SearchableFields []SearchableField
+}
+
+type SearchableField struct {
+	FieldName  string
+	FieldValue interface{}
+	FieldType  FieldType
+}
+type FieldType int
+
+const NumericType FieldType = 1
+const StringType FieldType = 2
+const DateTimeType FieldType = 3
