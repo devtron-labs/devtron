@@ -33,7 +33,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
-	casbin2 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	repository2 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/devtron-labs/devtron/pkg/k8s/informer"
 	errors1 "github.com/juju/errors"
@@ -984,14 +983,22 @@ func (impl *ClusterServiceImpl) FetchRolesFromGroup(userId int32, token string) 
 	}
 	isGroupClaimsActive := impl.globalAuthorisationConfigService.IsGroupClaimsConfigActive()
 	isDevtronSystemActive := impl.globalAuthorisationConfigService.IsDevtronSystemManagedConfigActive()
+	recordedTime := time.Now()
 	var groups []string
 	if isDevtronSystemActive || util3.CheckIfAdminOrApiToken(user.EmailId) {
-		groupsCasbin, err := casbin2.GetRolesForUser(user.EmailId)
+		activeRoles, err := impl.ClusterRbacServiceImpl.userService.GetActiveRolesAttachedToUser(user.EmailId, recordedTime)
 		if err != nil {
-			impl.logger.Errorw("No Roles Found for user", "id", user.Id)
+			impl.logger.Errorw("error encountered in FetchRolesFromGroup", "id", user.Id, "err", err)
 			return nil, err
 		}
-		groups = append(groups, groupsCasbin...)
+		groups = append(groups, activeRoles...)
+		_, activeGroups, err := impl.ClusterRbacServiceImpl.userService.GetUserRoleGroupsForEmail(user.EmailId, recordedTime)
+		if err != nil {
+			impl.logger.Errorw("error encountered in FetchRolesFromGroup", "err", err, "emailId", user.EmailId)
+			return nil, err
+		}
+		groupsCasbinNames := util3.GetGroupCasbinName(activeGroups)
+		groups = append(groups, groupsCasbinNames...)
 	}
 
 	if isGroupClaimsActive {

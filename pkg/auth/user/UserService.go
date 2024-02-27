@@ -98,6 +98,8 @@ type UserService interface {
 	BulkUpdateStatus(request *bean.BulkStatusUpdateRequest) (*bean.ActionResponse, error)
 	CheckUserStatusAndUpdateLoginAudit(token string) (bool, int32, error)
 	GetUserBasicDataByEmailId(emailId string) (*bean.UserInfo, error)
+	GetActiveRolesAttachedToUser(emailId string, recordedTime time.Time) ([]string, error)
+	GetUserRoleGroupsForEmail(emailId string, recordedTime time.Time) ([]bean.UserRoleGroup, []string, error)
 }
 
 type UserServiceImpl struct {
@@ -1165,7 +1167,7 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, ma
 // createOrUpdateUserRoleGroupsPolices : gives policies which are to be added and which are to be eliminated from casbin, with support of timewindow Config changed fromm existing
 func (impl UserServiceImpl) createOrUpdateUserRoleGroupsPolices(requestUserRoleGroups []bean.UserRoleGroup, emailId string, token string, managerAuth func(resource string, token string, object string) bool, isActionPerformingUserSuperAdmin bool, tx *pg.Tx, loggedInUser int32) ([]bean4.Policy, []bean4.Policy, []string, bool, error) {
 	// getting existing userRoleGroups mapped to user by email with status according to current time
-	userRoleGroups, _, err := impl.getUserRoleGroupsForEmail(emailId, time.Now())
+	userRoleGroups, _, err := impl.GetUserRoleGroupsForEmail(emailId, time.Now())
 	if err != nil {
 		impl.logger.Errorw("error encountered in createOrUpdateUserRoleGroupsPolices", "userRoleGroups", userRoleGroups, "emailId", emailId, "err", err)
 		return nil, nil, nil, false, err
@@ -1491,7 +1493,7 @@ func (impl UserServiceImpl) getUserMetadata(model *repository.UserModel, recorde
 		roleFilters = append(roleFilters, *v)
 	}
 	roleFilters = impl.userCommonService.MergeCustomRoleFilters(roleFilters)
-	userRoleGroups, filterGroups, err := impl.getUserRoleGroupsForEmail(model.EmailId, recordedTime)
+	userRoleGroups, filterGroups, err := impl.GetUserRoleGroupsForEmail(model.EmailId, recordedTime)
 	if err != nil {
 		impl.logger.Errorw("error in getUserMetadata", "err", err)
 	}
@@ -1516,8 +1518,8 @@ func (impl UserServiceImpl) getUserMetadata(model *repository.UserModel, recorde
 	return isSuperAdmin, roleFilters, filterGroups, userRoleGroups
 }
 
-// getUserRoleGroupsForEmail : returns existing userRoleGroup with status and timeoutExpression with respect to recordedTime
-func (impl UserServiceImpl) getUserRoleGroupsForEmail(emailId string, recordedTime time.Time) ([]bean.UserRoleGroup, []string, error) {
+// GetUserRoleGroupsForEmail : returns existing userRoleGroup with status and timeoutExpression with respect to recordedTime
+func (impl UserServiceImpl) GetUserRoleGroupsForEmail(emailId string, recordedTime time.Time) ([]bean.UserRoleGroup, []string, error) {
 	groupPolicy, err := casbin2.GetGroupsAttachedToUser(emailId)
 	if err != nil {
 		impl.logger.Warnw("error in getUserRoleGroupsForEmail", "emailId", emailId)
@@ -2271,13 +2273,13 @@ func (impl UserServiceImpl) CheckUserRoles(id int32, token string) ([]string, er
 	recordedTime := time.Now()
 	var groups []string
 	if isDevtronSystemActive || util3.CheckIfAdminOrApiToken(model.EmailId) {
-		activeRoles, err := impl.getActiveRolesAttachedToUser(model.EmailId, recordedTime)
+		activeRoles, err := impl.GetActiveRolesAttachedToUser(model.EmailId, recordedTime)
 		if err != nil {
 			impl.logger.Errorw("error encountered in getActiveRolesAttachedToUser", "id", model.Id, "err", err)
 			return nil, err
 		}
 		groups = append(groups, activeRoles...)
-		_, activeGroups, err := impl.getUserRoleGroupsForEmail(model.EmailId, recordedTime)
+		_, activeGroups, err := impl.GetUserRoleGroupsForEmail(model.EmailId, recordedTime)
 		if err != nil {
 			impl.logger.Errorw("error encountered in CheckUserRoles", "err", err, "emailId", model.EmailId)
 			return nil, err
@@ -2314,8 +2316,8 @@ func (impl UserServiceImpl) CheckUserRoles(id int32, token string) ([]string, er
 	return groups, nil
 }
 
-// getActiveRolesAttachedToUser returns only active roles attached to user in casbin
-func (impl UserServiceImpl) getActiveRolesAttachedToUser(emailId string, recordedTime time.Time) ([]string, error) {
+// GetActiveRolesAttachedToUser returns only active roles attached to user in casbin
+func (impl UserServiceImpl) GetActiveRolesAttachedToUser(emailId string, recordedTime time.Time) ([]string, error) {
 	groupPolicies, err := casbin2.GetRolesAttachedToUserWithTimeoutExpressionAndFormat(emailId)
 	if err != nil {
 		impl.logger.Warnw("error in getUserRoleGroupsForEmail", "emailId", emailId)
