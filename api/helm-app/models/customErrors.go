@@ -15,7 +15,7 @@ func (err *NamespaceNotExistError) Unwrap() error {
 }
 
 func IsErrorWhileGeneratingManifest(err error) bool {
-	if strings.Contains(err.Error(), "error converting YAML to JSON") || strings.Contains(err.Error(), "error occured while generating manifest") {
+	if strings.Contains(err.Error(), "error converting YAML to JSON") || strings.Contains(err.Error(), "error occurred while generating manifest") {
 		return true
 	}
 	return false

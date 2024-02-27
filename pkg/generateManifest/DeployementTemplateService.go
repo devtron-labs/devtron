@@ -6,7 +6,6 @@ import (
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/helm-app/bean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
-	"github.com/devtron-labs/devtron/api/helm-app/models"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -25,6 +24,7 @@ import (
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"google.golang.org/grpc/codes"
 	"net/http"
 	"os"
 	"strconv"
@@ -365,8 +365,9 @@ func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, 
 
 	templateChartResponse, err := impl.helmAppClient.TemplateChart(ctx, installReleaseRequest)
 	if err != nil {
-		if models.IsErrorWhileGeneratingManifest(err) {
-			return nil, &util.ApiError{HttpStatusCode: http.StatusOK, Code: string(http.StatusOK), InternalMessage: err.Error(), UserMessage: err.Error()}
+		grpcErrCode, errMsg := util.GetGRPCDetailedError(err)
+		if grpcErrCode == codes.InvalidArgument {
+			return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: strconv.FormatInt(http.StatusBadRequest, 10), InternalMessage: errMsg, UserMessage: errMsg}
 		}
 		impl.Logger.Errorw("error in templating chart", "err", err)
 		return nil, err
