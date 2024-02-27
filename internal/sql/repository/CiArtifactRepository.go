@@ -94,10 +94,7 @@ func (artifact *CiArtifact) IsMigrationRequired() bool {
 }
 
 func (artifact *CiArtifact) IsRegistryCredentialMapped() bool {
-	if artifact.CredentialsSourceType == GLOBAL_CONTAINER_REGISTRY {
-		return true
-	}
-	return false
+	return artifact.CredentialsSourceType == GLOBAL_CONTAINER_REGISTRY
 }
 
 type CiArtifactRepository interface {

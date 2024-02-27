@@ -294,7 +294,7 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 			impl.logger.Errorw("cannot find ciPipelineRequest", "err", err)
 			return nil, err
 		}
-		if util.IsErrNoRows(err) {
+		if ciPipeline != nil && util.IsErrNoRows(err) {
 			ciPipeline.Id = 0
 		}
 		for _, m := range ciPipeline.CiPipelineMaterials {
@@ -712,6 +712,34 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 	return cdStageWorkflowRequest, nil
 }
 
+/*
+getBuildRegistryConfigForArtifact performs the following logic to get Pre/Post CD Registry Credentials:
+
+ 1. CI Build:
+    It will use the overridden credentials (if any) OR the base application level credentials.
+
+ 2. Link CI:
+    It will fetch the parent CI pipeline first.
+    Then will use the CI Build overridden credentials (if any) OR the Source application (App that contains CI Build) level credentials.
+
+ 3. Sync CD:
+    It will fetch the parent CD pipeline first.
+
+    - CASE CD Pipeline has CI Build as artifact provider:
+    Then will use the CI Build overridden credentials (if any) OR the Source application (App that contains CI Build) level credentials.
+
+    - CASE CD Pipeline has Link CI as artifact provider:
+    It will fetch the parent CI pipeline of the Link CI  first.
+    Then will use the CI Build overridden credentials (if any) OR the Source application (App that contains CI Build) level credentials.
+
+ 4. Skopeo Plugin:
+    If any artifact has information about : credentials_source_type(global_container_registry) credentials_source_value(registry_id)
+    Then we will use the credentials_source_value to derive the credentials.
+
+ 5. Polling plugin:
+    If the ci_pipeline_type type is CI_JOB
+    We will always fetch the registry credentials from the ci_template_override table
+*/
 func (impl *TriggerServiceImpl) getBuildRegistryConfigForArtifact(sourceCiPipeline pipelineConfig.CiPipeline, artifact repository.CiArtifact) (*types.DockerArtifactStoreBean, error) {
 	// Handling for Skopeo Plugin
 	if artifact.IsRegistryCredentialMapped() {
@@ -774,6 +802,7 @@ func (impl *TriggerServiceImpl) getSourceCiPipelineForArtifact(ciPipeline pipeli
 	}
 	return sourceCiPipeline, nil
 }
+
 func (impl *TriggerServiceImpl) GetArtifactVulnerabilityStatus(artifact *repository.CiArtifact, cdPipeline *pipelineConfig.Pipeline, ctx context.Context) (bool, error) {
 	isVulnerable := false
 	if len(artifact.ImageDigest) > 0 {
