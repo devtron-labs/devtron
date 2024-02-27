@@ -12,8 +12,8 @@ import (
 	"strconv"
 
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	repository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
-	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	repository "github.com/devtron-labs/devtron/internals/sql/repository/dockerRegistry"
+	"github.com/devtron-labs/devtron/internals/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/gorilla/mux"

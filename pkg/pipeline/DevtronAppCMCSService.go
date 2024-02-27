@@ -19,7 +19,7 @@ package pipeline
 
 import (
 	"encoding/json"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internals/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"go.uber.org/zap"
 )

@@ -3,13 +3,13 @@
 package mocks
 
 import (
-	chartConfig "github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
+	chartConfig "github.com/devtron-labs/devtron/internals/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	history "github.com/devtron-labs/devtron/pkg/pipeline/history"
 
 	mock "github.com/stretchr/testify/mock"
 
-	pipelineConfig "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	pipelineConfig "github.com/devtron-labs/devtron/internals/sql/repository/pipelineConfig"
 
 	repository "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 

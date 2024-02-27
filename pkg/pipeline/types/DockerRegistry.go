@@ -1,7 +1,7 @@
 package types
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
+	"github.com/devtron-labs/devtron/internals/sql/repository/dockerRegistry"
 )
 
 type DockerArtifactStoreBean struct {

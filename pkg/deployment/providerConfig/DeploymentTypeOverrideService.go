@@ -1,7 +1,7 @@
 package providerConfig
 
 import (
-	util2 "github.com/devtron-labs/devtron/internal/util"
+	util2 "github.com/devtron-labs/devtron/internals/util"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/util"
 	"go.uber.org/zap"

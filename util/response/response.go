@@ -19,7 +19,7 @@ package response
 
 import (
 	"encoding/json"
-	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/internals/util"
 	"net/http"
 )
 

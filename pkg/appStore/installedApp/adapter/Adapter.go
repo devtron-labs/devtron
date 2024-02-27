@@ -1,7 +1,7 @@
 package adapter
 
 import (
-	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/internals/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
 	"k8s.io/helm/pkg/proto/hapi/chart"

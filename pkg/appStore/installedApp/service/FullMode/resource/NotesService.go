@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
-	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/internals/util"
 	"github.com/go-pg/pg"
 	"net/http"
 	"regexp"

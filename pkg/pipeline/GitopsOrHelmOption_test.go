@@ -1,8 +1,8 @@
 package pipeline
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/mocks"
-	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/internals/sql/repository/pipelineConfig/mocks"
+	"github.com/devtron-labs/devtron/internals/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/stretchr/testify/assert"

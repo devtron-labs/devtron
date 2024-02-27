@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/internals/util"
 	repository2 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	repomock2 "github.com/devtron-labs/devtron/pkg/auth/user/repository/RepositoryMocks"
 	"github.com/devtron-labs/devtron/pkg/sql"

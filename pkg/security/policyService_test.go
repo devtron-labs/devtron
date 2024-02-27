@@ -1,7 +1,7 @@
 package security
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/repository/security"
+	"github.com/devtron-labs/devtron/internals/sql/repository/security"
 	"testing"
 )
 

@@ -2,10 +2,10 @@ package pipeline
 
 import (
 	"fmt"
-	mocks4 "github.com/devtron-labs/devtron/internal/sql/repository/app/mocks"
-	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
-	mocks2 "github.com/devtron-labs/devtron/internal/sql/repository/chartConfig/mocks"
-	"github.com/devtron-labs/devtron/internal/util"
+	mocks4 "github.com/devtron-labs/devtron/internals/sql/repository/app/mocks"
+	"github.com/devtron-labs/devtron/internals/sql/repository/chartConfig"
+	mocks2 "github.com/devtron-labs/devtron/internals/sql/repository/chartConfig/mocks"
+	"github.com/devtron-labs/devtron/internals/util"
 	"github.com/devtron-labs/devtron/pkg/chartRepo/repository/mocks"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	mocks6 "github.com/devtron-labs/devtron/pkg/cluster/repository/mocks"

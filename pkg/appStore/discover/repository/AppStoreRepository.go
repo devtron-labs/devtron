@@ -18,7 +18,7 @@
 package appStoreDiscoverRepository
 
 import (
-	dockerArtifactStoreRegistry "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
+	dockerArtifactStoreRegistry "github.com/devtron-labs/devtron/internals/sql/repository/dockerRegistry"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"

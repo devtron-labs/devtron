@@ -9,9 +9,9 @@ import (
 
 	mock "github.com/stretchr/testify/mock"
 
-	pipelineConfig "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	pipelineConfig "github.com/devtron-labs/devtron/internals/sql/repository/pipelineConfig"
 
-	repository "github.com/devtron-labs/devtron/internal/sql/repository"
+	repository "github.com/devtron-labs/devtron/internals/sql/repository"
 
 	time "time"
 

@@ -11,7 +11,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 
 	"github.com/caarlos0/env"
-	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/internals/util"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/go-pg/pg"
 	"github.com/stretchr/testify/assert"

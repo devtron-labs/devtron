@@ -10,8 +10,8 @@ import (
 	reflect "reflect"
 
 	bean "github.com/devtron-labs/devtron/api/bean"
-	helper "github.com/devtron-labs/devtron/internal/sql/repository/helper"
-	pipelineConfig "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	helper "github.com/devtron-labs/devtron/internals/sql/repository/helper"
+	pipelineConfig "github.com/devtron-labs/devtron/internals/sql/repository/pipelineConfig"
 	bean0 "github.com/devtron-labs/devtron/pkg/bean"
 	pipeline "github.com/devtron-labs/devtron/pkg/pipeline"
 	appGroup "github.com/devtron-labs/devtron/pkg/resourceGroup"

@@ -21,7 +21,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/util/JiraUtil"
+	"github.com/devtron-labs/devtron/internals/util/JiraUtil"
 	"go.uber.org/zap"
 	"net/http"
 )
