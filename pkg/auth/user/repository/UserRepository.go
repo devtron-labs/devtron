@@ -56,6 +56,7 @@ type UserRepository interface {
 	StartATransaction() (*pg.Tx, error)
 	CommitATransaction(tx *pg.Tx) error
 	GetUserWithTimeoutWindowConfiguration(emailId string) (*UserModel, error)
+	GetSuperAdmins() ([]int32, error)
 }
 
 type UserRepositoryImpl struct {
@@ -196,6 +197,19 @@ func (impl UserRepositoryImpl) FetchActiveUserByEmail(email string) (bean.UserIn
 	}
 
 	return users, nil
+}
+func (impl UserRepositoryImpl) GetSuperAdmins() ([]int32, error) {
+	var userIDs []int32
+	err := impl.dbConnection.Model(&RoleModel{}).
+		Column("user_id").
+		Join("JOIN roles AS r ON user_roles.role_id = r.id").
+		Where("r.action = ?", "super-admin").
+		Select(&userIDs)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return userIDs, err
+	}
+	return userIDs, nil
 }
 
 func (impl UserRepositoryImpl) FetchUserDetailByEmail(email string) (bean.UserInfo, error) {

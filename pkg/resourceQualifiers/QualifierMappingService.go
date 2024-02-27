@@ -244,7 +244,7 @@ func (impl QualifierMappingServiceImpl) processMappings(resourceType ResourceTyp
 			qualifierMappings = append(qualifierMappings, ResourceQualifierMappings{
 				ResourceId:   resourceId,
 				ResourceType: resourceType,
-				scope:        scope,
+				Scope:        scope,
 			})
 		}
 	}

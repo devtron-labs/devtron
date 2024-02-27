@@ -13,6 +13,11 @@ type TimeoutWindowService interface {
 	GetAllWithIds(ids []int) ([]*repository.TimeoutWindowConfiguration, error)
 	UpdateTimeoutExpressionAndFormatForIds(tx *pg.Tx, timeoutExpression string, ids []int, expressionFormat bean.ExpressionFormat, loggedInUserId int32) error
 	CreateWithTimeoutExpressionAndFormat(tx *pg.Tx, timeoutExpression string, count int, expressionFormat bean.ExpressionFormat, loggedInUserId int32) ([]*repository.TimeoutWindowConfiguration, error)
+	CreateForConfigurationList(tx *pg.Tx, models []*repository.TimeoutWindowConfiguration) ([]*repository.TimeoutWindowConfiguration, error)
+}
+
+func (impl TimeWindowServiceImpl) CreateForConfigurationList(tx *pg.Tx, configurations []*repository.TimeoutWindowConfiguration) ([]*repository.TimeoutWindowConfiguration, error) {
+	return impl.timeWindowRepository.CreateInBatch(tx, configurations)
 }
 
 type TimeWindowServiceImpl struct {

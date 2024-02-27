@@ -93,6 +93,7 @@ type UserService interface {
 	BulkUpdateStatus(request *bean.BulkStatusUpdateRequest) (*bean.ActionResponse, error)
 	CheckUserStatusAndUpdateLoginAudit(token string) (bool, int32, error)
 	GetUserBasicDataByEmailId(emailId string) (*bean.UserInfo, error)
+	GetSuperAdmins() ([]int32, error)
 }
 
 type UserServiceImpl struct {
@@ -2636,4 +2637,8 @@ func (impl UserServiceImpl) CheckUserStatusAndUpdateLoginAudit(token string) (bo
 	}
 
 	return isInactive, userId, nil
+}
+
+func (impl UserServiceImpl) GetSuperAdmins() ([]int32, error) {
+	return impl.userRepository.GetSuperAdmins()
 }
