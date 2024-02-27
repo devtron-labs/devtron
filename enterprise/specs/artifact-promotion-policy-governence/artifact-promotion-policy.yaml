@@ -421,16 +421,9 @@ paths:
               type: object
               properties:
                 applicationEnvironments:
-                  type: object
-                  # assumptions: always app and env combination is required.
-                  # if clusterName is to be added in-future, we will accept it along with envName and appName,
-                  # then get all the envs in that cluster and apply the profile to app*envs.
-                  # for teamName , get all the apps and apply on all apps*envs
-                  properties:
-                    appName:
-                      type: string
-                    environmentName:
-                      type: string
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/AppEnvPolicyContainer'
                 applyToPolicyName:
                   type: string
                 appEnvPolicyListFilter:

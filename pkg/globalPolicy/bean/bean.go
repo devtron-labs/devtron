@@ -34,7 +34,8 @@ const (
 type GlobalPolicyType string
 
 const (
-	GLOBAL_POLICY_TYPE_PLUGIN GlobalPolicyType = "PLUGIN"
+	GLOBAL_POLICY_TYPE_PLUGIN              GlobalPolicyType = "PLUGIN"
+	IMAGE_PROMOTION_POLICYGlobalPolicyType GlobalPolicyType = "IMAGE_PROMOTION"
 )
 
 func (t GlobalPolicyType) ToString() string {
@@ -239,7 +240,7 @@ type GlobalPolicyBaseModel struct {
 }
 
 type GlobalPolicyDataModel struct {
-	GlobalPolicyBaseModel
+	*GlobalPolicyBaseModel
 	SearchableFields []SearchableField
 }
 
@@ -253,3 +254,4 @@ type FieldType int
 const NumericType FieldType = 1
 const StringType FieldType = 2
 const DateTimeType FieldType = 3
+const UniqueActiveNameConstraint = "todo" // todo

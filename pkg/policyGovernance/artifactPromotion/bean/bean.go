@@ -136,12 +136,50 @@ type EnvironmentApprovalMetadata struct {
 }
 
 type PromotionPolicy struct {
-	Id                 int                                `json:"id"`
-	Name               string                             `json:"name"`
-	Description        string                             `json:"description"`
+	Id                 int                                `json:"id" `
+	Name               string                             `json:"name" validate:"max=50"`
+	Description        string                             `json:"description" validate:"max=300"`
 	PolicyEvaluationId int                                `json:"-"`
-	Conditions         []resourceFilter.ResourceCondition `json:"conditions"`
-	ApprovalMetaData   ApprovalMetaData                   `json:"approvalMetadata"`
+	Conditions         []resourceFilter.ResourceCondition `json:"conditions" validate:"min=1"`
+	ApprovalMetaData   ApprovalMetaData                   `json:"approvalMetadata" validate:"dive"`
+	IdentifierCount    int                                `json:"identifierCount,omitempty"`
+}
+
+func (policy *PromotionPolicy) ConvertToGlobalPolicyBaseModal(userId int32) (*bean.GlobalPolicyBaseModel, error) {
+	jsonPolicyBytes, err := json.Marshal(policy)
+	if err != nil {
+		return nil, err
+	}
+	return &bean.GlobalPolicyBaseModel{
+		PolicyOf:      bean.IMAGE_PROMOTION_POLICYGlobalPolicyType,
+		Name:          policy.Name,
+		Description:   policy.Description,
+		Enabled:       false,
+		PolicyVersion: bean.GLOBAL_POLICY_VERSION_V1,
+		Active:        true,
+		UserId:        userId,
+		JsonData:      string(jsonPolicyBytes),
+	}, nil
+}
+
+func (policy *PromotionPolicy) ConvertToGlobalPolicyDataModel(userId int32) (*bean.GlobalPolicyDataModel, error) {
+	baseModel, err := policy.ConvertToGlobalPolicyBaseModal(userId)
+	if err != nil {
+		return nil, err
+	}
+	SearchableFields, err := policy.extractSearchableFields()
+	if err != nil {
+		return nil, err
+	}
+	return &bean.GlobalPolicyDataModel{
+		GlobalPolicyBaseModel: baseModel,
+		SearchableFields:      SearchableFields,
+	}, nil
+}
+
+func (policy *PromotionPolicy) extractSearchableFields() ([]bean.SearchableField, error) {
+	// todo:
+	return nil, nil
 }
 
 func (policy *PromotionPolicy) UpdateWithGlobalPolicy(rawPolicy *bean.GlobalPolicyBaseModel) error {
@@ -157,7 +195,7 @@ func (policy *PromotionPolicy) UpdateWithGlobalPolicy(rawPolicy *bean.GlobalPoli
 }
 
 type ApprovalMetaData struct {
-	ApprovalCount                int  `json:"approverCount"`
+	ApprovalCount                int  `json:"approverCount" validate:"min=0"`
 	AllowImageBuilderFromApprove bool `json:"allowImageBuilderFromApprove"`
 	AllowRequesterFromApprove    bool `json:"allowRequesterFromApprove"`
 	AllowApproverFromDeploy      bool `json:"allowApproverFromDeploy"`
@@ -196,4 +234,26 @@ type WorkflowMetaData struct {
 	AppId        int
 	EnvMap       map[string]repository1.Environment
 	CiSourceData CiSourceMetaData
+}
+
+type AppEnvPolicyMappingsListFilter struct {
+	AppNames    []string `json:"appNames"`
+	EnvNames    []string `json:"envNames"`
+	PolicyNames []string `json:"policyNames"`
+	SortBy      string   `json:"sortBy,omitempty" validate:"oneof=appName environmentName"`
+	SortOrder   string   `json:"sortOrder,omitempty" validate:"oneof=ASC DESC"`
+	Offset      int      `json:"offset,omitempty" validate:"min=0"`
+	Size        int      `json:"size,omitempty" validate:"min=0"`
+}
+
+type AppEnvPolicyContainer struct {
+	AppName    string `json:"appName"`
+	EnvName    string `json:"envName"`
+	PolicyName string `json:"policyName omitempty"`
+}
+
+type BulkPromotionPolicyApplyRequest struct {
+	ApplicationEnvironments []*AppEnvPolicyContainer        `json:"applicationEnvironments"`
+	ApplyToPolicyName       string                          `json:"applyToPolicyName"`
+	AppEnvPolicyListFilter  *AppEnvPolicyMappingsListFilter `json:"appEnvPolicyListFilter"`
 }
