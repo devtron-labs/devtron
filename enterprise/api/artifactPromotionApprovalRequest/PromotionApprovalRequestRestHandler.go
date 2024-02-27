@@ -334,7 +334,7 @@ func (handler PromotionApprovalRestHandlerImpl) GetArtifactsForPromotion(w http.
 		}
 	}
 
-	if resource == bean.SOURCE_TYPE_CI || resource == bean.SOURCE_TYPE_CD {
+	if resource == string(bean.SOURCE_TYPE_CI) || resource == string(bean.SOURCE_TYPE_CD) {
 		// check if he has trigger access for any one env for this app
 		if isAuthorised := handler.checkTriggerAccessForAnyEnv(token, appId); !isAuthorised {
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)

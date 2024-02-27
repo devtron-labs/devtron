@@ -41,7 +41,7 @@ type ArtifactPromotionApprovalServiceImpl struct {
 	cdWorkflowRepository                       pipelineConfig.CdWorkflowRepository
 	resourceFilterConditionsEvaluator          resourceFilter.ResourceFilterEvaluator
 	imageTaggingService                        pipeline.ImageTaggingService
-	promotionPolicyService                     PromotionPolicyService
+	promotionPolicyService                     PromotionPolicyReadService
 	requestApprovalUserdataRepo                pipelineConfig.RequestApprovalUserdataRepository
 }
 
@@ -56,7 +56,7 @@ func NewArtifactPromotionApprovalServiceImpl(
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	resourceFilterConditionsEvaluator resourceFilter.ResourceFilterEvaluator,
 	imageTaggingService pipeline.ImageTaggingService,
-	promotionPolicyService PromotionPolicyService,
+	promotionPolicyService PromotionPolicyReadService,
 	requestApprovalUserdataRepo pipelineConfig.RequestApprovalUserdataRepository,
 ) *ArtifactPromotionApprovalServiceImpl {
 	return &ArtifactPromotionApprovalServiceImpl{

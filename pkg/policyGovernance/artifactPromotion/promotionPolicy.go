@@ -7,12 +7,22 @@ import (
 	"go.uber.org/zap"
 )
 
-type PromotionPolicyService interface {
+type PromotionPolicy interface {
+	PromotionPolicyReadService
+	PromotionPolicyCUDService
+}
+
+type PromotionPolicyReadService interface {
 	GetByAppAndEnvId(appId, envId int) (*bean.PromotionPolicy, error)
-	GetByAppNameAndEnvNames(appName string, envNames []string) (map[string]*bean.PromotionPolicy, error)
 	GetByAppIdAndEnvIds(appId int, envIds []int) (map[string]*bean.PromotionPolicy, error)
-	GetById(id int) (*bean.PromotionPolicy, error)
 	GetByIds(ids []int) ([]*bean.PromotionPolicy, error)
+}
+
+type PromotionPolicyCUDService interface {
+	UpdatePolicy(userId int32, policyName string, policyBean *bean.PromotionPolicy) error
+	CreatePolicy(userId int32, policyBean *bean.PromotionPolicy) error
+	DeletePolicy(userId int32, profileName string) error
+	ApplyPolicyToIdentifiers(userId int32, applyIdentifiersRequest interface{}) error
 }
 
 type PromotionPolicyServiceImpl struct {
@@ -30,36 +40,6 @@ func NewPromotionPolicyServiceImpl(globalPolicyDataManager globalPolicy.GlobalPo
 		resourceQualifierMappingService: resourceQualifierMappingService,
 		logger:                          logger,
 	}
-}
-
-func (impl PromotionPolicyServiceImpl) GetByAppNameAndEnvNames(appName string, envNames []string) (map[string]*bean.PromotionPolicy, error) {
-
-	// scope := &resourceQualifiers.Scope{AppId: appId, EnvId: envId}
-	//
-	// qualifierMapping, err := impl.resourceQualifierMappingService.GetResourceMappingsForScopes(
-	//	resourceQualifiers.ImagePromotionPolicy,
-	//	resourceQualifiers.ApplicationEnvironmentSelector,
-	//	[]*resourceQualifiers.Scope{scope},
-	// )
-	// if err != nil {
-	//	impl.logger.Errorw("error in fetching resource qualifier mapping by scope", "resource", resourceQualifiers.ImagePromotionPolicy, "scope", scope, "err", err)
-	//	return nil, err
-	// }
-	//
-	// policyId := qualifierMapping[0].ResourceId
-	//
-	// //TODO; get from new service
-	// promotionPolicyDao, err := impl.globalPolicyService.GetById(policyId)
-	// if err!=nil{
-	//	impl.logger.Errorw("error in fetching policy by id", "policyId", policyId)
-	//	return nil, err
-	// }
-	//
-	return nil, nil
-}
-
-func (impl PromotionPolicyServiceImpl) GetById(id int) (*bean.PromotionPolicy, error) {
-	return nil, nil
 }
 
 func (impl PromotionPolicyServiceImpl) GetByIds(ids []int) ([]*bean.PromotionPolicy, error) {
@@ -138,4 +118,17 @@ func (impl PromotionPolicyServiceImpl) GetByAppIdAndEnvIds(appId int, envIds []i
 	}
 
 	return policiesMap, err
+}
+
+func (impl PromotionPolicyServiceImpl) UpdatePolicy(userId int32, policyName string, policyBean *bean.PromotionPolicy) error {
+
+}
+func (impl PromotionPolicyServiceImpl) CreatePolicy(userId int32, policyBean *bean.PromotionPolicy) error {
+
+}
+func (impl PromotionPolicyServiceImpl) DeletePolicy(userId int32, policyName string) error {
+
+}
+func (impl PromotionPolicyServiceImpl) ApplyPolicyToIdentifiers(userId int32, applyIdentifiersRequest interface{}) error {
+
 }

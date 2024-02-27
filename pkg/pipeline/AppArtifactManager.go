@@ -87,7 +87,7 @@ type AppArtifactManagerImpl struct {
 	artifactApprovalDataReadService  read.ArtifactApprovalDataReadService
 	environmentRepository            repository4.EnvironmentRepository
 	appWorkflowRepository            appWorkflow.AppWorkflowRepository
-	promotionPolicy                  artifactPromotion.PromotionPolicyService
+	promotionPolicy                  artifactPromotion.PromotionPolicyReadService
 	artifactPromotionDataReadService read2.ArtifactPromotionDataReadService
 	teamRepository                   team.TeamRepository
 }
@@ -110,7 +110,7 @@ func NewAppArtifactManagerImpl(
 	artifactApprovalDataReadService read.ArtifactApprovalDataReadService,
 	environmentRepository repository4.EnvironmentRepository,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
-	promotionPolicy artifactPromotion.PromotionPolicyService,
+	promotionPolicy artifactPromotion.PromotionPolicyReadService,
 	artifactPromotionDataReadService read2.ArtifactPromotionDataReadService,
 	teamRepository team.TeamRepository,
 ) *AppArtifactManagerImpl {
@@ -1463,19 +1463,19 @@ func (impl *AppArtifactManagerImpl) FetchMaterialForArtifactPromotion(artifactPr
 
 	promotionApprovalMetadataMap := make(map[int]*bean3.PromotionApprovalMetaData)
 
-	if artifactPromotionMaterialRequest.Resource == bean3.SOURCE_TYPE_CD {
+	if artifactPromotionMaterialRequest.Resource == string(bean3.SOURCE_TYPE_CD) {
 		ciArtifactsDao, totalCount, err = impl.getArtifactDeployedOnCD(artifactPromotionMaterialRequest)
 		if err != nil {
 			impl.logger.Errorw("error in finding deployed artifacts on pipeline", "resource", artifactPromotionMaterialRequest.Resource, "ResourceName", artifactPromotionMaterialRequest.ResourceName, "err", err)
 			return ciArtifactResponse, err
 		}
-	} else if artifactPromotionMaterialRequest.Resource == bean3.SOURCE_TYPE_CI {
+	} else if artifactPromotionMaterialRequest.Resource == string(bean3.SOURCE_TYPE_CI) {
 		ciArtifactsDao, totalCount, err = impl.getBuiltArtifactsByCIPipeline(artifactPromotionMaterialRequest)
 		if err != nil {
 			impl.logger.Errorw("error in finding deployed artifacts on pipeline", "resource", artifactPromotionMaterialRequest.Resource, "ResourceName", artifactPromotionMaterialRequest.ResourceName, "err", err)
 			return ciArtifactResponse, err
 		}
-	} else if artifactPromotionMaterialRequest.Resource == bean3.SOURCE_TYPE_WEBHOOK {
+	} else if artifactPromotionMaterialRequest.Resource == string(bean3.SOURCE_TYPE_WEBHOOK) {
 		ciArtifactsDao, totalCount, err = impl.getBuiltArtifactsByExternalCIPipeline(artifactPromotionMaterialRequest)
 		if err != nil {
 			impl.logger.Errorw("error in finding deployed artifacts on pipeline", "resource", artifactPromotionMaterialRequest.Resource, "ResourceName", artifactPromotionMaterialRequest.ResourceName, "err", err)
