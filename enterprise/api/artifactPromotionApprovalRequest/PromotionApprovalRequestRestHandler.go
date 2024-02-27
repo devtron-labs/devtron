@@ -415,3 +415,76 @@ func (handler PromotionApprovalRestHandlerImpl) CheckImagePromoterAuth(token str
 	return true
 
 }
+
+func (handler PromotionApprovalRestHandlerImpl) FetchEnvironmentsList(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if err != nil || userId == 0 {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	token := r.Header.Get("token")
+
+	queryParams := r.URL.Query()
+	workflowIdStr := queryParams.Get("workflowId")
+	workflowId := 0
+	if workflowIdStr == "" {
+		common.WriteJsonResp(w, err, "workflowId cannot be empty", http.StatusBadRequest)
+		return
+	}
+	workflowId, err = strconv.Atoi(workflowIdStr)
+	if err != nil {
+		handler.logger.Errorw("error in extracting workflowId from query param", "workflowIdStr", workflowIdStr, "err", err)
+		common.WriteJsonResp(w, errors.New("workflowId should be an integer value"), nil, http.StatusBadRequest)
+		return
+	}
+	artifactIdStr := queryParams.Get("artifactId")
+	artifactId := 0
+	if artifactIdStr != "" {
+		artifactId, err = strconv.Atoi(artifactIdStr)
+		if err != nil {
+			handler.logger.Errorw("error in extracting artifactId from query param", "artifactIdStr", artifactIdStr, "err", err)
+			common.WriteJsonResp(w, errors.New("artifactId should be an integer value"), nil, http.StatusBadRequest)
+			return
+		}
+	}
+
+	envsMap, appName, err := handler.promotionApprovalRequestService.GetAppAndEnvsMapByWorkflowId(workflowId)
+	if err != nil {
+		handler.logger.Errorw("error in finding app and env details using workflowId", "workflowId", workflowId, "err", err)
+		common.WriteJsonResp(w, errors.New("error in finding application and environment details for the workflow"), nil, http.StatusInternalServerError)
+		return
+	}
+
+	appRbacObject := handler.enforcerUtil.GetAppRBACName(appName)
+	ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, appRbacObject)
+	if !ok {
+		common.WriteJsonResp(w, err, nil, http.StatusForbidden)
+		return
+	}
+
+	environmentNames := make([]string, 0, len(envsMap))
+	for envName, _ := range envsMap {
+		environmentNames = append(environmentNames, envName)
+	}
+	envRbacObjectMap := handler.enforcerUtil.GetEnvRBACByAppNameAndEnvNames(appName, environmentNames)
+	envObjectArr := make([]string, 0)
+	for _, obj := range envObjectArr {
+		envObjectArr = append(envObjectArr, obj)
+	}
+	authorizedEnvironments := make(map[string]bool)
+	results := handler.enforcer.EnforceInBatch(token, casbin.ResourceEnvironment, casbin.ActionTrigger, envObjectArr)
+	for _, env := range environmentNames {
+		rbacObject := envRbacObjectMap[env]
+		authorizedEnvironments[env] = results[rbacObject]
+	}
+
+	resp, err := handler.promotionApprovalRequestService.FetchEnvironmentsList(envsMap, appName, authorizedEnvironments, artifactId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
+
+}

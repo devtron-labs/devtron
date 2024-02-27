@@ -57,7 +57,6 @@ func (impl PromotionPolicyServiceImpl) GetByAppAndEnvId(appId, envId int) (*bean
 	return &bean.PromotionPolicy{}, nil
 }
 
-
 func (impl PromotionPolicyServiceImpl) GetByAppNameAndEnvName(appName string, envNames []string) (map[string]*bean.PromotionPolicy, error) {
 
 	// scope := &resourceQualifiers.Scope{AppId: appId, EnvId: envId}
