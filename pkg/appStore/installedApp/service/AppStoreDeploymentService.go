@@ -491,6 +491,10 @@ func (impl *AppStoreDeploymentServiceImpl) GetDeploymentHistory(ctx context.Cont
 			ClusterId:             installedApp.ClusterId,
 			EnvironmentId:         installedApp.EnvironmentId,
 			DeploymentType:        installedApp.DeploymentAppType,
+			HelmPackageName: adapter.GetGeneratedHelmPackageName(
+				installedApp.AppName,
+				installedApp.Environment.Environment,
+				installedApp.UpdatedOn),
 		}
 	}
 
@@ -601,7 +605,6 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 		return nil, err
 	}
 	adapter.UpdateAdditionalEnvDetails(installAppVersionRequest, environment)
-
 	helmInstallConfigDTO := appStoreBean.HelmReleaseStatusConfig{
 		InstallAppVersionHistoryId: 0,
 		Message:                    "Install initiated",
@@ -706,8 +709,11 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 		impl.logger.Errorw("error while committing transaction to db", "error", err)
 		return nil, err
 	}
-
 	if util.IsManifestDownload(installAppVersionRequest.DeploymentAppType) {
+		installAppVersionRequest.HelmPackageName = adapter.GetGeneratedHelmPackageName(
+			installAppVersionRequest.AppName,
+			installAppVersionRequest.Environment.Environment,
+			installedApp.UpdatedOn)
 		err = impl.appStoreDeploymentDBService.UpdateInstalledAppVersionHistoryStatus(installAppVersionRequest.InstalledAppVersionHistoryId, pipelineConfig.WorkflowSucceeded)
 		if err != nil {
 			impl.logger.Errorw("error on creating history for chart deployment", "error", err)

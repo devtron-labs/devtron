@@ -146,6 +146,12 @@ func (impl *AppStoreDeploymentDBServiceImpl) AppStoreDeployOperationDB(installAp
 	installAppVersionRequest.Id = installedAppVersions.Id
 	// Stage 4: ends
 
+	// populate HelmPackageName; It's used in case of virtual deployments
+	installAppVersionRequest.HelmPackageName = adapter.GetGeneratedHelmPackageName(
+		installAppVersionRequest.AppName,
+		installAppVersionRequest.Environment.Environment,
+		installedApp.UpdatedOn)
+
 	// Stage 5: save installed_app_version_history model
 	helmInstallConfigDTO := appStoreBean.HelmReleaseStatusConfig{
 		InstallAppVersionHistoryId: 0,
@@ -435,6 +441,7 @@ func (impl *AppStoreDeploymentDBServiceImpl) createAppForAppStore(createRequest 
 	if activeApp != nil && activeApp.Id > 0 {
 		impl.logger.Infow(" app already exists", "name", createRequest.AppName)
 		err = &util.ApiError{
+			HttpStatusCode:  http.StatusBadRequest,
 			Code:            constants.AppAlreadyExists.Code,
 			InternalMessage: "app already exists",
 			UserMessage:     fmt.Sprintf("app already exists with name %s", createRequest.AppName),
@@ -476,6 +483,7 @@ func (impl *AppStoreDeploymentDBServiceImpl) validateAndGetOverrideDeploymentApp
 	if isOCIRepo || getAppInstallationMode(installAppVersionRequest.AppOfferingMode) == globalUtil.SERVER_MODE_HYPERION {
 		overrideDeploymentType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
 	}
+
 	overrideDeploymentType, err = impl.deploymentTypeOverrideService.ValidateAndOverrideDeploymentAppType(overrideDeploymentType, isGitOpsConfigured, installAppVersionRequest.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("validation error for the used deployment type", "appName", installAppVersionRequest.AppName, "err", err)
