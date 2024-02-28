@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	util2 "github.com/devtron-labs/devtron/api/auth/user/util"
 	"github.com/devtron-labs/devtron/pkg/auth/user/helper"
 	"github.com/gorilla/schema"
 	"net/http"
@@ -113,6 +114,23 @@ func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Req
 	userInfo.UserId = userId
 	handler.logger.Infow("request payload, CreateUser", "payload", userInfo)
 
+	// struct Validations
+	handler.logger.Infow("request payload, CreateUser ", "payload", userInfo)
+	err = handler.validator.Struct(userInfo)
+	if err != nil {
+		handler.logger.Errorw("validation err, CreateUser", "err", err, "payload", userInfo)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	// Doing this as api is not compatible with previous release of dashboard, groups has been migrated to userRoleGroups
+	isGroupsPresent := util2.IsGroupsPresent(userInfo.Groups)
+	if isGroupsPresent {
+		handler.logger.Errorw("validation error , createUser ", "err", err, "payload", userInfo)
+		err := &util.ApiError{Code: "406", HttpStatusCode: 406, UserMessage: "Not compatible with request", InternalMessage: "Not compatible with the request payload, as groups has been migrated to userRoleGroups"}
+		common.WriteJsonResp(w, err, nil, http.StatusNotAcceptable)
+		return
+	}
+
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
 	isActionUserSuperAdmin := false
@@ -176,14 +194,6 @@ func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Req
 	}
 	//RBAC enforcer Ends
 
-	handler.logger.Infow("request payload, CreateUser ", "payload", userInfo)
-	err = handler.validator.Struct(userInfo)
-	if err != nil {
-		handler.logger.Errorw("validation err, CreateUser", "err", err, "payload", userInfo)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
 	res, err := handler.userService.CreateUser(&userInfo, token, handler.CheckManagerAuth)
 	if err != nil {
 		handler.logger.Errorw("service err, CreateUser", "err", err, "payload", userInfo)
@@ -222,6 +232,14 @@ func (handler UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Req
 	if err != nil {
 		handler.logger.Errorw("validation err, UpdateUser", "err", err, "payload", userInfo)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	// Doing this as api is not compatible with previous release of dashboard,groups has been migrated to userRoleGroups
+	isGroupsPresent := util2.IsGroupsPresent(userInfo.Groups)
+	if isGroupsPresent {
+		handler.logger.Errorw("validation error , createUser ", "err", err, "payload", userInfo)
+		err := &util.ApiError{Code: "406", HttpStatusCode: 406, UserMessage: "Not compatible with request, please update to latest version", InternalMessage: "Not compatible with the request payload, as groups has been migrated to userRoleGroups"}
+		common.WriteJsonResp(w, err, nil, http.StatusNotAcceptable)
 		return
 	}
 
