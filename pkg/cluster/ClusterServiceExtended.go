@@ -3,6 +3,7 @@ package cluster
 import (
 	"context"
 	"fmt"
+	"github.com/devtron-labs/common-lib-private/utils/ssh"
 	auth "github.com/devtron-labs/devtron/pkg/auth/authorisation/globalConfig"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
@@ -38,7 +39,7 @@ type ClusterServiceImplExtended struct {
 	clusterServiceCD         cluster2.ServiceClient
 	K8sInformerFactory       informer.K8sInformerFactory
 	gitOpsConfigReadService  config.GitOpsConfigReadService
-	sshTunnelWrapperService  k8s.SSHTunnelWrapperService
+	sshTunnelWrapperService  ssh.SSHTunnelWrapperService
 	imageDigestPolicyService imageDigestPolicy.ImageDigestPolicyService
 	*ClusterServiceImpl
 }
@@ -49,7 +50,7 @@ func NewClusterServiceImplExtended(repository repository.ClusterRepository, envi
 	clusterServiceCD cluster2.ServiceClient, K8sInformerFactory informer.K8sInformerFactory,
 	userAuthRepository repository5.UserAuthRepository,
 	userRepository repository5.UserRepository, roleGroupRepository repository5.RoleGroupRepository,
-	sshTunnelWrapperService k8s.SSHTunnelWrapperService,
+	sshTunnelWrapperService ssh.SSHTunnelWrapperService,
 	globalAuthorisationConfigService auth.GlobalAuthorisationConfigService,
 	userService user.UserService,
 	gitOpsConfigReadService config.GitOpsConfigReadService,

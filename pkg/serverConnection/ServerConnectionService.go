@@ -32,10 +32,11 @@ func NewServerConnectionServiceImpl(logger *zap.SugaredLogger,
 }
 
 func (impl *ServerConnectionServiceImpl) GetServerConnectionConfigBean(model *repository.ServerConnectionConfig) *bean.ServerConnectionConfigBean {
-	var configBean bean.ServerConnectionConfigBean
+	var configBean *bean.ServerConnectionConfigBean
 	if model != nil {
-		configBean = bean.ServerConnectionConfigBean{
-			ConnectionMethod: model.ConnectionMethod,
+		configBean = &bean.ServerConnectionConfigBean{
+			ServerConnectionConfigId: model.Id,
+			ConnectionMethod:         model.ConnectionMethod,
 		}
 		if model.ConnectionMethod == bean.ServerConnectionMethodProxy {
 			configBean.ProxyConfig = &bean.ProxyConfig{
@@ -51,7 +52,7 @@ func (impl *ServerConnectionServiceImpl) GetServerConnectionConfigBean(model *re
 			}
 		}
 	}
-	return &configBean
+	return configBean
 }
 
 func (impl *ServerConnectionServiceImpl) ConvertServerConnectionConfigBeanToServerConnectionConfig(configBean *bean.ServerConnectionConfigBean, userId int32) *repository.ServerConnectionConfig {

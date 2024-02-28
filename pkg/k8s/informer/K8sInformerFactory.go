@@ -77,7 +77,28 @@ func (impl *K8sInformerFactoryImpl) BuildInformer(clusterInfo []*bean.ClusterInf
 			CertData:              info.CertData,
 			CAData:                info.CAData,
 		}
-		if info.ClusterConnectionConfig != nil {
+
+		if len(info.ProxyUrl) > 0 || info.ToConnectWithSSHTunnel {
+			var connectionMethod bean3.ServerConnectionMethod
+			if len(info.ProxyUrl) > 0 {
+				connectionMethod = bean3.ServerConnectionMethodProxy
+			} else if info.ToConnectWithSSHTunnel {
+				connectionMethod = bean3.ServerConnectionMethodSSH
+			}
+			connectionConfig := &bean3.ServerConnectionConfigBean{
+				ConnectionMethod: connectionMethod,
+				ProxyConfig: &bean3.ProxyConfig{
+					ProxyUrl: info.ProxyUrl,
+				},
+				SSHTunnelConfig: &bean3.SSHTunnelConfig{
+					SSHServerAddress: info.SSHTunnelServerAddress,
+					SSHUsername:      info.SSHTunnelUser,
+					SSHPassword:      info.SSHTunnelPassword,
+					SSHAuthKey:       info.SSHTunnelAuthKey,
+				},
+			}
+			clusterConfig.ClusterConnectionConfig = connectionConfig
+		} else if info.ClusterConnectionConfig != nil {
 			clusterConfig.ClusterConnectionConfig.ServerConnectionConfigId = info.ClusterConnectionConfig.ServerConnectionConfigId
 			clusterConfig.ClusterConnectionConfig.ConnectionMethod = bean3.ServerConnectionMethod(info.ClusterConnectionConfig.ConnectionMethod)
 			if info.ClusterConnectionConfig.ProxyConfig != nil && info.ClusterConnectionConfig.ConnectionMethod == bean2.ServerConnectionMethodProxy {

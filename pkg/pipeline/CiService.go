@@ -23,6 +23,8 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders"
+	"github.com/devtron-labs/devtron/pkg/serverConnection"
+	bean3 "github.com/devtron-labs/devtron/pkg/serverConnection/bean"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -97,6 +99,7 @@ type CiServiceImpl struct {
 	pluginInputVariableParser     PluginInputVariableParser
 	globalPluginService           plugin.GlobalPluginService
 	infraProvider                 infraProviders.InfraProvider
+	serverConnectionService       serverConnection.ServerConnectionService
 }
 
 func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
@@ -116,6 +119,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 	pluginInputVariableParser PluginInputVariableParser,
 	globalPluginService plugin.GlobalPluginService,
 	infraProvider infraProviders.InfraProvider,
+	serverConnectionService serverConnection.ServerConnectionService,
 ) *CiServiceImpl {
 	cis := &CiServiceImpl{
 		Logger:                        Logger,
@@ -139,6 +143,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 		pluginInputVariableParser:     pluginInputVariableParser,
 		globalPluginService:           globalPluginService,
 		infraProvider:                 infraProvider,
+		serverConnectionService:       serverConnectionService,
 	}
 	config, err := types.GetCiConfig()
 	if err != nil {
@@ -747,12 +752,25 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	}
 
 	if dockerRegistry != nil {
+		var registryConnectionConfig *bean3.ServerConnectionConfigBean
+		if dockerRegistry.RegistryConnectionConfigId > 0 {
+			config, err := impl.serverConnectionService.GetServerConnectionConfigById(dockerRegistry.RegistryConnectionConfigId)
+			if err != nil {
+				return nil, err
+			}
+			registryConnectionConfig = &bean3.ServerConnectionConfigBean{
+				ServerConnectionConfigId: dockerRegistry.RegistryConnectionConfigId,
+				ConnectionMethod:         config.ConnectionMethod,
+				ProxyConfig:              config.ProxyConfig,
+				SSHTunnelConfig:          config.SSHTunnelConfig,
+			}
+		}
 
 		workflowRequest.DockerRegistryId = dockerRegistry.Id
 		workflowRequest.DockerRegistryType = string(dockerRegistry.RegistryType)
 		workflowRequest.DockerImageTag = dockerImageTag
 		workflowRequest.DockerRegistryURL = dockerRegistry.RegistryURL
-		workflowRequest.DockerRegistryConnectionConfigId = dockerRegistry.RegistryConnectionConfigId
+		workflowRequest.DockerRegistryConnectionConfig = registryConnectionConfig
 		workflowRequest.DockerRepository = dockerRepository
 		workflowRequest.CheckoutPath = checkoutPath
 		workflowRequest.DockerUsername = dockerRegistry.Username

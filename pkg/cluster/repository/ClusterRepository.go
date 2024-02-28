@@ -38,6 +38,7 @@ type Cluster struct {
 	ClusterName               string            `sql:"cluster_name"`
 	Description               string            `sql:"description"`
 	ServerUrl                 string            `sql:"server_url"`
+	ProxyUrl                  string            `sql:"proxy_url"`
 	ClusterConnectionConfigId int               `sql:"cluster_connection_config_id"`
 	PrometheusEndpoint        string            `sql:"prometheus_endpoint"`
 	Active                    bool              `sql:"active,notnull"`
@@ -52,6 +53,11 @@ type Cluster struct {
 	ErrorInConnecting         string            `sql:"error_in_connecting"`
 	IsVirtualCluster          bool              `sql:"is_virtual_cluster"`
 	InsecureSkipTlsVerify     bool              `sql:"insecure_skip_tls_verify"`
+	ToConnectWithSSHTunnel    bool              `sql:"to_connect_with_ssh_tunnel"`
+	SSHTunnelUser             string            `sql:"ssh_tunnel_user"`
+	SSHTunnelPassword         string            `sql:"ssh_tunnel_password"`
+	SSHTunnelAuthKey          string            `sql:"ssh_tunnel_auth_key"`
+	SSHTunnelServerAddress    string            `sql:"ssh_tunnel_server_address"`
 	ClusterConnectionConfig   *repository.ServerConnectionConfig
 	sql.AuditLog
 }
