@@ -24,6 +24,7 @@ type GlobalPolicyDataManager interface {
 
 	GetPolicyMetadataByFields(policyIds []int, fields []*bean.SearchableField) (map[int][]*bean.SearchableField, error)
 	// GetPoliciesBySearchableFields(policyIds []int,fields []*SearchableField) ([]*GlobalPolicyBaseModel, error)
+	GetAndSort(policyName string, sortRequest *bean.SortByRequest) ([]*bean.SearchableField, error)
 }
 
 type GlobalPolicyDataManagerImpl struct {
@@ -42,40 +43,40 @@ func NewGlobalPolicyDataManagerImpl(logger *zap.SugaredLogger, globalPolicyRepos
 	}
 }
 
-// func (impl *GlobalPolicyDataManagerImpl) CreatePolicy(globalPolicyDataModel *bean.GlobalPolicyDataModel, tx *pg.Tx) (*bean.GlobalPolicyDataModel, error) {
-// 	var err error
-// 	if tx != nil {
-// 		tx, err = impl.globalPolicyRepository.GetDbTransaction()
-// 		if err != nil {
-// 			impl.logger.Errorw("error in initiating transaction", "err", err)
-// 			return nil, err
-// 		}
-// 	}
-// 	// Rollback tx on error.
-// 	defer func() {
-// 		err = impl.globalPolicyRepository.RollBackTransaction(tx)
-// 		if err != nil {
-// 			impl.logger.Errorw("error in rolling back transaction", "err", err)
-// 		}
-// 	}()
-// 	globalPolicy := impl.getGlobalPolicyDto(globalPolicyDataModel)
-// 	err = impl.globalPolicyRepository.Create(globalPolicy, tx)
-// 	if err != nil {
-// 		impl.logger.Errorw("error, CreatePolicy", "err", err, "globalPolicy", globalPolicy)
-// 	}
-// 	searchableKeyEntriesTotal := impl.getSearchableKeyEntries(globalPolicyDataModel)
-// 	err = impl.globalPolicySearchableFieldRepository.CreateInBatchWithTxn(searchableKeyEntriesTotal, tx)
-// 	if err != nil {
-// 		impl.logger.Errorw("error in creating global policy searchable fields entry", "err", err, "searchableKeyEntriesTotal", searchableKeyEntriesTotal)
-// 	}
-// 	err = impl.globalPolicyRepository.CommitTransaction(tx)
-// 	if err != nil {
-// 		impl.logger.Errorw("error in committing transaction", "err", err)
-// 		return globalPolicyDataModel, err
-// 	}
-// 	globalPolicyDataModel.Id = globalPolicy.Id
-// 	return globalPolicyDataModel, nil
-// }
+//func (impl *GlobalPolicyDataManagerImpl) CreatePolicy(globalPolicyDataModel *bean.GlobalPolicyDataModel, tx *pg.Tx) (*bean.GlobalPolicyDataModel, error) {
+//	var err error
+//	if tx != nil {
+//		tx, err = impl.globalPolicyRepository.GetDbTransaction()
+//		if err != nil {
+//			impl.logger.Errorw("error in initiating transaction", "err", err)
+//			return nil, err
+//		}
+//	}
+//	// Rollback tx on error.
+//	defer func() {
+//		err = impl.globalPolicyRepository.RollBackTransaction(tx)
+//		if err != nil {
+//			impl.logger.Errorw("error in rolling back transaction", "err", err)
+//		}
+//	}()
+//	globalPolicy := impl.getGlobalPolicyDto(globalPolicyDataModel)
+//	err = impl.globalPolicyRepository.Create(globalPolicy, tx)
+//	if err != nil {
+//		impl.logger.Errorw("error, CreatePolicy", "err", err, "globalPolicy", globalPolicy)
+//	}
+//	searchableKeyEntriesTotal := impl.getSearchableKeyEntries(globalPolicyDataModel)
+//	err = impl.globalPolicySearchableFieldRepository.CreateInBatchWithTxn(searchableKeyEntriesTotal, tx)
+//	if err != nil {
+//		impl.logger.Errorw("error in creating global policy searchable fields entry", "err", err, "searchableKeyEntriesTotal", searchableKeyEntriesTotal)
+//	}
+//	err = impl.globalPolicyRepository.CommitTransaction(tx)
+//	if err != nil {
+//		impl.logger.Errorw("error in committing transaction", "err", err)
+//		return globalPolicyDataModel, err
+//	}
+//	globalPolicyDataModel.Id = globalPolicy.Id
+//	return globalPolicyDataModel, nil
+//}
 // func (impl *GlobalPolicyDataManagerImpl) UpdatePolicy(globalPolicyDataModel *bean.GlobalPolicyDataModel, tx *pg.Tx) (*bean.GlobalPolicyDataModel, error) {
 // 	var err error
 // 	if tx != nil {
@@ -264,3 +265,7 @@ func NewGlobalPolicyDataManagerImpl(logger *zap.SugaredLogger, globalPolicyRepos
 // 	return err
 //
 // }
+
+func (impl *GlobalPolicyDataManagerImpl) GetAndSort(policyName string, sortRequest *bean.SortByRequest) ([]*bean.SearchableField, error) {
+
+}

@@ -129,7 +129,7 @@ func (impl PromotionPolicyServiceImpl) GetByIds(ids []int) ([]*bean.PromotionPol
 }
 
 func (impl PromotionPolicyServiceImpl) GetPoliciesMetadata(policyMetadataRequest bean.PromotionPolicyMetaRequest) ([]*bean.PromotionPolicy, error) {
-	return nil, nil
+	impl.globalPolicyDataManager.GetPolicyByIds()
 }
 
 func (impl PromotionPolicyServiceImpl) UpdatePolicy(userId int32, policyName string, policyBean *bean.PromotionPolicy) error {

@@ -31,7 +31,7 @@ type GlobalPolicySearchableField struct {
 	tableName       struct{}                   `sql:"global_policy_searchable_field" pg:",discard_unknown_columns"`
 	Id              int                        `sql:"id,pk"`
 	GlobalPolicyId  int                        `sql:"global_policy_id"`
-	SearchableKeyId int                        `sql:"searchable_key_id"`
+	SearchableKeyId int                        `sql:"v"`
 	Value           string                     `sql:"value"`
 	IsRegex         bool                       `sql:"is_regex,notnull"`
 	PolicyComponent bean.GlobalPolicyComponent `sql:"policy_component"`

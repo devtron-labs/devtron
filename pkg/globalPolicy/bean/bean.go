@@ -255,3 +255,16 @@ const NumericType FieldType = 1
 const StringType FieldType = 2
 const DateTimeType FieldType = 3
 const UniqueActiveNameConstraint = "todo" // todo
+
+type SortByType int
+
+const (
+	SortBySearchableField SortByType = iota
+	SortByGlobalPolicyField
+)
+
+type SortByRequest struct {
+	SortByType        SortByType      // if true sort by searchable field
+	GlobalPolicyField string          // name of column by which results should be sorted
+	SearchableField   SearchableField // name of searchable field by which results should be sorted
+}
