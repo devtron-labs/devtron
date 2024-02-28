@@ -1,37 +1,53 @@
 package policyGovernance
 
 import (
+	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/app"
+	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/globalPolicy"
 	bean2 "github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
+	"github.com/go-pg/pg"
 	"github.com/samber/lo"
 	"go.uber.org/zap"
+	"net/http"
 )
 
-type AppEnvPolicyListingServiceImpl struct {
+type CommonPolicyActionsService interface {
+	ListAppEnvPolicies(listFilter *AppEnvPolicyMappingsListFilter) ([]AppEnvPolicyContainer, int, error)
+	ApplyPolicyToIdentifiers(userId int32, applyIdentifiersRequest BulkPromotionPolicyApplyRequest) error
+}
+type CommonPolicyActionsServiceImpl struct {
 	globalPolicyDataManager         globalPolicy.GlobalPolicyDataManager
 	resourceQualifierMappingService resourceQualifiers.QualifierMappingService
 	pipelineService                 pipeline.CdPipelineConfigService
+	appService                      app.AppService
+	environmentService              cluster.EnvironmentService
 	logger                          *zap.SugaredLogger
 }
 
-func NewAppEnvPolicyListingService(globalPolicyDataManager globalPolicy.GlobalPolicyDataManager,
+func NewCommonPolicyActionsService(globalPolicyDataManager globalPolicy.GlobalPolicyDataManager,
 	resourceQualifierMappingService resourceQualifiers.QualifierMappingService,
 	pipelineService pipeline.CdPipelineConfigService,
+	appService app.AppService,
+	environmentService cluster.EnvironmentService,
 	logger *zap.SugaredLogger,
-) *AppEnvPolicyListingServiceImpl {
-	return &AppEnvPolicyListingServiceImpl{
+) *CommonPolicyActionsServiceImpl {
+	return &CommonPolicyActionsServiceImpl{
 		globalPolicyDataManager:         globalPolicyDataManager,
 		resourceQualifierMappingService: resourceQualifierMappingService,
 		pipelineService:                 pipelineService,
 		logger:                          logger,
+		appService:                      appService,
+		environmentService:              environmentService,
 	}
 }
 
-func (impl AppEnvPolicyListingServiceImpl) ListAppEnvPolicies(listFilter *AppEnvPolicyMappingsListFilter) ([]AppEnvPolicyContainer, int, error) {
+func (impl CommonPolicyActionsServiceImpl) ListAppEnvPolicies(listFilter *AppEnvPolicyMappingsListFilter) ([]AppEnvPolicyContainer, int, error) {
 	if len(listFilter.PolicyNames) > 0 {
 		return impl.listAppEnvPoliciesByPolicyFilter(listFilter)
 	} else {
@@ -40,7 +56,7 @@ func (impl AppEnvPolicyListingServiceImpl) ListAppEnvPolicies(listFilter *AppEnv
 
 }
 
-func (impl AppEnvPolicyListingServiceImpl) listAppEnvPoliciesByPolicyFilter(listFilter *AppEnvPolicyMappingsListFilter) ([]AppEnvPolicyContainer, int, error) {
+func (impl CommonPolicyActionsServiceImpl) listAppEnvPoliciesByPolicyFilter(listFilter *AppEnvPolicyMappingsListFilter) ([]AppEnvPolicyContainer, int, error) {
 	noPolicyFilter := false
 	validPolicyNames := make([]string, 0, len(listFilter.PolicyNames))
 	validPolicyNameMap := make(map[string]bool)
@@ -129,7 +145,7 @@ func (impl AppEnvPolicyListingServiceImpl) listAppEnvPoliciesByPolicyFilter(list
 	return result, totalCount, nil
 }
 
-func (impl AppEnvPolicyListingServiceImpl) listAppEnvPoliciesByEmptyPolicyFilter(listFilter *AppEnvPolicyMappingsListFilter) ([]AppEnvPolicyContainer, int, error) {
+func (impl CommonPolicyActionsServiceImpl) listAppEnvPoliciesByEmptyPolicyFilter(listFilter *AppEnvPolicyMappingsListFilter) ([]AppEnvPolicyContainer, int, error) {
 	filter := bean3.CdPipelineListFilter{
 		SortOrder: listFilter.SortOrder,
 		SortBy:    listFilter.SortBy,
@@ -193,7 +209,7 @@ func (impl AppEnvPolicyListingServiceImpl) listAppEnvPoliciesByEmptyPolicyFilter
 	return result, totalCount, nil
 }
 
-func (impl AppEnvPolicyListingServiceImpl) getPolicies(policyNames []string, policyType bean2.GlobalPolicyType) ([]*bean2.GlobalPolicyBaseModel, error) {
+func (impl CommonPolicyActionsServiceImpl) getPolicies(policyNames []string, policyType bean2.GlobalPolicyType) ([]*bean2.GlobalPolicyBaseModel, error) {
 	if len(policyNames) == 0 {
 		policies, err := impl.globalPolicyDataManager.GetAllActiveByType(policyType)
 		if err != nil {
@@ -207,4 +223,98 @@ func (impl AppEnvPolicyListingServiceImpl) getPolicies(policyNames []string, pol
 		return policies, err
 	}
 	return policies, err
+}
+
+func (impl CommonPolicyActionsServiceImpl) ApplyPolicyToIdentifiers(userId int32, applyIdentifiersRequest BulkPromotionPolicyApplyRequest) error {
+	_, err := impl.globalPolicyDataManager.GetPolicyByName(applyIdentifiersRequest.ApplyToPolicyName)
+	if err != nil {
+		statusCode := http.StatusInternalServerError
+		if errors.Is(err, pg.ErrNoRows) {
+			err = errors.New(fmt.Sprintf("promotion policy with name '%s' does not exist", applyIdentifiersRequest.ApplyToPolicyName))
+			statusCode = http.StatusConflict
+		}
+		return &util.ApiError{
+			HttpStatusCode:  statusCode,
+			InternalMessage: err.Error(),
+			UserMessage:     err.Error(),
+		}
+	}
+
+	// var scopes []*resourceQualifiers.Scope
+	if len(applyIdentifiersRequest.ApplicationEnvironments) > 0 {
+		_, err := impl.fetchScopesByAppEnvNames(applyIdentifiersRequest.ApplicationEnvironments)
+		if err != nil {
+			impl.logger.Errorw("error in fetching scope objects using appEnv names", "appEnvNames", applyIdentifiersRequest.ApplicationEnvironments, "err", err)
+			return err
+		}
+	}
+
+	// if applyIdentifiersRequest.AppEnvPolicyListFilter != nil {
+	// 	appEnvPolicyContainers, _, err := impl.ListAppEnvPolicies(applyIdentifiersRequest.AppEnvPolicyListFilter)
+	// 	if err != nil {
+	// 		impl.logger.Errorw("error in listing application environment policies list using listing filter", "appEnvNames", applyIdentifiersRequest.ApplicationEnvironments, "err", err)
+	// 		return err
+	// 	}
+	// 	scopes = make([]*resourceQualifiers.Scope, 0, len(appEnvPolicyContainers))
+	// 	for _, appEnvPolicyContainer := range appEnvPolicyContainers {
+	//
+	// 	}
+	// }
+
+	// at this place we should have all the scope objects
+
+	// delete all the existing mappings for the updateToProfile.Id resource
+	// impl.resourceQualifierMappingService.DeleteAllQualifierMappingsByResourceTypeAndId()
+	// // create new mappings using resourceQualifierMapping
+	// impl.resourceQualifierMappingService.CreateMappings(nil, userId, resourceQualifiers.ImagePromotionPolicy, []int{updateToProfile.Id}, resourceQualifiers.ApplicationEnvironmentSelector, scopes)
+	return nil
+}
+
+func (impl CommonPolicyActionsServiceImpl) fetchScopesByAppEnvNames(applicationEnvironments []AppEnvPolicyContainer) ([]*resourceQualifiers.Scope, error) {
+	appNames := make([]string, 0, len(applicationEnvironments))
+	envNames := make([]string, 0, len(applicationEnvironments))
+	for _, appEnv := range applicationEnvironments {
+		appNames = append(appNames, appEnv.AppName)
+		envNames = append(envNames, appEnv.EnvName)
+	}
+
+	apps, err := impl.appService.FindAppByNames(appNames)
+	if err != nil {
+		impl.logger.Errorw("error in finding the apps with names", "appNames", appNames, "err", err)
+		return nil, err
+	}
+	envs, err := impl.environmentService.FindByNames(envNames)
+	if err != nil {
+		impl.logger.Errorw("error in finding the environments with names", "envNames", envNames, "err", err)
+		return nil, err
+	}
+
+	appNameIdMap := make(map[string]int)
+	envNameIdMap := make(map[string]int)
+
+	for _, app := range apps {
+		appNameIdMap[app.AppName] = app.Id
+	}
+
+	for _, env := range envs {
+		envNameIdMap[env.Environment] = env.Id
+	}
+
+	scopes := make([]*resourceQualifiers.Scope, 0, len(applicationEnvironments))
+	uniqueScopes := make(map[string]bool)
+	for _, appEnv := range applicationEnvironments {
+		key := fmt.Sprintf("%s,%s", appEnv.AppName, appEnv.EnvName)
+		if _, ok := uniqueScopes[key]; !ok {
+			scopes = append(scopes, &resourceQualifiers.Scope{
+				AppId: appNameIdMap[appEnv.AppName],
+				EnvId: envNameIdMap[appEnv.EnvName],
+				SystemMetadata: &resourceQualifiers.SystemMetadata{
+					AppName:         appEnv.AppName,
+					EnvironmentName: appEnv.EnvName,
+				},
+			})
+		}
+	}
+
+	return scopes, nil
 }
