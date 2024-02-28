@@ -27,6 +27,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	util2 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -146,6 +147,7 @@ type PipelineRepository interface {
 	FindDeploymentTypeByPipelineIds(cdPipelineIds []int) (map[int]DeploymentObject, error)
 	UpdateOldCiPipelineIdToNewCiPipelineId(tx *pg.Tx, oldCiPipelineId, newCiPipelineId int) error
 	FindActiveByAppIdAndEnvNames(appId int, envNames []string) (pipelines []*Pipeline, err error)
+	FindAppAndEnvDetailsByListFilter(filter bean3.CdPipelineListFilter) ([]bean3.CdPipelineMetaData, error)
 }
 
 type CiArtifactDTO struct {
@@ -776,8 +778,49 @@ func (impl PipelineRepositoryImpl) FindActiveByAppIdAndEnvNames(appId int, envNa
 	err = impl.dbConnection.Model(&pipelines).
 		Column("pipeline.*", "Environment", "App").
 		Where("pipeline.app_id = ?", appId).
-		Where("environment.name = ?", pg.In(envNames)).
+		Where("environment.name IN (?)", pg.In(envNames)).
 		Where("pipeline.deleted = ?", false).
 		Select()
 	return pipelines, err
+}
+
+func (impl PipelineRepositoryImpl) FindAppAndEnvDetailsByListFilter(filter bean3.CdPipelineListFilter) ([]bean3.CdPipelineMetaData, error) {
+	result := make([]bean3.CdPipelineMetaData, 0)
+	query := impl.dbConnection.Model((*Pipeline)(nil)).
+		Column("pipeline.app_id", "environment_id AS env_id", "App.app_name", "Environment.name AS environment_name", "COUNT(pipeline.id) OVER() ")
+
+	if len(filter.IncludeAppEnvIds) > 0 {
+		query = query.Where("(pipeline.app_id,pipeline.env_id) IN (?)", pg.InMulti(filter.IncludeAppEnvIds))
+	}
+	if len(filter.ExcludeAppEnvIds) > 0 {
+		query = query.Where("(pipeline.app_id,pipeline.env_id) NOT IN (?)", pg.InMulti(filter.ExcludeAppEnvIds))
+	}
+	if len(filter.AppNames) > 0 {
+		query = query.Where("app_name IN (?)", pg.In(filter.AppNames))
+	}
+
+	if len(filter.AppNames) > 0 {
+		query = query.Where("environment_name IN (?)", pg.In(filter.EnvNames))
+	}
+
+	query = query.Where("pipeline.deleted = ?", false)
+	orderBy := "app_name"
+	if filter.SortBy == "envName" {
+		orderBy = "env_name"
+	}
+
+	if filter.SortOrder == "DESC" {
+		orderBy += " DESC"
+	}
+	query = query.Order(orderBy)
+	if filter.Limit > 0 {
+		query = query.Limit(filter.Limit)
+	}
+
+	if filter.Offset > 0 {
+		query = query.Limit(filter.Offset)
+	}
+
+	err := query.Select(&result)
+	return result, err
 }
