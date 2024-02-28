@@ -38,3 +38,22 @@ type CdWorkflowWithArtifact struct {
 	AppliedFiltersState     resourceFilter.FilterState                  `json:"appliedFiltersState"`
 	AppliedFiltersTimestamp time.Time                                   `json:"appliedFiltersTimestamp"`
 }
+
+type CdPipelineMetaData struct {
+	AppId           int
+	EnvId           int
+	AppName         string
+	EnvironmentName string
+	TotalCount      int
+}
+
+type CdPipelineListFilter struct {
+	IncludeAppEnvIds []string // comma-seperated appId,envId array, eg: {"1,3","1,5"}
+	ExcludeAppEnvIds []string // comma-seperated appId,envId array, eg: {"1,3","1,5"}
+	SortBy           string
+	SortOrder        string
+	Limit            int
+	Offset           int
+	AppNames         []string
+	EnvNames         []string
+}

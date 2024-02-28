@@ -6,6 +6,7 @@ import (
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	repository1 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance"
 	"log"
 	"time"
 )
@@ -154,7 +155,7 @@ type EnvironmentApprovalMetadata struct {
 
 type PromotionPolicy struct {
 	Id                 int                                `json:"id" `
-	Name               string                             `json:"name" validate:"max=50"`
+	Name               string                             `json:"name" validate:"min=3 max=50 global-entity-name"`
 	Description        string                             `json:"description" validate:"max=300"`
 	PolicyEvaluationId int                                `json:"-"`
 	Conditions         []resourceFilter.ResourceCondition `json:"conditions" validate:"min=1"`
@@ -168,7 +169,7 @@ func (policy *PromotionPolicy) ConvertToGlobalPolicyBaseModal(userId int32) (*be
 		return nil, err
 	}
 	return &bean.GlobalPolicyBaseModel{
-		PolicyOf:      bean.IMAGE_PROMOTION_POLICYGlobalPolicyType,
+		PolicyOf:      bean.IMAGE_PROMOTION_POLICY,
 		Name:          policy.Name,
 		Description:   policy.Description,
 		Enabled:       false,
@@ -253,24 +254,8 @@ type WorkflowMetaData struct {
 	CiSourceData CiSourceMetaData
 }
 
-type AppEnvPolicyMappingsListFilter struct {
-	AppNames    []string `json:"appNames"`
-	EnvNames    []string `json:"envNames"`
-	PolicyNames []string `json:"policyNames"`
-	SortBy      string   `json:"sortBy,omitempty" validate:"oneof=appName environmentName"`
-	SortOrder   string   `json:"sortOrder,omitempty" validate:"oneof=ASC DESC"`
-	Offset      int      `json:"offset,omitempty" validate:"min=0"`
-	Size        int      `json:"size,omitempty" validate:"min=0"`
-}
-
-type AppEnvPolicyContainer struct {
-	AppName    string `json:"appName"`
-	EnvName    string `json:"envName"`
-	PolicyName string `json:"policyName,omitempty"`
-}
-
 type BulkPromotionPolicyApplyRequest struct {
-	ApplicationEnvironments []*AppEnvPolicyContainer        `json:"applicationEnvironments"`
-	ApplyToPolicyName       string                          `json:"applyToPolicyName"`
-	AppEnvPolicyListFilter  *AppEnvPolicyMappingsListFilter `json:"appEnvPolicyListFilter"`
+	ApplicationEnvironments []*policyGovernance.AppEnvPolicyContainer        `json:"applicationEnvironments"`
+	ApplyToPolicyName       string                                           `json:"applyToPolicyName"`
+	AppEnvPolicyListFilter  *policyGovernance.AppEnvPolicyMappingsListFilter `json:"appEnvPolicyListFilter"`
 }

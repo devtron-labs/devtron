@@ -13,8 +13,9 @@ type GlobalPolicyDataManager interface {
 
 	GetPolicyById(policyId int) (*bean.GlobalPolicyBaseModel, error)
 	GetPolicyByName(policyName string) (*bean.GlobalPolicyBaseModel, error)
+	GetPolicyByNames(policyName []string) ([]*bean.GlobalPolicyBaseModel, error)
 	GetPolicyByIds(policyIds []int) ([]*bean.GlobalPolicyBaseModel, error)
-	GetAllActiveByType(policyType *bean.GlobalPolicyType) (*bean.GlobalPolicyBaseModel, error)
+	GetAllActiveByType(policyType bean.GlobalPolicyType) ([]*bean.GlobalPolicyBaseModel, error)
 
 	UpdatePolicy(globalPolicyDataModel *bean.GlobalPolicyDataModel, tx *pg.Tx) (*bean.GlobalPolicyDataModel, error)
 	//UpdatePolicyByName(PolicyName string, globalPolicyDataModel *bean.GlobalPolicyDataModel) (*bean.GlobalPolicyDataModel, error)
