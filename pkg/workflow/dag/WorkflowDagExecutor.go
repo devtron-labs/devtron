@@ -81,6 +81,7 @@ type WorkflowDagExecutor interface {
 	OnDeleteCdPipelineEvent(pipelineId int, triggeredBy int32)
 
 	BuildCiArtifactRequestForWebhook(event pipeline.ExternalCiWebhookDto) (*bean2.CiArtifactWebhookRequest, error)
+	HandleTriggerIfAutoStageCdPipeline(request bean5.TriggerRequest) error
 }
 
 type WorkflowDagExecutorImpl struct {
@@ -586,7 +587,7 @@ func (impl *WorkflowDagExecutorImpl) handleCiSuccessEvent(triggerContext bean5.T
 			TriggeredBy:    triggeredBy,
 			TriggerContext: triggerContext,
 		}
-		err = impl.triggerIfAutoStageCdPipeline(triggerRequest)
+		err = impl.HandleTriggerIfAutoStageCdPipeline(triggerRequest)
 		if err != nil {
 			impl.logger.Debugw("error on trigger cd pipeline", "err", err)
 		}
@@ -635,7 +636,7 @@ func (impl *WorkflowDagExecutorImpl) handleWebhookExternalCiEvent(artifact *repo
 			ApplyAuth:   false,
 			TriggeredBy: triggeredBy,
 		}
-		err = impl.triggerIfAutoStageCdPipeline(triggerRequest)
+		err = impl.HandleTriggerIfAutoStageCdPipeline(triggerRequest)
 		if err != nil {
 			impl.logger.Debugw("error on trigger cd pipeline", "err", err)
 			return hasAnyTriggered, err
@@ -664,7 +665,7 @@ func (impl *WorkflowDagExecutorImpl) deleteCorruptedPipelineStage(pipelineStage 
 	return nil, false
 }
 
-func (impl *WorkflowDagExecutorImpl) triggerIfAutoStageCdPipeline(request bean5.TriggerRequest) error {
+func (impl *WorkflowDagExecutorImpl) HandleTriggerIfAutoStageCdPipeline(request bean5.TriggerRequest) error {
 
 	preStage, err := impl.getPipelineStage(request.Pipeline.Id, repository4.PIPELINE_STAGE_TYPE_PRE_CD)
 	if err != nil {
@@ -855,7 +856,7 @@ func (impl *WorkflowDagExecutorImpl) HandlePostStageSuccessEvent(triggerContext 
 			TriggerContext: triggerContext,
 		}
 
-		err = impl.triggerIfAutoStageCdPipeline(triggerRequest)
+		err = impl.HandleTriggerIfAutoStageCdPipeline(triggerRequest)
 		if err != nil {
 			impl.logger.Errorw("error in triggering cd pipeline after successful post stage", "err", err, "pipelineId", pipeline.Id)
 			return err

@@ -12,12 +12,12 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	repository1 "github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/read"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/repository"
+	"github.com/devtron-labs/devtron/pkg/workflow/dag"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"k8s.io/utils/pointer"
@@ -45,9 +45,9 @@ type ArtifactPromotionApprovalServiceImpl struct {
 	cdWorkflowRepository                       pipelineConfig.CdWorkflowRepository
 	resourceFilterConditionsEvaluator          resourceFilter.ResourceFilterEvaluator
 	imageTaggingService                        pipeline.ImageTaggingService
-	promotionPolicyService                     read.ArtifactPromotionDataReadService
+	promotionPolicyDataReadService             read.ArtifactPromotionDataReadService
 	requestApprovalUserdataRepo                pipelineConfig.RequestApprovalUserdataRepository
-	cdTriggerService                           devtronApps.TriggerService
+	workflowDagExecutor                        dag.WorkflowDagExecutor
 }
 
 func NewArtifactPromotionApprovalServiceImpl(
@@ -63,7 +63,7 @@ func NewArtifactPromotionApprovalServiceImpl(
 	imageTaggingService pipeline.ImageTaggingService,
 	promotionPolicyService read.ArtifactPromotionDataReadService,
 	requestApprovalUserdataRepo pipelineConfig.RequestApprovalUserdataRepository,
-	cdTriggerService devtronApps.TriggerService,
+	workflowDagExecutor dag.WorkflowDagExecutor,
 ) *ArtifactPromotionApprovalServiceImpl {
 	return &ArtifactPromotionApprovalServiceImpl{
 		artifactPromotionApprovalRequestRepository: ArtifactPromotionApprovalRequestRepository,
@@ -76,9 +76,9 @@ func NewArtifactPromotionApprovalServiceImpl(
 		cdWorkflowRepository:              cdWorkflowRepository,
 		resourceFilterConditionsEvaluator: resourceFilterConditionsEvaluator,
 		imageTaggingService:               imageTaggingService,
-		promotionPolicyService:            promotionPolicyService,
+		promotionPolicyDataReadService:    promotionPolicyService,
 		requestApprovalUserdataRepo:       requestApprovalUserdataRepo,
-		cdTriggerService:                  cdTriggerService,
+		workflowDagExecutor:               workflowDagExecutor,
 	}
 }
 
@@ -136,7 +136,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) FetchEnvironmentsList(envMap ma
 		envNames = append(envNames, envName)
 	}
 	result := &bean.EnvironmentListingResponse{}
-	policiesMap, err := impl.promotionPolicyService.GetByAppIdAndEnvIds(appId, envIds)
+	policiesMap, err := impl.promotionPolicyDataReadService.GetPromotionPolicyByAppAndEnvIds(appId, envIds)
 	if err != nil {
 		impl.logger.Errorw("error in getting the policies", "appId", appName, "envIds", envNames, "err", err)
 		return nil, err
@@ -343,7 +343,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) approveArtifactPromotion(reques
 	}
 
 	// policies fetched form above policy ids
-	policies, err := impl.promotionPolicyService.GetByIds(policyIds)
+	policies, err := impl.promotionPolicyDataReadService.GetPromotionPolicyByIds(policyIds)
 	if err != nil {
 		impl.logger.Errorw("error in finding the promotionPolicy by ids", "policyIds", policyIds, "err", err)
 		return nil, err
@@ -489,7 +489,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) approveArtifactPromotion(reques
 					Context: context.Background(),
 				},
 			}
-			err = impl.cdTriggerService.TriggerAutomaticDeployment(triggerRequest)
+			err = impl.workflowDagExecutor.HandleTriggerIfAutoStageCdPipeline(triggerRequest)
 			if err != nil {
 				impl.logger.Errorw("error occurred while triggering deployment", "pipelineId", pipelineDao.Id, "artifactId", promotableRequest.ArtifactId, "err", err)
 				return nil, errors.New("auto deployment failed, please try manually")
@@ -714,7 +714,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) promoteArtifact(request *bean.A
 		}
 	}
 
-	policiesMap, err := impl.promotionPolicyService.GetByAppIdAndEnvIds(request.AppId, allowedEnvs)
+	policiesMap, err := impl.promotionPolicyDataReadService.GetPromotionPolicyByAppAndEnvIds(request.AppId, allowedEnvs)
 	if err != nil {
 		impl.logger.Errorw("error in getting policies for some environments in an app", "appName", request.AppName, "envNames", allowedEnvNames, "err", err)
 		return nil, err
@@ -799,7 +799,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) raisePromoteRequest(request *be
 				Context: context.Background(),
 			},
 		}
-		err = impl.cdTriggerService.TriggerAutomaticDeployment(triggerRequest)
+		err = impl.workflowDagExecutor.HandleTriggerIfAutoStageCdPipeline(triggerRequest)
 		if err != nil {
 			impl.logger.Errorw("error occurred while triggering deployment", "pipelineId", cdPipeline.Id, "artifactId", ciArtifact.Id, "err", err)
 			return bean.ERRORED, err.Error(), errors.New("auto deployment failed, please try manually")
@@ -876,7 +876,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) GetByPromotionRequestId(artifac
 		return nil, err
 	}
 
-	policyMap, err := impl.promotionPolicyService.GetByAppIdAndEnvIds(destCDPipeline.AppId, []int{destCDPipeline.EnvironmentId})
+	policyMap, err := impl.promotionPolicyDataReadService.GetPromotionPolicyByAppAndEnvIds(destCDPipeline.AppId, []int{destCDPipeline.EnvironmentId})
 	if err != nil {
 		impl.logger.Errorw("error in fetching policies", "appName", destCDPipeline.App.AppName, "envName", destCDPipeline.Environment.Name, "err", err)
 		return nil, err
@@ -946,7 +946,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) FetchApprovalAllowedEnvList(art
 			Reasons:         make([]string, 0),
 		}
 
-		policy, err := impl.promotionPolicyService.GetByAppAndEnvId(pipelineDao.AppId, pipelineDao.EnvironmentId)
+		policy, err := impl.promotionPolicyDataReadService.GetPromotionPolicyByAppAndEnvId(pipelineDao.AppId, pipelineDao.EnvironmentId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching promotion policy for given appId and envId", "appId", pipelineDao.AppId, "envId", pipelineDao.EnvironmentId, "err", err)
 			return nil, err

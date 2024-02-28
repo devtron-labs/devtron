@@ -16,9 +16,10 @@ import (
 
 type ArtifactPromotionDataReadService interface {
 	FetchPromotionApprovalDataForArtifacts(artifactIds []int, pipelineId int) (map[int]*bean.PromotionApprovalMetaData, error)
-	GetByAppAndEnvId(appId, envId int) (*bean.PromotionPolicy, error)
-	GetByAppIdAndEnvIds(appId int, envIds []int) (map[string]*bean.PromotionPolicy, error)
-	GetByIds(ids []int) ([]*bean.PromotionPolicy, error)
+	GetPromotionPolicyByAppAndEnvId(appId, envId int) (*bean.PromotionPolicy, error)
+	GetPromotionPolicyByAppAndEnvIds(appId int, envIds []int) (map[string]*bean.PromotionPolicy, error)
+	GetPromotionPolicyById(id int) ([]*bean.PromotionPolicy, error)
+	GetPromotionPolicyByIds(ids []int) ([]*bean.PromotionPolicy, error)
 	GetPoliciesMetadata(policyMetadataRequest bean.PromotionPolicyMetaRequest) ([]*bean.PromotionPolicy, error)
 }
 
@@ -133,7 +134,7 @@ func (impl ArtifactPromotionDataReadServiceImpl) FetchPromotionApprovalDataForAr
 	return promotionApprovalMetadata, nil
 }
 
-func (impl ArtifactPromotionDataReadServiceImpl) GetByAppAndEnvId(appId, envId int) (*bean.PromotionPolicy, error) {
+func (impl ArtifactPromotionDataReadServiceImpl) GetPromotionPolicyByAppAndEnvId(appId, envId int) (*bean.PromotionPolicy, error) {
 
 	scope := &resourceQualifiers.Scope{AppId: appId, EnvId: envId}
 	//
@@ -147,13 +148,17 @@ func (impl ArtifactPromotionDataReadServiceImpl) GetByAppAndEnvId(appId, envId i
 		return nil, err
 	}
 
+	if len(qualifierMapping) == 0 {
+		impl.logger.Infow("no artifact promotion policy found for given app and env", "appId", appId, "envId", envId, "err", err)
+		return nil, nil
+	}
+
 	policyId := qualifierMapping[0].ResourceId
 	rawPolicy, err := impl.globalPolicyDataManager.GetPolicyById(policyId)
 	if err != nil {
 		impl.logger.Errorw("error in finding policies by id", "policyId", policyId, "err", err)
 		return nil, err
 	}
-
 	policy := &bean.PromotionPolicy{}
 	err = policy.UpdateWithGlobalPolicy(rawPolicy)
 	if err != nil {
@@ -163,7 +168,7 @@ func (impl ArtifactPromotionDataReadServiceImpl) GetByAppAndEnvId(appId, envId i
 	return policy, nil
 }
 
-func (impl ArtifactPromotionDataReadServiceImpl) GetByAppIdAndEnvIds(appId int, envIds []int) (map[string]*bean.PromotionPolicy, error) {
+func (impl ArtifactPromotionDataReadServiceImpl) GetPromotionPolicyByAppAndEnvIds(appId int, envIds []int) (map[string]*bean.PromotionPolicy, error) {
 	scopes := make([]*resourceQualifiers.Scope, 0, len(envIds))
 	for _, envId := range envIds {
 		scopes = append(scopes, &resourceQualifiers.Scope{
@@ -207,7 +212,11 @@ func (impl ArtifactPromotionDataReadServiceImpl) GetByAppIdAndEnvIds(appId int, 
 	return policiesMap, err
 }
 
-func (impl ArtifactPromotionDataReadServiceImpl) GetByIds(ids []int) ([]*bean.PromotionPolicy, error) {
+func (impl ArtifactPromotionDataReadServiceImpl) GetPromotionPolicyById(id int) ([]*bean.PromotionPolicy, error) {
+	return nil, nil
+}
+
+func (impl ArtifactPromotionDataReadServiceImpl) GetPromotionPolicyByIds(ids []int) ([]*bean.PromotionPolicy, error) {
 	return nil, nil
 }
 
