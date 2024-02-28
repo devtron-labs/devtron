@@ -178,6 +178,7 @@ func GetAllSubjects() []string {
 	return e.GetAllSubjects()
 }
 
+// DeleteRoleForUser DEPRECATED: DO NOT USE
 func DeleteRoleForUser(user string, role string) bool {
 	user = strings.ToLower(user)
 	role = strings.ToLower(role)
@@ -195,13 +196,38 @@ func DeleteRoleForUser(user string, role string) bool {
 	return response
 }
 
-func GetGroupsAttachedToUser(user string) ([]bean.GroupPolicy, error) {
-	roleMappings := make([][]string, 0)
+func DeleteRoleForUserV2(user string, role string, expression string, format string) bool {
+	user = strings.ToLower(user)
+	role = strings.ToLower(role)
+	expression = strings.ToLower(expression)
+	format = strings.ToLower(format)
+	var response bool
+	var err error
 	if isV2() {
-		roleMappings = e2.GetModel()["g"]["g"].Policy
+		if len(expression) == 0 && len(format) == 0 {
+			response, err = e2.RemoveGroupingPolicy([]string{user, role})
+			if err != nil {
+				log.Println(err)
+			}
+		} else {
+			response, err = e2.RemoveGroupingPolicy([]string{user, role, expression, format})
+			if err != nil {
+				log.Println(err)
+			}
+		}
 	} else {
-		roleMappings = e.GetModel()["g"]["g"].Policy
+		if len(expression) == 0 && len(format) == 0 {
+			response = e.RemoveGroupingPolicy([]string{user, role})
+		} else {
+			response = e.RemoveGroupingPolicy([]string{user, role, expression, format})
+		}
 	}
+	return response
+
+}
+
+func GetGroupsAttachedToUser(user string) ([]bean.GroupPolicy, error) {
+	roleMappings := GetRoleMappings()
 	groupRoles := make([]bean.GroupPolicy, 0)
 	for _, roleMappingDetail := range roleMappings {
 		lenOfRoleMapping := len(roleMappingDetail)
@@ -226,7 +252,7 @@ func GetGroupsAttachedToUser(user string) ([]bean.GroupPolicy, error) {
 						}
 					}
 					if isExpressionValid {
-						groupRoles = append(groupRoles, bean.GroupPolicy{Role: role, ExpressionFormat: format, TimeoutWindowExpression: strings.ToUpper(expression)})
+						groupRoles = append(groupRoles, bean.GroupPolicy{Role: role, User: user, ExpressionFormat: format, TimeoutWindowExpression: strings.ToUpper(expression)})
 					}
 				}
 			}
@@ -235,13 +261,18 @@ func GetGroupsAttachedToUser(user string) ([]bean.GroupPolicy, error) {
 	return groupRoles, nil
 }
 
-func GetRolesAttachedToUserWithTimeoutExpressionAndFormat(user string) ([]bean.GroupPolicy, error) {
+func GetRoleMappings() [][]string {
 	roleMappings := make([][]string, 0)
 	if isV2() {
 		roleMappings = e2.GetModel()["g"]["g"].Policy
 	} else {
 		roleMappings = e.GetModel()["g"]["g"].Policy
 	}
+	return roleMappings
+}
+
+func GetRolesAndGroupsAttachedToUserWithTimeoutExpressionAndFormat(user string) ([]bean.GroupPolicy, error) {
+	roleMappings := GetRoleMappings()
 	userRoles := make([]bean.GroupPolicy, 0)
 	for _, roleMappingDetail := range roleMappings {
 		lenOfRoleMapping := len(roleMappingDetail)
@@ -252,22 +283,20 @@ func GetRolesAttachedToUserWithTimeoutExpressionAndFormat(user string) ([]bean.G
 			userInRole := roleMappingDetail[0]
 			if userInRole == user { //checking user
 				role := roleMappingDetail[1]
-				if !strings.HasPrefix(role, "group:") {
-					isExpressionValid := true
-					expression := ""
-					format := ""
-					if lenOfRoleMapping == 4 {
-						//expression details present
-						expression = roleMappingDetail[2]
-						format = roleMappingDetail[3]
-						//parse and check if expression is correct
-						if !(len(expression) > 0 && len(format) == 1) {
-							isExpressionValid = false
-						}
+				isExpressionValid := true
+				expression := ""
+				format := ""
+				if lenOfRoleMapping == 4 {
+					//expression details present
+					expression = roleMappingDetail[2]
+					format = roleMappingDetail[3]
+					//parse and check if expression is correct
+					if !(len(expression) > 0 && len(format) == 1) {
+						isExpressionValid = false
 					}
-					if isExpressionValid {
-						userRoles = append(userRoles, bean.GroupPolicy{Role: role, ExpressionFormat: format, TimeoutWindowExpression: strings.ToUpper(expression)})
-					}
+				}
+				if isExpressionValid {
+					userRoles = append(userRoles, bean.GroupPolicy{Role: role, User: user, ExpressionFormat: format, TimeoutWindowExpression: strings.ToUpper(expression)})
 				}
 			}
 		}
@@ -276,12 +305,7 @@ func GetRolesAttachedToUserWithTimeoutExpressionAndFormat(user string) ([]bean.G
 }
 
 func GetUserAttachedToRoleWithTimeoutExpressionAndFormat(role string) ([]bean.GroupPolicy, error) {
-	roleMappings := make([][]string, 0)
-	if isV2() {
-		roleMappings = e2.GetModel()["g"]["g"].Policy
-	} else {
-		roleMappings = e.GetModel()["g"]["g"].Policy
-	}
+	roleMappings := GetRoleMappings()
 	userRoles := make([]bean.GroupPolicy, 0)
 	for _, roleMappingDetail := range roleMappings {
 		lenOfRoleMapping := len(roleMappingDetail)
@@ -314,6 +338,7 @@ func GetUserAttachedToRoleWithTimeoutExpressionAndFormat(role string) ([]bean.Gr
 	return userRoles, nil
 }
 
+// GetRolesForUser  DEPRECATED: DO NOT USE
 func GetRolesForUser(user string) ([]string, error) {
 	user = strings.ToLower(user)
 	if isV2() {
@@ -322,6 +347,7 @@ func GetRolesForUser(user string) ([]string, error) {
 	return e.GetRolesForUser(user)
 }
 
+// GetUserByRole DEPRECATED: DO NOT USE
 func GetUserByRole(role string) ([]string, error) {
 	role = strings.ToLower(role)
 	if isV2() {

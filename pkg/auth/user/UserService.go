@@ -2121,17 +2121,17 @@ func (impl UserServiceImpl) DeleteUser(bean *bean.UserInfo) (bool, error) {
 		return false, err
 	}
 
-	groups, err := casbin2.GetRolesForUser(model.EmailId)
+	groupsPolicies, err := casbin2.GetRolesAndGroupsAttachedToUserWithTimeoutExpressionAndFormat(model.EmailId)
 	if err != nil {
 		impl.logger.Warnw("No Roles Found for user", "id", model.Id)
 	}
 	var eliminatedPolicies []bean4.Policy
-	for _, item := range groups {
-		flag := casbin2.DeleteRoleForUser(model.EmailId, item)
+	for _, policy := range groupsPolicies {
+		flag := casbin2.DeleteRoleForUserV2(model.EmailId, policy.Role, policy.TimeoutWindowExpression, policy.ExpressionFormat)
 		if flag == false {
-			impl.logger.Warnw("unable to delete role:", "user", model.EmailId, "role", item)
+			impl.logger.Warnw("unable to delete role:", "user", model.EmailId, "role", policy.Role)
 		}
-		eliminatedPolicies = append(eliminatedPolicies, bean4.Policy{Type: "g", Sub: bean4.Subject(model.EmailId), Obj: bean4.Object(item)})
+		eliminatedPolicies = append(eliminatedPolicies, bean4.Policy{Type: "g", Sub: bean4.Subject(model.EmailId), Obj: bean4.Object(policy.Role)})
 	}
 	// updating in casbin
 	if len(eliminatedPolicies) > 0 {
@@ -2227,9 +2227,9 @@ func (impl *UserServiceImpl) deleteUsersByIds(request *bean.BulkDeleteRequest) e
 
 // deleteMappingsFromCasbin gets all mappings for all email ids and delete that mapping one by one as no bulk support from casbin library.
 func (impl *UserServiceImpl) deleteMappingsFromCasbin(emailIds []string, totalCount int) error {
-	emailIdVsCasbinRolesMap := make(map[string][]string, totalCount)
+	emailIdVsCasbinRolesMap := make(map[string][]bean4.GroupPolicy, totalCount)
 	for _, email := range emailIds {
-		casbinRoles, err := casbin2.GetRolesForUser(email)
+		casbinRoles, err := casbin2.GetRolesAndGroupsAttachedToUserWithTimeoutExpressionAndFormat(email)
 		if err != nil {
 			impl.logger.Warnw("No Roles Found for user", "email", email, "err", err)
 			return err
@@ -2279,17 +2279,10 @@ func (impl UserServiceImpl) CheckUserRoles(id int32, token string) ([]string, er
 			return nil, err
 		}
 		groups = append(groups, activeRoles...)
-		_, activeGroups, err := impl.GetUserRoleGroupsForEmail(model.EmailId, recordedTime)
-		if err != nil {
-			impl.logger.Errorw("error encountered in CheckUserRoles", "err", err, "emailId", model.EmailId)
-			return nil, err
-		}
-		if len(activeGroups) > 0 {
-			groupsCasbinNames := util3.GetGroupCasbinName(activeGroups)
-			groups = append(groups, groupsCasbinNames...)
-			grps, err := impl.getUniquesRolesByGroupCasbinNames(groupsCasbinNames)
+		if len(groups) > 0 {
+			grps, err := impl.getUniquesRolesByGroupCasbinNames(groups)
 			if err != nil {
-				impl.logger.Errorw("error in getUniquesRolesByGroupCasbinNames", "err", err, "groupsCasbinNames", groupsCasbinNames)
+				impl.logger.Errorw("error in getUniquesRolesByGroupCasbinNames", "err", err, "groups", groups)
 				return nil, err
 			}
 			groups = append(groups, grps...)
@@ -2318,7 +2311,7 @@ func (impl UserServiceImpl) CheckUserRoles(id int32, token string) ([]string, er
 
 // GetActiveRolesAttachedToUser returns only active roles attached to user in casbin
 func (impl UserServiceImpl) GetActiveRolesAttachedToUser(emailId string, recordedTime time.Time) ([]string, error) {
-	groupPolicies, err := casbin2.GetRolesAttachedToUserWithTimeoutExpressionAndFormat(emailId)
+	groupPolicies, err := casbin2.GetRolesAndGroupsAttachedToUserWithTimeoutExpressionAndFormat(emailId)
 	if err != nil {
 		impl.logger.Warnw("error in getUserRoleGroupsForEmail", "emailId", emailId)
 		return nil, err

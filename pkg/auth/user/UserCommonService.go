@@ -41,8 +41,8 @@ type UserCommonService interface {
 	GetUniqueKeyForAllEntityWithTimeAndStatus(role repository.RoleModel, status bean.Status, timeout time.Time) string
 	GetUniqueKeyForRoleFilter(roleFilter bean.RoleFilter) string
 	SetDefaultValuesIfNotPresent(request *bean.ListingRequest, isRoleGroup bool)
-	DeleteRoleForUserFromCasbin(mappings map[string][]string) bool
-	DeleteUserForRoleFromCasbin(mappings map[string][]string) bool
+	DeleteRoleForUserFromCasbin(mappings map[string][]bean3.GroupPolicy) bool
+	DeleteUserForRoleFromCasbin(mappings map[string][]bean3.GroupPolicy) bool
 }
 
 type UserCommonServiceImpl struct {
@@ -767,11 +767,11 @@ func (impl UserCommonServiceImpl) SetDefaultValuesIfNotPresent(request *bean.Lis
 	}
 }
 
-func (impl UserCommonServiceImpl) DeleteRoleForUserFromCasbin(mappings map[string][]string) bool {
+func (impl UserCommonServiceImpl) DeleteRoleForUserFromCasbin(mappings map[string][]bean3.GroupPolicy) bool {
 	successful := true
 	for v0, v1s := range mappings {
 		for _, v1 := range v1s {
-			flag := casbin.DeleteRoleForUser(v0, v1)
+			flag := casbin.DeleteRoleForUserV2(v0, v1.Role, v1.TimeoutWindowExpression, v1.ExpressionFormat)
 			if flag == false {
 				impl.logger.Warnw("unable to delete role:", "v0", v0, "v1", v1)
 				successful = false
@@ -782,11 +782,11 @@ func (impl UserCommonServiceImpl) DeleteRoleForUserFromCasbin(mappings map[strin
 	return successful
 }
 
-func (impl UserCommonServiceImpl) DeleteUserForRoleFromCasbin(mappings map[string][]string) bool {
+func (impl UserCommonServiceImpl) DeleteUserForRoleFromCasbin(mappings map[string][]bean3.GroupPolicy) bool {
 	successful := true
 	for v1, v0s := range mappings {
 		for _, v0 := range v0s {
-			flag := casbin.DeleteRoleForUser(v0, v1)
+			flag := casbin.DeleteRoleForUserV2(v0.User, v1, v0.TimeoutWindowExpression, v0.ExpressionFormat)
 			if flag == false {
 				impl.logger.Warnw("unable to delete role:", "v0", v0, "v1", v1)
 				successful = false

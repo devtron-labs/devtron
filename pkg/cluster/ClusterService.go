@@ -992,13 +992,6 @@ func (impl *ClusterServiceImpl) FetchRolesFromGroup(userId int32, token string) 
 			return nil, err
 		}
 		groups = append(groups, activeRoles...)
-		_, activeGroups, err := impl.ClusterRbacServiceImpl.userService.GetUserRoleGroupsForEmail(user.EmailId, recordedTime)
-		if err != nil {
-			impl.logger.Errorw("error encountered in FetchRolesFromGroup", "err", err, "emailId", user.EmailId)
-			return nil, err
-		}
-		groupsCasbinNames := util3.GetGroupCasbinName(activeGroups)
-		groups = append(groups, groupsCasbinNames...)
 	}
 
 	if isGroupClaimsActive {
