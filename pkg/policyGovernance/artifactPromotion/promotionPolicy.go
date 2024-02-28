@@ -129,7 +129,53 @@ func (impl PromotionPolicyServiceImpl) GetByIds(ids []int) ([]*bean.PromotionPol
 }
 
 func (impl PromotionPolicyServiceImpl) GetPoliciesMetadata(policyMetadataRequest bean.PromotionPolicyMetaRequest) ([]*bean.PromotionPolicy, error) {
-	impl.globalPolicyDataManager.GetPolicyByIds()
+
+	promotionPolicies := make([]*bean.PromotionPolicy, 0)
+
+	sortRequest := impl.parseSortByRequest(policyMetadataRequest)
+
+	globalPolicies, err := impl.globalPolicyDataManager.GetAndSort(policyMetadataRequest.Search, sortRequest)
+	if err != nil {
+		impl.logger.Errorw("error in fetching global policies by name search string", "policyMetadataRequest", policyMetadataRequest, "err", err)
+		return promotionPolicies, err
+	}
+
+	promotionPolicies, err = impl.parsePromotionPolicyFromGlobalPolicy(globalPolicies)
+	if err != nil {
+		impl.logger.Errorw("error in parsing global policy from promotion policy", "globalPolicy", globalPolicies, "err", err)
+		return promotionPolicies, err
+	}
+	return promotionPolicies, nil
+}
+
+func (impl PromotionPolicyServiceImpl) parseSortByRequest(policyMetadataRequest bean.PromotionPolicyMetaRequest) *bean2.SortByRequest {
+	sortRequest := &bean2.SortByRequest{
+		SortOrderDesc: policyMetadataRequest.SortOrder == bean.DESC,
+	}
+	if policyMetadataRequest.SortBy == bean.POLICY_NAME {
+		sortRequest.SortByType = bean2.GlobalPolicyColumnField
+	} else if policyMetadataRequest.SortBy == bean.APPROVER_COUNT_SORT_KEY {
+		sortRequest.SortByType = bean2.GlobalPolicySearchableField
+		sortRequest.SearchableField = bean2.SearchableField{
+			FieldName: bean.PROMOTION_APPROVAL_PENDING_NODE,
+			FieldType: bean2.NumericType,
+		}
+	}
+	return sortRequest
+}
+
+func (impl PromotionPolicyServiceImpl) parsePromotionPolicyFromGlobalPolicy(globalPolicies []*bean2.GlobalPolicyBaseModel) ([]*bean.PromotionPolicy, error) {
+	promotionPolicies := make([]*bean.PromotionPolicy, 0)
+	for _, rawPolicy := range globalPolicies {
+		policy := &bean.PromotionPolicy{}
+		err := policy.UpdateWithGlobalPolicy(rawPolicy)
+		if err != nil {
+			impl.logger.Errorw("error in extracting policy from globalPolicy json", "policyId", rawPolicy.Id, "err", err)
+			return nil, err
+		}
+		promotionPolicies = append(promotionPolicies, policy)
+	}
+	return promotionPolicies, nil
 }
 
 func (impl PromotionPolicyServiceImpl) UpdatePolicy(userId int32, policyName string, policyBean *bean.PromotionPolicy) error {

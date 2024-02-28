@@ -17,9 +17,14 @@ type GlobalPolicyRepository interface {
 	GetEnabledPoliciesByIds(ids []int) ([]*GlobalPolicy, error)
 	GetByName(name string) (*GlobalPolicy, error)
 	GetAllByPolicyOfAndVersion(policyOf bean.GlobalPolicyType, policyVersion bean.GlobalPolicyVersion) ([]*GlobalPolicy, error)
-	Create(model *GlobalPolicy) error
-	Update(model *GlobalPolicy) error
+	Create(model *GlobalPolicy, tx *pg.Tx) error
+	Update(model *GlobalPolicy, tx *pg.Tx) error
 	MarkDeletedById(id int, userId int32, tx *pg.Tx) error
+	GetByIds(ids []int) ([]*GlobalPolicy, error)
+	GetPolicyByType(policyType *bean.GlobalPolicyType) (*GlobalPolicy, error)
+	DeletedById(id int, userId int32) error
+	DeletedByName(name string, userId int32) error
+	GetByNameSearchKey(nameSearchKey string, orderByName bool, sortOrderDesc bool) ([]*GlobalPolicy, error)
 }
 
 type GlobalPolicyRepositoryImpl struct {
@@ -65,7 +70,18 @@ func (globalPolicy *GlobalPolicy) GetGlobalPolicyDto() (*bean.GlobalPolicyDto, e
 		GlobalPolicyDetailDto: policyDetailDto,
 	}, nil
 }
-
+func (globalPolicy *GlobalPolicy) GetGlobalPolicyBaseModel() *bean.GlobalPolicyBaseModel {
+	return &bean.GlobalPolicyBaseModel{
+		Id:            globalPolicy.Id,
+		Name:          globalPolicy.Name,
+		Description:   globalPolicy.Description,
+		Enabled:       globalPolicy.Enabled,
+		PolicyOf:      bean.GlobalPolicyType(globalPolicy.PolicyOf),
+		PolicyVersion: bean.GlobalPolicyVersion(globalPolicy.Version),
+		JsonData:      globalPolicy.PolicyJson,
+		UserId:        globalPolicy.CreatedBy,
+	}
+}
 func (repo *GlobalPolicyRepositoryImpl) GetDbTransaction() (*pg.Tx, error) {
 	return repo.dbConnection.Begin()
 }
@@ -122,8 +138,13 @@ func (repo *GlobalPolicyRepositoryImpl) GetAllByPolicyOfAndVersion(policyOf bean
 	return models, nil
 }
 
-func (repo *GlobalPolicyRepositoryImpl) Create(model *GlobalPolicy) error {
-	err := repo.dbConnection.Insert(model)
+func (repo *GlobalPolicyRepositoryImpl) Create(model *GlobalPolicy, tx *pg.Tx) error {
+	var err error
+	if tx == nil {
+		err = repo.dbConnection.Insert(model)
+	} else {
+		err = tx.Insert(model)
+	}
 	if err != nil {
 		repo.logger.Errorw("error in creating global policy", "err", err, "model", model)
 		return err
@@ -131,8 +152,13 @@ func (repo *GlobalPolicyRepositoryImpl) Create(model *GlobalPolicy) error {
 	return nil
 }
 
-func (repo *GlobalPolicyRepositoryImpl) Update(model *GlobalPolicy) error {
-	err := repo.dbConnection.Update(model)
+func (repo *GlobalPolicyRepositoryImpl) Update(model *GlobalPolicy, tx *pg.Tx) error {
+	var err error
+	if tx == nil {
+		err = repo.dbConnection.Update(model)
+	} else {
+		err = tx.Update(model)
+	}
 	if err != nil {
 		repo.logger.Errorw("error in updating global policy", "err", err, "model", model)
 		return err
@@ -150,4 +176,72 @@ func (repo *GlobalPolicyRepositoryImpl) MarkDeletedById(id int, userId int32, tx
 		return err
 	}
 	return nil
+}
+
+func (repo *GlobalPolicyRepositoryImpl) GetByIds(ids []int) ([]*GlobalPolicy, error) {
+	var models []*GlobalPolicy
+	if len(ids) == 0 {
+		return models, nil
+	}
+	err := repo.dbConnection.Model(&models).Where("id in (?)", pg.In(ids)).
+		Where("deleted = ?", false).Select()
+	if err != nil {
+		repo.logger.Errorw("error in getting policy by ids", "err", err, "ids", ids)
+		return nil, err
+	}
+	return models, nil
+}
+func (repo *GlobalPolicyRepositoryImpl) GetPolicyByType(policyType *bean.GlobalPolicyType) (*GlobalPolicy, error) {
+	var model GlobalPolicy
+	err := repo.dbConnection.Model(&model).Where("policy_of = ?", policyType).
+		Where("deleted = ?", false).Select()
+	if err != nil {
+		repo.logger.Errorw("error in getting policy by name", "err", err, "policyType", policyType)
+		return nil, err
+	}
+	return &model, nil
+}
+
+func (repo *GlobalPolicyRepositoryImpl) DeletedById(id int, userId int32) error {
+	var model GlobalPolicy
+	_, err := repo.dbConnection.Model(&model).
+		Set("deleted = ?", true).Set("updated_on = ?", time.Now()).
+		Set("updated_by = ?", userId).Where("id = ?", id).Update()
+	if err != nil {
+		repo.logger.Errorw("error in marking global policy deleted", "err", err, "id", id)
+		return err
+	}
+	return nil
+}
+
+func (repo *GlobalPolicyRepositoryImpl) DeletedByName(name string, userId int32) error {
+	var model GlobalPolicy
+	_, err := repo.dbConnection.Model(&model).
+		Set("deleted = ?", true).Set("updated_on = ?", time.Now()).
+		Set("updated_by = ?", userId).Where("name = ?", name).Update()
+	if err != nil {
+		repo.logger.Errorw("error in marking global policy deleted", "err", err, "name", name)
+		return err
+	}
+	return nil
+}
+
+func (repo *GlobalPolicyRepositoryImpl) GetByNameSearchKey(nameSearchKey string, orderByName bool, sortOrderDesc bool) ([]*GlobalPolicy, error) {
+	var model []*GlobalPolicy
+	query := repo.dbConnection.Model(&model).Where("name like ? ", nameSearchKey).
+		Where("deleted = ?", false)
+
+	if orderByName {
+		orderExp := "name"
+		if sortOrderDesc {
+			orderExp = "name DESC"
+		}
+		query = query.OrderExpr(orderExp)
+	}
+	err := query.Select()
+	if err != nil {
+		repo.logger.Errorw("error in getting policy by name", "err", err, "nameSearchKey", nameSearchKey)
+		return nil, err
+	}
+	return model, nil
 }

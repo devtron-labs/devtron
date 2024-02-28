@@ -11,6 +11,9 @@ import (
 )
 
 type ArtifactPromotionRequestStatus int
+type SearchableField string
+type SortKey = string
+type SortOrder = string
 
 const (
 	PROMOTED ArtifactPromotionRequestStatus = iota
@@ -78,6 +81,14 @@ func (sourceType SourceType) GetSourceTypeStr() SourceTypeStr {
 	return SOURCE_TYPE_CI
 }
 
+const (
+	POLICY_NAME                 SortKey         = "policyName"
+	APPROVER_COUNT_SORT_KEY     SortKey         = "approverCount"
+	ASC                         SortOrder       = "ASC"
+	DESC                        SortOrder       = "DESC"
+	APPROVER_COUNT_SEARCH_FIELD SearchableField = "approverCount"
+)
+
 type ArtifactPromotionRequest struct {
 	SourceName         string         `json:"sourceName"`
 	SourceType         SourceTypeStr  `json:"sourceType"`
@@ -115,9 +126,9 @@ type PromotionApprovalMetaData struct {
 }
 
 type PromotionPolicyMetaRequest struct {
-	Search    string
-	SortBy    string
-	SortOrder string
+	Search    string `json:"search"`
+	SortBy    string `json:"sortBy" validate:"oneof=ASC DESC"`
+	SortOrder string `json:"sortOrder" validate:"oneof=policyName approverCount"`
 }
 
 type PromotionApprovalUserData struct {
@@ -178,7 +189,7 @@ func (policy *PromotionPolicy) ConvertToGlobalPolicyDataModel(userId int32) (*be
 		return nil, err
 	}
 	return &bean.GlobalPolicyDataModel{
-		GlobalPolicyBaseModel: baseModel,
+		GlobalPolicyBaseModel: *baseModel,
 		SearchableFields:      SearchableFields,
 	}, nil
 }

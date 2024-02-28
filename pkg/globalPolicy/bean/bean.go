@@ -35,6 +35,7 @@ type GlobalPolicyType string
 
 const (
 	GLOBAL_POLICY_TYPE_PLUGIN              GlobalPolicyType = "PLUGIN"
+	GLOBAL_POLICY_TYPE_DEPLOYMENT_WINDOW   GlobalPolicyType = "DEPLOYMENT_WINDOW"
 	IMAGE_PROMOTION_POLICYGlobalPolicyType GlobalPolicyType = "IMAGE_PROMOTION"
 )
 
@@ -240,7 +241,7 @@ type GlobalPolicyBaseModel struct {
 }
 
 type GlobalPolicyDataModel struct {
-	*GlobalPolicyBaseModel
+	GlobalPolicyBaseModel
 	SearchableFields []SearchableField
 }
 
@@ -256,15 +257,15 @@ const StringType FieldType = 2
 const DateTimeType FieldType = 3
 const UniqueActiveNameConstraint = "todo" // todo
 
-type SortByType int
+type GlobalPolicyFieldType int
 
 const (
-	SortBySearchableField SortByType = iota
-	SortByGlobalPolicyField
+	GlobalPolicySearchableField GlobalPolicyFieldType = iota
+	GlobalPolicyColumnField
 )
 
 type SortByRequest struct {
-	SortByType        SortByType      // if true sort by searchable field
-	GlobalPolicyField string          // name of column by which results should be sorted
-	SearchableField   SearchableField // name of searchable field by which results should be sorted
+	SortByType      GlobalPolicyFieldType // if true sort by searchable field
+	SearchableField SearchableField       // name of searchable field by which results should be sorted
+	SortOrderDesc   bool
 }

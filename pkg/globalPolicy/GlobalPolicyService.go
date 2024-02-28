@@ -589,7 +589,7 @@ func (impl *GlobalPolicyServiceImpl) createOrUpdateGlobalPolicyInDb(policy *bean
 	var historyAction bean3.HistoryOfAction
 	if policy.Id == 0 {
 		//create entry
-		err = impl.globalPolicyRepository.Create(globalPolicyModel)
+		err = impl.globalPolicyRepository.Create(globalPolicyModel, nil)
 		if err != nil {
 			impl.logger.Errorw("error, createOrUpdateGlobalPolicyInDb", "err", err, "policyDto", policy)
 			return err
@@ -599,7 +599,7 @@ func (impl *GlobalPolicyServiceImpl) createOrUpdateGlobalPolicyInDb(policy *bean
 		historyAction = bean3.HISTORY_OF_ACTION_CREATE
 	} else {
 		//update entry
-		err = impl.globalPolicyRepository.Update(globalPolicyModel)
+		err = impl.globalPolicyRepository.Update(globalPolicyModel, nil)
 		if err != nil {
 			impl.logger.Errorw("error, createOrUpdateGlobalPolicyInDb", "err", err, "policyDto", policy)
 			return err
