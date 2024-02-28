@@ -16,6 +16,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/read"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -44,7 +45,7 @@ type ArtifactPromotionApprovalServiceImpl struct {
 	cdWorkflowRepository                       pipelineConfig.CdWorkflowRepository
 	resourceFilterConditionsEvaluator          resourceFilter.ResourceFilterEvaluator
 	imageTaggingService                        pipeline.ImageTaggingService
-	promotionPolicyService                     PromotionPolicyReadService
+	promotionPolicyService                     read.ArtifactPromotionDataReadService
 	requestApprovalUserdataRepo                pipelineConfig.RequestApprovalUserdataRepository
 	cdTriggerService                           devtronApps.TriggerService
 }
@@ -60,7 +61,7 @@ func NewArtifactPromotionApprovalServiceImpl(
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	resourceFilterConditionsEvaluator resourceFilter.ResourceFilterEvaluator,
 	imageTaggingService pipeline.ImageTaggingService,
-	promotionPolicyService PromotionPolicyReadService,
+	promotionPolicyService read.ArtifactPromotionDataReadService,
 	requestApprovalUserdataRepo pipelineConfig.RequestApprovalUserdataRepository,
 	cdTriggerService devtronApps.TriggerService,
 ) *ArtifactPromotionApprovalServiceImpl {

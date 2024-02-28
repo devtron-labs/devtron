@@ -123,6 +123,10 @@ func (impl *GlobalPolicyDataManagerImpl) UpdatePolicy(globalPolicyDataModel *bea
 	return globalPolicyDataModel, nil
 }
 
+func (impl *GlobalPolicyDataManagerImpl) UpdatePolicyByName(PolicyName string, globalPolicyDataModel *bean.GlobalPolicyDataModel) (*bean.GlobalPolicyDataModel, error) {
+	return nil, nil
+}
+
 func (impl *GlobalPolicyDataManagerImpl) getSearchableKeyEntries(globalPolicyDataModel *bean.GlobalPolicyDataModel) []*repository.GlobalPolicySearchableField {
 	searchableKeyEntriesTotal := make([]*repository.GlobalPolicySearchableField, 0)
 	for _, field := range globalPolicyDataModel.SearchableFields {
@@ -166,6 +170,10 @@ func (impl *GlobalPolicyDataManagerImpl) GetPolicyByName(policyName string) (*be
 		return nil, err
 	}
 	return globalPolicy.GetGlobalPolicyBaseModel(), nil
+}
+
+func (impl *GlobalPolicyDataManagerImpl) GetPolicyByNames(policyName []string) ([]*bean.GlobalPolicyBaseModel, error) {
+	return nil, nil
 }
 
 func (impl *GlobalPolicyDataManagerImpl) GetPolicyMetadataByFields(policyIds []int, fields []*bean.SearchableField) (map[int][]*bean.SearchableField, error) {
@@ -249,14 +257,11 @@ func (impl *GlobalPolicyDataManagerImpl) GetPolicyByIds(policyIds []int) ([]*bea
 	}
 	return GlobalPolicyBaseModels, nil
 }
-func (impl *GlobalPolicyDataManagerImpl) GetAllActiveByType(policyType *bean.GlobalPolicyType) (*bean.GlobalPolicyBaseModel, error) {
-	globalPolicy, err := impl.globalPolicyRepository.GetPolicyByType(policyType)
-	if err != nil {
-		impl.logger.Errorw("error in fetching global policy", "policyType", policyType, "err", err)
-		return nil, err
-	}
-	return globalPolicy.GetGlobalPolicyBaseModel(), nil
+
+func (impl *GlobalPolicyDataManagerImpl) GetAllActiveByType(policyType bean.GlobalPolicyType) ([]*bean.GlobalPolicyBaseModel, error) {
+	return nil, nil
 }
+
 func (impl *GlobalPolicyDataManagerImpl) DeletePolicyById(policyId int, userId int32) error {
 	err := impl.globalPolicyRepository.DeletedById(policyId, userId)
 	if err != nil {

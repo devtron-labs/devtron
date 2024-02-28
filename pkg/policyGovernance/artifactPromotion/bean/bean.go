@@ -83,7 +83,7 @@ func (sourceType SourceType) GetSourceTypeStr() SourceTypeStr {
 }
 
 const (
-	POLICY_NAME                 SortKey         = "policyName"
+	POLICY_NAME_SORT_KEY        SortKey         = "policyName"
 	APPROVER_COUNT_SORT_KEY     SortKey         = "approverCount"
 	ASC                         SortOrder       = "ASC"
 	DESC                        SortOrder       = "DESC"
