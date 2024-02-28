@@ -157,6 +157,9 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipelineConfig.CiPipelineRepository), new(*pipelineConfig.CiPipelineRepositoryImpl)),
 		// needed for enforcer util ends
 
+		EAMode.NewEAModeDeploymentServiceImpl,
+		wire.Bind(new(EAMode.EAModeDeploymentService), new(*EAMode.EAModeDeploymentServiceImpl)),
+
 		// binding gitops to helm (for hyperion)
 		wire.Bind(new(deployment.FullModeDeploymentService), new(*EAMode.EAModeDeploymentServiceImpl)),
 
