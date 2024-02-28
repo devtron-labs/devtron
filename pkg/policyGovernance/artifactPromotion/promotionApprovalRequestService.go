@@ -64,8 +64,10 @@ func NewArtifactPromotionApprovalServiceImpl(
 	promotionPolicyService read.ArtifactPromotionDataReadService,
 	requestApprovalUserdataRepo pipelineConfig.RequestApprovalUserdataRepository,
 	cdTriggerService devtronApps.TriggerService,
+	promotionPolicyCUDService PromotionPolicyCUDService,
 ) *ArtifactPromotionApprovalServiceImpl {
-	return &ArtifactPromotionApprovalServiceImpl{
+
+	artifactApprovalService := &ArtifactPromotionApprovalServiceImpl{
 		artifactPromotionApprovalRequestRepository: ArtifactPromotionApprovalRequestRepository,
 		logger:                            logger,
 		ciPipelineRepository:              CiPipelineRepository,
@@ -80,6 +82,11 @@ func NewArtifactPromotionApprovalServiceImpl(
 		requestApprovalUserdataRepo:       requestApprovalUserdataRepo,
 		cdTriggerService:                  cdTriggerService,
 	}
+
+	// register hooks
+	promotionPolicyCUDService.AddPreDeleteHook(artifactApprovalService.onPolicyDelete)
+	promotionPolicyCUDService.AddPreUpdateHook(artifactApprovalService.onPolicyUpdate)
+	return artifactApprovalService
 }
 
 func (impl ArtifactPromotionApprovalServiceImpl) GetAppAndEnvsMapByWorkflowId(workflowId int) (*bean.WorkflowMetaData, error) {
@@ -383,7 +390,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) approveArtifactPromotion(reques
 
 	if len(staleRequestIds) > 0 {
 		// attempt deleting the stale requests in bulk
-		err = impl.artifactPromotionApprovalRequestRepository.MarkStale(staleRequestIds)
+		err = impl.artifactPromotionApprovalRequestRepository.MarkStaleByIds(staleRequestIds)
 		if err != nil {
 			impl.logger.Errorw("error in deleting the request raised using a deleted promotion policy (stale requests)", "staleRequestIds", staleRequestIds, "err", err)
 			// not returning by choice, don't interrupt the user flow
@@ -969,4 +976,20 @@ func (impl ArtifactPromotionApprovalServiceImpl) FetchApprovalAllowedEnvList(art
 		}
 	}
 	return environmentApprovalMetadata, nil
+}
+
+func (impl ArtifactPromotionApprovalServiceImpl) onPolicyDelete(tx *pg.Tx, policyId int) error {
+	err := impl.artifactPromotionApprovalRequestRepository.MarkStaleByPolicyId(tx, policyId)
+	if err != nil {
+		impl.logger.Errorw("error in marking artifact promotion requests stale", "policyId", policyId, "err", err)
+	}
+	return err
+}
+
+func (impl ArtifactPromotionApprovalServiceImpl) onPolicyUpdate(tx *pg.Tx, policyId int) error {
+	err := impl.artifactPromotionApprovalRequestRepository.MarkStaleByPolicyId(tx, policyId)
+	if err != nil {
+		impl.logger.Errorw("error in marking artifact promotion requests stale", "policyId", policyId, "err", err)
+	}
+	return err
 }

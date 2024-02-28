@@ -21,11 +21,12 @@ type GlobalPolicyDataManager interface {
 	UpdatePolicyByName(PolicyName string, globalPolicyDataModel *bean.GlobalPolicyDataModel) (*bean.GlobalPolicyDataModel, error)
 
 	DeletePolicyById(policyId int, userId int32) error
-	DeletePolicyByName(policyName string, userId int32) error
+	DeletePolicyByName(tx *pg.Tx, policyName string, userId int32) error
 
 	GetPolicyMetadataByFields(policyIds []int, fields []*bean.SearchableField) (map[int][]*bean.SearchableField, error)
 	// GetPoliciesBySearchableFields(policyIds []int,fields []*SearchableField) ([]*GlobalPolicyBaseModel, error)
 	GetAndSort(policyNamePattern string, sortRequest *bean.SortByRequest) ([]*bean.GlobalPolicyBaseModel, error)
+	GetPolicyIdByName(name string, policyType bean.GlobalPolicyType) (int, error)
 }
 
 type GlobalPolicyDataManagerImpl struct {
@@ -269,8 +270,8 @@ func (impl *GlobalPolicyDataManagerImpl) DeletePolicyById(policyId int, userId i
 	}
 	return err
 }
-func (impl *GlobalPolicyDataManagerImpl) DeletePolicyByName(policyName string, userId int32) error {
-	err := impl.globalPolicyRepository.DeletedByName(policyName, userId)
+func (impl *GlobalPolicyDataManagerImpl) DeletePolicyByName(tx *pg.Tx, policyName string, userId int32) error {
+	err := impl.globalPolicyRepository.DeletedByName(tx, policyName, userId)
 	if err != nil {
 		impl.logger.Errorw("error in deleting policies", "err", err, "policyName", policyName)
 	}
@@ -335,4 +336,8 @@ func (impl *GlobalPolicyDataManagerImpl) getGlobalPolicySortedOrder(globalPolici
 		return nil, err
 	}
 	return globalPolicySortedOrder, nil
+}
+
+func (impl *GlobalPolicyDataManagerImpl) GetPolicyIdByName(name string, policyType bean.GlobalPolicyType) (int, error) {
+	return impl.globalPolicyRepository.GetIdByName(name, policyType)
 }
