@@ -14,6 +14,9 @@ var ArtifactPromotionWireSet = wire.NewSet(
 	NewArtifactPromotionApprovalServiceImpl,
 	wire.Bind(new(ArtifactPromotionApprovalService), new(*ArtifactPromotionApprovalServiceImpl)),
 
+	NewPromotionPolicyServiceImpl,
+	wire.Bind(new(PromotionPolicyCUDService), new(*PromotionPolicyServiceImpl)),
+
 	repository.NewArtifactPromotionApprovalRequestImpl,
 	wire.Bind(new(repository.ArtifactPromotionApprovalRequestRepository), new(*repository.ArtifactPromotionApprovalRequestRepoImpl)),
 )
