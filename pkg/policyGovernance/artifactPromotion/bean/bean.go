@@ -157,7 +157,7 @@ type PromotionPolicy struct {
 	Name               string                             `json:"name" validate:"min=3 max=50 global-entity-name"`
 	Description        string                             `json:"description" validate:"max=300"`
 	PolicyEvaluationId int                                `json:"-"`
-	Conditions         []resourceFilter.ResourceCondition `json:"conditions" validate:"min=1"`
+	Conditions         []resourceFilter.ResourceCondition `json:"conditions" validate:"omitempty,min=1"`
 	ApprovalMetaData   ApprovalMetaData                   `json:"approvalMetadata" validate:"dive"`
 	IdentifierCount    int                                `json:"identifierCount,omitempty"`
 }

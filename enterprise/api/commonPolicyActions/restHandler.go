@@ -7,7 +7,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance"
-	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"github.com/samber/lo"
 	"go.uber.org/zap"
@@ -29,7 +28,6 @@ type CommonPolicyRestHandlerImpl struct {
 	commonPolicyActionService policyGovernance.CommonPolicyActionsService
 	userService               user.UserService
 	enforcer                  casbin.Enforcer
-	enforcerUtil              rbac.EnforcerUtil
 	validator                 *validator.Validate
 	logger                    *zap.SugaredLogger
 }
@@ -37,14 +35,12 @@ type CommonPolicyRestHandlerImpl struct {
 func NewCommonPolicyRestHandlerImpl(commonPolicyActionService policyGovernance.CommonPolicyActionsService,
 	userService user.UserService,
 	enforcer casbin.Enforcer,
-	enforcerUtil rbac.EnforcerUtil,
 	validator *validator.Validate,
 	logger *zap.SugaredLogger) *CommonPolicyRestHandlerImpl {
 	return &CommonPolicyRestHandlerImpl{
 		commonPolicyActionService: commonPolicyActionService,
 		userService:               userService,
 		enforcer:                  enforcer,
-		enforcerUtil:              enforcerUtil,
 		validator:                 validator,
 		logger:                    logger,
 	}
