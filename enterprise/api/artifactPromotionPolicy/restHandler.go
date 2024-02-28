@@ -175,7 +175,7 @@ func (handler RestHandlerImpl) GetPolicyByName(w http.ResponseWriter, r *http.Re
 
 	vars := mux.Vars(r)
 	policyName := vars["name"]
-	policy, err := handler.artifactPromotionReadService.GetByName(policyName)
+	policy, err := handler.artifactPromotionReadService.GetPromotionPolicyByName(policyName)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return

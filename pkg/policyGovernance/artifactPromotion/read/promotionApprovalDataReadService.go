@@ -1,9 +1,11 @@
 package read
 
 import (
+	"errors"
 	bean3 "github.com/devtron-labs/devtron/api/bean"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/globalPolicy"
 	bean2 "github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
@@ -12,16 +14,17 @@ import (
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"net/http"
 )
 
 type ArtifactPromotionDataReadService interface {
 	FetchPromotionApprovalDataForArtifacts(artifactIds []int, pipelineId int) (map[int]*bean.PromotionApprovalMetaData, error)
 	GetPromotionPolicyByAppAndEnvId(appId, envId int) (*bean.PromotionPolicy, error)
 	GetPromotionPolicyByAppAndEnvIds(appId int, envIds []int) (map[string]*bean.PromotionPolicy, error)
-	GetPromotionPolicyById(id int) ([]*bean.PromotionPolicy, error)
+	GetPromotionPolicyById(id int) (*bean.PromotionPolicy, error)
 	GetPromotionPolicyByIds(ids []int) ([]*bean.PromotionPolicy, error)
-	GetByName(name string) (*bean.PromotionPolicy, error)
-	GetPoliciesMetadata(policyMetadataRequest bean.PromotionPolicyMetaRequest) ([]*bean.PromotionPolicy, error)
+	GetPromotionPolicyByName(name string) (*bean.PromotionPolicy, error)
+	GetPoliciesMetadata(policyMetadataRequest bean.PromotionPolicyMetaRequest) (*bean.PromotionPolicyExtraResponse, error)
 }
 
 type ArtifactPromotionDataReadServiceImpl struct {
@@ -233,7 +236,22 @@ func (impl ArtifactPromotionDataReadServiceImpl) GetPromotionPolicyByIds(ids []i
 	return promotionPolicies, nil
 }
 
-func (impl ArtifactPromotionDataReadServiceImpl) GetByName(name string) (*bean.PromotionPolicy, error) {
+func (impl ArtifactPromotionDataReadServiceImpl) GetPromotionPolicyById(id int) (*bean.PromotionPolicy, error) {
+	globalPolicy, err := impl.globalPolicyDataManager.GetPolicyById(id)
+	if err != nil {
+		impl.logger.Errorw("error in fetching global policy by id", "policyid", id, "err", err)
+		return nil, err
+	}
+	policy := &bean.PromotionPolicy{}
+	err = policy.UpdateWithGlobalPolicy(globalPolicy)
+	if err != nil {
+		impl.logger.Errorw("error in extracting policy from globalPolicy json", "policyId", globalPolicy.Id, "err", err)
+		return nil, err
+	}
+	return policy, nil
+}
+
+func (impl ArtifactPromotionDataReadServiceImpl) GetPromotionPolicyByName(name string) (*bean.PromotionPolicy, error) {
 	globalPolicy, err := impl.globalPolicyDataManager.GetPolicyByName(name)
 	if err != nil {
 		impl.logger.Errorw("error in fetching global policy by name", "name", name, "err", err)
@@ -257,24 +275,29 @@ func (impl ArtifactPromotionDataReadServiceImpl) GetByName(name string) (*bean.P
 	return promotionPolicy, nil
 }
 
-func (impl ArtifactPromotionDataReadServiceImpl) GetPoliciesMetadata(policyMetadataRequest bean.PromotionPolicyMetaRequest) ([]*bean.PromotionPolicy, error) {
+func (impl ArtifactPromotionDataReadServiceImpl) GetPoliciesMetadata(policyMetadataRequest bean.PromotionPolicyMetaRequest) (*bean.PromotionPolicyExtraResponse, error) {
 
 	promotionPolicies := make([]*bean.PromotionPolicy, 0)
 
 	sortRequest := impl.parseSortByRequest(policyMetadataRequest)
-
 	globalPolicies, err := impl.globalPolicyDataManager.GetAndSort(policyMetadataRequest.Search, sortRequest)
 	if err != nil {
 		impl.logger.Errorw("error in fetching global policies by name search string", "policyMetadataRequest", policyMetadataRequest, "err", err)
-		return promotionPolicies, err
+		return nil, err
 	}
 
 	promotionPolicies, err = impl.parsePromotionPolicyFromGlobalPolicy(globalPolicies)
 	if err != nil {
 		impl.logger.Errorw("error in parsing global policy from promotion policy", "globalPolicy", globalPolicies, "err", err)
-		return promotionPolicies, err
+		return nil, err
 	}
-	return promotionPolicies, nil
+
+	promotionPolicyExtraResponse := &bean.PromotionPolicyExtraResponse{
+		IdentifierCount: len(globalPolicies),
+		PromotionPolicy: promotionPolicies,
+	}
+
+	return promotionPolicyExtraResponse, nil
 }
 
 func (impl ArtifactPromotionDataReadServiceImpl) parseSortByRequest(policyMetadataRequest bean.PromotionPolicyMetaRequest) *bean2.SortByRequest {
