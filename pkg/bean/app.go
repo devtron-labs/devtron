@@ -676,15 +676,17 @@ type DeploymentAppTypeChangeRequest struct {
 }
 
 type DeploymentChangeStatus struct {
-	Id      int    `json:"id,omitempty"`
-	AppId   int    `json:"appId,omitempty"`
-	AppName string `json:"appName,omitempty"`
-	EnvId   int    `json:"envId,omitempty"`
-	EnvName string `json:"envName,omitempty"`
-	Error   string `json:"error,omitempty"`
-	Status  Status `json:"status,omitempty"`
+	PipelineId     int    `json:"pipelineId,omitempty"`
+	InstalledAppId int    `json:"installedAppId,omitempty"`
+	AppId          int    `json:"appId,omitempty"`
+	AppName        string `json:"appName,omitempty"`
+	EnvId          int    `json:"envId,omitempty"`
+	EnvName        string `json:"envName,omitempty"`
+	Error          string `json:"error,omitempty"`
+	Status         Status `json:"status,omitempty"`
 }
 
+// DeploymentAppTypeChangeResponse is used as response obj for migrating devtron apps as well as chart store apps
 type DeploymentAppTypeChangeResponse struct {
 	EnvId                 int                       `json:"envId,omitempty"`
 	DesiredDeploymentType bean3.DeploymentType      `json:"desiredDeploymentType,omitempty"`
@@ -696,6 +698,27 @@ type DeploymentAppTypeChangeResponse struct {
 type CdPipelineTrigger struct {
 	CiArtifactId int `json:"ciArtifactId"`
 	PipelineId   int `json:"pipelineId"`
+}
+
+type DeploymentType = string
+
+const (
+	Helm                    DeploymentType = "helm"
+	ArgoCd                  DeploymentType = "argo_cd"
+	ManifestDownload        DeploymentType = "manifest_download"
+	GitOpsWithoutDeployment DeploymentType = "git_ops_without_deployment"
+)
+
+const (
+	HelmReleaseMetadataAnnotation = `{"metadata": {"annotations": {"meta.helm.sh/release-name": "%s","meta.helm.sh/release-namespace": "%s"},"labels": {"app.kubernetes.io/managed-by": "Helm"}}}`
+)
+
+func IsAcdApp(deploymentType string) bool {
+	return deploymentType == ArgoCd
+}
+
+func IsHelmApp(deploymentType string) bool {
+	return deploymentType == Helm
 }
 
 type Status string

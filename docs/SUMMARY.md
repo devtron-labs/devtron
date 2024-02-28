@@ -42,6 +42,7 @@
   * [External Links](user-guide/global-configurations/external-links.md)
   * [Catalog Framework](user-guide/global-configurations/catalog-framework.md)
   * [Scoped Variables](user-guide/global-configurations/scoped-variables.md)
+  * [Pull Image Digest](user-guide/global-configurations/pull-image-digest.md)
   * [Tags Policy](user-guide/global-configurations/tags-policy.md)
   * [Filter Condition](user-guide/global-configurations/filter-condition.md)
   * [Build Infra](user-guide/global-configurations/build-infra.md)
@@ -118,6 +119,15 @@
   * [Vulnerability Scanning (Clair)](user-guide/integrations/clair.md)
   * [Notifications](user-guide/integrations/notifications.md)
   * [Monitoring (Grafana)](user-guide/integrations/grafana.md)
+* [Preset Plugins](user-guide/plugins/README.md)
+  * [K6 Load Testing](user-guide/plugins/k6-load-testing.md)
+  * [SonarQube](user-guide/plugins/sonarqube.md)
+  * [Dependency track - Python](user-guide/plugins/dependency-track-python.md)
+  * [Dependency track - NodeJS](user-guide/plugins/dependency-track-nodejs.md)
+  * [Dependency track - Maven & Gradle](user-guide/plugins/dependency-track-maven-gradle.md)
+  * [Semgrep](user-guide/plugins/semgrep.md)
+  * [Codacy](user-guide/plugins/codacy.md)
+  * [Copy Container Image](user-guide/plugins/copy-container-image.md)
 
 
 ## Resources

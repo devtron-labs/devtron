@@ -375,3 +375,7 @@ func (impl *EAModeDeploymentServiceImpl) CheckIfArgoAppExists(acdAppName string)
 func (impl *EAModeDeploymentServiceImpl) UpdateAppGitOpsOperations(manifest *bean.AppStoreManifestResponse, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, monoRepoMigrationRequired *bool, commitRequirements bool) (*bean.AppStoreGitOpsResponse, error) {
 	return nil, errors.New("this is not implemented")
 }
+
+func (impl *EAModeDeploymentServiceImpl) DeleteACD(acdAppName string, ctx context.Context, isNonCascade bool) error {
+	return errors.New("this is not implemented")
+}
