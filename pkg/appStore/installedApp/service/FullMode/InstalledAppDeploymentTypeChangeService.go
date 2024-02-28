@@ -633,7 +633,7 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) fetchDeletedInstalledAp
 			failStatus := bean.NOT_YET_DELETED
 			if util2.CheckPermissionErrorForArgoCd(err) {
 				failError = string(bean.PermissionDenied)
-				failStatus = bean.PermissionDenied
+				failStatus = bean.Failed
 			}
 			failedInstalledApps = appendToDeploymentChangeStatusList(failedInstalledApps, installedApp, failError, failStatus)
 		}
