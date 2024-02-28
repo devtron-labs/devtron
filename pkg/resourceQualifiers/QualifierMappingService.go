@@ -34,6 +34,9 @@ type QualifierMappingService interface {
 	CreateMappings(tx *pg.Tx, userId int32, resourceType ResourceType, resourceIds []int, qualifierSelector QualifierSelector, scopes []*Scope) error
 	GetResourceMappingsForScopes(resourceType ResourceType, qualifierSelector QualifierSelector, scopes []*Scope) ([]ResourceQualifierMappings, error)
 	GetResourceMappingsForResources(resourceType ResourceType, resourceIds []int, qualifierSelector QualifierSelector) ([]ResourceQualifierMappings, error)
+	StartTx() (*pg.Tx, error)
+	RollbackTx(tx *pg.Tx) error
+	CommitTx(tx *pg.Tx) error
 }
 
 func (impl QualifierMappingServiceImpl) CreateMappingsForSelections(tx *pg.Tx, userId int32, resourceMappingSelections []*ResourceMappingSelection) ([]*ResourceMappingSelection, error) {
@@ -119,7 +122,7 @@ func (impl *QualifierMappingServiceImpl) filterAndGroupMappings(mappings []*Qual
 		if scope.ParentIdentifier > 0 {
 			parentIdToChildScopes[scope.ParentIdentifier] = append(parentIdToChildScopes[scope.ParentIdentifier], scope)
 		} else {
-			//is parent so collect IDs and put it in a map for easy retrieval
+			// is parent so collect IDs and put it in a map for easy retrieval
 			parentScopeIds = append(parentScopeIds, scope.Id)
 			parentScopeIdToScope[scope.Id] = scope
 		}
@@ -132,12 +135,12 @@ func (impl *QualifierMappingServiceImpl) filterAndGroupMappings(mappings []*Qual
 		}
 	}
 
-	//selectedParentScopes :=  make([]*QualifierMapping,0)
+	// selectedParentScopes :=  make([]*QualifierMapping,0)
 	groupedMappings := make([][]*QualifierMapping, 0)
 	for parentScopeId, childScopes := range parentIdToChildScopes {
 		if len(childScopes) == numQualifiers {
 			selectedParentScope := parentScopeIdToScope[parentScopeId]
-			//selectedParentScopes = append(selectedParentScopes, selectedParentScope)
+			// selectedParentScopes = append(selectedParentScopes, selectedParentScope)
 
 			mappingsGroup := []*QualifierMapping{selectedParentScope}
 			mappingsGroup = append(mappingsGroup, childScopes...)
@@ -329,4 +332,16 @@ func (impl QualifierMappingServiceImpl) GetResourceIdsByIdentifier(resourceType 
 
 func (impl QualifierMappingServiceImpl) GetQualifierMappingsWithIdentifierFilter(resourceType ResourceType, resourceId, identifierKey int, identifierValueStringLike, identifierValueSortOrder string, excludeActiveIdentifiersQuery string, limit, offset int, needTotalCount bool) ([]*QualifierMappingWithExtraColumns, error) {
 	return impl.qualifierMappingRepository.GetQualifierMappingsWithIdentifierFilter(resourceType, resourceId, identifierKey, identifierValueStringLike, identifierValueSortOrder, excludeActiveIdentifiersQuery, limit, offset, needTotalCount)
+}
+
+func (impl QualifierMappingServiceImpl) RollbackTx(tx *pg.Tx) error {
+	return impl.qualifierMappingRepository.RollbackTx(tx)
+}
+
+func (impl QualifierMappingServiceImpl) CommitTx(tx *pg.Tx) error {
+	return impl.qualifierMappingRepository.CommitTx(tx)
+}
+
+func (impl QualifierMappingServiceImpl) StartTx() (*pg.Tx, error) {
+	return impl.qualifierMappingRepository.StartTx()
 }
