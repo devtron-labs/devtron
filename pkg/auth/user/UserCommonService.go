@@ -271,7 +271,6 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 								hasTimeChanged := helper.HasTimeWindowChanged(roleFilterStatus, roleFilter.TimeoutWindowExpression, val.TimeoutWindowConfiguration)
 								if hasTimeChanged {
 									timeoutChangedMap[roleModel.Id] = true
-									//delete(existingRoleIds, roleModel.Id)
 								} else {
 									delete(eliminatedRoleIds, roleModel.Id)
 								}
@@ -310,7 +309,6 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 							hasTimeChanged := helper.HasTimeWindowChanged(roleFilterStatus, roleFilter.TimeoutWindowExpression, val.TimeoutWindowConfiguration)
 							if hasTimeChanged {
 								timeoutChangedMap[roleModel.Id] = true
-								//delete(existingRoleIds, roleModel.Id)
 							} else {
 								delete(eliminatedRoleIds, roleModel.Id)
 							}
@@ -351,7 +349,6 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 							hasTimeChanged := helper.HasTimeWindowChanged(roleFilterStatus, roleFilter.TimeoutWindowExpression, val.TimeoutWindowConfiguration)
 							if hasTimeChanged {
 								timeoutChangedMap[roleModel.Id] = true
-								//delete(existingRoleIds, roleModel.Id)
 							} else {
 								delete(eliminatedRoleIds, roleModel.Id)
 							}
