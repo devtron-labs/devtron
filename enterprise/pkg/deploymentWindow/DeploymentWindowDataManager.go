@@ -169,6 +169,33 @@ func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileOverview(appId
 	profileIds := lo.Map(resources, func(mapping resourceQualifiers.ResourceQualifierMappings, index int) int {
 		return mapping.ResourceId
 	})
+	profileIdToProfile, err := impl.getProfileIdToProfile(profileIds)
+	if err != nil {
+		return nil, err
+	}
+	envIdToQualifierMappings := lo.GroupBy(resources, func(item resourceQualifiers.ResourceQualifierMappings) int {
+		return item.Scope.EnvId
+	})
+	profileStates := make([]ProfileState, 0)
+	for envId, qualifierMappings := range envIdToQualifierMappings {
+		for _, qualifierMapping := range qualifierMappings {
+			profile := profileIdToProfile[qualifierMapping.ResourceId]
+			if !profile.Enabled {
+				continue
+			}
+			profileStates = append(profileStates, ProfileState{
+				DeploymentWindowProfile: profile,
+				EnvId:                   envId,
+			})
+		}
+	}
+
+	return &DeploymentWindowResponse{
+		Profiles: profileStates,
+	}, nil
+}
+
+func (impl DeploymentWindowServiceImpl) getProfileIdToProfile(profileIds []int) (map[int]*DeploymentWindowProfile, error) {
 
 	models, err := impl.globalPolicyManager.GetPolicyByIds(profileIds)
 	if err != nil {
@@ -201,25 +228,5 @@ func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileOverview(appId
 		deploymentProfile := profilePolicy.toDeploymentWindowProfile(profileIdToModel[profileId], windows)
 		profileIdToProfile[profileId] = deploymentProfile
 	}
-
-	envIdToQualifierMappings := lo.GroupBy(resources, func(item resourceQualifiers.ResourceQualifierMappings) int {
-		return item.Scope.EnvId
-	})
-	profileStates := make([]ProfileState, 0)
-	for envId, qualifierMappings := range envIdToQualifierMappings {
-		for _, qualifierMapping := range qualifierMappings {
-			profile := profileIdToProfile[qualifierMapping.ResourceId]
-			if !profile.Enabled {
-				continue
-			}
-			profileStates = append(profileStates, ProfileState{
-				DeploymentWindowProfile: profile,
-				EnvId:                   envId,
-			})
-		}
-	}
-
-	return &DeploymentWindowResponse{
-		Profiles: profileStates,
-	}, nil
+	return profileIdToProfile, nil
 }
