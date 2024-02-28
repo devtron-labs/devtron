@@ -20,8 +20,9 @@ import (
 
 type CommonPolicyActionsService interface {
 	ListAppEnvPolicies(listFilter *AppEnvPolicyMappingsListFilter) ([]AppEnvPolicyContainer, int, error)
-	ApplyPolicyToIdentifiers(userId int32, applyIdentifiersRequest BulkPromotionPolicyApplyRequest) error
+	ApplyPolicyToIdentifiers(userId int32, applyIdentifiersRequest *BulkPromotionPolicyApplyRequest) error
 }
+
 type CommonPolicyActionsServiceImpl struct {
 	globalPolicyDataManager         globalPolicy.GlobalPolicyDataManager
 	resourceQualifierMappingService resourceQualifiers.QualifierMappingService
@@ -57,7 +58,90 @@ func (impl CommonPolicyActionsServiceImpl) ListAppEnvPolicies(listFilter *AppEnv
 
 }
 
+func (impl CommonPolicyActionsServiceImpl) ApplyPolicyToIdentifiers(userId int32, applyIdentifiersRequest *BulkPromotionPolicyApplyRequest) error {
+	referenceType, ok := GlobalPolicyTypeToResourceTypeMap[applyIdentifiersRequest.PolicyType]
+	if !ok {
+		return &util.ApiError{
+			HttpStatusCode:  http.StatusNotFound,
+			InternalMessage: "unsupported policy type",
+			UserMessage:     "unsupported policy type",
+		}
+	}
+	updateToPolicy, err := impl.globalPolicyDataManager.GetPolicyByName(applyIdentifiersRequest.ApplyToPolicyName)
+	if err != nil {
+		statusCode := http.StatusInternalServerError
+		if errors.Is(err, pg.ErrNoRows) {
+			err = errors.New(fmt.Sprintf("promotion policy with name '%s' does not exist", applyIdentifiersRequest.ApplyToPolicyName))
+			statusCode = http.StatusConflict
+		}
+		return &util.ApiError{
+			HttpStatusCode:  statusCode,
+			InternalMessage: err.Error(),
+			UserMessage:     err.Error(),
+		}
+	}
+
+	var scopes []*resourceQualifiers.Scope
+	if len(applyIdentifiersRequest.ApplicationEnvironments) > 0 {
+		scopes, err = impl.fetchScopesByAppEnvNames(applyIdentifiersRequest.ApplicationEnvironments)
+		if err != nil {
+			impl.logger.Errorw("error in fetching scope objects using appEnv names", "appEnvNames", applyIdentifiersRequest.ApplicationEnvironments, "err", err)
+			return err
+		}
+	} else {
+		appEnvPolicyContainers, _, err := impl.ListAppEnvPolicies(&applyIdentifiersRequest.AppEnvPolicyListFilter)
+		if err != nil {
+			impl.logger.Errorw("error in listing application environment policies list using listing filter", "appEnvNames", applyIdentifiersRequest.ApplicationEnvironments, "err", err)
+			return err
+		}
+		scopes = make([]*resourceQualifiers.Scope, 0, len(appEnvPolicyContainers))
+		for _, appEnvPolicyContainer := range appEnvPolicyContainers {
+			scopes = append(scopes, &resourceQualifiers.Scope{
+				AppId: appEnvPolicyContainer.AppId,
+				EnvId: appEnvPolicyContainer.EnvId,
+				SystemMetadata: &resourceQualifiers.SystemMetadata{
+					AppName:         appEnvPolicyContainer.AppName,
+					EnvironmentName: appEnvPolicyContainer.EnvName,
+				},
+			})
+		}
+	}
+
+	tx, err := impl.resourceQualifierMappingService.StartTx()
+	if err != nil {
+		impl.logger.Errorw("error in starting transaction while bulk applying policies to selected app env entities", "requestPayload", applyIdentifiersRequest, "err", err)
+		return err
+	}
+	defer impl.resourceQualifierMappingService.RollbackTx(tx)
+	// delete all the existing mappings for the updateToProfileId resource
+	err = impl.resourceQualifierMappingService.DeleteAllQualifierMappingsByResourceTypeAndId(referenceType, updateToPolicy.Id, sql.NewDefaultAuditLog(userId), tx)
+	if err != nil {
+		impl.logger.Errorw("error in deleting old qualifier mappings for a policy", "policyId", updateToPolicy.Id, "policyType", referenceType, "err", err)
+		return err
+	}
+	// create new mappings using resourceQualifierMapping
+	err = impl.resourceQualifierMappingService.CreateMappings(tx, userId, referenceType, []int{updateToPolicy.Id}, resourceQualifiers.ApplicationEnvironmentSelector, scopes)
+	if err != nil {
+		impl.logger.Errorw("error in creating new qualifier mappings for a policy", "policyId", updateToPolicy.Id, "policyType", referenceType, "err", err)
+		return err
+	}
+	err = impl.resourceQualifierMappingService.CommitTx(tx)
+	if err != nil {
+		impl.logger.Errorw("error in committing transaction while bulk applying policies to selected app env entities", "requestPayload", applyIdentifiersRequest, "err", err)
+		return err
+	}
+	return nil
+}
+
 func (impl CommonPolicyActionsServiceImpl) listAppEnvPoliciesByPolicyFilter(listFilter *AppEnvPolicyMappingsListFilter) ([]AppEnvPolicyContainer, int, error) {
+	referenceType, ok := GlobalPolicyTypeToResourceTypeMap[listFilter.PolicyType]
+	if !ok {
+		return nil, 0, &util.ApiError{
+			HttpStatusCode:  http.StatusNotFound,
+			InternalMessage: "unsupported policy type",
+			UserMessage:     "unsupported policy type",
+		}
+	}
 	noPolicyFilter := false
 	validPolicyNames := make([]string, 0, len(listFilter.PolicyNames))
 	validPolicyNameMap := make(map[string]bool)
@@ -89,13 +173,13 @@ func (impl CommonPolicyActionsServiceImpl) listAppEnvPoliciesByPolicyFilter(list
 		}
 	}
 
-	includeQualifierMappings, err := impl.resourceQualifierMappingService.GetResourceMappingsForResources(resourceQualifiers.ImagePromotionPolicy, includePolicyIds, resourceQualifiers.ApplicationEnvironmentSelector)
+	includeQualifierMappings, err := impl.resourceQualifierMappingService.GetResourceMappingsForResources(referenceType, includePolicyIds, resourceQualifiers.ApplicationEnvironmentSelector)
 	if err != nil {
 		impl.logger.Errorw("error in finding the app env mappings using policy ids", "policyIds", includePolicyIds, "err", err)
 		return nil, 0, err
 	}
 
-	excludeQualifierMappings, err := impl.resourceQualifierMappingService.GetResourceMappingsForResources(resourceQualifiers.ImagePromotionPolicy, excludePolicyIds, resourceQualifiers.ApplicationEnvironmentSelector)
+	excludeQualifierMappings, err := impl.resourceQualifierMappingService.GetResourceMappingsForResources(referenceType, excludePolicyIds, resourceQualifiers.ApplicationEnvironmentSelector)
 	if err != nil {
 		impl.logger.Errorw("error in finding the app env mappings using policy ids", "policyIds", excludePolicyIds, "err", err)
 		return nil, 0, err
@@ -147,6 +231,14 @@ func (impl CommonPolicyActionsServiceImpl) listAppEnvPoliciesByPolicyFilter(list
 }
 
 func (impl CommonPolicyActionsServiceImpl) listAppEnvPoliciesByEmptyPolicyFilter(listFilter *AppEnvPolicyMappingsListFilter) ([]AppEnvPolicyContainer, int, error) {
+	referenceType, ok := GlobalPolicyTypeToResourceTypeMap[listFilter.PolicyType]
+	if !ok {
+		return nil, 0, &util.ApiError{
+			HttpStatusCode:  http.StatusNotFound,
+			InternalMessage: "unsupported policy type",
+			UserMessage:     "unsupported policy type",
+		}
+	}
 	filter := pipelineConfig.CdPipelineListFilter{
 		SortOrder: listFilter.SortOrder,
 		SortBy:    listFilter.SortBy,
@@ -168,9 +260,9 @@ func (impl CommonPolicyActionsServiceImpl) listAppEnvPoliciesByEmptyPolicyFilter
 		})
 	}
 
-	qualifierMappings, err := impl.resourceQualifierMappingService.GetResourceMappingsForScopes(resourceQualifiers.ImagePromotionPolicy, resourceQualifiers.ApplicationEnvironmentSelector, scopes)
+	qualifierMappings, err := impl.resourceQualifierMappingService.GetResourceMappingsForScopes(referenceType, resourceQualifiers.ApplicationEnvironmentSelector, scopes)
 	if err != nil {
-		impl.logger.Errorw("error in finding the app env mappings using scopes", "scopes", scopes, "policyType", resourceQualifiers.ImagePromotionPolicy, "qualifierSelector", resourceQualifiers.ApplicationEnvironmentSelector, "err", err)
+		impl.logger.Errorw("error in finding the app env mappings using scopes", "scopes", scopes, "policyType", referenceType, "qualifierSelector", resourceQualifiers.ApplicationEnvironmentSelector, "err", err)
 		return nil, 0, err
 	}
 
@@ -226,75 +318,6 @@ func (impl CommonPolicyActionsServiceImpl) getPolicies(policyNames []string, pol
 	return policies, err
 }
 
-func (impl CommonPolicyActionsServiceImpl) ApplyPolicyToIdentifiers(userId int32, applyIdentifiersRequest BulkPromotionPolicyApplyRequest) error {
-	updateToPolicy, err := impl.globalPolicyDataManager.GetPolicyByName(applyIdentifiersRequest.ApplyToPolicyName)
-	if err != nil {
-		statusCode := http.StatusInternalServerError
-		if errors.Is(err, pg.ErrNoRows) {
-			err = errors.New(fmt.Sprintf("promotion policy with name '%s' does not exist", applyIdentifiersRequest.ApplyToPolicyName))
-			statusCode = http.StatusConflict
-		}
-		return &util.ApiError{
-			HttpStatusCode:  statusCode,
-			InternalMessage: err.Error(),
-			UserMessage:     err.Error(),
-		}
-	}
-
-	var scopes []*resourceQualifiers.Scope
-	if len(applyIdentifiersRequest.ApplicationEnvironments) > 0 {
-		scopes, err = impl.fetchScopesByAppEnvNames(applyIdentifiersRequest.ApplicationEnvironments)
-		if err != nil {
-			impl.logger.Errorw("error in fetching scope objects using appEnv names", "appEnvNames", applyIdentifiersRequest.ApplicationEnvironments, "err", err)
-			return err
-		}
-	}
-
-	if applyIdentifiersRequest.AppEnvPolicyListFilter != nil {
-		appEnvPolicyContainers, _, err := impl.ListAppEnvPolicies(applyIdentifiersRequest.AppEnvPolicyListFilter)
-		if err != nil {
-			impl.logger.Errorw("error in listing application environment policies list using listing filter", "appEnvNames", applyIdentifiersRequest.ApplicationEnvironments, "err", err)
-			return err
-		}
-		scopes = make([]*resourceQualifiers.Scope, 0, len(appEnvPolicyContainers))
-		for _, appEnvPolicyContainer := range appEnvPolicyContainers {
-			scopes = append(scopes, &resourceQualifiers.Scope{
-				AppId: appEnvPolicyContainer.AppId,
-				EnvId: appEnvPolicyContainer.EnvId,
-				SystemMetadata: &resourceQualifiers.SystemMetadata{
-					AppName:         appEnvPolicyContainer.AppName,
-					EnvironmentName: appEnvPolicyContainer.EnvName,
-				},
-			})
-		}
-	}
-
-	tx, err := impl.resourceQualifierMappingService.StartTx()
-	if err != nil {
-		impl.logger.Errorw("error in starting transaction while bulk applying policies to selected app env entities", "requestPayload", applyIdentifiersRequest, "err", err)
-		return err
-	}
-	defer impl.resourceQualifierMappingService.RollbackTx(tx)
-	// delete all the existing mappings for the updateToProfile.Id resource
-	err = impl.resourceQualifierMappingService.DeleteAllQualifierMappingsByResourceTypeAndId(resourceQualifiers.ImagePromotionPolicy, updateToPolicy.Id, sql.NewDefaultAuditLog(userId), nil)
-	if err != nil {
-		impl.logger.Errorw("error in deleting old qualifier mappings for a policy", "policyId", updateToPolicy.Id, "policyType", resourceQualifiers.ImagePromotionPolicy, "err", err)
-		return err
-	}
-	// create new mappings using resourceQualifierMapping
-	err = impl.resourceQualifierMappingService.CreateMappings(nil, userId, resourceQualifiers.ImagePromotionPolicy, []int{updateToPolicy.Id}, resourceQualifiers.ApplicationEnvironmentSelector, scopes)
-	if err != nil {
-		impl.logger.Errorw("error in creating new qualifier mappings for a policy", "policyId", updateToPolicy.Id, "policyType", resourceQualifiers.ImagePromotionPolicy, "err", err)
-		return err
-	}
-	err = impl.resourceQualifierMappingService.CommitTx(tx)
-	if err != nil {
-		impl.logger.Errorw("error in committing transaction while bulk applying policies to selected app env entities", "requestPayload", applyIdentifiersRequest, "err", err)
-		return err
-	}
-	return nil
-}
-
 func (impl CommonPolicyActionsServiceImpl) fetchScopesByAppEnvNames(applicationEnvironments []AppEnvPolicyContainer) ([]*resourceQualifiers.Scope, error) {
 	appNames := make([]string, 0, len(applicationEnvironments))
 	envNames := make([]string, 0, len(applicationEnvironments))
@@ -317,8 +340,8 @@ func (impl CommonPolicyActionsServiceImpl) fetchScopesByAppEnvNames(applicationE
 	appNameIdMap := make(map[string]int)
 	envNameIdMap := make(map[string]int)
 
-	for _, app := range apps {
-		appNameIdMap[app.AppName] = app.Id
+	for _, _app := range apps {
+		appNameIdMap[_app.AppName] = _app.Id
 	}
 
 	for _, env := range envs {

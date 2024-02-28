@@ -169,7 +169,7 @@ type PromotionPolicy struct {
 	Name               string                             `json:"name" validate:"min=3 max=50 global-entity-name"`
 	Description        string                             `json:"description" validate:"max=300"`
 	PolicyEvaluationId int                                `json:"-"`
-	Conditions         []resourceFilter.ResourceCondition `json:"conditions" validate:"min=1"`
+	Conditions         []resourceFilter.ResourceCondition `json:"conditions" validate:"omitempty,min=1"`
 	ApprovalMetaData   ApprovalMetaData                   `json:"approvalMetadata" validate:"dive"`
 	IdentifierCount    int                                `json:"identifierCount,omitempty"`
 }
@@ -180,7 +180,7 @@ func (policy *PromotionPolicy) ConvertToGlobalPolicyBaseModal(userId int32) (*be
 		return nil, err
 	}
 	return &bean.GlobalPolicyBaseModel{
-		PolicyOf:      bean.IMAGE_PROMOTION_POLICY,
+		PolicyOf:      bean.GLOBAL_POLICY_TYPE_IMAGE_PROMOTION_POLICY,
 		Name:          policy.Name,
 		Description:   policy.Description,
 		Enabled:       false,

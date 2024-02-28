@@ -34,9 +34,9 @@ const (
 type GlobalPolicyType string
 
 const (
-	GLOBAL_POLICY_TYPE_PLUGIN              GlobalPolicyType = "PLUGIN"
-	GLOBAL_POLICY_TYPE_DEPLOYMENT_WINDOW   GlobalPolicyType = "DEPLOYMENT_WINDOW"
-	IMAGE_PROMOTION_POLICY    GlobalPolicyType = "IMAGE_PROMOTION"
+	GLOBAL_POLICY_TYPE_PLUGIN                 GlobalPolicyType = "PLUGIN"
+	GLOBAL_POLICY_TYPE_DEPLOYMENT_WINDOW      GlobalPolicyType = "DEPLOYMENT_WINDOW"
+	GLOBAL_POLICY_TYPE_IMAGE_PROMOTION_POLICY GlobalPolicyType = "IMAGE_PROMOTION"
 )
 
 func (t GlobalPolicyType) ToString() string {
