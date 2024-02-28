@@ -680,7 +680,7 @@ func (impl *InfraConfigServiceImpl) GetInfraConfigurationsByScope(scope Scope) (
 		for _, defaultConfiguration := range defaultConfigurations {
 			defaultConfigurationBean := defaultConfiguration.ConvertToConfigurationBean()
 			// if the key is found true in the map, it means the configuration is missing for the given scope (search for  hack:))
-			if _, ok := getDefaultConfigurationKeys[defaultConfigurationBean.Key]; ok {
+			if ok, _ := getDefaultConfigurationKeys[defaultConfigurationBean.Key]; ok {
 				overrideInfraConfigFunc(defaultConfigurationBean)
 			}
 		}
