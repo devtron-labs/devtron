@@ -81,6 +81,7 @@ type WorkflowDagExecutor interface {
 	OnDeleteCdPipelineEvent(pipelineId int, triggeredBy int32)
 
 	BuildCiArtifactRequestForWebhook(event pipeline.ExternalCiWebhookDto) (*bean2.CiArtifactWebhookRequest, error)
+	HandleArtifactPromotionEvent(request bean5.TriggerRequest)
 }
 
 type WorkflowDagExecutorImpl struct {
@@ -1347,4 +1348,13 @@ func (impl *WorkflowDagExecutorImpl) BuildCiArtifactRequestForWebhook(event pipe
 		request.DataSource = repository.WEBHOOK
 	}
 	return request, nil
+}
+
+func (impl *WorkflowDagExecutorImpl) HandleArtifactPromotionEvent(request bean5.TriggerRequest) {
+	go func() {
+		err := impl.triggerIfAutoStageCdPipeline(request)
+		if err != nil {
+			impl.logger.Errorw("error in auto trigger on artifact promotion event", "artifactId", request.Artifact.Id, "pipelineId", request.Pipeline.Id, "err", err)
+		}
+	}()
 }

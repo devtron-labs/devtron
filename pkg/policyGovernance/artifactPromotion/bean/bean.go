@@ -125,6 +125,18 @@ type PromotionApprovalMetaData struct {
 	PromotedFromType     string                      `json:"promotedFromType"`
 }
 
+func (promotionApprovalMetaData PromotionApprovalMetaData) GetApprovalUserIds() []int32 {
+	approvalUserIds := make([]int32, len(promotionApprovalMetaData.ApprovalUsersData))
+	for _, approvalUserData := range promotionApprovalMetaData.ApprovalUsersData {
+		approvalUserIds = append(approvalUserIds, approvalUserData.UserId)
+	}
+	return approvalUserIds
+}
+
+func (promotionApprovalMetaData PromotionApprovalMetaData) GetRequestedUserId() int32 {
+	return promotionApprovalMetaData.RequestedUserData.UserId
+}
+
 type PromotionPolicyMetaRequest struct {
 	Search    string `json:"search"`
 	SortBy    string `json:"sortBy" validate:"oneof=ASC DESC"`
@@ -159,7 +171,11 @@ type PromotionPolicy struct {
 	PolicyEvaluationId int                                `json:"-"`
 	Conditions         []resourceFilter.ResourceCondition `json:"conditions" validate:"omitempty,min=1"`
 	ApprovalMetaData   ApprovalMetaData                   `json:"approvalMetadata" validate:"dive"`
-	IdentifierCount    int                                `json:"identifierCount,omitempty"`
+}
+
+type PromotionPolicyExtraResponse struct {
+	PromotionPolicy []*PromotionPolicy
+	IdentifierCount int `json:"identifierCount,omitempty"`
 }
 
 func (policy *PromotionPolicy) ConvertToGlobalPolicyBaseModal(userId int32) (*bean.GlobalPolicyBaseModel, error) {

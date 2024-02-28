@@ -47,6 +47,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/plugin"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactApproval/read"
+	read2 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/read"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/variables"
@@ -63,6 +64,7 @@ import (
 	status2 "google.golang.org/grpc/status"
 	"io/ioutil"
 	"k8s.io/helm/pkg/proto/hapi/chart"
+	"net/http"
 	"path"
 	"sigs.k8s.io/yaml"
 	"strconv"
@@ -124,6 +126,7 @@ type TriggerServiceImpl struct {
 	helmAppService                      client2.HelmAppService
 	imageTaggingService                 pipeline.ImageTaggingService
 	artifactApprovalDataReadService     read.ArtifactApprovalDataReadService
+	artifactPromotionDataReadService    read2.ArtifactPromotionDataReadService
 
 	mergeUtil     util.MergeUtil
 	enforcerUtil  rbac.EnforcerUtil
@@ -202,7 +205,8 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 	appLabelRepository pipelineConfig.AppLabelRepository,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
-	dockerArtifactStoreRepository repository6.DockerArtifactStoreRepository) (*TriggerServiceImpl, error) {
+	dockerArtifactStoreRepository repository6.DockerArtifactStoreRepository,
+	artifactPromotionDataReadService read2.ArtifactPromotionDataReadService) (*TriggerServiceImpl, error) {
 	impl := &TriggerServiceImpl{
 		logger:                              logger,
 		cdWorkflowCommonService:             cdWorkflowCommonService,
@@ -258,6 +262,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 		ciPipelineRepository:                ciPipelineRepository,
 		appWorkflowRepository:               appWorkflowRepository,
 		dockerArtifactStoreRepository:       dockerArtifactStoreRepository,
+		artifactPromotionDataReadService:    artifactPromotionDataReadService,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -364,6 +369,17 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 			return 0, "", err
 		}
 	case bean3.CD_WORKFLOW_TYPE_DEPLOY:
+
+		policyViolated, err := impl.blockIfImagePromotionPolicyViolated(cdPipeline.AppId, cdPipeline.EnvironmentId, cdPipeline.Id, artifact.Id, overrideRequest.UserId)
+		if err != nil {
+			if policyViolated {
+				impl.logger.Errorw("blocking deployment as image promotion policy violated", "artifactId", artifact.Id, "cdPipelineId", cdPipeline.Id)
+				return 0, "", err
+			}
+			impl.logger.Errorw("error in checking if image promotion policy violated", "artifactId", artifact.Id, "cdPipelineId", cdPipeline.Id, "err", err)
+			return 0, "", err
+		}
+
 		if overrideRequest.DeploymentType == models.DEPLOYMENTTYPE_UNKNOWN {
 			overrideRequest.DeploymentType = models.DEPLOYMENTTYPE_DEPLOY
 		}
@@ -600,6 +616,38 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 	return releaseId, helmPackageName, err
 }
 
+func (impl *TriggerServiceImpl) blockIfImagePromotionPolicyViolated(appId, envId, cdPipelineId, artifactId int, userId int32) (bool, error) {
+	promotionPolicy, err := impl.artifactPromotionDataReadService.GetPromotionPolicyByAppAndEnvId(appId, envId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching image promotion policy for checking trigger access", "cdPipelineId", cdPipelineId, "err", err)
+		return false, err
+	}
+	if promotionPolicy != nil && promotionPolicy.Id > 0 {
+		if !promotionPolicy.ApprovalMetaData.AllowApproverFromDeploy {
+			promotionApprovalMetadata, err := impl.artifactPromotionDataReadService.FetchPromotionApprovalDataForArtifacts([]int{artifactId}, cdPipelineId)
+			if err != nil {
+				impl.logger.Errorw("error in fetching promotion approval data for given artifact and cd pipeline", "artifactId", artifactId, "cdPipelineId", cdPipelineId)
+				return false, err
+			}
+			if approvalMetadata, ok := promotionApprovalMetadata[artifactId]; ok {
+				approverIds := approvalMetadata.GetApprovalUserIds()
+				for _, id := range approverIds {
+					if id == userId {
+						impl.logger.Errorw("error in cd trigger, user who has approved the image for promotion cannot deploy")
+						return true, &util.ApiError{
+							HttpStatusCode:    http.StatusForbidden,
+							InternalMessage:   "error in cd trigger, user who has approved the image for promotion cannot deploy",
+							UserMessage:       nil,
+							UserDetailMessage: "error in cd trigger, user who has approved the image for promotion cannot deploy",
+						}
+					}
+				}
+			}
+		}
+	}
+	return false, nil
+}
+
 // TODO: write a wrapper to handle auto and manual trigger
 func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerRequest) error {
 	// in case of manual trigger auth is already applied and for auto triggers there is no need for auth check here
@@ -614,6 +662,16 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 	env, err := impl.envRepository.FindById(pipeline.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("error while fetching env", "err", err)
+		return err
+	}
+
+	policyViolated, err := impl.blockIfImagePromotionPolicyViolated(pipeline.AppId, pipeline.EnvironmentId, pipeline.Id, artifact.Id, request.TriggeredBy)
+	if err != nil {
+		if policyViolated {
+			impl.logger.Errorw("blocking deployment as image promotion policy violated", "artifactId", artifact.Id, "cdPipelineId", pipeline.Id)
+			return err
+		}
+		impl.logger.Errorw("error in checking if image promotion policy violated", "artifactId", artifact.Id, "cdPipelineId", pipeline.Id, "err", err)
 		return err
 	}
 
