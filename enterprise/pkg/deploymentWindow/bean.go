@@ -83,7 +83,7 @@ type DeploymentWindowProfile struct {
 	Enabled              bool          `json:"enabled" searchFieldType:"boolean"`
 	TimeZone             string        `json:"timeZone"`
 	DisplayMessage       string        `json:"displayMessage"`
-	ExcludedUsersList    []int         `json:"excludedUsersList"`
+	ExcludedUsersList    []int32       `json:"excludedUsersList"`
 	IsSuperAdminExcluded bool          `json:"isSuperAdminExcluded"`
 	IsUserExcluded       bool          `json:"isUserExcluded"`
 	DeploymentWindowProfileMetadata
@@ -104,10 +104,11 @@ type DeploymentWindowProfileRequest struct {
 
 type EnvironmentState struct {
 	// ExcludedUsers final calculated list of user ids including superadmins who are excluded.
-	ExcludedUsers []int `json:"excludedUsers"`
+	ExcludedUsers []int32 `json:"excludedUsers"`
 
-	// Timestamp indicating the window end or next window start timestamp based on current time and
-	Timestamp time.Time `json:"timestamp"`
+	//// Timestamp indicating the window end or next window start timestamp based on current time and
+	//Timestamp time.Time `json:"timestamp"`
+	AppliedProfile *DeploymentWindowProfile `json:"appliedProfile"`
 
 	// UserActionState describes the  eventual action state for the user
 	UserActionState UserActionState `json:"userActionState"`

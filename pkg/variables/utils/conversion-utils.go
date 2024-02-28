@@ -29,6 +29,15 @@ func ToIntArray(interfaceArr []interface{}) []int {
 	return intArr
 }
 
+// ToIntArray converts an array of interface{} back to an array of int32
+func ToInt32Array(interfaceArr []interface{}) []int32 {
+	intArr := make([]int32, len(interfaceArr))
+	for i, v := range interfaceArr {
+		intArr[i] = v.(int32)
+	}
+	return intArr
+}
+
 func FilterDuplicatesInStringArray(items []string) []string {
 	itemsSet := mapset.NewSetFromSlice(ToInterfaceArray(items))
 	uniqueItems := ToStringArray(itemsSet.ToSlice())

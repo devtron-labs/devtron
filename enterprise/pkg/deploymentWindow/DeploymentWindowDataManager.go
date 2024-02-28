@@ -170,10 +170,6 @@ func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileOverview(appId
 		return mapping.ResourceId
 	})
 
-	envIdToQualifierMappings := lo.GroupBy(resources, func(item resourceQualifiers.ResourceQualifierMappings) int {
-		return item.Scope.EnvId
-	})
-
 	models, err := impl.globalPolicyManager.GetPolicyByIds(profileIds)
 	if err != nil {
 		return nil, err
@@ -204,9 +200,11 @@ func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileOverview(appId
 		}
 		deploymentProfile := profilePolicy.toDeploymentWindowProfile(profileIdToModel[profileId], windows)
 		profileIdToProfile[profileId] = deploymentProfile
-
 	}
 
+	envIdToQualifierMappings := lo.GroupBy(resources, func(item resourceQualifiers.ResourceQualifierMappings) int {
+		return item.Scope.EnvId
+	})
 	profileStates := make([]ProfileState, 0)
 	for envId, qualifierMappings := range envIdToQualifierMappings {
 		for _, qualifierMapping := range qualifierMappings {
