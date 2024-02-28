@@ -20,6 +20,54 @@ func (impl DeploymentWindowServiceImpl) CheckTriggerAllowedState(targetTime time
 	return len(stateResponse.Profiles) == 0 || isAllowed, nil
 }
 
+func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileStateAppGroup(targetTime time.Time, selectors []AppEnvSelector, userId int32) (*DeploymentWindowAppGroupResponse, error) {
+
+	appIdsToOverview, err := impl.GetDeploymentWindowProfileOverviewBulk(selectors)
+	if err != nil {
+		return nil, err
+	}
+	superAdmins, err := impl.userService.GetSuperAdmins()
+	if err != nil {
+		return nil, err
+	}
+
+	appGroupData := make([]AppData, 0)
+	for appId, overview := range appIdsToOverview {
+		overview.SuperAdmins = superAdmins
+
+		envIdToProfileStates := lo.GroupBy(overview.Profiles, func(item ProfileState) int {
+			return item.EnvId
+		})
+
+		envIdToEnvironmentState := make(map[int]EnvironmentState)
+		resultProfiles := make([]ProfileState, 0)
+		for envId, profileStates := range envIdToProfileStates {
+			filteredProfileStates, appliedProfile, excludedUsers, canDeploy, err := impl.getAppliedProfileAndCalculateStates(targetTime, profileStates, superAdmins)
+			if err != nil {
+				return nil, err
+			}
+			envState := EnvironmentState{
+				ExcludedUsers:   excludedUsers,
+				AppliedProfile:  appliedProfile,
+				UserActionState: getUserActionStateForUser(canDeploy, excludedUsers, userId),
+			}
+			envIdToEnvironmentState[envId] = envState
+			resultProfiles = append(resultProfiles, filteredProfileStates...)
+		}
+		envResponse := &DeploymentWindowResponse{
+			EnvironmentStateMap: envIdToEnvironmentState,
+			Profiles:            resultProfiles,
+			SuperAdmins:         superAdmins,
+		}
+
+		appGroupData = append(appGroupData, AppData{
+			AppId:                 appId,
+			DeploymentProfileList: envResponse,
+		})
+	}
+	return &DeploymentWindowAppGroupResponse{AppData: appGroupData}, nil
+}
+
 func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileState(targetTime time.Time, appId int, envIds []int, userId int32) (*DeploymentWindowResponse, error) {
 	overview, err := impl.GetDeploymentWindowProfileOverview(appId, envIds)
 	if err != nil {
@@ -69,11 +117,6 @@ func getUserActionStateForUser(canDeploy bool, excludedUsers []int32, userId int
 		}
 	}
 	return userActionState
-}
-
-func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileStateAppGroup(selectors []AppEnvSelector) (*DeploymentWindowAppGroupResponse, error) {
-	//TODO implement me
-	panic("implement me")
 }
 
 func (impl DeploymentWindowServiceImpl) getAppliedProfileAndCalculateStates(targetTime time.Time, profileStates []ProfileState, superAdmins []int32) ([]ProfileState, *DeploymentWindowProfile, []int32, bool, error) {

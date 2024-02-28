@@ -230,3 +230,53 @@ func (impl DeploymentWindowServiceImpl) getProfileIdToProfile(profileIds []int) 
 	}
 	return profileIdToProfile, nil
 }
+
+func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileOverviewBulk(appEnvSelectors []AppEnvSelector) (map[int]*DeploymentWindowResponse, error) {
+
+	scopes := lo.Map(appEnvSelectors, func(appEnv AppEnvSelector, index int) *resourceQualifiers.Scope {
+		return &resourceQualifiers.Scope{
+			AppId: appEnv.AppId,
+			EnvId: appEnv.EnvId,
+		}
+	})
+	resources, err := impl.resourceMappingService.GetResourceMappingsForScopes(resourceQualifiers.DeploymentWindowProfile, resourceQualifiers.ApplicationEnvironmentSelector, scopes)
+	if err != nil {
+		return nil, err
+	}
+
+	profileIds := lo.Map(resources, func(mapping resourceQualifiers.ResourceQualifierMappings, index int) int {
+		return mapping.ResourceId
+	})
+	profileIdToProfile, err := impl.getProfileIdToProfile(profileIds)
+	if err != nil {
+		return nil, err
+	}
+	appIdToQualifierMappings := lo.GroupBy(resources, func(item resourceQualifiers.ResourceQualifierMappings) int {
+		return item.Scope.AppId
+	})
+
+	appIdToResponse := make(map[int]*DeploymentWindowResponse)
+	for appId, mappings := range appIdToQualifierMappings {
+		envIdToQualifierMappings := lo.GroupBy(mappings, func(item resourceQualifiers.ResourceQualifierMappings) int {
+			return item.Scope.EnvId
+		})
+		profileStates := make([]ProfileState, 0)
+		for envId, qualifierMappings := range envIdToQualifierMappings {
+			for _, qualifierMapping := range qualifierMappings {
+				profile := profileIdToProfile[qualifierMapping.ResourceId]
+				if !profile.Enabled {
+					continue
+				}
+				profileStates = append(profileStates, ProfileState{
+					DeploymentWindowProfile: profile,
+					EnvId:                   envId,
+				})
+			}
+		}
+		appIdToResponse[appId] = &DeploymentWindowResponse{
+			Profiles: profileStates,
+		}
+
+	}
+	return appIdToResponse, nil
+}

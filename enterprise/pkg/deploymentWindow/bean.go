@@ -68,7 +68,7 @@ type AppEnvSelector struct {
 }
 
 type DeploymentWindowAppGroupResponse struct {
-	AppData *[]AppData `json:"appData,omitempty"`
+	AppData []AppData `json:"appData,omitempty"`
 }
 
 type AppData struct {
