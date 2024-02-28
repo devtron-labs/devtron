@@ -68,6 +68,7 @@ func (impl *GlobalPolicyDataManagerImpl) CreatePolicy(globalPolicyDataModel *bea
 	if err != nil {
 		impl.logger.Errorw("error in creating global policy searchable fields entry", "err", err, "searchableKeyEntriesTotal", searchableKeyEntriesTotal)
 		// TODO KB: Why are not we returning from here ??
+		return nil, err
 	}
 	err = impl.globalPolicyRepository.CommitTransaction(tx)
 	if err != nil {
@@ -79,7 +80,7 @@ func (impl *GlobalPolicyDataManagerImpl) CreatePolicy(globalPolicyDataModel *bea
 }
 func (impl *GlobalPolicyDataManagerImpl) UpdatePolicy(globalPolicyDataModel *bean.GlobalPolicyDataModel, tx *pg.Tx) (*bean.GlobalPolicyDataModel, error) {
 	var err error
-	if tx != nil {
+	if tx == nil {
 		tx, err = impl.globalPolicyRepository.GetDbTransaction()
 		if err != nil {
 			impl.logger.Errorw("error in initiating transaction", "err", err)
@@ -98,15 +99,18 @@ func (impl *GlobalPolicyDataManagerImpl) UpdatePolicy(globalPolicyDataModel *bea
 	err = impl.globalPolicyRepository.Update(globalPolicy, tx)
 	if err != nil {
 		impl.logger.Errorw("error, UpdatePolicy", "err", err, "globalPolicy", globalPolicy)
+		return nil, err
 	}
 	err = impl.globalPolicySearchableFieldRepository.DeleteByPolicyId(globalPolicy.Id, tx)
 	if err != nil {
 		impl.logger.Errorw("error in  deleting Policy Searchable key", "globalPolicyDataModel", globalPolicyDataModel, "err", err)
+		return nil, err
 	}
 	searchableKeyEntriesTotal := impl.getSearchableKeyEntries(globalPolicyDataModel)
 	err = impl.globalPolicySearchableFieldRepository.CreateInBatchWithTxn(searchableKeyEntriesTotal, tx)
 	if err != nil {
 		impl.logger.Errorw("error in creating global policy searchable fields entry", "err", err, "searchableKeyEntriesTotal", searchableKeyEntriesTotal)
+		return nil, err
 	}
 	err = impl.globalPolicyRepository.CommitTransaction(tx)
 	if err != nil {
