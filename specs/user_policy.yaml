@@ -262,6 +262,10 @@ components:
         email_id:
           type: string
           description: Unique valid email-id of user, comma separated emails ids for multiple users
+        groups:
+          type: array
+          items:
+            type: string
         roleFilters:
           type: array
           items:
