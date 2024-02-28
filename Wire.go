@@ -25,6 +25,7 @@ import (
 	pubsub1 "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/commonWireset"
 	"github.com/devtron-labs/devtron/internals/util"
+	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/common"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/google/wire"
 )
@@ -43,6 +44,8 @@ func InitializeApp() (*App, error) {
 		cloudProviderIdentifier.NewProviderIdentifierServiceImpl,
 		wire.Bind(new(cloudProviderIdentifier.ProviderIdentifierService), new(*cloudProviderIdentifier.ProviderIdentifierServiceImpl)),
 		commonWireset.CommonWireSet,
+		appStoreDeploymentCommon.NewAppStoreDeploymentCommonServiceImpl,
+		wire.Bind(new(appStoreDeploymentCommon.AppStoreDeploymentCommonService), new(*appStoreDeploymentCommon.AppStoreDeploymentCommonServiceImpl)),
 	)
 	return &App{}, nil
 }
