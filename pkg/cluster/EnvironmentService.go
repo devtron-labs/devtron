@@ -108,6 +108,7 @@ type EnvironmentService interface {
 	GetCombinedEnvironmentListForDropDown(token string, isActionUserSuperAdmin bool, auth func(email string, object []string) map[string]bool) ([]*ClusterEnvDto, error)
 	GetCombinedEnvironmentListForDropDownByClusterIds(token string, clusterIds []int, auth func(token string, object string) bool) ([]*ClusterEnvDto, error)
 	HandleErrorInClusterConnections(clusters []*ClusterBean, respMap map[int]error, clusterExistInDb bool)
+	FindByNames(names []string) ([]*EnvironmentBean, error)
 }
 
 type EnvironmentServiceImpl struct {
@@ -116,7 +117,7 @@ type EnvironmentServiceImpl struct {
 	clusterService        ClusterService
 	K8sUtil               *util2.K8sUtilExtended
 	k8sInformerFactory    informer.K8sInformerFactory
-	//propertiesConfigService pipeline.PropertiesConfigService
+	// propertiesConfigService pipeline.PropertiesConfigService
 	userAuthService      user.UserAuthService
 	attributesRepository repository2.AttributesRepository
 }
@@ -132,7 +133,7 @@ func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepos
 		clusterService:        clusterService,
 		K8sUtil:               K8sUtil,
 		k8sInformerFactory:    k8sInformerFactory,
-		//propertiesConfigService: propertiesConfigService,
+		// propertiesConfigService: propertiesConfigService,
 		userAuthService:      userAuthService,
 		attributesRepository: attributesRepository,
 	}
@@ -192,7 +193,7 @@ func (impl EnvironmentServiceImpl) Create(mappings *EnvironmentBean, userId int3
 
 	}
 
-	//ignore grafana if no prometheus url found
+	// ignore grafana if no prometheus url found
 	if len(clusterBean.PrometheusUrl) > 0 {
 		_, err = impl.clusterService.CreateGrafanaDataSource(clusterBean, model)
 		if err != nil {
@@ -359,14 +360,14 @@ func (impl EnvironmentServiceImpl) Update(mappings *EnvironmentBean, userId int3
 	model.UpdatedOn = time.Now()
 	model.Description = mappings.Description
 
-	//namespace create if not exist
+	// namespace create if not exist
 	if len(model.Namespace) > 0 {
 		cfg := clusterBean.GetClusterConfig()
 		if err := impl.K8sUtil.CreateNsIfNotExists(model.Namespace, cfg); err != nil {
 			impl.logger.Errorw("error in creating ns", "ns", model.Namespace, "err", err)
 		}
 	}
-	//namespace changed, update it on chart env override config as well
+	// namespace changed, update it on chart env override config as well
 	/*if isNamespaceChange == true {
 		impl.logger.Debug("namespace has modified in request, it will update related config")
 		envPropertiesList, err := impl.propertiesConfigService.GetEnvironmentPropertiesById(mappings.Id)
@@ -385,7 +386,7 @@ func (impl EnvironmentServiceImpl) Update(mappings *EnvironmentBean, userId int3
 		}
 	}*/
 	grafanaDatasourceId := model.GrafanaDatasourceId
-	//grafana datasource create if not exist
+	// grafana datasource create if not exist
 	if len(clusterBean.PrometheusUrl) > 0 && grafanaDatasourceId == 0 {
 		grafanaDatasourceId, err = impl.clusterService.CreateGrafanaDataSource(clusterBean, model)
 		if err != nil {
@@ -456,7 +457,7 @@ func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete(isDeploymen
 		impl.logger.Errorw("error in fetching environment", "err", err)
 	}
 	var beans []EnvironmentBean
-	//Fetching deployment app type config values along with autocomplete api while creating CD pipeline
+	// Fetching deployment app type config values along with autocomplete api while creating CD pipeline
 	if isDeploymentTypeParam {
 		for _, model := range models {
 			var (
@@ -465,7 +466,7 @@ func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete(isDeploymen
 			deploymentConfig := make(map[string]map[string]bool)
 			deploymentConfigEnvLevel := make(map[string]bool)
 			deploymentConfigValues, _ := impl.attributesRepository.FindByKey(attributes.ENFORCE_DEPLOYMENT_TYPE_CONFIG)
-			//if empty config received(doesn't exist in table) which can't be parsed
+			// if empty config received(doesn't exist in table) which can't be parsed
 			if deploymentConfigValues.Value != "" {
 				if err = json.Unmarshal([]byte(deploymentConfigValues.Value), &deploymentConfig); err != nil {
 					return nil, err
@@ -527,7 +528,7 @@ func (impl EnvironmentServiceImpl) IsReceivedDeploymentTypeValid(deploymentConfi
 	for key, value := range deploymentConfig {
 		for _, permitted := range permittedDeploymentConfigString {
 			if key == permitted {
-				//filtering only those deployment app types which are in permitted zone and are marked true
+				// filtering only those deployment app types which are in permitted zone and are marked true
 				if value {
 					flag = true
 					filteredDeploymentConfig = append(filteredDeploymentConfig, key)
@@ -579,6 +580,28 @@ func (impl EnvironmentServiceImpl) validateNamespaces(namespace string, envs []*
 
 func (impl EnvironmentServiceImpl) FindByIds(ids []*int) ([]*EnvironmentBean, error) {
 	models, err := impl.environmentRepository.FindByIds(ids)
+	if err != nil {
+		impl.logger.Errorw("error in fetching environment", "err", err)
+	}
+	var beans []*EnvironmentBean
+	for _, model := range models {
+		beans = append(beans, &EnvironmentBean{
+			Id:                    model.Id,
+			Environment:           model.Name,
+			Active:                model.Active,
+			Namespace:             model.Namespace,
+			Default:               model.Default,
+			EnvironmentIdentifier: model.EnvironmentIdentifier,
+			ClusterId:             model.ClusterId,
+			Description:           model.Description,
+			IsVirtualEnvironment:  model.IsVirtualEnvironment,
+		})
+	}
+	return beans, nil
+}
+
+func (impl EnvironmentServiceImpl) FindByNames(names []string) ([]*EnvironmentBean, error) {
+	models, err := impl.environmentRepository.FindByNames(names)
 	if err != nil {
 		impl.logger.Errorw("error in fetching environment", "err", err)
 	}
@@ -695,7 +718,7 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(token s
 		}
 		clusterId := clusterMap[clusterName]
 		for namespace := range namespaces {
-			//deduplication for cluster and namespace combination
+			// deduplication for cluster and namespace combination
 			key := fmt.Sprintf("%s__%s", clusterName, namespace)
 			groupKey := fmt.Sprintf("%s__%d", clusterName, clusterId)
 			if _, ok := uniqueComboMap[key]; !ok {
@@ -717,7 +740,7 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDown(token s
 		}
 	}
 
-	//final result builds here, namespace group by clusters
+	// final result builds here, namespace group by clusters
 	for k, v := range grantedEnvironmentMap {
 		clusterInfo := strings.Split(k, "__")
 		clusterId, err := strconv.Atoi(clusterInfo[1])
@@ -778,7 +801,7 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDownByCluste
 			continue
 		}
 		for namespace := range namespaces {
-			//deduplication for cluster and namespace combination
+			// deduplication for cluster and namespace combination
 			key := fmt.Sprintf("%s__%s", clusterName, namespace)
 			groupKey := fmt.Sprintf("%s__%d", clusterName, clusterId)
 			if _, ok := uniqueComboMap[key]; !ok {
@@ -798,7 +821,7 @@ func (impl EnvironmentServiceImpl) GetCombinedEnvironmentListForDropDownByCluste
 		}
 	}
 
-	//final result builds here, namespace group by clusters
+	// final result builds here, namespace group by clusters
 	for k, v := range grantedEnvironmentMap {
 		clusterInfo := strings.Split(k, "__")
 		clusterId, err := strconv.Atoi(clusterInfo[1])
@@ -836,7 +859,7 @@ func (impl EnvironmentServiceImpl) Delete(deleteReq *EnvironmentBean, userId int
 		impl.logger.Errorw("error in deleting environment", "envId", deleteReq.Id, "envName", deleteReq.Environment)
 		return err
 	}
-	//deleting auth roles entries for this environment
+	// deleting auth roles entries for this environment
 	err = impl.userAuthService.DeleteRoles(bean.ENV_TYPE, deleteRequest.Name, tx, existingEnv.EnvironmentIdentifier, "")
 	if err != nil {
 		impl.logger.Errorw("error in deleting auth roles", "err", err)

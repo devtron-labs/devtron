@@ -6,7 +6,6 @@ import (
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	repository1 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
-	"github.com/devtron-labs/devtron/pkg/policyGovernance"
 	"log"
 	"time"
 )
@@ -252,10 +251,4 @@ type WorkflowMetaData struct {
 	AppId        int
 	EnvMap       map[string]repository1.Environment
 	CiSourceData CiSourceMetaData
-}
-
-type BulkPromotionPolicyApplyRequest struct {
-	ApplicationEnvironments []*policyGovernance.AppEnvPolicyContainer        `json:"applicationEnvironments"`
-	ApplyToPolicyName       string                                           `json:"applyToPolicyName"`
-	AppEnvPolicyListFilter  *policyGovernance.AppEnvPolicyMappingsListFilter `json:"appEnvPolicyListFilter"`
 }

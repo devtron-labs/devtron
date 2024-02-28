@@ -5,6 +5,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/globalPolicy"
 	bean2 "github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"go.uber.org/zap"
@@ -28,22 +29,24 @@ type PromotionPolicyCUDService interface {
 	UpdatePolicy(userId int32, policyName string, policyBean *bean.PromotionPolicy) error
 	CreatePolicy(userId int32, policyBean *bean.PromotionPolicy) error
 	DeletePolicy(userId int32, profileName string) error
-	ApplyPolicyToIdentifiers(userId int32, applyIdentifiersRequest bean.BulkPromotionPolicyApplyRequest) error
 }
 
 type PromotionPolicyServiceImpl struct {
 	globalPolicyDataManager         globalPolicy.GlobalPolicyDataManager
 	resourceQualifierMappingService resourceQualifiers.QualifierMappingService
+	pipelineService                 pipeline.CdPipelineConfigService
 	logger                          *zap.SugaredLogger
 }
 
 func NewPromotionPolicyServiceImpl(globalPolicyDataManager globalPolicy.GlobalPolicyDataManager,
 	resourceQualifierMappingService resourceQualifiers.QualifierMappingService,
+	pipelineService pipeline.CdPipelineConfigService,
 	logger *zap.SugaredLogger,
 ) *PromotionPolicyServiceImpl {
 	return &PromotionPolicyServiceImpl{
 		globalPolicyDataManager:         globalPolicyDataManager,
 		resourceQualifierMappingService: resourceQualifierMappingService,
+		pipelineService:                 pipelineService,
 		logger:                          logger,
 	}
 }
@@ -228,27 +231,4 @@ func (impl PromotionPolicyServiceImpl) DeletePolicy(userId int32, policyName str
 		impl.logger.Errorw("error in deleting the promotion policy using name", "policyName", policyName, "userId", userId, "err", err)
 	}
 	return err
-}
-
-func (impl PromotionPolicyServiceImpl) ApplyPolicyToIdentifiers(userId int32, applyIdentifiersRequest bean.BulkPromotionPolicyApplyRequest) error {
-	// updateToProfile, err := impl.globalPolicyDataManager.GetPolicyByName(applyIdentifiersRequest.ApplyToPolicyName)
-	// if err != nil {
-	// 	statusCode := http.StatusInternalServerError
-	// 	if errors.Is(err, pg.ErrNoRows) {
-	// 		err = errors.New(fmt.Sprintf("promotion policy with name '%s' does not exist", applyIdentifiersRequest.ApplyToPolicyName))
-	// 		statusCode = http.StatusConflict
-	// 	}
-	// 	return &util.ApiError{
-	// 		HttpStatusCode:  statusCode,
-	// 		InternalMessage: err.Error(),
-	// 		UserMessage:     err.Error(),
-	// 	}
-	// }
-	// if len(applyIdentifiersRequest.ApplicationEnvironments) > 0 {
-	//
-	// }
-	// if applyIdentifiersRequest.AppEnvPolicyListFilter != nil {
-	//
-	// }
-	return nil
 }

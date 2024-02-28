@@ -23,3 +23,10 @@ type AppEnvPolicyMappingsListFilter struct {
 	Offset      int                   `json:"offset,omitempty" validate:"min=0"`
 	Size        int                   `json:"size,omitempty" validate:"min=0"`
 }
+
+type BulkPromotionPolicyApplyRequest struct {
+	PolicyType              bean.GlobalPolicyType           `json:"policyType"`
+	ApplicationEnvironments []AppEnvPolicyContainer         `json:"applicationEnvironments"`
+	ApplyToPolicyName       string                          `json:"applyToPolicyName"`
+	AppEnvPolicyListFilter  *AppEnvPolicyMappingsListFilter `json:"appEnvPolicyListFilter"`
+}
