@@ -208,7 +208,23 @@ func (impl ArtifactPromotionDataReadServiceImpl) GetByAppIdAndEnvIds(appId int, 
 }
 
 func (impl ArtifactPromotionDataReadServiceImpl) GetByIds(ids []int) ([]*bean.PromotionPolicy, error) {
-	return nil, nil
+	globalPolicies, err := impl.globalPolicyDataManager.GetPolicyByIds(ids)
+	if err != nil {
+		impl.logger.Errorw("error in fetching global policies by ids", "policyids", ids, "err", err)
+		return nil, err
+	}
+
+	promotionPolicies := make([]*bean.PromotionPolicy, 0, len(globalPolicies))
+	for _, globalPolicy := range globalPolicies {
+		policy := &bean.PromotionPolicy{}
+		err = policy.UpdateWithGlobalPolicy(globalPolicy)
+		if err != nil {
+			impl.logger.Errorw("error in extracting policy from globalPolicy json", "policyId", globalPolicy.Id, "err", err)
+			return nil, err
+		}
+		promotionPolicies = append(promotionPolicies, policy)
+	}
+	return promotionPolicies, nil
 }
 
 func (impl ArtifactPromotionDataReadServiceImpl) GetPoliciesMetadata(policyMetadataRequest bean.PromotionPolicyMetaRequest) ([]*bean.PromotionPolicy, error) {
