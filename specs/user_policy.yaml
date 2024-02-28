@@ -9,7 +9,7 @@ paths:
     get:
       summary: Returns all users
       description: all the template users
-      operationId: findAllUsers
+      operationId: GetAllV2
       parameters:
         - name: status
           in: query
