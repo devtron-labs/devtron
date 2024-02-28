@@ -196,9 +196,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                items:
-                  $ref: '#/components/schemas/User'
+                $ref: '#/components/schemas/User'
         default:
           description: unexpected error
           content:
@@ -223,7 +221,7 @@ paths:
                   items:
                     type: integer
                   example: [ 10, 14 ]
-                status:
+                userStatus:
                   type: string
                   enum: ["active", "inactive"]
                   example: "active"
@@ -232,7 +230,7 @@ paths:
                   format: date-time
                   example: "2009-11-10T23:00:00Z"
                 listingRequest:
-                  $ref: '#/components/schemas/FetchListingRequest'
+                  $ref: '#/components/schemas/ListingRequest'
 
       responses:
         '200':
@@ -289,10 +287,10 @@ components:
         emailId:
           type: string
           description: Unique valid email-id of user, comma separated emails ids for multiple users
-        groups:
+        userRoleGroups:
           type: array
           items:
-            type: string
+            $ref: '#/components/schemas/UserRoleGroupItem'
         roleFilters:
           type: array
           items:
@@ -335,10 +333,10 @@ components:
         email_id:
           type: string
           description: Unique valid email-id of user, comma separated emails ids for multiple users
-        groups:
+        userRoleGroups:
           type: array
           items:
-            type: string
+            $ref: '#/components/schemas/UserRoleGroupItem'
         roleFilters:
           type: array
           items:
@@ -451,6 +449,29 @@ components:
         - temporaryAccess
       description: Status types
 
+    UserRoleGroupItem:
+      type: object
+      properties:
+        roleGroup:
+          $ref: '#/components/schemas/RoleGroup'
+        status:
+          $ref: '#/components/schemas/Status'
+        timeoutWindowExpression:
+          type: string
+          format: date-time
+    RoleGroup:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+          description: The ID of the role group
+        name:
+          type: string
+          description: The name of the role group
+        description:
+          type: string
+          description: The description of the role group
 
     Error:
       required:
