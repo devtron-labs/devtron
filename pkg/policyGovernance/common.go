@@ -1,17 +1,30 @@
 package policyGovernance
 
-import "github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
+import (
+	"github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
+)
 
 const NO_POLICY = "NA"
 
 type PathVariablePolicyType string
 
 const PathVariablePolicyTypeVariable string = "policyType"
-const ImagePromotion PathVariablePolicyType = "artifact-promotion"
+const (
+	ImagePromotion   PathVariablePolicyType = "artifact-promotion"
+	DeploymentWindow PathVariablePolicyType = "deployment-window"
+)
 
-var ExistingPolicyTypes = []PathVariablePolicyType{ImagePromotion}
-var PathPolicyTypeGlobalPolicyTypeMap = map[PathVariablePolicyType]bean.GlobalPolicyType{
-	ImagePromotion: bean.IMAGE_PROMOTION_POLICY,
+var ExistingPolicyTypes = []PathVariablePolicyType{ImagePromotion, DeploymentWindow}
+var PathPolicyTypeToGlobalPolicyTypeMap = map[PathVariablePolicyType]bean.GlobalPolicyType{
+	ImagePromotion:   bean.GLOBAL_POLICY_TYPE_IMAGE_PROMOTION_POLICY,
+	DeploymentWindow: bean.GLOBAL_POLICY_TYPE_DEPLOYMENT_WINDOW,
+}
+
+var GlobalPolicyTypeToResourceTypeMap = map[bean.GlobalPolicyType]resourceQualifiers.ResourceType{
+	bean.GLOBAL_POLICY_TYPE_IMAGE_PROMOTION_POLICY: resourceQualifiers.ImagePromotionPolicy,
+	// todo
+	// bean.GLOBAL_POLICY_TYPE_DEPLOYMENT_WINDOW: resourceQualifiers.,
 }
 
 type AppEnvPolicyContainer struct {

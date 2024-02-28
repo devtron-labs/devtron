@@ -79,7 +79,7 @@ func (handler *CommonPolicyRestHandlerImpl) ListAppEnvPolicies(w http.ResponseWr
 		return
 	}
 
-	payload.PolicyType = policyGovernance.PathPolicyTypeGlobalPolicyTypeMap[policyType]
+	payload.PolicyType = policyGovernance.PathPolicyTypeToGlobalPolicyTypeMap[policyType]
 	err = handler.validator.Struct(payload)
 	if err != nil {
 		handler.logger.Errorw("error in validating the request payload", "err", err, "payload", payload)
@@ -129,7 +129,7 @@ func (handler *CommonPolicyRestHandlerImpl) ApplyPolicyToIdentifiers(w http.Resp
 		return
 	}
 
-	payload.PolicyType = policyGovernance.PathPolicyTypeGlobalPolicyTypeMap[policyType]
+	payload.PolicyType = policyGovernance.PathPolicyTypeToGlobalPolicyTypeMap[policyType]
 	err = handler.validator.Struct(payload)
 	if err != nil {
 		handler.logger.Errorw("error in validating the request payload", "err", err, "payload", payload)

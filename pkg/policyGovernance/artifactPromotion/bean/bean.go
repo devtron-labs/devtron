@@ -168,7 +168,7 @@ func (policy *PromotionPolicy) ConvertToGlobalPolicyBaseModal(userId int32) (*be
 		return nil, err
 	}
 	return &bean.GlobalPolicyBaseModel{
-		PolicyOf:      bean.IMAGE_PROMOTION_POLICY,
+		PolicyOf:      bean.GLOBAL_POLICY_TYPE_IMAGE_PROMOTION_POLICY,
 		Name:          policy.Name,
 		Description:   policy.Description,
 		Enabled:       false,
