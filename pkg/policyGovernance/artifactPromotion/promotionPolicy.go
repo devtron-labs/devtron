@@ -150,12 +150,14 @@ func (impl PromotionPolicyServiceImpl) GetPoliciesMetadata(policyMetadataRequest
 }
 
 func (impl PromotionPolicyServiceImpl) parseSortByRequest(policyMetadataRequest bean.PromotionPolicyMetaRequest) *bean2.SortByRequest {
+
 	sortRequest := &bean2.SortByRequest{
 		SortOrderDesc: policyMetadataRequest.SortOrder == bean.DESC,
 	}
-	if policyMetadataRequest.SortBy == bean.POLICY_NAME {
+	switch policyMetadataRequest.SortBy {
+	case bean.POLICY_NAME:
 		sortRequest.SortByType = bean2.GlobalPolicyColumnField
-	} else if policyMetadataRequest.SortBy == bean.APPROVER_COUNT_SORT_KEY {
+	case bean.APPROVER_COUNT_SORT_KEY:
 		sortRequest.SortByType = bean2.GlobalPolicySearchableField
 		sortRequest.SearchableField = bean2.SearchableField{
 			FieldName: bean.PROMOTION_APPROVAL_PENDING_NODE,
