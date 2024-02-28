@@ -316,7 +316,7 @@ components:
       properties:
         users:
           items:
-            $ref: '#/components/schemas/AllUsers'
+            $ref: '#/components/schemas/AllUsersV2'
           description: role filters objects
         totalCount:
           type: integer
@@ -333,14 +333,37 @@ components:
         email_id:
           type: string
           description: Unique valid email-id of user, comma separated emails ids for multiple users
-        userRoleGroups:
-          type: array
-          items:
-            $ref: '#/components/schemas/UserRoleGroupItem'
         roleFilters:
           type: array
           items:
             $ref: '#/components/schemas/emptyRoleFilter'
+          description: role filters objects
+        userStatus:
+          type: string
+          description: user current status (active,inactive)
+        lastLogin:
+          type: string
+          format: date-time
+          description: user last login time
+        timeoutWindowExpression:
+          type: string
+          format: date-time
+          description: user time to live status
+    AllUsersV2:
+      type: object
+      required:
+        - email_id
+      properties:
+        id:
+          type: integer
+          description: Unique id of user
+        email_id:
+          type: string
+          description: Unique valid email-id of user, comma separated emails ids for multiple users
+        userRoleGroups:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserRoleGroupItem'
           description: role filters objects
         userStatus:
           type: string
@@ -384,6 +407,11 @@ components:
           type: string
           enum: ["", "helm-app"]
           description: accessType difine permission type "devtron-app"=devtron app work flow, "helm-app"=helm app work flow. based on this flag data categoriesed into devtron and helm permission tabs in user auth section.
+        status:
+          $ref: '#/components/schemas/Status'
+        timeoutWindowExpression:
+          type: string
+          format: date-time
 
     emptyRoleFilter:
       type: object
