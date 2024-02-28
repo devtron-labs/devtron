@@ -125,8 +125,6 @@ func (memoryUnit UnitSuffix) GetMemoryUnitStr() MemoryUnitStr {
 
 func (memoryUnitStr MemoryUnitStr) GetMemoryUnit() UnitSuffix {
 	switch memoryUnitStr {
-	case MILLIBYTE:
-		return MilliByte
 	case BYTE:
 		return Byte
 	case KIBYTE:
