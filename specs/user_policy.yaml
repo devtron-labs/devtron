@@ -245,7 +245,7 @@ components:
       properties:
         users:
           items:
-            $ref: '#/components/schemas/AllUsers'
+            $ref: '#/components/schemas/AllUsersV2'
           description: role filters objects
         totalCount:
           type: integer
@@ -262,15 +262,30 @@ components:
         email_id:
           type: string
           description: Unique valid email-id of user, comma separated emails ids for multiple users
-        userRoleGroups:
-          type: array
-          items:
-            $ref: '#/components/schemas/UserRoleGroupItem'
         roleFilters:
           type: array
           items:
             $ref: '#/components/schemas/emptyRoleFilter'
           description: role filters objects
+        lastLogin:
+          type: string
+          format: date-time
+          description: user last login time
+    AllUsersV2:
+      type: object
+      required:
+        - email_id
+      properties:
+        id:
+          type: integer
+          description: Unique id of user
+        email_id:
+          type: string
+          description: Unique valid email-id of user, comma separated emails ids for multiple users
+        userRoleGroups:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserRoleGroupItem'
         lastLogin:
           type: string
           format: date-time
