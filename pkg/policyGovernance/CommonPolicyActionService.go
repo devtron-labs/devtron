@@ -3,13 +3,13 @@ package policyGovernance
 import (
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/globalPolicy"
 	bean2 "github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/go-pg/pg"
 	"github.com/samber/lo"
@@ -113,7 +113,7 @@ func (impl CommonPolicyActionsServiceImpl) listAppEnvPoliciesByPolicyFilter(list
 		key := fmt.Sprintf("%d,%d", excludeQualifierMapping.Scope.AppId, excludeQualifierMapping.Scope.AppId)
 		excludeAppEnvIds = append(excludeAppEnvIds, key)
 	}
-	filter := bean3.CdPipelineListFilter{
+	filter := pipelineConfig.CdPipelineListFilter{
 		SortOrder:        listFilter.SortOrder,
 		SortBy:           listFilter.SortBy,
 		Limit:            listFilter.Size,
@@ -129,7 +129,7 @@ func (impl CommonPolicyActionsServiceImpl) listAppEnvPoliciesByPolicyFilter(list
 		impl.logger.Errorw("error in fetching the paginated app environment list using filter", "filter", filter, "err", err)
 		return nil, 0, err
 	}
-	result := lo.Map(paginatedAppEnvData, func(cdPipMeta bean3.CdPipelineMetaData, i int) AppEnvPolicyContainer {
+	result := lo.Map(paginatedAppEnvData, func(cdPipMeta pipelineConfig.CdPipelineMetaData, i int) AppEnvPolicyContainer {
 		totalCount = cdPipMeta.TotalCount
 		key := fmt.Sprintf("%d,%d", cdPipMeta.AppId, cdPipMeta.EnvId)
 		policyName := appIdEnvIdPolicyMap[key].Name
@@ -146,7 +146,7 @@ func (impl CommonPolicyActionsServiceImpl) listAppEnvPoliciesByPolicyFilter(list
 }
 
 func (impl CommonPolicyActionsServiceImpl) listAppEnvPoliciesByEmptyPolicyFilter(listFilter *AppEnvPolicyMappingsListFilter) ([]AppEnvPolicyContainer, int, error) {
-	filter := bean3.CdPipelineListFilter{
+	filter := pipelineConfig.CdPipelineListFilter{
 		SortOrder: listFilter.SortOrder,
 		SortBy:    listFilter.SortBy,
 		Limit:     listFilter.Size,
@@ -192,7 +192,7 @@ func (impl CommonPolicyActionsServiceImpl) listAppEnvPoliciesByEmptyPolicyFilter
 		policyMap[policy.Id] = policy.Name
 	}
 	totalCount := 0
-	result := lo.Map(paginatedAppEnvData, func(cdPipMeta bean3.CdPipelineMetaData, i int) AppEnvPolicyContainer {
+	result := lo.Map(paginatedAppEnvData, func(cdPipMeta pipelineConfig.CdPipelineMetaData, i int) AppEnvPolicyContainer {
 		totalCount = cdPipMeta.TotalCount
 		key := fmt.Sprintf("%d,%d", cdPipMeta.AppId, cdPipMeta.EnvId)
 		policyId := appEnvPolicyMap[key]

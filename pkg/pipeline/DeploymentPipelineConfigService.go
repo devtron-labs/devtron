@@ -102,7 +102,7 @@ type CdPipelineConfigService interface {
 	FindPipelineById(cdPipelineId int) (*pipelineConfig.Pipeline, error)
 	// FindAppAndEnvDetailsByPipelineId : Retrieve app and env details for given cdPipelineId
 	FindAppAndEnvDetailsByPipelineId(cdPipelineId int) (*pipelineConfig.Pipeline, error)
-	FindAppAndEnvDetailsByListFilter(filter bean3.CdPipelineListFilter) ([]bean3.CdPipelineMetaData, error)
+	FindAppAndEnvDetailsByListFilter(filter pipelineConfig.CdPipelineListFilter) ([]pipelineConfig.CdPipelineMetaData, error)
 	// RetrieveParentDetails : Retrieve the parent id and type of the parent.
 	// Here ParentId refers to Parent like parent of CD can be CI , PRE-CD .
 	// It first fetches the workflow details from the appWorkflow repository.
@@ -1426,7 +1426,7 @@ func (impl *CdPipelineConfigServiceImpl) FindAppAndEnvDetailsByPipelineId(cdPipe
 	return impl.pipelineRepository.FindAppAndEnvDetailsByPipelineId(cdPipelineId)
 }
 
-func (impl *CdPipelineConfigServiceImpl) FindAppAndEnvDetailsByListFilter(filter bean3.CdPipelineListFilter) ([]bean3.CdPipelineMetaData, error) {
+func (impl *CdPipelineConfigServiceImpl) FindAppAndEnvDetailsByListFilter(filter pipelineConfig.CdPipelineListFilter) ([]pipelineConfig.CdPipelineMetaData, error) {
 	return impl.pipelineRepository.FindAppAndEnvDetailsByListFilter(filter)
 }
 

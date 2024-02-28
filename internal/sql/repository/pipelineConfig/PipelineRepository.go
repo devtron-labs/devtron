@@ -27,7 +27,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	util2 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
-	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -147,7 +146,7 @@ type PipelineRepository interface {
 	FindDeploymentTypeByPipelineIds(cdPipelineIds []int) (map[int]DeploymentObject, error)
 	UpdateOldCiPipelineIdToNewCiPipelineId(tx *pg.Tx, oldCiPipelineId, newCiPipelineId int) error
 	FindActiveByAppIdAndEnvNames(appId int, envNames []string) (pipelines []*Pipeline, err error)
-	FindAppAndEnvDetailsByListFilter(filter bean3.CdPipelineListFilter) ([]bean3.CdPipelineMetaData, error)
+	FindAppAndEnvDetailsByListFilter(filter CdPipelineListFilter) ([]CdPipelineMetaData, error)
 }
 
 type CiArtifactDTO struct {
@@ -164,6 +163,25 @@ type DeploymentObject struct {
 	DeploymentType models.DeploymentType `sql:"deployment_type"`
 	PipelineId     int                   `sql:"pipeline_id"`
 	Status         string                `sql:"status"`
+}
+
+type CdPipelineMetaData struct {
+	AppId           int
+	EnvId           int
+	AppName         string
+	EnvironmentName string
+	TotalCount      int
+}
+
+type CdPipelineListFilter struct {
+	IncludeAppEnvIds []string // comma-seperated appId,envId array, eg: {"1,3","1,5"}
+	ExcludeAppEnvIds []string // comma-seperated appId,envId array, eg: {"1,3","1,5"}
+	SortBy           string
+	SortOrder        string
+	Limit            int
+	Offset           int
+	AppNames         []string
+	EnvNames         []string
 }
 
 type PipelineRepositoryImpl struct {
@@ -784,8 +802,8 @@ func (impl PipelineRepositoryImpl) FindActiveByAppIdAndEnvNames(appId int, envNa
 	return pipelines, err
 }
 
-func (impl PipelineRepositoryImpl) FindAppAndEnvDetailsByListFilter(filter bean3.CdPipelineListFilter) ([]bean3.CdPipelineMetaData, error) {
-	result := make([]bean3.CdPipelineMetaData, 0)
+func (impl PipelineRepositoryImpl) FindAppAndEnvDetailsByListFilter(filter CdPipelineListFilter) ([]CdPipelineMetaData, error) {
+	result := make([]CdPipelineMetaData, 0)
 	query := impl.dbConnection.Model((*Pipeline)(nil)).
 		Column("pipeline.app_id", "environment_id AS env_id", "App.app_name", "Environment.name AS environment_name", "COUNT(pipeline.id) OVER() ")
 

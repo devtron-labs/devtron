@@ -92,6 +92,7 @@ import (
 	"github.com/devtron-labs/devtron/client/lens"
 	"github.com/devtron-labs/devtron/client/proxy"
 	"github.com/devtron-labs/devtron/client/telemetry"
+	"github.com/devtron-labs/devtron/enterprise/api/artifactPromotionApprovalRequest"
 	"github.com/devtron-labs/devtron/enterprise/api/drafts"
 	"github.com/devtron-labs/devtron/enterprise/api/globalTag"
 	"github.com/devtron-labs/devtron/enterprise/api/lockConfiguation"
@@ -139,6 +140,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/generateManifest"
 	"github.com/devtron-labs/devtron/pkg/git"
 	"github.com/devtron-labs/devtron/pkg/gitops"
+	globalPolicy2 "github.com/devtron-labs/devtron/pkg/globalPolicy"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
 	infraConfigService "github.com/devtron-labs/devtron/pkg/infraConfig"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/units"
@@ -155,7 +157,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/plugin"
 	repository6 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance"
-	repository11 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/repository"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/security"
@@ -1029,8 +1030,15 @@ func InitializeApp() (*App, error) {
 		repository9.NewTimeWindowRepositoryImpl,
 		wire.Bind(new(repository9.TimeWindowRepository), new(*repository9.TimeWindowRepositoryImpl)),
 
-		repository11.NewArtifactPromotionApprovalRequestImpl,
-		wire.Bind(new(repository11.ArtifactPromotionApprovalRequestRepository), new(*repository11.ArtifactPromotionApprovalRequestRepoImpl)),
+		artifactPromotionApprovalRequest.NewPromotionApprovalRequestRouterImpl,
+		wire.Bind(new(artifactPromotionApprovalRequest.PromotionApprovalRouter), new(*artifactPromotionApprovalRequest.PromotionApprovalRouterImpl)),
+
+		artifactPromotionApprovalRequest.NewArtifactPromotionApprovalRestHandlerImpl,
+		wire.Bind(new(artifactPromotionApprovalRequest.PromotionApprovalRequestRestHandler), new(*artifactPromotionApprovalRequest.PromotionApprovalRestHandlerImpl)),
+		wire.Bind(new(artifactPromotionApprovalRequest.PromotionApprovalMaterialRestHandler), new(*artifactPromotionApprovalRequest.PromotionApprovalRestHandlerImpl)),
+
+		globalPolicy2.NewGlobalPolicyDataManagerImpl,
+		wire.Bind(new(globalPolicy2.GlobalPolicyDataManager), new(*globalPolicy2.GlobalPolicyDataManagerImpl)),
 	)
 	return &App{}, nil
 }
