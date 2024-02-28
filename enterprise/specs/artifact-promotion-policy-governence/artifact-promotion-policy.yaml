@@ -373,7 +373,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/PromotionPolicy"
 
-  /orchestrator/policy/artifact-promotion/app-env/list:
+  /orchestrator/common/policy/artifact-promotion/app-env/list:
     post:
       description: get app and env list with respective policy
       requestBody:
@@ -410,7 +410,7 @@ paths:
                         items:
                           $ref: '#/components/schemas/AppEnvPolicyContainer'
 
-  /orchestrator/policy/artifact-promotion/bulk/apply:
+  /orchestrator/common/policy/artifact-promotion/bulk/apply:
     post:
       description: "used to apply a policy on the selected app-envs or using filtered app-env"
       requestBody:
