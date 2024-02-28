@@ -2553,7 +2553,7 @@ func (impl *UserServiceImpl) createOrUpdateUserRolesForOtherEntity(roleFilter be
 	for _, environment := range environments {
 		for _, entityName := range entityNames {
 			for _, actionType := range actions {
-				if managerAuth != nil {
+				if managerAuth != nil  && entity != bean.CHART_GROUP_ENTITY{
 					// check auth only for apps permission, skip for chart group
 					rbacObject := fmt.Sprintf("%s", strings.ToLower(roleFilter.Team))
 					isValidAuth := managerAuth(casbin2.ResourceUser, token, rbacObject)
