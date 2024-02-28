@@ -489,11 +489,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) approveArtifactPromotion(reques
 					Context: context.Background(),
 				},
 			}
-			err = impl.workflowDagExecutor.HandleTriggerIfAutoStageCdPipeline(triggerRequest)
-			if err != nil {
-				impl.logger.Errorw("error occurred while triggering deployment", "pipelineId", pipelineDao.Id, "artifactId", promotableRequest.ArtifactId, "err", err)
-				return nil, errors.New("auto deployment failed, please try manually")
-			}
+			impl.workflowDagExecutor.HandleArtifactPromotionEvent(triggerRequest)
 		}
 	}
 
@@ -799,12 +795,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) raisePromoteRequest(request *be
 				Context: context.Background(),
 			},
 		}
-		err = impl.workflowDagExecutor.HandleTriggerIfAutoStageCdPipeline(triggerRequest)
-		if err != nil {
-			impl.logger.Errorw("error occurred while triggering deployment", "pipelineId", cdPipeline.Id, "artifactId", ciArtifact.Id, "err", err)
-			return bean.ERRORED, err.Error(), errors.New("auto deployment failed, please try manually")
-		}
-		// todo: trigger release on the target pipeline
+		impl.workflowDagExecutor.HandleArtifactPromotionEvent(triggerRequest)
 	}
 	return status, string(status), nil
 

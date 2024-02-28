@@ -81,7 +81,7 @@ type WorkflowDagExecutor interface {
 	OnDeleteCdPipelineEvent(pipelineId int, triggeredBy int32)
 
 	BuildCiArtifactRequestForWebhook(event pipeline.ExternalCiWebhookDto) (*bean2.CiArtifactWebhookRequest, error)
-	HandleTriggerIfAutoStageCdPipeline(request bean5.TriggerRequest) error
+	HandleArtifactPromotionEvent(request bean5.TriggerRequest)
 }
 
 type WorkflowDagExecutorImpl struct {
@@ -587,7 +587,7 @@ func (impl *WorkflowDagExecutorImpl) handleCiSuccessEvent(triggerContext bean5.T
 			TriggeredBy:    triggeredBy,
 			TriggerContext: triggerContext,
 		}
-		err = impl.HandleTriggerIfAutoStageCdPipeline(triggerRequest)
+		err = impl.triggerIfAutoStageCdPipeline(triggerRequest)
 		if err != nil {
 			impl.logger.Debugw("error on trigger cd pipeline", "err", err)
 		}
@@ -636,7 +636,7 @@ func (impl *WorkflowDagExecutorImpl) handleWebhookExternalCiEvent(artifact *repo
 			ApplyAuth:   false,
 			TriggeredBy: triggeredBy,
 		}
-		err = impl.HandleTriggerIfAutoStageCdPipeline(triggerRequest)
+		err = impl.triggerIfAutoStageCdPipeline(triggerRequest)
 		if err != nil {
 			impl.logger.Debugw("error on trigger cd pipeline", "err", err)
 			return hasAnyTriggered, err
@@ -665,7 +665,7 @@ func (impl *WorkflowDagExecutorImpl) deleteCorruptedPipelineStage(pipelineStage 
 	return nil, false
 }
 
-func (impl *WorkflowDagExecutorImpl) HandleTriggerIfAutoStageCdPipeline(request bean5.TriggerRequest) error {
+func (impl *WorkflowDagExecutorImpl) triggerIfAutoStageCdPipeline(request bean5.TriggerRequest) error {
 
 	preStage, err := impl.getPipelineStage(request.Pipeline.Id, repository4.PIPELINE_STAGE_TYPE_PRE_CD)
 	if err != nil {
@@ -856,7 +856,7 @@ func (impl *WorkflowDagExecutorImpl) HandlePostStageSuccessEvent(triggerContext 
 			TriggerContext: triggerContext,
 		}
 
-		err = impl.HandleTriggerIfAutoStageCdPipeline(triggerRequest)
+		err = impl.triggerIfAutoStageCdPipeline(triggerRequest)
 		if err != nil {
 			impl.logger.Errorw("error in triggering cd pipeline after successful post stage", "err", err, "pipelineId", pipeline.Id)
 			return err
@@ -1348,4 +1348,13 @@ func (impl *WorkflowDagExecutorImpl) BuildCiArtifactRequestForWebhook(event pipe
 		request.DataSource = repository.WEBHOOK
 	}
 	return request, nil
+}
+
+func (impl *WorkflowDagExecutorImpl) HandleArtifactPromotionEvent(request bean5.TriggerRequest) {
+	go func() {
+		err := impl.triggerIfAutoStageCdPipeline(request)
+		if err != nil {
+			impl.logger.Errorw("error in auto trigger on artifact promotion event", "artifactId", request.Artifact.Id, "pipelineId", request.Pipeline.Id, "err", err)
+		}
+	}()
 }
