@@ -63,6 +63,7 @@ type AppStoreDeploymentDBServiceImpl struct {
 	deploymentTypeConfig                 *globalUtil.DeploymentServiceTypeConfig
 	gitOpsConfigReadService              config.GitOpsConfigReadService
 	deploymentTypeOverrideService        providerConfig.DeploymentTypeOverrideService
+	AppStoreValidator                    AppStoreValidator
 }
 
 func NewAppStoreDeploymentDBServiceImpl(logger *zap.SugaredLogger,
@@ -74,7 +75,7 @@ func NewAppStoreDeploymentDBServiceImpl(logger *zap.SugaredLogger,
 	installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository,
 	envVariables *globalUtil.EnvironmentVariables,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
-	deploymentTypeOverrideService providerConfig.DeploymentTypeOverrideService) *AppStoreDeploymentDBServiceImpl {
+	deploymentTypeOverrideService providerConfig.DeploymentTypeOverrideService, AppStoreValidator AppStoreValidator) *AppStoreDeploymentDBServiceImpl {
 	return &AppStoreDeploymentDBServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -86,6 +87,7 @@ func NewAppStoreDeploymentDBServiceImpl(logger *zap.SugaredLogger,
 		deploymentTypeConfig:                 envVariables.DeploymentServiceTypeConfig,
 		gitOpsConfigReadService:              gitOpsConfigReadService,
 		deploymentTypeOverrideService:        deploymentTypeOverrideService,
+		AppStoreValidator:                    AppStoreValidator,
 	}
 }
 
@@ -93,6 +95,10 @@ func (impl *AppStoreDeploymentDBServiceImpl) AppStoreDeployOperationDB(installAp
 	environment, err := impl.GetEnvironmentForInstallAppRequest(installAppVersionRequest)
 	if err != nil {
 		impl.logger.Errorw("error in getting environment for install helm chart", "envId", installAppVersionRequest.EnvironmentId, "err", err)
+		return nil, err
+	}
+	err = impl.AppStoreValidator.Validate(installAppVersionRequest, environment)
+	if err != nil {
 		return nil, err
 	}
 	// setting additional env data required in appStoreBean.InstallAppVersionDTO

@@ -54,6 +54,10 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(service.AppStoreDeploymentDBService), new(*service.AppStoreDeploymentDBServiceImpl)),
 		service.NewAppStoreDeploymentServiceImpl,
 		wire.Bind(new(service.AppStoreDeploymentService), new(*service.AppStoreDeploymentServiceImpl)),
+		service.NewSoftDeletePostProcessorImpl,
+		wire.Bind(new(service.SoftDeletePostProcessor), new(*service.SoftDeletePostProcessorImpl)),
+		service.NewAppAppStoreValidatorImpl,
+		wire.Bind(new(service.AppStoreValidator), new(*service.AppStoreValidatorImpl)),
 	)
 	return &App{}, nil
 }
