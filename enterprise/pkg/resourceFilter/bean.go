@@ -324,3 +324,32 @@ func (response expressionResponse) getFinalResponse() bool {
 	}
 	return true
 }
+
+type FilterCriteria struct {
+	Type    string `json:"type"`
+	Label   string `json:"label"`
+	Tooltip string `json:"tooltip"`
+}
+
+var FILTER_CRITERIAS = []FilterCriteria{
+	{
+		Label:   "containerImage",
+		Type:    "String",
+		Tooltip: "Example:\n containerImage.contains(\"docker.io\")",
+	},
+	{
+		Label:   "containerRepository",
+		Type:    "String",
+		Tooltip: "Example:\n containerRepository == \"devregistry\"",
+	},
+	{
+		Label:   "containerImageTag",
+		Type:    "String",
+		Tooltip: "Example:\n containerImageTag.startsWith(\"Prod-\")",
+	},
+	{
+		Label:   "imageLabels",
+		Type:    "String[]",
+		Tooltip: "External Labels/tags defined for an image. \n Example:\n \"prod\" in imageLabels",
+	},
+}

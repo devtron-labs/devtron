@@ -27,6 +27,7 @@ type ResourceFilterRestHandler interface {
 	CreateFilter(w http.ResponseWriter, r *http.Request)
 	DeleteFilter(w http.ResponseWriter, r *http.Request)
 	ValidateExpression(w http.ResponseWriter, r *http.Request)
+	GetResourceFilterMetaData(w http.ResponseWriter, r *http.Request)
 }
 
 type ResourceFilterRestHandlerImpl struct {
@@ -253,4 +254,15 @@ func (handler *ResourceFilterRestHandlerImpl) applyAuth(token string) bool {
 	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*")
 
 	return isSuperAdmin
+}
+
+func (handler *ResourceFilterRestHandlerImpl) GetResourceFilterMetaData(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
+	authorised := handler.applyAuth(token)
+	if !authorised {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	res := resourceFilter.FILTER_CRITERIAS
+	common.WriteJsonResp(w, nil, res, http.StatusOK)
 }
