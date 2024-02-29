@@ -33,31 +33,10 @@ func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileStateAppGroup(
 
 	appGroupData := make([]AppData, 0)
 	for appId, overview := range appIdsToOverview {
-		overview.SuperAdmins = superAdmins
 
-		envIdToProfileStates := lo.GroupBy(overview.Profiles, func(item ProfileState) int {
-			return item.EnvId
-		})
-
-		envIdToEnvironmentState := make(map[int]EnvironmentState)
-		resultProfiles := make([]ProfileState, 0)
-		for envId, profileStates := range envIdToProfileStates {
-			filteredProfileStates, appliedProfile, excludedUsers, canDeploy, err := impl.getAppliedProfileAndCalculateStates(targetTime, profileStates, superAdmins)
-			if err != nil {
-				return nil, err
-			}
-			envState := EnvironmentState{
-				ExcludedUsers:   excludedUsers,
-				AppliedProfile:  appliedProfile,
-				UserActionState: getUserActionStateForUser(canDeploy, excludedUsers, userId),
-			}
-			envIdToEnvironmentState[envId] = envState
-			resultProfiles = append(resultProfiles, filteredProfileStates...)
-		}
-		envResponse := &DeploymentWindowResponse{
-			EnvironmentStateMap: envIdToEnvironmentState,
-			Profiles:            resultProfiles,
-			SuperAdmins:         superAdmins,
+		envResponse, err := impl.calculateStateForEnvironments(targetTime, overview, superAdmins, userId)
+		if err != nil {
+			return nil, err
 		}
 
 		appGroupData = append(appGroupData, AppData{
@@ -78,8 +57,15 @@ func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileState(targetTi
 	if err != nil {
 		return nil, err
 	}
-	overview.SuperAdmins = superAdmins
+	//overview.SuperAdmins = superAdmins
+	response, err := impl.calculateStateForEnvironments(targetTime, overview, superAdmins, userId)
+	if err != nil {
+		return nil, err
+	}
+	return response, nil
+}
 
+func (impl DeploymentWindowServiceImpl) calculateStateForEnvironments(targetTime time.Time, overview *DeploymentWindowResponse, superAdmins []int32, userId int32) (*DeploymentWindowResponse, error) {
 	envIdToProfileStates := lo.GroupBy(overview.Profiles, func(item ProfileState) int {
 		return item.EnvId
 	})
@@ -140,16 +126,16 @@ func (impl DeploymentWindowServiceImpl) getAppliedProfileAndCalculateStates(targ
 
 	canDeploy := !isBlackoutActive && isMaintenanceActive
 	allProfiles := append(filteredBlackoutProfiles, filteredMaintenanceProfiles...)
-	if isBlackoutActive && isMaintenanceActive { //deployment is blocked restriction through blackout
+	if isBlackoutActive && isMaintenanceActive { //deployment is blocked, restriction through blackout
 		// if both are active then blackout takes precedence in overall calculation
 		appliedProfile = impl.getLongestEndingProfile(filteredBlackoutProfiles)
 		combinedExcludedUsers = impl.getCombinedUserIds(filteredBlackoutProfiles, superAdmins)
 
-	} else if !isBlackoutActive && !isMaintenanceActive { //deployment is blocked restriction through maintenance
+	} else if !isBlackoutActive && !isMaintenanceActive { //deployment is blocked, restriction through maintenance
 		// if nothing is active then earliest starting maintenance will be shown
 		appliedProfile = impl.getEarliestStartingProfile(filteredMaintenanceProfiles)
 		combinedExcludedUsers = impl.getCombinedUserIds(filteredMaintenanceProfiles, superAdmins)
-	} else if isBlackoutActive && !isMaintenanceActive { //deployment is blocked restriction through both
+	} else if isBlackoutActive && !isMaintenanceActive { //deployment is blocked, restriction through both
 		// longest of restrictions coming from both blackout and maintenance
 		appliedProfile = impl.getLongestEndingProfile(allProfiles)
 		combinedExcludedUsers = impl.getCombinedUserIds(allProfiles, superAdmins)

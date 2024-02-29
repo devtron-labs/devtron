@@ -7,6 +7,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/timeoutWindow"
 	"github.com/go-pg/pg"
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"time"
 )
@@ -102,7 +103,7 @@ func (impl DeploymentWindowServiceImpl) getTimeZoneData(timeZone string) (*time.
 	} else {
 		location, err = time.LoadLocation(timeZone)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "error in fetching location for timezone: "+timeZone)
 		}
 		impl.timeZoneMap[timeZone] = location
 	}
