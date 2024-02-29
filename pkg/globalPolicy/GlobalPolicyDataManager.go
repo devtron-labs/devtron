@@ -3,6 +3,7 @@ package globalPolicy
 import (
 	"github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
 	"github.com/devtron-labs/devtron/pkg/globalPolicy/repository"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
@@ -23,7 +24,7 @@ type GlobalPolicyDataManager interface {
 	DeletePolicyById(policyId int, userId int32) error
 	DeletePolicyByName(tx *pg.Tx, policyName string, userId int32) error
 
-	GetPolicyMetadataByFields(policyIds []int, fields []*bean.SearchableField) (map[int][]*bean.SearchableField, error)
+	GetPolicyMetadataByFields(policyIds []int, fields []*util.SearchableField) (map[int][]*util.SearchableField, error)
 	// GetPoliciesBySearchableFields(policyIds []int,fields []*SearchableField) ([]*GlobalPolicyBaseModel, error)
 	GetAndSort(policyNamePattern string, sortRequest *bean.SortByRequest) ([]*bean.GlobalPolicyBaseModel, error)
 	GetPolicyIdByName(name string, policyType bean.GlobalPolicyType) (int, error)
@@ -137,11 +138,11 @@ func (impl *GlobalPolicyDataManagerImpl) getSearchableKeyEntries(globalPolicyDat
 			FieldName:      field.FieldName,
 		}
 		switch field.FieldType {
-		case bean.NumericType:
+		case util.NumericType:
 			searchableKeyEntries.ValueInt = field.FieldValue.(int)
-		case bean.StringType:
+		case util.StringType:
 			searchableKeyEntries.Value = field.FieldValue.(string)
-		case bean.DateTimeType:
+		case util.DateTimeType:
 			searchableKeyEntries.ValueTimeStamp = field.FieldValue.(time.Time)
 		}
 
@@ -177,8 +178,8 @@ func (impl *GlobalPolicyDataManagerImpl) GetPolicyByNames(policyName []string) (
 	return nil, nil
 }
 
-func (impl *GlobalPolicyDataManagerImpl) GetPolicyMetadataByFields(policyIds []int, fields []*bean.SearchableField) (map[int][]*bean.SearchableField, error) {
-	var policyIdToSearchableField map[int][]*bean.SearchableField
+func (impl *GlobalPolicyDataManagerImpl) GetPolicyMetadataByFields(policyIds []int, fields []*util.SearchableField) (map[int][]*util.SearchableField, error) {
+	var policyIdToSearchableField map[int][]*util.SearchableField
 	GlobalPolicySearchableFields, err := impl.globalPolicySearchableFieldRepository.GetSearchableFieldByIds(policyIds)
 	if err != nil {
 		impl.logger.Errorw("error in fetching GlobalPolicySearchableFields", "err", err)
@@ -197,16 +198,16 @@ func (impl *GlobalPolicyDataManagerImpl) GetPolicyMetadataByFields(policyIds []i
 	return policyIdToSearchableField, nil
 }
 
-func (impl *GlobalPolicyDataManagerImpl) setPolicyIdToSearchableFieldMap(searchableField *repository.GlobalPolicySearchableField, fieldType bean.FieldType, fieldValue interface{}) map[int][]*bean.SearchableField {
-	policyIdToSearchableField := make(map[int][]*bean.SearchableField, 0)
+func (impl *GlobalPolicyDataManagerImpl) setPolicyIdToSearchableFieldMap(searchableField *repository.GlobalPolicySearchableField, fieldType util.FieldType, fieldValue interface{}) map[int][]*util.SearchableField {
+	policyIdToSearchableField := make(map[int][]*util.SearchableField, 0)
 	if policyIdToSearchableField[searchableField.GlobalPolicyId] != nil {
-		policyIdToSearchableField[searchableField.GlobalPolicyId] = append(policyIdToSearchableField[searchableField.GlobalPolicyId], &bean.SearchableField{
+		policyIdToSearchableField[searchableField.GlobalPolicyId] = append(policyIdToSearchableField[searchableField.GlobalPolicyId], &util.SearchableField{
 			FieldName:  searchableField.FieldName,
 			FieldType:  fieldType,
 			FieldValue: fieldValue,
 		})
 	} else {
-		policyIdToSearchableField[searchableField.GlobalPolicyId] = []*bean.SearchableField{
+		policyIdToSearchableField[searchableField.GlobalPolicyId] = []*util.SearchableField{
 			{
 				FieldName:  searchableField.FieldName,
 				FieldType:  fieldType,
@@ -217,18 +218,18 @@ func (impl *GlobalPolicyDataManagerImpl) setPolicyIdToSearchableFieldMap(searcha
 	return policyIdToSearchableField
 }
 
-func (impl *GlobalPolicyDataManagerImpl) setFieldValueAndType(searchableField *repository.GlobalPolicySearchableField) (interface{}, bean.FieldType) {
+func (impl *GlobalPolicyDataManagerImpl) setFieldValueAndType(searchableField *repository.GlobalPolicySearchableField) (interface{}, util.FieldType) {
 	var fieldValue interface{}
-	var fieldType bean.FieldType
+	var fieldType util.FieldType
 	if searchableField.Value != "" {
 		fieldValue = searchableField.Value
-		fieldType = bean.StringType
+		fieldType = util.StringType
 	} else if searchableField.ValueInt != 0 {
 		fieldValue = searchableField.ValueInt
-		fieldType = bean.NumericType
+		fieldType = util.NumericType
 	} else if !searchableField.ValueTimeStamp.IsZero() {
 		fieldValue = searchableField.ValueTimeStamp
-		fieldType = bean.DateTimeType
+		fieldType = util.DateTimeType
 
 	}
 	return fieldValue, fieldType

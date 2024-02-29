@@ -271,6 +271,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) evaluatePoliciesOnArtifact(ciAr
 		responseMap[envName] = resp
 	}
 
+	// can be concurrent
 	for envName, policy := range policiesMap {
 		evaluationResult, err := impl.resourceFilterConditionsEvaluator.EvaluateFilter(policy.Conditions, resourceFilter.ExpressionMetadata{Params: params})
 		if err != nil {
@@ -286,6 +287,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) evaluatePoliciesOnArtifact(ciAr
 			ApprovalCount:     policy.ApprovalMetaData.ApprovalCount,
 			PromotionPossible: pointer.Bool(evaluationResult),
 		}
+		// checks on metadata not needed as this is just an evaluation flow (kinda validation)
 		if !evaluationResult {
 			envResp.PromotionValidationMessage = string(bean.BLOCKED_BY_POLICY)
 			envResp.PromotionValidationState = bean.BLOCKED_BY_POLICY

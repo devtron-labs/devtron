@@ -6,6 +6,7 @@ import (
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	repository1 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
+	"github.com/devtron-labs/devtron/util"
 	"log"
 	"time"
 )
@@ -166,7 +167,7 @@ type EnvironmentApprovalMetadata struct {
 
 type PromotionPolicy struct {
 	Id                 int                                `json:"id" `
-	Name               string                             `json:"name" validate:"min=3 max=50 global-entity-name"`
+	Name               string                             `json:"name" isSearchField:"true" validate:"min=3 max=50 global-entity-name"`
 	Description        string                             `json:"description" validate:"max=300"`
 	PolicyEvaluationId int                                `json:"-"`
 	Conditions         []resourceFilter.ResourceCondition `json:"conditions" validate:"omitempty,min=1"`
@@ -187,7 +188,7 @@ func (policy *PromotionPolicy) ConvertToGlobalPolicyBaseModal(userId int32) (*be
 		PolicyOf:      bean.GLOBAL_POLICY_TYPE_IMAGE_PROMOTION_POLICY,
 		Name:          policy.Name,
 		Description:   policy.Description,
-		Enabled:       false,
+		Enabled:       true, // all the policies are by default enabled
 		PolicyVersion: bean.GLOBAL_POLICY_VERSION_V1,
 		Active:        true,
 		UserId:        userId,
@@ -200,19 +201,13 @@ func (policy *PromotionPolicy) ConvertToGlobalPolicyDataModel(userId int32) (*be
 	if err != nil {
 		return nil, err
 	}
-	SearchableFields, err := policy.extractSearchableFields()
 	if err != nil {
 		return nil, err
 	}
 	return &bean.GlobalPolicyDataModel{
 		GlobalPolicyBaseModel: *baseModel,
-		SearchableFields:      SearchableFields,
+		SearchableFields:      util.GetSearchableFields(policy),
 	}, nil
-}
-
-func (policy *PromotionPolicy) extractSearchableFields() ([]bean.SearchableField, error) {
-	// todo:
-	return nil, nil
 }
 
 func (policy *PromotionPolicy) UpdateWithGlobalPolicy(rawPolicy *bean.GlobalPolicyBaseModel) error {
@@ -228,7 +223,7 @@ func (policy *PromotionPolicy) UpdateWithGlobalPolicy(rawPolicy *bean.GlobalPoli
 }
 
 type ApprovalMetaData struct {
-	ApprovalCount                int  `json:"approverCount" validate:"min=0"`
+	ApprovalCount                int  `json:"approverCount" isSearchField:"true" validate:"min=0"`
 	AllowImageBuilderFromApprove bool `json:"allowImageBuilderFromApprove"`
 	AllowRequesterFromApprove    bool `json:"allowRequesterFromApprove"`
 	AllowApproverFromDeploy      bool `json:"allowApproverFromDeploy"`
