@@ -20,13 +20,12 @@ const BooleanType FieldType = 4
 
 const searchFieldTypeTag = "isSearchField"
 
-func GetSearchableFields[T any](profile T) []SearchableField {
+func GetSearchableFields[T interface{}](profile T) []SearchableField {
 	var fields []SearchableField
 
 	val := reflect.ValueOf(profile)
-	typ := val.Type()
-
-	for i := 0; i < val.NumField(); i++ {
+	typ := reflect.TypeOf(profile)
+	for i := 0; i < typ.NumField(); i++ {
 		field := val.Field(i)
 		fieldType := typ.Field(i)
 
