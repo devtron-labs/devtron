@@ -560,7 +560,7 @@ func (impl RoleGroupServiceImpl) getRoleGroupMetadata(roleGroup *repository.Role
 	isSuperAdmin := false
 	roleFilterMap := make(map[string]*bean.RoleFilter)
 	for _, role := range roles {
-		key := impl.userCommonService.GetUniqueKeyForAllEntity(*role)
+		key := GetUniqueKeyForAllEntity(*role)
 		if _, ok := roleFilterMap[key]; ok {
 			impl.userCommonService.BuildRoleFilterForAllTypes(roleFilterMap, *role, key)
 		} else {

@@ -233,7 +233,7 @@ func (impl UserServiceImpl) validateUserRoleGroupRequest(userRoleGroups []bean.U
 		if val, ok := mapKey[userRoleGroup.RoleGroup.Name]; ok {
 			hasTimeoutConfigChanged := !(userRoleGroup.TimeoutWindowExpression == val.TimeoutWindowExpression && userRoleGroup.Status == val.Status)
 			if hasTimeoutConfigChanged {
-				err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "Invalid request, please provide non-conflicting groups "}
+				err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "Invalid request, please correct groups with different status"}
 				break
 			}
 		}
@@ -1488,7 +1488,7 @@ func (impl UserServiceImpl) getUserMetadata(model *repository.UserModel, recorde
 	roleFilterMap := make(map[string]*bean.RoleFilter)
 	for _, userRole := range userRoles {
 		status, timeoutExpression := getStatusAndTTL(userRole.TimeoutWindowConfiguration, recordedTime)
-		key := impl.userCommonService.GetUniqueKeyForAllEntityWithTimeAndStatus(userRole.Role, status, timeoutExpression)
+		key := GetUniqueKeyForAllEntityWithTimeAndStatus(userRole.Role, status, timeoutExpression)
 		if _, ok := roleFilterMap[key]; ok {
 			impl.userCommonService.BuildRoleFilterForAllTypes(roleFilterMap, userRole.Role, key)
 		} else {
@@ -2523,7 +2523,7 @@ func (impl *UserServiceImpl) getRoleFiltersFromRoles(roles []*repository.RoleMod
 	var roleFilters []bean.RoleFilter
 	roleFilterMap := make(map[string]*bean.RoleFilter)
 	for _, role := range roles {
-		key := impl.userCommonService.GetUniqueKeyForAllEntity(*role)
+		key := GetUniqueKeyForAllEntity(*role)
 		if _, ok := roleFilterMap[key]; ok {
 			impl.userCommonService.BuildRoleFilterForAllTypes(roleFilterMap, *role, key)
 		} else {

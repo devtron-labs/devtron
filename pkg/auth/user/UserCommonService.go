@@ -37,8 +37,6 @@ type UserCommonService interface {
 	BuildRoleFilterKeyForJobs(roleFilterMap map[string]*bean.RoleFilter, role repository.RoleModel, key string)
 	BuildRoleFilterKeyForOtherEntity(roleFilterMap map[string]*bean.RoleFilter, role repository.RoleModel, key string)
 	BuildRoleFilterForAllTypes(roleFilterMap map[string]*bean.RoleFilter, role repository.RoleModel, key string)
-	GetUniqueKeyForAllEntity(role repository.RoleModel) string
-	GetUniqueKeyForAllEntityWithTimeAndStatus(role repository.RoleModel, status bean.Status, timeout time.Time) string
 	SetDefaultValuesIfNotPresent(request *bean.ListingRequest, isRoleGroup bool)
 	DeleteRoleForUserFromCasbin(mappings map[string][]bean3.GroupPolicy) bool
 	DeleteUserForRoleFromCasbin(mappings map[string][]bean3.GroupPolicy) bool
@@ -728,12 +726,12 @@ func (impl UserCommonServiceImpl) BuildRoleFilterKeyForOtherEntity(roleFilterMap
 	}
 }
 
-func (impl UserCommonServiceImpl) GetUniqueKeyForAllEntityWithTimeAndStatus(role repository.RoleModel, status bean.Status, timeout time.Time) string {
-	key := impl.GetUniqueKeyForAllEntity(role)
+func GetUniqueKeyForAllEntityWithTimeAndStatus(role repository.RoleModel, status bean.Status, timeout time.Time) string {
+	key := GetUniqueKeyForAllEntity(role)
 	return fmt.Sprintf("%s_%s_%s", key, status, timeout)
 }
 
-func (impl UserCommonServiceImpl) GetUniqueKeyForAllEntity(role repository.RoleModel) string {
+func GetUniqueKeyForAllEntity(role repository.RoleModel) string {
 	key := ""
 	if len(role.Team) > 0 && role.Entity != bean2.EntityJobs {
 		key = fmt.Sprintf("%s_%s_%s_%t", role.Team, role.Action, role.AccessType, role.Approver)
