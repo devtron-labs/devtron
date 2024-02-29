@@ -3,7 +3,6 @@ package bean
 import (
 	"encoding/json"
 	"errors"
-	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	repository1 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
 	"github.com/devtron-labs/devtron/util"
@@ -17,9 +16,9 @@ type SortKey = string
 type SortOrder = string
 
 const (
-	PROMOTED ArtifactPromotionRequestStatus = iota
+	AWAITING_APPROVAL ArtifactPromotionRequestStatus = iota
 	CANCELED
-	AWAITING_APPROVAL
+	PROMOTED
 	STALE = 3
 )
 
@@ -166,13 +165,13 @@ type EnvironmentApprovalMetadata struct {
 }
 
 type PromotionPolicy struct {
-	Id                 int                                `json:"id" `
-	Name               string                             `json:"name" isSearchField:"true" validate:"min=3 max=50 global-entity-name"`
-	Description        string                             `json:"description" validate:"max=300"`
-	PolicyEvaluationId int                                `json:"-"`
-	Conditions         []resourceFilter.ResourceCondition `json:"conditions" validate:"omitempty,min=1"`
-	ApprovalMetaData   ApprovalMetaData                   `json:"approvalMetadata" validate:"dive"`
-	IdentifierCount    *int                               `json:"identifierCount,omitempty"`
+	Id                 int                      `json:"id" `
+	Name               string                   `json:"name" isSearchField:"true" validate:"min=3 max=50 global-entity-name"`
+	Description        string                   `json:"description" validate:"max=300"`
+	PolicyEvaluationId int                      `json:"-"`
+	Conditions         []util.ResourceCondition `json:"conditions" validate:"omitempty,min=1"`
+	ApprovalMetaData   ApprovalMetaData         `json:"approvalMetadata" validate:"dive"`
+	IdentifierCount    *int                     `json:"identifierCount,omitempty"`
 }
 
 func (policy *PromotionPolicy) ConvertToGlobalPolicyBaseModal(userId int32) (*bean.GlobalPolicyBaseModel, error) {

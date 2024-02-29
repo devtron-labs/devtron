@@ -1,11 +1,12 @@
 package resourceFilter
 
 import (
+	"github.com/devtron-labs/devtron/util"
 	"go.uber.org/zap"
 )
 
 type ResourceFilterEvaluator interface {
-	EvaluateFilter(filterConditions []ResourceCondition, expressionMetadata ExpressionMetadata) (bool, error)
+	EvaluateFilter(filterConditions []util.ResourceCondition, expressionMetadata ExpressionMetadata) (bool, error)
 }
 
 type ResourceFilterEvaluatorImpl struct {
@@ -20,7 +21,7 @@ func NewResourceFilterEvaluatorImpl(logger *zap.SugaredLogger, celEvaluator CELE
 	}, nil
 }
 
-func (impl *ResourceFilterEvaluatorImpl) EvaluateFilter(filterConditions []ResourceCondition, expressionMetadata ExpressionMetadata) (bool, error) {
+func (impl *ResourceFilterEvaluatorImpl) EvaluateFilter(filterConditions []util.ResourceCondition, expressionMetadata ExpressionMetadata) (bool, error) {
 	exprResponse := expressionResponse{}
 	for _, resourceCondition := range filterConditions {
 		expression := resourceCondition.Expression

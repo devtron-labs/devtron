@@ -2,6 +2,7 @@ package resourceFilter
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/google/cel-go/cel"
 	"github.com/google/cel-go/checker/decls"
 	"go.uber.org/zap"
@@ -32,7 +33,7 @@ const (
 )
 
 type ValidateRequestResponse struct {
-	Conditions []ResourceCondition `json:"conditions"`
+	Conditions []util.ResourceCondition `json:"conditions"`
 }
 
 type CELRequest struct {

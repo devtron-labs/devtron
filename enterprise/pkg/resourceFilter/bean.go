@@ -5,6 +5,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	util2 "github.com/devtron-labs/devtron/util"
 	"strings"
 	"time"
 )
@@ -19,26 +20,16 @@ const (
 )
 
 type FilterMetaDataBean struct {
-	Id           int                 `json:"id"`
-	TargetObject *FilterTargetObject `json:"targetObject" validate:"required,min=0,max=1"`
-	Description  string              `json:"description" `
-	Name         string              `json:"name" validate:"required,max=300"`
-	Conditions   []ResourceCondition `json:"conditions" validate:"required,dive"`
+	Id           int                       `json:"id"`
+	TargetObject *FilterTargetObject       `json:"targetObject" validate:"required,min=0,max=1"`
+	Description  string                    `json:"description" `
+	Name         string                    `json:"name" validate:"required,max=300"`
+	Conditions   []util2.ResourceCondition `json:"conditions" validate:"required,dive"`
 }
 
 type FilterRequestResponseBean struct {
 	*FilterMetaDataBean
 	QualifierSelector QualifierSelector `json:"qualifierSelector" validate:"dive"`
-}
-
-type ResourceCondition struct {
-	ConditionType ResourceConditionType `json:"conditionType" validate:"min=0,max=1"`
-	Expression    string                `json:"expression" validate:"required,min=1"`
-	ErrorMsg      string                `json:"errorMsg,omitempty"`
-}
-
-func (condition ResourceCondition) IsFailCondition() bool {
-	return condition.ConditionType == FAIL
 }
 
 type ApplicationSelector struct {
