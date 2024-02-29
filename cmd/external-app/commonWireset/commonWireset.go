@@ -42,6 +42,7 @@ import (
 	security2 "github.com/devtron-labs/devtron/internals/sql/repository/security"
 	"github.com/devtron-labs/devtron/pkg/app"
 	repository4 "github.com/devtron-labs/devtron/pkg/appStore/chartGroup/repository"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deployment"
 	"github.com/devtron-labs/devtron/pkg/attributes"
@@ -80,6 +81,8 @@ var CommonWireSet = wire.NewSet(
 	appStoreValues.AppStoreValuesWireSet,
 	util3.GetEnvironmentVariables,
 	appStoreDeployment.AppStoreDeploymentWireSet,
+	service.NewAppStoreDeploymentDBServiceImpl,
+	wire.Bind(new(service.AppStoreDeploymentDBService), new(*service.AppStoreDeploymentDBServiceImpl)),
 	server.ServerWireSet,
 	module.ModuleWireSet,
 	apiToken.ApiTokenWireSet,

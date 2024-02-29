@@ -85,6 +85,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStatus"
 	"github.com/devtron-labs/devtron/pkg/appStore/chartGroup"
 	repository4 "github.com/devtron-labs/devtron/pkg/appStore/chartGroup/repository"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode"
 	deployment3 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deployment"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deploymentTypeChange"
@@ -157,6 +158,8 @@ var CommonWireSet = wire.NewSet(
 	appStoreValues.AppStoreValuesWireSet,
 	util2.GetEnvironmentVariables,
 	appStoreDeployment.AppStoreDeploymentWireSet,
+	service.NewAppStoreDeploymentDBServiceImpl,
+	wire.Bind(new(service.AppStoreDeploymentDBService), new(*service.AppStoreDeploymentDBServiceImpl)),
 	server.ServerWireSet,
 	module.ModuleWireSet,
 	apiToken.ApiTokenWireSet,
