@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
 	"go.uber.org/zap"
@@ -15,7 +16,7 @@ type GlobalPolicySearchableFieldRepository interface {
 	DeleteByPolicyId(policyId int, tx *pg.Tx) error
 	GetSearchableFields(searchableKeyIdValueMapWhereOrGroup, searchableKeyIdValueMapWhereAndGroup map[int][]string) ([]*GlobalPolicySearchableField, error)
 	GetSearchableFieldByIds(policyId []int) ([]*GlobalPolicySearchableField, error)
-	GetSortedPoliciesByPolicyKey(policyId []int, sortKey bean.SearchableField, sortOrderDesc bool) ([]*GlobalPolicySearchableField, error)
+	GetSortedPoliciesByPolicyKey(policyId []int, sortKey util.SearchableField, sortOrderDesc bool) ([]*GlobalPolicySearchableField, error)
 }
 
 type GlobalPolicySearchableFieldRepositoryImpl struct {
@@ -77,14 +78,14 @@ func (repo *GlobalPolicySearchableFieldRepositoryImpl) GetSearchableFields(searc
 		}
 		return q, nil
 	})
-	//for searchableKeyId, searchableKeyValues := range searchableKeyIdValueMapWhereAndGroup {
+	// for searchableKeyId, searchableKeyValues := range searchableKeyIdValueMapWhereAndGroup {
 	//	q.WhereOrGroup(func(q *orm.Query) (*orm.Query, error) {
 	//		q = q.Where("searchable_key_id = ?", searchableKeyId).
 	//			Where("value in (?)", pg.In(searchableKeyValues))
 	//		return q, nil
 	//	})
-	//}
-	//adding is_regex fields always
+	// }
+	// adding is_regex fields always
 	q.WhereOr("is_regex = ?", true)
 	err := q.Select()
 	if err != nil {
@@ -130,17 +131,17 @@ func (repo *GlobalPolicySearchableFieldRepositoryImpl) GetSearchableFieldByIds(p
 	return models, err
 }
 
-func (repo *GlobalPolicySearchableFieldRepositoryImpl) GetSortedPoliciesByPolicyKey(policyId []int, sortKey bean.SearchableField, sortOrderDesc bool) ([]*GlobalPolicySearchableField, error) {
+func (repo *GlobalPolicySearchableFieldRepositoryImpl) GetSortedPoliciesByPolicyKey(policyId []int, sortKey util.SearchableField, sortOrderDesc bool) ([]*GlobalPolicySearchableField, error) {
 
 	var models []*GlobalPolicySearchableField
 
 	var orderExp string
 	switch sortKey.FieldType {
-	case bean.NumericType:
+	case util.NumericType:
 		orderExp = "value"
-	case bean.StringType:
+	case util.StringType:
 		orderExp = "value_int"
-	case bean.DateTimeType:
+	case util.DateTimeType:
 		orderExp = "value_time_stamp"
 	}
 	if sortOrderDesc {

@@ -159,6 +159,32 @@ func (handler RestHandlerImpl) GetPoliciesMetadata(w http.ResponseWriter, r *htt
 		return
 
 	}
+	queryParams := r.URL.Query()
+	sortBy := queryParams.Get("sortBy")
+	sortOrder := queryParams.Get("sortOrder")
+	search := queryParams.Get("search")
+
+	if sortBy == "" {
+		sortBy = "policyName"
+	}
+
+	if sortOrder == "" {
+		sortOrder = "ASC"
+	}
+
+	listFilter := bean.PromotionPolicyMetaRequest{
+		Search:    search,
+		SortBy:    sortBy,
+		SortOrder: sortOrder,
+	}
+
+	policies, err := handler.artifactPromotionReadService.GetPoliciesMetadata(listFilter)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, policies, http.StatusOK)
+
 }
 
 func (handler RestHandlerImpl) GetPolicyByName(w http.ResponseWriter, r *http.Request) {

@@ -64,8 +64,10 @@ func NewArtifactPromotionApprovalServiceImpl(
 	promotionPolicyService read.ArtifactPromotionDataReadService,
 	requestApprovalUserdataRepo pipelineConfig.RequestApprovalUserdataRepository,
 	workflowDagExecutor dag.WorkflowDagExecutor,
+	promotionPolicyCUDService PromotionPolicyCUDService,
 ) *ArtifactPromotionApprovalServiceImpl {
-	return &ArtifactPromotionApprovalServiceImpl{
+
+	artifactApprovalService := &ArtifactPromotionApprovalServiceImpl{
 		artifactPromotionApprovalRequestRepository: ArtifactPromotionApprovalRequestRepository,
 		logger:                            logger,
 		ciPipelineRepository:              CiPipelineRepository,
@@ -80,6 +82,11 @@ func NewArtifactPromotionApprovalServiceImpl(
 		requestApprovalUserdataRepo:       requestApprovalUserdataRepo,
 		workflowDagExecutor:               workflowDagExecutor,
 	}
+
+	// register hooks
+	promotionPolicyCUDService.AddPreDeleteHook(artifactApprovalService.onPolicyDelete)
+	promotionPolicyCUDService.AddPreUpdateHook(artifactApprovalService.onPolicyUpdate)
+	return artifactApprovalService
 }
 
 func (impl ArtifactPromotionApprovalServiceImpl) GetAppAndEnvsMapByWorkflowId(workflowId int) (*bean.WorkflowMetaData, error) {
@@ -264,6 +271,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) evaluatePoliciesOnArtifact(ciAr
 		responseMap[envName] = resp
 	}
 
+	// can be concurrent
 	for envName, policy := range policiesMap {
 		evaluationResult, err := impl.resourceFilterConditionsEvaluator.EvaluateFilter(policy.Conditions, resourceFilter.ExpressionMetadata{Params: params})
 		if err != nil {
@@ -279,6 +287,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) evaluatePoliciesOnArtifact(ciAr
 			ApprovalCount:     policy.ApprovalMetaData.ApprovalCount,
 			PromotionPossible: pointer.Bool(evaluationResult),
 		}
+		// checks on metadata not needed as this is just an evaluation flow (kinda validation)
 		if !evaluationResult {
 			envResp.PromotionValidationMessage = string(bean.BLOCKED_BY_POLICY)
 			envResp.PromotionValidationState = bean.BLOCKED_BY_POLICY
@@ -381,21 +390,21 @@ func (impl ArtifactPromotionApprovalServiceImpl) approveArtifactPromotion(reques
 		}
 	}
 
-	if len(staleRequestIds) > 0 {
-		// attempt deleting the stale requests in bulk
-		err = impl.artifactPromotionApprovalRequestRepository.MarkStale(staleRequestIds)
-		if err != nil {
-			impl.logger.Errorw("error in deleting the request raised using a deleted promotion policy (stale requests)", "staleRequestIds", staleRequestIds, "err", err)
-			// not returning by choice, don't interrupt the user flow
-		}
-	}
-
 	tx, err := impl.artifactPromotionApprovalRequestRepository.StartTx()
 	if err != nil {
 		impl.logger.Errorw("error in starting the transaction", "promotionRequests", promotionRequests, "err", err)
 		return nil, err
 	}
 	defer impl.artifactPromotionApprovalRequestRepository.RollbackTx(tx)
+
+	if len(staleRequestIds) > 0 {
+		// attempt deleting the stale requests in bulk
+		err = impl.artifactPromotionApprovalRequestRepository.MarkStaleByIds(tx, staleRequestIds)
+		if err != nil {
+			impl.logger.Errorw("error in deleting the request raised using a deleted promotion policy (stale requests)", "staleRequestIds", staleRequestIds, "err", err)
+			// not returning by choice, don't interrupt the user flow
+		}
+	}
 
 	for _, promotionRequest := range promotionRequests {
 		promotionRequestApprovedUserData := &pipelineConfig.RequestApprovalUserData{
@@ -409,7 +418,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) approveArtifactPromotion(reques
 		err = impl.requestApprovalUserdataRepo.SaveDeploymentUserData(promotionRequestApprovedUserData)
 		if err != nil {
 			impl.logger.Errorw("error in saving promotion approval user data", "promotionRequestId", request.PromotionRequestId, "err", err)
-			if strings.Contains(err.Error(), "unique_user_request_action") {
+			if strings.Contains(err.Error(), string(pipelineConfig.UNIQUE_USER_REQUEST_ACTION)) {
 				err = errors.New("you have already approved this")
 				resp.PromotionValidationState = bean.APPROVED
 				resp.PromotionValidationMessage = err.Error()
@@ -960,4 +969,20 @@ func (impl ArtifactPromotionApprovalServiceImpl) FetchApprovalAllowedEnvList(art
 		}
 	}
 	return environmentApprovalMetadata, nil
+}
+
+func (impl ArtifactPromotionApprovalServiceImpl) onPolicyDelete(tx *pg.Tx, policyId int) error {
+	err := impl.artifactPromotionApprovalRequestRepository.MarkStaleByPolicyId(tx, policyId)
+	if err != nil {
+		impl.logger.Errorw("error in marking artifact promotion requests stale", "policyId", policyId, "err", err)
+	}
+	return err
+}
+
+func (impl ArtifactPromotionApprovalServiceImpl) onPolicyUpdate(tx *pg.Tx, policyId int) error {
+	err := impl.artifactPromotionApprovalRequestRepository.MarkStaleByPolicyId(tx, policyId)
+	if err != nil {
+		impl.logger.Errorw("error in marking artifact promotion requests stale", "policyId", policyId, "err", err)
+	}
+	return err
 }

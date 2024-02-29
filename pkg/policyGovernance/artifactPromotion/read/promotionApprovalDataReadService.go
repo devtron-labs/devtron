@@ -12,6 +12,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/repository"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
+	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"net/http"
@@ -310,9 +311,9 @@ func (impl ArtifactPromotionDataReadServiceImpl) parseSortByRequest(policyMetada
 		sortRequest.SortByType = bean2.GlobalPolicyColumnField
 	case bean.APPROVER_COUNT_SORT_KEY:
 		sortRequest.SortByType = bean2.GlobalPolicySearchableField
-		sortRequest.SearchableField = bean2.SearchableField{
+		sortRequest.SearchableField = util2.SearchableField{
 			FieldName: bean.PROMOTION_APPROVAL_PENDING_NODE,
-			FieldType: bean2.NumericType,
+			FieldType: util2.NumericType,
 		}
 	}
 	return sortRequest

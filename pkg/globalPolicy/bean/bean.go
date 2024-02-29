@@ -3,6 +3,7 @@ package bean
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
+	"github.com/devtron-labs/devtron/util"
 	"time"
 )
 
@@ -242,19 +243,9 @@ type GlobalPolicyBaseModel struct {
 
 type GlobalPolicyDataModel struct {
 	GlobalPolicyBaseModel
-	SearchableFields []SearchableField
+	SearchableFields []util.SearchableField
 }
 
-type SearchableField struct {
-	FieldName  string
-	FieldValue interface{}
-	FieldType  FieldType
-}
-type FieldType int
-
-const NumericType FieldType = 1
-const StringType FieldType = 2
-const DateTimeType FieldType = 3
 const UniqueActiveNameConstraint = "todo" // todo
 
 type GlobalPolicyFieldType int
@@ -266,6 +257,6 @@ const (
 
 type SortByRequest struct {
 	SortByType      GlobalPolicyFieldType // if true sort by searchable field
-	SearchableField SearchableField       // name of searchable field by which results should be sorted
+	SearchableField util.SearchableField  // name of searchable field by which results should be sorted
 	SortOrderDesc   bool
 }

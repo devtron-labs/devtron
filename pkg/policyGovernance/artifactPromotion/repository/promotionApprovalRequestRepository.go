@@ -43,7 +43,9 @@ type ArtifactPromotionApprovalRequestRepository interface {
 	FindPromotedRequestByPipelineIdAndArtifactId(pipelineId, artifactId int) (*ArtifactPromotionApprovalRequest, error)
 	FindByPipelineIdAndArtifactIds(pipelineId int, artifactIds []int) ([]*ArtifactPromotionApprovalRequest, error)
 	FindAwaitedRequestsByArtifactId(artifactId int) ([]*ArtifactPromotionApprovalRequest, error)
-	MarkStale(requestIds []int) error
+	FindAwaitedRequestByPolicyId(policyId int) ([]*ArtifactPromotionApprovalRequest, error)
+	MarkStaleByIds(tx *pg.Tx, requestIds []int) error
+	MarkStaleByPolicyId(tx *pg.Tx, policyId int) error
 	MarkPromoted(tx *pg.Tx, requestIds []int) error
 	sql.TransactionWrapper
 }
@@ -101,6 +103,16 @@ func (repo *ArtifactPromotionApprovalRequestRepoImpl) FindAwaitedRequestByPipeli
 	return models, err
 }
 
+func (repo *ArtifactPromotionApprovalRequestRepoImpl) FindAwaitedRequestByPolicyId(policyId int) ([]*ArtifactPromotionApprovalRequest, error) {
+	models := make([]*ArtifactPromotionApprovalRequest, 0)
+	err := repo.dbConnection.Model(&models).
+		Where("status = ? ", bean.AWAITING_APPROVAL).
+		Where("active = ?", true).
+		Where("policy_id = ?", policyId).
+		Select()
+	return models, err
+}
+
 func (repo *ArtifactPromotionApprovalRequestRepoImpl) FindPromotedRequestByPipelineIdAndArtifactId(pipelineId, artifactId int) (*ArtifactPromotionApprovalRequest, error) {
 	model := &ArtifactPromotionApprovalRequest{}
 	err := repo.dbConnection.Model(model).
@@ -132,12 +144,24 @@ func (repo *ArtifactPromotionApprovalRequestRepoImpl) FindAwaitedRequestsByArtif
 	return models, err
 }
 
-func (repo *ArtifactPromotionApprovalRequestRepoImpl) MarkStale(requestIds []int) error {
-	_, err := repo.dbConnection.Model(&ArtifactPromotionApprovalRequest{}).
+func (repo *ArtifactPromotionApprovalRequestRepoImpl) MarkStaleByIds(tx *pg.Tx, requestIds []int) error {
+	_, err := tx.Model(&ArtifactPromotionApprovalRequest{}).
 		Set("status = ?", bean.STALE).
 		Set("updated_on = ?", time.Now()).
 		Set("active=?", false).
 		Where("id IN (?)", pg.In(requestIds)).
+		Where("active = ?", true).
+		Update()
+	return err
+}
+
+func (repo *ArtifactPromotionApprovalRequestRepoImpl) MarkStaleByPolicyId(tx *pg.Tx, policyId int) error {
+	_, err := repo.dbConnection.Model(&ArtifactPromotionApprovalRequest{}).
+		Set("status = ?", bean.STALE).
+		Set("updated_on = ?", time.Now()).
+		Set("active=?", false).
+		Where("policy_id = ?", policyId).
+		Where("active = ?", true).
 		Update()
 	return err
 }

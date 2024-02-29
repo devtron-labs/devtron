@@ -2,12 +2,14 @@ package artifactPromotion
 
 import (
 	"errors"
+	"fmt"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/globalPolicy"
 	bean2 "github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
+	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"net/http"
 	"strings"
@@ -17,6 +19,8 @@ type PromotionPolicyCUDService interface {
 	UpdatePolicy(userId int32, policyName string, policyBean *bean.PromotionPolicy) error
 	CreatePolicy(userId int32, policyBean *bean.PromotionPolicy) error
 	DeletePolicy(userId int32, profileName string) error
+	AddPreDeleteHook(hook func(tx *pg.Tx, policyId int) error)
+	AddPreUpdateHook(hook func(tx *pg.Tx, policyId int) error)
 }
 
 type PromotionPolicyServiceImpl struct {
@@ -24,6 +28,10 @@ type PromotionPolicyServiceImpl struct {
 	resourceQualifierMappingService resourceQualifiers.QualifierMappingService
 	pipelineService                 pipeline.CdPipelineConfigService
 	logger                          *zap.SugaredLogger
+
+	// todo: not a thread safe
+	preDeleteHooks []func(tx *pg.Tx, policyId int) error
+	preUpdateHooks []func(tx *pg.Tx, policyId int) error
 }
 
 func NewPromotionPolicyServiceImpl(globalPolicyDataManager globalPolicy.GlobalPolicyDataManager,
@@ -31,12 +39,24 @@ func NewPromotionPolicyServiceImpl(globalPolicyDataManager globalPolicy.GlobalPo
 	pipelineService pipeline.CdPipelineConfigService,
 	logger *zap.SugaredLogger,
 ) *PromotionPolicyServiceImpl {
+	preDeleteHooks := make([]func(tx *pg.Tx, policyId int) error, 0)
 	return &PromotionPolicyServiceImpl{
 		globalPolicyDataManager:         globalPolicyDataManager,
 		resourceQualifierMappingService: resourceQualifierMappingService,
 		pipelineService:                 pipelineService,
 		logger:                          logger,
+		preDeleteHooks:                  preDeleteHooks,
 	}
+}
+
+// todo: not a thread safe
+func (impl PromotionPolicyServiceImpl) AddPreDeleteHook(hook func(tx *pg.Tx, policyId int) error) {
+	impl.preDeleteHooks = append(impl.preDeleteHooks, hook)
+}
+
+// todo: not a thread safe
+func (impl PromotionPolicyServiceImpl) AddPreUpdateHook(hook func(tx *pg.Tx, policyId int) error) {
+	impl.preUpdateHooks = append(impl.preUpdateHooks, hook)
 }
 
 func (impl PromotionPolicyServiceImpl) UpdatePolicy(userId int32, policyName string, policyBean *bean.PromotionPolicy) error {
@@ -86,9 +106,41 @@ func (impl PromotionPolicyServiceImpl) CreatePolicy(userId int32, policyBean *be
 }
 
 func (impl PromotionPolicyServiceImpl) DeletePolicy(userId int32, policyName string) error {
-	err := impl.globalPolicyDataManager.DeletePolicyByName(policyName, userId)
+	tx, err := impl.resourceQualifierMappingService.StartTx()
+	if err != nil {
+		impl.logger.Errorw("error in starting the transaction", "userId", userId, "policyName", policyName, "err", err)
+		return err
+	}
+
+	policyId, err := impl.globalPolicyDataManager.GetPolicyIdByName(policyName, bean2.GLOBAL_POLICY_TYPE_IMAGE_PROMOTION_POLICY)
+	if err != nil {
+		impl.logger.Errorw("error in getting the policy by name", "policyName", policyName, "userId", userId, "err", err)
+		if errors.Is(err, pg.ErrNoRows) {
+			return &util.ApiError{
+				HttpStatusCode:  http.StatusNotFound,
+				InternalMessage: fmt.Sprintf("policy with name %s not found", policyName),
+				UserMessage:     fmt.Sprintf("policy with name %s not found", policyName),
+			}
+		}
+		return err
+	}
+	defer impl.resourceQualifierMappingService.RollbackTx(tx)
+	err = impl.globalPolicyDataManager.DeletePolicyByName(tx, policyName, userId)
 	if err != nil {
 		impl.logger.Errorw("error in deleting the promotion policy using name", "policyName", policyName, "userId", userId, "err", err)
+		return err
 	}
-	return err
+	for _, hook := range impl.preDeleteHooks {
+		err = hook(tx, policyId)
+		if err != nil {
+			impl.logger.Errorw("error in running pre delete hook ", "policyName", policyName, "err", err)
+			return err
+		}
+	}
+	err = impl.resourceQualifierMappingService.CommitTx(tx)
+	if err != nil {
+		impl.logger.Errorw("error in committing the transaction ", "policyName", policyName, "err", err)
+		return err
+	}
+	return nil
 }
