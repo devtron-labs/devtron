@@ -94,6 +94,7 @@ import (
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/enterprise/api/artifactPromotionApprovalRequest"
 	"github.com/devtron-labs/devtron/enterprise/api/artifactPromotionPolicy"
+	"github.com/devtron-labs/devtron/enterprise/api/commonPolicyActions"
 	"github.com/devtron-labs/devtron/enterprise/api/drafts"
 	"github.com/devtron-labs/devtron/enterprise/api/globalTag"
 	"github.com/devtron-labs/devtron/enterprise/api/lockConfiguation"
@@ -181,6 +182,7 @@ func InitializeApp() (*App, error) {
 
 	wire.Build(
 		// ----- wireset start
+		commonPolicyActions.CommonPolicyActionWireSet,
 		sql.PgSqlWireSet,
 		user.SelfRegistrationWireSet,
 		externalLink.ExternalLinkWireSet,

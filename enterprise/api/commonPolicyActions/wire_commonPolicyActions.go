@@ -11,5 +11,5 @@ var CommonPolicyActionWireSet = wire.NewSet(
 	NewCommonPolicyRestHandlerImpl,
 	wire.Bind(new(CommonPolicyRestHandler), new(*CommonPolicyRestHandlerImpl)),
 	NewCommonPolicyRouterImpl,
-	wire.Bind(new(CommonPolicyRouter), new(*CommonPolicyRouter)),
+	wire.Bind(new(CommonPolicyRouter), new(*CommonPolicyRouterImpl)),
 )
