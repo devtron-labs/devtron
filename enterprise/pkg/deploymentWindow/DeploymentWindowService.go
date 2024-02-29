@@ -25,7 +25,7 @@ type DeploymentWindowService interface {
 	GetDeploymentWindowProfileOverview(appId int, envIds []int) (*DeploymentWindowResponse, error)
 
 	//State
-	CheckTriggerAllowedState(targetTime time.Time, appId int, envId int, userId int32) (bool, error)
+	CheckTriggerAllowedState(targetTime time.Time, appId int, envId int, userId int32) (*DeploymentWindowProfile, bool, error)
 	GetDeploymentWindowProfileState(targetTime time.Time, appId int, envIds []int, userId int32) (*DeploymentWindowResponse, error)
 	GetDeploymentWindowProfileStateAppGroup(targetTime time.Time, selectors []AppEnvSelector, userId int32) (*DeploymentWindowAppGroupResponse, error)
 }
