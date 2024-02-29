@@ -1,6 +1,7 @@
 package bean
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go-v2/service/ecr/types"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -50,4 +51,9 @@ type CiCompleteEvent struct {
 	ImageDetailsFromCR            *ImageDetailsFromCR      `json:"imageDetailsFromCR"`
 	PluginRegistryArtifactDetails map[string][]string      `json:"PluginRegistryArtifactDetails"`
 	PluginArtifactStage           string                   `json:"pluginArtifactStage"`
+}
+
+type DevtronAppReleaseContextType struct {
+	CancelContext context.CancelFunc
+	RunnerId      int
 }
