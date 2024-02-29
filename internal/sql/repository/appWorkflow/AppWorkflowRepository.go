@@ -511,6 +511,7 @@ func (impl AppWorkflowRepositoryImpl) FindByComponentId(componentId int) ([]*App
 		Where("app_workflow_mapping.component_id= ?", componentId).
 		Where("app_workflow.active = ?", true).
 		Where("app_workflow_mapping.active = ?", true).
+		Where("app_workflow_mapping.type = ?", CIPIPELINE).
 		Select()
 	return appWorkflowsMapping, err
 }
