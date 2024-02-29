@@ -109,6 +109,9 @@ type CiPipelineConfigService interface {
 	GetExternalCiByEnvironment(request resourceGroup2.ResourceGroupingRequest, token string) (ciConfig []*bean.ExternalCiConfig, err error)
 	DeleteCiPipeline(request *bean.CiPatchRequest) (*bean.CiPipeline, error)
 	CreateExternalCiAndAppWorkflowMapping(appId, appWorkflowId int, userId int32, tx *pg.Tx) (int, *appWorkflow.AppWorkflowMapping, error)
+
+	//GetCIRuntimeParams gets all ci pipeline needed runtime params. Currently only env variables are supported.
+	GetCIRuntimeParams(ciPipelineId int) (*bean.RuntimeParameters, error)
 }
 
 type CiPipelineConfigServiceImpl struct {
@@ -1642,6 +1645,26 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineMin(appId int, envIds []in
 		ciPipelineResp = append(ciPipelineResp, ciPipeline)
 	}
 	return ciPipelineResp, err
+}
+
+func (impl *CiPipelineConfigServiceImpl) GetCIRuntimeParams(ciPipelineId int) (*bean.RuntimeParameters, error) {
+	//getting env Variables from attributes service
+	attributeObj, err := impl.attributesService.GetByKey(attributes.CI_RUNTIME_ENV_VARS)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting ci runtime env vars attribute entry", "err", err, "ciPipelineId", ciPipelineId)
+		return nil, err
+	}
+	runtimeParams := &bean.RuntimeParameters{}
+	if attributeObj != nil {
+		envVars := make(map[string]string)
+		err = json.Unmarshal([]byte(attributeObj.Value), &envVars)
+		if err != nil {
+			impl.logger.Errorw("error in unmarshaling ci runtime env vars attribute value", "err", err, "value", attributeObj.Value)
+			return nil, err
+		}
+		runtimeParams.EnvVariables = envVars
+	}
+	return runtimeParams, nil
 }
 
 func (impl *CiPipelineConfigServiceImpl) PatchRegexCiPipeline(request *bean.CiRegexPatchRequest) (err error) {
