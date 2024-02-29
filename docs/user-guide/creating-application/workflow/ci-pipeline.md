@@ -8,9 +8,9 @@ For Devtron version older than v0.4.0, please refer the [CI Pipeline (legacy)](.
 
 A CI Workflow can be created in one of the following ways:
 
-* [Build and Deploy from Source Code](#1.-build-and-deploy-from-source-code)
-* [Linked Build Pipeline](#2.-linked-build-pipeline)
-* [Deploy Image from External Service](#3.-deploy-image-from-external-service)
+* [Build and Deploy from Source Code](#id-1.-build-and-deploy-from-source-code)
+* [Linked Build Pipeline](#id-2.-linked-build-pipeline)
+* [Deploy Image from External Service](#id-3.-deploy-image-from-external-service)
 * Sync with Environment
 * Create a Job
 
