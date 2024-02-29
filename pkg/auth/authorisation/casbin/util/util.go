@@ -36,14 +36,18 @@ func IsGroupPolicyActive(expression string, format string, recordedTime time.Tim
 	return false, nil
 }
 
-func GetUsersForActivePolicy(groupPolicies []bean4.GroupPolicy) []string {
+func GetUsersForActivePolicy(groupPolicies []bean4.GroupPolicy) ([]string, error) {
 	users := make([]string, 0)
 	recordedTime := time.Now()
 	for _, policy := range groupPolicies {
-		isActive, _ := IsGroupPolicyActive(policy.TimeoutWindowExpression, policy.ExpressionFormat, recordedTime)
+		isActive, err := IsGroupPolicyActive(policy.TimeoutWindowExpression, policy.ExpressionFormat, recordedTime)
+		if err != nil {
+			fmt.Println("error in GetUsersForActivePolicy", "err", err, "policy", policy)
+			return nil, err
+		}
 		if isActive {
 			users = append(users, policy.User)
 		}
 	}
-	return users
+	return users, nil
 }

@@ -1875,7 +1875,11 @@ func (impl UserServiceImpl) extractEmailIds(permissionGroupNames []string, email
 			impl.logger.Errorw("error in extractEmailIds", "err", err, "groupName", groupName)
 			return emailIds, err
 		}
-		userEmails := util4.GetUsersForActivePolicy(polices)
+		userEmails, err := util4.GetUsersForActivePolicy(polices)
+		if err != nil {
+			impl.logger.Errorw("error in extractEmailIds", "err", err, "polices", polices)
+			return emailIds, err
+		}
 		emailIds = append(emailIds, userEmails...)
 	}
 	uniqueEmails := make(map[string]bool)
