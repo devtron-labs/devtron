@@ -13,6 +13,8 @@ import (
 )
 
 const (
+	HTTP_URL_PROTOCOL              = "http://"
+	HTTPS_URL_PROTOCOL             = "https://"
 	BITBUCKET_CLONE_BASE_URL       = "https://bitbucket.org/"
 	BITBUCKET_GITOPS_DIR           = "bitbucketGitOps"
 	BITBUCKET_REPO_NOT_FOUND_ERROR = "404 Not Found"

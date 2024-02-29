@@ -19,22 +19,21 @@ package gitOpsConfig
 
 import (
 	"context"
-	"fmt"
 	apiGitOpsBean "github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/client/argocdServer"
+	chartService "github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/chart/gitOpsConfig/bean"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/validation"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/gitOps/validation/bean"
 	"net/http"
+	"path/filepath"
 
 	//"github.com/devtron-labs/devtron/pkg/pipeline"
 
-	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
-	"time"
-
 	"github.com/devtron-labs/devtron/internal/util"
+	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"go.uber.org/zap"
 )
 
@@ -46,6 +45,7 @@ type DevtronAppGitOpConfigService interface {
 type DevtronAppGitOpConfigServiceImpl struct {
 	logger                   *zap.SugaredLogger
 	chartRepository          chartRepoRepository.ChartRepository
+	chartService             chartService.ChartService
 	gitOpsConfigReadService  config.GitOpsConfigReadService
 	gitOpsValidationService  validation.GitOpsValidationService
 	argoClientWrapperService argocdServer.ArgoClientWrapperService
@@ -53,12 +53,14 @@ type DevtronAppGitOpConfigServiceImpl struct {
 
 func NewDevtronAppGitOpConfigServiceImpl(logger *zap.SugaredLogger,
 	chartRepository chartRepoRepository.ChartRepository,
+	chartService chartService.ChartService,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
 	gitOpsValidationService validation.GitOpsValidationService,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService) *DevtronAppGitOpConfigServiceImpl {
 	return &DevtronAppGitOpConfigServiceImpl{
 		logger:                   logger,
 		chartRepository:          chartRepository,
+		chartService:             chartService,
 		gitOpsConfigReadService:  gitOpsConfigReadService,
 		gitOpsValidationService:  gitOpsValidationService,
 		argoClientWrapperService: argoClientWrapperService,
@@ -72,27 +74,44 @@ func (impl *DevtronAppGitOpConfigServiceImpl) SaveAppLevelGitOpsConfiguration(ap
 		return err
 	}
 	if !gitOpsConfigurationStatus.IsGitOpsConfigured {
-		return fmt.Errorf("Gitops integration is not installed/configured. Please install/configure gitops.")
+		apiErr := &util.ApiError{
+			HttpStatusCode:  http.StatusPreconditionFailed,
+			UserMessage:     "GitOps integration is not installed/configured. Please install/configure GitOps.",
+			InternalMessage: "GitOps integration is not installed/configured. Please install/configure GitOps.",
+		}
+		return apiErr
 	}
 	if !gitOpsConfigurationStatus.AllowCustomRepository {
 		apiErr := &util.ApiError{
 			HttpStatusCode:  http.StatusConflict,
-			UserMessage:     "Invalid request! Please configure Gitops with 'Allow changing git repository for application'.",
+			UserMessage:     "Invalid request! Please configure GitOps with 'Allow changing git repository for application'.",
 			InternalMessage: "Invalid request! Custom repository is not valid, as the global configuration is updated",
 		}
 		return apiErr
 	}
 
 	if impl.isGitRepoUrlPresent(appGitOpsRequest.AppId) {
-		return fmt.Errorf("Invalid request! GitOps repository is already configured.")
+		apiErr := &util.ApiError{
+			HttpStatusCode:  http.StatusBadRequest,
+			UserMessage:     "Invalid request! GitOps repository is already configured.",
+			InternalMessage: "Invalid request! GitOps repository is already configured.",
+		}
+		return apiErr
 	}
 
-	charts, err := impl.chartRepository.FindActiveChartsByAppId(appGitOpsRequest.AppId)
-	if err != nil {
-		impl.logger.Errorw("Error in fetching charts for app", "err", err, "appId", appGitOpsRequest.AppId)
+	appDeploymentTemplate, err := impl.chartService.FindLatestChartForAppByAppId(appGitOpsRequest.AppId)
+	if util.IsErrNoRows(err) {
+		impl.logger.Errorw("no base charts configured for app", "appId", appGitOpsRequest.AppId, "err", err)
+		apiErr := &util.ApiError{
+			HttpStatusCode:  http.StatusPreconditionFailed,
+			UserMessage:     "Invalid request! Base deployment chart is not configured for the app",
+			InternalMessage: "Invalid request! Base deployment chart is not configured for the app",
+		}
+		return apiErr
+	} else if err != nil {
+		impl.logger.Errorw("error in fetching latest chart for app by appId", "appId", appGitOpsRequest.AppId, "err", err)
 		return err
 	}
-
 	validateCustomGitRepoURLRequest := bean3.ValidateCustomGitRepoURLRequest{
 		GitRepoURL:     appGitOpsRequest.GitOpsRepoURL,
 		UserId:         appGitOpsRequest.UserId,
@@ -111,24 +130,19 @@ func (impl *DevtronAppGitOpConfigServiceImpl) SaveAppLevelGitOpsConfiguration(ap
 	// ValidateCustomGitRepoURL returns sanitized repo url after validation
 	appGitOpsRequest.GitOpsRepoURL = repoUrl
 	chartGitAttr := &commonBean.ChartGitAttribute{
-		RepoUrl: repoUrl,
+		RepoUrl:       repoUrl,
+		ChartLocation: filepath.Join(appDeploymentTemplate.RefChartTemplate, appDeploymentTemplate.LatestChartVersion),
 	}
-	err = impl.argoClientWrapperService.RegisterGitOpsRepoInArgo(ctx, chartGitAttr.RepoUrl, appGitOpsRequest.UserId)
+	err = impl.argoClientWrapperService.RegisterGitOpsRepoInArgoWithRetry(ctx, chartGitAttr.RepoUrl, appGitOpsRequest.UserId)
 	if err != nil {
 		impl.logger.Errorw("error while register git repo in argo", "err", err)
 		return err
 	}
-
-	for _, chart := range charts {
-		chart.GitRepoUrl = repoUrl
-		chart.UpdatedOn = time.Now()
-		chart.UpdatedBy = appGitOpsRequest.UserId
-		chart.IsCustomGitRepository = gitOpsConfigurationStatus.AllowCustomRepository && appGitOpsRequest.GitOpsRepoURL != apiGitOpsBean.GIT_REPO_DEFAULT
-		err = impl.chartRepository.Update(chart)
-		if err != nil {
-			impl.logger.Errorw("error in updating git repo url in charts while saving git repo url", "err", err, "appGitOpsRequest", appGitOpsRequest)
-			return err
-		}
+	isCustomGitOpsRepo := gitOpsConfigurationStatus.AllowCustomRepository && appGitOpsRequest.GitOpsRepoURL != apiGitOpsBean.GIT_REPO_DEFAULT
+	err = impl.chartService.ConfigureGitOpsRepoUrl(appGitOpsRequest.AppId, chartGitAttr.RepoUrl, chartGitAttr.ChartLocation, isCustomGitOpsRepo, appGitOpsRequest.UserId)
+	if err != nil {
+		impl.logger.Errorw("error in updating git repo url in charts", "err", err)
+		return err
 	}
 	return nil
 }
@@ -138,29 +152,40 @@ func (impl *DevtronAppGitOpConfigServiceImpl) GetAppLevelGitOpsConfiguration(app
 	if err != nil {
 		impl.logger.Errorw("error in fetching active gitOps config", "err", err)
 		return nil, err
-	}
-	if !gitOpsConfigurationStatus.IsGitOpsConfigured {
-		return nil, fmt.Errorf("Gitops integration is not installed/configured. Please install/configure gitops.")
-	}
-	if !gitOpsConfigurationStatus.AllowCustomRepository {
+	} else if !gitOpsConfigurationStatus.IsGitOpsConfigured {
+		apiErr := &util.ApiError{
+			HttpStatusCode:  http.StatusPreconditionFailed,
+			UserMessage:     "GitOps integration is not installed/configured. Please install/configure GitOps.",
+			InternalMessage: "GitOps integration is not installed/configured. Please install/configure GitOps.",
+		}
+		return nil, apiErr
+	} else if !gitOpsConfigurationStatus.AllowCustomRepository {
 		apiErr := &util.ApiError{
 			HttpStatusCode:  http.StatusConflict,
-			UserMessage:     "Invalid request! Please configure Gitops with 'Allow changing git repository for application'.",
+			UserMessage:     "Invalid request! Please configure GitOps with 'Allow changing git repository for application'.",
 			InternalMessage: "Invalid request! Custom repository is not valid, as the global configuration is updated",
 		}
 		return nil, apiErr
 	}
-	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
-	if err != nil {
-		impl.logger.Errorw("error in fetching latest chart for app by appId", "err", err, "appId", appId)
+	appDeploymentTemplate, err := impl.chartService.FindLatestChartForAppByAppId(appId)
+	if util.IsErrNoRows(err) {
+		impl.logger.Errorw("no base charts configured for app", "appId", appId, "err", err)
+		apiErr := &util.ApiError{
+			HttpStatusCode:  http.StatusPreconditionFailed,
+			UserMessage:     "Invalid request! Base deployment chart is not configured for the app",
+			InternalMessage: "Invalid request! Base deployment chart is not configured for the app",
+		}
+		return nil, apiErr
+	} else if err != nil {
+		impl.logger.Errorw("error in fetching latest chart for app by appId", "appId", appId, "err", err)
 		return nil, err
 	}
 	appGitOpsConfigResponse := &bean.AppGitOpsConfigResponse{
 		IsEditable: true,
 	}
-	isGitOpsRepoConfigured := !apiGitOpsBean.IsGitOpsRepoNotConfigured(chart.GitRepoUrl)
+	isGitOpsRepoConfigured := !apiGitOpsBean.IsGitOpsRepoNotConfigured(appDeploymentTemplate.GitRepoUrl)
 	if isGitOpsRepoConfigured {
-		appGitOpsConfigResponse.GitRepoURL = chart.GitRepoUrl
+		appGitOpsConfigResponse.GitRepoURL = appDeploymentTemplate.GitRepoUrl
 		appGitOpsConfigResponse.IsEditable = false
 		return appGitOpsConfigResponse, nil
 	}
@@ -173,8 +198,5 @@ func (impl *DevtronAppGitOpConfigServiceImpl) isGitRepoUrlPresent(appId int) boo
 		impl.logger.Errorw("error fetching git repo url from the latest chart")
 		return false
 	}
-	if apiGitOpsBean.IsGitOpsRepoNotConfigured(fetchedChart.GitRepoUrl) {
-		return false
-	}
-	return true
+	return !apiGitOpsBean.IsGitOpsRepoNotConfigured(fetchedChart.GitRepoUrl)
 }

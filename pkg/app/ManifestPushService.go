@@ -72,7 +72,7 @@ func (impl *GitOpsManifestPushServiceImpl) migrateRepoForGitOperation(manifestPu
 		return "", fmt.Errorf("No repository configured for Gitops! Error while creating git repository: '%s'", gitOpsRepoName)
 	}
 	chartGitAttr.ChartLocation = manifestPushTemplate.ChartLocation
-	err = impl.argoClientWrapperService.RegisterGitOpsRepoInArgo(ctx, chartGitAttr.RepoUrl, manifestPushTemplate.UserId)
+	err = impl.argoClientWrapperService.RegisterGitOpsRepoInArgoWithRetry(ctx, chartGitAttr.RepoUrl, manifestPushTemplate.UserId)
 	if err != nil {
 		impl.logger.Errorw("error in registering app in acd", "err", err)
 		return "", fmt.Errorf("Error in registering repository '%s' in ArgoCd", gitOpsRepoName)

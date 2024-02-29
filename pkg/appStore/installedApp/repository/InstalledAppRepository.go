@@ -131,6 +131,7 @@ type InstalledAppRepository interface {
 	GetInstalledAppByAppName(appName string) (*InstalledApps, error)
 	GetInstalledAppByAppIdAndDeploymentType(appId int, deploymentAppType string) (InstalledApps, error)
 	GetInstalledAppByInstalledAppVersionId(installedAppVersionId int) (InstalledApps, error)
+	// GetInstalledAppByGitOpsAppName will return all the active installed_apps with matching `app_name-environment_name`
 	GetInstalledAppByGitOpsAppName(acdAppName string) (*InstalledApps, error)
 	GetInstalledAppByGitRepoUrl(repoName, repoUrl string) (*InstalledApps, error)
 
@@ -755,6 +756,7 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppByGitOpsAppName(acdAppName
 	model := &InstalledApps{}
 	err := impl.dbConnection.Model(model).
 		Column("installed_apps.*", "App", "Environment").
+		// TODO add deployment_app_name filed in installed_apps table
 		Where("CONCAT(app.app_name, ?, environment.environment_name) = ?", "-", acdAppName).
 		Where("installed_apps.active = true").
 		Where("environment.active = true").
