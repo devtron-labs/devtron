@@ -167,7 +167,7 @@ type EnvironmentApprovalMetadata struct {
 
 type PromotionPolicy struct {
 	Id                 int                      `json:"id" `
-	Name               string                   `json:"name" isSearchField:"true" validate:"min=3 max=50 global-entity-name"`
+	Name               string                   `json:"name" isSearchField:"true" validate:"min=3,max=50,global-entity-name"`
 	Description        string                   `json:"description" validate:"max=300"`
 	PolicyEvaluationId int                      `json:"-"`
 	Conditions         []util.ResourceCondition `json:"conditions" validate:"omitempty,min=1"`
@@ -194,9 +194,6 @@ func (policy *PromotionPolicy) ConvertToGlobalPolicyBaseModal(userId int32) (*be
 
 func (policy *PromotionPolicy) ConvertToGlobalPolicyDataModel(userId int32) (*bean.GlobalPolicyDataModel, error) {
 	baseModel, err := policy.ConvertToGlobalPolicyBaseModal(userId)
-	if err != nil {
-		return nil, err
-	}
 	if err != nil {
 		return nil, err
 	}

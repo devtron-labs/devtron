@@ -540,8 +540,8 @@ components:
       type: object
       properties:
         conditionType:
-          description: "PASS or FAIL condition"
-          type: string
+          description: "0 or 1"
+          type: integer
         expression:
           type: string
         errorMsg:

@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS public.artifact_promotion_approval_request
 --     foreign key to artifact_promotion_policy
     "policy_id"                    int          NOT NULL,
 --     foreign key to filter_evaluation_audit
-    "policy_evaluation_audit_id"   int          NOT NULL
+    "policy_evaluation_audit_id"   int          NOT NULL,
 --     foreign key to ci_artifact
     "artifact_id"                  int          NOT NULL,
     "source_pipeline_id"           int          NOT NULL,
@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS public.artifact_promotion_approval_request
 
 CREATE UNIQUE INDEX "idx_unique_artifact_promoted_to_destination"
     ON artifact_promotion_approval_request(artifact_id,destination_pipeline_id)
-    WHERE status = 'PROMOTED';
+    WHERE status = 2;
 
 -- custom role queries
 insert into rbac_policy_resource_detail

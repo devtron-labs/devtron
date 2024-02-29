@@ -7,9 +7,9 @@ import (
 )
 
 func TestAppEnvPolicyMappingsListFilterStructValidation(t *testing.T) {
+	validator := validator.New()
 	t.Run("default values", func(tt *testing.T) {
 		filter := AppEnvPolicyMappingsListFilter{}
-		validator := validator.New()
 		err := validator.Struct(&filter)
 		assert.Nil(tt, err)
 	})
@@ -21,7 +21,6 @@ func TestAppEnvPolicyMappingsListFilterStructValidation(t *testing.T) {
 			Offset:    -1,
 			Size:      -1,
 		}
-		validator := validator.New()
 		err := validator.Struct(&filter)
 		assert.NotNil(tt, err)
 	})
@@ -29,9 +28,10 @@ func TestAppEnvPolicyMappingsListFilterStructValidation(t *testing.T) {
 }
 
 func TestBulkPromotionPolicyApplyRequestStructValidation(t *testing.T) {
+	validator := validator.New()
 	t.Run("default zero values", func(tt *testing.T) {
 		request := BulkPromotionPolicyApplyRequest{}
-		validator := validator.New()
+
 		err := validator.Struct(&request)
 		assert.NotNil(tt, err)
 	})
@@ -40,7 +40,6 @@ func TestBulkPromotionPolicyApplyRequestStructValidation(t *testing.T) {
 		request := BulkPromotionPolicyApplyRequest{
 			ApplyToPolicyName: "tt",
 		}
-		validator := validator.New()
 		err := validator.Struct(&request)
 		assert.NotNil(tt, err)
 	})
@@ -49,7 +48,6 @@ func TestBulkPromotionPolicyApplyRequestStructValidation(t *testing.T) {
 		request := BulkPromotionPolicyApplyRequest{
 			ApplyToPolicyName: "test",
 		}
-		validator := validator.New()
 		err := validator.Struct(&request)
 		assert.Nil(tt, err)
 	})
@@ -65,7 +63,6 @@ func TestBulkPromotionPolicyApplyRequestStructValidation(t *testing.T) {
 			ApplyToPolicyName:      "test",
 			AppEnvPolicyListFilter: filter,
 		}
-		validator := validator.New()
 		err := validator.Struct(&request)
 		assert.NotNil(tt, err)
 	})
