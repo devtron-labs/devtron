@@ -124,6 +124,7 @@ type PromotionApprovalMetaData struct {
 	RequestedUserData    PromotionApprovalUserData   `json:"requestedUserData"`
 	PromotedFrom         string                      `json:"promotedFrom"`
 	PromotedFromType     string                      `json:"promotedFromType"`
+	Policy               PromotionPolicy             `json:"policy" validate:"dive"`
 }
 
 func (promotionApprovalMetaData PromotionApprovalMetaData) GetApprovalUserIds() []int32 {

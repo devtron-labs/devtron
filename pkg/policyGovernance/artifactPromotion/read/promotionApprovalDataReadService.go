@@ -108,11 +108,25 @@ func (impl ArtifactPromotionDataReadServiceImpl) FetchPromotionApprovalDataForAr
 				promotedFrom = pipeline.Environment.Name
 			}
 
+			globalPolicyData, err := impl.globalPolicyDataManager.GetPolicyById(approvalRequest.PolicyId)
+			if err != nil {
+				impl.logger.Errorw("error in fetching globalPolicy by id", "globalPolicyId", approvalRequest.PolicyId, "err", err)
+				return nil, err
+			}
+
+			policy := bean.PromotionPolicy{}
+			err = policy.UpdateWithGlobalPolicy(globalPolicyData)
+			if err != nil {
+				impl.logger.Errorw("error in parsing promotion policy from globalPolicy")
+				return nil, err
+			}
+
 			approvalMetadata := &bean.PromotionApprovalMetaData{
 				ApprovalRequestId:    approvalRequest.Id,
 				ApprovalRuntimeState: approvalRequest.Status.Status(),
 				PromotedFrom:         promotedFrom,
 				PromotedFromType:     string(approvalRequest.SourceType.GetSourceTypeStr()),
+				Policy:               policy,
 			}
 
 			artifactId := approvalRequest.ArtifactId
