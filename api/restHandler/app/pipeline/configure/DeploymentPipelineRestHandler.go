@@ -1194,22 +1194,22 @@ func (handler PipelineConfigRestHandlerImpl) GetCdPipelinesForAppAndEnv(w http.R
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])
 	if err != nil {
-		handler.Logger.Errorw("request err, GetCdPipelinesForAppAndEnv", "err", err, "appId", appId)
+		handler.Logger.Errorw("request err, GetCdPipelinesByAppIDAndEnvNameOrId", "err", err, "appId", appId)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
 	envId, err := strconv.Atoi(vars["envId"])
 	if err != nil {
-		handler.Logger.Errorw("request err, GetCdPipelinesForAppAndEnv", "err", err, "envId", envId)
+		handler.Logger.Errorw("request err, GetCdPipelinesByAppIDAndEnvNameOrId", "err", err, "envId", envId)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	handler.Logger.Infow("request payload, GetCdPipelinesForAppAndEnv", "appId", appId, "envId", envId)
+	handler.Logger.Infow("request payload, GetCdPipelinesByAppIDAndEnvNameOrId", "appId", appId, "envId", envId)
 	token := r.Header.Get("token")
 	app, err := handler.pipelineBuilder.GetApp(appId)
 	if err != nil {
-		handler.Logger.Errorw("service err, GetCdPipelinesForAppAndEnv", "err", err, "appId", appId, "envId", envId)
+		handler.Logger.Errorw("service err, GetCdPipelinesByAppIDAndEnvNameOrId", "err", err, "appId", appId, "envId", envId)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -1226,9 +1226,9 @@ func (handler PipelineConfigRestHandlerImpl) GetCdPipelinesForAppAndEnv(w http.R
 	}
 	// rbac
 
-	cdPipelines, err := handler.pipelineBuilder.GetCdPipelinesForAppAndEnv(appId, envId)
+	cdPipelines, err := handler.pipelineBuilder.GetCdPipelinesByAppIDAndEnvNameOrId(appId, envId, "")
 	if err != nil {
-		handler.Logger.Errorw("service err, GetCdPipelinesForAppAndEnv", "err", err, "appId", appId, "envId", envId)
+		handler.Logger.Errorw("service err, GetCdPipelinesByAppIDAndEnvNameOrId", "err", err, "appId", appId, "envId", envId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
