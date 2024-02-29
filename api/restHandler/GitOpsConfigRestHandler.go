@@ -204,7 +204,7 @@ func (impl GitOpsConfigRestHandlerImpl) GitOpsConfigured(w http.ResponseWriter, 
 			if gitopsConf.Active {
 				gitopsConfigured = true
 				allowCustomRepository = gitopsConf.AllowCustomRepository
-
+				break
 			}
 		}
 	}

@@ -421,7 +421,7 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 				return nil, err
 			}
 			// below function will update gitRepoUrl for charts if user has not already provided gitOps repoURL
-			err = impl.chartService.ConfigureGitOpsRepoUrl(pipelineCreateRequest.AppId, chartGitAttr.RepoUrl, chartGitAttr.ChartLocation, pipelineCreateRequest.UserId)
+			err = impl.chartService.ConfigureGitOpsRepoUrl(pipelineCreateRequest.AppId, chartGitAttr.RepoUrl, chartGitAttr.ChartLocation, false, pipelineCreateRequest.UserId)
 			if err != nil {
 				impl.logger.Errorw("error in updating git repo url in charts", "err", err)
 				return nil, err
@@ -1641,7 +1641,7 @@ func (impl *CdPipelineConfigServiceImpl) ValidateCDPipelineRequest(pipelineCreat
 }
 
 func (impl *CdPipelineConfigServiceImpl) RegisterInACD(ctx context.Context, chartGitAttr *commonBean.ChartGitAttribute, userId int32) error {
-	err := impl.argoClientWrapperService.RegisterGitOpsRepoInArgo(ctx, chartGitAttr.RepoUrl, userId)
+	err := impl.argoClientWrapperService.RegisterGitOpsRepoInArgoWithRetry(ctx, chartGitAttr.RepoUrl, userId)
 	if err != nil {
 		impl.logger.Errorw("error while register git repo in argo", "err", err)
 		return err
@@ -1971,27 +1971,6 @@ func (impl *CdPipelineConfigServiceImpl) handleDigestPolicyOperations(tx *pg.Tx,
 		}
 	}
 	return resourceQualifierId, nil
-}
-
-// TODO Asutosh:
-func (impl *CdPipelineConfigServiceImpl) updateGitRepoUrlInCharts(appId int, chartGitAttribute *commonBean.ChartGitAttribute, userId int32) error {
-	charts, err := impl.chartRepository.FindActiveChartsByAppId(appId)
-	if err != nil && pg.ErrNoRows != err {
-		return err
-	}
-	for _, ch := range charts {
-		if len(ch.GitRepoUrl) == 0 {
-			ch.GitRepoUrl = chartGitAttribute.RepoUrl
-			ch.ChartLocation = chartGitAttribute.ChartLocation
-			ch.UpdatedOn = time.Now()
-			ch.UpdatedBy = userId
-			err = impl.chartRepository.Update(ch)
-			if err != nil {
-				return err
-			}
-		}
-	}
-	return nil
 }
 
 func (impl *CdPipelineConfigServiceImpl) DeleteCdPipelinePartial(pipeline *pipelineConfig.Pipeline, ctx context.Context, deleteAction int, userId int32) (*bean.AppDeleteResponseDTO, error) {

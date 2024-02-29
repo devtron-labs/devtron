@@ -135,7 +135,7 @@ func (impl *FullModeDeploymentServiceImpl) InstallApp(installAppVersionRequest *
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Minute)
 	defer cancel()
 	//STEP 4: registerInArgo
-	err := impl.argoClientWrapperService.RegisterGitOpsRepoInArgo(ctx, chartGitAttr.RepoUrl, installAppVersionRequest.UserId)
+	err := impl.argoClientWrapperService.RegisterGitOpsRepoInArgoWithRetry(ctx, chartGitAttr.RepoUrl, installAppVersionRequest.UserId)
 	if err != nil {
 		impl.Logger.Errorw("error in argo registry", "err", err)
 		return nil, err

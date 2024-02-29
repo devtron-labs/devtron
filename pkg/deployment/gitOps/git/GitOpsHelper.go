@@ -161,6 +161,18 @@ func (impl *GitOpsHelper) getBranch(ctx git.GitContext, rootDir string) (string,
 	return branch, nil
 }
 
+/*
+SanitiseCustomGitRepoURL
+- It will sanitise the user given repository url based on GitOps provider
+
+Case BITBUCKET_PROVIDER:
+  - The clone URL format https://<user-name>@bitbucket.org/<workspace-name>/<repo-name>.git
+  - Here the <user-name> can differ from user to user. SanitiseCustomGitRepoURL will return the repo url in format : https://bitbucket.org/<workspace-name>/<repo-name>.git
+
+Case AZURE_DEVOPS_PROVIDER:
+  - The clone URL format https://<organisation-name>@dev.azure.com/<organisation-name>/<project-name>/_git/<repo-name>
+  - Here the <user-name> can differ from user to user. SanitiseCustomGitRepoURL will return the repo url in format : https://dev.azure.com/<organisation-name>/<project-name>/_git/<repo-name>
+*/
 func SanitiseCustomGitRepoURL(activeGitOpsConfig bean2.GitOpsConfigDto, gitRepoURL string) (sanitisedGitRepoURL string) {
 	sanitisedGitRepoURL = gitRepoURL
 	if activeGitOpsConfig.Provider == BITBUCKET_PROVIDER && strings.Contains(gitRepoURL, fmt.Sprintf("://%s@%s", activeGitOpsConfig.Username, "bitbucket.org/")) {

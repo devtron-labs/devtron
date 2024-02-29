@@ -30,6 +30,7 @@ type TemplateRequest struct {
 	GitRepoUrl              string                      `json:"-"`
 	IsCustomGitRepository   bool                        `json:"-"`
 	UserId                  int32                       `json:"-"`
+	LatestChartVersion      string                      `json:"-"`
 }
 
 type ChartUpgradeRequest struct {
