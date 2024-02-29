@@ -793,7 +793,7 @@ func (impl RoleGroupServiceImpl) DeleteRoleGroup(bean *bean.RoleGroup) (bool, er
 
 	}
 	for _, userMappedToGroup := range allUsersMappedToGroupPolicies {
-		flag := casbin2.DeleteRoleForUserV2(userMappedToGroup.User, model.CasbinName, userMappedToGroup.TimeoutWindowExpression, userMappedToGroup.ExpressionFormat)
+		flag := casbin2.DeleteRoleForUser(userMappedToGroup.User, model.CasbinName, userMappedToGroup.TimeoutWindowExpression, userMappedToGroup.ExpressionFormat)
 		if flag == false {
 			impl.logger.Warnw("unable to delete mapping of group and user in casbin", "user", model.CasbinName, "role", userMappedToGroup)
 			return false, err
@@ -801,7 +801,7 @@ func (impl RoleGroupServiceImpl) DeleteRoleGroup(bean *bean.RoleGroup) (bool, er
 	}
 
 	for _, policy := range allRolesForGroupPolicies {
-		flag := casbin2.DeleteRoleForUserV2(model.CasbinName, policy.Role, policy.TimeoutWindowExpression, policy.ExpressionFormat)
+		flag := casbin2.DeleteRoleForUser(model.CasbinName, policy.Role, policy.TimeoutWindowExpression, policy.ExpressionFormat)
 		if flag == false {
 			impl.logger.Warnw("unable to delete mapping of group and user in casbin", "user", model.CasbinName, "role", policy.Role)
 			return false, err

@@ -2160,7 +2160,7 @@ func (impl UserServiceImpl) DeleteUser(bean *bean.UserInfo) (bool, error) {
 	}
 	var eliminatedPolicies []bean4.Policy
 	for _, policy := range groupsPolicies {
-		flag := casbin2.DeleteRoleForUserV2(model.EmailId, policy.Role, policy.TimeoutWindowExpression, policy.ExpressionFormat)
+		flag := casbin2.DeleteRoleForUser(model.EmailId, policy.Role, policy.TimeoutWindowExpression, policy.ExpressionFormat)
 		if flag == false {
 			impl.logger.Warnw("unable to delete role:", "user", model.EmailId, "role", policy.Role)
 		}

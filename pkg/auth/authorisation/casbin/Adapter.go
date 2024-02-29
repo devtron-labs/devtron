@@ -179,25 +179,7 @@ func GetAllSubjects() []string {
 	return e.GetAllSubjects()
 }
 
-// DeleteRoleForUser DEPRECATED: DO NOT USE
-func DeleteRoleForUser(user string, role string) bool {
-	user = strings.ToLower(user)
-	role = strings.ToLower(role)
-	var response bool
-	var err error
-	if isV2() {
-		response, err = e2.DeleteRoleForUser(user, role)
-		if err != nil {
-			log.Println(err)
-		}
-	} else {
-		response = e.DeleteRoleForUser(user, role)
-	}
-	enforcerImplRef.InvalidateCache(user)
-	return response
-}
-
-func DeleteRoleForUserV2(user string, role string, expression string, format string) bool {
+func DeleteRoleForUser(user string, role string, expression string, format string) bool {
 	user = strings.ToLower(user)
 	role = strings.ToLower(role)
 	expression = strings.ToLower(expression)
@@ -337,24 +319,6 @@ func GetUserAttachedToRoleWithTimeoutExpressionAndFormat(role string) ([]bean.Gr
 		}
 	}
 	return userRoles, nil
-}
-
-// GetRolesForUser  DEPRECATED: DO NOT USE
-func GetRolesForUser(user string) ([]string, error) {
-	user = strings.ToLower(user)
-	if isV2() {
-		return e2.GetRolesForUser(user)
-	}
-	return e.GetRolesForUser(user)
-}
-
-// GetUserByRole DEPRECATED: DO NOT USE
-func GetUserByRole(role string) ([]string, error) {
-	role = strings.ToLower(role)
-	if isV2() {
-		return e2.GetUsersForRole(role)
-	}
-	return e.GetUsersForRole(role)
 }
 
 func RemovePoliciesByRole(role string) bool {
