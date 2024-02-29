@@ -21,7 +21,7 @@ type GlobalPolicyRepository interface {
 	Update(model *GlobalPolicy, tx *pg.Tx) error
 	MarkDeletedById(id int, userId int32, tx *pg.Tx) error
 	GetByIds(ids []int) ([]*GlobalPolicy, error)
-	GetPolicyByType(policyType *bean.GlobalPolicyType) (*GlobalPolicy, error)
+	GetPolicyByType(policyType bean.GlobalPolicyType) ([]*GlobalPolicy, error)
 	DeletedById(id int, userId int32) error
 	DeletedByName(name string, userId int32) error
 }
@@ -190,15 +190,15 @@ func (repo *GlobalPolicyRepositoryImpl) GetByIds(ids []int) ([]*GlobalPolicy, er
 	}
 	return models, nil
 }
-func (repo *GlobalPolicyRepositoryImpl) GetPolicyByType(policyType *bean.GlobalPolicyType) (*GlobalPolicy, error) {
-	var model GlobalPolicy
+func (repo *GlobalPolicyRepositoryImpl) GetPolicyByType(policyType bean.GlobalPolicyType) ([]*GlobalPolicy, error) {
+	var model []*GlobalPolicy
 	err := repo.dbConnection.Model(&model).Where("policy_of = ?", policyType).
 		Where("deleted = ?", false).Select()
 	if err != nil {
 		repo.logger.Errorw("error in getting policy by name", "err", err, "policyType", policyType)
 		return nil, err
 	}
-	return &model, nil
+	return model, nil
 }
 
 func (repo *GlobalPolicyRepositoryImpl) DeletedById(id int, userId int32) error {

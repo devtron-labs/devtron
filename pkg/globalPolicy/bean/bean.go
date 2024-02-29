@@ -254,3 +254,4 @@ type FieldType int
 const NumericType FieldType = 1
 const StringType FieldType = 2
 const DateTimeType FieldType = 3
+const BooleanType FieldType = 4

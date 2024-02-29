@@ -2,8 +2,8 @@ package deploymentWindow
 
 import (
 	"github.com/caarlos0/env/v6"
-	"github.com/devtron-labs/devtron/enterprise/pkg/app/blackbox"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
+	"github.com/devtron-labs/devtron/pkg/globalPolicy"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/timeoutWindow"
 	"github.com/go-pg/pg"
@@ -38,7 +38,7 @@ type DeploymentWindowServiceImpl struct {
 
 	resourceMappingService      resourceQualifiers.QualifierMappingService
 	timeoutWindowMappingService timeoutWindow.TimeoutWindowResourceMappingService
-	globalPolicyManager         blackbox.GlobalPolicyDataManager
+	globalPolicyManager         globalPolicy.GlobalPolicyDataManager
 }
 
 func NewDeploymentWindowServiceImpl(
@@ -46,7 +46,7 @@ func NewDeploymentWindowServiceImpl(
 	timeZoneMap map[string]*time.Location,
 	resourceMappingService resourceQualifiers.QualifierMappingService,
 	timeoutWindowMappingService timeoutWindow.TimeoutWindowResourceMappingService,
-	globalPolicyManager blackbox.GlobalPolicyDataManager,
+	globalPolicyManager globalPolicy.GlobalPolicyDataManager,
 	dbConnection *pg.DB,
 	userService user.UserService,
 ) (*DeploymentWindowServiceImpl, error) {

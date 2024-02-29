@@ -2,7 +2,7 @@ package deploymentWindow
 
 import (
 	"encoding/json"
-	"github.com/devtron-labs/devtron/enterprise/pkg/app/blackbox"
+	bean2 "github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/timeoutWindow"
 	"github.com/devtron-labs/devtron/pkg/timeoutWindow/repository"
@@ -23,7 +23,7 @@ func (impl DeploymentWindowServiceImpl) CreateDeploymentWindowProfile(profile *D
 	if err != nil {
 		return nil, err
 	}
-	policy, err = impl.globalPolicyManager.CreatePolicy(tx, policy)
+	policy, err = impl.globalPolicyManager.CreatePolicy(policy, tx)
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +68,7 @@ func (impl DeploymentWindowServiceImpl) UpdateDeploymentWindowProfile(profile *D
 	if err != nil {
 		return nil, err
 	}
-	policy, err = impl.globalPolicyManager.UpdatePolicy(tx, policy)
+	policy, err = impl.globalPolicyManager.UpdatePolicy(policy, tx)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +86,7 @@ func (impl DeploymentWindowServiceImpl) DeleteDeploymentWindowProfileForId(profi
 	}
 	defer tx.Rollback()
 
-	err = impl.globalPolicyManager.DeletePolicyById(tx, profileId)
+	err = impl.globalPolicyManager.DeletePolicyById(tx, profileId, userId)
 	if err != nil {
 		return err
 	}
@@ -123,7 +123,7 @@ func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileForId(profileI
 	return profilePolicy.toDeploymentWindowProfile(policyModel, windows), nil
 }
 
-func (impl DeploymentWindowServiceImpl) getPolicyFromModel(policyModel *blackbox.GlobalPolicyBaseModel) (*DeploymentWindowProfilePolicy, error) {
+func (impl DeploymentWindowServiceImpl) getPolicyFromModel(policyModel *bean2.GlobalPolicyBaseModel) (*DeploymentWindowProfilePolicy, error) {
 	profilePolicy := &DeploymentWindowProfilePolicy{}
 	err := json.Unmarshal([]byte(policyModel.JsonData), &profilePolicy)
 	if err != nil {
@@ -134,12 +134,12 @@ func (impl DeploymentWindowServiceImpl) getPolicyFromModel(policyModel *blackbox
 
 func (impl DeploymentWindowServiceImpl) ListDeploymentWindowProfiles() ([]*DeploymentWindowProfileMetadata, error) {
 	//get policy
-	policyModels, err := impl.globalPolicyManager.GetAllActiveByType()
+	policyModels, err := impl.globalPolicyManager.GetAllActiveByType(bean2.GLOBAL_POLICY_TYPE_DEPLOYMENT_WINDOW)
 	if err != nil {
 		return nil, err
 	}
 
-	return lo.Map(policyModels, func(model *blackbox.GlobalPolicyBaseModel, index int) *DeploymentWindowProfileMetadata {
+	return lo.Map(policyModels, func(model *bean2.GlobalPolicyBaseModel, index int) *DeploymentWindowProfileMetadata {
 		policy, err := impl.getPolicyFromModel(model)
 		if err != nil {
 			return nil
@@ -201,7 +201,7 @@ func (impl DeploymentWindowServiceImpl) getProfileIdToProfile(profileIds []int) 
 	if err != nil {
 		return nil, err
 	}
-	profileIdToModel := make(map[int]*blackbox.GlobalPolicyBaseModel)
+	profileIdToModel := make(map[int]*bean2.GlobalPolicyBaseModel)
 	for _, model := range models {
 		profileIdToModel[model.Id] = model
 	}

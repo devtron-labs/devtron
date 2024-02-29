@@ -4,6 +4,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
 	"github.com/devtron-labs/devtron/pkg/globalPolicy/repository"
 	"github.com/go-pg/pg"
+	"github.com/samber/lo"
 	"go.uber.org/zap"
 	"time"
 )
@@ -14,12 +15,12 @@ type GlobalPolicyDataManager interface {
 	GetPolicyById(policyId int) (*bean.GlobalPolicyBaseModel, error)
 	GetPolicyByName(policyName string) (*bean.GlobalPolicyBaseModel, error)
 	GetPolicyByIds(policyIds []int) ([]*bean.GlobalPolicyBaseModel, error)
-	GetAllActiveByType(policyType *bean.GlobalPolicyType) (*bean.GlobalPolicyBaseModel, error)
+	GetAllActiveByType(policyType bean.GlobalPolicyType) ([]*bean.GlobalPolicyBaseModel, error)
 
 	UpdatePolicy(globalPolicyDataModel *bean.GlobalPolicyDataModel, tx *pg.Tx) (*bean.GlobalPolicyDataModel, error)
 	//UpdatePolicyByName(PolicyName string, globalPolicyDataModel *bean.GlobalPolicyDataModel) (*bean.GlobalPolicyDataModel, error)
 
-	DeletePolicyById(policyId int, userId int32) error
+	DeletePolicyById(tx *pg.Tx, policyId int, userId int32) error
 	DeletePolicyByName(policyName string, userId int32) error
 
 	GetPolicyMetadataByFields(policyIds []int, fields []*bean.SearchableField) (map[int][]*bean.SearchableField, error)
@@ -247,15 +248,19 @@ func (impl *GlobalPolicyDataManagerImpl) GetPolicyByIds(policyIds []int) ([]*bea
 	}
 	return GlobalPolicyBaseModels, nil
 }
-func (impl *GlobalPolicyDataManagerImpl) GetAllActiveByType(policyType *bean.GlobalPolicyType) (*bean.GlobalPolicyBaseModel, error) {
+
+// GetAllActiveByType(policyType bean.GlobalPolicyType) (*bean.GlobalPolicyBaseModel, error)
+func (impl *GlobalPolicyDataManagerImpl) GetAllActiveByType(policyType bean.GlobalPolicyType) ([]*bean.GlobalPolicyBaseModel, error) {
 	globalPolicy, err := impl.globalPolicyRepository.GetPolicyByType(policyType)
 	if err != nil {
 		impl.logger.Errorw("error in fetching global policy", "policyType", policyType, "err", err)
 		return nil, err
 	}
-	return globalPolicy.GetGlobalPolicyBaseModel(), nil
+	return lo.Map(globalPolicy, func(item *repository.GlobalPolicy, index int) *bean.GlobalPolicyBaseModel {
+		return item.GetGlobalPolicyBaseModel()
+	}), nil
 }
-func (impl *GlobalPolicyDataManagerImpl) DeletePolicyById(policyId int, userId int32) error {
+func (impl *GlobalPolicyDataManagerImpl) DeletePolicyById(tx *pg.Tx, policyId int, userId int32) error {
 	err := impl.globalPolicyRepository.DeletedById(policyId, userId)
 	if err != nil {
 		impl.logger.Errorw("error in deleting policies", "err", err, "policyId", policyId)

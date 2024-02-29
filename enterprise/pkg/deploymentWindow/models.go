@@ -13,10 +13,10 @@ type DeploymentWindowProfilePolicy struct {
 	//Enabled              bool          `json:"enabled" searchFieldType:"boolean"`
 	TimeZone             string               `json:"timeZone"`
 	DisplayMessage       string               `json:"displayMessage"`
-	ExcludedUsersList    []int                `json:"excludedUsersList"`
+	ExcludedUsersList    []int32              `json:"excludedUsersList"`
 	IsSuperAdminExcluded bool                 `json:"isSuperAdminExcluded"`
 	IsUserExcluded       bool                 `json:"isUserExcluded"`
-	Type                 DeploymentWindowType `json:"type" searchFieldType:"string"`
+	Type                 DeploymentWindowType `json:"type" isSearchField:"true"`
 }
 
 func (profile DeploymentWindowProfile) toPolicy() DeploymentWindowProfilePolicy {
@@ -30,14 +30,14 @@ func (profile DeploymentWindowProfile) toPolicy() DeploymentWindowProfilePolicy 
 	}
 }
 
-func (profile DeploymentWindowProfile) convertToPolicyDataModel(userId int32) (*blackbox.GlobalPolicyDataModel, error) {
+func (profile DeploymentWindowProfile) convertToPolicyDataModel(userId int32) (*bean.GlobalPolicyDataModel, error) {
 
 	policyBytes, err := json.Marshal(profile.toPolicy())
 	if err != nil {
 		return nil, err
 	}
-	return &blackbox.GlobalPolicyDataModel{
-		GlobalPolicyBaseModel: blackbox.GlobalPolicyBaseModel{
+	return &bean.GlobalPolicyDataModel{
+		GlobalPolicyBaseModel: bean.GlobalPolicyBaseModel{
 			Name:          profile.Name,
 			Description:   profile.Description,
 			Enabled:       profile.Enabled,
@@ -51,7 +51,7 @@ func (profile DeploymentWindowProfile) convertToPolicyDataModel(userId int32) (*
 	}, nil
 }
 
-func (profilePolicy DeploymentWindowProfilePolicy) toDeploymentWindowProfile(policyModel *blackbox.GlobalPolicyBaseModel, windows []*TimeWindow) *DeploymentWindowProfile {
+func (profilePolicy DeploymentWindowProfilePolicy) toDeploymentWindowProfile(policyModel *bean.GlobalPolicyBaseModel, windows []*TimeWindow) *DeploymentWindowProfile {
 	return &DeploymentWindowProfile{
 		DeploymentWindowList: windows,
 		Enabled:              policyModel.Enabled,
