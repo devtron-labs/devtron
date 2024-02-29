@@ -81,6 +81,7 @@ func (impl TimeWindowServiceImpl) GetOrCreateWithExpressionAndFormat(tx *pg.Tx, 
 		return nil, err
 	}
 	if err == pg.ErrNoRows {
+		impl.logger.Debugw("error in GetOrCreateWithExpressionAndFormat, consuming this error and creating config", "timeoutExpression", timeoutExpression, "expressionFormat", expressionFormat)
 		timeoutWindow, err = impl.CreateWithTimeoutExpressionAndFormat(tx, timeoutExpression, expressionFormat, loggedInUserId)
 		if err != nil {
 			impl.logger.Errorw("error encountered in GetOrCreateWithExpressionAndFormat", "timeoutExpression", timeoutExpression, "expressionFormat", expressionFormat, "err", err)
