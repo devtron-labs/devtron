@@ -1070,14 +1070,10 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, ma
 	isApiToken := util3.CheckIfApiToken(userInfo.EmailId)
 	// case: system managed permissions is not active and user is inActive , mark user as active and update user timeWindowConfig id
 	if !isSystemManagedActive && !isUserActive && !isApiToken {
-		err = impl.UpdateUserToActive(model, tx, userInfo.EmailId, userInfo.UserId, timeoutWindowConfigId)
+		err = impl.updateUserAndCommitTransaction(model, tx, userInfo, timeoutWindowConfigId)
 		if err != nil {
 			impl.logger.Errorw("error in updating user to active", "err", err, "EmailId", userInfo.EmailId)
 			return userInfo, false, false, nil, err
-		}
-		err = tx.Commit()
-		if err != nil {
-			return nil, false, false, nil, err
 		}
 		return userInfo, false, false, nil, nil
 
@@ -1093,11 +1089,30 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, ma
 		return nil, false, false, nil, err
 	}
 
+	isUserSuperAdmin, err := impl.IsSuperAdmin(int(userInfo.Id), token)
+	if err != nil {
+		return nil, false, false, nil, err
+	}
+
 	//validating if action user is not admin and trying to update user who has super admin polices, return 403
-	err = impl.validationForSuperAdminForUpdate(isActionPerformingUserSuperAdmin, userInfo.Id, token, userInfo.SuperAdmin)
+	err = impl.validationIfAllowedToUpdateSuperAdmin(isActionPerformingUserSuperAdmin, isUserSuperAdmin, userInfo.SuperAdmin)
 	if err != nil {
 		impl.logger.Errorw("error in UpdateUser", "err", err)
 		return nil, false, false, nil, err
+	}
+	// case if user is superadmin already, check is user status changed,update user if yes or return custom error
+	isUserStatusChanged := model.TimeoutWindowConfigurationId != timeoutWindowConfigId
+	err = impl.validateIfUserAlreadyASuperAdmin(userInfo.SuperAdmin, isUserSuperAdmin)
+	if err != nil && !isUserStatusChanged {
+		impl.logger.Errorw("error in UpdateUser", "err", err)
+		return nil, false, false, nil, err
+	} else if err != nil && isUserStatusChanged {
+		err2 := impl.updateUserAndCommitTransaction(model, tx, userInfo, timeoutWindowConfigId)
+		if err2 != nil {
+			impl.logger.Errorw("error in UpdateUser", "err", err)
+			return nil, false, false, nil, err2
+		}
+		return userInfo, false, false, nil, nil
 	}
 
 	var eliminatedPolicies = make([]bean4.Policy, 0)
@@ -1162,6 +1177,19 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, ma
 	//loading policy for syncing orchestrator to casbin with newly added policies
 	casbin2.LoadPolicy()
 	return userInfo, rolesChanged, groupsModified, restrictedGroups, nil
+}
+func (impl UserServiceImpl) updateUserAndCommitTransaction(model *repository.UserModel, tx *pg.Tx, userInfo *bean.UserInfo, timeoutWindowConfigId int) error {
+	err := impl.UpdateUserToActive(model, tx, userInfo.EmailId, userInfo.UserId, timeoutWindowConfigId)
+	if err != nil {
+		impl.logger.Errorw("error in UpdateUserAndCommitTransaction", "err", err, "EmailId", userInfo.EmailId)
+		return err
+	}
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("error in UpdateUserAndCommitTransaction", "err", err)
+		return err
+	}
+	return nil
 }
 
 // createOrUpdateUserRoleGroupsPolices : gives policies which are to be added and which are to be eliminated from casbin, with support of timewindow Config changed fromm existing
@@ -1243,28 +1271,28 @@ func (impl UserServiceImpl) createOrUpdateUserRoleGroupsPolices(requestUserRoleG
 	return addedPolicies, eliminatedPolicies, restrictedGroups, groupsModified, nil
 }
 
-// validationForSuperAdminForUpdate returns custom error if user already a superadmin or when logged in user is not allowed to update user to superadmin
-func (impl UserServiceImpl) validationForSuperAdminForUpdate(isActionPerformingUserSuperAdmin bool, userId int32, token string, superAdminFromRequest bool) error {
-	//validating if action user is not admin and trying to update user who has super admin polices, return 403
-	isUserSuperAdmin, err := impl.IsSuperAdmin(int(userId), token)
-	if err != nil {
-		return err
-	}
-	//if request comes to make user as a super admin or user already a super admin (who'is going to be updated), action performing user should have super admin access
+// validationForSuperAdminForUpdate returns custom error when logged in user is not allowed to update user to superadmin
+func (impl UserServiceImpl) validationIfAllowedToUpdateSuperAdmin(isActionPerformingUserSuperAdmin bool, isUserSuperAdmin bool, superAdminFromRequest bool) error {
 	if superAdminFromRequest || isUserSuperAdmin {
 		if !isActionPerformingUserSuperAdmin {
-			err = &util.ApiError{HttpStatusCode: http.StatusForbidden, UserMessage: "Invalid request, not allow to update super admin type user"}
+			err := &util.ApiError{HttpStatusCode: http.StatusForbidden, UserMessage: "Invalid request, not allow to update super admin type user"}
 			impl.logger.Errorw("Invalid request, not allow to update super admin type user", "error", err)
 			return err
 		}
 	}
+	return nil
+
+}
+
+// validateIfUserAlreadyASuperAdmin returns custom error when user already a super admin and request to make the user super-admin
+func (impl UserServiceImpl) validateIfUserAlreadyASuperAdmin(superAdminFromRequest bool, isUserSuperAdmin bool) error {
+	//if request comes to make user as a super admin or user already a super admin (who'is going to be updated), action performing user should have super admin access
 	if superAdminFromRequest && isUserSuperAdmin {
-		err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "User Already A Super Admin"}
+		err := &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "User Already A Super Admin"}
 		impl.logger.Errorw("user already a superAdmin", "error", err)
 		return err
 	}
-	return err
-
+	return nil
 }
 
 // CheckAccessAndReturnAdditionPolices : checks group access and return policies which are to be added in casbin
@@ -2553,7 +2581,7 @@ func (impl *UserServiceImpl) createOrUpdateUserRolesForOtherEntity(roleFilter be
 	for _, environment := range environments {
 		for _, entityName := range entityNames {
 			for _, actionType := range actions {
-				if managerAuth != nil  && entity != bean.CHART_GROUP_ENTITY{
+				if managerAuth != nil && entity != bean.CHART_GROUP_ENTITY {
 					// check auth only for apps permission, skip for chart group
 					rbacObject := fmt.Sprintf("%s", strings.ToLower(roleFilter.Team))
 					isValidAuth := managerAuth(casbin2.ResourceUser, token, rbacObject)
