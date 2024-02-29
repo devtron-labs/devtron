@@ -20,7 +20,7 @@ package git
 import (
 	"context"
 	"fmt"
-	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
+	apiGitOpsBean "github.com/devtron-labs/devtron/api/bean/gitOps"
 	git "github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/commandManager"
 	"github.com/devtron-labs/devtron/util"
 	"os"
@@ -173,7 +173,7 @@ Case AZURE_DEVOPS_PROVIDER:
   - The clone URL format https://<organisation-name>@dev.azure.com/<organisation-name>/<project-name>/_git/<repo-name>
   - Here the <user-name> can differ from user to user. SanitiseCustomGitRepoURL will return the repo url in format : https://dev.azure.com/<organisation-name>/<project-name>/_git/<repo-name>
 */
-func SanitiseCustomGitRepoURL(activeGitOpsConfig bean2.GitOpsConfigDto, gitRepoURL string) (sanitisedGitRepoURL string) {
+func SanitiseCustomGitRepoURL(activeGitOpsConfig apiGitOpsBean.GitOpsConfigDto, gitRepoURL string) (sanitisedGitRepoURL string) {
 	sanitisedGitRepoURL = gitRepoURL
 	if activeGitOpsConfig.Provider == BITBUCKET_PROVIDER && strings.Contains(gitRepoURL, fmt.Sprintf("://%s@%s", activeGitOpsConfig.Username, "bitbucket.org/")) {
 		sanitisedGitRepoURL = strings.ReplaceAll(gitRepoURL, fmt.Sprintf("://%s@%s", activeGitOpsConfig.Username, "bitbucket.org/"), "://bitbucket.org/")
