@@ -407,7 +407,7 @@ func (impl *GitOperationServiceImpl) UpdateGitHostUrlByProvider(request *apiBean
 }
 
 func buildGithubOrgUrl(host, orgId string) (orgUrl string, err error) {
-	if !strings.HasPrefix(host, GITHUB_CLONE_BASE_URL) {
+	if !strings.HasPrefix(host, HTTP_URL_PROTOCOL) && !strings.HasPrefix(host, HTTPS_URL_PROTOCOL) {
 		return orgUrl, fmt.Errorf("invalid host url '%s'", host)
 	}
 	hostUrl, err := url.Parse(host)
