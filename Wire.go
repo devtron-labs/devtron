@@ -25,6 +25,7 @@ import (
 	pubsub1 "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/commonWireset"
 	"github.com/devtron-labs/devtron/internals/util"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
 	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/common"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -49,6 +50,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(appStoreDeploymentCommon.AppStoreDeploymentCommonService), new(*appStoreDeploymentCommon.AppStoreDeploymentCommonServiceImpl)),
 		EAMode.NewEAModeDeploymentServiceImpl,
 		wire.Bind(new(EAMode.EAModeDeploymentService), new(*EAMode.EAModeDeploymentServiceImpl)),
+		service.NewAppStoreDeploymentDBServiceImpl,
+		wire.Bind(new(service.AppStoreDeploymentDBService), new(*service.AppStoreDeploymentDBServiceImpl)),
 	)
 	return &App{}, nil
 }
