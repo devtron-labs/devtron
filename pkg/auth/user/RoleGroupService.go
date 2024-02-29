@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	bean3 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin/bean"
+	bean4 "github.com/devtron-labs/devtron/pkg/auth/common/bean"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository/helper"
 	"strings"
 	"time"
@@ -105,7 +106,7 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 			Description: request.Description,
 		}
 		rgName := strings.ToLower(request.Name)
-		object := "group:" + strings.ReplaceAll(rgName, " ", "_")
+		object := bean4.GroupPrefix + strings.ReplaceAll(rgName, " ", "_")
 
 		exists, err := impl.roleGroupRepository.CheckRoleGroupExistByCasbinName(object)
 		if err != nil {

@@ -39,7 +39,6 @@ type UserCommonService interface {
 	BuildRoleFilterForAllTypes(roleFilterMap map[string]*bean.RoleFilter, role repository.RoleModel, key string)
 	GetUniqueKeyForAllEntity(role repository.RoleModel) string
 	GetUniqueKeyForAllEntityWithTimeAndStatus(role repository.RoleModel, status bean.Status, timeout time.Time) string
-	GetUniqueKeyForRoleFilter(roleFilter bean.RoleFilter) string
 	SetDefaultValuesIfNotPresent(request *bean.ListingRequest, isRoleGroup bool)
 	DeleteRoleForUserFromCasbin(mappings map[string][]bean3.GroupPolicy) bool
 	DeleteUserForRoleFromCasbin(mappings map[string][]bean3.GroupPolicy) bool
@@ -792,10 +791,4 @@ func (impl UserCommonServiceImpl) DeleteUserForRoleFromCasbin(mappings map[strin
 		}
 	}
 	return successful
-}
-
-func (impl UserCommonServiceImpl) GetUniqueKeyForRoleFilter(roleFilter bean.RoleFilter) string {
-	key := fmt.Sprintf("%s-%s-%s-%s-%s-%s-%t-%s-%s-%s-%s-%s-%s", roleFilter.Entity, roleFilter.Team, roleFilter.Environment,
-		roleFilter.EntityName, roleFilter.Action, roleFilter.AccessType, roleFilter.Approver, roleFilter.Cluster, roleFilter.Namespace, roleFilter.Group, roleFilter.Kind, roleFilter.Resource, roleFilter.Workflow)
-	return key
 }

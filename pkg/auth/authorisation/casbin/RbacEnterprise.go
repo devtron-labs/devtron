@@ -6,6 +6,7 @@ import (
 	"github.com/devtron-labs/authenticator/jwt"
 	util2 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin/util"
 	auth "github.com/devtron-labs/devtron/pkg/auth/authorisation/globalConfig"
+	"github.com/devtron-labs/devtron/pkg/auth/common/bean"
 	util3 "github.com/devtron-labs/devtron/pkg/auth/user/util"
 	"k8s.io/utils/strings/slices"
 	"strings"
@@ -541,7 +542,7 @@ func getGroupRolesMap(roleMappings [][]string) map[string][]string {
 	for _, roleMappingDetail := range roleMappings {
 		groupInRole := roleMappingDetail[0]
 		roleAttached := roleMappingDetail[1]
-		isGroup := strings.Contains(groupInRole, "group:")
+		isGroup := strings.Contains(groupInRole, bean.GroupPrefix)
 		if _, ok := groupRolesMap[groupInRole]; !ok && isGroup {
 			// new key , initialise with slice val
 			groupRolesMap[groupInRole] = []string{roleAttached}

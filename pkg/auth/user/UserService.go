@@ -25,6 +25,7 @@ import (
 	bean4 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin/bean"
 	util4 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin/util"
 	auth "github.com/devtron-labs/devtron/pkg/auth/authorisation/globalConfig"
+	bean5 "github.com/devtron-labs/devtron/pkg/auth/common/bean"
 	helper3 "github.com/devtron-labs/devtron/pkg/auth/common/helper"
 	"github.com/devtron-labs/devtron/pkg/auth/user/adapter"
 	helper2 "github.com/devtron-labs/devtron/pkg/auth/user/helper"
@@ -189,7 +190,7 @@ func (impl UserServiceImpl) validateUserRequest(userInfo *bean.UserInfo) error {
 		conflictingRolefilters := false
 		roleFilterKeyMap := make(map[string]bean.RoleFilter)
 		for _, roleFilter := range userInfo.RoleFilters {
-			key := impl.userCommonService.GetUniqueKeyForRoleFilter(roleFilter)
+			key := util3.GetUniqueKeyForRoleFilter(roleFilter)
 			if filter, ok := roleFilterKeyMap[key]; ok {
 				hasTimeoutConfigChanged := !(roleFilter.TimeoutWindowExpression == filter.TimeoutWindowExpression && roleFilter.Status == filter.Status)
 				if hasTimeoutConfigChanged {
@@ -1312,7 +1313,7 @@ func (impl UserServiceImpl) CheckAccessAndReturnAdditionPolices(casbinName, toke
 		casbinPolicy := adapter.GetCasbinGroupPolicy(emailId, casbinName, timeExpression, expressionFormat)
 		addedPolicies = append(addedPolicies, casbinPolicy)
 	} else {
-		trimmedGroup := strings.TrimPrefix(casbinName, "group:")
+		trimmedGroup := strings.TrimPrefix(casbinName, bean5.GroupPrefix)
 		restrictedGroups = append(restrictedGroups, trimmedGroup)
 	}
 	return addedPolicies, restrictedGroups, groupsModified, nil
@@ -1331,7 +1332,7 @@ func (impl UserServiceImpl) CheckAccessAndReturnEliminatedPolices(token string, 
 		casbinPolicy := adapter.GetCasbinGroupPolicy(emailId, userRoleGroup.RoleGroup.CasbinName, timeExpression, expressionFormat)
 		eliminatedPolicies = append(eliminatedPolicies, casbinPolicy)
 	} else {
-		trimmedGroup := strings.TrimPrefix(userRoleGroup.RoleGroup.CasbinName, "group:")
+		trimmedGroup := strings.TrimPrefix(userRoleGroup.RoleGroup.CasbinName, bean5.GroupPrefix)
 		restrictedGroups = append(restrictedGroups, trimmedGroup)
 	}
 	return eliminatedPolicies, restrictedGroups, groupsModified

@@ -20,6 +20,7 @@ package casbin
 import (
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin/bean"
+	bean2 "github.com/devtron-labs/devtron/pkg/auth/common/bean"
 	"log"
 	"os"
 	"strings"
@@ -238,7 +239,7 @@ func GetGroupsAttachedToUser(user string) ([]bean.GroupPolicy, error) {
 			userInRole := roleMappingDetail[0]
 			if userInRole == user { //checking user
 				role := roleMappingDetail[1]
-				if strings.HasPrefix(role, "group:") {
+				if strings.HasPrefix(role, bean2.GroupPrefix) {
 					isExpressionValid := true
 					expression := ""
 					format := ""
