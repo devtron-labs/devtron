@@ -388,21 +388,21 @@ func (impl ArtifactPromotionApprovalServiceImpl) approveArtifactPromotion(reques
 		}
 	}
 
-	if len(staleRequestIds) > 0 {
-		// attempt deleting the stale requests in bulk
-		err = impl.artifactPromotionApprovalRequestRepository.MarkStaleByIds(staleRequestIds)
-		if err != nil {
-			impl.logger.Errorw("error in deleting the request raised using a deleted promotion policy (stale requests)", "staleRequestIds", staleRequestIds, "err", err)
-			// not returning by choice, don't interrupt the user flow
-		}
-	}
-
 	tx, err := impl.artifactPromotionApprovalRequestRepository.StartTx()
 	if err != nil {
 		impl.logger.Errorw("error in starting the transaction", "promotionRequests", promotionRequests, "err", err)
 		return nil, err
 	}
 	defer impl.artifactPromotionApprovalRequestRepository.RollbackTx(tx)
+
+	if len(staleRequestIds) > 0 {
+		// attempt deleting the stale requests in bulk
+		err = impl.artifactPromotionApprovalRequestRepository.MarkStaleByIds(tx, staleRequestIds)
+		if err != nil {
+			impl.logger.Errorw("error in deleting the request raised using a deleted promotion policy (stale requests)", "staleRequestIds", staleRequestIds, "err", err)
+			// not returning by choice, don't interrupt the user flow
+		}
+	}
 
 	for _, promotionRequest := range promotionRequests {
 		promotionRequestApprovedUserData := &pipelineConfig.RequestApprovalUserData{
@@ -416,7 +416,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) approveArtifactPromotion(reques
 		err = impl.requestApprovalUserdataRepo.SaveDeploymentUserData(promotionRequestApprovedUserData)
 		if err != nil {
 			impl.logger.Errorw("error in saving promotion approval user data", "promotionRequestId", request.PromotionRequestId, "err", err)
-			if strings.Contains(err.Error(), "unique_user_request_action") {
+			if strings.Contains(err.Error(), string(pipelineConfig.UNIQUE_USER_REQUEST_ACTION)) {
 				err = errors.New("you have already approved this")
 				resp.PromotionValidationState = bean.APPROVED
 				resp.PromotionValidationMessage = err.Error()

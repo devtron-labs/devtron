@@ -44,7 +44,7 @@ type ArtifactPromotionApprovalRequestRepository interface {
 	FindByPipelineIdAndArtifactIds(pipelineId int, artifactIds []int) ([]*ArtifactPromotionApprovalRequest, error)
 	FindAwaitedRequestsByArtifactId(artifactId int) ([]*ArtifactPromotionApprovalRequest, error)
 	FindAwaitedRequestByPolicyId(policyId int) ([]*ArtifactPromotionApprovalRequest, error)
-	MarkStaleByIds(requestIds []int) error
+	MarkStaleByIds(tx *pg.Tx, requestIds []int) error
 	MarkStaleByPolicyId(tx *pg.Tx, policyId int) error
 	MarkPromoted(tx *pg.Tx, requestIds []int) error
 	sql.TransactionWrapper
@@ -144,8 +144,8 @@ func (repo *ArtifactPromotionApprovalRequestRepoImpl) FindAwaitedRequestsByArtif
 	return models, err
 }
 
-func (repo *ArtifactPromotionApprovalRequestRepoImpl) MarkStaleByIds(requestIds []int) error {
-	_, err := repo.dbConnection.Model(&ArtifactPromotionApprovalRequest{}).
+func (repo *ArtifactPromotionApprovalRequestRepoImpl) MarkStaleByIds(tx *pg.Tx, requestIds []int) error {
+	_, err := tx.Model(&ArtifactPromotionApprovalRequest{}).
 		Set("status = ?", bean.STALE).
 		Set("updated_on = ?", time.Now()).
 		Set("active=?", false).

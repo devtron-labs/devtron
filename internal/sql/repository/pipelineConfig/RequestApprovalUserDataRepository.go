@@ -7,6 +7,10 @@ import (
 	"time"
 )
 
+type Constraint string
+
+const UNIQUE_USER_REQUEST_ACTION Constraint = "unique_user_request_action"
+
 type RequestApprovalUserdataRepository interface {
 	SaveDeploymentUserData(userData *RequestApprovalUserData) error
 	FetchApprovalDataForRequests(requestIds []int, requestType repository.RequestType) ([]*RequestApprovalUserData, error)
