@@ -62,6 +62,10 @@ func (r grpcCodeExtended) IsNotFoundCode() bool {
 	return r.Code == codes.NotFound
 }
 
+func (r grpcCodeExtended) IsFailedPreconditionCode() bool {
+	return r.Code == codes.FailedPrecondition
+}
+
 func GetGRPCErrorDetailedMessage(err error) string {
 	if errStatus, ok := status.FromError(err); ok {
 		return errStatus.Message()

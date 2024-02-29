@@ -960,11 +960,11 @@ func (impl *HelmAppServiceImpl) TemplateChart(ctx context.Context, templateChart
 
 	templateChartResponse, err := impl.helmAppClient.TemplateChart(ctx, installReleaseRequest)
 	if err != nil {
+		impl.logger.Errorw("error in templating chart", "err", err)
 		grpcErrCode, errMsg := util.GetGRPCDetailedError(err)
 		if grpcErrCode.IsInvalidArgumentCode() {
 			return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: strconv.FormatInt(http.StatusBadRequest, 10), InternalMessage: errMsg, UserMessage: errMsg}
 		}
-		impl.logger.Errorw("error in templating chart", "err", err)
 		return nil, err
 	}
 

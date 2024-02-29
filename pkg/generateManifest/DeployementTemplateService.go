@@ -364,11 +364,11 @@ func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, 
 
 	templateChartResponse, err := impl.helmAppClient.TemplateChart(ctx, installReleaseRequest)
 	if err != nil {
+		impl.Logger.Errorw("error in templating chart", "err", err)
 		grpcErrCode, errMsg := util.GetGRPCDetailedError(err)
 		if grpcErrCode.IsInvalidArgumentCode() {
 			return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: strconv.FormatInt(http.StatusBadRequest, 10), InternalMessage: errMsg, UserMessage: errMsg}
 		}
-		impl.Logger.Errorw("error in templating chart", "err", err)
 		return nil, err
 	}
 	response := &openapi2.TemplateChartResponse{

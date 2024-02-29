@@ -265,7 +265,7 @@ func ExtractKnownErrorsFromGRPC(err error) *util2.ApiError {
 				InternalMessage: err.Error(),
 				UserMessage:     err.Error(),
 				HttpStatusCode:  statusCode,
-				Code:            string(statusCode),
+				Code:            strconv.Itoa(statusCode),
 			}
 		}
 	}

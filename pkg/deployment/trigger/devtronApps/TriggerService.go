@@ -916,11 +916,11 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean
 			// For cases where helm release was not found, kubelink will install the same configuration
 			updateApplicationResponse, err := impl.helmAppClient.UpdateApplication(ctx, req)
 			if err != nil {
+				impl.logger.Errorw("error in updating helm application for cd pipeline", "err", err)
 				apiError := executors.ExtractKnownErrorsFromGRPC(err)
 				if apiError != nil {
 					return false, apiError
 				}
-				impl.logger.Errorw("error in updating helm application for cd pipeline", "err", err)
 				if util.GetGRPCErrorDetailedMessage(err) == context.Canceled.Error() {
 					err = errors.New(pipelineConfig.NEW_DEPLOYMENT_INITIATED)
 				}
