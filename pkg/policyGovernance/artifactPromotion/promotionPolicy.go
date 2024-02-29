@@ -13,7 +13,11 @@ import (
 	"go.uber.org/zap"
 	"net/http"
 	"strings"
+	"sync"
 )
+
+const updateHookMutex string = "update-hook-mutex"
+const deleteHookMutex string = "delete-hook-mutex"
 
 type PromotionPolicyCUDService interface {
 	UpdatePolicy(userId int32, policyName string, policyBean *bean.PromotionPolicy) error
@@ -29,7 +33,9 @@ type PromotionPolicyServiceImpl struct {
 	pipelineService                 pipeline.CdPipelineConfigService
 	logger                          *zap.SugaredLogger
 
-	// todo: not thread safe
+	// hooks, mutexes can be optional given that the hooks registration happens at the
+	// construction of registering services.
+	hookMutexes    map[string]*sync.Mutex
 	preDeleteHooks []func(tx *pg.Tx, policyId int) error
 	preUpdateHooks []func(tx *pg.Tx, policyId int) error
 }
@@ -39,34 +45,70 @@ func NewPromotionPolicyServiceImpl(globalPolicyDataManager globalPolicy.GlobalPo
 	pipelineService pipeline.CdPipelineConfigService,
 	logger *zap.SugaredLogger,
 ) *PromotionPolicyServiceImpl {
+	preUpdateHooks := make([]func(tx *pg.Tx, policyId int) error, 0)
 	preDeleteHooks := make([]func(tx *pg.Tx, policyId int) error, 0)
+	hookMutexes := map[string]*sync.Mutex{
+		updateHookMutex: &sync.Mutex{},
+		deleteHookMutex: &sync.Mutex{},
+	}
 	return &PromotionPolicyServiceImpl{
 		globalPolicyDataManager:         globalPolicyDataManager,
 		resourceQualifierMappingService: resourceQualifierMappingService,
 		pipelineService:                 pipelineService,
 		logger:                          logger,
 		preDeleteHooks:                  preDeleteHooks,
+		preUpdateHooks:                  preUpdateHooks,
+		hookMutexes:                     hookMutexes,
 	}
 }
 
-// todo: not thread safe
 func (impl PromotionPolicyServiceImpl) AddPreDeleteHook(hook func(tx *pg.Tx, policyId int) error) {
+	impl.hookMutexes[deleteHookMutex].Lock()
+	defer impl.hookMutexes[deleteHookMutex].Unlock()
 	impl.preDeleteHooks = append(impl.preDeleteHooks, hook)
 }
 
-// todo: not thread safe
 func (impl PromotionPolicyServiceImpl) AddPreUpdateHook(hook func(tx *pg.Tx, policyId int) error) {
+	impl.hookMutexes[updateHookMutex].Lock()
+	defer impl.hookMutexes[updateHookMutex].Unlock()
 	impl.preUpdateHooks = append(impl.preUpdateHooks, hook)
 }
 
 func (impl PromotionPolicyServiceImpl) UpdatePolicy(userId int32, policyName string, policyBean *bean.PromotionPolicy) error {
+
 	globalPolicyDataModel, err := policyBean.ConvertToGlobalPolicyDataModel(userId)
 	if err != nil {
 		impl.logger.Errorw("error in create policy, not able to convert promotion policy object to global policy data model", "policyBean", policyBean, "err", err)
 		return err
 	}
 
-	_, err = impl.globalPolicyDataManager.UpdatePolicyByName(policyName, globalPolicyDataModel)
+	policyId, err := impl.globalPolicyDataManager.GetPolicyIdByName(policyName, bean2.GLOBAL_POLICY_TYPE_IMAGE_PROMOTION_POLICY)
+	if err != nil {
+		impl.logger.Errorw("error in getting the policy by name", "policyName", policyName, "userId", userId, "err", err)
+		if errors.Is(err, pg.ErrNoRows) {
+			return &util.ApiError{
+				HttpStatusCode:  http.StatusNotFound,
+				InternalMessage: fmt.Sprintf("policy with name %s not found", policyName),
+				UserMessage:     fmt.Sprintf("policy with name %s not found", policyName),
+			}
+		}
+		return err
+	}
+
+	tx, err := impl.resourceQualifierMappingService.StartTx()
+	if err != nil {
+		impl.logger.Errorw("error in starting the transaction", "userId", userId, "policyName", policyName, "err", err)
+		return err
+	}
+	defer impl.resourceQualifierMappingService.RollbackTx(tx)
+	for _, hook := range impl.preUpdateHooks {
+		err = hook(tx, policyId)
+		if err != nil {
+			impl.logger.Errorw("error in running pre update hook ", "policyName", policyName, "err", err)
+			return err
+		}
+	}
+	_, err = impl.globalPolicyDataManager.UpdatePolicyByName(tx, policyName, globalPolicyDataModel)
 	if err != nil {
 		statusCode := http.StatusInternalServerError
 		if strings.Contains(err.Error(), bean2.UniqueActiveNameConstraint) {
@@ -79,6 +121,13 @@ func (impl PromotionPolicyServiceImpl) UpdatePolicy(userId int32, policyName str
 			UserMessage:     err.Error(),
 		}
 	}
+
+	err = impl.resourceQualifierMappingService.CommitTx(tx)
+	if err != nil {
+		impl.logger.Errorw("error in committing the transaction ", "policyName", policyName, "err", err)
+		return err
+	}
+
 	return nil
 }
 
@@ -124,18 +173,20 @@ func (impl PromotionPolicyServiceImpl) DeletePolicy(userId int32, policyName str
 		}
 		return err
 	}
-	defer impl.resourceQualifierMappingService.RollbackTx(tx)
-	err = impl.globalPolicyDataManager.DeletePolicyByName(tx, policyName, userId)
-	if err != nil {
-		impl.logger.Errorw("error in deleting the promotion policy using name", "policyName", policyName, "userId", userId, "err", err)
-		return err
-	}
+
 	for _, hook := range impl.preDeleteHooks {
 		err = hook(tx, policyId)
 		if err != nil {
 			impl.logger.Errorw("error in running pre delete hook ", "policyName", policyName, "err", err)
 			return err
 		}
+	}
+
+	defer impl.resourceQualifierMappingService.RollbackTx(tx)
+	err = impl.globalPolicyDataManager.DeletePolicyByName(tx, policyName, userId)
+	if err != nil {
+		impl.logger.Errorw("error in deleting the promotion policy using name", "policyName", policyName, "userId", userId, "err", err)
+		return err
 	}
 	err = impl.resourceQualifierMappingService.CommitTx(tx)
 	if err != nil {
