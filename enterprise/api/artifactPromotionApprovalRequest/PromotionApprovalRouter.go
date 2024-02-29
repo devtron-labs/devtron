@@ -2,25 +2,25 @@ package artifactPromotionApprovalRequest
 
 import "github.com/gorilla/mux"
 
-type PromotionApprovalRouter interface {
+type Router interface {
 	InitPromotionApprovalRouter(promotionApprovalRequest *mux.Router)
 }
 
-type PromotionApprovalRouterImpl struct {
-	promotionApprovalRequestRestHandler  PromotionApprovalRequestRestHandler
-	promotionApprovalMaterialRestHandler PromotionApprovalMaterialRestHandler
+type RouterImpl struct {
+	promotionApprovalRequestRestHandler  RestHandler
+	promotionApprovalMaterialRestHandler MaterialRestHandler
 }
 
-func NewPromotionApprovalRequestRouterImpl(promotionApprovalRequestRestHandler PromotionApprovalRequestRestHandler,
-	promotionApprovalMaterialRestHandler PromotionApprovalMaterialRestHandler,
-) *PromotionApprovalRouterImpl {
-	return &PromotionApprovalRouterImpl{
+func NewRouterImpl(promotionApprovalRequestRestHandler RestHandler,
+	promotionApprovalMaterialRestHandler MaterialRestHandler,
+) *RouterImpl {
+	return &RouterImpl{
 		promotionApprovalRequestRestHandler:  promotionApprovalRequestRestHandler,
 		promotionApprovalMaterialRestHandler: promotionApprovalMaterialRestHandler,
 	}
 }
 
-func (router *PromotionApprovalRouterImpl) InitPromotionApprovalRouter(promotionApprovalRouter *mux.Router) {
+func (router *RouterImpl) InitPromotionApprovalRouter(promotionApprovalRouter *mux.Router) {
 	promotionApprovalRouter.Path("").HandlerFunc(router.promotionApprovalRequestRestHandler.HandleArtifactPromotionRequest).
 		Methods("POST")
 	promotionApprovalRouter.Path("").HandlerFunc(router.promotionApprovalRequestRestHandler.GetByPromotionRequestId).Queries("promotionRequestId", "{promotionRequestId}").

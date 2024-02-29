@@ -93,6 +93,7 @@ import (
 	"github.com/devtron-labs/devtron/client/proxy"
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/enterprise/api/artifactPromotionApprovalRequest"
+	"github.com/devtron-labs/devtron/enterprise/api/artifactPromotionPolicy"
 	"github.com/devtron-labs/devtron/enterprise/api/drafts"
 	"github.com/devtron-labs/devtron/enterprise/api/globalTag"
 	"github.com/devtron-labs/devtron/enterprise/api/lockConfiguation"
@@ -1030,12 +1031,18 @@ func InitializeApp() (*App, error) {
 		repository9.NewTimeWindowRepositoryImpl,
 		wire.Bind(new(repository9.TimeWindowRepository), new(*repository9.TimeWindowRepositoryImpl)),
 
-		artifactPromotionApprovalRequest.NewPromotionApprovalRequestRouterImpl,
-		wire.Bind(new(artifactPromotionApprovalRequest.PromotionApprovalRouter), new(*artifactPromotionApprovalRequest.PromotionApprovalRouterImpl)),
+		artifactPromotionApprovalRequest.NewRouterImpl,
+		wire.Bind(new(artifactPromotionApprovalRequest.Router), new(*artifactPromotionApprovalRequest.RouterImpl)),
 
-		artifactPromotionApprovalRequest.NewArtifactPromotionApprovalRestHandlerImpl,
-		wire.Bind(new(artifactPromotionApprovalRequest.PromotionApprovalRequestRestHandler), new(*artifactPromotionApprovalRequest.PromotionApprovalRestHandlerImpl)),
-		wire.Bind(new(artifactPromotionApprovalRequest.PromotionApprovalMaterialRestHandler), new(*artifactPromotionApprovalRequest.PromotionApprovalRestHandlerImpl)),
+		artifactPromotionApprovalRequest.NewRestHandlerImpl,
+		wire.Bind(new(artifactPromotionApprovalRequest.RestHandler), new(*artifactPromotionApprovalRequest.RestHandlerImpl)),
+		wire.Bind(new(artifactPromotionApprovalRequest.MaterialRestHandler), new(*artifactPromotionApprovalRequest.RestHandlerImpl)),
+
+		artifactPromotionPolicy.NewCommonPolicyRouterImpl,
+		wire.Bind(new(artifactPromotionPolicy.Router), new(*artifactPromotionPolicy.RouterImpl)),
+
+		artifactPromotionPolicy.NewArtifactPromotionPolicyRestHandlerImpl,
+		wire.Bind(new(artifactPromotionPolicy.RestHandler), new(*artifactPromotionPolicy.RestHandlerImpl)),
 
 		globalPolicy2.NewGlobalPolicyDataManagerImpl,
 		wire.Bind(new(globalPolicy2.GlobalPolicyDataManager), new(*globalPolicy2.GlobalPolicyDataManagerImpl)),

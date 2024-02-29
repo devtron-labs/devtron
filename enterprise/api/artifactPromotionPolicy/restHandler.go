@@ -3,6 +3,7 @@ package artifactPromotionPolicy
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
@@ -21,6 +22,7 @@ type RestHandler interface {
 	DeletePolicy(w http.ResponseWriter, r *http.Request)
 	GetPolicyByName(w http.ResponseWriter, r *http.Request)
 	GetPoliciesMetadata(w http.ResponseWriter, r *http.Request)
+	GetPolicyNamesForAutoComplete(w http.ResponseWriter, r *http.Request)
 }
 
 type RestHandlerImpl struct {
@@ -56,7 +58,7 @@ func (handler RestHandlerImpl) CreatePolicy(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionDelete, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 
@@ -92,7 +94,7 @@ func (handler RestHandlerImpl) UpdatePolicy(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionDelete, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -154,7 +156,7 @@ func (handler RestHandlerImpl) GetPoliciesMetadata(w http.ResponseWriter, r *htt
 		return
 	}
 	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionDelete, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 
@@ -165,11 +167,11 @@ func (handler RestHandlerImpl) GetPoliciesMetadata(w http.ResponseWriter, r *htt
 	search := queryParams.Get("search")
 
 	if sortBy == "" {
-		sortBy = "policyName"
+		sortBy = bean.POLICY_NAME_SORT_KEY
 	}
 
 	if sortOrder == "" {
-		sortOrder = "ASC"
+		sortOrder = bean.ASC
 	}
 
 	listFilter := bean.PromotionPolicyMetaRequest{
@@ -194,8 +196,14 @@ func (handler RestHandlerImpl) GetPolicyByName(w http.ResponseWriter, r *http.Re
 		return
 	}
 	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionDelete, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+
+	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
+	if !isSuperAdmin {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 
@@ -207,4 +215,31 @@ func (handler RestHandlerImpl) GetPolicyByName(w http.ResponseWriter, r *http.Re
 		return
 	}
 	common.WriteJsonResp(w, nil, policy, http.StatusOK)
+}
+
+func (handler RestHandlerImpl) GetPolicyNamesForAutoComplete(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+
+	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
+	if !isSuperAdmin {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	policy, err := handler.artifactPromotionReadService.GetAllPoliciesNameForAutocomplete()
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, policy, http.StatusOK)
+
 }
