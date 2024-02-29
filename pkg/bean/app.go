@@ -722,10 +722,11 @@ func IsHelmApp(deploymentType string) bool {
 type Status string
 
 const (
-	Success         Status = "Success"
-	Failed          Status = "Failed"
-	INITIATED       Status = "Migration initiated"
-	NOT_YET_DELETED Status = "Not yet deleted"
+	Success          Status = "Success"
+	Failed           Status = "Failed"
+	INITIATED        Status = "Migration initiated"
+	NOT_YET_DELETED  Status = "Not yet deleted"
+	PermissionDenied Status = "permission denied"
 )
 
 const RELEASE_NOT_EXIST = "release not exist"
