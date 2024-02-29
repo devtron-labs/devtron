@@ -4,13 +4,14 @@
 package main
 
 import (
+	"github.com/devtron-labs/devtron/cmd/external-app/commonWireset"
 	"github.com/devtron-labs/devtron/internals/util"
 	"github.com/google/wire"
 )
 
 func InitializeApp() (*App, error) {
 	wire.Build(
-		CommonWireSet,
+		commonWireset.CommonWireSet,
 		NewApp,
 		NewMuxRouter,
 		util.NewHttpClient,

@@ -1,4 +1,4 @@
-package main
+package commonWireset
 
 import (
 	"github.com/devtron-labs/authenticator/client"
