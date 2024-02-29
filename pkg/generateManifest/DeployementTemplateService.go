@@ -24,7 +24,6 @@ import (
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"google.golang.org/grpc/codes"
 	"net/http"
 	"os"
 	"strconv"
@@ -366,7 +365,7 @@ func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, 
 	templateChartResponse, err := impl.helmAppClient.TemplateChart(ctx, installReleaseRequest)
 	if err != nil {
 		grpcErrCode, errMsg := util.GetGRPCDetailedError(err)
-		if grpcErrCode == codes.InvalidArgument {
+		if grpcErrCode.IsInvalidArgumentCode() {
 			return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: strconv.FormatInt(http.StatusBadRequest, 10), InternalMessage: errMsg, UserMessage: errMsg}
 		}
 		impl.Logger.Errorw("error in templating chart", "err", err)

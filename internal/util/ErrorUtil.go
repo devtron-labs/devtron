@@ -50,6 +50,18 @@ func IsErrNoRows(err error) bool {
 	return pg.ErrNoRows == err
 }
 
+type grpcCodeExtended struct {
+	Code codes.Code
+}
+
+func (r grpcCodeExtended) IsInvalidArgumentCode() bool {
+	return r.Code == codes.InvalidArgument
+}
+
+func (r grpcCodeExtended) IsNotFoundCode() bool {
+	return r.Code == codes.NotFound
+}
+
 func GetGRPCErrorDetailedMessage(err error) string {
 	if errStatus, ok := status.FromError(err); ok {
 		return errStatus.Message()
@@ -57,9 +69,11 @@ func GetGRPCErrorDetailedMessage(err error) string {
 	return err.Error()
 }
 
-func GetGRPCDetailedError(err error) (codes.Code, string) {
+func GetGRPCDetailedError(err error) (grpcCodeExtended, string) {
+	grpcCode := grpcCodeExtended{Code: codes.Unknown}
 	if errStatus, ok := status.FromError(err); ok {
-		return errStatus.Code(), errStatus.Message()
+		grpcCode.Code = errStatus.Code()
+		return grpcCode, errStatus.Message()
 	}
-	return codes.Unknown, err.Error()
+	return grpcCode, err.Error()
 }

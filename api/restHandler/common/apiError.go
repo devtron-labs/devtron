@@ -27,7 +27,6 @@ import (
 	errors2 "k8s.io/apimachinery/pkg/api/errors"
 	"net/http"
 	"strconv"
-	grpcStatus "google.golang.org/grpc/status"
 )
 
 // use of writeJsonRespStructured is preferable. it api exists due to historical reason
@@ -95,7 +94,6 @@ func WriteJsonResp(w http.ResponseWriter, err error, respBody interface{}, statu
 		}
 		response.Errors = []*util.ApiError{apiErr}
 	}
-	err.(*grpcStatus.Status.Err(err))
 	response.Code = status //TODO : discuss with prashant about http status header
 	response.Status = http.StatusText(status)
 

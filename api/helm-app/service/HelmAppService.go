@@ -11,7 +11,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/constants"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/go-pg/pg"
-	"google.golang.org/grpc/codes"
 	"net/http"
 	"reflect"
 	"strconv"
@@ -553,9 +552,9 @@ func (impl *HelmAppServiceImpl) DeleteApplication(ctx context.Context, app *AppI
 	deleteApplicationResponse, err := impl.helmAppClient.DeleteApplication(ctx, req)
 	if err != nil {
 		code, message := util.GetGRPCDetailedError(err)
-		if code == codes.NotFound {
+		if code.IsNotFoundCode() {
 			return nil, &util.ApiError{
-				Code:           "404",
+				Code:           string(http.StatusNotFound),
 				HttpStatusCode: 200,
 				UserMessage:    message,
 			}
@@ -962,12 +961,9 @@ func (impl *HelmAppServiceImpl) TemplateChart(ctx context.Context, templateChart
 	templateChartResponse, err := impl.helmAppClient.TemplateChart(ctx, installReleaseRequest)
 	if err != nil {
 		grpcErrCode, errMsg := util.GetGRPCDetailedError(err)
-		if grpcErrCode == codes.InvalidArgument {
+		if grpcErrCode.IsInvalidArgumentCode() {
 			return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: strconv.FormatInt(http.StatusBadRequest, 10), InternalMessage: errMsg, UserMessage: errMsg}
 		}
-		//if models.IsErrorWhileGeneratingManifest(err) {
-		//	return nil, &util.ApiError{HttpStatusCode: http.StatusOK, Code: string(http.StatusOK), InternalMessage: err.Error(), UserMessage: err.Error()}
-		//}
 		impl.logger.Errorw("error in templating chart", "err", err)
 		return nil, err
 	}
