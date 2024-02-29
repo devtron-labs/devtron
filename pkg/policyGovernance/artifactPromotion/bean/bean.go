@@ -172,11 +172,7 @@ type PromotionPolicy struct {
 	PolicyEvaluationId int                                `json:"-"`
 	Conditions         []resourceFilter.ResourceCondition `json:"conditions" validate:"omitempty,min=1"`
 	ApprovalMetaData   ApprovalMetaData                   `json:"approvalMetadata" validate:"dive"`
-}
-
-type PromotionPolicyExtraResponse struct {
-	PromotionPolicy []*PromotionPolicy
-	IdentifierCount int `json:"identifierCount,omitempty"`
+	IdentifierCount    *int                               `json:"identifierCount,omitempty"`
 }
 
 func (policy *PromotionPolicy) ConvertToGlobalPolicyBaseModal(userId int32) (*bean.GlobalPolicyBaseModel, error) {

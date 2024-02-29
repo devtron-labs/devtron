@@ -2,6 +2,7 @@ package read
 
 import (
 	"errors"
+	"fmt"
 	bean3 "github.com/devtron-labs/devtron/api/bean"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -14,6 +15,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
+	"github.com/samber/lo"
 	"go.uber.org/zap"
 	"net/http"
 )
@@ -25,7 +27,7 @@ type ArtifactPromotionDataReadService interface {
 	GetPromotionPolicyById(id int) (*bean.PromotionPolicy, error)
 	GetPromotionPolicyByIds(ids []int) ([]*bean.PromotionPolicy, error)
 	GetPromotionPolicyByName(name string) (*bean.PromotionPolicy, error)
-	GetPoliciesMetadata(policyMetadataRequest bean.PromotionPolicyMetaRequest) (*bean.PromotionPolicyExtraResponse, error)
+	GetPoliciesMetadata(policyMetadataRequest bean.PromotionPolicyMetaRequest) ([]*bean.PromotionPolicy, error)
 }
 
 type ArtifactPromotionDataReadServiceImpl struct {
@@ -276,7 +278,7 @@ func (impl ArtifactPromotionDataReadServiceImpl) GetPromotionPolicyByName(name s
 	return promotionPolicy, nil
 }
 
-func (impl ArtifactPromotionDataReadServiceImpl) GetPoliciesMetadata(policyMetadataRequest bean.PromotionPolicyMetaRequest) (*bean.PromotionPolicyExtraResponse, error) {
+func (impl ArtifactPromotionDataReadServiceImpl) GetPoliciesMetadata(policyMetadataRequest bean.PromotionPolicyMetaRequest) ([]*bean.PromotionPolicy, error) {
 
 	promotionPolicies := make([]*bean.PromotionPolicy, 0)
 
@@ -293,12 +295,35 @@ func (impl ArtifactPromotionDataReadServiceImpl) GetPoliciesMetadata(policyMetad
 		return nil, err
 	}
 
-	promotionPolicyExtraResponse := &bean.PromotionPolicyExtraResponse{
-		IdentifierCount: len(globalPolicies),
-		PromotionPolicy: promotionPolicies,
+	policyIds := lo.Map(promotionPolicies, func(policy *bean.PromotionPolicy, index int) int {
+		return policy.Id
+	})
+
+	qualifierMappings, err := impl.resourceQualifierMappingService.GetResourceMappingsForResources(resourceQualifiers.ImagePromotionPolicy, policyIds, resourceQualifiers.ApplicationEnvironmentSelector)
+	if err != nil {
+		impl.logger.Errorw("error in finding the app env mappings using policy ids", "policyIds", policyIds, "err", err)
+		return nil, err
 	}
 
-	return promotionPolicyExtraResponse, nil
+	UniquePolicyInAppCount := make(map[string]*int, 0)
+	policyIdToAppIdMapping := make(map[int]int, 0)
+	for _, qualifierMapping := range qualifierMappings {
+		uniqueKey := fmt.Sprintf("%d-%d", qualifierMapping.Scope.AppId, qualifierMapping.ResourceId)
+		count := *UniquePolicyInAppCount[uniqueKey] + 1
+		UniquePolicyInAppCount[uniqueKey] = &count
+		policyIdToAppIdMapping[qualifierMapping.ResourceId] = qualifierMapping.Scope.AppId
+	}
+
+	for _, promotionPolicy := range promotionPolicies {
+		identifierCount := 0
+		if appId, ok := policyIdToAppIdMapping[promotionPolicy.Id]; ok {
+			uniqueKey := fmt.Sprintf("%d-%d", appId, promotionPolicy.Id)
+			identifierCount = *UniquePolicyInAppCount[uniqueKey]
+		}
+		promotionPolicy.IdentifierCount = &identifierCount
+	}
+
+	return promotionPolicies, nil
 }
 
 func (impl ArtifactPromotionDataReadServiceImpl) parseSortByRequest(policyMetadataRequest bean.PromotionPolicyMetaRequest) *bean2.SortByRequest {
