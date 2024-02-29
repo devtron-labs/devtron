@@ -12,7 +12,7 @@ CREATE UNIQUE INDEX "unique_user_request_action"
     ON request_approval_user_data(user_id,approval_request_id)
     WHERE request_type = 1;
 -- 0 for  resource_filter, 1 for artifact promotion policy filter evaluation
-ALTER TABLE  resource_filter_evaluation_audit ADD COLUMN "resource_type" integer DEFAULT 0;
+ALTER TABLE  resource_filter_evaluation_audit ADD COLUMN "filter_type" integer DEFAULT 0;
 
 
 

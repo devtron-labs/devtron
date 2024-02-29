@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	bean3 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
@@ -14,9 +15,11 @@ import (
 	repository1 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/read"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/repository"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/workflow/dag"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -39,11 +42,13 @@ type ArtifactPromotionApprovalServiceImpl struct {
 	logger                                     *zap.SugaredLogger
 	ciPipelineRepository                       pipelineConfig.CiPipelineRepository
 	pipelineRepository                         pipelineConfig.PipelineRepository
+	pipelineStageService                       pipeline.PipelineStageService
 	userService                                user.UserService
 	ciArtifactRepository                       repository2.CiArtifactRepository
 	appWorkflowRepository                      appWorkflow.AppWorkflowRepository
 	cdWorkflowRepository                       pipelineConfig.CdWorkflowRepository
 	resourceFilterConditionsEvaluator          resourceFilter.ResourceFilterEvaluator
+	resourceFilterEvaluationAuditService       resourceFilter.FilterEvaluationAuditService
 	imageTaggingService                        pipeline.ImageTaggingService
 	promotionPolicyDataReadService             read.ArtifactPromotionDataReadService
 	requestApprovalUserdataRepo                pipelineConfig.RequestApprovalUserdataRepository
@@ -65,22 +70,26 @@ func NewArtifactPromotionApprovalServiceImpl(
 	requestApprovalUserdataRepo pipelineConfig.RequestApprovalUserdataRepository,
 	workflowDagExecutor dag.WorkflowDagExecutor,
 	promotionPolicyCUDService PromotionPolicyCUDService,
+	pipelineStageService pipeline.PipelineStageService,
+	resourceFilterEvaluationAuditService resourceFilter.FilterEvaluationAuditService,
 ) *ArtifactPromotionApprovalServiceImpl {
 
 	artifactApprovalService := &ArtifactPromotionApprovalServiceImpl{
 		artifactPromotionApprovalRequestRepository: ArtifactPromotionApprovalRequestRepository,
-		logger:                            logger,
-		ciPipelineRepository:              CiPipelineRepository,
-		pipelineRepository:                pipelineRepository,
-		userService:                       userService,
-		ciArtifactRepository:              ciArtifactRepository,
-		appWorkflowRepository:             appWorkflowRepository,
-		cdWorkflowRepository:              cdWorkflowRepository,
-		resourceFilterConditionsEvaluator: resourceFilterConditionsEvaluator,
-		imageTaggingService:               imageTaggingService,
-		promotionPolicyDataReadService:    promotionPolicyService,
-		requestApprovalUserdataRepo:       requestApprovalUserdataRepo,
-		workflowDagExecutor:               workflowDagExecutor,
+		logger:                               logger,
+		ciPipelineRepository:                 CiPipelineRepository,
+		pipelineRepository:                   pipelineRepository,
+		userService:                          userService,
+		ciArtifactRepository:                 ciArtifactRepository,
+		appWorkflowRepository:                appWorkflowRepository,
+		cdWorkflowRepository:                 cdWorkflowRepository,
+		resourceFilterConditionsEvaluator:    resourceFilterConditionsEvaluator,
+		imageTaggingService:                  imageTaggingService,
+		promotionPolicyDataReadService:       promotionPolicyService,
+		requestApprovalUserdataRepo:          requestApprovalUserdataRepo,
+		workflowDagExecutor:                  workflowDagExecutor,
+		pipelineStageService:                 pipelineStageService,
+		resourceFilterEvaluationAuditService: resourceFilterEvaluationAuditService,
 	}
 
 	// register hooks
@@ -697,7 +706,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) promoteArtifact(request *bean.A
 			}
 		}
 
-		deployed, err := impl.checkIfDeployedAtSource(ciArtifact.Id, sourcePipelineId)
+		deployed, err := impl.checkIfDeployedAtSource(ciArtifact.Id, pipelineIdToDaoMap[sourcePipelineId])
 		if err != nil {
 			impl.logger.Errorw("error in checking if artifact is available for promotion at source pipeline", "ciArtifactId", ciArtifact.Id, "sourcePipelineId", sourcePipelineId, "err", err)
 			return nil, err
@@ -770,6 +779,37 @@ func (impl ArtifactPromotionApprovalServiceImpl) raisePromoteRequest(request *be
 		return bean.ARTIFACT_ALREADY_PROMOTED, string(bean.ARTIFACT_ALREADY_PROMOTED), nil
 	}
 
+	params, err := impl.computeFilterParams(ciArtifact)
+	if err != nil {
+		impl.logger.Errorw("error in finding the required CEL expression parameters for using ciArtifact", "err", err)
+		return bean.POLICY_EVALUATION_ERRORED, string(bean.POLICY_EVALUATION_ERRORED), err
+	}
+
+	evaluationResult, err := impl.resourceFilterConditionsEvaluator.EvaluateFilter(promotionPolicy.Conditions, resourceFilter.ExpressionMetadata{Params: params})
+	if err != nil {
+		impl.logger.Errorw("evaluation failed with error", "policyConditions", promotionPolicy.Conditions, "pipelineId", pipelineId, promotionPolicy.Conditions, "params", params, "err", err)
+		return bean.POLICY_EVALUATION_ERRORED, string(bean.POLICY_EVALUATION_ERRORED), err
+	}
+
+	if !evaluationResult {
+		return bean.BLOCKED_BY_POLICY, string(bean.BLOCKED_BY_POLICY), nil
+	}
+
+	evaluationAudit := make(map[string]interface{})
+	evaluationAudit["result"] = evaluationResult
+	evaluationAudit["policy"] = promotionPolicy
+	evaluationAuditJsonBytes, err := json.Marshal(&evaluationAudit)
+	if err != nil {
+		impl.logger.Errorw("error in reading policy evaluation audit ", "err", err)
+		return bean.ERRORED, err.Error(), err
+	}
+
+	// save evaluation audit
+	evaluationAuditEntry, err := impl.resourceFilterEvaluationAuditService.SaveFilterEvaluationAudit(resourceFilter.Artifact, ciArtifact.Id, pipelineId, resourceFilter.Pipeline, request.UserId, string(evaluationAuditJsonBytes), resourceFilter.ARTIFACT_PROMOTION_POLICY)
+	if err != nil {
+		impl.logger.Errorw("error in saving policy evaluation audit data", "evaluationAuditEntry", evaluationAuditEntry, "err", err)
+		return bean.ERRORED, err.Error(), err
+	}
 	promotionRequest := &repository.ArtifactPromotionApprovalRequest{
 		SourceType:              request.SourceType.GetSourceType(),
 		SourcePipelineId:        request.SourcePipelineId,
@@ -778,7 +818,8 @@ func (impl ArtifactPromotionApprovalServiceImpl) raisePromoteRequest(request *be
 		Active:                  true,
 		ArtifactId:              request.ArtifactId,
 		PolicyId:                promotionPolicy.Id,
-		PolicyEvaluationAuditId: promotionPolicy.PolicyEvaluationId,
+		PolicyEvaluationAuditId: evaluationAuditEntry.Id,
+		AuditLog:                sql.NewDefaultAuditLog(request.UserId),
 	}
 
 	var status bean.PromotionValidationState
@@ -810,9 +851,26 @@ func (impl ArtifactPromotionApprovalServiceImpl) raisePromoteRequest(request *be
 
 }
 
-func (impl ArtifactPromotionApprovalServiceImpl) checkIfDeployedAtSource(ciArtifactId, sourcePipelineId int) (bool, error) {
-	// todo: implement me
-	return true, nil
+func (impl ArtifactPromotionApprovalServiceImpl) checkIfDeployedAtSource(ciArtifactId int, pipeline *pipelineConfig.Pipeline) (bool, error) {
+	if pipeline == nil {
+		return false, errors.New("no pipeline")
+	}
+	postStage, err := impl.pipelineStageService.GetCdStageByCdPipelineIdAndStageType(pipeline.Id, repository3.PIPELINE_STAGE_TYPE_POST_CD)
+	if err != nil && !errors.Is(err, pg.ErrNoRows) {
+		impl.logger.Errorw("error in finding the post-cd existence for the pipeline", "pipelineId", pipeline.Id, "err", err)
+		return false, err
+	}
+	workflowType := bean3.CD_WORKFLOW_TYPE_DEPLOY
+	if len(pipeline.PostStageConfig) > 0 || (postStage != nil && postStage.Id > 0) {
+		workflowType = bean3.CD_WORKFLOW_TYPE_POST
+	}
+
+	deployed, err := impl.cdWorkflowRepository.IsArtifactDeployedOnStage(ciArtifactId, pipeline.Id, workflowType)
+	if err != nil {
+		impl.logger.Errorw("error in finding if the artifact is successfully deployed on a pipeline", "ciArtifactId", ciArtifactId, "pipelineId", pipeline.Id, "workflowType", workflowType, "err", err)
+		return false, err
+	}
+	return deployed, nil
 }
 
 func (impl ArtifactPromotionApprovalServiceImpl) cancelPromotionApprovalRequest(request *bean.ArtifactPromotionRequest) (*bean.ArtifactPromotionRequest, error) {

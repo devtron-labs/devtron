@@ -75,6 +75,7 @@ type CdWorkflowRepository interface {
 
 	FetchArtifactsByCdPipelineId(pipelineId int, runnerType bean.WorkflowType, offset, limit int, searchString string) ([]CdWorkflowRunner, error)
 	GetLatestTriggersOfHelmPipelinesStuckInNonTerminalStatuses(getPipelineDeployedWithinHours int) ([]*CdWorkflowRunner, error)
+	IsArtifactDeployedOnStage(ciArtifactId, pipelineId int, runnerType bean.WorkflowType) (bool, error)
 }
 
 type CdWorkflowRepositoryImpl struct {
@@ -714,6 +715,20 @@ func (impl *CdWorkflowRepositoryImpl) GetLatestTriggersOfHelmPipelinesStuckInNon
 func (impl *CdWorkflowRepositoryImpl) CheckWorkflowRunnerByReferenceId(referenceId string) (bool, error) {
 	exists, err := impl.dbConnection.Model((*CdWorkflowRunner)(nil)).
 		Where("cd_workflow_runner.reference_id = ?", referenceId).
+		Exists()
+	if errors.Is(err, pg.ErrNoRows) {
+		return false, nil
+	}
+	return exists, err
+}
+
+func (impl *CdWorkflowRepositoryImpl) IsArtifactDeployedOnStage(ciArtifactId, pipelineId int, runnerType bean.WorkflowType) (bool, error) {
+	exists, err := impl.dbConnection.Model((*CdWorkflowRunner)(nil)).
+		Join("INNER JOIN cd_workflow wf on wf.id = cd_workflow_runner.cd_workflow_id").
+		Where("cd_workflow.pipeline_id = ?", pipelineId).
+		Where("cd_workflow.ci_artifact_id = ?", ciArtifactId).
+		Where("cd_workflow_runner.workflow_type = ?", runnerType).
+		Where("cd_workflow_runner.workflow_status IN (?)", pg.In([]string{"Healthy", "Succeeded"})).
 		Exists()
 	if errors.Is(err, pg.ErrNoRows) {
 		return false, nil

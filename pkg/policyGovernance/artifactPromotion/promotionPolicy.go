@@ -29,7 +29,7 @@ type PromotionPolicyServiceImpl struct {
 	pipelineService                 pipeline.CdPipelineConfigService
 	logger                          *zap.SugaredLogger
 
-	// todo: not a thread safe
+	// todo: not thread safe
 	preDeleteHooks []func(tx *pg.Tx, policyId int) error
 	preUpdateHooks []func(tx *pg.Tx, policyId int) error
 }
@@ -49,12 +49,12 @@ func NewPromotionPolicyServiceImpl(globalPolicyDataManager globalPolicy.GlobalPo
 	}
 }
 
-// todo: not a thread safe
+// todo: not thread safe
 func (impl PromotionPolicyServiceImpl) AddPreDeleteHook(hook func(tx *pg.Tx, policyId int) error) {
 	impl.preDeleteHooks = append(impl.preDeleteHooks, hook)
 }
 
-// todo: not a thread safe
+// todo: not thread safe
 func (impl PromotionPolicyServiceImpl) AddPreUpdateHook(hook func(tx *pg.Tx, policyId int) error) {
 	impl.preUpdateHooks = append(impl.preUpdateHooks, hook)
 }
