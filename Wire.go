@@ -52,6 +52,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(EAMode.EAModeDeploymentService), new(*EAMode.EAModeDeploymentServiceImpl)),
 		service.NewAppStoreDeploymentDBServiceImpl,
 		wire.Bind(new(service.AppStoreDeploymentDBService), new(*service.AppStoreDeploymentDBServiceImpl)),
+		service.NewAppStoreDeploymentServiceImpl,
+		wire.Bind(new(service.AppStoreDeploymentService), new(*service.AppStoreDeploymentServiceImpl)),
 	)
 	return &App{}, nil
 }

@@ -3,7 +3,6 @@ package appStoreDeployment
 import (
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
-	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
 	"github.com/google/wire"
 )
@@ -12,8 +11,8 @@ var AppStoreDeploymentWireSet = wire.NewSet(
 	//util.GetDeploymentServiceTypeConfig,
 	repository.NewClusterInstalledAppsRepositoryImpl,
 	wire.Bind(new(repository.ClusterInstalledAppsRepository), new(*repository.ClusterInstalledAppsRepositoryImpl)),
-	service.NewAppStoreDeploymentServiceImpl,
-	wire.Bind(new(service.AppStoreDeploymentService), new(*service.AppStoreDeploymentServiceImpl)),
+	//service.NewAppStoreDeploymentServiceImpl,
+	//wire.Bind(new(service.AppStoreDeploymentService), new(*service.AppStoreDeploymentServiceImpl)),
 	//service.NewAppStoreDeploymentDBServiceImpl,
 	//wire.Bind(new(service.AppStoreDeploymentDBService), new(*service.AppStoreDeploymentDBServiceImpl)),
 	NewAppStoreDeploymentRestHandlerImpl,
