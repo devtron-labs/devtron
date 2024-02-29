@@ -27,6 +27,7 @@ import (
 	bean3 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
 	read2 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/read"
 	"github.com/devtron-labs/devtron/pkg/team"
+	"github.com/samber/lo"
 	"net/http"
 	"sort"
 	"strconv"
@@ -1491,15 +1492,9 @@ func (impl *AppArtifactManagerImpl) FetchMaterialForArtifactPromotion(artifactPr
 		}
 	} else if artifactPromotionMaterialRequest.Resource == bean3.PROMOTION_APPROVAL_PENDING_NODE {
 
-		environmentName := artifactPromotionMaterialRequest.ResourceName
-		environment, err := impl.environmentRepository.FindByName(environmentName)
+		cdPipeline, err := impl.cdPipelineConfigService.GetCdPipelinesByAppIDAndEnvNameOrId(artifactPromotionMaterialRequest.AppId, 0, artifactPromotionMaterialRequest.ResourceName)
 		if err != nil {
-			impl.logger.Errorw("error in fetching environment by name", "environmentName", environmentName, "err", err)
-			return ciArtifactResponse, err
-		}
-		cdPipeline, err := impl.cdPipelineConfigService.GetCdPipelinesForAppAndEnv(artifactPromotionMaterialRequest.AppId, environment.Id)
-		if err != nil {
-			impl.logger.Errorw("error in fetching cd-pipeline by appId and envId", "appId", artifactPromotionMaterialRequest.AppId, "environmentId", environment.Id, "err", err)
+			impl.logger.Errorw("error in fetching cd-pipeline by appId and envId", "appId", artifactPromotionMaterialRequest.AppId, "environmentId", artifactPromotionMaterialRequest.ResourceName, "err", err)
 			return ciArtifactResponse, err
 		}
 
@@ -1522,10 +1517,9 @@ func (impl *AppArtifactManagerImpl) FetchMaterialForArtifactPromotion(artifactPr
 		}
 		ciArtifactResponse.ImagePromotionApproverEmails = imagePromotionApproverEmails
 
-		artifactIds := make([]int, 0)
-		for _, artifact := range ciArtifactsDao {
-			artifactIds = append(artifactIds, artifact.Id)
-		}
+		artifactIds := lo.Map(ciArtifactsDao, func(item repository.CiArtifact, index int) int {
+			return item.Id
+		})
 
 		promotionApprovalMetadataMap, err = impl.artifactPromotionDataReadService.FetchPromotionApprovalDataForArtifacts(artifactIds, pipeline.Id)
 		if err != nil {
@@ -1545,36 +1539,10 @@ func (impl *AppArtifactManagerImpl) FetchMaterialForArtifactPromotion(artifactPr
 			}
 		}
 
-		workflowId := artifactPromotionMaterialRequest.WorkflowId
-
-		wfMappings, err := impl.appWorkflowRepository.FindWFAllMappingByWorkflowId(workflowId)
+		cdPipelineIds, err := impl.getImagePromoterCDPipelineIdsByWorkflowId(artifactPromotionMaterialRequest.WorkflowId, imagePromoterAuth, artifactPromotionMaterialRequest.Token)
 		if err != nil {
-			impl.logger.Errorw("error in fetching all workflow mappings by workflowId", "workflowId", workflowId, "err", err)
+			impl.logger.Errorw("error in getting authorized cdPipelineIds by workflowId", "cdPipelineIds", cdPipelineIds, "err", err)
 			return ciArtifactResponse, err
-		}
-
-		cdPipelineIds := make([]int, 0)
-		for _, wfMapping := range wfMappings {
-			if wfMapping.Type == appWorkflow.CDPIPELINE {
-				cdPipelineId := wfMapping.ComponentId
-
-				pipeline, err := impl.cdPipelineConfigService.GetCdPipelineById(cdPipelineId)
-				if err != nil {
-					impl.logger.Errorw("error in fetching cdPipeline by id", "cdPipeline", cdPipelineId, "err", err)
-					return ciArtifactResponse, err
-				}
-				teamDao, err := impl.teamRepository.FindOne(pipeline.TeamId)
-				if err != nil {
-					impl.logger.Errorw("error in fetching team by id", "teamId", pipeline.TeamId, "err", err)
-					return ciArtifactResponse, err
-				}
-
-				imagePromoterRbacObject := fmt.Sprintf("%s/%s/%s", teamDao.Name, pipeline.EnvironmentIdentifier, pipeline.AppName)
-				if ok := imagePromoterAuth(artifactPromotionMaterialRequest.Token, imagePromoterRbacObject); !ok {
-					continue
-				}
-				cdPipelineIds = append(cdPipelineIds, wfMapping.ComponentId)
-			}
 		}
 
 		ciArtifactsDao, totalCount, err = impl.ciArtifactRepository.FindArtifactsPendingForPromotion(cdPipelineIds, artifactPromotionMaterialRequest.Limit, artifactPromotionMaterialRequest.Offset, artifactPromotionMaterialRequest.ImageSearchString)
@@ -1643,6 +1611,41 @@ func (impl *AppArtifactManagerImpl) FetchMaterialForArtifactPromotion(artifactPr
 	return ciArtifactResponse, nil
 }
 
+func (impl *AppArtifactManagerImpl) getImagePromoterCDPipelineIdsByWorkflowId(workflowId int, imagePromoterAuth func(string, string) bool, token string) ([]int, error) {
+
+	cdPipelineIds := make([]int, 0)
+
+	wfMappings, err := impl.appWorkflowRepository.FindWFAllMappingByWorkflowId(workflowId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching all workflow mappings by workflowId", "workflowId", workflowId, "err", err)
+		return nil, err
+	}
+
+	for _, wfMapping := range wfMappings {
+		if wfMapping.Type == appWorkflow.CDPIPELINE {
+			cdPipelineId := wfMapping.ComponentId
+
+			pipeline, err := impl.cdPipelineConfigService.GetCdPipelineById(cdPipelineId)
+			if err != nil {
+				impl.logger.Errorw("error in fetching cdPipeline by id", "cdPipeline", cdPipelineId, "err", err)
+				return nil, err
+			}
+			teamDao, err := impl.teamRepository.FindOne(pipeline.TeamId)
+			if err != nil {
+				impl.logger.Errorw("error in fetching team by id", "teamId", pipeline.TeamId, "err", err)
+				return nil, err
+			}
+
+			imagePromoterRbacObject := fmt.Sprintf("%s/%s/%s", teamDao.Name, pipeline.EnvironmentIdentifier, pipeline.AppName)
+			if ok := imagePromoterAuth(token, imagePromoterRbacObject); !ok {
+				continue
+			}
+			cdPipelineIds = append(cdPipelineIds, wfMapping.ComponentId)
+		}
+	}
+	return cdPipelineIds, nil
+}
+
 func (impl AppArtifactManagerImpl) getArtifactDeployedOnCD(artifactPromotionMaterialRequest bean2.ArtifactPromotionMaterialRequest) ([]repository.CiArtifact, int, error) {
 
 	ciArtifactsDao := make([]repository.CiArtifact, 0)
@@ -1656,7 +1659,7 @@ func (impl AppArtifactManagerImpl) getArtifactDeployedOnCD(artifactPromotionMate
 		return ciArtifactsDao, 0, nil
 	}
 
-	cdPipeline, err := impl.cdPipelineConfigService.GetCdPipelinesForAppAndEnv(appId, environment.Id)
+	cdPipeline, err := impl.cdPipelineConfigService.GetCdPipelinesByAppIDAndEnvNameOrId(appId, environment.Id, "")
 	if err != nil {
 		impl.logger.Errorw("error in fetching cd-pipeline by appId and envId", "appId", appId, "environmentId", environment.Id, "err", err)
 		return ciArtifactsDao, 0, nil

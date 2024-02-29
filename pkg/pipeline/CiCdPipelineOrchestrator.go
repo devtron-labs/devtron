@@ -88,7 +88,7 @@ type CiCdPipelineOrchestrator interface {
 	UpdateCiPipelineMaterials(materialsUpdate []*pipelineConfig.CiPipelineMaterial) error
 	PipelineExists(name string) (bool, error)
 	GetCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error)
-	GetCdPipelinesForAppAndEnv(appId int, envId int) (cdPipelines *bean.CdPipelines, err error)
+	GetCdPipelinesForAppAndEnv(appId int, envId int, envName string) (cdPipelines *bean.CdPipelines, err error)
 	GetByEnvOverrideId(envOverrideId int) (*bean.CdPipelines, error)
 	BuildCiPipelineScript(userId int32, ciScript *bean.CiScript, scriptStage string, ciPipeline *bean.CiPipeline) *pipelineConfig.CiPipelineScript
 	AddPipelineMaterialInGitSensor(pipelineMaterials []*pipelineConfig.CiPipelineMaterial) error
@@ -1999,7 +1999,23 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForEnv(envId int, request
 	return cdPipelines, err
 }
 
-func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForAppAndEnv(appId int, envId int) (cdPipelines *bean.CdPipelines, err error) {
+func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForAppAndEnv(appId int, envId int, envName string) (cdPipelines *bean.CdPipelines, err error) {
+
+	var env *repository2.Environment
+	if envId == 0 {
+		env, err = impl.envRepository.FindByName(envName)
+		if err != nil {
+			impl.logger.Errorw("error in fetching environment by envName", "envName", envName, "err", err)
+		}
+		envId = env.Id
+	} else {
+		env, err = impl.envRepository.FindById(envId)
+		if err != nil {
+			impl.logger.Error(err)
+			return nil, err
+		}
+	}
+
 	dbPipelines, err := impl.pipelineRepository.FindActiveByAppIdAndEnvironmentId(appId, envId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cdPipeline", "appId", appId, "err", err)
@@ -2049,11 +2065,6 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForAppAndEnv(appId int, e
 				impl.logger.Error("error occurred while un-marshalling approver config", "err", err)
 				return nil, err
 			}
-		}
-		env, err := impl.envRepository.FindById(envId)
-		if err != nil {
-			impl.logger.Error(err)
-			return nil, err
 		}
 
 		pipeline := &bean.CDPipelineConfigObject{

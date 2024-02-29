@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
+	bean2 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
 )
 
 const EmptyLikeRegex = "%%"
@@ -108,7 +110,9 @@ func buildQueryForArtifactsForCdStageV2(listingFilterOptions bean.ArtifactsListF
 	whereCondition = fmt.Sprintf(" %s OR (ci_artifact.component_id = %d  AND ci_artifact.data_source= '%s' )", whereCondition, listingFilterOptions.ParentId, listingFilterOptions.PluginStage)
 
 	// promoted artifacts
-	whereCondition = fmt.Sprintf(" %s OR id in (select artifact_id from artifact_promotion_approval_request where promoted=true and destination_pipeline_id = %d ) )", whereCondition, listingFilterOptions.PipelineId)
+	if listingFilterOptions.ParentStageType != types.PRE && listingFilterOptions.StageType != types.POST {
+		whereCondition = fmt.Sprintf(" %s OR id in (select artifact_id from artifact_promotion_approval_request where status=%v and destination_pipeline_id = %d ) )", whereCondition, bean2.PROMOTED, listingFilterOptions.PipelineId)
+	}
 
 	if listingFilterOptions.SearchString != EmptyLikeRegex {
 		whereCondition = whereCondition + fmt.Sprintf(" AND ci_artifact.image LIKE '%s' ", listingFilterOptions.SearchString)
