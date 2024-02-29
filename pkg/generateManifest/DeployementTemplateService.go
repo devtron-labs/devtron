@@ -367,7 +367,7 @@ func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, 
 		impl.Logger.Errorw("error in templating chart", "err", err)
 		grpcErrCode, errMsg := util.GetGRPCDetailedError(err)
 		if grpcErrCode.IsInvalidArgumentCode() {
-			return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: strconv.FormatInt(http.StatusBadRequest, 10), InternalMessage: errMsg, UserMessage: errMsg}
+			return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: strconv.Itoa(http.StatusBadRequest), InternalMessage: errMsg, UserMessage: errMsg}
 		}
 		return nil, err
 	}

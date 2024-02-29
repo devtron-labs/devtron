@@ -554,7 +554,7 @@ func (impl *HelmAppServiceImpl) DeleteApplication(ctx context.Context, app *AppI
 		code, message := util.GetGRPCDetailedError(err)
 		if code.IsNotFoundCode() {
 			return nil, &util.ApiError{
-				Code:           string(http.StatusNotFound),
+				Code:           strconv.Itoa(http.StatusNotFound),
 				HttpStatusCode: 200,
 				UserMessage:    message,
 			}
@@ -963,7 +963,7 @@ func (impl *HelmAppServiceImpl) TemplateChart(ctx context.Context, templateChart
 		impl.logger.Errorw("error in templating chart", "err", err)
 		grpcErrCode, errMsg := util.GetGRPCDetailedError(err)
 		if grpcErrCode.IsInvalidArgumentCode() {
-			return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: strconv.FormatInt(http.StatusBadRequest, 10), InternalMessage: errMsg, UserMessage: errMsg}
+			return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: strconv.Itoa(http.StatusBadRequest), InternalMessage: errMsg, UserMessage: errMsg}
 		}
 		return nil, err
 	}
