@@ -20,6 +20,7 @@ package casbin
 import (
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin/bean"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin/util"
 	bean2 "github.com/devtron-labs/devtron/pkg/auth/common/bean"
 	"log"
 	"os"
@@ -200,9 +201,9 @@ func DeleteRoleForUser(user string, role string, expression string, format strin
 		}
 	} else {
 		if len(expression) == 0 && len(format) == 0 {
-			response = e.RemoveGroupingPolicy([]string{user, role})
+			response = e.RemoveGroupingPolicy(util.GetStringSliceWithUserAndRole(user, role))
 		} else {
-			response = e.RemoveGroupingPolicy([]string{user, role, expression, format})
+			response = e.RemoveGroupingPolicy(util.GetStringSliceWithUserRoleExpressionAndFormat(user, role, expression, format))
 		}
 	}
 	return response

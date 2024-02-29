@@ -51,3 +51,11 @@ func GetUsersForActivePolicy(groupPolicies []bean4.GroupPolicy) ([]string, error
 	}
 	return users, nil
 }
+
+func GetStringSliceWithUserAndRole(user, role string) []string {
+	return []string{user, role}
+}
+
+func GetStringSliceWithUserRoleExpressionAndFormat(user, role, expression, format string) []string {
+	return []string{user, role, expression, format}
+}
