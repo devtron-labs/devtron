@@ -5,16 +5,16 @@ import (
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 )
 
-type SoftDeletePostProcessor interface {
-	SoftDeletePostProcessor(app *app.App, installAppVersionRequest *appStoreBean.InstallAppVersionDTO)
+type DeletePostProcessor interface {
+	Process(app *app.App, installAppVersionRequest *appStoreBean.InstallAppVersionDTO)
 }
 
-type SoftDeletePostProcessorImpl struct {
+type DeletePostProcessorImpl struct {
 }
 
-func NewSoftDeletePostProcessorImpl() *SoftDeletePostProcessorImpl {
-	return &SoftDeletePostProcessorImpl{}
+func NewDeletePostProcessorImpl() *DeletePostProcessorImpl {
+	return &DeletePostProcessorImpl{}
 }
 
-func (impl *SoftDeletePostProcessorImpl) SoftDeletePostProcessor(app *app.App, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) {
+func (impl *DeletePostProcessorImpl) Process(app *app.App, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) {
 }

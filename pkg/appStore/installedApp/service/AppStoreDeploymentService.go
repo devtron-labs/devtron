@@ -81,7 +81,7 @@ type AppStoreDeploymentServiceImpl struct {
 	deploymentTypeConfig                 *util2.DeploymentServiceTypeConfig
 	aCDConfig                            *argocdServer.ACDConfig
 	gitOpsConfigReadService              config.GitOpsConfigReadService
-	SoftDeletePostProcessor              SoftDeletePostProcessor
+	SoftDeletePostProcessor              DeletePostProcessor
 }
 
 func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger,
@@ -98,7 +98,7 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger,
 	installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository,
 	envVariables *util2.EnvironmentVariables,
 	aCDConfig *argocdServer.ACDConfig,
-	gitOpsConfigReadService config.GitOpsConfigReadService, SoftDeletePostProcessor SoftDeletePostProcessor) *AppStoreDeploymentServiceImpl {
+	gitOpsConfigReadService config.GitOpsConfigReadService, SoftDeletePostProcessor DeletePostProcessor) *AppStoreDeploymentServiceImpl {
 	return &AppStoreDeploymentServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -260,7 +260,7 @@ func (impl *AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Contex
 			return nil, err
 		}
 	}
-	impl.SoftDeletePostProcessor.SoftDeletePostProcessor(app, installAppVersionRequest)
+	impl.SoftDeletePostProcessor.Process(app, installAppVersionRequest)
 	err = tx.Commit()
 	if err != nil {
 		impl.logger.Errorw("error in commit db transaction on delete", "err", err)
