@@ -26,6 +26,7 @@ type GlobalPolicyRepository interface {
 	DeletedByName(tx *pg.Tx, name string, userId int32) error
 	GetByNameSearchKey(nameSearchKey string, orderByName bool, sortOrderDesc bool) ([]*GlobalPolicy, error)
 	GetIdByName(name string, policyType bean.GlobalPolicyType) (int, error)
+	GetAllActiveByType(policyType bean.GlobalPolicyType) ([]*GlobalPolicy, error)
 }
 
 type GlobalPolicyRepositoryImpl struct {
@@ -255,4 +256,13 @@ func (repo *GlobalPolicyRepositoryImpl) GetIdByName(name string, policyType bean
 		Where("name = ?", name).
 		Select(&id)
 	return id, err
+}
+
+func (repo *GlobalPolicyRepositoryImpl) GetAllActiveByType(policyType bean.GlobalPolicyType) ([]*GlobalPolicy, error) {
+	var model []*GlobalPolicy
+	err := repo.dbConnection.Model(&model).
+		Where("deleted = ?", false).
+		Where("policy_of = ?", policyType).
+		Select()
+	return model, err
 }

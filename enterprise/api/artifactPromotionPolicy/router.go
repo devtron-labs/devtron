@@ -29,5 +29,7 @@ func (r *RouterImpl) InitRouter(router *mux.Router) {
 		Methods("DELETE")
 	router.Path("/{name}").HandlerFunc(r.restHandler.GetPolicyByName).
 		Methods("GET")
+	router.Path("/autocomplete").HandlerFunc(r.restHandler.GetPolicyNamesForAutoComplete).
+		Methods("GET")
 
 }

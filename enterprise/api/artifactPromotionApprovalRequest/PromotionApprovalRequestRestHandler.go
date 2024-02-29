@@ -23,17 +23,17 @@ import (
 	"strconv"
 )
 
-type PromotionApprovalRequestRestHandler interface {
+type RestHandler interface {
 	HandleArtifactPromotionRequest(w http.ResponseWriter, r *http.Request)
 	GetByPromotionRequestId(w http.ResponseWriter, r *http.Request)
 	FetchAwaitingApprovalEnvListForArtifact(w http.ResponseWriter, r *http.Request)
 }
 
-type PromotionApprovalMaterialRestHandler interface {
+type MaterialRestHandler interface {
 	GetArtifactsForPromotion(w http.ResponseWriter, r *http.Request)
 }
 
-type PromotionApprovalRestHandlerImpl struct {
+type RestHandlerImpl struct {
 	promotionApprovalRequestService            artifactPromotion2.ArtifactPromotionApprovalService
 	logger                                     *zap.SugaredLogger
 	userService                                user.UserService
@@ -47,7 +47,7 @@ type PromotionApprovalRestHandlerImpl struct {
 	CiArtifactRepository                       repository3.CiArtifactRepository
 }
 
-func NewArtifactPromotionApprovalRestHandlerImpl(
+func NewRestHandlerImpl(
 	promotionApprovalRequestService artifactPromotion2.ArtifactPromotionApprovalService,
 	logger *zap.SugaredLogger,
 	userService user.UserService,
@@ -57,8 +57,8 @@ func NewArtifactPromotionApprovalRestHandlerImpl(
 	environmentRepository repository.EnvironmentRepository,
 	artifactPromotionApprovalRequestRepository repository2.ArtifactPromotionApprovalRequestRepository,
 	appArtifactManager pipeline.AppArtifactManager,
-) *PromotionApprovalRestHandlerImpl {
-	return &PromotionApprovalRestHandlerImpl{
+) *RestHandlerImpl {
+	return &RestHandlerImpl{
 		promotionApprovalRequestService: promotionApprovalRequestService,
 		logger:                          logger,
 		userService:                     userService,
@@ -71,7 +71,7 @@ func NewArtifactPromotionApprovalRestHandlerImpl(
 	}
 }
 
-func (handler PromotionApprovalRestHandlerImpl) HandleArtifactPromotionRequest(w http.ResponseWriter, r *http.Request) {
+func (handler RestHandlerImpl) HandleArtifactPromotionRequest(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if err != nil || userId == 0 {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -169,7 +169,7 @@ func (handler PromotionApprovalRestHandlerImpl) HandleArtifactPromotionRequest(w
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
 
-func (handler PromotionApprovalRestHandlerImpl) GetByPromotionRequestId(w http.ResponseWriter, r *http.Request) {
+func (handler RestHandlerImpl) GetByPromotionRequestId(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if err != nil || userId == 0 {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -226,12 +226,12 @@ func (handler PromotionApprovalRestHandlerImpl) GetByPromotionRequestId(w http.R
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
 
-func (handler PromotionApprovalRestHandlerImpl) getAppAndEnvObjectByCdPipelineId(cdPipelineId int) (string, string) {
+func (handler RestHandlerImpl) getAppAndEnvObjectByCdPipelineId(cdPipelineId int) (string, string) {
 	object := handler.enforcerUtil.GetAppAndEnvObjectByPipelineIds([]int{cdPipelineId})
 	rbacObjects := object[cdPipelineId]
 	return rbacObjects[0], rbacObjects[1]
 }
-func (handler PromotionApprovalRestHandlerImpl) FetchAwaitingApprovalEnvListForArtifact(w http.ResponseWriter, r *http.Request) {
+func (handler RestHandlerImpl) FetchAwaitingApprovalEnvListForArtifact(w http.ResponseWriter, r *http.Request) {
 
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if err != nil || userId == 0 {
@@ -268,7 +268,7 @@ func (handler PromotionApprovalRestHandlerImpl) FetchAwaitingApprovalEnvListForA
 
 }
 
-func (handler PromotionApprovalRestHandlerImpl) GetArtifactsForPromotion(w http.ResponseWriter, r *http.Request) {
+func (handler RestHandlerImpl) GetArtifactsForPromotion(w http.ResponseWriter, r *http.Request) {
 
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if err != nil || userId == 0 {
@@ -391,7 +391,7 @@ func (handler PromotionApprovalRestHandlerImpl) GetArtifactsForPromotion(w http.
 	common.WriteJsonResp(w, nil, artifactPromotionMaterialResponse, http.StatusOK)
 }
 
-func (handler PromotionApprovalRestHandlerImpl) checkTriggerAccessForAnyEnv(token string, appId int) bool {
+func (handler RestHandlerImpl) checkTriggerAccessForAnyEnv(token string, appId int) bool {
 
 	appObj := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, appObj); !ok {
@@ -408,7 +408,7 @@ func (handler PromotionApprovalRestHandlerImpl) checkTriggerAccessForAnyEnv(toke
 	return false
 }
 
-func (handler PromotionApprovalRestHandlerImpl) CheckImagePromoterAuth(token string, object string) bool {
+func (handler RestHandlerImpl) CheckImagePromoterAuth(token string, object string) bool {
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApprovalPolicy, casbin.ActionArtifactPromote, object); !ok {
 		return false
 	}
@@ -416,7 +416,7 @@ func (handler PromotionApprovalRestHandlerImpl) CheckImagePromoterAuth(token str
 
 }
 
-func (handler PromotionApprovalRestHandlerImpl) FetchEnvironmentsList(w http.ResponseWriter, r *http.Request) {
+func (handler RestHandlerImpl) FetchEnvironmentsList(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if err != nil || userId == 0 {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)

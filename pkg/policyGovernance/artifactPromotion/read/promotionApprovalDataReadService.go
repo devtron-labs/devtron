@@ -10,6 +10,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/globalPolicy"
 	bean2 "github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
+	repository3 "github.com/devtron-labs/devtron/pkg/globalPolicy/repository"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/repository"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
@@ -28,6 +29,7 @@ type ArtifactPromotionDataReadService interface {
 	GetPromotionPolicyByIds(ids []int) ([]*bean.PromotionPolicy, error)
 	GetPromotionPolicyByName(name string) (*bean.PromotionPolicy, error)
 	GetPoliciesMetadata(policyMetadataRequest bean.PromotionPolicyMetaRequest) ([]*bean.PromotionPolicy, error)
+	GetAllPoliciesNameForAutocomplete() ([]string, error)
 }
 
 type ArtifactPromotionDataReadServiceImpl struct {
@@ -356,4 +358,17 @@ func (impl ArtifactPromotionDataReadServiceImpl) parsePromotionPolicyFromGlobalP
 		promotionPolicies = append(promotionPolicies, policy)
 	}
 	return promotionPolicies, nil
+}
+
+func (impl ArtifactPromotionDataReadServiceImpl) GetAllPoliciesNameForAutocomplete() ([]string, error) {
+	policyNames := make([]string, 0)
+	promotionPolicies, err := impl.globalPolicyDataManager.GetAllActivePoliciesByType(bean2.GLOBAL_POLICY_TYPE_IMAGE_PROMOTION_POLICY)
+	if err != nil {
+		impl.logger.Errorw("error in getting all global policies by type", "policyType", bean2.GLOBAL_POLICY_TYPE_IMAGE_PROMOTION_POLICY, "err", err)
+		return policyNames, err
+	}
+	policyNames = lo.Map(promotionPolicies, func(policy *repository3.GlobalPolicy, index int) string {
+		return policy.Name
+	})
+	return policyNames, nil
 }

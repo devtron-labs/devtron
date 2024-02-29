@@ -52,7 +52,7 @@ type AppRouterImpl struct {
 	appListingRestHandler   appList.AppListingRestHandler
 	appFilteringRestHandler appList.AppFilteringRestHandler
 
-	promotionApprovalRequestRouter artifactPromotionApprovalRequest.PromotionApprovalRouter
+	promotionApprovalRequestRouter artifactPromotionApprovalRequest.Router
 }
 
 func NewAppRouterImpl(appFilteringRouter appList2.AppFilteringRouter,
@@ -67,7 +67,7 @@ func NewAppRouterImpl(appFilteringRouter appList2.AppFilteringRouter,
 	appWorkflowRestHandler workflow2.AppWorkflowRestHandler,
 	appListingRestHandler appList.AppListingRestHandler,
 	appFilteringRestHandler appList.AppFilteringRestHandler,
-	promotionApprovalRequestRouter artifactPromotionApprovalRequest.PromotionApprovalRouter) *AppRouterImpl {
+	promotionApprovalRequestRouter artifactPromotionApprovalRequest.Router) *AppRouterImpl {
 	router := &AppRouterImpl{
 		appInfoRouter:                  appInfoRouter,
 		helmRouter:                     helmRouter,

@@ -28,6 +28,7 @@ type GlobalPolicyDataManager interface {
 	// GetPoliciesBySearchableFields(policyIds []int,fields []*SearchableField) ([]*GlobalPolicyBaseModel, error)
 	GetAndSort(policyNamePattern string, sortRequest *bean.SortByRequest) ([]*bean.GlobalPolicyBaseModel, error)
 	GetPolicyIdByName(name string, policyType bean.GlobalPolicyType) (int, error)
+	GetAllActivePoliciesByType(policyType bean.GlobalPolicyType) ([]*repository.GlobalPolicy, error)
 }
 
 type GlobalPolicyDataManagerImpl struct {
@@ -341,4 +342,8 @@ func (impl *GlobalPolicyDataManagerImpl) getGlobalPolicySortedOrder(globalPolici
 
 func (impl *GlobalPolicyDataManagerImpl) GetPolicyIdByName(name string, policyType bean.GlobalPolicyType) (int, error) {
 	return impl.globalPolicyRepository.GetIdByName(name, policyType)
+}
+
+func (impl *GlobalPolicyDataManagerImpl) GetAllActivePoliciesByType(policyType bean.GlobalPolicyType) ([]*repository.GlobalPolicy, error) {
+	return impl.globalPolicyRepository.GetAllActiveByType(policyType)
 }
