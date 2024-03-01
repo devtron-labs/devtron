@@ -8,6 +8,7 @@ import (
 
 const RELEASE_NOT_EXIST = "release not exist"
 const NOT_FOUND = "not found"
+const PermissionDenied = "permission denied"
 
 func MoveFileToDestination(filePath, destinationPath string) error {
 	err := os.Rename(filePath, destinationPath)
@@ -41,4 +42,8 @@ func ConvertIntArrayToStringArray(req []int) []string {
 func CheckAppReleaseNotExist(err error) bool {
 	// RELEASE_NOT_EXIST check for helm App and NOT_FOUND check for argo app
 	return strings.Contains(err.Error(), NOT_FOUND) || strings.Contains(err.Error(), RELEASE_NOT_EXIST)
+}
+
+func CheckPermissionErrorForArgoCd(err error) bool {
+	return strings.Contains(err.Error(), PermissionDenied)
 }

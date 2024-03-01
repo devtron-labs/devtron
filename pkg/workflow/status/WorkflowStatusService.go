@@ -364,10 +364,9 @@ func (impl *WorkflowStatusServiceImpl) UpdatePipelineTimelineAndStatusByLiveAppl
 		if isSucceeded {
 			// handling deployment success event
 			// updating cdWfr status
-			installedAppVersionHistory.Status = pipelineConfig.WorkflowSucceeded
-			installedAppVersionHistory.FinishedOn = time.Now()
-			installedAppVersionHistory.UpdatedOn = time.Now()
-			installedAppVersionHistory.UpdatedBy = 1
+			installedAppVersionHistory.SetStatus(pipelineConfig.WorkflowSucceeded)
+			installedAppVersionHistory.SetFinishedOn()
+			installedAppVersionHistory.UpdateAuditLog(1)
 			installedAppVersionHistory, err = impl.installedAppVersionHistoryRepository.UpdateInstalledAppVersionHistory(installedAppVersionHistory, nil)
 			if err != nil {
 				impl.logger.Errorw("error on update installedAppVersionHistory", "installedAppVersionHistory", installedAppVersionHistory, "err", err)
