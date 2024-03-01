@@ -30,9 +30,13 @@ Before you start creating an application, we recommend to provide basic informat
 
 [Scoped Variables](scoped-variables.md)
 
+[Pull Image Digest](pull-image-digest.md)
+
 [Tags Policy](tags-policy.md)
 
 [Filter Condition](filter-condition.md)
+
+[Build Infra](build-infra.md)
 
 You can also refer our YouTube video provided here.
 
