@@ -28,7 +28,11 @@ type DevtronSecretConfig struct {
 }
 
 func GetEnvironmentVariables() (*EnvironmentVariables, error) {
-	cfg := &EnvironmentVariables{}
+	cfg := &EnvironmentVariables{
+		GlobalEnvVariables:          &GlobalEnvVariables{},
+		DevtronSecretConfig:         &DevtronSecretConfig{},
+		DeploymentServiceTypeConfig: &DeploymentServiceTypeConfig{},
+	}
 	err := env.Parse(cfg)
 	if err != nil {
 		return nil, err
