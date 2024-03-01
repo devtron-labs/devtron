@@ -199,7 +199,7 @@ func (policy *PromotionPolicy) ConvertToGlobalPolicyDataModel(userId int32) (*be
 	}
 	return &bean.GlobalPolicyDataModel{
 		GlobalPolicyBaseModel: *baseModel,
-		SearchableFields:      util.GetSearchableFields(policy),
+		SearchableFields:      util.GetSearchableFields(*policy),
 	}, nil
 }
 
