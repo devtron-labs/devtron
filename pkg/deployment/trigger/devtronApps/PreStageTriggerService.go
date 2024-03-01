@@ -747,7 +747,10 @@ func (impl *TriggerServiceImpl) getBuildRegistryConfigForArtifact(sourceCiPipeli
 	// Handling for Skopeo Plugin
 	if artifact.IsRegistryCredentialMapped() {
 		dockerArtifactStore, err := impl.dockerArtifactStoreRepository.FindOne(artifact.CredentialSourceValue)
-		if err != nil {
+		if util.IsErrNoRows(err) {
+			impl.logger.Errorw("source artifact registry not found", "registryId", artifact.CredentialSourceValue, "err", err)
+			return nil, fmt.Errorf("source artifact registry '%s' not found", artifact.CredentialSourceValue)
+		} else if err != nil {
 			impl.logger.Errorw("error in fetching artifact info", "err", err)
 			return nil, err
 		}
