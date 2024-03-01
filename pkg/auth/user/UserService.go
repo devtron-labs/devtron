@@ -1221,7 +1221,11 @@ func (impl UserServiceImpl) createOrUpdateUserRoleGroupsPolices(requestUserRoleG
 	}
 	// adding polices which are not existing in the system
 	for _, userRoleGroup := range requestUserRoleGroups {
-		roleGroup := groupIdRoleGroupMap[userRoleGroup.RoleGroup.Id]
+		roleGroup, ok := groupIdRoleGroupMap[userRoleGroup.RoleGroup.Id]
+		if !ok {
+			// doing this as to handle the deleted group in request
+			continue
+		}
 		newUserRoleGroupMap[userRoleGroup.RoleGroup.Id] = userRoleGroup
 		if val, ok := oldUserRoleGroupMap[userRoleGroup.RoleGroup.Id]; !ok {
 			// case: when newly polices has to be created previously dont exist
