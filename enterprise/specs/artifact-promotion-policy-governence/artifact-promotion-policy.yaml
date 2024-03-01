@@ -114,7 +114,7 @@ paths:
                   type: integer
                   description: "workflow id"
                 appId:
-                  type: string
+                  type: integer
                   description: "app id"
                   example: "order-service"
                 destinationObjectNames:
