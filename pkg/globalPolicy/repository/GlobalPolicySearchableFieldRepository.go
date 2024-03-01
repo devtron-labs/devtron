@@ -37,7 +37,7 @@ type GlobalPolicySearchableField struct {
 	Id              int                        `sql:"id,pk"`
 	FieldName       string                     `sql:"field_name"`
 	GlobalPolicyId  int                        `sql:"global_policy_id"`
-	SearchableKeyId int                        `sql:"v"`
+	SearchableKeyId int                        `sql:"searchable_key_id"`
 	Value           string                     `sql:"value"`
 	ValueInt        int                        `sql:"value_int"`
 	ValueTimeStamp  time.Time                  `sql:"value_time_stamp"`

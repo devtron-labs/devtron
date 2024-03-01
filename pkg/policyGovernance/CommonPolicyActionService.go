@@ -67,7 +67,7 @@ func (impl CommonPolicyActionsServiceImpl) ApplyPolicyToIdentifiers(userId int32
 			UserMessage:     "unsupported policy type",
 		}
 	}
-	updateToPolicy, err := impl.globalPolicyDataManager.GetPolicyByName(applyIdentifiersRequest.ApplyToPolicyName)
+	updateToPolicy, err := impl.globalPolicyDataManager.GetPolicyByName(applyIdentifiersRequest.ApplyToPolicyName, applyIdentifiersRequest.PolicyType)
 	if err != nil {
 		statusCode := http.StatusInternalServerError
 		if errors.Is(err, pg.ErrNoRows) {

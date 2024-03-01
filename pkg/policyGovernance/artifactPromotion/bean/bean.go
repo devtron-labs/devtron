@@ -197,9 +197,12 @@ func (policy *PromotionPolicy) ConvertToGlobalPolicyDataModel(userId int32) (*be
 	if err != nil {
 		return nil, err
 	}
+	searchKeys := util.GetSearchableFields(*policy)
+	approvalSearchKeys := util.GetSearchableFields(policy.ApprovalMetaData)
+	searchKeys = append(searchKeys, approvalSearchKeys...)
 	return &bean.GlobalPolicyDataModel{
 		GlobalPolicyBaseModel: *baseModel,
-		SearchableFields:      util.GetSearchableFields(policy),
+		SearchableFields:      searchKeys,
 	}, nil
 }
 

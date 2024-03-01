@@ -25,7 +25,12 @@ func GetSearchableFields[T interface{}](profile T) []SearchableField {
 
 	val := reflect.ValueOf(profile)
 	typ := reflect.TypeOf(profile)
-	for i := 0; i < typ.NumField(); i++ {
+	kind := typ.Kind()
+	if kind != reflect.Struct {
+		return nil
+	}
+	count := typ.NumField()
+	for i := 0; i < count; i++ {
 		field := val.Field(i)
 		fieldType := typ.Field(i)
 

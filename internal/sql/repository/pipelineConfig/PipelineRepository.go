@@ -19,6 +19,7 @@ package pipelineConfig
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/models"
@@ -803,15 +804,18 @@ func (impl PipelineRepositoryImpl) FindActiveByAppIdAndEnvNames(appId int, envNa
 }
 
 func (impl PipelineRepositoryImpl) FindAppAndEnvDetailsByListFilter(filter CdPipelineListFilter) ([]CdPipelineMetaData, error) {
+	if true {
+		return impl.findAppAndEnvDetailsByListFilter(filter)
+	}
 	result := make([]CdPipelineMetaData, 0)
-	query := impl.dbConnection.Model((*Pipeline)(nil)).
-		Column("pipeline.app_id", "environment_id AS env_id", "App.app_name", "Environment.name AS environment_name", "COUNT(pipeline.id) OVER() ")
+	query := impl.dbConnection.Model(&Pipeline{}).
+		Column("pipeline.app_id", "pipeline.environment_id AS env_id", "App.app_name", "Environment.environment_name", "COUNT(pipeline.id) OVER() AS total_count")
 
 	if len(filter.IncludeAppEnvIds) > 0 {
-		query = query.Where("(pipeline.app_id,pipeline.env_id) IN (?)", pg.InMulti(filter.IncludeAppEnvIds))
+		query = query.Where("(pipeline.app_id,pipeline.environment_id) IN (?)", pg.InMulti(filter.IncludeAppEnvIds))
 	}
 	if len(filter.ExcludeAppEnvIds) > 0 {
-		query = query.Where("(pipeline.app_id,pipeline.env_id) NOT IN (?)", pg.InMulti(filter.ExcludeAppEnvIds))
+		query = query.Where("(pipeline.app_id,pipeline.environment_id) NOT IN (?)", pg.InMulti(filter.ExcludeAppEnvIds))
 	}
 	if len(filter.AppNames) > 0 {
 		query = query.Where("app_name IN (?)", pg.In(filter.AppNames))
@@ -840,5 +844,48 @@ func (impl PipelineRepositoryImpl) FindAppAndEnvDetailsByListFilter(filter CdPip
 	}
 
 	err := query.Select(&result)
+	return result, err
+}
+
+func (impl PipelineRepositoryImpl) findAppAndEnvDetailsByListFilter(filter CdPipelineListFilter) ([]CdPipelineMetaData, error) {
+	result := make([]CdPipelineMetaData, 0)
+	query := "SELECT p.app_id ,p.environment_id AS env_id ,a.app_name, e.environment_name ,COUNT(p.id) OVER() as total_count" +
+		" FROM pipeline p INNER JOIN app a ON p.app_id = a.id AND a.active = true " +
+		" INNER JOIN environment e ON e.id = p.environment_id AND e.active = true "
+	where := " WHERE p.deleted = false"
+
+	if len(filter.IncludeAppEnvIds) > 0 {
+		where += fmt.Sprintf("AND (p.app_id,pipeline.environment_id) IN (%s)", pg.InMulti(filter.IncludeAppEnvIds))
+	}
+	if len(filter.ExcludeAppEnvIds) > 0 {
+		where += fmt.Sprintf("AND (p.app_id,p.environment_id) NOT IN (%s)", pg.InMulti(filter.ExcludeAppEnvIds))
+	}
+	if len(filter.AppNames) > 0 {
+		where += fmt.Sprintf("AND app_name IN (%s)", pg.In(filter.AppNames))
+	}
+
+	if len(filter.AppNames) > 0 {
+		where += fmt.Sprintf("AND e.environment_name IN (%s)", pg.In(filter.EnvNames))
+	}
+
+	query += where
+	orderBy := "app_name"
+	if filter.SortBy == "envName" {
+		orderBy = "env_name"
+	}
+
+	if filter.SortOrder == "DESC" {
+		orderBy += " DESC"
+	}
+	query += " ORDER BY " + orderBy
+	if filter.Limit > 0 {
+		query += fmt.Sprintf(" Limit %d", filter.Limit)
+	}
+
+	if filter.Offset > 0 {
+		query += fmt.Sprintf(" OFFSET %d", filter.Offset)
+	}
+
+	_, err := impl.dbConnection.Query(&result, query)
 	return result, err
 }
