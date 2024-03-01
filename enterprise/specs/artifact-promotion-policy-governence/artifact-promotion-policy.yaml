@@ -140,7 +140,7 @@ paths:
 
   #    this api can be used to get the list of environments present in the given workflowId.
   #    if artifactId is provided then we will evaluate the environments policies on the given artifact.
-  /orchestrator/app/artifact/promote/env/list:
+  /orchestrator/app/artifact/promotion-request/env/list:
     get:
       description: "this api can be used to get the list of environments present in the given workflowId. /n if artifactId is provided then this will evaluate the environment policies on the given artifact."
       parameters:
@@ -191,7 +191,7 @@ paths:
   #  if resource is PROMOTION_APPROVAL_PENDING_NODE, then this api will fetch the pending promotion requests for the given environment (in resourceName).
   #  also can be used to fetch pending requests waiting for approval on requested user for given workflowId(required)
   #  appName is required param
-  /orchestrator/app/artifact/promote/env/approval-metadata:
+  /orchestrator/app/artifact/promotion-request/env/approval-metadata:
     get:
       description: "This api is used to get list of envs on which artifact promotion request is raised for given artifact and also if user is allowed to approve promotion request on that environment"
       parameters:
@@ -213,7 +213,7 @@ paths:
                     items:
                       $ref: "#/components/schemas/EnvironmentApprovalMetaData"
                     description: "list of environments"
-  /orchestrator/app/artifact/promote/material:
+  /orchestrator/app/artifact/promotion-request/material:
     get:
       description: "this api will fetch the artifacts for artifact promotion. \n 
       case1 : if the resource param is 'CD' this will fetch the images that are successfully deployed in the CD node of the provided environment name in the resourceName param. /n 

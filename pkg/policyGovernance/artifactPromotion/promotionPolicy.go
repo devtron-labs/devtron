@@ -13,18 +13,14 @@ import (
 	"go.uber.org/zap"
 	"net/http"
 	"strings"
-	"sync"
 )
-
-const updateHookMutex string = "update-hook-mutex"
-const deleteHookMutex string = "delete-hook-mutex"
 
 type PromotionPolicyCUDService interface {
 	UpdatePolicy(userId int32, policyName string, policyBean *bean.PromotionPolicy) error
 	CreatePolicy(userId int32, policyBean *bean.PromotionPolicy) error
 	DeletePolicy(userId int32, profileName string) error
 	AddPreDeleteHook(hook func(tx *pg.Tx, policyId int) error)
-	AddPreUpdateHook(hook func(tx *pg.Tx, policyId int) error)
+	AddPreUpdateHook(hook func(tx *pg.Tx, policy *bean.PromotionPolicy) error)
 }
 
 type PromotionPolicyServiceImpl struct {
@@ -33,11 +29,9 @@ type PromotionPolicyServiceImpl struct {
 	pipelineService                 pipeline.CdPipelineConfigService
 	logger                          *zap.SugaredLogger
 
-	// hooks, mutexes can be optional given that the hooks registration happens at the
-	// construction of registering services.
-	hookMutexes    map[string]*sync.Mutex
+	// hooks
 	preDeleteHooks []func(tx *pg.Tx, policyId int) error
-	preUpdateHooks []func(tx *pg.Tx, policyId int) error
+	preUpdateHooks []func(tx *pg.Tx, policy *bean.PromotionPolicy) error
 }
 
 func NewPromotionPolicyServiceImpl(globalPolicyDataManager globalPolicy.GlobalPolicyDataManager,
@@ -45,12 +39,9 @@ func NewPromotionPolicyServiceImpl(globalPolicyDataManager globalPolicy.GlobalPo
 	pipelineService pipeline.CdPipelineConfigService,
 	logger *zap.SugaredLogger,
 ) *PromotionPolicyServiceImpl {
-	preUpdateHooks := make([]func(tx *pg.Tx, policyId int) error, 0)
 	preDeleteHooks := make([]func(tx *pg.Tx, policyId int) error, 0)
-	hookMutexes := map[string]*sync.Mutex{
-		updateHookMutex: &sync.Mutex{},
-		deleteHookMutex: &sync.Mutex{},
-	}
+	preUpdateHooks := make([]func(tx *pg.Tx, policy *bean.PromotionPolicy) error, 0)
+
 	return &PromotionPolicyServiceImpl{
 		globalPolicyDataManager:         globalPolicyDataManager,
 		resourceQualifierMappingService: resourceQualifierMappingService,
@@ -58,19 +49,14 @@ func NewPromotionPolicyServiceImpl(globalPolicyDataManager globalPolicy.GlobalPo
 		logger:                          logger,
 		preDeleteHooks:                  preDeleteHooks,
 		preUpdateHooks:                  preUpdateHooks,
-		hookMutexes:                     hookMutexes,
 	}
 }
 
 func (impl PromotionPolicyServiceImpl) AddPreDeleteHook(hook func(tx *pg.Tx, policyId int) error) {
-	impl.hookMutexes[deleteHookMutex].Lock()
-	defer impl.hookMutexes[deleteHookMutex].Unlock()
 	impl.preDeleteHooks = append(impl.preDeleteHooks, hook)
 }
 
-func (impl PromotionPolicyServiceImpl) AddPreUpdateHook(hook func(tx *pg.Tx, policyId int) error) {
-	impl.hookMutexes[updateHookMutex].Lock()
-	defer impl.hookMutexes[updateHookMutex].Unlock()
+func (impl PromotionPolicyServiceImpl) AddPreUpdateHook(hook func(tx *pg.Tx, policy *bean.PromotionPolicy) error) {
 	impl.preUpdateHooks = append(impl.preUpdateHooks, hook)
 }
 
@@ -101,8 +87,9 @@ func (impl PromotionPolicyServiceImpl) UpdatePolicy(userId int32, policyName str
 		return err
 	}
 	defer impl.resourceQualifierMappingService.RollbackTx(tx)
+	policyBean.Id = policyId
 	for _, hook := range impl.preUpdateHooks {
-		err = hook(tx, policyId)
+		err = hook(tx, policyBean)
 		if err != nil {
 			impl.logger.Errorw("error in running pre update hook ", "policyName", policyName, "err", err)
 			return err

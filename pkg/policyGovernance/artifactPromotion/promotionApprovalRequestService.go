@@ -1073,10 +1073,13 @@ func (impl ArtifactPromotionApprovalServiceImpl) onPolicyDelete(tx *pg.Tx, polic
 	return err
 }
 
-func (impl ArtifactPromotionApprovalServiceImpl) onPolicyUpdate(tx *pg.Tx, policyId int) error {
-	err := impl.artifactPromotionApprovalRequestRepository.MarkStaleByPolicyId(tx, policyId)
+func (impl ArtifactPromotionApprovalServiceImpl) onPolicyUpdate(tx *pg.Tx, policy *bean.PromotionPolicy) error {
+	// get all the requests whose id is policy.id
+	// get all the artifacts using request.artifactId
+	// re-evaluate the artifacts using the policy
+	err := impl.artifactPromotionApprovalRequestRepository.MarkStaleByIds(tx, nil)
 	if err != nil {
-		impl.logger.Errorw("error in marking artifact promotion requests stale", "policyId", policyId, "err", err)
+		impl.logger.Errorw("error in marking artifact promotion requests stale", "policyId", policy.Id, "err", err)
 	}
 	return err
 }
