@@ -96,7 +96,7 @@ type ArtifactPromotionRequest struct {
 	PromotionRequestId int            `json:"promotionRequestId"`
 	ArtifactId         int            `json:"artifactId"`
 	AppName            string         `json:"appName"`
-	EnvironmentNames   []string       `json:"environmentNames"`
+	EnvironmentNames   []string       `json:"destinationObjectNames"`
 	UserId             int32          `json:"-"`
 	WorkflowId         int            `json:"workflowId"`
 	AppId              int            `json:"appId"`

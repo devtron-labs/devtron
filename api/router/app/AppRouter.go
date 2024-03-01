@@ -108,7 +108,7 @@ func (router AppRouterImpl) InitAppRouter(AppRouter *mux.Router) {
 	router.appWorkflowRouter.InitAppWorkflowRouter(appWorkflowRouter)
 
 	// artifact promotion approval request
-	artifactPromotionApprovalRouter := AppRouter.PathPrefix("/artifact/promote").Subrouter()
+	artifactPromotionApprovalRouter := AppRouter.PathPrefix("/artifact/promotion-request").Subrouter()
 	router.promotionApprovalRequestRouter.InitPromotionApprovalRouter(artifactPromotionApprovalRouter)
 
 	// TODO refactoring: categorise and move to respective folders
@@ -121,7 +121,7 @@ func (router AppRouterImpl) InitAppRouter(AppRouter *mux.Router) {
 		HandlerFunc(router.appListingRestHandler.GetHostUrlsByBatch).
 		Methods("GET")
 
-	//This API used for fetch app details, not deployment details
+	// This API used for fetch app details, not deployment details
 	AppRouter.Path("/detail").
 		Queries("app-id", "{app-id}").
 		Queries("env-id", "{env-id}").
