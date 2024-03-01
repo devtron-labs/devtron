@@ -55,11 +55,16 @@ Users need to have super-admin permission to lock deployment keys.
 
 ## Result
 
-As mentioned earlier, the keys restricted by super-admins remain locked in both: base deployment template and environment overrides. Now, let's look at a scenario where a user (non-super-admin) edits the base deployment template.
+While super-admins can directly edit the locked keys, let's look at a scenario where a user (non-super-admin) tries to edit the same in an [unprotected](../../user-guide/creating-application/config-approval.md) base deployment template.
 
 * User can hide/unhide the locked keys as shown below.
 
     ![Figure 8: Hiding Locked Keys](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/lock-dt/hide-locked-keys.gif)
+
+{% hint style="info" %}
+<span><img src="https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/lock-dt/mode.jpg" alt="GUI or YAML Mode"></span> <br />
+If you have selected 'Basic' mode instead of 'Advanced (YAML)', only unlocked keys would appear.
+{% endhint %}
 
 * Let's assume the user edits one of the locked keys...
 
@@ -93,4 +98,6 @@ Only a super-admin, manager, or application admin can edit the configuration val
     However, if it's a [protected template](../../user-guide/creating-application/config-approval.md), the user will require the approval of a [configuration approver](./user-access.md#role-based-access-levels) as shown below.
 
     ![Figure 15: Proposing Changes to Protected Config](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/lock-dt/proposing-changes.jpg)
+
+The same result can be seen if the user tries to edit environment-specific deployment templates.
 
