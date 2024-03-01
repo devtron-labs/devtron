@@ -15,7 +15,7 @@ type GlobalPolicyRepository interface {
 	RollBackTransaction(tx *pg.Tx) error
 	GetById(id int) (*GlobalPolicy, error)
 	GetEnabledPoliciesByIds(ids []int) ([]*GlobalPolicy, error)
-	GetByName(name string) (*GlobalPolicy, error)
+	GetByName(name string, policyType bean.GlobalPolicyType) (*GlobalPolicy, error)
 	GetAllByPolicyOfAndVersion(policyOf bean.GlobalPolicyType, policyVersion bean.GlobalPolicyVersion) ([]*GlobalPolicy, error)
 	Create(model *GlobalPolicy, tx *pg.Tx) error
 	Update(model *GlobalPolicy, tx *pg.Tx) error
@@ -118,10 +118,12 @@ func (repo *GlobalPolicyRepositoryImpl) GetEnabledPoliciesByIds(ids []int) ([]*G
 	return models, nil
 }
 
-func (repo *GlobalPolicyRepositoryImpl) GetByName(name string) (*GlobalPolicy, error) {
+func (repo *GlobalPolicyRepositoryImpl) GetByName(name string, policyType bean.GlobalPolicyType) (*GlobalPolicy, error) {
 	var model GlobalPolicy
 	err := repo.dbConnection.Model(&model).Where("name = ?", name).
-		Where("deleted = ?", false).Select()
+		Where("deleted = ?", false).
+		Where("policy_of = ?", policyType).
+		Select()
 	if err != nil {
 		repo.logger.Errorw("error in getting policy by name", "err", err, "name", name)
 		return nil, err

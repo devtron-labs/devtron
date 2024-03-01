@@ -271,7 +271,7 @@ func (impl ArtifactPromotionDataReadServiceImpl) GetPromotionPolicyById(id int) 
 }
 
 func (impl ArtifactPromotionDataReadServiceImpl) GetPromotionPolicyByName(name string) (*bean.PromotionPolicy, error) {
-	globalPolicy, err := impl.globalPolicyDataManager.GetPolicyByName(name)
+	globalPolicy, err := impl.globalPolicyDataManager.GetPolicyByName(name, bean2.GLOBAL_POLICY_TYPE_IMAGE_PROMOTION_POLICY)
 	if err != nil {
 		impl.logger.Errorw("error in fetching global policy by name", "name", name, "err", err)
 		if errors.Is(err, pg.ErrNoRows) {

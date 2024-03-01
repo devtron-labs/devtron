@@ -138,13 +138,6 @@ func (impl PromotionPolicyServiceImpl) CreatePolicy(userId int32, policyBean *be
 		return err
 	}
 
-	tx, err := impl.resourceQualifierMappingService.StartTx()
-	if err != nil {
-		impl.logger.Errorw("error in starting the transaction", "userId", userId, "globalPolicyDataModel", globalPolicyDataModel, "err", err)
-		return err
-	}
-	defer impl.resourceQualifierMappingService.RollbackTx(tx)
-
 	_, err = impl.globalPolicyDataManager.CreatePolicy(globalPolicyDataModel, nil)
 	if err != nil {
 		statusCode := http.StatusInternalServerError
@@ -157,12 +150,6 @@ func (impl PromotionPolicyServiceImpl) CreatePolicy(userId int32, policyBean *be
 			InternalMessage: err.Error(),
 			UserMessage:     err.Error(),
 		}
-	}
-
-	err = impl.resourceQualifierMappingService.CommitTx(tx)
-	if err != nil {
-		impl.logger.Errorw("error in committing the transaction ", "globalPolicyDataModel", globalPolicyDataModel, "err", err)
-		return err
 	}
 	return nil
 }

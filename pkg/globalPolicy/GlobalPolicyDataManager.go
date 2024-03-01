@@ -13,7 +13,7 @@ type GlobalPolicyDataManager interface {
 	CreatePolicy(globalPolicyDataModel *bean.GlobalPolicyDataModel, tx *pg.Tx) (*bean.GlobalPolicyDataModel, error)
 
 	GetPolicyById(policyId int) (*bean.GlobalPolicyBaseModel, error)
-	GetPolicyByName(policyName string) (*bean.GlobalPolicyBaseModel, error)
+	GetPolicyByName(policyName string, policyType bean.GlobalPolicyType) (*bean.GlobalPolicyBaseModel, error)
 	GetPolicyByNames(policyName []string) ([]*bean.GlobalPolicyBaseModel, error)
 	GetPolicyByIds(policyIds []int) ([]*bean.GlobalPolicyBaseModel, error)
 	GetAllActiveByType(policyType bean.GlobalPolicyType) ([]*bean.GlobalPolicyBaseModel, error)
@@ -166,8 +166,8 @@ func (impl *GlobalPolicyDataManagerImpl) getGlobalPolicyDto(globalPolicyDataMode
 	return globalPolicy
 }
 
-func (impl *GlobalPolicyDataManagerImpl) GetPolicyByName(policyName string) (*bean.GlobalPolicyBaseModel, error) {
-	globalPolicy, err := impl.globalPolicyRepository.GetByName(policyName)
+func (impl *GlobalPolicyDataManagerImpl) GetPolicyByName(policyName string, policyType bean.GlobalPolicyType) (*bean.GlobalPolicyBaseModel, error) {
+	globalPolicy, err := impl.globalPolicyRepository.GetByName(policyName, policyType)
 	if err != nil {
 		impl.logger.Errorw("error in fetching global policy", "policyName", policyName, "err", err)
 		return nil, err

@@ -61,7 +61,7 @@ func (handler *CommonPolicyRestHandlerImpl) ListAppEnvPolicies(w http.ResponseWr
 	vars := mux.Vars(r)
 	policyTypeVar := vars[policyGovernance.PathVariablePolicyTypeVariable]
 	policyType := policyGovernance.PathVariablePolicyType(policyTypeVar)
-	if lo.Contains(policyGovernance.ExistingPolicyTypes, policyType) {
+	if !lo.Contains(policyGovernance.ExistingPolicyTypes, policyType) {
 		common.WriteJsonResp(w, errors.New("profileType not found"), nil, http.StatusNotFound)
 		return
 	}
@@ -111,7 +111,7 @@ func (handler *CommonPolicyRestHandlerImpl) ApplyPolicyToIdentifiers(w http.Resp
 	vars := mux.Vars(r)
 	policyTypeVar := vars[policyGovernance.PathVariablePolicyTypeVariable]
 	policyType := policyGovernance.PathVariablePolicyType(policyTypeVar)
-	if lo.Contains(policyGovernance.ExistingPolicyTypes, policyType) {
+	if !lo.Contains(policyGovernance.ExistingPolicyTypes, policyType) {
 		common.WriteJsonResp(w, errors.New("profileType not found"), nil, http.StatusNotFound)
 		return
 	}
