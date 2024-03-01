@@ -90,6 +90,8 @@ type TriggerService interface {
 
 	//TODO: make this method private and move all usages in this service since TriggerService should own if async mode is enabled and if yes then how to act on it
 	IsDevtronAsyncInstallModeEnabled(deploymentAppType string) bool
+
+	BlockIfImagePromotionPolicyViolated(appId, cdPipelineId, artifactId int, userId int32) (bool, error)
 }
 
 type TriggerServiceImpl struct {
@@ -317,6 +319,7 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 		impl.logger.Errorw("manual trigger request with invalid pipelineId, ManualCdTrigger", "pipelineId", overrideRequest.PipelineId, "err", err)
 		return 0, "", err
 	}
+
 	SetPipelineFieldsInOverrideRequest(overrideRequest, cdPipeline)
 
 	ciArtifactId := overrideRequest.CiArtifactId
@@ -369,16 +372,6 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 			return 0, "", err
 		}
 	case bean3.CD_WORKFLOW_TYPE_DEPLOY:
-
-		policyViolated, err := impl.blockIfImagePromotionPolicyViolated(cdPipeline.AppId, cdPipeline.EnvironmentId, cdPipeline.Id, artifact.Id, overrideRequest.UserId)
-		if err != nil {
-			if policyViolated {
-				impl.logger.Errorw("blocking deployment as image promotion policy violated", "artifactId", artifact.Id, "cdPipelineId", cdPipeline.Id)
-				return 0, "", err
-			}
-			impl.logger.Errorw("error in checking if image promotion policy violated", "artifactId", artifact.Id, "cdPipelineId", cdPipeline.Id, "err", err)
-			return 0, "", err
-		}
 
 		if overrideRequest.DeploymentType == models.DEPLOYMENTTYPE_UNKNOWN {
 			overrideRequest.DeploymentType = models.DEPLOYMENTTYPE_DEPLOY
@@ -616,8 +609,13 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 	return releaseId, helmPackageName, err
 }
 
-func (impl *TriggerServiceImpl) blockIfImagePromotionPolicyViolated(appId, envId, cdPipelineId, artifactId int, userId int32) (bool, error) {
-	promotionPolicy, err := impl.artifactPromotionDataReadService.GetPromotionPolicyByAppAndEnvId(appId, envId)
+func (impl *TriggerServiceImpl) BlockIfImagePromotionPolicyViolated(appId, cdPipelineId, artifactId int, userId int32) (bool, error) {
+	pipeline, err := impl.pipelineRepository.FindById(cdPipelineId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching pipeline by cdPipelineId", "cdPipelineId", cdPipelineId, "err", err)
+		return false, err
+	}
+	promotionPolicy, err := impl.artifactPromotionDataReadService.GetPromotionPolicyByAppAndEnvId(appId, pipeline.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching image promotion policy for checking trigger access", "cdPipelineId", cdPipelineId, "err", err)
 		return false, err
@@ -662,16 +660,6 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 	env, err := impl.envRepository.FindById(pipeline.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("error while fetching env", "err", err)
-		return err
-	}
-
-	policyViolated, err := impl.blockIfImagePromotionPolicyViolated(pipeline.AppId, pipeline.EnvironmentId, pipeline.Id, artifact.Id, request.TriggeredBy)
-	if err != nil {
-		if policyViolated {
-			impl.logger.Errorw("blocking deployment as image promotion policy violated", "artifactId", artifact.Id, "cdPipelineId", pipeline.Id)
-			return err
-		}
-		impl.logger.Errorw("error in checking if image promotion policy violated", "artifactId", artifact.Id, "cdPipelineId", pipeline.Id, "err", err)
 		return err
 	}
 

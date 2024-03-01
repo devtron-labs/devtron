@@ -227,8 +227,8 @@ paths:
           required: true
           schema:
             type: string
-            enum: ["CI","CD","WEBHOOK","PROMOTION_APPROVAL_PENDING_NODE"]
-          description: "resource type, eg: CI,CD,WEBHOOK,PROMOTION_APPROVAL_PENDING_NODE"
+            enum: ["CI","ENVIRONMENT","WEBHOOK","PROMOTION_APPROVAL_PENDING_NODE"]
+          description: "resource type, eg: CI,ENVIRONMENT,WEBHOOK,PROMOTION_APPROVAL_PENDING_NODE"
         - name: resourceName
           in: query
           schema:

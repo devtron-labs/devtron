@@ -1332,20 +1332,12 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 				}
 			}
 		}
-
-		promotionApprovalArtifactIdToMetadataMap, err := impl.artifactPromotionDataReadService.FetchPromotionApprovalDataForArtifacts(artifactIds, listingFilterOpts.PipelineId)
-		if err != nil {
-			impl.logger.Errorw("error in fetching promotion approval metadata for given artifactIds", "err", err)
-			return nil, 0, "", 0, err
-		}
-		for i, artifact := range ciArtifacts {
-			if promotionApprovalMetadata, ok := promotionApprovalArtifactIdToMetadataMap[artifact.Id]; ok {
-				ciArtifacts[i].PromotionApprovalMetadata = promotionApprovalMetadata
-			}
-		}
-
 	}
-
+	ciArtifacts, err = impl.setPromotionArtifactMetadata(ciArtifacts, listingFilterOpts.PipelineId)
+	if err != nil {
+		impl.logger.Errorw("error in setting promotion artifact metadata for given pipeline", "pipelineId", listingFilterOpts.PipelineId, "err", err)
+		return ciArtifacts, 0, "", totalCount, err
+	}
 	// we don't need currently deployed artifact for approvalNode explicitly
 	// if no artifact deployed skip adding currentRunningArtifactBean in ciArtifacts arr
 	if !isApprovalNode && currentRunningArtifactBean != nil {
@@ -1359,6 +1351,25 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 	}
 
 	return ciArtifacts, currentRunningArtifactId, currentRunningWorkflowStatus, totalCount, nil
+}
+
+func (impl *AppArtifactManagerImpl) setPromotionArtifactMetadata(ciArtifacts []*bean2.CiArtifactBean, cdPipelineId int) ([]*bean2.CiArtifactBean, error) {
+	artifactIds := lo.Map(ciArtifacts, func(item *bean2.CiArtifactBean, index int) int {
+		return item.Id
+	})
+	promotionApprovalArtifactIdToMetadataMap, err := impl.artifactPromotionDataReadService.FetchPromotionApprovalDataForArtifacts(artifactIds, cdPipelineId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching promotion approval metadata for given artifactIds", "err", err)
+		return ciArtifacts, err
+	}
+	for i, artifact := range ciArtifacts {
+		if promotionApprovalMetadata, ok := promotionApprovalArtifactIdToMetadataMap[artifact.Id]; ok {
+			ciArtifacts[i].PromotionApprovalMetadata = promotionApprovalMetadata
+			ciArtifacts[i].PromotedFromType = promotionApprovalMetadata.PromotedFromType
+			ciArtifacts[i].PromotedFrom = promotionApprovalMetadata.PromotedFrom
+		}
+	}
+	return ciArtifacts, nil
 }
 
 func (impl *AppArtifactManagerImpl) buildArtifactsForCdStageV2(listingFilterOpts *bean.ArtifactsListFilterOptions, isApprovalNode bool) ([]*bean2.CiArtifactBean, int, error) {
@@ -1613,7 +1624,7 @@ func (impl *AppArtifactManagerImpl) FetchMaterialForArtifactPromotion(artifactPr
 			impl.logger.Errorw("error in fetching team by id", "teamId", pipeline.TeamId, "err", err)
 			return ciArtifactResponse, err
 		}
-		imagePromotionApproverEmails, err := impl.userService.GetImagePromoterUserByEnv(pipeline.EnvironmentName, pipeline.AppName, teamDao.Name)
+		imagePromotionApproverEmails, err := impl.userService.GetImagePromoterUserByEnv(pipeline.AppName, pipeline.EnvironmentName, teamDao.Name)
 		if err != nil {
 			impl.logger.Errorw("error in finding image promotion approver emails allowed on env", "envName", pipeline.EnvironmentName, "appName", pipeline.AppName, "err", err)
 			return ciArtifactResponse, err
@@ -1759,13 +1770,13 @@ func (impl AppArtifactManagerImpl) getArtifactDeployedOnCD(artifactPromotionMate
 	environment, err := impl.environmentRepository.FindByName(environmentName)
 	if err != nil {
 		impl.logger.Errorw("error in fetching environment by name", "environmentName", environmentName, "err", err)
-		return ciArtifactsDao, 0, nil
+		return ciArtifactsDao, 0, err
 	}
 
 	cdPipeline, err := impl.cdPipelineConfigService.GetCdPipelinesByAppIDAndEnvNameOrId(appId, environment.Id, "")
 	if err != nil {
 		impl.logger.Errorw("error in fetching cd-pipeline by appId and envId", "appId", appId, "environmentId", environment.Id, "err", err)
-		return ciArtifactsDao, 0, nil
+		return ciArtifactsDao, 0, err
 	}
 
 	listingFilterOptions := bean.ArtifactsListFilterOptions{
@@ -1778,7 +1789,7 @@ func (impl AppArtifactManagerImpl) getArtifactDeployedOnCD(artifactPromotionMate
 	ciArtifactsDao, totalCount, err := impl.ciArtifactRepository.FindDeployedArtifactsOnPipeline(listingFilterOptions)
 	if err != nil {
 		impl.logger.Errorw("error in finding deployed artifacts on pipeline", "pipelineId", listingFilterOptions.PipelineId, "err", err)
-		return ciArtifactsDao, 0, nil
+		return ciArtifactsDao, 0, err
 	}
 
 	return ciArtifactsDao, totalCount, nil
@@ -1804,7 +1815,7 @@ func (impl AppArtifactManagerImpl) getBuiltArtifactsByCIPipeline(artifactPromoti
 	ciArtifactsDao, _, err = impl.ciArtifactRepository.FindArtifactsByCIPipelineId(listingFilterOptions)
 	if err != nil {
 		impl.logger.Errorw("error in finding deployed artifacts on pipeline", "pipelineId", listingFilterOptions.PipelineId, "err", err)
-		return ciArtifactsDao, totalCount, nil
+		return ciArtifactsDao, totalCount, err
 	}
 	return ciArtifactsDao, totalCount, nil
 }

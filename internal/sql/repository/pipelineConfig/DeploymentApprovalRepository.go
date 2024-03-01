@@ -48,7 +48,7 @@ type DeploymentApprovalRequest struct {
 }
 
 type RequestApprovalUserData struct {
-	tableName         struct{}                   `sql:"resource_approval_user_data" pg:",discard_unknown_columns"`
+	tableName         struct{}                   `sql:"request_approval_user_data" pg:",discard_unknown_columns"`
 	Id                int                        `sql:"id,pk"`
 	RequestType       repository2.RequestType    `sql:"request_type"`
 	ApprovalRequestId int                        `sql:"approval_request_id"` // keep in mind foreign key constraint

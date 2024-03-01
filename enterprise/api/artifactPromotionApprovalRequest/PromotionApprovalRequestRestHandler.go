@@ -291,24 +291,52 @@ func (handler RestHandlerImpl) GetArtifactsForPromotion(w http.ResponseWriter, r
 	resource := queryParams.Get("resource")
 	resourceName := queryParams.Get("resourceName")
 
-	appId, err := strconv.Atoi(queryParams.Get("appId"))
-	if err != nil {
-		handler.logger.Errorw("error in parsing appId from string to int", "appId", queryParams.Get("appId"))
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+	if len(resource) == 0 {
+		handler.logger.Errorw("resource is a mandatory field")
+		common.WriteJsonResp(w, errors.New("resource is a mandatory field"), nil, http.StatusBadRequest)
 		return
 	}
 
-	pendingForCurrentUser, err := strconv.ParseBool(queryParams.Get("pendingForCurrentUser"))
-	if err != nil {
-		handler.logger.Errorw("error in parsing pendingForCurrentUser from string to bool", "pendingForCurrentUser", queryParams.Get("pendingForCurrentUser"))
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
+	appIDQueryParam := queryParams.Get("appId")
+	var appId int
+	if len(appIDQueryParam) > 0 {
+		appId, err = strconv.Atoi(appIDQueryParam)
+		if err != nil {
+			handler.logger.Errorw("error in parsing appId from string to int", "appId", queryParams.Get("appId"))
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
 	}
 
-	workflowId, err := strconv.Atoi(queryParams.Get("workflowId"))
-	if err != nil {
-		handler.logger.Errorw("error in parsing workflowId from string to int", "workflowId", queryParams.Get("workflowId"))
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+	pendingForCurrentUserQueryParam := queryParams.Get("pendingForCurrentUser")
+	var pendingForCurrentUser bool
+	if len(pendingForCurrentUserQueryParam) > 0 {
+		pendingForCurrentUser, err = strconv.ParseBool(pendingForCurrentUserQueryParam)
+		if err != nil {
+			handler.logger.Errorw("error in parsing pendingForCurrentUser from string to bool", "pendingForCurrentUser", queryParams.Get("pendingForCurrentUser"))
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+	}
+
+	workflowIdQueryParam := queryParams.Get("workflowId")
+	var workflowId int
+	if len(workflowIdQueryParam) > 0 {
+		workflowId, err = strconv.Atoi(workflowIdQueryParam)
+		if err != nil {
+			handler.logger.Errorw("error in parsing workflowId from string to int", "workflowId", queryParams.Get("workflowId"))
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+	}
+
+	if pendingForCurrentUser {
+		if workflowId == 0 {
+			common.WriteJsonResp(w, errors.New("workflowId is required field if pendingForCurrentUser is true"), nil, http.StatusBadRequest)
+			return
+		}
+	} else if len(resourceName) == 0 || appId == 0 {
+		common.WriteJsonResp(w, errors.New(fmt.Sprintf("resourceName/appId is required field for resource = %s ", resource)), nil, http.StatusBadRequest)
 		return
 	}
 

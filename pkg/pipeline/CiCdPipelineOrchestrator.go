@@ -2006,6 +2006,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForAppAndEnv(appId int, e
 		env, err = impl.envRepository.FindByName(envName)
 		if err != nil {
 			impl.logger.Errorw("error in fetching environment by envName", "envName", envName, "err", err)
+			return nil, err
 		}
 		envId = env.Id
 	} else {
@@ -2019,6 +2020,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForAppAndEnv(appId int, e
 	dbPipelines, err := impl.pipelineRepository.FindActiveByAppIdAndEnvironmentId(appId, envId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cdPipeline", "appId", appId, "err", err)
+		return nil, err
 	}
 	pipelineIdAndPrePostStageMapping, err := impl.getPipelineIdAndPrePostStageMapping(dbPipelines)
 	if err != nil {
@@ -2083,6 +2085,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForAppAndEnv(appId int, e
 			UserApprovalConf:              approvalConfig,
 			AppName:                       dbPipeline.App.AppName,
 			TeamId:                        dbPipeline.App.TeamId,
+			EnvironmentName:               envName,
 		}
 		if pipelineStages, ok := pipelineIdAndPrePostStageMapping[dbPipeline.Id]; ok {
 			pipeline.PreDeployStage = pipelineStages[0]
