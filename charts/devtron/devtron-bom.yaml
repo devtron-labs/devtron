@@ -36,7 +36,7 @@ components:
     initContainer:
       authenticator: "quay.io/devtron/authenticator:e414faff-393-21263"
   kubelink:
-    image: "quay.io/devtron/kubelink:cb4ee65f-564-21143"
+    image: "quay.io/devtron/kubelink:f7e65a3d-564-21431"
     configs:
       ENABLE_HELM_RELEASE_CACHE: "true"
       MANIFEST_FETCH_BATCH_SIZE: "2"
