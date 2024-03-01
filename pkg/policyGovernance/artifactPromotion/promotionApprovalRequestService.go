@@ -13,6 +13,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
+	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository1 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -44,6 +45,7 @@ type ArtifactPromotionApprovalServiceImpl struct {
 	ciPipelineRepository                       pipelineConfig.CiPipelineRepository
 	pipelineRepository                         pipelineConfig.PipelineRepository
 	pipelineStageService                       pipeline.PipelineStageService
+	environmentService                         cluster.EnvironmentService
 	userService                                user.UserService
 	ciArtifactRepository                       repository2.CiArtifactRepository
 	appWorkflowRepository                      appWorkflow.AppWorkflowRepository
@@ -72,6 +74,7 @@ func NewArtifactPromotionApprovalServiceImpl(
 	workflowDagExecutor dag.WorkflowDagExecutor,
 	promotionPolicyCUDService PromotionPolicyCUDService,
 	pipelineStageService pipeline.PipelineStageService,
+	environmentService cluster.EnvironmentService,
 	resourceFilterEvaluationAuditService resourceFilter.FilterEvaluationAuditService,
 ) *ArtifactPromotionApprovalServiceImpl {
 
@@ -90,6 +93,7 @@ func NewArtifactPromotionApprovalServiceImpl(
 		requestApprovalUserdataRepo:          requestApprovalUserdataRepo,
 		workflowDagExecutor:                  workflowDagExecutor,
 		pipelineStageService:                 pipelineStageService,
+		environmentService:                   environmentService,
 		resourceFilterEvaluationAuditService: resourceFilterEvaluationAuditService,
 	}
 
@@ -523,6 +527,19 @@ func (impl ArtifactPromotionApprovalServiceImpl) approveArtifactPromotion(reques
 
 func (impl ArtifactPromotionApprovalServiceImpl) HandleArtifactPromotionRequest(request *bean.ArtifactPromotionRequest, authorizedEnvironments map[string]bool) ([]bean.EnvironmentResponse, error) {
 
+	environments, err := impl.environmentService.FindByNames(request.EnvironmentNames)
+	if err != nil {
+		impl.logger.Errorw("error in fetching the environment details", "environmentNames", request.EnvironmentNames, "err", err)
+		return nil, err
+	}
+	envNameIdMap := make(map[string]int)
+	envIdNameMap := make(map[int]string)
+	for _, env := range environments {
+		envNameIdMap[env.Environment] = env.Id
+		envIdNameMap[env.Id] = env.Environment
+	}
+	request.EnvIdNameMap = envIdNameMap
+	request.EnvNameIdMap = envNameIdMap
 	switch request.Action {
 
 	case bean.ACTION_PROMOTE:
@@ -625,6 +642,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) promoteArtifact(request *bean.A
 			Name:                       env,
 			PromotionValidationState:   bean.PIPELINE_NOT_FOUND,
 			PromotionValidationMessage: string(bean.PIPELINE_NOT_FOUND),
+			PromotionPossible:          pointer.Bool(false),
 		}
 		if !authorizedEnvironments[env] {
 			envResponse.PromotionValidationState = bean.NO_PERMISSION
@@ -752,9 +770,11 @@ func (impl ArtifactPromotionApprovalServiceImpl) promoteArtifact(request *bean.A
 	for _, pipelineId := range pipelineIds {
 
 		EnvResponse := response[pipelineIdVsEnvNameMap[pipelineId]]
-		// these
-		if EnvResponse.PromotionValidationState == bean.EMPTY {
-			policy := policiesMap[pipelineIdVsEnvNameMap[pipelineId]]
+		policy := policiesMap[pipelineIdVsEnvNameMap[pipelineId]]
+		if policy == nil {
+			EnvResponse.PromotionValidationState = bean.POLICY_NOT_CONFIGURED
+			EnvResponse.PromotionValidationMessage = string(bean.POLICY_NOT_CONFIGURED)
+		} else if EnvResponse.PromotionValidationState == bean.EMPTY {
 			state, msg, err := impl.raisePromoteRequest(request, pipelineId, policy, ciArtifact, pipelineIdToDaoMap[pipelineId])
 			if err != nil {
 				impl.logger.Errorw("error in raising promotion request for the pipeline", "pipelineId", pipelineId, "artifactId", ciArtifact.Id, "err", err)
@@ -764,10 +784,10 @@ func (impl ArtifactPromotionApprovalServiceImpl) promoteArtifact(request *bean.A
 			EnvResponse.PromotionValidationState = state
 			EnvResponse.PromotionValidationMessage = msg
 		}
-
 		response[pipelineIdVsEnvNameMap[pipelineId]] = EnvResponse
 	}
-	envResponses := make([]bean.EnvironmentResponse, len(response))
+
+	envResponses := make([]bean.EnvironmentResponse, 0, len(response))
 	for _, resp := range response {
 		envResponses = append(envResponses, resp)
 	}

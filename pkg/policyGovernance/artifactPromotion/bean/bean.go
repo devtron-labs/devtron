@@ -153,7 +153,7 @@ type PromotionApprovalUserData struct {
 type EnvironmentResponse struct {
 	Name                       string                   `json:"name"` // environment name
 	ApprovalCount              int                      `json:"approvalCount,omitempty"`
-	PromotionPossible          *bool                    `json:"promotionPossible"`
+	PromotionPossible          *bool                    `json:"promotionPossible,omitempty"`
 	PromotionValidationMessage string                   `json:"promotionEvaluationMessage"`
 	PromotionValidationState   PromotionValidationState `json:"promotionEvaluationState"`
 	IsVirtualEnvironment       *bool                    `json:"isVirtualEnvironment,omitempty"`
