@@ -761,10 +761,7 @@ func InitializeApp() (*App, error) {
 	telemetryRouterImpl := router.NewTelemetryRouterImpl(sugaredLogger, telemetryRestHandlerImpl)
 	bulkUpdateRepositoryImpl := bulkUpdate.NewBulkUpdateRepository(db, sugaredLogger)
 	deployedAppServiceImpl := deployedApp.NewDeployedAppServiceImpl(sugaredLogger, k8sCommonServiceImpl, triggerServiceImpl, environmentRepositoryImpl, pipelineRepositoryImpl, cdWorkflowRepositoryImpl)
-	bulkUpdateServiceImpl, err := bulkAction.NewBulkUpdateServiceImpl(bulkUpdateRepositoryImpl, sugaredLogger, environmentRepositoryImpl, pipelineRepositoryImpl, appRepositoryImpl, deploymentTemplateHistoryServiceImpl, configMapHistoryServiceImpl, workflowDagExecutorImpl, pipelineBuilderImpl, enforcerUtilImpl, ciHandlerImpl, ciPipelineRepositoryImpl, appWorkflowRepositoryImpl, appWorkflowServiceImpl, pubSubClientServiceImpl, argoUserServiceImpl, scopedVariableManagerImpl, deployedAppMetricsServiceImpl, chartRefServiceImpl, triggerServiceImpl, deployedAppServiceImpl, cdWorkflowCommonServiceImpl)
-	if err != nil {
-		return nil, err
-	}
+	bulkUpdateServiceImpl := bulkAction.NewBulkUpdateServiceImpl(bulkUpdateRepositoryImpl, sugaredLogger, environmentRepositoryImpl, pipelineRepositoryImpl, appRepositoryImpl, deploymentTemplateHistoryServiceImpl, configMapHistoryServiceImpl, workflowDagExecutorImpl, pipelineBuilderImpl, enforcerUtilImpl, ciHandlerImpl, ciPipelineRepositoryImpl, appWorkflowRepositoryImpl, appWorkflowServiceImpl, argoUserServiceImpl, scopedVariableManagerImpl, deployedAppMetricsServiceImpl, chartRefServiceImpl, triggerServiceImpl, deployedAppServiceImpl, cdWorkflowCommonServiceImpl, cdPipelineEventPublishServiceImpl)
 	bulkUpdateRestHandlerImpl := restHandler.NewBulkUpdateRestHandlerImpl(pipelineBuilderImpl, sugaredLogger, bulkUpdateServiceImpl, chartServiceImpl, propertiesConfigServiceImpl, applicationServiceClientImpl, userServiceImpl, teamServiceImpl, enforcerImpl, ciHandlerImpl, validate, clientImpl, ciPipelineRepositoryImpl, pipelineRepositoryImpl, enforcerUtilImpl, environmentServiceImpl, gitRegistryConfigImpl, dockerRegistryConfigImpl, cdHandlerImpl, appCloneServiceImpl, appWorkflowServiceImpl, materialRepositoryImpl, policyServiceImpl, imageScanResultRepositoryImpl, argoUserServiceImpl)
 	bulkUpdateRouterImpl := router.NewBulkUpdateRouterImpl(bulkUpdateRestHandlerImpl)
 	webhookSecretValidatorImpl := git2.NewWebhookSecretValidatorImpl(sugaredLogger)
@@ -889,7 +886,7 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	ciPipelineEventProcessorImpl := in.NewCIPipelineEventProcessorImpl(sugaredLogger, pubSubClientServiceImpl, gitWebhookServiceImpl)
-	cdPipelineEventProcessorImpl := in.NewCDPipelineEventProcessorImpl(sugaredLogger, pubSubClientServiceImpl, cdWorkflowCommonServiceImpl, workflowStatusServiceImpl, pipelineRepositoryImpl, installedAppRepositoryImpl)
+	cdPipelineEventProcessorImpl := in.NewCDPipelineEventProcessorImpl(sugaredLogger, pubSubClientServiceImpl, cdWorkflowCommonServiceImpl, workflowStatusServiceImpl, triggerServiceImpl, argoUserServiceImpl, pipelineRepositoryImpl, installedAppRepositoryImpl)
 	deployedApplicationEventProcessorImpl := in.NewDeployedApplicationEventProcessorImpl(sugaredLogger, pubSubClientServiceImpl, gitOpsConfigReadServiceImpl, installedAppDBExtendedServiceImpl, workflowDagExecutorImpl, cdWorkflowCommonServiceImpl, pipelineBuilderImpl, appStoreDeploymentServiceImpl, pipelineRepositoryImpl, installedAppRepositoryImpl)
 	appStoreAppsEventProcessorImpl := in.NewAppStoreAppsEventProcessorImpl(sugaredLogger, pubSubClientServiceImpl, chartGroupServiceImpl)
 	centralEventProcessor, err := eventProcessor.NewCentralEventProcessor(sugaredLogger, workflowEventProcessorImpl, ciPipelineEventProcessorImpl, cdPipelineEventProcessorImpl, deployedApplicationEventProcessorImpl, appStoreAppsEventProcessorImpl)

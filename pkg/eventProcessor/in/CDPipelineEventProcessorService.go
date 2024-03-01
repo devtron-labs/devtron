@@ -6,10 +6,12 @@ import (
 	"github.com/devtron-labs/common-lib/pubsub-lib/model"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
+	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd"
 	"github.com/devtron-labs/devtron/pkg/workflow/status"
+	"github.com/devtron-labs/devtron/util/argo"
 	"go.uber.org/zap"
 	"k8s.io/utils/pointer"
 )
@@ -19,6 +21,8 @@ type CDPipelineEventProcessorImpl struct {
 	pubSubClient            *pubsub.PubSubClientServiceImpl
 	cdWorkflowCommonService cd.CdWorkflowCommonService
 	workflowStatusService   status.WorkflowStatusService
+	cdTriggerService        devtronApps.TriggerService
+	argoUserService         argo.ArgoUserService
 
 	pipelineRepository     pipelineConfig.PipelineRepository
 	installedAppRepository repository2.InstalledAppRepository
@@ -28,6 +32,8 @@ func NewCDPipelineEventProcessorImpl(logger *zap.SugaredLogger,
 	pubSubClient *pubsub.PubSubClientServiceImpl,
 	cdWorkflowCommonService cd.CdWorkflowCommonService,
 	workflowStatusService status.WorkflowStatusService,
+	cdTriggerService devtronApps.TriggerService,
+	argoUserService argo.ArgoUserService,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	installedAppRepository repository2.InstalledAppRepository) *CDPipelineEventProcessorImpl {
 	cdPipelineEventProcessorImpl := &CDPipelineEventProcessorImpl{
@@ -35,10 +41,54 @@ func NewCDPipelineEventProcessorImpl(logger *zap.SugaredLogger,
 		pubSubClient:            pubSubClient,
 		cdWorkflowCommonService: cdWorkflowCommonService,
 		workflowStatusService:   workflowStatusService,
+		cdTriggerService:        cdTriggerService,
+		argoUserService:         argoUserService,
 		pipelineRepository:      pipelineRepository,
 		installedAppRepository:  installedAppRepository,
 	}
 	return cdPipelineEventProcessorImpl
+}
+
+func (impl *CDPipelineEventProcessorImpl) SubscribeCDBulkTriggerTopic() error {
+
+	callback := func(msg *model.PubSubMsg) {
+		event := &bean.BulkCDDeployEvent{}
+		err := json.Unmarshal([]byte(msg.Data), event)
+		if err != nil {
+			impl.logger.Errorw("Error unmarshalling received event", "topic", pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC, "msg", msg.Data, "err", err)
+			return
+		}
+		event.ValuesOverrideRequest.UserId = event.UserId
+		// trigger
+		ctx, err := impl.argoUserService.BuildACDContext()
+		if err != nil {
+			impl.logger.Errorw("error in creating acd context", "err", err)
+			return
+		}
+		triggerContext := bean2.TriggerContext{
+			ReferenceId: pointer.String(msg.MsgId),
+			Context:     ctx,
+		}
+		_, err = impl.cdTriggerService.ManualCdTrigger(triggerContext, event.ValuesOverrideRequest)
+		if err != nil {
+			impl.logger.Errorw("Error triggering CD", "topic", pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC, "msg", msg.Data, "err", err)
+		}
+	}
+	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) (string, []interface{}) {
+		event := &bean.BulkCDDeployEvent{}
+		err := json.Unmarshal([]byte(msg.Data), event)
+		if err != nil {
+			return "error unmarshalling received event", []interface{}{"msg", msg.Data, "err", err}
+		}
+		return "got message for trigger cd in bulk", []interface{}{"pipelineId", event.ValuesOverrideRequest.PipelineId, "appId", event.ValuesOverrideRequest.AppId, "cdWorkflowType", event.ValuesOverrideRequest.CdWorkflowType, "ciArtifactId", event.ValuesOverrideRequest.CiArtifactId}
+	}
+	validations := impl.cdWorkflowCommonService.GetTriggerValidateFuncs()
+	err := impl.pubSubClient.Subscribe(pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC, callback, loggerFunc, validations...)
+	if err != nil {
+		impl.logger.Error("failed to subscribe to NATS topic", "topic", pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC, "err", err)
+		return err
+	}
+	return nil
 }
 
 func (impl *CDPipelineEventProcessorImpl) SubscribeArgoTypePipelineSyncEvent() error {

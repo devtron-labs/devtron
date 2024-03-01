@@ -47,11 +47,19 @@ func (impl *CentralEventProcessor) SubscribeAll() error {
 	//CI pipeline event ends
 
 	//CD pipeline event starts
+
+	err = impl.cdPipelineEventProcessor.SubscribeCDBulkTriggerTopic()
+	if err != nil {
+		impl.logger.Errorw("error, SubscribeCDBulkTriggerTopic", "err", err)
+		return err
+	}
+
 	err = impl.cdPipelineEventProcessor.SubscribeArgoTypePipelineSyncEvent()
 	if err != nil {
 		impl.logger.Errorw("error, SubscribeArgoTypePipelineSyncEvent", "err", err)
 		return err
 	}
+
 	//CD pipeline event ends
 
 	//Workflow event starts
