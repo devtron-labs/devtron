@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/common-lib/utils"
 	bean3 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
@@ -547,7 +548,14 @@ func (impl ArtifactPromotionApprovalServiceImpl) validateSourceAndFetchAppWorkfl
 	if request.SourceType == bean.SOURCE_TYPE_CI || request.SourceType == bean.SOURCE_TYPE_WEBHOOK {
 		appWorkflowMapping, err = impl.appWorkflowRepository.FindByWorkflowIdAndCiSource(request.WorkflowId)
 		if err != nil {
-			// log
+			impl.logger.Errorw("error in getting the workflow mapping of ci-source/webhook using workflow id", "workflowId", request.WorkflowId, "err", err)
+			if errors.Is(err, pg.ErrNoRows) {
+				return nil, &utils.ApiError{
+					HttpStatusCode:  http.StatusConflict,
+					InternalMessage: "given workflow not found for the provided source",
+					UserMessage:     "given workflow not found for the provided source",
+				}
+			}
 			return nil, err
 		}
 	} else {
@@ -555,37 +563,48 @@ func (impl ArtifactPromotionApprovalServiceImpl) validateSourceAndFetchAppWorkfl
 		// get pipeline using appId and env name and get the workflowMapping
 		pipelines, err := impl.pipelineRepository.FindActiveByAppIdAndEnvironmentId(request.AppId, request.SourcePipelineId)
 		if err != nil {
-			// log
+			impl.logger.Errorw("error in getting the pipelines using workflow id and source pipeline id", "workflowId", request.WorkflowId, "appId", request.AppId, "sourcePipelineId", request.SourcePipelineId, "err", err)
 			return nil, err
 		}
 		if len(pipelines) == 0 {
-			//  throw error that source is not found
-			return nil, err
+			return nil, &utils.ApiError{
+				HttpStatusCode:  http.StatusConflict,
+				InternalMessage: "source pipeline not found in the given workflow",
+				UserMessage:     "source pipeline not found in the given workflow",
+			}
+
 		}
 
 		pipeline := pipelines[0]
 		appWorkflowMapping, err = impl.appWorkflowRepository.FindWFMappingByComponent(appWorkflow.CDPIPELINE, pipeline.Id)
 		if err != nil {
+			impl.logger.Errorw("error in getting the app workflow mapping using workflow id and cd component id", "workflowId", request.WorkflowId, "appId", request.AppId, "pipelineId", request.SourcePipelineId, "err", err)
 			if errors.Is(err, pg.ErrNoRows) {
-				// log that could not find pipeline for env in the given app.
+				return nil, &utils.ApiError{
+					HttpStatusCode:  http.StatusConflict,
+					InternalMessage: "source pipeline not found in the given workflow",
+					UserMessage:     "source pipeline not found in the given workflow",
+				}
 			}
-			// log
 			return nil, err
 		}
 	}
 
 	if request.WorkflowId != appWorkflowMapping.AppWorkflowId {
-		// log evaluation failed
-		return nil, errors.New("source is not in the given workflow")
+		return nil, errors.New("provided source is not linked to the goven workflow")
 	}
-	workflow, err := impl.appWorkflowRepository.FindById(appWorkflowMapping.Id)
-	if err != nil {
-		if errors.Is(err, pg.ErrNoRows) {
-			// log workflow not exists error
-			return nil, err
-		}
 
-		// log error
+	workflow, err := impl.appWorkflowRepository.FindById(appWorkflowMapping.AppWorkflowId)
+	if err != nil {
+		impl.logger.Errorw("error in finding the app workflow by id", "appWorkflowId", appWorkflowMapping.AppWorkflowId, "err", err)
+		if errors.Is(err, pg.ErrNoRows) {
+			return nil, &utils.ApiError{
+				HttpStatusCode:  http.StatusConflict,
+				InternalMessage: "workflow not found",
+				UserMessage:     "workflow not found",
+			}
+		}
+		return nil, err
 	}
 
 	return workflow, nil
