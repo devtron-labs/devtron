@@ -22,8 +22,8 @@ const PostPipelineStageYaml ReferenceType = 4
 
 type ResourceFilterType int
 
-const FILTER_CONDITION ResourceFilterType = 0
-const ARTIFACT_PROMOTION_POLICY ResourceFilterType = 1
+const FILTER_CONDITION ResourceFilterType = 1
+const ARTIFACT_PROMOTION_POLICY ResourceFilterType = 2
 
 type ResourceFilterEvaluationAudit struct {
 	tableName            struct{}           `sql:"resource_filter_evaluation_audit" pg:",discard_unknown_columns"`
@@ -33,7 +33,7 @@ type ResourceFilterEvaluationAudit struct {
 	FilterHistoryObjects string             `sql:"filter_history_objects"` // json of array of
 	SubjectType          *SubjectType       `sql:"subject_type"`
 	SubjectId            int                `sql:"subject_id"` // comma seperated subject ids
-	FilterType           ResourceFilterType `sql:"resource_type"`
+	FilterType           ResourceFilterType `sql:"filter_type"`
 	// add metadata column in future to store multi-git case for SubjectType CiPipelineMaterials
 	sql.AuditLog
 }

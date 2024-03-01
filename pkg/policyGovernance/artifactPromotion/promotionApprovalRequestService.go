@@ -575,19 +575,20 @@ func (impl ArtifactPromotionApprovalServiceImpl) validateSourceAndFetchAppWorkfl
 			}
 			return nil, err
 		}
+		request.SourcePipelineId = appWorkflowMapping.ComponentId
 	} else {
 		// source type will be cd and source name will be envName.
 		// get pipeline using appId and env name and get the workflowMapping
-		pipelines, err := impl.pipelineRepository.FindActiveByAppIdAndEnvironmentId(request.AppId, request.SourcePipelineId)
+		pipelines, err := impl.pipelineRepository.FindActiveByAppIdAndEnvNames(request.AppId, []string{request.SourceName})
 		if err != nil {
-			impl.logger.Errorw("error in getting the pipelines using workflow id and source pipeline id", "workflowId", request.WorkflowId, "appId", request.AppId, "sourcePipelineId", request.SourcePipelineId, "err", err)
+			impl.logger.Errorw("error in getting the pipelines using appId and source environment name ", "workflowId", request.WorkflowId, "appId", request.AppId, "source", request.SourceName, "err", err)
 			return nil, err
 		}
 		if len(pipelines) == 0 {
 			return nil, &utils.ApiError{
 				HttpStatusCode:  http.StatusConflict,
-				InternalMessage: "source pipeline not found in the given workflow",
-				UserMessage:     "source pipeline not found in the given workflow",
+				InternalMessage: "source pipeline with given environment not found in the workflow",
+				UserMessage:     "source pipeline with given environment not found in workflow",
 			}
 
 		}
@@ -781,6 +782,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) promoteArtifact(request *bean.A
 				EnvResponse.PromotionValidationState = bean.ERRORED
 				EnvResponse.PromotionValidationMessage = err.Error()
 			}
+			EnvResponse.PromotionPossible = pointer.Bool(true)
 			EnvResponse.PromotionValidationState = state
 			EnvResponse.PromotionValidationMessage = msg
 		}

@@ -4,7 +4,7 @@ info:
   description: Api Spec for Artifact Promotion Policy
   version: 1.0.0
 servers:
-  - url: 'https'
+  - url: 'http://localhost:8080'
 paths:
 
 

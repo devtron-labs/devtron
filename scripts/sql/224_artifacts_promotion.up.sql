@@ -1,5 +1,5 @@
--- 0 for  deployment approval request, 1 for artifact promotion approval request
-ALTER TABLE deployment_approval_user_data ADD COLUMN "request_type" integer NOT NULL DEFAULT 0;
+-- 1 for  deployment approval request, 2 for artifact promotion approval request
+ALTER TABLE deployment_approval_user_data ADD COLUMN "request_type" integer NOT NULL DEFAULT 1;
 
 --  drop the constraint as this is no longer valid
 ALTER TABLE deployment_approval_user_data DROP CONSTRAINT deployment_approval_user_data_approval_request_id_fkey;
@@ -11,8 +11,8 @@ ALTER TABLE deployment_approval_user_data RENAME TO request_approval_user_data;
 CREATE UNIQUE INDEX "unique_user_request_action"
     ON request_approval_user_data(user_id,approval_request_id)
     WHERE request_type = 1;
--- 0 for  resource_filter, 1 for artifact promotion policy filter evaluation
-ALTER TABLE  resource_filter_evaluation_audit ADD COLUMN "filter_type" integer DEFAULT 0;
+-- 1 for  resource_filter, 2 for artifact promotion policy filter evaluation
+ALTER TABLE  resource_filter_evaluation_audit ADD COLUMN "filter_type" integer DEFAULT 1;
 
 
 
@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS public.artifact_promotion_approval_request
 
 CREATE UNIQUE INDEX "idx_unique_artifact_promoted_to_destination"
     ON artifact_promotion_approval_request(artifact_id,destination_pipeline_id)
-    WHERE status = 2;
+    WHERE status = 3;
 
 -- custom role queries
 insert into rbac_policy_resource_detail
