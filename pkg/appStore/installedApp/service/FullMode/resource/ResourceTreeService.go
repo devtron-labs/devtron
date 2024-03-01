@@ -10,6 +10,7 @@ import (
 	"github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	client2 "github.com/devtron-labs/devtron/api/helm-app/gRPC/client"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internals/constants"
@@ -92,7 +93,7 @@ func (impl *InstalledAppResourceServiceImpl) FetchResourceTree(rctx context.Cont
 		if err != nil {
 			impl.logger.Errorw("error in fetching cluster detail", "err", err)
 		}
-		req := &gRPC.AppDetailRequest{
+		req := &client2.AppDetailRequest{
 			ClusterConfig: config,
 			Namespace:     installedApp.Environment.Namespace,
 			ReleaseName:   installedApp.App.AppName,
@@ -390,9 +391,9 @@ func (impl *InstalledAppResourceServiceImpl) filterOutReplicaNodes(responseTreeN
 	return replicaNodes
 }
 
-func (impl *InstalledAppResourceServiceImpl) getReleaseStatusFromHelmReleaseInstallStatus(helmReleaseInstallStatus string, status string) *gRPC.ReleaseStatus {
+func (impl *InstalledAppResourceServiceImpl) getReleaseStatusFromHelmReleaseInstallStatus(helmReleaseInstallStatus string, status string) *client2.ReleaseStatus {
 	//release status is sent in resource tree call and is shown on UI as helm config apply status
-	releaseStatus := &gRPC.ReleaseStatus{}
+	releaseStatus := &client2.ReleaseStatus{}
 	if len(helmReleaseInstallStatus) > 0 {
 		helmInstallStatus := &appStoreBean.HelmReleaseStatusConfig{}
 		err := json.Unmarshal([]byte(helmReleaseInstallStatus), helmInstallStatus)

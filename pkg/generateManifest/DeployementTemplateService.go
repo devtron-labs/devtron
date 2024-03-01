@@ -6,6 +6,7 @@ import (
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/helm-app/bean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	client2 "github.com/devtron-labs/devtron/api/helm-app/gRPC/client"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/internals/sql/repository"
@@ -48,14 +49,14 @@ const (
 	Manifest RequestDataMode = 2
 )
 
-var ChartRepository = &gRPC.ChartRepository{
+var ChartRepository = &client2.ChartRepository{
 	Name:     "repo",
 	Url:      "http://localhost:8080/",
 	Username: "admin",
 	Password: "password",
 }
 
-var ReleaseIdentifier = &gRPC.ReleaseIdentifier{
+var ReleaseIdentifier = &client2.ReleaseIdentifier{
 	ReleaseNamespace: "devtron-demo",
 	ReleaseName:      "release-name",
 }
@@ -342,14 +343,14 @@ func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, 
 		impl.Logger.Errorw("exception caught in getting k8sServerVersion", "err", err)
 		return nil, err
 	}
-	installReleaseRequest := &gRPC.InstallReleaseRequest{
+	installReleaseRequest := &client2.InstallReleaseRequest{
 		ChartName:         template,
 		ChartVersion:      version,
 		ValuesYaml:        valuesYaml,
 		K8SVersion:        k8sServerVersion.String(),
 		ChartRepository:   ChartRepository,
 		ReleaseIdentifier: ReleaseIdentifier,
-		ChartContent: &gRPC.ChartContent{
+		ChartContent: &client2.ChartContent{
 			Content: chartBytes,
 		},
 	}

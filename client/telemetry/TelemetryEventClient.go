@@ -7,6 +7,7 @@ import (
 	"fmt"
 	cloudProviderIdentifier "github.com/devtron-labs/common-lib/cloud-provider-identifier"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	"github.com/devtron-labs/devtron/api/helm-app/gRPC/client"
 	cron3 "github.com/devtron-labs/devtron/util/cron"
 	"net/http"
 	"time"
@@ -240,8 +241,8 @@ func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cl
 	ExternalHelmAppClusterCount = make(map[int32]int)
 
 	for _, clusterDetail := range clusters {
-		req := &gRPC.AppListRequest{}
-		config := &gRPC.ClusterConfig{
+		req := &client.AppListRequest{}
+		config := &client.ClusterConfig{
 			ApiServerUrl:          clusterDetail.ServerUrl,
 			Token:                 clusterDetail.Config[k8s.BearerToken],
 			ClusterId:             int32(clusterDetail.Id),

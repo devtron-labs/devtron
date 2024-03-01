@@ -4,7 +4,7 @@ package mocks
 
 import (
 	context "context"
-	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	"github.com/devtron-labs/devtron/api/helm-app/gRPC/client"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -14,23 +14,23 @@ type HelmAppClient struct {
 }
 
 // DeleteApplication provides a mock function with given fields: ctx, in
-func (_m *HelmAppClient) DeleteApplication(ctx context.Context, in *gRPC.ReleaseIdentifier) (*gRPC.UninstallReleaseResponse, error) {
+func (_m *HelmAppClient) DeleteApplication(ctx context.Context, in *client.ReleaseIdentifier) (*client.UninstallReleaseResponse, error) {
 	ret := _m.Called(ctx, in)
 
-	var r0 *gRPC.UninstallReleaseResponse
+	var r0 *client.UninstallReleaseResponse
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *gRPC.ReleaseIdentifier) (*gRPC.UninstallReleaseResponse, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *client.ReleaseIdentifier) (*client.UninstallReleaseResponse, error)); ok {
 		return rf(ctx, in)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *gRPC.ReleaseIdentifier) *gRPC.UninstallReleaseResponse); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *client.ReleaseIdentifier) *client.UninstallReleaseResponse); ok {
 		r0 = rf(ctx, in)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*gRPC.UninstallReleaseResponse)
+			r0 = ret.Get(0).(*client.UninstallReleaseResponse)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *gRPC.ReleaseIdentifier) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *client.ReleaseIdentifier) error); ok {
 		r1 = rf(ctx, in)
 	} else {
 		r1 = ret.Error(1)
@@ -40,23 +40,23 @@ func (_m *HelmAppClient) DeleteApplication(ctx context.Context, in *gRPC.Release
 }
 
 // GetAppDetail provides a mock function with given fields: ctx, in
-func (_m *HelmAppClient) GetAppDetail(ctx context.Context, in *gRPC.AppDetailRequest) (*gRPC.AppDetail, error) {
+func (_m *HelmAppClient) GetAppDetail(ctx context.Context, in *client.AppDetailRequest) (*client.AppDetail, error) {
 	ret := _m.Called(ctx, in)
 
-	var r0 *gRPC.AppDetail
+	var r0 *client.AppDetail
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *gRPC.AppDetailRequest) (*gRPC.AppDetail, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *client.AppDetailRequest) (*client.AppDetail, error)); ok {
 		return rf(ctx, in)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *gRPC.AppDetailRequest) *gRPC.AppDetail); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *client.AppDetailRequest) *client.AppDetail); ok {
 		r0 = rf(ctx, in)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*gRPC.AppDetail)
+			r0 = ret.Get(0).(*client.AppDetail)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *gRPC.AppDetailRequest) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *client.AppDetailRequest) error); ok {
 		r1 = rf(ctx, in)
 	} else {
 		r1 = ret.Error(1)
@@ -66,23 +66,23 @@ func (_m *HelmAppClient) GetAppDetail(ctx context.Context, in *gRPC.AppDetailReq
 }
 
 // GetAppStatus provides a mock function with given fields: ctx, in
-func (_m *HelmAppClient) GetAppStatus(ctx context.Context, in *gRPC.AppDetailRequest) (*gRPC.AppStatus, error) {
+func (_m *HelmAppClient) GetAppStatus(ctx context.Context, in *client.AppDetailRequest) (*client.AppStatus, error) {
 	ret := _m.Called(ctx, in)
 
-	var r0 *gRPC.AppStatus
+	var r0 *client.AppStatus
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *gRPC.AppDetailRequest) (*gRPC.AppStatus, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *client.AppDetailRequest) (*client.AppStatus, error)); ok {
 		return rf(ctx, in)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *gRPC.AppDetailRequest) *gRPC.AppStatus); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *client.AppDetailRequest) *client.AppStatus); ok {
 		r0 = rf(ctx, in)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*gRPC.AppStatus)
+			r0 = ret.Get(0).(*client.AppStatus)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *gRPC.AppDetailRequest) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *client.AppDetailRequest) error); ok {
 		r1 = rf(ctx, in)
 	} else {
 		r1 = ret.Error(1)
@@ -92,23 +92,23 @@ func (_m *HelmAppClient) GetAppStatus(ctx context.Context, in *gRPC.AppDetailReq
 }
 
 // GetDeploymentDetail provides a mock function with given fields: ctx, in
-func (_m *HelmAppClient) GetDeploymentDetail(ctx context.Context, in *gRPC.DeploymentDetailRequest) (*gRPC.DeploymentDetailResponse, error) {
+func (_m *HelmAppClient) GetDeploymentDetail(ctx context.Context, in *client.DeploymentDetailRequest) (*client.DeploymentDetailResponse, error) {
 	ret := _m.Called(ctx, in)
 
-	var r0 *gRPC.DeploymentDetailResponse
+	var r0 *client.DeploymentDetailResponse
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *gRPC.DeploymentDetailRequest) (*gRPC.DeploymentDetailResponse, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *client.DeploymentDetailRequest) (*client.DeploymentDetailResponse, error)); ok {
 		return rf(ctx, in)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *gRPC.DeploymentDetailRequest) *gRPC.DeploymentDetailResponse); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *client.DeploymentDetailRequest) *client.DeploymentDetailResponse); ok {
 		r0 = rf(ctx, in)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*gRPC.DeploymentDetailResponse)
+			r0 = ret.Get(0).(*client.DeploymentDetailResponse)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *gRPC.DeploymentDetailRequest) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *client.DeploymentDetailRequest) error); ok {
 		r1 = rf(ctx, in)
 	} else {
 		r1 = ret.Error(1)
@@ -118,23 +118,23 @@ func (_m *HelmAppClient) GetDeploymentDetail(ctx context.Context, in *gRPC.Deplo
 }
 
 // GetDeploymentHistory provides a mock function with given fields: ctx, in
-func (_m *HelmAppClient) GetDeploymentHistory(ctx context.Context, in *gRPC.AppDetailRequest) (*gRPC.HelmAppDeploymentHistory, error) {
+func (_m *HelmAppClient) GetDeploymentHistory(ctx context.Context, in *client.AppDetailRequest) (*client.HelmAppDeploymentHistory, error) {
 	ret := _m.Called(ctx, in)
 
-	var r0 *gRPC.HelmAppDeploymentHistory
+	var r0 *client.HelmAppDeploymentHistory
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *gRPC.AppDetailRequest) (*gRPC.HelmAppDeploymentHistory, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *client.AppDetailRequest) (*client.HelmAppDeploymentHistory, error)); ok {
 		return rf(ctx, in)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *gRPC.AppDetailRequest) *gRPC.HelmAppDeploymentHistory); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *client.AppDetailRequest) *client.HelmAppDeploymentHistory); ok {
 		r0 = rf(ctx, in)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*gRPC.HelmAppDeploymentHistory)
+			r0 = ret.Get(0).(*client.HelmAppDeploymentHistory)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *gRPC.AppDetailRequest) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *client.AppDetailRequest) error); ok {
 		r1 = rf(ctx, in)
 	} else {
 		r1 = ret.Error(1)
@@ -144,23 +144,23 @@ func (_m *HelmAppClient) GetDeploymentHistory(ctx context.Context, in *gRPC.AppD
 }
 
 // GetDesiredManifest provides a mock function with given fields: ctx, in
-func (_m *HelmAppClient) GetDesiredManifest(ctx context.Context, in *gRPC.ObjectRequest) (*gRPC.DesiredManifestResponse, error) {
+func (_m *HelmAppClient) GetDesiredManifest(ctx context.Context, in *client.ObjectRequest) (*client.DesiredManifestResponse, error) {
 	ret := _m.Called(ctx, in)
 
-	var r0 *gRPC.DesiredManifestResponse
+	var r0 *client.DesiredManifestResponse
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *gRPC.ObjectRequest) (*gRPC.DesiredManifestResponse, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *client.ObjectRequest) (*client.DesiredManifestResponse, error)); ok {
 		return rf(ctx, in)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *gRPC.ObjectRequest) *gRPC.DesiredManifestResponse); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *client.ObjectRequest) *client.DesiredManifestResponse); ok {
 		r0 = rf(ctx, in)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*gRPC.DesiredManifestResponse)
+			r0 = ret.Get(0).(*client.DesiredManifestResponse)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *gRPC.ObjectRequest) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *client.ObjectRequest) error); ok {
 		r1 = rf(ctx, in)
 	} else {
 		r1 = ret.Error(1)
@@ -170,23 +170,23 @@ func (_m *HelmAppClient) GetDesiredManifest(ctx context.Context, in *gRPC.Object
 }
 
 // GetNotes provides a mock function with given fields: ctx, request
-func (_m *HelmAppClient) GetNotes(ctx context.Context, request *gRPC.InstallReleaseRequest) (*gRPC.ChartNotesResponse, error) {
+func (_m *HelmAppClient) GetNotes(ctx context.Context, request *client.InstallReleaseRequest) (*client.ChartNotesResponse, error) {
 	ret := _m.Called(ctx, request)
 
-	var r0 *gRPC.ChartNotesResponse
+	var r0 *client.ChartNotesResponse
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *gRPC.InstallReleaseRequest) (*gRPC.ChartNotesResponse, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *client.InstallReleaseRequest) (*client.ChartNotesResponse, error)); ok {
 		return rf(ctx, request)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *gRPC.InstallReleaseRequest) *gRPC.ChartNotesResponse); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *client.InstallReleaseRequest) *client.ChartNotesResponse); ok {
 		r0 = rf(ctx, request)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*gRPC.ChartNotesResponse)
+			r0 = ret.Get(0).(*client.ChartNotesResponse)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *gRPC.InstallReleaseRequest) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *client.InstallReleaseRequest) error); ok {
 		r1 = rf(ctx, request)
 	} else {
 		r1 = ret.Error(1)
@@ -196,23 +196,23 @@ func (_m *HelmAppClient) GetNotes(ctx context.Context, request *gRPC.InstallRele
 }
 
 // GetValuesYaml provides a mock function with given fields: ctx, in
-func (_m *HelmAppClient) GetValuesYaml(ctx context.Context, in *gRPC.AppDetailRequest) (*gRPC.ReleaseInfo, error) {
+func (_m *HelmAppClient) GetValuesYaml(ctx context.Context, in *client.AppDetailRequest) (*client.ReleaseInfo, error) {
 	ret := _m.Called(ctx, in)
 
-	var r0 *gRPC.ReleaseInfo
+	var r0 *client.ReleaseInfo
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *gRPC.AppDetailRequest) (*gRPC.ReleaseInfo, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *client.AppDetailRequest) (*client.ReleaseInfo, error)); ok {
 		return rf(ctx, in)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *gRPC.AppDetailRequest) *gRPC.ReleaseInfo); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *client.AppDetailRequest) *client.ReleaseInfo); ok {
 		r0 = rf(ctx, in)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*gRPC.ReleaseInfo)
+			r0 = ret.Get(0).(*client.ReleaseInfo)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *gRPC.AppDetailRequest) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *client.AppDetailRequest) error); ok {
 		r1 = rf(ctx, in)
 	} else {
 		r1 = ret.Error(1)
@@ -222,23 +222,23 @@ func (_m *HelmAppClient) GetValuesYaml(ctx context.Context, in *gRPC.AppDetailRe
 }
 
 // Hibernate provides a mock function with given fields: ctx, in
-func (_m *HelmAppClient) Hibernate(ctx context.Context, in *gRPC.HibernateRequest) (*gRPC.HibernateResponse, error) {
+func (_m *HelmAppClient) Hibernate(ctx context.Context, in *client.HibernateRequest) (*client.HibernateResponse, error) {
 	ret := _m.Called(ctx, in)
 
-	var r0 *gRPC.HibernateResponse
+	var r0 *client.HibernateResponse
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *gRPC.HibernateRequest) (*gRPC.HibernateResponse, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *client.HibernateRequest) (*client.HibernateResponse, error)); ok {
 		return rf(ctx, in)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *gRPC.HibernateRequest) *gRPC.HibernateResponse); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *client.HibernateRequest) *client.HibernateResponse); ok {
 		r0 = rf(ctx, in)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*gRPC.HibernateResponse)
+			r0 = ret.Get(0).(*client.HibernateResponse)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *gRPC.HibernateRequest) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *client.HibernateRequest) error); ok {
 		r1 = rf(ctx, in)
 	} else {
 		r1 = ret.Error(1)
@@ -248,23 +248,23 @@ func (_m *HelmAppClient) Hibernate(ctx context.Context, in *gRPC.HibernateReques
 }
 
 // InstallRelease provides a mock function with given fields: ctx, in
-func (_m *HelmAppClient) InstallRelease(ctx context.Context, in *gRPC.InstallReleaseRequest) (*gRPC.InstallReleaseResponse, error) {
+func (_m *HelmAppClient) InstallRelease(ctx context.Context, in *client.InstallReleaseRequest) (*client.InstallReleaseResponse, error) {
 	ret := _m.Called(ctx, in)
 
-	var r0 *gRPC.InstallReleaseResponse
+	var r0 *client.InstallReleaseResponse
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *gRPC.InstallReleaseRequest) (*gRPC.InstallReleaseResponse, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *client.InstallReleaseRequest) (*client.InstallReleaseResponse, error)); ok {
 		return rf(ctx, in)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *gRPC.InstallReleaseRequest) *gRPC.InstallReleaseResponse); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *client.InstallReleaseRequest) *client.InstallReleaseResponse); ok {
 		r0 = rf(ctx, in)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*gRPC.InstallReleaseResponse)
+			r0 = ret.Get(0).(*client.InstallReleaseResponse)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *gRPC.InstallReleaseRequest) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *client.InstallReleaseRequest) error); ok {
 		r1 = rf(ctx, in)
 	} else {
 		r1 = ret.Error(1)
@@ -274,23 +274,23 @@ func (_m *HelmAppClient) InstallRelease(ctx context.Context, in *gRPC.InstallRel
 }
 
 // InstallReleaseWithCustomChart provides a mock function with given fields: ctx, in
-func (_m *HelmAppClient) InstallReleaseWithCustomChart(ctx context.Context, in *gRPC.HelmInstallCustomRequest) (*gRPC.HelmInstallCustomResponse, error) {
+func (_m *HelmAppClient) InstallReleaseWithCustomChart(ctx context.Context, in *client.HelmInstallCustomRequest) (*client.HelmInstallCustomResponse, error) {
 	ret := _m.Called(ctx, in)
 
-	var r0 *gRPC.HelmInstallCustomResponse
+	var r0 *client.HelmInstallCustomResponse
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *gRPC.HelmInstallCustomRequest) (*gRPC.HelmInstallCustomResponse, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *client.HelmInstallCustomRequest) (*client.HelmInstallCustomResponse, error)); ok {
 		return rf(ctx, in)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *gRPC.HelmInstallCustomRequest) *gRPC.HelmInstallCustomResponse); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *client.HelmInstallCustomRequest) *client.HelmInstallCustomResponse); ok {
 		r0 = rf(ctx, in)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*gRPC.HelmInstallCustomResponse)
+			r0 = ret.Get(0).(*client.HelmInstallCustomResponse)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *gRPC.HelmInstallCustomRequest) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *client.HelmInstallCustomRequest) error); ok {
 		r1 = rf(ctx, in)
 	} else {
 		r1 = ret.Error(1)
@@ -300,23 +300,23 @@ func (_m *HelmAppClient) InstallReleaseWithCustomChart(ctx context.Context, in *
 }
 
 // IsReleaseInstalled provides a mock function with given fields: ctx, in
-func (_m *HelmAppClient) IsReleaseInstalled(ctx context.Context, in *gRPC.ReleaseIdentifier) (*gRPC.BooleanResponse, error) {
+func (_m *HelmAppClient) IsReleaseInstalled(ctx context.Context, in *client.ReleaseIdentifier) (*client.BooleanResponse, error) {
 	ret := _m.Called(ctx, in)
 
-	var r0 *gRPC.BooleanResponse
+	var r0 *client.BooleanResponse
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *gRPC.ReleaseIdentifier) (*gRPC.BooleanResponse, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *client.ReleaseIdentifier) (*client.BooleanResponse, error)); ok {
 		return rf(ctx, in)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *gRPC.ReleaseIdentifier) *gRPC.BooleanResponse); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *client.ReleaseIdentifier) *client.BooleanResponse); ok {
 		r0 = rf(ctx, in)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*gRPC.BooleanResponse)
+			r0 = ret.Get(0).(*client.BooleanResponse)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *gRPC.ReleaseIdentifier) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *client.ReleaseIdentifier) error); ok {
 		r1 = rf(ctx, in)
 	} else {
 		r1 = ret.Error(1)
@@ -326,23 +326,23 @@ func (_m *HelmAppClient) IsReleaseInstalled(ctx context.Context, in *gRPC.Releas
 }
 
 // ListApplication provides a mock function with given fields: ctx, req
-func (_m *HelmAppClient) ListApplication(ctx context.Context, req *gRPC.AppListRequest) (gRPC.ApplicationService_ListApplicationsClient, error) {
+func (_m *HelmAppClient) ListApplication(ctx context.Context, req *client.AppListRequest) (client.ApplicationService_ListApplicationsClient, error) {
 	ret := _m.Called(ctx, req)
 
-	var r0 gRPC.ApplicationService_ListApplicationsClient
+	var r0 client.ApplicationService_ListApplicationsClient
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *gRPC.AppListRequest) (gRPC.ApplicationService_ListApplicationsClient, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *client.AppListRequest) (client.ApplicationService_ListApplicationsClient, error)); ok {
 		return rf(ctx, req)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *gRPC.AppListRequest) gRPC.ApplicationService_ListApplicationsClient); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *client.AppListRequest) client.ApplicationService_ListApplicationsClient); ok {
 		r0 = rf(ctx, req)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(gRPC.ApplicationService_ListApplicationsClient)
+			r0 = ret.Get(0).(client.ApplicationService_ListApplicationsClient)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *gRPC.AppListRequest) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *client.AppListRequest) error); ok {
 		r1 = rf(ctx, req)
 	} else {
 		r1 = ret.Error(1)
@@ -352,23 +352,23 @@ func (_m *HelmAppClient) ListApplication(ctx context.Context, req *gRPC.AppListR
 }
 
 // RollbackRelease provides a mock function with given fields: ctx, in
-func (_m *HelmAppClient) RollbackRelease(ctx context.Context, in *gRPC.RollbackReleaseRequest) (*gRPC.BooleanResponse, error) {
+func (_m *HelmAppClient) RollbackRelease(ctx context.Context, in *client.RollbackReleaseRequest) (*client.BooleanResponse, error) {
 	ret := _m.Called(ctx, in)
 
-	var r0 *gRPC.BooleanResponse
+	var r0 *client.BooleanResponse
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *gRPC.RollbackReleaseRequest) (*gRPC.BooleanResponse, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *client.RollbackReleaseRequest) (*client.BooleanResponse, error)); ok {
 		return rf(ctx, in)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *gRPC.RollbackReleaseRequest) *gRPC.BooleanResponse); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *client.RollbackReleaseRequest) *client.BooleanResponse); ok {
 		r0 = rf(ctx, in)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*gRPC.BooleanResponse)
+			r0 = ret.Get(0).(*client.BooleanResponse)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *gRPC.RollbackReleaseRequest) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *client.RollbackReleaseRequest) error); ok {
 		r1 = rf(ctx, in)
 	} else {
 		r1 = ret.Error(1)
@@ -378,23 +378,23 @@ func (_m *HelmAppClient) RollbackRelease(ctx context.Context, in *gRPC.RollbackR
 }
 
 // TemplateChart provides a mock function with given fields: ctx, in
-func (_m *HelmAppClient) TemplateChart(ctx context.Context, in *gRPC.InstallReleaseRequest) (*gRPC.TemplateChartResponse, error) {
+func (_m *HelmAppClient) TemplateChart(ctx context.Context, in *client.InstallReleaseRequest) (*client.TemplateChartResponse, error) {
 	ret := _m.Called(ctx, in)
 
-	var r0 *gRPC.TemplateChartResponse
+	var r0 *client.TemplateChartResponse
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *gRPC.InstallReleaseRequest) (*gRPC.TemplateChartResponse, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *client.InstallReleaseRequest) (*client.TemplateChartResponse, error)); ok {
 		return rf(ctx, in)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *gRPC.InstallReleaseRequest) *gRPC.TemplateChartResponse); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *client.InstallReleaseRequest) *client.TemplateChartResponse); ok {
 		r0 = rf(ctx, in)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*gRPC.TemplateChartResponse)
+			r0 = ret.Get(0).(*client.TemplateChartResponse)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *gRPC.InstallReleaseRequest) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *client.InstallReleaseRequest) error); ok {
 		r1 = rf(ctx, in)
 	} else {
 		r1 = ret.Error(1)
@@ -404,23 +404,23 @@ func (_m *HelmAppClient) TemplateChart(ctx context.Context, in *gRPC.InstallRele
 }
 
 // UnHibernate provides a mock function with given fields: ctx, in
-func (_m *HelmAppClient) UnHibernate(ctx context.Context, in *gRPC.HibernateRequest) (*gRPC.HibernateResponse, error) {
+func (_m *HelmAppClient) UnHibernate(ctx context.Context, in *client.HibernateRequest) (*client.HibernateResponse, error) {
 	ret := _m.Called(ctx, in)
 
-	var r0 *gRPC.HibernateResponse
+	var r0 *client.HibernateResponse
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *gRPC.HibernateRequest) (*gRPC.HibernateResponse, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *client.HibernateRequest) (*client.HibernateResponse, error)); ok {
 		return rf(ctx, in)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *gRPC.HibernateRequest) *gRPC.HibernateResponse); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *client.HibernateRequest) *client.HibernateResponse); ok {
 		r0 = rf(ctx, in)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*gRPC.HibernateResponse)
+			r0 = ret.Get(0).(*client.HibernateResponse)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *gRPC.HibernateRequest) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *client.HibernateRequest) error); ok {
 		r1 = rf(ctx, in)
 	} else {
 		r1 = ret.Error(1)
@@ -430,23 +430,23 @@ func (_m *HelmAppClient) UnHibernate(ctx context.Context, in *gRPC.HibernateRequ
 }
 
 // UpdateApplication provides a mock function with given fields: ctx, in
-func (_m *HelmAppClient) UpdateApplication(ctx context.Context, in *gRPC.UpgradeReleaseRequest) (*gRPC.UpgradeReleaseResponse, error) {
+func (_m *HelmAppClient) UpdateApplication(ctx context.Context, in *client.UpgradeReleaseRequest) (*client.UpgradeReleaseResponse, error) {
 	ret := _m.Called(ctx, in)
 
-	var r0 *gRPC.UpgradeReleaseResponse
+	var r0 *client.UpgradeReleaseResponse
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *gRPC.UpgradeReleaseRequest) (*gRPC.UpgradeReleaseResponse, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *client.UpgradeReleaseRequest) (*client.UpgradeReleaseResponse, error)); ok {
 		return rf(ctx, in)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *gRPC.UpgradeReleaseRequest) *gRPC.UpgradeReleaseResponse); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *client.UpgradeReleaseRequest) *client.UpgradeReleaseResponse); ok {
 		r0 = rf(ctx, in)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*gRPC.UpgradeReleaseResponse)
+			r0 = ret.Get(0).(*client.UpgradeReleaseResponse)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *gRPC.UpgradeReleaseRequest) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *client.UpgradeReleaseRequest) error); ok {
 		r1 = rf(ctx, in)
 	} else {
 		r1 = ret.Error(1)
@@ -456,23 +456,23 @@ func (_m *HelmAppClient) UpdateApplication(ctx context.Context, in *gRPC.Upgrade
 }
 
 // UpdateApplicationWithChartInfo provides a mock function with given fields: ctx, in
-func (_m *HelmAppClient) UpdateApplicationWithChartInfo(ctx context.Context, in *gRPC.InstallReleaseRequest) (*gRPC.UpgradeReleaseResponse, error) {
+func (_m *HelmAppClient) UpdateApplicationWithChartInfo(ctx context.Context, in *client.InstallReleaseRequest) (*client.UpgradeReleaseResponse, error) {
 	ret := _m.Called(ctx, in)
 
-	var r0 *gRPC.UpgradeReleaseResponse
+	var r0 *client.UpgradeReleaseResponse
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *gRPC.InstallReleaseRequest) (*gRPC.UpgradeReleaseResponse, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *client.InstallReleaseRequest) (*client.UpgradeReleaseResponse, error)); ok {
 		return rf(ctx, in)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *gRPC.InstallReleaseRequest) *gRPC.UpgradeReleaseResponse); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *client.InstallReleaseRequest) *client.UpgradeReleaseResponse); ok {
 		r0 = rf(ctx, in)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*gRPC.UpgradeReleaseResponse)
+			r0 = ret.Get(0).(*client.UpgradeReleaseResponse)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *gRPC.InstallReleaseRequest) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *client.InstallReleaseRequest) error); ok {
 		r1 = rf(ctx, in)
 	} else {
 		r1 = ret.Error(1)

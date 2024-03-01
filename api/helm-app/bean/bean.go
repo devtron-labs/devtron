@@ -1,7 +1,7 @@
 package bean
 
 import (
-	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	"github.com/devtron-labs/devtron/api/helm-app/gRPC/client"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/pkg/appStore/bean"
 )
@@ -23,7 +23,7 @@ type UpdateApplicationRequestDto struct {
 }
 
 type UpdateApplicationWithChartInfoRequestDto struct {
-	*gRPC.InstallReleaseRequest
+	*client.InstallReleaseRequest
 	SourceAppType SourceAppType `json:"-"`
 }
 
@@ -52,17 +52,17 @@ func ConvertToInstalledAppInfo(installedApp *appStoreBean.InstallAppVersionDTO) 
 
 type AppDetailAndInstalledAppInfo struct {
 	InstalledAppInfo *InstalledAppInfo `json:"installedAppInfo"`
-	AppDetail        *gRPC.AppDetail   `json:"appDetail"`
+	AppDetail        *client.AppDetail `json:"appDetail"`
 }
 
 type ReleaseAndInstalledAppInfo struct {
-	InstalledAppInfo *InstalledAppInfo `json:"installedAppInfo"`
-	ReleaseInfo      *gRPC.ReleaseInfo `json:"releaseInfo"`
+	InstalledAppInfo *InstalledAppInfo   `json:"installedAppInfo"`
+	ReleaseInfo      *client.ReleaseInfo `json:"releaseInfo"`
 }
 
 type DeploymentHistoryAndInstalledAppInfo struct {
-	InstalledAppInfo  *InstalledAppInfo               `json:"installedAppInfo"`
-	DeploymentHistory []*gRPC.HelmAppDeploymentDetail `json:"deploymentHistory"`
+	InstalledAppInfo  *InstalledAppInfo                 `json:"installedAppInfo"`
+	DeploymentHistory []*client.HelmAppDeploymentDetail `json:"deploymentHistory"`
 }
 
 type InstalledAppInfo struct {

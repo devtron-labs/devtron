@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	client2 "github.com/devtron-labs/devtron/api/helm-app/gRPC/client"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	util3 "github.com/devtron-labs/devtron/api/util"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
@@ -1059,7 +1060,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		if err != nil {
 			handler.logger.Errorw("error in fetching cluster detail", "err", err)
 		}
-		req := &gRPC.AppDetailRequest{
+		req := &client2.AppDetailRequest{
 			ClusterConfig: config,
 			Namespace:     cdPipeline.Environment.Namespace,
 			ReleaseName:   cdPipeline.DeploymentAppName,

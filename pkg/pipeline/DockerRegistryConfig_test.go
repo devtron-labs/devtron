@@ -3,7 +3,7 @@ package pipeline
 import (
 	"context"
 	"fmt"
-	client "github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	"github.com/devtron-labs/devtron/api/helm-app/gRPC/client"
 	"github.com/devtron-labs/devtron/api/helm-app/mocks"
 	repository "github.com/devtron-labs/devtron/internals/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"

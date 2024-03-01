@@ -21,7 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	client2 "github.com/devtron-labs/devtron/api/helm-app/gRPC/client"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
 	moduleDataStore "github.com/devtron-labs/devtron/pkg/module/store"
@@ -160,7 +160,7 @@ func (impl *ModuleCronServiceImpl) handleModuleStatus(moduleNameInput string) {
 
 }
 
-func (impl *ModuleCronServiceImpl) saveModuleResourcesStatus(moduleId int, appDetail *gRPC.AppDetail) error {
+func (impl *ModuleCronServiceImpl) saveModuleResourcesStatus(moduleId int, appDetail *client2.AppDetail) error {
 	impl.logger.Infow("updating module resources status", "moduleId", moduleId)
 	if appDetail == nil || appDetail.ResourceTreeResponse == nil {
 		return nil
@@ -235,7 +235,7 @@ func (impl *ModuleCronServiceImpl) saveModuleResourcesStatus(moduleId int, appDe
 	return nil
 }
 
-func (impl *ModuleCronServiceImpl) buildResourceTreeFilter(moduleName string) (*gRPC.ResourceTreeFilter, error) {
+func (impl *ModuleCronServiceImpl) buildResourceTreeFilter(moduleName string) (*client2.ResourceTreeFilter, error) {
 	moduleMetaData, err := impl.moduleServiceHelper.GetModuleMetadata(moduleName)
 	if err != nil {
 		impl.logger.Errorw("Error in getting module metadata", "moduleName", moduleName, "err", err)
@@ -256,13 +256,13 @@ func (impl *ModuleCronServiceImpl) buildResourceTreeFilter(moduleName string) (*
 		return nil, err
 	}
 
-	var resourceTreeFilter *gRPC.ResourceTreeFilter
+	var resourceTreeFilter *client2.ResourceTreeFilter
 
 	// handle global filter
 	globalFilter := resourceFilterIfaceValue.GlobalFilter
 	if globalFilter != nil {
-		resourceTreeFilter = &gRPC.ResourceTreeFilter{
-			GlobalFilter: &gRPC.ResourceIdentifier{
+		resourceTreeFilter = &client2.ResourceTreeFilter{
+			GlobalFilter: &client2.ResourceIdentifier{
 				Labels: globalFilter.Labels,
 			},
 		}
@@ -270,21 +270,21 @@ func (impl *ModuleCronServiceImpl) buildResourceTreeFilter(moduleName string) (*
 	}
 
 	// otherwise handle gvk level
-	var resourceFilters []*gRPC.ResourceFilter
+	var resourceFilters []*client2.ResourceFilter
 	for _, gvkLevelFilters := range resourceFilterIfaceValue.GvkLevelFilters {
 		gvk := gvkLevelFilters.Gvk
-		resourceFilters = append(resourceFilters, &gRPC.ResourceFilter{
-			Gvk: &gRPC.Gvk{
+		resourceFilters = append(resourceFilters, &client2.ResourceFilter{
+			Gvk: &client2.Gvk{
 				Group:   gvk.Group,
 				Version: gvk.Version,
 				Kind:    gvk.Kind,
 			},
-			ResourceIdentifier: &gRPC.ResourceIdentifier{
+			ResourceIdentifier: &client2.ResourceIdentifier{
 				Labels: gvkLevelFilters.ResourceIdentifier.Labels,
 			},
 		})
 	}
-	resourceTreeFilter = &gRPC.ResourceTreeFilter{
+	resourceTreeFilter = &client2.ResourceTreeFilter{
 		ResourceFilters: resourceFilters,
 	}
 	return resourceTreeFilter, nil

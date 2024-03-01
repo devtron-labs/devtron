@@ -3,7 +3,7 @@ package resource
 import (
 	"context"
 	"fmt"
-	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	"github.com/devtron-labs/devtron/api/helm-app/gRPC/client"
 	"github.com/devtron-labs/devtron/internals/util"
 	"github.com/go-pg/pg"
 	"net/http"
@@ -79,18 +79,18 @@ func (impl *InstalledAppResourceServiceImpl) findNotesForArgoApplication(install
 			return notes, appName, err
 		}
 
-		installReleaseRequest := &gRPC.InstallReleaseRequest{
+		installReleaseRequest := &client.InstallReleaseRequest{
 			ChartName:    appStoreAppVersion.Name,
 			ChartVersion: appStoreAppVersion.Version,
 			ValuesYaml:   installedAppVerison.ValuesYaml,
 			K8SVersion:   k8sServerVersion.String(),
-			ChartRepository: &gRPC.ChartRepository{
+			ChartRepository: &client.ChartRepository{
 				Name:     appStoreAppVersion.AppStore.ChartRepo.Name,
 				Url:      appStoreAppVersion.AppStore.ChartRepo.Url,
 				Username: appStoreAppVersion.AppStore.ChartRepo.UserName,
 				Password: appStoreAppVersion.AppStore.ChartRepo.Password,
 			},
-			ReleaseIdentifier: &gRPC.ReleaseIdentifier{
+			ReleaseIdentifier: &client.ReleaseIdentifier{
 				ReleaseNamespace: installedAppVerison.InstalledApp.Environment.Namespace,
 				ReleaseName:      installedAppVerison.InstalledApp.App.AppName,
 			},

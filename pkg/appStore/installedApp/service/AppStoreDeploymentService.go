@@ -22,7 +22,7 @@ import (
 	"errors"
 	"fmt"
 	bean3 "github.com/devtron-labs/devtron/api/helm-app/bean"
-	bean4 "github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	bean4 "github.com/devtron-labs/devtron/api/helm-app/gRPC/client"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/api/helm-app/service"
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"

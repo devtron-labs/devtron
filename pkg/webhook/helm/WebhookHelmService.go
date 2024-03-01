@@ -21,7 +21,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/helm-app/bean"
-	bean2 "github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	bean2 "github.com/devtron-labs/devtron/api/helm-app/gRPC/client"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/attributes"

@@ -9,6 +9,7 @@ import (
 	bean3 "github.com/devtron-labs/devtron/api/bean"
 	bean6 "github.com/devtron-labs/devtron/api/helm-app/bean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	client3 "github.com/devtron-labs/devtron/api/helm-app/gRPC/client"
 	client2 "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	bean7 "github.com/devtron-labs/devtron/client/argocdServer/bean"
@@ -885,7 +886,7 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean
 		releaseName := pipeline.DeploymentAppName
 		cluster := envOverride.Environment.Cluster
 		bearerToken := cluster.Config[util5.BearerToken]
-		clusterConfig := &gRPC.ClusterConfig{
+		clusterConfig := &client3.ClusterConfig{
 			ClusterName:           cluster.ClusterName,
 			Token:                 bearerToken,
 			ApiServerUrl:          cluster.ServerUrl,
@@ -896,18 +897,18 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean
 			clusterConfig.CertData = cluster.Config[util5.CertData]
 			clusterConfig.CaData = cluster.Config[util5.CertificateAuthorityData]
 		}
-		releaseIdentifier := &gRPC.ReleaseIdentifier{
+		releaseIdentifier := &client3.ReleaseIdentifier{
 			ReleaseName:      releaseName,
 			ReleaseNamespace: envOverride.Namespace,
 			ClusterConfig:    clusterConfig,
 		}
 
 		if pipeline.DeploymentAppCreated {
-			req := &gRPC.UpgradeReleaseRequest{
+			req := &client3.UpgradeReleaseRequest{
 				ReleaseIdentifier: releaseIdentifier,
 				ValuesYaml:        mergeAndSave,
 				HistoryMax:        impl.helmAppService.GetRevisionHistoryMaxValue(bean6.SOURCE_DEVTRON_APP),
-				ChartContent:      &gRPC.ChartContent{Content: referenceChartByte},
+				ChartContent:      &client3.ChartContent{Content: referenceChartByte},
 			}
 			if impl.IsDevtronAsyncInstallModeEnabled(bean.Helm) {
 				req.RunInCtx = true
@@ -1130,11 +1131,11 @@ func (impl *TriggerServiceImpl) updatePipeline(pipeline *pipelineConfig.Pipeline
 }
 
 // helmInstallReleaseWithCustomChart performs helm install with custom chart
-func (impl *TriggerServiceImpl) helmInstallReleaseWithCustomChart(ctx context.Context, releaseIdentifier *gRPC.ReleaseIdentifier, referenceChartByte []byte, valuesYaml string) (*gRPC.HelmInstallCustomResponse, error) {
+func (impl *TriggerServiceImpl) helmInstallReleaseWithCustomChart(ctx context.Context, releaseIdentifier *client3.ReleaseIdentifier, referenceChartByte []byte, valuesYaml string) (*client3.HelmInstallCustomResponse, error) {
 
-	helmInstallRequest := gRPC.HelmInstallCustomRequest{
+	helmInstallRequest := client3.HelmInstallCustomRequest{
 		ValuesYaml:        valuesYaml,
-		ChartContent:      &gRPC.ChartContent{Content: referenceChartByte},
+		ChartContent:      &client3.ChartContent{Content: referenceChartByte},
 		ReleaseIdentifier: releaseIdentifier,
 	}
 	if impl.IsDevtronAsyncInstallModeEnabled(bean.Helm) {

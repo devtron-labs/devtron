@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	client2 "github.com/devtron-labs/devtron/api/helm-app/gRPC/client"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/common"
 	repository5 "github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -50,7 +50,7 @@ type FullModeDeploymentService interface {
 	// RollbackRelease will rollback to a previous deployment for the given installedAppVersionHistoryId; returns - valuesYamlStr, success, error
 	RollbackRelease(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, deploymentVersion int32, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, bool, error)
 	// GetDeploymentHistory will return gRPC.HelmAppDeploymentHistory for the given installedAppDto.InstalledAppId
-	GetDeploymentHistory(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO) (*gRPC.HelmAppDeploymentHistory, error)
+	GetDeploymentHistory(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO) (*client2.HelmAppDeploymentHistory, error)
 	// GetDeploymentHistoryInfo will return openapi.HelmAppDeploymentManifestDetail for the given appStoreBean.InstallAppVersionDTO
 	GetDeploymentHistoryInfo(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, version int32) (*openapi.HelmAppDeploymentManifestDetail, error)
 
@@ -335,9 +335,9 @@ func (impl *FullModeDeploymentServiceImpl) RollbackRelease(ctx context.Context, 
 	return installedApp, true, nil
 }
 
-func (impl *FullModeDeploymentServiceImpl) GetDeploymentHistory(ctx context.Context, installedAppDto *appStoreBean.InstallAppVersionDTO) (*gRPC.HelmAppDeploymentHistory, error) {
-	result := &gRPC.HelmAppDeploymentHistory{}
-	var history []*gRPC.HelmAppDeploymentDetail
+func (impl *FullModeDeploymentServiceImpl) GetDeploymentHistory(ctx context.Context, installedAppDto *appStoreBean.InstallAppVersionDTO) (*client2.HelmAppDeploymentHistory, error) {
+	result := &client2.HelmAppDeploymentHistory{}
+	var history []*client2.HelmAppDeploymentDetail
 	//TODO - response setup
 
 	installedAppVersions, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppIdMeta(installedAppDto.InstalledAppId)
@@ -370,8 +370,8 @@ func (impl *FullModeDeploymentServiceImpl) GetDeploymentHistory(ctx context.Cont
 			if user != nil {
 				emailId = user.EmailId
 			}
-			history = append(history, &gRPC.HelmAppDeploymentDetail{
-				ChartMetadata: &gRPC.ChartMetadata{
+			history = append(history, &client2.HelmAppDeploymentDetail{
+				ChartMetadata: &client2.ChartMetadata{
 					ChartName:    installedAppVersionModel.AppStoreApplicationVersion.AppStore.Name,
 					ChartVersion: installedAppVersionModel.AppStoreApplicationVersion.Version,
 					Description:  installedAppVersionModel.AppStoreApplicationVersion.Description,
@@ -391,7 +391,7 @@ func (impl *FullModeDeploymentServiceImpl) GetDeploymentHistory(ctx context.Cont
 	}
 
 	if len(history) == 0 {
-		history = make([]*gRPC.HelmAppDeploymentDetail, 0)
+		history = make([]*client2.HelmAppDeploymentDetail, 0)
 	}
 	result.DeploymentHistory = history
 	return result, err

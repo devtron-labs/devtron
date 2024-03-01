@@ -5,7 +5,7 @@ package mocks
 import (
 	context "context"
 	"github.com/devtron-labs/devtron/api/helm-app/bean"
-	bean2 "github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	bean2 "github.com/devtron-labs/devtron/api/helm-app/gRPC/client"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 
 	http "net/http"

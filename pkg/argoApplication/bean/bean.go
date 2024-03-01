@@ -2,7 +2,7 @@ package bean
 
 import (
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
-	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	"github.com/devtron-labs/devtron/api/helm-app/gRPC/client"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
@@ -43,8 +43,8 @@ type ArgoApplicationListDto struct {
 
 type ArgoApplicationDetailDto struct {
 	*ArgoApplicationListDto
-	ResourceTree *gRPC.ResourceTreeResponse `json:"resourceTree"`
-	Manifest     map[string]interface{}     `json:"manifest"`
+	ResourceTree *client.ResourceTreeResponse `json:"resourceTree"`
+	Manifest     map[string]interface{}       `json:"manifest"`
 }
 
 type ArgoManagedResource struct {

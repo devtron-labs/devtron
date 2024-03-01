@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/caarlos0/env"
+	"github.com/devtron-labs/devtron/api/helm-app/gRPC/client"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -11,32 +12,32 @@ import (
 )
 
 type HelmAppClient interface {
-	ListApplication(ctx context.Context, req *AppListRequest) (ApplicationService_ListApplicationsClient, error)
-	GetAppDetail(ctx context.Context, in *AppDetailRequest) (*AppDetail, error)
-	GetResourceTreeForExternalResources(ctx context.Context, in *ExternalResourceTreeRequest) (*ResourceTreeResponse, error)
-	GetAppStatus(ctx context.Context, in *AppDetailRequest) (*AppStatus, error)
-	Hibernate(ctx context.Context, in *HibernateRequest) (*HibernateResponse, error)
-	UnHibernate(ctx context.Context, in *HibernateRequest) (*HibernateResponse, error)
-	GetDeploymentHistory(ctx context.Context, in *AppDetailRequest) (*HelmAppDeploymentHistory, error)
-	GetValuesYaml(ctx context.Context, in *AppDetailRequest) (*ReleaseInfo, error)
-	GetDesiredManifest(ctx context.Context, in *ObjectRequest) (*DesiredManifestResponse, error)
-	DeleteApplication(ctx context.Context, in *ReleaseIdentifier) (*UninstallReleaseResponse, error)
-	UpdateApplication(ctx context.Context, in *UpgradeReleaseRequest) (*UpgradeReleaseResponse, error)
-	GetDeploymentDetail(ctx context.Context, in *DeploymentDetailRequest) (*DeploymentDetailResponse, error)
-	InstallRelease(ctx context.Context, in *InstallReleaseRequest) (*InstallReleaseResponse, error)
-	UpdateApplicationWithChartInfo(ctx context.Context, in *InstallReleaseRequest) (*UpgradeReleaseResponse, error)
-	IsReleaseInstalled(ctx context.Context, in *ReleaseIdentifier) (*BooleanResponse, error)
-	RollbackRelease(ctx context.Context, in *RollbackReleaseRequest) (*BooleanResponse, error)
-	TemplateChart(ctx context.Context, in *InstallReleaseRequest) (*TemplateChartResponse, error)
-	InstallReleaseWithCustomChart(ctx context.Context, in *HelmInstallCustomRequest) (*HelmInstallCustomResponse, error)
-	GetNotes(ctx context.Context, request *InstallReleaseRequest) (*ChartNotesResponse, error)
-	ValidateOCIRegistry(ctx context.Context, OCIRegistryRequest *RegistryCredential) (*OCIRegistryResponse, error)
+	ListApplication(ctx context.Context, req *client.AppListRequest) (client.ApplicationService_ListApplicationsClient, error)
+	GetAppDetail(ctx context.Context, in *client.AppDetailRequest) (*client.AppDetail, error)
+	GetResourceTreeForExternalResources(ctx context.Context, in *client.ExternalResourceTreeRequest) (*client.ResourceTreeResponse, error)
+	GetAppStatus(ctx context.Context, in *client.AppDetailRequest) (*client.AppStatus, error)
+	Hibernate(ctx context.Context, in *client.HibernateRequest) (*client.HibernateResponse, error)
+	UnHibernate(ctx context.Context, in *client.HibernateRequest) (*client.HibernateResponse, error)
+	GetDeploymentHistory(ctx context.Context, in *client.AppDetailRequest) (*client.HelmAppDeploymentHistory, error)
+	GetValuesYaml(ctx context.Context, in *client.AppDetailRequest) (*client.ReleaseInfo, error)
+	GetDesiredManifest(ctx context.Context, in *client.ObjectRequest) (*client.DesiredManifestResponse, error)
+	DeleteApplication(ctx context.Context, in *client.ReleaseIdentifier) (*client.UninstallReleaseResponse, error)
+	UpdateApplication(ctx context.Context, in *client.UpgradeReleaseRequest) (*client.UpgradeReleaseResponse, error)
+	GetDeploymentDetail(ctx context.Context, in *client.DeploymentDetailRequest) (*client.DeploymentDetailResponse, error)
+	InstallRelease(ctx context.Context, in *client.InstallReleaseRequest) (*client.InstallReleaseResponse, error)
+	UpdateApplicationWithChartInfo(ctx context.Context, in *client.InstallReleaseRequest) (*client.UpgradeReleaseResponse, error)
+	IsReleaseInstalled(ctx context.Context, in *client.ReleaseIdentifier) (*client.BooleanResponse, error)
+	RollbackRelease(ctx context.Context, in *client.RollbackReleaseRequest) (*client.BooleanResponse, error)
+	TemplateChart(ctx context.Context, in *client.InstallReleaseRequest) (*client.TemplateChartResponse, error)
+	InstallReleaseWithCustomChart(ctx context.Context, in *client.HelmInstallCustomRequest) (*client.HelmInstallCustomResponse, error)
+	GetNotes(ctx context.Context, request *client.InstallReleaseRequest) (*client.ChartNotesResponse, error)
+	ValidateOCIRegistry(ctx context.Context, OCIRegistryRequest *client.RegistryCredential) (*client.OCIRegistryResponse, error)
 }
 
 type HelmAppClientImpl struct {
 	logger                   *zap.SugaredLogger
 	helmClientConfig         *HelmClientConfig
-	applicationServiceClient ApplicationServiceClient
+	applicationServiceClient client.ApplicationServiceClient
 }
 
 func NewHelmAppClientImpl(logger *zap.SugaredLogger, helmClientConfig *HelmClientConfig) *HelmAppClientImpl {
@@ -56,13 +57,13 @@ func GetConfig() (*HelmClientConfig, error) {
 	return cfg, err
 }
 
-func (impl *HelmAppClientImpl) getApplicationClient() (ApplicationServiceClient, error) {
+func (impl *HelmAppClientImpl) getApplicationClient() (client.ApplicationServiceClient, error) {
 	if impl.applicationServiceClient == nil {
 		connection, err := impl.getConnection()
 		if err != nil {
 			return nil, err
 		}
-		impl.applicationServiceClient = NewApplicationServiceClient(connection)
+		impl.applicationServiceClient = client.NewApplicationServiceClient(connection)
 	}
 	return impl.applicationServiceClient, nil
 }
@@ -88,7 +89,7 @@ func (impl *HelmAppClientImpl) getConnection() (*grpc.ClientConn, error) {
 	return conn, err
 }
 
-func (impl *HelmAppClientImpl) ListApplication(ctx context.Context, req *AppListRequest) (ApplicationService_ListApplicationsClient, error) {
+func (impl *HelmAppClientImpl) ListApplication(ctx context.Context, req *client.AppListRequest) (client.ApplicationService_ListApplicationsClient, error) {
 	applicationClient, err := impl.getApplicationClient()
 	if err != nil {
 		return nil, err
@@ -102,7 +103,7 @@ func (impl *HelmAppClientImpl) ListApplication(ctx context.Context, req *AppList
 
 ///	GetAppDetail(ctx context.Context, in *AppDetailRequest, opts ...grpc.CallOption) (*AppDetail, error)
 
-func (impl *HelmAppClientImpl) GetAppDetail(ctx context.Context, in *AppDetailRequest) (*AppDetail, error) {
+func (impl *HelmAppClientImpl) GetAppDetail(ctx context.Context, in *client.AppDetailRequest) (*client.AppDetail, error) {
 	applicationClient, err := impl.getApplicationClient()
 	if err != nil {
 		return nil, err
@@ -114,7 +115,7 @@ func (impl *HelmAppClientImpl) GetAppDetail(ctx context.Context, in *AppDetailRe
 	return detail, nil
 }
 
-func (impl *HelmAppClientImpl) GetResourceTreeForExternalResources(ctx context.Context, in *ExternalResourceTreeRequest) (*ResourceTreeResponse, error) {
+func (impl *HelmAppClientImpl) GetResourceTreeForExternalResources(ctx context.Context, in *client.ExternalResourceTreeRequest) (*client.ResourceTreeResponse, error) {
 	applicationClient, err := impl.getApplicationClient()
 	if err != nil {
 		return nil, err
@@ -126,7 +127,7 @@ func (impl *HelmAppClientImpl) GetResourceTreeForExternalResources(ctx context.C
 	return detail, nil
 }
 
-func (impl *HelmAppClientImpl) GetAppStatus(ctx context.Context, in *AppDetailRequest) (*AppStatus, error) {
+func (impl *HelmAppClientImpl) GetAppStatus(ctx context.Context, in *client.AppDetailRequest) (*client.AppStatus, error) {
 	applicationClient, err := impl.getApplicationClient()
 	if err != nil {
 		return nil, err
@@ -138,7 +139,7 @@ func (impl *HelmAppClientImpl) GetAppStatus(ctx context.Context, in *AppDetailRe
 	return appStatus, nil
 }
 
-func (impl *HelmAppClientImpl) Hibernate(ctx context.Context, in *HibernateRequest) (*HibernateResponse, error) {
+func (impl *HelmAppClientImpl) Hibernate(ctx context.Context, in *client.HibernateRequest) (*client.HibernateResponse, error) {
 	applicationClient, err := impl.getApplicationClient()
 	if err != nil {
 		return nil, err
@@ -150,7 +151,7 @@ func (impl *HelmAppClientImpl) Hibernate(ctx context.Context, in *HibernateReque
 	return detail, nil
 }
 
-func (impl *HelmAppClientImpl) UnHibernate(ctx context.Context, in *HibernateRequest) (*HibernateResponse, error) {
+func (impl *HelmAppClientImpl) UnHibernate(ctx context.Context, in *client.HibernateRequest) (*client.HibernateResponse, error) {
 	applicationClient, err := impl.getApplicationClient()
 	if err != nil {
 		return nil, err
@@ -162,7 +163,7 @@ func (impl *HelmAppClientImpl) UnHibernate(ctx context.Context, in *HibernateReq
 	return detail, nil
 }
 
-func (impl *HelmAppClientImpl) GetDeploymentHistory(ctx context.Context, in *AppDetailRequest) (*HelmAppDeploymentHistory, error) {
+func (impl *HelmAppClientImpl) GetDeploymentHistory(ctx context.Context, in *client.AppDetailRequest) (*client.HelmAppDeploymentHistory, error) {
 	applicationClient, err := impl.getApplicationClient()
 	if err != nil {
 		return nil, err
@@ -174,7 +175,7 @@ func (impl *HelmAppClientImpl) GetDeploymentHistory(ctx context.Context, in *App
 	return history, nil
 }
 
-func (impl *HelmAppClientImpl) GetValuesYaml(ctx context.Context, in *AppDetailRequest) (*ReleaseInfo, error) {
+func (impl *HelmAppClientImpl) GetValuesYaml(ctx context.Context, in *client.AppDetailRequest) (*client.ReleaseInfo, error) {
 	applicationClient, err := impl.getApplicationClient()
 	if err != nil {
 		return nil, err
@@ -186,7 +187,7 @@ func (impl *HelmAppClientImpl) GetValuesYaml(ctx context.Context, in *AppDetailR
 	return values, nil
 }
 
-func (impl *HelmAppClientImpl) GetDesiredManifest(ctx context.Context, in *ObjectRequest) (*DesiredManifestResponse, error) {
+func (impl *HelmAppClientImpl) GetDesiredManifest(ctx context.Context, in *client.ObjectRequest) (*client.DesiredManifestResponse, error) {
 	applicationClient, err := impl.getApplicationClient()
 	if err != nil {
 		return nil, err
@@ -198,7 +199,7 @@ func (impl *HelmAppClientImpl) GetDesiredManifest(ctx context.Context, in *Objec
 	return manifest, nil
 }
 
-func (impl *HelmAppClientImpl) DeleteApplication(ctx context.Context, in *ReleaseIdentifier) (*UninstallReleaseResponse, error) {
+func (impl *HelmAppClientImpl) DeleteApplication(ctx context.Context, in *client.ReleaseIdentifier) (*client.UninstallReleaseResponse, error) {
 	applicationClient, err := impl.getApplicationClient()
 	if err != nil {
 		return nil, err
@@ -210,7 +211,7 @@ func (impl *HelmAppClientImpl) DeleteApplication(ctx context.Context, in *Releas
 	return manifest, nil
 }
 
-func (impl *HelmAppClientImpl) UpdateApplication(ctx context.Context, in *UpgradeReleaseRequest) (*UpgradeReleaseResponse, error) {
+func (impl *HelmAppClientImpl) UpdateApplication(ctx context.Context, in *client.UpgradeReleaseRequest) (*client.UpgradeReleaseResponse, error) {
 	applicationClient, err := impl.getApplicationClient()
 	if err != nil {
 		return nil, err
@@ -222,7 +223,7 @@ func (impl *HelmAppClientImpl) UpdateApplication(ctx context.Context, in *Upgrad
 	return manifest, nil
 }
 
-func (impl *HelmAppClientImpl) GetDeploymentDetail(ctx context.Context, in *DeploymentDetailRequest) (*DeploymentDetailResponse, error) {
+func (impl *HelmAppClientImpl) GetDeploymentDetail(ctx context.Context, in *client.DeploymentDetailRequest) (*client.DeploymentDetailResponse, error) {
 	applicationClient, err := impl.getApplicationClient()
 	if err != nil {
 		return nil, err
@@ -234,7 +235,7 @@ func (impl *HelmAppClientImpl) GetDeploymentDetail(ctx context.Context, in *Depl
 	return deploymentDetail, nil
 }
 
-func (impl *HelmAppClientImpl) InstallRelease(ctx context.Context, in *InstallReleaseRequest) (*InstallReleaseResponse, error) {
+func (impl *HelmAppClientImpl) InstallRelease(ctx context.Context, in *client.InstallReleaseRequest) (*client.InstallReleaseResponse, error) {
 	applicationClient, err := impl.getApplicationClient()
 	if err != nil {
 		return nil, err
@@ -246,7 +247,7 @@ func (impl *HelmAppClientImpl) InstallRelease(ctx context.Context, in *InstallRe
 	return installReleaseResponse, nil
 }
 
-func (impl *HelmAppClientImpl) UpdateApplicationWithChartInfo(ctx context.Context, in *InstallReleaseRequest) (*UpgradeReleaseResponse, error) {
+func (impl *HelmAppClientImpl) UpdateApplicationWithChartInfo(ctx context.Context, in *client.InstallReleaseRequest) (*client.UpgradeReleaseResponse, error) {
 	applicationClient, err := impl.getApplicationClient()
 	if err != nil {
 		return nil, err
@@ -258,7 +259,7 @@ func (impl *HelmAppClientImpl) UpdateApplicationWithChartInfo(ctx context.Contex
 	return updateReleaseResponse, nil
 }
 
-func (impl *HelmAppClientImpl) IsReleaseInstalled(ctx context.Context, in *ReleaseIdentifier) (*BooleanResponse, error) {
+func (impl *HelmAppClientImpl) IsReleaseInstalled(ctx context.Context, in *client.ReleaseIdentifier) (*client.BooleanResponse, error) {
 	applicationClient, err := impl.getApplicationClient()
 	if err != nil {
 		return nil, err
@@ -270,7 +271,7 @@ func (impl *HelmAppClientImpl) IsReleaseInstalled(ctx context.Context, in *Relea
 	return response, nil
 }
 
-func (impl *HelmAppClientImpl) RollbackRelease(ctx context.Context, in *RollbackReleaseRequest) (*BooleanResponse, error) {
+func (impl *HelmAppClientImpl) RollbackRelease(ctx context.Context, in *client.RollbackReleaseRequest) (*client.BooleanResponse, error) {
 	applicationClient, err := impl.getApplicationClient()
 	if err != nil {
 		return nil, err
@@ -282,7 +283,7 @@ func (impl *HelmAppClientImpl) RollbackRelease(ctx context.Context, in *Rollback
 	return response, nil
 }
 
-func (impl *HelmAppClientImpl) TemplateChart(ctx context.Context, in *InstallReleaseRequest) (*TemplateChartResponse, error) {
+func (impl *HelmAppClientImpl) TemplateChart(ctx context.Context, in *client.InstallReleaseRequest) (*client.TemplateChartResponse, error) {
 	applicationClient, err := impl.getApplicationClient()
 	if err != nil {
 		return nil, err
@@ -294,7 +295,7 @@ func (impl *HelmAppClientImpl) TemplateChart(ctx context.Context, in *InstallRel
 	return response, nil
 }
 
-func (impl *HelmAppClientImpl) InstallReleaseWithCustomChart(ctx context.Context, in *HelmInstallCustomRequest) (*HelmInstallCustomResponse, error) {
+func (impl *HelmAppClientImpl) InstallReleaseWithCustomChart(ctx context.Context, in *client.HelmInstallCustomRequest) (*client.HelmInstallCustomResponse, error) {
 	applicationClient, err := impl.getApplicationClient()
 	if err != nil {
 		return nil, err
@@ -306,7 +307,7 @@ func (impl *HelmAppClientImpl) InstallReleaseWithCustomChart(ctx context.Context
 	return response, nil
 }
 
-func (impl *HelmAppClientImpl) GetNotes(ctx context.Context, in *InstallReleaseRequest) (*ChartNotesResponse, error) {
+func (impl *HelmAppClientImpl) GetNotes(ctx context.Context, in *client.InstallReleaseRequest) (*client.ChartNotesResponse, error) {
 	applicationClient, err := impl.getApplicationClient()
 	if err != nil {
 		return nil, err
@@ -320,7 +321,7 @@ func (impl *HelmAppClientImpl) GetNotes(ctx context.Context, in *InstallReleaseR
 
 }
 
-func (impl *HelmAppClientImpl) ValidateOCIRegistry(ctx context.Context, in *RegistryCredential) (*OCIRegistryResponse, error) {
+func (impl *HelmAppClientImpl) ValidateOCIRegistry(ctx context.Context, in *client.RegistryCredential) (*client.OCIRegistryResponse, error) {
 	applicationClient, err := impl.getApplicationClient()
 	if err != nil {
 		return nil, err

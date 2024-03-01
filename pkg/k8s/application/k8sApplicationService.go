@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/common-lib/utils"
-	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	client2 "github.com/devtron-labs/devtron/api/helm-app/gRPC/client"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"io"
@@ -449,7 +449,7 @@ func (impl *K8sApplicationServiceImpl) ValidateResourceRequest(ctx context.Conte
 	return impl.validateContainerNameIfReqd(valid, request, app), nil
 }
 
-func (impl *K8sApplicationServiceImpl) validateContainerNameIfReqd(valid bool, request *k8s2.K8sRequestBean, app *gRPC.AppDetail) bool {
+func (impl *K8sApplicationServiceImpl) validateContainerNameIfReqd(valid bool, request *k8s2.K8sRequestBean, app *client2.AppDetail) bool {
 	if !valid {
 		requestContainerName := request.PodLogsRequest.ContainerName
 		podName := request.ResourceIdentifier.Name
