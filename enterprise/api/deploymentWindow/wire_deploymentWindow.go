@@ -1,0 +1,19 @@
+package deploymentWindow
+
+import (
+	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
+	"github.com/devtron-labs/devtron/pkg/globalPolicy"
+	"github.com/google/wire"
+)
+
+var DeploymentWindowWireSet = wire.NewSet(
+	NewDeploymentWindowRouterImpl,
+	wire.Bind(new(DeploymentWindowRouter), new(*DeploymentWindowRouterImpl)),
+	NewDeploymentWindowRestHandlerImpl,
+	wire.Bind(new(DeploymentWindowRestHandler), new(*DeploymentWindowRestHandlerImpl)),
+	deploymentWindow.NewDeploymentWindowServiceImpl,
+	wire.Bind(new(deploymentWindow.DeploymentWindowService), new(*deploymentWindow.DeploymentWindowServiceImpl)),
+
+	globalPolicy.NewGlobalPolicyDataManagerImpl,
+	wire.Bind(new(globalPolicy.GlobalPolicyDataManager), new(*globalPolicy.GlobalPolicyDataManagerImpl)),
+)

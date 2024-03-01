@@ -51,6 +51,7 @@ import (
 	"github.com/devtron-labs/devtron/client/dashboard"
 	"github.com/devtron-labs/devtron/client/proxy"
 	"github.com/devtron-labs/devtron/client/telemetry"
+	"github.com/devtron-labs/devtron/enterprise/api/deploymentWindow"
 	"github.com/devtron-labs/devtron/enterprise/api/drafts"
 	"github.com/devtron-labs/devtron/enterprise/api/globalTag"
 	"github.com/devtron-labs/devtron/enterprise/api/lockConfiguation"
@@ -136,6 +137,7 @@ type MuxRouter struct {
 	imageDigestPolicyRouter            ImageDigestPolicyRouter
 	infraConfigRouter                  infraConfig.InfraConfigRouter
 	argoApplicationRouter              argoApplication.ArgoApplicationRouter
+	deploymentWindowRouter             deploymentWindow.DeploymentWindowRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger,
@@ -172,7 +174,9 @@ func NewMuxRouter(logger *zap.SugaredLogger,
 	proxyRouter proxy.ProxyRouter,
 	imageDigestPolicyRouter ImageDigestPolicyRouter,
 	infraConfigRouter infraConfig.InfraConfigRouter,
-	argoApplicationRouter argoApplication.ArgoApplicationRouter) *MuxRouter {
+	argoApplicationRouter argoApplication.ArgoApplicationRouter,
+	deploymentWindowRouter deploymentWindow.DeploymentWindowRouter,
+) *MuxRouter {
 
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
@@ -247,6 +251,7 @@ func NewMuxRouter(logger *zap.SugaredLogger,
 		imageDigestPolicyRouter:            imageDigestPolicyRouter,
 		infraConfigRouter:                  infraConfigRouter,
 		argoApplicationRouter:              argoApplicationRouter,
+		deploymentWindowRouter:             deploymentWindowRouter,
 	}
 	return r
 }
@@ -480,4 +485,7 @@ func (r MuxRouter) Init() {
 
 	argoApplicationRouter := r.Router.PathPrefix("/orchestrator/argo-application").Subrouter()
 	r.argoApplicationRouter.InitArgoApplicationRouter(argoApplicationRouter)
+
+	deploymentWindowRouter := r.Router.PathPrefix("/orchestrator/deployment-window").Subrouter()
+	r.deploymentWindowRouter.InitDeploymentWindowRouter(deploymentWindowRouter)
 }

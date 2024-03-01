@@ -44,7 +44,6 @@ type DeploymentWindowServiceImpl struct {
 
 func NewDeploymentWindowServiceImpl(
 	logger *zap.SugaredLogger,
-	timeZoneMap map[string]*time.Location,
 	resourceMappingService resourceQualifiers.QualifierMappingService,
 	timeoutWindowMappingService timeoutWindow.TimeoutWindowResourceMappingService,
 	globalPolicyManager globalPolicy.GlobalPolicyDataManager,
@@ -58,7 +57,6 @@ func NewDeploymentWindowServiceImpl(
 	return &DeploymentWindowServiceImpl{
 		cfg:                         cfg,
 		logger:                      logger,
-		timeZoneMap:                 timeZoneMap,
 		resourceMappingService:      resourceMappingService,
 		timeoutWindowMappingService: timeoutWindowMappingService,
 		globalPolicyManager:         globalPolicyManager,
@@ -89,7 +87,7 @@ func (impl DeploymentWindowServiceImpl) StartATransaction() (*pg.Tx, error) {
 func (impl DeploymentWindowServiceImpl) CommitATransaction(tx *pg.Tx) error {
 	err := tx.Commit()
 	if err != nil {
-		impl.logger.Errorw("error in commiting a transaction", "err", err)
+		impl.logger.Errorw("error in committing a transaction", "err", err)
 		return err
 	}
 	return nil

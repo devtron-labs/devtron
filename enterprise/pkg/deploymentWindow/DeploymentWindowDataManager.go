@@ -50,10 +50,7 @@ func (impl DeploymentWindowServiceImpl) updateWindowMappings(windows []*TimeWind
 
 	//create time windows and map
 	err = impl.timeoutWindowMappingService.CreateAndMapWithResource(tx, windowExpressions, userId, policyId, repository.DeploymentWindowProfile)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func (impl DeploymentWindowServiceImpl) UpdateDeploymentWindowProfile(profile *DeploymentWindowProfile, userId int32) (*DeploymentWindowProfile, error) {

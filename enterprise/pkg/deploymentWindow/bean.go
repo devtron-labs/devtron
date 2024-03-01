@@ -80,7 +80,7 @@ type AppData struct {
 // DeploymentWindowProfile defines model for DeploymentWindowProfile.
 type DeploymentWindowProfile struct {
 	DeploymentWindowList []*TimeWindow `json:"deploymentWindowList,omitempty"`
-	Enabled              bool          `json:"enabled" isSearchField:"true"`
+	Enabled              bool          `json:"enabled"`
 	TimeZone             string        `json:"timeZone"`
 	DisplayMessage       string        `json:"displayMessage"`
 	ExcludedUsersList    []int32       `json:"excludedUsersList"`
@@ -91,10 +91,10 @@ type DeploymentWindowProfile struct {
 
 // DeploymentWindowProfileMetadata defines model for DeploymentWindowProfileMetadata.
 type DeploymentWindowProfileMetadata struct {
-	Description string               `json:"description" isSearchField:"true"`
+	Description string               `json:"description"`
 	Id          int                  `json:"id"`
-	Name        string               `json:"name" isSearchField:"true"`
-	Type        DeploymentWindowType `json:"type" isSearchField:"true"`
+	Name        string               `json:"name"`
+	Type        DeploymentWindowType `json:"type"`
 }
 
 // DeploymentWindowProfileRequest defines model for DeploymentWindowProfileRequest.

@@ -30,6 +30,8 @@ func (impl TimeoutWindowResourceMappingServiceImpl) GetMappingsForResources(reso
 			return mapping.TimeoutWindowId
 		})
 
+	// length check inside
+
 	allConfigurations, err := impl.timeWindowService.GetAllWithIds(windowIds)
 	if err != nil {
 		return nil, err
