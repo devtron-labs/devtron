@@ -66,7 +66,6 @@ import (
 	status3 "github.com/devtron-labs/devtron/api/router/app/pipeline/status"
 	trigger2 "github.com/devtron-labs/devtron/api/router/app/pipeline/trigger"
 	workflow2 "github.com/devtron-labs/devtron/api/router/app/workflow"
-	"github.com/devtron-labs/devtron/api/router/pubsub"
 	"github.com/devtron-labs/devtron/api/server"
 	"github.com/devtron-labs/devtron/api/sse"
 	"github.com/devtron-labs/devtron/api/team"
@@ -486,9 +485,6 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipeline.CiLogService), new(*pipeline.CiLogServiceImpl)),
 
 		pubsub1.NewPubSubClientServiceImpl,
-
-		pubsub.NewApplicationStatusHandlerImpl,
-		wire.Bind(new(pubsub.ApplicationStatusHandler), new(*pubsub.ApplicationStatusHandlerImpl)),
 
 		rbac.NewEnforcerUtilImpl,
 		wire.Bind(new(rbac.EnforcerUtil), new(*rbac.EnforcerUtilImpl)),

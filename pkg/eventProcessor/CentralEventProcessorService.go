@@ -6,18 +6,21 @@ import (
 )
 
 type CentralEventProcessor struct {
-	logger                   *zap.SugaredLogger
-	workflowEventProcessor   *in.WorkflowEventProcessorImpl
-	ciPipelineEventProcessor *in.CIPipelineEventProcessorImpl
+	logger                                *zap.SugaredLogger
+	workflowEventProcessor                *in.WorkflowEventProcessorImpl
+	ciPipelineEventProcessor              *in.CIPipelineEventProcessorImpl
+	deployedApplicationEventProcessorImpl *in.DeployedApplicationEventProcessorImpl
 }
 
 func NewCentralEventProcessor(logger *zap.SugaredLogger,
 	workflowEventProcessor *in.WorkflowEventProcessorImpl,
-	ciPipelineEventProcessor *in.CIPipelineEventProcessorImpl) (*CentralEventProcessor, error) {
+	ciPipelineEventProcessor *in.CIPipelineEventProcessorImpl,
+	deployedApplicationEventProcessorImpl *in.DeployedApplicationEventProcessorImpl) (*CentralEventProcessor, error) {
 	cep := &CentralEventProcessor{
-		logger:                   logger,
-		workflowEventProcessor:   workflowEventProcessor,
-		ciPipelineEventProcessor: ciPipelineEventProcessor,
+		logger:                                logger,
+		workflowEventProcessor:                workflowEventProcessor,
+		ciPipelineEventProcessor:              ciPipelineEventProcessor,
+		deployedApplicationEventProcessorImpl: deployedApplicationEventProcessorImpl,
 	}
 	err := cep.SubscribeAll()
 	if err != nil {
@@ -81,5 +84,19 @@ func (impl *CentralEventProcessor) SubscribeAll() error {
 	}
 
 	//Workflow event ends
+
+	//Deployed application status event starts (currently only argo)
+
+	err = impl.deployedApplicationEventProcessorImpl.SubscribeArgoAppUpdate()
+	if err != nil {
+		impl.logger.Errorw("error, SubscribeArgoAppUpdate", "err", err)
+		return err
+	}
+	err = impl.deployedApplicationEventProcessorImpl.SubscribeArgoAppDeleteStatus()
+	if err != nil {
+		impl.logger.Errorw("error, SubscribeArgoAppDeleteStatus", "err", err)
+		return err
+	}
+	//Deployed application status event ends (currently only argo)
 	return nil
 }

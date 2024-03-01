@@ -39,7 +39,6 @@ import (
 	"github.com/devtron-labs/devtron/api/module"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/api/router/app"
-	"github.com/devtron-labs/devtron/api/router/pubsub"
 	"github.com/devtron-labs/devtron/api/server"
 	"github.com/devtron-labs/devtron/api/team"
 	terminal2 "github.com/devtron-labs/devtron/api/terminal"
@@ -71,7 +70,6 @@ type MuxRouter struct {
 	TeamRouter                         team.TeamRouter
 	pubsubClient                       *pubsub2.PubSubClientServiceImpl
 	UserRouter                         user.UserRouter
-	appUpdateHandler                   pubsub.ApplicationStatusHandler
 	ChartRefRouter                     ChartRefRouter
 	ConfigMapRouter                    ConfigMapRouter
 	AppStoreRouter                     appStore.AppStoreRouter
@@ -128,7 +126,6 @@ func NewMuxRouter(logger *zap.SugaredLogger,
 	DockerRegRouter DockerRegRouter,
 	NotificationRouter NotificationRouter,
 	TeamRouter team.TeamRouter,
-	appUpdateHandler pubsub.ApplicationStatusHandler,
 	pubsubClient *pubsub2.PubSubClientServiceImpl, UserRouter user.UserRouter,
 	ChartRefRouter ChartRefRouter, ConfigMapRouter ConfigMapRouter, AppStoreRouter appStore.AppStoreRouter, chartRepositoryRouter chartRepo.ChartRepositoryRouter,
 	ReleaseMetricsRouter ReleaseMetricsRouter, deploymentGroupRouter DeploymentGroupRouter, batchOperationRouter BatchOperationRouter,
@@ -162,7 +159,6 @@ func NewMuxRouter(logger *zap.SugaredLogger,
 		NotificationRouter:                 NotificationRouter,
 		TeamRouter:                         TeamRouter,
 		logger:                             logger,
-		appUpdateHandler:                   appUpdateHandler,
 		pubsubClient:                       pubsubClient,
 		UserRouter:                         UserRouter,
 		ChartRefRouter:                     ChartRefRouter,
