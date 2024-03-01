@@ -1239,7 +1239,7 @@ func (impl UserServiceImpl) createOrUpdateUserRoleGroupsPolices(requestUserRoleG
 			groupsModified = groupsModified || isGroupModified
 		} else {
 			//  case: when user group exist but just time config is changed we add polices for new configuration
-			hasTimeoutChanged := !(userRoleGroup.TimeoutWindowExpression == val.TimeoutWindowExpression && userRoleGroup.Status == val.Status)
+			hasTimeoutChanged := helper2.HasTimeWindowChangedForUserRoleGroup(userRoleGroup, val)
 			if hasTimeoutChanged {
 				policiesToBeAdded, restrictedGroupsToBeAdded, isGroupModified, err := impl.CheckAccessAndReturnAdditionPolices(roleGroup.CasbinName, token, isActionPerformingUserSuperAdmin, tx, loggedInUser, emailId, userRoleGroup, managerAuth)
 				if err != nil {
@@ -1263,7 +1263,7 @@ func (impl UserServiceImpl) createOrUpdateUserRoleGroupsPolices(requestUserRoleG
 			groupsModified = groupsModified || isGroupModified
 		} else {
 			// case: when existing policies has been given but with differnt timeoutWindow Configration , existing policies has to be removed.
-			hasTimeoutChanged := !(item.TimeoutWindowExpression == val.TimeoutWindowExpression && item.Status == val.Status)
+			hasTimeoutChanged := helper2.HasTimeWindowChangedForUserRoleGroup(item, val)
 			if hasTimeoutChanged {
 				policiesToBeEliminated, restrictedGroupsToBeAdded, isGroupModified := impl.CheckAccessAndReturnEliminatedPolices(token, isActionPerformingUserSuperAdmin, emailId, item, managerAuth)
 				eliminatedPolicies = append(eliminatedPolicies, policiesToBeEliminated...)
@@ -3070,7 +3070,7 @@ func getStatusAndTimeoutExpressionFromCasbinValues(expression, format string, re
 	if len(expression) > 0 && len(format) > 0 {
 		expressionFormat, err := strconv.Atoi(format)
 		if err != nil {
-			fmt.Println("error in parsing casbin expression format", "err", err)
+			fmt.Println("error in parsing casbin expression format", "err", err, "format", format)
 			return status, timeoutExpression, err
 		}
 		status, timeoutExpression = helper3.GetStatusFromTimeoutWindowExpression(expression, recordedTime, bean3.ExpressionFormat(expressionFormat))

@@ -74,3 +74,8 @@ func HasTimeWindowChanged(status bean2.Status, expression time.Time, timeWindowC
 	}
 	return true
 }
+
+// HasTimeWindowChangedForUserRoleGroup returns true if timeout has changed or false
+func HasTimeWindowChangedForUserRoleGroup(item bean2.UserRoleGroup, val bean2.UserRoleGroup) bool {
+	return !(item.TimeoutWindowExpression == val.TimeoutWindowExpression && item.Status == val.Status)
+}
