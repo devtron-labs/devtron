@@ -33,6 +33,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository/helper"
 	util3 "github.com/devtron-labs/devtron/pkg/auth/user/util"
 	"github.com/devtron-labs/devtron/pkg/timeoutWindow"
+	bean6 "github.com/devtron-labs/devtron/pkg/timeoutWindow/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/timeoutWindow/repository"
 	bean3 "github.com/devtron-labs/devtron/pkg/timeoutWindow/repository/bean"
 	jwt2 "github.com/golang-jwt/jwt/v4"
@@ -1098,7 +1099,7 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, ma
 	//validating if action user is not admin and trying to update user who has super admin polices, return 403
 	err = impl.validationIfAllowedToUpdateSuperAdmin(isActionPerformingUserSuperAdmin, isUserSuperAdmin, userInfo.SuperAdmin)
 	if err != nil {
-		impl.logger.Errorw("error in UpdateUser", "err", err)
+		impl.logger.Errorw("error in UpdateUser", "err", err, "isActionPerformingUserSuperAdmin", isActionPerformingUserSuperAdmin, "isUserSuperAdmin", isUserSuperAdmin, "payload", userInfo)
 		return nil, false, false, nil, err
 	}
 	// case if user is superadmin already, check is user status changed,update user if yes or return custom error
@@ -1937,7 +1938,7 @@ func (impl UserServiceImpl) getUserWithTimeoutWindowConfiguration(emailId string
 		isInactive = false
 		return user.Id, isInactive, nil
 	} else {
-		expiryDate, err := time.Parse(helper.TimeFormatForParsing, user.TimeoutWindowConfiguration.TimeoutWindowExpression)
+		expiryDate, err := time.Parse(bean6.TimeFormatForParsing, user.TimeoutWindowConfiguration.TimeoutWindowExpression)
 		if err != nil {
 			err = &util.ApiError{HttpStatusCode: 401, UserMessage: "Invalid User", InternalMessage: "failed to parse TimeoutWindowExpression"}
 			impl.logger.Errorw("error while parsing date time", "error", err)

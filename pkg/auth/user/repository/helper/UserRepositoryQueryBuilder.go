@@ -10,9 +10,8 @@ import (
 )
 
 const (
-	QueryTimeFormat      string = "2006-01-02 15:04:05-07:00"
-	TimeStampFormat      string = "YYYY-MM-DD HH24:MI:SS"
-	TimeFormatForParsing string = "2006-01-02 15:04:05 -0700 MST"
+	QueryTimeFormat string = "2006-01-02 15:04:05-07:00"
+	TimeStampFormat string = "YYYY-MM-DD HH24:MI:SS"
 )
 
 func GetQueryForUserListingWithFilters(req *bean.ListingRequest) string {
