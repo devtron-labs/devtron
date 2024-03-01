@@ -2,7 +2,7 @@ package deploymentWindow
 
 import (
 	"encoding/json"
-	"github.com/devtron-labs/devtron/enterprise/pkg/app/blackbox"
+	"github.com/devtron-labs/common-lib/scheduler"
 	"github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
 	"github.com/samber/lo"
 	"time"
@@ -69,8 +69,8 @@ func (profilePolicy DeploymentWindowProfilePolicy) toDeploymentWindowProfile(pol
 	}
 }
 
-func (timeWindow *TimeWindow) toTimeRange() blackbox.TimeRange {
-	return blackbox.TimeRange{
+func (timeWindow *TimeWindow) toTimeRange() scheduler.TimeRange {
+	return scheduler.TimeRange{
 		TimeFrom:       timeWindow.TimeFrom,
 		TimeTo:         timeWindow.TimeTo,
 		HourMinuteFrom: timeWindow.HourMinuteFrom,
@@ -84,18 +84,18 @@ func (timeWindow *TimeWindow) toTimeRange() blackbox.TimeRange {
 	}
 }
 
-func (f Frequency) toTimeRangeFrequency() blackbox.Frequency {
+func (f Frequency) toTimeRangeFrequency() scheduler.Frequency {
 	switch f {
 	case Fixed:
-		return blackbox.FIXED
+		return scheduler.FIXED
 	case Daily:
-		return blackbox.DAILY
+		return scheduler.DAILY
 	case Weekly:
-		return blackbox.WEEKLY
+		return scheduler.WEEKLY
 	case WeeklyRange:
-		return blackbox.WEEKLY_RANGE
+		return scheduler.WEEKLY_RANGE
 	case Monthly:
-		return blackbox.MONTHLY
+		return scheduler.MONTHLY
 	}
 	return ""
 }

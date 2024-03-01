@@ -15,6 +15,21 @@ type TimeoutWindowResourceMappingService interface {
 	GetMappingsForResources(resourceIds []int, resourceType repository.ResourceType) (map[int][]TimeWindowExpression, error)
 }
 
+type TimeoutWindowResourceMappingServiceImpl struct {
+	logger                      *zap.SugaredLogger
+	timeWindowMappingRepository repository.TimeoutWindowResourceMappingRepository
+	timeWindowService           TimeoutWindowService
+}
+
+func NewTimeoutWindowResourceMappingServiceImpl(logger *zap.SugaredLogger, timeWindowMappingRepository repository.TimeoutWindowResourceMappingRepository, timeWindowService TimeoutWindowService) *TimeoutWindowResourceMappingServiceImpl {
+	return &TimeoutWindowResourceMappingServiceImpl{logger: logger, timeWindowMappingRepository: timeWindowMappingRepository, timeWindowService: timeWindowService}
+}
+
+type TimeWindowExpression struct {
+	TimeoutExpression string
+	ExpressionFormat  bean.ExpressionFormat
+}
+
 func (impl TimeoutWindowResourceMappingServiceImpl) GetMappingsForResources(resourceIds []int, resourceType repository.ResourceType) (map[int][]TimeWindowExpression, error) {
 	resourceMappings, err := impl.timeWindowMappingRepository.GetWindowsForResources(resourceIds, resourceType)
 	if err != nil {
@@ -90,21 +105,6 @@ func (impl TimeoutWindowResourceMappingServiceImpl) CreateAndMapWithResource(tx 
 
 	_, err = impl.timeWindowMappingRepository.Create(tx, mappings)
 	return err
-}
-
-type TimeoutWindowResourceMappingServiceImpl struct {
-	logger                      *zap.SugaredLogger
-	timeWindowMappingRepository repository.TimeoutWindowResourceMappingRepository
-	timeWindowService           TimeoutWindowService
-}
-
-func NewTimeoutWindowResourceMappingServiceImpl(logger *zap.SugaredLogger, timeWindowMappingRepository repository.TimeoutWindowResourceMappingRepository, timeWindowService TimeoutWindowService) *TimeoutWindowResourceMappingServiceImpl {
-	return &TimeoutWindowResourceMappingServiceImpl{logger: logger, timeWindowMappingRepository: timeWindowMappingRepository, timeWindowService: timeWindowService}
-}
-
-type TimeWindowExpression struct {
-	TimeoutExpression string
-	ExpressionFormat  bean.ExpressionFormat
 }
 
 func (expr TimeWindowExpression) toTimeWindowDto(userId int32) *repository.TimeoutWindowConfiguration {
