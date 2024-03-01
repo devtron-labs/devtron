@@ -639,10 +639,7 @@ func InitializeApp() (*App, error) {
 	chartRefRouterImpl := router.NewChartRefRouterImpl(chartRefRestHandlerImpl)
 	configMapRestHandlerImpl := restHandler.NewConfigMapRestHandlerImpl(pipelineBuilderImpl, sugaredLogger, chartServiceImpl, userServiceImpl, teamServiceImpl, enforcerImpl, pipelineRepositoryImpl, enforcerUtilImpl, configMapServiceImpl)
 	configMapRouterImpl := router.NewConfigMapRouterImpl(configMapRestHandlerImpl)
-	installedAppDBExtendedServiceImpl, err := FullMode.NewInstalledAppDBExtendedServiceImpl(sugaredLogger, installedAppRepositoryImpl, appRepositoryImpl, userServiceImpl, installedAppVersionHistoryRepositoryImpl, appStatusServiceImpl, pubSubClientServiceImpl)
-	if err != nil {
-		return nil, err
-	}
+	installedAppDBExtendedServiceImpl := FullMode.NewInstalledAppDBExtendedServiceImpl(sugaredLogger, installedAppRepositoryImpl, appRepositoryImpl, userServiceImpl, installedAppVersionHistoryRepositoryImpl, appStatusServiceImpl)
 	k8sResourceHistoryRepositoryImpl := repository15.NewK8sResourceHistoryRepositoryImpl(db, sugaredLogger)
 	k8sResourceHistoryServiceImpl := kubernetesResourceAuditLogs.Newk8sResourceHistoryServiceImpl(k8sResourceHistoryRepositoryImpl, sugaredLogger, appRepositoryImpl, environmentRepositoryImpl)
 	ephemeralContainersRepositoryImpl := repository.NewEphemeralContainersRepositoryImpl(db)
@@ -888,11 +885,11 @@ func InitializeApp() (*App, error) {
 	ciPipelineEventProcessorImpl := in.NewCIPipelineEventProcessorImpl(sugaredLogger, pubSubClientServiceImpl, gitWebhookServiceImpl)
 	cdPipelineEventProcessorImpl := in.NewCDPipelineEventProcessorImpl(sugaredLogger, pubSubClientServiceImpl, cdWorkflowCommonServiceImpl, workflowStatusServiceImpl, triggerServiceImpl, argoUserServiceImpl, pipelineRepositoryImpl, installedAppRepositoryImpl)
 	deployedApplicationEventProcessorImpl := in.NewDeployedApplicationEventProcessorImpl(sugaredLogger, pubSubClientServiceImpl, gitOpsConfigReadServiceImpl, installedAppDBExtendedServiceImpl, workflowDagExecutorImpl, cdWorkflowCommonServiceImpl, pipelineBuilderImpl, appStoreDeploymentServiceImpl, pipelineRepositoryImpl, installedAppRepositoryImpl)
-	appStoreAppsEventProcessorImpl := in.NewAppStoreAppsEventProcessorImpl(sugaredLogger, pubSubClientServiceImpl, chartGroupServiceImpl)
+	appStoreAppsEventProcessorImpl := in.NewAppStoreAppsEventProcessorImpl(sugaredLogger, pubSubClientServiceImpl, chartGroupServiceImpl, installedAppVersionHistoryRepositoryImpl)
 	centralEventProcessor, err := eventProcessor.NewCentralEventProcessor(sugaredLogger, workflowEventProcessorImpl, ciPipelineEventProcessorImpl, cdPipelineEventProcessorImpl, deployedApplicationEventProcessorImpl, appStoreAppsEventProcessorImpl)
 	if err != nil {
 		return nil, err
 	}
-	mainApp := NewApp(muxRouter, sugaredLogger, sseSSE, syncedEnforcer, db, pubSubClientServiceImpl, sessionManager, posthogClient, loggingMiddlewareImpl, centralEventProcessor)
+	mainApp := NewApp(muxRouter, sugaredLogger, sseSSE, syncedEnforcer, db, sessionManager, posthogClient, loggingMiddlewareImpl, centralEventProcessor)
 	return mainApp, nil
 }

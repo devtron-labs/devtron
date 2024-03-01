@@ -130,6 +130,12 @@ func (impl *CentralEventProcessor) SubscribeAll() error {
 		return err
 	}
 
+	err = impl.appStoreAppsEventProcessorImpl.SubscribeHelmInstallStatusEvent()
+	if err != nil {
+		impl.logger.Errorw("error, SubscribeHelmInstallStatusEvent", "err", err)
+		return err
+	}
+
 	//AppStore apps event ends
 
 	return nil

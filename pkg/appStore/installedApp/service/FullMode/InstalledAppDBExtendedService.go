@@ -18,12 +18,7 @@
 package FullMode
 
 import (
-	"encoding/json"
-	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
-	"github.com/devtron-labs/common-lib/pubsub-lib/model"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
 	"time"
 
@@ -43,7 +38,6 @@ type InstalledAppDBExtendedService interface {
 type InstalledAppDBExtendedServiceImpl struct {
 	*EAMode.InstalledAppDBServiceImpl
 	appStatusService appStatus.AppStatusService
-	pubSubClient     *pubsub.PubSubClientServiceImpl
 }
 
 func NewInstalledAppDBExtendedServiceImpl(logger *zap.SugaredLogger,
@@ -51,9 +45,8 @@ func NewInstalledAppDBExtendedServiceImpl(logger *zap.SugaredLogger,
 	appRepository app.AppRepository,
 	userService user.UserService,
 	installedAppRepositoryHistory repository2.InstalledAppVersionHistoryRepository,
-	appStatusService appStatus.AppStatusService,
-	pubSubClient *pubsub.PubSubClientServiceImpl) (*InstalledAppDBExtendedServiceImpl, error) {
-	impl := &InstalledAppDBExtendedServiceImpl{
+	appStatusService appStatus.AppStatusService) *InstalledAppDBExtendedServiceImpl {
+	return &InstalledAppDBExtendedServiceImpl{
 		InstalledAppDBServiceImpl: &EAMode.InstalledAppDBServiceImpl{
 			Logger:                        logger,
 			InstalledAppRepository:        installedAppRepository,
@@ -62,59 +55,7 @@ func NewInstalledAppDBExtendedServiceImpl(logger *zap.SugaredLogger,
 			InstalledAppRepositoryHistory: installedAppRepositoryHistory,
 		},
 		appStatusService: appStatusService,
-		pubSubClient:     pubSubClient,
 	}
-	err := impl.subscribeHelmInstallStatus()
-	if err != nil {
-		return nil, err
-	}
-	return impl, nil
-}
-
-func (impl *InstalledAppDBExtendedServiceImpl) subscribeHelmInstallStatus() error {
-
-	callback := func(msg *model.PubSubMsg) {
-
-		helmInstallNatsMessage := &appStoreBean.HelmReleaseStatusConfig{}
-		err := json.Unmarshal([]byte(msg.Data), helmInstallNatsMessage)
-		if err != nil {
-			impl.Logger.Errorw("error in unmarshalling helm install status nats message", "err", err)
-			return
-		}
-
-		installedAppVersionHistory, err := impl.InstalledAppRepositoryHistory.GetInstalledAppVersionHistory(helmInstallNatsMessage.InstallAppVersionHistoryId)
-		if err != nil {
-			impl.Logger.Errorw("error in fetching installed app by installed app id in subscribe helm status callback", "err", err)
-			return
-		}
-		if helmInstallNatsMessage.ErrorInInstallation {
-			installedAppVersionHistory.Status = pipelineConfig.WorkflowFailed
-		} else {
-			installedAppVersionHistory.Status = pipelineConfig.WorkflowSucceeded
-		}
-		installedAppVersionHistory.HelmReleaseStatusConfig = msg.Data
-		_, err = impl.InstalledAppRepositoryHistory.UpdateInstalledAppVersionHistory(installedAppVersionHistory, nil)
-		if err != nil {
-			impl.Logger.Errorw("error in updating helm release status data in installedAppVersionHistoryRepository", "err", err)
-			return
-		}
-	}
-	// add required logging here
-	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) (string, []interface{}) {
-		helmInstallNatsMessage := &appStoreBean.HelmReleaseStatusConfig{}
-		err := json.Unmarshal([]byte(msg.Data), helmInstallNatsMessage)
-		if err != nil {
-			return "error in unmarshalling helm install status nats message", []interface{}{"err", err}
-		}
-		return "got nats msg for helm chart install status", []interface{}{"InstallAppVersionHistoryId", helmInstallNatsMessage.InstallAppVersionHistoryId, "ErrorInInstallation", helmInstallNatsMessage.ErrorInInstallation, "IsReleaseInstalled", helmInstallNatsMessage.IsReleaseInstalled}
-	}
-
-	err := impl.pubSubClient.Subscribe(pubsub.HELM_CHART_INSTALL_STATUS_TOPIC, callback, loggerFunc)
-	if err != nil {
-		impl.Logger.Error(err)
-		return err
-	}
-	return nil
 }
 
 func (impl *InstalledAppDBExtendedServiceImpl) UpdateInstalledAppVersionStatus(application *v1alpha1.Application) (bool, error) {
