@@ -19,7 +19,6 @@ package router
 
 import (
 	"encoding/json"
-	pubsub2 "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/api/apiToken"
 	"github.com/devtron-labs/devtron/api/appStore"
 	"github.com/devtron-labs/devtron/api/appStore/chartGroup"
@@ -68,7 +67,6 @@ type MuxRouter struct {
 	DockerRegRouter                    DockerRegRouter
 	NotificationRouter                 NotificationRouter
 	TeamRouter                         team.TeamRouter
-	pubsubClient                       *pubsub2.PubSubClientServiceImpl
 	UserRouter                         user.UserRouter
 	ChartRefRouter                     ChartRefRouter
 	ConfigMapRouter                    ConfigMapRouter
@@ -126,7 +124,7 @@ func NewMuxRouter(logger *zap.SugaredLogger,
 	DockerRegRouter DockerRegRouter,
 	NotificationRouter NotificationRouter,
 	TeamRouter team.TeamRouter,
-	pubsubClient *pubsub2.PubSubClientServiceImpl, UserRouter user.UserRouter,
+	UserRouter user.UserRouter,
 	ChartRefRouter ChartRefRouter, ConfigMapRouter ConfigMapRouter, AppStoreRouter appStore.AppStoreRouter, chartRepositoryRouter chartRepo.ChartRepositoryRouter,
 	ReleaseMetricsRouter ReleaseMetricsRouter, deploymentGroupRouter DeploymentGroupRouter, batchOperationRouter BatchOperationRouter,
 	chartGroupRouter chartGroup.ChartGroupRouter, imageScanRouter ImageScanRouter,
@@ -159,7 +157,6 @@ func NewMuxRouter(logger *zap.SugaredLogger,
 		NotificationRouter:                 NotificationRouter,
 		TeamRouter:                         TeamRouter,
 		logger:                             logger,
-		pubsubClient:                       pubsubClient,
 		UserRouter:                         UserRouter,
 		ChartRefRouter:                     ChartRefRouter,
 		ConfigMapRouter:                    ConfigMapRouter,

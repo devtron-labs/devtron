@@ -8,4 +8,7 @@ var EventProcessorOutWireSet = wire.NewSet(
 
 	NewPipelineConfigEventPublishServiceImpl,
 	wire.Bind(new(PipelineConfigEventPublishService), new(*PipelineConfigEventPublishServiceImpl)),
+
+	NewCDPipelineEventPublishServiceImpl,
+	wire.Bind(new(CDPipelineEventPublishService), new(*CDPipelineEventPublishServiceImpl)),
 )

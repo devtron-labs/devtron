@@ -9,17 +9,20 @@ type CentralEventProcessor struct {
 	logger                                *zap.SugaredLogger
 	workflowEventProcessor                *in.WorkflowEventProcessorImpl
 	ciPipelineEventProcessor              *in.CIPipelineEventProcessorImpl
+	cdPipelineEventProcessor              *in.CDPipelineEventProcessorImpl
 	deployedApplicationEventProcessorImpl *in.DeployedApplicationEventProcessorImpl
 }
 
 func NewCentralEventProcessor(logger *zap.SugaredLogger,
 	workflowEventProcessor *in.WorkflowEventProcessorImpl,
 	ciPipelineEventProcessor *in.CIPipelineEventProcessorImpl,
+	cdPipelineEventProcessor *in.CDPipelineEventProcessorImpl,
 	deployedApplicationEventProcessorImpl *in.DeployedApplicationEventProcessorImpl) (*CentralEventProcessor, error) {
 	cep := &CentralEventProcessor{
 		logger:                                logger,
 		workflowEventProcessor:                workflowEventProcessor,
 		ciPipelineEventProcessor:              ciPipelineEventProcessor,
+		cdPipelineEventProcessor:              cdPipelineEventProcessor,
 		deployedApplicationEventProcessorImpl: deployedApplicationEventProcessorImpl,
 	}
 	err := cep.SubscribeAll()
@@ -39,6 +42,14 @@ func (impl *CentralEventProcessor) SubscribeAll() error {
 		return err
 	}
 	//CI pipeline event ends
+
+	//CD pipeline event starts
+	err = impl.cdPipelineEventProcessor.SubscribeArgoTypePipelineSyncEvent()
+	if err != nil {
+		impl.logger.Errorw("error, SubscribeArgoTypePipelineSyncEvent", "err", err)
+		return err
+	}
+	//CD pipeline event ends
 
 	//Workflow event starts
 
