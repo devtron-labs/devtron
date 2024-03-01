@@ -16,10 +16,10 @@ type SortKey = string
 type SortOrder = string
 
 const (
-	AWAITING_APPROVAL ArtifactPromotionRequestStatus = iota
+	AWAITING_APPROVAL ArtifactPromotionRequestStatus = iota + 1
 	CANCELED
 	PROMOTED
-	STALE = 3
+	STALE
 )
 
 func (status ArtifactPromotionRequestStatus) Status() string {
@@ -39,7 +39,7 @@ func (status ArtifactPromotionRequestStatus) Status() string {
 type SourceType int
 
 const (
-	CI SourceType = iota
+	CI SourceType = iota + 1
 	WEBHOOK
 	CD
 )
@@ -153,7 +153,7 @@ type PromotionApprovalUserData struct {
 type EnvironmentResponse struct {
 	Name                       string                   `json:"name"` // environment name
 	ApprovalCount              int                      `json:"approvalCount,omitempty"`
-	PromotionPossible          *bool                    `json:"promotionPossible"`
+	PromotionPossible          *bool                    `json:"promotionPossible,omitempty"`
 	PromotionValidationMessage string                   `json:"promotionEvaluationMessage"`
 	PromotionValidationState   PromotionValidationState `json:"promotionEvaluationState"`
 	IsVirtualEnvironment       *bool                    `json:"isVirtualEnvironment,omitempty"`

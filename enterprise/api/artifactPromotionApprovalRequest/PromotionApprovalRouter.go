@@ -29,5 +29,7 @@ func (router *RouterImpl) InitPromotionApprovalRouter(promotionApprovalRouter *m
 		Methods("GET")
 	promotionApprovalRouter.Path("/material").HandlerFunc(router.promotionApprovalMaterialRestHandler.GetArtifactsForPromotion).
 		Methods("GET")
+	promotionApprovalRouter.Path("/env/list").HandlerFunc(router.promotionApprovalRequestRestHandler.FetchEnvironmentsList).
+		Methods("GET")
 
 }
