@@ -517,9 +517,6 @@ func (impl ArtifactPromotionApprovalServiceImpl) approveArtifactPromotion(reques
 		return nil, err
 	}
 
-	if len(promotableRequestIds) > 0 {
-		// todo: trigger release
-	}
 	return nil, nil
 }
 
