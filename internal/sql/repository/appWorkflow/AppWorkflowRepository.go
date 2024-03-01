@@ -66,6 +66,7 @@ type AppWorkflowRepository interface {
 	FindWFMappingByComponent(componentType string, componentId int) (*AppWorkflowMapping, error)
 	FindByComponentId(componentId int) ([]*AppWorkflowMapping, error)
 	FindByWorkflowIdAndCiSource(workflowId int) (*AppWorkflowMapping, error)
+	FindAllMappingsInCdPipelineWorkflow(cdPipelineId int) ([]*AppWorkflowMapping, error)
 }
 
 type AppWorkflowRepositoryImpl struct {
@@ -524,4 +525,16 @@ func (impl AppWorkflowRepositoryImpl) FindByComponentId(componentId int) ([]*App
 		Where("app_workflow_mapping.active = ?", true).
 		Select()
 	return appWorkflowsMapping, err
+}
+
+func (impl AppWorkflowRepositoryImpl) FindAllMappingsInCdPipelineWorkflow(cdPipelineId int) ([]*AppWorkflowMapping, error) {
+	var appWorkflowsMapping []*AppWorkflowMapping
+	_, err := impl.dbConnection.Query(
+		appWorkflowsMapping,
+		"select * from app_workflow_mapping where app_workflow_id = (select app_workflow_id from app_workflow_mapping where component_id = ? and type= 'CD_PIPELINE' ) ", cdPipelineId)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching all appWorkflowMappings in workflow by cdPipelineId", "cdPipelineId", cdPipelineId)
+		return nil, err
+	}
+	return appWorkflowsMapping, nil
 }

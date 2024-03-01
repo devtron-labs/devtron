@@ -1,0 +1,6 @@
+package bean
+
+const (
+	CD_PIPELINE_TYPE = "CD_PIPELINE"
+	CI_PIPELINE_TYPE = "CI_PIPELINE"
+)

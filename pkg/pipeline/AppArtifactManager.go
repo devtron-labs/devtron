@@ -22,6 +22,7 @@ import (
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/util"
+	bean4 "github.com/devtron-labs/devtron/pkg/appWorkflow/bean"
 	repository4 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactApproval/read"
 	bean3 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
@@ -468,6 +469,15 @@ func (impl *AppArtifactManagerImpl) FetchArtifactForRollbackV2(cdPipelineId, app
 		deployedCiArtifactsResponse.ResourceFilters = filters
 	}
 
+	deployedEnvironmentsForArtifacts, err := impl.getDeployedEnvironmentsForArtifacts(deploymentPipeline, deployedCiArtifacts)
+	if err != nil {
+		impl.logger.Errorw("error in fetching environments on which artifact is currently deployed", "cdPipelineId", deploymentPipeline.Id, "err", err)
+		return deployedCiArtifactsResponse, err
+	}
+	for i, artifact := range deployedCiArtifacts {
+		deployedCiArtifacts[i].DeployedOnEnvironments = deployedEnvironmentsForArtifacts[artifact.Id]
+	}
+
 	deployedCiArtifactsResponse.CdPipelineId = cdPipelineId
 	if deployedCiArtifacts == nil {
 		deployedCiArtifacts = []bean2.CiArtifactBean{}
@@ -775,6 +785,15 @@ func (impl *AppArtifactManagerImpl) FetchApprovalPendingArtifacts(pipeline *pipe
 			}
 		}
 
+		deployedEnvironmentsForArtifacts, err := impl.getDeployedEnvironmentsForArtifacts(pipeline, ciArtifacts)
+		if err != nil {
+			impl.logger.Errorw("error in fetching environments on which artifact is currently deployed", "cdPipelineId", pipeline.Id, "err", err)
+			return ciArtifactsResponse, err
+		}
+		for i, artifact := range ciArtifacts {
+			ciArtifacts[i].DeployedOnEnvironments = deployedEnvironmentsForArtifacts[artifact.Id]
+		}
+
 		ciArtifactsResponse.CdPipelineId = pipeline.Id
 		if ciArtifacts == nil {
 			ciArtifacts = []bean2.CiArtifactBean{}
@@ -987,6 +1006,15 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pi
 		}
 	}
 
+	deployedEnvironmentsForArtifacts, err := impl.getDeployedEnvironmentsForArtifacts(pipeline, ciArtifacts)
+	if err != nil {
+		impl.logger.Errorw("error in fetching environments on which artifact is currently deployed", "cdPipelineId", pipeline.Id, "err", err)
+		return ciArtifactsResponse, err
+	}
+	for i, artifact := range ciArtifacts {
+		ciArtifacts[i].DeployedOnEnvironments = deployedEnvironmentsForArtifacts[artifact.Id]
+	}
+
 	ciArtifactsResponse.CdPipelineId = pipeline.Id
 	ciArtifactsResponse.LatestWfArtifactId = latestWfArtifactId
 	ciArtifactsResponse.LatestWfArtifactStatus = latestWfArtifactStatus
@@ -997,6 +1025,81 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pi
 	ciArtifactsResponse.TotalCount = totalCount
 	ciArtifactsResponse.CanApproverDeploy = impl.config.CanApproverDeploy
 	return ciArtifactsResponse, nil
+}
+
+func (impl *AppArtifactManagerImpl) getDeployedEnvironmentsForArtifacts(pipeline *pipelineConfig.Pipeline, ciArtifacts []bean2.CiArtifactBean) (artifactIdToDeployedEnvMap map[int][]string, err error) {
+
+	wfCdPipelineIds, err := impl.getAllCdPipelineInWfByPipelineId(pipeline)
+	if err != nil {
+		impl.logger.Errorw("error in getting all wfCDPipelineIds by pipelineId", "pipelineId", pipeline.Id, "err", err)
+		return artifactIdToDeployedEnvMap, err
+	}
+
+	deployedArtifactToPipelineIDMapping, err := impl.getlatestArtifactDeployedOnPipelines(wfCdPipelineIds)
+	if err != nil {
+		impl.logger.Errorw("error in getting latest artifact deployed on pipeline", "wfCdPipelineIds", wfCdPipelineIds, "err", err)
+		return artifactIdToDeployedEnvMap, err
+	}
+
+	pipelineIdToEnvName, err := impl.getPipelineIdToEnvNameMapping(wfCdPipelineIds)
+	if err != nil {
+		impl.logger.Errorw("error in getting pipelineId to envName mapping", "err", err)
+		return artifactIdToDeployedEnvMap, err
+	}
+
+	artifactToDeployedOnEnvsMapping := make(map[int][]string)
+	for _, artifact := range ciArtifacts {
+		if pipelineId, ok := deployedArtifactToPipelineIDMapping[artifact.Id]; ok {
+			artifactToDeployedOnEnvsMapping[artifact.Id] = append(artifactToDeployedOnEnvsMapping[artifact.Id], pipelineIdToEnvName[pipelineId])
+		}
+	}
+
+	return artifactToDeployedOnEnvsMapping, nil
+}
+
+func (impl *AppArtifactManagerImpl) getPipelineIdToEnvNameMapping(wfCdPipelineIds []int) (map[int]string, error) {
+	pipelineIdToEnvNameMapping := make(map[int]string)
+	pipelines, err := impl.cdPipelineConfigService.FindCdPipelinesByIds(wfCdPipelineIds)
+	if err != nil {
+		impl.logger.Errorw("error in fetching deployed pipelines by pipelineIds", "pipelineIds", wfCdPipelineIds, "err", err)
+		return pipelineIdToEnvNameMapping, err
+	}
+	pipelineIdToEnvName := make(map[int]string, 0)
+	for _, p := range pipelines {
+		pipelineIdToEnvName[p.Id] = p.EnvironmentName
+	}
+	return pipelineIdToEnvName, nil
+}
+
+func (impl *AppArtifactManagerImpl) getlatestArtifactDeployedOnPipelines(wfCdPipelineIds []int) (map[int]int, error) {
+	artifactDeployedCDWorkflowInfo, err := impl.cdWorkflowRepository.FindAllSucceededWfsByCDPipelineIds(wfCdPipelineIds)
+	if err != nil {
+		impl.logger.Errorw("error in fetching cd workflow info for pipelines on which artifacts is deployed", "cdPipelineIds", wfCdPipelineIds, "err", err)
+		return nil, err
+	}
+
+	artifactToDeployedPipelineIDMapping := make(map[int]int)
+	for _, workflowMetadata := range artifactDeployedCDWorkflowInfo {
+		artifactToDeployedPipelineIDMapping[workflowMetadata.CiArtifactId] = workflowMetadata.PipelineId
+	}
+	return artifactToDeployedPipelineIDMapping, nil
+}
+
+// TODO: should be moved to appWorkflowService
+func (impl *AppArtifactManagerImpl) getAllCdPipelineInWfByPipelineId(pipeline *pipelineConfig.Pipeline) (wfCdPipelineIds []int, err error) {
+	appWfMappings, err := impl.appWorkflowRepository.FindAllMappingsInCdPipelineWorkflow(pipeline.Id)
+	if err != nil {
+		impl.logger.Errorw("error in finding app wf mappings for given pipelineId", "pipelineId", pipeline.Id, "err", err)
+		return wfCdPipelineIds, err
+	}
+
+	wfCdPipelineIds = lo.Map(appWfMappings, func(appWf *appWorkflow.AppWorkflowMapping, item int) int {
+		if appWf.Type == bean4.CD_PIPELINE_TYPE {
+			return appWf.ComponentId
+		}
+		return 0
+	})
+	return wfCdPipelineIds, nil
 }
 
 func (impl *AppArtifactManagerImpl) setAdditionalDataInArtifacts(ciArtifacts []bean2.CiArtifactBean, filters []*resourceFilter.FilterMetaDataBean, appId int) ([]bean2.CiArtifactBean, error) {
