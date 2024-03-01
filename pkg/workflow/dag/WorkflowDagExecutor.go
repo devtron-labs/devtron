@@ -42,7 +42,6 @@ import (
 	"sync"
 	"time"
 
-	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/common-lib/pubsub-lib/model"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/models"
@@ -86,7 +85,6 @@ type WorkflowDagExecutorImpl struct {
 	logger                  *zap.SugaredLogger
 	pipelineRepository      pipelineConfig.PipelineRepository
 	cdWorkflowRepository    pipelineConfig.CdWorkflowRepository
-	pubsubClient            *pubsub.PubSubClientServiceImpl
 	ciArtifactRepository    repository.CiArtifactRepository
 	enforcerUtil            rbac.EnforcerUtil
 	appWorkflowRepository   appWorkflow.AppWorkflowRepository
@@ -113,7 +111,6 @@ type WorkflowDagExecutorImpl struct {
 
 func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pipelineConfig.PipelineRepository,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
-	pubsubClient *pubsub.PubSubClientServiceImpl,
 	ciArtifactRepository repository.CiArtifactRepository,
 	enforcerUtil rbac.EnforcerUtil,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
@@ -132,7 +129,6 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:      pipelineRepository,
 		cdWorkflowRepository:    cdWorkflowRepository,
-		pubsubClient:            pubsubClient,
 		ciArtifactRepository:    ciArtifactRepository,
 		enforcerUtil:            enforcerUtil,
 		appWorkflowRepository:   appWorkflowRepository,

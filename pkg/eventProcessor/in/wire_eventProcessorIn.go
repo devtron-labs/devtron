@@ -7,4 +7,5 @@ var EventProcessorInWireSet = wire.NewSet(
 	NewWorkflowEventProcessorImpl,
 	NewDeployedApplicationEventProcessorImpl,
 	NewCDPipelineEventProcessorImpl,
+	NewAppStoreAppsEventProcessorImpl,
 )

@@ -11,19 +11,22 @@ type CentralEventProcessor struct {
 	ciPipelineEventProcessor              *in.CIPipelineEventProcessorImpl
 	cdPipelineEventProcessor              *in.CDPipelineEventProcessorImpl
 	deployedApplicationEventProcessorImpl *in.DeployedApplicationEventProcessorImpl
+	appStoreAppsEventProcessorImpl        *in.AppStoreAppsEventProcessorImpl
 }
 
 func NewCentralEventProcessor(logger *zap.SugaredLogger,
 	workflowEventProcessor *in.WorkflowEventProcessorImpl,
 	ciPipelineEventProcessor *in.CIPipelineEventProcessorImpl,
 	cdPipelineEventProcessor *in.CDPipelineEventProcessorImpl,
-	deployedApplicationEventProcessorImpl *in.DeployedApplicationEventProcessorImpl) (*CentralEventProcessor, error) {
+	deployedApplicationEventProcessorImpl *in.DeployedApplicationEventProcessorImpl,
+	appStoreAppsEventProcessorImpl *in.AppStoreAppsEventProcessorImpl) (*CentralEventProcessor, error) {
 	cep := &CentralEventProcessor{
 		logger:                                logger,
 		workflowEventProcessor:                workflowEventProcessor,
 		ciPipelineEventProcessor:              ciPipelineEventProcessor,
 		cdPipelineEventProcessor:              cdPipelineEventProcessor,
 		deployedApplicationEventProcessorImpl: deployedApplicationEventProcessorImpl,
+		appStoreAppsEventProcessorImpl:        appStoreAppsEventProcessorImpl,
 	}
 	err := cep.SubscribeAll()
 	if err != nil {
@@ -108,6 +111,18 @@ func (impl *CentralEventProcessor) SubscribeAll() error {
 		impl.logger.Errorw("error, SubscribeArgoAppDeleteStatus", "err", err)
 		return err
 	}
+
 	//Deployed application status event ends (currently only argo)
+
+	//AppStore apps event starts
+
+	err = impl.appStoreAppsEventProcessorImpl.SubscribeAppStoreAppsBulkDeployEvent()
+	if err != nil {
+		impl.logger.Errorw("error, SubscribeAppStoreAppsBulkDeployEvent", "err", err)
+		return err
+	}
+
+	//AppStore apps event ends
+
 	return nil
 }

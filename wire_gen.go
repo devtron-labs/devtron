@@ -594,7 +594,7 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	commonArtifactServiceImpl := artifacts.NewCommonArtifactServiceImpl(sugaredLogger, ciArtifactRepositoryImpl)
-	workflowDagExecutorImpl := dag.NewWorkflowDagExecutorImpl(sugaredLogger, pipelineRepositoryImpl, cdWorkflowRepositoryImpl, pubSubClientServiceImpl, ciArtifactRepositoryImpl, enforcerUtilImpl, appWorkflowRepositoryImpl, pipelineStageServiceImpl, ciWorkflowRepositoryImpl, ciPipelineRepositoryImpl, pipelineStageRepositoryImpl, globalPluginRepositoryImpl, eventRESTClientImpl, eventSimpleFactoryImpl, helmAppServiceImpl, cdWorkflowCommonServiceImpl, triggerServiceImpl, manifestCreationServiceImpl, commonArtifactServiceImpl)
+	workflowDagExecutorImpl := dag.NewWorkflowDagExecutorImpl(sugaredLogger, pipelineRepositoryImpl, cdWorkflowRepositoryImpl, ciArtifactRepositoryImpl, enforcerUtilImpl, appWorkflowRepositoryImpl, pipelineStageServiceImpl, ciWorkflowRepositoryImpl, ciPipelineRepositoryImpl, pipelineStageRepositoryImpl, globalPluginRepositoryImpl, eventRESTClientImpl, eventSimpleFactoryImpl, helmAppServiceImpl, cdWorkflowCommonServiceImpl, triggerServiceImpl, manifestCreationServiceImpl, commonArtifactServiceImpl)
 	externalCiRestHandlerImpl := restHandler.NewExternalCiRestHandlerImpl(sugaredLogger, validate, userServiceImpl, enforcerImpl, workflowDagExecutorImpl)
 	pubSubClientRestHandlerImpl := restHandler.NewPubSubClientRestHandlerImpl(pubSubClientServiceImpl, sugaredLogger, ciCdConfig)
 	webhookRouterImpl := router.NewWebhookRouterImpl(gitWebhookRestHandlerImpl, pipelineConfigRestHandlerImpl, externalCiRestHandlerImpl, pubSubClientRestHandlerImpl)
@@ -667,7 +667,8 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	appStoreDeploymentServiceImpl := service3.NewAppStoreDeploymentServiceImpl(sugaredLogger, installedAppRepositoryImpl, chartGroupDeploymentRepositoryImpl, appStoreApplicationVersionRepositoryImpl, environmentRepositoryImpl, clusterInstalledAppsRepositoryImpl, appRepositoryImpl, eaModeDeploymentServiceImpl, fullModeDeploymentServiceImpl, environmentServiceImpl, clusterServiceImplExtended, helmAppServiceImpl, appStoreDeploymentCommonServiceImpl, installedAppVersionHistoryRepositoryImpl, serviceDeploymentServiceTypeConfig, acdConfig, gitOpsConfigReadServiceImpl)
-	chartGroupServiceImpl, err := chartGroup.NewChartGroupServiceImpl(sugaredLogger, chartGroupEntriesRepositoryImpl, chartGroupReposotoryImpl, chartGroupDeploymentRepositoryImpl, installedAppRepositoryImpl, appStoreVersionValuesRepositoryImpl, userAuthServiceImpl, appStoreApplicationVersionRepositoryImpl, environmentRepositoryImpl, teamRepositoryImpl, appStoreValuesServiceImpl, pubSubClientServiceImpl, environmentServiceImpl, appStoreDeploymentServiceImpl, argoUserServiceImpl, pipelineStatusTimelineServiceImpl, acdConfig, fullModeDeploymentServiceImpl, gitOperationServiceImpl)
+	appStoreAppsEventPublishServiceImpl := out.NewAppStoreAppsEventPublishServiceImpl(sugaredLogger, pubSubClientServiceImpl)
+	chartGroupServiceImpl, err := chartGroup.NewChartGroupServiceImpl(sugaredLogger, chartGroupEntriesRepositoryImpl, chartGroupReposotoryImpl, chartGroupDeploymentRepositoryImpl, installedAppRepositoryImpl, appStoreVersionValuesRepositoryImpl, userAuthServiceImpl, appStoreApplicationVersionRepositoryImpl, environmentRepositoryImpl, teamRepositoryImpl, appStoreValuesServiceImpl, environmentServiceImpl, appStoreDeploymentServiceImpl, argoUserServiceImpl, pipelineStatusTimelineServiceImpl, acdConfig, fullModeDeploymentServiceImpl, gitOperationServiceImpl, appStoreAppsEventPublishServiceImpl)
 	if err != nil {
 		return nil, err
 	}
@@ -890,7 +891,8 @@ func InitializeApp() (*App, error) {
 	ciPipelineEventProcessorImpl := in.NewCIPipelineEventProcessorImpl(sugaredLogger, pubSubClientServiceImpl, gitWebhookServiceImpl)
 	cdPipelineEventProcessorImpl := in.NewCDPipelineEventProcessorImpl(sugaredLogger, pubSubClientServiceImpl, cdWorkflowCommonServiceImpl, workflowStatusServiceImpl, pipelineRepositoryImpl, installedAppRepositoryImpl)
 	deployedApplicationEventProcessorImpl := in.NewDeployedApplicationEventProcessorImpl(sugaredLogger, pubSubClientServiceImpl, gitOpsConfigReadServiceImpl, installedAppDBExtendedServiceImpl, workflowDagExecutorImpl, cdWorkflowCommonServiceImpl, pipelineBuilderImpl, appStoreDeploymentServiceImpl, pipelineRepositoryImpl, installedAppRepositoryImpl)
-	centralEventProcessor, err := eventProcessor.NewCentralEventProcessor(sugaredLogger, workflowEventProcessorImpl, ciPipelineEventProcessorImpl, cdPipelineEventProcessorImpl, deployedApplicationEventProcessorImpl)
+	appStoreAppsEventProcessorImpl := in.NewAppStoreAppsEventProcessorImpl(sugaredLogger, pubSubClientServiceImpl, chartGroupServiceImpl)
+	centralEventProcessor, err := eventProcessor.NewCentralEventProcessor(sugaredLogger, workflowEventProcessorImpl, ciPipelineEventProcessorImpl, cdPipelineEventProcessorImpl, deployedApplicationEventProcessorImpl, appStoreAppsEventProcessorImpl)
 	if err != nil {
 		return nil, err
 	}
