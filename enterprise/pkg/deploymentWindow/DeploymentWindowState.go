@@ -8,13 +8,13 @@ import (
 	"time"
 )
 
-func (impl DeploymentWindowServiceImpl) CheckTriggerAllowedState(targetTime time.Time, appId int, envId int, userId int32) (*DeploymentWindowProfile, bool, error) {
+func (impl DeploymentWindowServiceImpl) CheckTriggerAllowedState(targetTime time.Time, appId int, envId int, userId int32) (*ProfileState, bool, error) {
 	stateResponse, err := impl.GetDeploymentWindowProfileState(targetTime, appId, []int{envId}, userId)
 	if err != nil {
 		return nil, false, err
 	}
 
-	var appliedProfile *DeploymentWindowProfile
+	var appliedProfile *ProfileState
 	isAllowed := true
 	if state, ok := stateResponse.EnvironmentStateMap[envId]; ok {
 		isAllowed = state.UserActionState == Allowed || state.UserActionState == Partial
@@ -31,7 +31,7 @@ func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileStateAppGroup(
 	}
 	superAdmins, err := impl.userService.GetSuperAdmins()
 	if err != nil {
-		return nil, err
+		superAdmins = make([]int32, 0)
 	}
 
 	appGroupData := make([]AppData, 0)
@@ -58,7 +58,7 @@ func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileState(targetTi
 
 	superAdmins, err := impl.userService.GetSuperAdmins()
 	if err != nil {
-		return nil, err
+		superAdmins = make([]int32, 0)
 	}
 	//overview.SuperAdmins = superAdmins
 	response, err := impl.calculateStateForEnvironments(targetTime, overview, superAdmins, userId)
@@ -108,9 +108,9 @@ func getUserActionStateForUser(canDeploy bool, excludedUsers []int32, userId int
 	return userActionState
 }
 
-func (impl DeploymentWindowServiceImpl) getAppliedProfileAndCalculateStates(targetTime time.Time, profileStates []ProfileState, superAdmins []int32) ([]ProfileState, *DeploymentWindowProfile, []int32, bool, error) {
+func (impl DeploymentWindowServiceImpl) getAppliedProfileAndCalculateStates(targetTime time.Time, profileStates []ProfileState, superAdmins []int32) ([]ProfileState, *ProfileState, []int32, bool, error) {
 
-	var appliedProfile *DeploymentWindowProfile
+	var appliedProfile *ProfileState
 	var combinedExcludedUsers []int32
 
 	filteredBlackoutProfiles, _, isBlackoutActive, err := impl.calculateStateForProfiles(targetTime, profileStates, Blackout)
@@ -146,6 +146,9 @@ func (impl DeploymentWindowServiceImpl) getAppliedProfileAndCalculateStates(targ
 	} else if !isBlackoutActive && isMaintenanceActive { //deployment not blocked
 		// applied profile here would be the longest running maintenance profile even if a blackout starts before that
 		appliedProfile = impl.getLongestEndingProfile(filteredMaintenanceProfiles)
+		if appliedProfile == nil {
+			appliedProfile = impl.getEarliestStartingProfile(filteredBlackoutProfiles)
+		}
 	}
 	return allProfiles, appliedProfile, combinedExcludedUsers, canDeploy, nil
 }
@@ -181,31 +184,33 @@ func (impl DeploymentWindowServiceImpl) getCombinedUserIds(profiles []ProfileSta
 	return utils.ToInt32Array(userSet.ToSlice())
 }
 
-func (impl DeploymentWindowServiceImpl) getLongestEndingProfile(profiles []ProfileState) *DeploymentWindowProfile {
+func (impl DeploymentWindowServiceImpl) getLongestEndingProfile(profiles []ProfileState) *ProfileState {
 
 	if len(profiles) == 0 {
 		return nil
 	}
 
-	return lo.Reduce(profiles, func(profile ProfileState, item ProfileState, index int) ProfileState {
+	profile := lo.Reduce(profiles, func(profile ProfileState, item ProfileState, index int) ProfileState {
 		if item.CalculatedTimestamp.After(profile.CalculatedTimestamp) {
 			return item
 		}
 		return profile
-	}, profiles[0]).DeploymentWindowProfile
+	}, profiles[0])
+	return &profile
 }
 
-func (impl DeploymentWindowServiceImpl) getEarliestStartingProfile(profiles []ProfileState) *DeploymentWindowProfile {
+func (impl DeploymentWindowServiceImpl) getEarliestStartingProfile(profiles []ProfileState) *ProfileState {
 	if len(profiles) == 0 {
 		return nil
 	}
 
-	return lo.Reduce(profiles, func(profile ProfileState, item ProfileState, index int) ProfileState {
+	profile := lo.Reduce(profiles, func(profile ProfileState, item ProfileState, index int) ProfileState {
 		if item.CalculatedTimestamp.Before(profile.CalculatedTimestamp) {
 			return item
 		}
 		return profile
-	}, profiles[0]).DeploymentWindowProfile
+	}, profiles[0])
+	return &profile
 }
 
 func (impl DeploymentWindowServiceImpl) calculateStateForProfiles(targetTime time.Time, profileStates []ProfileState, profileType DeploymentWindowType) ([]ProfileState, bool, bool, error) {

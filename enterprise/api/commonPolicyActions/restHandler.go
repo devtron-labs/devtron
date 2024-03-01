@@ -20,7 +20,7 @@ type ListResponse struct {
 }
 
 type CommonPolicyRestHandler interface {
-	ListAppEnvPolicies(w http.ResponseWriter, r *http.Request)
+	//ListAppEnvPolicies(w http.ResponseWriter, r *http.Request)
 	ApplyPolicyToIdentifiers(w http.ResponseWriter, r *http.Request)
 }
 
@@ -46,55 +46,55 @@ func NewCommonPolicyRestHandlerImpl(commonPolicyActionService policyGovernance.C
 	}
 }
 
-func (handler *CommonPolicyRestHandlerImpl) ListAppEnvPolicies(w http.ResponseWriter, r *http.Request) {
-	userId, err := handler.userService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionDelete, "*"); !ok {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
-	}
-
-	vars := mux.Vars(r)
-	policyTypeVar := vars[policyGovernance.PathVariablePolicyTypeVariable]
-	policyType := policyGovernance.PathVariablePolicyType(policyTypeVar)
-	if lo.Contains(policyGovernance.ExistingPolicyTypes, policyType) {
-		common.WriteJsonResp(w, errors.New("profileType not found"), nil, http.StatusNotFound)
-		return
-	}
-
-	payload := &policyGovernance.AppEnvPolicyMappingsListFilter{}
-	decoder := json.NewDecoder(r.Body)
-	err = decoder.Decode(payload)
-	if err != nil {
-		handler.logger.Errorw("error in decoding the request payload", "err", err, "requestBody", r.Body)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	payload.PolicyType = policyGovernance.PathPolicyTypeToGlobalPolicyTypeMap[policyType]
-	err = handler.validator.Struct(payload)
-	if err != nil {
-		handler.logger.Errorw("error in validating the request payload", "err", err, "payload", payload)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	result, totalCount, err := handler.commonPolicyActionService.ListAppEnvPolicies(payload)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	response := &ListResponse{
-		TotalCount:                   totalCount,
-		AppEnvironmentPolicyMappings: result,
-	}
-
-	common.WriteJsonResp(w, nil, response, http.StatusOK)
-}
+//func (handler *CommonPolicyRestHandlerImpl) ListAppEnvPolicies(w http.ResponseWriter, r *http.Request) {
+//	userId, err := handler.userService.GetLoggedInUser(r)
+//	if userId == 0 || err != nil {
+//		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+//		return
+//	}
+//	token := r.Header.Get("token")
+//	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionDelete, "*"); !ok {
+//		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+//		return
+//	}
+//
+//	vars := mux.Vars(r)
+//	policyTypeVar := vars[policyGovernance.PathVariablePolicyTypeVariable]
+//	policyType := policyGovernance.PathVariablePolicyType(policyTypeVar)
+//	if lo.Contains(policyGovernance.ExistingPolicyTypes, policyType) {
+//		common.WriteJsonResp(w, errors.New("profileType not found"), nil, http.StatusNotFound)
+//		return
+//	}
+//
+//	payload := &policyGovernance.AppEnvPolicyMappingsListFilter{}
+//	decoder := json.NewDecoder(r.Body)
+//	err = decoder.Decode(payload)
+//	if err != nil {
+//		handler.logger.Errorw("error in decoding the request payload", "err", err, "requestBody", r.Body)
+//		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+//		return
+//	}
+//
+//	payload.PolicyType = policyGovernance.PathPolicyTypeToGlobalPolicyTypeMap[policyType]
+//	err = handler.validator.Struct(payload)
+//	if err != nil {
+//		handler.logger.Errorw("error in validating the request payload", "err", err, "payload", payload)
+//		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+//		return
+//	}
+//
+//	result, totalCount, err := handler.commonPolicyActionService.ListAppEnvPolicies(payload)
+//	if err != nil {
+//		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+//		return
+//	}
+//	response := &ListResponse{
+//		TotalCount:                   totalCount,
+//		AppEnvironmentPolicyMappings: result,
+//	}
+//
+//	common.WriteJsonResp(w, nil, response, http.StatusOK)
+//}
 
 func (handler *CommonPolicyRestHandlerImpl) ApplyPolicyToIdentifiers(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
@@ -111,7 +111,7 @@ func (handler *CommonPolicyRestHandlerImpl) ApplyPolicyToIdentifiers(w http.Resp
 	vars := mux.Vars(r)
 	policyTypeVar := vars[policyGovernance.PathVariablePolicyTypeVariable]
 	policyType := policyGovernance.PathVariablePolicyType(policyTypeVar)
-	if lo.Contains(policyGovernance.ExistingPolicyTypes, policyType) {
+	if !lo.Contains(policyGovernance.ExistingPolicyTypes, policyType) {
 		common.WriteJsonResp(w, errors.New("profileType not found"), nil, http.StatusNotFound)
 		return
 	}

@@ -25,7 +25,7 @@ type DeploymentWindowService interface {
 	GetDeploymentWindowProfileOverview(appId int, envIds []int) (*DeploymentWindowResponse, error)
 
 	//State
-	CheckTriggerAllowedState(targetTime time.Time, appId int, envId int, userId int32) (*DeploymentWindowProfile, bool, error)
+	CheckTriggerAllowedState(targetTime time.Time, appId int, envId int, userId int32) (*ProfileState, bool, error)
 	GetDeploymentWindowProfileState(targetTime time.Time, appId int, envIds []int, userId int32) (*DeploymentWindowResponse, error)
 	GetDeploymentWindowProfileStateAppGroup(targetTime time.Time, selectors []AppEnvSelector, userId int32) (*DeploymentWindowAppGroupResponse, error)
 }
@@ -62,6 +62,7 @@ func NewDeploymentWindowServiceImpl(
 		globalPolicyManager:         globalPolicyManager,
 		dbConnection:                dbConnection,
 		userService:                 userService,
+		timeZoneMap:                 make(map[string]*time.Location, 0),
 	}, nil
 }
 

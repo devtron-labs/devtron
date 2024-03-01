@@ -51,6 +51,7 @@ import (
 	"github.com/devtron-labs/devtron/client/dashboard"
 	"github.com/devtron-labs/devtron/client/proxy"
 	"github.com/devtron-labs/devtron/client/telemetry"
+	"github.com/devtron-labs/devtron/enterprise/api/commonPolicyActions"
 	"github.com/devtron-labs/devtron/enterprise/api/deploymentWindow"
 	"github.com/devtron-labs/devtron/enterprise/api/drafts"
 	"github.com/devtron-labs/devtron/enterprise/api/globalTag"
@@ -138,6 +139,7 @@ type MuxRouter struct {
 	infraConfigRouter                  infraConfig.InfraConfigRouter
 	argoApplicationRouter              argoApplication.ArgoApplicationRouter
 	deploymentWindowRouter             deploymentWindow.DeploymentWindowRouter
+	commonPolicyRouter                 commonPolicyActions.CommonPolicyRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger,
@@ -176,6 +178,7 @@ func NewMuxRouter(logger *zap.SugaredLogger,
 	infraConfigRouter infraConfig.InfraConfigRouter,
 	argoApplicationRouter argoApplication.ArgoApplicationRouter,
 	deploymentWindowRouter deploymentWindow.DeploymentWindowRouter,
+	commonPolicyRouter commonPolicyActions.CommonPolicyRouter,
 ) *MuxRouter {
 
 	r := &MuxRouter{
@@ -252,6 +255,7 @@ func NewMuxRouter(logger *zap.SugaredLogger,
 		infraConfigRouter:                  infraConfigRouter,
 		argoApplicationRouter:              argoApplicationRouter,
 		deploymentWindowRouter:             deploymentWindowRouter,
+		commonPolicyRouter:                 commonPolicyRouter,
 	}
 	return r
 }
@@ -488,4 +492,6 @@ func (r MuxRouter) Init() {
 
 	deploymentWindowRouter := r.Router.PathPrefix("/orchestrator/deployment-window").Subrouter()
 	r.deploymentWindowRouter.InitDeploymentWindowRouter(deploymentWindowRouter)
+	commonPolicyRouter := r.Router.PathPrefix("/orchestrator/common").Subrouter()
+	r.commonPolicyRouter.InitCommonPolicyRouter(commonPolicyRouter)
 }

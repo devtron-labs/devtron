@@ -108,7 +108,7 @@ type EnvironmentState struct {
 
 	//// Timestamp indicating the window end or next window start timestamp based on current time and
 	//Timestamp time.Time `json:"timestamp"`
-	AppliedProfile *DeploymentWindowProfile `json:"appliedProfile"`
+	AppliedProfile *ProfileState `json:"appliedProfile"`
 
 	// UserActionState describes the  eventual action state for the user
 	UserActionState UserActionState `json:"userActionState"`

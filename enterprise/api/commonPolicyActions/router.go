@@ -21,8 +21,8 @@ func NewCommonPolicyRouterImpl(restHandler CommonPolicyRestHandler) *CommonPolic
 }
 
 func (r *CommonPolicyRouterImpl) InitCommonPolicyRouter(router *mux.Router) {
-	router.Path(fmt.Sprintf("/policy/{%s}/app-env/list", policyGovernance.PathVariablePolicyTypeVariable)).HandlerFunc(r.restHandler.ListAppEnvPolicies).
-		Methods("POST")
+	//router.Path(fmt.Sprintf("/policy/{%s}/app-env/list", policyGovernance.PathVariablePolicyTypeVariable)).HandlerFunc(r.restHandler.ListAppEnvPolicies).
+	//	Methods("POST")
 	router.Path(fmt.Sprintf("/policy/{%s}/bulk/apply", policyGovernance.PathVariablePolicyTypeVariable)).HandlerFunc(r.restHandler.ApplyPolicyToIdentifiers).
 		Methods("POST")
 }

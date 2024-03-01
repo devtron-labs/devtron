@@ -199,17 +199,17 @@ func (impl UserRepositoryImpl) FetchActiveUserByEmail(email string) (bean.UserIn
 	return users, nil
 }
 func (impl UserRepositoryImpl) GetSuperAdmins() ([]int32, error) {
-	var userIDs []int32
-	err := impl.dbConnection.Model(&RoleModel{}).
+	userIds := make([]int32, 0)
+	err := impl.dbConnection.Model((*UserRoleModel)(nil)).
 		Column("user_id").
-		Join("JOIN roles AS r ON user_roles.role_id = r.id").
+		Join("inner join roles AS r ON r.id = user_roles.role_id").
 		Where("r.action = ?", "super-admin").
-		Select(&userIDs)
+		Select(&userIds)
 	if err != nil {
 		fmt.Println("Error:", err)
-		return userIDs, err
+		return userIds, err
 	}
-	return userIDs, nil
+	return userIds, nil
 }
 
 func (impl UserRepositoryImpl) FetchUserDetailByEmail(email string) (bean.UserInfo, error) {

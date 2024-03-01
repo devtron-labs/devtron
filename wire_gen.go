@@ -82,6 +82,7 @@ import (
 	"github.com/devtron-labs/devtron/client/lens"
 	"github.com/devtron-labs/devtron/client/proxy"
 	"github.com/devtron-labs/devtron/client/telemetry"
+	"github.com/devtron-labs/devtron/enterprise/api/commonPolicyActions"
 	deploymentWindow2 "github.com/devtron-labs/devtron/enterprise/api/deploymentWindow"
 	drafts2 "github.com/devtron-labs/devtron/enterprise/api/drafts"
 	globalTag2 "github.com/devtron-labs/devtron/enterprise/api/globalTag"
@@ -197,6 +198,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/plugin"
 	repository14 "github.com/devtron-labs/devtron/pkg/plugin/repository"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactApproval/action"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactApproval/read"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
@@ -1003,7 +1005,10 @@ func InitializeApp() (*App, error) {
 	}
 	deploymentWindowRestHandlerImpl := deploymentWindow2.NewDeploymentWindowRestHandlerImpl(sugaredLogger, userServiceImpl, enterpriseEnforcerImpl, enforcerUtilImpl, validate, deploymentWindowServiceImpl)
 	deploymentWindowRouterImpl := deploymentWindow2.NewDeploymentWindowRouterImpl(deploymentWindowRestHandlerImpl)
-	muxRouter := router.NewMuxRouter(sugaredLogger, environmentRouterImpl, clusterRouterImpl, webhookRouterImpl, userAuthRouterImpl, gitProviderRouterImpl, gitHostRouterImpl, dockerRegRouterImpl, notificationRouterImpl, teamRouterImpl, gitWebhookHandlerImpl, applicationStatusHandlerImpl, pubSubClientServiceImpl, userRouterImpl, chartRefRouterImpl, configMapRouterImpl, appStoreRouterImpl, chartRepositoryRouterImpl, releaseMetricsRouterImpl, deploymentGroupRouterImpl, batchOperationRouterImpl, chartGroupRouterImpl, imageScanRouterImpl, policyRouterImpl, gitOpsConfigRouterImpl, dashboardRouterImpl, attributesRouterImpl, userAttributesRouterImpl, commonRouterImpl, grafanaRouterImpl, ssoLoginRouterImpl, telemetryRouterImpl, telemetryEventClientImplExtended, bulkUpdateRouterImpl, webhookListenerRouterImpl, appRouterImpl, coreAppRouterImpl, helmAppRouterImpl, k8sApplicationRouterImpl, pProfRouterImpl, deploymentConfigRouterImpl, dashboardTelemetryRouterImpl, commonDeploymentRouterImpl, externalLinkRouterImpl, globalPluginRouterImpl, moduleRouterImpl, serverRouterImpl, apiTokenRouterImpl, cdApplicationStatusUpdateHandlerImpl, k8sCapacityRouterImpl, webhookHelmRouterImpl, globalCMCSRouterImpl, userTerminalAccessRouterImpl, jobRouterImpl, ciStatusUpdateCronImpl, resourceGroupingRouterImpl, globalTagRouterImpl, rbacRoleRouterImpl, globalPolicyRouterImpl, configDraftRouterImpl, resourceProtectionRouterImpl, scopedVariableRouterImpl, ciTriggerCronImpl, resourceFilterRouterImpl, devtronResourceRouterImpl, authorisationConfigRouterImpl, lockConfigurationRouterImpl, proxyRouterImpl, imageDigestPolicyRouterImpl, infraConfigRouterImpl, argoApplicationRouterImpl, deploymentWindowRouterImpl)
+	commonPolicyActionsServiceImpl := policyGovernance.NewCommonPolicyActionsService(globalPolicyDataManagerImpl, qualifierMappingServiceImpl, cdPipelineConfigServiceImpl, appServiceImpl, environmentServiceImpl, sugaredLogger)
+	commonPolicyRestHandlerImpl := commonPolicyActions.NewCommonPolicyRestHandlerImpl(commonPolicyActionsServiceImpl, userServiceImpl, enterpriseEnforcerImpl, validate, sugaredLogger)
+	commonPolicyRouterImpl := commonPolicyActions.NewCommonPolicyRouterImpl(commonPolicyRestHandlerImpl)
+	muxRouter := router.NewMuxRouter(sugaredLogger, environmentRouterImpl, clusterRouterImpl, webhookRouterImpl, userAuthRouterImpl, gitProviderRouterImpl, gitHostRouterImpl, dockerRegRouterImpl, notificationRouterImpl, teamRouterImpl, gitWebhookHandlerImpl, applicationStatusHandlerImpl, pubSubClientServiceImpl, userRouterImpl, chartRefRouterImpl, configMapRouterImpl, appStoreRouterImpl, chartRepositoryRouterImpl, releaseMetricsRouterImpl, deploymentGroupRouterImpl, batchOperationRouterImpl, chartGroupRouterImpl, imageScanRouterImpl, policyRouterImpl, gitOpsConfigRouterImpl, dashboardRouterImpl, attributesRouterImpl, userAttributesRouterImpl, commonRouterImpl, grafanaRouterImpl, ssoLoginRouterImpl, telemetryRouterImpl, telemetryEventClientImplExtended, bulkUpdateRouterImpl, webhookListenerRouterImpl, appRouterImpl, coreAppRouterImpl, helmAppRouterImpl, k8sApplicationRouterImpl, pProfRouterImpl, deploymentConfigRouterImpl, dashboardTelemetryRouterImpl, commonDeploymentRouterImpl, externalLinkRouterImpl, globalPluginRouterImpl, moduleRouterImpl, serverRouterImpl, apiTokenRouterImpl, cdApplicationStatusUpdateHandlerImpl, k8sCapacityRouterImpl, webhookHelmRouterImpl, globalCMCSRouterImpl, userTerminalAccessRouterImpl, jobRouterImpl, ciStatusUpdateCronImpl, resourceGroupingRouterImpl, globalTagRouterImpl, rbacRoleRouterImpl, globalPolicyRouterImpl, configDraftRouterImpl, resourceProtectionRouterImpl, scopedVariableRouterImpl, ciTriggerCronImpl, resourceFilterRouterImpl, devtronResourceRouterImpl, authorisationConfigRouterImpl, lockConfigurationRouterImpl, proxyRouterImpl, imageDigestPolicyRouterImpl, infraConfigRouterImpl, argoApplicationRouterImpl, deploymentWindowRouterImpl, commonPolicyRouterImpl)
 	loggingMiddlewareImpl := util4.NewLoggingMiddlewareImpl(userServiceImpl)
 	cdWorkflowServiceImpl := cd.NewCdWorkflowServiceImpl(sugaredLogger, cdWorkflowRepositoryImpl)
 	cdWorkflowRunnerServiceImpl := cd.NewCdWorkflowRunnerServiceImpl(sugaredLogger, cdWorkflowRepositoryImpl)

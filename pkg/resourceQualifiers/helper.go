@@ -18,7 +18,7 @@ func GetMappingsForAppEnv(selection *ResourceMappingSelection, resourceKeyMap ma
 	envId, envName := GetValuesFromScope(EnvironmentSelector, selection.Scope)
 	compositeString := fmt.Sprintf("%v-%v-%v", selection.ResourceId, appId, envId)
 
-	parent := selection.toResourceMapping(resourceKeyMap, appId, appName, compositeString, userId)
-	children := selection.toResourceMapping(resourceKeyMap, envId, envName, compositeString, userId)
+	parent := selection.toResourceMapping(ApplicationSelector, resourceKeyMap, appId, appName, compositeString, userId)
+	children := selection.toResourceMapping(EnvironmentSelector, resourceKeyMap, envId, envName, compositeString, userId)
 	return parent, []*QualifierMapping{children}
 }
