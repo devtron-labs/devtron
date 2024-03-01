@@ -43,9 +43,10 @@ func NewGlobalPolicyDataManagerImpl(logger *zap.SugaredLogger, globalPolicyRepos
 	}
 }
 
-func (impl *GlobalPolicyDataManagerImpl) CreatePolicy(globalPolicyDataModel *bean.GlobalPolicyDataModel, tx *pg.Tx) (*bean.GlobalPolicyDataModel, error) {
+func (impl *GlobalPolicyDataManagerImpl) CreatePolicy(globalPolicyDataModel *bean.GlobalPolicyDataModel, rtx *pg.Tx) (*bean.GlobalPolicyDataModel, error) {
 	var err error
-	if tx == nil {
+	tx := rtx
+	if rtx == nil {
 		tx, err = impl.globalPolicyRepository.GetDbTransaction()
 		if err != nil {
 			impl.logger.Errorw("error in initiating transaction", "err", err)
@@ -54,6 +55,9 @@ func (impl *GlobalPolicyDataManagerImpl) CreatePolicy(globalPolicyDataModel *bea
 	}
 	// Rollback tx on error.
 	defer func() {
+		if rtx != nil {
+			return
+		}
 		err = impl.globalPolicyRepository.RollBackTransaction(tx)
 		if err != nil {
 			impl.logger.Errorw("error in rolling back transaction", "err", err)
@@ -71,17 +75,21 @@ func (impl *GlobalPolicyDataManagerImpl) CreatePolicy(globalPolicyDataModel *bea
 		// TODO KB: Why are not we returning from here ??
 		return nil, err
 	}
-	err = impl.globalPolicyRepository.CommitTransaction(tx)
-	if err != nil {
-		impl.logger.Errorw("error in committing transaction", "err", err)
-		return globalPolicyDataModel, err
+	if rtx == nil {
+		err = impl.globalPolicyRepository.CommitTransaction(tx)
+		if err != nil {
+			impl.logger.Errorw("error in committing transaction", "err", err)
+			return globalPolicyDataModel, err
+		}
 	}
+
 	globalPolicyDataModel.Id = globalPolicy.Id
 	return globalPolicyDataModel, nil
 }
-func (impl *GlobalPolicyDataManagerImpl) UpdatePolicy(globalPolicyDataModel *bean.GlobalPolicyDataModel, tx *pg.Tx) (*bean.GlobalPolicyDataModel, error) {
+func (impl *GlobalPolicyDataManagerImpl) UpdatePolicy(globalPolicyDataModel *bean.GlobalPolicyDataModel, rtx *pg.Tx) (*bean.GlobalPolicyDataModel, error) {
 	var err error
-	if tx == nil {
+	tx := rtx
+	if rtx == nil {
 		tx, err = impl.globalPolicyRepository.GetDbTransaction()
 		if err != nil {
 			impl.logger.Errorw("error in initiating transaction", "err", err)
@@ -90,6 +98,9 @@ func (impl *GlobalPolicyDataManagerImpl) UpdatePolicy(globalPolicyDataModel *bea
 	}
 	// Rollback tx on error.
 	defer func() {
+		if rtx != nil {
+			return
+		}
 		err = impl.globalPolicyRepository.RollBackTransaction(tx)
 		if err != nil {
 			impl.logger.Errorw("error in rolling back transaction", "err", err)
@@ -113,11 +124,14 @@ func (impl *GlobalPolicyDataManagerImpl) UpdatePolicy(globalPolicyDataModel *bea
 		impl.logger.Errorw("error in creating global policy searchable fields entry", "err", err, "searchableKeyEntriesTotal", searchableKeyEntriesTotal)
 		return nil, err
 	}
-	err = impl.globalPolicyRepository.CommitTransaction(tx)
-	if err != nil {
-		impl.logger.Errorw("error in committing transaction", "err", err)
-		return globalPolicyDataModel, err
+	if rtx == nil {
+		err = impl.globalPolicyRepository.CommitTransaction(tx)
+		if err != nil {
+			impl.logger.Errorw("error in committing transaction", "err", err)
+			return globalPolicyDataModel, err
+		}
 	}
+
 	globalPolicyDataModel.Id = globalPolicy.Id
 	return globalPolicyDataModel, nil
 }

@@ -17,7 +17,7 @@ func NewTimeoutWindowResourceMappingRepositoryImpl(dbConnection *pg.DB, logger *
 type TimeoutWindowResourceMapping struct {
 	TableName       struct{}     `sql:"timeout_window_resource_mappings" pg:",discard_unknown_columns"`
 	Id              int          `sql:"id,pk"`
-	TimeoutWindowId int          `sql:"timeout_window_configuration_id"`
+	TimeoutWindowId int          `sql:"timeout_window_configuration_id,pk"`
 	ResourceId      int          `sql:"resource_id"`
 	ResourceType    ResourceType `sql:"resource_type"`
 }
@@ -57,7 +57,7 @@ func (impl TimeoutWindowResourceMappingRepositoryImpl) GetWindowsForResources(re
 }
 
 func (impl TimeoutWindowResourceMappingRepositoryImpl) DeleteAllForResource(tx *pg.Tx, resourceId int, resourceType ResourceType) error {
-	_, err := tx.Model((*TimeoutWindowResourceMapping)(nil)).
+	_, err := tx.Model(&TimeoutWindowResourceMapping{}).
 		Where("resource_id = ?", resourceId).
 		Where("resource_type = ?", resourceType).
 		Delete()

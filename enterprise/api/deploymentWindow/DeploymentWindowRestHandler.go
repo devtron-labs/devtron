@@ -72,7 +72,7 @@ func (handler *DeploymentWindowRestHandlerImpl) CreateDeploymentWindowProfile(w 
 		return
 	}
 
-	var request *deploymentWindow.DeploymentWindowProfile
+	var request deploymentWindow.DeploymentWindowProfile
 	decoder := json.NewDecoder(r.Body)
 	err = decoder.Decode(&request)
 	if err != nil {
@@ -89,13 +89,13 @@ func (handler *DeploymentWindowRestHandlerImpl) CreateDeploymentWindowProfile(w 
 		return
 	}
 
-	configDrafts, err := handler.deploymentWindowService.CreateDeploymentWindowProfile(request, userId)
+	profile, err := handler.deploymentWindowService.CreateDeploymentWindowProfile(&request, userId)
 	if err != nil {
 		handler.logger.Errorw("error occurred creating DeploymentWindowProfile", "err", err, "request", request)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	common.WriteJsonResp(w, err, configDrafts, http.StatusOK)
+	common.WriteJsonResp(w, err, profile, http.StatusOK)
 }
 
 func (handler *DeploymentWindowRestHandlerImpl) UpdateDeploymentWindowProfile(w http.ResponseWriter, r *http.Request) {
@@ -111,7 +111,7 @@ func (handler *DeploymentWindowRestHandlerImpl) UpdateDeploymentWindowProfile(w 
 		return
 	}
 
-	var request *deploymentWindow.DeploymentWindowProfile
+	var request deploymentWindow.DeploymentWindowProfile
 	decoder := json.NewDecoder(r.Body)
 	err = decoder.Decode(&request)
 	if err != nil {
@@ -128,13 +128,13 @@ func (handler *DeploymentWindowRestHandlerImpl) UpdateDeploymentWindowProfile(w 
 		return
 	}
 
-	configDrafts, err := handler.deploymentWindowService.UpdateDeploymentWindowProfile(request, userId)
+	profile, err := handler.deploymentWindowService.UpdateDeploymentWindowProfile(&request, userId)
 	if err != nil {
 		handler.logger.Errorw("error occurred updating DeploymentWindowProfile", "err", err, "request", request)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	common.WriteJsonResp(w, err, configDrafts, http.StatusOK)
+	common.WriteJsonResp(w, err, profile, http.StatusOK)
 }
 
 func (handler *DeploymentWindowRestHandlerImpl) DeleteDeploymentWindowProfile(w http.ResponseWriter, r *http.Request) {

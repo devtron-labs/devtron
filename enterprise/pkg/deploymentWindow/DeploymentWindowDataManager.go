@@ -29,12 +29,16 @@ func (impl DeploymentWindowServiceImpl) CreateDeploymentWindowProfile(profile *D
 	}
 	profile.Id = policy.Id
 
+	err = impl.updateWindowMappings(profile.DeploymentWindowList, userId, err, tx, policy.Id)
+	if err != nil {
+		return nil, err
+	}
 	err = impl.CommitATransaction(tx)
 	if err != nil {
 		return nil, err
 	}
 
-	return profile, impl.updateWindowMappings(profile.DeploymentWindowList, userId, err, tx, policy.Id)
+	return profile, err
 }
 
 func (impl DeploymentWindowServiceImpl) updateWindowMappings(windows []*TimeWindow, userId int32, err error, tx *pg.Tx, policyId int) error {
@@ -69,11 +73,15 @@ func (impl DeploymentWindowServiceImpl) UpdateDeploymentWindowProfile(profile *D
 	if err != nil {
 		return nil, err
 	}
+	err = impl.updateWindowMappings(profile.DeploymentWindowList, userId, err, tx, policy.Id)
+	if err != nil {
+		return nil, err
+	}
 	err = impl.CommitATransaction(tx)
 	if err != nil {
 		return nil, err
 	}
-	return profile, impl.updateWindowMappings(profile.DeploymentWindowList, userId, err, tx, policy.Id)
+	return profile, err
 }
 
 func (impl DeploymentWindowServiceImpl) DeleteDeploymentWindowProfileForId(profileId int, userId int32) error {
@@ -87,12 +95,16 @@ func (impl DeploymentWindowServiceImpl) DeleteDeploymentWindowProfileForId(profi
 	if err != nil {
 		return err
 	}
+	err = impl.updateWindowMappings([]*TimeWindow{}, userId, err, tx, profileId)
+	if err != nil {
+		return err
+	}
 	err = impl.CommitATransaction(tx)
 	if err != nil {
 		return err
 	}
 
-	return impl.updateWindowMappings([]*TimeWindow{}, userId, err, tx, profileId)
+	return err
 }
 
 func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileForId(profileId int) (*DeploymentWindowProfile, error) {

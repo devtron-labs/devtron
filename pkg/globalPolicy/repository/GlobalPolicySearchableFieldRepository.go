@@ -44,6 +44,9 @@ type GlobalPolicySearchableField struct {
 }
 
 func (repo *GlobalPolicySearchableFieldRepositoryImpl) CreateInBatchWithTxn(models []*GlobalPolicySearchableField, tx *pg.Tx) error {
+	if len(models) == 0 {
+		return nil
+	}
 	err := tx.Insert(&models)
 	if err != nil {
 		repo.logger.Errorw("error in creating global policy searchable fields", "err", err, "models", models)

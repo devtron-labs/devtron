@@ -38,6 +38,7 @@ func (profile DeploymentWindowProfile) convertToPolicyDataModel(userId int32) (*
 	}
 	return &bean.GlobalPolicyDataModel{
 		GlobalPolicyBaseModel: bean.GlobalPolicyBaseModel{
+			Id:            profile.Id,
 			Name:          profile.Name,
 			Description:   profile.Description,
 			Enabled:       profile.Enabled,
