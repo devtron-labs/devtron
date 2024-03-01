@@ -23,11 +23,9 @@ package main
 import (
 	cloudProviderIdentifier "github.com/devtron-labs/common-lib/cloud-provider-identifier"
 	pubsub1 "github.com/devtron-labs/common-lib/pubsub-lib"
+	"github.com/devtron-labs/devtron/api/appStore"
 	"github.com/devtron-labs/devtron/commonWireset"
 	"github.com/devtron-labs/devtron/internals/util"
-	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service"
-	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
-	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/common"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/google/wire"
 )
@@ -46,18 +44,7 @@ func InitializeApp() (*App, error) {
 		cloudProviderIdentifier.NewProviderIdentifierServiceImpl,
 		wire.Bind(new(cloudProviderIdentifier.ProviderIdentifierService), new(*cloudProviderIdentifier.ProviderIdentifierServiceImpl)),
 		commonWireset.CommonWireSet,
-		appStoreDeploymentCommon.NewAppStoreDeploymentCommonServiceImpl,
-		wire.Bind(new(appStoreDeploymentCommon.AppStoreDeploymentCommonService), new(*appStoreDeploymentCommon.AppStoreDeploymentCommonServiceImpl)),
-		EAMode.NewEAModeDeploymentServiceImpl,
-		wire.Bind(new(EAMode.EAModeDeploymentService), new(*EAMode.EAModeDeploymentServiceImpl)),
-		service.NewAppStoreDeploymentDBServiceImpl,
-		wire.Bind(new(service.AppStoreDeploymentDBService), new(*service.AppStoreDeploymentDBServiceImpl)),
-		service.NewAppStoreDeploymentServiceImpl,
-		wire.Bind(new(service.AppStoreDeploymentService), new(*service.AppStoreDeploymentServiceImpl)),
-		service.NewDeletePostProcessorImpl,
-		wire.Bind(new(service.DeletePostProcessor), new(*service.DeletePostProcessorImpl)),
-		service.NewAppAppStoreValidatorImpl,
-		wire.Bind(new(service.AppStoreValidator), new(*service.AppStoreValidatorImpl)),
+		appStore.AppStoreCommonWireSet,
 	)
 	return &App{}, nil
 }
