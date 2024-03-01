@@ -20,6 +20,7 @@ package appWorkflow
 import (
 	"errors"
 	"fmt"
+	bean4 "github.com/devtron-labs/devtron/pkg/appWorkflow/bean"
 	"time"
 
 	mapset "github.com/deckarep/golang-set"
@@ -39,11 +40,6 @@ import (
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"golang.org/x/exp/slices"
-)
-
-const (
-	CI_PIPELINE_TYPE = "CI_PIPELINE"
-	CD_PIPELINE_TYPE = "CD_PIPELINE"
 )
 
 type AppWorkflowService interface {
@@ -378,7 +374,7 @@ func (impl AppWorkflowServiceImpl) FindAllAppWorkflowMapping(workflowIds []int) 
 	}
 	parentPipelineIdsSet := mapset.NewSet()
 	for _, w := range appWorkflowMappings {
-		if w.ParentType == CD_PIPELINE_TYPE {
+		if w.ParentType == bean4.CD_PIPELINE_TYPE {
 			parentPipelineIdsSet.Add(w.ParentId)
 		}
 	}
@@ -393,7 +389,7 @@ func (impl AppWorkflowServiceImpl) FindAllAppWorkflowMapping(workflowIds []int) 
 			AppWorkflowId: w.AppWorkflowId,
 			ParentType:    w.ParentType,
 		}
-		if w.Type == CD_PIPELINE_TYPE {
+		if w.Type == bean4.CD_PIPELINE_TYPE {
 			if !parentPipelineIdsSet.Contains(w.ComponentId) {
 				workflow.IsLast = true
 			}
@@ -589,12 +585,12 @@ func (impl AppWorkflowServiceImpl) FindAllWorkflowsComponentDetails(appId int) (
 
 	for _, appWfMapping := range appWorkflowMappings {
 		if index, ok := wfIdAndComponentDtoIndexMap[appWfMapping.AppWorkflowId]; ok {
-			if appWfMapping.Type == CI_PIPELINE_TYPE {
+			if appWfMapping.Type == bean4.CI_PIPELINE_TYPE {
 				wfComponentDetails[index].CiPipelineId = appWfMapping.ComponentId
 				if name, ok1 := ciPipelineIdNameMap[appWfMapping.ComponentId]; ok1 {
 					wfComponentDetails[index].CiPipelineName = name
 				}
-			} else if appWfMapping.Type == CD_PIPELINE_TYPE {
+			} else if appWfMapping.Type == bean4.CD_PIPELINE_TYPE {
 				if envName, ok1 := cdPipelineIdNameMap[appWfMapping.ComponentId]; ok1 {
 					wfComponentDetails[index].CdPipelines = append(wfComponentDetails[index].CdPipelines, envName)
 				}
@@ -678,7 +674,7 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowsByEnvironmentId(request resou
 		mappings := appWorkflow.AppWorkflowMappingDto
 		valid := false
 		for _, mapping := range mappings {
-			if mapping.Type == CD_PIPELINE_TYPE {
+			if mapping.Type == bean4.CD_PIPELINE_TYPE {
 				if _, ok := pipelineMap[mapping.ComponentId]; ok {
 					valid = true
 				}
@@ -736,7 +732,7 @@ func (impl AppWorkflowServiceImpl) FilterWorkflows(triggerViewConfig *TriggerVie
 	for index, workflow := range triggerViewConfig.Workflows {
 		isPresent := false
 		for _, appWorkflowMapping := range workflow.AppWorkflowMappingDto {
-			if appWorkflowMapping.Type == CD_PIPELINE_TYPE && cdPipelineIdsFiltered.Contains(appWorkflowMapping.ComponentId) {
+			if appWorkflowMapping.Type == bean4.CD_PIPELINE_TYPE && cdPipelineIdsFiltered.Contains(appWorkflowMapping.ComponentId) {
 				isPresent = true
 				break
 			}
@@ -896,7 +892,7 @@ func getMappingsFromIds(identifierToNodeMapping map[PipelineIdentifier]*AppWorkf
 	result := make([]AppWorkflowMappingDto, 0)
 	for _, id := range ids {
 		identifier := PipelineIdentifier{
-			PipelineType: CD_PIPELINE_TYPE,
+			PipelineType: bean4.CD_PIPELINE_TYPE,
 			PipelineId:   id,
 		}
 		result = append(result, *identifierToNodeMapping[identifier])

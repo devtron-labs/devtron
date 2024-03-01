@@ -29,6 +29,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
+	bean4 "github.com/devtron-labs/devtron/pkg/appWorkflow/bean"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
@@ -1033,7 +1034,7 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, c
 	if refCdPipeline.ParentPipelineType == "WEBHOOK" {
 		cdPipeline.CiPipelineId = 0
 		cdPipeline.ParentPipelineId = req.externalCiPipelineId
-	} else if refCdPipeline.ParentPipelineType != appWorkflow.CI_PIPELINE_TYPE {
+	} else if refCdPipeline.ParentPipelineType != bean4.CI_PIPELINE_TYPE {
 		cdPipeline.ParentPipelineId = refCdPipeline.ParentPipelineId
 	}
 	if refCdPipeline.IsVirtualEnvironment && refCdPipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_MANIFEST_PUSH {
