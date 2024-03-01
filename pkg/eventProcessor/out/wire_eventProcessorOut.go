@@ -14,4 +14,7 @@ var EventProcessorOutWireSet = wire.NewSet(
 
 	NewAppStoreAppsEventPublishServiceImpl,
 	wire.Bind(new(AppStoreAppsEventPublishService), new(*AppStoreAppsEventPublishServiceImpl)),
+
+	NewCIPipelineEventPublishServiceImpl,
+	wire.Bind(new(CIPipelineEventPublishService), new(*CIPipelineEventPublishServiceImpl)),
 )

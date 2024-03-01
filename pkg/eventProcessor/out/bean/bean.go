@@ -1,6 +1,8 @@
 package bean
 
-import bean4 "github.com/devtron-labs/devtron/pkg/deployment/deployedApp/bean"
+import (
+	bean4 "github.com/devtron-labs/devtron/pkg/deployment/deployedApp/bean"
+)
 
 type BulkTriggerRequest struct {
 	CiArtifactId int `sql:"ci_artifact_id"`
@@ -25,4 +27,10 @@ type DeploymentGroupAppWithEnv struct {
 type CdPipelineDeleteEvent struct {
 	PipelineId  int   `json:"pipelineId"`
 	TriggeredBy int32 `json:"triggeredBy"`
+}
+
+type CIPipelineGitWebhookEvent struct {
+	GitHostId          int    `json:"gitHostId"`
+	EventType          string `json:"eventType"`
+	RequestPayloadJson string `json:"requestPayloadJson"`
 }
