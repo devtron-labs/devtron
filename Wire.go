@@ -92,6 +92,7 @@ import (
 	"github.com/devtron-labs/devtron/client/lens"
 	"github.com/devtron-labs/devtron/client/proxy"
 	"github.com/devtron-labs/devtron/client/telemetry"
+	"github.com/devtron-labs/devtron/enterprise/api/commonPolicyActions"
 	"github.com/devtron-labs/devtron/enterprise/api/deploymentWindow"
 	"github.com/devtron-labs/devtron/enterprise/api/drafts"
 	"github.com/devtron-labs/devtron/enterprise/api/globalTag"
@@ -214,6 +215,7 @@ func InitializeApp() (*App, error) {
 		deployment2.DeploymentWireSet,
 		argoApplication.ArgoApplicationWireSet,
 		deploymentWindow.DeploymentWindowWireSet,
+		commonPolicyActions.CommonPolicyActionWireSet,
 
 		eventProcessor.EventProcessorWireSet,
 		workflow3.WorkflowWireSet,
