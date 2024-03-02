@@ -13,7 +13,6 @@ FROM ubuntu as  devtron-all
 
 RUN apt update
 RUN apt install ca-certificates git curl -y
-RUN apt install tzdata
 RUN apt clean autoclean
 RUN apt autoremove -y && rm -rf /var/lib/apt/lists/*
 COPY --from=build-env  /go/src/github.com/devtron-labs/devtron/devtron .

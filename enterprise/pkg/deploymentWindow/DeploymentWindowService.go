@@ -10,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"time"
+	_ "time/tzdata"
 )
 
 type DeploymentWindowService interface {
