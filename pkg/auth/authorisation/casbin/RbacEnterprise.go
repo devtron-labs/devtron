@@ -543,11 +543,7 @@ func getGroupRolesMap(roleMappings [][]string) map[string][]string {
 		groupInRole := roleMappingDetail[0]
 		roleAttached := roleMappingDetail[1]
 		isGroup := strings.Contains(groupInRole, bean.GroupPrefix)
-		if _, ok := groupRolesMap[groupInRole]; !ok && isGroup {
-			// new key , initialise with slice val
-			groupRolesMap[groupInRole] = []string{roleAttached}
-		} else if isGroup {
-			// previously key exists append to slice
+		if isGroup {
 			groupRolesMap[groupInRole] = append(groupRolesMap[groupInRole], roleAttached)
 		}
 	}
