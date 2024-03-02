@@ -211,38 +211,7 @@ func DeleteRoleForUser(user string, role string, expression string, format strin
 }
 
 func GetGroupsAttachedToUser(user string) ([]bean.GroupPolicy, error) {
-	roleMappings := GetRoleMappings()
-	groupRoles := make([]bean.GroupPolicy, 0)
-	for _, roleMappingDetail := range roleMappings {
-		lenOfRoleMapping := len(roleMappingDetail)
-		if lenOfRoleMapping < 2 {
-			//invalid case
-			return nil, fmt.Errorf("invalid role mapping found")
-		} else {
-			userInRole := roleMappingDetail[0]
-			if userInRole == user { //checking user
-				role := roleMappingDetail[1]
-				if strings.HasPrefix(role, bean2.GroupPrefix) {
-					isExpressionValid := true
-					expression := ""
-					format := ""
-					if lenOfRoleMapping == 4 {
-						//expression details present
-						expression = roleMappingDetail[2]
-						format = roleMappingDetail[3]
-						//parse and check if expression is correct
-						if !(len(expression) > 0 && len(format) == 1) {
-							isExpressionValid = false
-						}
-					}
-					if isExpressionValid {
-						groupRoles = append(groupRoles, bean.GroupPolicy{Role: role, User: user, ExpressionFormat: format, TimeoutWindowExpression: strings.ToUpper(expression)})
-					}
-				}
-			}
-		}
-	}
-	return groupRoles, nil
+	return GetRolesAndGroupsAttachedToUser(user, true)
 }
 
 func GetRoleMappings() [][]string {
@@ -256,6 +225,10 @@ func GetRoleMappings() [][]string {
 }
 
 func GetRolesAndGroupsAttachedToUserWithTimeoutExpressionAndFormat(user string) ([]bean.GroupPolicy, error) {
+	return GetRolesAndGroupsAttachedToUser(user, false)
+}
+
+func GetRolesAndGroupsAttachedToUser(user string, getGroupsOnly bool) ([]bean.GroupPolicy, error) {
 	roleMappings := GetRoleMappings()
 	userRoles := make([]bean.GroupPolicy, 0)
 	for _, roleMappingDetail := range roleMappings {
@@ -267,21 +240,14 @@ func GetRolesAndGroupsAttachedToUserWithTimeoutExpressionAndFormat(user string) 
 			userInRole := roleMappingDetail[0]
 			if userInRole == user { //checking user
 				role := roleMappingDetail[1]
-				isExpressionValid := true
-				expression := ""
-				format := ""
-				if lenOfRoleMapping == 4 {
-					//expression details present
-					expression = roleMappingDetail[2]
-					format = roleMappingDetail[3]
-					//parse and check if expression is correct
-					if !(len(expression) > 0 && len(format) == 1) {
-						isExpressionValid = false
-					}
+				if getGroupsOnly && !strings.HasPrefix(role, bean2.GroupPrefix) {
+					continue
 				}
+				expression, format, isExpressionValid := util.GetExpressionAndFormatFromRoleMappingDetail(lenOfRoleMapping, roleMappingDetail)
 				if isExpressionValid {
 					userRoles = append(userRoles, bean.GroupPolicy{Role: role, User: user, ExpressionFormat: format, TimeoutWindowExpression: strings.ToUpper(expression)})
 				}
+
 			}
 		}
 	}
@@ -300,18 +266,7 @@ func GetUserAttachedToRoleWithTimeoutExpressionAndFormat(role string) ([]bean.Gr
 			roleInPolicy := roleMappingDetail[1]
 			if roleInPolicy == role { //checking user
 				user := roleMappingDetail[0]
-				isExpressionValid := true
-				expression := ""
-				format := ""
-				if lenOfRoleMapping == 4 {
-					//expression details present
-					expression = roleMappingDetail[2]
-					format = roleMappingDetail[3]
-					//parse and check if expression is correct
-					if !(len(expression) > 0 && len(format) == 1) {
-						isExpressionValid = false
-					}
-				}
+				expression, format, isExpressionValid := util.GetExpressionAndFormatFromRoleMappingDetail(lenOfRoleMapping, roleMappingDetail)
 				if isExpressionValid {
 					userRoles = append(userRoles, bean.GroupPolicy{Role: role, User: user, ExpressionFormat: format, TimeoutWindowExpression: strings.ToUpper(expression)})
 				}

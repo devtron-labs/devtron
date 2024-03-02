@@ -59,3 +59,19 @@ func GetStringSliceWithUserAndRole(user, role string) []string {
 func GetStringSliceWithUserRoleExpressionAndFormat(user, role, expression, format string) []string {
 	return []string{user, role, expression, format}
 }
+
+func GetExpressionAndFormatFromRoleMappingDetail(lenOfRoleMapping int, roleMappingDetail []string) (string, string, bool) {
+	isExpressionValid := true
+	expression := ""
+	format := ""
+	if lenOfRoleMapping == 4 {
+		//expression details present
+		expression = roleMappingDetail[2]
+		format = roleMappingDetail[3]
+		//parse and check if expression is correct
+		if !(len(expression) > 0 && len(format) == 1) {
+			isExpressionValid = false
+		}
+	}
+	return expression, format, isExpressionValid
+}
