@@ -90,22 +90,22 @@ func NewDockerRegistryConfigImpl(logger *zap.SugaredLogger, helmAppService clien
 
 func NewDockerArtifactStore(bean *types.DockerArtifactStoreBean, isActive bool, createdOn time.Time, updatedOn time.Time, createdBy int32, updateBy int32) *repository.DockerArtifactStore {
 	return &repository.DockerArtifactStore{
-		Id:                         bean.Id,
-		PluginId:                   bean.PluginId,
-		RegistryConnectionConfigId: bean.RegistryConnectionConfig.ServerConnectionConfigId,
-		RegistryURL:                bean.RegistryURL,
-		RegistryType:               bean.RegistryType,
-		IsOCICompliantRegistry:     bean.IsOCICompliantRegistry,
-		AWSAccessKeyId:             bean.AWSAccessKeyId,
-		AWSSecretAccessKey:         bean.AWSSecretAccessKey,
-		AWSRegion:                  bean.AWSRegion,
-		Username:                   bean.Username,
-		Password:                   bean.Password,
-		IsDefault:                  bean.IsDefault,
-		Connection:                 bean.Connection,
-		Cert:                       bean.Cert,
-		Active:                     isActive,
-		AuditLog:                   sql.AuditLog{CreatedBy: createdBy, CreatedOn: createdOn, UpdatedOn: updatedOn, UpdatedBy: updateBy},
+		Id:                       bean.Id,
+		PluginId:                 bean.PluginId,
+		ServerConnectionConfigId: bean.ServerConnectionConfig.ServerConnectionConfigId,
+		RegistryURL:              bean.RegistryURL,
+		RegistryType:             bean.RegistryType,
+		IsOCICompliantRegistry:   bean.IsOCICompliantRegistry,
+		AWSAccessKeyId:           bean.AWSAccessKeyId,
+		AWSSecretAccessKey:       bean.AWSSecretAccessKey,
+		AWSRegion:                bean.AWSRegion,
+		Username:                 bean.Username,
+		Password:                 bean.Password,
+		IsDefault:                bean.IsDefault,
+		Connection:               bean.Connection,
+		Cert:                     bean.Cert,
+		Active:                   isActive,
+		AuditLog:                 sql.AuditLog{CreatedBy: createdBy, CreatedOn: createdOn, UpdatedOn: updatedOn, UpdatedBy: updateBy},
 	}
 }
 
@@ -307,7 +307,16 @@ func (impl DockerRegistryConfigImpl) Create(bean *types.DockerArtifactStoreBean)
 	// Rollback tx on error.
 	defer tx.Rollback()
 
-	// 2- insert docker_registry_config
+	if bean.ServerConnectionConfig != nil {
+		// 2 - insert air-gapped connection config for this docker registry
+		err = impl.serverConnectionService.CreateOrUpdateServerConnectionConfig(bean.ServerConnectionConfig, bean.User, tx)
+		if err != nil {
+			impl.logger.Errorw("error occurred while inserting server connection config in db", "err", err, "connectionConfigId", bean.ServerConnectionConfig.ServerConnectionConfigId, "user", bean.User)
+			return nil, err
+		}
+	}
+
+	// 3- insert docker_registry_config
 	store := NewDockerArtifactStore(bean, true, time.Now(), time.Now(), bean.User, bean.User)
 	err = impl.dockerArtifactStoreRepository.Save(store, tx)
 	if err != nil {
@@ -322,7 +331,7 @@ func (impl DockerRegistryConfigImpl) Create(bean *types.DockerArtifactStoreBean)
 	impl.logger.Infow("created repository ", "repository", store)
 	bean.Id = store.Id
 
-	// 3- insert OCIRegistryConfig for this docker registry
+	// 4- insert OCIRegistryConfig for this docker registry
 	if store.IsOCICompliantRegistry {
 		err = impl.ConfigureOCIRegistry(bean, false, bean.User, tx)
 		if err != nil {
@@ -338,7 +347,7 @@ func (impl DockerRegistryConfigImpl) Create(bean *types.DockerArtifactStoreBean)
 	}
 
 	if !bean.IsPublic && bean.DockerRegistryIpsConfig != nil {
-		// 4- insert imagePullSecretConfig for this docker registry
+		// 5- insert imagePullSecretConfig for this docker registry
 		dockerRegistryIpsConfig := bean.DockerRegistryIpsConfig
 		ipsConfig := &repository.DockerRegistryIpsConfig{
 			DockerArtifactStoreId: store.Id,
@@ -353,15 +362,6 @@ func (impl DockerRegistryConfigImpl) Create(bean *types.DockerArtifactStoreBean)
 			return nil, err
 		}
 		dockerRegistryIpsConfig.Id = ipsConfig.Id
-	}
-
-	if bean.RegistryConnectionConfig != nil {
-		// 5 - insert air-gapped connection config for this docker registry
-		err = impl.serverConnectionService.CreateOrUpdateServerConnectionConfig(bean.RegistryConnectionConfig, bean.User, tx)
-		if err != nil {
-			impl.logger.Errorw("error occurred while inserting server connection config in db", "err", err, "connectionConfigId", bean.RegistryConnectionConfig.ServerConnectionConfigId, "user", bean.User)
-			return nil, err
-		}
 	}
 
 	// 6- now commit transaction
@@ -439,8 +439,8 @@ func (impl DockerRegistryConfigImpl) FetchAllDockerAccounts() ([]types.DockerArt
 				Active:               ipsConfig.Active,
 			}
 		}
-		if store.RegistryConnectionConfigId > 0 {
-			storeBean.RegistryConnectionConfig = adapter.GetServerConnectionConfigBean(store.RegistryConnectionConfig)
+		if store.ServerConnectionConfigId > 0 {
+			storeBean.ServerConnectionConfig = adapter.GetServerConnectionConfigBean(store.ServerConnectionConfig)
 		}
 		storeBeans = append(storeBeans, storeBean)
 	}
@@ -501,8 +501,8 @@ func (impl DockerRegistryConfigImpl) FetchOneDockerAccount(storeId string) (*typ
 			Active:               ipsConfig.Active,
 		}
 	}
-	if store.RegistryConnectionConfigId > 0 {
-		storeBean.RegistryConnectionConfig = adapter.GetServerConnectionConfigBean(store.RegistryConnectionConfig)
+	if store.ServerConnectionConfigId > 0 {
+		storeBean.ServerConnectionConfig = adapter.GetServerConnectionConfigBean(store.ServerConnectionConfig)
 	}
 	return storeBean, err
 }
@@ -528,7 +528,17 @@ func (impl DockerRegistryConfigImpl) Update(bean *types.DockerArtifactStoreBean)
 	// Rollback tx on error.
 	defer tx.Rollback()
 
-	// 3- update docker_registry_config
+	// 3- update registryConnectionConfig in server_connection_config table for this docker registry
+	if bean.ServerConnectionConfig != nil {
+		err = impl.serverConnectionService.CreateOrUpdateServerConnectionConfig(bean.ServerConnectionConfig, bean.User, tx)
+		if err != nil {
+			impl.logger.Errorw("error occurred while inserting server connection config in db", "err", err, "connectionConfigId", bean.ServerConnectionConfig.ServerConnectionConfigId)
+			return nil, err
+		}
+	}
+	existingStore.ServerConnectionConfigId = bean.ServerConnectionConfig.ServerConnectionConfigId
+
+	// 4- update docker_registry_config
 	if bean.Password == "" {
 		bean.Password = existingStore.Password
 	}
@@ -595,7 +605,7 @@ func (impl DockerRegistryConfigImpl) Update(bean *types.DockerArtifactStoreBean)
 	impl.logger.Infow("updated repository ", "repository", store)
 	bean.Id = store.Id
 
-	// 4- update OCIRegistryConfig for this docker registry
+	// 5- update OCIRegistryConfig for this docker registry
 	if store.IsOCICompliantRegistry {
 		err = impl.ConfigureOCIRegistry(bean, true, bean.User, tx)
 		if err != nil {
@@ -610,7 +620,7 @@ func (impl DockerRegistryConfigImpl) Update(bean *types.DockerArtifactStoreBean)
 		impl.logger.Infow("updated OCI registry config successfully")
 	}
 
-	// 5- update imagePullSecretConfig for this docker registry
+	// 6- update imagePullSecretConfig for this docker registry
 	existingIpsConfig, err := impl.dockerRegistryIpsConfigRepository.FindByDockerRegistryId(store.Id)
 	if !bean.IsPublic && bean.DockerRegistryIpsConfig != nil {
 		dockerRegistryIpsConfig := bean.DockerRegistryIpsConfig
@@ -651,15 +661,6 @@ func (impl DockerRegistryConfigImpl) Update(bean *types.DockerArtifactStoreBean)
 			if err != nil {
 				return nil, err
 			}
-		}
-	}
-
-	// 6- update registryConnectionConfig in server_connection_config table for this docker registry
-	if bean.RegistryConnectionConfig != nil {
-		err = impl.serverConnectionService.CreateOrUpdateServerConnectionConfig(bean.RegistryConnectionConfig, bean.User, tx)
-		if err != nil {
-			impl.logger.Errorw("error occurred while inserting server connection config in db", "err", err, "connectionConfigId", bean.RegistryConnectionConfig.ServerConnectionConfigId)
-			return nil, err
 		}
 	}
 
@@ -737,7 +738,18 @@ func (impl DockerRegistryConfigImpl) UpdateInactive(bean *types.DockerArtifactSt
 	// Rollback tx on error.
 	defer tx.Rollback()
 
-	// 3- update docker_registry_config
+	// 3- update registryConnectionConfig for this docker registry
+	if bean.ServerConnectionConfig != nil {
+		registryConnectionConfig := bean.ServerConnectionConfig
+		err = impl.serverConnectionService.CreateOrUpdateServerConnectionConfig(registryConnectionConfig, bean.User, tx)
+		if err != nil {
+			impl.logger.Errorw("error updating connection config", "err", err, "user", bean.User, "connectionConfigId", registryConnectionConfig.ServerConnectionConfigId)
+			return nil, err
+		}
+	}
+	existingStore.ServerConnectionConfigId = bean.ServerConnectionConfig.ServerConnectionConfigId
+
+	// 4- update docker_registry_config
 
 	bean.PluginId = existingStore.PluginId
 
@@ -756,7 +768,7 @@ func (impl DockerRegistryConfigImpl) UpdateInactive(bean *types.DockerArtifactSt
 	impl.logger.Infow("updated repository ", "repository", store)
 	bean.Id = store.Id
 
-	// 4- update OCIRegistryConfig for this docker registry
+	// 5- update OCIRegistryConfig for this docker registry
 	if store.IsOCICompliantRegistry {
 		err = impl.ConfigureOCIRegistry(bean, true, bean.User, tx)
 		if err != nil {
@@ -772,7 +784,7 @@ func (impl DockerRegistryConfigImpl) UpdateInactive(bean *types.DockerArtifactSt
 	}
 
 	if !bean.IsPublic && bean.DockerRegistryIpsConfig != nil {
-		// 5- update imagePullSecretConfig for this docker registry
+		// 6- update imagePullSecretConfig for this docker registry
 		dockerRegistryIpsConfig := bean.DockerRegistryIpsConfig
 		ipsConfig := &repository.DockerRegistryIpsConfig{
 			DockerArtifactStoreId: store.Id,
@@ -793,16 +805,6 @@ func (impl DockerRegistryConfigImpl) UpdateInactive(bean *types.DockerArtifactSt
 			if err != nil {
 				return nil, err
 			}
-		}
-	}
-
-	// 6- update registryConnectionConfig for this docker registry
-	if bean.RegistryConnectionConfig != nil {
-		registryConnectionConfig := bean.RegistryConnectionConfig
-		err = impl.serverConnectionService.CreateOrUpdateServerConnectionConfig(registryConnectionConfig, bean.User, tx)
-		if err != nil {
-			impl.logger.Errorw("error updating connection config", "err", err, "user", bean.User, "connectionConfigId", registryConnectionConfig.ServerConnectionConfigId)
-			return nil, err
 		}
 	}
 
@@ -885,7 +887,7 @@ func (impl DockerRegistryConfigImpl) DeleteReg(bean *types.DockerArtifactStoreBe
 	}
 
 	// 6- mark deleted, server_connection_config
-	registryConnectionDeleteReq := dockerReg.RegistryConnectionConfig
+	registryConnectionDeleteReq := dockerReg.ServerConnectionConfig
 	err = impl.serverConnectionRepository.MarkServerConnectionConfigDeleted(registryConnectionDeleteReq, tx)
 	if err != nil {
 		impl.logger.Errorw("err in deleting cluster connection config", "id", bean.Id, "err", err)
@@ -919,16 +921,16 @@ func (impl DockerRegistryConfigImpl) ValidateRegistryCredentials(bean *types.Doc
 	}
 	registryConnectionConfig := adapter2.ConvertServerConnectionConfigToProto(bean)
 	request := &bean2.RegistryCredential{
-		RegistryId:               bean.Id,
-		RegistryUrl:              bean.RegistryURL,
-		Username:                 bean.Username,
-		Password:                 bean.Password,
-		AwsRegion:                bean.AWSRegion,
-		AccessKey:                bean.AWSAccessKeyId,
-		SecretKey:                bean.AWSSecretAccessKey,
-		RegistryType:             string(bean.RegistryType),
-		IsPublic:                 bean.IsPublic,
-		RegistryConnectionConfig: registryConnectionConfig,
+		RegistryId:             bean.Id,
+		RegistryUrl:            bean.RegistryURL,
+		Username:               bean.Username,
+		Password:               bean.Password,
+		AwsRegion:              bean.AWSRegion,
+		AccessKey:              bean.AWSAccessKeyId,
+		SecretKey:              bean.AWSSecretAccessKey,
+		RegistryType:           string(bean.RegistryType),
+		IsPublic:               bean.IsPublic,
+		ServerConnectionConfig: registryConnectionConfig,
 	}
 	return impl.helmAppService.ValidateOCIRegistry(context.Background(), request)
 }

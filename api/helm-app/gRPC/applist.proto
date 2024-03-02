@@ -13,7 +13,7 @@ message ClusterConfig {
   string keyData = 6;
   string certData = 7;
   string caData = 8;
-  ServerConnectionConfig ClusterConnectionConfig = 9;
+  ServerConnectionConfig ServerConnectionConfig = 9;
 }
 
 message AppListRequest {
@@ -370,7 +370,7 @@ message RegistryCredential {
   string RegistryType = 7;
   string RepoName = 8;
   bool IsPublic = 9;
-  ServerConnectionConfig RegistryConnectionConfig = 10;
+  ServerConnectionConfig ServerConnectionConfig = 10;
   string RegistryId = 11;
 }
 

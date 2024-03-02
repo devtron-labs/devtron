@@ -142,22 +142,22 @@ func ConvertClusterBeanToClusterConfig(clusterBean *cluster.ClusterBean) *gRPC.C
 		InsecureSkipTLSVerify: clusterBean.InsecureSkipTLSVerify,
 	}
 
-	if clusterBean.ClusterConnectionConfig != nil {
+	if clusterBean.ServerConnectionConfig != nil {
 		connectionMethod := 0
-		if clusterBean.ClusterConnectionConfig.ConnectionMethod == bean2.ServerConnectionMethodSSH {
+		if clusterBean.ServerConnectionConfig.ConnectionMethod == bean2.ServerConnectionMethodSSH {
 			connectionMethod = 1
 		}
 		clusterConnectionConfig := &gRPC.ServerConnectionConfig{
 			ConnectionMethod: gRPC.ServerConnectionMethod(connectionMethod),
 		}
-		if clusterBean.ClusterConnectionConfig.ProxyConfig != nil && clusterBean.ClusterConnectionConfig.ConnectionMethod == bean2.ServerConnectionMethodProxy {
-			proxyConfig := clusterBean.ClusterConnectionConfig.ProxyConfig
+		if clusterBean.ServerConnectionConfig.ProxyConfig != nil && clusterBean.ServerConnectionConfig.ConnectionMethod == bean2.ServerConnectionMethodProxy {
+			proxyConfig := clusterBean.ServerConnectionConfig.ProxyConfig
 			clusterConnectionConfig.ProxyConfig = &gRPC.ProxyConfig{
 				ProxyUrl: proxyConfig.ProxyUrl,
 			}
 		}
-		if clusterBean.ClusterConnectionConfig.SSHTunnelConfig != nil && clusterBean.ClusterConnectionConfig.ConnectionMethod == bean2.ServerConnectionMethodSSH {
-			sshTunnelConfig := clusterBean.ClusterConnectionConfig.SSHTunnelConfig
+		if clusterBean.ServerConnectionConfig.SSHTunnelConfig != nil && clusterBean.ServerConnectionConfig.ConnectionMethod == bean2.ServerConnectionMethodSSH {
+			sshTunnelConfig := clusterBean.ServerConnectionConfig.SSHTunnelConfig
 			clusterConnectionConfig.SSHTunnelConfig = &gRPC.SSHTunnelConfig{
 				SSHServerAddress: sshTunnelConfig.SSHServerAddress,
 				SSHUsername:      sshTunnelConfig.SSHUsername,
@@ -165,7 +165,7 @@ func ConvertClusterBeanToClusterConfig(clusterBean *cluster.ClusterBean) *gRPC.C
 				SSHAuthKey:       sshTunnelConfig.SSHAuthKey,
 			}
 		}
-		config.ClusterConnectionConfig = clusterConnectionConfig
+		config.ServerConnectionConfig = clusterConnectionConfig
 	}
 	if clusterBean.InsecureSkipTLSVerify == false {
 		config.KeyData = clusterBean.Config[k8s2.TlsKey]

@@ -49,25 +49,25 @@ type RegistryType string
 var OCI_REGISRTY_REPO_TYPE_LIST = []string{OCI_REGISRTY_REPO_TYPE_CONTAINER, OCI_REGISRTY_REPO_TYPE_CHART}
 
 type DockerArtifactStore struct {
-	tableName                  struct{}     `sql:"docker_artifact_store" json:",omitempty"  pg:",discard_unknown_columns"`
-	Id                         string       `sql:"id,pk" json:"id,,omitempty"`
-	PluginId                   string       `sql:"plugin_id,notnull" json:"pluginId,omitempty"`
-	RegistryConnectionConfigId int          `sql:"reg_conf_id" json:"registryConnectionConfigId,omitempty"`
-	RegistryURL                string       `sql:"registry_url" json:"registryUrl,omitempty"`
-	RegistryType               RegistryType `sql:"registry_type,notnull" json:"registryType,omitempty"`
-	IsOCICompliantRegistry     bool         `sql:"is_oci_compliant_registry,notnull" json:"isOCICompliantRegistry,omitempty"`
-	AWSAccessKeyId             string       `sql:"aws_accesskey_id" json:"awsAccessKeyId,omitempty" `
-	AWSSecretAccessKey         string       `sql:"aws_secret_accesskey" json:"awsSecretAccessKey,omitempty"`
-	AWSRegion                  string       `sql:"aws_region" json:"awsRegion,omitempty"`
-	Username                   string       `sql:"username" json:"username,omitempty"`
-	Password                   string       `sql:"password" json:"password,omitempty"`
-	IsDefault                  bool         `sql:"is_default,notnull" json:"isDefault"`
-	Connection                 string       `sql:"connection" json:"connection,omitempty"`
-	Cert                       string       `sql:"cert" json:"cert,omitempty"`
-	Active                     bool         `sql:"active,notnull" json:"active"`
-	IpsConfig                  *DockerRegistryIpsConfig
-	OCIRegistryConfig          []*OCIRegistryConfig
-	RegistryConnectionConfig   *repository.ServerConnectionConfig
+	tableName                struct{}     `sql:"docker_artifact_store" json:",omitempty"  pg:",discard_unknown_columns"`
+	Id                       string       `sql:"id,pk" json:"id,,omitempty"`
+	PluginId                 string       `sql:"plugin_id,notnull" json:"pluginId,omitempty"`
+	ServerConnectionConfigId int          `sql:"server_connection_config_id" json:"serverConnectionConfigId,omitempty"`
+	RegistryURL              string       `sql:"registry_url" json:"registryUrl,omitempty"`
+	RegistryType             RegistryType `sql:"registry_type,notnull" json:"registryType,omitempty"`
+	IsOCICompliantRegistry   bool         `sql:"is_oci_compliant_registry,notnull" json:"isOCICompliantRegistry,omitempty"`
+	AWSAccessKeyId           string       `sql:"aws_accesskey_id" json:"awsAccessKeyId,omitempty" `
+	AWSSecretAccessKey       string       `sql:"aws_secret_accesskey" json:"awsSecretAccessKey,omitempty"`
+	AWSRegion                string       `sql:"aws_region" json:"awsRegion,omitempty"`
+	Username                 string       `sql:"username" json:"username,omitempty"`
+	Password                 string       `sql:"password" json:"password,omitempty"`
+	IsDefault                bool         `sql:"is_default,notnull" json:"isDefault"`
+	Connection               string       `sql:"connection" json:"connection,omitempty"`
+	Cert                     string       `sql:"cert" json:"cert,omitempty"`
+	Active                   bool         `sql:"active,notnull" json:"active"`
+	IpsConfig                *DockerRegistryIpsConfig
+	OCIRegistryConfig        []*OCIRegistryConfig
+	ServerConnectionConfig   *repository.ServerConnectionConfig
 	sql.AuditLog
 }
 
@@ -149,7 +149,7 @@ func (impl DockerArtifactStoreRepositoryImpl) FindActiveDefaultStore() (*DockerA
 func (impl DockerArtifactStoreRepositoryImpl) FindAllActiveForAutocomplete() ([]DockerArtifactStore, error) {
 	var providers []DockerArtifactStore
 	err := impl.dbConnection.Model(&providers).
-		Column("docker_artifact_store.id", "registry_url", "registry_type", "is_default", "is_oci_compliant_registry", "OCIRegistryConfig", "RegistryConnectionConfig").
+		Column("docker_artifact_store.id", "registry_url", "registry_type", "is_default", "is_oci_compliant_registry", "OCIRegistryConfig", "ServerConnectionConfig").
 		Where("active = ?", true).
 		Relation("OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {
 			return q.Where("deleted IS FALSE"), nil
@@ -162,7 +162,7 @@ func (impl DockerArtifactStoreRepositoryImpl) FindAllActiveForAutocomplete() ([]
 func (impl DockerArtifactStoreRepositoryImpl) FindAll() ([]DockerArtifactStore, error) {
 	var providers []DockerArtifactStore
 	err := impl.dbConnection.Model(&providers).
-		Column("docker_artifact_store.*", "IpsConfig", "OCIRegistryConfig", "RegistryConnectionConfig").
+		Column("docker_artifact_store.*", "IpsConfig", "OCIRegistryConfig", "ServerConnectionConfig").
 		Where("docker_artifact_store.active = ?", true).
 		Relation("OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {
 			return q.Where("deleted IS FALSE"), nil
@@ -191,7 +191,7 @@ func (impl DockerArtifactStoreRepositoryImpl) FindAllChartProviders() ([]DockerA
 func (impl DockerArtifactStoreRepositoryImpl) FindOne(storeId string) (*DockerArtifactStore, error) {
 	var provider DockerArtifactStore
 	err := impl.dbConnection.Model(&provider).
-		Column("docker_artifact_store.*", "IpsConfig", "OCIRegistryConfig", "RegistryConnectionConfig").
+		Column("docker_artifact_store.*", "IpsConfig", "OCIRegistryConfig", "ServerConnectionConfig").
 		Where("docker_artifact_store.id = ?", storeId).
 		Where("docker_artifact_store.active = ?", true).
 		Relation("OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {
@@ -229,7 +229,7 @@ func (impl DockerArtifactStoreRepositoryImpl) FindOneWithChartDeploymentCount(st
 func (impl DockerArtifactStoreRepositoryImpl) FindOneInactive(storeId string) (*DockerArtifactStore, error) {
 	var provider DockerArtifactStore
 	err := impl.dbConnection.Model(&provider).
-		Column("docker_artifact_store.*", "IpsConfig", "OCIRegistryConfig", "RegistryConnectionConfig").
+		Column("docker_artifact_store.*", "IpsConfig", "OCIRegistryConfig", "ServerConnectionConfig").
 		Where("docker_artifact_store.id = ?", storeId).
 		Where("docker_artifact_store.active = ?", false).
 		Relation("OCIRegistryConfig", func(q *orm.Query) (query *orm.Query, err error) {

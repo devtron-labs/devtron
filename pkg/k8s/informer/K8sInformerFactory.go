@@ -78,22 +78,22 @@ func (impl *K8sInformerFactoryImpl) BuildInformer(clusterInfo []*bean.ClusterInf
 			CAData:                info.CAData,
 		}
 
-		if info.ClusterConnectionConfig != nil {
+		if info.ServerConnectionConfig != nil {
 			connectionConfig := &bean3.ServerConnectionConfigBean{
-				ServerConnectionConfigId: info.ClusterConnectionConfig.ServerConnectionConfigId,
-				ConnectionMethod:         bean3.ServerConnectionMethod(info.ClusterConnectionConfig.ConnectionMethod),
+				ServerConnectionConfigId: info.ServerConnectionConfig.ServerConnectionConfigId,
+				ConnectionMethod:         bean3.ServerConnectionMethod(info.ServerConnectionConfig.ConnectionMethod),
 			}
-			if info.ClusterConnectionConfig.ProxyConfig != nil && info.ClusterConnectionConfig.ConnectionMethod == bean2.ServerConnectionMethodProxy {
+			if info.ServerConnectionConfig.ProxyConfig != nil && info.ServerConnectionConfig.ConnectionMethod == bean2.ServerConnectionMethodProxy {
 				connectionConfig.ProxyConfig = &bean3.ProxyConfig{
-					ProxyUrl: info.ClusterConnectionConfig.ProxyConfig.ProxyUrl,
+					ProxyUrl: info.ServerConnectionConfig.ProxyConfig.ProxyUrl,
 				}
 			}
-			if info.ClusterConnectionConfig.SSHTunnelConfig != nil && info.ClusterConnectionConfig.ConnectionMethod == bean2.ServerConnectionMethodSSH {
+			if info.ServerConnectionConfig.SSHTunnelConfig != nil && info.ServerConnectionConfig.ConnectionMethod == bean2.ServerConnectionMethodSSH {
 				connectionConfig.SSHTunnelConfig = &bean3.SSHTunnelConfig{
-					SSHServerAddress: info.ClusterConnectionConfig.SSHTunnelConfig.SSHServerAddress,
-					SSHUsername:      info.ClusterConnectionConfig.SSHTunnelConfig.SSHUsername,
-					SSHPassword:      info.ClusterConnectionConfig.SSHTunnelConfig.SSHPassword,
-					SSHAuthKey:       info.ClusterConnectionConfig.SSHTunnelConfig.SSHAuthKey,
+					SSHServerAddress: info.ServerConnectionConfig.SSHTunnelConfig.SSHServerAddress,
+					SSHUsername:      info.ServerConnectionConfig.SSHTunnelConfig.SSHUsername,
+					SSHPassword:      info.ServerConnectionConfig.SSHTunnelConfig.SSHPassword,
+					SSHAuthKey:       info.ServerConnectionConfig.SSHTunnelConfig.SSHAuthKey,
 				}
 			}
 			clusterConfig.ClusterConnectionConfig = connectionConfig
