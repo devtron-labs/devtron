@@ -2,6 +2,7 @@ package deploymentWindow
 
 import (
 	"encoding/json"
+	"strconv"
 	"time"
 )
 
@@ -61,6 +62,10 @@ const (
 	Blocked UserActionState = "BLOCKED"
 	Partial UserActionState = "PARTIAL"
 )
+
+func (action UserActionState) IsActionAllowed() bool {
+	return action == Allowed || action == Partial
+}
 
 type AppEnvSelector struct {
 	AppId int `json:"appId"`
@@ -162,4 +167,14 @@ func (window *TimeWindow) toJsonString() string {
 }
 func (window *TimeWindow) setFromJsonString(jsonString string) {
 	json.Unmarshal([]byte(jsonString), window)
+}
+
+func (state UserActionState) GetBypassActionMessageForProfileAndState(profile *DeploymentWindowProfile) string {
+	if state == Allowed {
+		return ""
+	}
+	if profile != nil && profile.Type == Blackout {
+		return "Initiated during blackout window " + strconv.Quote(profile.Name)
+	}
+	return "Initiated outside maintenance window"
 }

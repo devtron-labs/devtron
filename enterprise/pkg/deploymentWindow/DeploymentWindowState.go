@@ -8,19 +8,19 @@ import (
 	"time"
 )
 
-func (impl DeploymentWindowServiceImpl) CheckTriggerAllowedState(targetTime time.Time, appId int, envId int, userId int32) (*ProfileState, bool, error) {
+func (impl DeploymentWindowServiceImpl) GetActiveProfileForAppEnv(targetTime time.Time, appId int, envId int, userId int32) (*DeploymentWindowProfile, UserActionState, error) {
 	stateResponse, err := impl.GetDeploymentWindowProfileState(targetTime, appId, []int{envId}, userId)
 	if err != nil {
-		return nil, false, err
+		return nil, Allowed, err
 	}
 
-	var appliedProfile *ProfileState
-	isAllowed := true
+	var appliedProfile *DeploymentWindowProfile
+	actionState := Allowed
 	if state, ok := stateResponse.EnvironmentStateMap[envId]; ok {
-		isAllowed = state.UserActionState == Allowed || state.UserActionState == Partial
-		appliedProfile = state.AppliedProfile
+		actionState = state.UserActionState
+		appliedProfile = state.AppliedProfile.DeploymentWindowProfile
 	}
-	return appliedProfile, isAllowed, nil
+	return appliedProfile, actionState, nil
 }
 
 func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileStateAppGroup(targetTime time.Time, selectors []AppEnvSelector, userId int32) (*DeploymentWindowAppGroupResponse, error) {
