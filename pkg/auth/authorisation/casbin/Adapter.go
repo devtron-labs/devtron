@@ -189,12 +189,12 @@ func DeleteRoleForUser(user string, role string, expression string, format strin
 	var err error
 	if isV2() {
 		if len(expression) == 0 && len(format) == 0 {
-			response, err = e2.RemoveGroupingPolicy([]string{user, role})
+			response, err = e2.RemoveGroupingPolicy(util.GetStringSliceWithUserAndRole(user, role))
 			if err != nil {
 				log.Println(err)
 			}
 		} else {
-			response, err = e2.RemoveGroupingPolicy([]string{user, role, expression, format})
+			response, err = e2.RemoveGroupingPolicy(util.GetStringSliceWithUserRoleExpressionAndFormat(user, role, expression, format))
 			if err != nil {
 				log.Println(err)
 			}
