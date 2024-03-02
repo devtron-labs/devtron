@@ -1103,6 +1103,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 	clusterIdString := strconv.Itoa(cdPipeline.Environment.ClusterId)
 	validRequest := handler.k8sCommonService.FilterK8sResources(r.Context(), resourceTree, k8sAppDetail, clusterIdString, []string{k8sCommonBean.ServiceKind, k8sCommonBean.EndpointsKind, k8sCommonBean.IngressKind})
 	resp, err := handler.k8sCommonService.GetManifestsByBatch(r.Context(), validRequest)
+	//handle here for 5xx
 	if err != nil {
 		handler.logger.Errorw("error in getting manifest by batch", "err", err, "clusterId", clusterIdString)
 		return nil, err
