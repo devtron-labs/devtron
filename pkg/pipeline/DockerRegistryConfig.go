@@ -20,6 +20,7 @@ package pipeline
 import (
 	"context"
 	"fmt"
+	adapter2 "github.com/devtron-labs/devtron/api/helm-app/adapter"
 	bean2 "github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
@@ -916,7 +917,7 @@ func (impl DockerRegistryConfigImpl) ValidateRegistryCredentials(bean *types.Doc
 		bean.RegistryType == repository.REGISTRYTYPE_OTHER {
 		return true
 	}
-	registryConnectionConfig := adapter.ConvertServerConnectionConfigToProto(bean)
+	registryConnectionConfig := adapter2.ConvertServerConnectionConfigToProto(bean)
 	request := &bean2.RegistryCredential{
 		RegistryId:               bean.Id,
 		RegistryUrl:              bean.RegistryURL,

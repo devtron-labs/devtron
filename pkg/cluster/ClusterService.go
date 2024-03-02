@@ -94,7 +94,7 @@ type ClusterBean struct {
 	ClusterUpdated          bool                              `json:"clusterUpdated"`
 	ToConnectWithSSHTunnel  bool                              `json:"toConnectWithSSHTunnel,omitempty"`
 	SSHTunnelConfig         *SSHTunnelConfig                  `json:"sshTunnelConfig,omitempty"`
-	ClusterConnectionConfig *bean4.ServerConnectionConfigBean `json:"clusterConnectionConfig,omitempty"`
+	ClusterConnectionConfig *bean4.ServerConnectionConfigBean `json:"-"`
 }
 
 func GetClusterBean(model repository.Cluster) ClusterBean {
