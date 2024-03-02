@@ -52,7 +52,7 @@ type DockerArtifactStore struct {
 	tableName                  struct{}     `sql:"docker_artifact_store" json:",omitempty"  pg:",discard_unknown_columns"`
 	Id                         string       `sql:"id,pk" json:"id,,omitempty"`
 	PluginId                   string       `sql:"plugin_id,notnull" json:"pluginId,omitempty"`
-	RegistryConnectionConfigId int          `sql:"registry_connection_config_id" json:"registryConnectionConfigId,omitempty"`
+	RegistryConnectionConfigId int          `sql:"reg_conf_id" json:"registryConnectionConfigId,omitempty"`
 	RegistryURL                string       `sql:"registry_url" json:"registryUrl,omitempty"`
 	RegistryType               RegistryType `sql:"registry_type,notnull" json:"registryType,omitempty"`
 	IsOCICompliantRegistry     bool         `sql:"is_oci_compliant_registry,notnull" json:"isOCICompliantRegistry,omitempty"`

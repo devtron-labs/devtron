@@ -24,7 +24,7 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/serverConnection"
-	bean3 "github.com/devtron-labs/devtron/pkg/serverConnection/bean"
+	"github.com/devtron-labs/devtron/pkg/serverConnection/adapter"
 	repository2 "github.com/devtron-labs/devtron/pkg/serverConnection/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
@@ -358,7 +358,7 @@ func (impl DockerRegistryConfigImpl) Create(bean *types.DockerArtifactStoreBean)
 		// 5 - insert air-gapped connection config for this docker registry
 		err = impl.serverConnectionService.CreateOrUpdateServerConnectionConfig(bean.RegistryConnectionConfig, bean.User, tx)
 		if err != nil {
-			impl.logger.Errorw("error occurred while inserting server connection config in db", "err", err)
+			impl.logger.Errorw("error occurred while inserting server connection config in db", "err", err, "connectionConfigId", bean.RegistryConnectionConfig.ServerConnectionConfigId, "user", bean.User)
 			return nil, err
 		}
 	}
@@ -439,7 +439,7 @@ func (impl DockerRegistryConfigImpl) FetchAllDockerAccounts() ([]types.DockerArt
 			}
 		}
 		if store.RegistryConnectionConfigId > 0 {
-			storeBean.RegistryConnectionConfig = impl.serverConnectionService.GetServerConnectionConfigBean(store.RegistryConnectionConfig)
+			storeBean.RegistryConnectionConfig = adapter.GetServerConnectionConfigBean(store.RegistryConnectionConfig)
 		}
 		storeBeans = append(storeBeans, storeBean)
 	}
@@ -501,7 +501,7 @@ func (impl DockerRegistryConfigImpl) FetchOneDockerAccount(storeId string) (*typ
 		}
 	}
 	if store.RegistryConnectionConfigId > 0 {
-		storeBean.RegistryConnectionConfig = impl.serverConnectionService.GetServerConnectionConfigBean(store.RegistryConnectionConfig)
+		storeBean.RegistryConnectionConfig = adapter.GetServerConnectionConfigBean(store.RegistryConnectionConfig)
 	}
 	return storeBean, err
 }
@@ -657,7 +657,7 @@ func (impl DockerRegistryConfigImpl) Update(bean *types.DockerArtifactStoreBean)
 	if bean.RegistryConnectionConfig != nil {
 		err = impl.serverConnectionService.CreateOrUpdateServerConnectionConfig(bean.RegistryConnectionConfig, bean.User, tx)
 		if err != nil {
-			impl.logger.Errorw("error occurred while inserting server connection config in db", "err", err)
+			impl.logger.Errorw("error occurred while inserting server connection config in db", "err", err, "connectionConfigId", bean.RegistryConnectionConfig.ServerConnectionConfigId)
 			return nil, err
 		}
 	}
@@ -800,6 +800,7 @@ func (impl DockerRegistryConfigImpl) UpdateInactive(bean *types.DockerArtifactSt
 		registryConnectionConfig := bean.RegistryConnectionConfig
 		err = impl.serverConnectionService.CreateOrUpdateServerConnectionConfig(registryConnectionConfig, bean.User, tx)
 		if err != nil {
+			impl.logger.Errorw("error updating connection config", "err", err, "user", bean.User, "connectionConfigId", registryConnectionConfig.ServerConnectionConfigId)
 			return nil, err
 		}
 	}
@@ -915,31 +916,7 @@ func (impl DockerRegistryConfigImpl) ValidateRegistryCredentials(bean *types.Doc
 		bean.RegistryType == repository.REGISTRYTYPE_OTHER {
 		return true
 	}
-	var registryConnectionConfig *bean2.ServerConnectionConfig
-	if bean.RegistryConnectionConfig != nil {
-		connectionMethod := 0
-		if bean.RegistryConnectionConfig.ConnectionMethod == bean3.ServerConnectionMethodSSH {
-			connectionMethod = 1
-		}
-		registryConnectionConfig = &bean2.ServerConnectionConfig{
-			ConnectionMethod: bean2.ServerConnectionMethod(connectionMethod),
-		}
-		if bean.RegistryConnectionConfig.ProxyConfig != nil && bean.RegistryConnectionConfig.ConnectionMethod == bean3.ServerConnectionMethodProxy {
-			proxyConfig := bean.RegistryConnectionConfig.ProxyConfig
-			registryConnectionConfig.ProxyConfig = &bean2.ProxyConfig{
-				ProxyUrl: proxyConfig.ProxyUrl,
-			}
-		}
-		if bean.RegistryConnectionConfig.SSHTunnelConfig != nil && bean.RegistryConnectionConfig.ConnectionMethod == bean3.ServerConnectionMethodSSH {
-			sshTunnelConfig := bean.RegistryConnectionConfig.SSHTunnelConfig
-			registryConnectionConfig.SSHTunnelConfig = &bean2.SSHTunnelConfig{
-				SSHServerAddress: sshTunnelConfig.SSHServerAddress,
-				SSHUsername:      sshTunnelConfig.SSHUsername,
-				SSHPassword:      sshTunnelConfig.SSHPassword,
-				SSHAuthKey:       sshTunnelConfig.SSHAuthKey,
-			}
-		}
-	}
+	registryConnectionConfig := adapter.ConvertServerConnectionConfigToProto(bean)
 	request := &bean2.RegistryCredential{
 		RegistryId:               bean.Id,
 		RegistryUrl:              bean.RegistryURL,

@@ -125,7 +125,6 @@ type TriggerServiceImpl struct {
 	helmAppService                      client2.HelmAppService
 	imageTaggingService                 pipeline.ImageTaggingService
 	artifactApprovalDataReadService     read.ArtifactApprovalDataReadService
-	clusterService                      cluster2.ClusterServiceImpl
 
 	mergeUtil     util.MergeUtil
 	enforcerUtil  rbac.EnforcerUtil
@@ -175,7 +174,6 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 	gitSensorGrpcClient gitSensorClient.Client,
 	helmAppService client2.HelmAppService,
 	artifactApprovalDataReadService read.ArtifactApprovalDataReadService,
-	clusterService cluster2.ClusterServiceImpl,
 	mergeUtil util.MergeUtil,
 	enforcerUtil rbac.EnforcerUtil,
 	helmAppClient gRPC.HelmAppClient,
@@ -231,7 +229,6 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 		gitSensorGrpcClient:                 gitSensorGrpcClient,
 		helmAppService:                      helmAppService,
 		artifactApprovalDataReadService:     artifactApprovalDataReadService,
-		clusterService:                      clusterService,
 		mergeUtil:                           mergeUtil,
 		enforcerUtil:                        enforcerUtil,
 		eventFactory:                        eventFactory,
@@ -1206,7 +1203,7 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean
 		releaseName := pipeline.DeploymentAppName
 		cluster := envOverride.Environment.Cluster
 		bearerToken := cluster.Config[util5.BearerToken]
-		clusterBean := impl.clusterService.GetClusterBean(*cluster)
+		clusterBean := cluster2.GetClusterBean(*cluster)
 		clusterConfig := client2.ConvertClusterBeanToClusterConfig(&clusterBean)
 		clusterConfig.Token = bearerToken
 

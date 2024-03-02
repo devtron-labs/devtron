@@ -80,7 +80,7 @@ type ClusterConfig struct {
 	KeyData                 string                  `protobuf:"bytes,6,opt,name=keyData,proto3" json:"keyData,omitempty"`
 	CertData                string                  `protobuf:"bytes,7,opt,name=certData,proto3" json:"certData,omitempty"`
 	CaData                  string                  `protobuf:"bytes,8,opt,name=caData,proto3" json:"caData,omitempty"`
-	ClusterConnectionConfig *ServerConnectionConfig `protobuf:"bytes,9,opt,name=ClusterConnectionConfig,proto3" json:"ClusterConnectionConfig,omitempty"`
+	ClusterConnectionConfig *ServerConnectionConfig `protobuf:"bytes,9,opt,name=ServerConnectionConfig,proto3" json:"ServerConnectionConfig,omitempty"`
 }
 
 func (x *ClusterConfig) Reset() {
@@ -4586,7 +4586,7 @@ var file_api_helm_app_gRPC_applist_proto_goTypes = []interface{}{
 	(*timestamp.Timestamp)(nil),         // 59: google.protobuf.Timestamp
 }
 var file_api_helm_app_gRPC_applist_proto_depIdxs = []int32{
-	54, // 0: ClusterConfig.ClusterConnectionConfig:type_name -> ServerConnectionConfig
+	54, // 0: ClusterConfig.ServerConnectionConfig:type_name -> ServerConnectionConfig
 	1,  // 1: AppListRequest.clusters:type_name -> ClusterConfig
 	1,  // 2: ExternalResourceTreeRequest.clusterConfig:type_name -> ClusterConfig
 	4,  // 3: ExternalResourceTreeRequest.externalResourceDetail:type_name -> ExternalResourceDetail

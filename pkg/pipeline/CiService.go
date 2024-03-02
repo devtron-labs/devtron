@@ -754,15 +754,10 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	if dockerRegistry != nil {
 		var registryConnectionConfig *bean3.ServerConnectionConfigBean
 		if dockerRegistry.RegistryConnectionConfigId > 0 {
-			config, err := impl.serverConnectionService.GetServerConnectionConfigById(dockerRegistry.RegistryConnectionConfigId)
+			registryConnectionConfig, err = impl.serverConnectionService.GetServerConnectionConfigById(dockerRegistry.RegistryConnectionConfigId)
 			if err != nil {
+				impl.Logger.Errorw("err in fetching connection config", "err", err, "connectionConfigId", dockerRegistry.RegistryConnectionConfigId)
 				return nil, err
-			}
-			registryConnectionConfig = &bean3.ServerConnectionConfigBean{
-				ServerConnectionConfigId: dockerRegistry.RegistryConnectionConfigId,
-				ConnectionMethod:         config.ConnectionMethod,
-				ProxyConfig:              config.ProxyConfig,
-				SSHTunnelConfig:          config.SSHTunnelConfig,
 			}
 		}
 

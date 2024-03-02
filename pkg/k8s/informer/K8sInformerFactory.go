@@ -78,38 +78,25 @@ func (impl *K8sInformerFactoryImpl) BuildInformer(clusterInfo []*bean.ClusterInf
 			CAData:                info.CAData,
 		}
 
-		if len(info.ProxyUrl) > 0 || info.ToConnectWithSSHTunnel {
-			var connectionMethod bean3.ServerConnectionMethod
-			if len(info.ProxyUrl) > 0 {
-				connectionMethod = bean3.ServerConnectionMethodProxy
-			} else if info.ToConnectWithSSHTunnel {
-				connectionMethod = bean3.ServerConnectionMethodSSH
-			}
+		if info.ClusterConnectionConfig != nil {
 			connectionConfig := &bean3.ServerConnectionConfigBean{
-				ConnectionMethod: connectionMethod,
-				ProxyConfig: &bean3.ProxyConfig{
-					ProxyUrl: info.ProxyUrl,
-				},
-				SSHTunnelConfig: &bean3.SSHTunnelConfig{
-					SSHServerAddress: info.SSHTunnelServerAddress,
-					SSHUsername:      info.SSHTunnelUser,
-					SSHPassword:      info.SSHTunnelPassword,
-					SSHAuthKey:       info.SSHTunnelAuthKey,
-				},
+				ServerConnectionConfigId: info.ClusterConnectionConfig.ServerConnectionConfigId,
+				ConnectionMethod:         bean3.ServerConnectionMethod(info.ClusterConnectionConfig.ConnectionMethod),
 			}
-			clusterConfig.ClusterConnectionConfig = connectionConfig
-		} else if info.ClusterConnectionConfig != nil {
-			clusterConfig.ClusterConnectionConfig.ServerConnectionConfigId = info.ClusterConnectionConfig.ServerConnectionConfigId
-			clusterConfig.ClusterConnectionConfig.ConnectionMethod = bean3.ServerConnectionMethod(info.ClusterConnectionConfig.ConnectionMethod)
 			if info.ClusterConnectionConfig.ProxyConfig != nil && info.ClusterConnectionConfig.ConnectionMethod == bean2.ServerConnectionMethodProxy {
-				clusterConfig.ClusterConnectionConfig.ProxyConfig.ProxyUrl = info.ClusterConnectionConfig.ProxyConfig.ProxyUrl
+				connectionConfig.ProxyConfig = &bean3.ProxyConfig{
+					ProxyUrl: info.ClusterConnectionConfig.ProxyConfig.ProxyUrl,
+				}
 			}
 			if info.ClusterConnectionConfig.SSHTunnelConfig != nil && info.ClusterConnectionConfig.ConnectionMethod == bean2.ServerConnectionMethodSSH {
-				clusterConfig.ClusterConnectionConfig.SSHTunnelConfig.SSHServerAddress = info.ClusterConnectionConfig.SSHTunnelConfig.SSHServerAddress
-				clusterConfig.ClusterConnectionConfig.SSHTunnelConfig.SSHUsername = info.ClusterConnectionConfig.SSHTunnelConfig.SSHUsername
-				clusterConfig.ClusterConnectionConfig.SSHTunnelConfig.SSHPassword = info.ClusterConnectionConfig.SSHTunnelConfig.SSHPassword
-				clusterConfig.ClusterConnectionConfig.SSHTunnelConfig.SSHAuthKey = info.ClusterConnectionConfig.SSHTunnelConfig.SSHAuthKey
+				connectionConfig.SSHTunnelConfig = &bean3.SSHTunnelConfig{
+					SSHServerAddress: info.ClusterConnectionConfig.SSHTunnelConfig.SSHServerAddress,
+					SSHUsername:      info.ClusterConnectionConfig.SSHTunnelConfig.SSHUsername,
+					SSHPassword:      info.ClusterConnectionConfig.SSHTunnelConfig.SSHPassword,
+					SSHAuthKey:       info.ClusterConnectionConfig.SSHTunnelConfig.SSHAuthKey,
+				}
 			}
+			clusterConfig.ClusterConnectionConfig = connectionConfig
 		}
 		impl.buildInformerAndNamespaceList(info.ClusterName, clusterConfig, &impl.mutex)
 	}

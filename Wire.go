@@ -23,6 +23,7 @@ package main
 import (
 	"github.com/devtron-labs/authenticator/middleware"
 	util4 "github.com/devtron-labs/common-lib-private/utils/k8s"
+	"github.com/devtron-labs/common-lib-private/utils/ssh"
 	cloudProviderIdentifier "github.com/devtron-labs/common-lib/cloud-provider-identifier"
 	pubsub1 "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/api/apiToken"
@@ -32,8 +33,8 @@ import (
 	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
 	appStoreDiscover "github.com/devtron-labs/devtron/api/appStore/discover"
 	appStoreValues "github.com/devtron-labs/devtron/api/appStore/values"
-	"github.com/devtron-labs/devtron/api/auth/authorisation/globalConfig"
 	"github.com/devtron-labs/devtron/api/argoApplication"
+	"github.com/devtron-labs/devtron/api/auth/authorisation/globalConfig"
 	"github.com/devtron-labs/devtron/api/auth/sso"
 	"github.com/devtron-labs/devtron/api/auth/user"
 	chartRepo "github.com/devtron-labs/devtron/api/chartRepo"
@@ -158,6 +159,8 @@ import (
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/security"
+	"github.com/devtron-labs/devtron/pkg/serverConnection"
+	repository11 "github.com/devtron-labs/devtron/pkg/serverConnection/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/timeoutWindow"
 	repository9 "github.com/devtron-labs/devtron/pkg/timeoutWindow/repository"
@@ -990,8 +993,8 @@ func InitializeApp() (*App, error) {
 		dockerRegistryRepository.NewOCIRegistryConfigRepositoryImpl,
 		wire.Bind(new(dockerRegistryRepository.OCIRegistryConfigRepository), new(*dockerRegistryRepository.OCIRegistryConfigRepositoryImpl)),
 		// end: docker registry wire set injection
-		util4.NewSSHTunnelWrapperServiceImpl,
-		wire.Bind(new(util4.SSHTunnelWrapperService), new(*util4.SSHTunnelWrapperServiceImpl)),
+		ssh.NewSSHTunnelWrapperServiceImpl,
+		wire.Bind(new(ssh.SSHTunnelWrapperService), new(*ssh.SSHTunnelWrapperServiceImpl)),
 
 		resourceQualifiers.NewQualifiersMappingRepositoryImpl,
 		wire.Bind(new(resourceQualifiers.QualifiersMappingRepository), new(*resourceQualifiers.QualifiersMappingRepositoryImpl)),
@@ -1024,6 +1027,12 @@ func InitializeApp() (*App, error) {
 
 		repository9.NewTimeWindowRepositoryImpl,
 		wire.Bind(new(repository9.TimeWindowRepository), new(*repository9.TimeWindowRepositoryImpl)),
+
+		repository11.NewServerConnectionRepositoryImpl,
+		wire.Bind(new(repository11.ServerConnectionRepository), new(*repository11.ServerConnectionRepositoryImpl)),
+
+		serverConnection.NewServerConnectionServiceImpl,
+		wire.Bind(new(serverConnection.ServerConnectionService), new(*serverConnection.ServerConnectionServiceImpl)),
 	)
 	return &App{}, nil
 }

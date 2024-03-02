@@ -6,14 +6,15 @@ package main
 import (
 	"github.com/devtron-labs/authenticator/middleware"
 	util4 "github.com/devtron-labs/common-lib-private/utils/k8s"
+	"github.com/devtron-labs/common-lib-private/utils/ssh"
 	cloudProviderIdentifier "github.com/devtron-labs/common-lib/cloud-provider-identifier"
 	"github.com/devtron-labs/devtron/api/apiToken"
 	chartProvider "github.com/devtron-labs/devtron/api/appStore/chartProvider"
 	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
 	appStoreDiscover "github.com/devtron-labs/devtron/api/appStore/discover"
 	appStoreValues "github.com/devtron-labs/devtron/api/appStore/values"
-	"github.com/devtron-labs/devtron/api/auth/authorisation/globalConfig"
 	"github.com/devtron-labs/devtron/api/argoApplication"
+	"github.com/devtron-labs/devtron/api/auth/authorisation/globalConfig"
 	"github.com/devtron-labs/devtron/api/auth/sso"
 	"github.com/devtron-labs/devtron/api/auth/user"
 	chartRepo "github.com/devtron-labs/devtron/api/chartRepo"
@@ -228,8 +229,8 @@ func InitializeApp() (*App, error) {
 		// chart group repository layer wire injection ended
 
 		// end: docker registry wire set injection
-		util4.NewSSHTunnelWrapperServiceImpl,
-		wire.Bind(new(util4.SSHTunnelWrapperService), new(*util4.SSHTunnelWrapperServiceImpl)),
+		ssh.NewSSHTunnelWrapperServiceImpl,
+		wire.Bind(new(ssh.SSHTunnelWrapperService), new(*ssh.SSHTunnelWrapperServiceImpl)),
 		cron.NewCronLoggerImpl,
 
 		timeoutWindow.NewTimeWindowServiceImpl,

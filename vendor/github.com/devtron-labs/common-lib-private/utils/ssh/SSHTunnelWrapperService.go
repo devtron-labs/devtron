@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/devtron-labs/common-lib-private/sshTunnel"
-	"github.com/devtron-labs/common-lib-private/utils/registry"
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/common-lib/utils/serverConnection/bean"
 	"go.uber.org/zap"
 	"net/url"
 	"strconv"
@@ -17,9 +17,9 @@ import (
 
 type SSHTunnelWrapperService interface {
 	StartUpdateConnectionForCluster(cluster *k8s2.ClusterConfig) (int, error)
-	StartUpdateConnectionForRegistry(registry *registry.RegistryConfig) (int, error)
+	StartUpdateConnectionForRegistry(registry *bean.RegistryConfig) (int, error)
 	GetPortUsedForACluster(clusterConfig *k8s2.ClusterConfig) (int, error)
-	GetPortUsedForARegistry(registry *registry.RegistryConfig) (int, error)
+	GetPortUsedForARegistry(registry *bean.RegistryConfig) (int, error)
 	CleanupForVerificationCluster(clusterName string)
 }
 
@@ -145,7 +145,7 @@ func (impl *SSHTunnelWrapperServiceImpl) StartUpdateConnectionForCluster(cluster
 	return portUsed, nil
 }
 
-func (impl *SSHTunnelWrapperServiceImpl) StartUpdateConnectionForRegistry(registry *registry.RegistryConfig) (int, error) {
+func (impl *SSHTunnelWrapperServiceImpl) StartUpdateConnectionForRegistry(registry *bean.RegistryConfig) (int, error) {
 	portUsed := 0
 	availablePort, err := impl.getAvailablePort()
 	if err != nil {
@@ -244,7 +244,7 @@ func (impl *SSHTunnelWrapperServiceImpl) GetPortUsedForACluster(clusterConfig *k
 	return portUsed, nil
 }
 
-func (impl *SSHTunnelWrapperServiceImpl) GetPortUsedForARegistry(registry *registry.RegistryConfig) (int, error) {
+func (impl *SSHTunnelWrapperServiceImpl) GetPortUsedForARegistry(registry *bean.RegistryConfig) (int, error) {
 	portUsed := 0
 	connectionDetail := impl.registryConnectionMap[registry.RegistryId]
 	if connectionDetail != nil {

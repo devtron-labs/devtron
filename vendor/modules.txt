@@ -399,7 +399,7 @@ github.com/devtron-labs/authenticator/jwt
 github.com/devtron-labs/authenticator/middleware
 github.com/devtron-labs/authenticator/oidc
 github.com/devtron-labs/authenticator/password
-# github.com/devtron-labs/common-lib v0.0.16-0.20240222082526-99e8131cd4e9
+# github.com/devtron-labs/common-lib v0.0.16-0.20240229094101-01ffc2e75fe6
 ## explicit; go 1.20
 github.com/devtron-labs/common-lib/blob-storage
 github.com/devtron-labs/common-lib/cloud-provider-identifier
@@ -419,13 +419,12 @@ github.com/devtron-labs/common-lib/utils/k8s/health
 github.com/devtron-labs/common-lib/utils/k8sObjectsUtil
 github.com/devtron-labs/common-lib/utils/serverConnection/bean
 github.com/devtron-labs/common-lib/utils/yaml
-# github.com/devtron-labs/common-lib-private v0.0.14-0.20240222090919-0571c404cd59
+# github.com/devtron-labs/common-lib-private v0.0.14-0.20240229094452-e2100baf079c
 ## explicit; go 1.20
 github.com/devtron-labs/common-lib-private/sshTunnel
 github.com/devtron-labs/common-lib-private/sshTunnel/bean
 github.com/devtron-labs/common-lib-private/utils
 github.com/devtron-labs/common-lib-private/utils/k8s
-github.com/devtron-labs/common-lib-private/utils/registry
 github.com/devtron-labs/common-lib-private/utils/ssh
 # github.com/devtron-labs/protos v0.0.3-0.20240130061723-7b2e12ab0abb
 ## explicit; go 1.17

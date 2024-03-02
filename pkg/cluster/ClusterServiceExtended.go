@@ -3,21 +3,22 @@ package cluster
 import (
 	"context"
 	"fmt"
+	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	"github.com/devtron-labs/common-lib-private/utils/ssh"
 	auth "github.com/devtron-labs/devtron/pkg/auth/authorisation/globalConfig"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
+	repository5 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
-	bean4 "github.com/devtron-labs/devtron/pkg/serverConnection/bean"
+	"github.com/devtron-labs/devtron/pkg/serverConnection"
+	"go.uber.org/zap"
 	"net/http"
 	"strings"
 	"time"
 
 	cluster3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/devtron-labs/common-lib-private/utils/k8s"
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
-	repository5 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/devtron-labs/devtron/pkg/k8s/informer"
 	"github.com/go-pg/pg"
 
@@ -28,7 +29,6 @@ import (
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"go.uber.org/zap"
 )
 
 // ClusterServiceImplExtended extends ClusterServiceImpl and enhances method of ClusterService with full mode specific errors
@@ -54,7 +54,8 @@ func NewClusterServiceImplExtended(repository repository.ClusterRepository, envi
 	globalAuthorisationConfigService auth.GlobalAuthorisationConfigService,
 	userService user.UserService,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
-	imageDigestPolicyService imageDigestPolicy.ImageDigestPolicyService) *ClusterServiceImplExtended {
+	imageDigestPolicyService imageDigestPolicy.ImageDigestPolicyService,
+	serverConnectionService serverConnection.ServerConnectionService) *ClusterServiceImplExtended {
 	clusterServiceExt := &ClusterServiceImplExtended{
 		environmentRepository:    environmentRepository,
 		grafanaClient:            grafanaClient,
@@ -72,6 +73,7 @@ func NewClusterServiceImplExtended(repository repository.ClusterRepository, envi
 			userRepository:                   userRepository,
 			roleGroupRepository:              roleGroupRepository,
 			globalAuthorisationConfigService: globalAuthorisationConfigService,
+			serverConnectionService:          serverConnectionService,
 			ClusterRbacServiceImpl: &ClusterRbacServiceImpl{
 				userService: userService,
 				logger:      logger,
@@ -91,7 +93,7 @@ func (impl *ClusterServiceImplExtended) updateClusterConnectionMap() {
 		return
 	}
 	for _, cluster := range clusters {
-		clusterBean := impl.GetClusterBean(*cluster)
+		clusterBean := GetClusterBean(*cluster)
 		clusterConfig := clusterBean.GetClusterConfig()
 		_, err = impl.sshTunnelWrapperService.StartUpdateConnectionForCluster(clusterConfig)
 		if err != nil {
@@ -110,17 +112,15 @@ func (impl *ClusterServiceImplExtended) FindAllWithoutConfig() ([]*ClusterBean, 
 	}
 	for _, bean := range beans {
 		bean.Config = map[string]string{k8s2.BearerToken: ""}
-		if bean.ClusterConnectionConfig != nil && bean.ClusterConnectionConfig.SSHTunnelConfig != nil {
-			sshTunnelConfig := bean.ClusterConnectionConfig.SSHTunnelConfig
-			if bean.ClusterConnectionConfig.ConnectionMethod == bean4.ServerConnectionMethodSSH {
-				if len(sshTunnelConfig.SSHPassword) > 0 {
-					sshTunnelConfig.SSHPassword = SecretDataObfuscatePlaceholder
-				}
-				if len(sshTunnelConfig.SSHAuthKey) > 0 {
-					sshTunnelConfig.SSHAuthKey = SecretDataObfuscatePlaceholder
-				}
+		if bean.SSHTunnelConfig != nil {
+			if len(bean.SSHTunnelConfig.Password) > 0 {
+				bean.SSHTunnelConfig.Password = SecretDataObfuscatePlaceholder
+			}
+			if len(bean.SSHTunnelConfig.AuthKey) > 0 {
+				bean.SSHTunnelConfig.AuthKey = SecretDataObfuscatePlaceholder
 			}
 		}
+		bean = ConvertClusterBeanToCommonClusterBean(bean)
 	}
 	return beans, nil
 }
@@ -288,8 +288,7 @@ func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *Cluste
 	}
 
 	// if git-ops configured and no proxy is configured, then only update cluster in ACD, otherwise ignore
-	if isGitOpsConfigured && bean.ClusterConnectionConfig.ConnectionMethod != bean4.ServerConnectionMethodProxy &&
-		bean.ClusterConnectionConfig.ConnectionMethod != bean4.ServerConnectionMethodSSH {
+	if isGitOpsConfigured && len(bean.ProxyUrl) == 0 && !bean.ToConnectWithSSHTunnel {
 		configMap := bean.Config
 		serverUrl := bean.ServerUrl
 		bearerToken := ""
@@ -402,8 +401,7 @@ func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *ClusterB
 	}
 
 	// if git-ops configured and no proxy or ssh tunnel is configured, then only add cluster in ACD, otherwise ignore
-	if isGitOpsConfigured && bean.ClusterConnectionConfig.ConnectionMethod != bean4.ServerConnectionMethodProxy &&
-		bean.ClusterConnectionConfig.ConnectionMethod != bean4.ServerConnectionMethodSSH {
+	if isGitOpsConfigured && len(clusterBean.ProxyUrl) == 0 && !clusterBean.ToConnectWithSSHTunnel {
 		//create it into argo cd as well
 		cl := impl.ConvertClusterBeanObjectToCluster(bean)
 

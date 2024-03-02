@@ -33,32 +33,32 @@ const (
 )
 
 type Cluster struct {
-	tableName                 struct{}          `sql:"cluster" pg:",discard_unknown_columns"`
-	Id                        int               `sql:"id,pk"`
-	ClusterName               string            `sql:"cluster_name"`
-	Description               string            `sql:"description"`
-	ServerUrl                 string            `sql:"server_url"`
-	ProxyUrl                  string            `sql:"proxy_url"`
-	ClusterConnectionConfigId int               `sql:"cluster_connection_config_id"`
-	PrometheusEndpoint        string            `sql:"prometheus_endpoint"`
-	Active                    bool              `sql:"active,notnull"`
-	CdArgoSetup               bool              `sql:"cd_argo_setup,notnull"`
-	Config                    map[string]string `sql:"config"`
-	PUserName                 string            `sql:"p_username"`
-	PPassword                 string            `sql:"p_password"`
-	PTlsClientCert            string            `sql:"p_tls_client_cert"`
-	PTlsClientKey             string            `sql:"p_tls_client_key"`
-	AgentInstallationStage    int               `sql:"agent_installation_stage"`
-	K8sVersion                string            `sql:"k8s_version"`
-	ErrorInConnecting         string            `sql:"error_in_connecting"`
-	IsVirtualCluster          bool              `sql:"is_virtual_cluster"`
-	InsecureSkipTlsVerify     bool              `sql:"insecure_skip_tls_verify"`
-	ToConnectWithSSHTunnel    bool              `sql:"to_connect_with_ssh_tunnel"`
-	SSHTunnelUser             string            `sql:"ssh_tunnel_user"`
-	SSHTunnelPassword         string            `sql:"ssh_tunnel_password"`
-	SSHTunnelAuthKey          string            `sql:"ssh_tunnel_auth_key"`
-	SSHTunnelServerAddress    string            `sql:"ssh_tunnel_server_address"`
-	ClusterConnectionConfig   *repository.ServerConnectionConfig
+	tableName                struct{}          `sql:"cluster" pg:",discard_unknown_columns"`
+	Id                       int               `sql:"id,pk"`
+	ClusterName              string            `sql:"cluster_name"`
+	Description              string            `sql:"description"`
+	ServerUrl                string            `sql:"server_url"`
+	ProxyUrl                 string            `sql:"proxy_url"`
+	ServerConnectionConfigId int               `sql:"server_connection_config_id"`
+	PrometheusEndpoint       string            `sql:"prometheus_endpoint"`
+	Active                   bool              `sql:"active,notnull"`
+	CdArgoSetup              bool              `sql:"cd_argo_setup,notnull"`
+	Config                   map[string]string `sql:"config"`
+	PUserName                string            `sql:"p_username"`
+	PPassword                string            `sql:"p_password"`
+	PTlsClientCert           string            `sql:"p_tls_client_cert"`
+	PTlsClientKey            string            `sql:"p_tls_client_key"`
+	AgentInstallationStage   int               `sql:"agent_installation_stage"`
+	K8sVersion               string            `sql:"k8s_version"`
+	ErrorInConnecting        string            `sql:"error_in_connecting"`
+	IsVirtualCluster         bool              `sql:"is_virtual_cluster"`
+	InsecureSkipTlsVerify    bool              `sql:"insecure_skip_tls_verify"`
+	ToConnectWithSSHTunnel   bool              `sql:"to_connect_with_ssh_tunnel"`
+	SSHTunnelUser            string            `sql:"ssh_tunnel_user"`
+	SSHTunnelPassword        string            `sql:"ssh_tunnel_password"`
+	SSHTunnelAuthKey         string            `sql:"ssh_tunnel_auth_key"`
+	SSHTunnelServerAddress   string            `sql:"ssh_tunnel_server_address"`
+	ServerConnectionConfig   *repository.ServerConnectionConfig
 	sql.AuditLog
 }
 
@@ -107,9 +107,9 @@ func (impl ClusterRepositoryImpl) FindOne(clusterName string) (*Cluster, error) 
 	cluster := &Cluster{}
 	err := impl.dbConnection.
 		Model(cluster).
-		Column("cluster.*", "ClusterConnectionConfig").
-		Where("cluster_name =?", clusterName).
-		Where("active =?", true).
+		Column("cluster.*", "ServerConnectionConfig").
+		Where("cluster.cluster_name =?", clusterName).
+		Where("cluster.active =?", true).
 		Limit(1).
 		Select()
 	return cluster, err
@@ -168,7 +168,6 @@ func (impl ClusterRepositoryImpl) FindById(id int) (*Cluster, error) {
 	cluster := &Cluster{}
 	err := impl.dbConnection.
 		Model(cluster).
-		Column("cluster.*", "ClusterConnectionConfig").
 		Where("id =?", id).
 		Where("active =?", true).
 		Limit(1).
@@ -226,8 +225,8 @@ func (impl ClusterRepositoryImpl) UpdateClusterConnectionStatus(clusterId int, e
 func (impl ClusterRepositoryImpl) GetAllSSHTunnelConfiguredClusters() ([]*Cluster, error) {
 	var clusters []*Cluster
 	err := impl.dbConnection.Model(&clusters).
-		Column("cluster.*", "ClusterConnectionConfig").
-		Where("active = ?", true).
+		Column("cluster.*", "ServerConnectionConfig").
+		Where("cluster.active = ?", true).
 		Where("server_connection_config.connection_method = ?", "SSH").
 		Select()
 	return clusters, err
