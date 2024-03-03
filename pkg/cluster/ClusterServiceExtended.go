@@ -70,6 +70,7 @@ func NewClusterServiceImplExtended(repository repository.ClusterRepository, envi
 			userRepository:                   userRepository,
 			roleGroupRepository:              roleGroupRepository,
 			globalAuthorisationConfigService: globalAuthorisationConfigService,
+			userService:                      userService,
 			ClusterRbacServiceImpl: &ClusterRbacServiceImpl{
 				userService: userService,
 				logger:      logger,

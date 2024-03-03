@@ -244,6 +244,7 @@ type ClusterServiceImpl struct {
 	userRepository                   repository2.UserRepository
 	roleGroupRepository              repository2.RoleGroupRepository
 	globalAuthorisationConfigService auth.GlobalAuthorisationConfigService
+	userService                      user.UserService
 	*ClusterRbacServiceImpl
 }
 
@@ -266,6 +267,7 @@ func NewClusterServiceImpl(repository repository.ClusterRepository, logger *zap.
 			userService: userService,
 		},
 		globalAuthorisationConfigService: globalAuthorisationConfigService,
+		userService:                      userService,
 	}
 	go clusterService.buildInformer()
 	return clusterService
@@ -986,7 +988,7 @@ func (impl *ClusterServiceImpl) FetchRolesFromGroup(userId int32, token string) 
 	recordedTime := time.Now()
 	var groups []string
 	if isDevtronSystemActive || util3.CheckIfAdminOrApiToken(user.EmailId) {
-		activeRoles, err := impl.ClusterRbacServiceImpl.userService.GetActiveRolesAttachedToUser(user.EmailId, recordedTime)
+		activeRoles, err := impl.userService.GetActiveRolesAttachedToUser(user.EmailId, recordedTime)
 		if err != nil {
 			impl.logger.Errorw("error encountered in FetchRolesFromGroup", "id", user.Id, "err", err)
 			return nil, err
@@ -995,7 +997,7 @@ func (impl *ClusterServiceImpl) FetchRolesFromGroup(userId int32, token string) 
 	}
 
 	if isGroupClaimsActive {
-		_, groupClaims, err := impl.ClusterRbacServiceImpl.userService.GetEmailAndGroupClaimsFromToken(token)
+		_, groupClaims, err := impl.userService.GetEmailAndGroupClaimsFromToken(token)
 		if err != nil {
 			impl.logger.Errorw("error in GetEmailAndGroupClaimsFromToken", "err", err)
 			return nil, err
