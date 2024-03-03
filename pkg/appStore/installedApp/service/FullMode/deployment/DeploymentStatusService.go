@@ -72,7 +72,7 @@ func (impl *FullModeDeploymentServiceImpl) UpdateInstalledAppAndPipelineStatusFo
 		}
 		impl.Logger.Errorw("error in triggering installed application deployment, setting status as fail ", "versionHistoryId", installAppVersionRequest.InstalledAppVersionHistoryId, "err", err)
 
-		installedAppVersionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(installAppVersionRequest.InstalledAppVersionHistoryId)
+		installedAppVersionHistory, err := impl.InstalledAppRepositoryHistory.GetInstalledAppVersionHistory(installAppVersionRequest.InstalledAppVersionHistoryId)
 		if err != nil {
 			impl.Logger.Errorw("error in getting installedAppVersionHistory by installedAppVersionHistoryId", "installedAppVersionHistoryId", installAppVersionRequest.InstalledAppVersionHistoryId, "err", err)
 			return err
@@ -81,7 +81,7 @@ func (impl *FullModeDeploymentServiceImpl) UpdateInstalledAppAndPipelineStatusFo
 		installedAppVersionHistory.FinishedOn = triggeredAt
 		installedAppVersionHistory.UpdatedOn = time.Now()
 		installedAppVersionHistory.UpdatedBy = installAppVersionRequest.UserId
-		_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(installedAppVersionHistory, nil)
+		_, err = impl.InstalledAppRepositoryHistory.UpdateInstalledAppVersionHistory(installedAppVersionHistory, nil)
 		if err != nil {
 			impl.Logger.Errorw("error updating installed app version history status", "err", err, "installedAppVersionHistory", installedAppVersionHistory)
 			return err
@@ -90,7 +90,7 @@ func (impl *FullModeDeploymentServiceImpl) UpdateInstalledAppAndPipelineStatusFo
 	} else {
 		//update [n,n-1] statuses as failed if not terminal
 		terminalStatus := []string{string(health.HealthStatusHealthy), pipelineConfig.WorkflowAborted, pipelineConfig.WorkflowFailed, pipelineConfig.WorkflowSucceeded}
-		previousNonTerminalHistory, err := impl.installedAppRepositoryHistory.FindPreviousInstalledAppVersionHistoryByStatus(installAppVersionRequest.Id, installAppVersionRequest.InstalledAppVersionHistoryId, terminalStatus)
+		previousNonTerminalHistory, err := impl.InstalledAppRepositoryHistory.FindPreviousInstalledAppVersionHistoryByStatus(installAppVersionRequest.Id, installAppVersionRequest.InstalledAppVersionHistoryId, terminalStatus)
 		if err != nil {
 			impl.Logger.Errorw("error fetching previous installed app version history, updating installed app version history status,", "err", err, "installAppVersionRequest", installAppVersionRequest)
 			return err
@@ -98,7 +98,7 @@ func (impl *FullModeDeploymentServiceImpl) UpdateInstalledAppAndPipelineStatusFo
 			impl.Logger.Errorw("no previous history found in updating installedAppVersionHistory status,", "err", err, "installAppVersionRequest", installAppVersionRequest)
 			return nil
 		}
-		dbConnection := impl.installedAppRepositoryHistory.GetConnection()
+		dbConnection := impl.InstalledAppRepositoryHistory.GetConnection()
 		tx, err := dbConnection.Begin()
 		if err != nil {
 			impl.Logger.Errorw("error on update status, txn begin failed", "err", err)
@@ -136,7 +136,7 @@ func (impl *FullModeDeploymentServiceImpl) UpdateInstalledAppAndPipelineStatusFo
 			timelines = append(timelines, timeline)
 		}
 
-		err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistoryWithTxn(previousNonTerminalHistory, tx)
+		err = impl.InstalledAppRepositoryHistory.UpdateInstalledAppVersionHistoryWithTxn(previousNonTerminalHistory, tx)
 		if err != nil {
 			impl.Logger.Errorw("error updating cd wf runner status", "err", err, "previousNonTerminalHistory", previousNonTerminalHistory)
 			return err

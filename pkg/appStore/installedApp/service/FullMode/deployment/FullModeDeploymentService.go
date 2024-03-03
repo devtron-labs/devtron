@@ -65,10 +65,10 @@ type FullModeDeploymentServiceImpl struct {
 	argoK8sClient                        argocdServer.ArgoK8sClient
 	aCDAuthConfig                        *util2.ACDAuthConfig
 	chartGroupDeploymentRepository       repository2.ChartGroupDeploymentRepository
-	installedAppRepository               repository.InstalledAppRepository
-	installedAppRepositoryHistory        repository.InstalledAppVersionHistoryRepository
+	InstalledAppRepository               repository.InstalledAppRepository
+	InstalledAppRepositoryHistory        repository.InstalledAppVersionHistoryRepository
 	argoUserService                      argo.ArgoUserService
-	appStoreDeploymentCommonService      appStoreDeploymentCommon.AppStoreDeploymentCommonService
+	AppStoreDeploymentCommonService      appStoreDeploymentCommon.AppStoreDeploymentCommonService
 	helmAppService                       client.HelmAppService
 	appStatusService                     appStatus.AppStatusService
 	pipelineStatusTimelineService        status.PipelineStatusTimelineService
@@ -109,10 +109,10 @@ func NewFullModeDeploymentServiceImpl(
 		argoK8sClient:                        argoK8sClient,
 		aCDAuthConfig:                        aCDAuthConfig,
 		chartGroupDeploymentRepository:       chartGroupDeploymentRepository,
-		installedAppRepository:               installedAppRepository,
-		installedAppRepositoryHistory:        installedAppRepositoryHistory,
+		InstalledAppRepository:               installedAppRepository,
+		InstalledAppRepositoryHistory:        installedAppRepositoryHistory,
 		argoUserService:                      argoUserService,
-		appStoreDeploymentCommonService:      appStoreDeploymentCommonService,
+		AppStoreDeploymentCommonService:      appStoreDeploymentCommonService,
 		helmAppService:                       helmAppService,
 		appStatusService:                     appStatusService,
 		pipelineStatusTimelineService:        pipelineStatusTimelineService,
@@ -205,19 +205,19 @@ func (impl *FullModeDeploymentServiceImpl) DeleteInstalledApp(ctx context.Contex
 
 func (impl *FullModeDeploymentServiceImpl) RollbackRelease(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, installedAppVersionHistoryId int32, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, bool, error) {
 	//request version id for
-	versionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(int(installedAppVersionHistoryId))
+	versionHistory, err := impl.InstalledAppRepositoryHistory.GetInstalledAppVersionHistory(int(installedAppVersionHistoryId))
 	if err != nil {
 		impl.Logger.Errorw("error", "err", err)
 		err = &util.ApiError{Code: "404", HttpStatusCode: 404, UserMessage: fmt.Sprintf("No deployment history version found for id: %d", installedAppVersionHistoryId), InternalMessage: err.Error()}
 		return installedApp, false, err
 	}
-	installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersionAny(versionHistory.InstalledAppVersionId)
+	installedAppVersion, err := impl.InstalledAppRepository.GetInstalledAppVersionAny(versionHistory.InstalledAppVersionId)
 	if err != nil {
 		impl.Logger.Errorw("error", "err", err)
 		err = &util.ApiError{Code: "404", HttpStatusCode: 404, UserMessage: fmt.Sprintf("No installed app version found for id: %d", versionHistory.InstalledAppVersionId), InternalMessage: err.Error()}
 		return installedApp, false, err
 	}
-	activeInstalledAppVersion, err := impl.installedAppRepository.GetActiveInstalledAppVersionByInstalledAppId(installedApp.InstalledAppId)
+	activeInstalledAppVersion, err := impl.InstalledAppRepository.GetActiveInstalledAppVersionByInstalledAppId(installedApp.InstalledAppId)
 	if err != nil {
 		impl.Logger.Errorw("error", "err", err)
 		return installedApp, false, err
@@ -247,7 +247,7 @@ func (impl *FullModeDeploymentServiceImpl) RollbackRelease(ctx context.Context, 
 	installedAppVersionHistory.UpdatedOn = time.Now()
 	installedAppVersionHistory.StartedOn = time.Now()
 	installedAppVersionHistory.Status = pipelineConfig.WorkflowInProgress
-	installedAppVersionHistory, err = impl.installedAppRepositoryHistory.CreateInstalledAppVersionHistory(installedAppVersionHistory, tx)
+	installedAppVersionHistory, err = impl.InstalledAppRepositoryHistory.CreateInstalledAppVersionHistory(installedAppVersionHistory, tx)
 	if err != nil {
 		impl.Logger.Errorw("error while fetching from db", "error", err)
 		return installedApp, false, err
@@ -276,7 +276,7 @@ func (impl *FullModeDeploymentServiceImpl) RollbackRelease(ctx context.Context, 
 			return installedApp, false, nil
 		}
 		activeInstalledAppVersion.Active = false
-		_, err = impl.installedAppRepository.UpdateInstalledAppVersion(activeInstalledAppVersion, nil)
+		_, err = impl.InstalledAppRepository.UpdateInstalledAppVersion(activeInstalledAppVersion, nil)
 		if err != nil {
 			impl.Logger.Errorw("error", "err", err)
 			return installedApp, false, nil
@@ -294,7 +294,7 @@ func (impl *FullModeDeploymentServiceImpl) RollbackRelease(ctx context.Context, 
 		return installedApp, false, nil
 	}
 	installedAppVersionHistory.GitHash = installedApp.GitHash
-	_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(installedAppVersionHistory, tx)
+	_, err = impl.InstalledAppRepositoryHistory.UpdateInstalledAppVersionHistory(installedAppVersionHistory, tx)
 	if err != nil {
 		impl.Logger.Errorw("error in updating installed app version history repository", "err", err)
 		return installedApp, false, err
@@ -340,7 +340,7 @@ func (impl *FullModeDeploymentServiceImpl) GetDeploymentHistory(ctx context.Cont
 	var history []*gRPC.HelmAppDeploymentDetail
 	//TODO - response setup
 
-	installedAppVersions, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppIdMeta(installedAppDto.InstalledAppId)
+	installedAppVersions, err := impl.InstalledAppRepository.GetInstalledAppVersionByInstalledAppIdMeta(installedAppDto.InstalledAppId)
 	if err != nil {
 		if err == pg.ErrNoRows {
 			return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: "400", UserMessage: "values are outdated. please fetch the latest version and try again", InternalMessage: err.Error()}
@@ -355,7 +355,7 @@ func (impl *FullModeDeploymentServiceImpl) GetDeploymentHistory(ctx context.Cont
 			impl.Logger.Errorw("error while fetching sources", "error", err)
 			//continues here, skip error in case found issue on fetching source
 		}
-		versionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistoryByVersionId(installedAppVersionModel.Id)
+		versionHistory, err := impl.InstalledAppRepositoryHistory.GetInstalledAppVersionHistoryByVersionId(installedAppVersionModel.Id)
 		if err != nil && err != pg.ErrNoRows {
 			impl.Logger.Errorw("error while fetching installed version history", "error", err)
 			return result, err
@@ -401,7 +401,7 @@ func (impl *FullModeDeploymentServiceImpl) GetDeploymentHistory(ctx context.Cont
 func (impl *FullModeDeploymentServiceImpl) GetDeploymentHistoryInfo(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, version int32) (*openapi.HelmAppDeploymentManifestDetail, error) {
 	values := &openapi.HelmAppDeploymentManifestDetail{}
 	_, span := otel.Tracer("orchestrator").Start(ctx, "installedAppRepositoryHistory.GetInstalledAppVersionHistory")
-	versionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(int(version))
+	versionHistory, err := impl.InstalledAppRepositoryHistory.GetInstalledAppVersionHistory(int(version))
 	span.End()
 	if err != nil {
 		impl.Logger.Errorw("error while fetching installed version history", "error", err)
@@ -411,8 +411,14 @@ func (impl *FullModeDeploymentServiceImpl) GetDeploymentHistoryInfo(ctx context.
 
 	envId := int32(installedApp.EnvironmentId)
 	clusterId := int32(installedApp.ClusterId)
-	appStoreApplicationVersionId, err := impl.installedAppRepositoryHistory.GetAppStoreApplicationVersionIdByInstalledAppVersionHistoryId(int(version))
+	appStoreApplicationVersionId, err := impl.InstalledAppRepositoryHistory.GetAppStoreApplicationVersionIdByInstalledAppVersionHistoryId(int(version))
 	appStoreVersionId := pointer.Int32(int32(appStoreApplicationVersionId))
+
+	// as virtual environment doesn't exist on actual cluster, we will use default cluster for running helm template command
+	if installedApp.IsVirtualEnvironment {
+		clusterId = appStoreBean.DEFAULT_CLUSTER_ID
+		installedApp.Namespace = appStoreBean.DEFAULT_NAMESPACE
+	}
 
 	manifestRequest := openapi2.TemplateChartRequest{
 		EnvironmentId:                &envId,

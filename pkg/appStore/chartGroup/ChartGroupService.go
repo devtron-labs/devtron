@@ -673,24 +673,24 @@ func createChartGroupEntryObject(installAppVersionDTO *appStoreBean.InstallAppVe
 
 func (impl *ChartGroupServiceImpl) TriggerDeploymentEvent(installAppVersions []*appStoreBean.InstallAppVersionDTO) {
 	for _, versions := range installAppVersions {
-		var installedAppDeploymentStatus appStoreBean.AppstoreDeploymentStatus
+		var status appStoreBean.AppstoreDeploymentStatus
 		payload := &appStoreBean.DeployPayload{InstalledAppVersionId: versions.InstalledAppVersionId, InstalledAppVersionHistoryId: versions.InstalledAppVersionHistoryId}
 		data, err := json.Marshal(payload)
 		if err != nil {
-			installedAppDeploymentStatus = appStoreBean.QUE_ERROR
+			status = appStoreBean.QUE_ERROR
 		} else {
 			err = impl.pubSubClient.Publish(pubsub.BULK_APPSTORE_DEPLOY_TOPIC, string(data))
 			if err != nil {
 				impl.logger.Errorw("err while publishing msg for app-store bulk deploy", "msg", data, "err", err)
-				installedAppDeploymentStatus = appStoreBean.QUE_ERROR
+				status = appStoreBean.QUE_ERROR
 			} else {
-				installedAppDeploymentStatus = appStoreBean.ENQUEUED
+				status = appStoreBean.ENQUEUED
 			}
 
 		}
 		if versions.Status == appStoreBean.DEPLOY_INIT || versions.Status == appStoreBean.QUE_ERROR || versions.Status == appStoreBean.ENQUEUED {
-			impl.logger.Debugw("status for bulk app-store deploy", "status", installedAppDeploymentStatus)
-			_, err = impl.appStoreDeploymentService.AppStoreDeployOperationStatusUpdate(payload.InstalledAppVersionId, installedAppDeploymentStatus)
+			impl.logger.Debugw("status for bulk app-store deploy", "status", status)
+			_, err = impl.appStoreDeploymentService.AppStoreDeployOperationStatusUpdate(payload.InstalledAppVersionId, status)
 			if err != nil {
 				impl.logger.Errorw("error while bulk app-store deploy status update", "err", err)
 			}

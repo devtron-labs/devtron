@@ -629,13 +629,7 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) fetchDeletedInstalledAp
 		if err != nil && util2.CheckAppReleaseNotExist(err) {
 			successfulInstalledApps = appendToDeploymentChangeStatusList(successfulInstalledApps, installedApp, "", bean.Success)
 		} else {
-			failError := appStoreBean.APP_NOT_DELETED_YET_ERROR
-			failStatus := bean.NOT_YET_DELETED
-			if util2.CheckPermissionErrorForArgoCd(err) {
-				failError = string(bean.PermissionDenied)
-				failStatus = bean.Failed
-			}
-			failedInstalledApps = appendToDeploymentChangeStatusList(failedInstalledApps, installedApp, failError, failStatus)
+			failedInstalledApps = appendToDeploymentChangeStatusList(failedInstalledApps, installedApp, appStoreBean.APP_NOT_DELETED_YET_ERROR, bean.NOT_YET_DELETED)
 		}
 	}
 
