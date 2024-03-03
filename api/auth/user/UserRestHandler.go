@@ -126,8 +126,8 @@ func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Req
 	isGroupsPresent := util2.IsGroupsPresent(userInfo.Groups)
 	if isGroupsPresent {
 		handler.logger.Errorw("validation error , createUser ", "err", err, "payload", userInfo)
-		err := &util.ApiError{Code: "406", HttpStatusCode: 406, UserMessage: "Not compatible with request", InternalMessage: "Not compatible with the request payload, as groups has been migrated to userRoleGroups"}
-		common.WriteJsonResp(w, err, nil, http.StatusNotAcceptable)
+		err := &util.ApiError{Code: "422", HttpStatusCode: 422, UserMessage: "Not compatible with request", InternalMessage: "Not compatible with the request payload, as groups has been migrated to userRoleGroups"}
+		common.WriteJsonResp(w, err, nil, http.StatusUnprocessableEntity)
 		return
 	}
 
@@ -238,8 +238,8 @@ func (handler UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Req
 	isGroupsPresent := util2.IsGroupsPresent(userInfo.Groups)
 	if isGroupsPresent {
 		handler.logger.Errorw("validation error , createUser ", "err", err, "payload", userInfo)
-		err := &util.ApiError{Code: "406", HttpStatusCode: 406, UserMessage: "Not compatible with request, please update to latest version", InternalMessage: "Not compatible with the request payload, as groups has been migrated to userRoleGroups"}
-		common.WriteJsonResp(w, err, nil, http.StatusNotAcceptable)
+		err := &util.ApiError{Code: "422", HttpStatusCode: 422, UserMessage: "Not compatible with request, please update to latest version", InternalMessage: "Not compatible with the request payload, as groups has been migrated to userRoleGroups"}
+		common.WriteJsonResp(w, err, nil, http.StatusUnprocessableEntity)
 		return
 	}
 

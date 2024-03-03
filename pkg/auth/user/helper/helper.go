@@ -27,7 +27,7 @@ func IsSystemOrAdminUserByEmail(email string) bool {
 func CheckValidationForAdminAndSystemUserId(userIds []int32) error {
 	validated := CheckIfUserDevtronManagedOnly(userIds)
 	if !validated {
-		err := &util.ApiError{Code: "406", HttpStatusCode: 406, UserMessage: "cannot update status for system or admin user"}
+		err := &util.ApiError{Code: "422", HttpStatusCode: 422, UserMessage: "cannot update status for system or admin user"}
 		return err
 	}
 	return nil
