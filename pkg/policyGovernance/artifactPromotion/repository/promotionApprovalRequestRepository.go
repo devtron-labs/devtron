@@ -36,6 +36,7 @@ func NewArtifactPromotionApprovalRequestImpl(dbConnection *pg.DB) *ArtifactPromo
 type ArtifactPromotionApprovalRequestRepository interface {
 	Create(PromotionRequest *ArtifactPromotionApprovalRequest) (*ArtifactPromotionApprovalRequest, error)
 	Update(PromotionRequest *ArtifactPromotionApprovalRequest) (*ArtifactPromotionApprovalRequest, error)
+	UpdateInBulk(tx *pg.Tx, PromotionRequest []*ArtifactPromotionApprovalRequest) error
 	FindById(id int) (*ArtifactPromotionApprovalRequest, error)
 	FindByDestinationPipelineIds(destinationPipelineId []int) ([]*ArtifactPromotionApprovalRequest, error)
 	FindPendingByDestinationPipelineId(destinationPipelineId int) ([]*ArtifactPromotionApprovalRequest, error)
@@ -175,4 +176,14 @@ func (repo *ArtifactPromotionApprovalRequestRepoImpl) MarkPromoted(tx *pg.Tx, re
 		Where("active = ?", true).
 		Update()
 	return err
+}
+
+func (repo *ArtifactPromotionApprovalRequestRepoImpl) UpdateInBulk(tx *pg.Tx, PromotionRequest []*ArtifactPromotionApprovalRequest) error {
+	for _, request := range PromotionRequest {
+		err := tx.Update(request)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

@@ -833,17 +833,13 @@ func (impl ArtifactPromotionApprovalServiceImpl) raisePromoteRequest(request *be
 		return bean.BLOCKED_BY_POLICY, string(bean.BLOCKED_BY_POLICY), nil
 	}
 
-	evaluationAudit := make(map[string]interface{})
-	evaluationAudit["result"] = evaluationResult
-	evaluationAudit["policy"] = promotionPolicy
-	evaluationAuditJsonBytes, err := json.Marshal(&evaluationAudit)
+	evaluationAuditJsonString, err := evaluationJsonString(evaluationResult, promotionPolicy)
 	if err != nil {
-		impl.logger.Errorw("error in reading policy evaluation audit ", "err", err)
 		return bean.ERRORED, err.Error(), err
 	}
 
 	// save evaluation audit
-	evaluationAuditEntry, err := impl.resourceFilterEvaluationAuditService.SaveFilterEvaluationAudit(resourceFilter.Artifact, ciArtifact.Id, pipelineId, resourceFilter.Pipeline, request.UserId, string(evaluationAuditJsonBytes), resourceFilter.ARTIFACT_PROMOTION_POLICY)
+	evaluationAuditEntry, err := impl.resourceFilterEvaluationAuditService.SaveFilterEvaluationAudit(resourceFilter.Artifact, ciArtifact.Id, pipelineId, resourceFilter.Pipeline, request.UserId, evaluationAuditJsonString, resourceFilter.ARTIFACT_PROMOTION_POLICY)
 	if err != nil {
 		impl.logger.Errorw("error in saving policy evaluation audit data", "evaluationAuditEntry", evaluationAuditEntry, "err", err)
 		return bean.ERRORED, err.Error(), err
@@ -887,6 +883,17 @@ func (impl ArtifactPromotionApprovalServiceImpl) raisePromoteRequest(request *be
 	}
 	return status, string(status), nil
 
+}
+
+func evaluationJsonString(evaluationResult bool, promotionPolicy *bean.PromotionPolicy) (string, error) {
+	evaluationAudit := make(map[string]interface{})
+	evaluationAudit["result"] = evaluationResult
+	evaluationAudit["policy"] = promotionPolicy
+	evaluationAuditJsonBytes, err := json.Marshal(&evaluationAudit)
+	if err != nil {
+		return "", err
+	}
+	return string(evaluationAuditJsonBytes), nil
 }
 
 func (impl ArtifactPromotionApprovalServiceImpl) checkIfDeployedAtSource(ciArtifactId int, pipeline *pipelineConfig.Pipeline) (bool, error) {
@@ -1077,11 +1084,84 @@ func (impl ArtifactPromotionApprovalServiceImpl) onPolicyDelete(tx *pg.Tx, polic
 
 func (impl ArtifactPromotionApprovalServiceImpl) onPolicyUpdate(tx *pg.Tx, policy *bean.PromotionPolicy) error {
 	// get all the requests whose id is policy.id
+	existingRequests, err := impl.artifactPromotionApprovalRequestRepository.FindAwaitedRequestByPolicyId(policy.Id)
+	if err != nil {
+		impl.logger.Errorw("error in fetching the awaiting artifact promotion requests using policy Id", "policyId", policy.Id, "err", err)
+		return err
+	}
+	artifactIds := make([]int, 0, len(existingRequests))
+	for _, request := range existingRequests {
+		artifactIds = append(artifactIds, request.ArtifactId)
+	}
+	if len(artifactIds) == 0 {
+		impl.logger.Debugw("no awaiting requests found for the policy", "policyId", policy.Id)
+		return nil
+	}
+
+	artifacts, err := impl.ciArtifactRepository.GetByIds(artifactIds)
+	if err != nil {
+		impl.logger.Errorw("error in fetching the artifacts by ids", "artifactIds", artifactIds, "err", err)
+		return err
+	}
+
+	artifactsMap := make(map[int]*repository2.CiArtifact)
+	for _, artifact := range artifacts {
+		artifactsMap[artifact.Id] = artifact
+	}
+
 	// get all the artifacts using request.artifactId
 	// re-evaluate the artifacts using the policy
-	err := impl.artifactPromotionApprovalRequestRepository.MarkStaleByIds(tx, nil)
+
+	requestsToBeUpdatedAsStaled, err := impl.evaluatePolicyOnRequests(policy, artifactsMap, existingRequests)
+	if err != nil {
+		return err
+	}
+
+	err = impl.artifactPromotionApprovalRequestRepository.UpdateInBulk(tx, requestsToBeUpdatedAsStaled)
 	if err != nil {
 		impl.logger.Errorw("error in marking artifact promotion requests stale", "policyId", policy.Id, "err", err)
 	}
 	return err
+}
+
+func (impl ArtifactPromotionApprovalServiceImpl) evaluatePolicyOnRequests(policy *bean.PromotionPolicy, artifactsMap map[int]*repository2.CiArtifact, existingRequests []*repository.ArtifactPromotionApprovalRequest) ([]*repository.ArtifactPromotionApprovalRequest, error) {
+	requestsToBeUpdatedAsStaled := make([]*repository.ArtifactPromotionApprovalRequest, 0, len(existingRequests))
+	for _, request := range existingRequests {
+		artifact := artifactsMap[request.ArtifactId]
+		params, err := impl.computeFilterParams(artifact)
+		// todo: need to check with product what we should do in case of error,
+		//  for now not existing the flow, instead continuing for other requests
+		if err != nil {
+			continue
+		}
+
+		evaluationResult, err := impl.resourceFilterConditionsEvaluator.EvaluateFilter(policy.Conditions, resourceFilter.ExpressionMetadata{Params: params})
+		if err != nil {
+			impl.logger.Errorw("evaluation failed with error", "policyConditions", policy.Conditions, "pipelineId", request.DestinationPipelineId, "policyConditions", policy.Conditions, "params", params, "err", err)
+			continue
+		}
+
+		// policy is blocking the request, so need to update these as staled requests
+		if !evaluationResult {
+			evaluationAuditJsonString, err := evaluationJsonString(evaluationResult, policy)
+			if err != nil {
+				continue
+			}
+
+			// save evaluation audit
+			evaluationAuditEntry, err := impl.resourceFilterEvaluationAuditService.SaveFilterEvaluationAudit(resourceFilter.Artifact, request.ArtifactId, request.DestinationPipelineId, resourceFilter.Pipeline, 1, evaluationAuditJsonString, resourceFilter.ARTIFACT_PROMOTION_POLICY)
+			if err != nil {
+				impl.logger.Errorw("error in saving policy evaluation audit data", "evaluationAuditEntry", evaluationAuditEntry, "err", err)
+				continue
+			}
+			request.UpdatedOn = time.Now()
+			request.Status = bean.STALE
+			request.PolicyEvaluationAuditId = evaluationAuditEntry.Id
+			requestsToBeUpdatedAsStaled = append(requestsToBeUpdatedAsStaled)
+		}
+
+	}
+
+	return requestsToBeUpdatedAsStaled, nil
+
 }
