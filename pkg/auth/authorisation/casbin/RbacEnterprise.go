@@ -572,16 +572,9 @@ func isPolicyActive(policyRole string, subjects []string, recordedTime time.Time
 					// checking if role matches
 					isPolicyRoleSame := role == policyRole
 					if isPolicyRoleSame || doesGroupContainsRole {
-						expression := ""
-						format := ""
-						if lenOfRoleMapping == 4 {
-							//expression details present
-							expression = roleMappingDetail[2]
-							format = roleMappingDetail[3]
-							//parse and check if expression is correct
-							if !(len(expression) > 0 && len(format) == 1) {
-								continue
-							}
+						expression, format, isExpressionValid := util2.GetExpressionAndFormatFromRoleMappingDetail(lenOfRoleMapping, roleMappingDetail)
+						if !isExpressionValid {
+							continue
 						}
 						// check by expression and format wrt to recorded time
 						isActive, err := util2.IsGroupPolicyActive(expression, format, recordedTime)
