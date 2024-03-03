@@ -20,6 +20,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/deployedApp"
 	bean6 "github.com/devtron-labs/devtron/pkg/deployment/deployedApp/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps"
+	triggerAdapter "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/adapter"
 	bean5 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
 	bean7 "github.com/devtron-labs/devtron/pkg/eventProcessor/out/bean"
@@ -757,7 +758,7 @@ func (impl *WorkflowEventProcessorImpl) extractOverrideRequestFromCDAsyncInstall
 		impl.logger.Errorw("error in fetching pipeline by pipelineId", "err", err)
 		return nil, nil, err
 	}
-	devtronApps.SetPipelineFieldsInOverrideRequest(CDAsyncInstallNatsMessage.ValuesOverrideRequest, pipeline)
+	triggerAdapter.SetPipelineFieldsInOverrideRequest(CDAsyncInstallNatsMessage.ValuesOverrideRequest, pipeline)
 	if CDAsyncInstallNatsMessage.ValuesOverrideRequest.DeploymentType == models.DEPLOYMENTTYPE_UNKNOWN {
 		CDAsyncInstallNatsMessage.ValuesOverrideRequest.DeploymentType = models.DEPLOYMENTTYPE_DEPLOY
 	}
