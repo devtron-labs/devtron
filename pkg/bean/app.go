@@ -857,8 +857,8 @@ type CiArtifactResponse struct {
 	ResourceFilters              []*resourceFilter.FilterMetaDataBean `json:"resourceFilters"`
 	TotalCount                   int                                  `json:"totalCount"`
 	CanApproverDeploy            bool                                 `json:"canApproverDeploy"`
-	DeployedOnEnvironments       []string                             `json:"deployedOnEnvironments"`
-	ImagePromotionApproverEmails []string                             `json:"imagePromotionApproverEmails"`
+	DeployedOnEnvironments       []string                             `json:"deployedOnEnvironments,omitempty"`
+	ImagePromotionApproverEmails []string                             `json:"imagePromotionApproverEmails,omitempty"`
 }
 
 type ArtifactPromotionMaterialRequest struct {
@@ -869,7 +869,7 @@ type ArtifactPromotionMaterialRequest struct {
 	PendingForCurrentUser bool
 	Limit                 int
 	Offset                int
-	ImageSearchString     string
+	ImageSearchRegex      string
 	UserId                int32
 	Token                 string
 }

@@ -126,6 +126,9 @@ func (repo *ArtifactPromotionApprovalRequestRepoImpl) FindPromotedRequestByPipel
 
 func (repo *ArtifactPromotionApprovalRequestRepoImpl) FindByPipelineIdAndArtifactIds(pipelineId int, artifactIds []int) ([]*ArtifactPromotionApprovalRequest, error) {
 	var model []*ArtifactPromotionApprovalRequest
+	if len(artifactIds) == 0 {
+		return model, nil
+	}
 	err := repo.dbConnection.Model(&model).
 		Where("destination_pipeline_id = ? ", pipelineId).
 		Where("active = ?", true).
@@ -136,7 +139,7 @@ func (repo *ArtifactPromotionApprovalRequestRepoImpl) FindByPipelineIdAndArtifac
 
 func (repo *ArtifactPromotionApprovalRequestRepoImpl) FindAwaitedRequestsByArtifactId(artifactId int) ([]*ArtifactPromotionApprovalRequest, error) {
 	models := make([]*ArtifactPromotionApprovalRequest, 0)
-	err := repo.dbConnection.Model(models).
+	err := repo.dbConnection.Model(&models).
 		Where("status = ? ", bean.AWAITING_APPROVAL).
 		Where("active = ?", true).
 		Where("artifact_id = ?", artifactId).

@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/workflow/dag"
 	"github.com/go-pg/pg"
+	"github.com/samber/lo"
 	"go.uber.org/zap"
 	"k8s.io/utils/pointer"
 	"net/http"
@@ -1008,6 +1009,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) FetchApprovalAllowedEnvList(art
 	promotionRequests, err := impl.artifactPromotionApprovalRequestRepository.FindAwaitedRequestsByArtifactId(artifactId)
 	if err != nil {
 		impl.logger.Errorw("error in finding promotion requests in awaiting state for given artifactId ")
+		return nil, err
 	}
 
 	environmentApprovalMetadata := make([]bean.EnvironmentApprovalMetadata, 0)
@@ -1016,10 +1018,9 @@ func (impl ArtifactPromotionApprovalServiceImpl) FetchApprovalAllowedEnvList(art
 		return environmentApprovalMetadata, nil
 	}
 
-	destinationPipelineIds := make([]int, 0)
-	for _, request := range promotionRequests {
-		destinationPipelineIds = append(destinationPipelineIds, request.Id)
-	}
+	destinationPipelineIds := lo.Map(promotionRequests, func(item *repository.ArtifactPromotionApprovalRequest, index int) int {
+		return item.DestinationPipelineId
+	})
 
 	pipelines, err := impl.pipelineRepository.FindAppAndEnvironmentAndProjectByPipelineIds(destinationPipelineIds)
 	if err != nil {
@@ -1063,6 +1064,8 @@ func (impl ArtifactPromotionApprovalServiceImpl) FetchApprovalAllowedEnvList(art
 			environmentMetadata.ApprovalAllowed = false
 			environmentMetadata.Reasons = append(environmentMetadata.Reasons, "user does not have image promoter access for given app and env")
 		}
+
+		environmentApprovalMetadata = append(environmentApprovalMetadata, environmentMetadata)
 	}
 	return environmentApprovalMetadata, nil
 }

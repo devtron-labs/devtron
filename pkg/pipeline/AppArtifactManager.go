@@ -1613,7 +1613,7 @@ func (impl *AppArtifactManagerImpl) FetchMaterialForArtifactPromotion(artifactPr
 		}
 
 		pipeline := cdPipeline.Pipelines[0]
-		ciArtifactsDao, totalCount, err = impl.ciArtifactRepository.FindArtifactsPendingForPromotion([]int{pipeline.Id}, artifactPromotionMaterialRequest.Limit, artifactPromotionMaterialRequest.Offset, "%"+artifactPromotionMaterialRequest.ImageSearchString+"%")
+		ciArtifactsDao, totalCount, err = impl.ciArtifactRepository.FindArtifactsPendingForPromotion([]int{pipeline.Id}, artifactPromotionMaterialRequest.Limit, artifactPromotionMaterialRequest.Offset, "%"+artifactPromotionMaterialRequest.ImageSearchRegex+"%")
 		if err != nil {
 			impl.logger.Errorw("error in finding deployed artifacts on pipeline", "pipelineId", pipeline.Id, "err", err)
 			return ciArtifactResponse, err
@@ -1659,7 +1659,7 @@ func (impl *AppArtifactManagerImpl) FetchMaterialForArtifactPromotion(artifactPr
 			return ciArtifactResponse, err
 		}
 
-		ciArtifactsDao, totalCount, err = impl.ciArtifactRepository.FindArtifactsPendingForPromotion(cdPipelineIds, artifactPromotionMaterialRequest.Limit, artifactPromotionMaterialRequest.Offset, artifactPromotionMaterialRequest.ImageSearchString)
+		ciArtifactsDao, totalCount, err = impl.ciArtifactRepository.FindArtifactsPendingForPromotion(cdPipelineIds, artifactPromotionMaterialRequest.Limit, artifactPromotionMaterialRequest.Offset, artifactPromotionMaterialRequest.ImageSearchRegex)
 		if err != nil {
 			impl.logger.Errorw("error in finding deployed artifacts on pipeline", "pipelineIds", cdPipelineIds, "err", err)
 			return ciArtifactResponse, err
@@ -1782,7 +1782,7 @@ func (impl AppArtifactManagerImpl) getArtifactDeployedOnCD(artifactPromotionMate
 	listingFilterOptions := bean.ArtifactsListFilterOptions{
 		Limit:        artifactPromotionMaterialRequest.Limit,
 		Offset:       artifactPromotionMaterialRequest.Offset,
-		SearchString: "%" + artifactPromotionMaterialRequest.ImageSearchString + "%",
+		SearchString: getImageSearchString(artifactPromotionMaterialRequest.ImageSearchRegex),
 		PipelineId:   cdPipeline.Pipelines[0].Id,
 	}
 
@@ -1808,7 +1808,7 @@ func (impl AppArtifactManagerImpl) getBuiltArtifactsByCIPipeline(artifactPromoti
 
 	listingFilterOptions := bean.ArtifactsListFilterOptions{Limit: artifactPromotionMaterialRequest.Limit,
 		Offset:       artifactPromotionMaterialRequest.Offset,
-		SearchString: "%" + artifactPromotionMaterialRequest.ImageSearchString + "%",
+		SearchString: getImageSearchString(artifactPromotionMaterialRequest.ImageSearchRegex),
 		CiPipelineId: ciPipeline.Id,
 	}
 
@@ -1833,7 +1833,7 @@ func (impl AppArtifactManagerImpl) getBuiltArtifactsByExternalCIPipeline(artifac
 
 	listingFilterOptions := bean.ArtifactsListFilterOptions{Limit: artifactPromotionMaterialRequest.Limit,
 		Offset:       artifactPromotionMaterialRequest.Offset,
-		SearchString: "%" + artifactPromotionMaterialRequest.ImageSearchString + "%",
+		SearchString: getImageSearchString(artifactPromotionMaterialRequest.ImageSearchRegex),
 		CiPipelineId: externalCIPipelineId,
 	}
 
@@ -1845,13 +1845,6 @@ func (impl AppArtifactManagerImpl) getBuiltArtifactsByExternalCIPipeline(artifac
 	return ciArtifactsDao, totalCount, nil
 }
 
-func (impl AppArtifactManagerImpl) getArtifactsPendingForPromotion(pipelineId int, artifactPromotionMaterialRequest bean2.ArtifactPromotionMaterialRequest) ([]repository.CiArtifact, int, error) {
-
-	ciArtifactsDao, totalCount, err := impl.ciArtifactRepository.FindArtifactsPendingForPromotion([]int{pipelineId}, artifactPromotionMaterialRequest.Limit, artifactPromotionMaterialRequest.Offset, "%"+artifactPromotionMaterialRequest.ImageSearchString+"%")
-	if err != nil {
-		impl.logger.Errorw("error in finding deployed artifacts on pipeline", "pipelineId", pipelineId, "err", err)
-		return ciArtifactsDao, totalCount, err
-	}
-	return ciArtifactsDao, totalCount, nil
-
+func getImageSearchString(imagePath string) string {
+	return "%" + imagePath + "%"
 }

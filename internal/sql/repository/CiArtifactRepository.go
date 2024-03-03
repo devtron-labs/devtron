@@ -955,8 +955,12 @@ func (impl CiArtifactRepositoryImpl) FindArtifactsPendingForPromotion(cdPipeline
 	var ciArtifacts []CiArtifact
 	var ciArtifactsResp []CiArtifactWithExtraData
 
+	if len(cdPipelineIds) == 0 {
+		return ciArtifacts, 0, nil
+	}
+
 	query := fmt.Sprintf("SELECT cia.*, COUNT(cia.id) OVER() AS total_count FROM ci_artifact cia "+
-		"INNER JOIN artifact_promotion_approval_request apar ON cia.id = apar.artifact_id AND apar.status = 0 AND apar.active = true"+
+		"INNER JOIN artifact_promotion_approval_request apar ON cia.id = apar.artifact_id AND apar.status = 1 AND apar.active = true"+
 		" AND apar.destination_pipeline_id IN (%s)", helper.GetCommaSepratedString(cdPipelineIds))
 
 	if imageSearchPattern != EmptyLikeRegex {

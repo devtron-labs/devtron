@@ -748,8 +748,8 @@ func (impl *CdWorkflowRepositoryImpl) FindAllSucceededWfsByCDPipelineIds(cdPipel
 
 	query := "with workflow as " +
 		"(Select cw.id as cdwId, cw.pipeline_id as pipeline_id, cw.ci_artifact_id as ci_artifact_id  from cd_workflow cw inner join cd_workflow_runner cwr on cw.id=cwr.cd_workflow_id " +
-		"where ( cw.pipeline_id in (15,16) and cwr.workflow_type='DEPLOY' and cwr.status='Succeeded'  )) " +
-		"select * from workflow where cwId in (select max(cwId) from workflow group by pipeline_id )"
+		"where ( cw.pipeline_id in (?) and cwr.workflow_type='DEPLOY' and cwr.status='Succeeded'  )) " +
+		"select * from workflow where cdwId in (select max(cdwId) from workflow group by pipeline_id )"
 
 	_, err := impl.dbConnection.Query(&cdWorkflow, query, pg.In(cdPipelineIds))
 	if err != nil {

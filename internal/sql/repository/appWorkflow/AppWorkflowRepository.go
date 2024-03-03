@@ -530,7 +530,7 @@ func (impl AppWorkflowRepositoryImpl) FindByComponentId(componentId int) ([]*App
 func (impl AppWorkflowRepositoryImpl) FindAllMappingsInCdPipelineWorkflow(cdPipelineId int) ([]*AppWorkflowMapping, error) {
 	var appWorkflowsMapping []*AppWorkflowMapping
 	_, err := impl.dbConnection.Query(
-		appWorkflowsMapping,
+		&appWorkflowsMapping,
 		"select * from app_workflow_mapping where app_workflow_id = (select app_workflow_id from app_workflow_mapping where component_id = ? and type= 'CD_PIPELINE' ) ", cdPipelineId)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching all appWorkflowMappings in workflow by cdPipelineId", "cdPipelineId", cdPipelineId)
