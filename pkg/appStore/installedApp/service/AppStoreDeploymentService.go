@@ -844,6 +844,8 @@ func (impl *AppStoreDeploymentServiceImpl) GetDeploymentHistory(ctx context.Cont
 		}
 		result.DeploymentHistory = deploymentHistory.GetDeploymentHistory()
 	}
+	updateTime := installedApp.UpdatedOn
+	timeStampTag := updateTime.Format(bean.LayoutDDMMYY_HHMM12hr)
 
 	if installedApp.InstalledAppId > 0 {
 		result.InstalledAppInfo = &bean3.InstalledAppInfo{
@@ -856,6 +858,7 @@ func (impl *AppStoreDeploymentServiceImpl) GetDeploymentHistory(ctx context.Cont
 			ClusterId:             installedApp.ClusterId,
 			EnvironmentId:         installedApp.EnvironmentId,
 			DeploymentType:        installedApp.DeploymentAppType,
+			HelmPackageName:       fmt.Sprintf("%s-%s-%s (GMT)", installedApp.AppName, installedApp.EnvironmentName, timeStampTag),
 		}
 	}
 
@@ -1075,6 +1078,12 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 
 	installedAppDeploymentAction := adapter.NewInstalledAppDeploymentAction(installedApp.DeploymentAppType)
 
+	if util.IsManifestDownload(installedApp.DeploymentAppType) {
+		updateTime := installedApp.UpdatedOn
+		timeStampTag := updateTime.Format(bean.LayoutDDMMYY_HHMM12hr)
+		installAppVersionRequest.HelmPackageName = fmt.Sprintf("%s-%s-%s (GMT)", installedApp.App.AppName, installedApp.Environment.Name, timeStampTag)
+	}
+
 	var installedAppVersion *repository.InstalledAppVersions
 
 	// mark previous versions of chart as inactive if chart or version is updated
@@ -1113,7 +1122,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 		if err != nil {
 			return nil, err
 		}
-		installedAppVersion.Id = installedAppVersion.Id
+		installAppVersionRequest.Id = installedAppVersion.Id
 	} else {
 		// TODO fix me next
 		// TODO refactoring: move this to adapter
@@ -1279,6 +1288,9 @@ func (impl *AppStoreDeploymentServiceImpl) GetInstalledAppVersion(id int, userId
 		impl.logger.Errorw("error while fetching from db", "error", err)
 		return nil, err
 	}
+	updateTime := app.InstalledApp.UpdatedOn
+	timeStampTag := updateTime.Format(bean.LayoutDDMMYY_HHMM12hr)
+	helmPackageName := fmt.Sprintf("%s-%s-%s (GMT)", app.InstalledApp.App.AppName, app.InstalledApp.Environment.Name, timeStampTag)
 	installAppVersion := &appStoreBean.InstallAppVersionDTO{
 		InstalledAppId:     app.InstalledAppId,
 		AppName:            app.InstalledApp.App.AppName,
@@ -1302,6 +1314,7 @@ func (impl *AppStoreDeploymentServiceImpl) GetInstalledAppVersion(id int, userId
 		Namespace:          app.InstalledApp.Environment.Namespace,
 		DeploymentAppType:  app.InstalledApp.DeploymentAppType,
 		Environment:        &app.InstalledApp.Environment,
+		HelmPackageName:    helmPackageName,
 		ACDAppName:         fmt.Sprintf("%s-%s", app.InstalledApp.App.AppName, app.InstalledApp.Environment.Name),
 	}
 	return installAppVersion, err
