@@ -667,6 +667,11 @@ func (impl *WorkflowEventProcessorImpl) SubscribeDevtronAsyncHelmInstallRequest(
 func (impl *WorkflowEventProcessorImpl) handleConcurrentOrInvalidRequest(overrideRequest *bean2.ValuesOverrideRequest) (toSkipProcess bool, err error) {
 	pipelineId := overrideRequest.PipelineId
 	cdWfrId := overrideRequest.WfrId
+	cdWfr, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(cdWfrId)
+	if err != nil {
+		impl.logger.Errorw("err on fetching cd workflow runner, processDevtronAsyncHelmInstallRequest", "err", err)
+		return toSkipProcess, err
+	}
 	impl.devtronAppReleaseContextMapLock.Lock()
 	defer impl.devtronAppReleaseContextMapLock.Unlock()
 	if releaseContext, ok := impl.devtronAppReleaseContextMap[pipelineId]; ok {
@@ -677,12 +682,6 @@ func (impl *WorkflowEventProcessorImpl) handleConcurrentOrInvalidRequest(overrid
 			return toSkipProcess, nil
 		} else {
 			//request in process but for other wfrId
-			//TODO, confirm if memory footprint can be hazardous due to db operations in lock
-			cdWfr, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(cdWfrId)
-			if err != nil {
-				impl.logger.Errorw("err on fetching cd workflow runner, processDevtronAsyncHelmInstallRequest", "err", err)
-				return toSkipProcess, err
-			}
 			// skip if the cdWfr.Status is already in a terminal state
 			skipCDWfrStatusList := append(pipelineConfig.WfrTerminalStatusList, pipelineConfig.WorkflowInProgress)
 			if slices.Contains(skipCDWfrStatusList, cdWfr.Status) {
