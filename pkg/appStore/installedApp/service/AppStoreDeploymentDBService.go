@@ -66,6 +66,7 @@ func (impl *AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppV
 		impl.logger.Errorw("fetching error", "err", err)
 		return nil, err
 	}
+	impl.appStoreValidator.Validate(installAppVersionRequest, environment)
 	installAppVersionRequest.Environment = environment
 	installAppVersionRequest.ACDAppName = fmt.Sprintf("%s-%s", installAppVersionRequest.AppName, installAppVersionRequest.Environment.Name)
 	installAppVersionRequest.ClusterId = environment.ClusterId

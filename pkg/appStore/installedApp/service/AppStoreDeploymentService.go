@@ -110,6 +110,8 @@ type AppStoreDeploymentServiceImpl struct {
 	deploymentTypeConfig                 *DeploymentServiceTypeConfig
 	aCDConfig                            *argocdServer.ACDConfig
 	gitOpsConfigReadService              config.GitOpsConfigReadService
+	deletePostProcessor                  DeletePostProcessor
+	appStoreValidator                    AppStoreValidator
 }
 
 func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRepository repository.InstalledAppRepository,
@@ -119,8 +121,9 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRep
 	fullModeDeploymentService deployment.FullModeDeploymentService, environmentService cluster.EnvironmentService,
 	clusterService cluster.ClusterService, helmAppService service.HelmAppService, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
 	installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository,
-	deploymentTypeConfig *DeploymentServiceTypeConfig, aCDConfig *argocdServer.ACDConfig,
-	gitOpsConfigReadService config.GitOpsConfigReadService) *AppStoreDeploymentServiceImpl {
+	deletePostProcessor DeletePostProcessor,
+	deploymentTypeConfig *DeploymentServiceTypeConfig, appStoreValidator AppStoreValidator,
+	aCDConfig *argocdServer.ACDConfig, gitOpsConfigReadService config.GitOpsConfigReadService) *AppStoreDeploymentServiceImpl {
 	return &AppStoreDeploymentServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -139,6 +142,8 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRep
 		deploymentTypeConfig:                 deploymentTypeConfig,
 		aCDConfig:                            aCDConfig,
 		gitOpsConfigReadService:              gitOpsConfigReadService,
+		deletePostProcessor:                  deletePostProcessor,
+		appStoreValidator:                    appStoreValidator,
 	}
 }
 
@@ -485,6 +490,7 @@ func (impl *AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Contex
 			return nil, err
 		}
 
+		impl.deletePostProcessor.Process(app, installAppVersionRequest)
 		// soft delete install app
 		model.Active = false
 		model.UpdatedBy = installAppVersionRequest.UserId
