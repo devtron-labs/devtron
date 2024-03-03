@@ -127,10 +127,10 @@ func (repo *ArtifactPromotionApprovalRequestRepoImpl) FindPromotedRequestByPipel
 
 func (repo *ArtifactPromotionApprovalRequestRepoImpl) FindByPipelineIdAndArtifactIds(pipelineId int, artifactIds []int) ([]*ArtifactPromotionApprovalRequest, error) {
 	var model []*ArtifactPromotionApprovalRequest
-	err := repo.dbConnection.Model(model).
+	err := repo.dbConnection.Model(&model).
 		Where("destination_pipeline_id = ? ", pipelineId).
 		Where("active = ?", true).
-		Where("artifact_id in (?) ", artifactIds).
+		Where("artifact_id in (?) ", pg.In(artifactIds)).
 		Select()
 	return model, err
 }

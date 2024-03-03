@@ -59,19 +59,9 @@ func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) err
 	// in case of pre stage manual trigger auth is already applied and for auto triggers there is no need for auth check here
 	cdWf := request.CdWf
 
-	policyViolated, err := impl.blockIfImagePromotionPolicyViolated(pipeline.AppId, pipeline.EnvironmentId, pipeline.Id, artifact.Id, triggeredBy)
-	if err != nil {
-		if policyViolated {
-			impl.logger.Errorw("blocking deployment as image promotion policy violated", "artifactId", artifact.Id, "cdPipelineId", pipeline.Id)
-			return err
-		}
-		impl.logger.Errorw("error in checking if image promotion policy violated", "artifactId", artifact.Id, "cdPipelineId", pipeline.Id, "err", err)
-		return err
-	}
-
 	var env *repository2.Environment
 	_, span := otel.Tracer("orchestrator").Start(ctx, "envRepository.FindById")
-	env, err = impl.envRepository.FindById(pipeline.EnvironmentId)
+	env, err := impl.envRepository.FindById(pipeline.EnvironmentId)
 	span.End()
 	if err != nil {
 		impl.logger.Errorw(" unable to find env ", "err", err)

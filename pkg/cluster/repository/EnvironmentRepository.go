@@ -154,8 +154,9 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindByName(name string) (*Enviro
 	environment := &Environment{}
 	err := repositoryImpl.dbConnection.
 		Model(environment).
+		Column("environment.*", "Cluster").
 		Where("environment_name = ?", name).
-		Where("active = ?", true).
+		Where("environment.active = ?", true).
 		Limit(1).
 		Select()
 	return environment, err

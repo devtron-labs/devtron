@@ -862,10 +862,8 @@ func (impl CiArtifactRepositoryImpl) FindDeployedArtifactsOnPipeline(artifactsLi
 	var ciArtifacts []CiArtifact
 	var ciArtifactsResp []CiArtifactWithExtraData
 
-	query := fmt.Sprintf(" select ci_artifact.*, count(id) over() as total_count from ci_artifact cia"+
-		" inner join cd_workflow_runner cdwr ON cia.id=cdw.ci_artifact_id"+
-		" inner join cd_workflow cdw ON cdw.id = cdwr.cd_workflow_id and cdw.pipeline_id = %v "+
-		" and cdwr.workflow_type = 'DEPLOY' and cdwr.status IN ('Healthy','Succeeded') ", artifactsListingFilterOps.PipelineId)
+	query := fmt.Sprintf(" select ci_artifact.*, count(ci_artifact.id) over() as total_count from ci_artifact where ci_artifact.id in "+
+		"( select distinct(cdw.ci_artifact_id) from cd_workflow cdw inner join cd_workflow_runner cdwr ON cdw.id = cdwr.cd_workflow_id and cdw.pipeline_id = %d  and cdwr.workflow_type = 'DEPLOY' and cdwr.status IN ('Healthy','Succeeded')  )", artifactsListingFilterOps.PipelineId)
 
 	if artifactsListingFilterOps.SearchString != EmptyLikeRegex {
 		query = query + fmt.Sprintf(" and ci_artifact.image like %s ", artifactsListingFilterOps.SearchString)
@@ -895,14 +893,14 @@ func (impl CiArtifactRepositoryImpl) FindArtifactsByCIPipelineId(artifactsListin
 	var ciArtifacts []CiArtifact
 	var ciArtifactsResp []CiArtifactWithExtraData
 
-	query := fmt.Sprintf("SELECT cia.*, COUNT(id) OVER() AS total_count FROM ci_artifact cia "+
+	query := fmt.Sprintf("SELECT cia.*, COUNT(cia.id) OVER() AS total_count FROM ci_artifact cia "+
 		"INNER JOIN ci_pipeline cp ON (cp.id=cia.pipeline_id OR (cp.id=cia.component_id AND cia.data_source='post_ci' ) ) "+
 		"WHERE cp.active=true and cp.id = %v ORDER BY cia.id DESC", artifactsListingFilterOps.CiPipelineId)
 
 	if artifactsListingFilterOps.SearchString != EmptyLikeRegex {
 		query = query + fmt.Sprintf(" and ci_artifact.image like %s ", artifactsListingFilterOps.SearchString)
 	}
-	limitOffSetQuery := fmt.Sprintf(" order by ci_artifact.id desc LIMIT %v OFFSET %v", artifactsListingFilterOps.Limit, artifactsListingFilterOps.Offset)
+	limitOffSetQuery := fmt.Sprintf(" LIMIT %v OFFSET %v", artifactsListingFilterOps.Limit, artifactsListingFilterOps.Offset)
 	query = query + limitOffSetQuery
 
 	_, err := impl.dbConnection.Query(&ciArtifactsResp, query)
@@ -957,14 +955,14 @@ func (impl CiArtifactRepositoryImpl) FindArtifactsPendingForPromotion(cdPipeline
 	var ciArtifacts []CiArtifact
 	var ciArtifactsResp []CiArtifactWithExtraData
 
-	query := fmt.Sprintf("SELECT cia.*, COUNT(id) OVER() AS total_count FROM ci_artifact cia "+
-		"INNER JOIN artifact_promotion_approval_request apar ON cia.id = apar.artifact_id AND apar.status != 'PROMOTED' AND apar.active = true"+
+	query := fmt.Sprintf("SELECT cia.*, COUNT(cia.id) OVER() AS total_count FROM ci_artifact cia "+
+		"INNER JOIN artifact_promotion_approval_request apar ON cia.id = apar.artifact_id AND apar.status = 0 AND apar.active = true"+
 		" AND apar.destination_pipeline_id IN (%s)", helper.GetCommaSepratedString(cdPipelineIds))
 
 	if imageSearchPattern != EmptyLikeRegex {
-		query = query + fmt.Sprintf(" and ci_artifact.image like %s ", imageSearchPattern)
+		query = query + fmt.Sprintf(" and cia.image like %s ", imageSearchPattern)
 	}
-	limitOffSetQuery := fmt.Sprintf(" order by ci_artifact.id desc LIMIT %v OFFSET %v", limit, offset)
+	limitOffSetQuery := fmt.Sprintf(" order by cia.id desc LIMIT %v OFFSET %v", limit, offset)
 	query = query + limitOffSetQuery
 
 	_, err := impl.dbConnection.Query(&ciArtifactsResp, query)

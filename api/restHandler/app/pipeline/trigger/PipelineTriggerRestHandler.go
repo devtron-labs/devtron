@@ -20,6 +20,7 @@ package trigger
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/deployment/deployedApp"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/deployedApp/bean"
@@ -150,6 +151,19 @@ func (handler PipelineTriggerRestHandlerImpl) OverrideConfig(w http.ResponseWrit
 	triggerContext := bean3.TriggerContext{
 		Context: ctx,
 	}
+
+	policyViolated, err := handler.cdTriggerService.BlockIfImagePromotionPolicyViolated(overrideRequest.AppId, overrideRequest.PipelineId, overrideRequest.CiArtifactId, userId)
+	if err != nil {
+		if policyViolated {
+			handler.logger.Errorw("blocking deployment as image promotion policy violated", "artifactId", overrideRequest.CiArtifactId, "cdPipelineId", overrideRequest.PipelineId)
+			common.WriteJsonResp(w, errors.New("blocking deployment as image promotion policy violated"), nil, http.StatusBadRequest)
+			return
+		}
+		handler.logger.Errorw("error in checking if image promotion policy violated", "artifactId", overrideRequest.CiArtifactId, "cdPipelineId", overrideRequest.PipelineId, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
 	mergeResp, helmPackageName, err := handler.cdTriggerService.ManualCdTrigger(triggerContext, &overrideRequest)
 	span.End()
 	if err != nil {

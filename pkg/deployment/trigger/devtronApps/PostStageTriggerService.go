@@ -70,15 +70,7 @@ func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) er
 			return err
 		}
 	}
-	policyViolated, err := impl.blockIfImagePromotionPolicyViolated(pipeline.AppId, pipeline.EnvironmentId, pipeline.Id, cdWf.CiArtifact.Id, triggeredBy)
-	if err != nil {
-		if policyViolated {
-			impl.logger.Errorw("blocking deployment as image promotion policy violated", "artifactId", cdWf.CiArtifact.Id, "cdPipelineId", pipeline.Id)
-			return err
-		}
-		impl.logger.Errorw("error in checking if image promotion policy violated", "artifactId", cdWf.CiArtifact.Id, "cdPipelineId", pipeline.Id, "err", err)
-		return err
-	}
+
 	// Migration of deprecated DataSource Type
 	if cdWf.CiArtifact.IsMigrationRequired() {
 		migrationErr := impl.ciArtifactRepository.MigrateToWebHookDataSourceType(cdWf.CiArtifact.Id)
