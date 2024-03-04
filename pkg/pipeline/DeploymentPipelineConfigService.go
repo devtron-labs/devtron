@@ -28,6 +28,7 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
+	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -159,6 +160,7 @@ type CdPipelineConfigServiceImpl struct {
 	gitOpsConfigReadService          config.GitOpsConfigReadService
 	gitOperationService              git.GitOperationService
 	imageDigestPolicyService         imageDigestPolicy.ImageDigestPolicyService
+	deploymentWindowService          deploymentWindow.DeploymentWindowService
 }
 
 func NewCdPipelineConfigServiceImpl(
@@ -197,7 +199,9 @@ func NewCdPipelineConfigServiceImpl(
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
 	gitOperationService git.GitOperationService,
-	imageDigestPolicyService imageDigestPolicy.ImageDigestPolicyService) *CdPipelineConfigServiceImpl {
+	imageDigestPolicyService imageDigestPolicy.ImageDigestPolicyService,
+	deploymentWindowService deploymentWindow.DeploymentWindowService,
+) *CdPipelineConfigServiceImpl {
 	return &CdPipelineConfigServiceImpl{
 		logger:                           logger,
 		pipelineRepository:               pipelineRepository,
@@ -235,6 +239,7 @@ func NewCdPipelineConfigServiceImpl(
 		gitOpsConfigReadService:          gitOpsConfigReadService,
 		gitOperationService:              gitOperationService,
 		imageDigestPolicyService:         imageDigestPolicyService,
+		deploymentWindowService:          deploymentWindowService,
 	}
 }
 
@@ -698,7 +703,21 @@ func (impl *CdPipelineConfigServiceImpl) hasLinkedCDWorkflowMappings(cdPipelineI
 	return len(linkedPipelines) != 0, nil
 }
 
+func (impl *CdPipelineConfigServiceImpl) checkForDeploymentWindow(pipeline *pipelineConfig.Pipeline, userId int32) error {
+	_, actionState, err := impl.deploymentWindowService.GetActiveProfileForAppEnv(time.Now(), pipeline.AppId, pipeline.EnvironmentId, userId)
+	if err != nil || !actionState.IsActionAllowed() {
+		return fmt.Errorf("action not allowed %v", err)
+	}
+	return nil
+}
+
 func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConfig.Pipeline, ctx context.Context, deleteAction int, deleteFromAcd bool, userId int32) (*bean.AppDeleteResponseDTO, error) {
+
+	err := impl.checkForDeploymentWindow(pipeline, userId)
+	if err != nil {
+		return nil, err
+	}
+
 	cascadeDelete := true
 	forceDelete := false
 	deleteResponse := &bean.AppDeleteResponseDTO{

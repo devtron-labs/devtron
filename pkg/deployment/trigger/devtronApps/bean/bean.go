@@ -28,6 +28,7 @@ type TriggerRequest struct {
 	ApplyAuth             bool
 	TriggeredBy           int32
 	RefCdWorkflowRunnerId int
+	TriggerMessage        string
 	TriggerContext
 }
 

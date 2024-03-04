@@ -26,12 +26,17 @@ import (
 func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) error {
 	// setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
 	triggeredAt := time.Now()
+
+	request, err := impl.checkForDeploymentWindow(request)
+	if err != nil {
+		return err
+	}
+
 	triggeredBy := request.TriggeredBy
 	pipeline := request.Pipeline
 	cdWf := request.CdWf
 
 	var env *repository2.Environment
-	var err error
 	env, err = impl.envRepository.FindById(pipeline.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw(" unable to find env ", "err", err)

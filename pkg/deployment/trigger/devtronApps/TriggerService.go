@@ -15,6 +15,7 @@ import (
 	bean7 "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	client "github.com/devtron-labs/devtron/client/events"
 	gitSensorClient "github.com/devtron-labs/devtron/client/gitSensor"
+	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/models"
@@ -148,6 +149,7 @@ type TriggerServiceImpl struct {
 	ciPipelineRepository          pipelineConfig.CiPipelineRepository
 	appWorkflowRepository         appWorkflow.AppWorkflowRepository
 	dockerArtifactStoreRepository repository6.DockerArtifactStoreRepository
+	deploymentWindowService       deploymentWindow.DeploymentWindowService
 }
 
 func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd.CdWorkflowCommonService,
@@ -202,7 +204,9 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 	appLabelRepository pipelineConfig.AppLabelRepository,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
-	dockerArtifactStoreRepository repository6.DockerArtifactStoreRepository) (*TriggerServiceImpl, error) {
+	dockerArtifactStoreRepository repository6.DockerArtifactStoreRepository,
+	deploymentWindowService deploymentWindow.DeploymentWindowService,
+) (*TriggerServiceImpl, error) {
 	impl := &TriggerServiceImpl{
 		logger:                              logger,
 		cdWorkflowCommonService:             cdWorkflowCommonService,
@@ -258,6 +262,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 		ciPipelineRepository:                ciPipelineRepository,
 		appWorkflowRepository:               appWorkflowRepository,
 		dockerArtifactStoreRepository:       dockerArtifactStoreRepository,
+		deploymentWindowService:             deploymentWindowService,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -297,14 +302,37 @@ func (impl *TriggerServiceImpl) TriggerStageForBulk(triggerRequest bean.TriggerR
 	}
 }
 
+func (impl *TriggerServiceImpl) checkForDeploymentWindowForOverrideRequest(overrideRequest *bean3.ValuesOverrideRequest) (*bean3.ValuesOverrideRequest, error) {
+	deploymentWindowProfile, actionState, err := impl.deploymentWindowService.GetActiveProfileForAppEnv(time.Now(), overrideRequest.AppId, overrideRequest.EnvId, overrideRequest.UserId)
+	if err != nil || !actionState.IsActionAllowed() {
+		return overrideRequest, fmt.Errorf("deployment not allowed %v", err)
+	}
+	overrideRequest.TriggerMessage = actionState.GetBypassActionMessageForProfileAndState(deploymentWindowProfile)
+	return overrideRequest, nil
+}
+
+func (impl *TriggerServiceImpl) checkForDeploymentWindow(triggerRequest bean.TriggerRequest) (bean.TriggerRequest, error) {
+	deploymentWindowProfile, actionState, err := impl.deploymentWindowService.GetActiveProfileForAppEnv(time.Now(), triggerRequest.Pipeline.AppId, triggerRequest.Pipeline.EnvironmentId, triggerRequest.TriggeredBy)
+	if err != nil || !actionState.IsActionAllowed() {
+		return triggerRequest, fmt.Errorf("deployment not allowed %v", err)
+	}
+	triggerRequest.TriggerMessage = actionState.GetBypassActionMessageForProfileAndState(deploymentWindowProfile)
+	return triggerRequest, nil
+}
+
 // TODO: write a wrapper to handle auto and manual trigger
 func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerContext, overrideRequest *bean3.ValuesOverrideRequest) (int, string, error) {
 	// setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
 	triggeredAt := time.Now()
+
+	overrideRequest, err := impl.checkForDeploymentWindowForOverrideRequest(overrideRequest)
+	if err != nil {
+		return 0, "", err
+	}
+
 	releaseId := 0
 	ctx := triggerContext.Context
 	var manifest []byte
-	var err error
 	_, span := otel.Tracer("orchestrator").Start(ctx, "pipelineRepository.FindById")
 	cdPipeline, err := impl.pipelineRepository.FindById(overrideRequest.PipelineId)
 	span.End()
@@ -602,6 +630,12 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 
 // TODO: write a wrapper to handle auto and manual trigger
 func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerRequest) error {
+
+	request, err := impl.checkForDeploymentWindow(request)
+	if err != nil {
+		return err
+	}
+
 	// in case of manual trigger auth is already applied and for auto triggers there is no need for auth check here
 	triggeredBy := request.TriggeredBy
 	pipeline := request.Pipeline

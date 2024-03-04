@@ -50,8 +50,15 @@ const (
 )
 
 func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) error {
+
 	// setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
 	triggeredAt := time.Now()
+
+	request, err := impl.checkForDeploymentWindow(request)
+	if err != nil {
+		return err
+	}
+
 	triggeredBy := request.TriggeredBy
 	artifact := request.Artifact
 	pipeline := request.Pipeline
@@ -60,7 +67,6 @@ func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) err
 	cdWf := request.CdWf
 
 	var env *repository2.Environment
-	var err error
 	_, span := otel.Tracer("orchestrator").Start(ctx, "envRepository.FindById")
 	env, err = impl.envRepository.FindById(pipeline.EnvironmentId)
 	span.End()
