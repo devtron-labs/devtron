@@ -128,7 +128,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) GetAppAndEnvsMapByWorkflowId(wo
 	}
 
 	sourceType := sourcePipelineMapping.Type
-	sourceId := sourcePipelineMapping.Id
+	sourceId := sourcePipelineMapping.ComponentId
 	var sourceName string
 	if sourceType == appWorkflow.CIPIPELINE {
 		ciPipeline, err := impl.ciPipelineRepository.FindById(sourceId)
