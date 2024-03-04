@@ -510,7 +510,7 @@ func (workflowRequest *WorkflowRequest) updateVolumeMountsForCi(config *CiCdConf
 	if err != nil {
 		return err
 	}
-	workflowTemplate.Volumes = volume
+	workflowTemplate.Volumes = append(workflowTemplate.Volumes, volume...)
 	workflowMainContainer.VolumeMounts = volumeMounts
 	return nil
 }

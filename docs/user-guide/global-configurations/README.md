@@ -20,17 +20,23 @@ Before you start creating an application, we recommend to provide basic informat
 
 [Custom Charts](custom-charts.md)
 
-[SSO Login Services](sso-login.md)
-
-[Authorization](authorization.md)
+[Authorization](authorization/README.md)
 
 [Notifications](manage-notification.md)
 
 [External Links](external-links.md)
 
+[Catalog Framework](catalog-framework.md)
+
 [Scoped Variables](scoped-variables.md)
 
+[Pull Image Digest](pull-image-digest.md)
+
 [Tags Policy](tags-policy.md)
+
+[Filter Condition](filter-condition.md)
+
+[Build Infra](build-infra.md)
 
 You can also refer our YouTube video provided here.
 

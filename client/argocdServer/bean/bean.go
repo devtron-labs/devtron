@@ -7,7 +7,19 @@ import (
 	"time"
 )
 
-const RefreshTypeNormal = "normal"
+const (
+	RefreshTypeNormal    = "normal"
+	TargetRevisionMaster = "master"
+	PatchTypeMerge       = "merge"
+)
+
+type ArgoCdAppPatchReqDto struct {
+	ArgoAppName    string
+	ChartLocation  string
+	GitRepoUrl     string
+	TargetRevision string
+	PatchType      string
+}
 
 const (
 	Degraded    = "Degraded"
@@ -34,6 +46,7 @@ type ResourceTreeResponse struct {
 	RevisionHash             string                          `json:"revisionHash"`
 	PodMetadata              []*PodMetadata                  `json:"podMetadata"`
 	Conditions               []v1alpha1.ApplicationCondition `json:"conditions"`
+	ResourcesSyncResultMap   map[string]string               `json:"resourcesSyncResult"`
 }
 
 type PodMetadata struct {

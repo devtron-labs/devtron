@@ -1,8 +1,10 @@
 package argoApplication
 
 import (
+	"errors"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/argoApplication"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"go.uber.org/zap"
 	"net/http"
 	"strconv"
@@ -17,18 +19,26 @@ type ArgoApplicationRestHandler interface {
 type ArgoApplicationRestHandlerImpl struct {
 	argoApplicationService argoApplication.ArgoApplicationService
 	logger                 *zap.SugaredLogger
+	enforcer               casbin.Enforcer
 }
 
 func NewArgoApplicationRestHandlerImpl(argoApplicationService argoApplication.ArgoApplicationService,
-	logger *zap.SugaredLogger) *ArgoApplicationRestHandlerImpl {
+	logger *zap.SugaredLogger, enforcer casbin.Enforcer) *ArgoApplicationRestHandlerImpl {
 	return &ArgoApplicationRestHandlerImpl{
 		argoApplicationService: argoApplicationService,
 		logger:                 logger,
+		enforcer:               enforcer,
 	}
 
 }
 
 func (handler *ArgoApplicationRestHandlerImpl) ListApplications(w http.ResponseWriter, r *http.Request) {
+	// handle super-admin RBAC
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
 	v := r.URL.Query()
 	clusterIdString := v.Get("clusterIds")
 	var clusterIds []int
@@ -54,6 +64,12 @@ func (handler *ArgoApplicationRestHandlerImpl) ListApplications(w http.ResponseW
 }
 
 func (handler *ArgoApplicationRestHandlerImpl) GetApplicationDetail(w http.ResponseWriter, r *http.Request) {
+	// handle super-admin RBAC
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
 	var err error
 	v := r.URL.Query()
 	resourceName := v.Get("name")
