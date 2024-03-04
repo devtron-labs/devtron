@@ -32,6 +32,12 @@ import (
 	"time"
 )
 
+type PipelinesMetaData struct {
+	PipelineIds            []int
+	PipelineIdVsEnvNameMap map[int]string
+	PipelineIdToDaoMap     map[int]*pipelineConfig.Pipeline
+}
+
 type ArtifactPromotionApprovalService interface {
 	HandleArtifactPromotionRequest(request *bean.ArtifactPromotionRequest, authorizedEnvironments map[string]bool) ([]bean.EnvironmentResponse, error)
 	GetByPromotionRequestId(artifactPromotionApprovalRequest *repository.ArtifactPromotionApprovalRequest) (*bean.ArtifactPromotionApprovalResponse, error)
@@ -488,32 +494,10 @@ func (impl ArtifactPromotionApprovalServiceImpl) approveArtifactPromotion(reques
 	}
 
 	if len(promotableRequestIds) > 0 {
-
-		promotedCiArtifactIds := make([]int, 0)
-		for _, id := range promotableRequestIds {
-			promotableRequest := promotionRequestIdToDaoMap[id]
-			promotedCiArtifactIds = append(promotedCiArtifactIds, promotableRequest.ArtifactId)
-		}
-
-		ciArtifact, err := impl.ciArtifactRepository.Get(request.ArtifactId)
+		err = impl.handleArtifactPromotionSuccess(promotableRequestIds, promotionRequestIdToDaoMap, pipelineIdToDaoMap)
 		if err != nil {
-			impl.logger.Errorw("error in fetching promoted ci artifact by artifact id", "artifactId", request.ArtifactId, "err", err)
+			impl.logger.Errorw("error in handling the successful artifact promotion event for promotedRequests", "promotableRequestIds", promotableRequestIds, "err", err)
 			return nil, err
-		}
-
-		for _, id := range promotableRequestIds {
-			promotableRequest := promotionRequestIdToDaoMap[id]
-			pipelineDao := pipelineIdToDaoMap[promotableRequest.DestinationPipelineId]
-			triggerRequest := bean2.TriggerRequest{
-				CdWf:        nil,
-				Pipeline:    pipelineDao,
-				Artifact:    ciArtifact,
-				TriggeredBy: 1,
-				TriggerContext: bean2.TriggerContext{
-					Context: context.Background(),
-				},
-			}
-			impl.workflowDagExecutor.HandleArtifactPromotionEvent(triggerRequest)
 		}
 	}
 
@@ -524,6 +508,40 @@ func (impl ArtifactPromotionApprovalServiceImpl) approveArtifactPromotion(reques
 	}
 
 	return nil, nil
+}
+
+func (impl ArtifactPromotionApprovalServiceImpl) handleArtifactPromotionSuccess(promotableRequestIds []int, promotionRequestIdToDaoMap map[int]*repository.ArtifactPromotionApprovalRequest, pipelineIdToDaoMap map[int]*pipelineConfig.Pipeline) error {
+	promotedCiArtifactIds := make([]int, 0)
+	for _, id := range promotableRequestIds {
+		promotableRequest := promotionRequestIdToDaoMap[id]
+		promotedCiArtifactIds = append(promotedCiArtifactIds, promotableRequest.ArtifactId)
+	}
+
+	artifacts, err := impl.ciArtifactRepository.GetByIds(promotedCiArtifactIds)
+	if err != nil {
+		impl.logger.Errorw("error in fetching the artifacts by ids", "artifactIds", promotedCiArtifactIds, "err", err)
+		return err
+	}
+
+	artifactsMap := make(map[int]*repository2.CiArtifact)
+	for _, artifact := range artifacts {
+		artifactsMap[artifact.Id] = artifact
+	}
+	for _, id := range promotableRequestIds {
+		promotableRequest := promotionRequestIdToDaoMap[id]
+		pipelineDao := pipelineIdToDaoMap[promotableRequest.DestinationPipelineId]
+		triggerRequest := bean2.TriggerRequest{
+			CdWf:        nil,
+			Pipeline:    pipelineDao,
+			Artifact:    artifactsMap[promotableRequest.ArtifactId],
+			TriggeredBy: 1,
+			TriggerContext: bean2.TriggerContext{
+				Context: context.Background(),
+			},
+		}
+		impl.workflowDagExecutor.HandleArtifactPromotionEvent(triggerRequest)
+	}
+	return nil
 }
 
 func (impl ArtifactPromotionApprovalServiceImpl) HandleArtifactPromotionRequest(request *bean.ArtifactPromotionRequest, authorizedEnvironments map[string]bool) ([]bean.EnvironmentResponse, error) {
@@ -607,6 +625,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) validateSourceAndFetchAppWorkfl
 			}
 			return nil, err
 		}
+		request.SourcePipelineId = pipeline.Id
 	}
 
 	if request.WorkflowId != appWorkflowMapping.AppWorkflowId {
@@ -705,16 +724,15 @@ func (impl ArtifactPromotionApprovalServiceImpl) promoteArtifact(request *bean.A
 	pipelineIdVsEnvNameMap := make(map[int]string)
 	pipelineIds := make([]int, 0, len(pipelines))
 	pipelineIdToDaoMap := make(map[int]*pipelineConfig.Pipeline)
-	for _, pipeline := range pipelines {
-		pipelineIds = append(pipelineIds, pipeline.Id)
-		pipelineIdVsEnvNameMap[pipeline.Id] = request.EnvIdNameMap[pipeline.EnvironmentId]
-		EnvResponse := response[pipelineIdVsEnvNameMap[pipeline.Id]]
+	for _, cdPipeline := range pipelines {
+		pipelineIds = append(pipelineIds, cdPipeline.Id)
+		pipelineIdVsEnvNameMap[cdPipeline.Id] = request.EnvIdNameMap[cdPipeline.EnvironmentId]
+		EnvResponse := response[pipelineIdVsEnvNameMap[cdPipeline.Id]]
 		EnvResponse.PromotionValidationState = bean.EMPTY
-		response[pipelineIdVsEnvNameMap[pipeline.Id]] = EnvResponse
-		pipelineIdToDaoMap[pipeline.Id] = pipeline
+		response[pipelineIdVsEnvNameMap[cdPipeline.Id]] = EnvResponse
+		pipelineIdToDaoMap[cdPipeline.Id] = cdPipeline
 	}
 
-	sourcePipelineId := 0
 	allAppWorkflowMappings, err := impl.appWorkflowRepository.FindWFAllMappingByWorkflowId(workflow.Id)
 	if err != nil {
 		impl.logger.Errorw("error in finding the app workflow mappings", "err", err)
@@ -722,50 +740,14 @@ func (impl ArtifactPromotionApprovalServiceImpl) promoteArtifact(request *bean.A
 	}
 	// for sourceType CI/Webhook, we don't have to validate as this will be the root node of the DAG.
 	if request.SourceType == bean.SOURCE_TYPE_CD {
-		tree := make(map[int][]int)
-		for _, appWorkflowMapping := range allAppWorkflowMappings {
-			if appWorkflowMapping.Type == appWorkflow.CDPIPELINE {
-				envName, ok := pipelineIdVsEnvNameMap[appWorkflowMapping.ComponentId]
-				if ok && envName == request.SourceName {
-					// setting sourcePipelineId here
-					sourcePipelineId = appWorkflowMapping.ComponentId
-				}
-			}
-
-			// create the tree from the DAG excluding the ci source
-			if appWorkflowMapping.Type == appWorkflow.CDPIPELINE && appWorkflowMapping.ParentType == appWorkflow.CDPIPELINE {
-				tree[appWorkflowMapping.ParentId] = append(tree[appWorkflowMapping.ParentId], appWorkflowMapping.ComponentId)
-			}
+		pipelineMetaData := PipelinesMetaData{
+			PipelineIds:            pipelineIds,
+			PipelineIdVsEnvNameMap: pipelineIdVsEnvNameMap,
+			PipelineIdToDaoMap:     pipelineIdToDaoMap,
 		}
-
-		// if sourcePipelineId is 0, then the source pipeline given by user is not found in the workflow.
-		if sourcePipelineId == 0 {
-			return nil, &util.ApiError{
-				HttpStatusCode:  http.StatusBadRequest,
-				InternalMessage: fmt.Sprintf("no pipeline found against given source environment %s", request.SourceName),
-				UserMessage:     fmt.Sprintf("no pipeline found against given source environment %s", request.SourceName),
-			}
-		}
-
-		deployed, err := impl.checkIfDeployedAtSource(ciArtifact.Id, pipelineIdToDaoMap[sourcePipelineId])
+		response, err = impl.validatePromoteRequestForSourceCD(request, allAppWorkflowMappings, ciArtifact, pipelineMetaData, response)
 		if err != nil {
-			impl.logger.Errorw("error in checking if artifact is available for promotion at source pipeline", "ciArtifactId", ciArtifact.Id, "sourcePipelineId", sourcePipelineId, "err", err)
 			return nil, err
-		}
-
-		if !deployed {
-			return nil, &util.ApiError{
-				HttpStatusCode:  http.StatusConflict,
-				InternalMessage: fmt.Sprintf("artifact is not deployed on the source environment %s", request.SourceName),
-				UserMessage:     fmt.Sprintf("artifact is not deployed on the source environment %s", request.SourceName),
-			}
-		}
-
-		for _, pipelineId := range pipelineIds {
-			if !util.IsAncestor(tree, sourcePipelineId, pipelineId) {
-				EnvResponse := response[pipelineIdVsEnvNameMap[pipelineId]]
-				EnvResponse.PromotionValidationState = bean.SOURCE_AND_DESTINATION_PIPELINE_MISMATCH
-			}
 		}
 	}
 
@@ -774,6 +756,11 @@ func (impl ArtifactPromotionApprovalServiceImpl) promoteArtifact(request *bean.A
 		impl.logger.Errorw("error in getting policies for some environments in an app", "appName", request.AppName, "envNames", allowedEnvNames, "err", err)
 		return nil, err
 	}
+	envResponses := impl.raisePromoteRequestHelper(request, pipelineIds, response, pipelineIdVsEnvNameMap, policiesMap, ciArtifact, pipelineIdToDaoMap)
+	return envResponses, nil
+}
+
+func (impl ArtifactPromotionApprovalServiceImpl) raisePromoteRequestHelper(request *bean.ArtifactPromotionRequest, pipelineIds []int, response map[string]bean.EnvironmentResponse, pipelineIdVsEnvNameMap map[int]string, policiesMap map[string]*bean.PromotionPolicy, ciArtifact *repository2.CiArtifact, pipelineIdToDaoMap map[int]*pipelineConfig.Pipeline) []bean.EnvironmentResponse {
 	for _, pipelineId := range pipelineIds {
 
 		EnvResponse := response[pipelineIdVsEnvNameMap[pipelineId]]
@@ -799,7 +786,50 @@ func (impl ArtifactPromotionApprovalServiceImpl) promoteArtifact(request *bean.A
 	for _, resp := range response {
 		envResponses = append(envResponses, resp)
 	}
-	return envResponses, nil
+	return envResponses
+}
+
+func (impl ArtifactPromotionApprovalServiceImpl) validatePromoteRequestForSourceCD(request *bean.ArtifactPromotionRequest, allAppWorkflowMappings []*appWorkflow.AppWorkflowMapping, ciArtifact *repository2.CiArtifact, pipelineMetaData PipelinesMetaData, response map[string]bean.EnvironmentResponse) (map[string]bean.EnvironmentResponse, error) {
+	tree := make(map[int][]int)
+	for _, appWorkflowMapping := range allAppWorkflowMappings {
+		// create the tree from the DAG excluding the ci source
+		if appWorkflowMapping.Type == appWorkflow.CDPIPELINE && appWorkflowMapping.ParentType == appWorkflow.CDPIPELINE {
+			tree[appWorkflowMapping.ParentId] = append(tree[appWorkflowMapping.ParentId], appWorkflowMapping.ComponentId)
+		}
+	}
+
+	// if sourcePipelineId is 0, then the source pipeline given by user is not found in the workflow.
+	if request.SourcePipelineId == 0 {
+		return nil, &util.ApiError{
+			HttpStatusCode:  http.StatusBadRequest,
+			InternalMessage: fmt.Sprintf("no pipeline found against given source environment %s", request.SourceName),
+			UserMessage:     fmt.Sprintf("no pipeline found against given source environment %s", request.SourceName),
+		}
+	}
+
+	sourcePipeline := pipelineMetaData.PipelineIdToDaoMap[request.SourcePipelineId]
+	deployed, err := impl.checkIfDeployedAtSource(ciArtifact.Id, sourcePipeline)
+	if err != nil {
+		impl.logger.Errorw("error in checking if artifact is available for promotion at source pipeline", "ciArtifactId", ciArtifact.Id, "sourcePipelineId", request.SourcePipelineId, "err", err)
+		return nil, err
+	}
+
+	if !deployed {
+		return nil, &util.ApiError{
+			HttpStatusCode:  http.StatusConflict,
+			InternalMessage: fmt.Sprintf("artifact is not deployed on the source environment %s", request.SourceName),
+			UserMessage:     fmt.Sprintf("artifact is not deployed on the source environment %s", request.SourceName),
+		}
+	}
+
+	for _, pipelineId := range pipelineMetaData.PipelineIds {
+		if !util.IsAncestor(tree, request.SourcePipelineId, pipelineId) {
+			envName := pipelineMetaData.PipelineIdVsEnvNameMap[pipelineId]
+			EnvResponse := response[envName]
+			EnvResponse.PromotionValidationState = bean.SOURCE_AND_DESTINATION_PIPELINE_MISMATCH
+		}
+	}
+	return response, nil
 }
 
 func (impl ArtifactPromotionApprovalServiceImpl) raisePromoteRequest(request *bean.ArtifactPromotionRequest, pipelineId int, promotionPolicy *bean.PromotionPolicy, ciArtifact *repository2.CiArtifact, cdPipeline *pipelineConfig.Pipeline) (bean.PromotionValidationState, string, error) {
