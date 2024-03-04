@@ -311,6 +311,7 @@ func (impl *ArtifactPromotionApprovalServiceImpl) evaluatePoliciesOnArtifact(ciA
 		if err != nil {
 			impl.logger.Errorw("evaluation failed with error", "policyConditions", policy.Conditions, "envName", envName, policy.Conditions, "params", params, "err", err)
 			responseMap[envName] = bean.EnvironmentResponse{
+				Name:                     envName,
 				ApprovalCount:            policy.ApprovalMetaData.ApprovalCount,
 				PromotionPossible:        pointer.Bool(false),
 				PromotionValidationState: bean.POLICY_EVALUATION_ERRORED,
@@ -318,6 +319,7 @@ func (impl *ArtifactPromotionApprovalServiceImpl) evaluatePoliciesOnArtifact(ciA
 			continue
 		}
 		envResp := bean.EnvironmentResponse{
+			Name:              envName,
 			ApprovalCount:     policy.ApprovalMetaData.ApprovalCount,
 			PromotionPossible: pointer.Bool(evaluationResult),
 		}
