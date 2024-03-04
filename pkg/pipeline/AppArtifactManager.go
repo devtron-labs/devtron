@@ -1767,7 +1767,7 @@ func (impl *AppArtifactManagerImpl) getCdPipelineIdAndWorkflowId(appId int, envi
 			UserMessage:     "invalid environmentName/appId",
 		}
 	}
-
+	cdPipelineId = cdPipeline.Pipelines[0].Id
 	appWorkflowMapping, err := impl.appWorkflowRepository.FindWFCDMappingByCDPipelineId(cdPipeline.Pipelines[0].Id)
 	if err != nil && err != pg.ErrNoRows {
 		return cdPipelineId, appWorkflowId, err
@@ -1785,8 +1785,10 @@ func (impl *AppArtifactManagerImpl) getCiPipelineIdAndWorkflowIdByCiName(ciPipel
 			UserMessage:     "invalid ci-pipeline name",
 		}
 	}
-	appWorkflows, err := impl.appWorkflowRepository.FindWFCIMappingByCIPipelineId(ciPipeline.Id)
+	ciPipelineId = ciPipeline.Id
+	appWorkflows, err := impl.appWorkflowRepository.FindWFCIMappingByCIPipelineId(ciPipelineId)
 	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching appWf by ciPipelineid", "ciPipelineId", ciPipeline.Id, "err", err)
 		return ciPipelineId, appWorkflowId, err
 	}
 	return ciPipelineId, appWorkflows[0].AppWorkflowId, nil
