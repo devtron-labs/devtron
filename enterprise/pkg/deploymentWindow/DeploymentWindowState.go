@@ -160,7 +160,10 @@ func (impl DeploymentWindowServiceImpl) getCombinedUserIds(profiles []ProfileSta
 	}
 	userSet := mapset.NewSet()
 
-	userSet.Add(profiles[0].DeploymentWindowProfile.ExcludedUsersList)
+	if len(profiles[0].DeploymentWindowProfile.ExcludedUsersList) > 0 {
+		//userSet.Add(profiles[0].DeploymentWindowProfile.ExcludedUsersList)
+		userSet = mapset.NewSet(profiles[0].DeploymentWindowProfile.ExcludedUsersList)
+	}
 
 	isSuperAdminExcluded := true
 	lo.ForEach(profiles, func(profile ProfileState, index int) {
@@ -172,12 +175,15 @@ func (impl DeploymentWindowServiceImpl) getCombinedUserIds(profiles []ProfileSta
 		if !profile.DeploymentWindowProfile.IsSuperAdminExcluded {
 			isSuperAdminExcluded = false
 		}
+		profileUserSet := mapset.NewSet()
+		if len(users) > 0 {
+			profileUserSet = mapset.NewSet(users)
+		}
 
-		profileUserSet := mapset.NewSet(users)
 		userSet = userSet.Intersect(profileUserSet)
 	})
 
-	if isSuperAdminExcluded {
+	if isSuperAdminExcluded && len(superAdmins) > 0 {
 		userSet = userSet.Union(mapset.NewSet(superAdmins))
 	}
 
