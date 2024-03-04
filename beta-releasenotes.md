@@ -1,4 +1,5 @@
 ## Bugs
+- fix: force delete option fixed on resource browser and app details page (#4646)
 - fix: 28feb packet common bug fix (#4724)
 - fix: Added argo app stream API response to resource tree API (#4715)
 - fix: wrong image scan execution result (#4691)
