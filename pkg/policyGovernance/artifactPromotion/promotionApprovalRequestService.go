@@ -578,7 +578,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) HandleArtifactPromotionRequest(
 	return nil, errors.New("unknown action")
 }
 
-func (impl ArtifactPromotionApprovalServiceImpl) validateSourceAndFetchAppWorkflow(request *bean.ArtifactPromotionRequest) (*appWorkflow.AppWorkflow, error) {
+func (impl ArtifactPromotionApprovalServiceImpl) validateAndFetchSourceWorkflow(request *bean.ArtifactPromotionRequest) (*appWorkflow.AppWorkflow, error) {
 	appWorkflowMapping := &appWorkflow.AppWorkflowMapping{}
 	var err error
 	if request.SourceType == bean.SOURCE_TYPE_CI || request.SourceType == bean.SOURCE_TYPE_WEBHOOK {
@@ -701,7 +701,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) promoteArtifact(request *bean.A
 		return nil, errorResp
 	}
 
-	workflow, err := impl.validateSourceAndFetchAppWorkflow(request)
+	workflow, err := impl.validateAndFetchSourceWorkflow(request)
 	if err != nil {
 		impl.logger.Errorw("error in validating the request", "request", request, "err", err)
 		return nil, err
