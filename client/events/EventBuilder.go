@@ -45,6 +45,7 @@ type EventFactory interface {
 	BuildExtraProtectConfigData(event Event, draftNotificationRequest ConfigDataForNotification, draftId int, DraftVersionId int) []Event
 	BuildExtraCIData(event Event, material *MaterialTriggerInfo, dockerImage string) Event
 	//BuildFinalData(event Event) *Payload
+	BuildExtraBlockedTriggerData(event Event, stage bean2.WorkflowType, timeWindowComment string, artifact *repository2.CiArtifact) Event
 }
 
 type EventSimpleFactoryImpl struct {
@@ -178,7 +179,7 @@ func (impl *EventSimpleFactoryImpl) BuildExtraCDData(event Event, wfr *pipelineC
 
 		}
 	}
-
+	payload.TimeWindowComment = wfr.TimeWindowComment
 	payload.ApprovedByEmail = emailIDs
 	if wfr != nil && wfr.WorkflowType != bean2.CD_WORKFLOW_TYPE_DEPLOY {
 		material, err := impl.getCiMaterialInfo(wfr.CdWorkflow.Pipeline.CiPipelineId, wfr.CdWorkflow.CiArtifactId)
@@ -220,17 +221,7 @@ func (impl *EventSimpleFactoryImpl) BuildExtraCDData(event Event, wfr *pipelineC
 		}
 		event.Payload = payload
 	} else if event.PipelineId > 0 {
-		pipeline, err := impl.pipelineRepository.FindById(event.PipelineId)
-		if err != nil {
-			impl.logger.Errorw("found error on payload build for cd stages, skipping this error ", "pipeline", pipeline)
-		}
-		if pipeline != nil {
-			material, err := impl.getCiMaterialInfo(pipeline.CiPipelineId, 0)
-			if err != nil {
-				impl.logger.Errorw("found error on payload build for cd stages, skipping this error ", "material", material)
-			}
-			payload.MaterialTriggerInfo = material
-		}
+		impl.setMaterialForPayload(event, payload)
 		event.Payload = payload
 	}
 
@@ -241,6 +232,41 @@ func (impl *EventSimpleFactoryImpl) BuildExtraCDData(event Event, wfr *pipelineC
 			impl.logger.Errorw("found error on payload build for cd stages, skipping this error ", "user", user)
 		}
 		payload = event.Payload
+		payload.TriggeredBy = user.EmailId
+		event.Payload = payload
+	}
+	return event
+}
+
+func (impl *EventSimpleFactoryImpl) setMaterialForPayload(event Event, payload *Payload) {
+	pipeline, err := impl.pipelineRepository.FindById(event.PipelineId)
+	if err != nil {
+		impl.logger.Errorw("found error on payload build for cd stages, skipping this error ", "pipeline", pipeline)
+	}
+	if pipeline != nil {
+		material, err := impl.getCiMaterialInfo(pipeline.CiPipelineId, 0)
+		if err != nil {
+			impl.logger.Errorw("found error on payload build for cd stages, skipping this error ", "material", material)
+		}
+		payload.MaterialTriggerInfo = material
+	}
+}
+
+func (impl *EventSimpleFactoryImpl) BuildExtraBlockedTriggerData(event Event, stage bean2.WorkflowType, timeWindowComment string, artifact *repository2.CiArtifact) Event {
+	event.CdWorkflowType = stage
+	payload := &Payload{}
+	event.Payload = payload
+	payload.Stage = string(stage)
+	payload.TimeWindowComment = timeWindowComment
+	if event.PipelineId > 0 {
+		impl.setMaterialForPayload(event, payload)
+	}
+	payload.DockerImageUrl = artifact.Image
+	if event.UserId > 0 {
+		user, err := impl.userRepository.GetById(int32(event.UserId))
+		if err != nil {
+			impl.logger.Errorw("found error on payload build for cd stages, skipping this error ", "user", user)
+		}
 		payload.TriggeredBy = user.EmailId
 		event.Payload = payload
 	}

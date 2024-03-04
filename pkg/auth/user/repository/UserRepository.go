@@ -200,11 +200,17 @@ func (impl UserRepositoryImpl) FetchActiveUserByEmail(email string) (bean.UserIn
 }
 func (impl UserRepositoryImpl) GetSuperAdmins() ([]int32, error) {
 	userIds := make([]int32, 0)
-	err := impl.dbConnection.Model((*UserRoleModel)(nil)).
-		Column("user_id").
-		Join("inner join roles AS r ON r.id = user_roles.role_id").
-		Where("r.action = ?", "super-admin").
-		Select(&userIds)
+
+	query := "SELECT ur.user_id FROM user_roles ur" +
+		" INNER JOIN roles r ON r.id = ur.role_id" +
+		" WHERE r.action = ?"
+
+	_, err := impl.dbConnection.Query(&userIds, query, "super-admin")
+	//err := impl.dbConnection.Model((*UserRoleModel)(nil)).
+	//	Column("user_id").
+	//	Join("inner join roles AS r ON r.id = user_roles.role_id").
+	//	Where("r.action = ?", "super-admin").
+	//	Select(&userIds)
 	if err != nil {
 		fmt.Println("Error:", err)
 		return userIds, err
