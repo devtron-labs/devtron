@@ -160,7 +160,7 @@ func (repo *ArtifactPromotionApprovalRequestRepoImpl) MarkStaleByIds(tx *pg.Tx, 
 }
 
 func (repo *ArtifactPromotionApprovalRequestRepoImpl) MarkStaleByPolicyId(tx *pg.Tx, policyId int) error {
-	_, err := repo.dbConnection.Model(&ArtifactPromotionApprovalRequest{}).
+	_, err := tx.Model(&ArtifactPromotionApprovalRequest{}).
 		Set("status = ?", bean.STALE).
 		Set("updated_on = ?", time.Now()).
 		Set("active=?", false).

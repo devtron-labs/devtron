@@ -67,6 +67,7 @@ func (impl *GlobalPolicyDataManagerImpl) CreatePolicy(globalPolicyDataModel *bea
 	err = impl.globalPolicyRepository.Create(globalPolicy, tx)
 	if err != nil {
 		impl.logger.Errorw("error, CreatePolicy", "err", err, "globalPolicy", globalPolicy)
+		return nil, err
 	}
 	searchableKeyEntriesTotal := impl.getSearchableKeyEntries(globalPolicyDataModel)
 	err = impl.globalPolicySearchableFieldRepository.CreateInBatchWithTxn(searchableKeyEntriesTotal, tx)

@@ -52,15 +52,15 @@ func NewPromotionPolicyServiceImpl(globalPolicyDataManager globalPolicy.GlobalPo
 	}
 }
 
-func (impl PromotionPolicyServiceImpl) AddPreDeleteHook(hook func(tx *pg.Tx, policyId int) error) {
+func (impl *PromotionPolicyServiceImpl) AddPreDeleteHook(hook func(tx *pg.Tx, policyId int) error) {
 	impl.preDeleteHooks = append(impl.preDeleteHooks, hook)
 }
 
-func (impl PromotionPolicyServiceImpl) AddPreUpdateHook(hook func(tx *pg.Tx, policy *bean.PromotionPolicy) error) {
+func (impl *PromotionPolicyServiceImpl) AddPreUpdateHook(hook func(tx *pg.Tx, policy *bean.PromotionPolicy) error) {
 	impl.preUpdateHooks = append(impl.preUpdateHooks, hook)
 }
 
-func (impl PromotionPolicyServiceImpl) UpdatePolicy(userId int32, policyName string, policyBean *bean.PromotionPolicy) error {
+func (impl *PromotionPolicyServiceImpl) UpdatePolicy(userId int32, policyName string, policyBean *bean.PromotionPolicy) error {
 
 	globalPolicyDataModel, err := policyBean.ConvertToGlobalPolicyDataModel(userId)
 	if err != nil {
@@ -118,7 +118,7 @@ func (impl PromotionPolicyServiceImpl) UpdatePolicy(userId int32, policyName str
 	return nil
 }
 
-func (impl PromotionPolicyServiceImpl) CreatePolicy(userId int32, policyBean *bean.PromotionPolicy) error {
+func (impl *PromotionPolicyServiceImpl) CreatePolicy(userId int32, policyBean *bean.PromotionPolicy) error {
 	globalPolicyDataModel, err := policyBean.ConvertToGlobalPolicyDataModel(userId)
 	if err != nil {
 		impl.logger.Errorw("error in create policy, not able to convert promotion policy object to global policy data model", "policyBean", policyBean, "err", err)
@@ -141,7 +141,7 @@ func (impl PromotionPolicyServiceImpl) CreatePolicy(userId int32, policyBean *be
 	return nil
 }
 
-func (impl PromotionPolicyServiceImpl) DeletePolicy(userId int32, policyName string) error {
+func (impl *PromotionPolicyServiceImpl) DeletePolicy(userId int32, policyName string) error {
 	tx, err := impl.resourceQualifierMappingService.StartTx()
 	if err != nil {
 		impl.logger.Errorw("error in starting the transaction", "userId", userId, "policyName", policyName, "err", err)

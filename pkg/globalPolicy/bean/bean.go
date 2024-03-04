@@ -246,7 +246,7 @@ type GlobalPolicyDataModel struct {
 	SearchableFields []util.SearchableField
 }
 
-const UniqueActiveNameConstraint = "todo" // todo
+const UniqueActiveNameConstraint = "idx_unique_policy_name_policy_of"
 
 type GlobalPolicyFieldType int
 
