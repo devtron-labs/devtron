@@ -326,8 +326,6 @@ func (impl *GlobalPolicyServiceImpl) getMandatoryPluginDefinitionAndBlockageMaps
 		} else if toOnlyGetBlockedStatePolicies {
 			continue // consequence is not blocking, and we need only blocked policies, so skipping
 		}
-		// map of plugins for which consequence is more or same severe than already present, and need to be included in this policy
-		pluginIdApplyStageMap := getPluginIdApplyStageAndPluginBlockageMaps(globalPolicyDetailDto.Definitions, consequence, mandatoryPluginBlockageMap)
 		definitionSourceDtos, err := impl.getDefinitionSourceDtos(globalPolicyDetailDto, allCiPipelineIds, ciPipelineId,
 			ciPipelineIdProjectAppNameMap, ciPipelineIdEnvDetailMap, ciPipelineIdProductionEnvDetailMap, branchValues, globalPolicy.Name, ciPipelineIdNameMap)
 		if err != nil {
@@ -336,6 +334,8 @@ func (impl *GlobalPolicyServiceImpl) getMandatoryPluginDefinitionAndBlockageMaps
 		}
 
 		if len(definitionSourceDtos) != 0 {
+			//map of plugins for which consequence is more or same severe than already present, and need to be included in this policy
+			pluginIdApplyStageMap := getPluginIdApplyStageAndPluginBlockageMaps(globalPolicyDetailDto.Definitions, consequence, mandatoryPluginBlockageMap)
 			updateMandatoryPluginDefinitionMap(pluginIdApplyStageMap, mandatoryPluginDefinitionMap, definitionSourceDtos)
 		}
 	}

@@ -1,0 +1,56 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Runtime parameters
+paths:
+  /orchestrator/app/ci-pipeline/runtimeParams:
+    get:
+      description: Get runtime parameters for a ci pipeline
+      operationId: GetCIRuntimeParams
+      parameters:
+        - name: pipelineId
+          in: query
+          description: CI pipeline Id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: successful fetch of all runtime parameters associated with the requested ci pipeline
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RuntimeParameters'
+        '400':
+          description: Bad Request
+        '403':
+          description: Forbidden, received in case of unauthorised user
+        '500':
+          description: Internal Server Error
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    RuntimeParameters:
+      type: object
+      properties:
+        envVariables:
+          type: object
+          description: env variables need to be injected at runtime in ci, pre/post cd processes
+    Error:
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error code
+        message:
+          type: string
+          description: Error message
