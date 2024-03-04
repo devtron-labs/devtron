@@ -34,7 +34,7 @@ func NewArtifactPromotionApprovalRequestImpl(dbConnection *pg.DB) *ArtifactPromo
 }
 
 type ArtifactPromotionApprovalRequestRepository interface {
-	Create(PromotionRequest *ArtifactPromotionApprovalRequest) (*ArtifactPromotionApprovalRequest, error)
+	Create(tx *pg.Tx, PromotionRequest *ArtifactPromotionApprovalRequest) (*ArtifactPromotionApprovalRequest, error)
 	Update(PromotionRequest *ArtifactPromotionApprovalRequest) (*ArtifactPromotionApprovalRequest, error)
 	UpdateInBulk(tx *pg.Tx, PromotionRequest []*ArtifactPromotionApprovalRequest) error
 	FindById(id int) (*ArtifactPromotionApprovalRequest, error)
@@ -51,8 +51,8 @@ type ArtifactPromotionApprovalRequestRepository interface {
 	sql.TransactionWrapper
 }
 
-func (repo *ArtifactPromotionApprovalRequestRepoImpl) Create(PromotionRequest *ArtifactPromotionApprovalRequest) (*ArtifactPromotionApprovalRequest, error) {
-	_, err := repo.dbConnection.Model(PromotionRequest).Insert()
+func (repo *ArtifactPromotionApprovalRequestRepoImpl) Create(tx *pg.Tx, PromotionRequest *ArtifactPromotionApprovalRequest) (*ArtifactPromotionApprovalRequest, error) {
+	_, err := tx.Model(PromotionRequest).Insert()
 	if err != nil {
 		return nil, err
 	}

@@ -54,7 +54,7 @@ type FilterEvaluationAuditRepository interface {
 	// transaction util funcs
 	sql.TransactionWrapper
 	GetConnection() *pg.DB
-	Create(filter *ResourceFilterEvaluationAudit) (*ResourceFilterEvaluationAudit, error)
+	Create(tx *pg.Tx, filter *ResourceFilterEvaluationAudit) (*ResourceFilterEvaluationAudit, error)
 	GetByRefAndMultiSubject(referenceType ReferenceType, referenceId int, subjectType SubjectType, subjectIds []int) ([]*ResourceFilterEvaluationAudit, error)
 	GetByMultiRefAndMultiSubject(referenceType ReferenceType, referenceIds []int, subjectType SubjectType, subjectIds []int) ([]*ResourceFilterEvaluationAudit, error)
 	UpdateRefTypeAndRefId(id int, refType ReferenceType, refId int) error
@@ -79,10 +79,15 @@ func (repo *FilterEvaluationAuditRepositoryImpl) GetConnection() *pg.DB {
 	return repo.dbConnection
 }
 
-func (repo *FilterEvaluationAuditRepositoryImpl) Create(filter *ResourceFilterEvaluationAudit) (*ResourceFilterEvaluationAudit, error) {
+func (repo *FilterEvaluationAuditRepositoryImpl) Create(tx *pg.Tx, filter *ResourceFilterEvaluationAudit) (*ResourceFilterEvaluationAudit, error) {
+	if tx != nil {
+		err := tx.Insert(filter)
+		return filter, err
+	}
 	err := repo.dbConnection.Insert(filter)
 	return filter, err
 }
+
 func (repo *FilterEvaluationAuditRepositoryImpl) GetByMultiRefAndMultiSubject(referenceType ReferenceType, referenceIds []int, subjectType SubjectType, subjectIds []int) ([]*ResourceFilterEvaluationAudit, error) {
 	res := make([]*ResourceFilterEvaluationAudit, 0)
 	err := repo.dbConnection.Model(&res).
