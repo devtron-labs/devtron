@@ -797,7 +797,7 @@ func (impl PipelineRepositoryImpl) FindActiveByAppIdAndEnvNames(appId int, envNa
 	err = impl.dbConnection.Model(&pipelines).
 		Column("pipeline.*", "Environment", "App").
 		Where("pipeline.app_id = ?", appId).
-		Where("environment.name IN (?)", pg.In(envNames)).
+		Where("environment.environment_name IN (?)", pg.In(envNames)).
 		Where("pipeline.deleted = ?", false).
 		Select()
 	return pipelines, err
