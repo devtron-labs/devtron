@@ -77,14 +77,15 @@ func (impl DeploymentWindowServiceImpl) calculateStateForEnvironments(targetTime
 	envIdToEnvironmentState := make(map[int]EnvironmentState)
 	resultProfiles := make([]ProfileState, 0)
 	for envId, profileStates := range envIdToProfileStates {
-		filteredProfileStates, appliedProfile, excludedUsers, canDeploy, err := impl.getAppliedProfileAndCalculateStates(targetTime, profileStates)
+		filteredProfileStates, appliedProfile, excludedUsers, excludedUsersEmail, canDeploy, err := impl.getAppliedProfileAndCalculateStates(targetTime, profileStates)
 		if err != nil {
 			return nil, err
 		}
 		envState := EnvironmentState{
-			ExcludedUsers:   excludedUsers,
-			AppliedProfile:  appliedProfile,
-			UserActionState: getUserActionStateForUser(canDeploy, excludedUsers, userId),
+			ExcludedUsers:      excludedUsers,
+			ExcludedUserEmails: excludedUsersEmail,
+			AppliedProfile:     appliedProfile,
+			UserActionState:    getUserActionStateForUser(canDeploy, excludedUsers, userId),
 		}
 		envIdToEnvironmentState[envId] = envState
 		resultProfiles = append(resultProfiles, filteredProfileStates...)
@@ -109,28 +110,29 @@ func getUserActionStateForUser(canDeploy bool, excludedUsers []int32, userId int
 	return userActionState
 }
 
-func (impl DeploymentWindowServiceImpl) getAppliedProfileAndCalculateStates(targetTime time.Time, profileStates []ProfileState) ([]ProfileState, *ProfileState, []int32, bool, error) {
+func (impl DeploymentWindowServiceImpl) getAppliedProfileAndCalculateStates(targetTime time.Time, profileStates []ProfileState) ([]ProfileState, *ProfileState, []int32, []string, bool, error) {
 
 	var appliedProfile *ProfileState
 	var combinedExcludedUsers, allUserIds []int32
+	combinedExcludedUserEmails := make([]string, 0)
 
 	superAdmins, err := impl.userService.GetSuperAdminIds()
 	if err != nil {
-		return nil, appliedProfile, combinedExcludedUsers, false, err
+		return nil, appliedProfile, combinedExcludedUsers, combinedExcludedUserEmails, false, err
 	}
 
 	filteredBlackoutProfiles, _, isBlackoutActive, err := impl.calculateStateForProfiles(targetTime, profileStates, Blackout)
 	if err != nil {
-		return nil, appliedProfile, combinedExcludedUsers, false, err
+		return nil, appliedProfile, combinedExcludedUsers, combinedExcludedUserEmails, false, err
 	}
 
 	filteredMaintenanceProfiles, isMaintenanceActive, _, err := impl.calculateStateForProfiles(targetTime, profileStates, Maintenance)
 	if err != nil {
-		return nil, appliedProfile, combinedExcludedUsers, false, err
+		return nil, appliedProfile, combinedExcludedUsers, combinedExcludedUserEmails, false, err
 	}
 
 	if len(filteredBlackoutProfiles) == 0 && len(filteredMaintenanceProfiles) == 0 {
-		return nil, appliedProfile, combinedExcludedUsers, true, nil
+		return nil, appliedProfile, combinedExcludedUsers, combinedExcludedUserEmails, true, nil
 	}
 
 	canDeploy := !isBlackoutActive && isMaintenanceActive
@@ -165,7 +167,7 @@ func (impl DeploymentWindowServiceImpl) getAppliedProfileAndCalculateStates(targ
 
 	allUserInfo, err := impl.userService.GetByIds(allUserIds)
 	if err != nil {
-		return nil, appliedProfile, combinedExcludedUsers, true, nil
+		return nil, appliedProfile, combinedExcludedUsers, combinedExcludedUserEmails, true, nil
 	}
 	userInfoMap := make(map[int32]string, 0)
 	for _, user := range allUserInfo {
@@ -196,8 +198,15 @@ func (impl DeploymentWindowServiceImpl) getAppliedProfileAndCalculateStates(targ
 			appliedProfile.AllExcludedUsers = emails
 		}
 	}
+	emails := make([]string, 0)
+	for _, userId := range combinedExcludedUsers {
+		if email, ok := userInfoMap[userId]; ok {
+			emails = append(emails, email)
+		}
+	}
+	combinedExcludedUserEmails = emails
 
-	return allProfiles, appliedProfile, combinedExcludedUsers, canDeploy, nil
+	return allProfiles, appliedProfile, combinedExcludedUsers, combinedExcludedUserEmails, canDeploy, nil
 }
 
 func (impl DeploymentWindowServiceImpl) getCombinedUserIds(profiles []ProfileState) ([]int32, []int32, bool) {

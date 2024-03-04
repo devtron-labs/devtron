@@ -132,7 +132,7 @@ type ProfileState struct {
 type DeploymentWindowResponse struct {
 	EnvironmentStateMap map[int]EnvironmentState `json:"environmentStateMap,omitempty"`
 	Profiles            []ProfileState           `json:"profiles,omitempty"`
-	SuperAdmins         []string                 `json:"superAdmins,omitempty"`
+	//SuperAdmins         []string                 `json:"superAdmins,omitempty"`
 }
 
 // TimeWindow defines model for TimeWindow.
