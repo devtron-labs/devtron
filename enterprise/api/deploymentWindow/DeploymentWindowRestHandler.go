@@ -320,7 +320,7 @@ func (handler *DeploymentWindowRestHandlerImpl) GetDeploymentWindowProfileStateF
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	//TODO RBAC batch
+	token := r.Header.Get("token")
 
 	var request []deploymentWindow.AppEnvSelector
 	decoder := json.NewDecoder(r.Body)
@@ -337,6 +337,26 @@ func (handler *DeploymentWindowRestHandlerImpl) GetDeploymentWindowProfileStateF
 		handler.logger.Errorw("validation err in GetDeploymentWindowProfileStateForAppGroup", "err", err, "request", request)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
+	}
+
+	appIds := make([]int, 0)
+	for _, selector := range request {
+		appIds = append(appIds, selector.AppId)
+	}
+
+	objects := handler.enforcerUtil.GetRbacObjectsByAppIds(appIds)
+	var rbacObjectArr []string
+	for _, object := range objects {
+		rbacObjectArr = append(rbacObjectArr, object)
+	}
+
+	results := handler.enforcer.EnforceInBatch(token, casbin.ResourceApplications, casbin.ActionGet, rbacObjectArr)
+	for _, resourceId := range appIds {
+		resourceObject := objects[resourceId]
+		if !results[resourceObject] {
+			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+			return
+		}
 	}
 
 	requestTime := time.Now()
