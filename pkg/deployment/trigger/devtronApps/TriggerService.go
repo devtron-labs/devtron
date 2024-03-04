@@ -631,13 +631,20 @@ func (impl *TriggerServiceImpl) BlockIfImagePromotionPolicyViolated(appId, cdPip
 			if approvalMetadata, ok := promotionApprovalMetadata[artifactId]; ok {
 				approverIds := approvalMetadata.GetApprovalUserIds()
 				for _, id := range approverIds {
-					if id == userId || approvalMetadata.ApprovalRuntimeState != bean10.PROMOTED.Status() {
+					if id == userId {
 						impl.logger.Errorw("error in cd trigger, user who has approved the image for promotion cannot deploy")
 						return true, &util.ApiError{
 							HttpStatusCode:    http.StatusForbidden,
 							InternalMessage:   "error in cd trigger, user who has approved the image for promotion cannot deploy",
 							UserMessage:       nil,
 							UserDetailMessage: "error in cd trigger, user who has approved the image for promotion cannot deploy",
+						}
+					} else if approvalMetadata.ApprovalRuntimeState != bean10.PROMOTED.Status() {
+						return true, &util.ApiError{
+							HttpStatusCode:    http.StatusForbidden,
+							InternalMessage:   "error in cd trigger, image is not promoted",
+							UserMessage:       nil,
+							UserDetailMessage: "error in cd trigger, image is not promoted",
 						}
 					}
 				}
