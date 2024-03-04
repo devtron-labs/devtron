@@ -128,7 +128,17 @@ func (impl ArtifactPromotionApprovalServiceImpl) GetAppAndEnvsMapByWorkflowId(wo
 	}
 
 	sourceType := sourcePipelineMapping.Type
-	sourceId := sourcePipelineMapping.Id
+	sourceId := sourcePipelineMapping.ComponentId
+	var sourceName string
+	if sourceType == appWorkflow.CIPIPELINE {
+		ciPipeline, err := impl.ciPipelineRepository.FindById(sourceId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching ci pipeline by id", "ciPipelineId", sourceId, "err", err)
+			return nil, err
+		}
+		sourceName = ciPipeline.Name
+	}
+
 	pipelines, err := impl.pipelineRepository.FindByIdsIn(pipelineIds)
 	if err != nil {
 		impl.logger.Errorw("error in finding pipelines", "pipelineIds", pipelineIds, "err", err)
@@ -149,6 +159,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) GetAppAndEnvsMapByWorkflowId(wo
 		EnvMap:     envMap,
 		CiSourceData: bean.CiSourceMetaData{
 			Id:   sourceId,
+			Name: sourceName,
 			Type: bean.SourceTypeStr(sourceType),
 		},
 	}

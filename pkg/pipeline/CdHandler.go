@@ -21,6 +21,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/read"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -72,26 +73,27 @@ type CdHandler interface {
 }
 
 type CdHandlerImpl struct {
-	Logger                       *zap.SugaredLogger
-	userService                  user.UserService
-	ciLogService                 CiLogService
-	ciArtifactRepository         repository.CiArtifactRepository
-	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository
-	cdWorkflowRepository         pipelineConfig.CdWorkflowRepository
-	envRepository                repository2.EnvironmentRepository
-	pipelineRepository           pipelineConfig.PipelineRepository
-	ciWorkflowRepository         pipelineConfig.CiWorkflowRepository
-	enforcerUtil                 rbac.EnforcerUtil
-	resourceGroupService         resourceGroup2.ResourceGroupService
-	imageTaggingService          ImageTaggingService
-	k8sUtil                      *k8s.K8sUtilExtended
-	workflowService              WorkflowService
-	config                       *types.CdConfig
-	clusterService               cluster.ClusterService
-	blobConfigStorageService     BlobStorageConfigService
-	customTagService             CustomTagService
-	resourceApprovalRepository   pipelineConfig.RequestApprovalUserdataRepository
-	resourceFilterService        resourceFilter.ResourceFilterService
+	Logger                           *zap.SugaredLogger
+	userService                      user.UserService
+	ciLogService                     CiLogService
+	ciArtifactRepository             repository.CiArtifactRepository
+	ciPipelineMaterialRepository     pipelineConfig.CiPipelineMaterialRepository
+	cdWorkflowRepository             pipelineConfig.CdWorkflowRepository
+	envRepository                    repository2.EnvironmentRepository
+	pipelineRepository               pipelineConfig.PipelineRepository
+	ciWorkflowRepository             pipelineConfig.CiWorkflowRepository
+	enforcerUtil                     rbac.EnforcerUtil
+	resourceGroupService             resourceGroup2.ResourceGroupService
+	imageTaggingService              ImageTaggingService
+	k8sUtil                          *k8s.K8sUtilExtended
+	workflowService                  WorkflowService
+	config                           *types.CdConfig
+	clusterService                   cluster.ClusterService
+	blobConfigStorageService         BlobStorageConfigService
+	customTagService                 CustomTagService
+	resourceApprovalRepository       pipelineConfig.RequestApprovalUserdataRepository
+	resourceFilterService            resourceFilter.ResourceFilterService
+	artifactPromotionDataReadService read.ArtifactPromotionDataReadService
 }
 
 func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService,
@@ -105,27 +107,29 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService,
 	workflowService WorkflowService, clusterService cluster.ClusterService,
 	blobConfigStorageService BlobStorageConfigService, customTagService CustomTagService,
 	resourceApprovalRepository pipelineConfig.RequestApprovalUserdataRepository,
-	resourceFilterService resourceFilter.ResourceFilterService) *CdHandlerImpl {
+	resourceFilterService resourceFilter.ResourceFilterService,
+	artifactPromotionDataReadService read.ArtifactPromotionDataReadService) *CdHandlerImpl {
 	cdh := &CdHandlerImpl{
-		Logger:                       Logger,
-		userService:                  userService,
-		ciLogService:                 ciLogService,
-		cdWorkflowRepository:         cdWorkflowRepository,
-		ciArtifactRepository:         ciArtifactRepository,
-		ciPipelineMaterialRepository: ciPipelineMaterialRepository,
-		envRepository:                envRepository,
-		pipelineRepository:           pipelineRepository,
-		ciWorkflowRepository:         ciWorkflowRepository,
-		enforcerUtil:                 enforcerUtil,
-		resourceGroupService:         resourceGroupService,
-		imageTaggingService:          imageTaggingService,
-		k8sUtil:                      k8sUtil,
-		workflowService:              workflowService,
-		clusterService:               clusterService,
-		blobConfigStorageService:     blobConfigStorageService,
-		customTagService:             customTagService,
-		resourceApprovalRepository:   resourceApprovalRepository,
-		resourceFilterService:        resourceFilterService,
+		Logger:                           Logger,
+		userService:                      userService,
+		ciLogService:                     ciLogService,
+		cdWorkflowRepository:             cdWorkflowRepository,
+		ciArtifactRepository:             ciArtifactRepository,
+		ciPipelineMaterialRepository:     ciPipelineMaterialRepository,
+		envRepository:                    envRepository,
+		pipelineRepository:               pipelineRepository,
+		ciWorkflowRepository:             ciWorkflowRepository,
+		enforcerUtil:                     enforcerUtil,
+		resourceGroupService:             resourceGroupService,
+		imageTaggingService:              imageTaggingService,
+		k8sUtil:                          k8sUtil,
+		workflowService:                  workflowService,
+		clusterService:                   clusterService,
+		blobConfigStorageService:         blobConfigStorageService,
+		customTagService:                 customTagService,
+		resourceApprovalRepository:       resourceApprovalRepository,
+		resourceFilterService:            resourceFilterService,
+		artifactPromotionDataReadService: artifactPromotionDataReadService,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -447,6 +451,13 @@ func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipel
 	for _, item := range cdWorkflowArtifact {
 		artifactIds = append(artifactIds, item.CiArtifactId)
 	}
+
+	artifactIdToPromotionApporvalMetadata, err := impl.artifactPromotionDataReadService.FetchPromotionApprovalDataForArtifacts(artifactIds, pipelineId)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching promotion approval metadata for artifactIds", "artifactIds", artifactIds, "pipelineId", pipelineId, "err", err)
+		return cdWorkflowArtifact, err
+	}
+
 	imageCommentsDataMap, err := impl.imageTaggingService.GetImageCommentsDataMapByArtifactIds(artifactIds)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching imageCommentsDataMap", "err", err, "artifactIds", artifactIds, "appId", appId)
@@ -459,6 +470,9 @@ func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipel
 		}
 		if imageCommentsDataMap[item.CiArtifactId] != nil {
 			item.ImageComment = imageCommentsDataMap[item.CiArtifactId]
+		}
+		if promotionMetadata, ok := artifactIdToPromotionApporvalMetadata[item.CiArtifactId]; ok {
+			item.PromotionApprovalMetaData = promotionMetadata
 		}
 		cdWorkflowArtifact[i] = item
 	}
