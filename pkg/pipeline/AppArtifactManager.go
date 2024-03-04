@@ -1864,7 +1864,7 @@ func (impl AppArtifactManagerImpl) getBuiltArtifactsByCIPipeline(artifactPromoti
 		CiPipelineId: artifactPromotionMaterialRequest.CiPipelineId,
 	}
 
-	ciArtifactsDao, _, err := impl.ciArtifactRepository.FindArtifactsByCIPipelineId(listingFilterOptions)
+	ciArtifactsDao, totalCount, err := impl.ciArtifactRepository.FindArtifactsByCIPipelineId(listingFilterOptions)
 	if err != nil {
 		impl.logger.Errorw("error in finding deployed artifacts on pipeline", "pipelineId", listingFilterOptions.PipelineId, "err", err)
 		return ciArtifactsDao, totalCount, err
@@ -1883,7 +1883,7 @@ func (impl AppArtifactManagerImpl) getBuiltArtifactsByExternalCIPipeline(artifac
 		CiPipelineId: artifactPromotionMaterialRequest.ExternalCiPipelineId,
 	}
 
-	ciArtifactsDao, _, err := impl.ciArtifactRepository.FindArtifactsByExternalCIPipelineId(listingFilterOptions)
+	ciArtifactsDao, totalCount, err := impl.ciArtifactRepository.FindArtifactsByExternalCIPipelineId(listingFilterOptions)
 	if err != nil {
 		impl.logger.Errorw("error in finding deployed artifacts on pipeline", "pipelineId", listingFilterOptions.PipelineId, "err", err)
 		return ciArtifactsDao, totalCount, nil
