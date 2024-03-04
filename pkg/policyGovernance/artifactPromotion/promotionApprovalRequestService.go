@@ -35,7 +35,6 @@ import (
 type PipelinesMetaData struct {
 	PipelineIds            []int
 	PipelineIdVsEnvNameMap map[int]string
-	PipelineIdToDaoMap     map[int]*pipelineConfig.Pipeline
 }
 
 type ArtifactPromotionApprovalService interface {
@@ -626,6 +625,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) validateAndFetchSourceWorkflow(
 			return nil, err
 		}
 		request.SourcePipelineId = pipeline.Id
+		request.SourceCdPipeline = pipeline
 	}
 
 	if request.WorkflowId != appWorkflowMapping.AppWorkflowId {
@@ -706,7 +706,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) promoteArtifact(request *bean.A
 		impl.logger.Errorw("error in validating the request", "request", request, "err", err)
 		return nil, err
 	}
-	pipelines, err := impl.pipelineRepository.FindByAppIdsAndEnvironmentIds([]int{request.AppId}, allowedEnvs)
+	allowedCdPipelines, err := impl.pipelineRepository.FindByAppIdsAndEnvironmentIds([]int{request.AppId}, allowedEnvs)
 	if err != nil {
 		impl.logger.Errorw("error in finding the pipelines for the app on given environments", "appId", request.AppId, "envIds", allowedEnvs, "err", err)
 		errorResp := &util.ApiError{
@@ -722,9 +722,9 @@ func (impl ArtifactPromotionApprovalServiceImpl) promoteArtifact(request *bean.A
 	}
 
 	pipelineIdVsEnvNameMap := make(map[int]string)
-	pipelineIds := make([]int, 0, len(pipelines))
+	pipelineIds := make([]int, 0, len(allowedCdPipelines))
 	pipelineIdToDaoMap := make(map[int]*pipelineConfig.Pipeline)
-	for _, cdPipeline := range pipelines {
+	for _, cdPipeline := range allowedCdPipelines {
 		pipelineIds = append(pipelineIds, cdPipeline.Id)
 		pipelineIdVsEnvNameMap[cdPipeline.Id] = request.EnvIdNameMap[cdPipeline.EnvironmentId]
 		EnvResponse := response[pipelineIdVsEnvNameMap[cdPipeline.Id]]
@@ -743,7 +743,6 @@ func (impl ArtifactPromotionApprovalServiceImpl) promoteArtifact(request *bean.A
 		pipelineMetaData := PipelinesMetaData{
 			PipelineIds:            pipelineIds,
 			PipelineIdVsEnvNameMap: pipelineIdVsEnvNameMap,
-			PipelineIdToDaoMap:     pipelineIdToDaoMap,
 		}
 		response, err = impl.validatePromoteRequestForSourceCD(request, allAppWorkflowMappings, ciArtifact, pipelineMetaData, response)
 		if err != nil {
@@ -807,7 +806,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) validatePromoteRequestForSource
 		}
 	}
 
-	sourcePipeline := pipelineMetaData.PipelineIdToDaoMap[request.SourcePipelineId]
+	sourcePipeline := request.SourceCdPipeline
 	deployed, err := impl.checkIfDeployedAtSource(ciArtifact.Id, sourcePipeline)
 	if err != nil {
 		impl.logger.Errorw("error in checking if artifact is available for promotion at source pipeline", "ciArtifactId", ciArtifact.Id, "sourcePipelineId", request.SourcePipelineId, "err", err)
@@ -946,7 +945,7 @@ func evaluationJsonString(evaluationResult bool, promotionPolicy *bean.Promotion
 
 func (impl ArtifactPromotionApprovalServiceImpl) checkIfDeployedAtSource(ciArtifactId int, pipeline *pipelineConfig.Pipeline) (bool, error) {
 	if pipeline == nil {
-		return false, errors.New("no pipeline")
+		return false, errors.New("invalid cd pipeline")
 	}
 	postStage, err := impl.pipelineStageService.GetCdStageByCdPipelineIdAndStageType(pipeline.Id, repository3.PIPELINE_STAGE_TYPE_POST_CD)
 	if err != nil && !errors.Is(err, pg.ErrNoRows) {
