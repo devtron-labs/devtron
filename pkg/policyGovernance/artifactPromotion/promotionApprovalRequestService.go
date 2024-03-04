@@ -405,7 +405,7 @@ func (impl ArtifactPromotionApprovalServiceImpl) approveArtifactPromotion(reques
 
 			// also set the response messages
 			resp.PromotionPossible = pointer.Bool(false)
-			resp.PromotionValidationMessage = "request is no longer valid, state: stale"
+			resp.PromotionValidationMessage = "request is no longer valid as the policy is no longer governing this pipeline, state: stale"
 			resp.PromotionValidationState = bean.PromotionValidationState(resp.PromotionValidationMessage)
 		} else if promotionRequest.Status != bean.AWAITING_APPROVAL {
 			resp.PromotionValidationMessage = fmt.Sprintf("artifact is in %s state", promotionRequest.Status.Status())
