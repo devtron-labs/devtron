@@ -783,9 +783,9 @@ components:
             isConfigured:
               type: boolean
               description: "Indicates if a promotion policy is attached to this workflow"
-            pendingApprovalCount:
+            isApprovalPendingForPromotion:
               type: integer
-              description: "Number of images pending for approval(image-promotion) for this workflow"
+              description: "if images are pending for artifact promotion"
         tree:
           type: array
           items:
