@@ -21,9 +21,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	bean3 "github.com/devtron-labs/common-lib/utils/serverConnection/bean"
 	auth "github.com/devtron-labs/devtron/pkg/auth/authorisation/globalConfig"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	util3 "github.com/devtron-labs/devtron/pkg/auth/user/util"
+	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
 	"github.com/devtron-labs/devtron/pkg/serverConnection"
 	bean4 "github.com/devtron-labs/devtron/pkg/serverConnection/bean"
 	repository3 "github.com/devtron-labs/devtron/pkg/serverConnection/repository"
@@ -98,13 +100,11 @@ type ClusterBean struct {
 }
 
 func GetClusterBean(model repository.Cluster) ClusterBean {
-	model = *ConvertClusterToCommonCluster(&model)
+	model = *adapter.ConvertClusterToNewCluster(&model) // repo model is converted according to new struct
 	bean := ClusterBean{}
 	bean.Id = model.Id
 	bean.ClusterName = model.ClusterName
-	//bean.Note = model.Note
 	bean.ServerUrl = model.ServerUrl
-	bean.ProxyUrl = model.ProxyUrl
 	bean.PrometheusUrl = model.PrometheusEndpoint
 	bean.AgentInstallationStage = model.AgentInstallationStage
 	bean.Active = model.Active
@@ -113,21 +113,34 @@ func GetClusterBean(model repository.Cluster) ClusterBean {
 	bean.InsecureSkipTLSVerify = model.InsecureSkipTlsVerify
 	bean.IsVirtualCluster = model.IsVirtualCluster
 	bean.ErrorInConnecting = model.ErrorInConnecting
-	bean.ToConnectWithSSHTunnel = model.ToConnectWithSSHTunnel
 	bean.PrometheusAuth = &PrometheusAuth{
 		UserName:      model.PUserName,
 		Password:      model.PPassword,
 		TlsClientCert: model.PTlsClientCert,
 		TlsClientKey:  model.PTlsClientKey,
 	}
-	bean.SSHTunnelConfig = &SSHTunnelConfig{
-		User:             model.SSHTunnelUser,
-		Password:         model.SSHTunnelPassword,
-		AuthKey:          model.SSHTunnelAuthKey,
-		SSHServerAddress: model.SSHTunnelServerAddress,
+	if model.ServerConnectionConfig != nil {
+		bean.ServerConnectionConfig = &bean4.ServerConnectionConfigBean{
+			ServerConnectionConfigId: model.ServerConnectionConfigId,
+			ConnectionMethod:         model.ServerConnectionConfig.ConnectionMethod,
+			ProxyConfig: &bean4.ProxyConfig{
+				ProxyUrl: model.ServerConnectionConfig.ProxyUrl,
+			},
+			SSHTunnelConfig: &bean4.SSHTunnelConfig{
+				SSHServerAddress: model.ServerConnectionConfig.SSHServerAddress,
+				SSHUsername:      model.ServerConnectionConfig.SSHUsername,
+				SSHPassword:      model.ServerConnectionConfig.SSHPassword,
+				SSHAuthKey:       model.ServerConnectionConfig.SSHAuthKey,
+			},
+		}
 	}
-	bean = *ConvertClusterBeanToCommonClusterBean(&bean)
 	return bean
+}
+
+func IsProxyOrSSHConfigured(bean *ClusterBean) bool {
+	return bean.ServerConnectionConfig != nil &&
+		(bean.ServerConnectionConfig.ConnectionMethod == bean4.ServerConnectionMethodProxy ||
+			bean.ServerConnectionConfig.ConnectionMethod == bean4.ServerConnectionMethodSSH)
 }
 
 type VirtualClusterBean struct {
@@ -153,28 +166,28 @@ type SSHTunnelConfig struct {
 }
 
 func (bean ClusterBean) GetClusterConfig() *k8s2.ClusterConfig {
-	bean = *ConvertClusterBeanToCommonClusterBean(&bean)
+	//bean = *adapter.ConvertClusterBeanToNewClusterBean(&bean)
 	configMap := bean.Config
 	bearerToken := configMap[k8s2.BearerToken]
 	clusterCfg := &k8s2.ClusterConfig{
-		ClusterId:              bean.Id,
-		ClusterName:            bean.ClusterName,
-		Host:                   bean.ServerUrl,
-		BearerToken:            bearerToken,
-		ProxyUrl:               bean.ProxyUrl,
-		InsecureSkipTLSVerify:  bean.InsecureSkipTLSVerify,
-		ToConnectWithSSHTunnel: bean.ToConnectWithSSHTunnel,
+		ClusterId:             bean.Id,
+		ClusterName:           bean.ClusterName,
+		Host:                  bean.ServerUrl,
+		BearerToken:           bearerToken,
+		InsecureSkipTLSVerify: bean.InsecureSkipTLSVerify,
 	}
 	if bean.InsecureSkipTLSVerify == false {
 		clusterCfg.KeyData = configMap[k8s2.TlsKey]
 		clusterCfg.CertData = configMap[k8s2.CertData]
 		clusterCfg.CAData = configMap[k8s2.CertificateAuthorityData]
 	}
-	if bean.SSHTunnelConfig != nil {
-		clusterCfg.SSHTunnelServerAddress = bean.SSHTunnelConfig.SSHServerAddress
-		clusterCfg.SSHTunnelUser = bean.SSHTunnelConfig.User
-		clusterCfg.SSHTunnelPassword = bean.SSHTunnelConfig.Password
-		clusterCfg.SSHTunnelAuthKey = bean.SSHTunnelConfig.AuthKey
+	if bean.ServerConnectionConfig != nil {
+		clusterCfg.ServerConnectionConfig = &bean3.ServerConnectionConfigBean{
+			ServerConnectionConfigId: bean.ServerConnectionConfig.ServerConnectionConfigId,
+			ConnectionMethod:         bean3.ServerConnectionMethod(bean.ServerConnectionConfig.ConnectionMethod),
+			ProxyConfig:              (*bean3.ProxyConfig)(bean.ServerConnectionConfig.ProxyConfig),
+			SSHTunnelConfig:          (*bean3.SSHTunnelConfig)(bean.ServerConnectionConfig.SSHTunnelConfig),
+		}
 	}
 	return clusterCfg
 }
@@ -279,125 +292,8 @@ func NewClusterServiceImpl(repository repository.ClusterRepository, logger *zap.
 	return clusterService
 }
 
-func ConvertClusterBeanToCluster(clusterBean *ClusterBean, userId int32) *repository.Cluster {
-
-	model := &repository.Cluster{}
-
-	model.ClusterName = clusterBean.ClusterName
-	//model.Note = clusterBean.Note
-	model.Active = true
-	model.ServerUrl = clusterBean.ServerUrl
-	model.Config = clusterBean.Config
-	model.PrometheusEndpoint = clusterBean.PrometheusUrl
-	model.InsecureSkipTlsVerify = clusterBean.InsecureSkipTLSVerify
-	model.ProxyUrl = clusterBean.ProxyUrl
-	model.ToConnectWithSSHTunnel = clusterBean.ToConnectWithSSHTunnel
-	if clusterBean.SSHTunnelConfig != nil {
-		sshTunnelConfig := clusterBean.SSHTunnelConfig
-		model.SSHTunnelServerAddress = sshTunnelConfig.SSHServerAddress
-		model.SSHTunnelAuthKey = sshTunnelConfig.AuthKey
-		model.SSHTunnelPassword = sshTunnelConfig.Password
-		model.SSHTunnelUser = sshTunnelConfig.User
-	}
-	if clusterBean.PrometheusAuth != nil {
-		model.PUserName = clusterBean.PrometheusAuth.UserName
-		model.PPassword = clusterBean.PrometheusAuth.Password
-		model.PTlsClientCert = clusterBean.PrometheusAuth.TlsClientCert
-		model.PTlsClientKey = clusterBean.PrometheusAuth.TlsClientKey
-	}
-
-	model.CreatedBy = userId
-	model.UpdatedBy = userId
-	model.CreatedOn = time.Now()
-	model.UpdatedOn = time.Now()
-
-	return model
-}
-
-func ConvertClusterToCommonCluster(model *repository.Cluster) *repository.Cluster {
-	if len(model.ProxyUrl) > 0 || model.ToConnectWithSSHTunnel {
-		// converting old to new
-		connectionConfig := &repository3.ServerConnectionConfig{
-			Id:               model.ServerConnectionConfigId,
-			ProxyUrl:         model.ProxyUrl,
-			SSHServerAddress: model.SSHTunnelServerAddress,
-			SSHUsername:      model.SSHTunnelUser,
-			SSHPassword:      model.SSHTunnelPassword,
-			SSHAuthKey:       model.SSHTunnelAuthKey,
-			Deleted:          false,
-		}
-		if len(model.ProxyUrl) > 0 {
-			connectionConfig.ConnectionMethod = bean4.ServerConnectionMethodProxy
-		} else if model.ToConnectWithSSHTunnel {
-			connectionConfig.ConnectionMethod = bean4.ServerConnectionMethodSSH
-		}
-		model.ServerConnectionConfig = connectionConfig
-	} else if model.ServerConnectionConfig != nil {
-		// converting new to old
-		model.ProxyUrl = model.ServerConnectionConfig.ProxyUrl
-		model.SSHTunnelUser = model.ServerConnectionConfig.SSHUsername
-		model.SSHTunnelPassword = model.ServerConnectionConfig.SSHPassword
-		model.SSHTunnelServerAddress = model.ServerConnectionConfig.SSHServerAddress
-		model.SSHTunnelAuthKey = model.ServerConnectionConfig.SSHAuthKey
-		if model.ServerConnectionConfig.ConnectionMethod == bean4.ServerConnectionMethodSSH {
-			model.ToConnectWithSSHTunnel = true
-		}
-	}
-	return model
-}
-
-func ConvertCommonClusterToNewCluster(model *repository.Cluster) *repository.Cluster {
-	model.ProxyUrl = ""
-	model.SSHTunnelUser = ""
-	model.SSHTunnelPassword = ""
-	model.SSHTunnelServerAddress = ""
-	model.SSHTunnelAuthKey = ""
-	model.ToConnectWithSSHTunnel = false
-	return model
-}
-
-func ConvertClusterBeanToCommonClusterBean(clusterBean *ClusterBean) *ClusterBean {
-	if len(clusterBean.ProxyUrl) > 0 || clusterBean.ToConnectWithSSHTunnel {
-		// converting old bean to new bean
-		connectionConfig := &bean4.ServerConnectionConfigBean{}
-		if len(clusterBean.ProxyUrl) > 0 {
-			connectionConfig.ConnectionMethod = bean4.ServerConnectionMethodProxy
-			connectionConfig.ProxyConfig = &bean4.ProxyConfig{
-				ProxyUrl: clusterBean.ProxyUrl,
-			}
-		}
-		if clusterBean.ToConnectWithSSHTunnel && clusterBean.SSHTunnelConfig != nil {
-			connectionConfig.ConnectionMethod = bean4.ServerConnectionMethodSSH
-			connectionConfig.SSHTunnelConfig = &bean4.SSHTunnelConfig{
-				SSHServerAddress: clusterBean.SSHTunnelConfig.SSHServerAddress,
-				SSHUsername:      clusterBean.SSHTunnelConfig.User,
-				SSHPassword:      clusterBean.SSHTunnelConfig.Password,
-				SSHAuthKey:       clusterBean.SSHTunnelConfig.AuthKey,
-			}
-		}
-		clusterBean.ServerConnectionConfig = connectionConfig
-	} else if clusterBean.ServerConnectionConfig != nil {
-		// converting new bean to old bean
-		if clusterBean.ServerConnectionConfig.ConnectionMethod == bean4.ServerConnectionMethodProxy &&
-			clusterBean.ServerConnectionConfig.ProxyConfig != nil {
-			clusterBean.ProxyUrl = clusterBean.ServerConnectionConfig.ProxyConfig.ProxyUrl
-		}
-		if clusterBean.ServerConnectionConfig.ConnectionMethod == bean4.ServerConnectionMethodSSH &&
-			clusterBean.ServerConnectionConfig.SSHTunnelConfig != nil {
-			clusterBean.ToConnectWithSSHTunnel = true
-			clusterBean.SSHTunnelConfig = &SSHTunnelConfig{
-				User:             clusterBean.ServerConnectionConfig.SSHTunnelConfig.SSHUsername,
-				Password:         clusterBean.ServerConnectionConfig.SSHTunnelConfig.SSHPassword,
-				AuthKey:          clusterBean.ServerConnectionConfig.SSHTunnelConfig.SSHAuthKey,
-				SSHServerAddress: clusterBean.ServerConnectionConfig.SSHTunnelConfig.SSHServerAddress,
-			}
-		}
-	}
-	return clusterBean
-}
-
 func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {
-	bean = ConvertClusterBeanToCommonClusterBean(bean)
+	bean = adapter.ConvertClusterBeanToNewClusterBean(bean) // bean is converted according to new struct
 	//validating config
 	k8sServerVersion, err := impl.CheckIfConfigIsValidAndGetServerVersion(bean)
 	if err != nil {
@@ -426,7 +322,7 @@ func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, 
 	// Rollback tx on error.
 	defer tx.Rollback()
 
-	model := ConvertClusterBeanToCluster(bean, userId)
+	model := adapter.ConvertClusterBeanToCluster(bean, userId)
 	model.K8sVersion = k8sServerVersion.String()
 
 	// save clusterConnectionConfig
@@ -441,7 +337,6 @@ func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, 
 	}
 	model.ServerConnectionConfigId = bean.ServerConnectionConfig.ServerConnectionConfigId
 	// save cluster
-	model = ConvertCommonClusterToNewCluster(model)
 	err = impl.clusterRepository.Save(model, tx)
 	if err != nil {
 		impl.logger.Errorw("error in saving cluster in db", "err", err)
@@ -572,15 +467,15 @@ func (impl *ClusterServiceImpl) FindAllWithoutConfig() ([]*ClusterBean, error) {
 	}
 	for _, model := range models {
 		model.Config = map[string]string{k8s2.BearerToken: ""}
-		if model.SSHTunnelConfig != nil {
-			if len(model.SSHTunnelConfig.Password) > 0 {
-				model.SSHTunnelConfig.Password = SecretDataObfuscatePlaceholder
+		if model.ServerConnectionConfig != nil && model.ServerConnectionConfig.ConnectionMethod == bean4.ServerConnectionMethodSSH &&
+			model.ServerConnectionConfig.SSHTunnelConfig != nil {
+			if len(model.ServerConnectionConfig.SSHTunnelConfig.SSHPassword) > 0 {
+				model.ServerConnectionConfig.SSHTunnelConfig.SSHPassword = SecretDataObfuscatePlaceholder
 			}
-			if len(model.SSHTunnelConfig.AuthKey) > 0 {
-				model.SSHTunnelConfig.AuthKey = SecretDataObfuscatePlaceholder
+			if len(model.ServerConnectionConfig.SSHTunnelConfig.SSHAuthKey) > 0 {
+				model.ServerConnectionConfig.SSHTunnelConfig.SSHAuthKey = SecretDataObfuscatePlaceholder
 			}
 		}
-		model = ConvertClusterBeanToCommonClusterBean(model)
 	}
 	return models, nil
 }
@@ -640,15 +535,15 @@ func (impl *ClusterServiceImpl) FindByIdWithoutConfig(id int) (*ClusterBean, err
 	}
 	//empty bearer token as it will be hidden for user
 	model.Config = map[string]string{k8s2.BearerToken: ""}
-	if model.SSHTunnelConfig != nil {
-		if len(model.SSHTunnelConfig.Password) > 0 {
-			model.SSHTunnelConfig.Password = SecretDataObfuscatePlaceholder
+	if model.ServerConnectionConfig != nil && model.ServerConnectionConfig.ConnectionMethod == bean4.ServerConnectionMethodSSH &&
+		model.ServerConnectionConfig.SSHTunnelConfig != nil {
+		if len(model.ServerConnectionConfig.SSHTunnelConfig.SSHPassword) > 0 {
+			model.ServerConnectionConfig.SSHTunnelConfig.SSHPassword = SecretDataObfuscatePlaceholder
 		}
-		if len(model.SSHTunnelConfig.AuthKey) > 0 {
-			model.SSHTunnelConfig.AuthKey = SecretDataObfuscatePlaceholder
+		if len(model.ServerConnectionConfig.SSHTunnelConfig.SSHAuthKey) > 0 {
+			model.ServerConnectionConfig.SSHTunnelConfig.SSHAuthKey = SecretDataObfuscatePlaceholder
 		}
 	}
-	model = ConvertClusterBeanToCommonClusterBean(model)
 	return model, nil
 }
 
@@ -667,9 +562,9 @@ func (impl *ClusterServiceImpl) FindByIds(ids []int) ([]ClusterBean, error) {
 }
 
 func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {
-	bean = ConvertClusterBeanToCommonClusterBean(bean)
+	bean = adapter.ConvertClusterBeanToNewClusterBean(bean)
 	model, err := impl.clusterRepository.FindById(bean.Id)
-	model = ConvertClusterToCommonCluster(model)
+	model = adapter.ConvertClusterToNewCluster(model)
 	if err != nil {
 		impl.logger.Error(err)
 		return nil, err
@@ -691,12 +586,13 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 		bean.Config[k8s2.BearerToken] = model.Config[k8s2.BearerToken]
 	}
 
-	if bean.SSHTunnelConfig != nil {
-		if bean.SSHTunnelConfig.Password == SecretDataObfuscatePlaceholder {
-			bean.SSHTunnelConfig.Password = model.SSHTunnelPassword
+	if bean.ServerConnectionConfig != nil && bean.ServerConnectionConfig.ConnectionMethod == bean4.ServerConnectionMethodSSH &&
+		bean.ServerConnectionConfig.SSHTunnelConfig != nil {
+		if bean.ServerConnectionConfig.SSHTunnelConfig.SSHPassword == SecretDataObfuscatePlaceholder {
+			bean.ServerConnectionConfig.SSHTunnelConfig.SSHPassword = model.ServerConnectionConfig.SSHPassword
 		}
-		if bean.SSHTunnelConfig.AuthKey == SecretDataObfuscatePlaceholder {
-			bean.SSHTunnelConfig.AuthKey = model.SSHTunnelAuthKey
+		if bean.ServerConnectionConfig.SSHTunnelConfig.SSHAuthKey == SecretDataObfuscatePlaceholder {
+			bean.ServerConnectionConfig.SSHTunnelConfig.SSHAuthKey = model.ServerConnectionConfig.SSHPassword
 		}
 	}
 
@@ -719,13 +615,17 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 	}
 	//below we are checking if any configuration change has been made or not that will impact the connection with the cluster
 	//if any such change is made then only we will check if the given config is valid or not by connecting to the cluster
-	if bean.ServerUrl != model.ServerUrl || bean.ProxyUrl != model.ProxyUrl ||
+	beanConnectionConfig := bean.ServerConnectionConfig
+	modelConnectionConfig := model.ServerConnectionConfig
+	hasConnectionConfigChanged := beanConnectionConfig != nil && modelConnectionConfig != nil &&
+		(beanConnectionConfig.ConnectionMethod != modelConnectionConfig.ConnectionMethod || (beanConnectionConfig.ProxyConfig != nil && beanConnectionConfig.ProxyConfig.ProxyUrl != modelConnectionConfig.ProxyUrl) ||
+			(beanConnectionConfig.SSHTunnelConfig != nil && (beanConnectionConfig.SSHTunnelConfig.SSHServerAddress != modelConnectionConfig.SSHServerAddress ||
+				beanConnectionConfig.SSHTunnelConfig.SSHUsername != modelConnectionConfig.SSHUsername || beanConnectionConfig.SSHTunnelConfig.SSHPassword != modelConnectionConfig.SSHPassword ||
+				beanConnectionConfig.SSHTunnelConfig.SSHAuthKey != modelConnectionConfig.SSHAuthKey)))
+	if bean.ServerUrl != model.ServerUrl ||
 		bean.InsecureSkipTLSVerify != model.InsecureSkipTlsVerify || dbConfigBearerToken != requestConfigBearerToken ||
 		dbConfigTlsKey != requestConfigTlsKey || dbConfigCertData != requestConfigCertData ||
-		dbConfigCAData != requestConfigCAData || bean.ToConnectWithSSHTunnel != model.ToConnectWithSSHTunnel ||
-		(bean.SSHTunnelConfig != nil && (bean.SSHTunnelConfig.SSHServerAddress != model.SSHTunnelServerAddress ||
-			bean.SSHTunnelConfig.User != model.SSHTunnelUser || bean.SSHTunnelConfig.Password != model.SSHTunnelPassword ||
-			bean.SSHTunnelConfig.AuthKey != model.SSHTunnelAuthKey)) {
+		dbConfigCAData != requestConfigCAData || hasConnectionConfigChanged {
 		if bean.ClusterName == DEFAULT_CLUSTER {
 			impl.logger.Errorw("default_cluster is reserved by the system and cannot be updated, default_cluster", "name", bean.ClusterName)
 			return nil, fmt.Errorf("default_cluster is reserved by the system and cannot be updated")
@@ -742,13 +642,20 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 	model.ServerUrl = bean.ServerUrl
 	model.InsecureSkipTlsVerify = bean.InsecureSkipTLSVerify
 	model.PrometheusEndpoint = bean.PrometheusUrl
-	model.ProxyUrl = bean.ProxyUrl
-	model.ToConnectWithSSHTunnel = bean.ToConnectWithSSHTunnel
-	if bean.SSHTunnelConfig != nil {
-		model.SSHTunnelUser = bean.SSHTunnelConfig.User
-		model.SSHTunnelPassword = bean.SSHTunnelConfig.Password
-		model.SSHTunnelAuthKey = bean.SSHTunnelConfig.AuthKey
-		model.SSHTunnelServerAddress = bean.SSHTunnelConfig.SSHServerAddress
+	if bean.ServerConnectionConfig != nil {
+		model.ServerConnectionConfig = &repository3.ServerConnectionConfig{
+			Id:               bean.ServerConnectionConfig.ServerConnectionConfigId,
+			ConnectionMethod: bean.ServerConnectionConfig.ConnectionMethod,
+		}
+		if bean.ServerConnectionConfig.ProxyConfig != nil {
+			model.ServerConnectionConfig.ProxyUrl = bean.ServerConnectionConfig.ProxyConfig.ProxyUrl
+		}
+		if bean.ServerConnectionConfig.SSHTunnelConfig != nil {
+			model.ServerConnectionConfig.SSHServerAddress = bean.ServerConnectionConfig.SSHTunnelConfig.SSHServerAddress
+			model.ServerConnectionConfig.SSHUsername = bean.ServerConnectionConfig.SSHTunnelConfig.SSHUsername
+			model.ServerConnectionConfig.SSHPassword = bean.ServerConnectionConfig.SSHTunnelConfig.SSHPassword
+			model.ServerConnectionConfig.SSHAuthKey = bean.ServerConnectionConfig.SSHTunnelConfig.SSHAuthKey
+		}
 	}
 	if bean.PrometheusAuth != nil {
 		if bean.PrometheusAuth.UserName != "" || bean.PrometheusAuth.IsAnonymous {
@@ -770,7 +677,7 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 	model.UpdatedBy = userId
 	model.UpdatedOn = time.Now()
 
-	if false && model.K8sVersion == "" {
+	if model.K8sVersion == "" {
 		cfg := bean.GetClusterConfig()
 		client, err := impl.K8sUtil.GetK8sDiscoveryClient(cfg)
 		if err != nil {
@@ -792,9 +699,6 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 	// Rollback tx on error.
 	defer tx.Rollback()
 
-	model = ConvertClusterToCommonCluster(model)
-	bean = ConvertClusterBeanToCommonClusterBean(bean)
-	bean.ServerConnectionConfig.ServerConnectionConfigId = model.ServerConnectionConfigId
 	err = impl.serverConnectionService.CreateOrUpdateServerConnectionConfig(bean.ServerConnectionConfig, userId, tx)
 	if err != nil {
 		err = &util.ApiError{
@@ -806,7 +710,6 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 		return bean, err
 	}
 	model.ServerConnectionConfigId = bean.ServerConnectionConfig.ServerConnectionConfigId
-	model = ConvertCommonClusterToNewCluster(model)
 	err = impl.clusterRepository.Update(model, tx)
 	if err != nil {
 		err = &util.ApiError{
@@ -965,7 +868,7 @@ func (impl *ClusterServiceImpl) FindAllForAutoComplete() ([]ClusterBean, error) 
 	}
 	var beans []ClusterBean
 	for _, m := range model {
-		m = *ConvertClusterToCommonCluster(&m)
+		m = *adapter.ConvertClusterToNewCluster(&m)
 		beans = append(beans, ClusterBean{
 			Id:                m.Id,
 			ClusterName:       m.ClusterName,
@@ -990,7 +893,7 @@ func (impl *ClusterServiceImpl) buildInformer() {
 	}
 	var clusterInfo []*bean2.ClusterInfo
 	for _, model := range models {
-		model = *ConvertClusterToCommonCluster(&model)
+		model = *adapter.ConvertClusterToNewCluster(&model)
 		if !model.IsVirtualCluster {
 			bearerToken := model.Config[k8s2.BearerToken]
 			connectionConfig := &bean4.ServerConnectionConfigBean{

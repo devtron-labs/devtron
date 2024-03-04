@@ -42,8 +42,8 @@ type ClusterConfig struct {
 	SSHTunnelUser                   string
 	SSHTunnelPassword               string
 	SSHTunnelAuthKey                string
-	SSHTunnelServerAddress          string
-	ClusterConnectionConfig         *bean.ServerConnectionConfigBean
+	SSHTunnelServerAddress string
+	ServerConnectionConfig *bean.ServerConnectionConfigBean
 }
 
 type ClusterResourceListMap struct {

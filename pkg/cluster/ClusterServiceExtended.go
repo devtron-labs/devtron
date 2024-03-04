@@ -11,6 +11,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
 	"github.com/devtron-labs/devtron/pkg/serverConnection"
+	bean4 "github.com/devtron-labs/devtron/pkg/serverConnection/bean"
 	"go.uber.org/zap"
 	"net/http"
 	"strings"
@@ -112,15 +113,15 @@ func (impl *ClusterServiceImplExtended) FindAllWithoutConfig() ([]*ClusterBean, 
 	}
 	for _, bean := range beans {
 		bean.Config = map[string]string{k8s2.BearerToken: ""}
-		if bean.SSHTunnelConfig != nil {
-			if len(bean.SSHTunnelConfig.Password) > 0 {
-				bean.SSHTunnelConfig.Password = SecretDataObfuscatePlaceholder
+		if bean.ServerConnectionConfig != nil && bean.ServerConnectionConfig.ConnectionMethod == bean4.ServerConnectionMethodSSH &&
+			bean.ServerConnectionConfig.SSHTunnelConfig != nil {
+			if len(bean.ServerConnectionConfig.SSHTunnelConfig.SSHPassword) > 0 {
+				bean.ServerConnectionConfig.SSHTunnelConfig.SSHPassword = SecretDataObfuscatePlaceholder
 			}
-			if len(bean.SSHTunnelConfig.AuthKey) > 0 {
-				bean.SSHTunnelConfig.AuthKey = SecretDataObfuscatePlaceholder
+			if len(bean.ServerConnectionConfig.SSHTunnelConfig.SSHAuthKey) > 0 {
+				bean.ServerConnectionConfig.SSHTunnelConfig.SSHAuthKey = SecretDataObfuscatePlaceholder
 			}
 		}
-		bean = ConvertClusterBeanToCommonClusterBean(bean)
 	}
 	return beans, nil
 }
@@ -288,7 +289,7 @@ func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *Cluste
 	}
 
 	// if git-ops configured and no proxy is configured, then only update cluster in ACD, otherwise ignore
-	if isGitOpsConfigured && len(bean.ProxyUrl) == 0 && !bean.ToConnectWithSSHTunnel {
+	if isGitOpsConfigured && !IsProxyOrSSHConfigured(bean) {
 		configMap := bean.Config
 		serverUrl := bean.ServerUrl
 		bearerToken := ""
@@ -401,7 +402,7 @@ func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *ClusterB
 	}
 
 	// if git-ops configured and no proxy or ssh tunnel is configured, then only add cluster in ACD, otherwise ignore
-	if isGitOpsConfigured && len(clusterBean.ProxyUrl) == 0 && !clusterBean.ToConnectWithSSHTunnel {
+	if isGitOpsConfigured && IsProxyOrSSHConfigured(clusterBean) {
 		//create it into argo cd as well
 		cl := impl.ConvertClusterBeanObjectToCluster(bean)
 

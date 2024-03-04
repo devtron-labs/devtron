@@ -6,7 +6,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/serverConnection/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"time"
 )
 
 type ServerConnectionService interface {
@@ -36,8 +35,6 @@ func (impl *ServerConnectionServiceImpl) CreateOrUpdateServerConnectionConfig(re
 	}
 	config := adapter.ConvertServerConnectionConfigBeanToServerConnectionConfig(reqBean, userId)
 	if existingConfig == nil {
-		config.AuditLog.CreatedOn = time.Now()
-		config.AuditLog.CreatedBy = userId
 		err = impl.serverConnectionRepository.Save(config, tx)
 		if err != nil {
 			impl.logger.Errorw("error occurred while saving server connection config", "err", err)
@@ -46,6 +43,8 @@ func (impl *ServerConnectionServiceImpl) CreateOrUpdateServerConnectionConfig(re
 		reqBean.ServerConnectionConfigId = config.Id
 	} else {
 		config.Id = existingConfig.Id
+		config.CreatedBy = existingConfig.CreatedBy
+		config.CreatedOn = existingConfig.CreatedOn
 		err = impl.serverConnectionRepository.Update(config, tx)
 		if err != nil {
 			impl.logger.Errorw("error occurred while updating server connection config", "err", err)

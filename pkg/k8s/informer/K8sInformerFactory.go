@@ -96,7 +96,7 @@ func (impl *K8sInformerFactoryImpl) BuildInformer(clusterInfo []*bean.ClusterInf
 					SSHAuthKey:       info.ServerConnectionConfig.SSHTunnelConfig.SSHAuthKey,
 				}
 			}
-			clusterConfig.ClusterConnectionConfig = connectionConfig
+			clusterConfig.ServerConnectionConfig = connectionConfig
 		}
 		impl.buildInformerAndNamespaceList(info.ClusterName, clusterConfig, &impl.mutex)
 	}
