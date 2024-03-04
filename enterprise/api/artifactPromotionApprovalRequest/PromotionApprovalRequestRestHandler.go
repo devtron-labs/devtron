@@ -19,6 +19,7 @@ import (
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
+	"k8s.io/utils/strings/slices"
 	"net/http"
 	"strconv"
 )
@@ -331,9 +332,15 @@ func (handler RestHandlerImpl) GetArtifactsForPromotion(w http.ResponseWriter, r
 		handler.logger.Errorw("resource is a mandatory field")
 		common.WriteJsonResp(w, errors.New("resource is a mandatory field"), nil, http.StatusBadRequest)
 		return
-	} else if len(resource) > 0 && (len(resourceName) == 0 || appId == 0) {
-		common.WriteJsonResp(w, errors.New(fmt.Sprintf("resourceName/appId is required field for resource = %s ", resource)), nil, http.StatusBadRequest)
-		return
+	} else if len(resource) > 0 && !pendingForCurrentUser {
+		if !slices.Contains([]string{string(bean.SOURCE_TYPE_CI), string(bean.SOURCE_TYPE_CD), string(bean.SOURCE_TYPE_WEBHOOK), string(bean.PROMOTION_APPROVAL_PENDING_NODE)}, resource) {
+			common.WriteJsonResp(w, errors.New(fmt.Sprintf("invalid resource name - %s ", resource)), nil, http.StatusBadRequest)
+			return
+		}
+		if len(resourceName) == 0 || appId == 0 {
+			common.WriteJsonResp(w, errors.New(fmt.Sprintf("resourceName/appId is required field for resource = %s ", resource)), nil, http.StatusBadRequest)
+			return
+		}
 	} else if pendingForCurrentUser {
 		if workflowId == 0 {
 			common.WriteJsonResp(w, errors.New("workflowId is required field if pendingForCurrentUser is true"), nil, http.StatusBadRequest)
@@ -372,7 +379,7 @@ func (handler RestHandlerImpl) GetArtifactsForPromotion(w http.ResponseWriter, r
 			return
 		}
 
-	} else if resource == bean.PROMOTION_APPROVAL_PENDING_NODE {
+	} else if resource == string(bean.PROMOTION_APPROVAL_PENDING_NODE) {
 		// check if either user has trigger access or artifact promoter access for this env
 		appRbacObj := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 		env, err := handler.environmentRepository.FindByName(resourceName)

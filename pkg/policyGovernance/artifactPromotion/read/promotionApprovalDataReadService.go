@@ -354,7 +354,7 @@ func (impl ArtifactPromotionDataReadServiceImpl) parseSortByRequest(policyMetada
 	case bean.APPROVER_COUNT_SORT_KEY:
 		sortRequest.SortByType = bean2.GlobalPolicySearchableField
 		sortRequest.SearchableField = util2.SearchableField{
-			FieldName: bean.PROMOTION_APPROVAL_PENDING_NODE,
+			FieldName: string(bean.PROMOTION_APPROVAL_PENDING_NODE),
 			FieldType: util2.NumericType,
 		}
 	}

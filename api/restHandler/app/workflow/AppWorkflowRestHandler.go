@@ -281,6 +281,13 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflow(w http.ResponseWriter, r 
 	common.WriteJsonResp(w, err, workflows, http.StatusOK)
 }
 
+func (handler AppWorkflowRestHandlerImpl) CheckImagePromoterAuth(token string, object string) bool {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApprovalPolicy, casbin.ActionArtifactPromote, object); !ok {
+		return false
+	}
+	return true
+}
+
 func (impl AppWorkflowRestHandlerImpl) FindAllWorkflows(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])
@@ -444,8 +451,12 @@ func (handler *AppWorkflowRestHandlerImpl) GetWorkflowsViewData(w http.ResponseW
 		return
 	}
 	//RBAC enforcer Ends
-
-	appWorkflows, err := handler.appWorkflowService.FindAppWorkflows(appId)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	handler.Logger.Debugw("request by user", "userId", userId)
+	if userId == 0 || err != nil {
+		return
+	}
+	appWorkflows, err := handler.appWorkflowService.FindAppWorkflowWithImagePromotionMetadata(appId, userId, token, handler.CheckImagePromoterAuth)
 	if err != nil {
 		handler.Logger.Errorw("error in fetching workflows for app", "appId", appId, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
