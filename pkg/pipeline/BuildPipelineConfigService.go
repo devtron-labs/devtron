@@ -1285,6 +1285,9 @@ func (impl *CiPipelineConfigServiceImpl) PatchCiPipeline(request *bean.CiPatchRe
 	}
 
 	ciConfig.IsJob = request.IsJob
+	if request.IsJob {
+		request.CiPipeline.PipelineType = bean.NORMAL_JOB
+	}
 	// Check for clone job to not create env override again
 	ciConfig.IsCloneJob = request.IsCloneJob
 	switch request.Action {
@@ -1453,7 +1456,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineMin(appId int, envIds []in
 	var ciPipelineResp []*bean.CiPipelineMin
 	for _, pipeline := range pipelines {
 		parentCiPipeline := pipelineConfig.CiPipeline{}
-		pipelineType := bean.NORMAL
+		pipelineType := bean.CI_BUILD
 
 		if pipelineParentCiMap[pipeline.Id] != nil {
 			parentCiPipeline = *pipelineParentCiMap[pipeline.Id]
