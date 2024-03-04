@@ -27,6 +27,7 @@
 - feat: added support for multiple gitops configurations on shared clusters (#4622)
 - feat: added support for downloading pod logs (#4539)
 ## Documentation
+- doc: Lock Deployment Config (#4732)
 - doc: Link corrections and Fixes (#4733)
 - doc: Navigation and Scaffolding Fixes (#4716)
 - docs: Workflow + Skopeo + Approval + Image Tag at CI + Image Tag + Image Digest at CD (#4507)
