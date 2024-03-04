@@ -314,6 +314,7 @@ func (impl *ArtifactPromotionApprovalServiceImpl) evaluatePoliciesOnArtifact(ciA
 		if err != nil {
 			impl.logger.Errorw("evaluation failed with error", "policyConditions", policy.Conditions, "envName", envName, policy.Conditions, "params", params, "err", err)
 			responseMap[envName] = bean.EnvironmentResponse{
+				Name:                     envName,
 				ApprovalCount:            policy.ApprovalMetaData.ApprovalCount,
 				PromotionPossible:        pointer.Bool(false),
 				PromotionValidationState: bean.POLICY_EVALUATION_ERRORED,
@@ -321,6 +322,7 @@ func (impl *ArtifactPromotionApprovalServiceImpl) evaluatePoliciesOnArtifact(ciA
 			continue
 		}
 		envResp := bean.EnvironmentResponse{
+			Name:              envName,
 			ApprovalCount:     policy.ApprovalMetaData.ApprovalCount,
 			PromotionPossible: pointer.Bool(evaluationResult),
 		}
@@ -356,7 +358,7 @@ func (impl *ArtifactPromotionApprovalServiceImpl) approveArtifactPromotion(reque
 		return nil, err
 	}
 
-	pipelineMetaData := buildPipelineMetaData(request, cdPipelines, &responses)
+	pipelineMetaData := buildPipelineMetaDataAndUpdateResponse(request, cdPipelines, &responses)
 	promotionRequests, err := impl.artifactPromotionApprovalRequestRepository.FindByDestinationPipelineIds(pipelineMetaData.PipelineIds)
 	if err != nil {
 		impl.logger.Errorw("error in getting artifact promotion request object by id", "promotionRequestId", request.PromotionRequestId, "err", err)
@@ -385,33 +387,19 @@ func (impl *ArtifactPromotionApprovalServiceImpl) approveArtifactPromotion(reque
 		policyIdMap[policy.Id] = policy
 	}
 
-	staleRequestIds := make([]int, 0)
-	validRequestIds := make([]int, 0)
-	validRequestPolicyMap := make(map[int]int)
-	pipelineIdVsEnvMap := pipelineMetaData.PipelineIdVsEnvNameMap
-	for _, promotionRequest := range promotionRequests {
-		resp := responses[pipelineIdVsEnvMap[promotionRequest.DestinationPipelineId]]
-		_, ok := policyIdMap[promotionRequest.PolicyId]
-		if ok {
-			validRequestIds = append(validRequestIds, promotionRequest.Id)
-			validRequestPolicyMap[promotionRequest.Id] = promotionRequest.PolicyId
-		}
-		if !ok {
-			// policy is not found in the map, and the request is still in awaiting state.
-			// although the policy is no longer governing the current pipeline
-			// this is a stale case.
-			// mark it stale
-			staleRequestIds = append(staleRequestIds, promotionRequest.Id)
-
-			// also set the response messages
-			resp.PromotionPossible = pointer.Bool(false)
-			resp.PromotionValidationMessage = "request is no longer valid as the policy is no longer governing this pipeline, state: stale"
-			resp.PromotionValidationState = bean.PromotionValidationState(resp.PromotionValidationMessage)
-		} else if promotionRequest.Status != bean.AWAITING_APPROVAL {
-			resp.PromotionValidationMessage = fmt.Sprintf("artifact is in %s state", promotionRequest.Status.Status())
-			resp.PromotionValidationState = bean.PromotionValidationState(resp.PromotionValidationMessage)
-		}
+	environmentResponses, err := impl.initiateApprovalProcess(request, pipelineMetaData, promotionRequests, responses, policyIdMap)
+	if err != nil {
+		impl.logger.Errorw("error in finding approving the artifact promotion requests", "promotionRequests", promotionRequests, "err", err)
+		return nil, err
 	}
+	return environmentResponses, nil
+}
+
+func (impl *ArtifactPromotionApprovalServiceImpl) initiateApprovalProcess(request *bean.ArtifactPromotionRequest, pipelineMetaData PipelinesMetaData, promotionRequests []*repository.ArtifactPromotionApprovalRequest, responses map[string]bean.EnvironmentResponse, policyIdMap map[int]*bean.PromotionPolicy) ([]bean.EnvironmentResponse, error) {
+
+	pipelineIdVsEnvMap := pipelineMetaData.PipelineIdVsEnvNameMap
+
+	staleRequestIds, validRequestIds := impl.filterValidAndStaleRequests(promotionRequests, &responses, pipelineIdVsEnvMap, policyIdMap)
 
 	tx, err := impl.artifactPromotionApprovalRequestRepository.StartTx()
 	if err != nil {
@@ -428,8 +416,16 @@ func (impl *ArtifactPromotionApprovalServiceImpl) approveArtifactPromotion(reque
 			// not returning by choice, don't interrupt the user flow
 		}
 	}
+	validRequestsMap := make(map[int]bool)
+	for _, requestId := range validRequestIds {
+		validRequestsMap[requestId] = true
+	}
 
 	for _, promotionRequest := range promotionRequests {
+		// skip the invalid requests
+		if ok := validRequestsMap[promotionRequest.Id]; !ok {
+			continue
+		}
 		promotionRequestApprovedUserData := &pipelineConfig.RequestApprovalUserData{
 			ApprovalRequestId: promotionRequest.Id,
 			RequestType:       repository2.ARTIFACT_PROMOTION_APPROVAL,
@@ -509,7 +505,41 @@ func (impl *ArtifactPromotionApprovalServiceImpl) approveArtifactPromotion(reque
 		return nil, err
 	}
 
-	return nil, nil
+	result := make([]bean.EnvironmentResponse, 0, len(responses))
+	for _, resp := range responses {
+		result = append(result, resp)
+	}
+	return result, nil
+}
+
+func (impl *ArtifactPromotionApprovalServiceImpl) filterValidAndStaleRequests(promotionRequests []*repository.ArtifactPromotionApprovalRequest, responses *map[string]bean.EnvironmentResponse, pipelineIdVsEnvMap map[int]string, policyIdMap map[int]*bean.PromotionPolicy) ([]int, []int) {
+	staleRequestIds := make([]int, 0)
+	validRequestIds := make([]int, 0)
+	responseDereference := *responses
+	for _, promotionRequest := range promotionRequests {
+		resp := responseDereference[pipelineIdVsEnvMap[promotionRequest.DestinationPipelineId]]
+		_, ok := policyIdMap[promotionRequest.PolicyId]
+		if ok {
+			validRequestIds = append(validRequestIds, promotionRequest.Id)
+		}
+		if !ok {
+			// policy is not found in the map, and the request is still in awaiting state.
+			// although the policy is no longer governing the current pipeline
+			// this is a stale case.
+			// mark it stale
+			staleRequestIds = append(staleRequestIds, promotionRequest.Id)
+
+			// also set the response messages
+			resp.PromotionPossible = pointer.Bool(false)
+			resp.PromotionValidationMessage = "request is no longer valid as the policy is no longer governing this pipeline, state: stale"
+			resp.PromotionValidationState = bean.PromotionValidationState(resp.PromotionValidationMessage)
+		} else if promotionRequest.Status != bean.AWAITING_APPROVAL {
+			resp.PromotionValidationMessage = fmt.Sprintf("artifact is in %s state", promotionRequest.Status.Status())
+			resp.PromotionValidationState = bean.PromotionValidationState(resp.PromotionValidationMessage)
+		}
+	}
+	responses = &responseDereference
+	return staleRequestIds, validRequestIds
 }
 
 func (impl *ArtifactPromotionApprovalServiceImpl) handleArtifactPromotionSuccess(promotableRequestIds []int, promotionRequestIdToDaoMap map[int]*repository.ArtifactPromotionApprovalRequest, pipelineIdToDaoMap map[int]*pipelineConfig.Pipeline) error {
@@ -724,7 +754,7 @@ func (impl *ArtifactPromotionApprovalServiceImpl) promoteArtifact(request *bean.
 		return nil, errorResp
 	}
 
-	pipelineMetaData := buildPipelineMetaData(request, allowedCdPipelines, &response)
+	pipelineMetaData := buildPipelineMetaDataAndUpdateResponse(request, allowedCdPipelines, &response)
 
 	allAppWorkflowMappings, err := impl.appWorkflowRepository.FindWFAllMappingByWorkflowId(workflow.Id)
 	if err != nil {
@@ -749,7 +779,7 @@ func (impl *ArtifactPromotionApprovalServiceImpl) promoteArtifact(request *bean.
 	return envResponses, nil
 }
 
-func buildPipelineMetaData(request *bean.ArtifactPromotionRequest, allowedCdPipelines []*pipelineConfig.Pipeline, response *map[string]bean.EnvironmentResponse) PipelinesMetaData {
+func buildPipelineMetaDataAndUpdateResponse(request *bean.ArtifactPromotionRequest, allowedCdPipelines []*pipelineConfig.Pipeline, response *map[string]bean.EnvironmentResponse) PipelinesMetaData {
 	pipelineIdVsEnvNameMap := make(map[int]string)
 	pipelineIds := make([]int, 0, len(allowedCdPipelines))
 	pipelineIdToDaoMap := make(map[int]*pipelineConfig.Pipeline)

@@ -788,7 +788,7 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideCreate(w http.Resp
 			return
 		}
 	}
-	common.WriteJsonResp(w, err, createResp, http.StatusOK)
+	common.WriteJsonResp(w, nil, createResp, http.StatusOK)
 }
 
 func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideUpdate(w http.ResponseWriter, r *http.Request) {
