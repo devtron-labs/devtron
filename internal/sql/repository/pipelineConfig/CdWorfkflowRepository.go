@@ -731,11 +731,11 @@ func (impl *CdWorkflowRepositoryImpl) CheckWorkflowRunnerByReferenceId(reference
 
 func (impl *CdWorkflowRepositoryImpl) IsArtifactDeployedOnStage(ciArtifactId, pipelineId int, runnerType bean.WorkflowType) (bool, error) {
 	exists, err := impl.dbConnection.Model((*CdWorkflowRunner)(nil)).
-		Join("INNER JOIN cd_workflow wf on wf.id = cd_workflow_runner.cd_workflow_id").
-		Where("cd_workflow.pipeline_id = ?", pipelineId).
-		Where("cd_workflow.ci_artifact_id = ?", ciArtifactId).
+		Join("INNER JOIN cd_workflow cdw on cdw.id = cd_workflow_runner.cd_workflow_id").
+		Where("cdw.pipeline_id = ?", pipelineId).
+		Where("cdw.ci_artifact_id = ?", ciArtifactId).
 		Where("cd_workflow_runner.workflow_type = ?", runnerType).
-		Where("cd_workflow_runner.workflow_status IN (?)", pg.In([]string{"Healthy", "Succeeded"})).
+		Where("cd_workflow_runner.status IN (?)", pg.In([]string{"Healthy", "Succeeded"})).
 		Exists()
 	if errors.Is(err, pg.ErrNoRows) {
 		return false, nil

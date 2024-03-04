@@ -3,6 +3,7 @@ package bean
 import (
 	"encoding/json"
 	"errors"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	repository1 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
 	"github.com/devtron-labs/devtron/util"
@@ -90,19 +91,20 @@ const (
 )
 
 type ArtifactPromotionRequest struct {
-	SourceName         string         `json:"sourceName"`
-	SourceType         SourceTypeStr  `json:"sourceType"`
-	Action             string         `json:"action"`
-	PromotionRequestId int            `json:"promotionRequestId"`
-	ArtifactId         int            `json:"artifactId"`
-	AppName            string         `json:"appName"`
-	EnvironmentNames   []string       `json:"destinationObjectNames"`
-	UserId             int32          `json:"-"`
-	WorkflowId         int            `json:"workflowId"`
-	AppId              int            `json:"appId"`
-	EnvNameIdMap       map[string]int `json:"-"`
-	EnvIdNameMap       map[int]string `json:"-"`
-	SourcePipelineId   int            `json:"-"`
+	SourceName         string                   `json:"sourceName"`
+	SourceType         SourceTypeStr            `json:"sourceType"`
+	Action             string                   `json:"action"`
+	PromotionRequestId int                      `json:"promotionRequestId"`
+	ArtifactId         int                      `json:"artifactId"`
+	AppName            string                   `json:"appName"`
+	EnvironmentNames   []string                 `json:"destinationObjectNames"`
+	UserId             int32                    `json:"-"`
+	WorkflowId         int                      `json:"workflowId"`
+	AppId              int                      `json:"appId"`
+	EnvNameIdMap       map[string]int           `json:"-"`
+	EnvIdNameMap       map[int]string           `json:"-"`
+	SourcePipelineId   int                      `json:"-"`
+	SourceCdPipeline   *pipelineConfig.Pipeline `json:"-"`
 }
 
 type ArtifactPromotionApprovalResponse struct {
