@@ -79,7 +79,7 @@ As shown below, you can handle the configurations of more than one application f
 ![Figure 8: Configurations of each App](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/configurations.jpg)
 
 {% hint style="info" %}
-Users need to have [Admin role](../user-guide/global-configurations/authorization/user-access.md#role-based-access-levels) or above (along with access to the environment and applications) to change their configuration
+Users need to have [Admin role](../user-guide/global-configurations/authorization/user-access.md#role-based-access-levels) or above (along with access to the environment and applications) to change their configuration. Please note, you might not be able to change the values of locked keys in deployment template. Refer [Lock Deployment Config](./) to know more.
 {% endhint %}
 
 

@@ -22,6 +22,10 @@ You can define application behavior by providing information in the following se
 | `Advanced (YAML)` | If you want to do additional configurations, then click **Advanced (YAML)** for modifications.<br>Refer [Advanced (YAML)](https://docs.devtron.ai/usage/applications/creating-application/deployment-template/rollout-deployment#3.-advanced-yaml) section for more detail.</br> |
 | `Show application metrics` | You can enable `Show application metrics` to see your application's metrics-CPU Service Monitor usage, Memory Usage, Status, Throughput and Latency.<br>Refer [Application Metrics](https://docs.devtron.ai/v/v0.5/usage/applications/app-details/app-metrics) for more detail.</br> |
 
+{% hint style="warning" %}
+Super-admins can lock keys in deployment template to prevent non-super-admins from modifying those locked keys. Refer [Lock Deployment Config](../../global-configurations/lock-deployment-config.md) to know more.
+{% endhint %}
+
 
 ## 1. Yaml File
 

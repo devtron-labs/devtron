@@ -35,21 +35,17 @@ Users need to have super-admin permission to lock deployment keys.
 
     ![Figure 3: Values.YAML File](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/lock-dt/values-yaml.jpg)
 
-3. Enter the keys inside the editor on the left-hand side, e.g., `resource.limits`.
+3. Enter the keys inside the editor on the left-hand side, e.g., `autoscaling.MaxReplicas`. Use <a href="https://goessner.net/articles/JsonPath/index.html" target="_blank">JSONpath expressions</a> to enter specific keys, lists, or objects to lock.
 
-    ![Figure 4: Referring Values.YAML File](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/lock-dt/side-by-side.jpg)
-
-    Since the template is in a YAML format, use <a href="https://goessner.net/articles/JsonPath/index.html" target="_blank">JSONpath expressions</a> to enter specific keys, lists, or objects to lock.
-
-    ![Figure 5: Referring Values.YAML File for Locking Keys](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/lock-dt/autoscaling-lock.jpg)
+    ![Figure 4: Referring Values.YAML File for Locking Keys](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/lock-dt/autoscaling-lock.jpg)
 
 4. Click **Save**. 
 
-    ![Figure 6: Saving Locked Keys](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/lock-dt/saving-locked-keys.jpg)
+    ![Figure 5: Saving Locked Keys](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/lock-dt/saving-locked-keys.jpg)
 
 5. A confirmation dialog box would appear. Read it and click **Confirm**.
 
-    ![Figure 7: Confirmation Dialog](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/lock-dt/confirmation.jpg)
+    ![Figure 6: Confirmation Dialog](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/lock-dt/confirmation.jpg)
 
 ---
 
@@ -59,32 +55,32 @@ While super-admins can directly edit the locked keys, let's look at a scenario w
 
 * User can hide/unhide the locked keys as shown below.
 
-    ![Figure 8: Hiding Locked Keys](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/lock-dt/hide-locked-keys.gif)
+    ![Figure 7: Hiding Locked Keys](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/lock-dt/hide-locked-keys.gif)
 
 {% hint style="info" %}
 <span><img src="https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/lock-dt/mode.jpg" alt="GUI or YAML Mode"></span> <br />
-If you have selected 'Basic' mode instead of 'Advanced (YAML)', only unlocked keys would appear.
+If you select 'Basic' mode instead of 'Advanced (YAML)', all the keys meant for basic mode will be displayed in the GUI even if some are locked. While users can modify these keys, they cannot save the changes made to the locked keys.
 {% endhint %}
 
 * Let's assume the user edits one of the locked keys...
 
-    ![Figure 9: Editing Locked Keys](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/lock-dt/change-locked-values.gif)
+    ![Figure 8: Editing Locked Keys](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/lock-dt/change-locked-values.gif)
 
     ...and saves the changes.
 
-    ![Figure 10: Saving Edits to Locked Keys](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/lock-dt/changing-values.jpg)
+    ![Figure 9: Saving Edits to Locked Keys](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/lock-dt/changing-values.jpg)
 
 * A modal window will appear on the right highlighting the non-eligible edits.
 
-    ![Figure 11: Eligible and Non-eligible Changes](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/lock-dt/not-eligible-changes.jpg)
+    ![Figure 10: Eligible and Non-eligible Changes](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/lock-dt/not-eligible-changes.jpg)
 
 * Let's assume the user edits a key that is not locked or adds a new key.
 
-    ![Figure 12: Editing Allowed Keys](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/lock-dt/changing-allowed-values.jpg)
+    ![Figure 11: Editing Allowed Keys](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/lock-dt/changing-allowed-values.jpg)
 
 * The modal window will highlight the eligible edits. However, it will not let the user save those eligible edits unless the user clicks the checkbox: **Save changes which are eligible for update**.
 
-    ![Figure 13: Saving Eligible Changes](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/lock-dt/saving-allowed-changes.jpg)
+    ![Figure 12: Saving Eligible Changes](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/lock-dt/saving-allowed-changes.jpg)
 
 {% hint style="warning" %}
 ### Who Can Perform This Action?
@@ -93,11 +89,11 @@ Only a super-admin, manager, or application admin can edit the configuration val
 
 * Once the user clicks the **Update** button, the permissible changes will reflect in the deployment template. 
 
-    ![Figure 14: Updating Deployment Config](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/lock-dt/updating-changes.jpg)
+    ![Figure 13: Updating Deployment Config](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/lock-dt/updating-changes.jpg)
 
     However, if it's a [protected template](../../user-guide/creating-application/config-approval.md), the user will require the approval of a [configuration approver](./user-access.md#role-based-access-levels) as shown below.
 
-    ![Figure 15: Proposing Changes to Protected Config](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/lock-dt/proposing-changes.jpg)
+    ![Figure 14: Proposing Changes to Protected Config](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/lock-dt/proposing-changes.jpg)
 
 The same result can be seen if the user tries to edit environment-specific deployment templates.
 
