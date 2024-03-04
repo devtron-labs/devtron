@@ -1366,8 +1366,6 @@ func (impl *AppArtifactManagerImpl) setPromotionArtifactMetadata(ciArtifacts []*
 	for i, artifact := range ciArtifacts {
 		if promotionApprovalMetadata, ok := promotionApprovalArtifactIdToMetadataMap[artifact.Id]; ok {
 			ciArtifacts[i].PromotionApprovalMetadata = promotionApprovalMetadata
-			ciArtifacts[i].PromotedFromType = promotionApprovalMetadata.PromotedFromType
-			ciArtifacts[i].PromotedFrom = promotionApprovalMetadata.PromotedFrom
 		}
 	}
 	return ciArtifacts, nil

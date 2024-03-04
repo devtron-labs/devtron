@@ -836,8 +836,6 @@ type CiArtifactBean struct {
 	CredentialsSourceType     string                               `json:"-"`
 	CredentialsSourceValue    string                               `json:"-"`
 	PromotionApprovalMetadata *bean5.PromotionApprovalMetaData     `json:"promotionApprovalMetadata,omitempty"`
-	PromotedFrom              string                               `json:"promotedFrom"`
-	PromotedFromType          string                               `json:"promotedFromType"`
 	DeployedOnEnvironments    []string                             `json:"deployedOnEnvironments"`
 }
 

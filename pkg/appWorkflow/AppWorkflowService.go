@@ -295,7 +295,7 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowWithImagePromotionMetadata(app
 		}
 		for _, cdPipeline := range cdPipelines {
 			promotionPolicy, err := impl.artifactPromotionDataReadService.GetPromotionPolicyByAppAndEnvId(cdPipeline.AppId, cdPipeline.EnvironmentId)
-			if err != nil {
+			if err != nil && err != pg.ErrNoRows {
 				impl.Logger.Errorw("error in fetching promotion policy by appId and envId", "appId", cdPipeline.App, "envId", cdPipeline.EnvironmentId, "err", err)
 				return nil, err
 			}
