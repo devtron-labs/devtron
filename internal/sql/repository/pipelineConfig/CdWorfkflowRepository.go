@@ -193,7 +193,7 @@ type CdWorkflowRunner struct {
 }
 
 type CdWorkflowMetadata struct {
-	CdWorkflowId int `sql:"cdwId"`
+	CdWorkflowId int `sql:"cdw_id"`
 	PipelineId   int `sql:"pipeline_id"`
 	CiArtifactId int `sql:"ci_artifact_id"`
 }
@@ -749,7 +749,7 @@ func (impl *CdWorkflowRepositoryImpl) FindAllSucceededWfsByCDPipelineIds(cdPipel
 	query := "with workflow as " +
 		"(Select cw.id as cdw_id, cw.pipeline_id as pipeline_id, cw.ci_artifact_id as ci_artifact_id  from cd_workflow cw inner join cd_workflow_runner cwr on cw.id=cwr.cd_workflow_id " +
 		"where ( cw.pipeline_id in (?) and cwr.workflow_type='DEPLOY' and cwr.status='Succeeded'  )) " +
-		"select * from workflow where cdwId in (select max(cdwId) from workflow group by pipeline_id )"
+		"select * from workflow where cdw_id in (select max(cdw_id) from workflow group by pipeline_id )"
 
 	_, err := impl.dbConnection.Query(&cdWorkflow, query, pg.In(cdPipelineIds))
 	if err != nil {
