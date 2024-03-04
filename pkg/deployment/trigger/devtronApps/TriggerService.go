@@ -453,16 +453,17 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 		}
 
 		runner := &pipelineConfig.CdWorkflowRunner{
-			Name:         cdPipeline.Name,
-			WorkflowType: bean3.CD_WORKFLOW_TYPE_DEPLOY,
-			ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
-			Status:       pipelineConfig.WorkflowInitiated, // deployment Initiated for manual trigger
-			TriggeredBy:  overrideRequest.UserId,
-			StartedOn:    triggeredAt,
-			Namespace:    impl.config.GetDefaultNamespace(),
-			CdWorkflowId: cdWorkflowId,
-			AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: overrideRequest.UserId, UpdatedOn: triggeredAt, UpdatedBy: overrideRequest.UserId},
-			ReferenceId:  triggerContext.ReferenceId,
+			Name:            cdPipeline.Name,
+			WorkflowType:    bean3.CD_WORKFLOW_TYPE_DEPLOY,
+			ExecutorType:    pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
+			Status:          pipelineConfig.WorkflowInitiated, // deployment Initiated for manual trigger
+			TriggeredBy:     overrideRequest.UserId,
+			StartedOn:       triggeredAt,
+			Namespace:       impl.config.GetDefaultNamespace(),
+			CdWorkflowId:    cdWorkflowId,
+			AuditLog:        sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: overrideRequest.UserId, UpdatedOn: triggeredAt, UpdatedBy: overrideRequest.UserId},
+			ReferenceId:     triggerContext.ReferenceId,
+			TriggerMetadata: overrideRequest.TriggerMessage,
 		}
 		if approvalRequestId > 0 {
 			runner.DeploymentApprovalRequestId = approvalRequestId
@@ -633,6 +634,7 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 
 	request, err := impl.checkForDeploymentWindow(request)
 	if err != nil {
+		go impl.writeBlockedTriggerEvent(request)
 		return err
 	}
 
@@ -708,16 +710,17 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 	}
 
 	runner := &pipelineConfig.CdWorkflowRunner{
-		Name:         pipeline.Name,
-		WorkflowType: bean3.CD_WORKFLOW_TYPE_DEPLOY,
-		ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM,
-		Status:       pipelineConfig.WorkflowInitiated, // deployment Initiated for auto trigger
-		TriggeredBy:  1,
-		StartedOn:    triggeredAt,
-		Namespace:    impl.config.GetDefaultNamespace(),
-		CdWorkflowId: cdWf.Id,
-		AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: triggeredBy, UpdatedOn: triggeredAt, UpdatedBy: triggeredBy},
-		ReferenceId:  request.TriggerContext.ReferenceId,
+		Name:            pipeline.Name,
+		WorkflowType:    bean3.CD_WORKFLOW_TYPE_DEPLOY,
+		ExecutorType:    pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM,
+		Status:          pipelineConfig.WorkflowInitiated, // deployment Initiated for auto trigger
+		TriggeredBy:     1,
+		StartedOn:       triggeredAt,
+		Namespace:       impl.config.GetDefaultNamespace(),
+		CdWorkflowId:    cdWf.Id,
+		AuditLog:        sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: triggeredBy, UpdatedOn: triggeredAt, UpdatedBy: triggeredBy},
+		ReferenceId:     request.TriggerContext.ReferenceId,
+		TriggerMetadata: request.TriggerMessage,
 	}
 	if approvalRequestId > 0 {
 		runner.DeploymentApprovalRequestId = approvalRequestId
@@ -1501,11 +1504,11 @@ func (impl *TriggerServiceImpl) helmInstallReleaseWithCustomChart(ctx context.Co
 	// Request exec
 	return impl.helmAppClient.InstallReleaseWithCustomChart(ctx, &helmInstallRequest)
 }
-func (impl *TriggerServiceImpl) writeBlockedTriggerEvent(request bean.TriggerRequest, timeWindowComment string) {
+func (impl *TriggerServiceImpl) writeBlockedTriggerEvent(request bean.TriggerRequest) {
 	event := impl.eventFactory.Build(util2.Blocked, &request.Pipeline.Id, request.Pipeline.AppId, &request.Pipeline.EnvironmentId, util2.CD)
 	impl.logger.Debugw("event writeBlockedTriggerEvent", "event", event)
 	event.UserId = int(request.TriggeredBy)
-	event = impl.eventFactory.BuildExtraBlockedTriggerData(event, bean3.CD_WORKFLOW_TYPE_DEPLOY, timeWindowComment, request.Artifact)
+	event = impl.eventFactory.BuildExtraBlockedTriggerData(event, bean3.CD_WORKFLOW_TYPE_DEPLOY, request.TriggerMessage, request.Artifact)
 	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
 	if evtErr != nil {
 		impl.logger.Errorw("CD trigger event not sent", "error", evtErr)

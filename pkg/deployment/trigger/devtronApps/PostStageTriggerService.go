@@ -120,6 +120,7 @@ func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) er
 		AuditLog:              sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: triggeredBy, UpdatedOn: triggeredAt, UpdatedBy: triggeredBy},
 		RefCdWorkflowRunnerId: request.RefCdWorkflowRunnerId,
 		ReferenceId:           request.TriggerContext.ReferenceId,
+		TriggerMetadata:       request.TriggerMessage,
 	}
 	if pipeline.RunPostStageInEnv {
 		runner.Namespace = env.Namespace

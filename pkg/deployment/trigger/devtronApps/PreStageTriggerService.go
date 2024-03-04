@@ -149,6 +149,7 @@ func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) err
 		AuditLog:              sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: 1, UpdatedOn: triggeredAt, UpdatedBy: 1},
 		RefCdWorkflowRunnerId: request.RefCdWorkflowRunnerId,
 		ReferenceId:           request.TriggerContext.ReferenceId,
+		TriggerMetadata:       request.TriggerMessage,
 	}
 	if pipeline.RunPreStageInEnv {
 		impl.logger.Debugw("env", "env", env)

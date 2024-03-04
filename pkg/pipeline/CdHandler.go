@@ -712,6 +712,7 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 		HelmPackageName:      helmPackageName,
 		ArtifactId:           workflow.CiArtifactId,
 		CiPipelineId:         ciWf.CiPipelineId,
+		TriggerMetadata:      workflow.TriggerMetadata,
 	}
 
 	if showAppliedFilters {
@@ -838,6 +839,7 @@ func (impl *CdHandlerImpl) converterWFR(wfr pipelineConfig.CdWorkflowRunner) bea
 			workflow.UserApprovalMetadata = wfr.DeploymentApprovalRequest.ConvertToApprovalMetadata()
 		}
 		workflow.RefCdWorkflowRunnerId = wfr.RefCdWorkflowRunnerId
+		workflow.TriggerMetadata = wfr.TriggerMetadata
 	}
 	return workflow
 }
