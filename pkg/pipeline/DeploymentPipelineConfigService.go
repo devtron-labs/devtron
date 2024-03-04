@@ -28,23 +28,24 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
-	"github.com/devtron-labs/devtron/internal/sql/models"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
-	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
-	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
-	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
-	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/internals/sql/models"
+	"github.com/devtron-labs/devtron/internals/sql/repository"
+	app2 "github.com/devtron-labs/devtron/internals/sql/repository/app"
+	"github.com/devtron-labs/devtron/internals/sql/repository/appStatus"
+	"github.com/devtron-labs/devtron/internals/sql/repository/appWorkflow"
+	"github.com/devtron-labs/devtron/internals/sql/repository/chartConfig"
+	"github.com/devtron-labs/devtron/internals/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internals/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
-	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	bean4 "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
+	config2 "github.com/devtron-labs/devtron/pkg/deployment/providerConfig"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
@@ -108,11 +109,9 @@ type CdPipelineConfigService interface {
 	GetBulkActionImpactedPipelines(dto *bean.CdBulkActionRequestDto) ([]*pipelineConfig.Pipeline, error) //no usage
 	//IsGitOpsRequiredForCD : Determine if GitOps is required for CD based on the provided pipeline creation request
 	IsGitOpsRequiredForCD(pipelineCreateRequest *bean.CdPipelines) bool
-	//SetPipelineDeploymentAppType : Set pipeline deployment application(helm/argo) types based on the provided configuration
-	SetPipelineDeploymentAppType(pipelineCreateRequest *bean.CdPipelines, isGitOpsConfigured bool, deploymentTypeValidationConfig map[string]bool)
 	MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDeleted(appId int, envId int, acdToken string, pipeline *pipelineConfig.Pipeline) (bool, error)
 	//GetEnvironmentListForAutocompleteFilter : lists environment for given configuration
-	GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, offset int, size int, token string, checkAuthBatch func(token string, appObject []string, envObject []string) (map[string]bool, map[string]bool), ctx context.Context) (*cluster.ResourceGroupingResponse, error)
+	GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, offset int, size int, token string, checkAuthBatch func(token string, appObject []string, envObject []string) (map[string]bool, map[string]bool), ctx context.Context) (*bean4.ResourceGroupingResponse, error)
 	RegisterInACD(gitOpsRepoName string, chartGitAttr *commonBean.ChartGitAttribute, userId int32, ctx context.Context) error
 }
 
@@ -139,11 +138,10 @@ type CdPipelineConfigServiceImpl struct {
 	propertiesConfigService          PropertiesConfigService
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
 	scopedVariableManager            variables.ScopedVariableManager
-	deploymentConfig                 *DeploymentServiceTypeConfig
+	deploymentConfig                 *util2.DeploymentServiceTypeConfig
 	application                      application.ServiceClient
 	customTagService                 CustomTagService
 	pipelineConfigListenerService    PipelineConfigListenerService
-	devtronAppCMCSService            DevtronAppCMCSService
 	ciPipelineConfigService          CiPipelineConfigService
 	buildPipelineSwitchService       BuildPipelineSwitchService
 	argoClientWrapperService         argocdServer.ArgoClientWrapperService
@@ -151,6 +149,7 @@ type CdPipelineConfigServiceImpl struct {
 	gitOpsConfigReadService          config.GitOpsConfigReadService
 	gitOperationService              git.GitOperationService
 	imageDigestPolicyService         imageDigestPolicy.ImageDigestPolicyService
+	deploymentTypeOverrideService    config2.DeploymentTypeOverrideService
 }
 
 func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepository pipelineConfig.PipelineRepository,
@@ -164,15 +163,16 @@ func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepositor
 	chartRepository chartRepoRepository.ChartRepository, resourceGroupService resourceGroup2.ResourceGroupService,
 	propertiesConfigService PropertiesConfigService,
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
-	scopedVariableManager variables.ScopedVariableManager, deploymentConfig *DeploymentServiceTypeConfig,
+	scopedVariableManager variables.ScopedVariableManager, envVariables *util2.EnvironmentVariables,
 	application application.ServiceClient, customTagService CustomTagService,
-	pipelineConfigListenerService PipelineConfigListenerService, devtronAppCMCSService DevtronAppCMCSService,
+	pipelineConfigListenerService PipelineConfigListenerService,
 	ciPipelineConfigService CiPipelineConfigService, buildPipelineSwitchService BuildPipelineSwitchService,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
 	gitOperationService git.GitOperationService,
-	imageDigestPolicyService imageDigestPolicy.ImageDigestPolicyService) *CdPipelineConfigServiceImpl {
+	imageDigestPolicyService imageDigestPolicy.ImageDigestPolicyService,
+	deploymentTypeOverrideService config2.DeploymentTypeOverrideService) *CdPipelineConfigServiceImpl {
 	return &CdPipelineConfigServiceImpl{
 		logger:                           logger,
 		pipelineRepository:               pipelineRepository,
@@ -196,10 +196,9 @@ func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepositor
 		propertiesConfigService:          propertiesConfigService,
 		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
 		scopedVariableManager:            scopedVariableManager,
-		deploymentConfig:                 deploymentConfig,
+		deploymentConfig:                 envVariables.DeploymentServiceTypeConfig,
 		application:                      application,
 		pipelineConfigListenerService:    pipelineConfigListenerService,
-		devtronAppCMCSService:            devtronAppCMCSService,
 		customTagService:                 customTagService,
 		ciPipelineConfigService:          ciPipelineConfigService,
 		buildPipelineSwitchService:       buildPipelineSwitchService,
@@ -208,6 +207,7 @@ func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepositor
 		gitOpsConfigReadService:          gitOpsConfigReadService,
 		gitOperationService:              gitOperationService,
 		imageDigestPolicyService:         imageDigestPolicyService,
+		deploymentTypeOverrideService:    deploymentTypeOverrideService,
 	}
 }
 
@@ -366,16 +366,12 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 		if pipeline.EnvironmentId <= 0 {
 			continue
 		}
-		// if no deployment app type sent from user then we'll not validate
-		deploymentConfig, err := impl.devtronAppCMCSService.GetDeploymentConfigMap(pipeline.EnvironmentId)
+		overrideDeploymentType, err := impl.deploymentTypeOverrideService.ValidateAndOverrideDeploymentAppType(pipeline.DeploymentAppType, isGitOpsConfigured, pipeline.EnvironmentId)
 		if err != nil {
-			return nil, err
-		}
-		impl.SetPipelineDeploymentAppType(pipelineCreateRequest, isGitOpsConfigured, deploymentConfig)
-		if err := impl.validateDeploymentAppType(pipeline, deploymentConfig); err != nil {
 			impl.logger.Errorw("validation error in creating pipeline", "name", pipeline.Name, "err", err)
 			return nil, err
 		}
+		pipeline.DeploymentAppType = overrideDeploymentType
 	}
 
 	isGitOpsRequiredForCD := impl.IsGitOpsRequiredForCD(pipelineCreateRequest)
@@ -384,7 +380,7 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 		impl.logger.Errorw("app not found", "err", err, "appId", pipelineCreateRequest.AppId)
 		return nil, err
 	}
-	_, err = impl.ValidateCDPipelineRequest(pipelineCreateRequest, isGitOpsConfigured, isGitOpsRequiredForCD)
+	_, err = impl.validateCDPipelineRequest(pipelineCreateRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -1382,34 +1378,6 @@ func (impl *CdPipelineConfigServiceImpl) IsGitOpsRequiredForCD(pipelineCreateReq
 	return haveAtLeastOneGitOps
 }
 
-func (impl *CdPipelineConfigServiceImpl) SetPipelineDeploymentAppType(pipelineCreateRequest *bean.CdPipelines, isGitOpsConfigured bool, deploymentTypeValidationConfig map[string]bool) {
-	for _, pipeline := range pipelineCreateRequest.Pipelines {
-		// by default both deployment app type are allowed
-		AllowedDeploymentAppTypes := map[string]bool{
-			util.PIPELINE_DEPLOYMENT_TYPE_ACD:  true,
-			util.PIPELINE_DEPLOYMENT_TYPE_HELM: true,
-		}
-		for k, v := range deploymentTypeValidationConfig {
-			// rewriting allowed deployment types based on config provided by user
-			AllowedDeploymentAppTypes[k] = v
-		}
-		if !impl.deploymentConfig.IsInternalUse {
-			if isGitOpsConfigured && AllowedDeploymentAppTypes[util.PIPELINE_DEPLOYMENT_TYPE_ACD] {
-				pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
-			} else if AllowedDeploymentAppTypes[util.PIPELINE_DEPLOYMENT_TYPE_HELM] {
-				pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
-			}
-		}
-		if pipeline.DeploymentAppType == "" {
-			if isGitOpsConfigured && AllowedDeploymentAppTypes[util.PIPELINE_DEPLOYMENT_TYPE_ACD] {
-				pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
-			} else if AllowedDeploymentAppTypes[util.PIPELINE_DEPLOYMENT_TYPE_HELM] {
-				pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
-			}
-		}
-	}
-}
-
 func (impl *CdPipelineConfigServiceImpl) MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDeleted(appId int, envId int, acdToken string, pipeline *pipelineConfig.Pipeline) (bool, error) {
 
 	acdAppFound := false
@@ -1432,10 +1400,10 @@ func (impl *CdPipelineConfigServiceImpl) MarkGitOpsDevtronAppsDeletedWhereArgoAp
 	return acdAppFound, nil
 }
 
-func (impl *CdPipelineConfigServiceImpl) GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, offset int, size int, token string, checkAuthBatch func(token string, appObject []string, envObject []string) (map[string]bool, map[string]bool), ctx context.Context) (*cluster.ResourceGroupingResponse, error) {
-	result := &cluster.ResourceGroupingResponse{}
+func (impl *CdPipelineConfigServiceImpl) GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, offset int, size int, token string, checkAuthBatch func(token string, appObject []string, envObject []string) (map[string]bool, map[string]bool), ctx context.Context) (*bean4.ResourceGroupingResponse, error) {
+	result := &bean4.ResourceGroupingResponse{}
 	var models []*repository2.Environment
-	var beans []cluster.EnvironmentBean
+	var beans []bean4.EnvironmentBean
 	var err error
 	if len(envName) > 0 && len(clusterIds) > 0 {
 		models, err = impl.environmentRepository.FindByEnvNameAndClusterIds(envName, clusterIds)
@@ -1499,7 +1467,7 @@ func (impl *CdPipelineConfigServiceImpl) GetEnvironmentListForAutocompleteFilter
 		pipelinesMap[pipeline.EnvironmentId] = append(pipelinesMap[pipeline.EnvironmentId], pipeline)
 	}
 	for _, model := range models {
-		environment := cluster.EnvironmentBean{
+		environment := bean4.EnvironmentBean{
 			Id:                    model.Id,
 			Environment:           model.Name,
 			Namespace:             model.Namespace,
@@ -1533,41 +1501,7 @@ func (impl *CdPipelineConfigServiceImpl) GetEnvironmentListForAutocompleteFilter
 	return result, nil
 }
 
-func (impl *CdPipelineConfigServiceImpl) validateDeploymentAppType(pipeline *bean.CDPipelineConfigObject, deploymentConfig map[string]bool) error {
-
-	// Config value doesn't exist in attribute table
-	if deploymentConfig == nil {
-		return nil
-	}
-	//Config value found to be true for ArgoCD and Helm both
-	if allDeploymentConfigTrue(deploymentConfig) {
-		return nil
-	}
-	//Case : {ArgoCD : false, Helm: true, HGF : true}
-	if validDeploymentConfigReceived(deploymentConfig, pipeline.DeploymentAppType) {
-		return nil
-	}
-
-	err := &util.ApiError{
-		HttpStatusCode:  http.StatusBadRequest,
-		InternalMessage: "Received deployment app type doesn't match with the allowed deployment app type for this environment.",
-		UserMessage:     "Received deployment app type doesn't match with the allowed deployment app type for this environment.",
-	}
-	return err
-}
-
-func (impl *CdPipelineConfigServiceImpl) ValidateCDPipelineRequest(pipelineCreateRequest *bean.CdPipelines, isGitOpsConfigured, haveAtleastOneGitOps bool) (bool, error) {
-
-	if isGitOpsConfigured == false && haveAtleastOneGitOps {
-		impl.logger.Errorw("Gitops not configured but selected in creating cd pipeline")
-		err := &util.ApiError{
-			HttpStatusCode:  http.StatusBadRequest,
-			InternalMessage: "Gitops integration is not installed/configured. Please install/configure gitops or use helm option.",
-			UserMessage:     "Gitops integration is not installed/configured. Please install/configure gitops or use helm option.",
-		}
-		return false, err
-	}
-
+func (impl *CdPipelineConfigServiceImpl) validateCDPipelineRequest(pipelineCreateRequest *bean.CdPipelines) (bool, error) {
 	envPipelineMap := make(map[int]string)
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
 		if envPipelineMap[pipeline.EnvironmentId] != "" {

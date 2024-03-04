@@ -23,7 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/aws/aws-sdk-go-v2/service/ecr/types"
-	"github.com/devtron-labs/devtron/internal/middleware"
+	"github.com/devtron-labs/devtron/internals/middleware"
 	"github.com/juju/errors"
 	"io"
 	"io/ioutil"

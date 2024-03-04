@@ -20,11 +20,11 @@ package bean
 import (
 	"encoding/json"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
-	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
-	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
-	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
-	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	repository3 "github.com/devtron-labs/devtron/internals/sql/repository"
+	"github.com/devtron-labs/devtron/internals/sql/repository/appWorkflow"
+	"github.com/devtron-labs/devtron/internals/sql/repository/helper"
+	repository2 "github.com/devtron-labs/devtron/internals/sql/repository/imageTagging"
+	"github.com/devtron-labs/devtron/internals/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
@@ -33,9 +33,10 @@ import (
 )
 
 const (
-	LayoutISO     = "2006-01-02 15:04:05"
-	LayoutUS      = "January 2, 2006 15:04:05"
-	LayoutRFC3339 = "2006-01-02T15:04:05Z07:00"
+	LayoutISO             = "2006-01-02 15:04:05"
+	LayoutUS              = "January 2, 2006 15:04:05"
+	LayoutRFC3339         = "2006-01-02T15:04:05Z07:00"
+	LayoutDDMMYY_HHMM12hr = "2 January,2006 15.04PM"
 )
 
 type SourceTypeConfig struct {

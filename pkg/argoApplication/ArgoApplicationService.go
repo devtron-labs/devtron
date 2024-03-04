@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	"github.com/devtron-labs/devtron/api/helm-app/gRPC/client"
 	"github.com/devtron-labs/devtron/api/helm-app/service"
 
 	"github.com/devtron-labs/common-lib/utils/k8s"
@@ -194,10 +194,10 @@ func (impl *ArgoApplicationServiceImpl) GetAppDetail(resourceName, resourceNames
 }
 
 func (impl *ArgoApplicationServiceImpl) getResourceTreeForExternalCluster(clusterId int, destinationServer string,
-	configOfClusterWhereAppIsDeployed bean.ArgoClusterConfigObj, argoManagedResources []*bean.ArgoManagedResource) (*gRPC.ResourceTreeResponse, error) {
-	var resources []*gRPC.ExternalResourceDetail
+	configOfClusterWhereAppIsDeployed bean.ArgoClusterConfigObj, argoManagedResources []*bean.ArgoManagedResource) (*client.ResourceTreeResponse, error) {
+	var resources []*client.ExternalResourceDetail
 	for _, argoManagedResource := range argoManagedResources {
-		resources = append(resources, &gRPC.ExternalResourceDetail{
+		resources = append(resources, &client.ExternalResourceDetail{
 			Group:     argoManagedResource.Group,
 			Kind:      argoManagedResource.Kind,
 			Version:   argoManagedResource.Version,
@@ -205,9 +205,9 @@ func (impl *ArgoApplicationServiceImpl) getResourceTreeForExternalCluster(cluste
 			Namespace: argoManagedResource.Namespace,
 		})
 	}
-	var clusterConfigOfClusterWhereAppIsDeployed *gRPC.ClusterConfig
+	var clusterConfigOfClusterWhereAppIsDeployed *client.ClusterConfig
 	if len(configOfClusterWhereAppIsDeployed.BearerToken) > 0 {
-		clusterConfigOfClusterWhereAppIsDeployed = &gRPC.ClusterConfig{
+		clusterConfigOfClusterWhereAppIsDeployed = &client.ClusterConfig{
 			ApiServerUrl:          destinationServer,
 			Token:                 configOfClusterWhereAppIsDeployed.BearerToken,
 			InsecureSkipTLSVerify: configOfClusterWhereAppIsDeployed.TlsClientConfig.Insecure,

@@ -19,7 +19,7 @@ package notifier
 
 import (
 	"encoding/json"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internals/sql/repository"
 	"github.com/devtron-labs/devtron/util/event"
 	"go.uber.org/zap"
 	"time"
@@ -169,7 +169,7 @@ func (impl NotificationConfigBuilderImpl) buildNotificationSetting(notificationS
 }
 
 func (impl NotificationConfigBuilderImpl) BuildNotificationSettingWithPipeline(teamId *int, envId *int, appId *int, pipelineId *int, pipelineType util.PipelineType, eventTypeId int, viewId int, providers []*Provider) (repository.NotificationSettings, error) {
-	
+
 	providersJson, err := json.Marshal(providers)
 	if err != nil {
 		impl.logger.Error(err)

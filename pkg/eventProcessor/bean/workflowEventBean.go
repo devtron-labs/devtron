@@ -3,7 +3,7 @@ package bean
 import (
 	"github.com/aws/aws-sdk-go-v2/service/ecr/types"
 	"github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internals/sql/repository/pipelineConfig"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/util"
 	"time"

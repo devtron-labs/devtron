@@ -15,7 +15,7 @@ import (
 	"github.com/devtron-labs/devtron/api/connector"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	util2 "github.com/devtron-labs/devtron/internal/util"
+	util2 "github.com/devtron-labs/devtron/internals/util"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/cluster"

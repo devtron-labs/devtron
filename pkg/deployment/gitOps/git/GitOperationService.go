@@ -3,7 +3,7 @@ package git
 import (
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/internals/util"
 	util2 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"

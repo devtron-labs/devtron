@@ -3,8 +3,8 @@ package pipeline
 import (
 	"errors"
 	"fmt"
-	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
-	"github.com/devtron-labs/devtron/internal/util"
+	dockerRegistryRepository "github.com/devtron-labs/devtron/internals/sql/repository/dockerRegistry"
+	"github.com/devtron-labs/devtron/internals/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/plugin"
 	"github.com/go-pg/pg"

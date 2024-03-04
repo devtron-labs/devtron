@@ -61,12 +61,12 @@ const ClientSecret = "clientSecret"
 func NewSSOLoginServiceImpl(
 	logger *zap.SugaredLogger,
 	ssoLoginRepository SSOLoginRepository,
-	K8sUtil *k8s.K8sServiceImpl, devtronSecretConfig *util2.DevtronSecretConfig, userAuthOidcHelper authentication.UserAuthOidcHelper) *SSOLoginServiceImpl {
+	K8sUtil *k8s.K8sServiceImpl, envVariables *util2.EnvironmentVariables, userAuthOidcHelper authentication.UserAuthOidcHelper) *SSOLoginServiceImpl {
 	serviceImpl := &SSOLoginServiceImpl{
 		logger:              logger,
 		ssoLoginRepository:  ssoLoginRepository,
 		K8sUtil:             K8sUtil,
-		devtronSecretConfig: devtronSecretConfig,
+		devtronSecretConfig: envVariables.DevtronSecretConfig,
 		userAuthOidcHelper:  userAuthOidcHelper,
 	}
 	return serviceImpl

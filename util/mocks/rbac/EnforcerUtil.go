@@ -8,7 +8,7 @@ import (
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	reflect "reflect"
 
-	pipelineConfig "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	pipelineConfig "github.com/devtron-labs/devtron/internals/sql/repository/pipelineConfig"
 	bean "github.com/devtron-labs/devtron/pkg/bean"
 	gomock "github.com/golang/mock/gomock"
 )

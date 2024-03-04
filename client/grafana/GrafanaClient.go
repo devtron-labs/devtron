@@ -28,7 +28,7 @@ import (
 	"strings"
 
 	"github.com/caarlos0/env"
-	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/internals/util"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"go.uber.org/zap"
 )

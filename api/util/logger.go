@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/devtron-labs/devtron/internal/middleware"
+	"github.com/devtron-labs/devtron/internals/middleware"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 )
 

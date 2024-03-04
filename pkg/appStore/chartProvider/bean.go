@@ -1,6 +1,6 @@
 package chartProvider
 
-import repository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
+import repository "github.com/devtron-labs/devtron/internals/sql/repository/dockerRegistry"
 
 type ChartProviderResponseDto struct {
 	Id               string                  `json:"id" validate:"required"`

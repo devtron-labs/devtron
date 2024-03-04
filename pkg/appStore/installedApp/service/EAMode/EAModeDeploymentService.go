@@ -5,16 +5,17 @@ import (
 	"errors"
 	bean2 "github.com/devtron-labs/devtron/api/helm-app/bean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	client2 "github.com/devtron-labs/devtron/api/helm-app/gRPC/client"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
-	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
+	repository2 "github.com/devtron-labs/devtron/internals/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/bean"
-	repository5 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	bean3 "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"net/http"
 	"time"
 
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
-	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/internals/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
@@ -28,7 +29,7 @@ type EAModeDeploymentService interface {
 	InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, chartGitAttr *commonBean.ChartGitAttribute, ctx context.Context, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error)
 	DeleteInstalledApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApps *repository.InstalledApps, dbTransaction *pg.Tx) error
 	RollbackRelease(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, deploymentVersion int32, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, bool, error)
-	GetDeploymentHistory(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO) (*gRPC.HelmAppDeploymentHistory, error)
+	GetDeploymentHistory(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO) (*client2.HelmAppDeploymentHistory, error)
 	GetDeploymentHistoryInfo(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, version int32) (*openapi.HelmAppDeploymentManifestDetail, error)
 	UpgradeDeployment(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *commonBean.ChartGitAttribute, installedAppVersionHistoryId int, ctx context.Context) error
 }
@@ -68,15 +69,15 @@ func (impl *EAModeDeploymentServiceImpl) UpgradeDeployment(installAppVersionRequ
 }
 
 func (impl *EAModeDeploymentServiceImpl) InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, chartGitAttr *commonBean.ChartGitAttribute, ctx context.Context, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error) {
-	installAppVersionRequest.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
+	installAppVersionRequest.UpdateDeploymentAppType(util.PIPELINE_DEPLOYMENT_TYPE_HELM)
 	appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)
 	if err != nil {
 		impl.Logger.Errorw("fetching error", "err", err)
 		return installAppVersionRequest, err
 	}
 	var IsOCIRepo bool
-	var registryCredential *gRPC.RegistryCredential
-	var chartRepository *gRPC.ChartRepository
+	var registryCredential *client2.RegistryCredential
+	var chartRepository *client2.ChartRepository
 	dockerRegistryId := appStoreAppVersion.AppStore.DockerArtifactStoreId
 	if dockerRegistryId != "" {
 		ociRegistryConfigs, err := impl.OCIRegistryConfigRepository.FindByDockerRegistryId(dockerRegistryId)
@@ -92,7 +93,7 @@ func (impl *EAModeDeploymentServiceImpl) InstallApp(installAppVersionRequest *ap
 			}
 		}
 		IsOCIRepo = true
-		registryCredential = &gRPC.RegistryCredential{
+		registryCredential = &client2.RegistryCredential{
 			RegistryUrl:  appStoreAppVersion.AppStore.DockerArtifactStore.RegistryURL,
 			Username:     appStoreAppVersion.AppStore.DockerArtifactStore.Username,
 			Password:     appStoreAppVersion.AppStore.DockerArtifactStore.Password,
@@ -104,19 +105,19 @@ func (impl *EAModeDeploymentServiceImpl) InstallApp(installAppVersionRequest *ap
 			IsPublic:     ociRegistryConfig.IsPublic,
 		}
 	} else {
-		chartRepository = &gRPC.ChartRepository{
+		chartRepository = &client2.ChartRepository{
 			Name:     appStoreAppVersion.AppStore.ChartRepo.Name,
 			Url:      appStoreAppVersion.AppStore.ChartRepo.Url,
 			Username: appStoreAppVersion.AppStore.ChartRepo.UserName,
 			Password: appStoreAppVersion.AppStore.ChartRepo.Password,
 		}
 	}
-	installReleaseRequest := &gRPC.InstallReleaseRequest{
+	installReleaseRequest := &client2.InstallReleaseRequest{
 		ChartName:       appStoreAppVersion.Name,
 		ChartVersion:    appStoreAppVersion.Version,
 		ValuesYaml:      installAppVersionRequest.ValuesOverrideYaml,
 		ChartRepository: chartRepository,
-		ReleaseIdentifier: &gRPC.ReleaseIdentifier{
+		ReleaseIdentifier: &client2.ReleaseIdentifier{
 			ReleaseNamespace: installAppVersionRequest.Namespace,
 			ReleaseName:      installAppVersionRequest.AppName,
 		},
@@ -200,7 +201,7 @@ func (impl *EAModeDeploymentServiceImpl) RollbackRelease(ctx context.Context, in
 	return installedApp, success, nil
 }
 
-func (impl *EAModeDeploymentServiceImpl) GetDeploymentHistory(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO) (*gRPC.HelmAppDeploymentHistory, error) {
+func (impl *EAModeDeploymentServiceImpl) GetDeploymentHistory(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO) (*client2.HelmAppDeploymentHistory, error) {
 	helmAppIdentifier := &client.AppIdentifier{
 		ClusterId:   installedApp.ClusterId,
 		Namespace:   installedApp.Namespace,
@@ -222,8 +223,8 @@ func (impl *EAModeDeploymentServiceImpl) GetDeploymentHistoryInfo(ctx context.Co
 		return nil, err
 	}
 
-	req := &gRPC.DeploymentDetailRequest{
-		ReleaseIdentifier: &gRPC.ReleaseIdentifier{
+	req := &client2.DeploymentDetailRequest{
+		ReleaseIdentifier: &client2.ReleaseIdentifier{
 			ClusterConfig:    config,
 			ReleaseName:      helmAppIdeltifier.ReleaseName,
 			ReleaseNamespace: helmAppIdeltifier.Namespace,
@@ -258,8 +259,8 @@ func (impl *EAModeDeploymentServiceImpl) updateApplicationWithChartInfo(ctx cont
 		return err
 	}
 	var IsOCIRepo bool
-	var registryCredential *gRPC.RegistryCredential
-	var chartRepository *gRPC.ChartRepository
+	var registryCredential *client2.RegistryCredential
+	var chartRepository *client2.ChartRepository
 	dockerRegistryId := appStoreApplicationVersion.AppStore.DockerArtifactStoreId
 	if dockerRegistryId != "" {
 		ociRegistryConfigs, err := impl.OCIRegistryConfigRepository.FindByDockerRegistryId(dockerRegistryId)
@@ -275,7 +276,7 @@ func (impl *EAModeDeploymentServiceImpl) updateApplicationWithChartInfo(ctx cont
 			}
 		}
 		IsOCIRepo = true
-		registryCredential = &gRPC.RegistryCredential{
+		registryCredential = &client2.RegistryCredential{
 			RegistryUrl:  appStoreApplicationVersion.AppStore.DockerArtifactStore.RegistryURL,
 			Username:     appStoreApplicationVersion.AppStore.DockerArtifactStore.Username,
 			Password:     appStoreApplicationVersion.AppStore.DockerArtifactStore.Password,
@@ -287,7 +288,7 @@ func (impl *EAModeDeploymentServiceImpl) updateApplicationWithChartInfo(ctx cont
 			IsPublic:     ociRegistryConfig.IsPublic,
 		}
 	} else {
-		chartRepository = &gRPC.ChartRepository{
+		chartRepository = &client2.ChartRepository{
 			Name:     appStoreApplicationVersion.AppStore.ChartRepo.Name,
 			Url:      appStoreApplicationVersion.AppStore.ChartRepo.Url,
 			Username: appStoreApplicationVersion.AppStore.ChartRepo.UserName,
@@ -296,9 +297,9 @@ func (impl *EAModeDeploymentServiceImpl) updateApplicationWithChartInfo(ctx cont
 	}
 
 	updateReleaseRequest := &bean2.UpdateApplicationWithChartInfoRequestDto{
-		InstallReleaseRequest: &gRPC.InstallReleaseRequest{
+		InstallReleaseRequest: &client2.InstallReleaseRequest{
 			ValuesYaml: valuesOverrideYaml,
-			ReleaseIdentifier: &gRPC.ReleaseIdentifier{
+			ReleaseIdentifier: &client2.ReleaseIdentifier{
 				ReleaseNamespace: installedApp.Environment.Namespace,
 				ReleaseName:      installedApp.App.AppName,
 			},
@@ -373,7 +374,7 @@ func (impl *EAModeDeploymentServiceImpl) DeleteACD(acdAppName string, ctx contex
 	return errors.New("this is not implemented")
 }
 
-func (impl *EAModeDeploymentServiceImpl) CreateInArgo(chartGitAttribute *commonBean.ChartGitAttribute, envModel repository5.Environment, argocdAppName string) error {
+func (impl *EAModeDeploymentServiceImpl) CreateInArgo(chartGitAttribute *commonBean.ChartGitAttribute, envModel bean3.EnvironmentBean, argocdAppName string) error {
 	return errors.New("this is not implemented")
 }
 

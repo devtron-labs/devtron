@@ -19,7 +19,7 @@ package app
 
 import (
 	"github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	"github.com/devtron-labs/devtron/internals/sql/repository/helper"
 	"go.uber.org/zap"
 	"sort"
 	"strconv"

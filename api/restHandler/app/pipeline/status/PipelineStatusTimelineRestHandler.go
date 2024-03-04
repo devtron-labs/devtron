@@ -3,7 +3,7 @@ package status
 import (
 	"fmt"
 	"github.com/devtron-labs/devtron/client/cron"
-	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	"github.com/devtron-labs/devtron/internals/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"net/http"

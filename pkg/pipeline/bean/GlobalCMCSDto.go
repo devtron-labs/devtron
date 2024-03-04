@@ -3,7 +3,7 @@ package bean
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internals/sql/repository"
 )
 
 type GlobalCMCSDto struct {

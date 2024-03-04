@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/internals/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internals/util"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/sql"

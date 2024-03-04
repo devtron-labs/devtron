@@ -21,8 +21,8 @@ import (
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/client/lens"
-	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internals/sql/repository/chartConfig"
+	"github.com/devtron-labs/devtron/internals/sql/repository/pipelineConfig"
 	"go.uber.org/zap"
 )
 

@@ -2,7 +2,7 @@ package genericNotes
 
 import (
 	"errors"
-	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/internals/util"
 	"github.com/devtron-labs/devtron/pkg/genericNotes/repository/mocks"
 	"github.com/go-pg/pg"
 	"github.com/stretchr/testify/assert"

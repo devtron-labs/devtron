@@ -1,6 +1,6 @@
 package types
 
-import "github.com/devtron-labs/devtron/internal/sql/repository"
+import "github.com/devtron-labs/devtron/internals/sql/repository"
 
 type GitRegistry struct {
 	Id            int                 `json:"id,omitempty" validate:"number"`

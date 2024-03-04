@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/internals/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internals/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/adapter"
@@ -248,7 +248,7 @@ func (impl *FullModeDeploymentServiceImpl) updateRequirementYamlInGit(installApp
 
 // createChartProxyAndGetPath parse chart in local directory and returns path of local dir and values.yaml
 func (impl *FullModeDeploymentServiceImpl) createChartProxyAndGetPath(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*util.ChartCreateResponse, error) {
-	chartCreateRequest := adapter.ParseChartCreateRequest(installAppVersionRequest.AppName)
+	chartCreateRequest := adapter.ParseChartCreateRequest(installAppVersionRequest.AppName, true)
 	chartCreateResponse, err := impl.appStoreDeploymentCommonService.CreateChartProxyAndGetPath(chartCreateRequest)
 	if err != nil {
 		impl.Logger.Errorw("Error in building chart proxy", "err", err)

@@ -12,7 +12,7 @@ import (
 
 	repository "github.com/devtron-labs/devtron/pkg/cluster/repository"
 
-	util "github.com/devtron-labs/devtron/internal/util"
+	util "github.com/devtron-labs/devtron/internals/util"
 
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 

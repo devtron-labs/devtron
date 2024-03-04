@@ -21,14 +21,14 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/internals/sql/repository/app"
 	repository4 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/team"
 
-	"github.com/devtron-labs/devtron/internal/sql/repository"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	util2 "github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/internals/sql/repository"
+	"github.com/devtron-labs/devtron/internals/sql/repository/pipelineConfig"
+	util2 "github.com/devtron-labs/devtron/internals/util"
 	util "github.com/devtron-labs/devtron/util/event"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/devtron-labs/devtron/internal/sql/repository"
-	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/internals/sql/repository"
+	"github.com/devtron-labs/devtron/internals/util"
 	repository2 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/team"

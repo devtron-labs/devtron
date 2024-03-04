@@ -3,7 +3,7 @@ package config
 import (
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internals/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config/bean"
 	"github.com/devtron-labs/devtron/util"
@@ -33,12 +33,12 @@ type GitOpsConfigReadServiceImpl struct {
 func NewGitOpsConfigReadServiceImpl(logger *zap.SugaredLogger,
 	gitOpsRepository repository.GitOpsConfigRepository,
 	userService user.UserService,
-	globalEnvVariables *util.GlobalEnvVariables) *GitOpsConfigReadServiceImpl {
+	envVariables *util.EnvironmentVariables) *GitOpsConfigReadServiceImpl {
 	return &GitOpsConfigReadServiceImpl{
 		logger:             logger,
 		gitOpsRepository:   gitOpsRepository,
 		userService:        userService,
-		globalEnvVariables: globalEnvVariables,
+		globalEnvVariables: envVariables.GlobalEnvVariables,
 	}
 }
 

@@ -22,11 +22,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	client2 "github.com/devtron-labs/devtron/api/helm-app/gRPC/client"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	util3 "github.com/devtron-labs/devtron/api/util"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/resource"
+	bean2 "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
 	"net/http"
 	"strconv"
 	"time"
@@ -40,11 +42,11 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/cron"
-	"github.com/devtron-labs/devtron/internal/constants"
-	"github.com/devtron-labs/devtron/internal/middleware"
-	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/internals/constants"
+	"github.com/devtron-labs/devtron/internals/middleware"
+	"github.com/devtron-labs/devtron/internals/sql/repository/helper"
+	"github.com/devtron-labs/devtron/internals/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internals/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/appStatus"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
@@ -120,7 +122,7 @@ type AppStatus struct {
 
 type AppAutocomplete struct {
 	Teams        []team.TeamRequest
-	Environments []cluster.EnvironmentBean
+	Environments []bean2.EnvironmentBean
 	Clusters     []cluster.ClusterBean
 }
 
@@ -894,7 +896,7 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
-		installedApp, err := handler.installedAppService.CheckAppExistsByInstalledAppId(installedAppId)
+		installedApp, err := handler.installedAppService.GetInstalledAppById(installedAppId)
 		if err == pg.ErrNoRows {
 			common.WriteJsonResp(w, err, "App not found in database", http.StatusBadRequest)
 			return
@@ -1058,7 +1060,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		if err != nil {
 			handler.logger.Errorw("error in fetching cluster detail", "err", err)
 		}
-		req := &gRPC.AppDetailRequest{
+		req := &client2.AppDetailRequest{
 			ClusterConfig: config,
 			Namespace:     cdPipeline.Environment.Namespace,
 			ReleaseName:   cdPipeline.DeploymentAppName,

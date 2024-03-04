@@ -19,8 +19,8 @@ package git
 
 import (
 	"github.com/devtron-labs/devtron/client/gitSensor"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internals/sql/repository"
+	"github.com/devtron-labs/devtron/internals/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"go.uber.org/zap"

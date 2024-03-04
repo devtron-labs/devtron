@@ -19,9 +19,9 @@ package batch
 
 import (
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/sql/repository/app"
-	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
-	pc "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internals/sql/repository/app"
+	"github.com/devtron-labs/devtron/internals/sql/repository/appWorkflow"
+	pc "github.com/devtron-labs/devtron/internals/sql/repository/pipelineConfig"
 	v1 "github.com/devtron-labs/devtron/pkg/apis/devtron/v1"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"

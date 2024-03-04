@@ -32,7 +32,7 @@ import (
 	"k8s.io/utils/pointer"
 	"time"
 
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internals/sql/repository/pipelineConfig"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	repository4 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/devtron-labs/devtron/pkg/bean"
@@ -248,7 +248,7 @@ func (impl *ApplicationStatusHandlerImpl) updateArgoAppDeleteStatus(app *v1alpha
 		}
 
 		// Check to ensure that delete request for app was received
-		installedApp, err := impl.installedAppService.CheckAppExistsByInstalledAppId(model.InstalledAppId)
+		installedApp, err := impl.installedAppService.GetInstalledAppById(model.InstalledAppId)
 		if err == pg.ErrNoRows {
 			impl.logger.Errorw("App not found in database", "installedAppId", model.InstalledAppId, "err", err)
 			return fmt.Errorf("app not found in database %s", err)

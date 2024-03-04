@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/devtron-labs/devtron/internal/sql/repository"
-	mocks2 "github.com/devtron-labs/devtron/internal/sql/repository/mocks"
-	util2 "github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/internals/sql/repository"
+	mocks2 "github.com/devtron-labs/devtron/internals/sql/repository/mocks"
+	util2 "github.com/devtron-labs/devtron/internals/util"
 	mocks3 "github.com/devtron-labs/devtron/pkg/auth/user/repository/mocks"
 	"github.com/devtron-labs/devtron/pkg/team/mocks"
 	"github.com/stretchr/testify/mock"

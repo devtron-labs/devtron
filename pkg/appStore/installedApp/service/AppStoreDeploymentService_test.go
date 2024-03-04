@@ -1,12 +1,13 @@
 package service
 
 import (
+	util3 "github.com/devtron-labs/devtron/util"
 	"testing"
 
 	"github.com/devtron-labs/authenticator/client"
 	util2 "github.com/devtron-labs/common-lib/utils/k8s"
-	"github.com/devtron-labs/devtron/internal/sql/repository/app"
-	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/internals/sql/repository/app"
+	"github.com/devtron-labs/devtron/internals/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	repository6 "github.com/devtron-labs/devtron/pkg/appStore/chartGroup/repository"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
@@ -50,7 +51,6 @@ func TestAppStoreDeploymentService(t *testing.T) {
 			ACDAppName:                "",
 			Environment:               nil,
 			ChartGroupEntryId:         0,
-			DefaultClusterComponent:   false,
 			Status:                    appStoreBean.WF_UNKNOWN,
 			AppStoreId:                0,
 			AppStoreName:              "",
@@ -67,7 +67,7 @@ func TestAppStoreDeploymentService(t *testing.T) {
 			DeploymentAppType:         "helm",
 		}
 
-		installedAppVersion, err := AppStoreDeploymentService.AppStoreDeployOperationDB(&InstallAppVersionDTO, tx, false)
+		installedAppVersion, err := AppStoreDeploymentService.AppStoreDeployOperationDB(&InstallAppVersionDTO, tx)
 
 		assert.Nil(t, err)
 		assert.Equal(t, installedAppVersion.DeploymentAppType, "helm")
@@ -100,7 +100,6 @@ func TestAppStoreDeploymentService(t *testing.T) {
 			ACDAppName:                "",
 			Environment:               nil,
 			ChartGroupEntryId:         0,
-			DefaultClusterComponent:   false,
 			Status:                    appStoreBean.WF_UNKNOWN,
 			AppStoreId:                0,
 			AppStoreName:              "",
@@ -117,7 +116,7 @@ func TestAppStoreDeploymentService(t *testing.T) {
 			DeploymentAppType:         "helm",
 		}
 
-		installedAppVersion, err := AppStoreDeploymentService.AppStoreDeployOperationDB(&InstallAppVersionDTO, tx, false)
+		installedAppVersion, err := AppStoreDeploymentService.AppStoreDeployOperationDB(&InstallAppVersionDTO, tx)
 
 		assert.Nil(t, err)
 		assert.Equal(t, installedAppVersion.DeploymentAppType, "argo_cd")
@@ -170,7 +169,12 @@ func initAppStoreDeploymentService(t *testing.T, internalUse bool) *AppStoreDepl
 		nil,
 		nil,
 		InstalledAppVersionHistoryRepository,
-		&DeploymentServiceTypeConfig{IsInternalUse: internalUse},
+		&util3.EnvironmentVariables{
+			DeploymentServiceTypeConfig: &util3.DeploymentServiceTypeConfig{
+				ExternallyManagedDeploymentType: internalUse
+			},
+		},
+		nil,
 		nil,
 		nil)
 

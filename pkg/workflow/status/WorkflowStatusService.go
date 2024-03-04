@@ -10,9 +10,9 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	client2 "github.com/devtron-labs/devtron/client/events"
-	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
-	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	appRepository "github.com/devtron-labs/devtron/internals/sql/repository/app"
+	"github.com/devtron-labs/devtron/internals/sql/repository/chartConfig"
+	"github.com/devtron-labs/devtron/internals/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	app_status "github.com/devtron-labs/devtron/pkg/appStatus"
@@ -364,10 +364,9 @@ func (impl *WorkflowStatusServiceImpl) UpdatePipelineTimelineAndStatusByLiveAppl
 		if isSucceeded {
 			// handling deployment success event
 			// updating cdWfr status
-			installedAppVersionHistory.Status = pipelineConfig.WorkflowSucceeded
-			installedAppVersionHistory.FinishedOn = time.Now()
-			installedAppVersionHistory.UpdatedOn = time.Now()
-			installedAppVersionHistory.UpdatedBy = 1
+			installedAppVersionHistory.SetStatus(pipelineConfig.WorkflowSucceeded)
+			installedAppVersionHistory.SetFinishedOn()
+			installedAppVersionHistory.UpdateAuditLog(1)
 			installedAppVersionHistory, err = impl.installedAppVersionHistoryRepository.UpdateInstalledAppVersionHistory(installedAppVersionHistory, nil)
 			if err != nil {
 				impl.logger.Errorw("error on update installedAppVersionHistory", "installedAppVersionHistory", installedAppVersionHistory, "err", err)

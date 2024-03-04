@@ -3,9 +3,14 @@ package adapter
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/internals/sql/repository/app"
+	"github.com/devtron-labs/devtron/internals/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
+	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
+	"github.com/devtron-labs/devtron/pkg/bean"
+	bean2 "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
+	"time"
 )
 
 // NewInstallAppModel is used to generate new repository.InstalledApps model to be saved;
@@ -41,20 +46,21 @@ func NewInstallAppVersionsModel(chart *appStoreBean.InstallAppVersionDTO) *repos
 }
 
 // NewInstallAppVersionHistoryModel is used to generate new repository.InstalledAppVersionHistory model to be saved;
-// Note: Do not use for update operations
-func NewInstallAppVersionHistoryModel(chart *appStoreBean.InstallAppVersionDTO, status string, helmInstallConfigDTO appStoreBean.HelmReleaseStatusConfig) (*repository.InstalledAppVersionHistory, error) {
+// GitHash and FinishedOn are not provided by NewInstallAppVersionHistoryModel; since it is used only on update operations;
+// Note: Do not use for update operations;
+func NewInstallAppVersionHistoryModel(request *appStoreBean.InstallAppVersionDTO, status string, helmInstallConfigDTO appStoreBean.HelmReleaseStatusConfig) (*repository.InstalledAppVersionHistory, error) {
 	installedAppVersions := &repository.InstalledAppVersionHistory{
-		InstalledAppVersionId: chart.InstalledAppVersionId,
-		ValuesYamlRaw:         chart.ValuesOverrideYaml,
+		InstalledAppVersionId: request.InstalledAppVersionId,
+		ValuesYamlRaw:         request.ValuesOverrideYaml,
 	}
-	helmInstallConfig, err := json.Marshal(helmInstallConfigDTO)
+	helmReleaseStatus, err := getHelmReleaseStatusConfig(helmInstallConfigDTO)
 	if err != nil {
 		return nil, err
 	}
-	installedAppVersions.HelmReleaseStatusConfig = string(helmInstallConfig)
+	installedAppVersions.HelmReleaseStatusConfig = helmReleaseStatus
 	installedAppVersions.SetStartedOn()
 	installedAppVersions.SetStatus(status)
-	installedAppVersions.CreateAuditLog(chart.UserId)
+	installedAppVersions.CreateAuditLog(request.UserId)
 	return installedAppVersions, nil
 }
 
@@ -138,6 +144,8 @@ func GenerateInstallAppVersionDTO(chart *repository.InstalledApps, installedAppV
 			},
 		},
 		AppStoreApplicationVersionId: installedAppVersion.AppStoreApplicationVersionId,
+		UpdatedOn:                    installedAppVersion.UpdatedOn,
+		IsVirtualEnvironment:         chart.Environment.IsVirtualEnvironment,
 	}
 }
 
@@ -145,16 +153,107 @@ func GenerateInstallAppVersionDTO(chart *repository.InstalledApps, installedAppV
 // Note: It only generates a minimal DTO and doesn't include repository.InstalledAppVersions data
 func GenerateInstallAppVersionMinDTO(chart *repository.InstalledApps) *appStoreBean.InstallAppVersionDTO {
 	return &appStoreBean.InstallAppVersionDTO{
-		EnvironmentId:     chart.EnvironmentId,
-		InstalledAppId:    chart.Id,
-		AppId:             chart.AppId,
-		AppOfferingMode:   chart.App.AppOfferingMode,
-		ClusterId:         chart.Environment.ClusterId,
-		Namespace:         chart.Environment.Namespace,
-		AppName:           chart.App.AppName,
-		EnvironmentName:   chart.Environment.Name,
-		TeamId:            chart.App.TeamId,
-		TeamName:          chart.App.Team.Name,
-		DeploymentAppType: chart.DeploymentAppType,
+		EnvironmentId:        chart.EnvironmentId,
+		InstalledAppId:       chart.Id,
+		AppId:                chart.AppId,
+		AppOfferingMode:      chart.App.AppOfferingMode,
+		ClusterId:            chart.Environment.ClusterId,
+		Namespace:            chart.Environment.Namespace,
+		AppName:              chart.App.AppName,
+		EnvironmentName:      chart.Environment.Name,
+		TeamId:               chart.App.TeamId,
+		TeamName:             chart.App.Team.Name,
+		DeploymentAppType:    chart.DeploymentAppType,
+		IsVirtualEnvironment: chart.Environment.IsVirtualEnvironment,
 	}
+}
+
+func GetGeneratedHelmPackageName(appName, envName string, updatedOn time.Time) string {
+	timeStampTag := updatedOn.Format(bean.LayoutDDMMYY_HHMM12hr)
+	return fmt.Sprintf(
+		"%s-%s-%s (GMT)",
+		appName,
+		envName,
+		timeStampTag)
+}
+
+// NewInstalledAppVersionModel will generate a new repository.InstalledAppVersions for the given appStoreBean.InstallAppVersionDTO
+func NewInstalledAppVersionModel(request *appStoreBean.InstallAppVersionDTO) *repository.InstalledAppVersions {
+	installedAppVersion := &repository.InstalledAppVersions{
+		InstalledAppId:               request.InstalledAppId,
+		AppStoreApplicationVersionId: request.AppStoreVersion,
+		ValuesYaml:                   request.ValuesOverrideYaml,
+		ReferenceValueId:             request.ReferenceValueId,
+		ReferenceValueKind:           request.ReferenceValueKind,
+	}
+	installedAppVersion.CreateAuditLog(request.UserId)
+	installedAppVersion.MarkActive()
+	return installedAppVersion
+}
+
+// UpdateInstalledAppVersionModel will update the same repository.InstalledAppVersions model object for the given appStoreBean.InstallAppVersionDTO
+func UpdateInstalledAppVersionModel(model *repository.InstalledAppVersions, request *appStoreBean.InstallAppVersionDTO) {
+	if model == nil || request == nil {
+		return
+	}
+	model.Id = request.Id
+	model.ValuesYaml = request.ValuesOverrideYaml
+	model.ReferenceValueId = request.ReferenceValueId
+	model.ReferenceValueKind = request.ReferenceValueKind
+	model.UpdateAuditLog(request.UserId)
+	return
+}
+
+// UpdateAdditionalEnvDetails update cluster.EnvironmentBean data into the same InstallAppVersionDTO
+func UpdateAdditionalEnvDetails(request *appStoreBean.InstallAppVersionDTO, envBean *bean2.EnvironmentBean) {
+	if request == nil {
+		return
+	}
+	request.Environment = envBean
+	request.EnvironmentName = envBean.Environment
+	request.ClusterId = envBean.ClusterId
+	request.Namespace = envBean.Namespace
+	request.UpdateACDAppName()
+}
+
+// UpdateAppDetails update app.App data into the same InstallAppVersionDTO
+func UpdateAppDetails(request *appStoreBean.InstallAppVersionDTO, app *app.App) {
+	if request == nil {
+		return
+	}
+	request.AppId = app.Id
+	request.AppName = app.AppName
+	request.TeamId = app.TeamId
+	request.AppOfferingMode = app.AppOfferingMode
+}
+
+// UpdateInstallAppDetails update repository.InstalledApps data into the same InstallAppVersionDTO
+func UpdateInstallAppDetails(request *appStoreBean.InstallAppVersionDTO, installedApp *repository.InstalledApps) {
+	if request == nil {
+		return
+	}
+	request.AppId = installedApp.AppId
+	request.EnvironmentId = installedApp.EnvironmentId
+	request.Status = installedApp.Status
+	request.GitOpsRepoName = installedApp.GitOpsRepoName
+	request.DeploymentAppType = installedApp.DeploymentAppType
+}
+
+// UpdateAppStoreApplicationDetails update appStoreDiscoverRepository.AppStoreApplicationVersion data into the same InstallAppVersionDTO
+func UpdateAppStoreApplicationDetails(request *appStoreBean.InstallAppVersionDTO, appStoreApplicationVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) {
+	if request == nil {
+		return
+	}
+	request.AppStoreId = appStoreApplicationVersion.AppStoreId
+	request.AppStoreName = appStoreApplicationVersion.AppStore.Name
+	request.Deprecated = appStoreApplicationVersion.Deprecated
+	request.Readme = appStoreApplicationVersion.Readme
+}
+
+func getHelmReleaseStatusConfig(helmInstallConfigDTO appStoreBean.HelmReleaseStatusConfig) (string, error) {
+	helmInstallConfig, err := json.Marshal(helmInstallConfigDTO)
+	if err != nil {
+		return "", err
+	}
+	return string(helmInstallConfig), nil
 }

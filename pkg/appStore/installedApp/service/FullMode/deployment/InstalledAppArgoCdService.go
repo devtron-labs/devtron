@@ -7,10 +7,11 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/devtron/client/argocdServer"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/internals/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internals/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
-	repository5 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/go-pg/pg"
 	"strings"
@@ -27,7 +28,7 @@ type InstalledAppArgoCdService interface {
 	// UpdateAndSyncACDApps this will update chart info in acd app if required in case of mono repo migration and will refresh argo app
 	UpdateAndSyncACDApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *commonBean.ChartGitAttribute, isMonoRepoMigrationRequired bool, ctx context.Context, tx *pg.Tx) error
 	DeleteACD(acdAppName string, ctx context.Context, isNonCascade bool) error
-	CreateInArgo(chartGitAttribute *commonBean.ChartGitAttribute, envModel repository5.Environment, argocdAppName string) error
+	CreateInArgo(chartGitAttribute *commonBean.ChartGitAttribute, envModel bean.EnvironmentBean, argocdAppName string) error
 }
 
 func (impl *FullModeDeploymentServiceImpl) GetAcdAppGitOpsRepoName(appName string, environmentName string) (string, error) {
@@ -159,23 +160,23 @@ func (impl *FullModeDeploymentServiceImpl) DeleteACD(acdAppName string, ctx cont
 	return nil
 }
 
-func (impl *FullModeDeploymentServiceImpl) CreateInArgo(chartGitAttribute *commonBean.ChartGitAttribute, envModel repository5.Environment, argocdAppName string) error {
+func (impl *FullModeDeploymentServiceImpl) CreateInArgo(chartGitAttribute *commonBean.ChartGitAttribute, envModel bean.EnvironmentBean, argocdAppName string) error {
 	appNamespace := envModel.Namespace
 	if appNamespace == "" {
-		appNamespace = "default"
+		appNamespace = cluster2.DEFAULT_NAMESPACE
 	}
-	appreq := &argocdServer.AppTemplate{
+	appReq := &argocdServer.AppTemplate{
 		ApplicationName: argocdAppName,
 		Namespace:       impl.aCDAuthConfig.ACDConfigMapNamespace,
 		TargetNamespace: appNamespace,
-		TargetServer:    envModel.Cluster.ServerUrl,
+		TargetServer:    envModel.ClusterServerUrl,
 		Project:         "default",
 		ValuesFile:      fmt.Sprintf("values.yaml"),
 		RepoPath:        chartGitAttribute.ChartLocation,
 		RepoUrl:         chartGitAttribute.RepoUrl,
 		AutoSyncEnabled: impl.acdConfig.ArgoCDAutoSyncEnabled,
 	}
-	_, err := impl.argoK8sClient.CreateAcdApp(appreq, envModel.Cluster, argocdServer.ARGOCD_APPLICATION_TEMPLATE)
+	_, err := impl.argoK8sClient.CreateAcdApp(appReq, argocdServer.ARGOCD_APPLICATION_TEMPLATE)
 	//create
 	if err != nil {
 		impl.Logger.Errorw("error in creating argo cd app ", "err", err)

@@ -9,19 +9,20 @@ import (
 	bean3 "github.com/devtron-labs/devtron/api/bean"
 	bean6 "github.com/devtron-labs/devtron/api/helm-app/bean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	client3 "github.com/devtron-labs/devtron/api/helm-app/gRPC/client"
 	client2 "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	bean7 "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	client "github.com/devtron-labs/devtron/client/events"
 	gitSensorClient "github.com/devtron-labs/devtron/client/gitSensor"
-	"github.com/devtron-labs/devtron/internal/middleware"
-	"github.com/devtron-labs/devtron/internal/sql/models"
-	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
-	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
-	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/security"
-	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/internals/middleware"
+	"github.com/devtron-labs/devtron/internals/sql/models"
+	repository3 "github.com/devtron-labs/devtron/internals/sql/repository"
+	"github.com/devtron-labs/devtron/internals/sql/repository/appWorkflow"
+	"github.com/devtron-labs/devtron/internals/sql/repository/chartConfig"
+	"github.com/devtron-labs/devtron/internals/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internals/sql/repository/security"
+	"github.com/devtron-labs/devtron/internals/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	bean4 "github.com/devtron-labs/devtron/pkg/app/bean"
 	"github.com/devtron-labs/devtron/pkg/app/status"
@@ -158,7 +159,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 	helmAppClient gRPC.HelmAppClient,
 	eventFactory client.EventFactory,
 	eventClient client.EventClient,
-	globalEnvVariables *util3.GlobalEnvVariables,
+	envVariables *util3.EnvironmentVariables,
 	scanResultRepository security.ImageScanResultRepository,
 	cvePolicyRepository security.CvePolicyRepository,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
@@ -204,7 +205,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 		enforcerUtil:                        enforcerUtil,
 		eventFactory:                        eventFactory,
 		eventClient:                         eventClient,
-		globalEnvVariables:                  globalEnvVariables,
+		globalEnvVariables:                  envVariables.GlobalEnvVariables,
 		helmAppClient:                       helmAppClient,
 		scanResultRepository:                scanResultRepository,
 		cvePolicyRepository:                 cvePolicyRepository,
@@ -885,7 +886,7 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean
 		releaseName := pipeline.DeploymentAppName
 		cluster := envOverride.Environment.Cluster
 		bearerToken := cluster.Config[util5.BearerToken]
-		clusterConfig := &gRPC.ClusterConfig{
+		clusterConfig := &client3.ClusterConfig{
 			ClusterName:           cluster.ClusterName,
 			Token:                 bearerToken,
 			ApiServerUrl:          cluster.ServerUrl,
@@ -896,18 +897,18 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean
 			clusterConfig.CertData = cluster.Config[util5.CertData]
 			clusterConfig.CaData = cluster.Config[util5.CertificateAuthorityData]
 		}
-		releaseIdentifier := &gRPC.ReleaseIdentifier{
+		releaseIdentifier := &client3.ReleaseIdentifier{
 			ReleaseName:      releaseName,
 			ReleaseNamespace: envOverride.Namespace,
 			ClusterConfig:    clusterConfig,
 		}
 
 		if pipeline.DeploymentAppCreated {
-			req := &gRPC.UpgradeReleaseRequest{
+			req := &client3.UpgradeReleaseRequest{
 				ReleaseIdentifier: releaseIdentifier,
 				ValuesYaml:        mergeAndSave,
 				HistoryMax:        impl.helmAppService.GetRevisionHistoryMaxValue(bean6.SOURCE_DEVTRON_APP),
-				ChartContent:      &gRPC.ChartContent{Content: referenceChartByte},
+				ChartContent:      &client3.ChartContent{Content: referenceChartByte},
 			}
 			if impl.IsDevtronAsyncInstallModeEnabled(bean.Helm) {
 				req.RunInCtx = true
@@ -1102,7 +1103,7 @@ func (impl *TriggerServiceImpl) createArgoApplicationIfRequired(appId int, envCo
 			RepoUrl:         chart.GitRepoUrl,
 			AutoSyncEnabled: impl.ACDConfig.ArgoCDAutoSyncEnabled,
 		}
-		argoAppName, err := impl.argoK8sClient.CreateAcdApp(appRequest, envModel.Cluster, argocdServer.ARGOCD_APPLICATION_TEMPLATE)
+		argoAppName, err := impl.argoK8sClient.CreateAcdApp(appRequest, argocdServer.ARGOCD_APPLICATION_TEMPLATE)
 		if err != nil {
 			return "", err
 		}
@@ -1130,11 +1131,11 @@ func (impl *TriggerServiceImpl) updatePipeline(pipeline *pipelineConfig.Pipeline
 }
 
 // helmInstallReleaseWithCustomChart performs helm install with custom chart
-func (impl *TriggerServiceImpl) helmInstallReleaseWithCustomChart(ctx context.Context, releaseIdentifier *gRPC.ReleaseIdentifier, referenceChartByte []byte, valuesYaml string) (*gRPC.HelmInstallCustomResponse, error) {
+func (impl *TriggerServiceImpl) helmInstallReleaseWithCustomChart(ctx context.Context, releaseIdentifier *client3.ReleaseIdentifier, referenceChartByte []byte, valuesYaml string) (*client3.HelmInstallCustomResponse, error) {
 
-	helmInstallRequest := gRPC.HelmInstallCustomRequest{
+	helmInstallRequest := client3.HelmInstallCustomRequest{
 		ValuesYaml:        valuesYaml,
-		ChartContent:      &gRPC.ChartContent{Content: referenceChartByte},
+		ChartContent:      &client3.ChartContent{Content: referenceChartByte},
 		ReleaseIdentifier: releaseIdentifier,
 	}
 	if impl.IsDevtronAsyncInstallModeEnabled(bean.Helm) {

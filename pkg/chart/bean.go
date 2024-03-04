@@ -2,7 +2,7 @@ package chart
 
 import (
 	"encoding/json"
-	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/internals/sql/models"
 )
 
 var ReservedChartRefNamesList *[]ReservedChartList

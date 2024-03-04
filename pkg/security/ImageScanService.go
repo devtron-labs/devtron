@@ -18,16 +18,17 @@
 package security
 
 import (
+	"github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
 	"time"
 
-	repository1 "github.com/devtron-labs/devtron/internal/sql/repository/app"
-	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	repository1 "github.com/devtron-labs/devtron/internals/sql/repository/app"
+	"github.com/devtron-labs/devtron/internals/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	repository2 "github.com/devtron-labs/devtron/pkg/team"
 
-	"github.com/devtron-labs/devtron/internal/sql/repository"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/security"
+	"github.com/devtron-labs/devtron/internals/sql/repository"
+	"github.com/devtron-labs/devtron/internals/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internals/sql/repository/security"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -569,7 +570,7 @@ func (impl ImageScanServiceImpl) VulnerabilityExposure(request *security.Vulnera
 		return nil, err
 	}
 
-	envMap := make(map[int]cluster.EnvironmentBean)
+	envMap := make(map[int]bean.EnvironmentBean)
 	environments, err := impl.envService.GetAllActive()
 	if err != nil {
 		impl.Logger.Errorw("error while fetching vulnerability exposure", "err", err)

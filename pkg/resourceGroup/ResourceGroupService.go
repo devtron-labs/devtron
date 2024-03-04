@@ -22,9 +22,9 @@ import (
 	"strings"
 	"time"
 
-	appStatusRepo "github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
-	"github.com/devtron-labs/devtron/internal/sql/repository/resourceGroup"
-	"github.com/devtron-labs/devtron/internal/util"
+	appStatusRepo "github.com/devtron-labs/devtron/internals/sql/repository/appStatus"
+	"github.com/devtron-labs/devtron/internals/sql/repository/resourceGroup"
+	"github.com/devtron-labs/devtron/internals/util"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"

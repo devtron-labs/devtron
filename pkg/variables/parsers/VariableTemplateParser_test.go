@@ -1,7 +1,7 @@
 package parsers
 
 import (
-	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/internals/util"
 	"github.com/devtron-labs/devtron/pkg/variables/models"
 	"github.com/stretchr/testify/assert"
 	"testing"

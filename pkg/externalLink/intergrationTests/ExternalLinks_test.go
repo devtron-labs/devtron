@@ -2,7 +2,7 @@ package intergrationTests
 
 import (
 	"github.com/caarlos0/env"
-	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/internals/util"
 	"github.com/devtron-labs/devtron/pkg/externalLink"
 	"github.com/go-pg/pg"
 	"github.com/stretchr/testify/assert"

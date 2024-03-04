@@ -38,7 +38,7 @@ import (
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/api/router"
 	"github.com/devtron-labs/devtron/api/sse"
-	"github.com/devtron-labs/devtron/internal/middleware"
+	"github.com/devtron-labs/devtron/internals/middleware"
 	"github.com/go-pg/pg"
 	_ "github.com/lib/pq"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"

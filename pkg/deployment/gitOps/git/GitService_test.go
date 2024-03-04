@@ -2,7 +2,7 @@ package git
 
 import (
 	"github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/internals/util"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
 	"testing"
 )

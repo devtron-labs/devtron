@@ -1,7 +1,7 @@
 package helper
 
 import (
-	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/internals/util"
 	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"golang.org/x/exp/slices"
 )

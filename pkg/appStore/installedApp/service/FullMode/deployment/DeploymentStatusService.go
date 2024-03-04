@@ -3,8 +3,8 @@ package deployment
 import (
 	"fmt"
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/internals/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internals/util"
 	"github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
@@ -77,10 +77,9 @@ func (impl *FullModeDeploymentServiceImpl) UpdateInstalledAppAndPipelineStatusFo
 			impl.Logger.Errorw("error in getting installedAppVersionHistory by installedAppVersionHistoryId", "installedAppVersionHistoryId", installAppVersionRequest.InstalledAppVersionHistoryId, "err", err)
 			return err
 		}
-		installedAppVersionHistory.Status = pipelineConfig.WorkflowFailed
+		installedAppVersionHistory.SetStatus(pipelineConfig.WorkflowFailed)
 		installedAppVersionHistory.FinishedOn = triggeredAt
-		installedAppVersionHistory.UpdatedOn = time.Now()
-		installedAppVersionHistory.UpdatedBy = installAppVersionRequest.UserId
+		installedAppVersionHistory.UpdateAuditLog(installAppVersionRequest.UserId)
 		_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(installedAppVersionHistory, nil)
 		if err != nil {
 			impl.Logger.Errorw("error updating installed app version history status", "err", err, "installedAppVersionHistory", installedAppVersionHistory)

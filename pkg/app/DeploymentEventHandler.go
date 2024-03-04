@@ -24,7 +24,7 @@ import (
 
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/client/events"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internals/sql/repository"
 	util "github.com/devtron-labs/devtron/util/event"
 	"go.uber.org/zap"
 )

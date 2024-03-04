@@ -18,7 +18,7 @@
 package pipeline
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internals/sql/repository"
 	"go.uber.org/zap"
 	"time"
 )

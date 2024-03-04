@@ -3,7 +3,7 @@ package cron
 import (
 	"fmt"
 	"github.com/caarlos0/env"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internals/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	cron2 "github.com/devtron-labs/devtron/util/cron"

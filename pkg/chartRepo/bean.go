@@ -1,6 +1,6 @@
 package chartRepo
 
-import "github.com/devtron-labs/devtron/internal/sql/repository"
+import "github.com/devtron-labs/devtron/internals/sql/repository"
 
 const ValidationSuccessMsg = "Configurations are validated successfully"
 

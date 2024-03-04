@@ -24,6 +24,7 @@ import (
 	"fmt"
 	client "github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deploymentTypeChange"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/resource"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"net/http"
@@ -32,13 +33,12 @@ import (
 	"time"
 
 	bean2 "github.com/devtron-labs/devtron/api/bean"
-	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/cron"
-	"github.com/devtron-labs/devtron/internal/constants"
-	"github.com/devtron-labs/devtron/internal/middleware"
-	util2 "github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/internals/constants"
+	"github.com/devtron-labs/devtron/internals/middleware"
+	util2 "github.com/devtron-labs/devtron/internals/util"
 	app2 "github.com/devtron-labs/devtron/pkg/app"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/appStore/chartGroup"
@@ -87,13 +87,14 @@ type InstalledAppRestHandlerImpl struct {
 	clusterService                          cluster.ClusterService
 	acdServiceClient                        application.ServiceClient
 	appStoreDeploymentService               service.AppStoreDeploymentService
+	appStoreDeploymentDBService             service.AppStoreDeploymentDBService
 	helmAppClient                           client.HelmAppClient
 	argoUserService                         argo.ArgoUserService
 	cdApplicationStatusUpdateHandler        cron.CdApplicationStatusUpdateHandler
 	installedAppRepository                  repository.InstalledAppRepository
 	K8sApplicationService                   application2.K8sApplicationService
 	appCrudOperationService                 app2.AppCrudOperationService
-	installedAppDeploymentTypeChangeService FullMode.InstalledAppDeploymentTypeChangeService
+	installedAppDeploymentTypeChangeService deploymentTypeChange.InstalledAppDeploymentTypeChangeService
 }
 
 func NewInstalledAppRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService,
@@ -101,11 +102,12 @@ func NewInstalledAppRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService u
 	installedAppService FullMode.InstalledAppDBExtendedService, installedAppResourceService resource.InstalledAppResourceService,
 	chartGroupService chartGroup.ChartGroupService, validator *validator.Validate, clusterService cluster.ClusterService,
 	acdServiceClient application.ServiceClient, appStoreDeploymentService service.AppStoreDeploymentService,
+	appStoreDeploymentDBService service.AppStoreDeploymentDBService,
 	helmAppClient client.HelmAppClient, argoUserService argo.ArgoUserService,
 	cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler,
 	installedAppRepository repository.InstalledAppRepository,
 	appCrudOperationService app2.AppCrudOperationService,
-	installedAppDeploymentTypeChangeService FullMode.InstalledAppDeploymentTypeChangeService) *InstalledAppRestHandlerImpl {
+	installedAppDeploymentTypeChangeService deploymentTypeChange.InstalledAppDeploymentTypeChangeService) *InstalledAppRestHandlerImpl {
 	return &InstalledAppRestHandlerImpl{
 		Logger:                                  Logger,
 		userAuthService:                         userAuthService,
@@ -119,6 +121,7 @@ func NewInstalledAppRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService u
 		clusterService:                          clusterService,
 		acdServiceClient:                        acdServiceClient,
 		appStoreDeploymentService:               appStoreDeploymentService,
+		appStoreDeploymentDBService:             appStoreDeploymentDBService,
 		helmAppClient:                           helmAppClient,
 		argoUserService:                         argoUserService,
 		cdApplicationStatusUpdateHandler:        cdApplicationStatusUpdateHandler,
@@ -143,7 +146,7 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppOverview(w http.ResponseWrit
 	}
 	token := r.Header.Get("token")
 	handler.Logger.Infow("request payload, FindAppOverview", "installedAppId", installedAppId)
-	installedApp, err := handler.installedAppService.CheckAppExistsByInstalledAppId(installedAppId)
+	installedApp, err := handler.installedAppService.GetInstalledAppById(installedAppId)
 	appOverview, err := handler.appCrudOperationService.GetAppMetaInfo(installedApp.AppId, installedAppId, installedApp.EnvironmentId)
 	if err != nil {
 		handler.Logger.Errorw("service err, FetchAppOverview", "err", err, "appId", installedApp.AppId, "installedAppId", installedAppId)
@@ -266,7 +269,7 @@ func (handler InstalledAppRestHandlerImpl) GetAllInstalledApp(w http.ResponseWri
 		return
 	}
 
-	appIdToAppMap := make(map[string]openapi.HelmApp)
+	appIdToAppMap := make(map[string]appStoreBean.HelmAppDetails)
 
 	//the value of this map is array of strings because the GetHelmObjectByAppNameAndEnvId method may return "//" for error cases
 	//so different apps may contain same object, to handle that we are using (map[string] []string)
@@ -322,7 +325,7 @@ func (handler InstalledAppRestHandlerImpl) GetAllInstalledApp(w http.ResponseWri
 		}
 	}
 
-	authorizedApps := make([]openapi.HelmApp, 0)
+	authorizedApps := make([]appStoreBean.HelmAppDetails, 0)
 	for appId, _ := range authorizedAppIdSet {
 		authorizedApp := appIdToAppMap[appId]
 		authorizedApps = append(authorizedApps, authorizedApp)
@@ -373,7 +376,7 @@ func (handler *InstalledAppRestHandlerImpl) DeployBulk(w http.ResponseWriter, r 
 		} else {
 			visited[item.AppName] = true
 		}
-		isChartRepoActive, err := handler.appStoreDeploymentService.IsChartRepoActive(item.AppStoreVersion)
+		isChartRepoActive, err := handler.appStoreDeploymentDBService.IsChartProviderActive(item.AppStoreVersion)
 		if err != nil {
 			handler.Logger.Errorw("service err, CreateInstalledApp", "err", err, "payload", request)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -512,7 +515,7 @@ func (handler *InstalledAppRestHandlerImpl) DeleteArgoInstalledAppWithNonCascade
 			return
 		}
 	}
-	installedApp, err := handler.appStoreDeploymentService.GetInstalledApp(installedAppId)
+	installedApp, err := handler.appStoreDeploymentDBService.GetInstalledApp(installedAppId)
 	if err != nil {
 		handler.Logger.Error("request err, NonCascadeDeleteCdPipeline", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -596,7 +599,7 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledApp(w htt
 	}
 	handler.Logger.Infow("request payload, FetchAppDetailsForInstalledApp, app store", "installedAppId", installedAppId, "envId", envId)
 
-	installedApp, err := handler.installedAppService.CheckAppExistsByInstalledAppId(installedAppId)
+	installedApp, err := handler.installedAppService.GetInstalledAppById(installedAppId)
 	if err == pg.ErrNoRows {
 		common.WriteJsonResp(w, err, "App not found in database", http.StatusBadRequest)
 		return
@@ -717,9 +720,13 @@ func (handler *InstalledAppRestHandlerImpl) FetchResourceTree(w http.ResponseWri
 		return
 	}
 	handler.Logger.Infow("request payload, FetchAppDetailsForInstalledAppV2, app store", "installedAppId", installedAppId, "envId", envId)
-	installedApp, err := handler.installedAppService.CheckAppExistsByInstalledAppId(installedAppId)
+	installedApp, err := handler.installedAppService.GetInstalledAppById(installedAppId)
 	if err == pg.ErrNoRows {
 		common.WriteJsonResp(w, err, "App not found in database", http.StatusBadRequest)
+		return
+	}
+	if installedApp.Environment.IsVirtualEnvironment {
+		common.WriteJsonResp(w, nil, nil, http.StatusOK)
 		return
 	}
 	token := r.Header.Get("token")
@@ -752,7 +759,7 @@ func (handler *InstalledAppRestHandlerImpl) FetchResourceTree(w http.ResponseWri
 			apiError, ok := err.(*util2.ApiError)
 			if ok && apiError != nil {
 				if apiError.Code == constants.AppDetailResourceTreeNotFound && installedApp.DeploymentAppDeleteRequest == true {
-					// TODO refactoring: should be performed in go routine
+					// TODO refactoring: should be performed through nats
 					err = handler.appStoreDeploymentService.MarkGitOpsInstalledAppsDeletedIfArgoAppIsDeleted(installedAppId, envId)
 					appDeleteErr, appDeleteErrOk := err.(*util2.ApiError)
 					if appDeleteErrOk && appDeleteErr != nil {

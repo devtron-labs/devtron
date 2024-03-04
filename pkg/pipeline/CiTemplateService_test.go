@@ -3,9 +3,9 @@ package pipeline
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/sql/repository/mocks"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/internals/sql/repository/mocks"
+	"github.com/devtron-labs/devtron/internals/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internals/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	pipelineMocks "github.com/devtron-labs/devtron/pkg/pipeline/mocks"
 	"github.com/devtron-labs/devtron/pkg/sql"

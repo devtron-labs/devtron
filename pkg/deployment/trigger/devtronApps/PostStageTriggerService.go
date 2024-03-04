@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internals/sql/repository/pipelineConfig"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"

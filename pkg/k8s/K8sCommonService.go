@@ -8,7 +8,7 @@ import (
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/helm-app/service"
-	util2 "github.com/devtron-labs/devtron/internal/util"
+	util2 "github.com/devtron-labs/devtron/internals/util"
 	"github.com/devtron-labs/devtron/pkg/argoApplication"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	bean3 "github.com/devtron-labs/devtron/pkg/k8s/application/bean"

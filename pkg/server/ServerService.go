@@ -20,7 +20,7 @@ package server
 import (
 	"context"
 	"errors"
-	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	client2 "github.com/devtron-labs/devtron/api/helm-app/gRPC/client"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
 	moduleUtil "github.com/devtron-labs/devtron/pkg/module/util"
@@ -131,7 +131,7 @@ func (impl ServerServiceImpl) HandleServerAction(userId int32, serverActionReque
 
 	// HELM_OPERATION Starts
 	devtronHelmAppIdentifier := impl.helmAppService.GetDevtronHelmAppIdentifier()
-	chartRepository := &gRPC.ChartRepository{
+	chartRepository := &client2.ChartRepository{
 		Name: impl.serverEnvConfig.DevtronHelmRepoName,
 		Url:  impl.serverEnvConfig.DevtronHelmRepoUrl,
 	}

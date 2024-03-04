@@ -2,7 +2,7 @@ package cluster
 
 import (
 	"errors"
-	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/internals/util"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository/mocks"
 	"github.com/go-pg/pg"

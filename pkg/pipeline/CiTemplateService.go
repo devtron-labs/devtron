@@ -1,7 +1,7 @@
 package pipeline
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internals/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"

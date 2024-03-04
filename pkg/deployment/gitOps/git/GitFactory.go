@@ -3,7 +3,7 @@ package git
 import (
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internals/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/adapter"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/xanzy/go-gitlab"

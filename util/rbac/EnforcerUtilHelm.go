@@ -2,7 +2,7 @@ package rbac
 
 import (
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/internals/sql/repository/app"
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/team"
@@ -15,6 +15,7 @@ type EnforcerUtilHelm interface {
 	GetHelmObjectByTeamIdAndClusterId(teamId int, clusterId int, namespace string, appName string) string
 	GetHelmObjectByClusterIdNamespaceAndAppName(clusterId int, namespace string, appName string) (string, string)
 	GetAppRBACNameByInstalledAppId(installedAppId int) (string, string)
+	GetAppRBACNameByInstalledAppIdAndTeamId(installedAppId, teamId int) string
 }
 type EnforcerUtilHelmImpl struct {
 	logger                 *zap.SugaredLogger
@@ -139,4 +140,19 @@ func (impl EnforcerUtilHelmImpl) GetAppRBACNameByInstalledAppId(installedAppVers
 	}
 
 	return rbacOne, ""
+}
+
+func (impl EnforcerUtilHelmImpl) GetAppRBACNameByInstalledAppIdAndTeamId(installedAppId, teamId int) string {
+	installedApp, err := impl.InstalledAppRepository.GetInstalledApp(installedAppId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching installed app version data", "err", err)
+		return fmt.Sprintf("%s/%s/%s", "", "", "")
+	}
+	project, err := impl.teamRepository.FindOne(teamId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching project by teamID", "err", err)
+		return fmt.Sprintf("%s/%s/%s", "", "", "")
+	}
+	rbac := fmt.Sprintf("%s/%s/%s", project.Name, installedApp.Environment.EnvironmentIdentifier, installedApp.App.AppName)
+	return rbac
 }

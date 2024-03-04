@@ -7,7 +7,7 @@ import (
 	"github.com/argoproj/argo-workflows/v3/workflow/common"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/internals/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"

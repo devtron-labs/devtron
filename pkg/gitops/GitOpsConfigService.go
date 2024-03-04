@@ -37,8 +37,8 @@ import (
 	cluster3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	cluster2 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
-	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/internals/sql/repository"
+	"github.com/devtron-labs/devtron/internals/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
@@ -103,7 +103,7 @@ type GitOpsConfigServiceImpl struct {
 }
 
 func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger,
-	globalEnvVariables *util2.GlobalEnvVariables,
+	envVariables *util2.EnvironmentVariables,
 	gitOpsRepository repository.GitOpsConfigRepository, K8sUtil *util4.K8sServiceImpl, aCDAuthConfig *util3.ACDAuthConfig,
 	clusterService cluster.ClusterService,
 	gitFactory *git.GitFactory, argoUserService argo.ArgoUserService,
@@ -111,7 +111,7 @@ func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger,
 	return &GitOpsConfigServiceImpl{
 		randSource:              rand.NewSource(time.Now().UnixNano()),
 		logger:                  Logger,
-		globalEnvVariables:      globalEnvVariables,
+		globalEnvVariables:      envVariables.GlobalEnvVariables,
 		gitOpsRepository:        gitOpsRepository,
 		K8sUtil:                 K8sUtil,
 		aCDAuthConfig:           aCDAuthConfig,

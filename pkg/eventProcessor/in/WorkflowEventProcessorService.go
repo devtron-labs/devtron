@@ -9,8 +9,8 @@ import (
 	"github.com/devtron-labs/common-lib/pubsub-lib/model"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/client/events"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internals/sql/repository"
+	"github.com/devtron-labs/devtron/internals/sql/repository/pipelineConfig"
 	bean4 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/deployedApp"
 	bean6 "github.com/devtron-labs/devtron/pkg/deployment/deployedApp/bean"
@@ -70,7 +70,7 @@ func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
 	deployedAppService deployedApp.DeployedAppService,
 	webhookService pipeline.WebhookService,
 	validator *validator.Validate,
-	globalEnvVariables *util2.GlobalEnvVariables,
+	envVariables *util2.EnvironmentVariables,
 	cdWorkflowCommonService cd.CdWorkflowCommonService,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	ciArtifactRepository repository.CiArtifactRepository,
@@ -90,7 +90,7 @@ func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
 		deployedAppService:      deployedAppService,
 		webhookService:          webhookService,
 		validator:               validator,
-		globalEnvVariables:      globalEnvVariables,
+		globalEnvVariables:      envVariables.GlobalEnvVariables,
 		cdWorkflowCommonService: cdWorkflowCommonService,
 		pipelineRepository:      pipelineRepository,
 		ciArtifactRepository:    ciArtifactRepository,

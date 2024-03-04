@@ -20,7 +20,7 @@ package pipeline
 import (
 	"context"
 	"fmt"
-	bean2 "github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	bean2 "github.com/devtron-labs/devtron/api/helm-app/gRPC/client"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -30,9 +30,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/devtron-labs/devtron/internal/constants"
-	"github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
-	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/internals/constants"
+	"github.com/devtron-labs/devtron/internals/sql/repository/dockerRegistry"
+	"github.com/devtron-labs/devtron/internals/util"
 	"go.uber.org/zap"
 )
 
