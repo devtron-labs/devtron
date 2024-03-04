@@ -90,8 +90,8 @@ type AppWorkflowDto struct {
 }
 
 type ArtifactPromotionMetadata struct {
-	PendingApprovalCount int  `json:"pendingApprovalCount"`
-	IsConfigured         bool `json:"isConfigured"`
+	IsApprovalPendingForPromotion bool `json:"isApprovalPendingForPromotion"`
+	IsConfigured                  bool `json:"isConfigured"`
 }
 type TriggerViewWorkflowConfig struct {
 	Workflows        []AppWorkflowDto          `json:"workflows"`
@@ -326,8 +326,8 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowWithImagePromotionMetadata(app
 			Name:  w.Name,
 			AppId: w.AppId,
 			ArtifactPromotionMetadata: ArtifactPromotionMetadata{
-				PendingApprovalCount: totalCount,
-				IsConfigured:         policyConfiguredForWorkflow,
+				IsApprovalPendingForPromotion: totalCount > 0,
+				IsConfigured:                  policyConfiguredForWorkflow,
 			},
 		}
 		workflow.AppWorkflowMappingDto = wfrIdVsMappings[w.Id]
