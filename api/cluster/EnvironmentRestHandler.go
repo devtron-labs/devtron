@@ -20,6 +20,7 @@ package cluster
 import (
 	"context"
 	"encoding/json"
+	bean2 "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"net/http"
 	"strconv"
 	"strings"
@@ -603,6 +604,6 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentConnection(w http.ResponseW
 	mapObj := map[int]error{
 		clusterBean.Id: err,
 	}
-	impl.environmentClusterMappingsService.HandleErrorInClusterConnections([]*request.ClusterBean{clusterBean}, mapObj, true)
+	impl.environmentClusterMappingsService.HandleErrorInClusterConnections([]*bean2.ClusterBean{clusterBean}, mapObj, true)
 	common.WriteJsonResp(w, nil, responseObj, http.StatusOK)
 }

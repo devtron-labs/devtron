@@ -35,6 +35,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deployment"
 	"github.com/devtron-labs/devtron/pkg/appStore/values/service"
 	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
+	bean2 "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	repository5 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
@@ -139,7 +140,7 @@ type ChartGroupService interface {
 	DeleteChartGroup(req *ChartGroupBean) error
 
 	DeployBulk(chartGroupInstallRequest *ChartGroupInstallRequest) (*ChartGroupInstallAppRes, error)
-	DeployDefaultChartOnCluster(bean *cluster2.ClusterBean, userId int32) (bool, error)
+	DeployDefaultChartOnCluster(bean *bean2.ClusterBean, userId int32) (bool, error)
 }
 
 type ChartGroupList struct {
@@ -698,7 +699,7 @@ func (impl *ChartGroupServiceImpl) triggerDeploymentEvent(installAppVersions []*
 	}
 }
 
-func (impl *ChartGroupServiceImpl) DeployDefaultChartOnCluster(bean *cluster2.ClusterBean, userId int32) (bool, error) {
+func (impl *ChartGroupServiceImpl) DeployDefaultChartOnCluster(bean *bean2.ClusterBean, userId int32) (bool, error) {
 	// STEP 1 - create environment with name "devton"
 	impl.logger.Infow("STEP 1", "create environment for cluster component", bean)
 	envName := fmt.Sprintf("%d-%s", bean.Id, appStoreBean.DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT)

@@ -20,6 +20,7 @@ package cluster
 import (
 	"encoding/json"
 	"fmt"
+	bean2 "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"strconv"
 	"strings"
 	"time"
@@ -99,7 +100,7 @@ type EnvironmentService interface {
 	FindById(id int) (*EnvironmentBean, error)
 	Update(mappings *EnvironmentBean, userId int32) (*EnvironmentBean, error)
 	UpdateVirtualEnvironment(mappings *VirtualEnvironmentBean, userId int32) (*VirtualEnvironmentBean, error)
-	FindClusterByEnvId(id int) (*ClusterBean, error)
+	FindClusterByEnvId(id int) (*bean2.ClusterBean, error)
 	GetEnvironmentListForAutocomplete(isDeploymentTypeParam bool) ([]EnvironmentBean, error)
 	GetEnvironmentOnlyListForAutocomplete() ([]EnvironmentBean, error)
 	FindByIds(ids []*int) ([]*EnvironmentBean, error)
@@ -107,7 +108,7 @@ type EnvironmentService interface {
 	GetByClusterId(id int) ([]*EnvironmentBean, error)
 	GetCombinedEnvironmentListForDropDown(token string, isActionUserSuperAdmin bool, auth func(email string, object []string) map[string]bool) ([]*ClusterEnvDto, error)
 	GetCombinedEnvironmentListForDropDownByClusterIds(token string, clusterIds []int, auth func(token string, object string) bool) ([]*ClusterEnvDto, error)
-	HandleErrorInClusterConnections(clusters []*ClusterBean, respMap map[int]error, clusterExistInDb bool)
+	HandleErrorInClusterConnections(clusters []*bean2.ClusterBean, respMap map[int]error, clusterExistInDb bool)
 }
 
 type EnvironmentServiceImpl struct {
@@ -427,13 +428,13 @@ func (impl EnvironmentServiceImpl) UpdateVirtualEnvironment(mappings *VirtualEnv
 	return mappings, nil
 }
 
-func (impl EnvironmentServiceImpl) FindClusterByEnvId(id int) (*ClusterBean, error) {
+func (impl EnvironmentServiceImpl) FindClusterByEnvId(id int) (*bean2.ClusterBean, error) {
 	model, err := impl.environmentRepository.FindById(id)
 	if err != nil {
 		impl.logger.Errorw("fetch cluster by environment id", "err", err)
 		return nil, err
 	}
-	clusterBean := &ClusterBean{}
+	clusterBean := &bean2.ClusterBean{}
 	clusterBean.Id = model.Cluster.Id
 	clusterBean.ClusterName = model.Cluster.ClusterName
 	clusterBean.Active = model.Cluster.Active
@@ -849,6 +850,6 @@ func (impl EnvironmentServiceImpl) Delete(deleteReq *EnvironmentBean, userId int
 	return nil
 }
 
-func (impl EnvironmentServiceImpl) HandleErrorInClusterConnections(clusters []*ClusterBean, respMap map[int]error, clusterExistInDb bool) {
+func (impl EnvironmentServiceImpl) HandleErrorInClusterConnections(clusters []*bean2.ClusterBean, respMap map[int]error, clusterExistInDb bool) {
 	impl.clusterService.HandleErrorInClusterConnections(clusters, respMap, clusterExistInDb)
 }

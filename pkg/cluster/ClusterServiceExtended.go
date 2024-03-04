@@ -8,6 +8,8 @@ import (
 	auth "github.com/devtron-labs/devtron/pkg/auth/authorisation/globalConfig"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	repository5 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
+	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
+	"github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
 	"github.com/devtron-labs/devtron/pkg/serverConnection"
@@ -94,7 +96,7 @@ func (impl *ClusterServiceImplExtended) updateClusterConnectionMap() {
 		return
 	}
 	for _, cluster := range clusters {
-		clusterBean := GetClusterBean(*cluster)
+		clusterBean := adapter.GetClusterBean(*cluster)
 		clusterConfig := clusterBean.GetClusterConfig()
 		_, err = impl.sshTunnelWrapperService.StartUpdateConnectionForCluster(clusterConfig)
 		if err != nil {
@@ -106,7 +108,7 @@ func (impl *ClusterServiceImplExtended) updateClusterConnectionMap() {
 	}
 	return
 }
-func (impl *ClusterServiceImplExtended) FindAllWithoutConfig() ([]*ClusterBean, error) {
+func (impl *ClusterServiceImplExtended) FindAllWithoutConfig() ([]*bean.ClusterBean, error) {
 	beans, err := impl.FindAll()
 	if err != nil {
 		return nil, err
@@ -126,7 +128,7 @@ func (impl *ClusterServiceImplExtended) FindAllWithoutConfig() ([]*ClusterBean, 
 	return beans, nil
 }
 
-func (impl *ClusterServiceImplExtended) GetClusterFullModeDTO(beans []*ClusterBean) ([]*ClusterBean, error) {
+func (impl *ClusterServiceImplExtended) GetClusterFullModeDTO(beans []*bean.ClusterBean) ([]*bean.ClusterBean, error) {
 	//devtron full mode logic
 	var clusterIds []int
 	for _, cluster := range beans {
@@ -151,7 +153,7 @@ func (impl *ClusterServiceImplExtended) GetClusterFullModeDTO(beans []*ClusterBe
 	}
 
 	for _, item := range beans {
-		defaultClusterComponents := make([]*DefaultClusterComponent, 0)
+		defaultClusterComponents := make([]*bean.DefaultClusterComponent, 0)
 		if _, ok := clusterComponentsMap[item.Id]; ok {
 			charts := clusterComponentsMap[item.Id]
 			failed := false
@@ -161,7 +163,7 @@ func (impl *ClusterServiceImplExtended) GetClusterFullModeDTO(beans []*ClusterBe
 				chartLen = len(charts)
 			}
 			for _, chart := range charts {
-				defaultClusterComponent := &DefaultClusterComponent{}
+				defaultClusterComponent := &bean.DefaultClusterComponent{}
 				defaultClusterComponent.AppId = chart.InstalledApp.AppId
 				defaultClusterComponent.InstalledAppId = chart.InstalledApp.Id
 				defaultClusterComponent.EnvId = chart.InstalledApp.EnvironmentId
@@ -194,7 +196,7 @@ func (impl *ClusterServiceImplExtended) GetClusterFullModeDTO(beans []*ClusterBe
 	return beans, nil
 }
 
-func (impl *ClusterServiceImplExtended) FindAll() ([]*ClusterBean, error) {
+func (impl *ClusterServiceImplExtended) FindAll() ([]*bean.ClusterBean, error) {
 	beans, err := impl.ClusterServiceImpl.FindAll()
 	if err != nil {
 		return nil, err
@@ -202,7 +204,7 @@ func (impl *ClusterServiceImplExtended) FindAll() ([]*ClusterBean, error) {
 	return impl.GetClusterFullModeDTO(beans)
 }
 
-func (impl *ClusterServiceImplExtended) FindAllExceptVirtual() ([]*ClusterBean, error) {
+func (impl *ClusterServiceImplExtended) FindAllExceptVirtual() ([]*bean.ClusterBean, error) {
 	beans, err := impl.ClusterServiceImpl.FindAll()
 	if err != nil {
 		return nil, err
@@ -210,7 +212,7 @@ func (impl *ClusterServiceImplExtended) FindAllExceptVirtual() ([]*ClusterBean, 
 	return impl.GetClusterFullModeDTO(beans)
 }
 
-func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {
+func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *bean.ClusterBean, userId int32) (*bean.ClusterBean, error) {
 	isGitOpsConfigured, err1 := impl.gitOpsConfigReadService.IsGitOpsConfigured()
 	if err1 != nil {
 		return nil, err1
@@ -341,7 +343,7 @@ func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *Cluste
 	return bean, err
 }
 
-func (impl *ClusterServiceImplExtended) CreateGrafanaDataSource(clusterBean *ClusterBean, env *repository.Environment) (int, error) {
+func (impl *ClusterServiceImplExtended) CreateGrafanaDataSource(clusterBean *bean.ClusterBean, env *repository.Environment) (int, error) {
 	grafanaDatasourceId := env.GrafanaDatasourceId
 	if grafanaDatasourceId == 0 {
 		//starts grafana creation
@@ -390,7 +392,7 @@ func (impl *ClusterServiceImplExtended) CreateGrafanaDataSource(clusterBean *Clu
 	return grafanaDatasourceId, nil
 }
 
-func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {
+func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *bean.ClusterBean, userId int32) (*bean.ClusterBean, error) {
 	isGitOpsConfigured, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
 	if err != nil {
 		return nil, err
@@ -434,7 +436,7 @@ func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *ClusterB
 	return clusterBean, nil
 }
 
-func (impl ClusterServiceImplExtended) DeleteFromDb(bean *ClusterBean, userId int32) error {
+func (impl ClusterServiceImplExtended) DeleteFromDb(bean *bean.ClusterBean, userId int32) error {
 	existingCluster, err := impl.clusterRepository.FindById(bean.Id)
 	if err != nil {
 		impl.logger.Errorw("No matching entry found for delete.", "id", bean.Id)

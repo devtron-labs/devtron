@@ -27,6 +27,7 @@ import (
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/resource"
+	bean2 "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"net/http"
 	"strconv"
 	"time"
@@ -121,7 +122,7 @@ type AppStatus struct {
 type AppAutocomplete struct {
 	Teams        []team.TeamRequest
 	Environments []cluster.EnvironmentBean
-	Clusters     []cluster.ClusterBean
+	Clusters     []bean2.ClusterBean
 }
 
 func NewAppListingRestHandlerImpl(application application.ServiceClient,

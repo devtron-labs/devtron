@@ -22,6 +22,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
+	bean4 "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -662,7 +664,7 @@ func (impl *CiHandlerImpl) getRestConfig(workflow *pipelineConfig.CiWorkflow) (*
 		return nil, err
 	}
 
-	clusterBean := cluster.GetClusterBean(*env.Cluster)
+	clusterBean := adapter.GetClusterBean(*env.Cluster)
 
 	clusterConfig := clusterBean.GetClusterConfig()
 	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(clusterConfig)
@@ -786,9 +788,9 @@ func (impl *CiHandlerImpl) getWorkflowLogs(pipelineId int, ciWorkflow *pipelineC
 		if err != nil {
 			return nil, nil, err
 		}
-		var clusterBean cluster.ClusterBean
+		var clusterBean bean4.ClusterBean
 		if env != nil && env.Cluster != nil {
-			clusterBean = cluster.GetClusterBean(*env.Cluster)
+			clusterBean = adapter.GetClusterBean(*env.Cluster)
 		}
 		clusterConfig = clusterBean.GetClusterConfig()
 		isExt = true

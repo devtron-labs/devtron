@@ -32,7 +32,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
-	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest"
 	bean5 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
@@ -1203,7 +1203,7 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean
 		releaseName := pipeline.DeploymentAppName
 		cluster := envOverride.Environment.Cluster
 		bearerToken := cluster.Config[util5.BearerToken]
-		clusterBean := cluster2.GetClusterBean(*cluster)
+		clusterBean := adapter.GetClusterBean(*cluster)
 		clusterConfig := client2.ConvertClusterBeanToClusterConfig(&clusterBean)
 		clusterConfig.Token = bearerToken
 

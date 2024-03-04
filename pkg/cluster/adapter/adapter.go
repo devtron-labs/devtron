@@ -1,7 +1,7 @@
 package adapter
 
 import (
-	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean4 "github.com/devtron-labs/devtron/pkg/serverConnection/bean"
 	repository3 "github.com/devtron-labs/devtron/pkg/serverConnection/repository"
@@ -37,7 +37,7 @@ func ConvertClusterToNewCluster(model *repository.Cluster) *repository.Cluster {
 	return model
 }
 
-func ConvertClusterBeanToNewClusterBean(clusterBean *cluster.ClusterBean) *cluster.ClusterBean {
+func ConvertClusterBeanToNewClusterBean(clusterBean *bean.ClusterBean) *bean.ClusterBean {
 	if len(clusterBean.ProxyUrl) > 0 || clusterBean.ToConnectWithSSHTunnel {
 		// converting old bean to new bean
 		connectionConfig := &bean4.ServerConnectionConfigBean{}
@@ -61,7 +61,7 @@ func ConvertClusterBeanToNewClusterBean(clusterBean *cluster.ClusterBean) *clust
 	return clusterBean
 }
 
-func ConvertClusterBeanToCluster(clusterBean *cluster.ClusterBean, userId int32) *repository.Cluster {
+func ConvertClusterBeanToCluster(clusterBean *bean.ClusterBean, userId int32) *repository.Cluster {
 
 	model := &repository.Cluster{}
 
@@ -131,4 +131,42 @@ func ConvertClusterBeanToCluster(clusterBean *cluster.ClusterBean, userId int32)
 	}
 	model.ServerConnectionConfig = connectionConfig
 	return model
+}
+
+func GetClusterBean(model repository.Cluster) bean.ClusterBean {
+	model = *ConvertClusterToNewCluster(&model) // repo model is converted according to new struct
+	clusterBean := bean.ClusterBean{}
+	clusterBean.Id = model.Id
+	clusterBean.ClusterName = model.ClusterName
+	clusterBean.ServerUrl = model.ServerUrl
+	clusterBean.PrometheusUrl = model.PrometheusEndpoint
+	clusterBean.AgentInstallationStage = model.AgentInstallationStage
+	clusterBean.Active = model.Active
+	clusterBean.Config = model.Config
+	clusterBean.K8sVersion = model.K8sVersion
+	clusterBean.InsecureSkipTLSVerify = model.InsecureSkipTlsVerify
+	clusterBean.IsVirtualCluster = model.IsVirtualCluster
+	clusterBean.ErrorInConnecting = model.ErrorInConnecting
+	clusterBean.PrometheusAuth = &bean.PrometheusAuth{
+		UserName:      model.PUserName,
+		Password:      model.PPassword,
+		TlsClientCert: model.PTlsClientCert,
+		TlsClientKey:  model.PTlsClientKey,
+	}
+	if model.ServerConnectionConfig != nil {
+		clusterBean.ServerConnectionConfig = &bean4.ServerConnectionConfigBean{
+			ServerConnectionConfigId: model.ServerConnectionConfigId,
+			ConnectionMethod:         model.ServerConnectionConfig.ConnectionMethod,
+			ProxyConfig: &bean4.ProxyConfig{
+				ProxyUrl: model.ServerConnectionConfig.ProxyUrl,
+			},
+			SSHTunnelConfig: &bean4.SSHTunnelConfig{
+				SSHServerAddress: model.ServerConnectionConfig.SSHServerAddress,
+				SSHUsername:      model.ServerConnectionConfig.SSHUsername,
+				SSHPassword:      model.ServerConnectionConfig.SSHPassword,
+				SSHAuthKey:       model.ServerConnectionConfig.SSHAuthKey,
+			},
+		}
+	}
+	return clusterBean
 }

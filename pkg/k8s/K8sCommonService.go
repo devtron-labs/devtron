@@ -12,6 +12,7 @@ import (
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/argoApplication"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	bean2 "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	bean3 "github.com/devtron-labs/devtron/pkg/k8s/application/bean"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	"github.com/devtron-labs/devtron/util"
@@ -34,7 +35,7 @@ type K8sCommonService interface {
 	UpdateResource(ctx context.Context, request *ResourceRequestBean) (resp *k8s2.ManifestResponse, err error)
 	DeleteResource(ctx context.Context, request *ResourceRequestBean) (*k8s2.ManifestResponse, error)
 	ListEvents(ctx context.Context, request *ResourceRequestBean) (*k8s2.EventsResponse, error)
-	GetRestConfigByClusterId(ctx context.Context, clusterId int) (*rest.Config, error, *cluster.ClusterBean)
+	GetRestConfigByClusterId(ctx context.Context, clusterId int) (*rest.Config, error, *bean2.ClusterBean)
 	GetManifestsByBatch(ctx context.Context, request []ResourceRequestBean) ([]BatchResourceResponse, error)
 	FilterK8sResources(ctx context.Context, resourceTreeInf map[string]interface{}, appDetail bean.AppDetailContainer, appId string, kindsToBeFiltered []string) []ResourceRequestBean
 	GetUrlsByBatch(ctx context.Context, resp []BatchResourceResponse) []interface{}
@@ -259,7 +260,7 @@ func (impl *K8sCommonServiceImpl) GetManifestsByBatch(ctx context.Context, reque
 	return res, nil
 }
 
-func (impl *K8sCommonServiceImpl) GetRestConfigByClusterId(ctx context.Context, clusterId int) (*rest.Config, error, *cluster.ClusterBean) {
+func (impl *K8sCommonServiceImpl) GetRestConfigByClusterId(ctx context.Context, clusterId int) (*rest.Config, error, *bean2.ClusterBean) {
 	_, span := otel.Tracer("orchestrator").Start(ctx, "K8sApplicationService.GetRestConfigByClusterId")
 	defer span.End()
 	cluster, err := impl.clusterService.FindById(clusterId)

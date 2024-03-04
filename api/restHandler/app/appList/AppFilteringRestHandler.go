@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	bean2 "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"go.uber.org/zap"
 	"net/http"
@@ -78,7 +79,7 @@ func (handler AppFilteringRestHandlerImpl) GetClusterTeamAndEnvListForAutocomple
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	clusterMapping := make(map[string]cluster.ClusterBean)
+	clusterMapping := make(map[string]bean2.ClusterBean)
 	start := time.Now()
 	clusterList, err := handler.clusterService.FindAllForAutoComplete()
 	dbOperationTime := time.Since(start)
@@ -87,7 +88,7 @@ func (handler AppFilteringRestHandlerImpl) GetClusterTeamAndEnvListForAutocomple
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	var granterClusters []cluster.ClusterBean
+	var granterClusters []bean2.ClusterBean
 	v := r.URL.Query()
 	authEnabled := true
 	auth := v.Get("auth")
@@ -117,7 +118,7 @@ func (handler AppFilteringRestHandlerImpl) GetClusterTeamAndEnvListForAutocomple
 	//RBAC enforcer Ends
 
 	if len(granterClusters) == 0 {
-		granterClusters = make([]cluster.ClusterBean, 0)
+		granterClusters = make([]bean2.ClusterBean, 0)
 	}
 
 	//getting environment for autocomplete

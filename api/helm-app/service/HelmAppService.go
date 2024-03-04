@@ -11,6 +11,7 @@ import (
 	"github.com/devtron-labs/devtron/api/helm-app/models"
 	"github.com/devtron-labs/devtron/internal/constants"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
+	bean3 "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/serverConnection/bean"
 	"github.com/go-pg/pg"
 	"google.golang.org/grpc/codes"
@@ -133,7 +134,7 @@ func GetHelmReleaseConfig() (*HelmReleaseConfig, error) {
 	return cfg, err
 }
 
-func ConvertClusterBeanToClusterConfig(clusterBean *cluster.ClusterBean) *gRPC.ClusterConfig {
+func ConvertClusterBeanToClusterConfig(clusterBean *bean3.ClusterBean) *gRPC.ClusterConfig {
 	config := &gRPC.ClusterConfig{
 		ApiServerUrl:          clusterBean.ServerUrl,
 		Token:                 clusterBean.Config[k8s2.BearerToken],

@@ -80,7 +80,7 @@ func (impl *SSHTunnelWrapperServiceImpl) StartUpdateConnectionForCluster(cluster
 		impl.logger.Errorw("error in extracting host and port from cluster host address", "err", err, "clusterHost", cluster.Host)
 		return portUsed, err
 	}
-	sshTunnelConfig := cluster.ClusterConnectionConfig.SSHTunnelConfig
+	sshTunnelConfig := cluster.ServerConnectionConfig.SSHTunnelConfig
 	serverAddress, _, err := impl.extractHostAndPostFromUrl(sshTunnelConfig.SSHServerAddress)
 	if err != nil {
 		impl.logger.Errorw("error in extracting host and port from cluster host address", "err", err, "clusterHost", cluster.Host)

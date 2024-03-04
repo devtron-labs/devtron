@@ -12,15 +12,15 @@ type ProxyConfig struct {
 }
 
 type SSHTunnelConfig struct {
-	SSHServerAddress string `json:"SSHServerAddress,omitempty"`
-	SSHUsername      string `json:"SSHUsername,omitempty"`
-	SSHPassword      string `json:"SSHPassword,omitempty"`
-	SSHAuthKey       string `json:"SSHAuthKey,omitempty"`
+	SSHServerAddress string `json:"sshServerAddress,omitempty"`
+	SSHUsername      string `json:"sshUsername,omitempty"`
+	SSHPassword      string `json:"sshPassword,omitempty"`
+	SSHAuthKey       string `json:"sshAuthKey,omitempty"`
 }
 
 type ServerConnectionConfigBean struct {
 	ServerConnectionConfigId int                    `json:"serverConnectionConfigId"`
 	ConnectionMethod         ServerConnectionMethod `json:"connectionMethod,omitempty"`
 	ProxyConfig              *ProxyConfig           `json:"proxyConfig,omitempty"`
-	SSHTunnelConfig          *SSHTunnelConfig       `json:"SSHConfig,omitempty"`
+	SSHTunnelConfig          *SSHTunnelConfig       `json:"sshConfig,omitempty"`
 }
