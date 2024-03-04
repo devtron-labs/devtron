@@ -94,7 +94,7 @@ func (impl *ArtifactApprovalActionServiceImpl) PerformDeploymentApprovalAction(u
 		}
 		deploymentApprovalData.CreatedBy = userId
 		deploymentApprovalData.UpdatedBy = userId
-		err = impl.requestApprovalRepository.SaveDeploymentUserData(deploymentApprovalData)
+		err = impl.requestApprovalRepository.SaveRequestApprovalUserData(deploymentApprovalData)
 		if err != nil {
 			impl.logger.Errorw("error occurred while saving user approval data", "approvalRequestId", approvalRequestId, "err", err)
 			return &bean4.DeploymentApprovalValidationError{
