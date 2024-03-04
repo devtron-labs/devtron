@@ -98,6 +98,7 @@ type Payload struct {
 	ProtectConfigComment  string               `json:"protectConfigComment"`
 	ProtectConfigLink     string               `json:"protectConfigLink"`
 	ApprovalLink          string               `json:"approvalLink"`
+	TimeWindowComment     string               `json:"timeWindowComment"`
 }
 
 type CiPipelineMaterialResponse struct {

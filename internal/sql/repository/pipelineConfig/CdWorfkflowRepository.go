@@ -185,8 +185,10 @@ type CdWorkflowRunner struct {
 	HelmReferenceChart          []byte               `sql:""`
 	ImagePathReservationIds     []int                `sql:"image_path_reservation_ids" pg:",array,notnull"`
 	ReferenceId                 *string              `sql:"reference_id"`
-	CdWorkflow                  *CdWorkflow
-	DeploymentApprovalRequest   *DeploymentApprovalRequest
+	TimeWindowComment           string               `json:"time_window_comment"`
+
+	CdWorkflow                *CdWorkflow
+	DeploymentApprovalRequest *DeploymentApprovalRequest
 	sql.AuditLog
 }
 

@@ -1467,7 +1467,16 @@ func (impl *TriggerServiceImpl) helmInstallReleaseWithCustomChart(ctx context.Co
 	// Request exec
 	return impl.helmAppClient.InstallReleaseWithCustomChart(ctx, &helmInstallRequest)
 }
-
+func (impl *TriggerServiceImpl) writeBlockedTriggerEvent(request bean.TriggerRequest, timeWindowComment string) {
+	event := impl.eventFactory.Build(util2.Blocked, &request.Pipeline.Id, request.Pipeline.AppId, &request.Pipeline.EnvironmentId, util2.CD)
+	impl.logger.Debugw("event writeBlockedTriggerEvent", "event", event)
+	event.UserId = int(request.TriggeredBy)
+	event = impl.eventFactory.BuildExtraBlockedTriggerData(event, bean3.CD_WORKFLOW_TYPE_DEPLOY, timeWindowComment, request.Artifact)
+	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
+	if evtErr != nil {
+		impl.logger.Errorw("CD trigger event not sent", "error", evtErr)
+	}
+}
 func (impl *TriggerServiceImpl) writeCDTriggerEvent(overrideRequest *bean3.ValuesOverrideRequest, artifact *repository3.CiArtifact, releaseId, pipelineOverrideId, wfrId int) {
 
 	event := impl.eventFactory.Build(util2.Trigger, &overrideRequest.PipelineId, overrideRequest.AppId, &overrideRequest.EnvId, util2.CD)
