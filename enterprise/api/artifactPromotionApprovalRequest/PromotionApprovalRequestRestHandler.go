@@ -328,22 +328,31 @@ func (handler RestHandlerImpl) GetArtifactsForPromotion(w http.ResponseWriter, r
 		}
 	}
 
-	if len(resource) == 0 && !pendingForCurrentUser {
+	if len(resource) == 0 {
 		handler.logger.Errorw("resource is a mandatory field")
 		common.WriteJsonResp(w, errors.New("resource is a mandatory field"), nil, http.StatusBadRequest)
 		return
-	} else if len(resource) > 0 && !pendingForCurrentUser {
-		if !slices.Contains([]string{string(bean.SOURCE_TYPE_CI), string(bean.SOURCE_TYPE_CD), string(bean.SOURCE_TYPE_WEBHOOK), string(bean.PROMOTION_APPROVAL_PENDING_NODE)}, resource) {
+	} else if len(resource) > 0 {
+		if slices.Contains([]string{string(bean.SOURCE_TYPE_CI), string(bean.SOURCE_TYPE_CD), string(bean.SOURCE_TYPE_WEBHOOK)}, resource) {
+			if len(resourceName) == 0 || appId == 0 {
+				common.WriteJsonResp(w, errors.New(fmt.Sprintf("resourceName/appId is required field for resource = %s ", resource)), nil, http.StatusBadRequest)
+				return
+			}
+
+		} else if resource == string(bean.PROMOTION_APPROVAL_PENDING_NODE) {
+			if !pendingForCurrentUser {
+				if len(resourceName) == 0 || appId == 0 {
+					common.WriteJsonResp(w, errors.New(fmt.Sprintf("resourceName/appId is required field for resource = %s if pendingForCurrentUser is false", resource)), nil, http.StatusBadRequest)
+					return
+				}
+			} else {
+				if workflowId == 0 {
+					common.WriteJsonResp(w, errors.New("workflowId is required field if pendingForCurrentUser is true"), nil, http.StatusBadRequest)
+					return
+				}
+			}
+		} else {
 			common.WriteJsonResp(w, errors.New(fmt.Sprintf("invalid resource name - %s ", resource)), nil, http.StatusBadRequest)
-			return
-		}
-		if len(resourceName) == 0 || appId == 0 {
-			common.WriteJsonResp(w, errors.New(fmt.Sprintf("resourceName/appId is required field for resource = %s ", resource)), nil, http.StatusBadRequest)
-			return
-		}
-	} else if pendingForCurrentUser {
-		if workflowId == 0 {
-			common.WriteJsonResp(w, errors.New("workflowId is required field if pendingForCurrentUser is true"), nil, http.StatusBadRequest)
 			return
 		}
 	}
