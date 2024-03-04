@@ -109,7 +109,8 @@ type DeploymentWindowProfileRequest struct {
 
 type EnvironmentState struct {
 	// ExcludedUsers final calculated list of user ids including superadmins who are excluded.
-	ExcludedUsers []int32 `json:"excludedUsers"`
+	ExcludedUsers      []int32  `json:"excludedUsers"`
+	ExcludedUserEmails []string `json:"excludedUserEmails"`
 
 	//// Timestamp indicating the window end or next window start timestamp based on current time and
 	//Timestamp time.Time `json:"timestamp"`
@@ -124,13 +125,14 @@ type ProfileState struct {
 	DeploymentWindowProfile *DeploymentWindowProfile `json:"deploymentWindowProfile,omitempty"`
 	EnvId                   int                      `json:"envId"`
 	IsActive                bool                     `json:"isActive"`
+	AllExcludedUsers        []string                 `json:"allExcludedUsers"`
 }
 
 // DeploymentWindowResponse defines model for DeploymentWindowResponse.
 type DeploymentWindowResponse struct {
 	EnvironmentStateMap map[int]EnvironmentState `json:"environmentStateMap,omitempty"`
 	Profiles            []ProfileState           `json:"profiles,omitempty"`
-	SuperAdmins         []int32                  `json:"superAdmins,omitempty"`
+	SuperAdmins         []string                 `json:"superAdmins,omitempty"`
 }
 
 // TimeWindow defines model for TimeWindow.
