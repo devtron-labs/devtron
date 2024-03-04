@@ -968,6 +968,8 @@ func InitializeApp() (*App, error) {
 
 		imageDigestPolicy.NewImageDigestPolicyServiceImpl,
 		wire.Bind(new(imageDigestPolicy.ImageDigestPolicyService), new(*imageDigestPolicy.ImageDigestPolicyServiceImpl)),
+
+		appStoreRestHandler.AppStoreWireSet,
 	)
 	return &App{}, nil
 }

@@ -56,4 +56,5 @@ func (router AppStoreValuesRouterImpl) Init(configRouter *mux.Router) {
 
 	configRouter.Path("/chart/selected/metadata").
 		HandlerFunc(router.appStoreValuesRestHandler.GetSelectedChartMetadata).Methods("POST")
+
 }

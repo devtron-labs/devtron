@@ -66,6 +66,7 @@ func (impl *AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppV
 		impl.logger.Errorw("fetching error", "err", err)
 		return nil, err
 	}
+	impl.appStoreValidator.Validate(installAppVersionRequest, environment)
 	installAppVersionRequest.Environment = environment
 	installAppVersionRequest.ACDAppName = fmt.Sprintf("%s-%s", installAppVersionRequest.AppName, installAppVersionRequest.Environment.Name)
 	installAppVersionRequest.ClusterId = environment.ClusterId
@@ -83,7 +84,7 @@ func (impl *AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppV
 	}
 	installAppVersionRequest.AppId = appCreateRequest.Id
 
-	if !isInternalUse {
+	if !isInternalUse && !environment.IsVirtualEnvironment {
 		if isGitOpsConfigured && appInstallationMode == util2.SERVER_MODE_FULL && !isOCIRepo {
 			installAppVersionRequest.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
 		} else {
@@ -91,7 +92,9 @@ func (impl *AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppV
 		}
 	}
 	if installAppVersionRequest.DeploymentAppType == "" {
-		if isGitOpsConfigured && !isOCIRepo {
+		if environment.IsVirtualEnvironment {
+			installAppVersionRequest.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD
+		} else if isGitOpsConfigured && appInstallationMode == util2.SERVER_MODE_FULL && !isOCIRepo {
 			installAppVersionRequest.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
 		} else {
 			installAppVersionRequest.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
@@ -119,6 +122,8 @@ func (impl *AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppV
 
 	installAppVersionRequest.InstalledAppVersionId = installedAppVersions.Id
 	installAppVersionRequest.Id = installedAppVersions.Id
+
+	adapter.SetGeneratedHelmPackageName(installAppVersionRequest, installedApp.UpdatedOn)
 
 	helmInstallConfigDTO := appStoreBean.HelmReleaseStatusConfig{
 		InstallAppVersionHistoryId: 0,
