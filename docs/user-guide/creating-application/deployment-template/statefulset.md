@@ -9,7 +9,7 @@ It supports only `ONDELETE` and `ROLLINGUPDATE` deployment strategy.
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/deployment-template/sts-strategy.jpg)
 
 
-You can select `SatefulSet` chart when you want to use only basic use cases which contain the following:
+You can select `StatefulSet` chart when you want to use only basic use cases which contain the following:
 
 * **Managing Stateful Applications:** StatefulSets are ideal for managing stateful applications, such as databases or distributed systems, that require stable network identities and persistent storage for each Pod.
 
@@ -27,7 +27,9 @@ You can select `SatefulSet` chart when you want to use only basic use cases whic
 
 * **Resource Cleanup:** StatefulSets allow for easy cleanup of older versions by deleting StatefulSets and their associated Pods and persistent volumes that are no longer needed, ensuring efficient resource utilization.
 
-
+{% hint style="warning" %}
+Super-admins can lock keys in StatefulSet deployment template to prevent non-super-admins from modifying those locked keys. Refer [Lock Deployment Config](../../global-configurations/lock-deployment-config.md) to know more.
+{% endhint %}
 
 
 ## 1. Yaml File
