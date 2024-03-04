@@ -113,13 +113,14 @@ type CiHandlerImpl struct {
 	clusterService               cluster.ClusterService
 	blobConfigStorageService     BlobStorageConfigService
 	envService                   cluster.EnvironmentService
+	ciPipelineConfigService      CiPipelineConfigService
 }
 
 func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, gitSensorClient gitSensor.Client, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, workflowService WorkflowService,
 	ciLogService CiLogService, ciArtifactRepository repository.CiArtifactRepository, userService user.UserService, eventClient client.EventClient, eventFactory client.EventFactory, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	appListingRepository repository.AppListingRepository, K8sUtil *k8s.K8sUtilExtended, cdPipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil, resourceGroupService resourceGroup.ResourceGroupService, envRepository repository3.EnvironmentRepository,
 	imageTaggingService ImageTaggingService, k8sCommonService k8s2.K8sCommonService, clusterService cluster.ClusterService, blobConfigStorageService BlobStorageConfigService, appWorkflowRepository appWorkflow.AppWorkflowRepository, customTagService CustomTagService,
-	envService cluster.EnvironmentService) *CiHandlerImpl {
+	envService cluster.EnvironmentService, ciPipelineConfigService CiPipelineConfigService) *CiHandlerImpl {
 	cih := &CiHandlerImpl{
 		Logger:                       Logger,
 		ciService:                    ciService,
@@ -146,6 +147,7 @@ func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipeline
 		clusterService:               clusterService,
 		blobConfigStorageService:     blobConfigStorageService,
 		envService:                   envService,
+		ciPipelineConfigService:      ciPipelineConfigService,
 	}
 	config, err := types.GetCiConfig()
 	if err != nil {
@@ -213,6 +215,14 @@ func (impl *CiHandlerImpl) reTriggerCi(retryCount int, refCiWorkflow *pipelineCo
 
 	trigger := types.Trigger{}
 	trigger.BuildTriggerObject(refCiWorkflow, ciMaterials, 1, true, nil, "")
+
+	//updating runtime params
+	trigger.ExtraEnvironmentVariables, err = impl.updateEnvVarMapWithRuntimeParamsForAutoCI(trigger.PipelineId, trigger.ExtraEnvironmentVariables)
+	if err != nil {
+		impl.Logger.Errorw("err, updateEnvVarMapWithRuntimeParamsForAutoCI", "err", err, "ciPipelineId", trigger.PipelineId,
+			"extraEnvVars", trigger.ExtraEnvironmentVariables)
+		return err
+	}
 	_, err = impl.ciService.TriggerCiPipeline(trigger)
 
 	if err != nil {
@@ -280,7 +290,14 @@ func (impl *CiHandlerImpl) HandleCIWebhook(gitCiTriggerRequest bean.GitCiTrigger
 		return 0, errors.New("ignoring older build for ciMaterial " + strconv.Itoa(gitCiTriggerRequest.CiPipelineMaterial.Id) +
 			" commit " + gitCiTriggerRequest.CiPipelineMaterial.GitCommit.Commit)
 	}
-
+	//updating runtime params
+	gitCiTriggerRequest.ExtraEnvironmentVariables, err = impl.updateEnvVarMapWithRuntimeParamsForAutoCI(ciPipeline.Id,
+		gitCiTriggerRequest.ExtraEnvironmentVariables)
+	if err != nil {
+		impl.Logger.Errorw("error, updateEnvVarMapWithRuntimeParamsForAutoCI", "ciPipelineId", ciPipeline,
+			"extraEnvVars", gitCiTriggerRequest.ExtraEnvironmentVariables)
+		return 0, err
+	}
 	commitHashes, err := impl.buildAutomaticTriggerCommitHashes(ciMaterials, gitCiTriggerRequest)
 	if err != nil {
 		return 0, err
@@ -1256,13 +1273,11 @@ func (impl *CiHandlerImpl) buildManualTriggerCommitHashes(ciTriggerRequest bean.
 	commitHashes := map[int]pipelineConfig.GitCommit{}
 	extraEnvironmentVariables := make(map[string]string)
 	for _, ciPipelineMaterial := range ciTriggerRequest.CiPipelineMaterial {
-
 		pipeLineMaterialFromDb, err := impl.ciPipelineMaterialRepository.GetById(ciPipelineMaterial.Id)
 		if err != nil {
 			impl.Logger.Errorw("err in fetching pipeline material by id", "err", err)
 			return map[int]pipelineConfig.GitCommit{}, nil, err
 		}
-
 		pipelineType := pipeLineMaterialFromDb.Type
 		if pipelineType == pipelineConfig.SOURCE_TYPE_BRANCH_FIXED {
 			gitCommit, err := impl.BuildManualTriggerCommitHashesForSourceTypeBranchFix(ciPipelineMaterial, pipeLineMaterialFromDb)
@@ -1281,7 +1296,16 @@ func (impl *CiHandlerImpl) buildManualTriggerCommitHashes(ciTriggerRequest bean.
 			commitHashes[ciPipelineMaterial.Id] = gitCommit
 			extraEnvironmentVariables = extraEnvVariables
 		}
-
+	}
+	if ciTriggerRequest.RuntimeParams != nil {
+		runTimeEnvVars := ciTriggerRequest.RuntimeParams.EnvVariables
+		if extraEnvironmentVariables == nil {
+			extraEnvironmentVariables = make(map[string]string, len(runTimeEnvVars))
+		}
+		//updating runtime env variables present in request. FYI, if any key of these vars is present already it's value will be overridden
+		for key, value := range runTimeEnvVars {
+			extraEnvironmentVariables[key] = value
+		}
 	}
 	return commitHashes, extraEnvironmentVariables, nil
 }
@@ -1778,4 +1802,21 @@ func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewForEnvironment(request res
 		}
 	}
 	return ciWorkflowStatuses, nil
+}
+
+func (impl *CiHandlerImpl) updateEnvVarMapWithRuntimeParamsForAutoCI(ciPipelineId int, extraEnvVariables map[string]string) (map[string]string, error) {
+	runtimeParams, err := impl.ciPipelineConfigService.GetCIRuntimeParams(ciPipelineId)
+	if err != nil {
+		impl.Logger.Errorw("error in getting ciRuntimeParams", "err", err, "ciPipelineId", ciPipelineId)
+		return nil, err
+	}
+	if extraEnvVariables == nil {
+		extraEnvVariables = make(map[string]string)
+	}
+	if runtimeParams != nil && runtimeParams.EnvVariables != nil {
+		for key, value := range runtimeParams.EnvVariables {
+			extraEnvVariables[key] = value
+		}
+	}
+	return extraEnvVariables, nil
 }
