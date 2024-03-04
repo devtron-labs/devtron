@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	bean4 "github.com/devtron-labs/devtron/pkg/appWorkflow/bean"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/read"
 	"time"
 
 	mapset "github.com/deckarep/golang-set"
@@ -45,6 +46,8 @@ import (
 type AppWorkflowService interface {
 	CreateAppWorkflow(req AppWorkflowDto) (AppWorkflowDto, error)
 	FindAppWorkflows(appId int) ([]AppWorkflowDto, error)
+	FindAppWorkflowWithImagePromotionMetadata(appId int, userId int32, token string, imagePromoterAuth func(string, string) bool) ([]AppWorkflowDto, error)
+
 	FindAppWorkflowById(Id int, appId int) (AppWorkflowDto, error)
 	DeleteAppWorkflow(appWorkflowId int, userId int32) error
 
@@ -64,25 +67,32 @@ type AppWorkflowService interface {
 }
 
 type AppWorkflowServiceImpl struct {
-	Logger                   *zap.SugaredLogger
-	appWorkflowRepository    appWorkflow.AppWorkflowRepository
-	ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator
-	ciPipelineRepository     pipelineConfig.CiPipelineRepository
-	pipelineRepository       pipelineConfig.PipelineRepository
-	resourceGroupService     resourceGroup2.ResourceGroupService
-	appRepository            appRepository.AppRepository
-	enforcerUtil             rbac.EnforcerUtil
-	userAuthService          user.UserAuthService
+	Logger                           *zap.SugaredLogger
+	appWorkflowRepository            appWorkflow.AppWorkflowRepository
+	ciCdPipelineOrchestrator         pipeline.CiCdPipelineOrchestrator
+	ciPipelineRepository             pipelineConfig.CiPipelineRepository
+	pipelineRepository               pipelineConfig.PipelineRepository
+	resourceGroupService             resourceGroup2.ResourceGroupService
+	appRepository                    appRepository.AppRepository
+	enforcerUtil                     rbac.EnforcerUtil
+	userAuthService                  user.UserAuthService
+	appArtifactManager               pipeline.AppArtifactManager
+	artifactPromotionDataReadService read.ArtifactPromotionDataReadService
 }
 
 type AppWorkflowDto struct {
-	Id                    int                     `json:"id,omitempty"`
-	Name                  string                  `json:"name"`
-	AppId                 int                     `json:"appId"`
-	AppWorkflowMappingDto []AppWorkflowMappingDto `json:"tree,omitempty"`
-	UserId                int32                   `json:"-"`
+	Id                        int                       `json:"id,omitempty"`
+	Name                      string                    `json:"name"`
+	AppId                     int                       `json:"appId"`
+	AppWorkflowMappingDto     []AppWorkflowMappingDto   `json:"tree,omitempty"`
+	ArtifactPromotionMetadata ArtifactPromotionMetadata `json:"artifactPromotionMetadata,omitempty"`
+	UserId                    int32                     `json:"-"`
 }
 
+type ArtifactPromotionMetadata struct {
+	PendingApprovalCount int  `json:"pendingApprovalCount"`
+	IsConfigured         bool `json:"isConfigured"`
+}
 type TriggerViewWorkflowConfig struct {
 	Workflows        []AppWorkflowDto          `json:"workflows"`
 	CiConfig         *bean.TriggerViewCiConfig `json:"ciConfig"`
@@ -155,17 +165,22 @@ type PipelineIdentifier struct {
 func NewAppWorkflowServiceImpl(logger *zap.SugaredLogger, appWorkflowRepository appWorkflow.AppWorkflowRepository,
 	ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	pipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil, resourceGroupService resourceGroup2.ResourceGroupService,
-	appRepository appRepository.AppRepository, userAuthService user.UserAuthService) *AppWorkflowServiceImpl {
+	appRepository appRepository.AppRepository, userAuthService user.UserAuthService,
+	appArtifactManager pipeline.AppArtifactManager,
+	artifactPromotionDataReadService read.ArtifactPromotionDataReadService,
+) *AppWorkflowServiceImpl {
 	return &AppWorkflowServiceImpl{
-		Logger:                   logger,
-		appWorkflowRepository:    appWorkflowRepository,
-		ciCdPipelineOrchestrator: ciCdPipelineOrchestrator,
-		ciPipelineRepository:     ciPipelineRepository,
-		pipelineRepository:       pipelineRepository,
-		enforcerUtil:             enforcerUtil,
-		resourceGroupService:     resourceGroupService,
-		appRepository:            appRepository,
-		userAuthService:          userAuthService,
+		Logger:                           logger,
+		appWorkflowRepository:            appWorkflowRepository,
+		ciCdPipelineOrchestrator:         ciCdPipelineOrchestrator,
+		ciPipelineRepository:             ciPipelineRepository,
+		pipelineRepository:               pipelineRepository,
+		enforcerUtil:                     enforcerUtil,
+		resourceGroupService:             resourceGroupService,
+		appRepository:                    appRepository,
+		userAuthService:                  userAuthService,
+		appArtifactManager:               appArtifactManager,
+		artifactPromotionDataReadService: artifactPromotionDataReadService,
 	}
 }
 
@@ -244,6 +259,83 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflows(appId int) ([]AppWorkflowDto
 	}
 
 	return workflows, err
+}
+
+func (impl AppWorkflowServiceImpl) FindAppWorkflowWithImagePromotionMetadata(appId int, userId int32, token string, imagePromoterAuth func(string, string) bool) ([]AppWorkflowDto, error) {
+	appWorkflows, err := impl.appWorkflowRepository.FindByAppId(appId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.Logger.Errorw("error occurred while fetching app workflows", "appId", appId, "err", err)
+		return nil, err
+	}
+	var workflows []AppWorkflowDto
+	var wfIds []int
+	for _, appWf := range appWorkflows {
+		wfIds = append(wfIds, appWf.Id)
+	}
+
+	wfrIdVsMappings, err := impl.FindAllAppWorkflowMapping(wfIds)
+	if err != nil {
+		return nil, err
+	}
+
+	cdPipelineIds := make([]int, 0)
+	for _, wfMappings := range wfrIdVsMappings {
+		for _, wfMapping := range wfMappings {
+			if wfMapping.Type == appWorkflow.CDPIPELINE {
+				cdPipelineIds = append(cdPipelineIds, wfMapping.ComponentId)
+			}
+		}
+	}
+	var policyConfiguredForWorkflow bool
+	if len(cdPipelineIds) > 0 {
+		cdPipelines, err := impl.pipelineRepository.FindByIdsIn(cdPipelineIds)
+		if err != nil {
+			impl.Logger.Errorw("error in fetching cd pipelines by ids", "cdPipelineId", cdPipelineIds, "err", err)
+			return nil, err
+		}
+		for _, cdPipeline := range cdPipelines {
+			promotionPolicy, err := impl.artifactPromotionDataReadService.GetPromotionPolicyByAppAndEnvId(cdPipeline.AppId, cdPipeline.EnvironmentId)
+			if err != nil {
+				impl.Logger.Errorw("error in fetching promotion policy by appId and envId", "appId", cdPipeline.App, "envId", cdPipeline.EnvironmentId, "err", err)
+				return nil, err
+			}
+			if promotionPolicy != nil && promotionPolicy.Id > 0 {
+				policyConfiguredForWorkflow = true
+			}
+		}
+	}
+
+	for _, w := range appWorkflows {
+
+		artifactPromotionMaterialRequest := bean.ArtifactPromotionMaterialRequest{
+			WorkflowId:            w.Id,
+			PendingForCurrentUser: true,
+			Limit:                 10,
+			Offset:                0,
+			UserId:                userId,
+			Token:                 token,
+		}
+		_, totalCount, err := impl.appArtifactManager.FetchArtifactPendingForCurrentUser(artifactPromotionMaterialRequest, imagePromoterAuth)
+		if err != nil {
+			impl.Logger.Errorw("error in fetching appArtifactManager ")
+			return nil, err
+		}
+
+		workflow := AppWorkflowDto{
+			Id:    w.Id,
+			Name:  w.Name,
+			AppId: w.AppId,
+			ArtifactPromotionMetadata: ArtifactPromotionMetadata{
+				PendingApprovalCount: totalCount,
+				IsConfigured:         policyConfiguredForWorkflow,
+			},
+		}
+		workflow.AppWorkflowMappingDto = wfrIdVsMappings[w.Id]
+		workflows = append(workflows, workflow)
+	}
+
+	return workflows, err
+
 }
 
 func (impl AppWorkflowServiceImpl) FindAppWorkflowById(Id int, appId int) (AppWorkflowDto, error) {

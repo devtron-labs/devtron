@@ -843,22 +843,23 @@ type CiArtifactBean struct {
 
 type CiArtifactResponse struct {
 	// AppId           int      `json:"app_id"`
-	CdPipelineId                 int                                  `json:"cd_pipeline_id,notnull"`
-	LatestWfArtifactId           int                                  `json:"latest_wf_artifact_id"`
-	LatestWfArtifactStatus       string                               `json:"latest_wf_artifact_status"`
-	CiArtifacts                  []CiArtifactBean                     `json:"ci_artifacts,notnull"`
-	UserApprovalConfig           *pipelineConfig.UserApprovalConfig   `json:"userApprovalConfig"`
-	ApprovalUsers                []string                             `json:"approvalUsers"`
-	RequestedUserId              int32                                `json:"requestedUserId"`
-	IsVirtualCluster             bool                                 `json:"isVirtualCluster"`
-	TagsEditable                 bool                                 `json:"tagsEditable"`
-	AppReleaseTagNames           []string                             `json:"appReleaseTagNames"` // unique list of tags exists in the app
-	HideImageTaggingHardDelete   bool                                 `json:"hideImageTaggingHardDelete"`
-	ResourceFilters              []*resourceFilter.FilterMetaDataBean `json:"resourceFilters"`
-	TotalCount                   int                                  `json:"totalCount"`
-	CanApproverDeploy            bool                                 `json:"canApproverDeploy"`
-	DeployedOnEnvironments       []string                             `json:"deployedOnEnvironments,omitempty"`
-	ImagePromotionApproverEmails []string                             `json:"imagePromotionApproverEmails,omitempty"`
+	CdPipelineId                  int                                  `json:"cd_pipeline_id,notnull"`
+	LatestWfArtifactId            int                                  `json:"latest_wf_artifact_id"`
+	LatestWfArtifactStatus        string                               `json:"latest_wf_artifact_status"`
+	CiArtifacts                   []CiArtifactBean                     `json:"ci_artifacts,notnull"`
+	UserApprovalConfig            *pipelineConfig.UserApprovalConfig   `json:"userApprovalConfig"`
+	ApprovalUsers                 []string                             `json:"approvalUsers"`
+	RequestedUserId               int32                                `json:"requestedUserId"`
+	IsVirtualCluster              bool                                 `json:"isVirtualCluster"`
+	TagsEditable                  bool                                 `json:"tagsEditable"`
+	AppReleaseTagNames            []string                             `json:"appReleaseTagNames"` // unique list of tags exists in the app
+	HideImageTaggingHardDelete    bool                                 `json:"hideImageTaggingHardDelete"`
+	ResourceFilters               []*resourceFilter.FilterMetaDataBean `json:"resourceFilters"`
+	TotalCount                    int                                  `json:"totalCount"`
+	CanApproverDeploy             bool                                 `json:"canApproverDeploy"`
+	DeployedOnEnvironments        []string                             `json:"deployedOnEnvironments,omitempty"`
+	ImagePromotionApproverEmails  []string                             `json:"imagePromotionApproverEmails,omitempty"`
+	IsArtifactPendingForPromotion bool                                 `json:"isArtifactPendingForPromotion"`
 }
 
 type ArtifactPromotionMaterialRequest struct {
@@ -872,6 +873,9 @@ type ArtifactPromotionMaterialRequest struct {
 	ImageSearchRegex      string
 	UserId                int32
 	Token                 string
+	CiPipelineId          int
+	CdPipelineId          int
+	ExternalCiPipelineId  int
 }
 
 type ArtifactPromotionMaterialResponse struct {
