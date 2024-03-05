@@ -6,9 +6,9 @@ import (
 )
 
 type TestStruct struct {
-	Name        string `json:"name" isSearchField:"true"`
-	Description string `json:"description" isSearchField:"true"`
-	Count       int    `json:"count" isSearchField:"true"`
+	Name        string `json:"name" devtronSearchableField:"name"`
+	Description string `json:"description" devtronSearchableField:"description"`
+	Count       int    `json:"count" devtronSearchableField:"count"`
 }
 
 func TestGetSearchableFields(t *testing.T) {
