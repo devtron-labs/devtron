@@ -851,6 +851,8 @@ type CiArtifactBean struct {
 	CiPipelineId            int                                  `json:"-"`
 	CredentialsSourceType   string                               `json:"-"`
 	CredentialsSourceValue  string                               `json:"-"`
+
+	DeploymentWindowArtifactMetadata map[string]interface{} `json:"deploymentWindowArtifactMetadata"`
 }
 
 type CiArtifactResponse struct {

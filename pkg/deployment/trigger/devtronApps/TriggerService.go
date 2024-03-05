@@ -632,12 +632,23 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 	return releaseId, helmPackageName, err
 }
 
+func (impl *TriggerServiceImpl) handleBlockedTrigger(request bean.TriggerRequest) {
+	if request.TriggeredBy != 1 {
+		return
+	}
+	err := impl.createAuditDataForDeploymentWindowBypass(request)
+	if err != nil {
+		impl.logger.Errorw("audit data entry for blocked trigger failed", "request", request, "err", err)
+	}
+	go impl.writeBlockedTriggerEvent(request)
+}
+
 // TODO: write a wrapper to handle auto and manual trigger
 func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerRequest) error {
 
 	request, err := impl.checkForDeploymentWindow(request)
 	if err != nil {
-		go impl.writeBlockedTriggerEvent(request)
+		impl.handleBlockedTrigger(request)
 		return err
 	}
 
@@ -671,11 +682,6 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 	imageTagNames, err := impl.imageTaggingService.GetTagNamesByArtifactId(artifact.Id)
 	if err != nil {
 		impl.logger.Errorw("error in getting image tags for the given artifact id", "artifactId", artifact.Id, "err", err)
-		return err
-	}
-
-	err = impl.createAuditDataForDeploymentWindowBypass(request)
-	if err != nil {
 		return err
 	}
 

@@ -56,6 +56,7 @@ type FilterEvaluationAuditRepository interface {
 	GetConnection() *pg.DB
 	Create(filter *ResourceFilterEvaluationAudit) (*ResourceFilterEvaluationAudit, error)
 	GetByRefAndMultiSubject(referenceType ReferenceType, referenceId int, subjectType SubjectType, subjectIds []int) ([]*ResourceFilterEvaluationAudit, error)
+	GetLatestByRefAndMultiSubjectAndFilterType(referenceType ReferenceType, referenceId int, subjectType SubjectType, subjectIds []int, filterType ResourceFilterType) ([]*ResourceFilterEvaluationAudit, error)
 	GetByMultiRefAndMultiSubject(referenceType ReferenceType, referenceIds []int, subjectType SubjectType, subjectIds []int) ([]*ResourceFilterEvaluationAudit, error)
 	UpdateRefTypeAndRefId(id int, refType ReferenceType, refId int) error
 }
@@ -90,6 +91,22 @@ func (repo *FilterEvaluationAuditRepositoryImpl) GetByMultiRefAndMultiSubject(re
 		Where("reference_id IN (?)", pg.In(referenceIds)).
 		Where("subject_type = ?", subjectType).
 		Where("subject_id IN (?) ", pg.In(subjectIds)).
+		Select()
+	if err == pg.ErrNoRows {
+		return res, nil
+	}
+	return res, err
+}
+
+func (repo *FilterEvaluationAuditRepositoryImpl) GetLatestByRefAndMultiSubjectAndFilterType(referenceType ReferenceType, referenceId int, subjectType SubjectType, subjectIds []int, filterType ResourceFilterType) ([]*ResourceFilterEvaluationAudit, error) {
+
+	var res []*ResourceFilterEvaluationAudit
+	err := repo.dbConnection.Model(&res).
+		Where("reference_type = ?", referenceType).
+		Where("reference_id = ?", referenceId).
+		Where("subject_type = ?", subjectType).
+		Where("subject_id IN (?) ", pg.In(subjectIds)).
+		Where("filter_type = ?", filterType).
 		Select()
 	if err == pg.ErrNoRows {
 		return res, nil

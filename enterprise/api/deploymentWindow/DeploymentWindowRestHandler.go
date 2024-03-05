@@ -351,6 +351,10 @@ func (handler *DeploymentWindowRestHandlerImpl) getAppIdAndEnvIdsFromQueryParam(
 	return appId, envIds, nil
 }
 
+type payload struct {
+	selectors []deploymentWindow.AppEnvSelector
+}
+
 func (handler *DeploymentWindowRestHandlerImpl) GetDeploymentWindowProfileStateForAppGroup(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -368,8 +372,10 @@ func (handler *DeploymentWindowRestHandlerImpl) GetDeploymentWindowProfileStateF
 		return
 	}
 
+	requestPayload := &payload{selectors: request}
+
 	// validate request
-	err = handler.validator.Struct(request)
+	err = handler.validator.Struct(requestPayload)
 	if err != nil {
 		handler.logger.Errorw("validation err in GetDeploymentWindowProfileStateForAppGroup", "err", err, "request", request)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)

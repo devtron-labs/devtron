@@ -29,6 +29,7 @@ func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) er
 
 	request, err := impl.checkForDeploymentWindow(request)
 	if err != nil {
+		impl.handleBlockedTrigger(request)
 		return err
 	}
 

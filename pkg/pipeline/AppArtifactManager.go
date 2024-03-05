@@ -18,6 +18,7 @@
 package pipeline
 
 import (
+	"encoding/json"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactApproval/read"
 	"sort"
@@ -67,6 +68,7 @@ type AppArtifactManagerImpl struct {
 	pipelineStageService            PipelineStageService
 	celService                      resourceFilter.CELEvaluatorService
 	resourceFilterService           resourceFilter.ResourceFilterService
+	resourceFilterAuditService      resourceFilter.FilterEvaluationAuditService
 	config                          *types.CdConfig
 	cdPipelineConfigService         CdPipelineConfigService
 	dockerArtifactRegistry          dockerArtifactStoreRegistry.DockerArtifactStoreRepository
@@ -85,6 +87,7 @@ func NewAppArtifactManagerImpl(
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	celService resourceFilter.CELEvaluatorService,
 	resourceFilterService resourceFilter.ResourceFilterService,
+	resourceFilterAuditService resourceFilter.FilterEvaluationAuditService,
 	pipelineStageService PipelineStageService,
 	cdPipelineConfigService CdPipelineConfigService,
 	dockerArtifactRegistry dockerArtifactStoreRegistry.DockerArtifactStoreRepository,
@@ -106,6 +109,7 @@ func NewAppArtifactManagerImpl(
 		ciWorkflowRepository:            ciWorkflowRepository,
 		celService:                      celService,
 		resourceFilterService:           resourceFilterService,
+		resourceFilterAuditService:      resourceFilterAuditService,
 		cdPipelineConfigService:         cdPipelineConfigService,
 		pipelineStageService:            pipelineStageService,
 		config:                          cdConfig,
@@ -881,6 +885,26 @@ func (impl *AppArtifactManagerImpl) fillAppliedFiltersData(ciArtifactBeans []bea
 	return ciArtifactBeans
 }
 
+func (impl *AppArtifactManagerImpl) getDeploymentWindowAuditData(artifactIds []int, pipelineId int) (map[int]map[string]interface{}, error) {
+
+	filters, err := impl.resourceFilterAuditService.GetLatestByRefAndMultiSubjectAndFilterType(resourceFilter.Pipeline, pipelineId, resourceFilter.Artifact, artifactIds, resourceFilter.DEPLOYMENT_WINDOW)
+	if err != nil {
+		return nil, err
+	}
+	dataMap := make(map[int]map[string]interface{})
+	for _, filter := range filters {
+		data := make(map[string]interface{})
+		if !(filter == nil || len(filter.FilterHistoryObjects) == 0) {
+			err = json.Unmarshal([]byte(filter.FilterHistoryObjects), &data)
+			if err != nil {
+				impl.logger.Errorw("error in unmarshalling deployment window audit data", "err", err, "filter", filter)
+			}
+			dataMap[filter.SubjectId] = data
+		}
+	}
+	return dataMap, nil
+}
+
 func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pipelineConfig.Pipeline, stage bean.WorkflowType, artifactListingFilterOpts *bean.ArtifactsListFilterOptions, isApprovalNode bool) (*bean2.CiArtifactResponse, error) {
 
 	// retrieve parent details
@@ -982,6 +1006,12 @@ func (impl *AppArtifactManagerImpl) setAdditionalDataInArtifacts(ciArtifacts []b
 		return ciArtifacts, err
 	}
 
+	deploymentWindowDataMap, err := impl.getDeploymentWindowAuditData(artifactIds, pipeline.Id)
+	if err != nil {
+		impl.logger.Errorw("error in getting deployment window audit data for artifacts", "err", err, "artifacts", artifactIds, "pipelineId", pipeline.Id)
+		return ciArtifacts, err
+	}
+
 	for i, _ := range ciArtifacts {
 		imageTaggingResp := imageTagsDataMap[ciArtifacts[i].Id]
 		if imageTaggingResp != nil {
@@ -1026,6 +1056,11 @@ func (impl *AppArtifactManagerImpl) setAdditionalDataInArtifacts(ciArtifacts []b
 			ciArtifacts[i].RegistryType = string(dockerArtifact.RegistryType)
 			ciArtifacts[i].RegistryName = dockerRegistryId
 		}
+
+		if data, ok := deploymentWindowDataMap[ciArtifacts[i].Id]; ok {
+			ciArtifacts[i].DeploymentWindowArtifactMetadata = data
+		}
+
 	}
 	return ciArtifacts, nil
 

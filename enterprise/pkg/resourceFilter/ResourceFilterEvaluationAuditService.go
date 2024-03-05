@@ -19,6 +19,7 @@ type FilterEvaluationAuditService interface {
 	GetLastEvaluationFilterHistoryDataBySubjects(subjectType SubjectType, subjectIds []int, referenceId int, referenceType ReferenceType) (map[int]map[int]time.Time, error)
 	GetLastEvaluationFilterHistoryDataBySubjectsAndReferences(subjectType SubjectType, subjectIds []int, referenceIds []int, referenceType ReferenceType) (map[string]map[int]time.Time, error)
 	CreateFilterEvaluationAuditCustom(subjectType SubjectType, subjectId int, refType ReferenceType, refId int, filterHistoryObjectsStr string) (*ResourceFilterEvaluationAudit, error)
+	GetLatestByRefAndMultiSubjectAndFilterType(referenceType ReferenceType, referenceId int, subjectType SubjectType, subjectIds []int, filterType ResourceFilterType) ([]*ResourceFilterEvaluationAudit, error)
 }
 
 type FilterEvaluationAuditServiceImpl struct {
@@ -232,4 +233,8 @@ func (impl *FilterEvaluationAuditServiceImpl) createFilterAuditForMissingFilters
 	}
 
 	return filterHistoryObjectMap, err
+}
+
+func (impl *FilterEvaluationAuditServiceImpl) GetLatestByRefAndMultiSubjectAndFilterType(referenceType ReferenceType, referenceId int, subjectType SubjectType, subjectIds []int, filterType ResourceFilterType) ([]*ResourceFilterEvaluationAudit, error) {
+	return impl.filterEvaluationAuditRepo.GetLatestByRefAndMultiSubjectAndFilterType(referenceType, referenceId, subjectType, subjectIds, filterType)
 }

@@ -56,6 +56,7 @@ func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) err
 
 	request, err := impl.checkForDeploymentWindow(request)
 	if err != nil {
+		impl.handleBlockedTrigger(request)
 		return err
 	}
 
