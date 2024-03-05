@@ -1003,7 +1003,7 @@ func InitializeApp() (*App, error) {
 	infraConfigRouterImpl := infraConfig2.NewInfraProfileRouterImpl(infraConfigRestHandlerImpl)
 	argoApplicationRestHandlerImpl := argoApplication2.NewArgoApplicationRestHandlerImpl(argoApplicationServiceImpl, sugaredLogger, enterpriseEnforcerImpl)
 	argoApplicationRouterImpl := argoApplication2.NewArgoApplicationRouterImpl(argoApplicationRestHandlerImpl)
-	deploymentWindowRestHandlerImpl := deploymentWindow2.NewDeploymentWindowRestHandlerImpl(sugaredLogger, userServiceImpl, enterpriseEnforcerImpl, enforcerUtilImpl, validate, deploymentWindowServiceImpl)
+	deploymentWindowRestHandlerImpl := deploymentWindow2.NewDeploymentWindowRestHandlerImpl(sugaredLogger, userServiceImpl, enterpriseEnforcerImpl, enforcerUtilImpl, validate, deploymentWindowServiceImpl, pipelineRepositoryImpl)
 	deploymentWindowRouterImpl := deploymentWindow2.NewDeploymentWindowRouterImpl(deploymentWindowRestHandlerImpl)
 	commonPolicyActionsServiceImpl := policyGovernance.NewCommonPolicyActionsService(globalPolicyDataManagerImpl, qualifierMappingServiceImpl, cdPipelineConfigServiceImpl, appServiceImpl, environmentServiceImpl, sugaredLogger)
 	commonPolicyRestHandlerImpl := commonPolicyActions.NewCommonPolicyRestHandlerImpl(commonPolicyActionsServiceImpl, userServiceImpl, enterpriseEnforcerImpl, validate, sugaredLogger)

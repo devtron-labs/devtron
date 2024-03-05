@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	util2 "github.com/devtron-labs/devtron/util"
+	"github.com/samber/lo"
 	"net/url"
 	"strconv"
 	"time"
@@ -38,6 +40,7 @@ type DeploymentWindowRestHandlerImpl struct {
 	enforcerUtil            rbac.EnforcerUtil
 	validator               *validator.Validate
 	deploymentWindowService deploymentWindow.DeploymentWindowService
+	pipelineRepository      pipelineConfig.PipelineRepository
 }
 
 func NewDeploymentWindowRestHandlerImpl(
@@ -47,6 +50,7 @@ func NewDeploymentWindowRestHandlerImpl(
 	enforcerUtil rbac.EnforcerUtil,
 	validator *validator.Validate,
 	deploymentWindowService deploymentWindow.DeploymentWindowService,
+	pipelineRepository pipelineConfig.PipelineRepository,
 ) *DeploymentWindowRestHandlerImpl {
 	return &DeploymentWindowRestHandlerImpl{
 		logger:                  logger,
@@ -55,6 +59,7 @@ func NewDeploymentWindowRestHandlerImpl(
 		enforcerUtil:            enforcerUtil,
 		validator:               validator,
 		deploymentWindowService: deploymentWindowService,
+		pipelineRepository:      pipelineRepository,
 	}
 }
 
@@ -271,6 +276,11 @@ func (handler *DeploymentWindowRestHandlerImpl) GetDeploymentWindowProfileStateF
 		return
 	}
 
+	days, err := handler.getFilterDays(w, v)
+	if err != nil {
+		return
+	}
+
 	objects, envObjectToName := handler.enforcerUtil.GetRbacObjectsByEnvIdsAndAppId(envIds, appId)
 	var rbacObjectArr []string
 	for _, object := range objects {
@@ -290,7 +300,7 @@ func (handler *DeploymentWindowRestHandlerImpl) GetDeploymentWindowProfileStateF
 	}
 
 	requestTime := time.Now()
-	response, err := handler.deploymentWindowService.GetDeploymentWindowProfileState(requestTime, appId, envIds, userId)
+	response, err := handler.deploymentWindowService.GetDeploymentWindowProfileState(requestTime, appId, envIds, days, userId)
 	if err != nil {
 		handler.logger.Errorw("error occurred fetching DeploymentWindowProfileState", "err", err, "request time", requestTime, "appId", appId, "envIds", envIds, "userId", userId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -300,6 +310,21 @@ func (handler *DeploymentWindowRestHandlerImpl) GetDeploymentWindowProfileStateF
 
 }
 
+func (handler *DeploymentWindowRestHandlerImpl) getFilterDays(w http.ResponseWriter, v url.Values) (int, error) {
+	daysString := v.Get("days")
+	days := 0
+	var err error
+	if len(daysString) == 0 {
+		return days, nil
+	}
+	days, err = strconv.Atoi(daysString)
+	if err != nil {
+		common.WriteJsonResp(w, err, "please provide valid filter days", http.StatusBadRequest)
+		return 0, nil
+	}
+	return days, err
+}
+
 func (handler *DeploymentWindowRestHandlerImpl) getAppIdAndEnvIdsFromQueryParam(w http.ResponseWriter, v url.Values) (int, []int, error) {
 	appId, err := strconv.Atoi(v.Get("appId"))
 	if err != nil {
@@ -307,11 +332,23 @@ func (handler *DeploymentWindowRestHandlerImpl) getAppIdAndEnvIdsFromQueryParam(
 		return appId, nil, err
 	}
 	envIdsString := v.Get("envIds")
+	if len(envIdsString) == 0 {
+		pipelines, err := handler.pipelineRepository.FindActiveByAppId(appId)
+		if err != nil {
+			common.WriteJsonResp(w, err, "error finding pipelines for app Id", http.StatusBadRequest)
+			return 0, nil, err
+		}
+		envIds := lo.Map(pipelines, func(item *pipelineConfig.Pipeline, index int) int {
+			return item.EnvironmentId
+		})
+		return appId, envIds, nil
+
+	}
 	envIds, err := util2.SplitCommaSeparatedIntValues(envIdsString)
 	if err != nil {
 		common.WriteJsonResp(w, err, "please provide valid envIds", http.StatusBadRequest)
 	}
-	return appId, envIds, err
+	return appId, envIds, nil
 }
 
 func (handler *DeploymentWindowRestHandlerImpl) GetDeploymentWindowProfileStateForAppGroup(w http.ResponseWriter, r *http.Request) {
@@ -339,6 +376,12 @@ func (handler *DeploymentWindowRestHandlerImpl) GetDeploymentWindowProfileStateF
 		return
 	}
 
+	v := r.URL.Query()
+	days, err := handler.getFilterDays(w, v)
+	if err != nil {
+		return
+	}
+
 	appIds := make([]int, 0)
 	for _, selector := range request {
 		appIds = append(appIds, selector.AppId)
@@ -360,7 +403,7 @@ func (handler *DeploymentWindowRestHandlerImpl) GetDeploymentWindowProfileStateF
 	}
 
 	requestTime := time.Now()
-	response, err := handler.deploymentWindowService.GetDeploymentWindowProfileStateAppGroup(requestTime, request, userId)
+	response, err := handler.deploymentWindowService.GetDeploymentWindowProfileStateAppGroup(requestTime, request, days, userId)
 	if err != nil {
 		handler.logger.Errorw("error occurred fetching DeploymentWindowProfileState", "err", err, "request time", requestTime, "request", request, userId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
