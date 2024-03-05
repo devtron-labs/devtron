@@ -1362,7 +1362,6 @@ func (impl *AppStoreDeploymentServiceImpl) GetInstalledAppVersion(id int, userId
 		AppStoreId:         app.AppStoreApplicationVersion.AppStoreId,
 		AppStoreName:       app.AppStoreApplicationVersion.AppStore.Name,
 		Deprecated:         app.AppStoreApplicationVersion.Deprecated,
-		GitOpsRepoURL:      app.InstalledApp.GitOpsRepoUrl,
 		UserId:             userId,
 		AppOfferingMode:    app.InstalledApp.App.AppOfferingMode,
 		ClusterId:          app.InstalledApp.Environment.ClusterId,
@@ -1370,6 +1369,9 @@ func (impl *AppStoreDeploymentServiceImpl) GetInstalledAppVersion(id int, userId
 		DeploymentAppType:  app.InstalledApp.DeploymentAppType,
 		Environment:        &app.InstalledApp.Environment,
 		ACDAppName:         fmt.Sprintf("%s-%s", app.InstalledApp.App.AppName, app.InstalledApp.Environment.Name),
+	}
+	if util.IsAcdApp(installAppVersion.DeploymentAppType) {
+		installAppVersion.GitOpsRepoURL = app.InstalledApp.GitOpsRepoUrl
 	}
 	return installAppVersion, err
 }
