@@ -20,6 +20,7 @@ package cluster
 import (
 	"encoding/json"
 	"fmt"
+	bean3 "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
 	bean2 "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
 	"strconv"
@@ -28,7 +29,6 @@ import (
 
 	util2 "github.com/devtron-labs/common-lib/utils/k8s"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
-	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/k8s/informer"
@@ -364,7 +364,7 @@ func (impl EnvironmentServiceImpl) GetEnvironmentListForAutocomplete(isDeploymen
 			)
 			deploymentConfig := make(map[string]map[string]bool)
 			deploymentConfigEnvLevel := make(map[string]bool)
-			deploymentConfigValues, _ := impl.attributesRepository.FindByKey(attributes.ENFORCE_DEPLOYMENT_TYPE_CONFIG)
+			deploymentConfigValues, _ := impl.attributesRepository.FindByKey(bean3.ENFORCE_DEPLOYMENT_TYPE_CONFIG)
 			//if empty config received(doesn't exist in table) which can't be parsed
 			if deploymentConfigValues.Value != "" {
 				if err = json.Unmarshal([]byte(deploymentConfigValues.Value), &deploymentConfig); err != nil {

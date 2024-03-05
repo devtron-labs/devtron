@@ -23,7 +23,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	helper2 "github.com/devtron-labs/devtron/internal/sql/repository/helper"
-	"github.com/devtron-labs/devtron/pkg/attributes"
+	"github.com/devtron-labs/devtron/pkg/attributes/bean"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/team"
@@ -131,7 +131,7 @@ func (impl *CommonServiceImpl) GlobalChecklist() (*GlobalChecklist, error) {
 		return nil, err
 	}
 
-	attribute, err := impl.attributeRepo.FindByKey(attributes.HostUrlKey)
+	attribute, err := impl.attributeRepo.FindByKey(bean.HostUrlKey)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("GlobalChecklist, error while getting error", "err", err)
 		return nil, err
