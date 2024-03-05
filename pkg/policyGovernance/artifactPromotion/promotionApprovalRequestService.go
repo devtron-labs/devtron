@@ -26,7 +26,7 @@ import (
 	"github.com/go-pg/pg"
 	"github.com/samber/lo"
 	"go.uber.org/zap"
-	"k8s.io/utils/pointer"
+	"golang.org/x/exp/maps"
 	"net/http"
 	"strings"
 	"time"
@@ -40,7 +40,7 @@ type PipelinesMetaData struct {
 }
 
 type ArtifactPromotionApprovalService interface {
-	HandleArtifactPromotionRequest(request *bean.ArtifactPromotionRequest, authorizedEnvironments map[string]bool) ([]bean.EnvironmentResponse, error)
+	HandleArtifactPromotionRequest(request *bean.ArtifactPromotionRequest, authorizedEnvironments map[string]bool) ([]bean.EnvironmentPromotionMetaData, error)
 	GetByPromotionRequestId(artifactPromotionApprovalRequest *repository.ArtifactPromotionApprovalRequest) (*bean.ArtifactPromotionApprovalResponse, error)
 	FetchEnvironmentsList(envMap map[string]repository1.Environment, appId int, appName string, authorizedEnvironments map[string]bool, artifactId int) (*bean.EnvironmentListingResponse, error)
 	FetchApprovalAllowedEnvList(artifactId int, userId int32, token string, promotionApproverAuth func(string, string) bool) ([]bean.EnvironmentApprovalMetadata, error)
@@ -196,34 +196,24 @@ func (impl *ArtifactPromotionApprovalServiceImpl) FetchEnvironmentsList(envMap m
 		return result, nil
 	}
 
-	responseMap := make(map[string]bean.EnvironmentResponse)
-	for envName, _ := range envMap {
-		resp := bean.EnvironmentResponse{
-			Name:                       envName,
-			PromotionPossible:          pointer.Bool(false),
-			PromotionValidationMessage: string(bean.POLICY_NOT_CONFIGURED),
-			PromotionValidationState:   bean.POLICY_NOT_CONFIGURED,
-			IsVirtualEnvironment:       pointer.Bool(envMap[envName].IsVirtualEnvironment),
-		}
-		if !authorizedEnvironments[envName] {
-			resp.PromotionValidationState = bean.NO_PERMISSION
-			resp.PromotionValidationMessage = string(bean.NO_PERMISSION)
-		}
+	responseMap := getDefaultEnvironmentPromotionMetaDataResponseMap(maps.Keys(envMap), authorizedEnvironments)
+	for envName, resp := range responseMap {
+		resp.IsVirtualEnvironment = envMap[envName].IsVirtualEnvironment
 		responseMap[envName] = resp
 	}
 
 	for envName, policy := range policiesMap {
-		responseMap[envName] = bean.EnvironmentResponse{
-			PromotionPossible:          pointer.Bool(true),
+		responseMap[envName] = bean.EnvironmentPromotionMetaData{
+			PromotionPossible:          true,
 			Name:                       envName,
 			ApprovalCount:              policy.ApprovalMetaData.ApprovalCount,
-			IsVirtualEnvironment:       pointer.Bool(envMap[envName].IsVirtualEnvironment),
+			IsVirtualEnvironment:       envMap[envName].IsVirtualEnvironment,
 			PromotionValidationMessage: "",
 			PromotionValidationState:   bean.EMPTY,
 		}
 	}
 
-	responses := make([]bean.EnvironmentResponse, 0, len(responseMap))
+	responses := make([]bean.EnvironmentPromotionMetaData, 0, len(responseMap))
 	for _, envResponse := range responseMap {
 		responses = append(responses, envResponse)
 	}
@@ -275,7 +265,7 @@ func (impl *ArtifactPromotionApprovalServiceImpl) computeFilterParams(ciArtifact
 	return params, nil
 }
 
-func (impl *ArtifactPromotionApprovalServiceImpl) evaluatePoliciesOnArtifact(ciArtifactId int, envMap map[string]repository1.Environment, authorizedEnvironments map[string]bool, policiesMap map[string]*bean.PromotionPolicy) ([]bean.EnvironmentResponse, error) {
+func (impl *ArtifactPromotionApprovalServiceImpl) evaluatePoliciesOnArtifact(ciArtifactId int, envMap map[string]repository1.Environment, authorizedEnvironments map[string]bool, policiesMap map[string]*bean.PromotionPolicy) ([]bean.EnvironmentPromotionMetaData, error) {
 	ciArtifact, err := impl.ciArtifactRepository.Get(ciArtifactId)
 	if err != nil {
 		impl.logger.Errorw("error in finding the artifact using id", "artifactId", ciArtifactId, "err", err)
@@ -297,19 +287,9 @@ func (impl *ArtifactPromotionApprovalServiceImpl) evaluatePoliciesOnArtifact(ciA
 		return nil, err
 	}
 	// todo: use defaultResponse method
-	responseMap := make(map[string]bean.EnvironmentResponse)
-	for envName, _ := range envMap {
-		resp := bean.EnvironmentResponse{
-			Name:                       envName,
-			PromotionPossible:          pointer.Bool(false),
-			PromotionValidationMessage: string(bean.POLICY_NOT_CONFIGURED),
-			PromotionValidationState:   bean.POLICY_NOT_CONFIGURED,
-			IsVirtualEnvironment:       pointer.Bool(envMap[envName].IsVirtualEnvironment),
-		}
-		if !authorizedEnvironments[envName] {
-			resp.PromotionValidationState = bean.NO_PERMISSION
-			resp.PromotionValidationMessage = string(bean.NO_PERMISSION)
-		}
+	responseMap := getDefaultEnvironmentPromotionMetaDataResponseMap(maps.Keys(envMap), authorizedEnvironments)
+	for envName, resp := range responseMap {
+		resp.IsVirtualEnvironment = envMap[envName].IsVirtualEnvironment
 		responseMap[envName] = resp
 	}
 
@@ -319,17 +299,17 @@ func (impl *ArtifactPromotionApprovalServiceImpl) evaluatePoliciesOnArtifact(ciA
 		evaluationResult, err := impl.resourceFilterConditionsEvaluator.EvaluateFilter(policy.Conditions, resourceFilter.ExpressionMetadata{Params: params})
 		if err != nil {
 			impl.logger.Errorw("evaluation failed with error", "policyConditions", policy.Conditions, "envName", envName, policy.Conditions, "params", params, "err", err)
-			responseMap[envName] = bean.EnvironmentResponse{
+			responseMap[envName] = bean.EnvironmentPromotionMetaData{
 				Name:                     envName,
 				ApprovalCount:            policy.ApprovalMetaData.ApprovalCount,
-				PromotionPossible:        pointer.Bool(false),
+				PromotionPossible:        false,
 				PromotionValidationState: bean.POLICY_EVALUATION_ERRORED,
 			}
 			continue
 		}
 		envResp := responseMap[envName]
 		envResp.ApprovalCount = policy.ApprovalMetaData.ApprovalCount
-		envResp.PromotionPossible = pointer.Bool(evaluationResult)
+		envResp.PromotionPossible = evaluationResult
 		// checks on metadata not needed as this is just an evaluation flow (kinda validation)
 		if !evaluationResult {
 			envResp.PromotionValidationMessage = string(bean.BLOCKED_BY_POLICY)
@@ -337,19 +317,19 @@ func (impl *ArtifactPromotionApprovalServiceImpl) evaluatePoliciesOnArtifact(ciA
 		}
 		responseMap[envName] = envResp
 	}
-	result := make([]bean.EnvironmentResponse, 0, len(responseMap))
+	result := make([]bean.EnvironmentPromotionMetaData, 0, len(responseMap))
 	for _, envResponse := range responseMap {
 		result = append(result, envResponse)
 	}
 	return result, nil
 }
 
-func (impl *ArtifactPromotionApprovalServiceImpl) approveArtifactPromotion(request *bean.ArtifactPromotionRequest, authorizedEnvironments map[string]bool) ([]bean.EnvironmentResponse, error) {
+func (impl *ArtifactPromotionApprovalServiceImpl) approveArtifactPromotion(request *bean.ArtifactPromotionRequest, authorizedEnvironments map[string]bool) ([]bean.EnvironmentPromotionMetaData, error) {
 	// get request and check if it is promoted already.
 	// attempt approving this by creating new resource_approval_user_data, if unique constraint error ,current user already did something.
 	// attempt success , then get the approval count and check no of approvals got
 	//  promote if approvalCount > approvals received
-	responses := getDefaultResponses(request.EnvironmentNames, authorizedEnvironments)
+	responses := getDefaultEnvironmentPromotionMetaDataResponseMap(request.EnvironmentNames, authorizedEnvironments)
 	environmentNames := make([]string, 0, len(authorizedEnvironments))
 	for envName, authorised := range authorizedEnvironments {
 		if authorised {
@@ -399,7 +379,7 @@ func (impl *ArtifactPromotionApprovalServiceImpl) approveArtifactPromotion(reque
 	return environmentResponses, nil
 }
 
-func (impl *ArtifactPromotionApprovalServiceImpl) initiateApprovalProcess(request *bean.ArtifactPromotionRequest, pipelineMetaData PipelinesMetaData, promotionRequests []*repository.ArtifactPromotionApprovalRequest, responses map[string]bean.EnvironmentResponse, policyIdMap map[int]*bean.PromotionPolicy) ([]bean.EnvironmentResponse, error) {
+func (impl *ArtifactPromotionApprovalServiceImpl) initiateApprovalProcess(request *bean.ArtifactPromotionRequest, pipelineMetaData PipelinesMetaData, promotionRequests []*repository.ArtifactPromotionApprovalRequest, responses map[string]bean.EnvironmentPromotionMetaData, policyIdMap map[int]*bean.PromotionPolicy) ([]bean.EnvironmentPromotionMetaData, error) {
 
 	pipelineIdVsEnvMap := pipelineMetaData.PipelineIdVsEnvNameMap
 
@@ -512,14 +492,14 @@ func (impl *ArtifactPromotionApprovalServiceImpl) initiateApprovalProcess(reques
 		return nil, err
 	}
 
-	result := make([]bean.EnvironmentResponse, 0, len(responses))
+	result := make([]bean.EnvironmentPromotionMetaData, 0, len(responses))
 	for _, resp := range responses {
 		result = append(result, resp)
 	}
 	return result, nil
 }
 
-func (impl *ArtifactPromotionApprovalServiceImpl) filterValidAndStaleRequests(promotionRequests []*repository.ArtifactPromotionApprovalRequest, responses *map[string]bean.EnvironmentResponse, pipelineIdVsEnvMap map[int]string, policyIdMap map[int]*bean.PromotionPolicy) ([]int, []int) {
+func (impl *ArtifactPromotionApprovalServiceImpl) filterValidAndStaleRequests(promotionRequests []*repository.ArtifactPromotionApprovalRequest, responses *map[string]bean.EnvironmentPromotionMetaData, pipelineIdVsEnvMap map[int]string, policyIdMap map[int]*bean.PromotionPolicy) ([]int, []int) {
 	staleRequestIds := make([]int, 0)
 	validRequestIds := make([]int, 0)
 	responseDereference := *responses
@@ -537,7 +517,7 @@ func (impl *ArtifactPromotionApprovalServiceImpl) filterValidAndStaleRequests(pr
 			staleRequestIds = append(staleRequestIds, promotionRequest.Id)
 
 			// also set the response messages
-			resp.PromotionPossible = pointer.Bool(false)
+			resp.PromotionPossible = false
 			resp.PromotionValidationMessage = "request is no longer valid as the policy is no longer governing this pipeline, state: stale"
 			resp.PromotionValidationState = bean.PromotionValidationState(resp.PromotionValidationMessage)
 		} else if promotionRequest.Status != bean.AWAITING_APPROVAL {
@@ -583,7 +563,7 @@ func (impl *ArtifactPromotionApprovalServiceImpl) handleArtifactPromotionSuccess
 	return nil
 }
 
-func (impl *ArtifactPromotionApprovalServiceImpl) HandleArtifactPromotionRequest(request *bean.ArtifactPromotionRequest, authorizedEnvironments map[string]bool) ([]bean.EnvironmentResponse, error) {
+func (impl *ArtifactPromotionApprovalServiceImpl) HandleArtifactPromotionRequest(request *bean.ArtifactPromotionRequest, authorizedEnvironments map[string]bool) ([]bean.EnvironmentPromotionMetaData, error) {
 
 	environments, err := impl.environmentService.FindByNames(request.EnvironmentNames)
 	if err != nil {
@@ -691,15 +671,13 @@ func (impl *ArtifactPromotionApprovalServiceImpl) validateAndFetchSourceWorkflow
 }
 
 // todo: naming can be better
-func getDefaultResponses(environments []string, authorisedEnvironments map[string]bool) map[string]bean.EnvironmentResponse {
-	response := make(map[string]bean.EnvironmentResponse)
+func getDefaultEnvironmentPromotionMetaDataResponseMap(environments []string, authorisedEnvironments map[string]bool) map[string]bean.EnvironmentPromotionMetaData {
+	response := make(map[string]bean.EnvironmentPromotionMetaData)
 	for _, env := range environments {
-		envResponse := bean.EnvironmentResponse{
+		envResponse := bean.EnvironmentPromotionMetaData{
 			Name:                       env,
 			PromotionValidationState:   bean.PIPELINE_NOT_FOUND,
 			PromotionValidationMessage: string(bean.PIPELINE_NOT_FOUND),
-			// todo:
-			PromotionPossible: pointer.Bool(false),
 		}
 		if !authorisedEnvironments[env] {
 			envResponse.PromotionValidationState = bean.NO_PERMISSION
@@ -711,7 +689,7 @@ func getDefaultResponses(environments []string, authorisedEnvironments map[strin
 }
 
 // todo: first extract metadata
-func (impl *ArtifactPromotionApprovalServiceImpl) promoteArtifact(request *bean.ArtifactPromotionRequest, authorizedEnvironments map[string]bool) ([]bean.EnvironmentResponse, error) {
+func (impl *ArtifactPromotionApprovalServiceImpl) promoteArtifact(request *bean.ArtifactPromotionRequest, authorizedEnvironments map[string]bool) ([]bean.EnvironmentPromotionMetaData, error) {
 	// 	step1: validate if artifact is deployed/created at the source pipeline.
 	//      step1: if source is cd , check if this artifact is deployed on these environments
 	//  step2: check if destination pipeline is topologically downwards from the source pipeline and also source and destination are on the same subtree.
@@ -721,7 +699,7 @@ func (impl *ArtifactPromotionApprovalServiceImpl) promoteArtifact(request *bean.
 
 	// fetch artifact
 	// todo: move this definition to request obejct
-	response := getDefaultResponses(request.EnvironmentNames, authorizedEnvironments)
+	response := getDefaultEnvironmentPromotionMetaDataResponseMap(request.EnvironmentNames, authorizedEnvironments)
 	// todo: move this logic into a method on metadata object
 	allowedEnvs := make([]int, 0, len(request.EnvNameIdMap))
 	allowedEnvNames := make([]string, 0, len(request.EnvNameIdMap))
@@ -795,7 +773,7 @@ func (impl *ArtifactPromotionApprovalServiceImpl) promoteArtifact(request *bean.
 	return envResponses, nil
 }
 
-func buildPipelineMetaDataAndUpdateResponse(request *bean.ArtifactPromotionRequest, allowedCdPipelines []*pipelineConfig.Pipeline, response *map[string]bean.EnvironmentResponse) PipelinesMetaData {
+func buildPipelineMetaDataAndUpdateResponse(request *bean.ArtifactPromotionRequest, allowedCdPipelines []*pipelineConfig.Pipeline, response *map[string]bean.EnvironmentPromotionMetaData) PipelinesMetaData {
 	pipelineIdVsEnvNameMap := make(map[int]string)
 	pipelineIds := make([]int, 0, len(allowedCdPipelines))
 	pipelineIdToDaoMap := make(map[int]*pipelineConfig.Pipeline)
@@ -820,7 +798,7 @@ func buildPipelineMetaDataAndUpdateResponse(request *bean.ArtifactPromotionReque
 	}
 }
 
-func (impl *ArtifactPromotionApprovalServiceImpl) raisePromoteRequestHelper(request *bean.ArtifactPromotionRequest, response *map[string]bean.EnvironmentResponse, policiesMap map[string]*bean.PromotionPolicy, ciArtifact *repository2.CiArtifact, pipelineMetaData PipelinesMetaData) []bean.EnvironmentResponse {
+func (impl *ArtifactPromotionApprovalServiceImpl) raisePromoteRequestHelper(request *bean.ArtifactPromotionRequest, response *map[string]bean.EnvironmentPromotionMetaData, policiesMap map[string]*bean.PromotionPolicy, ciArtifact *repository2.CiArtifact, pipelineMetaData PipelinesMetaData) []bean.EnvironmentPromotionMetaData {
 	responseMap := *response
 	for _, pipelineId := range pipelineMetaData.PipelineIds {
 
@@ -839,21 +817,21 @@ func (impl *ArtifactPromotionApprovalServiceImpl) raisePromoteRequestHelper(requ
 				EnvResponse.PromotionValidationState = bean.ERRORED
 				EnvResponse.PromotionValidationMessage = err.Error()
 			}
-			EnvResponse.PromotionPossible = pointer.Bool(true)
+			EnvResponse.PromotionPossible = true
 			EnvResponse.PromotionValidationState = state
 			EnvResponse.PromotionValidationMessage = msg
 		}
 		responseMap[pipelineIdVsEnvNameMap[pipelineId]] = EnvResponse
 	}
 
-	envResponses := make([]bean.EnvironmentResponse, 0, len(responseMap))
+	envResponses := make([]bean.EnvironmentPromotionMetaData, 0, len(responseMap))
 	for _, resp := range responseMap {
 		envResponses = append(envResponses, resp)
 	}
 	return envResponses
 }
 
-func (impl *ArtifactPromotionApprovalServiceImpl) validatePromoteRequestForSourceCD(request *bean.ArtifactPromotionRequest, allAppWorkflowMappings []*appWorkflow.AppWorkflowMapping, ciArtifact *repository2.CiArtifact, pipelineMetaData PipelinesMetaData, response map[string]bean.EnvironmentResponse) (map[string]bean.EnvironmentResponse, error) {
+func (impl *ArtifactPromotionApprovalServiceImpl) validatePromoteRequestForSourceCD(request *bean.ArtifactPromotionRequest, allAppWorkflowMappings []*appWorkflow.AppWorkflowMapping, ciArtifact *repository2.CiArtifact, pipelineMetaData PipelinesMetaData, response map[string]bean.EnvironmentPromotionMetaData) (map[string]bean.EnvironmentPromotionMetaData, error) {
 	tree := make(map[int][]int)
 	for _, appWorkflowMapping := range allAppWorkflowMappings {
 		// create the tree from the DAG excluding the ci source

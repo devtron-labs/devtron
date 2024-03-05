@@ -153,13 +153,13 @@ type PromotionApprovalUserData struct {
 }
 
 // todo: change it to EnvironmentPromotionMetaData
-type EnvironmentResponse struct {
+type EnvironmentPromotionMetaData struct {
 	Name                       string                   `json:"name"` // environment name
 	ApprovalCount              int                      `json:"approvalCount,omitempty"`
-	PromotionPossible          *bool                    `json:"promotionPossible,omitempty"`
 	PromotionValidationMessage string                   `json:"promotionEvaluationMessage"`
 	PromotionValidationState   PromotionValidationState `json:"promotionEvaluationState"`
-	IsVirtualEnvironment       *bool                    `json:"isVirtualEnvironment,omitempty"`
+	PromotionPossible          bool                     `json:"promotionPossible"`
+	IsVirtualEnvironment       bool                     `json:"isVirtualEnvironment"`
 }
 
 type EnvironmentApprovalMetadata struct {
@@ -245,8 +245,8 @@ const BLOCKED_BY_POLICY PromotionValidationState = "blocked by the policy "
 const APPROVED PromotionValidationState = "approved"
 
 type EnvironmentListingResponse struct {
-	CiSource     CiSourceMetaData      `json:"ciSource"`
-	Environments []EnvironmentResponse `json:"environments"`
+	CiSource     CiSourceMetaData               `json:"ciSource"`
+	Environments []EnvironmentPromotionMetaData `json:"environments"`
 }
 
 type CiSourceMetaData struct {
