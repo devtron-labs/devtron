@@ -2,8 +2,8 @@ package git
 
 import (
 	"fmt"
-	bean2 "github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/api/bean/gitOps"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/adapter"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/xanzy/go-gitlab"
@@ -17,14 +17,14 @@ type GitFactory struct {
 	logger       *zap.SugaredLogger
 }
 
-func (factory *GitFactory) Reload(gitOpsRepository repository.GitOpsConfigRepository) error {
+func (factory *GitFactory) Reload(gitOpsConfigReadService config.GitOpsConfigReadService) error {
 	var err error
 	start := time.Now()
 	defer func() {
 		util.TriggerGitOpsMetrics("Reload", "GitService", start, err)
 	}()
 	factory.logger.Infow("reloading gitops details")
-	cfg, err := GetGitConfig(gitOpsRepository)
+	cfg, err := GetGitConfig(gitOpsConfigReadService)
 	if err != nil {
 		return err
 	}
@@ -38,7 +38,7 @@ func (factory *GitFactory) Reload(gitOpsRepository repository.GitOpsConfigReposi
 	return nil
 }
 
-func (factory *GitFactory) GetGitLabGroupPath(gitOpsConfig *bean2.GitOpsConfigDto) (string, error) {
+func (factory *GitFactory) GetGitLabGroupPath(gitOpsConfig *gitOps.GitOpsConfigDto) (string, error) {
 	start := time.Now()
 	var err error
 	defer func() {
@@ -61,7 +61,7 @@ func (factory *GitFactory) GetGitLabGroupPath(gitOpsConfig *bean2.GitOpsConfigDt
 	return group.FullPath, nil
 }
 
-func (factory *GitFactory) NewClientForValidation(gitOpsConfig *bean2.GitOpsConfigDto) (GitOpsClient, *GitOpsHelper, error) {
+func (factory *GitFactory) NewClientForValidation(gitOpsConfig *gitOps.GitOpsConfigDto) (GitOpsClient, *GitOpsHelper, error) {
 	start := time.Now()
 	var err error
 	defer func() {
@@ -81,8 +81,8 @@ func (factory *GitFactory) NewClientForValidation(gitOpsConfig *bean2.GitOpsConf
 	return client, gitOpsHelper, nil
 }
 
-func NewGitFactory(logger *zap.SugaredLogger, gitOpsRepository repository.GitOpsConfigRepository) (*GitFactory, error) {
-	cfg, err := GetGitConfig(gitOpsRepository)
+func NewGitFactory(logger *zap.SugaredLogger, gitOpsConfigReadService config.GitOpsConfigReadService) (*GitFactory, error) {
+	cfg, err := GetGitConfig(gitOpsConfigReadService)
 	if err != nil {
 		return nil, err
 	}
