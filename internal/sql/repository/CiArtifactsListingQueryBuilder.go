@@ -65,6 +65,7 @@ func BuildQueryForArtifactsForCdStage(listingFilterOptions bean.ArtifactsListFil
 	}
 
 	// TODO: revisit this condition (cd_workflow.pipeline_id= %v and cd_workflow_runner.workflow_type = '%v' )
+	// TODO: remove below code
 	commonQuery := " from ci_artifact LEFT JOIN cd_workflow ON ci_artifact.id = cd_workflow.ci_artifact_id" +
 		" LEFT JOIN cd_workflow_runner ON cd_workflow_runner.cd_workflow_id=cd_workflow.id " +
 		" Where (((cd_workflow_runner.id in (select MAX(cd_workflow_runner.id) OVER (PARTITION BY cd_workflow.ci_artifact_id) FROM cd_workflow_runner inner join cd_workflow on cd_workflow.id=cd_workflow_runner.cd_workflow_id))" +
@@ -107,7 +108,9 @@ func buildQueryForArtifactsForCdStageV2(listingFilterOptions bean.ArtifactsListF
 	// plugin artifacts
 	whereCondition = fmt.Sprintf(" %s OR (ci_artifact.component_id = %d  AND ci_artifact.data_source= '%s' )", whereCondition, listingFilterOptions.ParentId, listingFilterOptions.PluginStage)
 
+	// TODO: move constant. handle approval node
 	// promoted artifacts
+	// destination pipeline-id and artifact-id are indexed
 	if listingFilterOptions.ParentStageType != bean.CD_WORKFLOW_TYPE_PRE && listingFilterOptions.StageType != bean.CD_WORKFLOW_TYPE_POST {
 		whereCondition = fmt.Sprintf(" %s OR id in (select artifact_id from artifact_promotion_approval_request where status=2 and destination_pipeline_id = %d ) )", whereCondition, listingFilterOptions.PipelineId)
 	}

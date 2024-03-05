@@ -152,6 +152,7 @@ type PromotionApprovalUserData struct {
 	UserActionTime time.Time `json:"userActionTime"`
 }
 
+// todo: change it to EnvironmentPromotionMetaData
 type EnvironmentResponse struct {
 	Name                       string                   `json:"name"` // environment name
 	ApprovalCount              int                      `json:"approvalCount,omitempty"`
@@ -254,6 +255,7 @@ type CiSourceMetaData struct {
 	Type SourceTypeStr `json:"type"`
 }
 
+// rename to appworkflow metadata
 type WorkflowMetaData struct {
 	WorkflowId   int
 	AppName      string
