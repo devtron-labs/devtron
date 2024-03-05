@@ -1615,7 +1615,6 @@ func (impl *AppArtifactManagerImpl) FetchMaterialForArtifactPromotion(artifactPr
 			return ciArtifactResponse, err
 
 		}
-
 	case string(bean3.SOURCE_TYPE_WEBHOOK):
 		appWorkflowMapping, err := impl.appWorkflowRepository.FindByWorkflowIdAndCiSource(artifactPromotionMaterialRequest.WorkflowId)
 		if err != nil {
@@ -1630,6 +1629,11 @@ func (impl *AppArtifactManagerImpl) FetchMaterialForArtifactPromotion(artifactPr
 			return ciArtifactResponse, err
 		}
 	case string(bean3.PROMOTION_APPROVAL_PENDING_NODE):
+
+		if artifactPromotionMaterialRequest.PendingForCurrentUser {
+			break
+		}
+
 		cdPipeline, err := impl.cdPipelineConfigService.GetCdPipelinesByAppIDAndEnvNameOrId(artifactPromotionMaterialRequest.AppId, 0, artifactPromotionMaterialRequest.ResourceName)
 		if err != nil {
 			impl.logger.Errorw("error in fetching cd-pipeline by appId and envId", "appId", artifactPromotionMaterialRequest.AppId, "environmentId", artifactPromotionMaterialRequest.ResourceName, "err", err)
