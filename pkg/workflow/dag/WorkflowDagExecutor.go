@@ -43,7 +43,7 @@ import (
 	"time"
 
 	"github.com/devtron-labs/common-lib/pubsub-lib/model"
-	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
@@ -642,7 +642,7 @@ func (impl *WorkflowDagExecutorImpl) handleWebhookExternalCiEvent(artifact *repo
 // handle corrupt data (https://github.com/devtron-labs/devtron/issues/3826)
 func (impl *WorkflowDagExecutorImpl) deleteCorruptedPipelineStage(pipelineStage *repository4.PipelineStage, triggeredBy int32) (error, bool) {
 	if pipelineStage != nil {
-		stageReq := &bean3.PipelineStageDto{
+		stageReq := &pipelineConfigBean.PipelineStageDto{
 			Id:   pipelineStage.Id,
 			Type: pipelineStage.Type,
 		}
@@ -913,7 +913,7 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(triggerContext bean5.T
 		IsArtifactUploaded: request.IsArtifactUploaded,
 		AuditLog:           sql.AuditLog{CreatedBy: request.UserId, UpdatedBy: request.UserId, CreatedOn: createdOn, UpdatedOn: updatedOn},
 	}
-	plugin, err := impl.globalPluginRepository.GetPluginByName(bean3.VULNERABILITY_SCANNING_PLUGIN)
+	plugin, err := impl.globalPluginRepository.GetPluginByName(pipelineConfigBean.VULNERABILITY_SCANNING_PLUGIN)
 	if err != nil || len(plugin) == 0 {
 		impl.logger.Errorw("error in getting image scanning plugin", "err", err)
 		return 0, err
@@ -935,7 +935,7 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(triggerContext bean5.T
 	var pluginArtifacts []*repository.CiArtifact
 	for registry, artifacts := range request.PluginRegistryArtifactDetails {
 		for _, image := range artifacts {
-			if pipeline.PipelineType == bean3.CI_JOB && image == "" {
+			if pipeline.PipelineType == string(pipelineConfigBean.CI_JOB) && image == "" {
 				continue
 			}
 			pluginArtifact := &repository.CiArtifact{
