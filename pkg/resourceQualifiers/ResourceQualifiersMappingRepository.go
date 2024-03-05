@@ -114,12 +114,14 @@ func addCond(query *orm.Query, qualifier Qualifier, valuesMap map[Qualifier][][]
 func (repo *QualifiersMappingRepositoryImpl) addScopeWhereClauseBatch(q *orm.Query, valuesMap map[Qualifier][][]int, drs map[bean.DevtronResourceSearchableKeyName]int) *orm.Query {
 
 	q = q.WhereGroup(func(query *orm.Query) (*orm.Query, error) {
-		if len(valuesMap[APP_AND_ENV_QUALIFIER][0]) > 0 && len(valuesMap[APP_AND_ENV_QUALIFIER][1]) > 0 {
-			query = query.WhereOr(appEnvCondition,
-				drs[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID], pg.In(valuesMap[APP_AND_ENV_QUALIFIER][0]),
-				drs[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID], pg.In(valuesMap[APP_AND_ENV_QUALIFIER][1]),
-				APP_AND_ENV_QUALIFIER,
-			)
+		if _, ok := valuesMap[APP_AND_ENV_QUALIFIER]; ok {
+			if len(valuesMap[APP_AND_ENV_QUALIFIER][0]) > 0 && len(valuesMap[APP_AND_ENV_QUALIFIER][1]) > 0 {
+				query = query.WhereOr(appEnvCondition,
+					drs[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID], pg.In(valuesMap[APP_AND_ENV_QUALIFIER][0]),
+					drs[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID], pg.In(valuesMap[APP_AND_ENV_QUALIFIER][1]),
+					APP_AND_ENV_QUALIFIER,
+				)
+			}
 		}
 		query = addCond(query, APP_QUALIFIER, valuesMap, drs[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID])
 		query = addCond(query, ENV_QUALIFIER, valuesMap, drs[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID])
