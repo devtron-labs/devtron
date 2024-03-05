@@ -1,4 +1,5 @@
 ## Bugs
+- fix: packages synced (#4743)
 - fix: wrong registry creds is used in CD stage (PRE/POST) (#4717)
 - fix: force delete option fixed on resource browser and app details page (#4646)
 - fix: 28feb packet common bug fix (#4724)
