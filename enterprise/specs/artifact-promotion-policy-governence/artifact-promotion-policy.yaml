@@ -440,7 +440,7 @@ paths:
           description: "successfully applied the profile on the given app-envs or filtered app-envs"
 
   # this is an util API which fetches the supported filter criteria params supported in CEL expression
-  /orchestrator/filters/metadata:
+  /orchestrator/filters/criteria/metadata:
     get:
       description: "fetches the filter conditions param meta data used in CEL expression"
       responses:
