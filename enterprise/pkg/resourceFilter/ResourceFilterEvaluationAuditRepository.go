@@ -7,6 +7,12 @@ import (
 	"time"
 )
 
+type ResourceFilterType int
+
+const FILTER_CONDITION ResourceFilterType = 1
+const ARTIFACT_PROMOTION_POLICY ResourceFilterType = 2
+const DEPLOYMENT_WINDOW ResourceFilterType = 3
+
 type SubjectType int
 
 const Artifact SubjectType = 0
@@ -21,13 +27,14 @@ const PrePipelineStageYaml ReferenceType = 3
 const PostPipelineStageYaml ReferenceType = 4
 
 type ResourceFilterEvaluationAudit struct {
-	tableName            struct{}       `sql:"resource_filter_evaluation_audit" pg:",discard_unknown_columns"`
-	Id                   int            `sql:"id"`
-	ReferenceType        *ReferenceType `sql:"reference_type"`
-	ReferenceId          int            `sql:"reference_id"`
-	FilterHistoryObjects string         `sql:"filter_history_objects"` //json of array of
-	SubjectType          *SubjectType   `sql:"subject_type"`
-	SubjectId            int            `sql:"subject_id"` //comma seperated subject ids
+	tableName            struct{}           `sql:"resource_filter_evaluation_audit" pg:",discard_unknown_columns"`
+	Id                   int                `sql:"id"`
+	ReferenceType        *ReferenceType     `sql:"reference_type"`
+	ReferenceId          int                `sql:"reference_id"`
+	FilterHistoryObjects string             `sql:"filter_history_objects"` //json of array of
+	SubjectType          *SubjectType       `sql:"subject_type"`
+	SubjectId            int                `sql:"subject_id"` //comma seperated subject ids
+	FilterType           ResourceFilterType `sql:"filter_type"`
 	//add metadata column in future to store multi-git case for SubjectType CiPipelineMaterials
 	sql.AuditLog
 }

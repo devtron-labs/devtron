@@ -18,6 +18,7 @@ type FilterEvaluationAuditService interface {
 	UpdateFilterEvaluationAuditRef(id int, refType ReferenceType, refId int) error
 	GetLastEvaluationFilterHistoryDataBySubjects(subjectType SubjectType, subjectIds []int, referenceId int, referenceType ReferenceType) (map[int]map[int]time.Time, error)
 	GetLastEvaluationFilterHistoryDataBySubjectsAndReferences(subjectType SubjectType, subjectIds []int, referenceIds []int, referenceType ReferenceType) (map[string]map[int]time.Time, error)
+	CreateFilterEvaluationAuditCustom(subjectType SubjectType, subjectId int, refType ReferenceType, refId int, filterHistoryObjectsStr string) (*ResourceFilterEvaluationAudit, error)
 }
 
 type FilterEvaluationAuditServiceImpl struct {
@@ -34,6 +35,23 @@ func NewFilterEvaluationAuditServiceImpl(logger *zap.SugaredLogger,
 		filterEvaluationAuditRepo: filterEvaluationAuditRepo,
 		filterAuditRepo:           filterAuditRepo,
 	}
+}
+
+func (impl *FilterEvaluationAuditServiceImpl) CreateFilterEvaluationAuditCustom(subjectType SubjectType, subjectId int, refType ReferenceType, refId int, filterHistoryObjectsStr string) (*ResourceFilterEvaluationAudit, error) {
+
+	currentTime := time.Now()
+	auditLog := sql.AuditLog{
+		CreatedOn: currentTime,
+		CreatedBy: 1,
+	}
+
+	filterEvaluationAudit := NewResourceFilterEvaluationAudit(&refType, refId, filterHistoryObjectsStr, &subjectType, subjectId, auditLog)
+	savedFilterEvaluationAudit, err := impl.filterEvaluationAuditRepo.Create(&filterEvaluationAudit)
+	if err != nil {
+		impl.logger.Errorw("error in saving resource filter evaluation result in resource_filter_evaluation_audit table", "err", err, "filterEvaluationAudit", filterEvaluationAudit)
+		return savedFilterEvaluationAudit, err
+	}
+	return savedFilterEvaluationAudit, nil
 }
 
 func (impl *FilterEvaluationAuditServiceImpl) CreateFilterEvaluation(subjectType SubjectType, subjectId int, refType ReferenceType, refId int, filters []*FilterMetaDataBean, filterIdVsState map[int]FilterState) (*ResourceFilterEvaluationAudit, error) {

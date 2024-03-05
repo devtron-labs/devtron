@@ -94,6 +94,16 @@ type DeploymentWindowProfile struct {
 	DeploymentWindowProfileMetadata
 }
 
+func (profile DeploymentWindowProfile) GetSerializedAuditData() string {
+	data := make(map[string]interface{})
+	data["name"] = profile.Name
+	data["id"] = profile.Id
+	data["type"] = profile.Type
+
+	dataJson, _ := json.Marshal(data)
+	return string(dataJson)
+}
+
 // DeploymentWindowProfileMetadata defines model for DeploymentWindowProfileMetadata.
 type DeploymentWindowProfileMetadata struct {
 	Description string               `json:"description"`

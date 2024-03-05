@@ -2,6 +2,7 @@ package bean
 
 import (
 	"context"
+	"github.com/devtron-labs/devtron/enterprise/pkg/deploymentWindow"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"time"
@@ -29,6 +30,7 @@ type TriggerRequest struct {
 	TriggeredBy           int32
 	RefCdWorkflowRunnerId int
 	TriggerMessage        string
+	DeploymentProfile     *deploymentWindow.DeploymentWindowProfile
 	TriggerContext
 }
 

@@ -119,6 +119,7 @@ type TriggerServiceImpl struct {
 	gitSensorGrpcClient                 gitSensorClient.Client
 	config                              *types.CdConfig
 	resourceFilterService               resourceFilter.ResourceFilterService
+	resourceFilterAuditService          resourceFilter.FilterEvaluationAuditService
 	deploymentApprovalRepository        pipelineConfig.DeploymentApprovalRepository
 	appRepository                       appRepository.AppRepository
 	helmRepoPushService                 app.HelmRepoPushService
@@ -185,6 +186,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 	appRepository appRepository.AppRepository,
 	helmRepoPushService app.HelmRepoPushService,
 	resourceFilterService resourceFilter.ResourceFilterService,
+	resourceFilterAuditService resourceFilter.FilterEvaluationAuditService,
 	globalEnvVariables *util3.GlobalEnvVariables,
 	scanResultRepository security.ImageScanResultRepository,
 	cvePolicyRepository security.CvePolicyRepository,
@@ -317,6 +319,7 @@ func (impl *TriggerServiceImpl) checkForDeploymentWindow(triggerRequest bean.Tri
 		return triggerRequest, fmt.Errorf("deployment not allowed %v", err)
 	}
 	triggerRequest.TriggerMessage = actionState.GetBypassActionMessageForProfileAndState(deploymentWindowProfile)
+	triggerRequest.DeploymentProfile = deploymentWindowProfile
 	return triggerRequest, nil
 }
 
@@ -671,6 +674,11 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 		return err
 	}
 
+	err = impl.createAuditDataForDeploymentWindowBypass(request)
+	if err != nil {
+		return err
+	}
+
 	filterState, filterIdVsState, err := impl.resourceFilterService.CheckForResource(filters, artifact.Image, imageTagNames)
 	if err != nil {
 		return err
@@ -841,6 +849,16 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 			PipelineOverride: pipelineOverride,
 		}
 		go impl.workflowEventPublishService.PublishDeployStageSuccessEvent(cdSuccessEvent)
+	}
+	return nil
+}
+
+func (impl *TriggerServiceImpl) createAuditDataForDeploymentWindowBypass(request bean.TriggerRequest) error {
+	if request.TriggerMessage != "" {
+		_, err := impl.resourceFilterAuditService.CreateFilterEvaluationAuditCustom(resourceFilter.Artifact, request.Artifact.Id, resourceFilter.Pipeline, request.Pipeline.Id, request.DeploymentProfile.GetSerializedAuditData())
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
