@@ -593,7 +593,7 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	commonArtifactServiceImpl := artifacts.NewCommonArtifactServiceImpl(sugaredLogger, ciArtifactRepositoryImpl)
-	workflowDagExecutorImpl := dag.NewWorkflowDagExecutorImpl(sugaredLogger, pipelineRepositoryImpl, cdWorkflowRepositoryImpl, pubSubClientServiceImpl, ciArtifactRepositoryImpl, enforcerUtilImpl, appWorkflowRepositoryImpl, pipelineStageServiceImpl, ciWorkflowRepositoryImpl, ciPipelineRepositoryImpl, pipelineStageRepositoryImpl, globalPluginRepositoryImpl, eventRESTClientImpl, eventSimpleFactoryImpl, helmAppServiceImpl, pipelineConfigListenerServiceImpl, cdWorkflowCommonServiceImpl, triggerServiceImpl, manifestCreationServiceImpl, commonArtifactServiceImpl)
+	workflowDagExecutorImpl := dag.NewWorkflowDagExecutorImpl(sugaredLogger, pipelineRepositoryImpl, cdWorkflowRepositoryImpl, pubSubClientServiceImpl, ciArtifactRepositoryImpl, enforcerUtilImpl, appWorkflowRepositoryImpl, pipelineStageServiceImpl, ciWorkflowRepositoryImpl, ciPipelineRepositoryImpl, pipelineStageRepositoryImpl, globalPluginRepositoryImpl, eventRESTClientImpl, eventSimpleFactoryImpl, customTagServiceImpl, helmAppServiceImpl, pipelineConfigListenerServiceImpl, cdWorkflowCommonServiceImpl, triggerServiceImpl, manifestCreationServiceImpl, commonArtifactServiceImpl)
 	externalCiRestHandlerImpl := restHandler.NewExternalCiRestHandlerImpl(sugaredLogger, validate, userServiceImpl, enforcerImpl, workflowDagExecutorImpl)
 	pubSubClientRestHandlerImpl := restHandler.NewPubSubClientRestHandlerImpl(pubSubClientServiceImpl, sugaredLogger, ciCdConfig)
 	webhookRouterImpl := router.NewWebhookRouterImpl(gitWebhookRestHandlerImpl, pipelineConfigRestHandlerImpl, externalCiRestHandlerImpl, pubSubClientRestHandlerImpl)
