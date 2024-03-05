@@ -59,6 +59,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	repository2 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/serverConnection"
+	repository3 "github.com/devtron-labs/devtron/pkg/serverConnection/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/timeoutWindow"
 	repository5 "github.com/devtron-labs/devtron/pkg/timeoutWindow/repository"
@@ -238,6 +240,12 @@ func InitializeApp() (*App, error) {
 
 		repository5.NewTimeWindowRepositoryImpl,
 		wire.Bind(new(repository5.TimeWindowRepository), new(*repository5.TimeWindowRepositoryImpl)),
+
+		repository3.NewServerConnectionRepositoryImpl,
+		wire.Bind(new(repository3.ServerConnectionRepository), new(*repository3.ServerConnectionRepositoryImpl)),
+
+		serverConnection.NewServerConnectionServiceImpl,
+		wire.Bind(new(serverConnection.ServerConnectionService), new(*serverConnection.ServerConnectionServiceImpl)),
 	)
 	return &App{}, nil
 }

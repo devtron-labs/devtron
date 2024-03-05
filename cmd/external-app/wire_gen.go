@@ -210,10 +210,7 @@ func InitializeApp() (*App, error) {
 	v := informer.NewGlobalMapClusterNamespace()
 	k8sInformerFactoryImpl := informer.NewK8sInformerFactoryImpl(sugaredLogger, v, runtimeConfig, k8sUtilExtended)
 	serverConnectionRepositoryImpl := repository5.NewServerConnectionRepositoryImpl(db, sugaredLogger)
-	serverConnectionServiceImpl, err := serverConnection.NewServerConnectionServiceImpl(sugaredLogger, serverConnectionRepositoryImpl)
-	if err != nil {
-		return nil, err
-	}
+	serverConnectionServiceImpl := serverConnection.NewServerConnectionServiceImpl(sugaredLogger, serverConnectionRepositoryImpl)
 	clusterServiceImpl := cluster.NewClusterServiceImpl(clusterRepositoryImpl, sugaredLogger, k8sUtilExtended, k8sInformerFactoryImpl, userAuthRepositoryImpl, userRepositoryImpl, roleGroupRepositoryImpl, globalAuthorisationConfigServiceImpl, userServiceImpl, serverConnectionServiceImpl)
 	appStatusRepositoryImpl := appStatus.NewAppStatusRepositoryImpl(db, sugaredLogger)
 	environmentRepositoryImpl := repository4.NewEnvironmentRepositoryImpl(db, sugaredLogger, appStatusRepositoryImpl)
