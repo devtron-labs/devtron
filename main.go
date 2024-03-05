@@ -27,7 +27,7 @@ import (
 	"syscall"
 )
 
-func main() {
+func main1() {
 
 	app, err := InitializeApp()
 	if err != nil {
