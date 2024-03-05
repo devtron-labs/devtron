@@ -387,8 +387,7 @@ func (handler RestHandlerImpl) GetArtifactsForPromotion(w http.ResponseWriter, r
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 			return
 		}
-
-	} else if resource == string(bean.PROMOTION_APPROVAL_PENDING_NODE) {
+	} else if resource == string(bean.PROMOTION_APPROVAL_PENDING_NODE) && !pendingForCurrentUser {
 		// check if either user has trigger access or artifact promoter access for this env
 		appRbacObj := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 		env, err := handler.environmentRepository.FindByName(resourceName)
