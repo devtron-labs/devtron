@@ -17,7 +17,8 @@ type ArtifactPromotionApprovalRequest struct {
 	SourcePipelineId        int                                 `sql:"source_pipeline_id"`
 	DestinationPipelineId   int                                 `sql:"destination_pipeline_id"`
 	Status                  bean.ArtifactPromotionRequestStatus `sql:"status"`
-	Active                  bool                                `sql:"active"`
+	// todo: remove this column
+	Active bool `sql:"active"`
 	sql.AuditLog
 }
 

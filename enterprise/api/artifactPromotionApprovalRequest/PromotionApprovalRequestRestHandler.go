@@ -117,14 +117,14 @@ func (handler RestHandlerImpl) HandleArtifactPromotionRequest(w http.ResponseWri
 		environmentNames := promotionRequest.EnvironmentNames
 		envRbacObjectMap := handler.enforcerUtil.GetEnvRBACByAppNameAndEnvNames(appName, environmentNames)
 		envObjectArr := make([]string, 0)
-		for _, obj := range envObjectArr {
+		for _, obj := range envRbacObjectMap {
 			envObjectArr = append(envObjectArr, obj)
 		}
 		results := handler.enforcer.EnforceInBatch(token, casbin.ResourceEnvironment, casbin.ActionTrigger, envObjectArr)
 		for _, env := range environmentNames {
 			rbacObject := envRbacObjectMap[env]
 			isAuthorised = results[rbacObject]
-			authorizedEnvironments[env] = true
+			authorizedEnvironments[env] = isAuthorised
 		}
 
 	case bean.ACTION_APPROVE:
@@ -132,25 +132,27 @@ func (handler RestHandlerImpl) HandleArtifactPromotionRequest(w http.ResponseWri
 		environmentNames := promotionRequest.EnvironmentNames
 		teamEnvRbacObjectMap := handler.enforcerUtil.GetTeamEnvRbacObjByAppAndEnvNames(appName, environmentNames)
 		teamEnvObjectArr := make([]string, 0)
-		for _, obj := range teamEnvObjectArr {
+		for _, obj := range teamEnvRbacObjectMap {
 			teamEnvObjectArr = append(teamEnvObjectArr, obj)
 		}
 		results := handler.enforcer.EnforceInBatch(token, casbin.ResourceApprovalPolicy, casbin.ActionArtifactPromote, teamEnvObjectArr)
 		for _, env := range environmentNames {
 			rbacObject := teamEnvRbacObjectMap[env]
 			isAuthorised = results[rbacObject]
-			authorizedEnvironments[env] = true
+			authorizedEnvironments[env] = isAuthorised
 		}
 
 	case bean.ACTION_CANCEL:
+		// get this info from service layer
 		artifactPromotionDao, err := handler.artifactPromotionApprovalRequestRepository.FindById(promotionRequest.PromotionRequestId)
 		if err == pg.ErrNoRows {
 			handler.logger.Errorw("promotion request for given id does not exist", "promotionRequestId", promotionRequest.PromotionRequestId, "err", err)
-			common.WriteJsonResp(w, errors.New("promotion request for given id does not exist"), nil, http.StatusNotFound)
+			common.WriteJsonResp(w, errors.New("promotion request for given id does not exist"), nil, http.StatusConflict)
 			return
 		}
 		if err != nil {
 			handler.logger.Errorw("error in fetching artifact promotion request by id", "artifactPromotionRequestId", promotionRequest.PromotionRequestId, "err", err)
+			common.WriteJsonResp(w, err, "error in fetching artifact promotion request by id", http.StatusInternalServerError)
 			return
 		}
 		appRbacObj, envRbacObj := handler.getAppAndEnvObjectByCdPipelineId(artifactPromotionDao.DestinationPipelineId)
@@ -272,7 +274,7 @@ func (handler RestHandlerImpl) FetchAwaitingApprovalEnvListForArtifact(w http.Re
 
 }
 
-func (handler RestHandlerImpl) GetArtifactsForPromotion(w http.ResponseWriter, r *http.Request) {
+func (handler *RestHandlerImpl) GetArtifactsForPromotion(w http.ResponseWriter, r *http.Request) {
 
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if err != nil || userId == 0 {
@@ -280,15 +282,6 @@ func (handler RestHandlerImpl) GetArtifactsForPromotion(w http.ResponseWriter, r
 		return
 	}
 	token := r.Header.Get("token")
-	isAuthorised, err := handler.userService.IsUserAdminOrManagerForAnyApp(userId, token)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	if !isAuthorised {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
-	}
 
 	queryParams := r.URL.Query()
 
@@ -328,6 +321,7 @@ func (handler RestHandlerImpl) GetArtifactsForPromotion(w http.ResponseWriter, r
 		}
 	}
 
+	// TODO: make function
 	if len(resource) == 0 {
 		handler.logger.Errorw("resource is a mandatory field")
 		common.WriteJsonResp(w, errors.New("resource is a mandatory field"), nil, http.StatusBadRequest)
@@ -427,16 +421,6 @@ func (handler RestHandlerImpl) GetArtifactsForPromotion(w http.ResponseWriter, r
 		UserId:                userId,
 		Token:                 token,
 	}
-	artifactPromotionMaterialRequest.Resource = resource
-	artifactPromotionMaterialRequest.ResourceName = resourceName
-	artifactPromotionMaterialRequest.AppId = appId
-	artifactPromotionMaterialRequest.WorkflowId = workflowId
-	artifactPromotionMaterialRequest.Offset = offset
-	artifactPromotionMaterialRequest.Limit = limit
-
-	artifactPromotionMaterialRequest.PendingForCurrentUser = pendingForCurrentUser
-	artifactPromotionMaterialRequest.UserId = userId
-	artifactPromotionMaterialRequest.Token = token
 
 	artifactPromotionMaterialResponse, err := handler.appArtifactManager.FetchMaterialForArtifactPromotion(artifactPromotionMaterialRequest, handler.CheckImagePromoterAuth)
 	if err != nil {
@@ -482,6 +466,7 @@ func (handler RestHandlerImpl) FetchEnvironmentsList(w http.ResponseWriter, r *h
 	token := r.Header.Get("token")
 
 	queryParams := r.URL.Query()
+	// todo: use extract query params method
 	workflowIdStr := queryParams.Get("workflowId")
 	workflowId := 0
 	if workflowIdStr == "" {
@@ -519,13 +504,14 @@ func (handler RestHandlerImpl) FetchEnvironmentsList(w http.ResponseWriter, r *h
 		return
 	}
 
+	// todo: extractout this rbac logic into a method
 	environmentNames := make([]string, 0, len(wfMeta.EnvMap))
 	for envName, _ := range wfMeta.EnvMap {
 		environmentNames = append(environmentNames, envName)
 	}
 	envRbacObjectMap := handler.enforcerUtil.GetEnvRBACByAppNameAndEnvNames(wfMeta.AppName, environmentNames)
 	envObjectArr := make([]string, 0)
-	for _, obj := range envObjectArr {
+	for _, obj := range envRbacObjectMap {
 		envObjectArr = append(envObjectArr, obj)
 	}
 	authorizedEnvironments := make(map[string]bool)

@@ -81,7 +81,7 @@ type WorkflowDagExecutor interface {
 	OnDeleteCdPipelineEvent(pipelineId int, triggeredBy int32)
 
 	BuildCiArtifactRequestForWebhook(event pipeline.ExternalCiWebhookDto) (*bean2.CiArtifactWebhookRequest, error)
-	HandleArtifactPromotionEvent(request bean5.TriggerRequest)
+	HandleArtifactPromotionEvent(request bean5.TriggerRequest) error
 }
 
 type WorkflowDagExecutorImpl struct {
@@ -307,7 +307,7 @@ func (impl *WorkflowDagExecutorImpl) UpdateWorkflowRunnerStatusForDeployment(app
 		wfr.FinishedOn = time.Now()
 		return true
 	case serverBean.HelmReleaseStatusDeployed:
-		//skip if there is no deployment after wfr.StartedOn and continue for next workflow status
+		// skip if there is no deployment after wfr.StartedOn and continue for next workflow status
 		if helmInstalledDevtronApp.GetLastDeployed().AsTime().Before(wfr.StartedOn) {
 			impl.logger.Warnw("release mismatched, skipping helm apps status update for this trigger", "appIdentifier", appIdentifier, "err", err)
 			return false
@@ -383,7 +383,7 @@ func (impl *WorkflowDagExecutorImpl) UpdateReleaseContextForPipeline(pipelineId,
 	impl.devtronAppReleaseContextMapLock.Lock()
 	defer impl.devtronAppReleaseContextMapLock.Unlock()
 	if releaseContext, ok := impl.devtronAppReleaseContextMap[pipelineId]; ok {
-		//Abort previous running release
+		// Abort previous running release
 		impl.logger.Infow("new deployment has been triggered with a running deployment in progress!", "aborting deployment for pipelineId", pipelineId)
 		releaseContext.CancelContext()
 	}
@@ -397,7 +397,7 @@ func (impl *WorkflowDagExecutorImpl) RemoveReleaseContextForPipeline(pipelineId 
 	impl.devtronAppReleaseContextMapLock.Lock()
 	defer impl.devtronAppReleaseContextMapLock.Unlock()
 	if releaseContext, ok := impl.devtronAppReleaseContextMap[pipelineId]; ok {
-		//Abort previous running release
+		// Abort previous running release
 		impl.logger.Infow("CD pipeline has been deleted with a running deployment in progress!", "aborting deployment for pipelineId", pipelineId)
 		cdWfr, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(releaseContext.RunnerId)
 		if err != nil {
@@ -431,7 +431,7 @@ func (impl *WorkflowDagExecutorImpl) handleConcurrentRequest(wfrId int) bool {
 	impl.devtronAsyncHelmInstallRequestLock.Lock()
 	defer impl.devtronAsyncHelmInstallRequestLock.Unlock()
 	if _, exists := impl.devtronAsyncHelmInstallRequestMap[wfrId]; exists {
-		//request is in process already, Skip here
+		// request is in process already, Skip here
 		return true
 	}
 	impl.devtronAsyncHelmInstallRequestMap[wfrId] = true
@@ -452,7 +452,7 @@ func (impl *WorkflowDagExecutorImpl) cleanUpDevtronAsyncHelmInstallRequest(pipel
 	impl.devtronAsyncHelmInstallRequestLock.Lock()
 	defer impl.devtronAsyncHelmInstallRequestLock.Unlock()
 	if _, exists := impl.devtronAsyncHelmInstallRequestMap[wfrId]; exists {
-		//request is in process already, Skip here
+		// request is in process already, Skip here
 		delete(impl.devtronAsyncHelmInstallRequestMap, wfrId)
 	}
 	impl.cleanUpDevtronAppReleaseContextMap(pipelineId, wfrId)
@@ -474,7 +474,7 @@ func (impl *WorkflowDagExecutorImpl) processDevtronAsyncHelmInstallRequest(CDAsy
 		return
 	}
 
-	//skip if the cdWfr is not the latest one
+	// skip if the cdWfr is not the latest one
 	exists, err := impl.handleIfPreviousRunnerTriggerRequest(cdWfr, overrideRequest.UserId)
 	if err != nil {
 		impl.logger.Errorw("err in validating latest cd workflow runner, processDevtronAsyncHelmInstallRequest", "err", err)
@@ -499,7 +499,7 @@ func (impl *WorkflowDagExecutorImpl) processDevtronAsyncHelmInstallRequest(CDAsy
 	defer cancel()
 
 	impl.UpdateReleaseContextForPipeline(overrideRequest.PipelineId, cdWfr.Id, cancel)
-	//update workflow runner status, used in app workflow view
+	// update workflow runner status, used in app workflow view
 	err = impl.cdWorkflowCommonService.UpdateCDWorkflowRunnerStatus(ctx, overrideRequest, CDAsyncInstallNatsMessage.TriggeredAt, pipelineConfig.WorkflowStarting, "")
 	if err != nil {
 		impl.logger.Errorw("error in updating the workflow runner status, processDevtronAsyncHelmInstallRequest", "cdWfrId", cdWfr.Id, "err", err)
@@ -564,9 +564,9 @@ func (impl *WorkflowDagExecutorImpl) SubscribeDevtronAsyncHelmInstallRequest() e
 }
 
 func (impl *WorkflowDagExecutorImpl) handleCiSuccessEvent(triggerContext bean5.TriggerContext, artifact *repository.CiArtifact, async bool, triggeredBy int32) error {
-	//1. get cd pipelines
-	//2. get config
-	//3. trigger wf/ deployment
+	// 1. get cd pipelines
+	// 2. get config
+	// 3. trigger wf/ deployment
 	var pipelineID int
 	if artifact.DataSource == repository.POST_CI {
 		pipelineID = artifact.ComponentId
@@ -628,7 +628,7 @@ func (impl *WorkflowDagExecutorImpl) handleWebhookExternalCiEvent(artifact *repo
 	}
 
 	for _, pipeline := range pipelines {
-		//applyAuth=false, already auth applied for this flow
+		// applyAuth=false, already auth applied for this flow
 		triggerRequest := bean5.TriggerRequest{
 			CdWf:        nil,
 			Pipeline:    pipeline,
@@ -672,7 +672,7 @@ func (impl *WorkflowDagExecutorImpl) triggerIfAutoStageCdPipeline(request bean5.
 		return err
 	}
 
-	//handle corrupt data (https://github.com/devtron-labs/devtron/issues/3826)
+	// handle corrupt data (https://github.com/devtron-labs/devtron/issues/3826)
 	err, deleted := impl.deleteCorruptedPipelineStage(preStage, request.TriggeredBy)
 	if err != nil {
 		impl.logger.Errorw("error in deleteCorruptedPipelineStage ", "cdPipelineId", request.Pipeline.Id, "err", err, "preStage", preStage, "triggeredBy", request.TriggeredBy)
@@ -765,7 +765,7 @@ func (impl *WorkflowDagExecutorImpl) HandleDeploymentSuccessEvent(triggerContext
 	}
 
 	var triggeredByUser int32 = 1
-	//handle corrupt data (https://github.com/devtron-labs/devtron/issues/3826)
+	// handle corrupt data (https://github.com/devtron-labs/devtron/issues/3826)
 	err, deleted := impl.deleteCorruptedPipelineStage(postStage, triggeredByUser)
 	if err != nil {
 		impl.logger.Errorw("error in deleteCorruptedPipelineStage ", "err", err, "preStage", postStage, "triggeredBy", triggeredByUser)
@@ -1350,11 +1350,12 @@ func (impl *WorkflowDagExecutorImpl) BuildCiArtifactRequestForWebhook(event pipe
 	return request, nil
 }
 
-func (impl *WorkflowDagExecutorImpl) HandleArtifactPromotionEvent(request bean5.TriggerRequest) {
-	go func() {
-		err := impl.triggerIfAutoStageCdPipeline(request)
-		if err != nil {
-			impl.logger.Errorw("error in auto trigger on artifact promotion event", "artifactId", request.Artifact.Id, "pipelineId", request.Pipeline.Id, "err", err)
-		}
-	}()
+func (impl *WorkflowDagExecutorImpl) HandleArtifactPromotionEvent(request bean5.TriggerRequest) error {
+
+	err := impl.triggerIfAutoStageCdPipeline(request)
+	if err != nil {
+		impl.logger.Errorw("error in auto trigger on artifact promotion event", "artifactId", request.Artifact.Id, "pipelineId", request.Pipeline.Id, "err", err)
+	}
+	return err
+
 }

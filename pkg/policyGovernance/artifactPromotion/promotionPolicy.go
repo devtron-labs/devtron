@@ -19,6 +19,7 @@ type PromotionPolicyCUDService interface {
 	UpdatePolicy(userId int32, policyName string, policyBean *bean.PromotionPolicy) error
 	CreatePolicy(userId int32, policyBean *bean.PromotionPolicy) error
 	DeletePolicy(userId int32, profileName string) error
+	// todo: remove pre
 	AddPreDeleteHook(hook func(tx *pg.Tx, policyId int) error)
 	AddPreUpdateHook(hook func(tx *pg.Tx, policy *bean.PromotionPolicy) error)
 }
@@ -30,6 +31,7 @@ type PromotionPolicyServiceImpl struct {
 	logger                          *zap.SugaredLogger
 
 	// hooks
+	// todo: remove pre
 	preDeleteHooks []func(tx *pg.Tx, policyId int) error
 	preUpdateHooks []func(tx *pg.Tx, policy *bean.PromotionPolicy) error
 }
@@ -81,6 +83,7 @@ func (impl *PromotionPolicyServiceImpl) UpdatePolicy(userId int32, policyName st
 		return err
 	}
 
+	// todo: create a transaction manager
 	tx, err := impl.resourceQualifierMappingService.StartTx()
 	if err != nil {
 		impl.logger.Errorw("error in starting the transaction", "userId", userId, "policyName", policyName, "err", err)
@@ -161,6 +164,7 @@ func (impl *PromotionPolicyServiceImpl) DeletePolicy(userId int32, policyName st
 		return err
 	}
 
+	// todo: move it to post delete
 	for _, hook := range impl.preDeleteHooks {
 		err = hook(tx, policyId)
 		if err != nil {

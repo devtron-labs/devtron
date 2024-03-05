@@ -242,6 +242,7 @@ type GlobalPolicyBaseModel struct {
 }
 
 type GlobalPolicyDataModel struct {
+	// todo: make it pointer
 	GlobalPolicyBaseModel
 	SearchableFields []util.SearchableField
 }
