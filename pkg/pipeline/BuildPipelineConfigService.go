@@ -1260,8 +1260,15 @@ func (impl *CiPipelineConfigServiceImpl) PatchCiPipeline(request *bean.CiPatchRe
 		impl.logger.Errorw("err in fetching template for pipeline patch, ", "err", err, "appId", request.AppId)
 		return nil, err
 	}
+	if request.CiPipeline != nil {
+		//setting ScanEnabled value from env variable,
+		request.CiPipeline.ScanEnabled = request.CiPipeline.ScanEnabled || impl.securityConfig.ForceSecurityScanning
+		ciConfig.ScanEnabled = request.CiPipeline.ScanEnabled
+	}
 	if request.CiPipeline.PipelineType == pipelineConfigBean.CI_JOB {
 		request.CiPipeline.IsDockerConfigOverridden = true
+		request.CiPipeline.ScanEnabled = false
+		ciConfig.ScanEnabled = false
 		request.CiPipeline.DockerConfigOverride = bean.DockerConfigOverride{
 			DockerRegistry:   ciConfig.DockerRegistry,
 			DockerRepository: ciConfig.DockerRepository,
@@ -1278,11 +1285,6 @@ func (impl *CiPipelineConfigServiceImpl) PatchCiPipeline(request *bean.CiPatchRe
 	}
 	ciConfig.AppWorkflowId = request.AppWorkflowId
 	ciConfig.UserId = request.UserId
-	if request.CiPipeline != nil {
-		//setting ScanEnabled value from env variable,
-		request.CiPipeline.ScanEnabled = request.CiPipeline.ScanEnabled || impl.securityConfig.ForceSecurityScanning
-		ciConfig.ScanEnabled = request.CiPipeline.ScanEnabled
-	}
 
 	ciConfig.IsJob = request.IsJob
 	// Check for clone job to not create env override again
