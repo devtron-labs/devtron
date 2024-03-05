@@ -87,7 +87,7 @@ const (
 	APPROVER_COUNT_SORT_KEY     SortKey         = "approverCount"
 	ASC                         SortOrder       = "ASC"
 	DESC                        SortOrder       = "DESC"
-	APPROVER_COUNT_SEARCH_FIELD SearchableField = "ApproverCount"
+	APPROVER_COUNT_SEARCH_FIELD SearchableField = "approver_count"
 )
 
 type ArtifactPromotionRequest struct {
