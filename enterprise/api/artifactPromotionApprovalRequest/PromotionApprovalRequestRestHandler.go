@@ -117,7 +117,7 @@ func (handler RestHandlerImpl) HandleArtifactPromotionRequest(w http.ResponseWri
 		environmentNames := promotionRequest.EnvironmentNames
 		envRbacObjectMap := handler.enforcerUtil.GetEnvRBACByAppNameAndEnvNames(appName, environmentNames)
 		envObjectArr := make([]string, 0)
-		for _, obj := range envObjectArr {
+		for _, obj := range envRbacObjectMap {
 			envObjectArr = append(envObjectArr, obj)
 		}
 		results := handler.enforcer.EnforceInBatch(token, casbin.ResourceEnvironment, casbin.ActionTrigger, envObjectArr)
@@ -132,7 +132,7 @@ func (handler RestHandlerImpl) HandleArtifactPromotionRequest(w http.ResponseWri
 		environmentNames := promotionRequest.EnvironmentNames
 		teamEnvRbacObjectMap := handler.enforcerUtil.GetTeamEnvRbacObjByAppAndEnvNames(appName, environmentNames)
 		teamEnvObjectArr := make([]string, 0)
-		for _, obj := range teamEnvObjectArr {
+		for _, obj := range teamEnvRbacObjectMap {
 			teamEnvObjectArr = append(teamEnvObjectArr, obj)
 		}
 		results := handler.enforcer.EnforceInBatch(token, casbin.ResourceApprovalPolicy, casbin.ActionArtifactPromote, teamEnvObjectArr)
@@ -511,7 +511,7 @@ func (handler RestHandlerImpl) FetchEnvironmentsList(w http.ResponseWriter, r *h
 	}
 	envRbacObjectMap := handler.enforcerUtil.GetEnvRBACByAppNameAndEnvNames(wfMeta.AppName, environmentNames)
 	envObjectArr := make([]string, 0)
-	for _, obj := range envObjectArr {
+	for _, obj := range envRbacObjectMap {
 		envObjectArr = append(envObjectArr, obj)
 	}
 	authorizedEnvironments := make(map[string]bool)

@@ -327,11 +327,9 @@ func (impl *ArtifactPromotionApprovalServiceImpl) evaluatePoliciesOnArtifact(ciA
 			}
 			continue
 		}
-		envResp := bean.EnvironmentResponse{
-			Name:              envName,
-			ApprovalCount:     policy.ApprovalMetaData.ApprovalCount,
-			PromotionPossible: pointer.Bool(evaluationResult),
-		}
+		envResp := responseMap[envName]
+		envResp.ApprovalCount = policy.ApprovalMetaData.ApprovalCount
+		envResp.PromotionPossible = pointer.Bool(evaluationResult)
 		// checks on metadata not needed as this is just an evaluation flow (kinda validation)
 		if !evaluationResult {
 			envResp.PromotionValidationMessage = string(bean.BLOCKED_BY_POLICY)
