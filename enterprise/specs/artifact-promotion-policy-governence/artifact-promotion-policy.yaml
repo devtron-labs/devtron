@@ -259,7 +259,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ArtifactPromotionMaterialResponse"
 
-  /orchestrator/policy/artifact-promotion/{name}:
+  /orchestrator/artifact-promotion/policy/{name}:
     get:
       description: "get artifact promotion policy by its name"
       responses:
@@ -304,7 +304,7 @@ paths:
         "204":
           description: "deletes the promotion policy by its name successfully."
 
-  /orchestrator/policy/artifact-promotion/autocomplete:
+  /orchestrator//artifact-promotion/policy/autocomplete:
     get:
       description: "gets the active policy names"
       responses:
@@ -326,7 +326,7 @@ paths:
                     items:
                       type: string
 
-  /orchestrator/policy/artifact-promotion:
+  /orchestrator/artifact-promotion/policy:
     get:
       parameters:
         - name: search

@@ -492,6 +492,6 @@ func (r MuxRouter) Init() {
 	commonPolicyRouter := r.Router.PathPrefix("/orchestrator/common/policy").Subrouter()
 	r.commonPolicyRouter.InitCommonPolicyRouter(commonPolicyRouter)
 
-	artifactPromotionPolicyRouter := r.Router.PathPrefix("/orchestrator/policy/artifact-promotion").Subrouter()
+	artifactPromotionPolicyRouter := r.Router.PathPrefix("/orchestrator/artifact-promotion/policy").Subrouter()
 	r.artifactPromotionPolicy.InitRouter(artifactPromotionPolicyRouter)
 }
