@@ -4,9 +4,9 @@
 
 Building container images in CI often results in a growing number of images, not all of which are production-ready. Therefore, it's a best practice to maintain a separate repository exclusively for storing production-builds. However, this would involve copying the container image (production-ready) from your existing repository to the production repository. 
 
-This plugin helps you copy a container image to a desired container [repository](../../../../reference/glossary.md#repo). The pushing of image can be between repositories of the same container [registry](../../../../reference/glossary.md#containeroci-registry) or between repositories of different container registry. One of the major usecases this plugin serves is multi-cloud deployments.
+This plugin helps you copy a container image to a desired container [repository](../../reference/glossary.md#repo). The pushing of image can be between repositories of the same container [registry](../../reference/glossary.md#containeroci-registry) or between repositories of different container registry. One of the major usecases this plugin serves is multi-cloud deployments.
 
-The plugin can be used at post CI, pre-CD, and post-CD. Moreover, you can also [customize the image tag pattern](../cd-pipeline.md#custom-image-tag-pattern) for the copied image.
+The plugin can be used at post CI, pre-CD, and post-CD. Moreover, you can also [customize the image tag pattern](../creating-application/workflow/cd-pipeline.md#custom-image-tag-pattern) for the copied image.
 
 ## Steps to Use
 
@@ -28,7 +28,7 @@ The plugin can be used at post CI, pre-CD, and post-CD. Moreover, you can also [
 
     ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/image-destination.jpg)
 
-    * **registry-name** is the name you gave to your container registry while adding it in [Global Configuration → OCI/Container Registry](../../../global-configurations/container-registries.md#add-container-registry).
+    * **registry-name** is the name you gave to your container registry while adding it in [Global Configuration → OCI/Container Registry](../global-configurations/container-registries.md#add-container-registry).
 
     * **user-name** is the your account name registered with you container registry, e.g., DockerHub.
 
@@ -44,7 +44,7 @@ The plugin can be used at post CI, pre-CD, and post-CD. Moreover, you can also [
 
     ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/trigger-pre-cd.jpg)
 
-9. The copying process will initiate, and once it is successful, the [tag for the copied image](../cd-pipeline.md#custom-image-tag-pattern) would reflect at all relevant screens:
+9. The copying process will initiate, and once it is successful, the [tag for the copied image](../creating-application/workflow/cd-pipeline.md#custom-image-tag-pattern) would reflect at all relevant screens:
 
     * **Destination Repository**
 
@@ -57,7 +57,7 @@ The plugin can be used at post CI, pre-CD, and post-CD. Moreover, you can also [
     ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/prod-image.jpg)
 
 {% hint style="info" %}
-You can also filter out specific images (of target repository) from deployment. Refer [Filter Condition](../../../global-configurations/filter-condition.md) to know the process.
+You can also filter out specific images (of target repository) from deployment. Refer [Filter Condition](../global-configurations/filter-condition.md) to know the process.
 {% endhint %}
 
 
