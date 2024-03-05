@@ -46,7 +46,7 @@ func (impl *ResourceFilterRouterImpl) InitResourceFilterRouter(router *mux.Route
 		HandlerFunc(impl.resourceFilterRestHandler.ValidateExpression).
 		Methods("POST")
 
-	router.Path("/metadata").
+	router.Path("/criteria/metadata").
 		HandlerFunc(impl.resourceFilterRestHandler.GetResourceFilterMetaData).
 		Methods("GET")
 

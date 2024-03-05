@@ -12,7 +12,7 @@ type Constraint string
 const UNIQUE_USER_REQUEST_ACTION Constraint = "unique_user_request_action"
 
 type RequestApprovalUserdataRepository interface {
-	SaveDeploymentUserData(userData *RequestApprovalUserData) error
+	SaveRequestApprovalUserData(userData *RequestApprovalUserData) error
 	FetchApprovalDataForRequests(requestIds []int, requestType repository.RequestType) ([]*RequestApprovalUserData, error)
 	FetchApprovedDataByApprovalId(approvalRequestId int, requestType repository.RequestType) ([]*RequestApprovalUserData, error)
 }
@@ -60,7 +60,7 @@ func (impl *RequestApprovalUserDataRepositoryImpl) FetchApprovedDataByApprovalId
 
 }
 
-func (impl *RequestApprovalUserDataRepositoryImpl) SaveDeploymentUserData(userData *RequestApprovalUserData) error {
+func (impl *RequestApprovalUserDataRepositoryImpl) SaveRequestApprovalUserData(userData *RequestApprovalUserData) error {
 	currentTime := time.Now()
 	userData.CreatedOn = currentTime
 	userData.UpdatedOn = currentTime

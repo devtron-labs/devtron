@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/util"
 	util2 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -855,17 +856,17 @@ func (impl PipelineRepositoryImpl) findAppAndEnvDetailsByListFilter(filter CdPip
 	where := " WHERE p.deleted = false"
 
 	if len(filter.IncludeAppEnvIds) > 0 {
-		where += fmt.Sprintf("AND (p.app_id,pipeline.environment_id) IN (%s)", pg.InMulti(filter.IncludeAppEnvIds))
+		where += fmt.Sprintf(" AND (p.app_id,pipeline.environment_id) IN (%s)", helper.GetCommaSeperatedForMulti(filter.IncludeAppEnvIds))
 	}
 	if len(filter.ExcludeAppEnvIds) > 0 {
-		where += fmt.Sprintf("AND (p.app_id,p.environment_id) NOT IN (%s)", pg.InMulti(filter.ExcludeAppEnvIds))
+		where += fmt.Sprintf(" AND (p.app_id,p.environment_id) NOT IN (%s)", helper.GetCommaSeperatedForMulti(filter.ExcludeAppEnvIds))
 	}
 	if len(filter.AppNames) > 0 {
-		where += fmt.Sprintf("AND app_name IN (%s)", pg.In(filter.AppNames))
+		where += fmt.Sprintf(" AND app_name IN (%s)", helper.GetCommaSepratedString(filter.AppNames))
 	}
 
-	if len(filter.AppNames) > 0 {
-		where += fmt.Sprintf("AND e.environment_name IN (%s)", pg.In(filter.EnvNames))
+	if len(filter.EnvNames) > 0 {
+		where += fmt.Sprintf(" AND e.environment_name IN (%s)", helper.GetCommaSepratedString(filter.EnvNames))
 	}
 
 	query += where
