@@ -82,8 +82,8 @@ type GitMaterial struct {
 	FilterPattern    []string `json:"filterPattern"`
 }
 
-// SanitiseGitRepoUrl will remove all trailing slashes from git repository url
-func (m *GitMaterial) SanitiseGitRepoUrl() {
+// UpdateSanitisedGitRepoUrl will remove all trailing slashes from git repository url
+func (m *GitMaterial) UpdateSanitisedGitRepoUrl() {
 	for strings.HasSuffix(m.Url, "/") {
 		m.Url = strings.TrimSuffix(m.Url, "/")
 	}
