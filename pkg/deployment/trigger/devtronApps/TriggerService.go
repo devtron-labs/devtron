@@ -18,8 +18,10 @@ import (
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
+	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
+	repository4 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -28,6 +30,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
+	chartService "github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
@@ -92,6 +95,7 @@ type TriggerServiceImpl struct {
 	argoClientWrapperService            argocdServer.ArgoClientWrapperService
 	pipelineStatusTimelineService       status.PipelineStatusTimelineService
 	chartTemplateService                util.ChartTemplateService
+	chartService                        chartService.ChartService
 	eventFactory                        client.EventFactory
 	eventClient                         client.EventClient
 	globalEnvVariables                  *util3.GlobalEnvVariables
@@ -110,8 +114,8 @@ type TriggerServiceImpl struct {
 	userService                         user.UserService
 	gitSensorGrpcClient                 gitSensorClient.Client
 	config                              *types.CdConfig
-
-	helmAppService client2.HelmAppService
+	appRepository                       appRepository.AppRepository
+	helmAppService                      client2.HelmAppService
 
 	enforcerUtil  rbac.EnforcerUtil
 	helmAppClient gRPC.HelmAppClient //TODO refactoring: use helm app service instead
@@ -129,11 +133,12 @@ type TriggerServiceImpl struct {
 	cdWorkflowRepository          pipelineConfig.CdWorkflowRepository
 	ciWorkflowRepository          pipelineConfig.CiWorkflowRepository
 	ciArtifactRepository          repository3.CiArtifactRepository
-	ciTemplateRepository          pipelineConfig.CiTemplateRepository
+	ciTemplateService             pipeline.CiTemplateService
 	materialRepository            pipelineConfig.MaterialRepository
 	appLabelRepository            pipelineConfig.AppLabelRepository
 	ciPipelineRepository          pipelineConfig.CiPipelineRepository
 	appWorkflowRepository         appWorkflow.AppWorkflowRepository
+	dockerArtifactStoreRepository repository4.DockerArtifactStoreRepository
 }
 
 func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd.CdWorkflowCommonService,
@@ -144,6 +149,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
 	pipelineStatusTimelineService status.PipelineStatusTimelineService,
 	chartTemplateService util.ChartTemplateService,
+	chartService chartService.ChartService,
 	workflowEventPublishService out.WorkflowEventPublishService,
 	manifestCreationService manifest.ManifestCreationService,
 	deployedConfigurationHistoryService history.DeployedConfigurationHistoryService,
@@ -177,11 +183,12 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	ciArtifactRepository repository3.CiArtifactRepository,
-	ciTemplateRepository pipelineConfig.CiTemplateRepository,
+	ciTemplateService pipeline.CiTemplateService,
 	materialRepository pipelineConfig.MaterialRepository,
 	appLabelRepository pipelineConfig.AppLabelRepository,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
-	appWorkflowRepository appWorkflow.AppWorkflowRepository) (*TriggerServiceImpl, error) {
+	appWorkflowRepository appWorkflow.AppWorkflowRepository,
+	dockerArtifactStoreRepository repository4.DockerArtifactStoreRepository) (*TriggerServiceImpl, error) {
 	impl := &TriggerServiceImpl{
 		logger:                              logger,
 		cdWorkflowCommonService:             cdWorkflowCommonService,
@@ -192,6 +199,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 		argoClientWrapperService:            argoClientWrapperService,
 		pipelineStatusTimelineService:       pipelineStatusTimelineService,
 		chartTemplateService:                chartTemplateService,
+		chartService:                        chartService,
 		workflowEventPublishService:         workflowEventPublishService,
 		manifestCreationService:             manifestCreationService,
 		deployedConfigurationHistoryService: deployedConfigurationHistoryService,
@@ -225,11 +233,12 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 		cdWorkflowRepository:                cdWorkflowRepository,
 		ciWorkflowRepository:                ciWorkflowRepository,
 		ciArtifactRepository:                ciArtifactRepository,
-		ciTemplateRepository:                ciTemplateRepository,
+		ciTemplateService:                   ciTemplateService,
 		materialRepository:                  materialRepository,
 		appLabelRepository:                  appLabelRepository,
 		ciPipelineRepository:                ciPipelineRepository,
 		appWorkflowRepository:               appWorkflowRepository,
+		dockerArtifactStoreRepository:       dockerArtifactStoreRepository,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -760,8 +769,15 @@ func (impl *TriggerServiceImpl) triggerPipeline(overrideRequest *bean3.ValuesOve
 			return releaseNo, manifest, manifestPushResponse.Error
 		}
 		// Update GitOps repo url after repo migration
-		valuesOverrideResponse.EnvOverride.Chart.GitRepoUrl = manifestPushResponse.OverRiddenRepoUrl
-
+		if manifestPushResponse.IsGitOpsRepoMigrated() {
+			valuesOverrideResponse.EnvOverride.Chart.GitRepoUrl = manifestPushResponse.OverRiddenRepoUrl
+			// below function will override gitRepoUrl for charts even if user has already configured gitOps repoURL
+			err = impl.chartService.OverrideGitOpsRepoUrl(manifestPushTemplate.AppId, manifestPushResponse.OverRiddenRepoUrl, manifestPushTemplate.UserId)
+			if err != nil {
+				impl.logger.Errorw("error in updating git repo url in charts", "err", err)
+				return releaseNo, manifest, fmt.Errorf("No repository configured for Gitops! Error while migrating gitops repository: '%s'", manifestPushResponse.OverRiddenRepoUrl)
+			}
+		}
 		pipelineOverrideUpdateRequest := &chartConfig.PipelineOverride{
 			Id:                     valuesOverrideResponse.PipelineOverride.Id,
 			GitHash:                manifestPushResponse.CommitHash,

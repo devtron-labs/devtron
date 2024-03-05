@@ -34,6 +34,10 @@ type ManifestPushResponse struct {
 	Error             error
 }
 
+func (m ManifestPushResponse) IsGitOpsRepoMigrated() bool {
+	return len(m.OverRiddenRepoUrl) != 0
+}
+
 type HelmRepositoryConfig struct {
 	repositoryName        string
 	containerRegistryName string

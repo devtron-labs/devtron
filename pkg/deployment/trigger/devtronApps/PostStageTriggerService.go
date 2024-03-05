@@ -97,7 +97,6 @@ func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) er
 		}
 		return fmt.Errorf("found vulnerability for image digest %s", cdWf.CiArtifact.ImageDigest)
 	}
-
 	cdStageWorkflowRequest, err := impl.buildWFRequest(runner, cdWf, pipeline, triggeredBy)
 	if err != nil {
 		impl.logger.Errorw("error in building wfRequest", "err", err, "runner", runner, "cdWf", cdWf, "pipeline", pipeline)

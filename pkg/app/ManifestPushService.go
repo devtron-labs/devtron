@@ -8,7 +8,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/app/bean"
 	status2 "github.com/devtron-labs/devtron/pkg/app/status"
-	chartService "github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	gitOpsBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/config/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
@@ -32,7 +31,6 @@ type GitOpsManifestPushServiceImpl struct {
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository
 	acdConfig                        *argocdServer.ACDConfig
 	chartRefService                  chartRef.ChartRefService
-	chartService                     chartService.ChartService
 	gitOpsConfigReadService          config.GitOpsConfigReadService
 	gitOperationService              git.GitOperationService
 	argoClientWrapperService         argocdServer.ArgoClientWrapperService
@@ -43,7 +41,6 @@ func NewGitOpsManifestPushServiceImpl(logger *zap.SugaredLogger,
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository,
 	acdConfig *argocdServer.ACDConfig,
 	chartRefService chartRef.ChartRefService,
-	chartService chartService.ChartService,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
 	gitOperationService git.GitOperationService,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService) *GitOpsManifestPushServiceImpl {
@@ -53,7 +50,6 @@ func NewGitOpsManifestPushServiceImpl(logger *zap.SugaredLogger,
 		pipelineStatusTimelineRepository: pipelineStatusTimelineRepository,
 		acdConfig:                        acdConfig,
 		chartRefService:                  chartRefService,
-		chartService:                     chartService,
 		gitOpsConfigReadService:          gitOpsConfigReadService,
 		gitOperationService:              gitOperationService,
 		argoClientWrapperService:         argoClientWrapperService,
@@ -77,12 +73,6 @@ func (impl *GitOpsManifestPushServiceImpl) migrateRepoForGitOperation(manifestPu
 		impl.logger.Errorw("error in registering app in acd", "err", err)
 		return "", fmt.Errorf("Error in registering repository '%s' in ArgoCd", gitOpsRepoName)
 	}
-	// below function will override gitRepoUrl for charts even if user has already configured gitOps repoURL
-	err = impl.chartService.OverrideGitOpsRepoUrl(manifestPushTemplate.AppId, chartGitAttr.RepoUrl, manifestPushTemplate.UserId)
-	if err != nil {
-		impl.logger.Errorw("error in updating git repo url in charts", "err", err)
-		return "", fmt.Errorf("No repository configured for Gitops! Error while creating git repository: '%s'", gitOpsRepoName)
-	}
 	return chartGitAttr.RepoUrl, nil
 }
 
@@ -99,9 +89,7 @@ func (impl *GitOpsManifestPushServiceImpl) validateManifestPushRequest(globalGit
 }
 
 func (impl *GitOpsManifestPushServiceImpl) PushChart(manifestPushTemplate *bean.ManifestPushTemplate, ctx context.Context) bean.ManifestPushResponse {
-	manifestPushResponse := bean.ManifestPushResponse{
-		OverRiddenRepoUrl: manifestPushTemplate.RepoUrl,
-	}
+	manifestPushResponse := bean.ManifestPushResponse{}
 	// 1. Fetch Global GitOps Details
 	globalGitOpsConfigStatus, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
 	if err != nil {
