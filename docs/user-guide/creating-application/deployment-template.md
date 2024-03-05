@@ -15,10 +15,10 @@ To configure a deployment chart for your application, do the following steps:
 
 You can select a default deployment chart from the following options:
 
-1. [Deployment](https://docs.devtron.ai/usage/applications/creating-application/deployment-template/deployment) (Recommended)
-1. [Rollout Deployment](deployment-template/rollout-deployment.md)
-2. [Job & CronJob](deployment-template/job-and-cronjob.md)
-3. Knative
+1. [Deployment](deployment-template/deployment) (Recommended)
+2. [Rollout Deployment](deployment-template/rollout-deployment.md)
+3. [Job & CronJob](deployment-template/job-and-cronjob.md)
+4. [StatefulSet](deployment-template/statefulset.md)
 
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/deployment-template/deployment-chart.png)
@@ -45,3 +45,7 @@ Enable **show application metrics** toggle to view the application metrics on th
 > **IMPORTANT**: Enabling Application metrics introduces a sidecar container to your main container which may require some additional configuration adjustments. We recommend you to do load test after enabling it in a non-production environment before enabling it in production environment.
 
 Select **Save & Next** to save your configurations.
+
+{% hint style="warning" %}
+Super-admins can lock keys in base deployment template to prevent non-super-admins from modifying those locked keys. Refer [Lock Deployment Config](../../global-configurations/lock-deployment-config.md) to know more.
+{% endhint %}

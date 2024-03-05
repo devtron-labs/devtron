@@ -24,7 +24,7 @@ If no approved images are available or the current image is already deployed, yo
 
 ### Requesting for Image Approval
 
-Users need to have [Build & deploy permission](../user-guide/global-configurations/authorization/user-access.md#role-based-access-levels) or above (along with access to the environment and application) to request for an image approval.
+Users need to have [Build & deploy permission](../global-configurations/authorization/user-access.md#role-based-access-levels) or above (along with access to the environment and application) to request for an image approval.
 
 To request an image approval, follow these steps:
 
