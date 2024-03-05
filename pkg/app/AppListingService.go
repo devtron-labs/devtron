@@ -22,6 +22,7 @@ import (
 	"fmt"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
+	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"net/http"
 	"strconv"
 	"strings"
@@ -31,7 +32,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	userrepository "github.com/devtron-labs/devtron/pkg/auth/user/repository"
-	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
@@ -749,7 +749,7 @@ func (impl AppListingServiceImpl) setIpAccessProvidedData(ctx context.Context, a
 		if ciPipeline != nil && ciPipeline.CiTemplate != nil && len(*ciPipeline.CiTemplate.DockerRegistryId) > 0 {
 			dockerRegistryId := ciPipeline.CiTemplate.DockerRegistryId
 			appDetailContainer.DockerRegistryId = *dockerRegistryId
-			if (!ciPipeline.IsExternal || ciPipeline.ParentCiPipeline != 0) && ciPipeline.PipelineType != string(bean2.LINKED_CD) {
+			if (!ciPipeline.IsExternal || ciPipeline.ParentCiPipeline != 0) && ciPipeline.PipelineType != string(pipelineConfigBean.LINKED_CD) {
 				appDetailContainer.IsExternalCi = false
 			}
 			_, span = otel.Tracer("orchestrator").Start(ctx, "dockerRegistryIpsConfigService.IsImagePullSecretAccessProvided")

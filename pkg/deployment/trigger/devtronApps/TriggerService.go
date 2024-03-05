@@ -142,7 +142,7 @@ type TriggerServiceImpl struct {
 	cdWorkflowRepository          pipelineConfig.CdWorkflowRepository
 	ciWorkflowRepository          pipelineConfig.CiWorkflowRepository
 	ciArtifactRepository          repository3.CiArtifactRepository
-	ciTemplateRepository          pipelineConfig.CiTemplateRepository
+	ciTemplateService             pipeline.CiTemplateService
 	materialRepository            pipelineConfig.MaterialRepository
 	appLabelRepository            pipelineConfig.AppLabelRepository
 	ciPipelineRepository          pipelineConfig.CiPipelineRepository
@@ -197,7 +197,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	ciArtifactRepository repository3.CiArtifactRepository,
-	ciTemplateRepository pipelineConfig.CiTemplateRepository,
+	ciTemplateService pipeline.CiTemplateService,
 	materialRepository pipelineConfig.MaterialRepository,
 	appLabelRepository pipelineConfig.AppLabelRepository,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
@@ -252,7 +252,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 		cdWorkflowRepository:                cdWorkflowRepository,
 		ciWorkflowRepository:                ciWorkflowRepository,
 		ciArtifactRepository:                ciArtifactRepository,
-		ciTemplateRepository:                ciTemplateRepository,
+		ciTemplateService:                   ciTemplateService,
 		materialRepository:                  materialRepository,
 		appLabelRepository:                  appLabelRepository,
 		ciPipelineRepository:                ciPipelineRepository,

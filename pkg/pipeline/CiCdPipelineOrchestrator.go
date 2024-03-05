@@ -48,7 +48,7 @@ import (
 	bean6 "github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/genericNotes"
 	repository3 "github.com/devtron-labs/devtron/pkg/genericNotes/repository"
-	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	history3 "github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	repository5 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
@@ -84,7 +84,7 @@ type CiCdPipelineOrchestrator interface {
 	PatchMaterialValue(createRequest *bean.CiPipeline, userId int32, oldPipeline *pipelineConfig.CiPipeline) (*bean.CiPipeline, error)
 	PatchCiMaterialSource(ciPipeline *bean.CiMaterialPatchRequest, userId int32) (*bean.CiMaterialPatchRequest, error)
 	PatchCiMaterialSourceValue(patchRequest *bean.CiMaterialValuePatchRequest, userId int32, value string, token string, checkAppSpecificAccess func(token, action string, appId int) (bool, error)) (*pipelineConfig.CiPipelineMaterial, error)
-	CreateCiTemplateBean(ciPipelineId int, dockerRegistryId string, dockerRepository string, gitMaterialId int, ciBuildConfig *bean2.CiBuildConfigBean, userId int32) bean2.CiTemplateBean
+	CreateCiTemplateBean(ciPipelineId int, dockerRegistryId string, dockerRepository string, gitMaterialId int, ciBuildConfig *pipelineConfigBean.CiBuildConfigBean, userId int32) pipelineConfigBean.CiTemplateBean
 	UpdateCiPipelineMaterials(materialsUpdate []*pipelineConfig.CiPipelineMaterial) error
 	PipelineExists(name string) (bool, error)
 	GetCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error)
@@ -296,7 +296,7 @@ func (impl CiCdPipelineOrchestratorImpl) validateCiPipelineMaterial(ciPipelineMa
 
 func (impl CiCdPipelineOrchestratorImpl) getSkipMessage(ciPipeline *pipelineConfig.CiPipeline) string {
 	switch ciPipeline.PipelineType {
-	case string(bean.LINKED_CD):
+	case string(pipelineConfigBean.LINKED_CD):
 		return "“Sync with Environment”"
 	default:
 		return "“Linked Build Pipeline”"
@@ -381,7 +381,7 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 	//Otherwise deleteIfExists
 	if createRequest.CustomTagObject != nil && len(createRequest.CustomTagObject.TagPattern) > 0 {
 		customTag := bean5.CustomTag{
-			EntityKey:            bean2.EntityTypeCiPipelineId,
+			EntityKey:            pipelineConfigBean.EntityTypeCiPipelineId,
 			EntityValue:          strconv.Itoa(ciPipelineObject.Id),
 			TagPattern:           createRequest.CustomTagObject.TagPattern,
 			AutoIncreasingNumber: createRequest.CustomTagObject.CounterX,
@@ -393,7 +393,7 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 		}
 	} else {
 		customTag := bean5.CustomTag{
-			EntityKey:   bean2.EntityTypeCiPipelineId,
+			EntityKey:   pipelineConfigBean.EntityTypeCiPipelineId,
 			EntityValue: strconv.Itoa(ciPipelineObject.Id),
 			Enabled:     false,
 		}
@@ -432,7 +432,7 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 				return nil, err
 			}
 			if createRequest.EnvironmentId != 0 {
-				createJobEnvOverrideRequest := &bean2.CreateJobEnvOverridePayload{
+				createJobEnvOverrideRequest := &pipelineConfigBean.CreateJobEnvOverridePayload{
 					AppId:  createRequest.AppId,
 					EnvId:  createRequest.EnvironmentId,
 					UserId: userId,
@@ -592,7 +592,7 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 			templateOverrideReq.Id = savedTemplateOverride.Id
 			templateOverrideReq.CreatedOn = savedTemplateOverride.CreatedOn
 			templateOverrideReq.CreatedBy = savedTemplateOverride.CreatedBy
-			ciTemplateBean := &bean2.CiTemplateBean{
+			ciTemplateBean := &pipelineConfigBean.CiTemplateBean{
 				CiTemplateOverride: templateOverrideReq,
 				CiBuildConfig:      ciBuildConfigBean,
 				UserId:             userId,
@@ -609,7 +609,7 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 			}
 
 		} else {
-			ciTemplateBean := &bean2.CiTemplateBean{
+			ciTemplateBean := &pipelineConfigBean.CiTemplateBean{
 				CiTemplateOverride: templateOverrideReq,
 				CiBuildConfig:      ciBuildConfigBean,
 				UserId:             userId,
@@ -627,7 +627,7 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 
 		}
 	} else {
-		ciTemplateBean := &bean2.CiTemplateBean{
+		ciTemplateBean := &pipelineConfigBean.CiTemplateBean{
 			CiTemplateOverride: &pipelineConfig.CiTemplateOverride{},
 			CiBuildConfig:      nil,
 			UserId:             userId,
@@ -749,8 +749,8 @@ func (impl CiCdPipelineOrchestratorImpl) DeleteCiPipelineAndCiEnvMappings(tx *pg
 	return err
 }
 
-func (impl CiCdPipelineOrchestratorImpl) CreateCiTemplateBean(ciPipelineId int, dockerRegistryId string, dockerRepository string, gitMaterialId int, ciBuildConfig *bean2.CiBuildConfigBean, userId int32) bean2.CiTemplateBean {
-	CiTemplateBean := bean2.CiTemplateBean{
+func (impl CiCdPipelineOrchestratorImpl) CreateCiTemplateBean(ciPipelineId int, dockerRegistryId string, dockerRepository string, gitMaterialId int, ciBuildConfig *pipelineConfigBean.CiBuildConfigBean, userId int32) pipelineConfigBean.CiTemplateBean {
+	CiTemplateBean := pipelineConfigBean.CiTemplateBean{
 		CiTemplate: nil,
 		CiTemplateOverride: &pipelineConfig.CiTemplateOverride{
 			CiPipelineId:     ciPipelineId,
@@ -773,10 +773,10 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiTemplateBean(ciPipelineId int, 
 }
 
 func (impl CiCdPipelineOrchestratorImpl) SaveHistoryOfBaseTemplate(userId int32, pipeline *pipelineConfig.CiPipeline, materials []*pipelineConfig.CiPipelineMaterial) error {
-	CiTemplateBean := bean2.CiTemplateBean{
+	CiTemplateBean := pipelineConfigBean.CiTemplateBean{
 		CiTemplate:         nil,
 		CiTemplateOverride: &pipelineConfig.CiTemplateOverride{},
-		CiBuildConfig:      &bean2.CiBuildConfigBean{},
+		CiBuildConfig:      &pipelineConfigBean.CiBuildConfigBean{},
 		UserId:             userId,
 	}
 	err := impl.ciPipelineHistoryService.SaveHistory(pipeline, materials, &CiTemplateBean, repository4.TRIGGER_DELETE)
@@ -847,7 +847,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 		//If customTagObejct has been passed, save it
 		if !ciPipeline.EnableCustomTag {
 			err := impl.customTagService.DisableCustomTagIfExist(bean5.CustomTag{
-				EntityKey:   bean2.EntityTypeCiPipelineId,
+				EntityKey:   pipelineConfigBean.EntityTypeCiPipelineId,
 				EntityValue: strconv.Itoa(ciPipeline.Id),
 			})
 			if err != nil {
@@ -855,7 +855,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 			}
 		} else if ciPipeline.CustomTagObject != nil && len(ciPipeline.CustomTagObject.TagPattern) != 0 {
 			customTag := &bean5.CustomTag{
-				EntityKey:            bean2.EntityTypeCiPipelineId,
+				EntityKey:            pipelineConfigBean.EntityTypeCiPipelineId,
 				EntityValue:          strconv.Itoa(ciPipeline.Id),
 				TagPattern:           ciPipeline.CustomTagObject.TagPattern,
 				AutoIncreasingNumber: ciPipeline.CustomTagObject.CounterX,
@@ -880,7 +880,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 			}
 
 			if ciPipeline.EnvironmentId != 0 && !createRequest.IsCloneJob {
-				createJobEnvOverrideRequest := &bean2.CreateJobEnvOverridePayload{
+				createJobEnvOverrideRequest := &pipelineConfigBean.CreateJobEnvOverridePayload{
 					AppId:  createRequest.AppId,
 					EnvId:  ciPipeline.EnvironmentId,
 					UserId: createRequest.UserId,
@@ -979,7 +979,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 			}
 		}
 
-		ciTemplateBean := &bean2.CiTemplateBean{}
+		ciTemplateBean := &pipelineConfigBean.CiTemplateBean{}
 		if ciPipeline.IsDockerConfigOverridden {
 			//creating template override
 			templateOverride := &pipelineConfig.CiTemplateOverride{
@@ -997,7 +997,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 					UpdatedOn: time.Now(),
 				},
 			}
-			ciTemplateBean = &bean2.CiTemplateBean{
+			ciTemplateBean = &pipelineConfigBean.CiTemplateBean{
 				CiTemplateOverride: templateOverride,
 				CiBuildConfig:      ciPipeline.DockerConfigOverride.CiBuildConfig,
 				UserId:             createRequest.UserId,
@@ -1412,7 +1412,7 @@ func (impl CiCdPipelineOrchestratorImpl) createAppGroup(name, description string
 	displayName := name
 	appName := name
 	if appType == helper.Job {
-		appName = name + "-" + util2.Generate(8) + "J" + bean2.UniquePlaceHolderForAppName
+		appName = name + "-" + util2.Generate(8) + "J" + pipelineConfigBean.UniquePlaceHolderForAppName
 	}
 	pg := &app2.App{
 		Active:      true,
@@ -1744,9 +1744,9 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateCDPipeline(pipelineRequest *bean.
 func (impl CiCdPipelineOrchestratorImpl) DeleteCdPipeline(pipelineId int, userId int32, tx *pg.Tx) error {
 	return impl.pipelineRepository.Delete(pipelineId, userId, tx)
 }
-func (impl CiCdPipelineOrchestratorImpl) getPipelineIdAndPrePostStageMapping(dbPipelines []*pipelineConfig.Pipeline) (map[int][]*bean2.PipelineStageDto, error) {
+func (impl CiCdPipelineOrchestratorImpl) getPipelineIdAndPrePostStageMapping(dbPipelines []*pipelineConfig.Pipeline) (map[int][]*pipelineConfigBean.PipelineStageDto, error) {
 	var err error
-	pipelineIdAndPrePostStageMapping := make(map[int][]*bean2.PipelineStageDto)
+	pipelineIdAndPrePostStageMapping := make(map[int][]*pipelineConfigBean.PipelineStageDto)
 	var dbPipelineIds []int
 	for _, pipeline := range dbPipelines {
 		dbPipelineIds = append(dbPipelineIds, pipeline.Id)

@@ -33,7 +33,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/globalPolicy"
-	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
@@ -494,7 +494,7 @@ func (impl *CiPipelineConfigServiceImpl) getCiTemplateVariablesByAppIds(appIds [
 
 func (impl *CiPipelineConfigServiceImpl) setCiPipelineBlockageState(ciPipeline *bean.CiPipeline, branchesForCheckingBlockageState []string, toOnlyGetBlockedStatePolicies bool) error {
 
-	if ciPipeline.PipelineType == bean.LINKED_CD {
+	if ciPipeline.PipelineType == pipelineConfigBean.LINKED_CD {
 		return nil
 	}
 
@@ -606,7 +606,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipeline(appId int) (ciConfig *bea
 		}
 	}
 	//map of ciPipelineId and their templateOverrideConfig
-	ciOverrideTemplateMap := make(map[int]*bean3.CiTemplateBean)
+	ciOverrideTemplateMap := make(map[int]*pipelineConfigBean.CiTemplateBean)
 	ciTemplateBeanOverrides, err := impl.ciTemplateService.FindTemplateOverrideByAppId(appId)
 	if err != nil {
 		return nil, err
@@ -672,14 +672,14 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipeline(appId int) (ciConfig *bea
 			AfterDockerBuildScripts:  afterDockerBuildScripts,
 			ScanEnabled:              pipeline.ScanEnabled,
 			IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
-			PipelineType:             bean.PipelineType(pipeline.PipelineType),
+			PipelineType:             pipelineConfigBean.PipelineType(pipeline.PipelineType),
 		}
 		ciEnvMapping, err := impl.ciPipelineRepository.FindCiEnvMappingByCiPipelineId(pipeline.Id)
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in fetching ciEnvMapping", "ciPipelineId ", pipeline.Id, "err", err)
 			return nil, err
 		}
-		customTag, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(bean3.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id))
+		customTag, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(pipelineConfigBean.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id))
 		if err != nil && err != pg.ErrNoRows {
 			return nil, err
 		}
@@ -828,9 +828,9 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineById(pipelineId int) (ciPi
 		AfterDockerBuildScripts:  afterDockerBuildScripts,
 		ScanEnabled:              pipeline.ScanEnabled,
 		IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
-		PipelineType:             bean.PipelineType(pipeline.PipelineType),
+		PipelineType:             pipelineConfigBean.PipelineType(pipeline.PipelineType),
 	}
-	customTag, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(bean3.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id))
+	customTag, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(pipelineConfigBean.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id))
 	if err != nil && err != pg.ErrNoRows {
 		return nil, err
 	}
@@ -941,7 +941,7 @@ func (impl *CiPipelineConfigServiceImpl) GetTriggerViewCiPipeline(appId int) (*b
 		return nil, err
 	}
 
-	ciOverrideTemplateMap := make(map[int]*bean3.CiTemplateBean)
+	ciOverrideTemplateMap := make(map[int]*pipelineConfigBean.CiTemplateBean)
 	ciTemplateBeanOverrides, err := impl.ciTemplateService.FindTemplateOverrideByAppId(appId)
 	if err != nil {
 		return nil, err
@@ -966,7 +966,7 @@ func (impl *CiPipelineConfigServiceImpl) GetTriggerViewCiPipeline(appId int) (*b
 			ParentCiPipeline:         pipeline.ParentCiPipeline,
 			ScanEnabled:              pipeline.ScanEnabled,
 			IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
-			PipelineType:             bean.PipelineType(pipeline.PipelineType),
+			PipelineType:             pipelineConfigBean.PipelineType(pipeline.PipelineType),
 		}
 		if ciTemplateBean, ok := ciOverrideTemplateMap[pipeline.Id]; ok {
 			templateOverride := ciTemplateBean.CiTemplateOverride
@@ -1310,7 +1310,7 @@ func (impl *CiPipelineConfigServiceImpl) UpdateCiTemplate(updateRequest *bean.Ci
 	}
 
 	ciBuildConfig.Id = originalCiBuildConfig.Id
-	ciTemplateBean := &bean3.CiTemplateBean{
+	ciTemplateBean := &pipelineConfigBean.CiTemplateBean{
 		CiTemplate:    ciTemplate,
 		CiBuildConfig: ciBuildConfig,
 		UserId:        updateRequest.UserId,
@@ -1343,7 +1343,7 @@ func (impl *CiPipelineConfigServiceImpl) UpdateCiTemplate(updateRequest *bean.Ci
 	}
 	for _, ciTemplateOverride := range ciTemplateOverrides {
 		if _, ok := ciPipelineIdsMap[ciTemplateOverride.CiPipelineId]; ok {
-			if ciPipelineIdsMap[ciTemplateOverride.CiPipelineId].PipelineType == string(bean.CI_JOB) {
+			if ciPipelineIdsMap[ciTemplateOverride.CiPipelineId].PipelineType == string(pipelineConfigBean.CI_JOB) {
 				ciTemplateOverride.DockerRepository = updateRequest.DockerRepository
 				ciTemplateOverride.DockerRegistryId = updateRequest.DockerRegistry
 				_, err = impl.ciTemplateOverrideRepository.Update(ciTemplateOverride)
@@ -1375,7 +1375,7 @@ func (impl *CiPipelineConfigServiceImpl) handlePipelineCreate(request *bean.CiPa
 	if pipelineExists {
 		err = &utils.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "pipeline name already exist"}
 		impl.logger.Errorw("pipeline name already exist", "err", err, "patch cipipeline name", request.CiPipeline.Name)
-		return nil, fmt.Errorf(bean3.PIPELINE_NAME_ALREADY_EXISTS_ERROR)
+		return nil, fmt.Errorf(pipelineConfigBean.PIPELINE_NAME_ALREADY_EXISTS_ERROR)
 	}
 
 	if request.IsSwitchCiPipelineRequest() {
@@ -1399,17 +1399,17 @@ func (impl *CiPipelineConfigServiceImpl) PatchCiPipeline(request *bean.CiPatchRe
 		impl.logger.Errorw("err in fetching template for pipeline patch, ", "err", err, "appId", request.AppId)
 		return nil, err
 	}
-	if request.CiPipeline.PipelineType == bean.CI_JOB {
+	if request.CiPipeline.PipelineType == pipelineConfigBean.CI_JOB {
 		request.CiPipeline.IsDockerConfigOverridden = true
 		request.CiPipeline.DockerConfigOverride = bean.DockerConfigOverride{
 			DockerRegistry:   ciConfig.DockerRegistry,
 			DockerRepository: ciConfig.DockerRepository,
-			CiBuildConfig: &bean3.CiBuildConfigBean{
+			CiBuildConfig: &pipelineConfigBean.CiBuildConfigBean{
 				Id:                        0,
 				GitMaterialId:             request.CiPipeline.CiMaterial[0].GitMaterialId,
 				BuildContextGitMaterialId: request.CiPipeline.CiMaterial[0].GitMaterialId,
 				UseRootBuildContext:       false,
-				CiBuildType:               bean3.SKIP_BUILD_TYPE,
+				CiBuildType:               pipelineConfigBean.SKIP_BUILD_TYPE,
 				DockerBuildConfig:         nil,
 				BuildPackConfig:           nil,
 			},
@@ -1473,7 +1473,7 @@ func (impl *CiPipelineConfigServiceImpl) setArtifactForLinkedCDCreate(request *b
 	artifact := runners[0].CdWorkflow.CiArtifact
 	// artifact will be nil when no artifacts are present
 	if artifact != nil {
-		ciConfig.Artifact = artifact.CopyArtifactMetadata(request.UserId)
+		ciConfig.Artifact = artifact.CopyArtifactMetadata(0, request.UserId)
 	}
 	return ciConfig, nil
 }
@@ -1558,7 +1558,7 @@ func (impl *CiPipelineConfigServiceImpl) CreateCiPipeline(createRequest *bean.Ci
 		ciTemplate.DockerRepository = createRequest.DockerRepository
 	}
 
-	ciTemplateBean := &bean3.CiTemplateBean{
+	ciTemplateBean := &pipelineConfigBean.CiTemplateBean{
 		CiTemplate:    ciTemplate,
 		CiBuildConfig: createRequest.CiBuildConfig,
 	}
@@ -1621,17 +1621,17 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineMin(appId int, envIds []in
 	var ciPipelineResp []*bean.CiPipelineMin
 	for _, pipeline := range pipelines {
 		parentCiPipeline := pipelineConfig.CiPipeline{}
-		pipelineType := bean.NORMAL
+		pipelineType := pipelineConfigBean.NORMAL
 
 		if pipelineParentCiMap[pipeline.Id] != nil {
 			parentCiPipeline = *pipelineParentCiMap[pipeline.Id]
-			pipelineType = bean.LINKED
+			pipelineType = pipelineConfigBean.LINKED
 		} else if pipeline.IsExternal == true {
-			pipelineType = bean.EXTERNAL
-		} else if pipeline.PipelineType == string(bean.CI_JOB) {
-			pipelineType = bean.CI_JOB
-		} else if pipeline.PipelineType == string(bean.LINKED_CD) {
-			pipelineType = bean.LINKED_CD
+			pipelineType = pipelineConfigBean.EXTERNAL
+		} else if pipeline.PipelineType == string(pipelineConfigBean.CI_JOB) {
+			pipelineType = pipelineConfigBean.CI_JOB
+		} else if pipeline.PipelineType == string(pipelineConfigBean.LINKED_CD) {
+			pipelineType = pipelineConfigBean.LINKED_CD
 		}
 
 		ciPipeline := &bean.CiPipelineMin{
@@ -1834,7 +1834,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineByEnvironment(request reso
 		impl.logger.Errorw("error in fetching templates override", "appIds", appIds, "err", err)
 		return nil, err
 	}
-	ciOverrideTemplateMap := make(map[int]*bean3.CiTemplateBean)
+	ciOverrideTemplateMap := make(map[int]*pipelineConfigBean.CiTemplateBean)
 	for _, templateBeanOverride := range ciTemplateBeanOverrides {
 		ciTemplateOverride := templateBeanOverride.CiTemplateOverride
 		ciOverrideTemplateMap[ciTemplateOverride.CiPipelineId] = templateBeanOverride
@@ -1868,7 +1868,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineByEnvironment(request reso
 				ExternalCiConfig:         externalCiConfig,
 				ScanEnabled:              pipeline.ScanEnabled,
 				IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
-				PipelineType:             bean.PipelineType(pipeline.PipelineType),
+				PipelineType:             pipelineConfigBean.PipelineType(pipeline.PipelineType),
 			}
 			parentPipelineAppId, ok := pipelineIdVsAppId[parentCiPipelineId]
 			if ok {

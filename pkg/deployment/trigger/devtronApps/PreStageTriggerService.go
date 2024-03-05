@@ -17,7 +17,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
+	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
@@ -207,7 +208,7 @@ func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) err
 	_, span = otel.Tracer("orchestrator").Start(ctx, "cdWorkflowService.SubmitWorkflow")
 	cdStageWorkflowRequest.Pipeline = pipeline
 	cdStageWorkflowRequest.Env = env
-	cdStageWorkflowRequest.Type = bean3.CD_WORKFLOW_PIPELINE_TYPE
+	cdStageWorkflowRequest.Type = pipelineConfigBean.CD_WORKFLOW_PIPELINE_TYPE
 	_, jobHelmPackagePath, err := impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest)
 	span.End()
 	if err != nil {
@@ -292,9 +293,9 @@ func (impl *TriggerServiceImpl) SetCopyContainerImagePluginDataInWorkflowRequest
 		if copyContainerImagePluginId != 0 && step.RefPluginId == copyContainerImagePluginId {
 			var pipelineStageEntityType int
 			if pipelineStage == types.PRE {
-				pipelineStageEntityType = bean3.EntityTypePreCD
+				pipelineStageEntityType = pipelineConfigBean.EntityTypePreCD
 			} else {
-				pipelineStageEntityType = bean3.EntityTypePostCD
+				pipelineStageEntityType = pipelineConfigBean.EntityTypePostCD
 			}
 			customTagId := -1
 			var DockerImageTag string
@@ -349,7 +350,7 @@ func (impl *TriggerServiceImpl) SetCopyContainerImagePluginDataInWorkflowRequest
 			}
 			if len(savedCIArtifacts) > 0 {
 				// if already present in ci artifact, return "image path already in use error"
-				return imagePathReservationIds, bean3.ErrImagePathInUse
+				return imagePathReservationIds, pipelineConfigBean.ErrImagePathInUse
 			}
 			imagePathReservationIds, err = impl.ReserveImagesGeneratedAtPlugin(customTagId, registryDestinationImageMap)
 			if err != nil {
@@ -371,6 +372,14 @@ func (impl *TriggerServiceImpl) SetCopyContainerImagePluginDataInWorkflowRequest
 }
 
 func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflowRunner, cdWf *pipelineConfig.CdWorkflow, cdPipeline *pipelineConfig.Pipeline, triggeredBy int32) (*types.WorkflowRequest, error) {
+	if cdPipeline.App.Id == 0 {
+		appModel, err := impl.appRepository.FindById(cdPipeline.AppId)
+		if err != nil {
+			impl.logger.Errorw("error in getting app", "appId", cdPipeline.AppId, "err", err)
+			return nil, err
+		}
+		cdPipeline.App = *appModel
+	}
 	cdWorkflowConfig, err := impl.cdWorkflowRepository.FindConfigByPipelineId(cdPipeline.Id)
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err
@@ -395,7 +404,7 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 		return nil, err
 	}
 
-	var ciProjectDetails []bean3.CiProjectDetails
+	var ciProjectDetails []pipelineConfigBean.CiProjectDetails
 	var ciPipeline *pipelineConfig.CiPipeline
 	if cdPipeline.CiPipelineId > 0 {
 		ciPipeline, err = impl.ciPipelineRepository.FindById(cdPipeline.CiPipelineId)
@@ -403,7 +412,9 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 			impl.logger.Errorw("cannot find ciPipelineRequest", "err", err)
 			return nil, err
 		}
-
+		if ciPipeline != nil && util.IsErrNoRows(err) {
+			ciPipeline.Id = 0
+		}
 		for _, m := range ciPipeline.CiPipelineMaterials {
 			// git material should be active in this case
 			if m == nil || m.GitMaterial == nil || !m.GitMaterial.Active {
@@ -422,7 +433,7 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 				return nil, err
 			}
 
-			ciProjectDetail := bean3.CiProjectDetails{
+			ciProjectDetail := pipelineConfigBean.CiProjectDetails{
 				GitRepository:   ciMaterialCurrent.Material.GitConfiguration.URL,
 				MaterialName:    gitMaterial.Name,
 				CheckoutPath:    gitMaterial.CheckoutPath,
@@ -430,7 +441,7 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 				SourceType:      m.Type,
 				SourceValue:     m.Value,
 				Type:            string(m.Type),
-				GitOptions: bean3.GitOptions{
+				GitOptions: pipelineConfigBean.GitOptions{
 					UserName:      gitMaterial.GitProvider.UserName,
 					Password:      gitMaterial.GitProvider.Password,
 					SshPrivateKey: gitMaterial.GitProvider.SshPrivateKey,
@@ -451,7 +462,7 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 					return nil, err
 				}
 				ciProjectDetail.CommitTime = commitTime.Format(bean4.LayoutRFC3339)
-			} else if ciPipeline.PipelineType == bean3.CI_JOB {
+			} else if ciPipeline.PipelineType == string(pipelineConfigBean.CI_JOB) {
 				// This has been done to resolve unmarshalling issue in ci-runner, in case of no commit time(eg- polling container images)
 				ciProjectDetail.CommitTime = time.Time{}.Format(bean4.LayoutRFC3339)
 			} else {
@@ -476,9 +487,9 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 	var deployStageWfr pipelineConfig.CdWorkflowRunner
 	var deployStageTriggeredByUserEmail string
 	var pipelineReleaseCounter int
-	var preDeploySteps []*bean3.StepObject
-	var postDeploySteps []*bean3.StepObject
-	var refPluginsData []*bean3.RefPluginObject
+	var preDeploySteps []*pipelineConfigBean.StepObject
+	var postDeploySteps []*pipelineConfigBean.StepObject
+	var refPluginsData []*pipelineConfigBean.RefPluginObject
 	//if pipeline_stage_steps present for pre-CD or post-CD then no need to add stageYaml to cdWorkflowRequest in that
 	//case add PreDeploySteps and PostDeploySteps to cdWorkflowRequest, this is done for backward compatibility
 	pipelineStage, err := impl.pipelineStageService.GetCdStageByCdPipelineIdAndStageType(cdPipeline.Id, runner.WorkflowType.WorkflowTypeToStageType())
@@ -495,7 +506,7 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 	//Scope will pick the environment of CD pipeline irrespective of in-cluster mode,
 	//since user sees the environment of the CD pipeline
 	scope := resourceQualifiers.Scope{
-		AppId:     cdPipeline.App.Id,
+		AppId:     cdPipeline.AppId,
 		EnvId:     env.Id,
 		ClusterId: env.ClusterId,
 		SystemMetadata: &resourceQualifiers.SystemMetadata{
@@ -700,36 +711,31 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 
 		extraEnvVariables[CHILD_CD_COUNT] = strconv.Itoa(len(childPipelines))
 	}
+
 	if ciPipeline != nil && ciPipeline.Id > 0 {
-		extraEnvVariables["APP_NAME"] = ciPipeline.App.AppName
-		cdStageWorkflowRequest.DockerUsername = ciPipeline.CiTemplate.DockerRegistry.Username
-		cdStageWorkflowRequest.DockerPassword = ciPipeline.CiTemplate.DockerRegistry.Password
-		cdStageWorkflowRequest.AwsRegion = ciPipeline.CiTemplate.DockerRegistry.AWSRegion
-		cdStageWorkflowRequest.DockerConnection = ciPipeline.CiTemplate.DockerRegistry.Connection
-		cdStageWorkflowRequest.DockerCert = ciPipeline.CiTemplate.DockerRegistry.Cert
-		cdStageWorkflowRequest.AccessKey = ciPipeline.CiTemplate.DockerRegistry.AWSAccessKeyId
-		cdStageWorkflowRequest.SecretKey = ciPipeline.CiTemplate.DockerRegistry.AWSSecretAccessKey
-		cdStageWorkflowRequest.DockerRegistryType = string(ciPipeline.CiTemplate.DockerRegistry.RegistryType)
-		cdStageWorkflowRequest.DockerRegistryURL = ciPipeline.CiTemplate.DockerRegistry.RegistryURL
-		cdStageWorkflowRequest.DockerRegistryId = ciPipeline.CiTemplate.DockerRegistry.Id
-		cdStageWorkflowRequest.CiPipelineType = ciPipeline.PipelineType
-	} else if cdPipeline.AppId > 0 {
-		ciTemplate, err := impl.ciTemplateRepository.FindByAppId(cdPipeline.AppId)
+		sourceCiPipeline, err := impl.getSourceCiPipelineForArtifact(*ciPipeline)
 		if err != nil {
+			impl.logger.Errorw("error in getting source ciPipeline for artifact", "err", err)
 			return nil, err
 		}
-		extraEnvVariables["APP_NAME"] = ciTemplate.App.AppName
-		cdStageWorkflowRequest.DockerUsername = ciTemplate.DockerRegistry.Username
-		cdStageWorkflowRequest.DockerPassword = ciTemplate.DockerRegistry.Password
-		cdStageWorkflowRequest.AwsRegion = ciTemplate.DockerRegistry.AWSRegion
-		cdStageWorkflowRequest.DockerConnection = ciTemplate.DockerRegistry.Connection
-		cdStageWorkflowRequest.DockerCert = ciTemplate.DockerRegistry.Cert
-		cdStageWorkflowRequest.AccessKey = ciTemplate.DockerRegistry.AWSAccessKeyId
-		cdStageWorkflowRequest.SecretKey = ciTemplate.DockerRegistry.AWSSecretAccessKey
-		cdStageWorkflowRequest.DockerRegistryType = string(ciTemplate.DockerRegistry.RegistryType)
-		cdStageWorkflowRequest.DockerRegistryURL = ciTemplate.DockerRegistry.RegistryURL
+		extraEnvVariables["APP_NAME"] = sourceCiPipeline.App.AppName
+		cdStageWorkflowRequest.CiPipelineType = sourceCiPipeline.PipelineType
+		buildRegistryConfig, dbErr := impl.getBuildRegistryConfigForArtifact(*sourceCiPipeline, *artifact)
+		if dbErr != nil {
+			impl.logger.Errorw("error in getting registry credentials for the artifact", "err", dbErr)
+			return nil, dbErr
+		}
+		adapter.UpdateRegistryDetailsToWrfReq(cdStageWorkflowRequest, buildRegistryConfig)
+	} else if cdPipeline.AppId > 0 {
+		// the below flow is used for external ci base pipelines;
+		extraEnvVariables["APP_NAME"] = cdPipeline.App.AppName
+		buildRegistryConfig, err := impl.ciTemplateService.GetBaseDockerConfigForCiPipeline(cdPipeline.AppId)
+		if err != nil {
+			impl.logger.Errorw("error in getting build configurations", "err", err)
+			return nil, fmt.Errorf("error in getting build configurations")
+		}
+		adapter.UpdateRegistryDetailsToWrfReq(cdStageWorkflowRequest, buildRegistryConfig)
 		appLabels, err := impl.appLabelRepository.FindAllByAppId(cdPipeline.AppId)
-		cdStageWorkflowRequest.DockerRegistryId = ciTemplate.DockerRegistry.Id
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in getting labels by appId", "err", err, "appId", cdPipeline.AppId)
 			return nil, err
@@ -834,6 +840,102 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 	return cdStageWorkflowRequest, nil
 }
 
+/*
+getBuildRegistryConfigForArtifact performs the following logic to get Pre/Post CD Registry Credentials:
+
+ 1. CI Build:
+    It will use the overridden credentials (if any) OR the base application level credentials.
+
+ 2. Link CI:
+    It will fetch the parent CI pipeline first.
+    Then will use the CI Build overridden credentials (if any) OR the Source application (App that contains CI Build) level credentials.
+
+ 3. Sync CD:
+    It will fetch the parent CD pipeline first.
+
+    - CASE CD Pipeline has CI Build as artifact provider:
+
+    Then will use the CI Build overridden credentials (if any) OR the Source application (App that contains CI Build) level credentials.
+
+    - CASE CD Pipeline has Link CI as artifact provider:
+
+    It will fetch the parent CI pipeline of the Link CI  first.
+    Then will use the CI Build overridden credentials (if any) OR the Source application (App that contains CI Build) level credentials.
+
+ 4. Skopeo Plugin:
+    If any artifact has information about : credentials_source_type(global_container_registry) credentials_source_value(registry_id)
+    Then we will use the credentials_source_value to derive the credentials.
+
+ 5. Polling plugin:
+    If the ci_pipeline_type type is CI_JOB
+    We will always fetch the registry credentials from the ci_template_override table
+*/
+func (impl *TriggerServiceImpl) getBuildRegistryConfigForArtifact(sourceCiPipeline pipelineConfig.CiPipeline, artifact repository.CiArtifact) (*types.DockerArtifactStoreBean, error) {
+	// Handling for Skopeo Plugin
+	if artifact.IsRegistryCredentialMapped() {
+		dockerArtifactStore, err := impl.dockerArtifactStoreRepository.FindOne(artifact.CredentialSourceValue)
+		if util.IsErrNoRows(err) {
+			impl.logger.Errorw("source artifact registry not found", "registryId", artifact.CredentialSourceValue, "err", err)
+			return nil, fmt.Errorf("source artifact registry '%s' not found", artifact.CredentialSourceValue)
+		} else if err != nil {
+			impl.logger.Errorw("error in fetching artifact info", "err", err)
+			return nil, err
+		}
+		return adapter.GetDockerConfigBean(dockerArtifactStore), nil
+	}
+
+	// Handling for CI Job
+	if adapter.IsCIJob(sourceCiPipeline) {
+		// for bean.CI_JOB the source artifact is always driven from overridden ci template
+		buildRegistryConfig, err := impl.ciTemplateService.GetAppliedDockerConfigForCiPipeline(sourceCiPipeline.Id, sourceCiPipeline.AppId, true)
+		if err != nil {
+			impl.logger.Errorw("error in getting build configurations", "err", err)
+			return nil, fmt.Errorf("error in getting build configurations")
+		}
+		return buildRegistryConfig, nil
+	}
+
+	// Handling for Linked CI
+	if adapter.IsLinkedCI(sourceCiPipeline) {
+		parentCiPipeline, err := impl.ciPipelineRepository.FindById(sourceCiPipeline.ParentCiPipeline)
+		if err != nil {
+			impl.logger.Errorw("error in finding ciPipeline", "ciPipelineId", sourceCiPipeline.ParentCiPipeline, "err", err)
+			return nil, err
+		}
+		buildRegistryConfig, err := impl.ciTemplateService.GetAppliedDockerConfigForCiPipeline(parentCiPipeline.Id, parentCiPipeline.AppId, parentCiPipeline.IsDockerConfigOverridden)
+		if err != nil {
+			impl.logger.Errorw("error in getting build configurations", "err", err)
+			return nil, fmt.Errorf("error in getting build configurations")
+		}
+		return buildRegistryConfig, nil
+	}
+
+	// Handling for Build CI
+	buildRegistryConfig, err := impl.ciTemplateService.GetAppliedDockerConfigForCiPipeline(sourceCiPipeline.Id, sourceCiPipeline.AppId, sourceCiPipeline.IsDockerConfigOverridden)
+	if err != nil {
+		impl.logger.Errorw("error in getting build configurations", "err", err)
+		return nil, fmt.Errorf("error in getting build configurations")
+	}
+	return buildRegistryConfig, nil
+}
+
+func (impl *TriggerServiceImpl) getSourceCiPipelineForArtifact(ciPipeline pipelineConfig.CiPipeline) (*pipelineConfig.CiPipeline, error) {
+	sourceCiPipeline := &ciPipeline
+	if adapter.IsLinkedCD(ciPipeline) {
+		sourceCdPipeline, err := impl.pipelineRepository.FindById(ciPipeline.ParentCiPipeline)
+		if err != nil {
+			impl.logger.Errorw("error in finding source cdPipeline for linked cd", "cdPipelineId", ciPipeline.ParentCiPipeline, "err", err)
+			return nil, err
+		}
+		sourceCiPipeline, err = impl.ciPipelineRepository.FindOneWithAppData(sourceCdPipeline.CiPipelineId)
+		if err != nil && !util.IsErrNoRows(err) {
+			impl.logger.Errorw("error in finding ciPipeline for the cd pipeline", "CiPipelineId", sourceCdPipeline.Id, "CiPipelineId", sourceCdPipeline.CiPipelineId, "err", err)
+			return nil, err
+		}
+	}
+	return sourceCiPipeline, nil
+}
+
 func (impl *TriggerServiceImpl) GetArtifactVulnerabilityStatus(artifact *repository.CiArtifact, cdPipeline *pipelineConfig.Pipeline, ctx context.Context) (bool, error) {
 	isVulnerable := false
 	if len(artifact.ImageDigest) > 0 {
@@ -887,15 +989,15 @@ func (impl *TriggerServiceImpl) ReserveImagesGeneratedAtPlugin(customTagId int, 
 	return imagePathReservationIds, nil
 }
 
-func setExtraEnvVariableInDeployStep(deploySteps []*bean3.StepObject, extraEnvVariables map[string]string, webhookAndCiData *gitSensorClient.WebhookAndCiData) {
+func setExtraEnvVariableInDeployStep(deploySteps []*pipelineConfigBean.StepObject, extraEnvVariables map[string]string, webhookAndCiData *gitSensorClient.WebhookAndCiData) {
 	for _, deployStep := range deploySteps {
 		for variableKey, variableValue := range extraEnvVariables {
 			if isExtraVariableDynamic(variableKey, webhookAndCiData) && deployStep.StepType == "INLINE" {
-				extraInputVar := &bean3.VariableObject{
+				extraInputVar := &pipelineConfigBean.VariableObject{
 					Name:                  variableKey,
 					Format:                "STRING",
 					Value:                 variableValue,
-					VariableType:          bean3.VARIABLE_TYPE_REF_GLOBAL,
+					VariableType:          pipelineConfigBean.VARIABLE_TYPE_REF_GLOBAL,
 					ReferenceVariableName: variableKey,
 				}
 				deployStep.InputVars = append(deployStep.InputVars, extraInputVar)
