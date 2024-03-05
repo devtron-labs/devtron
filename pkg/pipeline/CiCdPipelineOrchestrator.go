@@ -43,6 +43,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	bean3 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
+	"github.com/devtron-labs/devtron/pkg/chart"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	bean6 "github.com/devtron-labs/devtron/pkg/devtronResource/bean"
@@ -116,7 +117,6 @@ type CiCdPipelineOrchestratorImpl struct {
 	prePostCdScriptHistoryService history3.PrePostCdScriptHistoryService
 	prePostCiScriptHistoryService history3.PrePostCiScriptHistoryService
 	pipelineStageService          PipelineStageService
-	//ciTemplateOverrideRepository  pipelineConfig.CiTemplateOverrideRepository
 	ciTemplateService             CiTemplateService
 	ciTemplateOverrideRepository  pipelineConfig.CiTemplateOverrideRepository
 	gitMaterialHistoryService     history3.GitMaterialHistoryService
@@ -129,6 +129,7 @@ type CiCdPipelineOrchestratorImpl struct {
 	genericNoteService            genericNotes.GenericNoteService
 	customTagService              CustomTagService
 	devtronResourceService        devtronResource.DevtronResourceService
+	chartService                  chart.ChartService
 }
 
 func NewCiCdPipelineOrchestrator(
@@ -159,7 +160,8 @@ func NewCiCdPipelineOrchestrator(
 	configMapService ConfigMapService,
 	customTagService CustomTagService,
 	genericNoteService genericNotes.GenericNoteService,
-	devtronResourceService devtronResource.DevtronResourceService) *CiCdPipelineOrchestratorImpl {
+	devtronResourceService devtronResource.DevtronResourceService,
+	chartService chart.ChartService) *CiCdPipelineOrchestratorImpl {
 	return &CiCdPipelineOrchestratorImpl{
 		appRepository:                 pipelineGroupRepository,
 		logger:                        logger,
@@ -190,6 +192,7 @@ func NewCiCdPipelineOrchestrator(
 		genericNoteService:            genericNoteService,
 		customTagService:              customTagService,
 		devtronResourceService:        devtronResourceService,
+		chartService:                  chartService,
 	}
 }
 
@@ -1775,6 +1778,16 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int) (cdPipe
 		impl.logger.Errorw("error in fetching pipelineIdAndPrePostStageMapping", "err", err)
 		return nil, err
 	}
+
+	isAppLevelGitOpsConfigured := false
+	if len(dbPipelines) != 0 {
+		isAppLevelGitOpsConfigured, err = impl.chartService.IsGitOpsRepoConfiguredForDevtronApps(appId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching latest chart for app by appId")
+			return nil, err
+		}
+	}
+
 	var pipelines []*bean.CDPipelineConfigObject
 	for _, dbPipeline := range dbPipelines {
 		preStage := bean.CdStage{}
@@ -1857,6 +1870,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int) (cdPipe
 			DeploymentAppDeleteRequest:    dbPipeline.DeploymentAppDeleteRequest,
 			UserApprovalConf:              approvalConfig,
 			IsVirtualEnvironment:          dbPipeline.Environment.IsVirtualEnvironment,
+			IsGitOpsRepoNotConfigured:     !isAppLevelGitOpsConfigured,
 			HelmPackageName:               helmPackageName,
 			ManifestStorageType:           manifestPushConfig.StorageType,
 		}
@@ -1919,24 +1933,29 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForEnv(envId int, request
 		impl.logger.Errorw("error in fetching pipelineIdAndPrePostStageMapping", "err", err)
 		return nil, err
 	}
-
 	var pipelines []*bean.CDPipelineConfigObject
 	for _, dbPipeline := range dbPipelines {
+		isAppLevelGitOpsConfigured, err := impl.chartService.IsGitOpsRepoConfiguredForDevtronApps(dbPipeline.AppId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching latest chart details for app by appId")
+			return nil, err
+		}
 		pipeline := &bean.CDPipelineConfigObject{
-			Id:                    dbPipeline.Id,
-			Name:                  dbPipeline.Name,
-			EnvironmentId:         dbPipeline.EnvironmentId,
-			EnvironmentName:       dbPipeline.Environment.Name,
-			CiPipelineId:          dbPipeline.CiPipelineId,
-			TriggerType:           dbPipeline.TriggerType,
-			RunPreStageInEnv:      dbPipeline.RunPreStageInEnv,
-			RunPostStageInEnv:     dbPipeline.RunPostStageInEnv,
-			DeploymentAppType:     dbPipeline.DeploymentAppType,
-			AppName:               dbPipeline.App.AppName,
-			AppId:                 dbPipeline.AppId,
-			TeamId:                dbPipeline.App.TeamId,
-			EnvironmentIdentifier: dbPipeline.Environment.EnvironmentIdentifier,
-			IsVirtualEnvironment:  dbPipeline.Environment.IsVirtualEnvironment,
+			Id:                        dbPipeline.Id,
+			Name:                      dbPipeline.Name,
+			EnvironmentId:             dbPipeline.EnvironmentId,
+			EnvironmentName:           dbPipeline.Environment.Name,
+			CiPipelineId:              dbPipeline.CiPipelineId,
+			TriggerType:               dbPipeline.TriggerType,
+			RunPreStageInEnv:          dbPipeline.RunPreStageInEnv,
+			RunPostStageInEnv:         dbPipeline.RunPostStageInEnv,
+			DeploymentAppType:         dbPipeline.DeploymentAppType,
+			AppName:                   dbPipeline.App.AppName,
+			AppId:                     dbPipeline.AppId,
+			TeamId:                    dbPipeline.App.TeamId,
+			EnvironmentIdentifier:     dbPipeline.Environment.EnvironmentIdentifier,
+			IsVirtualEnvironment:      dbPipeline.Environment.IsVirtualEnvironment,
+			IsGitOpsRepoNotConfigured: !isAppLevelGitOpsConfigured,
 		}
 		if len(dbPipeline.PreStageConfig) > 0 {
 			preStage := bean.CdStage{}
@@ -2055,7 +2074,11 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForAppAndEnv(appId int, e
 			impl.logger.Error(err)
 			return nil, err
 		}
-
+		isAppLevelGitOpsConfigured, err := impl.chartService.IsGitOpsRepoConfiguredForDevtronApps(appId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching latest chart details for app by appId")
+			return nil, err
+		}
 		pipeline := &bean.CDPipelineConfigObject{
 			Id:                            dbPipeline.Id,
 			Name:                          dbPipeline.Name,
@@ -2069,6 +2092,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForAppAndEnv(appId int, e
 			RunPreStageInEnv:              dbPipeline.RunPreStageInEnv,
 			RunPostStageInEnv:             dbPipeline.RunPostStageInEnv,
 			CdArgoSetup:                   env.Cluster.CdArgoSetup,
+			IsGitOpsRepoNotConfigured:     !isAppLevelGitOpsConfigured,
 			UserApprovalConf:              approvalConfig,
 		}
 		if pipelineStages, ok := pipelineIdAndPrePostStageMapping[dbPipeline.Id]; ok {

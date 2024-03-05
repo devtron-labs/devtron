@@ -34,7 +34,10 @@ type TemplateRequest struct {
 	IsBasicViewLocked       bool                        `json:"isBasicViewLocked"`
 	CurrentViewEditor       models.ChartsViewEditorType `json:"currentViewEditor"` //default "UNDEFINED" in db
 	SaveEligibleChanges     bool                        `json:"saveEligibleChanges"`
+	GitRepoUrl              string                      `json:"-"`
+	IsCustomGitRepository   bool                        `json:"-"`
 	UserId                  int32                       `json:"-"`
+	LatestChartVersion      string                      `json:"-"`
 }
 
 type ChartUpgradeRequest struct {

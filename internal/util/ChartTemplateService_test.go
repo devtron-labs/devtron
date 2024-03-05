@@ -98,7 +98,7 @@ func TestChartTemplateService(t *testing.T) {
 
 	})
 
-	t.Run("GetGitOpsRepoName", func(t *testing.T) {
+	t.Run("getGitOpsRepoName", func(t *testing.T) {
 		logger, err := NewSugardLogger()
 		assert.Nil(t, err)
 		globalEnvVariables, err := util.GetGlobalEnvVariables()
