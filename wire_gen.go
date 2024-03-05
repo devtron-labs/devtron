@@ -1003,7 +1003,7 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	deploymentWindowRestHandlerImpl := deploymentWindow2.NewDeploymentWindowRestHandlerImpl(sugaredLogger, userServiceImpl, enterpriseEnforcerImpl, enforcerUtilImpl, validate, deploymentWindowServiceImpl)
+	deploymentWindowRestHandlerImpl := deploymentWindow2.NewDeploymentWindowRestHandlerImpl(sugaredLogger, userServiceImpl, enterpriseEnforcerImpl, enforcerUtilImpl, validate, deploymentWindowServiceImpl, pipelineRepositoryImpl)
 	deploymentWindowRouterImpl := deploymentWindow2.NewDeploymentWindowRouterImpl(deploymentWindowRestHandlerImpl)
 	commonPolicyActionsServiceImpl := policyGovernance.NewCommonPolicyActionsService(globalPolicyDataManagerImpl, qualifierMappingServiceImpl, cdPipelineConfigServiceImpl, appServiceImpl, environmentServiceImpl, sugaredLogger)
 	commonPolicyRestHandlerImpl := commonPolicyActions.NewCommonPolicyRestHandlerImpl(commonPolicyActionsServiceImpl, userServiceImpl, enterpriseEnforcerImpl, validate, sugaredLogger)

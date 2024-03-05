@@ -43,13 +43,13 @@ func (router *DeploymentWindowRouterImpl) InitDeploymentWindowRouter(configRoute
 		Path("/overview").
 		HandlerFunc(router.DeploymentWindowRestHandler.GetDeploymentWindowProfileAppOverview).
 		Queries("appId", "{appId}").
-		Queries("envIds", "{envIds}").
+		//Queries("envIds", "{envIds}").
 		Methods("GET")
 	configRouter.
 		Path("/state").
 		HandlerFunc(router.DeploymentWindowRestHandler.GetDeploymentWindowProfileStateForApp).
 		Queries("appId", "{appId}").
-		Queries("envIds", "{envIds}").
+		//Queries("envIds", "{envIds}").
 		Methods("GET")
 	configRouter.
 		Path("/state/appgroup").

@@ -10,7 +10,7 @@ import (
 )
 
 func (impl DeploymentWindowServiceImpl) GetActiveProfileForAppEnv(targetTime time.Time, appId int, envId int, userId int32) (*DeploymentWindowProfile, UserActionState, error) {
-	stateResponse, err := impl.GetDeploymentWindowProfileState(targetTime, appId, []int{envId}, userId)
+	stateResponse, err := impl.GetDeploymentWindowProfileState(targetTime, appId, []int{envId}, 0, userId)
 	if err != nil {
 		return nil, Allowed, err
 	}
@@ -24,7 +24,7 @@ func (impl DeploymentWindowServiceImpl) GetActiveProfileForAppEnv(targetTime tim
 	return appliedProfile, actionState, nil
 }
 
-func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileStateAppGroup(targetTime time.Time, selectors []AppEnvSelector, userId int32) (*DeploymentWindowAppGroupResponse, error) {
+func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileStateAppGroup(targetTime time.Time, selectors []AppEnvSelector, filterForDays int, userId int32) (*DeploymentWindowAppGroupResponse, error) {
 
 	appIdsToOverview, err := impl.GetDeploymentWindowProfileOverviewBulk(selectors)
 	if err != nil {
@@ -38,7 +38,7 @@ func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileStateAppGroup(
 	appGroupData := make([]AppData, 0)
 	for appId, overview := range appIdsToOverview {
 
-		envResponse, err := impl.calculateStateForEnvironments(targetTime, overview, userId)
+		envResponse, err := impl.calculateStateForEnvironments(targetTime, overview, filterForDays, userId)
 		if err != nil {
 			return nil, err
 		}
@@ -51,25 +51,20 @@ func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileStateAppGroup(
 	return &DeploymentWindowAppGroupResponse{AppData: appGroupData}, nil
 }
 
-func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileState(targetTime time.Time, appId int, envIds []int, userId int32) (*DeploymentWindowResponse, error) {
+func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileState(targetTime time.Time, appId int, envIds []int, filterForDays int, userId int32) (*DeploymentWindowResponse, error) {
 	overview, err := impl.GetDeploymentWindowProfileOverview(appId, envIds)
 	if err != nil {
 		return nil, err
 	}
 
-	//superAdmins, err := impl.userService.GetSuperAdmins()
-	//if err != nil {
-	//	superAdmins = make([]int32, 0)
-	//}
-	//overview.SuperAdmins = superAdmins
-	response, err := impl.calculateStateForEnvironments(targetTime, overview, userId)
+	response, err := impl.calculateStateForEnvironments(targetTime, overview, filterForDays, userId)
 	if err != nil {
 		return nil, err
 	}
 	return response, nil
 }
 
-func (impl DeploymentWindowServiceImpl) calculateStateForEnvironments(targetTime time.Time, overview *DeploymentWindowResponse, userId int32) (*DeploymentWindowResponse, error) {
+func (impl DeploymentWindowServiceImpl) calculateStateForEnvironments(targetTime time.Time, overview *DeploymentWindowResponse, filterForDays int, userId int32) (*DeploymentWindowResponse, error) {
 	envIdToProfileStates := lo.GroupBy(overview.Profiles, func(item ProfileState) int {
 		return item.EnvId
 	})
@@ -77,7 +72,7 @@ func (impl DeploymentWindowServiceImpl) calculateStateForEnvironments(targetTime
 	envIdToEnvironmentState := make(map[int]EnvironmentState)
 	resultProfiles := make([]ProfileState, 0)
 	for envId, profileStates := range envIdToProfileStates {
-		filteredProfileStates, appliedProfile, excludedUsers, excludedUsersEmail, canDeploy, err := impl.getAppliedProfileAndCalculateStates(targetTime, profileStates)
+		filteredProfileStates, appliedProfile, excludedUsers, excludedUsersEmail, canDeploy, err := impl.getAppliedProfileAndCalculateStates(targetTime, profileStates, filterForDays)
 		if err != nil {
 			return nil, err
 		}
@@ -110,7 +105,7 @@ func getUserActionStateForUser(canDeploy bool, excludedUsers []int32, userId int
 	return userActionState
 }
 
-func (impl DeploymentWindowServiceImpl) getAppliedProfileAndCalculateStates(targetTime time.Time, profileStates []ProfileState) ([]ProfileState, *ProfileState, []int32, []string, bool, error) {
+func (impl DeploymentWindowServiceImpl) getAppliedProfileAndCalculateStates(targetTime time.Time, profileStates []ProfileState, filterForDays int) ([]ProfileState, *ProfileState, []int32, []string, bool, error) {
 
 	var appliedProfile *ProfileState
 	var combinedExcludedUsers, allUserIds []int32
@@ -121,12 +116,12 @@ func (impl DeploymentWindowServiceImpl) getAppliedProfileAndCalculateStates(targ
 		return nil, appliedProfile, combinedExcludedUsers, combinedExcludedUserEmails, false, err
 	}
 
-	filteredBlackoutProfiles, _, isBlackoutActive, err := impl.calculateStateForProfiles(targetTime, profileStates, Blackout)
+	filteredBlackoutProfiles, _, isBlackoutActive, err := impl.calculateStateForProfiles(targetTime, profileStates, Blackout, filterForDays)
 	if err != nil {
 		return nil, appliedProfile, combinedExcludedUsers, combinedExcludedUserEmails, false, err
 	}
 
-	filteredMaintenanceProfiles, isMaintenanceActive, _, err := impl.calculateStateForProfiles(targetTime, profileStates, Maintenance)
+	filteredMaintenanceProfiles, isMaintenanceActive, _, err := impl.calculateStateForProfiles(targetTime, profileStates, Maintenance, filterForDays)
 	if err != nil {
 		return nil, appliedProfile, combinedExcludedUsers, combinedExcludedUserEmails, false, err
 	}
@@ -276,7 +271,7 @@ func (impl DeploymentWindowServiceImpl) getEarliestStartingProfile(profiles []Pr
 	return &profile
 }
 
-func (impl DeploymentWindowServiceImpl) calculateStateForProfiles(targetTime time.Time, profileStates []ProfileState, profileType DeploymentWindowType) ([]ProfileState, bool, bool, error) {
+func (impl DeploymentWindowServiceImpl) calculateStateForProfiles(targetTime time.Time, profileStates []ProfileState, profileType DeploymentWindowType, filterForDays int) ([]ProfileState, bool, bool, error) {
 
 	filteredProfiles := lo.Filter(profileStates, func(item ProfileState, index int) bool {
 		return item.DeploymentWindowProfile.Type == profileType
@@ -299,6 +294,11 @@ func (impl DeploymentWindowServiceImpl) calculateStateForProfiles(targetTime tim
 			// this means that no relevant window in the profile was found therefore skipping this profile
 			continue
 		}
+
+		if filterForDays > 0 && windowTimeStamp.Sub(timeWithZone) > time.Duration(filterForDays)*time.Hour*24 {
+			continue
+		}
+
 		profile.IsActive = isActive
 		profile.CalculatedTimestamp = windowTimeStamp
 		profile.DeploymentWindowProfile.DeploymentWindowList = []*TimeWindow{window}
