@@ -301,8 +301,8 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowWithImagePromotionMetadata(app
 
 		envIds := make([]int, len(cdPipelines))
 		envIdToNameMap := make(map[int]string)
-		for _, cdPipeline := range cdPipelines {
-			envIds = append(envIds, cdPipeline.EnvironmentId)
+		for i, cdPipeline := range cdPipelines {
+			envIds[i] = cdPipeline.EnvironmentId
 			envIdToNameMap[cdPipeline.EnvironmentId] = cdPipeline.Environment.Name
 		}
 
