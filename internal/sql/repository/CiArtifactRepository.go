@@ -898,7 +898,7 @@ func (impl CiArtifactRepositoryImpl) FindArtifactsByCIPipelineId(artifactsListin
 		"WHERE cp.active=true and cp.id = %v ORDER BY cia.id DESC", artifactsListingFilterOps.CiPipelineId)
 
 	if artifactsListingFilterOps.SearchString != EmptyLikeRegex {
-		query = query + fmt.Sprintf(" and ci_artifact.image like %s ", artifactsListingFilterOps.SearchString)
+		query = query + fmt.Sprintf(" and ci_artifact.image like '%s' ", artifactsListingFilterOps.SearchString)
 	}
 	limitOffSetQuery := fmt.Sprintf(" LIMIT %v OFFSET %v", artifactsListingFilterOps.Limit, artifactsListingFilterOps.Offset)
 	query = query + limitOffSetQuery
@@ -929,7 +929,7 @@ func (impl CiArtifactRepositoryImpl) FindArtifactsByExternalCIPipelineId(artifac
 		"WHERE excp.active=true and excp.id = %v ORDER BY cia.id DESC", artifactsListingFilterOps.CiPipelineId)
 
 	if artifactsListingFilterOps.SearchString != EmptyLikeRegex {
-		query = query + fmt.Sprintf(" and ci_artifact.image like %s ", artifactsListingFilterOps.SearchString)
+		query = query + fmt.Sprintf(" and ci_artifact.image like '%s' ", artifactsListingFilterOps.SearchString)
 	}
 	limitOffSetQuery := fmt.Sprintf(" order by ci_artifact.id desc LIMIT %v OFFSET %v", artifactsListingFilterOps.Limit, artifactsListingFilterOps.Offset)
 	query = query + limitOffSetQuery
@@ -964,7 +964,7 @@ func (impl CiArtifactRepositoryImpl) FindArtifactsPendingForPromotion(cdPipeline
 		" AND apar.destination_pipeline_id IN (%s)", helper.GetCommaSepratedString(cdPipelineIds))
 
 	if imageSearchPattern != EmptyLikeRegex {
-		query = query + fmt.Sprintf(" and cia.image like %s ", imageSearchPattern)
+		query = query + fmt.Sprintf(" and cia.image like '%s' ", imageSearchPattern)
 	}
 	limitOffSetQuery := fmt.Sprintf(" order by cia.id desc LIMIT %v OFFSET %v", limit, offset)
 	query = query + limitOffSetQuery
