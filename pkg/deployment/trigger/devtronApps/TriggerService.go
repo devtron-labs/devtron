@@ -17,8 +17,10 @@ import (
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
+	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
+	repository4 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -106,8 +108,8 @@ type TriggerServiceImpl struct {
 	userService                         user.UserService
 	gitSensorGrpcClient                 gitSensorClient.Client
 	config                              *types.CdConfig
-
-	helmAppService client2.HelmAppService
+	appRepository                       appRepository.AppRepository
+	helmAppService                      client2.HelmAppService
 
 	enforcerUtil  rbac.EnforcerUtil
 	helmAppClient gRPC.HelmAppClient //TODO refactoring: use helm app service instead
@@ -125,11 +127,12 @@ type TriggerServiceImpl struct {
 	cdWorkflowRepository          pipelineConfig.CdWorkflowRepository
 	ciWorkflowRepository          pipelineConfig.CiWorkflowRepository
 	ciArtifactRepository          repository3.CiArtifactRepository
-	ciTemplateRepository          pipelineConfig.CiTemplateRepository
+	ciTemplateService             pipeline.CiTemplateService
 	materialRepository            pipelineConfig.MaterialRepository
 	appLabelRepository            pipelineConfig.AppLabelRepository
 	ciPipelineRepository          pipelineConfig.CiPipelineRepository
 	appWorkflowRepository         appWorkflow.AppWorkflowRepository
+	dockerArtifactStoreRepository repository4.DockerArtifactStoreRepository
 }
 
 func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd.CdWorkflowCommonService,
@@ -172,11 +175,12 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	ciArtifactRepository repository3.CiArtifactRepository,
-	ciTemplateRepository pipelineConfig.CiTemplateRepository,
+	ciTemplateService pipeline.CiTemplateService,
 	materialRepository pipelineConfig.MaterialRepository,
 	appLabelRepository pipelineConfig.AppLabelRepository,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
-	appWorkflowRepository appWorkflow.AppWorkflowRepository) (*TriggerServiceImpl, error) {
+	appWorkflowRepository appWorkflow.AppWorkflowRepository,
+	dockerArtifactStoreRepository repository4.DockerArtifactStoreRepository) (*TriggerServiceImpl, error) {
 	impl := &TriggerServiceImpl{
 		logger:                              logger,
 		cdWorkflowCommonService:             cdWorkflowCommonService,
@@ -219,11 +223,12 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 		cdWorkflowRepository:                cdWorkflowRepository,
 		ciWorkflowRepository:                ciWorkflowRepository,
 		ciArtifactRepository:                ciArtifactRepository,
-		ciTemplateRepository:                ciTemplateRepository,
+		ciTemplateService:                   ciTemplateService,
 		materialRepository:                  materialRepository,
 		appLabelRepository:                  appLabelRepository,
 		ciPipelineRepository:                ciPipelineRepository,
 		appWorkflowRepository:               appWorkflowRepository,
+		dockerArtifactStoreRepository:       dockerArtifactStoreRepository,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {

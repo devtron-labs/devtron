@@ -40,9 +40,13 @@ Let's assume you are the application admin and you wish to edit the deployment t
 
     ![Figure 2: Selecting Values to Change](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/config-approval/edit-deployment-template.jpg)
 
-3. You can change the value of a key to a desired value as shown below. Once done, click the **Save Changes…** button **.**
+3. You can change the value of a key to a desired value as shown below. Once done, click the **Save Changes…** button.
 
     ![Figure 3: Changed Values](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/config-approval/changed-values.jpg)
+
+{% hint style="info" %}
+If you are not a super-admin, you cannot modify the locked keys in deployment template. Refer [Lock Deployment Config](../global-configurations/lock-deployment-config.md) to know more. 
+{% endhint %}
 
 4. If the configuration is protected, your changes won't be published right away. You can do either of the following:
 

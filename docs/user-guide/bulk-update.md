@@ -4,7 +4,7 @@ This feature helps you to update Deployment Template, ConfigMaps & Secrets for m
 
 Need to make some common changes across multiple devtron applications?
 **Bulk Edit** allows you to do that.<br>
-Eg. You can change the value for `MaxReplicas` in Deployment Templates of multiple Devtron applications or you can add key-value pairs in multiple ConfigMaps & Secrets.
+Eg. You can change the value for `MaxReplicas` in Deployment Templates of multiple Devtron applications or you can add key-value pairs in multiple ConfigMaps & Secrets. However, you might not be able to change the values of locked keys. Refer [Lock Deployment Config](./global-configurations/lock-deployment-config.md) to know more.
 
 ## Support
 Bulk edit is currently supported for:
