@@ -521,7 +521,7 @@ func (handler RestHandlerImpl) FetchEnvironmentsList(w http.ResponseWriter, r *h
 		authorizedEnvironments[env] = results[rbacObject]
 	}
 
-	resp, err := handler.promotionApprovalRequestService.FetchEnvironmentsList(wfMeta.EnvMap, wfMeta.AppId, wfMeta.AppName, authorizedEnvironments, artifactId)
+	resp, err := handler.promotionApprovalRequestService.FetchWorkflowPromoteNodeList(wfMeta.EnvMap, wfMeta.AppId, wfMeta.AppName, authorizedEnvironments, artifactId)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
