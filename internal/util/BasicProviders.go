@@ -92,9 +92,12 @@ func (e *HideSensitiveFieldsEncoder) EncodeEntry(
 	fields []zapcore.Field,
 ) (*buffer.Buffer, error) {
 	for idx, field := range fields {
-		kind := reflect.ValueOf(field.Interface).Kind()
-		if field.Type == 23 && (kind == reflect.Struct || kind == reflect.Ptr) {
-			fields[idx].Interface = hideSensitiveData(field.Interface)
+		if field.Type == 23 {
+			value := reflect.ValueOf(field.Interface)
+			kind := value.Kind()
+			if kind == reflect.Struct || value.Elem().Kind() == reflect.Struct {
+				fields[idx].Interface = hideSensitiveData(field.Interface)
+			}
 		}
 	}
 	return e.Encoder.EncodeEntry(entry, fields)
