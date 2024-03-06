@@ -206,7 +206,7 @@ func (impl QualifierMappingServiceImpl) GetResourceMappingsForScopes(resourceTyp
 		envIds = append(envIds, scope.EnvId)
 	}
 	valuesMap[qualifierSelector.toQualifier()] = [][]int{appIds, envIds}
-	mappings, err := impl.qualifierMappingRepository.GetQualifierMappingsForListOfQualifierValues(resourceType, nil, keyMap, []int{})
+	mappings, err := impl.qualifierMappingRepository.GetQualifierMappingsForListOfQualifierValues(resourceType, valuesMap, keyMap, []int{})
 	if err != nil {
 		return nil, err
 	}
