@@ -95,8 +95,11 @@ func (e *HideSensitiveFieldsEncoder) EncodeEntry(
 		if field.Type == 23 {
 			value := reflect.ValueOf(field.Interface)
 			kind := value.Kind()
-			if kind == reflect.Struct || value.Elem().Kind() == reflect.Struct {
+			if kind == reflect.Struct {
 				fields[idx].Interface = hideSensitiveData(field.Interface)
+			} else if value.Elem().Kind() == reflect.Struct {
+				// passes only value so that original struct do not get changed
+				fields[idx].Interface = hideSensitiveData(value.Elem().Interface())
 			}
 		}
 	}
