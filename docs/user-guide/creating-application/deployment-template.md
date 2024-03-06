@@ -15,7 +15,7 @@ To configure a deployment chart for your application, do the following steps:
 
 You can select a default deployment chart from the following options:
 
-1. [Deployment](deployment-template/deployment) (Recommended)
+1. [Deployment](deployment-template/deployment.md) (Recommended)
 2. [Rollout Deployment](deployment-template/rollout-deployment.md)
 3. [Job & CronJob](deployment-template/job-and-cronjob.md)
 4. [StatefulSet](deployment-template/statefulset.md)
