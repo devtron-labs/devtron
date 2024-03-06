@@ -32,13 +32,6 @@ import (
 	"time"
 )
 
-type PipelinesMetaData struct {
-	PipelineIds            []int
-	PipelineIdVsEnvNameMap map[int]string
-	PipelineIdDaoMap       map[int]*pipelineConfig.Pipeline
-	EnvIds                 []int
-}
-
 type ArtifactPromotionApprovalService interface {
 	HandleArtifactPromotionRequest(request *bean.ArtifactPromotionRequest, authorizedEnvironments map[string]bool) ([]bean.EnvironmentPromotionMetaData, error)
 	GetByPromotionRequestId(artifactPromotionApprovalRequest *repository.ArtifactPromotionApprovalRequest) (*bean.ArtifactPromotionApprovalResponse, error)
@@ -385,7 +378,7 @@ func (impl *ArtifactPromotionApprovalServiceImpl) approveArtifactPromotion(reque
 	return environmentResponses, nil
 }
 
-func (impl *ArtifactPromotionApprovalServiceImpl) initiateApprovalProcess(request *bean.ArtifactPromotionRequest, pipelineMetaData PipelinesMetaData, promotionRequests []*repository.ArtifactPromotionApprovalRequest, responses map[string]bean.EnvironmentPromotionMetaData, policyIdMap map[int]*bean.PromotionPolicy) ([]bean.EnvironmentPromotionMetaData, error) {
+func (impl *ArtifactPromotionApprovalServiceImpl) initiateApprovalProcess(request *bean.ArtifactPromotionRequest, pipelineMetaData bean.PipelinesMetaData, promotionRequests []*repository.ArtifactPromotionApprovalRequest, responses map[string]bean.EnvironmentPromotionMetaData, policyIdMap map[int]*bean.PromotionPolicy) ([]bean.EnvironmentPromotionMetaData, error) {
 
 	pipelineIdVsEnvMap := pipelineMetaData.PipelineIdVsEnvNameMap
 
@@ -694,7 +687,6 @@ func getDefaultEnvironmentPromotionMetaDataResponseMap(environments []string, au
 	return response
 }
 
-// todo: first extract metadata
 func (impl *ArtifactPromotionApprovalServiceImpl) promoteArtifact(request *bean.ArtifactPromotionRequest, authorizedEnvironments map[string]bool) ([]bean.EnvironmentPromotionMetaData, error) {
 	// 	step1: validate if artifact is deployed/created at the source pipeline.
 	//      step1: if source is cd , check if this artifact is deployed on these environments
@@ -779,7 +771,7 @@ func (impl *ArtifactPromotionApprovalServiceImpl) promoteArtifact(request *bean.
 	return envResponses, nil
 }
 
-func buildPipelineMetaDataAndUpdateResponse(request *bean.ArtifactPromotionRequest, allowedCdPipelines []*pipelineConfig.Pipeline, response *map[string]bean.EnvironmentPromotionMetaData) PipelinesMetaData {
+func buildPipelineMetaDataAndUpdateResponse(request *bean.ArtifactPromotionRequest, allowedCdPipelines []*pipelineConfig.Pipeline, response *map[string]bean.EnvironmentPromotionMetaData) bean.PipelinesMetaData {
 	pipelineIdVsEnvNameMap := make(map[int]string)
 	pipelineIds := make([]int, 0, len(allowedCdPipelines))
 	pipelineIdToDaoMap := make(map[int]*pipelineConfig.Pipeline)
@@ -796,7 +788,7 @@ func buildPipelineMetaDataAndUpdateResponse(request *bean.ArtifactPromotionReque
 	}
 
 	response = &responseMap
-	return PipelinesMetaData{
+	return bean.PipelinesMetaData{
 		PipelineIds:            pipelineIds,
 		PipelineIdVsEnvNameMap: pipelineIdVsEnvNameMap,
 		PipelineIdDaoMap:       pipelineIdToDaoMap,
@@ -804,7 +796,7 @@ func buildPipelineMetaDataAndUpdateResponse(request *bean.ArtifactPromotionReque
 	}
 }
 
-func (impl *ArtifactPromotionApprovalServiceImpl) raisePromoteRequestHelper(request *bean.ArtifactPromotionRequest, response *map[string]bean.EnvironmentPromotionMetaData, policiesMap map[string]*bean.PromotionPolicy, ciArtifact *repository2.CiArtifact, pipelineMetaData PipelinesMetaData) []bean.EnvironmentPromotionMetaData {
+func (impl *ArtifactPromotionApprovalServiceImpl) raisePromoteRequestHelper(request *bean.ArtifactPromotionRequest, response *map[string]bean.EnvironmentPromotionMetaData, policiesMap map[string]*bean.PromotionPolicy, ciArtifact *repository2.CiArtifact, pipelineMetaData bean.PipelinesMetaData) []bean.EnvironmentPromotionMetaData {
 	responseMap := *response
 	for _, pipelineId := range pipelineMetaData.PipelineIds {
 
@@ -837,7 +829,7 @@ func (impl *ArtifactPromotionApprovalServiceImpl) raisePromoteRequestHelper(requ
 	return envResponses
 }
 
-func (impl *ArtifactPromotionApprovalServiceImpl) validatePromoteRequestForSourceCD(request *bean.ArtifactPromotionRequest, allAppWorkflowMappings []*appWorkflow.AppWorkflowMapping, ciArtifact *repository2.CiArtifact, pipelineMetaData PipelinesMetaData, response map[string]bean.EnvironmentPromotionMetaData) (map[string]bean.EnvironmentPromotionMetaData, error) {
+func (impl *ArtifactPromotionApprovalServiceImpl) validatePromoteRequestForSourceCD(request *bean.ArtifactPromotionRequest, allAppWorkflowMappings []*appWorkflow.AppWorkflowMapping, ciArtifact *repository2.CiArtifact, pipelineMetaData bean.PipelinesMetaData, response map[string]bean.EnvironmentPromotionMetaData) (map[string]bean.EnvironmentPromotionMetaData, error) {
 	tree := make(map[int][]int)
 	for _, appWorkflowMapping := range allAppWorkflowMappings {
 		// create the tree from the DAG excluding the ci source
