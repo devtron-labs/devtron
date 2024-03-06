@@ -273,10 +273,11 @@ type PipelinesMetaData struct {
 }
 
 type RequestMetaData struct {
-	ActiveEnvNames     []string
+	activeEnvIdNameMap map[int]string
+	activeEnvNameIdMap map[string]int
 	UserEnvNames       []string
 	AuthorisedEnvMap   map[string]bool
-	ActiveEnvironments []cluster.EnvironmentBean
+	activeEnvironments []*cluster.EnvironmentBean
 	PipelinesMetaData
 	activeEnvIds             []int
 	activeEnvNames           []string
@@ -284,44 +285,37 @@ type RequestMetaData struct {
 	activeAuthorisedEnvIds   []int
 }
 
+func (r *RequestMetaData) SetActiveEnvironments(activeEnvs []*cluster.EnvironmentBean) {
+	r.activeEnvironments = activeEnvs
+	activeEnvNames := make([]string, 0, len(r.activeEnvironments))
+	authorisedEnvNames := make([]string, 0, len(r.AuthorisedEnvMap))
+	activeAuthorisedEnvIds := make([]int, 0, len(r.AuthorisedEnvMap))
+	activeEnvIds := make([]int, 0, len(r.activeEnvironments))
+	activeEnvIdNameMap := make(map[int]string)
+	activeEnvNameIdMap := make(map[string]int)
+	for _, env := range r.activeEnvironments {
+		activeEnvNames = append(activeEnvNames, env.Environment)
+		activeEnvIds = append(activeEnvIds, env.Id)
+		activeEnvIdNameMap[env.Id] = env.Environment
+		activeEnvNameIdMap[env.Environment] = env.Id
+		if r.AuthorisedEnvMap[env.Environment] {
+			authorisedEnvNames = append(authorisedEnvNames, env.Environment)
+			activeAuthorisedEnvIds = append(activeAuthorisedEnvIds, env.Id)
+		}
+	}
+	r.activeEnvNames = activeEnvNames
+}
+
 func (r *RequestMetaData) GetActiveEnvNames() []string {
-	if len(r.activeEnvNames) > 0 {
-		return r.activeEnvNames
-	}
-	envNames := make([]string, 0, len(r.ActiveEnvNames))
-	for _, env := range r.ActiveEnvironments {
-		envNames = append(envNames, env.Environment)
-	}
-	r.activeEnvNames = envNames
-	return envNames
+	return r.activeEnvNames
 }
 
 func (r *RequestMetaData) GetActiveAuthorisedEnvNames() []string {
-	if len(r.activeAuthorisedEnvNames) > 0 {
-		return r.activeAuthorisedEnvNames
-	}
-	envNames := make([]string, 0, len(r.ActiveEnvNames))
-	for _, env := range r.ActiveEnvironments {
-		if r.AuthorisedEnvMap[env.Environment] {
-			envNames = append(envNames, env.Environment)
-		}
-	}
-	r.activeAuthorisedEnvNames = envNames
-	return envNames
+	return r.activeAuthorisedEnvNames
 }
 
 func (r *RequestMetaData) GetActiveAuthorisedEnvIds() []int {
-	if len(r.activeAuthorisedEnvIds) > 0 {
-		return r.activeAuthorisedEnvIds
-	}
-	envIds := make([]int, 0, len(r.ActiveEnvNames))
-	for _, env := range r.ActiveEnvironments {
-		if r.AuthorisedEnvMap[env.Environment] {
-			envIds = append(envIds, env.Id)
-		}
-	}
-	r.activeAuthorisedEnvIds = envIds
-	return envIds
+	return r.activeAuthorisedEnvIds
 }
 
 func (r *RequestMetaData) GetPipelineById(id int) *pipelineConfig.Pipeline {

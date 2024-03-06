@@ -206,21 +206,18 @@ func (impl ArtifactPromotionDataReadServiceImpl) GetPromotionPolicyByAppAndEnvId
 		impl.logger.Errorw("error in finding resource qualifier mappings from scope", "scopes", scopes, "err", err)
 		return nil, err
 	}
-	resourceIdVsMappings := make(map[int]resourceQualifiers.ResourceQualifierMappings)
-	policyIdVsEnvIdMap := make(map[int]int)
 	policyIds := make([]int, 0, len(resourceQualifierMappings))
 	for _, mapping := range resourceQualifierMappings {
-		resourceIdVsMappings[mapping.Scope.EnvId] = mapping
-		policyIdVsEnvIdMap[mapping.ResourceId] = mapping.Scope.EnvId
 		policyIds = append(policyIds, mapping.ResourceId)
 	}
-	policiesMap := make(map[string]*bean.PromotionPolicy)
 	rawPolicies, err := impl.globalPolicyDataManager.GetPolicyByIds(policyIds)
 	if err != nil {
 		impl.logger.Errorw("error in finding policies by ids", "ids", policyIds, "err", err)
 		return nil, err
 	}
 
+	policyIdVsPolicyMap := make(map[int]*bean.PromotionPolicy)
+	envVsPolicyMap := make(map[string]*bean.PromotionPolicy)
 	for _, rawPolicy := range rawPolicies {
 		policy := &bean.PromotionPolicy{}
 		err = policy.UpdateWithGlobalPolicy(rawPolicy)
@@ -228,12 +225,15 @@ func (impl ArtifactPromotionDataReadServiceImpl) GetPromotionPolicyByAppAndEnvId
 			impl.logger.Errorw("error in extracting policy from globalPolicy json", "policyId", rawPolicy.Id, "err", err)
 			return nil, err
 		}
-		envId := policyIdVsEnvIdMap[policy.Id]
-		resourceQualifierMapping := resourceIdVsMappings[envId]
-		policiesMap[resourceQualifierMapping.Scope.SystemMetadata.EnvironmentName] = policy
+		policyIdVsPolicyMap[policy.Id] = policy
 	}
 
-	return policiesMap, err
+	for _, mapping := range resourceQualifierMappings {
+		policy := policyIdVsPolicyMap[mapping.ResourceId]
+		envVsPolicyMap[mapping.Scope.SystemMetadata.EnvironmentName] = policy
+		policyIds = append(policyIds, mapping.ResourceId)
+	}
+	return envVsPolicyMap, err
 }
 
 func (impl ArtifactPromotionDataReadServiceImpl) GetPromotionPolicyByIds(ids []int) ([]*bean.PromotionPolicy, error) {
