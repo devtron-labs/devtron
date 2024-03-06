@@ -55,13 +55,6 @@ func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) err
 	// move it with cd filter// discuss product
 	// setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
 	triggeredAt := time.Now()
-
-	request, err := impl.checkForDeploymentWindow(request)
-	if err != nil {
-		impl.handleBlockedTrigger(request, resourceFilter.PreDeploy)
-		return err
-	}
-
 	triggeredBy := request.TriggeredBy
 	artifact := request.Artifact
 	pipeline := request.Pipeline
@@ -71,7 +64,7 @@ func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) err
 
 	var env *repository2.Environment
 	_, span := otel.Tracer("orchestrator").Start(ctx, "envRepository.FindById")
-	env, err = impl.envRepository.FindById(pipeline.EnvironmentId)
+	env, err := impl.envRepository.FindById(pipeline.EnvironmentId)
 	span.End()
 	if err != nil {
 		impl.logger.Errorw(" unable to find env ", "err", err)
@@ -124,6 +117,12 @@ func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) err
 	// allow or block w.r.t filterState
 	if filterState != resourceFilter.ALLOW {
 		return fmt.Errorf("the artifact does not pass filtering condition")
+	}
+
+	request, err = impl.checkForDeploymentWindow(request)
+	if err != nil {
+		impl.handleBlockedTrigger(request, resourceFilter.PreDeploy)
+		return err
 	}
 
 	if cdWf == nil {

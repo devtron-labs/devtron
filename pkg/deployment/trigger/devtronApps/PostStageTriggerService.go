@@ -26,19 +26,12 @@ import (
 func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) error {
 	// setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
 	triggeredAt := time.Now()
-
-	request, err := impl.checkForDeploymentWindow(request)
-	if err != nil {
-		impl.handleBlockedTrigger(request, resourceFilter.PostDeploy)
-		return err
-	}
-
 	triggeredBy := request.TriggeredBy
 	pipeline := request.Pipeline
 	cdWf := request.CdWf
 
 	var env *repository2.Environment
-	env, err = impl.envRepository.FindById(pipeline.EnvironmentId)
+	env, err := impl.envRepository.FindById(pipeline.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw(" unable to find env ", "err", err)
 		return err
@@ -105,6 +98,12 @@ func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) er
 	// allow or block w.r.t filterState
 	if filterState != resourceFilter.ALLOW {
 		return fmt.Errorf("the artifact does not pass filtering condition")
+	}
+
+	request, err = impl.checkForDeploymentWindow(request)
+	if err != nil {
+		impl.handleBlockedTrigger(request, resourceFilter.PostDeploy)
+		return err
 	}
 
 	runner := &pipelineConfig.CdWorkflowRunner{

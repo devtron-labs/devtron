@@ -229,7 +229,8 @@ func (impl *WorkflowDagExecutorImpl) HandleCdStageReTrigger(runner *pipelineConf
 		ApplyAuth:             false,
 		RefCdWorkflowRunnerId: runner.Id,
 		TriggerContext: bean5.TriggerContext{
-			Context: context.Background(),
+			Context:     context.Background(),
+			TriggerType: bean5.Automatic,
 		},
 	}
 
@@ -684,6 +685,7 @@ func (impl *WorkflowDagExecutorImpl) triggerIfAutoStageCdPipeline(request bean5.
 		// pre stage exists
 		if request.Pipeline.PreTriggerType == pipelineConfig.TRIGGER_TYPE_AUTOMATIC {
 			impl.logger.Debugw("trigger pre stage for pipeline", "artifactId", request.Artifact.Id, "pipelineId", request.Pipeline.Id)
+			request.TriggerContext.TriggerType = bean5.Automatic
 			err = impl.cdTriggerService.TriggerPreStage(request) // TODO handle error here
 			return err
 		}
@@ -785,6 +787,7 @@ func (impl *WorkflowDagExecutorImpl) HandleDeploymentSuccessEvent(triggerContext
 				RefCdWorkflowRunnerId: 0,
 			}
 			triggerRequest.TriggerContext.Context = context.Background()
+			triggerRequest.TriggerType = bean5.Automatic
 			err = impl.cdTriggerService.TriggerPostStage(triggerRequest)
 			if err != nil {
 				impl.logger.Errorw("error in triggering post stage after successful deployment event", "err", err, "cdWorkflow", cdWorkflow)

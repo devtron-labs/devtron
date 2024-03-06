@@ -41,7 +41,17 @@ type TriggerContext struct {
 	// ReferenceId is a unique identifier for the workflow runner
 	// refer pipelineConfig.CdWorkflowRunner
 	ReferenceId *string
+
+	// manual or automatic
+	TriggerType TriggerType
 }
+
+type TriggerType int
+
+const (
+	Automatic TriggerType = 1
+	Manual    TriggerType = 2
+)
 
 type DeploymentType = string
 
