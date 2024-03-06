@@ -77,22 +77,24 @@ type AppStoreDeploymentRestHandlerImpl struct {
 
 func NewAppStoreDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService,
 	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, enforcerUtilHelm rbac.EnforcerUtilHelm,
-	appStoreDeploymentService service.AppStoreDeploymentService, validator *validator.Validate,
-	helmAppService service2.HelmAppService, argoUserService argo.ArgoUserService,
-	attributesService attributes.AttributesService, installAppService EAMode.InstalledAppDBService,
-) *AppStoreDeploymentRestHandlerImpl {
+	appStoreDeploymentService service.AppStoreDeploymentService,
+	appStoreDeploymentDBService service.AppStoreDeploymentDBService,
+	validator *validator.Validate, helmAppService service2.HelmAppService,
+	argoUserService argo.ArgoUserService, attributesService attributes.AttributesService,
+	installAppService EAMode.InstalledAppDBService) *AppStoreDeploymentRestHandlerImpl {
 	return &AppStoreDeploymentRestHandlerImpl{
-		Logger:                    Logger,
-		userAuthService:           userAuthService,
-		enforcer:                  enforcer,
-		enforcerUtil:              enforcerUtil,
-		enforcerUtilHelm:          enforcerUtilHelm,
-		appStoreDeploymentService: appStoreDeploymentService,
-		validator:                 validator,
-		helmAppService:            helmAppService,
-		argoUserService:           argoUserService,
-		attributesService:         attributesService,
-		installAppService:         installAppService,
+		Logger:                      Logger,
+		userAuthService:             userAuthService,
+		enforcer:                    enforcer,
+		enforcerUtil:                enforcerUtil,
+		enforcerUtilHelm:            enforcerUtilHelm,
+		appStoreDeploymentService:   appStoreDeploymentService,
+		appStoreDeploymentDBService: appStoreDeploymentDBService,
+		validator:                   validator,
+		helmAppService:              helmAppService,
+		argoUserService:             argoUserService,
+		attributesService:           attributesService,
+		installAppService:           installAppService,
 	}
 }
 
