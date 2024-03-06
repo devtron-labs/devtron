@@ -39,7 +39,7 @@ If you want to configure **Basic** GUI at the application level, then you can pr
 If `Basic` is locked, you can modify the configurations on `Advanced (YAML)` which will be the default page.
 
 {% hint style="warning" %}
-Super-admins can lock keys in deployment template to prevent non-super-admins from modifying those locked keys. Refer [Lock Deployment Config](../../global-configurations/lock-deployment-config.md) to know more.
+Super-admins can lock keys in deployment template to prevent non-super-admins from modifying those locked keys. Refer [Lock Deployment Configuration](../global-configurations/lock-deployment-config.md) to know more.
 {% endhint %}
 
 **Note**: **Delete Override** will discard the current overrides and the base configuration will be applicable to the environment. 
