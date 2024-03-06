@@ -470,15 +470,6 @@ func (impl *AppArtifactManagerImpl) FetchArtifactForRollbackV2(cdPipelineId, app
 		deployedCiArtifactsResponse.ResourceFilters = filters
 	}
 
-	deployedEnvironmentsForArtifacts, err := impl.getDeployedEnvironmentsForArtifacts(deploymentPipeline, deployedCiArtifacts)
-	if err != nil {
-		impl.logger.Errorw("error in fetching environments on which artifact is currently deployed", "cdPipelineId", deploymentPipeline.Id, "err", err)
-		return deployedCiArtifactsResponse, err
-	}
-	for i, artifact := range deployedCiArtifacts {
-		deployedCiArtifacts[i].DeployedOnEnvironments = deployedEnvironmentsForArtifacts[artifact.Id]
-	}
-
 	deployedCiArtifactsResponse.CdPipelineId = cdPipelineId
 	if deployedCiArtifacts == nil {
 		deployedCiArtifacts = []bean2.CiArtifactBean{}
@@ -786,15 +777,6 @@ func (impl *AppArtifactManagerImpl) FetchApprovalPendingArtifacts(pipeline *pipe
 			}
 		}
 
-		deployedEnvironmentsForArtifacts, err := impl.getDeployedEnvironmentsForArtifacts(pipeline, ciArtifacts)
-		if err != nil {
-			impl.logger.Errorw("error in fetching environments on which artifact is currently deployed", "cdPipelineId", pipeline.Id, "err", err)
-			return ciArtifactsResponse, err
-		}
-		for i, artifact := range ciArtifacts {
-			ciArtifacts[i].DeployedOnEnvironments = deployedEnvironmentsForArtifacts[artifact.Id]
-		}
-
 		ciArtifactsResponse.CdPipelineId = pipeline.Id
 		if ciArtifacts == nil {
 			ciArtifacts = []bean2.CiArtifactBean{}
@@ -1007,15 +989,6 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pi
 		}
 	}
 
-	deployedEnvironmentsForArtifacts, err := impl.getDeployedEnvironmentsForArtifacts(pipeline, ciArtifacts)
-	if err != nil {
-		impl.logger.Errorw("error in fetching environments on which artifact is currently deployed", "cdPipelineId", pipeline.Id, "err", err)
-		return ciArtifactsResponse, err
-	}
-	for i, artifact := range ciArtifacts {
-		ciArtifacts[i].DeployedOnEnvironments = deployedEnvironmentsForArtifacts[artifact.Id]
-	}
-
 	ciArtifactsResponse.CdPipelineId = pipeline.Id
 	ciArtifactsResponse.LatestWfArtifactId = latestWfArtifactId
 	ciArtifactsResponse.LatestWfArtifactStatus = latestWfArtifactStatus
@@ -1028,11 +1001,11 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pi
 	return ciArtifactsResponse, nil
 }
 
-func (impl *AppArtifactManagerImpl) getDeployedEnvironmentsForArtifacts(pipeline *pipelineConfig.Pipeline, ciArtifacts []bean2.CiArtifactBean) (artifactIdToDeployedEnvMap map[int][]string, err error) {
+func (impl *AppArtifactManagerImpl) getDeployedEnvironmentsForArtifacts(workflowId int, ciArtifacts []bean2.CiArtifactBean) (artifactIdToDeployedEnvMap map[int][]string, err error) {
 
-	wfCdPipelineIds, err := impl.getAllCdPipelineInWfByPipelineId(pipeline)
+	wfCdPipelineIds, err := impl.getAllCdPipelineInWfByPipelineId(workflowId)
 	if err != nil {
-		impl.logger.Errorw("error in getting all wfCDPipelineIds by pipelineId", "pipelineId", pipeline.Id, "err", err)
+		impl.logger.Errorw("error in getting all wfCDPipelineIds by workflowId", "workflowId", workflowId, "err", err)
 		return artifactIdToDeployedEnvMap, err
 	}
 
@@ -1087,10 +1060,10 @@ func (impl *AppArtifactManagerImpl) getlatestArtifactDeployedOnPipelines(wfCdPip
 }
 
 // TODO: should be moved to appWorkflowService
-func (impl *AppArtifactManagerImpl) getAllCdPipelineInWfByPipelineId(pipeline *pipelineConfig.Pipeline) (wfCdPipelineIds []int, err error) {
-	appWfMappings, err := impl.appWorkflowRepository.FindAllMappingsInCdPipelineWorkflow(pipeline.Id)
+func (impl *AppArtifactManagerImpl) getAllCdPipelineInWfByPipelineId(workflowId int) (wfCdPipelineIds []int, err error) {
+	appWfMappings, err := impl.appWorkflowRepository.FindByWorkflowId(workflowId)
 	if err != nil {
-		impl.logger.Errorw("error in finding app wf mappings for given pipelineId", "pipelineId", pipeline.Id, "err", err)
+		impl.logger.Errorw("error in finding app wf mappings for given pipelineId", "workflowId", workflowId, "err", err)
 		return wfCdPipelineIds, err
 	}
 
@@ -1601,7 +1574,7 @@ func (impl *AppArtifactManagerImpl) FetchMaterialForArtifactPromotion(artifactPr
 			return ciArtifactResponse, err
 		}
 	case string(bean3.SOURCE_TYPE_CI):
-		ciPipelineId, appWorkflowId, err := impl.getCiPipelineIdAndWorkflowIdByCiName(artifactPromotionMaterialRequest.ResourceName)
+		ciPipelineId, appWorkflowId, err := impl.getCiPipelineIdAndWorkflowIdByCiName(artifactPromotionMaterialRequest.ResourceName, artifactPromotionMaterialRequest.AppId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching ciPipelineId/appWorkflowId by ciPipelineName", "err", err)
 			return ciArtifactResponse, err
@@ -1730,6 +1703,15 @@ func (impl *AppArtifactManagerImpl) FetchMaterialForArtifactPromotion(artifactPr
 	}
 	ciArtifactResponse.AppReleaseTagNames = appTags
 
+	deployedEnvironmentsForArtifacts, err := impl.getDeployedEnvironmentsForArtifacts(artifactPromotionMaterialRequest.WorkflowId, ciArtifacts)
+	if err != nil {
+		impl.logger.Errorw("error in fetching environments on which artifact is currently deployed", "workflowId", artifactPromotionMaterialRequest.WorkflowId, "err", err)
+		return ciArtifactResponse, err
+	}
+	for i, artifact := range ciArtifacts {
+		ciArtifacts[i].DeployedOnEnvironments = deployedEnvironmentsForArtifacts[artifact.Id]
+	}
+
 	// add promotion approval metadata if present
 	for i, artifact := range ciArtifacts {
 		if approvalMetadata, ok := promotionApprovalMetadataMap[artifact.Id]; ok {
@@ -1779,8 +1761,8 @@ func (impl *AppArtifactManagerImpl) getCdPipelineIdAndWorkflowId(appId int, envi
 	return cdPipelineId, appWorkflowMapping.Id, nil
 }
 
-func (impl *AppArtifactManagerImpl) getCiPipelineIdAndWorkflowIdByCiName(ciPipelineName string) (ciPipelineId int, appWorkflowId int, err error) {
-	ciPipeline, err := impl.CiPipelineRepository.FindByName(ciPipelineName)
+func (impl *AppArtifactManagerImpl) getCiPipelineIdAndWorkflowIdByCiName(ciPipelineName string, appId int) (ciPipelineId int, appWorkflowId int, err error) {
+	ciPipeline, err := impl.CiPipelineRepository.FindByNameAndAppID(ciPipelineName, appId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching ciPipeline by name", "ciPipelineName", ciPipelineName, "err", err)
 		return ciPipelineId, appWorkflowId, &util.ApiError{
