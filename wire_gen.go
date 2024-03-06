@@ -719,7 +719,7 @@ func InitializeApp() (*App, error) {
 	imageScanRouterImpl := router.NewImageScanRouterImpl(imageScanRestHandlerImpl)
 	policyRestHandlerImpl := restHandler.NewPolicyRestHandlerImpl(sugaredLogger, policyServiceImpl, userServiceImpl, userAuthServiceImpl, enforcerImpl, enforcerUtilImpl, environmentServiceImpl)
 	policyRouterImpl := router.NewPolicyRouterImpl(policyRestHandlerImpl)
-	gitOpsConfigServiceImpl := gitops.NewGitOpsConfigServiceImpl(sugaredLogger, environmentVariables, gitOpsConfigRepositoryImpl, k8sServiceImpl, acdAuthConfig, clusterServiceImplExtended, argoUserServiceImpl, serviceClientImpl, gitOperationServiceImpl, gitOpsConfigReadServiceImpl, gitOpsValidationServiceImpl)
+	gitOpsConfigServiceImpl := gitops.NewGitOpsConfigServiceImpl(sugaredLogger, gitOpsConfigRepositoryImpl, k8sServiceImpl, acdAuthConfig, clusterServiceImplExtended, argoUserServiceImpl, serviceClientImpl, gitOperationServiceImpl, gitOpsConfigReadServiceImpl, gitOpsValidationServiceImpl)
 	gitOpsConfigRestHandlerImpl := restHandler.NewGitOpsConfigRestHandlerImpl(sugaredLogger, gitOpsConfigServiceImpl, userServiceImpl, validate, enforcerImpl, teamServiceImpl)
 	gitOpsConfigRouterImpl := router.NewGitOpsConfigRouterImpl(gitOpsConfigRestHandlerImpl)
 	dashboardConfig, err := dashboard.GetConfig()
