@@ -1,6 +1,8 @@
 package serverConnection
 
 import (
+	"fmt"
+	dockerArtifactStoreRegistry "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/pkg/serverConnection/adapter"
 	"github.com/devtron-labs/devtron/pkg/serverConnection/bean"
 	"github.com/devtron-labs/devtron/pkg/serverConnection/repository"
@@ -12,18 +14,22 @@ type ServerConnectionService interface {
 	// methods
 	CreateOrUpdateServerConnectionConfig(reqBean *bean.ServerConnectionConfigBean, userId int32, tx *pg.Tx) error
 	GetServerConnectionConfigById(id int) (*bean.ServerConnectionConfigBean, error)
+	GetServerConnectionConfigByDockerId(dockerId string) (*bean.ServerConnectionConfigBean, error)
 }
 
 type ServerConnectionServiceImpl struct {
-	logger                     *zap.SugaredLogger
-	serverConnectionRepository repository.ServerConnectionRepository
+	logger                        *zap.SugaredLogger
+	serverConnectionRepository    repository.ServerConnectionRepository
+	dockerArtifactStoreRepository dockerArtifactStoreRegistry.DockerArtifactStoreRepository
 }
 
 func NewServerConnectionServiceImpl(logger *zap.SugaredLogger,
-	serverConnectionRepository repository.ServerConnectionRepository) *ServerConnectionServiceImpl {
+	serverConnectionRepository repository.ServerConnectionRepository,
+	dockerArtifactStoreRepository dockerArtifactStoreRegistry.DockerArtifactStoreRepository) *ServerConnectionServiceImpl {
 	return &ServerConnectionServiceImpl{
-		logger:                     logger,
-		serverConnectionRepository: serverConnectionRepository,
+		logger:                        logger,
+		serverConnectionRepository:    serverConnectionRepository,
+		dockerArtifactStoreRepository: dockerArtifactStoreRepository,
 	}
 }
 
@@ -60,5 +66,18 @@ func (impl *ServerConnectionServiceImpl) GetServerConnectionConfigById(id int) (
 		return nil, err
 	}
 	serverConnectionConfig := adapter.GetServerConnectionConfigBean(model)
+	return serverConnectionConfig, nil
+}
+
+func (impl *ServerConnectionServiceImpl) GetServerConnectionConfigByDockerId(dockerId string) (*bean.ServerConnectionConfigBean, error) {
+	fmt.Println("hi")
+	dockerRegistry, err := impl.dockerArtifactStoreRepository.FindOne(dockerId)
+	if err != nil {
+		return nil, err
+	}
+	serverConnectionConfig, err := impl.GetServerConnectionConfigById(dockerRegistry.ServerConnectionConfigId)
+	if err != nil {
+		return nil, err
+	}
 	return serverConnectionConfig, nil
 }

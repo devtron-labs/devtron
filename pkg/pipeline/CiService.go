@@ -753,11 +753,12 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 
 	if dockerRegistry != nil {
 		var registryConnectionConfig *bean3.ServerConnectionConfigBean
+		//registry, err := impl.
 		dockerRegistry.ServerConnectionConfigId = 28
 		if dockerRegistry.ServerConnectionConfigId > 0 {
-			registryConnectionConfig, err = impl.serverConnectionService.GetServerConnectionConfigById(dockerRegistry.ServerConnectionConfigId)
+			registryConnectionConfig, err = impl.serverConnectionService.GetServerConnectionConfigByDockerId(dockerRegistry.Id)
 			if err != nil {
-				impl.Logger.Errorw("err in fetching connection config", "err", err, "connectionConfigId", dockerRegistry.ServerConnectionConfigId)
+				impl.Logger.Errorw("err in fetching connection config", "err", err, "dockerId", dockerRegistry.Id)
 				return nil, err
 			}
 		}
