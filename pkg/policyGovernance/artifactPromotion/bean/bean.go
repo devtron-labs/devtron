@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository1 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
 	"github.com/devtron-labs/devtron/util"
@@ -263,3 +264,77 @@ type WorkflowMetaData struct {
 	EnvMap       map[string]repository1.Environment
 	CiSourceData CiSourceMetaData
 }
+
+type PipelinesMetaData struct {
+	PipelineIds            []int
+	PipelineIdVsEnvNameMap map[int]string
+	PipelineIdDaoMap       map[int]*pipelineConfig.Pipeline
+	EnvIds                 []int
+}
+
+type RequestMetaData struct {
+	ActiveEnvNames     []string
+	UserEnvNames       []string
+	AuthorisedEnvMap   map[string]bool
+	ActiveEnvironments []cluster.EnvironmentBean
+	PipelinesMetaData
+	activeEnvIds             []int
+	activeEnvNames           []string
+	activeAuthorisedEnvNames []string
+	activeAuthorisedEnvIds   []int
+}
+
+func (r *RequestMetaData) GetActiveEnvNames() []string {
+	if len(r.activeEnvNames) > 0 {
+		return r.activeEnvNames
+	}
+	envNames := make([]string, 0, len(r.ActiveEnvNames))
+	for _, env := range r.ActiveEnvironments {
+		envNames = append(envNames, env.Environment)
+	}
+	r.activeEnvNames = envNames
+	return envNames
+}
+
+func (r *RequestMetaData) GetActiveAuthorisedEnvNames() []string {
+	if len(r.activeAuthorisedEnvNames) > 0 {
+		return r.activeAuthorisedEnvNames
+	}
+	envNames := make([]string, 0, len(r.ActiveEnvNames))
+	for _, env := range r.ActiveEnvironments {
+		if r.AuthorisedEnvMap[env.Environment] {
+			envNames = append(envNames, env.Environment)
+		}
+	}
+	r.activeAuthorisedEnvNames = envNames
+	return envNames
+}
+
+func (r *RequestMetaData) GetActiveAuthorisedEnvIds() []int {
+	if len(r.activeAuthorisedEnvIds) > 0 {
+		return r.activeAuthorisedEnvIds
+	}
+	envIds := make([]int, 0, len(r.ActiveEnvNames))
+	for _, env := range r.ActiveEnvironments {
+		if r.AuthorisedEnvMap[env.Environment] {
+			envIds = append(envIds, env.Id)
+		}
+	}
+	r.activeAuthorisedEnvIds = envIds
+	return envIds
+}
+
+func (r *RequestMetaData) GetPipelineById(id int) *pipelineConfig.Pipeline {
+	return r.PipelinesMetaData.PipelineIdDaoMap[id]
+}
+
+// todo: first extract metadata
+// db env names
+// db pipelines
+// user given envnames
+// authorised envs names map
+// authorised envs
+// authorised envIds
+// appId
+// workflowId
+// PipelinesMetaData
