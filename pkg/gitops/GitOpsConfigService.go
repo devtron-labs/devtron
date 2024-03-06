@@ -27,7 +27,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/validation"
 	gitOpsBean "github.com/devtron-labs/devtron/pkg/gitops/bean"
-	util2 "github.com/devtron-labs/devtron/util"
 	"net/http"
 	"strings"
 	"time"
@@ -57,7 +56,6 @@ type GitOpsConfigService interface {
 
 type GitOpsConfigServiceImpl struct {
 	logger                  *zap.SugaredLogger
-	globalEnvVariables      *util2.GlobalEnvVariables
 	gitOpsRepository        repository.GitOpsConfigRepository
 	K8sUtil                 *util4.K8sServiceImpl
 	aCDAuthConfig           *util3.ACDAuthConfig
@@ -70,7 +68,6 @@ type GitOpsConfigServiceImpl struct {
 }
 
 func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger,
-	envVariables *util2.EnvironmentVariables,
 	gitOpsRepository repository.GitOpsConfigRepository,
 	K8sUtil *util4.K8sServiceImpl, aCDAuthConfig *util3.ACDAuthConfig,
 	clusterService cluster.ClusterService,
@@ -81,7 +78,6 @@ func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger,
 	gitOpsValidationService validation.GitOpsValidationService) *GitOpsConfigServiceImpl {
 	return &GitOpsConfigServiceImpl{
 		logger:                  Logger,
-		globalEnvVariables:      envVariables.GlobalEnvVariables,
 		gitOpsRepository:        gitOpsRepository,
 		K8sUtil:                 K8sUtil,
 		aCDAuthConfig:           aCDAuthConfig,
