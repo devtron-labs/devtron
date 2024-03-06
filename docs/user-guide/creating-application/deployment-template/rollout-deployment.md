@@ -13,7 +13,7 @@ You can define application behavior by providing information in the following se
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/deployment-template/deployment-template.gif)
 
 {% hint style="warning" %}
-Super-admins can lock keys in rollout deployment template to prevent non-super-admins from modifying those locked keys. Refer [Lock Deployment Config](../../global-configurations/lock-deployment-config.md) to know more.
+Super-admins can lock keys in rollout deployment template to prevent non-super-admins from modifying those locked keys. Refer [Lock Deployment Configuration](../../global-configurations/lock-deployment-config.md) to know more.
 {% endhint %}
 
 ## 1. Chart version
