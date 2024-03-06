@@ -27,11 +27,7 @@ You can create a cluster using one of the following cloud providers as per your 
 | **AWS EKS** | Create a cluster using [AWS EKS](https://docs.aws.amazon.com/eks/latest/userguide/getting-started-console.html). <br>`Note`: You can also refer our customized documentation for installing  `Devtron with CI/CD` on AWS EKS [here](https://github.com/devtron-labs/devtron/blob/b33a37bb608d07966c8f8b89e4f59287db873c6c/docs/setup/install/install-devtron-on-aws-eks.md).</br>  |
 | **Google Kubernetes Engine (GKE)** | Create a cluster using [GKE](https://cloud.google.com/kubernetes-engine/). |
 | **Azure Kubernetes Service (AKS)** | Create a cluster using [AKS](https://learn.microsoft.com/en-us/azure/aks/). | 
-<<<<<<< HEAD
 | **k3s - Lightweight Kubernetes** | Create a cluster using [k3s - Lightweight Kubernetes](https://devtron.ai/blog/deploy-your-applications-over-k3s-lightweight-kubernetes-in-no-time/).<br>`Note`: You can also refer our customized documentation for installing `Helm Dashboard by Devtron` on `Minikube, Microk8s, K3s, Kind` [here](../install/Install-devtron-on-Minikube-Microk8s-K3s-Kind.md).</br> | 
-=======
-| **k3s - Lightweight Kubernetes** | Create a cluster using [k3s - Lightweight Kubernetes](https://devtron.ai/blog/deploy-your-applications-over-k3s-lightweight-kubernetes-in-no-time/).<br>`Note`: You can also refer our customized documentation for installing `Helm Dashboard by Devtron` on `Minikube, Microk8s, K3s, Kind` [here](../install/install-devtron-on-minikube-microk8s-k3s-kind.md).</br> | 
->>>>>>> 4ad25dbcc (doc: project-level corrections (#4753))
 
 
 
@@ -80,5 +76,4 @@ Choose one of the options as per your requirements:
 | **Upgrade Devtron to latest version** | You can upgrade Devtron in one of the following ways:<ul><li>[Upgrade Devtron using Helm](../../setup/upgrade/README.md#upgrade-devtron-using-helm)</ul></li><ul><li>[Upgrade Devtron from UI](../../setup/upgrade/upgrade-devtron-ui.md)</ul></li> |
 
 **Note**: If you have questions, please let us know on our discord channel. [![Join Discord](https://img.shields.io/badge/Join%20us%20on-Discord-e01563.svg)](https://discord.gg/jsRG5qx2gp)
-
 

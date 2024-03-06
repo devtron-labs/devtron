@@ -192,11 +192,7 @@ In Devtron, you can configure pre-build actions by going to Applications (choose
 
 Actions or processes performed after the [image](#image) building process in a containerized application's deployment pipeline, e.g., email notification about build status.
 
-<<<<<<< HEAD
 In Devtron, you can configure post-build actions by going to Applications (choose your app) → App Configuration (tab) → Workflow Editor → (edit build pipeline) → Post-build stage (tab) → Add task (button). [Read More...](../user-guide/creating-application/workflow/ci-build-pre-post-plugins.md#configuring-pre-post-build-tasks)
-=======
-In Devtron, you can configure post-build actions by going to Applications (choose your app) → App Configuration (tab) → Workflow Editor → (edit build pipeline) → Post-build stage (tab) → Add task (button). [Read More...](../user-guide/creating-application/workflow/ci-build-pre-post-plugins#configuring-pre-post-build-tasks)
->>>>>>> 4ad25dbcc (doc: project-level corrections (#4753))
 
 ### Pre-deployment
 
@@ -253,7 +249,6 @@ In Devtron, view the list of StatefulSets by going to Resource Browser → (choo
 The operating system and architecture for which the [container image](#image) will be built, e.g., ubuntu/arm64, linux/amd64. The image will only be compatible to run only on the target platform chosen in the build configuration.
 
 In Devtron, you can choose the target platform by going to Applications (choose your app) → App Configuration (tab) → Build Configuration → (create build pipeline) → (click `Allow Override` button) → Target platform for the build (section). [Read More...](../user-guide/creating-application/docker-build-configuration.md)
-
 
 
 

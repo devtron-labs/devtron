@@ -47,9 +47,5 @@ Enable **show application metrics** toggle to view the application metrics on th
 Select **Save & Next** to save your configurations.
 
 {% hint style="warning" %}
-<<<<<<< HEAD
 Super-admins can lock keys in base deployment template to prevent non-super-admins from modifying those locked keys. Refer [Lock Deployment Configuration](../global-configurations/lock-deployment-config.md) to know more.
-=======
-Super-admins can lock keys in base deployment template to prevent non-super-admins from modifying those locked keys. Refer [Lock Deployment Config](../global-configurations/lock-deployment-config.md) to know more.
->>>>>>> 4ad25dbcc (doc: project-level corrections (#4753))
 {% endhint %}
