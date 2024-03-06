@@ -932,7 +932,6 @@ func (impl *ArtifactPromotionApprovalServiceImpl) raisePromoteRequest(userId int
 		SourcePipelineId:        metadata.GetSourcePipelineId(),
 		DestinationPipelineId:   cdPipeline.Id,
 		Status:                  bean.AWAITING_APPROVAL,
-		Active:                  true,
 		ArtifactId:              ciArtifact.Id,
 		PolicyId:                promotionPolicy.Id,
 		PolicyEvaluationAuditId: evaluationAuditEntry.Id,
@@ -1032,7 +1031,6 @@ func (impl *ArtifactPromotionApprovalServiceImpl) cancelPromotionApprovalRequest
 		}
 	}
 
-	artifactPromotionDao.Active = false
 	artifactPromotionDao.Status = bean.CANCELED
 	artifactPromotionDao.UpdatedOn = time.Now()
 	artifactPromotionDao.UpdatedBy = request.UserId
