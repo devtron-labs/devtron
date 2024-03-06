@@ -2,7 +2,7 @@ package git
 
 import (
 	"fmt"
-	bean2 "github.com/devtron-labs/devtron/api/bean"
+	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/ktrysmt/go-bitbucket"
 	"go.uber.org/zap"
 	"io/ioutil"
@@ -13,6 +13,8 @@ import (
 )
 
 const (
+	HTTP_URL_PROTOCOL              = "http://"
+	HTTPS_URL_PROTOCOL             = "https://"
 	BITBUCKET_CLONE_BASE_URL       = "https://bitbucket.org/"
 	BITBUCKET_GITOPS_DIR           = "bitbucketGitOps"
 	BITBUCKET_REPO_NOT_FOUND_ERROR = "404 Not Found"
@@ -65,6 +67,7 @@ func (impl GitBitbucketClient) GetRepoUrl(config *bean2.GitOpsConfigDto) (repoUr
 		return repoUrl, nil
 	}
 }
+
 func (impl GitBitbucketClient) CreateRepository(config *bean2.GitOpsConfigDto) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
 
@@ -183,10 +186,10 @@ func (impl GitBitbucketClient) ensureProjectAvailabilityOnSsh(repoOptions *bitbu
 	for count := 0; count < 5; count++ {
 		_, err := impl.gitOpsHelper.Clone(repoUrl, fmt.Sprintf("/ensure-clone/%s", repoOptions.RepoSlug))
 		if err == nil {
-			impl.logger.Infow("ensureProjectAvailability clone passed bitbucket", "try count", count, "repoUrl", repoUrl)
+			impl.logger.Infow("ensureProjectAvailability clone passed Bitbucket", "try count", count, "repoUrl", repoUrl)
 			return true, nil
 		}
-		impl.logger.Errorw("ensureProjectAvailability clone failed ssh bitbucket", "try count", count, "err", err)
+		impl.logger.Errorw("ensureProjectAvailability clone failed ssh Bitbucket", "try count", count, "err", err)
 		time.Sleep(10 * time.Second)
 	}
 	return false, nil

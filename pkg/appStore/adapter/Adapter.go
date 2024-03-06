@@ -20,7 +20,7 @@ func NewInstallAppModel(chart *appStoreBean.InstallAppVersionDTO, status appStor
 		installAppModel.UpdateStatus(status)
 	}
 	installAppModel.CreateAuditLog(chart.UserId)
-	installAppModel.UpdateGitOpsRepoName(chart.GitOpsRepoName)
+	installAppModel.UpdateGitOpsRepository(chart.GitOpsRepoURL, chart.IsCustomRepository)
 	installAppModel.MarkActive()
 	return installAppModel
 }
