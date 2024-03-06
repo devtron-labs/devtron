@@ -125,7 +125,14 @@ func (impl LockConfigurationServiceImpl) DeleteActiveLockConfiguration(userId in
 }
 
 func (impl LockConfigurationServiceImpl) HandleLockConfiguration(currentConfig, savedConfig string, userId int) (*bean.LockValidateErrorResponse, error) {
-
+	lockConfig, err := impl.GetLockConfiguration()
+	if err != nil {
+		impl.logger.Errorw("error in getting active lock configuration", "err", err)
+		return nil, err
+	}
+	if lockConfig.Id == 0 {
+		return nil, nil
+	}
 	isSuperAdmin, err := impl.userService.IsSuperAdminForDevtronManaged(userId)
 
 	if err != nil || isSuperAdmin {
@@ -134,14 +141,6 @@ func (impl LockConfigurationServiceImpl) HandleLockConfiguration(currentConfig, 
 
 	var savedConfigMap map[string]interface{}
 	var currentConfigMap map[string]interface{}
-
-	lockConfig, err := impl.GetLockConfiguration()
-	if err != nil {
-		return nil, err
-	}
-	if lockConfig.Id == 0 {
-		return nil, nil
-	}
 
 	err = json.Unmarshal([]byte(savedConfig), &savedConfigMap)
 	if err != nil {

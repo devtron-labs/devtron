@@ -25,6 +25,7 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deployment"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deploymentTypeChange"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/resource"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"net/http"
@@ -96,7 +97,7 @@ type InstalledAppRestHandlerImpl struct {
 	installedAppRepository                  repository.InstalledAppRepository
 	K8sApplicationService                   application2.K8sApplicationService
 	appCrudOperationService                 app2.AppCrudOperationService
-	installedAppDeploymentTypeChangeService FullMode.InstalledAppDeploymentTypeChangeService
+	installedAppDeploymentTypeChangeService deploymentTypeChange.InstalledAppDeploymentTypeChangeService
 }
 
 func NewInstalledAppRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService,
@@ -109,7 +110,7 @@ func NewInstalledAppRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService u
 	cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler,
 	installedAppRepository repository.InstalledAppRepository,
 	appCrudOperationService app2.AppCrudOperationService,
-	installedAppDeploymentTypeChangeService FullMode.InstalledAppDeploymentTypeChangeService) *InstalledAppRestHandlerImpl {
+	installedAppDeploymentTypeChangeService deploymentTypeChange.InstalledAppDeploymentTypeChangeService) *InstalledAppRestHandlerImpl {
 	return &InstalledAppRestHandlerImpl{
 		Logger:                                  Logger,
 		userAuthService:                         userAuthService,

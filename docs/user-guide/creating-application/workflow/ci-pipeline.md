@@ -8,9 +8,9 @@ For Devtron version older than v0.4.0, please refer the [CI Pipeline (legacy)](.
 
 A CI Workflow can be created in one of the following ways:
 
-* [Build and Deploy from Source Code](#1.-build-and-deploy-from-source-code)
-* [Linked Build Pipeline](#2.-linked-build-pipeline)
-* [Deploy Image from External Service](#3.-deploy-image-from-external-service)
+* [Build and Deploy from Source Code](#id-1.-build-and-deploy-from-source-code)
+* [Linked Build Pipeline](#id-2.-linked-build-pipeline)
+* [Deploy Image from External Service](#id-3.-deploy-image-from-external-service)
 * Sync with Environment
 * Create a Job
 
@@ -242,7 +242,7 @@ You can use Devtron for deployments on Kubernetes while using an external CI too
 
 | Fields | Description |
 | --- | --- |
-| **Deploy to environment** | <ul><li>`Environment`: Provide the name of the [environment](../../global-configurations/cluster-and-environments#add-environment).</ul></li><ul><li>`Namespace`: Provide the [namespace](../../global-configurations/cluster-and-environments#add-environment).</ul></li> |
+| **Deploy to environment** | <ul><li>`Environment`: Provide the name of the [environment](../../global-configurations/cluster-and-environments.md#add-environment).</ul></li><ul><li>`Namespace`: Provide the [namespace](../../global-configurations/cluster-and-environments.md#add-environment).</ul></li> |
 | **When do you want to deploy** | You can deploy either in one of the following ways: <ul><li>`Automatic`: If you select automatic, your application will be deployed automatically everytime a new image is received.</ul></li> <ul><li>`Manual`: In case of manual, you have to select the image and deploy manually. </ul></li>|
 | **Deployment Strategy** | Configure the deployment preferences for this pipeline. |
 
@@ -255,7 +255,7 @@ To get the webhook URL and JSON sample payload to be used in external CI pipelin
 * On the **Webhook Details** page, you have to authenticate via `API token` to allow requests from an external service (e.g. Jenkins or CircleCI).
 
 * For authentication, only users with `super-admin` permissions can select or generate an API token:
-    * You can either use **Select API Token** if you have generated an [API Token](../../global-configurations/authorization/api-tokens) under **Global Configurations**. 
+    * You can either use **Select API Token** if you have generated an [API Token](../../global-configurations/authorization/api-tokens.md) under **Global Configurations**. 
 
     ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/webhook-ci/select-api-token-webhook-details-v2.jpg)
 

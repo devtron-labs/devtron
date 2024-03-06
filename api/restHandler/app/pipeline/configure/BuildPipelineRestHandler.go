@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"io"
 	"net/http"
 	"strconv"
@@ -21,9 +22,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	bean1 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
-	resourceGroup "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/response"
 	"github.com/go-pg/pg"
@@ -64,6 +64,8 @@ type DevtronAppBuildRestHandler interface {
 	GetCiPipelineByEnvironment(w http.ResponseWriter, r *http.Request)
 	GetCiPipelineByEnvironmentMin(w http.ResponseWriter, r *http.Request)
 	GetExternalCiByEnvironment(w http.ResponseWriter, r *http.Request)
+
+	GetCIRuntimeParams(w http.ResponseWriter, r *http.Request)
 }
 
 type DevtronAppBuildMaterialRestHandler interface {
@@ -433,8 +435,8 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 		ciConfigRequest := bean.CiConfigRequest{}
 		ciConfigRequest.DockerRegistry = emptyDockerRegistry
 		ciConfigRequest.AppId = patchRequest.AppId
-		ciConfigRequest.CiBuildConfig = &bean1.CiBuildConfigBean{}
-		ciConfigRequest.CiBuildConfig.CiBuildType = bean1.SKIP_BUILD_TYPE
+		ciConfigRequest.CiBuildConfig = &pipelineConfigBean.CiBuildConfigBean{}
+		ciConfigRequest.CiBuildConfig.CiBuildType = pipelineConfigBean.SKIP_BUILD_TYPE
 		ciConfigRequest.UserId = patchRequest.UserId
 		if patchRequest.CiPipeline == nil || patchRequest.CiPipeline.CiMaterial == nil {
 			handler.Logger.Errorw("Invalid patch ci-pipeline request", "request", patchRequest, "err", "invalid CiPipeline data")
@@ -455,7 +457,7 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 	}
 	createResp, err := handler.pipelineBuilder.PatchCiPipeline(&patchRequest)
 	if err != nil {
-		if err.Error() == bean1.PIPELINE_NAME_ALREADY_EXISTS_ERROR {
+		if err.Error() == pipelineConfigBean.PIPELINE_NAME_ALREADY_EXISTS_ERROR {
 			handler.Logger.Errorw("service err, pipeline name already exist ", "err", err)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
@@ -537,7 +539,7 @@ func (handler PipelineConfigRestHandlerImpl) validateAndEnrichForLinkedCDRequest
 			return nil, err
 		}
 
-		if parentCi.PipelineType == bean.LINKED_CD {
+		if parentCi.PipelineType == pipelineConfigBean.LINKED_CD {
 			common.WriteJsonResp(w, fmt.Errorf("invalid operation"), "cannot use linked cd as source for workflow", http.StatusBadRequest)
 			return nil, fmt.Errorf("invalid operation")
 		}
@@ -565,7 +567,7 @@ func (handler PipelineConfigRestHandlerImpl) validateAndEnrichForLinkedCDRequest
 	}
 	patchRequest.CiPipeline = &bean.CiPipeline{
 		ParentCiPipeline: cdPipeline.Id,
-		PipelineType:     bean.LINKED_CD,
+		PipelineType:     pipelineConfigBean.LINKED_CD,
 		Name:             suggestedName,
 		CiMaterial:       ciMaterial,
 		DockerArgs:       make(map[string]string),
@@ -699,6 +701,48 @@ func (handler PipelineConfigRestHandlerImpl) GetExternalCiById(w http.ResponseWr
 	common.WriteJsonResp(w, err, ciConf, http.StatusOK)
 }
 
+func (handler PipelineConfigRestHandlerImpl) GetCIRuntimeParams(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	var ciPipelineId int
+	v := r.URL.Query()
+	pipelineId := v.Get("pipelineId")
+	if len(pipelineId) != 0 {
+		ciPipelineId, err = strconv.Atoi(pipelineId)
+		if err != nil {
+			handler.Logger.Errorw("request err, GetCIRuntimeParams", "err", err, "pipelineIdParam", pipelineId)
+			response.WriteResponse(http.StatusBadRequest, "please send valid pipelineId", w, errors.New("pipelineId id invalid"))
+			return
+		}
+	} else {
+		response.WriteResponse(http.StatusBadRequest, "please send valid pipelineId", w, errors.New("pipelineId id invalid"))
+		return
+	}
+	handler.Logger.Infow("request payload, GetCIRuntimeParams", "pipelineId", pipelineId)
+	ciPipeline, err := handler.pipelineBuilder.GetCiPipelineById(ciPipelineId)
+	if err != nil {
+		handler.Logger.Infow("service error, GetCIRuntimeParams", "err", err, "pipelineId", pipelineId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(ciPipeline.AppId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+
+	runtimeParams, err := handler.pipelineBuilder.GetCIRuntimeParams(ciPipelineId)
+	if err != nil {
+		handler.Logger.Errorw("error in getting ci runtime params", "err", err, "ciPipelineId", ciPipelineId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+	}
+	common.WriteJsonResp(w, nil, runtimeParams, http.StatusOK)
+}
+
 func (handler PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -717,6 +761,11 @@ func (handler PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWr
 		handler.Logger.Errorw("invalid req, commit hash not present for multi-git", "payload", ciTriggerRequest)
 		common.WriteJsonResp(w, errors.New("invalid req, commit hash not present for multi-git"),
 			nil, http.StatusBadRequest)
+	}
+	if err := handler.validateCIRuntimeParams(ciTriggerRequest); err != nil {
+		handler.Logger.Errorw("invalid ci trigger req, reserved env vars present in request", "err", err, "payload", ciTriggerRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
 	}
 	ciTriggerRequest.TriggeredBy = userId
 	token := r.Header.Get("token")
@@ -781,7 +830,7 @@ func (handler PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWr
 	//RBAC ENDS
 	response := make(map[string]string)
 	resp, err := handler.ciHandler.HandleCIManual(ciTriggerRequest)
-	if errors.Is(err, bean1.ErrImagePathInUse) {
+	if errors.Is(err, pipelineConfigBean.ErrImagePathInUse) {
 		handler.Logger.Errorw("service err duplicate image tag, TriggerCiPipeline", "err", err, "payload", ciTriggerRequest)
 		common.WriteJsonResp(w, err, err, http.StatusConflict)
 		return
@@ -1564,6 +1613,25 @@ func (handler PipelineConfigRestHandlerImpl) validForMultiMaterial(ciTriggerRequ
 		}
 	}
 	return true
+}
+
+func (handler PipelineConfigRestHandlerImpl) validateCIRuntimeParams(request bean.CiTriggerRequest) error {
+	runtimeParams := request.RuntimeParams
+	if runtimeParams != nil {
+		invalidVars := make([]string, 0, len(runtimeParams.EnvVariables))
+		for key := range runtimeParams.EnvVariables {
+			if _, ok := bean.ReservedCIEnvVariables[key]; ok {
+				invalidVars = append(invalidVars, key)
+			}
+		}
+		if len(invalidVars) > 0 {
+			return &util.ApiError{
+				HttpStatusCode: http.StatusBadRequest,
+				UserMessage:    fmt.Sprintf("found reserved vars in env variables : %v", invalidVars),
+			}
+		}
+	}
+	return nil
 }
 
 func (handler PipelineConfigRestHandlerImpl) ValidateGitMaterialUrl(gitProviderId int, url string) (bool, error) {

@@ -22,7 +22,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
+	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders"
+	"net/http"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -37,7 +39,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	repository1 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/globalPolicy"
-	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
@@ -49,7 +51,6 @@ import (
 	repository4 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
-	"net/http"
 
 	"github.com/devtron-labs/common-lib/blob-storage"
 	client "github.com/devtron-labs/devtron/client/events"
@@ -169,7 +170,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 	if err != nil {
 		return 0, err
 	}
-	if trigger.PipelineType == bean2.CI_JOB && len(ciMaterials) != 0 {
+	if trigger.PipelineType == string(pipelineConfigBean.CI_JOB) && len(ciMaterials) != 0 {
 		ciMaterials = []*pipelineConfig.CiPipelineMaterial{ciMaterials[0]}
 		ciMaterials[0].GitMaterial = nil
 		ciMaterials[0].GitMaterialId = 0
@@ -216,7 +217,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 	}
 
 	// preCiSteps, postCiSteps, refPluginsData, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(pipeline.Id, ciEvent)
-	prePostAndRefPluginResponse, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(pipeline.Id, bean2.CiStage, scope)
+	prePostAndRefPluginResponse, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(pipeline.Id, pipelineConfigBean.CiStage, scope)
 	if err != nil {
 		impl.Logger.Errorw("error in getting pre steps data for wf request", "err", err, "ciPipelineId", pipeline.Id)
 		return 0, err
@@ -263,9 +264,9 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 	workflowRequest.AppLabels = appLabels
 	workflowRequest.Env = env
 	if isJob {
-		workflowRequest.Type = bean2.JOB_WORKFLOW_PIPELINE_TYPE
+		workflowRequest.Type = pipelineConfigBean.JOB_WORKFLOW_PIPELINE_TYPE
 	} else {
-		workflowRequest.Type = bean2.CI_WORKFLOW_PIPELINE_TYPE
+		workflowRequest.Type = pipelineConfigBean.CI_WORKFLOW_PIPELINE_TYPE
 	}
 
 	err = impl.executeCiPipeline(workflowRequest)
@@ -446,8 +447,8 @@ func (impl *CiServiceImpl) buildDefaultArtifactLocation(ciWorkflowConfig *pipeli
 	return ArtifactLocation
 }
 
-func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.CiPipeline, trigger types.Trigger, ciMaterials []*pipelineConfig.CiPipelineMaterial, savedWf *pipelineConfig.CiWorkflow, ciWorkflowConfig *pipelineConfig.CiWorkflowConfig, ciPipelineScripts []*pipelineConfig.CiPipelineScript, preCiSteps []*bean2.StepObject, postCiSteps []*bean2.StepObject, refPluginsData []*bean2.RefPluginObject, isJob bool) (*types.WorkflowRequest, error) {
-	var ciProjectDetails []bean2.CiProjectDetails
+func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.CiPipeline, trigger types.Trigger, ciMaterials []*pipelineConfig.CiPipelineMaterial, savedWf *pipelineConfig.CiWorkflow, ciWorkflowConfig *pipelineConfig.CiWorkflowConfig, ciPipelineScripts []*pipelineConfig.CiPipelineScript, preCiSteps []*pipelineConfigBean.StepObject, postCiSteps []*pipelineConfigBean.StepObject, refPluginsData []*pipelineConfigBean.RefPluginObject, isJob bool) (*types.WorkflowRequest, error) {
+	var ciProjectDetails []pipelineConfigBean.CiProjectDetails
 	commitHashes := trigger.CommitHashes
 	for _, ciMaterial := range ciMaterials {
 		// ignore those materials which have inactive git material
@@ -455,7 +456,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 			continue
 		}
 		commitHashForPipelineId := commitHashes[ciMaterial.Id]
-		ciProjectDetail := bean2.CiProjectDetails{
+		ciProjectDetail := pipelineConfigBean.CiProjectDetails{
 			GitRepository:   ciMaterial.GitMaterial.Url,
 			MaterialName:    ciMaterial.GitMaterial.Name,
 			CheckoutPath:    ciMaterial.GitMaterial.CheckoutPath,
@@ -468,7 +469,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 			Message:         commitHashForPipelineId.Message,
 			Type:            string(ciMaterial.Type),
 			CommitTime:      commitHashForPipelineId.Date.Format(bean.LayoutRFC3339),
-			GitOptions: bean2.GitOptions{
+			GitOptions: pipelineConfigBean.GitOptions{
 				UserName:      ciMaterial.GitMaterial.GitProvider.UserName,
 				Password:      ciMaterial.GitMaterial.GitProvider.Password,
 				SshPrivateKey: ciMaterial.GitMaterial.GitProvider.SshPrivateKey,
@@ -515,21 +516,21 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		// building preCiSteps & postCiSteps from them, refPluginsData not needed
 		preCiSteps = buildCiStepsDataFromDockerBuildScripts(beforeDockerBuildScripts)
 		postCiSteps = buildCiStepsDataFromDockerBuildScripts(afterDockerBuildScripts)
-		refPluginsData = []*bean2.RefPluginObject{}
+		refPluginsData = []*pipelineConfigBean.RefPluginObject{}
 	}
 
 	infraConfigScope := &infraConfig.Scope{
 		AppId: pipeline.AppId,
 	}
-	infraGetter, err := impl.infraProvider.GetInfraProvider(bean2.CI_WORKFLOW_PIPELINE_TYPE)
+	infraGetter, err := impl.infraProvider.GetInfraProvider(pipelineConfigBean.CI_WORKFLOW_PIPELINE_TYPE)
 	if err != nil {
-		impl.Logger.Errorw("error in getting infra provider", "err", err, "infraProviderType", bean2.CI_WORKFLOW_PIPELINE_TYPE)
+		impl.Logger.Errorw("error in getting infra provider", "err", err, "infraProviderType", pipelineConfigBean.CI_WORKFLOW_PIPELINE_TYPE)
 		return nil, err
 	}
 	if isJob {
-		infraGetter, err = impl.infraProvider.GetInfraProvider(bean2.JOB_WORKFLOW_PIPELINE_TYPE)
+		infraGetter, err = impl.infraProvider.GetInfraProvider(pipelineConfigBean.JOB_WORKFLOW_PIPELINE_TYPE)
 		if err != nil {
-			impl.Logger.Errorw("error in getting infra provider", "err", err, "infraProviderType", bean2.JOB_WORKFLOW_PIPELINE_TYPE)
+			impl.Logger.Errorw("error in getting infra provider", "err", err, "infraProviderType", pipelineConfigBean.JOB_WORKFLOW_PIPELINE_TYPE)
 			return nil, err
 		}
 	}
@@ -574,7 +575,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	var dockerfilePath string
 	var dockerRepository string
 	var checkoutPath string
-	var ciBuildConfigBean *bean2.CiBuildConfigBean
+	var ciBuildConfigBean *pipelineConfigBean.CiBuildConfigBean
 	dockerRegistry := &repository3.DockerArtifactStore{}
 	if !pipeline.IsExternal && pipeline.IsDockerConfigOverridden {
 		templateOverrideBean, err := impl.ciTemplateService.FindTemplateOverrideByCiPipelineId(pipeline.Id)
@@ -593,7 +594,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		dockerRegistry = ciTemplate.DockerRegistry
 		dockerRepository = ciTemplate.DockerRepository
 		ciBuildConfigEntity := ciTemplate.CiBuildConfig
-		ciBuildConfigBean, err = bean2.ConvertDbBuildConfigToBean(ciBuildConfigEntity)
+		ciBuildConfigBean, err = adapter.ConvertDbBuildConfigToBean(ciBuildConfigEntity)
 		if ciBuildConfigBean != nil {
 			ciBuildConfigBean.BuildContextGitMaterialId = ciTemplate.BuildContextGitMaterialId
 		}
@@ -606,16 +607,16 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		checkoutPath = "./"
 	}
 	var dockerImageTag string
-	customTag, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(bean2.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id))
+	customTag, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(pipelineConfigBean.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id))
 	if err != nil && err != pg.ErrNoRows {
 		return nil, err
 	}
 	if customTag.Id != 0 && customTag.Enabled == true {
-		imagePathReservation, err := impl.customTagService.GenerateImagePath(bean2.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id), dockerRegistry.RegistryURL, dockerRepository)
+		imagePathReservation, err := impl.customTagService.GenerateImagePath(pipelineConfigBean.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id), dockerRegistry.RegistryURL, dockerRepository)
 		if err != nil {
-			if errors.Is(err, bean2.ErrImagePathInUse) {
+			if errors.Is(err, pipelineConfigBean.ErrImagePathInUse) {
 				savedWf.Status = pipelineConfig.WorkflowFailed
-				savedWf.Message = bean2.ImageTagUnavailableMessage
+				savedWf.Message = pipelineConfigBean.ImageTagUnavailableMessage
 				err1 := impl.ciWorkflowRepository.UpdateWorkFlow(savedWf)
 				if err1 != nil {
 					impl.Logger.Errorw("could not save workflow, after failing due to conflicting image tag")
@@ -641,7 +642,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	var imageReservationIds []int
 	if !isJob {
 		registryDestinationImageMap, registryCredentialMap, pluginArtifactStage, imageReservationIds, err = impl.GetWorkflowRequestVariablesForCopyContainerImagePlugin(preCiSteps, postCiSteps, dockerImageTag, customTag.Id,
-			fmt.Sprintf(bean2.ImagePathPattern,
+			fmt.Sprintf(pipelineConfigBean.ImagePathPattern,
 				dockerRegistry.RegistryURL,
 				dockerRepository,
 				dockerImageTag),
@@ -661,7 +662,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	}
 	// mergedArgs := string(merged)
 	oldArgs := ciTemplate.Args
-	ciBuildConfigBean, err = bean2.OverrideCiBuildConfig(dockerfilePath, oldArgs, ciLevelArgs, ciTemplate.DockerBuildOptions, ciTemplate.TargetPlatform, ciBuildConfigBean)
+	ciBuildConfigBean, err = adapter.OverrideCiBuildConfig(dockerfilePath, oldArgs, ciLevelArgs, ciTemplate.DockerBuildOptions, ciTemplate.TargetPlatform, ciBuildConfigBean)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while overriding ci build config", "oldArgs", oldArgs, "ciLevelArgs", ciLevelArgs, "error", err)
 		return nil, errors.New("error while parsing ci build config")
@@ -681,13 +682,13 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 
 	ciBuildConfigBean.PipelineType = trigger.PipelineType
 
-	if ciBuildConfigBean.CiBuildType == bean2.SELF_DOCKERFILE_BUILD_TYPE || ciBuildConfigBean.CiBuildType == bean2.MANAGED_DOCKERFILE_BUILD_TYPE {
+	if ciBuildConfigBean.CiBuildType == pipelineConfigBean.SELF_DOCKERFILE_BUILD_TYPE || ciBuildConfigBean.CiBuildType == pipelineConfigBean.MANAGED_DOCKERFILE_BUILD_TYPE {
 		ciBuildConfigBean.DockerBuildConfig.BuildContext = filepath.Join(buildContextCheckoutPath, ciBuildConfigBean.DockerBuildConfig.BuildContext)
 		dockerBuildConfig := ciBuildConfigBean.DockerBuildConfig
 		dockerfilePath = filepath.Join(checkoutPath, dockerBuildConfig.DockerfilePath)
 		dockerBuildConfig.DockerfilePath = dockerfilePath
 		checkoutPath = dockerfilePath[:strings.LastIndex(dockerfilePath, "/")+1]
-	} else if ciBuildConfigBean.CiBuildType == bean2.BUILDPACK_BUILD_TYPE {
+	} else if ciBuildConfigBean.CiBuildType == pipelineConfigBean.BUILDPACK_BUILD_TYPE {
 		buildPackConfig := ciBuildConfigBean.BuildPackConfig
 		checkoutPath = filepath.Join(checkoutPath, buildPackConfig.ProjectPath)
 	}
@@ -737,7 +738,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		ImageRetryCount:             impl.config.ImageRetryCount,
 		ImageRetryInterval:          impl.config.ImageRetryInterval,
 		WorkflowExecutor:            impl.config.GetWorkflowExecutorType(),
-		Type:                        bean2.CI_WORKFLOW_PIPELINE_TYPE,
+		Type:                        pipelineConfigBean.CI_WORKFLOW_PIPELINE_TYPE,
 		CiArtifactLastFetch:         trigger.CiArtifactLastFetch,
 		RegistryDestinationImageMap: registryDestinationImageMap,
 		RegistryCredentialMap:       registryCredentialMap,
@@ -826,7 +827,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	return workflowRequest, nil
 }
 
-func (impl *CiServiceImpl) GetWorkflowRequestVariablesForCopyContainerImagePlugin(preCiSteps []*bean2.StepObject, postCiSteps []*bean2.StepObject, customTag string, customTagId int, buildImagePath string, buildImagedockerRegistryId string) (map[string][]string, map[string]plugin.RegistryCredentials, string, []int, error) {
+func (impl *CiServiceImpl) GetWorkflowRequestVariablesForCopyContainerImagePlugin(preCiSteps []*pipelineConfigBean.StepObject, postCiSteps []*pipelineConfigBean.StepObject, customTag string, customTagId int, buildImagePath string, buildImagedockerRegistryId string) (map[string][]string, map[string]plugin.RegistryCredentials, string, []int, error) {
 	var registryDestinationImageMap map[string][]string
 	var registryCredentialMap map[string]plugin.RegistryCredentials
 	var pluginArtifactStage string
@@ -857,7 +858,7 @@ func (impl *CiServiceImpl) GetWorkflowRequestVariablesForCopyContainerImagePlugi
 		for _, image := range images {
 			if image == buildImagePath {
 				return registryDestinationImageMap, registryCredentialMap, pluginArtifactStage, imagePathReservationIds,
-					bean2.ErrImagePathInUse
+					pipelineConfigBean.ErrImagePathInUse
 			}
 		}
 	}
@@ -883,38 +884,38 @@ func (impl *CiServiceImpl) ReserveImagesGeneratedAtPlugin(customTagId int, regis
 	return imagePathReservationIds, nil
 }
 
-func buildCiStepsDataFromDockerBuildScripts(dockerBuildScripts []*bean.CiScript) []*bean2.StepObject {
+func buildCiStepsDataFromDockerBuildScripts(dockerBuildScripts []*bean.CiScript) []*pipelineConfigBean.StepObject {
 	// before plugin support, few variables were set as env vars in ci-runner
 	// these variables are now moved to global vars in plugin steps, but to avoid error in old scripts adding those variables in payload
-	inputVars := []*bean2.VariableObject{
+	inputVars := []*pipelineConfigBean.VariableObject{
 		{
 			Name:                  "DOCKER_IMAGE_TAG",
 			Format:                "STRING",
-			VariableType:          bean2.VARIABLE_TYPE_REF_GLOBAL,
+			VariableType:          pipelineConfigBean.VARIABLE_TYPE_REF_GLOBAL,
 			ReferenceVariableName: "DOCKER_IMAGE_TAG",
 		},
 		{
 			Name:                  "DOCKER_REPOSITORY",
 			Format:                "STRING",
-			VariableType:          bean2.VARIABLE_TYPE_REF_GLOBAL,
+			VariableType:          pipelineConfigBean.VARIABLE_TYPE_REF_GLOBAL,
 			ReferenceVariableName: "DOCKER_REPOSITORY",
 		},
 		{
 			Name:                  "DOCKER_REGISTRY_URL",
 			Format:                "STRING",
-			VariableType:          bean2.VARIABLE_TYPE_REF_GLOBAL,
+			VariableType:          pipelineConfigBean.VARIABLE_TYPE_REF_GLOBAL,
 			ReferenceVariableName: "DOCKER_REGISTRY_URL",
 		},
 		{
 			Name:                  "DOCKER_IMAGE",
 			Format:                "STRING",
-			VariableType:          bean2.VARIABLE_TYPE_REF_GLOBAL,
+			VariableType:          pipelineConfigBean.VARIABLE_TYPE_REF_GLOBAL,
 			ReferenceVariableName: "DOCKER_IMAGE",
 		},
 	}
-	var ciSteps []*bean2.StepObject
+	var ciSteps []*pipelineConfigBean.StepObject
 	for _, dockerBuildScript := range dockerBuildScripts {
-		ciStep := &bean2.StepObject{
+		ciStep := &pipelineConfigBean.StepObject{
 			Name:          dockerBuildScript.Name,
 			Index:         dockerBuildScript.Index,
 			Script:        dockerBuildScript.Script,
