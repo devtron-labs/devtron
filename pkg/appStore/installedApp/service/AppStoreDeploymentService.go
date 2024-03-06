@@ -80,6 +80,8 @@ type AppStoreDeploymentServiceImpl struct {
 	deploymentTypeConfig                 *util2.DeploymentServiceTypeConfig
 	aCDConfig                            *argocdServer.ACDConfig
 	gitOpsConfigReadService              config.GitOpsConfigReadService
+	deletePostProcessor                  DeletePostProcessor
+	appStoreValidator                    AppStoreValidator
 }
 
 func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger,
@@ -96,7 +98,8 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger,
 	installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository,
 	envVariables *util2.EnvironmentVariables,
 	aCDConfig *argocdServer.ACDConfig,
-	gitOpsConfigReadService config.GitOpsConfigReadService) *AppStoreDeploymentServiceImpl {
+	gitOpsConfigReadService config.GitOpsConfigReadService, deletePostProcessor DeletePostProcessor,
+	appStoreValidator AppStoreValidator) *AppStoreDeploymentServiceImpl {
 	return &AppStoreDeploymentServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -113,6 +116,8 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger,
 		deploymentTypeConfig:                 envVariables.DeploymentServiceTypeConfig,
 		aCDConfig:                            aCDConfig,
 		gitOpsConfigReadService:              gitOpsConfigReadService,
+		deletePostProcessor:                  deletePostProcessor,
+		appStoreValidator:                    appStoreValidator,
 	}
 }
 
@@ -261,6 +266,8 @@ func (impl *AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Contex
 			impl.logger.Errorw("error in update entity ", "entity", app)
 			return nil, err
 		}
+
+		impl.deletePostProcessor.Process(app, installAppVersionRequest)
 
 		// soft delete install app
 		model.Active = false
@@ -512,6 +519,11 @@ func (impl *AppStoreDeploymentServiceImpl) GetDeploymentHistory(ctx context.Cont
 			ClusterId:             installedApp.ClusterId,
 			EnvironmentId:         installedApp.EnvironmentId,
 			DeploymentType:        installedApp.DeploymentAppType,
+			// TODO Asutosh: here
+			HelmPackageName: adapter.GetGeneratedHelmPackageName(
+				installedApp.AppName,
+				installedApp.Environment.Environment,
+				installedApp.UpdatedOn),
 		}
 	}
 
@@ -572,6 +584,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 		installedApp.GitOpsRepoUrl = gitRepoUrl
 	}
 	// migration ends
+
 	var installedAppVersion *repository.InstalledAppVersions
 
 	// mark previous versions of chart as inactive if chart or version is updated
@@ -721,6 +734,10 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 	}
 
 	if util.IsManifestDownload(upgradeAppRequest.DeploymentAppType) {
+		upgradeAppRequest.HelmPackageName = adapter.GetGeneratedHelmPackageName(
+			upgradeAppRequest.AppName,
+			upgradeAppRequest.EnvironmentName,
+			installedApp.UpdatedOn)
 		err = impl.appStoreDeploymentDBService.UpdateInstalledAppVersionHistoryStatus(upgradeAppRequest.InstalledAppVersionHistoryId, pipelineConfig.WorkflowSucceeded)
 		if err != nil {
 			impl.logger.Errorw("error on creating history for chart deployment", "error", err)

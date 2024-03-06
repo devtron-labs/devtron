@@ -8,6 +8,7 @@ import (
 	cloudProviderIdentifier "github.com/devtron-labs/common-lib/cloud-provider-identifier"
 	util4 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/apiToken"
+	"github.com/devtron-labs/devtron/api/appStore"
 	chartProvider "github.com/devtron-labs/devtron/api/appStore/chartProvider"
 	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
 	appStoreDiscover "github.com/devtron-labs/devtron/api/appStore/discover"
@@ -215,6 +216,7 @@ func InitializeApp() (*App, error) {
 
 		// end: docker registry wire set injection
 		cron.NewCronLoggerImpl,
+		appStore.AppStoreWireSet,
 	)
 	return &App{}, nil
 }

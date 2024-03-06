@@ -376,6 +376,14 @@ func (impl *EAModeDeploymentServiceImpl) UpdateAppGitOpsOperations(manifest *bea
 	return nil, errors.New("this is not implemented")
 }
 
+func (impl *EAModeDeploymentServiceImpl) GetChartBytesForLatestDeployment(installedAppId int, installedAppVersionId int) ([]byte, error) {
+	return nil, errors.New("this is not implemented")
+}
+
+func (impl *EAModeDeploymentServiceImpl) GetChartBytesForParticularDeployment(installedAppId int, installedAppVersionId int, installedAppVersionHistoryId int) ([]byte, error) {
+	return nil, errors.New("this is not implemented")
+}
+
 func (impl *EAModeDeploymentServiceImpl) DeleteACD(acdAppName string, ctx context.Context, isNonCascade bool) error {
 	return errors.New("this is not implemented")
 }
