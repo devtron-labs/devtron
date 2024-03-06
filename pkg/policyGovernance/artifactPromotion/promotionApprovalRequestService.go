@@ -289,8 +289,12 @@ func (impl *ArtifactPromotionApprovalServiceImpl) evaluatePoliciesOnArtifact(ciA
 	// todo: use defaultResponse method
 	responseMap := getDefaultEnvironmentPromotionMetaDataResponseMap(maps.Keys(envMap), authorizedEnvironments)
 	for envName, resp := range responseMap {
-		resp.IsVirtualEnvironment = envMap[envName].IsVirtualEnvironment
-		responseMap[envName] = resp
+		if env, ok := envMap[envName]; ok {
+			resp.PromotionValidationState = bean.POLICY_NOT_CONFIGURED
+			resp.PromotionValidationMessage = string(bean.POLICY_NOT_CONFIGURED)
+			resp.IsVirtualEnvironment = env.IsVirtualEnvironment
+			responseMap[envName] = resp
+		}
 	}
 
 	// can be concurrent,
@@ -309,6 +313,8 @@ func (impl *ArtifactPromotionApprovalServiceImpl) evaluatePoliciesOnArtifact(ciA
 		}
 		envResp := responseMap[envName]
 		envResp.ApprovalCount = policy.ApprovalMetaData.ApprovalCount
+		envResp.PromotionValidationState = bean.EMPTY
+		envResp.PromotionValidationMessage = ""
 		envResp.PromotionPossible = evaluationResult
 		// checks on metadata not needed as this is just an evaluation flow (kinda validation)
 		if !evaluationResult {
