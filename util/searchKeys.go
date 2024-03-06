@@ -18,7 +18,7 @@ const StringType FieldType = 2
 const DateTimeType FieldType = 3
 const BooleanType FieldType = 4
 
-const searchFieldTypeTag = "isSearchField"
+const searchFieldTypeTag = "devtronSearchableField"
 
 func GetSearchableFields[T interface{}](profile T) []SearchableField {
 	var fields []SearchableField
@@ -37,7 +37,7 @@ func GetSearchableFields[T interface{}](profile T) []SearchableField {
 		// Get searchFieldType tag value
 		tag := fieldType.Tag.Get(searchFieldTypeTag)
 		// If the tag is "-" or empty, skip this field
-		if tag == "" || tag == "false" {
+		if tag == "" || tag == "-" {
 			continue
 		}
 
@@ -45,7 +45,7 @@ func GetSearchableFields[T interface{}](profile T) []SearchableField {
 		// fieldTypeEnum := determineFieldType(tag)
 
 		fields = append(fields, SearchableField{
-			FieldName:  fieldType.Name,
+			FieldName:  tag,
 			FieldValue: field.Interface(),
 			FieldType:  determineFieldType(field.Interface()),
 		})
