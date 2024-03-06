@@ -80,8 +80,15 @@ func hideSensitiveData(v interface{}) interface{} {
 			}
 		}
 		fieldType := ref.Field(i).Type().Kind()
+		// checks if the field is struct
 		if fieldType == reflect.Struct {
 			hideSensitiveData(ref.Field(i).Addr().Interface())
+		} else if fieldType == reflect.Ptr && ref.Field(i).Elem().Kind() == reflect.Struct { // in case it is a ptr and points to a struct
+			// making a copy so that original data do not get changed
+			newCopy := reflect.New(ref.Field(i).Type().Elem()).Elem()
+			newCopy.Set(ref.Field(i).Elem())
+			hideSensitiveData(newCopy.Addr().Interface())
+			ref.Field(i).Set(newCopy.Addr())
 		}
 	}
 	return ref.Interface()
