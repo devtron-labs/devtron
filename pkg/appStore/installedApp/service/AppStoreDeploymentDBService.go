@@ -468,7 +468,7 @@ func (impl *AppStoreDeploymentDBServiceImpl) MarkInstalledAppVersionHistorySucce
 func (impl *AppStoreDeploymentDBServiceImpl) createAppForAppStore(createRequest *bean.CreateAppDTO, tx *pg.Tx, appInstallationMode string) (*bean.CreateAppDTO, error) {
 	// TODO refactoring: Handling for concurrent requests with same AppName
 	activeApp, err := impl.appRepository.FindActiveByName(createRequest.AppName)
-	if err != nil && util.IsErrNoRows(err) {
+	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err
 	}
 	if activeApp != nil && activeApp.Id > 0 {
