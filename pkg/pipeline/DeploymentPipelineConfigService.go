@@ -42,7 +42,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
-	bean4 "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
+	clutserBean "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
@@ -113,7 +113,7 @@ type CdPipelineConfigService interface {
 	IsGitOpsRequiredForCD(pipelineCreateRequest *bean.CdPipelines) bool
 	MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDeleted(appId int, envId int, acdToken string, pipeline *pipelineConfig.Pipeline) (bool, error)
 	//GetEnvironmentListForAutocompleteFilter : lists environment for given configuration
-	GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, offset int, size int, token string, checkAuthBatch func(token string, appObject []string, envObject []string) (map[string]bool, map[string]bool), ctx context.Context) (*bean4.ResourceGroupingResponse, error)
+	GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, offset int, size int, token string, checkAuthBatch func(token string, appObject []string, envObject []string) (map[string]bool, map[string]bool), ctx context.Context) (*clutserBean.ResourceGroupingResponse, error)
 	RegisterInACD(ctx context.Context, chartGitAttr *commonBean.ChartGitAttribute, userId int32) error
 }
 
@@ -1424,10 +1424,10 @@ func (impl *CdPipelineConfigServiceImpl) MarkGitOpsDevtronAppsDeletedWhereArgoAp
 	return acdAppFound, nil
 }
 
-func (impl *CdPipelineConfigServiceImpl) GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, offset int, size int, token string, checkAuthBatch func(token string, appObject []string, envObject []string) (map[string]bool, map[string]bool), ctx context.Context) (*bean4.ResourceGroupingResponse, error) {
-	result := &bean4.ResourceGroupingResponse{}
+func (impl *CdPipelineConfigServiceImpl) GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, offset int, size int, token string, checkAuthBatch func(token string, appObject []string, envObject []string) (map[string]bool, map[string]bool), ctx context.Context) (*clutserBean.ResourceGroupingResponse, error) {
+	result := &clutserBean.ResourceGroupingResponse{}
 	var models []*repository2.Environment
-	var beans []bean4.EnvironmentBean
+	var beans []clutserBean.EnvironmentBean
 	var err error
 	if len(envName) > 0 && len(clusterIds) > 0 {
 		models, err = impl.environmentRepository.FindByEnvNameAndClusterIds(envName, clusterIds)
@@ -1491,7 +1491,7 @@ func (impl *CdPipelineConfigServiceImpl) GetEnvironmentListForAutocompleteFilter
 		pipelinesMap[pipeline.EnvironmentId] = append(pipelinesMap[pipeline.EnvironmentId], pipeline)
 	}
 	for _, model := range models {
-		environment := bean4.EnvironmentBean{
+		environment := clutserBean.EnvironmentBean{
 			Id:                    model.Id,
 			Environment:           model.Name,
 			Namespace:             model.Namespace,
