@@ -39,7 +39,7 @@ helm install devtron devtron/devtron-operator \
 ```
 
 {% hint style="info" %}
-If you want to configure Blob Storage during the installation, refer [configure blob storage duing installation](#configure-blob-storage-duing-installation).
+If you want to configure Blob Storage during the installation, refer [configure blob storage duing installation](#configure-blob-storage-during-installation).
 {% endhint %}
 
 ---

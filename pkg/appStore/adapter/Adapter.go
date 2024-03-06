@@ -22,7 +22,7 @@ func NewInstallAppModel(chart *appStoreBean.InstallAppVersionDTO, status appStor
 		installAppModel.UpdateStatus(status)
 	}
 	installAppModel.CreateAuditLog(chart.UserId)
-	installAppModel.UpdateGitOpsRepoName(chart.GitOpsRepoName)
+	installAppModel.UpdateGitOpsRepository(chart.GitOpsRepoURL, chart.IsCustomRepository)
 	installAppModel.MarkActive()
 	return installAppModel
 }
@@ -164,13 +164,12 @@ func GenerateInstallAppVersionMinDTO(chart *repository.InstalledApps) *appStoreB
 	}
 }
 
-func SetGeneratedHelmPackageName(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, updatedOn time.Time) {
+func GeneratedHelmPackageName(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, updatedOn time.Time) string {
 	if installAppVersionRequest == nil || installAppVersionRequest.Environment == nil {
-		return
+		return ""
 	}
 	timeStampTag := updatedOn.Format(bean.LayoutDDMMYY_HHMM12hr)
-	installAppVersionRequest.HelmPackageName = fmt.Sprintf(
-		"%s-%s-%s (GMT)",
+	return fmt.Sprintf("%s-%s-%s (GMT)",
 		installAppVersionRequest.AppName,
 		installAppVersionRequest.Environment.Name,
 		timeStampTag)

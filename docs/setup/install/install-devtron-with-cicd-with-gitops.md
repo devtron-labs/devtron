@@ -23,7 +23,7 @@ helm install devtron devtron/devtron-operator \
 --set argo-cd.enabled=true
 ```
 
-**Note**: If you want to configure Blob Storage during the installation, refer [configure blob storage duing installation](#configure-blob-storage-duing-installation).
+**Note**: If you want to configure Blob Storage during the installation, refer [configure blob storage duing installation](#configure-blob-storage-during-installation).
 
 
 ## Install Multi-Architecture Nodes (ARM and AMD)
@@ -35,7 +35,7 @@ To install Devtron on clusters with the multi-architecture nodes (ARM and AMD), 
 * If you want to install Devtron for `production deployments`, please refer to our recommended overrides for [Devtron Installation](override-default-devtron-installation-configs.md).
 
 
-## Configure Blob Storage duing Installation
+## Configure Blob Storage during Installation
 
 Configuring Blob Storage in your Devtron environment allows you to store build logs and cache.
 In case, if you do not configure the Blob Storage, then:

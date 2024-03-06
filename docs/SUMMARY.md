@@ -44,6 +44,7 @@
   * [Scoped Variables](user-guide/global-configurations/scoped-variables.md)
   * [Pull Image Digest](user-guide/global-configurations/pull-image-digest.md)
   * [Tags Policy](user-guide/global-configurations/tags-policy.md)
+  * [Lock Deployment Config](user-guide/global-configurations/lock-deployment-config.md)
   * [Filter Condition](user-guide/global-configurations/filter-condition.md)
   * [Build Infra](user-guide/global-configurations/build-infra.md)
 * [Devtron Upgrade](setup/upgrade/README.md)
