@@ -745,7 +745,9 @@ func (impl *CdWorkflowRepositoryImpl) IsArtifactDeployedOnStage(ciArtifactId, pi
 
 func (impl *CdWorkflowRepositoryImpl) FindAllSucceededWfsByCDPipelineIds(cdPipelineIds []int) ([]*CdWorkflowMetadata, error) {
 	var cdWorkflow []*CdWorkflowMetadata
-
+	if len(cdPipelineIds) > 0 {
+		return cdWorkflow, nil
+	}
 	query := "with workflow as " +
 		"(Select max(cw.id) as cdw_id from cd_workflow cw inner join cd_workflow_runner cwr on cw.id=cwr.cd_workflow_id where ( cw.pipeline_id in (?) and cwr.workflow_type='DEPLOY' and cwr.status in ('Succeeded', 'Healthy') ) group by cw.pipeline_id ) " +
 		"select id, pipeline_id, ci_artifact_id  from cd_workflow where id in (select cdw_id from workflow)"

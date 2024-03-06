@@ -1758,7 +1758,7 @@ func (impl *AppArtifactManagerImpl) getCdPipelineIdAndWorkflowId(appId int, envi
 	if err != nil && err != pg.ErrNoRows {
 		return cdPipelineId, appWorkflowId, err
 	}
-	return cdPipelineId, appWorkflowMapping.Id, nil
+	return cdPipelineId, appWorkflowMapping.AppWorkflowId, nil
 }
 
 func (impl *AppArtifactManagerImpl) getCiPipelineIdAndWorkflowIdByCiName(ciPipelineName string, appId int) (ciPipelineId int, appWorkflowId int, err error) {
