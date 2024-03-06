@@ -19,6 +19,7 @@ type GlobalPolicyRepository interface {
 	GetAllByPolicyOfAndVersion(policyOf bean.GlobalPolicyType, policyVersion bean.GlobalPolicyVersion) ([]*GlobalPolicy, error)
 	Create(model *GlobalPolicy, tx *pg.Tx) error
 	Update(model *GlobalPolicy, tx *pg.Tx) error
+	UpdatePolicyByName(name string, model *GlobalPolicy, tx *pg.Tx) (*GlobalPolicy, error)
 	MarkDeletedById(id int, userId int32, tx *pg.Tx) error
 	GetByIds(ids []int) ([]*GlobalPolicy, error)
 	GetPolicyByType(policyType *bean.GlobalPolicyType) (*GlobalPolicy, error)
@@ -266,5 +267,22 @@ func (repo *GlobalPolicyRepositoryImpl) GetAllActiveByType(policyType bean.Globa
 		Where("deleted = ?", false).
 		Where("policy_of = ?", policyType).
 		Select()
+	return model, err
+}
+
+func (repo *GlobalPolicyRepositoryImpl) UpdatePolicyByName(name string, model *GlobalPolicy, tx *pg.Tx) (*GlobalPolicy, error) {
+
+	_, err := tx.Model(model).
+		Set("description=?", model.Description).
+		Set("name=?", model.Name).
+		Set("policy_json=?", model.PolicyJson).
+		Set("enabled=?", model.Enabled).
+		Where("policy_of=?", model.PolicyOf).
+		Where("deleted=?", false).
+		Where("name=?", name).
+		Update()
+	if err != nil {
+		repo.logger.Errorw("error in updating global policy", "err", err, "model", model)
+	}
 	return model, err
 }

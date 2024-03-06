@@ -129,7 +129,26 @@ func (impl *GlobalPolicyDataManagerImpl) UpdatePolicy(globalPolicyDataModel *bea
 }
 
 func (impl *GlobalPolicyDataManagerImpl) UpdatePolicyByName(tx *pg.Tx, PolicyName string, globalPolicyDataModel *bean.GlobalPolicyDataModel) (*bean.GlobalPolicyDataModel, error) {
-	return nil, nil
+	globalPolicy := impl.getGlobalPolicyDto(globalPolicyDataModel)
+	globalPolicy.Id = globalPolicyDataModel.Id
+	_, err := impl.globalPolicyRepository.UpdatePolicyByName(PolicyName, globalPolicy, tx)
+	if err != nil {
+		impl.logger.Errorw("error, UpdatePolicy", "err", err, "globalPolicy", globalPolicy)
+		return nil, err
+	}
+	err = impl.globalPolicySearchableFieldRepository.DeleteByPolicyId(globalPolicy.Id, tx)
+	if err != nil {
+		impl.logger.Errorw("error in  deleting Policy Searchable key", "globalPolicyDataModel", globalPolicyDataModel, "err", err)
+		return nil, err
+	}
+	searchableKeyEntriesTotal := impl.getSearchableKeyEntries(globalPolicyDataModel)
+	err = impl.globalPolicySearchableFieldRepository.CreateInBatchWithTxn(searchableKeyEntriesTotal, tx)
+	if err != nil {
+		impl.logger.Errorw("error in creating global policy searchable fields entry", "err", err, "searchableKeyEntriesTotal", searchableKeyEntriesTotal)
+		return nil, err
+	}
+	globalPolicyDataModel.Id = globalPolicy.Id
+	return globalPolicyDataModel, nil
 }
 
 func (impl *GlobalPolicyDataManagerImpl) getSearchableKeyEntries(globalPolicyDataModel *bean.GlobalPolicyDataModel) []*repository.GlobalPolicySearchableField {
