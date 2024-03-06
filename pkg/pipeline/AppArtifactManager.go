@@ -981,6 +981,13 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pi
 			impl.logger.Errorw("error in setting additional data in fetched artifacts", "pipelineId", pipeline.Id, "err", err)
 			return ciArtifactsResponse, err
 		}
+
+		ciArtifacts, err = impl.setDeploymentWindowMetadata(ciArtifacts, stage, pipeline)
+		if err != nil {
+			impl.logger.Errorw("error in setting additional data in fetched artifacts", "pipelineId", pipeline.Id, "err", err)
+			return ciArtifactsResponse, err
+		}
+
 		ciArtifacts, err = impl.setGitTriggerData(ciArtifacts)
 		if err != nil {
 			impl.logger.Errorw("error in setting gitTrigger data in fetched artifacts", "pipelineId", pipeline.Id, "err", err)

@@ -94,7 +94,10 @@ type DeploymentWindowProfile struct {
 	DeploymentWindowProfileMetadata
 }
 
-func (profile DeploymentWindowProfile) GetSerializedAuditData() string {
+func (profile *DeploymentWindowProfile) GetSerializedAuditData() string {
+	if profile == nil {
+		return ""
+	}
 	data := make(map[string]interface{})
 	data["name"] = profile.Name
 	data["id"] = profile.Id

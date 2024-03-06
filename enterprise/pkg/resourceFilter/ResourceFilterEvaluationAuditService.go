@@ -18,7 +18,7 @@ type FilterEvaluationAuditService interface {
 	UpdateFilterEvaluationAuditRef(id int, refType ReferenceType, refId int) error
 	GetLastEvaluationFilterHistoryDataBySubjects(subjectType SubjectType, subjectIds []int, referenceId int, referenceType ReferenceType) (map[int]map[int]time.Time, error)
 	GetLastEvaluationFilterHistoryDataBySubjectsAndReferences(subjectType SubjectType, subjectIds []int, referenceIds []int, referenceType ReferenceType) (map[string]map[int]time.Time, error)
-	CreateFilterEvaluationAuditCustom(subjectType SubjectType, subjectId int, refType ReferenceType, refId int, filterHistoryObjectsStr string) (*ResourceFilterEvaluationAudit, error)
+	CreateFilterEvaluationAuditCustom(subjectType SubjectType, subjectId int, refType ReferenceType, refId int, filterHistoryObjectsStr string, filterType ResourceFilterType) (*ResourceFilterEvaluationAudit, error)
 	GetLatestByRefAndMultiSubjectAndFilterType(referenceType ReferenceType, referenceId int, subjectType SubjectType, subjectIds []int, filterType ResourceFilterType) ([]*ResourceFilterEvaluationAudit, error)
 }
 
@@ -38,7 +38,7 @@ func NewFilterEvaluationAuditServiceImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (impl *FilterEvaluationAuditServiceImpl) CreateFilterEvaluationAuditCustom(subjectType SubjectType, subjectId int, refType ReferenceType, refId int, filterHistoryObjectsStr string) (*ResourceFilterEvaluationAudit, error) {
+func (impl *FilterEvaluationAuditServiceImpl) CreateFilterEvaluationAuditCustom(subjectType SubjectType, subjectId int, refType ReferenceType, refId int, filterHistoryObjectsStr string, filterType ResourceFilterType) (*ResourceFilterEvaluationAudit, error) {
 
 	currentTime := time.Now()
 	auditLog := sql.AuditLog{
@@ -47,6 +47,7 @@ func (impl *FilterEvaluationAuditServiceImpl) CreateFilterEvaluationAuditCustom(
 	}
 
 	filterEvaluationAudit := NewResourceFilterEvaluationAudit(&refType, refId, filterHistoryObjectsStr, &subjectType, subjectId, auditLog)
+	filterEvaluationAudit.FilterType = filterType
 	savedFilterEvaluationAudit, err := impl.filterEvaluationAuditRepo.Create(&filterEvaluationAudit)
 	if err != nil {
 		impl.logger.Errorw("error in saving resource filter evaluation result in resource_filter_evaluation_audit table", "err", err, "filterEvaluationAudit", filterEvaluationAudit)

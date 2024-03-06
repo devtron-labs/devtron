@@ -253,6 +253,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 		appRepository:                       appRepository,
 		helmRepoPushService:                 helmRepoPushService,
 		resourceFilterService:               resourceFilterService,
+		resourceFilterAuditService:          resourceFilterAuditService,
 		globalEnvVariables:                  globalEnvVariables,
 		helmAppClient:                       helmAppClient,
 		scanResultRepository:                scanResultRepository,
@@ -315,22 +316,40 @@ func (impl *TriggerServiceImpl) TriggerStageForBulk(triggerRequest bean.TriggerR
 	}
 }
 
-func (impl *TriggerServiceImpl) checkForDeploymentWindowForOverrideRequest(overrideRequest *bean3.ValuesOverrideRequest) (*bean3.ValuesOverrideRequest, error) {
-	deploymentWindowProfile, actionState, err := impl.deploymentWindowService.GetActiveProfileForAppEnv(time.Now(), overrideRequest.AppId, overrideRequest.EnvId, overrideRequest.UserId)
-	if err != nil || !actionState.IsActionAllowed() {
-		return overrideRequest, fmt.Errorf("deployment not allowed %v", err)
+func (impl *TriggerServiceImpl) handleBlockedTrigger(request bean.TriggerRequest, stage resourceFilter.ReferenceType) error {
+	if request.TriggerContext.TriggerType != bean.Automatic {
+		return nil
 	}
-	overrideRequest.TriggerMessage = actionState.GetBypassActionMessageForProfileAndState(deploymentWindowProfile)
-	return overrideRequest, nil
+	go impl.writeBlockedTriggerEvent(request)
+	err := impl.createAuditDataForDeploymentWindowBypass(request, stage)
+	if err != nil {
+		return fmt.Errorf("audit data entry for blocked trigger failed %v %v", request, err)
+	}
+	return nil
 }
 
-func (impl *TriggerServiceImpl) checkForDeploymentWindow(triggerRequest bean.TriggerRequest) (bean.TriggerRequest, error) {
-	deploymentWindowProfile, actionState, err := impl.deploymentWindowService.GetActiveProfileForAppEnv(time.Now(), triggerRequest.Pipeline.AppId, triggerRequest.Pipeline.EnvironmentId, triggerRequest.TriggeredBy)
-	if err != nil || !actionState.IsActionAllowed() {
-		return triggerRequest, fmt.Errorf("deployment not allowed %v", err)
+func (impl *TriggerServiceImpl) checkForDeploymentWindow(triggerRequest bean.TriggerRequest, stage resourceFilter.ReferenceType) (bean.TriggerRequest, error) {
+	triggerTime := time.Now()
+	deploymentWindowProfile, actionState, err := impl.deploymentWindowService.GetActiveProfileForAppEnv(triggerTime, triggerRequest.Pipeline.AppId, triggerRequest.Pipeline.EnvironmentId, triggerRequest.TriggeredBy)
+	if err != nil {
+		return triggerRequest, fmt.Errorf("failed to fetch deployment window state %s %d %d %d %v", triggerTime, triggerRequest.Pipeline.AppId, triggerRequest.Pipeline.EnvironmentId, triggerRequest.TriggeredBy, err)
 	}
 	triggerRequest.TriggerMessage = actionState.GetBypassActionMessageForProfileAndState(deploymentWindowProfile)
 	triggerRequest.DeploymentProfile = deploymentWindowProfile
+	if !actionState.IsActionAllowed() {
+		err := impl.handleBlockedTrigger(triggerRequest, stage)
+		if err != nil {
+			return triggerRequest, err
+		}
+		err = &util.ApiError{
+			HttpStatusCode:    422,
+			Code:              "422",
+			InternalMessage:   triggerRequest.TriggerMessage,
+			UserMessage:       triggerRequest.TriggerMessage,
+			UserDetailMessage: "deployment blocked",
+		}
+		return triggerRequest, err
+	}
 	return triggerRequest, nil
 }
 
@@ -448,7 +467,14 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 			return 0, "", fmt.Errorf("the artifact does not pass filtering condition")
 		}
 
-		overrideRequest, err = impl.checkForDeploymentWindowForOverrideRequest(overrideRequest)
+		triggerRequest := bean.TriggerRequest{
+			Pipeline:       cdPipeline,
+			Artifact:       artifact,
+			TriggeredBy:    overrideRequest.UserId,
+			TriggerContext: triggerContext,
+		}
+
+		triggerRequest, err = impl.checkForDeploymentWindow(triggerRequest, resourceFilter.Deploy)
 		if err != nil {
 			return 0, "", err
 		}
@@ -479,7 +505,7 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 			CdWorkflowId:    cdWorkflowId,
 			AuditLog:        sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: overrideRequest.UserId, UpdatedOn: triggeredAt, UpdatedBy: overrideRequest.UserId},
 			ReferenceId:     triggerContext.ReferenceId,
-			TriggerMetadata: overrideRequest.TriggerMessage,
+			TriggerMetadata: triggerRequest.TriggerMessage,
 		}
 		if approvalRequestId > 0 {
 			runner.DeploymentApprovalRequestId = approvalRequestId
@@ -645,17 +671,6 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 	return releaseId, helmPackageName, err
 }
 
-func (impl *TriggerServiceImpl) handleBlockedTrigger(request bean.TriggerRequest, stage resourceFilter.ReferenceType) {
-	if request.TriggeredBy != 1 { // pick from trigget context
-		return
-	}
-	err := impl.createAuditDataForDeploymentWindowBypass(request, stage)
-	if err != nil {
-		impl.logger.Errorw("audit data entry for blocked trigger failed", "request", request, "err", err)
-	}
-	go impl.writeBlockedTriggerEvent(request)
-}
-
 // TODO: write a wrapper to handle auto and manual trigger
 func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerRequest) error {
 
@@ -710,9 +725,8 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 		return fmt.Errorf("the artifact does not pass filtering condition")
 	}
 
-	request, err = impl.checkForDeploymentWindow(request)
+	request, err = impl.checkForDeploymentWindow(request, resourceFilter.Deploy)
 	if err != nil {
-		impl.handleBlockedTrigger(request, resourceFilter.Deploy)
 		return err
 	}
 
@@ -885,7 +899,7 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 
 func (impl *TriggerServiceImpl) createAuditDataForDeploymentWindowBypass(request bean.TriggerRequest, stage resourceFilter.ReferenceType) error {
 	if request.TriggerMessage != "" {
-		_, err := impl.resourceFilterAuditService.CreateFilterEvaluationAuditCustom(resourceFilter.Artifact, request.Artifact.Id, stage, request.Pipeline.Id, request.DeploymentProfile.GetSerializedAuditData())
+		_, err := impl.resourceFilterAuditService.CreateFilterEvaluationAuditCustom(resourceFilter.Artifact, request.Artifact.Id, stage, request.Pipeline.Id, request.DeploymentProfile.GetSerializedAuditData(), resourceFilter.DEPLOYMENT_WINDOW)
 		if err != nil {
 			return err
 		}

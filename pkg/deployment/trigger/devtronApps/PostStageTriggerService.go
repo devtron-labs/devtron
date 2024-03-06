@@ -100,9 +100,8 @@ func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) er
 		return fmt.Errorf("the artifact does not pass filtering condition")
 	}
 
-	request, err = impl.checkForDeploymentWindow(request)
+	request, err = impl.checkForDeploymentWindow(request, resourceFilter.PostDeploy)
 	if err != nil {
-		impl.handleBlockedTrigger(request, resourceFilter.PostDeploy)
 		return err
 	}
 
