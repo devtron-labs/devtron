@@ -31,6 +31,7 @@
 - feat: added support for multiple gitops configurations on shared clusters (#4622)
 - feat: added support for downloading pod logs (#4539)
 ## Documentation
+- doc: pending revisions from PR-4753 (#4754)
 - doc: project-level corrections (#4753)
 - doc: Lock Deployment Config (#4732)
 - doc: Link corrections and Fixes (#4733)
