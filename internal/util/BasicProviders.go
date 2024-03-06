@@ -54,6 +54,7 @@ func redactField(ref *reflect.Value, i int) {
 	refField := ref.Field(i)
 	newValue := reflect.New(refField.Type()).Elem()
 	fieldType := ref.Field(i).Type().Kind()
+	// more cases can be added if required
 	switch fieldType {
 	case reflect.String:
 		newValue.SetString("[REDACTED]")
@@ -104,7 +105,7 @@ func (e *HideSensitiveFieldsEncoder) EncodeEntry(
 			kind := value.Kind()
 			if kind == reflect.Struct {
 				fields[idx].Interface = hideSensitiveData(field.Interface)
-			} else if value.Elem().Kind() == reflect.Struct {
+			} else if value.Elem().Kind() == reflect.Struct { // in case ptr is passed in the log
 				// passes only value so that original struct do not get changed
 				fields[idx].Interface = hideSensitiveData(value.Elem().Interface())
 			}
