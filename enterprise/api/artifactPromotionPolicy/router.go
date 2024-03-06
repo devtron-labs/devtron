@@ -21,7 +21,7 @@ func NewCommonPolicyRouterImpl(restHandler RestHandler) *RouterImpl {
 func (r *RouterImpl) InitRouter(router *mux.Router) {
 	router.Path("").HandlerFunc(r.restHandler.CreatePolicy).
 		Methods("POST")
-	router.Path("").HandlerFunc(r.restHandler.UpdatePolicy).
+	router.Path("/{name}").HandlerFunc(r.restHandler.UpdatePolicy).
 		Methods("PUT")
 	router.Path("").HandlerFunc(r.restHandler.GetPoliciesMetadata).
 		Methods("GET")
