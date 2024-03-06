@@ -26,6 +26,7 @@ type DeploymentWindowService interface {
 	GetDeploymentWindowProfileOverview(appId int, envIds []int) (*DeploymentWindowResponse, error)
 
 	//State
+	//rename to get state (primary)
 	GetActiveProfileForAppEnv(targetTime time.Time, appId int, envId int, userId int32) (*DeploymentWindowProfile, UserActionState, error)
 	GetDeploymentWindowProfileState(targetTime time.Time, appId int, envIds []int, filterForDays int, userId int32) (*DeploymentWindowResponse, error)
 	GetDeploymentWindowProfileStateAppGroup(targetTime time.Time, selectors []AppEnvSelector, filterForDays int, userId int32) (*DeploymentWindowAppGroupResponse, error)

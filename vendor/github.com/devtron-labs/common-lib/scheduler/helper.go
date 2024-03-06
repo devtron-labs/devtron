@@ -12,7 +12,7 @@ func (tr TimeRange) getCron() string {
 	case WEEKLY:
 		return weeklyCron(minute, hour, tr.Weekdays)
 	case WEEKLY_RANGE:
-		return weeklyRangeCron(minute, hour, tr.WeekdayFrom)
+		return weeklyRangeCron(minute, hour, toString(tr.WeekdayFrom))
 	case MONTHLY:
 		return monthlyCron(minute, hour, tr.DayFrom)
 	}

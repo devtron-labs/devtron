@@ -29,6 +29,9 @@ const (
 	WEEKLY_RANGE Frequency = "WEEKLY_RANGE"
 	MONTHLY      Frequency = "MONTHLY"
 )
+
+var AllowedFrequencies = []Frequency{FIXED, DAILY, WEEKLY, WEEKLY_RANGE, MONTHLY}
+
 const CRON = cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow
 
 //type CronIndex int
