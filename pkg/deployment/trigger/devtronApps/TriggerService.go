@@ -336,7 +336,7 @@ func (impl *TriggerServiceImpl) checkForDeploymentWindow(triggerRequest bean.Tri
 	}
 	triggerRequest.TriggerMessage = actionState.GetBypassActionMessageForProfileAndState(deploymentWindowProfile)
 	triggerRequest.DeploymentProfile = deploymentWindowProfile
-	if !actionState.IsActionAllowed() {
+	if !actionState.IsActionAllowed() || isBypassedForAuto(triggerRequest, actionState) {
 		err := impl.handleBlockedTrigger(triggerRequest, stage)
 		if err != nil {
 			return triggerRequest, err
@@ -351,6 +351,10 @@ func (impl *TriggerServiceImpl) checkForDeploymentWindow(triggerRequest bean.Tri
 		return triggerRequest, err
 	}
 	return triggerRequest, nil
+}
+
+func isBypassedForAuto(triggerRequest bean.TriggerRequest, actionState deploymentWindow.UserActionState) bool {
+	return triggerRequest.TriggerContext.TriggerType == bean.Automatic && actionState == deploymentWindow.Partial
 }
 
 // TODO: write a wrapper to handle auto and manual trigger
