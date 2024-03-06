@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"io"
 	"net/http"
 	"strconv"
@@ -21,9 +22,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	bean1 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
-	resourceGroup "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/response"
 	"github.com/go-pg/pg"
@@ -435,8 +435,8 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 		ciConfigRequest := bean.CiConfigRequest{}
 		ciConfigRequest.DockerRegistry = emptyDockerRegistry
 		ciConfigRequest.AppId = patchRequest.AppId
-		ciConfigRequest.CiBuildConfig = &bean1.CiBuildConfigBean{}
-		ciConfigRequest.CiBuildConfig.CiBuildType = bean1.SKIP_BUILD_TYPE
+		ciConfigRequest.CiBuildConfig = &pipelineConfigBean.CiBuildConfigBean{}
+		ciConfigRequest.CiBuildConfig.CiBuildType = pipelineConfigBean.SKIP_BUILD_TYPE
 		ciConfigRequest.UserId = patchRequest.UserId
 		if patchRequest.CiPipeline == nil || patchRequest.CiPipeline.CiMaterial == nil {
 			handler.Logger.Errorw("Invalid patch ci-pipeline request", "request", patchRequest, "err", "invalid CiPipeline data")
@@ -457,7 +457,7 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 	}
 	createResp, err := handler.pipelineBuilder.PatchCiPipeline(&patchRequest)
 	if err != nil {
-		if err.Error() == bean1.PIPELINE_NAME_ALREADY_EXISTS_ERROR {
+		if err.Error() == pipelineConfigBean.PIPELINE_NAME_ALREADY_EXISTS_ERROR {
 			handler.Logger.Errorw("service err, pipeline name already exist ", "err", err)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
@@ -539,7 +539,7 @@ func (handler PipelineConfigRestHandlerImpl) validateAndEnrichForLinkedCDRequest
 			return nil, err
 		}
 
-		if parentCi.PipelineType == bean.LINKED_CD {
+		if parentCi.PipelineType == pipelineConfigBean.LINKED_CD {
 			common.WriteJsonResp(w, fmt.Errorf("invalid operation"), "cannot use linked cd as source for workflow", http.StatusBadRequest)
 			return nil, fmt.Errorf("invalid operation")
 		}
@@ -567,7 +567,7 @@ func (handler PipelineConfigRestHandlerImpl) validateAndEnrichForLinkedCDRequest
 	}
 	patchRequest.CiPipeline = &bean.CiPipeline{
 		ParentCiPipeline: cdPipeline.Id,
-		PipelineType:     bean.LINKED_CD,
+		PipelineType:     pipelineConfigBean.LINKED_CD,
 		Name:             suggestedName,
 		CiMaterial:       ciMaterial,
 		DockerArgs:       make(map[string]string),
@@ -830,7 +830,7 @@ func (handler PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWr
 	//RBAC ENDS
 	response := make(map[string]string)
 	resp, err := handler.ciHandler.HandleCIManual(ciTriggerRequest)
-	if errors.Is(err, bean1.ErrImagePathInUse) {
+	if errors.Is(err, pipelineConfigBean.ErrImagePathInUse) {
 		handler.Logger.Errorw("service err duplicate image tag, TriggerCiPipeline", "err", err, "payload", ciTriggerRequest)
 		common.WriteJsonResp(w, err, err, http.StatusConflict)
 		return
