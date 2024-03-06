@@ -1,4 +1,0 @@
-build
-hdfs
-!hdfs/
-minicluster.log
