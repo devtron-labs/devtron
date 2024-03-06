@@ -101,7 +101,7 @@ const appEnvCondition = "(((identifier_key = ? AND identifier_value_int in (?)) 
 const condition = "(qualifier_id = ? AND identifier_key = ? AND identifier_value_int in (?))"
 
 func addCond(query *orm.Query, qualifier Qualifier, valuesMap map[Qualifier][][]int, identifierKey int) *orm.Query {
-	if len(valuesMap[qualifier][0]) > 0 {
+	if values, ok := valuesMap[qualifier]; ok && len(values[0]) > 0 {
 		query = query.WhereOr(condition,
 			qualifier, identifierKey, pg.In(valuesMap[qualifier][0]),
 		)
