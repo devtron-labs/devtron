@@ -93,6 +93,10 @@ func (impl PubSubClientServiceImpl) Publish(topic string, msg string) error {
 // loggerFunc(+optional) is invoked before passing the message to the callback function.
 // validations(+optional) methods were called before passing the message to the callback func.
 func (impl PubSubClientServiceImpl) Subscribe(topic string, callback func(msg *model.PubSubMsg), loggerFunc LoggerFunc, validations ...ValidateMsg) error {
+	if impl.logsConfig.DevDisableConsumers{
+		return nil
+	}
+	return nil
 	impl.Logger.Infow("Subscribed to pubsub client", "topic", topic)
 	natsTopic := GetNatsTopic(topic)
 	streamName := natsTopic.streamName

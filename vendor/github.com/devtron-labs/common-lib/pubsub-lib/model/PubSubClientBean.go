@@ -12,6 +12,7 @@ type PubSubMsg struct {
 
 type LogsConfig struct {
 	DefaultLogTimeLimit int64 `env:"DEFAULT_LOG_TIME_LIMIT" envDefault:"1"`
+	DevDisableConsumers bool `env:"DEV_DISABLE_CONSUMERS" envDefault:"false"`
 }
 
 // PublishPanicEvent is used for PANIC_ON_PROCESSING_TOPIC payload
