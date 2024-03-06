@@ -19,6 +19,9 @@ func toString(weekday time.Weekday) string {
 	return strconv.Itoa(int(weekday))
 }
 
+func intToString(value int) string {
+	return strconv.Itoa(value)
+}
 func dailyCron(minute, hour string) string {
 	return fmt.Sprintf("%s %s * * *", minute, hour)
 }
@@ -28,10 +31,7 @@ func weeklyCron(minute, hour string, weekdays []time.Weekday) string {
 	return fmt.Sprintf("%s %s * * %s", minute, hour, days)
 }
 
-//	if (weekdayFrom < 0 || weekdayFrom > 6) || (weekdayTo < 0 || weekdayTo > 6) {
-//			return 0, fmt.Errorf("one or both of the values are outside the range of 0 to 6")
-//		}
-func weeklyRangeCron(minute, hour string, weekdayFrom time.Weekday) string {
+func weeklyRangeCron(minute, hour string, weekdayFrom string) string {
 	return fmt.Sprintf("%s %s * * %s", minute, hour, weekdayFrom)
 }
 

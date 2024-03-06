@@ -320,7 +320,13 @@ func (impl DeploymentWindowServiceImpl) getActiveWindow(targetTimeWithZone time.
 	minStartTimeStamp := time.Date(9999, 12, 31, 23, 59, 59, 999999999, time.UTC)
 	var appliedWindow *TimeWindow
 	for _, window := range windows {
-		if timestamp, isInside := window.toTimeRange().GetScheduleSpec(targetTimeWithZone); isInside && !timestamp.IsZero() {
+		timeRange := window.toTimeRange()
+		timestamp, isInside, err := timeRange.GetScheduleSpec(targetTimeWithZone)
+		if err != nil {
+			impl.logger.Errorw("GetScheduleSpec failed", "timeRange", timeRange, "window", window, "time", targetTimeWithZone)
+			continue
+		}
+		if isInside && !timestamp.IsZero() {
 			isActive = true
 			if timestamp.After(maxEndTimeStamp) {
 				maxEndTimeStamp = timestamp
