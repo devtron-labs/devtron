@@ -14,8 +14,8 @@ To override a container registry, container image or target platform:
 * Open the build pipeline of your application.
 * Click **Allow Override** to:
    * Select the new container registry from the drop-down list.
-   * Or, [create and build the new container image](https://docs.devtron.ai/usage/applications/creating-application/docker-build-configuration#build-the-container-image) with different options.
-   * Or, set a [new target platform](https://docs.devtron.ai/usage/applications/creating-application/docker-build-configuration#set-target-platform-for-the-build) from the drop-down list or enter a new target platform.
+   * Or, [create and build the new container image](../creating-application/docker-build-configuration.md#build-the-container-image) with different options.
+   * Or, set a [new target platform](../creating-application/docker-build-configuration.md#set-target-platform-for-the-build) from the drop-down list or enter a new target platform.
 
 * Click **Update Pipeline**.
 

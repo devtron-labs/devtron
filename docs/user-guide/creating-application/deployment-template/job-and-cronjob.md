@@ -3,8 +3,8 @@
 
 This chart deploys Job & CronJob. A Job is a controller object that represents a finite task and CronJob is used to schedule the creation of Jobs.
 
- * [Job](https://docs.devtron.ai/usage/applications/creating-application/deployment-template/job-and-cronjob#1.-job)
- * [CronJob](https://docs.devtron.ai/usage/applications/creating-application/deployment-template/job-and-cronjob#2.-cronjob)
+ * [Job](#1.-job)
+ * [CronJob](#2.-cronjob)
 
 ## 1. Job
 
