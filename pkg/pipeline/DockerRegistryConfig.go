@@ -89,10 +89,14 @@ func NewDockerRegistryConfigImpl(logger *zap.SugaredLogger, helmAppService clien
 }
 
 func NewDockerArtifactStore(bean *types.DockerArtifactStoreBean, isActive bool, createdOn time.Time, updatedOn time.Time, createdBy int32, updateBy int32) *repository.DockerArtifactStore {
+	var serverConnectionConfigId int
+	if bean.ServerConnectionConfig != nil {
+		serverConnectionConfigId = bean.ServerConnectionConfig.ServerConnectionConfigId
+	}
 	return &repository.DockerArtifactStore{
 		Id:                       bean.Id,
 		PluginId:                 bean.PluginId,
-		ServerConnectionConfigId: bean.ServerConnectionConfig.ServerConnectionConfigId,
+		ServerConnectionConfigId: serverConnectionConfigId,
 		RegistryURL:              bean.RegistryURL,
 		RegistryType:             bean.RegistryType,
 		IsOCICompliantRegistry:   bean.IsOCICompliantRegistry,
