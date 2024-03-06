@@ -885,9 +885,10 @@ func (impl *AppArtifactManagerImpl) fillAppliedFiltersData(ciArtifactBeans []bea
 	return ciArtifactBeans
 }
 
-func (impl *AppArtifactManagerImpl) getDeploymentWindowAuditData(artifactIds []int, pipelineId int) (map[int]map[string]interface{}, error) {
+func (impl *AppArtifactManagerImpl) getDeploymentWindowAuditData(artifactIds []int, pipelineId int, stage bean.WorkflowType) (map[int]map[string]interface{}, error) {
 
-	filters, err := impl.resourceFilterAuditService.GetLatestByRefAndMultiSubjectAndFilterType(resourceFilter.Pipeline, pipelineId, resourceFilter.Artifact, artifactIds, resourceFilter.DEPLOYMENT_WINDOW)
+	referenceType := getResourceTypeForWorkflowType(stage)
+	filters, err := impl.resourceFilterAuditService.GetLatestByRefAndMultiSubjectAndFilterType(referenceType, pipelineId, resourceFilter.Artifact, artifactIds, resourceFilter.DEPLOYMENT_WINDOW)
 	if err != nil {
 		return nil, err
 	}
@@ -903,6 +904,19 @@ func (impl *AppArtifactManagerImpl) getDeploymentWindowAuditData(artifactIds []i
 		}
 	}
 	return dataMap, nil
+}
+
+func getResourceTypeForWorkflowType(stage bean.WorkflowType) resourceFilter.ReferenceType {
+	var referenceType resourceFilter.ReferenceType
+	switch stage {
+	case bean.CD_WORKFLOW_TYPE_PRE:
+		referenceType = resourceFilter.PreDeploy
+	case bean.CD_WORKFLOW_TYPE_POST:
+		referenceType = resourceFilter.PostDeploy
+	case bean.CD_WORKFLOW_TYPE_DEPLOY:
+		referenceType = resourceFilter.Deploy
+	}
+	return referenceType
 }
 
 func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pipelineConfig.Pipeline, stage bean.WorkflowType, artifactListingFilterOpts *bean.ArtifactsListFilterOptions, isApprovalNode bool) (*bean2.CiArtifactResponse, error) {
@@ -961,6 +975,7 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pi
 		sort.SliceStable(ciArtifacts, func(i, j int) bool {
 			return ciArtifacts[i].Id > ciArtifacts[j].Id
 		})
+
 		ciArtifacts, err = impl.setAdditionalDataInArtifacts(ciArtifacts, filters, pipeline)
 		if err != nil {
 			impl.logger.Errorw("error in setting additional data in fetched artifacts", "pipelineId", pipeline.Id, "err", err)
@@ -988,6 +1003,27 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pi
 	return ciArtifactsResponse, nil
 }
 
+func (impl *AppArtifactManagerImpl) setDeploymentWindowMetadata(ciArtifacts []bean2.CiArtifactBean, stage bean.WorkflowType, pipeline *pipelineConfig.Pipeline) ([]bean2.CiArtifactBean, error) {
+
+	artifactIds := make([]int, 0, len(ciArtifacts))
+	for _, artifact := range ciArtifacts {
+		artifactIds = append(artifactIds, artifact.Id)
+	}
+
+	deploymentWindowDataMap, err := impl.getDeploymentWindowAuditData(artifactIds, pipeline.Id, stage)
+	if err != nil {
+		impl.logger.Errorw("error in getting deployment window audit data for artifacts", "err", err, "artifacts", artifactIds, "pipelineId", pipeline.Id)
+		return ciArtifacts, err
+	}
+
+	for i, _ := range ciArtifacts {
+		if data, ok := deploymentWindowDataMap[ciArtifacts[i].Id]; ok {
+			ciArtifacts[i].DeploymentWindowArtifactMetadata = data
+		}
+	}
+	return ciArtifacts, nil
+}
+
 func (impl *AppArtifactManagerImpl) setAdditionalDataInArtifacts(ciArtifacts []bean2.CiArtifactBean, filters []*resourceFilter.FilterMetaDataBean, pipeline *pipelineConfig.Pipeline) ([]bean2.CiArtifactBean, error) {
 	artifactIds := make([]int, 0, len(ciArtifacts))
 	for _, artifact := range ciArtifacts {
@@ -1003,12 +1039,6 @@ func (impl *AppArtifactManagerImpl) setAdditionalDataInArtifacts(ciArtifacts []b
 	imageCommentsDataMap, err := impl.imageTaggingService.GetImageCommentsDataMapByArtifactIds(artifactIds)
 	if err != nil {
 		impl.logger.Errorw("error in getting GetImageCommentsDataMapByArtifactIds", "err", err, "appId", pipeline.AppId, "artifactIds", artifactIds)
-		return ciArtifacts, err
-	}
-
-	deploymentWindowDataMap, err := impl.getDeploymentWindowAuditData(artifactIds, pipeline.Id)
-	if err != nil {
-		impl.logger.Errorw("error in getting deployment window audit data for artifacts", "err", err, "artifacts", artifactIds, "pipelineId", pipeline.Id)
 		return ciArtifacts, err
 	}
 
@@ -1056,11 +1086,6 @@ func (impl *AppArtifactManagerImpl) setAdditionalDataInArtifacts(ciArtifacts []b
 			ciArtifacts[i].RegistryType = string(dockerArtifact.RegistryType)
 			ciArtifacts[i].RegistryName = dockerRegistryId
 		}
-
-		if data, ok := deploymentWindowDataMap[ciArtifacts[i].Id]; ok {
-			ciArtifacts[i].DeploymentWindowArtifactMetadata = data
-		}
-
 	}
 	return ciArtifacts, nil
 

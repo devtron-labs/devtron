@@ -632,11 +632,11 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 	return releaseId, helmPackageName, err
 }
 
-func (impl *TriggerServiceImpl) handleBlockedTrigger(request bean.TriggerRequest) {
+func (impl *TriggerServiceImpl) handleBlockedTrigger(request bean.TriggerRequest, stage resourceFilter.ReferenceType) {
 	if request.TriggeredBy != 1 {
 		return
 	}
-	err := impl.createAuditDataForDeploymentWindowBypass(request)
+	err := impl.createAuditDataForDeploymentWindowBypass(request, stage)
 	if err != nil {
 		impl.logger.Errorw("audit data entry for blocked trigger failed", "request", request, "err", err)
 	}
@@ -648,7 +648,7 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 
 	request, err := impl.checkForDeploymentWindow(request)
 	if err != nil {
-		impl.handleBlockedTrigger(request)
+		impl.handleBlockedTrigger(request, resourceFilter.Deploy)
 		return err
 	}
 
@@ -859,9 +859,9 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 	return nil
 }
 
-func (impl *TriggerServiceImpl) createAuditDataForDeploymentWindowBypass(request bean.TriggerRequest) error {
+func (impl *TriggerServiceImpl) createAuditDataForDeploymentWindowBypass(request bean.TriggerRequest, stage resourceFilter.ReferenceType) error {
 	if request.TriggerMessage != "" {
-		_, err := impl.resourceFilterAuditService.CreateFilterEvaluationAuditCustom(resourceFilter.Artifact, request.Artifact.Id, resourceFilter.Pipeline, request.Pipeline.Id, request.DeploymentProfile.GetSerializedAuditData())
+		_, err := impl.resourceFilterAuditService.CreateFilterEvaluationAuditCustom(resourceFilter.Artifact, request.Artifact.Id, stage, request.Pipeline.Id, request.DeploymentProfile.GetSerializedAuditData())
 		if err != nil {
 			return err
 		}

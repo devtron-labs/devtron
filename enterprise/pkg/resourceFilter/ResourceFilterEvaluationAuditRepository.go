@@ -3,7 +3,9 @@ package resourceFilter
 import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
+	"github.com/samber/lo"
 	"go.uber.org/zap"
+	"sort"
 	"time"
 )
 
@@ -25,6 +27,9 @@ const PipelineStage ReferenceType = 1
 const CdWorkflowRunner ReferenceType = 2
 const PrePipelineStageYaml ReferenceType = 3
 const PostPipelineStageYaml ReferenceType = 4
+const Deploy ReferenceType = 5
+const PreDeploy ReferenceType = 6
+const PostDeploy ReferenceType = 7
 
 type ResourceFilterEvaluationAudit struct {
 	tableName            struct{}           `sql:"resource_filter_evaluation_audit" pg:",discard_unknown_columns"`
@@ -111,7 +116,19 @@ func (repo *FilterEvaluationAuditRepositoryImpl) GetLatestByRefAndMultiSubjectAn
 	if err == pg.ErrNoRows {
 		return res, nil
 	}
-	return res, err
+	subjectIdMap := lo.GroupBy(res, func(item *ResourceFilterEvaluationAudit) int {
+		return item.SubjectId
+	})
+
+	finalListWithLatest := make([]*ResourceFilterEvaluationAudit, 0)
+	for _, subjects := range subjectIdMap {
+		sort.Slice(subjects, func(i, j int) bool {
+			return subjects[i].Id > subjects[j].Id
+		})
+		finalListWithLatest = append(finalListWithLatest, subjects[0])
+	}
+
+	return finalListWithLatest, err
 }
 
 func (repo *FilterEvaluationAuditRepositoryImpl) GetByRefAndMultiSubject(referenceType ReferenceType, referenceId int, subjectType SubjectType, subjectIds []int) ([]*ResourceFilterEvaluationAudit, error) {
