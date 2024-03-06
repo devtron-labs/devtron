@@ -112,6 +112,7 @@ func (impl *DeployedAppServiceImpl) checkForDeploymentWindow(podRotateRequest *b
 	_, actionState, err := impl.deploymentWindowService.GetActiveProfileForAppEnv(time.Now(), podRotateRequest.AppId, podRotateRequest.EnvironmentId, podRotateRequest.UserId)
 	if err != nil || !actionState.IsActionAllowed() {
 		return podRotateRequest, fmt.Errorf("deployment not allowed %v", err)
+		// handle here state and error
 	}
 	return podRotateRequest, nil
 }

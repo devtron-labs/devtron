@@ -633,7 +633,7 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 }
 
 func (impl *TriggerServiceImpl) handleBlockedTrigger(request bean.TriggerRequest, stage resourceFilter.ReferenceType) {
-	if request.TriggeredBy != 1 {
+	if request.TriggeredBy != 1 { // pick from trigget context
 		return
 	}
 	err := impl.createAuditDataForDeploymentWindowBypass(request, stage)

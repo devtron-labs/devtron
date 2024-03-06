@@ -51,6 +51,7 @@ const (
 
 func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) error {
 
+	// move it with cd filter// discuss product
 	// setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
 	triggeredAt := time.Now()
 
