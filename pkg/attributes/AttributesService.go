@@ -234,6 +234,7 @@ func (impl AttributesServiceImpl) AddDeploymentEnforcementConfig(request *bean.A
 	newConfig := make(map[string]map[string]bool)
 	attributesErr := json.Unmarshal([]byte(request.Value), &newConfig)
 	if attributesErr != nil {
+		impl.logger.Errorw("error in unmarshalling", "value", request.Value, "err", attributesErr)
 		return request, attributesErr
 	}
 	for environmentId, envConfig := range newConfig {
@@ -251,6 +252,7 @@ func (impl AttributesServiceImpl) AddDeploymentEnforcementConfig(request *bean.A
 	dbConnection := impl.attributesRepository.GetConnection()
 	tx, terr := dbConnection.Begin()
 	if terr != nil {
+		impl.logger.Errorw("error in initiating db transaction")
 		return request, terr
 	}
 	// Rollback tx on error.
@@ -271,6 +273,7 @@ func (impl AttributesServiceImpl) AddDeploymentEnforcementConfig(request *bean.A
 		model.UpdatedBy = request.UserId
 		_, err = impl.attributesRepository.Save(model, tx)
 		if err != nil {
+			impl.logger.Errorw("error in saving attributes", "model", model, "err", err)
 			return request, err
 		}
 	} else {
@@ -280,6 +283,7 @@ func (impl AttributesServiceImpl) AddDeploymentEnforcementConfig(request *bean.A
 		//initialConfigString = `{ "1": {"argo_cd": true}}`
 		err = json.Unmarshal([]byte(oldConfigString), &oldConfig)
 		if err != nil {
+			impl.logger.Errorw("error in unmarshalling", "oldConfigString", oldConfigString, "err", attributesErr)
 			return request, err
 		}
 		mergedConfig := oldConfig
@@ -296,10 +300,15 @@ func (impl AttributesServiceImpl) AddDeploymentEnforcementConfig(request *bean.A
 		model.Active = true
 		err = impl.attributesRepository.Update(model, tx)
 		if err != nil {
+			impl.logger.Errorw("error in updating attributes", "model", model, "err", err)
 			return request, err
 		}
 	}
-	tx.Commit()
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("error while commit db transaction to db", "error", err)
+		return request, err
+	}
 	return request, nil
 }
 

@@ -103,7 +103,15 @@ func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) err
 		return err
 	}
 
-	//checking vulnerability for the selected image
+	// custom GitOps repo url validation --> Start
+	err = impl.handleCustomGitOpsRepoValidation(runner, pipeline, triggeredBy)
+	if err != nil {
+		impl.logger.Errorw("custom GitOps repository validation error, TriggerPreStage", "err", err)
+		return err
+	}
+	// custom GitOps repo url validation --> Ends
+
+	// checking vulnerability for the selected image
 	isVulnerable, err := impl.GetArtifactVulnerabilityStatus(artifact, pipeline, ctx)
 	if err != nil {
 		impl.logger.Errorw("error in getting Artifact vulnerability status, TriggerPreStage", "err", err)
@@ -957,6 +965,7 @@ func isExtraVariableDynamic(variableName string, webhookAndCiData *gitSensorClie
 	}
 	return false
 }
+
 func convert(ts string) (*time.Time, error) {
 	t, err := time.Parse(bean4.LayoutRFC3339, ts)
 	if err != nil {

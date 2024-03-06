@@ -99,8 +99,8 @@ func (impl *ArgoUserServiceImpl) SetAcdTokenInContext(ctx context.Context) (cont
 }
 
 func (impl *ArgoUserServiceImpl) ValidateGitOpsAndGetOrUpdateArgoCdUserDetail() string {
-	isGitOpsConfigured, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
-	if err != nil || !isGitOpsConfigured {
+	gitOpsConfigurationStatus, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
+	if err != nil || !gitOpsConfigurationStatus.IsGitOpsConfigured {
 		return ""
 	}
 	return impl.GetOrUpdateArgoCdUserDetail()
@@ -190,12 +190,12 @@ func (impl *ArgoUserServiceImpl) createNewArgoCdTokenForDevtron(username, passwo
 
 // note: this function also called for no gitops case, where apps are installed via helm
 func (impl *ArgoUserServiceImpl) GetLatestDevtronArgoCdUserToken() (string, error) {
-	isGitOpsConfigured, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
+	gitOpsConfigurationStatus, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
 	if err != nil {
 		impl.logger.Errorw("error while checking if gitOps is configured", "err", err)
 		return "", err
 	}
-	if !isGitOpsConfigured {
+	if !gitOpsConfigurationStatus.IsGitOpsConfigured {
 		//here acd token only required in context for argo cd calls
 		return "", nil
 	}

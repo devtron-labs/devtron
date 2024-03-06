@@ -23,8 +23,10 @@ import (
 	"github.com/devtron-labs/common-lib/pubsub-lib/model"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"time"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -38,12 +40,14 @@ import (
 type InstalledAppDBExtendedService interface {
 	EAMode.InstalledAppDBService
 	UpdateInstalledAppVersionStatus(application *v1alpha1.Application) (bool, error)
+	IsGitOpsRepoAlreadyRegistered(repoUrl string) (bool, error)
 }
 
 type InstalledAppDBExtendedServiceImpl struct {
 	*EAMode.InstalledAppDBServiceImpl
-	appStatusService appStatus.AppStatusService
-	pubSubClient     *pubsub.PubSubClientServiceImpl
+	appStatusService        appStatus.AppStatusService
+	pubSubClient            *pubsub.PubSubClientServiceImpl
+	gitOpsConfigReadService config.GitOpsConfigReadService
 }
 
 func NewInstalledAppDBExtendedServiceImpl(logger *zap.SugaredLogger,
@@ -52,7 +56,8 @@ func NewInstalledAppDBExtendedServiceImpl(logger *zap.SugaredLogger,
 	userService user.UserService,
 	installedAppRepositoryHistory repository2.InstalledAppVersionHistoryRepository,
 	appStatusService appStatus.AppStatusService,
-	pubSubClient *pubsub.PubSubClientServiceImpl) (*InstalledAppDBExtendedServiceImpl, error) {
+	pubSubClient *pubsub.PubSubClientServiceImpl,
+	gitOpsConfigReadService config.GitOpsConfigReadService) (*InstalledAppDBExtendedServiceImpl, error) {
 	impl := &InstalledAppDBExtendedServiceImpl{
 		InstalledAppDBServiceImpl: &EAMode.InstalledAppDBServiceImpl{
 			Logger:                        logger,
@@ -61,8 +66,9 @@ func NewInstalledAppDBExtendedServiceImpl(logger *zap.SugaredLogger,
 			UserService:                   userService,
 			InstalledAppRepositoryHistory: installedAppRepositoryHistory,
 		},
-		appStatusService: appStatusService,
-		pubSubClient:     pubSubClient,
+		appStatusService:        appStatusService,
+		pubSubClient:            pubSubClient,
+		gitOpsConfigReadService: gitOpsConfigReadService,
 	}
 	err := impl.subscribeHelmInstallStatus()
 	if err != nil {
@@ -156,5 +162,19 @@ func (impl *InstalledAppDBExtendedServiceImpl) UpdateInstalledAppVersionStatus(a
 			impl.Logger.Errorw("error while updating app status in app_status table", "error", err, "appId", appId, "envId", envId)
 		}
 	}
+	return true, nil
+}
+
+func (impl *InstalledAppDBExtendedServiceImpl) IsGitOpsRepoAlreadyRegistered(repoUrl string) (bool, error) {
+	repoName := impl.gitOpsConfigReadService.GetGitOpsRepoNameFromUrl(repoUrl)
+	installedAppModel, err := impl.InstalledAppRepository.GetInstalledAppByGitRepoUrl(repoName, repoUrl)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.Logger.Errorw("error in fetching chart", "repoUrl", repoUrl, "err", err)
+		return false, err
+	}
+	if util.IsErrNoRows(err) {
+		return false, nil
+	}
+	impl.Logger.Warnw("repository is already in use for helm app", "repoUrl", repoUrl, "appId", installedAppModel.AppId)
 	return true, nil
 }

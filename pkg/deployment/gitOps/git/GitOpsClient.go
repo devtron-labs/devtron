@@ -1,8 +1,8 @@
 package git
 
 import (
-	bean2 "github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/api/bean/gitOps"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -10,15 +10,15 @@ import (
 )
 
 type GitOpsClient interface {
-	CreateRepository(config *bean2.GitOpsConfigDto) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions)
-	CommitValues(config *ChartConfig, gitOpsConfig *bean2.GitOpsConfigDto) (commitHash string, commitTime time.Time, err error)
-	GetRepoUrl(config *bean2.GitOpsConfigDto) (repoUrl string, err error)
-	DeleteRepository(config *bean2.GitOpsConfigDto) error
-	CreateReadme(config *bean2.GitOpsConfigDto) (string, error)
+	CreateRepository(config *gitOps.GitOpsConfigDto) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions)
+	CommitValues(config *ChartConfig, gitOpsConfig *gitOps.GitOpsConfigDto) (commitHash string, commitTime time.Time, err error)
+	GetRepoUrl(config *gitOps.GitOpsConfigDto) (repoUrl string, err error)
+	DeleteRepository(config *gitOps.GitOpsConfigDto) error
+	CreateReadme(config *gitOps.GitOpsConfigDto) (string, error)
 }
 
-func GetGitConfig(gitOpsRepository repository.GitOpsConfigRepository) (*bean.GitConfig, error) {
-	gitOpsConfig, err := gitOpsRepository.GetGitOpsConfigActive()
+func GetGitConfig(gitOpsConfigReadService config.GitOpsConfigReadService) (*bean.GitConfig, error) {
+	gitOpsConfig, err := gitOpsConfigReadService.GetGitOpsConfigActive()
 	if err != nil && err != pg.ErrNoRows {
 		return nil, err
 	} else if err == pg.ErrNoRows {
@@ -40,7 +40,7 @@ func GetGitConfig(gitOpsRepository repository.GitOpsConfigRepository) (*bean.Git
 		GitProvider:          gitOpsConfig.Provider,
 		GitHost:              gitOpsConfig.Host,
 		AzureToken:           gitOpsConfig.Token,
-		AzureProject:         gitOpsConfig.AzureProject,
+		AzureProject:         gitOpsConfig.AzureProjectName,
 		BitbucketWorkspaceId: gitOpsConfig.BitBucketWorkspaceId,
 		BitbucketProjectKey:  gitOpsConfig.BitBucketProjectKey,
 	}

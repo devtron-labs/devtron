@@ -23,7 +23,7 @@ func NewInstallAppModel(chart *appStoreBean.InstallAppVersionDTO, status appStor
 		installAppModel.UpdateStatus(status)
 	}
 	installAppModel.CreateAuditLog(chart.UserId)
-	installAppModel.UpdateGitOpsRepoName(chart.GitOpsRepoName)
+	installAppModel.UpdateGitOpsRepository(chart.GitOpsRepoURL, chart.IsCustomRepository)
 	installAppModel.MarkActive()
 	return installAppModel
 }
@@ -221,8 +221,10 @@ func UpdateInstallAppDetails(request *appStoreBean.InstallAppVersionDTO, install
 	request.AppId = installedApp.AppId
 	request.EnvironmentId = installedApp.EnvironmentId
 	request.Status = installedApp.Status
-	request.GitOpsRepoName = installedApp.GitOpsRepoName
 	request.DeploymentAppType = installedApp.DeploymentAppType
+	if util.IsAcdApp(installedApp.DeploymentAppType) {
+		request.GitOpsRepoURL = installedApp.GitOpsRepoUrl
+	}
 }
 
 // UpdateAppStoreApplicationDetails update appStoreDiscoverRepository.AppStoreApplicationVersion data into the same InstallAppVersionDTO

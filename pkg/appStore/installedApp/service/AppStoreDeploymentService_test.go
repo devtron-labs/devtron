@@ -9,7 +9,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
-	repository6 "github.com/devtron-labs/devtron/pkg/appStore/chartGroup/repository"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	repository3 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	repository5 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
@@ -59,7 +58,7 @@ func TestAppStoreDeploymentService(t *testing.T) {
 			ClusterId:                 0,
 			Namespace:                 "devtron-demo",
 			AppOfferingMode:           "",
-			GitOpsRepoName:            "",
+			GitOpsRepoURL:             "",
 			GitOpsPath:                "",
 			GitHash:                   "",
 			EnvironmentName:           "",
@@ -67,7 +66,7 @@ func TestAppStoreDeploymentService(t *testing.T) {
 			DeploymentAppType:         "helm",
 		}
 
-		installedAppVersion, err := AppStoreDeploymentService.AppStoreDeployOperationDB(&InstallAppVersionDTO, tx)
+		installedAppVersion, err := AppStoreDeploymentService.AppStoreDeployOperationDB(&InstallAppVersionDTO, tx, appStoreBean.INSTALL_APP_REQUEST)
 
 		assert.Nil(t, err)
 		assert.Equal(t, installedAppVersion.DeploymentAppType, "helm")
@@ -108,7 +107,7 @@ func TestAppStoreDeploymentService(t *testing.T) {
 			ClusterId:                 0,
 			Namespace:                 "devtron-demo",
 			AppOfferingMode:           "",
-			GitOpsRepoName:            "",
+			GitOpsRepoURL:             "",
 			GitOpsPath:                "",
 			GitHash:                   "",
 			EnvironmentName:           "",
@@ -116,7 +115,7 @@ func TestAppStoreDeploymentService(t *testing.T) {
 			DeploymentAppType:         "helm",
 		}
 
-		installedAppVersion, err := AppStoreDeploymentService.AppStoreDeployOperationDB(&InstallAppVersionDTO, tx)
+		installedAppVersion, err := AppStoreDeploymentService.AppStoreDeployOperationDB(&InstallAppVersionDTO, tx, appStoreBean.INSTALL_APP_REQUEST)
 
 		assert.Nil(t, err)
 		assert.Equal(t, installedAppVersion.DeploymentAppType, "argo_cd")
@@ -125,13 +124,11 @@ func TestAppStoreDeploymentService(t *testing.T) {
 
 }
 
-func initAppStoreDeploymentService(t *testing.T, internalUse bool) *AppStoreDeploymentServiceImpl {
+func initAppStoreDeploymentService(t *testing.T, internalUse bool) *AppStoreDeploymentDBServiceImpl {
 	sugaredLogger, _ := util.InitLogger()
 
 	config, _ := sql.GetConfig()
 	db, _ := sql.NewDbConnection(config, sugaredLogger)
-
-	chartGroupDeploymentRepository := repository6.NewChartGroupDeploymentRepositoryImpl(db, sugaredLogger)
 
 	appStoreDiscoverRepository := appStoreDiscoverRepository.NewAppStoreApplicationVersionRepositoryImpl(sugaredLogger, db)
 
@@ -152,26 +149,17 @@ func initAppStoreDeploymentService(t *testing.T, internalUse bool) *AppStoreDepl
 	AppRepository := app.NewAppRepositoryImpl(db, sugaredLogger)
 	InstalledAppRepository := repository3.NewInstalledAppRepositoryImpl(sugaredLogger, db)
 	InstalledAppVersionHistoryRepository := repository3.NewInstalledAppVersionHistoryRepositoryImpl(sugaredLogger, db)
-	ClusterInstalledAppsRepository := repository3.NewClusterInstalledAppsRepositoryImpl(db, sugaredLogger)
-
-	AppStoreDeploymentServiceImpl := NewAppStoreDeploymentServiceImpl(
+	AppStoreDeploymentServiceImpl := NewAppStoreDeploymentDBServiceImpl(
 		sugaredLogger,
 		InstalledAppRepository,
-		chartGroupDeploymentRepository,
 		appStoreDiscoverRepository,
-		environmentRepository,
-		ClusterInstalledAppsRepository,
 		AppRepository,
-		nil,
-		nil,
 		environmentService,
 		clusterService,
-		nil,
-		nil,
 		InstalledAppVersionHistoryRepository,
 		&util3.EnvironmentVariables{
 			DeploymentServiceTypeConfig: &util3.DeploymentServiceTypeConfig{
-				ExternallyManagedDeploymentType: internalUse
+				ExternallyManagedDeploymentType: internalUse,
 			},
 		},
 		nil,
