@@ -1,6 +1,10 @@
 package service
 
 import (
+	"github.com/devtron-labs/devtron/internal/sql/repository"
+	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
+	"github.com/devtron-labs/devtron/pkg/attributes"
+	"github.com/devtron-labs/devtron/pkg/deployment/providerConfig"
 	util3 "github.com/devtron-labs/devtron/util"
 	"testing"
 
@@ -9,7 +13,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
-	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	repository3 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	repository5 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster"
@@ -129,9 +132,8 @@ func initAppStoreDeploymentService(t *testing.T, internalUse bool) *AppStoreDepl
 
 	config, _ := sql.GetConfig()
 	db, _ := sql.NewDbConnection(config, sugaredLogger)
-
-	appStoreDiscoverRepository := appStoreDiscoverRepository.NewAppStoreApplicationVersionRepositoryImpl(sugaredLogger, db)
-
+	attributeRepo := repository.NewAttributesRepositoryImpl(db)
+	discoverRepository := appStoreDiscoverRepository.NewAppStoreApplicationVersionRepositoryImpl(sugaredLogger, db)
 	environmentRepository := repository2.NewEnvironmentRepositoryImpl(db, sugaredLogger, nil)
 
 	k8sUtil := util2.NewK8sUtil(sugaredLogger, &client.RuntimeConfig{LocalDevMode: true})
@@ -142,29 +144,37 @@ func initAppStoreDeploymentService(t *testing.T, internalUse bool) *AppStoreDepl
 	userAuthRepositoryImpl := repository5.NewUserAuthRepositoryImpl(db, sugaredLogger, defaultAuthPolicyRepositoryImpl, defaultAuthRoleRepositoryImpl)
 	userRepositoryImpl := repository5.NewUserRepositoryImpl(db, sugaredLogger)
 	roleGroupRepositoryImpl := repository5.NewRoleGroupRepositoryImpl(db, sugaredLogger)
-	clusterService := cluster.NewClusterServiceImpl(clusterRepository, sugaredLogger, k8sUtil, nil, userAuthRepositoryImpl, userRepositoryImpl, roleGroupRepositoryImpl)
+	clusterService := cluster.NewClusterServiceImpl(clusterRepository,
+		sugaredLogger,
+		k8sUtil,
+		nil,
+		userAuthRepositoryImpl,
+		userRepositoryImpl,
+		roleGroupRepositoryImpl)
 
 	environmentService := cluster.NewEnvironmentServiceImpl(environmentRepository, clusterService, sugaredLogger, k8sUtil, nil, nil, nil)
-
+	envVariables := &util3.EnvironmentVariables{
+		DeploymentServiceTypeConfig: &util3.DeploymentServiceTypeConfig{
+			ExternallyManagedDeploymentType: internalUse,
+		},
+	}
 	AppRepository := app.NewAppRepositoryImpl(db, sugaredLogger)
 	InstalledAppRepository := repository3.NewInstalledAppRepositoryImpl(sugaredLogger, db)
 	InstalledAppVersionHistoryRepository := repository3.NewInstalledAppVersionHistoryRepositoryImpl(sugaredLogger, db)
-	AppStoreDeploymentServiceImpl := NewAppStoreDeploymentDBServiceImpl(
+	attributeService := attributes.NewAttributesServiceImpl(sugaredLogger, attributeRepo)
+	deploymentOverrideService := providerConfig.NewDeploymentTypeOverrideServiceImpl(sugaredLogger, envVariables, attributeService)
+	appStoreDeploymentDBServiceImpl := NewAppStoreDeploymentDBServiceImpl(
 		sugaredLogger,
 		InstalledAppRepository,
-		appStoreDiscoverRepository,
+		discoverRepository,
 		AppRepository,
 		environmentService,
 		clusterService,
 		InstalledAppVersionHistoryRepository,
-		&util3.EnvironmentVariables{
-			DeploymentServiceTypeConfig: &util3.DeploymentServiceTypeConfig{
-				ExternallyManagedDeploymentType: internalUse,
-			},
-		},
+		envVariables,
 		nil,
-		nil,
+		deploymentOverrideService,
 		nil)
 
-	return AppStoreDeploymentServiceImpl
+	return appStoreDeploymentDBServiceImpl
 }
