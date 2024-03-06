@@ -193,7 +193,7 @@ type CdWorkflowRunner struct {
 }
 
 type CdWorkflowMetadata struct {
-	id           int `sql:"id"`
+	Id           int `sql:"id"`
 	PipelineId   int `sql:"pipeline_id"`
 	CiArtifactId int `sql:"ci_artifact_id"`
 }

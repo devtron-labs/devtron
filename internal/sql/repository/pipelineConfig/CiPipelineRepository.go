@@ -139,6 +139,7 @@ type CiPipelineRepository interface {
 	GetAllCIsClusterAndEnvByCDClusterNames(clusterNames []string, ciPipelineIds []int) ([]*CiPipelineEnvCluster, error)
 	GetAllCIsClusterAndEnvForAllProductionEnvCD(ciPipelineIds []int) ([]*CiPipelineEnvCluster, error)
 	FindLinkedCiCount(ciPipelineId int) (int, error)
+	FindByNameAndAppID(name string, appId int) (*CiPipeline, error)
 }
 type CiPipelineRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -705,4 +706,14 @@ func (impl CiPipelineRepositoryImpl) FindLinkedCiCount(ciPipelineId int) (int, e
 		return 0, nil
 	}
 	return cnt, err
+}
+
+func (impl CiPipelineRepositoryImpl) FindByNameAndAppID(name string, appId int) (*CiPipeline, error) {
+	pipeline := &CiPipeline{}
+	err := impl.dbConnection.Model(pipeline).Where("name = ? and app_id=?", name, appId).Select()
+	if err != nil {
+		impl.logger.Errorw("error in finding pipeline by name and appId", "name", name, "appId", appId, "err", err)
+		return nil, err
+	}
+	return pipeline, nil
 }
