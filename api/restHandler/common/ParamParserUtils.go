@@ -53,6 +53,19 @@ func ExtractIntQueryParam(w http.ResponseWriter, r *http.Request, paramName stri
 	return paramIntValue, nil
 }
 
+func ExtractBooleanQueryParam(w http.ResponseWriter, r *http.Request, paramName string, defaultVal *int) (int, error) {
+	queryParams := r.URL.Query()
+	paramValue := queryParams.Get(paramName)
+	if len(paramValue) == 0 {
+		return *defaultVal, nil
+	}
+	paramIntValue, err := convertToInt(w, paramValue)
+	if err != nil {
+		return 0, err
+	}
+	return paramIntValue, nil
+}
+
 func ExtractIntArrayQueryParam(w http.ResponseWriter, r *http.Request, paramName string) ([]int, error) {
 	queryParams := r.URL.Query()
 	paramValue := queryParams.Get(paramName)

@@ -959,14 +959,13 @@ func (impl CiArtifactRepositoryImpl) FindArtifactsPendingForPromotion(cdPipeline
 		return ciArtifacts, 0, nil
 	}
 	// TODO: move status to constant
-	query := fmt.Sprintf("SELECT cia.*, COUNT(cia.id) OVER() AS total_count FROM ci_artifact cia "+
-		"INNER JOIN artifact_promotion_approval_request apar ON cia.id = apar.artifact_id AND apar.status = 1 AND apar.active = true"+
-		" AND apar.destination_pipeline_id IN (%s)", helper.GetCommaSepratedString(cdPipelineIds))
+	query := fmt.Sprintf("SELECT ci_artifact.*, COUNT(ci_artifact.id) OVER() AS total_count FROM ci_artifact "+
+		" where id in (select distinct(artifact_id) from artifact_promotion_approval_request where destination_pipeline_id IN (%s) and status = 1 AND active = true)", helper.GetCommaSepratedString(cdPipelineIds))
 
 	if imageSearchPattern != EmptyLikeRegex {
-		query = query + fmt.Sprintf(" and cia.image like '%s' ", imageSearchPattern)
+		query = query + fmt.Sprintf(" and ci_artifact.image like '%s' ", imageSearchPattern)
 	}
-	limitOffSetQuery := fmt.Sprintf(" order by cia.id desc LIMIT %v OFFSET %v", limit, offset)
+	limitOffSetQuery := fmt.Sprintf(" order by ci_artifact.id desc LIMIT %v OFFSET %v", limit, offset)
 	query = query + limitOffSetQuery
 
 	_, err := impl.dbConnection.Query(&ciArtifactsResp, query)
