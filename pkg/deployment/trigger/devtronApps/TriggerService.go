@@ -338,11 +338,6 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 	// setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
 	triggeredAt := time.Now()
 
-	overrideRequest, err := impl.checkForDeploymentWindowForOverrideRequest(overrideRequest)
-	if err != nil {
-		return 0, "", err
-	}
-
 	releaseId := 0
 	ctx := triggerContext.Context
 	var manifest []byte
@@ -448,6 +443,11 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 		// allow or block w.r.t filterState
 		if filterState != resourceFilter.ALLOW {
 			return 0, "", fmt.Errorf("the artifact does not pass filtering condition")
+		}
+
+		overrideRequest, err = impl.checkForDeploymentWindowForOverrideRequest(overrideRequest)
+		if err != nil {
+			return 0, "", err
 		}
 
 		cdWorkflowId := cdWf.CdWorkflowId
