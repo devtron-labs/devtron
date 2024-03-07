@@ -79,7 +79,6 @@ type CiServiceImpl struct {
 	workflowService               WorkflowService
 	ciPipelineMaterialRepository  pipelineConfig.CiPipelineMaterialRepository
 	ciWorkflowRepository          pipelineConfig.CiWorkflowRepository
-	ciConfig                      *types.CiConfig
 	eventClient                   client.EventClient
 	eventFactory                  client.EventFactory
 	mergeUtil                     *util.MergeUtil
