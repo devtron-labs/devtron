@@ -237,7 +237,7 @@ func (impl *ScopedVariableServiceImpl) storeVariableDefinitions(payload models.P
 	return variableNameToId, nil
 }
 
-func (impl *ScopedVariableServiceImpl) setScopeForAttributes(selector resourceQualifiers.QualifierSelector, attributeParams map[models.IdentifierType]string, attributesMapping *helper.AttributesMappings) (*resourceQualifiers.Scope, error) {
+func (impl *ScopedVariableServiceImpl) getSelectionIdentifiersForAttributes(selector resourceQualifiers.QualifierSelector, attributeParams map[models.IdentifierType]string, attributesMapping *helper.AttributesMappings) (*resourceQualifiers.SelectionIdentifier, error) {
 
 	var err error
 	var appId, envId, clusterId int
@@ -265,11 +265,11 @@ func (impl *ScopedVariableServiceImpl) setScopeForAttributes(selector resourceQu
 		return nil, err
 	}
 
-	scope := &resourceQualifiers.Scope{
+	scope := &resourceQualifiers.SelectionIdentifier{
 		AppId:     appId,
 		EnvId:     envId,
 		ClusterId: clusterId,
-		SystemMetadata: &resourceQualifiers.SystemMetadata{
+		SelectionIdentifierName: &resourceQualifiers.SelectionIdentifierName{
 			AppName:         appName,
 			EnvironmentName: envName,
 			ClusterName:     clusterName,
@@ -296,7 +296,7 @@ func (impl *ScopedVariableServiceImpl) createVariableScopes(payload models.Paylo
 				return nil, err
 			}
 			selector := helper.GetSelectorForAttributeType(value.AttributeType)
-			scope, err := impl.setScopeForAttributes(selector, value.AttributeParams, attributesMappings)
+			selection, err := impl.getSelectionIdentifiersForAttributes(selector, value.AttributeParams, attributesMappings)
 			if err != nil {
 				impl.logger.Errorw("error in getting identifierValue", "err", err)
 				return nil, err
@@ -304,10 +304,10 @@ func (impl *ScopedVariableServiceImpl) createVariableScopes(payload models.Paylo
 			varScope := &models.VariableScope{
 				Data: varValue,
 				ResourceMappingSelection: &resourceQualifiers.ResourceMappingSelection{
-					ResourceType:      resourceQualifiers.Variable,
-					ResourceId:        variableId,
-					QualifierSelector: selector,
-					Scope:             scope,
+					ResourceType:        resourceQualifiers.Variable,
+					ResourceId:          variableId,
+					QualifierSelector:   selector,
+					SelectionIdentifier: selection,
 				},
 			}
 			variableScopes = append(variableScopes, varScope)

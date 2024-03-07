@@ -33,9 +33,9 @@ func GetEnvIdentifierValue(scope Scope) int {
 }
 
 type ResourceQualifierMappings struct {
-	ResourceId   int
-	ResourceType ResourceType
-	scope        *Scope
+	ResourceId          int
+	ResourceType        ResourceType
+	SelectionIdentifier *SelectionIdentifier
 	//qualifierSelector QualifierSelector
 }
 
@@ -62,9 +62,22 @@ type QualifierMappingWithExtraColumns struct {
 }
 
 type ResourceMappingSelection struct {
-	ResourceType      ResourceType
-	ResourceId        int
-	QualifierSelector QualifierSelector
-	Scope             *Scope
-	Id                int
+	ResourceType        ResourceType
+	ResourceId          int
+	QualifierSelector   QualifierSelector
+	SelectionIdentifier *SelectionIdentifier
+	Id                  int
+}
+
+type SelectionIdentifier struct {
+	AppId                   int                      `json:"appId"`
+	EnvId                   int                      `json:"envId"`
+	ClusterId               int                      `json:"clusterId"`
+	SelectionIdentifierName *SelectionIdentifierName `json:"-"`
+}
+
+type SelectionIdentifierName struct {
+	AppName         string
+	EnvironmentName string
+	ClusterName     string
 }
