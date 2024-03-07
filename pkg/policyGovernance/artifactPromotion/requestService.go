@@ -136,7 +136,7 @@ func (impl *ApprovalRequestServiceImpl) getSourceInfoAndPipelineIds(workflowId i
 
 	// set source metadata
 	sourceInfo := &bean.SourceMetaData{}
-	sourceInfo = sourceInfo.WithName(sourceName).WithType(sourceType).WithId(sourceId)
+	sourceInfo = sourceInfo.WithName(sourceName).WithType(sourceType).WithId(sourceId).WithSourceWorkflowId(workflowId)
 	return sourceInfo, pipelineIds, nil
 }
 
@@ -1033,16 +1033,16 @@ func (impl *ApprovalRequestServiceImpl) FetchApprovalAllowedEnvList(artifactId i
 		pipelineIdMap[pipelineDao.Id] = pipelineDao
 	}
 
-	//envIds := make([]int, len(pipelines))
-	//for i, p := range pipelines {
+	// envIds := make([]int, len(pipelines))
+	// for i, p := range pipelines {
 	//	envIds[i] = p.EnvironmentId
-	//}
+	// }
 	//
-	//policies, err := impl.promotionPolicyDataReadService.GetPromotionPolicyByAppAndEnvIds(pipelines[0].AppId, envIds)
-	//if err != nil {
+	// policies, err := impl.promotionPolicyDataReadService.GetPromotionPolicyByAppAndEnvIds(pipelines[0].AppId, envIds)
+	// if err != nil {
 	//	impl.logger.Errorw("error in fetching policies by appId and envIds", "appId", pipelines[0].AppId, "envIds", envIds, "err", err)
 	//	return nil, err
-	//}
+	// }
 
 	for _, request := range promotionRequests {
 
