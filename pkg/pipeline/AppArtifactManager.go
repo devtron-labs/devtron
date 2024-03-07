@@ -1844,7 +1844,9 @@ func (impl *AppArtifactManagerImpl) GetPromotionRequestCountPendingForCurrentUse
 		impl.logger.Errorw("error in getting authorized cdPipelineIds by workflowId", "cdPipelineIds", cdPipelineIds, "err", err)
 		return totalCount, err
 	}
-
+	if len(cdPipelineIds) == 0 {
+		return 0, nil
+	}
 	totalCount, err = impl.ciArtifactRepository.FindArtifactsCountPendingForPromotionByPipelineIds(cdPipelineIds)
 	if err != nil {
 		impl.logger.Errorw("error in finding deployed artifacts on pipeline", "pipelineIds", cdPipelineIds, "err", err)
