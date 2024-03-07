@@ -1014,41 +1014,37 @@ func (impl *ApprovalRequestServiceImpl) FetchApprovalAllowedEnvList(artifactId i
 	if len(promotionRequests) == 0 {
 		return environmentApprovalMetadata, nil
 	}
-	// TODO: remove lo
+
 	destinationPipelineIds := make([]int, len(promotionRequests))
 	for i, request := range promotionRequests {
 		destinationPipelineIds[i] = request.DestinationPipelineId
 	}
 
-	pipelines, err := impl.pipelineRepository.FindAppAndEnvironmentAndProjectByPipelineIds(destinationPipelineIds)
+	pipelineIdToDaoMapping, err := impl.getPipelineIdToDaoMapping(destinationPipelineIds)
 	if err != nil {
-		impl.logger.Errorw("error in fetching pipelines by ids", "pipelineIds", destinationPipelineIds, "err", err)
-		return nil, err
+		impl.logger.Errorw("error in getting pipelineId to Dao mapping", "destinationPipelineIds", destinationPipelineIds, "err", err)
+		return environmentApprovalMetadata, err
 	}
 
-	pipelineIdMap := make(map[int]*pipelineConfig.Pipeline)
-	envIds := make([]int, len(pipelines))
-	rbacObjects := make([]string, len(pipelines))
-	pipelineIdToRbacObjMap := make(map[int]string)
-	for i, pipelineDao := range pipelines {
-		pipelineIdMap[pipelineDao.Id] = pipelineDao
-		envIds[i] = pipelineDao.EnvironmentId
-		teamRbacObj := fmt.Sprintf("%s/%s/%s", pipelineDao.App.Team.Name, pipelineDao.Environment.EnvironmentIdentifier, pipelineDao.App.AppName)
-		rbacObjects = append(rbacObjects, teamRbacObj)
-		pipelineIdToRbacObjMap[i] = teamRbacObj
+	envIds := make([]int, len(pipelineIdToDaoMapping))
+	for _, pipelineDao := range pipelineIdToDaoMapping {
+		envIds = append(envIds, pipelineDao.EnvironmentId)
 	}
 
+	rbacObjects, pipelineIdToRbacObjMap := impl.getRbacObjects(pipelineIdToDaoMapping)
 	rbacResults := promotionApproverAuth(token, rbacObjects)
 
-	policiesMap, err := impl.promotionPolicyDataReadService.GetPromotionPolicyByAppAndEnvIds(pipelines[0].AppId, envIds)
+	appId := pipelineIdToDaoMapping[promotionRequests[0].DestinationPipelineId].AppId
+
+	policiesMap, err := impl.promotionPolicyDataReadService.GetPromotionPolicyByAppAndEnvIds(appId, envIds)
 	if err != nil {
-		impl.logger.Errorw("error in fetching policies by appId and envIds", "appId", pipelines[0].AppId, "envIds", envIds, "err", err)
+		impl.logger.Errorw("error in fetching policies by appId and envIds", "appId", appId, "envIds", envIds, "err", err)
 		return nil, err
 	}
 
 	for _, request := range promotionRequests {
 
-		pipelineDao := pipelineIdMap[request.DestinationPipelineId]
+		pipelineDao := pipelineIdToDaoMapping[request.DestinationPipelineId]
 
 		environmentMetadata := bean.EnvironmentApprovalMetadata{
 			Name:            pipelineDao.Environment.Name,
@@ -1076,6 +1072,30 @@ func (impl *ApprovalRequestServiceImpl) FetchApprovalAllowedEnvList(artifactId i
 		environmentApprovalMetadata = append(environmentApprovalMetadata, environmentMetadata)
 	}
 	return environmentApprovalMetadata, nil
+}
+
+func (impl *ApprovalRequestServiceImpl) getRbacObjects(pipelineIdToDaoMapping map[int]*pipelineConfig.Pipeline) ([]string, map[int]string) {
+	rbacObjects := make([]string, len(pipelineIdToDaoMapping))
+	pipelineIdToRbacObjMap := make(map[int]string)
+	for _, pipelineDao := range pipelineIdToDaoMapping {
+		teamRbacObj := fmt.Sprintf("%s/%s/%s", pipelineDao.App.Team.Name, pipelineDao.Environment.EnvironmentIdentifier, pipelineDao.App.AppName)
+		rbacObjects = append(rbacObjects, teamRbacObj)
+		pipelineIdToRbacObjMap[pipelineDao.Id] = teamRbacObj
+	}
+	return rbacObjects, pipelineIdToRbacObjMap
+}
+
+func (impl *ApprovalRequestServiceImpl) getPipelineIdToDaoMapping(destinationPipelineIds []int) (map[int]*pipelineConfig.Pipeline, error) {
+	pipelines, err := impl.pipelineRepository.FindAppAndEnvironmentAndProjectByPipelineIds(destinationPipelineIds)
+	if err != nil {
+		impl.logger.Errorw("error in fetching pipelines by ids", "pipelineIds", destinationPipelineIds, "err", err)
+		return nil, err
+	}
+	pipelineIdToDaoMapping := make(map[int]*pipelineConfig.Pipeline)
+	for _, pipelineDao := range pipelines {
+		pipelineIdToDaoMapping[pipelineDao.Id] = pipelineDao
+	}
+	return pipelineIdToDaoMapping, err
 }
 
 func (impl *ApprovalRequestServiceImpl) onPolicyDelete(tx *pg.Tx, policyId int) error {
