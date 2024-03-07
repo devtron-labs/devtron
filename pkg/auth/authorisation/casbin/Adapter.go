@@ -229,6 +229,7 @@ func GetRolesAndGroupsAttachedToUserWithTimeoutExpressionAndFormat(user string) 
 }
 
 func GetRolesAndGroupsAttachedToUser(user string, getGroupsOnly bool) ([]bean.GroupPolicy, error) {
+	user = strings.ToLower(user)
 	roleMappings := GetRoleMappings()
 	userRoles := make([]bean.GroupPolicy, 0)
 	for _, roleMappingDetail := range roleMappings {
