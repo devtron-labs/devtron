@@ -27,7 +27,7 @@ type RestHandler interface {
 
 type RestHandlerImpl struct {
 	artifactPromotionReadService read.ArtifactPromotionDataReadService
-	promotionPolicyCUDService    artifactPromotion2.PromotionPolicyCUDService
+	promotionPolicyCUDService    artifactPromotion2.PolicyCUDService
 	userService                  user.UserService
 	enforcer                     casbin.Enforcer
 	validator                    *validator.Validate
@@ -36,7 +36,7 @@ type RestHandlerImpl struct {
 
 func NewArtifactPromotionPolicyRestHandlerImpl(
 	artifactPromotionReadService read.ArtifactPromotionDataReadService,
-	promotionPolicyCUDService artifactPromotion2.PromotionPolicyCUDService,
+	promotionPolicyCUDService artifactPromotion2.PolicyCUDService,
 	userService user.UserService,
 	enforcer casbin.Enforcer,
 	validator *validator.Validate,

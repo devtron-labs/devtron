@@ -34,7 +34,7 @@ type ArtifactPromotionDataReadService interface {
 
 type ArtifactPromotionDataReadServiceImpl struct {
 	logger                                     *zap.SugaredLogger
-	artifactPromotionApprovalRequestRepository repository.ArtifactPromotionApprovalRequestRepository
+	artifactPromotionApprovalRequestRepository repository.RequestRepository
 	requestApprovalUserdataRepo                pipelineConfig.RequestApprovalUserdataRepository
 	userService                                user.UserService
 	pipelineRepository                         pipelineConfig.PipelineRepository
@@ -43,7 +43,7 @@ type ArtifactPromotionDataReadServiceImpl struct {
 }
 
 func NewArtifactPromotionDataReadServiceImpl(
-	ArtifactPromotionApprovalRequestRepository repository.ArtifactPromotionApprovalRequestRepository,
+	ArtifactPromotionApprovalRequestRepository repository.RequestRepository,
 	logger *zap.SugaredLogger,
 	requestApprovalUserdataRepo pipelineConfig.RequestApprovalUserdataRepository,
 	userService user.UserService,

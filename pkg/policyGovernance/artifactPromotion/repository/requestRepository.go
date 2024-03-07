@@ -20,19 +20,19 @@ type ArtifactPromotionApprovalRequest struct {
 	sql.AuditLog
 }
 
-type ArtifactPromotionApprovalRequestRepoImpl struct {
+type RequestRepositoryImpl struct {
 	dbConnection *pg.DB
 	*sql.TransactionUtilImpl
 }
 
-func NewArtifactPromotionApprovalRequestImpl(dbConnection *pg.DB) *ArtifactPromotionApprovalRequestRepoImpl {
-	return &ArtifactPromotionApprovalRequestRepoImpl{
+func NewRequestRepositoryImpl(dbConnection *pg.DB) *RequestRepositoryImpl {
+	return &RequestRepositoryImpl{
 		dbConnection:        dbConnection,
 		TransactionUtilImpl: sql.NewTransactionUtilImpl(dbConnection),
 	}
 }
 
-type ArtifactPromotionApprovalRequestRepository interface {
+type RequestRepository interface {
 	Create(tx *pg.Tx, PromotionRequest *ArtifactPromotionApprovalRequest) (*ArtifactPromotionApprovalRequest, error)
 	Update(PromotionRequest *ArtifactPromotionApprovalRequest) (*ArtifactPromotionApprovalRequest, error)
 	UpdateInBulk(tx *pg.Tx, PromotionRequest []*ArtifactPromotionApprovalRequest) error
@@ -50,7 +50,7 @@ type ArtifactPromotionApprovalRequestRepository interface {
 	sql.TransactionWrapper
 }
 
-func (repo *ArtifactPromotionApprovalRequestRepoImpl) Create(tx *pg.Tx, PromotionRequest *ArtifactPromotionApprovalRequest) (*ArtifactPromotionApprovalRequest, error) {
+func (repo *RequestRepositoryImpl) Create(tx *pg.Tx, PromotionRequest *ArtifactPromotionApprovalRequest) (*ArtifactPromotionApprovalRequest, error) {
 	_, err := tx.Model(PromotionRequest).Insert()
 	if err != nil {
 		return nil, err
@@ -58,7 +58,7 @@ func (repo *ArtifactPromotionApprovalRequestRepoImpl) Create(tx *pg.Tx, Promotio
 	return PromotionRequest, nil
 }
 
-func (repo *ArtifactPromotionApprovalRequestRepoImpl) Update(PromotionRequest *ArtifactPromotionApprovalRequest) (*ArtifactPromotionApprovalRequest, error) {
+func (repo *RequestRepositoryImpl) Update(PromotionRequest *ArtifactPromotionApprovalRequest) (*ArtifactPromotionApprovalRequest, error) {
 	_, err := repo.dbConnection.Model(PromotionRequest).Update()
 	if err != nil {
 		return nil, err
@@ -66,14 +66,14 @@ func (repo *ArtifactPromotionApprovalRequestRepoImpl) Update(PromotionRequest *A
 	return PromotionRequest, nil
 }
 
-func (repo *ArtifactPromotionApprovalRequestRepoImpl) FindById(id int) (*ArtifactPromotionApprovalRequest, error) {
+func (repo *RequestRepositoryImpl) FindById(id int) (*ArtifactPromotionApprovalRequest, error) {
 	model := &ArtifactPromotionApprovalRequest{}
 	err := repo.dbConnection.Model(model).Where("id = ?", id).
 		Select()
 	return model, err
 }
 
-func (repo *ArtifactPromotionApprovalRequestRepoImpl) FindPendingByDestinationPipelineId(destinationPipelineId int) ([]*ArtifactPromotionApprovalRequest, error) {
+func (repo *RequestRepositoryImpl) FindPendingByDestinationPipelineId(destinationPipelineId int) ([]*ArtifactPromotionApprovalRequest, error) {
 	models := make([]*ArtifactPromotionApprovalRequest, 0)
 	err := repo.dbConnection.Model(&models).
 		Where("destination_pipeline_id = ? ", destinationPipelineId).
@@ -82,7 +82,7 @@ func (repo *ArtifactPromotionApprovalRequestRepoImpl) FindPendingByDestinationPi
 	return models, err
 }
 
-func (repo *ArtifactPromotionApprovalRequestRepoImpl) FindByDestinationPipelineIds(destinationPipelineIds []int) ([]*ArtifactPromotionApprovalRequest, error) {
+func (repo *RequestRepositoryImpl) FindByDestinationPipelineIds(destinationPipelineIds []int) ([]*ArtifactPromotionApprovalRequest, error) {
 	models := make([]*ArtifactPromotionApprovalRequest, 0)
 	err := repo.dbConnection.Model(&models).
 		Where("destination_pipeline_id IN (?) ", pg.In(destinationPipelineIds)).
@@ -91,7 +91,7 @@ func (repo *ArtifactPromotionApprovalRequestRepoImpl) FindByDestinationPipelineI
 	return models, err
 }
 
-func (repo *ArtifactPromotionApprovalRequestRepoImpl) FindAwaitedRequestByPipelineIdAndArtifactId(pipelineId, artifactId int) ([]*ArtifactPromotionApprovalRequest, error) {
+func (repo *RequestRepositoryImpl) FindAwaitedRequestByPipelineIdAndArtifactId(pipelineId, artifactId int) ([]*ArtifactPromotionApprovalRequest, error) {
 	models := make([]*ArtifactPromotionApprovalRequest, 0)
 	err := repo.dbConnection.Model(&models).
 		Where("destination_pipeline_id = ? ", pipelineId).
@@ -101,7 +101,7 @@ func (repo *ArtifactPromotionApprovalRequestRepoImpl) FindAwaitedRequestByPipeli
 	return models, err
 }
 
-func (repo *ArtifactPromotionApprovalRequestRepoImpl) FindAwaitedRequestByPolicyId(policyId int) ([]*ArtifactPromotionApprovalRequest, error) {
+func (repo *RequestRepositoryImpl) FindAwaitedRequestByPolicyId(policyId int) ([]*ArtifactPromotionApprovalRequest, error) {
 	models := make([]*ArtifactPromotionApprovalRequest, 0)
 	err := repo.dbConnection.Model(&models).
 		Where("status = ? ", bean.AWAITING_APPROVAL).
@@ -110,7 +110,7 @@ func (repo *ArtifactPromotionApprovalRequestRepoImpl) FindAwaitedRequestByPolicy
 	return models, err
 }
 
-func (repo *ArtifactPromotionApprovalRequestRepoImpl) FindPromotedRequestByPipelineIdAndArtifactId(pipelineId, artifactId int) (*ArtifactPromotionApprovalRequest, error) {
+func (repo *RequestRepositoryImpl) FindPromotedRequestByPipelineIdAndArtifactId(pipelineId, artifactId int) (*ArtifactPromotionApprovalRequest, error) {
 	model := &ArtifactPromotionApprovalRequest{}
 	err := repo.dbConnection.Model(model).
 		Where("destination_pipeline_id = ? ", pipelineId).
@@ -120,7 +120,7 @@ func (repo *ArtifactPromotionApprovalRequestRepoImpl) FindPromotedRequestByPipel
 	return model, err
 }
 
-func (repo *ArtifactPromotionApprovalRequestRepoImpl) FindByPipelineIdAndArtifactIds(pipelineId int, artifactIds []int) ([]*ArtifactPromotionApprovalRequest, error) {
+func (repo *RequestRepositoryImpl) FindByPipelineIdAndArtifactIds(pipelineId int, artifactIds []int) ([]*ArtifactPromotionApprovalRequest, error) {
 	var model []*ArtifactPromotionApprovalRequest
 	if len(artifactIds) == 0 {
 		return model, nil
@@ -133,7 +133,7 @@ func (repo *ArtifactPromotionApprovalRequestRepoImpl) FindByPipelineIdAndArtifac
 	return model, err
 }
 
-func (repo *ArtifactPromotionApprovalRequestRepoImpl) FindAwaitedRequestsByArtifactId(artifactId int) ([]*ArtifactPromotionApprovalRequest, error) {
+func (repo *RequestRepositoryImpl) FindAwaitedRequestsByArtifactId(artifactId int) ([]*ArtifactPromotionApprovalRequest, error) {
 	models := make([]*ArtifactPromotionApprovalRequest, 0)
 	err := repo.dbConnection.Model(&models).
 		Where("status = ? ", bean.AWAITING_APPROVAL).
@@ -142,7 +142,7 @@ func (repo *ArtifactPromotionApprovalRequestRepoImpl) FindAwaitedRequestsByArtif
 	return models, err
 }
 
-func (repo *ArtifactPromotionApprovalRequestRepoImpl) MarkStaleByIds(tx *pg.Tx, requestIds []int) error {
+func (repo *RequestRepositoryImpl) MarkStaleByIds(tx *pg.Tx, requestIds []int) error {
 	_, err := tx.Model(&ArtifactPromotionApprovalRequest{}).
 		Set("status = ?", bean.STALE).
 		Set("updated_on = ?", time.Now()).
@@ -152,7 +152,7 @@ func (repo *ArtifactPromotionApprovalRequestRepoImpl) MarkStaleByIds(tx *pg.Tx, 
 	return err
 }
 
-func (repo *ArtifactPromotionApprovalRequestRepoImpl) MarkStaleByPolicyId(tx *pg.Tx, policyId int) error {
+func (repo *RequestRepositoryImpl) MarkStaleByPolicyId(tx *pg.Tx, policyId int) error {
 	_, err := tx.Model(&ArtifactPromotionApprovalRequest{}).
 		Set("status = ?", bean.STALE).
 		Set("updated_on = ?", time.Now()).
@@ -162,7 +162,7 @@ func (repo *ArtifactPromotionApprovalRequestRepoImpl) MarkStaleByPolicyId(tx *pg
 	return err
 }
 
-func (repo *ArtifactPromotionApprovalRequestRepoImpl) MarkPromoted(tx *pg.Tx, requestIds []int) error {
+func (repo *RequestRepositoryImpl) MarkPromoted(tx *pg.Tx, requestIds []int) error {
 	_, err := tx.Model(&ArtifactPromotionApprovalRequest{}).
 		Set("status = ?", bean.PROMOTED).
 		Set("updated_on = ?", time.Now()).
@@ -172,7 +172,7 @@ func (repo *ArtifactPromotionApprovalRequestRepoImpl) MarkPromoted(tx *pg.Tx, re
 	return err
 }
 
-func (repo *ArtifactPromotionApprovalRequestRepoImpl) UpdateInBulk(tx *pg.Tx, PromotionRequest []*ArtifactPromotionApprovalRequest) error {
+func (repo *RequestRepositoryImpl) UpdateInBulk(tx *pg.Tx, PromotionRequest []*ArtifactPromotionApprovalRequest) error {
 	for _, request := range PromotionRequest {
 		err := tx.Update(request)
 		if err != nil {

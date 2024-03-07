@@ -263,6 +263,6 @@ func (handler *ResourceFilterRestHandlerImpl) GetResourceFilterMetaData(w http.R
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	res := resourceFilter.FILTER_CRITERIAS
+	res := resourceFilter.FILTER_CRITERIA
 	common.WriteJsonResp(w, nil, res, http.StatusOK)
 }

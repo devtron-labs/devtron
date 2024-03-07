@@ -36,7 +36,7 @@ type MaterialRestHandler interface {
 }
 
 type RestHandlerImpl struct {
-	promotionApprovalRequestService            artifactPromotion2.ArtifactPromotionApprovalService
+	promotionApprovalRequestService            artifactPromotion2.ApprovalRequestService
 	logger                                     *zap.SugaredLogger
 	userService                                user.UserService
 	enforcer                                   casbin.Enforcer
@@ -44,20 +44,20 @@ type RestHandlerImpl struct {
 	userCommonService                          user.UserCommonService
 	enforcerUtil                               rbac.EnforcerUtil
 	environmentRepository                      repository.EnvironmentRepository
-	artifactPromotionApprovalRequestRepository repository2.ArtifactPromotionApprovalRequestRepository
+	artifactPromotionApprovalRequestRepository repository2.RequestRepository
 	appArtifactManager                         pipeline.AppArtifactManager
 	CiArtifactRepository                       repository3.CiArtifactRepository
 }
 
 func NewRestHandlerImpl(
-	promotionApprovalRequestService artifactPromotion2.ArtifactPromotionApprovalService,
+	promotionApprovalRequestService artifactPromotion2.ApprovalRequestService,
 	logger *zap.SugaredLogger,
 	userService user.UserService,
 	validator *validator.Validate,
 	userCommonService user.UserCommonService,
 	enforcerUtil rbac.EnforcerUtil,
 	environmentRepository repository.EnvironmentRepository,
-	artifactPromotionApprovalRequestRepository repository2.ArtifactPromotionApprovalRequestRepository,
+	artifactPromotionApprovalRequestRepository repository2.RequestRepository,
 	appArtifactManager pipeline.AppArtifactManager,
 	enforcer casbin.Enforcer,
 ) *RestHandlerImpl {
