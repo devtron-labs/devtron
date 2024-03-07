@@ -37,15 +37,16 @@ const (
 type SourceTypeStr string
 
 const (
-	SOURCE_TYPE_CI                      SourceTypeStr = "CI"
-	SOURCE_TYPE_WEBHOOK                 SourceTypeStr = "WEBHOOK"
-	SOURCE_TYPE_CD                      SourceTypeStr = "ENVIRONMENT"
-	ArtifactPromotionRequestNotFoundErr               = "artifact promotion request not found"
-	ACTION_PROMOTE                                    = "PROMOTE"
-	ACTION_CANCEL                                     = "CANCEL"
-	ACTION_APPROVE                                    = "APPROVE"
-	PROMOTION_APPROVAL_PENDING_NODE     SourceTypeStr = "PROMOTION_APPROVAL_PENDING_NODE"
-	UserCannotCancelRequest                           = "only user who has raised the promotion request can cancel it"
+	SOURCE_TYPE_CI                  SourceTypeStr = "CI"
+	SOURCE_TYPE_WEBHOOK             SourceTypeStr = "WEBHOOK"
+	SOURCE_TYPE_CD                  SourceTypeStr = "ENVIRONMENT"
+	PROMOTION_APPROVAL_PENDING_NODE SourceTypeStr = "PROMOTION_APPROVAL_PENDING_NODE"
+)
+
+const (
+	ACTION_PROMOTE = "PROMOTE"
+	ACTION_CANCEL  = "CANCEL"
+	ACTION_APPROVE = "APPROVE"
 )
 
 func (sourceType SourceTypeStr) GetSourceType() SourceType {
@@ -128,3 +129,6 @@ func (pvm PromotionValidationMsg) GetValidationState() PromotionValidationState 
 const BUILD_TRIGGER_USER_CANNOT_APPROVE_MSG = "User who has built the image cannot approve promotion request for this environment"
 const PROMOTION_REQUESTED_BY_USER_CANNOT_APPROVE_MSG = "User who has raised the promotion request cannot approve for this environment"
 const USER_DOES_NOT_HAVE_ARTIFACT_PROMOTER_ACCESS = "user does not have image promoter access for given app and env"
+const ARTIFACT_NOT_FOUND_ERR = "artifact not found for given id"
+const ArtifactPromotionRequestNotFoundErr = "artifact promotion request not found"
+const UserCannotCancelRequest = "only user who has raised the promotion request can cancel it"
