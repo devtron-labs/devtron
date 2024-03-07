@@ -36,3 +36,18 @@ func getCompositeStringsAppEnvSelection(selectionIdentifiers []*SelectionIdentif
 	}
 	return compositeSet
 }
+
+func getSelectionIdentifierForAppEnv(appId int, envId int, names *SelectionIdentifierName) *SelectionIdentifier {
+	return &SelectionIdentifier{
+		AppId:                   appId,
+		EnvId:                   envId,
+		SelectionIdentifierName: names,
+	}
+}
+
+func getIdentifierNamesForAppEnv(envName string, appName string) *SelectionIdentifierName {
+	return &SelectionIdentifierName{
+		EnvironmentName: envName,
+		AppName:         appName,
+	}
+}

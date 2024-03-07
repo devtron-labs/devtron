@@ -158,21 +158,12 @@ func (impl QualifierMappingServiceImpl) getAppEnvIdentifierFromGroup(group []*Qu
 		field := resourceKeyToName[mapping.IdentifierKey]
 		switch field {
 		case bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_APP_ID:
-			appId = mapping.IdentifierValueInt
-			appName = mapping.IdentifierValueString
+			appId, appName = mapping.GetIdValueAndName()
 		case bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_ENV_ID:
-			envId = mapping.IdentifierValueInt
-			envName = mapping.IdentifierValueString
+			envId, envName = mapping.GetIdValueAndName()
 		}
 	}
-	return &SelectionIdentifier{
-		AppId: appId,
-		EnvId: envId,
-		SelectionIdentifierName: &SelectionIdentifierName{
-			EnvironmentName: envName,
-			AppName:         appName,
-		},
-	}
+	return getSelectionIdentifierForAppEnv(appId, envId, getIdentifierNamesForAppEnv(envName, appName))
 }
 
 func (impl QualifierMappingServiceImpl) getSelectionIdentifierForAppEnvSelector(mappingGroups [][]*QualifierMapping) map[int][]*SelectionIdentifier {

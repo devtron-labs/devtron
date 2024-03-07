@@ -81,3 +81,7 @@ type SelectionIdentifierName struct {
 	EnvironmentName string
 	ClusterName     string
 }
+
+func (mapping *QualifierMapping) GetIdValueAndName() (int, string) {
+	return mapping.IdentifierValueInt, mapping.IdentifierValueString
+}
