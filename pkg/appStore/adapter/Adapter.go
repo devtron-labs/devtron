@@ -14,17 +14,17 @@ import (
 
 // NewInstallAppModel is used to generate new repository.InstalledApps model to be saved;
 // Note: Do not use for update operations
-func NewInstallAppModel(chart *appStoreBean.InstallAppVersionDTO, status appStoreBean.AppstoreDeploymentStatus) *repository.InstalledApps {
+func NewInstallAppModel(request *appStoreBean.InstallAppVersionDTO, status appStoreBean.AppstoreDeploymentStatus) *repository.InstalledApps {
 	installAppModel := &repository.InstalledApps{
-		AppId:             chart.AppId,
-		EnvironmentId:     chart.EnvironmentId,
-		DeploymentAppType: chart.DeploymentAppType,
+		AppId:             request.AppId,
+		EnvironmentId:     request.EnvironmentId,
+		DeploymentAppType: request.DeploymentAppType,
 	}
 	if status != appStoreBean.WF_UNKNOWN {
 		installAppModel.UpdateStatus(status)
 	}
-	installAppModel.CreateAuditLog(chart.UserId)
-	installAppModel.UpdateGitOpsRepository(chart.GitOpsRepoURL, chart.IsCustomRepository)
+	installAppModel.CreateAuditLog(request.UserId)
+	installAppModel.UpdateGitOpsRepository(request.GitOpsRepoURL, request.IsCustomRepository)
 	installAppModel.MarkActive()
 	return installAppModel
 }
@@ -95,7 +95,7 @@ func NewInstalledAppDeploymentAction(deploymentAppType string) *appStoreBean.Ins
 }
 
 // GenerateInstallAppVersionDTO converts repository.InstalledApps and repository.InstalledAppVersions db object to appStoreBean.InstallAppVersionDTO bean
-func GenerateInstallAppVersionDTO(chart *repository.InstalledApps, installedAppVersion *repository.InstalledAppVersions) *appStoreBean.InstallAppVersionDTO {
+func GenerateInstallAppVersionDTO(installedApp *repository.InstalledApps, installedAppVersion *repository.InstalledAppVersions) *appStoreBean.InstallAppVersionDTO {
 	chartVersionApp := installedAppVersion.AppStoreApplicationVersion
 
 	var chartRepoName, chartRepoUrl, Username, Password string
@@ -115,9 +115,9 @@ func GenerateInstallAppVersionDTO(chart *repository.InstalledApps, installedAppV
 		Username = chartVersionApp.AppStore.DockerArtifactStore.Username
 		Password = chartVersionApp.AppStore.DockerArtifactStore.Password
 	}
-	envBean := adapter.NewEnvironmentBean(&chart.Environment)
+	envBean := adapter.NewEnvironmentBean(&installedApp.Environment)
 	installAppDto := &appStoreBean.InstallAppVersionDTO{
-		TeamName: chart.App.Team.Name,
+		TeamName: installedApp.App.Team.Name,
 		InstallAppVersionChartDTO: &appStoreBean.InstallAppVersionChartDTO{
 			AppStoreChartId: chartVersionApp.AppStore.Id,
 			ChartName:       chartVersionApp.Name,
@@ -130,28 +130,28 @@ func GenerateInstallAppVersionDTO(chart *repository.InstalledApps, installedAppV
 			},
 		},
 	}
-	UpdateInstallAppDetails(installAppDto, chart)
+	UpdateInstallAppDetails(installAppDto, installedApp)
 	UpdateInstalledAppVersionsMetaData(installAppDto, installedAppVersion)
-	UpdateAppDetails(installAppDto, &chart.App)
+	UpdateAppDetails(installAppDto, &installedApp.App)
 	UpdateAdditionalEnvDetails(installAppDto, envBean)
 	return installAppDto
 }
 
 // GenerateInstallAppVersionMinDTO converts repository.InstalledApps db object to appStoreBean.InstallAppVersionDTO bean;
 // Note: It only generates a minimal DTO and doesn't include repository.InstalledAppVersions data
-func GenerateInstallAppVersionMinDTO(chart *repository.InstalledApps) *appStoreBean.InstallAppVersionDTO {
+func GenerateInstallAppVersionMinDTO(installedApp *repository.InstalledApps) *appStoreBean.InstallAppVersionDTO {
 	return &appStoreBean.InstallAppVersionDTO{
-		EnvironmentId:     chart.EnvironmentId,
-		InstalledAppId:    chart.Id,
-		AppId:             chart.AppId,
-		AppOfferingMode:   chart.App.AppOfferingMode,
-		ClusterId:         chart.Environment.ClusterId,
-		Namespace:         chart.Environment.Namespace,
-		AppName:           chart.App.AppName,
-		EnvironmentName:   chart.Environment.Name,
-		TeamId:            chart.App.TeamId,
-		TeamName:          chart.App.Team.Name,
-		DeploymentAppType: chart.DeploymentAppType,
+		EnvironmentId:     installedApp.EnvironmentId,
+		InstalledAppId:    installedApp.Id,
+		AppId:             installedApp.AppId,
+		AppOfferingMode:   installedApp.App.AppOfferingMode,
+		ClusterId:         installedApp.Environment.ClusterId,
+		Namespace:         installedApp.Environment.Namespace,
+		AppName:           installedApp.App.AppName,
+		EnvironmentName:   installedApp.Environment.Name,
+		TeamId:            installedApp.App.TeamId,
+		TeamName:          installedApp.App.Team.Name,
+		DeploymentAppType: installedApp.DeploymentAppType,
 	}
 }
 
@@ -184,7 +184,7 @@ func UpdateInstalledAppVersionModel(model *repository.InstalledAppVersions, requ
 
 // UpdateAdditionalEnvDetails update cluster.EnvironmentBean data into the same InstallAppVersionDTO
 func UpdateAdditionalEnvDetails(request *appStoreBean.InstallAppVersionDTO, envBean *clutserBean.EnvironmentBean) {
-	if request == nil {
+	if request == nil || envBean == nil {
 		return
 	}
 	request.Environment = envBean
@@ -196,7 +196,7 @@ func UpdateAdditionalEnvDetails(request *appStoreBean.InstallAppVersionDTO, envB
 
 // UpdateAppDetails update app.App data into the same InstallAppVersionDTO
 func UpdateAppDetails(request *appStoreBean.InstallAppVersionDTO, app *app.App) {
-	if request == nil {
+	if request == nil || app == nil {
 		return
 	}
 	request.AppId = app.Id
@@ -207,9 +207,10 @@ func UpdateAppDetails(request *appStoreBean.InstallAppVersionDTO, app *app.App) 
 
 // UpdateInstallAppDetails update repository.InstalledApps data into the same InstallAppVersionDTO
 func UpdateInstallAppDetails(request *appStoreBean.InstallAppVersionDTO, installedApp *repository.InstalledApps) {
-	if request == nil {
+	if request == nil || installedApp == nil {
 		return
 	}
+	request.InstalledAppId = installedApp.Id
 	request.AppId = installedApp.AppId
 	request.EnvironmentId = installedApp.EnvironmentId
 	request.Status = installedApp.Status
@@ -221,7 +222,7 @@ func UpdateInstallAppDetails(request *appStoreBean.InstallAppVersionDTO, install
 
 // UpdateAppStoreApplicationDetails update appStoreDiscoverRepository.AppStoreApplicationVersion data into the same InstallAppVersionDTO
 func UpdateAppStoreApplicationDetails(request *appStoreBean.InstallAppVersionDTO, appStoreApplicationVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) {
-	if request == nil {
+	if request == nil || appStoreApplicationVersion == nil {
 		return
 	}
 	request.AppStoreId = appStoreApplicationVersion.AppStoreId
@@ -232,7 +233,7 @@ func UpdateAppStoreApplicationDetails(request *appStoreBean.InstallAppVersionDTO
 
 // UpdateInstalledAppVersionsMetaData update repository.InstalledAppVersions meta data (excluding values.yaml and preset values mapping) into the same InstallAppVersionDTO
 func UpdateInstalledAppVersionsMetaData(request *appStoreBean.InstallAppVersionDTO, installedAppVersion *repository.InstalledAppVersions) {
-	if request == nil {
+	if request == nil || installedAppVersion == nil {
 		return
 	}
 	request.Id = installedAppVersion.Id
