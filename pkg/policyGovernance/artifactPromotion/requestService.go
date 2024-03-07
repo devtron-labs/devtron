@@ -333,7 +333,7 @@ func (impl *ApprovalRequestServiceImpl) approveArtifactPromotion(request *bean.A
 	if err != nil {
 		impl.logger.Errorw("error in getting artifact promotion request object by id", "promotionRequestId", request.PromotionRequestId, "err", err)
 		if errors.Is(err, pg.ErrNoRows) {
-			return nil, util.NewApiError().WithHttpStatusCode(http.StatusConflict).WithUserMessage(bean.ArtifactPromotionRequestNotFoundErr).WithInternalMessage(bean.ArtifactPromotionRequestNotFoundErr)
+			return nil, util.NewApiError().WithHttpStatusCode(http.StatusConflict).WithUserMessage(constants.ArtifactPromotionRequestNotFoundErr).WithInternalMessage(constants.ArtifactPromotionRequestNotFoundErr)
 		}
 		return nil, err
 	}
@@ -964,7 +964,7 @@ func (impl *ApprovalRequestServiceImpl) cancelPromotionApprovalRequest(request *
 	}
 
 	if artifactPromotionDao.CreatedBy != request.UserId {
-		return nil, util.NewApiError().WithHttpStatusCode(http.StatusUnprocessableEntity).WithInternalMessage(bean.UserCannotCancelRequest).WithUserMessage(bean.UserCannotCancelRequest)
+		return nil, util.NewApiError().WithHttpStatusCode(http.StatusUnprocessableEntity).WithInternalMessage(constants.UserCannotCancelRequest).WithUserMessage(constants.UserCannotCancelRequest)
 	}
 
 	artifactPromotionDao.Status = constants.CANCELED

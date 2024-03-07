@@ -45,6 +45,7 @@ const (
 	ACTION_CANCEL                                     = "CANCEL"
 	ACTION_APPROVE                                    = "APPROVE"
 	PROMOTION_APPROVAL_PENDING_NODE     SourceTypeStr = "PROMOTION_APPROVAL_PENDING_NODE"
+	UserCannotCancelRequest                           = "only user who has raised the promotion request can cancel it"
 )
 
 func (sourceType SourceTypeStr) GetSourceType() SourceType {
