@@ -24,7 +24,7 @@ Users need to have super-admin permission to create an image promotion policy.
 
 3. Give a name to the policy and write a brief description, preferably explaining what it does.
 
-4. Under **Image Filter Condition**, you can specify either a pass condition, fail condition, or both the conditions using [Common Expression Language (CEL)](https://github.com/google/cel-spec/blob/master/doc/langdef.md):
+4. Under **Image Filter Condition**, you can specify either a pass condition, fail condition, or both conditions using [Common Expression Language (CEL)](https://github.com/google/cel-spec/blob/master/doc/langdef.md):
     * **Pass Condition**: Only those images that satisfy your condition will be promoted and displayed in the target environment.
     * **Fail Condition**: Images that fail the condition will not be directed to the target environment.
 
@@ -34,7 +34,7 @@ Users need to have super-admin permission to create an image promotion policy.
 Use **View filter criteria** to check the supported variables.
 {% endhint %}  
 
-5. (Optional) If required, you can also introduce an approval flow using the toggle button: **Approval for Image Promotion Policy**. As a result, the [user selecting an image for promotion](#selecting-image-for-promotion) will [require an approval](#approving-an-image-promotion-request).
+5. (Optional) If required, you can also introduce an approval flow using the toggle button: **Approval for Image Promotion Policy**. As a result, the [user selecting an image for promotion](#selecting-image-for-promotion) will [require approval](#approving-an-image-promotion-request).
 
  * **Number of Approvals (1-6)**: Specify the number of approvals required to promote an image. This can vary from one approval (minimum) to six approvals (maximum).
 
@@ -55,7 +55,7 @@ Here, you can decide the application(s) and environment(s) for which image promo
 
 1. Go to the **Apply Policy** tab.
 
-2. Use the checkobox to select an application.
+2. Use the checkbox to select an application.
 
 3. Click the `Promotion Policy` dropdown within it and choose the policy you wish to apply.
 
@@ -87,9 +87,9 @@ Here, you can promote images to the target environment(s).
 
 2. Click the **Promote** button next to the pipeline eligible for image promotion.
 
-3. In the `Select Image` tab you will see a list of images. However, you can use the **Show Images from** dropdown to decide the image you wish to promote. It can be an image either from the CI pipeline or from any one of the intermediate stages (environments).
+3. In the `Select Image` tab, you will see a list of images. However, you can use the **Show Images from** dropdown to decide the image you wish to promote. It can be an image either from the CI pipeline or from any one of the intermediate stages (environments).
 
-4. Use the **SELECT** button on the image, and click **Promote to...**.
+4. Use the **SELECT** button on the image, and click **Promote to...**
 
 5. Select one or more target environments using the checkbox.
 
