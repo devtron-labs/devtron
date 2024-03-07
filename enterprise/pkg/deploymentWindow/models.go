@@ -2,10 +2,8 @@ package deploymentWindow
 
 import (
 	"encoding/json"
-	"github.com/devtron-labs/common-lib/scheduler"
 	"github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
-	"github.com/samber/lo"
-	"time"
+	"github.com/devtron-labs/devtron/pkg/timeoutWindow"
 )
 
 type DeploymentWindowProfilePolicy struct {
@@ -52,7 +50,7 @@ func (profile DeploymentWindowProfile) convertToPolicyDataModel(userId int32) (*
 	}, nil
 }
 
-func (profilePolicy DeploymentWindowProfilePolicy) toDeploymentWindowProfile(policyModel *bean.GlobalPolicyBaseModel, windows []*TimeWindow) *DeploymentWindowProfile {
+func (profilePolicy DeploymentWindowProfilePolicy) toDeploymentWindowProfile(policyModel *bean.GlobalPolicyBaseModel, windows []*timeoutWindow.TimeWindow) *DeploymentWindowProfile {
 	return &DeploymentWindowProfile{
 		DeploymentWindowList: windows,
 		Enabled:              policyModel.Enabled,
@@ -68,35 +66,4 @@ func (profilePolicy DeploymentWindowProfilePolicy) toDeploymentWindowProfile(pol
 			Type:        profilePolicy.Type,
 		},
 	}
-}
-
-func (timeWindow *TimeWindow) toTimeRange() scheduler.TimeRange {
-	return scheduler.TimeRange{
-		TimeFrom:       timeWindow.TimeFrom,
-		TimeTo:         timeWindow.TimeTo,
-		HourMinuteFrom: timeWindow.HourMinuteFrom,
-		HourMinuteTo:   timeWindow.HourMinuteTo,
-		DayFrom:        timeWindow.DayFrom,
-		DayTo:          timeWindow.DayTo,
-		WeekdayFrom:    timeWindow.WeekdayFrom.toWeekday(),
-		WeekdayTo:      timeWindow.WeekdayTo.toWeekday(),
-		Weekdays:       lo.Map(timeWindow.Weekdays, func(item DayOfWeek, index int) time.Weekday { return item.toWeekday() }),
-		Frequency:      timeWindow.Frequency.toTimeRangeFrequency(),
-	}
-}
-
-func (f Frequency) toTimeRangeFrequency() scheduler.Frequency {
-	switch f {
-	case Fixed:
-		return scheduler.FIXED
-	case Daily:
-		return scheduler.DAILY
-	case Weekly:
-		return scheduler.WEEKLY
-	case WeeklyRange:
-		return scheduler.WEEKLY_RANGE
-	case Monthly:
-		return scheduler.MONTHLY
-	}
-	return ""
 }

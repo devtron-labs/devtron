@@ -1032,11 +1032,11 @@ func InitializeApp() (*App, error) {
 		timeoutWindow.NewTimeWindowServiceImpl,
 		wire.Bind(new(timeoutWindow.TimeoutWindowService), new(*timeoutWindow.TimeWindowServiceImpl)),
 
+		timeoutWindow.NewRepeatingTimeWindowServiceImpl,
+		wire.Bind(new(timeoutWindow.RepeatingTimeWindowService), new(*timeoutWindow.RepeatingTimeWindowServiceImpl)),
+
 		repository9.NewTimeWindowRepositoryImpl,
 		wire.Bind(new(repository9.TimeWindowRepository), new(*repository9.TimeWindowRepositoryImpl)),
-
-		timeoutWindow.NewTimeoutWindowResourceMappingServiceImpl,
-		wire.Bind(new(timeoutWindow.TimeoutWindowResourceMappingService), new(*timeoutWindow.TimeoutWindowResourceMappingServiceImpl)),
 
 		repository9.NewTimeoutWindowResourceMappingRepositoryImpl,
 		wire.Bind(new(repository9.TimeoutWindowResourceMappingRepository), new(*repository9.TimeoutWindowResourceMappingRepositoryImpl)),

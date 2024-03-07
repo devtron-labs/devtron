@@ -329,7 +329,8 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	timeWindowRepositoryImpl := repository6.NewTimeWindowRepositoryImpl(db, sugaredLogger)
-	timeWindowServiceImpl := timeoutWindow.NewTimeWindowServiceImpl(sugaredLogger, timeWindowRepositoryImpl)
+	timeoutWindowResourceMappingRepositoryImpl := repository6.NewTimeoutWindowResourceMappingRepositoryImpl(db, sugaredLogger)
+	timeWindowServiceImpl := timeoutWindow.NewTimeWindowServiceImpl(sugaredLogger, timeWindowRepositoryImpl, timeoutWindowResourceMappingRepositoryImpl)
 	userServiceImpl := user.NewUserServiceImpl(userAuthRepositoryImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, sessionManager, userCommonServiceImpl, userAuditServiceImpl, globalAuthorisationConfigServiceImpl, roleGroupServiceImpl, userGroupMapRepositoryImpl, enterpriseEnforcerImpl, timeWindowServiceImpl)
 	gitOpsConfigRepositoryImpl := repository2.NewGitOpsConfigRepositoryImpl(sugaredLogger, db)
 	globalEnvVariables, err := util2.GetGlobalEnvVariables()
@@ -1001,10 +1002,9 @@ func InitializeApp() (*App, error) {
 	infraConfigRouterImpl := infraConfig2.NewInfraProfileRouterImpl(infraConfigRestHandlerImpl)
 	argoApplicationRestHandlerImpl := argoApplication2.NewArgoApplicationRestHandlerImpl(argoApplicationServiceImpl, sugaredLogger, enterpriseEnforcerImpl)
 	argoApplicationRouterImpl := argoApplication2.NewArgoApplicationRouterImpl(argoApplicationRestHandlerImpl)
-	timeoutWindowResourceMappingRepositoryImpl := repository6.NewTimeoutWindowResourceMappingRepositoryImpl(db, sugaredLogger)
-	timeoutWindowResourceMappingServiceImpl := timeoutWindow.NewTimeoutWindowResourceMappingServiceImpl(sugaredLogger, timeoutWindowResourceMappingRepositoryImpl, timeWindowServiceImpl)
+	repeatingTimeWindowServiceImpl := timeoutWindow.NewRepeatingTimeWindowServiceImpl(timeWindowServiceImpl)
 	globalPolicyDataManagerImpl := globalPolicy.NewGlobalPolicyDataManagerImpl(sugaredLogger, globalPolicyRepositoryImpl, globalPolicySearchableFieldRepositoryImpl)
-	deploymentWindowServiceImpl, err := deploymentWindow.NewDeploymentWindowServiceImpl(sugaredLogger, qualifierMappingServiceImpl, timeoutWindowResourceMappingServiceImpl, globalPolicyDataManagerImpl, db, userServiceImpl)
+	deploymentWindowServiceImpl, err := deploymentWindow.NewDeploymentWindowServiceImpl(sugaredLogger, qualifierMappingServiceImpl, repeatingTimeWindowServiceImpl, globalPolicyDataManagerImpl, db, userServiceImpl)
 	if err != nil {
 		return nil, err
 	}

@@ -6,8 +6,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/timeoutWindow"
 	"github.com/devtron-labs/devtron/pkg/timeoutWindow/repository"
-	"github.com/devtron-labs/devtron/pkg/timeoutWindow/repository/bean"
-	"github.com/go-pg/pg"
 	"github.com/samber/lo"
 )
 
@@ -29,7 +27,7 @@ func (impl DeploymentWindowServiceImpl) CreateDeploymentWindowProfile(profile *D
 	}
 	profile.Id = policy.Id
 
-	err = impl.updateWindowMappings(profile.DeploymentWindowList, userId, err, tx, policy.Id)
+	err = impl.timeWindowService.UpdateWindowMappings(profile.DeploymentWindowList, userId, err, tx, policy.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -39,22 +37,6 @@ func (impl DeploymentWindowServiceImpl) CreateDeploymentWindowProfile(profile *D
 	}
 
 	return profile, err
-}
-
-func (impl DeploymentWindowServiceImpl) updateWindowMappings(windows []*TimeWindow, userId int32, err error, tx *pg.Tx, policyId int) error {
-
-	//TODO validate Windows
-
-	windowExpressions := lo.Map(windows, func(window *TimeWindow, index int) timeoutWindow.TimeWindowExpression {
-		return timeoutWindow.TimeWindowExpression{
-			TimeoutExpression: window.toJsonString(),
-			ExpressionFormat:  bean.RecurringTimeRange,
-		}
-	})
-
-	//create time windows and map
-	err = impl.timeoutWindowMappingService.CreateAndMapWithResource(tx, windowExpressions, userId, policyId, repository.DeploymentWindowProfile)
-	return err
 }
 
 func (impl DeploymentWindowServiceImpl) UpdateDeploymentWindowProfile(profile *DeploymentWindowProfile, userId int32) (*DeploymentWindowProfile, error) {
@@ -73,7 +55,7 @@ func (impl DeploymentWindowServiceImpl) UpdateDeploymentWindowProfile(profile *D
 	if err != nil {
 		return nil, err
 	}
-	err = impl.updateWindowMappings(profile.DeploymentWindowList, userId, err, tx, policy.Id)
+	err = impl.timeWindowService.UpdateWindowMappings(profile.DeploymentWindowList, userId, err, tx, policy.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +77,7 @@ func (impl DeploymentWindowServiceImpl) DeleteDeploymentWindowProfileForId(profi
 	if err != nil {
 		return err
 	}
-	err = impl.updateWindowMappings([]*TimeWindow{}, userId, err, tx, profileId)
+	err = impl.timeWindowService.UpdateWindowMappings([]*timeoutWindow.TimeWindow{}, userId, err, tx, profileId)
 	if err != nil {
 		return err
 	}
@@ -114,16 +96,15 @@ func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileForId(profileI
 		return nil, err
 	}
 
-	//get windows
-	profileIdToExpressions, err := impl.timeoutWindowMappingService.GetMappingsForResources([]int{profileId}, repository.DeploymentWindowProfile)
+	idToWindows, err := impl.timeWindowService.GetWindowsForResources([]int{profileId}, repository.DeploymentWindowProfile)
 	if err != nil {
 		return nil, err
 	}
-	windows := lo.Map(profileIdToExpressions[profileId], func(expr timeoutWindow.TimeWindowExpression, index int) *TimeWindow {
-		window := &TimeWindow{}
-		window.setFromJsonString(expr.TimeoutExpression)
-		return window
-	})
+
+	windows, ok := idToWindows[profileId]
+	if !ok {
+		return nil, nil
+	}
 	profilePolicy, err := impl.getPolicyFromModel(policyModel)
 	if err != nil {
 		return nil, err
@@ -164,20 +145,20 @@ func (impl DeploymentWindowServiceImpl) ListDeploymentWindowProfiles() ([]*Deplo
 
 func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileOverview(appId int, envIds []int) (*DeploymentWindowResponse, error) {
 
-	scopes := lo.Map(envIds, func(envId int, index int) *resourceQualifiers.Scope {
-		return &resourceQualifiers.Scope{
+	selections := lo.Map(envIds, func(envId int, index int) *resourceQualifiers.SelectionIdentifier {
+		return &resourceQualifiers.SelectionIdentifier{
 			AppId: appId,
 			EnvId: envId,
 		}
 	})
 
-	resources, profileIdToProfile, err := impl.getResourcesAndProfilesForScopes(scopes)
+	resources, profileIdToProfile, err := impl.getResourcesAndProfilesForSelections(selections)
 	if err != nil {
 		return nil, err
 	}
 
 	envIdToQualifierMappings := lo.GroupBy(resources, func(item resourceQualifiers.ResourceQualifierMappings) int {
-		return item.Scope.EnvId
+		return item.SelectionIdentifier.EnvId
 	})
 	profileStates := impl.getProfileStates(envIdToQualifierMappings, profileIdToProfile)
 
@@ -215,7 +196,12 @@ func (impl DeploymentWindowServiceImpl) getProfileIdToProfile(profileIds []int) 
 	}
 
 	//get windows
-	profileIdToWindowExpressions, err := impl.timeoutWindowMappingService.GetMappingsForResources(profileIds, repository.DeploymentWindowProfile)
+	//profileIdToWindowExpressions, err := impl.timeWindowService.GetMappingsForResources(profileIds, repository.DeploymentWindowProfile)
+	//if err != nil {
+	//	return nil, err
+	//}
+
+	profileIdToWindows, err := impl.timeWindowService.GetWindowsForResources(profileIds, repository.DeploymentWindowProfile)
 	if err != nil {
 		return nil, err
 	}
@@ -223,11 +209,7 @@ func (impl DeploymentWindowServiceImpl) getProfileIdToProfile(profileIds []int) 
 	profileIdToProfile := make(map[int]*DeploymentWindowProfile)
 	for _, profileId := range profileIds {
 
-		windows := lo.Map(profileIdToWindowExpressions[profileId], func(expr timeoutWindow.TimeWindowExpression, index int) *TimeWindow {
-			window := &TimeWindow{}
-			window.setFromJsonString(expr.TimeoutExpression)
-			return window
-		})
+		windows := profileIdToWindows[profileId]
 
 		profilePolicy, err := impl.getPolicyFromModel(profileIdToModel[profileId])
 		if err != nil {
@@ -241,24 +223,24 @@ func (impl DeploymentWindowServiceImpl) getProfileIdToProfile(profileIds []int) 
 
 func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileOverviewBulk(appEnvSelectors []AppEnvSelector) (map[int]*DeploymentWindowResponse, error) {
 
-	scopes := lo.Map(appEnvSelectors, func(appEnv AppEnvSelector, index int) *resourceQualifiers.Scope {
-		return &resourceQualifiers.Scope{
+	selections := lo.Map(appEnvSelectors, func(appEnv AppEnvSelector, index int) *resourceQualifiers.SelectionIdentifier {
+		return &resourceQualifiers.SelectionIdentifier{
 			AppId: appEnv.AppId,
 			EnvId: appEnv.EnvId,
 		}
 	})
-	resources, profileIdToProfile, err := impl.getResourcesAndProfilesForScopes(scopes)
+	resources, profileIdToProfile, err := impl.getResourcesAndProfilesForSelections(selections)
 	if err != nil {
 		return nil, err
 	}
 	appIdToQualifierMappings := lo.GroupBy(resources, func(item resourceQualifiers.ResourceQualifierMappings) int {
-		return item.Scope.AppId
+		return item.SelectionIdentifier.AppId
 	})
 
 	appIdToResponse := make(map[int]*DeploymentWindowResponse)
 	for appId, mappings := range appIdToQualifierMappings {
 		envIdToQualifierMappings := lo.GroupBy(mappings, func(item resourceQualifiers.ResourceQualifierMappings) int {
-			return item.Scope.EnvId
+			return item.SelectionIdentifier.EnvId
 		})
 		profileStates := impl.getProfileStates(envIdToQualifierMappings, profileIdToProfile)
 		appIdToResponse[appId] = &DeploymentWindowResponse{
@@ -269,8 +251,8 @@ func (impl DeploymentWindowServiceImpl) GetDeploymentWindowProfileOverviewBulk(a
 	return appIdToResponse, nil
 }
 
-func (impl DeploymentWindowServiceImpl) getResourcesAndProfilesForScopes(scopes []*resourceQualifiers.Scope) ([]resourceQualifiers.ResourceQualifierMappings, map[int]*DeploymentWindowProfile, error) {
-	resources, err := impl.resourceMappingService.GetResourceMappingsForScopes(resourceQualifiers.DeploymentWindowProfile, resourceQualifiers.ApplicationEnvironmentSelector, scopes)
+func (impl DeploymentWindowServiceImpl) getResourcesAndProfilesForSelections(selections []*resourceQualifiers.SelectionIdentifier) ([]resourceQualifiers.ResourceQualifierMappings, map[int]*DeploymentWindowProfile, error) {
+	resources, err := impl.resourceMappingService.GetResourceMappingsForSelections(resourceQualifiers.DeploymentWindowProfile, resourceQualifiers.ApplicationEnvironmentSelector, selections)
 	if err != nil {
 		return nil, nil, err
 	}

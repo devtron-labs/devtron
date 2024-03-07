@@ -78,9 +78,9 @@ func (impl CommonPolicyActionsServiceImpl) ApplyPolicyToIdentifiers(userId int32
 		}
 	}
 
-	var scopes []*resourceQualifiers.Scope
+	var selections []*resourceQualifiers.SelectionIdentifier
 	if len(applyIdentifiersRequest.ApplicationEnvironments) > 0 {
-		scopes, err = impl.fetchScopesByAppEnvNames(applyIdentifiersRequest.ApplicationEnvironments)
+		selections, err = impl.fetchScopesByAppEnvNames(applyIdentifiersRequest.ApplicationEnvironments)
 		if err != nil {
 			impl.logger.Errorw("error in fetching scope objects using appEnv names", "appEnvNames", applyIdentifiersRequest.ApplicationEnvironments, "err", err)
 			return err
@@ -102,7 +102,7 @@ func (impl CommonPolicyActionsServiceImpl) ApplyPolicyToIdentifiers(userId int32
 		return err
 	}
 	// create new mappings using resourceQualifierMapping
-	err = impl.resourceQualifierMappingService.CreateMappings(tx, userId, referenceType, []int{updateToPolicy.Id}, resourceQualifiers.ApplicationEnvironmentSelector, scopes)
+	err = impl.resourceQualifierMappingService.CreateMappings(tx, userId, referenceType, []int{updateToPolicy.Id}, resourceQualifiers.ApplicationEnvironmentSelector, selections)
 	if err != nil {
 		impl.logger.Errorw("error in creating new qualifier mappings for a policy", "policyId", updateToPolicy.Id, "policyType", referenceType, "err", err)
 		return err
@@ -300,7 +300,7 @@ func (impl CommonPolicyActionsServiceImpl) ApplyPolicyToIdentifiers(userId int32
 //	return policies, err
 //}
 
-func (impl CommonPolicyActionsServiceImpl) fetchScopesByAppEnvNames(applicationEnvironments []AppEnvPolicyContainer) ([]*resourceQualifiers.Scope, error) {
+func (impl CommonPolicyActionsServiceImpl) fetchScopesByAppEnvNames(applicationEnvironments []AppEnvPolicyContainer) ([]*resourceQualifiers.SelectionIdentifier, error) {
 	//appNames := make([]string, 0, len(applicationEnvironments))
 	//envNames := make([]string, 0, len(applicationEnvironments))
 	//for _, appEnv := range applicationEnvironments {
@@ -330,15 +330,15 @@ func (impl CommonPolicyActionsServiceImpl) fetchScopesByAppEnvNames(applicationE
 	//	envNameIdMap[env.Environment] = env.Id
 	//}
 
-	scopes := make([]*resourceQualifiers.Scope, 0, len(applicationEnvironments))
+	scopes := make([]*resourceQualifiers.SelectionIdentifier, 0, len(applicationEnvironments))
 	uniqueScopes := make(map[string]bool)
 	for _, appEnv := range applicationEnvironments {
 		key := fmt.Sprintf("%s,%s", appEnv.AppName, appEnv.EnvName)
 		if _, ok := uniqueScopes[key]; !ok {
-			scopes = append(scopes, &resourceQualifiers.Scope{
+			scopes = append(scopes, &resourceQualifiers.SelectionIdentifier{
 				AppId: appEnv.AppId,
 				EnvId: appEnv.EnvId,
-				SystemMetadata: &resourceQualifiers.SystemMetadata{
+				SelectionIdentifierName: &resourceQualifiers.SelectionIdentifierName{
 					AppName:         appEnv.AppName,
 					EnvironmentName: appEnv.EnvName,
 				},
