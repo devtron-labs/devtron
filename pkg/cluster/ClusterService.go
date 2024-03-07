@@ -1007,10 +1007,10 @@ func (impl *ClusterServiceImpl) FetchRolesFromGroup(userId int32, token string) 
 		groups = append(groups, groupsCasbinNames...)
 	}
 
-	roleEntity := "cluster"
-	roles, err := impl.userAuthRepository.GetRolesByUserIdAndEntityType(userId, roleEntity)
+	roleEntity := bean2.CLUSTER_ENTITIY
+	roles, err := impl.userService.GetActiveUserRolesByEntityAndUserId(roleEntity, userId)
 	if err != nil {
-		impl.logger.Errorw("error on fetching user roles for cluster list", "err", err)
+		impl.logger.Errorw("error on fetching user roles for cluster list", "err", err, "roleEntity", roleEntity, "userId", userId)
 		return nil, err
 	}
 	if len(groups) > 0 {

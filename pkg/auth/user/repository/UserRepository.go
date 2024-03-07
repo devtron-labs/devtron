@@ -59,6 +59,7 @@ type UserRepository interface {
 	CommitATransaction(tx *pg.Tx) error
 	GetUserWithTimeoutWindowConfiguration(emailId string) (*UserModel, error)
 	GetRolesWithTimeoutWindowConfigurationByUserId(userId int32) ([]*UserRoleModel, error)
+	GetRolesWithTimeoutWindowConfigurationByUserIdAndEntityType(userId int32, entityType string) ([]*UserRoleModel, error)
 }
 
 type UserRepositoryImpl struct {
@@ -394,4 +395,17 @@ func (impl UserRepositoryImpl) GetRolesWithTimeoutWindowConfigurationByUserId(us
 		return model, err
 	}
 	return model, nil
+}
+
+func (impl UserRepositoryImpl) GetRolesWithTimeoutWindowConfigurationByUserIdAndEntityType(userId int32, entityType string) ([]*UserRoleModel, error) {
+	var models []*UserRoleModel
+	err := impl.dbConnection.Model(&models).
+		Column("user_role_model.*", "Role", "TimeoutWindowConfiguration").
+		Where("Role.entity = ?", entityType).
+		Where("user_role_model.user_id = ?", userId).Select()
+	if err != nil {
+		impl.Logger.Error(err)
+		return models, err
+	}
+	return models, nil
 }

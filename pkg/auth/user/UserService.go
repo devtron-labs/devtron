@@ -102,6 +102,7 @@ type UserService interface {
 	GetUserBasicDataByEmailId(emailId string) (*bean.UserInfo, error)
 	GetActiveRolesAttachedToUser(emailId string, recordedTime time.Time) ([]string, error)
 	GetUserRoleGroupsForEmail(emailId string, recordedTime time.Time) ([]bean.UserRoleGroup, []string, error)
+	GetActiveUserRolesByEntityAndUserId(entity string, userId int32) ([]*repository.RoleModel, error)
 }
 
 type UserServiceImpl struct {
@@ -3133,4 +3134,21 @@ func (impl UserServiceImpl) getOrCreateTimeoutWindowConfiguration(status bean.St
 	}
 	return nil, &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "not able to identify status", InternalMessage: "status not supported"}
 
+}
+
+func (impl UserServiceImpl) GetActiveUserRolesByEntityAndUserId(entity string, userId int32) ([]*repository.RoleModel, error) {
+	userRoles, err := impl.userRepository.GetRolesWithTimeoutWindowConfigurationByUserIdAndEntityType(userId, entity)
+	if err != nil {
+		impl.logger.Errorw("error in GetActiveUserRolesByEntityAndUserId", "entity", entity, "userId", userId, "err", err)
+		return nil, err
+	}
+	activeRolesModels := make([]*repository.RoleModel, 0, len(userRoles))
+	recordedTime := time.Now()
+	for _, userRole := range userRoles {
+		status, _ := getStatusAndTTL(userRole.TimeoutWindowConfiguration, recordedTime)
+		if status != bean.Inactive {
+			activeRolesModels = append(activeRolesModels, &userRole.Role)
+		}
+	}
+	return activeRolesModels, nil
 }
