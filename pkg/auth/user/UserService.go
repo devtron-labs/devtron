@@ -1333,8 +1333,8 @@ func (impl UserServiceImpl) CheckAccessAndReturnEliminatedPolices(token string, 
 	hasAccessToGroup := impl.checkGroupAuth(userRoleGroup.RoleGroup.CasbinName, token, managerAuth, isActionPerformingUserSuperAdmin)
 	if hasAccessToGroup {
 		groupsModified = true
-		timeExpression, expressionFormat := helper.GetCasbinFormattedTimeAndFormatFromStatusAndExpression(userRoleGroup.Status, userRoleGroup.TimeoutWindowExpression)
-		casbinPolicy := adapter.GetCasbinGroupPolicy(emailId, userRoleGroup.RoleGroup.CasbinName, timeExpression, expressionFormat)
+		// getting casbin policy only for email vs role mapping as to handle ttl cases will result in status inactive, but in casbin we have ttl expression and format
+		casbinPolicy := adapter.GetCasbinGroupPolicyForEmailAndRoleOnly(emailId, userRoleGroup.RoleGroup.CasbinName)
 		eliminatedPolicies = append(eliminatedPolicies, casbinPolicy)
 	} else {
 		trimmedGroup := strings.TrimPrefix(userRoleGroup.RoleGroup.CasbinName, bean5.GroupPrefix)
