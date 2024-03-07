@@ -94,3 +94,6 @@ const BLOCKED_BY_POLICY PromotionValidationState = "blocked by the policy "
 const APPROVED PromotionValidationState = "approved"
 
 type PromotionValidationState string
+
+const ALREADY_APPROVED PromotionValidationState = "you have already approved this"
+const ERRORED_APPROVAL PromotionValidationState = "error occurred in submitting the approval"

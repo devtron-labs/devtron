@@ -105,7 +105,7 @@ func (handler *RestHandlerImpl) HandleArtifactPromotionRequest(w http.ResponseWr
 
 		authorizedEnvironments = handler.promoteActionRbac(token, promotionRequest.AppName, promotionRequest.EnvironmentNames)
 
-	case bean.ACTION_APPROVE:
+	case constants.ACTION_APPROVE:
 
 		authorizedEnvironments = handler.approveActionRbac(token, promotionRequest.AppName, promotionRequest.EnvironmentNames)
 

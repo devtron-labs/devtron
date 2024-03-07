@@ -159,23 +159,6 @@ type ApprovalMetaData struct {
 	AllowApproverFromDeploy      bool `json:"allowApproverFromDeploy"`
 }
 
-
-const ARTIFACT_ALREADY_PROMOTED PromotionValidationState = "already promoted"
-const ALREADY_REQUEST_RAISED PromotionValidationState = "promotion request already raised"
-const ERRORED PromotionValidationState = "error occurred"
-const EMPTY PromotionValidationState = ""
-const PIPELINE_NOT_FOUND PromotionValidationState = "pipeline Not Found"
-const POLICY_NOT_CONFIGURED PromotionValidationState = "policy not configured"
-const NO_PERMISSION PromotionValidationState = "no permission"
-const PROMOTION_SUCCESSFUL PromotionValidationState = "image promoted"
-const SENT_FOR_APPROVAL PromotionValidationState = "sent for approval"
-const SOURCE_AND_DESTINATION_PIPELINE_MISMATCH PromotionValidationState = "source and destination pipeline order mismatch"
-const POLICY_EVALUATION_ERRORED PromotionValidationState = "server unable to evaluate the policy"
-const BLOCKED_BY_POLICY PromotionValidationState = "blocked by the policy "
-const APPROVED PromotionValidationState = "approved"
-const ALREADY_APPROVED PromotionValidationState = "you have already approved this"
-const ERRORED_APPROVAL PromotionValidationState = "error occurred in submitting the approval"
-
 type EnvironmentListingResponse struct {
 	CiSource     CiSourceMetaData               `json:"ciSource"`
 	Environments []EnvironmentPromotionMetaData `json:"environments"`
@@ -205,7 +188,7 @@ type PipelinesMetaData struct {
 
 type SourceMetaData struct {
 	id               int
-	typeStr          SourceTypeStr
+	typeStr          bean2.SourceTypeStr
 	name             string
 	sourceWorkflowId int
 	cdPipeline       *pipelineConfig.Pipeline
@@ -221,7 +204,7 @@ func (s *SourceMetaData) WithId(id int) *SourceMetaData {
 	return s
 }
 
-func (s *SourceMetaData) WithType(typeStr SourceTypeStr) *SourceMetaData {
+func (s *SourceMetaData) WithType(typeStr bean2.SourceTypeStr) *SourceMetaData {
 	s.typeStr = typeStr
 	return s
 }
@@ -357,7 +340,7 @@ func (r *RequestMetaData) GetWorkflowId() int {
 	return r.sourceMetaData.sourceWorkflowId
 }
 
-func (r *RequestMetaData) GetSourceType() SourceTypeStr {
+func (r *RequestMetaData) GetSourceType() bean2.SourceTypeStr {
 	return r.sourceMetaData.typeStr
 }
 
