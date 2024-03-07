@@ -65,3 +65,9 @@ func (profilePolicy DeploymentWindowProfilePolicy) toDeploymentWindowProfile(pol
 		},
 	}
 }
+
+type ProfileMapping struct {
+	ProfileId int
+	AppId     int
+	EnvId     int
+}
