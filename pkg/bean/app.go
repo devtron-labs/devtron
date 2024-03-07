@@ -857,10 +857,26 @@ type CiArtifactBean struct {
 }
 
 func (c *CiArtifactBean) GetMaterialInfo() ([]repository3.CiMaterialInfo, error) {
-	var ciMaterials []repository3.CiMaterialInfo
-	err := json.Unmarshal([]byte(c.MaterialInfo), &ciMaterials)
+	infoMap := make([]map[string]string, 0)
+	err := json.Unmarshal([]byte(c.MaterialInfo), &infoMap)
 	if err != nil {
 		return nil, err
+	}
+
+	ciMaterials := make([]repository3.CiMaterialInfo, 0, len(infoMap))
+	for _, mp := range infoMap {
+		ciMaterials = append(ciMaterials, repository3.CiMaterialInfo{
+			Material: repository3.Material{
+				Type:             "git",
+				GitConfiguration: repository3.GitConfiguration{URL: mp["url"]},
+			},
+			Modifications: []repository3.Modification{
+				{
+					Message: mp["message"],
+					Branch:  mp["branch"],
+				},
+			},
+		})
 	}
 	return ciMaterials, nil
 }
