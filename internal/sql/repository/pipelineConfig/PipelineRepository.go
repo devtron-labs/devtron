@@ -739,7 +739,7 @@ func (impl PipelineRepositoryImpl) FindActiveByAppIds(appIds []int) (pipelines [
 }
 
 func (impl PipelineRepositoryImpl) FindAppAndEnvironmentAndProjectByPipelineIds(pipelineIds []int) (pipelines []*Pipeline, err error) {
-	if len(pipelines) == 0 {
+	if len(pipelineIds) == 0 {
 		return pipelines, nil
 	}
 	err = impl.dbConnection.Model(&pipelines).Column("pipeline.*", "App", "Environment", "App.Team").
