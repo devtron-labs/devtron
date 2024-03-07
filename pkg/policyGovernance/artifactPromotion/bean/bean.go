@@ -15,20 +15,15 @@ import (
 )
 
 type ArtifactPromotionRequest struct {
-	SourceName         string                   `json:"sourceName"`
-	SourceType         bean2.SourceTypeStr      `json:"sourceType"`
-	Action             string                   `json:"action"`
-	PromotionRequestId int                      `json:"promotionRequestId"`
-	ArtifactId         int                      `json:"artifactId"`
-	AppName            string                   `json:"appName"`
-	EnvironmentNames   []string                 `json:"destinationObjectNames"`
-	UserId             int32                    `json:"-"`
-	WorkflowId         int                      `json:"workflowId"`
-	AppId              int                      `json:"appId"`
-	EnvNameIdMap       map[string]int           `json:"-"`
-	EnvIdNameMap       map[int]string           `json:"-"`
-	SourcePipelineId   int                      `json:"-"`
-	SourceCdPipeline   *pipelineConfig.Pipeline `json:"-"`
+	SourceName         string              `json:"sourceName"`
+	SourceType         bean2.SourceTypeStr `json:"sourceType"`
+	Action             string              `json:"action"`
+	PromotionRequestId int                 `json:"promotionRequestId"`
+	ArtifactId         int                 `json:"artifactId"`
+	AppName            string              `json:"appName"`
+	EnvironmentNames   []string            `json:"destinationObjectNames"`
+	WorkflowId         int                 `json:"workflowId"`
+	AppId              int                 `json:"appId"`
 }
 
 type ArtifactPromotionApprovalResponse struct {
@@ -104,9 +99,16 @@ type PromotionPolicy struct {
 func (p *PromotionPolicy) CanBePromoted(approvalsGot int) bool {
 	return approvalsGot >= p.ApprovalMetaData.ApprovalCount
 }
+func (p *PromotionPolicy) CanImageBuilderApprove(imageBuiltByUserId, approvingUserId int32) bool {
+	return !p.ApprovalMetaData.AllowImageBuilderFromApprove && imageBuiltByUserId == approvingUserId
+}
+
+func (p *PromotionPolicy) CanPromoteRequesterApprove(requestedUserId, approvingUserId int32) bool {
+	return !p.ApprovalMetaData.AllowRequesterFromApprove && requestedUserId == approvingUserId
+}
 
 func (p *PromotionPolicy) CanApprove(requestedUserId, imageBuiltByUserId, approvingUserId int32) bool {
-	return (p.ApprovalMetaData.AllowRequesterFromApprove || requestedUserId == approvingUserId) && (p.ApprovalMetaData.AllowImageBuilderFromApprove || imageBuiltByUserId == approvingUserId)
+	return p.CanImageBuilderApprove(imageBuiltByUserId, approvingUserId) && p.CanPromoteRequesterApprove(requestedUserId, approvingUserId)
 }
 
 func (policy *PromotionPolicy) ConvertToGlobalPolicyBaseModal(userId int32) (*bean.GlobalPolicyBaseModel, error) {
