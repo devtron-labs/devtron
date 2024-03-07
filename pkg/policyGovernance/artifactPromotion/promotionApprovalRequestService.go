@@ -294,7 +294,7 @@ func (impl *ArtifactPromotionApprovalServiceImpl) evaluatePoliciesOnArtifact(met
 		impl.logger.Errorw("error in finding the required CEL expression parameters for using ciArtifact", "err", err)
 		return nil, err
 	}
-	// todo: use defaultResponse method
+	envMap := metadata.GetActiveEnvironmentsMap()
 	responseMap := getDefaultEnvironmentPromotionMetaDataResponseMap(metadata)
 	for envName, resp := range responseMap {
 		if env, ok := envMap[envName]; ok {
