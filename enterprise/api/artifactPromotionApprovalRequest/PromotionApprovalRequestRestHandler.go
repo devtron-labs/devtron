@@ -134,6 +134,9 @@ func (handler *RestHandlerImpl) HandleArtifactPromotionRequest(w http.ResponseWr
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+	for i, envMetadata := range resp {
+		resp[i].PromotionValidationState = envMetadata.PromotionValidationMessage.GetValidationState()
+	}
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
 
@@ -170,6 +173,10 @@ func (handler *RestHandlerImpl) FetchEnvironmentsList(w http.ResponseWriter, r *
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+	for i, envMetadata := range resp.Environments {
+		resp.Environments[i].PromotionValidationState = envMetadata.PromotionValidationMessage.GetValidationState()
+	}
+
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 
 }
@@ -209,7 +216,6 @@ func (handler *RestHandlerImpl) FetchAwaitingApprovalEnvListForArtifact(w http.R
 		handler.logger.Errorw("error in fetching environments with pending approval for artifact", "artifactId", artifactId, "err", err)
 		return
 	}
-
 	common.WriteJsonResp(w, nil, environmentApprovalMetadata, http.StatusOK)
 	return
 
