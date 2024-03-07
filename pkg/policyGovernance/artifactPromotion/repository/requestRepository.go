@@ -42,12 +42,13 @@ type RequestRepository interface {
 	FindPendingByDestinationPipelineId(destinationPipelineId int) ([]*ArtifactPromotionApprovalRequest, error)
 	FindAwaitedRequestByPipelineIdAndArtifactId(pipelineId, artifactId int) ([]*ArtifactPromotionApprovalRequest, error)
 	FindPromotedRequestByPipelineIdAndArtifactId(pipelineId, artifactId int) (*ArtifactPromotionApprovalRequest, error)
-	FindByPipelineIdAndArtifactIds(pipelineId int, artifactIds []int) ([]*ArtifactPromotionApprovalRequest, error)
+	FindByPipelineIdAndArtifactIds(pipelineId int, artifactIds []int, status constants.ArtifactPromotionRequestStatus) ([]*ArtifactPromotionApprovalRequest, error)
 	FindRequestsByStatusesForDestinationPipelines(pipelineId []int, artifactIds int, statuses []constants.ArtifactPromotionRequestStatus) ([]*ArtifactPromotionApprovalRequest, error)
 	FindAwaitedRequestsByArtifactId(artifactId int) ([]*ArtifactPromotionApprovalRequest, error)
 	FindRequestsByArtifactIdAndEnvName(artifactId int, environmentName string, status constants.ArtifactPromotionRequestStatus) ([]*ArtifactPromotionApprovalRequest, error)
 	FindAwaitedRequestByPolicyId(policyId int) ([]*ArtifactPromotionApprovalRequest, error)
 	MarkStaleByIds(tx *pg.Tx, requestIds []int) error
+	MarkStaleByDestinationPipelineId(tx *pg.Tx, pipelineIds []int) error
 	MarkStaleByPolicyId(tx *pg.Tx, policyId int) error
 	MarkPromoted(tx *pg.Tx, requestIds []int) error
 	sql.TransactionWrapper
@@ -132,14 +133,14 @@ func (repo *RequestRepositoryImpl) FindPromotedRequestByPipelineIdAndArtifactId(
 	return model, err
 }
 
-func (repo *RequestRepositoryImpl) FindByPipelineIdAndArtifactIds(pipelineId int, artifactIds []int) ([]*ArtifactPromotionApprovalRequest, error) {
+func (repo *RequestRepositoryImpl) FindByPipelineIdAndArtifactIds(pipelineId int, artifactIds []int, status constants.ArtifactPromotionRequestStatus) ([]*ArtifactPromotionApprovalRequest, error) {
 	var model []*ArtifactPromotionApprovalRequest
 	if len(artifactIds) == 0 {
 		return model, nil
 	}
 	err := repo.dbConnection.Model(&model).
 		Where("destination_pipeline_id = ? ", pipelineId).
-		Where("status = ? ", constants.AWAITING_APPROVAL).
+		Where("status = ? ", status).
 		Where("artifact_id in (?) ", pg.In(artifactIds)).
 		Select()
 	return model, err
@@ -173,6 +174,16 @@ func (repo *RequestRepositoryImpl) MarkStaleByIds(tx *pg.Tx, requestIds []int) e
 		Set("status = ?", constants.STALE).
 		Set("updated_on = ?", time.Now()).
 		Where("id IN (?)", pg.In(requestIds)).
+		Where("status = ? ", constants.AWAITING_APPROVAL).
+		Update()
+	return err
+}
+
+func (repo *RequestRepositoryImpl) MarkStaleByDestinationPipelineId(tx *pg.Tx, pipelineIds []int) error {
+	_, err := tx.Model(&ArtifactPromotionApprovalRequest{}).
+		Set("status = ?", constants.STALE).
+		Set("updated_on = ?", time.Now()).
+		Where("destination_pipeline_id IN (?)", pg.In(pipelineIds)).
 		Where("status = ? ", constants.AWAITING_APPROVAL).
 		Update()
 	return err

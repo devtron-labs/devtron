@@ -67,7 +67,7 @@ func (impl ArtifactPromotionDataReadServiceImpl) FetchPromotionApprovalDataForAr
 
 	promotionApprovalMetadata := make(map[int]*bean.PromotionApprovalMetaData)
 
-	promotionApprovalRequest, err := impl.artifactPromotionApprovalRequestRepository.FindByPipelineIdAndArtifactIds(pipelineId, artifactIds)
+	promotionApprovalRequest, err := impl.artifactPromotionApprovalRequestRepository.FindByPipelineIdAndArtifactIds(pipelineId, artifactIds, constants.PROMOTED)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching promotion request for given pipelineId and artifactId", "pipelineId", pipelineId, "artifactIds", artifactIds, "err", err)
 		return promotionApprovalMetadata, nil
@@ -134,7 +134,7 @@ func (impl ArtifactPromotionDataReadServiceImpl) FetchPromotionApprovalDataForAr
 			requestedUserId := approvalRequest.CreatedBy
 			if userInfo, ok := userInfoMap[requestedUserId]; ok {
 				approvalMetadata.RequestedUserData = bean.PromotionApprovalUserData{
-					UserId:         userInfo.UserId,
+					UserId:         userInfo.Id,
 					UserEmail:      userInfo.EmailId,
 					UserActionTime: approvalRequest.CreatedOn,
 				}
