@@ -867,6 +867,9 @@ func (impl CiArtifactRepositoryImpl) FindCiArtifactByImagePaths(images []string)
 
 func (impl CiArtifactRepositoryImpl) FindArtifactsCountPendingForPromotionByPipelineIds(pipelineIds []int) (int, error) {
 	var count int
+	if len(pipelineIds) == 0 {
+		return 0, nil
+	}
 	query := fmt.Sprintf("SELECT COUNT(ci_artifact.id) FROM ci_artifact "+
 		" where id in (select distinct(artifact_id) from artifact_promotion_approval_request where destination_pipeline_id IN (%s) and status = 1)", helper.GetCommaSepratedString(pipelineIds))
 	_, err := impl.dbConnection.Query(&count, query)
