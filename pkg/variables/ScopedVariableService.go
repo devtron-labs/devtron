@@ -237,48 +237,6 @@ func (impl *ScopedVariableServiceImpl) storeVariableDefinitions(payload models.P
 	return variableNameToId, nil
 }
 
-func (impl *ScopedVariableServiceImpl) setScopeForAttributes(selector resourceQualifiers.QualifierSelector, attributeParams map[models.IdentifierType]string, attributesMapping *helper.AttributesMappings) (*resourceQualifiers.Scope, error) {
-
-	var err error
-	var appId, envId, clusterId int
-	var appName, envName, clusterName string
-
-	switch selector {
-	case resourceQualifiers.ApplicationSelector:
-		appName = attributeParams[models.ApplicationName]
-		appId, err = helper.GetIdentifierValueV1(models.ApplicationName, appName, attributesMapping)
-
-	case resourceQualifiers.EnvironmentSelector:
-		envName = attributeParams[models.EnvName]
-		envId, err = helper.GetIdentifierValueV1(models.EnvName, appName, attributesMapping)
-		//scope.EnvId = envId
-	case resourceQualifiers.ApplicationEnvironmentSelector:
-		appName := attributeParams[models.ApplicationName]
-		appId, err = helper.GetIdentifierValueV1(models.ApplicationName, appName, attributesMapping)
-		envName = attributeParams[models.EnvName]
-		envId, err = helper.GetIdentifierValueV1(models.EnvName, appName, attributesMapping)
-	case resourceQualifiers.ClusterSelector:
-		clusterName = attributeParams[models.ClusterName]
-		clusterId, err = helper.GetIdentifierValueV1(models.ClusterName, appName, attributesMapping)
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	scope := &resourceQualifiers.Scope{
-		AppId:     appId,
-		EnvId:     envId,
-		ClusterId: clusterId,
-		SystemMetadata: &resourceQualifiers.SystemMetadata{
-			AppName:         appName,
-			EnvironmentName: envName,
-			ClusterName:     clusterName,
-		},
-	}
-
-	return scope, nil
-}
-
 func (impl *ScopedVariableServiceImpl) createVariableScopes(payload models.Payload, variableNameToId map[string]int, userId int32, tx *pg.Tx) (map[int]string, error) {
 
 	attributesMappings, err := impl.getAttributesIdMapping(payload)
@@ -296,7 +254,7 @@ func (impl *ScopedVariableServiceImpl) createVariableScopes(payload models.Paylo
 				return nil, err
 			}
 			selector := helper.GetSelectorForAttributeType(value.AttributeType)
-			scope, err := impl.setScopeForAttributes(selector, value.AttributeParams, attributesMappings)
+			selection, err := helper.GetSelectionIdentifiersForAttributes(selector, value.AttributeParams, attributesMappings)
 			if err != nil {
 				impl.logger.Errorw("error in getting identifierValue", "err", err)
 				return nil, err
@@ -304,10 +262,10 @@ func (impl *ScopedVariableServiceImpl) createVariableScopes(payload models.Paylo
 			varScope := &models.VariableScope{
 				Data: varValue,
 				ResourceMappingSelection: &resourceQualifiers.ResourceMappingSelection{
-					ResourceType:      resourceQualifiers.Variable,
-					ResourceId:        variableId,
-					QualifierSelector: selector,
-					Scope:             scope,
+					ResourceType:        resourceQualifiers.Variable,
+					ResourceId:          variableId,
+					QualifierSelector:   selector,
+					SelectionIdentifier: selection,
 				},
 			}
 			variableScopes = append(variableScopes, varScope)

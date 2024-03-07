@@ -49,6 +49,9 @@ func NewQualifiersMappingRepositoryImpl(dbConnection *pg.DB, logger *zap.Sugared
 	}, nil
 }
 
+const appEnvCondition = "(((identifier_key = ? AND identifier_value_int in (?)) OR (identifier_key = ? AND identifier_value_int in (?))) AND qualifier_id = ?)"
+const condition = "(qualifier_id = ? AND identifier_key = ? AND identifier_value_int in (?))"
+
 func (repo *QualifiersMappingRepositoryImpl) CreateQualifierMappings(qualifierMappings []*QualifierMapping, tx *pg.Tx) ([]*QualifierMapping, error) {
 	err := tx.Insert(&qualifierMappings)
 	if err != nil {
@@ -96,9 +99,6 @@ func (repo *QualifiersMappingRepositoryImpl) GetQualifierMappingsForFilterById(r
 	}
 	return qualifierMappings, nil
 }
-
-const appEnvCondition = "(((identifier_key = ? AND identifier_value_int in (?)) OR (identifier_key = ? AND identifier_value_int in (?))) AND qualifier_id = ?)"
-const condition = "(qualifier_id = ? AND identifier_key = ? AND identifier_value_int in (?))"
 
 func addCond(query *orm.Query, qualifier Qualifier, valuesMap map[Qualifier][][]int, identifierKey int) *orm.Query {
 	if values, ok := valuesMap[qualifier]; ok && len(values[0]) > 0 {
