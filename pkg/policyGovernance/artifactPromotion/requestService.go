@@ -896,34 +896,39 @@ func (impl *ApprovalRequestServiceImpl) raisePromoteRequestHelper(ctx context.Co
 
 		pipelineIdVsEnvNameMap := metadata.GetActiveAuthorisedPipelineIdEnvMap()
 		pipelineIdToDaoMap := metadata.GetActiveAuthorisedPipelineDaoMap()
-		EnvResponse := bean.EnvironmentPromotionMetaData{
-			Name:                 pipelineIdVsEnvNameMap[pipelineId],
-			IsVirtualEnvironment: pipelineIdToDaoMap[pipelineId].Environment.IsVirtualEnvironment,
-		}
-
-		if promotedCountPerPipeline[pipelineId] >= 0 {
-			EnvResponse.PromotionValidationMessage = constants.ARTIFACT_ALREADY_PROMOTED
-			continue
-		}
-
-		if pendingCountPerPipeline[pipelineId] >= 1 {
-			EnvResponse.PromotionValidationMessage = constants.ALREADY_REQUEST_RAISED
-			continue
-		}
-
-		policy := policiesMap[pipelineIdVsEnvNameMap[pipelineId]]
-		if policy == nil {
-			EnvResponse.PromotionValidationMessage = constants.POLICY_NOT_CONFIGURED
-		} else {
-			state, err := impl.raisePromoteRequest(ctx, policy, pipelineIdToDaoMap[pipelineId], metadata)
-			if err != nil {
-				impl.logger.Errorw("error in raising promotion request for the pipeline", "pipelineId", pipelineId, "artifactId", metadata.GetCiArtifactId(), "err", err)
-				EnvResponse.PromotionValidationMessage = constants.ERRORED
+		func() {
+			EnvResponse := bean.EnvironmentPromotionMetaData{
+				Name:                 pipelineIdVsEnvNameMap[pipelineId],
+				IsVirtualEnvironment: pipelineIdToDaoMap[pipelineId].Environment.IsVirtualEnvironment,
 			}
-			EnvResponse.PromotionPossible = true
-			EnvResponse.PromotionValidationMessage = state
-		}
-		responseMap[pipelineIdVsEnvNameMap[pipelineId]] = EnvResponse
+			defer func() {
+				responseMap[pipelineIdVsEnvNameMap[pipelineId]] = EnvResponse
+			}()
+
+			if promotedCountPerPipeline[pipelineId] > 0 {
+				EnvResponse.PromotionValidationMessage = constants.ARTIFACT_ALREADY_PROMOTED
+				return
+			}
+
+			if pendingCountPerPipeline[pipelineId] >= 1 {
+				EnvResponse.PromotionValidationMessage = constants.ALREADY_REQUEST_RAISED
+				return
+			}
+
+			policy := policiesMap[pipelineIdVsEnvNameMap[pipelineId]]
+			if policy == nil {
+				EnvResponse.PromotionValidationMessage = constants.POLICY_NOT_CONFIGURED
+			} else {
+				state, err := impl.raisePromoteRequest(ctx, policy, pipelineIdToDaoMap[pipelineId], metadata)
+				if err != nil {
+					impl.logger.Errorw("error in raising promotion request for the pipeline", "pipelineId", pipelineId, "artifactId", metadata.GetCiArtifactId(), "err", err)
+					EnvResponse.PromotionValidationMessage = constants.ERRORED
+				}
+				EnvResponse.PromotionPossible = true
+				EnvResponse.PromotionValidationMessage = state
+			}
+
+		}()
 	}
 
 	return responseMap, nil
@@ -999,12 +1004,10 @@ func (impl *ApprovalRequestServiceImpl) raisePromoteRequest(ctx context.Context,
 		AuditLog:                sql.NewDefaultAuditLog(ctx.Value("userId").(int32)),
 	}
 
-	var status constants.PromotionValidationMsg
+	status := constants.SENT_FOR_APPROVAL
 	if promotionPolicy.CanBePromoted(0) {
 		promotionRequest.Status = constants.PROMOTED
 		status = constants.PROMOTION_SUCCESSFUL
-	} else {
-		status = constants.SENT_FOR_APPROVAL
 	}
 	_, err = impl.artifactPromotionApprovalRequestRepository.Create(tx, promotionRequest)
 	if err != nil {
