@@ -99,48 +99,18 @@ func (handler *RestHandlerImpl) HandleArtifactPromotionRequest(w http.ResponseWr
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	promotionRequest.UserId = 1
+	promotionRequest.UserId = userId
 
 	authorizedEnvironments := make(map[string]bool)
 
 	switch promotionRequest.Action {
 	case bean.ACTION_PROMOTE:
 
-		appName := promotionRequest.AppName
-		appRbacObject := handler.enforcerUtil.GetAppRBACName(appName)
-		ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, appRbacObject)
-		if !ok {
-			common.WriteJsonResp(w, err, nil, http.StatusForbidden)
-			return
-		}
-
-		environmentNames := promotionRequest.EnvironmentNames
-		envRbacObjectMap := handler.enforcerUtil.GetEnvRBACByAppNameAndEnvNames(appName, environmentNames)
-		envObjectArr := make([]string, 0)
-		for _, obj := range envRbacObjectMap {
-			envObjectArr = append(envObjectArr, obj)
-		}
-		results := handler.enforcer.EnforceInBatch(token, casbin.ResourceEnvironment, casbin.ActionTrigger, envObjectArr)
-		for _, env := range environmentNames {
-			rbacObject := envRbacObjectMap[env]
-			isAuthorised = results[rbacObject]
-			authorizedEnvironments[env] = isAuthorised
-		}
+		authorizedEnvironments = handler.promoteActionRbac(token, promotionRequest.AppName, promotionRequest.EnvironmentNames)
 
 	case bean.ACTION_APPROVE:
-		appName := promotionRequest.AppName
-		environmentNames := promotionRequest.EnvironmentNames
-		teamEnvRbacObjectMap := handler.enforcerUtil.GetTeamEnvRbacObjByAppAndEnvNames(appName, environmentNames)
-		teamEnvObjectArr := make([]string, 0)
-		for _, obj := range teamEnvRbacObjectMap {
-			teamEnvObjectArr = append(teamEnvObjectArr, obj)
-		}
-		results := handler.enforcer.EnforceInBatch(token, casbin.ResourceApprovalPolicy, casbin.ActionArtifactPromote, teamEnvObjectArr)
-		for _, env := range environmentNames {
-			rbacObject := teamEnvRbacObjectMap[env]
-			isAuthorised = results[rbacObject]
-			authorizedEnvironments[env] = isAuthorised
-		}
+
+		authorizedEnvironments = handler.approveActionRbac(token, promotionRequest.AppName, promotionRequest.EnvironmentNames)
 
 	case bean.ACTION_CANCEL:
 		// get this info from service layer
@@ -490,7 +460,7 @@ func (handler *RestHandlerImpl) FetchEnvironmentsList(w http.ResponseWriter, r *
 		}
 	}
 
-	resp, err := handler.promotionApprovalRequestService.FetchWorkflowPromoteNodeList(token, workflowId, artifactId, handler.promoteRbac)
+	resp, err := handler.promotionApprovalRequestService.FetchWorkflowPromoteNodeList(token, workflowId, artifactId, handler.promoteActionRbac)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -499,7 +469,7 @@ func (handler *RestHandlerImpl) FetchEnvironmentsList(w http.ResponseWriter, r *
 
 }
 
-func (handler *RestHandlerImpl) promoteRbac(token, appName string, envNames []string) map[string]bool {
+func (handler *RestHandlerImpl) promoteActionRbac(token, appName string, envNames []string) map[string]bool {
 	appRbacObject := handler.enforcerUtil.GetAppRBACName(appName)
 	ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, appRbacObject)
 	if !ok {
@@ -516,6 +486,22 @@ func (handler *RestHandlerImpl) promoteRbac(token, appName string, envNames []st
 	for _, env := range envNames {
 		rbacObject := envRbacObjectMap[env]
 		authorizedEnvironments[env] = results[rbacObject]
+	}
+	return authorizedEnvironments
+}
+
+func (handler *RestHandlerImpl) approveActionRbac(token, appName string, environmentNames []string) map[string]bool {
+	authorizedEnvironments := make(map[string]bool)
+	teamEnvRbacObjectMap := handler.enforcerUtil.GetTeamEnvRbacObjByAppAndEnvNames(appName, environmentNames)
+	teamEnvObjectArr := make([]string, 0)
+	for _, obj := range teamEnvRbacObjectMap {
+		teamEnvObjectArr = append(teamEnvObjectArr, obj)
+	}
+	results := handler.enforcer.EnforceInBatch(token, casbin.ResourceApprovalPolicy, casbin.ActionArtifactPromote, teamEnvObjectArr)
+	for _, env := range environmentNames {
+		rbacObject := teamEnvRbacObjectMap[env]
+		isAuthorised := results[rbacObject]
+		authorizedEnvironments[env] = isAuthorised
 	}
 	return authorizedEnvironments
 }
