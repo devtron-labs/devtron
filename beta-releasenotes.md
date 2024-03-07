@@ -1,4 +1,5 @@
 ## Bugs
+- fix: provider nil fields (#4758)
 - fix: git material url sanitised (#4742)
 - fix: customTagService missing in workflowdagexec (#4741)
 - fix: packages synced (#4743)
