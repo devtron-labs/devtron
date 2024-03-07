@@ -114,12 +114,12 @@ type TriggerServiceImpl struct {
 	userService                         user.UserService
 	gitSensorGrpcClient                 gitSensorClient.Client
 	config                              *types.CdConfig
-	appRepository                       appRepository.AppRepository
 	helmAppService                      client2.HelmAppService
 
 	enforcerUtil  rbac.EnforcerUtil
 	helmAppClient gRPC.HelmAppClient //TODO refactoring: use helm app service instead
 
+	appRepository                 appRepository.AppRepository
 	scanResultRepository          security.ImageScanResultRepository
 	cvePolicyRepository           security.CvePolicyRepository
 	ciPipelineMaterialRepository  pipelineConfig.CiPipelineMaterialRepository
@@ -170,6 +170,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 	eventFactory client.EventFactory,
 	eventClient client.EventClient,
 	globalEnvVariables *util3.GlobalEnvVariables,
+	appRepository appRepository.AppRepository,
 	scanResultRepository security.ImageScanResultRepository,
 	cvePolicyRepository security.CvePolicyRepository,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
@@ -220,6 +221,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 		eventClient:                         eventClient,
 		globalEnvVariables:                  globalEnvVariables,
 		helmAppClient:                       helmAppClient,
+		appRepository:                       appRepository,
 		scanResultRepository:                scanResultRepository,
 		cvePolicyRepository:                 cvePolicyRepository,
 		ciPipelineMaterialRepository:        ciPipelineMaterialRepository,

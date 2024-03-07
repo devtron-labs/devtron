@@ -21,7 +21,6 @@ type EnforcerUtilHelmImpl struct {
 	clusterRepository      repository.ClusterRepository
 	teamRepository         team.TeamRepository
 	appRepository          app.AppRepository
-	environmentRepository  repository.EnvironmentRepository
 	InstalledAppRepository repository2.InstalledAppRepository
 }
 
@@ -29,7 +28,6 @@ func NewEnforcerUtilHelmImpl(logger *zap.SugaredLogger,
 	clusterRepository repository.ClusterRepository,
 	teamRepository team.TeamRepository,
 	appRepository app.AppRepository,
-	environmentRepository repository.EnvironmentRepository,
 	installedAppRepository repository2.InstalledAppRepository,
 ) *EnforcerUtilHelmImpl {
 	return &EnforcerUtilHelmImpl{
@@ -37,7 +35,6 @@ func NewEnforcerUtilHelmImpl(logger *zap.SugaredLogger,
 		clusterRepository:      clusterRepository,
 		teamRepository:         teamRepository,
 		appRepository:          appRepository,
-		environmentRepository:  environmentRepository,
 		InstalledAppRepository: installedAppRepository,
 	}
 }
