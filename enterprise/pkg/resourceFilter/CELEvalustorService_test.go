@@ -2,6 +2,7 @@ package resourceFilter
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -13,7 +14,7 @@ func TestEvaluateCELRequest(t *testing.T) {
 	t.Run("valid release tags list", func(tt *testing.T) {
 		artifact := "devtron/test:v1beta1"
 		releaseTags := []string{"tag1", "latest"}
-		params := GetParamsFromArtifact(artifact, releaseTags)
+		params := GetParamsFromArtifact(artifact, releaseTags, nil)
 
 		evalReq := CELRequest{
 			Expression: "'latest' in imageLabels",
@@ -29,7 +30,7 @@ func TestEvaluateCELRequest(t *testing.T) {
 	t.Run("empty release tags list", func(tt *testing.T) {
 		artifact := "devtron/test:v1beta1"
 		releaseTags := []string{}
-		params := GetParamsFromArtifact(artifact, releaseTags)
+		params := GetParamsFromArtifact(artifact, releaseTags, nil)
 
 		evalReq := CELRequest{
 			Expression: "'latest' in imageLabels",
@@ -45,7 +46,7 @@ func TestEvaluateCELRequest(t *testing.T) {
 	t.Run("nil release tags list", func(tt *testing.T) {
 		artifact := "devtron/test:v1beta1"
 		var releaseTags []string
-		params := GetParamsFromArtifact(artifact, releaseTags)
+		params := GetParamsFromArtifact(artifact, releaseTags, nil)
 
 		evalReq := CELRequest{
 			Expression: "'latest' in imageLabels",
@@ -61,10 +62,22 @@ func TestEvaluateCELRequest(t *testing.T) {
 	t.Run("test commitDetails", func(tt *testing.T) {
 		artifact := "devtron/test:v1beta1"
 		var releaseTags []string
-		params := GetParamsFromArtifact(artifact, releaseTags, &CommitDetails{"github.com/test", "test commit", "test"})
+		minfo := repository.CiMaterialInfo{
+			Material: repository.Material{
+				Type:             "git",
+				GitConfiguration: repository.GitConfiguration{URL: "github.com/test"},
+			},
+			Modifications: []repository.Modification{
+				{
+					Message: "test commit",
+					Branch:  "test",
+				},
+			},
+		}
+		params := GetParamsFromArtifact(artifact, releaseTags, []repository.CiMaterialInfo{minfo})
 
 		evalReq := CELRequest{
-			Expression: "commitDetailsMap['github.com/test'].branch == 'test'",
+			Expression: "gitCommitDetails['github.com/test'].branch == 'test'",
 			ExpressionMetadata: ExpressionMetadata{
 				Params: params,
 			},
