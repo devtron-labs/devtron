@@ -14,7 +14,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/cluster"
-	repository1 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
@@ -26,7 +25,6 @@ import (
 	"github.com/go-pg/pg"
 	"github.com/samber/lo"
 	"go.uber.org/zap"
-	"golang.org/x/exp/maps"
 	"net/http"
 	"strings"
 	"time"
@@ -35,9 +33,8 @@ import (
 type ArtifactPromotionApprovalService interface {
 	HandleArtifactPromotionRequest(request *bean.ArtifactPromotionRequest, authorizedEnvironments map[string]bool) ([]bean.EnvironmentPromotionMetaData, error)
 	GetByPromotionRequestId(artifactPromotionApprovalRequest *repository.ArtifactPromotionApprovalRequest) (*bean.ArtifactPromotionApprovalResponse, error)
-	FetchWorkflowPromoteNodeList(envMap map[string]repository1.Environment, appId int, appName string, authorizedEnvironments map[string]bool, artifactId int) (*bean.EnvironmentListingResponse, error)
+	FetchWorkflowPromoteNodeList(token string, workflowId int, artifactId int, rbacChecker func(token string, appName string, envNames []string) map[string]bool) (*bean.EnvironmentListingResponse, error)
 	FetchApprovalAllowedEnvList(artifactId int, userId int32, token string, promotionApproverAuth func(string, string) bool) ([]bean.EnvironmentApprovalMetadata, error)
-	GetAppAndEnvsMapByWorkflowId(workflowId int) (*bean.WorkflowMetaData, error)
 }
 
 type ArtifactPromotionApprovalServiceImpl struct {
@@ -104,12 +101,11 @@ func NewArtifactPromotionApprovalServiceImpl(
 	return artifactApprovalService
 }
 
-// todo: can move to appworkflow mapping service
-func (impl *ArtifactPromotionApprovalServiceImpl) GetAppAndEnvsMapByWorkflowId(workflowId int) (*bean.WorkflowMetaData, error) {
+func (impl *ArtifactPromotionApprovalServiceImpl) getSourceInfoAndPipelineIds(workflowId int) (*bean.SourceMetaData, []int, error) {
 	allAppWorkflowMappings, err := impl.appWorkflowRepository.FindWFAllMappingByWorkflowId(workflowId)
 	if err != nil {
 		impl.logger.Errorw("error in finding the app workflow mappings using appWorkflowId", "workflowId", workflowId, "err", err)
-		return nil, err
+		return nil, nil, err
 	}
 
 	sourcePipelineMapping := &appWorkflow.AppWorkflowMapping{}
@@ -130,7 +126,7 @@ func (impl *ArtifactPromotionApprovalServiceImpl) GetAppAndEnvsMapByWorkflowId(w
 		ciPipeline, err := impl.ciPipelineRepository.FindById(sourceId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching ci pipeline by id", "ciPipelineId", sourceId, "err", err)
-			return nil, err
+			return nil, nil, err
 		}
 		sourceName = ciPipeline.Name
 		sourceType = bean.SOURCE_TYPE_CI
@@ -138,57 +134,92 @@ func (impl *ArtifactPromotionApprovalServiceImpl) GetAppAndEnvsMapByWorkflowId(w
 		sourceType = bean.SOURCE_TYPE_WEBHOOK
 	}
 
+	// set source metadata
+	sourceInfo := &bean.SourceMetaData{}
+	sourceInfo = sourceInfo.WithName(sourceName).WithType(sourceType).WithId(sourceId)
+	return sourceInfo, pipelineIds, nil
+}
+
+// todo: can move to appworkflow mapping service
+func (impl *ArtifactPromotionApprovalServiceImpl) fetchEnvMetaDataListingRequestMetadata(token string, workflowId int, artifactId int, rbacChecker func(token string, appName string, envNames []string) map[string]bool) (*bean.RequestMetaData, error) {
+
+	sourceInfo, pipelineIds, err := impl.getSourceInfoAndPipelineIds(workflowId)
+	if err != nil {
+		impl.logger.Errorw("error in finding source info and pipelinesIds", "sourceInfo", sourceInfo, "pipelineIds", pipelineIds, "err", err)
+		return nil, err
+	}
 	pipelines, err := impl.pipelineRepository.FindByIdsIn(pipelineIds)
 	if err != nil {
 		impl.logger.Errorw("error in finding pipelines", "pipelineIds", pipelineIds, "err", err)
 		return nil, err
 	}
-	envMap := make(map[string]repository1.Environment)
+	environmentNames := make([]string, 0, len(pipelines))
 	appName := ""
 	appId := 0
+	environments := make([]*cluster.EnvironmentBean, 0, len(pipelines))
 	for _, pipeline := range pipelines {
-		envMap[pipeline.Environment.Name] = pipeline.Environment
+		environmentNames = append(environmentNames, pipeline.Environment.Name)
+		environment := &cluster.EnvironmentBean{}
+		environment.AdaptFromEnvironment(&pipeline.Environment)
+		environments = append(environments, environment)
 		appName = pipeline.App.AppName
 		appId = pipeline.AppId
 	}
-	wfMeta := &bean.WorkflowMetaData{
-		WorkflowId: workflowId,
-		AppId:      appId,
-		AppName:    appName,
-		EnvMap:     envMap,
-		CiSourceData: bean.CiSourceMetaData{
-			Id:   sourceId,
-			Name: sourceName,
-			Type: sourceType,
-		},
+	authorizedEnvironments := rbacChecker(token, appName, environmentNames)
+	cdPipelines := make([]*pipelineConfig.Pipeline, 0, len(pipelines))
+	for _, pipeline := range pipelines {
+		if authorizedEnvironments[pipeline.Environment.Name] {
+			cdPipelines = append(cdPipelines, pipeline)
+		}
 	}
-	return wfMeta, nil
+
+	requestMetaData := &bean.RequestMetaData{}
+	requestMetaData = requestMetaData.WithAppId(appId)
+	requestMetaData.SetSourceMetaData(sourceInfo)
+	requestMetaData.SetActiveEnvironments(environmentNames, authorizedEnvironments, environments)
+	requestMetaData.SetDestinationPipelineMetaData(cdPipelines)
+	if artifactId > 0 {
+		ciArtifact, err := impl.ciArtifactRepository.Get(artifactId)
+		if err != nil {
+			impl.logger.Errorw("error in finding the artifact using id", "artifactId", artifactId, "err", err)
+			errorResp := &util.ApiError{}
+			errorResp.WithHttpStatusCode(http.StatusInternalServerError).WithInternalMessage(fmt.Sprintf("error in finding artifact , err : %s", err.Error())).WithUserMessage("error in finding artifact")
+			if errors.Is(err, pg.ErrNoRows) {
+				errorResp.WithHttpStatusCode(http.StatusConflict).WithUserMessage("artifact not found")
+			}
+			return nil, errorResp
+		}
+		requestMetaData = requestMetaData.WithCiArtifact(ciArtifact)
+	}
+
+	return requestMetaData, nil
 }
 
-func (impl *ArtifactPromotionApprovalServiceImpl) FetchWorkflowPromoteNodeList(envMap map[string]repository1.Environment, appId int, appName string, authorizedEnvironments map[string]bool, artifactId int) (*bean.EnvironmentListingResponse, error) {
-	envNames := make([]string, 0, len(envMap))
-	envIds := make([]int, 0, len(envMap))
-	for envName, env := range envMap {
-		envIds = append(envIds, env.Id)
-		envNames = append(envNames, envName)
-	}
-	result := &bean.EnvironmentListingResponse{}
-	policiesMap, err := impl.promotionPolicyDataReadService.GetPromotionPolicyByAppAndEnvIds(appId, envIds)
+func (impl *ArtifactPromotionApprovalServiceImpl) FetchWorkflowPromoteNodeList(token string, workflowId int, artifactId int, rbacChecker func(token string, appName string, envNames []string) map[string]bool) (*bean.EnvironmentListingResponse, error) {
+	metadata, err := impl.fetchEnvMetaDataListingRequestMetadata(token, workflowId, artifactId, rbacChecker)
 	if err != nil {
-		impl.logger.Errorw("error in getting the policies", "appId", appName, "envIds", envNames, "err", err)
+		impl.logger.Errorw("error in fetching envMetaDataListing request metadata", "token", token, "workflowId", workflowId, "artifactId", artifactId, "err", err)
+		return nil, err
+	}
+	envMap := metadata.GetActiveEnvironmentsMap()
+	result := &bean.EnvironmentListingResponse{}
+	result.CiSource = metadata.GetSourceMetaData().GetCiSourceMeta()
+	policiesMap, err := impl.promotionPolicyDataReadService.GetPromotionPolicyByAppAndEnvIds(metadata.GetAppId(), metadata.GetActiveAuthorisedEnvIds())
+	if err != nil {
+		impl.logger.Errorw("error in getting the policies", "appId", metadata.GetAppId(), "envIds", metadata.GetActiveAuthorisedEnvIds(), "err", err)
 		return nil, err
 	}
 	if artifactId != 0 {
-		responses, err := impl.evaluatePoliciesOnArtifact(artifactId, envMap, authorizedEnvironments, policiesMap)
+		responses, err := impl.evaluatePoliciesOnArtifact(metadata, policiesMap)
 		if err != nil {
-			impl.logger.Errorw("error in evaluating policies on an ciArtifact", "ciArtifactId", artifactId, "policiesMap", policiesMap, "authorizedEnvironments", authorizedEnvironments, "err", err)
+			impl.logger.Errorw("error in evaluating policies on an ciArtifact", "ciArtifactId", artifactId, "policiesMap", policiesMap, "authorizedEnvironments", metadata.GetActiveAuthorisedEnvIds(), "err", err)
 			return nil, err
 		}
 		result.Environments = responses
 		return result, nil
 	}
 
-	responseMap := getDefaultEnvironmentPromotionMetaDataResponseMap(maps.Keys(envMap), authorizedEnvironments)
+	responseMap := getDefaultEnvironmentPromotionMetaDataResponseMap(metadata)
 	for envName, resp := range responseMap {
 		resp.IsVirtualEnvironment = envMap[envName].IsVirtualEnvironment
 		responseMap[envName] = resp
@@ -257,29 +288,14 @@ func (impl *ArtifactPromotionApprovalServiceImpl) computeFilterParams(ciArtifact
 	return params, nil
 }
 
-func (impl *ArtifactPromotionApprovalServiceImpl) evaluatePoliciesOnArtifact(ciArtifactId int, envMap map[string]repository1.Environment, authorizedEnvironments map[string]bool, policiesMap map[string]*bean.PromotionPolicy) ([]bean.EnvironmentPromotionMetaData, error) {
-	ciArtifact, err := impl.ciArtifactRepository.Get(ciArtifactId)
-	if err != nil {
-		impl.logger.Errorw("error in finding the artifact using id", "artifactId", ciArtifactId, "err", err)
-		errorResp := &util.ApiError{
-			HttpStatusCode:  http.StatusInternalServerError,
-			InternalMessage: fmt.Sprintf("error in finding artifact , err : %s", err.Error()),
-			UserMessage:     "error in finding artifact",
-		}
-		if errors.Is(err, pg.ErrNoRows) {
-			errorResp.UserMessage = "artifact not found"
-			errorResp.HttpStatusCode = http.StatusConflict
-		}
-
-		return nil, errorResp
-	}
-	params, err := impl.computeFilterParams(ciArtifact)
+func (impl *ArtifactPromotionApprovalServiceImpl) evaluatePoliciesOnArtifact(metadata *bean.RequestMetaData, policiesMap map[string]*bean.PromotionPolicy) ([]bean.EnvironmentPromotionMetaData, error) {
+	params, err := impl.computeFilterParams(metadata.GetCiArtifact())
 	if err != nil {
 		impl.logger.Errorw("error in finding the required CEL expression parameters for using ciArtifact", "err", err)
 		return nil, err
 	}
 	// todo: use defaultResponse method
-	responseMap := getDefaultEnvironmentPromotionMetaDataResponseMap(maps.Keys(envMap), authorizedEnvironments)
+	responseMap := getDefaultEnvironmentPromotionMetaDataResponseMap(metadata)
 	for envName, resp := range responseMap {
 		if env, ok := envMap[envName]; ok {
 			resp.PromotionValidationState = bean.POLICY_NOT_CONFIGURED
@@ -810,31 +826,6 @@ func (impl *ArtifactPromotionApprovalServiceImpl) promoteArtifact(request *bean.
 		envResponses = append(envResponses, resp)
 	}
 	return envResponses, nil
-}
-
-func buildPipelineMetaDataAndUpdateResponse(request *bean.ArtifactPromotionRequest, allowedCdPipelines []*pipelineConfig.Pipeline, response *map[string]bean.EnvironmentPromotionMetaData) bean.PipelinesMetaData {
-	pipelineIdVsEnvNameMap := make(map[int]string)
-	pipelineIds := make([]int, 0, len(allowedCdPipelines))
-	pipelineIdToDaoMap := make(map[int]*pipelineConfig.Pipeline)
-	envIds := make([]int, 0, len(allowedCdPipelines))
-	responseMap := *response
-	for _, cdPipeline := range allowedCdPipelines {
-		pipelineIds = append(pipelineIds, cdPipeline.Id)
-		envName := request.EnvIdNameMap[cdPipeline.EnvironmentId]
-		pipelineIdVsEnvNameMap[cdPipeline.Id] = envName
-		EnvResponse := responseMap[envName]
-		EnvResponse.PromotionValidationState = bean.EMPTY
-		responseMap[envName] = EnvResponse
-		pipelineIdToDaoMap[cdPipeline.Id] = cdPipeline
-	}
-
-	response = &responseMap
-	return bean.PipelinesMetaData{
-		activeAuthorisedPipelineIds:            pipelineIds,
-		activeAuthorisedPipelineIdVsEnvNameMap: pipelineIdVsEnvNameMap,
-		activeAuthorisedPipelineIdDaoMap:       pipelineIdToDaoMap,
-		pipelineEnvIds:                         envIds,
-	}
 }
 
 func (impl *ArtifactPromotionApprovalServiceImpl) raisePromoteRequestHelper(userId int32, policiesMap map[string]*bean.PromotionPolicy, ciArtifact *repository2.CiArtifact, metadata *bean.RequestMetaData) map[string]bean.EnvironmentPromotionMetaData {

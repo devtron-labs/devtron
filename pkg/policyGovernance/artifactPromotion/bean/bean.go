@@ -327,6 +327,7 @@ type RequestMetaData struct {
 	userEnvNames                []string
 	authorisedEnvMap            map[string]bool
 	activeEnvironments          []*cluster.EnvironmentBean
+	activeEnvironmentsMap       map[string]*cluster.EnvironmentBean
 	destinationPipelineMetaData *PipelinesMetaData
 	activeEnvIds                []int
 	activeEnvNames              []string
@@ -337,6 +338,10 @@ type RequestMetaData struct {
 	appId                       int
 
 	ciArtifact *repository.CiArtifact
+}
+
+func (r *RequestMetaData) GetSourceMetaData() *SourceMetaData {
+	return r.sourceMetaData
 }
 
 func (r *RequestMetaData) WithCiArtifact(ciArtifact *repository.CiArtifact) *RequestMetaData {
@@ -382,6 +387,7 @@ func (r *RequestMetaData) SetActiveEnvironments(userGivenEnvNames []string, auth
 	r.userEnvNames = userGivenEnvNames
 	r.authorisedEnvMap = authorizedEnvironmentsMap
 	r.activeEnvironments = activeEnvs
+	activeEnvironmentsMap := make(map[string]*cluster.EnvironmentBean)
 	activeEnvNames := make([]string, 0, len(r.activeEnvironments))
 	authorisedEnvNames := make([]string, 0, len(r.authorisedEnvMap))
 	activeAuthorisedEnvIds := make([]int, 0, len(r.authorisedEnvMap))
@@ -391,6 +397,7 @@ func (r *RequestMetaData) SetActiveEnvironments(userGivenEnvNames []string, auth
 	for _, env := range r.activeEnvironments {
 		activeEnvNames = append(activeEnvNames, env.Environment)
 		activeEnvIds = append(activeEnvIds, env.Id)
+		activeEnvironmentsMap[env.Environment] = env
 		activeEnvIdNameMap[env.Id] = env.Environment
 		activeEnvNameIdMap[env.Environment] = env.Id
 		if r.authorisedEnvMap[env.Environment] {
@@ -398,6 +405,14 @@ func (r *RequestMetaData) SetActiveEnvironments(userGivenEnvNames []string, auth
 			activeAuthorisedEnvIds = append(activeAuthorisedEnvIds, env.Id)
 		}
 	}
+
+	r.activeEnvironmentsMap = activeEnvironmentsMap
+	r.activeEnvNames = activeEnvNames
+	r.activeAuthorisedEnvNames = authorisedEnvNames
+	r.activeAuthorisedEnvIds = activeAuthorisedEnvIds
+	r.activeEnvIds = activeAuthorisedEnvIds
+	r.activeEnvIdNameMap = activeEnvIdNameMap
+	r.activeEnvNameIdMap = activeEnvNameIdMap
 	r.activeEnvNames = activeEnvNames
 }
 
@@ -465,6 +480,10 @@ func (r *RequestMetaData) GetAuthorisedEnvMap() map[string]bool {
 func (r *RequestMetaData) GetCiArtifact() *repository.CiArtifact {
 	artifact := *r.ciArtifact
 	return &artifact
+}
+
+func (r *RequestMetaData) GetActiveEnvironmentsMap() map[string]*cluster.EnvironmentBean {
+	return r.activeEnvironmentsMap
 }
 
 func (r *RequestMetaData) GetAppId() int {

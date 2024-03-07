@@ -56,6 +56,21 @@ type EnvironmentBean struct {
 	IsDigestEnforcedForEnv bool     `json:"isDigestEnforcedForEnv"`
 }
 
+func (environmentBean *EnvironmentBean) AdaptFromEnvironment(model *repository.Environment) {
+	bean := &EnvironmentBean{
+		Id:                    model.Id,
+		Environment:           model.Name,
+		ClusterId:             model.Cluster.Id,
+		Active:                model.Active,
+		PrometheusEndpoint:    model.Cluster.PrometheusEndpoint,
+		Namespace:             model.Namespace,
+		Default:               model.Default,
+		EnvironmentIdentifier: model.EnvironmentIdentifier,
+		Description:           model.Description,
+	}
+	environmentBean = bean
+}
+
 type VirtualEnvironmentBean struct {
 	Id                   int    `json:"id,omitempty" validate:"number"`
 	Environment          string `json:"environment_name,omitempty" validate:"required,max=50"`
