@@ -32,6 +32,10 @@ type ApiError struct {
 	UserDetailMessage string      `json:"userDetailMessage,omitempty"`
 }
 
+func NewApiError() *ApiError {
+	return &ApiError{}
+}
+
 func (e *ApiError) WithHttpStatusCode(httpStatusCode int) *ApiError {
 	e.HttpStatusCode = httpStatusCode
 	return e

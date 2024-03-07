@@ -15,6 +15,8 @@ import (
 	"strings"
 )
 
+const policyNotFoundErrMsg = "policy with name %s not found"
+
 type PolicyCUDService interface {
 	UpdatePolicy(userId int32, policyName string, policyBean *bean.PromotionPolicy) error
 	CreatePolicy(userId int32, policyBean *bean.PromotionPolicy) error
@@ -72,11 +74,8 @@ func (impl *PromotionPolicyServiceImpl) UpdatePolicy(userId int32, policyName st
 	if err != nil {
 		impl.logger.Errorw("error in getting the policy by name", "policyName", policyName, "userId", userId, "err", err)
 		if errors.Is(err, pg.ErrNoRows) {
-			return &util.ApiError{
-				HttpStatusCode:  http.StatusNotFound,
-				InternalMessage: fmt.Sprintf("policy with name %s not found", policyName),
-				UserMessage:     fmt.Sprintf("policy with name %s not found", policyName),
-			}
+			errMsg := fmt.Sprintf(policyNotFoundErrMsg, policyName)
+			return util.NewApiError().WithHttpStatusCode(http.StatusNotFound).WithUserMessage(errMsg).WithInternalMessage(errMsg)
 		}
 		return err
 	}
@@ -91,16 +90,11 @@ func (impl *PromotionPolicyServiceImpl) UpdatePolicy(userId int32, policyName st
 	defer impl.resourceQualifierMappingService.RollbackTx(tx)
 	_, err = impl.globalPolicyDataManager.UpdatePolicyByName(tx, policyName, globalPolicyDataModel)
 	if err != nil {
-		statusCode := http.StatusInternalServerError
+		errResp := util.NewApiError().WithHttpStatusCode(http.StatusInternalServerError).WithInternalMessage(err.Error()).WithUserMessage("error in updating policy")
 		if strings.Contains(err.Error(), bean2.UniqueActiveNameConstraint) {
-			err = errors.New("policy name already exists, err: duplicate name")
-			statusCode = http.StatusConflict
+			errResp = errResp.WithHttpStatusCode(http.StatusConflict).WithUserMessage("policy name already exists, err: duplicate name")
 		}
-		return &util.ApiError{
-			HttpStatusCode:  statusCode,
-			InternalMessage: err.Error(),
-			UserMessage:     err.Error(),
-		}
+		return errResp
 	}
 
 	for _, hook := range impl.preUpdateHooks {
@@ -129,16 +123,11 @@ func (impl *PromotionPolicyServiceImpl) CreatePolicy(userId int32, policyBean *b
 
 	_, err = impl.globalPolicyDataManager.CreatePolicy(globalPolicyDataModel, nil)
 	if err != nil {
-		statusCode := http.StatusInternalServerError
+		errResp := util.NewApiError().WithHttpStatusCode(http.StatusInternalServerError).WithInternalMessage(err.Error()).WithUserMessage("error in updating policy")
 		if strings.Contains(err.Error(), bean2.UniqueActiveNameConstraint) {
-			err = errors.New("policy name already exists, err: duplicate name")
-			statusCode = http.StatusConflict
+			errResp = errResp.WithHttpStatusCode(http.StatusConflict).WithUserMessage("policy name already exists, err: duplicate name")
 		}
-		return &util.ApiError{
-			HttpStatusCode:  statusCode,
-			InternalMessage: err.Error(),
-			UserMessage:     err.Error(),
-		}
+		return errResp
 	}
 	return nil
 }
@@ -154,11 +143,8 @@ func (impl *PromotionPolicyServiceImpl) DeletePolicy(userId int32, policyName st
 	if err != nil {
 		impl.logger.Errorw("error in getting the policy by name", "policyName", policyName, "userId", userId, "err", err)
 		if errors.Is(err, pg.ErrNoRows) {
-			return &util.ApiError{
-				HttpStatusCode:  http.StatusNotFound,
-				InternalMessage: fmt.Sprintf("policy with name %s not found", policyName),
-				UserMessage:     fmt.Sprintf("policy with name %s not found", policyName),
-			}
+			errMsg := fmt.Sprintf(policyNotFoundErrMsg, policyName)
+			return util.NewApiError().WithHttpStatusCode(http.StatusNotFound).WithUserMessage(errMsg).WithInternalMessage(errMsg)
 		}
 		return err
 	}

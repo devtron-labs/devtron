@@ -61,24 +61,15 @@ func (impl CommonPolicyActionsServiceImpl) ListAppEnvPolicies(listFilter *AppEnv
 func (impl CommonPolicyActionsServiceImpl) ApplyPolicyToIdentifiers(userId int32, applyIdentifiersRequest *BulkPromotionPolicyApplyRequest) error {
 	referenceType, ok := GlobalPolicyTypeToResourceTypeMap[applyIdentifiersRequest.PolicyType]
 	if !ok {
-		return &util.ApiError{
-			HttpStatusCode:  http.StatusNotFound,
-			InternalMessage: "unsupported policy type",
-			UserMessage:     "unsupported policy type",
-		}
+		return util.NewApiError().WithHttpStatusCode(http.StatusNotFound).WithInternalMessage(unknownPolicyTypeErr).WithUserMessage(unknownPolicyTypeErr)
 	}
 	updateToPolicy, err := impl.globalPolicyDataManager.GetPolicyByName(applyIdentifiersRequest.ApplyToPolicyName, applyIdentifiersRequest.PolicyType)
 	if err != nil {
-		statusCode := http.StatusInternalServerError
+		errResp := util.NewApiError().WithHttpStatusCode(http.StatusInternalServerError).WithInternalMessage(err.Error()).WithUserMessage("error occurred in fetching the policy to update")
 		if errors.Is(err, pg.ErrNoRows) {
-			err = errors.New(fmt.Sprintf("promotion policy with name '%s' does not exist", applyIdentifiersRequest.ApplyToPolicyName))
-			statusCode = http.StatusConflict
+			errResp = errResp.WithHttpStatusCode(http.StatusConflict).WithUserMessage(fmt.Sprintf("promotion policy with name '%s' does not exist", applyIdentifiersRequest.ApplyToPolicyName))
 		}
-		return &util.ApiError{
-			HttpStatusCode:  statusCode,
-			InternalMessage: err.Error(),
-			UserMessage:     err.Error(),
-		}
+		return errResp
 	}
 
 	var scopes []*resourceQualifiers.Scope
@@ -142,11 +133,7 @@ func (impl CommonPolicyActionsServiceImpl) ApplyPolicyToIdentifiers(userId int32
 func (impl CommonPolicyActionsServiceImpl) listAppEnvPoliciesByPolicyFilter(listFilter *AppEnvPolicyMappingsListFilter) ([]AppEnvPolicyContainer, int, error) {
 	referenceType, ok := GlobalPolicyTypeToResourceTypeMap[listFilter.PolicyType]
 	if !ok {
-		return nil, 0, &util.ApiError{
-			HttpStatusCode:  http.StatusNotFound,
-			InternalMessage: "unsupported policy type",
-			UserMessage:     "unsupported policy type",
-		}
+		return nil, 0, util.NewApiError().WithHttpStatusCode(http.StatusNotFound).WithInternalMessage(unknownPolicyTypeErr).WithUserMessage(unknownPolicyTypeErr)
 	}
 	noPolicyFilter := false
 	validPolicyNames := make([]string, 0, len(listFilter.PolicyNames))

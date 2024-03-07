@@ -6,6 +6,7 @@ import (
 )
 
 const NO_POLICY = "NA"
+const unknownPolicyTypeErr = "unsupported policy type"
 
 type PathVariablePolicyType string
 

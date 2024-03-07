@@ -54,6 +54,7 @@ const (
 	SOURCE_TYPE_WEBHOOK                 SourceTypeStr = "WEBHOOK"
 	SOURCE_TYPE_CD                      SourceTypeStr = "ENVIRONMENT"
 	ArtifactPromotionRequestNotFoundErr               = "artifact promotion request not found"
+	UserCannotCancelRequest                           = "only user who has raised the promotion request can cancel it"
 	ACTION_PROMOTE                                    = "PROMOTE"
 	ACTION_CANCEL                                     = "CANCEL"
 	ACTION_APPROVE                                    = "APPROVE"
