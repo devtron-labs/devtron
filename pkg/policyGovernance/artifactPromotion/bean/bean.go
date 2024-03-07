@@ -246,6 +246,29 @@ type RequestMetaData struct {
 	ciArtifact *repository.CiArtifact
 }
 
+// todo: naming can be better
+// todo: gireesh, make this method on RequestMetaData struct
+func (r *RequestMetaData) GetDefaultEnvironmentPromotionMetaDataResponseMap() map[string]EnvironmentPromotionMetaData {
+	response := make(map[string]EnvironmentPromotionMetaData)
+	for _, env := range r.GetUserGivenEnvNames() {
+		envResponse := EnvironmentPromotionMetaData{
+			Name:                       env,
+			PromotionValidationMessage: bean2.PIPELINE_NOT_FOUND,
+		}
+		if !r.GetAuthorisedEnvMap()[env] {
+			envResponse.PromotionValidationMessage = bean2.NO_PERMISSION
+		}
+		response[env] = envResponse
+	}
+	for _, pipelineId := range r.GetActiveAuthorisedPipelineIds() {
+		envName := r.GetActiveAuthorisedPipelineIdEnvMap()[pipelineId]
+		resp := response[envName]
+		resp.PromotionValidationMessage = bean2.EMPTY
+		response[envName] = resp
+	}
+	return response
+}
+
 func (r *RequestMetaData) GetSourceMetaData() *SourceMetaData {
 	return r.sourceMetaData
 }

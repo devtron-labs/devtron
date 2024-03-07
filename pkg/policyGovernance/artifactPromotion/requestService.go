@@ -241,7 +241,7 @@ func (impl *ApprovalRequestServiceImpl) FetchWorkflowPromoteNodeList(ctx context
 		return result, nil
 	}
 
-	responseMap := getDefaultEnvironmentPromotionMetaDataResponseMap(metadata)
+	responseMap := metadata.GetDefaultEnvironmentPromotionMetaDataResponseMap()
 	for envName, resp := range responseMap {
 		resp.IsVirtualEnvironment = envMap[envName].IsVirtualEnvironment
 		responseMap[envName] = resp
@@ -253,7 +253,6 @@ func (impl *ApprovalRequestServiceImpl) FetchWorkflowPromoteNodeList(ctx context
 			Name:                       envName,
 			ApprovalCount:              policy.ApprovalMetaData.ApprovalCount,
 			IsVirtualEnvironment:       envMap[envName].IsVirtualEnvironment,
-			PromotionValidationState:   "",
 			PromotionValidationMessage: constants.EMPTY,
 		}
 	}
@@ -306,7 +305,6 @@ func (impl *ApprovalRequestServiceImpl) getSourceInfoAndPipelineIds(workflowId i
 	return sourceInfo, pipelineIds, nil
 }
 
-// todo: can move to appworkflow mapping service
 func (impl *ApprovalRequestServiceImpl) fetchEnvMetaDataListingRequestMetadata(token string, workflowId int, artifactId int, rbacChecker func(token string, appName string, envNames []string) map[string]bool) (*bean.RequestMetaData, error) {
 
 	sourceInfo, pipelineIds, err := impl.getSourceInfoAndPipelineIds(workflowId)
@@ -390,7 +388,7 @@ func (impl *ApprovalRequestServiceImpl) evaluatePoliciesOnArtifact(metadata *bea
 		return nil, err
 	}
 	envMap := metadata.GetActiveEnvironmentsMap()
-	responseMap := getDefaultEnvironmentPromotionMetaDataResponseMap(metadata)
+	responseMap := metadata.GetDefaultEnvironmentPromotionMetaDataResponseMap()
 	for envName, resp := range responseMap {
 		if env, ok := envMap[envName]; ok {
 			resp.PromotionValidationMessage = constants.POLICY_NOT_CONFIGURED
@@ -416,7 +414,6 @@ func (impl *ApprovalRequestServiceImpl) evaluatePoliciesOnArtifact(metadata *bea
 		envResp := responseMap[envName]
 		envResp.ApprovalCount = policy.ApprovalMetaData.ApprovalCount
 		envResp.PromotionValidationMessage = constants.EMPTY
-		envResp.PromotionValidationState = ""
 		envResp.PromotionPossible = evaluationResult
 		// checks on metadata not needed as this is just an evaluation flow (kinda validation)
 		if !evaluationResult {
@@ -441,7 +438,7 @@ func (impl *ApprovalRequestServiceImpl) approveArtifactPromotion(ctx context.Con
 		impl.logger.Errorw("error in getting metadata for the request", "request", request, "err", err)
 		return nil, err
 	}
-	responseMap := getDefaultEnvironmentPromotionMetaDataResponseMap(metadata)
+	responseMap := metadata.GetDefaultEnvironmentPromotionMetaDataResponseMap()
 
 	promotionRequests, err := impl.artifactPromotionApprovalRequestRepository.FindByDestinationPipelineIds(metadata.GetActiveAuthorisedPipelineIds())
 	if err != nil {
@@ -733,30 +730,6 @@ func (impl *ApprovalRequestServiceImpl) fetchSourceMeta(sourceName string, sourc
 	return sourceInfo, nil
 }
 
-// todo: naming can be better
-// todo: gireesh, make this method on RequestMetaData struct
-func getDefaultEnvironmentPromotionMetaDataResponseMap(metadata *bean.RequestMetaData) map[string]bean.EnvironmentPromotionMetaData {
-	response := make(map[string]bean.EnvironmentPromotionMetaData)
-	for _, env := range metadata.GetUserGivenEnvNames() {
-		envResponse := bean.EnvironmentPromotionMetaData{
-			Name:                       env,
-			PromotionValidationMessage: constants.PIPELINE_NOT_FOUND,
-		}
-		if !metadata.GetAuthorisedEnvMap()[env] {
-			envResponse.PromotionValidationMessage = constants.NO_PERMISSION
-		}
-		response[env] = envResponse
-	}
-	for _, pipelineId := range metadata.GetActiveAuthorisedPipelineIds() {
-		envName := metadata.GetActiveAuthorisedPipelineIdEnvMap()[pipelineId]
-		resp := response[envName]
-		resp.PromotionValidationMessage = constants.EMPTY
-		resp.PromotionValidationState = ""
-		response[envName] = resp
-	}
-	return response
-}
-
 func (impl *ApprovalRequestServiceImpl) validatePromotion(requestedWorkflowId int, ciArtifact *repository2.CiArtifact, metadata *bean.RequestMetaData) (map[string]bean.EnvironmentPromotionMetaData, error) {
 	if requestedWorkflowId != metadata.GetWorkflowId() {
 		// handle throw api error with conflict status code
@@ -830,7 +803,7 @@ func (impl *ApprovalRequestServiceImpl) promoteArtifact(ctx context.Context, req
 		impl.logger.Errorw("error in getting metadata for the request", "request", request, "err", err)
 		return nil, err
 	}
-	responseMap := getDefaultEnvironmentPromotionMetaDataResponseMap(metadata)
+	responseMap := metadata.GetDefaultEnvironmentPromotionMetaDataResponseMap()
 	ciArtifact, err := impl.ciArtifactRepository.Get(request.ArtifactId)
 	if err != nil {
 		impl.logger.Errorw("error in finding the artifact using id", "artifactId", request.ArtifactId, "err", err)
