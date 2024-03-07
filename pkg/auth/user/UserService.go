@@ -1070,8 +1070,9 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, ma
 	isSystemManagedActive := impl.globalAuthorisationConfigService.IsDevtronSystemManagedConfigActive()
 	isUserActive := model.Active
 	isApiToken := util3.CheckIfApiToken(userInfo.EmailId)
+	userLevelTimeoutChanged := model.TimeoutWindowConfigurationId != timeoutWindowConfigId
 	// case: system managed permissions is not active and user is inActive , mark user as active and update user timeWindowConfig id
-	if !isSystemManagedActive && !isUserActive && !isApiToken {
+	if !isSystemManagedActive && (!isUserActive || userLevelTimeoutChanged) && !isApiToken {
 		err = impl.updateUserAndCommitTransaction(model, tx, userInfo, timeoutWindowConfigId)
 		if err != nil {
 			impl.logger.Errorw("error in updating user to active", "err", err, "EmailId", userInfo.EmailId)
