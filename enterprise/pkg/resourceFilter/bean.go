@@ -377,5 +377,9 @@ var FILTER_CRITERIA = []FilterCriteria{
 		Type:    "String[]",
 		Tooltip: "External Labels/tags defined for an image. \n Example:\n \"prod\" in imageLabels",
 	},
-	// 	todo: add new variable
+	{
+		Label:   "gitCommitDetails",
+		Type:    "map",
+		Tooltip: "Commit details used to build the image. \n gitCommitDetails = {\n  'repo_url':{\n     'commitMessage': string \n     'branch':string\n  }\n} \nExample:\n gitCommitDetails['https://github.com/repo'].branch=='main'",
+	},
 }
