@@ -23,7 +23,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/workflow/dag"
 	"github.com/go-pg/pg"
-	"github.com/samber/lo"
 	"go.uber.org/zap"
 	"net/http"
 	"strings"
@@ -34,7 +33,7 @@ type ApprovalRequestService interface {
 	HandleArtifactPromotionRequest(request *bean.ArtifactPromotionRequest, authorizedEnvironments map[string]bool) ([]bean.EnvironmentPromotionMetaData, error)
 	GetPromotionRequestById(promotionRequestId int) (*bean.ArtifactPromotionApprovalResponse, error)
 	FetchWorkflowPromoteNodeList(token string, workflowId int, artifactId int, rbacChecker func(token string, appName string, envNames []string) map[string]bool) (*bean.EnvironmentListingResponse, error)
-	FetchApprovalAllowedEnvList(artifactId int, environmentName string, userId int32, token string, promotionApproverAuth func(string, string) bool) ([]bean.EnvironmentApprovalMetadata, error)
+	FetchApprovalAllowedEnvList(artifactId int, environmentName string, userId int32, token string, promotionApproverAuth func(string, []string) map[string]bool) ([]bean.EnvironmentApprovalMetadata, error)
 }
 
 type ApprovalRequestServiceImpl struct {
@@ -997,7 +996,9 @@ func (impl *ApprovalRequestServiceImpl) GetPromotionRequestById(promotionRequest
 	return artifactPromotionResponse, nil
 }
 
-func (impl *ApprovalRequestServiceImpl) FetchApprovalAllowedEnvList(artifactId int, environmentName string, userId int32, token string, promotionApproverAuth func(string, string) bool) ([]bean.EnvironmentApprovalMetadata, error) {
+func (impl *ApprovalRequestServiceImpl) FetchApprovalAllowedEnvList(artifactId int, environmentName string, userId int32, token string, promotionApproverAuth func(string, []string) map[string]bool) ([]bean.EnvironmentApprovalMetadata, error) {
+
+	environmentApprovalMetadata := make([]bean.EnvironmentApprovalMetadata, 0)
 
 	artifact, err := impl.ciArtifactRepository.Get(artifactId)
 	if err != nil {
@@ -1010,17 +1011,14 @@ func (impl *ApprovalRequestServiceImpl) FetchApprovalAllowedEnvList(artifactId i
 		impl.logger.Errorw("error in finding promotion requests in awaiting state for given artifactId ")
 		return nil, err
 	}
-
-	environmentApprovalMetadata := make([]bean.EnvironmentApprovalMetadata, 0)
-
 	if len(promotionRequests) == 0 {
 		return environmentApprovalMetadata, nil
 	}
-
 	// TODO: remove lo
-	destinationPipelineIds := lo.Map(promotionRequests, func(item *repository.ArtifactPromotionApprovalRequest, index int) int {
-		return item.DestinationPipelineId
-	})
+	destinationPipelineIds := make([]int, len(promotionRequests))
+	for i, request := range promotionRequests {
+		destinationPipelineIds[i] = request.DestinationPipelineId
+	}
 
 	pipelines, err := impl.pipelineRepository.FindAppAndEnvironmentAndProjectByPipelineIds(destinationPipelineIds)
 	if err != nil {
@@ -1029,20 +1027,24 @@ func (impl *ApprovalRequestServiceImpl) FetchApprovalAllowedEnvList(artifactId i
 	}
 
 	pipelineIdMap := make(map[int]*pipelineConfig.Pipeline)
-	for _, pipelineDao := range pipelines {
+	envIds := make([]int, len(pipelines))
+	rbacObjects := make([]string, len(pipelines))
+	pipelineIdToRbacObjMap := make(map[int]string)
+	for i, pipelineDao := range pipelines {
 		pipelineIdMap[pipelineDao.Id] = pipelineDao
+		envIds[i] = pipelineDao.EnvironmentId
+		teamRbacObj := fmt.Sprintf("%s/%s/%s", pipelineDao.App.Team.Name, pipelineDao.Environment.EnvironmentIdentifier, pipelineDao.App.AppName)
+		rbacObjects = append(rbacObjects, teamRbacObj)
+		pipelineIdToRbacObjMap[i] = teamRbacObj
 	}
 
-	// envIds := make([]int, len(pipelines))
-	// for i, p := range pipelines {
-	//	envIds[i] = p.EnvironmentId
-	// }
-	//
-	// policies, err := impl.promotionPolicyDataReadService.GetPromotionPolicyByAppAndEnvIds(pipelines[0].AppId, envIds)
-	// if err != nil {
-	//	impl.logger.Errorw("error in fetching policies by appId and envIds", "appId", pipelines[0].AppId, "envIds", envIds, "err", err)
-	//	return nil, err
-	// }
+	rbacResults := promotionApproverAuth(token, rbacObjects)
+
+	policiesMap, err := impl.promotionPolicyDataReadService.GetPromotionPolicyByAppAndEnvIds(pipelines[0].AppId, envIds)
+	if err != nil {
+		impl.logger.Errorw("error in fetching policies by appId and envIds", "appId", pipelines[0].AppId, "envIds", envIds, "err", err)
+		return nil, err
+	}
 
 	for _, request := range promotionRequests {
 
@@ -1054,29 +1056,23 @@ func (impl *ApprovalRequestServiceImpl) FetchApprovalAllowedEnvList(artifactId i
 			Reasons:         make([]string, 0),
 		}
 		// TODO: fetch policies in bulk
-		policy, err := impl.promotionPolicyDataReadService.GetPromotionPolicyByAppAndEnvId(pipelineDao.AppId, pipelineDao.EnvironmentId)
-		if err != nil {
-			impl.logger.Errorw("error in fetching promotion policy for given appId and envId", "appId", pipelineDao.AppId, "envId", pipelineDao.EnvironmentId, "err", err)
-			return nil, err
-		}
+		policy := policiesMap[pipelineDao.Environment.Name]
 		// TODO abstract logic to policyBean
 		if !policy.ApprovalMetaData.AllowImageBuilderFromApprove && request.CreatedBy == artifact.CreatedBy {
 			environmentMetadata.ApprovalAllowed = false
 			// TODO: reason constant
-			environmentMetadata.Reasons = append(environmentMetadata.Reasons, "User who has built the image cannot approve promotion request for this environment")
+			environmentMetadata.Reasons = append(environmentMetadata.Reasons, constants.BUILD_TRIGGER_USER_CANNOT_APPROVE_MSG)
 		}
-
 		if !policy.ApprovalMetaData.AllowRequesterFromApprove && request.CreatedBy == userId {
 			environmentMetadata.ApprovalAllowed = false
-			environmentMetadata.Reasons = append(environmentMetadata.Reasons, "User who has raised the image cannot approve promotion request for this environment")
+			environmentMetadata.Reasons = append(environmentMetadata.Reasons, constants.PROMOTION_REQUESTED_BY_USER_CANNOT_APPROVE_MSG)
 		}
 		// TODO: rbac batch
-		rbacObject := fmt.Sprintf("%s/%s/%s", pipelineDao.App.Team.Name, pipelineDao.Environment.EnvironmentIdentifier, pipelineDao.App.AppName)
-		if ok := promotionApproverAuth(token, rbacObject); !ok {
+		rbacObj := pipelineIdToRbacObjMap[request.DestinationPipelineId]
+		if isAuthorized := rbacResults[rbacObj]; !isAuthorized {
 			environmentMetadata.ApprovalAllowed = false
-			environmentMetadata.Reasons = append(environmentMetadata.Reasons, "user does not have image promoter access for given app and env")
+			environmentMetadata.Reasons = append(environmentMetadata.Reasons, constants.USER_DOES_NOT_HAVE_ARTIFACT_PROMOTER_ACCESS)
 		}
-
 		environmentApprovalMetadata = append(environmentApprovalMetadata, environmentMetadata)
 	}
 	return environmentApprovalMetadata, nil
