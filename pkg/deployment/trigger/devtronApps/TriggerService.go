@@ -47,7 +47,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/plugin"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactApproval/read"
-	bean10 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
 	read2 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/read"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -639,7 +639,7 @@ func (impl *TriggerServiceImpl) BlockIfImagePromotionPolicyViolated(appId, cdPip
 							UserMessage:       nil,
 							UserDetailMessage: "error in cd trigger, user who has approved the image for promotion cannot deploy",
 						}
-					} else if approvalMetadata.ApprovalRuntimeState != bean10.PROMOTED.Status() {
+					} else if approvalMetadata.ApprovalRuntimeState != constants.PROMOTED.Status() {
 						return true, &util.ApiError{
 							HttpStatusCode:    http.StatusForbidden,
 							InternalMessage:   "error in cd trigger, image is not promoted",

@@ -7,93 +7,15 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository1 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
+	bean2 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
 	"github.com/devtron-labs/devtron/util"
 	"log"
 	"time"
 )
 
-type ArtifactPromotionRequestStatus int
-type SearchableField string
-type SortKey = string
-type SortOrder = string
-
-const (
-	AWAITING_APPROVAL ArtifactPromotionRequestStatus = iota + 1
-	CANCELED
-	PROMOTED
-	STALE
-)
-
-func (status ArtifactPromotionRequestStatus) Status() string {
-	switch status {
-	case PROMOTED:
-		return "promoted"
-	case CANCELED:
-		return "cancelled"
-	case STALE:
-		return "stale"
-	case AWAITING_APPROVAL:
-		return "awaiting for approval"
-	}
-	return "deleted"
-}
-
-type SourceType int
-
-const (
-	CI SourceType = iota + 1
-	WEBHOOK
-	CD
-)
-
-type SourceTypeStr string
-
-const (
-	SOURCE_TYPE_CI                      SourceTypeStr = "CI"
-	SOURCE_TYPE_WEBHOOK                 SourceTypeStr = "WEBHOOK"
-	SOURCE_TYPE_CD                      SourceTypeStr = "ENVIRONMENT"
-	ArtifactPromotionRequestNotFoundErr               = "artifact promotion request not found"
-	ACTION_PROMOTE                                    = "PROMOTE"
-	ACTION_CANCEL                                     = "CANCEL"
-	ACTION_APPROVE                                    = "APPROVE"
-	PROMOTION_APPROVAL_PENDING_NODE     SourceTypeStr = "PROMOTION_APPROVAL_PENDING_NODE"
-)
-
-func (sourceType SourceTypeStr) GetSourceType() SourceType {
-	switch sourceType {
-	case SOURCE_TYPE_CI:
-		return CI
-	case SOURCE_TYPE_WEBHOOK:
-		return WEBHOOK
-	case SOURCE_TYPE_CD:
-		return CD
-	}
-	return CI
-}
-
-func (sourceType SourceType) GetSourceTypeStr() SourceTypeStr {
-	switch sourceType {
-	case CI:
-		return SOURCE_TYPE_CI
-	case WEBHOOK:
-		return SOURCE_TYPE_WEBHOOK
-	case CD:
-		return SOURCE_TYPE_CD
-	}
-	return SOURCE_TYPE_CI
-}
-
-const (
-	POLICY_NAME_SORT_KEY        SortKey         = "policyName"
-	APPROVER_COUNT_SORT_KEY     SortKey         = "approverCount"
-	ASC                         SortOrder       = "ASC"
-	DESC                        SortOrder       = "DESC"
-	APPROVER_COUNT_SEARCH_FIELD SearchableField = "approver_count"
-)
-
 type ArtifactPromotionRequest struct {
 	SourceName         string                   `json:"sourceName"`
-	SourceType         SourceTypeStr            `json:"sourceType"`
+	SourceType         bean2.SourceTypeStr      `json:"sourceType"`
 	Action             string                   `json:"action"`
 	PromotionRequestId int                      `json:"promotionRequestId"`
 	ArtifactId         int                      `json:"artifactId"`
@@ -109,14 +31,14 @@ type ArtifactPromotionRequest struct {
 }
 
 type ArtifactPromotionApprovalResponse struct {
-	Source          string        `json:"source"`
-	SourceType      SourceTypeStr `json:"sourceType"`
-	Destination     string        `json:"destination"`
-	RequestedBy     string        `json:"requestedBy"`
-	ApprovedUsers   []string      `json:"approvedUsers"`
-	RequestedOn     time.Time     `json:"requestedOn"`
-	PromotedOn      time.Time     `json:"promotedOn"`
-	PromotionPolicy string        `json:"promotionPolicy"`
+	Id                      int
+	PolicyId                int
+	PolicyEvaluationAuditId int
+	ArtifactId              int
+	SourceType              bean2.SourceType
+	SourcePipelineId        int
+	DestinationPipelineId   int
+	Status                  bean2.ArtifactPromotionRequestStatus
 }
 
 type PromotionApprovalMetaData struct {
@@ -155,12 +77,12 @@ type PromotionApprovalUserData struct {
 
 // todo: change it to EnvironmentPromotionMetaData
 type EnvironmentPromotionMetaData struct {
-	Name                       string                   `json:"name"` // environment name
-	ApprovalCount              int                      `json:"approvalCount,omitempty"`
-	PromotionValidationMessage string                   `json:"promotionEvaluationMessage"`
-	PromotionValidationState   PromotionValidationState `json:"promotionEvaluationState"`
-	PromotionPossible          bool                     `json:"promotionPossible"`
-	IsVirtualEnvironment       bool                     `json:"isVirtualEnvironment"`
+	Name                       string                         `json:"name"` // environment name
+	ApprovalCount              int                            `json:"approvalCount,omitempty"`
+	PromotionValidationMessage string                         `json:"promotionEvaluationMessage"`
+	PromotionValidationState   bean2.PromotionValidationState `json:"promotionEvaluationState"`
+	PromotionPossible          bool                           `json:"promotionPossible"`
+	IsVirtualEnvironment       bool                           `json:"isVirtualEnvironment"`
 }
 
 type EnvironmentApprovalMetadata struct {
@@ -229,31 +151,15 @@ type ApprovalMetaData struct {
 	AllowApproverFromDeploy      bool `json:"allowApproverFromDeploy"`
 }
 
-type PromotionValidationState string
-
-const ARTIFACT_ALREADY_PROMOTED PromotionValidationState = "already promoted"
-const ALREADY_REQUEST_RAISED PromotionValidationState = "promotion request already raised"
-const ERRORED PromotionValidationState = "error occurred"
-const EMPTY PromotionValidationState = ""
-const PIPELINE_NOT_FOUND PromotionValidationState = "pipeline Not Found"
-const POLICY_NOT_CONFIGURED PromotionValidationState = "policy not configured"
-const NO_PERMISSION PromotionValidationState = "no permission"
-const PROMOTION_SUCCESSFUL PromotionValidationState = "image promoted"
-const SENT_FOR_APPROVAL PromotionValidationState = "sent for approval"
-const SOURCE_AND_DESTINATION_PIPELINE_MISMATCH PromotionValidationState = "source and destination pipeline order mismatch"
-const POLICY_EVALUATION_ERRORED PromotionValidationState = "server unable to evaluate the policy"
-const BLOCKED_BY_POLICY PromotionValidationState = "blocked by the policy "
-const APPROVED PromotionValidationState = "approved"
-
 type EnvironmentListingResponse struct {
 	CiSource     CiSourceMetaData               `json:"ciSource"`
 	Environments []EnvironmentPromotionMetaData `json:"environments"`
 }
 
 type CiSourceMetaData struct {
-	Id   int           `json:"id"`
-	Name string        `json:"name"`
-	Type SourceTypeStr `json:"type"`
+	Id   int                 `json:"id"`
+	Name string              `json:"name"`
+	Type bean2.SourceTypeStr `json:"type"`
 }
 
 // rename to appworkflow metadata

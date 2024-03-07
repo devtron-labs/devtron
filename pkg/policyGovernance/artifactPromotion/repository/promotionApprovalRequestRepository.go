@@ -1,22 +1,22 @@
 package repository
 
 import (
-	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"time"
 )
 
 type ArtifactPromotionApprovalRequest struct {
-	tableName               struct{}                            `sql:"artifact_promotion_approval_request" pg:",discard_unknown_columns"`
-	Id                      int                                 `sql:"id"`
-	PolicyId                int                                 `sql:"policy_id"`
-	PolicyEvaluationAuditId int                                 `sql:"policy_evaluation_audit_id"`
-	ArtifactId              int                                 `sql:"artifact_id"`
-	SourceType              bean.SourceType                     `sql:"source_type"`
-	SourcePipelineId        int                                 `sql:"source_pipeline_id"`
-	DestinationPipelineId   int                                 `sql:"destination_pipeline_id"`
-	Status                  bean.ArtifactPromotionRequestStatus `sql:"status"`
+	tableName               struct{}                                 `sql:"artifact_promotion_approval_request" pg:",discard_unknown_columns"`
+	Id                      int                                      `sql:"id"`
+	PolicyId                int                                      `sql:"policy_id"`
+	PolicyEvaluationAuditId int                                      `sql:"policy_evaluation_audit_id"`
+	ArtifactId              int                                      `sql:"artifact_id"`
+	SourceType              constants.SourceType                     `sql:"source_type"`
+	SourcePipelineId        int                                      `sql:"source_pipeline_id"`
+	DestinationPipelineId   int                                      `sql:"destination_pipeline_id"`
+	Status                  constants.ArtifactPromotionRequestStatus `sql:"status"`
 	// todo: remove this column
 	Active bool `sql:"active"`
 	sql.AuditLog
@@ -78,7 +78,7 @@ func (repo *ArtifactPromotionApprovalRequestRepoImpl) FindPendingByDestinationPi
 	models := make([]*ArtifactPromotionApprovalRequest, 0)
 	err := repo.dbConnection.Model(&models).
 		Where("destination_pipeline_id = ? ", destinationPipelineId).
-		Where("status = ? ", bean.PROMOTED).
+		Where("status = ? ", constants.PROMOTED).
 		Where("active = ?", true).
 		Select()
 	return models, err
@@ -88,7 +88,7 @@ func (repo *ArtifactPromotionApprovalRequestRepoImpl) FindByDestinationPipelineI
 	models := make([]*ArtifactPromotionApprovalRequest, 0)
 	err := repo.dbConnection.Model(&models).
 		Where("destination_pipeline_id IN (?) ", pg.In(destinationPipelineIds)).
-		Where("status = ? ", bean.AWAITING_APPROVAL).
+		Where("status = ? ", constants.AWAITING_APPROVAL).
 		Where("active = ?", true).
 		Select()
 	return models, err
@@ -98,7 +98,7 @@ func (repo *ArtifactPromotionApprovalRequestRepoImpl) FindAwaitedRequestByPipeli
 	models := make([]*ArtifactPromotionApprovalRequest, 0)
 	err := repo.dbConnection.Model(&models).
 		Where("destination_pipeline_id = ? ", pipelineId).
-		Where("status = ? ", bean.AWAITING_APPROVAL).
+		Where("status = ? ", constants.AWAITING_APPROVAL).
 		Where("active = ?", true).
 		Where("artifact_id = ?", artifactId).
 		Select()
@@ -108,7 +108,7 @@ func (repo *ArtifactPromotionApprovalRequestRepoImpl) FindAwaitedRequestByPipeli
 func (repo *ArtifactPromotionApprovalRequestRepoImpl) FindAwaitedRequestByPolicyId(policyId int) ([]*ArtifactPromotionApprovalRequest, error) {
 	models := make([]*ArtifactPromotionApprovalRequest, 0)
 	err := repo.dbConnection.Model(&models).
-		Where("status = ? ", bean.AWAITING_APPROVAL).
+		Where("status = ? ", constants.AWAITING_APPROVAL).
 		Where("active = ?", true).
 		Where("policy_id = ?", policyId).
 		Select()
@@ -119,7 +119,7 @@ func (repo *ArtifactPromotionApprovalRequestRepoImpl) FindPromotedRequestByPipel
 	model := &ArtifactPromotionApprovalRequest{}
 	err := repo.dbConnection.Model(model).
 		Where("destination_pipeline_id = ? ", pipelineId).
-		Where("status = ? ", bean.PROMOTED).
+		Where("status = ? ", constants.PROMOTED).
 		Where("active = ?", true).
 		Where("artifact_id = ?", artifactId).
 		Select()
@@ -142,7 +142,7 @@ func (repo *ArtifactPromotionApprovalRequestRepoImpl) FindByPipelineIdAndArtifac
 func (repo *ArtifactPromotionApprovalRequestRepoImpl) FindAwaitedRequestsByArtifactId(artifactId int) ([]*ArtifactPromotionApprovalRequest, error) {
 	models := make([]*ArtifactPromotionApprovalRequest, 0)
 	err := repo.dbConnection.Model(&models).
-		Where("status = ? ", bean.AWAITING_APPROVAL).
+		Where("status = ? ", constants.AWAITING_APPROVAL).
 		Where("active = ?", true).
 		Where("artifact_id = ?", artifactId).
 		Select()
@@ -151,7 +151,7 @@ func (repo *ArtifactPromotionApprovalRequestRepoImpl) FindAwaitedRequestsByArtif
 
 func (repo *ArtifactPromotionApprovalRequestRepoImpl) MarkStaleByIds(tx *pg.Tx, requestIds []int) error {
 	_, err := tx.Model(&ArtifactPromotionApprovalRequest{}).
-		Set("status = ?", bean.STALE).
+		Set("status = ?", constants.STALE).
 		Set("updated_on = ?", time.Now()).
 		Set("active=?", false).
 		Where("id IN (?)", pg.In(requestIds)).
@@ -162,7 +162,7 @@ func (repo *ArtifactPromotionApprovalRequestRepoImpl) MarkStaleByIds(tx *pg.Tx, 
 
 func (repo *ArtifactPromotionApprovalRequestRepoImpl) MarkStaleByPolicyId(tx *pg.Tx, policyId int) error {
 	_, err := tx.Model(&ArtifactPromotionApprovalRequest{}).
-		Set("status = ?", bean.STALE).
+		Set("status = ?", constants.STALE).
 		Set("updated_on = ?", time.Now()).
 		Set("active=?", false).
 		Where("policy_id = ?", policyId).
@@ -173,7 +173,7 @@ func (repo *ArtifactPromotionApprovalRequestRepoImpl) MarkStaleByPolicyId(tx *pg
 
 func (repo *ArtifactPromotionApprovalRequestRepoImpl) MarkPromoted(tx *pg.Tx, requestIds []int) error {
 	_, err := tx.Model(&ArtifactPromotionApprovalRequest{}).
-		Set("status = ?", bean.PROMOTED).
+		Set("status = ?", constants.PROMOTED).
 		Set("updated_on = ?", time.Now()).
 		Set("active=?", false).
 		Where("id IN (?)", pg.In(requestIds)).

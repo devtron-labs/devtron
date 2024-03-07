@@ -9,6 +9,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	artifactPromotion2 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/read"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -167,11 +168,11 @@ func (handler RestHandlerImpl) GetPoliciesMetadata(w http.ResponseWriter, r *htt
 	search := queryParams.Get("search")
 
 	if sortBy == "" {
-		sortBy = bean.POLICY_NAME_SORT_KEY
+		sortBy = constants.POLICY_NAME_SORT_KEY
 	}
 
 	if sortOrder == "" {
-		sortOrder = bean.ASC
+		sortOrder = constants.ASC
 	}
 
 	listFilter := bean.PromotionPolicyMetaRequest{

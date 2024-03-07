@@ -12,6 +12,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
 	repository3 "github.com/devtron-labs/devtron/pkg/globalPolicy/repository"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/repository"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	util2 "github.com/devtron-labs/devtron/util"
@@ -95,11 +96,11 @@ func (impl ArtifactPromotionDataReadServiceImpl) FetchPromotionApprovalDataForAr
 			var promotedFrom string
 
 			switch approvalRequest.SourceType {
-			case bean.CI:
-				promotedFrom = string(bean.SOURCE_TYPE_CI)
-			case bean.WEBHOOK:
-				promotedFrom = string(bean.SOURCE_TYPE_CI)
-			case bean.CD:
+			case constants.CI:
+				promotedFrom = string(constants.SOURCE_TYPE_CI)
+			case constants.WEBHOOK:
+				promotedFrom = string(constants.SOURCE_TYPE_CI)
+			case constants.CD:
 				pipeline, err := impl.pipelineRepository.FindById(pipelineId)
 				if err != nil {
 					impl.logger.Errorw("error in fetching pipeline by id", "pipelineId", pipelineId, "err", err)
@@ -346,15 +347,15 @@ func (impl ArtifactPromotionDataReadServiceImpl) GetPoliciesMetadata(policyMetad
 func (impl ArtifactPromotionDataReadServiceImpl) parseSortByRequest(policyMetadataRequest bean.PromotionPolicyMetaRequest) *bean2.SortByRequest {
 
 	sortRequest := &bean2.SortByRequest{
-		SortOrderDesc: policyMetadataRequest.SortOrder == bean.DESC,
+		SortOrderDesc: policyMetadataRequest.SortOrder == constants.DESC,
 	}
 	switch policyMetadataRequest.SortBy {
-	case bean.POLICY_NAME_SORT_KEY:
+	case constants.POLICY_NAME_SORT_KEY:
 		sortRequest.SortByType = bean2.GlobalPolicyColumnField
-	case bean.APPROVER_COUNT_SORT_KEY:
+	case constants.APPROVER_COUNT_SORT_KEY:
 		sortRequest.SortByType = bean2.GlobalPolicySearchableField
 		sortRequest.SearchableField = util2.SearchableField{
-			FieldName: string(bean.APPROVER_COUNT_SEARCH_FIELD),
+			FieldName: string(constants.APPROVER_COUNT_SEARCH_FIELD),
 			FieldType: util2.NumericType,
 		}
 	}

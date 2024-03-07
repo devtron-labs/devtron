@@ -26,6 +26,15 @@ func convertToInt(w http.ResponseWriter, paramValue string) (int, error) {
 	return paramIntValue, nil
 }
 
+func convertToBool(w http.ResponseWriter, paramValue string) (bool, error) {
+	paramBoolValue, err := strconv.ParseBool(paramValue)
+	if err != nil {
+		WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return false, err
+	}
+	return paramBoolValue, nil
+}
+
 func convertToIntArray(w http.ResponseWriter, paramValue string) ([]int, error) {
 	var paramValues []int
 	splittedParamValues := strings.Split(paramValue, ",")
@@ -53,17 +62,17 @@ func ExtractIntQueryParam(w http.ResponseWriter, r *http.Request, paramName stri
 	return paramIntValue, nil
 }
 
-func ExtractBooleanQueryParam(w http.ResponseWriter, r *http.Request, paramName string, defaultVal *int) (int, error) {
+func ExtractBooleanQueryParam(w http.ResponseWriter, r *http.Request, paramName string, defaultVal bool) (bool, error) {
 	queryParams := r.URL.Query()
 	paramValue := queryParams.Get(paramName)
 	if len(paramValue) == 0 {
-		return *defaultVal, nil
+		return defaultVal, nil
 	}
-	paramIntValue, err := convertToInt(w, paramValue)
+	paramBooleanValue, err := convertToBool(w, paramValue)
 	if err != nil {
-		return 0, err
+		return false, err
 	}
-	return paramIntValue, nil
+	return paramBooleanValue, nil
 }
 
 func ExtractIntArrayQueryParam(w http.ResponseWriter, r *http.Request, paramName string) ([]int, error) {
