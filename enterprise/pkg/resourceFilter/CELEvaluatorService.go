@@ -57,7 +57,7 @@ func (impl *CELServiceImpl) EvaluateCELRequest(request CELRequest) (bool, error)
 	expressionMetadata := request.ExpressionMetadata
 	valuesMap := make(map[string]interface{})
 	for _, param := range expressionMetadata.Params {
-		valuesMap[param.ParamName] = param.Value
+		valuesMap[string(param.ParamName)] = param.Value
 	}
 
 	out, _, err := prg.Eval(valuesMap)
@@ -83,7 +83,7 @@ func (impl *CELServiceImpl) validate(request CELRequest) (*cel.Ast, *cel.Env, er
 		if err != nil {
 			return nil, nil, fmt.Errorf("invalid parameter type '%s' for '%s': %v", param.Type, param.Type, err)
 		}
-		declaration := decls.NewVar(param.ParamName, declsType)
+		declaration := decls.NewVar(string(param.ParamName), declsType)
 		declarations = append(declarations, declaration)
 	}
 
@@ -107,23 +107,23 @@ func (impl *CELServiceImpl) ValidateCELRequest(request ValidateRequestResponse) 
 	errored := false
 	params := []ExpressionParam{
 		{
-			ParamName: "containerRepository",
+			ParamName: ContainerRepo,
 			Type:      ParamTypeString,
 		},
 		{
-			ParamName: "containerImage",
+			ParamName: ContainerImage,
 			Type:      ParamTypeString,
 		},
 		{
-			ParamName: "containerImageTag",
+			ParamName: ContainerImageTag,
 			Type:      ParamTypeString,
 		},
 		{
-			ParamName: "imageLabels",
+			ParamName: ImageLabels,
 			Type:      ParamTypeList,
 		},
 		{
-			ParamName: "gitCommitDetails",
+			ParamName: GitCommitDetails,
 			Type:      ParamTypeCommitDetailsMap,
 		},
 	}

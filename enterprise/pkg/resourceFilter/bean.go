@@ -256,8 +256,16 @@ const (
 	ParamTypeCommitDetailsMap ParamValuesType = "commitDetailsMap"
 )
 
+type ParamName string
+
+const ContainerRepo ParamName = "containerRepository"
+const ContainerImage ParamName = "containerImage"
+const ContainerImageTag ParamName = "containerImageTag"
+const ImageLabels ParamName = "imageLabels"
+const GitCommitDetails ParamName = "gitCommitDetails"
+
 type ExpressionParam struct {
-	ParamName string          `json:"paramName"`
+	ParamName ParamName       `json:"paramName"`
 	Value     interface{}     `json:"value"`
 	Type      ParamValuesType `json:"type"`
 }
@@ -299,27 +307,27 @@ func GetParamsFromArtifact(artifact string, imageLabels []string, materialInfos 
 	containerImage := artifact
 	params := []ExpressionParam{
 		{
-			ParamName: "containerRepository",
+			ParamName: ContainerRepo,
 			Value:     containerRepository,
 			Type:      ParamTypeString,
 		},
 		{
-			ParamName: "containerImage",
+			ParamName: ContainerImage,
 			Value:     containerImage,
 			Type:      ParamTypeString,
 		},
 		{
-			ParamName: "containerImageTag",
+			ParamName: ContainerImageTag,
 			Value:     containerImageTag,
 			Type:      ParamTypeString,
 		},
 		{
-			ParamName: "imageLabels",
+			ParamName: ImageLabels,
 			Value:     imageLabels,
 			Type:      ParamTypeList,
 		},
 		{
-			ParamName: "gitCommitDetails",
+			ParamName: GitCommitDetails,
 			Value:     commitDetailsMap,
 			Type:      ParamTypeCommitDetailsMap,
 		},
@@ -358,27 +366,27 @@ type FilterCriteria struct {
 
 var FILTER_CRITERIA = []FilterCriteria{
 	{
-		Label:   "containerImage",
+		Label:   string(ContainerImage),
 		Type:    "String",
 		Tooltip: "Example:\n containerImage.contains(\"docker.io\")",
 	},
 	{
-		Label:   "containerRepository",
+		Label:   string(ContainerRepo),
 		Type:    "String",
 		Tooltip: "Example:\n containerRepository == \"devregistry\"",
 	},
 	{
-		Label:   "containerImageTag",
+		Label:   string(ContainerImageTag),
 		Type:    "String",
 		Tooltip: "Example:\n containerImageTag.startsWith(\"Prod-\")",
 	},
 	{
-		Label:   "imageLabels",
+		Label:   string(ImageLabels),
 		Type:    "String[]",
 		Tooltip: "External Labels/tags defined for an image. \n Example:\n \"prod\" in imageLabels",
 	},
 	{
-		Label:   "gitCommitDetails",
+		Label:   string(GitCommitDetails),
 		Type:    "map",
 		Tooltip: "Commit details used to build the image. \n gitCommitDetails = {\n  'repo_url':{\n     'commitMessage': string \n     'branch':string\n  }\n} \nExample:\n gitCommitDetails['https://github.com/repo'].branch=='main'",
 	},
