@@ -2,6 +2,7 @@ package resourceFilter
 
 import (
 	"errors"
+	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -236,7 +237,7 @@ type CommitDetails struct {
 	Branch        string `json:"branch"`
 }
 
-func (cd CommitDetails) ConvertToMap() map[string]string {
+func (cd *CommitDetails) ConvertToMap() map[string]string {
 	return map[string]string{
 		"commitMessage": cd.CommitMessage,
 		"branch":        cd.Branch,
@@ -261,8 +262,32 @@ type ExpressionParam struct {
 	Type      ParamValuesType `json:"type"`
 }
 
-func GetParamsFromArtifact(artifact string, imageLabels []string, commitDetails ...CommitDetails) []ExpressionParam {
+func GetCommitDetailsFromMaterialInfo(ciMaterials []repository.CiMaterialInfo) []*CommitDetails {
+	commitDetailsList := make([]*CommitDetails, 0, len(ciMaterials))
+	for _, ciMaterial := range ciMaterials {
+		repoUrl := ciMaterial.Material.ScmConfiguration.URL
+		commitMessage := ""
+		branch := ""
+		if ciMaterial.Material.Type == "git" {
+			repoUrl = ciMaterial.Material.GitConfiguration.URL
+		}
+		if ciMaterial.Modifications != nil && len(ciMaterial.Modifications) > 0 {
+			modification := ciMaterial.Modifications[0]
+			commitMessage = modification.Message
+			branch = modification.Branch
+		}
+		commitDetailsList = append(commitDetailsList, &CommitDetails{
+			Repo:          repoUrl,
+			CommitMessage: commitMessage,
+			Branch:        branch,
+		})
+	}
+	return commitDetailsList
+}
 
+func GetParamsFromArtifact(artifact string, imageLabels []string, materialInfos []repository.CiMaterialInfo) []ExpressionParam {
+
+	commitDetails := GetCommitDetailsFromMaterialInfo(materialInfos)
 	lastColonIndex := strings.LastIndex(artifact, ":")
 
 	commitDetailsMap := make(map[string]map[string]string)
@@ -294,7 +319,7 @@ func GetParamsFromArtifact(artifact string, imageLabels []string, commitDetails 
 			Type:      ParamTypeList,
 		},
 		{
-			ParamName: "commitDetailsMap",
+			ParamName: "gitCommitDetails",
 			Value:     commitDetailsMap,
 			Type:      ParamTypeCommitDetailsMap,
 		},

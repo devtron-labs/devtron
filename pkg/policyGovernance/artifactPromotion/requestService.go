@@ -254,26 +254,6 @@ func (impl *ApprovalRequestServiceImpl) computeFilterParams(ciArtifact *reposito
 		return nil, err
 	}
 
-	commitDetailsList := make([]resourceFilter.CommitDetails, 0, len(ciMaterials))
-	for _, ciMaterial := range ciMaterials {
-		repoUrl := ciMaterial.Material.ScmConfiguration.URL
-		commitMessage := ""
-		branch := ""
-		if ciMaterial.Material.Type == "git" {
-			repoUrl = ciMaterial.Material.GitConfiguration.URL
-		}
-		if ciMaterial.Modifications != nil && len(ciMaterial.Modifications) > 0 {
-			modification := ciMaterial.Modifications[0]
-			commitMessage = modification.Message
-			branch = modification.Branch
-		}
-		commitDetailsList = append(commitDetailsList, resourceFilter.CommitDetails{
-			Repo:          repoUrl,
-			CommitMessage: commitMessage,
-			Branch:        branch,
-		})
-	}
-
 	imageTags, err := impl.imageTaggingService.GetTagsByArtifactId(ciArtifact.Id)
 	if err != nil {
 		impl.logger.Errorw("error in fetching the image tags using artifact id", "artifactId", ciArtifact.Id, "err", err)
@@ -284,7 +264,7 @@ func (impl *ApprovalRequestServiceImpl) computeFilterParams(ciArtifact *reposito
 	for _, imageTag := range imageTags {
 		releaseTags = append(releaseTags, imageTag.TagName)
 	}
-	params := resourceFilter.GetParamsFromArtifact(ciArtifact.Image, releaseTags, commitDetailsList...)
+	params := resourceFilter.GetParamsFromArtifact(ciArtifact.Image, releaseTags, ciMaterials)
 	return params, nil
 }
 

@@ -93,6 +93,15 @@ func (c *CiArtifact) IsMigrationRequired() bool {
 	return true
 }
 
+func (c *CiArtifact) GetMaterialInfo() ([]CiMaterialInfo, error) {
+	var ciMaterials []CiMaterialInfo
+	err := json.Unmarshal([]byte(c.MaterialInfo), &ciMaterials)
+	if err != nil {
+		return nil, err
+	}
+	return ciMaterials, nil
+}
+
 type CiArtifactRepository interface {
 	Save(artifact *CiArtifact) error
 	Delete(artifact *CiArtifact) error

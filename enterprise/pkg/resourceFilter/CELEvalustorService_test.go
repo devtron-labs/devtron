@@ -61,7 +61,7 @@ func TestEvaluateCELRequest(t *testing.T) {
 	t.Run("test commitDetails", func(tt *testing.T) {
 		artifact := "devtron/test:v1beta1"
 		var releaseTags []string
-		params := GetParamsFromArtifact(artifact, releaseTags, CommitDetails{"github.com/test", "test commit", "test"})
+		params := GetParamsFromArtifact(artifact, releaseTags, &CommitDetails{"github.com/test", "test commit", "test"})
 
 		evalReq := CELRequest{
 			Expression: "commitDetailsMap['github.com/test'].branch == 'test'",

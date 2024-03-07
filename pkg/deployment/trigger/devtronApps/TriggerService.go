@@ -89,7 +89,7 @@ type TriggerService interface {
 	TriggerRelease(overrideRequest *bean3.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse,
 		builtChartPath string, ctx context.Context, triggeredAt time.Time, triggeredBy int32) (releaseNo int, manifest []byte, err error)
 
-	//TODO: make this method private and move all usages in this service since TriggerService should own if async mode is enabled and if yes then how to act on it
+	// TODO: make this method private and move all usages in this service since TriggerService should own if async mode is enabled and if yes then how to act on it
 	IsDevtronAsyncInstallModeEnabled(deploymentAppType string) bool
 
 	BlockIfImagePromotionPolicyViolated(appId, cdPipelineId, artifactId int, userId int32) (bool, error)
@@ -133,7 +133,7 @@ type TriggerServiceImpl struct {
 
 	mergeUtil     util.MergeUtil
 	enforcerUtil  rbac.EnforcerUtil
-	helmAppClient gRPC.HelmAppClient //TODO refactoring: use helm app service instead
+	helmAppClient gRPC.HelmAppClient // TODO refactoring: use helm app service instead
 
 	scanResultRepository          security.ImageScanResultRepository
 	cvePolicyRepository           security.CvePolicyRepository
@@ -283,7 +283,7 @@ func (impl *TriggerServiceImpl) TriggerStageForBulk(triggerRequest bean.TriggerR
 		return err
 	}
 
-	//handle corrupt data (https://github.com/devtron-labs/devtron/issues/3826)
+	// handle corrupt data (https://github.com/devtron-labs/devtron/issues/3826)
 	err, deleted := impl.deleteCorruptedPipelineStage(preStage, triggerRequest.TriggeredBy)
 	if err != nil {
 		impl.logger.Errorw("error in deleteCorruptedPipelineStage ", "cdPipelineId", triggerRequest.Pipeline.Id, "err", err, "preStage", preStage, "triggeredBy", triggerRequest.TriggeredBy)
@@ -292,7 +292,7 @@ func (impl *TriggerServiceImpl) TriggerStageForBulk(triggerRequest bean.TriggerR
 
 	triggerRequest.TriggerContext.Context = context.Background()
 	if len(triggerRequest.Pipeline.PreStageConfig) > 0 || (preStage != nil && !deleted) {
-		//pre stage exists
+		// pre stage exists
 		impl.logger.Debugw("trigger pre stage for pipeline", "artifactId", triggerRequest.Artifact.Id, "pipelineId", triggerRequest.Pipeline.Id)
 		triggerRequest.RefCdWorkflowRunnerId = 0
 		err = impl.TriggerPreStage(triggerRequest) // TODO handle error here
@@ -402,7 +402,12 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 			return 0, "", err
 		}
 
-		filterState, filterIdVsState, err := impl.resourceFilterService.CheckForResource(filters, artifact.Image, imageTagNames)
+		materialInfos, err := artifact.GetMaterialInfo()
+		if err != nil {
+			impl.logger.Errorw("error in getting material info for the given artifact", "artifactId", artifact.Id, "materialInfo", artifact.MaterialInfo, "err", err)
+			return 0, "", err
+		}
+		filterState, filterIdVsState, err := impl.resourceFilterService.CheckForResource(filters, artifact.Image, imageTagNames, materialInfos)
 		if err != nil {
 			return 0, "", err
 		}
@@ -552,7 +557,7 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 					return 0, "", err
 				}
 				fmt.Println(pipelineOverride)
-				//TODO: update
+				// TODO: update
 				cdSuccessEvent := bean9.DeployStageSuccessEventReq{
 					PipelineOverride: pipelineOverride,
 				}
@@ -689,7 +694,12 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 		return err
 	}
 
-	filterState, filterIdVsState, err := impl.resourceFilterService.CheckForResource(filters, artifact.Image, imageTagNames)
+	materialInfos, err := artifact.GetMaterialInfo()
+	if err != nil {
+		impl.logger.Errorw("error in getting material info for the given artifact", "artifactId", artifact.Id, "materialInfo", artifact.MaterialInfo, "err", err)
+		return err
+	}
+	filterState, filterIdVsState, err := impl.resourceFilterService.CheckForResource(filters, artifact.Image, imageTagNames, materialInfos)
 	if err != nil {
 		return err
 	}
@@ -853,7 +863,7 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 			return err
 		}
 		fmt.Println(pipelineOverride)
-		//TODO: update
+		// TODO: update
 		cdSuccessEvent := bean9.DeployStageSuccessEventReq{
 			PipelineOverride: pipelineOverride,
 		}
@@ -1411,7 +1421,7 @@ func (impl *TriggerServiceImpl) updateArgoPipeline(pipeline *pipelineConfig.Pipe
 		impl.logger.Errorw("no argo app exists", "app", argoAppName, "pipeline", pipeline.Name)
 		return false, err
 	}
-	//if status, ok:=status.FromError(err);ok{
+	// if status, ok:=status.FromError(err);ok{
 	appStatus, _ := status2.FromError(err)
 	if appStatus.Code() == codes.OK {
 		impl.logger.Debugw("argo app exists", "app", argoAppName, "pipeline", pipeline.Name)
@@ -1448,7 +1458,7 @@ func (impl *TriggerServiceImpl) updateArgoPipeline(pipeline *pipelineConfig.Pipe
 }
 
 func (impl *TriggerServiceImpl) createArgoApplicationIfRequired(appId int, envConfigOverride *chartConfig.EnvConfigOverride, pipeline *pipelineConfig.Pipeline, userId int32) (string, error) {
-	//repo has been registered while helm create
+	// repo has been registered while helm create
 	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
 	if err != nil {
 		impl.logger.Errorw("no chart found ", "app", appId)
@@ -1462,7 +1472,7 @@ func (impl *TriggerServiceImpl) createArgoApplicationIfRequired(appId int, envCo
 	if pipeline.DeploymentAppCreated {
 		return argoAppName, nil
 	} else {
-		//create
+		// create
 		appNamespace := envConfigOverride.Namespace
 		if appNamespace == "" {
 			appNamespace = "default"
@@ -1484,7 +1494,7 @@ func (impl *TriggerServiceImpl) createArgoApplicationIfRequired(appId int, envCo
 		if err != nil {
 			return "", err
 		}
-		//update cd pipeline to mark deployment app created
+		// update cd pipeline to mark deployment app created
 		_, err = impl.updatePipeline(pipeline, userId)
 		if err != nil {
 			impl.logger.Errorw("error in update cd pipeline for deployment app created or not", "err", err)
@@ -1495,7 +1505,7 @@ func (impl *TriggerServiceImpl) createArgoApplicationIfRequired(appId int, envCo
 }
 
 func getValuesFileForEnv(environmentId int) string {
-	return fmt.Sprintf("_%d-values.yaml", environmentId) //-{envId}-values.yaml
+	return fmt.Sprintf("_%d-values.yaml", environmentId) // -{envId}-values.yaml
 }
 
 func (impl *TriggerServiceImpl) updatePipeline(pipeline *pipelineConfig.Pipeline, userId int32) (bool, error) {
@@ -1583,7 +1593,7 @@ func (impl *TriggerServiceImpl) markImageScanDeployed(appId int, envId int, imag
 	ot, err := impl.imageScanDeployInfoRepository.FetchByAppIdAndEnvId(appId, envId, []string{security.ScanObjectType_APP})
 
 	if err == pg.ErrNoRows && !isScanEnabled {
-		//ignoring if no rows are found and scan is disabled
+		// ignoring if no rows are found and scan is disabled
 		return nil
 	}
 
@@ -1697,7 +1707,7 @@ func (impl *TriggerServiceImpl) checkDeploymentTriggeredAlready(wfId int) bool {
 	return deploymentTriggeredAlready
 }
 
-//TO check where to put, got from oss enterprise diff
+// TO check where to put, got from oss enterprise diff
 
 func (impl *TriggerServiceImpl) PushPrePostCDManifest(cdWorklowRunnerId int, triggeredBy int32, jobHelmPackagePath string, deployType string, pipeline *pipelineConfig.Pipeline, imageTag string, ctx context.Context) error {
 
