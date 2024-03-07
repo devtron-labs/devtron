@@ -170,6 +170,15 @@ func (impl *ApprovalRequestServiceImpl) FetchApprovalAllowedEnvList(artifactId i
 		return environmentApprovalMetadata, err
 	}
 
+	deletedPipelines, err := impl.markRequestStale(pipelineIdToDaoMapping, destinationPipelineIds)
+	if err != nil {
+		impl.logger.Errorw("error in marking request stale by destination pipeline ids", "pipelineIds", deletedPipelines)
+	}
+
+	if len(deletedPipelines) == len(promotionRequests) {
+		return environmentApprovalMetadata, nil
+	}
+
 	envIds := make([]int, len(pipelineIdToDaoMapping))
 	for _, pipelineDao := range pipelineIdToDaoMapping {
 		envIds = append(envIds, pipelineDao.EnvironmentId)
@@ -216,6 +225,31 @@ func (impl *ApprovalRequestServiceImpl) FetchApprovalAllowedEnvList(artifactId i
 		environmentApprovalMetadata = append(environmentApprovalMetadata, environmentMetadata)
 	}
 	return environmentApprovalMetadata, nil
+}
+
+func (impl *ApprovalRequestServiceImpl) markRequestStale(pipelineIdToDaoMapping map[int]*pipelineConfig.Pipeline, destinationPipelineIds []int) ([]int, error) {
+	var deletedPipelines []int
+	for id := range destinationPipelineIds {
+		if _, ok := pipelineIdToDaoMapping[id]; !ok {
+			deletedPipelines = append(deletedPipelines, id)
+		}
+	}
+	tx, err := impl.artifactPromotionApprovalRequestRepository.StartTx()
+	if err != nil {
+		impl.logger.Errorw("error in starting tx", "err", err)
+		return deletedPipelines, err
+	}
+	err = impl.artifactPromotionApprovalRequestRepository.MarkStaleByDestinationPipelineId(tx, deletedPipelines)
+	if err != nil {
+		impl.logger.Errorw("error in marking pipeline stale by ids", "pipelineIds", deletedPipelines, "err", err)
+		return deletedPipelines, err
+	}
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("error in tx commit", "err", err)
+		return deletedPipelines, err
+	}
+	return deletedPipelines, nil
 }
 func (impl *ApprovalRequestServiceImpl) FetchWorkflowPromoteNodeList(ctx context.Context, workflowId int, artifactId int, rbacChecker func(token string, appName string, envNames []string) map[string]bool) (*bean.EnvironmentListingResponse, error) {
 	metadata, err := impl.fetchEnvMetaDataListingRequestMetadata(ctx.Value("token").(string), workflowId, artifactId, rbacChecker)

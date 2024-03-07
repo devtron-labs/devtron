@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
 )
 
 const EmptyLikeRegex = "%%"
@@ -112,7 +113,7 @@ func buildQueryForArtifactsForCdStageV2(listingFilterOptions bean.ArtifactsListF
 	// promoted artifacts
 	// destination pipeline-id and artifact-id are indexed
 	if listingFilterOptions.ParentStageType != bean.CD_WORKFLOW_TYPE_PRE && listingFilterOptions.StageType != bean.CD_WORKFLOW_TYPE_POST {
-		whereCondition = fmt.Sprintf(" %s OR id in (select artifact_id from artifact_promotion_approval_request where status=2 and destination_pipeline_id = %d ) )", whereCondition, listingFilterOptions.PipelineId)
+		whereCondition = fmt.Sprintf(" %s OR id in (select artifact_id from artifact_promotion_approval_request where status=%d and destination_pipeline_id = %d ) )", whereCondition, constants.PROMOTED, listingFilterOptions.PipelineId)
 	}
 
 	if listingFilterOptions.SearchString != EmptyLikeRegex {

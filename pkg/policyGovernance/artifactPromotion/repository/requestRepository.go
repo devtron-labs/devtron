@@ -47,6 +47,7 @@ type RequestRepository interface {
 	FindRequestsByArtifactIdAndEnvName(artifactId int, environmentName string, status constants.ArtifactPromotionRequestStatus) ([]*ArtifactPromotionApprovalRequest, error)
 	FindAwaitedRequestByPolicyId(policyId int) ([]*ArtifactPromotionApprovalRequest, error)
 	MarkStaleByIds(tx *pg.Tx, requestIds []int) error
+	MarkStaleByDestinationPipelineId(tx *pg.Tx, pipelineIds []int) error
 	MarkStaleByPolicyId(tx *pg.Tx, policyId int) error
 	MarkPromoted(tx *pg.Tx, requestIds []int) error
 	sql.TransactionWrapper
@@ -163,6 +164,16 @@ func (repo *RequestRepositoryImpl) MarkStaleByIds(tx *pg.Tx, requestIds []int) e
 		Set("status = ?", constants.STALE).
 		Set("updated_on = ?", time.Now()).
 		Where("id IN (?)", pg.In(requestIds)).
+		Where("status = ? ", constants.AWAITING_APPROVAL).
+		Update()
+	return err
+}
+
+func (repo *RequestRepositoryImpl) MarkStaleByDestinationPipelineId(tx *pg.Tx, pipelineIds []int) error {
+	_, err := tx.Model(&ArtifactPromotionApprovalRequest{}).
+		Set("status = ?", constants.STALE).
+		Set("updated_on = ?", time.Now()).
+		Where("destination_pipeline_id IN (?)", pg.In(pipelineIds)).
 		Where("status = ? ", constants.AWAITING_APPROVAL).
 		Update()
 	return err
