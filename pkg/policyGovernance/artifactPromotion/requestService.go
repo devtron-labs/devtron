@@ -135,7 +135,7 @@ func (impl *ApprovalRequestServiceImpl) getSourceInfoAndPipelineIds(workflowId i
 
 	// set source metadata
 	sourceInfo := &bean.SourceMetaData{}
-	sourceInfo = sourceInfo.WithName(sourceName).WithType(sourceType).WithId(sourceId)
+	sourceInfo = sourceInfo.WithName(sourceName).WithType(sourceType).WithId(sourceId).WithSourceWorkflowId(workflowId)
 	return sourceInfo, pipelineIds, nil
 }
 

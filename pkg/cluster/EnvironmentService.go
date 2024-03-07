@@ -57,18 +57,17 @@ type EnvironmentBean struct {
 }
 
 func (environmentBean *EnvironmentBean) AdaptFromEnvironment(model *repository.Environment) {
-	bean := &EnvironmentBean{
-		Id:                    model.Id,
-		Environment:           model.Name,
-		ClusterId:             model.Cluster.Id,
-		Active:                model.Active,
-		PrometheusEndpoint:    model.Cluster.PrometheusEndpoint,
-		Namespace:             model.Namespace,
-		Default:               model.Default,
-		EnvironmentIdentifier: model.EnvironmentIdentifier,
-		Description:           model.Description,
-	}
-	environmentBean = bean
+
+	environmentBean.Id = model.Id
+	environmentBean.Environment = model.Name
+	environmentBean.ClusterId = model.Cluster.Id
+	environmentBean.Active = model.Active
+	environmentBean.PrometheusEndpoint = model.Cluster.PrometheusEndpoint
+	environmentBean.Namespace = model.Namespace
+	environmentBean.Default = model.Default
+	environmentBean.EnvironmentIdentifier = model.EnvironmentIdentifier
+	environmentBean.Description = model.Description
+
 }
 
 type VirtualEnvironmentBean struct {
