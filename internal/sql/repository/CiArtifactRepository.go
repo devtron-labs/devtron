@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"golang.org/x/exp/slices"
 	"strings"
@@ -136,10 +137,8 @@ type CiArtifactRepository interface {
 	// MigrateToWebHookDataSourceType is used for backward compatibility. It'll migrate the deprecated DataSource type
 	MigrateToWebHookDataSourceType(id int) error
 	UpdateLatestTimestamp(artifactIds []int) error
-	FindDeployedArtifactsOnPipeline(artifactsListingFilterOps bean.ArtifactsListFilterOptions) ([]CiArtifact, int, error)
-	FindArtifactsByCIPipelineId(artifactsListingFilterOps bean.ArtifactsListFilterOptions) ([]CiArtifact, int, error)
-	FindArtifactsByExternalCIPipelineId(artifactsListingFilterOps bean.ArtifactsListFilterOptions) ([]CiArtifact, int, error)
-	FindArtifactsPendingForPromotion(cdPipelineIds []int, limit, offset int, imageSearchPattern string) ([]CiArtifact, int, error)
+	FindArtifactsCountPendingForPromotionByPipelineIds(pipelineIds []int) (int, error)
+	FetchArtifactsForPromotionApprovalNode(artifactsListingFilterOps bean.PromotionArtifactsListingFilterOptions) ([]CiArtifact, int, error)
 }
 
 type CiArtifactRepositoryImpl struct {
@@ -866,123 +865,68 @@ func (impl CiArtifactRepositoryImpl) FindCiArtifactByImagePaths(images []string)
 	return ciArtifacts, nil
 }
 
-func (impl CiArtifactRepositoryImpl) FindDeployedArtifactsOnPipeline(artifactsListingFilterOps bean.ArtifactsListFilterOptions) ([]CiArtifact, int, error) {
-
-	var ciArtifacts []CiArtifact
-	var ciArtifactsResp []CiArtifactWithExtraData
-
-	query := fmt.Sprintf(" select ci_artifact.*, count(ci_artifact.id) over() as total_count from ci_artifact where ci_artifact.id in "+
-		"( select distinct(cdw.ci_artifact_id) from cd_workflow cdw inner join cd_workflow_runner cdwr ON cdw.id = cdwr.cd_workflow_id and cdw.pipeline_id = %d  and cdwr.workflow_type = 'DEPLOY' and cdwr.status IN ('Healthy','Succeeded')  )", artifactsListingFilterOps.PipelineId)
-
-	if artifactsListingFilterOps.SearchString != EmptyLikeRegex {
-		query = query + fmt.Sprintf(" and ci_artifact.image like '%s' ", artifactsListingFilterOps.SearchString)
-	}
-
-	limitOffSetQuery := fmt.Sprintf(" order by ci_artifact.id desc LIMIT %v OFFSET %v", artifactsListingFilterOps.Limit, artifactsListingFilterOps.Offset)
-	query = query + limitOffSetQuery
-
-	_, err := impl.dbConnection.Query(&ciArtifactsResp, query)
+func (impl CiArtifactRepositoryImpl) FindArtifactsCountPendingForPromotionByPipelineIds(pipelineIds []int) (int, error) {
+	var count int
+	query := fmt.Sprintf("SELECT COUNT(ci_artifact.id) FROM ci_artifact "+
+		" where id in (select distinct(artifact_id) from artifact_promotion_approval_request where destination_pipeline_id IN (%s) and status = 1 AND active = true)", helper.GetCommaSepratedString(pipelineIds))
+	_, err := impl.dbConnection.Query(&count, query)
 	if err != nil {
-		impl.logger.Errorw("error in fetching deployed artifacts for cd pipeline node", "cdPipelineId", artifactsListingFilterOps.PipelineId, "err", err)
-		return ciArtifacts, 0, err
+		impl.logger.Errorw("error in fetching deployed artifacts for cd pipeline node", "cdPipelineIds", pipelineIds, "err", err)
+		return 0, err
 	}
-
-	var totalCount int
-	if len(ciArtifactsResp) > 0 {
-		totalCount = ciArtifactsResp[0].TotalCount
-	}
-	for _, ciArtifact := range ciArtifactsResp {
-		ciArtifacts = append(ciArtifacts, ciArtifact.CiArtifact)
-	}
-	return ciArtifacts, totalCount, nil
+	return count, nil
 }
 
-func (impl CiArtifactRepositoryImpl) FindArtifactsByCIPipelineId(artifactsListingFilterOps bean.ArtifactsListFilterOptions) ([]CiArtifact, int, error) {
+func (impl CiArtifactRepositoryImpl) FetchArtifactsForPromotionApprovalNode(artifactsListingFilterOps bean.PromotionArtifactsListingFilterOptions) ([]CiArtifact, int, error) {
 
 	var ciArtifacts []CiArtifact
 	var ciArtifactsResp []CiArtifactWithExtraData
 
-	query := fmt.Sprintf("SELECT cia.*, COUNT(cia.id) OVER() AS total_count FROM ci_artifact cia "+
-		"INNER JOIN ci_pipeline cp ON (cp.id=cia.pipeline_id OR (cp.id=cia.component_id AND cia.data_source='post_ci' ) ) "+
-		"WHERE cp.active=true and cp.id = %v ORDER BY cia.id DESC", artifactsListingFilterOps.CiPipelineId)
+	var query string
+	switch artifactsListingFilterOps.Resource {
+	case string(constants.SOURCE_TYPE_CI):
+
+		impl.logger.Infow("fetching artifacts built on ci", "ciPipelineId", artifactsListingFilterOps.CiPipelineId)
+		query = fmt.Sprintf("SELECT cia.*, COUNT(cia.id) OVER() AS total_count FROM ci_artifact cia "+
+			"INNER JOIN ci_pipeline cp ON (cp.id=cia.pipeline_id OR (cp.id=cia.component_id AND cia.data_source='post_ci' ) ) "+
+			"WHERE cp.active=true and cp.id = %v  ", artifactsListingFilterOps.CiPipelineId)
+
+	case string(constants.SOURCE_TYPE_CD):
+
+		impl.logger.Infow("fetching deployed artifacts on cdPipeline ", "cdPipelineIds", artifactsListingFilterOps.ResourceCdPipelineId)
+		query = fmt.Sprintf(" select cia.*, count(cia.id) over() as total_count from ci_artifact cia where cia.id in "+
+			"( select distinct(cdw.ci_artifact_id) from cd_workflow cdw inner join cd_workflow_runner cdwr ON cdw.id = cdwr.cd_workflow_id and cdw.pipeline_id=%v  and cdwr.workflow_type = 'DEPLOY' and cdwr.status IN ('Healthy','Succeeded')  )", artifactsListingFilterOps.ResourceCdPipelineId)
+
+	case string(constants.SOURCE_TYPE_WEBHOOK):
+
+		impl.logger.Infow("fetching artifacts built on external-ci", "externalCiPipelineId", artifactsListingFilterOps.ExternalCiPipelineId)
+		query = fmt.Sprintf("SELECT cia.*, COUNT(id) OVER() AS total_count FROM ci_artifact cia "+
+			"INNER JOIN external_ci_pipeline excp ON excp.id = cia.external_ci_pipeline_id "+
+			"WHERE excp.active=true and excp.id = %v ", artifactsListingFilterOps.CiPipelineId)
+
+	case string(constants.PROMOTION_APPROVAL_PENDING_NODE):
+		impl.logger.Infow("fetching artifacts for promotionApprovalNode", "destinationCDPipelineId", artifactsListingFilterOps.ResourceCdPipelineId)
+		// TODO: move status to constant
+		if !artifactsListingFilterOps.IsPendingForCurrentUser {
+			query = fmt.Sprintf("SELECT cia.*, COUNT(cia.id) OVER() AS total_count FROM ci_artifact cia"+
+				" where cia.id in (select distinct(artifact_id) from artifact_promotion_approval_request where destination_pipeline_id=%v and status = %d AND active = true) ", artifactsListingFilterOps.ResourceCdPipelineId, constants.AWAITING_APPROVAL)
+		} else {
+			query = fmt.Sprintf("SELECT cia.*, COUNT(cia.id) OVER() AS total_count FROM ci_artifact cia"+
+				" where cia.id in (select distinct(artifact_id) from artifact_promotion_approval_request where destination_pipeline_id IN (%s) and status = %d AND active = true) ", helper.GetCommaSepratedString(artifactsListingFilterOps.ImagePromoterAccessCdPipelineIds), constants.AWAITING_APPROVAL)
+		}
+	}
 
 	if artifactsListingFilterOps.SearchString != EmptyLikeRegex {
-		query = query + fmt.Sprintf(" and ci_artifact.image like '%s' ", artifactsListingFilterOps.SearchString)
+		query = query + fmt.Sprintf(" and cia.image like '%s' ", artifactsListingFilterOps.SearchString)
 	}
-	limitOffSetQuery := fmt.Sprintf(" LIMIT %v OFFSET %v", artifactsListingFilterOps.Limit, artifactsListingFilterOps.Offset)
+	limitOffSetQuery := fmt.Sprintf(" order by cia.id desc LIMIT %v OFFSET %v", artifactsListingFilterOps.Limit, artifactsListingFilterOps.Offset)
 	query = query + limitOffSetQuery
 
 	_, err := impl.dbConnection.Query(&ciArtifactsResp, query)
 	if err != nil {
-		impl.logger.Errorw("error in fetching deployed artifacts for cd pipeline node", "cdPipelineId", artifactsListingFilterOps.PipelineId, "err", err)
+		impl.logger.Errorw("error in fetching deployed artifacts", "err", err)
 		return ciArtifacts, 0, err
 	}
-
-	var totalCount int
-	if len(ciArtifactsResp) > 0 {
-		totalCount = ciArtifactsResp[0].TotalCount
-	}
-	for _, ciArtifact := range ciArtifactsResp {
-		ciArtifacts = append(ciArtifacts, ciArtifact.CiArtifact)
-	}
-	return ciArtifacts, totalCount, nil
-}
-
-func (impl CiArtifactRepositoryImpl) FindArtifactsByExternalCIPipelineId(artifactsListingFilterOps bean.ArtifactsListFilterOptions) ([]CiArtifact, int, error) {
-
-	var ciArtifacts []CiArtifact
-	var ciArtifactsResp []CiArtifactWithExtraData
-
-	query := fmt.Sprintf("SELECT cia.*, COUNT(id) OVER() AS total_count FROM ci_artifact cia "+
-		"INNER JOIN external_ci_pipeline excp ON excp.id = cia.external_ci_pipeline_id "+
-		"WHERE excp.active=true and excp.id = %v ORDER BY cia.id DESC", artifactsListingFilterOps.CiPipelineId)
-
-	if artifactsListingFilterOps.SearchString != EmptyLikeRegex {
-		query = query + fmt.Sprintf(" and ci_artifact.image like '%s' ", artifactsListingFilterOps.SearchString)
-	}
-	limitOffSetQuery := fmt.Sprintf(" order by ci_artifact.id desc LIMIT %v OFFSET %v", artifactsListingFilterOps.Limit, artifactsListingFilterOps.Offset)
-	query = query + limitOffSetQuery
-
-	_, err := impl.dbConnection.Query(&ciArtifactsResp, query)
-	if err != nil {
-		impl.logger.Errorw("error in fetching deployed artifacts for cd pipeline node", "cdPipelineId", artifactsListingFilterOps.PipelineId, "err", err)
-		return ciArtifacts, 0, err
-	}
-
-	var totalCount int
-	if len(ciArtifactsResp) > 0 {
-		totalCount = ciArtifactsResp[0].TotalCount
-	}
-	for _, ciArtifact := range ciArtifactsResp {
-		ciArtifacts = append(ciArtifacts, ciArtifact.CiArtifact)
-	}
-	return ciArtifacts, totalCount, nil
-}
-
-func (impl CiArtifactRepositoryImpl) FindArtifactsPendingForPromotion(cdPipelineIds []int, limit, offset int, imageSearchPattern string) ([]CiArtifact, int, error) {
-
-	var ciArtifacts []CiArtifact
-	var ciArtifactsResp []CiArtifactWithExtraData
-
-	if len(cdPipelineIds) == 0 {
-		return ciArtifacts, 0, nil
-	}
-	// TODO: move status to constant
-	query := fmt.Sprintf("SELECT ci_artifact.*, COUNT(ci_artifact.id) OVER() AS total_count FROM ci_artifact "+
-		" where id in (select distinct(artifact_id) from artifact_promotion_approval_request where destination_pipeline_id IN (%s) and status = 1 AND active = true)", helper.GetCommaSepratedString(cdPipelineIds))
-
-	if imageSearchPattern != EmptyLikeRegex {
-		query = query + fmt.Sprintf(" and ci_artifact.image like '%s' ", imageSearchPattern)
-	}
-	limitOffSetQuery := fmt.Sprintf(" order by ci_artifact.id desc LIMIT %v OFFSET %v", limit, offset)
-	query = query + limitOffSetQuery
-
-	_, err := impl.dbConnection.Query(&ciArtifactsResp, query)
-	if err != nil {
-		impl.logger.Errorw("error in fetching deployed artifacts for cd pipeline node", "cdPipelineId", cdPipelineIds, "err", err)
-		return ciArtifacts, 0, err
-	}
-
 	var totalCount int
 	if len(ciArtifactsResp) > 0 {
 		totalCount = ciArtifactsResp[0].TotalCount

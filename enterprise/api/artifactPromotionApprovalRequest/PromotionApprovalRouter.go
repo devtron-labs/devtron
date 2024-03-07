@@ -23,8 +23,6 @@ func NewRouterImpl(promotionApprovalRequestRestHandler RestHandler,
 func (router *RouterImpl) InitPromotionApprovalRouter(promotionApprovalRouter *mux.Router) {
 	promotionApprovalRouter.Path("").HandlerFunc(router.promotionApprovalRequestRestHandler.HandleArtifactPromotionRequest).
 		Methods("POST")
-	promotionApprovalRouter.Path("").HandlerFunc(router.promotionApprovalRequestRestHandler.GetByPromotionRequestId).Queries("promotionRequestId", "{promotionRequestId}").
-		Methods("GET")
 	promotionApprovalRouter.Path("/env/approval-metadata").HandlerFunc(router.promotionApprovalRequestRestHandler.FetchAwaitingApprovalEnvListForArtifact).
 		Methods("GET")
 	promotionApprovalRouter.Path("/material").HandlerFunc(router.promotionApprovalMaterialRestHandler.GetArtifactsForPromotion).

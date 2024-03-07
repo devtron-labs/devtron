@@ -324,15 +324,7 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowWithImagePromotionMetadata(app
 
 	for _, w := range appWorkflows {
 
-		artifactPromotionMaterialRequest := bean.ArtifactPromotionMaterialRequest{
-			WorkflowId:            w.Id,
-			PendingForCurrentUser: true,
-			Limit:                 1,
-			Offset:                0,
-			UserId:                userId,
-			Token:                 token,
-		}
-		_, totalCount, err := impl.appArtifactManager.FetchArtifactPendingForCurrentUser(artifactPromotionMaterialRequest, imagePromoterAuth)
+		totalCount, err := impl.appArtifactManager.GetPromotionRequestCountPendingForCurrentUser(w.Id, imagePromoterAuth, token)
 		if err != nil {
 			impl.Logger.Errorw("error in fetching appArtifactManager ")
 			return nil, err

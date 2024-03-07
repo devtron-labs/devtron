@@ -122,3 +122,31 @@ type ArtifactsListFilterOptions struct {
 	// UseCdStageQueryV2 is to set query version
 	UseCdStageQueryV2 bool
 }
+
+type PromotionArtifactsListingFilterOptions struct {
+	//list filter data
+
+	Resource string
+
+	Limit        int
+	Offset       int
+	SearchString string
+	Order        string
+
+	//self stage data
+	ResourceCdPipelineId int
+
+	TeamName string
+	TeamId   int
+
+	AppName string
+
+	ImagePromoterAccessCdPipelineIds []int
+
+	// CiPipelineId is id of ci-pipeline present in the same app-workflow of PipelineId
+	CiPipelineId int
+
+	ExternalCiPipelineId int
+
+	IsPendingForCurrentUser bool
+}

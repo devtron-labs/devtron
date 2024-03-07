@@ -1,22 +1,22 @@
 package repository
 
 import (
-	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"time"
 )
 
 type ArtifactPromotionApprovalRequest struct {
-	tableName               struct{}                            `sql:"artifact_promotion_approval_request" pg:",discard_unknown_columns"`
-	Id                      int                                 `sql:"id"`
-	PolicyId                int                                 `sql:"policy_id"`
-	PolicyEvaluationAuditId int                                 `sql:"policy_evaluation_audit_id"`
-	ArtifactId              int                                 `sql:"artifact_id"`
-	SourceType              bean.SourceType                     `sql:"source_type"`
-	SourcePipelineId        int                                 `sql:"source_pipeline_id"`
-	DestinationPipelineId   int                                 `sql:"destination_pipeline_id"`
-	Status                  bean.ArtifactPromotionRequestStatus `sql:"status"`
+	tableName               struct{}                                 `sql:"artifact_promotion_approval_request" pg:",discard_unknown_columns"`
+	Id                      int                                      `sql:"id"`
+	PolicyId                int                                      `sql:"policy_id"`
+	PolicyEvaluationAuditId int                                      `sql:"policy_evaluation_audit_id"`
+	ArtifactId              int                                      `sql:"artifact_id"`
+	SourceType              constants.SourceType                     `sql:"source_type"`
+	SourcePipelineId        int                                      `sql:"source_pipeline_id"`
+	DestinationPipelineId   int                                      `sql:"destination_pipeline_id"`
+	Status                  constants.ArtifactPromotionRequestStatus `sql:"status"`
 	sql.AuditLog
 }
 
@@ -77,7 +77,7 @@ func (repo *RequestRepositoryImpl) FindPendingByDestinationPipelineId(destinatio
 	models := make([]*ArtifactPromotionApprovalRequest, 0)
 	err := repo.dbConnection.Model(&models).
 		Where("destination_pipeline_id = ? ", destinationPipelineId).
-		Where("status = ? ", bean.PROMOTED).
+		Where("status = ? ", constants.PROMOTED).
 		Select()
 	return models, err
 }
@@ -86,7 +86,7 @@ func (repo *RequestRepositoryImpl) FindByDestinationPipelineIds(destinationPipel
 	models := make([]*ArtifactPromotionApprovalRequest, 0)
 	err := repo.dbConnection.Model(&models).
 		Where("destination_pipeline_id IN (?) ", pg.In(destinationPipelineIds)).
-		Where("status = ? ", bean.AWAITING_APPROVAL).
+		Where("status = ? ", constants.AWAITING_APPROVAL).
 		Select()
 	return models, err
 }
@@ -95,7 +95,7 @@ func (repo *RequestRepositoryImpl) FindAwaitedRequestByPipelineIdAndArtifactId(p
 	models := make([]*ArtifactPromotionApprovalRequest, 0)
 	err := repo.dbConnection.Model(&models).
 		Where("destination_pipeline_id = ? ", pipelineId).
-		Where("status = ? ", bean.AWAITING_APPROVAL).
+		Where("status = ? ", constants.AWAITING_APPROVAL).
 		Where("artifact_id = ?", artifactId).
 		Select()
 	return models, err
@@ -104,7 +104,7 @@ func (repo *RequestRepositoryImpl) FindAwaitedRequestByPipelineIdAndArtifactId(p
 func (repo *RequestRepositoryImpl) FindAwaitedRequestByPolicyId(policyId int) ([]*ArtifactPromotionApprovalRequest, error) {
 	models := make([]*ArtifactPromotionApprovalRequest, 0)
 	err := repo.dbConnection.Model(&models).
-		Where("status = ? ", bean.AWAITING_APPROVAL).
+		Where("status = ? ", constants.AWAITING_APPROVAL).
 		Where("policy_id = ?", policyId).
 		Select()
 	return models, err
@@ -114,7 +114,7 @@ func (repo *RequestRepositoryImpl) FindPromotedRequestByPipelineIdAndArtifactId(
 	model := &ArtifactPromotionApprovalRequest{}
 	err := repo.dbConnection.Model(model).
 		Where("destination_pipeline_id = ? ", pipelineId).
-		Where("status = ? ", bean.PROMOTED).
+		Where("status = ? ", constants.PROMOTED).
 		Where("artifact_id = ?", artifactId).
 		Select()
 	return model, err
@@ -127,7 +127,7 @@ func (repo *RequestRepositoryImpl) FindByPipelineIdAndArtifactIds(pipelineId int
 	}
 	err := repo.dbConnection.Model(&model).
 		Where("destination_pipeline_id = ? ", pipelineId).
-		Where("status = ? ", bean.AWAITING_APPROVAL).
+		Where("status = ? ", constants.AWAITING_APPROVAL).
 		Where("artifact_id in (?) ", pg.In(artifactIds)).
 		Select()
 	return model, err
@@ -136,7 +136,7 @@ func (repo *RequestRepositoryImpl) FindByPipelineIdAndArtifactIds(pipelineId int
 func (repo *RequestRepositoryImpl) FindAwaitedRequestsByArtifactId(artifactId int) ([]*ArtifactPromotionApprovalRequest, error) {
 	models := make([]*ArtifactPromotionApprovalRequest, 0)
 	err := repo.dbConnection.Model(&models).
-		Where("status = ? ", bean.AWAITING_APPROVAL).
+		Where("status = ? ", constants.AWAITING_APPROVAL).
 		Where("artifact_id = ?", artifactId).
 		Select()
 	return models, err
@@ -144,30 +144,30 @@ func (repo *RequestRepositoryImpl) FindAwaitedRequestsByArtifactId(artifactId in
 
 func (repo *RequestRepositoryImpl) MarkStaleByIds(tx *pg.Tx, requestIds []int) error {
 	_, err := tx.Model(&ArtifactPromotionApprovalRequest{}).
-		Set("status = ?", bean.STALE).
+		Set("status = ?", constants.STALE).
 		Set("updated_on = ?", time.Now()).
 		Where("id IN (?)", pg.In(requestIds)).
-		Where("status = ? ", bean.AWAITING_APPROVAL).
+		Where("status = ? ", constants.AWAITING_APPROVAL).
 		Update()
 	return err
 }
 
 func (repo *RequestRepositoryImpl) MarkStaleByPolicyId(tx *pg.Tx, policyId int) error {
 	_, err := tx.Model(&ArtifactPromotionApprovalRequest{}).
-		Set("status = ?", bean.STALE).
+		Set("status = ?", constants.STALE).
 		Set("updated_on = ?", time.Now()).
 		Where("policy_id = ?", policyId).
-		Where("status = ? ", bean.AWAITING_APPROVAL).
+		Where("status = ? ", constants.AWAITING_APPROVAL).
 		Update()
 	return err
 }
 
 func (repo *RequestRepositoryImpl) MarkPromoted(tx *pg.Tx, requestIds []int) error {
 	_, err := tx.Model(&ArtifactPromotionApprovalRequest{}).
-		Set("status = ?", bean.PROMOTED).
+		Set("status = ?", constants.PROMOTED).
 		Set("updated_on = ?", time.Now()).
 		Where("id IN (?)", pg.In(requestIds)).
-		Where("status = ? ", bean.AWAITING_APPROVAL).
+		Where("status = ? ", constants.AWAITING_APPROVAL).
 		Update()
 	return err
 }
