@@ -1,4 +1,4 @@
-# Lock Deployment Config
+# Lock Deployment Configuration
 
 ## Introduction [![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg)](https://devtron.ai/pricing)
 
@@ -16,7 +16,7 @@ This stands true for deployment templates in:
 
 The 'protect configuration' feature is meant to verify the edits by introducing an approval flow for any changes made to the configuration files, i.e., Deployment template, ConfigMaps, and Secrets. This is performed at application-level.
 
-Whereas, the 'lock deployment config' feature goes one step further. It is meant to prevent any edits to specific keys by non-super-admins. This applies only to deployment templates and is performed at global-level.
+Whereas, the 'lock deployment configuration' feature goes one step further. It is meant to prevent any edits to specific keys by non-super-admins. This applies only to deployment templates and is performed at global-level.
 
 ---
 
