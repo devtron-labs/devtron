@@ -1003,6 +1003,12 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pi
 		}
 	}
 
+	ciArtifacts, err = impl.setPromotionArtifactMetadata(ciArtifacts, pipeline.Id)
+	if err != nil {
+		impl.logger.Errorw("error in setting promotion artifact metadata for given pipeline", "pipelineId", pipeline.Id, "err", err)
+		return ciArtifactsResponse, err
+	}
+
 	ciArtifactsResponse.CdPipelineId = pipeline.Id
 	ciArtifactsResponse.LatestWfArtifactId = latestWfArtifactId
 	ciArtifactsResponse.LatestWfArtifactStatus = latestWfArtifactStatus
@@ -1326,11 +1332,6 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 			}
 		}
 	}
-	ciArtifacts, err = impl.setPromotionArtifactMetadata(ciArtifacts, listingFilterOpts.PipelineId)
-	if err != nil {
-		impl.logger.Errorw("error in setting promotion artifact metadata for given pipeline", "pipelineId", listingFilterOpts.PipelineId, "err", err)
-		return ciArtifacts, 0, "", totalCount, err
-	}
 	// we don't need currently deployed artifact for approvalNode explicitly
 	// if no artifact deployed skip adding currentRunningArtifactBean in ciArtifacts arr
 	if !isApprovalNode && currentRunningArtifactBean != nil {
@@ -1346,10 +1347,11 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 	return ciArtifacts, currentRunningArtifactId, currentRunningWorkflowStatus, totalCount, nil
 }
 
-func (impl *AppArtifactManagerImpl) setPromotionArtifactMetadata(ciArtifacts []*bean2.CiArtifactBean, cdPipelineId int) ([]*bean2.CiArtifactBean, error) {
-	artifactIds := lo.Map(ciArtifacts, func(item *bean2.CiArtifactBean, index int) int {
-		return item.Id
-	})
+func (impl *AppArtifactManagerImpl) setPromotionArtifactMetadata(ciArtifacts []bean2.CiArtifactBean, cdPipelineId int) ([]bean2.CiArtifactBean, error) {
+	artifactIds := make([]int, 0)
+	for _, ciArtifact := range ciArtifacts {
+		artifactIds = append(artifactIds, ciArtifact.Id)
+	}
 	promotionApprovalArtifactIdToMetadataMap, err := impl.artifactPromotionDataReadService.FetchPromotionApprovalDataForArtifacts(artifactIds, cdPipelineId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching promotion approval metadata for given artifactIds", "err", err)

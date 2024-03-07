@@ -825,7 +825,7 @@ func (impl PipelineRepositoryImpl) FindAppAndEnvDetailsByListFilter(filter CdPip
 		query = query.Where("app_name IN (?)", pg.In(filter.AppNames))
 	}
 
-	if len(filter.AppNames) > 0 {
+	if len(filter.EnvNames) > 0 {
 		query = query.Where("environment_name IN (?)", pg.In(filter.EnvNames))
 	}
 
