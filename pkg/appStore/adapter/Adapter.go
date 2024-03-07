@@ -8,7 +8,8 @@ import (
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
-	"github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
+	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
+	clutserBean "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
 )
 
 // NewInstallAppModel is used to generate new repository.InstalledApps model to be saved;
@@ -114,22 +115,9 @@ func GenerateInstallAppVersionDTO(chart *repository.InstalledApps, installedAppV
 		Username = chartVersionApp.AppStore.DockerArtifactStore.Username
 		Password = chartVersionApp.AppStore.DockerArtifactStore.Password
 	}
-
-	return &appStoreBean.InstallAppVersionDTO{
-		EnvironmentId:     chart.EnvironmentId,
-		AppId:             chart.AppId,
-		TeamId:            chart.App.TeamId,
-		TeamName:          chart.App.Team.Name,
-		AppOfferingMode:   chart.App.AppOfferingMode,
-		ClusterId:         chart.Environment.ClusterId,
-		Namespace:         chart.Environment.Namespace,
-		AppName:           chart.App.AppName,
-		EnvironmentName:   chart.Environment.Name,
-		InstalledAppId:    chart.Id,
-		DeploymentAppType: chart.DeploymentAppType,
-
-		Id:                    installedAppVersion.Id,
-		InstalledAppVersionId: installedAppVersion.Id,
+	envBean := adapter.NewEnvironmentBean(&chart.Environment)
+	installAppDto := &appStoreBean.InstallAppVersionDTO{
+		TeamName: chart.App.Team.Name,
 		InstallAppVersionChartDTO: &appStoreBean.InstallAppVersionChartDTO{
 			AppStoreChartId: chartVersionApp.AppStore.Id,
 			ChartName:       chartVersionApp.Name,
@@ -141,8 +129,12 @@ func GenerateInstallAppVersionDTO(chart *repository.InstalledApps, installedAppV
 				Password: Password,
 			},
 		},
-		AppStoreApplicationVersionId: installedAppVersion.AppStoreApplicationVersionId,
 	}
+	UpdateInstallAppDetails(installAppDto, chart)
+	UpdateInstalledAppVersionsMetaData(installAppDto, installedAppVersion)
+	UpdateAppDetails(installAppDto, &chart.App)
+	UpdateAdditionalEnvDetails(installAppDto, envBean)
+	return installAppDto
 }
 
 // GenerateInstallAppVersionMinDTO converts repository.InstalledApps db object to appStoreBean.InstallAppVersionDTO bean;
@@ -191,7 +183,7 @@ func UpdateInstalledAppVersionModel(model *repository.InstalledAppVersions, requ
 }
 
 // UpdateAdditionalEnvDetails update cluster.EnvironmentBean data into the same InstallAppVersionDTO
-func UpdateAdditionalEnvDetails(request *appStoreBean.InstallAppVersionDTO, envBean *bean.EnvironmentBean) {
+func UpdateAdditionalEnvDetails(request *appStoreBean.InstallAppVersionDTO, envBean *clutserBean.EnvironmentBean) {
 	if request == nil {
 		return
 	}
@@ -236,6 +228,16 @@ func UpdateAppStoreApplicationDetails(request *appStoreBean.InstallAppVersionDTO
 	request.AppStoreName = appStoreApplicationVersion.AppStore.Name
 	request.Deprecated = appStoreApplicationVersion.Deprecated
 	request.Readme = appStoreApplicationVersion.Readme
+}
+
+// UpdateInstalledAppVersionsMetaData update repository.InstalledAppVersions meta data (excluding values.yaml and preset values mapping) into the same InstallAppVersionDTO
+func UpdateInstalledAppVersionsMetaData(request *appStoreBean.InstallAppVersionDTO, installedAppVersion *repository.InstalledAppVersions) {
+	if request == nil {
+		return
+	}
+	request.Id = installedAppVersion.Id
+	request.InstalledAppVersionId = installedAppVersion.Id
+	request.AppStoreApplicationVersionId = installedAppVersion.AppStoreApplicationVersionId
 }
 
 func getHelmReleaseStatusConfig(helmInstallConfigDTO appStoreBean.HelmReleaseStatusConfig) (string, error) {
