@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"fmt"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
@@ -43,6 +44,7 @@ type RequestRepository interface {
 	FindPromotedRequestByPipelineIdAndArtifactId(pipelineId, artifactId int) (*ArtifactPromotionApprovalRequest, error)
 	FindByPipelineIdAndArtifactIds(pipelineId int, artifactIds []int) ([]*ArtifactPromotionApprovalRequest, error)
 	FindAwaitedRequestsByArtifactId(artifactId int) ([]*ArtifactPromotionApprovalRequest, error)
+	FindRequestsByArtifactIdAndEnvName(artifactId int, environmentName string, status constants.ArtifactPromotionRequestStatus) ([]*ArtifactPromotionApprovalRequest, error)
 	FindAwaitedRequestByPolicyId(policyId int) ([]*ArtifactPromotionApprovalRequest, error)
 	MarkStaleByIds(tx *pg.Tx, requestIds []int) error
 	MarkStaleByPolicyId(tx *pg.Tx, policyId int) error
@@ -139,6 +141,20 @@ func (repo *RequestRepositoryImpl) FindAwaitedRequestsByArtifactId(artifactId in
 		Where("status = ? ", constants.AWAITING_APPROVAL).
 		Where("artifact_id = ?", artifactId).
 		Select()
+	return models, err
+}
+
+func (repo *RequestRepositoryImpl) FindRequestsByArtifactIdAndEnvName(artifactId int, environmentName string, status constants.ArtifactPromotionRequestStatus) ([]*ArtifactPromotionApprovalRequest, error) {
+	models := make([]*ArtifactPromotionApprovalRequest, 0)
+
+	query := fmt.Sprintf("select * from artifact_promotion_approval_request apar"+
+		" inner join pipeline p on apar.destination_pipeline_id=p.id "+
+		"inner join environment e on p.environment_id=e.id where apar.status = %d and apar.artifact_id = %d ", status, artifactId)
+
+	if len(environmentName) > 0 {
+		query = query + fmt.Sprintf("and e.environment_name = '%s'", environmentName)
+	}
+	_, err := repo.dbConnection.Query(&models, query)
 	return models, err
 }
 

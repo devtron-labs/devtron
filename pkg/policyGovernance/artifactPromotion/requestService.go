@@ -1005,7 +1005,7 @@ func (impl *ApprovalRequestServiceImpl) FetchApprovalAllowedEnvList(artifactId i
 		return nil, util.NewApiError().WithHttpStatusCode(http.StatusUnprocessableEntity).WithUserMessage("artifact not found for given id").WithInternalMessage("artifact not found for given id")
 	}
 
-	promotionRequests, err := impl.artifactPromotionApprovalRequestRepository.FindAwaitedRequestsByArtifactId(artifactId)
+	promotionRequests, err := impl.artifactPromotionApprovalRequestRepository.FindRequestsByArtifactIdAndEnvName(artifactId, environmentName, constants.AWAITING_APPROVAL)
 	if err != nil {
 		impl.logger.Errorw("error in finding promotion requests in awaiting state for given artifactId ")
 		return nil, err
@@ -1033,15 +1033,20 @@ func (impl *ApprovalRequestServiceImpl) FetchApprovalAllowedEnvList(artifactId i
 		pipelineIdMap[pipelineDao.Id] = pipelineDao
 	}
 
+	//envIds := make([]int, len(pipelines))
+	//for i, p := range pipelines {
+	//	envIds[i] = p.EnvironmentId
+	//}
+	//
+	//policies, err := impl.promotionPolicyDataReadService.GetPromotionPolicyByAppAndEnvIds(pipelines[0].AppId, envIds)
+	//if err != nil {
+	//	impl.logger.Errorw("error in fetching policies by appId and envIds", "appId", pipelines[0].AppId, "envIds", envIds, "err", err)
+	//	return nil, err
+	//}
+
 	for _, request := range promotionRequests {
 
 		pipelineDao := pipelineIdMap[request.DestinationPipelineId]
-
-		if len(environmentName) > 0 {
-			if pipelineDao.Environment.Name != environmentName {
-				continue
-			}
-		}
 
 		environmentMetadata := bean.EnvironmentApprovalMetadata{
 			Name:            pipelineDao.Environment.Name,
@@ -1075,20 +1080,6 @@ func (impl *ApprovalRequestServiceImpl) FetchApprovalAllowedEnvList(artifactId i
 		environmentApprovalMetadata = append(environmentApprovalMetadata, environmentMetadata)
 	}
 	return environmentApprovalMetadata, nil
-}
-
-func (impl *ApprovalRequestServiceImpl) getPipelineIdToDaoMapping(environmentName string, pipelines []*pipelineConfig.Pipeline) map[int]*pipelineConfig.Pipeline {
-	pipelineIdMap := make(map[int]*pipelineConfig.Pipeline)
-	for _, pipelineDao := range pipelines {
-		if len(environmentName) > 0 {
-			if pipelineDao.Environment.Name == environmentName {
-				pipelineIdMap[pipelineDao.Id] = pipelineDao
-			}
-		} else {
-			pipelineIdMap[pipelineDao.Id] = pipelineDao
-		}
-	}
-	return pipelineIdMap
 }
 
 func (impl *ApprovalRequestServiceImpl) onPolicyDelete(tx *pg.Tx, policyId int) error {
