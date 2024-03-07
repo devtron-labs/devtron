@@ -235,7 +235,7 @@ spec:
             - name: envoy-config-volume
               mountPath: /etc/envoy-config/
         - name: dashboard
-          image: "quay.io/devtron/dashboard:9cb9e1a6-325-21493"
+          image: "quay.io/devtron/dashboard:12966aff-325-21509"
           imagePullPolicy: IfNotPresent
           securityContext:
             allowPrivilegeEscalation: false
