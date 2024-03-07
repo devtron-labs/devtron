@@ -19,9 +19,8 @@ type PolicyCUDService interface {
 	UpdatePolicy(userId int32, policyName string, policyBean *bean.PromotionPolicy) error
 	CreatePolicy(userId int32, policyBean *bean.PromotionPolicy) error
 	DeletePolicy(userId int32, profileName string) error
-	// todo: remove pre
-	AddPreDeleteHook(hook func(tx *pg.Tx, policyId int) error)
-	AddPreUpdateHook(hook func(tx *pg.Tx, policy *bean.PromotionPolicy) error)
+	AddDeleteHook(hook func(tx *pg.Tx, policyId int) error)
+	AddUpdateHook(hook func(tx *pg.Tx, policy *bean.PromotionPolicy) error)
 }
 
 type PromotionPolicyServiceImpl struct {
@@ -31,7 +30,6 @@ type PromotionPolicyServiceImpl struct {
 	logger                          *zap.SugaredLogger
 
 	// hooks
-	// todo: remove pre
 	preDeleteHooks []func(tx *pg.Tx, policyId int) error
 	preUpdateHooks []func(tx *pg.Tx, policy *bean.PromotionPolicy) error
 }
@@ -54,11 +52,11 @@ func NewPromotionPolicyServiceImpl(globalPolicyDataManager globalPolicy.GlobalPo
 	}
 }
 
-func (impl *PromotionPolicyServiceImpl) AddPreDeleteHook(hook func(tx *pg.Tx, policyId int) error) {
+func (impl *PromotionPolicyServiceImpl) AddDeleteHook(hook func(tx *pg.Tx, policyId int) error) {
 	impl.preDeleteHooks = append(impl.preDeleteHooks, hook)
 }
 
-func (impl *PromotionPolicyServiceImpl) AddPreUpdateHook(hook func(tx *pg.Tx, policy *bean.PromotionPolicy) error) {
+func (impl *PromotionPolicyServiceImpl) AddUpdateHook(hook func(tx *pg.Tx, policy *bean.PromotionPolicy) error) {
 	impl.preUpdateHooks = append(impl.preUpdateHooks, hook)
 }
 
@@ -82,6 +80,7 @@ func (impl *PromotionPolicyServiceImpl) UpdatePolicy(userId int32, policyName st
 		}
 		return err
 	}
+	policyBean.Id = policyId
 
 	// todo: create a transaction manager
 	tx, err := impl.resourceQualifierMappingService.StartTx()
@@ -90,14 +89,6 @@ func (impl *PromotionPolicyServiceImpl) UpdatePolicy(userId int32, policyName st
 		return err
 	}
 	defer impl.resourceQualifierMappingService.RollbackTx(tx)
-	policyBean.Id = policyId
-	for _, hook := range impl.preUpdateHooks {
-		err = hook(tx, policyBean)
-		if err != nil {
-			impl.logger.Errorw("error in running pre update hook ", "policyName", policyName, "err", err)
-			return err
-		}
-	}
 	_, err = impl.globalPolicyDataManager.UpdatePolicyByName(tx, policyName, globalPolicyDataModel)
 	if err != nil {
 		statusCode := http.StatusInternalServerError
@@ -109,6 +100,14 @@ func (impl *PromotionPolicyServiceImpl) UpdatePolicy(userId int32, policyName st
 			HttpStatusCode:  statusCode,
 			InternalMessage: err.Error(),
 			UserMessage:     err.Error(),
+		}
+	}
+
+	for _, hook := range impl.preUpdateHooks {
+		err = hook(tx, policyBean)
+		if err != nil {
+			impl.logger.Errorw("error in running pre update hook ", "policyName", policyName, "err", err)
+			return err
 		}
 	}
 
@@ -164,20 +163,18 @@ func (impl *PromotionPolicyServiceImpl) DeletePolicy(userId int32, policyName st
 		return err
 	}
 
-	// todo: move it to post delete
+	defer impl.resourceQualifierMappingService.RollbackTx(tx)
+	err = impl.globalPolicyDataManager.DeletePolicyByName(tx, policyName, userId)
+	if err != nil {
+		impl.logger.Errorw("error in deleting the promotion policy using name", "policyName", policyName, "userId", userId, "err", err)
+		return err
+	}
 	for _, hook := range impl.preDeleteHooks {
 		err = hook(tx, policyId)
 		if err != nil {
 			impl.logger.Errorw("error in running pre delete hook ", "policyName", policyName, "err", err)
 			return err
 		}
-	}
-
-	defer impl.resourceQualifierMappingService.RollbackTx(tx)
-	err = impl.globalPolicyDataManager.DeletePolicyByName(tx, policyName, userId)
-	if err != nil {
-		impl.logger.Errorw("error in deleting the promotion policy using name", "policyName", policyName, "userId", userId, "err", err)
-		return err
 	}
 	err = impl.resourceQualifierMappingService.CommitTx(tx)
 	if err != nil {

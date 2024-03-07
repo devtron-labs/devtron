@@ -96,8 +96,8 @@ func NewApprovalRequestServiceImpl(
 	}
 
 	// register hooks
-	promotionPolicyCUDService.AddPreDeleteHook(artifactApprovalService.onPolicyDelete)
-	promotionPolicyCUDService.AddPreUpdateHook(artifactApprovalService.onPolicyUpdate)
+	promotionPolicyCUDService.AddDeleteHook(artifactApprovalService.onPolicyDelete)
+	promotionPolicyCUDService.AddUpdateHook(artifactApprovalService.onPolicyUpdate)
 	return artifactApprovalService
 }
 
@@ -1176,7 +1176,7 @@ func (impl *ApprovalRequestServiceImpl) onPolicyUpdate(tx *pg.Tx, policy *bean.P
 	// get all the artifacts using request.artifactId
 	// re-evaluate the artifacts using the policy
 
-	requestsToBeUpdatedAsStaled, err := impl.evaluatePolicyOnRequests(tx, policy, artifactsMap, existingRequests)
+	requestsToBeUpdatedAsStaled, err := impl.reEvaluatePolicyAndUpdateRequests(tx, policy, artifactsMap, existingRequests)
 	if err != nil {
 		return err
 	}
@@ -1188,7 +1188,7 @@ func (impl *ApprovalRequestServiceImpl) onPolicyUpdate(tx *pg.Tx, policy *bean.P
 	return err
 }
 
-func (impl *ApprovalRequestServiceImpl) evaluatePolicyOnRequests(tx *pg.Tx, policy *bean.PromotionPolicy, artifactsMap map[int]*repository2.CiArtifact, existingRequests []*repository.ArtifactPromotionApprovalRequest) ([]*repository.ArtifactPromotionApprovalRequest, error) {
+func (impl *ApprovalRequestServiceImpl) reEvaluatePolicyAndUpdateRequests(tx *pg.Tx, policy *bean.PromotionPolicy, artifactsMap map[int]*repository2.CiArtifact, existingRequests []*repository.ArtifactPromotionApprovalRequest) ([]*repository.ArtifactPromotionApprovalRequest, error) {
 	requestsToBeUpdatedAsStaled := make([]*repository.ArtifactPromotionApprovalRequest, 0, len(existingRequests))
 	for _, request := range existingRequests {
 		artifact := artifactsMap[request.ArtifactId]
