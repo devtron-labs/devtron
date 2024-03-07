@@ -80,24 +80,50 @@ const (
 	APPROVER_COUNT_SEARCH_FIELD SearchableField = "approver_count"
 )
 
-const ARTIFACT_ALREADY_PROMOTED PromotionValidationState = "already promoted"
-const ALREADY_REQUEST_RAISED PromotionValidationState = "promotion request already raised"
-const ERRORED PromotionValidationState = "error occurred"
-const EMPTY PromotionValidationState = ""
-const PIPELINE_NOT_FOUND PromotionValidationState = "pipeline Not Found"
-const POLICY_NOT_CONFIGURED PromotionValidationState = "policy not configured"
-const NO_PERMISSION PromotionValidationState = "no permission"
-const PROMOTION_SUCCESSFUL PromotionValidationState = "image promoted"
-const SENT_FOR_APPROVAL PromotionValidationState = "sent for approval"
-const SOURCE_AND_DESTINATION_PIPELINE_MISMATCH PromotionValidationState = "source and destination pipeline order mismatch"
-const POLICY_EVALUATION_ERRORED PromotionValidationState = "server unable to evaluate the policy"
-const BLOCKED_BY_POLICY PromotionValidationState = "blocked by the policy "
-const APPROVED PromotionValidationState = "approved"
-
 type PromotionValidationState string
 
-const ALREADY_APPROVED PromotionValidationState = "you have already approved this"
-const ERRORED_APPROVAL PromotionValidationState = "error occurred in submitting the approval"
+const INFO PromotionValidationState = "INFO"
+const PENDING PromotionValidationState = "PENDING"
+const SUCCESS PromotionValidationState = "SUCCESS"
+const ERROR PromotionValidationState = "ERROR"
+
+type PromotionValidationMsg string
+
+// info msgs
+const ARTIFACT_ALREADY_PROMOTED PromotionValidationMsg = "already promoted"
+const ALREADY_REQUEST_RAISED PromotionValidationMsg = "promotion request already raised"
+const ALREADY_APPROVED PromotionValidationMsg = "you have already approved this"
+
+// error messages
+const ERRORED PromotionValidationMsg = "error occurred"
+const PIPELINE_NOT_FOUND PromotionValidationMsg = "pipeline Not Found"
+const POLICY_NOT_CONFIGURED PromotionValidationMsg = "policy not configured"
+const NO_PERMISSION PromotionValidationMsg = "no permission"
+const SOURCE_AND_DESTINATION_PIPELINE_MISMATCH PromotionValidationMsg = "source and destination pipeline order mismatch"
+const POLICY_EVALUATION_ERRORED PromotionValidationMsg = "server unable to evaluate the policy"
+const BLOCKED_BY_POLICY PromotionValidationMsg = "blocked by the policy "
+const ERRORED_APPROVAL PromotionValidationMsg = "error occurred in submitting the approval"
+
+const SENT_FOR_APPROVAL PromotionValidationMsg = "sent for approval"
+
+const APPROVED PromotionValidationMsg = "approved"
+const PROMOTION_SUCCESSFUL PromotionValidationMsg = "image promoted"
+const EMPTY PromotionValidationMsg = ""
+
+func (pvm PromotionValidationMsg) GetValidationState() PromotionValidationState {
+	switch pvm {
+	case ARTIFACT_ALREADY_PROMOTED, ALREADY_REQUEST_RAISED, ALREADY_APPROVED:
+		return INFO
+	case ERRORED_APPROVAL, BLOCKED_BY_POLICY, POLICY_EVALUATION_ERRORED, SOURCE_AND_DESTINATION_PIPELINE_MISMATCH, POLICY_NOT_CONFIGURED, PIPELINE_NOT_FOUND, ERRORED:
+		return ERROR
+	case SENT_FOR_APPROVAL:
+		return PENDING
+	case APPROVED, PROMOTION_SUCCESSFUL, EMPTY:
+		return SUCCESS
+	default:
+		return ERROR
+	}
+}
 
 const BUILD_TRIGGER_USER_CANNOT_APPROVE_MSG = "User who has built the image cannot approve promotion request for this environment"
 const PROMOTION_REQUESTED_BY_USER_CANNOT_APPROVE_MSG = "User who has raised the promotion request cannot approve for this environment"

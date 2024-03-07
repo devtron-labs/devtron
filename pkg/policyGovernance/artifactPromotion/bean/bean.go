@@ -74,8 +74,8 @@ type PromotionApprovalUserData struct {
 type EnvironmentPromotionMetaData struct {
 	Name                       string                         `json:"name"` // environment name
 	ApprovalCount              int                            `json:"approvalCount,omitempty"`
-	PromotionValidationMessage string                         `json:"promotionEvaluationMessage"`
 	PromotionValidationState   bean2.PromotionValidationState `json:"promotionEvaluationState"`
+	PromotionValidationMessage bean2.PromotionValidationMsg   `json:"promotionEvaluationMessage"`
 	PromotionPossible          bool                           `json:"promotionPossible"`
 	IsVirtualEnvironment       bool                           `json:"isVirtualEnvironment"`
 }
