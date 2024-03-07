@@ -172,7 +172,7 @@ func (handler *RestHandlerImpl) FetchAwaitingApprovalEnvListForArtifact(w http.R
 
 	environmentName := queryParams.Get("environmentName")
 
-	environmentApprovalMetadata, err := handler.promotionApprovalRequestService.FetchApprovalAllowedEnvList(artifactId, environmentName, userId, token, handler.CheckImagePromoterAuth)
+	environmentApprovalMetadata, err := handler.promotionApprovalRequestService.FetchApprovalAllowedEnvList(artifactId, environmentName, userId, token, handler.CheckImagePromoterBulkAuth)
 	if err != nil {
 		handler.logger.Errorw("error in fetching environments with pending approval for artifact", "artifactId", artifactId, "err", err)
 		return
@@ -369,6 +369,10 @@ func (handler *RestHandlerImpl) CheckImagePromoterAuth(token string, object stri
 		return false
 	}
 	return true
+}
+
+func (handler *RestHandlerImpl) CheckImagePromoterBulkAuth(token string, object []string) map[string]bool {
+	return handler.enforcer.EnforceInBatch(token, casbin.ResourceApprovalPolicy, casbin.ActionArtifactPromote, object)
 }
 
 func (handler *RestHandlerImpl) FetchEnvironmentsList(w http.ResponseWriter, r *http.Request) {

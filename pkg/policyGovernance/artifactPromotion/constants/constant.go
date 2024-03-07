@@ -98,3 +98,7 @@ type PromotionValidationState string
 
 const ALREADY_APPROVED PromotionValidationState = "you have already approved this"
 const ERRORED_APPROVAL PromotionValidationState = "error occurred in submitting the approval"
+
+const BUILD_TRIGGER_USER_CANNOT_APPROVE_MSG = "User who has built the image cannot approve promotion request for this environment"
+const PROMOTION_REQUESTED_BY_USER_CANNOT_APPROVE_MSG = "User who has raised the promotion request cannot approve for this environment"
+const USER_DOES_NOT_HAVE_ARTIFACT_PROMOTER_ACCESS = "user does not have image promoter access for given app and env"

@@ -868,7 +868,7 @@ func (impl CiArtifactRepositoryImpl) FindCiArtifactByImagePaths(images []string)
 func (impl CiArtifactRepositoryImpl) FindArtifactsCountPendingForPromotionByPipelineIds(pipelineIds []int) (int, error) {
 	var count int
 	query := fmt.Sprintf("SELECT COUNT(ci_artifact.id) FROM ci_artifact "+
-		" where id in (select distinct(artifact_id) from artifact_promotion_approval_request where destination_pipeline_id IN (%s) and status = 1 AND active = true)", helper.GetCommaSepratedString(pipelineIds))
+		" where id in (select distinct(artifact_id) from artifact_promotion_approval_request where destination_pipeline_id IN (%s) and status = 1)", helper.GetCommaSepratedString(pipelineIds))
 	_, err := impl.dbConnection.Query(&count, query)
 	if err != nil {
 		impl.logger.Errorw("error in fetching deployed artifacts for cd pipeline node", "cdPipelineIds", pipelineIds, "err", err)
@@ -909,10 +909,10 @@ func (impl CiArtifactRepositoryImpl) FetchArtifactsForPromotionApprovalNode(arti
 		// TODO: move status to constant
 		if !artifactsListingFilterOps.IsPendingForCurrentUser {
 			query = fmt.Sprintf("SELECT cia.*, COUNT(cia.id) OVER() AS total_count FROM ci_artifact cia"+
-				" where cia.id in (select distinct(artifact_id) from artifact_promotion_approval_request where destination_pipeline_id=%v and status = %d AND active = true) ", artifactsListingFilterOps.ResourceCdPipelineId, constants.AWAITING_APPROVAL)
+				" where cia.id in (select distinct(artifact_id) from artifact_promotion_approval_request where destination_pipeline_id=%v and status = %d ) ", artifactsListingFilterOps.ResourceCdPipelineId, constants.AWAITING_APPROVAL)
 		} else {
 			query = fmt.Sprintf("SELECT cia.*, COUNT(cia.id) OVER() AS total_count FROM ci_artifact cia"+
-				" where cia.id in (select distinct(artifact_id) from artifact_promotion_approval_request where destination_pipeline_id IN (%s) and status = %d AND active = true) ", helper.GetCommaSepratedString(artifactsListingFilterOps.ImagePromoterAccessCdPipelineIds), constants.AWAITING_APPROVAL)
+				" where cia.id in (select distinct(artifact_id) from artifact_promotion_approval_request where destination_pipeline_id IN (%s) and status = %d ) ", helper.GetCommaSepratedString(artifactsListingFilterOps.ImagePromoterAccessCdPipelineIds), constants.AWAITING_APPROVAL)
 		}
 	}
 
