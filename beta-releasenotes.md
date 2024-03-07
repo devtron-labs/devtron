@@ -1,4 +1,5 @@
 ## Bugs
+- fix: git material url sanitised (#4742)
 - fix: customTagService missing in workflowdagexec (#4741)
 - fix: packages synced (#4743)
 - fix: wrong registry creds is used in CD stage (PRE/POST) (#4717)
