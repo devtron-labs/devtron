@@ -33,7 +33,7 @@ type MaterialRestHandler interface {
 }
 
 type RestHandlerImpl struct {
-	promotionApprovalRequestService            artifactPromotion2.ArtifactPromotionApprovalService
+	promotionApprovalRequestService            artifactPromotion2.ApprovalRequestService
 	logger                                     *zap.SugaredLogger
 	userService                                user.UserService
 	enforcer                                   casbin.Enforcer
@@ -41,20 +41,20 @@ type RestHandlerImpl struct {
 	userCommonService                          user.UserCommonService
 	enforcerUtil                               rbac.EnforcerUtil
 	environmentRepository                      repository.EnvironmentRepository
-	artifactPromotionApprovalRequestRepository repository2.ArtifactPromotionApprovalRequestRepository
+	artifactPromotionApprovalRequestRepository repository2.RequestRepository
 	appArtifactManager                         pipeline.AppArtifactManager
 	CiArtifactRepository                       repository3.CiArtifactRepository
 }
 
 func NewRestHandlerImpl(
-	promotionApprovalRequestService artifactPromotion2.ArtifactPromotionApprovalService,
+	promotionApprovalRequestService artifactPromotion2.ApprovalRequestService,
 	logger *zap.SugaredLogger,
 	userService user.UserService,
 	validator *validator.Validate,
 	userCommonService user.UserCommonService,
 	enforcerUtil rbac.EnforcerUtil,
 	environmentRepository repository.EnvironmentRepository,
-	artifactPromotionApprovalRequestRepository repository2.ArtifactPromotionApprovalRequestRepository,
+	artifactPromotionApprovalRequestRepository repository2.RequestRepository,
 	appArtifactManager pipeline.AppArtifactManager,
 	enforcer casbin.Enforcer,
 ) *RestHandlerImpl {
@@ -72,7 +72,7 @@ func NewRestHandlerImpl(
 	}
 }
 
-func (handler RestHandlerImpl) HandleArtifactPromotionRequest(w http.ResponseWriter, r *http.Request) {
+func (handler *RestHandlerImpl) HandleArtifactPromotionRequest(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if err != nil || userId == 0 {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -96,47 +96,18 @@ func (handler RestHandlerImpl) HandleArtifactPromotionRequest(w http.ResponseWri
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	promotionRequest.UserId = userId
 
 	authorizedEnvironments := make(map[string]bool)
 
 	switch promotionRequest.Action {
 	case constants.ACTION_PROMOTE:
 
-		appName := promotionRequest.AppName
-		appRbacObject := handler.enforcerUtil.GetAppRBACName(appName)
-		ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, appRbacObject)
-		if !ok {
-			common.WriteJsonResp(w, err, nil, http.StatusForbidden)
-			return
-		}
+		authorizedEnvironments = handler.promoteActionRbac(token, promotionRequest.AppName, promotionRequest.EnvironmentNames)
 
-		environmentNames := promotionRequest.EnvironmentNames
-		envRbacObjectMap := handler.enforcerUtil.GetEnvRBACByAppNameAndEnvNames(appName, environmentNames)
-		envObjectArr := make([]string, 0)
-		for _, obj := range envRbacObjectMap {
-			envObjectArr = append(envObjectArr, obj)
-		}
-		results := handler.enforcer.EnforceInBatch(token, casbin.ResourceEnvironment, casbin.ActionTrigger, envObjectArr)
-		for _, env := range environmentNames {
-			rbacObject := envRbacObjectMap[env]
-			isAuthorised = results[rbacObject]
-			authorizedEnvironments[env] = isAuthorised
-		}
+	case bean.ACTION_APPROVE:
 
-	case constants.ACTION_APPROVE:
-		appName := promotionRequest.AppName
-		environmentNames := promotionRequest.EnvironmentNames
-		teamEnvRbacObjectMap := handler.enforcerUtil.GetTeamEnvRbacObjByAppAndEnvNames(appName, environmentNames)
-		teamEnvObjectArr := make([]string, 0)
-		for _, obj := range teamEnvRbacObjectMap {
-			teamEnvObjectArr = append(teamEnvObjectArr, obj)
-		}
-		results := handler.enforcer.EnforceInBatch(token, casbin.ResourceApprovalPolicy, casbin.ActionArtifactPromote, teamEnvObjectArr)
-		for _, env := range environmentNames {
-			rbacObject := teamEnvRbacObjectMap[env]
-			isAuthorised = results[rbacObject]
-			authorizedEnvironments[env] = isAuthorised
-		}
+		authorizedEnvironments = handler.approveActionRbac(token, promotionRequest.AppName, promotionRequest.EnvironmentNames)
 
 	case constants.ACTION_CANCEL:
 		// get this info from service layer
@@ -166,12 +137,12 @@ func (handler RestHandlerImpl) HandleArtifactPromotionRequest(w http.ResponseWri
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
 
-func (handler RestHandlerImpl) getAppAndEnvObjectByCdPipelineId(cdPipelineId int) (string, string) {
+func (handler *RestHandlerImpl) getAppAndEnvObjectByCdPipelineId(cdPipelineId int) (string, string) {
 	object := handler.enforcerUtil.GetAppAndEnvObjectByPipelineIds([]int{cdPipelineId})
 	rbacObjects := object[cdPipelineId]
 	return rbacObjects[0], rbacObjects[1]
 }
-func (handler RestHandlerImpl) FetchAwaitingApprovalEnvListForArtifact(w http.ResponseWriter, r *http.Request) {
+func (handler *RestHandlerImpl) FetchAwaitingApprovalEnvListForArtifact(w http.ResponseWriter, r *http.Request) {
 
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if err != nil || userId == 0 {
@@ -376,7 +347,7 @@ func (handler *RestHandlerImpl) validatePromotionMaterialRequest(w http.Response
 	return true
 }
 
-func (handler RestHandlerImpl) checkTriggerAccessForAnyEnv(token string, appId int) bool {
+func (handler *RestHandlerImpl) checkTriggerAccessForAnyEnv(token string, appId int) bool {
 
 	appObj := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, appObj); !ok {
@@ -393,14 +364,14 @@ func (handler RestHandlerImpl) checkTriggerAccessForAnyEnv(token string, appId i
 	return false
 }
 
-func (handler RestHandlerImpl) CheckImagePromoterAuth(token string, object string) bool {
+func (handler *RestHandlerImpl) CheckImagePromoterAuth(token string, object string) bool {
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApprovalPolicy, casbin.ActionArtifactPromote, object); !ok {
 		return false
 	}
 	return true
 }
 
-func (handler RestHandlerImpl) FetchEnvironmentsList(w http.ResponseWriter, r *http.Request) {
+func (handler *RestHandlerImpl) FetchEnvironmentsList(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if err != nil || userId == 0 {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -427,43 +398,48 @@ func (handler RestHandlerImpl) FetchEnvironmentsList(w http.ResponseWriter, r *h
 		return
 	}
 
-	wfMeta, err := handler.promotionApprovalRequestService.GetAppAndEnvsMapByWorkflowId(workflowId)
+	resp, err := handler.promotionApprovalRequestService.FetchWorkflowPromoteNodeList(token, workflowId, artifactId, handler.promoteActionRbac)
 	if err != nil {
-		handler.logger.Errorw("error in finding app and env details using workflowId", "workflowId", workflowId, "err", err)
-		common.WriteJsonResp(w, errors.New("error in finding application and environment details for the workflow"), nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 
-	appRbacObject := handler.enforcerUtil.GetAppRBACName(wfMeta.AppName)
+}
+
+func (handler *RestHandlerImpl) promoteActionRbac(token, appName string, envNames []string) map[string]bool {
+	appRbacObject := handler.enforcerUtil.GetAppRBACName(appName)
 	ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, appRbacObject)
 	if !ok {
-		common.WriteJsonResp(w, err, nil, http.StatusForbidden)
-		return
+		return nil
 	}
 
-	// todo: extractout this rbac logic into a method
-	environmentNames := make([]string, 0, len(wfMeta.EnvMap))
-	for envName, _ := range wfMeta.EnvMap {
-		environmentNames = append(environmentNames, envName)
-	}
-	envRbacObjectMap := handler.enforcerUtil.GetEnvRBACByAppNameAndEnvNames(wfMeta.AppName, environmentNames)
+	envRbacObjectMap := handler.enforcerUtil.GetEnvRBACByAppNameAndEnvNames(appName, envNames)
 	envObjectArr := make([]string, 0)
 	for _, obj := range envRbacObjectMap {
 		envObjectArr = append(envObjectArr, obj)
 	}
 	authorizedEnvironments := make(map[string]bool)
 	results := handler.enforcer.EnforceInBatch(token, casbin.ResourceEnvironment, casbin.ActionTrigger, envObjectArr)
-	for _, env := range environmentNames {
+	for _, env := range envNames {
 		rbacObject := envRbacObjectMap[env]
 		authorizedEnvironments[env] = results[rbacObject]
 	}
+	return authorizedEnvironments
+}
 
-	resp, err := handler.promotionApprovalRequestService.FetchEnvironmentsList(wfMeta.EnvMap, wfMeta.AppId, wfMeta.AppName, authorizedEnvironments, artifactId)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
+func (handler *RestHandlerImpl) approveActionRbac(token, appName string, environmentNames []string) map[string]bool {
+	authorizedEnvironments := make(map[string]bool)
+	teamEnvRbacObjectMap := handler.enforcerUtil.GetTeamEnvRbacObjByAppAndEnvNames(appName, environmentNames)
+	teamEnvObjectArr := make([]string, 0)
+	for _, obj := range teamEnvRbacObjectMap {
+		teamEnvObjectArr = append(teamEnvObjectArr, obj)
 	}
-	resp.CiSource = wfMeta.CiSourceData
-	common.WriteJsonResp(w, nil, resp, http.StatusOK)
-
+	results := handler.enforcer.EnforceInBatch(token, casbin.ResourceApprovalPolicy, casbin.ActionArtifactPromote, teamEnvObjectArr)
+	for _, env := range environmentNames {
+		rbacObject := teamEnvRbacObjectMap[env]
+		isAuthorised := results[rbacObject]
+		authorizedEnvironments[env] = isAuthorised
+	}
+	return authorizedEnvironments
 }

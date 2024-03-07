@@ -11,12 +11,12 @@ var ArtifactPromotionWireSet = wire.NewSet(
 	read.NewArtifactPromotionDataReadServiceImpl,
 	wire.Bind(new(read.ArtifactPromotionDataReadService), new(*read.ArtifactPromotionDataReadServiceImpl)),
 
-	NewArtifactPromotionApprovalServiceImpl,
-	wire.Bind(new(ArtifactPromotionApprovalService), new(*ArtifactPromotionApprovalServiceImpl)),
+	NewApprovalRequestServiceImpl,
+	wire.Bind(new(ApprovalRequestService), new(*ApprovalRequestServiceImpl)),
 
 	NewPromotionPolicyServiceImpl,
-	wire.Bind(new(PromotionPolicyCUDService), new(*PromotionPolicyServiceImpl)),
+	wire.Bind(new(PolicyCUDService), new(*PromotionPolicyServiceImpl)),
 
-	repository.NewArtifactPromotionApprovalRequestImpl,
-	wire.Bind(new(repository.ArtifactPromotionApprovalRequestRepository), new(*repository.ArtifactPromotionApprovalRequestRepoImpl)),
+	repository.NewRequestRepositoryImpl,
+	wire.Bind(new(repository.RequestRepository), new(*repository.RequestRepositoryImpl)),
 )

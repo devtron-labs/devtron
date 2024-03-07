@@ -20,7 +20,6 @@ ALTER TABLE  resource_filter_evaluation_audit ADD COLUMN "filter_type" integer D
 CREATE SEQUENCE IF NOT EXISTS id_artifact_promotion_approval_request;
 CREATE TABLE IF NOT EXISTS public.artifact_promotion_approval_request
 (
-    "active"                       bool         NOT NULL,
     "created_by"                   int4         NOT NULL,
     "updated_by"                   int4         NOT NULL,
     "id"                           int          NOT NULL DEFAULT nextval('id_artifact_promotion_approval_request'::regclass),

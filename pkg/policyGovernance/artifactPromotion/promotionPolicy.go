@@ -15,7 +15,7 @@ import (
 	"strings"
 )
 
-type PromotionPolicyCUDService interface {
+type PolicyCUDService interface {
 	UpdatePolicy(userId int32, policyName string, policyBean *bean.PromotionPolicy) error
 	CreatePolicy(userId int32, policyBean *bean.PromotionPolicy) error
 	DeletePolicy(userId int32, profileName string) error

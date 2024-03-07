@@ -331,7 +331,7 @@ type FilterCriteria struct {
 	Tooltip string `json:"tooltip"`
 }
 
-var FILTER_CRITERIAS = []FilterCriteria{
+var FILTER_CRITERIA = []FilterCriteria{
 	{
 		Label:   "containerImage",
 		Type:    "String",
@@ -352,4 +352,5 @@ var FILTER_CRITERIAS = []FilterCriteria{
 		Type:    "String[]",
 		Tooltip: "External Labels/tags defined for an image. \n Example:\n \"prod\" in imageLabels",
 	},
+	// 	todo: add new variable
 }

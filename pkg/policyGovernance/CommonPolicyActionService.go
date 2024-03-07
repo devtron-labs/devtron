@@ -113,6 +113,12 @@ func (impl CommonPolicyActionsServiceImpl) ApplyPolicyToIdentifiers(userId int32
 		return err
 	}
 	defer impl.resourceQualifierMappingService.RollbackTx(tx)
+
+	err = impl.resourceQualifierMappingService.DeleteResourceMappingsForScopes(tx, userId, referenceType, resourceQualifiers.ApplicationEnvironmentSelector, scopes)
+	if err != nil {
+		impl.logger.Errorw("error in qualifier mappings by scopes while applying a policy", "policyId", updateToPolicy.Id, "policyType", referenceType, "scopes", scopes, "err", err)
+		return err
+	}
 	// delete all the existing mappings for the updateToProfileId resource
 	err = impl.resourceQualifierMappingService.DeleteAllQualifierMappingsByResourceTypeAndId(referenceType, updateToPolicy.Id, sql.NewDefaultAuditLog(userId), tx)
 	if err != nil {

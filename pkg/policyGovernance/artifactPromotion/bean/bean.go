@@ -3,6 +3,7 @@ package bean
 import (
 	"encoding/json"
 	"errors"
+	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository1 "github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -75,7 +76,6 @@ type PromotionApprovalUserData struct {
 	UserActionTime time.Time `json:"userActionTime"`
 }
 
-// todo: change it to EnvironmentPromotionMetaData
 type EnvironmentPromotionMetaData struct {
 	Name                       string                         `json:"name"` // environment name
 	ApprovalCount              int                            `json:"approvalCount,omitempty"`
@@ -99,6 +99,14 @@ type PromotionPolicy struct {
 	Conditions         []util.ResourceCondition `json:"conditions" validate:"omitempty,min=1"`
 	ApprovalMetaData   ApprovalMetaData         `json:"approvalMetadata" validate:"dive"`
 	IdentifierCount    *int                     `json:"identifierCount,omitempty"`
+}
+
+func (p *PromotionPolicy) CanBePromoted(approvalsGot int) bool {
+	return approvalsGot >= p.ApprovalMetaData.ApprovalCount
+}
+
+func (p *PromotionPolicy) CanApprove(requestedUserId, imageBuiltByUserId, approvingUserId int32) bool {
+	return (p.ApprovalMetaData.AllowRequesterFromApprove || requestedUserId == approvingUserId) && (p.ApprovalMetaData.AllowImageBuilderFromApprove || imageBuiltByUserId == approvingUserId)
 }
 
 func (policy *PromotionPolicy) ConvertToGlobalPolicyBaseModal(userId int32) (*bean.GlobalPolicyBaseModel, error) {
@@ -151,6 +159,23 @@ type ApprovalMetaData struct {
 	AllowApproverFromDeploy      bool `json:"allowApproverFromDeploy"`
 }
 
+
+const ARTIFACT_ALREADY_PROMOTED PromotionValidationState = "already promoted"
+const ALREADY_REQUEST_RAISED PromotionValidationState = "promotion request already raised"
+const ERRORED PromotionValidationState = "error occurred"
+const EMPTY PromotionValidationState = ""
+const PIPELINE_NOT_FOUND PromotionValidationState = "pipeline Not Found"
+const POLICY_NOT_CONFIGURED PromotionValidationState = "policy not configured"
+const NO_PERMISSION PromotionValidationState = "no permission"
+const PROMOTION_SUCCESSFUL PromotionValidationState = "image promoted"
+const SENT_FOR_APPROVAL PromotionValidationState = "sent for approval"
+const SOURCE_AND_DESTINATION_PIPELINE_MISMATCH PromotionValidationState = "source and destination pipeline order mismatch"
+const POLICY_EVALUATION_ERRORED PromotionValidationState = "server unable to evaluate the policy"
+const BLOCKED_BY_POLICY PromotionValidationState = "blocked by the policy "
+const APPROVED PromotionValidationState = "approved"
+const ALREADY_APPROVED PromotionValidationState = "you have already approved this"
+const ERRORED_APPROVAL PromotionValidationState = "error occurred in submitting the approval"
+
 type EnvironmentListingResponse struct {
 	CiSource     CiSourceMetaData               `json:"ciSource"`
 	Environments []EnvironmentPromotionMetaData `json:"environments"`
@@ -172,43 +197,143 @@ type WorkflowMetaData struct {
 }
 
 type PipelinesMetaData struct {
-	PipelineIds            []int
-	PipelineIdVsEnvNameMap map[int]string
-	PipelineIdDaoMap       map[int]*pipelineConfig.Pipeline
-	EnvIds                 []int
+	activeAuthorisedPipelineIds            []int
+	activeAuthorisedPipelineIdVsEnvNameMap map[int]string
+	activeAuthorisedPipelineIdDaoMap       map[int]*pipelineConfig.Pipeline
+	pipelineEnvIds                         []int
+}
+
+type SourceMetaData struct {
+	id               int
+	typeStr          SourceTypeStr
+	name             string
+	sourceWorkflowId int
+	cdPipeline       *pipelineConfig.Pipeline
+}
+
+func (s *SourceMetaData) WithSourceWorkflowId(sourceWorkflowId int) *SourceMetaData {
+	s.sourceWorkflowId = sourceWorkflowId
+	return s
+}
+
+func (s *SourceMetaData) WithId(id int) *SourceMetaData {
+	s.id = id
+	return s
+}
+
+func (s *SourceMetaData) WithType(typeStr SourceTypeStr) *SourceMetaData {
+	s.typeStr = typeStr
+	return s
+}
+func (s *SourceMetaData) WithName(name string) *SourceMetaData {
+	s.name = name
+	return s
+}
+func (s *SourceMetaData) WithCdPipeline(cdPipeline *pipelineConfig.Pipeline) *SourceMetaData {
+	s.cdPipeline = cdPipeline
+	return s
+}
+
+func (s *SourceMetaData) GetCiSourceMeta() CiSourceMetaData {
+	return CiSourceMetaData{
+		Id:   s.id,
+		Type: s.typeStr,
+		Name: s.name,
+	}
 }
 
 type RequestMetaData struct {
-	activeEnvIdNameMap map[int]string
-	activeEnvNameIdMap map[string]int
-	UserEnvNames       []string
-	AuthorisedEnvMap   map[string]bool
-	activeEnvironments []*cluster.EnvironmentBean
-	PipelinesMetaData
-	activeEnvIds             []int
-	activeEnvNames           []string
-	activeAuthorisedEnvNames []string
-	activeAuthorisedEnvIds   []int
+	activeEnvIdNameMap          map[int]string
+	activeEnvNameIdMap          map[string]int
+	userEnvNames                []string
+	authorisedEnvMap            map[string]bool
+	activeEnvironments          []*cluster.EnvironmentBean
+	activeEnvironmentsMap       map[string]*cluster.EnvironmentBean
+	destinationPipelineMetaData *PipelinesMetaData
+	activeEnvIds                []int
+	activeEnvNames              []string
+	activeAuthorisedEnvNames    []string
+	activeAuthorisedEnvIds      []int
+	sourceMetaData              *SourceMetaData
+	promotableEnvs              []string
+	appId                       int
+
+	ciArtifact *repository.CiArtifact
 }
 
-func (r *RequestMetaData) SetActiveEnvironments(activeEnvs []*cluster.EnvironmentBean) {
+func (r *RequestMetaData) GetSourceMetaData() *SourceMetaData {
+	return r.sourceMetaData
+}
+
+func (r *RequestMetaData) WithCiArtifact(ciArtifact *repository.CiArtifact) *RequestMetaData {
+	r.ciArtifact = ciArtifact
+	return r
+}
+
+func (r *RequestMetaData) WithAppId(appId int) *RequestMetaData {
+	r.appId = appId
+	return r
+}
+
+func (r *RequestMetaData) WithPromotableEnvMap(promotableEnvs []string) *RequestMetaData {
+	r.promotableEnvs = promotableEnvs
+	return r
+}
+
+func (r *RequestMetaData) SetSourceMetaData(sourceMetaData *SourceMetaData) {
+	r.sourceMetaData = sourceMetaData
+}
+
+func (r *RequestMetaData) SetDestinationPipelineMetaData(activeAuthorisedPipelines []*pipelineConfig.Pipeline) {
+	pipelineIds := make([]int, 0, len(activeAuthorisedPipelines))
+	pipelineIdEnvNameMap := make(map[int]string)
+	pipelineIdPipelineDaoMap := make(map[int]*pipelineConfig.Pipeline)
+	pipelineEnvIds := make([]int, 0, len(activeAuthorisedPipelines))
+	for _, pipeline := range activeAuthorisedPipelines {
+		pipelineIds = append(pipelineIds, pipeline.Id)
+		pipelineIdEnvNameMap[pipeline.Id] = pipeline.Environment.Name
+		pipelineIdPipelineDaoMap[pipeline.Id] = pipeline
+		pipelineEnvIds = append(pipelineEnvIds, pipeline.EnvironmentId)
+	}
+
+	pipelineMetaData := &PipelinesMetaData{
+		activeAuthorisedPipelineIds:            pipelineIds,
+		activeAuthorisedPipelineIdDaoMap:       pipelineIdPipelineDaoMap,
+		activeAuthorisedPipelineIdVsEnvNameMap: pipelineIdEnvNameMap,
+	}
+	r.destinationPipelineMetaData = pipelineMetaData
+}
+
+func (r *RequestMetaData) SetActiveEnvironments(userGivenEnvNames []string, authorizedEnvironmentsMap map[string]bool, activeEnvs []*cluster.EnvironmentBean) {
+	r.userEnvNames = userGivenEnvNames
+	r.authorisedEnvMap = authorizedEnvironmentsMap
 	r.activeEnvironments = activeEnvs
+	activeEnvironmentsMap := make(map[string]*cluster.EnvironmentBean)
 	activeEnvNames := make([]string, 0, len(r.activeEnvironments))
-	authorisedEnvNames := make([]string, 0, len(r.AuthorisedEnvMap))
-	activeAuthorisedEnvIds := make([]int, 0, len(r.AuthorisedEnvMap))
+	authorisedEnvNames := make([]string, 0, len(r.authorisedEnvMap))
+	activeAuthorisedEnvIds := make([]int, 0, len(r.authorisedEnvMap))
 	activeEnvIds := make([]int, 0, len(r.activeEnvironments))
 	activeEnvIdNameMap := make(map[int]string)
 	activeEnvNameIdMap := make(map[string]int)
 	for _, env := range r.activeEnvironments {
 		activeEnvNames = append(activeEnvNames, env.Environment)
 		activeEnvIds = append(activeEnvIds, env.Id)
+		activeEnvironmentsMap[env.Environment] = env
 		activeEnvIdNameMap[env.Id] = env.Environment
 		activeEnvNameIdMap[env.Environment] = env.Id
-		if r.AuthorisedEnvMap[env.Environment] {
+		if r.authorisedEnvMap[env.Environment] {
 			authorisedEnvNames = append(authorisedEnvNames, env.Environment)
 			activeAuthorisedEnvIds = append(activeAuthorisedEnvIds, env.Id)
 		}
 	}
+
+	r.activeEnvironmentsMap = activeEnvironmentsMap
+	r.activeEnvNames = activeEnvNames
+	r.activeAuthorisedEnvNames = authorisedEnvNames
+	r.activeAuthorisedEnvIds = activeAuthorisedEnvIds
+	r.activeEnvIds = activeAuthorisedEnvIds
+	r.activeEnvIdNameMap = activeEnvIdNameMap
+	r.activeEnvNameIdMap = activeEnvNameIdMap
 	r.activeEnvNames = activeEnvNames
 }
 
@@ -225,16 +350,63 @@ func (r *RequestMetaData) GetActiveAuthorisedEnvIds() []int {
 }
 
 func (r *RequestMetaData) GetPipelineById(id int) *pipelineConfig.Pipeline {
-	return r.PipelinesMetaData.PipelineIdDaoMap[id]
+	return r.destinationPipelineMetaData.activeAuthorisedPipelineIdDaoMap[id]
 }
 
-// todo: first extract metadata
-// db env names
-// db pipelines
-// user given envnames
-// authorised envs names map
-// authorised envs
-// authorised envIds
-// appId
-// workflowId
-// PipelinesMetaData
+func (r *RequestMetaData) GetWorkflowId() int {
+	return r.sourceMetaData.sourceWorkflowId
+}
+
+func (r *RequestMetaData) GetSourceType() SourceTypeStr {
+	return r.sourceMetaData.typeStr
+}
+
+func (r *RequestMetaData) GetSourcePipelineId() int {
+	return r.sourceMetaData.id
+}
+
+func (r *RequestMetaData) GetSourceName() string {
+	return r.sourceMetaData.name
+}
+
+func (r *RequestMetaData) GetSourceCdPipeline() *pipelineConfig.Pipeline {
+	pipeline := *r.sourceMetaData.cdPipeline
+	return &pipeline
+}
+
+func (r *RequestMetaData) GetActiveAuthorisedPipelineIds() []int {
+	return r.destinationPipelineMetaData.activeAuthorisedPipelineIds
+}
+
+func (r *RequestMetaData) GetActiveAuthorisedPipelineIdEnvMap() map[int]string {
+	return r.destinationPipelineMetaData.activeAuthorisedPipelineIdVsEnvNameMap
+}
+
+func (r *RequestMetaData) GetActiveAuthorisedPipelineDaoMap() map[int]*pipelineConfig.Pipeline {
+	return r.destinationPipelineMetaData.activeAuthorisedPipelineIdDaoMap
+}
+
+func (r *RequestMetaData) GetActiveAuthorisedPipelineEnvIds() []int {
+	return r.destinationPipelineMetaData.pipelineEnvIds
+}
+
+func (r *RequestMetaData) GetUserGivenEnvNames() []string {
+	return r.userEnvNames
+}
+
+func (r *RequestMetaData) GetAuthorisedEnvMap() map[string]bool {
+	return r.authorisedEnvMap
+}
+
+func (r *RequestMetaData) GetCiArtifact() *repository.CiArtifact {
+	artifact := *r.ciArtifact
+	return &artifact
+}
+
+func (r *RequestMetaData) GetActiveEnvironmentsMap() map[string]*cluster.EnvironmentBean {
+	return r.activeEnvironmentsMap
+}
+
+func (r *RequestMetaData) GetAppId() int {
+	return r.appId
+}

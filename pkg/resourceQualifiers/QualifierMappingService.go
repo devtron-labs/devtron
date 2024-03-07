@@ -32,6 +32,7 @@ type QualifierMappingService interface {
 	GetResourceIdsByIdentifier(resourceType ResourceType, identifierKey int, identifierId int) ([]int, error)
 	GetQualifierMappingsWithIdentifierFilter(resourceType ResourceType, resourceId, identifierKey int, identifierValueStringLike, identifierValueSortOrder, excludeActiveIdentifiersQuery string, limit, offset int, needTotalCount bool) ([]*QualifierMappingWithExtraColumns, error)
 
+	DeleteResourceMappingsForScopes(tx *pg.Tx, userId int32, resourceType ResourceType, qualifierSelector QualifierSelector, scopes []*Scope) error
 	CreateMappingsForSelections(tx *pg.Tx, userId int32, resourceMappingSelections []*ResourceMappingSelection) ([]*ResourceMappingSelection, error)
 	CreateMappings(tx *pg.Tx, userId int32, resourceType ResourceType, resourceIds []int, qualifierSelector QualifierSelector, scopes []*Scope) error
 	GetResourceMappingsForScopes(resourceType ResourceType, qualifierSelector QualifierSelector, scopes []*Scope) ([]ResourceQualifierMappings, error)
@@ -202,6 +203,32 @@ func (impl QualifierMappingServiceImpl) getScopesForAppEnvSelector(mappingGroups
 	return resourceIdToScope
 }
 
+func (impl QualifierMappingServiceImpl) DeleteResourceMappingsForScopes(tx *pg.Tx, userId int32, resourceType ResourceType, qualifierSelector QualifierSelector, scopes []*Scope) error {
+	if qualifierSelector != ApplicationEnvironmentSelector {
+		return fmt.Errorf("selector currently not implemented")
+	}
+
+	keyMap := impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap()
+
+	valuesMap := make(map[Qualifier][][]int)
+	appIds := make([]int, 0)
+	envIds := make([]int, 0)
+	for _, scope := range scopes {
+		appIds = append(appIds, scope.AppId)
+		envIds = append(envIds, scope.EnvId)
+	}
+	valuesMap[qualifierSelector.toQualifier()] = [][]int{appIds, envIds}
+	mappings, err := impl.qualifierMappingRepository.GetQualifierMappingsForListOfQualifierValues(resourceType, valuesMap, keyMap, []int{})
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("error fetching resource mappings %v %v", resourceType, valuesMap))
+	}
+	mappingIds := make([]int, 0, len(mappings))
+	for _, mapping := range mappings {
+		mappingIds = append(mappingIds, mapping.Id)
+	}
+	return impl.DeleteAllByIds(mappingIds, userId, tx)
+
+}
 func (impl QualifierMappingServiceImpl) GetResourceMappingsForScopes(resourceType ResourceType, qualifierSelector QualifierSelector, scopes []*Scope) ([]ResourceQualifierMappings, error) {
 	if qualifierSelector != ApplicationEnvironmentSelector {
 		return nil, fmt.Errorf("selector currently not implemented")
