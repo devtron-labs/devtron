@@ -68,7 +68,7 @@ type CreateAppDTO struct {
 	TemplateId  int                            `json:"templateId"`
 	AppLabels   []*Label                       `json:"labels,omitempty" validate:"dive"`
 	GenericNote *bean4.GenericNoteResponseBean `json:"genericNote,omitempty"`
-	AppType     helper.AppType                 `json:"appType" validate:"gt=-1,lt=3"` //TODO: Change Validation if new AppType is introduced
+	AppType     helper.AppType                 `json:"appType" validate:"gt=-1,lt=3"` // TODO: Change Validation if new AppType is introduced
 }
 
 type CreateMaterialDTO struct {
@@ -854,6 +854,15 @@ type CiArtifactBean struct {
 	CredentialsSourceValue    string                               `json:"-"`
 	PromotionApprovalMetadata *bean5.PromotionApprovalMetaData     `json:"promotionApprovalMetadata,omitempty"`
 	DeployedOnEnvironments    []string                             `json:"deployedOnEnvironments"`
+}
+
+func (c *CiArtifactBean) GetMaterialInfo() ([]repository3.CiMaterialInfo, error) {
+	var ciMaterials []repository3.CiMaterialInfo
+	err := json.Unmarshal([]byte(c.MaterialInfo), &ciMaterials)
+	if err != nil {
+		return nil, err
+	}
+	return ciMaterials, nil
 }
 
 type CiArtifactResponse struct {

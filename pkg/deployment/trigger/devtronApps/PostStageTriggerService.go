@@ -86,7 +86,12 @@ func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) er
 	}
 
 	// evaluate filters
-	filterState, filterIdVsState, err := impl.resourceFilterService.CheckForResource(filters, cdWf.CiArtifact.Image, imageTagNames)
+	materialInfos, err := cdWf.CiArtifact.GetMaterialInfo()
+	if err != nil {
+		impl.logger.Errorw("error in getting material info for the given artifact", "artifactId", cdWf.CiArtifactId, "materialInfo", cdWf.CiArtifact.MaterialInfo, "err", err)
+		return err
+	}
+	filterState, filterIdVsState, err := impl.resourceFilterService.CheckForResource(filters, cdWf.CiArtifact.Image, imageTagNames, materialInfos)
 	if err != nil {
 		return err
 	}
@@ -236,7 +241,7 @@ func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) er
 			return err
 		}
 		// Auto Trigger after Post Stage Success Event
-		//TODO: update
+		// TODO: update
 		cdSuccessEvent := bean9.DeployStageSuccessEventReq{
 			CdWorkflowId:               runner.CdWorkflowId,
 			PipelineId:                 pipeline.CiPipelineId,

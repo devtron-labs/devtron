@@ -345,8 +345,12 @@ func (impl *AppArtifactManagerImpl) FetchArtifactForRollback(cdPipelineId, appId
 					releaseTags = append(releaseTags, imageTag.TagName)
 				}
 			}
-
-			filterState, _, err := impl.resourceFilterService.CheckForResource(filters, deployedCiArtifacts[i].Image, releaseTags)
+			materialInfos, err := deployedCiArtifacts[i].GetMaterialInfo()
+			if err != nil {
+				impl.logger.Errorw("error in getting material info for the given artifact", "artifactId", deployedCiArtifacts[i].Id, "materialInfo", deployedCiArtifacts[i].MaterialInfo, "err", err)
+				return deployedCiArtifactsResponse, err
+			}
+			filterState, _, err := impl.resourceFilterService.CheckForResource(filters, deployedCiArtifacts[i].Image, releaseTags, materialInfos)
 			if err != nil {
 				return deployedCiArtifactsResponse, err
 			}
@@ -440,8 +444,12 @@ func (impl *AppArtifactManagerImpl) FetchArtifactForRollbackV2(cdPipelineId, app
 					releaseTags = append(releaseTags, imageTag.TagName)
 				}
 			}
-
-			filterState, _, err := impl.resourceFilterService.CheckForResource(filters, deployedCiArtifacts[i].Image, releaseTags)
+			materialInfos, err := deployedCiArtifacts[i].GetMaterialInfo()
+			if err != nil {
+				impl.logger.Errorw("error in getting material info for the given artifact", "artifactId", deployedCiArtifacts[i].Id, "materialInfo", deployedCiArtifacts[i].MaterialInfo, "err", err)
+				return deployedCiArtifactsResponse, err
+			}
+			filterState, _, err := impl.resourceFilterService.CheckForResource(filters, deployedCiArtifacts[i].Image, releaseTags, materialInfos)
 			if err != nil {
 				return deployedCiArtifactsResponse, err
 			}
@@ -658,7 +666,12 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipeline(pipeline *pipe
 				releaseTags = append(releaseTags, imageTag.TagName)
 			}
 		}
-		filterState, _, err := impl.resourceFilterService.CheckForResource(filters, ciArtifacts[i].Image, releaseTags)
+		materialInfos, err := ciArtifacts[i].GetMaterialInfo()
+		if err != nil {
+			impl.logger.Errorw("error in getting material info for the given artifact", "artifactId", ciArtifacts[i].Id, "materialInfo", ciArtifacts[i].MaterialInfo, "err", err)
+			return ciArtifactsResponse, err
+		}
+		filterState, _, err := impl.resourceFilterService.CheckForResource(filters, ciArtifacts[i].Image, releaseTags, materialInfos)
 		if err != nil {
 			return ciArtifactsResponse, err
 		}
@@ -1105,7 +1118,12 @@ func (impl *AppArtifactManagerImpl) setAdditionalDataInArtifacts(ciArtifacts []b
 		}
 
 		if len(filters) > 0 {
-			ciArtifacts[i].FilterState = impl.getFilerState(imageTaggingResp, filters, ciArtifacts[i].Image)
+			materialInfos, err := ciArtifacts[i].GetMaterialInfo()
+			if err != nil {
+				impl.logger.Errorw("error in getting material info for the given artifact", "artifactId", ciArtifacts[i].Id, "materialInfo", ciArtifacts[i].MaterialInfo, "err", err)
+				return nil, err
+			}
+			ciArtifacts[i].FilterState = impl.getFilterState(imageTaggingResp, filters, ciArtifacts[i].Image, materialInfos)
 		}
 
 		var dockerRegistryId string
@@ -1514,7 +1532,7 @@ func (impl *AppArtifactManagerImpl) fetchApprovedArtifacts(listingFilterOpts *be
 	return ciArtifacts, totalCount, nil
 }
 
-func (impl *AppArtifactManagerImpl) getFilerState(imageTaggingResp []*repository3.ImageTag, filters []*resourceFilter.FilterMetaDataBean, image string) resourceFilter.FilterState {
+func (impl *AppArtifactManagerImpl) getFilterState(imageTaggingResp []*repository3.ImageTag, filters []*resourceFilter.FilterMetaDataBean, image string, materialInfos []repository.CiMaterialInfo) resourceFilter.FilterState {
 
 	releaseTags := make([]string, 0, len(imageTaggingResp))
 	for _, imageTag := range imageTaggingResp {
@@ -1522,7 +1540,7 @@ func (impl *AppArtifactManagerImpl) getFilerState(imageTaggingResp []*repository
 			releaseTags = append(releaseTags, imageTag.TagName)
 		}
 	}
-	filterState, _, err := impl.resourceFilterService.CheckForResource(filters, image, releaseTags)
+	filterState, _, err := impl.resourceFilterService.CheckForResource(filters, image, releaseTags, materialInfos)
 	if err != nil {
 		impl.logger.Errorw("error in evaluating filters for the artifacts", "image", image, "releaseTags", releaseTags)
 		// not returning error by choice

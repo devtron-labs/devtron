@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/devtron-labs/common-lib/utils"
 	bean3 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/enterprise/pkg/resourceFilter"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
@@ -97,8 +96,8 @@ func NewApprovalRequestServiceImpl(
 	}
 
 	// register hooks
-	promotionPolicyCUDService.AddPreDeleteHook(artifactApprovalService.onPolicyDelete)
-	promotionPolicyCUDService.AddPreUpdateHook(artifactApprovalService.onPolicyUpdate)
+	promotionPolicyCUDService.AddDeleteHook(artifactApprovalService.onPolicyDelete)
+	promotionPolicyCUDService.AddUpdateHook(artifactApprovalService.onPolicyUpdate)
 	return artifactApprovalService
 }
 
@@ -183,10 +182,9 @@ func (impl *ApprovalRequestServiceImpl) fetchEnvMetaDataListingRequestMetadata(t
 		ciArtifact, err := impl.ciArtifactRepository.Get(artifactId)
 		if err != nil {
 			impl.logger.Errorw("error in finding the artifact using id", "artifactId", artifactId, "err", err)
-			errorResp := &util.ApiError{}
-			errorResp.WithHttpStatusCode(http.StatusInternalServerError).WithInternalMessage(fmt.Sprintf("error in finding artifact , err : %s", err.Error())).WithUserMessage("error in finding artifact")
+			errorResp := util.NewApiError().WithHttpStatusCode(http.StatusInternalServerError).WithInternalMessage(fmt.Sprintf("error in finding artifact , err : %s", err.Error())).WithUserMessage("error in finding artifact")
 			if errors.Is(err, pg.ErrNoRows) {
-				errorResp.WithHttpStatusCode(http.StatusConflict).WithUserMessage("artifact not found")
+				errorResp = errorResp.WithHttpStatusCode(http.StatusConflict).WithUserMessage("artifact not found")
 			}
 			return nil, errorResp
 		}
@@ -255,26 +253,6 @@ func (impl *ApprovalRequestServiceImpl) computeFilterParams(ciArtifact *reposito
 		return nil, err
 	}
 
-	commitDetailsList := make([]resourceFilter.CommitDetails, 0, len(ciMaterials))
-	for _, ciMaterial := range ciMaterials {
-		repoUrl := ciMaterial.Material.ScmConfiguration.URL
-		commitMessage := ""
-		branch := ""
-		if ciMaterial.Material.Type == "git" {
-			repoUrl = ciMaterial.Material.GitConfiguration.URL
-		}
-		if ciMaterial.Modifications != nil && len(ciMaterial.Modifications) > 0 {
-			modification := ciMaterial.Modifications[0]
-			commitMessage = modification.Message
-			branch = modification.Branch
-		}
-		commitDetailsList = append(commitDetailsList, resourceFilter.CommitDetails{
-			Repo:          repoUrl,
-			CommitMessage: commitMessage,
-			Branch:        branch,
-		})
-	}
-
 	imageTags, err := impl.imageTaggingService.GetTagsByArtifactId(ciArtifact.Id)
 	if err != nil {
 		impl.logger.Errorw("error in fetching the image tags using artifact id", "artifactId", ciArtifact.Id, "err", err)
@@ -285,7 +263,7 @@ func (impl *ApprovalRequestServiceImpl) computeFilterParams(ciArtifact *reposito
 	for _, imageTag := range imageTags {
 		releaseTags = append(releaseTags, imageTag.TagName)
 	}
-	params := resourceFilter.GetParamsFromArtifact(ciArtifact.Image, releaseTags, commitDetailsList...)
+	params := resourceFilter.GetParamsFromArtifact(ciArtifact.Image, releaseTags, ciMaterials)
 	return params, nil
 }
 
@@ -355,7 +333,7 @@ func (impl *ApprovalRequestServiceImpl) approveArtifactPromotion(request *bean.A
 	if err != nil {
 		impl.logger.Errorw("error in getting artifact promotion request object by id", "promotionRequestId", request.PromotionRequestId, "err", err)
 		if errors.Is(err, pg.ErrNoRows) {
-			return nil, errors.New("promotion request not found")
+			return nil, util.NewApiError().WithHttpStatusCode(http.StatusConflict).WithUserMessage(bean.ArtifactPromotionRequestNotFoundErr).WithInternalMessage(bean.ArtifactPromotionRequestNotFoundErr)
 		}
 		return nil, err
 	}
@@ -624,11 +602,7 @@ func (impl *ApprovalRequestServiceImpl) fetchSourceMeta(sourceName string, sourc
 		if err != nil {
 			impl.logger.Errorw("error in getting the workflow mapping of ci-source/webhook using workflow id", "workflowId", workflowId, "err", err)
 			if errors.Is(err, pg.ErrNoRows) {
-				return nil, &utils.ApiError{
-					HttpStatusCode:  http.StatusConflict,
-					InternalMessage: "given workflow not found for the provided source",
-					UserMessage:     "given workflow not found for the provided source",
-				}
+				return nil, util.NewApiError().WithHttpStatusCode(http.StatusConflict).WithUserMessage("given workflow not found for the provided source").WithInternalMessage("given workflow not found for the provided source")
 			}
 			return nil, err
 		}
@@ -642,12 +616,7 @@ func (impl *ApprovalRequestServiceImpl) fetchSourceMeta(sourceName string, sourc
 			return nil, err
 		}
 		if len(pipelines) == 0 {
-			return nil, &utils.ApiError{
-				HttpStatusCode:  http.StatusConflict,
-				InternalMessage: "source pipeline with given environment not found in the workflow",
-				UserMessage:     "source pipeline with given environment not found in workflow",
-			}
-
+			return nil, util.NewApiError().WithHttpStatusCode(http.StatusConflict).WithUserMessage("source pipeline with given environment not found in the workflow").WithInternalMessage("source pipeline with given environment not found in workflow")
 		}
 
 		pipeline := pipelines[0]
@@ -655,11 +624,7 @@ func (impl *ApprovalRequestServiceImpl) fetchSourceMeta(sourceName string, sourc
 		if err != nil {
 			impl.logger.Errorw("error in getting the app workflow mapping using workflow id and cd component id", "workflowId", workflowId, "appId", appId, "pipelineId", pipeline.Id, "err", err)
 			if errors.Is(err, pg.ErrNoRows) {
-				return nil, &utils.ApiError{
-					HttpStatusCode:  http.StatusConflict,
-					InternalMessage: "source pipeline not found in the given workflow",
-					UserMessage:     "source pipeline not found in the given workflow",
-				}
+				return nil, util.NewApiError().WithHttpStatusCode(http.StatusConflict).WithUserMessage("source pipeline not found in the given workflow").WithInternalMessage("source pipeline not found in the given workflow")
 			}
 			return nil, err
 		}
@@ -697,11 +662,7 @@ func getDefaultEnvironmentPromotionMetaDataResponseMap(metadata *bean.RequestMet
 func (impl *ApprovalRequestServiceImpl) validatePromotion(requestedWorkflowId int, ciArtifact *repository2.CiArtifact, metadata *bean.RequestMetaData) (map[string]bean.EnvironmentPromotionMetaData, error) {
 	if requestedWorkflowId != metadata.GetWorkflowId() {
 		// handle throw api error with conflict status code
-		return nil, &util.ApiError{
-			HttpStatusCode:  http.StatusConflict,
-			InternalMessage: "provided source is not linked to the given workflow",
-			UserMessage:     "provided source is not linked to the given workflow",
-		}
+		return nil, util.NewApiError().WithHttpStatusCode(http.StatusConflict).WithUserMessage("provided source is not linked to the given workflow").WithInternalMessage("provided source is not linked to the given workflow")
 	}
 
 	allAppWorkflowMappings, err := impl.appWorkflowRepository.FindWFAllMappingByWorkflowId(metadata.GetWorkflowId())
@@ -719,11 +680,8 @@ func (impl *ApprovalRequestServiceImpl) validatePromotion(requestedWorkflowId in
 		}
 
 		if !deployed {
-			return nil, &util.ApiError{
-				HttpStatusCode:  http.StatusConflict,
-				InternalMessage: fmt.Sprintf("artifact is not deployed on the source environment %s", metadata.GetSourceName()),
-				UserMessage:     fmt.Sprintf("artifact is not deployed on the source environment %s", metadata.GetSourceName()),
-			}
+			errMsg := fmt.Sprintf("artifact is not deployed on the source environment %s", metadata.GetSourceName())
+			return nil, util.NewApiError().WithHttpStatusCode(http.StatusConflict).WithUserMessage(errMsg).WithInternalMessage(errMsg)
 		}
 
 		tree := make(map[int][]int)
@@ -736,11 +694,8 @@ func (impl *ApprovalRequestServiceImpl) validatePromotion(requestedWorkflowId in
 
 		// if sourcePipelineId is 0, then the source pipeline given by user is not found in the workflow.
 		if metadata.GetSourcePipelineId() == 0 {
-			return nil, &util.ApiError{
-				HttpStatusCode:  http.StatusBadRequest,
-				InternalMessage: fmt.Sprintf("no pipeline found against given source environment %s", metadata.GetSourceName()),
-				UserMessage:     fmt.Sprintf("no pipeline found against given source environment %s", metadata.GetSourceName()),
-			}
+			errMsg := fmt.Sprintf("no pipeline found against given source environment %s", metadata.GetSourceName())
+			return nil, util.NewApiError().WithHttpStatusCode(http.StatusBadRequest).WithUserMessage(errMsg).WithInternalMessage(errMsg)
 		}
 
 		responseMap := make(map[string]bean.EnvironmentPromotionMetaData)
@@ -783,17 +738,11 @@ func (impl *ApprovalRequestServiceImpl) promoteArtifact(request *bean.ArtifactPr
 	if err != nil {
 		impl.logger.Errorw("error in finding the artifact using id", "artifactId", request.ArtifactId, "err", err)
 		// todo: create new error type and create a construct on that which will accept user msg and err and overridable status code
-		errorResp := &util.ApiError{
-			HttpStatusCode:  http.StatusInternalServerError,
-			InternalMessage: fmt.Sprintf("error in finding artifact , err : %s", err.Error()),
-			UserMessage:     "error in finding artifact",
-		}
+		errRes := util.NewApiError().WithHttpStatusCode(http.StatusInternalServerError).WithInternalMessage(fmt.Sprintf("error in finding artifact , err : %s", err.Error())).WithUserMessage("error in finding artifact")
 		if errors.Is(err, pg.ErrNoRows) {
-			errorResp.UserMessage = "artifact not found"
-			errorResp.HttpStatusCode = http.StatusConflict
+			errRes = errRes.WithHttpStatusCode(http.StatusConflict).WithUserMessage("artifact not found")
 		}
-
-		return nil, errorResp
+		return nil, errRes
 	}
 
 	validationResponseMap, err := impl.validatePromotion(request.WorkflowId, ciArtifact, metadata)
@@ -1015,12 +964,7 @@ func (impl *ApprovalRequestServiceImpl) cancelPromotionApprovalRequest(request *
 	}
 
 	if artifactPromotionDao.CreatedBy != request.UserId {
-		return nil, &util.ApiError{
-			HttpStatusCode: http.StatusUnprocessableEntity,
-			// todo: make constant
-			InternalMessage: "only user who has raised the promotion request can cancel it",
-			UserMessage:     "only user who has raised the promotion request can cancel it",
-		}
+		return nil, util.NewApiError().WithHttpStatusCode(http.StatusUnprocessableEntity).WithInternalMessage(bean.UserCannotCancelRequest).WithUserMessage(bean.UserCannotCancelRequest)
 	}
 
 	artifactPromotionDao.Status = constants.CANCELED
@@ -1058,11 +1002,7 @@ func (impl *ApprovalRequestServiceImpl) FetchApprovalAllowedEnvList(artifactId i
 	artifact, err := impl.ciArtifactRepository.Get(artifactId)
 	if err != nil {
 		impl.logger.Errorw("artifact not found for given id", "artifactId", artifactId, "err", err)
-		return nil, &util.ApiError{
-			HttpStatusCode:  http.StatusUnprocessableEntity,
-			InternalMessage: "artifact not found for given id",
-			UserMessage:     "artifact not found for given id",
-		}
+		return nil, util.NewApiError().WithHttpStatusCode(http.StatusUnprocessableEntity).WithUserMessage("artifact not found for given id").WithInternalMessage("artifact not found for given id")
 	}
 
 	promotionRequests, err := impl.artifactPromotionApprovalRequestRepository.FindAwaitedRequestsByArtifactId(artifactId)
@@ -1189,7 +1129,7 @@ func (impl *ApprovalRequestServiceImpl) onPolicyUpdate(tx *pg.Tx, policy *bean.P
 	// get all the artifacts using request.artifactId
 	// re-evaluate the artifacts using the policy
 
-	requestsToBeUpdatedAsStaled, err := impl.evaluatePolicyOnRequests(tx, policy, artifactsMap, existingRequests)
+	requestsToBeUpdatedAsStaled, err := impl.reEvaluatePolicyAndUpdateRequests(tx, policy, artifactsMap, existingRequests)
 	if err != nil {
 		return err
 	}
@@ -1201,7 +1141,7 @@ func (impl *ApprovalRequestServiceImpl) onPolicyUpdate(tx *pg.Tx, policy *bean.P
 	return err
 }
 
-func (impl *ApprovalRequestServiceImpl) evaluatePolicyOnRequests(tx *pg.Tx, policy *bean.PromotionPolicy, artifactsMap map[int]*repository2.CiArtifact, existingRequests []*repository.ArtifactPromotionApprovalRequest) ([]*repository.ArtifactPromotionApprovalRequest, error) {
+func (impl *ApprovalRequestServiceImpl) reEvaluatePolicyAndUpdateRequests(tx *pg.Tx, policy *bean.PromotionPolicy, artifactsMap map[int]*repository2.CiArtifact, existingRequests []*repository.ArtifactPromotionApprovalRequest) ([]*repository.ArtifactPromotionApprovalRequest, error) {
 	requestsToBeUpdatedAsStaled := make([]*repository.ArtifactPromotionApprovalRequest, 0, len(existingRequests))
 	for _, request := range existingRequests {
 		artifact := artifactsMap[request.ArtifactId]

@@ -123,7 +123,7 @@ func (impl *CELServiceImpl) ValidateCELRequest(request ValidateRequestResponse) 
 			Type:      ParamTypeList,
 		},
 		{
-			ParamName: "commitDetailsMap",
+			ParamName: "gitCommitDetails",
 			Type:      ParamTypeCommitDetailsMap,
 		},
 	}
