@@ -1,6 +1,7 @@
 package artifactPromotionApprovalRequest
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -96,8 +97,7 @@ func (handler *RestHandlerImpl) HandleArtifactPromotionRequest(w http.ResponseWr
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	promotionRequest.UserId = userId
-
+	ctx := context.WithValue(context.WithValue(context.Background(), "token", token), "userId", userId)
 	authorizedEnvironments := make(map[string]bool)
 
 	switch promotionRequest.Action {
@@ -128,7 +128,7 @@ func (handler *RestHandlerImpl) HandleArtifactPromotionRequest(w http.ResponseWr
 		}
 	}
 
-	resp, err := handler.promotionApprovalRequestService.HandleArtifactPromotionRequest(&promotionRequest, authorizedEnvironments)
+	resp, err := handler.promotionApprovalRequestService.HandleArtifactPromotionRequest(ctx, &promotionRequest, authorizedEnvironments)
 	if err != nil {
 		handler.logger.Errorw("error in handling promotion artifact request", "promotionRequest", promotionRequest, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -137,11 +137,43 @@ func (handler *RestHandlerImpl) HandleArtifactPromotionRequest(w http.ResponseWr
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
 
-func (handler *RestHandlerImpl) getAppAndEnvObjectByCdPipelineId(cdPipelineId int) (string, string) {
-	object := handler.enforcerUtil.GetAppAndEnvObjectByPipelineIds([]int{cdPipelineId})
-	rbacObjects := object[cdPipelineId]
-	return rbacObjects[0], rbacObjects[1]
+func (handler *RestHandlerImpl) FetchEnvironmentsList(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if err != nil || userId == 0 {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	token := r.Header.Get("token")
+	ctx := context.WithValue(context.WithValue(context.Background(), "token", token), "userId", userId)
+
+	queryParams := r.URL.Query()
+
+	workflowId := 0
+	workflowId, err = common.ExtractIntQueryParam(w, r, "workflowId", &workflowId)
+	if err != nil {
+		handler.logger.Errorw("error in extracting workflowId from query param", "workflowIdStr", queryParams.Get("workflowId"), "err", err)
+		common.WriteJsonResp(w, errors.New("workflowId should be an integer value"), nil, http.StatusBadRequest)
+		return
+	}
+
+	artifactId := 0
+	artifactId, err = common.ExtractIntQueryParam(w, r, "artifactId", &artifactId)
+	if err != nil {
+		handler.logger.Errorw("error in extracting artifactId from query param", "artifactIdStr", queryParams.Get("artifactId"), "err", err)
+		common.WriteJsonResp(w, errors.New("artifactId should be an integer value"), nil, http.StatusBadRequest)
+		return
+	}
+
+	resp, err := handler.promotionApprovalRequestService.FetchWorkflowPromoteNodeList(ctx, workflowId, artifactId, handler.promoteActionRbac)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
+
 }
+
 func (handler *RestHandlerImpl) FetchAwaitingApprovalEnvListForArtifact(w http.ResponseWriter, r *http.Request) {
 
 	userId, err := handler.userService.GetLoggedInUser(r)
@@ -238,6 +270,12 @@ func (handler *RestHandlerImpl) GetArtifactsForPromotion(w http.ResponseWriter, 
 	}
 
 	common.WriteJsonResp(w, nil, artifactPromotionMaterialResponse, http.StatusOK)
+}
+
+func (handler *RestHandlerImpl) getAppAndEnvObjectByCdPipelineId(cdPipelineId int) (string, string) {
+	object := handler.enforcerUtil.GetAppAndEnvObjectByPipelineIds([]int{cdPipelineId})
+	rbacObjects := object[cdPipelineId]
+	return rbacObjects[0], rbacObjects[1]
 }
 
 func (handler *RestHandlerImpl) parsePromotionMaterialRequest(w http.ResponseWriter, r *http.Request) (*bean2.ArtifactPromotionMaterialRequest, error) {
@@ -373,42 +411,6 @@ func (handler *RestHandlerImpl) CheckImagePromoterAuth(token string, object stri
 
 func (handler *RestHandlerImpl) CheckImagePromoterBulkAuth(token string, object []string) map[string]bool {
 	return handler.enforcer.EnforceInBatch(token, casbin.ResourceApprovalPolicy, casbin.ActionArtifactPromote, object)
-}
-
-func (handler *RestHandlerImpl) FetchEnvironmentsList(w http.ResponseWriter, r *http.Request) {
-	userId, err := handler.userService.GetLoggedInUser(r)
-	if err != nil || userId == 0 {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-
-	token := r.Header.Get("token")
-
-	queryParams := r.URL.Query()
-
-	workflowId := 0
-	workflowId, err = common.ExtractIntQueryParam(w, r, "workflowId", &workflowId)
-	if err != nil {
-		handler.logger.Errorw("error in extracting workflowId from query param", "workflowIdStr", queryParams.Get("workflowId"), "err", err)
-		common.WriteJsonResp(w, errors.New("workflowId should be an integer value"), nil, http.StatusBadRequest)
-		return
-	}
-
-	artifactId := 0
-	artifactId, err = common.ExtractIntQueryParam(w, r, "artifactId", &artifactId)
-	if err != nil {
-		handler.logger.Errorw("error in extracting artifactId from query param", "artifactIdStr", queryParams.Get("artifactId"), "err", err)
-		common.WriteJsonResp(w, errors.New("artifactId should be an integer value"), nil, http.StatusBadRequest)
-		return
-	}
-
-	resp, err := handler.promotionApprovalRequestService.FetchWorkflowPromoteNodeList(token, workflowId, artifactId, handler.promoteActionRbac)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	common.WriteJsonResp(w, nil, resp, http.StatusOK)
-
 }
 
 func (handler *RestHandlerImpl) promoteActionRbac(token, appName string, envNames []string) map[string]bool {
