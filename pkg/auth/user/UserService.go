@@ -1445,7 +1445,8 @@ func (impl UserServiceImpl) GetByIdForGroupClaims(id int32) (*bean.UserInfo, err
 	var userRoleGroups []bean.UserRoleGroup
 	recordedTime := time.Now()
 	isGroupClaimsActive := impl.globalAuthorisationConfigService.IsGroupClaimsConfigActive()
-	if isGroupClaimsActive {
+	isApiToken := util3.CheckIfApiToken(model.EmailId)
+	if isGroupClaimsActive && !isApiToken {
 		userRoleGroups, err = impl.getRoleGroupsForGroupClaims(id)
 		if err != nil {
 			impl.logger.Errorw("error in getRoleGroupsForGroupClaims ", "err", err, "id", id)
