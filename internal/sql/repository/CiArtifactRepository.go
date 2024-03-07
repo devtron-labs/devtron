@@ -914,6 +914,9 @@ func (impl CiArtifactRepositoryImpl) FetchArtifactsForPromotionApprovalNode(arti
 			query = fmt.Sprintf("SELECT cia.*, COUNT(cia.id) OVER() AS total_count FROM ci_artifact cia"+
 				" where cia.id in (select distinct(artifact_id) from artifact_promotion_approval_request where destination_pipeline_id=%v and status = %d ) ", artifactsListingFilterOps.ResourceCdPipelineId, constants.AWAITING_APPROVAL)
 		} else {
+			if len(artifactsListingFilterOps.ImagePromoterAccessCdPipelineIds) == 0 {
+				return ciArtifacts, 0, nil
+			}
 			query = fmt.Sprintf("SELECT cia.*, COUNT(cia.id) OVER() AS total_count FROM ci_artifact cia"+
 				" where cia.id in (select distinct(artifact_id) from artifact_promotion_approval_request where destination_pipeline_id IN (%s) and status = %d ) ", helper.GetCommaSepratedString(artifactsListingFilterOps.ImagePromoterAccessCdPipelineIds), constants.AWAITING_APPROVAL)
 		}
