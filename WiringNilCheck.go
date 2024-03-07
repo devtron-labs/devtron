@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-func main() {
+func CheckIfNilInWire() {
 	fset := token.NewFileSet()
 	node, err := parser.ParseFile(fset, "test_wire_gen.go", nil, parser.ParseComments)
 	if err != nil {
