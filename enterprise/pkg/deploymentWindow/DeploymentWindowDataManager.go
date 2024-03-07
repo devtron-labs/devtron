@@ -195,12 +195,6 @@ func (impl DeploymentWindowServiceImpl) getProfileIdToProfile(profileIds []int) 
 		profileIdToModel[model.Id] = model
 	}
 
-	//get windows
-	//profileIdToWindowExpressions, err := impl.timeWindowService.GetMappingsForResources(profileIds, repository.DeploymentWindowProfile)
-	//if err != nil {
-	//	return nil, err
-	//}
-
 	profileIdToWindows, err := impl.timeWindowService.GetWindowsForResources(profileIds, repository.DeploymentWindowProfile)
 	if err != nil {
 		return nil, err

@@ -7,8 +7,6 @@ import (
 )
 
 type DeploymentWindowProfilePolicy struct {
-	//DeploymentWindowList []*TimeWindow `json:"deploymentWindowList,omitempty"`
-	//Enabled              bool          `json:"enabled" searchFieldType:"boolean"`
 	TimeZone             string               `json:"timeZone"`
 	DisplayMessage       string               `json:"displayMessage"`
 	ExcludedUsersList    []int32              `json:"excludedUsersList"`
