@@ -293,9 +293,9 @@ kubectl -n devtroncd get secret devtron-secret \
 </details>
 
 
-* If you want to uninstall Devtron or clean Devtron helm installer, refer our [uninstall Devtron](https://docs.devtron.ai/install/uninstall-devtron).
+* If you want to uninstall Devtron or clean Devtron helm installer, refer our [uninstall Devtron](../install/uninstall-devtron.md).
 
-* Related to installaltion, please also refer [FAQ](https://docs.devtron.ai/install/faq-on-installation) section also.
+* Related to installaltion, please also refer [FAQ](../install/faq-on-installation.md) section also.
 
 
 {% hint style="info" %}

@@ -31,6 +31,7 @@ type Chart struct {
 	ReferenceChart          []byte                      `sql:"reference_chart"`
 	IsBasicViewLocked       bool                        `sql:"is_basic_view_locked,notnull"`
 	CurrentViewEditor       models.ChartsViewEditorType `sql:"current_view_editor"`
+	IsCustomGitRepository   bool                        `sql:"is_custom_repository"`
 	ResolvedGlobalOverride  string                      `sql:"-"`
 	sql.AuditLog
 }
@@ -44,6 +45,7 @@ type ChartRepository interface {
 	FindLatestByAppId(appId int) (chart *Chart, err error)
 	FindById(id int) (chart *Chart, err error)
 	Update(chart *Chart) error
+	UpdateAllInTx(tx *pg.Tx, charts []*Chart) error
 
 	FindActiveChartsByAppId(appId int) (charts []*Chart, err error)
 	FindLatestChartForAppByAppId(appId int) (chart *Chart, err error)
@@ -53,14 +55,19 @@ type ChartRepository interface {
 	FindPreviousChartByAppId(appId int) (chart *Chart, err error)
 	FindNumberOfAppsWithDeploymentTemplate(appIds []int) (int, error)
 	FindChartByGitRepoUrl(gitRepoUrl string) (*Chart, error)
+	sql.TransactionWrapper
 }
 
 func NewChartRepository(dbConnection *pg.DB) *ChartRepositoryImpl {
-	return &ChartRepositoryImpl{dbConnection: dbConnection}
+	return &ChartRepositoryImpl{
+		dbConnection:        dbConnection,
+		TransactionUtilImpl: sql.NewTransactionUtilImpl(dbConnection),
+	}
 }
 
 type ChartRepositoryImpl struct {
 	dbConnection *pg.DB
+	*sql.TransactionUtilImpl
 }
 
 func (repositoryImpl ChartRepositoryImpl) FindOne(chartRepo, chartName, chartVersion string) (*Chart, error) {
@@ -185,6 +192,16 @@ func (repositoryImpl ChartRepositoryImpl) Save(chart *Chart) error {
 func (repositoryImpl ChartRepositoryImpl) Update(chart *Chart) error {
 	_, err := repositoryImpl.dbConnection.Model(chart).WherePK().UpdateNotNull()
 	return err
+}
+
+func (repositoryImpl ChartRepositoryImpl) UpdateAllInTx(tx *pg.Tx, charts []*Chart) error {
+	for _, chart := range charts {
+		_, err := tx.Model(chart).WherePK().UpdateNotNull()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (repositoryImpl ChartRepositoryImpl) FindById(id int) (chart *Chart, err error) {

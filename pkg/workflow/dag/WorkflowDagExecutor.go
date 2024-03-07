@@ -134,6 +134,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	globalPluginRepository repository2.GlobalPluginRepository,
 	eventClient client.EventClient,
 	eventFactory client.EventFactory,
+	customTagService pipeline.CustomTagService,
 	helmAppService client2.HelmAppService,
 	pipelineConfigListenerService pipeline.PipelineConfigListenerService,
 	cdWorkflowCommonService cd.CdWorkflowCommonService,
@@ -154,6 +155,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		globalPluginRepository:  globalPluginRepository,
 		eventClient:             eventClient,
 		eventFactory:            eventFactory,
+		customTagService:        customTagService,
 
 		devtronAsyncHelmInstallRequestMap:  make(map[int]bool),
 		devtronAsyncHelmInstallRequestLock: &sync.Mutex{},

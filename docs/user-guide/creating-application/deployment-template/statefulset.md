@@ -28,7 +28,7 @@ You can select `StatefulSet` chart when you want to use only basic use cases whi
 * **Resource Cleanup:** StatefulSets allow for easy cleanup of older versions by deleting StatefulSets and their associated Pods and persistent volumes that are no longer needed, ensuring efficient resource utilization.
 
 {% hint style="warning" %}
-Super-admins can lock keys in StatefulSet deployment template to prevent non-super-admins from modifying those locked keys. Refer [Lock Deployment Config](../../global-configurations/lock-deployment-config.md) to know more.
+Super-admins can lock keys in StatefulSet deployment template to prevent non-super-admins from modifying those locked keys. Refer [Lock Deployment Configuration](../../global-configurations/lock-deployment-config.md) to know more.
 {% endhint %}
 
 

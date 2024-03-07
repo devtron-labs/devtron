@@ -3,8 +3,8 @@
 
 This chart deploys Job & CronJob. A Job is a controller object that represents a finite task and CronJob is used to schedule the creation of Jobs.
 
- * [Job](https://docs.devtron.ai/usage/applications/creating-application/deployment-template/job-and-cronjob#1.-job)
- * [CronJob](https://docs.devtron.ai/usage/applications/creating-application/deployment-template/job-and-cronjob#2.-cronjob)
+ * [Job](#1.-job)
+ * [CronJob](#2.-cronjob)
 
 ## 1. Job
 
@@ -65,5 +65,5 @@ cronjobConfigs:
 | `kind` | As with all other Kubernetes config, a Job and cronjob needs apiVersion, kind.cronjob and job also needs a section fields which is optional . these fields specify to deploy which job (conjob or job) should be kept. by default, they are set cronjob. |
 
 {% hint style="warning" %}
-Super-admins can lock keys in Job & CronJob deployment template to prevent non-super-admins from modifying those locked keys. Refer [Lock Deployment Config](../../global-configurations/lock-deployment-config.md) to know more.
+Super-admins can lock keys in Job & CronJob deployment template to prevent non-super-admins from modifying those locked keys. Refer [Lock Deployment Configuration](../../global-configurations/lock-deployment-config.md) to know more.
 {% endhint %}
