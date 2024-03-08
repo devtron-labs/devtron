@@ -146,8 +146,8 @@ func (impl *ApprovalRequestServiceImpl) FetchApprovalAllowedEnvList(artifactId i
 
 	artifact, err := impl.ciArtifactRepository.Get(artifactId)
 	if err != nil {
-		impl.logger.Errorw("artifact not found for given id", "artifactId", artifactId, "err", err)
-		return nil, util.NewApiError().WithHttpStatusCode(http.StatusUnprocessableEntity).WithUserMessage("artifact not found for given id").WithInternalMessage("artifact not found for given id")
+		impl.logger.Errorw(constants.ARTIFACT_NOT_FOUND_ERR, "artifactId", artifactId, "err", err)
+		return nil, util.NewApiError().WithHttpStatusCode(http.StatusUnprocessableEntity).WithUserMessage(constants.ARTIFACT_NOT_FOUND_ERR).WithInternalMessage(constants.ARTIFACT_NOT_FOUND_ERR)
 	}
 
 	promotionRequests, err := impl.artifactPromotionApprovalRequestRepository.FindRequestsByArtifactIdAndEnvName(artifactId, environmentName, constants.AWAITING_APPROVAL)
@@ -767,7 +767,7 @@ func (impl *ApprovalRequestServiceImpl) fetchSourceMeta(sourceName string, sourc
 	return sourceInfo, nil
 }
 
-func (impl *ApprovalRequestServiceImpl) validatePromotion(requestedWorkflowId int, ciArtifact *repository2.CiArtifact, metadata *bean.RequestMetaData) (map[string]bean.EnvironmentPromotionMetaData, error) {
+func (impl *ApprovalRequestServiceImpl) validatePromoteAction(requestedWorkflowId int, metadata *bean.RequestMetaData) (map[string]bean.EnvironmentPromotionMetaData, error) {
 	if requestedWorkflowId != metadata.GetWorkflowId() {
 		// handle throw api error with conflict status code
 		return nil, util.NewApiError().WithHttpStatusCode(http.StatusConflict).WithUserMessage("provided source is not linked to the given workflow").WithInternalMessage("provided source is not linked to the given workflow")
@@ -778,12 +778,18 @@ func (impl *ApprovalRequestServiceImpl) validatePromotion(requestedWorkflowId in
 		impl.logger.Errorw("error in finding the app workflow mappings", "err", err)
 		return nil, err
 	}
+
 	if metadata.GetSourceType() == constants.SOURCE_TYPE_CD {
 
-		sourcePipeline := metadata.GetSourceCdPipeline()
-		deployed, err := impl.checkIfDeployedAtSource(ciArtifact.Id, sourcePipeline)
+		// if sourcePipelineId is 0, then the source pipeline given by user is not found in the workflow.
+		if metadata.GetSourcePipelineId() == 0 {
+			errMsg := fmt.Sprintf("no pipeline found against given source environment %s", metadata.GetSourceName())
+			return nil, util.NewApiError().WithHttpStatusCode(http.StatusBadRequest).WithUserMessage(errMsg).WithInternalMessage(errMsg)
+		}
+
+		deployed, err := impl.checkIfDeployedAtSource(metadata.GetCiArtifactId(), metadata.GetSourceCdPipeline())
 		if err != nil {
-			impl.logger.Errorw("error in checking if artifact is available for promotion at source pipeline", "ciArtifactId", ciArtifact.Id, "sourcePipelineId", sourcePipeline.Id, "err", err)
+			impl.logger.Errorw("error in checking if artifact is available for promotion at source pipeline", "ciArtifactId", metadata.GetCiArtifactId(), "sourcePipelineId", metadata.GetSourcePipelineId(), "err", err)
 			return nil, err
 		}
 
@@ -798,12 +804,6 @@ func (impl *ApprovalRequestServiceImpl) validatePromotion(requestedWorkflowId in
 			if appWorkflowMapping.Type == appWorkflow.CDPIPELINE && appWorkflowMapping.ParentType == appWorkflow.CDPIPELINE {
 				tree[appWorkflowMapping.ParentId] = append(tree[appWorkflowMapping.ParentId], appWorkflowMapping.ComponentId)
 			}
-		}
-
-		// if sourcePipelineId is 0, then the source pipeline given by user is not found in the workflow.
-		if metadata.GetSourcePipelineId() == 0 {
-			errMsg := fmt.Sprintf("no pipeline found against given source environment %s", metadata.GetSourceName())
-			return nil, util.NewApiError().WithHttpStatusCode(http.StatusBadRequest).WithUserMessage(errMsg).WithInternalMessage(errMsg)
 		}
 
 		responseMap := make(map[string]bean.EnvironmentPromotionMetaData)
@@ -841,18 +841,8 @@ func (impl *ApprovalRequestServiceImpl) promoteArtifact(ctx context.Context, req
 		return nil, err
 	}
 	responseMap := metadata.GetDefaultEnvironmentPromotionMetaDataResponseMap()
-	ciArtifact, err := impl.ciArtifactRepository.Get(request.ArtifactId)
-	if err != nil {
-		impl.logger.Errorw("error in finding the artifact using id", "artifactId", request.ArtifactId, "err", err)
-		// todo: create new error type and create a construct on that which will accept user msg and err and overridable status code
-		errRes := util.NewApiError().WithHttpStatusCode(http.StatusInternalServerError).WithInternalMessage(fmt.Sprintf("error in finding artifact , err : %s", err.Error())).WithUserMessage("error in finding artifact")
-		if errors.Is(err, pg.ErrNoRows) {
-			errRes = errRes.WithHttpStatusCode(http.StatusConflict).WithUserMessage("artifact not found")
-		}
-		return nil, errRes
-	}
 
-	validationResponseMap, err := impl.validatePromotion(request.WorkflowId, ciArtifact, metadata)
+	validationResponseMap, err := impl.validatePromoteAction(request.WorkflowId, metadata)
 	if err != nil {
 		impl.logger.Errorw("error in validating the workflowPromotion request", "metadata", metadata, "err", err)
 		return nil, err
@@ -868,16 +858,25 @@ func (impl *ApprovalRequestServiceImpl) promoteArtifact(ctx context.Context, req
 		return nil, err
 	}
 
-	promotableEnvs := make([]string, 0)
+	promotableEnvs := make([]string, 0, len(responseMap))
 	for _, resp := range responseMap {
 		if resp.PromotionValidationMessage == constants.EMPTY {
 			promotableEnvs = append(promotableEnvs, resp.Name)
 		}
 	}
-	promoteResponseMap := impl.raisePromoteRequestHelper(ctx, policiesMap, ciArtifact, metadata)
-	for envName, resp := range promoteResponseMap {
-		responseMap[envName] = resp
+
+	if len(promotableEnvs) > 0 {
+		metadata = metadata.WithPromotableEnvs(promotableEnvs)
+		promoteResponseMap, err := impl.raisePromoteRequestHelper(ctx, policiesMap, metadata)
+		if err != nil {
+			impl.logger.Errorw("error in promoting the artifact on to destination pipelines", "artifactId", metadata.GetCiArtifactId(), "destinationPipelineIds", metadata.GetActiveAuthorisedPipelineIds(), "err", err)
+			return nil, err
+		}
+		for envName, resp := range promoteResponseMap {
+			responseMap[envName] = resp
+		}
 	}
+
 	envResponses := make([]bean.EnvironmentPromotionMetaData, 0, len(responseMap))
 	for _, resp := range responseMap {
 		envResponses = append(envResponses, resp)
@@ -885,60 +884,82 @@ func (impl *ApprovalRequestServiceImpl) promoteArtifact(ctx context.Context, req
 	return envResponses, nil
 }
 
-func (impl *ApprovalRequestServiceImpl) raisePromoteRequestHelper(ctx context.Context, policiesMap map[string]*bean.PromotionPolicy, ciArtifact *repository2.CiArtifact, metadata *bean.RequestMetaData) map[string]bean.EnvironmentPromotionMetaData {
+func (impl *ApprovalRequestServiceImpl) raisePromoteRequestHelper(ctx context.Context, policiesMap map[string]*bean.PromotionPolicy, metadata *bean.RequestMetaData) (map[string]bean.EnvironmentPromotionMetaData, error) {
 	responseMap := make(map[string]bean.EnvironmentPromotionMetaData)
-	for _, pipelineId := range metadata.GetActiveAuthorisedPipelineIds() {
+	promotedCountPerPipeline, pendingCountPerPipeline, err := impl.fetchPendingAndPromotedRequests(metadata.GetPromotablePipelineIds(), metadata.GetCiArtifactId())
+	if err != nil {
+		impl.logger.Errorw("error in getting the pending and promoted requests using destination pipelines ids for an artifact", "destinationPipelineIds", metadata.GetActiveAuthorisedPipelineIds(), "artifactId", metadata.GetCiArtifactId(), "err", err)
+		return nil, err
+	}
+
+	for _, pipelineId := range metadata.GetPromotablePipelineIds() {
 
 		pipelineIdVsEnvNameMap := metadata.GetActiveAuthorisedPipelineIdEnvMap()
 		pipelineIdToDaoMap := metadata.GetActiveAuthorisedPipelineDaoMap()
-		EnvResponse := bean.EnvironmentPromotionMetaData{
-			Name:                 pipelineIdVsEnvNameMap[pipelineId],
-			IsVirtualEnvironment: metadata.GetActiveAuthorisedPipelineDaoMap()[pipelineId].Environment.IsVirtualEnvironment,
-		}
-
-		policy := policiesMap[pipelineIdVsEnvNameMap[pipelineId]]
-		if policy == nil {
-			EnvResponse.PromotionValidationMessage = constants.POLICY_NOT_CONFIGURED
-		} else if EnvResponse.PromotionValidationMessage == constants.EMPTY {
-			state, err := impl.raisePromoteRequest(ctx, policy, ciArtifact, pipelineIdToDaoMap[pipelineId], metadata)
-			if err != nil {
-				impl.logger.Errorw("error in raising promotion request for the pipeline", "pipelineId", pipelineId, "artifactId", ciArtifact.Id, "err", err)
-				EnvResponse.PromotionValidationMessage = constants.ERRORED
+		func() {
+			EnvResponse := bean.EnvironmentPromotionMetaData{
+				Name:                 pipelineIdVsEnvNameMap[pipelineId],
+				IsVirtualEnvironment: pipelineIdToDaoMap[pipelineId].Environment.IsVirtualEnvironment,
 			}
-			EnvResponse.PromotionPossible = true
-			EnvResponse.PromotionValidationMessage = state
-		}
-		responseMap[pipelineIdVsEnvNameMap[pipelineId]] = EnvResponse
+			defer func() {
+				responseMap[pipelineIdVsEnvNameMap[pipelineId]] = EnvResponse
+			}()
+
+			if promotedCountPerPipeline[pipelineId] > 0 {
+				EnvResponse.PromotionValidationMessage = constants.ARTIFACT_ALREADY_PROMOTED
+				return
+			}
+
+			if pendingCountPerPipeline[pipelineId] >= 1 {
+				EnvResponse.PromotionValidationMessage = constants.ALREADY_REQUEST_RAISED
+				return
+			}
+
+			policy := policiesMap[pipelineIdVsEnvNameMap[pipelineId]]
+			if policy == nil {
+				EnvResponse.PromotionValidationMessage = constants.POLICY_NOT_CONFIGURED
+			} else {
+				state, err := impl.raisePromoteRequest(ctx, policy, pipelineIdToDaoMap[pipelineId], metadata)
+				if err != nil {
+					impl.logger.Errorw("error in raising promotion request for the pipeline", "pipelineId", pipelineId, "artifactId", metadata.GetCiArtifactId(), "err", err)
+					EnvResponse.PromotionValidationMessage = constants.ERRORED
+				}
+				EnvResponse.PromotionPossible = true
+				EnvResponse.PromotionValidationMessage = state
+			}
+
+		}()
 	}
 
-	return responseMap
+	return responseMap, nil
 }
 
-func (impl *ApprovalRequestServiceImpl) raisePromoteRequest(ctx context.Context, promotionPolicy *bean.PromotionPolicy, ciArtifact *repository2.CiArtifact, cdPipeline *pipelineConfig.Pipeline, metadata *bean.RequestMetaData) (constants.PromotionValidationMsg, error) {
-	// todo : handle it in single db call
-	requests, err := impl.artifactPromotionApprovalRequestRepository.FindAwaitedRequestByPipelineIdAndArtifactId(cdPipeline.Id, ciArtifact.Id)
+func (impl *ApprovalRequestServiceImpl) fetchPendingAndPromotedRequests(destinationPipelineIds []int, artifactId int) (map[int]int, map[int]int, error) {
+	requests, err := impl.artifactPromotionApprovalRequestRepository.FindRequestsByStatusesForDestinationPipelines(destinationPipelineIds, artifactId, []constants.ArtifactPromotionRequestStatus{constants.AWAITING_APPROVAL, constants.PROMOTED})
 	if err != nil {
-		impl.logger.Errorw("error in finding the pending promotion request using pipelineId and artifactId", "pipelineId", cdPipeline.Id, "artifactId", ciArtifact.Id)
-		return constants.ERRORED, err
+		impl.logger.Errorw("error in getting the pending and promoted requests using destination pipelines ids for an artifact", "destinationPipelineIds", destinationPipelineIds, "artifactId", artifactId, "err", err)
+		return nil, nil, err
 	}
 
-	if len(requests) >= 1 {
-		return constants.ALREADY_REQUEST_RAISED, nil
+	promotedCountPerPipeline := make(map[int]int)
+	pendingCountPerPipeline := make(map[int]int)
+
+	for _, request := range requests {
+		if request.Status == constants.PROMOTED {
+			promotedCountPerPipeline[request.DestinationPipelineId] = promotedCountPerPipeline[request.DestinationPipelineId] + 1
+		}
+		if request.Status == constants.AWAITING_APPROVAL {
+			pendingCountPerPipeline[request.DestinationPipelineId] = pendingCountPerPipeline[request.DestinationPipelineId] + 1
+		}
 	}
 
-	promotedRequest, err := impl.artifactPromotionApprovalRequestRepository.FindPromotedRequestByPipelineIdAndArtifactId(cdPipeline.Id, ciArtifact.Id)
-	if err != nil && !errors.Is(err, pg.ErrNoRows) {
-		impl.logger.Errorw("error in finding the promoted request using pipelineId and artifactId", "pipelineId", cdPipeline.Id, "artifactId", ciArtifact.Id)
-		return constants.ERRORED, err
-	}
+	return promotedCountPerPipeline, pendingCountPerPipeline, nil
 
-	if promotedRequest.Id > 0 {
-		return constants.ARTIFACT_ALREADY_PROMOTED, nil
-	}
+}
 
-	// todo end
+func (impl *ApprovalRequestServiceImpl) raisePromoteRequest(ctx context.Context, promotionPolicy *bean.PromotionPolicy, cdPipeline *pipelineConfig.Pipeline, metadata *bean.RequestMetaData) (constants.PromotionValidationMsg, error) {
 
-	params, err := impl.computeFilterParams(ciArtifact)
+	params, err := impl.computeFilterParams(metadata.GetCiArtifact())
 	if err != nil {
 		impl.logger.Errorw("error in finding the required CEL expression parameters for using ciArtifact", "err", err)
 		return constants.POLICY_EVALUATION_ERRORED, err
@@ -967,7 +988,7 @@ func (impl *ApprovalRequestServiceImpl) raisePromoteRequest(ctx context.Context,
 	defer impl.artifactPromotionApprovalRequestRepository.RollbackTx(tx)
 
 	// save evaluation audit
-	evaluationAuditEntry, err := impl.resourceFilterEvaluationAuditService.SaveFilterEvaluationAudit(tx, resourceFilter.Artifact, ciArtifact.Id, cdPipeline.Id, resourceFilter.Pipeline, ctx.Value("userId").(int32), evaluationAuditJsonString, resourceFilter.ARTIFACT_PROMOTION_POLICY)
+	evaluationAuditEntry, err := impl.resourceFilterEvaluationAuditService.SaveFilterEvaluationAudit(tx, resourceFilter.Artifact, metadata.GetCiArtifactId(), cdPipeline.Id, resourceFilter.Pipeline, ctx.Value("userId").(int32), evaluationAuditJsonString, resourceFilter.ARTIFACT_PROMOTION_POLICY)
 	if err != nil {
 		impl.logger.Errorw("error in saving policy evaluation audit data", "evaluationAuditEntry", evaluationAuditEntry, "err", err)
 		return constants.ERRORED, err
@@ -977,35 +998,33 @@ func (impl *ApprovalRequestServiceImpl) raisePromoteRequest(ctx context.Context,
 		SourcePipelineId:        metadata.GetSourcePipelineId(),
 		DestinationPipelineId:   cdPipeline.Id,
 		Status:                  constants.AWAITING_APPROVAL,
-		ArtifactId:              ciArtifact.Id,
+		ArtifactId:              metadata.GetCiArtifactId(),
 		PolicyId:                promotionPolicy.Id,
 		PolicyEvaluationAuditId: evaluationAuditEntry.Id,
 		AuditLog:                sql.NewDefaultAuditLog(ctx.Value("userId").(int32)),
 	}
 
-	var status constants.PromotionValidationMsg
+	status := constants.SENT_FOR_APPROVAL
 	if promotionPolicy.CanBePromoted(0) {
 		promotionRequest.Status = constants.PROMOTED
 		status = constants.PROMOTION_SUCCESSFUL
-	} else {
-		status = constants.SENT_FOR_APPROVAL
 	}
 	_, err = impl.artifactPromotionApprovalRequestRepository.Create(tx, promotionRequest)
 	if err != nil {
-		impl.logger.Errorw("error in finding the pending promotion request using pipelineId and artifactId", "pipelineId", cdPipeline.Id, "artifactId", ciArtifact.Id)
+		impl.logger.Errorw("error in finding the pending promotion request using pipelineId and artifactId", "pipelineId", cdPipeline.Id, "artifactId", metadata.GetCiArtifactId())
 		return constants.ERRORED, err
 	}
 
 	err = impl.artifactPromotionApprovalRequestRepository.CommitTx(tx)
 	if err != nil {
-		impl.logger.Errorw("error in committing the db transaction", "pipelineId", cdPipeline.Id, "artifactId", ciArtifact.Id, "err", err)
+		impl.logger.Errorw("error in committing the db transaction", "pipelineId", cdPipeline.Id, "artifactId", metadata.GetCiArtifactId(), "err", err)
 		return constants.ERRORED, err
 	}
 	if promotionRequest.Status == constants.PROMOTED {
 		triggerRequest := bean2.TriggerRequest{
 			CdWf:        nil,
 			Pipeline:    cdPipeline,
-			Artifact:    ciArtifact,
+			Artifact:    metadata.GetCiArtifact(),
 			TriggeredBy: 1,
 			TriggerContext: bean2.TriggerContext{
 				Context: context.Background(),

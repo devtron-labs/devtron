@@ -181,11 +181,14 @@ type WorkflowMetaData struct {
 	CiSourceData CiSourceMetaData
 }
 
-type PipelinesMetaData struct {
+type pipelinesMetaData struct {
 	activeAuthorisedPipelineIds            []int
 	activeAuthorisedPipelineIdVsEnvNameMap map[int]string
+	activeAuthorisedEnvNameVsPipelineIdMap map[string]int
 	activeAuthorisedPipelineIdDaoMap       map[int]*pipelineConfig.Pipeline
 	pipelineEnvIds                         []int
+	promotableEnvs                         []string
+	promotablePipelineIds                  []int
 }
 
 type SourceMetaData struct {
@@ -234,16 +237,16 @@ type RequestMetaData struct {
 	authorisedEnvMap            map[string]bool
 	activeEnvironments          []*cluster.EnvironmentBean
 	activeEnvironmentsMap       map[string]*cluster.EnvironmentBean
-	destinationPipelineMetaData *PipelinesMetaData
+	destinationPipelineMetaData *pipelinesMetaData
 	activeEnvIds                []int
 	activeEnvNames              []string
 	activeAuthorisedEnvNames    []string
 	activeAuthorisedEnvIds      []int
 	sourceMetaData              *SourceMetaData
-	promotableEnvs              []string
 	appId                       int
 
-	ciArtifact *repository.CiArtifact
+	ciArtifactId int
+	ciArtifact   *repository.CiArtifact
 }
 
 // todo: naming can be better
@@ -275,6 +278,7 @@ func (r *RequestMetaData) GetSourceMetaData() *SourceMetaData {
 
 func (r *RequestMetaData) WithCiArtifact(ciArtifact *repository.CiArtifact) *RequestMetaData {
 	r.ciArtifact = ciArtifact
+	r.ciArtifactId = ciArtifact.Id
 	return r
 }
 
@@ -283,8 +287,13 @@ func (r *RequestMetaData) WithAppId(appId int) *RequestMetaData {
 	return r
 }
 
-func (r *RequestMetaData) WithPromotableEnvMap(promotableEnvs []string) *RequestMetaData {
-	r.promotableEnvs = promotableEnvs
+func (r *RequestMetaData) WithPromotableEnvs(promotableEnvs []string) *RequestMetaData {
+	r.destinationPipelineMetaData.promotableEnvs = promotableEnvs
+	promotablePipelineIds := make([]int, 0, len(promotableEnvs))
+	for _, promotableEnv := range promotableEnvs {
+		promotablePipelineIds = append(promotablePipelineIds, r.destinationPipelineMetaData.activeAuthorisedEnvNameVsPipelineIdMap[promotableEnv])
+	}
+	r.destinationPipelineMetaData.promotablePipelineIds = promotablePipelineIds
 	return r
 }
 
@@ -297,17 +306,20 @@ func (r *RequestMetaData) SetDestinationPipelineMetaData(activeAuthorisedPipelin
 	pipelineIdEnvNameMap := make(map[int]string)
 	pipelineIdPipelineDaoMap := make(map[int]*pipelineConfig.Pipeline)
 	pipelineEnvIds := make([]int, 0, len(activeAuthorisedPipelines))
+	activeAuthorisedEnvNameVsPipelineIdMap := make(map[string]int)
 	for _, pipeline := range activeAuthorisedPipelines {
 		pipelineIds = append(pipelineIds, pipeline.Id)
 		pipelineIdEnvNameMap[pipeline.Id] = pipeline.Environment.Name
+		activeAuthorisedEnvNameVsPipelineIdMap[pipeline.Environment.Name] = pipeline.Id
 		pipelineIdPipelineDaoMap[pipeline.Id] = pipeline
 		pipelineEnvIds = append(pipelineEnvIds, pipeline.EnvironmentId)
 	}
 
-	pipelineMetaData := &PipelinesMetaData{
+	pipelineMetaData := &pipelinesMetaData{
 		activeAuthorisedPipelineIds:            pipelineIds,
 		activeAuthorisedPipelineIdDaoMap:       pipelineIdPipelineDaoMap,
 		activeAuthorisedPipelineIdVsEnvNameMap: pipelineIdEnvNameMap,
+		activeAuthorisedEnvNameVsPipelineIdMap: activeAuthorisedEnvNameVsPipelineIdMap,
 	}
 	r.destinationPipelineMetaData = pipelineMetaData
 }
@@ -411,10 +423,18 @@ func (r *RequestMetaData) GetCiArtifact() *repository.CiArtifact {
 	return &artifact
 }
 
+func (r *RequestMetaData) GetCiArtifactId() int {
+	return r.ciArtifactId
+}
+
 func (r *RequestMetaData) GetActiveEnvironmentsMap() map[string]*cluster.EnvironmentBean {
 	return r.activeEnvironmentsMap
 }
 
 func (r *RequestMetaData) GetAppId() int {
 	return r.appId
+}
+
+func (r *RequestMetaData) GetPromotablePipelineIds() []int {
+	return r.destinationPipelineMetaData.promotablePipelineIds
 }
