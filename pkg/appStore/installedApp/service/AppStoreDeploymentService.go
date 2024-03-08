@@ -1068,7 +1068,7 @@ func (impl *AppStoreDeploymentServiceImpl) CreateInstalledAppVersion(installAppV
 }
 
 // CheckIfMonoRepoMigrationRequired checks if gitOps repo name is changed
-func (impl *AppStoreDeploymentServiceImpl) CheckIfMonoRepoMigrationRequired(installedApp *repository.InstalledApps) bool {
+func (impl *AppStoreDeploymentServiceImpl) CheckIfMonoRepoMigrationRequired(installedApp *repository.InstalledApps, appStoreName string) bool {
 	monoRepoMigrationRequired := false
 	if !util.IsAcdApp(installedApp.DeploymentAppType) || gitOps.IsGitOpsRepoNotConfigured(installedApp.GitOpsRepoUrl) || installedApp.IsCustomRepository {
 		return false
@@ -1083,8 +1083,9 @@ func (impl *AppStoreDeploymentServiceImpl) CheckIfMonoRepoMigrationRequired(inst
 	}
 	//here will set new git repo name if required to migrate
 	newGitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoName(installedApp.App.AppName)
-	//checking weather git repo migration needed or not, if existing git repo and new independent git repo is not same than go ahead with migration
-	if newGitOpsRepoName != gitOpsRepoName {
+	//checking weather git repo migration needed or not, if existing git repo and new independent git repo is not same
+	//and also appStoreName and current gitops repo name is same(it means it's mono repo) than go ahead with migration
+	if newGitOpsRepoName != gitOpsRepoName && gitOpsRepoName == appStoreName {
 		monoRepoMigrationRequired = true
 	}
 	return monoRepoMigrationRequired
@@ -1230,7 +1231,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 			return nil, err
 		}
 		// required if gitOps repo name is changed, gitOps repo name will change if env variable which we use as suffix changes
-		monoRepoMigrationRequired = impl.CheckIfMonoRepoMigrationRequired(installedApp)
+		monoRepoMigrationRequired = impl.CheckIfMonoRepoMigrationRequired(installedApp, installedAppVersion.AppStoreApplicationVersion.AppStore.Name)
 		argocdAppName := installedApp.App.AppName + "-" + installedApp.Environment.Name
 		installAppVersionRequest.ACDAppName = argocdAppName
 
