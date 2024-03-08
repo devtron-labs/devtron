@@ -53,6 +53,7 @@ type ApprovalRequestServiceImpl struct {
 	promotionPolicyDataReadService             read.ArtifactPromotionDataReadService
 	requestApprovalUserdataRepo                pipelineConfig.RequestApprovalUserdataRepository
 	workflowDagExecutor                        dag.WorkflowDagExecutor
+	transactionManager                         sql.TransactionWrapper
 }
 
 func NewApprovalRequestServiceImpl(
@@ -73,6 +74,7 @@ func NewApprovalRequestServiceImpl(
 	pipelineStageService pipeline.PipelineStageService,
 	environmentService cluster.EnvironmentService,
 	resourceFilterEvaluationAuditService resourceFilter.FilterEvaluationAuditService,
+	transactionManager sql.TransactionWrapper,
 ) *ApprovalRequestServiceImpl {
 
 	artifactApprovalService := &ApprovalRequestServiceImpl{
@@ -92,6 +94,7 @@ func NewApprovalRequestServiceImpl(
 		pipelineStageService:                 pipelineStageService,
 		environmentService:                   environmentService,
 		resourceFilterEvaluationAuditService: resourceFilterEvaluationAuditService,
+		transactionManager:                   transactionManager,
 	}
 
 	// register hooks
@@ -236,7 +239,7 @@ func (impl *ApprovalRequestServiceImpl) markRequestStale(pipelineIdToDaoMapping 
 			deletedPipelines = append(deletedPipelines, id)
 		}
 	}
-	tx, err := impl.artifactPromotionApprovalRequestRepository.StartTx()
+	tx, err := impl.transactionManager.StartTx()
 	if err != nil {
 		impl.logger.Errorw("error in starting tx", "err", err)
 		return deletedPipelines, err
@@ -246,7 +249,7 @@ func (impl *ApprovalRequestServiceImpl) markRequestStale(pipelineIdToDaoMapping 
 		impl.logger.Errorw("error in marking pipeline stale by ids", "pipelineIds", deletedPipelines, "err", err)
 		return deletedPipelines, err
 	}
-	err = impl.artifactPromotionApprovalRequestRepository.CommitTx(tx)
+	err = impl.transactionManager.CommitTx(tx)
 	if err != nil {
 		impl.logger.Errorw("error in committing the transaction", "pipelineIds", deletedPipelines, "err", err)
 		return nil, err
@@ -553,12 +556,12 @@ func (impl *ApprovalRequestServiceImpl) initiateApprovalProcess(ctx context.Cont
 	pipelineIdVsEnvMap := metadata.GetActiveAuthorisedPipelineIdEnvMap()
 	staleRequestIds, validRequestIds, responses := impl.filterValidAndStaleRequests(promotionRequests, responses, pipelineIdVsEnvMap, policyIdMap)
 
-	tx, err := impl.artifactPromotionApprovalRequestRepository.StartTx()
+	tx, err := impl.transactionManager.StartTx()
 	if err != nil {
 		impl.logger.Errorw("error in starting the transaction", "promotionRequests", promotionRequests, "err", err)
 		return nil, err
 	}
-	defer impl.artifactPromotionApprovalRequestRepository.RollbackTx(tx)
+	defer impl.transactionManager.RollbackTx(tx)
 	responses = impl.approveRequests(ctx, metadata, validRequestIds, policyIdMap, promotionRequests, responses)
 	if len(staleRequestIds) > 0 {
 		// attempt deleting the stale requests in bulk
@@ -613,7 +616,7 @@ func (impl *ApprovalRequestServiceImpl) initiateApprovalProcess(ctx context.Cont
 		}
 	}
 
-	err = impl.artifactPromotionApprovalRequestRepository.CommitTx(tx)
+	err = impl.transactionManager.CommitTx(tx)
 	if err != nil {
 		impl.logger.Errorw("error in committing the transaction", "promotableRequestIds", promotableRequestIds, "err", err)
 		return nil, err
@@ -866,8 +869,7 @@ func (impl *ApprovalRequestServiceImpl) promoteArtifact(ctx context.Context, req
 	}
 
 	if len(promotableEnvs) > 0 {
-		metadata = metadata.WithPromotableEnvs(promotableEnvs)
-		promoteResponseMap, err := impl.raisePromoteRequestHelper(ctx, policiesMap, metadata)
+		promoteResponseMap, err := impl.raisePromoteRequestHelper(ctx, policiesMap, metadata.WithPromotableEnvs(promotableEnvs))
 		if err != nil {
 			impl.logger.Errorw("error in promoting the artifact on to destination pipelines", "artifactId", metadata.GetCiArtifactId(), "destinationPipelineIds", metadata.GetActiveAuthorisedPipelineIds(), "err", err)
 			return nil, err
@@ -980,12 +982,12 @@ func (impl *ApprovalRequestServiceImpl) raisePromoteRequest(ctx context.Context,
 		return constants.ERRORED, err
 	}
 
-	tx, err := impl.artifactPromotionApprovalRequestRepository.StartTx()
+	tx, err := impl.transactionManager.StartTx()
 	if err != nil {
 		impl.logger.Errorw("error in starting the transaction", "evaluationResult", evaluationResult, "promotionPolicy", promotionPolicy, "err", err)
 		return constants.ERRORED, err
 	}
-	defer impl.artifactPromotionApprovalRequestRepository.RollbackTx(tx)
+	defer impl.transactionManager.RollbackTx(tx)
 
 	// save evaluation audit
 	evaluationAuditEntry, err := impl.resourceFilterEvaluationAuditService.SaveFilterEvaluationAudit(tx, resourceFilter.Artifact, metadata.GetCiArtifactId(), cdPipeline.Id, resourceFilter.Pipeline, ctx.Value("userId").(int32), evaluationAuditJsonString, resourceFilter.ARTIFACT_PROMOTION_POLICY)
@@ -1015,7 +1017,7 @@ func (impl *ApprovalRequestServiceImpl) raisePromoteRequest(ctx context.Context,
 		return constants.ERRORED, err
 	}
 
-	err = impl.artifactPromotionApprovalRequestRepository.CommitTx(tx)
+	err = impl.transactionManager.CommitTx(tx)
 	if err != nil {
 		impl.logger.Errorw("error in committing the db transaction", "pipelineId", cdPipeline.Id, "artifactId", metadata.GetCiArtifactId(), "err", err)
 		return constants.ERRORED, err

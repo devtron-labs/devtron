@@ -8,7 +8,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/globalPolicy/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
-	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"net/http"
@@ -26,10 +26,10 @@ type PolicyCUDService interface {
 }
 
 type PromotionPolicyServiceImpl struct {
-	globalPolicyDataManager         globalPolicy.GlobalPolicyDataManager
-	resourceQualifierMappingService resourceQualifiers.QualifierMappingService
-	pipelineService                 pipeline.CdPipelineConfigService
-	logger                          *zap.SugaredLogger
+	globalPolicyDataManager globalPolicy.GlobalPolicyDataManager
+	pipelineService         pipeline.CdPipelineConfigService
+	logger                  *zap.SugaredLogger
+	transactionManager      sql.TransactionWrapper
 
 	// hooks
 	preDeleteHooks []func(tx *pg.Tx, policyId int) error
@@ -37,20 +37,19 @@ type PromotionPolicyServiceImpl struct {
 }
 
 func NewPromotionPolicyServiceImpl(globalPolicyDataManager globalPolicy.GlobalPolicyDataManager,
-	resourceQualifierMappingService resourceQualifiers.QualifierMappingService,
 	pipelineService pipeline.CdPipelineConfigService,
-	logger *zap.SugaredLogger,
+	logger *zap.SugaredLogger, transactionManager sql.TransactionWrapper,
 ) *PromotionPolicyServiceImpl {
 	preDeleteHooks := make([]func(tx *pg.Tx, policyId int) error, 0)
 	preUpdateHooks := make([]func(tx *pg.Tx, policy *bean.PromotionPolicy) error, 0)
 
 	return &PromotionPolicyServiceImpl{
-		globalPolicyDataManager:         globalPolicyDataManager,
-		resourceQualifierMappingService: resourceQualifierMappingService,
-		pipelineService:                 pipelineService,
-		logger:                          logger,
-		preDeleteHooks:                  preDeleteHooks,
-		preUpdateHooks:                  preUpdateHooks,
+		globalPolicyDataManager: globalPolicyDataManager,
+		pipelineService:         pipelineService,
+		logger:                  logger,
+		transactionManager:      transactionManager,
+		preDeleteHooks:          preDeleteHooks,
+		preUpdateHooks:          preUpdateHooks,
 	}
 }
 
@@ -82,12 +81,12 @@ func (impl *PromotionPolicyServiceImpl) UpdatePolicy(userId int32, policyName st
 	policyBean.Id = policyId
 
 	// todo: create a transaction manager
-	tx, err := impl.resourceQualifierMappingService.StartTx()
+	tx, err := impl.transactionManager.StartTx()
 	if err != nil {
 		impl.logger.Errorw("error in starting the transaction", "userId", userId, "policyName", policyName, "err", err)
 		return err
 	}
-	defer impl.resourceQualifierMappingService.RollbackTx(tx)
+	defer impl.transactionManager.RollbackTx(tx)
 	_, err = impl.globalPolicyDataManager.UpdatePolicyByName(tx, policyName, globalPolicyDataModel)
 	if err != nil {
 		errResp := util.NewApiError().WithHttpStatusCode(http.StatusInternalServerError).WithInternalMessage(err.Error()).WithUserMessage("error in updating policy")
@@ -105,7 +104,7 @@ func (impl *PromotionPolicyServiceImpl) UpdatePolicy(userId int32, policyName st
 		}
 	}
 
-	err = impl.resourceQualifierMappingService.CommitTx(tx)
+	err = impl.transactionManager.CommitTx(tx)
 	if err != nil {
 		impl.logger.Errorw("error in committing the transaction ", "policyName", policyName, "err", err)
 		return err
@@ -133,7 +132,7 @@ func (impl *PromotionPolicyServiceImpl) CreatePolicy(userId int32, policyBean *b
 }
 
 func (impl *PromotionPolicyServiceImpl) DeletePolicy(userId int32, policyName string) error {
-	tx, err := impl.resourceQualifierMappingService.StartTx()
+	tx, err := impl.transactionManager.StartTx()
 	if err != nil {
 		impl.logger.Errorw("error in starting the transaction", "userId", userId, "policyName", policyName, "err", err)
 		return err
@@ -149,7 +148,7 @@ func (impl *PromotionPolicyServiceImpl) DeletePolicy(userId int32, policyName st
 		return err
 	}
 
-	defer impl.resourceQualifierMappingService.RollbackTx(tx)
+	defer impl.transactionManager.RollbackTx(tx)
 	err = impl.globalPolicyDataManager.DeletePolicyByName(tx, policyName, userId)
 	if err != nil {
 		impl.logger.Errorw("error in deleting the promotion policy using name", "policyName", policyName, "userId", userId, "err", err)
@@ -162,7 +161,7 @@ func (impl *PromotionPolicyServiceImpl) DeletePolicy(userId int32, policyName st
 			return err
 		}
 	}
-	err = impl.resourceQualifierMappingService.CommitTx(tx)
+	err = impl.transactionManager.CommitTx(tx)
 	if err != nil {
 		impl.logger.Errorw("error in committing the transaction ", "policyName", policyName, "err", err)
 		return err
