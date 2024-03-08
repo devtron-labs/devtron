@@ -25,7 +25,6 @@ import (
 	bean4 "github.com/devtron-labs/devtron/pkg/appWorkflow/bean"
 	repository4 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactApproval/read"
-	bean3 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/bean"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
 	read2 "github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/read"
 	"github.com/devtron-labs/devtron/pkg/team"
@@ -405,16 +404,10 @@ func (impl *AppArtifactManagerImpl) FetchArtifactForRollbackV2(cdPipelineId, app
 		return deployedCiArtifactsResponse, err
 	}
 
-	promotionApprovalArtifactIdToMetadataMap, err := impl.artifactPromotionDataReadService.FetchPromotionApprovalDataForArtifacts(artifactIds, cdPipelineId)
+	deployedCiArtifacts, err = impl.setPromotionArtifactMetadata(deployedCiArtifacts, artifactListingFilterOpts.PipelineId, constants.PROMOTED)
 	if err != nil {
-		impl.logger.Errorw("error in fetching promotion approval metadata for given artifactIds", "err", err)
+		impl.logger.Errorw("error in setting promotion artifact metadata for artifacts", "cdPipelineId", artifactListingFilterOpts.PipelineId, "err", err)
 		return deployedCiArtifactsResponse, err
-	}
-
-	for i, artifact := range deployedCiArtifacts {
-		if promotionApprovalMetadata, ok := promotionApprovalArtifactIdToMetadataMap[artifact.Id]; ok {
-			deployedCiArtifacts[i].PromotionApprovalMetadata = promotionApprovalMetadata
-		}
 	}
 
 	imageCommentsDataMap, err := impl.imageTaggingService.GetImageCommentsDataMapByArtifactIds(artifactIds)
@@ -1003,7 +996,7 @@ func (impl *AppArtifactManagerImpl) RetrieveArtifactsByCDPipelineV2(pipeline *pi
 		}
 	}
 
-	ciArtifacts, err = impl.setPromotionArtifactMetadata(ciArtifacts, pipeline.Id)
+	ciArtifacts, err = impl.setPromotionArtifactMetadata(ciArtifacts, pipeline.Id, constants.PROMOTED)
 	if err != nil {
 		impl.logger.Errorw("error in setting promotion artifact metadata for given pipeline", "pipelineId", pipeline.Id, "err", err)
 		return ciArtifactsResponse, err
@@ -1347,12 +1340,12 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 	return ciArtifacts, currentRunningArtifactId, currentRunningWorkflowStatus, totalCount, nil
 }
 
-func (impl *AppArtifactManagerImpl) setPromotionArtifactMetadata(ciArtifacts []bean2.CiArtifactBean, cdPipelineId int) ([]bean2.CiArtifactBean, error) {
+func (impl *AppArtifactManagerImpl) setPromotionArtifactMetadata(ciArtifacts []bean2.CiArtifactBean, cdPipelineId int, status constants.ArtifactPromotionRequestStatus) ([]bean2.CiArtifactBean, error) {
 	artifactIds := make([]int, 0)
 	for _, ciArtifact := range ciArtifacts {
 		artifactIds = append(artifactIds, ciArtifact.Id)
 	}
-	promotionApprovalArtifactIdToMetadataMap, err := impl.artifactPromotionDataReadService.FetchPromotionApprovalDataForArtifacts(artifactIds, cdPipelineId)
+	promotionApprovalArtifactIdToMetadataMap, err := impl.artifactPromotionDataReadService.FetchPromotionApprovalDataForArtifacts(artifactIds, cdPipelineId, status)
 	if err != nil {
 		impl.logger.Errorw("error in fetching promotion approval metadata for given artifactIds", "err", err)
 		return ciArtifacts, err
@@ -1577,8 +1570,6 @@ func (impl *AppArtifactManagerImpl) FetchMaterialForArtifactPromotion(request be
 	var totalCount int
 	var err error
 
-	promotionApprovalMetadataMap := make(map[int]*bean3.PromotionApprovalMetaData)
-
 	listingFilterOptions, err := impl.parseArtifactListingRequest(request, imagePromoterAuth)
 	if err != nil {
 		impl.logger.Errorw("error in parsing promotion artifacts listing options", "err", err)
@@ -1626,7 +1617,9 @@ func (impl *AppArtifactManagerImpl) FetchMaterialForArtifactPromotion(request be
 	}
 	for i, artifact := range ciArtifacts {
 		// envs on which this artifact is deployed
-		ciArtifacts[i].DeployedOnEnvironments = deployedEnvironmentsForArtifacts[artifact.Id]
+		if _, ok := deployedEnvironmentsForArtifacts[artifact.Id]; ok {
+			ciArtifacts[i].DeployedOnEnvironments = deployedEnvironmentsForArtifacts[artifact.Id]
+		}
 	}
 
 	if request.Resource == string(constants.PROMOTION_APPROVAL_PENDING_NODE) && !request.PendingForCurrentUser {
@@ -1641,17 +1634,10 @@ func (impl *AppArtifactManagerImpl) FetchMaterialForArtifactPromotion(request be
 		for _, a := range ciArtifacts {
 			artifactIds = append(artifactIds, a.Id)
 		}
-		promotionApprovalMetadataMap, err = impl.artifactPromotionDataReadService.FetchPromotionApprovalDataForArtifacts(artifactIds, listingFilterOptions.ResourceCdPipelineId)
+		ciArtifacts, err = impl.setPromotionArtifactMetadata(ciArtifacts, listingFilterOptions.ResourceCdPipelineId, constants.AWAITING_APPROVAL)
 		if err != nil {
-			impl.logger.Errorw("error in fetching promotion approval metadata for artifacts", "artifactIds", artifactIds, "pipelineId", listingFilterOptions.ResourceCdPipelineId, "err", err)
+			impl.logger.Errorw("error in fetching promotion approval metadata for artifacts", "cdPipelineId", listingFilterOptions.ResourceCdPipelineId, "err", err)
 			return ciArtifactResponse, err
-		}
-		// add promotion approval metadata if present
-		for i, artifact := range ciArtifacts {
-			// envs on which this artifact is deployed
-			if approvalMetadata, ok := promotionApprovalMetadataMap[artifact.Id]; ok {
-				ciArtifacts[i].PromotionApprovalMetadata = approvalMetadata
-			}
 		}
 	}
 

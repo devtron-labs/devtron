@@ -23,7 +23,7 @@ import (
 )
 
 type ArtifactPromotionDataReadService interface {
-	FetchPromotionApprovalDataForArtifacts(artifactIds []int, pipelineId int) (map[int]*bean.PromotionApprovalMetaData, error)
+	FetchPromotionApprovalDataForArtifacts(artifactIds []int, pipelineId int, status constants.ArtifactPromotionRequestStatus) (map[int]*bean.PromotionApprovalMetaData, error)
 	GetPromotionPolicyByAppAndEnvId(appId, envId int) (*bean.PromotionPolicy, error)
 	GetPromotionPolicyByAppAndEnvIds(appId int, envIds []int) (map[string]*bean.PromotionPolicy, error)
 	GetPromotionPolicyById(id int) (*bean.PromotionPolicy, error)
@@ -63,11 +63,11 @@ func NewArtifactPromotionDataReadServiceImpl(
 	}
 }
 
-func (impl ArtifactPromotionDataReadServiceImpl) FetchPromotionApprovalDataForArtifacts(artifactIds []int, pipelineId int) (map[int]*bean.PromotionApprovalMetaData, error) {
+func (impl ArtifactPromotionDataReadServiceImpl) FetchPromotionApprovalDataForArtifacts(artifactIds []int, pipelineId int, status constants.ArtifactPromotionRequestStatus) (map[int]*bean.PromotionApprovalMetaData, error) {
 
 	promotionApprovalMetadata := make(map[int]*bean.PromotionApprovalMetaData)
 
-	promotionApprovalRequest, err := impl.artifactPromotionApprovalRequestRepository.FindByPipelineIdAndArtifactIds(pipelineId, artifactIds, constants.PROMOTED)
+	promotionApprovalRequest, err := impl.artifactPromotionApprovalRequestRepository.FindByPipelineIdAndArtifactIds(pipelineId, artifactIds, status)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching promotion request for given pipelineId and artifactId", "pipelineId", pipelineId, "artifactIds", artifactIds, "err", err)
 		return promotionApprovalMetadata, nil

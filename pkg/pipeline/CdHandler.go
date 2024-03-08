@@ -21,6 +21,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/read"
 	"os"
 	"path/filepath"
@@ -452,7 +453,7 @@ func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipel
 		artifactIds = append(artifactIds, item.CiArtifactId)
 	}
 
-	artifactIdToPromotionApporvalMetadata, err := impl.artifactPromotionDataReadService.FetchPromotionApprovalDataForArtifacts(artifactIds, pipelineId)
+	artifactIdToPromotionApporvalMetadata, err := impl.artifactPromotionDataReadService.FetchPromotionApprovalDataForArtifacts(artifactIds, pipelineId, constants.PROMOTED)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching promotion approval metadata for artifactIds", "artifactIds", artifactIds, "pipelineId", pipelineId, "err", err)
 		return cdWorkflowArtifact, err
