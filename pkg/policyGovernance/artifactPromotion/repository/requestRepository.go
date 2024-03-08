@@ -87,7 +87,7 @@ func (repo *RequestRepositoryImpl) FindPendingByDestinationPipelineId(destinatio
 	models := make([]*ArtifactPromotionApprovalRequest, 0)
 	err := repo.dbConnection.Model(&models).
 		Where("destination_pipeline_id = ? ", destinationPipelineId).
-		Where("status = ? ", constants.PROMOTED).
+		Where("status = ? ", constants.AWAITING_APPROVAL).
 		Select()
 	return models, err
 }
@@ -201,7 +201,6 @@ func (repo *RequestRepositoryImpl) MarkPromoted(tx *pg.Tx, requestIds []int) err
 		Set("status = ?", constants.PROMOTED).
 		Set("updated_on = ?", time.Now()).
 		Where("id IN (?)", pg.In(requestIds)).
-		Where("status = ? ", constants.AWAITING_APPROVAL).
 		Update()
 	return err
 }

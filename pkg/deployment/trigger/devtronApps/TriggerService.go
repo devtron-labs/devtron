@@ -628,7 +628,7 @@ func (impl *TriggerServiceImpl) BlockIfImagePromotionPolicyViolated(appId, cdPip
 	}
 	if promotionPolicy != nil && promotionPolicy.Id > 0 {
 		if !promotionPolicy.ApprovalMetaData.AllowApproverFromDeploy {
-			promotionApprovalMetadata, err := impl.artifactPromotionDataReadService.FetchPromotionApprovalDataForArtifacts([]int{artifactId}, cdPipelineId)
+			promotionApprovalMetadata, err := impl.artifactPromotionDataReadService.FetchPromotionApprovalDataForArtifacts([]int{artifactId}, cdPipelineId, constants.PROMOTED)
 			if err != nil {
 				impl.logger.Errorw("error in fetching promotion approval data for given artifact and cd pipeline", "artifactId", artifactId, "cdPipelineId", cdPipelineId)
 				return false, err
