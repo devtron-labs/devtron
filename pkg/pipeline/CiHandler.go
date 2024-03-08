@@ -41,7 +41,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
-	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/resourceGroup"
@@ -569,8 +569,8 @@ func (impl *CiHandlerImpl) GetBuildHistory(pipelineId int, appId int, offset int
 			ReferenceWorkflowId: w.RefCiWorkflowId,
 			PodName:             w.PodName,
 		}
-		if w.Message == bean3.ImageTagUnavailableMessage {
-			customTag, err := impl.customTagService.GetCustomTagByEntityKeyAndValue(bean3.EntityTypeCiPipelineId, strconv.Itoa(w.CiPipelineId))
+		if w.Message == pipelineConfigBean.ImageTagUnavailableMessage {
+			customTag, err := impl.customTagService.GetCustomTagByEntityKeyAndValue(pipelineConfigBean.EntityTypeCiPipelineId, strconv.Itoa(w.CiPipelineId))
 			if err != nil && err != pg.ErrNoRows {
 				//err == pg.ErrNoRows should never happen
 				return nil, err
@@ -583,7 +583,7 @@ func (impl *CiHandlerImpl) GetBuildHistory(pipelineId int, appId int, offset int
 			wfResponse.CustomTag = &bean2.CustomTagErrorResponse{
 				TagPattern:           customTag.TagPattern,
 				AutoIncreasingNumber: customTag.AutoIncreasingNumber,
-				Message:              bean3.ImageTagUnavailableMessage,
+				Message:              pipelineConfigBean.ImageTagUnavailableMessage,
 			}
 		}
 		if imageTagsDataMap[w.CiArtifactId] != nil {
@@ -1076,7 +1076,7 @@ func ExtractWorkflowStatus(workflowStatus v1alpha1.WorkflowStatus) (string, stri
 	podName := ""
 	logLocation := ""
 	for k, v := range workflowStatus.Nodes {
-		if v.TemplateName == bean3.CI_WORKFLOW_NAME {
+		if v.TemplateName == pipelineConfigBean.CI_WORKFLOW_NAME {
 			if v.BoundaryID == "" {
 				workflowName = k
 			} else {
@@ -1443,7 +1443,7 @@ func (impl *CiHandlerImpl) FetchCiStatusForTriggerView(appId int) ([]*pipelineCo
 	}
 	for _, pipeline := range pipelines {
 		pipelineId := 0
-		if pipeline.ParentCiPipeline == 0 || pipeline.PipelineType == string(bean.LINKED_CD) {
+		if pipeline.ParentCiPipeline == 0 || pipeline.PipelineType == string(pipelineConfigBean.LINKED_CD) {
 			pipelineId = pipeline.Id
 		} else {
 			pipelineId = pipeline.ParentCiPipeline
@@ -1758,7 +1758,7 @@ func (impl *CiHandlerImpl) FetchCiStatusForTriggerViewForEnvironment(request res
 			continue
 		}
 		ciPipelineId := 0
-		if ciPipeline.ParentCiPipeline == 0 || ciPipeline.PipelineType == string(bean.LINKED_CD) {
+		if ciPipeline.ParentCiPipeline == 0 || ciPipeline.PipelineType == string(pipelineConfigBean.LINKED_CD) {
 			ciPipelineId = ciPipeline.Id
 		} else {
 			ciPipelineId = ciPipeline.ParentCiPipeline

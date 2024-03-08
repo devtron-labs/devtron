@@ -37,7 +37,7 @@ https://cdn.devtron.ai/k8s-client/devtron-install.bash
 
 * Devtron Kubernetes Client opens in your browser automatically.
 
-* You must add your cluster to make your cluster visible on the `Kubernetes Resource Browser` and `Clusters` section. To add a cluster, go to the `Global Configurations` and click `Add Cluster`. [Refer documentation on how to add a cluster](https://docs.devtron.ai/v/v0.6/global-configurations/cluster-and-environments#add-cluster).
+* You must add your cluster to make your cluster visible on the `Kubernetes Resource Browser` and `Clusters` section. To add a cluster, go to the `Global Configurations` and click `Add Cluster`. [Refer documentation on how to add a cluster](../../user-guide/global-configurations/cluster-and-environments.md#add-cluster).
 
 `Note`: You do not need to have a `super admin` permission to add a cluster if you install `Devtron Kubernetes Client`. You can add more than one cluster.
 
@@ -62,7 +62,7 @@ With `Kubernetes Resource browser`, you can also perform the following:
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/install-devtron/install+devtron+K8s+client/k8s-resource-browser.jpg)
 
-After your cluster is added via `Global Configurations`, go to the `Kubernetes Resource Browser` page and select your cluster. [Refer Resource Browser documentation for detail and its operations](https://docs.devtron.ai/v/v0.6/usage/resource-browser).
+After your cluster is added via `Global Configurations`, go to the `Kubernetes Resource Browser` page and select your cluster. [Refer Resource Browser documentation for detail and its operations](../../user-guide/resource-browser.md).
 
 `Note`: You do not need to have a `super admin` permission to access `Kubernetes Resource Browser` if you install `Devtron Kubernetes Client`.
 
@@ -80,12 +80,12 @@ It enables you to observe and monitor the cluster health and real-time node cond
 * Edit a node config
 * Delete a node
 
-With its rich features and intuitive interface, you can easily manage and [debug clusters through cluster terminal access](https://docs.devtron.ai/v/v0.6/usage/clusters#access-cluster-via-terminal-for-troubleshooting) and use any CLI debugging tools like busybox, kubectl, netshoot or any custom CLI tools like k9s.
+With its rich features and intuitive interface, you can easily manage and [debug clusters through cluster terminal access](../../user-guide/clusters.md#access-cluster-via-terminal-for-troubleshooting) and use any CLI debugging tools like busybox, kubectl, netshoot or any custom CLI tools like k9s.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/install-devtron/install+devtron+K8s+client/cluster-terminal.jpg)
 
 
-After your cluster is added via `Global Configurations`, go to the `Clusters` page and search or select your cluster. [Refer Clusters documentation for detail and its operations](https://docs.devtron.ai/v/v0.6/usage/clusters).
+After your cluster is added via `Global Configurations`, go to the `Clusters` page and search or select your cluster. [Refer Clusters documentation for detail and its operations](../../user-guide/clusters.md).
 
 
 ### Some Peripheral Commands

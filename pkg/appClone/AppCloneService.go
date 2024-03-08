@@ -33,7 +33,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"strings"
@@ -352,7 +352,7 @@ func (impl *AppCloneServiceImpl) CreateAppMetrics(oldAppId, newAppId int, userId
 
 }
 
-func (impl *AppCloneServiceImpl) CreateGlobalCM(oldAppId, newAppId int, userId int32) (*bean3.ConfigDataRequest, error) {
+func (impl *AppCloneServiceImpl) CreateGlobalCM(oldAppId, newAppId int, userId int32) (*pipelineConfigBean.ConfigDataRequest, error) {
 	refCM, err := impl.configMapService.CMGlobalFetch(oldAppId)
 	if err != nil {
 		return nil, err
@@ -364,10 +364,10 @@ func (impl *AppCloneServiceImpl) CreateGlobalCM(oldAppId, newAppId int, userId i
 
 	cfgDatas := impl.configDataClone(refCM.ConfigData)
 	for _, cfgData := range cfgDatas {
-		newCm := &bean3.ConfigDataRequest{
+		newCm := &pipelineConfigBean.ConfigDataRequest{
 			AppId:         newAppId,
 			EnvironmentId: refCM.EnvironmentId,
-			ConfigData:    []*bean3.ConfigData{cfgData},
+			ConfigData:    []*pipelineConfigBean.ConfigData{cfgData},
 			UserId:        userId,
 			Id:            thisCm.Id,
 		}
@@ -396,7 +396,7 @@ func (impl *AppCloneServiceImpl) CreateEnvCm(ctx context.Context, oldAppId, newA
 			return nil, err
 		}
 
-		var refEnvCm []*bean3.ConfigData
+		var refEnvCm []*pipelineConfigBean.ConfigData
 		for _, refCmData := range refCm.ConfigData {
 			if !refCmData.Global || refCmData.Data != nil {
 				refEnvCm = append(refEnvCm, refCmData)
@@ -408,10 +408,10 @@ func (impl *AppCloneServiceImpl) CreateEnvCm(ctx context.Context, oldAppId, newA
 		}
 		cfgDatas := impl.configDataClone(refEnvCm)
 		for _, cfgData := range cfgDatas {
-			newCm := &bean3.ConfigDataRequest{
+			newCm := &pipelineConfigBean.ConfigDataRequest{
 				AppId:         newAppId,
 				EnvironmentId: refEnv.EnvironmentId,
-				ConfigData:    []*bean3.ConfigData{cfgData},
+				ConfigData:    []*pipelineConfigBean.ConfigData{cfgData},
 				UserId:        userId,
 				Id:            thisCm.Id,
 			}
@@ -440,7 +440,7 @@ func (impl *AppCloneServiceImpl) CreateEnvSecret(ctx context.Context, oldAppId, 
 			return nil, err
 		}
 
-		var refEnvCm []*bean3.ConfigData
+		var refEnvCm []*pipelineConfigBean.ConfigData
 		for _, refCmData := range refCm.ConfigData {
 			if !refCmData.Global || refCmData.Data != nil {
 				refEnvCm = append(refEnvCm, refCmData)
@@ -452,9 +452,9 @@ func (impl *AppCloneServiceImpl) CreateEnvSecret(ctx context.Context, oldAppId, 
 		}
 		cfgDatas := impl.configDataClone(refEnvCm)
 		for _, cfgData := range cfgDatas {
-			var configData []*bean3.ConfigData
+			var configData []*pipelineConfigBean.ConfigData
 			configData = append(configData, cfgData)
-			newCm := &bean3.ConfigDataRequest{
+			newCm := &pipelineConfigBean.ConfigDataRequest{
 				AppId:         newAppId,
 				EnvironmentId: refEnv.EnvironmentId,
 				ConfigData:    configData,
@@ -493,7 +493,7 @@ func (impl *AppCloneServiceImpl) createEnvOverride(oldAppId, newAppId int, userI
 		if err != nil {
 			return nil, err
 		}
-		envPropertiesReq := &bean3.EnvironmentProperties{
+		envPropertiesReq := &pipelineConfigBean.EnvironmentProperties{
 			Id:                thisEnvProperties.EnvironmentConfig.Id,
 			EnvOverrideValues: refEnvProperties.EnvironmentConfig.EnvOverrideValues,
 			Status:            refEnvProperties.EnvironmentConfig.Status,
@@ -538,10 +538,10 @@ func (impl *AppCloneServiceImpl) createEnvOverride(oldAppId, newAppId int, userI
 	return nil, nil
 }
 
-func (impl *AppCloneServiceImpl) configDataClone(cfData []*bean3.ConfigData) []*bean3.ConfigData {
-	var copiedData []*bean3.ConfigData
+func (impl *AppCloneServiceImpl) configDataClone(cfData []*pipelineConfigBean.ConfigData) []*pipelineConfigBean.ConfigData {
+	var copiedData []*pipelineConfigBean.ConfigData
 	for _, refdata := range cfData {
-		data := &bean3.ConfigData{
+		data := &pipelineConfigBean.ConfigData{
 			Name:               refdata.Name,
 			Type:               refdata.Type,
 			External:           refdata.External,
@@ -557,7 +557,7 @@ func (impl *AppCloneServiceImpl) configDataClone(cfData []*bean3.ConfigData) []*
 	return copiedData
 }
 
-func (impl *AppCloneServiceImpl) CreateGlobalSecret(oldAppId, newAppId int, userId int32) (*bean3.ConfigDataRequest, error) {
+func (impl *AppCloneServiceImpl) CreateGlobalSecret(oldAppId, newAppId int, userId int32) (*pipelineConfigBean.ConfigDataRequest, error) {
 
 	refCs, err := impl.configMapService.CSGlobalFetch(oldAppId)
 	if err != nil {
@@ -570,9 +570,9 @@ func (impl *AppCloneServiceImpl) CreateGlobalSecret(oldAppId, newAppId int, user
 
 	cfgDatas := impl.configDataClone(refCs.ConfigData)
 	for _, cfgData := range cfgDatas {
-		var configData []*bean3.ConfigData
+		var configData []*pipelineConfigBean.ConfigData
 		configData = append(configData, cfgData)
-		newCm := &bean3.ConfigDataRequest{
+		newCm := &pipelineConfigBean.ConfigDataRequest{
 			AppId:         newAppId,
 			EnvironmentId: refCs.EnvironmentId,
 			ConfigData:    configData,
@@ -867,7 +867,7 @@ func (impl *AppCloneServiceImpl) CreateCiPipeline(req *cloneCiPipelineRequest) (
 	}
 
 	parentCiPipeline := refCiPipeline.ParentCiPipeline
-	if refCiPipeline.PipelineType == bean.LINKED_CD {
+	if refCiPipeline.PipelineType == pipelineConfigBean.LINKED_CD {
 		parentCiPipeline = req.oldToNewIdForLinkedCD[refCiPipeline.ParentCiPipeline]
 	}
 
@@ -990,7 +990,7 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, c
 	for deploymentType, allowed := range DeploymentAppConfigForEnvironment {
 		AllowedDeploymentAppTypes[deploymentType] = allowed
 	}
-	isGitopsConfigured, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
+	gitOpsConfigurationStatus, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
 	if err != nil {
 		impl.logger.Errorw("error in checking if gitOps configured", "err", err)
 		return nil, err
@@ -998,7 +998,7 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, c
 	var deploymentAppType string
 	if AllowedDeploymentAppTypes[util.PIPELINE_DEPLOYMENT_TYPE_ACD] && AllowedDeploymentAppTypes[util.PIPELINE_DEPLOYMENT_TYPE_HELM] {
 		deploymentAppType = refCdPipeline.DeploymentAppType
-	} else if AllowedDeploymentAppTypes[util.PIPELINE_DEPLOYMENT_TYPE_ACD] && isGitopsConfigured {
+	} else if AllowedDeploymentAppTypes[util.PIPELINE_DEPLOYMENT_TYPE_ACD] && gitOpsConfigurationStatus.IsGitOpsConfigured {
 		deploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
 	} else if AllowedDeploymentAppTypes[util.PIPELINE_DEPLOYMENT_TYPE_HELM] {
 		deploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
@@ -1042,9 +1042,10 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, c
 		cdPipeline.RepoName = refCdPipeline.RepoName
 	}
 	cdPipelineReq := &bean.CdPipelines{
-		Pipelines: []*bean.CDPipelineConfigObject{cdPipeline},
-		AppId:     req.appId,
-		UserId:    req.userId,
+		Pipelines:     []*bean.CDPipelineConfigObject{cdPipeline},
+		AppId:         req.appId,
+		UserId:        req.userId,
+		IsCloneAppReq: true,
 	}
 	cdPipelineRes, err := impl.pipelineBuilder.CreateCdPipelines(cdPipelineReq, ctx)
 	return cdPipelineRes, err

@@ -1,6 +1,6 @@
 # Monitoring (Grafana)
 
-**Prerequisite**: Please make sure to install **Build and Deploy (CI/CD)** integration. To install it, click [here](https://docs.devtron.ai/usage/integrations/build-and-deploy-ci-cd).
+**Prerequisite**: Please make sure to install **Build and Deploy (CI/CD)** integration. To install it, click [here](../integrations/build-and-deploy-ci-cd.md).
  
 Devtron leverages the power of Grafana to show application metrics like CPU, Memory utilization, Status 4xx/ 5xx/ 2xx, Throughput, and Latency. For more information check [Grafana documentation](https://grafana.com/docs/grafana/latest/).
  

@@ -3,6 +3,7 @@ package history
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -51,7 +52,7 @@ func (impl *CiPipelineHistoryServiceImpl) SaveHistory(pipeline *pipelineConfig.C
 			IsCiTemplateOverriden: true,
 		}
 		if CiTemplateBean.CiBuildConfig != nil {
-			CiBuildConfigDbEntity, _ := bean.ConvertBuildConfigBeanToDbEntity(ciTemplateId, ciTemplateOverrideId, CiTemplateBean.CiBuildConfig, CiTemplateBean.UserId)
+			CiBuildConfigDbEntity, _ := adapter.ConvertBuildConfigBeanToDbEntity(ciTemplateId, ciTemplateOverrideId, CiTemplateBean.CiBuildConfig, CiTemplateBean.UserId)
 			CiTemplateOverride.CiBuildConfigId = CiBuildConfigDbEntity.Id
 			CiTemplateOverride.BuildMetaDataType = CiBuildConfigDbEntity.Type
 			CiTemplateOverride.BuildMetadata = CiBuildConfigDbEntity.BuildMetadata
