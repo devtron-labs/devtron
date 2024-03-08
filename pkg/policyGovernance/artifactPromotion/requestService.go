@@ -152,7 +152,7 @@ func (impl *ApprovalRequestServiceImpl) FetchApprovalAllowedEnvList(artifactId i
 
 	promotionRequests, err := impl.artifactPromotionApprovalRequestRepository.FindRequestsByArtifactIdAndEnvName(artifactId, environmentName, constants.AWAITING_APPROVAL)
 	if err != nil {
-		impl.logger.Errorw("error in finding promotion requests in awaiting state for given artifactId ")
+		impl.logger.Errorw("error in finding promotion requests in awaiting state for given artifactId", "artifactId", artifactId, "err", err)
 		return nil, err
 	}
 	if len(promotionRequests) == 0 {
