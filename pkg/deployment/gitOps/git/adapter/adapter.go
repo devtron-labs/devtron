@@ -1,7 +1,7 @@
 package adapter
 
 import (
-	bean2 "github.com/devtron-labs/devtron/api/bean"
+	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
 )
 
