@@ -23,13 +23,11 @@ type ArtifactPromotionApprovalRequest struct {
 
 type RequestRepositoryImpl struct {
 	dbConnection *pg.DB
-	*sql.TransactionUtilImpl
 }
 
 func NewRequestRepositoryImpl(dbConnection *pg.DB) *RequestRepositoryImpl {
 	return &RequestRepositoryImpl{
-		dbConnection:        dbConnection,
-		TransactionUtilImpl: sql.NewTransactionUtilImpl(dbConnection),
+		dbConnection: dbConnection,
 	}
 }
 
@@ -51,7 +49,6 @@ type RequestRepository interface {
 	MarkStaleByDestinationPipelineId(tx *pg.Tx, pipelineIds []int) error
 	MarkStaleByPolicyId(tx *pg.Tx, policyId int) error
 	MarkPromoted(tx *pg.Tx, requestIds []int) error
-	sql.TransactionWrapper
 }
 
 func (repo *RequestRepositoryImpl) Create(tx *pg.Tx, PromotionRequest *ArtifactPromotionApprovalRequest) (*ArtifactPromotionApprovalRequest, error) {

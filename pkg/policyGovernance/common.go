@@ -24,8 +24,7 @@ var PathPolicyTypeToGlobalPolicyTypeMap = map[PathVariablePolicyType]bean.Global
 
 var GlobalPolicyTypeToResourceTypeMap = map[bean.GlobalPolicyType]resourceQualifiers.ResourceType{
 	bean.GLOBAL_POLICY_TYPE_IMAGE_PROMOTION_POLICY: resourceQualifiers.ImagePromotionPolicy,
-	// todo
-	// bean.GLOBAL_POLICY_TYPE_DEPLOYMENT_WINDOW: resourceQualifiers.,
+	bean.GLOBAL_POLICY_TYPE_DEPLOYMENT_WINDOW:      resourceQualifiers.DeploymentWindow,
 }
 
 type AppEnvPolicyContainer struct {

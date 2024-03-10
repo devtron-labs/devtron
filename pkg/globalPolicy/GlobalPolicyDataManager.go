@@ -14,7 +14,7 @@ type GlobalPolicyDataManager interface {
 
 	GetPolicyById(policyId int) (*bean.GlobalPolicyBaseModel, error)
 	GetPolicyByName(policyName string, policyType bean.GlobalPolicyType) (*bean.GlobalPolicyBaseModel, error)
-	GetPolicyByNames(policyName []string) ([]*bean.GlobalPolicyBaseModel, error)
+	GetPolicyByNames(policyNames []string, policyType bean.GlobalPolicyType) ([]*bean.GlobalPolicyBaseModel, error)
 	GetPolicyByIds(policyIds []int) ([]*bean.GlobalPolicyBaseModel, error)
 	GetAllActiveByType(policyType bean.GlobalPolicyType) ([]*bean.GlobalPolicyBaseModel, error)
 
@@ -196,8 +196,18 @@ func (impl *GlobalPolicyDataManagerImpl) GetPolicyByName(policyName string, poli
 	return globalPolicy.GetGlobalPolicyBaseModel(), nil
 }
 
-func (impl *GlobalPolicyDataManagerImpl) GetPolicyByNames(policyName []string) ([]*bean.GlobalPolicyBaseModel, error) {
-	return nil, nil
+func (impl *GlobalPolicyDataManagerImpl) GetPolicyByNames(policyNames []string, policyType bean.GlobalPolicyType) ([]*bean.GlobalPolicyBaseModel, error) {
+	globalPolicies, err := impl.globalPolicyRepository.GetByNames(policyNames, policyType)
+	if err != nil {
+		impl.logger.Errorw("error in fetching global policy", "policyNames", policyNames, "policyType", policyType, "err", err)
+		return nil, err
+	}
+
+	policyBaseModels := make([]*bean.GlobalPolicyBaseModel, 0, len(globalPolicies))
+	for _, globalPolicy := range globalPolicies {
+		policyBaseModels = append(policyBaseModels, globalPolicy.GetGlobalPolicyBaseModel())
+	}
+	return policyBaseModels, nil
 }
 
 func (impl *GlobalPolicyDataManagerImpl) GetPolicyMetadataByFields(policyIds []int, fields []*util.SearchableField) (map[int][]*util.SearchableField, error) {

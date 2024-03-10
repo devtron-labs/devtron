@@ -30,6 +30,7 @@ type CommonPolicyActionsServiceImpl struct {
 	appService                      app.AppService
 	environmentService              cluster.EnvironmentService
 	logger                          *zap.SugaredLogger
+	transactionManager              sql.TransactionWrapper
 }
 
 func NewCommonPolicyActionsService(globalPolicyDataManager globalPolicy.GlobalPolicyDataManager,
@@ -37,7 +38,7 @@ func NewCommonPolicyActionsService(globalPolicyDataManager globalPolicy.GlobalPo
 	pipelineService pipeline.CdPipelineConfigService,
 	appService app.AppService,
 	environmentService cluster.EnvironmentService,
-	logger *zap.SugaredLogger,
+	logger *zap.SugaredLogger, transactionManager sql.TransactionWrapper,
 ) *CommonPolicyActionsServiceImpl {
 	return &CommonPolicyActionsServiceImpl{
 		globalPolicyDataManager:         globalPolicyDataManager,
@@ -46,6 +47,7 @@ func NewCommonPolicyActionsService(globalPolicyDataManager globalPolicy.GlobalPo
 		logger:                          logger,
 		appService:                      appService,
 		environmentService:              environmentService,
+		transactionManager:              transactionManager,
 	}
 }
 
@@ -98,12 +100,12 @@ func (impl CommonPolicyActionsServiceImpl) ApplyPolicyToIdentifiers(userId int32
 		}
 	}
 
-	tx, err := impl.resourceQualifierMappingService.StartTx()
+	tx, err := impl.transactionManager.StartTx()
 	if err != nil {
 		impl.logger.Errorw("error in starting transaction while bulk applying policies to selected app env entities", "requestPayload", applyIdentifiersRequest, "err", err)
 		return err
 	}
-	defer impl.resourceQualifierMappingService.RollbackTx(tx)
+	defer impl.transactionManager.RollbackTx(tx)
 
 	err = impl.resourceQualifierMappingService.DeleteResourceMappingsForScopes(tx, userId, referenceType, resourceQualifiers.ApplicationEnvironmentSelector, scopes)
 	if err != nil {
@@ -122,7 +124,7 @@ func (impl CommonPolicyActionsServiceImpl) ApplyPolicyToIdentifiers(userId int32
 		impl.logger.Errorw("error in creating new qualifier mappings for a policy", "policyId", updateToPolicy.Id, "policyType", referenceType, "err", err)
 		return err
 	}
-	err = impl.resourceQualifierMappingService.CommitTx(tx)
+	err = impl.transactionManager.CommitTx(tx)
 	if err != nil {
 		impl.logger.Errorw("error in committing transaction while bulk applying policies to selected app env entities", "requestPayload", applyIdentifiersRequest, "err", err)
 		return err
@@ -303,7 +305,7 @@ func (impl CommonPolicyActionsServiceImpl) getPolicies(policyNames []string, pol
 			return policies, err
 		}
 	}
-	policies, err := impl.globalPolicyDataManager.GetPolicyByNames(policyNames)
+	policies, err := impl.globalPolicyDataManager.GetPolicyByNames(policyNames, policyType)
 	if err != nil {
 		impl.logger.Errorw("error in finding the profiles with names", "profileNames", policyNames, "err", err)
 		return policies, err
