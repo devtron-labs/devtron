@@ -223,6 +223,14 @@ func (handler *RestHandlerImpl) FetchAwaitingApprovalEnvListForArtifact(w http.R
 
 func (handler *RestHandlerImpl) GetArtifactsForPromotion(w http.ResponseWriter, r *http.Request) {
 
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if err != nil || userId == 0 {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	token := r.Header.Get("token")
+
 	artifactPromotionMaterialRequest, err := handler.parsePromotionMaterialRequest(w, r)
 	if err != nil {
 		return
@@ -235,7 +243,7 @@ func (handler *RestHandlerImpl) GetArtifactsForPromotion(w http.ResponseWriter, 
 
 	if artifactPromotionMaterialRequest.Resource == string(constants.SOURCE_TYPE_CI) || artifactPromotionMaterialRequest.Resource == string(constants.SOURCE_TYPE_CD) {
 		// check if user has trigger access for any one env for this app
-		if hasTriggerAccess := handler.checkTriggerAccessForAnyEnv(artifactPromotionMaterialRequest.Token,
+		if hasTriggerAccess := handler.checkTriggerAccessForAnyEnv(token,
 			artifactPromotionMaterialRequest.AppId); !hasTriggerAccess {
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 			return
@@ -250,25 +258,26 @@ func (handler *RestHandlerImpl) GetArtifactsForPromotion(w http.ResponseWriter, 
 			return
 		}
 		envObjectMap, _ := handler.enforcerUtil.GetRbacObjectsByEnvIdsAndAppId([]int{env.Id}, artifactPromotionMaterialRequest.AppId)
-		if ok := handler.enforcer.Enforce(artifactPromotionMaterialRequest.Token, casbin.ResourceEnvironment, casbin.ActionGet, envObjectMap[env.Id]); !ok {
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, envObjectMap[env.Id]); !ok {
 			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 			return
 		}
 
-		triggerAccess := handler.enforcer.Enforce(artifactPromotionMaterialRequest.Token, casbin.ResourceApplications, casbin.ActionTrigger, appRbacObj) &&
-			handler.enforcer.Enforce(artifactPromotionMaterialRequest.Token, casbin.ResourceEnvironment, casbin.ActionTrigger, envObjectMap[env.Id])
+		triggerAccess := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, appRbacObj) &&
+			handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionTrigger, envObjectMap[env.Id])
 
 		teamRbac := handler.enforcerUtil.GetTeamEnvRBACNameByAppId(artifactPromotionMaterialRequest.AppId, env.Id)
 
-		approverAccess := handler.enforcer.Enforce(artifactPromotionMaterialRequest.Token, casbin.ResourceApprovalPolicy, casbin.ActionArtifactPromote, teamRbac)
+		approverAccess := handler.enforcer.Enforce(token, casbin.ResourceApprovalPolicy, casbin.ActionArtifactPromote, teamRbac)
 
 		if !triggerAccess && !approverAccess {
 			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 			return
 		}
 	}
+	ctx := context.WithValue(context.WithValue(context.Background(), "token", token), "userId", userId)
 
-	artifactPromotionMaterialResponse, err := handler.appArtifactManager.FetchMaterialForArtifactPromotion(*artifactPromotionMaterialRequest, handler.CheckImagePromoterAuth)
+	artifactPromotionMaterialResponse, err := handler.appArtifactManager.FetchMaterialForArtifactPromotion(ctx, *artifactPromotionMaterialRequest, handler.CheckImagePromoterAuth)
 	if err != nil {
 		handler.logger.Errorw("error in fetching artifacts for given promotion request parameters", "err", err)
 		common.WriteJsonResp(w, errors.New("error in fetching artifacts response for given request parameters"), nil, http.StatusInternalServerError)
@@ -285,14 +294,6 @@ func (handler *RestHandlerImpl) getAppAndEnvObjectByCdPipelineId(cdPipelineId in
 }
 
 func (handler *RestHandlerImpl) parsePromotionMaterialRequest(w http.ResponseWriter, r *http.Request) (*bean2.ArtifactPromotionMaterialRequest, error) {
-
-	userId, err := handler.userService.GetLoggedInUser(r)
-	if err != nil || userId == 0 {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return nil, err
-	}
-
-	token := r.Header.Get("token")
 
 	queryParams := r.URL.Query()
 	resource := queryParams.Get("resource")
@@ -348,8 +349,6 @@ func (handler *RestHandlerImpl) parsePromotionMaterialRequest(w http.ResponseWri
 		Limit:                 limit,
 		Offset:                offset,
 		ImageSearchRegex:      searchQueryParam,
-		UserId:                userId,
-		Token:                 token,
 	}
 
 	return artifactPromotionMaterialRequest, nil

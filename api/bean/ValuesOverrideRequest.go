@@ -125,28 +125,33 @@ type ArtifactsListFilterOptions struct {
 
 type PromotionArtifactsListingFilterOptions struct {
 	//list filter data
-
-	Resource string
-
 	Limit        int
 	Offset       int
 	SearchString string
 	Order        string
+}
 
-	//self stage data
-	ResourceCdPipelineId int
+type CiNodePromotionArtifactsRequest struct {
+	CiPipelineId   int
+	ListingOptions PromotionArtifactsListingFilterOptions
+}
 
-	TeamName string
-	TeamId   int
-
-	AppName string
-
-	ImagePromoterAccessCdPipelineIds []int
-
-	// CiPipelineId is id of ci-pipeline present in the same app-workflow of PipelineId
-	CiPipelineId int
-
+type ExtCiNodePromotionArtifactsRequest struct {
 	ExternalCiPipelineId int
+	ListingOptions       PromotionArtifactsListingFilterOptions
+}
 
-	IsPendingForCurrentUser bool
+type CdNodePromotionArtifactsRequest struct {
+	ResourceCdPipelineId int
+	ListingOptions       PromotionArtifactsListingFilterOptions
+}
+
+type ArtifacPromotionPendingNodeRequest struct {
+	ResourceCdPipelineId int
+	ListingOptions       PromotionArtifactsListingFilterOptions
+}
+
+type ArtifactPromotionPendingForCurrentUserRequest struct {
+	ImagePromoterAccessCdPipelineIds []int
+	ListingOptions                   PromotionArtifactsListingFilterOptions
 }

@@ -745,7 +745,7 @@ func (impl *CdWorkflowRepositoryImpl) IsArtifactDeployedOnStage(ciArtifactId, pi
 
 func (impl *CdWorkflowRepositoryImpl) FindAllSucceededWfsByCDPipelineIds(cdPipelineIds []int) ([]*CdWorkflowMetadata, error) {
 	var cdWorkflow []*CdWorkflowMetadata
-	if len(cdPipelineIds) > 0 {
+	if len(cdPipelineIds) == 0 {
 		return cdWorkflow, nil
 	}
 	query := "with workflow as " +
