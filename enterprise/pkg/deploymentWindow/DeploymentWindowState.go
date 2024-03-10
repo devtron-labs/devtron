@@ -5,6 +5,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/variables/utils"
 	"github.com/samber/lo"
 	"golang.org/x/exp/slices"
+	"sort"
 	"strings"
 	"time"
 )
@@ -187,12 +188,17 @@ func (impl DeploymentWindowServiceImpl) getAppliedProfileAndCalculateStates(targ
 				emails = append(emails, email)
 			}
 		}
-		allProfiles[i].AllExcludedUsers = emails
+		allProfiles[i].ExcludedUserEmails = emails
 
 		if profile.DeploymentWindowProfile.Id == appliedProfile.DeploymentWindowProfile.Id {
-			appliedProfile.AllExcludedUsers = emails
+			appliedProfile.ExcludedUserEmails = emails
 		}
 	}
+
+	sort.SliceStable(allProfiles, func(i, j int) bool {
+		return allProfiles[i].IsActive
+	})
+
 	emails := make([]string, 0)
 	for _, userId := range combinedExcludedUsers {
 		if email, ok := userInfoMap[userId]; ok {

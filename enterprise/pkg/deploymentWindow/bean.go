@@ -138,7 +138,7 @@ type ProfileState struct {
 	DeploymentWindowProfile *DeploymentWindowProfile `json:"deploymentWindowProfile,omitempty"`
 	EnvId                   int                      `json:"envId"`
 	IsActive                bool                     `json:"isActive"`
-	AllExcludedUsers        []string                 `json:"allExcludedUsers"`
+	ExcludedUserEmails      []string                 `json:"excludedUserEmails"`
 }
 
 // DeploymentWindowResponse defines model for DeploymentWindowResponse.
