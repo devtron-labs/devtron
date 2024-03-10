@@ -244,6 +244,7 @@ type RequestMetaData struct {
 	activeAuthorisedEnvIds      []int
 	sourceMetaData              *SourceMetaData
 	appId                       int
+	workflowId                  int
 
 	ciArtifactId int
 	ciArtifact   *repository.CiArtifact
@@ -284,6 +285,11 @@ func (r *RequestMetaData) WithCiArtifact(ciArtifact *repository.CiArtifact) *Req
 
 func (r *RequestMetaData) WithAppId(appId int) *RequestMetaData {
 	r.appId = appId
+	return r
+}
+
+func (r *RequestMetaData) WithWorkflowId(workflowId int) *RequestMetaData {
+	r.workflowId = workflowId
 	return r
 }
 

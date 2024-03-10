@@ -44,7 +44,7 @@ type EventFactory interface {
 	BuildExtraApprovalData(event Event, approvalActionRequest bean.UserApprovalActionRequest, pipeline *pipelineConfig.Pipeline, userId int32, imageTagNames []string, imageComment string) []Event
 	BuildExtraProtectConfigData(event Event, draftNotificationRequest ConfigDataForNotification, draftId int, DraftVersionId int) []Event
 	BuildExtraCIData(event Event, material *MaterialTriggerInfo, dockerImage string) Event
-	// BuildFinalData(event Event) *Payload
+	BuildExtraArtifactPromotionData(event Event, request ArtifactPromotionNotificationRequest) []Event
 }
 
 type EventSimpleFactoryImpl struct {
@@ -101,11 +101,13 @@ const (
 	DeploymentTemplate ResourceType = "Deployment Template"
 )
 const (
-	AppLevelBaseUrl        = "/dashboard/app/%d/edit/"
-	EnvLevelBaseUrl        = "/dashboard/app/%d/edit/env-override/%d/"
-	ImageApprovalLink      = "/dashboard/app/%d/trigger?approval-node=%d&search=%s&approval-state=pending"
-	DeploymentApprovalLink = "/dashboard/deployment/approve?token=%s"
-	DraftApprovalLink      = "/dashboard/config/approve?token=%s"
+	AppLevelBaseUrl                  = "/dashboard/app/%d/edit/"
+	EnvLevelBaseUrl                  = "/dashboard/app/%d/edit/env-override/%d/"
+	ImageApprovalLink                = "/dashboard/app/%d/trigger?approval-node=%d&search=%s&approval-state=pending"
+	DeploymentApprovalLink           = "/dashboard/deployment/approve?token=%s"
+	DraftApprovalLink                = "/dashboard/config/approve?token=%s"
+	ArtifactPromotionRequestViewLink = "/dashboard/app/%d/trigger/workflow/%d/image-promotion/pending?environment=%s"
+	ArtifactPromotionApprovalLink    = "/dashboard/image-promotion/approve?token=%s"
 )
 
 type ConfigDataForNotification struct {
@@ -117,6 +119,7 @@ type ConfigDataForNotification struct {
 	UserId       int32
 	EmailIds     []string
 }
+
 type Provider struct {
 	Destination util.Channel `json:"dest"`
 	Rule        string       `json:"rule"`
@@ -128,6 +131,21 @@ const (
 	SES_CONFIG_TYPE  = "ses"
 	SMTP_CONFIG_TYPE = "smtp"
 )
+
+type ArtifactPromotionNotificationRequest struct {
+	CDPipelineId            int
+	AppId                   int
+	AppName                 string
+	EnvId                   int
+	EnvName                 string
+	ArtifactId              int
+	UserId                  int32
+	ImageTags               []string
+	ImageComment            string
+	PromoterAccessEmailIds  []string
+	ArtifactPromotionSource string
+	WorkflowId              int
+}
 
 func (impl *EventSimpleFactoryImpl) Build(eventType util.EventType, sourceId *int, appId int, envId *int, pipelineType util.PipelineType) Event {
 	correlationId := uuid.NewV4()
@@ -422,6 +440,66 @@ func (impl *EventSimpleFactoryImpl) BuildExtraProtectConfigData(event Event, req
 
 	}
 
+	return events
+}
+
+func (impl *EventSimpleFactoryImpl) BuildExtraArtifactPromotionData(event Event, request ArtifactPromotionNotificationRequest) []Event {
+	defaultSesConfig, defaultSmtpConfig, err := impl.getDefaultSESOrSMTPConfig()
+	if err != nil {
+		impl.logger.Errorw("found error in getting defaultSesConfig or  defaultSmtpConfig data", "err", err)
+	}
+	var events []Event
+	if request.UserId == 0 {
+		return events
+	}
+	user, err := impl.userRepository.GetById(request.UserId)
+	if err != nil {
+		impl.logger.Errorw("found error on getting user data ", "userId", request.UserId)
+	}
+	payload := &Payload{}
+	payload.ImageComment = request.ImageComment
+	payload.ImageTagNames = request.ImageTags
+	ciArtifact, err := impl.ciArtifactRepository.Get(request.ArtifactId)
+	if err != nil {
+		impl.logger.Errorw("error fetching ciArtifact", "ciArtifact", ciArtifact, "err", err)
+		return events
+	}
+	payload.AppName = request.AppName
+	payload.EnvName = request.EnvName
+	payload.PromotionArtifactSource = request.ArtifactPromotionSource
+	//TODO: fix url
+	payload.ArtifactPromotionRequestViewLink = fmt.Sprintf(ArtifactPromotionRequestViewLink, event.AppId, request.WorkflowId, request.EnvName)
+
+	for _, email := range request.PromoterAccessEmailIds {
+		newPayload := *payload
+
+		setProviderForNotification(email, defaultSesConfig, defaultSmtpConfig, &newPayload)
+
+		tokenCustomClaimsForNotification := &apiToken.ArtifactPromotionApprovalNotificationClaims{
+			AppId:      request.AppId,
+			EnvName:    request.EnvName,
+			ArtifactId: request.ArtifactId,
+			WorkflowId: request.WorkflowId,
+			UserId:     user.Id,
+			ApiTokenCustomClaims: apiToken.ApiTokenCustomClaims{
+				Email: email,
+			},
+		}
+
+		token, err := impl.apiTokenServiceImpl.CreateApiJwtTokenForArtifactPromotion(tokenCustomClaimsForNotification, impl.apiTokenServiceImpl.TokenVariableConfig.GetExpiryTimeInMs())
+		if err != nil {
+			impl.logger.Errorw("error in generating token for deployment approval request", "err", err)
+			continue
+		}
+		if err != nil {
+			impl.logger.Errorw("error in generating token for draft approval request", "err", err)
+			return events
+		}
+		payload.ArtifactPromotionApprovalLink = fmt.Sprintf(ArtifactPromotionApprovalLink, token)
+		newPayload.TriggeredBy = user.EmailId
+		event.Payload = &newPayload
+		events = append(events, event)
+	}
 	return events
 }
 

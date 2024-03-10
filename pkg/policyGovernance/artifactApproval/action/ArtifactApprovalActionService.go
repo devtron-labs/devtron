@@ -25,7 +25,7 @@ type ArtifactApprovalActionServiceImpl struct {
 	cdTriggerService                devtronApps.TriggerService
 	eventClient                     client2.EventClient
 	eventFactory                    client2.EventFactory
-	appArtifactManager              pipeline.AppArtifactManager
+	imageTaggingService             pipeline.ImageTaggingService
 	deploymentApprovalRepository    pipelineConfig.DeploymentApprovalRepository
 	requestApprovalRepository       pipelineConfig.RequestApprovalUserdataRepository
 	ciArtifactRepository            repository.CiArtifactRepository
@@ -35,7 +35,7 @@ type ArtifactApprovalActionServiceImpl struct {
 func NewArtifactApprovalActionServiceImpl(logger *zap.SugaredLogger,
 	artifactApprovalDataReadService read.ArtifactApprovalDataReadService,
 	cdTriggerService devtronApps.TriggerService, eventClient client2.EventClient,
-	eventFactory client2.EventFactory, appArtifactManager pipeline.AppArtifactManager,
+	eventFactory client2.EventFactory, imageTaggingService pipeline.ImageTaggingService,
 	deploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository,
 	requestApprovalRepository pipelineConfig.RequestApprovalUserdataRepository,
 	ciArtifactRepository repository.CiArtifactRepository,
@@ -46,7 +46,7 @@ func NewArtifactApprovalActionServiceImpl(logger *zap.SugaredLogger,
 		cdTriggerService:                cdTriggerService,
 		eventClient:                     eventClient,
 		eventFactory:                    eventFactory,
-		appArtifactManager:              appArtifactManager,
+		imageTaggingService:             imageTaggingService,
 		deploymentApprovalRepository:    deploymentApprovalRepository,
 		requestApprovalRepository:       requestApprovalRepository,
 		ciArtifactRepository:            ciArtifactRepository,
@@ -185,7 +185,7 @@ func (impl *ArtifactApprovalActionServiceImpl) performNotificationApprovalAction
 		impl.logger.Errorw("error occurred while updating approval request", "pipelineId", pipeline, "pipeline", pipeline, "err", err)
 	}
 	event := impl.eventFactory.Build(eventType, &approvalActionRequest.PipelineId, approvalActionRequest.AppId, &pipeline.EnvironmentId, "")
-	imageComment, imageTagNames, err := impl.appArtifactManager.GetImageTagsAndComment(approvalActionRequest.ArtifactId)
+	imageComment, imageTagNames, err := impl.imageTaggingService.GetImageTagsAndComment(approvalActionRequest.ArtifactId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching tags and comment", "artifactId", approvalActionRequest.ArtifactId)
 	}
