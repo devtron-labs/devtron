@@ -46,7 +46,7 @@ import (
 type AppWorkflowService interface {
 	CreateAppWorkflow(req AppWorkflowDto) (AppWorkflowDto, error)
 	FindAppWorkflows(appId int) ([]AppWorkflowDto, error)
-	FindAppWorkflowWithImagePromotionMetadata(appId int, userId int32, token string, imagePromoterAuth func(string, string) bool) ([]AppWorkflowDto, error)
+	//FindAppWorkflowWithImagePromotionMetadata(appId int, userId int32, token string, imagePromoterAuth func(string, string) bool) ([]AppWorkflowDto, error)
 
 	FindAppWorkflowById(Id int, appId int) (AppWorkflowDto, error)
 	DeleteAppWorkflow(appWorkflowId int, userId int32) error
@@ -81,12 +81,12 @@ type AppWorkflowServiceImpl struct {
 }
 
 type AppWorkflowDto struct {
-	Id                        int                       `json:"id,omitempty"`
-	Name                      string                    `json:"name"`
-	AppId                     int                       `json:"appId"`
-	AppWorkflowMappingDto     []AppWorkflowMappingDto   `json:"tree,omitempty"`
-	ArtifactPromotionMetadata ArtifactPromotionMetadata `json:"artifactPromotionMetadata,omitempty"`
-	UserId                    int32                     `json:"-"`
+	Id                        int                        `json:"id,omitempty"`
+	Name                      string                     `json:"name"`
+	AppId                     int                        `json:"appId"`
+	AppWorkflowMappingDto     []AppWorkflowMappingDto    `json:"tree,omitempty"`
+	ArtifactPromotionMetadata *ArtifactPromotionMetadata `json:"artifactPromotionMetadata,omitempty"`
+	UserId                    int32                      `json:"-"`
 }
 
 type ArtifactPromotionMetadata struct {
@@ -248,11 +248,24 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflows(appId int) ([]AppWorkflowDto
 		return nil, err
 	}
 
+	workflowIdToPromotionPolicyConfiguredMapping, err := impl.getWfIdToPolicyConfiguredMappong(appId, wfrIdVsMappings)
+	if err != nil {
+		impl.Logger.Errorw("error in getting workflowId to promotionPolicyMapping", "appId", appId, "err", err)
+		return nil, err
+	}
+
 	for _, w := range appWorkflows {
+		isPromotionPolicyConfigured := false
+		if _, ok := workflowIdToPromotionPolicyConfiguredMapping[w.Id]; ok {
+			isPromotionPolicyConfigured = true
+		}
 		workflow := AppWorkflowDto{
 			Id:    w.Id,
 			Name:  w.Name,
 			AppId: w.AppId,
+			ArtifactPromotionMetadata: &ArtifactPromotionMetadata{
+				IsConfigured: isPromotionPolicyConfigured,
+			},
 		}
 		workflow.AppWorkflowMappingDto = wfrIdVsMappings[w.Id]
 		workflows = append(workflows, workflow)
@@ -261,22 +274,7 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflows(appId int) ([]AppWorkflowDto
 	return workflows, err
 }
 
-func (impl AppWorkflowServiceImpl) FindAppWorkflowWithImagePromotionMetadata(appId int, userId int32, token string, imagePromoterAuth func(string, string) bool) ([]AppWorkflowDto, error) {
-	appWorkflows, err := impl.appWorkflowRepository.FindByAppId(appId)
-	if err != nil && err != pg.ErrNoRows {
-		impl.Logger.Errorw("error occurred while fetching app workflows", "appId", appId, "err", err)
-		return nil, err
-	}
-	var workflows []AppWorkflowDto
-	var wfIds []int
-	for _, appWf := range appWorkflows {
-		wfIds = append(wfIds, appWf.Id)
-	}
-
-	wfrIdVsMappings, err := impl.FindAllAppWorkflowMapping(wfIds)
-	if err != nil {
-		return nil, err
-	}
+func (impl AppWorkflowServiceImpl) getWfIdToPolicyConfiguredMappong(appId int, wfrIdVsMappings map[int][]AppWorkflowMappingDto) (map[int]bool, error) {
 
 	cdPipelineIds := make([]int, 0)
 	cdPipelineIdToWorkflowIdMapping := make(map[int]int)
@@ -289,14 +287,14 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowWithImagePromotionMetadata(app
 		}
 	}
 
-	workflowIdToPromotionPolicyMapping := make(map[int]bool)
+	workflowIdToPromotionPolicyConfiguredMapping := make(map[int]bool)
 
 	if len(cdPipelineIds) > 0 {
 
 		cdPipelines, err := impl.pipelineRepository.FindByIdsIn(cdPipelineIds)
 		if err != nil {
 			impl.Logger.Errorw("error in fetching cd pipelines by ids", "cdPipelineId", cdPipelineIds, "err", err)
-			return nil, err
+			return workflowIdToPromotionPolicyConfiguredMapping, err
 		}
 
 		envIds := make([]int, len(cdPipelines))
@@ -309,42 +307,21 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowWithImagePromotionMetadata(app
 		promotionPolicies, err := impl.artifactPromotionDataReadService.GetPromotionPolicyByAppAndEnvIds(appId, envIds)
 		if err != nil && err != pg.ErrNoRows {
 			impl.Logger.Errorw("error in fetching promotion policy by appId and envId", "appId", appId, "envIds", envIds, "err", err)
-			return nil, err
+			return workflowIdToPromotionPolicyConfiguredMapping, err
 		}
 
 		for _, cdPipeline := range cdPipelines {
 			envName := cdPipeline.Environment.Name
 			if _, ok := promotionPolicies[envName]; ok {
-				workflowId := cdPipelineIdToWorkflowIdMapping[cdPipeline.Id]
-				workflowIdToPromotionPolicyMapping[workflowId] = true
+				if _, cdPipelineOk := cdPipelineIdToWorkflowIdMapping[cdPipeline.Id]; cdPipelineOk {
+					workflowId := cdPipelineIdToWorkflowIdMapping[cdPipeline.Id]
+					workflowIdToPromotionPolicyConfiguredMapping[workflowId] = true
+				}
 			}
 		}
 
 	}
-
-	for _, w := range appWorkflows {
-
-		totalCount, err := impl.appArtifactManager.GetPromotionRequestCountPendingForCurrentUser(w.Id, imagePromoterAuth, token)
-		if err != nil {
-			impl.Logger.Errorw("error in fetching appArtifactManager ")
-			return nil, err
-		}
-
-		workflow := AppWorkflowDto{
-			Id:    w.Id,
-			Name:  w.Name,
-			AppId: w.AppId,
-			ArtifactPromotionMetadata: ArtifactPromotionMetadata{
-				IsApprovalPendingForPromotion: totalCount > 0,
-				IsConfigured:                  workflowIdToPromotionPolicyMapping[w.Id],
-			},
-		}
-		workflow.AppWorkflowMappingDto = wfrIdVsMappings[w.Id]
-		workflows = append(workflows, workflow)
-	}
-
-	return workflows, err
-
+	return workflowIdToPromotionPolicyConfiguredMapping, nil
 }
 
 func (impl AppWorkflowServiceImpl) FindAppWorkflowById(Id int, appId int) (AppWorkflowDto, error) {

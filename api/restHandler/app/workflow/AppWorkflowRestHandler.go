@@ -62,11 +62,13 @@ type AppWorkflowRestHandlerImpl struct {
 	pipelineBuilder    pipeline.PipelineBuilder
 	appRepository      app.AppRepository
 	enforcerUtil       rbac.EnforcerUtil
+	appArtifactManager pipeline.AppArtifactManager
 }
 
 func NewAppWorkflowRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService, appWorkflowService appWorkflow.AppWorkflowService,
 	teamService team.TeamService, enforcer casbin.Enforcer, pipelineBuilder pipeline.PipelineBuilder,
-	appRepository app.AppRepository, enforcerUtil rbac.EnforcerUtil) *AppWorkflowRestHandlerImpl {
+	appRepository app.AppRepository, enforcerUtil rbac.EnforcerUtil,
+	appArtifactManager pipeline.AppArtifactManager) *AppWorkflowRestHandlerImpl {
 	return &AppWorkflowRestHandlerImpl{
 		Logger:             Logger,
 		appWorkflowService: appWorkflowService,
@@ -76,6 +78,7 @@ func NewAppWorkflowRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService us
 		pipelineBuilder:    pipelineBuilder,
 		appRepository:      appRepository,
 		enforcerUtil:       enforcerUtil,
+		appArtifactManager: appArtifactManager,
 	}
 }
 
@@ -281,11 +284,8 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflow(w http.ResponseWriter, r 
 	common.WriteJsonResp(w, err, workflows, http.StatusOK)
 }
 
-func (handler AppWorkflowRestHandlerImpl) CheckImagePromoterAuth(token string, object string) bool {
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApprovalPolicy, casbin.ActionArtifactPromote, object); !ok {
-		return false
-	}
-	return true
+func (handler *AppWorkflowRestHandlerImpl) CheckImagePromoterBulkAuth(token string, object []string) map[string]bool {
+	return handler.enforcer.EnforceInBatch(token, casbin.ResourceApprovalPolicy, casbin.ActionArtifactPromote, object)
 }
 
 func (impl AppWorkflowRestHandlerImpl) FindAllWorkflows(w http.ResponseWriter, r *http.Request) {
@@ -456,11 +456,21 @@ func (handler *AppWorkflowRestHandlerImpl) GetWorkflowsViewData(w http.ResponseW
 	if userId == 0 || err != nil {
 		return
 	}
-	appWorkflows, err := handler.appWorkflowService.FindAppWorkflowWithImagePromotionMetadata(appId, userId, token, handler.CheckImagePromoterAuth)
+	appWorkflows, err := handler.appWorkflowService.FindAppWorkflows(appId)
 	if err != nil {
 		handler.Logger.Errorw("error in fetching workflows for app", "appId", appId, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
+	}
+	for _, wf := range appWorkflows {
+		if wf.ArtifactPromotionMetadata != nil && wf.ArtifactPromotionMetadata.IsConfigured {
+			pendingCount, err := handler.appArtifactManager.GetPromotionRequestCountPendingForCurrentUser(wf.Id, handler.CheckImagePromoterBulkAuth, token)
+			if err != nil {
+				handler.Logger.Errorw("error in finding approval pending coount for current user", "wfId", wf.Id, "err", err)
+				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			}
+			wf.ArtifactPromotionMetadata.IsApprovalPendingForPromotion = pendingCount > 0
+		}
 	}
 
 	ciPipelineViewData, err := handler.pipelineBuilder.GetTriggerViewCiPipeline(appId)
