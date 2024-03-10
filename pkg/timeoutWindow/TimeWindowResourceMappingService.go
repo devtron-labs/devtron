@@ -31,6 +31,11 @@ type TimeWindowExpression struct {
 }
 
 func (impl TimeoutWindowResourceMappingServiceImpl) GetMappingsForResources(resourceIds []int, resourceType repository.ResourceType) (map[int][]TimeWindowExpression, error) {
+
+	if len(resourceIds) == 0 {
+		return make(map[int][]TimeWindowExpression), nil
+	}
+
 	resourceMappings, err := impl.timeWindowMappingRepository.GetWindowsForResources(resourceIds, resourceType)
 	if err != nil {
 		return nil, err
