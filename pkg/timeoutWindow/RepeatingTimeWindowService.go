@@ -8,6 +8,7 @@ import (
 	"time"
 )
 
+// Move to TimeWindowService
 type RepeatingTimeWindowService interface {
 	TimeoutWindowService
 	UpdateWindowMappings(windows []*TimeWindow, userId int32, err error, tx *pg.Tx, policyId int) error

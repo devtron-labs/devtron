@@ -10,6 +10,7 @@ import (
 	"time"
 )
 
+// rename to timewindowservice
 type TimeoutWindowService interface {
 	GetAllWithIds(ids []int) ([]*repository.TimeoutWindowConfiguration, error)
 	UpdateTimeoutExpressionAndFormatForIds(tx *pg.Tx, timeoutExpression string, ids []int, expressionFormat bean.ExpressionFormat, loggedInUserId int32) error
