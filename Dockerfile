@@ -1,4 +1,4 @@
-FROM golang:1.20  AS build-env
+FROM quay.io/devtron/test:b5940818-611-7896  AS build-env
 
 RUN echo $GOPATH
 RUN apt update
