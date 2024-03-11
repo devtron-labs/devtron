@@ -67,13 +67,15 @@ type UserAuthRepository interface {
 	GetRolesByUserIdAndEntityType(userId int32, entityType string) ([]*RoleModel, error)
 	CreateRolesWithAccessTypeAndEntity(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, UserId int32, role string) (bool, error)
 	GetRolesByEntityAccessTypeAndAction(entity, accessType, action string) ([]*RoleModel, error)
-	GetApprovalUsersByEnv(appName, envName string) ([]string, []string, error)
-	GetConfigApprovalUsersByEnv(appName, envName, team string) ([]string, []string, error)
+	GetApprovalRoleGroupCasbinNameByEnv(appName, envName string) ([]string, error)
+	GetConfigApprovalRoleGroupCasbinNameByEnv(appName, envName, team string) ([]string, error)
 	GetRolesForWorkflow(workflow, entityName string) ([]*RoleModel, error)
 	GetRoleForClusterEntity(cluster, namespace, group, kind, resource, action string) (RoleModel, error)
 	GetRoleForJobsEntity(entity, team, app, env, act string, workflow string) (RoleModel, error)
 	GetRoleForOtherEntity(team, app, env, act, accessType string, oldValues, approver bool) (RoleModel, error)
 	GetRoleForChartGroupEntity(entity, app, act, accessType string) (RoleModel, error)
+	GetConfigApprovalUsersByEnvWithTimeoutExpression(appName, envName string) ([]*UserRoleModel, error)
+	GetApprovalUserEmailWithTimeoutExpression(appName, envName string) ([]*UserRoleModel, error)
 }
 
 type UserAuthRepositoryImpl struct {
@@ -486,40 +488,32 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForAllTypes(team, entity
 	return true, nil, policiesToBeAdded
 }
 
-func (impl UserAuthRepositoryImpl) GetApprovalUsersByEnv(appName, envName string) ([]string, []string, error) {
-	var emailIds []string
+func (impl UserAuthRepositoryImpl) GetApprovalRoleGroupCasbinNameByEnv(appName, envName string) ([]string, error) {
 	var roleGroups []string
-
-	query := "select distinct(email_id) from users us inner join user_roles ur on us.id=ur.user_id inner join roles on ur.role_id = roles.id " +
-		"where ((roles.approver = true and (roles.environment=? OR roles.environment is null) and (entity_name=? OR entity_name is null)) OR roles.role = ?) " +
-		"and us.id not in (1);"
-	_, err := impl.dbConnection.Query(&emailIds, query, envName, appName, "role:super-admin___")
-	if err != nil && err != pg.ErrNoRows {
-		return emailIds, roleGroups, err
-	}
-
 	roleGroupQuery := "select rg.casbin_name from role_group rg inner join role_group_role_mapping rgrm on rg.id = rgrm.role_group_id " +
 		"inner join roles r on rgrm.role_id = r.id where r.approver = true  and r.environment=? and r.entity_name=?;"
-	_, err = impl.dbConnection.Query(&roleGroups, roleGroupQuery, envName, appName)
+	_, err := impl.dbConnection.Query(&roleGroups, roleGroupQuery, envName, appName)
 	if err != nil && err != pg.ErrNoRows {
-		return emailIds, roleGroups, err
+		return roleGroups, err
 	}
 
-	return emailIds, roleGroups, nil
+	return roleGroups, nil
 }
 
-func (impl UserAuthRepositoryImpl) GetConfigApprovalUsersByEnv(appName, envName, team string) ([]string, []string, error) {
-	var emailIds []string
-	var roleGroups []string
-
-	query := "select distinct(email_id) from users us inner join user_roles ur on us.id=ur.user_id inner join roles on ur.role_id = roles.id " +
-		"where ((roles.action = ? and (roles.environment=? OR roles.environment is null) and (entity_name=? OR entity_name is null)) OR roles.role = ?) " +
+func (impl UserAuthRepositoryImpl) GetApprovalUserEmailWithTimeoutExpression(appName, envName string) ([]*UserRoleModel, error) {
+	var userRoles []*UserRoleModel
+	query := "select ur.* from users us inner join user_roles ur on us.id=ur.user_id inner join roles on ur.role_id = roles.id " +
+		"where ((roles.approver = true and (roles.environment=? OR roles.environment is null) and (entity_name=? OR entity_name is null)) OR roles.role = ?) " +
 		"and us.id not in (1);"
-	_, err := impl.dbConnection.Query(&emailIds, query, "configApprover", envName, appName, "role:super-admin___")
+	_, err := impl.dbConnection.Query(&userRoles, query, envName, appName, bean.SUPERADMIN)
 	if err != nil && err != pg.ErrNoRows {
-		return emailIds, roleGroups, err
+		return nil, err
 	}
+	return userRoles, nil
+}
 
+func (impl UserAuthRepositoryImpl) GetConfigApprovalRoleGroupCasbinNameByEnv(appName, envName, team string) ([]string, error) {
+	var roleGroups []string
 	roleGroupQuery := "SELECT rg.casbin_name " +
 		"FROM role_group rg " +
 		"INNER JOIN role_group_role_mapping rgrm ON rg.id = rgrm.role_group_id " +
@@ -528,12 +522,24 @@ func (impl UserAuthRepositoryImpl) GetConfigApprovalUsersByEnv(appName, envName,
 		"AND (r.environment IS NULL OR r.environment = ?) " +
 		"AND (r.entity_name IS NULL OR r.entity_name = ?) AND r.team = ? ;"
 
-	_, err = impl.dbConnection.Query(&roleGroups, roleGroupQuery, envName, appName, team)
+	_, err := impl.dbConnection.Query(&roleGroups, roleGroupQuery, envName, appName, team)
 	if err != nil && err != pg.ErrNoRows {
-		return emailIds, roleGroups, err
+		return roleGroups, err
 	}
 
-	return emailIds, roleGroups, nil
+	return roleGroups, nil
+}
+
+func (impl UserAuthRepositoryImpl) GetConfigApprovalUsersByEnvWithTimeoutExpression(appName, envName string) ([]*UserRoleModel, error) {
+	var userRoles []*UserRoleModel
+	query := "select ur.* from users us inner join user_roles ur on us.id=ur.user_id inner join roles on ur.role_id = roles.id " +
+		"where ((roles.action = ? and (roles.environment=? OR roles.environment is null) and (entity_name=? OR entity_name is null)) OR roles.role = ?) " +
+		"and us.id not in (1);"
+	_, err := impl.dbConnection.Query(&userRoles, query, "configApprover", envName, appName, bean.SUPERADMIN)
+	if err != nil && err != pg.ErrNoRows {
+		return nil, err
+	}
+	return userRoles, nil
 }
 
 func (impl UserAuthRepositoryImpl) CreateRolesWithAccessTypeAndEntity(team, entityName, env, entity, cluster, namespace, group, kind, resource, actionType, accessType string, UserId int32, role string) (bool, error) {

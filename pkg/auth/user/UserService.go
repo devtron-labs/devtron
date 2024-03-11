@@ -1853,7 +1853,12 @@ func (impl UserServiceImpl) CheckForApproverAccess(appName, envName string, user
 }
 
 func (impl UserServiceImpl) GetConfigApprovalUsersByEnv(appName, envName, team string) ([]string, error) {
-	emailIds, permissionGroupNames, err := impl.userAuthRepository.GetConfigApprovalUsersByEnv(appName, envName, team)
+	emailIds, err := impl.getActiveConfigApproverUser(appName, envName)
+	if err != nil {
+		impl.logger.Errorw("error in GetConfigApprovalUsersByEnv", "err", err, "appName", appName, "envName", envName)
+		return emailIds, err
+	}
+	permissionGroupNames, err := impl.userAuthRepository.GetConfigApprovalRoleGroupCasbinNameByEnv(appName, envName, team)
 	if err != nil {
 		return emailIds, err
 	}
@@ -1864,8 +1869,67 @@ func (impl UserServiceImpl) GetConfigApprovalUsersByEnv(appName, envName, team s
 	return finalEmails, nil
 }
 
+func (impl UserServiceImpl) getActiveUserEmails(userRoles []*repository.UserRoleModel) ([]string, error) {
+	userIds := make([]int32, 0)
+	recordedTime := time.Now()
+	for _, model := range userRoles {
+		status, _ := getStatusAndTTL(model.TimeoutWindowConfiguration, recordedTime)
+		if status != bean.Inactive {
+			userIds = append(userIds, model.UserId)
+		}
+	}
+	var emailIds []string
+	var err error
+	if len(userIds) > 0 {
+		emailIds, err = impl.userRepository.GetEmailByIds(userIds)
+		if err != nil {
+			impl.logger.Errorw("error in getActiveUserPermissionsEmails", "userIds", userIds, "err", err)
+			return emailIds, err
+		}
+	}
+	return emailIds, nil
+
+}
+
+func (impl UserServiceImpl) getActiveConfigApproverUser(appName, envName string) ([]string, error) {
+	var emailIds []string
+	userRoles, err := impl.userAuthRepository.GetConfigApprovalUsersByEnvWithTimeoutExpression(appName, envName)
+	if err != nil {
+		impl.logger.Errorw("error in getActiveConfigApproverUser", "appName", appName, "envName", envName, "err", err)
+		return emailIds, err
+	}
+	emailIds, err = impl.getActiveUserEmails(userRoles)
+	if err != nil {
+		impl.logger.Errorw("error in getActiveConfigApproverUser", "appName", appName, "envName", envName, "err", err)
+		return emailIds, err
+	}
+	return emailIds, nil
+
+}
+
+func (impl UserServiceImpl) getActiveImageApproverUser(appName, envName string) ([]string, error) {
+	var emailIds []string
+	userRoles, err := impl.userAuthRepository.GetApprovalUserEmailWithTimeoutExpression(appName, envName)
+	if err != nil {
+		impl.logger.Errorw("error in getActiveConfigApproverUser", "appName", appName, "envName", envName, "err", err)
+		return emailIds, err
+	}
+	emailIds, err = impl.getActiveUserEmails(userRoles)
+	if err != nil {
+		impl.logger.Errorw("error in getActiveConfigApproverUser", "appName", appName, "envName", envName, "err", err)
+		return emailIds, err
+	}
+	return emailIds, nil
+
+}
+
 func (impl UserServiceImpl) GetApprovalUsersByEnv(appName, envName string) ([]string, error) {
-	emailIds, permissionGroupNames, err := impl.userAuthRepository.GetApprovalUsersByEnv(appName, envName)
+	emailIds, err := impl.getActiveImageApproverUser(appName, envName)
+	if err != nil {
+		impl.logger.Errorw("error in GetApprovalUsersByEnv", "appName", appName, "envName", envName, "err", err)
+		return emailIds, err
+	}
+	permissionGroupNames, err := impl.userAuthRepository.GetApprovalRoleGroupCasbinNameByEnv(appName, envName)
 	if err != nil {
 		return emailIds, err
 	}
