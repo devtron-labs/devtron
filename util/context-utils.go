@@ -21,3 +21,9 @@ func GetIsSuperAdminFromContext(ctx context.Context) (bool, error) {
 	}
 	return false, fmt.Errorf("context not valid, isSuperAdmin flag not set correctly %v", flag)
 }
+
+type RequestCtx struct {
+	UserId  int32
+	Token   string
+	Context context.Context
+}

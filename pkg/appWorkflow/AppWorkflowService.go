@@ -18,11 +18,11 @@
 package appWorkflow
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	bean4 "github.com/devtron-labs/devtron/pkg/appWorkflow/bean"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/read"
+	util2 "github.com/devtron-labs/devtron/util"
 	"time"
 
 	mapset "github.com/deckarep/golang-set"
@@ -47,7 +47,7 @@ import (
 type AppWorkflowService interface {
 	CreateAppWorkflow(req AppWorkflowDto) (AppWorkflowDto, error)
 	FindAppWorkflows(appId int) ([]AppWorkflowDto, error)
-	FindAppWorkflowsWithExtraMetadata(ctx context.Context, appId int, imagePromoterAuth func(string, []string) map[string]bool) ([]AppWorkflowDto, error)
+	FindAppWorkflowsWithExtraMetadata(ctx util2.RequestCtx, appId int, imagePromoterAuth func(string, []string) map[string]bool) ([]AppWorkflowDto, error)
 
 	FindAppWorkflowById(Id int, appId int) (AppWorkflowDto, error)
 	DeleteAppWorkflow(appWorkflowId int, userId int32) error
@@ -264,7 +264,7 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflows(appId int) ([]AppWorkflowDto
 	return workflows, err
 }
 
-func (impl AppWorkflowServiceImpl) FindAppWorkflowsWithExtraMetadata(ctx context.Context, appId int, imagePromoterAuth func(string, []string) map[string]bool) ([]AppWorkflowDto, error) {
+func (impl AppWorkflowServiceImpl) FindAppWorkflowsWithExtraMetadata(ctx util2.RequestCtx, appId int, imagePromoterAuth func(string, []string) map[string]bool) ([]AppWorkflowDto, error) {
 	appWorkflows, err := impl.FindAppWorkflows(appId)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching workflows for app", "appId", appId, "err", err)

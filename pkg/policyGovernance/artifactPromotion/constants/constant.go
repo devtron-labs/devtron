@@ -134,3 +134,6 @@ const USER_DOES_NOT_HAVE_ARTIFACT_PROMOTER_ACCESS = "user does not have image pr
 const ARTIFACT_NOT_FOUND_ERR = "artifact not found for given id"
 const ArtifactPromotionRequestNotFoundErr = "artifact promotion request not found"
 const UserCannotCancelRequest = "only user who has raised the promotion request can cancel it"
+const ArtifactFindErr = "error in finding artifact"
+const ArtifactNotFoundErr = "artifact not found"
+const WorkflowAndSourceMisMatchErr = "source pipeline not found in the given workflow"
