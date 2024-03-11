@@ -24,7 +24,6 @@ import (
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"k8s.io/utils/pointer"
-	"slices"
 	"time"
 )
 
@@ -87,19 +86,19 @@ func (impl *DeployedApplicationEventProcessorImpl) SubscribeArgoAppUpdate() erro
 		_, err = impl.pipelineRepository.GetArgoPipelineByArgoAppName(app.ObjectMeta.Name)
 		if err != nil && err == pg.ErrNoRows {
 			impl.logger.Infow("this app not found in pipeline table looking in installed_apps table", "appName", app.ObjectMeta.Name)
-			// if not found in pipeline table then search in installed_apps table
-			gitOpsDeployedAppNames, err := impl.installedAppRepository.GetAllGitOpsDeploymentAppName()
-			if err != nil && err == pg.ErrNoRows {
-				// no installed_apps found
+			//if not found in pipeline table then search in installed_apps table
+			installedAppModel, err := impl.installedAppRepository.GetInstalledAppByGitOpsAppName(app.ObjectMeta.Name)
+			if err == pg.ErrNoRows {
+				//no installed_apps found
 				impl.logger.Errorw("no installed apps found", "err", err)
 				return
-			} else if err != nil {
+			}
+			if err != nil {
 				impl.logger.Errorw("error in getting all gitops deployment app names from installed_apps ", "err", err)
 				return
 			}
-			devtronGitOpsAppName := impl.gitOpsConfigReadService.GetGitOpsRepoName(app.ObjectMeta.Name)
-			if slices.Contains(gitOpsDeployedAppNames, devtronGitOpsAppName) {
-				// app found in installed_apps table hence setting flag to true
+			if installedAppModel.Id > 0 {
+				//app found in installed_apps table hence setting flag to true
 				isAppStoreApplication = true
 			} else {
 				// app neither found in installed_apps nor in pipeline table hence returning

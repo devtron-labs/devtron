@@ -4,7 +4,7 @@
 ### Prerequisite
 
 Install any one of the following integrations for scanning vulnerabilities:
-* [Clair](../user-guide/integrations/clair.md)
+* [Clair](../../user-guide/integrations/clair.md)
 * Trivy
 {% endhint %}
 

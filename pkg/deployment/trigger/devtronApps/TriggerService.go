@@ -8,6 +8,7 @@ import (
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	util5 "github.com/devtron-labs/common-lib/utils/k8s"
 	bean3 "github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/api/bean/gitOps"
 	bean6 "github.com/devtron-labs/devtron/api/helm-app/bean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client2 "github.com/devtron-labs/devtron/api/helm-app/service"
@@ -31,8 +32,10 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
+	chartService "github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest"
 	bean5 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
@@ -63,6 +66,7 @@ import (
 	status2 "google.golang.org/grpc/status"
 	"io/ioutil"
 	"k8s.io/helm/pkg/proto/hapi/chart"
+	"net/http"
 	"path"
 	"sigs.k8s.io/yaml"
 	"strconv"
@@ -94,11 +98,13 @@ type TriggerServiceImpl struct {
 	logger                              *zap.SugaredLogger
 	cdWorkflowCommonService             cd.CdWorkflowCommonService
 	gitOpsManifestPushService           app.GitOpsPushService
+	gitOpsConfigReadService             config.GitOpsConfigReadService
 	argoK8sClient                       argocdServer.ArgoK8sClient
 	ACDConfig                           *argocdServer.ACDConfig
 	argoClientWrapperService            argocdServer.ArgoClientWrapperService
 	pipelineStatusTimelineService       status.PipelineStatusTimelineService
 	chartTemplateService                util.ChartTemplateService
+	chartService                        chartService.ChartService
 	eventFactory                        client.EventFactory
 	eventClient                         client.EventClient
 	globalEnvVariables                  *util3.GlobalEnvVariables
@@ -119,7 +125,6 @@ type TriggerServiceImpl struct {
 	config                              *types.CdConfig
 	resourceFilterService               resourceFilter.ResourceFilterService
 	deploymentApprovalRepository        pipelineConfig.DeploymentApprovalRepository
-	appRepository                       appRepository.AppRepository
 	helmRepoPushService                 app.HelmRepoPushService
 	helmAppService                      client2.HelmAppService
 	imageTaggingService                 pipeline.ImageTaggingService
@@ -129,6 +134,7 @@ type TriggerServiceImpl struct {
 	enforcerUtil  rbac.EnforcerUtil
 	helmAppClient gRPC.HelmAppClient //TODO refactoring: use helm app service instead
 
+	appRepository                 appRepository.AppRepository
 	scanResultRepository          security.ImageScanResultRepository
 	cvePolicyRepository           security.CvePolicyRepository
 	ciPipelineMaterialRepository  pipelineConfig.CiPipelineMaterialRepository
@@ -142,7 +148,7 @@ type TriggerServiceImpl struct {
 	cdWorkflowRepository          pipelineConfig.CdWorkflowRepository
 	ciWorkflowRepository          pipelineConfig.CiWorkflowRepository
 	ciArtifactRepository          repository3.CiArtifactRepository
-	ciTemplateRepository          pipelineConfig.CiTemplateRepository
+	ciTemplateService             pipeline.CiTemplateService
 	materialRepository            pipelineConfig.MaterialRepository
 	appLabelRepository            pipelineConfig.AppLabelRepository
 	ciPipelineRepository          pipelineConfig.CiPipelineRepository
@@ -152,11 +158,13 @@ type TriggerServiceImpl struct {
 
 func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd.CdWorkflowCommonService,
 	gitOpsManifestPushService app.GitOpsPushService,
+	gitOpsConfigReadService config.GitOpsConfigReadService,
 	argoK8sClient argocdServer.ArgoK8sClient,
 	ACDConfig *argocdServer.ACDConfig,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
 	pipelineStatusTimelineService status.PipelineStatusTimelineService,
 	chartTemplateService util.ChartTemplateService,
+	chartService chartService.ChartService,
 	workflowEventPublishService out.WorkflowEventPublishService,
 	manifestCreationService manifest.ManifestCreationService,
 	deployedConfigurationHistoryService history.DeployedConfigurationHistoryService,
@@ -180,10 +188,10 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 	eventClient client.EventClient,
 	imageTaggingService pipeline.ImageTaggingService,
 	deploymentApprovalRepository pipelineConfig.DeploymentApprovalRepository,
-	appRepository appRepository.AppRepository,
 	helmRepoPushService app.HelmRepoPushService,
 	resourceFilterService resourceFilter.ResourceFilterService,
 	globalEnvVariables *util3.GlobalEnvVariables,
+	appRepository appRepository.AppRepository,
 	scanResultRepository security.ImageScanResultRepository,
 	cvePolicyRepository security.CvePolicyRepository,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
@@ -197,7 +205,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	ciArtifactRepository repository3.CiArtifactRepository,
-	ciTemplateRepository pipelineConfig.CiTemplateRepository,
+	ciTemplateService pipeline.CiTemplateService,
 	materialRepository pipelineConfig.MaterialRepository,
 	appLabelRepository pipelineConfig.AppLabelRepository,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
@@ -207,11 +215,13 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 		logger:                              logger,
 		cdWorkflowCommonService:             cdWorkflowCommonService,
 		gitOpsManifestPushService:           gitOpsManifestPushService,
+		gitOpsConfigReadService:             gitOpsConfigReadService,
 		argoK8sClient:                       argoK8sClient,
 		ACDConfig:                           ACDConfig,
 		argoClientWrapperService:            argoClientWrapperService,
 		pipelineStatusTimelineService:       pipelineStatusTimelineService,
 		chartTemplateService:                chartTemplateService,
+		chartService:                        chartService,
 		workflowEventPublishService:         workflowEventPublishService,
 		manifestCreationService:             manifestCreationService,
 		deployedConfigurationHistoryService: deployedConfigurationHistoryService,
@@ -234,11 +244,11 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 		eventClient:                         eventClient,
 		imageTaggingService:                 imageTaggingService,
 		deploymentApprovalRepository:        deploymentApprovalRepository,
-		appRepository:                       appRepository,
 		helmRepoPushService:                 helmRepoPushService,
 		resourceFilterService:               resourceFilterService,
 		globalEnvVariables:                  globalEnvVariables,
 		helmAppClient:                       helmAppClient,
+		appRepository:                       appRepository,
 		scanResultRepository:                scanResultRepository,
 		cvePolicyRepository:                 cvePolicyRepository,
 		ciPipelineMaterialRepository:        ciPipelineMaterialRepository,
@@ -252,7 +262,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 		cdWorkflowRepository:                cdWorkflowRepository,
 		ciWorkflowRepository:                ciWorkflowRepository,
 		ciArtifactRepository:                ciArtifactRepository,
-		ciTemplateRepository:                ciTemplateRepository,
+		ciTemplateService:                   ciTemplateService,
 		materialRepository:                  materialRepository,
 		appLabelRepository:                  appLabelRepository,
 		ciPipelineRepository:                ciPipelineRepository,
@@ -728,6 +738,15 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 	if err != nil {
 		impl.logger.Errorw("error in creating timeline status for deployment initiation", "err", err, "timeline", timeline)
 	}
+
+	// custom gitops repo url validation --> Start
+	err = impl.handleCustomGitOpsRepoValidation(runner, pipeline, triggeredBy)
+	if err != nil {
+		impl.logger.Errorw("custom GitOps repository validation error, TriggerPreStage", "err", err)
+		return err
+	}
+	// custom gitops repo url validation --> Ends
+
 	// checking vulnerability for deploying image
 	isVulnerable := false
 	if len(artifact.ImageDigest) > 0 {
@@ -1017,6 +1036,16 @@ func (impl *TriggerServiceImpl) triggerPipeline(overrideRequest *bean3.ValuesOve
 			impl.logger.Errorw("Error in pushing manifest to git/helm", "err", err, "git_repo_url", manifestPushTemplate.RepoUrl)
 			return releaseNo, manifest, manifestPushResponse.Error
 		}
+		// Update GitOps repo url after repo migration
+		if manifestPushResponse.IsGitOpsRepoMigrated() {
+			valuesOverrideResponse.EnvOverride.Chart.GitRepoUrl = manifestPushResponse.OverRiddenRepoUrl
+			// below function will override gitRepoUrl for charts even if user has already configured gitOps repoURL
+			err = impl.chartService.OverrideGitOpsRepoUrl(manifestPushTemplate.AppId, manifestPushResponse.OverRiddenRepoUrl, manifestPushTemplate.UserId)
+			if err != nil {
+				impl.logger.Errorw("error in updating git repo url in charts", "err", err)
+				return releaseNo, manifest, fmt.Errorf("No repository configured for Gitops! Error while migrating gitops repository: '%s'", manifestPushResponse.OverRiddenRepoUrl)
+			}
+		}
 		pipelineOverrideUpdateRequest := &chartConfig.PipelineOverride{
 			Id:                     valuesOverrideResponse.PipelineOverride.Id,
 			GitHash:                manifestPushResponse.CommitHash,
@@ -1044,7 +1073,7 @@ func (impl *TriggerServiceImpl) triggerPipeline(overrideRequest *bean3.ValuesOve
 	go impl.writeCDTriggerEvent(overrideRequest, valuesOverrideResponse.Artifact, valuesOverrideResponse.PipelineOverride.PipelineReleaseCounter, valuesOverrideResponse.PipelineOverride.Id, overrideRequest.WfrId)
 
 	_, span := otel.Tracer("orchestrator").Start(ctx, "MarkImageScanDeployed")
-	_ = impl.markImageScanDeployed(overrideRequest.AppId, valuesOverrideResponse.EnvOverride.TargetEnvironment, valuesOverrideResponse.Artifact.ImageDigest, overrideRequest.ClusterId, valuesOverrideResponse.Artifact.ScanEnabled)
+	_ = impl.markImageScanDeployed(overrideRequest.AppId, valuesOverrideResponse.EnvOverride.TargetEnvironment, valuesOverrideResponse.Artifact.ImageDigest, overrideRequest.ClusterId, valuesOverrideResponse.Artifact.ScanEnabled, valuesOverrideResponse.Artifact.Image)
 	span.End()
 
 	middleware.CdTriggerCounter.WithLabelValues(overrideRequest.AppName, overrideRequest.EnvName).Inc()
@@ -1061,6 +1090,7 @@ func (impl *TriggerServiceImpl) buildManifestPushTemplate(overrideRequest *bean3
 		AppId:                 overrideRequest.AppId,
 		ChartRefId:            valuesOverrideResponse.EnvOverride.Chart.ChartRefId,
 		EnvironmentId:         valuesOverrideResponse.EnvOverride.Environment.Id,
+		EnvironmentName:       valuesOverrideResponse.EnvOverride.Environment.Namespace,
 		UserId:                overrideRequest.UserId,
 		PipelineOverrideId:    valuesOverrideResponse.PipelineOverride.Id,
 		AppName:               overrideRequest.AppName,
@@ -1128,8 +1158,47 @@ func (impl *TriggerServiceImpl) buildManifestPushTemplate(overrideRequest *bean3
 		manifestPushTemplate.ChartVersion = valuesOverrideResponse.EnvOverride.Chart.ChartVersion
 		manifestPushTemplate.ChartLocation = valuesOverrideResponse.EnvOverride.Chart.ChartLocation
 		manifestPushTemplate.RepoUrl = valuesOverrideResponse.EnvOverride.Chart.GitRepoUrl
+		manifestPushTemplate.IsCustomGitRepository = valuesOverrideResponse.EnvOverride.Chart.IsCustomGitRepository
+		manifestPushTemplate.GitOpsRepoMigrationRequired = impl.checkIfRepoMigrationRequired(manifestPushTemplate)
 	}
 	return manifestPushTemplate, nil
+}
+
+// checkIfRepoMigrationRequired checks if gitOps repo name is changed
+func (impl *TriggerServiceImpl) checkIfRepoMigrationRequired(manifestPushTemplate *bean4.ManifestPushTemplate) bool {
+	monoRepoMigrationRequired := false
+	if gitOps.IsGitOpsRepoNotConfigured(manifestPushTemplate.RepoUrl) || manifestPushTemplate.IsCustomGitRepository {
+		return false
+	}
+	var err error
+	gitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoNameFromUrl(manifestPushTemplate.RepoUrl)
+	if len(gitOpsRepoName) == 0 {
+		gitOpsRepoName, err = impl.getAcdAppGitOpsRepoName(manifestPushTemplate.AppName, manifestPushTemplate.EnvironmentName)
+		if err != nil || gitOpsRepoName == "" {
+			return false
+		}
+	}
+	//here will set new git repo name if required to migrate
+	newGitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoName(manifestPushTemplate.AppName)
+	//checking weather git repo migration needed or not, if existing git repo and new independent git repo is not same than go ahead with migration
+	if newGitOpsRepoName != gitOpsRepoName {
+		monoRepoMigrationRequired = true
+	}
+	return monoRepoMigrationRequired
+}
+
+// getAcdAppGitOpsRepoName returns the GitOps repository name, configured for the argoCd app
+func (impl *TriggerServiceImpl) getAcdAppGitOpsRepoName(appName string, environmentName string) (string, error) {
+	//this method should only call in case of argo-integration and gitops configured
+	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		impl.logger.Errorw("error in getting acd token", "err", err)
+		return "", err
+	}
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, "token", acdToken)
+	acdAppName := fmt.Sprintf("%s-%s", appName, environmentName)
+	return impl.argoClientWrapperService.GetGitOpsRepoName(ctx, acdAppName)
 }
 
 func (impl *TriggerServiceImpl) getManifestPushService(storageType string) app.ManifestPushService {
@@ -1511,9 +1580,9 @@ func (impl *TriggerServiceImpl) writeCDTriggerEvent(overrideRequest *bean3.Value
 	}
 }
 
-func (impl *TriggerServiceImpl) markImageScanDeployed(appId int, envId int, imageDigest string, clusterId int, isScanEnabled bool) error {
+func (impl *TriggerServiceImpl) markImageScanDeployed(appId int, envId int, imageDigest string, clusterId int, isScanEnabled bool, image string) error {
 	impl.logger.Debugw("mark image scan deployed for normal app, from cd auto or manual trigger", "imageDigest", imageDigest)
-	executionHistory, err := impl.imageScanHistoryRepository.FindByImageDigest(imageDigest)
+	executionHistory, err := impl.imageScanHistoryRepository.FindByImageAndDigest(imageDigest, image)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching execution history", "err", err)
 		return err
@@ -1783,4 +1852,45 @@ func (impl *TriggerServiceImpl) checkApprovalNodeForDeployment(requestedUserId i
 	}
 	return 0, nil
 
+}
+
+func (impl *TriggerServiceImpl) handleCustomGitOpsRepoValidation(runner *pipelineConfig.CdWorkflowRunner, pipeline *pipelineConfig.Pipeline, triggeredBy int32) error {
+	if !util.IsAcdApp(pipeline.DeploymentAppName) {
+		return nil
+	}
+	isGitOpsConfigured := false
+	gitOpsConfig, err := impl.gitOpsConfigReadService.GetGitOpsConfigActive()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error while getting active GitOpsConfig", "err", err)
+	}
+	if gitOpsConfig != nil && gitOpsConfig.Id > 0 {
+		isGitOpsConfigured = true
+	}
+	if isGitOpsConfigured && gitOpsConfig.AllowCustomRepository {
+		chart, err := impl.chartRepository.FindLatestChartForAppByAppId(pipeline.AppId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching latest chart for app by appId", "err", err, "appId", pipeline.AppId)
+			return err
+		}
+		if gitOps.IsGitOpsRepoNotConfigured(chart.GitRepoUrl) {
+			// if image vulnerable, update timeline status and return
+			runner.Status = pipelineConfig.WorkflowFailed
+			runner.Message = pipelineConfig.GITOPS_REPO_NOT_CONFIGURED
+			runner.FinishedOn = time.Now()
+			runner.UpdatedOn = time.Now()
+			runner.UpdatedBy = triggeredBy
+			err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
+			if err != nil {
+				impl.logger.Errorw("error in updating wfr status due to vulnerable image", "err", err)
+				return err
+			}
+			apiErr := &util.ApiError{
+				HttpStatusCode:  http.StatusConflict,
+				UserMessage:     pipelineConfig.GITOPS_REPO_NOT_CONFIGURED,
+				InternalMessage: pipelineConfig.GITOPS_REPO_NOT_CONFIGURED,
+			}
+			return apiErr
+		}
+	}
+	return nil
 }

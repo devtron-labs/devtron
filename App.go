@@ -26,6 +26,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/arl/statsviz"
@@ -111,6 +112,15 @@ func (app *App) Start() {
 	//authEnforcer := casbin2.Create()
 
 	server := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: authMiddleware.Authorizer(app.sessionManager2, user.WhitelistChecker, app.userService.CheckUserStatusAndUpdateLoginAudit)(app.MuxRouter.Router)}
+	idleTimeoutVal, present := os.LookupEnv("IDLE_TIMEOUT_SECS")
+	if present {
+		idleTimeoutInSecs, err := strconv.Atoi(idleTimeoutVal)
+		if err == nil {
+			server.IdleTimeout = time.Duration(idleTimeoutInSecs) * time.Second
+		} else {
+			app.Logger.Errorw("error occurred using IDLE_TIMEOUT_SECS val", "val", idleTimeoutVal, "err", err)
+		}
+	}
 	app.MuxRouter.Router.Use(app.loggingMiddleware.LoggingMiddleware)
 	app.MuxRouter.Router.Use(middleware.PrometheusMiddleware)
 	app.MuxRouter.Router.Use(middlewares.Recovery)

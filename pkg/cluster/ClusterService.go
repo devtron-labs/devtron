@@ -233,6 +233,7 @@ type ClusterService interface {
 
 	GetClusterConfigByClusterId(clusterId int) (*k8s2.ClusterConfig, error)
 	IsPolicyConfiguredForCluster(envId, clusterId int) (bool, error)
+	IsClusterReachable(clusterId int) (bool, error)
 }
 
 type ClusterServiceImpl struct {
@@ -1319,4 +1320,17 @@ func (impl ClusterServiceImpl) GetClusterConfigByClusterId(clusterId int) (*k8s2
 func (impl ClusterServiceImpl) IsPolicyConfiguredForCluster(envId, clusterId int) (bool, error) {
 	// this implementation is used in hyperion mode, so IsPolicyConfiguredForCluster is always false
 	return false, nil
+}
+
+func (impl ClusterServiceImpl) IsClusterReachable(clusterId int) (bool, error) {
+	cluster, err := impl.clusterRepository.FindById(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in finding cluster from clusterId", "envId", clusterId)
+		return false, err
+	}
+	if len(cluster.ErrorInConnecting) > 0 {
+		return false, nil
+	}
+	return true, nil
+
 }

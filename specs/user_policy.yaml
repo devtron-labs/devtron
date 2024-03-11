@@ -5,7 +5,7 @@ info:
 servers:
   - url: http://petstore.swagger.io/api
 paths:
-  /user:
+  /user/v2:
     get:
       summary: Returns all users
       description: all the template users
@@ -77,6 +77,25 @@ paths:
             application/json:
               schema:
                   $ref: '#/components/schemas/UserListingResponse'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /user:
+    get:
+      summary: Returns all users
+      description: all the template users
+      operationId: findAllUsers
+      deprecated: true   # Marking the operation as deprecated
+      responses:
+        '200':
+          description: list response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AllUsers'
         default:
           description: unexpected error
           content:
@@ -198,7 +217,6 @@ paths:
               type: object
               required:
                 - status
-                - userIds
               properties:
                 userIds:
                   type: array
@@ -213,6 +231,9 @@ paths:
                   type: string
                   format: date-time
                   example: "2009-11-10T23:00:00Z"
+                listingRequest:
+                  $ref: '#/components/schemas/FetchListingRequest'
+
       responses:
         '200':
           description: OK
@@ -230,6 +251,29 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /orchestrator/user/bulk:
+    delete:
+      summary: Delete multiple users in bulk
+      description: Deletes user entities in bulk based on the provided criteria.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkDeleteRequest'
+      responses:
+        '200':
+          description: Successfully deleted users
+          content:
+            application/json:
+              schema:
+                type: boolean
+        '400':
+          description: Bad request, invalid input
+        '404':
+          description: Users not found
+        '500':
+          description: Internal server error
 
 
 components:
@@ -283,12 +327,12 @@ components:
     AllUsers:
       type: object
       required:
-        - emailId
+        - email_id
       properties:
         id:
           type: integer
           description: Unique id of user
-        emailId:
+        email_id:
           type: string
           description: Unique valid email-id of user, comma separated emails ids for multiple users
         groups:
@@ -354,6 +398,58 @@ components:
         success:
           type: boolean
           example: true
+    BulkDeleteRequest:
+      type: object
+      properties:
+        ids:
+          type: array
+          items:
+            type: integer
+            format: int32
+          description: Array of user IDs to be deleted
+        listingRequest:
+          $ref: '#/components/schemas/ListingRequest'
+    ListingRequest:
+      type: object
+      properties:
+        status:
+          type: array
+          items:
+            $ref: '#/components/schemas/Status'
+          description: Array of status types
+        searchKey:
+          type: string
+          description: Search key for filtering
+        sortOrder:
+          type: string
+          enum:
+            - ASC
+            - DESC
+          description: Sorting order
+        sortBy:
+          type: string
+          enum:
+            - email_id
+            - last_login
+          description: Attribute to sort by
+        offset:
+          type: integer
+          format: int32
+          description: Starting index for fetching listings
+        size:
+          type: integer
+          format: int32
+          description: Number of listings to fetch
+        showAll:
+          type: boolean
+          description: Show all listings
+    Status:
+      type: string
+      enum:
+        - active
+        - inactive
+        - temporaryAccess
+      description: Status types
 
 
     Error:

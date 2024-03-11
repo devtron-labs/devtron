@@ -132,6 +132,7 @@ type ChartGroupService interface {
 
 	DeployBulk(chartGroupInstallRequest *ChartGroupInstallRequest) (*ChartGroupInstallAppRes, error)
 	DeployDefaultChartOnCluster(bean *cluster2.ClusterBean, userId int32) (bool, error)
+	TriggerDeploymentEventAndHandleStatusUpdate(installAppVersions []*appStoreBean.InstallAppVersionDTO)
 
 	PerformDeployStage(installedAppVersionId int, installedAppVersionHistoryId int, userId int32) (*appStoreBean.InstallAppVersionDTO, error)
 }
@@ -571,7 +572,7 @@ func (impl *ChartGroupServiceImpl) DeployBulk(chartGroupInstallRequest *ChartGro
 	// Rollback tx on error.
 	defer tx.Rollback()
 	for _, installAppVersionDTO := range installAppVersionDTOList {
-		installAppVersionDTO, err = impl.appStoreDeploymentService.AppStoreDeployOperationDB(installAppVersionDTO, tx, false)
+		installAppVersionDTO, err = impl.appStoreDeploymentService.AppStoreDeployOperationDB(installAppVersionDTO, tx, false, appStoreBean.BULK_DEPLOY_REQUEST)
 		if err != nil {
 			impl.logger.Errorw("DeployBulk, error while app store deploy db operation", "err", err)
 			return nil, err
@@ -599,7 +600,7 @@ func (impl *ChartGroupServiceImpl) DeployBulk(chartGroupInstallRequest *ChartGro
 		return nil, err
 	}
 	//nats event
-	impl.triggerDeploymentEventAndHandleStatusUpdate(installAppVersions)
+	impl.TriggerDeploymentEventAndHandleStatusUpdate(installAppVersions)
 	// TODO refactoring: why empty obj ??
 	return &ChartGroupInstallAppRes{}, nil
 }
@@ -664,7 +665,7 @@ func createChartGroupEntryObject(installAppVersionDTO *appStoreBean.InstallAppVe
 	}
 }
 
-func (impl *ChartGroupServiceImpl) triggerDeploymentEventAndHandleStatusUpdate(installAppVersions []*appStoreBean.InstallAppVersionDTO) {
+func (impl *ChartGroupServiceImpl) TriggerDeploymentEventAndHandleStatusUpdate(installAppVersions []*appStoreBean.InstallAppVersionDTO) {
 	publishErrMap := impl.appStoreAppsEventPublishService.PublishBulkDeployEvent(installAppVersions)
 	for _, version := range installAppVersions {
 		var installedAppDeploymentStatus appStoreBean.AppstoreDeploymentStatus
@@ -819,7 +820,7 @@ func (impl *ChartGroupServiceImpl) deployDefaultComponent(chartGroupInstallReque
 	// Rollback tx on error.
 	defer tx.Rollback()
 	for _, installAppVersionDTO := range installAppVersionDTOList {
-		installAppVersionDTO, err = impl.appStoreDeploymentService.AppStoreDeployOperationDB(installAppVersionDTO, tx, false)
+		installAppVersionDTO, err = impl.appStoreDeploymentService.AppStoreDeployOperationDB(installAppVersionDTO, tx, false, appStoreBean.DEFAULT_COMPONENT_DEPLOYMENT_REQUEST)
 		if err != nil {
 			impl.logger.Errorw("DeployBulk, error while app store deploy db operation", "err", err)
 			return nil, err
@@ -1014,13 +1015,7 @@ func (impl *ChartGroupServiceImpl) performDeployStageOnAcd(installedAppVersion *
 			return nil, err
 		}
 
-		repoUrl, err := impl.gitOperationService.GetRepoUrlByRepoName(installedAppVersion.GitOpsRepoName)
-		if err != nil {
-			//will allow to continue to persist status on next operation
-			impl.logger.Errorw("error, GetRepoUrlByRepoName", "err", err)
-		}
-
-		chartGitAttr.RepoUrl = repoUrl
+		chartGitAttr.RepoUrl = installedAppVersion.GitOpsRepoURL
 		chartGitAttr.ChartLocation = fmt.Sprintf("%s-%s", installedAppVersion.AppName, environment.Name)
 		installedAppVersion.ACDAppName = fmt.Sprintf("%s-%s", installedAppVersion.AppName, environment.Name)
 		installedAppVersion.Environment = environment

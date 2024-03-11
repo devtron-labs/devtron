@@ -119,13 +119,15 @@ func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) er
 			return err
 		}
 	}
-	// Migration of deprecated DataSource Type
-	if cdWf.CiArtifact.IsMigrationRequired() {
-		migrationErr := impl.ciArtifactRepository.MigrateToWebHookDataSourceType(cdWf.CiArtifact.Id)
-		if migrationErr != nil {
-			impl.logger.Warnw("unable to migrate deprecated DataSource", "artifactId", cdWf.CiArtifact.Id)
-		}
+
+	// custom gitops repo url validation --> Start
+	err = impl.handleCustomGitOpsRepoValidation(runner, pipeline, triggeredBy)
+	if err != nil {
+		impl.logger.Errorw("custom GitOps repository validation error, TriggerPreStage", "err", err)
+		return err
 	}
+	// custom gitops repo url validation --> Ends
+
 	// checking vulnerability for the selected image
 	err = impl.checkVulnerabilityStatusAndFailWfIfNeeded(context.Background(), cdWf.CiArtifact, pipeline, runner, triggeredBy)
 	if err != nil {

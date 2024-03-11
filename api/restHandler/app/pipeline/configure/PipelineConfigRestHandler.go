@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/chart/gitOpsConfig"
 	request "github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
@@ -106,6 +107,7 @@ type PipelineConfigRestHandlerImpl struct {
 	ciHandler                           pipeline.CiHandler
 	Logger                              *zap.SugaredLogger
 	chartService                        chart.ChartService
+	devtronAppGitOpConfigService        gitOpsConfig.DevtronAppGitOpConfigService
 	propertiesConfigService             pipeline.PropertiesConfigService
 	userAuthService                     user.UserService
 	validator                           *validator.Validate
@@ -138,6 +140,7 @@ type PipelineConfigRestHandlerImpl struct {
 func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
 	deploymentTemplateValidationService deploymentTemplate.DeploymentTemplateValidationService,
 	chartService chart.ChartService,
+	devtronAppGitOpConfigService gitOpsConfig.DevtronAppGitOpConfigService,
 	propertiesConfigService pipeline.PropertiesConfigService,
 	userAuthService user.UserService,
 	teamService team.TeamService,
@@ -170,6 +173,8 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		pipelineBuilder:                     pipelineBuilder,
 		Logger:                              Logger,
 		chartService:                        chartService,
+		//TODO Asutosh:
+		devtronAppGitOpConfigService:        devtronAppGitOpConfigService,
 		propertiesConfigService:             propertiesConfigService,
 		userAuthService:                     userAuthService,
 		validator:                           validator,

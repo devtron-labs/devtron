@@ -4,11 +4,11 @@
 ### Prerequisite
 
 Install any one of the following integrations for scanning vulnerabilities:
-* [Clair](../user-guide/integrations/clair.md)
+* [Clair](../../user-guide/integrations/clair.md)
 * Trivy
 {% endhint %}
 
-Devtron's CI pipeline provides a [**Scan for vulnerabilities**](creating-application/workflow/ci-pipeline.md#scan-for-vulnerabilities) option as shown below. Once you enable this option, it will automatically scan the image for vulnerabilities.
+Devtron's CI pipeline provides a [**Scan for vulnerabilities**](../creating-application/workflow/ci-pipeline.md#scan-for-vulnerabilities) option as shown below. Once you enable this option, it will automatically scan the image for vulnerabilities.
 
 ![Figure 1: Scan for vulnerabilities](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/security-features/new/enable-image-scan.jpg)
 
@@ -25,10 +25,10 @@ To access the comprehensive security scan reports, follow these steps:
 
 1. In the left sidebar, click **Security** and go to the `Security Scans` tab.
 
-    {% hint style="warning" %}
-    ### Who Can Perform This Action?
-    Users need to have super-admin permission to view the 'Security Scans' page.
-    {% endhint %}
+{% hint style="warning" %}
+### Who Can Perform This Action?
+Users need to have super-admin permission to view the 'Security Scans' page.
+{% endhint %}
 
 2. Select the desired application from the available list.
 

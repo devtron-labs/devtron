@@ -34,7 +34,9 @@ import (
 type UserRepository interface {
 	CreateUser(userModel *UserModel, tx *pg.Tx) (*UserModel, error)
 	UpdateUser(userModel *UserModel, tx *pg.Tx) (*UserModel, error)
+	UpdateToInactiveByIds(ids []int32, tx *pg.Tx, loggedInUserId int32) error
 	GetById(id int32) (*UserModel, error)
+	GetEmailByIds(ids []int32) ([]string, error)
 	GetByIdIncludeDeleted(id int32) (*UserModel, error)
 	GetAllExcludingApiTokenUser() ([]UserModel, error)
 	GetAllExecutingQuery(query string) ([]UserModel, error)
@@ -107,10 +109,45 @@ func (impl UserRepositoryImpl) UpdateUser(userModel *UserModel, tx *pg.Tx) (*Use
 
 	return userModel, nil
 }
+
+func (impl UserRepositoryImpl) UpdateToInactiveByIds(ids []int32, tx *pg.Tx, loggedInUserId int32) error {
+	var model []*UserModel
+	_, err := tx.Model(&model).
+		Set("active = ?", false).
+		Set("updated_on = ?", time.Now()).
+		Set("updated_by = ?", loggedInUserId).
+		Set("timeout_window_configuration_id = null").
+		Where("id IN (?)", pg.In(ids)).Update()
+	if err != nil {
+		impl.Logger.Error("error in UpdateToInactiveByIds", "err", err, "userIds", ids)
+		return err
+	}
+	return nil
+
+}
+
 func (impl UserRepositoryImpl) GetById(id int32) (*UserModel, error) {
 	var model UserModel
 	err := impl.dbConnection.Model(&model).Where("id = ?", id).Where("active = ?", true).Select()
 	return &model, err
+}
+
+func (impl UserRepositoryImpl) GetEmailByIds(ids []int32) ([]string, error) {
+	type users struct {
+		EmailId string `json:"email_id"`
+	}
+	var models []users
+	err := impl.dbConnection.Model(&models).Where("id in (?)", pg.In(ids)).Where("active = ?", true).Select()
+	if err != nil {
+		impl.Logger.Error("error in GetEmailByIds", "err", err, "userIds", ids)
+		return nil, err
+	}
+	userEmails := make([]string, 0, len(models))
+	for _, model := range models {
+		userEmails = append(userEmails, model.EmailId)
+	}
+	return userEmails, err
+
 }
 
 func (impl UserRepositoryImpl) GetByIdIncludeDeleted(id int32) (*UserModel, error) {
