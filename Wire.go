@@ -71,7 +71,6 @@ import (
 	status3 "github.com/devtron-labs/devtron/api/router/app/pipeline/status"
 	trigger2 "github.com/devtron-labs/devtron/api/router/app/pipeline/trigger"
 	workflow2 "github.com/devtron-labs/devtron/api/router/app/workflow"
-	"github.com/devtron-labs/devtron/api/router/pubsub"
 	"github.com/devtron-labs/devtron/api/server"
 	"github.com/devtron-labs/devtron/api/sse"
 	"github.com/devtron-labs/devtron/api/team"
@@ -513,12 +512,6 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipeline4.CiLogService), new(*pipeline4.CiLogServiceImpl)),
 
 		pubsub1.NewPubSubClientServiceImpl,
-
-		pubsub.NewGitWebhookHandler,
-		wire.Bind(new(pubsub.GitWebhookHandler), new(*pubsub.GitWebhookHandlerImpl)),
-
-		pubsub.NewApplicationStatusHandlerImpl,
-		wire.Bind(new(pubsub.ApplicationStatusHandler), new(*pubsub.ApplicationStatusHandlerImpl)),
 
 		rbac.NewEnforcerUtilImpl,
 		wire.Bind(new(rbac.EnforcerUtil), new(*rbac.EnforcerUtilImpl)),
@@ -1004,9 +997,6 @@ func InitializeApp() (*App, error) {
 
 		pipeline4.NewPluginInputVariableParserImpl,
 		wire.Bind(new(pipeline4.PluginInputVariableParser), new(*pipeline4.PluginInputVariableParserImpl)),
-
-		pipeline4.NewPipelineConfigListenerServiceImpl,
-		wire.Bind(new(pipeline4.PipelineConfigListenerService), new(*pipeline4.PipelineConfigListenerServiceImpl)),
 
 		imageDigestPolicy.NewImageDigestPolicyServiceImpl,
 		wire.Bind(new(imageDigestPolicy.ImageDigestPolicyService), new(*imageDigestPolicy.ImageDigestPolicyServiceImpl)),

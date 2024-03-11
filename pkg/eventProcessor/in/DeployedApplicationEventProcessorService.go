@@ -1,109 +1,76 @@
-/*
- * Copyright (c) 2020 Devtron Labs
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- */
-
-package pubsub
+package in
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/devtron-labs/common-lib/pubsub-lib/model"
-	"github.com/devtron-labs/devtron/pkg/app"
-	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
-	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
-	"github.com/devtron-labs/devtron/pkg/workflow/cd"
-	"github.com/devtron-labs/devtron/pkg/workflow/dag"
-	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode"
-	"k8s.io/utils/pointer"
-	"time"
-
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
-	repository4 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
-	"github.com/devtron-labs/devtron/pkg/bean"
-	"k8s.io/utils/strings/slices"
-
 	v1alpha12 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
+	"github.com/devtron-labs/common-lib/pubsub-lib/model"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/app"
+	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode"
+	"github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
+	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
+	bean3 "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/workflow/cd"
+	"github.com/devtron-labs/devtron/pkg/workflow/dag"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"k8s.io/utils/pointer"
+	"slices"
+	"time"
 )
 
-type ApplicationStatusHandler interface {
-	subscribe() error
-	SubscribeDeleteStatus() error
-}
-
-type ApplicationStatusHandlerImpl struct {
+type DeployedApplicationEventProcessorImpl struct {
 	logger                    *zap.SugaredLogger
-	pubsubClient              *pubsub.PubSubClientServiceImpl
+	pubSubClient              *pubsub.PubSubClientServiceImpl
 	appService                app.AppService
-	workflowDagExecutor       dag.WorkflowDagExecutor
-	installedAppService       FullMode.InstalledAppDBExtendedService
-	appStoreDeploymentService service.AppStoreDeploymentService
-	pipelineBuilder           pipeline.PipelineBuilder
-	pipelineRepository        pipelineConfig.PipelineRepository
-	installedAppRepository    repository4.InstalledAppRepository
 	gitOpsConfigReadService   config.GitOpsConfigReadService
+	installedAppService       FullMode.InstalledAppDBExtendedService
+	workflowDagExecutor       dag.WorkflowDagExecutor
 	cdWorkflowCommonService   cd.CdWorkflowCommonService
+	pipelineBuilder           pipeline.PipelineBuilder
+	appStoreDeploymentService service.AppStoreDeploymentService
+
+	pipelineRepository     pipelineConfig.PipelineRepository
+	installedAppRepository repository.InstalledAppRepository
 }
 
-func NewApplicationStatusHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSubClientServiceImpl, appService app.AppService,
-	workflowDagExecutor dag.WorkflowDagExecutor, installedAppService FullMode.InstalledAppDBExtendedService,
-	appStoreDeploymentService service.AppStoreDeploymentService, pipelineBuilder pipeline.PipelineBuilder,
-	pipelineRepository pipelineConfig.PipelineRepository, installedAppRepository repository4.InstalledAppRepository,
+func NewDeployedApplicationEventProcessorImpl(logger *zap.SugaredLogger, pubSubClient *pubsub.PubSubClientServiceImpl,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
-	cdWorkflowCommonService cd.CdWorkflowCommonService) *ApplicationStatusHandlerImpl {
-	appStatusUpdateHandlerImpl := &ApplicationStatusHandlerImpl{
+	installedAppService FullMode.InstalledAppDBExtendedService,
+	workflowDagExecutor dag.WorkflowDagExecutor,
+	cdWorkflowCommonService cd.CdWorkflowCommonService,
+	pipelineBuilder pipeline.PipelineBuilder,
+	appStoreDeploymentService service.AppStoreDeploymentService,
+	pipelineRepository pipelineConfig.PipelineRepository,
+	installedAppRepository repository.InstalledAppRepository) *DeployedApplicationEventProcessorImpl {
+	deployedApplicationEventProcessorImpl := &DeployedApplicationEventProcessorImpl{
 		logger:                    logger,
-		pubsubClient:              pubsubClient,
-		appService:                appService,
-		workflowDagExecutor:       workflowDagExecutor,
-		installedAppService:       installedAppService,
-		appStoreDeploymentService: appStoreDeploymentService,
-		pipelineBuilder:           pipelineBuilder,
-		pipelineRepository:        pipelineRepository,
-		installedAppRepository:    installedAppRepository,
+		pubSubClient:              pubSubClient,
 		gitOpsConfigReadService:   gitOpsConfigReadService,
+		installedAppService:       installedAppService,
+		workflowDagExecutor:       workflowDagExecutor,
 		cdWorkflowCommonService:   cdWorkflowCommonService,
+		pipelineBuilder:           pipelineBuilder,
+		appStoreDeploymentService: appStoreDeploymentService,
+
+		pipelineRepository:     pipelineRepository,
+		installedAppRepository: installedAppRepository,
 	}
-	err := appStatusUpdateHandlerImpl.subscribe()
-	if err != nil {
-		// logger.Error("err", err)
-		return nil
-	}
-	err = appStatusUpdateHandlerImpl.SubscribeDeleteStatus()
-	if err != nil {
-		return nil
-	}
-	return appStatusUpdateHandlerImpl
+	return deployedApplicationEventProcessorImpl
 }
 
-type ApplicationDetail struct {
-	Application *v1alpha12.Application `json:"application"`
-	StatusTime  time.Time              `json:"statusTime"`
-}
-
-func (impl *ApplicationStatusHandlerImpl) subscribe() error {
+func (impl *DeployedApplicationEventProcessorImpl) SubscribeArgoAppUpdate() error {
 	callback := func(msg *model.PubSubMsg) {
-		applicationDetail := ApplicationDetail{}
+		applicationDetail := bean3.ApplicationDetail{}
 		err := json.Unmarshal([]byte(msg.Data), &applicationDetail)
 		if err != nil {
 			impl.logger.Errorw("unmarshal error on app update status", "err", err)
@@ -176,7 +143,7 @@ func (impl *ApplicationStatusHandlerImpl) subscribe() error {
 	}
 
 	validations := impl.cdWorkflowCommonService.GetTriggerValidateFuncs()
-	err := impl.pubsubClient.Subscribe(pubsub.APPLICATION_STATUS_UPDATE_TOPIC, callback, loggerFunc, validations...)
+	err := impl.pubSubClient.Subscribe(pubsub.APPLICATION_STATUS_UPDATE_TOPIC, callback, loggerFunc, validations...)
 	if err != nil {
 		impl.logger.Error(err)
 		return err
@@ -184,10 +151,10 @@ func (impl *ApplicationStatusHandlerImpl) subscribe() error {
 	return nil
 }
 
-func (impl *ApplicationStatusHandlerImpl) SubscribeDeleteStatus() error {
+func (impl *DeployedApplicationEventProcessorImpl) SubscribeArgoAppDeleteStatus() error {
 	callback := func(msg *model.PubSubMsg) {
 
-		applicationDetail := ApplicationDetail{}
+		applicationDetail := bean3.ApplicationDetail{}
 		err := json.Unmarshal([]byte(msg.Data), &applicationDetail)
 		if err != nil {
 			impl.logger.Errorw("unmarshal error on app delete status", "err", err)
@@ -207,7 +174,7 @@ func (impl *ApplicationStatusHandlerImpl) SubscribeDeleteStatus() error {
 
 	// add required logging here
 	var loggerFunc pubsub.LoggerFunc = func(msg model.PubSubMsg) (string, []interface{}) {
-		applicationDetail := ApplicationDetail{}
+		applicationDetail := bean3.ApplicationDetail{}
 		err := json.Unmarshal([]byte(msg.Data), &applicationDetail)
 		if err != nil {
 			return "unmarshal error on app delete status", []interface{}{"err", err}
@@ -215,7 +182,7 @@ func (impl *ApplicationStatusHandlerImpl) SubscribeDeleteStatus() error {
 		return "got message for application status delete", []interface{}{"appName", applicationDetail.Application.Name, "namespace", applicationDetail.Application.Namespace, "deleteTimestamp", applicationDetail.Application.DeletionTimestamp}
 	}
 
-	err := impl.pubsubClient.Subscribe(pubsub.APPLICATION_STATUS_DELETE_TOPIC, callback, loggerFunc)
+	err := impl.pubSubClient.Subscribe(pubsub.APPLICATION_STATUS_DELETE_TOPIC, callback, loggerFunc)
 	if err != nil {
 		impl.logger.Errorw("error in subscribing to argo application status delete topic", "err", err)
 		return err
@@ -223,7 +190,7 @@ func (impl *ApplicationStatusHandlerImpl) SubscribeDeleteStatus() error {
 	return nil
 }
 
-func (impl *ApplicationStatusHandlerImpl) updateArgoAppDeleteStatus(app *v1alpha12.Application) error {
+func (impl *DeployedApplicationEventProcessorImpl) updateArgoAppDeleteStatus(app *v1alpha12.Application) error {
 	pipeline, err := impl.pipelineRepository.GetArgoPipelineByArgoAppName(app.ObjectMeta.Name)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching pipeline from Pipeline Repository", "err", err)

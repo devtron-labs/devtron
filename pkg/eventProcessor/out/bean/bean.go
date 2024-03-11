@@ -33,3 +33,14 @@ type DeployStageSuccessEventReq struct {
 	PipelineId                 int                           `json:"pipelineId"`
 	PluginRegistryImageDetails map[string][]string           `json:"pluginRegistryImageDetails"`
 }
+
+type CdPipelineDeleteEvent struct {
+	PipelineId  int   `json:"pipelineId"`
+	TriggeredBy int32 `json:"triggeredBy"`
+}
+
+type CIPipelineGitWebhookEvent struct {
+	GitHostId          int    `json:"gitHostId"`
+	EventType          string `json:"eventType"`
+	RequestPayloadJson string `json:"requestPayloadJson"`
+}
