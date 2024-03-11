@@ -1151,6 +1151,7 @@ func (impl *TriggerServiceImpl) buildManifestPushTemplate(overrideRequest *bean3
 
 		} else if manifestPushConfig.StorageType == bean2.ManifestStorageGit {
 			// need to implement for git repo push
+			// currently manifest push config doesn't have git push config. GitOps config is derived from charts, chart_env_config_override and chart_ref table
 		}
 	} else {
 		manifestPushTemplate.ChartReferenceTemplate = valuesOverrideResponse.EnvOverride.Chart.ReferenceTemplate
