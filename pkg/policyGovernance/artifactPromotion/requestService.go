@@ -888,7 +888,7 @@ func (impl *ApprovalRequestServiceImpl) promoteArtifact(ctx context.Context, req
 
 	promotableEnvs := make([]string, 0, len(responseMap))
 	for _, resp := range responseMap {
-		if resp.PromotionValidationMessage == constants.EMPTY {
+		if resp.NoValidationIssue() {
 			promotableEnvs = append(promotableEnvs, resp.Name)
 		}
 	}

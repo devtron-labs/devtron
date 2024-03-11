@@ -110,6 +110,10 @@ type EnvironmentPromotionMetaData struct {
 	IsVirtualEnvironment       bool                           `json:"isVirtualEnvironment"`
 }
 
+func (o EnvironmentPromotionMetaData) NoValidationIssue() bool {
+	return o.PromotionValidationMessage == bean2.EMPTY
+}
+
 type EnvironmentApprovalMetadata struct {
 	Name            string   `json:"name"` // environment name
 	ApprovalAllowed bool     `json:"approvalAllowed"`
