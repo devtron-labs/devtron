@@ -46,6 +46,14 @@ func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) er
 		}
 	}
 
+	// custom GitOps repo url validation --> Start
+	err = impl.handleCustomGitOpsRepoValidation(runner, pipeline, triggeredBy)
+	if err != nil {
+		impl.logger.Errorw("custom GitOps repository validation error, TriggerPreStage", "err", err)
+		return err
+	}
+	// custom GitOps repo url validation --> Ends
+
 	err = impl.checkVulnerabilityStatusAndFailWfIfNeeded(ctx, cdWf.CiArtifact, pipeline, runner, triggeredBy)
 	if err != nil {
 		impl.logger.Errorw("error, checkVulnerabilityStatusAndFailWfIfNeeded", "err", err, "runner", runner)

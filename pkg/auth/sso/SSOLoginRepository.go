@@ -44,8 +44,12 @@ type SSOLoginRepositoryImpl struct {
 	Logger       *zap.SugaredLogger
 }
 
-func NewSSOLoginRepositoryImpl(dbConnection *pg.DB) *SSOLoginRepositoryImpl {
-	return &SSOLoginRepositoryImpl{dbConnection: dbConnection}
+func NewSSOLoginRepositoryImpl(dbConnection *pg.DB,
+	logger *zap.SugaredLogger) *SSOLoginRepositoryImpl {
+	return &SSOLoginRepositoryImpl{
+		dbConnection: dbConnection,
+		Logger:       logger,
+	}
 }
 
 type SSOLoginModel struct {

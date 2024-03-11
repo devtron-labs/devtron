@@ -121,6 +121,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	globalPluginRepository repository2.GlobalPluginRepository,
 	eventClient client.EventClient,
 	eventFactory client.EventFactory,
+	customTagService pipeline.CustomTagService,
 	helmAppService client2.HelmAppService,
 	cdWorkflowCommonService cd.CdWorkflowCommonService,
 	cdTriggerService devtronApps.TriggerService,
@@ -139,6 +140,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		globalPluginRepository:  globalPluginRepository,
 		eventClient:             eventClient,
 		eventFactory:            eventFactory,
+		customTagService:        customTagService,
 		helmAppService:          helmAppService,
 		cdWorkflowCommonService: cdWorkflowCommonService,
 		cdTriggerService:        cdTriggerService,
@@ -765,7 +767,7 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(triggerContext bean5.T
 	var pluginArtifacts []*repository.CiArtifact
 	for registry, artifacts := range request.PluginRegistryArtifactDetails {
 		for _, image := range artifacts {
-			if pipeline.PipelineType == bean3.CI_JOB && image == "" {
+			if pipeline.PipelineType == string(bean3.CI_JOB) && image == "" {
 				continue
 			}
 			pluginArtifact := &repository.CiArtifact{

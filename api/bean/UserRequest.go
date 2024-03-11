@@ -31,7 +31,7 @@ type UserRole struct {
 
 type UserInfo struct {
 	Id            int32        `json:"id" validate:"number,not-system-admin-userid"`
-	EmailId       string       `json:"emailId" validate:"required,not-system-admin-user"`
+	EmailId       string       `json:"email_id" validate:"required,not-system-admin-user"` // TODO : have to migrate json key to emailId and also handle backward compatibility
 	Roles         []string     `json:"roles,omitempty"`
 	AccessToken   string       `json:"access_token,omitempty"`
 	RoleFilters   []RoleFilter `json:"roleFilters"`
@@ -130,7 +130,7 @@ type RoleGroupListingResponse struct {
 	TotalCount int          `json:"totalCount"`
 }
 
-type FetchListingRequest struct {
+type ListingRequest struct {
 	SearchKey  string         `json:"searchKey"`
 	SortOrder  bean.SortOrder `json:"sortOrder"`
 	SortBy     bean.SortBy    `json:"sortBy"`
@@ -138,4 +138,10 @@ type FetchListingRequest struct {
 	Size       int            `json:"size"`
 	ShowAll    bool           `json:"showAll"`
 	CountCheck bool           `json:"-"`
+}
+
+type BulkDeleteRequest struct {
+	Ids            []int32         `json:"ids"`
+	ListingRequest *ListingRequest `json:"listingRequest,omitempty"`
+	LoggedInUserId int32           `json:"-"`
 }
