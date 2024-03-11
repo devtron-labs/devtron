@@ -20,6 +20,7 @@ package util
 import (
 	"fmt"
 	"github.com/caarlos0/env"
+	"github.com/devtron-labs/devtron/internal/constants"
 	"go.uber.org/zap"
 	"go.uber.org/zap/buffer"
 	"go.uber.org/zap/zapcore"
@@ -74,22 +75,24 @@ func hideSensitiveData(v interface{}) interface{} {
 	ref := ptrRef.Elem()
 	refType := ref.Type()
 	for i := 0; i < refType.NumField(); i++ {
-		tag := refType.Field(i).Tag.Get("log")
-		if tag == "hide" || tag == "false" {
-			if ref.Field(i).CanSet() {
+		tag := refType.Field(i).Tag.Get(constants.LOG)
+		currField := ref.Field(i)
+		if tag == constants.HIDE {
+			if currField.CanSet() {
 				redactField(&ref, i)
 			}
 		}
-		fieldType := ref.Field(i).Type().Kind()
+		fieldType := currField.Type()
+		fieldKind := fieldType.Kind()
 		// checks if the field is struct
-		if fieldType == reflect.Struct {
-			hideSensitiveData(ref.Field(i).Addr().Interface())
-		} else if fieldType == reflect.Ptr && ref.Field(i).Elem().Kind() == reflect.Struct { // in case it is a ptr and points to a struct
+		if fieldKind == reflect.Struct {
+			hideSensitiveData(currField.Addr().Interface())
+		} else if fieldKind == reflect.Ptr && currField.Elem().Kind() == reflect.Struct { // in case it is a ptr and points to a struct
 			// making a copy so that original data do not get changed
-			newCopy := reflect.New(ref.Field(i).Type().Elem()).Elem()
-			newCopy.Set(ref.Field(i).Elem())
+			newCopy := reflect.New(fieldType.Elem()).Elem()
+			newCopy.Set(currField.Elem())
 			hideSensitiveData(newCopy.Addr().Interface())
-			ref.Field(i).Set(newCopy.Addr())
+			currField.Set(newCopy.Addr())
 		}
 	}
 	return ref.Interface()
@@ -100,11 +103,12 @@ func (e *HideSensitiveFieldsEncoder) EncodeEntry(
 	fields []zapcore.Field,
 ) (*buffer.Buffer, error) {
 	for idx, field := range fields {
+		currInterface := field.Interface
 		if field.Type == 23 && field.Interface != nil {
-			value := reflect.ValueOf(field.Interface)
+			value := reflect.ValueOf(currInterface)
 			kind := value.Kind()
 			if kind == reflect.Struct {
-				fields[idx].Interface = hideSensitiveData(field.Interface)
+				fields[idx].Interface = hideSensitiveData(currInterface)
 			} else if value.Elem().Kind() == reflect.Struct { // in case ptr is passed in the log
 				// passes only value so that original struct do not get changed
 				fields[idx].Interface = hideSensitiveData(value.Elem().Interface())
