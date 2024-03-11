@@ -29,27 +29,26 @@ if [ -z "$VariableAsPrivateKey" ]; then
     echo "VariableAsPrivateKey is not set. VariableAsPrivateKey must be present."
     if [ -z "$PreCommand" ]; then
         echo " PreCommand must be present."
-        if [ -z "$PrivateKeyFile" ]; then
-            echo "PrivateKeyFile must be present."
+        if [ -z "$PrivateKeyFilePath" ]; then
+            echo "PrivateKeyFilePath must be present."
             exit 1
         else
-            echo "in PrivateKeyFile"
-            docker run   -v $PWD:$PWD -w $PWD/$WORKINGDIR --user=root  -e COSIGN_PASSWORD=$CosignPassword gcr.io/projectsigstore/cosign:v2.2.2  -c sign --yes=true --key=$PrivateKeyFile --registry-username=$DOCKER_USERNAME --registry-password=$DOCKER_PASSWORD $DOCKER_IMAGE $ExtraArguments
+            echo "in PrivateKeyFilePath"
+            docker run   -v $PWD:$PWD -w $PWD/$WORKINGDIR --user=root  -e COSIGN_PASSWORD=$CosignPassword gcr.io/projectsigstore/cosign:v2.2.2  -c sign --yes=true --key=$PrivateKeyFilePath --registry-username=$DOCKER_USERNAME --registry-password=$DOCKER_PASSWORD $DOCKER_IMAGE $ExtraArguments
         fi
     else
-        if [ -z "$PrivateKeyFile" ]; then
-            echo " PreCommand is  set but PrivateKeyFile is not, We must define PrivateKeyFile ."
+        if [ -z "$PrivateKeyFilePath" ]; then
+            echo " PreCommand is  set but PrivateKeyFilePath is not, We must define PrivateKeyFilePath ."
             exit 1
         else
             echo "in PreCommand"
             $PreCommand
-            docker run   -v $PWD:$PWD -w $PWD/$WORKINGDIR --user=root  -e COSIGN_PASSWORD=$CosignPassword gcr.io/projectsigstore/cosign:v2.2.2  sign --yes=true --key=$PrivateKeyFile --registry-username=$DOCKER_USERNAME --registry-password=$DOCKER_PASSWORD $DOCKER_IMAGE $ExtraArguments
+            docker run   -v $PWD:$PWD -w $PWD/$WORKINGDIR --user=root  -e COSIGN_PASSWORD=$CosignPassword gcr.io/projectsigstore/cosign:v2.2.2  sign --yes=true --key=$PrivateKeyFilePath --registry-username=$DOCKER_USERNAME --registry-password=$DOCKER_PASSWORD $DOCKER_IMAGE $ExtraArguments
         fi
     fi
 else
     echo "in VariableAsPrivateKey"
     echo $VariableAsPrivateKey| base64 -d > cosign_ci.key
-    cat cosign_ci.key
     docker run   -v $PWD:$PWD -w $PWD/$WORKINGDIR --user=root  -e COSIGN_PASSWORD=$CosignPassword gcr.io/projectsigstore/cosign:v2.2.2  sign --yes=true --key=cosign_ci.key --registry-username=$DOCKER_USERNAME --registry-password=$DOCKER_PASSWORD $DOCKER_IMAGE $ExtraArguments
 fi
 
@@ -83,11 +82,11 @@ INSERT INTO plugin_step_variable (id,plugin_step_id,name,format,description,is_e
 VALUES (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Cosign v1.0.0' and ps."index"=1 and ps.deleted=false),'VariableAsPrivateKey','STRING','base64 encoded private-key (use scope variable)[highest priority]','t','t',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1);
 
 INSERT INTO plugin_step_variable (id,plugin_step_id,name,format,description,is_exposed,allow_empty_value,default_value,value,variable_type,value_type,previous_step_index,variable_step_index,variable_step_index_in_plugin,reference_variable_name,deleted,created_on,created_by,updated_on,updated_by) 
-VALUES (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Cosign v1.0.0' and ps."index"=1 and ps.deleted=false),'PreCommand','STRING','run command to get required conditions to run cosign sign command. (also required PrivateKeyFile)','t','t',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1);
+VALUES (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Cosign v1.0.0' and ps."index"=1 and ps.deleted=false),'PreCommand','STRING','run command to get required conditions to run cosign sign command. (also required PrivateKeyFilePath)','t','t',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1);
 
 
 INSERT INTO plugin_step_variable (id,plugin_step_id,name,format,description,is_exposed,allow_empty_value,default_value,value,variable_type,value_type,previous_step_index,variable_step_index,variable_step_index_in_plugin,reference_variable_name,deleted,created_on,created_by,updated_on,updated_by) 
-VALUES (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Cosign v1.0.0' and ps."index"=1 and ps.deleted=false),'PrivateKeyFile','STRING','path of key in git repo. [lowest priority]','t','t','cosign.key',null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1);
+VALUES (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Cosign v1.0.0' and ps."index"=1 and ps.deleted=false),'PrivateKeyFilePath','STRING','path of key in git repo. [lowest priority]','t','t','cosign.key',null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1);
 
 INSERT INTO plugin_step_variable (id,plugin_step_id,name,format,description,is_exposed,allow_empty_value,default_value,value,variable_type,value_type,previous_step_index,variable_step_index,variable_step_index_in_plugin,reference_variable_name,deleted,created_on,created_by,updated_on,updated_by) 
 VALUES (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Cosign v1.0.0' and ps."index"=1 and ps.deleted=false),'PostCommand','STRING','command to run after cosign sign.','t','t',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1);
