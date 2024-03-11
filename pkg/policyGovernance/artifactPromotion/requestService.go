@@ -431,8 +431,7 @@ func (impl *ApprovalRequestServiceImpl) evaluatePoliciesOnArtifact(metadata *bea
 		}
 	}
 
-	// can be concurrent,
-	// todo: simplify the below loop
+	// can be concurrent
 	for envName, policy := range policiesMap {
 		evaluationResult, err := impl.resourceFilterConditionsEvaluator.EvaluateFilter(policy.Conditions, resourceFilter.ExpressionMetadata{Params: params})
 		if err != nil {
@@ -807,33 +806,37 @@ func (impl *ApprovalRequestServiceImpl) validatePromoteAction(requestedWorkflowI
 			errMsg := fmt.Sprintf("artifact is not deployed on the source environment %s", metadata.GetSourceName())
 			return nil, util.NewApiError().WithHttpStatusCode(http.StatusConflict).WithUserMessage(errMsg).WithInternalMessage(errMsg)
 		}
-
-		tree := make(map[int][]int)
-		for _, appWorkflowMapping := range allAppWorkflowMappings {
-			// create the tree from the DAG excluding the ci source
-			if appWorkflowMapping.Type == appWorkflow.CDPIPELINE && appWorkflowMapping.ParentType == appWorkflow.CDPIPELINE {
-				tree[appWorkflowMapping.ParentId] = append(tree[appWorkflowMapping.ParentId], appWorkflowMapping.ComponentId)
-			}
-		}
-
-		responseMap := make(map[string]bean.EnvironmentPromotionMetaData)
-		for _, pipelineId := range metadata.GetActiveAuthorisedPipelineIds() {
-			if !util.IsAncestor(tree, metadata.GetSourcePipelineId(), pipelineId) {
-				envName := metadata.GetActiveAuthorisedPipelineIdEnvMap()[pipelineId]
-				resp := bean.EnvironmentPromotionMetaData{
-					Name:                       envName,
-					PromotionValidationMessage: constants.SOURCE_AND_DESTINATION_PIPELINE_MISMATCH,
-				}
-				cdPipeline := metadata.GetActiveAuthorisedPipelineDaoMap()[pipelineId]
-				if cdPipeline != nil {
-					resp.IsVirtualEnvironment = cdPipeline.Environment.IsVirtualEnvironment
-				}
-				responseMap[envName] = resp
-			}
-		}
-		return responseMap, nil
+		respMap := runSourceAndDestinationTopologyValidations(metadata, allAppWorkflowMappings)
+		return respMap, nil
 	}
 	return nil, nil
+}
+
+func runSourceAndDestinationTopologyValidations(metadata *bean.RequestMetaData, allAppWorkflowMappings []*appWorkflow.AppWorkflowMapping) map[string]bean.EnvironmentPromotionMetaData {
+	tree := make(map[int][]int)
+	for _, appWorkflowMapping := range allAppWorkflowMappings {
+		// create the tree from the DAG excluding the ci source
+		if appWorkflowMapping.Type == appWorkflow.CDPIPELINE && appWorkflowMapping.ParentType == appWorkflow.CDPIPELINE {
+			tree[appWorkflowMapping.ParentId] = append(tree[appWorkflowMapping.ParentId], appWorkflowMapping.ComponentId)
+		}
+	}
+
+	responseMap := make(map[string]bean.EnvironmentPromotionMetaData)
+	for _, pipelineId := range metadata.GetActiveAuthorisedPipelineIds() {
+		if !util.IsAncestor(tree, metadata.GetSourcePipelineId(), pipelineId) {
+			envName := metadata.GetActiveAuthorisedPipelineIdEnvMap()[pipelineId]
+			resp := bean.EnvironmentPromotionMetaData{
+				Name:                       envName,
+				PromotionValidationMessage: constants.SOURCE_AND_DESTINATION_PIPELINE_MISMATCH,
+			}
+			cdPipeline := metadata.GetActiveAuthorisedPipelineDaoMap()[pipelineId]
+			if cdPipeline != nil {
+				resp.IsVirtualEnvironment = cdPipeline.Environment.IsVirtualEnvironment
+			}
+			responseMap[envName] = resp
+		}
+	}
+	return responseMap
 }
 
 func (impl *ApprovalRequestServiceImpl) promoteArtifact(ctx context.Context, request *bean.ArtifactPromotionRequest, authorizedEnvironments map[string]bool) ([]bean.EnvironmentPromotionMetaData, error) {

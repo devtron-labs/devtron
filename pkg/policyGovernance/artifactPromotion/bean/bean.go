@@ -29,13 +29,31 @@ type ArtifactPromotionRequest struct {
 func (r *ArtifactPromotionRequest) ValidateRequest() error {
 	switch r.Action {
 	case bean2.ACTION_APPROVE:
-		return nil
+		if r.AppId <= 0 {
+			return errors.New("appId is required")
+		}
+		if r.ArtifactId <= 0 {
+			return errors.New("artifactId is required")
+		}
+		if len(r.EnvironmentNames) == 0 {
+			return errors.New("destinationObjectNames are required")
+		}
 	case bean2.ACTION_PROMOTE:
-		return nil
+		if r.SourceType != bean2.SOURCE_TYPE_CI && r.SourceType != bean2.SOURCE_TYPE_WEBHOOK && r.SourceType != bean2.SOURCE_TYPE_CD && r.SourceType != bean2.PROMOTION_APPROVAL_PENDING_NODE {
+			return errors.New("invalid sourceType")
+		}
+		if r.AppId <= 0 {
+			return errors.New("appId is required")
+		}
+		if len(r.EnvironmentNames) == 0 {
+			return errors.New("destinationObjectNames are required")
+		}
 	case bean2.ACTION_CANCEL:
-		return nil
+		if r.PromotionRequestId <= 0 {
+			return errors.New("promotionRequestId is required")
+		}
 	}
-	return errors.New("invalid action type")
+	return nil
 }
 
 type ArtifactPromotionApprovalResponse struct {
