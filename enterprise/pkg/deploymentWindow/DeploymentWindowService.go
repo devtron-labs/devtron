@@ -40,14 +40,14 @@ type DeploymentWindowServiceImpl struct {
 	userService  user.UserService
 
 	resourceMappingService resourceQualifiers.QualifierMappingService
-	timeWindowService      timeoutWindow.RepeatingTimeWindowService
+	timeWindowService      timeoutWindow.TimeoutWindowService
 	globalPolicyManager    globalPolicy.GlobalPolicyDataManager
 }
 
 func NewDeploymentWindowServiceImpl(
 	logger *zap.SugaredLogger,
 	resourceMappingService resourceQualifiers.QualifierMappingService,
-	timeWindowService timeoutWindow.RepeatingTimeWindowService,
+	timeWindowService timeoutWindow.TimeoutWindowService,
 	globalPolicyManager globalPolicy.GlobalPolicyDataManager,
 	dbConnection *pg.DB,
 	userService user.UserService,
