@@ -502,7 +502,7 @@ func (impl UserAuthRepositoryImpl) GetApprovalRoleGroupCasbinNameByEnv(appName, 
 
 func (impl UserAuthRepositoryImpl) GetApprovalUserEmailWithTimeoutExpression(appName, envName string) ([]*UserRoleModel, error) {
 	var userRoles []*UserRoleModel
-	query := "select ur.* from users us inner join user_roles ur on us.id=ur.user_id inner join roles on ur.role_id = roles.id " +
+	query := `select ur.*,"timeout_window_configuration"."id" AS "timeout_window_configuration__id", "timeout_window_configuration"."timeout_window_expression" AS "timeout_window_configuration__timeout_window_expression", "timeout_window_configuration"."timeout_window_expression_format" AS "timeout_window_configuration__timeout_window_expression_format" from users us inner join user_roles ur on us.id=ur.user_id left join timeout_window_configuration on timeout_window_configuration.id =ur.timeout_window_configuration_id inner join roles on ur.role_id = roles.id ` +
 		"where ((roles.approver = true and (roles.environment=? OR roles.environment is null) and (entity_name=? OR entity_name is null)) OR roles.role = ?) " +
 		"and us.id not in (1);"
 	_, err := impl.dbConnection.Query(&userRoles, query, envName, appName, bean.SUPERADMIN)
@@ -532,7 +532,7 @@ func (impl UserAuthRepositoryImpl) GetConfigApprovalRoleGroupCasbinNameByEnv(app
 
 func (impl UserAuthRepositoryImpl) GetConfigApprovalUsersByEnvWithTimeoutExpression(appName, envName string) ([]*UserRoleModel, error) {
 	var userRoles []*UserRoleModel
-	query := "select ur.* from users us inner join user_roles ur on us.id=ur.user_id inner join roles on ur.role_id = roles.id " +
+	query := `select ur.*,"timeout_window_configuration"."id" AS "timeout_window_configuration__id", "timeout_window_configuration"."timeout_window_expression" AS "timeout_window_configuration__timeout_window_expression", "timeout_window_configuration"."timeout_window_expression_format" AS "timeout_window_configuration__timeout_window_expression_format" from users us inner join user_roles ur on us.id=ur.user_id left join timeout_window_configuration on timeout_window_configuration.id =ur.timeout_window_configuration_id inner join roles on ur.role_id = roles.id ` +
 		"where ((roles.action = ? and (roles.environment=? OR roles.environment is null) and (entity_name=? OR entity_name is null)) OR roles.role = ?) " +
 		"and us.id not in (1);"
 	_, err := impl.dbConnection.Query(&userRoles, query, "configApprover", envName, appName, bean.SUPERADMIN)
