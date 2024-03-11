@@ -17,13 +17,25 @@ import (
 type ArtifactPromotionRequest struct {
 	SourceName         string              `json:"sourceName"`
 	SourceType         bean2.SourceTypeStr `json:"sourceType"`
-	Action             string              `json:"action"`
+	Action             bean2.RequestAction `json:"action"`
 	PromotionRequestId int                 `json:"promotionRequestId"`
 	ArtifactId         int                 `json:"artifactId"`
 	AppName            string              `json:"appName"`
 	EnvironmentNames   []string            `json:"destinationObjectNames"`
 	WorkflowId         int                 `json:"workflowId"`
 	AppId              int                 `json:"appId"`
+}
+
+func (r *ArtifactPromotionRequest) ValidateRequest() error {
+	switch r.Action {
+	case bean2.ACTION_APPROVE:
+		return nil
+	case bean2.ACTION_PROMOTE:
+		return nil
+	case bean2.ACTION_CANCEL:
+		return nil
+	}
+	return errors.New("invalid action type")
 }
 
 type ArtifactPromotionApprovalResponse struct {

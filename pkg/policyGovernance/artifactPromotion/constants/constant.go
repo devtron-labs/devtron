@@ -43,10 +43,12 @@ const (
 	PROMOTION_APPROVAL_PENDING_NODE SourceTypeStr = "PROMOTION_APPROVAL_PENDING_NODE"
 )
 
+type RequestAction string
+
 const (
-	ACTION_PROMOTE = "PROMOTE"
-	ACTION_CANCEL  = "CANCEL"
-	ACTION_APPROVE = "APPROVE"
+	ACTION_PROMOTE RequestAction = "PROMOTE"
+	ACTION_CANCEL  RequestAction = "CANCEL"
+	ACTION_APPROVE RequestAction = "APPROVE"
 )
 
 func (sourceType SourceTypeStr) GetSourceType() SourceType {

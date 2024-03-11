@@ -36,12 +36,12 @@ type RequestRepository interface {
 	Update(PromotionRequest *ArtifactPromotionApprovalRequest) (*ArtifactPromotionApprovalRequest, error)
 	UpdateInBulk(tx *pg.Tx, PromotionRequest []*ArtifactPromotionApprovalRequest) error
 	FindById(id int) (*ArtifactPromotionApprovalRequest, error)
-	FindByDestinationPipelineIds(destinationPipelineId []int) ([]*ArtifactPromotionApprovalRequest, error)
+	FindByArtifactAndDestinationPipelineIds(artifactId int, destinationPipelineId []int) ([]*ArtifactPromotionApprovalRequest, error)
 	FindPendingByDestinationPipelineId(destinationPipelineId int) ([]*ArtifactPromotionApprovalRequest, error)
 	FindAwaitedRequestByPipelineIdAndArtifactId(pipelineId, artifactId int) ([]*ArtifactPromotionApprovalRequest, error)
 	FindPromotedRequestByPipelineIdAndArtifactId(pipelineId, artifactId int) (*ArtifactPromotionApprovalRequest, error)
 	FindByPipelineIdAndArtifactIds(pipelineId int, artifactIds []int, status constants.ArtifactPromotionRequestStatus) ([]*ArtifactPromotionApprovalRequest, error)
-	FindRequestsByStatusesForDestinationPipelines(pipelineId []int, artifactIds int, statuses []constants.ArtifactPromotionRequestStatus) ([]*ArtifactPromotionApprovalRequest, error)
+	FindRequestsByStatusesForDestinationPipelines(pipelineId []int, artifactId int, statuses []constants.ArtifactPromotionRequestStatus) ([]*ArtifactPromotionApprovalRequest, error)
 	FindAwaitedRequestsByArtifactId(artifactId int) ([]*ArtifactPromotionApprovalRequest, error)
 	FindRequestsByArtifactIdAndEnvName(artifactId int, environmentName string, status constants.ArtifactPromotionRequestStatus) ([]*ArtifactPromotionApprovalRequest, error)
 	FindAwaitedRequestByPolicyId(policyId int) ([]*ArtifactPromotionApprovalRequest, error)
@@ -74,10 +74,11 @@ func (repo *RequestRepositoryImpl) FindById(id int) (*ArtifactPromotionApprovalR
 	return model, err
 }
 
-func (repo *RequestRepositoryImpl) FindRequestsByStatusesForDestinationPipelines(destinationPipelineIds []int, artifactIds int, statuses []constants.ArtifactPromotionRequestStatus) ([]*ArtifactPromotionApprovalRequest, error) {
+func (repo *RequestRepositoryImpl) FindRequestsByStatusesForDestinationPipelines(destinationPipelineIds []int, artifactId int, statuses []constants.ArtifactPromotionRequestStatus) ([]*ArtifactPromotionApprovalRequest, error) {
 	models := make([]*ArtifactPromotionApprovalRequest, 0)
 	err := repo.dbConnection.Model(&models).
 		Where("destination_pipeline_id IN (?) ", pg.In(destinationPipelineIds)).
+		Where("artifact_id = ?", artifactId).
 		Where("status IN (?) ", pg.In(statuses)).
 		Select()
 	return models, err
@@ -92,10 +93,11 @@ func (repo *RequestRepositoryImpl) FindPendingByDestinationPipelineId(destinatio
 	return models, err
 }
 
-func (repo *RequestRepositoryImpl) FindByDestinationPipelineIds(destinationPipelineIds []int) ([]*ArtifactPromotionApprovalRequest, error) {
+func (repo *RequestRepositoryImpl) FindByArtifactAndDestinationPipelineIds(artifactId int, destinationPipelineIds []int) ([]*ArtifactPromotionApprovalRequest, error) {
 	models := make([]*ArtifactPromotionApprovalRequest, 0)
 	err := repo.dbConnection.Model(&models).
 		Where("destination_pipeline_id IN (?) ", pg.In(destinationPipelineIds)).
+		Where("artifact_id = ?", artifactId).
 		Where("status = ? ", constants.AWAITING_APPROVAL).
 		Select()
 	return models, err
