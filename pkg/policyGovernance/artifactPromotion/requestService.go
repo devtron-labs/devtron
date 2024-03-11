@@ -112,14 +112,8 @@ func (impl *ApprovalRequestServiceImpl) HandleArtifactPromotionRequest(ctx conte
 	case constants.ACTION_APPROVE:
 		return impl.approveArtifactPromotion(ctx, request, authorizedEnvironments)
 	case constants.ACTION_CANCEL:
-
 		_, err := impl.cancelPromotionApprovalRequest(ctx, request)
-		if err != nil {
-			impl.logger.Errorw("error in canceling artifact promotion approval request", "promotionRequestId", request.PromotionRequestId, "err", err)
-			return nil, err
-		}
-		return nil, nil
-
+		return nil, err
 	}
 	return nil, errors.New("unknown action")
 }
@@ -437,8 +431,7 @@ func (impl *ApprovalRequestServiceImpl) evaluatePoliciesOnArtifact(metadata *bea
 		}
 	}
 
-	// can be concurrent,
-	// todo: simplify the below loop
+	// can be concurrent
 	for envName, policy := range policiesMap {
 		evaluationResult, err := impl.resourceFilterConditionsEvaluator.EvaluateFilter(policy.Conditions, resourceFilter.ExpressionMetadata{Params: params})
 		if err != nil {
@@ -473,16 +466,23 @@ func (impl *ApprovalRequestServiceImpl) approveArtifactPromotion(ctx context.Con
 	// attempt approving this by creating new resource_approval_user_data, if unique constraint error ,current user already did something.
 	// attempt success , then get the approval count and check no of approvals got
 	//  promote if approvalCount > approvals received
-	metadata, err := impl.constructPromotionMetaData(request, authorizedEnvironments)
+	requestMetaData := &bean.RequestMetaData{}
+	metadata, err := impl.updateWithDestinationMetadata(requestMetaData, request, authorizedEnvironments)
 	if err != nil {
-		impl.logger.Errorw("error in getting metadata for the request", "request", request, "err", err)
+		impl.logger.Errorw("error in getting destination pipelines metadata for the request", "request", request, "err", err)
+		return nil, err
+	}
+
+	metadata, err = impl.updateWithArtifactMetadata(requestMetaData, request.ArtifactId)
+	if err != nil {
+		impl.logger.Errorw("error in getting artifact metadata", "artifactId", request.ArtifactId, "err", err)
 		return nil, err
 	}
 	responseMap := metadata.GetDefaultEnvironmentPromotionMetaDataResponseMap()
 
-	promotionRequests, err := impl.artifactPromotionApprovalRequestRepository.FindByDestinationPipelineIds(metadata.GetActiveAuthorisedPipelineIds())
+	promotionRequests, err := impl.artifactPromotionApprovalRequestRepository.FindByArtifactAndDestinationPipelineIds(request.ArtifactId, metadata.GetActiveAuthorisedPipelineIds())
 	if err != nil {
-		impl.logger.Errorw("error in getting artifact promotion request object by id", "promotionRequestId", request.PromotionRequestId, "err", err)
+		impl.logger.Errorw("error in getting artifact promotion requests object by pipeline ids", "pipelineIds", metadata.GetActiveAuthorisedPipelineIds(), "err", err)
 		if errors.Is(err, pg.ErrNoRows) {
 			return nil, util.NewApiError().WithHttpStatusCode(http.StatusConflict).WithUserMessage(constants.ArtifactPromotionRequestNotFoundErr).WithInternalMessage(constants.ArtifactPromotionRequestNotFoundErr)
 		}
@@ -690,8 +690,7 @@ func (impl *ApprovalRequestServiceImpl) handleArtifactPromotionSuccess(promotabl
 	return nil
 }
 
-func (impl *ApprovalRequestServiceImpl) constructPromotionMetaData(request *bean.ArtifactPromotionRequest, authorizedEnvironments map[string]bool) (*bean.RequestMetaData, error) {
-	requestMetaData := &bean.RequestMetaData{}
+func (impl *ApprovalRequestServiceImpl) updateWithSourceMetadata(requestMetaData *bean.RequestMetaData, request *bean.ArtifactPromotionRequest) (*bean.RequestMetaData, error) {
 
 	// set source metadata
 	sourceMeta, err := impl.fetchSourceMeta(request.SourceName, request.SourceType, request.AppId, request.WorkflowId)
@@ -700,7 +699,26 @@ func (impl *ApprovalRequestServiceImpl) constructPromotionMetaData(request *bean
 		return nil, err
 	}
 	requestMetaData.SetSourceMetaData(sourceMeta)
+	return requestMetaData, nil
+}
 
+func (impl *ApprovalRequestServiceImpl) updateWithArtifactMetadata(requestMetaData *bean.RequestMetaData, artifactId int) (*bean.RequestMetaData, error) {
+	if artifactId > 0 {
+		ciArtifact, err := impl.ciArtifactRepository.Get(artifactId)
+		if err != nil {
+			impl.logger.Errorw("error in finding the artifact using id", "artifactId", artifactId, "err", err)
+			errorResp := util.NewApiError().WithHttpStatusCode(http.StatusInternalServerError).WithInternalMessage(fmt.Sprintf("error in finding artifact , err : %s", err.Error())).WithUserMessage("error in finding artifact")
+			if errors.Is(err, pg.ErrNoRows) {
+				errorResp = errorResp.WithHttpStatusCode(http.StatusConflict).WithUserMessage("artifact not found")
+			}
+			return nil, errorResp
+		}
+		requestMetaData = requestMetaData.WithCiArtifact(ciArtifact)
+	}
+	return requestMetaData, nil
+}
+
+func (impl *ApprovalRequestServiceImpl) updateWithDestinationMetadata(requestMetaData *bean.RequestMetaData, request *bean.ArtifactPromotionRequest, authorizedEnvironments map[string]bool) (*bean.RequestMetaData, error) {
 	// set environment metadata
 	environments, err := impl.environmentService.FindByNames(request.EnvironmentNames)
 	if err != nil {
@@ -716,18 +734,6 @@ func (impl *ApprovalRequestServiceImpl) constructPromotionMetaData(request *bean
 		return nil, err
 	}
 	requestMetaData.SetDestinationPipelineMetaData(cdPipelines)
-	if request.ArtifactId > 0 {
-		ciArtifact, err := impl.ciArtifactRepository.Get(request.ArtifactId)
-		if err != nil {
-			impl.logger.Errorw("error in finding the artifact using id", "artifactId", request.ArtifactId, "err", err)
-			errorResp := util.NewApiError().WithHttpStatusCode(http.StatusInternalServerError).WithInternalMessage(fmt.Sprintf("error in finding artifact , err : %s", err.Error())).WithUserMessage("error in finding artifact")
-			if errors.Is(err, pg.ErrNoRows) {
-				errorResp = errorResp.WithHttpStatusCode(http.StatusConflict).WithUserMessage("artifact not found")
-			}
-			return nil, errorResp
-		}
-		requestMetaData = requestMetaData.WithCiArtifact(ciArtifact)
-	}
 	return requestMetaData, nil
 }
 
@@ -800,33 +806,37 @@ func (impl *ApprovalRequestServiceImpl) validatePromoteAction(requestedWorkflowI
 			errMsg := fmt.Sprintf("artifact is not deployed on the source environment %s", metadata.GetSourceName())
 			return nil, util.NewApiError().WithHttpStatusCode(http.StatusConflict).WithUserMessage(errMsg).WithInternalMessage(errMsg)
 		}
-
-		tree := make(map[int][]int)
-		for _, appWorkflowMapping := range allAppWorkflowMappings {
-			// create the tree from the DAG excluding the ci source
-			if appWorkflowMapping.Type == appWorkflow.CDPIPELINE && appWorkflowMapping.ParentType == appWorkflow.CDPIPELINE {
-				tree[appWorkflowMapping.ParentId] = append(tree[appWorkflowMapping.ParentId], appWorkflowMapping.ComponentId)
-			}
-		}
-
-		responseMap := make(map[string]bean.EnvironmentPromotionMetaData)
-		for _, pipelineId := range metadata.GetActiveAuthorisedPipelineIds() {
-			if !util.IsAncestor(tree, metadata.GetSourcePipelineId(), pipelineId) {
-				envName := metadata.GetActiveAuthorisedPipelineIdEnvMap()[pipelineId]
-				resp := bean.EnvironmentPromotionMetaData{
-					Name:                       envName,
-					PromotionValidationMessage: constants.SOURCE_AND_DESTINATION_PIPELINE_MISMATCH,
-				}
-				cdPipeline := metadata.GetActiveAuthorisedPipelineDaoMap()[pipelineId]
-				if cdPipeline != nil {
-					resp.IsVirtualEnvironment = cdPipeline.Environment.IsVirtualEnvironment
-				}
-				responseMap[envName] = resp
-			}
-		}
-		return responseMap, nil
+		respMap := runSourceAndDestinationTopologyValidations(metadata, allAppWorkflowMappings)
+		return respMap, nil
 	}
 	return nil, nil
+}
+
+func runSourceAndDestinationTopologyValidations(metadata *bean.RequestMetaData, allAppWorkflowMappings []*appWorkflow.AppWorkflowMapping) map[string]bean.EnvironmentPromotionMetaData {
+	tree := make(map[int][]int)
+	for _, appWorkflowMapping := range allAppWorkflowMappings {
+		// create the tree from the DAG excluding the ci source
+		if appWorkflowMapping.Type == appWorkflow.CDPIPELINE && appWorkflowMapping.ParentType == appWorkflow.CDPIPELINE {
+			tree[appWorkflowMapping.ParentId] = append(tree[appWorkflowMapping.ParentId], appWorkflowMapping.ComponentId)
+		}
+	}
+
+	responseMap := make(map[string]bean.EnvironmentPromotionMetaData)
+	for _, pipelineId := range metadata.GetActiveAuthorisedPipelineIds() {
+		if !util.IsAncestor(tree, metadata.GetSourcePipelineId(), pipelineId) {
+			envName := metadata.GetActiveAuthorisedPipelineIdEnvMap()[pipelineId]
+			resp := bean.EnvironmentPromotionMetaData{
+				Name:                       envName,
+				PromotionValidationMessage: constants.SOURCE_AND_DESTINATION_PIPELINE_MISMATCH,
+			}
+			cdPipeline := metadata.GetActiveAuthorisedPipelineDaoMap()[pipelineId]
+			if cdPipeline != nil {
+				resp.IsVirtualEnvironment = cdPipeline.Environment.IsVirtualEnvironment
+			}
+			responseMap[envName] = resp
+		}
+	}
+	return responseMap
 }
 
 func (impl *ApprovalRequestServiceImpl) promoteArtifact(ctx context.Context, request *bean.ArtifactPromotionRequest, authorizedEnvironments map[string]bool) ([]bean.EnvironmentPromotionMetaData, error) {
@@ -838,11 +848,26 @@ func (impl *ApprovalRequestServiceImpl) promoteArtifact(ctx context.Context, req
 	//  step5: raise request.
 
 	// fetch artifact
-	metadata, err := impl.constructPromotionMetaData(request, authorizedEnvironments)
+
+	requestMetaData := &bean.RequestMetaData{}
+	metadata, err := impl.updateWithSourceMetadata(requestMetaData, request)
 	if err != nil {
-		impl.logger.Errorw("error in getting metadata for the request", "request", request, "err", err)
+		impl.logger.Errorw("error in getting source metadata for the request", "request", request, "err", err)
 		return nil, err
 	}
+
+	metadata, err = impl.updateWithDestinationMetadata(requestMetaData, request, authorizedEnvironments)
+	if err != nil {
+		impl.logger.Errorw("error in getting destination environments/pipelines metadata for the request", "request", request, "authorizedEnvironments", authorizedEnvironments, "err", err)
+		return nil, err
+	}
+
+	metadata, err = impl.updateWithArtifactMetadata(requestMetaData, request.ArtifactId)
+	if err != nil {
+		impl.logger.Errorw("error in getting artifact metadata", "artifactId", request.ArtifactId, "err", err)
+		return nil, err
+	}
+
 	responseMap := metadata.GetDefaultEnvironmentPromotionMetaDataResponseMap()
 
 	validationResponseMap, err := impl.validatePromoteAction(request.WorkflowId, metadata)
@@ -1100,7 +1125,7 @@ func (impl *ApprovalRequestServiceImpl) cancelPromotionApprovalRequest(ctx conte
 		impl.logger.Errorw("error in updating artifact promotion approval request", "artifactPromotionRequestId", request.PromotionRequestId, "err", err)
 		return nil, err
 	}
-	return nil, err
+	return nil, nil
 }
 
 func (impl *ApprovalRequestServiceImpl) getRbacObjects(pipelineIdToDaoMapping map[int]*pipelineConfig.Pipeline) ([]string, map[int]string) {

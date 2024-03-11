@@ -76,7 +76,7 @@ func NewRestHandlerImpl(
 func (handler *RestHandlerImpl) HandleArtifactPromotionRequest(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if err != nil || userId == 0 {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		common.WriteJsonResp(w, err, "unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	token := r.Header.Get("token")
@@ -89,11 +89,16 @@ func (handler *RestHandlerImpl) HandleArtifactPromotionRequest(w http.ResponseWr
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	var promotionRequest bean.ArtifactPromotionRequest
+	promotionRequest := &bean.ArtifactPromotionRequest{}
 	decoder := json.NewDecoder(r.Body)
-	err = decoder.Decode(&promotionRequest)
+	err = decoder.Decode(promotionRequest)
 	if err != nil {
 		handler.logger.Errorw("err in decoding request in promotionRequest", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	err = promotionRequest.ValidateRequest()
+	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -119,16 +124,16 @@ func (handler *RestHandlerImpl) HandleArtifactPromotionRequest(w http.ResponseWr
 		}
 		appRbacObj, envRbacObj := handler.getAppAndEnvObjectByCdPipelineId(artifactPromotionDao.DestinationPipelineId)
 		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, appRbacObj); !ok {
-			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "unauthorized user", http.StatusForbidden)
 			return
 		}
 		if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionTrigger, envRbacObj); !ok {
-			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+			common.WriteJsonResp(w, err, "unauthorized user", http.StatusForbidden)
 			return
 		}
 	}
 
-	resp, err := handler.promotionApprovalRequestService.HandleArtifactPromotionRequest(ctx, &promotionRequest, authorizedEnvironments)
+	resp, err := handler.promotionApprovalRequestService.HandleArtifactPromotionRequest(ctx, promotionRequest, authorizedEnvironments)
 	if err != nil {
 		handler.logger.Errorw("error in handling promotion artifact request", "promotionRequest", promotionRequest, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

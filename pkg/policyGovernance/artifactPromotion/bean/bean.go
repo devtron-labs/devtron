@@ -17,13 +17,43 @@ import (
 type ArtifactPromotionRequest struct {
 	SourceName         string              `json:"sourceName"`
 	SourceType         bean2.SourceTypeStr `json:"sourceType"`
-	Action             string              `json:"action"`
+	Action             bean2.RequestAction `json:"action"`
 	PromotionRequestId int                 `json:"promotionRequestId"`
 	ArtifactId         int                 `json:"artifactId"`
 	AppName            string              `json:"appName"`
 	EnvironmentNames   []string            `json:"destinationObjectNames"`
 	WorkflowId         int                 `json:"workflowId"`
 	AppId              int                 `json:"appId"`
+}
+
+func (r *ArtifactPromotionRequest) ValidateRequest() error {
+	switch r.Action {
+	case bean2.ACTION_APPROVE:
+		if r.AppId <= 0 {
+			return errors.New("appId is required")
+		}
+		if r.ArtifactId <= 0 {
+			return errors.New("artifactId is required")
+		}
+		if len(r.EnvironmentNames) == 0 {
+			return errors.New("destinationObjectNames are required")
+		}
+	case bean2.ACTION_PROMOTE:
+		if r.SourceType != bean2.SOURCE_TYPE_CI && r.SourceType != bean2.SOURCE_TYPE_WEBHOOK && r.SourceType != bean2.SOURCE_TYPE_CD && r.SourceType != bean2.PROMOTION_APPROVAL_PENDING_NODE {
+			return errors.New("invalid sourceType")
+		}
+		if r.AppId <= 0 {
+			return errors.New("appId is required")
+		}
+		if len(r.EnvironmentNames) == 0 {
+			return errors.New("destinationObjectNames are required")
+		}
+	case bean2.ACTION_CANCEL:
+		if r.PromotionRequestId <= 0 {
+			return errors.New("promotionRequestId is required")
+		}
+	}
+	return nil
 }
 
 type ArtifactPromotionApprovalResponse struct {
