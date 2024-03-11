@@ -57,6 +57,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -1081,17 +1082,18 @@ func (impl *AppStoreDeploymentServiceImpl) CheckIfMonoRepoMigrationRequired(inst
 			return false
 		}
 	}
-	repoNameWithoutPrefix := appStoreName
-	// Find the index of "-appStoreName" in the gitOpsRepoName
-	index := strings.Index(gitOpsRepoName, "-"+appStoreName)
-	if index != -1 && index > 0 {
-		repoNameWithoutPrefix = gitOpsRepoName[index+1:]
+	monoRepoGitOpsRepoPattern := appStoreName + "$"
+	regex := regexp.MustCompile(monoRepoGitOpsRepoPattern)
+
+	var isGitOpsRepoMonoRepo bool
+	if regex.MatchString(gitOpsRepoName) {
+		isGitOpsRepoMonoRepo = true
 	}
 	//here will set new git repo name if required to migrate
 	newGitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoName(installedApp.App.AppName)
 	//checking weather git repo migration needed or not, if existing git repo and new independent git repo is not same
 	//and also appStoreName and current gitops repo name is same(it means it's mono repo) than go ahead with migration
-	if newGitOpsRepoName != gitOpsRepoName && repoNameWithoutPrefix == appStoreName {
+	if newGitOpsRepoName != gitOpsRepoName && isGitOpsRepoMonoRepo {
 		monoRepoMigrationRequired = true
 	}
 	return monoRepoMigrationRequired
