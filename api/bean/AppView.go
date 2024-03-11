@@ -211,6 +211,7 @@ type Environment struct {
 	ClusterId                  int    `json:"clusterId"`
 	PipelineId                 int    `json:"pipelineId"`
 	LatestCdWorkflowRunnerId   int    `json:"latestCdWorkflowRunnerId,omitempty"`
+	CiArtifactId               int    `json:"ciArtifactId"`
 }
 
 type InstanceDetail struct {

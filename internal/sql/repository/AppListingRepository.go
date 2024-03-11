@@ -603,7 +603,7 @@ func (impl AppListingRepositoryImpl) FetchOtherEnvironment(appId int) ([]*bean.E
 	// other environment tab
 	var otherEnvironments []*bean.Environment
 	//TODO: remove infra metrics from query as it is not being used from here
-	query := `select pcwr.pipeline_id, pcwr.last_deployed, pcwr.latest_cd_workflow_runner_id, pcwr.environment_id, pcwr.deployment_app_delete_request,   
+	query := `select pcwr.ci_artifact_id, pcwr.pipeline_id, pcwr.last_deployed, pcwr.latest_cd_workflow_runner_id, pcwr.environment_id, pcwr.deployment_app_delete_request,   
        			e.cluster_id, e.environment_name, e.default as prod, e.description, ca.image as last_deployed_image, 
       			u.email_id as last_deployed_by, elam.app_metrics, elam.infra_metrics, ap.status as app_status 
     			from (select * 
