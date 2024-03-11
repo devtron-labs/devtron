@@ -137,7 +137,6 @@ type CiArtifactRepository interface {
 	// MigrateToWebHookDataSourceType is used for backward compatibility. It'll migrate the deprecated DataSource type
 	MigrateToWebHookDataSourceType(id int) error
 	UpdateLatestTimestamp(artifactIds []int) error
-	FindArtifactsCountPendingForPromotionByPipelineIds(pipelineIds []int) (int, error)
 	FindDeployedArtifactsOnPipeline(artifactsListingFilterOps bean.CdNodePromotionArtifactsRequest) ([]CiArtifact, int, error)
 	FindArtifactsByCIPipelineId(artifactsListingFilterOps bean.CiNodePromotionArtifactsRequest) ([]CiArtifact, int, error)
 	FindArtifactsByExternalCIPipelineId(artifactsListingFilterOps bean.ExtCiNodePromotionArtifactsRequest) ([]CiArtifact, int, error)
@@ -867,21 +866,6 @@ func (impl CiArtifactRepositoryImpl) FindCiArtifactByImagePaths(images []string)
 		return ciArtifacts, err
 	}
 	return ciArtifacts, nil
-}
-
-func (impl CiArtifactRepositoryImpl) FindArtifactsCountPendingForPromotionByPipelineIds(pipelineIds []int) (int, error) {
-	var count int
-	if len(pipelineIds) == 0 {
-		return 0, nil
-	}
-	query := fmt.Sprintf("SELECT COUNT(ci_artifact.id) FROM ci_artifact "+
-		" where id in (select distinct(artifact_id) from artifact_promotion_approval_request where destination_pipeline_id IN (%s) and status = %d)", helper.GetCommaSepratedString(pipelineIds), constants.AWAITING_APPROVAL)
-	_, err := impl.dbConnection.Query(&count, query)
-	if err != nil {
-		impl.logger.Errorw("error in fetching deployed artifacts for cd pipeline node", "cdPipelineIds", pipelineIds, "err", err)
-		return 0, err
-	}
-	return count, nil
 }
 
 func (impl CiArtifactRepositoryImpl) FindDeployedArtifactsOnPipeline(artifactsListingFilterOps bean.CdNodePromotionArtifactsRequest) ([]CiArtifact, int, error) {

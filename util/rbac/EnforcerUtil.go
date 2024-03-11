@@ -79,6 +79,7 @@ type EnforcerUtil interface {
 	CheckAppRbacForAppOrJobInBulk(token, action string, rbacObjects []string, appType helper2.AppType) map[string]bool
 	GetEnvRBACByAppNameAndEnvNames(appName string, envNames []string) map[string]string
 	GetTeamEnvRbacObjByAppAndEnvNames(appName string, envNames []string) map[string]string
+	CheckImagePromoterBulkAuth(token string, object []string) map[string]bool
 }
 
 type EnforcerUtilImpl struct {
@@ -781,4 +782,8 @@ func (impl EnforcerUtilImpl) GetTeamEnvRbacObjByAppAndEnvNames(appName string, e
 		teamEnvRbacObjects[env.Name] = fmt.Sprintf("%s/%s/%s", app.Team.Name, env.EnvironmentIdentifier, appName)
 	}
 	return teamEnvRbacObjects
+}
+
+func (impl EnforcerUtilImpl) CheckImagePromoterBulkAuth(token string, object []string) map[string]bool {
+	return impl.enforcer.EnforceInBatch(token, casbin.ResourceApprovalPolicy, casbin.ActionArtifactPromote, object)
 }

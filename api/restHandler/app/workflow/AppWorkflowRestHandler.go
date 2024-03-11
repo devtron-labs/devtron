@@ -20,6 +20,7 @@ package workflow
 import (
 	"context"
 	"encoding/json"
+	bean2 "github.com/devtron-labs/devtron/pkg/appWorkflow/bean"
 	"net/http"
 	"strconv"
 	"strings"
@@ -90,7 +91,7 @@ func (handler AppWorkflowRestHandlerImpl) CreateAppWorkflow(w http.ResponseWrite
 	if userId == 0 || err != nil {
 		return
 	}
-	var request appWorkflow.AppWorkflowDto
+	var request bean2.AppWorkflowDto
 
 	err = decoder.Decode(&request)
 	if err != nil {
@@ -230,7 +231,7 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflow(w http.ResponseWriter, r 
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
 		}
-		triggerViewPayload := &appWorkflow.TriggerViewWorkflowConfig{
+		triggerViewPayload := &bean2.TriggerViewWorkflowConfig{
 			Workflows:   workflowsList,
 			CdPipelines: cdPipelineWfData,
 		}
@@ -251,9 +252,9 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflow(w http.ResponseWriter, r 
 
 		var workflowNames []string
 		var workflowIds []int
-		var updatedWorkflowList []appWorkflow.AppWorkflowDto
+		var updatedWorkflowList []bean2.AppWorkflowDto
 		var rbacObjects []string
-		workNameObjectMap := make(map[string]appWorkflow.AppWorkflowDto)
+		workNameObjectMap := make(map[string]bean2.AppWorkflowDto)
 
 		for _, workflow := range workflowsList {
 			workflowNames = append(workflowNames, workflow.Name)
@@ -274,19 +275,15 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflow(w http.ResponseWriter, r 
 			}
 		}
 		if len(updatedWorkflowList) == 0 {
-			updatedWorkflowList = []appWorkflow.AppWorkflowDto{}
+			updatedWorkflowList = []bean2.AppWorkflowDto{}
 		}
 		workflows[bean3.Workflows] = updatedWorkflowList
 	} else if len(workflowsList) > 0 {
 		workflows[bean3.Workflows] = workflowsList
 	} else {
-		workflows[bean3.Workflows] = []appWorkflow.AppWorkflowDto{}
+		workflows[bean3.Workflows] = []bean2.AppWorkflowDto{}
 	}
 	common.WriteJsonResp(w, err, workflows, http.StatusOK)
-}
-
-func (handler *AppWorkflowRestHandlerImpl) CheckImagePromoterBulkAuth(token string, object []string) map[string]bool {
-	return handler.enforcer.EnforceInBatch(token, casbin.ResourceApprovalPolicy, casbin.ActionArtifactPromote, object)
 }
 
 func (impl AppWorkflowRestHandlerImpl) FindAllWorkflows(w http.ResponseWriter, r *http.Request) {
@@ -333,7 +330,7 @@ func (impl AppWorkflowRestHandlerImpl) FindAllWorkflowsForApps(w http.ResponseWr
 		return
 	}
 	//RBAC enforcer Ends
-	var request appWorkflow.WorkflowNamesRequest
+	var request bean2.WorkflowNamesRequest
 	err = decoder.Decode(&request)
 	if err != nil {
 		impl.Logger.Errorw("decode err", "err", err)
@@ -412,7 +409,7 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflowByEnvironment(w http.Respo
 	if len(workflowsList) > 0 {
 		workflows["workflows"] = workflowsList
 	} else {
-		workflows["workflows"] = []appWorkflow.AppWorkflowDto{}
+		workflows["workflows"] = []bean2.AppWorkflowDto{}
 	}
 	common.WriteJsonResp(w, err, workflows, http.StatusOK)
 }
@@ -459,7 +456,7 @@ func (handler *AppWorkflowRestHandlerImpl) GetWorkflowsViewData(w http.ResponseW
 	}
 
 	ctx := context.WithValue(context.WithValue(context.Background(), "token", token), "userId", userId)
-	appWorkflows, err := handler.appWorkflowService.FindAppWorkflowsWithExtraMetadata(ctx, appId, handler.CheckImagePromoterBulkAuth)
+	appWorkflows, err := handler.appWorkflowService.FindAppWorkflowsWithAdditionalMetadata(ctx, appId, handler.enforcerUtil.CheckImagePromoterBulkAuth)
 	if err != nil {
 		handler.Logger.Errorw("error in fetching workflows for app", "appId", appId, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -498,7 +495,7 @@ func (handler *AppWorkflowRestHandlerImpl) GetWorkflowsViewData(w http.ResponseW
 		}
 	}
 
-	response := &appWorkflow.TriggerViewWorkflowConfig{
+	response := &bean2.TriggerViewWorkflowConfig{
 		Workflows:        appWorkflows,
 		CiConfig:         ciPipelineViewData,
 		CdPipelines:      cdPipelinesForApp,
@@ -530,7 +527,7 @@ func (handler *AppWorkflowRestHandlerImpl) checkAuthBatch(token string, appObjec
 	return appResult, envResult
 }
 
-func (handler AppWorkflowRestHandlerImpl) containsExternalCi(appWorkflows []appWorkflow.AppWorkflowDto) bool {
+func (handler AppWorkflowRestHandlerImpl) containsExternalCi(appWorkflows []bean2.AppWorkflowDto) bool {
 	for _, appWorkflowDto := range appWorkflows {
 		for _, workflowMappingDto := range appWorkflowDto.AppWorkflowMappingDto {
 			if workflowMappingDto.Type == appWorkflow2.WEBHOOK {

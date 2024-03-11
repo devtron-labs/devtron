@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	app2 "github.com/devtron-labs/devtron/api/restHandler/app/pipeline/configure"
+	bean3 "github.com/devtron-labs/devtron/pkg/appWorkflow/bean"
 	"net/http"
 	"strconv"
 	"strings"
@@ -197,7 +198,7 @@ func (handler CoreAppRestHandlerImpl) GetAppAllDetail(w http.ResponseWriter, r *
 
 	//get/build app workflows starts
 	//using empty workflow name because it is optional, if not provided then workflows will be fetched on the basis of app
-	wfCloneRequest := &appWorkflow.WorkflowCloneRequest{AppId: appId}
+	wfCloneRequest := &bean3.WorkflowCloneRequest{AppId: appId}
 	appWorkflows, err, statusCode := handler.buildAppWorkflows(wfCloneRequest)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, statusCode)
@@ -626,9 +627,9 @@ func (handler CoreAppRestHandlerImpl) buildAppEnvironmentDeploymentTemplate(appI
 }
 
 // validate and build workflows
-func (handler CoreAppRestHandlerImpl) buildAppWorkflows(request *appWorkflow.WorkflowCloneRequest) ([]*appBean.AppWorkflow, error, int) {
+func (handler CoreAppRestHandlerImpl) buildAppWorkflows(request *bean3.WorkflowCloneRequest) ([]*appBean.AppWorkflow, error, int) {
 	handler.logger.Debugw("Getting app detail - workflows", "appId", request.AppId)
-	var workflowsList []appWorkflow.AppWorkflowDto
+	var workflowsList []bean3.AppWorkflowDto
 	var err error
 	if len(request.WorkflowName) != 0 {
 		workflow, err := handler.appWorkflowService.FindAppWorkflowByName(request.WorkflowName, request.AppId)
@@ -636,14 +637,14 @@ func (handler CoreAppRestHandlerImpl) buildAppWorkflows(request *appWorkflow.Wor
 			handler.logger.Errorw("error in fetching workflow by name", "err", err, "workflowName", request.WorkflowName, "appId", request.AppId)
 			return nil, err, http.StatusInternalServerError
 		}
-		workflowsList = []appWorkflow.AppWorkflowDto{workflow}
+		workflowsList = []bean3.AppWorkflowDto{workflow}
 	} else if request.WorkflowId > 0 {
 		workflow, err := handler.appWorkflowService.FindAppWorkflowById(request.WorkflowId, request.AppId)
 		if err != nil {
 			handler.logger.Errorw("error in fetching workflow by id", "err", err, "workflowName", request.WorkflowName, "appId", request.AppId)
 			return nil, err, http.StatusInternalServerError
 		}
-		workflowsList = []appWorkflow.AppWorkflowDto{workflow}
+		workflowsList = []bean3.AppWorkflowDto{workflow}
 	} else {
 		workflowsList, err = handler.appWorkflowService.FindAppWorkflows(request.AppId)
 		if err != nil {
@@ -2301,7 +2302,7 @@ func (handler CoreAppRestHandlerImpl) GetAppWorkflow(w http.ResponseWriter, r *h
 
 	//get/build app workflows starts
 	//using empty workflow name because it is optional, if not provided then workflows will be fetched on the basis of app
-	wfCloneRequest := &appWorkflow.WorkflowCloneRequest{AppId: appId}
+	wfCloneRequest := &bean3.WorkflowCloneRequest{AppId: appId}
 	appWorkflows, err, statusCode := handler.buildAppWorkflows(wfCloneRequest)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, statusCode)
@@ -2349,7 +2350,7 @@ func (handler CoreAppRestHandlerImpl) GetAppWorkflowAndOverridesSample(w http.Re
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	wfCloneRequest := &appWorkflow.WorkflowCloneRequest{AppId: appId}
+	wfCloneRequest := &bean3.WorkflowCloneRequest{AppId: appId}
 	workflowName := r.URL.Query().Get("workflowName")
 	wfCloneRequest.WorkflowName = workflowName
 	environmentIdStr := r.URL.Query().Get("environmentId")

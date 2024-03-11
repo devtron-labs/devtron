@@ -2,6 +2,7 @@ package repository
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/artifactPromotion/constants"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
@@ -49,6 +50,7 @@ type RequestRepository interface {
 	MarkStaleByDestinationPipelineId(tx *pg.Tx, pipelineIds []int) error
 	MarkStaleByPolicyId(tx *pg.Tx, policyId int) error
 	MarkPromoted(tx *pg.Tx, requestIds []int) error
+	FindArtifactsCountPendingForPromotionByPipelineIds(pipelineIds []int) (int, error)
 }
 
 func (repo *RequestRepositoryImpl) Create(tx *pg.Tx, PromotionRequest *ArtifactPromotionApprovalRequest) (*ArtifactPromotionApprovalRequest, error) {
@@ -215,4 +217,18 @@ func (repo *RequestRepositoryImpl) UpdateInBulk(tx *pg.Tx, PromotionRequest []*A
 		}
 	}
 	return nil
+}
+
+func (impl RequestRepositoryImpl) FindArtifactsCountPendingForPromotionByPipelineIds(pipelineIds []int) (int, error) {
+	var count int
+	if len(pipelineIds) == 0 {
+		return 0, nil
+	}
+	query := fmt.Sprintf("select count(distinct(artifact_id)) as total_count from artifact_promotion_approval_request where destination_pipeline_id IN (%s) and status = %d",
+		helper.GetCommaSepratedString(pipelineIds), constants.AWAITING_APPROVAL)
+	_, err := impl.dbConnection.Query(&count, query)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
 }

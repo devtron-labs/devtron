@@ -212,7 +212,7 @@ func (handler *RestHandlerImpl) FetchAwaitingApprovalEnvListForArtifact(w http.R
 
 	environmentName := queryParams.Get("environmentName")
 
-	environmentApprovalMetadata, err := handler.promotionApprovalRequestService.FetchApprovalAllowedEnvList(artifactId, environmentName, userId, token, handler.CheckImagePromoterBulkAuth)
+	environmentApprovalMetadata, err := handler.promotionApprovalRequestService.FetchApprovalAllowedEnvList(artifactId, environmentName, userId, token, handler.enforcerUtil.CheckImagePromoterBulkAuth)
 	if err != nil {
 		handler.logger.Errorw("error in fetching environments with pending approval for artifact", "artifactId", artifactId, "err", err)
 		return
@@ -278,7 +278,7 @@ func (handler *RestHandlerImpl) GetArtifactsForPromotion(w http.ResponseWriter, 
 	}
 	ctx := context.WithValue(context.WithValue(context.Background(), "token", token), "userId", userId)
 
-	artifactPromotionMaterialResponse, err := handler.appArtifactManager.FetchMaterialForArtifactPromotion(ctx, *artifactPromotionMaterialRequest, handler.CheckImagePromoterBulkAuth)
+	artifactPromotionMaterialResponse, err := handler.appArtifactManager.FetchMaterialForArtifactPromotion(ctx, *artifactPromotionMaterialRequest, handler.enforcerUtil.CheckImagePromoterBulkAuth)
 	if err != nil {
 		handler.logger.Errorw("error in fetching artifacts for given promotion request parameters", "err", err)
 		common.WriteJsonResp(w, errors.New("error in fetching artifacts response for given request parameters"), nil, http.StatusInternalServerError)
@@ -413,10 +413,6 @@ func (handler *RestHandlerImpl) CheckImagePromoterAuth(token string, object stri
 		return false
 	}
 	return true
-}
-
-func (handler *RestHandlerImpl) CheckImagePromoterBulkAuth(token string, object []string) map[string]bool {
-	return handler.enforcer.EnforceInBatch(token, casbin.ResourceApprovalPolicy, casbin.ActionArtifactPromote, object)
 }
 
 func (handler *RestHandlerImpl) promoteActionRbac(token, appName string, envNames []string) map[string]bool {
